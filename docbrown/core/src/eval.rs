@@ -405,7 +405,7 @@ impl<'a> EvalVertexView<'a, TemporalGraph> {
     where
         F: Fn(&mut A, A) + Clone,
     {
-        let id = self.vv.global_id();
+        let id = self.vv.g_id;
         AccEntry::new(acc, id)
     }
 
@@ -413,7 +413,7 @@ impl<'a> EvalVertexView<'a, TemporalGraph> {
     where
         F: Fn(&mut A, A) + Clone,
     {
-        let id = self.vv.global_id();
+        let id = self.vv.g_id;
         acc.read_prev(&id)
     }
 
@@ -573,7 +573,7 @@ mod eval_test {
             |vertex, ctx| {
                 let min_cc_id = ctx.acc(&min); // get the accumulator for the min_cc_id
 
-                let gid = vertex.vv.global_id();
+                let gid = vertex.vv.g_id;
 
                 let mut min_acc = vertex.get(&min_cc_id); // get the entry for this vertex in the min_cc_id accumulator
                 min_acc += gid; // set the value to the global id of the vertex

@@ -97,24 +97,27 @@ fn main() {
     let gandalf = utils::calculate_hash(&"Gandalf");
 
     assert_eq!(gandalf, 13840129630991083248);
-    assert!(graph.contains(gandalf));
+    assert!(graph.has_vertex(gandalf));
 
-    assert_eq!(graph.degree(gandalf, Direction::IN), 24);
-    assert_eq!(graph.degree(gandalf, Direction::OUT), 35);
-    assert_eq!(graph.degree(gandalf, Direction::BOTH), 49);
+    let windowed_graph = graph.window(i64::MIN, i64::MAX);
+    let v = windowed_graph.vertex(gandalf).unwrap();
 
-    assert_eq!(graph.degree_window(gandalf, 0, i64::MAX, Direction::IN), 24);
-    assert_eq!(
-        graph.degree_window(gandalf, 0, i64::MAX, Direction::OUT),
-        35
-    );
-    assert_eq!(
-        graph.degree_window(gandalf, 0, i64::MAX, Direction::BOTH),
-        49
-    );
+    assert_eq!(v.in_degree(), 24);
+    assert_eq!(v.out_degree(), 35);
+    assert_eq!(v.degree(), 49);
 
-    let actual = graph
-        .neighbours_window(gandalf, 100, 9000, Direction::OUT)
+    let windowed_graph = graph.window(0, i64::MAX);
+    let v = windowed_graph.vertex(gandalf).unwrap();
+
+    assert_eq!(v.in_degree(), 24);
+    assert_eq!(v.out_degree(), 35);
+    assert_eq!(v.degree(), 49);
+
+    let windowed_graph = graph.window(100, 9000);
+    let v = windowed_graph.vertex(gandalf).unwrap();
+
+    let actual = v
+        .out_neighbours()
         .map(|e| (e.src, e.dst, e.t, e.is_remote))
         .collect::<Vec<_>>();
 
@@ -135,8 +138,10 @@ fn main() {
 
     assert_eq!(actual, expected);
 
-    let actual = graph
-        .neighbours(gandalf, Direction::OUT)
+    let windowed_graph = graph.window(i64::MIN, i64::MAX);
+    let v = windowed_graph.vertex(gandalf).unwrap();
+    let actual = v
+        .out_neighbours()
         .take(10)
         .map(|e| (e.src, e.dst, e.t, e.is_remote))
         .collect::<Vec<_>>();
@@ -156,20 +161,8 @@ fn main() {
 
     assert_eq!(actual, expected);
 
-    let actual = graph
-        .neighbours_window_t(gandalf, 3000, 5000, Direction::OUT)
-        .map(|e| (e.src, e.dst, e.t, e.is_remote))
-        .collect::<Vec<_>>();
-
-    let expected: Vec<(u64, u64, Option<i64>, bool)> = vec![
-        (13840129630991083248, 2582862946330553552, Some(3060), false),
-        (0, 5956895584314169235, Some(3703), true),
-        (0, 5956895584314169235, Some(3914), true),
-    ];
-
-    assert_eq!(actual, expected);
-
-    let actual = graph
+    let windowed_graph = graph.window(i64::MIN, i64::MAX);
+    let actual = windowed_graph
         .vertices()
         .take(10)
         .map(|tv| tv.g_id)
@@ -190,8 +183,9 @@ fn main() {
 
     assert_eq!(actual, expected);
 
-    let actual = graph
-        .vertices_window(0, 300)
+    let windowed_graph = graph.window(0, 300);
+    let actual = windowed_graph
+        .vertices()
         .map(|v| v.g_id)
         .collect::<Vec<u64>>();
 

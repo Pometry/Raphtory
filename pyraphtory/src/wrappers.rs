@@ -1,9 +1,12 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use pyo3::prelude::*;
 
-use dbc::tgraph_shard;
-use docbrown_core as dbc;
+use db_c::tgraph_shard;
+use docbrown_core as db_c;
+use docbrown_db as db_db;
+
+use crate::graph_window::WindowedVertex;
 
 #[pyclass]
 #[derive(Copy, Clone, PartialEq, Eq)]
@@ -13,12 +16,12 @@ pub enum Direction {
     BOTH,
 }
 
-impl From<Direction> for dbc::Direction {
-    fn from(d: Direction) -> dbc::Direction {
+impl From<Direction> for db_c::Direction {
+    fn from(d: Direction) -> db_c::Direction {
         match d {
-            Direction::OUT => dbc::Direction::OUT,
-            Direction::IN => dbc::Direction::IN,
-            Direction::BOTH => dbc::Direction::BOTH,
+            Direction::OUT => db_c::Direction::OUT,
+            Direction::IN => db_c::Direction::IN,
+            Direction::BOTH => db_c::Direction::BOTH,
         }
     }
 }
@@ -50,32 +53,32 @@ impl IntoPy<PyObject> for Prop {
     }
 }
 
-impl From<Prop> for dbc::Prop {
-    fn from(prop: Prop) -> dbc::Prop {
+impl From<Prop> for db_c::Prop {
+    fn from(prop: Prop) -> db_c::Prop {
         match prop {
-            Prop::Str(string) => dbc::Prop::Str(string.clone()),
-            Prop::I32(i32) => dbc::Prop::I32(i32),
-            Prop::I64(i64) => dbc::Prop::I64(i64),
-            Prop::U32(u32) => dbc::Prop::U32(u32),
-            Prop::U64(u64) => dbc::Prop::U64(u64),
-            Prop::F32(f32) => dbc::Prop::F32(f32),
-            Prop::F64(f64) => dbc::Prop::F64(f64),
-            Prop::Bool(bool) => dbc::Prop::Bool(bool),
+            Prop::Str(string) => db_c::Prop::Str(string.clone()),
+            Prop::I32(i32) => db_c::Prop::I32(i32),
+            Prop::I64(i64) => db_c::Prop::I64(i64),
+            Prop::U32(u32) => db_c::Prop::U32(u32),
+            Prop::U64(u64) => db_c::Prop::U64(u64),
+            Prop::F32(f32) => db_c::Prop::F32(f32),
+            Prop::F64(f64) => db_c::Prop::F64(f64),
+            Prop::Bool(bool) => db_c::Prop::Bool(bool),
         }
     }
 }
 
-impl From<dbc::Prop> for Prop {
-    fn from(prop: dbc::Prop) -> Prop {
+impl From<db_c::Prop> for Prop {
+    fn from(prop: db_c::Prop) -> Prop {
         match prop {
-            dbc::Prop::Str(string) => Prop::Str(string.clone()),
-            dbc::Prop::I32(i32) => Prop::I32(i32),
-            dbc::Prop::I64(i64) => Prop::I64(i64),
-            dbc::Prop::U32(u32) => Prop::U32(u32),
-            dbc::Prop::U64(u64) => Prop::U64(u64),
-            dbc::Prop::F32(f32) => Prop::F32(f32),
-            dbc::Prop::F64(f64) => Prop::F64(f64),
-            dbc::Prop::Bool(bool) => Prop::Bool(bool),
+            db_c::Prop::Str(string) => Prop::Str(string.clone()),
+            db_c::Prop::I32(i32) => Prop::I32(i32),
+            db_c::Prop::I64(i64) => Prop::I64(i64),
+            db_c::Prop::U32(u32) => Prop::U32(u32),
+            db_c::Prop::U64(u64) => Prop::U64(u64),
+            db_c::Prop::F32(f32) => Prop::F32(f32),
+            db_c::Prop::F64(f64) => Prop::F64(f64),
+            db_c::Prop::Bool(bool) => Prop::Bool(bool),
         }
     }
 }
@@ -173,6 +176,21 @@ impl VertexIterator {
         slf
     }
     fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<TVertex> {
+        slf.iter.next()
+    }
+}
+
+#[pyclass]
+pub struct WindowedVertexIterator {
+    pub(crate) iter: Box<dyn Iterator<Item = WindowedVertex> + Send>,
+}
+
+#[pymethods]
+impl WindowedVertexIterator {
+    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        slf
+    }
+    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<WindowedVertex> {
         slf.iter.next()
     }
 }

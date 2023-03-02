@@ -1,17 +1,17 @@
+use pyo3::exceptions;
 use docbrown_core as dbc;
 use docbrown_db::graph;
-use pyo3::exceptions;
 use pyo3::prelude::*;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
+use crate::graph_window::WindowedGraph;
+use crate::wrappers::Prop;
 use crate::wrappers::Direction;
 use crate::wrappers::EdgeIterator;
-use crate::wrappers::Prop;
 use crate::wrappers::VertexIdsIterator;
 use crate::wrappers::VertexIterator;
 
-use crate::graph_window::WindowedGraph;
 
 #[pyclass]
 pub struct Graph {
@@ -62,12 +62,8 @@ impl Graph {
         self.graph.edges_len()
     }
 
-    pub fn contains(&self, v: u64) -> bool {
-        self.graph.contains(v)
-    }
-
-    pub fn contains_window(&self, v: u64, t_start: i64, t_end: i64) -> bool {
-        self.graph.contains_window(v, t_start, t_end)
+    pub fn has_vertex(&self, v: u64) -> bool {
+        self.graph.has_vertex(v)
     }
 
     pub fn add_vertex(&self, t: i64, v: u64, props: HashMap<String, Prop>) {
@@ -91,80 +87,5 @@ impl Graph {
                 .map(|f| (f.0.clone(), f.1.into()))
                 .collect::<Vec<(String, dbc::Prop)>>(),
         )
-    }
-
-    pub fn degree(&self, v: u64, d: Direction) -> usize {
-        self.graph.degree(v, d.into())
-    }
-
-    pub fn degree_window(&self, v: u64, t_start: i64, t_end: i64, d: Direction) -> usize {
-        self.graph.degree_window(v, t_start, t_end, d.into())
-    }
-
-    pub fn vertex_ids(&self) -> VertexIdsIterator {
-        VertexIdsIterator {
-            iter: self.graph.vertex_ids(),
-        }
-    }
-
-    pub fn vertices(&self) -> VertexIterator {
-        let iter = self.graph.vertices().map(|tv| tv.into());
-
-        VertexIterator {
-            iter: Box::new(iter),
-        }
-    }
-
-    pub fn vertices_window(&self, t_start: i64, t_end: i64) -> VertexIterator {
-        let iter = self
-            .graph
-            .vertices_window(t_start, t_end)
-            .map(|tv| tv.into());
-
-        VertexIterator {
-            iter: Box::new(iter),
-        }
-    }
-
-    pub fn neighbours(&self, v: u64, d: Direction) -> EdgeIterator {
-        let iter = self.graph.neighbours(v, d.into()).map(|te| te.into());
-
-        EdgeIterator {
-            iter: Box::new(iter),
-        }
-    }
-
-    pub fn neighbours_window(
-        &self,
-        v: u64,
-        t_start: i64,
-        t_end: i64,
-        d: Direction,
-    ) -> EdgeIterator {
-        let iter = self
-            .graph
-            .neighbours_window(v, t_start, t_end, d.into())
-            .map(|te| te.into());
-
-        EdgeIterator {
-            iter: Box::new(iter),
-        }
-    }
-
-    pub fn neighbours_window_t(
-        &self,
-        v: u64,
-        t_start: i64,
-        t_end: i64,
-        d: Direction,
-    ) -> EdgeIterator {
-        let iter = self
-            .graph
-            .neighbours_window_t(v, t_start, t_end, d.into())
-            .map(|te| te.into());
-
-        EdgeIterator {
-            iter: Box::new(iter),
-        }
     }
 }
