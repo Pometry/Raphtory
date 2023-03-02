@@ -8,8 +8,6 @@ use docbrown_core::{
     utils, Direction, Prop,
 };
 
-use crate::graph_loader::lotr_graph::{lotr_file, lotr_graph};
-use crate::graph_loader::twitter_graph::twitter_graph;
 use crate::graph_window::WindowedGraph;
 
 use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
@@ -229,6 +227,11 @@ mod db_tests {
     use std::fs;
     use std::sync::Arc;
     use uuid::Uuid;
+
+    use crate::graph_loader::{
+        lotr_graph::{lotr_file, lotr_graph},
+        twitter_graph::twitter_graph,
+    };
 
     use super::*;
 
