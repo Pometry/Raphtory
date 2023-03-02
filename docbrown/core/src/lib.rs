@@ -15,6 +15,7 @@ pub mod tgraph_shard;
 mod tprop;
 mod tprop_vec;
 pub mod utils;
+pub mod eval;
 
 // Denotes edge direction
 #[derive(Clone, Copy, PartialEq)]
