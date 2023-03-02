@@ -1,0 +1,12 @@
+[package]
+name = "algorithms"
+version.workspace = true
+edition = "2021"
+keywords = ["graph", "temporal-graph", "temporal", "algorithms"]
+
+[dependencies]
+docbrown-core = {path = "../docbrown/core"}
+docbrown-db = {path = "../docbrown/db"}
+itertools = "0.10.5"
+quickcheck = "1"
+quickcheck_macros = "1"

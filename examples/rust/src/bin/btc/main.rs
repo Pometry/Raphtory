@@ -117,14 +117,13 @@ fn main() {
     assert_eq!(graph.len(), 9132396);
     assert_eq!(graph.edges_len(), 5087223);
 
-    assert!(graph.contains(test_v));
+    let windowed_graph = graph.window(0, i64::MAX);
 
-    let deg_out = graph
-        .neighbours_window(test_v, 0, i64::MAX, Direction::OUT)
-        .count();
-    let deg_in = graph
-        .neighbours_window(test_v, 0, i64::MAX, Direction::IN)
-        .count();
+    assert!(windowed_graph.has_vertex(test_v));
+    let v = windowed_graph.vertex(test_v).unwrap();
+
+    let deg_out = v.out_neighbours().count();
+    let deg_in = v.in_neighbours().count();
 
     assert_eq!(deg_out, 22);
     assert_eq!(deg_in, 1);

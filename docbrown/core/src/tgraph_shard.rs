@@ -24,7 +24,7 @@ impl<'a> From<EdgeView<'a, TemporalGraph>> for TEdge {
         Self {
             src: e.global_src(),
             dst: e.global_dst(),
-            t: e.time(),
+            t: e.t,
             is_remote: e.is_remote(),
         }
     }
@@ -39,15 +39,16 @@ pub struct TVertex {
 
 impl<'a> From<VertexView<'a, TemporalGraph>> for TVertex {
     fn from(v: VertexView<'a, TemporalGraph>) -> Self {
-        let props = if v.window().is_none() {
+        let w = v.w.clone();
+        let props = if w.is_none() {
             v.all_props()
         } else {
-            v.all_props_window(v.window().unwrap())
+            v.all_props_window(w.clone().unwrap())
         };
-        
+
         Self {
-            g_id: v.global_id(),
-            w: v.window(),
+            g_id: v.g_id,
+            w: w.clone(),
             props,
         }
     }
@@ -124,12 +125,16 @@ impl TGraphShard {
         self.read_shard(|tg| tg.out_edges_len())
     }
 
-    pub fn contains(&self, v: u64) -> bool {
-        self.read_shard(|tg| tg.contains_vertex(v))
+    pub fn has_edge(&self, src: u64, dst: u64) -> bool {
+        self.read_shard(|tg| tg.has_edge(src, dst))
     }
 
-    pub fn contains_window(&self, v: u64, r: Range<i64>) -> bool {
-        self.read_shard(|tg| tg.contains_vertex_window(&r, v))
+    pub fn has_vertex(&self, v: u64) -> bool {
+        self.read_shard(|tg| tg.has_vertex(v))
+    }
+
+    pub fn has_vertex_window(&self, v: u64, r: Range<i64>) -> bool {
+        self.read_shard(|tg| tg.has_vertex_window(&r, v))
     }
 
     pub fn add_vertex(&self, t: i64, v: u64, props: &Vec<(String, Prop)>) {
@@ -154,6 +159,14 @@ impl TGraphShard {
 
     pub fn degree_window(&self, v: u64, r: Range<i64>, d: Direction) -> usize {
         self.read_shard(|tg: &TemporalGraph| tg.degree_window(v, &r, d))
+    }
+
+    pub fn vertex(&self, v: u64) -> Option<TVertex> {
+        self.read_shard(|tg| tg.vertex(v).map(|vv| vv.into()))
+    }
+
+    pub fn vertex_window(&self, v: u64, r: Range<i64>) -> Option<TVertex> {
+        self.read_shard(|tg| tg.vertex_window(v, &r).map(|vv| vv.into()))
     }
 
     pub fn vertex_ids(&self) -> Box<impl Iterator<Item = u64> + Send> {
@@ -303,7 +316,7 @@ mod temporal_graph_partition_test {
             g.add_vertex(t.into(), v.into(), &vec![]);
         }
 
-        TestResult::from_bool(g.contains(rand_vertex))
+        TestResult::from_bool(g.has_vertex(rand_vertex))
     }
 
     #[test]
@@ -323,9 +336,9 @@ mod temporal_graph_partition_test {
             g.add_edge(*t, *src, *dst, &vec![]);
         }
 
-        assert!(g.contains_window(1, -1..7));
-        assert!(!g.contains_window(2, 0..1));
-        assert!(g.contains_window(3, 0..8));
+        assert!(g.has_vertex_window(1, -1..7));
+        assert!(!g.has_vertex_window(2, 0..1));
+        assert!(g.has_vertex_window(3, 0..8));
     }
 
     #[quickcheck]
