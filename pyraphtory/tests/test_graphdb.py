@@ -1,5 +1,6 @@
 import sys
 from pyraphtory import Graph
+from pyraphtory import algorithms
 
 def create_graph(num_shards):
     g = Graph(num_shards)
@@ -141,3 +142,17 @@ def test_windowed_graph_vertices():
         vertices.append(v.g_id)
 
     assert vertices == [1, 2]
+
+def test_local_triangle_count():
+
+    g = Graph(1)
+
+    g.add_edge(1, 1, 2, {"prop1": 1})
+    g.add_edge(2, 2, 3, {"prop1": 1})
+    g.add_edge(3, 3, 1, {"prop1": 1})
+
+
+    view = g.window(0, 4)
+    triangles = algorithms.triangle_count(view, 1)
+
+    assert triangles == 1

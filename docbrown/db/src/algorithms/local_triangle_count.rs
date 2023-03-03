@@ -1,16 +1,14 @@
 use docbrown_core::Direction;
-use docbrown_db::{graph::Graph, graph_window::WindowedGraph};
+use crate::{graph::Graph, graph_window::WindowedGraph};
 use itertools::Itertools;
 use std::error::Error;
 
-pub(crate) fn local_triangle_count(graph: &Graph, v: u64, t_start: i64, t_end: i64) -> u32 {
+pub fn local_triangle_count(graph: &WindowedGraph, v: u64) -> u32 {
     let mut number_of_triangles: u32 = 0;
-    let windowed_graph = graph.window(t_start, t_end);
-    let vertex = windowed_graph.vertex(v).unwrap();
+    let vertex = graph.vertex(v).unwrap();
 
-    if graph.window(t_start, t_end).has_vertex(v) && vertex.degree() >= 2 {
+    if graph.has_vertex(v) && vertex.degree() >= 2 {
         graph
-            .window(t_start, t_end)
             .vertex_ids()
             .combinations(2)
             .for_each(|v| {
@@ -19,14 +17,13 @@ pub(crate) fn local_triangle_count(graph: &Graph, v: u64, t_start: i64, t_end: i
                 }
             })
     }
-
-    number_of_triangles
+    number_of_triangles / 3
 }
 
 #[cfg(test)]
 mod triangle_count_tests {
 
-    use docbrown_db::graph::Graph;
+    use crate::graph::Graph;
 
     use super::local_triangle_count;
 
@@ -39,10 +36,11 @@ mod triangle_count_tests {
             g.add_edge(*t, *src, *dst, &vec![]);
         }
 
-        let expected = vec![(3), (3), (3)];
+        let windowed_graph = g.window(0, 5);
+        let expected = vec![(1), (1), (1)];
 
         let actual = (1..=3)
-            .map(|v| local_triangle_count(&g, v, 1, 5))
+            .map(|v| local_triangle_count(&windowed_graph, v))
             .collect::<Vec<_>>();
 
         assert_eq!(actual, expected);
