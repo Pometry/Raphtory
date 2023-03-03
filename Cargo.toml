@@ -1,6 +1,5 @@
 [workspace]
 members = [
-	"algorithms",
 	"docbrown/core",
 	"docbrown/db",
 	"examples/rust",

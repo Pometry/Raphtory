@@ -1,11 +1,11 @@
-use crate::local_triangle_count::local_triangle_count;
-use docbrown_db::{graph::Graph, graph_window::WindowedGraph};
+use crate::algorithms::local_triangle_count::local_triangle_count;
+use crate::graph_window::WindowedGraph;
 
-pub fn local_clustering_coefficient(graph: &Graph, v: u64, t_start: i64, t_end: i64) -> u32 {
-    let windowed_graph = graph.window(t_start, t_end);
-    let vertex = windowed_graph.vertex(v).unwrap();
+pub fn local_clustering_coefficient(graph: &WindowedGraph, v: u64) -> u32 {
+   
+    let vertex = graph.vertex(v).unwrap();
 
-    let triangle_count = local_triangle_count(graph, v, t_start, t_end);
+    let triangle_count = local_triangle_count(graph, v);
     let degree = vertex.degree() as u32;
     if degree > 1 {
         (2 * triangle_count) / (degree * (degree - 1))
@@ -17,13 +17,14 @@ pub fn local_clustering_coefficient(graph: &Graph, v: u64, t_start: i64, t_end: 
 #[cfg(test)]
 mod clustering_coefficient_tests {
 
-    use docbrown_db::graph::Graph;
+    use crate::graph::Graph;
 
     use super::local_clustering_coefficient;
 
     #[test]
     fn clusters_of_triangles() {
         let g = Graph::new(1);
+        let windowed_graph = g.window(0, 7);
         let vs = vec![
             (1, 1, 2),
             (2, 1, 3),
@@ -37,10 +38,10 @@ mod clustering_coefficient_tests {
             g.add_edge(*t, *src, *dst, &vec![]);
         }
 
-        let expected = vec![1, 5, 5, 5, 0];
+        let expected = vec![0, 1, 1, 1, 0];
 
         let actual = (1..=5)
-            .map(|v| local_clustering_coefficient(&g, v, 1, 7))
+            .map(|v| local_clustering_coefficient(&windowed_graph, v))
             .collect::<Vec<_>>();
 
         assert_eq!(actual, expected);
