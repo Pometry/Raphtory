@@ -1,11 +1,14 @@
 use crate::graph_window::WindowedGraph;
 use std::{
+    collections::HashMap,
+    ops::Range,
     path::{Path, PathBuf},
     sync::Arc,
 };
 
 use docbrown_core::{
-    tgraph_shard::{TEdge, TGraphShard, TVertex},
+    tgraph::{EdgeView, VertexView},
+    tgraph_shard::{TEdge, TGraphShard},
     utils, Direction, Prop,
 };
 
@@ -116,8 +119,8 @@ impl Graph {
         self.shards.iter().map(|shard| shard.out_edges_len()).sum()
     }
 
-    pub fn has_edge(&self, src: u64, dst: u64) -> bool {
-        self.shards.iter().any(|shard| shard.has_edge(src, dst))
+    pub fn has_edge(&self, v1: u64, v2: u64) -> bool {
+        self.shards.iter().any(|shard| shard.has_edge(v1, v2))
     }
 
     pub fn has_vertex(&self, v: u64) -> bool {
@@ -130,12 +133,12 @@ impl Graph {
             .any(|shard| shard.has_vertex_window(v, t_start..t_end))
     }
 
-    pub(crate) fn vertex(&self, v: u64) -> Option<TVertex> {
+    pub(crate) fn vertex(&self, v: u64) -> Option<VertexView> {
         let shard_id = utils::get_shard_id_from_global_vid(v, self.nr_shards);
         self.shards[shard_id].vertex(v)
     }
 
-    pub(crate) fn vertex_window(&self, v: u64, t_start: i64, t_end: i64) -> Option<TVertex> {
+    pub(crate) fn vertex_window(&self, v: u64, t_start: i64, t_end: i64) -> Option<VertexView> {
         let shard_id = utils::get_shard_id_from_global_vid(v, self.nr_shards);
         self.shards[shard_id].vertex_window(v, t_start..t_end)
     }
@@ -165,7 +168,7 @@ impl Graph {
         &self,
         t_start: i64,
         t_end: i64,
-    ) -> Box<dyn Iterator<Item = TVertex> + Send> {
+    ) -> Box<dyn Iterator<Item = VertexView> + Send> {
         let shards = self.shards.clone();
         Box::new(
             shards
@@ -175,32 +178,111 @@ impl Graph {
         )
     }
 
+    pub(crate) fn edge(&self, v1: u64, v2: u64) -> Option<EdgeView> {
+        let shard_id = utils::get_shard_id_from_global_vid(v1, self.nr_shards);
+        self.shards[shard_id].edge(v1, v2)
+    }
+
+    pub(crate) fn edge_window(
+        &self,
+        v1: u64,
+        v2: u64,
+        t_start: i64,
+        t_end: i64,
+    ) -> Option<EdgeView> {
+        let shard_id = utils::get_shard_id_from_global_vid(v1, self.nr_shards);
+        self.shards[shard_id].edge_window(v1, v2, t_start..t_end)
+    }
+
+    pub(crate) fn edges_window(
+        &self,
+        v: u64,
+        t_start: i64,
+        t_end: i64,
+        d: Direction,
+    ) -> Box<dyn Iterator<Item = EdgeView> + Send> {
+        let shard_id = utils::get_shard_id_from_global_vid(v, self.nr_shards);
+        let iter = self.shards[shard_id].edges_window(v, t_start..t_end, d);
+        Box::new(iter)
+    }
+
+    pub(crate) fn edges_window_t(
+        &self,
+        v: u64,
+        t_start: i64,
+        t_end: i64,
+        d: Direction,
+    ) -> Box<dyn Iterator<Item = EdgeView> + Send> {
+        let shard_id = utils::get_shard_id_from_global_vid(v, self.nr_shards);
+        let iter = self.shards[shard_id].edges_window_t(v, t_start..t_end, d);
+        Box::new(iter)
+    }
+
     pub(crate) fn neighbours_window(
         &self,
         v: u64,
         t_start: i64,
         t_end: i64,
         d: Direction,
-    ) -> Box<dyn Iterator<Item = TEdge> + Send> {
+    ) -> Box<dyn Iterator<Item = VertexView> + Send> {
         let shard_id = utils::get_shard_id_from_global_vid(v, self.nr_shards);
-
         let iter = self.shards[shard_id].neighbours_window(v, t_start..t_end, d);
-
         Box::new(iter)
     }
 
-    pub(crate) fn neighbours_window_t(
+    pub(crate) fn neighbours_ids_window(
         &self,
         v: u64,
         t_start: i64,
         t_end: i64,
         d: Direction,
-    ) -> Box<dyn Iterator<Item = TEdge> + Send> {
+    ) -> Box<dyn Iterator<Item = u64> + Send>
+    where
+        Self: Sized,
+    {
         let shard_id = utils::get_shard_id_from_global_vid(v, self.nr_shards);
-
-        let iter = self.shards[shard_id].neighbours_window_t(v, t_start..t_end, d);
-
+        let iter = self.shards[shard_id].neighbours_ids_window(v, t_start..t_end, d);
         Box::new(iter)
+    }
+
+    pub(crate) fn vertex_prop_vec(&self, v: u64, name: String) -> Vec<(i64, Prop)> {
+        let shard_id = utils::get_shard_id_from_global_vid(v, self.nr_shards);
+        self.shards[shard_id].vertex_prop_vec(v, name)
+    }
+
+    pub(crate) fn vertex_prop_vec_window(
+        &self,
+        v: u64,
+        name: String,
+        w: Range<i64>,
+    ) -> Vec<(i64, Prop)> {
+        let shard_id = utils::get_shard_id_from_global_vid(v, self.nr_shards);
+        self.shards[shard_id].vertex_prop_vec_window(v, name, w)
+    }
+
+    pub(crate) fn vertex_props(&self, v: u64) -> HashMap<String, Vec<(i64, Prop)>> {
+        let shard_id = utils::get_shard_id_from_global_vid(v, self.nr_shards);
+        self.shards[shard_id].vertex_props(v)
+    }
+
+    pub(crate) fn vertex_props_window(
+        &self,
+        v: u64,
+        w: Range<i64>,
+    ) -> HashMap<String, Vec<(i64, Prop)>> {
+        let shard_id = utils::get_shard_id_from_global_vid(v, self.nr_shards);
+        self.shards[shard_id].vertex_props_window(v, w)
+    }
+
+    pub fn edge_props_vec_window(
+        &self,
+        v: u64,
+        e: usize,
+        name: String,
+        w: Range<i64>,
+    ) -> Vec<(i64, Prop)> {
+        let shard_id = utils::get_shard_id_from_global_vid(v, self.nr_shards);
+        self.shards[shard_id].edge_props_vec_window(e, name, w)
     }
 }
 
@@ -213,11 +295,6 @@ mod db_tests {
     use std::fs;
     use std::sync::Arc;
     use uuid::Uuid;
-
-    use crate::graph_loader::{
-        lotr_graph::{lotr_file, lotr_graph},
-        twitter_graph::twitter_graph,
-    };
 
     use super::*;
 
@@ -334,6 +411,39 @@ mod db_tests {
     }
 
     #[test]
+    fn has_edge() {
+        let g = Graph::new(2);
+        g.add_edge(1, 7, 8, &vec![]);
+
+        assert_eq!(g.has_edge(8, 7), true);
+    }
+
+    #[test]
+    fn graph_edge() {
+        let g = Graph::new(2);
+        let es = vec![
+            (1, 1, 2),
+            (2, 1, 3),
+            (-1, 2, 1),
+            (0, 1, 1),
+            (7, 3, 2),
+            (1, 1, 1),
+        ];
+        for (t, src, dst) in es {
+            g.add_edge(t, src, dst, &vec![])
+        }
+
+        assert_eq!(
+            g.edge_window(1, 3, i64::MIN, i64::MAX).unwrap().src_g_id,
+            1u64
+        );
+        assert_eq!(
+            g.edge_window(1, 3, i64::MIN, i64::MAX).unwrap().dst_g_id,
+            3u64
+        );
+    }
+
+    #[test]
     fn graph_degree_window() {
         let vs = vec![
             (1, 1, 2),
@@ -404,13 +514,13 @@ mod db_tests {
         let actual = (1..=3)
             .map(|i| {
                 (
-                    g.neighbours_window(i, -1, 7, Direction::IN)
+                    g.edges_window(i, -1, 7, Direction::IN)
                         .collect::<Vec<_>>()
                         .len(),
-                    g.neighbours_window(i, 1, 7, Direction::OUT)
+                    g.edges_window(i, 1, 7, Direction::OUT)
                         .collect::<Vec<_>>()
                         .len(),
-                    g.neighbours_window(i, 0, 1, Direction::BOTH)
+                    g.edges_window(i, 0, 1, Direction::BOTH)
                         .collect::<Vec<_>>()
                         .len(),
                 )
@@ -429,13 +539,13 @@ mod db_tests {
         let expected = (1..=3)
             .map(|i| {
                 (
-                    g.neighbours_window(i, -1, 7, Direction::IN)
+                    g.edges_window(i, -1, 7, Direction::IN)
                         .collect::<Vec<_>>()
                         .len(),
-                    g.neighbours_window(i, 1, 7, Direction::OUT)
+                    g.edges_window(i, 1, 7, Direction::OUT)
                         .collect::<Vec<_>>()
                         .len(),
-                    g.neighbours_window(i, 0, 1, Direction::BOTH)
+                    g.edges_window(i, 0, 1, Direction::BOTH)
                         .collect::<Vec<_>>()
                         .len(),
                 )
@@ -464,7 +574,7 @@ mod db_tests {
 
         let in_actual = (1..=3)
             .map(|i| {
-                g.neighbours_window_t(i, -1, 7, Direction::IN)
+                g.edges_window_t(i, -1, 7, Direction::IN)
                     .map(|e| e.t.unwrap())
                     .collect::<Vec<_>>()
             })
@@ -473,7 +583,7 @@ mod db_tests {
 
         let out_actual = (1..=3)
             .map(|i| {
-                g.neighbours_window_t(i, 1, 7, Direction::OUT)
+                g.edges_window_t(i, 1, 7, Direction::OUT)
                     .map(|e| e.t.unwrap())
                     .collect::<Vec<_>>()
             })
@@ -482,7 +592,7 @@ mod db_tests {
 
         let both_actual = (1..=3)
             .map(|i| {
-                g.neighbours_window_t(i, 0, 1, Direction::BOTH)
+                g.edges_window_t(i, 0, 1, Direction::BOTH)
                     .map(|e| e.t.unwrap())
                     .collect::<Vec<_>>()
             })
@@ -499,7 +609,7 @@ mod db_tests {
         let in_expected = (1..=3)
             .map(|i| {
                 let mut e = g
-                    .neighbours_window_t(i, -1, 7, Direction::IN)
+                    .edges_window_t(i, -1, 7, Direction::IN)
                     .map(|e| e.t.unwrap())
                     .collect::<Vec<_>>();
                 e.sort();
@@ -511,7 +621,7 @@ mod db_tests {
         let out_expected = (1..=3)
             .map(|i| {
                 let mut e = g
-                    .neighbours_window_t(i, 1, 7, Direction::OUT)
+                    .edges_window_t(i, 1, 7, Direction::OUT)
                     .map(|e| e.t.unwrap())
                     .collect::<Vec<_>>();
                 e.sort();
@@ -523,7 +633,7 @@ mod db_tests {
         let both_expected = (1..=3)
             .map(|i| {
                 let mut e = g
-                    .neighbours_window_t(i, 0, 1, Direction::BOTH)
+                    .edges_window_t(i, 0, 1, Direction::BOTH)
                     .map(|e| e.t.unwrap())
                     .collect::<Vec<_>>();
                 e.sort();
@@ -537,7 +647,8 @@ mod db_tests {
     fn db_lotr() {
         let g = Graph::new(4);
 
-        let data_dir = crate::graph_loader::lotr_graph::lotr_file().expect("Failed to get lotr.csv file");
+        let data_dir =
+            crate::graph_loader::lotr_graph::lotr_file().expect("Failed to get lotr.csv file");
 
         fn parse_record(rec: &StringRecord) -> Option<(String, String, i64)> {
             let src = rec.get(0).and_then(|s| s.parse::<String>().ok())?;

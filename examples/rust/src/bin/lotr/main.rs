@@ -117,7 +117,7 @@ fn main() {
     let v = windowed_graph.vertex(gandalf).unwrap();
 
     let actual = v
-        .out_neighbours()
+        .out_edges()
         .map(|e| (e.src, e.dst, e.t, e.is_remote))
         .collect::<Vec<_>>();
 
@@ -141,7 +141,7 @@ fn main() {
     let windowed_graph = graph.window(i64::MIN, i64::MAX);
     let v = windowed_graph.vertex(gandalf).unwrap();
     let actual = v
-        .out_neighbours()
+        .out_edges()
         .take(10)
         .map(|e| (e.src, e.dst, e.t, e.is_remote))
         .collect::<Vec<_>>();

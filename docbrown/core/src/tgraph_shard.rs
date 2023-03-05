@@ -12,44 +12,21 @@ use crate::{Direction, Prop};
 
 #[derive(Debug)]
 pub struct TEdge {
+    pub edge_id: usize,
     pub src: u64,
     pub dst: u64,
-    // edge_meta_id: AdjEdge,
     pub t: Option<i64>,
     pub is_remote: bool,
 }
 
-impl<'a> From<EdgeView<'a, TemporalGraph>> for TEdge {
-    fn from(e: EdgeView<'a, TemporalGraph>) -> Self {
+impl From<EdgeView> for TEdge {
+    fn from(e: EdgeView) -> Self {
         Self {
-            src: e.global_src(),
-            dst: e.global_dst(),
+            edge_id: e.e_meta.edge_meta_id(),
+            src: e.src_g_id,
+            dst: e.dst_g_id,
             t: e.t,
-            is_remote: e.is_remote(),
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct TVertex {
-    pub g_id: u64,
-    pub w: Option<Range<i64>>,
-    pub props: Option<HashMap<String, Vec<(i64, Prop)>>>,
-}
-
-impl<'a> From<VertexView<'a, TemporalGraph>> for TVertex {
-    fn from(v: VertexView<'a, TemporalGraph>) -> Self {
-        let w = v.w.clone();
-        let props = if w.is_none() {
-            v.all_props()
-        } else {
-            v.all_props_window(w.clone().unwrap())
-        };
-
-        Self {
-            g_id: v.g_id,
-            w: w.clone(),
-            props,
+            is_remote: !e.e_meta.is_local(),
         }
     }
 }
@@ -125,16 +102,16 @@ impl TGraphShard {
         self.read_shard(|tg| tg.out_edges_len())
     }
 
-    pub fn has_edge(&self, src: u64, dst: u64) -> bool {
-        self.read_shard(|tg| tg.has_edge(src, dst))
+    pub fn has_edge(&self, v1: u64, v2: u64) -> bool {
+        self.read_shard(|tg| tg.has_edge(v1, v2))
     }
 
     pub fn has_vertex(&self, v: u64) -> bool {
         self.read_shard(|tg| tg.has_vertex(v))
     }
 
-    pub fn has_vertex_window(&self, v: u64, r: Range<i64>) -> bool {
-        self.read_shard(|tg| tg.has_vertex_window(&r, v))
+    pub fn has_vertex_window(&self, v: u64, w: Range<i64>) -> bool {
+        self.read_shard(|tg| tg.has_vertex_window(&w, v))
     }
 
     pub fn add_vertex(&self, t: i64, v: u64, props: &Vec<(String, Prop)>) {
@@ -157,19 +134,19 @@ impl TGraphShard {
         self.read_shard(|tg: &TemporalGraph| tg.degree(v, d))
     }
 
-    pub fn degree_window(&self, v: u64, r: Range<i64>, d: Direction) -> usize {
-        self.read_shard(|tg: &TemporalGraph| tg.degree_window(v, &r, d))
+    pub fn degree_window(&self, v: u64, w: Range<i64>, d: Direction) -> usize {
+        self.read_shard(|tg: &TemporalGraph| tg.degree_window(v, &w, d))
     }
 
-    pub fn vertex(&self, v: u64) -> Option<TVertex> {
-        self.read_shard(|tg| tg.vertex(v).map(|vv| vv.into()))
+    pub fn vertex(&self, v: u64) -> Option<VertexView> {
+        self.read_shard(|tg| tg.vertex(v))
     }
 
-    pub fn vertex_window(&self, v: u64, r: Range<i64>) -> Option<TVertex> {
-        self.read_shard(|tg| tg.vertex_window(v, &r).map(|vv| vv.into()))
+    pub fn vertex_window(&self, v: u64, w: Range<i64>) -> Option<VertexView> {
+        self.read_shard(|tg| tg.vertex_window(v, &w))
     }
 
-    pub fn vertex_ids(&self) -> Box<impl Iterator<Item = u64> + Send> {
+    pub fn vertex_ids(&self) -> impl Iterator<Item = u64> {
         let tgshard = self.rc.clone();
         let iter: GenBoxed<u64> = GenBoxed::new_boxed(|co| async move {
             let g = tgshard.blocking_read();
@@ -179,100 +156,213 @@ impl TGraphShard {
             }
         });
 
-        Box::new(iter.into_iter())
+        iter.into_iter()
     }
 
-    pub fn vertex_ids_window(&self, r: Range<i64>) -> Box<impl Iterator<Item = u64> + Send> {
+    pub fn vertex_ids_window(&self, w: Range<i64>) -> impl Iterator<Item = u64> {
         let tgshard = self.rc.clone();
         let iter: GenBoxed<u64> = GenBoxed::new_boxed(|co| async move {
             let g = tgshard.blocking_read();
-            let iter = (*g).vertex_ids_window(r).map(|v| v.into());
+            let iter = (*g).vertex_ids_window(w).map(|v| v.into());
             for v_id in iter {
                 co.yield_(v_id).await;
             }
         });
 
-        Box::new(iter.into_iter())
+        iter.into_iter()
     }
 
-    pub fn vertices(&self) -> Box<impl Iterator<Item = TVertex> + Send> {
+    pub fn vertices(&self) -> impl Iterator<Item = VertexView> {
         let tgshard = self.rc.clone();
-        let iter: GenBoxed<TVertex> = GenBoxed::new_boxed(|co| async move {
+        let iter: GenBoxed<VertexView> = GenBoxed::new_boxed(|co| async move {
             let g = tgshard.blocking_read();
             let iter = (*g).vertices();
             for vv in iter {
-                let tv: TVertex = vv.into();
-                co.yield_(tv).await;
+                co.yield_(vv).await;
             }
         });
 
-        Box::new(iter.into_iter())
+        iter.into_iter()
     }
 
-    pub fn vertices_window(&self, r: Range<i64>) -> Box<impl Iterator<Item = TVertex> + Send> {
+    pub fn vertices_window(&self, w: Range<i64>) -> impl Iterator<Item = VertexView> {
         let tgshard = self.rc.clone();
-        let iter: GenBoxed<TVertex> = GenBoxed::new_boxed(|co| async move {
+        let iter: GenBoxed<VertexView> = GenBoxed::new_boxed(|co| async move {
             let g = tgshard.blocking_read();
-            let iter = (*g).vertices_window(r);
+            let iter = (*g).vertices_window(w);
             for vv in iter {
-                let tv: TVertex = vv.into();
-                co.yield_(tv).await;
+                co.yield_(vv).await;
             }
         });
 
-        Box::new(iter.into_iter())
+        iter.into_iter()
     }
 
-    pub fn neighbours(&self, v: u64, d: Direction) -> Box<impl Iterator<Item = TEdge> + Send> {
+    pub fn edge(&self, v1: u64, v2: u64) -> Option<EdgeView> {
+        self.read_shard(|tg| tg.edge(v1, v2))
+    }
+
+    pub fn edge_window(&self, v1: u64, v2: u64, w: Range<i64>) -> Option<EdgeView> {
+        self.read_shard(|tg| tg.edge_window(v1, v2, &w))
+    }
+
+    pub fn edges(&self, v: u64, d: Direction) -> impl Iterator<Item = EdgeView> {
         let tgshard = self.rc.clone();
-        let iter: GenBoxed<TEdge> = GenBoxed::new_boxed(|co| async move {
+        let iter: GenBoxed<EdgeView> = GenBoxed::new_boxed(|co| async move {
             let g = tgshard.blocking_read();
-            let iter = (*g).neighbours(v, d);
+            let iter = (*g).edges(v, d);
             for ev in iter {
-                let tv: TEdge = ev.into();
-                co.yield_(tv).await;
+                co.yield_(ev).await;
             }
         });
 
-        Box::new(iter.into_iter())
+        iter.into_iter()
+    }
+
+    pub fn edges_window(
+        &self,
+        v: u64,
+        w: Range<i64>,
+        d: Direction,
+    ) -> impl Iterator<Item = EdgeView> {
+        let tgshard = self.clone();
+        let iter = gen!({
+            let g = tgshard.rc.blocking_read();
+            let chunks = (*g).edges_window(v, &w, d).map(|e| e.into());
+            let iter = chunks.into_iter();
+            for v_id in iter {
+                yield_!(v_id)
+            }
+        });
+
+        iter.into_iter()
+    }
+
+    pub fn edges_window_t(
+        &self,
+        v: u64,
+        w: Range<i64>,
+        d: Direction,
+    ) -> impl Iterator<Item = EdgeView> {
+        let tgshard = self.clone();
+        let iter = gen!({
+            let g = tgshard.rc.blocking_read();
+            let chunks = (*g).edges_window_t(v, &w, d).map(|e| e.into());
+            let iter = chunks.into_iter();
+            for v_id in iter {
+                yield_!(v_id)
+            }
+        });
+
+        iter.into_iter()
+    }
+
+    pub fn neighbours(&self, v: u64, d: Direction) -> impl Iterator<Item = VertexView> {
+        let tgshard = self.clone();
+        let iter = gen!({
+            let g = tgshard.rc.blocking_read();
+            let chunks = (*g).neighbours(v, d);
+            let iter = chunks.into_iter();
+            for v_id in iter {
+                yield_!(v_id)
+            }
+        });
+
+        iter.into_iter()
     }
 
     pub fn neighbours_window(
         &self,
         v: u64,
-        r: Range<i64>,
+        w: Range<i64>,
         d: Direction,
-    ) -> impl Iterator<Item = TEdge> {
+    ) -> impl Iterator<Item = VertexView> {
         let tgshard = self.clone();
-        let vertices_iter = gen!({
+        let iter = gen!({
             let g = tgshard.rc.blocking_read();
-            let chunks = (*g).neighbours_window(v, &r, d).map(|e| e.into());
+            let chunks = (*g).neighbours_window(v, &w, d);
             let iter = chunks.into_iter();
             for v_id in iter {
                 yield_!(v_id)
             }
         });
 
-        vertices_iter.into_iter()
+        iter.into_iter()
     }
 
-    pub fn neighbours_window_t(
-        &self,
-        v: u64,
-        r: Range<i64>,
-        d: Direction,
-    ) -> impl Iterator<Item = TEdge> {
+    pub fn neighbours_ids(&self, v: u64, d: Direction) -> impl Iterator<Item = u64>
+    where
+        Self: Sized,
+    {
         let tgshard = self.clone();
-        let vertices_iter = gen!({
+        let iter = gen!({
             let g = tgshard.rc.blocking_read();
-            let chunks = (*g).neighbours_window_t(v, &r, d).map(|e| e.into());
+            let chunks = (*g).neighbours_ids(v, d);
             let iter = chunks.into_iter();
             for v_id in iter {
                 yield_!(v_id)
             }
         });
 
-        vertices_iter.into_iter()
+        iter.into_iter()
+    }
+
+    pub fn neighbours_ids_window(
+        &self,
+        v: u64,
+        w: Range<i64>,
+        d: Direction,
+    ) -> impl Iterator<Item = u64>
+    where
+        Self: Sized,
+    {
+        let tgshard = self.clone();
+        let iter = gen!({
+            let g = tgshard.rc.blocking_read();
+            let chunks = (*g).neighbours_ids_window(v, &w, d);
+            let iter = chunks.into_iter();
+            for v_id in iter {
+                yield_!(v_id)
+            }
+        });
+
+        iter.into_iter()
+    }
+
+    pub fn vertex_prop_vec(&self, v: u64, name: String) -> Vec<(i64, Prop)> {
+        self.read_shard(|tg| tg.vertex_prop_vec(v, &name).unwrap_or_else(|| vec![]))
+    }
+
+    pub fn vertex_prop_vec_window(&self, v: u64, name: String, w: Range<i64>) -> Vec<(i64, Prop)> {
+        self.read_shard(|tg| {
+            tg.vertex_prop_vec_window(v, &name, &w)
+                .unwrap_or_else(|| vec![])
+        })
+    }
+
+    pub fn vertex_props(&self, v: u64) -> HashMap<String, Vec<(i64, Prop)>> {
+        self.read_shard(|tg| {
+            tg.vertex_props(v)
+                .unwrap_or_else(|| HashMap::<String, Vec<(i64, Prop)>>::new())
+        })
+    }
+
+    pub fn vertex_props_window(&self, v: u64, w: Range<i64>) -> HashMap<String, Vec<(i64, Prop)>> {
+        self.read_shard(|tg| {
+            tg.vertex_props_window(v, &w)
+                .unwrap_or_else(|| HashMap::<String, Vec<(i64, Prop)>>::new())
+        })
+    }
+
+    pub fn edge_prop_vec(&self, e: usize, name: String) -> Vec<(i64, Prop)> {
+        self.read_shard(|tg| tg.edge_prop_vec(e, &name).unwrap_or_else(|| vec![]))
+    }
+
+    pub fn edge_props_vec_window(&self, e: usize, name: String, w: Range<i64>) -> Vec<(i64, Prop)> {
+        self.read_shard(|tg| {
+            tg.edge_prop_vec_window(e, &name, w.clone())
+                .unwrap_or_else(|| vec![])
+        })
     }
 }
 
@@ -486,9 +576,9 @@ mod temporal_graph_partition_test {
         let actual = (1..=3)
             .map(|i| {
                 (
-                    g.neighbours(i, Direction::IN).collect::<Vec<_>>().len(),
-                    g.neighbours(i, Direction::OUT).collect::<Vec<_>>().len(),
-                    g.neighbours(i, Direction::BOTH).collect::<Vec<_>>().len(),
+                    g.edges(i, Direction::IN).collect::<Vec<_>>().len(),
+                    g.edges(i, Direction::OUT).collect::<Vec<_>>().len(),
+                    g.edges(i, Direction::BOTH).collect::<Vec<_>>().len(),
                 )
             })
             .collect::<Vec<_>>();
@@ -517,13 +607,13 @@ mod temporal_graph_partition_test {
         let actual = (1..=3)
             .map(|i| {
                 (
-                    g.neighbours_window(i, -1..7, Direction::IN)
+                    g.edges_window(i, -1..7, Direction::IN)
                         .collect::<Vec<_>>()
                         .len(),
-                    g.neighbours_window(i, 1..7, Direction::OUT)
+                    g.edges_window(i, 1..7, Direction::OUT)
                         .collect::<Vec<_>>()
                         .len(),
-                    g.neighbours_window(i, 0..1, Direction::BOTH)
+                    g.edges_window(i, 0..1, Direction::BOTH)
                         .collect::<Vec<_>>()
                         .len(),
                 )
@@ -552,7 +642,7 @@ mod temporal_graph_partition_test {
 
         let in_actual = (1..=3)
             .map(|i| {
-                g.neighbours_window_t(i, -1..7, Direction::IN)
+                g.edges_window_t(i, -1..7, Direction::IN)
                     .map(|e| e.t.unwrap())
                     .collect::<Vec<_>>()
             })
@@ -561,7 +651,7 @@ mod temporal_graph_partition_test {
 
         let out_actual = (1..=3)
             .map(|i| {
-                g.neighbours_window_t(i, 1..7, Direction::OUT)
+                g.edges_window_t(i, 1..7, Direction::OUT)
                     .map(|e| e.t.unwrap())
                     .collect::<Vec<_>>()
             })
@@ -570,7 +660,7 @@ mod temporal_graph_partition_test {
 
         let both_actual = (1..=3)
             .map(|i| {
-                g.neighbours_window_t(i, 0..1, Direction::BOTH)
+                g.edges_window_t(i, 0..1, Direction::BOTH)
                     .map(|e| e.t.unwrap())
                     .collect::<Vec<_>>()
             })

@@ -1,10 +1,11 @@
 use crate::graph::Graph;
 use docbrown_core::{
-    tgraph_shard::{TEdge, TVertex},
-    Direction,
+    tgraph::{EdgeView, VertexView},
+    tgraph_shard::TEdge,
+    Direction, Prop,
 };
 
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 #[derive(Debug, Clone)]
 pub struct WindowedGraph {
@@ -34,7 +35,7 @@ impl WindowedGraph {
         let graph_w = self.clone();
         self.graph
             .vertex_window(v, self.t_start, self.t_end)
-            .map(|tv| WindowedVertex::from(tv, Arc::new(graph_w.clone())))
+            .map(|vv| WindowedVertex::from(vv, Arc::new(graph_w.clone())))
     }
 
     pub fn vertex_ids(&self) -> Box<dyn Iterator<Item = u64> + Send> {
@@ -46,8 +47,15 @@ impl WindowedGraph {
         Box::new(
             self.graph
                 .vertices_window(self.t_start, self.t_end)
-                .map(move |tv| WindowedVertex::from(tv, Arc::new(graph_w.clone()))),
+                .map(move |vv| WindowedVertex::from(vv, Arc::new(graph_w.clone()))),
         )
+    }
+
+    pub fn edge(&self, v1: u64, v2: u64) -> Option<WindowedEdge> {
+        let graph_w = self.clone();
+        self.graph
+            .edge_window(v1, v2, self.t_start, self.t_end)
+            .map(|ev| WindowedEdge::from(ev, Arc::new(graph_w.clone())))
     }
 }
 
@@ -57,7 +65,7 @@ pub struct WindowedVertex {
 }
 
 impl WindowedVertex {
-    fn from(value: TVertex, graph_w: Arc<WindowedGraph>) -> Self {
+    fn from(value: VertexView, graph_w: Arc<WindowedGraph>) -> Self {
         Self {
             g_id: value.g_id,
             graph_w,
@@ -66,6 +74,20 @@ impl WindowedVertex {
 }
 
 impl WindowedVertex {
+    pub fn prop(&self, name: String) -> Vec<(i64, Prop)> {
+        self.graph_w.graph.vertex_prop_vec_window(
+            self.g_id,
+            name,
+            self.graph_w.t_start..self.graph_w.t_end,
+        )
+    }
+
+    pub fn props(&self) -> HashMap<String, Vec<(i64, Prop)>> {
+        self.graph_w
+            .graph
+            .vertex_props_window(self.g_id, self.graph_w.t_start..self.graph_w.t_end)
+    }
+
     pub fn degree(&self) -> usize {
         self.graph_w.graph.degree_window(
             self.g_id,
@@ -93,30 +115,153 @@ impl WindowedVertex {
         )
     }
 
-    pub fn neighbours(&self) -> Box<dyn Iterator<Item = TEdge> + Send> {
-        self.graph_w.graph.neighbours_window(
+    pub fn edges(&self) -> Box<dyn Iterator<Item = WindowedEdge> + Send> {
+        let wg = self.graph_w.clone();
+        Box::new(
+            self.graph_w
+                .graph
+                .edges_window(
+                    self.g_id,
+                    self.graph_w.t_start,
+                    self.graph_w.t_end,
+                    Direction::BOTH,
+                )
+                .map(move |te| WindowedEdge::from(te, wg.clone())),
+        )
+    }
+
+    pub fn in_edges(&self) -> Box<dyn Iterator<Item = WindowedEdge> + Send> {
+        let wg = self.graph_w.clone();
+        Box::new(
+            self.graph_w
+                .graph
+                .edges_window(
+                    self.g_id,
+                    self.graph_w.t_start,
+                    self.graph_w.t_end,
+                    Direction::IN,
+                )
+                .map(move |te| WindowedEdge::from(te, wg.clone())),
+        )
+    }
+
+    pub fn out_edges(&self) -> Box<dyn Iterator<Item = WindowedEdge> + Send> {
+        let wg = self.graph_w.clone();
+        Box::new(
+            self.graph_w
+                .graph
+                .edges_window(
+                    self.g_id,
+                    self.graph_w.t_start,
+                    self.graph_w.t_end,
+                    Direction::OUT,
+                )
+                .map(move |te| WindowedEdge::from(te, wg.clone())),
+        )
+    }
+
+    pub fn neighbours(&self) -> Box<dyn Iterator<Item = WindowedVertex> + Send> {
+        let wg = self.graph_w.clone();
+        Box::new(
+            self.graph_w
+                .graph
+                .neighbours_window(
+                    self.g_id,
+                    self.graph_w.t_start,
+                    self.graph_w.t_end,
+                    Direction::BOTH,
+                )
+                .map(move |tv| WindowedVertex::from(tv, wg.clone())),
+        )
+    }
+
+    pub fn in_neighbours(&self) -> Box<dyn Iterator<Item = WindowedVertex> + Send> {
+        let wg = self.graph_w.clone();
+        Box::new(
+            self.graph_w
+                .graph
+                .neighbours_window(
+                    self.g_id,
+                    self.graph_w.t_start,
+                    self.graph_w.t_end,
+                    Direction::IN,
+                )
+                .map(move |tv| WindowedVertex::from(tv, wg.clone())),
+        )
+    }
+
+    pub fn out_neighbours(&self) -> Box<dyn Iterator<Item = WindowedVertex> + Send> {
+        let wg = self.graph_w.clone();
+        Box::new(
+            self.graph_w
+                .graph
+                .neighbours_window(
+                    self.g_id,
+                    self.graph_w.t_start,
+                    self.graph_w.t_end,
+                    Direction::OUT,
+                )
+                .map(move |tv| WindowedVertex::from(tv, wg.clone())),
+        )
+    }
+
+    pub fn neighbours_ids(&self) -> Box<dyn Iterator<Item = u64> + Send> {
+        Box::new(self.graph_w.graph.neighbours_ids_window(
             self.g_id,
             self.graph_w.t_start,
             self.graph_w.t_end,
             Direction::BOTH,
-        )
+        ))
     }
 
-    pub fn in_neighbours(&self) -> Box<dyn Iterator<Item = TEdge> + Send> {
-        self.graph_w.graph.neighbours_window(
+    pub fn in_neighbours_ids(&self) -> Box<dyn Iterator<Item = u64> + Send> {
+        Box::new(self.graph_w.graph.neighbours_ids_window(
             self.g_id,
             self.graph_w.t_start,
             self.graph_w.t_end,
             Direction::IN,
-        )
+        ))
     }
 
-    pub fn out_neighbours(&self) -> Box<dyn Iterator<Item = TEdge> + Send> {
-        self.graph_w.graph.neighbours_window(
+    pub fn out_neighbours_ids(&self) -> Box<dyn Iterator<Item = u64> + Send> {
+        Box::new(self.graph_w.graph.neighbours_ids_window(
             self.g_id,
             self.graph_w.t_start,
             self.graph_w.t_end,
             Direction::OUT,
+        ))
+    }
+}
+
+pub struct WindowedEdge {
+    pub edge_id: usize,
+    pub src: u64,
+    pub dst: u64,
+    pub t: Option<i64>,
+    pub is_remote: bool,
+    pub graph_w: Arc<WindowedGraph>,
+}
+
+impl WindowedEdge {
+    fn from(value: EdgeView, graph_w: Arc<WindowedGraph>) -> Self {
+        Self {
+            edge_id: value.e_meta.edge_meta_id(),
+            src: value.src_g_id,
+            dst: value.dst_g_id,
+            t: value.t,
+            is_remote: !value.e_meta.is_local(),
+            graph_w,
+        }
+    }
+}
+
+impl WindowedEdge {
+    pub fn prop(&self, name: String) -> Vec<(i64, Prop)> {
+        self.graph_w.graph.edge_props_vec_window(
+            self.src,
+            self.edge_id,
+            name,
+            self.graph_w.t_start..self.graph_w.t_end,
         )
     }
 }
@@ -161,6 +306,28 @@ mod views_test {
         let expected = vec![(2, 1), (1, 2)];
 
         assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn windowed_graph_edge() {
+        let vs = vec![
+            (1, 1, 2),
+            (2, 1, 3),
+            (-1, 2, 1),
+            (0, 1, 1),
+            (7, 3, 2),
+            (1, 1, 1),
+        ];
+
+        let g = Graph::new(2);
+
+        for (t, src, dst) in vs {
+            g.add_edge(t, src, dst, &vec![]);
+        }
+
+        let wg = g.window(i64::MIN, i64::MAX);
+        assert_eq!(wg.edge(1, 3).unwrap().src, 1);
+        assert_eq!(wg.edge(1, 3).unwrap().dst, 3);
     }
 
     #[test]

@@ -95,7 +95,10 @@ impl Context {
 
     #[cfg(test)]
     fn as_hash_map<A: Clone, F>(&self, m: &Monoid<u64, A, F>) -> Option<HashMap<u64, A>> {
-        m.state.try_borrow_mut().ok().map(|mut s| s.copy_hash_map(self.ss))
+        m.state
+            .try_borrow_mut()
+            .ok()
+            .map(|mut s| s.copy_hash_map(self.ss))
     }
 }
 
@@ -114,7 +117,6 @@ impl<A> PairAcc<A> {
         };
         Self { even, odd }
     }
-
 }
 
 impl<A> PairAcc<A> {
@@ -245,7 +247,7 @@ where
                     (self.acc.bin_op)(acc2, value.clone());
                 }
             })
-            .or_insert_with(|| { 
+            .or_insert_with(|| {
                 let mut v = self.acc.id.clone();
                 (self.acc.bin_op)(&mut v, value.clone());
                 PairAcc::new(v, self.ss)
@@ -361,7 +363,7 @@ impl Eval for TemporalGraph {
             let iter = if !cur_active_set.is_all() {
                 let active_vertices_iter = cur_active_set.iter().map(|pid| {
                     let g_id = self.adj_lists[*pid].logical();
-                    VertexView::new(self, *g_id, *pid, Some(window.clone()))
+                    VertexView::new(*g_id, *pid)
                 });
                 Box::new(active_vertices_iter)
             } else {
@@ -370,7 +372,10 @@ impl Eval for TemporalGraph {
 
             // iterate over the active vertices
             for v_view in iter {
-                let mut eval_v_view = EvalVertexView { vv: v_view };
+                let mut eval_v_view = EvalVertexView {
+                    vv: v_view,
+                    g: self,
+                };
                 let next_vertices = f(&mut eval_v_view, &mut ctx);
                 for next_vertex in next_vertices {
                     next_active_set.insert(next_vertex.pid());
@@ -380,8 +385,14 @@ impl Eval for TemporalGraph {
             // from the next_active_set we apply the PRED
             next_active_set.retain(|pid| {
                 let g_id = self.adj_lists[*pid].logical();
-                let v_view = VertexView::new(self, *g_id, *pid, Some(window.clone()));
-                having(&EvalVertexView { vv: v_view }, &mut ctx)
+                let v_view = VertexView::new(*g_id, *pid);
+                having(
+                    &EvalVertexView {
+                        vv: v_view,
+                        g: self,
+                    },
+                    &mut ctx,
+                )
             });
 
             cur_active_set = WorkingSet::Set(next_active_set);
@@ -395,7 +406,8 @@ impl Eval for TemporalGraph {
 // view over the vertex
 // this includes the state during the evaluation
 pub struct EvalVertexView<'a, G> {
-    vv: VertexView<'a, G>,
+    vv: VertexView,
+    pub(crate) g: &'a G,
 }
 
 // here we implement the Fn trait for the EvalVertexView to return Option<AccumulatorEntry>
@@ -427,7 +439,9 @@ impl<'a> EvalVertexView<'a, TemporalGraph> {
         &'a self,
         d: Direction,
     ) -> impl Iterator<Item = EvalVertexView<'a, TemporalGraph>> {
-        self.vv.neighbours(d).map(move |vv| EvalVertexView { vv })
+        self.g
+            .neighbours(self.vv.g_id, d)
+            .map(move |vv| EvalVertexView { vv, g: self.g })
     }
 }
 
@@ -632,7 +646,6 @@ mod eval_test {
 
         assert_eq!(state.ss, 3);
         let state = state.as_hash_map(&min).unwrap();
-
 
         assert_eq!(
             state,
