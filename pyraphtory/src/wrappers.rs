@@ -1,12 +1,10 @@
-use std::{collections::HashMap, sync::Arc};
-
 use pyo3::prelude::*;
 
 use db_c::tgraph_shard;
 use docbrown_core as db_c;
 use docbrown_db as db_db;
 
-use crate::graph_window::WindowedVertex;
+use crate::graph_window::{WindowedEdge, WindowedVertex};
 
 #[pyclass]
 #[derive(Copy, Clone, PartialEq, Eq)]
@@ -84,73 +82,6 @@ impl From<db_c::Prop> for Prop {
 }
 
 #[pyclass]
-pub struct TEdge {
-    #[pyo3(get)]
-    pub src: u64,
-    #[pyo3(get)]
-    pub dst: u64,
-    #[pyo3(get)]
-    pub t: Option<i64>,
-    #[pyo3(get)]
-    pub is_remote: bool,
-}
-
-impl From<tgraph_shard::TEdge> for TEdge {
-    fn from(value: tgraph_shard::TEdge) -> Self {
-        let tgraph_shard::TEdge {
-            src,
-            dst,
-            t,
-            is_remote,
-        } = value;
-        TEdge {
-            src,
-            dst,
-            t,
-            is_remote,
-        }
-    }
-}
-
-#[pyclass]
-pub struct TVertex {
-    #[pyo3(get)]
-    pub g_id: u64,
-    #[pyo3(get)]
-    pub props: Option<HashMap<String, Vec<(i64, Prop)>>>,
-}
-
-impl From<tgraph_shard::TVertex> for TVertex {
-    fn from(value: tgraph_shard::TVertex) -> TVertex {
-        let tgraph_shard::TVertex {
-            g_id,
-            props: maybe_props,
-            ..
-        } = value;
-
-        if let Some(props) = maybe_props {
-            let vs = props
-                .iter()
-                .map(|(k, v)| {
-                    (
-                        k.clone(),
-                        v.iter()
-                            .map(move |(t, p)| (*t, (*p).clone().into()))
-                            .collect::<Vec<(i64, Prop)>>(),
-                    )
-                })
-                .collect::<HashMap<String, Vec<(i64, Prop)>>>();
-            TVertex {
-                g_id,
-                props: Some(vs),
-            }
-        } else {
-            TVertex { g_id, props: None }
-        }
-    }
-}
-
-#[pyclass]
 pub struct VertexIdsIterator {
     pub(crate) iter: Box<dyn Iterator<Item = u64> + Send>,
 }
@@ -161,21 +92,6 @@ impl VertexIdsIterator {
         slf
     }
     fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<u64> {
-        slf.iter.next()
-    }
-}
-
-#[pyclass]
-pub struct VertexIterator {
-    pub(crate) iter: Box<dyn Iterator<Item = TVertex> + Send>,
-}
-
-#[pymethods]
-impl VertexIterator {
-    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
-        slf
-    }
-    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<TVertex> {
         slf.iter.next()
     }
 }
@@ -196,16 +112,16 @@ impl WindowedVertexIterator {
 }
 
 #[pyclass]
-pub struct EdgeIterator {
-    pub(crate) iter: Box<dyn Iterator<Item = TEdge> + Send>,
+pub struct WindowedEdgeIterator {
+    pub(crate) iter: Box<dyn Iterator<Item = WindowedEdge> + Send>,
 }
 
 #[pymethods]
-impl EdgeIterator {
+impl WindowedEdgeIterator {
     fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
         slf
     }
-    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<TEdge> {
+    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<WindowedEdge> {
         slf.iter.next()
     }
 }

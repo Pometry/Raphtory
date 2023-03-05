@@ -122,8 +122,8 @@ fn main() {
     assert!(windowed_graph.has_vertex(test_v));
     let v = windowed_graph.vertex(test_v).unwrap();
 
-    let deg_out = v.out_neighbours().count();
-    let deg_in = v.in_neighbours().count();
+    let deg_out = v.out_edges().count();
+    let deg_in = v.in_edges().count();
 
     assert_eq!(deg_out, 22);
     assert_eq!(deg_in, 1);

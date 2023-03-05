@@ -1,17 +1,12 @@
-use pyo3::exceptions;
 use docbrown_core as dbc;
 use docbrown_db::graph;
+use pyo3::exceptions;
 use pyo3::prelude::*;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use crate::graph_window::WindowedGraph;
 use crate::wrappers::Prop;
-use crate::wrappers::Direction;
-use crate::wrappers::EdgeIterator;
-use crate::wrappers::VertexIdsIterator;
-use crate::wrappers::VertexIterator;
-
 
 #[pyclass]
 pub struct Graph {
