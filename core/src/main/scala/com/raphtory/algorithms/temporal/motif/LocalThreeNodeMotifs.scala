@@ -245,12 +245,12 @@ val outputList: List[String] = List("name") ++ (1 to 40).map(_.toString)
     else
       graph
         .setGlobalState { state =>
-          state.newConstant[Array[Long]](
-                  "motifs",
-                  state[Array[Long], Array[Long]]("starCounts").value ++ state[Array[Long], Array[Long]](
-                          "twoNodeCounts"
-                  ).value ++ state[Array[Long], Array[Long]]("triCounts").value
-          )
+          val motif_array = state[Array[Long], Array[Long]]("starCounts").value ++ state[Array[Long], Array[Long]](
+            "twoNodeCounts"
+          ).value ++ state[Array[Long], Array[Long]]("triCounts").value
+          for (i <- 1 to 40) {
+            state.newConstant[Long](i.toString, motif_array(i-1))
+          }
         }
         .globalSelect(globalOutputList:_*)
 }
