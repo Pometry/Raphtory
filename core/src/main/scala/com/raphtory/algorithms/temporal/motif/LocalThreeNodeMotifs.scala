@@ -9,6 +9,7 @@ import com.raphtory.api.analysis.table.Table
 import com.raphtory.algorithms.temporal.motif.ThreeNodeMotifs.get2NodeCountsWithoutRepeats
 import com.raphtory.algorithms.temporal.motif.ThreeNodeMotifs.getStarCountsPretty
 import com.raphtory.algorithms.temporal.motif.ThreeNodeMotifs.getTriCountsPretty
+import com.raphtory.api.analysis.visitor.ExplodedEdge
 import com.raphtory.internals.communication.SchemaProviderInstances._
 
 import scala.collection.mutable.ArrayBuffer
@@ -81,6 +82,9 @@ class LocalThreeNodeMotifs(delta: Long = 3600, graphWide: Boolean = false, prett
         extends GenericReduction {
 val outputList: List[String] = List("name") ++ (1 to 40).map(_.toString)
   val globalOutputList: Seq[String] = (1 to 40).map(_.toString)
+  val selfLoopFilt: PartialFunction[(Long,Long,Long),(Long,Long,Long)] = {
+    case (src,dst,time) if src!=dst => (src,dst,time)
+  }
   override def apply(graph: GraphPerspective): graph.ReducedGraph = {
     // Here we apply a trick to make sure the triangles are only counted for nodes in the two-core.
     KCore(2)
@@ -175,7 +179,7 @@ val outputList: List[String] = List("name") ++ (1 to 40).map(_.toString)
         val mc                  = new StarMotifCounter(v.ID, v.neighbours.filter(_ != v.ID))
         // Here we sort the edges not only by a timestamp but an additional index meaning that we obtain consistent results
         // for motif edges with the same timestamp
-        mc.execute(v.explodeAllEdges().map(e => (e.src, e.dst, e.timestamp)).sortBy(x => (x._3, x._1, x._2)), delta)
+        mc.execute(v.explodeAllEdges().map(e => (e.src,e.dst,e.timestamp)).collect(selfLoopFilt).sortBy(x => (x._3, x._1, x._2)), delta)
         val counts: Array[Long] = mc.getCounts
         var twoNodeCounts       = Array.fill(8)(0L)
         v.neighbours.foreach { vid =>
