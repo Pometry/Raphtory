@@ -73,9 +73,9 @@ import scala.collection.mutable.ArrayBuffer
   *
   * ## Returns
   *
-  *  | vertex name       | motifs                   |
+  *  | vertex name       | 1 2 ... 40                   |
   *  | ----------------- | ------------------------ |
-  *  | {s}`name: String` | {s}`motifCounts: Array[Long]` |
+  *  | {s}`name: String` | {s}`motifCount: Long` |
   */
 
 class LocalThreeNodeMotifs(delta: Long = 3600, graphWide: Boolean = false, prettyPrint: Boolean = true)
