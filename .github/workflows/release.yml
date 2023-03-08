@@ -1,0 +1,45 @@
+name: Publish a new Release
+on:
+  workflow_dispatch:
+    inputs:
+      base:
+        description: 'Name of branch to open PR against'
+        type: 'string'
+        default: 'main'
+      version:
+        description: 'Select level for version increment'
+        type: choice
+        required: true
+        default: patch
+        options:
+          - major
+          - minor
+          - patch
+      dry_run:
+        description: 'DRY RUN: If true will not publish the release and will not push anything to PyPi/crates.io. 
+        However it will still make a PR and a branch to show you what it changed'
+        type: boolean
+        default: true
+        required: true
+      skip_tests:
+        description: 'SKIP TESTS: If true will skip tests'
+        type: boolean
+        default: false
+        required: true
+
+
+jobs:
+  test-rust-python-workflow:
+    if : ${{ github.event.inputs.dry_run == 'false' }}
+    uses: ./.github/workflows/test_rust_workflow.yml
+    secrets: inherit
+    with:
+        skip_tests: ${{ inputs.skip_tests }}
+  publish-builds-to-cargo-github-pypi:
+    uses: ./.github/workflows/publish_builds.yml
+    secrets: inherit
+    with:
+        base: ${{ github.event.inputs.base }}
+        version: ${{ github.event.inputs.version }}
+        dry_run: ${{ inputs.dry_run }}
+        skip_tests: ${{ inputs.skip_tests }}

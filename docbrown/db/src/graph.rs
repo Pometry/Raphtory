@@ -4,6 +4,7 @@ use std::{
     ops::Range,
     path::{Path, PathBuf},
     sync::Arc,
+
 };
 
 use docbrown_core::{
@@ -12,6 +13,7 @@ use docbrown_core::{
     utils, Direction, Prop,
 };
 
+use tempdir::TempDir;
 use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 
@@ -297,8 +299,10 @@ mod db_tests {
     use csv::StringRecord;
     use docbrown_core::utils;
     use itertools::Itertools;
-    use quickcheck::quickcheck;
-    use std::fs;
+    use quickcheck::{quickcheck, TestResult};
+    use rand::Rng;
+    use std::collections::HashMap;
+    use std::{env, fs};
     use std::sync::Arc;
     use uuid::Uuid;
 
@@ -377,15 +381,18 @@ mod db_tests {
         }
 
         let rand_dir = Uuid::new_v4();
-        let tmp_docbrown_path = "/tmp/docbrown";
-        let shards_path = format!("{}/{}", tmp_docbrown_path, rand_dir);
+        let tmp_docbrown_path: TempDir = TempDir::new("docbrown").unwrap();
+        let shards_path = format!("{:?}/{}", tmp_docbrown_path.path()
+            .display(), rand_dir).replace("\"", "");
+
+        println!("shards_path: {}", shards_path);
 
         // Save to files
         let mut expected = vec![
             format!("{}/shard_1", shards_path),
             format!("{}/shard_0", shards_path),
             format!("{}/graphdb_nr_shards", shards_path),
-        ];
+        ].iter().map(Path::new).map(PathBuf::from).collect::<Vec<_>>();
 
         expected.sort();
 
@@ -393,7 +400,7 @@ mod db_tests {
             Ok(()) => {
                 let mut actual = fs::read_dir(&shards_path)
                     .unwrap()
-                    .map(|f| f.unwrap().path().display().to_string())
+                    .map(|f| f.unwrap().path())
                     .collect::<Vec<_>>();
 
                 actual.sort();
@@ -412,8 +419,7 @@ mod db_tests {
             Err(e) => panic!("{e}"),
         }
 
-        // Delete all files
-        fs::remove_dir_all(tmp_docbrown_path).unwrap();
+        tmp_docbrown_path.close();
     }
 
     #[test]
