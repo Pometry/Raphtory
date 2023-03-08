@@ -31,6 +31,34 @@ impl Graph {
         }
     }
 
+    pub fn earliest_time(&self) -> Option<i64> {
+        let min_from_shards = self.shards.iter().map(|shard|shard.earliest_time()).min();
+        match min_from_shards {
+            None => {None}
+            Some(min) => {if min == i64::MAX {
+                None
+            }
+            else {
+               Some(min)
+            }}
+        }
+    }
+
+    pub fn latest_time(&self) -> Option<i64> {
+        let max_from_shards = self.shards.iter().map(|shard|shard.latest_time()).max();
+        match max_from_shards {
+            None => {
+                None
+            },
+            Some(max) => {if max == i64::MIN {
+                None
+            }
+            else {
+                Some(max)
+            }}
+        }
+    }
+
     pub fn window(&self, t_start: i64, t_end: i64) -> WindowedGraph {
         WindowedGraph::new(Arc::new(self.clone()), t_start, t_end)
     }
@@ -63,8 +91,7 @@ impl Graph {
         shards.sort_by_cached_key(|(i, _)| *i);
 
         let shards = shards.into_iter().map(|(_, shard)| shard).collect();
-
-        Ok(Graph { nr_shards, shards })
+        Ok(Graph { nr_shards,shards }) //TODO I need to put in the actual values here
     }
 
     pub fn save_to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), Box<bincode::ErrorKind>> {
@@ -305,6 +332,7 @@ mod db_tests {
     use std::{env, fs};
     use std::sync::Arc;
     use uuid::Uuid;
+    use crate::graphgen::random_attachment::random_attachment;
 
     use super::*;
 
@@ -653,6 +681,38 @@ mod db_tests {
             })
             .collect::<Vec<_>>();
         assert_eq!(both_expected, both_actual);
+    }
+
+    #[test]
+    fn time_test() {
+        let g = Graph::new(4);
+
+        assert_eq!(g.latest_time(),None);
+        assert_eq!(g.earliest_time(),None);
+
+        g.add_vertex(5,1,&vec![]);
+
+        assert_eq!(g.latest_time(),Some(5));
+        assert_eq!(g.earliest_time(),Some(5));
+
+        let g = Graph::new(4);
+
+        g.add_edge(10,1, 2,&vec![]);
+        assert_eq!(g.latest_time(),Some(10));
+        assert_eq!(g.earliest_time(),Some(10));
+
+        g.add_vertex(5,1,&vec![]);
+        assert_eq!(g.latest_time(),Some(10));
+        assert_eq!(g.earliest_time(),Some(5));
+
+        g.add_edge(20,3, 4,&vec![]);
+        assert_eq!(g.latest_time(),Some(20));
+        assert_eq!(g.earliest_time(),Some(5));
+
+        random_attachment(&g,100,10);
+        assert_eq!(g.latest_time(),Some(126));
+        assert_eq!(g.earliest_time(),Some(5));
+
     }
 
     #[test]
