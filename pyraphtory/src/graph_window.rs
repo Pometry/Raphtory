@@ -181,7 +181,7 @@ impl WindowedVertex {
     }
 
     pub fn __repr__(&self) -> String {
-        format!("Vertex({})", self.g_id)
+        format!("Vertex({})", self.id)
     }
 }
 
