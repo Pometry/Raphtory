@@ -10,7 +10,7 @@ use crate::graph::Graph;
 use crate::algorithms::triangle_count;
 
 #[pymodule]
-fn pyraphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
+fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_class::<Direction>()?;
     m.add_class::<Graph>()?;
     let algorithm_module = PyModule::new(py, "algorithms")?;

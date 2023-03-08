@@ -1,8 +1,17 @@
 [package]
 name = "docbrown-core"
+description = "Core package for DocBrown, a temporal graph library"
+edition.workspace = true
+rust-version.workspace = true
 version.workspace = true
-edition = "2021"
-keywords = ["graph", "temporal-graph", "temporal"]
+keywords.workspace = true
+authors.workspace = true
+documentation.workspace = true
+repository.workspace = true
+license.workspace = true
+readme.workspace = true
+homepage.workspace = true
+
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -20,6 +29,7 @@ genawaiter = "0.99"
 parking_lot = { version = "0.12" , features = ["serde", "arc_lock"] }
 serde = { version = "1", features = ["derive","rc"] }
 bincode = "1"
+openssl = { version = "0.10", features = ["vendored"] }
 
 # crossbeam = "0.8"
 # crossbeam-utils = "0.8"

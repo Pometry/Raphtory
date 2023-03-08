@@ -8,7 +8,7 @@ on:
 
 jobs:
   buildingdocs:
-    name: "Build docs"
+    name: "Triggering ReadTheDocs server build"
     runs-on: ubuntu-latest
     steps:
       - name: Trigger RTDs build

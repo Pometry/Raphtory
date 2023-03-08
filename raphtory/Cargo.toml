@@ -1,17 +1,25 @@
 [package]
-name = "pyraphtory"
-version = "0.1.0"
-edition = "2021"
-
+name = "raphtory"
+description = "Python package for DocBrown, a temporal graph library"
+version = "0.0.2"
+edition.workspace = true
+rust-version.workspace = true
+keywords.workspace = true
+authors.workspace = true
+documentation.workspace = true
+repository.workspace = true
+license.workspace = true
+readme.workspace = true
+homepage.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
-name = "pyraphtory"
+name = "raphtory"
 crate-type = ["cdylib"]
 
 [dependencies]
 pyo3 =  "0.18.1"
-docbrown-db = {path = "../docbrown/db"}
-docbrown-core = {path = "../docbrown/core"}
+docbrown-db = {path = "../docbrown/db", version = "0.0.2" }
+docbrown-core = {path = "../docbrown/core", version = "0.0.2" }
 
 parking_lot = { version = "0.12" , features = ["serde"] }
 flume = "0.10"

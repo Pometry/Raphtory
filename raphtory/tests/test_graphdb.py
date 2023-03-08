@@ -1,6 +1,6 @@
 import sys
-from pyraphtory import Graph
-from pyraphtory import algorithms
+from raphtory import Graph
+from raphtory import algorithms
 
 def create_graph(num_shards):
     g = Graph(num_shards)
