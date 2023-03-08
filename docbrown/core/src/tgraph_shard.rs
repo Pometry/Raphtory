@@ -73,6 +73,10 @@ impl TGraphShard {
         f(&shard)
     }
 
+    pub fn earliest_time(&self) -> i64 {self.read_shard(|tg| tg.earliest_time)}
+
+    pub fn latest_time(&self) -> i64 {self.read_shard(|tg| tg.latest_time)}
+
     pub fn len(&self) -> usize {
         self.read_shard(|tg| tg.len())
     }

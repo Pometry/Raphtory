@@ -24,6 +24,12 @@ pub struct TemporalGraph {
 
     // Properties abstraction for both vertices and edges
     pub(crate) props: Props,
+
+    //earliest time seen in this graph
+    pub(crate) earliest_time:i64,
+
+    //latest time seen in this graph
+    pub(crate) latest_time:i64
 }
 
 impl Default for TemporalGraph {
@@ -33,6 +39,8 @@ impl Default for TemporalGraph {
             adj_lists: Default::default(),
             index: Default::default(),
             props: Default::default(),
+            earliest_time: i64::MAX,
+            latest_time: i64::MIN
         }
     }
 }
@@ -108,6 +116,15 @@ impl TemporalGraph {
     }
 
     pub(crate) fn add_vertex_with_props(&mut self, t: i64, v: u64, props: &Vec<(String, Prop)>) {
+
+        //Updating time - only needs to be here as every other adding function calls this one
+        if self.earliest_time >t {
+            self.earliest_time = t
+        }
+        if self.latest_time < t {
+            self.latest_time = t
+        }
+
         let index = match self.logical_to_physical.get(&v) {
             None => {
                 let physical_id: usize = self.adj_lists.len();
