@@ -118,7 +118,7 @@ fn main() {
 
     let actual = v
         .out_edges()
-        .map(|e| (e.src, e.dst, e.t, e.is_remote))
+        .map(|e| (e.src, e.dst, e.time, e.is_remote))
         .collect::<Vec<_>>();
 
     let expected = vec![
@@ -143,7 +143,7 @@ fn main() {
     let actual = v
         .out_edges()
         .take(10)
-        .map(|e| (e.src, e.dst, e.t, e.is_remote))
+        .map(|e| (e.src, e.dst, e.time, e.is_remote))
         .collect::<Vec<_>>();
 
     let expected: Vec<(u64, u64, Option<i64>, bool)> = vec![

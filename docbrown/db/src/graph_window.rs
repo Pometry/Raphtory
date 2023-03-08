@@ -1,7 +1,6 @@
 use crate::graph::Graph;
 use docbrown_core::{
     tgraph::{EdgeView, VertexView},
-    tgraph_shard::TEdge,
     Direction, Prop,
 };
 
@@ -28,8 +27,9 @@ impl WindowedGraph {
     }
 
     pub fn has_edge(&self, src: u64, dst: u64) -> bool {
-        self.graph.has_edge(src, dst)
-    } 
+        self.graph
+            .has_edge_window(src, dst, self.t_start, self.t_end)
+    }
 
     pub fn vertex(&self, v: u64) -> Option<WindowedVertex> {
         let graph_w = self.clone();
@@ -51,10 +51,10 @@ impl WindowedGraph {
         )
     }
 
-    pub fn edge(&self, v1: u64, v2: u64) -> Option<WindowedEdge> {
+    pub fn edge(&self, src: u64, dst: u64) -> Option<WindowedEdge> {
         let graph_w = self.clone();
         self.graph
-            .edge_window(v1, v2, self.t_start, self.t_end)
+            .edge_window(src, dst, self.t_start, self.t_end)
             .map(|ev| WindowedEdge::from(ev, Arc::new(graph_w.clone())))
     }
 }
@@ -120,7 +120,7 @@ impl WindowedVertex {
         Box::new(
             self.graph_w
                 .graph
-                .edges_window(
+                .vertex_edges_window(
                     self.g_id,
                     self.graph_w.t_start,
                     self.graph_w.t_end,
@@ -135,7 +135,7 @@ impl WindowedVertex {
         Box::new(
             self.graph_w
                 .graph
-                .edges_window(
+                .vertex_edges_window(
                     self.g_id,
                     self.graph_w.t_start,
                     self.graph_w.t_end,
@@ -150,7 +150,7 @@ impl WindowedVertex {
         Box::new(
             self.graph_w
                 .graph
-                .edges_window(
+                .vertex_edges_window(
                     self.g_id,
                     self.graph_w.t_start,
                     self.graph_w.t_end,
@@ -237,7 +237,7 @@ pub struct WindowedEdge {
     pub edge_id: usize,
     pub src: u64,
     pub dst: u64,
-    pub t: Option<i64>,
+    pub time: Option<i64>,
     pub is_remote: bool,
     pub graph_w: Arc<WindowedGraph>,
 }
@@ -245,11 +245,11 @@ pub struct WindowedEdge {
 impl WindowedEdge {
     fn from(value: EdgeView, graph_w: Arc<WindowedGraph>) -> Self {
         Self {
-            edge_id: value.e_meta.edge_meta_id(),
+            edge_id: value.edge_id,
             src: value.src_g_id,
             dst: value.dst_g_id,
-            t: value.t,
-            is_remote: !value.e_meta.is_local(),
+            time: value.time,
+            is_remote: value.is_remote,
             graph_w,
         }
     }

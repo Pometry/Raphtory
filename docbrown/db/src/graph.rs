@@ -8,7 +8,7 @@ use std::{
 
 use docbrown_core::{
     tgraph::{EdgeView, VertexView},
-    tgraph_shard::{TEdge, TGraphShard},
+    tgraph_shard::TGraphShard,
     utils, Direction, Prop,
 };
 
@@ -119,8 +119,14 @@ impl Graph {
         self.shards.iter().map(|shard| shard.out_edges_len()).sum()
     }
 
-    pub fn has_edge(&self, v1: u64, v2: u64) -> bool {
-        self.shards.iter().any(|shard| shard.has_edge(v1, v2))
+    pub fn has_edge(&self, src: u64, dst: u64) -> bool {
+        let shard_id = utils::get_shard_id_from_global_vid(src, self.nr_shards);
+        self.shards[shard_id].has_edge(src, dst)
+    }
+
+    pub fn has_edge_window(&self, src: u64, dst: u64, t_start: i64, t_end: i64) -> bool {
+        let shard_id = utils::get_shard_id_from_global_vid(src, self.nr_shards);
+        self.shards[shard_id].has_edge_window(src, dst, t_start..t_end)
     }
 
     pub fn has_vertex(&self, v: u64) -> bool {
@@ -178,23 +184,23 @@ impl Graph {
         )
     }
 
-    pub(crate) fn edge(&self, v1: u64, v2: u64) -> Option<EdgeView> {
-        let shard_id = utils::get_shard_id_from_global_vid(v1, self.nr_shards);
-        self.shards[shard_id].edge(v1, v2)
+    pub(crate) fn edge(&self, src: u64, dst: u64) -> Option<EdgeView> {
+        let shard_id = utils::get_shard_id_from_global_vid(src, self.nr_shards);
+        self.shards[shard_id].edge(src, dst)
     }
 
     pub(crate) fn edge_window(
         &self,
-        v1: u64,
-        v2: u64,
+        src: u64,
+        dst: u64,
         t_start: i64,
         t_end: i64,
     ) -> Option<EdgeView> {
-        let shard_id = utils::get_shard_id_from_global_vid(v1, self.nr_shards);
-        self.shards[shard_id].edge_window(v1, v2, t_start..t_end)
+        let shard_id = utils::get_shard_id_from_global_vid(src, self.nr_shards);
+        self.shards[shard_id].edge_window(src, dst, t_start..t_end)
     }
 
-    pub(crate) fn edges_window(
+    pub(crate) fn vertex_edges_window(
         &self,
         v: u64,
         t_start: i64,
@@ -202,11 +208,11 @@ impl Graph {
         d: Direction,
     ) -> Box<dyn Iterator<Item = EdgeView> + Send> {
         let shard_id = utils::get_shard_id_from_global_vid(v, self.nr_shards);
-        let iter = self.shards[shard_id].edges_window(v, t_start..t_end, d);
+        let iter = self.shards[shard_id].vertex_edges_window(v, t_start..t_end, d);
         Box::new(iter)
     }
 
-    pub(crate) fn edges_window_t(
+    pub(crate) fn vertex_edges_window_t(
         &self,
         v: u64,
         t_start: i64,
@@ -214,7 +220,7 @@ impl Graph {
         d: Direction,
     ) -> Box<dyn Iterator<Item = EdgeView> + Send> {
         let shard_id = utils::get_shard_id_from_global_vid(v, self.nr_shards);
-        let iter = self.shards[shard_id].edges_window_t(v, t_start..t_end, d);
+        let iter = self.shards[shard_id].vertex_edges_window_t(v, t_start..t_end, d);
         Box::new(iter)
     }
 
@@ -415,7 +421,7 @@ mod db_tests {
         let g = Graph::new(2);
         g.add_edge(1, 7, 8, &vec![]);
 
-        assert_eq!(g.has_edge(8, 7), true);
+        assert_eq!(g.has_edge(8, 7), false);
     }
 
     #[test]
@@ -494,7 +500,7 @@ mod db_tests {
     }
 
     #[test]
-    fn graph_neighbours_window() {
+    fn graph_edges_window() {
         let vs = vec![
             (1, 1, 2),
             (2, 1, 3),
@@ -514,13 +520,13 @@ mod db_tests {
         let actual = (1..=3)
             .map(|i| {
                 (
-                    g.edges_window(i, -1, 7, Direction::IN)
+                    g.vertex_edges_window(i, -1, 7, Direction::IN)
                         .collect::<Vec<_>>()
                         .len(),
-                    g.edges_window(i, 1, 7, Direction::OUT)
+                    g.vertex_edges_window(i, 1, 7, Direction::OUT)
                         .collect::<Vec<_>>()
                         .len(),
-                    g.edges_window(i, 0, 1, Direction::BOTH)
+                    g.vertex_edges_window(i, 0, 1, Direction::BOTH)
                         .collect::<Vec<_>>()
                         .len(),
                 )
@@ -539,13 +545,13 @@ mod db_tests {
         let expected = (1..=3)
             .map(|i| {
                 (
-                    g.edges_window(i, -1, 7, Direction::IN)
+                    g.vertex_edges_window(i, -1, 7, Direction::IN)
                         .collect::<Vec<_>>()
                         .len(),
-                    g.edges_window(i, 1, 7, Direction::OUT)
+                    g.vertex_edges_window(i, 1, 7, Direction::OUT)
                         .collect::<Vec<_>>()
                         .len(),
-                    g.edges_window(i, 0, 1, Direction::BOTH)
+                    g.vertex_edges_window(i, 0, 1, Direction::BOTH)
                         .collect::<Vec<_>>()
                         .len(),
                 )
@@ -556,7 +562,7 @@ mod db_tests {
     }
 
     #[test]
-    fn graph_neighbours_window_t() {
+    fn graph_edges_window_t() {
         let vs = vec![
             (1, 1, 2),
             (2, 1, 3),
@@ -574,8 +580,8 @@ mod db_tests {
 
         let in_actual = (1..=3)
             .map(|i| {
-                g.edges_window_t(i, -1, 7, Direction::IN)
-                    .map(|e| e.t.unwrap())
+                g.vertex_edges_window_t(i, -1, 7, Direction::IN)
+                    .map(|e| e.time.unwrap())
                     .collect::<Vec<_>>()
             })
             .collect::<Vec<_>>();
@@ -583,8 +589,8 @@ mod db_tests {
 
         let out_actual = (1..=3)
             .map(|i| {
-                g.edges_window_t(i, 1, 7, Direction::OUT)
-                    .map(|e| e.t.unwrap())
+                g.vertex_edges_window_t(i, 1, 7, Direction::OUT)
+                    .map(|e| e.time.unwrap())
                     .collect::<Vec<_>>()
             })
             .collect::<Vec<_>>();
@@ -592,8 +598,8 @@ mod db_tests {
 
         let both_actual = (1..=3)
             .map(|i| {
-                g.edges_window_t(i, 0, 1, Direction::BOTH)
-                    .map(|e| e.t.unwrap())
+                g.vertex_edges_window_t(i, 0, 1, Direction::BOTH)
+                    .map(|e| e.time.unwrap())
                     .collect::<Vec<_>>()
             })
             .collect::<Vec<_>>();
@@ -609,8 +615,8 @@ mod db_tests {
         let in_expected = (1..=3)
             .map(|i| {
                 let mut e = g
-                    .edges_window_t(i, -1, 7, Direction::IN)
-                    .map(|e| e.t.unwrap())
+                    .vertex_edges_window_t(i, -1, 7, Direction::IN)
+                    .map(|e| e.time.unwrap())
                     .collect::<Vec<_>>();
                 e.sort();
                 e
@@ -621,8 +627,8 @@ mod db_tests {
         let out_expected = (1..=3)
             .map(|i| {
                 let mut e = g
-                    .edges_window_t(i, 1, 7, Direction::OUT)
-                    .map(|e| e.t.unwrap())
+                    .vertex_edges_window_t(i, 1, 7, Direction::OUT)
+                    .map(|e| e.time.unwrap())
                     .collect::<Vec<_>>();
                 e.sort();
                 e
@@ -633,14 +639,88 @@ mod db_tests {
         let both_expected = (1..=3)
             .map(|i| {
                 let mut e = g
-                    .edges_window_t(i, 0, 1, Direction::BOTH)
-                    .map(|e| e.t.unwrap())
+                    .vertex_edges_window_t(i, 0, 1, Direction::BOTH)
+                    .map(|e| e.time.unwrap())
                     .collect::<Vec<_>>();
                 e.sort();
                 e
             })
             .collect::<Vec<_>>();
         assert_eq!(both_expected, both_actual);
+    }
+
+    #[test]
+    fn graph_neighbours_window() {
+        let vs = vec![
+            (1, 1, 2),
+            (2, 1, 3),
+            (-1, 2, 1),
+            (0, 1, 1),
+            (7, 3, 2),
+            (1, 1, 1),
+        ];
+
+        let g = Graph::new(2);
+
+        for (t, src, dst) in &vs {
+            g.add_edge(*t, *src, *dst, &vec![]);
+        }
+
+        let expected = [
+            (
+                vec![
+                    VertexView {
+                        g_id: 1,
+                        pid: Some(0),
+                    },
+                    VertexView { g_id: 2, pid: None },
+                ],
+                vec![
+                    VertexView {
+                        g_id: 1,
+                        pid: Some(0),
+                    },
+                    VertexView {
+                        g_id: 3,
+                        pid: Some(1),
+                    },
+                    VertexView { g_id: 2, pid: None },
+                ],
+                vec![
+                    VertexView {
+                        g_id: 1,
+                        pid: Some(0),
+                    },
+                    VertexView {
+                        g_id: 1,
+                        pid: Some(0),
+                    },
+                ],
+            ),
+            (vec![VertexView { g_id: 1, pid: None }], vec![], vec![]),
+            (
+                vec![VertexView {
+                    g_id: 1,
+                    pid: Some(0),
+                }],
+                vec![],
+                vec![],
+            ),
+        ];
+        let actual = (1..=3)
+            .map(|i| {
+                (
+                    g.neighbours_window(i, -1, 7, Direction::IN)
+                        .collect::<Vec<_>>(),
+                    g.neighbours_window(i, 1, 7, Direction::OUT)
+                        .collect::<Vec<_>>(),
+                    g.neighbours_window(i, 0, 1, Direction::BOTH)
+                        .collect::<Vec<_>>(),
+                )
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(actual, expected);
     }
 
     #[test]

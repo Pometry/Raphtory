@@ -271,7 +271,7 @@ impl AdjEdge {
         !self.is_remote()
     }
 
-    pub fn edge_meta_id(&self) -> usize {
+    pub fn edge_id(&self) -> usize {
         self.0.abs().try_into().unwrap()
     }
 }
