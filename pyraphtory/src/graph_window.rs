@@ -44,13 +44,9 @@ impl WindowedGraph {
         }
     }
 
-    pub fn vertices(slf: PyRef<'_, Self>) -> WindowedVertexIterable {
+    pub fn vertices(slf: PyRef<'_, Self>) -> WindowedVertices {
         let g: Py<Self> = slf.into();
-        WindowedVertexIterable {
-            graph: g,
-            operations: vec![],
-            start_at: None,
-        }
+        WindowedVertices { graph: g }
     }
 
     pub fn edge(&self, src: u64, dst: u64) -> Option<WindowedEdge> {
@@ -182,6 +178,10 @@ impl WindowedVertex {
         VertexIdsIterator {
             iter: Box::new(self.vertex_w.out_neighbours_ids()),
         }
+    }
+
+    pub fn __repr__(&self) -> String {
+        format!("Vertex({})", self.g_id)
     }
 }
 

@@ -1,5 +1,6 @@
+use itertools::Itertools;
 use pyo3::prelude::*;
-use std::borrow::BorrowMut;
+use std::borrow::{Borrow, BorrowMut};
 
 use db_c::tgraph_shard;
 use docbrown_core as db_c;
@@ -26,6 +27,7 @@ impl From<Direction> for db_c::Direction {
     }
 }
 
+#[derive(Copy, Clone)]
 pub(crate) enum Operations {
     OutNeighbours,
     InNeighbours,
@@ -105,8 +107,186 @@ impl VertexIdsIterator {
 }
 
 #[pyclass]
-pub struct WindowedVertexIterator {
-    pub(crate) iter: Box<dyn Iterator<Item = WindowedVertex> + Send>,
+pub struct WindowedVertices {
+    pub(crate) graph: Py<WindowedGraph>,
+}
+
+#[pymethods]
+impl WindowedVertices {
+    fn __iter__(&self, py: Python) -> WindowedVertexIterator {
+        let g = self.graph.borrow(py);
+        let g_py = self.graph.clone_ref(py);
+        WindowedVertexIterator {
+            iter: Box::new(
+                g.graph_w
+                    .vertices()
+                    .map(move |v| WindowedVertex::new(g_py.clone(), v)),
+            ),
+        }
+    }
+
+    fn out_neighbours(mut slf: PyRefMut<'_, Self>) -> WindowedVerticesPath {
+        WindowedVerticesPath {
+            graph: slf.graph.clone(),
+            operations: vec![Operations::OutNeighbours],
+        }
+    }
+
+    fn in_neighbours(mut slf: PyRefMut<'_, Self>) -> WindowedVerticesPath {
+        WindowedVerticesPath {
+            graph: slf.graph.clone(),
+            operations: vec![Operations::InNeighbours],
+        }
+    }
+
+    fn neighbours(mut slf: PyRefMut<'_, Self>) -> WindowedVerticesPath {
+        WindowedVerticesPath {
+            graph: slf.graph.clone(),
+            operations: vec![Operations::Neighbours],
+        }
+    }
+
+    fn in_degree(slf: PyRef<'_, Self>, py: Python) -> PyResult<DegreeIterable> {
+        let vertex_iter = Py::new(
+            py,
+            WindowedVertexIterable {
+                graph: slf.graph.clone(),
+                operations: vec![],
+                start_at: None,
+            },
+        )?;
+        Ok(DegreeIterable {
+            vertex_iter,
+            operation: Direction::IN,
+        })
+    }
+
+    fn out_degree(slf: PyRef<'_, Self>, py: Python) -> PyResult<DegreeIterable> {
+        let vertex_iter = Py::new(
+            py,
+            WindowedVertexIterable {
+                graph: slf.graph.clone(),
+                operations: vec![],
+                start_at: None,
+            },
+        )?;
+        Ok(DegreeIterable {
+            vertex_iter,
+            operation: Direction::OUT,
+        })
+    }
+
+    fn degree(slf: PyRef<'_, Self>, py: Python) -> PyResult<DegreeIterable> {
+        let vertex_iter = Py::new(
+            py,
+            WindowedVertexIterable {
+                graph: slf.graph.clone(),
+                operations: vec![],
+                start_at: None,
+            },
+        )?;
+        Ok(DegreeIterable {
+            vertex_iter,
+            operation: Direction::BOTH,
+        })
+    }
+
+    fn __repr__(&self, py: Python) -> String {
+        let values = self
+            .__iter__(py)
+            .iter
+            .take(11)
+            .map(|v| v.__repr__())
+            .collect_vec();
+        if values.len() < 11 {
+            "WindowedVertices(".to_string() + &values.join(", ") + ")"
+        } else {
+            "WindowedVertices(".to_string() + &values.join(", ") + " ... )"
+        }
+    }
+}
+
+#[pyclass]
+pub struct WindowedVerticesPath {
+    pub(crate) graph: Py<WindowedGraph>,
+    pub(crate) operations: Vec<Operations>,
+}
+
+impl WindowedVerticesPath {
+    fn build_iterator(
+        &self,
+        py: Python,
+    ) -> Box<dyn Iterator<Item = WindowedVertexIterable> + Send> {
+        let g = self.graph.borrow(py);
+        let g_py = self.graph.clone_ref(py);
+        let ops = self.operations.clone();
+        // don't capture self inside the closure!
+        Box::new(g.graph_w.vertices().map(move |v| WindowedVertexIterable {
+            graph: g_py.clone(),
+            operations: ops.clone(),
+            start_at: Some(v.g_id),
+        }))
+    }
+}
+
+#[pymethods]
+impl WindowedVerticesPath {
+    fn __iter__(&self, py: Python) -> NestedVertexIterator {
+        let iter = self.build_iterator(py);
+        NestedVertexIterator {
+            iter: Box::new(iter),
+        }
+    }
+
+    fn out_neighbours(mut slf: PyRefMut<'_, Self>) -> PyRefMut<'_, Self> {
+        slf.operations.push(Operations::OutNeighbours);
+        slf
+    }
+
+    fn in_neighbours(mut slf: PyRefMut<'_, Self>) -> PyRefMut<'_, Self> {
+        slf.operations.push(Operations::InNeighbours);
+        slf
+    }
+
+    fn neighbours(mut slf: PyRefMut<'_, Self>) -> PyRefMut<'_, Self> {
+        slf.operations.push(Operations::Neighbours);
+        slf
+    }
+
+    fn in_degree(slf: PyRef<'_, Self>, py: Python) -> NestedDegreeIterable {
+        NestedDegreeIterable {
+            vertex_iter: slf.into(),
+            operation: Direction::IN,
+        }
+    }
+
+    fn out_degree(slf: PyRef<'_, Self>, py: Python) -> NestedDegreeIterable {
+        NestedDegreeIterable {
+            vertex_iter: slf.into(),
+            operation: Direction::OUT,
+        }
+    }
+
+    fn degree(slf: PyRef<'_, Self>, py: Python) -> NestedDegreeIterable {
+        NestedDegreeIterable {
+            vertex_iter: slf.into(),
+            operation: Direction::BOTH,
+        }
+    }
+
+    fn __repr__(&self, py: Python) -> String {
+        let values = self
+            .__iter__(py)
+            .iter
+            .take(11)
+            .map(|v| v.__repr__(py))
+            .collect_vec();
+        if values.len() < 11 {
+            "WindowedVerticesPath(".to_string() + &values.join(", ") + ")"
+        } else {
+            "WindowedVerticesPath(".to_string() + &values.join(", ") + " ... )"
+        }
+    }
 }
 
 #[pyclass]
@@ -126,14 +306,14 @@ impl WindowedVertexIterable {
         let mut iter = match self.start_at {
             None => g.graph_w.vertices(),
             Some(g_id) => {
+                let vertex = g.graph_w.vertex(g_id).expect("should exist");
                 let op0 = ops_iter
                     .next()
                     .expect("need to have an operation to get here");
-                let v = g.graph_w.vertex(g_id).expect("should exist");
                 match op0 {
-                    Operations::OutNeighbours => v.out_neighbours(),
-                    Operations::InNeighbours => v.in_neighbours(),
-                    Operations::Neighbours => v.neighbours(),
+                    Operations::OutNeighbours => vertex.out_neighbours(),
+                    Operations::InNeighbours => vertex.in_neighbours(),
+                    Operations::Neighbours => vertex.neighbours(),
                 }
             }
         };
@@ -151,9 +331,9 @@ impl WindowedVertexIterable {
 
 #[pymethods]
 impl WindowedVertexIterable {
-    fn __iter__(slf: PyRef<'_, Self>, py: Python) -> WindowedVertexIterator {
-        let iter = slf.build_iterator(py);
-        let g = slf.graph.clone_ref(py);
+    fn __iter__(&self, py: Python) -> WindowedVertexIterator {
+        let iter = self.build_iterator(py);
+        let g = self.graph.clone_ref(py);
         WindowedVertexIterator {
             iter: Box::new(iter.map(move |v| WindowedVertex::new(g.clone(), v))),
         }
@@ -173,6 +353,130 @@ impl WindowedVertexIterable {
         slf.operations.push(Operations::Neighbours);
         slf
     }
+
+    fn in_degree(slf: PyRef<'_, Self>) -> DegreeIterable {
+        let vertex_iter = slf.into();
+        DegreeIterable {
+            vertex_iter,
+            operation: Direction::IN,
+        }
+    }
+
+    fn out_degree(slf: PyRef<'_, Self>) -> DegreeIterable {
+        let vertex_iter = slf.into();
+        DegreeIterable {
+            vertex_iter,
+            operation: Direction::OUT,
+        }
+    }
+
+    fn degree(slf: PyRef<'_, Self>) -> DegreeIterable {
+        let vertex_iter = slf.into();
+        DegreeIterable {
+            vertex_iter,
+            operation: Direction::BOTH,
+        }
+    }
+
+    fn __repr__(&self, py: Python) -> String {
+        let values = self
+            .__iter__(py)
+            .iter
+            .take(11)
+            .map(|v| v.__repr__())
+            .collect_vec();
+        if values.len() < 11 {
+            "WindowedVertexIterable(".to_string() + &values.join(", ") + ")"
+        } else {
+            "WindowedVertexIterable(".to_string() + &values.join(", ") + " ... )"
+        }
+    }
+}
+
+#[pyclass]
+pub struct DegreeIterable {
+    vertex_iter: Py<WindowedVertexIterable>,
+    operation: Direction,
+}
+
+impl DegreeIterable {
+    fn build_iterator(&self, py: Python) -> Box<dyn Iterator<Item = usize> + Send> {
+        let inner = self.vertex_iter.borrow(py);
+        let iter = inner.build_iterator(py);
+        match self.operation {
+            Direction::OUT => Box::new(iter.map(|v| v.out_degree())),
+            Direction::IN => Box::new(iter.map(|v| v.in_degree())),
+            Direction::BOTH => Box::new(iter.map(|v| v.degree())),
+        }
+    }
+}
+
+#[pymethods]
+impl DegreeIterable {
+    fn __iter__(&self, py: Python) -> USizeIter {
+        USizeIter {
+            iter: self.build_iterator(py),
+        }
+    }
+}
+
+#[pyclass]
+pub struct NestedDegreeIterable {
+    vertex_iter: Py<WindowedVerticesPath>,
+    operation: Direction,
+}
+
+#[pymethods]
+impl NestedDegreeIterable {
+    fn __iter__(&self, py: Python) -> NestedUsizeIter {
+        let inner = self.vertex_iter.borrow(py);
+        let iter = inner.build_iterator(py);
+        let op = self.operation.clone();
+        NestedUsizeIter {
+            iter: Box::new(iter.map(move |iterable| {
+                let v_it = Python::with_gil(|py| Py::new(py, iterable)).unwrap();
+                DegreeIterable {
+                    vertex_iter: v_it,
+                    operation: op,
+                }
+            })),
+        }
+    }
+}
+
+#[pyclass]
+pub struct NestedUsizeIter {
+    iter: Box<dyn Iterator<Item = DegreeIterable> + Send>,
+}
+
+#[pymethods]
+impl NestedUsizeIter {
+    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        slf
+    }
+    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<DegreeIterable> {
+        slf.iter.next()
+    }
+}
+
+#[pyclass]
+pub struct USizeIter {
+    iter: Box<dyn Iterator<Item = usize> + Send>,
+}
+
+#[pymethods]
+impl USizeIter {
+    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        slf
+    }
+    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<usize> {
+        slf.iter.next()
+    }
+}
+
+#[pyclass]
+pub struct WindowedVertexIterator {
+    pub(crate) iter: Box<dyn Iterator<Item = WindowedVertex> + Send>,
 }
 
 #[pymethods]
@@ -181,6 +485,21 @@ impl WindowedVertexIterator {
         slf
     }
     fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<WindowedVertex> {
+        slf.iter.next()
+    }
+}
+
+#[pyclass]
+pub struct NestedVertexIterator {
+    pub(crate) iter: Box<dyn Iterator<Item = WindowedVertexIterable> + Send>,
+}
+
+#[pymethods]
+impl NestedVertexIterator {
+    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        slf
+    }
+    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<WindowedVertexIterable> {
         slf.iter.next()
     }
 }
