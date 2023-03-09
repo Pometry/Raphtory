@@ -106,9 +106,6 @@ pub mod csv {
             F: Fn(REC, &Graph) -> () + Send + Sync,
         {
             let paths = self.files_vec()?;
-
-            println!("LOADING {paths:?}");
-
             paths
                 .par_iter()
                 .try_for_each(move |path| self.load_file_into_graph(path, g, &loader))?;
