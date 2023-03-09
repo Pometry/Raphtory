@@ -24,6 +24,14 @@ impl WindowedGraph {
         }
     }
 
+    pub fn earliest_time(&self,) -> i64 {
+        self.graph_w.t_start
+    }
+
+    pub fn latest_time(&self,) -> i64 {
+        self.graph_w.t_end
+    }
+
     pub fn has_vertex(&self, v: u64) -> bool {
         self.graph_w.has_vertex(v)
     }
