@@ -22,7 +22,7 @@ const SMALL_SET: usize = 1024;
  *
  *  */
 #[derive(Debug, Default, Serialize, Deserialize, PartialEq)]
-pub(crate) enum TAdjSet<V: Ord + TryInto<usize> + std::hash::Hash, Time: Copy + Ord> {
+pub enum TAdjSet<V: Ord + TryInto<usize> + std::hash::Hash, Time: Copy + Ord> {
     #[default]
     Empty,
     One(Time, V, AdjEdge),
@@ -52,6 +52,31 @@ impl<
             TAdjSet::One(_, _, _) => 1,
             TAdjSet::Small { vs, .. } => vs.len(),
             TAdjSet::Large { vs, .. } => vs.len(),
+        }
+    }
+
+    pub fn len_window(&self, window: &Range<Time>) -> usize {
+        match self {
+            TAdjSet::Empty => 0,
+            TAdjSet::One(t, _, _) => {
+                if window.contains(t) {
+                    1
+                } else {
+                    0
+                }
+            }
+            TAdjSet::Small { t_index, .. } => t_index
+                .range(window.clone())
+                .map(|(_, bs)| bs.iter())
+                .kmerge()
+                .dedup()
+                .count(),
+            TAdjSet::Large { t_index, .. } => t_index
+                .range(window.clone())
+                .map(|(_, bs)| bs.iter())
+                .kmerge()
+                .dedup()
+                .count(),
         }
     }
 
@@ -123,25 +148,6 @@ impl<
                 Box::new(vs.iter().zip(Box::new(edges.iter().map(|e| *e))))
             }
             TAdjSet::Large { vs, .. } => Box::new(vs.iter().map(|(v, e)| (v, *e))),
-        }
-    }
-
-    pub fn len_window(&self, window: &Range<Time>) -> usize {
-        match self {
-            TAdjSet::Empty => 0,
-            TAdjSet::One(t, _, _) => {
-                if window.contains(t) {
-                    1
-                } else {
-                    0
-                }
-            }
-            TAdjSet::Small { t_index, .. } => {
-                t_index.range(window.clone()).map(|(_, bs)| bs.iter()).kmerge().dedup().count()
-            }
-            TAdjSet::Large { t_index, .. } => {
-                t_index.range(window.clone()).map(|(_, bs)| bs.iter()).kmerge().dedup().count()
-            }
         }
     }
 
@@ -262,7 +268,7 @@ pub(crate) struct Edge<V: Clone + PartialEq + Eq + PartialOrd + Ord> {
 pub struct AdjEdge(pub(crate) i64);
 
 impl AdjEdge {
-    pub(crate) fn new(i: usize, local: bool) -> Self {
+    pub fn new(i: usize, local: bool) -> Self {
         if local {
             Self::local(i)
         } else {

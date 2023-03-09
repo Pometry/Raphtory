@@ -215,7 +215,7 @@ def test_windowed_graph_neighbours_ids():
     for v_iter in vertices_w:
         neighbours_ids.append([v for v in v_iter])
 
-    assert neighbours_ids == [[1, 2, 1, 2, 3], [1, 3, 1], [1, 2]]
+    assert neighbours_ids == [[1, 2, 3], [1, 3], [1, 2]]
 
     vertices_w = [v.in_neighbours_ids() for v in view.vertices()]
     in_neighbours_ids = []

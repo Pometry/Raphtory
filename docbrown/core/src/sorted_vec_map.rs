@@ -5,7 +5,7 @@ use sorted_vector_map::{map::Entry, SortedVectorMap};
 
 // wrapper for SortedVectorMap
 #[derive(Debug, PartialEq, Default, Clone)]
-pub(crate) struct SVM<K: Ord, V>(SortedVectorMap<K, V>);
+pub struct SVM<K: Ord, V>(SortedVectorMap<K, V>);
 
 impl<K: Ord, V> SVM<K, V> {
     pub(crate) fn new() -> Self {

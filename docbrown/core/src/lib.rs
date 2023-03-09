@@ -9,7 +9,7 @@ pub mod lsm;
 mod misc;
 mod props;
 mod sorted_vec_map;
-mod tadjset;
+pub mod tadjset;
 mod tcell;
 pub mod tgraph_shard;
 mod tprop;
