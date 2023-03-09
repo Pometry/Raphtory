@@ -49,7 +49,7 @@ pub fn average_degree(windowed_graph: &WindowedGraph) -> f32 {
 }
 
 #[cfg(test)]
-mod max_out_degree_test {
+mod degree_test {
 
     use crate::{
         algorithms::degree::{average_degree, max_in_degree, min_in_degree, min_out_degree},
