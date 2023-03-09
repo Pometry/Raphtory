@@ -8,18 +8,39 @@ use std::{collections::HashMap, sync::Arc};
 
 #[derive(Debug, Clone)]
 pub struct WindowedGraph {
-    pub(crate) graph: Arc<Graph>,
+    pub(crate) graph: Graph,
     pub t_start: i64,
     pub t_end: i64,
 }
 
 impl WindowedGraph {
-    pub fn new(graph: Arc<Graph>, t_start: i64, t_end: i64) -> Self {
+    pub fn new(graph: Graph, t_start: i64, t_end: i64) -> Self {
         WindowedGraph {
             graph,
             t_start,
             t_end,
         }
+    }
+
+    
+    pub fn fold_par<S, F, F2>(&self, f: F, agg: F2) -> Option<S>
+    where
+        S: Send,
+        F: Fn(VertexView) -> S + Send + Sync + Copy,
+        F2: Fn(S, S) -> S + Sync + Send + Copy,
+    {
+        self.graph.fold_par(self.t_start, self.t_end, f, agg)
+    }
+
+    pub fn vertex_window_par<O, F>(
+        &self,
+        f: F,
+    ) -> Box<dyn Iterator<Item = O>>
+    where
+        O: Send + 'static,
+        F: Fn(VertexView) -> O + Send + Sync + Copy,
+    {
+        self.graph.vertex_window_par(self.t_start, self.t_end, f)
     }
 
     pub fn has_vertex(&self, v: u64) -> bool {
@@ -40,6 +61,10 @@ impl WindowedGraph {
 
     pub fn vertex_ids(&self) -> Box<dyn Iterator<Item = u64> + Send> {
         self.graph.vertex_ids_window(self.t_start, self.t_end)
+    }
+
+    pub fn neighbours_ids(&self, v: u64, d: Direction) -> Box<dyn Iterator<Item = u64> + Send> {
+        self.graph.neighbours_ids_window(v, self.t_start, self.t_end, d)
     }
 
     pub fn vertices(&self) -> Box<dyn Iterator<Item = WindowedVertex> + Send> {

@@ -4,6 +4,7 @@ use std::{
 };
 
 use itertools::Itertools;
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 
 use crate::adj::Adj;
@@ -14,7 +15,7 @@ use crate::{bitset::BitSet, tadjset::AdjEdge, Direction};
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct TemporalGraph {
     // Maps global (logical) id to the local (physical) id which is an index to the adjacency list vector
-    pub(crate) logical_to_physical: HashMap<u64, usize>,
+    pub(crate) logical_to_physical: FxHashMap<u64, usize>,
 
     // Vector of adjacency lists
     pub(crate) adj_lists: Vec<Adj>,
@@ -341,7 +342,7 @@ impl TemporalGraph {
         )
     }
 
-    pub(crate) fn vertices_window(
+    pub fn vertices_window(
         &self,
         w: Range<i64>,
     ) -> Box<dyn Iterator<Item = VertexView> + Send + '_> {

@@ -28,7 +28,7 @@ pub fn bootstrap_graph(num_shards: usize, num_vertices: usize) -> Graph {
     graph
 }
 
-fn bench<F>(group: &mut BenchmarkGroup<WallTime>, name: &str, parameter: Option<usize>, mut task: F)
+pub fn bench<F>(group: &mut BenchmarkGroup<WallTime>, name: &str, parameter: Option<usize>, mut task: F)
 where
     F: FnMut(&mut Bencher<'_, WallTime>),
 {

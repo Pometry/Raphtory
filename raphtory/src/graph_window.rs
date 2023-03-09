@@ -17,7 +17,7 @@ impl WindowedGraph {
     pub fn new(graph: &Graph, t_start: i64, t_end: i64) -> Self {
         Self {
             graph_w: graph_window::WindowedGraph::new(
-                Arc::new(graph.graph.clone()),
+                graph.graph.clone(),
                 t_start,
                 t_end,
             ),

@@ -3,8 +3,7 @@ use std::{
     collections::HashMap,
     ops::Range,
     path::{Path, PathBuf},
-    sync::Arc,
-
+    sync::{mpsc, Arc},
 };
 
 use docbrown_core::{
@@ -13,8 +12,9 @@ use docbrown_core::{
     utils, Direction, Prop,
 };
 
+use itertools::Itertools;
+use rayon::prelude::*;
 use tempdir::TempDir;
-use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -60,7 +60,7 @@ impl Graph {
     }
 
     pub fn window(&self, t_start: i64, t_end: i64) -> WindowedGraph {
-        WindowedGraph::new(Arc::new(self.clone()), t_start, t_end)
+        WindowedGraph::new(self.clone(), t_start, t_end)
     }
 
     pub fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self, Box<bincode::ErrorKind>> {
@@ -213,9 +213,55 @@ impl Graph {
         )
     }
 
-    pub(crate) fn edge(&self, src: u64, dst: u64) -> Option<EdgeView> {
-        let shard_id = utils::get_shard_id_from_global_vid(src, self.nr_shards);
-        self.shards[shard_id].edge(src, dst)
+    pub(crate) fn fold_par<S, F, F2>(&self, t_start: i64, t_end: i64, f: F, agg: F2) -> Option<S>
+    where
+        S: Send,
+        F: Fn(VertexView) -> S + Send + Sync + Copy,
+        F2: Fn(S, S) -> S + Sync + Send + Copy,
+    {
+        let shards = self.shards.clone();
+
+        let out = shards
+            .into_par_iter()
+            .map(|shard| {
+                shard.read_shard(|tg_core| {
+                    tg_core.vertices_window(t_start..t_end).par_bridge().map(f).reduce_with(agg)
+                })
+            })
+            .flatten()
+            .reduce_with(agg);
+
+        out
+    }
+
+    pub(crate) fn vertex_window_par<O, F>(
+        &self,
+        t_start: i64,
+        t_end: i64,
+        f: F,
+    ) -> Box<dyn Iterator<Item = O>>
+    where
+        O: Send + 'static,
+        F: Fn(VertexView) -> O + Send + Sync + Copy,
+    {
+        let shards = self.shards.clone();
+        let (tx, rx) = flume::unbounded();
+
+        let arc_tx = Arc::new(tx);
+        shards
+            .into_par_iter()
+            .map(|shard| shard.vertices_window(t_start..t_end).par_bridge().map(f))
+            .flatten()
+            .for_each(move |o| {
+                arc_tx.send(o).unwrap();
+            });
+
+        Box::new(rx.into_iter())
+    }
+
+    pub(crate) fn edge(&self, v1: u64, v2: u64) -> Option<EdgeView> {
+        let shard_id = utils::get_shard_id_from_global_vid(v1, self.nr_shards);
+        self.shards[shard_id].edge(v1, v2)
     }
 
     pub(crate) fn edge_window(
@@ -276,7 +322,9 @@ impl Graph {
         Self: Sized,
     {
         let shard_id = utils::get_shard_id_from_global_vid(v, self.nr_shards);
-        let iter = self.shards[shard_id].neighbours_ids_window(v, t_start..t_end, d);
+        let iter = self.shards[shard_id]
+            .neighbours_ids_window(v, t_start..t_end, d)
+            .unique();
         Box::new(iter)
     }
 
@@ -333,6 +381,8 @@ mod db_tests {
     use std::sync::Arc;
     use uuid::Uuid;
     use crate::graphgen::random_attachment::random_attachment;
+
+    use crate::algorithms::local_triangle_count::local_triangle_count;
 
     use super::*;
 
@@ -456,6 +506,12 @@ mod db_tests {
         g.add_edge(1, 7, 8, &vec![]);
 
         assert_eq!(g.has_edge(8, 7), false);
+        assert_eq!(g.has_edge(7, 8), true);
+
+        g.add_edge(1, 7, 9, &vec![]);
+
+        assert_eq!(g.has_edge(9, 7), false);
+        assert_eq!(g.has_edge(7, 9), true);
     }
 
     #[test]
@@ -848,7 +904,14 @@ mod db_tests {
     #[ignore]
     #[test]
     fn test_twitter_load_graph() {
-        let g = crate::graph_loader::twitter_graph::twitter_graph(4);
+        let g = crate::graph_loader::twitter_graph::twitter_graph(1);
+        let windowed_graph = g.window(i64::MIN, i64::MAX);
+        let mut i = 0;
+        println!("Starting analysis");
+        windowed_graph.vertex_ids().for_each(|v| {
+            local_triangle_count(&windowed_graph, v);
+            i += 1;
+        });
         assert_eq!(g.edges_len(), 1089147);
         assert_eq!(g.len(), 49467);
     }
