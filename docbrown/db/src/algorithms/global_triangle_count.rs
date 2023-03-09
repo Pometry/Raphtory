@@ -1,24 +1,25 @@
 use crate::graph_window::WindowedGraph;
 use docbrown_core::Direction;
 use itertools::Itertools;
+use rayon::prelude::*;
 
-pub fn local_triangle_count(windowed_graph: &WindowedGraph, v: u64) -> u32 {
-    let mut number_of_triangles: u32 = 0;
-    let vertex = windowed_graph.vertex(v).unwrap();
+pub fn global_triangle_count(windowed_graph: &WindowedGraph) -> usize {
+   
+    let vertex_ids = windowed_graph.vertex_ids().collect::<Vec<_>>();
 
-    if vertex.degree() >= 2 {
-        windowed_graph
-            .neighbours_ids(v, Direction::BOTH)
+    vertex_ids.into_par_iter().map(|v| {
+         windowed_graph.neighbours_ids(v, Direction::BOTH)
             .combinations(2)
-            .for_each(|nb| {
+            .map(|nb| {
                 if windowed_graph.has_edge(nb[0], nb[1]) || (windowed_graph.has_edge(nb[1], nb[0]))
                 {
-                    number_of_triangles += 1;
+                    1 as usize
+                } else {
+                    0 as usize
                 }
-            })
-    }
-    
-    number_of_triangles
+            }).sum::<usize>()
+        }).sum()
+       
 }
 
 #[cfg(test)]
@@ -26,7 +27,7 @@ mod triangle_count_tests {
 
     use crate::graph::Graph;
 
-    use super::local_triangle_count;
+    use super::global_triangle_count;
 
     #[test]
     fn counts_triangles() {
@@ -38,11 +39,9 @@ mod triangle_count_tests {
         }
 
         let windowed_graph = g.window(0, 5);
-        let expected = vec![(1), (1), (1)];
+        let expected = 3;
 
-        let actual = (1..=3)
-            .map(|v| local_triangle_count(&windowed_graph, v))
-            .collect::<Vec<_>>();
+        let actual = global_triangle_count(&windowed_graph);
 
         assert_eq!(actual, expected);
     }

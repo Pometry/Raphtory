@@ -7,6 +7,7 @@ use std::{
 
 use itertools::Itertools;
 use replace_with::replace_with_or_abort;
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{bitset::BitSet, sorted_vec_map::SVM};
@@ -31,7 +32,7 @@ pub(crate) enum TAdjSet<V: Ord + TryInto<usize> + std::hash::Hash, Time: Copy + 
         t_index: SVM<Time, BitSet>, // index from t -> [v] where v is the value of vs and edges
     },
     Large {
-        vs: HashMap<V, AdjEdge>, // this is equiv to vs and edges
+        vs: FxHashMap<V, AdjEdge>, // this is equiv to vs and edges
         t_index: BTreeMap<Time, BitSet>,
     },
 }
@@ -52,10 +53,6 @@ impl<
             TAdjSet::Small { vs, .. } => vs.len(),
             TAdjSet::Large { vs, .. } => vs.len(),
         }
-    }
-
-    pub fn len_window(&self, window: &Range<Time>) -> usize {
-        self.iter_window(window).count()
     }
 
     pub fn push(&mut self, t: Time, v: V, e: AdjEdge) {
@@ -95,7 +92,7 @@ impl<
                                 bt.insert(t, bs);
                             }
                             let mut entry = TAdjSet::Large {
-                                vs: HashMap::from_iter(pairs),
+                                vs: FxHashMap::from_iter(pairs),
                                 t_index: bt,
                             };
                             entry.push(t, v, e);
@@ -126,6 +123,25 @@ impl<
                 Box::new(vs.iter().zip(Box::new(edges.iter().map(|e| *e))))
             }
             TAdjSet::Large { vs, .. } => Box::new(vs.iter().map(|(v, e)| (v, *e))),
+        }
+    }
+
+    pub fn len_window(&self, window: &Range<Time>) -> usize {
+        match self {
+            TAdjSet::Empty => 0,
+            TAdjSet::One(t, _, _) => {
+                if window.contains(t) {
+                    1
+                } else {
+                    0
+                }
+            }
+            TAdjSet::Small { t_index, .. } => {
+                t_index.range(window.clone()).map(|(_, bs)| bs.iter()).kmerge().dedup().count()
+            }
+            TAdjSet::Large { t_index, .. } => {
+                t_index.range(window.clone()).map(|(_, bs)| bs.iter()).kmerge().dedup().count()
+            }
         }
     }
 
