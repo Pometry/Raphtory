@@ -1,8 +1,11 @@
 use std::collections::BTreeSet;
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
-use docbrown_core::lsm::LSMSet;
-use rand::{distributions::Uniform, Rng};
+use docbrown_core::{
+    lsm::LSMSet,
+    tadjset::{AdjEdge, TAdjSet},
+};
+use rand::{distributions::Uniform, prelude::Distribution, Rng};
 use sorted_vector_map::SortedVectorSet;
 
 fn btree_set_u64(c: &mut Criterion) {
@@ -12,9 +15,7 @@ fn btree_set_u64(c: &mut Criterion) {
 
         let mut rng = rand::thread_rng();
         let range = Uniform::new(u64::MIN, u64::MAX);
-
         let init_vals: Vec<u64> = (&mut rng).sample_iter(&range).take(*size).collect();
-        let range2 = Uniform::new(usize::MIN, usize::MAX);
 
         group.bench_with_input(
             BenchmarkId::new("BTreeSet with u64", size),
@@ -61,5 +62,62 @@ fn btree_set_u64(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(benches, btree_set_u64);
+fn bm_tadjset(c: &mut Criterion) {
+    let mut group = c.benchmark_group("tadjset");
+    for size in [10, 100, 1000, 10_000, 100_000, 1_000_000].iter() {
+        group.throughput(Throughput::Elements(*size as u64));
+
+        let mut rng = rand::thread_rng();
+        let range = Uniform::new(0u64, size * 10);
+        let init_srcs: Vec<u64> = (&mut rng)
+            .sample_iter(&range)
+            .take(*size as usize)
+            .collect();
+        let init_dsts: Vec<u64> = (&mut rng)
+            .sample_iter(&range)
+            .take(*size as usize)
+            .collect();
+        let t_range = Uniform::new(1646838523i64, 1678374523);
+        let init_time: Vec<i64> = (&mut rng)
+            .sample_iter(&t_range)
+            .take(*size as usize)
+            .collect();
+
+        let mut tadjset = TAdjSet::default();
+
+        group.bench_with_input(
+            BenchmarkId::new("TAdjSet insert", size),
+            &(init_time.clone(), init_srcs, init_dsts),
+            |b, (time, srcs, dsts)| {
+                b.iter(|| {
+                    for i in 0..time.len() {
+                        tadjset.push(
+                            time[i],
+                            srcs[i] as usize,
+                            AdjEdge::new(dsts[i] as usize, false),
+                        );
+                    }
+                });
+            },
+        );
+
+        group.bench_with_input(
+            BenchmarkId::new("TAdjSet degree window", size),
+            &tadjset,
+            |b, tadjset| {
+                b.iter(|| {
+                    let mut start = t_range.sample(&mut rng);
+                    let mut end = t_range.sample(&mut rng);
+                    if start > end {
+                        std::mem::swap(&mut start, &mut end)
+                    }
+                    tadjset.len_window(&(start..end));
+                });
+            },
+        );
+    }
+    group.finish();
+}
+
+criterion_group!(benches, btree_set_u64, bm_tadjset);
 criterion_main!(benches);

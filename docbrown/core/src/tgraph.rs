@@ -155,7 +155,7 @@ impl TemporalGraph {
         self.props.upsert_vertex_props(t, index, props);
     }
 
-    pub(crate) fn add_edge(&mut self, t: i64, src: u64, dst: u64) {
+    pub fn add_edge(&mut self, t: i64, src: u64, dst: u64) {
         self.add_edge_with_props(t, src, dst, &vec![])
     }
 
@@ -247,7 +247,7 @@ impl TemporalGraph {
         }
     }
 
-    pub(crate) fn degree_window(&self, v: u64, w: &Range<i64>, d: Direction) -> usize {
+    pub fn degree_window(&self, v: u64, w: &Range<i64>, d: Direction) -> usize {
         let v_pid = self.logical_to_physical[&v];
 
         match &self.adj_lists[v_pid] {
