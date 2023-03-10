@@ -287,14 +287,14 @@ def test_algorithms():
     g.add_edge(3, 3, 1, {"prop1": 1})
 
     view = g.window(0, 4)
-    triangles = algorithms.triangle_count(view, 1)
-    average_degree = algorithms.avg_degree(view)
-    max_out_degree = algorithms.max_outdegree(view)
-    max_in_degree = algorithms.max_indegree(view)
-    min_out_degree = algorithms.min_outdegree(view)
-    min_in_degree = algorithms.min_indegree(view)
-    graph_density = algorithms.graph_density(view)
-    clustering_coefficient = algorithms.clustering_coefficient(view, 1)
+    triangles = algorithms.local_triangle_count(view, 1)
+    average_degree = algorithms.average_degree(view)
+    max_out_degree = algorithms.max_out_degree(view)
+    max_in_degree = algorithms.max_in_degree(view)
+    min_out_degree = algorithms.min_out_degree(view)
+    min_in_degree = algorithms.min_in_degree(view)
+    graph_density = algorithms.directed_graph_density(view)
+    clustering_coefficient = algorithms.local_clustering_coefficient(view, 1)
 
     assert triangles == 1
     assert average_degree == 2.0
