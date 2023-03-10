@@ -1,51 +1,43 @@
 use crate::graph_window::WindowedGraph;
 
 pub fn max_out_degree(windowed_graph: &WindowedGraph) -> usize {
-    let mut highest_degree = 0;
-    windowed_graph.vertex_ids().for_each(|v| {
-        if windowed_graph.vertex(v).unwrap().out_degree() > highest_degree {
-            highest_degree = windowed_graph.vertex(v).unwrap().out_degree();
-        }
-    });
-    highest_degree
+    windowed_graph
+        .vertices()
+        .map(|v| v.out_degree())
+        .max()
+        .unwrap()
 }
 
 pub fn max_in_degree(windowed_graph: &WindowedGraph) -> usize {
-    let mut highest_degree = 0;
-    windowed_graph.vertex_ids().for_each(|v| {
-        if windowed_graph.vertex(v).unwrap().in_degree() > highest_degree {
-            highest_degree = windowed_graph.vertex(v).unwrap().in_degree();
-        }
-    });
-    highest_degree
+    windowed_graph
+        .vertices()
+        .map(|v| v.in_degree())
+        .max()
+        .unwrap()
 }
 
 pub fn min_out_degree(windowed_graph: &WindowedGraph) -> usize {
-    let mut lowest_degree = 0;
-    windowed_graph.vertex_ids().for_each(|v| {
-        if windowed_graph.vertex(v).unwrap().out_degree() < lowest_degree {
-            lowest_degree = windowed_graph.vertex(v).unwrap().out_degree();
-        }
-    });
-    lowest_degree
+    windowed_graph
+        .vertices()
+        .map(|v| v.out_degree())
+        .min()
+        .unwrap()
 }
 
 pub fn min_in_degree(windowed_graph: &WindowedGraph) -> usize {
-    let mut lowest_degree = 0;
-    windowed_graph.vertex_ids().for_each(|v| {
-        if windowed_graph.vertex(v).unwrap().in_degree() < lowest_degree {
-            lowest_degree = windowed_graph.vertex(v).unwrap().in_degree();
-        }
-    });
-    lowest_degree
+    windowed_graph
+        .vertices()
+        .map(|v| v.in_degree())
+        .min()
+        .unwrap()
 }
 
-pub fn average_degree(windowed_graph: &WindowedGraph) -> f32 {
-    let mut total_degree = 0.0;
-    windowed_graph
-        .vertex_ids()
-        .for_each(|v| total_degree += windowed_graph.vertex(v).unwrap().degree() as f32);
-    total_degree / windowed_graph.graph.len() as f32
+pub fn average_degree(windowed_graph: &WindowedGraph) -> f64 {
+    let degree_totals = windowed_graph
+        .vertices()
+        .map(|v| (v.degree() as f64, 1.0))
+        .fold((0.0, 0.0), |acc, elem| (acc.0 + elem.0, acc.1 + elem.1));
+    degree_totals.0 / degree_totals.1
 }
 
 #[cfg(test)]
@@ -84,7 +76,7 @@ mod degree_test {
         let expected_min_out_degree = 0;
         let actual_min_out_degree = min_out_degree(&windowed_graph);
 
-        let expected_min_in_degree = 0;
+        let expected_min_in_degree = 1;
         let actual_min_in_degree = min_in_degree(&windowed_graph);
 
         let expected_average_degree = 2.0;
