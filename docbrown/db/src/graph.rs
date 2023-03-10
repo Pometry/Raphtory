@@ -1,6 +1,8 @@
-use crate::graph_window::WindowedGraph;
+use crate::graph_window::{GraphWindowSet, WindowedGraph};
+use crate::perspective::{Perspective, PerspectiveIterator, PerspectiveSet};
 use std::{
     collections::HashMap,
+    iter,
     ops::Range,
     path::{Path, PathBuf},
     sync::{mpsc, Arc},
@@ -61,6 +63,22 @@ impl Graph {
 
     pub fn window(&self, t_start: i64, t_end: i64) -> WindowedGraph {
         WindowedGraph::new(self.clone(), t_start, t_end)
+    }
+
+    pub fn through_perspectives(&self, mut perspectives: PerspectiveSet) -> GraphWindowSet {
+        let iter = match (self.earliest_time(), self.latest_time()) {
+            (Some(start), Some(end)) => perspectives.build_iter(start..end),
+            _ => PerspectiveIterator::empty(),
+        };
+        GraphWindowSet::new(self.clone(), Box::new(iter))
+    }
+
+    pub fn through_iter(&self, perspectives: Box<dyn Iterator<Item=Perspective> + Send>) -> GraphWindowSet  {
+        let iter = match (self.earliest_time(), self.latest_time()) {
+            (Some(start), Some(end)) => perspectives,
+            _ => Box::new(iter::empty::<Perspective>()),
+        };
+        GraphWindowSet::new(self.clone(), iter)
     }
 
     pub fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self, Box<bincode::ErrorKind>> {
@@ -892,6 +910,19 @@ mod db_tests {
 
         let gandalf = utils::calculate_hash(&"Gandalf");
         assert!(g.has_vertex(gandalf));
+    }
+
+    #[test]
+    fn test_through_on_empty_graph() {
+        let g = Graph::new(1);
+
+        let perspectives = Perspective::rolling(1, Some(1), Some(-100), Some(100));
+        let first_view = g.through_perspectives(perspectives).next();
+        assert!(first_view.is_none());
+
+        let perspectives = vec![Perspective::new(Some(-10), Some(10))].into_iter();
+        let first_view = g.through_iter(Box::new(perspectives)).next();
+        assert!(first_view.is_none());
     }
 
     #[test]

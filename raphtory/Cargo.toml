@@ -18,8 +18,8 @@ crate-type = ["cdylib"]
 
 [dependencies]
 pyo3 =  "0.18.1"
-docbrown-db = {path = "../docbrown/db", version = "0.0.2" }
-docbrown-core = {path = "../docbrown/core", version = "0.0.2" }
+docbrown_db = {path = "../docbrown/db", version = "0.0.2" }
+docbrown_core = {path = "../docbrown/core", version = "0.0.2" }
 
 parking_lot = { version = "0.12" , features = ["serde"] }
 flume = "0.10"

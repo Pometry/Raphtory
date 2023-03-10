@@ -7,8 +7,8 @@ keywords = ["graph", "temporal-graph", "temporal", "examples"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-docbrown-core = {path = "../../docbrown/core"}
-docbrown-db = {path = "../../docbrown/db"}
+docbrown_core = {path = "../../docbrown/core"}
+docbrown_db = {path = "../../docbrown/db"}
 chrono = "0.4"
 regex = "1"
 serde = { version = "1", features = ["derive", "rc"] }

@@ -1,12 +1,16 @@
 use docbrown_core as dbc;
-use docbrown_db::graph;
+use docbrown_db::{graph, perspective};
 use pyo3::exceptions;
 use pyo3::prelude::*;
 use std::collections::HashMap;
+use std::ops::Deref;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use pyo3::types::PyIterator;
 
-use crate::graph_window::WindowedGraph;
-use crate::wrappers::Prop;
+use crate::graph_window::{GraphWindowSet, WindowedGraph};
+use crate::Perspective;
+use crate::wrappers::{PerspectiveSet, Prop};
 
 #[pyclass]
 pub struct Graph {
@@ -42,6 +46,33 @@ impl Graph {
 
     pub fn window(&self, t_start: i64, t_end: i64) -> WindowedGraph {
         WindowedGraph::new(self, t_start, t_end)
+    }
+
+    fn through(&self, perspectives: &PyAny) -> PyResult<GraphWindowSet> {
+        struct PyPerspectiveIterator {
+            pub iter: Py<PyIterator>,
+        }
+        unsafe impl Send for PyPerspectiveIterator {} // iter is used by holding the GIL
+        impl Iterator for PyPerspectiveIterator {
+            type Item = perspective::Perspective;
+            fn next(&mut self) -> Option<Self::Item> {
+                Python::with_gil(|py| {
+                    let item = self.iter.as_ref(py).next()?.ok()?;
+                    Some(item.extract::<Perspective>().ok()?.into())
+                })
+            }
+        }
+
+        let result = match perspectives.extract::<PerspectiveSet>() {
+            Ok(perspective_set) =>  self.graph.through_perspectives(perspective_set.ps),
+            Err(_) => {
+                let iter = PyPerspectiveIterator {
+                    iter: Py::from(perspectives.iter()?)
+                };
+                self.graph.through_iter(Box::new(iter))
+            }
+        };
+        Ok(result.into())
     }
 
     #[staticmethod]

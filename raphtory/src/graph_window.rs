@@ -5,10 +5,51 @@ use crate::{graph::Graph, wrappers::*};
 use docbrown_db::graph_window;
 use itertools::Itertools;
 use pyo3::prelude::*;
+use pyo3::types::PyIterator;
+use crate::wrappers::Perspective;
+
+#[pyclass]
+pub struct GraphWindowSet {
+    window_set: graph_window::GraphWindowSet,
+}
+
+impl From<graph_window::GraphWindowSet> for GraphWindowSet {
+    fn from(value: graph_window::GraphWindowSet) -> Self {
+        GraphWindowSet::new(value)
+    }
+}
+
+impl GraphWindowSet {
+    pub fn new(window_set: graph_window::GraphWindowSet) -> GraphWindowSet {
+        GraphWindowSet {
+            window_set,
+        }
+    }
+}
+
+#[pymethods]
+impl GraphWindowSet {
+    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        slf
+    }
+    fn __next__(mut slf: PyRefMut<'_, Self>, py: Python) -> Option<WindowedGraph> {
+        let windowed_graph = slf.window_set.next()?;
+        Some(windowed_graph.into())
+    }
+}
+
 
 #[pyclass]
 pub struct WindowedGraph {
     pub(crate) graph_w: graph_window::WindowedGraph,
+}
+
+impl From<graph_window::WindowedGraph> for WindowedGraph {
+    fn from(value: graph_window::WindowedGraph) -> Self {
+        WindowedGraph {
+            graph_w: value,
+        }
+    }
 }
 
 #[pymethods]
