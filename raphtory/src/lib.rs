@@ -12,14 +12,14 @@ pub mod wrappers;
 
 use pyo3::prelude::*;
 
-use crate::algorithms::avg_degree;
-use crate::algorithms::clustering_coefficient;
-use crate::algorithms::graph_density;
-use crate::algorithms::max_indegree;
-use crate::algorithms::max_outdegree;
-use crate::algorithms::min_indegree;
-use crate::algorithms::min_outdegree;
-use crate::algorithms::triangle_count;
+use crate::algorithms::average_degree;
+use crate::algorithms::local_clustering_coefficient;
+use crate::algorithms::directed_graph_density;
+use crate::algorithms::max_in_degree;
+use crate::algorithms::max_out_degree;
+use crate::algorithms::min_in_degree;
+use crate::algorithms::min_out_degree;
+use crate::algorithms::local_triangle_count;
 
 use crate::graph_gen::ba_preferential_attachment;
 use crate::graph_loader::lotr_graph;
@@ -34,14 +34,14 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_class::<Perspective>()?;
 
     let algorithm_module = PyModule::new(py, "algorithms")?;
-    algorithm_module.add_function(wrap_pyfunction!(triangle_count, algorithm_module)?)?;
-    algorithm_module.add_function(wrap_pyfunction!(clustering_coefficient, algorithm_module)?)?;
-    algorithm_module.add_function(wrap_pyfunction!(avg_degree, algorithm_module)?)?;
-    algorithm_module.add_function(wrap_pyfunction!(graph_density, algorithm_module)?)?;
-    algorithm_module.add_function(wrap_pyfunction!(max_outdegree, algorithm_module)?)?;
-    algorithm_module.add_function(wrap_pyfunction!(max_indegree, algorithm_module)?)?;
-    algorithm_module.add_function(wrap_pyfunction!(min_outdegree, algorithm_module)?)?;
-    algorithm_module.add_function(wrap_pyfunction!(min_indegree, algorithm_module)?)?;
+    algorithm_module.add_function(wrap_pyfunction!(local_triangle_count, algorithm_module)?)?;
+    algorithm_module.add_function(wrap_pyfunction!(local_clustering_coefficient, algorithm_module)?)?;
+    algorithm_module.add_function(wrap_pyfunction!(average_degree, algorithm_module)?)?;
+    algorithm_module.add_function(wrap_pyfunction!(directed_graph_density, algorithm_module)?)?;
+    algorithm_module.add_function(wrap_pyfunction!(max_out_degree, algorithm_module)?)?;
+    algorithm_module.add_function(wrap_pyfunction!(max_in_degree, algorithm_module)?)?;
+    algorithm_module.add_function(wrap_pyfunction!(min_out_degree, algorithm_module)?)?;
+    algorithm_module.add_function(wrap_pyfunction!(min_in_degree, algorithm_module)?)?;
     m.add_submodule(algorithm_module)?;
 
     let graph_loader_module = PyModule::new(py, "graph_loader")?;
