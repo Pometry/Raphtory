@@ -1,5 +1,5 @@
 [package]
-name = "docbrown_core"
+name = "docbrown-core"
 description = "Core package for DocBrown, a temporal graph library"
 edition.workspace = true
 rust-version.workspace = true

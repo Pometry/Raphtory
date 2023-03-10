@@ -78,21 +78,21 @@ jobs:
         - name: "Fetch version of crate package and save to env"
           id: set_version
           run: |
-              echo "CRATE_VERSION=$(cargo pkgid -p docbrown_db | cut -d# -f2 | cut -d@ -f2)" >> $GITHUB_ENV
-              echo "crate_version=$(cargo pkgid -p docbrown_db | cut -d# -f2 | cut -d@ -f2)" >> $GITHUB_OUTPUT
+              echo "CRATE_VERSION=$(cargo pkgid -p docbrown-db | cut -d# -f2 | cut -d@ -f2)" >> $GITHUB_ENV
+              echo "crate_version=$(cargo pkgid -p docbrown-db | cut -d# -f2 | cut -d@ -f2)" >> $GITHUB_OUTPUT
               echo $crate_version
-        - name: "Publish docbrown_core to crates.io"
+        - name: "Publish docbrown-core to crates.io"
           if: ${{ !inputs.dry_run }}
           uses: actions-rs/cargo@v1
           with:
               command: publish
-              args: --token ${{ secrets.CRATES_TOKEN }} --package docbrown_core --allow-dirty
-        - name: "Publish docbrown_db to crates.io"
+              args: --token ${{ secrets.CRATES_TOKEN }} --package docbrown-core --allow-dirty
+        - name: "Publish docbrown-db to crates.io"
           if: ${{ !inputs.dry_run }}
           uses: actions-rs/cargo@v1
           with:
             command: publish
-            args: --token ${{ secrets.CRATES_TOKEN }} --package docbrown_db --allow-dirty
+            args: --token ${{ secrets.CRATES_TOKEN }} --package docbrown-db --allow-dirty
         - name: "Push version changes & Make PR"
           uses: peter-evans/create-pull-request@v4
           with:
