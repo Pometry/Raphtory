@@ -8,4 +8,5 @@ pub mod graph_loader;
 pub mod graphgen;
 pub mod graph_window;
 pub mod polars_loader;
+pub mod perspective;
 pub mod algorithms;

@@ -1,4 +1,5 @@
 use crate::graph::Graph;
+use crate::perspective::{Perspective, PerspectiveSet};
 use docbrown_core::{
     tgraph::{EdgeView, VertexView},
     Direction, Prop,
@@ -6,11 +7,37 @@ use docbrown_core::{
 
 use std::{collections::HashMap, sync::Arc};
 
+pub struct GraphWindowSet {
+    graph: Graph,
+    perspectives: Box<dyn Iterator<Item=Perspective> + Send>,
+}
+
+impl GraphWindowSet {
+    pub fn new(graph: Graph, perspectives: Box<dyn Iterator<Item=Perspective> + Send>) -> GraphWindowSet {
+        GraphWindowSet {
+            graph,
+            perspectives,
+        }
+    }
+}
+
+impl Iterator for GraphWindowSet {
+    type Item = WindowedGraph;
+    fn next(&mut self) -> Option<Self::Item> {
+        let perspective = self.perspectives.next()?;
+        Some(WindowedGraph {
+            graph: self.graph.clone(),
+            t_start: perspective.start.unwrap_or(i64::MIN),
+            t_end: perspective.end.unwrap_or(i64::MAX),
+        })
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct WindowedGraph {
     pub(crate) graph: Graph,
-    pub t_start: i64,
-    pub t_end: i64,
+    pub t_start: i64,  // inclusive
+    pub t_end: i64,    // exclusive
 }
 
 impl WindowedGraph {

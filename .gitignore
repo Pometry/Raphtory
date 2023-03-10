@@ -13,3 +13,4 @@ docs/source/_rustdoc/*
 docs/build/*
 .DS_Store
 docs/logs/*
+.python-version

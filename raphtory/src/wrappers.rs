@@ -5,7 +5,7 @@ use std::borrow::{Borrow, BorrowMut};
 use db_c::tgraph_shard;
 use docbrown_core as db_c;
 use docbrown_db as db_db;
-use docbrown_db::graph_window;
+use docbrown_db::{graph_window, perspective};
 
 use crate::graph_window::{WindowedEdge, WindowedGraph, WindowedVertex};
 
@@ -517,4 +517,64 @@ impl WindowedEdgeIterator {
     fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<WindowedEdge> {
         slf.iter.next()
     }
+}
+
+
+#[derive(Clone)]
+#[pyclass]
+pub struct Perspective {
+    pub start: Option<i64>,
+    pub end: Option<i64>,
+}
+
+#[pymethods]
+impl Perspective {
+    #[new]
+    #[pyo3(signature = (start=None, end=None))]
+    fn new(start: Option<i64>, end: Option<i64>) -> Self {
+        Perspective {
+            start,
+            end,
+        }
+    }
+
+    #[staticmethod]
+    #[pyo3(signature = (step, start=None, end=None))]
+    fn expanding(step: u64, start: Option<i64>, end: Option<i64>) -> PerspectiveSet {
+        PerspectiveSet {
+            ps: perspective::Perspective::expanding(step, start, end)
+        }
+    }
+
+    #[staticmethod]
+    #[pyo3(signature = (window, step=None, start=None, end=None))]
+    fn rolling(window: u64, step: Option<u64>, start: Option<i64>, end: Option<i64>) -> PerspectiveSet {
+        PerspectiveSet {
+            ps: perspective::Perspective::rolling(window, step, start, end)
+        }
+    }
+}
+
+impl From<perspective::Perspective> for Perspective {
+    fn from(value: perspective::Perspective) -> Self {
+        Perspective {
+            start: value.start,
+            end: value.end,
+        }
+    }
+}
+
+impl From<Perspective> for perspective::Perspective {
+    fn from(value: Perspective) -> Self {
+        perspective::Perspective {
+            start: value.start,
+            end: value.end,
+        }
+    }
+}
+
+#[pyclass]
+#[derive(Clone)]
+pub struct PerspectiveSet {
+    pub(crate) ps: perspective::PerspectiveSet
 }
