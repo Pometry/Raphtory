@@ -7,6 +7,7 @@ use pyo3::prelude::*;
 
 use crate::wrappers::{Direction, Perspective};
 use crate::graph::Graph;
+use crate::algorithms::{global_reciprocity, local_reciprocity, all_local_reciprocity};
 pub mod graph_window;
 pub mod wrappers;
 
@@ -34,6 +35,9 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_class::<Perspective>()?;
 
     let algorithm_module = PyModule::new(py, "algorithms")?;
+    algorithm_module.add_function(wrap_pyfunction!(global_reciprocity, algorithm_module)?)?;
+    algorithm_module.add_function(wrap_pyfunction!(local_reciprocity, algorithm_module)?)?;
+    algorithm_module.add_function(wrap_pyfunction!(all_local_reciprocity, algorithm_module)?)?;
     algorithm_module.add_function(wrap_pyfunction!(local_triangle_count, algorithm_module)?)?;
     algorithm_module.add_function(wrap_pyfunction!(local_clustering_coefficient, algorithm_module)?)?;
     algorithm_module.add_function(wrap_pyfunction!(average_degree, algorithm_module)?)?;
