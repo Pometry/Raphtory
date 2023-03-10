@@ -165,7 +165,7 @@ jobs:
               case $ID in
                 ubuntu)
                   echo "Installing openssl-dev on Ubuntu..."
-                  apt update
+                  apt update -y
                   apt install -y pkg-config libssl-dev libc6 build-essential
                   ;;
                 arch)
@@ -174,17 +174,17 @@ jobs:
                   ;;
                 fedora)
                   echo "Installing openssl-dev on Fedora..."
-                  dnf update
+                  dnf update -y
                   dnf install -y pkg-config openssl-devel
                   ;;
                 alpine)
                   echo "Installing openssl-dev on Alpine Linux..."
-                  apk update
+                  apk update -y
                   apk add pkgconfig openssl-dev
                   ;;
                 centos)
                     echo "Installing openssl-dev on CentOS..."
-                    yum update
+                    yum update -y
                     yum install -y pkgconfig openssl-devel
                     ;;  
                 *)
