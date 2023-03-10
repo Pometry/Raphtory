@@ -1,5 +1,5 @@
 [package]
-name = "docbrown_db"
+name = "docbrown-db"
 description = "Database package for DocBrown, a temporal graph library"
 edition.workspace = true
 rust-version.workspace = true
@@ -14,7 +14,7 @@ homepage.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-docbrown_core = {path = "../core", version = "0.0.2" }
+docbrown-core = {path = "../core", version = "0.0.2" }
 parking_lot = { version = "0.12" , features = ["serde"] }
 flume = "0.10"
 futures = {version = "0.3", features = ["thread-pool"] }
