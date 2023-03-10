@@ -8,7 +8,7 @@ members = [
 default-members = ["docbrown/core", "docbrown/db", "raphtory"]
 
 [workspace.package]
-version = "0.0.3"
+version = "0.0.4"
 documentation = "https://docbrown.readthedocs.io/en/latest/"
 repository = "https://github.com/Raphtory/docbrown/"
 license = "AGPL-3.0-only"
