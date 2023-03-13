@@ -9,7 +9,7 @@
 <img alt="Test and Build" src="https://github.com/Raphtory/docbrown/actions/workflows/build.yml/badge.svg" />
 </a>
 <a href="https://github.com/Raphtory/docbrown/issues">
-<img alt="Issues" src="https://img.shields.io/github/issues/Raphtory/Raphtory?color=brightgreen" />
+<img alt="Issues" src="https://img.shields.io/github/issues/Raphtory/docbrown?color=brightgreen" />
 </a>
 </p>
 <p align="center">
