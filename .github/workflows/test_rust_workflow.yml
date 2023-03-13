@@ -41,13 +41,13 @@ jobs:
           toolchain: stable
           override: true
           components: rustfmt, clippy
-      - name: Build project quietly
-        uses: actions-rs/cargo@v1
-        env:
-          RUSTFLAGS: -Awarnings
-        with:
-          command: build
-          args: -q --no-default-features
+#       - name: Build project quietly
+#         uses: actions-rs/cargo@v1
+#         env:
+#           RUSTFLAGS: -Awarnings
+#         with:
+#           command: build
+#           args: -q --no-default-features
       - name: Run Tests
         uses: actions-rs/cargo@v1
         env:
