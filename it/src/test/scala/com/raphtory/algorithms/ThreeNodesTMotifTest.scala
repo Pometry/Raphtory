@@ -23,5 +23,5 @@ class ThreeNodesTMotifTest extends BaseCorrectnessTest {
     )
   }
 
-  def setSource(): Source = CSVEdgeListSource(ResourceOrFileSpout("/MotifCount/motiftestSLoops.csv"))
+  def setSource(): Source = CSVEdgeListSource(ResourceOrFileSpout("/MotifCount/motifTestSLoops.csv"))
 }
