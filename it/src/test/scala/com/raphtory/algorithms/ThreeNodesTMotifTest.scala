@@ -12,7 +12,7 @@ import com.raphtory.sources.CSVEdgeListSource
 class ThreeNodesTMotifTest extends BaseCorrectnessTest {
   test("test temporal motif counting") {
     correctnessTest(
-            TestQuery(ThreeNodeMotifs(graphWide = true, prettyPrint = false, delta = 10), 23),
+            TestQuery(LocalThreeNodeMotifs(graphWide = true, prettyPrint = false, delta = 10), 23),
             "MotifCount/tMotifCorrectResults.csv"
     )
   }
@@ -23,5 +23,5 @@ class ThreeNodesTMotifTest extends BaseCorrectnessTest {
     )
   }
 
-  def setSource(): Source = CSVEdgeListSource(ResourceOrFileSpout("/MotifCount/motiftest.csv"))
+  def setSource(): Source = CSVEdgeListSource(ResourceOrFileSpout("/MotifCount/motifTestSLoops.csv"))
 }

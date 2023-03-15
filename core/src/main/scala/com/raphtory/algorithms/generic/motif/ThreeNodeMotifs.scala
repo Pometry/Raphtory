@@ -121,7 +121,7 @@ object ThreeNodeMotifs extends Generic {
       .step { vertex =>
         import vertex._
         val motifCounts                       = ArrayBuffer.fill[Long](13)(0)
-        val neighbours                        = vertex.neighbours.toArray
+        val neighbours                        = vertex.neighbours.filter(_!=ID).toArray
         val getEdgeType: vertex.IDType => Int = _getEdgeType(vertex)
 
         for (i <- neighbours.indices) {
