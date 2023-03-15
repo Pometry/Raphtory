@@ -27,10 +27,10 @@ pub struct TemporalGraph {
     pub(crate) props: Props,
 
     //earliest time seen in this graph
-    pub(crate) earliest_time:i64,
+    pub(crate) earliest_time: i64,
 
     //latest time seen in this graph
-    pub(crate) latest_time:i64
+    pub(crate) latest_time: i64,
 }
 
 impl Default for TemporalGraph {
@@ -41,7 +41,7 @@ impl Default for TemporalGraph {
             index: Default::default(),
             props: Default::default(),
             earliest_time: i64::MAX,
-            latest_time: i64::MIN
+            latest_time: i64::MIN,
         }
     }
 }
@@ -117,9 +117,8 @@ impl TemporalGraph {
     }
 
     pub(crate) fn add_vertex_with_props(&mut self, t: i64, v: u64, props: &Vec<(String, Prop)>) {
-
         //Updating time - only needs to be here as every other adding function calls this one
-        if self.earliest_time >t {
+        if self.earliest_time > t {
             self.earliest_time = t
         }
         if self.latest_time < t {
@@ -576,7 +575,7 @@ impl TemporalGraph {
     {
         let edges = self.vertex_edges(v, d);
 
-        Box::new(edges.map(move |edge| {
+        let iter = edges.map(move |edge| {
             let EdgeView {
                 src_id,
                 dst_id,
@@ -600,7 +599,12 @@ impl TemporalGraph {
                     VertexView::new(src_g_id, Some(src_id))
                 }
             }
-        }))
+        });
+        if matches!(d, Direction::BOTH) {
+            Box::new(iter.unique_by(|v| v.g_id))
+        } else {
+            Box::new(iter)
+        }
     }
 
     pub(crate) fn neighbours_window(
@@ -613,8 +617,7 @@ impl TemporalGraph {
         Self: Sized,
     {
         let edges = self.vertex_edges_window(v, w, d);
-
-        Box::new(edges.map(move |edge| {
+        let iter = edges.map(move |edge| {
             let EdgeView {
                 src_id,
                 dst_id,
@@ -631,14 +634,17 @@ impl TemporalGraph {
                 } else {
                     VertexView::new(dst_g_id, Some(dst_id))
                 }
+            } else if is_remote {
+                VertexView::new(src_g_id, None)
             } else {
-                if is_remote {
-                    VertexView::new(src_g_id, None)
-                } else {
-                    VertexView::new(src_g_id, Some(src_id))
-                }
+                VertexView::new(src_g_id, Some(src_id))
             }
-        }))
+        });
+        if matches!(d, Direction::BOTH) {
+            Box::new(iter.unique_by(|v| v.g_id))
+        } else {
+            Box::new(iter)
+        }
     }
 
     pub(crate) fn neighbours_ids(
@@ -2198,8 +2204,8 @@ mod graph_test {
             .collect_vec();
 
         let expected = vec![
-            (1, vec![1, 2], vec![1, 2, 3], vec![1, 2, 1, 2, 3]),
-            (2, vec![1, 3], vec![1], vec![1, 3, 1]),
+            (1, vec![1, 2], vec![1, 2, 3], vec![1, 2, 3]),
+            (2, vec![1, 3], vec![1], vec![1, 3]),
             (3, vec![1], vec![2], vec![1, 2]),
         ];
 
