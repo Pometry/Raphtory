@@ -1,0 +1,77 @@
+name: Rust Benchmarks
+on:
+  workflow_call:
+    inputs:
+      skip_tests:
+        type: boolean
+        default: false
+        required: false
+# DO NOT CHANGE NAME OF WORKFLOW, USED IN OTHER WORKFLOWS KEEP "Rust Tests"
+jobs:
+  benchmark:
+    if: ${{ !inputs.skip_tests }}
+    name: Rust Benchmark
+    runs-on: '${{ matrix.os }}'
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+#          - os: windows-latest
+    steps:
+      - uses: actions/checkout@v3
+        name: Checkout
+      - name: Set up cargo cache
+        uses: actions/cache@v3
+        continue-on-error: false
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/debug
+            target/release
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+      - uses: actions-rs/toolchain@v1
+        name: Setup Rust
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+          components: rustfmt, clippy
+      - name: Run benchmark (windows)
+        if: "contains(matrix.os, 'Windows')"
+        run: cargo bench --bench base -- --output-format=bencher | tee benchmark-result.txt
+      - name: Run benchmark (Unix)
+        if: "!contains(matrix.os, 'Windows')"
+        run: |
+          set -o pipefail
+          cargo bench --bench base -- --output-format=bencher | tee benchmark-result.txt
+      - name: Download previous benchmark results
+        id: restore-benchmark-cache
+        uses: actions/cache/restore@v3
+        with:
+          path: ./benchmark-cache
+          key: ${{ runner.os }}-benchmark
+      - name: Check benchmark results
+        if: github.ref != 'refs/heads/main'
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          tool: 'cargo'
+          output-file-path: benchmark-result.txt
+          external-data-json-path: ./benchmark-cache/benchmark-result.json
+          fail-on-alert: true
+      - name: Generate benchmark results
+        if: github.ref == 'refs/heads/main'
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          tool: 'cargo'
+          output-file-path: benchmark-result.txt
+          external-data-json-path: ./benchmark-cache/benchmark-result.json
+      - name: Save benchmark results
+        if: github.ref == 'refs/heads/main'
+        uses: actions/cache/save@v3
+        with:
+          path: ./benchmark-cache
+          key: ${{ steps.restore-benchmark-cache.outputs.cache-primary-key }}

@@ -35,14 +35,6 @@ jobs:
             permission: "write"
           env:
             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        - name: Wait for tests to succeed
-          if: ${{ !inputs.skip_tests }}
-          uses: lewagon/wait-on-check-action@v1.3.1
-          with:
-            ref: ${{ github.ref }}
-            check-name: 'Rust Tests'
-            repo-token: ${{ secrets.GH_TOKEN }}
-            wait-interval: 10
         - name: Set up cargo cache
           uses: actions/cache@v3
           continue-on-error: false
@@ -70,6 +62,22 @@ jobs:
           with:
             command: install
             args: cargo-release --force
+        - name: Wait for rust tests to succeed
+          if: ${{ !inputs.skip_tests }}
+          uses: lewagon/wait-on-check-action@v1.3.1
+          with:
+            ref: ${{ github.ref }}
+            check-name: 'Rust Tests'
+            repo-token: ${{ secrets.GH_TOKEN }}
+            wait-interval: 10
+        - name: Wait for python tests to succeed
+          if: ${{ !inputs.skip_tests }}
+          uses: lewagon/wait-on-check-action@v1.3.1
+          with:
+            ref: ${{ github.ref }}
+            check-name: 'Python Tests'
+            repo-token: ${{ secrets.GH_TOKEN }}
+            wait-interval: 10
         - name: "Bump version with cargo release"
           uses: actions-rs/cargo@v1
           with:

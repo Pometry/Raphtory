@@ -29,12 +29,18 @@ on:
 
 
 jobs:
-  test-rust-python-workflow:
+  test-rust-workflow:
     if : ${{ github.event.inputs.dry_run == 'false' }}
     uses: ./.github/workflows/test_rust_workflow.yml
     secrets: inherit
     with:
         skip_tests: ${{ inputs.skip_tests }}
+  test-python-workflow:
+    if: ${{ github.event.inputs.dry_run == 'false' }}
+    uses: ./.github/workflows/test_python_workflow.yml
+    secrets: inherit
+    with:
+      skip_tests: ${{ inputs.skip_tests }}
   publish-builds-to-cargo-github-pypi:
     uses: ./.github/workflows/publish_builds.yml
     secrets: inherit
