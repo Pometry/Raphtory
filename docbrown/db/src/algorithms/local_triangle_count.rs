@@ -1,4 +1,5 @@
 use crate::graph_window::WindowedGraph;
+use crate::view_api::*;
 use docbrown_core::Direction;
 use itertools::Itertools;
 
@@ -17,7 +18,7 @@ pub fn local_triangle_count(windowed_graph: &WindowedGraph, v: u64) -> u32 {
                 }
             })
     }
-    
+
     number_of_triangles
 }
 

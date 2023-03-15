@@ -1,25 +1,31 @@
 use crate::graph_window::WindowedGraph;
+use crate::view_api::*;
 use docbrown_core::Direction;
 use itertools::Itertools;
 use rayon::prelude::*;
 
 pub fn global_triangle_count(windowed_graph: &WindowedGraph) -> usize {
-   
     let vertex_ids = windowed_graph.vertex_ids().collect::<Vec<_>>();
 
-    vertex_ids.into_par_iter().map(|v| {
-         windowed_graph.neighbours_ids(v, Direction::BOTH)
-            .combinations(2)
-            .map(|nb| {
-                if windowed_graph.has_edge(nb[0], nb[1]) || (windowed_graph.has_edge(nb[1], nb[0]))
-                {
-                    1 as usize
-                } else {
-                    0 as usize
-                }
-            }).sum::<usize>()
-        }).sum()
-       
+    let count: usize = vertex_ids
+        .into_par_iter()
+        .map(|v| {
+            windowed_graph
+                .neighbours_ids(v, Direction::BOTH)
+                .combinations(2)
+                .map(|nb| {
+                    if windowed_graph.has_edge(nb[0], nb[1])
+                        || (windowed_graph.has_edge(nb[1], nb[0]))
+                    {
+                        1 as usize
+                    } else {
+                        0 as usize
+                    }
+                })
+                .sum::<usize>()
+        })
+        .sum();
+    count / 3
 }
 
 #[cfg(test)]
@@ -39,7 +45,7 @@ mod triangle_count_tests {
         }
 
         let windowed_graph = g.window(0, 5);
-        let expected = 3;
+        let expected = 1;
 
         let actual = global_triangle_count(&windowed_graph);
 

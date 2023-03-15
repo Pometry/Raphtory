@@ -1,4 +1,5 @@
 use crate::graph_window::WindowedGraph;
+use crate::view_api::*;
 
 pub fn max_out_degree(windowed_graph: &WindowedGraph) -> usize {
     windowed_graph

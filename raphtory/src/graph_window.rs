@@ -3,6 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 use crate::wrappers;
 use crate::{graph::Graph, wrappers::*};
 use docbrown_db::graph_window;
+use docbrown_db::view_api::*;
 use itertools::Itertools;
 use pyo3::prelude::*;
 use pyo3::types::PyIterator;
@@ -57,11 +58,7 @@ impl WindowedGraph {
     #[new]
     pub fn new(graph: &Graph, t_start: i64, t_end: i64) -> Self {
         Self {
-            graph_w: graph_window::WindowedGraph::new(
-                graph.graph.clone(),
-                t_start,
-                t_end,
-            ),
+            graph_w: graph_window::WindowedGraph::new(graph.graph.clone(), t_start, t_end),
         }
     }
 
@@ -213,19 +210,19 @@ impl WindowedVertex {
 
     pub fn neighbours_ids(&self) -> VertexIdsIterator {
         VertexIdsIterator {
-            iter: Box::new(self.vertex_w.neighbours_ids()),
+            iter: Box::new(self.vertex_w.neighbours().id()),
         }
     }
 
     pub fn in_neighbours_ids(&self) -> VertexIdsIterator {
         VertexIdsIterator {
-            iter: Box::new(self.vertex_w.in_neighbours_ids()),
+            iter: Box::new(self.vertex_w.in_neighbours().id()),
         }
     }
 
     pub fn out_neighbours_ids(&self) -> VertexIdsIterator {
         VertexIdsIterator {
-            iter: Box::new(self.vertex_w.out_neighbours_ids()),
+            iter: Box::new(self.vertex_w.out_neighbours().id()),
         }
     }
 

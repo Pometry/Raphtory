@@ -1,4 +1,5 @@
 use crate::graph::Graph;
+use crate::view_api::*;
 use rand::seq::SliceRandom;
 
 /// This function is a graph generation model based upon:
@@ -22,47 +23,46 @@ use rand::seq::SliceRandom;
 /// let graph = Graph::new(2);
 //  ba_preferential_attachment(&graph, 1000, 10);
 /// ```
-pub fn random_attachment(graph:&Graph, vertices_to_add:usize,edges_per_step:usize) {
+pub fn random_attachment(graph: &Graph, vertices_to_add: usize, edges_per_step: usize) {
     use rand::seq::IteratorRandom;
     let mut rng = &mut rand::thread_rng();
     let mut latest_time = match graph.latest_time() {
-        None => {0}
-        Some(time) => {time}
+        None => 0,
+        Some(time) => time,
     };
-    let mut ids:Vec<u64> = graph.vertex_ids_window(i64::MIN,i64::MAX).collect();
+    let mut ids: Vec<u64> = graph.vertex_ids_window(i64::MIN, i64::MAX).collect();
     let mut max_id = match ids.iter().max() {
-        Some(id) => {*id},
-        None=>0
+        Some(id) => *id,
+        None => 0,
     };
 
     while ids.len() < edges_per_step {
-        max_id+=1;
-        latest_time+=1;
-        graph.add_vertex(latest_time,max_id,&vec![]);
+        max_id += 1;
+        latest_time += 1;
+        graph.add_vertex(latest_time, max_id, &vec![]);
         ids.push(max_id);
     }
 
     for _ in 0..vertices_to_add {
-        let edges = ids.choose_multiple(rng,edges_per_step);
-        max_id+=1;
-        latest_time+=1;
+        let edges = ids.choose_multiple(rng, edges_per_step);
+        max_id += 1;
+        latest_time += 1;
         edges.for_each(|neighbour| {
             graph.add_edge(latest_time, max_id, *neighbour, &vec![]);
         });
         ids.push(max_id);
     }
-
 }
-
 
 #[cfg(test)]
 mod random_graph_test {
-    use crate::graphgen::preferential_attachment::ba_preferential_attachment;
     use super::*;
+    use crate::graphgen::preferential_attachment::ba_preferential_attachment;
+    use crate::view_api::vertex::VertexViewOps;
     #[test]
     fn blank_graph() {
         let graph = Graph::new(2);
-        random_attachment(&graph, 100,20);
+        random_attachment(&graph, 100, 20);
         assert_eq!(graph.edges_len(), 2000);
         assert_eq!(graph.len(), 120);
     }
@@ -70,27 +70,25 @@ mod random_graph_test {
     #[test]
     fn only_nodes() {
         let graph = Graph::new(2);
-        for i in 0..10{
-            graph.add_vertex(i,i as u64,&vec![]);
+        for i in 0..10 {
+            graph.add_vertex(i, i as u64, &vec![]);
         }
 
-        random_attachment(&graph,1000,5);
-        let window = graph.window(i64::MIN,i64::MAX);
-        let mut degree:Vec<usize> =window.vertices()
-            .map(|v| v.degree()).collect();
+        random_attachment(&graph, 1000, 5);
+        let window = graph.window(i64::MIN, i64::MAX);
+        let mut degree: Vec<usize> = window.vertices().map(|v| v.degree()).collect();
         assert_eq!(graph.edges_len(), 5000);
-        assert_eq!(graph.len(),1010);
+        assert_eq!(graph.len(), 1010);
     }
 
     #[test]
     fn prior_graph() {
         let graph = Graph::new(2);
         ba_preferential_attachment(&graph, 300, 7);
-        random_attachment(&graph,4000,12);
-        let window = graph.window(i64::MIN,i64::MAX);
-        let mut degree:Vec<usize> =window.vertices()
-            .map(|v| v.degree()).collect();
+        random_attachment(&graph, 4000, 12);
+        let window = graph.window(i64::MIN, i64::MAX);
+        let mut degree: Vec<usize> = window.vertices().map(|v| v.degree()).collect();
         assert_eq!(graph.edges_len(), 50106);
-        assert_eq!(graph.len(),4307);
+        assert_eq!(graph.len(), 4307);
     }
 }

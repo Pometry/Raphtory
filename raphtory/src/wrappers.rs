@@ -5,6 +5,7 @@ use std::borrow::{Borrow, BorrowMut};
 use db_c::tgraph_shard;
 use docbrown_core as db_c;
 use docbrown_db as db_db;
+use docbrown_db::view_api::*;
 use docbrown_db::{graph_window, perspective};
 
 use crate::graph_window::{WindowedEdge, WindowedGraph, WindowedVertex};
@@ -125,6 +126,18 @@ impl WindowedVertices {
         }
     }
 
+    fn id(slf: PyRef<'_, Self>, py: Python) -> PyResult<IdIterable> {
+        let vertex_iter = Py::new(
+            py,
+            WindowedVertexIterable {
+                graph: slf.graph.clone(),
+                operations: vec![],
+                start_at: None,
+            },
+        )?;
+        Ok(IdIterable { vertex_iter })
+    }
+
     fn out_neighbours(mut slf: PyRefMut<'_, Self>) -> WindowedVerticesPath {
         WindowedVerticesPath {
             graph: slf.graph.clone(),
@@ -238,6 +251,11 @@ impl WindowedVerticesPath {
         }
     }
 
+    fn id(slf: PyRef<'_, Self>) -> NestedIdIterable {
+        NestedIdIterable {
+            vertex_iter: slf.into(),
+        }
+    }
     fn out_neighbours(mut slf: PyRefMut<'_, Self>) -> PyRefMut<'_, Self> {
         slf.operations.push(Operations::OutNeighbours);
         slf
@@ -320,9 +338,9 @@ impl WindowedVertexIterable {
 
         for op in ops_iter {
             iter = match op {
-                Operations::OutNeighbours => Box::new(iter.flat_map(|v| v.out_neighbours())),
-                Operations::InNeighbours => Box::new(iter.flat_map(|v| v.in_neighbours())),
-                Operations::Neighbours => Box::new(iter.flat_map(|v| v.neighbours())),
+                Operations::OutNeighbours => iter.out_neighbours(),
+                Operations::InNeighbours => iter.in_neighbours(),
+                Operations::Neighbours => iter.neighbours(),
             }
         }
         iter
@@ -337,6 +355,11 @@ impl WindowedVertexIterable {
         WindowedVertexIterator {
             iter: Box::new(iter.map(move |v| WindowedVertex::new(g.clone(), v))),
         }
+    }
+
+    fn id(slf: PyRef<'_, Self>) -> IdIterable {
+        let vertex_iter = slf.into();
+        IdIterable { vertex_iter }
     }
 
     fn out_neighbours(mut slf: PyRefMut<'_, Self>) -> PyRefMut<'_, Self> {
@@ -394,6 +417,57 @@ impl WindowedVertexIterable {
 }
 
 #[pyclass]
+pub struct IdIterable {
+    vertex_iter: Py<WindowedVertexIterable>,
+}
+
+#[pymethods]
+impl IdIterable {
+    fn __iter__(&self, py: Python) -> U64Iter {
+        let iter = Box::new(
+            self.vertex_iter
+                .borrow(py)
+                .build_iterator(py)
+                .map(|v| v.id()),
+        );
+        U64Iter { iter }
+    }
+}
+
+#[pyclass]
+pub struct NestedIdIterable {
+    vertex_iter: Py<WindowedVerticesPath>,
+}
+
+#[pymethods]
+impl NestedIdIterable {
+    fn __iter__(&self, py: Python) -> NestedIdIter {
+        let inner = self.vertex_iter.borrow(py);
+        let iter = inner.build_iterator(py);
+        let iter2 = Box::new(iter.map(move |iterable| {
+            let v_it = Python::with_gil(|py| Py::new(py, iterable))?;
+            Ok(IdIterable { vertex_iter: v_it })
+        }));
+        NestedIdIter { iter: iter2 }
+    }
+}
+
+#[pyclass]
+pub struct NestedIdIter {
+    iter: Box<dyn Iterator<Item = PyResult<IdIterable>> + Send>,
+}
+
+#[pymethods]
+impl NestedIdIter {
+    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        slf
+    }
+    fn __next__(mut slf: PyRefMut<'_, Self>) -> PyResult<Option<IdIterable>> {
+        slf.iter.next().transpose()
+    }
+}
+
+#[pyclass]
 pub struct DegreeIterable {
     vertex_iter: Py<WindowedVertexIterable>,
     operation: Direction,
@@ -404,9 +478,9 @@ impl DegreeIterable {
         let inner = self.vertex_iter.borrow(py);
         let iter = inner.build_iterator(py);
         match self.operation {
-            Direction::OUT => Box::new(iter.map(|v| v.out_degree())),
-            Direction::IN => Box::new(iter.map(|v| v.in_degree())),
-            Direction::BOTH => Box::new(iter.map(|v| v.degree())),
+            Direction::OUT => iter.out_degree(),
+            Direction::IN => iter.in_degree(),
+            Direction::BOTH => iter.degree(),
         }
     }
 }
@@ -431,22 +505,21 @@ impl NestedDegreeIterable {
     fn __iter__(&self, py: Python) -> NestedUsizeIter {
         let inner = self.vertex_iter.borrow(py);
         let iter = inner.build_iterator(py);
-        let op = self.operation.clone();
-        NestedUsizeIter {
-            iter: Box::new(iter.map(move |iterable| {
-                let v_it = Python::with_gil(|py| Py::new(py, iterable)).unwrap();
-                DegreeIterable {
-                    vertex_iter: v_it,
-                    operation: op,
-                }
-            })),
-        }
+        let op = self.operation;
+        let iter2 = Box::new(iter.map(move |iterable| {
+            let v_it = Python::with_gil(|py| Py::new(py, iterable))?;
+            Ok(DegreeIterable {
+                vertex_iter: v_it,
+                operation: op,
+            })
+        }));
+        NestedUsizeIter { iter: iter2 }
     }
 }
 
 #[pyclass]
 pub struct NestedUsizeIter {
-    iter: Box<dyn Iterator<Item = DegreeIterable> + Send>,
+    iter: Box<dyn Iterator<Item = PyResult<DegreeIterable>> + Send>,
 }
 
 #[pymethods]
@@ -454,8 +527,8 @@ impl NestedUsizeIter {
     fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
         slf
     }
-    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<DegreeIterable> {
-        slf.iter.next()
+    fn __next__(mut slf: PyRefMut<'_, Self>) -> PyResult<Option<DegreeIterable>> {
+        slf.iter.next().transpose()
     }
 }
 
@@ -470,6 +543,21 @@ impl USizeIter {
         slf
     }
     fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<usize> {
+        slf.iter.next()
+    }
+}
+
+#[pyclass]
+pub struct U64Iter {
+    iter: Box<dyn Iterator<Item = u64> + Send>,
+}
+
+#[pymethods]
+impl U64Iter {
+    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        slf
+    }
+    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<u64> {
         slf.iter.next()
     }
 }
@@ -519,7 +607,6 @@ impl WindowedEdgeIterator {
     }
 }
 
-
 #[derive(Clone)]
 #[pyclass]
 pub struct Perspective {
@@ -532,25 +619,27 @@ impl Perspective {
     #[new]
     #[pyo3(signature = (start=None, end=None))]
     fn new(start: Option<i64>, end: Option<i64>) -> Self {
-        Perspective {
-            start,
-            end,
-        }
+        Perspective { start, end }
     }
 
     #[staticmethod]
     #[pyo3(signature = (step, start=None, end=None))]
     fn expanding(step: u64, start: Option<i64>, end: Option<i64>) -> PerspectiveSet {
         PerspectiveSet {
-            ps: perspective::Perspective::expanding(step, start, end)
+            ps: perspective::Perspective::expanding(step, start, end),
         }
     }
 
     #[staticmethod]
     #[pyo3(signature = (window, step=None, start=None, end=None))]
-    fn rolling(window: u64, step: Option<u64>, start: Option<i64>, end: Option<i64>) -> PerspectiveSet {
+    fn rolling(
+        window: u64,
+        step: Option<u64>,
+        start: Option<i64>,
+        end: Option<i64>,
+    ) -> PerspectiveSet {
         PerspectiveSet {
-            ps: perspective::Perspective::rolling(window, step, start, end)
+            ps: perspective::Perspective::rolling(window, step, start, end),
         }
     }
 }
@@ -576,5 +665,5 @@ impl From<Perspective> for perspective::Perspective {
 #[pyclass]
 #[derive(Clone)]
 pub struct PerspectiveSet {
-    pub(crate) ps: perspective::PerspectiveSet
+    pub(crate) ps: perspective::PerspectiveSet,
 }

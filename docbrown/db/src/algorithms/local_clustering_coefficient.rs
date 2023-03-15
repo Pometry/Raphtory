@@ -1,5 +1,6 @@
 use crate::algorithms::local_triangle_count::local_triangle_count;
 use crate::graph_window::WindowedGraph;
+use crate::view_api::*;
 
 pub fn local_clustering_coefficient(graph: &WindowedGraph, v: u64) -> f32 {
     let vertex = graph.vertex(v).unwrap();
