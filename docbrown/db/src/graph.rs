@@ -475,6 +475,10 @@ impl Graph {
         WindowedGraph::new(self.clone(), t_start, t_end)
     }
 
+    pub fn at(&self, end: i64) -> WindowedGraph {
+        self.window(i64::MIN, end.saturating_add(1))
+    }
+
     pub fn through_perspectives(&self, mut perspectives: PerspectiveSet) -> GraphWindowSet {
         let iter = match (self.earliest_time(), self.latest_time()) {
             (Some(start), Some(end)) => perspectives.build_iter(start..end),
@@ -590,6 +594,7 @@ mod db_tests {
     use uuid::Uuid;
 
     use crate::algorithms::local_triangle_count::local_triangle_count;
+    use crate::view_api::GraphViewOps;
 
     use super::*;
 
@@ -1143,6 +1148,23 @@ mod db_tests {
         });
         assert_eq!(g.num_edges(), 1089147);
         assert_eq!(g.num_vertices(), 49467);
+    }
+
+    #[test]
+    fn test_graph_at() {
+        let g= crate::graph_loader::lotr_graph::lotr_graph(1);
+
+        let g_at_empty = g.at(1);
+        let g_at_start = g.at(7059);
+        let g_at_another = g.at(28373);
+        let g_at_max = g.at(i64::MAX);
+        let g_at_min = g.at(i64::MIN);
+
+        assert_eq!(g_at_empty.num_vertices(), 0);
+        assert_eq!(g_at_start.num_vertices(), 70);
+        assert_eq!(g_at_another.num_vertices(), 123);
+        assert_eq!(g_at_max.num_vertices(), 139);
+        assert_eq!(g_at_min.num_vertices(), 0);
     }
 
     #[test]

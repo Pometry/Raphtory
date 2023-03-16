@@ -170,6 +170,8 @@ impl Graph {
         }
     }
 
+    pub fn at(&self, end: i64) -> WindowedGraph { self.graph.at(end).into() }
+
     pub fn add_edge(&self, t: i64, src: &PyAny, dst: &PyAny, props: HashMap<String, Prop>) {
         if let (Ok(src), Ok(dst)) = (src.extract::<String>(), dst.extract::<String>()) {
             self.graph.add_edge(
