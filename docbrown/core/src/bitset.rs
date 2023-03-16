@@ -82,7 +82,7 @@ impl BitSet {
         match self {
             BitSet::Empty => false,
             BitSet::One(j) => i == j,
-            BitSet::Seq(seq) => seq.find(*i).is_some(),
+            BitSet::Seq(seq) => seq.find(*i).filter(|res| *res == i).is_some(),
             BitSet::Roaring(bs) => bs.contains((*i).try_into().unwrap()),
         }
     }

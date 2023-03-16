@@ -482,27 +482,38 @@ mod views_test {
         let v = wg.vertex(1).unwrap();
     }
 
+    #[test]
+    fn graph_has_vertex_check_fail() {
+        let vs: Vec<(i64, u64)> = vec![
+            (1, 0),
+            (-100, 262),
+            // (327226439, 108748364996394682),
+            (1, 9135428456135679950),
+            // (0, 1),
+            // (2, 2),
+        ];
+        let g = Graph::new(2);
+
+        for (t, v) in &vs {
+            g.add_vertex(*t, *v, &vec![]);
+        }
+
+        let wg = WindowedGraph::new(g, 1, 2);
+        assert!(!wg.has_vertex(262))
+    }
+
     #[quickcheck]
     fn windowed_graph_has_vertex(mut vs: Vec<(i64, u64)>) -> TestResult {
         if vs.is_empty() {
             return TestResult::discard();
         }
 
-        let g = Graph::new(2);
-
-        for (t, v) in &vs {
-            g.add_vertex(*t, *v, &vec![]);
-        }
-
-        vs.sort(); // Sorted by time
-        vs.dedup();
+        vs.sort_by_key(|v| v.1); // Sorted by vertex
+        vs.dedup_by_key(|v| v.1); // Have each vertex only once to avoid headaches
+        vs.sort_by_key(|v| v.0); // Sorted by time
 
         let rand_start_index = rand::thread_rng().gen_range(0..vs.len());
-        let rand_end_index = rand::thread_rng().gen_range(0..vs.len());
-
-        if rand_end_index < rand_start_index {
-            return TestResult::discard();
-        }
+        let rand_end_index = rand::thread_rng().gen_range(rand_start_index..vs.len());
 
         let g = Graph::new(2);
 
@@ -510,29 +521,34 @@ mod views_test {
             g.add_vertex(*t, *v, &vec![]);
         }
 
-        let start = vs.get(rand_start_index).unwrap().0;
-        let end = vs.get(rand_end_index).unwrap().0;
+        let start = vs.get(rand_start_index).expect("start index in range").0;
+        let end = vs.get(rand_end_index).expect("end index in range").0;
 
-        let wg = WindowedGraph::new(g.into(), start, end);
-        if start == end {
-            let v = vs.get(rand_start_index).unwrap().1;
-            return TestResult::from_bool(!wg.has_vertex(v));
-        }
+        let wg = WindowedGraph::new(g, start, end);
 
-        if rand_start_index == rand_end_index {
-            let v = vs.get(rand_start_index).unwrap().1;
-            return TestResult::from_bool(!wg.has_vertex(v));
-        }
+        let rand_test_index: usize = rand::thread_rng().gen_range(0..vs.len());
 
-        let rand_index_within_rand_start_end: usize =
-            rand::thread_rng().gen_range(rand_start_index..rand_end_index);
-
-        let (i, v) = vs.get(rand_index_within_rand_start_end).unwrap();
-
-        if *i == end {
-            return TestResult::from_bool(!wg.has_vertex(*v));
+        let (i, v) = vs.get(rand_test_index).expect("test index in range");
+        if (start..end).contains(i) {
+            if wg.has_vertex(*v) {
+                TestResult::passed()
+            } else {
+                TestResult::error(format!(
+                    "Vertex {:?} was not in window {:?}",
+                    (i, v),
+                    start..end
+                ))
+            }
         } else {
-            return TestResult::from_bool(wg.has_vertex(*v));
+            if !wg.has_vertex(*v) {
+                TestResult::passed()
+            } else {
+                TestResult::error(format!(
+                    "Vertex {:?} was in window {:?}",
+                    (i, v),
+                    start..end
+                ))
+            }
         }
     }
 
