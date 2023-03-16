@@ -9,6 +9,7 @@ use genawaiter::yield_;
 
 use crate::tgraph::{EdgeRef, TemporalGraph, VertexRef};
 use crate::{Direction, Prop};
+use crate::vertex::InputVertex;
 
 mod lock {
 
@@ -86,7 +87,7 @@ impl TGraphShard {
     #[inline(always)]
     pub fn write_shard<A, F>(&self, f: F) -> A
     where
-        F: Fn(&mut TemporalGraph) -> A,
+        F: FnOnce(&mut TemporalGraph) -> A,
     {
         let mut shard = self.rc.write();
         f(&mut shard)
@@ -133,8 +134,8 @@ impl TGraphShard {
         self.read_shard(|tg| tg.has_vertex_window(v, &w))
     }
 
-    pub fn add_vertex(&self, t: i64, v: u64, props: &Vec<(String, Prop)>) {
-        self.write_shard(|tg| tg.add_vertex_with_props(t, v, props))
+    pub fn add_vertex<T: InputVertex>(&self, t: i64, v: T, props: &Vec<(String, Prop)>) {
+        self.write_shard(move |tg| tg.add_vertex_with_props(t, v, props))
     }
 
     pub fn add_edge(&self, t: i64, src: u64, dst: u64, props: &Vec<(String, Prop)>) {
@@ -426,7 +427,7 @@ mod temporal_graph_partition_test {
         let rand_vertex = vs.get(rand_index).unwrap().0;
 
         for (v, t) in vs {
-            g.add_vertex(t.into(), v.into(), &vec![]);
+            g.add_vertex(t.into(), v as u64, &vec![]);
         }
 
         TestResult::from_bool(g.has_vertex(rand_vertex))
@@ -460,7 +461,7 @@ mod temporal_graph_partition_test {
 
         let expected_len = vs.iter().map(|(_, v)| v).sorted().dedup().count();
         for (t, v) in vs {
-            g.add_vertex(t.into(), v.into(), &vec![]);
+            g.add_vertex(t.into(), v as u64, &vec![]);
         }
 
         assert_eq!(g.len(), expected_len)
@@ -496,7 +497,7 @@ mod temporal_graph_partition_test {
         let g = TGraphShard::default();
 
         for (v, (t_start, _)) in intervals.0.iter().enumerate() {
-            g.add_vertex(*t_start, v.try_into().unwrap(), &vec![])
+            g.add_vertex(*t_start, v as u64, &vec![])
         }
 
         for (v, (t_start, t_end)) in intervals.0.iter().enumerate() {

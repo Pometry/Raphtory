@@ -66,12 +66,34 @@ impl WindowedGraph {
         self.graph_w.t_end
     }
 
-    pub fn has_vertex(&self, v: u64) -> bool {
-        self.graph_w.has_vertex(v)
+    pub fn has_vertex(&self, v: &PyAny) -> bool {
+        if let Ok(v) = v.extract::<String>() {
+            self.graph_w.has_vertex(v)
+        }
+        else if let Ok(v) = v.extract::<u64>(){
+             self.graph_w.has_vertex(v)
+        }
+        else {
+            panic!("Input must be a string or integer.")
+        }
     }
 
-    pub fn has_edge(&self, src: u64, dst: u64) -> bool {
-        self.graph_w.has_edge(src, dst)
+    pub fn has_edge(&self, src: &PyAny, dst: &PyAny) -> bool {
+        if src.extract::<String>().is_ok() && dst.extract::<String>().is_ok() {
+            self.graph_w.has_edge(
+                src.extract::<String>().unwrap(),
+                dst.extract::<String>().unwrap(),
+            )
+        }
+        else if  src.extract::<u64>().is_ok() && dst.extract::<u64>().is_ok() {
+            self.graph_w.has_edge(
+                src.extract::<u64>().unwrap(),
+                dst.extract::<u64>().unwrap(),
+            )
+        }
+        else {
+            panic!("Types of src and dst must be the same (either Int or str)")
+        }
     }
 
     pub fn vertex(slf: PyRef<'_, Self>, v: u64) -> Option<WindowedVertex> {

@@ -12,6 +12,7 @@ use docbrown_core::{
     tgraph::{EdgeRef, VertexRef},
     tgraph_shard::TGraphShard,
     utils, Direction, Prop,
+    vertex::InputVertex,
 };
 
 use crate::edge::EdgeView;
@@ -407,16 +408,16 @@ impl GraphViewOps for Graph {
         GraphViewInternalOps::edges_len(self)
     }
 
-    fn has_vertex(&self, v: u64) -> bool {
-        GraphViewInternalOps::has_vertex_ref(self, v)
+    fn has_vertex<T: InputVertex>(&self, v: T) -> bool {
+        GraphViewInternalOps::has_vertex_ref(self, v.id())
     }
 
-    fn has_edge(&self, src: u64, dst: u64) -> bool {
-        GraphViewInternalOps::has_edge_ref(self, src, dst)
+    fn has_edge<T: InputVertex>(&self, src: T, dst: T) -> bool {
+        GraphViewInternalOps::has_edge_ref(self, src.id(), dst.id())
     }
 
-    fn vertex(&self, v: u64) -> Option<Self::Vertex> {
-        self.vertex_ref(v)
+    fn vertex<T: InputVertex>(&self, v: T) -> Option<Self::Vertex> {
+        self.vertex_ref(v.id())
             .map(|v| Self::Vertex::new(Arc::new(self.clone()), v))
     }
 
@@ -427,14 +428,14 @@ impl GraphViewOps for Graph {
         )
     }
 
-    fn edge(&self, src: u64, dst: u64) -> Option<Self::Edge> {
+    fn edge<T: InputVertex>(&self, src: T, dst: T) -> Option<Self::Edge> {
         self.edge_ref(
             VertexRef {
-                g_id: src,
+                g_id: src.id(),
                 pid: None,
             },
             VertexRef {
-                g_id: dst,
+                g_id: dst.id(),
                 pid: None,
             },
         )
@@ -551,22 +552,26 @@ impl Graph {
     }
 
     // TODO: Probably add vector reference here like add
-    pub fn add_vertex(&self, t: i64, v: u64, props: &Vec<(String, Prop)>) {
-        let shard_id = utils::get_shard_id_from_global_vid(v, self.nr_shards);
+    pub fn add_vertex<T: InputVertex>(&self, t: i64, v: T, props: &Vec<(String, Prop)>) {
+        let shard_id = utils::get_shard_id_from_global_vid(v.id(), self.nr_shards);
         self.shards[shard_id].add_vertex(t, v, &props);
     }
 
-    pub fn add_edge(&self, t: i64, src: u64, dst: u64, props: &Vec<(String, Prop)>) {
-        let src_shard_id = utils::get_shard_id_from_global_vid(src, self.nr_shards);
-        let dst_shard_id = utils::get_shard_id_from_global_vid(dst, self.nr_shards);
+    // TODO: Vertex.name which gets ._id property else numba as string
+
+    pub fn add_edge<T: InputVertex>(&self, t: i64, src: T, dst: T, props: &Vec<(String, Prop)>) {
+        // TODO: Problem: if the vertex already exists, then this
+        // TODO: wont create a property name if the vertex is a string
+        let src_shard_id = utils::get_shard_id_from_global_vid(src.id(), self.nr_shards);
+        let dst_shard_id = utils::get_shard_id_from_global_vid(dst.id(), self.nr_shards);
 
         if src_shard_id == dst_shard_id {
-            self.shards[src_shard_id].add_edge(t, src, dst, props)
+            self.shards[src_shard_id].add_edge(t, src.id(), dst.id(), props)
         } else {
             // FIXME these are sort of connected, we need to hold both locks for
             // the src partition and dst partition to add a remote edge between both
-            self.shards[src_shard_id].add_edge_remote_out(t, src, dst, props);
-            self.shards[dst_shard_id].add_edge_remote_into(t, src, dst, props);
+            self.shards[src_shard_id].add_edge_remote_out(t, src.id(), dst.id(), props);
+            self.shards[dst_shard_id].add_edge_remote_into(t, src.id(), dst.id(), props);
         }
     }
 }
@@ -604,12 +609,12 @@ mod db_tests {
     }
 
     #[quickcheck]
-    fn add_vertex_grows_graph_len(vs: Vec<(u8, u8)>) {
+    fn add_vertex_grows_graph_len(vs: Vec<(u8, u64)>) {
         let g = Graph::new(2);
 
         let expected_len = vs.iter().map(|(_, v)| v).sorted().dedup().count();
         for (t, v) in vs {
-            g.add_vertex(t.into(), v.into(), &vec![]);
+            g.add_vertex(t.into(), v, &vec![]);
         }
 
         assert_eq!(g.num_vertices(), expected_len)
@@ -718,6 +723,9 @@ mod db_tests {
 
         assert_eq!(g.has_edge_ref(9, 7), false);
         assert_eq!(g.has_edge_ref(7, 9), true);
+
+        g.add_edge(2, "haaroon", "northLondon", &vec![]);
+        assert_eq!(g.has_edge("haaroon", "northLondon"), true);
     }
 
     #[test]
@@ -1136,4 +1144,20 @@ mod db_tests {
         assert_eq!(g.num_edges(), 1089147);
         assert_eq!(g.num_vertices(), 49467);
     }
+
+    #[test]
+    fn test_add_vertex_with_strings() {
+        let g = Graph::new(1);
+
+        g.add_vertex(0, "haaroon", &vec![]);
+        g.add_vertex(1, "hamza", &vec![]);
+        g.add_vertex(1, 831, &vec![]);
+
+        assert!(g.has_vertex(831));
+        assert!(g.has_vertex("haaroon"));
+        assert!(g.has_vertex("hamza"));
+
+        assert_eq!(g.num_vertices(), 3);
+    }
+
 }

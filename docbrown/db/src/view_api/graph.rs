@@ -4,6 +4,7 @@ use docbrown_core::eval::LocalVRef;
 use docbrown_core::tgraph::{EdgeRef, VertexRef};
 use docbrown_core::{Direction, Prop};
 use std::collections::HashMap;
+use docbrown_core::vertex::InputVertex;
 
 pub trait GraphViewOps: Send + Sync {
     type Vertex: VertexViewOps<Edge = Self::Edge>;
@@ -19,10 +20,10 @@ pub trait GraphViewOps: Send + Sync {
         self.num_vertices() == 0
     }
     fn num_edges(&self) -> usize;
-    fn has_vertex(&self, v: u64) -> bool;
-    fn has_edge(&self, src: u64, dst: u64) -> bool;
-    fn vertex(&self, v: u64) -> Option<Self::Vertex>;
+    fn has_vertex<T: InputVertex>(&self, v: T) -> bool;
+    fn has_edge<T: InputVertex>(&self, src: T, dst: T) -> bool;
+    fn vertex<T: InputVertex>(&self, v: T) -> Option<Self::Vertex>;
     fn vertices(&self) -> Self::Vertices;
-    fn edge(&self, src: u64, dst: u64) -> Option<Self::Edge>;
+    fn edge<T: InputVertex>(&self, src: T, dst: T) -> Option<Self::Edge>;
     fn edges(&self) -> Self::Edges;
 }

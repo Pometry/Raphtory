@@ -16,6 +16,7 @@ mod tprop;
 mod tprop_vec;
 pub mod utils;
 pub mod eval;
+pub mod vertex;
 
 // Denotes edge direction
 #[derive(Clone, Copy, PartialEq)]
