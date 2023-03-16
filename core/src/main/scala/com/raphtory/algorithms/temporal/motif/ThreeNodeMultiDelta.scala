@@ -107,9 +107,9 @@ class ThreeNodeMultiDelta(deltas: Array[Long])
               edges)
               .sortBy(x => (x._3, x._1, x._2))
             val ids        = List(v.ID, u, w).sortWith(_ < _)
-            val mc         = new TriadMotifCounter(ids(0), ids(1), List(ids(2)))
             deltas.foreach{
               delta =>
+                val mc         = new TriadMotifCounter(ids(0), ids(1), List(ids(2)))
                 mc.execute(inputEdges, delta)
                 state("triCounts"+delta.toString) += mc.getCounts
             }
@@ -120,7 +120,6 @@ class ThreeNodeMultiDelta(deltas: Array[Long])
         // for motif edges with the same timestamp
         deltas.foreach {
           delta =>
-
             val mc                  = new StarMotifCounter(v.ID, v.neighbours.filter(_ != v.ID))
           mc.execute(v.explodeAllEdges().map(e => (e.src, e.dst, e.timestamp)).collect(selfLoopFilt).sortBy(x => (x._3, x._1, x._2)), delta)
           val counts: Array[Long] = mc.getCounts
