@@ -1,16 +1,17 @@
 use docbrown_core as dbc;
+use docbrown_db::view_api::*;
 use docbrown_db::{graph, perspective};
 use pyo3::exceptions;
 use pyo3::prelude::*;
+use pyo3::types::PyIterator;
 use std::collections::HashMap;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use pyo3::types::PyIterator;
 
 use crate::graph_window::{GraphWindowSet, WindowedGraph};
-use crate::Perspective;
 use crate::wrappers::{PerspectiveSet, Prop};
+use crate::Perspective;
 
 #[pyclass]
 pub struct Graph {
@@ -18,11 +19,8 @@ pub struct Graph {
 }
 
 impl Graph {
-
     pub fn from_db_graph(db_graph: graph::Graph) -> Self {
-        Self {
-            graph: db_graph
-        }
+        Self { graph: db_graph }
     }
 }
 
@@ -36,11 +34,11 @@ impl Graph {
         }
     }
 
-    pub fn earliest_time(&self,) -> Option<i64> {
+    pub fn earliest_time(&self) -> Option<i64> {
         self.graph.earliest_time()
     }
 
-    pub fn latest_time(&self,) -> Option<i64> {
+    pub fn latest_time(&self) -> Option<i64> {
         self.graph.latest_time()
     }
 
@@ -64,10 +62,10 @@ impl Graph {
         }
 
         let result = match perspectives.extract::<PerspectiveSet>() {
-            Ok(perspective_set) =>  self.graph.through_perspectives(perspective_set.ps),
+            Ok(perspective_set) => self.graph.through_perspectives(perspective_set.ps),
             Err(_) => {
                 let iter = PyPerspectiveIterator {
-                    iter: Py::from(perspectives.iter()?)
+                    iter: Py::from(perspectives.iter()?),
                 };
                 self.graph.through_iter(Box::new(iter))
             }
@@ -99,11 +97,11 @@ impl Graph {
     }
 
     pub fn len(&self) -> usize {
-        self.graph.len()
+        self.graph.num_vertices()
     }
 
     pub fn edges_len(&self) -> usize {
-        self.graph.edges_len()
+        self.graph.num_edges()
     }
 
     pub fn has_vertex(&self, v: u64) -> bool {

@@ -2,7 +2,7 @@ use crate::view_api::edge::{EdgeListOps, EdgeViewOps};
 use docbrown_core::Prop;
 use std::collections::HashMap;
 
-pub trait VertexViewOps: Sized {
+pub trait VertexViewOps: Sized + Send + Sync {
     type Edge: EdgeViewOps<Vertex = Self>;
     type VList: VertexListOps<Vertex = Self, Edge = Self::Edge, EList = Self::EList>;
     type EList: EdgeListOps<Vertex = Self, Edge = Self::Edge>;
@@ -33,13 +33,13 @@ pub trait VertexViewOps: Sized {
 }
 
 pub trait VertexListOps:
-    IntoIterator<Item = Self::Vertex, IntoIter = Self::IterType> + Sized
+    IntoIterator<Item = Self::Vertex, IntoIter = Self::IterType> + Sized + Send
 {
     type Vertex: VertexViewOps<Edge = Self::Edge>;
     type Edge: EdgeViewOps<Vertex = Self::Vertex>;
     type EList: EdgeListOps<Vertex = Self::Vertex, Edge = Self::Edge>;
-    type IterType: Iterator<Item = Self::Vertex>;
-    type ValueIterType<U>: IntoIterator<Item = U>;
+    type IterType: Iterator<Item = Self::Vertex> + Send;
+    type ValueIterType<U>: Iterator<Item = U> + Send;
 
     fn id(self) -> Self::ValueIterType<u64>;
 

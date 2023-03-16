@@ -1,5 +1,6 @@
 use criterion::{measurement::WallTime, BatchSize, Bencher, BenchmarkGroup, BenchmarkId};
 use docbrown_db::graph::Graph;
+use docbrown_db::view_api::*;
 use rand::{distributions::Uniform, Rng};
 
 fn make_index_gen() -> Box<dyn Iterator<Item = u64>> {
@@ -28,8 +29,12 @@ pub fn bootstrap_graph(num_shards: usize, num_vertices: usize) -> Graph {
     graph
 }
 
-pub fn bench<F>(group: &mut BenchmarkGroup<WallTime>, name: &str, parameter: Option<usize>, mut task: F)
-where
+pub fn bench<F>(
+    group: &mut BenchmarkGroup<WallTime>,
+    name: &str,
+    parameter: Option<usize>,
+    mut task: F,
+) where
     F: FnMut(&mut Bencher<'_, WallTime>),
 {
     match parameter {
@@ -120,33 +125,52 @@ pub fn run_large_ingestion_benchmarks<F>(
 
     let updates = 1000;
 
-    bench (
+    bench(
         group,
         "1k fixed edge updates with varying time",
         parameter,
         |b: &mut Bencher| {
             b.iter_batched_ref(
-                || (make_graph(), make_time_gen().take(updates).collect::<Vec<i64>>()),
-                |(g, times)|
+                || {
+                    (
+                        make_graph(),
+                        make_time_gen().take(updates).collect::<Vec<i64>>(),
+                    )
+                },
+                |(g, times)| {
                     for t in times.iter() {
                         g.add_edge(*t, 0, 0, &vec![])
-                    },
+                    }
+                },
                 BatchSize::SmallInput,
             )
         },
     );
 
-    bench (
+    bench(
         group,
         "1k random edge additions",
         parameter,
         |b: &mut Bencher| {
             b.iter_batched_ref(
-                || (make_graph(), make_index_gen(), make_index_gen(), make_time_gen().take(updates).collect::<Vec<i64>>()),
-                |(g, src_gen, dst_gen, times)|
+                || {
+                    (
+                        make_graph(),
+                        make_index_gen(),
+                        make_index_gen(),
+                        make_time_gen().take(updates).collect::<Vec<i64>>(),
+                    )
+                },
+                |(g, src_gen, dst_gen, times)| {
                     for t in times.iter() {
-                        g.add_edge(*t, src_gen.next().unwrap(), dst_gen.next().unwrap(),  &vec![])
-                    },
+                        g.add_edge(
+                            *t,
+                            src_gen.next().unwrap(),
+                            dst_gen.next().unwrap(),
+                            &vec![],
+                        )
+                    }
+                },
                 BatchSize::SmallInput,
             )
         },
@@ -162,9 +186,9 @@ pub fn run_analysis_benchmarks<F>(
 {
     let mut graph = make_graph();
     bench(group, "edges_len", parameter, |b: &mut Bencher| {
-        b.iter(|| graph.edges_len())
+        b.iter(|| graph.num_edges())
     });
     bench(group, "len", parameter, |b: &mut Bencher| {
-        b.iter(|| graph.len())
+        b.iter(|| graph.num_vertices())
     });
 }

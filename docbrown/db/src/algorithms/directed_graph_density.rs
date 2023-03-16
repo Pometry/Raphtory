@@ -1,8 +1,8 @@
 use crate::graph_window::WindowedGraph;
+use crate::view_api::*;
 
-pub fn directed_graph_density(windowed_graph: &WindowedGraph) -> f32 {
-    windowed_graph.graph.edges_len() as f32
-        / (windowed_graph.graph.len() as f32 * (windowed_graph.graph.len() as f32 - 1.0))
+pub fn directed_graph_density<G: GraphViewOps>(graph: &G) -> f32 {
+    graph.num_edges() as f32 / (graph.num_vertices() as f32 * (graph.num_vertices() as f32 - 1.0))
 }
 
 #[cfg(test)]
@@ -14,7 +14,7 @@ mod directed_graph_density_tests {
     #[test]
     fn low_graph_density() {
         let g = Graph::new(1);
-        let windowed_graph = g.window(0, 6);
+        let windowed_graph = g.window(0, 7);
         let vs = vec![
             (1, 1, 2),
             (2, 1, 3),
@@ -37,7 +37,7 @@ mod directed_graph_density_tests {
     #[test]
     fn complete_graph_has_graph_density_of_one() {
         let g = Graph::new(1);
-        let windowed_graph = g.window(0, 2);
+        let windowed_graph = g.window(0, 3);
         let vs = vec![(1, 1, 2), (2, 2, 1)];
 
         for (t, src, dst) in &vs {

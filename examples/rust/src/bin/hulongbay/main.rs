@@ -55,8 +55,8 @@ fn main() {
         println!(
             "Loaded graph from path {} with {} vertices, {} edges, took {} seconds",
             encoded_data_dir.to_str().unwrap(),
-            g.len(),
-            g.edges_len(),
+            g.num_vertices(),
+            g.num_edges(),
             now.elapsed().as_secs()
         );
 
@@ -84,8 +84,8 @@ fn main() {
         println!(
             "Loaded graph from CSV data files {} with {} vertices, {} edges which took {} seconds",
             encoded_data_dir.to_str().unwrap(),
-            g.len(),
-            g.edges_len(),
+            g.num_vertices(),
+            g.num_edges(),
             now.elapsed().as_secs()
         );
 

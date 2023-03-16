@@ -2,7 +2,7 @@ use crate::algorithms::local_triangle_count::local_triangle_count;
 use crate::graph_window::WindowedGraph;
 use crate::view_api::*;
 
-pub fn local_clustering_coefficient(graph: &WindowedGraph, v: u64) -> f32 {
+pub fn local_clustering_coefficient<G: GraphViewOps>(graph: &G, v: u64) -> f32 {
     let vertex = graph.vertex(v).unwrap();
 
     let triangle_count = local_triangle_count(graph, v) as f32;

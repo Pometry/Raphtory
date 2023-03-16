@@ -1,4 +1,5 @@
 use crate::graph::Graph;
+use crate::view_api::internal::GraphViewInternalOps;
 use crate::view_api::*;
 use rand::seq::SliceRandom;
 
@@ -63,8 +64,8 @@ mod random_graph_test {
     fn blank_graph() {
         let graph = Graph::new(2);
         random_attachment(&graph, 100, 20);
-        assert_eq!(graph.edges_len(), 2000);
-        assert_eq!(graph.len(), 120);
+        assert_eq!(graph.num_edges(), 2000);
+        assert_eq!(graph.num_vertices(), 120);
     }
 
     #[test]
@@ -77,8 +78,8 @@ mod random_graph_test {
         random_attachment(&graph, 1000, 5);
         let window = graph.window(i64::MIN, i64::MAX);
         let mut degree: Vec<usize> = window.vertices().map(|v| v.degree()).collect();
-        assert_eq!(graph.edges_len(), 5000);
-        assert_eq!(graph.len(), 1010);
+        assert_eq!(graph.num_edges(), 5000);
+        assert_eq!(graph.num_vertices(), 1010);
     }
 
     #[test]
@@ -88,7 +89,7 @@ mod random_graph_test {
         random_attachment(&graph, 4000, 12);
         let window = graph.window(i64::MIN, i64::MAX);
         let mut degree: Vec<usize> = window.vertices().map(|v| v.degree()).collect();
-        assert_eq!(graph.edges_len(), 50106);
-        assert_eq!(graph.len(), 4307);
+        assert_eq!(graph.num_edges(), 50106);
+        assert_eq!(graph.num_vertices(), 4307);
     }
 }
