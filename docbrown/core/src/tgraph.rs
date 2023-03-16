@@ -11,6 +11,7 @@ use crate::adj::Adj;
 use crate::props::Props;
 use crate::Prop;
 use crate::{bitset::BitSet, tadjset::AdjEdge, Direction};
+use crate::vertex::InputVertex;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct TemporalGraph {
@@ -112,11 +113,12 @@ impl TemporalGraph {
         }
     }
 
-    pub(crate) fn add_vertex(&mut self, t: i64, v: u64) {
+    pub(crate) fn add_vertex<T: InputVertex>(&mut self, t: i64, v: T) {
         self.add_vertex_with_props(t, v, &vec![])
     }
 
-    pub(crate) fn add_vertex_with_props(&mut self, t: i64, v: u64, props: &Vec<(String, Prop)>) {
+    pub(crate) fn add_vertex_with_props<T: InputVertex>(&mut self, t: i64, v: T, props: &Vec<(String, Prop)>) {
+
         //Updating time - only needs to be here as every other adding function calls this one
         if self.earliest_time > t {
             self.earliest_time = t
@@ -125,12 +127,12 @@ impl TemporalGraph {
             self.latest_time = t
         }
 
-        let index = match self.logical_to_physical.get(&v) {
+        let index = match self.logical_to_physical.get(&v.id()) {
             None => {
                 let physical_id: usize = self.adj_lists.len();
-                self.adj_lists.push(Adj::Solo(v));
+                self.adj_lists.push(Adj::Solo(v.id()));
 
-                self.logical_to_physical.insert(v, physical_id);
+                self.logical_to_physical.insert(v.id(), physical_id);
 
                 self.index
                     .entry(t)
@@ -150,8 +152,17 @@ impl TemporalGraph {
                 *pid
             }
         };
-
-        self.props.upsert_vertex_props(t, index, props);
+        if let Some(n) = v.name_prop() {
+            let new_props: Vec<(String, Prop)> = {
+                let mut props_clone = props.clone();
+                props_clone.push(("_id".to_string(), n));
+                props_clone
+            };
+            self.props.upsert_vertex_props(t, index, &new_props);
+        }
+        else {
+            self.props.upsert_vertex_props(t, index, props);
+        }
     }
 
     pub fn add_edge(&mut self, t: i64, src: u64, dst: u64) {
@@ -2282,8 +2293,8 @@ mod graph_test {
             let src_shard = utils::get_shard_id_from_global_vid(src, n_shards);
             let dst_shard = utils::get_shard_id_from_global_vid(dst, n_shards);
 
-            shards[src_shard].add_vertex(t.try_into().unwrap(), src.into());
-            shards[dst_shard].add_vertex(t.try_into().unwrap(), dst.into());
+            shards[src_shard].add_vertex(t.try_into().unwrap(), src as u64);
+            shards[dst_shard].add_vertex(t.try_into().unwrap(), dst as u64);
 
             if src_shard == dst_shard {
                 shards[src_shard].add_edge_with_props(

@@ -349,3 +349,26 @@ def test_save_load_graph():
     assert v.props() == {'type': [(1, 'wallet')], 'balance': [(1, 99.5)]}
 
     tmpdirname.cleanup()
+
+def test_add_node_string():
+    g = Graph(1)
+
+    g.add_vertex(0, 1, {})
+    g.add_vertex(1, "haaroon", {})
+
+    assert g.has_vertex(1)
+    assert g.has_vertex("haaroon")
+
+def test_add_edge_string():
+    g = Graph(1)
+
+    g.add_edge(0, 1, 2, {})
+    g.add_edge(1, "haaroon", "ben", {})
+
+    assert g.has_vertex(1)
+    assert g.has_vertex(2)
+    assert g.has_vertex("haaroon")
+    assert g.has_vertex("ben")
+
+    assert g.has_edge(1, 2)
+    assert g.has_edge("haaroon", "ben")

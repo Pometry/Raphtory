@@ -12,6 +12,7 @@ use crate::view_api::GraphViewOps;
 use crate::view_api::*;
 use std::cmp::{max, min};
 use std::{collections::HashMap, sync::Arc};
+use docbrown_core::vertex::InputVertex;
 
 pub struct GraphWindowSet {
     graph: Graph,
@@ -382,20 +383,20 @@ impl GraphViewOps for WindowedGraph {
         self.edges().count()
     }
 
-    fn has_vertex(&self, v: u64) -> bool {
+    fn has_vertex<T: InputVertex>(&self, v: T) -> bool {
         self.graph
-            .has_vertex_ref_window(v, self.t_start, self.t_end)
+            .has_vertex_ref_window(v.id(), self.t_start, self.t_end)
     }
 
-    fn has_edge(&self, src: u64, dst: u64) -> bool {
+    fn has_edge<T: InputVertex>(&self, src: T, dst: T) -> bool {
         self.graph
-            .has_edge_ref_window(src, dst, self.t_start, self.t_end)
+            .has_edge_ref_window(src.id(), dst.id(), self.t_start, self.t_end)
     }
 
-    fn vertex(&self, v: u64) -> Option<WindowedVertex> {
+    fn vertex<T: InputVertex>(&self, v: T) -> Option<WindowedVertex> {
         let graph_w = Arc::new(self.clone());
         self.graph
-            .vertex_ref_window(v, self.t_start, self.t_end)
+            .vertex_ref_window(v.id(), self.t_start, self.t_end)
             .map(move |vv| WindowedVertex::new(graph_w, vv))
     }
 
@@ -408,10 +409,10 @@ impl GraphViewOps for WindowedGraph {
         )
     }
 
-    fn edge(&self, src: u64, dst: u64) -> Option<WindowedEdge> {
+    fn edge<T: InputVertex>(&self, src: T, dst: T) -> Option<WindowedEdge> {
         let graph_w = self.clone();
         self.graph
-            .edge_ref_window(src, dst, self.t_start, self.t_end)
+            .edge_ref_window(src.id(), dst.id(), self.t_start, self.t_end)
             .map(|ev| WindowedEdge::new(Arc::new(graph_w.clone()), ev))
     }
 

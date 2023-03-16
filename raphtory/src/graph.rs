@@ -1,9 +1,11 @@
 use docbrown_core as dbc;
+use docbrown_core::vertex::InputVertex;
 use docbrown_db::view_api::*;
 use docbrown_db::{graph, perspective};
 use pyo3::exceptions;
+use pyo3::exceptions::PyTypeError;
 use pyo3::prelude::*;
-use pyo3::types::PyIterator;
+use pyo3::types::{PyInt, PyIterator, PyString};
 use std::collections::HashMap;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
@@ -104,30 +106,93 @@ impl Graph {
         self.graph.num_edges()
     }
 
-    pub fn has_vertex(&self, v: u64) -> bool {
-        self.graph.has_vertex(v)
+    pub fn number_of_edges(&self) -> usize {
+        self.graph.num_edges()
     }
 
-    pub fn add_vertex(&self, t: i64, v: u64, props: HashMap<String, Prop>) {
-        self.graph.add_vertex(
-            t,
-            v,
-            &props
-                .into_iter()
-                .map(|(key, value)| (key, value.into()))
-                .collect::<Vec<(String, dbc::Prop)>>(),
-        )
+    pub fn num_edges(&self) -> usize {
+        self.graph.num_edges()
     }
 
-    pub fn add_edge(&self, t: i64, src: u64, dst: u64, props: HashMap<String, Prop>) {
-        self.graph.add_edge(
-            t,
-            src,
-            dst,
-            &props
-                .into_iter()
-                .map(|f| (f.0.clone(), f.1.into()))
-                .collect::<Vec<(String, dbc::Prop)>>(),
-        )
+    pub fn number_of_nodes(&self) -> usize {
+        self.graph.num_vertices()
+    }
+
+    pub fn num_vertices(&self) -> usize {
+        self.graph.num_vertices()
+    }
+
+    pub fn has_vertex(&self, v: &PyAny) -> bool {
+        if let Ok(v) = v.extract::<String>() {
+            self.graph.has_vertex(v)
+        } else if let Ok(v) = v.extract::<u64>() {
+            self.graph.has_vertex(v)
+        } else {
+            panic!("Input must be a string or integer.")
+        }
+    }
+
+    pub fn has_edge(&self, src: &PyAny, dst: &PyAny) -> bool {
+        if let (Ok(src), Ok(dst)) = (src.extract::<String>(), dst.extract::<String>()) {
+            self.graph.has_edge(
+                src,
+                dst,
+            )
+        } else if let (Ok(src), Ok(dst)) = (src.extract::<u64>(), dst.extract::<u64>()) {
+            self.graph
+                .has_edge(src, dst)
+        } else {
+            panic!("Types of src and dst must be the same (either Int or str)")
+        }
+    }
+
+    pub fn add_vertex(&self, t: i64, v: &PyAny, props: HashMap<String, Prop>) {
+        if let Ok(vv) = v.extract::<String>() {
+            self.graph.add_vertex(
+                t,
+                vv,
+                &props
+                    .into_iter()
+                    .map(|(key, value)| (key, value.into()))
+                    .collect::<Vec<(String, dbc::Prop)>>(),
+            )
+        } else {
+            if let Ok(vvv) = v.extract::<u64>() {
+                self.graph.add_vertex(
+                    t,
+                    vvv,
+                    &props
+                        .into_iter()
+                        .map(|(key, value)| (key, value.into()))
+                        .collect::<Vec<(String, dbc::Prop)>>(),
+                )
+            } else { panic!("Input must be a string or integer.") }
+        }
+    }
+
+    pub fn add_edge(&self, t: i64, src: &PyAny, dst: &PyAny, props: HashMap<String, Prop>) {
+        if let (Ok(src), Ok(dst)) = (src.extract::<String>(), dst.extract::<String>()) {
+            self.graph.add_edge(
+                t,
+                src,
+                dst,
+                &props
+                    .into_iter()
+                    .map(|f| (f.0.clone(), f.1.into()))
+                    .collect::<Vec<(String, dbc::Prop)>>(),
+            )
+        } else if let (Ok(src), Ok(dst)) = (src.extract::<u64>(), dst.extract::<u64>()) {
+            self.graph.add_edge(
+                t,
+                src,
+                dst,
+                &props
+                    .into_iter()
+                    .map(|f| (f.0.clone(), f.1.into()))
+                    .collect::<Vec<(String, dbc::Prop)>>(),
+            )
+        } else {
+            panic!("Types of src and dst must be the same (either Int or str)")
+        }
     }
 }
