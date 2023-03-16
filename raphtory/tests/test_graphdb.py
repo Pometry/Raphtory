@@ -350,6 +350,16 @@ def test_save_load_graph():
 
     tmpdirname.cleanup()
 
+def test_graph_at():
+    g = create_graph(1)
+
+    view = g.at(2)
+    assert view.vertex(1).degree() == 3
+    assert view.vertex(3).degree() == 1
+
+    view = g.at(7)
+    assert view.vertex(3).degree() == 2
+
 def test_add_node_string():
     g = Graph(1)
 
