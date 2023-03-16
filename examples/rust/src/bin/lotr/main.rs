@@ -39,8 +39,8 @@ fn main() {
         println!(
             "Loaded graph from encoded data files {} with {} vertices, {} edges which took {} seconds",
             encoded_data_dir.to_str().unwrap(),
-            g.len(),
-            g.edges_len(),
+            g.num_vertices(),
+            g.num_edges(),
             now.elapsed().as_secs()
         );
 
@@ -80,8 +80,8 @@ fn main() {
         println!(
             "Loaded graph from CSV data files {} with {} vertices, {} edges which took {} seconds",
             encoded_data_dir.to_str().unwrap(),
-            g.len(),
-            g.edges_len(),
+            g.num_vertices(),
+            g.num_edges(),
             now.elapsed().as_secs()
         );
 
@@ -91,13 +91,13 @@ fn main() {
         g
     };
 
-    assert_eq!(graph.len(), 139);
-    assert_eq!(graph.edges_len(), 701);
+    assert_eq!(graph.num_vertices(), 139);
+    assert_eq!(graph.num_edges(), 701);
 
     let gandalf = utils::calculate_hash(&"Gandalf");
 
     assert_eq!(gandalf, 13840129630991083248);
-    assert!(graph.has_vertex(gandalf));
+    assert!(graph.has_vertex_ref(gandalf));
 
     let windowed_graph = graph.window(i64::MIN, i64::MAX);
     let v = windowed_graph.vertex(gandalf).unwrap();

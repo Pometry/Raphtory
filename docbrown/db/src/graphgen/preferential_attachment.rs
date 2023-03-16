@@ -33,7 +33,7 @@ pub fn ba_preferential_attachment(graph: &Graph, vertices_to_add: usize, edges_p
         Some(time) => time,
     };
     let view = graph.window(i64::MIN, i64::MAX);
-    let mut ids: Vec<u64> = view.vertex_ids().collect();
+    let mut ids: Vec<u64> = view.vertices().id().collect();
     let mut degrees: Vec<usize> = view.vertices().map(|v| v.degree()).collect();
     let mut edge_count: usize = degrees.iter().sum();
 
@@ -49,7 +49,7 @@ pub fn ba_preferential_attachment(graph: &Graph, vertices_to_add: usize, edges_p
         ids.push(max_id);
     }
 
-    if graph.edges_len() < edges_per_step {
+    if graph.num_edges() < edges_per_step {
         for pos in 1..ids.len() {
             graph.add_edge(latest_time, ids[pos], ids[pos - 1], &vec![]);
             edge_count += 2;
@@ -100,8 +100,8 @@ mod preferential_attachment_tests {
         ba_preferential_attachment(&graph, 1000, 10);
         let window = graph.window(i64::MIN, i64::MAX);
         let mut degree: Vec<usize> = window.vertices().map(|v| v.degree()).collect();
-        assert_eq!(graph.edges_len(), 10009);
-        assert_eq!(graph.len(), 1010);
+        assert_eq!(graph.num_edges(), 10009);
+        assert_eq!(graph.num_vertices(), 1010);
     }
 
     #[test]
@@ -114,8 +114,8 @@ mod preferential_attachment_tests {
         ba_preferential_attachment(&graph, 1000, 5);
         let window = graph.window(i64::MIN, i64::MAX);
         let mut degree: Vec<usize> = window.vertices().map(|v| v.degree()).collect();
-        assert_eq!(graph.edges_len(), 5009);
-        assert_eq!(graph.len(), 1010);
+        assert_eq!(graph.num_edges(), 5009);
+        assert_eq!(graph.num_vertices(), 1010);
     }
 
     #[test]
@@ -125,7 +125,7 @@ mod preferential_attachment_tests {
         ba_preferential_attachment(&graph, 500, 4);
         let window = graph.window(i64::MIN, i64::MAX);
         let mut degree: Vec<usize> = window.vertices().map(|v| v.degree()).collect();
-        assert_eq!(graph.edges_len(), 5000);
-        assert_eq!(graph.len(), 1503);
+        assert_eq!(graph.num_edges(), 5000);
+        assert_eq!(graph.num_vertices(), 1503);
     }
 }

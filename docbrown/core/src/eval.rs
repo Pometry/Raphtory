@@ -10,7 +10,7 @@ use std::{
 use rustc_hash::FxHashSet;
 
 use crate::{
-    tgraph::{TemporalGraph, VertexView},
+    tgraph::{TemporalGraph, VertexRef},
     Direction,
 };
 
@@ -23,14 +23,14 @@ pub trait Eval {
         having: PRED,
     ) -> Context
     where
-        FMAP: Fn(&mut EvalVertexView<'a, Self>, &mut Context) -> Vec<VertexRef>,
+        FMAP: Fn(&mut EvalVertexView<'a, Self>, &mut Context) -> Vec<LocalVRef>,
         PRED: Fn(&EvalVertexView<'a, Self>, &mut Context) -> bool,
         Self: Sized + 'a;
 }
 
-pub struct VertexRef(usize);
+pub struct LocalVRef(usize);
 
-impl VertexRef {
+impl LocalVRef {
     fn pid(&self) -> usize {
         self.0
     }
@@ -349,7 +349,7 @@ impl Eval for TemporalGraph {
         having: PRED,
     ) -> Context
     where
-        FMAP: Fn(&mut EvalVertexView<'a, Self>, &mut Context) -> Vec<VertexRef>,
+        FMAP: Fn(&mut EvalVertexView<'a, Self>, &mut Context) -> Vec<LocalVRef>,
         PRED: Fn(&EvalVertexView<'a, Self>, &mut Context) -> bool,
         Self: Sized + 'a,
     {
@@ -363,7 +363,7 @@ impl Eval for TemporalGraph {
             let iter = if !cur_active_set.is_all() {
                 let active_vertices_iter = cur_active_set.iter().map(|pid| {
                     let g_id = self.adj_lists[*pid].logical();
-                    VertexView::new(*g_id, Some(*pid))
+                    VertexRef::new(*g_id, Some(*pid))
                 });
                 Box::new(active_vertices_iter)
             } else {
@@ -385,7 +385,7 @@ impl Eval for TemporalGraph {
             // from the next_active_set we apply the PRED
             next_active_set.retain(|pid| {
                 let g_id = self.adj_lists[*pid].logical();
-                let v_view = VertexView::new(*g_id, Some(*pid));
+                let v_view = VertexRef::new(*g_id, Some(*pid));
                 having(
                     &EvalVertexView {
                         vv: v_view,
@@ -406,7 +406,7 @@ impl Eval for TemporalGraph {
 // view over the vertex
 // this includes the state during the evaluation
 pub struct EvalVertexView<'a, G> {
-    vv: VertexView,
+    vv: VertexRef,
     pub(crate) g: &'a G,
 }
 
@@ -429,8 +429,8 @@ impl<'a> EvalVertexView<'a, TemporalGraph> {
         acc.read_prev(&id)
     }
 
-    pub fn as_vertex_ref(&self) -> VertexRef {
-        VertexRef(self.vv.pid.unwrap())
+    pub fn as_vertex_ref(&self) -> LocalVRef {
+        LocalVRef(self.vv.pid.unwrap())
     }
 }
 

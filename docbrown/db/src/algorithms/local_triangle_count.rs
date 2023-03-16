@@ -3,23 +3,20 @@ use crate::view_api::*;
 use docbrown_core::Direction;
 use itertools::Itertools;
 
-pub fn local_triangle_count(windowed_graph: &WindowedGraph, v: u64) -> u32 {
-    let mut number_of_triangles: u32 = 0;
-    let vertex = windowed_graph.vertex(v).unwrap();
+pub fn local_triangle_count<G: GraphViewOps>(graph: &G, v: u64) -> usize {
+    let vertex = graph.vertex(v).unwrap();
 
-    if vertex.degree() >= 2 {
-        windowed_graph
-            .neighbours_ids(v, Direction::BOTH)
+    let count = if vertex.degree() >= 2 {
+        vertex
+            .neighbours()
+            .id()
             .combinations(2)
-            .for_each(|nb| {
-                if windowed_graph.has_edge(nb[0], nb[1]) || (windowed_graph.has_edge(nb[1], nb[0]))
-                {
-                    number_of_triangles += 1;
-                }
-            })
-    }
-
-    number_of_triangles
+            .filter(|nb| graph.has_edge(nb[0], nb[1]) || graph.has_edge(nb[1], nb[0]))
+            .count()
+    } else {
+        0
+    };
+    count
 }
 
 #[cfg(test)]

@@ -4,25 +4,18 @@ use docbrown_core::Direction;
 use itertools::Itertools;
 use rayon::prelude::*;
 
-pub fn global_triangle_count(windowed_graph: &WindowedGraph) -> usize {
-    let vertex_ids = windowed_graph.vertex_ids().collect::<Vec<_>>();
-
-    let count: usize = vertex_ids
-        .into_par_iter()
+pub fn global_triangle_count<G: GraphViewOps>(graph: &G) -> usize {
+    let count: usize = graph
+        .vertices()
+        .into_iter()
+        .par_bridge()
         .map(|v| {
-            windowed_graph
-                .neighbours_ids(v, Direction::BOTH)
+            v.neighbours()
+                .id()
+                .into_iter()
                 .combinations(2)
-                .map(|nb| {
-                    if windowed_graph.has_edge(nb[0], nb[1])
-                        || (windowed_graph.has_edge(nb[1], nb[0]))
-                    {
-                        1 as usize
-                    } else {
-                        0 as usize
-                    }
-                })
-                .sum::<usize>()
+                .filter(|nb| graph.has_edge(nb[0], nb[1]) || graph.has_edge(nb[1], nb[0]))
+                .count()
         })
         .sum();
     count / 3

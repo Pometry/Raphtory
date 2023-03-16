@@ -7,13 +7,13 @@ use std::sync::Arc;
 use genawaiter::sync::{gen, GenBoxed};
 use genawaiter::yield_;
 
-use crate::tgraph::{EdgeView, TemporalGraph, VertexView};
+use crate::tgraph::{EdgeRef, TemporalGraph, VertexRef};
 use crate::{Direction, Prop};
 
 mod lock {
 
-    use std::ops::{Deref, DerefMut};
     use serde::{Deserialize, Serialize};
+    use std::ops::{Deref, DerefMut};
     #[derive(Serialize, Deserialize, Debug, Default)]
     #[repr(transparent)]
     pub(crate) struct MyLock<T>(parking_lot::RwLock<T>);
@@ -101,9 +101,13 @@ impl TGraphShard {
         f(&shard)
     }
 
-    pub fn earliest_time(&self) -> i64 {self.read_shard(|tg| tg.earliest_time)}
+    pub fn earliest_time(&self) -> i64 {
+        self.read_shard(|tg| tg.earliest_time)
+    }
 
-    pub fn latest_time(&self) -> i64 {self.read_shard(|tg| tg.latest_time)}
+    pub fn latest_time(&self) -> i64 {
+        self.read_shard(|tg| tg.latest_time)
+    }
 
     pub fn len(&self) -> usize {
         self.read_shard(|tg| tg.len())
@@ -153,11 +157,11 @@ impl TGraphShard {
         self.read_shard(|tg: &TemporalGraph| tg.degree_window(v, &w, d))
     }
 
-    pub fn vertex(&self, v: u64) -> Option<VertexView> {
+    pub fn vertex(&self, v: u64) -> Option<VertexRef> {
         self.read_shard(|tg| tg.vertex(v))
     }
 
-    pub fn vertex_window(&self, v: u64, w: Range<i64>) -> Option<VertexView> {
+    pub fn vertex_window(&self, v: u64, w: Range<i64>) -> Option<VertexRef> {
         self.read_shard(|tg| tg.vertex_window(v, &w))
     }
 
@@ -187,9 +191,9 @@ impl TGraphShard {
         iter.into_iter()
     }
 
-    pub fn vertices(&self) -> impl Iterator<Item = VertexView> {
+    pub fn vertices(&self) -> impl Iterator<Item = VertexRef> {
         let tgshard = self.rc.clone();
-        let iter: GenBoxed<VertexView> = GenBoxed::new_boxed(|co| async move {
+        let iter: GenBoxed<VertexRef> = GenBoxed::new_boxed(|co| async move {
             let g = tgshard.read();
             let iter = (*g).vertices();
             for vv in iter {
@@ -200,9 +204,9 @@ impl TGraphShard {
         iter.into_iter()
     }
 
-    pub fn vertices_window(&self, w: Range<i64>) -> impl Iterator<Item = VertexView> {
+    pub fn vertices_window(&self, w: Range<i64>) -> impl Iterator<Item = VertexRef> {
         let tgshard = self.rc.clone();
-        let iter: GenBoxed<VertexView> = GenBoxed::new_boxed(|co| async move {
+        let iter: GenBoxed<VertexRef> = GenBoxed::new_boxed(|co| async move {
             let g = tgshard.read();
             let iter = (*g).vertices_window(w);
             for vv in iter {
@@ -213,17 +217,17 @@ impl TGraphShard {
         iter.into_iter()
     }
 
-    pub fn edge(&self, src: u64, dst: u64) -> Option<EdgeView> {
+    pub fn edge(&self, src: u64, dst: u64) -> Option<EdgeRef> {
         self.read_shard(|tg| tg.edge(src, dst))
     }
 
-    pub fn edge_window(&self, src: u64, dst: u64, w: Range<i64>) -> Option<EdgeView> {
+    pub fn edge_window(&self, src: u64, dst: u64, w: Range<i64>) -> Option<EdgeRef> {
         self.read_shard(|tg| tg.edge_window(src, dst, &w))
     }
 
-    pub fn vertex_edges(&self, v: u64, d: Direction) -> impl Iterator<Item = EdgeView> {
+    pub fn vertex_edges(&self, v: u64, d: Direction) -> impl Iterator<Item = EdgeRef> {
         let tgshard = self.rc.clone();
-        let iter: GenBoxed<EdgeView> = GenBoxed::new_boxed(|co| async move {
+        let iter: GenBoxed<EdgeRef> = GenBoxed::new_boxed(|co| async move {
             let g = tgshard.read();
             let iter = (*g).vertex_edges(v, d);
             for ev in iter {
@@ -239,7 +243,7 @@ impl TGraphShard {
         v: u64,
         w: Range<i64>,
         d: Direction,
-    ) -> impl Iterator<Item = EdgeView> {
+    ) -> impl Iterator<Item = EdgeRef> {
         let tgshard = self.clone();
         let iter = gen!({
             let g = tgshard.rc.read();
@@ -258,7 +262,7 @@ impl TGraphShard {
         v: u64,
         w: Range<i64>,
         d: Direction,
-    ) -> impl Iterator<Item = EdgeView> {
+    ) -> impl Iterator<Item = EdgeRef> {
         let tgshard = self.clone();
         let iter = gen!({
             let g = tgshard.rc.read();
@@ -272,7 +276,7 @@ impl TGraphShard {
         iter.into_iter()
     }
 
-    pub fn neighbours(&self, v: u64, d: Direction) -> impl Iterator<Item = VertexView> {
+    pub fn neighbours(&self, v: u64, d: Direction) -> impl Iterator<Item = VertexRef> {
         let tgshard = self.clone();
         let iter = gen!({
             let g = tgshard.rc.read();
@@ -291,7 +295,7 @@ impl TGraphShard {
         v: u64,
         w: Range<i64>,
         d: Direction,
-    ) -> impl Iterator<Item = VertexView> {
+    ) -> impl Iterator<Item = VertexRef> {
         let tgshard = self.clone();
         let iter = gen!({
             let g = tgshard.rc.read();

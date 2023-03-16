@@ -237,7 +237,7 @@ impl WindowedVerticesPath {
         Box::new(g.graph_w.vertices().map(move |v| WindowedVertexIterable {
             graph: g_py.clone(),
             operations: ops.clone(),
-            start_at: Some(v.g_id),
+            start_at: Some(v.id()),
         }))
     }
 }
