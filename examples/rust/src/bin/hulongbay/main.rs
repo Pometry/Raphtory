@@ -17,6 +17,7 @@ use std::io::{prelude::*, BufReader, LineWriter};
 use std::time::Instant;
 
 use docbrown_db::graph::Graph;
+use docbrown_db::view_api::*;
 
 #[derive(Deserialize, std::fmt::Debug)]
 pub struct Edge {

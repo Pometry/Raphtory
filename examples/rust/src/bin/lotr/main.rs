@@ -1,6 +1,7 @@
 use docbrown_core::utils;
 use docbrown_core::{Direction, Prop};
-use docbrown_db::{graph::Graph, csv_loader::csv::CsvLoader};
+use docbrown_db::view_api::*;
+use docbrown_db::{csv_loader::csv::CsvLoader, graph::Graph};
 use serde::Deserialize;
 use std::path::PathBuf;
 use std::{env, path::Path, time::Instant};
@@ -97,7 +98,7 @@ fn main() {
     let gandalf = utils::calculate_hash(&"Gandalf");
 
     assert_eq!(gandalf, 13840129630991083248);
-    assert!(graph.has_vertex_ref(gandalf));
+    assert!(graph.has_vertex(gandalf));
 
     let windowed_graph = graph.window(i64::MIN, i64::MAX);
     let v = windowed_graph.vertex(gandalf).unwrap();
@@ -118,22 +119,22 @@ fn main() {
 
     let actual = v
         .out_edges()
-        .map(|e| (e.src, e.dst, e.time, e.is_remote))
+        .map(|e| (e.src().id(), e.dst().id()))
         .collect::<Vec<_>>();
 
     let expected = vec![
-        (13840129630991083248, 6768237561757024290, None, false),
-        (13840129630991083248, 2582862946330553552, None, false),
-        (13840129630991083248, 13415634039873497660, None, false),
-        (13840129630991083248, 357812470600089148, None, false),
-        (13840129630991083248, 17764752901005380738, None, false),
-        (13840129630991083248, 6484040860173734298, None, false),
-        (0, 2914346725110218071, None, true),
-        (0, 5956895584314169235, None, true),
-        (0, 12936471037316398897, None, true),
-        (0, 13050559475682228465, None, true),
-        (0, 13789593425373656861, None, true),
-        (0, 14223985880962197705, None, true),
+        (13840129630991083248, 6768237561757024290),
+        (13840129630991083248, 2582862946330553552),
+        (13840129630991083248, 13415634039873497660),
+        (13840129630991083248, 357812470600089148),
+        (13840129630991083248, 17764752901005380738),
+        (13840129630991083248, 6484040860173734298),
+        (0, 2914346725110218071),
+        (0, 5956895584314169235),
+        (0, 12936471037316398897),
+        (0, 13050559475682228465),
+        (0, 13789593425373656861),
+        (0, 14223985880962197705),
     ];
 
     assert_eq!(actual, expected);
@@ -143,20 +144,20 @@ fn main() {
     let actual = v
         .out_edges()
         .take(10)
-        .map(|e| (e.src, e.dst, e.time, e.is_remote))
+        .map(|e| (e.src().id(), e.dst().id()))
         .collect::<Vec<_>>();
 
-    let expected: Vec<(u64, u64, Option<i64>, bool)> = vec![
-        (13840129630991083248, 12772980705568717046, None, false),
-        (13840129630991083248, 6768237561757024290, None, false),
-        (13840129630991083248, 11214194356141027632, None, false),
-        (13840129630991083248, 2582862946330553552, None, false),
-        (13840129630991083248, 13415634039873497660, None, false),
-        (13840129630991083248, 6514938325906662882, None, false),
-        (13840129630991083248, 13854913496482509346, None, false),
-        (13840129630991083248, 357812470600089148, None, false),
-        (13840129630991083248, 17764752901005380738, None, false),
-        (13840129630991083248, 15044750458947305290, None, false),
+    let expected: Vec<(u64, u64)> = vec![
+        (13840129630991083248, 12772980705568717046),
+        (13840129630991083248, 6768237561757024290),
+        (13840129630991083248, 11214194356141027632),
+        (13840129630991083248, 2582862946330553552),
+        (13840129630991083248, 13415634039873497660),
+        (13840129630991083248, 6514938325906662882),
+        (13840129630991083248, 13854913496482509346),
+        (13840129630991083248, 357812470600089148),
+        (13840129630991083248, 17764752901005380738),
+        (13840129630991083248, 15044750458947305290),
     ];
 
     assert_eq!(actual, expected);
@@ -165,7 +166,7 @@ fn main() {
     let actual = windowed_graph
         .vertices()
         .take(10)
-        .map(|tv| tv.g_id)
+        .map(|tv| tv.id())
         .collect::<Vec<u64>>();
 
     let expected: Vec<u64> = vec![
@@ -186,7 +187,7 @@ fn main() {
     let windowed_graph = graph.window(0, 300);
     let actual = windowed_graph
         .vertices()
-        .map(|v| v.g_id)
+        .map(|v| v.id())
         .collect::<Vec<u64>>();
 
     let expected = vec![
