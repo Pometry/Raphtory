@@ -17,6 +17,7 @@ use std::io::{prelude::*, BufReader, LineWriter};
 use std::time::Instant;
 
 use docbrown_db::graph::Graph;
+use docbrown_db::view_api::*;
 
 #[derive(Deserialize, std::fmt::Debug)]
 pub struct Sent {
@@ -119,7 +120,7 @@ fn main() {
 
     let windowed_graph = graph.window(0, i64::MAX);
 
-    assert!(windowed_graph.has_vertex_ref(test_v));
+    assert!(windowed_graph.has_vertex(test_v));
     let v = windowed_graph.vertex(test_v).unwrap();
 
     let deg_out = v.out_edges().count();
