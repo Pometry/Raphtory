@@ -30,8 +30,8 @@ def create_graph(num_shards):
 def test_graph_len_edge_len():
     g = create_graph(2)
 
-    assert g.len() == 3
-    assert g.edges_len() == 5
+    assert g.num_vertices() == 3
+    assert g.num_edges() == 5
 
 
 def test_graph_has_edge():
@@ -93,14 +93,14 @@ def test_windowed_graph_get_edge():
 
     view = g.window(min_size, max_size)
 
-    assert (view.edge(1, 3).src, view.edge(1, 3).dst) == (1, 3)
+    assert (view.edge(1, 3).src(), view.edge(1, 3).dst()) == (1, 3)
     assert view.edge(2, 3) == None
     assert view.edge(6, 5) == None
 
     assert (view.vertex(1).id, view.vertex(3).id) == (1, 3)
 
     view = g.window(2, 3)
-    assert (view.edge(1, 3).src, view.edge(1, 3).dst) == (1, 3)
+    assert (view.edge(1, 3).src(), view.edge(1, 3).dst()) == (1, 3)
 
     view = g.window(3, 7)
     assert view.edge(1, 3) == None
@@ -115,43 +115,43 @@ def test_windowed_graph_edges():
     edges = []
     for e_iter in tedges:
         for e in e_iter:
-            edges.append([e.src, e.dst, e.time])
+            edges.append([e.src(), e.dst()])
 
     assert edges == [
-            [1, 1, None],
-            [1, 1, None],
-            [1, 2, None],
-            [1, 3, None],
-            [1, 2, None],
-            [3, 2, None],
-            [1, 3, None],
-            [3, 2, None]
+            [1, 1],
+            [1, 1],
+            [1, 2],
+            [1, 3],
+            [1, 2],
+            [3, 2],
+            [1, 3],
+            [3, 2]
         ]
 
     tedges = [v.in_edges() for v in view.vertices()]
     in_edges = []
     for e_iter in tedges:
         for e in e_iter:
-            in_edges.append([e.src, e.dst, e.time])
+            in_edges.append([e.src(), e.dst()])
 
     assert in_edges == [
-            [1, 1, None],
-            [1, 2, None],
-            [3, 2, None],
-            [1, 3, None]
+            [1, 1],
+            [1, 2],
+            [3, 2],
+            [1, 3]
         ]
     
     tedges = [v.out_edges() for v in view.vertices()]
     out_edges = []
     for e_iter in tedges:
         for e in e_iter:
-            out_edges.append([e.src, e.dst, e.time])
+            out_edges.append([e.src(), e.dst()])
 
     assert out_edges == [
-            [1, 1, None],
-            [1, 2, None],
-            [1, 3, None],
-            [3, 2, None]
+            [1, 1],
+            [1, 2],
+            [1, 3],
+            [3, 2]
         ]
 
 

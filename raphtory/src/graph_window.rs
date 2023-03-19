@@ -58,13 +58,15 @@ impl WindowedGraph {
         }
     }
 
-    pub fn earliest_time(&self) -> i64 {
-        self.graph_w.t_start
-    }
+    //******  Metrics APIs ******//
 
-    pub fn latest_time(&self) -> i64 {
-        self.graph_w.t_end
-    }
+    pub fn earliest_time(&self) -> Option<i64> { self.graph_w.earliest_time() }
+
+    pub fn latest_time(&self) -> Option<i64> { self.graph_w.latest_time() }
+
+    pub fn num_edges(&self) -> usize {self.graph_w.num_edges()}
+
+    pub fn num_vertices(&self) -> usize {self.graph_w.num_vertices()}
 
     pub fn has_vertex(&self, v: &PyAny) -> bool {
         if let Ok(v) = v.extract::<String>() {
@@ -92,9 +94,12 @@ impl WindowedGraph {
             )
         }
         else {
+            //FIXME This probably should just throw an error not fully panic
             panic!("Types of src and dst must be the same (either Int or str)")
         }
     }
+
+    //******  Getter APIs ******//
 
     pub fn vertex(slf: PyRef<'_, Self>, v: u64) -> Option<WindowedVertex> {
         let v = slf.graph_w.vertex(v)?;
@@ -116,6 +121,12 @@ impl WindowedGraph {
     pub fn edge(&self, src: u64, dst: u64) -> Option<WindowedEdge> {
         self.graph_w.edge(src, dst).map(|we| we.into())
     }
+
+    pub fn edges(&self) -> WindowedEdgeIterator {
+        WindowedEdgeIterator {
+            iter: Box::new(self.graph_w.edges().map(|te| te.into())),
+        }
+    }
 }
 
 #[pyclass]
@@ -125,6 +136,15 @@ pub struct WindowedVertex {
     pub(crate) graph: Py<WindowedGraph>,
     pub(crate) vertex_w: graph_window::WindowedVertex,
 }
+
+//TODO need to implement but would need to change a lot of things
+//Have to rely on internal from for the moment
+// impl From<graph_window::WindowedVertex> for WindowedVertex {
+//     fn from(value: graph_window::WindowedVertex) ->WindowedVertex {
+//
+//     }
+// }
+
 
 impl WindowedVertex {
     fn from(&self, value: graph_window::WindowedVertex) -> WindowedVertex {
@@ -149,6 +169,7 @@ impl WindowedVertex {
 
 #[pymethods]
 impl WindowedVertex {
+
     pub fn prop(&self, name: String) -> Vec<(i64, Prop)> {
         self.vertex_w
             .prop(name)
@@ -251,27 +272,12 @@ impl WindowedVertex {
 
 #[pyclass]
 pub struct WindowedEdge {
-    pub edge_id: usize,
-    #[pyo3(get)]
-    pub src: u64,
-    #[pyo3(get)]
-    pub dst: u64,
-    #[pyo3(get)]
-    pub time: Option<i64>,
-    pub is_remote: bool,
     pub(crate) edge_w: graph_window::WindowedEdge,
 }
 
 impl From<graph_window::WindowedEdge> for WindowedEdge {
     fn from(value: graph_window::WindowedEdge) -> WindowedEdge {
-        let value_ref: EdgeRef = value.as_ref();
-        // FIXME: temporary hack, shouldn't really be copying all these values
         WindowedEdge {
-            edge_id: value_ref.edge_id,
-            src: value_ref.src_g_id,
-            dst: value_ref.dst_g_id,
-            time: value_ref.time,
-            is_remote: value_ref.is_remote,
             edge_w: value,
         }
     }
@@ -285,5 +291,14 @@ impl WindowedEdge {
             .into_iter()
             .map(|(t, p)| (t, p.into()))
             .collect_vec()
+    }
+    fn src(&self) -> u64 {
+        //FIXME can't currently return the WindowedVertex as can't create a Py<WindowedGraph>
+        self.edge_w.src().id()
+    }
+
+    fn dst(&self) -> u64 {
+        //FIXME can't currently return the WindowedVertex as can't create a Py<WindowedGraph>
+        self.edge_w.dst().id()
     }
 }
