@@ -5,6 +5,7 @@ use docbrown_db::{csv_loader::csv::CsvLoader, graph::Graph};
 use serde::Deserialize;
 use std::path::PathBuf;
 use std::{env, path::Path, time::Instant};
+use docbrown_db::view_api::{GraphViewOps, VertexViewOps};
 
 #[derive(Deserialize, std::fmt::Debug)]
 pub struct Lotr {
