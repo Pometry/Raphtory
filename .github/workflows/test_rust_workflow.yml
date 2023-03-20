@@ -47,7 +47,7 @@ jobs:
           RUSTFLAGS: -Awarnings
         with:
           command: test
-          args: --no-default-features
+          args: --all --no-default-features
   doc-test:
     if: ${{ !inputs.skip_tests }}
     name: "Doc tests"

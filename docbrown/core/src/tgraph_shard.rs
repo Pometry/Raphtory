@@ -138,6 +138,10 @@ impl TGraphShard {
         self.write_shard(move |tg| tg.add_vertex_with_props(t, v, props))
     }
 
+    pub fn add_vertex_properties(&self, v: u64, data: &Vec<(String, Prop)>) {
+        self.write_shard(|tg| tg.add_vertex_properties(v, data))
+    }
+
     pub fn add_edge(&self, t: i64, src: u64, dst: u64, props: &Vec<(String, Prop)>) {
         self.write_shard(|tg| tg.add_edge_with_props(t, src, dst, props))
     }
@@ -148,6 +152,14 @@ impl TGraphShard {
 
     pub fn add_edge_remote_into(&self, t: i64, src: u64, dst: u64, props: &Vec<(String, Prop)>) {
         self.write_shard(|tg| tg.add_edge_remote_into(t, src, dst, props))
+    }
+
+    pub fn add_edge_properties(&self, src: u64, dst: u64, data: &Vec<(String, Prop)>) {
+        self.write_shard(|tg| tg.add_edge_properties(src, dst, data))
+    }
+
+    pub fn add_remote_out_properties(&self, src: u64, dst: u64, data: &Vec<(String, Prop)>) {
+        self.write_shard(|tg| tg.add_remote_out_properties(src, dst, data))
     }
 
     pub fn degree(&self, v: u64, d: Direction) -> usize {
@@ -349,40 +361,44 @@ impl TGraphShard {
         iter.into_iter()
     }
 
-    pub fn vertex_prop_vec(&self, v: u64, name: String) -> Vec<(i64, Prop)> {
-        self.read_shard(|tg| tg.vertex_prop_vec(v, &name).unwrap_or_else(|| vec![]))
+    pub fn static_vertex_prop(&self, v: u64, name: String) -> Option<Prop> {
+        self.read_shard(|tg| tg.static_vertex_prop(v, &name))
     }
 
-    pub fn vertex_prop_vec_window(&self, v: u64, name: String, w: Range<i64>) -> Vec<(i64, Prop)> {
-        self.read_shard(|tg| {
-            tg.vertex_prop_vec_window(v, &name, &w)
-                .unwrap_or_else(|| vec![])
-        })
+    pub fn static_vertex_prop_keys(&self, v: u64) -> Vec<String> {
+        self.read_shard(|tg| tg.static_vertex_prop_keys(v))
     }
 
-    pub fn vertex_props(&self, v: u64) -> HashMap<String, Vec<(i64, Prop)>> {
-        self.read_shard(|tg| {
-            tg.vertex_props(v)
-                .unwrap_or_else(|| HashMap::<String, Vec<(i64, Prop)>>::new())
-        })
+    pub fn temporal_vertex_prop_vec(&self, v: u64, name: String) -> Vec<(i64, Prop)> {
+        self.read_shard(|tg| tg.temporal_vertex_prop_vec(v, &name))
     }
 
-    pub fn vertex_props_window(&self, v: u64, w: Range<i64>) -> HashMap<String, Vec<(i64, Prop)>> {
-        self.read_shard(|tg| {
-            tg.vertex_props_window(v, &w)
-                .unwrap_or_else(|| HashMap::<String, Vec<(i64, Prop)>>::new())
-        })
+    pub fn temporal_vertex_prop_vec_window(&self, v: u64, name: String, w: Range<i64>) -> Vec<(i64, Prop)> {
+        self.read_shard(|tg| tg.temporal_vertex_prop_vec_window(v, &name, &w))
     }
 
-    pub fn edge_prop_vec(&self, e: usize, name: String) -> Vec<(i64, Prop)> {
-        self.read_shard(|tg| tg.edge_prop_vec(e, &name).unwrap_or_else(|| vec![]))
+    pub fn temporal_vertex_props(&self, v: u64) -> HashMap<String, Vec<(i64, Prop)>> {
+        self.read_shard(|tg| tg.temporal_vertex_props(v))
     }
 
-    pub fn edge_props_vec_window(&self, e: usize, name: String, w: Range<i64>) -> Vec<(i64, Prop)> {
-        self.read_shard(|tg| {
-            tg.edge_prop_vec_window(e, &name, w.clone())
-                .unwrap_or_else(|| vec![])
-        })
+    pub fn temporal_vertex_props_window(&self, v: u64, w: Range<i64>) -> HashMap<String, Vec<(i64, Prop)>> {
+        self.read_shard(|tg| tg.temporal_vertex_props_window(v, &w))
+    }
+
+    pub fn static_edge_prop(&self, e: usize, name: String) -> Option<Prop> {
+        self.read_shard(|tg| tg.static_edge_prop(e, &name))
+    }
+
+    pub fn static_edge_prop_keys(&self, e: usize) -> Vec<String> {
+        self.read_shard(|tg| tg.static_edge_prop_keys(e))
+    }
+
+    pub fn temporal_edge_prop_vec(&self, e: usize, name: String) -> Vec<(i64, Prop)> {
+        self.read_shard(|tg| tg.temporal_edge_prop_vec(e, &name))
+    }
+
+    pub fn temporal_edge_props_vec_window(&self, e: usize, name: String, w: Range<i64>) -> Vec<(i64, Prop)> {
+        self.read_shard(|tg| tg.temporal_edge_prop_vec_window(e, &name, w.clone()))
     }
 }
 

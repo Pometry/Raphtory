@@ -323,11 +323,19 @@ impl GraphViewInternalOps for Graph {
         )
     }
 
-    fn vertex_prop_vec(&self, v: VertexRef, name: String) -> Vec<(i64, Prop)> {
-        self.get_shard_from_v(v).vertex_prop_vec(v.g_id, name)
+    fn static_vertex_prop(&self, v: VertexRef, name: String) -> Option<Prop> {
+        self.get_shard_from_v(v).static_vertex_prop(v.g_id, name)
     }
 
-    fn vertex_prop_vec_window(
+    fn static_vertex_prop_keys(&self, v: VertexRef) -> Vec<String> {
+        self.get_shard_from_v(v).static_vertex_prop_keys(v.g_id)
+    }
+
+    fn temporal_vertex_prop_vec(&self, v: VertexRef, name: String) -> Vec<(i64, Prop)> {
+        self.get_shard_from_v(v).temporal_vertex_prop_vec(v.g_id, name)
+    }
+
+    fn temporal_vertex_prop_vec_window(
         &self,
         v: VertexRef,
         name: String,
@@ -335,28 +343,36 @@ impl GraphViewInternalOps for Graph {
         t_end: i64,
     ) -> Vec<(i64, Prop)> {
         self.get_shard_from_v(v)
-            .vertex_prop_vec_window(v.g_id, name, t_start..t_end)
+            .temporal_vertex_prop_vec_window(v.g_id, name, t_start..t_end)
     }
 
-    fn vertex_props(&self, v: VertexRef) -> HashMap<String, Vec<(i64, Prop)>> {
-        self.get_shard_from_v(v).vertex_props(v.g_id)
+    fn temporal_vertex_props(&self, v: VertexRef) -> HashMap<String, Vec<(i64, Prop)>> {
+        self.get_shard_from_v(v).temporal_vertex_props(v.g_id)
     }
 
-    fn vertex_props_window(
+    fn temporal_vertex_props_window(
         &self,
         v: VertexRef,
         t_start: i64,
         t_end: i64,
     ) -> HashMap<String, Vec<(i64, Prop)>> {
         self.get_shard_from_v(v)
-            .vertex_props_window(v.g_id, t_start..t_end)
+            .temporal_vertex_props_window(v.g_id, t_start..t_end)
     }
 
-    fn edge_props_vec(&self, e: EdgeRef, name: String) -> Vec<(i64, Prop)> {
-        self.get_shard_from_e(e).edge_prop_vec(e.edge_id, name)
+    fn static_edge_prop(&self, e: EdgeRef, name: String) -> Option<Prop> {
+        self.get_shard_from_e(e).static_edge_prop(e.edge_id, name)
     }
 
-    fn edge_props_vec_window(
+    fn static_edge_prop_keys(&self, e: EdgeRef) -> Vec<String> {
+        self.get_shard_from_e(e).static_edge_prop_keys(e.edge_id)
+    }
+
+    fn temporal_edge_props_vec(&self, e: EdgeRef, name: String) -> Vec<(i64, Prop)> {
+        self.get_shard_from_e(e).temporal_edge_prop_vec(e.edge_id, name)
+    }
+
+    fn temporal_edge_props_vec_window(
         &self,
         e: EdgeRef,
         name: String,
@@ -364,15 +380,15 @@ impl GraphViewInternalOps for Graph {
         t_end: i64,
     ) -> Vec<(i64, Prop)> {
         self.get_shard_from_e(e)
-            .edge_props_vec_window(e.edge_id, name, t_start..t_end)
+            .temporal_edge_props_vec_window(e.edge_id, name, t_start..t_end)
     }
 
-    fn edge_props(&self, e: EdgeRef) -> HashMap<String, Vec<(i64, Prop)>> {
+    fn temporal_edge_props(&self, e: EdgeRef) -> HashMap<String, Vec<(i64, Prop)>> {
         //FIXME: This needs to be implemented in core if we want it
         todo!()
     }
 
-    fn edge_props_window(
+    fn temporal_edge_props_window(
         &self,
         e: EdgeRef,
         t_start: i64,
@@ -561,6 +577,11 @@ impl Graph {
         self.shards[shard_id].add_vertex(t, v, &props);
     }
 
+    pub fn add_vertex_properties<T: InputVertex>(&self, v: T, data: &Vec<(String, Prop)>) {
+        let shard_id = utils::get_shard_id_from_global_vid(v.id(), self.nr_shards);
+        self.shards[shard_id].add_vertex_properties(v.id(), data)
+    }
+
     // TODO: Vertex.name which gets ._id property else numba as string
 
     pub fn add_edge<T: InputVertex>(&self, t: i64, src: T, dst: T, props: &Vec<(String, Prop)>) {
@@ -576,6 +597,18 @@ impl Graph {
             // the src partition and dst partition to add a remote edge between both
             self.shards[src_shard_id].add_edge_remote_out(t, src.id(), dst.id(), props);
             self.shards[dst_shard_id].add_edge_remote_into(t, src.id(), dst.id(), props);
+        }
+    }
+
+    pub fn add_edge_properties<T: InputVertex>(&self, src: T, dst: T, props: &Vec<(String, Prop)>) {
+        let src_shard_id = utils::get_shard_id_from_global_vid(src.id(), self.nr_shards);
+        let dst_shard_id = utils::get_shard_id_from_global_vid(dst.id(), self.nr_shards);
+
+        if src_shard_id == dst_shard_id {
+            self.shards[src_shard_id].add_edge_properties(src.id(), dst.id(), props)
+        } else {
+            // TODO: we don't add properties to dst shard, but may need to depending on the plans
+            self.shards[src_shard_id].add_remote_out_properties(src.id(), dst.id(), props);
         }
     }
 }
@@ -992,9 +1025,63 @@ mod db_tests {
         assert_eq!(g.latest_time(), Some(20));
         assert_eq!(g.earliest_time(), Some(5));
 
-        random_attachment(&g, 100, 10);
-        assert_eq!(g.latest_time(), Some(126));
-        assert_eq!(g.earliest_time(), Some(5));
+        random_attachment(&g,100,10);
+        assert_eq!(g.latest_time(),Some(126));
+        assert_eq!(g.earliest_time(),Some(5));
+    }
+
+    #[test]
+    fn static_properties() {
+        let g = Graph::new(100); // big enough so all edges are very likely remote
+        g.add_edge(0, 11, 22, &vec![]);
+        g.add_edge(0, 11, 11, &vec![("temp".to_string(), Prop::Bool(true))]);
+        g.add_edge(0, 22, 33, &vec![]);
+        g.add_edge(0, 33, 11, &vec![]);
+        g.add_vertex(0, 11, &vec![("temp".to_string(), Prop::Bool(true))]);
+
+        let edges11 = g.vertex_edges_window(11.into(), 0, 1, Direction::OUT).collect_vec();
+        let edge1122 = *edges11.iter().find(|e| e.dst_g_id == 22).unwrap();
+        let edge1111 = *edges11.iter().find(|e| e.dst_g_id == 11).unwrap();
+        let edge2233 = g.vertex_edges_window(22.into(), 0, 1, Direction::OUT).next().unwrap();
+        let edge3311 = g.vertex_edges_window(33.into(), 0, 1, Direction::OUT).next().unwrap();
+
+        g.add_vertex_properties(11, &vec![("a".to_string(), Prop::U64(11)), ("b".to_string(), Prop::I64(11))]);
+        g.add_vertex_properties(11, &vec![("c".to_string(), Prop::U32(11))]);
+        g.add_vertex_properties(22, &vec![("b".to_string(), Prop::U64(22))]);
+        g.add_edge_properties(11, 11, &vec![("d".to_string(), Prop::U64(1111))]);
+        g.add_edge_properties(33, 11, &vec![("a".to_string(), Prop::U64(3311))]);
+
+        assert_eq!(g.static_vertex_prop_keys(11.into()), vec!["a", "b", "c"]);
+        assert_eq!(g.static_vertex_prop_keys(22.into()), vec!["b"]);
+        assert!(g.static_vertex_prop_keys(33.into()).is_empty());
+        assert_eq!(g.static_edge_prop_keys(edge1111), vec!["d"]);
+        assert_eq!(g.static_edge_prop_keys(edge3311), vec!["a"]);
+        assert!(g.static_edge_prop_keys(edge2233).is_empty());
+
+        assert_eq!(g.static_vertex_prop(11.into(), "a".to_string()), Some(Prop::U64(11)));
+        assert_eq!(g.static_vertex_prop(11.into(), "b".to_string()), Some(Prop::I64(11)));
+        assert_eq!(g.static_vertex_prop(11.into(), "c".to_string()), Some(Prop::U32(11)));
+        assert_eq!(g.static_vertex_prop(22.into(), "b".to_string()), Some(Prop::U64(22)));
+        assert_eq!(g.static_vertex_prop(22.into(), "a".to_string()), None);
+        assert_eq!(g.static_edge_prop(edge1111, "d".to_string()), Some(Prop::U64(1111)));
+        assert_eq!(g.static_edge_prop(edge3311, "a".to_string()), Some(Prop::U64(3311)));
+        assert_eq!(g.static_edge_prop(edge2233, "a".to_string()), None);
+    }
+
+    #[test]
+    #[should_panic]
+    fn changing_property_type_for_vertex_panics() {
+        let g = Graph::new(4);
+        g.add_vertex(0, 11, &vec![("test".to_string(), Prop::Bool(true))]);
+        g.add_vertex_properties(11, &vec![("test".to_string(), Prop::Bool(true))]);
+    }
+
+    #[test]
+    #[should_panic]
+    fn changing_property_type_for_edge_panics() {
+        let g = Graph::new(4);
+        g.add_edge(0, 11, 22, &vec![("test".to_string(), Prop::Bool(true))]);
+        g.add_edge_properties(11, 22, &vec![("test".to_string(), Prop::Bool(true))]);
     }
 
     #[test]
