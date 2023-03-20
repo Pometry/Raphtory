@@ -1,5 +1,7 @@
 #![allow(unused_imports)]
 use std::collections::HashMap;
+use std::error::Error;
+use std::fmt::{Debug, Display, Formatter};
 use std::marker::PhantomData;
 use std::path::{Path, PathBuf};
 use std::thread::JoinHandle;
@@ -31,68 +33,99 @@ pub struct Edge {
     amount_usd: u64,
 }
 
-fn main() {
-    let args: Vec<String> = env::args().collect();
+#[derive(Debug)]
+pub struct MissingArgumentError;
 
-    let data_dir = if args.len() < 2 {
-        panic!("Failed to provide the path to the hulongbay data directory")
-    } else {
-        Path::new(args.get(1).unwrap())
-    };
-
-    if !data_dir.exists() {
-        panic!("Missing data dir = {}", data_dir.to_str().unwrap())
+impl Display for MissingArgumentError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Failed to provide the path to the hulongbay data directory"
+        )
     }
+}
 
-    // If data_dir/graphdb.bincode exists, use bincode to load the graph from binary encoded data files
-    // otherwise load the graph from csv data files
+impl Error for MissingArgumentError {}
+
+#[derive(Debug)]
+pub struct GraphEmptyError;
+
+impl Display for GraphEmptyError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "The graph was empty but data was expected.")
+    }
+}
+
+impl Error for GraphEmptyError {}
+
+pub fn loader(data_dir: &Path) -> Result<Graph, Box<dyn Error>> {
     let encoded_data_dir = data_dir.join("graphdb.bincode");
-
-    let graph = if encoded_data_dir.exists() {
+    if encoded_data_dir.exists() {
         let now = Instant::now();
-        let g = Graph::load_from_file(encoded_data_dir.as_path())
-            .expect("Failed to load graph from encoded data files");
+        let g = Graph::load_from_file(encoded_data_dir.as_path())?;
 
         println!(
             "Loaded graph from path {} with {} vertices, {} edges, took {} seconds",
-            encoded_data_dir.to_str().unwrap(),
+            encoded_data_dir.display(),
             g.num_vertices(),
             g.num_edges(),
             now.elapsed().as_secs()
         );
 
-        g
+        Ok(g)
     } else {
         let g = Graph::new(16);
 
         let now = Instant::now();
 
-        let _ = CsvLoader::new(data_dir)
-            .load_into_graph(&g, |sent: Edge, g: &Graph| {
-                let src = sent.src;
-                let dst = sent.dst;
-                let time = sent.time;
+        CsvLoader::new(data_dir).load_into_graph(&g, |sent: Edge, g: &Graph| {
+            let src = sent.src;
+            let dst = sent.dst;
+            let time = sent.time;
 
-                g.add_edge(
-                    time.try_into().unwrap(),
-                    src,
-                    dst,
-                    &vec![("amount".to_string(), Prop::U64(sent.amount_usd))],
-                )
-            })
-            .expect("Failed to load graph from CSV data files");
+            g.add_edge(
+                time,
+                src,
+                dst,
+                &vec![("amount".to_owned(), Prop::U64(sent.amount_usd))],
+            )
+        })?;
 
         println!(
             "Loaded graph from CSV data files {} with {} vertices, {} edges which took {} seconds",
-            encoded_data_dir.to_str().unwrap(),
+            encoded_data_dir.display(),
             g.num_vertices(),
             g.num_edges(),
             now.elapsed().as_secs()
         );
 
-        g.save_to_file(encoded_data_dir)
-            .expect("Failed to save graph");
+        g.save_to_file(encoded_data_dir)?;
+        Ok(g)
+    }
+}
 
-        g
-    };
+fn try_main() -> Result<(), Box<dyn Error>> {
+    let args: Vec<String> = env::args().collect();
+    let data_dir = Path::new(args.get(1).ok_or(MissingArgumentError)?);
+
+    let graph = loader(data_dir)?;
+
+    let now = Instant::now();
+    let num_edges: usize = graph.vertices().map(|v| v.out_degree()).sum();
+    println!(
+        "Counting edges by summing degrees returned {} in {} seconds",
+        num_edges,
+        now.elapsed().as_secs()
+    );
+    let earliest_time = graph.earliest_time().ok_or(GraphEmptyError)?;
+    let latest_time = graph.latest_time().ok_or(GraphEmptyError)?;
+    println!("graph time range: {}-{}", earliest_time, latest_time);
+    Ok(())
+}
+
+fn main() {
+    if let Err(e) = try_main() {
+        eprintln!("Failed: {}", e);
+        std::process::exit(1)
+    }
 }

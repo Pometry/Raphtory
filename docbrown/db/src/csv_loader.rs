@@ -3,7 +3,8 @@ pub mod csv {
     use flate2::read::GzDecoder;
     use serde::de::DeserializeOwned;
     use std::collections::VecDeque;
-    use std::fmt::Debug;
+    use std::error::Error;
+    use std::fmt::{Debug, Display, Formatter};
     use std::fs::File;
     use std::io::BufReader;
     use std::path::{Path, PathBuf};
@@ -15,6 +16,24 @@ pub mod csv {
 
     #[derive(Debug)]
     pub struct CsvErr(io::Error);
+
+    impl From<io::Error> for CsvErr {
+        fn from(value: io::Error) -> Self {
+            Self(value)
+        }
+    }
+
+    impl Display for CsvErr {
+        fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+            write!(f, "CSV loader failed with error: {}", &self.0)
+        }
+    }
+
+    impl Error for CsvErr {
+        fn source(&self) -> Option<&(dyn Error + 'static)> {
+            Some(&self.0)
+        }
+    }
 
     #[derive(Debug)]
     pub struct CsvLoader {
@@ -49,8 +68,8 @@ pub mod csv {
             self
         }
 
-        fn is_dir<P: AsRef<Path>>(p: &P) -> bool {
-            fs::metadata(p).unwrap().is_dir()
+        fn is_dir<P: AsRef<Path>>(p: &P) -> Result<bool, CsvErr> {
+            Ok(fs::metadata(p)?.is_dir())
         }
 
         fn accept_file<P: Into<PathBuf>>(&self, path: P, paths: &mut Vec<PathBuf>) {
@@ -79,7 +98,7 @@ pub mod csv {
                         for entry in entries {
                             if let Ok(f_path) = entry {
                                 let p = f_path.path();
-                                if Self::is_dir(&p) {
+                                if Self::is_dir(&p)? {
                                     queue.push_back(p.clone())
                                 } else {
                                     self.accept_file(f_path.path(), &mut paths);
@@ -88,7 +107,7 @@ pub mod csv {
                         }
                     }
                     Err(err) => {
-                        if !Self::is_dir(path) {
+                        if !Self::is_dir(path)? {
                             self.accept_file(path.to_path_buf(), &mut paths);
                         } else {
                             return Err(CsvErr(err));
@@ -166,8 +185,8 @@ pub mod csv {
 
 #[cfg(test)]
 mod csv_loader_test {
-    use crate::graph::Graph;
     use crate::csv_loader::csv::CsvLoader;
+    use crate::graph::Graph;
     use docbrown_core::utils::calculate_hash;
     use docbrown_core::Prop;
     use regex::Regex;
