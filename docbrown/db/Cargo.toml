@@ -14,7 +14,7 @@ homepage.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-docbrown-core = {path = "../core", version = "0.0.5" }
+docbrown-core = {path = "../core", version = "0.0.6" }
 parking_lot = { version = "0.12" , features = ["serde"] }
 flume = "0.10"
 futures = {version = "0.3", features = ["thread-pool"] }
