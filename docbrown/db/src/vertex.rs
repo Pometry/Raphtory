@@ -38,11 +38,11 @@ impl<G: GraphViewInternalOps + 'static + Send + Sync> VertexViewOps for VertexVi
     }
 
     fn prop(&self, name: String) -> Vec<(i64, Prop)> {
-        self.graph.vertex_prop_vec(self.vertex, name)
+        self.graph.temporal_vertex_prop_vec(self.vertex, name)
     }
 
     fn props(&self) -> HashMap<String, Vec<(i64, Prop)>> {
-        self.graph.vertex_props(self.vertex)
+        self.graph.temporal_vertex_props(self.vertex)
     }
 
     fn degree(&self) -> usize {

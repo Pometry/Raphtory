@@ -3,6 +3,8 @@ use crate::Prop;
 use serde::{Deserialize, Serialize};
 use std::ops::Range;
 
+// TODO TProp struct could be replaced with Option<TCell<Prop>>, with the only issue (or advantage) that then the type can change?
+
 #[derive(Debug, Default, PartialEq, Clone, Serialize, Deserialize)]
 pub(crate) enum TProp {
     #[default]

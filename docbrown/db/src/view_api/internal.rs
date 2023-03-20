@@ -132,9 +132,13 @@ pub trait GraphViewInternalOps {
         d: Direction,
     ) -> Box<dyn Iterator<Item = u64> + Send>;
 
-    fn vertex_prop_vec(&self, v: VertexRef, name: String) -> Vec<(i64, Prop)>;
+    fn static_vertex_prop(&self, v: VertexRef, name: String) -> Option<Prop>;
 
-    fn vertex_prop_vec_window(
+    fn static_vertex_prop_keys(&self, v: VertexRef) -> Vec<String>;
+
+    fn temporal_vertex_prop_vec(&self, v: VertexRef, name: String) -> Vec<(i64, Prop)>;
+
+    fn temporal_vertex_prop_vec_window(
         &self,
         v: VertexRef,
         name: String,
@@ -142,18 +146,22 @@ pub trait GraphViewInternalOps {
         t_end: i64,
     ) -> Vec<(i64, Prop)>;
 
-    fn vertex_props(&self, v: VertexRef) -> HashMap<String, Vec<(i64, Prop)>>;
+    fn temporal_vertex_props(&self, v: VertexRef) -> HashMap<String, Vec<(i64, Prop)>>;
 
-    fn vertex_props_window(
+    fn temporal_vertex_props_window(
         &self,
         v: VertexRef,
         t_start: i64,
         t_end: i64,
     ) -> HashMap<String, Vec<(i64, Prop)>>;
 
-    fn edge_props_vec(&self, e: EdgeRef, name: String) -> Vec<(i64, Prop)>;
+    fn static_edge_prop(&self, e: EdgeRef, name: String) -> Option<Prop>;
 
-    fn edge_props_vec_window(
+    fn static_edge_prop_keys(&self, e: EdgeRef) -> Vec<String>;
+
+    fn temporal_edge_props_vec(&self, e: EdgeRef, name: String) -> Vec<(i64, Prop)>;
+
+    fn temporal_edge_props_vec_window(
         &self,
         e: EdgeRef,
         name: String,
@@ -161,9 +169,9 @@ pub trait GraphViewInternalOps {
         t_end: i64,
     ) -> Vec<(i64, Prop)>;
 
-    fn edge_props(&self, e: EdgeRef) -> HashMap<String, Vec<(i64, Prop)>>;
+    fn temporal_edge_props(&self, e: EdgeRef) -> HashMap<String, Vec<(i64, Prop)>>;
 
-    fn edge_props_window(
+    fn temporal_edge_props_window(
         &self,
         e: EdgeRef,
         t_start: i64,

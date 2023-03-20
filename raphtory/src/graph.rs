@@ -11,6 +11,7 @@ use std::iter;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use itertools::Itertools;
 
 use crate::graph_window::{GraphWindowSet, WindowedEdge, WindowedGraph, WindowedVertex};
 use crate::wrappers::{PerspectiveSet, Prop, VertexIdsIterator, WindowedEdgeIterator, WindowedVertices};
@@ -39,56 +40,41 @@ impl Graph {
 
     //******  Graph Updates  ******//
 
-    pub fn add_vertex(&self, timestamp: i64, id: &PyAny, properties:Option<HashMap<String, Prop>>) {
-        let props = match properties {
-            None => {vec![]}
-            Some(p) => {
-                p.into_iter()
-                    .map(|f| (f.0.clone(), f.1.into()))
-                    .collect::<Vec<(String, dbc::Prop)>>()
-            }
-        };
-        if let Ok(vv) = id.extract::<String>() {
-            self.graph.add_vertex(
-                timestamp,
-                vv,
-                &props
-            )
+    pub fn add_vertex(&self, timestamp: i64, id: &PyAny, properties: Option<HashMap<String, Prop>>) {
+        if let Ok(v) = id.extract::<String>() {
+            self.graph.add_vertex(timestamp, v, &Self::transform_props(properties))
         } else {
-            if let Ok(vvv) = id.extract::<u64>() {
-                self.graph.add_vertex(
-                    timestamp,
-                    vvv,
-                    &props
-                )
+            if let Ok(v) = id.extract::<u64>() {
+                self.graph.add_vertex(timestamp, v, &Self::transform_props(properties))
             } else { println!("Input must be a string or integer.") }
         }
     }
 
+    pub fn add_vertex_properties(&self, id: &PyAny, props: HashMap<String, Prop>) {
+        if let Ok(v) = id.extract::<String>() {
+            self.graph.add_vertex_properties(v, &Self::transform_props(Some(props)));
+        } else {
+            if let Ok(v) = id.extract::<u64>() {
+                self.graph.add_vertex_properties(v, &Self::transform_props(Some(props)));
+            } else { panic!("Input must be a string or integer.") }
+        }
+    }
 
     pub fn add_edge(&self, timestamp: i64, src: &PyAny, dst: &PyAny, properties: Option<HashMap<String, Prop>>) {
-        let props = match properties {
-            None => {vec![]}
-            Some(p) => {
-                p.into_iter()
-                    .map(|f| (f.0.clone(), f.1.into()))
-                    .collect::<Vec<(String, dbc::Prop)>>()
-            }
-        };
         if let (Ok(src), Ok(dst)) = (src.extract::<String>(), dst.extract::<String>()) {
-            self.graph.add_edge(
-                timestamp,
-                src,
-                dst,
-                &props,
-            )
+            self.graph.add_edge(timestamp, src, dst, &Self::transform_props(properties))
         } else if let (Ok(src), Ok(dst)) = (src.extract::<u64>(), dst.extract::<u64>()) {
-            self.graph.add_edge(
-                timestamp,
-                src,
-                dst,
-                &props
-            )
+            self.graph.add_edge(timestamp, src, dst, &Self::transform_props(properties))
+        } else {
+            println!("Types of src and dst must be the same (either Int or str)")
+        }
+    }
+
+    pub fn add_edge_properties(&self, src: &PyAny, dst: &PyAny, props: HashMap<String, Prop>) {
+        if let (Ok(src), Ok(dst)) = (src.extract::<String>(), dst.extract::<String>()) {
+            self.graph.add_edge_properties(src, dst, &Self::transform_props(Some(props)));
+        } else if let (Ok(src), Ok(dst)) = (src.extract::<u64>(), dst.extract::<u64>()) {
+            self.graph.add_edge_properties(src, dst, &Self::transform_props(Some(props)));
         } else {
             println!("Types of src and dst must be the same (either Int or str)")
         }
@@ -248,5 +234,10 @@ impl Graph {
 //             Some(time) => self.at(time).edges()
 //         }
 //     }
+}
 
+impl Graph {
+    fn transform_props(props: Option<HashMap<String, Prop>>) -> Vec<(String, dbc::Prop)> {
+        props.unwrap_or_default().into_iter().map(|(key, value)| (key, value.into())).collect_vec()
+    }
 }

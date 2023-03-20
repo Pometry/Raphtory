@@ -30,7 +30,7 @@ impl<G: GraphViewInternalOps + 'static + Send + Sync> EdgeViewOps for EdgeView<G
     type Vertex = VertexView<G>;
 
     fn prop(&self, name: String) -> Vec<(i64, Prop)> {
-        self.graph.edge_props_vec(self.edge, name)
+        self.graph.temporal_edge_props_vec(self.edge, name)
     }
 
     fn src(&self) -> Self::Vertex {
