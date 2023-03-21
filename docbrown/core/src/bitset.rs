@@ -57,13 +57,13 @@ impl BitSet {
                     for i in seq.iter() {
                         m.insert((*i).try_into().unwrap());
                     }
-                    m.push(i.try_into().unwrap());
+                    m.insert(i.try_into().unwrap());
                     *self = BitSet::Roaring(m);
                 }
             }
             BitSet::Roaring(_) => {
                 if let BitSet::Roaring(seq_mut) = self.borrow_mut() {
-                    seq_mut.push(i.try_into().unwrap());
+                    seq_mut.insert(i.try_into().unwrap());
                 }
             }
         }

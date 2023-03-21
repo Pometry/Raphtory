@@ -93,7 +93,7 @@ impl TemporalGraph {
                         remote_out.find_window(dst as usize, &w).is_some()
                     } else {
                         let dst_pid = self.logical_to_physical[&dst];
-                        out.find_window(dst_pid, &w).is_some()
+                        out.find_window(dst_pid, w).is_some()
                     }
                 }
             }
@@ -118,8 +118,12 @@ impl TemporalGraph {
         self.add_vertex_with_props(t, v, &vec![])
     }
 
-    pub(crate) fn add_vertex_with_props<T: InputVertex>(&mut self, t: i64, v: T, props: &Vec<(String, Prop)>) {
-
+    pub(crate) fn add_vertex_with_props<T: InputVertex>(
+        &mut self,
+        t: i64,
+        v: T,
+        props: &Vec<(String, Prop)>,
+    ) {
         //Updating time - only needs to be here as every other adding function calls this one
         if self.earliest_time > t {
             self.earliest_time = t

@@ -3,11 +3,22 @@ use crate::view_api::internal::GraphViewInternalOps;
 use crate::view_api::{EdgeListOps, EdgeViewOps};
 use docbrown_core::tgraph::{EdgeRef, VertexRef};
 use docbrown_core::Prop;
+use std::fmt::{Debug, Formatter};
 use std::sync::Arc;
 
 pub struct EdgeView<G: GraphViewInternalOps> {
     graph: Arc<G>,
     edge: EdgeRef,
+}
+
+impl<G: GraphViewInternalOps> Debug for EdgeView<G> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "EdgeView({}, {})",
+            self.edge.src_g_id, self.edge.dst_g_id
+        )
+    }
 }
 
 impl<G: GraphViewInternalOps> EdgeView<G> {

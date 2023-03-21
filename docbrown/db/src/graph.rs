@@ -11,8 +11,9 @@ use std::{
 use docbrown_core::{
     tgraph::{EdgeRef, VertexRef},
     tgraph_shard::TGraphShard,
-    utils, Direction, Prop,
+    utils,
     vertex::InputVertex,
+    Direction, Prop,
 };
 
 use crate::edge::EdgeView;
@@ -459,7 +460,7 @@ impl GraphViewOps for Graph {
     }
 
     fn edges(&self) -> Self::Edges {
-        todo!()
+        Box::new(self.vertices().flat_map(|v| v.out_edges()))
     }
 }
 
@@ -1239,7 +1240,7 @@ mod db_tests {
 
     #[test]
     fn test_graph_at() {
-        let g= crate::graph_loader::lotr_graph::lotr_graph(1);
+        let g = crate::graph_loader::lotr_graph::lotr_graph(1);
 
         let g_at_empty = g.at(1);
         let g_at_start = g.at(7059);
@@ -1268,5 +1269,4 @@ mod db_tests {
 
         assert_eq!(g.num_vertices(), 3);
     }
-
 }

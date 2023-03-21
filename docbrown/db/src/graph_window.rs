@@ -10,9 +10,9 @@ use crate::vertex::VertexView;
 use crate::view_api::internal::GraphViewInternalOps;
 use crate::view_api::GraphViewOps;
 use crate::view_api::*;
+use docbrown_core::vertex::InputVertex;
 use std::cmp::{max, min};
 use std::{collections::HashMap, sync::Arc};
-use docbrown_core::vertex::InputVertex;
 
 pub struct GraphWindowSet {
     graph: Graph,
@@ -444,15 +444,15 @@ pub type WindowedEdge = EdgeView<WindowedGraph>;
 #[cfg(test)]
 mod views_test {
 
-    use std::collections::HashMap;
-
     use super::*;
     use crate::graph::Graph;
     use crate::view_api::*;
     use docbrown_core::Prop;
     use itertools::Itertools;
     use quickcheck::TestResult;
-    use rand::Rng;
+    use rand::prelude::*;
+    use rayon::prelude::*;
+    use std::collections::HashMap;
 
     #[test]
     fn windowed_graph_vertices_degree() {
@@ -595,6 +595,99 @@ mod views_test {
                 ))
             }
         }
+    }
+
+    #[quickcheck]
+    fn windowed_graph_has_edge(mut edges: Vec<(i64, (u64, u64))>) -> TestResult {
+        if edges.is_empty() {
+            return TestResult::discard();
+        }
+
+        edges.sort_by_key(|e| e.1); // Sorted by edge
+        edges.dedup_by_key(|e| e.1); // Have each edge only once to avoid headaches
+        edges.sort_by_key(|e| e.0); // Sorted by time
+
+        let rand_start_index = rand::thread_rng().gen_range(0..edges.len());
+        let rand_end_index = rand::thread_rng().gen_range(rand_start_index..edges.len());
+
+        let g = Graph::new(2);
+
+        for (t, e) in &edges {
+            g.add_edge(*t, e.0, e.1, &vec![]);
+        }
+
+        let start = edges.get(rand_start_index).expect("start index in range").0;
+        let end = edges.get(rand_end_index).expect("end index in range").0;
+
+        let wg = WindowedGraph::new(g, start, end);
+
+        let rand_test_index: usize = rand::thread_rng().gen_range(0..edges.len());
+
+        let (i, e) = edges.get(rand_test_index).expect("test index in range");
+        if (start..end).contains(i) {
+            if wg.has_edge(e.0, e.1) {
+                TestResult::passed()
+            } else {
+                TestResult::error(format!(
+                    "Edge {:?} was not in window {:?}",
+                    (i, e),
+                    start..end
+                ))
+            }
+        } else {
+            if !wg.has_edge(e.0, e.1) {
+                TestResult::passed()
+            } else {
+                TestResult::error(format!("Edge {:?} was in window {:?}", (i, e), start..end))
+            }
+        }
+    }
+
+    #[quickcheck]
+    fn windowed_graph_edge_count(mut edges: Vec<(i64, (u64, u64))>) -> TestResult {
+        edges.sort_by_key(|e| e.1); // Sorted by edge
+        edges.dedup_by_key(|e| e.1); // Have each edge only once to avoid headaches
+
+        let mut window: [i64; 2] = rand::thread_rng().gen();
+        window.sort();
+        let window = window[0]..window[1];
+        let true_edge_count = edges.iter().filter(|e| window.contains(&e.0)).count();
+
+        let g = Graph::new(2);
+
+        for (t, e) in &edges {
+            g.add_edge(*t, e.0, e.1, &vec![("test".to_owned(), Prop::Bool(true))]);
+        }
+
+        let wg = WindowedGraph::new(g, window.start, window.end);
+        TestResult::from_bool(wg.num_edges() == true_edge_count)
+    }
+
+    #[quickcheck]
+    fn trivial_window_has_all_edges(edges: Vec<(i64, u64, u64)>) -> bool {
+        let g = Graph::new(10);
+        edges
+            .into_par_iter()
+            .filter(|e| e.0 < i64::MAX)
+            .for_each(|(t, src, dst)| {
+                g.add_edge(t, src, dst, &vec![("test".to_owned(), Prop::Bool(true))])
+            });
+        let w = g.window(i64::MIN, i64::MAX);
+        g.edges().all(|e| w.has_edge(e.src().id(), e.dst().id()))
+    }
+
+    #[quickcheck]
+    fn large_vertex_in_window(dsts: Vec<u64>) -> bool {
+        let dsts: Vec<u64> = dsts.into_iter().unique().collect();
+        let n = dsts.len();
+        let g = Graph::new(1);
+
+        for dst in dsts {
+            let t = 1;
+            g.add_edge(t, 0, dst, &vec![]);
+        }
+        let w = g.window(i64::MIN, i64::MAX);
+        w.num_edges() == n
     }
 
     #[test]
