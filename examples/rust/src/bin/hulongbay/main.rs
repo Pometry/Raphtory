@@ -19,6 +19,7 @@ use std::io::{prelude::*, BufReader, LineWriter};
 use std::time::Instant;
 
 use docbrown_db::graph::Graph;
+use docbrown_db::view_api::internal::GraphViewInternalOps;
 use docbrown_db::view_api::*;
 
 #[derive(Deserialize, std::fmt::Debug)]
@@ -78,18 +79,20 @@ pub fn loader(data_dir: &Path) -> Result<Graph, Box<dyn Error>> {
 
         let now = Instant::now();
 
-        CsvLoader::new(data_dir).load_into_graph(&g, |sent: Edge, g: &Graph| {
-            let src = sent.src;
-            let dst = sent.dst;
-            let time = sent.time;
+        CsvLoader::new(data_dir)
+            .with_filter(Regex::new(r".+(\.csv)$")?)
+            .load_into_graph(&g, |sent: Edge, g: &Graph| {
+                let src = sent.src;
+                let dst = sent.dst;
+                let time = sent.time;
 
-            g.add_edge(
-                time,
-                src,
-                dst,
-                &vec![("amount".to_owned(), Prop::U64(sent.amount_usd))],
-            )
-        })?;
+                g.add_edge(
+                    time,
+                    src,
+                    dst,
+                    &vec![("amount".to_owned(), Prop::U64(sent.amount_usd))],
+                )
+            })?;
 
         println!(
             "Loaded graph from CSV data files {} with {} vertices, {} edges which took {} seconds",
@@ -120,6 +123,26 @@ fn try_main() -> Result<(), Box<dyn Error>> {
     let earliest_time = graph.earliest_time().ok_or(GraphEmptyError)?;
     let latest_time = graph.latest_time().ok_or(GraphEmptyError)?;
     println!("graph time range: {}-{}", earliest_time, latest_time);
+    let now = Instant::now();
+    let window = graph.window(i64::MIN, i64::MAX);
+    println!("Creating window took {} seconds", now.elapsed().as_secs());
+
+    let now = Instant::now();
+    let num_windowed_edges: usize = window.vertices().map(|v| v.out_degree()).sum();
+    println!(
+        "Counting edges in window by summing degrees returned {} in {} seconds",
+        num_windowed_edges,
+        now.elapsed().as_secs()
+    );
+
+    let now = Instant::now();
+    let num_windowed_edges2 = window.num_edges();
+    println!(
+        "Window num_edges returned {} in {} seconds",
+        num_windowed_edges2,
+        now.elapsed().as_secs()
+    );
+
     Ok(())
 }
 

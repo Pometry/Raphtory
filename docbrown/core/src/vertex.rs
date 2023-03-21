@@ -1,4 +1,4 @@
-use crate::{Prop, utils};
+use crate::{utils, Prop};
 
 pub trait InputVertex {
     fn id(&self) -> u64;
@@ -15,7 +15,7 @@ impl InputVertex for u64 {
     }
 }
 
-impl <'a> InputVertex for &'a str {
+impl<'a> InputVertex for &'a str {
     fn id(&self) -> u64 {
         utils::calculate_hash(self)
     }
@@ -25,7 +25,7 @@ impl <'a> InputVertex for &'a str {
     }
 }
 
-impl <'a> InputVertex for String {
+impl<'a> InputVertex for String {
     fn id(&self) -> u64 {
         utils::calculate_hash(self)
     }

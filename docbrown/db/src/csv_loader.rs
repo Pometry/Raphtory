@@ -15,23 +15,38 @@ pub mod csv {
     use regex::Regex;
 
     #[derive(Debug)]
-    pub struct CsvErr(io::Error);
+    pub enum CsvErr {
+        IoError(io::Error),
+        CsvError(csv::Error),
+    }
 
     impl From<io::Error> for CsvErr {
         fn from(value: io::Error) -> Self {
-            Self(value)
+            Self::IoError(value)
+        }
+    }
+
+    impl From<csv::Error> for CsvErr {
+        fn from(value: csv::Error) -> Self {
+            Self::CsvError(value)
         }
     }
 
     impl Display for CsvErr {
         fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-            write!(f, "CSV loader failed with error: {}", &self.0)
+            match self.source() {
+                Some(error) => write!(f, "CSV loader failed with error: {}", error),
+                None => write!(f, "CSV loader failed with unknonw error"),
+            }
         }
     }
 
     impl Error for CsvErr {
         fn source(&self) -> Option<&(dyn Error + 'static)> {
-            Some(&self.0)
+            match self {
+                CsvErr::IoError(error) => Some(error),
+                CsvErr::CsvError(error) => Some(error),
+            }
         }
     }
 
@@ -110,7 +125,7 @@ pub mod csv {
                         if !Self::is_dir(path)? {
                             self.accept_file(path.to_path_buf(), &mut paths);
                         } else {
-                            return Err(CsvErr(err));
+                            return Err(err.into());
                         }
                     }
                 }
@@ -143,42 +158,36 @@ pub mod csv {
         {
             let file_path: PathBuf = path.into();
 
-            let mut csv_reader = self.csv_reader(file_path);
+            let mut csv_reader = self.csv_reader(file_path)?;
             let mut records_iter = csv_reader.deserialize::<REC>();
 
-            while let Some(rec) = records_iter.next() {
-                let record = rec.map_err(|err| CsvErr(err.into()))?;
+            for rec in records_iter {
+                let record = rec?;
                 loader(record, g)
             }
 
             Ok(())
         }
 
-        fn csv_reader(&self, file_path: PathBuf) -> csv::Reader<Box<dyn io::Read>> {
+        fn csv_reader(&self, file_path: PathBuf) -> Result<csv::Reader<Box<dyn io::Read>>, CsvErr> {
             let is_gziped = file_path
                 .file_name()
                 .and_then(|name| name.to_str())
                 .filter(|name| name.ends_with(".gz"))
                 .is_some();
 
-            let f = File::open(&file_path).expect(&format!("Can't open file {file_path:?}"));
+            let f = File::open(&file_path)?;
             if is_gziped {
-                csv::ReaderBuilder::new()
+                Ok(csv::ReaderBuilder::new()
                     .has_headers(self.header)
                     .delimiter(self.delimiter)
-                    .from_reader(Box::new(BufReader::new(GzDecoder::new(f))))
+                    .from_reader(Box::new(BufReader::new(GzDecoder::new(f)))))
             } else {
-                csv::ReaderBuilder::new()
+                Ok(csv::ReaderBuilder::new()
                     .has_headers(self.header)
                     .delimiter(self.delimiter)
-                    .from_reader(Box::new(f))
+                    .from_reader(Box::new(f)))
             }
-        }
-
-        pub fn load(&self) -> Result<Graph, CsvErr> {
-            let g = Graph::new(2);
-            // self.load_into(&g)?;
-            Ok(g)
         }
     }
 }

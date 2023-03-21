@@ -1,6 +1,6 @@
 pub mod edge;
 pub mod graph;
-pub(crate) mod internal;
+pub mod internal;
 pub mod vertex;
 
 pub use edge::{EdgeListOps, EdgeViewOps};

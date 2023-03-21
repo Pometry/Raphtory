@@ -252,7 +252,7 @@ impl<
     }
 
     pub fn find_window(&self, v: V, w: &Range<Time>) -> Option<AdjEdge> {
-        self.iter_window(&w).find(|t| (*t).0 == v).map(|f| f.1)
+        self.iter_window(w).find(|t| t.0 == v).map(|f| f.1)
     }
 }
 
