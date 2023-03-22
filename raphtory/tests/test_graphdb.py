@@ -1,4 +1,7 @@
+import re
 import sys
+
+import pytest
 from raphtory import Graph
 from raphtory import algorithms
 from raphtory import Perspective
@@ -365,6 +368,7 @@ def test_add_node_string():
 
     g.add_vertex(0, 1, {})
     g.add_vertex(1, "haaroon", {})
+    g.add_vertex(1, "haaroon", {}) # add same vertex twice used to cause an exception
 
     assert g.has_vertex(1)
     assert g.has_vertex("haaroon")
@@ -382,3 +386,19 @@ def test_add_edge_string():
 
     assert g.has_edge(1, 2)
     assert g.has_edge("haaroon", "ben")
+
+def test_static_prop_change():
+    # with pytest.raises(Exception):
+    g = Graph(1)
+
+    g.add_edge(0, 1, 2, {})
+    g.add_vertex_properties(1, {"name": "value1"})
+
+    expected_msg = (
+        """cannot change property for vertex '1'\n"""
+        """Caused by:\n"""
+        """  -> cannot mutate static property 'name'\n"""
+        """  -> cannot set previous value 'Some(Str("value1"))' to 'Some(Str("value2"))' in position '0'"""
+    )
+    with pytest.raises(Exception, match=re.escape(expected_msg)):
+        g.add_vertex_properties(1, {"name": "value2"})

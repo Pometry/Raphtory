@@ -3,10 +3,11 @@ use docbrown_core::vertex::InputVertex;
 use docbrown_db::view_api::*;
 use docbrown_db::{graph, perspective};
 use pyo3::exceptions;
-use pyo3::exceptions::PyTypeError;
+use pyo3::exceptions::{PyException, PyTypeError};
 use pyo3::prelude::*;
 use pyo3::types::{PyInt, PyIterator, PyString};
 use std::collections::HashMap;
+use std::fmt::Display;
 use std::iter;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
@@ -40,44 +41,29 @@ impl Graph {
 
     //******  Graph Updates  ******//
 
-    pub fn add_vertex(&self, timestamp: i64, id: &PyAny, properties: Option<HashMap<String, Prop>>) {
-        if let Ok(v) = id.extract::<String>() {
-            self.graph.add_vertex(timestamp, v, &Self::transform_props(properties))
-        } else {
-            if let Ok(v) = id.extract::<u64>() {
-                self.graph.add_vertex(timestamp, v, &Self::transform_props(properties))
-            } else { println!("Input must be a string or integer.") }
-        }
+    pub fn add_vertex(&self, timestamp: i64, id: &PyAny, properties: Option<HashMap<String, Prop>>) -> PyResult<()> {
+        let v = Self::extract_id(id)?;
+        let result = self.graph.add_vertex(timestamp, v, &Self::transform_props(properties));
+        Self::adapt_err(result)
     }
 
-    pub fn add_vertex_properties(&self, id: &PyAny, props: HashMap<String, Prop>) {
-        if let Ok(v) = id.extract::<String>() {
-            self.graph.add_vertex_properties(v, &Self::transform_props(Some(props)));
-        } else {
-            if let Ok(v) = id.extract::<u64>() {
-                self.graph.add_vertex_properties(v, &Self::transform_props(Some(props)));
-            } else { panic!("Input must be a string or integer.") }
-        }
+    pub fn add_vertex_properties(&self, id: &PyAny, props: HashMap<String, Prop>) -> PyResult<()> {
+        let v = Self::extract_id(id)?;
+        let result = self.graph.add_vertex_properties(v, &Self::transform_props(Some(props)));
+        Self::adapt_err(result)
     }
 
-    pub fn add_edge(&self, timestamp: i64, src: &PyAny, dst: &PyAny, properties: Option<HashMap<String, Prop>>) {
-        if let (Ok(src), Ok(dst)) = (src.extract::<String>(), dst.extract::<String>()) {
-            self.graph.add_edge(timestamp, src, dst, &Self::transform_props(properties))
-        } else if let (Ok(src), Ok(dst)) = (src.extract::<u64>(), dst.extract::<u64>()) {
-            self.graph.add_edge(timestamp, src, dst, &Self::transform_props(properties))
-        } else {
-            println!("Types of src and dst must be the same (either Int or str)")
-        }
+    pub fn add_edge(&self, timestamp: i64, src: &PyAny, dst: &PyAny, properties: Option<HashMap<String, Prop>>) -> PyResult<()> {
+        let src = Self::extract_id(src)?;
+        let dst = Self::extract_id(dst)?;
+        Ok(self.graph.add_edge(timestamp, src, dst, &Self::transform_props(properties)))
     }
 
-    pub fn add_edge_properties(&self, src: &PyAny, dst: &PyAny, props: HashMap<String, Prop>) {
-        if let (Ok(src), Ok(dst)) = (src.extract::<String>(), dst.extract::<String>()) {
-            self.graph.add_edge_properties(src, dst, &Self::transform_props(Some(props)));
-        } else if let (Ok(src), Ok(dst)) = (src.extract::<u64>(), dst.extract::<u64>()) {
-            self.graph.add_edge_properties(src, dst, &Self::transform_props(Some(props)));
-        } else {
-            println!("Types of src and dst must be the same (either Int or str)")
-        }
+    pub fn add_edge_properties(&self, src: &PyAny, dst: &PyAny, props: HashMap<String, Prop>) -> PyResult<()> {
+        let src = Self::extract_id(src)?;
+        let dst = Self::extract_id(dst)?;
+        let result = self.graph.add_edge_properties(src, dst, &Self::transform_props(Some(props)));
+        Self::adapt_err(result)
     }
 
     //******  Perspective APIS  ******//
@@ -239,5 +225,52 @@ impl Graph {
 impl Graph {
     fn transform_props(props: Option<HashMap<String, Prop>>) -> Vec<(String, dbc::Prop)> {
         props.unwrap_or_default().into_iter().map(|(key, value)| (key, value.into())).collect_vec()
+    }
+
+    fn extract_id(id: &PyAny) -> PyResult<InputVertexBox> {
+        match id.extract::<String>() {
+            Ok(string) => Ok(InputVertexBox::new(string)),
+            Err(_) => {
+                let msg = "IDs need to be strings or an unsigned integers";
+                let number = id.extract::<u64>().map_err(|_| PyTypeError::new_err(msg))?;
+                Ok(InputVertexBox::new(number))
+            },
+        }
+    }
+
+    fn adapt_err<E>(result: Result<(), E>) -> PyResult<()>
+    where
+        E: std::error::Error
+    {
+        result.map_err(|e| {
+            let error_log = display_error_chain::DisplayErrorChain::new(&e).to_string();
+            PyException::new_err(error_log)
+        })
+    }
+}
+
+pub struct InputVertexBox {
+    id: u64,
+    name_prop: Option<dbc::Prop>,
+}
+
+impl InputVertexBox {
+    pub(crate) fn new<T>(vertex: T) -> InputVertexBox
+    where
+        T: InputVertex
+    {
+        InputVertexBox {
+            id: vertex.id(),
+            name_prop: vertex.name_prop(),
+        }
+    }
+}
+
+impl InputVertex for InputVertexBox {
+    fn id(&self) -> u64 {
+        self.id
+    }
+    fn name_prop(&self) -> Option<dbc::Prop> {
+        self.name_prop.clone()
     }
 }
