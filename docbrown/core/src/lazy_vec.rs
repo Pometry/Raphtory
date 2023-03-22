@@ -1,7 +1,26 @@
+use std::fmt::{Debug, Display, Formatter};
 use crate::tprop::TProp;
 use crate::Prop;
 use serde::{Deserialize, Serialize};
 use std::ops::Range;
+
+#[derive(thiserror::Error, Debug, PartialEq)]
+#[error("cannot set previous value '{previous_value:?}' to '{new_value:?}' in position '{index}'")]
+pub struct IllegalSet<A: Debug> {
+    pub index: usize,
+    pub previous_value: A,
+    pub new_value: A,
+}
+
+impl<A: Debug> IllegalSet<A> {
+    fn new(index: usize, previous_value: A, new_value: A) -> IllegalSet<A> {
+        IllegalSet {
+            index,
+            previous_value,
+            new_value,
+        }
+    }
+}
 
 #[derive(Default, Debug, PartialEq, Serialize, Deserialize)]
 pub(crate) enum LazyVec<A> {
@@ -14,7 +33,7 @@ pub(crate) enum LazyVec<A> {
 
 impl<A> LazyVec<A>
 where
-    A: PartialEq + Default + Clone
+    A: PartialEq + Default + Clone + Debug
 {
     pub(crate) fn from(id: usize, value: A) -> Self {
         LazyVec::LazyVec1(id, value)
@@ -41,31 +60,35 @@ where
         }
     }
 
-    // fails if there is already a value set for the given id
-    pub(crate) fn set(&mut self, id: usize, value: A) {
+    // fails if there is already a value set for the given id to a different value
+    pub(crate) fn set(&mut self, id: usize, value: A) -> Result<(), IllegalSet<A>> {
         match self {
             LazyVec::Empty => {
-                *self = Self::from(id, value);
+                Ok(*self = Self::from(id, value))
             }
             LazyVec::LazyVec1(only_id, only_value) => {
                 if *only_id == id {
-                    panic!("cannot set value in position '{id}' because it was perviously set");
+                    if *only_value != Default::default() && *only_value != value {
+                        return Err(IllegalSet::new(id, only_value.clone(), value))
+                    }
                 } else {
                     let mut vector = vec![Default::default(); usize::max(id, *only_id) + 1];
                     vector[id] = value;
                     vector[*only_id] = only_value.clone();
-                    *self = LazyVec::LazyVecN(vector);
+                    *self = LazyVec::LazyVecN(vector)
                 }
+                Ok(())
             }
             LazyVec::LazyVecN(vector) => {
                 if vector.len() <= id {
                     vector.resize(id + 1, Default::default())
                 }
                 if vector[id] == Default::default() {
-                    vector[id] = value;
-                } else {
-                    panic!("cannot set value in position '{id}' because it was perviously set");
+                    vector[id] = value
+                } else if vector[id] != value {
+                    return Err(IllegalSet::new(id, vector[id].clone(), value))
                 }
+                Ok(())
             }
         }
     }
@@ -84,7 +107,7 @@ where
     {
         match self.get_mut(id) {
             Some(value) => updater(value),
-            None => self.set(id, default),
+            None => self.set(id, default).expect("Set failed over a non existing value"),
         }
     }
 }
@@ -97,9 +120,9 @@ mod lazy_vec_tests {
     fn normal_operation() {
         let mut vec = LazyVec::<u32>::Empty;
 
-        vec.set(5, 55);
-        vec.set(1, 11);
-        vec.set(8, 88);
+        vec.set(5, 55).unwrap();
+        vec.set(1, 11).unwrap();
+        vec.set(8, 88).unwrap();
         assert_eq!(vec.get(5), Some(&55));
         assert_eq!(vec.get(1), Some(&11));
         assert_eq!(vec.get(0), Some(&0));
@@ -117,9 +140,9 @@ mod lazy_vec_tests {
     }
 
     #[test]
-    #[should_panic]
     fn set_fails_if_present() {
         let mut vec = LazyVec::from(5, 55);
-        vec.set(5, 555);
+        let result = vec.set(5, 555);
+        assert_eq!(result, Err(IllegalSet::new(5, 55, 555)))
     }
 }
