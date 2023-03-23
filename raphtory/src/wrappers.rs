@@ -1,5 +1,6 @@
 use itertools::Itertools;
 use pyo3::prelude::*;
+use pyo3::types::PyInt;
 use std::borrow::{Borrow, BorrowMut};
 
 use db_c::tgraph_shard;
@@ -10,12 +11,14 @@ use docbrown_db::{graph_window, perspective};
 
 use crate::graph_window::{WindowedEdge, WindowedGraph, WindowedVertex};
 
-#[pyclass]
-#[derive(Copy, Clone, PartialEq, Eq)]
-pub enum Direction {
+#[derive(Copy, Clone)]
+pub(crate) enum Direction {
     OUT,
     IN,
     BOTH,
+    OutWindow { t_start: i64, t_end: i64 },
+    InWindow { t_start: i64, t_end: i64 },
+    BothWindow { t_start: i64, t_end: i64 },
 }
 
 impl From<Direction> for db_c::Direction {
@@ -24,6 +27,9 @@ impl From<Direction> for db_c::Direction {
             Direction::OUT => db_c::Direction::OUT,
             Direction::IN => db_c::Direction::IN,
             Direction::BOTH => db_c::Direction::BOTH,
+            Direction::OutWindow { t_start, t_end } => db_c::Direction::OUT,
+            Direction::InWindow { t_start, t_end } => db_c::Direction::IN,
+            Direction::BothWindow { t_start, t_end } => db_c::Direction::BOTH,
         }
     }
 }
@@ -33,6 +39,9 @@ pub(crate) enum Operations {
     OutNeighbours,
     InNeighbours,
     Neighbours,
+    InNeighboursWindow { t_start: i64, t_end: i64 },
+    OutNeighboursWindow { t_start: i64, t_end: i64 },
+    NeighboursWindow { t_start: i64, t_end: i64 },
 }
 
 #[derive(FromPyObject, Debug, Clone)]
@@ -138,28 +147,63 @@ impl WindowedVertices {
         Ok(IdIterable { vertex_iter })
     }
 
-    fn out_neighbours(mut slf: PyRefMut<'_, Self>) -> WindowedVerticesPath {
+    fn out_neighbours(
+        mut slf: PyRefMut<'_, Self>,
+        t_start: Option<i64>,
+        t_end: Option<i64>,
+    ) -> WindowedVerticesPath {
         WindowedVerticesPath {
             graph: slf.graph.clone(),
-            operations: vec![Operations::OutNeighbours],
+            operations: vec![match (t_start, t_end) {
+                (None, None) => Operations::OutNeighbours,
+                _ => Operations::OutNeighboursWindow {
+                    t_start: t_start.unwrap_or(0),
+                    t_end: t_end.unwrap_or(0),
+                },
+            }],
         }
     }
 
-    fn in_neighbours(mut slf: PyRefMut<'_, Self>) -> WindowedVerticesPath {
+    fn in_neighbours(
+        mut slf: PyRefMut<'_, Self>,
+        t_start: Option<i64>,
+        t_end: Option<i64>,
+    ) -> WindowedVerticesPath {
         WindowedVerticesPath {
             graph: slf.graph.clone(),
-            operations: vec![Operations::InNeighbours],
+            operations: vec![match (t_start, t_end) {
+                (None, None) => Operations::InNeighbours,
+                _ => Operations::InNeighboursWindow {
+                    t_start: t_start.unwrap_or(0),
+                    t_end: t_end.unwrap_or(0),
+                },
+            }],
         }
     }
 
-    fn neighbours(mut slf: PyRefMut<'_, Self>) -> WindowedVerticesPath {
+    fn neighbours(
+        mut slf: PyRefMut<'_, Self>,
+        t_start: Option<i64>,
+        t_end: Option<i64>,
+    ) -> WindowedVerticesPath {
         WindowedVerticesPath {
             graph: slf.graph.clone(),
-            operations: vec![Operations::Neighbours],
+            operations: vec![match (t_start, t_end) {
+                (None, None) => Operations::Neighbours,
+                _ => Operations::NeighboursWindow {
+                    t_start: t_start.unwrap_or(0),
+                    t_end: t_end.unwrap_or(0),
+                },
+            }],
         }
     }
 
-    fn in_degree(slf: PyRef<'_, Self>, py: Python) -> PyResult<DegreeIterable> {
+    fn in_degree(
+        slf: PyRef<'_, Self>,
+        py: Python,
+        t_start: Option<i64>,
+        t_end: Option<i64>,
+    ) -> PyResult<DegreeIterable> {
         let vertex_iter = Py::new(
             py,
             WindowedVertexIterable {
@@ -170,11 +214,22 @@ impl WindowedVertices {
         )?;
         Ok(DegreeIterable {
             vertex_iter,
-            operation: Direction::IN,
+            operation: match (t_start, t_end) {
+                (None, None) => Direction::IN,
+                _ => Direction::InWindow {
+                    t_start: t_start.unwrap_or(i64::MIN),
+                    t_end: t_end.unwrap_or(i64::MAX),
+                },
+            },
         })
     }
 
-    fn out_degree(slf: PyRef<'_, Self>, py: Python) -> PyResult<DegreeIterable> {
+    fn out_degree(
+        slf: PyRef<'_, Self>,
+        py: Python,
+        t_start: Option<i64>,
+        t_end: Option<i64>,
+    ) -> PyResult<DegreeIterable> {
         let vertex_iter = Py::new(
             py,
             WindowedVertexIterable {
@@ -185,11 +240,22 @@ impl WindowedVertices {
         )?;
         Ok(DegreeIterable {
             vertex_iter,
-            operation: Direction::OUT,
+            operation: match (t_start, t_end) {
+                (None, None) => Direction::OUT,
+                _ => Direction::OutWindow {
+                    t_start: t_start.unwrap_or(i64::MIN),
+                    t_end: t_end.unwrap_or(i64::MAX),
+                },
+            },
         })
     }
 
-    fn degree(slf: PyRef<'_, Self>, py: Python) -> PyResult<DegreeIterable> {
+    fn degree(
+        slf: PyRef<'_, Self>,
+        py: Python,
+        t_start: Option<i64>,
+        t_end: Option<i64>,
+    ) -> PyResult<DegreeIterable> {
         let vertex_iter = Py::new(
             py,
             WindowedVertexIterable {
@@ -200,7 +266,13 @@ impl WindowedVertices {
         )?;
         Ok(DegreeIterable {
             vertex_iter,
-            operation: Direction::BOTH,
+            operation: match (t_start, t_end) {
+                (None, None) => Direction::BOTH,
+                _ => Direction::BothWindow {
+                    t_start: t_start.unwrap_or(i64::MIN),
+                    t_end: t_end.unwrap_or(i64::MAX),
+                },
+            },
         })
     }
 
@@ -256,39 +328,103 @@ impl WindowedVerticesPath {
             vertex_iter: slf.into(),
         }
     }
-    fn out_neighbours(mut slf: PyRefMut<'_, Self>) -> PyRefMut<'_, Self> {
-        slf.operations.push(Operations::OutNeighbours);
+
+    fn out_neighbours(
+        mut slf: PyRefMut<'_, Self>,
+        t_start: Option<i64>,
+        t_end: Option<i64>,
+    ) -> PyRefMut<'_, Self> {
+        slf.operations.push(match (t_start, t_end) {
+            (None, None) => Operations::OutNeighbours,
+            _ => Operations::OutNeighboursWindow {
+                t_start: t_start.unwrap_or(i64::MIN),
+                t_end: t_end.unwrap_or(i64::MAX),
+            },
+        });
         slf
     }
 
-    fn in_neighbours(mut slf: PyRefMut<'_, Self>) -> PyRefMut<'_, Self> {
-        slf.operations.push(Operations::InNeighbours);
+    fn in_neighbours(
+        mut slf: PyRefMut<'_, Self>,
+        t_start: Option<i64>,
+        t_end: Option<i64>,
+    ) -> PyRefMut<'_, Self> {
+        slf.operations.push(match (t_start, t_end) {
+            (None, None) => Operations::InNeighbours,
+            _ => Operations::InNeighboursWindow {
+                t_start: t_start.unwrap_or(i64::MIN),
+                t_end: t_end.unwrap_or(i64::MAX),
+            },
+        });
         slf
     }
 
-    fn neighbours(mut slf: PyRefMut<'_, Self>) -> PyRefMut<'_, Self> {
-        slf.operations.push(Operations::Neighbours);
+    fn neighbours(
+        mut slf: PyRefMut<'_, Self>,
+        t_start: Option<i64>,
+        t_end: Option<i64>,
+    ) -> PyRefMut<'_, Self> {
+        slf.operations.push(match (t_start, t_end) {
+            (None, None) => Operations::Neighbours,
+            _ => Operations::NeighboursWindow {
+                t_start: t_start.unwrap_or(i64::MIN),
+                t_end: t_end.unwrap_or(i64::MAX),
+            },
+        });
         slf
     }
 
-    fn in_degree(slf: PyRef<'_, Self>, py: Python) -> NestedDegreeIterable {
+    fn in_degree(
+        slf: PyRef<'_, Self>,
+        py: Python,
+        t_start: Option<i64>,
+        t_end: Option<i64>,
+    ) -> NestedDegreeIterable {
         NestedDegreeIterable {
             vertex_iter: slf.into(),
-            operation: Direction::IN,
+            operation: match (t_start, t_end) {
+                (None, None) => Direction::IN,
+                _ => Direction::InWindow {
+                    t_start: t_start.unwrap_or(i64::MIN),
+                    t_end: t_end.unwrap_or(i64::MAX),
+                },
+            },
         }
     }
 
-    fn out_degree(slf: PyRef<'_, Self>, py: Python) -> NestedDegreeIterable {
+    fn out_degree(
+        slf: PyRef<'_, Self>,
+        py: Python,
+        t_start: Option<i64>,
+        t_end: Option<i64>,
+    ) -> NestedDegreeIterable {
         NestedDegreeIterable {
             vertex_iter: slf.into(),
-            operation: Direction::OUT,
+            operation: match (t_start, t_end) {
+                (None, None) => Direction::OUT,
+                _ => Direction::OutWindow {
+                    t_start: t_start.unwrap_or(i64::MIN),
+                    t_end: t_end.unwrap_or(i64::MAX),
+                },
+            },
         }
     }
 
-    fn degree(slf: PyRef<'_, Self>, py: Python) -> NestedDegreeIterable {
+    fn degree(
+        slf: PyRef<'_, Self>,
+        py: Python,
+        t_start: Option<i64>,
+        t_end: Option<i64>,
+    ) -> NestedDegreeIterable {
         NestedDegreeIterable {
             vertex_iter: slf.into(),
-            operation: Direction::BOTH,
+            operation: match (t_start, t_end) {
+                (None, None) => Direction::BOTH,
+                _ => Direction::BothWindow {
+                    t_start: t_start.unwrap_or(i64::MIN),
+                    t_end: t_end.unwrap_or(i64::MAX),
+                },
+            },
         }
     }
 
@@ -332,6 +468,15 @@ impl WindowedVertexIterable {
                     Operations::OutNeighbours => vertex.out_neighbours(),
                     Operations::InNeighbours => vertex.in_neighbours(),
                     Operations::Neighbours => vertex.neighbours(),
+                    Operations::InNeighboursWindow { t_start, t_end } => {
+                        vertex.in_neighbours_window(*t_start, *t_end)
+                    }
+                    Operations::OutNeighboursWindow { t_start, t_end } => {
+                        vertex.out_neighbours_window(*t_start, *t_end)
+                    }
+                    Operations::NeighboursWindow { t_start, t_end } => {
+                        vertex.neighbours_window(*t_start, *t_end)
+                    }
                 }
             }
         };
@@ -341,6 +486,15 @@ impl WindowedVertexIterable {
                 Operations::OutNeighbours => iter.out_neighbours(),
                 Operations::InNeighbours => iter.in_neighbours(),
                 Operations::Neighbours => iter.neighbours(),
+                Operations::InNeighboursWindow { t_start, t_end } => {
+                    iter.in_neighbours_window(*t_start, *t_end)
+                }
+                Operations::OutNeighboursWindow { t_start, t_end } => {
+                    iter.out_neighbours_window(*t_start, *t_end)
+                }
+                Operations::NeighboursWindow { t_start, t_end } => {
+                    iter.neighbours_window(*t_start, *t_end)
+                }
             }
         }
         iter
@@ -362,42 +516,91 @@ impl WindowedVertexIterable {
         IdIterable { vertex_iter }
     }
 
-    fn out_neighbours(mut slf: PyRefMut<'_, Self>) -> PyRefMut<'_, Self> {
-        slf.operations.push(Operations::OutNeighbours);
+    fn out_neighbours(
+        mut slf: PyRefMut<'_, Self>,
+        t_start: Option<i64>,
+        t_end: Option<i64>,
+    ) -> PyRefMut<'_, Self> {
+        slf.operations.push(match (t_start, t_end) {
+            (None, None) => Operations::OutNeighbours,
+            _ => Operations::OutNeighboursWindow {
+                t_start: t_start.unwrap_or(i64::MIN),
+                t_end: t_end.unwrap_or(i64::MAX),
+            },
+        });
         slf
     }
 
-    fn in_neighbours(mut slf: PyRefMut<'_, Self>) -> PyRefMut<'_, Self> {
-        slf.operations.push(Operations::InNeighbours);
+    fn in_neighbours(
+        mut slf: PyRefMut<'_, Self>,
+        t_start: Option<i64>,
+        t_end: Option<i64>,
+    ) -> PyRefMut<'_, Self> {
+        slf.operations.push(match (t_start, t_end) {
+            (None, None) => Operations::InNeighbours,
+            _ => Operations::InNeighboursWindow {
+                t_start: t_start.unwrap_or(i64::MIN),
+                t_end: t_end.unwrap_or(i64::MAX),
+            },
+        });
         slf
     }
 
-    fn neighbours(mut slf: PyRefMut<'_, Self>) -> PyRefMut<'_, Self> {
-        slf.operations.push(Operations::Neighbours);
+    fn neighbours(
+        mut slf: PyRefMut<'_, Self>,
+        t_start: Option<i64>,
+        t_end: Option<i64>,
+    ) -> PyRefMut<'_, Self> {
+        slf.operations.push(match (t_start, t_end) {
+            (None, None) => Operations::Neighbours,
+            _ => Operations::NeighboursWindow {
+                t_start: t_start.unwrap_or(i64::MIN),
+                t_end: t_end.unwrap_or(i64::MAX),
+            },
+        });
         slf
     }
 
-    fn in_degree(slf: PyRef<'_, Self>) -> DegreeIterable {
-        let vertex_iter = slf.into();
+    fn in_degree(slf: PyRef<'_, Self>, t_start: Option<i64>, t_end: Option<i64>) -> DegreeIterable {
         DegreeIterable {
-            vertex_iter,
-            operation: Direction::IN,
+            vertex_iter: slf.into(),
+            operation: match (t_start, t_end) {
+                (None, None) => Direction::IN,
+                _ => Direction::InWindow {
+                    t_start: t_start.unwrap_or(i64::MIN),
+                    t_end: t_end.unwrap_or(i64::MAX),
+                },
+            },
         }
     }
 
-    fn out_degree(slf: PyRef<'_, Self>) -> DegreeIterable {
-        let vertex_iter = slf.into();
+    fn out_degree(
+        slf: PyRef<'_, Self>,
+        t_start: Option<i64>,
+        t_end: Option<i64>,
+    ) -> DegreeIterable {
         DegreeIterable {
-            vertex_iter,
-            operation: Direction::OUT,
+            vertex_iter: slf.into(),
+            operation: match (t_start, t_end) {
+                (None, None) => Direction::OUT,
+                _ => Direction::OutWindow {
+                    t_start: t_start.unwrap_or(i64::MIN),
+                    t_end: t_end.unwrap_or(i64::MAX),
+                },
+            },
         }
     }
 
-    fn degree(slf: PyRef<'_, Self>) -> DegreeIterable {
-        let vertex_iter = slf.into();
+    fn degree(slf: PyRef<'_, Self>, t_start: Option<i64>, t_end: Option<i64>) -> DegreeIterable {
         DegreeIterable {
-            vertex_iter,
-            operation: Direction::BOTH,
+            vertex_iter: slf.into(),
+            operation: match (t_start, t_end) {
+                (None, None) => Direction::BOTH,
+                _ => Direction::BothWindow {
+                    t_start: t_start.unwrap_or(i64::MIN),
+                    t_end: t_end.unwrap_or(i64::MAX),
+                },
+            },
         }
     }
 
@@ -481,6 +684,9 @@ impl DegreeIterable {
             Direction::OUT => iter.out_degree(),
             Direction::IN => iter.in_degree(),
             Direction::BOTH => iter.degree(),
+            Direction::OutWindow { t_start, t_end } => iter.out_degree_window(t_start, t_end),
+            Direction::InWindow { t_start, t_end } => iter.in_degree_window(t_start, t_end),
+            Direction::BothWindow { t_start, t_end } => iter.degree_window(t_start, t_end),
         }
     }
 }

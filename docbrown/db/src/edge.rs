@@ -61,6 +61,10 @@ impl<G: GraphViewInternalOps + 'static + Send + Sync> EdgeViewOps for EdgeView<G
         };
         Self::Vertex::new(self.graph.clone(), vertex)
     }
+
+    fn id(&self) -> usize {
+        self.edge.edge_id
+    }
 }
 
 impl<G: GraphViewInternalOps + 'static + Send + Sync> EdgeListOps

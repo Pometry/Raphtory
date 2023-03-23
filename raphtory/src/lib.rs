@@ -29,7 +29,6 @@ use crate::graph_loader::twitter_graph;
 
 #[pymodule]
 fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
-    m.add_class::<Direction>()?;
     m.add_class::<Graph>()?;
     m.add_class::<Perspective>()?;
 
