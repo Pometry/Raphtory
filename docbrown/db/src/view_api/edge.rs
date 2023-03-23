@@ -8,6 +8,7 @@ pub trait EdgeViewOps: Sized + Send + Sync {
     fn prop(&self, name: String) -> Vec<(i64, Prop)>;
     fn src(&self) -> Self::Vertex;
     fn dst(&self) -> Self::Vertex;
+    fn id(&self) -> usize;
 }
 
 pub trait EdgeListOps:

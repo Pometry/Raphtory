@@ -1,5 +1,5 @@
 use crate::view_api::edge::{EdgeListOps, EdgeViewOps};
-use docbrown_core::Prop;
+use docbrown_core::{Direction, Prop};
 use std::collections::HashMap;
 
 pub trait VertexViewOps: Sized + Send + Sync {
@@ -15,21 +15,39 @@ pub trait VertexViewOps: Sized + Send + Sync {
 
     fn degree(&self) -> usize;
 
+    fn degree_window(&self, t_start: i64, t_end: i64) -> usize;
+
     fn in_degree(&self) -> usize;
+
+    fn in_degree_window(&self, t_start: i64, t_end: i64) -> usize;
 
     fn out_degree(&self) -> usize;
 
+    fn out_degree_window(&self, t_start: i64, t_end: i64) -> usize;
+
     fn edges(&self) -> Self::EList;
+
+    fn edges_window(&self, t_start: i64, t_end: i64) -> Self::EList;
 
     fn in_edges(&self) -> Self::EList;
 
+    fn in_edges_window(&self, t_start: i64, t_end: i64) -> Self::EList;
+
     fn out_edges(&self) -> Self::EList;
+
+    fn out_edges_window(&self, t_start: i64, t_end: i64) -> Self::EList;
 
     fn neighbours(&self) -> Self::VList;
 
+    fn neighbours_window(&self, t_start: i64, t_end: i64) -> Self::VList;
+
     fn in_neighbours(&self) -> Self::VList;
 
+    fn in_neighbours_window(&self, t_start: i64, t_end: i64) -> Self::VList;
+
     fn out_neighbours(&self) -> Self::VList;
+
+    fn out_neighbours_window(&self, t_start: i64, t_end: i64) -> Self::VList;
 }
 
 pub trait VertexListOps:
@@ -49,19 +67,37 @@ pub trait VertexListOps:
 
     fn degree(self) -> Self::ValueIterType<usize>;
 
+    fn degree_window(self, t_start: i64, t_end: i64) -> Self::ValueIterType<usize>;
+
     fn in_degree(self) -> Self::ValueIterType<usize>;
+
+    fn in_degree_window(self, t_start: i64, t_end: i64) -> Self::ValueIterType<usize>;
 
     fn out_degree(self) -> Self::ValueIterType<usize>;
 
+    fn out_degree_window(self, t_start: i64, t_end: i64) -> Self::ValueIterType<usize>;
+
     fn edges(self) -> Self::EList;
+
+    fn edges_window(self, t_start: i64, t_end: i64) -> Self::EList;
 
     fn in_edges(self) -> Self::EList;
 
+    fn in_edges_window(self, t_start: i64, t_end: i64) -> Self::EList;
+
     fn out_edges(self) -> Self::EList;
+
+    fn out_edges_window(self, t_start: i64, t_end: i64) -> Self::EList;
 
     fn neighbours(self) -> Self;
 
+    fn neighbours_window(self, t_start: i64, t_end: i64) -> Self;
+
     fn in_neighbours(self) -> Self;
 
+    fn in_neighbours_window(self, t_start: i64, t_end: i64) -> Self;
+
     fn out_neighbours(self) -> Self;
+
+    fn out_neighbours_window(self, t_start: i64, t_end: i64) -> Self;
 }
