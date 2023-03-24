@@ -10,7 +10,13 @@ classifiers = [
     "Programming Language :: Python :: Implementation :: CPython",
     "Programming Language :: Python :: Implementation :: PyPy",
 ]
+dependencies = [
+    "numpy >= 1.21.2",
+    "matplotlib >= 3.4.3",
+    "pandas >= 1.3.3",
+    "networkx >= 2.6.3",
+]
 
 [tool.maturin]
 features = ["pyo3/extension-module"]
-
+python-source = "python"
