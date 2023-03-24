@@ -182,7 +182,9 @@ val outputList: List[String] = List("name") ++ (1 to 40).map(_.toString)
         mc.execute(v.explodeAllEdges().map(e => (e.src,e.dst,e.timestamp)).collect(selfLoopFilt).sortBy(x => (x._3, x._1, x._2)), delta)
         val counts: Array[Long] = mc.getCounts
         var twoNodeCounts       = Array.fill(8)(0L)
-        v.neighbours.foreach { vid =>
+        v.neighbours
+          .filter(_ != v.ID)
+          .foreach { vid =>
           val mc2node = new TwoNodeMotifs(v.ID)
           // Here we sort the edges not only by a timestamp but an additional index meaning that we obtain consistent results
           // for motif edges with the same timestamp
