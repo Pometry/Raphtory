@@ -9,6 +9,7 @@ import com.raphtory.api.analysis.table.Table
 import com.raphtory.algorithms.temporal.motif.ThreeNodeMotifs.get2NodeCountsWithoutRepeats
 import com.raphtory.algorithms.temporal.motif.ThreeNodeMotifs.getStarCountsPretty
 import com.raphtory.algorithms.temporal.motif.ThreeNodeMotifs.getTriCountsPretty
+import com.raphtory.api.analysis.visitor.ExplodedEdge
 import com.raphtory.internals.communication.SchemaProviderInstances._
 
 import scala.collection.mutable.ArrayBuffer
@@ -18,6 +19,15 @@ import scala.collection.mutable.ArrayBuffer
   *    : Count occurrences of three-edge up-to-three-node temporal motifs each node participates in. For an efficient global count, use ThreeNodeMotifs
   *
   *  The algorithm is very based on that in "Motifs in Temporal Networks". An option is given to return results as a hashmap with labels or as an array which is easier for post-processing.
+  *
+  *  ## Parameters
+  *  {s}`delta: Long=3600L`
+  *   : Delta value for the maximum time length between the first and final edge of the motif. The default value is 3600L (1hour) assuming the data's timestamps are in seconds.
+  *  {s}`prettyPrint: Boolean=True`
+  *   : if `True`, returns a list of motifs with a description of the motif. Not recommended if you are doing any post processing on the outputted motifs.
+  *  {s}`graphWide: Boolean=True`
+  *  : if `True`, just one row per perspective is returned with counts for the whole graph, otherwise counts per vertex are returned. Note that the graph-wide counts are not just
+  *  the sum of the per-vertex counts; the triangle counts are divided by three since they are counted once for each vertex.
   *
   *  ## Motifs
   *
@@ -63,14 +73,18 @@ import scala.collection.mutable.ArrayBuffer
   *
   * ## Returns
   *
-  *  | vertex name       | motifs                   |
+  *  | vertex name       | 1 2 ... 40                   |
   *  | ----------------- | ------------------------ |
-  *  | {s}`name: String` | {s}`motifCounts: Array[Long]` |
+  *  | {s}`name: String` | {s}`motifCount: Long` |
   */
 
 class LocalThreeNodeMotifs(delta: Long = 3600, graphWide: Boolean = false, prettyPrint: Boolean = true)
         extends GenericReduction {
-
+val outputList: List[String] = List("name") ++ (1 to 40).map(_.toString)
+  val globalOutputList: Seq[String] = (1 to 40).map(_.toString)
+  val selfLoopFilt: PartialFunction[(Long,Long,Long),(Long,Long,Long)] = {
+    case (src,dst,time) if src!=dst => (src,dst,time)
+  }
   override def apply(graph: GraphPerspective): graph.ReducedGraph = {
     // Here we apply a trick to make sure the triangles are only counted for nodes in the two-core.
     KCore(2)
@@ -152,7 +166,7 @@ class LocalThreeNodeMotifs(delta: Long = 3600, graphWide: Boolean = false, prett
             )
             v.messageVertex(u, mc.getCounts)
             v.messageVertex(w, mc.getCounts)
-            state("triCounts") += mc.getCounts.map(_.toLong)
+            state("triCounts") += mc.getCounts
           }
       }
       .step { v =>
@@ -165,10 +179,12 @@ class LocalThreeNodeMotifs(delta: Long = 3600, graphWide: Boolean = false, prett
         val mc                  = new StarMotifCounter(v.ID, v.neighbours.filter(_ != v.ID))
         // Here we sort the edges not only by a timestamp but an additional index meaning that we obtain consistent results
         // for motif edges with the same timestamp
-        mc.execute(v.explodeAllEdges().map(e => (e.src, e.dst, e.timestamp)).sortBy(x => (x._3, x._1, x._2)), delta)
+        mc.execute(v.explodeAllEdges().map(e => (e.src,e.dst,e.timestamp)).collect(selfLoopFilt).sortBy(x => (x._3, x._1, x._2)), delta)
         val counts: Array[Long] = mc.getCounts
         var twoNodeCounts       = Array.fill(8)(0L)
-        v.neighbours.foreach { vid =>
+        v.neighbours
+          .filter(_ != v.ID)
+          .foreach { vid =>
           val mc2node = new TwoNodeMotifs(v.ID)
           // Here we sort the edges not only by a timestamp but an additional index meaning that we obtain consistent results
           // for motif edges with the same timestamp
@@ -186,9 +202,9 @@ class LocalThreeNodeMotifs(delta: Long = 3600, graphWide: Boolean = false, prett
           twoNodeCounts = twoNodeCounts.zip(twoNC).map { case (x, y) => x + y }
         }
         v.setState("twoNodeCounts", twoNodeCounts)
-        state("twoNodeCounts") += twoNodeCounts.map(_.toLong)
+        state("twoNodeCounts") += twoNodeCounts
         v.setState("starCounts", counts)
-        state("starCounts") += counts.map(_.toLong)
+        state("starCounts") += counts
 
       }
   }
@@ -208,13 +224,13 @@ class LocalThreeNodeMotifs(delta: Long = 3600, graphWide: Boolean = false, prett
         graph
           .step { v =>
             v.setState("name", v.name())
-            v.setState(
-                    "motifs",
-                    (v.getState[Array[Long]]("starCounts") ++ v.getState[Array[Long]]("twoNodeCounts") ++ v
-                      .getState[Array[Long]]("triCounts")).mkString("(", ";", ")")
-            )
+            val motif_array = v.getState[Array[Long]]("starCounts") ++ v.getState[Array[Long]]("twoNodeCounts") ++ v
+              .getState[Array[Long]]("triCounts")
+            for (i <- 1 to 40) {
+              v.setState(i.toString, motif_array(i-1))
+            }
           }
-          .select("name", "motifs")
+          .select(outputList:_*)
     else if (prettyPrint)
       graph
         .setGlobalState { state =>
@@ -235,14 +251,14 @@ class LocalThreeNodeMotifs(delta: Long = 3600, graphWide: Boolean = false, prett
     else
       graph
         .setGlobalState { state =>
-          state.newConstant[String](
-                  "motifs",
-                  (state[Array[Long], Array[Long]]("starCounts").value ++ state[Array[Long], Array[Long]](
-                          "twoNodeCounts"
-                  ).value ++ state[Array[Long], Array[Long]]("triCounts").value).mkString("(", ";", ")")
-          )
+          val motif_array = state[Array[Long], Array[Long]]("starCounts").value ++ state[Array[Long], Array[Long]](
+            "twoNodeCounts"
+          ).value ++ state[Array[Long], Array[Long]]("triCounts").value
+          for (i <- 1 to 40) {
+            state.newConstant[Long](i.toString, motif_array(i-1))
+          }
         }
-        .globalSelect("motifs")
+        .globalSelect(globalOutputList:_*)
 }
 
 object LocalThreeNodeMotifs {
