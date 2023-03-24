@@ -162,7 +162,7 @@ jobs:
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
-          working-directory: ./raphtory
+          working-directory: ./python
           command: build
           target: ${{ matrix.target }}
           args: --release -i python3.10 --out dist
@@ -208,7 +208,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: pyartifacts
-          path: ./raphtory/dist
+          path: ./python/dist
   python-windows:
     needs: release-rust
     runs-on: windows-latest
@@ -226,7 +226,7 @@ jobs:
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
-          working-directory: ./raphtory
+          working-directory: ./python
           command: build
           target: ${{ matrix.target }}
           args: --release --out dist --find-interpreter
@@ -234,7 +234,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: pyartifacts
-          path: ./raphtory/dist
+          path: ./python/dist
   python-macos:
     needs: release-rust
     runs-on: macos-latest
@@ -262,7 +262,7 @@ jobs:
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
-          working-directory: ./raphtory
+          working-directory: ./python
           command: build
           target: ${{ matrix.target }}
           args: --release --out dist --find-interpreter
@@ -270,7 +270,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: pyartifacts
-          path: ./raphtory/dist
+          path: ./python/dist
   publish-python:
     needs: [release-rust, python-linux, python-windows, python-macos]
     name: Publish to PyPi
