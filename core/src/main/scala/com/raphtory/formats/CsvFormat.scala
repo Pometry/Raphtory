@@ -44,15 +44,13 @@ case class CsvFormat(delimiter: String = ",", includeHeader: Boolean = true) ext
       private var currentLinePrefix: String       = _
       private val mapper                          = JsonMapper.builder().addModule(DefaultScalaModule).build()
 
-      private def ensureQuoted(str: String): String =
-        if (
-                (str.startsWith("\"") && str.endsWith("\""))
-                || (str.startsWith("'") && str.endsWith("'"))
-                || !str.contains(delimiter)
-        )
-          str
+      private def ensureQuoted(str: String): String = {
+        val needs_quoting = str.exists(s => delimiter.contains(s) || s == '\n' || s == '\r' || s == '"')
+        if (needs_quoting)
+          "\"" + str.replace("\"", "\"\"") + "\""
         else
-          "\"" + str + "\""
+          str
+      }
 
       private def csvValue(value: Any): String =
         value match {
