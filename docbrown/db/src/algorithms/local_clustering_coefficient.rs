@@ -1,5 +1,4 @@
 use crate::algorithms::local_triangle_count::local_triangle_count;
-use crate::graph_window::WindowedGraph;
 use crate::view_api::*;
 
 pub fn local_clustering_coefficient<G: GraphViewOps>(graph: &G, v: u64) -> f32 {

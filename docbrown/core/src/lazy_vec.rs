@@ -1,8 +1,5 @@
-use std::fmt::{Debug, Display, Formatter};
-use crate::tprop::TProp;
-use crate::Prop;
+use std::fmt::{Debug};
 use serde::{Deserialize, Serialize};
-use std::ops::Range;
 
 #[derive(thiserror::Error, Debug, PartialEq)]
 #[error("cannot set previous value '{previous_value:?}' to '{new_value:?}' in position '{index}'")]
@@ -45,7 +42,7 @@ where
             LazyVec::LazyVec1(id, _) => vec![*id],
             LazyVec::LazyVecN(vector) => {
                 vector.iter().enumerate()
-                    .filter(|&(id, value)| *value != Default::default())
+                    .filter(|&(_, value)| *value != Default::default())
                     .map(|(id, _)| id)
                     .collect()
             }
@@ -101,7 +98,7 @@ where
         }
     }
 
-    pub(crate) fn update_or_set<F>(&mut self, id: usize, mut updater: F, default: A)
+    pub(crate) fn update_or_set<F>(&mut self, id: usize, updater: F, default: A)
     where
         F: FnOnce(&mut A)
     {

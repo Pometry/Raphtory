@@ -1,5 +1,4 @@
 use crate::common::{bootstrap_graph, run_large_ingestion_benchmarks};
-use common::{run_analysis_benchmarks, run_ingestion_benchmarks};
 use criterion::{
     criterion_group, criterion_main, AxisScale, Criterion, PlotConfiguration, Throughput,
 };

@@ -1,4 +1,3 @@
-use crate::graph_window::WindowedGraph;
 use crate::view_api::*;
 
 pub fn directed_graph_density<G: GraphViewOps>(graph: &G) -> f32 {

@@ -1,6 +1,4 @@
-use crate::graph_window::WindowedGraph;
 use crate::view_api::*;
-use rayon::prelude::*;
 
 pub fn max_out_degree<G: GraphViewOps>(graph: &G) -> usize {
     graph

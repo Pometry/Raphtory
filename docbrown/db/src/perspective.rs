@@ -1,4 +1,3 @@
-use std::cmp::min;
 use std::ops::Range;
 
 #[derive(Debug, PartialEq)]
@@ -108,7 +107,7 @@ impl Iterator for PerspectiveIterator {
 #[cfg(test)]
 mod perspective_tests {
     use itertools::Itertools;
-    use crate::perspective::{Perspective, PerspectiveSet};
+    use crate::perspective::Perspective;
 
     fn gen_rolling(tuples: Vec<(i64, i64)>) -> Vec<Perspective> {
         tuples.iter().map(|(start, end)| {

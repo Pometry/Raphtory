@@ -34,3 +34,4 @@ impl<'a> InputVertex for String {
         Some(Prop::Str(self.to_string()))
     }
 }
+

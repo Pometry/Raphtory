@@ -1,7 +1,5 @@
 use crate::common::{bootstrap_graph, run_large_ingestion_benchmarks};
-use common::{run_analysis_benchmarks, run_ingestion_benchmarks};
 use criterion::{criterion_group, criterion_main, Criterion, Throughput};
-use docbrown_db::graph_loader::lotr_graph::{self, lotr_graph};
 
 mod common;
 

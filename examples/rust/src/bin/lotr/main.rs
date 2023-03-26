@@ -1,5 +1,5 @@
 use docbrown_core::utils;
-use docbrown_core::{Direction, Prop};
+use docbrown_core::Prop;
 use docbrown_db::view_api::*;
 use docbrown_db::{csv_loader::csv::CsvLoader, graph::Graph};
 use serde::Deserialize;

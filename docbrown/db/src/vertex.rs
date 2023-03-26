@@ -274,16 +274,8 @@ impl<G: GraphViewInternalOps + 'static + Send + Sync> VertexListOps
 
 #[cfg(test)]
 mod vertex_test {
-
-    use std::collections::HashMap;
-
-    use super::*;
-    use crate::graph::Graph;
     use crate::view_api::*;
-    use docbrown_core::Prop;
-    use itertools::Itertools;
-    use quickcheck::TestResult;
-    use rand::Rng;
+
 
     #[test]
     fn test_all_degrees_window() {

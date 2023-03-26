@@ -1,6 +1,6 @@
 use std::{
     borrow::{Borrow, BorrowMut},
-    collections::{BTreeMap, HashMap},
+    collections::{BTreeMap},
     hash::Hash,
     ops::{Neg, Range},
 };

@@ -68,7 +68,7 @@ __all__ = [
 ]
 
 
-def draw(graph, at=None, pos=None, ax=None, arrows=True, with_labels=False, **kwds):
+def draw(graph, pos=None, ax=None, arrows=True, with_labels=False, **kwds):
     r"""Draw a graph with Matplotlib.
 
     .. note::
@@ -220,18 +220,16 @@ def draw(graph, at=None, pos=None, ax=None, arrows=True, with_labels=False, **kw
             ax = cf.gca()
         else:
             ax = cf.add_axes((0, 0, 1, 1))
-            
-    if at == None:
-        at = sys.maxsize
 
-    draw_graph(graph, at=at, pos=pos, ax=ax, arrows=arrows, with_labels=with_labels, **kwds)
+
+    draw_graph(graph, pos=pos, ax=ax, arrows=arrows, with_labels=with_labels, **kwds)
     ax.set_axis_off()
     plt.draw_if_interactive()
     if not plt.isinteractive() or ax is None:
         return cf
 
 
-def draw_graph(graph, at=None, pos=None, arrows=True, with_labels=False, **kwds):
+def draw_graph(graph, pos=None, arrows=True, with_labels=False, **kwds):
     r"""Draw the graph using Matplotlib.
 
     Draw the graph with Matplotlib with options for node positions,
@@ -327,9 +325,6 @@ def draw_graph(graph, at=None, pos=None, arrows=True, with_labels=False, **kwds)
 
     valid_kwds = valid_node_kwds | valid_edge_kwds | valid_label_kwds | valid_edge_label_kwds
     
-    if at == None:
-        at = sys.maxsize
-    
     if any([k not in valid_kwds for k in kwds]):
         invalid_args = ", ".join([k for k in kwds if k not in valid_kwds])
         raise ValueError(f"Received invalid argument(s): {invalid_args}")
@@ -351,12 +346,12 @@ def draw_graph(graph, at=None, pos=None, arrows=True, with_labels=False, **kwds)
     edge_label_kwds = {k: v for k, v in kwds.items() if k in valid_edge_label_kwds}
 
     if pos is None:
-        pos = spring_layout(graph, at)  # default to spring layout
-        # pos = kamada_kawai_layout(graph, at, scale=50)
-    draw_nodes(graph, pos, at, **node_kwds)
-    draw_edges(graph, pos, at, arrows=arrows, **edge_kwds)
+        pos = spring_layout(graph)  # default to spring layout
+        # pos = kamada_kawai_layout(graph, scale=50)
+    draw_nodes(graph, pos, **node_kwds)
+    draw_edges(graph, pos, arrows=arrows, **edge_kwds)
     if with_labels:
-        draw_labels(graph, pos, at, **label_kwds)
+        draw_labels(graph, pos, **label_kwds)
     if edge_label_fn:
         draw_edge_labels(graph, pos, **edge_label_kwds)
     plt.draw_if_interactive()
@@ -365,7 +360,6 @@ def draw_graph(graph, at=None, pos=None, arrows=True, with_labels=False, **kwds)
 def draw_nodes(
     graph,
     pos,
-    at=None,
     node_list=None,
     node_size=300,
     node_color="#1f78b4",
@@ -445,16 +439,12 @@ def draw_nodes(
             "raphtory.plot.draw(). You can install "
             "matplotlib with:\n'pip install matplotlib'"
         ) from e
-    
-    if at == None:
-        at = sys.maxsize
         
     if ax is None:
         ax = plt.gca()
     
-    view = graph.at(at)
     if node_list is None:
-        node_list = list(view.vertices().id())
+        node_list = list(graph.vertices().id())
 
     # empty node_list, no drawing
     if len(node_list) == 0:
@@ -499,7 +489,6 @@ def draw_nodes(
 def draw_edges(
     graph,
     pos,
-    at=None, 
     edge_list=None,
     width=1.0,
     edge_color="k",
@@ -629,25 +618,18 @@ def draw_edges(
         ) from e
 
     arrowstyle = "-|>"
-    
-    if at == None:
-        at = sys.maxsize
         
     if ax is None:
         ax = plt.gca()
     
-    view = graph.at(at)
-    
     if edge_list is None:
-        edge_list = list(view.edges())
+        edge_list = list(graph.edges())
 
     if len(edge_list) == 0:  # no edges!
         return []
-    
-    view = graph.at(at)
 
     if node_list is None:
-        node_list = list(view.vertices().id())
+        node_list = list(graph.vertices().id())
 
     # FancyArrowPatch handles color=None different from LineCollection
     if edge_color is None:
@@ -810,7 +792,6 @@ def draw_edges(
 def draw_labels(
     graph,
     pos,
-    at=None, 
     labels=None,
     font_size=12,
     font_color="k",
@@ -886,13 +867,8 @@ def draw_labels(
     if ax is None:
         ax = plt.gca()
     
-    if at == None:
-        at = sys.maxsize
-    
-    view = graph.at(at)
-    
     if labels is None:
-        labels = {n: n for n in list(view.vertices().id())}
+        labels = {n: n for n in list(graph.vertices().id())}
 
     text_items = {}  # there is no text collection so we'll fake one
     for n, label in labels.items():
@@ -1156,8 +1132,7 @@ def apply_alpha(colors, alpha, elem_list, cmap=None, vmin=None, vmax=None):
 
 @np_random_state(10)
 def spring_layout(
-    G,
-    at=None,
+    graph,
     k=None,
     pos=None,
     fixed=None,
@@ -1188,7 +1163,7 @@ def spring_layout(
 
     Parameters
     ----------
-    G : NetworkX graph or list of nodes
+    graph : Raphtory graph or list of nodes
         A position will be assigned to every node in G.
 
     k : float (default=None)
@@ -1203,7 +1178,7 @@ def spring_layout(
 
     fixed : list or None  optional (default=None)
         Nodes to keep fixed at initial position.
-        Nodes not in ``G.nodes`` are ignored.
+        Nodes not in ``graph.nodes`` are ignored.
         ValueError raised if `fixed` specified and `pos` not.
 
     iterations : int  optional (default=50)
@@ -1244,22 +1219,16 @@ def spring_layout(
 
     Examples
     --------
-    >>> G = nx.path_graph(4)
-    >>> pos = nx.spring_layout(G)
+    >>> graph = nx.path_graph(4)
+    >>> pos = nx.spring_layout(graph)
 
     # The same using longer but equivalent function name
-    >>> pos = nx.fruchterman_reingold_layout(G)
+    >>> pos = nx.fruchterman_reingold_layout(graph)
     """
     import numpy as np
-    
-    if at == None:
-        at = sys.maxsize
-    
-    graph = G
+
     dim = 2
     center = np.zeros(dim)
-    
-    view = graph.at(at)
 
     if fixed is not None:
         #print("Fixed found")
@@ -1268,7 +1237,7 @@ def spring_layout(
         for node in fixed:
             if node not in pos:
                 raise ValueError("nodes are fixed without positions given")
-        nfixed = {node.id: i for i, node.id in enumerate(list(view.vertices()))}
+        nfixed = {node.id: i for i, node.id in enumerate(list(graph.vertices()))}
         fixed = np.asarray([nfixed[node] for node in fixed if node in nfixed])
 
     if pos is not None:
@@ -1277,25 +1246,25 @@ def spring_layout(
         dom_size = max(coord for pos_tup in pos.values() for coord in pos_tup)
         if dom_size == 0:
             dom_size = 1
-        pos_arr = seed.rand(G.num_vertices(), dim) * dom_size + center
+        pos_arr = seed.rand(graph.num_vertices(), dim) * dom_size + center
 
-        for i, n in enumerate(G):
+        for i, n in enumerate(graph):
             if n in pos:
                 pos_arr[i] = np.asarray(pos[n])
     else:
         pos_arr = None
         dom_size = 1
         
-    if G.num_vertices() == 0:
+    if graph.num_vertices() == 0:
         return {}
-    if G.num_vertices() == 1:
-        return {nx.utils.arbitrary_element(G.nodes()): center}
+    if graph.num_vertices() == 1:
+        return {nx.utils.arbitrary_element(graph.nodes()): center}
 
     try:
         # Sparse matrix
-        if G.num_vertices() < 500:  # sparse solver for large graphs
+        if graph.num_vertices() < 500:  # sparse solver for large graphs
             raise ValueError
-        A = to_scipy_sparse_array(G, at, weight=weight, dtype="f")
+        A = to_scipy_sparse_array(graph, weight=weight, dtype="f")
         if k is None and fixed is not None:
             # We must adjust k by domain size for layouts not near 1x1
             nnodes, _ = A.shape
@@ -1306,7 +1275,7 @@ def spring_layout(
         )
     except ValueError:
         #print("to numpy array")
-        A = to_numpy_array(G, at, weight=weight)
+        A = to_numpy_array(graph, weight=weight)
         if k is None and fixed is not None:
             # We must adjust k by domain size for layouts not near 1x1
             nnodes, _ = A.shape
@@ -1317,21 +1286,21 @@ def spring_layout(
         )
     if fixed is None and scale is not None:
         pos = rescale_layout(pos, scale=scale) + center
-    pos = dict(zip(list(view.vertices().id()), pos))
+    pos = dict(zip(list(graph.vertices().id()), pos))
     return pos
 
 
-def to_scipy_sparse_array(G, at=None, nodelist=None, dtype=None, weight="weight", format="csr"):
+def to_scipy_sparse_array(graph, nodelist=None, dtype=None, weight="weight", format="csr"):
     """Returns the graph adjacency matrix as a SciPy sparse array.
 
     Parameters
     ----------
-    G : graph
+    graph : graph
         The NetworkX graph used to construct the sparse matrix.
 
     nodelist : list, optional
        The rows and columns are ordered according to the nodes in `nodelist`.
-       If `nodelist` is None, then the ordering is produced by G.nodes().
+       If `nodelist` is None, then the ordering is produced by graph.nodes().
 
     dtype : NumPy data-type, optional
         A valid NumPy dtype used to initialize the array. If None, then the
@@ -1361,8 +1330,8 @@ def to_scipy_sparse_array(G, at=None, nodelist=None, dtype=None, weight="weight"
 
     For multiple edges the matrix values are the sums of the edge weights.
 
-    When `nodelist` does not contain every node in `G`, the adjacency matrix
-    is built from the subgraph of `G` that is induced by the nodes in
+    When `nodelist` does not contain every node in `graph`, the adjacency matrix
+    is built from the subgraph of `graph` that is induced by the nodes in
     `nodelist`.
 
     The convention used for self-loop edges in graphs is to assign the
@@ -1370,31 +1339,6 @@ def to_scipy_sparse_array(G, at=None, nodelist=None, dtype=None, weight="weight"
     (or the number 1 if the edge has no weight attribute).  If the
     alternate convention of doubling the edge weight is desired the
     resulting SciPy sparse array can be modified as follows:
-
-    >>> G = nx.Graph([(1, 1)])
-    >>> A = nx.to_scipy_sparse_array(G)
-    >>> print(A.todense())
-    [[1]]
-    >>> A.setdiag(A.diagonal() * 2)
-    >>> print(A.toarray())
-    [[2]]
-
-    Examples
-    --------
-    >>> G = nx.MultiDiGraph()
-    >>> G.add_edge(0, 1, weight=2)
-    0
-    >>> G.add_edge(1, 0)
-    0
-    >>> G.add_edge(2, 2, weight=3)
-    0
-    >>> G.add_edge(2, 2)
-    1
-    >>> S = nx.to_scipy_sparse_array(G, nodelist=[0, 1, 2])
-    >>> print(S.toarray())
-    [[0 2 0]
-     [1 0 0]
-     [0 0 4]]
 
     References
     ----------
@@ -1404,33 +1348,25 @@ def to_scipy_sparse_array(G, at=None, nodelist=None, dtype=None, weight="weight"
     import scipy as sp
     import scipy.sparse  # call as sp.sparse
     #print("Sparse arraying 1")
-    if G.num_vertices() == 0:
+    if graph.num_vertices() == 0:
         raise nx.NetworkXError("Graph has no nodes or edges")
     
-    if at == None:
-        at = sys.maxsize
-    
-    view = g.at(at)
-    
     if nodelist is None:
-        nodelist = list(view.vertices().id())
-        nlen = len(list(view.vertices().id()))
+        nodelist = list(graph.vertices().id())
+        nlen = graph.num_edges()
     else:
         nlen = len(nodelist)
         if nlen == 0:
             raise nx.NetworkXError("nodelist has no nodes")
-        nodeset = set(G.nbunch_iter(nodelist))
+        nodeset = set(graph.nbunch_iter(nodelist))
         if nlen != len(nodeset):
             for n in nodelist:
-                if n not in G:
-                    raise nx.NetworkXError(f"Node {n} in nodelist is not in G")
+                if n not in graph:
+                    raise nx.NetworkXError(f"Node {n} in nodelist is not in graph")
             raise nx.NetworkXError("nodelist contains duplicates.")
-        if nlen < G.num_vertices():
-            G = G.subgraph(nodelist)
-    #print("Sparse arraying 2")
     index = dict(zip(nodelist, range(nlen)))
     coefficients = zip(
-        *((index[u], index[v], wt) for u, v, wt in G.edges(data=weight, default=1))
+        *((index[u], index[v], wt) for u, v, wt in graph.edges(data=weight, default=1))
     )
     try:
         row, col, data = coefficients
@@ -1438,7 +1374,7 @@ def to_scipy_sparse_array(G, at=None, nodelist=None, dtype=None, weight="weight"
         # there is no edge in the subgraph
         row, col, data = [], [], []
     #print("Sparse arraying 3")
-    if G.is_directed():
+    if graph.is_directed():
         #print("Sparse arraying 4")
         A = sp.sparse.coo_array((data, (row, col)), shape=(nlen, nlen), dtype=dtype)
     else:
@@ -1449,7 +1385,7 @@ def to_scipy_sparse_array(G, at=None, nodelist=None, dtype=None, weight="weight"
         c = col + row
         # selfloop entries get double counted when symmetrizing
         # so we subtract the data on the diagonal
-        selfloops = list(nx.selfloop_edges(G, data=weight, default=1))
+        selfloops = list(nx.selfloop_edges(graph, data=weight, default=1))
         if selfloops:
             diag_index, diag_data = zip(*((index[u], -wt) for u, v, wt in selfloops))
             d += diag_data
@@ -1462,8 +1398,7 @@ def to_scipy_sparse_array(G, at=None, nodelist=None, dtype=None, weight="weight"
         raise nx.NetworkXError(f"Unknown sparse matrix format: {format}") from err
         
 def to_numpy_array(
-    G,
-    at=None, 
+    graph,
     nodelist=None,
     dtype=None,
     order=None,
@@ -1475,12 +1410,12 @@ def to_numpy_array(
 
     Parameters
     ----------
-    G : graph
+    graph : graph
         The NetworkX graph used to construct the NumPy array.
 
     nodelist : list, optional
         The rows and columns are ordered according to the nodes in `nodelist`.
-        If `nodelist` is ``None``, then the ordering is produced by ``G.nodes()``.
+        If `nodelist` is ``None``, then the ordering is produced by ``graph.nodes()``.
 
     dtype : NumPy data type, optional
         A NumPy data type used to initialize the array. If None, then the NumPy
@@ -1521,7 +1456,7 @@ def to_numpy_array(
     Raises
     ------
     NetworkXError
-        If `dtype` is a structured dtype and `G` is a multigraph
+        If `dtype` is a structured dtype and `graph` is a multigraph
     ValueError
         If `dtype` is a structured dtype and `weight` is not `None`
 
@@ -1539,8 +1474,8 @@ def to_numpy_array(
     entries are determined by the `multigraph_weight` parameter. The default is
     to sum the weight attributes for each of the parallel edges.
 
-    When `nodelist` does not contain every node in `G`, the adjacency matrix is
-    built from the subgraph of `G` that is induced by the nodes in `nodelist`.
+    When `nodelist` does not contain every node in `graph`, the adjacency matrix is
+    built from the subgraph of `graph` that is induced by the nodes in `nodelist`.
 
     The convention used for self-loop edges in graphs is to assign the
     diagonal array entry value to the weight attribute of the edge
@@ -1548,37 +1483,24 @@ def to_numpy_array(
     alternate convention of doubling the edge weight is desired the
     resulting NumPy array can be modified as follows:
 
-    >>> import numpy as np
-    >>> G = nx.Graph([(1, 1)])
-    >>> A = nx.to_numpy_array(G)
-    >>> A
-    array([[1.]])
-    >>> A[np.diag_indices_from(A)] *= 2
-    >>> A
-    array([[2.]])
     """
     import numpy as np
     
-    if at == None:
-        at = sys.maxsize
-    
-    view = G.at(at)
-    
     if nodelist is None:
-        nodelist = list(view.vertices().id())
+        nodelist = list(graph.vertices().id())
     nlen = len(nodelist)
 
     # Input validation
     nodeset = set(nodelist)
-    # if nodeset - set(G):
-    #     raise nx.NetworkXError(f"Nodes {nodeset - set(G)} in nodelist is not in G")
+    # if nodeset - set(graph):
+    #     raise nx.NetworkXError(f"Nodes {nodeset - set(graph)} in nodelist is not in graph")
     # if len(nodeset) < nlen:
     #     raise nx.NetworkXError("nodelist contains duplicates.")
 
     A = np.full((nlen, nlen), fill_value=nonedge, dtype=dtype, order=order)
 
     # Corner cases: empty nodelist or graph without any edges
-    if nlen == 0 or G.num_edges() == 0:
+    if nlen == 0 or graph.num_edges() == 0:
         return A
 
     # If dtype is structured and weight is None, use dtype field names as
@@ -1595,8 +1517,6 @@ def to_numpy_array(
 
     # Map nodes to row/col in matrix
     idx = dict(zip(nodelist, range(nlen)))
-    if len(nodelist) < G.num_vertices():
-        G = G.subgraph(nodelist).copy()
 
     # Collect all edge weights and reduce with `multigraph_weights`
     i, j, wts = [], [], []
@@ -1604,7 +1524,7 @@ def to_numpy_array(
     # Special branch: multi-attr adjacency from structured dtypes
     if edge_attrs:
         # Extract edges with all data
-        for _edge in view.edges():
+        for _edge in graph.edges():
             u = _edge.src()
             v = _edge.dst()
             i.append(idx[u])
@@ -1615,11 +1535,11 @@ def to_numpy_array(
         for attr in edge_attrs:
             attr_data = [wt.get(attr, 1.0) for wt in wts]
             A[attr][i, j] = attr_data
-            if not G.is_directed():
+            if not graph.is_directed():
                 A[attr][j, i] = attr_data
         return A
 
-    for _edge in view.edges():
+    for _edge in graph.edges():
         i.append(idx[_edge.src()])
         j.append(idx[_edge.dst()])
         wts.append([])
