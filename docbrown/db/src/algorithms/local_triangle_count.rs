@@ -1,6 +1,4 @@
-use crate::graph_window::WindowedGraph;
 use crate::view_api::*;
-use docbrown_core::Direction;
 use itertools::Itertools;
 
 pub fn local_triangle_count<G: GraphViewOps>(graph: &G, v: u64) -> usize {

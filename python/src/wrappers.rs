@@ -1,11 +1,8 @@
 use itertools::Itertools;
 use pyo3::prelude::*;
-use pyo3::types::PyInt;
-use std::borrow::{Borrow, BorrowMut};
+use std::borrow::{Borrow};
 
-use db_c::tgraph_shard;
 use docbrown_core as db_c;
-use docbrown_db as db_db;
 use docbrown_db::view_api::*;
 use docbrown_db::{graph_window, perspective};
 

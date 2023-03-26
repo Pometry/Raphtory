@@ -3,9 +3,8 @@ use crate::perspective::{Perspective, PerspectiveIterator, PerspectiveSet};
 use std::{
     collections::HashMap,
     iter,
-    ops::Range,
     path::{Path, PathBuf},
-    sync::{mpsc, Arc},
+    sync::{Arc},
 };
 
 use docbrown_core::{
@@ -20,10 +19,8 @@ use crate::edge::EdgeView;
 use crate::vertex::VertexView;
 use crate::view_api::internal::GraphViewInternalOps;
 use crate::view_api::*;
-use itertools::Itertools;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
-use tempdir::TempDir;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Graph {
@@ -496,7 +493,7 @@ impl Graph {
         self.window(i64::MIN, end.saturating_add(1))
     }
 
-    pub fn through_perspectives(&self, mut perspectives: PerspectiveSet) -> GraphWindowSet {
+    pub fn through_perspectives(&self, perspectives: PerspectiveSet) -> GraphWindowSet {
         let iter = match (self.earliest_time(), self.latest_time()) {
             (Some(start), Some(end)) => perspectives.build_iter(start..end),
             _ => PerspectiveIterator::empty(),
@@ -518,7 +515,8 @@ impl Graph {
     pub fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self, Box<bincode::ErrorKind>> {
         // use BufReader for better performance
 
-        println!("loading from {:?}", path.as_ref());
+        //TODO turn to logging?
+        //println!("loading from {:?}", path.as_ref());
         let mut p = PathBuf::from(path.as_ref());
         p.push("graphdb_nr_shards");
 
@@ -556,7 +554,8 @@ impl Graph {
         for i in 0..self.nr_shards {
             let mut p = PathBuf::from(path.as_ref());
             p.push(format!("shard_{}", i));
-            println!("saving shard {} to {:?}", i, p);
+            //TODO turn to logging?
+            //println!("saving shard {} to {:?}", i, p);
             shard_paths.push((i, p));
         }
         shard_paths
@@ -584,7 +583,7 @@ impl Graph {
     }
 
     // TODO: Vertex.name which gets ._id property else numba as string
-
+    //TODO should this also return a result?
     pub fn add_edge<T: InputVertex>(&self, t: i64, src: T, dst: T, props: &Vec<(String, Prop)>) {
         // TODO: Problem: if the vertex already exists, then this
         // TODO: wont create a property name if the vertex is a string
@@ -613,11 +612,9 @@ mod db_tests {
     use csv::StringRecord;
     use docbrown_core::utils;
     use itertools::Itertools;
-    use quickcheck::{quickcheck, TestResult};
-    use rand::Rng;
-    use std::collections::HashMap;
     use std::sync::Arc;
-    use std::{env, fs};
+    use std::{fs};
+    use tempdir::TempDir;
     use uuid::Uuid;
 
     use crate::algorithms::local_triangle_count::local_triangle_count;
@@ -646,7 +643,7 @@ mod db_tests {
 
         let expected_len = vs.iter().map(|(_, v)| v).sorted().dedup().count();
         for (t, v) in vs {
-            g.add_vertex(t.into(), v, &vec![]);
+            g.add_vertex(t.into(), v, &vec![]).map_err(|err| println!("{:?}", err)).ok();
         }
 
         assert_eq!(g.num_vertices(), expected_len)
@@ -1000,7 +997,7 @@ mod db_tests {
         assert_eq!(g.latest_time(), None);
         assert_eq!(g.earliest_time(), None);
 
-        g.add_vertex(5, 1, &vec![]);
+        g.add_vertex(5, 1, &vec![]).map_err(|err| println!("{:?}", err)).ok();
 
         assert_eq!(g.latest_time(), Some(5));
         assert_eq!(g.earliest_time(), Some(5));
@@ -1011,7 +1008,7 @@ mod db_tests {
         assert_eq!(g.latest_time(), Some(10));
         assert_eq!(g.earliest_time(), Some(10));
 
-        g.add_vertex(5, 1, &vec![]);
+        g.add_vertex(5, 1, &vec![]).map_err(|err| println!("{:?}", err)).ok();
         assert_eq!(g.latest_time(), Some(10));
         assert_eq!(g.earliest_time(), Some(5));
 
@@ -1031,19 +1028,18 @@ mod db_tests {
         g.add_edge(0, 11, 11, &vec![("temp".to_string(), Prop::Bool(true))]);
         g.add_edge(0, 22, 33, &vec![]);
         g.add_edge(0, 33, 11, &vec![]);
-        g.add_vertex(0, 11, &vec![("temp".to_string(), Prop::Bool(true))]);
+        g.add_vertex(0, 11, &vec![("temp".to_string(), Prop::Bool(true))]).map_err(|err| println!("{:?}", err)).ok();
 
         let edges11 = g.vertex_edges_window(11.into(), 0, 1, Direction::OUT).collect_vec();
-        let edge1122 = *edges11.iter().find(|e| e.dst_g_id == 22).unwrap();
         let edge1111 = *edges11.iter().find(|e| e.dst_g_id == 11).unwrap();
         let edge2233 = g.vertex_edges_window(22.into(), 0, 1, Direction::OUT).next().unwrap();
         let edge3311 = g.vertex_edges_window(33.into(), 0, 1, Direction::OUT).next().unwrap();
 
-        g.add_vertex_properties(11, &vec![("a".to_string(), Prop::U64(11)), ("b".to_string(), Prop::I64(11))]);
-        g.add_vertex_properties(11, &vec![("c".to_string(), Prop::U32(11))]);
-        g.add_vertex_properties(22, &vec![("b".to_string(), Prop::U64(22))]);
-        g.add_edge_properties(11, 11, &vec![("d".to_string(), Prop::U64(1111))]);
-        g.add_edge_properties(33, 11, &vec![("a".to_string(), Prop::U64(3311))]);
+        g.add_vertex_properties(11, &vec![("a".to_string(), Prop::U64(11)), ("b".to_string(), Prop::I64(11))]).map_err(|err| println!("{:?}", err)).ok();
+        g.add_vertex_properties(11, &vec![("c".to_string(), Prop::U32(11))]).map_err(|err| println!("{:?}", err)).ok();
+        g.add_vertex_properties(22, &vec![("b".to_string(), Prop::U64(22))]).map_err(|err| println!("{:?}", err)).ok();
+        g.add_edge_properties(11, 11, &vec![("d".to_string(), Prop::U64(1111))]).map_err(|err| println!("{:?}", err)).ok();
+        g.add_edge_properties(33, 11, &vec![("a".to_string(), Prop::U64(3311))]).map_err(|err| println!("{:?}", err)).ok();
 
         assert_eq!(g.static_vertex_prop_keys(11.into()), vec!["a", "b", "c"]);
         assert_eq!(g.static_vertex_prop_keys(22.into()), vec!["b"]);
@@ -1066,8 +1062,8 @@ mod db_tests {
     #[should_panic]
     fn changing_property_type_for_vertex_panics() {
         let g = Graph::new(4);
-        g.add_vertex(0, 11, &vec![("test".to_string(), Prop::Bool(true))]);
-        g.add_vertex_properties(11, &vec![("test".to_string(), Prop::Bool(true))]);
+        g.add_vertex(0, 11, &vec![("test".to_string(), Prop::Bool(true))]).map_err(|err| println!("{:?}", err)).ok();
+        g.add_vertex_properties(11, &vec![("test".to_string(), Prop::Bool(true))]).map_err(|err| println!("{:?}", err)).ok();
     }
 
     #[test]
@@ -1075,7 +1071,7 @@ mod db_tests {
     fn changing_property_type_for_edge_panics() {
         let g = Graph::new(4);
         g.add_edge(0, 11, 22, &vec![("test".to_string(), Prop::Bool(true))]);
-        g.add_edge_properties(11, 22, &vec![("test".to_string(), Prop::Bool(true))]);
+        g.add_edge_properties(11, 22, &vec![("test".to_string(), Prop::Bool(true))]).map_err(|err| println!("{:?}", err)).ok();
     }
 
     #[test]
@@ -1172,12 +1168,12 @@ mod db_tests {
                             t,
                             src_id,
                             &vec![("name".to_string(), Prop::Str("Character".to_string()))],
-                        );
+                        ).map_err(|err| println!("{:?}", err)).ok();
                         g.add_vertex(
                             t,
                             dst_id,
                             &vec![("name".to_string(), Prop::Str("Character".to_string()))],
-                        );
+                        ).map_err(|err| println!("{:?}", err)).ok();
                         g.add_edge(
                             t,
                             src_id,
@@ -1252,9 +1248,9 @@ mod db_tests {
     fn test_add_vertex_with_strings() {
         let g = Graph::new(1);
 
-        g.add_vertex(0, "haaroon", &vec![]);
-        g.add_vertex(1, "hamza", &vec![]);
-        g.add_vertex(1, 831, &vec![]);
+        g.add_vertex(0, "haaroon", &vec![]).map_err(|err| println!("{:?}", err)).ok();
+        g.add_vertex(1, "hamza", &vec![]).map_err(|err| println!("{:?}", err)).ok();
+        g.add_vertex(1, 831, &vec![]).map_err(|err| println!("{:?}", err)).ok();
 
         assert!(g.has_vertex(831));
         assert!(g.has_vertex("haaroon"));

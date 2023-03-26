@@ -1,4 +1,3 @@
-use crate::graph_window::{WindowedGraph, WindowedVertex};
 use crate::view_api::*;
 use std::collections::HashSet;
 

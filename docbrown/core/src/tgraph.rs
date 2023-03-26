@@ -2,7 +2,6 @@ use std::{
     collections::{BTreeMap, HashMap},
     ops::Range,
 };
-use std::fmt::{Display, Formatter};
 
 use itertools::Itertools;
 use rustc_hash::FxHashMap;
@@ -224,8 +223,8 @@ impl TemporalGraph {
         props: &Vec<(String, Prop)>,
     ) {
         // mark the times of the vertices at t
-        self.add_vertex(t, src);
-        self.add_vertex(t, dst);
+        self.add_vertex(t, src).map_err(|err| println!("{:?}", err)).ok();
+        self.add_vertex(t, dst).map_err(|err| println!("{:?}", err)).ok();
 
         let src_pid = self.logical_to_physical[&src];
         let dst_pid = self.logical_to_physical[&dst];
@@ -249,7 +248,7 @@ impl TemporalGraph {
         dst: u64,
         props: &Vec<(String, Prop)>,
     ) {
-        self.add_vertex(t, src);
+        self.add_vertex(t, src).map_err(|err| println!("{:?}", err)).ok();
         let src_pid = self.logical_to_physical[&src];
         let src_edge_meta_id =
             self.link_outbound_edge(t, src, src_pid, dst.try_into().unwrap(), true);
@@ -264,7 +263,7 @@ impl TemporalGraph {
         dst: u64, // we are on the destination shard
         props: &Vec<(String, Prop)>,
     ) {
-        self.add_vertex(t, dst);
+        self.add_vertex(t, dst).map_err(|err| println!("{:?}", err)).ok();
 
         let dst_pid = self.logical_to_physical[&dst];
 
@@ -780,7 +779,7 @@ impl TemporalGraph {
         let keys = self.props.temporal_vertex_keys(index);
         keys.into_iter()
             .map(|key| (key.to_string(), self.temporal_vertex_prop_vec(v, &key)))
-            .filter(|(k, v)| !v.is_empty()) // just filtered out None
+            .filter(|(_, v)| !v.is_empty()) // just filtered out None
             .collect()
     }
 
@@ -793,7 +792,7 @@ impl TemporalGraph {
         let keys = self.props.temporal_vertex_keys(index);
         keys.into_iter()
             .map(|key| (key.to_string(), self.temporal_vertex_prop_vec_window(v, &key, w)))
-            .filter(|(k, v)| !v.is_empty())
+            .filter(|(_, v)| !v.is_empty())
             .collect()
     }
 

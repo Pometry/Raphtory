@@ -9,23 +9,12 @@ use pyo3::prelude::*;
 
 use crate::algorithms::{all_local_reciprocity, global_reciprocity, local_reciprocity};
 use crate::graph::Graph;
-use crate::wrappers::{Direction, Perspective};
+use crate::wrappers::Perspective;
 
 use pyo3::prelude::*;
-
-use crate::algorithms::average_degree;
-use crate::algorithms::directed_graph_density;
-use crate::algorithms::local_clustering_coefficient;
-use crate::algorithms::local_triangle_count;
-use crate::algorithms::max_in_degree;
-use crate::algorithms::max_out_degree;
-use crate::algorithms::min_in_degree;
-use crate::algorithms::min_out_degree;
-
-use crate::graph_gen::ba_preferential_attachment;
-use crate::graph_gen::random_attachment;
-use crate::graph_loader::lotr_graph;
-use crate::graph_loader::twitter_graph;
+use crate::algorithms::*;
+use crate::graph_gen::*;
+use crate::graph_loader::*;
 
 #[pymodule]
 fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
@@ -52,6 +41,7 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     let graph_loader_module = PyModule::new(py, "graph_loader")?;
     graph_loader_module.add_function(wrap_pyfunction!(lotr_graph, graph_loader_module)?)?;
     graph_loader_module.add_function(wrap_pyfunction!(twitter_graph, graph_loader_module)?)?;
+    graph_loader_module.add_function(wrap_pyfunction!(reddit_hyperlink_graph, graph_loader_module)?)?;
     m.add_submodule(graph_loader_module)?;
 
     let graph_gen_module = PyModule::new(py, "graph_gen")?;

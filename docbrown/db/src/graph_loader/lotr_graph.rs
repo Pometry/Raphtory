@@ -1,7 +1,6 @@
 use serde::Deserialize;
 use std::path::PathBuf;
 use crate::{graph_loader::{fetch_file, CsvLoader}, graph::Graph};
-use docbrown_core::{Prop, utils};
 
 #[derive(Deserialize, std::fmt::Debug)]
 pub struct Lotr {
@@ -14,6 +13,7 @@ pub fn lotr_file() -> Result<PathBuf, Box<dyn std::error::Error>> {
     fetch_file(
         "lotr.csv",
         "https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv",
+        600
     )
 }
 
@@ -23,28 +23,25 @@ pub fn lotr_graph(shards: usize) -> Graph {
 
         CsvLoader::new(&lotr_file().unwrap())
             .load_into_graph(&g, |lotr: Lotr, g: &Graph| {
-                let src_id = utils::calculate_hash(&lotr.src_id);
-                let dst_id = utils::calculate_hash(&lotr.dst_id);
-                let time = lotr.time; 
+                let src_id = &lotr.src_id;
+                let dst_id = &lotr.dst_id;
+                let time = lotr.time;
 
                 g.add_vertex(
                     time,
-                    src_id,
-                    &vec![("name".to_string(), Prop::Str("Character".to_string()))],
-                );
+                    src_id.clone(),
+                    &vec![],
+                ).map_err(|err| println!("{:?}", err)).ok();
                 g.add_vertex(
                     time,
-                    src_id,
-                    &vec![("name".to_string(), Prop::Str("Character".to_string()))],
-                );
+                    dst_id.clone(),
+                    &vec![],
+                ).map_err(|err| println!("{:?}", err)).ok();
                 g.add_edge(
                     time,
-                    src_id,
-                    dst_id,
-                    &vec![(
-                        "name".to_string(),
-                        Prop::Str("Character Co-occurrence".to_string()),
-                    )],
+                    src_id.clone(),
+                    dst_id.clone(),
+                    &vec![],
                 );
             })
             .expect("Failed to load graph from CSV data files");

@@ -1,5 +1,5 @@
 use crate::view_api::edge::{EdgeListOps, EdgeViewOps};
-use docbrown_core::{Direction, Prop};
+use docbrown_core::{Prop};
 use std::collections::HashMap;
 
 pub trait VertexViewOps: Sized + Send + Sync {

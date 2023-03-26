@@ -159,8 +159,9 @@ pub mod csv {
             let file_path: PathBuf = path.into();
 
             let mut csv_reader = self.csv_reader(file_path)?;
-            let mut records_iter = csv_reader.deserialize::<REC>();
+            let records_iter = csv_reader.deserialize::<REC>();
 
+            //TODO this needs better error handling for files without perfect data
             for rec in records_iter {
                 let record = rec?;
                 loader(record, g)
@@ -245,12 +246,12 @@ mod csv_loader_test {
                     time,
                     src_id,
                     &vec![("name".to_string(), Prop::Str("Character".to_string()))],
-                );
+                ).map_err(|err| println!("{:?}", err)).ok();
                 g.add_vertex(
                     time,
                     dst_id,
                     &vec![("name".to_string(), Prop::Str("Character".to_string()))],
-                );
+                ).map_err(|err| println!("{:?}", err)).ok();
                 g.add_edge(
                     time,
                     src_id,
