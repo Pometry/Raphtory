@@ -6,6 +6,7 @@ use docbrown_core::{Direction, Prop};
 use std::collections::HashMap;
 use std::sync::Arc;
 
+#[derive(Debug)]
 pub struct VertexView<G: GraphViewInternalOps> {
     //FIXME: Not sure Arc is good here, maybe this should just own a graph and rely on cheap clone...
     graph: Arc<G>,
@@ -50,7 +51,8 @@ impl<G: GraphViewInternalOps + 'static + Send + Sync> VertexViewOps for VertexVi
     }
 
     fn degree_window(&self, t_start: i64, t_end: i64) -> usize {
-        self.graph.degree_window(self.vertex, t_start, t_end, Direction::BOTH)
+        self.graph
+            .degree_window(self.vertex, t_start, t_end, Direction::BOTH)
     }
 
     fn in_degree(&self) -> usize {
@@ -58,7 +60,8 @@ impl<G: GraphViewInternalOps + 'static + Send + Sync> VertexViewOps for VertexVi
     }
 
     fn in_degree_window(&self, t_start: i64, t_end: i64) -> usize {
-        self.graph.degree_window(self.vertex, t_start, t_end, Direction::IN)
+        self.graph
+            .degree_window(self.vertex, t_start, t_end, Direction::IN)
     }
 
     fn out_degree(&self) -> usize {
@@ -66,7 +69,8 @@ impl<G: GraphViewInternalOps + 'static + Send + Sync> VertexViewOps for VertexVi
     }
 
     fn out_degree_window(&self, t_start: i64, t_end: i64) -> usize {
-        self.graph.degree_window(self.vertex, t_start, t_end, Direction::OUT)
+        self.graph
+            .degree_window(self.vertex, t_start, t_end, Direction::OUT)
     }
 
     fn edges(&self) -> Self::EList {
@@ -285,9 +289,15 @@ mod vertex_test {
         assert_eq!(g.vertex("Gandalf").unwrap().degree(), 49);
         assert_eq!(g.vertex("Gandalf").unwrap().degree_window(1356, 24792), 34);
         assert_eq!(g.vertex("Gandalf").unwrap().in_degree(), 24);
-        assert_eq!(g.vertex("Gandalf").unwrap().in_degree_window(1356, 24792), 16);
+        assert_eq!(
+            g.vertex("Gandalf").unwrap().in_degree_window(1356, 24792),
+            16
+        );
         assert_eq!(g.vertex("Gandalf").unwrap().out_degree(), 35);
-        assert_eq!(g.vertex("Gandalf").unwrap().out_degree_window(1356, 24792), 20);
+        assert_eq!(
+            g.vertex("Gandalf").unwrap().out_degree_window(1356, 24792),
+            20
+        );
     }
 
     #[test]
@@ -296,11 +306,29 @@ mod vertex_test {
 
         assert_eq!(g.num_edges(), 701);
         assert_eq!(g.vertex("Gandalf").unwrap().neighbours().count(), 49);
-        assert_eq!(g.vertex("Gandalf").unwrap().neighbours_window(1356, 24792).count(), 34);
+        assert_eq!(
+            g.vertex("Gandalf")
+                .unwrap()
+                .neighbours_window(1356, 24792)
+                .count(),
+            34
+        );
         assert_eq!(g.vertex("Gandalf").unwrap().in_neighbours().count(), 24);
-        assert_eq!(g.vertex("Gandalf").unwrap().in_neighbours_window(1356, 24792).count(), 16);
+        assert_eq!(
+            g.vertex("Gandalf")
+                .unwrap()
+                .in_neighbours_window(1356, 24792)
+                .count(),
+            16
+        );
         assert_eq!(g.vertex("Gandalf").unwrap().out_neighbours().count(), 35);
-        assert_eq!(g.vertex("Gandalf").unwrap().out_neighbours_window(1356, 24792).count(), 20);
+        assert_eq!(
+            g.vertex("Gandalf")
+                .unwrap()
+                .out_neighbours_window(1356, 24792)
+                .count(),
+            20
+        );
     }
 
     #[test]
@@ -309,11 +337,28 @@ mod vertex_test {
 
         assert_eq!(g.num_edges(), 701);
         assert_eq!(g.vertex("Gandalf").unwrap().edges().count(), 59);
-        assert_eq!(g.vertex("Gandalf").unwrap().edges_window(1356, 24792).count(), 36);
+        assert_eq!(
+            g.vertex("Gandalf")
+                .unwrap()
+                .edges_window(1356, 24792)
+                .count(),
+            36
+        );
         assert_eq!(g.vertex("Gandalf").unwrap().in_edges().count(), 24);
-        assert_eq!(g.vertex("Gandalf").unwrap().in_edges_window(1356, 24792).count(), 16);
+        assert_eq!(
+            g.vertex("Gandalf")
+                .unwrap()
+                .in_edges_window(1356, 24792)
+                .count(),
+            16
+        );
         assert_eq!(g.vertex("Gandalf").unwrap().out_edges().count(), 35);
-        assert_eq!(g.vertex("Gandalf").unwrap().out_edges_window(1356, 24792).count(), 20);
+        assert_eq!(
+            g.vertex("Gandalf")
+                .unwrap()
+                .out_edges_window(1356, 24792)
+                .count(),
+            20
+        );
     }
 }
-

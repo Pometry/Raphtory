@@ -1,7 +1,10 @@
+use crate::{
+    graph::Graph,
+    graph_loader::{fetch_file, CsvLoader},
+};
+use docbrown_core::{utils, Prop};
 use serde::Deserialize;
 use std::path::PathBuf;
-use crate::{graph_loader::{fetch_file, CsvLoader}, graph::Graph};
-use docbrown_core::{Prop, utils};
 
 #[derive(Deserialize, std::fmt::Debug)]
 pub struct Twitter {

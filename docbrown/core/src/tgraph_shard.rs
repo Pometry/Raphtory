@@ -8,8 +8,8 @@ use genawaiter::sync::{gen, GenBoxed};
 use genawaiter::yield_;
 
 use crate::tgraph::{AddEdgeResult, AddVertexResult, EdgeRef, TemporalGraph, VertexRef};
-use crate::{Direction, Prop};
 use crate::vertex::InputVertex;
+use crate::{Direction, Prop};
 
 mod lock {
 
@@ -18,12 +18,6 @@ mod lock {
     #[derive(Serialize, Deserialize, Debug, Default)]
     #[repr(transparent)]
     pub(crate) struct MyLock<T>(parking_lot::RwLock<T>);
-
-    impl<T> MyLock<T> {
-        fn new(t: T) -> Self {
-            Self(parking_lot::RwLock::new(t))
-        }
-    }
 
     #[repr(transparent)]
     pub(crate) struct MyReadGuard<'a, T>(parking_lot::RwLockReadGuard<'a, T>);
@@ -134,7 +128,12 @@ impl TGraphShard {
         self.read_shard(|tg| tg.has_vertex_window(v, &w))
     }
 
-    pub fn add_vertex<T: InputVertex>(&self, t: i64, v: T, props: &Vec<(String, Prop)>) -> AddVertexResult {
+    pub fn add_vertex<T: InputVertex>(
+        &self,
+        t: i64,
+        v: T,
+        props: &Vec<(String, Prop)>,
+    ) -> AddVertexResult {
         self.write_shard(move |tg| tg.add_vertex_with_props(t, v, props))
     }
 
@@ -154,7 +153,12 @@ impl TGraphShard {
         self.write_shard(|tg| tg.add_edge_remote_into(t, src, dst, props))
     }
 
-    pub fn add_edge_properties(&self, src: u64, dst: u64, data: &Vec<(String, Prop)>) -> AddEdgeResult {
+    pub fn add_edge_properties(
+        &self,
+        src: u64,
+        dst: u64,
+        data: &Vec<(String, Prop)>,
+    ) -> AddEdgeResult {
         self.write_shard(|tg| tg.add_edge_properties(src, dst, data))
     }
 
@@ -239,7 +243,7 @@ impl TGraphShard {
         let iter: GenBoxed<EdgeRef> = GenBoxed::new_boxed(|co| async move {
             let g = tgshard.read();
             let iter = (*g).vertex_edges(v, d);
-            for ev in iter {
+            for (_, ev) in iter {
                 co.yield_(ev).await;
             }
         });
@@ -256,7 +260,7 @@ impl TGraphShard {
         let tgshard = self.clone();
         let iter = gen!({
             let g = tgshard.rc.read();
-            let chunks = (*g).vertex_edges_window(v, &w, d).map(|e| e.into());
+            let chunks = (*g).vertex_edges_window(v, &w, d).map(|(_, e)| e.into());
             let iter = chunks.into_iter();
             for v_id in iter {
                 yield_!(v_id)
@@ -369,7 +373,12 @@ impl TGraphShard {
         self.read_shard(|tg| tg.temporal_vertex_prop_vec(v, &name))
     }
 
-    pub fn temporal_vertex_prop_vec_window(&self, v: u64, name: String, w: Range<i64>) -> Vec<(i64, Prop)> {
+    pub fn temporal_vertex_prop_vec_window(
+        &self,
+        v: u64,
+        name: String,
+        w: Range<i64>,
+    ) -> Vec<(i64, Prop)> {
         self.read_shard(|tg| tg.temporal_vertex_prop_vec_window(v, &name, &w))
     }
 
@@ -377,7 +386,11 @@ impl TGraphShard {
         self.read_shard(|tg| tg.temporal_vertex_props(v))
     }
 
-    pub fn temporal_vertex_props_window(&self, v: u64, w: Range<i64>) -> HashMap<String, Vec<(i64, Prop)>> {
+    pub fn temporal_vertex_props_window(
+        &self,
+        v: u64,
+        w: Range<i64>,
+    ) -> HashMap<String, Vec<(i64, Prop)>> {
         self.read_shard(|tg| tg.temporal_vertex_props_window(v, &w))
     }
 
@@ -393,20 +406,22 @@ impl TGraphShard {
         self.read_shard(|tg| tg.temporal_edge_prop_vec(e, &name))
     }
 
-    pub fn temporal_edge_props_vec_window(&self, e: usize, name: String, w: Range<i64>) -> Vec<(i64, Prop)> {
+    pub fn temporal_edge_props_vec_window(
+        &self,
+        e: usize,
+        name: String,
+        w: Range<i64>,
+    ) -> Vec<(i64, Prop)> {
         self.read_shard(|tg| tg.temporal_edge_prop_vec_window(e, &name, w.clone()))
     }
 }
 
 #[cfg(test)]
 mod temporal_graph_partition_test {
-    use std::{ops::Deref, sync::Arc};
 
     use super::TGraphShard;
     use crate::Direction;
-    use genawaiter::sync::GenBoxed;
     use itertools::Itertools;
-    use parking_lot::RwLock;
     use quickcheck::{Arbitrary, TestResult};
     use rand::Rng;
 
@@ -439,7 +454,8 @@ mod temporal_graph_partition_test {
         let rand_vertex = vs.get(rand_index).unwrap().0;
 
         for (v, t) in vs {
-            g.add_vertex(t.into(), v as u64, &vec![]);
+            g.add_vertex(t.into(), v as u64, &vec![])
+                .expect("failed to add vertex");
         }
 
         TestResult::from_bool(g.has_vertex(rand_vertex))
@@ -473,7 +489,8 @@ mod temporal_graph_partition_test {
 
         let expected_len = vs.iter().map(|(_, v)| v).sorted().dedup().count();
         for (t, v) in vs {
-            g.add_vertex(t.into(), v as u64, &vec![]);
+            g.add_vertex(t.into(), v as u64, &vec![])
+                .expect("failed to add vertex");
         }
 
         assert_eq!(g.len(), expected_len)
@@ -559,12 +576,12 @@ mod temporal_graph_partition_test {
     fn get_shard_degree_window() {
         let g = TGraphShard::default();
 
-        g.add_vertex(1, 100, &vec![]);
-        g.add_vertex(2, 101, &vec![]);
-        g.add_vertex(3, 102, &vec![]);
-        g.add_vertex(4, 103, &vec![]);
-        g.add_vertex(5, 104, &vec![]);
-        g.add_vertex(5, 105, &vec![]);
+        g.add_vertex(1, 100, &vec![]).expect("failed to add vertex");
+        g.add_vertex(2, 101, &vec![]).expect("failed to add vertex");
+        g.add_vertex(3, 102, &vec![]).expect("failed to add vertex");
+        g.add_vertex(4, 103, &vec![]).expect("failed to add vertex");
+        g.add_vertex(5, 104, &vec![]).expect("failed to add vertex");
+        g.add_vertex(5, 105, &vec![]).expect("failed to add vertex");
 
         g.add_edge(6, 100, 101, &vec![]);
         g.add_edge(7, 100, 102, &vec![]);

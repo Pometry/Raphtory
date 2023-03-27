@@ -19,7 +19,6 @@ pub fn parameterized(c: &mut Criterion) {
         run_large_ingestion_benchmarks(&mut ingestion_group, make_graph, Some(num_vertices));
     }
     ingestion_group.finish();
-
 }
 
 criterion_group!(benches, parameterized);

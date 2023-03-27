@@ -22,4 +22,5 @@ pub trait GraphViewOps: Send + Sync {
     fn vertices(&self) -> Self::Vertices;
     fn edge<T: InputVertex>(&self, src: T, dst: T) -> Option<Self::Edge>;
     fn edges(&self) -> Self::Edges;
+    fn vertices_shard(&self, shard: usize) -> Self::Vertices;
 }

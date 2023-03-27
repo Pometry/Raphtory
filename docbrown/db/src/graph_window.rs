@@ -136,6 +136,19 @@ impl GraphViewInternalOps for WindowedGraph {
         self.graph.vertex_refs_window(self.t_start, self.t_end)
     }
 
+    fn vertex_refs_window_shard(
+        &self,
+        shard: usize,
+        t_start: i64,
+        t_end: i64,
+    ) -> Box<dyn Iterator<Item = VertexRef> + Send> {
+        self.graph.vertex_refs_window_shard(
+            shard,
+            self.actual_start(t_start),
+            self.actual_end(t_end),
+        )
+    }
+
     fn vertex_refs_window(
         &self,
         t_start: i64,
@@ -306,7 +319,8 @@ impl GraphViewInternalOps for WindowedGraph {
     }
 
     fn temporal_vertex_props(&self, v: VertexRef) -> HashMap<String, Vec<(i64, Prop)>> {
-        self.graph.temporal_vertex_props_window(v, self.t_start, self.t_end)
+        self.graph
+            .temporal_vertex_props_window(v, self.t_start, self.t_end)
     }
 
     fn temporal_vertex_props_window(
@@ -315,8 +329,11 @@ impl GraphViewInternalOps for WindowedGraph {
         t_start: i64,
         t_end: i64,
     ) -> HashMap<String, Vec<(i64, Prop)>> {
-        self.graph
-            .temporal_vertex_props_window(v, self.actual_start(t_start), self.actual_end(t_end))
+        self.graph.temporal_vertex_props_window(
+            v,
+            self.actual_start(t_start),
+            self.actual_end(t_end),
+        )
     }
 
     fn static_edge_prop(&self, e: EdgeRef, name: String) -> Option<Prop> {
@@ -348,7 +365,8 @@ impl GraphViewInternalOps for WindowedGraph {
     }
 
     fn temporal_edge_props(&self, e: EdgeRef) -> HashMap<String, Vec<(i64, Prop)>> {
-        self.graph.temporal_edge_props_window(e, self.t_start, self.t_end)
+        self.graph
+            .temporal_edge_props_window(e, self.t_start, self.t_end)
     }
 
     fn temporal_edge_props_window(
@@ -421,6 +439,15 @@ impl GraphViewOps for WindowedGraph {
         Box::new(
             self.graph
                 .vertex_refs_window(self.t_start, self.t_end)
+                .map(move |vv| WindowedVertex::new(Arc::new(graph_w.clone()), vv)),
+        )
+    }
+
+    fn vertices_shard(&self, shard: usize) -> Self::Vertices {
+        let graph_w = self.clone();
+        Box::new(
+            self.graph
+                .vertex_refs_window_shard(shard, self.t_start, self.t_end)
                 .map(move |vv| WindowedVertex::new(Arc::new(graph_w.clone()), vv)),
         )
     }
