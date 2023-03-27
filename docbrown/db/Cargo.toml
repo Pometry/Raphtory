@@ -53,5 +53,9 @@ name = "parameterized"
 harness = false
 
 [[bench]]
+name = "graph_ops"
+harness = false
+
+[[bench]]
 name = "algobench"
 harness = false
