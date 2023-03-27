@@ -6,6 +6,7 @@ use std::io::{copy, Cursor};
 use std::time::Duration;
 
 pub mod lotr_graph;
+pub mod sx_superuser_graph;
 pub mod twitter_graph;
 pub mod reddit_hyperlinks;
 

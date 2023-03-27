@@ -103,20 +103,22 @@ impl TemporalGraph {
     }
 
     pub(crate) fn has_edge(&self, src: u64, dst: u64) -> bool {
-        let v_pid = self.logical_to_physical[&src];
-
-        match &self.adj_lists[v_pid] {
-            Adj::Solo(_) => false,
-            Adj::List {
-                out, remote_out, ..
-            } => {
-                if !self.has_vertex(dst) {
-                    remote_out.find(dst as usize).is_some()
-                } else {
-                    let dst_pid = self.logical_to_physical[&dst];
-                    out.find(dst_pid).is_some()
+        if let Some(v_pid) = self.logical_to_physical.get(&src) {
+            match &self.adj_lists[*v_pid] {
+                Adj::Solo(_) => false,
+                Adj::List {
+                    out, remote_out, ..
+                } => {
+                    if !self.has_vertex(dst) {
+                        remote_out.find(dst as usize).is_some()
+                    } else {
+                        let dst_pid = self.logical_to_physical[&dst];
+                        out.find(dst_pid).is_some()
+                    }
                 }
             }
+        } else {
+            false
         }
     }
 
@@ -1430,6 +1432,7 @@ mod graph_test {
         assert_eq!(g.has_edge(11, 9), false);
         assert_eq!(g.has_edge(10, 11), false);
         assert_eq!(g.has_edge(10, 9), false);
+        assert_eq!(g.has_edge(100, 101), false);
     }
 
     #[test]
