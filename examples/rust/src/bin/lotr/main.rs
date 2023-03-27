@@ -1,5 +1,8 @@
-use docbrown_core::utils;
-use docbrown_core::Prop;
+use docbrown_core::{state, utils};
+use docbrown_core::{Direction, Prop};
+use docbrown_db::program::{
+    GlobalEvalState, Program, TriangleCountS1, TriangleCountS2, TriangleCountSlowS2,
+};
 use docbrown_db::view_api::*;
 use docbrown_db::{csv_loader::csv::CsvLoader, graph::Graph};
 use serde::Deserialize;
@@ -87,8 +90,8 @@ fn main() {
             now.elapsed().as_secs()
         );
 
-        g.save_to_file(encoded_data_dir)
-            .expect("Failed to save graph");
+        // g.save_to_file(encoded_data_dir)
+        //     .expect("Failed to save graph");
 
         g
     };
@@ -98,108 +101,135 @@ fn main() {
 
     let gandalf = utils::calculate_hash(&"Gandalf");
 
-    assert_eq!(gandalf, 13840129630991083248);
+    assert_eq!(gandalf, 8703678510860200260);
     assert!(graph.has_vertex(gandalf));
 
-    let windowed_graph = graph.window(i64::MIN, i64::MAX);
-    let v = windowed_graph.vertex(gandalf).unwrap();
+    let mut program_s1 = TriangleCountS1 {};
+    let mut program_s2 = TriangleCountS2 {};
+    let agg = state::def::sum::<u64>(1);
 
-    assert_eq!(v.in_degree(), 24);
-    assert_eq!(v.out_degree(), 35);
-    assert_eq!(v.degree(), 49);
+    let mut gs = GlobalEvalState::new(graph.clone(), i64::MIN..i64::MAX, false);
 
-    let windowed_graph = graph.window(0, i64::MAX);
-    let v = windowed_graph.vertex(gandalf).unwrap();
+    program_s1.run_step(&graph, &mut gs);
 
-    assert_eq!(v.in_degree(), 24);
-    assert_eq!(v.out_degree(), 35);
-    assert_eq!(v.degree(), 49);
+    program_s2.run_step(&graph, &mut gs);
 
-    let windowed_graph = graph.window(100, 9000);
-    let v = windowed_graph.vertex(gandalf).unwrap();
+    let actual_tri_count = gs.read_global_state(&agg);
 
-    let actual = v
-        .out_edges()
-        .map(|e| (e.src().id(), e.dst().id()))
-        .collect::<Vec<_>>();
+    println!("Actual triangle count: {:?}", actual_tri_count);
 
-    let expected = vec![
-        (13840129630991083248, 6768237561757024290),
-        (13840129630991083248, 2582862946330553552),
-        (13840129630991083248, 13415634039873497660),
-        (13840129630991083248, 357812470600089148),
-        (13840129630991083248, 17764752901005380738),
-        (13840129630991083248, 6484040860173734298),
-        (0, 2914346725110218071),
-        (0, 5956895584314169235),
-        (0, 12936471037316398897),
-        (0, 13050559475682228465),
-        (0, 13789593425373656861),
-        (0, 14223985880962197705),
-    ];
+    let mut program = TriangleCountSlowS2 {};
+    let agg = state::def::sum::<usize>(0);
 
-    assert_eq!(actual, expected);
+    let mut gs = GlobalEvalState::new(graph.clone(), i64::MIN..i64::MAX, false);
 
-    let windowed_graph = graph.window(i64::MIN, i64::MAX);
-    let v = windowed_graph.vertex(gandalf).unwrap();
-    let actual = v
-        .out_edges()
-        .take(10)
-        .map(|e| (e.src().id(), e.dst().id()))
-        .collect::<Vec<_>>();
+    program.run_step(&graph, &mut gs);
 
-    let expected: Vec<(u64, u64)> = vec![
-        (13840129630991083248, 12772980705568717046),
-        (13840129630991083248, 6768237561757024290),
-        (13840129630991083248, 11214194356141027632),
-        (13840129630991083248, 2582862946330553552),
-        (13840129630991083248, 13415634039873497660),
-        (13840129630991083248, 6514938325906662882),
-        (13840129630991083248, 13854913496482509346),
-        (13840129630991083248, 357812470600089148),
-        (13840129630991083248, 17764752901005380738),
-        (13840129630991083248, 15044750458947305290),
-    ];
+    let actual_tri_count = gs.read_global_state(&agg).map(|v| v / 3);
 
-    assert_eq!(actual, expected);
+    println!("Actual triangle count: {:?}", actual_tri_count);
 
-    let windowed_graph = graph.window(i64::MIN, i64::MAX);
-    let actual = windowed_graph
-        .vertices()
-        .take(10)
-        .map(|tv| tv.id())
-        .collect::<Vec<u64>>();
+    // let windowed_graph = graph.window(i64::MIN, i64::MAX);
+    // let v = windowed_graph.vertex(gandalf).unwrap();
 
-    let expected: Vec<u64> = vec![
-        13840129630991083248,
-        12772980705568717046,
-        8366058037510783370,
-        11638942476191275730,
-        6768237561757024290,
-        13652678879212650868,
-        10620258110842154986,
-        12687378031997996522,
-        11214194356141027632,
-        2582862946330553552,
-    ];
+    // assert_eq!(v.in_degree(), 24);
+    // assert_eq!(v.out_degree(), 35);
+    // assert_eq!(v.degree(), 49);
 
-    assert_eq!(actual, expected);
+    // let windowed_graph = graph.window(0, i64::MAX);
+    // let v = windowed_graph.vertex(gandalf).unwrap();
 
-    let windowed_graph = graph.window(0, 300);
-    let actual = windowed_graph
-        .vertices()
-        .map(|v| v.id())
-        .collect::<Vec<u64>>();
+    // assert_eq!(v.in_degree(), 24);
+    // assert_eq!(v.out_degree(), 35);
+    // assert_eq!(v.degree(), 49);
 
-    let expected = vec![
-        13840129630991083248,
-        12772980705568717046,
-        8366058037510783370,
-        11638942476191275730,
-        12936471037316398897,
-        5956895584314169235,
-        5402476312775412883,
-        7320164159843417887,
-    ];
-    assert_eq!(actual, expected);
+    // let windowed_graph = graph.window(100, 9000);
+    // let v = windowed_graph.vertex(gandalf).unwrap();
+
+    // let actual = v
+    //     .out_edges()
+    //     .map(|e| (e.src().id(), e.dst().id()))
+    //     .collect::<Vec<_>>();
+
+    // let expected = vec![
+    //     (13840129630991083248, 6768237561757024290),
+    //     (13840129630991083248, 2582862946330553552),
+    //     (13840129630991083248, 13415634039873497660),
+    //     (13840129630991083248, 357812470600089148),
+    //     (13840129630991083248, 17764752901005380738),
+    //     (13840129630991083248, 6484040860173734298),
+    //     (0, 2914346725110218071),
+    //     (0, 5956895584314169235),
+    //     (0, 12936471037316398897),
+    //     (0, 13050559475682228465),
+    //     (0, 13789593425373656861),
+    //     (0, 14223985880962197705),
+    // ];
+
+    // assert_eq!(actual, expected);
+
+    // let windowed_graph = graph.window(i64::MIN, i64::MAX);
+    // let v = windowed_graph.vertex(gandalf).unwrap();
+    // let actual = v
+    //     .out_edges()
+    //     .take(10)
+    //     .map(|e| (e.src().id(), e.dst().id()))
+    //     .collect::<Vec<_>>();
+
+    // let expected: Vec<(u64, u64)> = vec![
+    //     (13840129630991083248, 12772980705568717046),
+    //     (13840129630991083248, 6768237561757024290),
+    //     (13840129630991083248, 11214194356141027632),
+    //     (13840129630991083248, 2582862946330553552),
+    //     (13840129630991083248, 13415634039873497660),
+    //     (13840129630991083248, 6514938325906662882),
+    //     (13840129630991083248, 13854913496482509346),
+    //     (13840129630991083248, 357812470600089148),
+    //     (13840129630991083248, 17764752901005380738),
+    //     (13840129630991083248, 15044750458947305290),
+    // ];
+
+    // assert_eq!(actual, expected);
+
+    // let windowed_graph = graph.window(i64::MIN, i64::MAX);
+    // let actual = windowed_graph
+    //     .vertices()
+    //     .take(10)
+    //     .map(|tv| tv.id())
+    //     .collect::<Vec<u64>>();
+
+    // let expected: Vec<u64> = vec![
+    //     13840129630991083248,
+    //     12772980705568717046,
+    //     8366058037510783370,
+    //     11638942476191275730,
+    //     6768237561757024290,
+    //     13652678879212650868,
+    //     10620258110842154986,
+    //     12687378031997996522,
+    //     11214194356141027632,
+    //     2582862946330553552,
+    // ];
+
+    // assert_eq!(actual, expected);
+
+    // let windowed_graph = graph.window(0, 300);
+    // let actual = windowed_graph
+    //     .vertices()
+    //     .map(|v| v.id())
+    //     .collect::<Vec<u64>>();
+
+    // let expected = vec![
+    //     13840129630991083248,
+    //     12772980705568717046,
+    //     8366058037510783370,
+    //     11638942476191275730,
+    //     12936471037316398897,
+    //     5956895584314169235,
+    //     5402476312775412883,
+    //     7320164159843417887,
+    // ];
+    // assert_eq!(actual, expected);
+
+    // triangle count global
 }

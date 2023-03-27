@@ -16,7 +16,7 @@ pub(crate) enum TProp {
     U64(TCell<u64>),
     F32(TCell<f32>),
     F64(TCell<f64>),
-    Bool(TCell<bool>)
+    Bool(TCell<bool>),
 }
 
 impl TProp {
@@ -29,7 +29,7 @@ impl TProp {
             Prop::U64(value) => TProp::U64(TCell::new(t, *value)),
             Prop::F32(value) => TProp::F32(TCell::new(t, *value)),
             Prop::F64(value) => TProp::F64(TCell::new(t, *value)),
-            Prop::Bool(value) => TProp::Bool(TCell::new(t, *value))
+            Prop::Bool(value) => TProp::Bool(TCell::new(t, *value)),
         }
     }
 
@@ -94,7 +94,7 @@ impl TProp {
             TProp::U64(cell) => Box::new(cell.iter_t().map(|(t, value)| (t, Prop::U64(*value)))),
             TProp::F32(cell) => Box::new(cell.iter_t().map(|(t, value)| (t, Prop::F32(*value)))),
             TProp::F64(cell) => Box::new(cell.iter_t().map(|(t, value)| (t, Prop::F64(*value)))),
-            TProp::Bool(cell) => Box::new(cell.iter_t().map(|(t, value)| (t, Prop::Bool(*value))))
+            TProp::Bool(cell) => Box::new(cell.iter_t().map(|(t, value)| (t, Prop::Bool(*value)))),
         }
     }
 
@@ -196,10 +196,7 @@ mod tprop_tests {
 
         assert_eq!(
             tprop.iter().collect::<Vec<_>>(),
-            vec![
-                (&1, Prop::I32(2022)),
-                (&2, Prop::I32(2023))
-            ]
+            vec![(&1, Prop::I32(2022)), (&2, Prop::I32(2023))]
         );
 
         let mut tprop = TProp::from(1, &Prop::I64(2022));
@@ -207,10 +204,7 @@ mod tprop_tests {
 
         assert_eq!(
             tprop.iter().collect::<Vec<_>>(),
-            vec![
-                (&1, Prop::I64(2022)),
-                (&2, Prop::I64(2023))
-            ]
+            vec![(&1, Prop::I64(2022)), (&2, Prop::I64(2023))]
         );
 
         let mut tprop = TProp::from(1, &Prop::F32(10.0));
@@ -218,10 +212,7 @@ mod tprop_tests {
 
         assert_eq!(
             tprop.iter().collect::<Vec<_>>(),
-            vec![
-                (&1, Prop::F32(10.0)),
-                (&2, Prop::F32(11.0))
-            ]
+            vec![(&1, Prop::F32(10.0)), (&2, Prop::F32(11.0))]
         );
 
         let mut tprop = TProp::from(1, &Prop::F64(10.0));
@@ -229,10 +220,7 @@ mod tprop_tests {
 
         assert_eq!(
             tprop.iter().collect::<Vec<_>>(),
-            vec![
-                (&1, Prop::F64(10.0)),
-                (&2, Prop::F64(11.0))
-            ]
+            vec![(&1, Prop::F64(10.0)), (&2, Prop::F64(11.0))]
         );
 
         let mut tprop = TProp::from(1, &Prop::U32(1));
@@ -240,10 +228,7 @@ mod tprop_tests {
 
         assert_eq!(
             tprop.iter().collect::<Vec<_>>(),
-            vec![
-                (&1, Prop::U32(1)),
-                (&2, Prop::U32(2))
-            ]
+            vec![(&1, Prop::U32(1)), (&2, Prop::U32(2))]
         );
 
         let mut tprop = TProp::from(1, &Prop::U64(1));
@@ -251,10 +236,7 @@ mod tprop_tests {
 
         assert_eq!(
             tprop.iter().collect::<Vec<_>>(),
-            vec![
-                (&1, Prop::U64(1)),
-                (&2, Prop::U64(2))
-            ]
+            vec![(&1, Prop::U64(1)), (&2, Prop::U64(2))]
         );
 
         let mut tprop = TProp::from(1, &Prop::Bool(true));
@@ -262,10 +244,7 @@ mod tprop_tests {
 
         assert_eq!(
             tprop.iter().collect::<Vec<_>>(),
-            vec![
-                (&1, Prop::Bool(true)),
-                (&2, Prop::Bool(true))
-            ]
+            vec![(&1, Prop::Bool(true)), (&2, Prop::Bool(true))]
         );
     }
 
@@ -331,10 +310,7 @@ mod tprop_tests {
 
         assert_eq!(
             tprop.iter_window(i64::MIN..i64::MAX).collect::<Vec<_>>(),
-            vec![
-                (&1, Prop::I32(2022)),
-                (&2, Prop::I32(2023))
-            ]
+            vec![(&1, Prop::I32(2022)), (&2, Prop::I32(2023))]
         );
 
         let mut tprop = TProp::from(1, &Prop::I64(2022));
@@ -342,10 +318,7 @@ mod tprop_tests {
 
         assert_eq!(
             tprop.iter_window(i64::MIN..i64::MAX).collect::<Vec<_>>(),
-            vec![
-                (&1, Prop::I64(2022)),
-                (&2, Prop::I64(2023))
-            ]
+            vec![(&1, Prop::I64(2022)), (&2, Prop::I64(2023))]
         );
 
         let mut tprop = TProp::from(1, &Prop::F32(10.0));
@@ -353,10 +326,7 @@ mod tprop_tests {
 
         assert_eq!(
             tprop.iter_window(i64::MIN..i64::MAX).collect::<Vec<_>>(),
-            vec![
-                (&1, Prop::F32(10.0)),
-                (&2, Prop::F32(11.0))
-            ]
+            vec![(&1, Prop::F32(10.0)), (&2, Prop::F32(11.0))]
         );
 
         let mut tprop = TProp::from(1, &Prop::F64(10.0));
@@ -364,10 +334,7 @@ mod tprop_tests {
 
         assert_eq!(
             tprop.iter_window(i64::MIN..i64::MAX).collect::<Vec<_>>(),
-            vec![
-                (&1, Prop::F64(10.0)),
-                (&2, Prop::F64(11.0))
-            ]
+            vec![(&1, Prop::F64(10.0)), (&2, Prop::F64(11.0))]
         );
 
         let mut tprop = TProp::from(1, &Prop::U32(1));
@@ -375,10 +342,7 @@ mod tprop_tests {
 
         assert_eq!(
             tprop.iter_window(i64::MIN..i64::MAX).collect::<Vec<_>>(),
-            vec![
-                (&1, Prop::U32(1)),
-                (&2, Prop::U32(2))
-            ]
+            vec![(&1, Prop::U32(1)), (&2, Prop::U32(2))]
         );
 
         let mut tprop = TProp::from(1, &Prop::U64(1));
@@ -386,10 +350,7 @@ mod tprop_tests {
 
         assert_eq!(
             tprop.iter_window(i64::MIN..i64::MAX).collect::<Vec<_>>(),
-            vec![
-                (&1, Prop::U64(1)),
-                (&2, Prop::U64(2))
-            ]
+            vec![(&1, Prop::U64(1)), (&2, Prop::U64(2))]
         );
 
         let mut tprop = TProp::from(1, &Prop::Bool(true));
@@ -397,10 +358,7 @@ mod tprop_tests {
 
         assert_eq!(
             tprop.iter_window(i64::MIN..i64::MAX).collect::<Vec<_>>(),
-            vec![
-                (&1, Prop::Bool(true)),
-                (&2, Prop::Bool(true))
-            ]
+            vec![(&1, Prop::Bool(true)), (&2, Prop::Bool(true))]
         );
     }
 }

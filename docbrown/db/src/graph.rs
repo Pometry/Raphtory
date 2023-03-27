@@ -24,7 +24,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Graph {
-    nr_shards: usize,
+    pub(crate) nr_shards: usize,
     pub(crate) shards: Vec<TGraphShard>,
 }
 
@@ -105,12 +105,12 @@ impl GraphViewInternalOps for Graph {
         self.get_shard_from_id(v).vertex_window(v, t_start..t_end)
     }
 
-    fn vertex_ids(&self) -> Box<dyn Iterator<Item = u64> + Send> {
+    fn vertex_ids(&self) -> Box<dyn Iterator<Item=u64> + Send> {
         let shards = self.shards.clone();
         Box::new(shards.into_iter().flat_map(|s| s.vertex_ids()))
     }
 
-    fn vertex_ids_window(&self, t_start: i64, t_end: i64) -> Box<dyn Iterator<Item = u64> + Send> {
+    fn vertex_ids_window(&self, t_start: i64, t_end: i64) -> Box<dyn Iterator<Item=u64> + Send> {
         let shards = self.shards.clone();
         Box::new(
             shards
@@ -119,7 +119,7 @@ impl GraphViewInternalOps for Graph {
         )
     }
 
-    fn vertex_refs(&self) -> Box<dyn Iterator<Item = VertexRef> + Send> {
+    fn vertex_refs(&self) -> Box<dyn Iterator<Item=VertexRef> + Send> {
         let shards = self.shards.clone();
         Box::new(shards.into_iter().flat_map(|s| s.vertices()))
     }
@@ -128,7 +128,7 @@ impl GraphViewInternalOps for Graph {
         &self,
         t_start: i64,
         t_end: i64,
-    ) -> Box<dyn Iterator<Item = VertexRef> + Send> {
+    ) -> Box<dyn Iterator<Item=VertexRef> + Send> {
         let shards = self.shards.clone();
         Box::new(
             shards
@@ -137,10 +137,22 @@ impl GraphViewInternalOps for Graph {
         )
     }
 
-    fn vertices_par<O, F>(&self, f: F) -> Box<dyn Iterator<Item = O>>
-    where
-        O: Send + 'static,
-        F: Fn(VertexRef) -> O + Send + Sync + Copy,
+    fn vertex_refs_window_shard(
+        &self,
+        shard: usize,
+        t_start: i64,
+        t_end: i64,
+    ) -> Box<dyn Iterator<Item=VertexRef> + Send> {
+        let shard = self.shards[shard].clone();
+        Box::new(
+            shard.vertices_window(t_start..t_end)
+        )
+    }
+
+    fn vertices_par<O, F>(&self, f: F) -> Box<dyn Iterator<Item=O>>
+        where
+            O: Send + 'static,
+            F: Fn(VertexRef) -> O + Send + Sync + Copy,
     {
         let (tx, rx) = flume::unbounded();
 
@@ -156,10 +168,10 @@ impl GraphViewInternalOps for Graph {
     }
 
     fn fold_par<S, F, F2>(&self, f: F, agg: F2) -> Option<S>
-    where
-        S: Send + 'static,
-        F: Fn(VertexRef) -> S + Send + Sync + Copy,
-        F2: Fn(S, S) -> S + Sync + Send + Copy,
+        where
+            S: Send + 'static,
+            F: Fn(VertexRef) -> S + Send + Sync + Copy,
+            F2: Fn(S, S) -> S + Sync + Send + Copy,
     {
         self.shards
             .par_iter()
@@ -174,10 +186,10 @@ impl GraphViewInternalOps for Graph {
         t_start: i64,
         t_end: i64,
         f: F,
-    ) -> Box<dyn Iterator<Item = O>>
-    where
-        O: Send + 'static,
-        F: Fn(VertexRef) -> O + Send + Sync + Copy,
+    ) -> Box<dyn Iterator<Item=O>>
+        where
+            O: Send + 'static,
+            F: Fn(VertexRef) -> O + Send + Sync + Copy,
     {
         let (tx, rx) = flume::unbounded();
 
@@ -193,10 +205,10 @@ impl GraphViewInternalOps for Graph {
     }
 
     fn fold_window_par<S, F, F2>(&self, t_start: i64, t_end: i64, f: F, agg: F2) -> Option<S>
-    where
-        S: Send + 'static,
-        F: Fn(VertexRef) -> S + Send + Sync + Copy,
-        F2: Fn(S, S) -> S + Sync + Send + Copy,
+        where
+            S: Send + 'static,
+            F: Fn(VertexRef) -> S + Send + Sync + Copy,
+            F2: Fn(S, S) -> S + Sync + Send + Copy,
     {
         self.shards
             .par_iter()
@@ -235,7 +247,7 @@ impl GraphViewInternalOps for Graph {
             .edge_window(src.g_id, dst.g_id, t_start..t_end)
     }
 
-    fn edge_refs(&self) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
+    fn edge_refs(&self) -> Box<dyn Iterator<Item=EdgeRef> + Send> {
         //FIXME: needs low-level primitive
         let g = self.clone();
         Box::new(
@@ -248,7 +260,7 @@ impl GraphViewInternalOps for Graph {
         &self,
         t_start: i64,
         t_end: i64,
-    ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
+    ) -> Box<dyn Iterator<Item=EdgeRef> + Send> {
         //FIXME: needs low-level primitive
         let g = self.clone();
         Box::new(
@@ -257,7 +269,7 @@ impl GraphViewInternalOps for Graph {
         )
     }
 
-    fn vertex_edges(&self, v: VertexRef, d: Direction) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
+    fn vertex_edges(&self, v: VertexRef, d: Direction) -> Box<dyn Iterator<Item=EdgeRef> + Send> {
         Box::new(self.get_shard_from_v(v).vertex_edges(v.g_id, d))
     }
 
@@ -267,7 +279,7 @@ impl GraphViewInternalOps for Graph {
         t_start: i64,
         t_end: i64,
         d: Direction,
-    ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
+    ) -> Box<dyn Iterator<Item=EdgeRef> + Send> {
         Box::new(
             self.get_shard_from_v(v)
                 .vertex_edges_window(v.g_id, t_start..t_end, d),
@@ -280,14 +292,14 @@ impl GraphViewInternalOps for Graph {
         t_start: i64,
         t_end: i64,
         d: Direction,
-    ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
+    ) -> Box<dyn Iterator<Item=EdgeRef> + Send> {
         Box::new(
             self.get_shard_from_v(v)
                 .vertex_edges_window_t(v.g_id, t_start..t_end, d),
         )
     }
 
-    fn neighbours(&self, v: VertexRef, d: Direction) -> Box<dyn Iterator<Item = VertexRef> + Send> {
+    fn neighbours(&self, v: VertexRef, d: Direction) -> Box<dyn Iterator<Item=VertexRef> + Send> {
         Box::new(self.get_shard_from_v(v).neighbours(v.g_id, d))
     }
 
@@ -297,14 +309,14 @@ impl GraphViewInternalOps for Graph {
         t_start: i64,
         t_end: i64,
         d: Direction,
-    ) -> Box<dyn Iterator<Item = VertexRef> + Send> {
+    ) -> Box<dyn Iterator<Item=VertexRef> + Send> {
         Box::new(
             self.get_shard_from_v(v)
                 .neighbours_window(v.g_id, t_start..t_end, d),
         )
     }
 
-    fn neighbours_ids(&self, v: VertexRef, d: Direction) -> Box<dyn Iterator<Item = u64> + Send> {
+    fn neighbours_ids(&self, v: VertexRef, d: Direction) -> Box<dyn Iterator<Item=u64> + Send> {
         Box::new(self.get_shard_from_v(v).neighbours_ids(v.g_id, d))
     }
 
@@ -314,7 +326,7 @@ impl GraphViewInternalOps for Graph {
         t_start: i64,
         t_end: i64,
         d: Direction,
-    ) -> Box<dyn Iterator<Item = u64> + Send> {
+    ) -> Box<dyn Iterator<Item=u64> + Send> {
         Box::new(
             self.get_shard_from_v(v)
                 .neighbours_ids_window(v.g_id, t_start..t_end, d),
@@ -400,9 +412,9 @@ impl GraphViewInternalOps for Graph {
 impl GraphViewOps for Graph {
     type Vertex = VertexView<Self>;
     type VertexIter = Self::Vertices;
-    type Vertices = Box<dyn Iterator<Item = Self::Vertex> + Send>;
+    type Vertices = Box<dyn Iterator<Item=Self::Vertex> + Send>;
     type Edge = EdgeView<Self>;
-    type Edges = Box<dyn Iterator<Item = Self::Edge> + Send>;
+    type Edges = Box<dyn Iterator<Item=Self::Edge> + Send>;
 
     fn num_vertices(&self) -> usize {
         self.vertices_len()
@@ -442,6 +454,14 @@ impl GraphViewOps for Graph {
         )
     }
 
+    fn vertices_shard(&self, shard: usize) -> Self::Vertices {
+        let g = Arc::new(self.clone());
+        Box::new(
+            g.vertices_shard(shard)
+                .map(move |v| Self::Vertex::new(g.clone(), v.as_ref())),
+        )
+    }
+
     fn edge<T: InputVertex>(&self, src: T, dst: T) -> Option<Self::Edge> {
         self.edge_ref(
             VertexRef {
@@ -453,7 +473,7 @@ impl GraphViewOps for Graph {
                 pid: None,
             },
         )
-        .map(|e| Self::Edge::new(Arc::new(self.clone()), e))
+            .map(|e| Self::Edge::new(Arc::new(self.clone()), e))
     }
 
     fn edges(&self) -> Self::Edges {
@@ -503,7 +523,7 @@ impl Graph {
 
     pub fn through_iter(
         &self,
-        perspectives: Box<dyn Iterator<Item = Perspective> + Send>,
+        perspectives: Box<dyn Iterator<Item=Perspective> + Send>,
     ) -> GraphWindowSet {
         let iter = match (self.earliest_time(), self.latest_time()) {
             (Some(start), Some(end)) => perspectives,
@@ -612,8 +632,9 @@ mod db_tests {
     use csv::StringRecord;
     use docbrown_core::utils;
     use itertools::Itertools;
+    use quickcheck::quickcheck;
+    use std::fs;
     use std::sync::Arc;
-    use std::{fs};
     use tempdir::TempDir;
     use uuid::Uuid;
 
@@ -707,10 +728,10 @@ mod db_tests {
             format!("{}/shard_0", shards_path),
             format!("{}/graphdb_nr_shards", shards_path),
         ]
-        .iter()
-        .map(Path::new)
-        .map(PathBuf::from)
-        .collect::<Vec<_>>();
+            .iter()
+            .map(Path::new)
+            .map(PathBuf::from)
+            .collect::<Vec<_>>();
 
         expected.sort();
 
@@ -1016,9 +1037,9 @@ mod db_tests {
         assert_eq!(g.latest_time(), Some(20));
         assert_eq!(g.earliest_time(), Some(5));
 
-        random_attachment(&g,100,10);
-        assert_eq!(g.latest_time(),Some(126));
-        assert_eq!(g.earliest_time(),Some(5));
+        random_attachment(&g, 100, 10);
+        assert_eq!(g.latest_time(), Some(126));
+        assert_eq!(g.earliest_time(), Some(5));
     }
 
     #[test]

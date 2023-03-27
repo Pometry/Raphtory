@@ -145,15 +145,9 @@ mod tcell_tests {
 
         let tcell = TCell::new(3, "Pometry");
 
-        assert_eq!(
-            tcell.iter().collect::<Vec<_>>(),
-            vec![&"Pometry"]
-        );
+        assert_eq!(tcell.iter().collect::<Vec<_>>(), vec![&"Pometry"]);
 
-        assert_eq!(
-            tcell.iter_t().collect::<Vec<_>>(),
-            vec![(&3, &"Pometry")]
-        );
+        assert_eq!(tcell.iter_t().collect::<Vec<_>>(), vec![(&3, &"Pometry")]);
 
         let mut tcell = TCell::new(2, "Pometry");
         tcell.set(1, "Inc. Pometry");
@@ -175,22 +169,16 @@ mod tcell_tests {
             tcell.set(n, n)
         }
 
-        assert_eq!(
-            tcell.iter_t().count(),
-            129
-        );
+        assert_eq!(tcell.iter_t().count(), 129);
 
-        assert_eq!(
-            tcell.iter().count(),
-            129
-        )
+        assert_eq!(tcell.iter().count(), 129)
     }
 
     #[test]
     fn updates_to_prop_can_be_window_iterated() {
         let tcell: TCell<String> = TCell::default();
 
-        let actual =  tcell.iter_window(i64::MIN..i64::MAX).collect::<Vec<_>>();
+        let actual = tcell.iter_window(i64::MIN..i64::MAX).collect::<Vec<_>>();
         let expected: Vec<&String> = vec![];
         assert_eq!(actual, expected);
 
@@ -203,7 +191,7 @@ mod tcell_tests {
 
         assert_eq!(
             tcell.iter_window(3..4).collect::<Vec<_>>(),
-            vec![ &"Pometry"]
+            vec![&"Pometry"]
         );
 
         assert_eq!(
@@ -254,14 +242,8 @@ mod tcell_tests {
             tcell.set(n, n)
         }
 
-        assert_eq!(
-            tcell.iter_window_t(i64::MIN..i64::MAX).count(),
-            129
-        );
+        assert_eq!(tcell.iter_window_t(i64::MIN..i64::MAX).count(), 129);
 
-        assert_eq!(
-            tcell.iter_window(i64::MIN..i64::MAX).count(),
-            129
-        )
+        assert_eq!(tcell.iter_window(i64::MIN..i64::MAX).count(), 129)
     }
 }
