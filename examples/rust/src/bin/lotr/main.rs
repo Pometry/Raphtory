@@ -4,11 +4,11 @@ use docbrown_db::program::{
     GlobalEvalState, Program, TriangleCountS1, TriangleCountS2, TriangleCountSlowS2,
 };
 use docbrown_db::view_api::*;
+use docbrown_db::view_api::{GraphViewOps, VertexViewOps};
 use docbrown_db::{csv_loader::csv::CsvLoader, graph::Graph};
 use serde::Deserialize;
 use std::path::PathBuf;
 use std::{env, path::Path, time::Instant};
-use docbrown_db::view_api::{GraphViewOps, VertexViewOps};
 
 #[derive(Deserialize, std::fmt::Debug)]
 pub struct Lotr {
@@ -44,8 +44,8 @@ fn main() {
         println!(
             "Loaded graph from encoded data files {} with {} vertices, {} edges which took {} seconds",
             encoded_data_dir.to_str().unwrap(),
-            g.num_vertices(),
-            g.num_edges(),
+            g.num_vertices().unwrap(),
+            g.num_edges().unwrap(),
             now.elapsed().as_secs()
         );
 
@@ -85,8 +85,8 @@ fn main() {
         println!(
             "Loaded graph from CSV data files {} with {} vertices, {} edges which took {} seconds",
             encoded_data_dir.to_str().unwrap(),
-            g.num_vertices(),
-            g.num_edges(),
+            g.num_vertices().unwrap(),
+            g.num_edges().unwrap(),
             now.elapsed().as_secs()
         );
 
@@ -96,13 +96,13 @@ fn main() {
         g
     };
 
-    assert_eq!(graph.num_vertices(), 139);
-    assert_eq!(graph.num_edges(), 701);
+    assert_eq!(graph.num_vertices().unwrap(), 139);
+    assert_eq!(graph.num_edges().unwrap(), 701);
 
     let gandalf = utils::calculate_hash(&"Gandalf");
 
     assert_eq!(gandalf, 8703678510860200260);
-    assert!(graph.has_vertex(gandalf));
+    assert!(graph.has_vertex(gandalf).unwrap());
 
     let mut program_s1 = TriangleCountS1 {};
     let mut program_s2 = TriangleCountS2 {};
@@ -129,19 +129,19 @@ fn main() {
 
     println!("Actual triangle count: {:?}", actual_tri_count);
 
-    // let windowed_graph = graph.window(i64::MIN, i64::MAX);
-    // let v = windowed_graph.vertex(gandalf).unwrap();
-
-    // assert_eq!(v.in_degree(), 24);
-    // assert_eq!(v.out_degree(), 35);
-    // assert_eq!(v.degree(), 49);
-
+    // assert_eq!(v.in_degree().unwrap(), 24);
+    // assert_eq!(v.out_degree().unwrap(), 35);
+    // assert_eq!(v.degree().unwrap(), 49);
+    //
     // let windowed_graph = graph.window(0, i64::MAX);
-    // let v = windowed_graph.vertex(gandalf).unwrap();
-
-    // assert_eq!(v.in_degree(), 24);
-    // assert_eq!(v.out_degree(), 35);
-    // assert_eq!(v.degree(), 49);
+    // let v = windowed_graph.vertex(gandalf).unwrap().unwrap();
+    //
+    // assert_eq!(v.in_degree().unwrap(), 24);
+    // assert_eq!(v.out_degree().unwrap(), 35);
+    // assert_eq!(v.degree().unwrap(), 49);
+    //
+    // let windowed_graph = graph.window(100, 9000);
+    // let v = windowed_graph.vertex(gandalf).unwrap().unwrap();
 
     // let windowed_graph = graph.window(100, 9000);
     // let v = windowed_graph.vertex(gandalf).unwrap();
@@ -166,7 +166,13 @@ fn main() {
     //     (0, 14223985880962197705),
     // ];
 
-    // assert_eq!(actual, expected);
+    // let windowed_graph = graph.window(i64::MIN, i64::MAX);
+    // let v = windowed_graph.vertex(gandalf).unwrap().unwrap();
+    // let actual = v
+    //     .out_edges()
+    //     .take(10)
+    //     .map(|e| (e.src().id(), e.dst().id()))
+    //     .collect::<Vec<_>>();
 
     // let windowed_graph = graph.window(i64::MIN, i64::MAX);
     // let v = windowed_graph.vertex(gandalf).unwrap();

@@ -1,5 +1,5 @@
 use crate::view_api::edge::{EdgeListOps, EdgeViewOps};
-use docbrown_core::{Prop};
+use docbrown_core::{tgraph_shard::errors::GraphError, Direction, Prop};
 use std::collections::HashMap;
 
 pub trait VertexViewOps: Sized + Send + Sync {
@@ -9,21 +9,21 @@ pub trait VertexViewOps: Sized + Send + Sync {
 
     fn id(&self) -> u64;
 
-    fn prop(&self, name: String) -> Vec<(i64, Prop)>;
+    fn prop(&self, name: String) -> Result<Vec<(i64, Prop)>, GraphError>;
 
-    fn props(&self) -> HashMap<String, Vec<(i64, Prop)>>;
+    fn props(&self) -> Result<HashMap<String, Vec<(i64, Prop)>>, GraphError>;
 
-    fn degree(&self) -> usize;
+    fn degree(&self) -> Result<usize, GraphError>;
 
-    fn degree_window(&self, t_start: i64, t_end: i64) -> usize;
+    fn degree_window(&self, t_start: i64, t_end: i64) -> Result<usize, GraphError>;
 
-    fn in_degree(&self) -> usize;
+    fn in_degree(&self) -> Result<usize, GraphError>;
 
-    fn in_degree_window(&self, t_start: i64, t_end: i64) -> usize;
+    fn in_degree_window(&self, t_start: i64, t_end: i64) -> Result<usize, GraphError>;
 
-    fn out_degree(&self) -> usize;
+    fn out_degree(&self) -> Result<usize, GraphError>;
 
-    fn out_degree_window(&self, t_start: i64, t_end: i64) -> usize;
+    fn out_degree_window(&self, t_start: i64, t_end: i64) -> Result<usize, GraphError>;
 
     fn edges(&self) -> Self::EList;
 
@@ -61,21 +61,33 @@ pub trait VertexListOps:
 
     fn id(self) -> Self::ValueIterType<u64>;
 
-    fn prop(self, name: String) -> Self::ValueIterType<Vec<(i64, Prop)>>;
+    fn prop(self, name: String) -> Result<Self::ValueIterType<Vec<(i64, Prop)>>, GraphError>;
 
-    fn props(self) -> Self::ValueIterType<HashMap<String, Vec<(i64, Prop)>>>;
+    fn props(self) -> Result<Self::ValueIterType<HashMap<String, Vec<(i64, Prop)>>>, GraphError>;
 
-    fn degree(self) -> Self::ValueIterType<usize>;
+    fn degree(self) -> Result<Self::ValueIterType<usize>, GraphError>;
 
-    fn degree_window(self, t_start: i64, t_end: i64) -> Self::ValueIterType<usize>;
+    fn degree_window(
+        self,
+        t_start: i64,
+        t_end: i64,
+    ) -> Result<Self::ValueIterType<usize>, GraphError>;
 
-    fn in_degree(self) -> Self::ValueIterType<usize>;
+    fn in_degree(self) -> Result<Self::ValueIterType<usize>, GraphError>;
 
-    fn in_degree_window(self, t_start: i64, t_end: i64) -> Self::ValueIterType<usize>;
+    fn in_degree_window(
+        self,
+        t_start: i64,
+        t_end: i64,
+    ) -> Result<Self::ValueIterType<usize>, GraphError>;
 
-    fn out_degree(self) -> Self::ValueIterType<usize>;
+    fn out_degree(self) -> Result<Self::ValueIterType<usize>, GraphError>;
 
-    fn out_degree_window(self, t_start: i64, t_end: i64) -> Self::ValueIterType<usize>;
+    fn out_degree_window(
+        self,
+        t_start: i64,
+        t_end: i64,
+    ) -> Result<Self::ValueIterType<usize>, GraphError>;
 
     fn edges(self) -> Self::EList;
 

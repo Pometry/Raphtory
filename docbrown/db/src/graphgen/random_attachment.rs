@@ -1,6 +1,7 @@
 use crate::graph::Graph;
 use crate::view_api::internal::GraphViewInternalOps;
 use crate::view_api::*;
+use docbrown_core::tgraph_shard::errors::GraphError;
 use rand::seq::SliceRandom;
 
 /// This function is a graph generation model based upon:
@@ -23,9 +24,13 @@ use rand::seq::SliceRandom;
 /// let graph = Graph::new(2);
 //  ba_preferential_attachment(&graph, 1000, 10);
 /// ```
-pub fn random_attachment(graph: &Graph, vertices_to_add: usize, edges_per_step: usize) {
+pub fn random_attachment(
+    graph: &Graph,
+    vertices_to_add: usize,
+    edges_per_step: usize,
+) -> Result<(), GraphError> {
     let rng = &mut rand::thread_rng();
-    let mut latest_time = match graph.latest_time() {
+    let mut latest_time = match graph.latest_time()? {
         None => 0,
         Some(time) => time,
     };
@@ -38,7 +43,10 @@ pub fn random_attachment(graph: &Graph, vertices_to_add: usize, edges_per_step: 
     while ids.len() < edges_per_step {
         max_id += 1;
         latest_time += 1;
-        graph.add_vertex(latest_time, max_id, &vec![]).map_err(|err| println!("{:?}", err)).ok();
+        graph
+            .add_vertex(latest_time, max_id, &vec![])
+            .map_err(|err| println!("{:?}", err))
+            .ok();
         ids.push(max_id);
     }
 
@@ -51,6 +59,8 @@ pub fn random_attachment(graph: &Graph, vertices_to_add: usize, edges_per_step: 
         });
         ids.push(max_id);
     }
+
+    Ok(())
 }
 
 #[cfg(test)]
@@ -61,20 +71,23 @@ mod random_graph_test {
     fn blank_graph() {
         let graph = Graph::new(2);
         random_attachment(&graph, 100, 20);
-        assert_eq!(graph.num_edges(), 2000);
-        assert_eq!(graph.num_vertices(), 120);
+        assert_eq!(graph.num_edges().unwrap(), 2000);
+        assert_eq!(graph.num_vertices().unwrap(), 120);
     }
 
     #[test]
     fn only_nodes() {
         let graph = Graph::new(2);
         for i in 0..10 {
-            graph.add_vertex(i, i as u64, &vec![]).map_err(|err| println!("{:?}", err)).ok();
+            graph
+                .add_vertex(i, i as u64, &vec![])
+                .map_err(|err| println!("{:?}", err))
+                .ok();
         }
 
         random_attachment(&graph, 1000, 5);
-        assert_eq!(graph.num_edges(), 5000);
-        assert_eq!(graph.num_vertices(), 1010);
+        assert_eq!(graph.num_edges().unwrap(), 5000);
+        assert_eq!(graph.num_vertices().unwrap(), 1010);
     }
 
     #[test]
@@ -82,7 +95,7 @@ mod random_graph_test {
         let graph = Graph::new(2);
         ba_preferential_attachment(&graph, 300, 7);
         random_attachment(&graph, 4000, 12);
-        assert_eq!(graph.num_edges(), 50106);
-        assert_eq!(graph.num_vertices(), 4307);
+        assert_eq!(graph.num_edges().unwrap(), 50106);
+        assert_eq!(graph.num_vertices().unwrap(), 4307);
     }
 }

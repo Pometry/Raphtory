@@ -1,17 +1,22 @@
 use docbrown_core::tgraph::{EdgeRef, VertexRef};
+use docbrown_core::tgraph_shard::errors::GraphError;
 use docbrown_core::{Direction, Prop};
 use std::collections::HashMap;
 
 pub trait GraphViewInternalOps {
-    fn vertices_len(&self) -> usize;
+    fn vertices_len(&self) -> Result<usize, GraphError>;
 
     fn vertices_len_window(&self, t_start: i64, t_end: i64) -> usize;
 
-    fn edges_len(&self) -> usize;
+    fn edges_len(&self) -> Result<usize, GraphError>;
 
     fn edges_len_window(&self, t_start: i64, t_end: i64) -> usize;
 
-    fn has_edge_ref<V1: Into<VertexRef>, V2: Into<VertexRef>>(&self, src: V1, dst: V2) -> bool;
+    fn has_edge_ref<V1: Into<VertexRef>, V2: Into<VertexRef>>(
+        &self,
+        src: V1,
+        dst: V2,
+    ) -> Result<bool, GraphError>;
 
     fn has_edge_ref_window<V1: Into<VertexRef>, V2: Into<VertexRef>>(
         &self,
@@ -19,19 +24,35 @@ pub trait GraphViewInternalOps {
         dst: V2,
         t_start: i64,
         t_end: i64,
-    ) -> bool;
+    ) -> Result<bool, GraphError>;
 
-    fn has_vertex_ref<V: Into<VertexRef>>(&self, v: V) -> bool;
+    fn has_vertex_ref<V: Into<VertexRef>>(&self, v: V) -> Result<bool, GraphError>;
 
-    fn has_vertex_ref_window<V: Into<VertexRef>>(&self, v: V, t_start: i64, t_end: i64) -> bool;
+    fn has_vertex_ref_window<V: Into<VertexRef>>(
+        &self,
+        v: V,
+        t_start: i64,
+        t_end: i64,
+    ) -> Result<bool, GraphError>;
 
-    fn degree(&self, v: VertexRef, d: Direction) -> usize;
+    fn degree(&self, v: VertexRef, d: Direction) -> Result<usize, GraphError>;
 
-    fn degree_window(&self, v: VertexRef, t_start: i64, t_end: i64, d: Direction) -> usize;
+    fn degree_window(
+        &self,
+        v: VertexRef,
+        t_start: i64,
+        t_end: i64,
+        d: Direction,
+    ) -> Result<usize, GraphError>;
 
-    fn vertex_ref(&self, v: u64) -> Option<VertexRef>;
+    fn vertex_ref(&self, v: u64) -> Result<Option<VertexRef>, GraphError>;
 
-    fn vertex_ref_window(&self, v: u64, t_start: i64, t_end: i64) -> Option<VertexRef>;
+    fn vertex_ref_window(
+        &self,
+        v: u64,
+        t_start: i64,
+        t_end: i64,
+    ) -> Result<Option<VertexRef>, GraphError>;
 
     fn vertex_ids(&self) -> Box<dyn Iterator<Item = u64> + Send>;
 
@@ -52,38 +73,11 @@ pub trait GraphViewInternalOps {
         t_end: i64,
     ) -> Box<dyn Iterator<Item = VertexRef> + Send>;
 
-    fn vertices_par<O, F>(&self, f: F) -> Box<dyn Iterator<Item = O>>
-    where
-        O: Send + 'static,
-        F: Fn(VertexRef) -> O + Send + Sync + Copy;
-
-    fn fold_par<S, F, F2>(&self, f: F, agg: F2) -> Option<S>
-    where
-        S: Send + 'static,
-        F: Fn(VertexRef) -> S + Send + Sync + Copy,
-        F2: Fn(S, S) -> S + Sync + Send + Copy;
-
-    fn vertices_window_par<O, F>(
-        &self,
-        t_start: i64,
-        t_end: i64,
-        f: F,
-    ) -> Box<dyn Iterator<Item = O>>
-    where
-        O: Send + 'static,
-        F: Fn(VertexRef) -> O + Send + Sync + Copy;
-
-    fn fold_window_par<S, F, F2>(&self, t_start: i64, t_end: i64, f: F, agg: F2) -> Option<S>
-    where
-        S: Send + 'static,
-        F: Fn(VertexRef) -> S + Send + Sync + Copy,
-        F2: Fn(S, S) -> S + Sync + Send + Copy;
-
     fn edge_ref<V1: Into<VertexRef>, V2: Into<VertexRef>>(
         &self,
         src: V1,
         dst: V2,
-    ) -> Option<EdgeRef>;
+    ) -> Result<Option<EdgeRef>, GraphError>;
 
     fn edge_ref_window<V1: Into<VertexRef>, V2: Into<VertexRef>>(
         &self,
@@ -91,7 +85,7 @@ pub trait GraphViewInternalOps {
         dst: V2,
         t_start: i64,
         t_end: i64,
-    ) -> Option<EdgeRef>;
+    ) -> Result<Option<EdgeRef>, GraphError>;
 
     fn edge_refs(&self) -> Box<dyn Iterator<Item = EdgeRef> + Send>;
 
@@ -139,11 +133,15 @@ pub trait GraphViewInternalOps {
         d: Direction,
     ) -> Box<dyn Iterator<Item = u64> + Send>;
 
-    fn static_vertex_prop(&self, v: VertexRef, name: String) -> Option<Prop>;
+    fn static_vertex_prop(&self, v: VertexRef, name: String) -> Result<Option<Prop>, GraphError>;
 
-    fn static_vertex_prop_keys(&self, v: VertexRef) -> Vec<String>;
+    fn static_vertex_prop_keys(&self, v: VertexRef) -> Result<Vec<String>, GraphError>;
 
-    fn temporal_vertex_prop_vec(&self, v: VertexRef, name: String) -> Vec<(i64, Prop)>;
+    fn temporal_vertex_prop_vec(
+        &self,
+        v: VertexRef,
+        name: String,
+    ) -> Result<Vec<(i64, Prop)>, GraphError>;
 
     fn temporal_vertex_prop_vec_window(
         &self,
@@ -151,22 +149,29 @@ pub trait GraphViewInternalOps {
         name: String,
         t_start: i64,
         t_end: i64,
-    ) -> Vec<(i64, Prop)>;
+    ) -> Result<Vec<(i64, Prop)>, GraphError>;
 
-    fn temporal_vertex_props(&self, v: VertexRef) -> HashMap<String, Vec<(i64, Prop)>>;
+    fn temporal_vertex_props(
+        &self,
+        v: VertexRef,
+    ) -> Result<HashMap<String, Vec<(i64, Prop)>>, GraphError>;
 
     fn temporal_vertex_props_window(
         &self,
         v: VertexRef,
         t_start: i64,
         t_end: i64,
-    ) -> HashMap<String, Vec<(i64, Prop)>>;
+    ) -> Result<HashMap<String, Vec<(i64, Prop)>>, GraphError>;
 
-    fn static_edge_prop(&self, e: EdgeRef, name: String) -> Option<Prop>;
+    fn static_edge_prop(&self, e: EdgeRef, name: String) -> Result<Option<Prop>, GraphError>;
 
-    fn static_edge_prop_keys(&self, e: EdgeRef) -> Vec<String>;
+    fn static_edge_prop_keys(&self, e: EdgeRef) -> Result<Vec<String>, GraphError>;
 
-    fn temporal_edge_props_vec(&self, e: EdgeRef, name: String) -> Vec<(i64, Prop)>;
+    fn temporal_edge_props_vec(
+        &self,
+        e: EdgeRef,
+        name: String,
+    ) -> Result<Vec<(i64, Prop)>, GraphError>;
 
     fn temporal_edge_props_vec_window(
         &self,
@@ -174,7 +179,7 @@ pub trait GraphViewInternalOps {
         name: String,
         t_start: i64,
         t_end: i64,
-    ) -> Vec<(i64, Prop)>;
+    ) -> Result<Vec<(i64, Prop)>, GraphError>;
 
     fn temporal_edge_props(&self, e: EdgeRef) -> HashMap<String, Vec<(i64, Prop)>>;
 

@@ -1,2 +1,2 @@
-pub mod random_attachment;
 pub mod preferential_attachment;
+pub mod random_attachment;

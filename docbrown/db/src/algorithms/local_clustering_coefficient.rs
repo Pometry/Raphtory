@@ -1,25 +1,25 @@
+use docbrown_core::tgraph_shard::errors::GraphError;
+
 use crate::algorithms::local_triangle_count::local_triangle_count;
 use crate::view_api::*;
 
-pub fn local_clustering_coefficient<G: GraphViewOps>(graph: &G, v: u64) -> f32 {
-    let vertex = graph.vertex(v).unwrap();
+pub fn local_clustering_coefficient<G: GraphViewOps>(graph: &G, v: u64) -> Result<f32, GraphError> {
+    let vertex = graph.vertex(v)?.unwrap();
 
-    let triangle_count = local_triangle_count(graph, v) as f32;
+    let triangle_count = local_triangle_count(graph, v)? as f32;
 
-    let degree = vertex.degree() as f32;
+    let degree = vertex.degree()? as f32;
     if degree > 1.0 {
-        (2.0 * triangle_count) / (degree * (degree - 1.0) as f32)
+        Ok((2.0 * triangle_count) / (degree * (degree - 1.0) as f32))
     } else {
-        0.0
+        Ok(0.0)
     }
 }
 
 #[cfg(test)]
 mod clustering_coefficient_tests {
-
-    use crate::graph::Graph;
-
     use super::local_clustering_coefficient;
+    use crate::graph::Graph;
 
     #[test]
     fn clusters_of_triangles() {
@@ -41,7 +41,7 @@ mod clustering_coefficient_tests {
         let expected = vec![0.33333334, 1.0, 1.0, 0.0, 0.0];
 
         let actual = (1..=5)
-            .map(|v| local_clustering_coefficient(&windowed_graph, v))
+            .map(|v| local_clustering_coefficient(&windowed_graph, v).unwrap())
             .collect::<Vec<_>>();
 
         assert_eq!(actual, expected);

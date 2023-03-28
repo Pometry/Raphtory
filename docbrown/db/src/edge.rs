@@ -2,6 +2,7 @@ use crate::vertex::VertexView;
 use crate::view_api::internal::GraphViewInternalOps;
 use crate::view_api::{EdgeListOps, EdgeViewOps};
 use docbrown_core::tgraph::{EdgeRef, VertexRef};
+use docbrown_core::tgraph_shard::errors::GraphError;
 use docbrown_core::Prop;
 use std::fmt::{Debug, Formatter};
 use std::sync::Arc;
@@ -40,7 +41,7 @@ impl<G: GraphViewInternalOps> Into<EdgeRef> for EdgeView<G> {
 impl<G: GraphViewInternalOps + 'static + Send + Sync> EdgeViewOps for EdgeView<G> {
     type Vertex = VertexView<G>;
 
-    fn prop(&self, name: String) -> Vec<(i64, Prop)> {
+    fn prop(&self, name: String) -> Result<Vec<(i64, Prop)>, GraphError> {
         self.graph.temporal_edge_props_vec(self.edge, name)
     }
 

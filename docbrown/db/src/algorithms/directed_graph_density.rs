@@ -1,7 +1,9 @@
 use crate::view_api::*;
+use docbrown_core::tgraph_shard::errors::GraphError;
 
-pub fn directed_graph_density<G: GraphViewOps>(graph: &G) -> f32 {
-    graph.num_edges() as f32 / (graph.num_vertices() as f32 * (graph.num_vertices() as f32 - 1.0))
+pub fn directed_graph_density<G: GraphViewOps>(graph: &G) -> Result<f32, GraphError> {
+    Ok(graph.num_edges()? as f32
+        / (graph.num_vertices()? as f32 * (graph.num_vertices()? as f32 - 1.0)))
 }
 
 #[cfg(test)]
@@ -27,7 +29,7 @@ mod directed_graph_density_tests {
             g.add_edge(*t, *src, *dst, &vec![]);
         }
 
-        let actual = directed_graph_density(&windowed_graph);
+        let actual = directed_graph_density(&windowed_graph).unwrap();
         let expected = 0.3;
 
         assert_eq!(actual, expected);
@@ -43,7 +45,7 @@ mod directed_graph_density_tests {
             g.add_edge(*t, *src, *dst, &vec![]);
         }
 
-        let actual = directed_graph_density(&windowed_graph);
+        let actual = directed_graph_density(&windowed_graph).unwrap();
         let expected = 1.0;
 
         assert_eq!(actual, expected);

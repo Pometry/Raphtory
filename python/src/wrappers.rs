@@ -1,6 +1,8 @@
+use db_c::tgraph_shard::errors::GraphError;
 use itertools::Itertools;
+use pyo3::exceptions::PyException;
 use pyo3::prelude::*;
-use std::borrow::{Borrow};
+use std::borrow::Borrow;
 
 use docbrown_core as db_c;
 use docbrown_db::view_api::*;
@@ -451,28 +453,34 @@ impl WindowedVertexIterable {
     fn build_iterator(
         &self,
         py: Python,
-    ) -> Box<dyn Iterator<Item = graph_window::WindowedVertex> + Send> {
+    ) -> Result<Box<dyn Iterator<Item = graph_window::WindowedVertex> + Send>, GraphError> {
         let g = self.graph.borrow(py);
         let mut ops_iter = self.operations.iter();
         let mut iter = match self.start_at {
-            None => g.graph_w.vertices(),
+            None => Ok(g.graph_w.vertices()),
             Some(g_id) => {
-                let vertex = g.graph_w.vertex(g_id).expect("should exist");
+                let vertex = g.graph_w.vertex(g_id);
                 let op0 = ops_iter
                     .next()
                     .expect("need to have an operation to get here");
                 match op0 {
-                    Operations::OutNeighbours => vertex.out_neighbours(),
-                    Operations::InNeighbours => vertex.in_neighbours(),
-                    Operations::Neighbours => vertex.neighbours(),
-                    Operations::InNeighboursWindow { t_start, t_end } => {
-                        vertex.in_neighbours_window(*t_start, *t_end)
+                    Operations::OutNeighbours => {
+                        vertex.map(|v| v.expect("should exist").out_neighbours())
                     }
-                    Operations::OutNeighboursWindow { t_start, t_end } => {
-                        vertex.out_neighbours_window(*t_start, *t_end)
+                    Operations::InNeighbours => {
+                        vertex.map(|v| v.expect("should exist").in_neighbours())
                     }
+                    Operations::Neighbours => vertex.map(|v| v.expect("should exist").neighbours()),
+                    Operations::InNeighboursWindow { t_start, t_end } => vertex.map(|v| {
+                        v.expect("should exist")
+                            .in_neighbours_window(*t_start, *t_end)
+                    }),
+                    Operations::OutNeighboursWindow { t_start, t_end } => vertex.map(|v| {
+                        v.expect("should exist")
+                            .out_neighbours_window(*t_start, *t_end)
+                    }),
                     Operations::NeighboursWindow { t_start, t_end } => {
-                        vertex.neighbours_window(*t_start, *t_end)
+                        vertex.map(|v| v.expect("should exist").neighbours_window(*t_start, *t_end))
                     }
                 }
             }
@@ -480,32 +488,34 @@ impl WindowedVertexIterable {
 
         for op in ops_iter {
             iter = match op {
-                Operations::OutNeighbours => iter.out_neighbours(),
-                Operations::InNeighbours => iter.in_neighbours(),
-                Operations::Neighbours => iter.neighbours(),
+                Operations::OutNeighbours => iter.map(|v| v.out_neighbours()),
+                Operations::InNeighbours => iter.map(|v| v.in_neighbours()),
+                Operations::Neighbours => iter.map(|v| v.neighbours()),
                 Operations::InNeighboursWindow { t_start, t_end } => {
-                    iter.in_neighbours_window(*t_start, *t_end)
+                    iter.map(|v| v.in_neighbours_window(*t_start, *t_end))
                 }
                 Operations::OutNeighboursWindow { t_start, t_end } => {
-                    iter.out_neighbours_window(*t_start, *t_end)
+                    iter.map(|v| v.out_neighbours_window(*t_start, *t_end))
                 }
                 Operations::NeighboursWindow { t_start, t_end } => {
-                    iter.neighbours_window(*t_start, *t_end)
+                    iter.map(|v| v.neighbours_window(*t_start, *t_end))
                 }
             }
         }
+
         iter
     }
 }
 
 #[pymethods]
 impl WindowedVertexIterable {
-    fn __iter__(&self, py: Python) -> WindowedVertexIterator {
+    fn __iter__(&self, py: Python) -> PyResult<WindowedVertexIterator> {
         let iter = self.build_iterator(py);
         let g = self.graph.clone_ref(py);
-        WindowedVertexIterator {
-            iter: Box::new(iter.map(move |v| WindowedVertex::new(g.clone(), v))),
-        }
+        let r = iter.map(|v| WindowedVertexIterator {
+            iter: Box::new(v.map(move |v| WindowedVertex::new(g.clone(), v))),
+        });
+        adapt_err(r)
     }
 
     fn id(slf: PyRef<'_, Self>) -> IdIterable {
@@ -604,6 +614,7 @@ impl WindowedVertexIterable {
     fn __repr__(&self, py: Python) -> String {
         let values = self
             .__iter__(py)
+            .unwrap()
             .iter
             .take(11)
             .map(|v| v.__repr__())
@@ -628,7 +639,8 @@ impl IdIterable {
             self.vertex_iter
                 .borrow(py)
                 .build_iterator(py)
-                .map(|v| v.id()),
+                .map(|v| v.id())
+                .unwrap(),
         );
         U64Iter { iter }
     }
@@ -674,16 +686,25 @@ pub struct DegreeIterable {
 }
 
 impl DegreeIterable {
-    fn build_iterator(&self, py: Python) -> Box<dyn Iterator<Item = usize> + Send> {
+    fn build_iterator(
+        &self,
+        py: Python,
+    ) -> Result<Box<dyn Iterator<Item = usize> + Send>, GraphError> {
         let inner = self.vertex_iter.borrow(py);
         let iter = inner.build_iterator(py);
         match self.operation {
-            Direction::OUT => iter.out_degree(),
-            Direction::IN => iter.in_degree(),
-            Direction::BOTH => iter.degree(),
-            Direction::OutWindow { t_start, t_end } => iter.out_degree_window(t_start, t_end),
-            Direction::InWindow { t_start, t_end } => iter.in_degree_window(t_start, t_end),
-            Direction::BothWindow { t_start, t_end } => iter.degree_window(t_start, t_end),
+            Direction::OUT => iter.map(|v| v.out_degree().unwrap()),
+            Direction::IN => iter.map(|v| v.in_degree().unwrap()),
+            Direction::BOTH => iter.map(|v| v.degree().unwrap()),
+            Direction::OutWindow { t_start, t_end } => {
+                iter.map(|v| v.out_degree_window(t_start, t_end).unwrap())
+            }
+            Direction::InWindow { t_start, t_end } => {
+                iter.map(|v| v.in_degree_window(t_start, t_end).unwrap())
+            }
+            Direction::BothWindow { t_start, t_end } => {
+                iter.map(|v| v.degree_window(t_start, t_end).unwrap())
+            }
         }
     }
 }
@@ -692,7 +713,7 @@ impl DegreeIterable {
 impl DegreeIterable {
     fn __iter__(&self, py: Python) -> USizeIter {
         USizeIter {
-            iter: self.build_iterator(py),
+            iter: self.build_iterator(py).unwrap(),
         }
     }
 }
@@ -869,4 +890,14 @@ impl From<Perspective> for perspective::Perspective {
 #[derive(Clone)]
 pub struct PerspectiveSet {
     pub(crate) ps: perspective::PerspectiveSet,
+}
+
+pub fn adapt_err<U, E>(result: Result<U, E>) -> PyResult<U>
+where
+    E: std::error::Error,
+{
+    result.map_err(|e| {
+        let error_log = display_error_chain::DisplayErrorChain::new(&e).to_string();
+        PyException::new_err(error_log)
+    })
 }

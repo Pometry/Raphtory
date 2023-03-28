@@ -27,7 +27,7 @@ pub fn bootstrap_graph(num_shards: usize, num_vertices: usize) -> Graph {
         let source = indexes.next().unwrap();
         let target = indexes.next().unwrap();
         let time = times.next().unwrap();
-        graph.add_edge(time, source, target, &vec![]);
+        graph.add_edge(time, source, target, &vec![]).unwrap();
     }
     graph
 }
@@ -142,7 +142,7 @@ pub fn run_large_ingestion_benchmarks<F>(
                 },
                 |(g, times)| {
                     for t in times.iter() {
-                        g.add_edge(*t, 0, 0, &vec![])
+                        g.add_edge(*t, 0, 0, &vec![]).unwrap()
                     }
                 },
                 BatchSize::SmallInput,
@@ -172,6 +172,7 @@ pub fn run_large_ingestion_benchmarks<F>(
                             dst_gen.next().unwrap(),
                             &vec![],
                         )
+                        .unwrap()
                     }
                 },
                 BatchSize::SmallInput,
@@ -226,7 +227,7 @@ pub fn run_analysis_benchmarks<F, G>(
     );
 
     bench(group, "num_vertices", parameter, |b: &mut Bencher| {
-        b.iter(|| graph.num_vertices())
+        b.iter(|| graph.num_vertices().unwrap())
     });
 
     bench(group, "max_id", parameter, |b: &mut Bencher| {
@@ -234,7 +235,13 @@ pub fn run_analysis_benchmarks<F, G>(
     });
 
     bench(group, "max_degree", parameter, |b: &mut Bencher| {
-        b.iter(|| graph.vertices().into_iter().map(|v| v.degree()).max())
+        b.iter(|| {
+            graph
+                .vertices()
+                .into_iter()
+                .map(|v| v.degree().unwrap())
+                .max()
+        })
     });
 
     bench(
@@ -245,8 +252,9 @@ pub fn run_analysis_benchmarks<F, G>(
             let mut rng = rand::thread_rng();
             let v = graph
                 .vertex(*vertices.choose(&mut rng).expect("non-empty graph"))
-                .expect("existing vertex");
-            b.iter(|| v.neighbours().degree().max())
+                .expect("existing vertex")
+                .expect("Some vertex");
+            b.iter(|| v.neighbours().degree().unwrap().max())
         },
     );
 }

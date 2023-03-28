@@ -15,7 +15,7 @@ pub fn global_triangle_count_analysis(c: &mut Criterion) {
         let g = docbrown_db::graph_loader::lotr_graph::lotr_graph(1);
         let windowed_graph = g.window(i64::MIN, i64::MAX);
         b.iter(|| {
-            global_triangle_count(&windowed_graph);
+            global_triangle_count(&windowed_graph).unwrap();
         });
     });
 
@@ -33,7 +33,7 @@ pub fn local_triangle_count_analysis(c: &mut Criterion) {
             let vertex_ids = windowed_graph.vertices().id().collect::<Vec<_>>();
 
             vertex_ids.into_par_iter().for_each(|v| {
-                local_triangle_count(&windowed_graph, v);
+                local_triangle_count(&windowed_graph, v).unwrap();
             });
         })
     });
@@ -75,7 +75,7 @@ pub fn local_clustering_coefficient_analysis(c: &mut Criterion) {
         ];
 
         for (src, dst, t) in &vs {
-            g.add_edge(*t, *src, *dst, &vec![]);
+            g.add_edge(*t, *src, *dst, &vec![]).unwrap();
         }
 
         b.iter(|| local_clustering_coefficient(&windowed_graph, 1))

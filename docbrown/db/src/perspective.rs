@@ -8,10 +8,7 @@ pub struct Perspective {
 
 impl Perspective {
     pub fn new(start: Option<i64>, end: Option<i64>) -> Perspective {
-        Perspective {
-            start,
-            end,
-        }
+        Perspective { start, end }
     }
     pub(crate) fn new_backward(window: Option<i64>, inclusive_end: i64) -> Perspective {
         Perspective {
@@ -27,7 +24,12 @@ impl Perspective {
             window: None,
         }
     }
-    pub fn rolling(window: u64, step: Option<u64>, start: Option<i64>, end: Option<i64>) -> PerspectiveSet {
+    pub fn rolling(
+        window: u64,
+        step: Option<u64>,
+        start: Option<i64>,
+        end: Option<i64>,
+    ) -> PerspectiveSet {
         PerspectiveSet {
             start: start,
             end: end,
@@ -103,22 +105,23 @@ impl Iterator for PerspectiveIterator {
     }
 }
 
-
 #[cfg(test)]
 mod perspective_tests {
-    use itertools::Itertools;
     use crate::perspective::Perspective;
+    use itertools::Itertools;
 
     fn gen_rolling(tuples: Vec<(i64, i64)>) -> Vec<Perspective> {
-        tuples.iter().map(|(start, end)| {
-            Perspective::new(Some(start.clone()), Some(end.clone()))
-        }).collect()
+        tuples
+            .iter()
+            .map(|(start, end)| Perspective::new(Some(start.clone()), Some(end.clone())))
+            .collect()
     }
 
     fn gen_expanding(tuples: Vec<i64>) -> Vec<Perspective> {
-        tuples.iter().map(|point| {
-            Perspective::new(None, Some(point.clone()))
-        }).collect()
+        tuples
+            .iter()
+            .map(|point| Perspective::new(None, Some(point.clone())))
+            .collect()
     }
 
     #[test]
