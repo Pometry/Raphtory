@@ -259,12 +259,16 @@ mod csv_loader_test {
                     time,
                     src_id,
                     &vec![("name".to_string(), Prop::Str("Character".to_string()))],
-                ).map_err(|err| println!("{:?}", err)).ok();
+                )
+                .map_err(|err| println!("{:?}", err))
+                .ok();
                 g.add_vertex(
                     time,
                     dst_id,
                     &vec![("name".to_string(), Prop::Str("Character".to_string()))],
-                ).map_err(|err| println!("{:?}", err)).ok();
+                )
+                .map_err(|err| println!("{:?}", err))
+                .ok();
                 g.add_edge(
                     time,
                     src_id,

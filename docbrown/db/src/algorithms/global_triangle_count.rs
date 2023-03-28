@@ -1,30 +1,41 @@
 use crate::view_api::*;
+use docbrown_core::tgraph_shard::errors::GraphError;
 use itertools::Itertools;
 use rayon::prelude::*;
 
-pub fn global_triangle_count<G: GraphViewOps>(graph: &G) -> usize {
-    let count: usize = graph
+pub fn global_triangle_count<G: GraphViewOps>(graph: &G) -> Result<usize, GraphError> {
+    let r: Result<Vec<_>, _> = graph
         .vertices()
         .into_iter()
         .par_bridge()
         .map(|v| {
-            v.neighbours()
+            let r: Result<Vec<_>, _> = v
+                .neighbours()
                 .id()
                 .into_iter()
                 .combinations(2)
-                .filter(|nb| graph.has_edge(nb[0], nb[1]) || graph.has_edge(nb[1], nb[0]))
-                .count()
+                .filter_map(|nb| match graph.has_edge(nb[0], nb[1]) {
+                    Ok(true) => Some(Ok(nb)),
+                    Ok(false) => match graph.has_edge(nb[1], nb[0]) {
+                        Ok(true) => Some(Ok(nb)),
+                        Ok(false) => None,
+                        Err(e) => Some(Err(e)),
+                    },
+                    Err(e) => Some(Err(e)),
+                })
+                .collect();
+            r.map(|t| t.len())
         })
-        .sum();
-    count / 3
+        .collect();
+
+    let count: usize = r?.into_iter().sum();
+    Ok(count / 3)
 }
 
 #[cfg(test)]
 mod triangle_count_tests {
-
-    use crate::graph::Graph;
-
     use super::global_triangle_count;
+    use crate::graph::Graph;
 
     #[test]
     fn counts_triangles() {
@@ -38,7 +49,7 @@ mod triangle_count_tests {
         let windowed_graph = g.window(0, 5);
         let expected = 1;
 
-        let actual = global_triangle_count(&windowed_graph);
+        let actual = global_triangle_count(&windowed_graph).unwrap();
 
         assert_eq!(actual, expected);
     }
@@ -80,7 +91,7 @@ mod triangle_count_tests {
         let windowed_graph = g.window(0, 95);
         let expected = 8;
 
-        let actual = global_triangle_count(&windowed_graph);
+        let actual = global_triangle_count(&windowed_graph).unwrap();
 
         assert_eq!(actual, expected);
     }

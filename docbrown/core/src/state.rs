@@ -217,7 +217,7 @@ pub trait StateType: PartialEq + Clone + Debug + Send + Sync + 'static {}
 #[derive(Debug)]
 pub struct ComputeStateMap(Box<dyn DynArray + 'static>);
 
-pub trait ComputeState: Debug + Clone{
+pub trait ComputeState: Debug + Clone {
     fn clone_current_into_other(&mut self, ss: usize);
 
     fn new_mutable_primitive<T: StateType>(zero: T) -> Self;
@@ -487,7 +487,10 @@ impl<CS: ComputeState + Send + Clone> ShardComputeState<CS> {
     ) where
         A: StateType,
     {
-        match (self.states.get_mut(&agg_ref.id), other.states.get(&agg_ref.id)) {
+        match (
+            self.states.get_mut(&agg_ref.id),
+            other.states.get(&agg_ref.id),
+        ) {
             (Some(self_cs), Some(other_cs)) => {
                 self_cs.merge::<A, IN, OUT, ACC, CS>(other_cs, ss);
             }
@@ -496,7 +499,6 @@ impl<CS: ComputeState + Send + Clone> ShardComputeState<CS> {
             }
             _ => {}
         }
-
     }
 
     fn read<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(

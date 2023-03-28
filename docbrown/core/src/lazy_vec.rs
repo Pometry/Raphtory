@@ -1,5 +1,5 @@
-use std::fmt::{Debug};
 use serde::{Deserialize, Serialize};
+use std::fmt::Debug;
 
 #[derive(thiserror::Error, Debug, PartialEq)]
 #[error("cannot set previous value '{previous_value:?}' to '{new_value:?}' in position '{index}'")]
@@ -30,7 +30,7 @@ pub(crate) enum LazyVec<A> {
 
 impl<A> LazyVec<A>
 where
-    A: PartialEq + Default + Clone + Debug
+    A: PartialEq + Default + Clone + Debug,
 {
     pub(crate) fn from(id: usize, value: A) -> Self {
         LazyVec::LazyVec1(id, value)
@@ -40,12 +40,12 @@ where
         match self {
             LazyVec::Empty => Default::default(),
             LazyVec::LazyVec1(id, _) => vec![*id],
-            LazyVec::LazyVecN(vector) => {
-                vector.iter().enumerate()
-                    .filter(|&(_, value)| *value != Default::default())
-                    .map(|(id, _)| id)
-                    .collect()
-            }
+            LazyVec::LazyVecN(vector) => vector
+                .iter()
+                .enumerate()
+                .filter(|&(_, value)| *value != Default::default())
+                .map(|(id, _)| id)
+                .collect(),
         }
     }
 
@@ -60,13 +60,11 @@ where
     // fails if there is already a value set for the given id to a different value
     pub(crate) fn set(&mut self, id: usize, value: A) -> Result<(), IllegalSet<A>> {
         match self {
-            LazyVec::Empty => {
-                Ok(*self = Self::from(id, value))
-            }
+            LazyVec::Empty => Ok(*self = Self::from(id, value)),
             LazyVec::LazyVec1(only_id, only_value) => {
                 if *only_id == id {
                     if *only_value != Default::default() && *only_value != value {
-                        return Err(IllegalSet::new(id, only_value.clone(), value))
+                        return Err(IllegalSet::new(id, only_value.clone(), value));
                     }
                 } else {
                     let mut vector = vec![Default::default(); usize::max(id, *only_id) + 1];
@@ -83,7 +81,7 @@ where
                 if vector[id] == Default::default() {
                     vector[id] = value
                 } else if vector[id] != value {
-                    return Err(IllegalSet::new(id, vector[id].clone(), value))
+                    return Err(IllegalSet::new(id, vector[id].clone(), value));
                 }
                 Ok(())
             }
@@ -100,11 +98,13 @@ where
 
     pub(crate) fn update_or_set<F>(&mut self, id: usize, updater: F, default: A)
     where
-        F: FnOnce(&mut A)
+        F: FnOnce(&mut A),
     {
         match self.get_mut(id) {
             Some(value) => updater(value),
-            None => self.set(id, default).expect("Set failed over a non existing value"),
+            None => self
+                .set(id, default)
+                .expect("Set failed over a non existing value"),
         }
     }
 }
@@ -128,9 +128,9 @@ mod lazy_vec_tests {
         // FIXME: replace update_or_set() with update()
         // the behavior should be the same for both cases, because we should be able to assume that
         // any cell is prefilled with default values and can therefore be safely updated
-        vec.update_or_set(6, |n| { *n += 1 }, 66);
+        vec.update_or_set(6, |n| *n += 1, 66);
         assert_eq!(vec.get(6), Some(&1));
-        vec.update_or_set(9, |n| { *n += 1 }, 99);
+        vec.update_or_set(9, |n| *n += 1, 99);
         assert_eq!(vec.get(9), Some(&99));
 
         assert_eq!(vec.filled_ids(), vec![1, 5, 6, 8, 9]);

@@ -1,6 +1,9 @@
+use crate::{
+    graph::Graph,
+    graph_loader::{fetch_file, CsvLoader},
+};
 use serde::Deserialize;
 use std::path::PathBuf;
-use crate::{graph_loader::{fetch_file, CsvLoader}, graph::Graph};
 
 #[derive(Deserialize, std::fmt::Debug)]
 pub struct Lotr {
@@ -13,7 +16,7 @@ pub fn lotr_file() -> Result<PathBuf, Box<dyn std::error::Error>> {
     fetch_file(
         "lotr.csv",
         "https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv",
-        600
+        600,
     )
 }
 
@@ -27,22 +30,13 @@ pub fn lotr_graph(shards: usize) -> Graph {
                 let dst_id = &lotr.dst_id;
                 let time = lotr.time;
 
-                g.add_vertex(
-                    time,
-                    src_id.clone(),
-                    &vec![],
-                ).map_err(|err| println!("{:?}", err)).ok();
-                g.add_vertex(
-                    time,
-                    dst_id.clone(),
-                    &vec![],
-                ).map_err(|err| println!("{:?}", err)).ok();
-                g.add_edge(
-                    time,
-                    src_id.clone(),
-                    dst_id.clone(),
-                    &vec![],
-                );
+                g.add_vertex(time, src_id.clone(), &vec![])
+                    .map_err(|err| println!("{:?}", err))
+                    .ok();
+                g.add_vertex(time, dst_id.clone(), &vec![])
+                    .map_err(|err| println!("{:?}", err))
+                    .ok();
+                g.add_edge(time, src_id.clone(), dst_id.clone(), &vec![]);
             })
             .expect("Failed to load graph from CSV data files");
         g

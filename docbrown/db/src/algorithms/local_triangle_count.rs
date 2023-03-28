@@ -1,20 +1,33 @@
 use crate::view_api::*;
+use docbrown_core::tgraph_shard::errors::GraphError;
 use itertools::Itertools;
 
-pub fn local_triangle_count<G: GraphViewOps>(graph: &G, v: u64) -> usize {
-    let vertex = graph.vertex(v).unwrap();
+pub fn local_triangle_count<G: GraphViewOps>(graph: &G, v: u64) -> Result<usize, GraphError> {
+    let vertex = graph.vertex(v)?.unwrap();
 
-    let count = if vertex.degree() >= 2 {
-        vertex
+    let count = if vertex.degree()? >= 2 {
+        let r: Result<Vec<_>, _> = vertex
             .neighbours()
             .id()
+            .into_iter()
             .combinations(2)
-            .filter(|nb| graph.has_edge(nb[0], nb[1]) || graph.has_edge(nb[1], nb[0]))
-            .count()
+            .filter_map(|nb| match graph.has_edge(nb[0], nb[1]) {
+                Ok(true) => Some(Ok(nb)),
+                Ok(false) => match graph.has_edge(nb[1], nb[0]) {
+                    Ok(true) => Some(Ok(nb)),
+                    Ok(false) => None,
+                    Err(e) => Some(Err(e)),
+                },
+                Err(e) => Some(Err(e)),
+            })
+            .collect();
+
+        r.map(|t| t.len())?
     } else {
         0
     };
-    count
+
+    Ok(count)
 }
 
 #[cfg(test)]
@@ -37,7 +50,7 @@ mod triangle_count_tests {
         let expected = vec![(1), (1), (1)];
 
         let actual = (1..=3)
-            .map(|v| local_triangle_count(&windowed_graph, v))
+            .map(|v| local_triangle_count(&windowed_graph, v).unwrap())
             .collect::<Vec<_>>();
 
         assert_eq!(actual, expected);
