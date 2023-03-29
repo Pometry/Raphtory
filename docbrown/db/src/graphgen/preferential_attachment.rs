@@ -1,18 +1,35 @@
+//! This module contains the preferential attachment graph generation model.
+//!
+//! This function is a graph generation model based upon:
+//! Barabási, Albert-László, and Réka Albert. "Emergence of scaling in random networks." science 286.5439 (1999): 509-512.
+//! # Examples
+//!
+//! ```
+//! use docbrown_db::graph::Graph;
+//! use docbrown_db::graphgen::preferential_attachment::ba_preferential_attachment;
+//!
+//! let graph = Graph::new(2);
+//! ba_preferential_attachment(&graph, 1000, 10);
+//! ```
+
 use crate::graph::Graph;
 use crate::view_api::*;
 use docbrown_core::tgraph_shard::errors::GraphError;
 use rand::prelude::*;
 use std::collections::HashSet;
 
-/// This function is a graph generation model based upon:
-/// Barabási, Albert-László, and Réka Albert. "Emergence of scaling in random networks." science 286.5439 (1999): 509-512.
+/// Generates a graph using the preferential attachment model.
 ///
-/// Given a graph this function will add a user defined number of vertices, each with a user defined number of edges.
-/// This is an iterative algorithm where at each `step` a vertex is added and its neighbours are chosen from the pool of nodes already within the network.
-/// For this model the neighbours are chosen proportionally based upon their degree, favouring nodes with higher degree (more connections).
+/// Given a graph this function will add a user defined number of vertices, each with a user
+/// defined number of edges.
+/// This is an iterative algorithm where at each `step` a vertex is added and its neighbours are
+/// chosen from the pool of nodes already within the network.
+/// For this model the neighbours are chosen proportionally based upon their degree, favouring
+/// nodes with higher degree (more connections).
 /// This sampling is conducted without replacement.
 ///
-/// **Note:**  If the provided graph doesnt have enough nodes/edges for the initial sample, the min number of both will be added before generation begins.
+/// **Note:**  If the provided graph doesnt have enough nodes/edges for the initial sample,
+/// the min number of both will be added before generation begins.
 ///
 /// # Arguments
 /// * `graph` - The graph you wish to add vertices and edges to
@@ -22,8 +39,10 @@ use std::collections::HashSet;
 ///
 /// ```
 /// use docbrown_db::graph::Graph;
+/// use docbrown_db::graphgen::preferential_attachment::ba_preferential_attachment;
+///
 /// let graph = Graph::new(2);
-//  ba_preferential_attachment(&graph, 1000, 10);
+/// ba_preferential_attachment(&graph, 1000, 10);
 /// ```
 pub fn ba_preferential_attachment(
     graph: &Graph,

@@ -1,4 +1,5 @@
 //! Functionality for loading graph data from CSV files.
+//!
 
 pub mod csv {
     use bzip2::read::BzDecoder;

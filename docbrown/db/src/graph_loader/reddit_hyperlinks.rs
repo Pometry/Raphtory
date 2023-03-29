@@ -1,3 +1,44 @@
+//! Load (a subset of) Reddit hyperlinks dataset into a graph.
+//! The dataset is available at https://snap.stanford.edu/data/soc-redditHyperlinks-body.tsv
+//! The hyperlink network represents the directed connections between two subreddits (a subreddit
+//! is a community on Reddit). We also provide subreddit embeddings. The network is extracted
+//! from publicly available Reddit data of 2.5 years from Jan 2014 to April 2017.
+//! *NOTE: It may take a while to download the dataset
+//!
+//! ## Dataset statistics
+//! * Number of nodes (subreddits) 	35,776
+//! * Number of edges (hyperlink between subreddits) 	137,821
+//! * Timespan 	Jan 2014 - April 2017
+//!
+//! ## Source
+//! S. Kumar, W.L. Hamilton, J. Leskovec, D. Jurafsky. Community Interaction and Conflict
+//! on the Web. World Wide Web Conference, 2018.
+//!
+//! ## Properties
+//!
+//!  * SOURCE_SUBREDDIT: the subreddit where the link originates
+//!  * TARGET_SUBREDDIT: the subreddit where the link ends
+//!  * POST_ID: the post in the source subreddit that starts the link
+//!  * TIMESTAMP: time time of the post
+//!  * POST_LABEL: label indicating if the source post is explicitly negative towards the target
+//! post. The value is -1 if the source is negative towards the target, and 1 if it is neutral or
+//! positive. The label is created using crowd-sourcing and training a text based classifier, and
+//! is better than simple sentiment analysis of the posts. Please see the reference paper for details.
+//!  * POST_PROPERTIES: a vector representing the text properties of the source post, listed as a
+//! list of comma separated numbers. This can be found on the source website
+//!
+//! Example:
+//! ```rust
+//! use docbrown_db::graph_loader::reddit_hyperlinks::reddit_graph;
+//! use docbrown_db::graph::Graph;
+//! use docbrown_db::view_api::*;
+//!
+//! let graph = reddit_graph(1, 120);
+//!
+//! println!("The graph has {:?} vertices", graph.num_vertices());
+//! println!("The graph has {:?} edges", graph.num_edges());
+//! ```
+
 use crate::{graph::Graph, graph_loader::fetch_file};
 use chrono::*;
 use docbrown_core::Prop;
@@ -7,7 +48,11 @@ use std::io::{self, BufRead};
 use std::path::Path;
 use std::path::PathBuf;
 
-//https://snap.stanford.edu/data/soc-RedditHyperlinks.html
+/// Download the dataset and return the path to the file
+/// # Arguments
+/// * `timeout` - The timeout in seconds for downloading the dataset
+/// # Returns
+/// * `PathBuf` - The path to the file
 pub fn reddit_file(timeout: u64) -> Result<PathBuf, Box<dyn std::error::Error>> {
     fetch_file(
         "reddit.tsv",
@@ -16,6 +61,7 @@ pub fn reddit_file(timeout: u64) -> Result<PathBuf, Box<dyn std::error::Error>> 
     )
 }
 
+/// Read the file line by line
 fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
 where
     P: AsRef<Path>,
@@ -24,6 +70,16 @@ where
     Ok(io::BufReader::new(file).lines())
 }
 
+/// Load the Reddit hyperlinks dataset into a graph and return it
+///
+/// # Arguments
+///
+/// * `shards` - The number of shards to use for the graph
+/// * `timeout` - The timeout in seconds for downloading the dataset
+///
+/// # Returns
+///
+/// * `Graph` - The graph containing the Reddit hyperlinks dataset
 pub fn reddit_graph(shards: usize, timeout: u64) -> Graph {
     let graph = {
         let g = Graph::new(shards);

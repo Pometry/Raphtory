@@ -1,3 +1,46 @@
+//! Varying degree calculations for the entire graph.
+//! The degree of a vertex is the number of edges connected to it.
+//!
+//! There are two types of degree: in-degree and out-degree.
+//! In-degree is the number of edges that point to a vertex.
+//! Out-degree is the number of edges that point away from a vertex.
+//!
+//! This library provides the following degree calculations:
+//! - max_out_degree - The maximum out degree of any vertex in the graph.
+//! - max_in_degree - The maximum in degree of any vertex in the graph.
+//! - min_out_degree - The minimum out degree of any vertex in the graph.
+//! - min_in_degree - The minimum in degree of any vertex in the graph.
+//! - average_degree - The average degree of all vertices in the graph.
+//!
+//!
+//! # Examples
+//!
+//! ```rust
+//! use docbrown_db::algorithms::degree::{max_out_degree, max_in_degree, min_out_degree, min_in_degree, average_degree};
+//! use docbrown_db::graph::Graph;
+//!
+//! let g = Graph::new(1);
+//! let windowed_graph = g.window(0, 7);
+//! let vs = vec![
+//!     (1, 1, 2),
+//!     (2, 1, 3),
+//!     (3, 2, 1),
+//!     (4, 3, 2),
+//!     (5, 1, 4),
+//!     (6, 4, 5),
+//! ];
+//!
+//! for (t, src, dst) in &vs {
+//!     g.add_edge(*t, *src, *dst, &vec![]);
+//! }
+//!
+//! print!("Max out degree: {:?}", max_out_degree(&windowed_graph));
+//! print!("Max in degree: {:?}", max_in_degree(&windowed_graph));
+//! print!("Min out degree: {:?}", min_out_degree(&windowed_graph));
+//! print!("Min in degree: {:?}", min_in_degree(&windowed_graph));
+//! print!("Average degree: {:?}", average_degree(&windowed_graph));
+//! ```
+//!
 use crate::view_api::*;
 use docbrown_core::tgraph_shard::errors::GraphError;
 
