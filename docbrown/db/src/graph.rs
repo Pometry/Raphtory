@@ -1,3 +1,5 @@
+//! Defines the `Graph` struct, which represents a graph in memory.
+
 use crate::graph_immutable::ImmutableGraph;
 use crate::graph_window::{GraphWindowSet, WindowedGraph};
 use crate::perspective::{Perspective, PerspectiveIterator, PerspectiveSet};
@@ -470,22 +472,74 @@ impl Graph {
         }
     }
 
+    /// Get the shard id from a global vertex id
+    ///
+    /// # Arguments
+    ///
+    /// * `g_id` - The global vertex id
+    ///
+    /// # Returns
+    ///
+    /// The shard id
     fn shard_id(&self, g_id: u64) -> usize {
         utils::get_shard_id_from_global_vid(g_id, self.nr_shards)
     }
 
+    /// Get the shard from a global vertex id
+    ///
+    /// # Arguments
+    ///
+    /// * `g_id` - The global vertex id
+    ///
+    /// # Returns
+    ///
+    /// The shard reference
     fn get_shard_from_id(&self, g_id: u64) -> &TGraphShard<TemporalGraph> {
         &self.shards[self.shard_id(g_id)]
     }
 
+    /// Get the shard from a global vertex id
+    ///
+    /// # Arguments
+    ///
+    /// * `g_id` - The global vertex id
+    ///
+    /// # Returns
+    ///
+    /// The shard reference
     fn get_shard_from_v(&self, v: VertexRef) -> &TGraphShard<TemporalGraph> {
         &self.shards[self.shard_id(v.g_id)]
     }
 
+    /// Get the shard from an edge reference
+    ///
+    /// # Arguments
+    ///
+    /// * `e` - The edge reference
+    ///
+    /// # Returns
+    ///
+    /// The shard reference
     fn get_shard_from_e(&self, e: EdgeRef) -> &TGraphShard<TemporalGraph> {
         &self.shards[self.shard_id(e.src_g_id)]
     }
 
+    /// Create a new graph with the specified number of shards
+    ///
+    /// # Arguments
+    ///
+    /// * `nr_shards` - The number of shards
+    ///
+    /// # Returns
+    ///
+    /// A docbrown graph
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use docbrown_db::graph::Graph;;
+    /// let g = Graph::new(4);
+    /// ```
     pub fn new(nr_shards: usize) -> Self {
         Graph {
             nr_shards,
@@ -493,14 +547,66 @@ impl Graph {
         }
     }
 
+    /// Generate a windowed graph from a graph based on a time range
+    ///
+    /// # Arguments
+    ///
+    /// * `t_start` - The start time (inclusive)
+    /// * `t_end` - The end time (exclusive)
+    ///
+    /// # Returns
+    ///
+    /// A windowed graph
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use docbrown_db::graph::Graph;;
+    /// let g = Graph::new(1);
+    /// g.add_vertex(1, 10, &vec![]);
+    /// g.add_vertex(2, 20, &vec![]);
+    /// g.add_vertex(3, 30, &vec![]);
+    /// g.add_edge(2, 10, 20, &vec![]);
+    /// g.add_edge(3, 20, 30, &vec![]);
+    /// let w = g.window(1, 3);
+    /// ```
     pub fn window(&self, t_start: i64, t_end: i64) -> WindowedGraph {
         WindowedGraph::new(self.clone(), t_start, t_end)
     }
 
+    /// Generate a windowed graph from a graph at a specific time
+    ///
+    /// # Arguments
+    ///
+    /// * `end` - The time
+    ///
+    /// # Returns
+    ///
+    /// A windowed graph
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use docbrown_db::graph::Graph;;
+    /// let g = Graph::new(1);
+    /// g.add_vertex(1, 10, &vec![]);
+    /// g.add_vertex(2, 20, &vec![]);
+    /// g.add_vertex(3, 30, &vec![]);
+    /// g.add_edge(2, 10, 20, &vec![]);
+    /// g.add_edge(3, 20, 30, &vec![]);
+    /// let w = g.at(2);
+    /// ```
     pub fn at(&self, end: i64) -> WindowedGraph {
         self.window(i64::MIN, end.saturating_add(1))
     }
 
+    /// Returns a `GraphWindowSet` containing all windows in the graph that are visible from at least
+    /// one perspective in the `perspectives` set.
+    ///
+    /// # Arguments
+    ///
+    /// * `perspectives` - A `PerspectiveSet` containing the perspectives from which to view the graph.
+    ///
     pub fn through_perspectives(
         &self,
         perspectives: PerspectiveSet,
@@ -512,6 +618,13 @@ impl Graph {
         Ok(GraphWindowSet::new(self.clone(), Box::new(iter)))
     }
 
+    /// Returns a `GraphWindowSet` containing all windows in the graph that are visible from the
+    /// perspectives returned by the provided iterator.
+    ///
+    /// # Arguments
+    ///
+    /// * `perspectives` - A boxed iterator over `Perspective` instances.
+    ///
     pub fn through_iter(
         &self,
         perspectives: Box<dyn Iterator<Item = Perspective> + Send>,
@@ -523,6 +636,22 @@ impl Graph {
         Ok(GraphWindowSet::new(self.clone(), iter))
     }
 
+    /// Load a graph from a directory
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - The path to the directory
+    ///
+    /// # Returns
+    ///
+    /// A docbrown graph
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use docbrown_db::graph::Graph;
+    /// // let g = Graph::load_from_file("path/to/graph");
+    /// ```
     pub fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self, Box<bincode::ErrorKind>> {
         // use BufReader for better performance
 
@@ -555,6 +684,25 @@ impl Graph {
         Ok(Graph { nr_shards, shards }) //TODO I need to put in the actual values here
     }
 
+    /// Save a graph to a directory
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - The path to the directory
+    ///
+    /// # Returns
+    ///
+    /// A docbrown graph
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use docbrown_db::graph::Graph;
+    /// use std::fs::File;
+    /// let mut g = Graph::new(4);
+    /// g.add_vertex(1, 1, &vec![]);
+    /// // g.save_to_file("path_str");
+    /// ```
     pub fn save_to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), Box<bincode::ErrorKind>> {
         // write each shard to a different file
 
@@ -583,6 +731,26 @@ impl Graph {
     }
 
     // TODO: Probably add vector reference here like add
+    /// Add a vertex to the graph
+    ///
+    /// # Arguments
+    ///
+    /// * `t` - The time
+    /// * `v` - The vertex (can be a string or integer)
+    /// * `props` - The properties of the vertex
+    ///
+    /// # Returns
+    ///
+    /// A result containing the vertex id
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use docbrown_db::graph::Graph;
+    /// let g = Graph::new(1);
+    /// let v = g.add_vertex(0, "Alice", &vec![]);
+    /// let v = g.add_vertex(0, 5, &vec![]);
+    /// ```
     pub fn add_vertex<T: InputVertex>(
         &self,
         t: i64,
@@ -593,6 +761,23 @@ impl Graph {
         self.shards[shard_id].add_vertex(t, v, &props)
     }
 
+    /// Adds properties to the given input vertex.
+    ///
+    /// # Arguments
+    ///
+    /// * `v` - A vertex
+    /// * `data` - A vector of tuples containing the property name and value pairs to add to the vertex.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use docbrown_db::graph::Graph;
+    /// use docbrown_core::Prop;
+    /// let graph = Graph::new(1);
+    /// graph.add_vertex(0, "Alice", &vec![]);
+    /// let properties = vec![("color".to_owned(), Prop::Str("blue".to_owned())), ("weight".to_owned(), Prop::I64(11))];
+    /// let result = graph.add_vertex_properties("Alice", &properties);
+    /// ```
     pub fn add_vertex_properties<T: InputVertex>(
         &self,
         v: T,
@@ -603,6 +788,25 @@ impl Graph {
     }
 
     // TODO: Vertex.name which gets ._id property else numba as string
+    /// Adds an edge between the source and destination vertices with the given timestamp and properties.
+    ///
+    /// # Arguments
+    ///
+    /// * `t` - The timestamp of the edge.
+    /// * `src` - An instance of `T` that implements the `InputVertex` trait representing the source vertex.
+    /// * `dst` - An instance of `T` that implements the `InputVertex` trait representing the destination vertex.
+    /// * `props` - A vector of tuples containing the property name and value pairs to add to the edge.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use docbrown_db::graph::Graph;
+    ///
+    /// let graph = Graph::new(1);
+    /// graph.add_vertex(1, "Alice", &vec![]);
+    /// graph.add_vertex(2, "Bob", &vec![]);
+    /// graph.add_edge(3, "Alice", "Bob", &vec![]);
+    /// ```    
     pub fn add_edge<T: InputVertex>(
         &self,
         t: i64,
@@ -627,6 +831,26 @@ impl Graph {
         }
     }
 
+    /// Adds properties to an existing edge between a source and destination vertices
+    ///
+    /// # Arguments
+    ///
+    /// * `src` - An instance of `T` that implements the `InputVertex` trait representing the source vertex.
+    /// * `dst` - An instance of `T` that implements the `InputVertex` trait representing the destination vertex.
+    /// * `props` - A vector of tuples containing the property name and value pairs to add to the edge.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use docbrown_db::graph::Graph;
+    /// use docbrown_core::Prop;
+    /// let graph = Graph::new(1);
+    /// graph.add_vertex(1, "Alice", &vec![]);
+    /// graph.add_vertex(2, "Bob", &vec![]);
+    /// graph.add_edge(3, "Alice", "Bob", &vec![]);
+    /// let properties = vec![("price".to_owned(), Prop::I64(100))];
+    /// let result = graph.add_edge_properties("Alice", "Bob", &properties);
+    /// ```
     pub fn add_edge_properties<T: InputVertex>(
         &self,
         src: T,

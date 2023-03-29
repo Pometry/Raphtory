@@ -1,3 +1,5 @@
+//! Defines the `Vertex` struct, which represents a vertex in the graph.
+
 use crate::edge::EdgeView;
 use crate::graph::Graph;
 use crate::view_api::internal::GraphViewInternalOps;

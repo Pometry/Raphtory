@@ -1,6 +1,55 @@
-use docbrown_core::tgraph_shard::errors::GraphError;
-
+//! Reciprocity - measure of the symmetry of relationships in a graph.
+//! This calculates the number of reciprocal connections (edges that go in both directions) in a
+//! graph and normalizes it by the total number of edges.
+//!
+//! In a social network context, reciprocity measures the likelihood that if person A is linked
+//! to person B, then person B is linked to person A. This algorithm can be used to determine the
+//! level of symmetry or balance in a social network. It can also reveal the power dynamics in a
+//! group or community. For example, if one person has many connections that are not reciprocated,
+//! it could indicate that this person has more power or influence in the network than others.
+//!
+//! In a business context, reciprocity can be used to study customer behavior. For instance, in a
+//! transactional network, if a customer tends to make a purchase from a seller and then the seller
+//! makes a purchase from the same customer, it can indicate a strong reciprocal relationship
+//! between them. On the other hand, if the seller does not make a purchase from the same customer,
+//! it could imply a less reciprocal or more one-sided relationship.
+//!
+//! There are three algorithms in this module:
+//!  - `local_reciprocity` - returns the reciprocity of a single vertex
+//! - `all_local_reciprocity` - returns the reciprocity of every vertex in the graph as a tuple of
+//! vector id and the reciprocity
+//! - `global_reciprocity` - returns the global reciprocity of the entire graph
+//!
+//! # Examples
+//!
+//! ```rust
+//! use docbrown_db::algorithms::reciprocity::{all_local_reciprocity, global_reciprocity, local_reciprocity};
+//! use docbrown_db::graph::Graph;
+//! let g = Graph::new(1);
+//! let vs = vec![
+//!     (1, 1, 2),
+//!     (1, 1, 4),
+//!     (1, 2, 3),
+//!     (1, 3, 2),
+//!     (1, 3, 1),
+//!     (1, 4, 3),
+//!     (1, 4, 1),
+//!     (1, 1, 5),
+//! ];
+//!
+//! for (t, src, dst) in &vs {
+//!     g.add_edge(*t, *src, *dst, &vec![]);
+//! }
+//!
+//! let windowed_graph = g.window(0, 2);
+//! println!("local_reciprocity: {:?}",  local_reciprocity(&windowed_graph, 5));
+//!
+//! println!("all_local_reciprocity: {:?}", all_local_reciprocity(&windowed_graph));
+//!
+//! println!("global_reciprocity: {:?}", global_reciprocity(&windowed_graph));
+//! ```
 use crate::view_api::*;
+use docbrown_core::tgraph_shard::errors::GraphError;
 use std::collections::HashSet;
 
 fn get_reciprocal_edge_count<V: VertexViewOps>(v: &V) -> (u64, u64, u64) {
@@ -13,6 +62,7 @@ fn get_reciprocal_edge_count<V: VertexViewOps>(v: &V) -> (u64, u64, u64) {
     )
 }
 
+/// Returns the global reciprocity of the entire graph
 pub fn global_reciprocity<G: GraphViewOps>(graph: &G) -> f64 {
     let edges = graph.vertices().into_iter().fold((0, 0), |acc, v| {
         let r_e_c = get_reciprocal_edge_count(&v);
@@ -21,8 +71,8 @@ pub fn global_reciprocity<G: GraphViewOps>(graph: &G) -> f64 {
     edges.1 as f64 / edges.0 as f64
 }
 
-// Returns the reciprocity of every vertex in the graph as a tuple of
-// vector id and the reciprocity
+/// Returns the reciprocity of every vertex in the graph as a tuple of
+/// vector id and the reciprocity
 pub fn all_local_reciprocity<G: GraphViewOps>(graph: &G) -> Result<Vec<(u64, f64)>, GraphError> {
     graph
         .vertices()
@@ -34,7 +84,7 @@ pub fn all_local_reciprocity<G: GraphViewOps>(graph: &G) -> Result<Vec<(u64, f64
         .collect()
 }
 
-// Returns the reciprocity value of a single vertex
+/// Returns the reciprocity value of a single vertex
 pub fn local_reciprocity<G: GraphViewOps>(graph: &G, v: u64) -> Result<f64, GraphError> {
     match graph.vertex(v)? {
         None => Ok(0 as f64),

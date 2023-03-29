@@ -1,3 +1,14 @@
+//! A data structure for sharding a temporal graph.
+//!
+//! When a docbrown graph is created, the code will automatically shard the graph depending
+//! on how many shards you set the graph to originally have when initializing it.
+//!
+//! For example, Graph::new(4) will create a graph with 4 shards.
+//!
+//! Each of these shards will be stored in a separate file, and will be loaded into memory when needed.
+//!
+//! Each shard will have its own set of vertex and edge data, and will be able to be queried independently.
+
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::ops::Range;

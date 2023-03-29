@@ -1,3 +1,5 @@
+//! Defines the `Edge` struct, which represents an edge in the graph.
+
 use crate::vertex::VertexView;
 use crate::view_api::internal::GraphViewInternalOps;
 use crate::view_api::{EdgeListOps, EdgeViewOps};

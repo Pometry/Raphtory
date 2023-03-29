@@ -1,3 +1,5 @@
+//! `GraphLoader` trait and provides some default implementations for loading a graph.
+
 use crate::csv_loader::csv::CsvLoader;
 use std::env;
 use std::fs::File;

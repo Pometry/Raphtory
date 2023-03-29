@@ -1,3 +1,5 @@
+//! Computing aggregates over temporal graph data.
+
 use std::{
     marker::PhantomData,
     ops::{AddAssign, Div},

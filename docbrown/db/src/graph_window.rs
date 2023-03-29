@@ -1,3 +1,5 @@
+//! Defines the `GraphWindow` trait, which represents a window of time over which a graph can be queried.
+
 use crate::graph::Graph;
 use crate::perspective::Perspective;
 use docbrown_core::{

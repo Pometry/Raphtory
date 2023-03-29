@@ -1,3 +1,6 @@
+//!  Defines the `Program` trait, which represents code that is used to evaluate
+//!  algorithms and custom code that can be run on the graph.
+
 use std::{
     cell::{Ref, RefCell},
     fmt::Debug,

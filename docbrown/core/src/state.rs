@@ -1,3 +1,5 @@
+//! A data structure for storing stateful data for temporal graphs and their shards.
+
 use std::{any::Any, fmt::Debug};
 
 use rustc_hash::FxHashMap;

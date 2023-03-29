@@ -1,8 +1,37 @@
+//! Global triangle count:  Counts the number of triangles in a graph.
+//!
+//! A triangle in a graph is a set of three vertices that are mutually adjacent,
+//! meaning each vertex is directly connected to the other two vertices.
+//!
+//! This can be computationally expensive for large graphs as every vertexes adjacenlist must be
+//! calculated.
+//!
+//! In social network analysis, this can measure the level of connectedness or clustering
+//! in a network. Un scientific simulations, this can measure the properties of complex systems.
+//!
+//! # Examples
+//! ```rust
+//! use docbrown_db::algorithms::global_triangle_count::global_triangle_count;
+//! use docbrown_db::graph::Graph;
+//! let g = Graph::new(1);
+//! let vs = vec![(1, 1, 2), (2, 1, 3), (3, 2, 1), (4, 3, 2)];
+//!
+//! for (t, src, dst) in &vs {
+//! g.add_edge(*t, *src, *dst, &vec![]);
+//! }
+//!
+//! let windowed_graph = g.window(0, 5);
+//! let expected = 1;
+//!
+//! println!("global_triangle_count: {:?}", global_triangle_count(&windowed_graph));  
+//! ```
+
 use crate::view_api::*;
 use docbrown_core::tgraph_shard::errors::GraphError;
 use itertools::Itertools;
 use rayon::prelude::*;
 
+/// Counts the number of triangles in a graph.
 pub fn global_triangle_count<G: GraphViewOps>(graph: &G) -> Result<usize, GraphError> {
     let r: Result<Vec<_>, _> = graph
         .vertices()

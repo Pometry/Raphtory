@@ -1,6 +1,7 @@
 use crate::view_api::*;
 use docbrown_core::tgraph_shard::errors::GraphError;
 
+/// The maximum out degree of any vertex in the graph.
 pub fn max_out_degree<G: GraphViewOps>(graph: &G) -> Result<usize, GraphError> {
     let r: Result<Vec<usize>, GraphError> = graph
         .vertices()
@@ -11,6 +12,7 @@ pub fn max_out_degree<G: GraphViewOps>(graph: &G) -> Result<usize, GraphError> {
     Ok(r?.into_iter().max().unwrap_or(0))
 }
 
+/// The maximum in degree of any vertex in the graph.
 pub fn max_in_degree<G: GraphViewOps>(graph: &G) -> Result<usize, GraphError> {
     let r: Result<Vec<usize>, GraphError> = graph
         .vertices()
@@ -21,6 +23,7 @@ pub fn max_in_degree<G: GraphViewOps>(graph: &G) -> Result<usize, GraphError> {
     Ok(r?.into_iter().max().unwrap_or(0))
 }
 
+/// The minimum out degree of any vertex in the graph.
 pub fn min_out_degree<G: GraphViewOps>(graph: &G) -> Result<usize, GraphError> {
     let r: Result<Vec<usize>, GraphError> = graph
         .vertices()
@@ -31,6 +34,7 @@ pub fn min_out_degree<G: GraphViewOps>(graph: &G) -> Result<usize, GraphError> {
     Ok(r?.into_iter().min().unwrap_or(0))
 }
 
+/// The minimum in degree of any vertex in the graph.
 pub fn min_in_degree<G: GraphViewOps>(graph: &G) -> Result<usize, GraphError> {
     let r: Result<Vec<usize>, GraphError> = graph
         .vertices()
@@ -41,6 +45,7 @@ pub fn min_in_degree<G: GraphViewOps>(graph: &G) -> Result<usize, GraphError> {
     Ok(r?.into_iter().min().unwrap_or(0))
 }
 
+/// The average degree of all vertices in the graph.
 pub fn average_degree<G: GraphViewOps>(graph: &G) -> Result<f64, GraphError> {
     let r: Result<Vec<usize>, GraphError> =
         graph.vertices().into_iter().map(|v| v.degree()).collect();
