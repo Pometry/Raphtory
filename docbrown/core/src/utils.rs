@@ -1,3 +1,5 @@
+//! Utility functions used throughout the modules.
+
 use std::hash::{Hash, Hasher};
 
 use rustc_hash::FxHasher;

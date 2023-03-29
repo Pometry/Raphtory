@@ -1,3 +1,5 @@
+//! Defines the `Perspective` struct, which represents a view of the graph at a particular time.
+
 use std::ops::Range;
 
 #[derive(Debug, PartialEq)]

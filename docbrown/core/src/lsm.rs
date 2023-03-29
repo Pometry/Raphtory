@@ -1,3 +1,5 @@
+//! A data structure for storing and querying temporal graph data using a Log-Structured Merge Tree (LSM).
+
 use std::fmt::Debug;
 
 use itertools::Itertools;

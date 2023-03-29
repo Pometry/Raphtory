@@ -13,11 +13,11 @@ rust-build-readthedocs:
 	rm -rf $(RUST_READTHEDOCS_DOCS_TARGET)/doc
 
 build-all: rust-build
-	cd raphtory && maturin develop
+	cd python && maturin develop
 
 rust-test:
 	cargo test -q
 
 test-all: rust-test
-	cd raphtory && pytest
+	cd python && pytest
 
