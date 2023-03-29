@@ -1528,22 +1528,6 @@ mod db_tests {
         assert_eq!(g.num_edges().unwrap(), 701);
     }
 
-    //TODO: move this to integration tests or speed it up
-    #[ignore]
-    #[test]
-    fn test_twitter_load_graph() {
-        let g = crate::graph_loader::twitter_graph::twitter_graph(1);
-        let windowed_graph = g.window(i64::MIN, i64::MAX);
-        let mut i = 0;
-        println!("Starting analysis");
-        windowed_graph.vertex_ids().for_each(|v| {
-            local_triangle_count(&windowed_graph, v).unwrap();
-            i += 1;
-        });
-        assert_eq!(g.num_edges().unwrap(), 1089147);
-        assert_eq!(g.num_vertices().unwrap(), 49467);
-    }
-
     #[test]
     fn test_graph_at() {
         let g = crate::graph_loader::lotr_graph::lotr_graph(1);
