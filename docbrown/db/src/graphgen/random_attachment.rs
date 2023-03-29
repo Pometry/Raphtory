@@ -1,17 +1,33 @@
+//! Generates a graph using the random attachment model
+//!
+//! This function is a graph generation model based upon:
+//! Callaway, Duncan S., et al. "Are randomly grown graphs really random?."
+//! Physical Review E 64.4 (2001): 041902.
+//!
+//! # Examples
+//!
+//! ```
+//! use docbrown_db::graph::Graph;
+//! use docbrown_db::graphgen::random_attachment::random_attachment;
+//! let graph = Graph::new(2);
+//! random_attachment(&graph, 1000, 10);
+//! ```
+
 use crate::graph::Graph;
 use crate::view_api::internal::GraphViewInternalOps;
 use crate::view_api::*;
 use docbrown_core::tgraph_shard::errors::GraphError;
 use rand::seq::SliceRandom;
 
-/// This function is a graph generation model based upon:
-/// Callaway, Duncan S., et al. "Are randomly grown graphs really random?." Physical Review E 64.4 (2001): 041902.
+/// Given a graph this function will add a user defined number of vertices, each with a
+/// user defined number of edges.
+/// This is an iterative algorithm where at each `step` a vertex is added and its neighbours
+/// are chosen from the pool of nodes already within the network.
+/// For this model the neighbours are chosen purely at random. This sampling is done
+/// without replacement.
 ///
-/// Given a graph this function will add a user defined number of vertices, each with a user defined number of edges.
-/// This is an iterative algorithm where at each `step` a vertex is added and its neighbours are chosen from the pool of nodes already within the network.
-/// For this model the neighbours are chosen purely at random. This sampling is done without replacement.
-///
-/// **Note:**  If the provided graph doesnt have enough nodes/edges for the initial sample, the min number of both will be added before generation begins.
+/// **Note:**  If the provided graph doesnt have enough nodes/edges for the initial sample,
+/// the min number of both will be added before generation begins.
 ///
 /// # Arguments
 /// * `graph` - The graph you wish to add vertices and edges to
@@ -21,8 +37,9 @@ use rand::seq::SliceRandom;
 ///
 /// ```
 /// use docbrown_db::graph::Graph;
+/// use docbrown_db::graphgen::random_attachment::random_attachment;
 /// let graph = Graph::new(2);
-//  ba_preferential_attachment(&graph, 1000, 10);
+/// random_attachment(&graph, 1000, 10);
 /// ```
 pub fn random_attachment(
     graph: &Graph,
