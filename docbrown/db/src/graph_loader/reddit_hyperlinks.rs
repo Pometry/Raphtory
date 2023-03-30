@@ -28,7 +28,7 @@
 //! list of comma separated numbers. This can be found on the source website
 //!
 //! Example:
-//! ```rust
+//! ```no_run
 //! use docbrown_db::graph_loader::reddit_hyperlinks::reddit_graph;
 //! use docbrown_db::graph::Graph;
 //! use docbrown_db::view_api::*;

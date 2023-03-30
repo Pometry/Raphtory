@@ -35,7 +35,7 @@
 //! * UNIXTS: Unix timestamp (seconds since the epoch)
 //!
 //! Example:
-//! ```rust
+//! ```no_run
 //! use docbrown_db::graph_loader::sx_superuser_graph::sx_superuser_graph;
 //! use docbrown_db::graph::Graph;
 //! use docbrown_db::view_api::*;

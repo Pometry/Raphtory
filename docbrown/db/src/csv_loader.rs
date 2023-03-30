@@ -1,6 +1,64 @@
-//! Functionality for loading graph data from CSV files.
+//! Module containing functions for loading CSV files into a graph.
+//!
+//! # Example
+//! ```no_run
+//!  use std::path::{Path, PathBuf};
+//! use regex::Regex;
+//! use docbrown_core::Prop;
+//! use docbrown_core::utils::calculate_hash;
+//! use docbrown_db::csv_loader::csv::CsvLoader;
+//!  use docbrown_db::graph::Graph;
+//! use docbrown_db::graph_loader::lotr_graph::Lotr;
+//!
+//!  let g = Graph::new(2);
+//!  let csv_path: PathBuf = [env!("CARGO_MANIFEST_DIR"), "../../resource/"]
+//!         .iter()
+//!         .collect();
+//!
+//!  println!("path = {}", csv_path.as_path().to_str().unwrap());
+//!  let csv_loader = CsvLoader::new(Path::new(&csv_path));
+//!  let has_header = true;
+//!  let r = Regex::new(r".+(lotr.csv)").unwrap();
+//!  let delimiter = ",";
+//!
+//!  csv_loader
+//!      .set_header(has_header)
+//!      .set_delimiter(delimiter)
+//!      .with_filter(r)
+//!      .load_into_graph(&g, |lotr: Lotr, g: &Graph| {
+//!          let src_id = calculate_hash(&lotr.src_id);
+//!          let dst_id = calculate_hash(&lotr.dst_id);
+//!          let time = lotr.time;
+//!
+//!          g.add_vertex(
+//!              time,
+//!              src_id,
+//!              &vec![("name".to_string(), Prop::Str("Character".to_string()))],
+//!          )
+//!          .map_err(|err| println!("{:?}", err))
+//!          .ok();
+//!          g.add_vertex(
+//!              time,
+//!              dst_id,
+//!              &vec![("name".to_string(), Prop::Str("Character".to_string()))],
+//!          )
+//!          .map_err(|err| println!("{:?}", err))
+//!          .ok();
+//!          g.add_edge(
+//!              time,
+//!              src_id,
+//!              dst_id,
+//!              &vec![(
+//!                  "name".to_string(),
+//!                  Prop::Str("Character Co-occurrence".to_string()),
+//!              )],
+//!          );
+//!      })
+//!      .expect("Csv did not parse.");
+//! ```
 //!
 
+/// Module for loading CSV files into a graph.
 pub mod csv {
     use bzip2::read::BzDecoder;
     use flate2; // 1.0
@@ -18,9 +76,12 @@ pub mod csv {
     use rayon::prelude::*;
     use regex::Regex;
 
+    /// An error type to represent possible errors that could occur during CSV loading.
     #[derive(Debug)]
     pub enum CsvErr {
+        /// An IO error that occurred during file read.
         IoError(io::Error),
+        /// A CSV parsing error that occurred while parsing the CSV data.
         CsvError(csv::Error),
     }
 
@@ -54,15 +115,33 @@ pub mod csv {
         }
     }
 
+    /// A struct that defines the CSV loader with configurable options.
     #[derive(Debug)]
     pub struct CsvLoader {
+        /// Path of the CSV file or directory containing CSV files.
         path: PathBuf,
+        /// Optional regex filter to select specific CSV files by name.
         regex_filter: Option<Regex>,
+        /// Specifies whether the CSV file has a header.
         header: bool,
+        /// The delimiter character used in the CSV file.
         delimiter: u8,
     }
 
     impl CsvLoader {
+        /// Creates a new `CsvLoader` instance with the specified file path.
+        ///
+        /// # Arguments
+        ///
+        /// * `p` - A path of the CSV file or directory containing CSV files.
+        ///
+        /// # Example
+        ///
+        /// ```no_run
+        /// use docbrown_db::csv_loader::csv::CsvLoader;
+        ///
+        /// let loader = CsvLoader::new("/path/to/csv_file.csv");
+        /// ```
         pub fn new<P: Into<PathBuf>>(p: P) -> Self {
             Self {
                 path: p.into(),
@@ -72,25 +151,89 @@ pub mod csv {
             }
         }
 
+        /// Sets whether the CSV file has a header.
+        ///
+        /// # Arguments
+        ///
+        /// * `h` - A boolean value indicating whether the CSV file has a header.
+        ///
+        /// # Example
+        ///
+        /// ```no_run
+        /// use docbrown_db::csv_loader::csv::CsvLoader;
+        /// let loader = CsvLoader::new("/path/to/csv_file.csv").set_header(true);
+        /// ```
         pub fn set_header(mut self, h: bool) -> Self {
             self.header = h;
             self
         }
 
+        /// Sets the delimiter character used in the CSV file.
+        ///
+        /// # Arguments
+        ///
+        /// * `d` - A string containing the delimiter character.
+        ///
+        /// # Example
+        ///
+        /// ```no_run
+        /// use docbrown_db::csv_loader::csv::CsvLoader;
+        /// let loader = CsvLoader::new("/path/to/csv_file.csv").set_delimiter("|");
+        /// ```
         pub fn set_delimiter(mut self, d: &str) -> Self {
             self.delimiter = d.as_bytes()[0];
             self
         }
 
+        /// Sets the regex filter to select specific CSV files by name.
+        ///
+        /// # Arguments
+        ///
+        /// * `r` - A regex pattern to filter CSV files by name.
+        ///
+        /// # Example
+        ///
+        /// ```no_run
+        /// use docbrown_db::csv_loader::csv::CsvLoader;
+        /// use regex::Regex;
+        ///
+        /// let loader = CsvLoader::new("/path/to/csv_files")
+        ///    .with_filter(Regex::new(r"file_name_pattern").unwrap());
+        /// ```
         pub fn with_filter(mut self, r: Regex) -> Self {
             self.regex_filter = Some(r);
             self
         }
 
+        /// Check if the provided path is a directory or not.
+        ///
+        /// # Arguments
+        ///
+        /// * `p` - A reference to the path to be checked.
+        ///
+        /// # Returns
+        ///
+        /// A Result containing a boolean value indicating whether the path is a directory or not.
+        ///
+        /// # Errors
+        ///
+        /// An error of type CsvErr is returned if an I/O error occurs while checking the path.
+        ///
         fn is_dir<P: AsRef<Path>>(p: &P) -> Result<bool, CsvErr> {
             Ok(fs::metadata(p)?.is_dir())
         }
 
+        /// Check if a file matches the specified regex pattern and add it to the provided vector of paths.
+        ///
+        /// # Arguments
+        ///
+        /// * `path` - The path to the file to be checked.
+        /// * `paths` - A mutable reference to the vector of paths where the file should be added.
+        ///
+        /// # Returns
+        ///
+        /// Nothing is returned, the function only modifies the provided vector of paths.
+        ///
         fn accept_file<P: Into<PathBuf>>(&self, path: P, paths: &mut Vec<PathBuf>) {
             let p: PathBuf = path.into();
             // this is an actual file so push it into the paths vec if it matches the pattern
@@ -107,6 +250,20 @@ pub mod csv {
             }
         }
 
+        /// Traverse the directory recursively and return a vector of paths to all files in the directory.
+        ///
+        /// # Arguments
+        ///
+        /// * No arguments are required.
+        ///
+        /// # Returns
+        ///
+        /// A Result containing a vector of PathBuf objects representing the paths to all files in the directory.
+        ///
+        /// # Errors
+        ///
+        /// An error of type CsvErr is returned if an I/O error occurs while reading the directory.
+        ///
         fn files_vec(&self) -> Result<Vec<PathBuf>, CsvErr> {
             let mut paths = vec![];
             let mut queue = VecDeque::from([self.path.to_path_buf()]);
@@ -138,6 +295,21 @@ pub mod csv {
             Ok(paths)
         }
 
+        /// Load data from all CSV files in the directory into a graph.
+        ///
+        /// # Arguments
+        ///
+        /// * `g` - A reference to the graph object where the data should be loaded.
+        /// * `loader` - A closure that takes a deserialized record and the graph object as arguments and adds the record to the graph.
+        ///
+        /// # Returns
+        ///
+        /// A Result containing an empty Ok value if the data is loaded successfully.
+        ///
+        /// # Errors
+        ///
+        /// An error of type CsvErr is returned if an I/O error occurs while reading the files or parsing the CSV data.
+        ///
         pub fn load_into_graph<F, REC, G>(&self, g: &G, loader: F) -> Result<(), CsvErr>
         where
             REC: DeserializeOwned + std::fmt::Debug,
@@ -151,6 +323,18 @@ pub mod csv {
             Ok(())
         }
 
+        /// Loads a CSV file into a graph using the specified loader function.
+        ///
+        /// # Arguments
+        ///
+        /// * `path` - The path to the CSV file to load.
+        /// * `g` - A reference to the graph to load the data into.
+        /// * `loader` - The function to use for loading the CSV records into the graph.
+        ///
+        /// # Returns
+        ///
+        /// Returns `Ok(())` if the operation was successful, or a `CsvErr` if there was an error.
+        ///
         fn load_file_into_graph<F, REC, P: Into<PathBuf> + Debug, G>(
             &self,
             path: P,
@@ -175,6 +359,16 @@ pub mod csv {
             Ok(())
         }
 
+        /// Returns a `csv::Reader` for the specified file path, automatically detecting and handling gzip and bzip compression.
+        ///
+        /// # Arguments
+        ///
+        /// * `file_path` - The path to the CSV file to read.
+        ///
+        /// # Returns
+        ///
+        /// Returns a `csv::Reader` that can be used to read the CSV file, or a `CsvErr` if there was an error.
+        ///
         fn csv_reader(&self, file_path: PathBuf) -> Result<csv::Reader<Box<dyn io::Read>>, CsvErr> {
             let is_gziped = file_path
                 .file_name()
