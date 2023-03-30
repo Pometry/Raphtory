@@ -1,4 +1,21 @@
-//! Defines the `Graph` struct, which represents a graph in memory.
+//! Defines the `Graph` struct, which represents a docbrown graph in memory.
+//!
+//! This is the base class used to create a temporal graph, add vertices and edges,
+//! create windows, and query the graph with a variety of algorithms.
+//! It is a wrapper around a set of shards, which are the actual graph data structures.
+//!
+//! # Examples
+//!
+//! ```rust
+//! use docbrown_db::graph::Graph;
+//! use docbrown_db::view_api::*;
+//! let graph = Graph::new(2);
+//! graph.add_vertex(0, "Alice", &vec![]).unwrap();
+//! graph.add_vertex(1, "Bob", &vec![]).unwrap();
+//! graph.add_edge(2, "Alice", "Bob", &vec![]).unwrap();
+//! graph.num_edges().unwrap();
+//! ```
+//!
 
 use crate::graph_immutable::ImmutableGraph;
 use crate::graph_window::{GraphWindowSet, WindowedGraph};
@@ -28,9 +45,16 @@ use crate::view_api::*;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 
+/// A temporal graph composed of multiple shards.
+///
+/// This is the public facing struct used to create a temporal graph, add vertices and edges,
+/// create windows, and query the graph with a variety of algorithms.
+/// It is a wrapper around a set of shards, which are the actual graph data structures.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Graph {
+    /// The number of shards in the graph.
     pub(crate) nr_shards: usize,
+    /// A vector of `TGraphShard<TemporalGraph>` representing the shards in the graph.
     pub(crate) shards: Vec<TGraphShard<TemporalGraph>>,
 }
 
@@ -464,7 +488,28 @@ impl GraphViewOps for Graph {
     }
 }
 
+/// The implementation of a temporal graph composed of multiple shards.
 impl Graph {
+    /// Freezes the current mutable graph into an immutable graph.
+    ///
+    /// This removes the internal locks, allowing the graph to be queried in
+    /// a read-only fashion.
+    ///
+    /// # Returns
+    ///
+    /// An `ImmutableGraph` which is an immutable copy of the current graph.
+    ///
+    /// # Example
+    /// ```
+    /// use docbrown_db::view_api::*;
+    /// use docbrown_db::graph::Graph;
+    ///
+    /// let mut mutable_graph = Graph::new(1);
+    /// // ... add vertices and edges to the graph
+    ///
+    /// // Freeze the mutable graph into an immutable graph
+    /// let immutable_graph = mutable_graph.freeze();
+    /// ```
     pub fn freeze(&self) -> ImmutableGraph {
         ImmutableGraph {
             nr_shards: self.nr_shards,

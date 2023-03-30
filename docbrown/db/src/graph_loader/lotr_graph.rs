@@ -32,9 +32,9 @@ use std::path::PathBuf;
 
 #[derive(Deserialize, std::fmt::Debug)]
 pub struct Lotr {
-    src_id: String,
-    dst_id: String,
-    time: i64,
+    pub src_id: String,
+    pub dst_id: String,
+    pub time: i64,
 }
 
 /// Downloads the LOTR.csv file from Github
