@@ -58,7 +58,7 @@ use std::{collections::HashMap, sync::Arc};
 /// down into multiple windowed views.
 pub struct GraphWindowSet {
     /// The underlying `Graph` object.
-    graph: Graph,
+    pub graph: Graph,
     /// An iterator of `Perspective`s to window the `Graph`.
     perspectives: Box<dyn Iterator<Item = Perspective> + Send>,
 }
