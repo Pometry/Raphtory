@@ -10,7 +10,6 @@
 //!
 //! # Examples
 //! ```rust
-//! use std::os::macos::raw::stat;
 //! use docbrown_db::algorithms::degree::average_degree;
 //! use docbrown_db::graph::Graph;
 //! use docbrown_db::perspective::Perspective;
