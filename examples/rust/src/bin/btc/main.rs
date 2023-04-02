@@ -70,8 +70,8 @@ fn main() {
         println!(
             "Loaded graph from path {} with {} vertices, {} edges, took {} seconds",
             encoded_data_dir.to_str().unwrap(),
-            g.num_vertices().unwrap(),
-            g.num_edges().unwrap(),
+            g.num_vertices(),
+            g.num_edges(),
             now.elapsed().as_secs()
         );
 
@@ -105,8 +105,8 @@ fn main() {
         println!(
             "Loaded graph from CSV data files {} with {} vertices, {} edges which took {} seconds",
             encoded_data_dir.to_str().unwrap(),
-            g.num_vertices().unwrap(),
-            g.num_edges().unwrap(),
+            g.num_vertices(),
+            g.num_edges(),
             now.elapsed().as_secs()
         );
 
@@ -116,13 +116,13 @@ fn main() {
         g
     };
 
-    assert_eq!(graph.num_vertices().unwrap(), 9132396);
-    assert_eq!(graph.num_edges().unwrap(), 5087223);
+    assert_eq!(graph.num_vertices(), 9132396);
+    assert_eq!(graph.num_edges(), 5087223);
 
     let windowed_graph = graph.window(0, i64::MAX);
 
-    assert!(windowed_graph.has_vertex(test_v).unwrap());
-    let v = windowed_graph.vertex(test_v).unwrap().unwrap();
+    assert!(windowed_graph.has_vertex(test_v));
+    let v = windowed_graph.vertex(test_v).unwrap();
 
     let deg_out = v.out_edges().count();
     let deg_in = v.in_edges().count();

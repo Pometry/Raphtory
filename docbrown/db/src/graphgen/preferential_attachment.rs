@@ -48,16 +48,16 @@ pub fn ba_preferential_attachment(
     graph: &Graph,
     vertices_to_add: usize,
     edges_per_step: usize,
-) -> Result<(), GraphError> {
+) -> () {
     let mut rng = rand::thread_rng();
-    let mut latest_time = match graph.latest_time()? {
+    let mut latest_time = match graph.latest_time() {
         None => 0,
         Some(time) => time,
     };
     let view = graph.window(i64::MIN, i64::MAX);
     let mut ids: Vec<u64> = view.vertices().id().collect();
-    let r: Result<Vec<usize>, GraphError> = view.vertices().map(|v| v.degree()).collect();
-    let mut degrees: Vec<usize> = r?;
+    let r: Vec<usize> = view.vertices().degree().collect();
+    let mut degrees: Vec<usize> = r;
     let mut edge_count: usize = degrees.iter().sum();
 
     let mut max_id = match ids.iter().max() {
@@ -75,7 +75,7 @@ pub fn ba_preferential_attachment(
         ids.push(max_id);
     }
 
-    if graph.num_edges()? < edges_per_step {
+    if graph.num_edges() < edges_per_step {
         for pos in 1..ids.len() {
             graph.add_edge(latest_time, ids[pos], ids[pos - 1], &vec![]);
             edge_count += 2;
@@ -113,8 +113,6 @@ pub fn ba_preferential_attachment(
         degrees.push(edges_per_step.clone());
         edge_count += edges_per_step * 2;
     }
-
-    Ok(())
 }
 
 //TODO need to benchmark the creation of these networks
@@ -126,8 +124,8 @@ mod preferential_attachment_tests {
     fn blank_graph() {
         let graph = Graph::new(2);
         ba_preferential_attachment(&graph, 1000, 10);
-        assert_eq!(graph.num_edges().unwrap(), 10009);
-        assert_eq!(graph.num_vertices().unwrap(), 1010);
+        assert_eq!(graph.num_edges(), 10009);
+        assert_eq!(graph.num_vertices(), 1010);
     }
 
     #[test]
@@ -141,8 +139,8 @@ mod preferential_attachment_tests {
         }
 
         ba_preferential_attachment(&graph, 1000, 5);
-        assert_eq!(graph.num_edges().unwrap(), 5009);
-        assert_eq!(graph.num_vertices().unwrap(), 1010);
+        assert_eq!(graph.num_edges(), 5009);
+        assert_eq!(graph.num_vertices(), 1010);
     }
 
     #[test]
@@ -150,7 +148,7 @@ mod preferential_attachment_tests {
         let graph = Graph::new(2);
         random_attachment(&graph, 1000, 3);
         ba_preferential_attachment(&graph, 500, 4);
-        assert_eq!(graph.num_edges().unwrap(), 5000);
-        assert_eq!(graph.num_vertices().unwrap(), 1503);
+        assert_eq!(graph.num_edges(), 5000);
+        assert_eq!(graph.num_vertices(), 1503);
     }
 }

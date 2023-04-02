@@ -22,8 +22,8 @@
 //! graph.add_edge(2, 2, 4, &vec![]);
 //! graph.add_edge(3, 2, 1, &vec![]);
 //!
-//! let start = graph.earliest_time().unwrap();
-//! let end = graph.latest_time().unwrap();
+//! let start = graph.earliest_time();
+//! let end = graph.latest_time();
 //! let perspectives = Perspective::expanding(1, start, end);
 //!
 //! // A rolling perspective with a window size of 2 and a step size of 1

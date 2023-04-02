@@ -1,38 +1,50 @@
-use crate::graph_window::{GraphWindowSet, WindowedGraph};
-use crate::wrappers::{adapt_err, PerspectiveSet, Prop};
-use crate::Perspective;
+use crate::dynamic::DynamicGraph;
+use crate::graph_view::PyGraphView;
+use crate::wrappers::adapt_err;
+use crate::wrappers::Prop;
 use docbrown_core as dbc;
 use docbrown_core::vertex::InputVertex;
-use docbrown_db::view_api::*;
-use docbrown_db::{graph, perspective};
+use docbrown_db::graph::Graph;
 use itertools::Itertools;
-use pyo3::exceptions;
-use pyo3::exceptions::PyTypeError;
+use pyo3::exceptions::{PyException, PyTypeError};
 use pyo3::prelude::*;
-use pyo3::types::PyIterator;
 use std::collections::HashMap;
-use std::fmt::Display;
 use std::path::{Path, PathBuf};
 
-#[pyclass]
-pub struct Graph {
-    pub(crate) graph: graph::Graph,
+#[pyclass(name="Graph", extends=PyGraphView)]
+pub struct PyGraph {
+    pub(crate) graph: Graph,
 }
 
-impl Graph {
-    pub fn from_db_graph(db_graph: graph::Graph) -> Self {
-        Self { graph: db_graph }
+impl From<Graph> for PyGraph {
+    fn from(value: Graph) -> Self {
+        Self { graph: value }
+    }
+}
+
+impl PyGraph {
+    pub fn py_from_db_graph(db_graph: Graph) -> PyResult<Py<PyGraph>> {
+        Python::with_gil(|py| {
+            Py::new(
+                py,
+                (PyGraph::from(db_graph.clone()), PyGraphView::from(db_graph)),
+            )
+        })
     }
 }
 
 #[pymethods]
-impl Graph {
+impl PyGraph {
     #[new]
     #[pyo3(signature = (nr_shards=1))]
-    pub fn new(nr_shards: usize) -> Self {
-        Self {
-            graph: graph::Graph::new(nr_shards),
-        }
+    pub fn py_new(nr_shards: usize) -> (Self, PyGraphView) {
+        let graph = Graph::new(nr_shards);
+        (
+            Self {
+                graph: graph.clone(),
+            },
+            PyGraphView::from(DynamicGraph::from(graph)),
+        )
     }
 
     //******  Graph Updates  ******//
@@ -91,62 +103,18 @@ impl Graph {
         adapt_err(result)
     }
 
-    //******  Perspective APIS  ******//
-
-    pub fn window(&self, t_start: i64, t_end: i64) -> WindowedGraph {
-        WindowedGraph::new(self, t_start, t_end)
-    }
-
-    pub fn at(&self, end: i64) -> WindowedGraph {
-        self.graph.at(end).into()
-    }
-
-    pub fn latest(&self) -> PyResult<WindowedGraph> {
-        match self.latest_time()? {
-            None => Ok(self.at(0)),
-            Some(time) => Ok(self.at(time)),
-        }
-    }
-
-    fn through(&self, perspectives: &PyAny) -> PyResult<GraphWindowSet> {
-        struct PyPerspectiveIterator {
-            pub iter: Py<PyIterator>,
-        }
-        unsafe impl Send for PyPerspectiveIterator {} // iter is used by holding the GIL
-        impl Iterator for PyPerspectiveIterator {
-            type Item = perspective::Perspective;
-            fn next(&mut self) -> Option<Self::Item> {
-                Python::with_gil(|py| {
-                    let item = self.iter.as_ref(py).next()?.ok()?;
-                    Some(item.extract::<Perspective>().ok()?.into())
-                })
-            }
-        }
-
-        let result = match perspectives.extract::<PerspectiveSet>() {
-            Ok(perspective_set) => self.graph.through_perspectives(perspective_set.ps),
-            Err(_) => {
-                let iter = PyPerspectiveIterator {
-                    iter: Py::from(perspectives.iter()?),
-                };
-                self.graph.through_iter(Box::new(iter))
-            }
-        };
-
-        adapt_err(result).map(|e| e.into())
-    }
-
     //******  Saving And Loading  ******//
 
+    // Alternative constructors are tricky, see: https://gist.github.com/redshiftzero/648e4feeff3843ffd9924f13625f839c
     #[staticmethod]
-    pub fn load_from_file(path: String) -> PyResult<Self> {
+    pub fn load_from_file(path: String) -> PyResult<Py<PyGraph>> {
         let file_path: PathBuf = [env!("CARGO_MANIFEST_DIR"), &path].iter().collect();
 
-        match graph::Graph::load_from_file(file_path) {
-            Ok(g) => Ok(Graph { graph: g }),
-            Err(e) => Err(exceptions::PyException::new_err(format!(
+        match Graph::load_from_file(file_path) {
+            Ok(g) => Self::py_from_db_graph(g),
+            Err(e) => Err(PyException::new_err(format!(
                 "Failed to load graph from the files. Reason: {}",
-                e.to_string()
+                e
             ))),
         }
     }
@@ -154,89 +122,15 @@ impl Graph {
     pub fn save_to_file(&self, path: String) -> PyResult<()> {
         match self.graph.save_to_file(Path::new(&path)) {
             Ok(()) => Ok(()),
-            Err(e) => Err(exceptions::PyException::new_err(format!(
+            Err(e) => Err(PyException::new_err(format!(
                 "Failed to save graph to the files. Reason: {}",
-                e.to_string()
+                e
             ))),
         }
     }
-
-    //******  Metrics APIs ******//
-
-    pub fn earliest_time(&self) -> PyResult<Option<i64>> {
-        adapt_err(self.graph.earliest_time())
-    }
-
-    pub fn latest_time(&self) -> PyResult<Option<i64>> {
-        adapt_err(self.graph.latest_time())
-    }
-
-    pub fn num_edges(&self) -> PyResult<usize> {
-        adapt_err(self.graph.num_edges())
-    }
-
-    pub fn num_vertices(&self) -> PyResult<usize> {
-        adapt_err(self.graph.num_vertices())
-    }
-
-    pub fn has_vertex(&self, id: &PyAny) -> PyResult<bool> {
-        let v = Self::extract_id(id)?;
-        adapt_err(self.graph.has_vertex(v))
-    }
-
-    pub fn has_edge(&self, src: &PyAny, dst: &PyAny) -> PyResult<bool> {
-        let src = Self::extract_id(src)?;
-        let dst = Self::extract_id(dst)?;
-        adapt_err(self.graph.has_edge(src, dst))
-    }
-
-    //******  Getter APIs ******//
-    //TODO Implement LatestVertex/Edge
-    //FIXME These are just placeholders for now and do not work because of the pyRef
-    //     pub fn vertex(&self, v: u64) -> Option<WindowedVertex> {
-    //         match self.latest_time(){
-    //             None =>  None,
-    //             Some(time) =>self.vertex(v)
-    //         }
-    //     }
-    //
-    //     pub fn vertex_ids(&self) -> VertexIdsIterator {
-    //         match self.latest_time(){
-    //             None =>  { self.at(0).vertex_ids()
-    //             },
-    //             Some(time) => self.at(time).vertex_ids()
-    //         }
-    //     }
-    //slf: PyRef<'_, Self>
-    //     pub fn vertices(&self) -> WindowedVertices {
-    //         match self.latest_time(){
-    //             None =>  {
-    //                 self.at(0).vertices()
-    //             },
-    //             Some(time) => self.at(time).vertices()
-    //         }
-    //     }
-    //
-    //     pub fn edge(&self, src: u64, dst: u64) -> Option<WindowedEdge> {
-    //         match self.latest_time(){
-    //             None =>  {
-    //                 None
-    //             },
-    //             Some(time) => self.at(time).edge(src,dst)
-    //         }
-    //     }
-    //
-    //     pub fn edges(&self) -> WindowedEdgeIterator {
-    //         match self.latest_time(){
-    //             None =>  {
-    //                 self.at(0).edges()
-    //             },
-    //             Some(time) => self.at(time).edges()
-    //         }
-    //     }
 }
 
-impl Graph {
+impl PyGraph {
     fn transform_props(props: Option<HashMap<String, Prop>>) -> Vec<(String, dbc::Prop)> {
         props
             .unwrap_or_default()

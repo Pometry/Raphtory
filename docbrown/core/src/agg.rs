@@ -124,7 +124,7 @@ pub struct AvgDef<A: StateType + Zero + AddAssign<A> + TryFrom<usize> + Div<A, O
 
 impl<A> Accumulator<(A, usize), A, A> for AvgDef<A>
 where
-    A: StateType + Zero + AddAssign<A> + TryFrom<usize> + std::ops::Div<A, Output = A>,
+    A: StateType + Zero + AddAssign<A> + TryFrom<usize> + Div<A, Output = A>,
     <A as TryFrom<usize>>::Error: std::fmt::Debug,
 {
     fn zero() -> (A, usize) {
@@ -173,7 +173,7 @@ pub mod set {
         }
 
         fn combine(a1: &mut FxHashSet<A>, a2: &FxHashSet<A>) {
-            a1.extend(a2.iter().map(|x| x.clone()))
+            a1.extend(a2.iter().cloned())
         }
 
         fn finish(a: &FxHashSet<A>) -> FxHashSet<A> {
@@ -257,14 +257,14 @@ pub mod topk {
         }
 
         fn combine(a1: &mut TopKHeap<A>, a2: &TopKHeap<A>) {
-            a1.extend(a2.iter().map(|x| x.clone()));
+            a1.extend(a2.iter().cloned());
             while a1.len() > N {
                 a1.pop_last();
             }
         }
 
         fn finish(a: &TopKHeap<A>) -> Vec<A> {
-            a.into_iter().sorted().map(|Reverse(a)| a.clone()).collect()
+            a.iter().sorted().map(|Reverse(a)| a.clone()).collect()
         }
     }
 }
