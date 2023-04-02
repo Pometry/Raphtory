@@ -3,7 +3,6 @@ fn main() {}
 #[cfg(test)]
 mod test {
     use std::{
-        cmp::Reverse,
         fmt::Debug,
         path::{Path, PathBuf},
     };
@@ -12,7 +11,7 @@ mod test {
     use docbrown_db::{
         csv_loader::csv::CsvLoader,
         graph::Graph,
-        view_api::{internal::GraphViewInternalOps, GraphViewOps, VertexViewOps},
+        view_api::{internal::GraphViewInternalOps, GraphViewOps},
     };
     use itertools::Itertools;
     use serde::de::DeserializeOwned;
@@ -41,9 +40,9 @@ mod test {
         let g1 = Graph::new(1);
         let gn = Graph::new(n_parts);
 
-        load::<REC>(&g1, &gn, path.clone());
+        load::<REC>(&g1, &gn, path);
 
-        assert_eq!(g1.vertices_len().unwrap(), gn.vertices_len().unwrap());
+        assert_eq!(g1.vertices_len(), gn.vertices_len());
         // NON-TEMPORAL TESTS HERE!
 
         let mut expect_1 = g1.vertex_refs().map(|v| v.g_id).collect::<Vec<_>>();
@@ -55,12 +54,12 @@ mod test {
         assert_eq!(expect_1, expect_n, "Graphs are not equal {n_parts}");
 
         for v_ref in g1.vertex_refs() {
-            let v1 = g1.vertex(v_ref.g_id).unwrap().unwrap().id();
-            let vn = gn.vertex(v_ref.g_id).unwrap().unwrap().id();
+            let v1 = g1.vertex(v_ref.g_id).unwrap().id();
+            let vn = gn.vertex(v_ref.g_id).unwrap().id();
 
             assert_eq!(v1, vn, "Graphs are not equal {n_parts}");
             let v_id = v1;
-            for d in vec![Direction::OUT, Direction::IN, Direction::BOTH] {
+            for d in [Direction::OUT, Direction::IN, Direction::BOTH] {
                 let mut expect_1 = g1
                     .neighbours(v_id.into(), d)
                     .map(|id| id.g_id)
@@ -77,8 +76,8 @@ mod test {
                 assert_eq!(expect_1, expect_n, "Graphs are not equal {n_parts}");
 
                 // now we test degrees
-                let expect_1 = g1.degree(v_id.into(), d).unwrap();
-                let expect_n = gn.degree(v_id.into(), d).unwrap();
+                let expect_1 = g1.degree(v_id.into(), d);
+                let expect_n = gn.degree(v_id.into(), d);
 
                 assert_eq!(expect_1, expect_n, "Graphs are not equal {n_parts} {d:?}");
             }
@@ -103,12 +102,12 @@ mod test {
         assert_eq!(expected_1, expected_n, "Graphs are not equal {n_parts}");
 
         for v_ref in g1.vertex_refs_window(t_start, t_end) {
-            let v1 = g1.vertex(v_ref.g_id).unwrap().unwrap().id();
-            let vn = gn.vertex(v_ref.g_id).unwrap().unwrap().id();
+            let v1 = g1.vertex(v_ref.g_id).unwrap().id();
+            let vn = gn.vertex(v_ref.g_id).unwrap().id();
 
             assert_eq!(v1, vn, "Graphs are not equal {n_parts}");
             let v_id = v1;
-            for d in vec![Direction::OUT, Direction::IN, Direction::BOTH] {
+            for d in [Direction::OUT, Direction::IN, Direction::BOTH] {
                 let mut expected_1 = g1
                     .neighbours_window(v_id.into(), t_start, t_end, d)
                     .map(|id| id.g_id)
@@ -125,8 +124,8 @@ mod test {
                 assert_eq!(expected_1, expected_n, "Graphs are not equal {n_parts}");
 
                 // now we test degrees
-                let expected_1 = g1.degree_window(v_id.into(), t_start, t_end, d).unwrap();
-                let expected_n = gn.degree_window(v_id.into(), t_start, t_end, d).unwrap();
+                let expected_1 = g1.degree_window(v_id.into(), t_start, t_end, d);
+                let expected_n = gn.degree_window(v_id.into(), t_start, t_end, d);
 
                 assert_eq!(
                     expected_1, expected_n,
@@ -138,15 +137,9 @@ mod test {
         let mut expected_1 = g1
             .vertex_refs_window(t_start, t_end)
             .map(|id| {
-                let deg = g1
-                    .degree_window(id, t_start, t_end, docbrown_core::Direction::BOTH)
-                    .unwrap();
-                let out_deg = g1
-                    .degree_window(id, t_start, t_end, docbrown_core::Direction::OUT)
-                    .unwrap();
-                let in_deg = g1
-                    .degree_window(id, t_start, t_end, docbrown_core::Direction::IN)
-                    .unwrap();
+                let deg = g1.degree_window(id, t_start, t_end, Direction::BOTH);
+                let out_deg = g1.degree_window(id, t_start, t_end, Direction::OUT);
+                let in_deg = g1.degree_window(id, t_start, t_end, Direction::IN);
                 (id.g_id, deg, out_deg, in_deg)
             })
             .collect::<Vec<_>>();
@@ -155,15 +148,9 @@ mod test {
         let mut expected_n = gn
             .vertex_refs_window(t_start, t_end)
             .map(|id| {
-                let deg = gn
-                    .degree_window(id, t_start, t_end, docbrown_core::Direction::BOTH)
-                    .unwrap();
-                let out_deg = gn
-                    .degree_window(id, t_start, t_end, docbrown_core::Direction::OUT)
-                    .unwrap();
-                let in_deg = gn
-                    .degree_window(id, t_start, t_end, docbrown_core::Direction::IN)
-                    .unwrap();
+                let deg = gn.degree_window(id, t_start, t_end, Direction::BOTH);
+                let out_deg = gn.degree_window(id, t_start, t_end, Direction::OUT);
+                let in_deg = gn.degree_window(id, t_start, t_end, Direction::IN);
                 (id.g_id, deg, out_deg, in_deg)
             })
             .collect::<Vec<_>>();
@@ -176,31 +163,19 @@ mod test {
         let wg1 = g1.window(t_start, t_end);
         let wgn = gn.window(t_start, t_end);
 
-        assert_eq!(wg1.vertices_len().unwrap(), wgn.vertices_len().unwrap());
+        assert_eq!(wg1.vertices_len(), wgn.vertices_len());
 
         let mut expected_1 = wg1
             .vertices()
-            .map(|vs| {
-                (
-                    vs.id(),
-                    vs.degree().unwrap(),
-                    vs.out_degree().unwrap(),
-                    vs.in_degree().unwrap(),
-                )
-            })
+            .iter()
+            .map(|vs| (vs.id(), vs.degree(), vs.out_degree(), vs.in_degree()))
             .collect::<Vec<_>>();
         expected_1.sort_by(|v1, v2| v1.0.cmp(&v2.0));
 
         let mut expected_n = wgn
             .vertices()
-            .map(|vs| {
-                (
-                    vs.id(),
-                    vs.degree().unwrap(),
-                    vs.out_degree().unwrap(),
-                    vs.in_degree().unwrap(),
-                )
-            })
+            .iter()
+            .map(|vs| (vs.id(), vs.degree(), vs.out_degree(), vs.in_degree()))
             .collect::<Vec<_>>();
 
         expected_n.sort_by(|v1, v2| v1.0.cmp(&v2.0));
@@ -208,7 +183,7 @@ mod test {
         assert_eq!(expected_1, expected_n, "Graphs are not equal {n_parts}");
     }
 
-    #[derive(serde::Deserialize, std::fmt::Debug)]
+    #[derive(serde::Deserialize, Debug)]
     struct Pair {
         src: u64,
         dst: u64,
@@ -243,7 +218,7 @@ mod test {
         }
     }
 
-    #[derive(serde::Deserialize, std::fmt::Debug)]
+    #[derive(serde::Deserialize, Debug)]
     struct PairNoTime {
         src: u64,
         dst: u64,
@@ -278,11 +253,11 @@ mod test {
             let gn = Graph::new(n_parts);
             load::<PairNoTime>(&g1, &gn, csv_path.clone());
 
+            let gw1 = g1.window(window.start, window.end);
+            let gwn = g1.window(window.start, window.end);
             let iter_count = 50;
-            let cc1 =
-                docbrown_db::program::algo::connected_components(&g1, window.clone(), iter_count);
-            let ccn =
-                docbrown_db::program::algo::connected_components(&gn, window.clone(), iter_count);
+            let cc1 = docbrown_db::program::algo::connected_components(&gw1, iter_count);
+            let ccn = docbrown_db::program::algo::connected_components(&gwn, iter_count);
 
             // get LCC
             let counts = cc1.iter().counts_by(|(_, cc)| cc);

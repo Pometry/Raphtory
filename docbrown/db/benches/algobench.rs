@@ -1,6 +1,5 @@
 use crate::common::bench;
 use criterion::{criterion_group, criterion_main, Criterion};
-use docbrown_db::algorithms::global_triangle_count::global_triangle_count;
 use docbrown_db::algorithms::local_clustering_coefficient::local_clustering_coefficient;
 use docbrown_db::algorithms::local_triangle_count::local_triangle_count;
 use docbrown_db::graph::Graph;
@@ -8,19 +7,20 @@ use docbrown_db::view_api::*;
 use rayon::prelude::*;
 mod common;
 
-pub fn global_triangle_count_analysis(c: &mut Criterion) {
-    let mut group = c.benchmark_group("global_triangle_count");
-    group.sample_size(10);
-    bench(&mut group, "global_triangle_count", None, |b| {
-        let g = docbrown_db::graph_loader::lotr_graph::lotr_graph(1);
-        let windowed_graph = g.window(i64::MIN, i64::MAX);
-        b.iter(|| {
-            global_triangle_count(&windowed_graph).unwrap();
-        });
-    });
-
-    group.finish();
-}
+//TODO swap to new trianglecount
+// pub fn global_triangle_count_analysis(c: &mut Criterion) {
+//     let mut group = c.benchmark_group("global_triangle_count");
+//     group.sample_size(10);
+//     bench(&mut group, "global_triangle_count", None, |b| {
+//         let g = docbrown_db::graph_loader::lotr_graph::lotr_graph(1);
+//         let windowed_graph = g.window(i64::MIN, i64::MAX);
+//         b.iter(|| {
+//             global_triangle_count(&windowed_graph).unwrap();
+//         });
+//     });
+//
+//     group.finish();
+// }
 
 pub fn local_triangle_count_analysis(c: &mut Criterion) {
     let mut group = c.benchmark_group("local_triangle_count");
@@ -86,7 +86,6 @@ pub fn local_clustering_coefficient_analysis(c: &mut Criterion) {
 
 criterion_group!(
     benches,
-    global_triangle_count_analysis,
     local_triangle_count_analysis,
     local_clustering_coefficient_analysis
 );

@@ -31,7 +31,7 @@ impl<'a> InputVertex for &'a str {
     }
 }
 
-impl<'a> InputVertex for String {
+impl InputVertex for String {
     fn id(&self) -> u64 {
         utils::calculate_hash(self)
     }

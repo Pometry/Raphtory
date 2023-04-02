@@ -63,6 +63,8 @@ pub mod csv {
     use bzip2::read::BzDecoder;
     use flate2; // 1.0
     use flate2::read::GzDecoder;
+    use rayon::prelude::*;
+    use regex::Regex;
     use serde::de::DeserializeOwned;
     use std::collections::VecDeque;
     use std::error::Error;
@@ -72,11 +74,6 @@ pub mod csv {
     use std::path::{Path, PathBuf};
     use std::{fs, io};
 
-    use crate::graph::Graph;
-    use rayon::prelude::*;
-    use regex::Regex;
-
-    /// An error type to represent possible errors that could occur during CSV loading.
     #[derive(Debug)]
     pub enum CsvErr {
         /// An IO error that occurred during file read.
@@ -312,10 +309,11 @@ pub mod csv {
         ///
         pub fn load_into_graph<F, REC, G>(&self, g: &G, loader: F) -> Result<(), CsvErr>
         where
-            REC: DeserializeOwned + std::fmt::Debug,
-            F: Fn(REC, &G) -> () + Send + Sync,
-            G: std::marker::Sync,
+            REC: DeserializeOwned + Debug,
+            F: Fn(REC, &G) + Send + Sync,
+            G: Sync,
         {
+            //FIXME: loader function should return a result for reporting parsing errors
             let paths = self.files_vec()?;
             paths
                 .par_iter()
@@ -342,7 +340,7 @@ pub mod csv {
             loader: &F,
         ) -> Result<(), CsvErr>
         where
-            REC: DeserializeOwned + std::fmt::Debug,
+            REC: DeserializeOwned + Debug,
             F: Fn(REC, &G) -> (),
         {
             let file_path: PathBuf = path.into();

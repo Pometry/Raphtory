@@ -62,8 +62,8 @@ def test_windowed_graph_get_vertex():
 
     view = g.window(0, sys.maxsize)
 
-    assert view.vertex(1).id == 1
-    assert view.vertex(10) == None
+    assert view.vertex(1).id() == 1
+    assert view.vertex(10) is None
     assert view.vertex(1).degree() == 3
 
 
@@ -96,14 +96,14 @@ def test_windowed_graph_get_edge():
 
     view = g.window(min_size, max_size)
 
-    assert (view.edge(1, 3).src(), view.edge(1, 3).dst()) == (1, 3)
+    assert (view.edge(1, 3).src().id(), view.edge(1, 3).dst().id()) == (1, 3)
     assert view.edge(2, 3) == None
     assert view.edge(6, 5) == None
 
-    assert (view.vertex(1).id, view.vertex(3).id) == (1, 3)
+    assert (view.vertex(1).id(), view.vertex(3).id()) == (1, 3)
 
     view = g.window(2, 3)
-    assert (view.edge(1, 3).src(), view.edge(1, 3).dst()) == (1, 3)
+    assert (view.edge(1, 3).src().id(), view.edge(1, 3).dst().id()) == (1, 3)
 
     view = g.window(3, 7)
     assert view.edge(1, 3) == None
@@ -118,7 +118,7 @@ def test_windowed_graph_edges():
     edges = []
     for e_iter in tedges:
         for e in e_iter:
-            edges.append([e.src(), e.dst()])
+            edges.append([e.src().id(), e.dst().id()])
 
     assert edges == [
             [1, 1],
@@ -135,7 +135,7 @@ def test_windowed_graph_edges():
     in_edges = []
     for e_iter in tedges:
         for e in e_iter:
-            in_edges.append([e.src(), e.dst()])
+            in_edges.append([e.src().id(), e.dst().id()])
 
     assert in_edges == [
             [1, 1],
@@ -148,7 +148,7 @@ def test_windowed_graph_edges():
     out_edges = []
     for e_iter in tedges:
         for e in e_iter:
-            out_edges.append([e.src(), e.dst()])
+            out_edges.append([e.src().id(), e.dst().id()])
 
     assert out_edges == [
             [1, 1],
@@ -161,11 +161,11 @@ def test_windowed_graph_edges():
 def test_windowed_graph_vertex_ids():
     g = create_graph(3)
 
-    vs = [v for v in g.window(-1, 2).vertex_ids()]
+    vs = [v for v in g.window(-1, 2).vertices().id()]
     vs.sort()
     assert vs == [1, 2] # this makes clear that the end of the range is exclusive
 
-    vs = [v for v in g.window(-5, 3).vertex_ids()]
+    vs = [v for v in g.window(-5, 3).vertices().id()]
     vs.sort()
     assert vs == [1, 2, 3]
 
@@ -175,9 +175,7 @@ def test_windowed_graph_vertices():
 
     view = g.window(-1, 0)
 
-    vertices = []
-    for v in view.vertices():
-        vertices.append(v.id)
+    vertices = list(view.vertices().id())
 
     assert vertices == [1, 2]
 
@@ -190,56 +188,14 @@ def test_windowed_graph_neighbours():
 
     view = g.window(min_size, max_size)
 
-    vertices_w = [v.neighbours() for v in view.vertices()]
-    neighbours = []
-    for v_iter in vertices_w:
-        neighbours.append([v.id for v in v_iter])
-
+    neighbours = [list(v.neighbours().id()) for v in view.vertices()]
     assert neighbours == [[1, 2, 3], [1, 3], [1, 2]]
 
-    vertices_w = [v.in_neighbours() for v in view.vertices()]
-    in_neighbours = []
-    for v_iter in vertices_w:
-        in_neighbours.append([v.id for v in v_iter])
-
+    in_neighbours = [list(v.in_neighbours().id()) for v in view.vertices()]
     assert in_neighbours == [[1, 2], [1, 3], [1]]
 
-    vertices_w = [v.out_neighbours() for v in view.vertices()]
-    out_neighbours = []
-    for v_iter in vertices_w:
-        out_neighbours.append([v.id for v in v_iter])
-
+    out_neighbours = [list(v.out_neighbours().id()) for v in view.vertices()]
     assert out_neighbours == [[1, 2, 3], [1], [2]]
-
-
-def test_windowed_graph_neighbours_ids():
-    g = create_graph(1)
-
-    max_size = sys.maxsize
-    min_size = -sys.maxsize - 1
-
-    view = g.window(min_size, max_size)
-
-    vertices_w = [v.neighbours_ids() for v in view.vertices()]
-    neighbours_ids = []
-    for v_iter in vertices_w:
-        neighbours_ids.append([v for v in v_iter])
-
-    assert neighbours_ids == [[1, 2, 3], [1, 3], [1, 2]]
-
-    vertices_w = [v.in_neighbours_ids() for v in view.vertices()]
-    in_neighbours_ids = []
-    for v_iter in vertices_w:
-        in_neighbours_ids.append([v for v in v_iter])
-
-    assert in_neighbours_ids == [[1, 2], [1, 3], [1]]
-
-    vertices_w = [v.out_neighbours_ids() for v in view.vertices()]
-    out_neighbours_ids = []
-    for v_iter in vertices_w:
-        out_neighbours_ids.append([v for v in v_iter])
-
-    assert out_neighbours_ids == [[1, 2, 3], [1], [2]]
 
 
 def test_windowed_graph_vertex_prop():

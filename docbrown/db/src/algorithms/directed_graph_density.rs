@@ -12,6 +12,7 @@
 //! ```rust
 //! use docbrown_db::algorithms::directed_graph_density::directed_graph_density;
 //! use docbrown_db::graph::Graph;
+//! use docbrown_db::view_api::GraphViewOps;
 //!
 //! let g = Graph::new(1);
 //! let windowed_graph = g.window(0, 7);
@@ -35,16 +36,14 @@ use crate::view_api::*;
 use docbrown_core::tgraph_shard::errors::GraphError;
 
 /// Measures how dense or sparse a graph is
-pub fn directed_graph_density<G: GraphViewOps>(graph: &G) -> Result<f32, GraphError> {
-    Ok(graph.num_edges()? as f32
-        / (graph.num_vertices()? as f32 * (graph.num_vertices()? as f32 - 1.0)))
+pub fn directed_graph_density<G: GraphViewOps>(graph: &G) -> f32 {
+    graph.num_edges() as f32 / (graph.num_vertices() as f32 * (graph.num_vertices() as f32 - 1.0))
 }
 
 #[cfg(test)]
 mod directed_graph_density_tests {
+    use super::*;
     use crate::graph::Graph;
-
-    use super::directed_graph_density;
 
     #[test]
     fn low_graph_density() {
@@ -63,7 +62,7 @@ mod directed_graph_density_tests {
             g.add_edge(*t, *src, *dst, &vec![]);
         }
 
-        let actual = directed_graph_density(&windowed_graph).unwrap();
+        let actual = directed_graph_density(&windowed_graph);
         let expected = 0.3;
 
         assert_eq!(actual, expected);
@@ -79,7 +78,7 @@ mod directed_graph_density_tests {
             g.add_edge(*t, *src, *dst, &vec![]);
         }
 
-        let actual = directed_graph_density(&windowed_graph).unwrap();
+        let actual = directed_graph_density(&windowed_graph);
         let expected = 1.0;
 
         assert_eq!(actual, expected);

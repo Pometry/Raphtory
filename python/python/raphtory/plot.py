@@ -636,7 +636,7 @@ def draw_edges(
         edge_color = "k"
 
     # set edge positions
-    edge_pos = np.asarray([(pos[e.src()], pos[e.dst()]) for e in edge_list])
+    edge_pos = np.asarray([(pos[e.src().id()], pos[e.dst().id()]) for e in edge_list])
 
     # Check if edge_color is an array of floats and map to edge_cmap.
     # This is the only case handled differently from matplotlib
@@ -1525,8 +1525,8 @@ def to_numpy_array(
     if edge_attrs:
         # Extract edges with all data
         for _edge in graph.edges():
-            u = _edge.src()
-            v = _edge.dst()
+            u = _edge.src().id()
+            v = _edge.dst().id()
             i.append(idx[u])
             j.append(idx[v])
             wts.append([])
@@ -1540,8 +1540,8 @@ def to_numpy_array(
         return A
 
     for _edge in graph.edges():
-        i.append(idx[_edge.src()])
-        j.append(idx[_edge.dst()])
+        i.append(idx[_edge.src().id()])
+        j.append(idx[_edge.dst().id()])
         wts.append([])
 
     # Set array values with advanced indexing

@@ -6,23 +6,21 @@
 //!
 
 use crate::vertex::VertexView;
-use crate::view_api::internal::GraphViewInternalOps;
-use crate::view_api::{EdgeListOps, EdgeViewOps};
+use crate::view_api::{EdgeListOps, GraphViewOps};
 use docbrown_core::tgraph::{EdgeRef, VertexRef};
 use docbrown_core::tgraph_shard::errors::GraphError;
 use docbrown_core::Prop;
 use std::fmt::{Debug, Formatter};
-use std::sync::Arc;
 
 /// A view of an edge in the graph.
-pub struct EdgeView<G: GraphViewInternalOps> {
-    /// A reference to the graph.
-    graph: Arc<G>,
+pub struct EdgeView<G: GraphViewOps> {
+    /// A view of an edge in the graph.
+    graph: G,
     /// A reference to the edge.
     edge: EdgeRef,
 }
 
-impl<G: GraphViewInternalOps> Debug for EdgeView<G> {
+impl<G: GraphViewOps> Debug for EdgeView<G> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
@@ -32,7 +30,7 @@ impl<G: GraphViewInternalOps> Debug for EdgeView<G> {
     }
 }
 
-impl<G: GraphViewInternalOps> EdgeView<G> {
+impl<G: GraphViewOps> EdgeView<G> {
     /// Creates a new `EdgeView`.
     ///
     /// # Arguments
@@ -43,7 +41,7 @@ impl<G: GraphViewInternalOps> EdgeView<G> {
     /// # Returns
     ///
     /// A new `EdgeView`.   
-    pub(crate) fn new(graph: Arc<G>, edge: EdgeRef) -> Self {
+    pub(crate) fn new(graph: G, edge: EdgeRef) -> Self {
         EdgeView { graph, edge }
     }
 
@@ -53,15 +51,13 @@ impl<G: GraphViewInternalOps> EdgeView<G> {
     }
 }
 
-impl<G: GraphViewInternalOps> Into<EdgeRef> for EdgeView<G> {
-    fn into(self) -> EdgeRef {
-        self.edge
+impl<G: GraphViewOps> From<EdgeView<G>> for EdgeRef {
+    fn from(value: EdgeView<G>) -> Self {
+        value.edge
     }
 }
 
-impl<G: GraphViewInternalOps + 'static + Send + Sync> EdgeViewOps for EdgeView<G> {
-    type Vertex = VertexView<G>;
-
+impl<G: GraphViewOps> EdgeView<G> {
     /// Returns the properties associated with the given property name for the edge.
     ///
     /// # Arguments
@@ -71,32 +67,30 @@ impl<G: GraphViewInternalOps + 'static + Send + Sync> EdgeViewOps for EdgeView<G
     /// # Returns
     ///
     /// A vector of tuples containing the timestamp and the property value.
-    fn prop(&self, name: String) -> Result<Vec<(i64, Prop)>, GraphError> {
+    pub fn prop(&self, name: String) -> Vec<(i64, Prop)> {
         self.graph.temporal_edge_props_vec(self.edge, name)
     }
 
     /// Returns the source vertex of the edge.
-    fn src(&self) -> Self::Vertex {
+    pub fn src(&self) -> VertexView<G> {
         //FIXME: Make local ids on EdgeReference optional
         let vertex = VertexRef {
             g_id: self.edge.src_g_id,
             pid: None,
         };
-        Self::Vertex::new(self.graph.clone(), vertex)
+        VertexView::new(self.graph.clone(), vertex)
     }
 
-    /// Returns the destination vertex of the edge.
-    fn dst(&self) -> Self::Vertex {
+    pub fn dst(&self) -> VertexView<G> {
         //FIXME: Make local ids on EdgeReference optional
         let vertex = VertexRef {
             g_id: self.edge.dst_g_id,
             pid: None,
         };
-        Self::Vertex::new(self.graph.clone(), vertex)
+        VertexView::new(self.graph.clone(), vertex)
     }
 
-    /// Returns the ID of the edge.
-    fn id(&self) -> usize {
+    pub fn id(&self) -> usize {
         self.edge.edge_id
     }
 }
@@ -105,24 +99,18 @@ impl<G: GraphViewInternalOps + 'static + Send + Sync> EdgeViewOps for EdgeView<G
 ///
 /// This implementation enables the use of the `src` and `dst` methods to retrieve the vertices
 /// connected to the edges inside the iterator.
-impl<G: GraphViewInternalOps + 'static + Send + Sync> EdgeListOps
-    for Box<dyn Iterator<Item = EdgeView<G>> + Send>
-{
-    /// Specifies the associated type for vertex.
-    type Vertex = VertexView<G>;
+impl<G: GraphViewOps> EdgeListOps for Box<dyn Iterator<Item = EdgeView<G>> + Send> {
+    type Graph = G;
 
     /// Specifies the associated type for an iterator over vertices.
-    type VList = Box<dyn Iterator<Item = Self::Vertex> + Send>;
-
-    /// Specifies the associated type for an edge.
-    type Edge = EdgeView<G>;
+    type VList = Box<dyn Iterator<Item = VertexView<G>> + Send>;
 
     /// Specifies the associated type for the iterator over edges.
-    type IterType = Box<dyn Iterator<Item = Self::Edge> + Send>;
+    type IterType = Box<dyn Iterator<Item = EdgeView<G>> + Send>;
 
     /// Returns an iterator over the source vertices of the edges in the iterator.
     fn src(self) -> Self::VList {
-        Box::new(self.into_iter().map(|e| e.src()))
+        Box::new(self.map(|e| e.src()))
     }
 
     /// Returns an iterator over the destination vertices of the edges in the iterator.
@@ -130,3 +118,5 @@ impl<G: GraphViewInternalOps + 'static + Send + Sync> EdgeListOps
         Box::new(self.into_iter().map(|e| e.dst()))
     }
 }
+
+pub type EdgeList<G> = Box<dyn Iterator<Item = EdgeView<G>> + Send>;

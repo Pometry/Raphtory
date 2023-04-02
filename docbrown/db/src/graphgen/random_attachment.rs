@@ -14,7 +14,6 @@
 //! ```
 
 use crate::graph::Graph;
-use crate::view_api::internal::GraphViewInternalOps;
 use crate::view_api::*;
 use docbrown_core::tgraph_shard::errors::GraphError;
 use rand::seq::SliceRandom;
@@ -41,17 +40,13 @@ use rand::seq::SliceRandom;
 /// let graph = Graph::new(2);
 /// random_attachment(&graph, 1000, 10);
 /// ```
-pub fn random_attachment(
-    graph: &Graph,
-    vertices_to_add: usize,
-    edges_per_step: usize,
-) -> Result<(), GraphError> {
+pub fn random_attachment(graph: &Graph, vertices_to_add: usize, edges_per_step: usize) {
     let rng = &mut rand::thread_rng();
-    let mut latest_time = match graph.latest_time()? {
+    let mut latest_time = match graph.latest_time() {
         None => 0,
         Some(time) => time,
     };
-    let mut ids: Vec<u64> = graph.vertex_ids_window(i64::MIN, i64::MAX).collect();
+    let mut ids: Vec<u64> = graph.vertices().id().collect();
     let mut max_id = match ids.iter().max() {
         Some(id) => *id,
         None => 0,
@@ -76,8 +71,6 @@ pub fn random_attachment(
         });
         ids.push(max_id);
     }
-
-    Ok(())
 }
 
 #[cfg(test)]
@@ -88,8 +81,8 @@ mod random_graph_test {
     fn blank_graph() {
         let graph = Graph::new(2);
         random_attachment(&graph, 100, 20);
-        assert_eq!(graph.num_edges().unwrap(), 2000);
-        assert_eq!(graph.num_vertices().unwrap(), 120);
+        assert_eq!(graph.num_edges(), 2000);
+        assert_eq!(graph.num_vertices(), 120);
     }
 
     #[test]
@@ -103,8 +96,8 @@ mod random_graph_test {
         }
 
         random_attachment(&graph, 1000, 5);
-        assert_eq!(graph.num_edges().unwrap(), 5000);
-        assert_eq!(graph.num_vertices().unwrap(), 1010);
+        assert_eq!(graph.num_edges(), 5000);
+        assert_eq!(graph.num_vertices(), 1010);
     }
 
     #[test]
@@ -112,7 +105,7 @@ mod random_graph_test {
         let graph = Graph::new(2);
         ba_preferential_attachment(&graph, 300, 7);
         random_attachment(&graph, 4000, 12);
-        assert_eq!(graph.num_edges().unwrap(), 50106);
-        assert_eq!(graph.num_vertices().unwrap(), 4307);
+        assert_eq!(graph.num_edges(), 50106);
+        assert_eq!(graph.num_vertices(), 4307);
     }
 }

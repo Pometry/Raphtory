@@ -25,6 +25,7 @@
 //! ```rust
 //! use docbrown_db::algorithms::local_clustering_coefficient::{local_clustering_coefficient};
 //! use docbrown_db::graph::Graph;
+//! use docbrown_db::view_api::GraphViewOps;
 //!
 //! let g = Graph::new(1);
 //! let windowed_graph = g.window(0, 7);
@@ -53,16 +54,21 @@ use crate::view_api::*;
 use docbrown_core::tgraph_shard::errors::GraphError;
 
 /// measures the degree to which nodes in a graph tend to cluster together
-pub fn local_clustering_coefficient<G: GraphViewOps>(graph: &G, v: u64) -> Result<f32, GraphError> {
-    let vertex = graph.vertex(v)?.unwrap();
-
-    let triangle_count = local_triangle_count(graph, v)? as f32;
-
-    let degree = vertex.degree()? as f32;
-    if degree > 1.0 {
-        Ok((2.0 * triangle_count) / (degree * (degree - 1.0) as f32))
+pub fn local_clustering_coefficient<G: GraphViewOps>(graph: &G, v: u64) -> Option<f32> {
+    if let Some(vertex) = graph.vertex(v) {
+        if let Some(triangle_count) = local_triangle_count(graph, v) {
+            let triangle_count = triangle_count as f32;
+            let degree = vertex.degree() as f32;
+            if degree > 1.0 {
+                Some((2.0 * triangle_count) / (degree * (degree - 1.0) as f32))
+            } else {
+                Some(0.0)
+            }
+        } else {
+            None
+        }
     } else {
-        Ok(0.0)
+        None
     }
 }
 
@@ -70,6 +76,7 @@ pub fn local_clustering_coefficient<G: GraphViewOps>(graph: &G, v: u64) -> Resul
 mod clustering_coefficient_tests {
     use super::local_clustering_coefficient;
     use crate::graph::Graph;
+    use crate::view_api::*;
 
     #[test]
     fn clusters_of_triangles() {

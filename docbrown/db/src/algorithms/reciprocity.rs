@@ -25,6 +25,7 @@
 //! ```rust
 //! use docbrown_db::algorithms::reciprocity::{all_local_reciprocity, global_reciprocity, local_reciprocity};
 //! use docbrown_db::graph::Graph;
+//! use docbrown_db::view_api::GraphViewOps;
 //! let g = Graph::new(1);
 //! let vs = vec![
 //!     (1, 1, 2),
@@ -48,11 +49,12 @@
 //!
 //! println!("global_reciprocity: {:?}", global_reciprocity(&windowed_graph));
 //! ```
+use crate::vertex::VertexView;
 use crate::view_api::*;
 use docbrown_core::tgraph_shard::errors::GraphError;
 use std::collections::HashSet;
 
-fn get_reciprocal_edge_count<V: VertexViewOps>(v: &V) -> (u64, u64, u64) {
+fn get_reciprocal_edge_count<G: GraphViewOps>(v: &VertexView<G>) -> (u64, u64, u64) {
     let out_neighbours: HashSet<u64> = v.out_neighbours().id().filter(|x| *x != v.id()).collect();
     let in_neighbours: HashSet<u64> = v.in_neighbours().id().filter(|x| *x != v.id()).collect();
     (
@@ -73,24 +75,21 @@ pub fn global_reciprocity<G: GraphViewOps>(graph: &G) -> f64 {
 
 /// Returns the reciprocity of every vertex in the graph as a tuple of
 /// vector id and the reciprocity
-pub fn all_local_reciprocity<G: GraphViewOps>(graph: &G) -> Result<Vec<(u64, f64)>, GraphError> {
+pub fn all_local_reciprocity<G: GraphViewOps>(graph: &G) -> Vec<(u64, f64)> {
     graph
         .vertices()
         .into_iter()
-        .map(|v| {
-            let lr = local_reciprocity(graph, v.id());
-            lr.map(move |r| (v.id(), r))
-        })
+        .map(|v| (v.id(), local_reciprocity(graph, v.id())))
         .collect()
 }
 
 /// Returns the reciprocity value of a single vertex
-pub fn local_reciprocity<G: GraphViewOps>(graph: &G, v: u64) -> Result<f64, GraphError> {
-    match graph.vertex(v)? {
-        None => Ok(0 as f64),
+pub fn local_reciprocity<G: GraphViewOps>(graph: &G, v: u64) -> f64 {
+    match graph.vertex(v) {
+        None => 0 as f64,
         Some(vertex) => {
             let intersection = get_reciprocal_edge_count(&vertex);
-            Ok(2.0 * intersection.2 as f64 / (intersection.0 + intersection.1) as f64)
+            2.0 * intersection.2 as f64 / (intersection.0 + intersection.1) as f64
         }
     }
 }
@@ -99,6 +98,7 @@ pub fn local_reciprocity<G: GraphViewOps>(graph: &G, v: u64) -> Result<f64, Grap
 mod reciprocity_test {
     use super::{all_local_reciprocity, global_reciprocity, local_reciprocity};
     use crate::graph::Graph;
+    use crate::view_api::*;
 
     #[test]
     fn check_all_reciprocities() {
@@ -120,13 +120,13 @@ mod reciprocity_test {
 
         let windowed_graph = g.window(0, 2);
         let expected = 0.0;
-        let actual = local_reciprocity(&windowed_graph, 5).unwrap();
+        let actual = local_reciprocity(&windowed_graph, 5);
         assert_eq!(actual, expected);
 
         let expected: Vec<(u64, f64)> =
             vec![(1, 0.4), (2, 2.0 / 3.0), (3, 0.5), (4, 2.0 / 3.0), (5, 0.0)];
 
-        let mut actual = all_local_reciprocity(&windowed_graph).unwrap();
+        let mut actual = all_local_reciprocity(&windowed_graph);
         actual.sort_by(|a, b| a.0.cmp(&b.0));
         assert_eq!(actual, expected);
 

@@ -122,13 +122,13 @@ pub fn reddit_graph(shards: usize, timeout: u64) -> Graph {
                                         Prop::F64(post_properties[17]),
                                     ),
                                 ];
-                                g.add_vertex(time, src_id.clone(), &vec![])
+                                g.add_vertex(time, *src_id, &vec![])
                                     .map_err(|err| println!("{:?}", err))
                                     .ok();
-                                g.add_vertex(time, dst_id.clone(), &vec![])
+                                g.add_vertex(time, *dst_id, &vec![])
                                     .map_err(|err| println!("{:?}", err))
                                     .ok();
-                                g.add_edge(time, src_id.clone(), dst_id.clone(), edge_properties);
+                                g.add_edge(time, *src_id, *dst_id, edge_properties);
                             }
                             Err(e) => {
                                 println!("{}", e)

@@ -1,13 +1,19 @@
 use docbrown_core::tgraph::{EdgeRef, VertexRef};
 use docbrown_core::tgraph_shard::errors::GraphError;
 use docbrown_core::{Direction, Prop};
+use rayon::prelude::*;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 /// The GraphViewInternalOps trait provides a set of methods to query a directed graph
 /// represented by the docbrown_core::tgraph::TGraph struct.
 pub trait GraphViewInternalOps {
+    fn earliest_time_global(&self) -> Option<i64>;
+    fn earliest_time_window(&self, t_start: i64, t_end: i64) -> Option<i64>;
+    fn latest_time_global(&self) -> Option<i64>;
+    fn latest_time_window(&self, t_start: i64, t_end: i64) -> Option<i64>;
     /// Returns the total number of vertices in the graph.
-    fn vertices_len(&self) -> Result<usize, GraphError>;
+    fn vertices_len(&self) -> usize;
 
     /// Returns the number of vertices in the graph that were created between
     /// the start (t_start) and end (t_end) timestamps (inclusive).
@@ -18,7 +24,7 @@ pub trait GraphViewInternalOps {
     fn vertices_len_window(&self, t_start: i64, t_end: i64) -> usize;
 
     /// Returns the total number of edges in the graph.
-    fn edges_len(&self) -> Result<usize, GraphError>;
+    fn edges_len(&self) -> usize;
 
     /// Returns the number of edges in the graph that were created between the
     /// start (t_start) and end (t_end) timestamps (inclusive).
@@ -34,11 +40,7 @@ pub trait GraphViewInternalOps {
     ///
     /// * `src` - The source vertex of the edge.
     /// * `dst` - The destination vertex of the edge.
-    fn has_edge_ref<V1: Into<VertexRef>, V2: Into<VertexRef>>(
-        &self,
-        src: V1,
-        dst: V2,
-    ) -> Result<bool, GraphError>;
+    fn has_edge_ref(&self, src: VertexRef, dst: VertexRef) -> bool;
 
     /// Returns true if the graph contains an edge between the source vertex (src) and the
     /// destination vertex (dst) created between the start (t_start) and end (t_end) timestamps
@@ -49,19 +51,14 @@ pub trait GraphViewInternalOps {
     /// * `t_end` - The end time of the window (exclusive).
     /// * `src` - The source vertex of the edge.
     /// * `dst` - The destination vertex of the edge.
-    fn has_edge_ref_window<V1: Into<VertexRef>, V2: Into<VertexRef>>(
-        &self,
-        src: V1,
-        dst: V2,
-        t_start: i64,
-        t_end: i64,
-    ) -> Result<bool, GraphError>;
+    fn has_edge_ref_window(&self, src: VertexRef, dst: VertexRef, t_start: i64, t_end: i64)
+        -> bool;
 
     /// Returns true if the graph contains the specified vertex (v).
     /// # Arguments
     ///
     /// * `v` - VertexRef of the vertex to check.
-    fn has_vertex_ref<V: Into<VertexRef>>(&self, v: V) -> Result<bool, GraphError>;
+    fn has_vertex_ref(&self, v: VertexRef) -> bool;
 
     /// Returns true if the graph contains the specified vertex (v) created between the
     /// start (t_start) and end (t_end) timestamps (inclusive).
@@ -70,12 +67,7 @@ pub trait GraphViewInternalOps {
     /// * `v` - VertexRef of the vertex to check.
     /// * `t_start` - The start time of the window (inclusive).
     /// * `t_end` - The end time of the window (exclusive).
-    fn has_vertex_ref_window<V: Into<VertexRef>>(
-        &self,
-        v: V,
-        t_start: i64,
-        t_end: i64,
-    ) -> Result<bool, GraphError>;
+    fn has_vertex_ref_window(&self, v: VertexRef, t_start: i64, t_end: i64) -> bool;
 
     /// Returns the number of edges that point towards or from the specified vertex
     /// (v) based on the direction (d).
@@ -83,7 +75,7 @@ pub trait GraphViewInternalOps {
     ///
     /// * `v` - VertexRef of the vertex to check.
     /// * `d` - Direction of the edges to count.
-    fn degree(&self, v: VertexRef, d: Direction) -> Result<usize, GraphError>;
+    fn degree(&self, v: VertexRef, d: Direction) -> usize;
 
     /// Returns the number of edges that point towards or from the specified vertex (v)
     /// created between the start (t_start) and end (t_end) timestamps (inclusive) based
@@ -93,20 +85,14 @@ pub trait GraphViewInternalOps {
     /// * `v` - VertexRef of the vertex to check.
     /// * `t_start` - The start time of the window (inclusive).
     /// * `t_end` - The end time of the window (exclusive).
-    fn degree_window(
-        &self,
-        v: VertexRef,
-        t_start: i64,
-        t_end: i64,
-        d: Direction,
-    ) -> Result<usize, GraphError>;
+    fn degree_window(&self, v: VertexRef, t_start: i64, t_end: i64, d: Direction) -> usize;
 
     /// Returns the VertexRef that corresponds to the specified vertex ID (v).
     /// Returns None if the vertex ID is not present in the graph.
     /// # Arguments
     ///
     /// * `v` - The vertex ID to lookup.
-    fn vertex_ref(&self, v: u64) -> Result<Option<VertexRef>, GraphError>;
+    fn vertex_ref(&self, v: u64) -> Option<VertexRef>;
 
     /// Returns the VertexRef that corresponds to the specified vertex ID (v) created
     /// between the start (t_start) and end (t_end) timestamps (inclusive).
@@ -119,12 +105,7 @@ pub trait GraphViewInternalOps {
     ///
     /// # Returns
     /// * `Option<VertexRef>` - The VertexRef of the vertex if it exists in the graph.
-    fn vertex_ref_window(
-        &self,
-        v: u64,
-        t_start: i64,
-        t_end: i64,
-    ) -> Result<Option<VertexRef>, GraphError>;
+    fn vertex_ref_window(&self, v: u64, t_start: i64, t_end: i64) -> Option<VertexRef>;
 
     /// Retuns all the vertex IDs in the graph.
     /// # Returns
@@ -163,6 +144,8 @@ pub trait GraphViewInternalOps {
         t_end: i64,
     ) -> Box<dyn Iterator<Item = VertexRef> + Send>;
 
+    fn vertex_refs_shard(&self, shard: usize) -> Box<dyn Iterator<Item = VertexRef> + Send>;
+
     /// Returns all the vertex references in the graph that are in the specified shard.
     /// Between the start (t_start) and end (t_end)
     ///
@@ -189,11 +172,7 @@ pub trait GraphViewInternalOps {
     /// # Returns
     ///
     /// * `Option<EdgeRef>` - The edge reference if it exists.
-    fn edge_ref<V1: Into<VertexRef>, V2: Into<VertexRef>>(
-        &self,
-        src: V1,
-        dst: V2,
-    ) -> Result<Option<EdgeRef>, GraphError>;
+    fn edge_ref(&self, src: VertexRef, dst: VertexRef) -> Option<EdgeRef>;
 
     /// Returns the edge reference that corresponds to the specified src and dst vertex
     /// created between the start (t_start) and end (t_end) timestamps (exclusive).
@@ -208,13 +187,13 @@ pub trait GraphViewInternalOps {
     /// # Returns
     ///
     /// * `Option<EdgeRef>` - The edge reference if it exists.
-    fn edge_ref_window<V1: Into<VertexRef>, V2: Into<VertexRef>>(
+    fn edge_ref_window(
         &self,
-        src: V1,
-        dst: V2,
+        src: VertexRef,
+        dst: VertexRef,
         t_start: i64,
         t_end: i64,
-    ) -> Result<Option<EdgeRef>, GraphError>;
+    ) -> Option<EdgeRef>;
 
     /// Returns all the edge references in the graph.
     ///
@@ -371,7 +350,7 @@ pub trait GraphViewInternalOps {
     /// # Returns
     ///
     /// Option<Prop> - The property value if it exists.
-    fn static_vertex_prop(&self, v: VertexRef, name: String) -> Result<Option<Prop>, GraphError>;
+    fn static_vertex_prop(&self, v: VertexRef, name: String) -> Option<Prop>;
 
     /// Gets the keys of static properties of a given vertex
     ///
@@ -382,7 +361,7 @@ pub trait GraphViewInternalOps {
     /// # Returns
     ///
     /// Vec<String> - The keys of the static properties.
-    fn static_vertex_prop_keys(&self, v: VertexRef) -> Result<Vec<String>, GraphError>;
+    fn static_vertex_prop_keys(&self, v: VertexRef) -> Vec<String>;
 
     /// Returns a vector of all temporal values of the vertex property with the given name for the
     /// given vertex
@@ -399,11 +378,7 @@ pub trait GraphViewInternalOps {
     /// A vector of tuples representing the temporal values of the property for the given vertex
     /// that fall within the specified time window, where the first element of each tuple is the timestamp
     /// and the second element is the property value.
-    fn temporal_vertex_prop_vec(
-        &self,
-        v: VertexRef,
-        name: String,
-    ) -> Result<Vec<(i64, Prop)>, GraphError>;
+    fn temporal_vertex_prop_vec(&self, v: VertexRef, name: String) -> Vec<(i64, Prop)>;
 
     /// Returns a vector of all temporal values of the vertex property with the given name for the given vertex
     /// that fall within the specified time window.
@@ -426,7 +401,7 @@ pub trait GraphViewInternalOps {
         name: String,
         t_start: i64,
         t_end: i64,
-    ) -> Result<Vec<(i64, Prop)>, GraphError>;
+    ) -> Vec<(i64, Prop)>;
 
     /// Returns a map of all temporal values of the vertex properties for the given vertex.
     /// The keys of the map are the names of the properties, and the values are vectors of tuples
@@ -437,10 +412,7 @@ pub trait GraphViewInternalOps {
     ///
     /// # Returns
     /// - A map of all temporal values of the vertex properties for the given vertex.
-    fn temporal_vertex_props(
-        &self,
-        v: VertexRef,
-    ) -> Result<HashMap<String, Vec<(i64, Prop)>>, GraphError>;
+    fn temporal_vertex_props(&self, v: VertexRef) -> HashMap<String, Vec<(i64, Prop)>>;
 
     /// Returns a map of all temporal values of the vertex properties for the given vertex
     /// that fall within the specified time window.
@@ -458,7 +430,7 @@ pub trait GraphViewInternalOps {
         v: VertexRef,
         t_start: i64,
         t_end: i64,
-    ) -> Result<HashMap<String, Vec<(i64, Prop)>>, GraphError>;
+    ) -> HashMap<String, Vec<(i64, Prop)>>;
 
     /// Returns a vector of all temporal values of the edge property with the given name for the
     /// given edge reference.
@@ -471,7 +443,7 @@ pub trait GraphViewInternalOps {
     /// # Returns
     ///
     /// A property if it exists
-    fn static_edge_prop(&self, e: EdgeRef, name: String) -> Result<Option<Prop>, GraphError>;
+    fn static_edge_prop(&self, e: EdgeRef, name: String) -> Option<Prop>;
 
     /// Returns a vector of keys for the static properties of the given edge reference.
     ///
@@ -482,7 +454,7 @@ pub trait GraphViewInternalOps {
     /// # Returns
     ///
     /// * A `Vec` of `String` containing the keys for the static properties of the given edge.
-    fn static_edge_prop_keys(&self, e: EdgeRef) -> Result<Vec<String>, GraphError>;
+    fn static_edge_prop_keys(&self, e: EdgeRef) -> Vec<String>;
 
     /// Returns a vector of tuples containing the values of the temporal property with the given name
     /// for the given edge reference.
@@ -495,11 +467,7 @@ pub trait GraphViewInternalOps {
     /// # Returns
     ///
     /// * A `Vec` of tuples containing the values of the temporal property with the given name for the given edge.
-    fn temporal_edge_props_vec(
-        &self,
-        e: EdgeRef,
-        name: String,
-    ) -> Result<Vec<(i64, Prop)>, GraphError>;
+    fn temporal_edge_props_vec(&self, e: EdgeRef, name: String) -> Vec<(i64, Prop)>;
 
     /// Returns a vector of tuples containing the values of the temporal property with the given name
     /// for the given edge reference within the specified time window.
@@ -522,7 +490,7 @@ pub trait GraphViewInternalOps {
         name: String,
         t_start: i64,
         t_end: i64,
-    ) -> Result<Vec<(i64, Prop)>, GraphError>;
+    ) -> Vec<(i64, Prop)>;
 
     /// Returns a hash map containing all the temporal properties of the given edge reference,
     /// where each key is the name of a temporal property and each value is a vector of tuples containing
@@ -561,4 +529,137 @@ pub trait GraphViewInternalOps {
         t_start: i64,
         t_end: i64,
     ) -> HashMap<String, Vec<(i64, Prop)>>;
+
+    fn num_shards(&self) -> usize;
+
+    fn vertices_shard(&self, shard_id: usize) -> Box<dyn Iterator<Item = VertexRef> + Send>;
+
+    fn vertices_shard_window(
+        &self,
+        shard_id: usize,
+        t_start: i64,
+        t_end: i64,
+    ) -> Box<dyn Iterator<Item = VertexRef> + Send>;
+}
+
+pub trait ParIterGraphOps {
+    fn vertices_par_map<O, F>(&self, f: F) -> Box<dyn Iterator<Item = O>>
+    where
+        O: Send + 'static,
+        F: Fn(VertexRef) -> O + Send + Sync + Copy;
+
+    fn vertices_par_fold<S, F, F2>(&self, f: F, agg: F2) -> Option<S>
+    where
+        S: Send + 'static,
+        F: Fn(VertexRef) -> S + Send + Sync + Copy,
+        F2: Fn(S, S) -> S + Sync + Send + Copy;
+
+    fn vertices_window_par_map<O, F>(
+        &self,
+        t_start: i64,
+        t_end: i64,
+        f: F,
+    ) -> Box<dyn Iterator<Item = O>>
+    where
+        O: Send + 'static,
+        F: Fn(VertexRef) -> O + Send + Sync + Copy;
+
+    fn vertices_window_par_fold<S, F, F2>(
+        &self,
+        t_start: i64,
+        t_end: i64,
+        f: F,
+        agg: F2,
+    ) -> Option<S>
+    where
+        S: Send + 'static,
+        F: Fn(VertexRef) -> S + Send + Sync + Copy,
+        F2: Fn(S, S) -> S + Sync + Send + Copy;
+}
+
+impl<G: GraphViewInternalOps + Send + Sync> ParIterGraphOps for G {
+    fn vertices_par_map<O, F>(&self, f: F) -> Box<dyn Iterator<Item = O>>
+    where
+        O: Send + 'static,
+        F: Fn(VertexRef) -> O + Send + Sync + Copy,
+    {
+        let (tx, rx) = flume::unbounded();
+
+        let arc_tx = Arc::new(tx);
+        (0..self.num_shards())
+            .into_par_iter()
+            .flat_map(|shard_id| self.vertices_shard(shard_id).par_bridge().map(f))
+            .for_each(move |o| {
+                arc_tx.send(o).unwrap();
+            });
+
+        Box::new(rx.into_iter())
+    }
+
+    fn vertices_par_fold<S, F, F2>(&self, f: F, agg: F2) -> Option<S>
+    where
+        S: Send + 'static,
+        F: Fn(VertexRef) -> S + Send + Sync + Copy,
+        F2: Fn(S, S) -> S + Sync + Send + Copy,
+    {
+        (0..self.num_shards())
+            .into_par_iter()
+            .flat_map(|shard_id| {
+                self.vertices_shard(shard_id)
+                    .par_bridge()
+                    .map(f)
+                    .reduce_with(agg)
+            })
+            .reduce_with(agg)
+    }
+
+    fn vertices_window_par_map<O, F>(
+        &self,
+        t_start: i64,
+        t_end: i64,
+        f: F,
+    ) -> Box<dyn Iterator<Item = O>>
+    where
+        O: Send + 'static,
+        F: Fn(VertexRef) -> O + Send + Sync + Copy,
+    {
+        let (tx, rx) = flume::unbounded();
+
+        let arc_tx = Arc::new(tx);
+        (0..self.num_shards())
+            .into_par_iter()
+            .flat_map(|shard_id| {
+                self.vertices_shard_window(shard_id, t_start, t_end)
+                    .par_bridge()
+                    .map(f)
+            })
+            .for_each(move |o| {
+                arc_tx.send(o).unwrap();
+            });
+
+        Box::new(rx.into_iter())
+    }
+
+    fn vertices_window_par_fold<S, F, F2>(
+        &self,
+        t_start: i64,
+        t_end: i64,
+        f: F,
+        agg: F2,
+    ) -> Option<S>
+    where
+        S: Send + 'static,
+        F: Fn(VertexRef) -> S + Send + Sync + Copy,
+        F2: Fn(S, S) -> S + Sync + Send + Copy,
+    {
+        (0..self.num_shards())
+            .into_par_iter()
+            .flat_map(|shard| {
+                self.vertices_shard_window(shard, t_start, t_end)
+                    .par_bridge()
+                    .map(f)
+                    .reduce_with(agg)
+            })
+            .reduce_with(agg)
+    }
 }
