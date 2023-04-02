@@ -110,15 +110,10 @@ impl GraphViewInternalOps for Graph {
     }
 
     fn edges_len_window(&self, t_start: i64, t_end: i64) -> usize {
-        //FIXME: This nees to be optimised ideally
-        self.shards
+        self
+            .shards
             .iter()
-            .map(|shard| {
-                shard
-                    .vertices()
-                    .flat_map(|v| shard.vertex_edges_window(v.g_id, t_start..t_end, Direction::OUT))
-                    .count()
-            })
+            .map(|shard| shard.out_edges_len_window(&(t_start..t_end)))
             .sum()
     }
 

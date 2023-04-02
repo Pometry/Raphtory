@@ -108,4 +108,5 @@ mod sx_superuser_test {
     fn test_graph_loading_works() {
         let graph = sx_superuser_graph(2).unwrap();
     }
+
 }
