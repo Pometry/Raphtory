@@ -273,6 +273,9 @@ impl Props {
             for (prop_id, prop) in translated_props {
                 edge_slot.update_or_set(prop_id, |p| p.set(t, &prop), TProp::from(t, &prop));
             }
+        } else {
+            // we allocate an edge slot even if there are no props
+            Self::grow_and_get_slot(&mut self.temporal_edge_props, edge_id);
         }
     }
 
