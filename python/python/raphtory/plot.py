@@ -346,8 +346,8 @@ def draw_graph(graph, pos=None, arrows=True, with_labels=False, **kwds):
     edge_label_kwds = {k: v for k, v in kwds.items() if k in valid_edge_label_kwds}
 
     if pos is None:
-        pos = spring_layout(graph)  # default to spring layout
-        # pos = kamada_kawai_layout(graph, scale=50)
+       pos = spring_layout(graph)  # default to spring layout
+       #  pos = kamada_kawai_layout(graph, scale=50)
     draw_nodes(graph, pos, **node_kwds)
     draw_edges(graph, pos, arrows=arrows, **edge_kwds)
     if with_labels:
@@ -868,7 +868,7 @@ def draw_labels(
         ax = plt.gca()
     
     if labels is None:
-        labels = {n: n for n in list(graph.vertices().id())}
+        labels = {n: n.name() for n in list(graph.vertices())}
 
     text_items = {}  # there is no text collection so we'll fake one
     for n, label in labels.items():
