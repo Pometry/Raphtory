@@ -3,30 +3,37 @@ use docbrown_db::perspective;
 use docbrown_db::perspective::PerspectiveSet;
 use pyo3::exceptions::PyException;
 use pyo3::prelude::*;
+use std::fmt;
 
 #[derive(FromPyObject, Debug, Clone)]
 pub enum Prop {
     Str(String),
-    I32(i32),
-    I64(i64),
-    U32(u32),
-    U64(u64),
-    F32(f32),
-    F64(f64),
     Bool(bool),
+    I64(i64),
+    U64(u64),
+    F64(f64),
+}
+
+impl fmt::Display for Prop {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Prop::Str(value) => write!(f, "{}", value),
+            Prop::Bool(value) => write!(f, "{}", value),
+            Prop::I64(value) => write!(f, "{}", value),
+            Prop::U64(value) => write!(f, "{}", value),
+            Prop::F64(value) => write!(f, "{}", value),
+        }
+    }
 }
 
 impl IntoPy<PyObject> for Prop {
     fn into_py(self, py: Python<'_>) -> PyObject {
         match self {
             Prop::Str(s) => s.into_py(py),
-            Prop::I32(i32) => i32.into_py(py),
-            Prop::I64(i64) => i64.into_py(py),
-            Prop::U32(u32) => u32.into_py(py),
-            Prop::U64(u64) => u64.into_py(py),
-            Prop::F32(f32) => f32.into_py(py),
-            Prop::F64(f64) => f64.into_py(py),
             Prop::Bool(bool) => bool.into_py(py),
+            Prop::I64(i64) => i64.into_py(py),
+            Prop::U64(u64) => u64.into_py(py),
+            Prop::F64(f64) => f64.into_py(py),
         }
     }
 }
@@ -35,13 +42,10 @@ impl From<Prop> for db_c::Prop {
     fn from(prop: Prop) -> db_c::Prop {
         match prop {
             Prop::Str(string) => db_c::Prop::Str(string),
-            Prop::I32(i32) => db_c::Prop::I32(i32),
-            Prop::I64(i64) => db_c::Prop::I64(i64),
-            Prop::U32(u32) => db_c::Prop::U32(u32),
-            Prop::U64(u64) => db_c::Prop::U64(u64),
-            Prop::F32(f32) => db_c::Prop::F32(f32),
-            Prop::F64(f64) => db_c::Prop::F64(f64),
             Prop::Bool(bool) => db_c::Prop::Bool(bool),
+            Prop::I64(i64) => db_c::Prop::I64(i64),
+            Prop::U64(u64) => db_c::Prop::U64(u64),
+            Prop::F64(f64) => db_c::Prop::F64(f64),
         }
     }
 }
@@ -50,13 +54,13 @@ impl From<db_c::Prop> for Prop {
     fn from(prop: db_c::Prop) -> Prop {
         match prop {
             db_c::Prop::Str(string) => Prop::Str(string),
-            db_c::Prop::I32(i32) => Prop::I32(i32),
-            db_c::Prop::I64(i64) => Prop::I64(i64),
-            db_c::Prop::U32(u32) => Prop::U32(u32),
-            db_c::Prop::U64(u64) => Prop::U64(u64),
-            db_c::Prop::F32(f32) => Prop::F32(f32),
-            db_c::Prop::F64(f64) => Prop::F64(f64),
             db_c::Prop::Bool(bool) => Prop::Bool(bool),
+            db_c::Prop::I32(i32) => Prop::I64(i32 as i64),
+            db_c::Prop::I64(i64) => Prop::I64(i64),
+            db_c::Prop::U32(u32) => Prop::U64(u32 as u64),
+            db_c::Prop::U64(u64) => Prop::U64(u64),
+            db_c::Prop::F64(f64) => Prop::F64(f64),
+            db_c::Prop::F32(f32) => Prop::F64(f32 as f64)
         }
     }
 }

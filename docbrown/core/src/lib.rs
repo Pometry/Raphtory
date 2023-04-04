@@ -25,6 +25,7 @@
 //!
 
 use serde::{Deserialize, Serialize};
+use std::fmt;
 
 #[cfg(test)]
 #[macro_use(quickcheck)]
@@ -68,4 +69,19 @@ pub enum Prop {
     F32(f32),
     F64(f64),
     Bool(bool),
+}
+
+impl fmt::Display for Prop {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Prop::Str(value) => write!(f, "{}", value),
+            Prop::I32(value) => write!(f, "{}", value),
+            Prop::I64(value) => write!(f, "{}", value),
+            Prop::U32(value) => write!(f, "{}", value),
+            Prop::U64(value) => write!(f, "{}", value),
+            Prop::F32(value) => write!(f, "{}", value),
+            Prop::F64(value) => write!(f, "{}", value),
+            Prop::Bool(value) => write!(f, "{}", value),
+        }
+    }
 }

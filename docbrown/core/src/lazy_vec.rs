@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
+use crate::tgraph::errors::MutateGraphError;
+use crate::tgraph_shard::errors::GraphError;
 
 #[derive(thiserror::Error, Debug, PartialEq)]
 #[error("cannot set previous value '{previous_value:?}' to '{new_value:?}' in position '{index}'")]

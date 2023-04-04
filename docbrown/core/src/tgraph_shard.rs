@@ -85,6 +85,8 @@ pub mod errors {
     pub enum GraphError {
         #[error("Immutable graph reference already exists. You can access mutable graph apis only exclusively.")]
         IllegalGraphAccess,
+        #[error("Incorrect property given.")]
+        IncorrectPropertyType,
         #[error("Failed to mutate graph")]
         FailedToMutateGraph { source: MutateGraphError },
     }
@@ -495,8 +497,12 @@ impl TGraphShard<TemporalGraph> {
         self.read_shard(|tg| tg.static_vertex_prop(v, &name))
     }
 
-    pub fn static_vertex_prop_keys(&self, v: u64) -> Vec<String> {
-        self.read_shard(|tg| tg.static_vertex_prop_keys(v))
+    pub fn static_vertex_prop_names(&self, v: u64) -> Vec<String> {
+        self.read_shard(|tg| tg.static_vertex_prop_names(v))
+    }
+
+    pub fn temporal_vertex_prop_names(&self, v: u64) -> Vec<String> {
+        self.read_shard(|tg| tg.temporal_vertex_prop_names(v))
     }
 
     pub fn temporal_vertex_prop_vec(&self, v: u64, name: String) -> Vec<(i64, Prop)> {
@@ -527,8 +533,12 @@ impl TGraphShard<TemporalGraph> {
         self.read_shard(|tg| tg.static_edge_prop(e, &name))
     }
 
-    pub fn static_edge_prop_keys(&self, e: usize) -> Vec<String> {
-        self.read_shard(|tg| tg.static_edge_prop_keys(e))
+    pub fn static_edge_prop_names(&self, e: usize) -> Vec<String> {
+        self.read_shard(|tg| tg.static_edge_prop_names(e))
+    }
+
+    pub fn temporal_edge_prop_names(&self, e: usize) -> Vec<String> {
+        self.read_shard(|tg| (tg.temporal_edge_prop_names(e)))
     }
 
     pub fn temporal_edge_prop_vec(&self, e: usize, name: String) -> Vec<(i64, Prop)> {
@@ -542,6 +552,18 @@ impl TGraphShard<TemporalGraph> {
         w: Range<i64>,
     ) -> Vec<(i64, Prop)> {
         self.read_shard(|tg| tg.temporal_edge_prop_vec_window(e, &name, w.clone()))
+    }
+
+    pub fn temporal_edge_props(&self, e: usize) -> HashMap<String, Vec<(i64, Prop)>> {
+        self.read_shard(|tg| tg.temporal_edge_props(e))
+    }
+
+    pub fn temporal_edge_props_window(
+        &self,
+        e: usize,
+        w: Range<i64>,
+    ) -> HashMap<String, Vec<(i64, Prop)>> {
+        self.read_shard(|tg| tg.temporal_edge_props_window(e, w.clone()))
     }
 }
 

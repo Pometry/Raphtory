@@ -44,6 +44,35 @@ impl<G: GraphViewOps> VertexView<G> {
         self.vertex.g_id
     }
 
+    /// Get the name of this vertex if a user has set one otherwise it returns the ID.
+    ///
+    /// # Returns
+    ///
+    /// The name of the vertex if one exists, otherwise the ID as a string.
+    pub fn name(&self) -> String {
+        match self.static_property("_id".to_string()) {
+            None => self.id().to_string(),
+            Some(prop) => prop.to_string(),
+        }
+    }
+
+    pub fn property(&self, name: String, include_static: bool) -> Option<Prop> {
+        let props = self.property_history(name.clone());
+        match props.last() {
+            None => {
+                if include_static {
+                    match self.graph.static_vertex_prop(self.vertex, name) {
+                        None => None,
+                        Some(prop) => Some(prop),
+                    }
+                } else {
+                    None
+                }
+            }
+            Some((_, prop)) => Some(prop.clone()),
+        }
+    }
+
     /// Get the temporal property value of this vertex.
     ///
     /// # Arguments
@@ -54,8 +83,31 @@ impl<G: GraphViewOps> VertexView<G> {
     ///
     /// A vector of `(i64, Prop)` tuples where the `i64` value is the timestamp of the
     /// property value and `Prop` is the value itself.
-    pub fn prop(&self, name: String) -> Vec<(i64, Prop)> {
+    pub fn property_history(&self, name: String) -> Vec<(i64, Prop)> {
         self.graph.temporal_vertex_prop_vec(self.vertex, name)
+    }
+
+    pub fn properties(&self, include_static: bool) -> HashMap<String, Prop> {
+        let mut props: HashMap<String, Prop> = self
+            .property_histories()
+            .iter()
+            .map(|(key, values)| (key.clone(), values.last().unwrap().1.clone()))
+            .collect();
+
+        if include_static {
+            for prop_name in self.graph.static_vertex_prop_names(self.vertex) {
+                match self
+                    .graph
+                    .static_vertex_prop(self.vertex, prop_name.clone())
+                {
+                    Some(prop) => {
+                        props.insert(prop_name, prop);
+                    }
+                    None => {}
+                }
+            }
+        }
+        props
     }
 
     /// Get all temporal property values of this vertex.
@@ -65,8 +117,31 @@ impl<G: GraphViewOps> VertexView<G> {
     /// A HashMap with the names of the properties as keys and a vector of `(i64, Prop)` tuples
     /// as values. The `i64` value is the timestamp of the property value and `Prop`
     /// is the value itself.
-    pub fn props(&self) -> HashMap<String, Vec<(i64, Prop)>> {
+    pub fn property_histories(&self) -> HashMap<String, Vec<(i64, Prop)>> {
         self.graph.temporal_vertex_props(self.vertex)
+    }
+
+    pub fn property_names(&self, include_static: bool) -> Vec<String> {
+        let mut names: Vec<String> = self.graph.temporal_vertex_prop_names(self.vertex);
+        if include_static {
+            names.extend(self.graph.static_vertex_prop_names(self.vertex))
+        }
+        names
+    }
+
+    pub fn has_property(&self, name: String, include_static: bool) -> bool {
+        (! self.property_history(name.clone()).is_empty())
+            || (include_static && self.graph.static_vertex_prop_names(self.vertex).contains(&name))
+    }
+
+    pub fn has_static_property(&self, name: String) -> bool {
+        self.graph
+            .static_vertex_prop_names(self.vertex)
+            .contains(&name)
+    }
+
+    pub fn static_property(&self, name: String) -> Option<Prop> {
+        self.graph.static_vertex_prop(self.vertex, name)
     }
 
     /// Get the degree of this vertex (i.e., the number of edges that are incident to it).
@@ -369,27 +444,53 @@ impl<G: GraphViewOps> VertexListOps for Box<dyn Iterator<Item = VertexView<G>> +
         Box::new(self.map(|v| v.id()))
     }
 
-    /// Get the vertex properties in this list.
-    ///
-    /// # Arguments
-    ///
-    /// * `name` - The name of the property to get.
-    ///
-    /// # Returns
-    ///
-    /// An iterator over the vertex properties in this list.
-    fn prop(self, name: String) -> Self::ValueIterType<Vec<(i64, Prop)>> {
-        let r: Vec<_> = self.map(move |v| v.prop(name.clone())).collect();
+    fn name(self) -> Self::ValueIterType<String> {
+        Box::new(self.map(|v| v.name()))
+    }
+
+    fn property(self, name: String, include_static: bool) -> Self::ValueIterType<Option<Prop>> {
+        let r: Vec<_> = self
+            .map(|v| v.property(name.clone(), include_static.clone()))
+            .collect();
         Box::new(r.into_iter())
     }
 
-    /// Get all vertex properties in this list.
-    ///
-    /// # Returns
-    ///
-    /// An iterator over all vertex properties in this list.
-    fn props(self) -> Self::ValueIterType<HashMap<String, Vec<(i64, Prop)>>> {
-        let r: Vec<_> = self.map(|v| v.props()).collect();
+    fn property_history(self, name: String) -> Self::ValueIterType<Vec<(i64, Prop)>> {
+        let r: Vec<_> = self.map(|v| v.property_history(name.clone())).collect();
+        Box::new(r.into_iter())
+    }
+
+    fn properties(self, include_static: bool) -> Self::ValueIterType<HashMap<String, Prop>> {
+        let r: Vec<_> = self.map(|v| v.properties(include_static.clone())).collect();
+        Box::new(r.into_iter())
+    }
+
+    fn property_histories(self) -> Self::ValueIterType<HashMap<String, Vec<(i64, Prop)>>> {
+        let r: Vec<_> = self.map(|v| v.property_histories()).collect();
+        Box::new(r.into_iter())
+    }
+
+    fn property_names(self, include_static: bool) -> Self::ValueIterType<Vec<String>> {
+        let r: Vec<_> = self
+            .map(|v| v.property_names(include_static.clone()))
+            .collect();
+        Box::new(r.into_iter())
+    }
+
+    fn has_property(self, name: String, include_static: bool) -> Self::ValueIterType<bool> {
+        let r: Vec<_> = self
+            .map(|v| v.has_property(name.clone(), include_static.clone()))
+            .collect();
+        Box::new(r.into_iter())
+    }
+
+    fn has_static_property(self, name: String) -> Self::ValueIterType<bool> {
+        let r: Vec<_> = self.map(|v| v.has_static_property(name.clone())).collect();
+        Box::new(r.into_iter())
+    }
+
+    fn static_property(self, name: String) -> Self::ValueIterType<Option<Prop>> {
+        let r: Vec<_> = self.map(|v| v.static_property(name.clone())).collect();
         Box::new(r.into_iter())
     }
 

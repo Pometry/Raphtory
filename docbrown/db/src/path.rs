@@ -65,20 +65,84 @@ impl<G: GraphViewOps> PathFromGraph<G> {
         Box::new(self.iter().map(|it| it.id()))
     }
 
-    pub fn prop(
+    pub fn name(&self) -> Box<dyn Iterator<Item = Box<dyn Iterator<Item = String> + Send>> + Send> {
+        Box::new(self.iter().map(|it| it.name()))
+    }
+
+    fn property(
+        &self,
+        name: String,
+        include_static: bool,
+    ) -> Box<dyn Iterator<Item = Box<dyn Iterator<Item = Option<Prop>> + Send>> + Send> {
+        Box::new(
+            self.iter()
+                .map(move |it| it.property(name.clone(), include_static.clone())),
+        )
+    }
+
+    fn property_history(
         &self,
         name: String,
     ) -> Box<dyn Iterator<Item = Box<dyn Iterator<Item = Vec<(i64, Prop)>> + Send>> + Send> {
-        Box::new(self.iter().map(move |it| it.prop(name.clone())))
+        Box::new(self.iter().map(move |it| it.property_history(name.clone())))
     }
 
-    pub fn props(
+    fn properties(
+        &self,
+        include_static: bool,
+    ) -> Box<dyn Iterator<Item = Box<dyn Iterator<Item = HashMap<String, Prop>> + Send>> + Send>
+    {
+        Box::new(
+            self.iter()
+                .map(move |it| it.properties(include_static.clone())),
+        )
+    }
+
+    fn property_histories(
         &self,
     ) -> Box<
         dyn Iterator<Item = Box<dyn Iterator<Item = HashMap<String, Vec<(i64, Prop)>>> + Send>>
             + Send,
     > {
-        Box::new(self.iter().map(|it| it.props()))
+        Box::new(self.iter().map(|it| it.property_histories()))
+    }
+
+    fn property_names(
+        &self,
+        include_static: bool,
+    ) -> Box<dyn Iterator<Item = Box<dyn Iterator<Item = Vec<String>> + Send>> + Send> {
+        Box::new(
+            self.iter()
+                .map(move |it| it.property_names(include_static.clone())),
+        )
+    }
+
+    fn has_property(
+        &self,
+        name: String,
+        include_static: bool,
+    ) -> Box<dyn Iterator<Item = Box<dyn Iterator<Item = bool> + Send>> + Send> {
+        Box::new(
+            self.iter()
+                .map(move |it| it.has_property(name.clone(), include_static.clone())),
+        )
+    }
+
+    fn has_static_property(
+        &self,
+        name: String,
+    ) -> Box<dyn Iterator<Item = Box<dyn Iterator<Item = bool> + Send>> + Send> {
+        Box::new(
+            self.iter()
+                .map(move |it| it.has_static_property(name.clone())),
+        )
+    }
+
+    fn static_property(
+        &self,
+        name: String,
+    ) -> Box<dyn Iterator<Item = Box<dyn Iterator<Item = Option<Prop>> + Send>> + Send> {
+        Box::new(self.iter().map(move |it| it.static_property(name.clone())))
     }
 
     pub fn degree(
@@ -281,12 +345,53 @@ impl<G: GraphViewOps> PathFromVertex<G> {
         self.iter().id()
     }
 
-    pub fn prop(&self, name: String) -> Box<dyn Iterator<Item = Vec<(i64, Prop)>> + Send> {
-        self.iter().prop(name)
+    pub fn name(&self) -> Box<dyn Iterator<Item = String> + Send> {
+        self.iter().name()
     }
 
-    pub fn props(&self) -> Box<dyn Iterator<Item = HashMap<String, Vec<(i64, Prop)>>> + Send> {
-        self.iter().props()
+    fn property(
+        &self,
+        name: String,
+        include_static: bool,
+    ) -> Box<dyn Iterator<Item = Option<Prop>> + Send> {
+        self.iter().property(name, include_static)
+    }
+
+    fn property_history(&self, name: String) -> Box<dyn Iterator<Item = Vec<(i64, Prop)>> + Send> {
+        self.iter().property_history(name)
+    }
+
+    fn properties(
+        &self,
+        include_static: bool,
+    ) -> Box<dyn Iterator<Item = HashMap<String, Prop>> + Send> {
+        self.properties(include_static)
+    }
+
+    fn property_histories(
+        &self,
+    ) -> Box<dyn Iterator<Item = HashMap<String, Vec<(i64, Prop)>>> + Send> {
+        self.iter().property_histories()
+    }
+
+    fn property_names(&self, include_static: bool) -> Box<dyn Iterator<Item = Vec<String>> + Send> {
+        self.iter().property_names(include_static)
+    }
+
+    fn has_property(
+        &self,
+        name: String,
+        include_static: bool,
+    ) -> Box<dyn Iterator<Item = bool> + Send> {
+        self.iter().has_property(name, include_static)
+    }
+
+    fn has_static_property(&self, name: String) -> Box<dyn Iterator<Item = bool> + Send> {
+        self.iter().has_static_property(name)
+    }
+
+    fn static_property(&self, name: String) -> Box<dyn Iterator<Item = Option<Prop>> + Send> {
+        self.iter().static_property(name)
     }
 
     pub fn degree(&self) -> Box<dyn Iterator<Item = usize> + Send> {

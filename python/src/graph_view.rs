@@ -133,10 +133,14 @@ impl PyGraphView {
     }
 
     pub fn __repr__(&self) -> String {
+        let num_edges = self.graph.num_edges();
+        let num_vertices = self.graph.num_vertices();
+        let earliest_time = self.graph.earliest_time().unwrap_or_default();
+        let latest_time = self.graph.latest_time().unwrap_or_default();
+
         format!(
-            "GraphView(vertices={}, edges={})",
-            self.num_vertices(),
-            self.num_edges()
+            "Graph(NumEdges({:?}), NumVertices({:?}), EarliestTime({:?}), LatestTime({:?}))",
+            num_edges, num_vertices, earliest_time, latest_time
         )
     }
 }
