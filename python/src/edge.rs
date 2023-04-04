@@ -4,6 +4,7 @@ use crate::wrappers::Prop;
 use docbrown_db::edge::EdgeView;
 use itertools::Itertools;
 use pyo3::{pyclass, pymethods, PyRef, PyRefMut};
+use std::collections::HashMap;
 
 #[pyclass(name = "Edge")]
 pub struct PyEdge {
@@ -18,16 +19,61 @@ impl From<EdgeView<DynamicGraph>> for PyEdge {
 
 #[pymethods]
 impl PyEdge {
-    pub fn __getitem__(&self, name: String) -> Vec<(i64, Prop)> {
-        self.prop(name)
+    pub fn __getitem__(&self, name: String) -> Option<Prop> {
+        self.property(name, Some(true))
     }
 
-    pub fn prop(&self, name: String) -> Vec<(i64, Prop)> {
+    pub fn has_property(&self, name: String, include_static: Option<bool>) -> bool {
+        let include_static = include_static.unwrap_or(true);
+        self.edge.has_property(name, include_static)
+    }
+
+    pub fn property(&self, name: String, include_static: Option<bool>) -> Option<Prop> {
+        let include_static = include_static.unwrap_or(true);
+        match self.edge.property(name, include_static) {
+            None => None,
+            Some(prop) => Some(prop.into()),
+        }
+    }
+
+    pub fn properties(&self, include_static: Option<bool>) -> HashMap<String, Prop> {
+        let include_static = include_static.unwrap_or(true);
         self.edge
-            .prop(name)
+            .properties(include_static)
             .into_iter()
-            .map(|(t, p)| (t, p.into()))
-            .collect_vec()
+            .map(|(k, v)| (k, v.into()))
+            .collect()
+    }
+
+    pub fn property_names(&self, include_static: Option<bool>) -> Vec<String> {
+        let include_static = include_static.unwrap_or(true);
+        self.edge.property_names(include_static)
+    }
+
+    pub fn property_history(&self, name: String) -> Vec<(i64, Prop)> {
+        self.edge
+            .property_history(name)
+            .into_iter()
+            .map(|(k, v)| (k, v.into()))
+            .collect()
+    }
+
+    pub fn property_histories(&self) -> HashMap<String, Vec<(i64, Prop)>> {
+        self.edge
+            .property_histories()
+            .into_iter()
+            .map(|(k, v)| (k, v.into_iter().map(|(t, p)| (t, p.into())).collect()))
+            .collect()
+    }
+
+    pub fn has_static_property(&self, name: String) -> bool {
+        self.edge.has_static_property(name)
+    }
+    pub fn static_property(&self, name: String) -> Option<Prop> {
+        match self.edge.static_property(name) {
+            None => None,
+            Some(prop) => Some(prop.into()),
+        }
     }
 
     pub fn id(&self) -> usize {
@@ -40,6 +86,29 @@ impl PyEdge {
 
     fn dst(&self) -> PyVertex {
         self.edge.dst().into()
+    }
+
+    pub fn __repr__(&self) -> String {
+        let properties = "{".to_string()
+            + &self
+                .properties(Some(true))
+                .iter()
+                .map(|(k, v)| k.to_string() + " : " + &v.to_string())
+                .join(", ")
+            + &"}".to_string();
+        let property_string = if properties.is_empty() {
+            "Properties({})".to_string()
+        } else {
+            format!("Properties({})", properties)
+        };
+        let source = self.edge.src().name();
+        let target = self.edge.dst().name();
+        format!(
+            "Edge(Src({}), Dst({}), {}",
+            source.trim_matches('"'),
+            target.trim_matches('"'),
+            property_string
+        )
     }
 }
 

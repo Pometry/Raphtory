@@ -2,6 +2,9 @@ use crate::tcell::TCell;
 use crate::Prop;
 use serde::{Deserialize, Serialize};
 use std::ops::Range;
+use crate::tgraph::errors::MutateGraphError;
+use crate::tgraph::errors::MutateGraphError::IllegalVertexPropertyChange;
+use crate::tgraph_shard::errors::GraphError;
 
 // TODO TProp struct could be replaced with Option<TCell<Prop>>, with the only issue (or advantage) that then the type can change?
 
@@ -33,7 +36,7 @@ impl TProp {
         }
     }
 
-    pub(crate) fn set(&mut self, t: i64, prop: &Prop) {
+    pub(crate) fn set(&mut self, t: i64, prop: &Prop){
         match self {
             TProp::Empty => {
                 *self = TProp::from(t, prop);

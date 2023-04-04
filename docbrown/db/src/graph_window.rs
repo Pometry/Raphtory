@@ -42,7 +42,6 @@ use crate::view_api::internal::GraphViewInternalOps;
 use crate::view_api::GraphViewOps;
 use docbrown_core::{
     tgraph::{EdgeRef, VertexRef},
-    tgraph_shard::errors::GraphError,
     Direction, Prop,
 };
 use std::cmp::{max, min};
@@ -636,16 +635,12 @@ impl<G: GraphViewInternalOps> GraphViewInternalOps for WindowedGraph<G> {
     ///
     /// # Returns
     ///
-    /// A result of an option of a property  
-    ///
-    /// # Errors
-    ///
-    /// - `GraphError` - Raised if vertex or property does not exist
+    /// A result of an option of a property
     fn static_vertex_prop(&self, v: VertexRef, name: String) -> Option<Prop> {
         self.graph.static_vertex_prop(v, name)
     }
 
-    /// Get all static properties of a vertex
+    /// Get all static property names of a vertex
     ///
     /// # Arguments
     ///
@@ -653,13 +648,22 @@ impl<G: GraphViewInternalOps> GraphViewInternalOps for WindowedGraph<G> {
     ///
     /// # Returns
     ///
-    /// A result of an option of a property  
+    /// a Vector of Strings representing all the property names
+    fn static_vertex_prop_names(&self, v: VertexRef) -> Vec<String> {
+        self.graph.static_vertex_prop_names(v)
+    }
+
+    /// Get all temporal property names of a vertex
     ///
-    /// # Errors
+    /// # Arguments
     ///
-    /// - `GraphError` - Raised if vertex or property does not exist
-    fn static_vertex_prop_keys(&self, v: VertexRef) -> Vec<String> {
-        self.graph.static_vertex_prop_keys(v)
+    /// - `v` - The vertex to get the property for
+    ///
+    /// # Returns
+    ///
+    /// a Vector of Strings representing all the property names
+    fn temporal_vertex_prop_names(&self, v: VertexRef) -> Vec<String> {
+        self.graph.temporal_vertex_prop_names(v)
     }
 
     /// Get the temporal property of a vertex
@@ -672,10 +676,6 @@ impl<G: GraphViewInternalOps> GraphViewInternalOps for WindowedGraph<G> {
     /// # Returns
     ///
     /// A result of an vector of a tuple of a timestamp and a property
-    ///
-    /// # Errors
-    ///
-    /// - `GraphError` - Raised if vertex or property does not exist
     fn temporal_vertex_prop_vec(&self, v: VertexRef, name: String) -> Vec<(i64, Prop)> {
         self.graph
             .temporal_vertex_prop_vec_window(v, name, self.t_start, self.t_end)
@@ -785,13 +785,22 @@ impl<G: GraphViewInternalOps> GraphViewInternalOps for WindowedGraph<G> {
     ///
     /// # Returns
     ///
-    /// A result of an vector of all property names or a graph error
+    /// A result of an vector of all property names
+    fn static_edge_prop_names(&self, e: EdgeRef) -> Vec<String> {
+        self.graph.static_edge_prop_names(e)
+    }
+
+    /// Get the names of all temporal properties of an edge
     ///
-    /// # Errors
+    /// # Arguments
     ///
-    /// - `GraphError` - Raised if edge or property does not exist
-    fn static_edge_prop_keys(&self, e: EdgeRef) -> Vec<String> {
-        self.graph.static_edge_prop_keys(e)
+    /// - `e` - The edge to get the property for
+    ///
+    /// # Returns
+    ///
+    /// A result of an vector of all property names
+    fn temporal_edge_prop_names(&self, e: EdgeRef) -> Vec<String> {
+        self.graph.temporal_edge_prop_names(e)
     }
 
     /// Get the temporal property of an edge

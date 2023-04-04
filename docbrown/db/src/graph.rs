@@ -110,8 +110,7 @@ impl GraphViewInternalOps for Graph {
     }
 
     fn edges_len_window(&self, t_start: i64, t_end: i64) -> usize {
-        self
-            .shards
+        self.shards
             .iter()
             .map(|shard| shard.out_edges_len_window(&(t_start..t_end)))
             .sum()
@@ -310,8 +309,12 @@ impl GraphViewInternalOps for Graph {
         self.get_shard_from_v(v).static_vertex_prop(v.g_id, name)
     }
 
-    fn static_vertex_prop_keys(&self, v: VertexRef) -> Vec<String> {
-        self.get_shard_from_v(v).static_vertex_prop_keys(v.g_id)
+    fn static_vertex_prop_names(&self, v: VertexRef) -> Vec<String> {
+        self.get_shard_from_v(v).static_vertex_prop_names(v.g_id)
+    }
+
+    fn temporal_vertex_prop_names(&self, v: VertexRef) -> Vec<String> {
+        self.get_shard_from_v(v).temporal_vertex_prop_names(v.g_id)
     }
 
     fn temporal_vertex_prop_vec(&self, v: VertexRef, name: String) -> Vec<(i64, Prop)> {
@@ -348,8 +351,12 @@ impl GraphViewInternalOps for Graph {
         self.get_shard_from_e(e).static_edge_prop(e.edge_id, name)
     }
 
-    fn static_edge_prop_keys(&self, e: EdgeRef) -> Vec<String> {
-        self.get_shard_from_e(e).static_edge_prop_keys(e.edge_id)
+    fn static_edge_prop_names(&self, e: EdgeRef) -> Vec<String> {
+        self.get_shard_from_e(e).static_edge_prop_names(e.edge_id)
+    }
+
+    fn temporal_edge_prop_names(&self, e: EdgeRef) -> Vec<String> {
+        self.get_shard_from_e(e).temporal_edge_prop_names(e.edge_id)
     }
 
     fn temporal_edge_props_vec(&self, e: EdgeRef, name: String) -> Vec<(i64, Prop)> {
@@ -369,8 +376,7 @@ impl GraphViewInternalOps for Graph {
     }
 
     fn temporal_edge_props(&self, e: EdgeRef) -> HashMap<String, Vec<(i64, Prop)>> {
-        //FIXME: This needs to be implemented in core if we want it
-        todo!()
+        self.get_shard_from_e(e).temporal_edge_props(e.edge_id)
     }
 
     fn temporal_edge_props_window(
@@ -379,8 +385,8 @@ impl GraphViewInternalOps for Graph {
         t_start: i64,
         t_end: i64,
     ) -> HashMap<String, Vec<(i64, Prop)>> {
-        //FIXME: This needs to be implemented in core if we want it
-        todo!()
+        self.get_shard_from_e(e)
+            .temporal_edge_props_window(e.edge_id, t_start..t_end)
     }
 
     fn num_shards(&self) -> usize {
@@ -1194,12 +1200,12 @@ mod db_tests {
         g.add_edge_properties(33, 11, &vec![("a".to_string(), Prop::U64(3311))])
             .unwrap();
 
-        assert_eq!(g.static_vertex_prop_keys(11.into()), vec!["a", "b", "c"]);
-        assert_eq!(g.static_vertex_prop_keys(22.into()), vec!["b"]);
-        assert!(g.static_vertex_prop_keys(33.into()).is_empty());
-        assert_eq!(g.static_edge_prop_keys(edge1111), vec!["d"]);
-        assert_eq!(g.static_edge_prop_keys(edge3311), vec!["a"]);
-        assert!(g.static_edge_prop_keys(edge2233).is_empty());
+        assert_eq!(g.static_vertex_prop_names(11.into()), vec!["a", "b", "c"]);
+        assert_eq!(g.static_vertex_prop_names(22.into()), vec!["b"]);
+        assert!(g.static_vertex_prop_names(33.into()).is_empty());
+        assert_eq!(g.static_edge_prop_names(edge1111), vec!["d"]);
+        assert_eq!(g.static_edge_prop_names(edge3311), vec!["a"]);
+        assert!(g.static_edge_prop_names(edge2233).is_empty());
 
         assert_eq!(
             g.static_vertex_prop(11.into(), "a".to_string()),

@@ -211,8 +211,12 @@ impl GraphViewInternalOps for DynamicGraph {
         self.0.static_vertex_prop(v, name)
     }
 
-    fn static_vertex_prop_keys(&self, v: VertexRef) -> Vec<String> {
-        self.0.static_vertex_prop_keys(v)
+    fn static_vertex_prop_names(&self, v: VertexRef) -> Vec<String> {
+        self.0.static_vertex_prop_names(v)
+    }
+
+    fn temporal_vertex_prop_names(&self, v: VertexRef) -> Vec<String> {
+        self.0.temporal_vertex_prop_names(v)
     }
 
     fn temporal_vertex_prop_vec(&self, v: VertexRef, name: String) -> Vec<(i64, Prop)> {
@@ -247,8 +251,12 @@ impl GraphViewInternalOps for DynamicGraph {
         self.0.static_edge_prop(e, name)
     }
 
-    fn static_edge_prop_keys(&self, e: EdgeRef) -> Vec<String> {
-        self.0.static_edge_prop_keys(e)
+    fn static_edge_prop_names(&self, e: EdgeRef) -> Vec<String> {
+        self.0.static_edge_prop_names(e)
+    }
+
+    fn temporal_edge_prop_names(&self, e: EdgeRef) -> Vec<String> {
+        self.0.temporal_edge_prop_names(e)
     }
 
     fn temporal_edge_props_vec(&self, e: EdgeRef, name: String) -> Vec<(i64, Prop)> {

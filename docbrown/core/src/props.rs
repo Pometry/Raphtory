@@ -5,6 +5,8 @@ use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt::Debug;
+use crate::tgraph::errors::MutateGraphError;
+use crate::tgraph_shard::errors::GraphError;
 
 #[derive(thiserror::Error, Debug)]
 #[error("cannot mutate static property '{name}'")]
@@ -138,7 +140,7 @@ impl Props {
         props.get(prop_id)
     }
 
-    fn get_keys<A>(
+    fn get_names<A>(
         &self,
         vector: &Vec<LazyVec<A>>,
         id: usize,
@@ -172,20 +174,20 @@ impl Props {
         }
     }
 
-    pub fn static_vertex_keys(&self, vertex_id: usize) -> Vec<String> {
-        self.get_keys(&self.static_vertex_props, vertex_id, true)
+    pub fn static_vertex_names(&self, vertex_id: usize) -> Vec<String> {
+        self.get_names(&self.static_vertex_props, vertex_id, true)
     }
 
-    pub fn static_edge_keys(&self, edge_id: usize) -> Vec<String> {
-        self.get_keys(&self.static_edge_props, edge_id, true)
+    pub fn static_edge_names(&self, edge_id: usize) -> Vec<String> {
+        self.get_names(&self.static_edge_props, edge_id, true)
     }
 
-    pub fn temporal_vertex_keys(&self, vertex_id: usize) -> Vec<String> {
-        self.get_keys(&self.temporal_vertex_props, vertex_id, false)
+    pub fn temporal_vertex_names(&self, vertex_id: usize) -> Vec<String> {
+        self.get_names(&self.temporal_vertex_props, vertex_id, false)
     }
 
-    pub fn temporal_edge_keys(&self, edge_id: usize) -> Vec<String> {
-        self.get_keys(&self.temporal_edge_props, edge_id, false)
+    pub fn temporal_edge_names(&self, edge_id: usize) -> Vec<String> {
+        self.get_names(&self.temporal_edge_props, edge_id, false)
     }
 
     // SETTERS:

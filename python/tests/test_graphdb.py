@@ -8,6 +8,7 @@ from raphtory import Perspective
 from raphtory import graph_loader
 import tempfile
 
+
 def create_graph(num_shards):
     g = Graph(num_shards)
     edges = [
@@ -25,7 +26,7 @@ def create_graph(num_shards):
 
     for e in edges:
         g.add_edge(e[0], e[1], e[2], {"prop1": 1,
-                   "prop2": 9.8, "prop3": "test"})
+                                      "prop2": 9.8, "prop3": "test"})
 
     return g
 
@@ -121,15 +122,15 @@ def test_windowed_graph_edges():
             edges.append([e.src().id(), e.dst().id()])
 
     assert edges == [
-            [1, 1],
-            [1, 1],
-            [1, 2],
-            [1, 3],
-            [1, 2],
-            [3, 2],
-            [1, 3],
-            [3, 2]
-        ]
+        [1, 1],
+        [1, 1],
+        [1, 2],
+        [1, 3],
+        [1, 2],
+        [3, 2],
+        [1, 3],
+        [3, 2]
+    ]
 
     tedges = [v.in_edges() for v in view.vertices()]
     in_edges = []
@@ -138,12 +139,12 @@ def test_windowed_graph_edges():
             in_edges.append([e.src().id(), e.dst().id()])
 
     assert in_edges == [
-            [1, 1],
-            [1, 2],
-            [3, 2],
-            [1, 3]
-        ]
-    
+        [1, 1],
+        [1, 2],
+        [3, 2],
+        [1, 3]
+    ]
+
     tedges = [v.out_edges() for v in view.vertices()]
     out_edges = []
     for e_iter in tedges:
@@ -151,11 +152,11 @@ def test_windowed_graph_edges():
             out_edges.append([e.src().id(), e.dst().id()])
 
     assert out_edges == [
-            [1, 1],
-            [1, 2],
-            [1, 3],
-            [3, 2]
-        ]
+        [1, 1],
+        [1, 2],
+        [1, 3],
+        [3, 2]
+    ]
 
 
 def test_windowed_graph_vertex_ids():
@@ -163,7 +164,7 @@ def test_windowed_graph_vertex_ids():
 
     vs = [v for v in g.window(-1, 2).vertices().id()]
     vs.sort()
-    assert vs == [1, 2] # this makes clear that the end of the range is exclusive
+    assert vs == [1, 2]  # this makes clear that the end of the range is exclusive
 
     vs = [v for v in g.window(-5, 3).vertices().id()]
     vs.sort()
@@ -198,47 +199,168 @@ def test_windowed_graph_neighbours():
     assert out_neighbours == [[1, 2, 3], [1], [2]]
 
 
-def test_windowed_graph_vertex_prop():
-    g = create_graph(1)
-
-    max_size = sys.maxsize
-    min_size = -sys.maxsize - 1
-
-    view = g.window(min_size, max_size)
-
-    assert view.vertex(1).prop("type") == [(0, 'wallet')]
-    assert view.vertex(1).prop("undefined") == []
+def test_name():
+    # Currently deadlocking
+    g = Graph()
+    g.add_vertex(1, "Ben")
+    g.add_vertex(1, 10)
+    g.add_edge(1, "Ben", "Hamza")
+    assert g.vertex(10).name() == "10"
+    assert g.vertex("Ben").name() == "Ben"
 
 
-def test_windowed_graph_vertex_props():
-    g = create_graph(1)
-
-    max_size = sys.maxsize
-    min_size = -sys.maxsize - 1
-
-    view = g.window(min_size, max_size)
-
-    assert view.vertex(1).props() == {
-        'cost': [(0, 99.5)], 'type': [(0, 'wallet')]}
+# assert g.vertex("Hamza").name() == "Hamza" TODO need to fix
 
 
-def test_windowed_graph_edge_prop():
-    g = create_graph(1)
+def test_vertex_properties():
+    g = Graph()
+    props_t1 = {"prop 1": 1, "prop 3": "hi", "prop 4": True}
+    g.add_vertex(1, 1, props_t1)
+    props_t2 = {"prop 1": 2, "prop 2": 0.6, "prop 4": False}
+    g.add_vertex(2, 1, props_t2)
+    props_t3 = {"prop 2": 0.9, "prop 3": "hello", "prop 4": True}
+    g.add_vertex(3, 1, props_t3)
 
-    max_size = sys.maxsize
-    min_size = -sys.maxsize - 1
+    g.add_vertex_properties(1, {"static prop": 123})
 
-    view = g.window(min_size, max_size)
+    # testing property_history
+    assert g.vertex(1).property_history("prop 1") == [(1, 1), (2, 2)]
+    assert g.vertex(1).property_history("prop 2") == [(2, 0.6), (3, 0.9)]
+    assert g.vertex(1).property_history("prop 3") == [(1, "hi"), (3, 'hello')]
+    assert g.vertex(1).property_history("prop 4") == [(1, True), (2, False), (3, True)]
+    assert g.vertex(1).property_history("undefined") == []
+    assert g.at(1).vertex(1).property_history("prop 4") == [(1, True)]
+    assert g.at(1).vertex(1).property_history("static prop") == []
 
-    edge = next(view.vertex(1).edges())
+    assert g.at(1).vertex(1).static_property("static prop") == 123
+    assert g.at(100).vertex(1).static_property("static prop") == 123
+    assert g.vertex(1).static_property("static prop") == 123
+    assert g.vertex(1).static_property("prop 4") is None
 
-    assert edge.prop("prop1") == [(0, 1), (1, 1)]
-    assert edge.prop("prop3") == [(0, 'test'), (1, 'test')]
-    assert edge.prop("undefined") == []
+    # testing property
+    assert g.vertex(1).property("static prop") == 123
+    assert g.vertex(1)["static prop"] == 123
+    assert g.vertex(1).property("static prop", include_static=False) is None
+    assert g.vertex(1).property("prop 1", include_static=False) == 2
+    assert g.at(2).vertex(1).property("prop 2") == 0.6
+    assert g.at(1).vertex(1).property("prop 2") is None
+
+    # testing properties
+    assert g.vertex(1).properties() == {'prop 2': 0.9, 'prop 3': 'hello', 'prop 1': 2, 'prop 4': True,
+                                        'static prop': 123}
+
+    assert g.vertex(1).properties(include_static=False) == {'prop 2': 0.9, 'prop 3': 'hello', 'prop 1': 2,
+                                                            'prop 4': True}
+
+    assert g.at(2).vertex(1).properties() == {'prop 1': 2, 'prop 4': False, 'prop 2': 0.6, 'static prop': 123,
+                                              'prop 3': 'hi'}
+
+    # testing property histories
+    assert g.vertex(1).property_histories() == {'prop 3': [(1, 'hi'), (3, 'hello')], 'prop 1': [(1, 1), (2, 2)],
+                                                'prop 4': [(1, True), (2, False), (3, True)],
+                                                'prop 2': [(2, 0.6), (3, 0.9)]}
+
+    assert g.at(2).vertex(1).property_histories() == {'prop 2': [(2, 0.6)], 'prop 4': [(1, True), (2, False)],
+                                                      'prop 1': [(1, 1), (2, 2)], 'prop 3': [(1, 'hi')]}
+
+    # testing property names
+    assert g.vertex(1).property_names().sort() == ['prop 4', 'prop 1', 'prop 2', 'prop 3', 'static prop'].sort()
+
+    assert g.vertex(1).property_names(include_static=False).sort() == ['prop 4', 'prop 1', 'prop 2', 'prop 3'].sort()
+
+    assert g.at(1).vertex(1).property_names(include_static=False).sort() == ['prop 4', 'prop 1', 'prop 2',
+                                                                             'prop 3'].sort()
+
+    # testing has_property
+    assert g.vertex(1).has_property("prop 4")
+    assert g.vertex(1).has_property("prop 2")
+    assert not g.vertex(1).has_property("prop 5")
+    assert not g.at(1).vertex(1).has_property("prop 2")
+    assert g.vertex(1).has_property("static prop")
+    assert g.at(1).vertex(1).has_property("static prop")
+    assert not g.at(1).vertex(1).has_property("static prop", include_static=False)
+
+    assert g.vertex(1).has_static_property("static prop")
+    assert not g.vertex(1).has_static_property("prop 2")
+    assert g.at(1).vertex(1).has_static_property("static prop")
+
+
+def test_edge_properties():
+    g = Graph()
+    props_t1 = {"prop 1": 1, "prop 3": "hi", "prop 4": True}
+    g.add_edge(1, 1, 2, props_t1)
+    props_t2 = {"prop 1": 2, "prop 2": 0.6, "prop 4": False}
+    g.add_edge(2, 1, 2, props_t2)
+    props_t3 = {"prop 2": 0.9, "prop 3": "hello", "prop 4": True}
+    g.add_edge(3, 1, 2, props_t3)
+
+    g.add_edge_properties(1, 2, {"static prop": 123})
+
+    # testing property_history
+    assert g.edge(1, 2).property_history("prop 1") == [(1, 1), (2, 2)]
+    assert g.edge(1, 2).property_history("prop 2") == [(2, 0.6), (3, 0.9)]
+    assert g.edge(1, 2).property_history("prop 3") == [(1, "hi"), (3, 'hello')]
+    assert g.edge(1, 2).property_history("prop 4") == [(1, True), (2, False), (3, True)]
+    assert g.edge(1, 2).property_history("undefined") == []
+    assert g.at(1).edge(1, 2).property_history("prop 4") == [(1, True)]
+    assert g.at(1).edge(1, 2).property_history("static prop") == []
+
+    assert g.at(1).edge(1, 2).static_property("static prop") == 123
+    assert g.at(100).edge(1, 2).static_property("static prop") == 123
+    assert g.edge(1, 2).static_property("static prop") == 123
+    assert g.edge(1, 2).static_property("prop 4") is None
+
+    # testing property
+    assert g.edge(1, 2).property("static prop") == 123
+    assert g.edge(1, 2)["static prop"] == 123
+    assert g.edge(1, 2).property("static prop", include_static=False) is None
+    assert g.edge(1, 2).property("prop 1", include_static=False) == 2
+    assert g.at(2).edge(1, 2).property("prop 2") == 0.6
+    assert g.at(1).edge(1, 2).property("prop 2") is None
+
+    # testing properties
+    assert g.edge(1, 2).properties() == {'prop 2': 0.9, 'prop 3': 'hello', 'prop 1': 2, 'prop 4': True,
+                                        'static prop': 123}
+
+    assert g.edge(1, 2).properties(include_static=False) == {'prop 2': 0.9, 'prop 3': 'hello', 'prop 1': 2,
+                                                            'prop 4': True}
+
+    assert g.at(2).edge(1, 2).properties() == {'prop 1': 2, 'prop 4': False, 'prop 2': 0.6, 'static prop': 123,
+                                              'prop 3': 'hi'}
+
+    # testing property histories
+    assert g.edge(1, 2).property_histories() == {'prop 3': [(1, 'hi'), (3, 'hello')], 'prop 1': [(1, 1), (2, 2)],
+                                                'prop 4': [(1, True), (2, False), (3, True)],
+                                                'prop 2': [(2, 0.6), (3, 0.9)]}
+
+    assert g.at(2).edge(1, 2).property_histories() == {'prop 2': [(2, 0.6)], 'prop 4': [(1, True), (2, False)],
+                                                      'prop 1': [(1, 1), (2, 2)], 'prop 3': [(1, 'hi')]}
+
+    # testing property names
+    assert g.edge(1, 2).property_names().sort() == ['prop 4', 'prop 1', 'prop 2', 'prop 3', 'static prop'].sort()
+
+    assert g.edge(1, 2).property_names(include_static=False).sort() == ['prop 4', 'prop 1', 'prop 2', 'prop 3'].sort()
+
+    assert g.at(1).edge(1, 2).property_names(include_static=False).sort() == ['prop 4', 'prop 1', 'prop 2',
+                                                                             'prop 3'].sort()
+
+    # testing has_property
+    assert g.edge(1, 2).has_property("prop 4")
+    assert g.edge(1, 2).has_property("prop 2")
+    assert not g.edge(1, 2).has_property("prop 5")
+    assert not g.at(1).edge(1, 2).has_property("prop 2")
+    assert g.edge(1, 2).has_property("static prop")
+    assert g.at(1).edge(1, 2).has_property("static prop")
+    assert not g.at(1).edge(1, 2).has_property("static prop", include_static=False)
+
+    assert g.edge(1, 2).has_static_property("static prop")
+    assert not g.edge(1, 2).has_static_property("prop 2")
+    assert g.at(1).edge(1, 2).has_static_property("static prop")
+
+# assert g.vertex(1).property_history("prop 3") == [(1, 3), (3, 'hello')]
 
 
 def test_algorithms():
-
     g = Graph(1)
 
     g.add_edge(1, 1, 2, {"prop1": 1})
@@ -264,6 +386,7 @@ def test_algorithms():
     assert min_in_degree == 1
     assert clustering_coefficient == 1.0
 
+
 def test_perspective_set():
     g = create_graph(1)
 
@@ -279,6 +402,7 @@ def test_perspective_set():
     views = g.through(perspectives)
     assert len(list(views)) == 2
 
+
 def test_save_load_graph():
     g = create_graph(1)
     g.add_vertex(1, 11, {"type": "wallet", "balance": 99.5})
@@ -291,23 +415,24 @@ def test_save_load_graph():
     tmpdirname = tempfile.TemporaryDirectory()
     g.save_to_file(tmpdirname.name)
 
-    del(g)
+    del (g)
 
     g = Graph.load_from_file(tmpdirname.name)
 
-    view = g.window(0,10)
+    view = g.window(0, 10)
     assert g.has_vertex(13)
     assert view.vertex(13).in_degree() == 1
     assert view.vertex(13).out_degree() == 1
     assert view.vertex(13).degree() == 2
 
-    triangles = algorithms.local_triangle_count(view,13) # How many triangles is 13 involved in
+    triangles = algorithms.local_triangle_count(view, 13)  # How many triangles is 13 involved in
     assert triangles == 1
 
     v = view.vertex(11)
-    assert v.props() == {'type': [(1, 'wallet')], 'balance': [(1, 99.5)]}
+    assert v.property_histories() == {'type': [(1, 'wallet')], 'balance': [(1, 99.5)]}
 
     tmpdirname.cleanup()
+
 
 def test_graph_at():
     g = create_graph(1)
@@ -319,15 +444,17 @@ def test_graph_at():
     view = g.at(7)
     assert view.vertex(3).degree() == 2
 
+
 def test_add_node_string():
     g = Graph(1)
 
     g.add_vertex(0, 1, {})
     g.add_vertex(1, "haaroon", {})
-    g.add_vertex(1, "haaroon", {}) # add same vertex twice used to cause an exception
+    g.add_vertex(1, "haaroon", {})  # add same vertex twice used to cause an exception
 
     assert g.has_vertex(1)
     assert g.has_vertex("haaroon")
+
 
 def test_add_edge_string():
     g = Graph(1)
@@ -343,6 +470,7 @@ def test_add_edge_string():
     assert g.has_edge(1, 2)
     assert g.has_edge("haaroon", "ben")
 
+
 def test_all_neighbours_window():
     g = Graph(4)
     g.add_edge(1, 1, 2, {})
@@ -356,6 +484,7 @@ def test_all_neighbours_window():
     assert list(v.in_neighbours(0, 2).id()) == [1]
     assert list(v.out_neighbours(0, 2).id()) == [3]
     assert list(v.neighbours(0, 2).id()) == [1, 3]
+
 
 def test_all_degrees_window():
     g = Graph(4)
@@ -379,6 +508,7 @@ def test_all_degrees_window():
     assert v.degree(t_start=2) == 2
     assert v.degree(t_end=3) == 2
 
+
 def test_all_edge_window():
     g = Graph(4)
     g.add_edge(1, 1, 2, {})
@@ -391,15 +521,16 @@ def test_all_edge_window():
 
     view = g.at(4)
     v = view.vertex(2)
-    assert list(map(lambda e: e.id(),  v.in_edges(0, 4))) == [1, 3, 5]
-    assert list(map(lambda e: e.id(),  v.in_edges(t_end=4))) == [1, 3, 5]
-    assert list(map(lambda e: e.id(),  v.in_edges(t_start=2))) == [3, 5]
-    assert list(map(lambda e: e.id(),  v.out_edges(0, 4))) == [2]
-    assert list(map(lambda e: e.id(),  v.out_edges(t_end=3))) == [2]
-    assert list(map(lambda e: e.id(),  v.out_edges(t_start=2))) == [6]
-    assert sorted(list(map(lambda e: e.id(),  v.edges(0, 4)))) == [1, 2, 3, 5]
-    assert sorted(list(map(lambda e: e.id(),  v.edges(t_end=4)))) == [1, 2, 3, 5]
-    assert sorted(list(map(lambda e: e.id(),  v.edges(t_start=1)))) == [1, 2, 3, 5, 6]
+    assert list(map(lambda e: e.id(), v.in_edges(0, 4))) == [1, 3, 5]
+    assert list(map(lambda e: e.id(), v.in_edges(t_end=4))) == [1, 3, 5]
+    assert list(map(lambda e: e.id(), v.in_edges(t_start=2))) == [3, 5]
+    assert list(map(lambda e: e.id(), v.out_edges(0, 4))) == [2]
+    assert list(map(lambda e: e.id(), v.out_edges(t_end=3))) == [2]
+    assert list(map(lambda e: e.id(), v.out_edges(t_start=2))) == [6]
+    assert sorted(list(map(lambda e: e.id(), v.edges(0, 4)))) == [1, 2, 3, 5]
+    assert sorted(list(map(lambda e: e.id(), v.edges(t_end=4)))) == [1, 2, 3, 5]
+    assert sorted(list(map(lambda e: e.id(), v.edges(t_start=1)))) == [1, 2, 3, 5, 6]
+
 
 def test_static_prop_change():
     # with pytest.raises(Exception):

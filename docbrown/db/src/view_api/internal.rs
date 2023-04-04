@@ -361,7 +361,18 @@ pub trait GraphViewInternalOps {
     /// # Returns
     ///
     /// Vec<String> - The keys of the static properties.
-    fn static_vertex_prop_keys(&self, v: VertexRef) -> Vec<String>;
+    fn static_vertex_prop_names(&self, v: VertexRef) -> Vec<String>;
+
+    /// Returns a vector of all names of temporal properties within the given vertex
+    ///
+    /// # Arguments
+    ///
+    /// * `v` - A reference to the vertex for which to retrieve the names.
+    ///
+    /// # Returns
+    ///
+    /// A vector of strings representing the names of the temporal properties
+    fn temporal_vertex_prop_names(&self, v: VertexRef) -> Vec<String>;
 
     /// Returns a vector of all temporal values of the vertex property with the given name for the
     /// given vertex
@@ -370,8 +381,6 @@ pub trait GraphViewInternalOps {
     ///
     /// * `v` - A reference to the vertex for which to retrieve the temporal property vector.
     /// * `name` - The name of the property to retrieve.
-    /// * `t_start` - The start time of the window to consider.
-    /// * `t_end` - The end time of the window to consider.
     ///
     /// # Returns
     ///
@@ -454,7 +463,18 @@ pub trait GraphViewInternalOps {
     /// # Returns
     ///
     /// * A `Vec` of `String` containing the keys for the static properties of the given edge.
-    fn static_edge_prop_keys(&self, e: EdgeRef) -> Vec<String>;
+    fn static_edge_prop_names(&self, e: EdgeRef) -> Vec<String>;
+
+    /// Returns a vector of keys for the temporal properties of the given edge reference.
+    ///
+    /// # Arguments
+    ///
+    /// * `e` - An `EdgeRef` reference to the edge of interest.
+    ///
+    /// # Returns
+    ///
+    /// * A `Vec` of `String` containing the keys for the temporal properties of the given edge.
+    fn temporal_edge_prop_names(&self, e: EdgeRef) -> Vec<String>;
 
     /// Returns a vector of tuples containing the values of the temporal property with the given name
     /// for the given edge reference.

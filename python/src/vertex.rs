@@ -33,31 +33,65 @@ impl PyVertex {
         self.vertex.id()
     }
 
-    pub fn __getitem__(&self, name: String) -> Vec<(i64, Prop)> {
-        self.prop(name)
+    pub fn __getitem__(&self, name: String) -> Option<Prop> {
+        self.property(name, Some(true))
     }
 
-    pub fn prop(&self, name: String) -> Vec<(i64, Prop)> {
-        self.vertex
-            .prop(name)
-            .into_iter()
-            .map(|(t, p)| (t, p.into()))
-            .collect_vec()
+    pub fn has_property(&self, name: String, include_static: Option<bool>) -> bool {
+        let include_static = include_static.unwrap_or(true);
+        self.vertex.has_property(name, include_static)
     }
 
-    pub fn props(&self) -> HashMap<String, Vec<(i64, Prop)>> {
+    pub fn name(&self) -> String {
+        self.vertex.name()
+    }
+
+    pub fn property(&self, name: String, include_static: Option<bool>) -> Option<Prop> {
+        let include_static = include_static.unwrap_or(true);
+        match self.vertex.property(name, include_static) {
+            None => None,
+            Some(prop) => Some(prop.into()),
+        }
+    }
+
+    pub fn properties(&self, include_static: Option<bool>) -> HashMap<String, Prop> {
+        let include_static = include_static.unwrap_or(true);
         self.vertex
-            .props()
+            .properties(include_static)
             .into_iter()
-            .map(|(n, p)| {
-                let prop = p
-                    .into_iter()
-                    .map(|(t, p)| (t, p.into()))
-                    .collect::<Vec<(i64, Prop)>>();
-                (n, prop)
-            })
+            .map(|(k, v)| (k, v.into()))
+            .collect()
+    }
+
+    pub fn property_names(&self, include_static: Option<bool>) -> Vec<String> {
+        let include_static = include_static.unwrap_or(true);
+        self.vertex.property_names(include_static)
+    }
+
+    pub fn property_history(&self, name: String) -> Vec<(i64, Prop)> {
+        self.vertex
+            .property_history(name)
             .into_iter()
-            .collect::<HashMap<String, Vec<(i64, Prop)>>>()
+            .map(|(k, v)| (k, v.into()))
+            .collect()
+    }
+
+    pub fn property_histories(&self) -> HashMap<String, Vec<(i64, Prop)>> {
+        self.vertex
+            .property_histories()
+            .into_iter()
+            .map(|(k, v)| (k, v.into_iter().map(|(t, p)| (t, p.into())).collect()))
+            .collect()
+    }
+
+    pub fn has_static_property(&self, name: String) -> bool {
+        self.vertex.has_static_property(name)
+    }
+    pub fn static_property(&self, name: String) -> Option<Prop> {
+        match self.vertex.static_property(name) {
+            None => None,
+            Some(prop) => Some(prop.into()),
+        }
     }
 
     pub fn degree(&self, t_start: Option<i64>, t_end: Option<i64>) -> usize {
@@ -145,7 +179,24 @@ impl PyVertex {
     }
 
     pub fn __repr__(&self) -> String {
-        format!("Vertex({})", self.vertex.id())
+        let properties: String = "{".to_string()
+            + &self
+                .properties(Some(true))
+                .iter()
+                .map(|(k, v)| k.to_string() + " : " + &v.to_string())
+                .join(", ")
+            + &"}".to_string();
+
+        let property_string = if properties.is_empty() {
+            "Properties({})".to_string()
+        } else {
+            format!("Properties({})", properties)
+        };
+        format!(
+            "Vertex(VertexName({}), {})",
+            self.name().trim_matches('"'),
+            property_string
+        )
     }
 }
 

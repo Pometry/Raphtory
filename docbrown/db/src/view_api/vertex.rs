@@ -21,6 +21,9 @@ pub trait VertexListOps:
     /// # Returns
     /// The ids of vertices in the list.
     fn id(self) -> Self::ValueIterType<u64>;
+    fn name(self) -> Self::ValueIterType<String>;
+
+    fn property(self, name: String, include_static: bool) -> Self::ValueIterType<Option<Prop>>;
 
     /// Returns an iterator of the values of the given property name
     /// including the times when it changed
@@ -31,13 +34,20 @@ pub trait VertexListOps:
     /// # Returns
     /// An iterator of the values of the given property name including the times when it changed
     /// as a vector of tuples of the form (time, property).
-    fn prop(self, name: String) -> Self::ValueIterType<Vec<(i64, Prop)>>;
+    fn property_history(self, name: String) -> Self::ValueIterType<Vec<(i64, Prop)>>;
+    fn properties(self, include_static: bool) -> Self::ValueIterType<HashMap<String, Prop>>;
 
     /// Returns an iterator over all vertex properties.
     ///
     /// # Returns
     /// An iterator over all vertex properties.
-    fn props(self) -> Self::ValueIterType<HashMap<String, Vec<(i64, Prop)>>>;
+    fn property_histories(self) -> Self::ValueIterType<HashMap<String, Vec<(i64, Prop)>>>;
+    fn property_names(self, include_static: bool) -> Self::ValueIterType<Vec<String>>;
+    fn has_property(self, name: String, include_static: bool) -> Self::ValueIterType<bool>;
+
+    fn has_static_property(self, name: String) -> Self::ValueIterType<bool>;
+
+    fn static_property(self, name: String) -> Self::ValueIterType<Option<Prop>>;
 
     /// Returns an iterator over the degree of the vertices.
     ///
