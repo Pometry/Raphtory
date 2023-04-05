@@ -1,5 +1,5 @@
 //! Load (a subset of) Reddit hyperlinks dataset into a graph.
-//! The dataset is available at https://snap.stanford.edu/data/soc-redditHyperlinks-body.tsv
+//! The dataset is available at http://snap.stanford.edu/data/soc-redditHyperlinks-title.tsv
 //! The hyperlink network represents the directed connections between two subreddits (a subreddit
 //! is a community on Reddit). We also provide subreddit embeddings. The network is extracted
 //! from publicly available Reddit data of 2.5 years from Jan 2014 to April 2017.
@@ -55,8 +55,8 @@ use std::path::PathBuf;
 /// * `PathBuf` - The path to the file
 pub fn reddit_file(timeout: u64) -> Result<PathBuf, Box<dyn std::error::Error>> {
     fetch_file(
-        "reddit.tsv",
-        "https://snap.stanford.edu/data/soc-redditHyperlinks-body.tsv",
+        "reddit-title.tsv",
+        "http://snap.stanford.edu/data/soc-redditHyperlinks-title.tsv",
         timeout,
     )
 }
@@ -111,15 +111,15 @@ pub fn reddit_graph(shards: usize, timeout: u64) -> Graph {
                                     ("readability".to_string(), Prop::F64(post_properties[17])),
                                     (
                                         "positive_sentiment".to_string(),
-                                        Prop::F64(post_properties[17]),
+                                        Prop::F64(post_properties[18]),
                                     ),
                                     (
                                         "negative_sentiment".to_string(),
-                                        Prop::F64(post_properties[17]),
+                                        Prop::F64(post_properties[19]),
                                     ),
                                     (
                                         "compound_sentiment".to_string(),
-                                        Prop::F64(post_properties[17]),
+                                        Prop::F64(post_properties[20]),
                                     ),
                                 ];
                                 g.add_vertex(time, *src_id, &vec![])
