@@ -102,7 +102,6 @@ pub fn average_degree<G: GraphViewOps>(graph: &G) -> f64 {
 
 #[cfg(test)]
 mod degree_test {
-
     use crate::{
         algorithms::degree::{average_degree, max_in_degree, min_in_degree, min_out_degree},
         graph::Graph,

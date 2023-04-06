@@ -14,102 +14,16 @@ use crate::vertex::VertexView;
 use crate::view_api::{GraphViewOps, VertexViewOps};
 use docbrown_core::{
     agg::Accumulator,
-    state::{self, AccId, ShuffleComputeState},
+    state::{AccId, ShuffleComputeState},
     state::{ComputeStateMap, StateType},
 };
 use itertools::Itertools;
 use rayon::prelude::*;
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashSet;
 
-/// Module containing graph algorithms that can be run on docbrown graphs
-pub mod algo {
+use crate::algorithms::triplet_count::TripletCount;
+use rustc_hash::FxHashMap;
 
-    use crate::algorithms::triplet_count::TripletCount;
-    use rustc_hash::FxHashMap;
-
-    use crate::view_api::GraphViewOps;
-
-    use super::{
-        GlobalEvalState, Program, SimpleConnectedComponents, TriangleCountS1, TriangleCountS2,
-    };
-
-    /// Computes the connected components of a graph using the Simple Connected Components algorithm
-    ///
-    /// # Arguments
-    ///
-    /// * `g` - A reference to the graph
-    /// * `window` - A range indicating the temporal window to consider
-    /// * `iter_count` - The number of iterations to run
-    ///
-    /// # Returns
-    ///
-    /// A hash map containing the mapping from component ID to the number of vertices in the component
-    pub fn connected_components<G: GraphViewOps>(g: &G, iter_count: usize) -> FxHashMap<u64, u64> {
-        let cc = SimpleConnectedComponents {};
-
-        let gs = cc.run(g, true, iter_count);
-
-        cc.produce_output(g, &gs)
-    }
-
-    /// Computes the number of triangles in a graph using a fast algorithm
-    ///
-    /// # Arguments
-    ///
-    /// * `g` - A reference to the graph
-    /// * `window` - A range indicating the temporal window to consider
-    ///
-    /// # Returns
-    ///
-    /// An optional integer containing the number of triangles in the graph. If the computation failed,
-    /// the function returns `None`.
-    ///
-    /// # Example
-    /// ```rust
-    /// use std::{cmp::Reverse, iter::once};
-    /// use docbrown_db::graph::Graph;
-    /// use docbrown_db::program::algo::triangle_counting_fast;
-    /// let graph = Graph::new(2);
-    ///
-    /// let edges = vec![
-    ///     // triangle 1
-    ///     (1, 2, 1),
-    ///     (2, 3, 1),
-    ///     (3, 1, 1),
-    ///     //triangle 2
-    ///     (4, 5, 1),
-    ///     (5, 6, 1),
-    ///     (6, 4, 1),
-    ///     // triangle 4 and 5
-    ///     (7, 8, 2),
-    ///     (8, 9, 3),
-    ///     (9, 7, 4),
-    ///     (8, 10, 5),
-    ///     (10, 9, 6),
-    /// ];
-    ///
-    /// for (src, dst, ts) in edges {
-    ///     graph.add_edge(ts, src, dst, &vec![]);
-    /// }
-    ///
-    /// let actual_tri_count = triangle_counting_fast(&graph);
-    /// ```
-    ///
-    pub fn triangle_counting_fast<G: GraphViewOps>(g: &G) -> Option<usize> {
-        let mut gs = GlobalEvalState::new(g.clone(), false);
-        let tc = TriangleCountS1 {};
-
-        tc.run_step(g, &mut gs);
-
-        let tc = TriangleCountS2 {};
-
-        tc.run_step(g, &mut gs);
-
-        tc.produce_output(g, &gs)
-    }
-}
-
-/// Alias for ComputeStateMap
 type CS = ComputeStateMap;
 
 /// A reference to an accumulator for aggregation operations.
@@ -263,11 +177,11 @@ impl<G: GraphViewOps> LocalState<G> {
 ///
 #[derive(Debug)]
 pub struct GlobalEvalState<G: GraphViewOps> {
-    ss: usize,
+    pub ss: usize,
     g: G,
-    keep_past_state: bool,
+    pub keep_past_state: bool,
     // running state
-    next_vertex_set: Option<Vec<Arc<FxHashSet<u64>>>>,
+    pub next_vertex_set: Option<Vec<Arc<FxHashSet<u64>>>>,
     states: Vec<Arc<parking_lot::RwLock<Option<ShuffleComputeState<CS>>>>>,
     post_agg_state: Arc<parking_lot::RwLock<Option<ShuffleComputeState<CS>>>>, // FIXME this is a pointer to one of the states in states, beware of deadlocks
 }
@@ -276,7 +190,7 @@ pub struct GlobalEvalState<G: GraphViewOps> {
 /// The GlobalEvalState struct is used to represent the state of the computation across all shards.
 ///
 /// # Arguments
-///  
+///
 ///
 ///
 impl<G: GraphViewOps> GlobalEvalState<G> {
@@ -359,6 +273,7 @@ impl<G: GraphViewOps> GlobalEvalState<G> {
     where
         OUT: StateType,
         A: StateType,
+        B: Debug,
         F: Fn(B, &u64, OUT) -> B + Copy,
     {
         let part_state = self.states[part_id].read();
@@ -688,6 +603,24 @@ pub struct EvalVertexView<G: GraphViewOps> {
 /// `EvalVertexView` represents a view of a vertex in a computation graph.
 impl<G: GraphViewOps> EvalVertexView<G> {
     /// Update the vertex state with the provided input value using the given accumulator.
+    pub fn reset<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(&self, agg_r: &AggRef<A, IN, OUT, ACC>)
+    where
+        A: StateType,
+    {
+        let AggRef(agg) = agg_r;
+        self.state.borrow_mut().reset(self.vv.id() as usize, &agg)
+    }
+
+    pub fn global_reset<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
+        &self,
+        agg_r: &AggRef<A, IN, OUT, ACC>,
+    ) where
+        A: StateType,
+    {
+        let AggRef(agg) = agg_r;
+        self.state.borrow_mut().reset_global(&agg)
+    }
+
     pub fn update<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
         &self,
         agg_r: &AggRef<A, IN, OUT, ACC>,
@@ -721,6 +654,7 @@ impl<G: GraphViewOps> EvalVertexView<G> {
     ) -> Result<OUT, OUT>
     where
         A: StateType,
+        OUT: Debug,
     {
         self.state
             .borrow()
@@ -736,6 +670,7 @@ impl<G: GraphViewOps> EvalVertexView<G> {
     ) -> OUT
     where
         A: StateType,
+        OUT: Debug,
     {
         self.state
             .borrow()
@@ -762,6 +697,7 @@ impl<G: GraphViewOps> EvalVertexView<G> {
     ) -> Result<OUT, OUT>
     where
         A: StateType,
+        OUT: Debug,
     {
         self.state
             .borrow()
@@ -802,6 +738,10 @@ impl<G: GraphViewOps> EvalVertexView<G> {
     /// Obtain the global id of the vertex.
     pub fn global_id(&self) -> u64 {
         self.vv.id()
+    }
+
+    pub fn out_degree(&self) -> usize {
+        self.vv.out_degree()
     }
 
     /// Return an iterator over the out-neighbors of this vertex.
@@ -960,622 +900,4 @@ pub trait Program {
     fn produce_output<G: GraphViewOps>(&self, g: &G, gs: &GlobalEvalState<G>) -> Self::Out
     where
         Self: Sync;
-}
-
-/// A simple connected components algorithm
-#[derive(Default)]
-struct SimpleConnectedComponents {}
-
-/// A simple connected components algorithm
-impl Program for SimpleConnectedComponents {
-    type Out = FxHashMap<u64, u64>;
-
-    fn local_eval<G: GraphViewOps>(&self, c: &LocalState<G>) {
-        let min = c.agg(state::def::min(0));
-
-        c.step(|vv| {
-            let g_id = vv.global_id();
-            vv.update(&min, g_id);
-
-            for n in vv.neighbours() {
-                let my_min = vv.read(&min);
-                n.update(&min, my_min);
-            }
-        })
-    }
-
-    fn post_eval<G: GraphViewOps>(&self, c: &mut GlobalEvalState<G>) {
-        // this will make the global state merge all the values for all partitions
-        let min = c.agg(state::def::min::<u64>(0));
-
-        c.step(|vv| {
-            let current = vv.read(&min);
-            let prev = vv.read_prev(&min);
-            current != prev
-        })
-    }
-
-    fn produce_output<G: GraphViewOps>(&self, g: &G, gs: &GlobalEvalState<G>) -> Self::Out
-    where
-        Self: Sync,
-    {
-        let agg = state::def::min::<u64>(0);
-
-        let mut results: FxHashMap<u64, u64> = FxHashMap::default();
-
-        (0..g.num_shards())
-            .into_iter()
-            .fold(&mut results, |res, part_id| {
-                gs.fold_state(&agg, part_id, res, |res, v_id, cc| {
-                    res.insert(*v_id, cc);
-                    res
-                })
-            });
-
-        results
-    }
-}
-
-/// Step 1 for the triangle counting algorithm
-pub struct TriangleCountS1 {}
-
-/// Step 1 for the triangle counting algorithm
-impl Program for TriangleCountS1 {
-    type Out = ();
-
-    fn local_eval<G: GraphViewOps>(&self, c: &LocalState<G>) {
-        let neighbors_set = c.agg(state::def::hash_set(0));
-
-        c.step(|s| {
-            for t in s.neighbours() {
-                if s.global_id() > t.global_id() {
-                    t.update(&neighbors_set, s.global_id());
-                }
-            }
-        });
-    }
-
-    fn post_eval<G: GraphViewOps>(&self, c: &mut GlobalEvalState<G>) {
-        let _ = c.agg(state::def::hash_set::<u64>(0));
-        c.step(|_| false)
-    }
-
-    fn produce_output<G: GraphViewOps>(&self, _g: &G, _gs: &GlobalEvalState<G>) -> Self::Out
-    where
-        Self: Sync,
-    {
-    }
-}
-
-/// Step 2 for the triangle counting algorithm
-pub struct TriangleCountS2 {}
-
-/// Step 2 for the triangle counting algorithm
-impl Program for TriangleCountS2 {
-    type Out = Option<usize>;
-    fn local_eval<G: GraphViewOps>(&self, c: &LocalState<G>) {
-        let neighbors_set = c.agg(state::def::hash_set::<u64>(0));
-        let count = c.global_agg(state::def::sum::<usize>(1));
-
-        c.step(|s| {
-            for t in s.neighbours() {
-                if s.global_id() > t.global_id() {
-                    let intersection_count = {
-                        // when using entry() we need to make sure the reference is released before we can update the state, otherwise we break the Rc<RefCell<_>> invariant
-                        // where there can either be one mutable or many immutable references
-
-                        match (
-                            s.entry(&neighbors_set)
-                                .read_ref()
-                                .unwrap_or(&FxHashSet::default()),
-                            t.entry(&neighbors_set)
-                                .read_ref()
-                                .unwrap_or(&FxHashSet::default()),
-                        ) {
-                            (s_set, t_set) => {
-                                let intersection = s_set.intersection(t_set);
-                                intersection.count()
-                            }
-                        }
-                    };
-
-                    s.global_update(&count, intersection_count);
-                }
-            }
-        });
-    }
-
-    fn post_eval<G: GraphViewOps>(&self, c: &mut GlobalEvalState<G>) {
-        let _ = c.global_agg(state::def::sum::<usize>(1));
-        c.step(|_| false)
-    }
-
-    fn produce_output<G: GraphViewOps>(&self, _g: &G, gs: &GlobalEvalState<G>) -> Self::Out
-    where
-        Self: Sync,
-    {
-        gs.read_global_state(&state::def::sum::<usize>(1))
-    }
-}
-
-/// A slower Step 2 for the triangle counting algorithm
-pub struct TriangleCountSlowS2 {}
-
-/// A slower Step 2 for the triangle counting algorithm
-impl Program for TriangleCountSlowS2 {
-    type Out = usize;
-
-    fn local_eval<G: GraphViewOps>(&self, c: &LocalState<G>) {
-        let count = c.global_agg(state::def::sum::<usize>(0));
-
-        c.step(|v| {
-            let my_neighbours_less_myself = v
-                .neighbours()
-                .map(|n| n.global_id())
-                .filter(|n| *n != v.global_id())
-                .collect::<FxHashSet<_>>();
-
-            let c1 = my_neighbours_less_myself.len();
-
-            for n in v.neighbours() {
-                if v.global_id() > n.global_id() {
-                    let nn_less_itself = n
-                        .neighbours()
-                        .map(|n| n.global_id())
-                        .filter(|v| *v != n.global_id())
-                        .collect::<FxHashSet<_>>();
-
-                    let c2 = my_neighbours_less_myself
-                        .difference(&nn_less_itself)
-                        .count();
-                    v.global_update(&count, c1 - c2);
-                }
-            }
-        })
-    }
-
-    fn post_eval<G: GraphViewOps>(&self, c: &mut GlobalEvalState<G>) {
-        let a = c.global_agg(state::def::sum::<usize>(0));
-        c.step(|_| false)
-    }
-
-    fn produce_output<G: GraphViewOps>(&self, _g: &G, _gs: &GlobalEvalState<G>) -> Self::Out
-    where
-        Self: Sync,
-    {
-        todo!()
-    }
-}
-
-#[cfg(test)]
-mod program_test {
-    use std::{cmp::Reverse, iter::once};
-
-    use crate::program::algo::{connected_components, triangle_counting_fast};
-
-    use super::*;
-    use crate::graph::Graph;
-    use crate::view_api::*;
-    use docbrown_core::state;
-    use itertools::chain;
-    use pretty_assertions::assert_eq;
-    use rustc_hash::FxHashMap;
-
-    #[test]
-    fn triangle_count_1() {
-        let graph = Graph::new(2);
-
-        let edges = vec![
-            // triangle 1
-            (1, 2, 1),
-            (2, 3, 1),
-            (3, 1, 1),
-            //triangle 2
-            (4, 5, 1),
-            (5, 6, 1),
-            (6, 4, 1),
-            // triangle 4 and 5
-            (7, 8, 2),
-            (8, 9, 3),
-            (9, 7, 4),
-            (8, 10, 5),
-            (10, 9, 6),
-        ];
-
-        for (src, dst, ts) in edges {
-            graph.add_edge(ts, src, dst, &vec![]);
-        }
-
-        let actual_tri_count = triangle_counting_fast(&graph);
-
-        assert_eq!(actual_tri_count, Some(4))
-    }
-
-    #[test]
-    fn triangle_count_1_slow() {
-        let graph = Graph::new(2);
-
-        let edges = vec![
-            // triangle 1
-            (1, 2, 1),
-            (2, 3, 1),
-            (3, 1, 1),
-            //triangle 2
-            (4, 5, 1),
-            (5, 6, 1),
-            (6, 4, 1),
-            // triangle 4 and 5
-            (7, 8, 2),
-            (8, 9, 3),
-            (9, 7, 4),
-            (8, 10, 5),
-            (10, 9, 6),
-        ];
-
-        for (src, dst, ts) in edges {
-            graph.add_edge(ts, src, dst, &vec![]);
-        }
-
-        let program_s1 = TriangleCountSlowS2 {};
-        let agg = state::def::sum::<usize>(0);
-
-        let windowed_graph = graph.window(0, 95);
-        let mut gs = GlobalEvalState::new(windowed_graph.clone(), false);
-
-        program_s1.run_step(&windowed_graph, &mut gs);
-
-        let actual_tri_count = gs.read_global_state(&agg).map(|v| v / 3);
-
-        assert_eq!(actual_tri_count, Some(4))
-    }
-
-    #[test]
-    fn triangle_count_2() {
-        let graph = Graph::new(4);
-
-        let edges = vec![
-            (1, 2, 1),
-            (1, 3, 2),
-            (1, 4, 3),
-            (3, 1, 4),
-            (3, 4, 5),
-            (3, 5, 6),
-            (4, 5, 7),
-            (5, 6, 8),
-            (5, 8, 9),
-            (7, 5, 10),
-            (8, 5, 11),
-            (1, 9, 12),
-            (9, 1, 13),
-            (6, 3, 14),
-            (4, 8, 15),
-            (8, 3, 16),
-            (5, 10, 17),
-            (10, 5, 18),
-            (10, 8, 19),
-            (1, 11, 20),
-            (11, 1, 21),
-            (9, 11, 22),
-            (11, 9, 23),
-        ];
-
-        for (src, dst, ts) in edges {
-            graph.add_edge(ts, src, dst, &vec![]);
-        }
-
-        let program_s1 = TriangleCountSlowS2 {};
-        let agg = state::def::sum::<usize>(0);
-        let graph_window = graph.window(0, 64);
-
-        let mut gs = GlobalEvalState::new(graph_window.clone(), false);
-
-        program_s1.run_step(&graph_window, &mut gs);
-
-        let actual_tri_count = gs.read_global_state(&agg).map(|v| v / 3);
-
-        assert_eq!(actual_tri_count, Some(8));
-    }
-
-    #[test]
-    fn triangle_count_3() {
-        let graph = Graph::new(2);
-
-        let edges = vec![
-            (1, 2, 1),
-            (1, 3, 2),
-            (1, 4, 3),
-            (3, 1, 4),
-            (3, 4, 5),
-            (3, 5, 6),
-            (4, 5, 7),
-            (5, 6, 8),
-            (5, 8, 9),
-            (7, 5, 10),
-            (8, 5, 11),
-            (1, 9, 12),
-            (9, 1, 13),
-            (6, 3, 14),
-            (4, 8, 15),
-            (8, 3, 16),
-            (5, 10, 17),
-            (10, 5, 18),
-            (10, 8, 19),
-            (1, 11, 20),
-            (11, 1, 21),
-            (9, 11, 22),
-            (11, 9, 23),
-        ];
-
-        for (src, dst, ts) in edges {
-            graph.add_edge(ts, src, dst, &vec![]);
-        }
-
-        let graph_window = graph.window(0, 27);
-
-        let actual_tri_count = triangle_counting_fast(&graph_window);
-
-        assert_eq!(actual_tri_count, Some(8))
-    }
-
-    #[test]
-    fn simple_connected_components() {
-        let program = SimpleConnectedComponents::default();
-
-        let graph = Graph::new(2);
-
-        let edges = vec![
-            (1, 2, 1),
-            (2, 3, 2),
-            (3, 4, 3),
-            (3, 5, 4),
-            (6, 5, 5),
-            (7, 8, 6),
-            (8, 7, 7),
-        ];
-
-        for (src, dst, ts) in edges {
-            graph.add_edge(ts, src, dst, &vec![]);
-        }
-
-        let graph_window = graph.window(0, 10);
-        let mut gs = GlobalEvalState::new(graph_window.clone(), true);
-        program.run_step(&graph_window, &mut gs);
-
-        let agg = state::def::min::<u64>(0);
-
-        let expected =             // output from the eval running on the first shard
-            vec![
-                vec![7, 1, 3, 3], // shard 0 (2, 4, 6, 8)
-                vec![3, 7, 1, 2], // shard 1 (1, 3, 5, 7)
-            ];
-
-        let actual_part1 = &gs.read_vec_partitions(&agg)[0];
-        let actual_part2 = &gs.read_vec_partitions(&agg)[1];
-
-        // after one step all partitions have the same data since it's been merged and broadcasted
-        assert_eq!(actual_part1, actual_part2);
-        println!("ACTUAL: {:?}", actual_part1);
-        assert_eq!(actual_part1, &expected);
-
-        program.run_step(&graph_window, &mut gs);
-
-        let expected =             // output from the eval running on the first shard
-            vec![
-                vec![7, 1, 2, 3], // shard 0 (2, 4, 6, 8)
-                vec![2, 7, 1, 1], // shard 1 (1, 3, 5, 7)
-            ];
-
-        let actual_part1 = &gs.read_vec_partitions(&agg)[0];
-        let actual_part2 = &gs.read_vec_partitions(&agg)[1];
-
-        // after one step all partitions have the same data since it's been merged and broadcasted
-        assert_eq!(actual_part1, actual_part2);
-        println!("ACTUAL: {:?}", actual_part1);
-        assert_eq!(actual_part1, &expected);
-
-        program.run_step(&graph_window, &mut gs);
-
-        let expected =             // output from the eval running on the first shard
-            vec![
-                vec![7, 1, 1, 2], // shard 0 (2, 4, 6, 8)
-                vec![1, 7, 1, 1], // shard 1 (1, 3, 5, 7)
-            ];
-
-        let actual_part1 = &gs.read_vec_partitions(&agg)[0];
-        let actual_part2 = &gs.read_vec_partitions(&agg)[1];
-
-        // after one step all partitions have the same data since it's been merged and broadcasted
-        assert_eq!(actual_part1, actual_part2);
-        println!("ACTUAL: {:?}", actual_part1);
-        assert_eq!(actual_part1, &expected);
-
-        program.run_step(&graph_window, &mut gs);
-
-        let expected =             // output from the eval running on the first shard
-            vec![
-                vec![7, 1, 1, 1], // shard 0 (2, 4, 6, 8)
-                vec![1, 7, 1, 1], // shard 1 (1, 3, 5, 7)
-            ];
-
-        let actual_part1 = &gs.read_vec_partitions(&agg)[0];
-        let actual_part2 = &gs.read_vec_partitions(&agg)[1];
-
-        // after one step all partitions have the same data since it's been merged and broadcasted
-        assert_eq!(actual_part1, actual_part2);
-        println!("ACTUAL: {:?}", actual_part1);
-        assert_eq!(actual_part1, &expected);
-    }
-
-    #[test]
-    fn run_loop_simple_connected_components() {
-        let graph = Graph::new(2);
-
-        let edges = vec![
-            (1, 2, 1),
-            (2, 3, 2),
-            (3, 4, 3),
-            (3, 5, 4),
-            (6, 5, 5),
-            (7, 8, 6),
-            (8, 7, 7),
-        ];
-
-        for (src, dst, ts) in edges {
-            graph.add_edge(ts, src, dst, &vec![]);
-        }
-
-        let graph_window = graph.window(0, 10);
-
-        let results: FxHashMap<u64, u64> = connected_components(&graph_window, usize::MAX)
-            .into_iter()
-            .map(|(k, v)| (k, v))
-            .collect();
-
-        assert_eq!(
-            results,
-            vec![
-                (1, 1),
-                (2, 1),
-                (3, 1),
-                (4, 1),
-                (5, 1),
-                (6, 1),
-                (7, 7),
-                (8, 7),
-            ]
-            .into_iter()
-            .collect::<FxHashMap<u64, u64>>()
-        );
-    }
-
-    #[test]
-    fn simple_connected_components_2() {
-        let graph = Graph::new(2);
-
-        let edges = vec![
-            (1, 2, 1),
-            (1, 3, 2),
-            (1, 4, 3),
-            (3, 1, 4),
-            (3, 4, 5),
-            (3, 5, 6),
-            (4, 5, 7),
-            (5, 6, 8),
-            (5, 8, 9),
-            (7, 5, 10),
-            (8, 5, 11),
-            (1, 9, 12),
-            (9, 1, 13),
-            (6, 3, 14),
-            (4, 8, 15),
-            (8, 3, 16),
-            (5, 10, 17),
-            (10, 5, 18),
-            (10, 8, 19),
-            (1, 11, 20),
-            (11, 1, 21),
-            (9, 11, 22),
-            (11, 9, 23),
-        ];
-
-        for (src, dst, ts) in edges {
-            graph.add_edge(ts, src, dst, &vec![]);
-        }
-
-        let graph_window = graph.window(0, 25);
-
-        let results: FxHashMap<u64, u64> = connected_components(&graph_window, usize::MAX)
-            .into_iter()
-            .map(|(k, v)| (k, v))
-            .collect();
-
-        assert_eq!(
-            results,
-            vec![
-                (1, 1),
-                (2, 1),
-                (3, 1),
-                (4, 1),
-                (5, 1),
-                (6, 1),
-                (7, 1),
-                (8, 1),
-                (9, 1),
-                (10, 1),
-                (11, 1),
-            ]
-            .into_iter()
-            .collect::<FxHashMap<u64, u64>>()
-        );
-    }
-
-    // connected components on a graph with 1 node and a self loop
-    #[test]
-    fn simple_connected_components_3() {
-        let graph = Graph::new(2);
-
-        let edges = vec![(1, 1, 1)];
-
-        for (src, dst, ts) in edges {
-            graph.add_edge(ts, src, dst, &vec![]);
-        }
-
-        let graph_window = graph.window(0, 25);
-
-        let results: FxHashMap<u64, u64> = connected_components(&graph_window, usize::MAX);
-
-        assert_eq!(
-            results,
-            vec![(1, 1),].into_iter().collect::<FxHashMap<u64, u64>>()
-        );
-    }
-
-    #[quickcheck]
-    fn circle_graph_the_smallest_value_is_the_cc(vs: Vec<u64>) {
-        if !vs.is_empty() {
-            let vs = vs.into_iter().unique().collect::<Vec<u64>>();
-
-            let smallest = vs.iter().min().unwrap();
-
-            let first = vs[0];
-            // pairs of vertices from vs one after the next
-            let edges = vs
-                .iter()
-                .zip(chain!(vs.iter().skip(1), once(&first)))
-                .map(|(a, b)| (*a, *b))
-                .collect::<Vec<(u64, u64)>>();
-
-            assert_eq!(edges[0].0, first);
-            assert_eq!(edges.last().unwrap().1, first);
-
-            let graph = Graph::new(2);
-
-            for (src, dst) in edges.iter() {
-                graph.add_edge(0, *src, *dst, &vec![]);
-            }
-
-            // now we do connected components over window 0..1
-
-            let graph_window = graph.window(0, 1);
-
-            let components: FxHashMap<u64, u64> = connected_components(&graph_window, usize::MAX);
-
-            let actual = components
-                .iter()
-                .group_by(|(_, cc)| *cc)
-                .into_iter()
-                .map(|(cc, group)| (cc, Reverse(group.count())))
-                .sorted_by(|l, r| l.1.cmp(&r.1))
-                .map(|(cc, count)| (*cc, count.0))
-                .take(1)
-                .next();
-
-            assert_eq!(
-                actual,
-                Some((*smallest, edges.len())),
-                "actual: {:?}",
-                actual
-            );
-        }
-    }
 }

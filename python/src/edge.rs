@@ -31,7 +31,9 @@ impl PyEdge {
 
     pub fn property(&self, name: String, include_static: Option<bool>) -> Option<Prop> {
         let include_static = include_static.unwrap_or(true);
-        self.edge.property(name, include_static).map(|prop| prop.into())
+        self.edge
+            .property(name, include_static)
+            .map(|prop| prop.into())
     }
 
     pub fn properties(&self, include_static: Option<bool>) -> HashMap<String, Prop> {

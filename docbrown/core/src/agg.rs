@@ -19,32 +19,13 @@ pub trait Accumulator<A, IN, OUT>: Send + Sync {
     fn finish(a: &A) -> OUT;
 }
 
-pub trait AccDef<A>: Send + Sync {
-    fn zero() -> A;
-
-    fn add(a1: &mut A, a: A);
-}
-
-impl<A: StateType, B> AccDef<A> for B
-where
-    B: Accumulator<A, A, A>,
-{
-    fn zero() -> A {
-        B::zero()
-    }
-
-    fn add(a1: &mut A, a: A) {
-        B::add0(a1, a);
-    }
-}
-
-pub struct MinDef<A: StateType + Bounded + PartialOrd + Ord> {
+pub struct MinDef<A: StateType + Bounded + PartialOrd> {
     _marker: PhantomData<A>,
 }
 
 impl<A> Accumulator<A, A, A> for MinDef<A>
 where
-    A: StateType + Bounded + PartialOrd + Ord,
+    A: StateType + Bounded + PartialOrd,
 {
     fn zero() -> A {
         A::max_value()
@@ -65,22 +46,24 @@ where
     }
 }
 
-pub struct MaxDef<A: StateType + Bounded + PartialOrd + Ord> {
+pub struct MaxDef<A: StateType + Bounded + PartialOrd> {
     _marker: PhantomData<A>,
 }
 
 impl<A> Accumulator<A, A, A> for MaxDef<A>
 where
-    A: StateType + Bounded + PartialOrd + Ord,
+    A: StateType + Bounded + PartialOrd,
 {
     fn zero() -> A {
         A::min_value()
     }
 
     fn add0(a1: &mut A, a: A) {
+        println!("BEFORE: a1 = {:?}, a = {:?}", a1, a.clone());
         if a > *a1 {
-            *a1 = a;
+            *a1 = a.clone();
         }
+        println!("AFTER: a1 = {:?}, a = {:?}", a1, a);
     }
 
     fn combine(a1: &mut A, a2: &A) {
@@ -92,7 +75,6 @@ where
     }
 }
 
-// sum def
 pub struct SumDef<A: StateType + Zero + AddAssign<A>> {
     _marker: PhantomData<A>,
 }
@@ -107,6 +89,31 @@ where
 
     fn add0(a1: &mut A, a: A) {
         *a1 += a;
+    }
+
+    fn combine(a1: &mut A, a2: &A) {
+        Self::add0(a1, a2.clone());
+    }
+
+    fn finish(a: &A) -> A {
+        a.clone()
+    }
+}
+
+pub struct ValDef<A: StateType + Zero> {
+    _marker: PhantomData<A>,
+}
+
+impl<A> Accumulator<A, A, A> for ValDef<A>
+where
+    A: StateType + Zero,
+{
+    fn zero() -> A {
+        A::zero()
+    }
+
+    fn add0(a1: &mut A, a: A) {
+        *a1 = a;
     }
 
     fn combine(a1: &mut A, a2: &A) {
@@ -148,13 +155,11 @@ where
 }
 
 pub mod set {
+    use super::*;
+    use crate::state::StateType;
     use roaring::{RoaringBitmap, RoaringTreemap};
     use rustc_hash::FxHashSet;
     use std::hash::Hash;
-
-    use crate::state::StateType;
-
-    use super::*;
 
     pub struct Set<A: StateType + Hash + Eq> {
         _marker: PhantomData<A>,
@@ -226,14 +231,10 @@ pub mod set {
 }
 
 pub mod topk {
-
-    use std::{cmp::Reverse, collections::BTreeSet, marker::PhantomData};
-
-    use itertools::Itertools;
-
-    use crate::state::StateType;
-
     use super::*;
+    use crate::state::StateType;
+    use itertools::Itertools;
+    use std::{cmp::Reverse, collections::BTreeSet, marker::PhantomData};
 
     pub struct TopK<A: StateType + Ord, const N: usize> {
         _marker: PhantomData<A>,

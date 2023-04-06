@@ -917,7 +917,8 @@ impl TemporalGraph {
     pub(crate) fn temporal_vertex_props(&self, v: u64) -> HashMap<String, Vec<(i64, Prop)>> {
         let index = self.logical_to_physical[&v];
         let names = self.props.temporal_vertex_names(index);
-        names.into_iter()
+        names
+            .into_iter()
             .map(|name| (name.to_string(), self.temporal_vertex_prop_vec(v, &name)))
             .filter(|(_, v)| !v.is_empty()) // just filtered out None
             .collect()
@@ -930,7 +931,8 @@ impl TemporalGraph {
     ) -> HashMap<String, Vec<(i64, Prop)>> {
         let index = self.logical_to_physical[&v];
         let names = self.props.temporal_vertex_names(index);
-        names.into_iter()
+        names
+            .into_iter()
             .map(|name| {
                 (
                     name.to_string(),
@@ -1001,7 +1003,8 @@ impl TemporalGraph {
 
     pub(crate) fn temporal_edge_props(&self, e: usize) -> HashMap<String, Vec<(i64, Prop)>> {
         let names = self.props.temporal_edge_names(e);
-        names.into_iter()
+        names
+            .into_iter()
             .map(|name| {
                 (
                     name.to_string(),
@@ -1019,7 +1022,8 @@ impl TemporalGraph {
         w: Range<i64>,
     ) -> HashMap<String, Vec<(i64, Prop)>> {
         let names = self.props.temporal_edge_names(e);
-        names.into_iter()
+        names
+            .into_iter()
             .map(|name| {
                 (
                     name.to_string(),

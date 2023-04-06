@@ -1,8 +1,9 @@
 use docbrown_core::Prop;
 use docbrown_core::{state, utils};
-use docbrown_db::program::{
-    GlobalEvalState, Program, TriangleCountS1, TriangleCountS2, TriangleCountSlowS2,
+use docbrown_db::algorithms::triangle_count::{
+    TriangleCountS1, TriangleCountS2, TriangleCountSlowS2,
 };
+use docbrown_db::program::{GlobalEvalState, Program};
 use docbrown_db::view_api::*;
 use docbrown_db::{csv_loader::csv::CsvLoader, graph::Graph};
 use serde::Deserialize;

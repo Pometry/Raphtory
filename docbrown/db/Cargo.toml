@@ -36,8 +36,9 @@ uuid = { version = "1.3.0", features = ["v4"] }
 reqwest = { version = "0.11.14", features = ["blocking"] }
 # arrow2 = { version ="0.16", features = ["compute"] }
 rustc-hash = "1.1.0"
-
+num-traits = "0.2"
 rand_distr = "0.4.3"
+
 [dev-dependencies]
 quickcheck = "1"
 quickcheck_macros = "1"
