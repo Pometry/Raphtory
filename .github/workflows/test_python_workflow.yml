@@ -54,12 +54,12 @@ jobs:
       - name: Install Python dependencies (Unix)
         if: "contains(matrix.os, 'Ubuntu') || contains(matrix.os, 'macOS')"
         run: |
-          python -m pip install -q pytest networkx numpy seaborn pandas nbmake pytest-xdist matplotlib
+          python -m pip install -q pytest networkx numpy seaborn pandas nbmake pytest-xdist matplotlib pyvis
           python -m pip install target/wheels/raphtory-*.whl
       - name: Install Python dependencies (Windows)
         if: "contains(matrix.os, 'Windows')"
         run: |
-          python -m pip install -q pytest networkx numpy seaborn pandas nbmake pytest-xdist matplotlib
+          python -m pip install -q pytest networkx numpy seaborn pandas nbmake pytest-xdist matplotlib pyvis
           $folder_path = "target/wheels/"
           Get-ChildItem -Path $folder_path -Recurse -Include *.whl | ForEach-Object {
             python -m pip install "$($_.FullName)"
