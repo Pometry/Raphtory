@@ -79,6 +79,7 @@ impl PyGraphView {
         Ok(self.graph.vertex(v).map(|v| v.into()))
     }
 
+    #[getter]
     pub fn vertices(&self) -> PyVertices {
         self.graph.vertices().into()
     }
