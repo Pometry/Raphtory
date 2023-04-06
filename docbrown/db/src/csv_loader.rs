@@ -341,7 +341,7 @@ pub mod csv {
         ) -> Result<(), CsvErr>
         where
             REC: DeserializeOwned + Debug,
-            F: Fn(REC, &G) -> (),
+            F: Fn(REC, &G),
         {
             let file_path: PathBuf = path.into();
 
@@ -416,9 +416,9 @@ mod csv_loader_test {
         let r = Regex::new(r".+address").unwrap();
         // todo: move file path to data module
         let text = "bitcoin/address_000000000001.csv.gz";
-        assert!(r.is_match(&text));
+        assert!(r.is_match(text));
         let text = "bitcoin/received_000000000001.csv.gz";
-        assert!(!r.is_match(&text));
+        assert!(!r.is_match(text));
     }
 
     #[test]
@@ -426,11 +426,11 @@ mod csv_loader_test {
         let r = Regex::new(r".+(sent|received)").unwrap();
         // todo: move file path to data module
         let text = "bitcoin/sent_000000000001.csv.gz";
-        assert!(r.is_match(&text));
+        assert!(r.is_match(text));
         let text = "bitcoin/received_000000000001.csv.gz";
-        assert!(r.is_match(&text));
+        assert!(r.is_match(text));
         let text = "bitcoin/address_000000000001.csv.gz";
-        assert!(!r.is_match(&text));
+        assert!(!r.is_match(text));
     }
 
     #[derive(Deserialize, std::fmt::Debug)]

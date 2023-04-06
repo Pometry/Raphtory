@@ -5,8 +5,6 @@ use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt::Debug;
-use crate::tgraph::errors::MutateGraphError;
-use crate::tgraph_shard::errors::GraphError;
 
 #[derive(thiserror::Error, Debug)]
 #[error("cannot mutate static property '{name}'")]
@@ -236,7 +234,7 @@ impl Props {
             .iter()
             .map(|(name, prop)| {
                 (
-                    self.get_or_allocate_id(&name, should_be_static).unwrap(),
+                    self.get_or_allocate_id(name, should_be_static).unwrap(),
                     prop.clone(),
                 )
             })
@@ -366,7 +364,7 @@ mod props_tests {
         assert_eq!(props.get_or_allocate_id("key2", false), Ok(1));
     }
 
-    #[test]
+    // #[test]
     // fn insert_default_value_against_no_props_vertex_upsert() {
     //     let mut props = Props::default();
     //     props.upsert_temporal_vertex_props(1, 0, &vec![]);
@@ -432,7 +430,7 @@ mod props_tests {
         )
     }
 
-    #[test]
+    // #[test]
     // fn insert_default_value_against_no_props_edge_upsert() {
     //     let mut props = Props::default();
     //     props.upsert_temporal_edge_props(1, 1, &vec![]);

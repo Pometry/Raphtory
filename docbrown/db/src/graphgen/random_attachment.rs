@@ -15,7 +15,6 @@
 
 use crate::graph::Graph;
 use crate::view_api::*;
-use docbrown_core::tgraph_shard::errors::GraphError;
 use rand::seq::SliceRandom;
 
 /// Given a graph this function will add a user defined number of vertices, each with a
@@ -42,10 +41,7 @@ use rand::seq::SliceRandom;
 /// ```
 pub fn random_attachment(graph: &Graph, vertices_to_add: usize, edges_per_step: usize) {
     let rng = &mut rand::thread_rng();
-    let mut latest_time = match graph.latest_time() {
-        None => 0,
-        Some(time) => time,
-    };
+    let mut latest_time = graph.end().unwrap_or(0);
     let mut ids: Vec<u64> = graph.vertices().id().collect();
     let mut max_id = match ids.iter().max() {
         Some(id) => *id,

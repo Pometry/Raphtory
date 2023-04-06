@@ -26,6 +26,14 @@ impl From<Graph> for DynamicGraph {
 }
 
 impl GraphViewInternalOps for DynamicGraph {
+    fn view_start(&self) -> Option<i64> {
+        self.0.view_start()
+    }
+
+    fn view_end(&self) -> Option<i64> {
+        self.0.view_end()
+    }
+
     fn earliest_time_global(&self) -> Option<i64> {
         self.0.earliest_time_global()
     }
@@ -96,6 +104,22 @@ impl GraphViewInternalOps for DynamicGraph {
         self.0.vertex_ref_window(v, t_start, t_end)
     }
 
+    fn vertex_earliest_time(&self, v: VertexRef) -> Option<i64> {
+        self.0.vertex_earliest_time(v)
+    }
+
+    fn vertex_earliest_time_window(&self, v: VertexRef, t_start: i64, t_end: i64) -> Option<i64> {
+        self.0.vertex_latest_time_window(v, t_start, t_end)
+    }
+
+    fn vertex_latest_time(&self, v: VertexRef) -> Option<i64> {
+        self.0.vertex_latest_time(v)
+    }
+
+    fn vertex_latest_time_window(&self, v: VertexRef, t_start: i64, t_end: i64) -> Option<i64> {
+        self.0.vertex_latest_time_window(v, t_start, t_end)
+    }
+
     fn vertex_ids(&self) -> Box<dyn Iterator<Item = u64> + Send> {
         self.0.vertex_ids()
     }
@@ -157,6 +181,14 @@ impl GraphViewInternalOps for DynamicGraph {
 
     fn vertex_edges(&self, v: VertexRef, d: Direction) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
         self.0.vertex_edges(v, d)
+    }
+
+    fn vertex_edges_t(
+        &self,
+        v: VertexRef,
+        d: Direction,
+    ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
+        self.0.vertex_edges_t(v, d)
     }
 
     fn vertex_edges_window(

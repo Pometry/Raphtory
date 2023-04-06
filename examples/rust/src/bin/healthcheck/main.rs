@@ -11,6 +11,7 @@ mod test {
     use docbrown_db::{
         csv_loader::csv::CsvLoader,
         graph::Graph,
+        view_api::*,
         view_api::{internal::GraphViewInternalOps, GraphViewOps},
     };
     use itertools::Itertools;
@@ -156,8 +157,8 @@ mod test {
             .collect::<Vec<_>>();
         expected_n.sort_by(|v1, v2| v1.0.cmp(&v2.0));
 
-        assert!(expected_1.len() > 0, "Graph is empty {n_parts}");
-        assert!(expected_n.len() > 0, "Graph is empty {n_parts}");
+        assert!(!expected_1.is_empty(), "Graph is empty {n_parts}");
+        assert!(!expected_n.is_empty(), "Graph is empty {n_parts}");
         assert_eq!(expected_1, expected_n, "Graphs are not equal {n_parts}");
 
         let wg1 = g1.window(t_start, t_end);

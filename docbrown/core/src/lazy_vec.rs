@@ -1,7 +1,5 @@
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
-use crate::tgraph::errors::MutateGraphError;
-use crate::tgraph_shard::errors::GraphError;
 
 #[derive(thiserror::Error, Debug, PartialEq)]
 #[error("cannot set previous value '{previous_value:?}' to '{new_value:?}' in position '{index}'")]
@@ -62,7 +60,10 @@ where
     // fails if there is already a value set for the given id to a different value
     pub(crate) fn set(&mut self, id: usize, value: A) -> Result<(), IllegalSet<A>> {
         match self {
-            LazyVec::Empty => Ok(*self = Self::from(id, value)),
+            LazyVec::Empty => {
+                *self = Self::from(id, value);
+                Ok(())
+            }
             LazyVec::LazyVec1(only_id, only_value) => {
                 if *only_id == id {
                     if *only_value != Default::default() && *only_value != value {

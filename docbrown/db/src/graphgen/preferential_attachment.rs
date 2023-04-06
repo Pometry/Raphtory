@@ -14,7 +14,6 @@
 
 use crate::graph::Graph;
 use crate::view_api::*;
-use docbrown_core::tgraph_shard::errors::GraphError;
 use rand::prelude::*;
 use std::collections::HashSet;
 
@@ -44,16 +43,9 @@ use std::collections::HashSet;
 /// let graph = Graph::new(2);
 /// ba_preferential_attachment(&graph, 1000, 10);
 /// ```
-pub fn ba_preferential_attachment(
-    graph: &Graph,
-    vertices_to_add: usize,
-    edges_per_step: usize,
-) -> () {
-    let mut rng = rand::thread_rng();
-    let mut latest_time = match graph.latest_time() {
-        None => 0,
-        Some(time) => time,
-    };
+pub fn ba_preferential_attachment(graph: &Graph, vertices_to_add: usize, edges_per_step: usize) {
+    let mut rng = thread_rng();
+    let mut latest_time = graph.end().unwrap_or(0);
     let view = graph.window(i64::MIN, i64::MAX);
     let mut ids: Vec<u64> = view.vertices().id().collect();
     let r: Vec<usize> = view.vertices().degree().collect();
@@ -87,7 +79,7 @@ pub fn ba_preferential_attachment(
     for _ in 0..vertices_to_add {
         max_id += 1;
         latest_time += 1;
-        let mut normalisation = edge_count.clone();
+        let mut normalisation = edge_count;
         let mut positions_to_skip: HashSet<usize> = HashSet::new();
 
         for _ in 0..edges_per_step {
@@ -110,7 +102,7 @@ pub fn ba_preferential_attachment(
             graph.add_edge(latest_time, max_id, dst, &vec![]);
         }
         ids.push(max_id);
-        degrees.push(edges_per_step.clone());
+        degrees.push(edges_per_step);
         edge_count += edges_per_step * 2;
     }
 }

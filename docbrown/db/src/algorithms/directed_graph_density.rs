@@ -12,7 +12,7 @@
 //! ```rust
 //! use docbrown_db::algorithms::directed_graph_density::directed_graph_density;
 //! use docbrown_db::graph::Graph;
-//! use docbrown_db::view_api::GraphViewOps;
+//! use docbrown_db::view_api::*;
 //!
 //! let g = Graph::new(1);
 //! let windowed_graph = g.window(0, 7);
@@ -33,7 +33,6 @@
 //! ```
 //!
 use crate::view_api::*;
-use docbrown_core::tgraph_shard::errors::GraphError;
 
 /// Measures how dense or sparse a graph is
 pub fn directed_graph_density<G: GraphViewOps>(graph: &G) -> f32 {

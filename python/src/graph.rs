@@ -1,6 +1,6 @@
 use crate::dynamic::DynamicGraph;
 use crate::graph_view::PyGraphView;
-use crate::wrappers::adapt_err;
+use crate::util::adapt_result;
 use crate::wrappers::Prop;
 use docbrown_core as dbc;
 use docbrown_core::vertex::InputVertex;
@@ -59,7 +59,7 @@ impl PyGraph {
         let result = self
             .graph
             .add_vertex(timestamp, v, &Self::transform_props(properties));
-        adapt_err(result)
+        adapt_result(result)
     }
 
     pub fn add_vertex_properties(
@@ -71,7 +71,7 @@ impl PyGraph {
         let result = self
             .graph
             .add_vertex_properties(v, &Self::transform_props(Some(properties)));
-        adapt_err(result)
+        adapt_result(result)
     }
 
     pub fn add_edge(
@@ -83,7 +83,7 @@ impl PyGraph {
     ) -> PyResult<()> {
         let src = Self::extract_id(src)?;
         let dst = Self::extract_id(dst)?;
-        adapt_err(
+        adapt_result(
             self.graph
                 .add_edge(timestamp, src, dst, &Self::transform_props(properties)),
         )
@@ -100,7 +100,7 @@ impl PyGraph {
         let result =
             self.graph
                 .add_edge_properties(src, dst, &Self::transform_props(Some(properties)));
-        adapt_err(result)
+        adapt_result(result)
     }
 
     //******  Saving And Loading  ******//

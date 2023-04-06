@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 static MERGE_SORT_SIZE: usize = 64;
 
 #[repr(transparent)]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 pub struct SortedVec<K: Ord> {
     vs: Vec<K>,
 }
@@ -80,7 +80,7 @@ impl<K: Ord> LSMSet<K> {
                 return Some(k0);
             } else if k0 > k {
                 let next_k_alt = alt.get_or_insert(k0);
-                *next_k_alt = Ord::min(&next_k_alt, k0);
+                *next_k_alt = Ord::min(next_k_alt, k0);
             }
         }
 

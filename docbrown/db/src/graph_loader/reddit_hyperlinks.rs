@@ -6,9 +6,9 @@
 //! *NOTE: It may take a while to download the dataset
 //!
 //! ## Dataset statistics
-//! * Number of nodes (subreddits) 	35,776
-//! * Number of edges (hyperlink between subreddits) 	137,821
-//! * Timespan 	Jan 2014 - April 2017
+//! * Number of nodes (subreddits) 35,776
+//! * Number of edges (hyperlink between subreddits) 137,821
+//! * Timespan Jan 2014 - April 2017
 //!
 //! ## Source
 //! S. Kumar, W.L. Hamilton, J. Leskovec, D. Jurafsky. Community Interaction and Conflict
@@ -87,52 +87,50 @@ pub fn reddit_graph(shards: usize, timeout: u64) -> Graph {
         if let Ok(path) = reddit_file(timeout) {
             if let Ok(lines) = read_lines(path.as_path()) {
                 // Consumes the iterator, returns an (Optional) String
-                for line in lines.dropping(1) {
-                    if let Ok(reddit) = line {
-                        let reddit: Vec<&str> = reddit.split("	").collect();
-                        let src_id = &reddit[0];
-                        let dst_id = &reddit[1];
-                        let post_id = reddit[2].to_string();
+                for reddit in lines.dropping(1).flatten() {
+                    let reddit: Vec<&str> = reddit.split('\t').collect();
+                    let src_id = &reddit[0];
+                    let dst_id = &reddit[1];
+                    let post_id = reddit[2].to_string();
 
-                        match NaiveDateTime::parse_from_str(reddit[3], "%Y-%m-%d %H:%M:%S") {
-                            Ok(time) => {
-                                let time = time.timestamp();
-                                let post_label: i32 = reddit[4].parse::<i32>().unwrap();
-                                let post_properties: Vec<f64> = reddit[5]
-                                    .split(",")
-                                    .map(|s| s.parse::<f64>().unwrap())
-                                    .collect();
-                                let edge_properties = &vec![
-                                    ("post_label".to_string(), Prop::I32(post_label)),
-                                    ("post_id".to_string(), Prop::Str(post_id)),
-                                    ("word_count".to_string(), Prop::F64(post_properties[7])),
-                                    ("long_words".to_string(), Prop::F64(post_properties[9])),
-                                    ("sentences".to_string(), Prop::F64(post_properties[13])),
-                                    ("readability".to_string(), Prop::F64(post_properties[17])),
-                                    (
-                                        "positive_sentiment".to_string(),
-                                        Prop::F64(post_properties[18]),
-                                    ),
-                                    (
-                                        "negative_sentiment".to_string(),
-                                        Prop::F64(post_properties[19]),
-                                    ),
-                                    (
-                                        "compound_sentiment".to_string(),
-                                        Prop::F64(post_properties[20]),
-                                    ),
-                                ];
-                                g.add_vertex(time, *src_id, &vec![])
-                                    .map_err(|err| println!("{:?}", err))
-                                    .ok();
-                                g.add_vertex(time, *dst_id, &vec![])
-                                    .map_err(|err| println!("{:?}", err))
-                                    .ok();
-                                g.add_edge(time, *src_id, *dst_id, edge_properties);
-                            }
-                            Err(e) => {
-                                println!("{}", e)
-                            }
+                    match NaiveDateTime::parse_from_str(reddit[3], "%Y-%m-%d %H:%M:%S") {
+                        Ok(time) => {
+                            let time = time.timestamp();
+                            let post_label: i32 = reddit[4].parse::<i32>().unwrap();
+                            let post_properties: Vec<f64> = reddit[5]
+                                .split(',')
+                                .map(|s| s.parse::<f64>().unwrap())
+                                .collect();
+                            let edge_properties = &vec![
+                                ("post_label".to_string(), Prop::I32(post_label)),
+                                ("post_id".to_string(), Prop::Str(post_id)),
+                                ("word_count".to_string(), Prop::F64(post_properties[7])),
+                                ("long_words".to_string(), Prop::F64(post_properties[9])),
+                                ("sentences".to_string(), Prop::F64(post_properties[13])),
+                                ("readability".to_string(), Prop::F64(post_properties[17])),
+                                (
+                                    "positive_sentiment".to_string(),
+                                    Prop::F64(post_properties[18]),
+                                ),
+                                (
+                                    "negative_sentiment".to_string(),
+                                    Prop::F64(post_properties[19]),
+                                ),
+                                (
+                                    "compound_sentiment".to_string(),
+                                    Prop::F64(post_properties[20]),
+                                ),
+                            ];
+                            g.add_vertex(time, *src_id, &vec![])
+                                .map_err(|err| println!("{:?}", err))
+                                .ok();
+                            g.add_vertex(time, *dst_id, &vec![])
+                                .map_err(|err| println!("{:?}", err))
+                                .ok();
+                            g.add_edge(time, *src_id, *dst_id, edge_properties);
+                        }
+                        Err(e) => {
+                            println!("{}", e)
                         }
                     }
                 }

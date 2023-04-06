@@ -481,9 +481,9 @@ def test_all_neighbours_window():
 
     view = g.at(2)
     v = view.vertex(2)
-    assert list(v.in_neighbours(0, 2).id()) == [1]
-    assert list(v.out_neighbours(0, 2).id()) == [3]
-    assert list(v.neighbours(0, 2).id()) == [1, 3]
+    assert list(v.window(0, 2).in_neighbours().id()) == [1]
+    assert list(v.window(0, 2).out_neighbours().id()) == [3]
+    assert list(v.window(0, 2).neighbours().id()) == [1, 3]
 
 
 def test_all_degrees_window():
@@ -498,15 +498,15 @@ def test_all_degrees_window():
 
     view = g.at(4)
     v = view.vertex(2)
-    assert v.in_degree(0, 4) == 3
-    assert v.in_degree(t_start=2) == 2
-    assert v.in_degree(t_end=3) == 2
-    assert v.out_degree(0, 4) == 1
-    assert v.out_degree(t_start=2) == 1
-    assert v.out_degree(t_end=3) == 1
-    assert v.degree(0, 4) == 3
-    assert v.degree(t_start=2) == 2
-    assert v.degree(t_end=3) == 2
+    assert v.window(0, 4).in_degree() == 3
+    assert v.window(t_start=2).in_degree() == 2
+    assert v.window(t_end=3).in_degree() == 2
+    assert v.window(0, 4).out_degree() == 1
+    assert v.window(t_start=2).out_degree() == 1
+    assert v.window(t_end=3).out_degree() == 1
+    assert v.window(0, 4).degree() == 3
+    assert v.window(t_start=2).degree() == 2
+    assert v.window(t_end=3).degree() == 2
 
 
 def test_all_edge_window():
@@ -521,15 +521,15 @@ def test_all_edge_window():
 
     view = g.at(4)
     v = view.vertex(2)
-    assert list(map(lambda e: e.id(), v.in_edges(0, 4))) == [1, 3, 5]
-    assert list(map(lambda e: e.id(), v.in_edges(t_end=4))) == [1, 3, 5]
-    assert list(map(lambda e: e.id(), v.in_edges(t_start=2))) == [3, 5]
-    assert list(map(lambda e: e.id(), v.out_edges(0, 4))) == [2]
-    assert list(map(lambda e: e.id(), v.out_edges(t_end=3))) == [2]
-    assert list(map(lambda e: e.id(), v.out_edges(t_start=2))) == [6]
-    assert sorted(list(map(lambda e: e.id(), v.edges(0, 4)))) == [1, 2, 3, 5]
-    assert sorted(list(map(lambda e: e.id(), v.edges(t_end=4)))) == [1, 2, 3, 5]
-    assert sorted(list(map(lambda e: e.id(), v.edges(t_start=1)))) == [1, 2, 3, 5, 6]
+    assert list(map(lambda e: e.id(), v.window(0, 4).in_edges())) == [1, 3, 5]
+    assert list(map(lambda e: e.id(), v.window(t_end=4).in_edges())) == [1, 3, 5]
+    assert list(map(lambda e: e.id(), v.window(t_start=2).in_edges())) == [3, 5]
+    assert list(map(lambda e: e.id(), v.window(0, 4).out_edges())) == [2]
+    assert list(map(lambda e: e.id(), v.window(t_end=3).out_edges())) == [2]
+    assert list(map(lambda e: e.id(), v.window(t_start=2).out_edges())) == [6]
+    assert sorted(list(map(lambda e: e.id(), v.window(0, 4).edges()))) == [1, 2, 3, 5]
+    assert sorted(list(map(lambda e: e.id(), v.window(t_end=4).edges()))) == [1, 2, 3, 5]
+    assert sorted(list(map(lambda e: e.id(), v.window(t_start=1).edges()))) == [1, 2, 3, 5, 6]
 
 
 def test_static_prop_change():
