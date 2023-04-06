@@ -63,3 +63,13 @@ pub(crate) fn global_reciprocity(g: &PyGraphView) -> f64 {
 pub(crate) fn all_local_reciprocity(g: &PyGraphView) -> HashMap<u64, f64> {
     all_local_reciprocity_rs(&g.graph)
 }
+
+#[pyfunction]
+pub(crate) fn triplet_count(g: &PyGraphView) -> usize {
+    docbrown_db::algorithms::triplet_count::triplet_count(&g.graph)
+}
+
+#[pyfunction]
+pub(crate) fn global_clustering_coefficient(g: &PyGraphView) -> f64 {
+    docbrown_db::algorithms::clustering_coefficient::clustering_coefficient(&g.graph)
+}

@@ -550,3 +550,28 @@ def test_static_prop_change():
     # with pytest.raises(Exception, match=re.escape(expected_msg)):
     with pytest.raises(Exception):
         g.add_vertex_properties(1, {"name": "value2"})
+
+
+def test_triplet_count():
+    g = Graph(1)
+
+    g.add_edge(0, 1, 2, {})
+    g.add_edge(0, 2, 3, {})
+    g.add_edge(0, 3, 1, {})
+
+    v = g.at(1)
+    assert algorithms.triplet_count(v) == 3
+
+
+def test_global_clustering_coeffficient():
+    g = Graph(1)
+
+    g.add_edge(0, 1, 2, {})
+    g.add_edge(0, 2, 3, {})
+    g.add_edge(0, 3, 1, {})
+    g.add_edge(0, 4, 2, {})
+    g.add_edge(0, 4, 1, {})
+    g.add_edge(0, 5, 2, {})
+
+    v = g.at(1)
+    assert algorithms.global_clustering_coefficient(v) == 0.5454545454545454
