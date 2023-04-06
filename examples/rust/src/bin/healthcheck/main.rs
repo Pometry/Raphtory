@@ -8,6 +8,7 @@ mod test {
     };
 
     use docbrown_core::Direction;
+    use docbrown_db::algorithms::connected_components::weakly_connected_components;
     use docbrown_db::{
         csv_loader::csv::CsvLoader,
         graph::Graph,
@@ -254,11 +255,9 @@ mod test {
             let gn = Graph::new(n_parts);
             load::<PairNoTime>(&g1, &gn, csv_path.clone());
 
-            let gw1 = g1.window(window.start, window.end);
-            let gwn = g1.window(window.start, window.end);
             let iter_count = 50;
-            let cc1 = docbrown_db::program::algo::connected_components(&gw1, iter_count);
-            let ccn = docbrown_db::program::algo::connected_components(&gwn, iter_count);
+            let cc1 = weakly_connected_components(&g1, iter_count);
+            let ccn = weakly_connected_components(&gn, iter_count);
 
             // get LCC
             let counts = cc1.iter().counts_by(|(_, cc)| cc);

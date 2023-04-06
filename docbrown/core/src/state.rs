@@ -1,11 +1,9 @@
 //! A data structure for storing stateful data for temporal graphs and their shards.
 
-use std::{any::Any, fmt::Debug};
-
-use rustc_hash::FxHashMap;
-
 use crate::agg::Accumulator;
 use crate::utils::get_shard_id_from_global_vid;
+use rustc_hash::FxHashMap;
+use std::{any::Any, fmt::Debug};
 
 #[derive(Debug)]
 pub struct AccId<A, IN, OUT, ACC: Accumulator<A, IN, OUT>> {
@@ -33,25 +31,22 @@ unsafe impl<A, IN, OUT, ACC: Accumulator<A, IN, OUT>> Send for AccId<A, IN, OUT,
 unsafe impl<A, IN, OUT, ACC: Accumulator<A, IN, OUT>> Sync for AccId<A, IN, OUT, ACC> {}
 
 pub mod def {
+    use super::{AccId, StateType};
+    use crate::agg::{
+        set::{BitSet, Set},
+        topk::{TopK, TopKHeap},
+        AvgDef, MaxDef, MinDef, SumDef, ValDef,
+    };
+    use num_traits::{Bounded, Zero};
+    use roaring::{RoaringBitmap, RoaringTreemap};
+    use rustc_hash::FxHashSet;
     use std::{
         cmp::Eq,
         hash::Hash,
         ops::{AddAssign, Div},
     };
 
-    use num_traits::{Bounded, Zero};
-    use roaring::{RoaringBitmap, RoaringTreemap};
-    use rustc_hash::FxHashSet;
-
-    use crate::agg::{
-        set::{BitSet, Set},
-        topk::{TopK, TopKHeap},
-        AvgDef, MaxDef, MinDef, SumDef,
-    };
-
-    use super::{AccId, StateType};
-
-    pub fn min<A: StateType + Bounded + PartialOrd + Ord>(id: u32) -> AccId<A, A, A, MinDef<A>> {
+    pub fn min<A: StateType + Bounded + PartialOrd>(id: u32) -> AccId<A, A, A, MinDef<A>> {
         AccId {
             id,
             _a: std::marker::PhantomData,
@@ -61,7 +56,7 @@ pub mod def {
         }
     }
 
-    pub fn max<A: StateType + Bounded + PartialOrd + Ord>(id: u32) -> AccId<A, A, A, MaxDef<A>> {
+    pub fn max<A: StateType + Bounded + PartialOrd>(id: u32) -> AccId<A, A, A, MaxDef<A>> {
         AccId {
             id,
             _a: std::marker::PhantomData,
@@ -72,6 +67,16 @@ pub mod def {
     }
 
     pub fn sum<A: StateType + Zero + AddAssign<A>>(id: u32) -> AccId<A, A, A, SumDef<A>> {
+        AccId {
+            id,
+            _a: std::marker::PhantomData,
+            _acc: std::marker::PhantomData,
+            _in: std::marker::PhantomData,
+            _out: std::marker::PhantomData,
+        }
+    }
+
+    pub fn val<A: StateType + Zero>(id: u32) -> AccId<A, A, A, ValDef<A>> {
         AccId {
             id,
             _a: std::marker::PhantomData,
@@ -216,8 +221,7 @@ where
 
 pub trait StateType: PartialEq + Clone + Debug + Send + Sync + 'static {}
 
-#[derive(Debug)]
-pub struct ComputeStateMap(Box<dyn DynArray + 'static>);
+impl<T: PartialEq + Clone + Debug + Send + Sync + 'static> StateType for T {}
 
 pub trait ComputeState: Debug + Clone {
     fn clone_current_into_other(&mut self, ss: usize);
@@ -228,7 +232,9 @@ pub trait ComputeState: Debug + Clone {
         &self,
         ss: usize,
         i: usize,
-    ) -> Option<OUT>;
+    ) -> Option<OUT>
+    where
+        OUT: Debug;
 
     fn read_ref<A: StateType, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
         &self,
@@ -240,6 +246,10 @@ pub trait ComputeState: Debug + Clone {
 
     fn iter_keys(&self) -> Box<dyn Iterator<Item = u64> + '_>;
     fn iter_keys_changed(&self, ss: usize) -> Box<dyn Iterator<Item = u64> + '_>;
+
+    fn reset<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(&mut self, ki: usize)
+    where
+        A: StateType;
 
     fn agg<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(&mut self, ss: usize, a: IN, ki: usize)
     where
@@ -265,22 +275,12 @@ pub trait ComputeState: Debug + Clone {
     where
         F: FnOnce(B, &u64, OUT) -> B + Copy,
         A: 'static,
+        B: Debug,
         OUT: StateType;
 }
 
-impl Clone for ComputeStateMap {
-    fn clone(&self) -> Self {
-        ComputeStateMap(self.0.clone_array())
-    }
-}
-
-// impl Clone for ComputeStateVec {
-//     fn clone(&self) -> Self {
-//         Self([self.0[0].clone_array(), self.0[1].clone_array()])
-//     }
-// }
-
-impl<T: PartialEq + Clone + Debug + Send + Sync + 'static> StateType for T {}
+#[derive(Debug)]
+pub struct ComputeStateMap(Box<dyn DynArray + 'static>);
 
 impl ComputeStateMap {
     fn current_mut(&mut self) -> &mut dyn DynArray {
@@ -289,6 +289,12 @@ impl ComputeStateMap {
 
     fn current(&self) -> &dyn DynArray {
         self.0.as_ref()
+    }
+}
+
+impl Clone for ComputeStateMap {
+    fn clone(&self) -> Self {
+        ComputeStateMap(self.0.clone_array())
     }
 }
 
@@ -308,16 +314,20 @@ impl ComputeState for ComputeStateMap {
         &self,
         ss: usize,
         i: usize,
-    ) -> Option<OUT> {
+    ) -> Option<OUT>
+    where
+        OUT: Debug,
+    {
         let current = self
             .current()
             .as_any()
             .downcast_ref::<MapArray<A>>()
             .unwrap();
-        current
-            .map
-            .get(&(i as u64))
-            .map(|v| ACC::finish(&v[ss % 2]))
+
+        current.map.get(&(i as u64)).map(|v| {
+            println!("0 = {:?}, 1 = {:?}", ACC::finish(&v[0]), ACC::finish(&v[1]));
+            ACC::finish(&v[ss % 2])
+        })
     }
 
     fn read_ref<A: StateType, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
@@ -353,6 +363,21 @@ impl ComputeState for ComputeStateMap {
 
     fn iter_keys_changed(&self, ss: usize) -> Box<dyn Iterator<Item = u64> + '_> {
         self.current().iter_keys_changed(ss)
+    }
+
+    fn reset<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(&mut self, i: usize)
+    where
+        A: StateType,
+    {
+        let current = self
+            .current_mut()
+            .as_mut_any()
+            .downcast_mut::<MapArray<A>>()
+            .unwrap();
+        current.map.remove_entry(&(i as u64));
+        current
+            .map
+            .insert(i as u64, [current.zero.clone(), current.zero.clone()]);
     }
 
     fn agg<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(&mut self, ss: usize, a: IN, i: usize)
@@ -421,6 +446,7 @@ impl ComputeState for ComputeStateMap {
     where
         F: FnOnce(B, &u64, OUT) -> B + Copy,
         A: 'static,
+        B: Debug,
         OUT: StateType,
     {
         let current = self
@@ -459,6 +485,7 @@ impl<CS: ComputeState + Send + Clone> ShardComputeState<CS> {
     where
         F: FnOnce(B, &u64, OUT) -> B + Copy,
         A: 'static,
+        B: Debug,
         OUT: StateType,
     {
         if let Some(state) = self.states.get(&agg_ref.id) {
@@ -511,6 +538,7 @@ impl<CS: ComputeState + Send + Clone> ShardComputeState<CS> {
     ) -> Option<OUT>
     where
         A: StateType,
+        OUT: Debug,
     {
         let state = self.states.get(&id)?;
         state.read::<A, IN, OUT, ACC>(ss, i)
@@ -533,6 +561,20 @@ impl<CS: ComputeState + Send + Clone> ShardComputeState<CS> {
         ShardComputeState {
             states: FxHashMap::default(),
         }
+    }
+
+    fn reset<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
+        &mut self,
+        into: usize,
+        agg_ref: &AccId<A, IN, OUT, ACC>,
+    ) where
+        A: StateType,
+    {
+        let state = self
+            .states
+            .entry(agg_ref.id)
+            .or_insert_with(|| CS::new_mutable_primitive(ACC::zero()));
+        state.reset::<A, IN, OUT, ACC>(into);
     }
 
     fn accumulate_into<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
@@ -588,6 +630,7 @@ impl<CS: ComputeState + Send + Sync> ShuffleComputeState<CS> {
     ) -> B
     where
         A: StateType,
+        B: Debug,
         OUT: StateType,
         F: Fn(B, &u64, OUT) -> B + Copy,
     {
@@ -654,6 +697,26 @@ impl<CS: ComputeState + Send + Sync> ShuffleComputeState<CS> {
             .flat_map(move |(_, cs)| cs.iter_keys_changed(ss))
     }
 
+    pub fn reset<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
+        &mut self,
+        into: usize,
+        agg_ref: &AccId<A, IN, OUT, ACC>,
+    ) where
+        A: StateType,
+    {
+        let part = get_shard_id_from_global_vid(into, self.parts.len());
+        self.parts[part].reset(into, agg_ref)
+    }
+
+    pub fn reset_global<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
+        &mut self,
+        agg_ref: &AccId<A, IN, OUT, ACC>,
+    ) where
+        A: StateType,
+    {
+        self.global.reset(GLOBAL_STATE_KEY, agg_ref)
+    }
+
     pub fn accumulate_into<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
         &mut self,
         ss: usize,
@@ -687,6 +750,7 @@ impl<CS: ComputeState + Send + Sync> ShuffleComputeState<CS> {
     ) -> Option<OUT>
     where
         A: StateType,
+        OUT: Debug,
     {
         let part = get_shard_id_from_global_vid(into, self.parts.len());
         self.parts[part].read::<A, IN, OUT, ACC>(into, agg_ref.id, ss)
@@ -712,6 +776,7 @@ impl<CS: ComputeState + Send + Sync> ShuffleComputeState<CS> {
     ) -> Option<OUT>
     where
         A: StateType,
+        OUT: Debug,
     {
         self.global
             .read::<A, IN, OUT, ACC>(GLOBAL_STATE_KEY, agg_ref.id, ss)

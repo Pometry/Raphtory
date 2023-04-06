@@ -21,6 +21,7 @@ use crate::wrappers::PyPerspective;
 use crate::algorithms::*;
 use crate::graph_gen::*;
 use crate::graph_loader::*;
+use pyo3::prelude::*;
 
 #[pymodule]
 fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {

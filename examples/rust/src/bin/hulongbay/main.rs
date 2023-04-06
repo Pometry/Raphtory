@@ -12,11 +12,10 @@ use chrono::{DateTime, Utc};
 use docbrown_core::tgraph::TemporalGraph;
 use docbrown_core::{state, utils};
 use docbrown_core::{Direction, Prop};
+use docbrown_db::algorithms::connected_components::weakly_connected_components;
+use docbrown_db::algorithms::triangle_count::triangle_counting_fast;
 use docbrown_db::csv_loader::csv::CsvLoader;
-use docbrown_db::program::algo::{connected_components, triangle_counting_fast};
-use docbrown_db::program::{
-    GlobalEvalState, Program, TriangleCountS1, TriangleCountS2, TriangleCountSlowS2,
-};
+use docbrown_db::program::{GlobalEvalState, Program};
 use itertools::Itertools;
 use regex::Regex;
 use serde::Deserialize;
@@ -124,8 +123,7 @@ fn try_main() -> Result<(), Box<dyn Error>> {
     let mid_time = (min_time + max_time) / 2;
 
     let now = Instant::now();
-    let graph_w = graph.window(mid_time, max_time);
-    let actual_tri_count = triangle_counting_fast(&graph_w);
+    let actual_tri_count = triangle_counting_fast(&graph);
 
     println!("Actual triangle count: {:?}", actual_tri_count);
 
@@ -135,7 +133,7 @@ fn try_main() -> Result<(), Box<dyn Error>> {
     );
 
     let now = Instant::now();
-    let components = connected_components(&graph, 5);
+    let components = weakly_connected_components(&graph, 5);
 
     components
         .into_iter()

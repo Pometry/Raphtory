@@ -41,7 +41,7 @@ impl<G: GraphViewOps> EdgeView<G> {
     ///
     /// # Returns
     ///
-    /// A new `EdgeView`.   
+    /// A new `EdgeView`.
     pub(crate) fn new(graph: G, edge: EdgeRef) -> Self {
         EdgeView { graph, edge }
     }

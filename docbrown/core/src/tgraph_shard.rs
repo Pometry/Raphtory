@@ -631,6 +631,7 @@ impl ImmutableTGraphShard<TemporalGraph> {
         self.rc.out_edges_len()
     }
 }
+
 #[cfg(test)]
 mod temporal_graph_partition_test {
     use crate::{tgraph_shard::TGraphShard, Direction};

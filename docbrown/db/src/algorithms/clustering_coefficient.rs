@@ -1,5 +1,6 @@
+use crate::algorithms::triangle_count::{TriangleCountS1, TriangleCountS2};
 use crate::algorithms::triplet_count::TripletCount;
-use crate::program::{GlobalEvalState, Program, TriangleCountS1, TriangleCountS2};
+use crate::program::{GlobalEvalState, Program};
 use crate::view_api::GraphViewOps;
 
 /// Computes the global clustering coefficient of a graph. The global clustering coefficient is
