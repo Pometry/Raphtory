@@ -11,7 +11,7 @@ pub mod wrappers;
 
 use pyo3::prelude::*;
 
-use crate::algorithms::{all_local_reciprocity, global_reciprocity, local_reciprocity};
+use crate::algorithms::{all_local_reciprocity, global_reciprocity};
 use crate::graph::PyGraph;
 use crate::wrappers::PyPerspective;
 
@@ -26,7 +26,6 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
 
     let algorithm_module = PyModule::new(py, "algorithms")?;
     algorithm_module.add_function(wrap_pyfunction!(global_reciprocity, algorithm_module)?)?;
-    algorithm_module.add_function(wrap_pyfunction!(local_reciprocity, algorithm_module)?)?;
     algorithm_module.add_function(wrap_pyfunction!(all_local_reciprocity, algorithm_module)?)?;
     algorithm_module.add_function(wrap_pyfunction!(local_triangle_count, algorithm_module)?)?;
     algorithm_module.add_function(wrap_pyfunction!(
