@@ -24,6 +24,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 /// Module containing graph algorithms that can be run on docbrown graphs
 pub mod algo {
 
+    use crate::algorithms::triplet_count::TripletCount;
     use rustc_hash::FxHashMap;
 
     use crate::view_api::GraphViewOps;
@@ -189,7 +190,7 @@ impl<G: GraphViewOps> LocalState<G> {
     /// # Returns
     ///
     /// An `AggRef` object.
-    fn global_agg<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
+    pub(crate) fn global_agg<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
         &self,
         agg_ref: AccId<A, IN, OUT, ACC>,
     ) -> AggRef<A, IN, OUT, ACC>
