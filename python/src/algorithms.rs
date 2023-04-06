@@ -1,8 +1,5 @@
 use crate::graph_view::PyGraphView;
-use docbrown_db::algorithms::reciprocity::{
-    all_local_reciprocity as all_local_reciprocity_rs, global_reciprocity as global_reciprocity_rs,
-    local_reciprocity as local_reciprocity_rs,
-};
+use std::collections::HashMap;
 
 use docbrown_db::algorithms::degree::{
     average_degree as average_degree_rs, max_in_degree as max_in_degree_rs,
@@ -12,6 +9,9 @@ use docbrown_db::algorithms::degree::{
 use docbrown_db::algorithms::directed_graph_density::directed_graph_density as directed_graph_density_rs;
 use docbrown_db::algorithms::local_clustering_coefficient::local_clustering_coefficient as local_clustering_coefficient_rs;
 use docbrown_db::algorithms::local_triangle_count::local_triangle_count as local_triangle_count_rs;
+use docbrown_db::algorithms::reciprocity::{
+    all_local_reciprocity as all_local_reciprocity_rs, global_reciprocity as global_reciprocity_rs,
+};
 use pyo3::prelude::*;
 
 #[pyfunction]
@@ -60,11 +60,6 @@ pub(crate) fn global_reciprocity(g: &PyGraphView) -> f64 {
 }
 
 #[pyfunction]
-pub(crate) fn local_reciprocity(g: &PyGraphView, v: u64) -> f64 {
-    local_reciprocity_rs(&g.graph, v)
-}
-
-#[pyfunction]
-pub(crate) fn all_local_reciprocity(g: &PyGraphView) -> Vec<(u64, f64)> {
+pub(crate) fn all_local_reciprocity(g: &PyGraphView) -> HashMap<u64, f64> {
     all_local_reciprocity_rs(&g.graph)
 }
