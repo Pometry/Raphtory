@@ -5,7 +5,6 @@ sys.modules["raphtory.graph_gen"] = graph_gen
 sys.modules["raphtory.graph_loader"] = graph_loader
 
 
-from .plot import draw
 from .nullmodels import *
 
 __doc__ = raphtory.__doc__
