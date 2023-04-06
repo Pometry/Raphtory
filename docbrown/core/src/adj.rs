@@ -25,6 +25,38 @@ pub(crate) enum Adj {
 }
 
 impl Adj {
+    pub(crate) fn earliest(&self) -> Option<Time> {
+        let timestamps = match self {
+            Adj::Solo(_, timestamps) => timestamps,
+            Adj::List { timestamps, .. } => timestamps,
+        };
+        timestamps.first().copied()
+    }
+
+    pub(crate) fn earliest_window(&self, w: Range<Time>) -> Option<Time> {
+        let timestamps = match self {
+            Adj::Solo(_, timestamps) => timestamps,
+            Adj::List { timestamps, .. } => timestamps,
+        };
+        timestamps.range(w).min().copied()
+    }
+
+    pub(crate) fn latest(&self) -> Option<Time> {
+        let timestamps = match self {
+            Adj::Solo(_, timestamps) => timestamps,
+            Adj::List { timestamps, .. } => timestamps,
+        };
+        timestamps.last().copied()
+    }
+
+    pub(crate) fn latest_window(&self, w: Range<Time>) -> Option<Time> {
+        let timestamps = match self {
+            Adj::Solo(_, timestamps) => timestamps,
+            Adj::List { timestamps, .. } => timestamps,
+        };
+        timestamps.range(w).max().copied()
+    }
+
     pub(crate) fn as_list(&mut self) -> Option<Self> {
         let mut swap_me_ts = BTreeSet::new();
         match self {

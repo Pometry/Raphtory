@@ -145,7 +145,7 @@ pub trait DynArray: Debug + Send + Sync {
     fn as_mut_any(&mut self) -> &mut dyn Any;
     fn clone_array(&self) -> Box<dyn DynArray>;
     fn len(&self) -> usize;
-    fn copy_from(&mut self, other: &Box<dyn DynArray>);
+    fn copy_from(&mut self, other: &dyn DynArray);
     // used for tricks
     fn empty(&self) -> Box<dyn DynArray>;
     // used for map array
@@ -180,7 +180,7 @@ where
         self.map.len()
     }
 
-    fn copy_from(&mut self, other: &Box<dyn DynArray>) {
+    fn copy_from(&mut self, other: &dyn DynArray) {
         let other = other.as_any().downcast_ref::<MapArray<T>>().unwrap();
         self.map = other.map.clone();
     }
@@ -198,7 +198,7 @@ where
     }
 
     fn iter_keys(&self) -> Box<dyn Iterator<Item = u64> + '_> {
-        Box::new(self.map.keys().map(|k| *k))
+        Box::new(self.map.keys().copied())
     }
 
     fn iter_keys_changed(&self, ss: usize) -> Box<dyn Iterator<Item = u64> + '_> {

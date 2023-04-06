@@ -1,212 +1,194 @@
 use crate::edge::EdgeView;
 use crate::path::{Operations, PathFromGraph};
 use crate::vertex::VertexView;
+use crate::view_api::vertex::BoxedIter;
 use crate::view_api::*;
+use docbrown_core::tgraph::VertexRef;
 use docbrown_core::{Direction, Prop};
 use std::collections::HashMap;
+use std::ops::{Index, Range};
 
+#[derive(Clone)]
 pub struct Vertices<G: GraphViewOps> {
     graph: G,
+    window: Option<Range<i64>>,
 }
 
 impl<G: GraphViewOps> Vertices<G> {
     pub(crate) fn new(graph: G) -> Vertices<G> {
-        Self { graph }
+        Self {
+            graph,
+            window: None,
+        }
     }
     pub fn iter(&self) -> Box<dyn Iterator<Item = VertexView<G>> + Send> {
         let g = self.graph.clone();
-        Box::new(g.vertex_refs().map(move |v| VertexView::new(g.clone(), v)))
+        let w = self.window.clone();
+        Box::new(
+            g.vertex_refs()
+                .map(move |v| VertexView::new_windowed(g.clone(), v, w.clone())),
+        )
     }
 
-    pub fn id(&self) -> Box<dyn Iterator<Item = u64> + Send> {
+    pub fn len(&self) -> usize {
+        self.graph.num_vertices()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.graph.is_empty()
+    }
+
+    pub fn get<V: Into<VertexRef>>(&self, vertex: V) -> Option<VertexView<G>> {
+        self.graph.vertex(vertex)
+    }
+}
+
+impl<G: GraphViewOps> VertexViewOps for Vertices<G> {
+    type Graph = G;
+    type ValueType<T> = BoxedIter<T>;
+    type PathType = PathFromGraph<G>;
+    type EList = BoxedIter<BoxedIter<EdgeView<G>>>;
+
+    fn id(&self) -> Self::ValueType<u64> {
         self.iter().id()
     }
 
-    pub fn name(&self) -> Box<dyn Iterator<Item = String> + Send> {
+    fn name(&self) -> Self::ValueType<String> {
         self.iter().name()
     }
 
-    fn property(
-        &self,
-        name: String,
-        include_static: bool,
-    ) -> Box<dyn Iterator<Item = Option<Prop>> + Send> {
+    fn earliest_time(&self) -> Self::ValueType<Option<i64>> {
+        self.iter().earliest_time()
+    }
+
+    fn latest_time(&self) -> Self::ValueType<Option<i64>> {
+        self.iter().latest_time()
+    }
+
+    fn property(&self, name: String, include_static: bool) -> Self::ValueType<Option<Prop>> {
         self.iter().property(name, include_static)
     }
 
-    fn property_history(&self, name: String) -> Box<dyn Iterator<Item = Vec<(i64, Prop)>> + Send> {
+    fn property_history(&self, name: String) -> Self::ValueType<Vec<(i64, Prop)>> {
         self.iter().property_history(name)
     }
 
-    fn properties(
-        &self,
-        include_static: bool,
-    ) -> Box<dyn Iterator<Item = HashMap<String, Prop>> + Send> {
+    fn properties(&self, include_static: bool) -> Self::ValueType<HashMap<String, Prop>> {
         self.iter().properties(include_static)
     }
 
-    fn property_histories(
-        &self,
-    ) -> Box<dyn Iterator<Item = HashMap<String, Vec<(i64, Prop)>>> + Send> {
+    fn property_histories(&self) -> Self::ValueType<HashMap<String, Vec<(i64, Prop)>>> {
         self.iter().property_histories()
     }
 
-    fn property_names(&self, include_static: bool) -> Box<dyn Iterator<Item = Vec<String>> + Send> {
+    fn property_names(&self, include_static: bool) -> Self::ValueType<Vec<String>> {
         self.iter().property_names(include_static)
     }
 
-    fn has_property(
-        &self,
-        name: String,
-        include_static: bool,
-    ) -> Box<dyn Iterator<Item = bool> + Send> {
+    fn has_property(&self, name: String, include_static: bool) -> Self::ValueType<bool> {
         self.iter().has_property(name, include_static)
     }
 
-    fn has_static_property(&self, name: String) -> Box<dyn Iterator<Item = bool> + Send> {
+    fn has_static_property(&self, name: String) -> Self::ValueType<bool> {
         self.iter().has_static_property(name)
     }
 
-    fn static_property(&self, name: String) -> Box<dyn Iterator<Item = Option<Prop>> + Send> {
+    fn static_property(&self, name: String) -> Self::ValueType<Option<Prop>> {
         self.iter().static_property(name)
     }
 
-    pub fn degree(&self) -> Box<dyn Iterator<Item = usize> + Send> {
+    fn degree(&self) -> Self::ValueType<usize> {
         self.iter().degree()
     }
 
-    pub fn degree_window(
-        &self,
-        t_start: i64,
-        t_end: i64,
-    ) -> Box<dyn Iterator<Item = usize> + Send> {
-        self.iter().degree_window(t_start, t_end)
-    }
-
-    pub fn in_degree(&self) -> Box<dyn Iterator<Item = usize> + Send> {
+    fn in_degree(&self) -> Self::ValueType<usize> {
         self.iter().in_degree()
     }
 
-    pub fn in_degree_window(
-        &self,
-        t_start: i64,
-        t_end: i64,
-    ) -> Box<dyn Iterator<Item = usize> + Send> {
-        self.iter().in_degree_window(t_start, t_end)
-    }
-
-    pub fn out_degree(&self) -> Box<dyn Iterator<Item = usize> + Send> {
+    fn out_degree(&self) -> Self::ValueType<usize> {
         self.iter().out_degree()
     }
 
-    pub fn out_degree_window(
-        &self,
-        t_start: i64,
-        t_end: i64,
-    ) -> Box<dyn Iterator<Item = usize> + Send> {
-        self.iter().out_degree_window(t_start, t_end)
-    }
-
-    pub fn edges(
-        &self,
-    ) -> Box<dyn Iterator<Item = Box<dyn Iterator<Item = EdgeView<G>> + Send>> + Send> {
+    fn edges(&self) -> Self::EList {
         Box::new(self.iter().map(|v| v.edges()))
     }
 
-    pub fn edges_window(
-        &self,
-        t_start: i64,
-        t_end: i64,
-    ) -> Box<dyn Iterator<Item = Box<dyn Iterator<Item = EdgeView<G>> + Send>> + Send> {
-        Box::new(self.iter().map(move |v| v.edges_window(t_start, t_end)))
-    }
-
-    pub fn in_edges(
-        &self,
-    ) -> Box<dyn Iterator<Item = Box<dyn Iterator<Item = EdgeView<G>> + Send>> + Send> {
+    fn in_edges(&self) -> Self::EList {
         Box::new(self.iter().map(|v| v.in_edges()))
     }
 
-    pub fn in_edges_window(
-        &self,
-        t_start: i64,
-        t_end: i64,
-    ) -> Box<dyn Iterator<Item = Box<dyn Iterator<Item = EdgeView<G>> + Send>> + Send> {
-        Box::new(self.iter().map(move |v| v.in_edges_window(t_start, t_end)))
-    }
-
-    pub fn out_edges(
-        &self,
-    ) -> Box<dyn Iterator<Item = Box<dyn Iterator<Item = EdgeView<G>> + Send>> + Send> {
+    fn out_edges(&self) -> Self::EList {
         Box::new(self.iter().map(|v| v.out_edges()))
     }
 
-    pub fn out_edges_window(
-        &self,
-        t_start: i64,
-        t_end: i64,
-    ) -> Box<dyn Iterator<Item = Box<dyn Iterator<Item = EdgeView<G>> + Send>> + Send> {
-        Box::new(self.iter().map(move |v| v.out_edges_window(t_start, t_end)))
+    fn neighbours(&self) -> PathFromGraph<G> {
+        let dir = Direction::BOTH;
+        match &self.window {
+            None => PathFromGraph::new(self.graph.clone(), Operations::Neighbours { dir }),
+            Some(w) => PathFromGraph::new(
+                self.graph.clone(),
+                Operations::NeighboursWindow {
+                    dir,
+                    t_start: w.start,
+                    t_end: w.end,
+                },
+            ),
+        }
     }
 
-    pub fn neighbours(&self) -> PathFromGraph<G> {
-        PathFromGraph::new(
-            self.graph.clone(),
-            Operations::Neighbours {
-                dir: Direction::BOTH,
-            },
-        )
+    fn in_neighbours(&self) -> PathFromGraph<G> {
+        let dir = Direction::IN;
+        match &self.window {
+            None => PathFromGraph::new(self.graph.clone(), Operations::Neighbours { dir }),
+            Some(w) => PathFromGraph::new(
+                self.graph.clone(),
+                Operations::NeighboursWindow {
+                    dir,
+                    t_start: w.start,
+                    t_end: w.end,
+                },
+            ),
+        }
     }
 
-    pub fn neighbours_window(&self, t_start: i64, t_end: i64) -> PathFromGraph<G> {
-        let g = self.graph.clone();
-        PathFromGraph::new(
-            g,
-            Operations::NeighboursWindow {
-                dir: Direction::BOTH,
-                t_start,
-                t_end,
-            },
-        )
+    fn out_neighbours(&self) -> PathFromGraph<G> {
+        let dir = Direction::OUT;
+        match &self.window {
+            None => PathFromGraph::new(self.graph.clone(), Operations::Neighbours { dir }),
+            Some(w) => PathFromGraph::new(
+                self.graph.clone(),
+                Operations::NeighboursWindow {
+                    dir,
+                    t_start: w.start,
+                    t_end: w.end,
+                },
+            ),
+        }
+    }
+}
+
+impl<G: GraphViewOps> TimeOps for Vertices<G> {
+    type WindowedViewType = Self;
+
+    fn start(&self) -> Option<i64> {
+        match &self.window {
+            None => self.graph.start(),
+            Some(w) => Some(w.start),
+        }
     }
 
-    pub fn in_neighbours(&self) -> PathFromGraph<G> {
-        let g = self.graph.clone();
-        PathFromGraph::new(g, Operations::Neighbours { dir: Direction::IN })
+    fn end(&self) -> Option<i64> {
+        match &self.window {
+            None => self.graph.end(),
+            Some(w) => Some(w.end),
+        }
     }
 
-    pub fn in_neighbours_window(&self, t_start: i64, t_end: i64) -> PathFromGraph<G> {
-        let g = self.graph.clone();
-        PathFromGraph::new(
-            g,
-            Operations::NeighboursWindow {
-                dir: Direction::IN,
-                t_start,
-                t_end,
-            },
-        )
-    }
-
-    pub fn out_neighbours(&self) -> PathFromGraph<G> {
-        let g = self.graph.clone();
-        PathFromGraph::new(
-            g,
-            Operations::Neighbours {
-                dir: Direction::OUT,
-            },
-        )
-    }
-
-    pub fn out_neighbours_window(&self, t_start: i64, t_end: i64) -> PathFromGraph<G> {
-        let g = self.graph.clone();
-        PathFromGraph::new(
-            g,
-            Operations::NeighboursWindow {
-                dir: Direction::OUT,
-                t_start,
-                t_end,
-            },
-        )
+    fn window(&self, t_start: i64, t_end: i64) -> Self::WindowedViewType {
+        Self {
+            graph: self.graph.clone(),
+            window: Some(self.actual_start(t_start)..self.actual_end(t_end)),
+        }
     }
 }
 

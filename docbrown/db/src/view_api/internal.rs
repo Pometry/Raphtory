@@ -1,5 +1,4 @@
 use docbrown_core::tgraph::{EdgeRef, VertexRef};
-use docbrown_core::tgraph_shard::errors::GraphError;
 use docbrown_core::{Direction, Prop};
 use rayon::prelude::*;
 use std::collections::HashMap;
@@ -8,10 +7,24 @@ use std::sync::Arc;
 /// The GraphViewInternalOps trait provides a set of methods to query a directed graph
 /// represented by the docbrown_core::tgraph::TGraph struct.
 pub trait GraphViewInternalOps {
+    /// Returns the default start time for perspectives over the view
+    fn view_start(&self) -> Option<i64>;
+
+    /// Returns the default end time for perspectives over the view
+    fn view_end(&self) -> Option<i64>;
+
+    /// Returns the timestamp for the earliest activity
     fn earliest_time_global(&self) -> Option<i64>;
+
+    /// Returns the timestamp for the earliest activity in the window
     fn earliest_time_window(&self, t_start: i64, t_end: i64) -> Option<i64>;
+
+    /// Returns the timestamp for the latest activity
     fn latest_time_global(&self) -> Option<i64>;
+
+    /// Returns the timestamp for the latest activity in the window
     fn latest_time_window(&self, t_start: i64, t_end: i64) -> Option<i64>;
+
     /// Returns the total number of vertices in the graph.
     fn vertices_len(&self) -> usize;
 
@@ -106,6 +119,18 @@ pub trait GraphViewInternalOps {
     /// # Returns
     /// * `Option<VertexRef>` - The VertexRef of the vertex if it exists in the graph.
     fn vertex_ref_window(&self, v: u64, t_start: i64, t_end: i64) -> Option<VertexRef>;
+
+    /// Return the earliest time for a vertex
+    fn vertex_earliest_time(&self, v: VertexRef) -> Option<i64>;
+
+    /// Return the earliest time for a vertex in a window
+    fn vertex_earliest_time_window(&self, v: VertexRef, t_start: i64, t_end: i64) -> Option<i64>;
+
+    /// Return the latest time for a vertex
+    fn vertex_latest_time(&self, v: VertexRef) -> Option<i64>;
+
+    /// Return the latest time for a vertex in a window
+    fn vertex_latest_time_window(&self, v: VertexRef, t_start: i64, t_end: i64) -> Option<i64>;
 
     /// Retuns all the vertex IDs in the graph.
     /// # Returns
@@ -230,6 +255,23 @@ pub trait GraphViewInternalOps {
     /// Box<dyn Iterator<Item = EdgeRef> + Send> -  A boxed iterator that yields references to
     /// the edges connected to the vertex.
     fn vertex_edges(&self, v: VertexRef, d: Direction) -> Box<dyn Iterator<Item = EdgeRef> + Send>;
+
+    /// Returns an iterator over the exploded edges connected to a given vertex in a given direction.
+    ///
+    /// # Arguments
+    ///
+    /// * `v` - A reference to the vertex for which the edges are being queried.
+    /// * `d` - The direction in which to search for edges.
+    ///
+    /// # Returns
+    ///
+    /// Box<dyn Iterator<Item = EdgeRef> + Send> -  A boxed iterator that yields references to
+    /// the edges connected to the vertex.
+    fn vertex_edges_t(
+        &self,
+        v: VertexRef,
+        d: Direction,
+    ) -> Box<dyn Iterator<Item = EdgeRef> + Send>;
 
     /// Returns an iterator over the edges connected to a given vertex within a
     /// specified time window in a given direction.

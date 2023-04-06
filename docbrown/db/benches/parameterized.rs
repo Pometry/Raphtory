@@ -11,7 +11,7 @@ pub fn parameterized(c: &mut Criterion) {
     let vertices = vertices_exponents.map(|exp| 10usize.pow(exp));
     let mut ingestion_group = c.benchmark_group("ingestion-num_vertices");
     ingestion_group.plot_config(PlotConfiguration::default().summary_scale(AxisScale::Logarithmic));
-    for num_vertices in vertices.clone() {
+    for num_vertices in vertices {
         let make_graph = || bootstrap_graph(4, num_vertices);
         ingestion_group.throughput(Throughput::Elements(num_vertices as u64));
         ingestion_group.sample_size(10);

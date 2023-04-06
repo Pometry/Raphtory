@@ -119,8 +119,8 @@ fn try_main() -> Result<(), Box<dyn Error>> {
 
     let graph = loader(data_dir)?;
 
-    let min_time = graph.earliest_time().ok_or(GraphEmptyError)?;
-    let max_time = graph.latest_time().ok_or(GraphEmptyError)?;
+    let min_time = graph.start().ok_or(GraphEmptyError)?;
+    let max_time = graph.end().ok_or(GraphEmptyError)?;
     let mid_time = (min_time + max_time) / 2;
 
     let now = Instant::now();
@@ -160,8 +160,8 @@ fn try_main() -> Result<(), Box<dyn Error>> {
         num_edges,
         now.elapsed().as_secs()
     );
-    let earliest_time = graph.earliest_time().ok_or(GraphEmptyError)?;
-    let latest_time = graph.latest_time().ok_or(GraphEmptyError)?;
+    let earliest_time = graph.start().ok_or(GraphEmptyError)?;
+    let latest_time = graph.end().ok_or(GraphEmptyError)?;
     println!("graph time range: {}-{}", earliest_time, latest_time);
     let now = Instant::now();
     let window = graph.window(i64::MIN, i64::MAX);
@@ -199,8 +199,8 @@ fn try_main_bm() -> Result<(), Box<dyn Error>> {
         num_edges,
         now.elapsed().as_millis()
     );
-    let earliest_time = graph.earliest_time().ok_or(GraphEmptyError)?;
-    let latest_time = graph.latest_time().ok_or(GraphEmptyError)?;
+    let earliest_time = graph.start().ok_or(GraphEmptyError)?;
+    let latest_time = graph.end().ok_or(GraphEmptyError)?;
     println!("graph time range: {}-{}", earliest_time, latest_time);
 
     let now = Instant::now();

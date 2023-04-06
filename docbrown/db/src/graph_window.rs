@@ -39,54 +39,50 @@
 
 use crate::perspective::Perspective;
 use crate::view_api::internal::GraphViewInternalOps;
+use crate::view_api::time::TimeOps;
 use crate::view_api::GraphViewOps;
 use docbrown_core::{
     tgraph::{EdgeRef, VertexRef},
     Direction, Prop,
 };
-use std::cmp::{max, min};
 use std::collections::HashMap;
 
 /// A set of windowed views of a `Graph`, allows user to iterating over a Graph broken
 /// down into multiple windowed views.
-pub struct GraphWindowSet<G: GraphViewOps> {
+pub struct WindowSet<T: TimeOps> {
     /// The underlying `Graph` object.
-    pub graph: G,
+    pub view: T,
     /// An iterator of `Perspective`s to window the `Graph`.
     perspectives: Box<dyn Iterator<Item = Perspective> + Send>,
 }
 
-impl<G: GraphViewOps> GraphWindowSet<G> {
-    /// Constructs a new `GraphWindowSet` object.
+impl<T: TimeOps> WindowSet<T> {
+    /// Constructs a new `WindowSet` object.
     ///
     /// # Arguments
     ///
-    /// * `graph` - The underlying `Graph` object.
-    /// * `perspectives` - An iterator of `Perspective`s to window the `Graph`.
+    /// * `view` - The underlying object.
+    /// * `perspectives` - An iterator of `Perspective`s to window the `view`.
     ///
     /// # Returns
     ///
-    /// A new `GraphWindowSet` object.
+    /// A new `WindowSet` object.
     pub fn new(
-        graph: G,
+        view: T,
         perspectives: Box<dyn Iterator<Item = Perspective> + Send>,
-    ) -> GraphWindowSet<G> {
-        GraphWindowSet {
-            graph,
-            perspectives,
-        }
+    ) -> WindowSet<T> {
+        WindowSet { view, perspectives }
     }
 }
 
-impl<G: GraphViewOps> Iterator for GraphWindowSet<G> {
-    type Item = WindowedGraph<G>;
+impl<T: TimeOps> Iterator for WindowSet<T> {
+    type Item = T::WindowedViewType;
     fn next(&mut self) -> Option<Self::Item> {
         let perspective = self.perspectives.next()?;
-        Some(WindowedGraph {
-            graph: self.graph.clone(),
-            t_start: perspective.start.unwrap_or(i64::MIN),
-            t_end: perspective.end.unwrap_or(i64::MAX),
-        })
+        Some(self.view.window(
+            perspective.start.unwrap_or(i64::MIN),
+            perspective.end.unwrap_or(i64::MAX),
+        ))
     }
 }
 
@@ -101,40 +97,18 @@ pub struct WindowedGraph<G: GraphViewInternalOps> {
     pub t_end: i64,
 }
 
-/// Implementation of the WindowedGraph struct, a graph that is a windowed view of another graph.
-/// *Note: All functions in this are bound by the time set in the windowed graph.
-impl<G: GraphViewInternalOps> WindowedGraph<G> {
-    /// Returns the actual start time of the window, given a candidate start time.
-    ///
-    /// # Arguments
-    ///
-    /// * `t_start` - The candidate start time.
-    ///
-    /// # Returns
-    ///
-    /// The actual start time of the window.
-    fn actual_start(&self, t_start: i64) -> i64 {
-        max(self.t_start, t_start)
-    }
-
-    /// Returns the actual end time of the window, given a candidate end time.
-    ///
-    /// # Arguments
-    ///
-    /// * `t_end` - The candidate end time.
-    ///
-    /// # Returns
-    ///
-    /// The actual end time of the window.
-    fn actual_end(&self, t_end: i64) -> i64 {
-        min(self.t_end, t_end)
-    }
-}
-
 /// Implementation of the GraphViewInternalOps trait for WindowedGraph.
 /// This trait provides operations to a `WindowedGraph` used internally by the `GraphWindowSet`.
 /// *Note: All functions in this are bound by the time set in the windowed graph.
-impl<G: GraphViewInternalOps> GraphViewInternalOps for WindowedGraph<G> {
+impl<G: GraphViewOps> GraphViewInternalOps for WindowedGraph<G> {
+    fn view_start(&self) -> Option<i64> {
+        Some(self.t_start)
+    }
+
+    fn view_end(&self) -> Option<i64> {
+        Some(self.t_end)
+    }
+
     fn earliest_time_global(&self) -> Option<i64> {
         self.graph.earliest_time_window(self.t_start, self.t_end)
     }
@@ -353,6 +327,29 @@ impl<G: GraphViewInternalOps> GraphViewInternalOps for WindowedGraph<G> {
             .vertex_ref_window(v, self.actual_start(t_start), self.actual_end(t_end))
     }
 
+    fn vertex_earliest_time(&self, v: VertexRef) -> Option<i64> {
+        self.graph
+            .vertex_earliest_time_window(v, self.t_start, self.t_end)
+    }
+
+    fn vertex_earliest_time_window(&self, v: VertexRef, t_start: i64, t_end: i64) -> Option<i64> {
+        self.graph.vertex_earliest_time_window(
+            v,
+            self.actual_start(t_start),
+            self.actual_end(t_end),
+        )
+    }
+
+    fn vertex_latest_time(&self, v: VertexRef) -> Option<i64> {
+        self.graph
+            .vertex_latest_time_window(v, self.t_start, self.t_end)
+    }
+
+    fn vertex_latest_time_window(&self, v: VertexRef, t_start: i64, t_end: i64) -> Option<i64> {
+        self.graph
+            .vertex_latest_time_window(v, self.actual_start(t_start), self.actual_end(t_end))
+    }
+
     /// Get an iterator over the IDs of all vertices
     ///
     /// # Returns
@@ -500,6 +497,15 @@ impl<G: GraphViewInternalOps> GraphViewInternalOps for WindowedGraph<G> {
     fn vertex_edges(&self, v: VertexRef, d: Direction) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
         self.graph
             .vertex_edges_window(v, self.t_start, self.t_end, d)
+    }
+
+    fn vertex_edges_t(
+        &self,
+        v: VertexRef,
+        d: Direction,
+    ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
+        self.graph
+            .vertex_edges_window_t(v, self.t_start, self.t_end, d)
     }
 
     /// Get an iterator of all edges as references for a given vertex and direction in a window
@@ -922,7 +928,7 @@ impl<G: GraphViewInternalOps> GraphViewInternalOps for WindowedGraph<G> {
 ///
 /// ```rust
 /// use docbrown_db::graph::Graph;
-/// use docbrown_db::view_api::GraphViewOps;
+/// use docbrown_db::view_api::*;
 ///
 /// let graph = Graph::new(1);
 /// graph.add_edge(0, 1, 2, &vec![]);
@@ -1097,16 +1103,14 @@ mod views_test {
                     start..end
                 ))
             }
+        } else if !wg.has_vertex(*v) {
+            TestResult::passed()
         } else {
-            if !wg.has_vertex(*v) {
-                TestResult::passed()
-            } else {
-                TestResult::error(format!(
-                    "Vertex {:?} was in window {:?}",
-                    (i, v),
-                    start..end
-                ))
-            }
+            TestResult::error(format!(
+                "Vertex {:?} was in window {:?}",
+                (i, v),
+                start..end
+            ))
         }
     }
 
@@ -1147,12 +1151,10 @@ mod views_test {
                     start..end
                 ))
             }
+        } else if !wg.has_edge(e.0, e.1) {
+            TestResult::passed()
         } else {
-            if !wg.has_edge(e.0, e.1) {
-                TestResult::passed()
-            } else {
-                TestResult::error(format!("Edge {:?} was in window {:?}", (i, e), start..end))
-            }
+            TestResult::error(format!("Edge {:?} was in window {:?}", (i, e), start..end))
         }
     }
 

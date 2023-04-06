@@ -8,7 +8,7 @@
 //! - time: The time of the interaction (in page)
 //!
 //! ## Dataset statistics
-//! * Number of nodes (subreddits) 	139
+//! * Number of nodes (subreddits) 139
 //! * Number of edges (hyperlink between subreddits) 701
 //!
 //! Example:
@@ -63,7 +63,7 @@ pub fn lotr_graph(shards: usize) -> Graph {
     let graph = {
         let g = Graph::new(shards);
 
-        CsvLoader::new(&lotr_file().unwrap())
+        CsvLoader::new(lotr_file().unwrap())
             .load_into_graph(&g, |lotr: Lotr, g: &Graph| {
                 let src_id = &lotr.src_id;
                 let dst_id = &lotr.dst_id;

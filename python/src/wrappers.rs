@@ -60,7 +60,7 @@ impl From<db_c::Prop> for Prop {
             db_c::Prop::U32(u32) => Prop::U64(u32 as u64),
             db_c::Prop::U64(u64) => Prop::U64(u64),
             db_c::Prop::F64(f64) => Prop::F64(f64),
-            db_c::Prop::F32(f32) => Prop::F64(f32 as f64)
+            db_c::Prop::F32(f32) => Prop::F64(f32 as f64),
         }
     }
 }
@@ -167,6 +167,69 @@ impl From<Box<dyn Iterator<Item = usize> + Send>> for UsizeIter {
     }
 }
 
+#[pyclass]
+pub struct I64Iter {
+    iter: Box<dyn Iterator<Item = i64> + Send>,
+}
+
+#[pymethods]
+impl I64Iter {
+    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        slf
+    }
+    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<i64> {
+        slf.iter.next()
+    }
+}
+
+impl From<Box<dyn Iterator<Item = i64> + Send>> for I64Iter {
+    fn from(value: Box<dyn Iterator<Item = i64> + Send>) -> Self {
+        Self { iter: value }
+    }
+}
+
+#[pyclass]
+pub struct OptionI64Iter {
+    iter: Box<dyn Iterator<Item = Option<i64>> + Send>,
+}
+
+#[pymethods]
+impl OptionI64Iter {
+    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        slf
+    }
+    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<Option<i64>> {
+        slf.iter.next()
+    }
+}
+
+impl From<Box<dyn Iterator<Item = Option<i64>> + Send>> for OptionI64Iter {
+    fn from(value: Box<dyn Iterator<Item = Option<i64>> + Send>) -> Self {
+        Self { iter: value }
+    }
+}
+
+#[pyclass]
+pub struct StringIter {
+    iter: Box<dyn Iterator<Item = String> + Send>,
+}
+
+#[pymethods]
+impl StringIter {
+    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        slf
+    }
+    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<String> {
+        slf.iter.next()
+    }
+}
+
+impl From<Box<dyn Iterator<Item = String> + Send>> for StringIter {
+    fn from(value: Box<dyn Iterator<Item = String> + Send>) -> Self {
+        Self { iter: value }
+    }
+}
+
 #[derive(Clone)]
 #[pyclass(name = "Perspective")]
 pub struct PyPerspective {
@@ -226,14 +289,4 @@ impl From<PyPerspective> for perspective::Perspective {
 #[derive(Clone)]
 pub struct PyPerspectiveSet {
     pub(crate) ps: PerspectiveSet,
-}
-
-pub fn adapt_err<U, E>(result: Result<U, E>) -> PyResult<U>
-where
-    E: std::error::Error,
-{
-    result.map_err(|e| {
-        let error_log = display_error_chain::DisplayErrorChain::new(&e).to_string();
-        PyException::new_err(error_log)
-    })
 }

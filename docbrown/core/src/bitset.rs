@@ -73,7 +73,7 @@ impl BitSet {
         match self {
             BitSet::Empty => Box::new(std::iter::empty()),
             BitSet::One(i) => Box::new(std::iter::once(*i)),
-            BitSet::Seq(seq) => Box::new(seq.iter().sorted().map(|i| *i)), //FIXME sorted here is expensive, SEQ should probably be some simple form of LSM tree, or removed
+            BitSet::Seq(seq) => Box::new(seq.iter().sorted().copied()), //FIXME sorted here is expensive, SEQ should probably be some simple form of LSM tree, or removed
             BitSet::Roaring(m) => Box::new(m.iter().map(|i| i as usize)),
         }
     }

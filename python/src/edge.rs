@@ -2,6 +2,7 @@ use crate::dynamic::DynamicGraph;
 use crate::vertex::PyVertex;
 use crate::wrappers::Prop;
 use docbrown_db::edge::EdgeView;
+use docbrown_db::view_api::*;
 use itertools::Itertools;
 use pyo3::{pyclass, pymethods, PyRef, PyRefMut};
 use std::collections::HashMap;
@@ -30,10 +31,7 @@ impl PyEdge {
 
     pub fn property(&self, name: String, include_static: Option<bool>) -> Option<Prop> {
         let include_static = include_static.unwrap_or(true);
-        match self.edge.property(name, include_static) {
-            None => None,
-            Some(prop) => Some(prop.into()),
-        }
+        self.edge.property(name, include_static).map(|prop| prop.into())
     }
 
     pub fn properties(&self, include_static: Option<bool>) -> HashMap<String, Prop> {
@@ -70,10 +68,7 @@ impl PyEdge {
         self.edge.has_static_property(name)
     }
     pub fn static_property(&self, name: String) -> Option<Prop> {
-        match self.edge.static_property(name) {
-            None => None,
-            Some(prop) => Some(prop.into()),
-        }
+        self.edge.static_property(name).map(|prop| prop.into())
     }
 
     pub fn id(&self) -> usize {
@@ -95,7 +90,7 @@ impl PyEdge {
                 .iter()
                 .map(|(k, v)| k.to_string() + " : " + &v.to_string())
                 .join(", ")
-            + &"}".to_string();
+            + "}";
         let property_string = if properties.is_empty() {
             "Properties({})".to_string()
         } else {

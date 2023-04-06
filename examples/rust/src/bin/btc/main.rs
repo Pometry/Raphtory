@@ -81,7 +81,7 @@ fn main() {
 
         let now = Instant::now();
 
-        let _ = CsvLoader::new(data_dir)
+        CsvLoader::new(data_dir)
             .with_filter(Regex::new(r".+(sent|received)").unwrap())
             .load_into_graph(&g, |sent: Sent, g: &Graph| {
                 let src = utils::calculate_hash(&sent.addr);
@@ -93,7 +93,7 @@ fn main() {
                 }
 
                 g.add_edge(
-                    time.try_into().unwrap(),
+                    time,
                     src,
                     dst,
                     &vec![("amount".to_string(), Prop::U64(sent.amount_btc))],
@@ -135,7 +135,7 @@ mod custom_date_format {
     use chrono::{DateTime, TimeZone, Utc};
     use serde::{self, Deserialize, Deserializer, Serializer};
 
-    const FORMAT: &'static str = "%Y-%m-%d %H:%M:%S";
+    const FORMAT: &str = "%Y-%m-%d %H:%M:%S";
 
     // The signature of a serialize_with function must follow the pattern:
     //
