@@ -70,13 +70,10 @@ __all__ = [
 
 def draw(graph, pos=None, ax=None, arrows=True, with_labels=False, **kwds):
     r"""Draw a graph with Matplotlib.
-
     .. note::
-
         Matplotlib is an required dependency.
         If you intend to use this function make sure that
         you install matplotlib with either ``pip install matplotlib``
-
     :param graph: A raphtory graph.
     :param dict pos: An optional dictionary with nodes as keys and
         positions as values. If not specified a spring layout positioning will
@@ -143,25 +140,17 @@ def draw(graph, pos=None, ax=None, arrows=True, with_labels=False, **kwds):
         ``linestyle`` for more details. Defaults to ``'solid'``.
     :param func labels: An optional callback function that will be passed a
         node payload and return a string label for the node. For example::
-
             labels=str
-
         could be used to just return a string cast of the node's data payload.
         Or something like::
-
             labels=lambda node: node['label']
-
         could be used if the node payloads are dictionaries.
     :param func edge_labels: An optional callback function that will be passed
         an edge payload and return a string label for the edge. For example::
-
             edge_labels=str
-
         could be used to just return a string cast of the edge's data payload.
         Or something like::
-
             edge_labels=lambda edge: edge['label']
-
         could be used if the edge payloads are dictionaries. If this is set
         edge labels will be drawn in the visualization.
     :param int font_size: An optional fontsize to use for text labels, By
@@ -179,25 +168,19 @@ def draw(graph, pos=None, ax=None, arrows=True, with_labels=False, **kwds):
         :class:`matplotlib.patches.ConnectionStyle` and
         :class:`matplotlib.patches.FancyArrowPatch` for more info. By default
         this is set to ``"arc3"``.
-
     :returns: A matplotlib figure for the visualization if not running with an
         interactive backend (like in jupyter) or if ``ax`` is not set.
     :rtype: matplotlib.figure.Figure
-
     For Example:
-
     .. jupyter-execute::
-
         from raphtory import Graph
         from raphtory import algorithms
         from raphtory import Perspective
         from raphtory import plot
-
         g = Graph(4)
         g.add_edge(1, 1, 2, {})
         g.add_edge(1, 2, 3, {})
         g.add_edge(1, 3, 4, {})
-
         view = g.at(1)
         v = view.vertex(2)
         plot.draw(g, 4, with_labels=True)
@@ -231,25 +214,19 @@ def draw(graph, pos=None, ax=None, arrows=True, with_labels=False, **kwds):
 
 def draw_graph(graph, pos=None, arrows=True, with_labels=False, **kwds):
     r"""Draw the graph using Matplotlib.
-
     Draw the graph with Matplotlib with options for node positions,
     labeling, titles, and many other drawing features.
     See draw() for simple drawing without labels or axes.
-
     Parameters
     ----------
     graph: A raphtory graph
-
     pos : dictionary, optional
         A dictionary with nodes as keys and positions as values.
         If not specified a spring layout positioning will be computed.
-
-
     Notes
     -----
     For directed graphs, arrows  are drawn at the head end.  Arrows can be
     turned off with keyword arrows=False.
-
     """
     try:
         import matplotlib.pyplot as plt
@@ -265,7 +242,6 @@ def draw_graph(graph, pos=None, arrows=True, with_labels=False, **kwds):
         "node_size",
         "node_color",
         "node_shape",
-        "marker",
         "alpha",
         "cmap",
         "vmin",
@@ -347,8 +323,8 @@ def draw_graph(graph, pos=None, arrows=True, with_labels=False, **kwds):
     edge_label_kwds = {k: v for k, v in kwds.items() if k in valid_edge_label_kwds}
 
     if pos is None:
-       pos = spring_layout(graph)  # default to spring layout
-        #pos = kamada_kawai_layout(graph, scale=50)
+        pos = spring_layout(graph)  # default to spring layout
+        # pos = kamada_kawai_layout(graph, scale=50)
     draw_nodes(graph, pos, **node_kwds)
     draw_edges(graph, pos, arrows=arrows, **edge_kwds)
     if with_labels:
@@ -363,8 +339,7 @@ def draw_nodes(
     pos,
     node_list=None,
     node_size=300,
-    node_color="#000000",
-    marker=None,
+    node_color="#1f78b4",
     node_shape="o",
     alpha=None,
     cmap=None,
@@ -376,60 +351,44 @@ def draw_nodes(
     label=None,
 ):
     """Draw the nodes of the graph.
-
     This draws only the nodes of the graph.
-
     :param graph: A raphtory graph.
-
     :param dict pos: A dictionary with nodes as keys and positions as values.
         Positions should be sequences of length 2.
-
     :param Axes ax: An optional Matplotlib Axes object, if specified it will
         draw the graph in the specified Matplotlib axes.
-
     :param list node_list: If specified only draw the specified node indices.
         If not specified all nodes in the graph will be drawn.
-
     :param float|array node_size: Size of nodes. If an array it must be the
         same length as node_list. Defaults to 300
-
     node_color : color or array of colors (default='#1f78b4')
         Node color. Can be a single color or a sequence of colors with the same
         length as node_list. Color can be string or rgb (or rgba) tuple of
         floats from 0-1. If numeric values are specified they will be
         mapped to colors using the cmap and vmin,vmax parameters. See
         matplotlib.scatter for more details.
-
     node_shape :  string (default='o')
         The shape of the node.  Specification is as matplotlib.scatter
         marker, one of 'so^>v<dph8'.
-
     alpha : float or array of floats (default=None)
         The node transparency.  This can be a single alpha value,
         in which case it will be applied to all the nodes of color. Otherwise,
         if it is an array, the elements of alpha will be applied to the colors
         in order (cycling through alpha multiple times if necessary).
-
     cmap : Matplotlib colormap (default=None)
         Colormap for mapping intensities of nodes
-
     vmin,vmax : floats or None (default=None)
         Minimum and maximum for node colormap scaling
-
     linewidths : [None | scalar | sequence] (default=1.0)
         Line width of symbol border
-
     edgecolors : [None | scalar | sequence] (default = node_color)
         Colors of node borders
-
     label : [None | string]
         Label for legend
-
     Returns
     -------
     matplotlib.collections.PathCollection
         `PathCollection` of the nodes.
-
     """
     try:
         import matplotlib as mpl
@@ -466,7 +425,7 @@ def draw_nodes(
         xy[:, 1],
         s=node_size,
         c=node_color,
-        marker=marker,
+        marker=node_shape,
         cmap=cmap,
         vmin=vmin,
         vmax=vmax,
@@ -512,97 +471,72 @@ def draw_edges(
     min_target_margin=0,
 ):
     r"""Draw the edges of the graph.
-
     This draws only the edges of the graph.
-
     Parameters
     ----------
     graph: A raphtory graph
-
     pos : dictionary
         A dictionary with nodes as keys and positions as values.
         Positions should be sequences of length 2.
-
     edge_list : collection of edge tuples (default=graph.edge_list())
         Draw only specified edges
-
     width : float or array of floats (default=1.0)
         Line width of edges
-
     edge_color : color or array of colors (default='k')
         Edge color. Can be a single color or a sequence of colors with the same
         length as edge_list. Color can be string or rgb (or rgba) tuple of
         floats from 0-1. If numeric values are specified they will be
         mapped to colors using the edge_cmap and edge_vmin,edge_vmax
         parameters.
-
     style : string (default=solid line)
         Edge line style e.g.: '-', '--', '-.', ':'
         or words like 'solid' or 'dashed'.
         (See `matplotlib.patches.FancyArrowPatch`: `linestyle`)
-
     alpha : float or None (default=None)
         The edge transparency
-
     edge_cmap : Matplotlib colormap, optional
         Colormap for mapping intensities of edges
-
     edge_vmin,edge_vmax : floats, optional
         Minimum and maximum for edge colormap scaling
-
     ax : Matplotlib Axes object, optional
         Draw the graph in the specified Matplotlib axes.
-
     arrows : bool, optional (default=True)
         For directed graphs, if True set default to drawing arrowheads.
         Otherwise set default to no arrowheads. Ignored if `arrowstyle` is set.
-
         Note: Arrows will be the same color as edges.
-
     arrowstyle : str (default='-\|>' if directed else '-')
         For directed graphs and `arrows==True` defaults to '-\|>',
         otherwise defaults to '-'.
-
         See `matplotlib.patches.ArrowStyle` for more options.
-
     arrow_size : int (default=10)
         For directed graphs, choose the size of the arrow head's length and
         width. See `matplotlib.patches.FancyArrowPatch` for attribute
         ``mutation_scale`` for more info.
-
     node_size : scalar or array (default=300)
         Size of nodes. Though the nodes are not drawn with this function, the
         node size is used in determining edge positioning.
-
     node_list : list, optional (default=graph.node_indices())
        This provides the node order for the `node_size` array (if it is an
        array).
-
     node_shape :  string (default='o')
         The marker used for nodes, used in determining edge positioning.
         Specification is as a `matplotlib.markers` marker, e.g. one of
         'so^>v<dph8'.
-
     label : None or string
         Label for legend
-
     min_source_margin : int (default=0)
         The minimum margin (gap) at the begining of the edge at the source.
-
     min_target_margin : int (default=0)
         The minimum margin (gap) at the end of the edge at the target.
-
     Returns
     -------
     list of matplotlib.patches.FancyArrowPatch
         `FancyArrowPatch` instances of the directed edges
-
     Notes
     -----
     For directed graphs, arrows are drawn at the head end.  Arrows can be
     turned off with keyword arrows=False or by passing an arrowstyle without
     an arrow on the end.
-
     Be sure to include `node_size` as a keyword argument; arrows are
     drawn considering the size of nodes.
     """
@@ -807,51 +741,37 @@ def draw_labels(
     clip_on=True,
 ):
     """Draw node labels on the graph.
-
     Parameters
     ----------
     graph: A raphtory graph
-
     pos : dictionary
         A dictionary with nodes as keys and positions as values.
         Positions should be sequences of length 2.
-
     labels : dictionary (default={n: n for n in graph})
         Node labels in a dictionary of text labels keyed by node.
         Node-keys in labels should appear as keys in `pos`.
         If needed use: `{n:lab for n,lab in labels.items() if n in pos}`
-
     font_size : int (default=12)
         Font size for text labels
-
     font_color : string (default='k' black)
         Font color string
-
     font_weight : string (default='normal')
         Font weight
-
     font_family : string (default='sans-serif')
         Font family
-
     alpha : float or None (default=None)
         The text transparency
-
     bbox : Matplotlib bbox, (default is Matplotlib's ax.text default)
         Specify text box properties (e.g. shape, color etc.) for node labels.
-
     horizontalalignment : string (default='center')
         Horizontal alignment {'center', 'right', 'left'}
-
     verticalalignment : string (default='center')
         Vertical alignment {'center', 'top', 'bottom', 'baseline',
                             'center_baseline'}
-
     ax : Matplotlib Axes object, optional
         Draw the graph in the specified Matplotlib axes.
-
     clip_on : bool (default=True)
         Turn on clipping of node labels at axis boundaries
-
     Returns
     -------
     dict
@@ -870,8 +790,7 @@ def draw_labels(
         ax = plt.gca()
     
     if labels is None:
-         labels = {n: n for n in list(graph.vertices().id())}
-        # labels = {n: n.name() for n in list(graph.vertices())}
+        labels = {n: n for n in list(graph.vertices().id())}
 
     text_items = {}  # there is no text collection so we'll fake one
     for n, label in labels.items():
@@ -925,57 +844,41 @@ def draw_edge_labels(
     clip_on=True,
 ):
     """Draw edge labels.
-
     Parameters
     ----------
     graph: A raphtory graph
-
     pos : dictionary
         A dictionary with nodes as keys and positions as values.
         Positions should be sequences of length 2.
-
     edge_labels : dictionary (default={})
         Edge labels in a dictionary of labels keyed by edge two-tuple.
         Only labels for the keys in the dictionary are drawn.
-
     label_pos : float (default=0.5)
         Position of edge label along edge (0=head, 0.5=center, 1=tail)
-
     font_size : int (default=10)
         Font size for text labels
-
     font_color : string (default='k' black)
         Font color string
-
     font_weight : string (default='normal')
         Font weight
-
     font_family : string (default='sans-serif')
         Font family
-
     alpha : float or None (default=None)
         The text transparency
-
     bbox : Matplotlib bbox, optional
         Specify text box properties (e.g. shape, color etc.) for edge labels.
         Default is {boxstyle='round', ec=(1.0, 1.0, 1.0), fc=(1.0, 1.0, 1.0)}.
-
     horizontalalignment : string (default='center')
         Horizontal alignment {'center', 'right', 'left'}
-
     verticalalignment : string (default='center')
         Vertical alignment {'center', 'top', 'bottom', 'baseline',
                             'center_baseline'}
-
     ax : Matplotlib Axes object, optional
         Draw the graph in the specified Matplotlib axes.
-
     rotate : bool (deafult=True)
         Rotate edge labels to lie parallel to edges
-
     clip_on : bool (default=True)
         Turn on clipping of edge labels at axis boundaries
-
     Returns
     -------
     dict
@@ -1057,39 +960,30 @@ def draw_edge_labels(
 
 def apply_alpha(colors, alpha, elem_list, cmap=None, vmin=None, vmax=None):
     """Apply an alpha (or list of alphas) to the colors provided.
-
     Parameters
     ----------
-
     colors : color string or array of floats (default='r')
         Color of element. Can be a single color format string,
         or a sequence of colors with the same length as node_list.
         If numeric values are specified they will be mapped to
         colors using the cmap and vmin,vmax parameters.  See
         matplotlib.scatter for more details.
-
     alpha : float or array of floats
         Alpha values for elements. This can be a single alpha value, in
         which case it will be applied to all the elements of color. Otherwise,
         if it is an array, the elements of alpha will be applied to the colors
         in order (cycling through alpha multiple times if necessary).
-
     elem_list : The list of elements which are being colored. These could be nodes,
         edges or labels.
-
     cmap : matplotlib colormap
         Color map for use if colors is a list of floats corresponding to points
         on a color mapping.
-
     vmin, vmax : float
         Minimum and maximum values for normalizing colors if a colormap is used
-
     Returns
     -------
-
     rgba_colors : numpy ndarray
         Array containing RGBA format values for each of the node colours.
-
     """
     try:
         import matplotlib as mpl
@@ -1132,238 +1026,6 @@ def apply_alpha(colors, alpha, elem_list, cmap=None, vmin=None, vmax=None):
         rgba_colors[:, -1] = alpha
     return rgba_colors
 
-def _process_params(G, center, dim):
-    # Some boilerplate code.
-    import numpy as np
-
-    if not isinstance(G, nx.Graph):
-        empty_graph = nx.Graph()
-        empty_graph.add_nodes_from(G)
-        G = empty_graph
-
-    if center is None:
-        center = np.zeros(dim)
-    else:
-        center = np.asarray(center)
-
-    if len(center) != dim:
-        msg = "length of center coordinates must match dimension of layout"
-        raise ValueError(msg)
-
-    return G, center
-
-@np_random_state(3)
-def random_layout(G, center=None, dim=2, seed=None):
-    """Position nodes uniformly at random in the unit square.
-    For every node, a position is generated by choosing each of dim
-    coordinates uniformly at random on the interval [0.0, 1.0).
-    NumPy (http://scipy.org) is required for this function.
-    Parameters
-    ----------
-    G : NetworkX graph or list of nodes
-        A position will be assigned to every node in G.
-    center : array-like or None
-        Coordinate pair around which to center the layout.
-    dim : int
-        Dimension of layout.
-    seed : int, RandomState instance or None  optional (default=None)
-        Set the random state for deterministic node layouts.
-        If int, `seed` is the seed used by the random number generator,
-        if numpy.random.RandomState instance, `seed` is the random
-        number generator,
-        if None, the random number generator is the RandomState instance used
-        by numpy.random.
-    Returns
-    -------
-    pos : dict
-        A dictionary of positions keyed by node
-    Examples
-    --------
-    >>> G = nx.lollipop_graph(4, 3)
-    >>> pos = nx.random_layout(G)
-    """
-    import numpy as np
-
-    G, center = _process_params(G, center, dim)
-    pos = seed.rand(len(G), dim) + center
-    pos = pos.astype(np.float32)
-    pos = dict(zip(G, pos))
-
-    return pos
-
-
-def circular_layout(G, scale=1, center=None, dim=2):
-    # dim=2 only
-    """Position nodes on a circle.
-    Parameters
-    ----------
-    G : NetworkX graph or list of nodes
-        A position will be assigned to every node in G.
-    scale : number (default: 1)
-        Scale factor for positions.
-    center : array-like or None
-        Coordinate pair around which to center the layout.
-    dim : int
-        Dimension of layout.
-        If dim>2, the remaining dimensions are set to zero
-        in the returned positions.
-        If dim<2, a ValueError is raised.
-    Returns
-    -------
-    pos : dict
-        A dictionary of positions keyed by node
-    Raises
-    ------
-    ValueError
-        If dim < 2
-    Examples
-    --------
-    >>> G = nx.path_graph(4)
-    >>> pos = nx.circular_layout(G)
-    Notes
-    -----
-    This algorithm currently only works in two dimensions and does not
-    try to minimize edge crossings.
-    """
-    import numpy as np
-
-    if dim < 2:
-        raise ValueError("cannot handle dimensions < 2")
-
-    G, center = _process_params(G, center, dim)
-
-    paddims = max(0, (dim - 2))
-
-    if len(G) == 0:
-        pos = {}
-    elif len(G) == 1:
-        pos = {nx.utils.arbitrary_element(G): center}
-    else:
-        # Discard the extra angle since it matches 0 radians.
-        theta = np.linspace(0, 1, len(G) + 1)[:-1] * 2 * np.pi
-        theta = theta.astype(np.float32)
-        pos = np.column_stack(
-            [np.cos(theta), np.sin(theta), np.zeros((len(G), paddims))]
-        )
-        pos = rescale_layout(pos, scale=scale) + center
-        pos = dict(zip(G, pos))
-
-    return pos
-
-def _kamada_kawai_costfn(pos_vec, np, invdist, meanweight, dim):
-    # Cost-function and gradient for Kamada-Kawai layout algorithm
-    nNodes = invdist.shape[0]
-    pos_arr = pos_vec.reshape((nNodes, dim))
-
-    delta = pos_arr[:, np.newaxis, :] - pos_arr[np.newaxis, :, :]
-    nodesep = np.linalg.norm(delta, axis=-1)
-    direction = np.einsum("ijk,ij->ijk", delta, 1 / (nodesep + np.eye(nNodes) * 1e-3))
-
-    offset = nodesep * invdist - 1.0
-    offset[np.diag_indices(nNodes)] = 0
-
-    cost = 0.5 * np.sum(offset ** 2)
-    grad = np.einsum("ij,ij,ijk->ik", invdist, offset, direction) - np.einsum(
-        "ij,ij,ijk->jk", invdist, offset, direction
-    )
-
-    # Additional parabolic term to encourage mean position to be near origin:
-    sumpos = np.sum(pos_arr, axis=0)
-    cost += 0.5 * meanweight * np.sum(sumpos ** 2)
-    grad += meanweight * sumpos
-
-    return (cost, grad.ravel())
-
-
-def _kamada_kawai_solve(dist_mtx, pos_arr, dim):
-    # Anneal node locations based on the Kamada-Kawai cost-function,
-    # using the supplied matrix of preferred inter-node distances,
-    # and starting locations.
-
-    import numpy as np
-    import scipy as sp
-    import scipy.optimize  # call as sp.optimize
-
-    meanwt = 1e-3
-    costargs = (np, 1 / (dist_mtx + np.eye(dist_mtx.shape[0]) * 1e-3), meanwt, dim)
-
-    optresult = sp.optimize.minimize(
-        _kamada_kawai_costfn,
-        pos_arr.ravel(),
-        method="L-BFGS-B",
-        args=costargs,
-        jac=True,
-    )
-
-    return optresult.x.reshape((-1, dim))
-
-def kamada_kawai_layout(
-    G, dist=None, pos=None, weight="weight", scale=1, center=None, dim=2
-):
-    """Position nodes using Kamada-Kawai path-length cost-function.
-    Parameters
-    ----------
-    G : NetworkX graph or list of nodes
-        A position will be assigned to every node in G.
-    dist : dict (default=None)
-        A two-level dictionary of optimal distances between nodes,
-        indexed by source and destination node.
-        If None, the distance is computed using shortest_path_length().
-    pos : dict or None  optional (default=None)
-        Initial positions for nodes as a dictionary with node as keys
-        and values as a coordinate list or tuple.  If None, then use
-        circular_layout() for dim >= 2 and a linear layout for dim == 1.
-    weight : string or None   optional (default='weight')
-        The edge attribute that holds the numerical value used for
-        the edge weight.  If None, then all edge weights are 1.
-    scale : number (default: 1)
-        Scale factor for positions.
-    center : array-like or None
-        Coordinate pair around which to center the layout.
-    dim : int
-        Dimension of layout.
-    Returns
-    -------
-    pos : dict
-        A dictionary of positions keyed by node
-    Examples
-    --------
-    >>> G = nx.path_graph(4)
-    >>> pos = nx.kamada_kawai_layout(G)
-    """
-    import numpy as np
-
-    G, center = _process_params(G, center, dim)
-    nNodes = len(G.num_vertices())
-    if nNodes == 0:
-        return {}
-
-    if dist is None:
-        dist = dict(nx.shortest_path_length(G, weight=weight))
-    dist_mtx = 1e6 * np.ones((nNodes, nNodes))
-    for row, nr in enumerate(G):
-        if nr not in dist:
-            continue
-        rdist = dist[nr]
-        for col, nc in enumerate(G):
-            if nc not in rdist:
-                continue
-            dist_mtx[row][col] = rdist[nc]
-
-    if pos is None:
-        if dim >= 3:
-            pos = random_layout(G, dim=dim)
-        elif dim == 2:
-            pos = circular_layout(G, dim=dim)
-        else:
-            pos = {n: pt for n, pt in zip(G, np.linspace(0, 1, len(G)))}
-    pos_arr = np.array([pos[n] for n in G])
-
-    pos = _kamada_kawai_solve(dist_mtx, pos_arr, dim)
-
-    pos = rescale_layout(pos, scale=scale) + center
-    return dict(zip(G, pos))
-
 
 @np_random_state(10)
 def spring_layout(
@@ -1374,71 +1036,57 @@ def spring_layout(
     iterations=50,
     threshold=1e-4,
     weight="weight",
-    scale=10,
+    scale=1,
     center=None,
     dim=2,
     seed=None,
 ):
     """Position nodes using Fruchterman-Reingold force-directed algorithm.
-
     The algorithm simulates a force-directed representation of the network
     treating edges as springs holding nodes close, while treating nodes
     as repelling objects, sometimes called an anti-gravity force.
     Simulation continues until the positions are close to an equilibrium.
-
     There are some hard-coded values: minimal distance between
     nodes (0.01) and "temperature" of 0.1 to ensure nodes don't fly away.
     During the simulation, `k` helps determine the distance between nodes,
     though `scale` and `center` determine the size and place after
     rescaling occurs at the end of the simulation.
-
     Fixing some nodes doesn't allow them to move in the simulation.
     It also turns off the rescaling feature at the simulation's end.
     In addition, setting `scale` to `None` turns off rescaling.
-
     Parameters
     ----------
     graph : Raphtory graph or list of nodes
         A position will be assigned to every node in G.
-
     k : float (default=None)
         Optimal distance between nodes.  If None the distance is set to
         1/sqrt(n) where n is the number of nodes.  Increase this value
         to move nodes farther apart.
-
     pos : dict or None  optional (default=None)
         Initial positions for nodes as a dictionary with node as keys
         and values as a coordinate list or tuple.  If None, then use
         random initial positions.
-
     fixed : list or None  optional (default=None)
         Nodes to keep fixed at initial position.
         Nodes not in ``graph.nodes`` are ignored.
         ValueError raised if `fixed` specified and `pos` not.
-
     iterations : int  optional (default=50)
         Maximum number of iterations taken
-
     threshold: float optional (default = 1e-4)
         Threshold for relative error in node position changes.
         The iteration stops if the error is below this threshold.
-
     weight : string or None   optional (default='weight')
         The edge attribute that holds the numerical value used for
         the edge weight.  Larger means a stronger attractive force.
         If None, then all edge weights are 1.
-
     scale : number or None (default: 1)
         Scale factor for positions. Not used unless `fixed is None`.
         If scale is None, no rescaling is performed.
-
     center : array-like or None
         Coordinate pair around which to center the layout.
         Not used unless `fixed is None`.
-
     dim : int
         Dimension of layout.
-
     seed : int, RandomState instance or None  optional (default=None)
         Set the random state for deterministic node layouts.
         If int, `seed` is the seed used by the random number generator,
@@ -1446,17 +1094,14 @@ def spring_layout(
         number generator,
         if None, the random number generator is the RandomState instance used
         by numpy.random.
-
     Returns
     -------
     pos : dict
         A dictionary of positions keyed by node
-
     Examples
     --------
     >>> graph = nx.path_graph(4)
     >>> pos = nx.spring_layout(graph)
-
     # The same using longer but equivalent function name
     >>> pos = nx.fruchterman_reingold_layout(graph)
     """
@@ -1466,7 +1111,7 @@ def spring_layout(
     center = np.zeros(dim)
 
     if fixed is not None:
-        print("Fixed found")
+        #print("Fixed found")
         if pos is None:
             raise ValueError("nodes are fixed without positions given")
         for node in fixed:
@@ -1476,7 +1121,7 @@ def spring_layout(
         fixed = np.asarray([nfixed[node] for node in fixed if node in nfixed])
 
     if pos is not None:
-        print("Pos found")
+        #print("Pos found")
         # Determine size of existing domain to adjust initial positions
         dom_size = max(coord for pos_tup in pos.values() for coord in pos_tup)
         if dom_size == 0:
@@ -1503,8 +1148,8 @@ def spring_layout(
         if k is None and fixed is not None:
             # We must adjust k by domain size for layouts not near 1x1
             nnodes, _ = A.shape
-            k = 0.3*dom_size / np.sqrt(graph.num_vertices())
-        print("Doing sparse fruchterman")
+            k = dom_size / np.sqrt(nnodes)
+        #print("Doing sparse fruchterman")
         pos = _sparse_fruchterman_reingold(
             A, k, pos_arr, fixed, iterations, threshold, dim, seed
         )
@@ -1514,8 +1159,8 @@ def spring_layout(
         if k is None and fixed is not None:
             # We must adjust k by domain size for layouts not near 1x1
             nnodes, _ = A.shape
-            k = 0.3*dom_size / np.sqrt(nnodes)
-        print("Doing fruchteman")
+            k = dom_size / np.sqrt(nnodes)
+        #print("Doing fruchteman")
         pos = _fruchterman_reingold(
             A, k, pos_arr, fixed, iterations, threshold, dim, seed
         )
@@ -1527,54 +1172,42 @@ def spring_layout(
 
 def to_scipy_sparse_array(graph, nodelist=None, dtype=None, weight="weight", format="csr"):
     """Returns the graph adjacency matrix as a SciPy sparse array.
-
     Parameters
     ----------
     graph : graph
         The NetworkX graph used to construct the sparse matrix.
-
     nodelist : list, optional
        The rows and columns are ordered according to the nodes in `nodelist`.
        If `nodelist` is None, then the ordering is produced by graph.nodes().
-
     dtype : NumPy data-type, optional
         A valid NumPy dtype used to initialize the array. If None, then the
         NumPy default is used.
-
     weight : string or None   optional (default='weight')
         The edge attribute that holds the numerical value used for
         the edge weight.  If None then all edge weights are 1.
-
     format : str in {'bsr', 'csr', 'csc', 'coo', 'lil', 'dia', 'dok'}
         The type of the matrix to be returned (default 'csr').  For
         some algorithms different implementations of sparse matrices
         can perform better.  See [1]_ for details.
-
     Returns
     -------
     A : SciPy sparse array
        Graph adjacency matrix.
-
     Notes
     -----
     For directed graphs, matrix entry i,j corresponds to an edge from i to j.
-
     The matrix entries are populated using the edge attribute held in
     parameter weight. When an edge does not have that attribute, the
     value of the entry is 1.
-
     For multiple edges the matrix values are the sums of the edge weights.
-
     When `nodelist` does not contain every node in `graph`, the adjacency matrix
     is built from the subgraph of `graph` that is induced by the nodes in
     `nodelist`.
-
     The convention used for self-loop edges in graphs is to assign the
     diagonal matrix entry value to the weight attribute of the edge
     (or the number 1 if the edge has no weight attribute).  If the
     alternate convention of doubling the edge weight is desired the
     resulting SciPy sparse array can be modified as follows:
-
     References
     ----------
     .. [1] Scipy Dev. References, "Sparse Matrices",
@@ -1642,16 +1275,13 @@ def to_numpy_array(
     nonedge=0.0,
 ):
     """Returns the graph adjacency matrix as a NumPy array.
-
     Parameters
     ----------
     graph : graph
         The NetworkX graph used to construct the NumPy array.
-
     nodelist : list, optional
         The rows and columns are ordered according to the nodes in `nodelist`.
         If `nodelist` is ``None``, then the ordering is produced by ``graph.nodes()``.
-
     dtype : NumPy data type, optional
         A NumPy data type used to initialize the array. If None, then the NumPy
         default is used. The dtype can be structured if `weight=None`, in which
@@ -1659,65 +1289,53 @@ def to_numpy_array(
         result is a structured array where each named field in the dtype
         corresponds to the adjaceny for that edge attribute. See examples for
         details.
-
     order : {'C', 'F'}, optional
         Whether to store multidimensional data in C- or Fortran-contiguous
         (row- or column-wise) order in memory. If None, then the NumPy default
         is used.
-
     multigraph_weight : callable, optional
         An function that determines how weights in multigraphs are handled.
         The function should accept a sequence of weights and return a single
         value. The default is to sum the weights of the multiple edges.
-
     weight : string or None optional (default = 'weight')
         The edge attribute that holds the numerical value used for
         the edge weight. If an edge does not have that attribute, then the
         value 1 is used instead. `weight` must be ``None`` if a structured
         dtype is used.
-
     nonedge : array_like (default = 0.0)
         The value used to represent non-edges in the adjaceny matrix.
         The array values corresponding to nonedges are typically set to zero.
         However, this could be undesirable if there are array values
         corresponding to actual edges that also have the value zero. If so,
         one might prefer nonedges to have some other value, such as ``nan``.
-
     Returns
     -------
     A : NumPy ndarray
         Graph adjacency matrix
-
     Raises
     ------
     NetworkXError
         If `dtype` is a structured dtype and `graph` is a multigraph
     ValueError
         If `dtype` is a structured dtype and `weight` is not `None`
-
     See Also
     --------
     from_numpy_array
-
     Notes
     -----
     For directed graphs, entry ``i, j`` corresponds to an edge from ``i`` to ``j``.
-
     Entries in the adjacency matrix are given by the `weight` edge attribute.
     When an edge does not have a weight attribute, the value of the entry is
     set to the number 1.  For multiple (parallel) edges, the values of the
     entries are determined by the `multigraph_weight` parameter. The default is
     to sum the weight attributes for each of the parallel edges.
-
     When `nodelist` does not contain every node in `graph`, the adjacency matrix is
     built from the subgraph of `graph` that is induced by the nodes in `nodelist`.
-
     The convention used for self-loop edges in graphs is to assign the
     diagonal array entry value to the weight attribute of the edge
     (or the number 1 if the edge has no weight attribute). If the
     alternate convention of doubling the edge weight is desired the
     resulting NumPy array can be modified as follows:
-
     """
     import numpy as np
     
@@ -1921,29 +1539,23 @@ def _sparse_fruchterman_reingold(
 
 def rescale_layout(pos, scale=1):
     """Returns scaled position array to (-scale, scale) in all axes.
-
     The function acts on NumPy arrays which hold position information.
     Each position is one row of the array. The dimension of the space
     equals the number of columns. Each coordinate in one column.
-
     To rescale, the mean (center) is subtracted from each axis separately.
     Then all values are scaled so that the largest magnitude value
     from all axes equals `scale` (thus, the aspect ratio is preserved).
     The resulting NumPy Array is returned (order of rows unchanged).
-
     Parameters
     ----------
     pos : numpy array
         positions to be scaled. Each row is a position.
-
     scale : number (default: 1)
         The size of the resulting extent in all directions.
-
     Returns
     -------
     pos : numpy array
         scaled positions. Each row is a position.
-
     See Also
     --------
     rescale_layout_dict
