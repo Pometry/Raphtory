@@ -308,6 +308,10 @@ impl PyVertices {
         )
     }
 
+    pub fn __call__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        slf
+    }
+
     pub fn __repr__(&self) -> String {
         let values = self
             .__iter__()
