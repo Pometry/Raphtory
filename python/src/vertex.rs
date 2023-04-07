@@ -1,8 +1,11 @@
 use crate::dynamic::DynamicGraph;
-use crate::edge::PyEdgeIter;
+use crate::edge::{PyEdgeIter, PyNestedEdgeIter};
 use crate::util::{adapt_err_value, extract_vertex_ref, through_impl, window_impl};
 use crate::wrappers::{
-    NestedU64Iter, NestedUsizeIter, OptionI64Iter, Prop, StringIter, U64Iter, UsizeIter,
+    BoolIter, NestedBoolIter, NestedI64Iter, NestedOptionI64Iter, NestedOptionPropIter,
+    NestedPropHistoriesIter, NestedPropHistoryIter, NestedPropsIter, NestedStringIter,
+    NestedStringVecIter, NestedU64Iter, NestedUsizeIter, OptionI64Iter, OptionPropIter, Prop,
+    PropHistoriesIter, PropHistoryIter, PropsIter, StringIter, StringVecIter, U64Iter, UsizeIter,
 };
 use docbrown_core::tgraph::VertexRef;
 use docbrown_db::graph_window::WindowSet;
@@ -228,16 +231,48 @@ impl PyVertices {
         self.vertices.latest_time().into()
     }
 
-    fn out_neighbours(&self) -> PyPathFromGraph {
-        self.vertices.out_neighbours().into()
+    fn property(&self, name: String, include_static: Option<bool>) -> OptionPropIter {
+        self.vertices
+            .property(name, include_static.unwrap_or(true))
+            .into()
     }
 
-    fn in_neighbours(&self) -> PyPathFromGraph {
-        self.vertices.in_neighbours().into()
+    fn property_history(&self, name: String) -> PropHistoryIter {
+        self.vertices.property_history(name).into()
     }
 
-    fn neighbours(&self) -> PyPathFromGraph {
-        self.vertices.neighbours().into()
+    fn properties(&self, include_static: Option<bool>) -> PropsIter {
+        self.vertices
+            .properties(include_static.unwrap_or(true))
+            .into()
+    }
+
+    fn property_histories(&self) -> PropHistoriesIter {
+        self.vertices.property_histories().into()
+    }
+
+    fn property_names(&self, include_static: Option<bool>) -> StringVecIter {
+        self.vertices
+            .property_names(include_static.unwrap_or(true))
+            .into()
+    }
+
+    fn has_property(&self, name: String, include_static: Option<bool>) -> BoolIter {
+        self.vertices
+            .has_property(name, include_static.unwrap_or(true))
+            .into()
+    }
+
+    fn has_static_property(&self, name: String) -> BoolIter {
+        self.vertices.has_static_property(name).into()
+    }
+
+    fn static_property(&self, name: String) -> OptionPropIter {
+        self.vertices.static_property(name).into()
+    }
+
+    fn degree(&self) -> UsizeIter {
+        self.vertices.degree().into()
     }
 
     fn in_degree(&self) -> UsizeIter {
@@ -248,8 +283,28 @@ impl PyVertices {
         self.vertices.out_degree().into()
     }
 
-    fn degree(&self) -> UsizeIter {
-        self.vertices.degree().into()
+    fn edges(&self) -> PyNestedEdgeIter {
+        self.vertices.edges().into()
+    }
+
+    fn in_edges(&self) -> PyNestedEdgeIter {
+        self.vertices.in_edges().into()
+    }
+
+    fn out_edges(&self) -> PyNestedEdgeIter {
+        self.vertices.out_edges().into()
+    }
+
+    fn out_neighbours(&self) -> PyPathFromGraph {
+        self.vertices.out_neighbours().into()
+    }
+
+    fn in_neighbours(&self) -> PyPathFromGraph {
+        self.vertices.in_neighbours().into()
+    }
+
+    fn neighbours(&self) -> PyPathFromGraph {
+        self.vertices.neighbours().into()
     }
 
     //******  Perspective APIS  ******//
@@ -342,6 +397,80 @@ impl PyPathFromGraph {
         self.path.id().into()
     }
 
+    fn name(&self) -> NestedStringIter {
+        self.path.name().into()
+    }
+
+    fn earliest_time(&self) -> NestedOptionI64Iter {
+        self.path.earliest_time().into()
+    }
+
+    fn latest_time(&self) -> NestedOptionI64Iter {
+        self.path.latest_time().into()
+    }
+
+    fn property(&self, name: String, include_static: Option<bool>) -> NestedOptionPropIter {
+        self.path
+            .property(name, include_static.unwrap_or(true))
+            .into()
+    }
+
+    fn property_history(&self, name: String) -> NestedPropHistoryIter {
+        self.path.property_history(name).into()
+    }
+
+    fn properties(&self, include_static: Option<bool>) -> NestedPropsIter {
+        self.path.properties(include_static.unwrap_or(true)).into()
+    }
+
+    fn property_histories(&self) -> NestedPropHistoriesIter {
+        self.path.property_histories().into()
+    }
+
+    fn property_names(&self, include_static: Option<bool>) -> NestedStringVecIter {
+        self.path
+            .property_names(include_static.unwrap_or(true))
+            .into()
+    }
+
+    fn has_property(&self, name: String, include_static: Option<bool>) -> NestedBoolIter {
+        self.path
+            .has_property(name, include_static.unwrap_or(true))
+            .into()
+    }
+
+    fn has_static_property(&self, name: String) -> NestedBoolIter {
+        self.path.has_static_property(name).into()
+    }
+
+    fn static_property(&self, name: String) -> NestedOptionPropIter {
+        self.path.static_property(name).into()
+    }
+
+    fn degree(&self) -> NestedUsizeIter {
+        self.path.degree().into()
+    }
+
+    fn in_degree(&self) -> NestedUsizeIter {
+        self.path.in_degree().into()
+    }
+
+    fn out_degree(&self) -> NestedUsizeIter {
+        self.path.out_degree().into()
+    }
+
+    fn edges(&self) -> PyNestedEdgeIter {
+        self.path.edges().into()
+    }
+
+    fn in_edges(&self) -> PyNestedEdgeIter {
+        self.path.in_edges().into()
+    }
+
+    fn out_edges(&self) -> PyNestedEdgeIter {
+        self.path.out_edges().into()
+    }
+
     fn out_neighbours(&self) -> Self {
         self.path.out_neighbours().into()
     }
@@ -354,16 +483,44 @@ impl PyPathFromGraph {
         self.path.neighbours().into()
     }
 
-    fn in_degree(&self) -> NestedUsizeIter {
-        self.path.in_degree().into()
+    //******  Perspective APIS  ******//
+    pub fn start(&self) -> Option<i64> {
+        self.path.start()
     }
 
-    fn out_degree(&self) -> NestedUsizeIter {
-        self.path.out_degree().into()
+    pub fn end(&self) -> Option<i64> {
+        self.path.end()
     }
 
-    fn degree(&self) -> NestedUsizeIter {
-        self.path.degree().into()
+    fn expanding(
+        &self,
+        step: u64,
+        start: Option<i64>,
+        end: Option<i64>,
+    ) -> PyPathFromGraphWindowSet {
+        self.path.expanding(step, start, end).into()
+    }
+
+    fn rolling(
+        &self,
+        window: u64,
+        step: Option<u64>,
+        start: Option<i64>,
+        end: Option<i64>,
+    ) -> PyPathFromGraphWindowSet {
+        self.path.rolling(window, step, start, end).into()
+    }
+
+    pub fn window(&self, t_start: Option<i64>, t_end: Option<i64>) -> Self {
+        window_impl(&self.path, t_start, t_end).into()
+    }
+
+    pub fn at(&self, end: i64) -> Self {
+        self.path.at(end).into()
+    }
+
+    pub fn through(&self, perspectives: &PyAny) -> PyResult<PyPathFromGraphWindowSet> {
+        through_impl(&self.path, perspectives).map(|p| p.into())
     }
 
     fn __repr__(&self) -> String {
@@ -408,16 +565,54 @@ impl PyPathFromVertex {
         self.path.id().into()
     }
 
-    fn out_neighbours(&self) -> Self {
-        self.path.out_neighbours().into()
+    fn name(&self) -> StringIter {
+        self.path.name().into()
     }
 
-    fn in_neighbours(&self) -> Self {
-        self.path.in_neighbours().into()
+    fn earliest_time(&self) -> OptionI64Iter {
+        self.path.earliest_time().into()
     }
 
-    fn neighbours(&self) -> Self {
-        self.path.neighbours().into()
+    fn latest_time(&self) -> OptionI64Iter {
+        self.path.latest_time().into()
+    }
+
+    fn property(&self, name: String, include_static: Option<bool>) -> OptionPropIter {
+        self.path
+            .property(name, include_static.unwrap_or(true))
+            .into()
+    }
+
+    fn property_history(&self, name: String) -> PropHistoryIter {
+        self.path.property_history(name).into()
+    }
+
+    fn properties(&self, include_static: Option<bool>) -> PropsIter {
+        self.path.properties(include_static.unwrap_or(true)).into()
+    }
+
+    fn property_histories(&self) -> PropHistoriesIter {
+        self.path.property_histories().into()
+    }
+
+    fn property_names(&self, include_static: Option<bool>) -> StringVecIter {
+        self.path
+            .property_names(include_static.unwrap_or(true))
+            .into()
+    }
+
+    fn has_property(&self, name: String, include_static: Option<bool>) -> BoolIter {
+        self.path
+            .has_property(name, include_static.unwrap_or(true))
+            .into()
+    }
+
+    fn has_static_property(&self, name: String) -> BoolIter {
+        self.path.has_static_property(name).into()
+    }
+
+    fn static_property(&self, name: String) -> OptionPropIter {
+        self.path.static_property(name).into()
     }
 
     fn in_degree(&self) -> UsizeIter {
@@ -432,6 +627,70 @@ impl PyPathFromVertex {
         self.path.degree().into()
     }
 
+    fn edges(&self) -> PyEdgeIter {
+        self.path.edges().into()
+    }
+
+    fn in_edges(&self) -> PyEdgeIter {
+        self.path.in_edges().into()
+    }
+
+    fn out_edges(&self) -> PyEdgeIter {
+        self.path.out_edges().into()
+    }
+
+    fn out_neighbours(&self) -> Self {
+        self.path.out_neighbours().into()
+    }
+
+    fn in_neighbours(&self) -> Self {
+        self.path.in_neighbours().into()
+    }
+
+    fn neighbours(&self) -> Self {
+        self.path.neighbours().into()
+    }
+
+    //******  Perspective APIS  ******//
+    pub fn start(&self) -> Option<i64> {
+        self.path.start()
+    }
+
+    pub fn end(&self) -> Option<i64> {
+        self.path.end()
+    }
+
+    fn expanding(
+        &self,
+        step: u64,
+        start: Option<i64>,
+        end: Option<i64>,
+    ) -> PyPathFromVertexWindowSet {
+        self.path.expanding(step, start, end).into()
+    }
+
+    fn rolling(
+        &self,
+        window: u64,
+        step: Option<u64>,
+        start: Option<i64>,
+        end: Option<i64>,
+    ) -> PyPathFromVertexWindowSet {
+        self.path.rolling(window, step, start, end).into()
+    }
+
+    pub fn window(&self, t_start: Option<i64>, t_end: Option<i64>) -> Self {
+        window_impl(&self.path, t_start, t_end).into()
+    }
+
+    pub fn at(&self, end: i64) -> Self {
+        self.path.at(end).into()
+    }
+
+    pub fn through(&self, perspectives: &PyAny) -> PyResult<PyPathFromVertexWindowSet> {
+        through_impl(&self.path, perspectives).map(|p| p.into())
+    }
+
     fn __repr__(&self) -> String {
         let values = self
             .__iter__()
@@ -440,9 +699,9 @@ impl PyPathFromVertex {
             .map(|v| v.__repr__())
             .collect_vec();
         if values.len() < 11 {
-            "WindowedVertexIterable(".to_string() + &values.join(", ") + ")"
+            "PathFromVertex(".to_string() + &values.join(", ") + ")"
         } else {
-            "WindowedVertexIterable(".to_string() + &values[0..10].join(", ") + " ... )"
+            "PathFromVertex(".to_string() + &values[0..10].join(", ") + " ... )"
         }
     }
 }
