@@ -1,9 +1,11 @@
 use docbrown_core as db_c;
 use docbrown_db::perspective;
 use docbrown_db::perspective::PerspectiveSet;
+use docbrown_db::view_api::vertex::BoxedIter;
 use pyo3::exceptions::PyException;
 use pyo3::prelude::*;
-use std::fmt;
+use std::collections::HashMap;
+use std::{fmt, i64};
 
 #[derive(FromPyObject, Debug, Clone)]
 pub enum Prop {
@@ -147,6 +149,206 @@ impl From<Box<dyn Iterator<Item = Box<dyn Iterator<Item = usize> + Send>> + Send
 }
 
 #[pyclass]
+pub struct NestedStringIter {
+    iter: BoxedIter<StringIter>,
+}
+
+#[pymethods]
+impl NestedStringIter {
+    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        slf
+    }
+    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<StringIter> {
+        slf.iter.next()
+    }
+}
+
+impl From<BoxedIter<BoxedIter<String>>> for NestedStringIter {
+    fn from(value: BoxedIter<BoxedIter<String>>) -> Self {
+        let iter = Box::new(value.map(|it| it.into()));
+        Self { iter }
+    }
+}
+
+#[pyclass]
+pub struct NestedStringVecIter {
+    iter: BoxedIter<StringVecIter>,
+}
+
+#[pymethods]
+impl NestedStringVecIter {
+    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        slf
+    }
+    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<StringVecIter> {
+        slf.iter.next()
+    }
+}
+
+impl From<BoxedIter<BoxedIter<Vec<String>>>> for NestedStringVecIter {
+    fn from(value: BoxedIter<BoxedIter<Vec<String>>>) -> Self {
+        let iter = Box::new(value.map(|it| it.into()));
+        Self { iter }
+    }
+}
+
+#[pyclass]
+pub struct NestedBoolIter {
+    iter: BoxedIter<BoolIter>,
+}
+
+#[pymethods]
+impl NestedBoolIter {
+    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        slf
+    }
+    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<BoolIter> {
+        slf.iter.next()
+    }
+}
+
+impl From<BoxedIter<BoxedIter<bool>>> for NestedBoolIter {
+    fn from(value: BoxedIter<BoxedIter<bool>>) -> Self {
+        let iter = Box::new(value.map(|it| it.into()));
+        Self { iter }
+    }
+}
+
+#[pyclass]
+pub struct NestedI64Iter {
+    iter: BoxedIter<I64Iter>,
+}
+
+#[pymethods]
+impl NestedI64Iter {
+    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        slf
+    }
+    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<I64Iter> {
+        slf.iter.next()
+    }
+}
+
+impl From<BoxedIter<BoxedIter<i64>>> for NestedI64Iter {
+    fn from(value: BoxedIter<BoxedIter<i64>>) -> Self {
+        let iter = Box::new(value.map(|it| it.into()));
+        Self { iter }
+    }
+}
+
+#[pyclass]
+pub struct NestedOptionI64Iter {
+    iter: BoxedIter<OptionI64Iter>,
+}
+
+#[pymethods]
+impl NestedOptionI64Iter {
+    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        slf
+    }
+    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<OptionI64Iter> {
+        slf.iter.next()
+    }
+}
+
+impl From<BoxedIter<BoxedIter<Option<i64>>>> for NestedOptionI64Iter {
+    fn from(value: BoxedIter<BoxedIter<Option<i64>>>) -> Self {
+        let iter = Box::new(value.map(|it| it.into()));
+        Self { iter }
+    }
+}
+
+#[pyclass]
+pub struct NestedOptionPropIter {
+    iter: BoxedIter<OptionPropIter>,
+}
+
+#[pymethods]
+impl NestedOptionPropIter {
+    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        slf
+    }
+    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<OptionPropIter> {
+        slf.iter.next()
+    }
+}
+
+impl From<BoxedIter<BoxedIter<Option<db_c::Prop>>>> for NestedOptionPropIter {
+    fn from(value: BoxedIter<BoxedIter<Option<db_c::Prop>>>) -> Self {
+        let iter = Box::new(value.map(|it| it.into()));
+        Self { iter }
+    }
+}
+
+#[pyclass]
+pub struct NestedPropHistoryIter {
+    iter: BoxedIter<PropHistoryIter>,
+}
+
+#[pymethods]
+impl NestedPropHistoryIter {
+    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        slf
+    }
+    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<PropHistoryIter> {
+        slf.iter.next()
+    }
+}
+
+impl From<BoxedIter<BoxedIter<Vec<(i64, db_c::Prop)>>>> for NestedPropHistoryIter {
+    fn from(value: BoxedIter<BoxedIter<Vec<(i64, db_c::Prop)>>>) -> Self {
+        let iter = Box::new(value.map(|it| it.into()));
+        Self { iter }
+    }
+}
+
+#[pyclass]
+pub struct NestedPropsIter {
+    iter: BoxedIter<PropsIter>,
+}
+
+#[pymethods]
+impl NestedPropsIter {
+    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        slf
+    }
+    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<PropsIter> {
+        slf.iter.next()
+    }
+}
+
+impl From<BoxedIter<BoxedIter<HashMap<String, db_c::Prop>>>> for NestedPropsIter {
+    fn from(value: BoxedIter<BoxedIter<HashMap<String, db_c::Prop>>>) -> Self {
+        let iter = Box::new(value.map(|it| it.into()));
+        Self { iter }
+    }
+}
+
+#[pyclass]
+pub struct NestedPropHistoriesIter {
+    iter: BoxedIter<PropHistoriesIter>,
+}
+
+#[pymethods]
+impl NestedPropHistoriesIter {
+    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        slf
+    }
+    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<PropHistoriesIter> {
+        slf.iter.next()
+    }
+}
+
+impl From<BoxedIter<BoxedIter<HashMap<String, Vec<(i64, db_c::Prop)>>>>>
+    for NestedPropHistoriesIter
+{
+    fn from(value: BoxedIter<BoxedIter<HashMap<String, Vec<(i64, db_c::Prop)>>>>) -> Self {
+        let iter = Box::new(value.map(|it| it.into()));
+        Self { iter }
+    }
+}
+
+#[pyclass]
 pub struct UsizeIter {
     iter: Box<dyn Iterator<Item = usize> + Send>,
 }
@@ -205,6 +407,148 @@ impl OptionI64Iter {
 
 impl From<Box<dyn Iterator<Item = Option<i64>> + Send>> for OptionI64Iter {
     fn from(value: Box<dyn Iterator<Item = Option<i64>> + Send>) -> Self {
+        Self { iter: value }
+    }
+}
+
+#[pyclass]
+pub struct OptionPropIter {
+    iter: Box<dyn Iterator<Item = Option<Prop>> + Send>,
+}
+
+#[pymethods]
+impl OptionPropIter {
+    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        slf
+    }
+    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<Option<Prop>> {
+        slf.iter.next()
+    }
+}
+
+impl From<Box<dyn Iterator<Item = Option<db_c::Prop>> + Send>> for OptionPropIter {
+    fn from(value: Box<dyn Iterator<Item = Option<db_c::Prop>> + Send>) -> Self {
+        Self {
+            iter: Box::new(value.map(|p| p.map(|v| v.into()))),
+        }
+    }
+}
+
+#[pyclass]
+pub struct PropHistoryIter {
+    iter: Box<dyn Iterator<Item = Vec<(i64, Prop)>> + Send>,
+}
+
+#[pymethods]
+impl PropHistoryIter {
+    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        slf
+    }
+    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<Vec<(i64, Prop)>> {
+        slf.iter.next()
+    }
+}
+
+impl From<Box<dyn Iterator<Item = Vec<(i64, db_c::Prop)>> + Send>> for PropHistoryIter {
+    fn from(value: Box<dyn Iterator<Item = Vec<(i64, db_c::Prop)>> + Send>) -> Self {
+        Self {
+            iter: Box::new(value.map(|p| p.into_iter().map(|(t, v)| (t, v.into())).collect())),
+        }
+    }
+}
+
+#[pyclass]
+pub struct PropsIter {
+    iter: Box<dyn Iterator<Item = HashMap<String, Prop>> + Send>,
+}
+
+#[pymethods]
+impl PropsIter {
+    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        slf
+    }
+    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<HashMap<String, Prop>> {
+        slf.iter.next()
+    }
+}
+
+impl From<Box<dyn Iterator<Item = HashMap<String, db_c::Prop>> + Send>> for PropsIter {
+    fn from(value: Box<dyn Iterator<Item = HashMap<String, db_c::Prop>> + Send>) -> Self {
+        Self {
+            iter: Box::new(value.map(|p| p.into_iter().map(|(k, v)| (k, v.into())).collect())),
+        }
+    }
+}
+
+#[pyclass]
+pub struct PropHistoriesIter {
+    iter: Box<dyn Iterator<Item = HashMap<String, Vec<(i64, Prop)>>> + Send>,
+}
+
+#[pymethods]
+impl PropHistoriesIter {
+    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        slf
+    }
+    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<HashMap<String, Vec<(i64, Prop)>>> {
+        slf.iter.next()
+    }
+}
+
+impl From<Box<dyn Iterator<Item = HashMap<String, Vec<(i64, db_c::Prop)>>> + Send>>
+    for PropHistoriesIter
+{
+    fn from(
+        value: Box<dyn Iterator<Item = HashMap<String, Vec<(i64, db_c::Prop)>>> + Send>,
+    ) -> Self {
+        Self {
+            iter: Box::new(value.map(|p| {
+                p.into_iter()
+                    .map(|(k, v)| (k, v.into_iter().map(|(t, p)| (t, p.into())).collect()))
+                    .collect()
+            })),
+        }
+    }
+}
+
+#[pyclass]
+pub struct StringVecIter {
+    iter: Box<dyn Iterator<Item = Vec<String>> + Send>,
+}
+
+#[pymethods]
+impl StringVecIter {
+    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        slf
+    }
+    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<Vec<String>> {
+        slf.iter.next()
+    }
+}
+
+impl From<BoxedIter<Vec<String>>> for StringVecIter {
+    fn from(value: BoxedIter<Vec<String>>) -> Self {
+        Self { iter: value }
+    }
+}
+
+#[pyclass]
+pub struct BoolIter {
+    iter: BoxedIter<bool>,
+}
+
+#[pymethods]
+impl BoolIter {
+    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        slf
+    }
+    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<bool> {
+        slf.iter.next()
+    }
+}
+
+impl From<BoxedIter<bool>> for BoolIter {
+    fn from(value: BoxedIter<bool>) -> Self {
         Self { iter: value }
     }
 }
