@@ -178,24 +178,24 @@ impl PyVertex {
     }
 
     pub fn __repr__(&self) -> String {
-        let properties: String = "{".to_string()
-            + &self
+        let properties: String = self
                 .properties(Some(true))
                 .iter()
                 .map(|(k, v)| k.to_string() + " : " + &v.to_string())
-                .join(", ")
-            + &"}".to_string();
+                .join(", ");
+          
 
-        let property_string = if properties.is_empty() {
-            "Properties({})".to_string()
+        if properties.is_empty() {
+            format!("Vertex(name={})", self.name().trim_matches('"'))
         } else {
-            format!("Properties({})", properties)
-        };
-        format!(
-            "Vertex(VertexName({}), {})",
-            self.name().trim_matches('"'),
-            property_string
-        )
+            let property_string: String = "{".to_owned() + &properties + "}";
+            format!(
+                "Vertex(name={}, properties={})",
+                self.name().trim_matches('"'),
+                property_string
+            )
+        }
+
     }
 }
 
