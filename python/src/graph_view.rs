@@ -136,7 +136,7 @@ impl PyGraphView {
         let latest_time = self.graph.latest_time().unwrap_or_default();
 
         format!(
-            "Graph(NumEdges({:?}), NumVertices({:?}), EarliestTime({:?}), LatestTime({:?}))",
+            "Graph(number_of_edges={:?}, number_of_vertices={:?}, earliest_time={:?}, latest_time={:?})",
             num_edges, num_vertices, earliest_time, latest_time
         )
     }
