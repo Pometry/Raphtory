@@ -2,10 +2,10 @@
 
 use std::hash::{Hash, Hasher};
 
-use rustc_hash::FxHasher;
+use twox_hash::XxHash64;
 
 pub fn calculate_hash<T: Hash>(t: &T) -> u64 {
-    let mut s = FxHasher::default();
+    let mut s = XxHash64::default();
     t.hash(&mut s);
     s.finish()
 }

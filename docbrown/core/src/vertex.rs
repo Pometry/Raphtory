@@ -6,7 +6,7 @@
 
 use crate::{utils, Prop};
 
-pub trait InputVertex {
+pub trait InputVertex: Clone {
     fn id(&self) -> u64;
     fn name_prop(&self) -> Option<Prop>;
 }

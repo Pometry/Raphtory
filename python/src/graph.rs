@@ -151,6 +151,7 @@ impl PyGraph {
     }
 }
 
+#[derive(Clone)]
 pub struct InputVertexBox {
     id: u64,
     name_prop: Option<dbc::Prop>,
