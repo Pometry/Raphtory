@@ -721,18 +721,16 @@ impl Graph {
         dst: T,
         props: &Vec<(String, Prop)>,
     ) -> Result<(), GraphError> {
-        // TODO: Problem: if the vertex already exists, then this
-        // TODO: wont create a property name if the vertex is a string
         let src_shard_id = utils::get_shard_id_from_global_vid(src.id(), self.nr_shards);
         let dst_shard_id = utils::get_shard_id_from_global_vid(dst.id(), self.nr_shards);
 
         if src_shard_id == dst_shard_id {
-            self.shards[src_shard_id].add_edge(t, src.id(), dst.id(), props)
+            self.shards[src_shard_id].add_edge(t, src, dst, props)
         } else {
             // FIXME these are sort of connected, we need to hold both locks for
             // the src partition and dst partition to add a remote edge between both
-            self.shards[src_shard_id].add_edge_remote_out(t, src.id(), dst.id(), props)?;
-            self.shards[dst_shard_id].add_edge_remote_into(t, src.id(), dst.id(), props)?;
+            self.shards[src_shard_id].add_edge_remote_out(t, src.clone(), dst.clone(), props)?;
+            self.shards[dst_shard_id].add_edge_remote_into(t, src, dst, props)?;
             Ok(())
         }
     }

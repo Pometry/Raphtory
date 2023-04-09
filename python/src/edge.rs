@@ -88,18 +88,19 @@ impl PyEdge {
 
     pub fn __repr__(&self) -> String {
         let properties = &self
-                .properties(Some(true))
-                .iter()
-                .map(|(k, v)| k.to_string() + " : " + &v.to_string())
-                .join(", ");
+            .properties(Some(true))
+            .iter()
+            .map(|(k, v)| k.to_string() + " : " + &v.to_string())
+            .join(", ");
 
         let source = self.edge.src().name();
         let target = self.edge.dst().name();
         if properties.is_empty() {
-            format!("Edge(source={}, target={})",  
-                        source.trim_matches('"'),
-                        target.trim_matches('"')
-                    )
+            format!(
+                "Edge(source={}, target={})",
+                source.trim_matches('"'),
+                target.trim_matches('"')
+            )
         } else {
             let property_string: String = "{".to_string() + &properties + "}";
             format!(

@@ -112,8 +112,8 @@ mod cc_test {
 
         let expected =             // output from the eval running on the first shard
             vec![
-                vec![7, 1, 3, 3], // shard 0 (2, 4, 6, 8)
-                vec![3, 7, 1, 2], // shard 1 (1, 3, 5, 7)
+                vec![7, 1], // shard 0 (2, 4, 6, 8)
+                vec![3, 7, 3, 1, 3, 2], // shard 1 (1, 3, 5, 7)
             ];
 
         let actual_part1 = &gs.read_vec_partitions(&agg)[0];
@@ -128,8 +128,8 @@ mod cc_test {
 
         let expected =             // output from the eval running on the first shard
             vec![
-                vec![7, 1, 2, 3], // shard 0 (2, 4, 6, 8)
-                vec![2, 7, 1, 1], // shard 1 (1, 3, 5, 7)
+                vec![7, 1], // shard 0 (2, 4, 6, 8)
+                vec![2, 7, 2, 1, 3, 1], // shard 1 (1, 3, 5, 7)
             ];
 
         let actual_part1 = &gs.read_vec_partitions(&agg)[0];
@@ -144,8 +144,8 @@ mod cc_test {
 
         let expected =             // output from the eval running on the first shard
             vec![
-                vec![7, 1, 1, 2], // shard 0 (2, 4, 6, 8)
-                vec![1, 7, 1, 1], // shard 1 (1, 3, 5, 7)
+                vec![7, 1], // shard 0 (2, 4, 6, 8)
+                vec![1, 7, 1, 1, 2, 1], // shard 1 (1, 3, 5, 7)
             ];
 
         let actual_part1 = &gs.read_vec_partitions(&agg)[0];
@@ -160,8 +160,8 @@ mod cc_test {
 
         let expected =             // output from the eval running on the first shard
             vec![
-                vec![7, 1, 1, 1], // shard 0 (2, 4, 6, 8)
-                vec![1, 7, 1, 1], // shard 1 (1, 3, 5, 7)
+                vec![7, 1], // shard 0 (2, 4, 6, 8)
+                vec![1, 7, 1, 1, 1, 1], // shard 1 (1, 3, 5, 7)
             ];
 
         let actual_part1 = &gs.read_vec_partitions(&agg)[0];

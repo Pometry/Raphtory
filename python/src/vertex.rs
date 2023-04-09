@@ -182,11 +182,10 @@ impl PyVertex {
 
     pub fn __repr__(&self) -> String {
         let properties: String = self
-                .properties(Some(true))
-                .iter()
-                .map(|(k, v)| k.to_string() + " : " + &v.to_string())
-                .join(", ");
-          
+            .properties(Some(true))
+            .iter()
+            .map(|(k, v)| k.to_string() + " : " + &v.to_string())
+            .join(", ");
 
         if properties.is_empty() {
             format!("Vertex(name={})", self.name().trim_matches('"'))
@@ -198,7 +197,6 @@ impl PyVertex {
                 property_string
             )
         }
-
     }
 }
 

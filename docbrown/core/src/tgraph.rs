@@ -23,12 +23,17 @@ pub(crate) mod errors {
 
     #[derive(thiserror::Error, Debug)]
     pub enum MutateGraphError {
+
+        #[error("Create vertex '{vertex_id}' first before adding static properties to it")]
+        VertexNotFoundError {
+            vertex_id: u64,
+        },
         #[error("cannot change property for vertex '{vertex_id}'")]
         IllegalVertexPropertyChange {
             vertex_id: u64,
             source: IllegalMutate,
         },
-        #[error("cannot set property for missing edge '{0}' -> '{1}'")]
+        #[error("Create edge '{0}' -> '{1}' first before adding static properties to it")]
         MissingEdge(u64, u64), // src, dst
         #[error("cannot change property for edge '{src_id}' -> '{dst_id}'")]
         IllegalEdgePropertyChange {
@@ -226,9 +231,11 @@ impl TemporalGraph {
         v: u64,
         data: &Vec<(String, Prop)>,
     ) -> MutateGraphResult {
-        let index = *self.logical_to_physical.get(&v).expect(&format!(
-            "impossible to add metadata to non existing vertex {v}"
-        ));
+        let index = *(self.logical_to_physical.get(&v).ok_or(
+            MutateGraphError::VertexNotFoundError {
+                vertex_id: v,
+            },
+        )?);
         let result = self.props.set_static_vertex_props(index, data);
         result.map_err(|e| MutateGraphError::IllegalVertexPropertyChange {
             vertex_id: v,
@@ -236,17 +243,19 @@ impl TemporalGraph {
         }) // TODO: use the name here if exists
     }
 
-    pub fn add_edge(&mut self, t: i64, src: u64, dst: u64) {
+    pub fn add_edge<T: InputVertex>(&mut self, t: i64, src: T, dst: T) {
         self.add_edge_with_props(t, src, dst, &vec![])
     }
 
-    pub(crate) fn add_edge_with_props(
+    pub(crate) fn add_edge_with_props<T: InputVertex>(
         &mut self,
         t: i64,
-        src: u64,
-        dst: u64,
+        src: T,
+        dst: T,
         props: &Vec<(String, Prop)>,
     ) {
+        let src_id = src.id();
+        let dst_id = dst.id();
         // mark the times of the vertices at t
         self.add_vertex(t, src)
             .map_err(|err| println!("{:?}", err))
@@ -255,15 +264,15 @@ impl TemporalGraph {
             .map_err(|err| println!("{:?}", err))
             .ok();
 
-        let src_pid = self.logical_to_physical[&src];
-        let dst_pid = self.logical_to_physical[&dst];
+        let src_pid = self.logical_to_physical[&src_id];
+        let dst_pid = self.logical_to_physical[&dst_id];
 
-        let src_edge_meta_id = self.link_outbound_edge(t, src, src_pid, dst_pid, false);
-        let dst_edge_meta_id = self.link_inbound_edge(t, dst, src_pid, dst_pid, false);
+        let src_edge_meta_id = self.link_outbound_edge(t, src_id, src_pid, dst_pid, false);
+        let dst_edge_meta_id = self.link_inbound_edge(t, dst_id, src_pid, dst_pid, false);
 
         if src_edge_meta_id != dst_edge_meta_id {
             panic!(
-                "Failure on {src} -> {dst} at time: {t} {src_edge_meta_id} != {dst_edge_meta_id}"
+                "Failure on {src_id} -> {dst_id} at time: {t} {src_edge_meta_id} != {dst_edge_meta_id}"
             );
         }
 
@@ -271,39 +280,45 @@ impl TemporalGraph {
             .upsert_temporal_edge_props(t, src_edge_meta_id, props)
     }
 
-    pub(crate) fn add_edge_remote_out(
+    pub(crate) fn add_edge_remote_out<T: InputVertex>(
         &mut self,
         t: i64,
-        src: u64, // we are on the source shard
-        dst: u64,
+        src: T, // we are on the source shard
+        dst: T,
         props: &Vec<(String, Prop)>,
     ) {
+        let src_id = src.id();
+        let dst_id = dst.id();
+
         self.add_vertex(t, src)
             .map_err(|err| println!("{:?}", err))
             .ok();
-        let src_pid = self.logical_to_physical[&src];
+
+        let src_pid = self.logical_to_physical[&src_id];
         let src_edge_meta_id =
-            self.link_outbound_edge(t, src, src_pid, dst.try_into().unwrap(), true);
+            self.link_outbound_edge(t, src_id, src_pid, dst_id.try_into().unwrap(), true);
 
         self.props
             .upsert_temporal_edge_props(t, src_edge_meta_id, props)
     }
 
-    pub(crate) fn add_edge_remote_into(
+    pub(crate) fn add_edge_remote_into<T: InputVertex>(
         &mut self,
         t: i64,
-        src: u64,
-        dst: u64, // we are on the destination shard
+        src: T,
+        dst: T, // we are on the destination shard
         props: &Vec<(String, Prop)>,
     ) {
+        let src_id = src.id();
+        let dst_id = dst.id();
         self.add_vertex(t, dst)
             .map_err(|err| println!("{:?}", err))
             .ok();
 
-        let dst_pid = self.logical_to_physical[&dst];
+        let dst_pid = self.logical_to_physical[&dst_id];
 
         let dst_edge_meta_id =
-            self.link_inbound_edge(t, dst, src.try_into().unwrap(), dst_pid, true);
+            self.link_inbound_edge(t, dst_id, src_id.try_into().unwrap(), dst_pid, true);
 
         self.props
             .upsert_temporal_edge_props(t, dst_edge_meta_id, props)
@@ -2538,23 +2553,13 @@ mod graph_test {
             shards[dst_shard].add_vertex(t.try_into().unwrap(), dst as u64);
 
             if src_shard == dst_shard {
-                shards[src_shard].add_edge_with_props(
-                    t.try_into().unwrap(),
-                    src.into(),
-                    dst.into(),
-                    &some_props,
-                );
+                shards[src_shard].add_edge_with_props(t.try_into().unwrap(), src, dst, &some_props);
             } else {
-                shards[src_shard].add_edge_remote_out(
-                    t.try_into().unwrap(),
-                    src.into(),
-                    dst.into(),
-                    &some_props,
-                );
+                shards[src_shard].add_edge_remote_out(t.try_into().unwrap(), src, dst, &some_props);
                 shards[dst_shard].add_edge_remote_into(
                     t.try_into().unwrap(),
-                    src.into(),
-                    dst.into(),
+                    src,
+                    dst,
                     &some_props,
                 );
             }
