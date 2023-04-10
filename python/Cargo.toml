@@ -1,7 +1,7 @@
 [package]
 name = "raphtory"
 description = "Python package for DocBrown, a temporal graph library"
-version = "0.0.7"
+version = "0.0.8"
 edition.workspace = true
 rust-version.workspace = true
 keywords.workspace = true
@@ -18,8 +18,8 @@ crate-type = ["cdylib"]
 
 [dependencies]
 pyo3 =  "0.18.1"
-docbrown-db = {path = "../docbrown/db", version = "0.0.7" }
-docbrown-core = {path = "../docbrown/core", version = "0.0.7" }
+docbrown-db = {path = "../docbrown/db", version = "0.0.8" }
+docbrown-core = {path = "../docbrown/core", version = "0.0.8" }
 
 parking_lot = { version = "0.12" , features = ["serde"] }
 flume = "0.10"
