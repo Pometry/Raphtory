@@ -11,6 +11,7 @@
 <a href="https://github.com/Raphtory/docbrown/issues">
 <img alt="Issues" src="https://img.shields.io/github/issues/Raphtory/docbrown?color=brightgreen" />
 </a>
+<a href="https://codecov.io/gh/Raphtory/docbrown" >  <img src="https://codecov.io/gh/Raphtory/docbrown/branch/main/graph/badge.svg?token=tfJxUiqVzh"/>  </a>
 </p>
 <p align="center">
 <a href="https://www.raphtory.com">🌍 Website </a>
@@ -167,3 +168,5 @@ Since Doc Brown is still a prototype, we are open to any contributions. If you f
 # License  
 
 Raphtory is licensed under the terms of the Apache License (check out our LICENSE file).
+
+
