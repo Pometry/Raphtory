@@ -1,4 +1,5 @@
 use crate::edge::EdgeView;
+use crate::graph_layer::LayeredGraph;
 use crate::graph_window::WindowedGraph;
 use crate::vertex::VertexView;
 use crate::vertices::Vertices;
@@ -31,7 +32,7 @@ pub trait GraphViewOps: Send + Sync + Sized + GraphViewInternalOps + 'static + C
     fn has_vertex<T: Into<VertexRef>>(&self, v: T) -> bool;
 
     /// Check if the graph contains an edge given a pair of vertices `(src, dst)`.
-    fn has_edge<T: Into<VertexRef>>(&self, src: T, dst: T) -> bool;
+    fn has_edge<T: Into<VertexRef>>(&self, src: T, dst: T, layer: Option<&str>) -> bool;
 
     /// Get a vertex `v`.
     fn vertex<T: Into<VertexRef>>(&self, v: T) -> Option<VertexView<Self>>;
@@ -40,10 +41,21 @@ pub trait GraphViewOps: Send + Sync + Sized + GraphViewInternalOps + 'static + C
     fn vertices(&self) -> Vertices<Self>;
 
     /// Get an edge `(src, dst)`.
-    fn edge<T: Into<VertexRef>>(&self, src: T, dst: T) -> Option<EdgeView<Self>>;
+    fn edge<T: Into<VertexRef>>(
+        &self,
+        src: T,
+        dst: T,
+        layer: Option<&str>,
+    ) -> Option<EdgeView<Self>>;
 
     /// Return an iterator over all edges in the graph.
     fn edges(&self) -> Box<dyn Iterator<Item = EdgeView<Self>> + Send>;
+
+    /// Return a graph containing only the default edge layer
+    fn default_layer(&self) -> LayeredGraph<Self>;
+
+    /// Return a graph containing the layer `name`
+    fn layer(&self, name: &str) -> Option<LayeredGraph<Self>>;
 }
 
 impl<G: Send + Sync + Sized + GraphViewInternalOps + 'static + Clone> GraphViewOps for G {
@@ -60,15 +72,18 @@ impl<G: Send + Sync + Sized + GraphViewInternalOps + 'static + Clone> GraphViewO
     }
 
     fn num_edges(&self) -> usize {
-        self.edges_len()
+        self.edges_len(None)
     }
 
     fn has_vertex<T: Into<VertexRef>>(&self, v: T) -> bool {
         self.has_vertex_ref(v.into())
     }
 
-    fn has_edge<T: Into<VertexRef>>(&self, src: T, dst: T) -> bool {
-        self.has_edge_ref(src.into(), dst.into())
+    fn has_edge<T: Into<VertexRef>>(&self, src: T, dst: T, layer: Option<&str>) -> bool {
+        match self.get_layer(layer) {
+            Some(layer_id) => self.has_edge_ref(src.into(), dst.into(), layer_id),
+            None => false,
+        }
     }
 
     fn vertex<T: Into<VertexRef>>(&self, v: T) -> Option<VertexView<Self>> {
@@ -81,13 +96,28 @@ impl<G: Send + Sync + Sized + GraphViewInternalOps + 'static + Clone> GraphViewO
         Vertices::new(graph)
     }
 
-    fn edge<T: Into<VertexRef>>(&self, src: T, dst: T) -> Option<EdgeView<Self>> {
-        self.edge_ref(src.into(), dst.into())
+    fn edge<T: Into<VertexRef>>(
+        &self,
+        src: T,
+        dst: T,
+        layer: Option<&str>,
+    ) -> Option<EdgeView<Self>> {
+        let layer_id = self.get_layer(layer)?;
+        self.edge_ref(src.into(), dst.into(), layer_id)
             .map(|e| EdgeView::new(self.clone(), e))
     }
 
     fn edges(&self) -> Box<dyn Iterator<Item = EdgeView<Self>> + Send> {
         Box::new(self.vertices().iter().flat_map(|v| v.out_edges()))
+    }
+
+    fn default_layer(&self) -> LayeredGraph<Self> {
+        LayeredGraph::new(self.clone(), 0)
+    }
+
+    fn layer(&self, name: &str) -> Option<LayeredGraph<Self>> {
+        let id = self.get_layer(Some(name))?;
+        Some(LayeredGraph::new(self.clone(), id))
     }
 }
 

@@ -406,7 +406,7 @@ mod page_rank_tests {
         let edges = vec![(1, 2), (1, 4), (2, 3), (3, 1), (4, 1)];
 
         for (src, dst) in edges {
-            graph.add_edge(0, src, dst, &vec![]).unwrap();
+            graph.add_edge(0, src, dst, &vec![], None).unwrap();
         }
 
         let window = 0..10;

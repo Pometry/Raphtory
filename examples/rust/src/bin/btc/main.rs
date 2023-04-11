@@ -97,6 +97,7 @@ fn main() {
                     src,
                     dst,
                     &vec![("amount".to_string(), Prop::U64(sent.amount_btc))],
+                    None,
                 )
                 .unwrap()
             })

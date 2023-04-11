@@ -102,7 +102,7 @@ mod cc_test {
         ];
 
         for (src, dst, ts) in edges {
-            graph.add_edge(ts, src, dst, &vec![]).unwrap();
+            graph.add_edge(ts, src, dst, &vec![], None).unwrap();
         }
 
         let mut gs = GlobalEvalState::new(graph.clone(), true);
@@ -188,7 +188,7 @@ mod cc_test {
         ];
 
         for (src, dst, ts) in edges {
-            graph.add_edge(ts, src, dst, &vec![]).unwrap();
+            graph.add_edge(ts, src, dst, &vec![], None).unwrap();
         }
 
         let window = 0..10;
@@ -246,7 +246,7 @@ mod cc_test {
         ];
 
         for (src, dst, ts) in edges {
-            graph.add_edge(ts, src, dst, &vec![]).unwrap();
+            graph.add_edge(ts, src, dst, &vec![], None).unwrap();
         }
 
         let window = 0..25;
@@ -284,7 +284,7 @@ mod cc_test {
         let edges = vec![(1, 1, 1)];
 
         for (src, dst, ts) in edges {
-            graph.add_edge(ts, src, dst, &vec![]).unwrap();
+            graph.add_edge(ts, src, dst, &vec![], None).unwrap();
         }
 
         let window = 0..25;
@@ -318,7 +318,7 @@ mod cc_test {
             let graph = Graph::new(2);
 
             for (src, dst) in edges.iter() {
-                graph.add_edge(0, *src, *dst, &vec![]).unwrap();
+                graph.add_edge(0, *src, *dst, &vec![], None).unwrap();
             }
 
             // now we do connected components over window 0..1

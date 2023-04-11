@@ -7,6 +7,9 @@ use std::sync::Arc;
 /// The GraphViewInternalOps trait provides a set of methods to query a directed graph
 /// represented by the docbrown_core::tgraph::TGraph struct.
 pub trait GraphViewInternalOps {
+    /// Get the layer id for the given layer name
+    fn get_layer(&self, key: Option<&str>) -> Option<usize>;
+
     /// Returns the default start time for perspectives over the view
     fn view_start(&self) -> Option<i64>;
 
@@ -37,7 +40,7 @@ pub trait GraphViewInternalOps {
     fn vertices_len_window(&self, t_start: i64, t_end: i64) -> usize;
 
     /// Returns the total number of edges in the graph.
-    fn edges_len(&self) -> usize;
+    fn edges_len(&self, layer: Option<usize>) -> usize;
 
     /// Returns the number of edges in the graph that were created between the
     /// start (t_start) and end (t_end) timestamps (inclusive).
@@ -45,7 +48,7 @@ pub trait GraphViewInternalOps {
     ///
     /// * `t_start` - The start time of the window (inclusive).
     /// * `t_end` - The end time of the window (exclusive).
-    fn edges_len_window(&self, t_start: i64, t_end: i64) -> usize;
+    fn edges_len_window(&self, t_start: i64, t_end: i64, layer: Option<usize>) -> usize;
 
     /// Returns true if the graph contains an edge between the source vertex
     /// (src) and the destination vertex (dst).
@@ -53,7 +56,7 @@ pub trait GraphViewInternalOps {
     ///
     /// * `src` - The source vertex of the edge.
     /// * `dst` - The destination vertex of the edge.
-    fn has_edge_ref(&self, src: VertexRef, dst: VertexRef) -> bool;
+    fn has_edge_ref(&self, src: VertexRef, dst: VertexRef, layer: usize) -> bool;
 
     /// Returns true if the graph contains an edge between the source vertex (src) and the
     /// destination vertex (dst) created between the start (t_start) and end (t_end) timestamps
@@ -64,8 +67,14 @@ pub trait GraphViewInternalOps {
     /// * `t_end` - The end time of the window (exclusive).
     /// * `src` - The source vertex of the edge.
     /// * `dst` - The destination vertex of the edge.
-    fn has_edge_ref_window(&self, src: VertexRef, dst: VertexRef, t_start: i64, t_end: i64)
-        -> bool;
+    fn has_edge_ref_window(
+        &self,
+        src: VertexRef,
+        dst: VertexRef,
+        t_start: i64,
+        t_end: i64,
+        layer: usize,
+    ) -> bool;
 
     /// Returns true if the graph contains the specified vertex (v).
     /// # Arguments
@@ -88,7 +97,7 @@ pub trait GraphViewInternalOps {
     ///
     /// * `v` - VertexRef of the vertex to check.
     /// * `d` - Direction of the edges to count.
-    fn degree(&self, v: VertexRef, d: Direction) -> usize;
+    fn degree(&self, v: VertexRef, d: Direction, layer: Option<usize>) -> usize;
 
     /// Returns the number of edges that point towards or from the specified vertex (v)
     /// created between the start (t_start) and end (t_end) timestamps (inclusive) based
@@ -98,7 +107,14 @@ pub trait GraphViewInternalOps {
     /// * `v` - VertexRef of the vertex to check.
     /// * `t_start` - The start time of the window (inclusive).
     /// * `t_end` - The end time of the window (exclusive).
-    fn degree_window(&self, v: VertexRef, t_start: i64, t_end: i64, d: Direction) -> usize;
+    fn degree_window(
+        &self,
+        v: VertexRef,
+        t_start: i64,
+        t_end: i64,
+        d: Direction,
+        layer: Option<usize>,
+    ) -> usize;
 
     /// Returns the VertexRef that corresponds to the specified vertex ID (v).
     /// Returns None if the vertex ID is not present in the graph.
@@ -197,7 +213,7 @@ pub trait GraphViewInternalOps {
     /// # Returns
     ///
     /// * `Option<EdgeRef>` - The edge reference if it exists.
-    fn edge_ref(&self, src: VertexRef, dst: VertexRef) -> Option<EdgeRef>;
+    fn edge_ref(&self, src: VertexRef, dst: VertexRef, layer: usize) -> Option<EdgeRef>;
 
     /// Returns the edge reference that corresponds to the specified src and dst vertex
     /// created between the start (t_start) and end (t_end) timestamps (exclusive).
@@ -218,6 +234,7 @@ pub trait GraphViewInternalOps {
         dst: VertexRef,
         t_start: i64,
         t_end: i64,
+        layer: usize,
     ) -> Option<EdgeRef>;
 
     /// Returns all the edge references in the graph.
@@ -225,7 +242,7 @@ pub trait GraphViewInternalOps {
     /// # Returns
     ///
     /// * `Box<dyn Iterator<Item = EdgeRef> + Send>` - An iterator over all the edge references.
-    fn edge_refs(&self) -> Box<dyn Iterator<Item = EdgeRef> + Send>;
+    fn edge_refs(&self, layer: Option<usize>) -> Box<dyn Iterator<Item = EdgeRef> + Send>;
 
     /// Returns all the edge references in the graph created between the start (t_start) and
     /// end (t_end) timestamps (inclusive).
@@ -241,6 +258,7 @@ pub trait GraphViewInternalOps {
         &self,
         t_start: i64,
         t_end: i64,
+        layer: Option<usize>,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send>;
 
     /// Returns an iterator over the edges connected to a given vertex in a given direction.
@@ -254,7 +272,19 @@ pub trait GraphViewInternalOps {
     ///
     /// Box<dyn Iterator<Item = EdgeRef> + Send> -  A boxed iterator that yields references to
     /// the edges connected to the vertex.
-    fn vertex_edges(&self, v: VertexRef, d: Direction) -> Box<dyn Iterator<Item = EdgeRef> + Send>;
+
+    fn vertex_edges_all_layers(
+        &self,
+        v: VertexRef,
+        d: Direction,
+    ) -> Box<dyn Iterator<Item = EdgeRef> + Send>;
+
+    fn vertex_edges_single_layer(
+        &self,
+        v: VertexRef,
+        d: Direction,
+        layer: usize,
+    ) -> Box<dyn Iterator<Item = EdgeRef> + Send>;
 
     /// Returns an iterator over the exploded edges connected to a given vertex in a given direction.
     ///
@@ -271,6 +301,7 @@ pub trait GraphViewInternalOps {
         &self,
         v: VertexRef,
         d: Direction,
+        layer: Option<usize>,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send>;
 
     /// Returns an iterator over the edges connected to a given vertex within a
@@ -293,6 +324,7 @@ pub trait GraphViewInternalOps {
         t_start: i64,
         t_end: i64,
         d: Direction,
+        layer: Option<usize>,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send>;
 
     /// Returns an iterator over the edges connected to a given vertex within
@@ -315,6 +347,7 @@ pub trait GraphViewInternalOps {
         t_start: i64,
         t_end: i64,
         d: Direction,
+        layer: Option<usize>,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send>;
 
     /// Returns an iterator over the neighbors of a given vertex in a given direction.
@@ -327,7 +360,12 @@ pub trait GraphViewInternalOps {
     /// # Returns
     ///
     /// A boxed iterator that yields references to the neighboring vertices.
-    fn neighbours(&self, v: VertexRef, d: Direction) -> Box<dyn Iterator<Item = VertexRef> + Send>;
+    fn neighbours(
+        &self,
+        v: VertexRef,
+        d: Direction,
+        layer: Option<usize>,
+    ) -> Box<dyn Iterator<Item = VertexRef> + Send>;
 
     /// Returns an iterator over the neighbors of a given vertex within a specified time window in a given direction.
     ///
@@ -347,6 +385,7 @@ pub trait GraphViewInternalOps {
         t_start: i64,
         t_end: i64,
         d: Direction,
+        layer: Option<usize>,
     ) -> Box<dyn Iterator<Item = VertexRef> + Send>;
 
     ///  Returns the vertex ids of the neighbors of a given vertex in a given direction.
@@ -358,7 +397,12 @@ pub trait GraphViewInternalOps {
     /// # Returns
     ///
     /// A boxed iterator that yields the ids of the neighboring vertices.
-    fn neighbours_ids(&self, v: VertexRef, d: Direction) -> Box<dyn Iterator<Item = u64> + Send>;
+    fn neighbours_ids(
+        &self,
+        v: VertexRef,
+        d: Direction,
+        layer: Option<usize>,
+    ) -> Box<dyn Iterator<Item = u64> + Send>;
 
     /// Returns the vertex ids of the neighbors of a given vertex within a specified
     /// time window in a given direction.
@@ -380,6 +424,7 @@ pub trait GraphViewInternalOps {
         t_start: i64,
         t_end: i64,
         d: Direction,
+        layer: Option<usize>,
     ) -> Box<dyn Iterator<Item = u64> + Send>;
 
     /// Gets a static property of a given vertex given the name and vertex reference.

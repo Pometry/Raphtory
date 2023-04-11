@@ -32,7 +32,7 @@
 //! ];
 //!
 //! for (t, src, dst) in &vs {
-//!     g.add_edge(*t, *src, *dst, &vec![]);
+//!     g.add_edge(*t, *src, *dst, &vec![], None);
 //! }
 //!
 //! print!("Max out degree: {:?}", max_out_degree(&windowed_graph));
@@ -122,7 +122,7 @@ mod degree_test {
         ];
 
         for (t, src, dst) in &vs {
-            g.add_edge(*t, *src, *dst, &vec![]).unwrap();
+            g.add_edge(*t, *src, *dst, &vec![], None).unwrap();
         }
 
         let expected_max_out_degree = 3;

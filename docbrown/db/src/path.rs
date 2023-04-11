@@ -29,13 +29,15 @@ impl Operations {
     ) -> Box<dyn Iterator<Item = VertexRef> + Send> {
         match self {
             Operations::Neighbours { dir } => {
-                Box::new(iter.flat_map(move |v| graph.neighbours(v, dir)))
+                Box::new(iter.flat_map(move |v| graph.neighbours(v, dir, None)))
             }
             Operations::NeighboursWindow {
                 dir,
                 t_start,
                 t_end,
-            } => Box::new(iter.flat_map(move |v| graph.neighbours_window(v, t_start, t_end, dir))),
+            } => Box::new(
+                iter.flat_map(move |v| graph.neighbours_window(v, t_start, t_end, dir, None)),
+            ),
         }
     }
 }

@@ -88,7 +88,7 @@ pub fn sx_superuser_graph(shards: usize) -> Result<Graph, Box<dyn std::error::Er
     CsvLoader::new(sx_superuser_file()?)
         .set_delimiter(" ")
         .load_into_graph(&graph, |edge: TEdge, g: &Graph| {
-            g.add_edge(edge.time, edge.src_id, edge.dst_id, &vec![]);
+            g.add_edge(edge.time, edge.src_id, edge.dst_id, &vec![], None);
         })?;
 
     Ok(graph)

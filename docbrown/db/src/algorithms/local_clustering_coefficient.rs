@@ -39,7 +39,7 @@
 //! ];
 //!
 //! for (t, src, dst) in &vs {
-//!     g.add_edge(*t, *src, *dst, &vec![]);
+//!     g.add_edge(*t, *src, *dst, &vec![], None);
 //! }
 //!
 //! let actual = (1..=5)
@@ -91,7 +91,7 @@ mod clustering_coefficient_tests {
         ];
 
         for (t, src, dst) in &vs {
-            g.add_edge(*t, *src, *dst, &vec![]);
+            g.add_edge(*t, *src, *dst, &vec![], None);
         }
 
         let expected = vec![0.33333334, 1.0, 1.0, 0.0, 0.0];

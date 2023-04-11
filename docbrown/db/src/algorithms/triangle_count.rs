@@ -17,9 +17,9 @@ pub fn local_triangle_count<G: GraphViewOps>(graph: &G, v: u64) -> Result<usize,
             .id()
             .into_iter()
             .combinations(2)
-            .filter_map(|nb| match graph.has_edge(nb[0], nb[1]) {
+            .filter_map(|nb| match graph.has_edge(nb[0], nb[1], None) {
                 true => Some(Ok(nb)),
-                false => match graph.has_edge(nb[1], nb[0]) {
+                false => match graph.has_edge(nb[1], nb[0], None) {
                     true => Some(Ok(nb)),
                     false => None,
                 },
@@ -45,9 +45,9 @@ pub fn global_triangle_count<G: GraphViewOps>(graph: &G) -> Result<usize, GraphE
                 .id()
                 .into_iter()
                 .combinations(2)
-                .filter_map(|nb| match graph.has_edge(nb[0], nb[1]) {
+                .filter_map(|nb| match graph.has_edge(nb[0], nb[1], None) {
                     true => Some(Ok(nb)),
-                    false => match graph.has_edge(nb[1], nb[0]) {
+                    false => match graph.has_edge(nb[1], nb[0], None) {
                         true => Some(Ok(nb)),
                         false => None,
                     },
@@ -128,7 +128,7 @@ impl Program for TriangleCountS1 {
 /// ];
 ///
 /// for (src, dst, ts) in edges {
-///     graph.add_edge(ts, src, dst, &vec![]);
+///     graph.add_edge(ts, src, dst, &vec![], None);
 /// }
 ///
 /// let actual_tri_count = triangle_counting_fast(&graph);
@@ -254,7 +254,7 @@ mod triangle_count_tests {
         let vs = vec![(1, 1, 2), (2, 1, 3), (3, 2, 1), (4, 3, 2)];
 
         for (t, src, dst) in &vs {
-            g.add_edge(*t, *src, *dst, &vec![]).unwrap();
+            g.add_edge(*t, *src, *dst, &vec![], None).unwrap();
         }
 
         let windowed_graph = g.window(0, 5);
@@ -273,7 +273,7 @@ mod triangle_count_tests {
         let vs = vec![(1, 1, 2), (2, 1, 3), (3, 2, 1), (4, 3, 2)];
 
         for (t, src, dst) in &vs {
-            g.add_edge(*t, *src, *dst, &vec![]).unwrap();
+            g.add_edge(*t, *src, *dst, &vec![], None).unwrap();
         }
 
         let windowed_graph = g.window(0, 5);
@@ -315,7 +315,7 @@ mod triangle_count_tests {
         ];
 
         for (src, dst, t) in &edges {
-            g.add_edge(*t, *src, *dst, &vec![]).unwrap();
+            g.add_edge(*t, *src, *dst, &vec![], None).unwrap();
         }
 
         let windowed_graph = g.window(0, 95);
@@ -348,7 +348,7 @@ mod triangle_count_tests {
         ];
 
         for (src, dst, ts) in edges {
-            graph.add_edge(ts, src, dst, &vec![]);
+            graph.add_edge(ts, src, dst, &vec![], None);
         }
 
         let actual_tri_count = triangle_counting_fast(&graph);
@@ -378,7 +378,7 @@ mod triangle_count_tests {
         ];
 
         for (src, dst, ts) in edges {
-            graph.add_edge(ts, src, dst, &vec![]).unwrap();
+            graph.add_edge(ts, src, dst, &vec![], None).unwrap();
         }
 
         let program_s1 = TriangleCountSlowS2 {};
@@ -424,7 +424,7 @@ mod triangle_count_tests {
         ];
 
         for (src, dst, ts) in edges {
-            graph.add_edge(ts, src, dst, &vec![]).unwrap();
+            graph.add_edge(ts, src, dst, &vec![], None).unwrap();
         }
 
         let program_s1 = TriangleCountSlowS2 {};
@@ -470,7 +470,7 @@ mod triangle_count_tests {
         ];
 
         for (src, dst, ts) in edges {
-            graph.add_edge(ts, src, dst, &vec![]).unwrap();
+            graph.add_edge(ts, src, dst, &vec![], None).unwrap();
         }
 
         let actual_tri_count = triangle_counting_fast(&graph);

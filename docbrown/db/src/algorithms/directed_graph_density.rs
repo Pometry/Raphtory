@@ -26,7 +26,7 @@
 //! ];
 //!
 //! for (t, src, dst) in &vs {
-//! g.add_edge(*t, *src, *dst, &vec![]);
+//! g.add_edge(*t, *src, *dst, &vec![], None);
 //! }
 //!
 //! println!("graph density: {:?}", directed_graph_density(&windowed_graph));
@@ -58,7 +58,7 @@ mod directed_graph_density_tests {
         ];
 
         for (t, src, dst) in &vs {
-            g.add_edge(*t, *src, *dst, &vec![]);
+            g.add_edge(*t, *src, *dst, &vec![], None);
         }
 
         let actual = directed_graph_density(&windowed_graph);
@@ -74,7 +74,7 @@ mod directed_graph_density_tests {
         let vs = vec![(1, 1, 2), (2, 2, 1)];
 
         for (t, src, dst) in &vs {
-            g.add_edge(*t, *src, *dst, &vec![]);
+            g.add_edge(*t, *src, *dst, &vec![], None);
         }
 
         let actual = directed_graph_density(&windowed_graph);
