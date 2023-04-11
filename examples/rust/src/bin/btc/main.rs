@@ -6,18 +6,18 @@ use std::thread::JoinHandle;
 use std::{env, thread};
 
 use chrono::{DateTime, Utc};
-use docbrown_core::tgraph::TemporalGraph;
-use docbrown_core::utils;
-use docbrown_core::{Direction, Prop};
-use docbrown_db::csv_loader::csv::CsvLoader;
+use docbrown::core::tgraph::TemporalGraph;
+use docbrown::core::utils;
+use docbrown::core::{Direction, Prop};
+use docbrown::db::csv_loader::CsvLoader;
 use regex::Regex;
 use serde::Deserialize;
 use std::fs::File;
 use std::io::{prelude::*, BufReader, LineWriter};
 use std::time::Instant;
 
-use docbrown_db::graph::Graph;
-use docbrown_db::view_api::*;
+use docbrown::db::graph::Graph;
+use docbrown::db::view_api::*;
 
 #[derive(Deserialize, std::fmt::Debug)]
 pub struct Sent {

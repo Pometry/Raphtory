@@ -7,10 +7,10 @@ mod test {
         path::{Path, PathBuf},
     };
 
-    use docbrown_core::Direction;
-    use docbrown_db::algorithms::connected_components::weakly_connected_components;
-    use docbrown_db::{
-        csv_loader::csv::CsvLoader,
+    use docbrown::algorithms::connected_components::weakly_connected_components;
+    use docbrown::core::Direction;
+    use docbrown::db::csv_loader::CsvLoader;
+    use docbrown::db::{
         graph::Graph,
         view_api::*,
         view_api::{internal::GraphViewInternalOps, GraphViewOps},
