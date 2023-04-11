@@ -9,22 +9,21 @@ use std::thread::JoinHandle;
 use std::{env, thread};
 
 use chrono::{DateTime, Utc};
-use docbrown_core::tgraph::TemporalGraph;
-use docbrown_core::{state, utils};
-use docbrown_core::{Direction, Prop};
-use docbrown_db::algorithms::connected_components::weakly_connected_components;
-use docbrown_db::algorithms::triangle_count::triangle_counting_fast;
-use docbrown_db::csv_loader::csv::CsvLoader;
-use docbrown_db::program::{GlobalEvalState, Program};
+use docbrown::algorithms::connected_components::weakly_connected_components;
+use docbrown::algorithms::triangle_count::triangle_counting_fast;
+use docbrown::core::tgraph::TemporalGraph;
+use docbrown::core::{state, utils};
+use docbrown::core::{Direction, Prop};
+use docbrown::db::csv_loader::CsvLoader;
+use docbrown::db::graph::Graph;
+use docbrown::db::program::{GlobalEvalState, Program};
+use docbrown::db::view_api::*;
 use itertools::Itertools;
 use regex::Regex;
 use serde::Deserialize;
 use std::fs::File;
 use std::io::{prelude::*, BufReader, LineWriter};
 use std::time::Instant;
-
-use docbrown_db::graph::Graph;
-use docbrown_db::view_api::*;
 
 #[derive(Deserialize, Debug)]
 pub struct Edge {

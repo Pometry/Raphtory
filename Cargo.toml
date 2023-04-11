@@ -1,11 +1,10 @@
 [workspace]
 members = [
-	"docbrown/core",
-	"docbrown/db",
+	"docbrown",
 	"examples/rust",
 	"python"
 ]
-default-members = ["docbrown/core", "docbrown/db", "python"]
+default-members = ["docbrown", "python"]
 
 [workspace.package]
 version = "0.0.8"

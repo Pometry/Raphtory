@@ -1,8 +1,7 @@
-use docbrown_core as db_c;
-use docbrown_db::perspective;
-use docbrown_db::perspective::PerspectiveSet;
-use docbrown_db::view_api::vertex::BoxedIter;
-use pyo3::exceptions::PyException;
+use docbrown::core as db_c;
+use docbrown::db::perspective;
+use docbrown::db::perspective::PerspectiveSet;
+use docbrown::db::view_api::vertex::BoxedIter;
 use pyo3::prelude::*;
 use std::collections::HashMap;
 use std::{fmt, i64};

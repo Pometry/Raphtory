@@ -1,9 +1,9 @@
 use crate::vertex::PyVertex;
 use crate::wrappers::{PyPerspective, PyPerspectiveSet};
-use docbrown_core::tgraph::VertexRef;
-use docbrown_db::graph_window::WindowSet;
-use docbrown_db::perspective::Perspective;
-use docbrown_db::view_api::TimeOps;
+use docbrown::core::tgraph::VertexRef;
+use docbrown::db::graph_window::WindowSet;
+use docbrown::db::perspective::Perspective;
+use docbrown::db::view_api::TimeOps;
 use pyo3::exceptions::{PyException, PyTypeError};
 use pyo3::prelude::*;
 use pyo3::types::PyIterator;

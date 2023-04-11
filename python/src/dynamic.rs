@@ -1,8 +1,8 @@
-use docbrown_core::tgraph::{EdgeRef, VertexRef};
-use docbrown_core::{Direction, Prop};
-use docbrown_db::graph::Graph;
-use docbrown_db::view_api::internal::GraphViewInternalOps;
-use docbrown_db::view_api::GraphViewOps;
+use docbrown::core::tgraph::{EdgeRef, VertexRef};
+use docbrown::core::{Direction, Prop};
+use docbrown::db::graph::Graph;
+use docbrown::db::view_api::internal::GraphViewInternalOps;
+use docbrown::db::view_api::GraphViewOps;
 use std::collections::HashMap;
 use std::sync::Arc;
 

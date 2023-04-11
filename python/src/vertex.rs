@@ -1,18 +1,18 @@
 use crate::dynamic::DynamicGraph;
 use crate::edge::{PyEdgeIter, PyNestedEdgeIter};
-use crate::util::{adapt_err_value, extract_vertex_ref, through_impl, window_impl};
+use crate::util::{extract_vertex_ref, through_impl, window_impl};
 use crate::wrappers::{
-    BoolIter, NestedBoolIter, NestedI64Iter, NestedOptionI64Iter, NestedOptionPropIter,
-    NestedPropHistoriesIter, NestedPropHistoryIter, NestedPropsIter, NestedStringIter,
-    NestedStringVecIter, NestedU64Iter, NestedUsizeIter, OptionI64Iter, OptionPropIter, Prop,
-    PropHistoriesIter, PropHistoryIter, PropsIter, StringIter, StringVecIter, U64Iter, UsizeIter,
+    BoolIter, NestedBoolIter, NestedOptionI64Iter, NestedOptionPropIter, NestedPropHistoriesIter,
+    NestedPropHistoryIter, NestedPropsIter, NestedStringIter, NestedStringVecIter, NestedU64Iter,
+    NestedUsizeIter, OptionI64Iter, OptionPropIter, Prop, PropHistoriesIter, PropHistoryIter,
+    PropsIter, StringIter, StringVecIter, U64Iter, UsizeIter,
 };
-use docbrown_core::tgraph::VertexRef;
-use docbrown_db::graph_window::WindowSet;
-use docbrown_db::path::{PathFromGraph, PathFromVertex};
-use docbrown_db::vertex::VertexView;
-use docbrown_db::vertices::Vertices;
-use docbrown_db::view_api::*;
+use docbrown::core::tgraph::VertexRef;
+use docbrown::db::graph_window::WindowSet;
+use docbrown::db::path::{PathFromGraph, PathFromVertex};
+use docbrown::db::vertex::VertexView;
+use docbrown::db::vertices::Vertices;
+use docbrown::db::view_api::*;
 use itertools::Itertools;
 use pyo3::exceptions::PyIndexError;
 use pyo3::{pyclass, pymethods, PyAny, PyRef, PyRefMut, PyResult};
