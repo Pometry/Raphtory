@@ -66,10 +66,10 @@ impl PyGraphView {
         Ok(self.graph.has_vertex(v))
     }
 
-    pub fn has_edge(&self, src: &PyAny, dst: &PyAny) -> PyResult<bool> {
+    pub fn has_edge(&self, src: &PyAny, dst: &PyAny, layer: Option<&str>) -> PyResult<bool> {
         let src = extract_vertex_ref(src)?;
         let dst = extract_vertex_ref(dst)?;
-        Ok(self.graph.has_edge(src, dst))
+        Ok(self.graph.has_edge(src, dst, layer))
     }
 
     //******  Getter APIs ******//
@@ -84,10 +84,10 @@ impl PyGraphView {
         self.graph.vertices().into()
     }
 
-    pub fn edge(&self, src: &PyAny, dst: &PyAny) -> PyResult<Option<PyEdge>> {
+    pub fn edge(&self, src: &PyAny, dst: &PyAny, layer: Option<&str>) -> PyResult<Option<PyEdge>> {
         let src = extract_vertex_ref(src)?;
         let dst = extract_vertex_ref(dst)?;
-        Ok(self.graph.edge(src, dst).map(|we| we.into()))
+        Ok(self.graph.edge(src, dst, layer).map(|we| we.into()))
     }
 
     pub fn edges(&self) -> PyEdgeIter {

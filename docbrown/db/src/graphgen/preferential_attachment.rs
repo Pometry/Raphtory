@@ -69,7 +69,7 @@ pub fn ba_preferential_attachment(graph: &Graph, vertices_to_add: usize, edges_p
 
     if graph.num_edges() < edges_per_step {
         for pos in 1..ids.len() {
-            graph.add_edge(latest_time, ids[pos], ids[pos - 1], &vec![]);
+            graph.add_edge(latest_time, ids[pos], ids[pos - 1], &vec![], None);
             edge_count += 2;
             degrees[pos] += 1;
             degrees[pos - 1] += 1;
@@ -99,7 +99,7 @@ pub fn ba_preferential_attachment(graph: &Graph, vertices_to_add: usize, edges_p
         for pos in positions_to_skip {
             let dst = ids[pos];
             degrees[pos] += 1;
-            graph.add_edge(latest_time, max_id, dst, &vec![]);
+            graph.add_edge(latest_time, max_id, dst, &vec![], None);
         }
         ids.push(max_id);
         degrees.push(edges_per_step);

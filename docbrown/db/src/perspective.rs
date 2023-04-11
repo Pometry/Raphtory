@@ -16,11 +16,11 @@
 //! use docbrown_db::view_api::*;
 //!
 //! let graph = Graph::new(1);
-//! graph.add_edge(0, 1, 2, &vec![]);
-//! graph.add_edge(0, 1, 3, &vec![]);
-//! graph.add_edge(1, 2, 3, &vec![]);
-//! graph.add_edge(2, 2, 4, &vec![]);
-//! graph.add_edge(3, 2, 1, &vec![]);
+//! graph.add_edge(0, 1, 2, &vec![], None);
+//! graph.add_edge(0, 1, 3, &vec![], None);
+//! graph.add_edge(1, 2, 3, &vec![], None);
+//! graph.add_edge(2, 2, 4, &vec![], None);
+//! graph.add_edge(3, 2, 1, &vec![], None);
 //!
 //! let start = graph.start();
 //! let end = graph.end();

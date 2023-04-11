@@ -175,24 +175,30 @@ impl<G: GraphViewOps> VertexViewOps for VertexView<G> {
     fn degree(&self) -> usize {
         let dir = Direction::BOTH;
         match &self.window {
-            None => self.graph.degree(self.vertex, dir),
-            Some(w) => self.graph.degree_window(self.vertex, w.start, w.end, dir),
+            None => self.graph.degree(self.vertex, dir, None),
+            Some(w) => self
+                .graph
+                .degree_window(self.vertex, w.start, w.end, dir, None),
         }
     }
 
     fn in_degree(&self) -> usize {
         let dir = Direction::IN;
         match &self.window {
-            None => self.graph.degree(self.vertex, dir),
-            Some(w) => self.graph.degree_window(self.vertex, w.start, w.end, dir),
+            None => self.graph.degree(self.vertex, dir, None),
+            Some(w) => self
+                .graph
+                .degree_window(self.vertex, w.start, w.end, dir, None),
         }
     }
 
     fn out_degree(&self) -> usize {
         let dir = Direction::OUT;
         match &self.window {
-            None => self.graph.degree(self.vertex, dir),
-            Some(w) => self.graph.degree_window(self.vertex, w.start, w.end, dir),
+            None => self.graph.degree(self.vertex, dir, None),
+            Some(w) => self
+                .graph
+                .degree_window(self.vertex, w.start, w.end, dir, None),
         }
     }
 
@@ -202,12 +208,12 @@ impl<G: GraphViewOps> VertexViewOps for VertexView<G> {
         match &self.window {
             None => Box::new(
                 self.graph
-                    .vertex_edges(self.vertex, dir)
+                    .vertex_edges_all_layers(self.vertex, dir)
                     .map(move |e| EdgeView::new(g.clone(), e)),
             ),
             Some(w) => Box::new(
                 self.graph
-                    .vertex_edges_window(self.vertex, w.start, w.end, dir)
+                    .vertex_edges_window(self.vertex, w.start, w.end, dir, None)
                     .map(move |e| EdgeView::new(g.clone(), e)),
             ),
         }
@@ -219,12 +225,12 @@ impl<G: GraphViewOps> VertexViewOps for VertexView<G> {
         match &self.window {
             None => Box::new(
                 self.graph
-                    .vertex_edges(self.vertex, dir)
+                    .vertex_edges_all_layers(self.vertex, dir)
                     .map(move |e| EdgeView::new(g.clone(), e)),
             ),
             Some(w) => Box::new(
                 self.graph
-                    .vertex_edges_window(self.vertex, w.start, w.end, dir)
+                    .vertex_edges_window(self.vertex, w.start, w.end, dir, None)
                     .map(move |e| EdgeView::new(g.clone(), e)),
             ),
         }
@@ -236,12 +242,12 @@ impl<G: GraphViewOps> VertexViewOps for VertexView<G> {
         match &self.window {
             None => Box::new(
                 self.graph
-                    .vertex_edges(self.vertex, dir)
+                    .vertex_edges_all_layers(self.vertex, dir)
                     .map(move |e| EdgeView::new(g.clone(), e)),
             ),
             Some(w) => Box::new(
                 self.graph
-                    .vertex_edges_window(self.vertex, w.start, w.end, dir)
+                    .vertex_edges_window(self.vertex, w.start, w.end, dir, None)
                     .map(move |e| EdgeView::new(g.clone(), e)),
             ),
         }

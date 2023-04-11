@@ -78,6 +78,7 @@ fn main() {
                         "name".to_string(),
                         Prop::Str("Character Co-occurrence".to_string()),
                     )],
+                    None,
                 );
             })
             .expect("Failed to load graph from CSV data files");

@@ -52,6 +52,7 @@
 //!                  "name".to_string(),
 //!                  Prop::Str("Character Co-occurrence".to_string()),
 //!              )],
+//!              None,
 //!          );
 //!      })
 //!      .expect("Csv did not parse.");
@@ -472,6 +473,7 @@ mod csv_loader_test {
                         "name".to_string(),
                         Prop::Str("Character Co-occurrence".to_string()),
                     )],
+                    None,
                 );
             })
             .expect("Csv did not parse.");

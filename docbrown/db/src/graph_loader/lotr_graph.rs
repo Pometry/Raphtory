@@ -75,7 +75,7 @@ pub fn lotr_graph(shards: usize) -> Graph {
                 g.add_vertex(time, dst_id.clone(), &vec![])
                     .map_err(|err| println!("{:?}", err))
                     .ok();
-                g.add_edge(time, src_id.clone(), dst_id.clone(), &vec![]);
+                g.add_edge(time, src_id.clone(), dst_id.clone(), &vec![], None);
             })
             .expect("Failed to load graph from CSV data files");
         g

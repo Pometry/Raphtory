@@ -22,8 +22,10 @@ use docbrown_core::{
     tgraph::{EdgeRef, VertexRef},
     utils,
 };
+use rustc_hash::FxHashMap;
 
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 
 /// A docbrown graph in a frozen state that is read-only.
 /// This graph can be queried in a read-only format avoiding any locks placed when using a
@@ -44,6 +46,7 @@ use serde::{Deserialize, Serialize};
 pub struct ImmutableGraph {
     pub(crate) nr_shards: usize,
     pub(crate) shards: Vec<ImmutableTGraphShard<TemporalGraph>>,
+    pub(crate) layer_ids: Arc<FxHashMap<String, usize>>,
 }
 
 /// Failure if there is an issue with unfreezing a frozen graph
@@ -77,6 +80,7 @@ impl ImmutableGraph {
         Ok(Graph {
             nr_shards: self.nr_shards,
             shards,
+            layer_ids: Arc::new(parking_lot::RwLock::new((*self.layer_ids).clone())),
         })
     }
 
@@ -172,7 +176,7 @@ impl ImmutableGraph {
 
     /// Get the degree for a vertex in the graph given its direction.
     pub fn degree(&self, v: VertexRef, d: Direction) -> usize {
-        self.get_shard_from_v(v).degree(v.g_id, d)
+        self.get_shard_from_v(v).degree(v.g_id, d, None)
     }
 
     /// Get all vertices in the graph.
@@ -203,7 +207,7 @@ impl ImmutableGraph {
     /// use docbrown_db::view_api::*;
     ///
     /// let graph = Graph::new(2);
-    /// graph.add_edge(0, 1, 1, &vec![]).unwrap();
+    /// graph.add_edge(0, 1, 1, &vec![], None).unwrap();
     /// // ... Add vertices and edges ...
     /// let immutable_graph = graph.freeze();
     /// // Unfreeze the graph
@@ -212,7 +216,7 @@ impl ImmutableGraph {
     pub fn edges(&self) -> Box<dyn Iterator<Item = (usize, EdgeRef)> + Send + '_> {
         Box::new(
             self.vertices()
-                .flat_map(|v| self.get_shard_from_v(v).edges(v.g_id, Direction::OUT)),
+                .flat_map(|v| self.get_shard_from_v(v).edges(v.g_id, Direction::OUT, None)),
         )
     }
 
@@ -225,13 +229,16 @@ impl ImmutableGraph {
     /// use docbrown_db::view_api::*;
     ///
     /// let graph = Graph::new(2);
-    /// graph.add_edge(0, 1, 2, &vec![]).unwrap();
+    /// graph.add_edge(0, 1, 2, &vec![], None).unwrap();
     /// // ... Add vertices and edges ...
     /// let immutable_graph = graph.freeze();
     /// // Unfreeze the graph
     /// let num_edges = immutable_graph.num_edges();
     /// ```
     pub fn num_edges(&self) -> usize {
-        self.shards.iter().map(|shard| shard.out_edges_len()).sum()
+        self.shards
+            .iter()
+            .map(|shard| shard.out_edges_len(None))
+            .sum()
     }
 }

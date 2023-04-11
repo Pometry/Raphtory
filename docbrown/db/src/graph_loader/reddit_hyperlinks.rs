@@ -127,7 +127,7 @@ pub fn reddit_graph(shards: usize, timeout: u64) -> Graph {
                             g.add_vertex(time, *dst_id, &vec![])
                                 .map_err(|err| println!("{:?}", err))
                                 .ok();
-                            g.add_edge(time, *src_id, *dst_id, edge_properties);
+                            g.add_edge(time, *src_id, *dst_id, edge_properties, None);
                         }
                         Err(e) => {
                             println!("{}", e)

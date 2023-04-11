@@ -30,7 +30,7 @@ use crate::view_api::GraphViewOps;
 ///      (2, 7),
 ///  ];
 ///  for (src, dst) in edges {
-///      graph.add_edge(0, src, dst, &vec![]);
+///      graph.add_edge(0, src, dst, &vec![], None);
 ///  }
 ///  let results = clustering_coefficient(&graph.at(1));
 ///  println!("global_clustering_coefficient: {}", results);
@@ -93,7 +93,7 @@ mod cc_test {
         ];
 
         for (src, dst) in edges {
-            graph.add_edge(0, src, dst, &vec![]);
+            graph.add_edge(0, src, dst, &vec![], None);
         }
 
         let graph_at = graph.at(1);

@@ -27,7 +27,7 @@
 //!      (2, 7),
 //!  ];
 //!  for (src, dst) in edges {
-//!      graph.add_edge(0, src, dst, &vec![]);
+//!      graph.add_edge(0, src, dst, &vec![], None);
 //!  }
 //!  let results = triplet_count(&graph.at(1));
 //!  println!("triplet count: {}", results);
@@ -67,7 +67,7 @@ use docbrown_core::state;
 ///      (2, 7),
 ///  ];
 ///  for (src, dst) in edges {
-///      graph.add_edge(0, src, dst, &vec![]);
+///      graph.add_edge(0, src, dst, &vec![], None);
 ///  }
 ///
 ///  let results = triplet_count(&graph.at(1));
@@ -160,7 +160,7 @@ mod program_test {
         ];
 
         for (src, dst) in edges {
-            graph.add_edge(0, src, dst, &vec![]);
+            graph.add_edge(0, src, dst, &vec![], None);
         }
         let exp_triplet_count = 20;
         let results = triplet_count(&graph.at(1));
@@ -205,7 +205,7 @@ mod triplet_test {
         ];
 
         for (src, dst) in edges {
-            graph.add_edge(0, src, dst, &vec![]);
+            graph.add_edge(0, src, dst, &vec![], None);
         }
         let exp_triplet_count = 20;
         let results = triplet_count(&graph.at(1));

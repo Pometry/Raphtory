@@ -80,13 +80,17 @@ impl PyGraph {
         src: &PyAny,
         dst: &PyAny,
         properties: Option<HashMap<String, Prop>>,
+        layer: Option<&str>,
     ) -> PyResult<()> {
         let src = Self::extract_id(src)?;
         let dst = Self::extract_id(dst)?;
-        adapt_result(
-            self.graph
-                .add_edge(timestamp, src, dst, &Self::transform_props(properties)),
-        )
+        adapt_result(self.graph.add_edge(
+            timestamp,
+            src,
+            dst,
+            &Self::transform_props(properties),
+            layer,
+        ))
     }
 
     pub fn add_edge_properties(
@@ -94,12 +98,16 @@ impl PyGraph {
         src: &PyAny,
         dst: &PyAny,
         properties: HashMap<String, Prop>,
+        layer: Option<&str>,
     ) -> PyResult<()> {
         let src = Self::extract_id(src)?;
         let dst = Self::extract_id(dst)?;
-        let result =
-            self.graph
-                .add_edge_properties(src, dst, &Self::transform_props(Some(properties)));
+        let result = self.graph.add_edge_properties(
+            src,
+            dst,
+            &Self::transform_props(Some(properties)),
+            layer,
+        );
         adapt_result(result)
     }
 

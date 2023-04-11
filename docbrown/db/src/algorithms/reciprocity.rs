@@ -38,7 +38,7 @@
 //! ];
 //!
 //! for (t, src, dst) in &vs {
-//!     g.add_edge(*t, *src, *dst, &vec![]);
+//!     g.add_edge(*t, *src, *dst, &vec![], None);
 //! }
 //!
 //! println!("all_local_reciprocity: {:?}", all_local_reciprocity(&g));
@@ -196,7 +196,7 @@ mod reciprocity_test {
         ];
 
         for (src, dst) in &vs {
-            graph.add_edge(0, *src, *dst, &vec![]);
+            graph.add_edge(0, *src, *dst, &vec![], None);
         }
 
         let actual = global_reciprocity(&graph);

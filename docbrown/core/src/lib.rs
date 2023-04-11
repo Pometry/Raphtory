@@ -30,10 +30,12 @@ use std::fmt;
 #[cfg(test)]
 #[macro_use(quickcheck)]
 extern crate quickcheck_macros;
+extern crate core;
 
 mod adj;
 pub mod agg;
 mod bitset;
+mod edge_layer;
 mod lazy_vec;
 pub mod lsm;
 mod misc;
