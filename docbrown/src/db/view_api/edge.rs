@@ -63,4 +63,5 @@ pub trait EdgeListOps:
 
     /// gets the destination vertices of the edges in the list
     fn dst(self) -> Self::VList;
+    fn explode(self) -> Self::IterType;
 }

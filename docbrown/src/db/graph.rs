@@ -1681,4 +1681,37 @@ mod db_tests {
         assert_eq!(to_ids(vertex1.in_neighbours()), vec![]);
         assert_eq!(to_ids(vertex2.in_neighbours()), vec![]);
     }
+
+    #[test]
+    fn test_exploded_edge() {
+        let g = Graph::new(1);
+        g.add_edge(0, 1, 2, &vec![("weight".to_string(), Prop::I64(1))], None)
+            .unwrap();
+        g.add_edge(1, 1, 2, &vec![("weight".to_string(), Prop::I64(2))], None)
+            .unwrap();
+        g.add_edge(2, 1, 2, &vec![("weight".to_string(), Prop::I64(3))], None)
+            .unwrap();
+
+        let exploded = g.edge(1, 2, None).unwrap().explode();
+
+        let res = exploded.map(|e| e.properties(false)).collect_vec();
+
+        let mut expected = Vec::new();
+        for i in 1..4 {
+            let mut map = HashMap::new();
+            map.insert("weight".to_string(), Prop::I64(i));
+            expected.push(map);
+        }
+
+        assert_eq!(res, expected);
+
+        let e = g
+            .vertex(1)
+            .unwrap()
+            .edges()
+            .explode()
+            .map(|e| e.properties(false))
+            .collect_vec();
+        assert_eq!(e, expected);
+    }
 }
