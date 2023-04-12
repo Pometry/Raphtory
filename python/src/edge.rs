@@ -1,8 +1,7 @@
 use crate::dynamic::DynamicGraph;
 use crate::vertex::PyVertex;
-use crate::wrappers::Prop;
+use crate::wrappers::prop::Prop;
 use docbrown::db::edge::EdgeView;
-use docbrown::db::view_api::vertex::BoxedIter;
 use docbrown::db::view_api::*;
 use itertools::Itertools;
 use pyo3::{pyclass, pymethods, PyRef, PyRefMut};

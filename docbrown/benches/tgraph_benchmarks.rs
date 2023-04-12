@@ -1,10 +1,10 @@
 use std::collections::BTreeSet;
 
-use crate::core::{
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use docbrown::core::{
     lsm::LSMSet,
     tadjset::{AdjEdge, TAdjSet},
 };
-use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use rand::{distributions::Uniform, prelude::Distribution, Rng};
 use sorted_vector_map::SortedVectorSet;
 

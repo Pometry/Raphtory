@@ -1,12 +1,8 @@
 use crate::dynamic::DynamicGraph;
 use crate::edge::{PyEdgeIter, PyNestedEdgeIter};
 use crate::util::{extract_vertex_ref, through_impl, window_impl};
-use crate::wrappers::{
-    BoolIter, NestedBoolIter, NestedOptionI64Iter, NestedOptionPropIter, NestedPropHistoriesIter,
-    NestedPropHistoryIter, NestedPropsIter, NestedStringIter, NestedStringVecIter, NestedU64Iter,
-    NestedUsizeIter, OptionI64Iter, OptionPropIter, Prop, PropHistoriesIter, PropHistoryIter,
-    PropsIter, StringIter, StringVecIter, U64Iter, UsizeIter,
-};
+use crate::wrappers::iterators::*;
+use crate::wrappers::prop::Prop;
 use docbrown::core::tgraph::VertexRef;
 use docbrown::db::graph_window::WindowSet;
 use docbrown::db::path::{PathFromGraph, PathFromVertex};

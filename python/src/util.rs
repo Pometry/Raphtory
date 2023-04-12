@@ -1,5 +1,5 @@
+use crate::perspective::{PyPerspective, PyPerspectiveSet};
 use crate::vertex::PyVertex;
-use crate::wrappers::{PyPerspective, PyPerspectiveSet};
 use docbrown::core::tgraph::VertexRef;
 use docbrown::db::graph_window::WindowSet;
 use docbrown::db::perspective::Perspective;

@@ -1,7 +1,7 @@
 use crate::core::Prop;
 use crate::db::vertex::VertexView;
 use crate::db::view_api::edge::EdgeListOps;
-use crate::db::view_api::{GraphViewOps, TimeOps};
+use crate::db::view_api::{BoxedIter, GraphViewOps, TimeOps};
 use std::collections::HashMap;
 
 /// Operations defined for a vertex
@@ -123,7 +123,7 @@ pub trait VertexViewOps: TimeOps {
     /// An iterator over the neighbours of this vertex that point out of this vertex.
     fn out_neighbours(&self) -> Self::PathType;
 }
-pub type BoxedIter<T> = Box<dyn Iterator<Item = T> + Send>;
+
 /// A trait for operations on a list of vertices.
 pub trait VertexListOps:
     IntoIterator<Item = Self::ValueType<VertexView<Self::Graph>>, IntoIter = Self::IterType>

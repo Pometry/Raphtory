@@ -11,3 +11,5 @@ pub use graph::GraphViewOps;
 pub use time::TimeOps;
 pub use vertex::VertexListOps;
 pub use vertex::VertexViewOps;
+
+pub type BoxedIter<T> = Box<dyn Iterator<Item = T> + Send>;

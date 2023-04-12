@@ -5,23 +5,19 @@ pub mod graph;
 pub mod graph_gen;
 pub mod graph_loader;
 pub mod graph_view;
+pub mod perspective;
 mod util;
 pub mod vertex;
 pub mod wrappers;
 
-use pyo3::prelude::*;
-
+use crate::algorithms::*;
 use crate::algorithms::{
     all_local_reciprocity, global_clustering_coefficient, global_reciprocity, triplet_count,
 };
-
 use crate::graph::PyGraph;
-use crate::wrappers::PyPerspective;
-
-use crate::algorithms::*;
 use crate::graph_gen::*;
 use crate::graph_loader::*;
-#[allow(unused_imports)]
+use perspective::PyPerspective;
 use pyo3::prelude::*;
 
 #[pymodule]

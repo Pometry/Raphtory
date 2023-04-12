@@ -4,8 +4,8 @@ use crate::core::tgraph::VertexRef;
 use crate::core::{Direction, Prop};
 use crate::db::edge::{EdgeList, EdgeView};
 use crate::db::path::{Operations, PathFromVertex};
-use crate::db::view_api::vertex::{BoxedIter, VertexViewOps};
-use crate::db::view_api::{GraphViewOps, TimeOps, VertexListOps};
+use crate::db::view_api::vertex::VertexViewOps;
+use crate::db::view_api::{BoxedIter, GraphViewOps, TimeOps, VertexListOps};
 use std::collections::HashMap;
 use std::ops::Range;
 
