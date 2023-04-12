@@ -6,6 +6,7 @@ use docbrown::db::view_api::*;
 use itertools::Itertools;
 use pyo3::{pyclass, pymethods, PyRef, PyRefMut};
 use std::collections::HashMap;
+use std::vec::IntoIter;
 
 #[pyclass(name = "Edge")]
 pub struct PyEdge {
@@ -83,6 +84,14 @@ impl PyEdge {
 
     fn dst(&self) -> PyVertex {
         self.edge.dst().into()
+    }
+
+    pub fn explode(&self) -> Vec<PyEdge> {
+        self.edge
+            .explode()
+            .into_iter()
+            .map(|e| e.into())
+            .collect::<Vec<PyEdge>>()
     }
 
     pub fn __repr__(&self) -> String {
