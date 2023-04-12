@@ -1,7 +1,7 @@
 use crate::dynamic::DynamicGraph;
 use crate::graph_view::PyGraphView;
 use crate::util::adapt_result;
-use crate::wrappers::Prop;
+use crate::wrappers::prop::Prop;
 use docbrown::core as dbc;
 use docbrown::core::vertex::InputVertex;
 use docbrown::db::graph::Graph;

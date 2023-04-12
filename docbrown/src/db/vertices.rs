@@ -3,7 +3,7 @@ use crate::core::{Direction, Prop};
 use crate::db::edge::EdgeView;
 use crate::db::path::{Operations, PathFromGraph};
 use crate::db::vertex::VertexView;
-use crate::db::view_api::vertex::BoxedIter;
+use crate::db::view_api::BoxedIter;
 use crate::db::view_api::*;
 use std::collections::HashMap;
 use std::ops::Range;
