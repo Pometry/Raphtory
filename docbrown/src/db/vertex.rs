@@ -211,11 +211,14 @@ impl<G: GraphViewOps> VertexViewOps for VertexView<G> {
                     .vertex_edges_all_layers(self.vertex, dir)
                     .map(move |e| EdgeView::new(g.clone(), e)),
             ),
-            Some(w) => Box::new(
-                self.graph
-                    .vertex_edges_window(self.vertex, w.start, w.end, dir, None)
-                    .map(move |e| EdgeView::new(g.clone(), e)),
-            ),
+            Some(w) => {
+                let w = w.clone();
+                Box::new(
+                    self.graph
+                        .vertex_edges_window(self.vertex, w.start, w.end, dir, None)
+                        .map(move |e| EdgeView::new_windowed(g.clone(), e, Some(w.clone()))),
+                )
+            }
         }
     }
 
@@ -228,11 +231,14 @@ impl<G: GraphViewOps> VertexViewOps for VertexView<G> {
                     .vertex_edges_all_layers(self.vertex, dir)
                     .map(move |e| EdgeView::new(g.clone(), e)),
             ),
-            Some(w) => Box::new(
-                self.graph
-                    .vertex_edges_window(self.vertex, w.start, w.end, dir, None)
-                    .map(move |e| EdgeView::new(g.clone(), e)),
-            ),
+            Some(w) => {
+                let w = w.clone();
+                Box::new(
+                    self.graph
+                        .vertex_edges_window(self.vertex, w.start, w.end, dir, None)
+                        .map(move |e| EdgeView::new_windowed(g.clone(), e, Some(w.clone()))),
+                )
+            }
         }
     }
 
@@ -245,11 +251,14 @@ impl<G: GraphViewOps> VertexViewOps for VertexView<G> {
                     .vertex_edges_all_layers(self.vertex, dir)
                     .map(move |e| EdgeView::new(g.clone(), e)),
             ),
-            Some(w) => Box::new(
-                self.graph
-                    .vertex_edges_window(self.vertex, w.start, w.end, dir, None)
-                    .map(move |e| EdgeView::new(g.clone(), e)),
-            ),
+            Some(w) => {
+                let w = w.clone();
+                Box::new(
+                    self.graph
+                        .vertex_edges_window(self.vertex, w.start, w.end, dir, None)
+                        .map(move |e| EdgeView::new_windowed(g.clone(), e, Some(w.clone()))),
+                )
+            }
         }
     }
 
