@@ -575,3 +575,45 @@ def test_global_clustering_coeffficient():
 
     v = g.at(1)
     assert algorithms.global_clustering_coefficient(v) == 0.5454545454545454
+
+def test_edge_time_apis():
+    g = Graph(1)
+
+    g.add_edge(1, 1, 2, {"prop2": 10})
+    g.add_edge(2, 2, 4, {"prop2": 11})
+    g.add_edge(3, 4, 5, {"prop2": 12})
+    g.add_edge(4, 1, 5, {"prop2": 13})
+
+    v = g.vertex(1)
+    e = g.edge(1, 2)
+
+    for e in e.expanding(1):
+        assert e.src().name() == '1'
+        assert e.dst().name() == '2'
+
+    for view in g.expanding(1,start=1):
+        e = view.edge(1,2)
+        assert e.src().name() == '1'
+        assert e.dst().name() == '2'
+
+    ls = []
+    for e in v.edges():
+        ls.append(e.src().name())
+        ls.append(e.dst().name())
+
+    assert ls == ['1', '2', '1', '5']
+
+    v = g.vertex(2)
+    ls = []
+    for e in v.in_edges():
+        ls.append(e.src().name())
+        ls.append(e.dst().name())
+
+    assert ls == ['1', '2']
+
+    ls = []
+    for e in v.out_edges():
+        ls.append(e.src().name())
+        ls.append(e.dst().name())
+
+    assert ls == ['2', '4']
