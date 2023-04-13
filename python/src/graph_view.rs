@@ -1,5 +1,5 @@
 use crate::dynamic::DynamicGraph;
-use crate::edge::{PyEdge, PyEdgeIter};
+use crate::edge::{PyEdge, PyEdges};
 use crate::util::{extract_vertex_ref, through_impl, window_impl};
 use crate::vertex::{PyVertex, PyVertices};
 use docbrown::db::graph_window::WindowSet;
@@ -89,8 +89,9 @@ impl PyGraphView {
         Ok(self.graph.edge(src, dst, layer).map(|we| we.into()))
     }
 
-    pub fn edges(&self) -> PyEdgeIter {
-        self.graph.edges().into()
+    pub fn edges(&self) -> PyEdges {
+        let clone = self.graph.clone();
+        (move || clone.edges()).into()
     }
 
     //******  Perspective APIS  ******//

@@ -8,7 +8,6 @@ use docbrown::db::view_api::*;
 use itertools::Itertools;
 use pyo3::{pyclass, pymethods, PyAny, PyRef, PyRefMut, PyResult};
 use std::collections::HashMap;
-use std::vec::IntoIter;
 
 #[pyclass(name = "Edge")]
 pub struct PyEdge {
@@ -122,7 +121,7 @@ impl PyEdge {
     pub fn through(&self, perspectives: &PyAny) -> PyResult<PyEdgeWindowSet> {
         through_impl(&self.edge, perspectives).map(|p| p.into())
     }
-    
+
     pub fn explode(&self) -> Vec<PyEdge> {
         self.edge
             .explode()
@@ -170,6 +169,56 @@ impl PyEdgeIter {
     }
     fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<PyEdge> {
         slf.iter.next()
+    }
+}
+
+#[pyclass(name = "Edges")]
+pub struct PyEdges {
+    builder: Box<dyn Fn() -> BoxedIter<EdgeView<DynamicGraph>> + Send + 'static>,
+}
+
+impl PyEdges {
+    fn iter(&self) -> BoxedIter<EdgeView<DynamicGraph>> {
+        (self.builder)()
+    }
+
+    fn py_iter(&self) -> BoxedIter<PyEdge> {
+        Box::new(self.iter().map(|e| e.into()))
+    }
+}
+
+#[pymethods]
+impl PyEdges {
+    fn __iter__(&self) -> PyEdgeIter {
+        PyEdgeIter {
+            iter: Box::new(self.py_iter()),
+        }
+    }
+
+    fn collect(&self) -> Vec<PyEdge> {
+        self.py_iter().collect()
+    }
+
+    fn first(&self) -> Option<PyEdge> {
+        self.py_iter().next()
+    }
+
+    fn count(&self) -> usize {
+        self.py_iter().count()
+    }
+
+    fn explode(&self) -> PyEdgeIter {
+        let res: BoxedIter<EdgeView<DynamicGraph>> =
+            Box::new(self.iter().flat_map(|e| e.explode()));
+        res.into()
+    }
+}
+
+impl<F: Fn() -> BoxedIter<EdgeView<DynamicGraph>> + Send + 'static> From<F> for PyEdges {
+    fn from(value: F) -> Self {
+        Self {
+            builder: Box::new(value),
+        }
     }
 }
 
@@ -229,5 +278,48 @@ impl PyEdgeWindowSet {
 
     fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<PyEdge> {
         slf.window_set.next().map(|g| g.into())
+    }
+}
+
+#[pyclass(name = "NestedEdges")]
+pub struct PyNestedEdges {
+    builder: Box<dyn Fn() -> BoxedIter<BoxedIter<EdgeView<DynamicGraph>>> + Send + 'static>,
+}
+
+impl PyNestedEdges {
+    fn iter(&self) -> BoxedIter<BoxedIter<EdgeView<DynamicGraph>>> {
+        (self.builder)()
+    }
+}
+
+#[pymethods]
+impl PyNestedEdges {
+    fn __iter__(&self) -> PyNestedEdgeIter {
+        self.iter().into()
+    }
+
+    fn collect(&self) -> Vec<Vec<PyEdge>> {
+        self.iter()
+            .map(|e| e.map(|ee| ee.into()).collect())
+            .collect()
+    }
+
+    fn explode(&self) -> PyNestedEdgeIter {
+        let res: BoxedIter<BoxedIter<EdgeView<DynamicGraph>>> = Box::new(self.iter().map(|e| {
+            let inner_box: BoxedIter<EdgeView<DynamicGraph>> =
+                Box::new(e.flat_map(|e| e.explode()));
+            inner_box
+        }));
+        res.into()
+    }
+}
+
+impl<F: Fn() -> BoxedIter<BoxedIter<EdgeView<DynamicGraph>>> + Send + 'static> From<F>
+    for PyNestedEdges
+{
+    fn from(value: F) -> Self {
+        Self {
+            builder: Box::new(value),
+        }
     }
 }

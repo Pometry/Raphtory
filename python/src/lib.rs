@@ -1,3 +1,5 @@
+extern crate core;
+
 pub mod algorithms;
 mod dynamic;
 pub mod edge;
