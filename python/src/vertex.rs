@@ -1,5 +1,5 @@
 use crate::dynamic::DynamicGraph;
-use crate::edge::{PyEdgeIter, PyNestedEdgeIter};
+use crate::edge::{PyEdges, PyNestedEdges};
 use crate::util::{extract_vertex_ref, through_impl, window_impl};
 use crate::wrappers::iterators::*;
 use crate::wrappers::prop::Prop;
@@ -112,16 +112,19 @@ impl PyVertex {
         self.vertex.out_degree()
     }
 
-    pub fn edges(&self) -> PyEdgeIter {
-        self.vertex.edges().into()
+    pub fn edges(&self) -> PyEdges {
+        let vertex = self.vertex.clone();
+        (move || vertex.edges()).into()
     }
 
-    pub fn in_edges(&self) -> PyEdgeIter {
-        self.vertex.in_edges().into()
+    pub fn in_edges(&self) -> PyEdges {
+        let vertex = self.vertex.clone();
+        (move || vertex.in_edges()).into()
     }
 
-    pub fn out_edges(&self) -> PyEdgeIter {
-        self.vertex.out_edges().into()
+    pub fn out_edges(&self) -> PyEdges {
+        let vertex = self.vertex.clone();
+        (move || vertex.out_edges()).into()
     }
 
     pub fn neighbours(&self) -> PyPathFromVertex {
@@ -277,16 +280,19 @@ impl PyVertices {
         self.vertices.out_degree().into()
     }
 
-    fn edges(&self) -> PyNestedEdgeIter {
-        self.vertices.edges().into()
+    fn edges(&self) -> PyNestedEdges {
+        let clone = self.vertices.clone();
+        (move || clone.edges()).into()
     }
 
-    fn in_edges(&self) -> PyNestedEdgeIter {
-        self.vertices.in_edges().into()
+    fn in_edges(&self) -> PyNestedEdges {
+        let clone = self.vertices.clone();
+        (move || clone.in_edges()).into()
     }
 
-    fn out_edges(&self) -> PyNestedEdgeIter {
-        self.vertices.out_edges().into()
+    fn out_edges(&self) -> PyNestedEdges {
+        let clone = self.vertices.clone();
+        (move || clone.out_edges()).into()
     }
 
     fn out_neighbours(&self) -> PyPathFromGraph {
@@ -453,16 +459,19 @@ impl PyPathFromGraph {
         self.path.out_degree().into()
     }
 
-    fn edges(&self) -> PyNestedEdgeIter {
-        self.path.edges().into()
+    fn edges(&self) -> PyNestedEdges {
+        let clone = self.path.clone();
+        (move || clone.edges()).into()
     }
 
-    fn in_edges(&self) -> PyNestedEdgeIter {
-        self.path.in_edges().into()
+    fn in_edges(&self) -> PyNestedEdges {
+        let clone = self.path.clone();
+        (move || clone.in_edges()).into()
     }
 
-    fn out_edges(&self) -> PyNestedEdgeIter {
-        self.path.out_edges().into()
+    fn out_edges(&self) -> PyNestedEdges {
+        let clone = self.path.clone();
+        (move || clone.out_edges()).into()
     }
 
     fn out_neighbours(&self) -> Self {
@@ -621,16 +630,19 @@ impl PyPathFromVertex {
         self.path.degree().into()
     }
 
-    fn edges(&self) -> PyEdgeIter {
-        self.path.edges().into()
+    fn edges(&self) -> PyEdges {
+        let path = self.path.clone();
+        (move || path.edges()).into()
     }
 
-    fn in_edges(&self) -> PyEdgeIter {
-        self.path.in_edges().into()
+    fn in_edges(&self) -> PyEdges {
+        let path = self.path.clone();
+        (move || path.in_edges()).into()
     }
 
-    fn out_edges(&self) -> PyEdgeIter {
-        self.path.out_edges().into()
+    fn out_edges(&self) -> PyEdges {
+        let path = self.path.clone();
+        (move || path.out_edges()).into()
     }
 
     fn out_neighbours(&self) -> Self {
