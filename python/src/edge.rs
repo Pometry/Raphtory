@@ -195,6 +195,10 @@ impl PyEdges {
         }
     }
 
+    fn __len__(&self) -> usize {
+        self.py_iter().count()
+    }
+
     fn collect(&self) -> Vec<PyEdge> {
         self.py_iter().collect()
     }

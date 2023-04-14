@@ -51,6 +51,7 @@ jobs:
           working-directory: ./python
           command: build
           target: ${{ matrix.target }}
+          args: --release
       - name: Install Python dependencies (Unix)
         if: "contains(matrix.os, 'Ubuntu') || contains(matrix.os, 'macOS')"
         run: |
