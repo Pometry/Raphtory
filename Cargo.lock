@@ -399,7 +399,7 @@ checksum = "7e1a8646b2c125eeb9a84ef0faa6d2d102ea0d5da60b824ade2743263117b848"
 
 [[package]]
 name = "docbrown"
-version = "0.0.8"
+version = "0.0.9"
 dependencies = [
  "bincode",
  "bzip2",
@@ -491,7 +491,7 @@ dependencies = [
 
 [[package]]
 name = "examples"
-version = "0.0.8"
+version = "0.0.9"
 dependencies = [
  "chrono",
  "docbrown",
@@ -1544,7 +1544,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory"
-version = "0.0.8"
+version = "0.0.9"
 dependencies = [
  "bincode",
  "chrono",
