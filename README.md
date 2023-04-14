@@ -167,6 +167,6 @@ Since Doc Brown is still a prototype, we are open to any contributions. If you f
 
 # License  
 
-Raphtory is licensed under the terms of the Apache License (check out our LICENSE file).
+Raphtory is licensed, check out our LICENSE file.
 
 
