@@ -13,3 +13,8 @@ docs/build/*
 .DS_Store
 docs/logs/*
 .python-version
+.ipynb_checkpoints
+docs/source/_rustdoc/*
+docs/build/*
+docs/logs/*
+_autosummary

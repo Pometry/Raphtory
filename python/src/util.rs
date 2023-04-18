@@ -1,3 +1,7 @@
+//! Helper functions for the Python bindings.
+//!
+//! This module contains helper functions for the Python bindings.
+//! These functions are not part of the public API and are not exported to the Python module.
 use crate::perspective::{PyPerspective, PyPerspectiveSet};
 use crate::vertex::PyVertex;
 use docbrown::core::tgraph::VertexRef;
@@ -9,6 +13,17 @@ use pyo3::prelude::*;
 use pyo3::types::PyIterator;
 use std::error::Error;
 
+/// Extract a `VertexRef` from a Python object.
+/// The object can be a `str`, `u64` or `PyVertex`.
+/// If the object is a `PyVertex`, the `VertexRef` is extracted from the `PyVertex`.
+/// If the object is a `str`, the `VertexRef` is created from the `str`.
+/// If the object is a `int`, the `VertexRef` is created from the `int`.
+///
+/// Arguments
+///     vref: The Python object to extract the `VertexRef` from.
+///
+/// Returns
+///    A `VertexRef` extracted from the Python object.
 pub(crate) fn extract_vertex_ref(vref: &PyAny) -> PyResult<VertexRef> {
     if let Ok(s) = vref.extract::<String>() {
         Ok(s.into())

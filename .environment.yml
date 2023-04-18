@@ -35,6 +35,7 @@ dependencies:
       - importlib-metadata==4.11.3
       - markdown-it-py==2.1.0
       - markupsafe==2.1.1
+      - maturin==0.14.17
       - mdit-py-plugins==0.3.0
       - mdurl==0.1.1
       - myst-parser==0.17.2

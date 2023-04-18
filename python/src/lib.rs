@@ -22,6 +22,7 @@ use crate::graph_loader::*;
 use perspective::PyPerspective;
 use pyo3::prelude::*;
 
+/// Raphtory graph analytics library
 #[pymodule]
 fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_class::<PyGraph>()?;

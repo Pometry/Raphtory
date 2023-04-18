@@ -10,3 +10,7 @@ from .nullmodels import *
 __doc__ = raphtory.__doc__
 if hasattr(raphtory, "__all__"):
     __all__ = raphtory.__all__
+
+algorithms.__doc__ = "Algorithmic functions that can be run on Raphtory graphs"
+graph_gen.__doc__ = "Generate Raphtory graphs from attachment models"
+graph_loader.__doc__ = "Load and save Raphtory graphs from/to file(s)"

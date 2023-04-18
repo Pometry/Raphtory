@@ -27,7 +27,7 @@ copyright = '2023, Pometry'
 author = 'Pometry'
 
 # The full version, including alpha/beta/rc tags
-release = "0.0.2"
+release = "0.0.9"
 
 
 # -- General configuration ---------------------------------------------------
@@ -42,9 +42,10 @@ extensions = [
     # 'extractRustDocs', 
     'sphinx.ext.autodoc',
     #'processWrapperDocs',
+    # 'sphinx_tabs.tabs',
+    "nbsphinx",
+    'sphinx.ext.napoleon',
     'myst_parser',
-    'sphinx_tabs.tabs',
-    "nbsphinx"
 ]
 
 suppress_warnings = ['myst.header', 'myst.anchor']
@@ -63,7 +64,7 @@ autodoc_member_order = 'groupwise'
 autodoc_typehints_format = "short"
 
 autosummary_generate = True
-autosummary_ignore_module_all = False
+autosummary_ignore_module_all = True
 # Extension options
 myst_enable_extensions = ["deflist", "dollarmath"]
 myst_heading_anchors = 3
@@ -90,7 +91,7 @@ templates_path = ['_templates']
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = ["_templates"]
-
+source_suffix = ['.rst', '.md']
 # -- Options for HTML output -------------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
@@ -105,7 +106,7 @@ html_theme_options = {
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['images', '_rustdoc']
-nbsphinx_kernel_name = 'python3'
+# nbsphinx_kernel_name = 'python3'
 
 # rst_prolog = f"""
 # .. |binder_link| replace:: Click here to launch the notebook
