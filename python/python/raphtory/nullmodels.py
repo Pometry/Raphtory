@@ -1,3 +1,7 @@
+"""
+Generate null models for a graph.
+"""
+
 import pandas as pd
 
 def shuffle_column(graph_df:pd.DataFrame, col_number=None, col_name=None, inplace=False):

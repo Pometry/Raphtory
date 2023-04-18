@@ -27,6 +27,7 @@ pub trait VertexViewOps: TimeOps {
     /// Get the timestamp for the latest activity of the vertex
     fn latest_time(&self) -> Self::ValueType<Option<i64>>;
 
+    /// Gets the property value of this vertex given the name of the property.
     fn property(&self, name: String, include_static: bool) -> Self::ValueType<Option<Prop>>;
 
     /// Get the temporal property value of this vertex.
@@ -41,6 +42,15 @@ pub trait VertexViewOps: TimeOps {
     /// property value and `Prop` is the value itself.
     fn property_history(&self, name: String) -> Self::ValueType<Vec<(i64, Prop)>>;
 
+    /// Get all property values of this vertex.
+    ///
+    /// # Arguments
+    ///
+    /// * `include_static` - If `true` then static properties are included in the result.
+    ///
+    /// # Returns
+    ///
+    /// A HashMap with the names of the properties as keys and the property values as values.
     fn properties(&self, include_static: bool) -> Self::ValueType<HashMap<String, Prop>>;
 
     /// Get all temporal property values of this vertex.
@@ -52,12 +62,49 @@ pub trait VertexViewOps: TimeOps {
     /// is the value itself.
     fn property_histories(&self) -> Self::ValueType<HashMap<String, Vec<(i64, Prop)>>>;
 
+    /// Get the names of all properties of this vertex.
+    ///
+    /// # Arguments
+    ///
+    /// * `include_static` - If `true` then static properties are included in the result.
+    ///
+    /// # Returns
+    ///
+    /// A vector of the names of the properties of this vertex.
     fn property_names(&self, include_static: bool) -> Self::ValueType<Vec<String>>;
 
+    /// Checks if a property exists on this vertex.
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - The name of the property to check for.
+    /// * `include_static` - If `true` then static properties are included in the result.
+    ///
+    /// # Returns
+    ///
+    /// `true` if the property exists, otherwise `false`.
     fn has_property(&self, name: String, include_static: bool) -> Self::ValueType<bool>;
 
+    /// Checks if a static property exists on this vertex.
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - The name of the property to check for.
+    ///
+    /// # Returns
+    ///
+    /// `true` if the property exists, otherwise `false`.
     fn has_static_property(&self, name: String) -> Self::ValueType<bool>;
 
+    /// Get the static property value of this vertex.
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - The name of the property to retrieve.
+    ///
+    /// # Returns
+    ///
+    /// The value of the property if it exists, otherwise `None`.
     fn static_property(&self, name: String) -> Self::ValueType<Option<Prop>>;
 
     /// Get the degree of this vertex (i.e., the number of edges that are incident to it).

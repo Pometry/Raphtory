@@ -13,6 +13,7 @@ build:
   jobs:
     pre_build:
       - make rust-build-readthedocs
+      - make install-python
 
 conda:
   environment: .environment.yml

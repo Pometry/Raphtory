@@ -102,7 +102,7 @@ impl<G: GraphViewOps> VertexViewOps for VertexView<G> {
             Some((_, prop)) => Some(prop.clone()),
         }
     }
-
+    
     fn property_history(&self, name: String) -> Vec<(i64, Prop)> {
         match &self.window {
             None => self.graph.temporal_vertex_prop_vec(self.vertex, name),

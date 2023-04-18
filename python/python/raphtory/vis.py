@@ -1,3 +1,6 @@
+"""
+Generate a visualisation using matplotlib or pyvis from Raphtory graphs.
+"""
 from pyvis.network import Network
 import networkx as nx
 

@@ -6,3 +6,4 @@ docutils>=0.17.1
 sphinx-tabs
 nbsphinx
 ipykernel
+raphtory

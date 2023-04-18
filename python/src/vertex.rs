@@ -1,3 +1,6 @@
+//! Defines the `Vertex`, which represents a vertex in the graph.
+//! A vertex is a node in the graph, and can have properties and edges.
+//! It can also be used to navigate the graph.
 use crate::dynamic::DynamicGraph;
 use crate::edge::{PyEdges, PyNestedEdges};
 use crate::util::{extract_vertex_ref, through_impl, window_impl};
@@ -14,42 +17,76 @@ use pyo3::exceptions::PyIndexError;
 use pyo3::{pyclass, pymethods, PyAny, PyRef, PyRefMut, PyResult};
 use std::collections::HashMap;
 
+/// A vertex (or node) in the graph.
 #[pyclass(name = "Vertex")]
 #[derive(Clone)]
 pub struct PyVertex {
     vertex: VertexView<DynamicGraph>,
 }
 
+/// Converts a rust vertex into a python vertex.
 impl From<VertexView<DynamicGraph>> for PyVertex {
     fn from(value: VertexView<DynamicGraph>) -> Self {
         PyVertex { vertex: value }
     }
 }
 
+/// Converts a python vertex into a rust vertex.
 impl From<PyVertex> for VertexRef {
     fn from(value: PyVertex) -> Self {
         value.vertex.into()
     }
 }
 
+/// Defines the `Vertex`, which represents a vertex in the graph.
+/// A vertex is a node in the graph, and can have properties and edges.
+/// It can also be used to navigate the graph.
 #[pymethods]
 impl PyVertex {
+    /// Returns the id of the vertex.
+    /// This is a unique identifier for the vertex.
+    ///
+    /// Returns:
+    ///    The id of the vertex as an integer.
     pub fn id(&self) -> u64 {
         self.vertex.id()
     }
 
+    /// Returns the name of the vertex.
+    ///
+    /// Returns:
+    ///  The name of the vertex as a string.
     pub fn name(&self) -> String {
         self.vertex.name()
     }
 
+    /// Returns the earliest time that the vertex exists.
+    ///
+    /// Arguments:
+    ///    None
+    ///
+    /// Returns:
+    ///     The earliest time that the vertex exists as an integer.
     pub fn earliest_time(&self) -> Option<i64> {
         self.vertex.earliest_time()
     }
 
+    /// Returns the latest time that the vertex exists.
+    ///
+    /// Returns:
+    ///     The latest time that the vertex exists as an integer.
     pub fn latest_time(&self) -> Option<i64> {
         self.vertex.latest_time()
     }
 
+    /// Gets the property value of this vertex given the name of the property.
+    ///
+    /// Arguments:
+    ///     name: The name of the property.
+    ///     include_static: Whether to include static properties. Defaults to true.
+    ///
+    /// Returns:
+    ///    The property value as a `Prop` object.
     pub fn property(&self, name: String, include_static: Option<bool>) -> Option<Prop> {
         let include_static = include_static.unwrap_or(true);
         self.vertex
@@ -57,6 +94,13 @@ impl PyVertex {
             .map(|prop| prop.into())
     }
 
+    /// Returns the history of a property value of a vertex at all times
+    ///
+    /// Arguments:
+    ///    name: The name of the property.
+    ///
+    /// Returns:
+    ///   A list of tuples of the form (time, value) where time is an integer and value is a `Prop` object.
     pub fn property_history(&self, name: String) -> Vec<(i64, Prop)> {
         self.vertex
             .property_history(name)
@@ -65,6 +109,13 @@ impl PyVertex {
             .collect()
     }
 
+    /// Returns all the properties of the vertex as a dictionary.
+    ///
+    /// Arguments:
+    ///    include_static: Whether to include static properties. Defaults to true.
+    ///
+    /// Returns:
+    ///   A dictionary of the form {name: value} where name is a string and value is a `Prop` object.
     pub fn properties(&self, include_static: Option<bool>) -> HashMap<String, Prop> {
         let include_static = include_static.unwrap_or(true);
         self.vertex
@@ -74,6 +125,13 @@ impl PyVertex {
             .collect()
     }
 
+    /// Returns all the properties of the vertex as a dictionary including the history of each property.
+    ///
+    /// Arguments:
+    ///   include_static: Whether to include static properties. Defaults to true.
+    ///
+    /// Returns:
+    ///  A dictionary of the form {name: [(time, value)]} where name is a string, time is an integer, and value is a `Prop` object.
     pub fn property_histories(&self) -> HashMap<String, Vec<(i64, Prop)>> {
         self.vertex
             .property_histories()
@@ -82,76 +140,180 @@ impl PyVertex {
             .collect()
     }
 
+    /// Returns the names of all the properties of the vertex.
+    ///
+    /// Arguments:
+    ///   include_static: Whether to include static properties. Defaults to true.
+    ///
+    /// Returns:
+    ///  A list of strings of propert names.
     pub fn property_names(&self, include_static: Option<bool>) -> Vec<String> {
         let include_static = include_static.unwrap_or(true);
         self.vertex.property_names(include_static)
     }
 
+    /// Checks if a property exists on this vertex.
+    ///
+    /// Arguments:
+    ///  name: The name of the property.
+    ///  include_static: Whether to include static properties. Defaults to true.
+    ///
+    /// Returns:
+    ///     True if the property exists, false otherwise.
     pub fn has_property(&self, name: String, include_static: Option<bool>) -> bool {
         let include_static = include_static.unwrap_or(true);
         self.vertex.has_property(name, include_static)
     }
 
+    /// Checks if a static property exists on this vertex.
+    ///
+    /// Arguments:
+    ///   name: The name of the property.
+    ///   
+    /// Returns:
+    ///   True if the property exists, false otherwise.
     pub fn has_static_property(&self, name: String) -> bool {
         self.vertex.has_static_property(name)
     }
 
+    /// Returns the static property value of this vertex given the name of the property.
+    ///
+    /// Arguments:
+    ///     name: The name of the property.
+    ///
+    /// Returns:
+    ///     The property value as a `Prop` object or None if the property does not exist.
     pub fn static_property(&self, name: String) -> Option<Prop> {
         self.vertex.static_property(name).map(|prop| prop.into())
     }
 
+    /// Get the degree of this vertex (i.e., the number of edges that are incident to it).
+    ///
+    /// Returns
+    ///     The degree of this vertex.
     pub fn degree(&self) -> usize {
         self.vertex.degree()
     }
 
+    /// Get the in-degree of this vertex (i.e., the number of edges that are incident to it from other vertices).
+    ///
+    /// Returns:
+    ///    The in-degree of this vertex.
     pub fn in_degree(&self) -> usize {
         self.vertex.in_degree()
     }
 
+    /// Get the out-degree of this vertex (i.e., the number of edges that are incident to it from this vertex).
+    ///
+    /// Returns:
+    ///   The out-degree of this vertex.
     pub fn out_degree(&self) -> usize {
         self.vertex.out_degree()
     }
 
+    /// Get the edges that are pointing to or from this vertex.
+    ///
+    /// Returns:
+    ///     A list of `Edge` objects.
     pub fn edges(&self) -> PyEdges {
         let vertex = self.vertex.clone();
         (move || vertex.edges()).into()
     }
 
+    /// Get the edges that are pointing to this vertex.
+    ///
+    /// Returns:
+    ///     A list of `Edge` objects.
     pub fn in_edges(&self) -> PyEdges {
         let vertex = self.vertex.clone();
         (move || vertex.in_edges()).into()
     }
 
+    /// Get the edges that are pointing from this vertex.
+    ///
+    /// Returns:
+    ///    A list of `Edge` objects.
     pub fn out_edges(&self) -> PyEdges {
         let vertex = self.vertex.clone();
         (move || vertex.out_edges()).into()
     }
 
+    /// Get the neighbours of this vertex.
+    ///
+    /// Returns:
+    ///
+    ///    A list of `Vertex` objects.
     pub fn neighbours(&self) -> PyPathFromVertex {
         self.vertex.neighbours().into()
     }
 
+    /// Get the neighbours of this vertex that are pointing to it.
+    ///
+    /// Returns:
+    ///   A list of `Vertex` objects.
     pub fn in_neighbours(&self) -> PyPathFromVertex {
         self.vertex.in_neighbours().into()
     }
 
+    /// Get the neighbours of this vertex that are pointing from it.
+    ///
+    /// Returns:
+    ///   A list of `Vertex` objects.
     pub fn out_neighbours(&self) -> PyPathFromVertex {
         self.vertex.out_neighbours().into()
     }
 
     //******  Perspective APIS  ******//
+
+    /// Gets the earliest time that this vertex is valid.
+    ///
+    /// Returns:
+    ///    The earliest time that this vertex is valid or None if the vertex is valid for all times.
     pub fn start(&self) -> Option<i64> {
         self.vertex.start()
     }
 
+    /// Gets the latest time that this vertex is valid.
+    ///
+    /// Returns:
+    ///   The latest time that this vertex is valid or None if the vertex is valid for all times.
     pub fn end(&self) -> Option<i64> {
         self.vertex.end()
     }
 
+    /// Creates a `PyVertexWindowSet` with the given `step` size and optional `start` and `end` times,    
+    /// using an expanding window.
+    ///
+    /// An expanding window is a window that grows by `step` size at each iteration.
+    /// This will tell you whether a vertex exists at different points in the window and what
+    /// its properties are at those points.
+    ///
+    /// Arguments:
+    ///  step (int): The step size of the window.
+    ///  start (int): The start time of the window. Defaults to the start time of the vertex.
+    ///  end (int): The end time of the window. Defaults to the end time of the vertex.
+    ///
+    /// Returns:
+    ///  A `PyVertexWindowSet` object.
     fn expanding(&self, step: u64, start: Option<i64>, end: Option<i64>) -> PyVertexWindowSet {
         self.vertex.expanding(step, start, end).into()
     }
 
+    /// Creates a `PyVertexWindowSet` with the given `window` size and optional `step`, `start` and `end` times,
+    /// using a rolling window.
+    ///
+    /// A rolling window is a window that moves forward by `step` size at each iteration.
+    /// This will tell you whether a vertex exists at different points in the window and what
+    /// its properties are at those points.
+    ///
+    /// Arguments:
+    ///  window: The size of the window.
+    ///  step: The step size of the window. Defaults to the window size.
+    ///  start: The start time of the window. Defaults to the start time of the vertex.
+    ///  end: The end time of the window. Defaults to the end time of the vertex.
+    ///
+    /// Returns:
+    /// A `PyVertexWindowSet` object.
     fn rolling(
         &self,
         window: u64,
@@ -162,14 +324,38 @@ impl PyVertex {
         self.vertex.rolling(window, step, start, end).into()
     }
 
+    /// Create a view of the vertex including all events between `t_start` (inclusive) and `t_end` (exclusive)
+    ///
+    /// Arguments:
+    ///     t_start (int): The start time of the window. Defaults to the start time of the vertex.
+    ///     t_end (int): The end time of the window. Defaults to the end time of the vertex.
+    ///
+    /// Returns:
+    ///    A `PyVertex` object.
+    #[pyo3(signature = (t_start = None, t_end = None))]
     pub fn window(&self, t_start: Option<i64>, t_end: Option<i64>) -> PyVertex {
         window_impl(&self.vertex, t_start, t_end).into()
     }
 
+    /// Create a view of the vertex including all events at `t`.
+    ///
+    /// Arguments:
+    ///     end (int): The time of the window.
+    ///
+    /// Returns:
+    ///     A `PyVertex` object.
+    #[pyo3(signature = (end))]
     pub fn at(&self, end: i64) -> PyVertex {
         self.vertex.at(end).into()
     }
 
+    /// Creates a `WindowSet` from a set of perspectives
+    ///
+    /// Arguments:
+    ///    perspectives: A list of `Perspective` objects.
+    ///
+    /// Returns:
+    ///   A `PyVertexWindowSet` object.
     pub fn through(&self, perspectives: &PyAny) -> PyResult<PyVertexWindowSet> {
         through_impl(&self.vertex, perspectives).map(|p| p.into())
     }
@@ -179,6 +365,7 @@ impl PyVertex {
         self.property(name, Some(true))
     }
 
+    /// Display the vertex as a string.
     pub fn __repr__(&self) -> String {
         let properties: String = self
             .properties(Some(true))
@@ -199,6 +386,7 @@ impl PyVertex {
     }
 }
 
+/// A list of vertices that can be iterated over.
 #[pyclass(name = "Vertices")]
 pub struct PyVertices {
     pub(crate) vertices: Vertices<DynamicGraph>,
@@ -210,6 +398,8 @@ impl From<Vertices<DynamicGraph>> for PyVertices {
     }
 }
 
+/// Operations on a list of vertices.
+/// These use all the same functions as a normal vertex except it returns a list of results.
 #[pymethods]
 impl PyVertices {
     fn id(&self) -> U64Iter {
@@ -330,10 +520,19 @@ impl PyVertices {
         self.vertices.rolling(window, step, start, end).into()
     }
 
+    #[pyo3(signature = (t_start = None, t_end = None))]
     pub fn window(&self, t_start: Option<i64>, t_end: Option<i64>) -> PyVertices {
         window_impl(&self.vertices, t_start, t_end).into()
     }
 
+    /// Create a view of the vertices including all events at `t`.
+    ///
+    /// Arguments:
+    ///     end (int): The time of the window.
+    ///
+    /// Returns:
+    ///     A `PyVertices` object.
+    #[pyo3(signature = (end))]
     pub fn at(&self, end: i64) -> PyVertices {
         self.vertices.at(end).into()
     }
@@ -514,10 +713,19 @@ impl PyPathFromGraph {
         self.path.rolling(window, step, start, end).into()
     }
 
+    #[pyo3(signature = (t_start = None, t_end = None))]
     pub fn window(&self, t_start: Option<i64>, t_end: Option<i64>) -> Self {
         window_impl(&self.path, t_start, t_end).into()
     }
 
+    /// Create a view of the vertex including all events at `t`.
+    ///
+    /// Arguments:
+    ///     end (int): The time of the window.
+    ///
+    /// Returns:
+    ///     A `PyVertex` object.
+    #[pyo3(signature = (end))]
     pub fn at(&self, end: i64) -> Self {
         self.path.at(end).into()
     }
@@ -685,10 +893,19 @@ impl PyPathFromVertex {
         self.path.rolling(window, step, start, end).into()
     }
 
+    #[pyo3(signature = (t_start = None, t_end = None))]
     pub fn window(&self, t_start: Option<i64>, t_end: Option<i64>) -> Self {
         window_impl(&self.path, t_start, t_end).into()
     }
 
+    /// Create a view of the vertex including all events at `t`.
+    ///
+    /// Arguments:
+    ///     end (int): The time of the window.
+    ///
+    /// Returns:
+    ///     A `PyVertex` object.
+    #[pyo3(signature = (end))]
     pub fn at(&self, end: i64) -> Self {
         self.path.at(end).into()
     }
