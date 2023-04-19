@@ -1,5 +1,8 @@
 extern crate core;
 
+#[macro_use]
+mod macros;
+
 pub mod algorithms;
 mod dynamic;
 pub mod edge;
@@ -8,6 +11,7 @@ pub mod graph_gen;
 pub mod graph_loader;
 pub mod graph_view;
 pub mod perspective;
+pub mod types;
 mod util;
 pub mod vertex;
 pub mod wrappers;
