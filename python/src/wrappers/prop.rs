@@ -1,3 +1,4 @@
+use crate::types::repr::Repr;
 use docbrown::core as db_c;
 use pyo3::{FromPyObject, IntoPy, PyObject, Python};
 use std::collections::HashMap;
@@ -59,6 +60,21 @@ impl From<db_c::Prop> for Prop {
             db_c::Prop::U64(u64) => Prop::U64(u64),
             db_c::Prop::F64(f64) => Prop::F64(f64),
             db_c::Prop::F32(f32) => Prop::F64(f32 as f64),
+        }
+    }
+}
+
+impl Repr for db_c::Prop {
+    fn repr(&self) -> String {
+        match &self {
+            db_c::Prop::Str(v) => v.repr(),
+            db_c::Prop::Bool(v) => v.repr(),
+            db_c::Prop::I64(v) => v.repr(),
+            db_c::Prop::U64(v) => v.repr(),
+            db_c::Prop::F64(v) => v.repr(),
+            db_c::Prop::I32(v) => v.repr(),
+            db_c::Prop::U32(v) => v.repr(),
+            db_c::Prop::F32(v) => v.repr(),
         }
     }
 }
