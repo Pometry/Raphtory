@@ -5,13 +5,19 @@ use crate::core::utils::get_shard_id_from_global_vid;
 use rustc_hash::FxHashMap;
 use std::{any::Any, fmt::Debug};
 
-#[derive(Debug)]
+#[derive(Debug, Copy)]
 pub struct AccId<A, IN, OUT, ACC: Accumulator<A, IN, OUT>> {
     id: u32,
     _a: std::marker::PhantomData<A>,
     _acc: std::marker::PhantomData<ACC>,
     _in: std::marker::PhantomData<IN>,
     _out: std::marker::PhantomData<OUT>,
+}
+
+impl<A, IN, OUT, ACC: Accumulator<A, IN, OUT>> AccId<A, IN, OUT, ACC> {
+    pub fn id(&self) -> u32 {
+        self.id
+    }
 }
 
 impl<A, IN, OUT, ACC: Accumulator<A, IN, OUT>> Clone for AccId<A, IN, OUT, ACC> {
@@ -155,6 +161,7 @@ pub trait DynArray: Debug + Send + Sync {
     fn empty(&self) -> Box<dyn DynArray>;
     // used for map array
     fn copy_over(&mut self, ss: usize);
+    fn reset(&mut self, ss: usize);
     fn iter_keys(&self) -> Box<dyn Iterator<Item = u64> + '_>;
     fn iter_keys_changed(&self, ss: usize) -> Box<dyn Iterator<Item = u64> + '_>;
 }
@@ -217,6 +224,13 @@ where
             }
         }))
     }
+
+    fn reset(&mut self, ss: usize) {
+        for val in self.map.values_mut() {
+            let i = (ss + 1) % 2;
+            val[i] = self.zero.clone();
+        }
+    }
 }
 
 pub trait StateType: PartialEq + Clone + Debug + Send + Sync + 'static {}
@@ -225,6 +239,8 @@ impl<T: PartialEq + Clone + Debug + Send + Sync + 'static> StateType for T {}
 
 pub trait ComputeState: Debug + Clone {
     fn clone_current_into_other(&mut self, ss: usize);
+
+    fn reset_resetable_states(&mut self, ss: usize);
 
     fn new_mutable_primitive<T: StateType>(zero: T) -> Self;
 
@@ -246,10 +262,6 @@ pub trait ComputeState: Debug + Clone {
 
     fn iter_keys(&self) -> Box<dyn Iterator<Item = u64> + '_>;
     fn iter_keys_changed(&self, ss: usize) -> Box<dyn Iterator<Item = u64> + '_>;
-
-    fn reset<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(&mut self, ki: usize)
-    where
-        A: StateType;
 
     fn agg<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(&mut self, ss: usize, a: IN, ki: usize)
     where
@@ -303,6 +315,10 @@ impl ComputeState for ComputeStateMap {
         self.0.copy_over(ss);
     }
 
+    fn reset_resetable_states(&mut self, ss: usize) {
+        self.0.reset(ss);
+    }
+
     fn new_mutable_primitive<T: StateType>(zero: T) -> Self {
         ComputeStateMap(Box::new(MapArray::<T> {
             map: FxHashMap::default(),
@@ -325,7 +341,6 @@ impl ComputeState for ComputeStateMap {
             .unwrap();
 
         current.map.get(&(i as u64)).map(|v| {
-            println!("0 = {:?}, 1 = {:?}", ACC::finish(&v[0]), ACC::finish(&v[1]));
             ACC::finish(&v[ss % 2])
         })
     }
@@ -363,21 +378,6 @@ impl ComputeState for ComputeStateMap {
 
     fn iter_keys_changed(&self, ss: usize) -> Box<dyn Iterator<Item = u64> + '_> {
         self.current().iter_keys_changed(ss)
-    }
-
-    fn reset<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(&mut self, i: usize)
-    where
-        A: StateType,
-    {
-        let current = self
-            .current_mut()
-            .as_mut_any()
-            .downcast_mut::<MapArray<A>>()
-            .unwrap();
-        current.map.remove_entry(&(i as u64));
-        current
-            .map
-            .insert(i as u64, [current.zero.clone(), current.zero.clone()]);
     }
 
     fn agg<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(&mut self, ss: usize, a: IN, i: usize)
@@ -460,18 +460,28 @@ impl ComputeState for ComputeStateMap {
             .map(|(k, v)| (k, ACC::finish(&v[ss % 2])))
             .fold(b, |b, (k, out)| f(b, k, out))
     }
+
 }
 
 const GLOBAL_STATE_KEY: usize = 0;
 #[derive(Debug, Clone)]
 pub struct ShardComputeState<CS: ComputeState + Send> {
     states: FxHashMap<u32, CS>,
+
 }
 
 impl<CS: ComputeState + Send + Clone> ShardComputeState<CS> {
     fn copy_over_next_ss(&mut self, ss: usize) {
         for (_, state) in self.states.iter_mut() {
             state.clone_current_into_other(ss);
+        }
+    }
+
+    fn reset_states(&mut self, ss: usize, states: &Vec<u32>) {
+        for (id, state) in self.states.iter_mut() {
+            if states.contains(id) {
+                state.reset_resetable_states(ss);
+            }
         }
     }
 
@@ -508,6 +518,28 @@ impl<CS: ComputeState + Send + Clone> ShardComputeState<CS> {
         Some(cs.finalize::<A, IN, OUT, ACC>(ss))
     }
 
+    fn set_from_other<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
+        &mut self,
+        other: &Self,
+        agg_ref: &AccId<A, IN, OUT, ACC>,
+        ss: usize,
+    ) where
+        A: StateType,
+    {
+        match (
+            self.states.get_mut(&agg_ref.id),
+            other.states.get(&agg_ref.id),
+        ) {
+            (Some(self_cs), Some(other_cs)) => {
+                *self_cs = other_cs.clone();
+            }
+            (None, Some(other_cs)) => {
+                self.states.insert(agg_ref.id, other_cs.clone());
+            }
+            _ => { }
+        }
+    }
+
     fn merge<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
         &mut self,
         other: &Self,
@@ -526,7 +558,7 @@ impl<CS: ComputeState + Send + Clone> ShardComputeState<CS> {
             (None, Some(other_cs)) => {
                 self.states.insert(agg_ref.id, other_cs.clone());
             }
-            _ => {}
+            _ => { }
         }
     }
 
@@ -561,20 +593,6 @@ impl<CS: ComputeState + Send + Clone> ShardComputeState<CS> {
         ShardComputeState {
             states: FxHashMap::default(),
         }
-    }
-
-    fn reset<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
-        &mut self,
-        into: usize,
-        agg_ref: &AccId<A, IN, OUT, ACC>,
-    ) where
-        A: StateType,
-    {
-        let state = self
-            .states
-            .entry(agg_ref.id)
-            .or_insert_with(|| CS::new_mutable_primitive(ACC::zero()));
-        state.reset::<A, IN, OUT, ACC>(into);
     }
 
     fn accumulate_into<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
@@ -658,6 +676,23 @@ impl<CS: ComputeState + Send + Sync> ShuffleComputeState<CS> {
             .for_each(|(s, o)| s.merge(o, agg_ref, ss));
     }
 
+    pub fn set_from_other<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
+        &mut self,
+        other: &Self,
+        agg_ref: &AccId<A, IN, OUT, ACC>,
+        ss: usize,
+    ) where
+        A: StateType,
+    {
+        // zip the two partitions
+        // merge each shard
+        assert_eq!(self.parts.len(), other.parts.len());
+        self.parts
+            .iter_mut()
+            .zip(other.parts.iter())
+            .for_each(|(s, o)| s.set_from_other(o, agg_ref, ss));
+    }
+
     pub fn merge_mut_global<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
         &mut self,
         other: &Self,
@@ -671,6 +706,13 @@ impl<CS: ComputeState + Send + Sync> ShuffleComputeState<CS> {
 
     pub fn copy_over_next_ss(&mut self, ss: usize) {
         self.parts.iter_mut().for_each(|p| p.copy_over_next_ss(ss));
+    }
+
+    pub fn reset_states(&mut self, ss: usize, states: &Vec<u32>) {
+        self.global.reset_states(ss, states);
+        self.parts
+            .iter_mut()
+            .for_each(|p| p.reset_states(ss, states));
     }
 
     pub fn new(n_parts: usize) -> Self {
@@ -695,26 +737,6 @@ impl<CS: ComputeState + Send + Sync> ShuffleComputeState<CS> {
             .states
             .iter()
             .flat_map(move |(_, cs)| cs.iter_keys_changed(ss))
-    }
-
-    pub fn reset<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
-        &mut self,
-        into: usize,
-        agg_ref: &AccId<A, IN, OUT, ACC>,
-    ) where
-        A: StateType,
-    {
-        let part = get_shard_id_from_global_vid(into, self.parts.len());
-        self.parts[part].reset(into, agg_ref)
-    }
-
-    pub fn reset_global<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
-        &mut self,
-        agg_ref: &AccId<A, IN, OUT, ACC>,
-    ) where
-        A: StateType,
-    {
-        self.global.reset(GLOBAL_STATE_KEY, agg_ref)
     }
 
     pub fn accumulate_into<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
