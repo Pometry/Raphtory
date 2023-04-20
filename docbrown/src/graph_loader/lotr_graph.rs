@@ -64,8 +64,8 @@ pub fn lotr_graph(shards: usize) -> Graph {
 
         CsvLoader::new(lotr_file().unwrap())
             .load_into_graph(&g, |lotr: Lotr, g: &Graph| {
-                let src_id = &lotr.src_id;
-                let dst_id = &lotr.dst_id;
+                let src_id = lotr.src_id;
+                let dst_id = lotr.dst_id;
                 let time = lotr.time;
 
                 g.add_vertex(time, src_id.clone(), &vec![])
