@@ -20,7 +20,7 @@
 
 use std::env;
 use std::fs::File;
-use std::io::{copy, Cursor};
+use std::io::{copy, Cursor, Read};
 use std::path::PathBuf;
 use std::time::Duration;
 
@@ -47,4 +47,19 @@ pub fn fetch_file(
         }
     }
     Ok(filepath)
+}
+
+#[cfg(test)]
+mod graph_loader_test {
+    use crate::graph_loader::fetch_file;
+
+    #[test]
+    fn test_fetch_file() {
+        let path = fetch_file(
+            "lotr2.csv",
+            "https://raw.githubusercontent.com/Raphtory/Data/main/lotr_test.csv",
+            600,
+        );
+        assert!(path.is_ok());
+    }
 }
