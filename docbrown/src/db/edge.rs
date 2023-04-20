@@ -170,10 +170,12 @@ impl<G: GraphViewOps> EdgeView<G> {
         VertexView::new(self.graph.clone(), vertex)
     }
 
+    /// Gets the id of the edge
     pub fn id(&self) -> usize {
         self.edge.edge_id
     }
 
+    /// Explodes an edge and returns all instances it had been updated as seperate edges
     pub fn explode(&self) -> BoxedIter<EdgeView<G>> {
         let vertex = VertexRef {
             g_id: self.edge.src_g_id,
@@ -191,6 +193,38 @@ impl<G: GraphViewOps> EdgeView<G> {
                 .collect();
             Box::new(r.into_iter())
         }
+    }
+
+    /// Gets the edge object from the vertex
+    fn get_edges(&self) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
+        let vertex = VertexRef {
+            g_id: self.edge.src_g_id,
+            pid: None,
+        };
+
+        match &self.window {
+            None => self.graph.vertex_edges_t(vertex, Direction::OUT, None),
+            Some(w) => {
+                self.graph
+                    .vertex_edges_window_t(vertex, w.start, w.end, Direction::OUT, None)
+            }
+        }
+    }
+
+    /// Gets the first time an edge was seen
+    pub fn earliest_time(&self) -> Option<i64> {
+        self.get_edges()
+            .filter(|e| e.edge_id == self.edge.edge_id)
+            .map(|e| e.time.unwrap())
+            .min()
+    }
+
+    /// Gets the latest time an edge was updated
+    pub fn latest_time(&self) -> Option<i64> {
+        self.get_edges()
+            .filter(|e| e.edge_id == self.edge.edge_id)
+            .map(|e| e.time.unwrap())
+            .max()
     }
 }
 
@@ -292,6 +326,18 @@ impl<G: GraphViewOps> EdgeListOps for BoxedIter<EdgeView<G>> {
     fn explode(self) -> Self::IterType {
         Box::new(self.flat_map(move |e| e.explode()))
     }
+
+    /// Gets the earliest times of a list of edges
+    fn earliest_time(self) -> BoxedIter<i64> {
+        let r: Vec<i64> = self.flat_map(move |e| e.earliest_time()).collect();
+        Box::new(r.into_iter())
+    }
+
+    /// Gets the latest times of a list of edges
+    fn latest_time(self) -> BoxedIter<i64> {
+        let r: Vec<i64> = self.flat_map(move |e| e.latest_time()).collect();
+        Box::new(r.into_iter())
+    }
 }
 
 impl<G: GraphViewOps> EdgeListOps for BoxedIter<BoxedIter<EdgeView<G>>> {
@@ -351,6 +397,18 @@ impl<G: GraphViewOps> EdgeListOps for BoxedIter<BoxedIter<EdgeView<G>>> {
 
     fn explode(self) -> Self::IterType {
         Box::new(self.map(move |it| it.explode()))
+    }
+
+    /// Gets the earliest times of a list of edges
+    fn earliest_time(self) -> BoxedIter<i64> {
+        let r: Vec<i64> = self.flat_map(move |e| e.earliest_time()).collect();
+        Box::new(r.into_iter())
+    }
+
+    /// Gets the latest times of a list of edges
+    fn latest_time(self) -> BoxedIter<i64> {
+        let r: Vec<i64> = self.flat_map(move |e| e.latest_time()).collect();
+        Box::new(r.into_iter())
     }
 }
 

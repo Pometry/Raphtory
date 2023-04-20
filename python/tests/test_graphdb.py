@@ -758,3 +758,25 @@ def test_edge_time_apis():
         ls.append(e.dst().name())
 
     assert ls == ['2', '4']
+
+
+def test_edge_earliest_latest_time():
+    g = Graph(1)
+    g.add_edge(0, 1, 2, {})
+    g.add_edge(1, 1, 2, {})
+    g.add_edge(2, 1, 2, {})
+    g.add_edge(0, 1, 3, {})
+    g.add_edge(1, 1, 3, {})
+    g.add_edge(2, 1, 3, {})
+
+
+    assert g.edge(1, 2).earliest_time() == 0
+    assert g.edge(1, 2).latest_time() == 2
+
+    assert g.vertex(1).edges().earliest_time() == [0, 0]
+    assert g.vertex(1).edges().latest_time() == [2, 2]
+    assert g.vertex(1).at(1).edges().earliest_time() == [0, 0]
+    assert g.vertex(1).at(1).edges().latest_time() == [1, 1]
+
+
+
