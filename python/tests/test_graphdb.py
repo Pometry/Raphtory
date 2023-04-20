@@ -783,4 +783,48 @@ def test_edge_earliest_latest_time():
     assert g.vertex(1).at(1).edges().latest_time() == [1, 1]
 
 
+def test_vertex_history():
+    g = Graph(1)
 
+    g.add_vertex(1, 1, {})
+    g.add_vertex(2, 1, {})
+    g.add_vertex(3, 1, {})
+    g.add_vertex(4, 1, {})
+    g.add_vertex(8, 1, {})
+
+    g.add_vertex(4, "Lord Farquaad", {})
+    g.add_vertex(6, "Lord Farquaad", {})
+    g.add_vertex(7, "Lord Farquaad", {})
+    g.add_vertex(8, "Lord Farquaad", {})
+                 
+    assert(g.vertex(1).history() == [1, 2, 3, 4, 8])
+    assert(g.vertex("Lord Farquaad").history() == [4, 6, 7, 8])
+
+    view = g.window(1, 8)
+
+    assert(view.vertex(1).history() == [1, 2 ,3 ,4])
+    assert(view.vertex("Lord Farquaad").history() == [4, 6, 7])
+
+def test_edge_history():
+    g = Graph(1)
+
+    g.add_edge(1, 1, 2, {})
+    g.add_edge(2, 1, 3, {})
+    g.add_edge(3, 1, 2, {})
+    g.add_edge(4, 1, 4, {})
+
+    view = g.window(1, 5)
+
+    assert(g.edge(1,2).history() == [1,3])
+
+    # also needs to be fixed in Pedros PR
+    # assert(view.edge(1, 4).history() == [4])
+
+def test_lotr_edge_history():
+    g = graph_loader.lotr_graph()
+    
+    assert(g.edge('Frodo','Gandalf').history() == [329, 555, 861, 1056, 1130, 1160, 1234, 1241, 1390, 1417, 1656, 1741, 1783, 1785, 1792, 1804, 1809, 1999, 2056, 2254, 2925, 2999, 3703, 3914, 4910, 5620, 5775, 6381, 6531, 6578, 6661, 6757, 7041, 7356, 8183, 8190, 8276, 8459, 8598, 8871, 9098, 9343, 9903, 11189, 11192, 11279, 11365, 14364, 21551, 21706, 23212, 26958, 27060, 29024, 30173, 30737, 30744, 31023, 31052, 31054, 31103, 31445, 32656])
+    assert(g.at(1000).edge('Frodo','Gandalf').history() == [329, 555, 861])
+    assert(g.edge('Frodo','Gandalf').at(1000).history() == [329, 555, 861])
+    assert(g.window(100,1000).edge('Frodo','Gandalf').history() == [329, 555, 861])
+    assert(g.edge('Frodo','Gandalf').window(100,1000).history() == [329, 555, 861])
