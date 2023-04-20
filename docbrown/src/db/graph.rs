@@ -1897,4 +1897,31 @@ mod db_tests {
         assert_eq!(windowed_times_of_farquaad, [4, 6, 7]);
         assert_eq!(windowed_times_of_two, [5, 6, 7]);
     }
+
+    #[test]
+    fn test_prop_display_str() {
+        let mut prop = Prop::Str(String::from("hello"));
+        assert_eq!(format!("{}", prop), "hello");
+
+        prop = Prop::I32(42);
+        assert_eq!(format!("{}", prop), "42");
+
+        prop = Prop::I64(9223372036854775807);
+        assert_eq!(format!("{}", prop), "9223372036854775807");
+
+        prop = Prop::U32(4294967295);
+        assert_eq!(format!("{}", prop), "4294967295");
+
+        prop = Prop::U64(18446744073709551615);
+        assert_eq!(format!("{}", prop), "18446744073709551615");
+
+        prop = Prop::F32(3.14159);
+        assert_eq!(format!("{}", prop), "3.14159");
+
+        prop = Prop::F64(3.141592653589793);
+        assert_eq!(format!("{}", prop), "3.141592653589793");
+
+        prop = Prop::Bool(true);
+        assert_eq!(format!("{}", prop), "true");
+    }
 }
