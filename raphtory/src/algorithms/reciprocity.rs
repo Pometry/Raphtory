@@ -44,16 +44,17 @@
 //! println!("all_local_reciprocity: {:?}", all_local_reciprocity(&g));
 //! println!("global_reciprocity: {:?}", global_reciprocity(&g));
 //! ```
-use crate::core::state;
+use crate::core::state::{self, ComputeStateMap, ComputeState};
 use crate::db::program::{EvalVertexView, GlobalEvalState, LocalState, Program};
 use crate::db::view_api::GraphViewOps;
 use std::collections::{HashMap, HashSet};
 
 struct GlobalReciprocity {}
 
+type CS = ComputeStateMap;
 /// Gets the unique edge counts excluding cycles for a vertex. Returns a tuple of usize
 /// (out neighbours, in neighbours, the intersection of the out and in neighbours)
-fn get_reciprocal_edge_count<G: GraphViewOps>(v: &EvalVertexView<G>) -> (usize, usize, usize) {
+fn get_reciprocal_edge_count<G: GraphViewOps>(v: &EvalVertexView<G, CS>) -> (usize, usize, usize) {
     let out_neighbours: HashSet<u64> = v
         .neighbours_out()
         .map(|n| n.global_id())

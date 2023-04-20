@@ -9,7 +9,7 @@ use num_traits::{Bounded, Zero};
 
 use crate::core::state::StateType;
 
-pub trait Accumulator<A, IN, OUT>: Send + Sync {
+pub trait Accumulator<A, IN, OUT>: Send + Sync + 'static {
     fn zero() -> A;
 
     fn add0(a1: &mut A, a: IN);

@@ -5,7 +5,7 @@ use crate::core::utils::get_shard_id_from_global_vid;
 use rustc_hash::FxHashMap;
 use std::{any::Any, fmt::Debug};
 
-#[derive(Debug, Copy)]
+#[derive(Debug)]
 pub struct AccId<A, IN, OUT, ACC: Accumulator<A, IN, OUT>> {
     id: u32,
     _a: std::marker::PhantomData<A>,
@@ -13,6 +13,8 @@ pub struct AccId<A, IN, OUT, ACC: Accumulator<A, IN, OUT>> {
     _in: std::marker::PhantomData<IN>,
     _out: std::marker::PhantomData<OUT>,
 }
+
+impl <A, IN, OUT, ACC: Accumulator<A, IN, OUT>> Copy for AccId<A, IN, OUT, ACC> {}
 
 impl<A, IN, OUT, ACC: Accumulator<A, IN, OUT>> AccId<A, IN, OUT, ACC> {
     pub fn id(&self) -> u32 {
@@ -237,7 +239,7 @@ pub trait StateType: PartialEq + Clone + Debug + Send + Sync + 'static {}
 
 impl<T: PartialEq + Clone + Debug + Send + Sync + 'static> StateType for T {}
 
-pub trait ComputeState: Debug + Clone {
+pub trait ComputeState: Debug + Clone + Send + Sync{
     fn clone_current_into_other(&mut self, ss: usize);
 
     fn reset_resetable_states(&mut self, ss: usize);
@@ -682,6 +684,24 @@ impl<CS: ComputeState + Send + Sync> ShuffleComputeState<CS> {
             .iter_mut()
             .zip(other.parts.iter())
             .for_each(|(s, o)| s.merge(o, agg_ref, ss));
+    }
+
+
+    pub fn merge_mut_2<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
+        &mut self,
+        other: &Self,
+        agg_ref: AccId<A, IN, OUT, ACC>,
+        ss: usize,
+    ) where
+        A: StateType,
+    {
+        // zip the two partitions
+        // merge each shard
+        assert_eq!(self.parts.len(), other.parts.len());
+        self.parts
+            .iter_mut()
+            .zip(other.parts.iter())
+            .for_each(|(s, o)| s.merge(o, &agg_ref, ss));
     }
 
     pub fn set_from_other<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
