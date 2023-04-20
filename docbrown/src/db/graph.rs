@@ -1714,4 +1714,41 @@ mod db_tests {
             .collect_vec();
         assert_eq!(e, expected);
     }
+
+    #[test]
+    fn test_edge_earliest_latest() {
+        let g = Graph::new(1);
+        g.add_edge(0, 1, 2, &vec![], None).unwrap();
+        g.add_edge(1, 1, 2, &vec![], None).unwrap();
+        g.add_edge(2, 1, 2, &vec![], None).unwrap();
+        g.add_edge(0, 1, 3, &vec![], None).unwrap();
+        g.add_edge(1, 1, 3, &vec![], None).unwrap();
+        g.add_edge(2, 1, 3, &vec![], None).unwrap();
+
+        let expected: i64 = 1;
+
+        let mut res = g.edge(1, 2, None).unwrap().earliest_time().unwrap();
+        assert_eq!(res, 0);
+
+        res = g.edge(1, 2, None).unwrap().latest_time().unwrap();
+        assert_eq!(res, 2);
+
+        res = g.at(1).edge(1, 2, None).unwrap().earliest_time().unwrap();
+        assert_eq!(res, 0);
+
+        res = g.at(1).edge(1, 2, None).unwrap().latest_time().unwrap();
+        assert_eq!(res, 1);
+
+        let mut res_list: Vec<i64> = g.vertex(1).unwrap().edges().earliest_time().collect();
+        assert_eq!(res_list, vec![0, 0]);
+
+        let mut res_list: Vec<i64> = g.vertex(1).unwrap().edges().latest_time().collect();
+        assert_eq!(res_list, vec![2, 2]);
+
+        let mut res_list: Vec<i64> = g.vertex(1).unwrap().at(1).edges().earliest_time().collect();
+        assert_eq!(res_list, vec![0, 0]);
+
+        let mut res_list: Vec<i64> = g.vertex(1).unwrap().at(1).edges().latest_time().collect();
+        assert_eq!(res_list, vec![1, 1]);
+    }
 }

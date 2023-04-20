@@ -9,6 +9,7 @@ use crate::types::repr::{iterator_repr, Repr};
 use crate::util::*;
 use crate::vertex::PyVertex;
 use crate::wrappers::prop::Prop;
+use docbrown::core::vertex::InputVertex;
 use docbrown::db::edge::EdgeView;
 use docbrown::db::graph_window::WindowSet;
 use docbrown::db::view_api::*;
@@ -272,6 +273,22 @@ impl PyEdge {
             .collect::<Vec<PyEdge>>()
     }
 
+    /// Gets the earliest time of an edge.
+    ///
+    /// Returns:
+    ///     (int) The earliest time of an edge
+    pub fn earliest_time(&self) -> Option<i64> {
+        self.edge.earliest_time()
+    }
+
+    /// Gets the latest time of an edge.
+    ///
+    /// Returns:
+    ///     (int) The latest time of an edge
+    pub fn latest_time(&self) -> Option<i64> {
+        self.edge.latest_time()
+    }
+
     /// Displays the Edge as a string.
     pub fn __repr__(&self) -> String {
         self.repr()
@@ -288,18 +305,24 @@ impl Repr for PyEdge {
 
         let source = self.edge.src().name();
         let target = self.edge.dst().name();
+        let earliest_time = self.edge.earliest_time();
+        let latest_time = self.edge.latest_time();
         if properties.is_empty() {
             format!(
-                "Edge(source={}, target={})",
+                "Edge(source={}, target={}, earliest_time={}, latest_time={})",
                 source.trim_matches('"'),
-                target.trim_matches('"')
+                target.trim_matches('"'),
+                earliest_time.unwrap_or(0),
+                latest_time.unwrap_or(0),
             )
         } else {
             let property_string: String = "{".to_string() + &properties + "}";
             format!(
-                "Edge(source={}, target={}, properties={})",
+                "Edge(source={}, target={}, earliest_time={}, latest_time={}, properties={})",
                 source.trim_matches('"'),
                 target.trim_matches('"'),
+                earliest_time.unwrap_or(0),
+                latest_time.unwrap_or(0),
                 property_string
             )
         }
@@ -364,6 +387,16 @@ impl PyEdges {
             iter
         })
         .into()
+    }
+
+    /// Returns the earliest time of the edges.
+    fn earliest_time(&self) -> Vec<Option<i64>> {
+        self.py_iter().map(|e| e.earliest_time()).collect()
+    }
+
+    /// Returns the latest time of the edges.
+    fn latest_time(&self) -> Vec<Option<i64>> {
+        self.py_iter().map(|e| e.latest_time()).collect()
     }
 
     fn __repr__(&self) -> String {

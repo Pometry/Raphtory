@@ -1,6 +1,6 @@
 use crate::core::Prop;
 use crate::db::edge::EdgeView;
-use crate::db::view_api::{GraphViewOps, VertexListOps};
+use crate::db::view_api::{BoxedIter, GraphViewOps, VertexListOps};
 use std::collections::HashMap;
 
 /// This trait defines the operations that can be
@@ -66,4 +66,10 @@ pub trait EdgeListOps:
 
     /// returns a list of exploded edges that include an edge at each point in time
     fn explode(self) -> Self::IterType;
+
+    /// Get the timestamp for the earliest activity of the edge
+    fn earliest_time(self) -> BoxedIter<i64>;
+
+    /// Get the timestamp for the latest activity of the edge
+    fn latest_time(self) -> BoxedIter<i64>;
 }
