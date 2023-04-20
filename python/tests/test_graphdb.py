@@ -502,7 +502,7 @@ def test_edge_properties():
 
 def test_algorithms():
     g = Graph(1)
-
+    lotr_graph = graph_loader.lotr_graph()
     g.add_edge(1, 1, 2, {"prop1": 1})
     g.add_edge(2, 2, 3, {"prop1": 1})
     g.add_edge(3, 3, 1, {"prop1": 1})
@@ -525,7 +525,11 @@ def test_algorithms():
     assert min_out_degree == 1
     assert min_in_degree == 1
     assert clustering_coefficient == 1.0
-
+    
+    lotr_clustering_coefficient = algorithms.local_clustering_coefficient(lotr_graph, 'Frodo')
+    lotr_local_triangle_count = algorithms.local_triangle_count(lotr_graph, 'Frodo')
+    assert lotr_clustering_coefficient == 0.1984313726425171
+    assert lotr_local_triangle_count == 253
 
 def test_perspective_set():
     g = create_graph(1)
