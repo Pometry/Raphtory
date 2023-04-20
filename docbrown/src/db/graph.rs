@@ -1924,4 +1924,62 @@ mod db_tests {
         prop = Prop::Bool(true);
         assert_eq!(format!("{}", prop), "true");
     }
+
+    #[test]
+    fn test_temporral_edge_props_window() {
+        let g = Graph::new(1);
+        g.add_edge(1, 1, 2, &vec![("weight".to_string(), Prop::I64(1))], None)
+            .unwrap();
+        g.add_edge(2, 1, 2, &vec![("weight".to_string(), Prop::I64(2))], None)
+            .unwrap();
+        g.add_edge(3, 1, 2, &vec![("weight".to_string(), Prop::I64(3))], None)
+            .unwrap();
+
+        let e = g.vertex(1).unwrap().out_edges().next().unwrap();
+
+        let res = g.temporal_edge_props_window(EdgeRef::from(e), 1, 3);
+        let mut exp = HashMap::new();
+        exp.insert(
+            "weight".to_string(),
+            vec![(1, Prop::I64(1)), (2, Prop::I64(2))],
+        );
+        assert_eq!(res, exp);
+    }
+
+    #[test]
+    fn test_vertex_early_late_times() {
+        let g = Graph::new(1);
+        g.add_vertex(1, 1, &vec![]).unwrap();
+        g.add_vertex(2, 1, &vec![]).unwrap();
+        g.add_vertex(3, 1, &vec![]).unwrap();
+
+        assert_eq!(g.vertex(1).unwrap().earliest_time(), Some(1));
+        assert_eq!(g.vertex(1).unwrap().latest_time(), Some(3));
+
+        assert_eq!(g.at(2).vertex(1).unwrap().earliest_time(), Some(1));
+        assert_eq!(g.at(2).vertex(1).unwrap().latest_time(), Some(2));
+    }
+
+    #[test]
+    fn test_vertex_ids() {
+        let g = Graph::new(1);
+        g.add_vertex(1, 1, &vec![]).unwrap();
+        g.add_vertex(1, 2, &vec![]).unwrap();
+        g.add_vertex(2, 3, &vec![]).unwrap();
+
+        assert_eq!(g.vertex_ids().collect::<Vec<u64>>(), vec![1, 2, 3]);
+
+        let g_at = g.at(1);
+        assert_eq!(g.vertex_ids().collect::<Vec<u64>>(), vec![1, 2]);
+    }
+
+    // #[test]
+    // fn test_vertex_refs_shard() {
+    //     let g = Graph::new(2);
+    //     g.add_vertex(1, 1, &vec![]).unwrap();
+    //     g.add_vertex(1, 2, &vec![]).unwrap();
+    //     g.add_vertex(2, 3, &vec![]).unwrap();
+    //
+    //     assert_eq!(g.vertex_refs_shard(0).collect::<Vec<_>>(), vec![1, 2]);
+    // }
 }
