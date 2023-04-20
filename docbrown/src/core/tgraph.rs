@@ -18,6 +18,8 @@ use crate::core::{Prop, Time};
 
 use self::errors::MutateGraphError;
 
+use super::utils;
+
 pub(crate) mod errors {
     use crate::core::props::IllegalMutate;
 
@@ -883,6 +885,37 @@ impl TemporalGraph {
             })
             .collect()
     }
+
+    pub(crate) fn vertex_timestamps(&self, src: u64) -> Vec<i64> {
+        let src_pid = self.logical_to_physical[&src];
+        self.timestamps[src_pid].iter().map(|t| *t).collect()
+    }
+
+    pub(crate) fn vertex_timestamps_window(&self, src: u64, w: Range<i64>) -> Vec<i64> {
+        let src_pid = self.logical_to_physical[&src];
+        self.timestamps[src_pid].range(w).map(|t| *t).collect()
+    }
+
+    pub(crate) fn edge_timestamps(
+        &self,
+        src: u64,
+        dst: u64,
+        layer: usize,
+        window: Option<Range<i64>>,
+        nr_shards: usize,
+    ) -> Vec<i64> {
+        let src_shard_id = utils::get_shard_id_from_global_vid(src.id(), nr_shards);
+        let dst_shard_id = utils::get_shard_id_from_global_vid(dst.id(), nr_shards);
+
+        if src_shard_id == dst_shard_id {
+            let src_pid = self.logical_to_physical[&src];
+            let dst_pid = self.logical_to_physical[&dst];
+            self.layers[layer].get_edge_history(src_pid, dst_pid, true, window)
+        } else {
+            let src_pid = self.logical_to_physical[&src];
+            self.layers[layer].get_edge_history(src_pid, dst.try_into().unwrap(), false, window)
+        }
+    }
 }
 
 // helps us track what are we iterating over
@@ -1117,7 +1150,6 @@ mod graph_test {
         let mut g = TemporalGraph::default();
 
         g.add_vertex(9, 1);
-
         assert!(g.has_vertex(9));
         assert!(g.has_vertex_window(9, &(1..15)));
         assert!(g.has_vertex_window(9, &(5..15))); // FIXME: this is wrong and we might need a different kind of window here

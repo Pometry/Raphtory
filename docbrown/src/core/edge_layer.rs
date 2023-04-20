@@ -9,6 +9,8 @@ use crate::core::tadjset::AdjEdge;
 use crate::core::tgraph::EdgeRef;
 use crate::core::{Direction, Prop};
 
+use super::tadjset::TAdjSet;
+
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub(crate) struct EdgeLayer {
     layer_id: usize,
@@ -101,7 +103,7 @@ impl EdgeLayer {
         }
     }
 
-    fn link_inbound_edge(
+    pub(crate) fn link_inbound_edge(
         &mut self,
         t: i64,
         src: usize, // may or may not be physical id depending on remote_edge flag
@@ -133,7 +135,7 @@ impl EdgeLayer {
         }
     }
 
-    fn link_outbound_edge(
+    pub(crate) fn link_outbound_edge(
         &mut self,
         t: i64,
         src_pid: usize,
@@ -199,6 +201,105 @@ impl EdgeLayer {
         match self.adj_lists.get(src_pid).unwrap_or(&Adj::Solo) {
             Adj::Solo => false,
             Adj::List { remote_out, .. } => remote_out.find_window(dst as usize, w).is_some(),
+        }
+    }
+
+    fn edge_history_helper(
+        &self,
+        out: &TAdjSet<usize, i64>,
+        dst_pid: usize,
+        window: Option<Range<i64>>,
+    ) -> Vec<i64> {
+        match out {
+            super::tadjset::TAdjSet::Empty => vec![],
+            super::tadjset::TAdjSet::One(t, id, _) => {
+                if *id == dst_pid {
+                    vec![*t]
+                } else {
+                    vec![]
+                }
+            }
+            super::tadjset::TAdjSet::Small {
+                vs,
+                edges: _,
+                t_index,
+            } => {
+                if vs.contains(&dst_pid) {
+                    match window {
+                        None => t_index
+                            .iter()
+                            .filter_map(|(time, bitset)| {
+                                if bitset.contains(&dst_pid) {
+                                    Some(*time)
+                                } else {
+                                    None
+                                }
+                            })
+                            .collect(),
+                        Some(w) => t_index
+                            .range(w)
+                            .filter_map(|(time, bitset)| {
+                                if bitset.contains(&dst_pid) {
+                                    Some(*time)
+                                } else {
+                                    None
+                                }
+                            })
+                            .collect(),
+                    }
+                } else {
+                    vec![]
+                }
+            }
+            super::tadjset::TAdjSet::Large { vs, t_index } => {
+                if vs.contains_key(&dst_pid) {
+                    match window {
+                        None => t_index
+                            .iter()
+                            .filter_map(|(time, bitset)| {
+                                if bitset.contains(&dst_pid) {
+                                    Some(*time)
+                                } else {
+                                    None
+                                }
+                            })
+                            .collect(),
+                        Some(w) => t_index
+                            .range(w)
+                            .filter_map(|(time, bitset)| {
+                                if bitset.contains(&dst_pid) {
+                                    Some(*time)
+                                } else {
+                                    None
+                                }
+                            })
+                            .collect(),
+                    }
+                } else {
+                    vec![]
+                }
+            }
+        }
+    }
+
+    pub(crate) fn get_edge_history(
+        &self,
+        src_pid: usize,
+        dst_pid: usize,
+        local: bool,
+        window: Option<Range<i64>>,
+    ) -> Vec<i64> {
+        match self.adj_lists.get(src_pid).unwrap_or(&Adj::Solo) {
+            Adj::Solo => vec![],
+            Adj::List {
+                out, remote_out, ..
+            } => {
+                if local {
+                    self.edge_history_helper(out, dst_pid, window)
+                } else {
+                    self.edge_history_helper(remote_out, dst_pid, window)
+                }
+            }
         }
     }
 

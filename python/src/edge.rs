@@ -74,6 +74,16 @@ impl PyEdge {
             .collect()
     }
 
+    /// Returns a list of timestamps of when an edge is added or change to an edge is made.
+    ///
+    /// Returns:
+    ///     A list of timestamps.
+    ///
+
+    pub fn history(&self) -> Vec<i64> {
+        self.edge.history()
+    }
+
     /// Returns a dictionary of all properties on the edge.
     ///
     /// Arguments:

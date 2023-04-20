@@ -73,6 +73,10 @@ impl<G: GraphViewOps> VertexViewOps for Vertices<G> {
         self.iter().property_history(name)
     }
 
+    fn history(&self) -> Self::ValueType<Vec<i64>> {
+        self.iter().history()
+    }
+
     fn properties(&self, include_static: bool) -> Self::ValueType<HashMap<String, Prop>> {
         self.iter().properties(include_static)
     }

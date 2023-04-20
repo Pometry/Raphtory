@@ -45,7 +45,7 @@ use crate::db::perspective::Perspective;
 use crate::db::view_api::internal::GraphViewInternalOps;
 use crate::db::view_api::time::TimeOps;
 use crate::db::view_api::GraphViewOps;
-use std::collections::HashMap;
+use std::{collections::HashMap, ops::Range};
 
 /// A set of windowed views of a `Graph`, allows user to iterating over a Graph broken
 /// down into multiple windowed views.
@@ -796,6 +796,64 @@ impl<G: GraphViewOps> GraphViewInternalOps for WindowedGraph<G> {
             self.actual_start(t_start),
             self.actual_end(t_end),
         )
+    }
+
+    /// Get the timestamps of a vertex
+    ///
+    /// # Arguments
+    ///
+    /// - `v` - The vertex to get the timestamps for
+    ///
+    /// # Returns
+    ///
+    /// A result of a vector of timestamps
+    ///
+    /// # Errors
+    ///
+    /// - `GraphError` - Raised if vertex does not exist
+    fn vertex_timestamps(&self, v: VertexRef) -> Vec<i64> {
+        self.graph
+            .vertex_timestamps_window(v, self.t_start, self.t_end)
+    }
+
+    /// Get the timestamps of a vertex in a window
+    ///
+    /// # Arguments
+    ///
+    /// - `v` - The vertex to get the timestamps for
+    /// - `t_start` - The start of the window
+    /// - `t_end` - The end of the window
+    ///
+    /// # Returns
+    ///
+    /// A result of a vector of timestamps
+    ///
+    /// # Errors
+    ///
+    /// - `GraphError` - Raised if vertex does not exist
+
+    fn vertex_timestamps_window(&self, v: VertexRef, t_start: i64, t_end: i64) -> Vec<i64> {
+        self.graph
+            .vertex_timestamps_window(v, self.actual_start(t_start), self.actual_end(t_end))
+    }
+
+    /// Get the timestamps of an edge in a window
+    ///
+    /// # Arguments
+    ///
+    /// - `e` - The edge to get the timestamps for
+    /// - `window` - The window to get the timestamps for
+    ///
+    /// # Returns
+    ///
+    /// A result of a vector of timestamps
+    ///
+    /// # Errors
+    ///
+    /// - `GraphError` - Raised if edge does not exist
+
+    fn edge_timestamps(&self, e: EdgeRef, window: Option<Range<i64>>) -> Vec<i64> {
+        self.graph.edge_timestamps(e, window)
     }
 
     /// Get all temporal properties of a vertex

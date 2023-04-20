@@ -102,7 +102,7 @@ impl<G: GraphViewOps> VertexViewOps for VertexView<G> {
             Some((_, prop)) => Some(prop.clone()),
         }
     }
-    
+
     fn property_history(&self, name: String) -> Vec<(i64, Prop)> {
         match &self.window {
             None => self.graph.temporal_vertex_prop_vec(self.vertex, name),
@@ -110,6 +110,15 @@ impl<G: GraphViewOps> VertexViewOps for VertexView<G> {
                 self.graph
                     .temporal_vertex_prop_vec_window(self.vertex, name, w.start, w.end)
             }
+        }
+    }
+
+    fn history(&self) -> Vec<i64> {
+        match &self.window {
+            None => self.graph.vertex_timestamps(self.vertex),
+            Some(w) => self
+                .graph
+                .vertex_timestamps_window(self.vertex, w.start, w.end),
         }
     }
 
@@ -381,6 +390,11 @@ impl<G: GraphViewOps> VertexListOps for Box<dyn Iterator<Item = VertexView<G>> +
         Box::new(r.into_iter())
     }
 
+    fn history(self) -> BoxedIter<Vec<i64>> {
+        let r: Vec<_> = self.map(|v| v.history()).collect();
+        Box::new(r.into_iter())
+    }
+
     fn properties(self, include_static: bool) -> BoxedIter<HashMap<String, Prop>> {
         let r: Vec<_> = self.map(|v| v.properties(include_static.clone())).collect();
         Box::new(r.into_iter())
@@ -496,6 +510,10 @@ impl<G: GraphViewOps> VertexListOps for BoxedIter<BoxedIter<VertexView<G>>> {
 
     fn property_history(self, name: String) -> BoxedIter<Self::ValueType<Vec<(i64, Prop)>>> {
         Box::new(self.map(move |it| it.property_history(name.clone())))
+    }
+
+    fn history(self) -> BoxedIter<Self::ValueType<Vec<i64>>> {
+        Box::new(self.map(move |it| it.history()))
     }
 
     fn properties(self, include_static: bool) -> BoxedIter<Self::ValueType<HashMap<String, Prop>>> {
@@ -634,7 +652,6 @@ mod vertex_test {
     #[test]
     fn test_all_edges_window() {
         let g = crate::graph_loader::lotr_graph::lotr_graph(4);
-
         assert_eq!(g.num_edges(), 701);
         assert_eq!(g.vertex("Gandalf").unwrap().edges().count(), 59);
         assert_eq!(

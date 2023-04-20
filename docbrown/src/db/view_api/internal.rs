@@ -2,7 +2,7 @@ use crate::core::tgraph::{EdgeRef, VertexRef};
 use crate::core::{Direction, Prop};
 use rayon::prelude::*;
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::{ops::Range, sync::Arc};
 
 /// The GraphViewInternalOps trait provides a set of methods to query a directed graph
 /// represented by the docbrown_core::tgraph::TGraph struct.
@@ -476,6 +476,30 @@ pub trait GraphViewInternalOps {
     /// and the second element is the property value.
     fn temporal_vertex_prop_vec(&self, v: VertexRef, name: String) -> Vec<(i64, Prop)>;
 
+    /// Returns a vector of all temporal values of the vertex 
+    ///
+    /// # Arguments
+    ///
+    /// * `v` - A reference to the vertex for which to retrieve the timestamp.
+    ///
+    /// # Returns
+    ///
+    /// A vector of timestamps representing the temporal values for the given vertex.
+    fn vertex_timestamps(&self, v: VertexRef) -> Vec<i64>;
+
+    /// Returns a vector of all temporal values of the vertex for a given window.
+    ///
+    /// # Arguments
+    ///
+    /// * `v` - A reference to the vertex for which to retrieve the timestamp.
+    /// * `t_start` - The start time of the window.
+    /// * `t_end` - The end time of the window.
+    ///
+    /// # Returns
+    ///
+    /// A vector of timestamps representing the temporal values for the given vertex in a given window.
+    fn vertex_timestamps_window(&self, v: VertexRef, t_start: i64, t_end: i64) -> Vec<i64>;
+
     /// Returns a vector of all temporal values of the vertex property with the given name for the given vertex
     /// that fall within the specified time window.
     ///
@@ -598,6 +622,8 @@ pub trait GraphViewInternalOps {
         t_start: i64,
         t_end: i64,
     ) -> Vec<(i64, Prop)>;
+
+    fn edge_timestamps(&self, e: EdgeRef, window: Option<Range<i64>>) -> Vec<i64>;
 
     /// Returns a hash map containing all the temporal properties of the given edge reference,
     /// where each key is the name of a temporal property and each value is a vector of tuples containing
