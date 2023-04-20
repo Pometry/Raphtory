@@ -69,5 +69,6 @@ pub(crate) fn reddit_hyperlink_graph(shards: usize, timeout_seconds: u64) -> PyR
     PyGraph::py_from_db_graph(docbrown::graph_loader::reddit_hyperlinks::reddit_graph(
         shards,
         timeout_seconds,
+        false,
     ))
 }
