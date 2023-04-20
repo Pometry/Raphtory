@@ -5,6 +5,7 @@
 use crate::graph_view::PyGraphView;
 use std::collections::HashMap;
 
+use crate::util;
 use docbrown::algorithms::degree::{
     average_degree as average_degree_rs, max_in_degree as max_in_degree_rs,
     max_out_degree as max_out_degree_rs, min_in_degree as min_in_degree_rs,
@@ -35,8 +36,9 @@ use pyo3::prelude::*;
 /// to identify critical junctions or potential traffic bottlenecks.
 ///
 #[pyfunction]
-pub(crate) fn local_triangle_count(g: &PyGraphView, v: u64) -> Option<usize> {
-    local_triangle_count_rs(&g.graph, v)
+pub(crate) fn local_triangle_count(g: &PyGraphView, v: &PyAny) -> PyResult<Option<usize>> {
+    let v = util::extract_vertex_ref(v)?;
+    Ok(local_triangle_count_rs(&g.graph, v.g_id))
 }
 
 /// Local Clustering coefficient - measures the degree to which nodes in a graph tend to cluster together.
@@ -61,8 +63,9 @@ pub(crate) fn local_triangle_count(g: &PyGraphView, v: u64) -> Option<usize> {
 /// its neighbors are relatively less connected with each other, suggesting a more fragmented
 /// or diverse community.
 #[pyfunction]
-pub(crate) fn local_clustering_coefficient(g: &PyGraphView, v: u64) -> Option<f32> {
-    local_clustering_coefficient_rs(&g.graph, v)
+pub(crate) fn local_clustering_coefficient(g: &PyGraphView, v: &PyAny) -> PyResult<Option<f32>> {
+    let v = util::extract_vertex_ref(v)?;
+    Ok(local_clustering_coefficient_rs(&g.graph, v.g_id))
 }
 
 /// Graph density - measures how dense or sparse a graph is.

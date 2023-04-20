@@ -30,6 +30,9 @@ pub trait VertexViewOps: TimeOps {
     /// Gets the property value of this vertex given the name of the property.
     fn property(&self, name: String, include_static: bool) -> Self::ValueType<Option<Prop>>;
 
+    /// Gets the history of the vertex (time that the vertex was added and times when changes were made to the vertex)
+    fn history(&self) -> Self::ValueType<Vec<i64>>;
+
     /// Get the temporal property value of this vertex.
     ///
     /// # Arguments
@@ -227,7 +230,7 @@ pub trait VertexListOps:
     /// as a vector of tuples of the form (time, property).
     fn property_history(self, name: String) -> BoxedIter<Self::ValueType<Vec<(i64, Prop)>>>;
     fn properties(self, include_static: bool) -> BoxedIter<Self::ValueType<HashMap<String, Prop>>>;
-
+    fn history(self) -> BoxedIter<Self::ValueType<Vec<i64>>>;
     /// Returns an iterator over all vertex properties.
     ///
     /// # Returns

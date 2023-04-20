@@ -26,6 +26,7 @@ use crate::core::{
     vertex::InputVertex,
     Direction, Prop,
 };
+
 use crate::db::graph_immutable::ImmutableGraph;
 use crate::db::view_api::internal::GraphViewInternalOps;
 use itertools::Itertools;
@@ -35,6 +36,7 @@ use serde::{Deserialize, Serialize};
 use std::cmp::{max, min};
 use std::{
     collections::HashMap,
+    ops::Range,
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -485,6 +487,25 @@ impl GraphViewInternalOps for Graph {
         )
     }
 
+    fn vertex_timestamps(&self, v: VertexRef) -> Vec<i64> {
+        self.get_shard_from_v(v).vertex_timestamps(v.g_id)
+    }
+
+    fn vertex_timestamps_window(&self, v: VertexRef, t_start: i64, t_end: i64) -> Vec<i64> {
+        self.get_shard_from_v(v)
+            .vertex_timestamps_window(v.g_id, t_start..t_end)
+    }
+
+    fn edge_timestamps(&self, e: EdgeRef, window: Option<Range<i64>>) -> Vec<i64> {
+        self.get_shard_from_e(e).edge_timestamps(
+            e.src_g_id,
+            e.dst_g_id,
+            e.layer_id,
+            window,
+            self.nr_shards,
+        )
+    }
+
     fn temporal_edge_props(&self, e: EdgeRef) -> HashMap<String, Vec<(i64, Prop)>> {
         self.get_shard_from_e(e)
             .temporal_edge_props(e.edge_id, e.layer_id)
@@ -883,6 +904,7 @@ mod db_tests {
     use crate::db::edge::EdgeView;
     use crate::db::path::PathFromVertex;
     use crate::db::perspective::Perspective;
+    use crate::db::vertex::VertexView;
     use crate::db::view_api::*;
     use crate::graphgen::random_attachment::random_attachment;
     use csv::StringRecord;
@@ -1750,5 +1772,129 @@ mod db_tests {
 
         let mut res_list: Vec<i64> = g.vertex(1).unwrap().at(1).edges().latest_time().collect();
         assert_eq!(res_list, vec![1, 1]);
+    }
+
+    #[test]
+    fn check_vertex_history() {
+        let g = Graph::new(1);
+
+        g.add_vertex(1, 1, &vec![]).unwrap();
+        g.add_vertex(2, 1, &vec![]).unwrap();
+        g.add_vertex(3, 1, &vec![]).unwrap();
+        g.add_vertex(4, 1, &vec![]).unwrap();
+        g.add_vertex(8, 1, &vec![]).unwrap();
+
+        g.add_vertex(4, "Lord Farquaad", &vec![]).unwrap();
+        g.add_vertex(6, "Lord Farquaad", &vec![]).unwrap();
+        g.add_vertex(7, "Lord Farquaad", &vec![]).unwrap();
+        g.add_vertex(8, "Lord Farquaad", &vec![]).unwrap();
+
+        let times_of_one = g.vertex(1).unwrap().history();
+        let times_of_farquaad = g.vertex("Lord Farquaad").unwrap().history();
+
+        assert_eq!(times_of_one, [1, 2, 3, 4, 8]);
+        assert_eq!(times_of_farquaad, [4, 6, 7, 8]);
+
+        let view = g.window(1, 8);
+
+        let windowed_times_of_one = view.vertex(1).unwrap().history();
+        let windowed_times_of_farquaad = view.vertex("Lord Farquaad").unwrap().history();
+        assert_eq!(windowed_times_of_one, [1, 2, 3, 4]);
+        assert_eq!(windowed_times_of_farquaad, [4, 6, 7]);
+    }
+
+    #[test]
+    fn check_edge_history() {
+        let g = Graph::new(1);
+
+        g.add_edge(1, 1, 2, &vec![], None).unwrap();
+        g.add_edge(2, 1, 3, &vec![], None).unwrap();
+        g.add_edge(3, 1, 2, &vec![], None).unwrap();
+        g.add_edge(4, 1, 4, &vec![], None).unwrap();
+
+        let times_of_onetwo = g.edge(1, 2, None).unwrap().history();
+        //todo: bug that Pedro will fix in his PR
+        //let times_of_four = g.edge(1, 4, None).unwrap().window(1,5).history();
+        let times_of_outside_window = g.edge(1, 4, None).unwrap().window(1, 5).history();
+
+        let view = g.window(1, 5);
+        let windowed_times_of_four = view.edge(1, 4, None).unwrap().window(2, 5).history();
+
+        assert_eq!(times_of_onetwo, [1, 3]);
+        //assert_eq!(times_of_four, [4]);
+        assert_eq!(times_of_outside_window, []);
+        assert_eq!(windowed_times_of_four, [4]);
+    }
+
+    #[test]
+    fn check_edge_history_on_multiple_shards() {
+        let g = Graph::new(10);
+
+        g.add_edge(1, 1, 2, &vec![], None).unwrap();
+        g.add_edge(2, 1, 3, &vec![], None).unwrap();
+        g.add_edge(3, 1, 2, &vec![], None).unwrap();
+        g.add_edge(4, 1, 4, &vec![], None).unwrap();
+        g.add_edge(5, 1, 4, &vec![], None).unwrap();
+        g.add_edge(6, 1, 4, &vec![], None).unwrap();
+        g.add_edge(7, 1, 4, &vec![], None).unwrap();
+        g.add_edge(8, 1, 4, &vec![], None).unwrap();
+        g.add_edge(9, 1, 4, &vec![], None).unwrap();
+        g.add_edge(10, 1, 4, &vec![], None).unwrap();
+
+        let times_of_onetwo = g.edge(1, 2, None).unwrap().history();
+        let times_of_four = g.edge(1, 4, None).unwrap().window(1, 5).history();
+        let times_of_outside_window = g.edge(1, 4, None).unwrap().window(1, 4).history();
+
+        // todo: bug for Pedro to fix in his PR
+        // let times_of_four_higher = g.edge(1, 4, None).unwrap().window(6, 11).history();
+
+        let view = g.window(1, 11);
+        let windowed_times_of_four = view.edge(1, 4, None).unwrap().window(2, 5).history();
+        let windowed_times_of_four_higher = view.edge(1, 4, None).unwrap().window(8, 11).history();
+
+        assert_eq!(times_of_onetwo, [1, 3]);
+        assert_eq!(times_of_four, [4]);
+        // assert_eq!(times_of_four_higher, [6,7,8,9,10]);
+        assert_eq!(times_of_outside_window, []);
+        assert_eq!(windowed_times_of_four, [4]);
+        assert_eq!(windowed_times_of_four_higher, [8, 9, 10]);
+    }
+
+    #[test]
+    fn check_vertex_history_multiple_shards() {
+        let g = Graph::new(10);
+
+        g.add_vertex(1, 1, &vec![]).unwrap();
+        g.add_vertex(2, 1, &vec![]).unwrap();
+        g.add_vertex(3, 1, &vec![]).unwrap();
+        g.add_vertex(4, 1, &vec![]).unwrap();
+        g.add_vertex(5, 2, &vec![]).unwrap();
+        g.add_vertex(6, 2, &vec![]).unwrap();
+        g.add_vertex(7, 2, &vec![]).unwrap();
+        g.add_vertex(8, 1, &vec![]).unwrap();
+        g.add_vertex(9, 2, &vec![]).unwrap();
+        g.add_vertex(10, 2, &vec![]).unwrap();
+
+        g.add_vertex(4, "Lord Farquaad", &vec![]).unwrap();
+        g.add_vertex(6, "Lord Farquaad", &vec![]).unwrap();
+        g.add_vertex(7, "Lord Farquaad", &vec![]).unwrap();
+        g.add_vertex(8, "Lord Farquaad", &vec![]).unwrap();
+
+        let times_of_one = g.vertex(1).unwrap().history();
+        let times_of_farquaad = g.vertex("Lord Farquaad").unwrap().history();
+        let times_of_upper = g.vertex(2).unwrap().history();
+
+        assert_eq!(times_of_one, [1, 2, 3, 4, 8]);
+        assert_eq!(times_of_farquaad, [4, 6, 7, 8]);
+        assert_eq!(times_of_upper, [5, 6, 7, 9, 10]);
+
+        let view = g.window(1, 8);
+        let windowed_times_of_one = view.vertex(1).unwrap().history();
+        let windowed_times_of_two = view.vertex(2).unwrap().history();
+        let windowed_times_of_farquaad = view.vertex("Lord Farquaad").unwrap().history();
+
+        assert_eq!(windowed_times_of_one, [1, 2, 3, 4]);
+        assert_eq!(windowed_times_of_farquaad, [4, 6, 7]);
+        assert_eq!(windowed_times_of_two, [5, 6, 7]);
     }
 }

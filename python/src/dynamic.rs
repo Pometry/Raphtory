@@ -4,6 +4,7 @@ use docbrown::db::graph::Graph;
 use docbrown::db::view_api::internal::GraphViewInternalOps;
 use docbrown::db::view_api::GraphViewOps;
 use std::collections::HashMap;
+use std::ops::Range;
 use std::sync::Arc;
 
 trait DynamicGraphView: GraphViewInternalOps + Send + Sync + 'static {}
@@ -95,6 +96,18 @@ impl GraphViewInternalOps for DynamicGraph {
 
     fn degree(&self, v: VertexRef, d: Direction, layer: Option<usize>) -> usize {
         self.0.degree(v, d, layer)
+    }
+
+    fn vertex_timestamps(&self, v: VertexRef) -> Vec<i64> {
+        self.0.vertex_timestamps(v)
+    }
+
+    fn vertex_timestamps_window(&self, v: VertexRef, t_start: i64, t_end: i64) -> Vec<i64> {
+        self.0.vertex_timestamps_window(v, t_start, t_end)
+    }
+
+    fn edge_timestamps(&self, e: EdgeRef, window: Option<Range<i64>>) -> Vec<i64> {
+        self.0.edge_timestamps(e, window)
     }
 
     fn degree_window(
