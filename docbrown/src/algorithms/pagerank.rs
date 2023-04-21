@@ -1,3 +1,4 @@
+use crate::algorithms::*;
 use crate::core::{
     agg::{MaxDef, SumDef, ValDef},
     state::{
@@ -10,10 +11,9 @@ use crate::db::{
     program::{AggRef, GlobalEvalState, LocalState, Program},
     view_api::GraphViewOps,
 };
-use num_traits::{abs, Bounded, Zero};
+use num_traits::abs;
 use rustc_hash::FxHashMap;
-use std::ops::{Add, AddAssign, Div, Mul, Range, Sub};
-use crate::algorithms::*;
+use std::ops::Range;
 
 struct UnweightedPageRankS0 {
     total_vertices: usize,
@@ -116,9 +116,9 @@ impl Program for UnweightedPageRankS2 {
 
     fn local_eval<G: GraphViewOps>(&self, c: &LocalState<G>) {
         let damping_factor = 0.85;
-        let score= c.agg(self.score);
-        let recv_score= c.agg(self.recv_score);
-        let max_diff= c.global_agg(self.max_diff);
+        let score = c.agg(self.score);
+        let recv_score = c.agg(self.recv_score);
+        let max_diff = c.global_agg(self.max_diff);
 
         c.step(|s| {
             s.update(
@@ -299,7 +299,6 @@ mod page_rank_tests {
 
         let (actual_g1_part0, actual_g2) = lift_state(pg_s2_g1.recv_score, &c_g1, &c_g2);
         assert_partitions_data_equal_post_step(actual_g1_part0, actual_g2, true);
-
     }
 
     fn lift_state<A: 'static, IN, OUT: StateType, ACC: Accumulator<A, IN, OUT>>(

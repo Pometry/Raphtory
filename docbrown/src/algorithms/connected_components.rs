@@ -111,8 +111,8 @@ mod cc_test {
 
         let expected =             // output from the eval running on the first shard
             vec![
-                vec![7, 1], // shard 0 (2, 4, 6, 8)
-                vec![3, 7, 3, 1, 3, 2], // shard 1 (1, 3, 5, 7)
+                vec![7, 1, 3, 3], // shard 0 (2, 4, 6, 8)
+                vec![3, 7, 1, 2], // shard 1 (1, 3, 5, 7)
             ];
 
         let actual_part1 = &gs.read_vec_partitions(&agg)[0];
@@ -127,8 +127,8 @@ mod cc_test {
 
         let expected =             // output from the eval running on the first shard
             vec![
-                vec![7, 1], // shard 0 (2, 4, 6, 8)
-                vec![2, 7, 2, 1, 3, 1], // shard 1 (1, 3, 5, 7)
+                vec![7, 1, 2, 3], // shard 0 (2, 4, 6, 8)
+                vec![2, 7, 1, 1], // shard 1 (1, 3, 5, 7)
             ];
 
         let actual_part1 = &gs.read_vec_partitions(&agg)[0];
@@ -143,8 +143,8 @@ mod cc_test {
 
         let expected =             // output from the eval running on the first shard
             vec![
-                vec![7, 1], // shard 0 (2, 4, 6, 8)
-                vec![1, 7, 1, 1, 2, 1], // shard 1 (1, 3, 5, 7)
+                vec![7, 1, 1, 2], // shard 0 (2, 4, 6, 8)
+                vec![1, 7, 1, 1], // shard 1 (1, 3, 5, 7)
             ];
 
         let actual_part1 = &gs.read_vec_partitions(&agg)[0];
@@ -159,8 +159,8 @@ mod cc_test {
 
         let expected =             // output from the eval running on the first shard
             vec![
-                vec![7, 1], // shard 0 (2, 4, 6, 8)
-                vec![1, 7, 1, 1, 1, 1], // shard 1 (1, 3, 5, 7)
+                vec![7, 1, 1, 1], // shard 0 (2, 4, 6, 8)
+                vec![1, 7, 1, 1], // shard 1 (1, 3, 5, 7)
             ];
 
         let actual_part1 = &gs.read_vec_partitions(&agg)[0];
@@ -189,8 +189,6 @@ mod cc_test {
         for (src, dst, ts) in edges {
             graph.add_edge(ts, src, dst, &vec![], None).unwrap();
         }
-
-        let window = 0..10;
 
         let results: FxHashMap<u64, u64> = weakly_connected_components(&graph, usize::MAX)
             .into_iter()
@@ -248,8 +246,6 @@ mod cc_test {
             graph.add_edge(ts, src, dst, &vec![], None).unwrap();
         }
 
-        let window = 0..25;
-
         let results: FxHashMap<u64, u64> = weakly_connected_components(&graph, usize::MAX)
             .into_iter()
             .map(|(k, v)| (k, v as u64))
@@ -286,8 +282,6 @@ mod cc_test {
             graph.add_edge(ts, src, dst, &vec![], None).unwrap();
         }
 
-        let window = 0..25;
-
         let results: FxHashMap<u64, u64> = weakly_connected_components(&graph, usize::MAX);
 
         assert_eq!(
@@ -321,8 +315,6 @@ mod cc_test {
             }
 
             // now we do connected components over window 0..1
-
-            let window = 0..1;
 
             let components: FxHashMap<u64, u64> = weakly_connected_components(&graph, usize::MAX);
 

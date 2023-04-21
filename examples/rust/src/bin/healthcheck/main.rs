@@ -9,12 +9,12 @@ mod test {
 
     use docbrown::algorithms::connected_components::weakly_connected_components;
     use docbrown::core::Direction;
-    use docbrown::db::csv_loader::CsvLoader;
     use docbrown::db::{
         graph::Graph,
         view_api::*,
         view_api::{internal::GraphViewInternalOps, GraphViewOps},
     };
+    use docbrown::graph_loader::source::csv_loader::CsvLoader;
     use itertools::Itertools;
     use serde::de::DeserializeOwned;
 

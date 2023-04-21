@@ -36,7 +36,7 @@
 //!
 //! Example:
 //! ```no_run
-//! use docbrown::graph_loader::sx_superuser_graph::sx_superuser_graph;
+//! use docbrown::graph_loader::example::sx_superuser_graph::sx_superuser_graph;
 //! use docbrown::db::graph::Graph;
 //! use docbrown::db::view_api::*;
 //!
@@ -48,7 +48,7 @@
 
 use crate::{db::graph::Graph, graph_loader::fetch_file};
 
-use crate::db::csv_loader::CsvLoader;
+use crate::graph_loader::source::csv_loader::CsvLoader;
 use serde::Deserialize;
 use std::path::PathBuf;
 
@@ -95,7 +95,7 @@ pub fn sx_superuser_graph(shards: usize) -> Result<Graph, Box<dyn std::error::Er
 
 #[cfg(test)]
 mod sx_superuser_test {
-    use crate::graph_loader::sx_superuser_graph::{sx_superuser_file, sx_superuser_graph};
+    use crate::graph_loader::example::sx_superuser_graph::{sx_superuser_file, sx_superuser_graph};
 
     #[test]
     fn test_download_works() {
@@ -105,6 +105,6 @@ mod sx_superuser_test {
 
     #[test]
     fn test_graph_loading_works() {
-        let graph = sx_superuser_graph(2).unwrap();
+        sx_superuser_graph(2).unwrap();
     }
 }

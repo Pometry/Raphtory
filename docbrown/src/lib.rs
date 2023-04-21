@@ -89,7 +89,7 @@
 //! use docbrown::algorithms::degree::average_degree;
 //! use docbrown::db::graph::Graph;
 //! use docbrown::db::view_api::*;
-//! use docbrown::graph_loader::lotr_graph::lotr_graph;
+//! use docbrown::graph_loader::example::lotr_graph::lotr_graph;
 //!
 //! let graph = lotr_graph(3);
 //!

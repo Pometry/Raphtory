@@ -30,16 +30,16 @@ pub mod clustering_coefficient;
 pub mod connected_components;
 pub mod degree;
 pub mod directed_graph_density;
+pub mod hits;
 pub mod local_clustering_coefficient;
 pub mod local_triangle_count;
 pub mod pagerank;
 pub mod reciprocity;
 pub mod triangle_count;
 pub mod triplet_count;
-pub mod hits;
 
-use std::ops::{Add, AddAssign, Div, Mul, Range, Sub};
 use num_traits::{abs, Bounded, Zero};
+use std::ops::{Add, AddAssign, Div, Mul, Range, Sub};
 
 #[derive(PartialEq, PartialOrd, Copy, Clone, Debug)]
 struct MulF32(f32);

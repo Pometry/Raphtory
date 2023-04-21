@@ -929,13 +929,10 @@ mod db_tests {
     use crate::core::utils;
     use crate::db::edge::EdgeView;
     use crate::db::path::PathFromVertex;
-    use crate::db::vertex::VertexView;
     use crate::db::view_api::*;
     use crate::graphgen::random_attachment::random_attachment;
-    use chrono::NaiveDateTime;
     use csv::StringRecord;
     use itertools::Itertools;
-    use quickcheck::quickcheck;
     use std::fs;
     use std::sync::Arc;
     use tempdir::TempDir;
@@ -1528,8 +1525,8 @@ mod db_tests {
     fn db_lotr() {
         let g = Graph::new(4);
 
-        let data_dir =
-            crate::graph_loader::lotr_graph::lotr_file().expect("Failed to get lotr.csv file");
+        let data_dir = crate::graph_loader::example::lotr_graph::lotr_file()
+            .expect("Failed to get lotr.csv file");
 
         fn parse_record(rec: &StringRecord) -> Option<(String, String, i64)> {
             let src = rec.get(0).and_then(|s| s.parse::<String>().ok())?;
@@ -1589,13 +1586,13 @@ mod db_tests {
 
     #[test]
     fn test_lotr_load_graph() {
-        let g = crate::graph_loader::lotr_graph::lotr_graph(4);
+        let g = crate::graph_loader::example::lotr_graph::lotr_graph(4);
         assert_eq!(g.num_edges(), 701);
     }
 
     #[test]
     fn test_graph_at() {
-        let g = crate::graph_loader::lotr_graph::lotr_graph(1);
+        let g = crate::graph_loader::example::lotr_graph::lotr_graph(1);
 
         let g_at_empty = g.at(1);
         let g_at_start = g.at(7059);
@@ -1771,8 +1768,6 @@ mod db_tests {
         g.add_edge(1, 1, 3, &vec![], None).unwrap();
         g.add_edge(2, 1, 3, &vec![], None).unwrap();
 
-        let expected: i64 = 1;
-
         let mut res = g.edge(1, 2, None).unwrap().earliest_time().unwrap();
         assert_eq!(res, 0);
 
@@ -1785,16 +1780,16 @@ mod db_tests {
         res = g.at(1).edge(1, 2, None).unwrap().latest_time().unwrap();
         assert_eq!(res, 1);
 
-        let mut res_list: Vec<i64> = g.vertex(1).unwrap().edges().earliest_time().collect();
+        let res_list: Vec<i64> = g.vertex(1).unwrap().edges().earliest_time().collect();
         assert_eq!(res_list, vec![0, 0]);
 
-        let mut res_list: Vec<i64> = g.vertex(1).unwrap().edges().latest_time().collect();
+        let res_list: Vec<i64> = g.vertex(1).unwrap().edges().latest_time().collect();
         assert_eq!(res_list, vec![2, 2]);
 
-        let mut res_list: Vec<i64> = g.vertex(1).unwrap().at(1).edges().earliest_time().collect();
+        let res_list: Vec<i64> = g.vertex(1).unwrap().at(1).edges().earliest_time().collect();
         assert_eq!(res_list, vec![0, 0]);
 
-        let mut res_list: Vec<i64> = g.vertex(1).unwrap().at(1).edges().latest_time().collect();
+        let res_list: Vec<i64> = g.vertex(1).unwrap().at(1).edges().latest_time().collect();
         assert_eq!(res_list, vec![1, 1]);
     }
 

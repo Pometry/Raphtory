@@ -6,9 +6,9 @@
 //! use regex::Regex;
 //! use docbrown::core::Prop;
 //! use docbrown::core::utils::calculate_hash;
-//! use docbrown::db::csv_loader::CsvLoader;
+//! use docbrown::graph_loader::source::csv_loader::CsvLoader;
 //! use docbrown::db::graph::Graph;
-//! use docbrown::graph_loader::lotr_graph::Lotr;
+//! use docbrown::graph_loader::example::lotr_graph::Lotr;
 //!
 //!  let g = Graph::new(2);
 //!  let csv_path: PathBuf = [env!("CARGO_MANIFEST_DIR"), "../../resource/"]
@@ -136,7 +136,7 @@ impl CsvLoader {
     ///
     /// ```no_run
     ///
-    /// use docbrown::db::csv_loader::CsvLoader;
+    /// use docbrown::graph_loader::source::csv_loader::CsvLoader;
     /// let loader = CsvLoader::new("/path/to/csv_file.csv");
     /// ```
     pub fn new<P: Into<PathBuf>>(p: P) -> Self {
@@ -157,7 +157,7 @@ impl CsvLoader {
     /// # Example
     ///
     /// ```no_run
-    /// use docbrown::db::csv_loader::CsvLoader;
+    /// use docbrown::graph_loader::source::csv_loader::CsvLoader;
     /// let loader = CsvLoader::new("/path/to/csv_file.csv").set_header(true);
     /// ```
     pub fn set_header(mut self, h: bool) -> Self {
@@ -174,7 +174,7 @@ impl CsvLoader {
     /// # Example
     ///
     /// ```no_run
-    /// use docbrown::db::csv_loader::CsvLoader;
+    /// use docbrown::graph_loader::source::csv_loader::CsvLoader;
     /// let loader = CsvLoader::new("/path/to/csv_file.csv").set_delimiter("|");
     /// ```
     pub fn set_delimiter(mut self, d: &str) -> Self {
@@ -192,7 +192,7 @@ impl CsvLoader {
     ///
     /// ```no_run
     /// use regex::Regex;
-    /// use docbrown::db::csv_loader::CsvLoader;
+    /// use docbrown::graph_loader::source::csv_loader::CsvLoader;
     ///
     /// let loader = CsvLoader::new("/path/to/csv_files")
     ///    .with_filter(Regex::new(r"file_name_pattern").unwrap());
@@ -404,8 +404,8 @@ impl CsvLoader {
 mod csv_loader_test {
     use crate::core::utils::calculate_hash;
     use crate::core::Prop;
-    use crate::db::csv_loader::CsvLoader;
     use crate::db::graph::Graph;
+    use crate::graph_loader::source::csv_loader::CsvLoader;
     use regex::Regex;
     use serde::Deserialize;
     use std::path::{Path, PathBuf};
@@ -472,7 +472,8 @@ mod csv_loader_test {
                         Prop::Str("Character Co-occurrence".to_string()),
                     )],
                     None,
-                );
+                )
+                .unwrap();
             })
             .expect("Csv did not parse.");
     }

@@ -194,7 +194,6 @@ impl Add<Interval> for i64 {
 #[cfg(test)]
 mod time_tests {
     use crate::core::time::{Interval, ParseTimeError};
-    use std::num::ParseIntError;
     #[test]
     fn interval_parsing() {
         let second: u64 = 1000;

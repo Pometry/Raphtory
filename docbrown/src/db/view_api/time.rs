@@ -1,8 +1,6 @@
 use crate::core::time::error::ParseTimeError;
-use crate::core::time::{Interval, IntervalSize};
-use std::array::IntoIter;
-use std::cmp::{max, min, Ordering};
-use std::iter;
+use crate::core::time::Interval;
+use std::cmp::{max, min};
 
 /// Trait defining time query operations
 pub trait TimeOps {
@@ -135,12 +133,9 @@ impl<T: TimeOps> Iterator for WindowSet<T> {
 mod time_tests {
     use crate::core::time::IntoTime;
     use crate::db::graph::Graph;
-    use crate::db::graph_window::WindowedGraph;
     use crate::db::view_api::internal::GraphViewInternalOps;
     use crate::db::view_api::time::WindowSet;
     use crate::db::view_api::{GraphViewOps, TimeOps};
-    use chrono::format::parse;
-    use chrono::NaiveDateTime;
     use itertools::Itertools;
 
     // start inclusive, end exclusive
