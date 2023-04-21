@@ -426,6 +426,7 @@ impl ComputeState for ComputeStateMap {
     }
 
     fn finalize<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(&self, ss: usize) -> Vec<OUT>
+    // fn finalize<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(&self, ss: usize) -> Vec<(u64, OUT)>
     where
         OUT: StateType,
         A: 'static,
@@ -435,6 +436,11 @@ impl ComputeState for ComputeStateMap {
             .as_any()
             .downcast_ref::<MapArray<A>>()
             .unwrap();
+
+        // current.map.iter().map(|(c,v)| {
+        //     (*c, ACC::finish(&v[ss % 2]))
+        // }).collect::<Vec<(u64, OUT)>>()
+
         current
             .map
             .values()

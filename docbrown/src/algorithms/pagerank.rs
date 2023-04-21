@@ -13,138 +13,7 @@ use crate::db::{
 use num_traits::{abs, Bounded, Zero};
 use rustc_hash::FxHashMap;
 use std::ops::{Add, AddAssign, Div, Mul, Range, Sub};
-
-#[derive(PartialEq, PartialOrd, Copy, Clone, Debug)]
-struct MulF32(f32);
-
-const MUL_F32_ZERO: MulF32 = MulF32(1.0f32);
-
-impl Zero for MulF32 {
-    fn zero() -> Self {
-        MUL_F32_ZERO
-    }
-
-    fn set_zero(&mut self) {
-        *self = Zero::zero();
-    }
-
-    fn is_zero(&self) -> bool {
-        *self == MUL_F32_ZERO
-    }
-}
-
-impl Add for MulF32 {
-    type Output = MulF32;
-
-    fn add(self, rhs: Self) -> Self::Output {
-        MulF32(self.0 + rhs.0)
-    }
-}
-
-impl AddAssign for MulF32 {
-    fn add_assign(&mut self, rhs: Self) {
-        self.0 = self.0 + rhs.0
-    }
-}
-
-impl Sub for MulF32 {
-    type Output = MulF32;
-
-    fn sub(self, rhs: Self) -> Self::Output {
-        MulF32(self.0 - rhs.0)
-    }
-}
-
-impl Div for MulF32 {
-    type Output = MulF32;
-
-    fn div(self, rhs: Self) -> Self::Output {
-        MulF32(self.0 / rhs.0)
-    }
-}
-
-impl Mul for MulF32 {
-    type Output = MulF32;
-
-    fn mul(self, rhs: Self) -> Self::Output {
-        MulF32(self.0 * rhs.0)
-    }
-}
-
-impl Bounded for MulF32 {
-    fn min_value() -> Self {
-        MulF32(f32::MIN)
-    }
-
-    fn max_value() -> Self {
-        MulF32(f32::MAX)
-    }
-}
-
-#[derive(PartialEq, PartialOrd, Copy, Clone, Debug)]
-struct SumF32(f32);
-
-impl Zero for SumF32 {
-    fn zero() -> Self {
-        SumF32(0.0f32)
-    }
-
-    fn set_zero(&mut self) {
-        *self = Zero::zero();
-    }
-
-    fn is_zero(&self) -> bool {
-        *self == SumF32(1.0f32)
-    }
-}
-
-impl Add for SumF32 {
-    type Output = SumF32;
-
-    fn add(self, rhs: Self) -> Self::Output {
-        SumF32(self.0 + rhs.0)
-    }
-}
-
-impl AddAssign for SumF32 {
-    fn add_assign(&mut self, rhs: Self) {
-        self.0 = self.0 + rhs.0
-    }
-}
-
-impl Sub for SumF32 {
-    type Output = SumF32;
-
-    fn sub(self, rhs: Self) -> Self::Output {
-        SumF32(self.0 - rhs.0)
-    }
-}
-
-impl Div for SumF32 {
-    type Output = SumF32;
-
-    fn div(self, rhs: Self) -> Self::Output {
-        SumF32(self.0 / rhs.0)
-    }
-}
-
-impl Mul for SumF32 {
-    type Output = SumF32;
-
-    fn mul(self, rhs: Self) -> Self::Output {
-        SumF32(self.0 * rhs.0)
-    }
-}
-
-impl Bounded for SumF32 {
-    fn min_value() -> Self {
-        SumF32(f32::MIN)
-    }
-
-    fn max_value() -> Self {
-        SumF32(f32::MAX)
-    }
-}
+use crate::algorithms::*;
 
 struct UnweightedPageRankS0 {
     total_vertices: usize,
@@ -199,8 +68,8 @@ impl Program for UnweightedPageRankS1 {
     type Out = ();
 
     fn local_eval<G: GraphViewOps>(&self, c: &LocalState<G>) {
-        let score: AggRef<MulF32, MulF32, MulF32, ValDef<MulF32>> = c.agg(self.score);
-        let recv_score: AggRef<SumF32, SumF32, SumF32, SumDef<SumF32>> = c.agg(self.recv_score);
+        let score = c.agg(self.score);
+        let recv_score = c.agg(self.recv_score);
 
         c.step(|s| {
             let out_degree = s.out_degree();

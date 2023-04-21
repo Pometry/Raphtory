@@ -723,6 +723,20 @@ impl<G: GraphViewOps> EvalVertexView<G> {
             .unwrap_or(ACC::finish(&ACC::zero()))
     }
 
+    pub fn read_global<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
+        &self,
+        agg_r: &AggRef<A, IN, OUT, ACC>,
+    ) -> OUT
+        where
+            A: StateType,
+            OUT: Debug,
+    {
+        self.state
+            .borrow()
+            .read_global(self.ss, &agg_r.0)
+            .unwrap_or(ACC::finish(&ACC::zero()))
+    }
+
     /// Returns an entry object representing the current state of the vertex with the given accumulator.
     pub fn entry<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
         &self,
