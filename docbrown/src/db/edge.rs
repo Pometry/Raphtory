@@ -90,10 +90,7 @@ impl<G: GraphViewOps> EdgeView<G> {
     }
 
     pub fn history(&self) -> Vec<i64> {
-        self.graph.edge_timestamps(
-            self.edge,
-            Some(self.graph.earliest_time().unwrap_or(0)..self.graph.latest_time().unwrap_or(0)),
-        )
+        self.graph.edge_timestamps(self.edge, None)
     }
 
     pub fn properties(&self, include_static: bool) -> HashMap<String, Prop> {

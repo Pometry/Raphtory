@@ -813,7 +813,11 @@ impl<G: GraphViewOps> GraphViewInternalOps for WindowedGraph<G> {
     /// - `GraphError` - Raised if edge does not exist
 
     fn edge_timestamps(&self, e: EdgeRef, window: Option<Range<i64>>) -> Vec<i64> {
-        self.graph.edge_timestamps(e, window)
+        let window = match window {
+            Some(Range { start, end, .. }) => self.actual_start(start)..self.actual_end(end),
+            None => self.t_start..self.t_end,
+        };
+        self.graph.edge_timestamps(e, Some(window))
     }
 
     /// Get all temporal properties of a vertex
