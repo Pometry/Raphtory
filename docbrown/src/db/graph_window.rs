@@ -41,50 +41,10 @@ use crate::core::{
     tgraph::{EdgeRef, VertexRef},
     Direction, Prop,
 };
-use crate::db::perspective::Perspective;
 use crate::db::view_api::internal::GraphViewInternalOps;
 use crate::db::view_api::time::TimeOps;
 use crate::db::view_api::GraphViewOps;
 use std::{collections::HashMap, ops::Range};
-
-/// A set of windowed views of a `Graph`, allows user to iterating over a Graph broken
-/// down into multiple windowed views.
-pub struct WindowSet<T: TimeOps> {
-    /// The underlying `Graph` object.
-    pub view: T,
-    /// An iterator of `Perspective`s to window the `Graph`.
-    perspectives: Box<dyn Iterator<Item = Perspective> + Send>,
-}
-
-impl<T: TimeOps> WindowSet<T> {
-    /// Constructs a new `WindowSet` object.
-    ///
-    /// # Arguments
-    ///
-    /// * `view` - The underlying object.
-    /// * `perspectives` - An iterator of `Perspective`s to window the `view`.
-    ///
-    /// # Returns
-    ///
-    /// A new `WindowSet` object.
-    pub fn new(
-        view: T,
-        perspectives: Box<dyn Iterator<Item = Perspective> + Send>,
-    ) -> WindowSet<T> {
-        WindowSet { view, perspectives }
-    }
-}
-
-impl<T: TimeOps> Iterator for WindowSet<T> {
-    type Item = T::WindowedViewType;
-    fn next(&mut self) -> Option<Self::Item> {
-        let perspective = self.perspectives.next()?;
-        Some(self.view.window(
-            perspective.start.unwrap_or(i64::MIN),
-            perspective.end.unwrap_or(i64::MAX),
-        ))
-    }
-}
 
 /// A struct that represents a windowed view of a `Graph`.
 #[derive(Debug, Clone)]

@@ -10,7 +10,6 @@ pub mod graph;
 pub mod graph_gen;
 pub mod graph_loader;
 pub mod graph_view;
-pub mod perspective;
 pub mod types;
 mod util;
 pub mod vertex;
@@ -23,14 +22,12 @@ use crate::algorithms::{
 use crate::graph::PyGraph;
 use crate::graph_gen::*;
 use crate::graph_loader::*;
-use perspective::PyPerspective;
 use pyo3::prelude::*;
 
 /// Raphtory graph analytics library
 #[pymodule]
 fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_class::<PyGraph>()?;
-    m.add_class::<PyPerspective>()?;
 
     let algorithm_module = PyModule::new(py, "algorithms")?;
     algorithm_module.add_function(wrap_pyfunction!(global_reciprocity, algorithm_module)?)?;

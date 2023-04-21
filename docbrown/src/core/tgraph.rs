@@ -292,7 +292,7 @@ impl TemporalGraph {
         }) // TODO: use the name here if exists
     }
 
-    // TODO: remove this ???
+    // TODO: remove this??? it's only used for tests, we can use the other one instead
     pub fn add_edge<T: InputVertex>(&mut self, t: i64, src: T, dst: T, layer: usize) {
         self.add_edge_with_props(t, src, dst, &vec![], layer)
     }
