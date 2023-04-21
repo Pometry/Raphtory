@@ -363,7 +363,7 @@ impl<G: GraphViewOps> VertexListOps for Box<dyn Iterator<Item = VertexView<G>> +
     }
 
     fn latest_time(self) -> BoxedIter<Option<i64>> {
-        Box::new(self.map(|v| v.end()))
+        Box::new(self.map(|v| v.end().map(|t| t - 1)))
     }
 
     fn window(self, t_start: i64, t_end: i64) -> BoxedIter<VertexView<G>> {

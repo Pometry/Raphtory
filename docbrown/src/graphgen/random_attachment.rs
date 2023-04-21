@@ -41,12 +41,9 @@ use rand::seq::SliceRandom;
 /// ```
 pub fn random_attachment(graph: &Graph, vertices_to_add: usize, edges_per_step: usize) {
     let rng = &mut rand::thread_rng();
-    let mut latest_time = graph.end().unwrap_or(0);
+    let mut latest_time = graph.latest_time().unwrap_or(0);
     let mut ids: Vec<u64> = graph.vertices().id().collect();
-    let mut max_id = match ids.iter().max() {
-        Some(id) => *id,
-        None => 0,
-    };
+    let mut max_id = ids.iter().max().copied().unwrap_or(0);
 
     while ids.len() < edges_per_step {
         max_id += 1;

@@ -4,14 +4,14 @@
 use crate::dynamic::DynamicGraph;
 use crate::edge::{PyEdges, PyNestedEdges};
 use crate::types::repr::{iterator_repr, Repr};
-use crate::util::{extract_vertex_ref, through_impl, window_impl};
+use crate::util::{expanding_impl, extract_vertex_ref, rolling_impl, window_impl};
 use crate::wrappers::iterators::*;
 use crate::wrappers::prop::Prop;
 use docbrown::core::tgraph::VertexRef;
-use docbrown::db::graph_window::WindowSet;
 use docbrown::db::path::{PathFromGraph, PathFromVertex};
 use docbrown::db::vertex::VertexView;
 use docbrown::db::vertices::Vertices;
+use docbrown::db::view_api::time::WindowSet;
 use docbrown::db::view_api::*;
 use itertools::Itertools;
 use pyo3::exceptions::PyIndexError;
@@ -296,8 +296,8 @@ impl PyVertex {
     ///
     /// Returns:
     ///  A `PyVertexWindowSet` object.
-    fn expanding(&self, step: u64, start: Option<i64>, end: Option<i64>) -> PyVertexWindowSet {
-        self.vertex.expanding(step, start, end).into()
+    fn expanding(&self, step: &PyAny) -> PyResult<PyVertexWindowSet> {
+        expanding_impl(&self.vertex, step)
     }
 
     /// Creates a `PyVertexWindowSet` with the given `window` size and optional `step`, `start` and `end` times,
@@ -315,14 +315,8 @@ impl PyVertex {
     ///
     /// Returns:
     /// A `PyVertexWindowSet` object.
-    fn rolling(
-        &self,
-        window: u64,
-        step: Option<u64>,
-        start: Option<i64>,
-        end: Option<i64>,
-    ) -> PyVertexWindowSet {
-        self.vertex.rolling(window, step, start, end).into()
+    fn rolling(&self, window: &PyAny, step: Option<&PyAny>) -> PyResult<PyVertexWindowSet> {
+        rolling_impl(&self.vertex, window, step)
     }
 
     /// Create a view of the vertex including all events between `t_start` (inclusive) and `t_end` (exclusive)
@@ -356,17 +350,6 @@ impl PyVertex {
     ///     A list of timestamps of the event history of vertex.
     pub fn history(&self) -> Vec<i64> {
         self.vertex.history()
-    }
-
-    /// Creates a `WindowSet` from a set of perspectives
-    ///
-    /// Arguments:
-    ///    perspectives: A list of `Perspective` objects.
-    ///
-    /// Returns:
-    ///   A `PyVertexWindowSet` object.
-    pub fn through(&self, perspectives: &PyAny) -> PyResult<PyVertexWindowSet> {
-        through_impl(&self.vertex, perspectives).map(|p| p.into())
     }
 
     //******  Python  ******//
@@ -532,18 +515,12 @@ impl PyVertices {
         self.vertices.end()
     }
 
-    fn expanding(&self, step: u64, start: Option<i64>, end: Option<i64>) -> PyVerticesWindowSet {
-        self.vertices.expanding(step, start, end).into()
+    fn expanding(&self, step: &PyAny) -> PyResult<PyVerticesWindowSet> {
+        expanding_impl(&self.vertices, step)
     }
 
-    fn rolling(
-        &self,
-        window: u64,
-        step: Option<u64>,
-        start: Option<i64>,
-        end: Option<i64>,
-    ) -> PyVerticesWindowSet {
-        self.vertices.rolling(window, step, start, end).into()
+    fn rolling(&self, window: &PyAny, step: Option<&PyAny>) -> PyResult<PyVerticesWindowSet> {
+        rolling_impl(&self.vertices, window, step)
     }
 
     #[pyo3(signature = (t_start = None, t_end = None))]
@@ -561,10 +538,6 @@ impl PyVertices {
     #[pyo3(signature = (end))]
     pub fn at(&self, end: i64) -> PyVertices {
         self.vertices.at(end).into()
-    }
-
-    pub fn through(&self, perspectives: &PyAny) -> PyResult<PyVerticesWindowSet> {
-        through_impl(&self.vertices, perspectives).map(|p| p.into())
     }
 
     //****** Python *******
@@ -728,23 +701,12 @@ impl PyPathFromGraph {
         self.path.end()
     }
 
-    fn expanding(
-        &self,
-        step: u64,
-        start: Option<i64>,
-        end: Option<i64>,
-    ) -> PyPathFromGraphWindowSet {
-        self.path.expanding(step, start, end).into()
+    fn expanding(&self, step: &PyAny) -> PyResult<PyPathFromGraphWindowSet> {
+        expanding_impl(&self.path, step)
     }
 
-    fn rolling(
-        &self,
-        window: u64,
-        step: Option<u64>,
-        start: Option<i64>,
-        end: Option<i64>,
-    ) -> PyPathFromGraphWindowSet {
-        self.path.rolling(window, step, start, end).into()
+    fn rolling(&self, window: &PyAny, step: Option<&PyAny>) -> PyResult<PyPathFromGraphWindowSet> {
+        rolling_impl(&self.path, window, step)
     }
 
     #[pyo3(signature = (t_start = None, t_end = None))]
@@ -762,10 +724,6 @@ impl PyPathFromGraph {
     #[pyo3(signature = (end))]
     pub fn at(&self, end: i64) -> Self {
         self.path.at(end).into()
-    }
-
-    pub fn through(&self, perspectives: &PyAny) -> PyResult<PyPathFromGraphWindowSet> {
-        through_impl(&self.path, perspectives).map(|p| p.into())
     }
 
     fn __repr__(&self) -> String {
@@ -920,23 +878,12 @@ impl PyPathFromVertex {
         self.path.end()
     }
 
-    fn expanding(
-        &self,
-        step: u64,
-        start: Option<i64>,
-        end: Option<i64>,
-    ) -> PyPathFromVertexWindowSet {
-        self.path.expanding(step, start, end).into()
+    fn expanding(&self, step: &PyAny) -> PyResult<PyPathFromVertexWindowSet> {
+        expanding_impl(&self.path, step)
     }
 
-    fn rolling(
-        &self,
-        window: u64,
-        step: Option<u64>,
-        start: Option<i64>,
-        end: Option<i64>,
-    ) -> PyPathFromVertexWindowSet {
-        self.path.rolling(window, step, start, end).into()
+    fn rolling(&self, window: &PyAny, step: Option<&PyAny>) -> PyResult<PyPathFromVertexWindowSet> {
+        rolling_impl(&self.path, window, step)
     }
 
     #[pyo3(signature = (t_start = None, t_end = None))]
@@ -954,10 +901,6 @@ impl PyPathFromVertex {
     #[pyo3(signature = (end))]
     pub fn at(&self, end: i64) -> Self {
         self.path.at(end).into()
-    }
-
-    pub fn through(&self, perspectives: &PyAny) -> PyResult<PyPathFromVertexWindowSet> {
-        through_impl(&self.path, perspectives).map(|p| p.into())
     }
 
     fn __repr__(&self) -> String {

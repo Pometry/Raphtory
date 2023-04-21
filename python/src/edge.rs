@@ -9,9 +9,11 @@ use crate::types::repr::{iterator_repr, Repr};
 use crate::util::*;
 use crate::vertex::PyVertex;
 use crate::wrappers::prop::Prop;
+use docbrown::core::time::error::ParseTimeError;
+use docbrown::core::time::Interval;
 use docbrown::core::vertex::InputVertex;
 use docbrown::db::edge::EdgeView;
-use docbrown::db::graph_window::WindowSet;
+use docbrown::db::view_api::time::WindowSet;
 use docbrown::db::view_api::*;
 use itertools::Itertools;
 use pyo3::{pyclass, pymethods, PyAny, PyRef, PyRefMut, PyResult};
@@ -201,14 +203,12 @@ impl PyEdge {
     ///
     /// Arguments:
     ///   step (int): The step size to use when calculating the duration.
-    ///   start (int): The start time to use when calculating the duration.
-    ///   end (int): The end time to use when calculating the duration.
     ///
     /// Returns:
     ///   A set of windows containing edges that fall in the time period
-    #[pyo3(signature = (step, start = None, end = None))]
-    fn expanding(&self, step: u64, start: Option<i64>, end: Option<i64>) -> PyEdgeWindowSet {
-        self.edge.expanding(step, start, end).into()
+    #[pyo3(signature = (step))]
+    fn expanding(&self, step: &PyAny) -> PyResult<PyEdgeWindowSet> {
+        expanding_impl(&self.edge, step)
     }
 
     /// Get a set of Edge windows for a given window size, step, start time
@@ -223,14 +223,8 @@ impl PyEdge {
     ///
     /// Returns:
     ///   A set of windows containing edges that fall in the time period
-    fn rolling(
-        &self,
-        window: u64,
-        step: Option<u64>,
-        start: Option<i64>,
-        end: Option<i64>,
-    ) -> PyEdgeWindowSet {
-        self.edge.rolling(window, step, start, end).into()
+    fn rolling(&self, window: &PyAny, step: Option<&PyAny>) -> PyResult<PyEdgeWindowSet> {
+        rolling_impl(&self.edge, window, step)
     }
 
     /// Get a new Edge with the properties of this Edge within the specified time window.
@@ -256,17 +250,6 @@ impl PyEdge {
     #[pyo3(signature = (end))]
     pub fn at(&self, end: i64) -> PyEdge {
         self.edge.at(end).into()
-    }
-
-    /// Creates a WindowSet from a set of perspectives
-    ///
-    /// Arguments:
-    ///   perspectives (list): A list of perspectives to create the WindowSet from.
-    ///
-    /// Returns:
-    ///   A WindowSet containing the windows of the perspectives.
-    pub fn through(&self, perspectives: &PyAny) -> PyResult<PyEdgeWindowSet> {
-        through_impl(&self.edge, perspectives).map(|p| p.into())
     }
 
     /// Explodes an Edge into a list of PyEdges. This is useful when you want to iterate over

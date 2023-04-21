@@ -12,7 +12,7 @@ pub fn local_triangle_count<G: GraphViewOps>(graph: &G, v: u64) -> Result<usize,
     let vertex = graph.vertex(v).unwrap();
 
     let count = if vertex.degree() >= 2 {
-        let r: Result<Vec<_>, _> = vertex
+        let r: Result<Vec<_>, GraphError> = vertex
             .neighbours()
             .id()
             .into_iter()
@@ -35,7 +35,7 @@ pub fn local_triangle_count<G: GraphViewOps>(graph: &G, v: u64) -> Result<usize,
 }
 
 pub fn global_triangle_count<G: GraphViewOps>(graph: &G) -> Result<usize, GraphError> {
-    let r: Result<Vec<_>, _> = graph
+    let r: Result<Vec<_>, GraphError> = graph
         .vertices()
         .into_iter()
         .par_bridge()
