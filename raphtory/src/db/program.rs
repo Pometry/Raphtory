@@ -684,6 +684,19 @@ impl<G: GraphViewOps, CS: ComputeState> EvalVertexView<G, CS> {
             .accumulate_into(self.ss, self.vv.id() as usize, a, agg)
     }
 
+
+    pub fn update2<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
+        &self,
+        id: &AccId<A, IN, OUT, ACC>,
+        a: IN,
+    ) where
+        A: StateType,
+    {
+        self.state
+            .borrow_mut()
+            .accumulate_into(self.ss, self.vv.id() as usize, a, id)
+    }
+
     /// Update the global state with the provided input value using the given accumulator.
     pub fn global_update<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
         &self,

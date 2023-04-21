@@ -20,13 +20,13 @@ use super::{program::EvalVertexView, view_api::GraphViewOps};
 struct TaskError {}
 
 trait Task<G: GraphViewOps, CS: ComputeState> {
-    fn run(&self, vv: &EvalVertexView<G, CS>, ctx: &Context<G, CS>) -> Result<(), TaskError>;
+    fn run(&self, vv: &EvalVertexView<G, CS>) -> Result<(), TaskError>;
 }
 
 struct AnonymousTask<
     G: GraphViewOps,
     CS: ComputeState,
-    F: Fn(&EvalVertexView<G, CS>, &Context<G, CS>) -> Result<(), TaskError>,
+    F: Fn(&EvalVertexView<G, CS>) -> Result<(), TaskError>,
 > {
     f: F,
     _g: std::marker::PhantomData<G>,
@@ -36,7 +36,7 @@ struct AnonymousTask<
 impl<
         G: GraphViewOps,
         CS: ComputeState,
-        F: Fn(&EvalVertexView<G, CS>, &Context<G, CS>) -> Result<(), TaskError>,
+        F: Fn(&EvalVertexView<G, CS>) -> Result<(), TaskError>,
     > AnonymousTask<G, CS, F>
 {
     fn new(f: F) -> Self {
@@ -51,11 +51,11 @@ impl<
 impl<
         G: GraphViewOps,
         CS: ComputeState,
-        F: Fn(&EvalVertexView<G, CS>, &Context<G, CS>) -> Result<(), TaskError>,
+        F: Fn(&EvalVertexView<G, CS>) -> Result<(), TaskError>,
     > Task<G, CS> for AnonymousTask<G, CS, F>
 {
-    fn run(&self, vv: &EvalVertexView<G, CS>, ctx: &Context<G, CS>) -> Result<(), TaskError> {
-        (self.f)(vv, ctx)
+    fn run(&self, vv: &EvalVertexView<G, CS>) -> Result<(), TaskError> {
+        (self.f)(vv)
     }
 }
 
@@ -112,7 +112,7 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
                     if self.is_vertex_in_partition(&vertex, job_ids.len(), *job_id) {
                         let vv = EvalVertexView::new(self.ctx.ss, vertex, local_state.clone());
                         for task in self.tasks.iter() {
-                            task.run(&vv, &self.ctx).expect("task run");
+                            task.run(&vv).expect("task run");
                         }
                     }
                 }
@@ -161,11 +161,21 @@ mod tasks_tests {
 
         let mut ctx: Context<Graph, ComputeStateMap> = graph.into();
 
-        ctx.agg(state::def::sum::<usize>(0));
+        let min = state::def::min::<u64>(0);
 
-        let ann = AnonymousTask::new(|vv, ctx| {
+        // setup the aggregator to be merged post execution
+        ctx.agg(min.clone());
+
+        let ann = AnonymousTask::new(move |vv| {
             let t_id = std::thread::current().id();
             println!("vertex: {} {t_id:?}", vv.global_id());
+
+            vv.update2(&min, vv.global_id());
+
+            for n in vv.neighbours() {
+                n.update2(&min, vv.global_id())
+            }
+
             Ok(())
         });
 
