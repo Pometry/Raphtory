@@ -1,5 +1,6 @@
 // the main execution unit of an algorithm
 
+use std::borrow::Cow;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -10,7 +11,7 @@ use rayon::prelude::*;
 use rayon::{prelude::IntoParallelRefIterator, ThreadPool, ThreadPoolBuilder};
 
 use crate::core::agg::Accumulator;
-use crate::core::state::{AccId, ComputeState, ShuffleComputeState, StateType};
+use crate::core::state::{AccId, ComputeState, ComputeStateMap, ShuffleComputeState, StateType};
 
 use super::vertex::VertexView;
 use super::{program::EvalVertexView, view_api::GraphViewOps};
@@ -33,11 +34,8 @@ struct AnonymousTask<
     _cs: std::marker::PhantomData<CS>,
 }
 
-impl<
-        G: GraphViewOps,
-        CS: ComputeState,
-        F: Fn(&EvalVertexView<G, CS>) -> Result<(), TaskError>,
-    > AnonymousTask<G, CS, F>
+impl<G: GraphViewOps, CS: ComputeState, F: Fn(&EvalVertexView<G, CS>) -> Result<(), TaskError>>
+    AnonymousTask<G, CS, F>
 {
     fn new(f: F) -> Self {
         Self {
@@ -48,11 +46,8 @@ impl<
     }
 }
 
-impl<
-        G: GraphViewOps,
-        CS: ComputeState,
-        F: Fn(&EvalVertexView<G, CS>) -> Result<(), TaskError>,
-    > Task<G, CS> for AnonymousTask<G, CS, F>
+impl<G: GraphViewOps, CS: ComputeState, F: Fn(&EvalVertexView<G, CS>) -> Result<(), TaskError>>
+    Task<G, CS> for AnonymousTask<G, CS, F>
 {
     fn run(&self, vv: &EvalVertexView<G, CS>) -> Result<(), TaskError> {
         (self.f)(vv)
@@ -100,24 +95,58 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         Self { tasks, ctx: ctx }
     }
 
+    fn merge_states(
+        &self,
+        mut a: Arc<ShuffleComputeState<CS>>,
+        b: Arc<ShuffleComputeState<CS>>,
+    ) -> Arc<ShuffleComputeState<CS>> {
+        let left = Arc::get_mut(&mut a).expect("merge_states: get_mut should always work, no other reference can exist");
+        for merge_fn in self.ctx.merge_fns.iter() {
+            merge_fn(left, &b, self.ctx.ss);
+        }
+        a
+    }
+
     fn run(&mut self) {
         // say we go over all the vertices on all the threads but we partition the vertices
         // on each thread and we only run the function if the vertex is in the partition
-        let job_ids: Vec<usize> = (0..POOL.current_num_threads()).into_iter().collect();
+        let num_threads = POOL.current_num_threads();
 
-        POOL.install(|| {
-            job_ids.par_iter().for_each(|job_id| {
-                let local_state = Rc::new(RefCell::new(ShuffleComputeState::new(job_ids.len())));
-                for vertex in self.ctx.g.vertices() {
-                    if self.is_vertex_in_partition(&vertex, job_ids.len(), *job_id) {
-                        let vv = EvalVertexView::new(self.ctx.ss, vertex, local_state.clone());
-                        for task in self.tasks.iter() {
-                            task.run(&vv).expect("task run");
+        // the only benefit in this case is that we do not clone when we run with 1 thread
+
+        let mut total_state =
+            vec![Arc::new(Some(ShuffleComputeState::new(num_threads))); num_threads]
+                .into_iter()
+                .enumerate()
+                .collect::<Vec<_>>();
+
+        let new_total_state = POOL.install(|| {
+            total_state
+                .par_iter_mut()
+                .map(|(job_id, state)| {
+                    let rc_local_state =
+                        Rc::new(RefCell::new(Arc::make_mut(state).take().unwrap())); // make_mut clones the state
+
+                    for vertex in self.ctx.g.vertices() {
+                        if self.is_vertex_in_partition(&vertex, num_threads, *job_id) {
+                            let vv =
+                                EvalVertexView::new(self.ctx.ss, vertex, rc_local_state.clone());
+                            for task in self.tasks.iter() {
+                                task.run(&vv).expect("task run");
+                            }
                         }
                     }
-                }
-            })
-        })
+
+                    let state: ShuffleComputeState<CS> =
+                        Rc::try_unwrap(rc_local_state).unwrap().into_inner();
+
+                    Arc::new(state)
+                })
+                .reduce_with(|a, b| self.merge_states(a, b))
+        });
+
+        println!("new_total_state: {:?}", new_total_state);
+
     }
 
     // use the global id of the vertex to determine if it's present in the partition
