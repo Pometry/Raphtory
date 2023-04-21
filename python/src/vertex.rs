@@ -8,6 +8,7 @@ use crate::util::{expanding_impl, extract_vertex_ref, rolling_impl, window_impl}
 use crate::wrappers::iterators::*;
 use crate::wrappers::prop::Prop;
 use docbrown::core::tgraph::VertexRef;
+use docbrown::db::graph_window::WindowedGraph;
 use docbrown::db::path::{PathFromGraph, PathFromVertex};
 use docbrown::db::vertex::VertexView;
 use docbrown::db::vertices::Vertices;
@@ -29,6 +30,17 @@ pub struct PyVertex {
 impl From<VertexView<DynamicGraph>> for PyVertex {
     fn from(value: VertexView<DynamicGraph>) -> Self {
         PyVertex { vertex: value }
+    }
+}
+
+impl From<VertexView<WindowedGraph<DynamicGraph>>> for PyVertex {
+    fn from(value: VertexView<WindowedGraph<DynamicGraph>>) -> Self {
+        Self {
+            vertex: VertexView {
+                graph: DynamicGraph::new(value.graph),
+                vertex: value.vertex,
+            },
+        }
     }
 }
 
@@ -396,6 +408,14 @@ impl From<Vertices<DynamicGraph>> for PyVertices {
     }
 }
 
+impl From<Vertices<WindowedGraph<DynamicGraph>>> for PyVertices {
+    fn from(value: Vertices<WindowedGraph<DynamicGraph>>) -> Self {
+        Self {
+            vertices: Vertices::new(DynamicGraph::new(value.graph)),
+        }
+    }
+}
+
 /// Operations on a list of vertices.
 /// These use all the same functions as a normal vertex except it returns a list of results.
 #[pymethods]
@@ -746,6 +766,17 @@ impl From<PathFromGraph<DynamicGraph>> for PyPathFromGraph {
     }
 }
 
+impl From<PathFromGraph<WindowedGraph<DynamicGraph>>> for PyPathFromGraph {
+    fn from(value: PathFromGraph<WindowedGraph<DynamicGraph>>) -> Self {
+        Self {
+            path: PathFromGraph {
+                graph: DynamicGraph::new(value.graph),
+                operations: value.operations,
+            },
+        }
+    }
+}
+
 #[pyclass(name = "PathFromVertex")]
 pub struct PyPathFromVertex {
     path: PathFromVertex<DynamicGraph>,
@@ -754,6 +785,18 @@ pub struct PyPathFromVertex {
 impl From<PathFromVertex<DynamicGraph>> for PyPathFromVertex {
     fn from(value: PathFromVertex<DynamicGraph>) -> Self {
         Self { path: value }
+    }
+}
+
+impl From<PathFromVertex<WindowedGraph<DynamicGraph>>> for PyPathFromVertex {
+    fn from(value: PathFromVertex<WindowedGraph<DynamicGraph>>) -> Self {
+        Self {
+            path: PathFromVertex {
+                graph: DynamicGraph::new(value.graph),
+                vertex: value.vertex,
+                operations: value.operations,
+            },
+        }
     }
 }
 
