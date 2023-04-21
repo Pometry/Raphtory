@@ -8,6 +8,7 @@
 use crate::core::tgraph::{EdgeRef, VertexRef};
 use crate::core::Direction;
 use crate::core::Prop;
+use crate::db::graph_window::WindowedGraph;
 use crate::db::vertex::VertexView;
 use crate::db::view_api::{BoxedIter, EdgeListOps, GraphViewOps, TimeOps};
 use std::collections::HashMap;
@@ -21,8 +22,7 @@ pub struct EdgeView<G: GraphViewOps> {
     /// A view of an edge in the graph.
     pub graph: G,
     /// A reference to the edge.
-    edge: EdgeRef,
-    window: Option<Range<i64>>,
+    pub edge: EdgeRef,
 }
 
 impl<G: GraphViewOps> Debug for EdgeView<G> {
@@ -47,19 +47,7 @@ impl<G: GraphViewOps> EdgeView<G> {
     ///
     /// A new `EdgeView`.
     pub(crate) fn new(graph: G, edge: EdgeRef) -> Self {
-        EdgeView {
-            graph,
-            edge,
-            window: None,
-        }
-    }
-
-    pub(crate) fn new_windowed(graph: G, edge: EdgeRef, window: Option<Range<i64>>) -> EdgeView<G> {
-        EdgeView {
-            graph,
-            edge,
-            window,
-        }
+        EdgeView { graph, edge }
     }
 
     /// Returns a reference to the underlying edge reference.
@@ -102,10 +90,10 @@ impl<G: GraphViewOps> EdgeView<G> {
     }
 
     pub fn history(&self) -> Vec<i64> {
-        match self.window.clone() {
-            Some(_) =>  self.graph.edge_timestamps(self.edge, self.window.clone()),
-            None => self.graph.edge_timestamps(self.edge, Some(self.graph.earliest_time().unwrap_or(0)..self.graph.latest_time().unwrap_or(0))),
-        }
+        self.graph.edge_timestamps(
+            self.edge,
+            Some(self.graph.earliest_time().unwrap_or(0)..self.graph.latest_time().unwrap_or(0)),
+        )
     }
 
     pub fn properties(&self, include_static: bool) -> HashMap<String, Prop> {
@@ -208,14 +196,7 @@ impl<G: GraphViewOps> EdgeView<G> {
             g_id: self.edge.src_g_id,
             pid: None,
         };
-
-        match &self.window {
-            None => self.graph.vertex_edges_t(vertex, Direction::OUT, None),
-            Some(w) => {
-                self.graph
-                    .vertex_edges_window_t(vertex, w.start, w.end, Direction::OUT, None)
-            }
-        }
+        self.graph.vertex_edges_t(vertex, Direction::OUT, None)
     }
 
     /// Gets the first time an edge was seen
@@ -236,27 +217,20 @@ impl<G: GraphViewOps> EdgeView<G> {
 }
 
 impl<G: GraphViewOps> TimeOps for EdgeView<G> {
-    type WindowedViewType = EdgeView<G>;
+    type WindowedViewType = EdgeView<WindowedGraph<G>>;
 
     fn start(&self) -> Option<i64> {
-        match &self.window {
-            None => self.graph.start(),
-            Some(w) => Some(w.start),
-        }
+        self.graph.start()
     }
 
     fn end(&self) -> Option<i64> {
-        match &self.window {
-            None => self.graph.end(),
-            Some(w) => Some(w.end),
-        }
+        self.graph.end()
     }
 
     fn window(&self, t_start: i64, t_end: i64) -> Self::WindowedViewType {
-        Self {
-            graph: self.graph.clone(),
+        EdgeView {
+            graph: self.graph.window(t_start, t_end),
             edge: self.edge,
-            window: Some(self.actual_start(t_start)..self.actual_end(t_end)),
         }
     }
 }

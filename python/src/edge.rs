@@ -13,7 +13,7 @@ use docbrown::core::time::error::ParseTimeError;
 use docbrown::core::time::Interval;
 use docbrown::core::vertex::InputVertex;
 use docbrown::db::edge::EdgeView;
-use docbrown::db::view_api::time::WindowSet;
+use docbrown::db::view_api::time::{WindowSet, WindowedGraph};
 use docbrown::db::view_api::*;
 use itertools::Itertools;
 use pyo3::{pyclass, pymethods, PyAny, PyRef, PyRefMut, PyResult};
@@ -30,6 +30,17 @@ pub struct PyEdge {
 impl From<EdgeView<DynamicGraph>> for PyEdge {
     fn from(value: EdgeView<DynamicGraph>) -> Self {
         Self { edge: value }
+    }
+}
+
+impl From<EdgeView<WindowedGraph<DynamicGraph>>> for PyEdge {
+    fn from(value: EdgeView<WindowedGraph<DynamicGraph>>) -> Self {
+        Self {
+            edge: EdgeView {
+                graph: DynamicGraph::new(value.graph),
+                edge: value.edge,
+            },
+        }
     }
 }
 

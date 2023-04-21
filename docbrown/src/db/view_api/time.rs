@@ -266,3 +266,5 @@ mod time_tests {
         assert_bounds(windows, expected);
     }
 }
+
+trait GraphWrapper {}
