@@ -4,7 +4,7 @@
 use crate::dynamic::DynamicGraph;
 use crate::edge::{PyEdges, PyNestedEdges};
 use crate::types::repr::{iterator_repr, Repr};
-use crate::util::{expanding_impl, extract_vertex_ref, rolling_impl, window_impl};
+use crate::utils::{expanding_impl, extract_vertex_ref, rolling_impl, window_impl};
 use crate::wrappers::iterators::*;
 use crate::wrappers::prop::Prop;
 use docbrown::core::tgraph::VertexRef;

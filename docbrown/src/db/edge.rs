@@ -103,8 +103,13 @@ impl<G: GraphViewOps> EdgeView<G> {
 
     pub fn history(&self) -> Vec<i64> {
         match self.window.clone() {
-            Some(_) =>  self.graph.edge_timestamps(self.edge, self.window.clone()),
-            None => self.graph.edge_timestamps(self.edge, Some(self.graph.earliest_time().unwrap_or(0)..self.graph.latest_time().unwrap_or(0))),
+            Some(_) => self.graph.edge_timestamps(self.edge, self.window.clone()),
+            None => self.graph.edge_timestamps(
+                self.edge,
+                Some(
+                    self.graph.earliest_time().unwrap_or(0)..self.graph.latest_time().unwrap_or(0),
+                ),
+            ),
         }
     }
 
@@ -232,6 +237,10 @@ impl<G: GraphViewOps> EdgeView<G> {
             .filter(|e| e.edge_id == self.edge.edge_id)
             .map(|e| e.time.unwrap())
             .max()
+    }
+
+    pub fn time(&self) -> Option<i64> {
+        self.edge.time
     }
 }
 

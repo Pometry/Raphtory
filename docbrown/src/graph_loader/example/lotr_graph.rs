@@ -13,7 +13,7 @@
 //!
 //! Example:
 //! ```rust
-//! use docbrown::graph_loader::lotr_graph::lotr_graph;
+//! use docbrown::graph_loader::example::lotr_graph::lotr_graph;
 //! use docbrown::db::graph::Graph;
 //! use docbrown::db::view_api::*;
 //!
@@ -25,7 +25,7 @@
 
 use crate::{db::graph::Graph, graph_loader::fetch_file};
 
-use crate::db::csv_loader::CsvLoader;
+use crate::graph_loader::source::csv_loader::CsvLoader;
 use serde::Deserialize;
 use std::path::PathBuf;
 

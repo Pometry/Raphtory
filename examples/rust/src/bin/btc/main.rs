@@ -9,7 +9,7 @@ use chrono::{DateTime, Utc};
 use docbrown::core::tgraph::TemporalGraph;
 use docbrown::core::utils;
 use docbrown::core::{Direction, Prop};
-use docbrown::db::csv_loader::CsvLoader;
+use docbrown::graph_loader::source::csv_loader::CsvLoader;
 use regex::Regex;
 use serde::Deserialize;
 use std::fs::File;

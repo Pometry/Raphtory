@@ -192,7 +192,7 @@ pub struct GlobalEvalState<G: GraphViewOps> {
     // running state
     pub next_vertex_set: Option<Vec<Arc<FxHashSet<u64>>>>,
     states: Vec<Arc<parking_lot::RwLock<Option<ShuffleComputeState<CS>>>>>,
-    resetable_states: Vec<u32>
+    resetable_states: Vec<u32>,
 }
 
 /// Implementation of the GlobalEvalState struct.
@@ -391,7 +391,6 @@ impl<G: GraphViewOps> GlobalEvalState<G> {
         self.agg_internal(agg, false)
     }
 
-
     /// Runs the global aggregation function for the given accumulator.
     ///
     /// # Arguments
@@ -417,7 +416,6 @@ impl<G: GraphViewOps> GlobalEvalState<G> {
     {
         self.agg_internal(agg, true)
     }
-
 
     /// Applies an accumulator to the states of all shards in parallel.
     ///
@@ -597,7 +595,7 @@ impl<G: GraphViewOps> GlobalEvalState<G> {
                 if self.keep_past_state {
                     own_state.copy_over_next_ss(self.ss);
                 }
-                
+
                 own_state.reset_states(self.ss, &self.resetable_states);
 
                 // put back the local state
@@ -665,7 +663,6 @@ pub struct EvalVertexView<G: GraphViewOps> {
 
 /// `EvalVertexView` represents a view of a vertex in a computation graph.
 impl<G: GraphViewOps> EvalVertexView<G> {
-
     pub fn update<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
         &self,
         agg_r: &AggRef<A, IN, OUT, ACC>,
@@ -727,9 +724,9 @@ impl<G: GraphViewOps> EvalVertexView<G> {
         &self,
         agg_r: &AggRef<A, IN, OUT, ACC>,
     ) -> OUT
-        where
-            A: StateType,
-            OUT: Debug,
+    where
+        A: StateType,
+        OUT: Debug,
     {
         self.state
             .borrow()

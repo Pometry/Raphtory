@@ -496,6 +496,15 @@ def test_edge_properties():
     assert g.at(1).edge(1, 2).has_static_property("static prop")
 
 
+def test_exploded_edge_time():
+    g = graph_loader.lotr_graph()
+    e = g.edge("Frodo","Gandalf")
+    his = e.history()
+    exploded_his = []
+    for ee in e.explode():
+        exploded_his.append(ee.time())
+    assert(his,exploded_his)
+
 # assert g.vertex(1).property_history("prop 3") == [(1, 3), (3, 'hello')]
 
 

@@ -11,7 +11,7 @@ pub mod graph_gen;
 pub mod graph_loader;
 pub mod graph_view;
 pub mod types;
-mod util;
+mod utils;
 pub mod vertex;
 pub mod wrappers;
 
@@ -56,6 +56,7 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         reddit_hyperlink_graph,
         graph_loader_module
     )?)?;
+    graph_loader_module.add_function(wrap_pyfunction!(neo4j_movie_graph, graph_loader_module)?)?;
     m.add_submodule(graph_loader_module)?;
 
     let graph_gen_module = PyModule::new(py, "graph_gen")?;

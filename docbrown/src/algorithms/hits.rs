@@ -142,8 +142,8 @@ impl Program for HitsS2 {
 
     #[allow(unused_variables)]
     fn produce_output<G: GraphViewOps>(&self, g: &G, gs: &GlobalEvalState<G>) -> Self::Out
-        where
-            Self: Sync,
+    where
+        Self: Sync,
     {
     }
 }
@@ -191,7 +191,11 @@ impl Program for HitsS3 {
             let recv_hub_score = s.read(&recv_hub_score).0;
             let recv_auth_score = s.read(&recv_auth_score).0;
             println!("s = {}, recv_hub_score = {}", s.global_id(), recv_hub_score);
-            println!("s = {}, recv_auth_score = {}", s.global_id(), recv_auth_score);
+            println!(
+                "s = {}, recv_auth_score = {}",
+                s.global_id(),
+                recv_auth_score
+            );
 
             s.update(
                 &auth_score,
@@ -256,12 +260,21 @@ pub fn hits(g: &Graph, window: Range<i64>, iter_count: usize) -> FxHashMap<u64, 
     loop {
         hits_s1.run_step(g, &mut c);
         println!("step1, hub: {:?}", c.read_vec_partitions(&val::<MulF32>(0)));
-        println!("step1, auth: {:?}", c.read_vec_partitions(&val::<MulF32>(1)));
+        println!(
+            "step1, auth: {:?}",
+            c.read_vec_partitions(&val::<MulF32>(1))
+        );
 
         hits_s2.run_step(g, &mut c);
         hits_s3.run_step(g, &mut c);
-        println!("total_hub = {:?}", c.read_global_state(&sum::<SumF32>(4)).unwrap());
-        println!("total_auth = {:?}", c.read_global_state(&sum::<SumF32>(5)).unwrap());
+        println!(
+            "total_hub = {:?}",
+            c.read_global_state(&sum::<SumF32>(4)).unwrap()
+        );
+        println!(
+            "total_auth = {:?}",
+            c.read_global_state(&sum::<SumF32>(5)).unwrap()
+        );
 
         let r1 = c.read_global_state(&max::<f32>(6)).unwrap();
         println!("max_diff_hub = {:?}", r1);
@@ -313,8 +326,26 @@ mod hits_tests {
     }
 
     fn test_hits(n_shards: usize) {
-
-        let graph = load_graph(n_shards, vec![(1,4),(2,3),(2,5),(3,1),(4,2),(4,3),(5,2),(5,3),(5,4),(5,6),(6,3),(6,8),(7,1),(7,3),(8,1)]);
+        let graph = load_graph(
+            n_shards,
+            vec![
+                (1, 4),
+                (2, 3),
+                (2, 5),
+                (3, 1),
+                (4, 2),
+                (4, 3),
+                (5, 2),
+                (5, 3),
+                (5, 4),
+                (5, 6),
+                (6, 3),
+                (6, 8),
+                (7, 1),
+                (7, 3),
+                (8, 1),
+            ],
+        );
 
         let window = 0..10;
 
@@ -361,8 +392,8 @@ mod hits_tests {
                 (6, (0.14359663, 0.10755368)),
                 (3, (0.030866565, 0.36886504))
             ]
-                .into_iter()
-                .collect::<FxHashMap<u64, (f32, f32)>>()
+            .into_iter()
+            .collect::<FxHashMap<u64, (f32, f32)>>()
         );
     }
 

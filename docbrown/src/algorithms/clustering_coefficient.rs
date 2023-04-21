@@ -93,16 +93,12 @@ mod cc_test {
         ];
 
         for (src, dst) in edges {
-            graph.add_edge(0, src, dst, &vec![], None);
+            graph.add_edge(0, src, dst, &vec![], None).unwrap();
         }
 
         let graph_at = graph.at(1);
 
-        let exp_tri_count = 2.0;
-        let exp_triplet_count = 20;
-
         let results = clustering_coefficient(&graph_at);
-        let expected = 3.0 * exp_tri_count / exp_triplet_count as f64;
         assert_eq!(results, 0.3);
     }
 }

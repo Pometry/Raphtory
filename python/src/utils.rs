@@ -10,7 +10,6 @@ use docbrown::db::view_api::time::WindowSet;
 use docbrown::db::view_api::TimeOps;
 use pyo3::exceptions::{PyException, PyTypeError};
 use pyo3::prelude::*;
-use pyo3::types::PyIterator;
 use std::error::Error;
 
 /// Extract a `VertexRef` from a Python object.

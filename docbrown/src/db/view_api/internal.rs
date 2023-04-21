@@ -476,7 +476,7 @@ pub trait GraphViewInternalOps {
     /// and the second element is the property value.
     fn temporal_vertex_prop_vec(&self, v: VertexRef, name: String) -> Vec<(i64, Prop)>;
 
-    /// Returns a vector of all temporal values of the vertex 
+    /// Returns a vector of all temporal values of the vertex
     ///
     /// # Arguments
     ///

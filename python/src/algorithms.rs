@@ -5,7 +5,7 @@
 use crate::graph_view::PyGraphView;
 use std::collections::HashMap;
 
-use crate::util;
+use crate::utils;
 use docbrown::algorithms::degree::{
     average_degree as average_degree_rs, max_in_degree as max_in_degree_rs,
     max_out_degree as max_out_degree_rs, min_in_degree as min_in_degree_rs,
@@ -37,7 +37,7 @@ use pyo3::prelude::*;
 ///
 #[pyfunction]
 pub(crate) fn local_triangle_count(g: &PyGraphView, v: &PyAny) -> PyResult<Option<usize>> {
-    let v = util::extract_vertex_ref(v)?;
+    let v = utils::extract_vertex_ref(v)?;
     Ok(local_triangle_count_rs(&g.graph, v.g_id))
 }
 
@@ -64,7 +64,7 @@ pub(crate) fn local_triangle_count(g: &PyGraphView, v: &PyAny) -> PyResult<Optio
 /// or diverse community.
 #[pyfunction]
 pub(crate) fn local_clustering_coefficient(g: &PyGraphView, v: &PyAny) -> PyResult<Option<f32>> {
-    let v = util::extract_vertex_ref(v)?;
+    let v = utils::extract_vertex_ref(v)?;
     Ok(local_clustering_coefficient_rs(&g.graph, v.g_id))
 }
 

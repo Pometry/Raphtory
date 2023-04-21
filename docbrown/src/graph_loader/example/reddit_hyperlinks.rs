@@ -29,7 +29,7 @@
 //!
 //! Example:
 //! ```no_run
-//! use docbrown::graph_loader::reddit_hyperlinks::reddit_graph;
+//! use docbrown::graph_loader::example::reddit_hyperlinks::reddit_graph;
 //! use docbrown::db::graph::Graph;
 //! use docbrown::db::view_api::*;
 //!
