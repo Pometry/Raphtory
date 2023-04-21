@@ -174,6 +174,55 @@ struct MapArray<T> {
     zero: T,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+struct VecArray<T> {
+    odd: Vec<T>,
+    even: Vec<T>,
+    zero: T,
+}
+
+impl <T: StateType> DynArray for VecArray<T> {
+    fn as_any(&self) -> &dyn Any {
+        self as &dyn Any
+    }
+
+    fn as_mut_any(&mut self) -> &mut dyn Any {
+        self as &mut dyn Any
+    }
+
+    fn clone_array(&self) -> Box<dyn DynArray> {
+        Box::new(self.clone())
+    }
+
+    fn len(&self) -> usize {
+       0 
+    }
+
+    fn copy_from(&mut self, other: &dyn DynArray) {
+        todo!()
+    }
+
+    fn empty(&self) -> Box<dyn DynArray> {
+        todo!()
+    }
+
+    fn copy_over(&mut self, ss: usize) {
+        todo!()
+    }
+
+    fn reset(&mut self, ss: usize) {
+        todo!()
+    }
+
+    fn iter_keys(&self) -> Box<dyn Iterator<Item = u64> + '_> {
+        todo!()
+    }
+
+    fn iter_keys_changed(&self, ss: usize) -> Box<dyn Iterator<Item = u64> + '_> {
+        todo!()
+    }
+}
+
 impl<T> DynArray for MapArray<T>
 where
     T: StateType,
