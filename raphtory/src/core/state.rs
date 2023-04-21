@@ -780,6 +780,20 @@ impl<CS: ComputeState + Send + Sync> ShuffleComputeState<CS> {
         self.parts[part].accumulate_into(ss, into, a, agg_ref)
     }
 
+    pub fn accumulate_into_pid<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
+        &mut self,
+        ss: usize,
+        g_id: u64,
+        p_id: usize,
+        a: IN,
+        agg_ref: &AccId<A, IN, OUT, ACC>,
+    ) where
+        A: StateType,
+    {
+        let part = get_shard_id_from_global_vid(g_id, self.parts.len());
+        self.parts[part].accumulate_into(ss, p_id, a, agg_ref)
+    }
+
     pub fn accumulate_global<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
         &mut self,
         ss: usize,

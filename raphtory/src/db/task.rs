@@ -1,20 +1,19 @@
 // the main execution unit of an algorithm
 
-use std::borrow::Cow;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use itertools::Merge;
 use once_cell::sync::Lazy;
 use rayon::prelude::*;
-use rayon::{prelude::IntoParallelRefIterator, ThreadPool, ThreadPoolBuilder};
+use rayon::{ThreadPool, ThreadPoolBuilder};
 
 use crate::core::agg::Accumulator;
-use crate::core::state::{AccId, ComputeState, ComputeStateMap, ShuffleComputeState, StateType};
+use crate::core::state::{AccId, ComputeState, ShuffleComputeState, StateType};
+use crate::core::utils::get_shard_id_from_global_vid;
 
 use super::vertex::VertexView;
-use super::{program::EvalVertexView, view_api::GraphViewOps};
+use super::view_api::{GraphViewOps, VertexViewOps};
 
 #[derive(thiserror::Error, Debug, PartialEq)]
 #[error("Failure to execute Task")]
@@ -100,7 +99,8 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         mut a: Arc<ShuffleComputeState<CS>>,
         b: Arc<ShuffleComputeState<CS>>,
     ) -> Arc<ShuffleComputeState<CS>> {
-        let left = Arc::get_mut(&mut a).expect("merge_states: get_mut should always work, no other reference can exist");
+        let left = Arc::get_mut(&mut a)
+            .expect("merge_states: get_mut should always work, no other reference can exist");
         for merge_fn in self.ctx.merge_fns.iter() {
             merge_fn(left, &b, self.ctx.ss);
         }
@@ -129,8 +129,7 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
 
                     for vertex in self.ctx.g.vertices() {
                         if self.is_vertex_in_partition(&vertex, num_threads, *job_id) {
-                            let vv =
-                                EvalVertexView::new(self.ctx.ss, vertex, rc_local_state.clone());
+                            let vv = EvalVertexView::new(self.ctx.ss, vertex, rc_local_state.clone());
                             for task in self.tasks.iter() {
                                 task.run(&vv).expect("task run");
                             }
@@ -146,12 +145,11 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         });
 
         println!("new_total_state: {:?}", new_total_state);
-
     }
 
     // use the global id of the vertex to determine if it's present in the partition
     fn is_vertex_in_partition(&self, vertex: &VertexView<G>, n_jobs: usize, job_id: usize) -> bool {
-        (vertex.vertex.g_id as usize) % n_jobs == job_id
+        get_shard_id_from_global_vid(vertex.vertex.g_id, n_jobs) == job_id
     }
 }
 
@@ -172,6 +170,58 @@ pub static POOL: Lazy<ThreadPool> = Lazy::new(|| {
         .build()
         .unwrap()
 });
+
+struct EvalVertexView<G: GraphViewOps, CS: ComputeState> {
+    ss: usize,
+    vv: VertexView<G>,
+    state: Rc<RefCell<ShuffleComputeState<CS>>>,
+}
+
+impl<G: GraphViewOps, CS: ComputeState> EvalVertexView<G, CS> {
+    fn new(ss: usize, vertex: VertexView<G>, state: Rc<RefCell<ShuffleComputeState<CS>>>) -> Self {
+        Self {
+            ss,
+            vv: vertex,
+            state,
+        }
+    }
+
+    fn global_id(&self) -> u64 {
+        self.vv.vertex.g_id
+    }
+
+    // TODO: do we always look-up the pid in the graph? or when calling neighbours we look-it up?
+    fn pid(&self) -> usize {
+        if let Some(pid) = self.vv.vertex.pid {
+            pid
+        } else {
+            self.vv
+                .graph
+                .vertex(self.global_id())
+                .unwrap()
+                .vertex
+                .pid
+                .unwrap()
+        }
+    }
+
+    pub fn neighbours(&self) -> impl Iterator<Item = Self> + '_ {
+        self.vv
+            .neighbours()
+            .iter()
+            .map(move |vv| EvalVertexView::new(self.ss, vv, self.state.clone()))
+    }
+
+    fn update<A: StateType, IN: 'static, OUT: 'static, ACC: Accumulator<A, IN, OUT>>(
+        &self,
+        id: &AccId<A, IN, OUT, ACC>,
+        a: IN,
+    ) {
+        self.state
+            .borrow_mut()
+            .accumulate_into_pid(self.ss, self.global_id(), self.pid(), a, id)
+    }
+}
 
 #[cfg(test)]
 mod tasks_tests {
@@ -199,10 +249,10 @@ mod tasks_tests {
             let t_id = std::thread::current().id();
             println!("vertex: {} {t_id:?}", vv.global_id());
 
-            vv.update2(&min, vv.global_id());
+            vv.update(&min, vv.global_id());
 
             for n in vv.neighbours() {
-                n.update2(&min, vv.global_id())
+                n.update(&min, vv.global_id())
             }
 
             Ok(())
