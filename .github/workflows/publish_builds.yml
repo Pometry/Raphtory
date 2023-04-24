@@ -64,7 +64,7 @@ jobs:
             args: cargo-release --force
         - name: Wait for rust tests to succeed
           if: ${{ !inputs.skip_tests }}
-          uses: lewagon/wait-on-check-action@v1.3.1
+          uses: lewagon/wait-on-check-action@master
           with:
             ref: ${{ github.ref }}
             check-name: 'Rust Tests'
@@ -72,7 +72,7 @@ jobs:
             wait-interval: 10
         - name: Wait for python tests to succeed
           if: ${{ !inputs.skip_tests }}
-          uses: lewagon/wait-on-check-action@v1.3.1
+          uses: lewagon/wait-on-check-action@master
           with:
             ref: ${{ github.ref }}
             check-name: 'Python Tests'
