@@ -641,7 +641,7 @@ mod edge_layer_tests {
 
     #[test]
     fn return_valid_next_available_edge_id() {
-        let mut layer = EdgeLayer::new(0);
+        let layer = EdgeLayer::new(0);
 
         // 0th index is not a valid edge id because it can't be used to correctly denote
         // both local as well as remote edge id. Hence edge ids must always start with 1.

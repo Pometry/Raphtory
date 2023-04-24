@@ -454,7 +454,7 @@ mod vertex_test {
 
     #[test]
     fn test_all_degrees_window() {
-        let g = crate::graph_loader::lotr_graph::lotr_graph(4);
+        let g = crate::graph_loader::example::lotr_graph::lotr_graph(4);
 
         assert_eq!(g.num_edges(), 701);
         assert_eq!(g.vertex("Gandalf").unwrap().degree(), 49);
@@ -479,7 +479,7 @@ mod vertex_test {
 
     #[test]
     fn test_all_neighbours_window() {
-        let g = crate::graph_loader::lotr_graph::lotr_graph(4);
+        let g = crate::graph_loader::example::lotr_graph::lotr_graph(4);
 
         assert_eq!(g.num_edges(), 701);
         assert_eq!(g.vertex("Gandalf").unwrap().neighbours().iter().count(), 49);
@@ -522,7 +522,8 @@ mod vertex_test {
 
     #[test]
     fn test_all_edges_window() {
-        let g = crate::graph_loader::lotr_graph::lotr_graph(4);
+        let g = crate::graph_loader::example::lotr_graph::lotr_graph(4);
+
         assert_eq!(g.num_edges(), 701);
         assert_eq!(g.vertex("Gandalf").unwrap().edges().count(), 59);
         assert_eq!(

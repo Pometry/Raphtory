@@ -193,7 +193,7 @@ mod reciprocity_test {
         ];
 
         for (src, dst) in &vs {
-            graph.add_edge(0, *src, *dst, &vec![], None);
+            graph.add_edge(0, *src, *dst, &vec![], None).unwrap();
         }
 
         let actual = global_reciprocity(&graph);

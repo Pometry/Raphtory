@@ -211,6 +211,10 @@ impl<G: GraphViewOps> EdgeView<G> {
             .map(|e| e.time.unwrap())
             .max()
     }
+
+    pub fn time(&self) -> Option<i64> {
+        self.edge.time
+    }
 }
 
 impl<G: GraphViewOps> TimeOps for EdgeView<G> {

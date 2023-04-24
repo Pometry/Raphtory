@@ -6,12 +6,9 @@
 //!
 use crate::dynamic::DynamicGraph;
 use crate::types::repr::{iterator_repr, Repr};
-use crate::util::*;
+use crate::utils::*;
 use crate::vertex::PyVertex;
 use crate::wrappers::prop::Prop;
-use docbrown::core::time::error::ParseTimeError;
-use docbrown::core::time::Interval;
-use docbrown::core::vertex::InputVertex;
 use docbrown::db::edge::EdgeView;
 use docbrown::db::graph_window::WindowedGraph;
 use docbrown::db::view_api::time::WindowSet;
@@ -292,6 +289,14 @@ impl PyEdge {
     ///     (int) The latest time of an edge
     pub fn latest_time(&self) -> Option<i64> {
         self.edge.latest_time()
+    }
+
+    /// Gets the time of an exploded edge.
+    ///
+    /// Returns:
+    ///     (int) The time of an exploded edge
+    pub fn time(&self) -> Option<i64> {
+        self.edge.time()
     }
 
     /// Displays the Edge as a string.

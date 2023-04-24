@@ -994,7 +994,7 @@ mod graph_test {
     fn add_vertex_at_time_t1() {
         let mut g = TemporalGraph::default();
 
-        g.add_vertex(1, 9);
+        g.add_vertex(1, 9).unwrap();
 
         assert!(g.has_vertex(9));
         assert!(g.has_vertex_window(9, &(1..15)));
@@ -1007,7 +1007,8 @@ mod graph_test {
 
         let v_id = 1;
         let ts = 1;
-        g.add_vertex_with_props(ts, v_id, &vec![("type".into(), Prop::Str("wallet".into()))]);
+        g.add_vertex_with_props(ts, v_id, &vec![("type".into(), Prop::Str("wallet".into()))])
+            .unwrap();
 
         assert!(g.has_vertex(v_id));
         assert!(g.has_vertex_window(v_id, &(1..15)));
@@ -1035,7 +1036,8 @@ mod graph_test {
                 ("type".into(), Prop::Str("wallet".into())),
                 ("active".into(), Prop::U32(0)),
             ],
-        );
+        )
+        .unwrap();
 
         let res = g
             .vertices()
@@ -1063,7 +1065,8 @@ mod graph_test {
                 ("type".into(), Prop::Str("wallet".into())),
                 ("active".into(), Prop::U32(0)),
             ],
-        );
+        )
+        .unwrap();
 
         g.add_vertex_with_props(
             2,
@@ -1072,7 +1075,8 @@ mod graph_test {
                 ("type".into(), Prop::Str("wallet".into())),
                 ("active".into(), Prop::U32(1)),
             ],
-        );
+        )
+        .unwrap();
 
         g.add_vertex_with_props(
             3,
@@ -1081,7 +1085,8 @@ mod graph_test {
                 ("type".into(), Prop::Str("wallet".into())),
                 ("active".into(), Prop::U32(2)),
             ],
-        );
+        )
+        .unwrap();
 
         let res: Vec<(i64, Prop)> = g
             .vertices()
@@ -1109,9 +1114,11 @@ mod graph_test {
                 ("type".into(), Prop::Str("wallet".into())),
                 ("active".into(), Prop::U32(0)),
             ],
-        );
+        )
+        .unwrap();
 
-        g.add_vertex_with_props(2, 1, &vec![("label".into(), Prop::I32(12345))]);
+        g.add_vertex_with_props(2, 1, &vec![("label".into(), Prop::I32(12345))])
+            .unwrap();
 
         g.add_vertex_with_props(
             3,
@@ -1120,7 +1127,8 @@ mod graph_test {
                 ("origin".into(), Prop::F32(0.1)),
                 ("active".into(), Prop::U32(2)),
             ],
-        );
+        )
+        .unwrap();
 
         let res = g
             .vertices()
@@ -1149,7 +1157,8 @@ mod graph_test {
     fn add_vertex_at_time_t1_window() {
         let mut g = TemporalGraph::default();
 
-        g.add_vertex(9, 1);
+        g.add_vertex(9, 1).unwrap();
+
         assert!(g.has_vertex(9));
         assert!(g.has_vertex_window(9, &(1..15)));
         assert!(g.has_vertex_window(9, &(5..15))); // FIXME: this is wrong and we might need a different kind of window here
@@ -1159,8 +1168,8 @@ mod graph_test {
     fn add_vertex_at_time_t1_t2() {
         let mut g = TemporalGraph::default();
 
-        g.add_vertex(1, 9);
-        g.add_vertex(2, 1);
+        g.add_vertex(1, 9).unwrap();
+        g.add_vertex(2, 1).unwrap();
 
         let actual: Vec<u64> = g.vertices_window(0..2).map(|v| v.g_id).collect();
         assert_eq!(actual, vec![9]);
@@ -1174,8 +1183,8 @@ mod graph_test {
     fn add_edge_at_time_t1() {
         let mut g = TemporalGraph::default();
 
-        g.add_vertex(1, 9);
-        g.add_vertex(2, 1);
+        g.add_vertex(1, 9).unwrap();
+        g.add_vertex(2, 1).unwrap();
 
         // 9 and 1 are not visible at time 3
         let actual: Vec<u64> = g.vertices_window(3..10).map(|v| v.g_id).collect();
@@ -1214,10 +1223,10 @@ mod graph_test {
     #[test]
     fn has_edge() {
         let mut g = TemporalGraph::default();
-        g.add_vertex(1, 8);
-        g.add_vertex(1, 9);
-        g.add_vertex(2, 10);
-        g.add_vertex(2, 11);
+        g.add_vertex(1, 8).unwrap();
+        g.add_vertex(1, 9).unwrap();
+        g.add_vertex(2, 10).unwrap();
+        g.add_vertex(2, 11).unwrap();
         g.add_edge(3, 9, 8, 0);
         g.add_edge(3, 8, 9, 0);
         g.add_edge(3, 9, 11, 0);
@@ -1234,8 +1243,8 @@ mod graph_test {
     #[test]
     fn edge_exists_inside_window() {
         let mut g = TemporalGraph::default();
-        g.add_vertex(1, 5);
-        g.add_vertex(2, 7);
+        g.add_vertex(1, 5).unwrap();
+        g.add_vertex(2, 7).unwrap();
         g.add_edge(3, 5, 7, 0);
 
         let actual: Vec<bool> = g
@@ -1249,8 +1258,8 @@ mod graph_test {
     #[test]
     fn edge_does_not_exists_outside_window() {
         let mut g = TemporalGraph::default();
-        g.add_vertex(5, 9);
-        g.add_vertex(7, 10);
+        g.add_vertex(5, 9).unwrap();
+        g.add_vertex(7, 10).unwrap();
         g.add_edge(8, 9, 10, 0);
 
         let actual: Vec<bool> = g
@@ -1266,8 +1275,8 @@ mod graph_test {
     fn add_edge_at_time_t1_t2_t3() {
         let mut g = TemporalGraph::default();
 
-        g.add_vertex(1, 9);
-        g.add_vertex(2, 1);
+        g.add_vertex(1, 9).unwrap();
+        g.add_vertex(2, 1).unwrap();
 
         // 9 and 1 are not visible at time 3
         let actual: Vec<u64> = g.vertices_window(3..10).map(|v| v.g_id).collect();
@@ -1306,8 +1315,8 @@ mod graph_test {
     fn add_edge_at_time_t1_t2_t3_overwrite() {
         let mut g = TemporalGraph::default();
 
-        g.add_vertex(1, 9);
-        g.add_vertex(2, 1);
+        g.add_vertex(1, 9).unwrap();
+        g.add_vertex(2, 1).unwrap();
 
         // 9 and 1 are not visible at time 3
         let actual: Vec<u64> = g.vertices_window(3..10).map(|v| v.g_id).collect();
@@ -1366,10 +1375,10 @@ mod graph_test {
     fn add_edges_at_t1t2t3_check_times() {
         let mut g = TemporalGraph::default();
 
-        g.add_vertex(1, 11);
-        g.add_vertex(2, 22);
-        g.add_vertex(3, 33);
-        g.add_vertex(4, 44);
+        g.add_vertex(1, 11).unwrap();
+        g.add_vertex(2, 22).unwrap();
+        g.add_vertex(3, 33).unwrap();
+        g.add_vertex(4, 44).unwrap();
 
         g.add_edge(4, 11, 22, 0);
         g.add_edge(5, 22, 33, 0);
@@ -1427,8 +1436,8 @@ mod graph_test {
     fn add_the_same_edge_multiple_times() {
         let mut g = TemporalGraph::default();
 
-        g.add_vertex(1, 11);
-        g.add_vertex(2, 22);
+        g.add_vertex(1, 11).unwrap();
+        g.add_vertex(2, 22).unwrap();
 
         g.add_edge(4, 11, 22, 0);
         g.add_edge(4, 11, 22, 0);
@@ -1444,8 +1453,8 @@ mod graph_test {
     fn add_edge_with_1_property() {
         let mut g = TemporalGraph::default();
 
-        g.add_vertex(1, 11);
-        g.add_vertex(2, 22);
+        g.add_vertex(1, 11).unwrap();
+        g.add_vertex(2, 22).unwrap();
 
         g.add_edge_with_props(4, 11, 22, &vec![("weight".into(), Prop::U32(12))], 0);
 
@@ -1467,8 +1476,8 @@ mod graph_test {
     fn add_edge_with_multiple_properties() {
         let mut g = TemporalGraph::default();
 
-        g.add_vertex(1, 11);
-        g.add_vertex(2, 22);
+        g.add_vertex(1, 11).unwrap();
+        g.add_vertex(2, 22).unwrap();
 
         g.add_edge_with_props(
             4,
@@ -1506,8 +1515,8 @@ mod graph_test {
     fn add_edge_with_1_property_different_times() {
         let mut g = TemporalGraph::default();
 
-        g.add_vertex(1, 11);
-        g.add_vertex(2, 22);
+        g.add_vertex(1, 11).unwrap();
+        g.add_vertex(2, 22).unwrap();
 
         g.add_edge_with_props(4, 11, 22, &vec![("amount".into(), Prop::U32(12))], 0);
         g.add_edge_with_props(7, 11, 22, &vec![("amount".into(), Prop::U32(24))], 0);
@@ -1544,8 +1553,8 @@ mod graph_test {
     fn add_edges_with_multiple_properties_at_different_times_window() {
         let mut g = TemporalGraph::default();
 
-        g.add_vertex(1, 11);
-        g.add_vertex(2, 22);
+        g.add_vertex(1, 11).unwrap();
+        g.add_vertex(2, 22).unwrap();
 
         g.add_edge_with_props(
             2,
@@ -1615,8 +1624,8 @@ mod graph_test {
         let edges: Vec<(i64, u64, u64)> = vec![(1, 1, 2), (2, 3, 4), (3, 5, 4), (4, 1, 4)];
 
         for (t, src, dst) in edges {
-            g.add_vertex(t, src);
-            g.add_vertex(t, dst);
+            g.add_vertex(t, src).unwrap();
+            g.add_vertex(t, dst).unwrap();
             g.add_edge_with_props(t, src, dst, &vec![("amount".into(), Prop::U64(12))], 0);
         }
     }
@@ -1625,10 +1634,10 @@ mod graph_test {
     fn add_multiple_edges_with_1_property_same_time() {
         let mut g = TemporalGraph::default();
 
-        g.add_vertex(1, 11);
-        g.add_vertex(2, 22);
-        g.add_vertex(3, 33);
-        g.add_vertex(4, 44);
+        g.add_vertex(1, 11).unwrap();
+        g.add_vertex(2, 22).unwrap();
+        g.add_vertex(3, 33).unwrap();
+        g.add_vertex(4, 44).unwrap();
 
         g.add_edge_with_props(4, 11, 22, &vec![("weight".into(), Prop::F32(1122.0))], 0);
         g.add_edge_with_props(4, 11, 33, &vec![("weight".into(), Prop::F32(1133.0))], 0);
@@ -1665,10 +1674,10 @@ mod graph_test {
     fn add_edges_with_multiple_properties_at_different_times() {
         let mut g = TemporalGraph::default();
 
-        g.add_vertex(1, 11);
-        g.add_vertex(2, 22);
-        g.add_vertex(3, 33);
-        g.add_vertex(4, 44);
+        g.add_vertex(1, 11).unwrap();
+        g.add_vertex(2, 22).unwrap();
+        g.add_vertex(3, 33).unwrap();
+        g.add_vertex(4, 44).unwrap();
 
         g.add_edge_with_props(
             2,
@@ -1748,10 +1757,10 @@ mod graph_test {
     fn get_edges() {
         let mut g = TemporalGraph::default();
 
-        g.add_vertex(1, 11);
-        g.add_vertex(2, 22);
-        g.add_vertex(3, 33);
-        g.add_vertex(4, 44);
+        g.add_vertex(1, 11).unwrap();
+        g.add_vertex(2, 22).unwrap();
+        g.add_vertex(3, 33).unwrap();
+        g.add_vertex(4, 44).unwrap();
 
         g.add_edge(4, 11, 22, 0);
         g.add_edge(5, 22, 33, 0);
@@ -1918,13 +1927,9 @@ mod graph_test {
             for rec_res in reader.records() {
                 if let Ok(rec) = rec_res {
                     if let Some((src, dst, t)) = parse_record(&rec) {
-                        let src_id = utils::calculate_hash(&src);
-
-                        let dst_id = utils::calculate_hash(&dst);
-
-                        g.add_vertex(t, src_id);
-                        g.add_vertex(t, dst_id);
-                        g.add_edge_with_props(t, src_id, dst_id, &vec![], 0);
+                        g.add_vertex(t, src.clone()).unwrap();
+                        g.add_vertex(t, src.clone()).unwrap();
+                        g.add_edge_with_props(t, src, dst, &vec![], 0);
                     }
                 }
             }
@@ -2184,8 +2189,12 @@ mod graph_test {
             let src_shard = utils::get_shard_id_from_global_vid(src, n_shards);
             let dst_shard = utils::get_shard_id_from_global_vid(dst, n_shards);
 
-            shards[src_shard].add_vertex(t.try_into().unwrap(), src as u64);
-            shards[dst_shard].add_vertex(t.try_into().unwrap(), dst as u64);
+            shards[src_shard]
+                .add_vertex(t.try_into().unwrap(), src as u64)
+                .unwrap();
+            shards[dst_shard]
+                .add_vertex(t.try_into().unwrap(), dst as u64)
+                .unwrap();
 
             if src_shard == dst_shard {
                 shards[src_shard].add_edge_with_props(
@@ -2224,7 +2233,7 @@ mod graph_test {
     #[test]
     fn check_edges_after_adding_remote() {
         let mut g1 = TemporalGraph::default();
-        g1.add_vertex(1, 11);
+        g1.add_vertex(1, 11).unwrap();
 
         g1.add_edge_remote_out(2, 11, 22, &vec![("bla".to_string(), Prop::U32(1))], 0);
 
@@ -2240,11 +2249,11 @@ mod graph_test {
     fn serialize_and_deserialize_with_bincode() {
         let mut g = TemporalGraph::default();
 
-        g.add_vertex(1, 1);
-        g.add_vertex(2, 2);
+        g.add_vertex(1, 1).unwrap();
+        g.add_vertex(2, 2).unwrap();
 
-        g.add_vertex(3, 3);
-        g.add_vertex(4, 1);
+        g.add_vertex(3, 3).unwrap();
+        g.add_vertex(4, 1).unwrap();
 
         g.add_edge_with_props(1, 2, 3, &vec![("bla".to_string(), Prop::U32(1))], 0);
         g.add_edge_with_props(3, 4, 4, &vec![("bla1".to_string(), Prop::U64(1))], 0);

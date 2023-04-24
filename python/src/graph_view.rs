@@ -1,7 +1,7 @@
 //! The API for querying a view of the graph in a read-only state
 use crate::dynamic::DynamicGraph;
 use crate::edge::{PyEdge, PyEdges};
-use crate::util::{expanding_impl, extract_vertex_ref, rolling_impl, window_impl};
+use crate::utils::{expanding_impl, extract_vertex_ref, rolling_impl, window_impl};
 use crate::vertex::{PyVertex, PyVertices};
 use docbrown::db::view_api::time::WindowSet;
 use docbrown::db::view_api::*;

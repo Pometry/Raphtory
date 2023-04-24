@@ -80,7 +80,7 @@ mod triangle_count_tests {
         let vs = vec![(1, 1, 2), (2, 1, 3), (3, 2, 1), (4, 3, 2)];
 
         for (t, src, dst) in &vs {
-            g.add_edge(*t, *src, *dst, &vec![], None);
+            g.add_edge(*t, *src, *dst, &vec![], None).unwrap();
         }
 
         let windowed_graph = g.window(0, 5);

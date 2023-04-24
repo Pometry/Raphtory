@@ -351,7 +351,7 @@ mod triangle_count_tests {
         ];
 
         for (src, dst, ts) in edges {
-            graph.add_edge(ts, src, dst, &vec![], None);
+            graph.add_edge(ts, src, dst, &vec![], None).unwrap();
         }
 
         let actual_tri_count = triangle_counting_fast(&graph);
