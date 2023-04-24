@@ -1,8 +1,0 @@
-prune python/src/pyraphtory/lib
-prune python/src/pyraphtory/jre
-prune python/src/pyraphtory/ivy
-include python/_custom_build/*.py
-include python/_custom_build/ivysettings.xml
-include python/_custom_build/ivy_data/*.xml
-include python/_custom_build/ivy_data/*.jar
-include version
