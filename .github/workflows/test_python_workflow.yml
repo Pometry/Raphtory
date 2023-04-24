@@ -1,0 +1,70 @@
+name: Run Python test
+on:
+  workflow_call:
+    inputs:
+      skip_tests:
+        type: boolean
+        default: false
+        required: false
+# DO NOT CHANGE NAME OF WORKFLOW, USED IN OTHER WORKFLOWS KEEP "Rust Tests"
+jobs:
+  python-test:
+    if: ${{ !inputs.skip_tests }}
+    name: Python Tests
+    runs-on: '${{ matrix.os }}'
+    strategy:
+      matrix:
+        include:
+          - os: macos-latest
+          - os: ubuntu-latest
+          - os: windows-latest
+    steps:
+      - uses: actions/checkout@v3
+        name: Checkout
+      - name: Set up cargo cache
+        uses: actions/cache@v3
+        continue-on-error: false
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/debug
+            target/release
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - uses: actions-rs/toolchain@v1
+        name: Setup Rust
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+          components: rustfmt, clippy
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+      - name: Run Maturin develop
+        uses: PyO3/maturin-action@v1
+        with:
+          working-directory: ./python
+          command: build
+          target: ${{ matrix.target }}
+          args: --release
+      - name: Install Python dependencies (Unix)
+        if: "contains(matrix.os, 'Ubuntu') || contains(matrix.os, 'macOS')"
+        run: |
+          python -m pip install -q pytest networkx numpy seaborn pandas nbmake pytest-xdist matplotlib pyvis
+          python -m pip install target/wheels/raphtory-*.whl
+      - name: Install Python dependencies (Windows)
+        if: "contains(matrix.os, 'Windows')"
+        run: |
+          python -m pip install -q pytest networkx numpy seaborn pandas nbmake pytest-xdist matplotlib pyvis
+          $folder_path = "target/wheels/"
+          Get-ChildItem -Path $folder_path -Recurse -Include *.whl | ForEach-Object {
+            python -m pip install "$($_.FullName)"
+          }
+      - name: Run Python tests
+        run: |
+          cd python && pytest && cd tests && pytest --nbmake --nbmake-timeout=1200 .

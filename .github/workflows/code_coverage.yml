@@ -1,0 +1,76 @@
+name: Code Coverage
+on:
+  workflow_call:
+    inputs:
+      skip_tests:
+        type: boolean
+        default: false
+        required: false
+# DO NOT CHANGE NAME OF WORKFLOW, USED IN OTHER WORKFLOWS KEEP "Rust Tests"
+jobs:
+  code-coverage:
+    if: ${{ !inputs.skip_tests }}
+    name: Code Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        name: Checkout
+      - name: Set up cargo cache
+        uses: actions/cache@v3
+        continue-on-error: false
+        with:
+          path: |
+              ~/.cargo/bin/
+              ~/.cargo/registry/index/
+              ~/.cargo/registry/cache/
+              ~/.cargo/git/db/
+              target/debug
+              target/release
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-coverage
+          restore-keys: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-coverage
+      - uses: actions-rs/toolchain@v1
+        name: Setup Rust
+        with:
+          toolchain: nightly
+          override: true
+          components: rustfmt, clippy
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+      - name: Run Maturin develop
+        uses: PyO3/maturin-action@v1
+        with:
+          working-directory: ./python
+          command: build
+      - name: Install Python dependencies
+        run: |
+          python -m pip install -q pytest networkx numpy seaborn pandas nbmake pytest-xdist matplotlib pyvis pytest-cov coverage
+          python -m pip install target/wheels/raphtory-*.whl
+      - uses: actions-rs/cargo@v1
+        with:
+          command: clean
+      - name: Run tests
+        run: cargo test -p docbrown
+        env:
+          CARGO_INCREMENTAL: '0'
+          RUSTFLAGS: '-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests'
+          RUSTDOCFLAGS: '-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests'
+      - name: Run tests
+        run: cargo test -p raphtory --no-default-features
+        env:
+          CARGO_INCREMENTAL: '0'
+          RUSTFLAGS: '-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests'
+          RUSTDOCFLAGS: '-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests'
+      - id: coveragerust
+        name: Run rust tests (rust-grcov) and collect coverage
+        uses: actions-rs/grcov@v0.1.5
+      - name: Run python tests and collect coverage
+        run: pytest --cov=./ --cov-report=xml
+      - name: Codecov
+        uses: codecov/codecov-action@v3.1.1
+        with:
+          verbose: true
+          fail_ci_if_error: false
+          files: ./coverage.xml, ${{ steps.coveragerust.outputs.report }}
+      
