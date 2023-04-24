@@ -14,7 +14,7 @@ pub struct AccId<A, IN, OUT, ACC: Accumulator<A, IN, OUT>> {
     _out: std::marker::PhantomData<OUT>,
 }
 
-impl <A, IN, OUT, ACC: Accumulator<A, IN, OUT>> Copy for AccId<A, IN, OUT, ACC> {}
+impl<A, IN, OUT, ACC: Accumulator<A, IN, OUT>> Copy for AccId<A, IN, OUT, ACC> {}
 
 impl<A, IN, OUT, ACC: Accumulator<A, IN, OUT>> AccId<A, IN, OUT, ACC> {
     pub fn id(&self) -> u32 {
@@ -157,10 +157,7 @@ pub trait DynArray: Debug + Send + Sync {
     fn as_any(&self) -> &dyn Any;
     fn as_mut_any(&mut self) -> &mut dyn Any;
     fn clone_array(&self) -> Box<dyn DynArray>;
-    fn len(&self) -> usize;
     fn copy_from(&mut self, other: &dyn DynArray);
-    // used for tricks
-    fn empty(&self) -> Box<dyn DynArray>;
     // used for map array
     fn copy_over(&mut self, ss: usize);
     fn reset(&mut self, ss: usize);
@@ -181,37 +178,105 @@ struct VecArray<T> {
     zero: T,
 }
 
-impl <T: StateType> DynArray for VecArray<T> {
+impl<T> VecArray<T> {
+    fn new(zero: T) -> Self {
+        VecArray {
+            odd: Vec::new(),
+            even: Vec::new(),
+            zero,
+        }
+    }
+
+    fn current_mut(&mut self, ss: usize) -> &mut Vec<T> {
+        if ss % 2 == 0 {
+            &mut self.even
+        } else {
+            &mut self.odd
+        }
+    }
+
+    fn current(&self, ss: usize) -> &Vec<T> {
+        if ss % 2 == 0 {
+            &self.even
+        } else {
+            &self.odd
+        }
+    }
+
+    fn previous_mut(&mut self, ss: usize) -> &mut Vec<T> {
+        if ss % 2 == 0 {
+            &mut self.odd
+        } else {
+            &mut self.even
+        }
+    }
+
+    fn previous(&self, ss: usize) -> &Vec<T> {
+        if ss % 2 == 0 {
+            &self.odd
+        } else {
+            &self.even
+        }
+    }
+}
+
+#[inline]
+fn merge_2_vecs<T: Clone, F: Fn(&mut T, &T)>(v1: &mut Vec<T>, v2: &Vec<T>, f: F) {
+    let v1_len = v1.len();
+    let v2_len = v2.len();
+
+    if v2_len < v1_len {
+        let v1_slice = &mut v1[0..v2_len];
+        v1_slice
+            .iter_mut()
+            .zip(v2.iter())
+            .for_each(|(v1, v2)| f(v1, v2));
+    } else {
+        let v2_slice = &v2[0..v1_len];
+        v1.iter_mut()
+            .zip(v2_slice.iter())
+            .for_each(|(v1, v2)| f(v1, v2));
+
+        v1.extend_from_slice(&v2[v1_len..]);
+    }
+}
+
+impl<T: StateType> DynArray for VecArray<T> {
     fn as_any(&self) -> &dyn Any {
-        self as &dyn Any
+        self
     }
 
     fn as_mut_any(&mut self) -> &mut dyn Any {
-        self as &mut dyn Any
+        self
     }
 
     fn clone_array(&self) -> Box<dyn DynArray> {
         Box::new(self.clone())
     }
 
-    fn len(&self) -> usize {
-       0 
-    }
-
     fn copy_from(&mut self, other: &dyn DynArray) {
-        todo!()
-    }
+        let other = other.as_any().downcast_ref::<VecArray<T>>().unwrap();
 
-    fn empty(&self) -> Box<dyn DynArray> {
-        todo!()
+        merge_2_vecs(&mut self.even, &other.even, |a, b| *a = b.clone())
     }
 
     fn copy_over(&mut self, ss: usize) {
-        todo!()
+        let mut previous = vec![];
+
+        std::mem::swap(self.previous_mut(ss), &mut previous);
+
+        // put current into previous using the merge function
+        merge_2_vecs(&mut previous, self.current(ss), |a, b| *a = b.clone());
+
+        // put previous back into previous_mut
+        std::mem::swap(self.previous_mut(ss), &mut previous);
     }
 
     fn reset(&mut self, ss: usize) {
-        todo!()
+        let zero = self.zero.clone();
+        for v in self.previous_mut(ss).iter_mut() {
+            *v = zero.clone();
+        }
     }
 
     fn iter_keys(&self) -> Box<dyn Iterator<Item = u64> + '_> {
@@ -239,17 +304,9 @@ where
         Box::new(self.clone())
     }
 
-    fn len(&self) -> usize {
-        self.map.len()
-    }
-
     fn copy_from(&mut self, other: &dyn DynArray) {
         let other = other.as_any().downcast_ref::<MapArray<T>>().unwrap();
         self.map = other.map.clone();
-    }
-
-    fn empty(&self) -> Box<dyn DynArray> {
-        panic!("not implemented");
     }
 
     fn copy_over(&mut self, ss: usize) {
@@ -288,7 +345,7 @@ pub trait StateType: PartialEq + Clone + Debug + Send + Sync + 'static {}
 
 impl<T: PartialEq + Clone + Debug + Send + Sync + 'static> StateType for T {}
 
-pub trait ComputeState: Debug + Clone + Send + Sync{
+pub trait ComputeState: Debug + Clone + Send + Sync {
     fn clone_current_into_other(&mut self, ss: usize);
 
     fn reset_resetable_states(&mut self, ss: usize);
@@ -322,11 +379,8 @@ pub trait ComputeState: Debug + Clone + Send + Sync{
     where
         A: StateType;
 
-    fn merge<A, IN, OUT, ACC: Accumulator<A, IN, OUT>, CS2: ComputeState>(
-        &mut self,
-        other: &CS2,
-        ss: usize,
-    ) where
+    fn merge<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(&mut self, other: &Self, ss: usize)
+    where
         A: StateType;
 
     fn finalize<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(&self, ss: usize) -> Vec<(u64, OUT)>
@@ -466,11 +520,8 @@ impl ComputeState for ComputeStateMap {
         ACC::combine(&mut entry[ss % 2], a);
     }
 
-    fn merge<A, IN, OUT, ACC: Accumulator<A, IN, OUT>, CS2: ComputeState>(
-        &mut self,
-        other: &CS2,
-        ss: usize,
-    ) where
+    fn merge<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(&mut self, other: &Self, ss: usize)
+    where
         A: StateType,
     {
         other.iter::<A>(ss).for_each(|(i, a)| {
@@ -490,9 +541,11 @@ impl ComputeState for ComputeStateMap {
             .downcast_ref::<MapArray<A>>()
             .unwrap();
 
-        current.map.iter().map(|(c,v)| {
-            (*c, ACC::finish(&v[ss % 2]))
-        }).collect::<Vec<(u64, OUT)>>()
+        current
+            .map
+            .iter()
+            .map(|(c, v)| (*c, ACC::finish(&v[ss % 2])))
+            .collect::<Vec<(u64, OUT)>>()
 
         // current
         //     .map
@@ -518,6 +571,179 @@ impl ComputeState for ComputeStateMap {
             .iter()
             .map(|(k, v)| (k, ACC::finish(&v[ss % 2])))
             .fold(b, |b, (k, out)| f(b, k, out))
+    }
+}
+
+#[derive(Debug)]
+struct ComputeStateVec(Box<dyn DynArray + 'static>);
+
+impl ComputeStateVec {
+    fn current_mut(&mut self) -> &mut dyn DynArray {
+        self.0.as_mut()
+    }
+
+    fn current(&self) -> &dyn DynArray {
+        self.0.as_ref()
+    }
+}
+
+impl Clone for ComputeStateVec {
+    fn clone(&self) -> Self {
+        ComputeStateVec(self.0.clone_array())
+    }
+}
+
+impl ComputeState for ComputeStateVec {
+    fn clone_current_into_other(&mut self, ss: usize) {
+        self.0.copy_over(ss);
+    }
+
+    fn reset_resetable_states(&mut self, ss: usize) {
+        self.0.reset(ss);
+    }
+
+    fn new_mutable_primitive<T: StateType>(zero: T) -> Self {
+        ComputeStateVec(Box::new(VecArray::new(zero)))
+    }
+
+    fn read<A: StateType, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
+        &self,
+        ss: usize,
+        i: usize,
+    ) -> Option<OUT>
+    where
+        OUT: Debug,
+    {
+        let vec = self
+            .current()
+            .as_any()
+            .downcast_ref::<VecArray<A>>()
+            .unwrap();
+        vec.current(ss).get(i).map(|a| ACC::finish(a))
+    }
+
+    fn read_ref<A: StateType, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
+        &self,
+        ss: usize,
+        i: usize,
+    ) -> Option<&A> {
+        let vec = self
+            .current()
+            .as_any()
+            .downcast_ref::<VecArray<A>>()
+            .unwrap();
+        vec.current(ss).get(i)
+    }
+
+    fn iter<A: StateType>(&self, ss: usize) -> Box<dyn Iterator<Item = (usize, &A)> + '_> {
+        let vec = self
+            .current()
+            .as_any()
+            .downcast_ref::<VecArray<A>>()
+            .unwrap();
+        let iter = vec.current(ss).iter().enumerate();
+        Box::new(iter)
+    }
+
+    fn iter_keys(&self) -> Box<dyn Iterator<Item = u64> + '_> {
+        todo!()
+    }
+
+    fn iter_keys_changed(&self, ss: usize) -> Box<dyn Iterator<Item = u64> + '_> {
+        todo!()
+    }
+
+    fn agg<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(&mut self, ss: usize, a: IN, ki: usize)
+    where
+        A: StateType,
+    {
+        let vec = self
+            .current_mut()
+            .as_mut_any()
+            .downcast_mut::<VecArray<A>>()
+            .unwrap();
+
+        let v = vec.current_mut(ss);
+        if v.len() <= ki {
+            v.resize(ki + 1, ACC::zero());
+        }
+        ACC::add0(&mut v[ki], a);
+    }
+
+    fn combine<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(&mut self, ss: usize, a: &A, ki: usize)
+    where
+        A: StateType,
+    {
+        let vec = self
+            .current_mut()
+            .as_mut_any()
+            .downcast_mut::<VecArray<A>>()
+            .unwrap();
+
+        let v = vec.current_mut(ss);
+        if v.len() <= ki {
+            v.resize(ki + 1, ACC::zero());
+        }
+        ACC::combine(&mut v[ki], a);
+    }
+
+    fn merge<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(&mut self, other: &Self, ss: usize)
+    where
+        A: StateType,
+    {
+        let vec = self
+            .current_mut()
+            .as_mut_any()
+            .downcast_mut::<VecArray<A>>()
+            .unwrap();
+
+        let v = vec.current_mut(ss);
+
+        let other_vec = other
+            .current()
+            .as_any()
+            .downcast_ref::<VecArray<A>>()
+            .unwrap();
+
+        let v_other = other_vec.current(ss);
+
+        merge_2_vecs(v, v_other, |a, b| ACC::combine(a, b));
+    }
+
+    fn finalize<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(&self, ss: usize) -> Vec<OUT>
+    where
+        OUT: StateType,
+        A: 'static,
+    {
+        let current = self
+            .current()
+            .as_any()
+            .downcast_ref::<VecArray<A>>()
+            .unwrap()
+            .current(ss);
+
+        current.iter().map(|a| ACC::finish(a)).collect()
+    }
+
+    fn fold<A, IN, OUT, ACC: Accumulator<A, IN, OUT>, F, B>(&self, ss: usize, b: B, f: F) -> B
+    where
+        F: FnOnce(B, &u64, OUT) -> B + Copy,
+        A: 'static,
+        B: Debug,
+        OUT: StateType,
+    {
+        let current = self
+            .current()
+            .as_any()
+            .downcast_ref::<VecArray<A>>()
+            .unwrap()
+            .current(ss);
+
+        current.iter().enumerate().fold(b, |b, (i, a)| {
+            let out = ACC::finish(a);
+            let i = i as u64;
+            f(b, &i, out)
+        })
     }
 }
 
@@ -611,7 +837,7 @@ impl<CS: ComputeState + Send + Clone> ShardComputeState<CS> {
             other.states.get(&agg_ref.id),
         ) {
             (Some(self_cs), Some(other_cs)) => {
-                self_cs.merge::<A, IN, OUT, ACC, CS>(other_cs, ss);
+                self_cs.merge::<A, IN, OUT, ACC>(other_cs, ss);
             }
             (None, Some(other_cs)) => {
                 self.states.insert(agg_ref.id, other_cs.clone());
@@ -734,7 +960,6 @@ impl<CS: ComputeState + Send + Sync> ShuffleComputeState<CS> {
             .zip(other.parts.iter())
             .for_each(|(s, o)| s.merge(o, agg_ref, ss));
     }
-
 
     pub fn merge_mut_2<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
         &mut self,
@@ -934,18 +1159,34 @@ impl<CS: ComputeState + Send> ShuffleComputeState<CS> {
 #[cfg(test)]
 mod state_test {
 
-    // take two monoids in 2 vectors, zip them with 2 graphs
-    // merge the monoids in parallel
-
     use super::*;
     use rand::Rng;
     use rand_distr::weighted_alias::AliasableWeight;
+
+    #[quickcheck]
+    fn check_merge_2_vecs(mut a: Vec<usize>, b: Vec<usize>) {
+        let len_a = a.len();
+        let len_b = b.len();
+
+        merge_2_vecs(&mut a, &b, |ia, ib| *ia = usize::max(*ia, *ib));
+
+        assert_eq!(a.len(), usize::max(len_a, len_b));
+
+        for (i, expected) in a.iter().enumerate() {
+            match (a.get(i), b.get(i)) {
+                (Some(va), Some(vb)) => assert_eq!(*expected, usize::max(*va, *vb)),
+                (Some(va), None) => assert_eq!(*expected, *va),
+                (None, Some(vb)) => assert_eq!(*expected, *vb),
+                (None, None) => assert!(false, "value should exist in either a or b"),
+            }
+        }
+    }
 
     #[test]
     fn min_aggregates_for_3_keys() {
         let min = def::min(0);
 
-        let mut state_map: ShardComputeState<ComputeStateMap> = ShardComputeState::new();
+        let mut state_map: ShardComputeState<ComputeStateVec> = ShardComputeState::new();
 
         // create random vec of numbers
         let mut rng = rand::thread_rng();
@@ -964,7 +1205,10 @@ mod state_test {
         }
 
         let actual = state_map.finalize(0, &min);
-        assert_eq!(actual, Some(vec![(0, actual_min), (1,actual_min), (2,actual_min)]));
+        assert_eq!(
+            actual,
+            Some(vec![(0, actual_min), (1, actual_min), (2, actual_min)])
+        );
     }
 
     #[test]
@@ -991,26 +1235,33 @@ mod state_test {
 
         let actual_avg = sum / 100;
         let actual = state_map.finalize(0, &avg);
-        assert_eq!(actual, Some(vec![(0,actual_avg), (1,actual_avg), (2,actual_avg)]));
+        assert_eq!(
+            actual,
+            Some(vec![(0, actual_avg), (1, actual_avg), (2, actual_avg)])
+        );
     }
 
     #[test]
     fn top3_aggregates_for_3_keys() {
-        let avg = def::topk::<i32, 3>(0);
+        let top3 = def::topk::<i32, 3>(0);
 
-        let mut state_map: ShardComputeState<ComputeStateMap> = ShardComputeState::new();
+        let mut state_map: ShardComputeState<ComputeStateVec> = ShardComputeState::new();
 
         for a in 0..100 {
-            state_map.accumulate_into(0, 0, a, &avg);
-            state_map.accumulate_into(0, 1, a, &avg);
-            state_map.accumulate_into(0, 2, a, &avg);
+            state_map.accumulate_into(0, 0, a, &top3);
+            state_map.accumulate_into(0, 1, a, &top3);
+            state_map.accumulate_into(0, 2, a, &top3);
         }
         let expected = vec![99, 98, 97];
 
-        let actual = state_map.finalize(0, &avg);
+        let actual = state_map.finalize(0, &top3);
         assert_eq!(
             actual,
-            Some(vec![(0,expected.clone()), (1, expected.clone()), (2,expected.clone())])
+            Some(vec![
+                (0, expected.clone()),
+                (1, expected.clone()),
+                (2, expected.clone())
+            ])
         );
     }
 
@@ -1038,7 +1289,10 @@ mod state_test {
 
         let actual = state.finalize(0, &sum);
 
-        assert_eq!(actual, Some(vec![(0, actual_sum), (1,actual_sum), (2,actual_sum)]));
+        assert_eq!(
+            actual,
+            Some(vec![(0, actual_sum), (1, actual_sum), (2, actual_sum)])
+        );
     }
 
     #[test]
@@ -1086,12 +1340,15 @@ mod state_test {
 
         assert_eq!(
             actual,
-            vec![Some(vec![(2,actual_sum_1)]), Some(vec![(1,actual_sum_1)])]
+            vec![Some(vec![(2, actual_sum_1)]), Some(vec![(1, actual_sum_1)])]
         );
 
         let actual = part2_state.finalize(0, &sum);
 
-        assert_eq!(actual, vec![None, Some(vec![(1,actual_sum_2), (3,actual_sum_2)])]);
+        assert_eq!(
+            actual,
+            vec![None, Some(vec![(1, actual_sum_2), (3, actual_sum_2)])]
+        );
 
         ShuffleComputeState::merge_mut(&mut part1_state, &part2_state, &sum, 0);
         let actual = part1_state.finalize(0, &sum);
@@ -1100,7 +1357,7 @@ mod state_test {
             actual,
             vec![
                 Some(vec![(2, actual_sum_1)]),
-                Some(vec![(1,(actual_sum_1 + actual_sum_2)), (3, actual_sum_2)]),
+                Some(vec![(1, (actual_sum_1 + actual_sum_2)), (3, actual_sum_2)]),
             ]
         );
     }
@@ -1155,20 +1412,26 @@ mod state_test {
         let actual = part1_state.finalize(0, &sum);
         assert_eq!(
             actual,
-            vec![Some(vec![(2,actual_sum_1)]), Some(vec![(1, actual_sum_1)])]
+            vec![Some(vec![(2, actual_sum_1)]), Some(vec![(1, actual_sum_1)])]
         );
 
         let actual = part1_state.finalize(0, &min);
         assert_eq!(
             actual,
-            vec![Some(vec![(2, actual_min_1)]), Some(vec![(1,actual_min_1)])]
+            vec![Some(vec![(2, actual_min_1)]), Some(vec![(1, actual_min_1)])]
         );
 
         let actual = part2_state.finalize(0, &sum);
-        assert_eq!(actual, vec![None, Some(vec![(1, actual_sum_2), (3,actual_sum_2)])]);
+        assert_eq!(
+            actual,
+            vec![None, Some(vec![(1, actual_sum_2), (3, actual_sum_2)])]
+        );
 
         let actual = part2_state.finalize(0, &min);
-        assert_eq!(actual, vec![None, Some(vec![(1,actual_min_2), (3,actual_min_2)])]);
+        assert_eq!(
+            actual,
+            vec![None, Some(vec![(1, actual_min_2), (3, actual_min_2)])]
+        );
 
         ShuffleComputeState::merge_mut(&mut part1_state, &part2_state, &sum, 0);
         let actual = part1_state.finalize(0, &sum);
@@ -1176,8 +1439,8 @@ mod state_test {
         assert_eq!(
             actual,
             vec![
-                Some(vec![((2,actual_sum_1))]),
-                Some(vec![(1,(actual_sum_1 + actual_sum_2)), (3,actual_sum_2)]),
+                Some(vec![((2, actual_sum_1))]),
+                Some(vec![(1, (actual_sum_1 + actual_sum_2)), (3, actual_sum_2)]),
             ]
         );
 
@@ -1186,7 +1449,7 @@ mod state_test {
         assert_eq!(
             actual,
             vec![
-                Some(vec![(2,actual_min_1)]),
+                Some(vec![(2, actual_min_1)]),
                 Some(vec![(1, actual_min_1.min(actual_min_2)), (3, actual_min_2)]),
             ]
         );
