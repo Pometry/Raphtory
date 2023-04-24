@@ -1,4 +1,4 @@
-//! Defines the `Graph` struct, which represents a docbrown graph in memory.
+//! Defines the `Graph` struct, which represents a raphtory graph in memory.
 //!
 //! This is the base class used to create a temporal graph, add vertices and edges,
 //! create windows, and query the graph with a variety of algorithms.
@@ -7,8 +7,8 @@
 //! # Examples
 //!
 //! ```rust
-//! use docbrown::db::graph::Graph;
-//! use docbrown::db::view_api::*;
+//! use raphtory::db::graph::Graph;
+//! use raphtory::db::view_api::*;
 //! let graph = Graph::new(2);
 //! graph.add_vertex(0, "Alice", &vec![]);
 //! graph.add_vertex(1, "Bob", &vec![]);
@@ -553,8 +553,8 @@ impl Graph {
     ///
     /// # Example
     /// ```
-    /// use docbrown::db::view_api::*;
-    /// use docbrown::db::graph::Graph;
+    /// use raphtory::db::view_api::*;
+    /// use raphtory::db::graph::Graph;
     ///
     /// let mut mutable_graph = Graph::new(1);
     /// // ... add vertices and edges to the graph
@@ -630,12 +630,12 @@ impl Graph {
     ///
     /// # Returns
     ///
-    /// A docbrown graph
+    /// A raphtory graph
     ///
     /// # Example
     ///
     /// ```
-    /// use docbrown::db::graph::Graph;
+    /// use raphtory::db::graph::Graph;
     /// let g = Graph::new(4);
     /// ```
     pub fn new(nr_shards: usize) -> Self {
@@ -654,12 +654,12 @@ impl Graph {
     ///
     /// # Returns
     ///
-    /// A docbrown graph
+    /// A raphtory graph
     ///
     /// # Example
     ///
     /// ```
-    /// use docbrown::db::graph::Graph;
+    /// use raphtory::db::graph::Graph;
     /// // let g = Graph::load_from_file("path/to/graph");
     /// ```
     pub fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self, Box<bincode::ErrorKind>> {
@@ -706,12 +706,12 @@ impl Graph {
     ///
     /// # Returns
     ///
-    /// A docbrown graph
+    /// A raphtory graph
     ///
     /// # Example
     ///
     /// ```
-    /// use docbrown::db::graph::Graph;
+    /// use raphtory::db::graph::Graph;
     /// use std::fs::File;
     /// let g = Graph::new(4);
     /// g.add_vertex(1, 1, &vec![]);
@@ -760,7 +760,7 @@ impl Graph {
     /// # Example
     ///
     /// ```
-    /// use docbrown::db::graph::Graph;
+    /// use raphtory::db::graph::Graph;
     /// let g = Graph::new(1);
     /// let v = g.add_vertex(0, "Alice", &vec![]);
     /// let v = g.add_vertex(0, 5, &vec![]);
@@ -796,8 +796,8 @@ impl Graph {
     /// # Example
     ///
     /// ```
-    /// use docbrown::db::graph::Graph;
-    /// use docbrown::core::Prop;
+    /// use raphtory::db::graph::Graph;
+    /// use raphtory::core::Prop;
     /// let graph = Graph::new(1);
     /// graph.add_vertex(0, "Alice", &vec![]);
     /// let properties = vec![("color".to_owned(), Prop::Str("blue".to_owned())), ("weight".to_owned(), Prop::I64(11))];
@@ -825,7 +825,7 @@ impl Graph {
     /// # Example
     ///
     /// ```
-    /// use docbrown::db::graph::Graph;
+    /// use raphtory::db::graph::Graph;
     ///
     /// let graph = Graph::new(1);
     /// graph.add_vertex(1, "Alice", &vec![]);
@@ -887,8 +887,8 @@ impl Graph {
     /// # Example
     ///
     /// ```
-    /// use docbrown::db::graph::Graph;
-    /// use docbrown::core::Prop;
+    /// use raphtory::db::graph::Graph;
+    /// use raphtory::core::Prop;
     /// let graph = Graph::new(1);
     /// graph.add_vertex(1, "Alice", &vec![]);
     /// graph.add_vertex(2, "Bob", &vec![]);
@@ -1012,9 +1012,9 @@ mod db_tests {
         }
 
         let rand_dir = Uuid::new_v4();
-        let tmp_docbrown_path: TempDir = TempDir::new("docbrown").unwrap();
+        let tmp_raphtory_path: TempDir = TempDir::new("raphtory").unwrap();
         let shards_path =
-            format!("{:?}/{}", tmp_docbrown_path.path().display(), rand_dir).replace('\"', "");
+            format!("{:?}/{}", tmp_raphtory_path.path().display(), rand_dir).replace('\"', "");
 
         println!("shards_path: {}", shards_path);
 
@@ -1054,7 +1054,7 @@ mod db_tests {
             Err(e) => panic!("{e}"),
         }
 
-        let _ = tmp_docbrown_path.close();
+        let _ = tmp_raphtory_path.close();
     }
 
     #[test]

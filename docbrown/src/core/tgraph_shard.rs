@@ -1,6 +1,6 @@
 //! A data structure for sharding a temporal graph.
 //!
-//! When a docbrown graph is created, the code will automatically shard the graph depending
+//! When a raphtory graph is created, the code will automatically shard the graph depending
 //! on how many shards you set the graph to originally have when initializing it.
 //!
 //! For example, Graph::new(4) will create a graph with 4 shards.

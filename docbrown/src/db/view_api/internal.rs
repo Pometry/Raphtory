@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::{ops::Range, sync::Arc};
 
 /// The GraphViewInternalOps trait provides a set of methods to query a directed graph
-/// represented by the docbrown_core::tgraph::TGraph struct.
+/// represented by the raphtory_core::tgraph::TGraph struct.
 pub trait GraphViewInternalOps {
     /// Get the layer id for the given layer name
     fn get_layer(&self, key: Option<&str>) -> Option<usize>;

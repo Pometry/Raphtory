@@ -17,9 +17,9 @@
 //! # Examples
 //!
 //! ```rust
-//! use docbrown::algorithms::local_triangle_count::{local_triangle_count};
-//! use docbrown::db::graph::Graph;
-//! use docbrown::db::view_api::*;
+//! use raphtory::algorithms::local_triangle_count::{local_triangle_count};
+//! use raphtory::db::graph::Graph;
+//! use raphtory::db::view_api::*;
 //!
 //! let g = Graph::new(1);
 //! let vs = vec![(1, 1, 2), (2, 1, 3), (3, 2, 1), (4, 3, 2)];

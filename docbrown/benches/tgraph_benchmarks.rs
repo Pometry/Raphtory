@@ -1,11 +1,11 @@
 use std::collections::BTreeSet;
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
-use docbrown::core::{
+use rand::{distributions::Uniform, prelude::Distribution, Rng};
+use raphtory::core::{
     lsm::LSMSet,
     tadjset::{AdjEdge, TAdjSet},
 };
-use rand::{distributions::Uniform, prelude::Distribution, Rng};
 use sorted_vector_map::SortedVectorSet;
 
 fn btree_set_u64(c: &mut Criterion) {

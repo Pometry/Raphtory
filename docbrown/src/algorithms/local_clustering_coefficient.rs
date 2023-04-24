@@ -23,9 +23,9 @@
 //! # Examples
 //!
 //! ```rust
-//! use docbrown::algorithms::local_clustering_coefficient::{local_clustering_coefficient};
-//! use docbrown::db::graph::Graph;
-//! use docbrown::db::view_api::*;
+//! use raphtory::algorithms::local_clustering_coefficient::{local_clustering_coefficient};
+//! use raphtory::db::graph::Graph;
+//! use raphtory::db::view_api::*;
 //!
 //! let g = Graph::new(1);
 //! let windowed_graph = g.window(0, 7);

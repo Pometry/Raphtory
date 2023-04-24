@@ -1,8 +1,8 @@
 use criterion::{measurement::WallTime, BatchSize, Bencher, BenchmarkGroup, BenchmarkId};
-use docbrown::db::graph::Graph;
-use docbrown::db::view_api::*;
 use rand::seq::*;
 use rand::{distributions::Uniform, Rng};
+use raphtory::db::graph::Graph;
+use raphtory::db::view_api::*;
 use std::collections::HashSet;
 
 fn make_index_gen() -> Box<dyn Iterator<Item = u64>> {

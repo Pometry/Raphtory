@@ -29,9 +29,9 @@
 //!
 //! Example:
 //! ```no_run
-//! use docbrown::graph_loader::example::reddit_hyperlinks::reddit_graph;
-//! use docbrown::db::graph::Graph;
-//! use docbrown::db::view_api::*;
+//! use raphtory::graph_loader::example::reddit_hyperlinks::reddit_graph;
+//! use raphtory::db::graph::Graph;
+//! use raphtory::db::view_api::*;
 //!
 //! let graph = reddit_graph(1, 120);
 //!

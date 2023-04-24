@@ -106,8 +106,8 @@ impl Program for TriangleCountS1 {
 /// # Example
 /// ```rust
 /// use std::{cmp::Reverse, iter::once};
-/// use docbrown::db::graph::Graph;
-/// use docbrown::algorithms::triangle_count::triangle_counting_fast;
+/// use raphtory::db::graph::Graph;
+/// use raphtory::algorithms::triangle_count::triangle_counting_fast;
 ///
 /// let graph = Graph::new(2);
 ///

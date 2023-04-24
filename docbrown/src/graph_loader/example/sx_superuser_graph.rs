@@ -36,9 +36,9 @@
 //!
 //! Example:
 //! ```no_run
-//! use docbrown::graph_loader::example::sx_superuser_graph::sx_superuser_graph;
-//! use docbrown::db::graph::Graph;
-//! use docbrown::db::view_api::*;
+//! use raphtory::graph_loader::example::sx_superuser_graph::sx_superuser_graph;
+//! use raphtory::db::graph::Graph;
+//! use raphtory::db::view_api::*;
 //!
 //! let graph = sx_superuser_graph(1).unwrap();
 //!

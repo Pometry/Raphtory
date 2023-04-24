@@ -1,21 +1,21 @@
-//! # Docbrown
+//! # raphtory
 //!
-//! `docbrown` is the core module for the Docbrown library.
+//! `raphtory` is the core module for the raphtory library.
 //!
-//! The Docbrown library is a temporal graph analytics tool, which allows users to create
+//! The raphtory library is a temporal graph analytics tool, which allows users to create
 //! and analyze graph data with time.
 //!
 //! This crate provides the core data structures and functions for working with temporal graphs,
 //! as well as building and evaluating algorithms.
 //!
 //! **Note** this module is not meant to be used as a standalone crate, but in conjunction with the
-//! docbrown_db crate.
+//! raphtory_db crate.
 //!
-//! For example code, please see the docbrown_db crate.
+//! For example code, please see the raphtory_db crate.
 //!
 //! ## Supported Platforms
 //!
-//! `docbrown` supports  support for the following platforms:
+//! `raphtory` supports  support for the following platforms:
 //!
 //! **Note** they must have Rust 1.53 or later.
 //!

@@ -438,7 +438,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7e1a8646b2c125eeb9a84ef0faa6d2d102ea0d5da60b824ade2743263117b848"
 
 [[package]]
-name = "docbrown"
+name = "raphtory"
 version = "0.0.9"
 dependencies = [
  "bincode",
@@ -536,7 +536,7 @@ name = "examples"
 version = "0.0.9"
 dependencies = [
  "chrono",
- "docbrown",
+ "raphtory",
  "itertools",
  "rand 0.8.5",
  "rayon",
@@ -1695,7 +1695,7 @@ dependencies = [
  "chrono",
  "csv",
  "display-error-chain",
- "docbrown",
+ "raphtory",
  "flate2",
  "flume",
  "futures",

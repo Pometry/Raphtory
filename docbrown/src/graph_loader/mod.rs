@@ -5,7 +5,7 @@
 //! # Example
 //!
 //! ```rust
-//! use docbrown::graph_loader::fetch_file;
+//! use raphtory::graph_loader::fetch_file;
 //!
 //! let path = fetch_file(
 //!     "lotr.csv",

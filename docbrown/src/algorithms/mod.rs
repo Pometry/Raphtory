@@ -7,8 +7,8 @@
 //! # Examples
 //!
 //! ```rust
-//! use docbrown::algorithms::degree::{average_degree};
-//! use docbrown::db::graph::Graph;
+//! use raphtory::algorithms::degree::{average_degree};
+//! use raphtory::db::graph::Graph;
 //!  
 //!  let g = Graph::new(1);
 //!  let vs = vec![

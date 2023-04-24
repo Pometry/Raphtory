@@ -5,8 +5,8 @@
 //! # Examples
 //!
 //! ```
-//! use docbrown::db::graph::Graph;
-//! use docbrown::graphgen::preferential_attachment::ba_preferential_attachment;
+//! use raphtory::db::graph::Graph;
+//! use raphtory::graphgen::preferential_attachment::ba_preferential_attachment;
 //!
 //! let graph = Graph::new(2);
 //! ba_preferential_attachment(&graph, 1000, 10);
@@ -37,8 +37,8 @@ use std::collections::HashSet;
 /// # Examples
 ///
 /// ```
-/// use docbrown::db::graph::Graph;
-/// use docbrown::graphgen::preferential_attachment::ba_preferential_attachment;
+/// use raphtory::db::graph::Graph;
+/// use raphtory::graphgen::preferential_attachment::ba_preferential_attachment;
 ///
 /// let graph = Graph::new(2);
 /// ba_preferential_attachment(&graph, 1000, 10);

@@ -1,12 +1,12 @@
-//! Defines the `ImmutableGraph` struct, which represents a docbrown graph in a frozen state.
+//! Defines the `ImmutableGraph` struct, which represents a raphtory graph in a frozen state.
 //! This graph can be queried in a read-only format avoiding any locks placed when using a
 //! non-immutable graph.
 //!
 //! # Examples
 //!
 //! ```rust
-//! use docbrown::db::graph::Graph;
-//! use docbrown::db::view_api::*;
+//! use raphtory::db::graph::Graph;
+//! use raphtory::db::view_api::*;
 //!
 //! let graph = Graph::new(2);
 //! // Add vertices and edges
@@ -27,15 +27,15 @@ use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
-/// A docbrown graph in a frozen state that is read-only.
+/// A raphtory graph in a frozen state that is read-only.
 /// This graph can be queried in a read-only format avoiding any locks placed when using a
 /// non-immutable graph.
 ///
 /// # Examples
 ///
 /// ```rust
-/// use docbrown::db::graph::Graph;
-/// use docbrown::db::view_api::*;
+/// use raphtory::db::graph::Graph;
+/// use raphtory::db::view_api::*;
 ///
 /// let graph = Graph::new(2);
 /// // Add vertices and edges
@@ -60,8 +60,8 @@ impl ImmutableGraph {
     /// # Examples
     ///
     /// ```rust
-    /// use docbrown::db::graph::Graph;
-    /// use docbrown::db::view_api::*;
+    /// use raphtory::db::graph::Graph;
+    /// use raphtory::db::view_api::*;
     ///
     /// let graph = Graph::new(2);
     /// // Add vertices and edges
@@ -89,8 +89,8 @@ impl ImmutableGraph {
     /// # Examples
     ///
     /// ```rust
-    /// use docbrown::db::graph::Graph;
-    /// use docbrown::db::view_api::*;
+    /// use raphtory::db::graph::Graph;
+    /// use raphtory::db::view_api::*;
     ///
     /// let graph = Graph::new(2);
     /// graph.add_vertex(0, 1, &vec![]).unwrap();
@@ -108,8 +108,8 @@ impl ImmutableGraph {
     /// # Examples
     ///
     /// ```rust
-    /// use docbrown::db::graph::Graph;
-    /// use docbrown::db::view_api::*;
+    /// use raphtory::db::graph::Graph;
+    /// use raphtory::db::view_api::*;
     ///
     /// let graph = Graph::new(2);
     /// graph.add_vertex(0, 1, &vec![]).unwrap();
@@ -139,8 +139,8 @@ impl ImmutableGraph {
     /// # Examples
     ///
     /// ```rust
-    /// use docbrown::db::graph::Graph;
-    /// use docbrown::db::view_api::*;
+    /// use raphtory::db::graph::Graph;
+    /// use raphtory::db::view_api::*;
     ///
     /// let graph = Graph::new(2);
     /// graph.add_vertex(0, 1, &vec![]).unwrap();
@@ -159,8 +159,8 @@ impl ImmutableGraph {
     /// # Examples
     ///
     /// ```rust
-    /// use docbrown::db::graph::Graph;
-    /// use docbrown::db::view_api::*;
+    /// use raphtory::db::graph::Graph;
+    /// use raphtory::db::view_api::*;
     ///
     /// let graph = Graph::new(2);
     /// graph.add_vertex(0, 1, &vec![]).unwrap();
@@ -184,8 +184,8 @@ impl ImmutableGraph {
     /// # Examples
     ///
     /// ```rust
-    /// use docbrown::db::graph::Graph;
-    /// use docbrown::db::view_api::*;
+    /// use raphtory::db::graph::Graph;
+    /// use raphtory::db::view_api::*;
     ///
     /// let graph = Graph::new(2);
     /// graph.add_vertex(0, 1, &vec![]).unwrap();
@@ -203,8 +203,8 @@ impl ImmutableGraph {
     /// # Examples
     ///
     /// ```rust
-    /// use docbrown::db::graph::Graph;
-    /// use docbrown::db::view_api::*;
+    /// use raphtory::db::graph::Graph;
+    /// use raphtory::db::view_api::*;
     ///
     /// let graph = Graph::new(2);
     /// graph.add_edge(0, 1, 1, &vec![], None).unwrap();
@@ -225,8 +225,8 @@ impl ImmutableGraph {
     /// # Examples
     ///
     /// ```rust
-    /// use docbrown::db::graph::Graph;
-    /// use docbrown::db::view_api::*;
+    /// use raphtory::db::graph::Graph;
+    /// use raphtory::db::view_api::*;
     ///
     /// let graph = Graph::new(2);
     /// graph.add_edge(0, 1, 2, &vec![], None).unwrap();

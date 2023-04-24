@@ -7,8 +7,8 @@
 //! # Examples
 //!
 //! ```
-//! use docbrown::db::graph::Graph;
-//! use docbrown::graphgen::random_attachment::random_attachment;
+//! use raphtory::db::graph::Graph;
+//! use raphtory::graphgen::random_attachment::random_attachment;
 //! let graph = Graph::new(2);
 //! random_attachment(&graph, 1000, 10);
 //! ```
@@ -34,8 +34,8 @@ use rand::seq::SliceRandom;
 /// # Examples
 ///
 /// ```
-/// use docbrown::db::graph::Graph;
-/// use docbrown::graphgen::random_attachment::random_attachment;
+/// use raphtory::db::graph::Graph;
+/// use raphtory::graphgen::random_attachment::random_attachment;
 /// let graph = Graph::new(2);
 /// random_attachment(&graph, 1000, 10);
 /// ```

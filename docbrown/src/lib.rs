@@ -1,10 +1,10 @@
-//! # DocBrown
+//! # raphtory
 //!
-//! `docbrown` is a Rust library for analysing time-based graph data.
+//! `raphtory` is a Rust library for analysing time-based graph data.
 //! It is designed to be horizontally scalable,and can be used for a variety of applications
 //! such as social network, cyber security, fraud analysis and more.
 //!
-//! The core feature of Docbrown is the ability to analyse time-based graph data.
+//! The core feature of raphtory is the ability to analyse time-based graph data.
 //!
 //! You can run periodic graph analytics on your graph, and see how the graph changes over time.
 //!
@@ -16,12 +16,12 @@
 //!
 //! ## Features
 //!
-//! - **Time-based Graphs** - DocBrown allows you to create and analyse time-based graphs.
-//! - **Graph Analytics** - DocBrown provides a variety of graph analytics algorithms.
-//! - **Horizontal Scalability** - DocBrown is designed to be horizontally scalable.
-//! - **Distributed** - DocBrown can be distributed across multiple machines.
-//! - **Fast** - DocBrown is fast, and can process large amounts of data in a short amount of time.
-//! - **Open Source** - DocBrown is open source, and is available on Github under a AGPL-3.0 license.
+//! - **Time-based Graphs** - raphtory allows you to create and analyse time-based graphs.
+//! - **Graph Analytics** - raphtory provides a variety of graph analytics algorithms.
+//! - **Horizontal Scalability** - raphtory is designed to be horizontally scalable.
+//! - **Distributed** - raphtory can be distributed across multiple machines.
+//! - **Fast** - raphtory is fast, and can process large amounts of data in a short amount of time.
+//! - **Open Source** - raphtory is open source, and is available on Github under a AGPL-3.0 license.
 //!
 //! ### Shards
 //!
@@ -47,10 +47,10 @@
 //!
 //! Create your own graph below
 //! ```
-//! use docbrown::db::graph::Graph;
-//! use docbrown::core::Direction;
-//! use docbrown::core::Prop;
-//! use docbrown::db::view_api::*;
+//! use raphtory::db::graph::Graph;
+//! use raphtory::core::Direction;
+//! use raphtory::core::Prop;
+//! use raphtory::db::view_api::*;
 //!
 //! // Create your GraphDB object and state the number of shards you would like, here we have 2
 //! let graph = Graph::new(2);
@@ -86,10 +86,10 @@
 //!
 //! Load a pre-built graph
 //! ```rust
-//! use docbrown::algorithms::degree::average_degree;
-//! use docbrown::db::graph::Graph;
-//! use docbrown::db::view_api::*;
-//! use docbrown::graph_loader::example::lotr_graph::lotr_graph;
+//! use raphtory::algorithms::degree::average_degree;
+//! use raphtory::db::graph::Graph;
+//! use raphtory::db::view_api::*;
+//! use raphtory::graph_loader::example::lotr_graph::lotr_graph;
 //!
 //! let graph = lotr_graph(3);
 //!
@@ -122,10 +122,10 @@
 //!
 //! ## Contributing
 //!
-//! DocBrown is created by [Pometry](https://pometry.com).
+//! raphtory is created by [Pometry](https://pometry.com).
 //! We are always looking for contributors to help us improve the library.
 //! If you are interested in contributing, please see
-//! our [Github repository](https://github.com/Raphtory/docbrown)
+//! our [Github repository](https://github.com/Raphtory/raphtory)
 #[allow(unused_imports)]
 #[macro_use(quickcheck)]
 extern crate quickcheck_macros;

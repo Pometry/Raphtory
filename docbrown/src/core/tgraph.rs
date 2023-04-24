@@ -1153,7 +1153,7 @@ mod graph_test {
     }
 
     #[test]
-    #[ignore = "Undecided on the semantics of the time window over vertices shoule be supported in Docbrown"]
+    #[ignore = "Undecided on the semantics of the time window over vertices shoule be supported in raphtory"]
     fn add_vertex_at_time_t1_window() {
         let mut g = TemporalGraph::default();
 

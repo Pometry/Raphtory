@@ -17,9 +17,9 @@ use crate::db::view_api::GraphViewOps;
 /// # Example
 ///
 /// ```rust
-/// use docbrown::db::graph::Graph;
-/// use docbrown::algorithms::clustering_coefficient::clustering_coefficient;
-/// use docbrown::db::view_api::*;
+/// use raphtory::db::graph::Graph;
+/// use raphtory::algorithms::clustering_coefficient::clustering_coefficient;
+/// use raphtory::db::view_api::*;
 /// let graph = Graph::new(2);
 ///  let edges = vec![
 ///      (1, 2),

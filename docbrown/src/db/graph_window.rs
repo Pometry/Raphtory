@@ -25,8 +25,8 @@
 //!
 //! ```rust
 //!
-//! use docbrown::db::graph::Graph;
-//! use docbrown::db::view_api::*;
+//! use raphtory::db::graph::Graph;
+//! use raphtory::db::view_api::*;
 //!
 //! let graph = Graph::new(2);
 //! graph.add_edge(0, 1, 2, &vec![], None);
@@ -1025,8 +1025,8 @@ impl<G: GraphViewOps> GraphViewInternalOps for WindowedGraph<G> {
 /// # Examples
 ///
 /// ```rust
-/// use docbrown::db::graph::Graph;
-/// use docbrown::db::view_api::*;
+/// use raphtory::db::graph::Graph;
+/// use raphtory::db::view_api::*;
 ///
 /// let graph = Graph::new(1);
 /// graph.add_edge(0, 1, 2, &vec![], None);

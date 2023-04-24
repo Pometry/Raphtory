@@ -22,9 +22,9 @@
 //! # Examples
 //!
 //! ```rust
-//! use docbrown::algorithms::reciprocity::{all_local_reciprocity, global_reciprocity};
-//! use docbrown::db::graph::Graph;
-//! use docbrown::db::view_api::*;
+//! use raphtory::algorithms::reciprocity::{all_local_reciprocity, global_reciprocity};
+//! use raphtory::db::graph::Graph;
+//! use raphtory::db::view_api::*;
 //! let g = Graph::new(1);
 //! let vs = vec![
 //!     (1, 1, 2),

@@ -1,6 +1,6 @@
 [package]
-name = "docbrown"
-description = "DocBrown, a temporal graph library"
+name = "raphtory"
+description = "raphtory, a temporal graph library"
 edition.workspace = true
 rust-version.workspace = true
 version.workspace = true

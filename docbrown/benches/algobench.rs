@@ -1,9 +1,9 @@
 use crate::common::bench;
 use criterion::{criterion_group, criterion_main, Criterion};
-use docbrown::algorithms::local_clustering_coefficient::local_clustering_coefficient;
-use docbrown::algorithms::local_triangle_count::local_triangle_count;
-use docbrown::db::graph::Graph;
-use docbrown::db::view_api::*;
+use raphtory::algorithms::local_clustering_coefficient::local_clustering_coefficient;
+use raphtory::algorithms::local_triangle_count::local_triangle_count;
+use raphtory::db::graph::Graph;
+use raphtory::db::view_api::*;
 use rayon::prelude::*;
 mod common;
 
@@ -12,7 +12,7 @@ mod common;
 //     let mut group = c.benchmark_group("global_triangle_count");
 //     group.sample_size(10);
 //     bench(&mut group, "global_triangle_count", None, |b| {
-//         let g = docbrown_db::graph_loader::lotr_graph::lotr_graph(1);
+//         let g = raphtory_db::graph_loader::lotr_graph::lotr_graph(1);
 //         let windowed_graph = g.window(i64::MIN, i64::MAX);
 //         b.iter(|| {
 //             global_triangle_count(&windowed_graph).unwrap();
@@ -26,7 +26,7 @@ pub fn local_triangle_count_analysis(c: &mut Criterion) {
     let mut group = c.benchmark_group("local_triangle_count");
     group.sample_size(10);
     bench(&mut group, "local_triangle_count", None, |b| {
-        let g = docbrown::graph_loader::lotr_graph::lotr_graph(1);
+        let g = raphtory::graph_loader::lotr_graph::lotr_graph(1);
         let windowed_graph = g.window(i64::MIN, i64::MAX);
 
         b.iter(|| {
