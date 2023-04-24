@@ -14,22 +14,6 @@ pub trait TimeOps {
     /// Return the timestamp of the default for perspectives of the view (if any).
     fn end(&self) -> Option<i64>;
 
-    /// the larger of `t_start` and `self.start()` (useful for creating nested windows)
-    fn actual_start(&self, t_start: i64) -> i64 {
-        match self.start() {
-            None => t_start,
-            Some(start) => max(t_start, start),
-        }
-    }
-
-    /// the smaller of `t_end` and `self.end()` (useful for creating nested windows)
-    fn actual_end(&self, t_end: i64) -> i64 {
-        match self.end() {
-            None => t_end,
-            Some(end) => min(t_end, end),
-        }
-    }
-
     /// Create a view including all events between `t_start` (inclusive) and `t_end` (exclusive)
     fn window(&self, t_start: i64, t_end: i64) -> Self::WindowedViewType;
 
@@ -266,5 +250,3 @@ mod time_tests {
         assert_bounds(windows, expected);
     }
 }
-
-trait GraphWrapper {}
