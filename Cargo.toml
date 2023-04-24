@@ -1,0 +1,19 @@
+[workspace]
+members = [
+	"docbrown",
+	"examples/rust",
+	"python"
+]
+default-members = ["docbrown", "python"]
+
+[workspace.package]
+version = "0.0.9"
+documentation = "https://docbrown.readthedocs.io/en/latest/"
+repository = "https://github.com/Raphtory/docbrown/"
+license = "AGPL-3.0-only"
+readme = "README.md"
+homepage = "https://github.com/Raphtory/docbrown/"
+keywords = ["graph", "temporal-graph", "temporal"]
+authors = ["Pometry"]
+rust-version = "1.67.1"
+edition = "2021"

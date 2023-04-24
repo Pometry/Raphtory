@@ -1,0 +1,45 @@
+[package]
+name = "raphtory"
+description = "Python package for DocBrown, a temporal graph library"
+version = "0.0.9"
+edition.workspace = true
+rust-version.workspace = true
+keywords.workspace = true
+authors.workspace = true
+documentation.workspace = true
+repository.workspace = true
+license.workspace = true
+readme.workspace = true
+homepage.workspace = true
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+name = "raphtory"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 =  {version="0.18.1", features=["multiple-pymethods"]}
+docbrown = {path = "../docbrown", version = "0.0.9" }
+
+parking_lot = { version = "0.12" , features = ["serde"] }
+flume = "0.10"
+futures = {version = "0.3", features = ["thread-pool"] }
+replace_with = "0.1"
+itertools="0.10"
+csv = "1.1.6"
+flate2 = "1.0"
+regex = "1"
+serde = { version = "1", features = ["derive", "rc"] }
+rayon = "1"
+chrono = "0.4"
+bincode = "1"
+display-error-chain = "0.1.1"
+num = "0.4.0"
+tokio = { version = "1.27.0", features = ["full"] }
+
+
+[features]
+extension-module = ["pyo3/extension-module"]
+default = ["extension-module"]
+
+[build-dependencies]
+pyo3-build-config = "0.18.1"
