@@ -20,6 +20,27 @@ pub trait Accumulator<A, IN, OUT>: Send + Sync + 'static {
 }
 
 #[derive(Clone, Debug, Copy)]
+pub struct AndDef();
+
+impl Accumulator<bool, bool, bool> for AndDef {
+    fn zero() -> bool {
+        true
+    }
+
+    fn add0(a1: &mut bool, a: bool) {
+        *a1 = *a1 && a;
+    }
+
+    fn combine(a1: &mut bool, a2: &bool) {
+        Self::add0(a1, *a2);
+    }
+
+    fn finish(a: &bool) -> bool {
+        *a
+    }
+}
+
+#[derive(Clone, Debug, Copy)]
 pub struct MinDef<A: StateType + Bounded + PartialOrd> {
     _marker: PhantomData<A>,
 }

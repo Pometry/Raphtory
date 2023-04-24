@@ -1,6 +1,7 @@
 // the main execution unit of an algorithm
 
 use std::cell::RefCell;
+use std::ops::Deref;
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -9,7 +10,7 @@ use rayon::prelude::*;
 use rayon::{ThreadPool, ThreadPoolBuilder};
 
 use crate::core::agg::Accumulator;
-use crate::core::state::{AccId, ComputeState, ShuffleComputeState, StateType};
+use crate::core::state::{self, AccId, ComputeState, ShuffleComputeState, StateType};
 use crate::core::utils::get_shard_id_from_global_vid;
 
 use super::vertex::VertexView;
@@ -17,38 +18,44 @@ use super::view_api::{GraphViewOps, VertexViewOps};
 
 #[derive(thiserror::Error, Debug, PartialEq)]
 #[error("Failure to execute Task")]
-struct TaskError {}
 
-trait Task<G: GraphViewOps, CS: ComputeState> {
-    fn run(&self, vv: &EvalVertexView<G, CS>) -> Result<(), TaskError>;
+pub enum Step {
+    Done,
+    Continue,
 }
 
-struct AnonymousTask<
-    G: GraphViewOps,
-    CS: ComputeState,
-    F: Fn(&EvalVertexView<G, CS>) -> Result<(), TaskError>,
-> {
+trait Task<G: GraphViewOps, CS: ComputeState> {
+    fn run(&self, vv: &EvalVertexView<G, CS>) -> Step;
+}
+
+pub struct ATask<G: GraphViewOps, CS: ComputeState, F: Fn(&EvalVertexView<G, CS>) -> Step> {
     f: F,
+    task_type: TaskType,
     _g: std::marker::PhantomData<G>,
     _cs: std::marker::PhantomData<CS>,
 }
 
-impl<G: GraphViewOps, CS: ComputeState, F: Fn(&EvalVertexView<G, CS>) -> Result<(), TaskError>>
-    AnonymousTask<G, CS, F>
-{
-    fn new(f: F) -> Self {
+// determines if the task is executed for all vertices or only for updated vertices (vertices that had a state change since last sync)
+pub enum TaskType {
+    ALL,
+    UPDATED_ONLY,
+}
+
+impl<G: GraphViewOps, CS: ComputeState, F: Fn(&EvalVertexView<G, CS>) -> Step> ATask<G, CS, F> {
+    fn new(task_type: TaskType, f: F) -> Self {
         Self {
             f,
+            task_type,
             _g: std::marker::PhantomData,
             _cs: std::marker::PhantomData,
         }
     }
 }
 
-impl<G: GraphViewOps, CS: ComputeState, F: Fn(&EvalVertexView<G, CS>) -> Result<(), TaskError>>
-    Task<G, CS> for AnonymousTask<G, CS, F>
+impl<G: GraphViewOps, CS: ComputeState, F: Fn(&EvalVertexView<G, CS>) -> Step> Task<G, CS>
+    for ATask<G, CS, F>
 {
-    fn run(&self, vv: &EvalVertexView<G, CS>) -> Result<(), TaskError> {
+    fn run(&self, vv: &EvalVertexView<G, CS>) -> Step {
         (self.f)(vv)
     }
 }
@@ -69,6 +76,15 @@ impl<G: GraphViewOps, CS: ComputeState> Context<G, CS> {
         id: AccId<A, IN, OUT, ACC>,
     ) {
         let fn_merge: MergeFn<CS> = Arc::new(move |a, b, ss| a.merge_mut_2(b, id, ss));
+
+        self.merge_fns.push(fn_merge);
+    }
+
+    fn global_agg<A: StateType, IN: 'static, OUT: 'static, ACC: Accumulator<A, IN, OUT>>(
+        &mut self,
+        id: AccId<A, IN, OUT, ACC>,
+    ) {
+        let fn_merge: MergeFn<CS> = Arc::new(move |a, b, ss| a.merge_mut_global(b, id, ss));
 
         self.merge_fns.push(fn_merge);
     }
@@ -107,53 +123,84 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         a
     }
 
-    fn run(&mut self) {
+    fn run(&mut self, num_threads: Option<usize>) {
         // say we go over all the vertices on all the threads but we partition the vertices
         // on each thread and we only run the function if the vertex is in the partition
-        let num_threads = POOL.current_num_threads();
+
+        let graph_shards = self.ctx.g.num_shards();
+
+        let pool = num_threads
+            .map(|nt| custom_pool(nt))
+            .unwrap_or_else(|| POOL.clone());
+
+        let num_threads = pool.current_num_threads();
+
+        let all_stop = state::def::and(u32::MAX);
+        self.ctx.global_agg(all_stop);
 
         // the only benefit in this case is that we do not clone when we run with 1 thread
 
         let mut total_state =
-            vec![Arc::new(Some(ShuffleComputeState::new(num_threads))); num_threads]
+            vec![Arc::new(Some(ShuffleComputeState::new(graph_shards))); num_threads]
                 .into_iter()
                 .enumerate()
                 .collect::<Vec<_>>();
 
+        let ss = self.ctx.ss;
         let new_total_state = POOL.install(|| {
-            total_state
-                .par_iter_mut()
-                .map(|(job_id, state)| {
-                    let rc_local_state =
-                        Rc::new(RefCell::new(Arc::make_mut(state).take().unwrap())); // make_mut clones the state
+            let mut new_total_state = None;
 
-                    for vertex in self.ctx.g.vertices() {
-                        if self.is_vertex_in_partition(&vertex, num_threads, *job_id) {
-                            let vv = EvalVertexView::new(self.ctx.ss, vertex, rc_local_state.clone());
-                            for task in self.tasks.iter() {
-                                task.run(&vv).expect("task run");
+            for task in self.tasks.iter() {
+                new_total_state = total_state
+                    .par_iter_mut()
+                    .map(|(job_id, state)| {
+                        let rc_local_state =
+                            Rc::new(RefCell::new(Arc::make_mut(state).take().unwrap())); // make_mut clones the state
+
+                        for vertex in self.ctx.g.vertices() {
+                            if self.is_vertex_in_job(&vertex, num_threads, *job_id) {
+                                let vv = EvalVertexView::new(
+                                    self.ctx.ss,
+                                    vertex,
+                                    rc_local_state.clone(),
+                                );
+
+                                match task.run(&vv) {
+                                    Step::Done => todo!(),
+                                    Step::Continue => todo!(),
+                                } //TODO: decide what to do with the returned step
                             }
                         }
-                    }
 
-                    let state: ShuffleComputeState<CS> =
-                        Rc::try_unwrap(rc_local_state).unwrap().into_inner();
+                        let state: ShuffleComputeState<CS> =
+                            Rc::try_unwrap(rc_local_state).unwrap().into_inner();
 
-                    Arc::new(state)
-                })
-                .reduce_with(|a, b| self.merge_states(a, b))
+                        Arc::new(state)
+                    })
+                    .reduce_with(|a, b| self.merge_states(a, b));
+                // check for stop
+                
+                let full_stop = new_total_state.as_ref()
+                    .and_then(|state| state.read_global(self.ctx.ss, &all_stop))
+                    .unwrap_or(false);
+                if full_stop {
+                    break;
+                }
+            }
+
+            new_total_state
         });
 
         println!("new_total_state: {:?}", new_total_state);
     }
 
     // use the global id of the vertex to determine if it's present in the partition
-    fn is_vertex_in_partition(&self, vertex: &VertexView<G>, n_jobs: usize, job_id: usize) -> bool {
+    fn is_vertex_in_job(&self, vertex: &VertexView<G>, n_jobs: usize, job_id: usize) -> bool {
         get_shard_id_from_global_vid(vertex.vertex.g_id, n_jobs) == job_id
     }
 }
 
-pub static POOL: Lazy<ThreadPool> = Lazy::new(|| {
+pub static POOL: Lazy<Arc<ThreadPool>> = Lazy::new(|| {
     let num_threads = std::env::var("DOCBROWN_MAX_THREADS")
         .map(|s| {
             s.parse::<usize>()
@@ -165,13 +212,24 @@ pub static POOL: Lazy<ThreadPool> = Lazy::new(|| {
                 .get()
         });
 
-    ThreadPoolBuilder::new()
+    let pool = ThreadPoolBuilder::new()
         .num_threads(num_threads)
         .build()
-        .unwrap()
+        .unwrap();
+
+    Arc::new(pool)
 });
 
-struct EvalVertexView<G: GraphViewOps, CS: ComputeState> {
+pub fn custom_pool(n_threads: usize) -> Arc<ThreadPool> {
+    let pool = ThreadPoolBuilder::new()
+        .num_threads(n_threads)
+        .build()
+        .unwrap();
+
+    Arc::new(pool)
+}
+
+pub struct EvalVertexView<G: GraphViewOps, CS: ComputeState> {
     ss: usize,
     vv: VertexView<G>,
     state: Rc<RefCell<ShuffleComputeState<CS>>>,
@@ -212,7 +270,7 @@ impl<G: GraphViewOps, CS: ComputeState> EvalVertexView<G, CS> {
             .map(move |vv| EvalVertexView::new(self.ss, vv, self.state.clone()))
     }
 
-    fn update<A: StateType, IN: 'static, OUT: 'static, ACC: Accumulator<A, IN, OUT>>(
+    pub fn update<A: StateType, IN: 'static, OUT: 'static, ACC: Accumulator<A, IN, OUT>>(
         &self,
         id: &AccId<A, IN, OUT, ACC>,
         a: IN,
@@ -226,7 +284,7 @@ impl<G: GraphViewOps, CS: ComputeState> EvalVertexView<G, CS> {
 #[cfg(test)]
 mod tasks_tests {
     use crate::{
-        core::state::{self, ComputeStateMap},
+        core::state::{self, ComputeStateVec},
         db::graph::Graph,
     };
 
@@ -236,31 +294,40 @@ mod tasks_tests {
     fn run_tasks_over_a_graph() {
         let graph = Graph::new(4);
 
-        graph.add_edge(1, 2, 0, &vec![], None).expect("add edge");
+        let edges = vec![
+            (1, 2, 1),
+            (2, 3, 2),
+            (3, 4, 3),
+            (3, 5, 4),
+            (6, 5, 5),
+            (7, 8, 6),
+            (8, 7, 7),
+        ];
 
-        let mut ctx: Context<Graph, ComputeStateMap> = graph.into();
+        for (src, dst, ts) in edges {
+            graph.add_edge(ts, src, dst, &vec![], None).unwrap();
+        }
+
+        let mut ctx: Context<Graph, ComputeStateVec> = graph.into();
 
         let min = state::def::min::<u64>(0);
 
         // setup the aggregator to be merged post execution
         ctx.agg(min.clone());
 
-        let ann = AnonymousTask::new(move |vv| {
-            let t_id = std::thread::current().id();
-            println!("vertex: {} {t_id:?}", vv.global_id());
-
+        let ann = ATask::new(TaskType::ALL, move |vv| {
             vv.update(&min, vv.global_id());
 
             for n in vv.neighbours() {
                 n.update(&min, vv.global_id())
             }
 
-            Ok(())
+            Step::Continue
         });
 
-        let mut runner: TaskRunner<Graph, ComputeStateMap> =
+        let mut runner: TaskRunner<Graph, ComputeStateVec> =
             TaskRunner::new(vec![Box::new(ann)], ctx);
 
-        runner.run();
+        runner.run(Some(2));
     }
 }

@@ -3,7 +3,7 @@
 use crate::core::agg::Accumulator;
 use crate::core::utils::get_shard_id_from_global_vid;
 use rustc_hash::FxHashMap;
-use std::{any::Any, fmt::Debug};
+use std::{any::Any, fmt::Debug, borrow::Borrow};
 
 #[derive(Debug)]
 pub struct AccId<A, IN, OUT, ACC: Accumulator<A, IN, OUT>> {
@@ -43,7 +43,7 @@ pub mod def {
     use crate::core::agg::{
         set::{BitSet, Set},
         topk::{TopK, TopKHeap},
-        AvgDef, MaxDef, MinDef, SumDef, ValDef,
+        AvgDef, MaxDef, MinDef, SumDef, ValDef, AndDef,
     };
     use num_traits::{Bounded, Zero};
     use roaring::{RoaringBitmap, RoaringTreemap};
@@ -53,6 +53,16 @@ pub mod def {
         hash::Hash,
         ops::{AddAssign, Div},
     };
+
+    pub fn and(id: u32) -> AccId<bool, bool, bool, AndDef> {
+        AccId {
+            id,
+            _a: std::marker::PhantomData,
+            _acc: std::marker::PhantomData,
+            _in: std::marker::PhantomData,
+            _out: std::marker::PhantomData,
+        }
+    }
 
     pub fn min<A: StateType + Bounded + PartialOrd>(id: u32) -> AccId<A, A, A, MinDef<A>> {
         AccId {
@@ -575,7 +585,7 @@ impl ComputeState for ComputeStateMap {
 }
 
 #[derive(Debug)]
-struct ComputeStateVec(Box<dyn DynArray + 'static>);
+pub struct ComputeStateVec(Box<dyn DynArray + 'static>);
 
 impl ComputeStateVec {
     fn current_mut(&mut self) -> &mut dyn DynArray {
@@ -995,15 +1005,15 @@ impl<CS: ComputeState + Send + Sync> ShuffleComputeState<CS> {
             .for_each(|(s, o)| s.set_from_other(o, agg_ref, ss));
     }
 
-    pub fn merge_mut_global<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
+    pub fn merge_mut_global<A, IN, OUT, ACC: Accumulator<A, IN, OUT>, B:Borrow<AccId<A, IN, OUT, ACC>>>(
         &mut self,
         other: &Self,
-        agg_ref: &AccId<A, IN, OUT, ACC>,
+        agg_ref: B,
         ss: usize,
     ) where
         A: StateType,
     {
-        self.global.merge(&other.global, agg_ref, ss);
+        self.global.merge(&other.global, agg_ref.borrow(), ss);
     }
 
     pub fn copy_over_next_ss(&mut self, ss: usize) {
