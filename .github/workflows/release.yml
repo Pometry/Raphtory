@@ -5,7 +5,7 @@ on:
       base:
         description: 'Name of branch to open PR against'
         type: 'string'
-        default: 'main'
+        default: 'master'
       version:
         description: 'Select level for version increment'
         type: choice
