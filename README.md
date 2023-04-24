@@ -1,148 +1,146 @@
 <br>
 <p align="center">
-<img src="https://user-images.githubusercontent.com/25484244/218704919-2c725e79-86ee-408d-b1f8-1362d086f876.png" alt="Raphtory"/>
+  <img src="https://user-images.githubusercontent.com/6665739/130641943-fa7fcdb8-a0e7-4aa4-863f-3df61b5de775.png" alt="Raphtory" height="100"/>
 </p>
-<br>
+<p align="center">
+</p>
+
 
 <p align="center">
-<a href="https://github.com/Raphtory/docbrown/actions/workflows/build.yml/badge.svg">
-<img alt="Test and Build" src="https://github.com/Raphtory/docbrown/actions/workflows/build.yml/badge.svg" />
+<a href="https://github.com/Raphtory/Raphtory/actions/workflows/test.yml/badge.svg">
+<img alt="Test and Build" src="https://github.com/Raphtory/Raphtory/actions/workflows/test.yml/badge.svg" />
 </a>
-<a href="https://github.com/Raphtory/docbrown/issues">
-<img alt="Issues" src="https://img.shields.io/github/issues/Raphtory/docbrown?color=brightgreen" />
+<a href="https://github.com/Raphtory/Raphtory/releases">
+<img alt="Latest Release" src="https://img.shields.io/github/v/release/Raphtory/Raphtory?color=brightgreen&include_prereleases" />
 </a>
-<a href="https://codecov.io/gh/Raphtory/docbrown" >  <img src="https://codecov.io/gh/Raphtory/docbrown/branch/main/graph/badge.svg?token=tfJxUiqVzh"/>  </a>
+<a href="https://github.com/Raphtory/Raphtory/issues">
+<img alt="Issues" src="https://img.shields.io/github/issues/Raphtory/Raphtory?color=brightgreen" />
+</a>
+<a href="https://mybinder.org/v2/gh/Raphtory/Raphtory/v0.1.6?labpath=examples%2Fbinder_python%2Findex.ipynb">
+<img alt="Launch Notebook" src="https://mybinder.org/badge_logo.svg" />
+</a>
 </p>
 <p align="center">
 <a href="https://www.raphtory.com">🌍 Website </a>
 &nbsp
-<a href="https://docbrown.readthedocs.io">📖 Docs</a>
-&nbsp
+<a href="https://docs.raphtory.com/">📒 Documentation</a>
+&nbsp 
 <a href="https://www.pometry.com"><img src="https://user-images.githubusercontent.com/6665739/202438989-2859f8b8-30fb-4402-820a-563049e1fdb3.png" height="20" align="center"/> Pometry</a> 
 &nbsp
-<a href="https://github.com/Raphtory/docbrown/issues">🐛 Report a Bug</a> 
+<a href="https://docs.raphtory.com/en/master/Introduction/ingestion.html">🧙🏻‍ Tutorial</a> 
+&nbsp
+<a href="https://github.com/Raphtory/Raphtory/issues">🐛 Report a Bug</a> 
 &nbsp
 <a href="https://join.slack.com/t/raphtory/shared_invite/zt-xbebws9j-VgPIFRleJFJBwmpf81tvxA"><img src="https://user-images.githubusercontent.com/6665739/154071628-a55fb5f9-6994-4dcf-be03-401afc7d9ee0.png" height="20" align="center"/> Join Slack</a> 
 </p>
+
 <br>
 
-# What is Doc Brown? 🥼
+Raphtory is a powerful analytics engine for large-scale graph analysis. It lets you run complex queries on your data, no matter where it's stored or what format it's in. But that's not all - Raphtory's real superpower is its ability to track and explore the history of a complex system, from "time traveling" through data to executing advanced analysis like taint tracking, temporal reachability, and mining temporal motifs.
 
-Doc Brown is the Rust prototype for the next version of [Raphtory](https://github.com/Raphtory/Raphtory), rethinking several aspects of the underlying graph model and algorithm API. 
+**Raphtory is easy to use:** just run a single pip install command and embed it with your existing Python/Pandas pipeline for input and output.
 
-Please checkout the [issues](https://github.com/Raphtory/docbrown/issues) for the core features to be included in this version, along with their proposed semantics. 
+**Raphtory is expressive:** It's designed to represent all types of graph queries and has a well-developed API for exploring your data across its history.
 
-Below is a diagram of how Doc Brown works:
+**Raphtory is lightning-fast and scales effortlessly**: Built on Apache Arrow's storage and vectorized compute, Raphtory can be run on a laptop or a distributed cluster for terabyte-scale graphs.
 
-<p align="center">
-<img src="https://user-images.githubusercontent.com/25484244/218711926-944092df-5015-4c7e-8162-34ee044999f4.svg" height=500 alt="Raphtory-DocBrown-Diagram"/>
-</p>
+# Running a basic example
 
-GraphDB is the overarching manager for the graph. A GraphDB instance can have N number of shards. These shards (also called TemporalGraphParts) store fragments of a graph. If you have used the Scala/Python version of Raphtory before, the notion of shards is similar to partitions in Raphtory, where parts of a graph are stored into partitions. When an edge or node is added to the graph in Doc Brown, GraphDB will search for an appropriate place inside a shard to place these. In this diagram, there are 4 shards (or partitions) labelled as S1, S2, S3, S4. Altogether they make up the entire temporal graph, hence the name "TemporalGraphPart" for each shard.
+```python
+# Import Raphtory
+import PyRaphtory
 
-Shards are used for performance and distribution reasons. Having multiple shards running in parallel speeds up things a lot in Raphtory. In a matter of seconds, you are able to see your results from your temporal graph analysis. Furthermore, you can run your analysis across multiple machines (e.g. one shard per machine).
+# Create a new local or distributed context
+ctx = PyRaphtory.local()
+graph = ctx.new_graph()
 
-# Running Doc Brown 👨🏼‍🔬
-The API's are currently in..._Flux_
+# Add some data to your graph
+graph.add_vertex(1, 1)
+graph.add_vertex(2, 2)
+graph.add_vertex(3, 3)
+graph.add_edge(4, 1, 2)
+graph.add_edge(4, 1, 3)
 
-![image](https://user-images.githubusercontent.com/6665739/214092170-9bf7557c-4b2d-4ec8-baac-911b7ec9fab5.png)
+# Collect some simple vertex metrics
+# Ran across a range of the data with incremental windowing
+df = graph
+      .range(1,4,1)
+      .window(1)
+      .step(lambda vertex: vertex.set_state("name", vertex.name()))
+      .step(lambda vertex: vertex.set_state("out_degree", vertex.out_degree())) 
+      .step(lambda vertex: vertex.set_state("in_degree", vertex.in_degree()))
+      .select("name", "out_degree", "in_degree")
+      .to_df()
 
-However, here is a quick start guide if you would like to test out the Raphtory Rust prototype.
+# Preview DataFrame
+df
 
-## Running the LOTR example 🧙🏻‍♂️
-
-### Prerequisites
-
-Make sure you have Rust installed on your OS. Here is a guide to install [Rust](https://doc.rust-lang.org/stable/book/ch01-01-installation.html). 
-
-### 1. Set up Doc Brown 
-Clone the Doc Brown Repository and find the examples directory where you can find the Lord of the Rings Example. Create a folder named "Data" under `examples/lotr` and download the LOTR CSV data into this folder. You can download the raw csv [here](https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv).
-
-### 2. Run Doc Brown
-
-Build Doc Brown by running this command to make sure it compiles and builds:
+|    |   timestamp |   window |   name |   out_degree |   in_degree |
+|----|-------------|----------|--------|--------------|-------------|
+|  0 |           1 |        1 |      1 |            0 |           0 |
+|  1 |           2 |        1 |      2 |            0 |           0 |
+|  2 |           3 |        1 |      3 |            0 |           0 |
+|  3 |           4 |        1 |      1 |            2 |           0 |
+|  4 |           4 |        1 |      2 |            0 |           1 |
+|  5 |           4 |        1 |      3 |            0 |           1 |
 ```
-cargo build
-```
 
-If you have any linker errors please build with the following command:
+# Installing Raphtory 
+
+Raphtory is available for Python and Scala/Java, with support for Rust planned in version 0.3.0. We recommend using the PyRaphtory client for Python, which includes everything you need and can be run locally or in distributed mode.
+
+You should have Python version 3.9 or higher. It's a good idea to use conda, virtualenv, or pyenv. 
+
 ```bash
-cargo build --no-default-features
-```
+pip install pyraphtory
+``` 
 
-Next run the main function in `main.rs` which creates a graph from the LOTR csv file, showing the different character interactions throughout the book. To do this, you will need to be in the `lotr` folder, the file path to this from root is `./examples/src/bin/lotr`. Once you are here run this command to run the LOTR example:
+# Examples and Notebooks
 
-```
-cargo run --bin lotr
-```
+Check out Raphtory in action with our interactive Jupyter Notebook! Just click the badge below to launch a Raphtory sandbox online, no installation needed.
 
-You should see output that looks something like this with information about the edges and vertices below: 
+ [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/Raphtory/Raphtory/master?labpath=examples%2Fbinder_python%2Findex.ipynb) 
 
-```
-Loaded graph from encoded data files ./examples/src/bin/lotr/data/graphdb.bincode with 139 vertices, 701 edges which took 0 seconds
+Want to see what Raphtory can do? Scroll down for more.
 
-Gandalf exists = true
-```
+#### 1. Getting started
 
-Congratulations, you have run your first Raphtory graph in Rust!
+| Type | Location  | Description |
+| ------------- | ------------- | ------------- |
+| Example | <a href="https://docs.raphtory.com/en/master/Introduction/ingestion.html">ingestion</a> | Loading some sample data into Raphtory |
+| Example | <a href="https://docs.raphtory.com/en/master/Introduction/analysis.html#Simplest-Raphtory-Query">degree count</a> | Running the simplest graph query in Raphtory|
+| Example | <a href="https://docs.raphtory.com/en/master/Introduction/analysis.html#Time-API-Overview">timetravel</a> | Understanding the time APIs in Raphtory |
 
-### 3. Running Tests
+#### 2. Running some algorithms 
 
-To run tests in Doc Brown, go back into your root folder and run this command:
-```
-cargo test
-```
+| Type | Location  | Description |
+| ------------- | ------------- | ------------- |
+| Example | <a href="https://docs.raphtory.com/en/master/_autodoc/com/raphtory/algorithms/generic/centrality/index.html">centrality</a> | Centrality algorithms for finding important nodes |
+| Example | <a href="">community</a> | Community detection for finding clusters |
+| Example | <a href="https://docs.raphtory.com/en/master/_autodoc/com/raphtory/algorithms/generic/dynamic/index.html">dynamic</a> | Dynamic algorithms and random walks |
+| Example | <a href="">temporal</a> | Applying time magic to find historic and future trends |
 
-## Code Example
-```rust
-// Create your GraphDB object and state the number of shards you would like, here we have 2
-let graph = GraphDB::new(2);
+#### 3. Developing an end-to-end application
 
-// Add vertex and edges to your graph with the respective properties
-graph.add_vertex(
-  src_id,
-  time,
-  &vec![("name".to_string(), Prop::Str("Character".to_string()))],
-);
+| Type | Location  | Description |
+| ------------- | ------------- | ------------- |
+| Notebook | <a href="https://github.com/Raphtory/Raphtory/blob/master/examples/nft/src/main/python/nft_analysis.ipynb">nft_analysis.ipynb</a> | Analysing pump and dump cycles of popular NFTs |
+| Notebook | <a href="https://github.com/Raphtory/Raphtory/blob/master/examples/companies-house/src/main/python/PPEContractsAnalysisNotebook.ipynb">ppe_analysis.ipnyb</a>  | Fraud and COVID-19 Relief Schemes |
 
-graph.add_vertex(
-  dst_id,
-  time,
-  &vec![("name".to_string(), Prop::Str("Character".to_string()))],
-);
+# Want to run your own analysis?
+Learn how to use Raphtory in your analysis and project by following these links.
 
-graph.add_edge(
-  src_id,
-  dst_id,
-  time,
-  &vec![(
-      "name".to_string(),
-      Prop::Str("Character Co-occurrence".to_string()),
-  )],
-);
+- **[Latest documentation](https://docs.raphtory.com/)**
+- [Using Raphtory in 100 seconds](https://docs.raphtory.com/en/master/Introduction/ingestion.html)
+- [Complete list of available algorithms](https://docs.raphtory.com/en/master/_autodoc/com/raphtory/algorithms/generic/index.html)
+- [Writing your own algorithm in Raphtory](https://docs.raphtory.com/en/master/Analysis/LOTR_six_degrees.html)
 
-// We calculate a hash for the string "Gandalf" to be used as a unique identifier for Gandalf
-let gandalf = utils::calculate_hash(&"Gandalf");
+# Bounty board
 
-// Get the in-degree, out-degree and degree of Gandalf
-let in_degree = graph.degree_window(gandalf, 0, i64::MAX, Direction::IN);
-let out_degree = graph.degree_window(gandalf, 0, i64::MAX, Direction::OUT);
-let degree = graph.degree_window(gandalf, 0, i64::MAX, Direction::BOTH);
-```
+Raphtory is currently offering rewards for contributions, such as new features or algorithms. Contributors will receive swag and prizes! 
 
-# Documentation
+To get started, check out our list of desired algorithms at https://www.raphtory.com/algorithm-bounty/ which include some low hanging fruit (🍇) that are easy to implement. 
 
-DocBrown has Documentation with tutorials, explanations and rust docs. 
-It can be found here on [ReadTheDocs](https://docbrown.readthedocs.io)
-
-# Contributing
-
-- Install Rust from [install guide](https://www.rust-lang.org/tools/install)
-- Install Python 3.10 (virtual/conda environment is recommended).
-- Install pip packages needed to build/test
-```
-pip install maturin pytest
-```
 
 # Community  
 Join the growing community of open-source enthusiasts using Raphtory to power their graph analysis projects!
@@ -161,12 +159,13 @@ Join the growing community of open-source enthusiasts using Raphtory to power th
 
 # Contributors
 
-<a href="https://github.com/raphtory/docbrown/graphs/contributors"><img src="https://contrib.rocks/image?repo=raphtory/docbrown"/></a>
+<a href="https://github.com/raphtory/raphtory/graphs/contributors"><img src="https://contrib.rocks/image?repo=raphtory/raphtory"/></a>
 
-Since Doc Brown is still a prototype, we are open to any contributions. If you find any issues or would like to work on some issues yourself, visit the [issues](https://github.com/Raphtory/docbrown/issues) page. Join our [Slack](https://join.slack.com/t/raphtory/shared_invite/zt-xbebws9j-VgPIFRleJFJBwmpf81tvxA) if you're having any issues or would like to find out more about how you can get stuck in with Raphtory.
+Want to get involved? Please join the Raphtory [Slack](https://join.slack.com/t/raphtory/shared_invite/zt-xbebws9j-VgPIFRleJFJBwmpf81tvxA) group and speak with us on how you could pitch in!
 
 # License  
 
-Raphtory is licensed, check out our LICENSE file.
+Raphtory is licensed under the terms of the Apache License (check out our LICENSE file).
+
 
 
