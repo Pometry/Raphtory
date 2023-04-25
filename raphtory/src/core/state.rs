@@ -1033,6 +1033,10 @@ impl<CS: ComputeState + Send + Sync> ShuffleComputeState<CS> {
             .for_each(|p| p.reset_states(ss, states));
     }
 
+    pub fn reset_global_states(&mut self, ss: usize, states: &Vec<u32>) {
+        self.global.reset_states(ss, states);
+    }
+
     pub fn new(n_parts: usize) -> Self {
         Self {
             parts: (0..n_parts)

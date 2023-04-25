@@ -15,9 +15,7 @@ use crate::core::utils::get_shard_id_from_global_vid;
 use super::vertex::VertexView;
 use super::view_api::{GraphViewOps, VertexViewOps};
 
-#[derive(thiserror::Error, Debug, PartialEq)]
-#[error("Failure to execute Task")]
-
+#[derive(Debug, PartialEq)]
 pub enum Step {
     Done,
     Continue,
@@ -67,10 +65,11 @@ pub struct Context<G: GraphViewOps, CS: ComputeState> {
     ss: usize,
     g: Arc<G>,
     merge_fns: Vec<MergeFn<CS>>,
+    resetable_states: Vec<u32>,
 }
 
 impl<G: GraphViewOps, CS: ComputeState> Context<G, CS> {
-    fn agg<A: StateType, IN: 'static, OUT: 'static, ACC: Accumulator<A, IN, OUT>>(
+    pub fn agg<A: StateType, IN: 'static, OUT: 'static, ACC: Accumulator<A, IN, OUT>>(
         &mut self,
         id: AccId<A, IN, OUT, ACC>,
     ) {
@@ -79,13 +78,38 @@ impl<G: GraphViewOps, CS: ComputeState> Context<G, CS> {
         self.merge_fns.push(fn_merge);
     }
 
-    fn global_agg<A: StateType, IN: 'static, OUT: 'static, ACC: Accumulator<A, IN, OUT>>(
+    pub fn agg_reset<A: StateType, IN: 'static, OUT: 'static, ACC: Accumulator<A, IN, OUT>>(
+        &mut self,
+        id: AccId<A, IN, OUT, ACC>,
+    ) {
+        let fn_merge: MergeFn<CS> = Arc::new(move |a, b, ss| a.merge_mut_2(b, id, ss));
+
+        self.merge_fns.push(fn_merge);
+        self.resetable_states.push(id.id());
+    }
+
+    pub fn global_agg<A: StateType, IN: 'static, OUT: 'static, ACC: Accumulator<A, IN, OUT>>(
         &mut self,
         id: AccId<A, IN, OUT, ACC>,
     ) {
         let fn_merge: MergeFn<CS> = Arc::new(move |a, b, ss| a.merge_mut_global(b, id, ss));
 
         self.merge_fns.push(fn_merge);
+    }
+
+    pub fn global_agg_reset<
+        A: StateType,
+        IN: 'static,
+        OUT: 'static,
+        ACC: Accumulator<A, IN, OUT>,
+    >(
+        &mut self,
+        id: AccId<A, IN, OUT, ACC>,
+    ) {
+        let fn_merge: MergeFn<CS> = Arc::new(move |a, b, ss| a.merge_mut_global(b, id, ss));
+
+        self.merge_fns.push(fn_merge);
+        self.resetable_states.push(id.id());
     }
 }
 
@@ -95,6 +119,7 @@ impl<G: GraphViewOps, CS: ComputeState> From<G> for Context<G, CS> {
             ss: 0,
             g: Arc::new(g),
             merge_fns: vec![],
+            resetable_states: vec![],
         }
     }
 }
@@ -192,17 +217,23 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
                     .and_then(|state| state.read_global(self.ctx.ss, &all_stop))
                     .unwrap_or(false);
 
+                if full_stop {
+                    done = true;
+                }
+                
                 // restore the shape of new_total_state Vec<(usize, Arc<Option<ShuffleComputeState<CS>>>)> from updated state using num_threads for vec len
-
                 if let Some(arc_state) = updated_state {
-                    let state = Arc::try_unwrap(arc_state)
+                    let mut state = Arc::try_unwrap(arc_state)
                         .expect("should be able to unwrap Arc, no other reference can exist");
 
+                    // we reset the all_stop state in between states to figure out if it's time to stop
+                    if !done {
+                        state.reset_global_states(self.ctx.ss + 1, &vec![all_stop.id()]);
+                    }
                     new_total_state = Arc::new(Some(state));
                 }
 
-                if full_stop {
-                    done = true;
+                if done {
                     break;
                 }
             }
@@ -228,7 +259,7 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         let num_threads = pool.current_num_threads();
 
         let all_stop = state::def::and(u32::MAX);
-        self.ctx.global_agg(all_stop);
+        self.ctx.global_agg_reset(all_stop);
 
         let mut total_state = Arc::new(Some(ShuffleComputeState::new(graph_shards)));
 
@@ -237,11 +268,14 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         let mut done = false;
         while !done && self.ctx.ss < steps {
             (done, total_state) = self.run_task_list(total_state, num_threads, &all_stop);
-            // copy over the state from the step that just ended
+            // copy and reset the state from the step that just ended
 
             Arc::get_mut(&mut total_state)
                 .and_then(|s| s.as_mut())
-                .map(|s| s.copy_over_next_ss(self.ctx.ss));
+                .map(|s| {
+                    s.copy_over_next_ss(self.ctx.ss);
+                    s.reset_states(self.ctx.ss, &self.ctx.resetable_states);
+                });
 
             self.ctx.ss += 1;
         }
@@ -371,7 +405,7 @@ impl<G: GraphViewOps, CS: ComputeState> EvalVertexView<G, CS> {
 #[cfg(test)]
 mod tasks_tests {
     use crate::{
-        core::state::{self, ComputeStateMap, ComputeStateVec},
+        core::state::{self, ComputeStateVec},
         db::graph::Graph,
     };
 
@@ -403,7 +437,6 @@ mod tasks_tests {
         ctx.agg(min.clone());
 
         let step1 = ATask::new(TaskType::ALL, move |vv| {
-
             vv.update(&min, vv.global_id());
 
             for n in vv.neighbours() {
@@ -428,7 +461,7 @@ mod tasks_tests {
         let mut runner: TaskRunner<Graph, _> =
             TaskRunner::new(vec![Box::new(step1), Box::new(step2)], ctx);
 
-        let results = runner.run(Some(2), 3);
+        let results = runner.run(Some(2), 10);
 
         println!("{:?}", results);
     }
