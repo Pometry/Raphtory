@@ -16,7 +16,7 @@
 <a href="https://github.com/Raphtory/Raphtory/issues">
 <img alt="Issues" src="https://img.shields.io/github/issues/Raphtory/Raphtory?color=brightgreen" />
 </a>
-<a href="https://mybinder.org/v2/gh/Raphtory/Raphtory/v0.0.11?labpath=examples%2Fbinder_python%2Findex.ipynb">
+<a href="https://mybinder.org/v2/gh/Raphtory/Raphtory/master?labpath=examples%2Fpy%2Flotr%2Flotr.ipynb">
 <img alt="Launch Notebook" src="https://mybinder.org/badge_logo.svg" />
 </a>
 </p>
@@ -107,41 +107,41 @@ pip install raphtory
 
 Check out Raphtory in action with our interactive Jupyter Notebook! Just click the badge below to launch a Raphtory sandbox online, no installation needed.
 
- [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/Raphtory/Raphtory/master?labpath=examples%2Fbinder_python%2Findex.ipynb) 
+ [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/Raphtory/Raphtory/master?labpath=examples%2Fpy%2Flotr%2Flotr.ipynb) 
 
 Want to see what Raphtory can do? Scroll down for more.
 
 #### 1. Getting started
 
-| Type | Location  | Description |
-| ------------- | ------------- | ------------- |
+| Type | Location                                                                                | Description |
+| ------------- |-----------------------------------------------------------------------------------------| ------------- |
 | Example | <a href="https://docs.raphtory.com/en/master/Introduction/ingestion.html">ingestion</a> | Loading some sample data into Raphtory |
-| Example | <a href="https://docs.raphtory.com/en/master/Introduction/analysis.html#Simplest-Raphtory-Query">degree count</a> | Running the simplest graph query in Raphtory|
-| Example | <a href="https://docs.raphtory.com/en/master/Introduction/analysis.html#Time-API-Overview">timetravel</a> | Understanding the time APIs in Raphtory |
+| Example | <a href="https://docs.raphtory.com/en/v0.0.11/install/python/raphtory.html#Running-your-first-Query">degree count</a>  | Running the simplest graph query in Raphtory|
+| Example | <a href="">timetravel (COMING SOON)</a>                                                 | Understanding the time APIs in Raphtory |
 
 #### 2. Running some algorithms 
 
-| Type | Location  | Description |
-| ------------- | ------------- | ------------- |
-| Example | <a href="https://docs.raphtory.com/en/master/_autodoc/com/raphtory/algorithms/generic/centrality/index.html">centrality</a> | Centrality algorithms for finding important nodes |
-| Example | <a href="">community</a> | Community detection for finding clusters |
-| Example | <a href="https://docs.raphtory.com/en/master/_autodoc/com/raphtory/algorithms/generic/dynamic/index.html">dynamic</a> | Dynamic algorithms and random walks |
-| Example | <a href="">temporal</a> | Applying time magic to find historic and future trends |
+| Type | Location                                                                                                                                             | Description                                                         |
+| ------------- |------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------|
+| Example | <a href="">centrality (COMING SOON)</a>                                                                                                              | Centrality algorithms for finding important nodes                   |
+| Example | <a href="">community (COMING SOON)</a>                                                                                                               | Community detection for finding clusters                            |
+| Example | <a href="https://docs.raphtory.com/en/v0.0.11/api/_autosummary/raphtory.algorithms.html#raphtory.algorithms.global_reciprocity">reciprocity</a>      | Measuring the symmetry of relationships in a graph                  |
+| Example | <a href="https://docs.raphtory.com/en/v0.0.11/api/_autosummary/raphtory.algorithms.html#raphtory.algorithms.local_triangle_count">triangle count</a> | Calculates the number of triangles (a cycle of length 3) for a node |
 
 #### 3. Developing an end-to-end application
 
-| Type | Location  | Description |
-| ------------- | ------------- | ------------- |
-| Notebook | <a href="https://github.com/Raphtory/Raphtory/blob/master/examples/nft/src/main/python/nft_analysis.ipynb">nft_analysis.ipynb</a> | Analysing pump and dump cycles of popular NFTs |
-| Notebook | <a href="https://github.com/Raphtory/Raphtory/blob/master/examples/companies-house/src/main/python/PPEContractsAnalysisNotebook.ipynb">ppe_analysis.ipnyb</a>  | Fraud and COVID-19 Relief Schemes |
+| Type | Location                                                                                                                                    | Description |
+| ------------- |---------------------------------------------------------------------------------------------------------------------------------------------| ------------- |
+| Notebook | <a href="https://github.com/Raphtory/Raphtory/blob/master/examples/py/nft/nft_analysis.ipynb">nft_analysis.ipynb</a>                        | Analysing pump and dump cycles of popular NFTs |
+| Notebook | <a href="https://github.com/Raphtory/Raphtory/blob/master/examples/py/companies-house/companies_house_example.ipynb">ppe_analysis.ipnyb</a> | Fraud and COVID-19 Relief Schemes |
 
 # Want to run your own analysis?
 Learn how to use Raphtory in your analysis and project by following these links.
 
 - **[Latest documentation](https://docs.raphtory.com/)**
 - [Using Raphtory in 100 seconds](https://docs.raphtory.com/en/master/Introduction/ingestion.html)
-- [Complete list of available algorithms](https://docs.raphtory.com/en/master/_autodoc/com/raphtory/algorithms/generic/index.html)
-- [Writing your own algorithm in Raphtory](https://docs.raphtory.com/en/master/Analysis/LOTR_six_degrees.html)
+- [Complete list of available algorithms](https://docs.raphtory.com/en/v0.0.11/api/_autosummary/raphtory.algorithms.html)
+- [Writing your own algorithm in Raphtory (COMING SOON)]()
 
 # Bounty board
 
