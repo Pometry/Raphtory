@@ -16,7 +16,7 @@
 <a href="https://github.com/Raphtory/Raphtory/issues">
 <img alt="Issues" src="https://img.shields.io/github/issues/Raphtory/Raphtory?color=brightgreen" />
 </a>
-<a href="https://mybinder.org/v2/gh/Raphtory/Raphtory/v0.1.6?labpath=examples%2Fbinder_python%2Findex.ipynb">
+<a href="https://mybinder.org/v2/gh/Raphtory/Raphtory/v0.0.11?labpath=examples%2Fbinder_python%2Findex.ipynb">
 <img alt="Launch Notebook" src="https://mybinder.org/badge_logo.svg" />
 </a>
 </p>
@@ -36,23 +36,27 @@
 
 <br>
 
-Raphtory is a powerful analytics engine for large-scale graph analysis. It lets you run complex queries on your data, no matter where it's stored or what format it's in. But that's not all - Raphtory's real superpower is its ability to track and explore the history of a complex system, from "time traveling" through data to executing advanced analysis like taint tracking, temporal reachability, and mining temporal motifs.
+Raphtory is a powerful analytics engine for large-scale graph analysis. It lets you run complex queries on your data, 
+no matter where it's stored or what format it's in. But that's not all - Raphtory's real superpower is its ability to 
+track and explore the history of a complex system, from "time traveling" through data to executing advanced analysis 
+like taint tracking, temporal reachability, and mining temporal motifs.
 
-**Raphtory is easy to use:** just run a single pip install command and embed it with your existing Python/Pandas pipeline for input and output.
+**Raphtory is easy to use:** just run a single `pip install raphtory` command and embed it with your existing Python/Pandas pipeline for input and output.
 
 **Raphtory is expressive:** It's designed to represent all types of graph queries and has a well-developed API for exploring your data across its history.
 
-**Raphtory is lightning-fast and scales effortlessly**: Built on Apache Arrow's storage and vectorized compute, Raphtory can be run on a laptop or a distributed cluster for terabyte-scale graphs.
+**Raphtory is lightning-fast and scales effortlessly**: Our core is built upon rust. Raphtory can be run on a laptop or a distributed cluster for terabyte-scale graphs.
+
+
 
 # Running a basic example
 
 ```python
-# Import Raphtory
-import PyRaphtory
+# Import raphtory
+from raphtory import Graph
 
 # Create a new local or distributed context
-ctx = PyRaphtory.local()
-graph = ctx.new_graph()
+graph = Graph(1)
 
 # Add some data to your graph
 graph.add_vertex(1, 1)
@@ -63,17 +67,21 @@ graph.add_edge(4, 1, 3)
 
 # Collect some simple vertex metrics
 # Ran across a range of the data with incremental windowing
-df = graph
-      .range(1,4,1)
-      .window(1)
-      .step(lambda vertex: vertex.set_state("name", vertex.name()))
-      .step(lambda vertex: vertex.set_state("out_degree", vertex.out_degree())) 
-      .step(lambda vertex: vertex.set_state("in_degree", vertex.in_degree()))
-      .select("name", "out_degree", "in_degree")
-      .to_df()
+graph_set = graph.window(1,5).rolling(1)
+
+results = [["timestamp", "window", "name", "out_degree", "in_degree"]]
+
+for rolling_graph in graph_set:
+    for v in rolling_graph.vertices():
+        window = rolling_graph.end() - rolling_graph.start()
+        results.append([rolling_graph.earliest_time(), window, v.name(), v.out_degree(), v.in_degree()])
+    
 
 # Preview DataFrame
-df
+pd.DataFrame(results[1:], columns=results[0])
+```
+
+```a
 
 |    |   timestamp |   window |   name |   out_degree |   in_degree |
 |----|-------------|----------|--------|--------------|-------------|
@@ -87,12 +95,12 @@ df
 
 # Installing Raphtory 
 
-Raphtory is available for Python and Scala/Java, with support for Rust planned in version 0.3.0. We recommend using the PyRaphtory client for Python, which includes everything you need and can be run locally or in distributed mode.
+Raphtory is available for Python and Rust as of version 0.3.0. We recommend using the raphtory client for Python, which includes everything you need and can be run locally or in distributed mode.
 
 You should have Python version 3.9 or higher. It's a good idea to use conda, virtualenv, or pyenv. 
 
 ```bash
-pip install pyraphtory
+pip install raphtory
 ``` 
 
 # Examples and Notebooks
