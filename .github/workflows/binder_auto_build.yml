@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - master
+      - v*
 
 jobs:
   trigger-binder-build:
