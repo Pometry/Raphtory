@@ -54,6 +54,7 @@ like taint tracking, temporal reachability, and mining temporal motifs.
 ```python
 # Import raphtory
 from raphtory import Graph
+import pandas as pd
 
 # Create a new graph
 graph = Graph(1)
