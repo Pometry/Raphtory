@@ -9,9 +9,12 @@ use rayon::prelude::*;
 use rayon::{ThreadPool, ThreadPoolBuilder};
 
 use crate::core::agg::{Accumulator, AndDef};
-use crate::core::state::{self, AccId, ComputeState, ShuffleComputeState, StateType};
+use crate::core::state::{
+    self, AccId, ComputeState, ComputeStateVec, ShuffleComputeState, StateType,
+};
 use crate::core::utils::get_shard_id_from_global_vid;
 
+use super::graph::Graph;
 use super::vertex::VertexView;
 use super::view_api::{GraphViewOps, VertexViewOps};
 
@@ -134,6 +137,10 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         Self { tasks, ctx: ctx }
     }
 
+    fn ss(&self) -> usize {
+        self.ctx.ss
+    }
+
     fn merge_states(
         &self,
         mut a: Arc<ShuffleComputeState<CS>>,
@@ -220,7 +227,7 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
                 if full_stop {
                     done = true;
                 }
-                
+
                 // restore the shape of new_total_state Vec<(usize, Arc<Option<ShuffleComputeState<CS>>>)> from updated state using num_threads for vec len
                 if let Some(arc_state) = updated_state {
                     let mut state = Arc::try_unwrap(arc_state)
@@ -402,8 +409,47 @@ impl<G: GraphViewOps, CS: ComputeState> EvalVertexView<G, CS> {
     }
 }
 
+pub fn connected_components(graph: Graph, iter_count: usize) {
+    let mut ctx: Context<Graph, ComputeStateVec> = graph.into();
+
+    let min = state::def::min::<u64>(0);
+
+    // setup the aggregator to be merged post execution
+    ctx.agg(min.clone());
+
+    let step1 = ATask::new(TaskType::ALL, move |vv| {
+        vv.update(&min, vv.global_id());
+
+        for n in vv.neighbours() {
+            let my_min = vv.read(&min);
+            n.update(&min, my_min)
+        }
+
+        Step::Continue
+    });
+
+    let step2 = ATask::new(TaskType::ALL, move |vv| {
+        let current = vv.read(&min);
+        let prev = vv.read_prev(&min);
+
+        if current == prev {
+            Step::Done
+        } else {
+            Step::Continue
+        }
+    });
+
+    let mut runner: TaskRunner<Graph, _> =
+        TaskRunner::new(vec![Box::new(step1), Box::new(step2)], ctx);
+
+    let results = runner.run(Some(2), iter_count);
+    println!("results: {:?}", results);
+}
+
 #[cfg(test)]
 mod tasks_tests {
+    use rustc_hash::FxHashMap;
+
     use crate::{
         core::state::{self, ComputeStateVec},
         db::graph::Graph,
@@ -464,5 +510,16 @@ mod tasks_tests {
         let results = runner.run(Some(2), 10);
 
         println!("{:?}", results);
+        let mut out = FxHashMap::default();
+
+        results.as_ref().as_ref().unwrap().fold_state(
+            runner.ss(),
+            &mut out,
+            &min,
+            |map, g_id, cc| {
+                map.insert(*g_id, cc);
+                map
+            },
+        );
     }
 }

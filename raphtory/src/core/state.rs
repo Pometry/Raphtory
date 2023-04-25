@@ -954,6 +954,27 @@ impl<CS: ComputeState + Send + Sync> ShuffleComputeState<CS> {
         out_b
     }
 
+    pub fn fold_state_internal<A, IN, OUT, ACC: Accumulator<A, IN, OUT>, B, F>(
+        &self,
+        ss: usize,
+        b: B,
+        agg_ref: &AccId<A, IN, OUT, ACC>,
+        f: F,
+    ) -> B
+    where
+        A: StateType,
+        B: Debug,
+        OUT: StateType,
+        F: Fn(B, usize, usize, OUT) -> B + Copy,
+    {
+        let out_b = self.parts.iter().enumerate().fold(b, |b, (part_id, part)| {
+            part.fold(ss, b, agg_ref, |b, id, out| {
+                f(b, part_id, *id as usize, out)
+            })
+        });
+        out_b
+    }
+
     pub fn merge_mut<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
         &mut self,
         other: &Self,
