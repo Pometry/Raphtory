@@ -495,7 +495,7 @@ dependencies = [
 
 [[package]]
 name = "examples"
-version = "0.0.9"
+version = "0.0.11"
 dependencies = [
  "chrono",
  "itertools",
@@ -1499,7 +1499,7 @@ dependencies = [
 
 [[package]]
 name = "pyraphtory"
-version = "0.0.9"
+version = "0.0.11"
 dependencies = [
  "bincode",
  "chrono",
@@ -1675,7 +1675,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory"
-version = "0.0.9"
+version = "0.0.11"
 dependencies = [
  "bincode",
  "bzip2",
