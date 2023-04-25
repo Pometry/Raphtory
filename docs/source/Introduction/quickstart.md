@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-Please ensure you have installed and set-up DocBrown. 
+Please ensure you have installed and set-up raphtory. 
 
 ### 1. Download the data 
 

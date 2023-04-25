@@ -1,9 +1,9 @@
 use crate::types::repr::Repr;
 use crate::wrappers::prop::{PropHistories, PropHistory, PropValue, Props};
-use docbrown::core as db_c;
-use docbrown::db::view_api::BoxedIter;
 use num::cast::AsPrimitive;
 use pyo3::prelude::*;
+use raphtory::core as db_c;
+use raphtory::db::view_api::BoxedIter;
 use std::collections::HashMap;
 use std::i64;
 use std::iter::Sum;

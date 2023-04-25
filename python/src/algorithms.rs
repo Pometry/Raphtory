@@ -6,18 +6,18 @@ use crate::graph_view::PyGraphView;
 use std::collections::HashMap;
 
 use crate::utils;
-use docbrown::algorithms::degree::{
+use pyo3::prelude::*;
+use raphtory::algorithms::degree::{
     average_degree as average_degree_rs, max_in_degree as max_in_degree_rs,
     max_out_degree as max_out_degree_rs, min_in_degree as min_in_degree_rs,
     min_out_degree as min_out_degree_rs,
 };
-use docbrown::algorithms::directed_graph_density::directed_graph_density as directed_graph_density_rs;
-use docbrown::algorithms::local_clustering_coefficient::local_clustering_coefficient as local_clustering_coefficient_rs;
-use docbrown::algorithms::local_triangle_count::local_triangle_count as local_triangle_count_rs;
-use docbrown::algorithms::reciprocity::{
+use raphtory::algorithms::directed_graph_density::directed_graph_density as directed_graph_density_rs;
+use raphtory::algorithms::local_clustering_coefficient::local_clustering_coefficient as local_clustering_coefficient_rs;
+use raphtory::algorithms::local_triangle_count::local_triangle_count as local_triangle_count_rs;
+use raphtory::algorithms::reciprocity::{
     all_local_reciprocity as all_local_reciprocity_rs, global_reciprocity as global_reciprocity_rs,
 };
-use pyo3::prelude::*;
 
 /// Local triangle count - calculates the number of triangles (a cycle of length 3) for a node.
 /// It measures the local clustering of a graph.
@@ -160,12 +160,12 @@ pub(crate) fn all_local_reciprocity(g: &PyGraphView) -> HashMap<u64, f64> {
 /// A closed triplet is one where a node has two neighbors, and an edge between them.
 #[pyfunction]
 pub(crate) fn triplet_count(g: &PyGraphView) -> usize {
-    docbrown::algorithms::triplet_count::triplet_count(&g.graph)
+    raphtory::algorithms::triplet_count::triplet_count(&g.graph)
 }
 
 /// Computes the global clustering coefficient of a graph. The global clustering coefficient is
 /// defined as the number of triangles in the graph divided by the number of triplets in the graph.
 #[pyfunction]
 pub(crate) fn global_clustering_coefficient(g: &PyGraphView) -> f64 {
-    docbrown::algorithms::clustering_coefficient::clustering_coefficient(&g.graph)
+    raphtory::algorithms::clustering_coefficient::clustering_coefficient(&g.graph)
 }

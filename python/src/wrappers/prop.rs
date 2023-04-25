@@ -1,6 +1,6 @@
 use crate::types::repr::Repr;
-use docbrown::core as db_c;
 use pyo3::{FromPyObject, IntoPy, PyObject, Python};
+use raphtory::core as db_c;
 use std::collections::HashMap;
 use std::{fmt, i64};
 

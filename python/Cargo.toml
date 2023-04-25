@@ -1,6 +1,6 @@
 [package]
-name = "raphtory"
-description = "Python package for DocBrown, a temporal graph library"
+name = "pyraphtory"
+description = "Python package for raphtory, a temporal graph library"
 version = "0.0.11"
 edition.workspace = true
 rust-version.workspace = true
@@ -11,6 +11,7 @@ repository.workspace = true
 license.workspace = true
 readme.workspace = true
 homepage.workspace = true
+doc = false
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
 name = "raphtory"
@@ -18,7 +19,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 pyo3 =  {version="0.18.1", features=["multiple-pymethods"]}
-docbrown = {path = "../docbrown", version = "0.0.11" }
+raphtory = {path = "../raphtory", version = "0.0.11" }
 
 parking_lot = { version = "0.12" , features = ["serde"] }
 flume = "0.10"

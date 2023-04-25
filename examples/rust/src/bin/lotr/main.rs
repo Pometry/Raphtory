@@ -1,10 +1,10 @@
-use docbrown::algorithms::triangle_count::{TriangleCountS1, TriangleCountS2, TriangleCountSlowS2};
-use docbrown::core::Prop;
-use docbrown::core::{state, utils};
-use docbrown::db::graph::Graph;
-use docbrown::db::program::{GlobalEvalState, Program};
-use docbrown::db::view_api::*;
-use docbrown::graph_loader::source::csv_loader::CsvLoader;
+use raphtory::algorithms::triangle_count::{TriangleCountS1, TriangleCountS2, TriangleCountSlowS2};
+use raphtory::core::Prop;
+use raphtory::core::{state, utils};
+use raphtory::db::graph::Graph;
+use raphtory::db::program::{GlobalEvalState, Program};
+use raphtory::db::view_api::*;
+use raphtory::graph_loader::source::csv_loader::CsvLoader;
 use serde::Deserialize;
 use std::path::PathBuf;
 use std::{env, path::Path, time::Instant};

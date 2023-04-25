@@ -1,4 +1,4 @@
-.. DocBrown documentation master file
+.. raphtory documentation master file
 
 Raphtory
 ==================
@@ -7,7 +7,7 @@ Raphtory
 
    <p align="center"><img src="_static/raphtory-banner.png" alt="Raphtory Banner"/></p>
 
-DocBrown is the new version of Raphtory, rethinking several aspects of the underlying graph model and algorithm API.
+raphtory is the new version of Raphtory, rethinking several aspects of the underlying graph model and algorithm API.
 
 This is a temporal graph analytics engine, built natively in rust with full support in python!
 

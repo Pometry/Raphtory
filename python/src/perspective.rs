@@ -7,9 +7,9 @@
 //! It can be used to generate rolling or expanding perspectives based on a `step` size and an optional `window` size.
 //!
 //! These perpectives are used when querying the graph to determine the time bounds.
-use docbrown::db::perspective;
-use docbrown::db::perspective::PerspectiveSet;
 use pyo3::{pyclass, pymethods};
+use raphtory::db::perspective;
+use raphtory::db::perspective::PerspectiveSet;
 use std::i64;
 
 /// A struct representing a time range from `start` to `end`.

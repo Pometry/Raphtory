@@ -1,5 +1,5 @@
 use crate::types::repr::{iterator_repr, Repr};
-use docbrown::db::view_api::BoxedIter;
+use raphtory::db::view_api::BoxedIter;
 use std::sync::Arc;
 
 pub struct Iterable<I: Send> {
