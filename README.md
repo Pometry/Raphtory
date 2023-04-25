@@ -55,7 +55,7 @@ like taint tracking, temporal reachability, and mining temporal motifs.
 # Import raphtory
 from raphtory import Graph
 
-# Create a new local or distributed context
+# Create a new graph
 graph = Graph(1)
 
 # Add some data to your graph
@@ -173,7 +173,7 @@ Want to get involved? Please join the Raphtory [Slack](https://join.slack.com/t/
 
 # License  
 
-Raphtory is licensed under the terms of the Apache License (check out our LICENSE file).
+Raphtory is licensed under the terms of the GNU General Public License v3.0 (check out our LICENSE file).
 
 
 
