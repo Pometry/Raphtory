@@ -1,0 +1,15 @@
+name: 'Trigger-Binder-build-on-dev'
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  trigger-binder-build:
+    runs-on: [ubuntu-latest]
+    steps:
+      - uses: s-weigand/trigger-mybinder-build@v1
+        with:
+          target-repo: raphtory/raphtory
+          service-name: gh
+          use-default-build-servers: true
