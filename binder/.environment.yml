@@ -1,0 +1,24 @@
+name: raphtory
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - libcxx=12.0.0
+  - libffi>=3.3
+  - make=4.3
+  - pip>=21.2.4
+  - python=3.10
+  - python_abi>=3.10
+  - setuptools>=61.2.0
+  - wheel>=0.37.1
+  - pip:
+      - pandas
+      - numpy
+      - matplotlib
+      - pyvis
+      - scipy
+      - seaborn
+      - requests
+      - tqdm
+      - networkx
+      - raphtory>=0.0.11
