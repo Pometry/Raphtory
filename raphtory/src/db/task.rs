@@ -8,7 +8,7 @@ use once_cell::sync::Lazy;
 use rayon::prelude::*;
 use rayon::{ThreadPool, ThreadPoolBuilder};
 
-use crate::core::agg::Accumulator;
+use crate::core::agg::{Accumulator, AndDef};
 use crate::core::state::{self, AccId, ComputeState, ShuffleComputeState, StateType};
 use crate::core::utils::get_shard_id_from_global_vid;
 
@@ -122,34 +122,29 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         a
     }
 
-    pub fn run(&mut self, num_threads: Option<usize>) {
-        // say we go over all the vertices on all the threads but we partition the vertices
-        // on each thread and we only run the function if the vertex is in the partition
+    fn make_total_state<F: Fn() -> Arc<Option<ShuffleComputeState<CS>>>>(
+        &self,
+        num_threads: usize,
+        f: F,
+    ) -> Vec<(usize, Arc<Option<ShuffleComputeState<CS>>>)> {
+        vec![f(); num_threads]
+            .into_iter()
+            .enumerate()
+            .collect::<Vec<_>>()
+    }
 
-        let graph_shards = self.ctx.g.num_shards();
-
-        let pool = num_threads
-            .map(|nt| custom_pool(nt))
-            .unwrap_or_else(|| POOL.clone());
-
-        let num_threads = pool.current_num_threads();
-
-        let all_stop = state::def::and(u32::MAX);
-        self.ctx.global_agg(all_stop);
-
-        // the only benefit in this case is that we do not clone when we run with 1 thread
-
-        let mut total_state =
-            vec![Arc::new(Some(ShuffleComputeState::new(graph_shards))); num_threads]
-                .into_iter()
-                .enumerate()
-                .collect::<Vec<_>>();
-
-        let new_total_state = POOL.install(move || {
-            let mut new_total_state = None;
+    pub fn run_task_list(
+        &mut self,
+        total_state: Vec<(usize, Arc<Option<ShuffleComputeState<CS>>>)>,
+        num_threads: usize,
+        all_stop: &AccId<bool, bool, bool, AndDef>,
+    ) -> (bool, Vec<(usize, Arc<Option<ShuffleComputeState<CS>>>)>) {
+        POOL.install(move || {
+            let mut new_total_state = total_state;
+            let mut done = false;
 
             for task in self.tasks.iter() {
-                new_total_state = total_state
+                let updated_state = new_total_state
                     .par_iter_mut()
                     .map(|(job_id, state)| {
                         let rc_local_state =
@@ -168,7 +163,7 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
                                         rc_local_state.borrow_mut().accumulate_global(
                                             self.ctx.ss,
                                             true,
-                                            &all_stop,
+                                            all_stop,
                                         );
                                     }
                                     _ => {}
@@ -183,19 +178,60 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
                     })
                     .reduce_with(|a, b| self.merge_states(a, b));
 
-                let full_stop = new_total_state
+                let full_stop = updated_state
                     .as_ref()
                     .and_then(|state| state.read_global(self.ctx.ss, &all_stop))
                     .unwrap_or(false);
+
+                // restore the shape of new_total_state Vec<(usize, Arc<Option<ShuffleComputeState<CS>>>)> from updated state using num_threads for vec len
+
+                if let Some(arc_state) = updated_state {
+                    let mut state = Arc::try_unwrap(arc_state)
+                        .expect("should be able to unwrap Arc, no other reference can exist");
+
+                    state.copy_over_next_ss(self.ctx.ss);
+                    let arc_state = Arc::new(Some(state));
+                    new_total_state = self.make_total_state(num_threads, || arc_state.clone())
+                }
+
                 if full_stop {
+                    done = true;
                     break;
                 }
             }
 
-            new_total_state
+            (done, new_total_state)
+        })
+    }
+
+    pub fn run(&mut self, num_threads: Option<usize>, steps: usize) -> Vec<(usize, Arc<Option<ShuffleComputeState<CS>>>)> {
+        // say we go over all the vertices on all the threads but we partition the vertices
+        // on each thread and we only run the function if the vertex is in the partition
+
+        let graph_shards = self.ctx.g.num_shards();
+
+        let pool = num_threads
+            .map(|nt| custom_pool(nt))
+            .unwrap_or_else(|| POOL.clone());
+
+        let num_threads = pool.current_num_threads();
+
+        let all_stop = state::def::and(u32::MAX);
+        self.ctx.global_agg(all_stop);
+
+        let mut total_state = self.make_total_state(num_threads, || {
+            Arc::new(Some(ShuffleComputeState::new(graph_shards)))
         });
 
-        println!("new_total_state: {:?}", new_total_state);
+        // the only benefit in this case is that we do not clone when we run with 1 thread
+
+        let mut done = false;
+        while !done && self.ctx.ss < steps {
+            (done, total_state) = self.run_task_list(total_state, num_threads, &all_stop);
+            self.ctx.ss += 1;
+        }
+
+        total_state
     }
 
     // use the global id of the vertex to determine if it's present in the partition
@@ -340,7 +376,7 @@ mod tasks_tests {
     use super::*;
 
     #[test]
-    fn run_tasks_over_a_graph() {
+    fn connected_components() {
         let graph = Graph::new(4);
 
         let edges = vec![
@@ -388,6 +424,8 @@ mod tasks_tests {
         let mut runner: TaskRunner<Graph, ComputeStateVec> =
             TaskRunner::new(vec![Box::new(step1), Box::new(step2)], ctx);
 
-        runner.run(Some(2));
+        let results = runner.run(Some(2), 10);
+
+        println!("{:?}", results[0]);
     }
 }
