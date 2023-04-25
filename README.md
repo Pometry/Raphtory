@@ -68,7 +68,7 @@ graph.add_edge(4, 1, 3)
 
 # Collect some simple vertex metrics
 # Ran across a range of the data with incremental windowing
-graph_set = graph.window(1,5).rolling(1)
+graph_set = graph.rolling(1)
 
 results = [["timestamp", "window", "name", "out_degree", "in_degree"]]
 

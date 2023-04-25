@@ -16,17 +16,17 @@ There are many ways to contribute:
 
 ## Project Layout
 
-- `connectors`: I/O data to and from various sources and sinks
-- `core`: Raphtory core
-- `deploy`: Kubernetes deployment configs
+- `raphtory`: Raphtory core written in rust
+- `python`: Raphtory python library (also written in rust, converted to python with PyO3)
+
 - `docs`: Raphtory documentation
-- `testkit`: Common test classes
-- `python`: Raphtory python library
-- `it`: Integration tests
-- `examples`: Example raphtory projects
-- `metrics`: Prometheus metrics
+- `examples`: Example raphtory projects in both python and rust
+- `binder`: Binder configuration for running Raphtory notebooks in a browser
+- `resource`: Sample CSV files
 
 ## Build Raphtory
+
+Raphtory can be built 
 
 ### Python Packages
 Raphtory python comes as two packages `pyraphtory_jvm` and `pyraphtory`. 
