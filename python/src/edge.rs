@@ -4,7 +4,7 @@
 //! The PyEdge class also provides access to the perspective APIs, which allow the user to view the
 //! edge as it existed at a particular point in time, or as it existed over a particular time range.
 //!
-use crate::dynamic::DynamicGraph;
+use crate::dynamic::{DynamicGraph, FromGraph};
 use crate::types::repr::{iterator_repr, Repr};
 use crate::utils::*;
 use crate::vertex::PyVertex;
@@ -35,7 +35,7 @@ impl From<EdgeView<WindowedGraph<DynamicGraph>>> for PyEdge {
     fn from(value: EdgeView<WindowedGraph<DynamicGraph>>) -> Self {
         Self {
             edge: EdgeView {
-                graph: DynamicGraph::new(value.graph),
+                graph: value.graph.into_dynamic(),
                 edge: value.edge,
             },
         }

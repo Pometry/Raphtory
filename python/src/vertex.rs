@@ -1,7 +1,7 @@
 //! Defines the `Vertex`, which represents a vertex in the graph.
 //! A vertex is a node in the graph, and can have properties and edges.
 //! It can also be used to navigate the graph.
-use crate::dynamic::DynamicGraph;
+use crate::dynamic::{DynamicGraph, FromGraph};
 use crate::edge::{PyEdges, PyNestedEdges};
 use crate::types::repr::{iterator_repr, Repr};
 use crate::utils::{expanding_impl, extract_vertex_ref, rolling_impl, window_impl};
@@ -37,7 +37,7 @@ impl From<VertexView<WindowedGraph<DynamicGraph>>> for PyVertex {
     fn from(value: VertexView<WindowedGraph<DynamicGraph>>) -> Self {
         Self {
             vertex: VertexView {
-                graph: DynamicGraph::new(value.graph),
+                graph: value.graph.into_dynamic(),
                 vertex: value.vertex,
             },
         }
@@ -411,7 +411,7 @@ impl From<Vertices<DynamicGraph>> for PyVertices {
 impl From<Vertices<WindowedGraph<DynamicGraph>>> for PyVertices {
     fn from(value: Vertices<WindowedGraph<DynamicGraph>>) -> Self {
         Self {
-            vertices: Vertices::new(DynamicGraph::new(value.graph)),
+            vertices: Vertices::new(value.graph.into_dynamic()),
         }
     }
 }
@@ -770,7 +770,7 @@ impl From<PathFromGraph<WindowedGraph<DynamicGraph>>> for PyPathFromGraph {
     fn from(value: PathFromGraph<WindowedGraph<DynamicGraph>>) -> Self {
         Self {
             path: PathFromGraph {
-                graph: DynamicGraph::new(value.graph),
+                graph: value.graph.into_dynamic(),
                 operations: value.operations,
             },
         }
@@ -792,7 +792,7 @@ impl From<PathFromVertex<WindowedGraph<DynamicGraph>>> for PyPathFromVertex {
     fn from(value: PathFromVertex<WindowedGraph<DynamicGraph>>) -> Self {
         Self {
             path: PathFromVertex {
-                graph: DynamicGraph::new(value.graph),
+                graph: value.graph.into_dynamic(),
                 vertex: value.vertex,
                 operations: value.operations,
             },

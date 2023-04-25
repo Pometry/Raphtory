@@ -5,7 +5,7 @@
 //! It is a wrapper around a set of shards, which are the actual graph data structures.
 //! In Python, this class wraps around the rust graph.
 
-use crate::dynamic::DynamicGraph;
+use crate::dynamic::{DynamicGraph, FromGraph};
 use crate::graph_view::PyGraphView;
 use crate::utils::adapt_result;
 use crate::wrappers::prop::Prop;
@@ -52,7 +52,7 @@ impl PyGraph {
             Self {
                 graph: graph.clone(),
             },
-            PyGraphView::from(DynamicGraph::from(graph)),
+            PyGraphView::from(graph),
         )
     }
 
