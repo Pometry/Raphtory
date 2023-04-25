@@ -1,7 +1,6 @@
 // the main execution unit of an algorithm
 
 use std::cell::RefCell;
-use std::ops::Deref;
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -24,7 +23,7 @@ pub enum Step {
     Continue,
 }
 
-trait Task<G: GraphViewOps, CS: ComputeState> {
+pub trait Task<G: GraphViewOps, CS: ComputeState> {
     fn run(&self, vv: &EvalVertexView<G, CS>) -> Step;
 }
 
@@ -64,7 +63,7 @@ type MergeFn<CS> =
     Arc<dyn Fn(&mut ShuffleComputeState<CS>, &ShuffleComputeState<CS>, usize) + Send + Sync>;
 
 // state for the execution of a task
-struct Context<G: GraphViewOps, CS: ComputeState> {
+pub struct Context<G: GraphViewOps, CS: ComputeState> {
     ss: usize,
     g: Arc<G>,
     merge_fns: Vec<MergeFn<CS>>,
@@ -100,13 +99,13 @@ impl<G: GraphViewOps, CS: ComputeState> From<G> for Context<G, CS> {
     }
 }
 
-struct TaskRunner<G: GraphViewOps, CS: ComputeState> {
+pub struct TaskRunner<G: GraphViewOps, CS: ComputeState> {
     tasks: Vec<Box<dyn Task<G, CS> + Sync + Send>>,
     ctx: Context<G, CS>,
 }
 
 impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
-    fn new(tasks: Vec<Box<dyn Task<G, CS> + Sync + Send>>, ctx: Context<G, CS>) -> Self {
+    pub fn new(tasks: Vec<Box<dyn Task<G, CS> + Sync + Send>>, ctx: Context<G, CS>) -> Self {
         Self { tasks, ctx: ctx }
     }
 
@@ -123,7 +122,7 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         a
     }
 
-    fn run(&mut self, num_threads: Option<usize>) {
+    pub fn run(&mut self, num_threads: Option<usize>) {
         // say we go over all the vertices on all the threads but we partition the vertices
         // on each thread and we only run the function if the vertex is in the partition
 
@@ -146,8 +145,7 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
                 .enumerate()
                 .collect::<Vec<_>>();
 
-        let ss = self.ctx.ss;
-        let new_total_state = POOL.install(|| {
+        let new_total_state = POOL.install(move || {
             let mut new_total_state = None;
 
             for task in self.tasks.iter() {
@@ -166,9 +164,15 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
                                 );
 
                                 match task.run(&vv) {
-                                    Step::Done => todo!(),
-                                    Step::Continue => todo!(),
-                                } //TODO: decide what to do with the returned step
+                                    Step::Done => {
+                                        rc_local_state.borrow_mut().accumulate_global(
+                                            self.ctx.ss,
+                                            true,
+                                            &all_stop,
+                                        );
+                                    }
+                                    _ => {}
+                                }
                             }
                         }
 
@@ -178,9 +182,9 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
                         Arc::new(state)
                     })
                     .reduce_with(|a, b| self.merge_states(a, b));
-                // check for stop
-                
-                let full_stop = new_total_state.as_ref()
+
+                let full_stop = new_total_state
+                    .as_ref()
                     .and_then(|state| state.read_global(self.ctx.ss, &all_stop))
                     .unwrap_or(false);
                 if full_stop {
@@ -279,6 +283,51 @@ impl<G: GraphViewOps, CS: ComputeState> EvalVertexView<G, CS> {
             .borrow_mut()
             .accumulate_into_pid(self.ss, self.global_id(), self.pid(), a, id)
     }
+
+    /// Read the current value of the vertex state using the given accumulator.
+    /// Returns a default value if the value is not present.
+    pub fn read<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
+        &self,
+        agg_r: &AccId<A, IN, OUT, ACC>,
+    ) -> OUT
+    where
+        A: StateType,
+        OUT: std::fmt::Debug,
+    {
+        self.state
+            .borrow()
+            .read(self.ss, self.vv.id() as usize, agg_r)
+            .unwrap_or(ACC::finish(&ACC::zero()))
+    }
+
+    /// Try to read the previous value of the vertex state using the given accumulator.
+    pub fn try_read_prev<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
+        &self,
+        acc_id: &AccId<A, IN, OUT, ACC>,
+    ) -> Result<OUT, OUT>
+    where
+        A: StateType,
+        OUT: std::fmt::Debug,
+    {
+        self.state
+            .borrow()
+            .read(self.ss + 1, self.vv.id() as usize, acc_id)
+            .ok_or(ACC::finish(&ACC::zero()))
+    }
+
+    /// Read the previous value of the vertex state using the given accumulator.
+    pub fn read_prev<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
+        &self,
+        acc_id: &AccId<A, IN, OUT, ACC>,
+    ) -> OUT
+    where
+        A: StateType,
+        OUT: std::fmt::Debug,
+    {
+        self.try_read_prev::<A, IN, OUT, ACC>(acc_id)
+            .or_else(|v| Ok::<OUT, OUT>(v))
+            .unwrap()
+    }
 }
 
 #[cfg(test)]
@@ -315,7 +364,7 @@ mod tasks_tests {
         // setup the aggregator to be merged post execution
         ctx.agg(min.clone());
 
-        let ann = ATask::new(TaskType::ALL, move |vv| {
+        let step1 = ATask::new(TaskType::ALL, move |vv| {
             vv.update(&min, vv.global_id());
 
             for n in vv.neighbours() {
@@ -325,8 +374,19 @@ mod tasks_tests {
             Step::Continue
         });
 
+        let step2 = ATask::new(TaskType::ALL, move |vv| {
+            let current = vv.read(&min);
+            let prev = vv.read_prev(&min);
+
+            if current == prev {
+                Step::Done
+            } else {
+                Step::Continue
+            }
+        });
+
         let mut runner: TaskRunner<Graph, ComputeStateVec> =
-            TaskRunner::new(vec![Box::new(ann)], ctx);
+            TaskRunner::new(vec![Box::new(step1), Box::new(step2)], ctx);
 
         runner.run(Some(2));
     }
