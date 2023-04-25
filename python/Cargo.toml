@@ -1,5 +1,5 @@
 [package]
-name = "raphtory"
+name = "pyraphtory"
 description = "Python package for raphtory, a temporal graph library"
 version = "0.0.9"
 edition.workspace = true
