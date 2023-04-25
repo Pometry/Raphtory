@@ -9,12 +9,11 @@ use crate::types::repr::{iterator_repr, Repr};
 use crate::utils::*;
 use crate::vertex::PyVertex;
 use crate::wrappers::prop::Prop;
-use docbrown::db::edge::EdgeView;
-use docbrown::db::graph_window::WindowedGraph;
-use docbrown::db::view_api::time::WindowSet;
-use docbrown::db::view_api::*;
 use itertools::Itertools;
 use pyo3::{pyclass, pymethods, PyAny, PyRef, PyRefMut, PyResult};
+use raphtory::db::edge::EdgeView;
+use raphtory::db::view_api::time::WindowSet;
+use raphtory::db::view_api::*;
 use std::collections::HashMap;
 use std::sync::Arc;
 

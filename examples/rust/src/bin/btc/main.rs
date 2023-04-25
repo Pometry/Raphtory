@@ -6,18 +6,18 @@ use std::thread::JoinHandle;
 use std::{env, thread};
 
 use chrono::{DateTime, Utc};
-use docbrown::core::tgraph::TemporalGraph;
-use docbrown::core::utils;
-use docbrown::core::{Direction, Prop};
-use docbrown::graph_loader::source::csv_loader::CsvLoader;
+use raphtory::core::tgraph::TemporalGraph;
+use raphtory::core::utils;
+use raphtory::core::{Direction, Prop};
+use raphtory::graph_loader::source::csv_loader::CsvLoader;
 use regex::Regex;
 use serde::Deserialize;
 use std::fs::File;
 use std::io::{prelude::*, BufReader, LineWriter};
 use std::time::Instant;
 
-use docbrown::db::graph::Graph;
-use docbrown::db::view_api::*;
+use raphtory::db::graph::Graph;
+use raphtory::db::view_api::*;
 
 #[derive(Deserialize, std::fmt::Debug)]
 pub struct Sent {

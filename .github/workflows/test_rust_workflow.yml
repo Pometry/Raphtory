@@ -89,7 +89,7 @@ jobs:
           RUSTFLAGS: -Awarnings
         with:
           command: doc
-          args: --no-deps --all -q
+          args: --no-deps -p raphtory -q
       - name: Build sphinx (readthedocs) docs
         run: |
           export PATH=$(pwd)/sbt/bin:$PATH

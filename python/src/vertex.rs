@@ -7,16 +7,15 @@ use crate::types::repr::{iterator_repr, Repr};
 use crate::utils::{expanding_impl, extract_vertex_ref, rolling_impl, window_impl};
 use crate::wrappers::iterators::*;
 use crate::wrappers::prop::Prop;
-use docbrown::core::tgraph::VertexRef;
-use docbrown::db::graph_window::WindowedGraph;
-use docbrown::db::path::{PathFromGraph, PathFromVertex};
-use docbrown::db::vertex::VertexView;
-use docbrown::db::vertices::Vertices;
-use docbrown::db::view_api::time::WindowSet;
-use docbrown::db::view_api::*;
 use itertools::Itertools;
 use pyo3::exceptions::PyIndexError;
 use pyo3::{pyclass, pymethods, PyAny, PyRef, PyRefMut, PyResult};
+use raphtory::core::tgraph::VertexRef;
+use raphtory::db::path::{PathFromGraph, PathFromVertex};
+use raphtory::db::vertex::VertexView;
+use raphtory::db::vertices::Vertices;
+use raphtory::db::view_api::time::WindowSet;
+use raphtory::db::view_api::*;
 use std::collections::HashMap;
 
 /// A vertex (or node) in the graph.

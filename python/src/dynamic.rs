@@ -1,9 +1,8 @@
-use docbrown::core::tgraph::{EdgeRef, VertexRef};
-use docbrown::core::{Direction, Prop};
-use docbrown::db::graph::Graph;
-use docbrown::db::graph_window::WindowedGraph;
-use docbrown::db::view_api::internal::GraphViewInternalOps;
-use docbrown::db::view_api::GraphViewOps;
+use raphtory::core::tgraph::{EdgeRef, VertexRef};
+use raphtory::core::{Direction, Prop};
+use raphtory::db::graph::Graph;
+use raphtory::db::view_api::internal::GraphViewInternalOps;
+use raphtory::db::view_api::GraphViewOps;
 use std::collections::HashMap;
 use std::ops::Range;
 use std::sync::Arc;
