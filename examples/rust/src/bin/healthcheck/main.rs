@@ -7,15 +7,15 @@ mod test {
         path::{Path, PathBuf},
     };
 
-    use docbrown::algorithms::connected_components::weakly_connected_components;
-    use docbrown::core::Direction;
-    use docbrown::db::{
+    use itertools::Itertools;
+    use raphtory::algorithms::connected_components::weakly_connected_components;
+    use raphtory::core::Direction;
+    use raphtory::db::{
         graph::Graph,
         view_api::*,
         view_api::{internal::GraphViewInternalOps, GraphViewOps},
     };
-    use docbrown::graph_loader::source::csv_loader::CsvLoader;
-    use itertools::Itertools;
+    use raphtory::graph_loader::source::csv_loader::CsvLoader;
     use serde::de::DeserializeOwned;
 
     trait TestEdge {
