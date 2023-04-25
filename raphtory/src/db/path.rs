@@ -1,6 +1,7 @@
 use crate::core::tgraph::VertexRef;
 use crate::core::{Direction, Prop};
 use crate::db::edge::EdgeView;
+use crate::db::graph_window::WindowedGraph;
 use crate::db::vertex::VertexView;
 use crate::db::view_api::BoxedIter;
 use crate::db::view_api::*;
@@ -10,7 +11,7 @@ use std::ops::Range;
 use std::sync::Arc;
 
 #[derive(Copy, Clone)]
-pub(crate) enum Operations {
+pub enum Operations {
     Neighbours {
         dir: Direction,
     },
@@ -44,9 +45,8 @@ impl Operations {
 
 #[derive(Clone)]
 pub struct PathFromGraph<G: GraphViewOps> {
-    graph: G,
-    operations: Arc<Vec<Operations>>,
-    window: Option<Range<i64>>,
+    pub graph: G,
+    pub operations: Arc<Vec<Operations>>,
 }
 
 impl<G: GraphViewOps> PathFromGraph<G> {
@@ -54,19 +54,16 @@ impl<G: GraphViewOps> PathFromGraph<G> {
         PathFromGraph {
             graph,
             operations: Arc::new(vec![operation]),
-            window: None,
         }
     }
 
     pub fn iter(&self) -> Box<dyn Iterator<Item = PathFromVertex<G>> + Send> {
         let g = self.graph.clone();
         let ops = self.operations.clone();
-        let w = self.window.clone();
-        Box::new(self.graph.vertex_refs().map(move |v| PathFromVertex {
+        Box::new(g.vertex_refs().map(move |v| PathFromVertex {
             graph: g.clone(),
             vertex: v,
             operations: ops.clone(),
-            window: w.clone(),
         }))
     }
 }
@@ -202,90 +199,58 @@ impl<G: GraphViewOps> VertexViewOps for PathFromGraph<G> {
     fn neighbours(&self) -> Self {
         let mut new_ops = (*self.operations).clone();
         let dir = Direction::BOTH;
-        match &self.window {
-            None => new_ops.push(Operations::Neighbours { dir }),
-            Some(window) => new_ops.push(Operations::NeighboursWindow {
-                dir,
-                t_start: window.start,
-                t_end: window.end,
-            }),
-        }
+        new_ops.push(Operations::Neighbours { dir });
         Self {
             graph: self.graph.clone(),
             operations: Arc::new(new_ops),
-            window: None,
         }
     }
 
     fn in_neighbours(&self) -> Self {
         let mut new_ops = (*self.operations).clone();
         let dir = Direction::IN;
-        match &self.window {
-            None => new_ops.push(Operations::Neighbours { dir }),
-            Some(window) => new_ops.push(Operations::NeighboursWindow {
-                dir,
-                t_start: window.start,
-                t_end: window.end,
-            }),
-        }
+        new_ops.push(Operations::Neighbours { dir });
         Self {
             graph: self.graph.clone(),
             operations: Arc::new(new_ops),
-            window: None,
         }
     }
 
     fn out_neighbours(&self) -> Self {
         let mut new_ops = (*self.operations).clone();
         let dir = Direction::OUT;
-        match &self.window {
-            None => new_ops.push(Operations::Neighbours { dir }),
-            Some(window) => new_ops.push(Operations::NeighboursWindow {
-                dir,
-                t_start: window.start,
-                t_end: window.end,
-            }),
-        }
+        new_ops.push(Operations::Neighbours { dir });
         Self {
             graph: self.graph.clone(),
             operations: Arc::new(new_ops),
-            window: None,
         }
     }
 }
 
 impl<G: GraphViewOps> TimeOps for PathFromGraph<G> {
-    type WindowedViewType = Self;
+    type WindowedViewType = PathFromGraph<WindowedGraph<G>>;
 
     fn start(&self) -> Option<i64> {
-        match &self.window {
-            None => self.graph.start(),
-            Some(w) => Some(w.start),
-        }
+        self.graph.start()
     }
 
     fn end(&self) -> Option<i64> {
-        match &self.window {
-            None => self.graph.end(),
-            Some(w) => Some(w.end),
-        }
+        self.graph.end()
     }
 
     fn window(&self, t_start: i64, t_end: i64) -> Self::WindowedViewType {
-        Self {
-            graph: self.graph.clone(),
+        PathFromGraph {
+            graph: self.graph.window(t_start, t_end),
             operations: self.operations.clone(),
-            window: Some(self.actual_start(t_start)..self.actual_end(t_end)),
         }
     }
 }
 
 #[derive(Clone)]
 pub struct PathFromVertex<G: GraphViewOps> {
-    graph: G,
-    vertex: VertexRef,
-    operations: Arc<Vec<Operations>>,
-    window: Option<Range<i64>>,
+    pub graph: G,
+    pub vertex: VertexRef,
+    pub operations: Arc<Vec<Operations>>,
 }
 
 impl<G: GraphViewOps> PathFromVertex<G> {
@@ -297,12 +262,7 @@ impl<G: GraphViewOps> PathFromVertex<G> {
             .iter()
             .fold(init, |it, op| Box::new(op.op(g.clone(), it)))
             .map(move |v| VertexView::new(g.clone(), v));
-        let window = self.window.clone();
-        if let Some(window) = window {
-            Box::new(iter.map(move |v| v.window(window.start, window.end)))
-        } else {
-            Box::new(iter)
-        }
+        Box::new(iter)
     }
 
     pub(crate) fn new<V: Into<VertexRef>>(
@@ -314,7 +274,6 @@ impl<G: GraphViewOps> PathFromVertex<G> {
             graph,
             vertex: vertex.into(),
             operations: Arc::new(vec![operation]),
-            window: None,
         }
     }
 }
@@ -403,84 +362,53 @@ impl<G: GraphViewOps> VertexViewOps for PathFromVertex<G> {
     fn neighbours(&self) -> Self {
         let mut new_ops = (*self.operations).clone();
         let dir = Direction::BOTH;
-        match &self.window {
-            None => new_ops.push(Operations::Neighbours { dir }),
-            Some(window) => new_ops.push(Operations::NeighboursWindow {
-                dir,
-                t_start: window.start,
-                t_end: window.end,
-            }),
-        }
+        new_ops.push(Operations::Neighbours { dir });
         Self {
             graph: self.graph.clone(),
             vertex: self.vertex,
             operations: Arc::new(new_ops),
-            window: None,
         }
     }
 
     fn in_neighbours(&self) -> Self {
         let mut new_ops = (*self.operations).clone();
         let dir = Direction::IN;
-        match &self.window {
-            None => new_ops.push(Operations::Neighbours { dir }),
-            Some(window) => new_ops.push(Operations::NeighboursWindow {
-                dir,
-                t_start: window.start,
-                t_end: window.end,
-            }),
-        }
+        new_ops.push(Operations::Neighbours { dir });
         Self {
             graph: self.graph.clone(),
             vertex: self.vertex,
             operations: Arc::new(new_ops),
-            window: None,
         }
     }
 
     fn out_neighbours(&self) -> Self {
         let mut new_ops = (*self.operations).clone();
         let dir = Direction::OUT;
-        match &self.window {
-            None => new_ops.push(Operations::Neighbours { dir }),
-            Some(window) => new_ops.push(Operations::NeighboursWindow {
-                dir,
-                t_start: window.start,
-                t_end: window.end,
-            }),
-        }
+        new_ops.push(Operations::Neighbours { dir });
         Self {
             graph: self.graph.clone(),
             vertex: self.vertex,
             operations: Arc::new(new_ops),
-            window: None,
         }
     }
 }
 
 impl<G: GraphViewOps> TimeOps for PathFromVertex<G> {
-    type WindowedViewType = Self;
+    type WindowedViewType = PathFromVertex<WindowedGraph<G>>;
 
     fn start(&self) -> Option<i64> {
-        match &self.window {
-            None => self.graph.start(),
-            Some(w) => Some(w.start),
-        }
+        self.graph.start()
     }
 
     fn end(&self) -> Option<i64> {
-        match &self.window {
-            None => self.graph.end(),
-            Some(w) => Some(w.end),
-        }
+        self.graph.end()
     }
 
     fn window(&self, t_start: i64, t_end: i64) -> Self::WindowedViewType {
-        Self {
-            graph: self.graph.clone(),
+        PathFromVertex {
+            graph: self.graph.window(t_start, t_end),
             vertex: self.vertex,
             operations: self.operations.clone(),
-            window: Some(self.actual_start(t_start)..self.actual_end(t_end)),
         }
     }
 }

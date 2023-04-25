@@ -44,6 +44,7 @@ use crate::core::{
 use crate::db::view_api::internal::GraphViewInternalOps;
 use crate::db::view_api::time::TimeOps;
 use crate::db::view_api::GraphViewOps;
+use std::cmp::{max, min};
 use std::{collections::HashMap, ops::Range};
 
 /// A struct that represents a windowed view of a `Graph`.
@@ -813,7 +814,11 @@ impl<G: GraphViewOps> GraphViewInternalOps for WindowedGraph<G> {
     /// - `GraphError` - Raised if edge does not exist
 
     fn edge_timestamps(&self, e: EdgeRef, window: Option<Range<i64>>) -> Vec<i64> {
-        self.graph.edge_timestamps(e, window)
+        let window = match window {
+            Some(Range { start, end, .. }) => self.actual_start(start)..self.actual_end(end),
+            None => self.t_start..self.t_end,
+        };
+        self.graph.edge_timestamps(e, Some(window))
     }
 
     /// Get all temporal properties of a vertex
@@ -1051,6 +1056,16 @@ impl<G: GraphViewInternalOps> WindowedGraph<G> {
             t_start,
             t_end,
         }
+    }
+
+    /// the larger of `t_start` and `self.start()` (useful for creating nested windows)
+    fn actual_start(&self, t_start: i64) -> i64 {
+        max(t_start, self.t_start)
+    }
+
+    /// the smaller of `t_end` and `self.end()` (useful for creating nested windows)
+    fn actual_end(&self, t_end: i64) -> i64 {
+        min(t_end, self.t_end)
     }
 }
 

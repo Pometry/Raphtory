@@ -1,4 +1,5 @@
 use crate::core::Prop;
+use crate::db::graph_window::WindowedGraph;
 use crate::db::vertex::VertexView;
 use crate::db::view_api::edge::EdgeListOps;
 use crate::db::view_api::{BoxedIter, GraphViewOps, TimeOps};
@@ -199,10 +200,10 @@ pub trait VertexListOps:
         self,
         t_start: i64,
         t_end: i64,
-    ) -> BoxedIter<Self::ValueType<VertexView<Self::Graph>>>;
+    ) -> BoxedIter<Self::ValueType<VertexView<WindowedGraph<Self::Graph>>>>;
 
     /// Create views for the vertices including all events until `end` (inclusive)
-    fn at(self, end: i64) -> BoxedIter<Self::ValueType<VertexView<Self::Graph>>> {
+    fn at(self, end: i64) -> BoxedIter<Self::ValueType<VertexView<WindowedGraph<Self::Graph>>>> {
         self.window(i64::MIN, end.saturating_add(1))
     }
 
