@@ -1,5 +1,5 @@
 //! The API for querying a view of the graph in a read-only state
-use crate::dynamic::{DynamicGraph, FromGraph};
+use crate::dynamic::{DynamicGraph, IntoDynamic};
 use crate::edge::{PyEdge, PyEdges};
 use crate::utils::{expanding_impl, extract_vertex_ref, rolling_impl, window_impl};
 use crate::vertex::{PyVertex, PyVertices};

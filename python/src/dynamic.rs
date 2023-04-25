@@ -15,11 +15,11 @@ impl<G: GraphViewInternalOps + Send + Sync + 'static> DynamicGraphView for G {}
 #[derive(Clone)]
 pub struct DynamicGraph(Arc<dyn DynamicGraphView>);
 
-pub(crate) trait FromGraph {
+pub(crate) trait IntoDynamic {
     fn into_dynamic(self) -> DynamicGraph;
 }
 
-impl<G: GraphViewOps> FromGraph for G {
+impl<G: GraphViewOps> IntoDynamic for G {
     fn into_dynamic(self) -> DynamicGraph {
         DynamicGraph(Arc::new(self))
     }
