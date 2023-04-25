@@ -60,39 +60,67 @@ import pandas as pd
 graph = Graph(1)
 
 # Add some data to your graph
-graph.add_vertex(1, 1)
-graph.add_vertex(2, 2)
-graph.add_vertex(3, 3)
-graph.add_edge(4, 1, 2)
-graph.add_edge(4, 1, 3)
+graph.add_vertex(1, 1, {"name": "Alice"})
+graph.add_vertex(2, 2, {"name": "Bob"})
+graph.add_vertex(3, 3, {"name": "Charlie"})
+graph.add_edge(3, 2, 3, {"friend": "yes"})
+graph.add_edge(4, 1, 2, {"friend": "yes"})
+graph.add_vertex(5, 1, {"name": "Alice Bob"})
+graph.add_edge(4, 2, 3, {"friend": "no"})
 
 # Collect some simple vertex metrics
 # Ran across a range of the data with incremental windowing
 graph_set = graph.rolling(1)
 
-results = [["timestamp", "window", "name", "out_degree", "in_degree"]]
+results = [["timestamp", "window", "name", "out_degree", "in_degree", "properties"]]
 
 for rolling_graph in graph_set:
     for v in rolling_graph.vertices():
         window = rolling_graph.end() - rolling_graph.start()
-        results.append([rolling_graph.earliest_time(), window, v.name(), v.out_degree(), v.in_degree()])
+        results.append([rolling_graph.earliest_time(), window, v.name(), v.out_degree(), v.in_degree(), v.properties()])
     
 
-# Preview DataFrame
+# Preview DataFrame and vertex properties
 pd.DataFrame(results[1:], columns=results[0])
 ```
 
 ```a
 
-|    |   timestamp |   window |   name |   out_degree |   in_degree |
-|----|-------------|----------|--------|--------------|-------------|
-|  0 |           1 |        1 |      1 |            0 |           0 |
-|  1 |           2 |        1 |      2 |            0 |           0 |
-|  2 |           3 |        1 |      3 |            0 |           0 |
-|  3 |           4 |        1 |      1 |            2 |           0 |
-|  4 |           4 |        1 |      2 |            0 |           1 |
-|  5 |           4 |        1 |      3 |            0 |           1 |
+|    |   timestamp |   window |   name |   out_degree |   in_degree |            properties |
+|----|-------------|----------|--------|--------------|-------------|---------------------- |
+|  0 |           1 |        1 |      1 |            0 |           0 |     {'name': 'Alice'} |
+|  1 |           2 |        1 |      2 |            0 |           0 |       {'name': 'Bob'} |
+|  2 |           3 |        1 |      2 |            1 |           0 |                    {} |
+|  3 |           4 |        1 |      3 |            0 |           1 |   {'name': 'Charlie'} |
+|  4 |           4 |        1 |      1 |            1 |           0 |                    {} |
+|  5 |           4 |        1 |      2 |            1 |           1 |                    {} |
+|  6 |           4 |        1 |      3 |            0 |           1 |                    {} |
+|  7 |           5 |        1 |      1 |            0 |           1 | {'name': 'Alice Bob'} |
 ```
+
+```python
+# Again but we focus on edges
+graph_set = graph.rolling(1)
+
+results = [["timestamp", "window", "src vertex", "dst vertex", "properties"]]
+
+for rolling_graph in graph_set:
+    for e in rolling_graph.edges():
+        window = rolling_graph.end() - rolling_graph.start()
+        results.append([rolling_graph.earliest_time(), window, e.src().name(), e.dst().name(), e.properties()])
+
+# Preview Dataframe with edge properties 
+pd.DataFrame(results[1:], columns=results[0])
+```
+```a
+
+|    |   timestamp |   window | src vertex | dst vertex |          properties |
+|----|-------------|----------|------------|------------|---------------------|
+|  0 |           3 |        1 |          2 |          3 |   {'friend': 'yes'} |
+|  1 |           4 |        1 |          1 |          2 |   {'friend': 'yes'} |
+|  2 |           4 |        1 |          1 |          3 |    {'friend': 'no'} |
+```
+
 
 # Installing Raphtory 
 
