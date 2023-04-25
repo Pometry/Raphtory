@@ -1,7 +1,7 @@
 //! Defines the `Vertex`, which represents a vertex in the graph.
 //! A vertex is a node in the graph, and can have properties and edges.
 //! It can also be used to navigate the graph.
-use crate::dynamic::DynamicGraph;
+use crate::dynamic::{DynamicGraph, IntoDynamic};
 use crate::edge::{PyEdges, PyNestedEdges};
 use crate::types::repr::{iterator_repr, Repr};
 use crate::utils::{expanding_impl, extract_vertex_ref, rolling_impl, window_impl};
@@ -11,6 +11,7 @@ use itertools::Itertools;
 use pyo3::exceptions::PyIndexError;
 use pyo3::{pyclass, pymethods, PyAny, PyRef, PyRefMut, PyResult};
 use raphtory::core::tgraph::VertexRef;
+use raphtory::db::graph_window::WindowedGraph;
 use raphtory::db::path::{PathFromGraph, PathFromVertex};
 use raphtory::db::vertex::VertexView;
 use raphtory::db::vertices::Vertices;
@@ -29,6 +30,17 @@ pub struct PyVertex {
 impl From<VertexView<DynamicGraph>> for PyVertex {
     fn from(value: VertexView<DynamicGraph>) -> Self {
         PyVertex { vertex: value }
+    }
+}
+
+impl From<VertexView<WindowedGraph<DynamicGraph>>> for PyVertex {
+    fn from(value: VertexView<WindowedGraph<DynamicGraph>>) -> Self {
+        Self {
+            vertex: VertexView {
+                graph: value.graph.into_dynamic(),
+                vertex: value.vertex,
+            },
+        }
     }
 }
 
@@ -396,6 +408,14 @@ impl From<Vertices<DynamicGraph>> for PyVertices {
     }
 }
 
+impl From<Vertices<WindowedGraph<DynamicGraph>>> for PyVertices {
+    fn from(value: Vertices<WindowedGraph<DynamicGraph>>) -> Self {
+        Self {
+            vertices: Vertices::new(value.graph.into_dynamic()),
+        }
+    }
+}
+
 /// Operations on a list of vertices.
 /// These use all the same functions as a normal vertex except it returns a list of results.
 #[pymethods]
@@ -746,6 +766,17 @@ impl From<PathFromGraph<DynamicGraph>> for PyPathFromGraph {
     }
 }
 
+impl From<PathFromGraph<WindowedGraph<DynamicGraph>>> for PyPathFromGraph {
+    fn from(value: PathFromGraph<WindowedGraph<DynamicGraph>>) -> Self {
+        Self {
+            path: PathFromGraph {
+                graph: value.graph.into_dynamic(),
+                operations: value.operations,
+            },
+        }
+    }
+}
+
 #[pyclass(name = "PathFromVertex")]
 pub struct PyPathFromVertex {
     path: PathFromVertex<DynamicGraph>,
@@ -754,6 +785,18 @@ pub struct PyPathFromVertex {
 impl From<PathFromVertex<DynamicGraph>> for PyPathFromVertex {
     fn from(value: PathFromVertex<DynamicGraph>) -> Self {
         Self { path: value }
+    }
+}
+
+impl From<PathFromVertex<WindowedGraph<DynamicGraph>>> for PyPathFromVertex {
+    fn from(value: PathFromVertex<WindowedGraph<DynamicGraph>>) -> Self {
+        Self {
+            path: PathFromVertex {
+                graph: value.graph.into_dynamic(),
+                vertex: value.vertex,
+                operations: value.operations,
+            },
+        }
     }
 }
 
