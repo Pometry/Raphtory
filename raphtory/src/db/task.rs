@@ -135,16 +135,19 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
 
     pub fn run_task_list(
         &mut self,
-        total_state: Vec<(usize, Arc<Option<ShuffleComputeState<CS>>>)>,
+        total_state: Arc<Option<ShuffleComputeState<CS>>>,
         num_threads: usize,
         all_stop: &AccId<bool, bool, bool, AndDef>,
-    ) -> (bool, Vec<(usize, Arc<Option<ShuffleComputeState<CS>>>)>) {
+    ) -> (bool, Arc<Option<ShuffleComputeState<CS>>>) {
         POOL.install(move || {
             let mut new_total_state = total_state;
             let mut done = false;
 
             for task in self.tasks.iter() {
-                let updated_state = new_total_state
+                let mut task_states =
+                    self.make_total_state(num_threads, || new_total_state.clone());
+
+                let updated_state = task_states
                     .par_iter_mut()
                     .map(|(job_id, state)| {
                         let rc_local_state =
@@ -166,7 +169,13 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
                                             all_stop,
                                         );
                                     }
-                                    _ => {}
+                                    Step::Continue => {
+                                        rc_local_state.borrow_mut().accumulate_global(
+                                            self.ctx.ss,
+                                            false,
+                                            all_stop,
+                                        );
+                                    }
                                 }
                             }
                         }
@@ -186,12 +195,10 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
                 // restore the shape of new_total_state Vec<(usize, Arc<Option<ShuffleComputeState<CS>>>)> from updated state using num_threads for vec len
 
                 if let Some(arc_state) = updated_state {
-                    let mut state = Arc::try_unwrap(arc_state)
+                    let state = Arc::try_unwrap(arc_state)
                         .expect("should be able to unwrap Arc, no other reference can exist");
 
-                    state.copy_over_next_ss(self.ctx.ss);
-                    let arc_state = Arc::new(Some(state));
-                    new_total_state = self.make_total_state(num_threads, || arc_state.clone())
+                    new_total_state = Arc::new(Some(state));
                 }
 
                 if full_stop {
@@ -204,7 +211,11 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         })
     }
 
-    pub fn run(&mut self, num_threads: Option<usize>, steps: usize) -> Vec<(usize, Arc<Option<ShuffleComputeState<CS>>>)> {
+    pub fn run(
+        &mut self,
+        num_threads: Option<usize>,
+        steps: usize,
+    ) -> Arc<Option<ShuffleComputeState<CS>>> {
         // say we go over all the vertices on all the threads but we partition the vertices
         // on each thread and we only run the function if the vertex is in the partition
 
@@ -219,15 +230,19 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         let all_stop = state::def::and(u32::MAX);
         self.ctx.global_agg(all_stop);
 
-        let mut total_state = self.make_total_state(num_threads, || {
-            Arc::new(Some(ShuffleComputeState::new(graph_shards)))
-        });
+        let mut total_state = Arc::new(Some(ShuffleComputeState::new(graph_shards)));
 
         // the only benefit in this case is that we do not clone when we run with 1 thread
 
         let mut done = false;
         while !done && self.ctx.ss < steps {
             (done, total_state) = self.run_task_list(total_state, num_threads, &all_stop);
+            // copy over the state from the step that just ended
+
+            Arc::get_mut(&mut total_state)
+                .and_then(|s| s.as_mut())
+                .map(|s| s.copy_over_next_ss(self.ctx.ss));
+
             self.ctx.ss += 1;
         }
 
@@ -332,44 +347,31 @@ impl<G: GraphViewOps, CS: ComputeState> EvalVertexView<G, CS> {
     {
         self.state
             .borrow()
-            .read(self.ss, self.vv.id() as usize, agg_r)
+            .read_with_pid(self.ss, self.global_id(), self.pid(), agg_r)
             .unwrap_or(ACC::finish(&ACC::zero()))
     }
 
-    /// Try to read the previous value of the vertex state using the given accumulator.
-    pub fn try_read_prev<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
+    /// Read the prev value of the vertex state using the given accumulator.
+    /// Returns a default value if the value is not present.
+    pub fn read_prev<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
         &self,
-        acc_id: &AccId<A, IN, OUT, ACC>,
-    ) -> Result<OUT, OUT>
+        agg_r: &AccId<A, IN, OUT, ACC>,
+    ) -> OUT
     where
         A: StateType,
         OUT: std::fmt::Debug,
     {
         self.state
             .borrow()
-            .read(self.ss + 1, self.vv.id() as usize, acc_id)
-            .ok_or(ACC::finish(&ACC::zero()))
-    }
-
-    /// Read the previous value of the vertex state using the given accumulator.
-    pub fn read_prev<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
-        &self,
-        acc_id: &AccId<A, IN, OUT, ACC>,
-    ) -> OUT
-    where
-        A: StateType,
-        OUT: std::fmt::Debug,
-    {
-        self.try_read_prev::<A, IN, OUT, ACC>(acc_id)
-            .or_else(|v| Ok::<OUT, OUT>(v))
-            .unwrap()
+            .read_with_pid(self.ss + 1, self.global_id(), self.pid(), agg_r)
+            .unwrap_or(ACC::finish(&ACC::zero()))
     }
 }
 
 #[cfg(test)]
 mod tasks_tests {
     use crate::{
-        core::state::{self, ComputeStateVec},
+        core::state::{self, ComputeStateMap, ComputeStateVec},
         db::graph::Graph,
     };
 
@@ -401,10 +403,12 @@ mod tasks_tests {
         ctx.agg(min.clone());
 
         let step1 = ATask::new(TaskType::ALL, move |vv| {
+
             vv.update(&min, vv.global_id());
 
             for n in vv.neighbours() {
-                n.update(&min, vv.global_id())
+                let my_min = vv.read(&min);
+                n.update(&min, my_min)
             }
 
             Step::Continue
@@ -421,11 +425,11 @@ mod tasks_tests {
             }
         });
 
-        let mut runner: TaskRunner<Graph, ComputeStateVec> =
+        let mut runner: TaskRunner<Graph, _> =
             TaskRunner::new(vec![Box::new(step1), Box::new(step2)], ctx);
 
-        let results = runner.run(Some(2), 10);
+        let results = runner.run(Some(2), 3);
 
-        println!("{:?}", results[0]);
+        println!("{:?}", results);
     }
 }

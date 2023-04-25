@@ -3,7 +3,7 @@
 use crate::core::agg::Accumulator;
 use crate::core::utils::get_shard_id_from_global_vid;
 use rustc_hash::FxHashMap;
-use std::{any::Any, fmt::Debug, borrow::Borrow};
+use std::{any::Any, borrow::Borrow, fmt::Debug};
 
 #[derive(Debug)]
 pub struct AccId<A, IN, OUT, ACC: Accumulator<A, IN, OUT>> {
@@ -43,7 +43,7 @@ pub mod def {
     use crate::core::agg::{
         set::{BitSet, Set},
         topk::{TopK, TopKHeap},
-        AvgDef, MaxDef, MinDef, SumDef, ValDef, AndDef,
+        AndDef, AvgDef, MaxDef, MinDef, SumDef, ValDef,
     };
     use num_traits::{Bounded, Zero};
     use roaring::{RoaringBitmap, RoaringTreemap};
@@ -1005,7 +1005,13 @@ impl<CS: ComputeState + Send + Sync> ShuffleComputeState<CS> {
             .for_each(|(s, o)| s.set_from_other(o, agg_ref, ss));
     }
 
-    pub fn merge_mut_global<A, IN, OUT, ACC: Accumulator<A, IN, OUT>, B:Borrow<AccId<A, IN, OUT, ACC>>>(
+    pub fn merge_mut_global<
+        A,
+        IN,
+        OUT,
+        ACC: Accumulator<A, IN, OUT>,
+        B: Borrow<AccId<A, IN, OUT, ACC>>,
+    >(
         &mut self,
         other: &Self,
         agg_ref: B,
@@ -1076,6 +1082,21 @@ impl<CS: ComputeState + Send + Sync> ShuffleComputeState<CS> {
     {
         let part = get_shard_id_from_global_vid(g_id, self.parts.len());
         self.parts[part].accumulate_into(ss, p_id, a, agg_ref)
+    }
+
+    pub fn read_with_pid<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
+        &self,
+        ss: usize,
+        g_id: u64,
+        p_id: usize,
+        agg_ref: &AccId<A, IN, OUT, ACC>,
+    ) -> Option<OUT>
+    where
+        A: StateType,
+        OUT: Debug,
+    {
+        let part = get_shard_id_from_global_vid(g_id, self.parts.len());
+        self.parts[part].read::<A, IN, OUT, ACC>(p_id, agg_ref.id, ss)
     }
 
     pub fn accumulate_global<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
