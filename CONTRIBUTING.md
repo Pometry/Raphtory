@@ -26,7 +26,7 @@ There are many ways to contribute:
 
 ## Build Raphtory
 
-Raphtory can be built 
+Raphtory is written in Rust and Python
 
 ### Python Packages
 Raphtory python comes as two packages `pyraphtory_jvm` and `pyraphtory`. 

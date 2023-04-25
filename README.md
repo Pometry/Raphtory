@@ -133,8 +133,8 @@ Want to see what Raphtory can do? Scroll down for more.
 
 | Type | Location                                                                                                                                    | Description |
 | ------------- |---------------------------------------------------------------------------------------------------------------------------------------------| ------------- |
-| Notebook | <a href="https://github.com/Raphtory/Raphtory/blob/master/examples/py/nft/nft_analysis.ipynb">nft_analysis.ipynb</a>                        | Analysing pump and dump cycles of popular NFTs |
-| Notebook | <a href="https://github.com/Raphtory/Raphtory/blob/master/examples/py/companies-house/companies_house_example.ipynb">ppe_analysis.ipnyb</a> | Fraud and COVID-19 Relief Schemes |
+| Notebook | <a href="https://github.com/Raphtory/Raphtory/blob/master/examples/py/nft/nft_analysis.ipynb">nft_analysis.ipynb</a>                        | Use our powerful time APIs to analyse monetary cycles of 1000s of hops to find pump and dump scams of popular NFTs |
+| Notebook | <a href="https://github.com/Raphtory/Raphtory/blob/master/examples/py/companies-house/companies_house_example.ipynb">ppe_analysis.ipnyb</a> | Consolidate disparate data sources and use deep link analysis and temporal indicators to find hidden fraud patterns in COVID-19 Relief Schemes |
 
 # Want to run your own analysis?
 Learn how to use Raphtory in your analysis and project by following these links.
