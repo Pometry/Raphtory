@@ -7,7 +7,7 @@ members = [
 default-members = ["raphtory", "python"]
 
 [workspace.package]
-version = "0.0.9"
+version = "0.0.11"
 documentation = "https://raphtory.readthedocs.io/en/latest/"
 repository = "https://github.com/Raphtory/raphtory/"
 license = "AGPL-3.0-only"
