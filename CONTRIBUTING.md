@@ -81,73 +81,56 @@ Note: The path should be the path to the raphtory directory
 
 - Ensure test dependencies are installed
     ```bash
-    $ python -m pip install nbmake tox pytest-xdist
+    $ python -m pip install -q pytest networkx numpy seaborn pandas nbmake pytest-xdist matplotlib
     ```
 
 - To run `raphtory` python tests
     ```bash
-    $ cd python/pyraphtory_jvm && tox -p -o
+    $ cd python && pytest
     ```
 
-- To run `raphtory` rust
+- To run `raphtory` rust tests
     ```bash
-    $ cd python/pyraphtory && poetry run pytest -n=auto
+    $ cargo test
     ```
+  
+To run python tests please ensure you have inst0
 
 - To run notebook tests
     ```bash
-    $ cd examples && pytest --nbmake -n=auto
+    $ cd python/tests && pytest --nbmake --nbmake-timeout=1200 .
     ```
 
 - To run documentation notebook tests
     ```bash
     $ cd docs && pytest --nbmake -n=auto
     ```
-
+- To run documentation tests
+    ```bash
+    $ sudo apt update && sudo apt install -y pandoc make python3-sphinx
+    $ cd docs && pip install -q -r requirements.txt && make html
+    ```
 
 ## Update Docs
-Raphtory documentations can be found in `docs` directory. They are built using [Sphinx](https://www.sphinx-doc.org/en/master/).
+Raphtory documentations can be found in `docs` directory. 
+They are built using [Sphinx](https://www.sphinx-doc.org/en/master/) and hosted by readthedocs. 
 
 After making your changes, you're good to build them. 
 
 - Ensure that all developement dependencies are already installed.
     ```bash
-    $ pip install \
-        ipykernel \
-        autodoc \
-        myst-parser \
-        sphinx-rtd-theme \
-        sphinx \
-        docutils \
-        sphinx-tabs \
-        nbsphinx
-    ```
-
-- Build Raphtory
-    ```bash
-    $ cd Raphtory
-    $ make sbt-build
-    $ make python-build
+    $ cd docs && pip install -q -r requirements.txt
     ```
 
 - Build docs
     ```bash
-    $ cd docs
-    $ make html
+    $ cd docs && make html
     ```
 
 - View docs
     ```bash
     $ open build/html/index.html
     ```
-  
-    **Note**: If you're not editing Scaladocs, you can disabled building Scaladocs to greatly speed up build times. Just set following flags to `False` in `docs/source/conf.py`:
-
-    ```bash
-    build_scaladocs = True
-    build_algodocs = True
-    ```
-
     
 ## Bounty Board 
 Our bounty board lists algorithms and features we would like to build into Raphtory. 
