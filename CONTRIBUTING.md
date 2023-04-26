@@ -135,7 +135,7 @@ After making your changes, you're good to build them.
 ## Bounty Board 
 Our bounty board lists algorithms and features we would like to build into Raphtory. 
 
-You may want to start [here](https://www.raphtory.com/algorithm-bounty/). 
+You may want to start [here](https://github.com/Raphtory/Raphtory/discussions/categories/bounty-board/). 
 
 ## Community Guidelines
 This project follows [Google's Open Source Community Guidelines](https://opensource.google.com/conduct/).

@@ -176,7 +176,7 @@ Learn how to use Raphtory in your analysis and project by following these links.
 
 Raphtory is currently offering rewards for contributions, such as new features or algorithms. Contributors will receive swag and prizes! 
 
-To get started, check out our list of desired algorithms at https://www.raphtory.com/algorithm-bounty/ which include some low hanging fruit (🍇) that are easy to implement. 
+To get started, check out our list of desired algorithms at https://github.com/Raphtory/Raphtory/discussions/categories/bounty-board which include some low hanging fruit (🍇) that are easy to implement. 
 
 
 # Community  
