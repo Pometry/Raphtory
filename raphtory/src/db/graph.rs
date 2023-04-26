@@ -269,11 +269,11 @@ impl GraphViewInternalOps for Graph {
         match layer {
             Some(layer) => Box::new(
                 self.vertex_refs()
-                    .flat_map(move |v| g.vertex_edges_single_layer(v, Direction::OUT, layer)),
+                    .flat_map(move |v| g.vertex_edges(v, Direction::OUT, Some(layer))),
             ),
             None => Box::new(
                 self.vertex_refs()
-                    .flat_map(move |v| g.vertex_edges_all_layers(v, Direction::OUT)),
+                    .flat_map(move |v| g.vertex_edges(v, Direction::OUT, None)),
             ),
         }
     }
@@ -293,33 +293,13 @@ impl GraphViewInternalOps for Graph {
     }
 
     // FIXME: we should be able to have just `vertex_edges` which gets layer: Option<usize>
-    // fn vertex_edges(
-    //     &self,
-    //     v: VertexRef,
-    //     d: Direction,
-    //     layer: Option<usize>,
-    // ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
-    //     Box::new(self.get_shard_from_v(v).vertex_edges(v.g_id, d, layer))
-    // }
-
-    fn vertex_edges_all_layers(
+    fn vertex_edges(
         &self,
         v: VertexRef,
         d: Direction,
+        layer: Option<usize>,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
-        Box::new(self.get_shard_from_v(v).vertex_edges(v.g_id, d, None))
-    }
-
-    fn vertex_edges_single_layer(
-        &self,
-        v: VertexRef,
-        d: Direction,
-        layer: usize,
-    ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
-        Box::new(
-            self.get_shard_from_v(v)
-                .vertex_edges(v.g_id, d, Some(layer)),
-        )
+        Box::new(self.get_shard_from_v(v).vertex_edges(v.g_id, d, layer))
     }
 
     fn vertex_edges_t(

@@ -1,6 +1,5 @@
 use raphtory::core::tgraph::{EdgeRef, VertexRef};
 use raphtory::core::{Direction, Prop};
-use raphtory::db::graph::Graph;
 use raphtory::db::view_api::internal::GraphViewInternalOps;
 use raphtory::db::view_api::GraphViewOps;
 use std::collections::HashMap;
@@ -204,23 +203,6 @@ impl GraphViewInternalOps for DynamicGraph {
         self.0.edge_refs_window(t_start, t_end, layer)
     }
 
-    fn vertex_edges_all_layers(
-        &self,
-        v: VertexRef,
-        d: Direction,
-    ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
-        self.0.vertex_edges_all_layers(v, d)
-    }
-
-    fn vertex_edges_single_layer(
-        &self,
-        v: VertexRef,
-        d: Direction,
-        layer: usize,
-    ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
-        self.0.vertex_edges_single_layer(v, d, layer)
-    }
-
     fn vertex_edges_t(
         &self,
         v: VertexRef,
@@ -387,5 +369,9 @@ impl GraphViewInternalOps for DynamicGraph {
         t_end: i64,
     ) -> Box<dyn Iterator<Item = VertexRef> + Send> {
         self.0.vertices_shard_window(shard_id, t_start, t_end)
+    }
+
+    fn vertex_edges(&self, v: VertexRef, d: Direction, layer: Option<usize>) -> Box<dyn Iterator<Item=EdgeRef> + Send> {
+        self.0.vertex_edges(v, d, layer)
     }
 }

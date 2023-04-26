@@ -196,7 +196,7 @@ impl TemporalGraph {
         // First check if src exists within the given window
         self.has_vertex_window(src, w) && {
             let src_pid = self.logical_to_physical[&src];
-            if self.has_vertex_window(dst, &w) {
+            if self.has_vertex_window(dst, w) {
                 let dst_pid = self.logical_to_physical[&dst];
                 self.layers[layer].has_local_edge_window(src_pid, dst_pid, w)
             } else {

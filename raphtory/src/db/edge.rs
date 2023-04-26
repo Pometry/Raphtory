@@ -14,7 +14,6 @@ use crate::db::view_api::{BoxedIter, EdgeListOps, GraphViewOps, TimeOps};
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 use std::iter;
-use std::ops::Range;
 
 /// A view of an edge in the graph.
 #[derive(Clone)]

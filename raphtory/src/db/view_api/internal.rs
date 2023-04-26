@@ -267,23 +267,17 @@ pub trait GraphViewInternalOps {
     ///
     /// * `v` - A reference to the vertex for which the edges are being queried.
     /// * `d` - The direction in which to search for edges.
+    /// * `layer` - The optional layer to consider
     ///
     /// # Returns
     ///
     /// Box<dyn Iterator<Item = EdgeRef> + Send> -  A boxed iterator that yields references to
     /// the edges connected to the vertex.
-
-    fn vertex_edges_all_layers(
+    fn vertex_edges(
         &self,
         v: VertexRef,
         d: Direction,
-    ) -> Box<dyn Iterator<Item = EdgeRef> + Send>;
-
-    fn vertex_edges_single_layer(
-        &self,
-        v: VertexRef,
-        d: Direction,
-        layer: usize,
+        layer: Option<usize>,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send>;
 
     /// Returns an iterator over the exploded edges connected to a given vertex in a given direction.

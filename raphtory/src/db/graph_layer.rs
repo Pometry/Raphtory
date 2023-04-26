@@ -218,27 +218,6 @@ impl<G: GraphViewInternalOps> GraphViewInternalOps for LayeredGraph<G> {
             .unwrap_or_else(|| Box::new(std::iter::empty()))
     }
 
-    fn vertex_edges_all_layers(
-        &self,
-        v: VertexRef,
-        d: Direction,
-    ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
-        self.graph.vertex_edges_single_layer(v, d, self.layer)
-    }
-
-    fn vertex_edges_single_layer(
-        &self,
-        v: VertexRef,
-        d: Direction,
-        layer: usize,
-    ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
-        if layer == self.layer {
-            self.graph.vertex_edges_single_layer(v, d, layer)
-        } else {
-            Box::new(std::iter::empty())
-        }
-    }
-
     fn vertex_edges_t(
         &self,
         v: VertexRef,
@@ -443,5 +422,9 @@ impl<G: GraphViewInternalOps> GraphViewInternalOps for LayeredGraph<G> {
 
     fn edge_timestamps(&self, e: EdgeRef, window: Option<Range<i64>>) -> Vec<i64> {
         self.graph.edge_timestamps(e, window)
+    }
+
+    fn vertex_edges(&self, v: VertexRef, d: Direction, layer: Option<usize>) -> Box<dyn Iterator<Item=EdgeRef> + Send> {
+        self.graph.vertex_edges(v, d, self.constrain(layer))
     }
 }
