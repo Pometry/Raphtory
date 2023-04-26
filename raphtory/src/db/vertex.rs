@@ -10,11 +10,11 @@ use crate::db::view_api::layer::LayerOps;
 use crate::db::view_api::vertex::VertexViewOps;
 use crate::db::view_api::{BoxedIter, GraphViewOps, TimeOps, VertexListOps};
 use std::collections::HashMap;
-use std::ops::Range;
+use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub struct VertexView<G: GraphViewOps> {
-    pub graph: G,
+    pub graph: Arc<G>,
     pub vertex: VertexRef,
 }
 
@@ -32,7 +32,7 @@ impl<G: GraphViewOps> From<&VertexView<G>> for VertexRef {
 
 impl<G: GraphViewOps> VertexView<G> {
     /// Creates a new `VertexView` wrapping a vertex reference and a graph.
-    pub(crate) fn new(graph: G, vertex: VertexRef) -> VertexView<G> {
+    pub(crate) fn new(graph: Arc<G>, vertex: VertexRef) -> VertexView<G> {
         VertexView { graph, vertex }
     }
 }
@@ -216,7 +216,7 @@ impl<G: GraphViewOps> TimeOps for VertexView<G> {
 
     fn window(&self, t_start: i64, t_end: i64) -> Self::WindowedViewType {
         VertexView {
-            graph: self.graph.window(t_start, t_end),
+            graph: Arc::new(self.graph.window(t_start, t_end)),
             vertex: self.vertex,
         }
     }

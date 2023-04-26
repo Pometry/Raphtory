@@ -18,13 +18,13 @@ use crate::db::view_api::{BoxedIter, EdgeListOps, GraphViewOps, TimeOps};
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 use std::iter;
-use std::ops::Range;
+use std::sync::Arc;
 
 /// A view of an edge in the graph.
 #[derive(Clone)]
 pub struct EdgeView<G: GraphViewOps> {
     /// A view of an edge in the graph.
-    pub graph: G,
+    pub graph: Arc<G>,
     /// A reference to the edge.
     pub edge: EdgeRef,
 }
@@ -50,8 +50,12 @@ impl<G: GraphViewOps> EdgeView<G> {
     /// # Returns
     ///
     /// A new `EdgeView`.
-    pub(crate) fn new(graph: G, edge: EdgeRef) -> Self {
+    pub(crate) fn new(graph: Arc<G>, edge: EdgeRef) -> Self {
         EdgeView { graph, edge }
+    }
+
+    pub fn new_from_graph(graph: G, edge: EdgeRef) -> Self {
+        EdgeView { graph: Arc::new(graph), edge }
     }
 
     /// Returns a reference to the underlying edge reference.
@@ -234,7 +238,7 @@ impl<G: GraphViewOps> TimeOps for EdgeView<G> {
 
     fn window(&self, t_start: i64, t_end: i64) -> Self::WindowedViewType {
         EdgeView {
-            graph: self.graph.window(t_start, t_end),
+            graph: Arc::new(self.graph.window(t_start, t_end)),
             edge: self.edge,
         }
     }

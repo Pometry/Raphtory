@@ -9,7 +9,7 @@ use crate::db::view_api::layer::LayerOps;
 use crate::db::view_api::BoxedIter;
 use crate::db::view_api::*;
 use std::collections::HashMap;
-use std::ops::Range;
+use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct Vertices<G: GraphViewOps> {
@@ -22,7 +22,7 @@ impl<G: GraphViewOps> Vertices<G> {
     }
 
     pub fn iter(&self) -> Box<dyn Iterator<Item = VertexView<G>> + Send> {
-        let g = self.graph.clone();
+        let g = Arc::new(self.graph.clone());
         Box::new(g.vertex_refs().map(move |v| VertexView::new(g.clone(), v)))
     }
 
@@ -123,17 +123,17 @@ impl<G: GraphViewOps> VertexViewOps for Vertices<G> {
 
     fn neighbours(&self) -> PathFromGraph<G> {
         let dir = Direction::BOTH;
-        PathFromGraph::new(self.graph.clone(), Operations::Neighbours { dir })
+        PathFromGraph::new(Arc::new(self.graph.clone()), Operations::Neighbours { dir })
     }
 
     fn in_neighbours(&self) -> PathFromGraph<G> {
         let dir = Direction::IN;
-        PathFromGraph::new(self.graph.clone(), Operations::Neighbours { dir })
+        PathFromGraph::new(Arc::new(self.graph.clone()), Operations::Neighbours { dir })
     }
 
     fn out_neighbours(&self) -> PathFromGraph<G> {
         let dir = Direction::OUT;
-        PathFromGraph::new(self.graph.clone(), Operations::Neighbours { dir })
+        PathFromGraph::new(Arc::new( self.graph.clone() ), Operations::Neighbours { dir })
     }
 }
 

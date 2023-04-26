@@ -142,7 +142,7 @@ impl<G: GraphViewOps, CS: ComputeState> BaseLocalState<G, CS> {
     where
         F: Fn(EvalVertexView<G, CS>),
     {
-        let graph = self.graph.clone();
+        let graph = Arc::new(self.graph.clone());
 
         let iter: Box<dyn Iterator<Item = VertexView<G>>> = match self.next_vertex_set {
             None => Box::new(

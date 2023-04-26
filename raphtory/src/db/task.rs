@@ -1,23 +1,62 @@
 // the main execution unit of an algorithm
 
+use std::borrow::Cow;
 use std::cell::RefCell;
+use std::cmp::min;
+use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 use std::sync::Arc;
+use std::time::Instant;
 
 use once_cell::sync::Lazy;
 use rayon::prelude::*;
 use rayon::{ThreadPool, ThreadPoolBuilder};
+use replace_with::{replace_with_and_return, replace_with_or_abort};
 use rustc_hash::FxHashMap;
 
 use crate::core::agg::{Accumulator, AndDef};
 use crate::core::state::{
     self, AccId, ComputeState, ComputeStateVec, ShuffleComputeState, StateType,
 };
+use crate::core::tgraph::VertexRef;
 use crate::core::utils::get_shard_id_from_global_vid;
 
 use super::vertex::VertexView;
 use super::view_api::internal::GraphViewInternalOps;
-use super::view_api::{GraphViewOps, VertexViewOps};
+
+enum Sheep<T: Clone> {
+    Borrow(Arc<T>),
+    Own(T),
+}
+
+impl<T: Clone> Deref for Sheep<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            Sheep::Borrow(a) => &a,
+            Sheep::Own(t) => &t,
+        }
+    }
+}
+
+impl<T: Clone> DerefMut for Sheep<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        match self {
+            Sheep::Own(ref mut own) => return own,
+            _ => {
+                replace_with_or_abort(self, |mut _self| match _self {
+                    Sheep::Borrow(a) => {
+                        let b = Arc::try_unwrap(a).unwrap_or_else(|a| (*a).clone());
+                        Sheep::Own(b)
+                    }
+                    _ => unreachable!(),
+                });
+                self.deref_mut()
+            }
+        }
+    }
+}
 
 #[derive(Debug, PartialEq)]
 pub enum Step {
@@ -197,44 +236,51 @@ impl<G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeState> 
         &mut self,
         total_state: Arc<Option<ShuffleComputeState<CS>>>,
         num_threads: usize,
+        num_shards: usize,
         all_stop: &AccId<bool, bool, bool, AndDef>,
     ) -> (bool, Arc<Option<ShuffleComputeState<CS>>>) {
         POOL.install(move || {
             let mut new_total_state = total_state;
             let mut done = false;
 
+            let num_tasks = min(num_shards, num_threads);
+
             for task in self.tasks.iter() {
-                let mut task_states =
-                    self.make_total_state(num_threads, || new_total_state.clone());
+                let mut task_states = self.make_total_state(num_tasks, || new_total_state.clone());
 
                 let updated_state = task_states
                     .par_iter_mut()
                     .map(|(job_id, state)| {
+                        let a = Arc::make_mut(state).take().unwrap();
+                        let sheep_a = Sheep::Borrow(Arc::new(a));
                         let rc_local_state =
-                            Rc::new(RefCell::new(Arc::make_mut(state).take().unwrap())); // make_mut clones the state
+                            Rc::new(RefCell::new(sheep_a)); // make_mut clones the state
 
-                        for vertex in self.ctx.g.vertices() {
-                            if self.is_vertex_in_job(&vertex, num_threads, *job_id) {
-                                let vv = EvalVertexView::new(
-                                    self.ctx.ss,
-                                    vertex,
-                                    rc_local_state.clone(),
-                                );
+                        for shard in 0..num_shards {
+                            if shard % num_tasks == *job_id {
+                                for vertex in self.ctx.g.vertices_shard(shard) {
+                                    let vv = EvalVertexView::new(
+                                        self.ctx.ss,
+                                        vertex,
+                                        self.ctx.g.clone(),
+                                        rc_local_state.clone(),
+                                    );
 
-                                match task.run(&vv) {
-                                    Step::Done => {
-                                        rc_local_state.borrow_mut().accumulate_global(
-                                            self.ctx.ss,
-                                            true,
-                                            all_stop,
-                                        );
-                                    }
-                                    Step::Continue => {
-                                        rc_local_state.borrow_mut().accumulate_global(
-                                            self.ctx.ss,
-                                            false,
-                                            all_stop,
-                                        );
+                                    match task.run(&vv) {
+                                        Step::Done => {
+                                            rc_local_state.borrow_mut().accumulate_global(
+                                                self.ctx.ss,
+                                                true,
+                                                all_stop,
+                                            );
+                                        }
+                                        Step::Continue => {
+                                            rc_local_state.borrow_mut().accumulate_global(
+                                                self.ctx.ss,
+                                                false,
+                                                all_stop,
+                                            );
+                                        }
                                     }
                                 }
                             }
@@ -302,7 +348,8 @@ impl<G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeState> 
 
         let mut done = false;
         while !done && self.ctx.ss < steps {
-            (done, total_state) = self.run_task_list(total_state, num_threads, &all_stop);
+            (done, total_state) =
+                self.run_task_list(total_state, num_threads, graph_shards, &all_stop);
             // copy and reset the state from the step that just ended
 
             Arc::get_mut(&mut total_state)
@@ -356,45 +403,48 @@ pub fn custom_pool(n_threads: usize) -> Arc<ThreadPool> {
 pub struct EvalVertexView<G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeState>
 {
     ss: usize,
-    vv: VertexView<G>,
+    vv: VertexRef,
+    g: Arc<G>,
     state: Rc<RefCell<ShuffleComputeState<CS>>>,
 }
 
 impl<G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeState>
     EvalVertexView<G, CS>
 {
-    fn new(ss: usize, vertex: VertexView<G>, state: Rc<RefCell<ShuffleComputeState<CS>>>) -> Self {
+    fn new(
+        ss: usize,
+        vertex: VertexRef,
+        g: Arc<G>,
+        state: Rc<RefCell<ShuffleComputeState<CS>>>,
+    ) -> Self {
         Self {
             ss,
             vv: vertex,
+            g,
             state,
         }
     }
 
     fn global_id(&self) -> u64 {
-        self.vv.vertex.g_id
+        self.vv.g_id
     }
 
     // TODO: do we always look-up the pid in the graph? or when calling neighbours we look-it up?
     fn pid(&self) -> usize {
-        if let Some(pid) = self.vv.vertex.pid {
+        if let Some(pid) = self.vv.pid {
             pid
         } else {
-            self.vv
-                .graph
-                .vertex(self.global_id())
-                .unwrap()
-                .vertex
-                .pid
+            self.g
+                .vertex_ref(self.global_id())
+                .and_then(|v_ref| v_ref.pid)
                 .unwrap()
         }
     }
 
     pub fn neighbours(&self) -> impl Iterator<Item = Self> + '_ {
-        self.vv
-            .neighbours()
-            .iter()
-            .map(move |vv| EvalVertexView::new(self.ss, vv, self.state.clone()))
+        self.g
+            .neighbours(self.vv, crate::core::Direction::BOTH, None)
+            .map(move |vv| EvalVertexView::new(self.ss, vv, self.g.clone(), self.state.clone()))
     }
 
     pub fn update<A: StateType, IN: 'static, OUT: 'static, ACC: Accumulator<A, IN, OUT>>(
@@ -440,7 +490,11 @@ impl<G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeState>
     }
 }
 
-pub fn weakly_connected_components<G>(graph: &G, iter_count: usize) -> FxHashMap<u64, u64>
+pub fn weakly_connected_components<G>(
+    graph: &G,
+    iter_count: usize,
+    threads: usize,
+) -> FxHashMap<u64, u64>
 where
     G: GraphViewInternalOps + Send + Sync + Clone + 'static,
 {
@@ -475,7 +529,7 @@ where
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(vec![Box::new(step1), Box::new(step2)], ctx);
 
-    let results = runner.run(Some(2), iter_count);
+    let results = runner.run(Some(threads), iter_count);
 
     if let Some(state) = results.as_ref() {
         let mut map: FxHashMap<u64, u64> = FxHashMap::default();
@@ -522,7 +576,7 @@ mod tasks_tests {
             graph.add_edge(ts, src, dst, &vec![], None).unwrap();
         }
 
-        let actual = weakly_connected_components(&graph, usize::MAX);
+        let actual = weakly_connected_components(&graph, usize::MAX, 2);
 
         let expected: FxHashMap<u64, u64> = vec![
             (1, 1),
@@ -574,7 +628,7 @@ mod tasks_tests {
             graph.add_edge(ts, src, dst, &vec![], None).unwrap();
         }
 
-        let results: FxHashMap<u64, u64> = weakly_connected_components(&graph, usize::MAX);
+        let results: FxHashMap<u64, u64> = weakly_connected_components(&graph, usize::MAX, 4);
 
         assert_eq!(
             results,
@@ -609,7 +663,7 @@ mod tasks_tests {
 
         let window = 0..25;
 
-        let results: FxHashMap<u64, u64> = weakly_connected_components(&graph, usize::MAX);
+        let results: FxHashMap<u64, u64> = weakly_connected_components(&graph, usize::MAX, 2);
 
         assert_eq!(
             results,
@@ -635,7 +689,7 @@ mod tasks_tests {
             assert_eq!(edges[0].0, first);
             assert_eq!(edges.last().unwrap().1, first);
 
-            let graph = Graph::new(2);
+            let graph = Graph::new(4);
 
             for (src, dst) in edges.iter() {
                 graph.add_edge(0, *src, *dst, &vec![], None).unwrap();
@@ -645,7 +699,8 @@ mod tasks_tests {
 
             let window = 0..1;
 
-            let components: FxHashMap<u64, u64> = weakly_connected_components(&graph, usize::MAX);
+            let components: FxHashMap<u64, u64> =
+                weakly_connected_components(&graph, usize::MAX, 4);
 
             let actual = components
                 .iter()

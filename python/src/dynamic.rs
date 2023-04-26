@@ -18,11 +18,16 @@ pub struct DynamicGraph(Arc<dyn DynamicGraphView>);
 
 pub(crate) trait IntoDynamic {
     fn into_dynamic(self) -> DynamicGraph;
+    fn into_dynamic_arc(&self) -> DynamicGraph;
 }
 
 impl IntoDynamic for Graph {
     fn into_dynamic(self) -> DynamicGraph {
-        DynamicGraph(Arc::new(self))
+        DynamicGraph(self.as_arc())
+    }
+
+    fn into_dynamic_arc(&self) -> DynamicGraph {
+        DynamicGraph(self.as_arc())
     }
 }
 
