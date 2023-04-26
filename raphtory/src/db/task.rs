@@ -1,17 +1,14 @@
 // the main execution unit of an algorithm
 
-use std::borrow::Cow;
 use std::cell::RefCell;
 use std::cmp::min;
-use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use std::time::Instant;
 
 use once_cell::sync::Lazy;
 use rayon::prelude::*;
 use rayon::{ThreadPool, ThreadPoolBuilder};
-use replace_with::{replace_with_and_return, replace_with_or_abort};
 use rustc_hash::FxHashMap;
 
 use crate::core::agg::{Accumulator, AndDef};
@@ -23,40 +20,6 @@ use crate::core::utils::get_shard_id_from_global_vid;
 
 use super::vertex::VertexView;
 use super::view_api::internal::GraphViewInternalOps;
-
-enum Sheep<T: Clone> {
-    Borrow(Arc<T>),
-    Own(T),
-}
-
-impl<T: Clone> Deref for Sheep<T> {
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        match self {
-            Sheep::Borrow(a) => &a,
-            Sheep::Own(t) => &t,
-        }
-    }
-}
-
-impl<T: Clone> DerefMut for Sheep<T> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        match self {
-            Sheep::Own(ref mut own) => return own,
-            _ => {
-                replace_with_or_abort(self, |mut _self| match _self {
-                    Sheep::Borrow(a) => {
-                        let b = Arc::try_unwrap(a).unwrap_or_else(|a| (*a).clone());
-                        Sheep::Own(b)
-                    }
-                    _ => unreachable!(),
-                });
-                self.deref_mut()
-            }
-        }
-    }
-}
 
 #[derive(Debug, PartialEq)]
 pub enum Step {
@@ -88,6 +51,11 @@ where
 pub enum TaskType {
     ALL,
     UPDATED_ONLY,
+}
+
+pub enum Job<G, CS> {
+    Read(Box<dyn Task<G, CS> + Sync + Send>),
+    Write(Box<dyn Task<G, CS> + Sync + Send>),
 }
 
 impl<G, CS, F> ATask<G, CS, F>
@@ -232,6 +200,66 @@ impl<G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeState> 
             .collect::<Vec<_>>()
     }
 
+    fn run_task(
+        &self,
+        state: &mut Arc<Option<ShuffleComputeState<CS>>>,
+        num_shards: usize,
+        num_tasks: usize,
+        job_id: &usize,
+        done_v2: &AtomicBool,
+        task: &Box<dyn Task<G, CS> + Send + Sync>,
+    ) -> Arc<ShuffleComputeState<CS>> {
+        let rc_local_state = Rc::new(RefCell::new(Arc::make_mut(state).take().unwrap())); // make_mut clones the state
+
+        for shard in 0..num_shards {
+            if shard % num_tasks == *job_id {
+                for vertex in self.ctx.g.vertices_shard(shard) {
+                    let vv = EvalVertexView::new(
+                        self.ctx.ss,
+                        vertex,
+                        self.ctx.g.clone(),
+                        rc_local_state.clone(),
+                    );
+
+                    match task.run(&vv) {
+                        Step::Done => {
+                            let _ = done_v2.compare_exchange(
+                                false,
+                                true,
+                                Ordering::Relaxed,
+                                Ordering::Relaxed,
+                            );
+
+                            // rc_local_state.borrow_mut().accumulate_global(
+                            //     self.ctx.ss,
+                            //     true,
+                            //     all_stop,
+                            // );
+                        }
+                        Step::Continue => {
+                            let _ = done_v2.compare_exchange(
+                                true,
+                                false,
+                                Ordering::Relaxed,
+                                Ordering::Relaxed,
+                            );
+
+                            // rc_local_state.borrow_mut().accumulate_global(
+                            //     self.ctx.ss,
+                            //     false,
+                            //     all_stop,
+                            // );
+                        }
+                    }
+                }
+            }
+        }
+
+        let state: ShuffleComputeState<CS> = Rc::try_unwrap(rc_local_state).unwrap().into_inner();
+
+        Arc::new(state)
+    }
+
     pub fn run_task_list(
         &mut self,
         total_state: Arc<Option<ShuffleComputeState<CS>>>,
@@ -248,49 +276,11 @@ impl<G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeState> 
             for task in self.tasks.iter() {
                 let mut task_states = self.make_total_state(num_tasks, || new_total_state.clone());
 
+                let done_v2 = AtomicBool::new(true);
+
                 let updated_state = task_states
                     .par_iter_mut()
-                    .map(|(job_id, state)| {
-                        let a = Arc::make_mut(state).take().unwrap();
-                        let sheep_a = Sheep::Borrow(Arc::new(a));
-                        let rc_local_state =
-                            Rc::new(RefCell::new(sheep_a)); // make_mut clones the state
-
-                        for shard in 0..num_shards {
-                            if shard % num_tasks == *job_id {
-                                for vertex in self.ctx.g.vertices_shard(shard) {
-                                    let vv = EvalVertexView::new(
-                                        self.ctx.ss,
-                                        vertex,
-                                        self.ctx.g.clone(),
-                                        rc_local_state.clone(),
-                                    );
-
-                                    match task.run(&vv) {
-                                        Step::Done => {
-                                            rc_local_state.borrow_mut().accumulate_global(
-                                                self.ctx.ss,
-                                                true,
-                                                all_stop,
-                                            );
-                                        }
-                                        Step::Continue => {
-                                            rc_local_state.borrow_mut().accumulate_global(
-                                                self.ctx.ss,
-                                                false,
-                                                all_stop,
-                                            );
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        let state: ShuffleComputeState<CS> =
-                            Rc::try_unwrap(rc_local_state).unwrap().into_inner();
-
-                        Arc::new(state)
-                    })
+                    .map(|(job_id, state)| self.run_task(state, num_shards, num_tasks, job_id, &done_v2, task))
                     .reduce_with(|a, b| self.merge_states(a, b));
 
                 let full_stop = updated_state
