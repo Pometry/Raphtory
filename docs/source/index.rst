@@ -25,7 +25,7 @@ Raphtory can be installed using pip::
 
     pip install raphtory
 
-We also have supporting for building from source and installing the rust version, please see :doc:`installed <Introduction/install>`.
+We also have supporting for building from source and installing the rust version, please see :doc:`installed <install/rust/install>`.
 
 If you want to dive headfirst into the API's you can visit the  :doc:`Python and Rust docs <api/index>`.
 
