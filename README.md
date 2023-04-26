@@ -1,3 +1,5 @@
+# This project has been migrated to [Raphtory/Raphtory](https://www.github.com/Raphtory/Raphtory). Please go there for future developments 
+
 <br>
 <p align="center">
 <img src="https://user-images.githubusercontent.com/25484244/218704919-2c725e79-86ee-408d-b1f8-1362d086f876.png" alt="Raphtory"/>
