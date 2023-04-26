@@ -26,7 +26,7 @@ pub fn local_triangle_count_analysis(c: &mut Criterion) {
     let mut group = c.benchmark_group("local_triangle_count");
     group.sample_size(10);
     bench(&mut group, "local_triangle_count", None, |b| {
-        let g = raphtory::graph_loader::lotr_graph::lotr_graph(1);
+        let g = raphtory::graph_loader::example::lotr_graph::lotr_graph(1);
         let windowed_graph = g.window(i64::MIN, i64::MAX);
 
         b.iter(|| {
