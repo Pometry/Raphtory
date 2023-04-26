@@ -195,7 +195,7 @@ pub fn run_analysis_benchmarks<F, G>(
         .into_iter()
         .map(|e| (e.src().id(), e.dst().id()))
         .collect();
-    let vertices: Vec<u64> = graph.vertex_ids().collect();
+    let vertices: HashSet<u64> = graph.vertices().id().collect();
 
     bench(group, "num_edges", parameter, |b: &mut Bencher| {
         b.iter(|| graph.num_edges())
@@ -215,8 +215,8 @@ pub fn run_analysis_benchmarks<F, G>(
             let mut rng = rand::thread_rng();
             let edge = loop {
                 let edge: (u64, u64) = (
-                    *vertices.choose(&mut rng).expect("non-empty graph"),
-                    *vertices.choose(&mut rng).expect("non-empty graph"),
+                    *vertices.iter().choose(&mut rng).expect("non-empty graph"),
+                    *vertices.iter().choose(&mut rng).expect("non-empty graph"),
                 );
                 if !edges.contains(&edge) {
                     break edge;
@@ -228,6 +228,21 @@ pub fn run_analysis_benchmarks<F, G>(
 
     bench(group, "num_vertices", parameter, |b: &mut Bencher| {
         b.iter(|| graph.num_vertices())
+    });
+
+    bench(group, "has_vertex_existing", parameter, |b: &mut Bencher| {
+        let mut rng = rand::thread_rng();
+        let v = *vertices.iter().choose(&mut rng).expect("non-empty graph");
+        b.iter(|| graph.has_vertex(v))
+    });
+
+    bench(group, "has_vertex_nonexisting", parameter, |b: &mut Bencher| {
+        let mut rng = rand::thread_rng();
+        let v: u64 = loop { let v: u64 = rng.gen();
+        if !vertices.contains(&v) {
+            break v
+        }};
+        b.iter(|| graph.has_vertex(v))
     });
 
     bench(group, "max_id", parameter, |b: &mut Bencher| {
@@ -245,7 +260,7 @@ pub fn run_analysis_benchmarks<F, G>(
         |b: &mut Bencher| {
             let mut rng = rand::thread_rng();
             let v = graph
-                .vertex(*vertices.choose(&mut rng).expect("non-empty graph"))
+                .vertex(*vertices.iter().choose(&mut rng).expect("non-empty graph"))
                 .expect("existing vertex");
             b.iter(|| v.neighbours().degree().max())
         },
