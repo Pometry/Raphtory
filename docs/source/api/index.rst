@@ -14,3 +14,12 @@ Rust
 
 
 .. _Rust Docs: ../_static/raphtory/index.html
+
+
+Updating
+========
+
+.. toctree::
+   :maxdepth: 3
+
+   update

@@ -1,0 +1,11 @@
+numpy
+pandas
+matplotlib
+tqdm
+raphtory
+requests
+pyvis
+seaborn
+scipy
+Scrapy
+networkx

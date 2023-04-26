@@ -1,0 +1,5 @@
+# exclude .ipynb from stats
+*.ipynb -linguist-vendored
+
+# exclude docs from stats
+docs/* -linguist-documentation
