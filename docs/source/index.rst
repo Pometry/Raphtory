@@ -38,14 +38,19 @@ If you would like a brief summary of what it's used for before fully diving into
    :caption: Quick Start (Python)
 
    install/python/raphtory.ipynb
+   install/python/build.md
+   install/python/test.md
 
 .. toctree::
    :maxdepth: 1
    :hidden:
    :caption: Quick Start (Rust)
 
+   install/rust/install.md
    Introduction/quickstart.md
-   Introduction/install.md
+   install/rust/build.md
+   install/rust/test.md
+
 
 .. toctree::
    :maxdepth: 1

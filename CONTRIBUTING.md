@@ -93,8 +93,6 @@ Note: The path should be the path to the raphtory directory
     ```bash
     $ cargo test
     ```
-  
-To run python tests please ensure you have inst0
 
 - To run notebook tests
     ```bash
@@ -107,7 +105,7 @@ To run python tests please ensure you have inst0
     ```
 - To run documentation tests
     ```bash
-    $ sudo apt update && sudo apt install -y pandoc make python3-sphinx
+    $ sudo apt update.md && sudo apt install -y pandoc make python3-sphinx
     $ cd docs && pip install -q -r requirements.txt && make html
     ```
 
