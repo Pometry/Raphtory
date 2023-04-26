@@ -30,6 +30,7 @@ pub mod clustering_coefficient;
 pub mod connected_components;
 pub mod degree;
 pub mod directed_graph_density;
+mod generic_taint;
 pub mod hits;
 pub mod local_clustering_coefficient;
 pub mod local_triangle_count;
@@ -170,5 +171,30 @@ impl Bounded for SumF32 {
 
     fn max_value() -> Self {
         SumF32(f32::MAX)
+    }
+}
+
+#[derive(PartialEq, PartialOrd, Copy, Clone, Debug)]
+struct Bool(bool);
+
+impl Zero for Bool {
+    fn zero() -> Self {
+        Bool(false)
+    }
+
+    fn set_zero(&mut self) {
+        *self = Zero::zero();
+    }
+
+    fn is_zero(&self) -> bool {
+        *self == Bool(false)
+    }
+}
+
+impl Add for Bool {
+    type Output = Bool;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        rhs
     }
 }

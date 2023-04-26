@@ -13,11 +13,14 @@ use crate::core::{
     state::{AccId, ShuffleComputeState},
     state::{ComputeStateMap, StateType},
 };
+use crate::db::edge::EdgeView;
 use crate::db::vertex::VertexView;
-use crate::db::view_api::{GraphViewOps, VertexViewOps};
+use crate::db::view_api::{GraphViewOps, TimeOps, VertexViewOps};
 use itertools::Itertools;
+use rand_distr::weighted_alias::AliasableWeight;
 use rayon::prelude::*;
 use rustc_hash::FxHashSet;
+use crate::db::graph_window::WindowedGraph;
 
 type CS = ComputeStateMap;
 
@@ -831,6 +834,56 @@ impl<G: GraphViewOps> EvalVertexView<G> {
             .neighbours()
             .iter()
             .map(move |vv| EvalVertexView::new(self.ss, vv, self.state.clone()))
+    }
+
+    pub fn out_edges(&self, after: i64) -> impl Iterator<Item = EvalEdgeView<WindowedGraph<G>>> + '_ {
+        self.vv
+            .window(after, i64::MAX)
+            .out_edges()
+            .map(move |ev| {
+                // let et = ev.history().into_iter().filter(|t| t >= &after).min().unwrap();
+                // ev.dst();
+                EvalEdgeView::new(self.ss, ev, self.state.clone())
+            })
+    }
+}
+
+/// `EvalEdgeView` represents a view of a edge in a computation graph.
+///
+/// The view contains the evaluation step, the `WindowedEdge` representing the edge.
+pub struct EvalEdgeView<G: GraphViewOps> {
+    ss: usize,
+    ev: EdgeView<G>,
+    state: Rc<RefCell<ShuffleComputeState<CS>>>,
+}
+
+/// `EvalEdgeView` represents a view of a edge in a computation graph.
+impl<G: GraphViewOps> EvalEdgeView<G> {
+    /// Create a new `EvalEdgeView` from the given super-step counter, `WindowedEdge`
+    ///
+    /// # Arguments
+    ///
+    /// * `ss` - super-step counter
+    /// * `ev` - The `WindowedEdge` representing the edge.
+    ///
+    /// # Returns
+    ///
+    /// A new `EvalVertexView`.
+    pub fn new(ss: usize, ev: EdgeView<G>, state: Rc<RefCell<ShuffleComputeState<CS>>>) -> Self {
+        Self { ss, ev, state }
+    }
+
+    pub fn id(&self) -> usize {
+        self.ev.id()
+    }
+
+    pub fn dst(&self) -> EvalVertexView<G> {
+        self.ev.dst();
+        EvalVertexView::new(self.ss, self.ev.dst(), self.state.clone())
+    }
+
+    pub fn history(&self) -> Vec<i64> {
+        self.ev.history()
     }
 }
 
