@@ -15,7 +15,7 @@ dependencies = [
 ]
 
 [project.urls]
-homepage = "https://github.com/raphtory/raphtory"  # FIXME not shown by pip
+homepage = "https://github.com/raphtory/raphtory"
 documentation = "https://docs.raphtory.com/"
 repository = "https://github.com/raphtory/raphtory"
 twitter = "https://twitter.com/raphtory/"

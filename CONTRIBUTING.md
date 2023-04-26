@@ -1,4 +1,3 @@
-
 # Contributing
 We're happy that you're considering contributing!
 
@@ -16,40 +15,65 @@ There are many ways to contribute:
 
 ## Project Layout
 
-- `raphtory`: Raphtory core written in rust
+- `raphtory`: Raphtory Core written in rust
 - `python`: Raphtory python library (also written in rust, converted to python with PyO3)
 
-- `docs`: Raphtory documentation
+- `docs`: Documentation (built and hosted using sphinx and readthedocs)
 - `examples`: Example raphtory projects in both python and rust
-- `binder`: Binder configuration for running Raphtory notebooks in a browser
 - `resource`: Sample CSV files
 
 ## Build Raphtory
 
-Raphtory is written in Rust and Python
+### Python package  
 
-### Python Packages
-Raphtory python comes as two packages `pyraphtory_jvm` and `pyraphtory`. 
+#### Install directly from source 
 
-Lets see how we can build these packages.
+The following will pull the raphtory repository from git and install the python package from source.
+Note: This requires that you have the rust toolchain installed and python3.10
 
-- Ensure python build dependencies are installed
-    ```bash
-    $ python -m pip install poetry
-    ```
+    pip install -e 'git+https://github.com/Raphtory/Raphtory.git#egg=raphtory&subdirectory=python'
 
-- Build packages
-    ```bash
-    $ make python-build
-    ```
+#### Build during development 
 
-### Build Jar
+If you are developing raphtory and want to build & install the python package locally, you can do so with the following command:
+Note: This requires that you have installed python3.10 in either a virtual environment or conda. and have installed the 
+`maturin` python package 
 
-- Build all jars
-    ```bash
-    $ cd Raphtory
-    $ make sbt-build 
-    ```
+    make build-all
+    or 
+    cd python && maturin develop
+
+#### Import into your local environment
+
+Now simply run below to use the package:
+
+    import raphtory   
+
+### Rust core
+
+#### Build from source
+
+Building the rust core is done using cargo. The following command will build the core.
+Note: This requires that you have the rust toolchain installed.
+
+    make rust-build
+    or
+    cargo build
+
+#### Import the raphtory package into a rust project 
+
+To use the raphtory core in a rust project, add the following to your Cargo.toml file:
+Note: The path should be the path to the raphtory directory
+
+
+    [dependencies]
+    raphtory = {path = "../raphtory", version = "0.0.11" }
+     
+    or 
+
+    [dependencies]
+    raphtory = "0.0.11"
+
 
 ## Run Tests
 
@@ -60,12 +84,12 @@ Lets see how we can build these packages.
     $ python -m pip install nbmake tox pytest-xdist
     ```
 
-- To run `pyraphtory` JVM tests
+- To run `raphtory` python tests
     ```bash
     $ cd python/pyraphtory_jvm && tox -p -o
     ```
 
-- To run `pyraphtory` tests
+- To run `raphtory` rust
     ```bash
     $ cd python/pyraphtory && poetry run pytest -n=auto
     ```
@@ -80,22 +104,6 @@ Lets see how we can build these packages.
     $ cd docs && pytest --nbmake -n=auto
     ```
 
-### Scala Tests
-Going by maven conventions, unit and integration tests are defined in `src/test` and `src/it` directories for any module, respectively.
-
-Common test classes are defined in `testkit` module.
-
-- To run tests across all modules
-    ```bash
-    sbt:Raphtory> test     # Runs all unit tests
-    sbt:Raphtory> it/test  # Runs all integration tests
-    ```
-- To run tests for a module (for example)
-    ```bash
-    sbt:Raphtory> project it
-    sbt:it> test     # Runs all unit tests
-    sbt:it> it/test  # Runs all integration tests
-    ```
 
 ## Update Docs
 Raphtory documentations can be found in `docs` directory. They are built using [Sphinx](https://www.sphinx-doc.org/en/master/).
