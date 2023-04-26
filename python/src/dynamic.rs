@@ -408,4 +408,8 @@ impl GraphViewInternalOps for DynamicGraph {
     ) -> Box<dyn Iterator<Item = VertexRef> + Send> {
         self.0.vertices_shard_window(shard_id, t_start, t_end)
     }
+
+    fn lookup_by_pid_and_shard(&self, pid: usize, shard: usize) -> Option<VertexRef> {
+        self.0.lookup_by_pid_and_shard(pid, shard)
+    }
 }

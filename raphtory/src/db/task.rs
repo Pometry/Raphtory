@@ -7,6 +7,7 @@ use std::sync::Arc;
 use once_cell::sync::Lazy;
 use rayon::prelude::*;
 use rayon::{ThreadPool, ThreadPoolBuilder};
+use rustc_hash::FxHashMap;
 
 use crate::core::agg::{Accumulator, AndDef};
 use crate::core::state::{
@@ -14,8 +15,8 @@ use crate::core::state::{
 };
 use crate::core::utils::get_shard_id_from_global_vid;
 
-use super::graph::Graph;
 use super::vertex::VertexView;
+use super::view_api::internal::GraphViewInternalOps;
 use super::view_api::{GraphViewOps, VertexViewOps};
 
 #[derive(Debug, PartialEq)]
@@ -24,11 +25,20 @@ pub enum Step {
     Continue,
 }
 
-pub trait Task<G: GraphViewOps, CS: ComputeState> {
+pub trait Task<G, CS>
+where
+    G: GraphViewInternalOps + Send + Sync + Clone + 'static,
+    CS: ComputeState,
+{
     fn run(&self, vv: &EvalVertexView<G, CS>) -> Step;
 }
 
-pub struct ATask<G: GraphViewOps, CS: ComputeState, F: Fn(&EvalVertexView<G, CS>) -> Step> {
+pub struct ATask<G, CS, F>
+where
+    G: GraphViewInternalOps + Send + Sync + 'static,
+    CS: ComputeState,
+    F: Fn(&EvalVertexView<G, CS>) -> Step,
+{
     f: F,
     task_type: TaskType,
     _g: std::marker::PhantomData<G>,
@@ -41,7 +51,12 @@ pub enum TaskType {
     UPDATED_ONLY,
 }
 
-impl<G: GraphViewOps, CS: ComputeState, F: Fn(&EvalVertexView<G, CS>) -> Step> ATask<G, CS, F> {
+impl<G, CS, F> ATask<G, CS, F>
+where
+    G: GraphViewInternalOps + Send + Sync + 'static,
+    CS: ComputeState,
+    F: Fn(&EvalVertexView<G, CS>) -> Step,
+{
     fn new(task_type: TaskType, f: F) -> Self {
         Self {
             f,
@@ -52,8 +67,11 @@ impl<G: GraphViewOps, CS: ComputeState, F: Fn(&EvalVertexView<G, CS>) -> Step> A
     }
 }
 
-impl<G: GraphViewOps, CS: ComputeState, F: Fn(&EvalVertexView<G, CS>) -> Step> Task<G, CS>
-    for ATask<G, CS, F>
+impl<G, CS, F> Task<G, CS> for ATask<G, CS, F>
+where
+    G: GraphViewInternalOps + Send + Sync + Clone + 'static,
+    CS: ComputeState,
+    F: Fn(&EvalVertexView<G, CS>) -> Step,
 {
     fn run(&self, vv: &EvalVertexView<G, CS>) -> Step {
         (self.f)(vv)
@@ -64,14 +82,22 @@ type MergeFn<CS> =
     Arc<dyn Fn(&mut ShuffleComputeState<CS>, &ShuffleComputeState<CS>, usize) + Send + Sync>;
 
 // state for the execution of a task
-pub struct Context<G: GraphViewOps, CS: ComputeState> {
+pub struct Context<G, CS>
+where
+    G: GraphViewInternalOps + Send + Sync + 'static,
+    CS: ComputeState,
+{
     ss: usize,
     g: Arc<G>,
     merge_fns: Vec<MergeFn<CS>>,
     resetable_states: Vec<u32>,
 }
 
-impl<G: GraphViewOps, CS: ComputeState> Context<G, CS> {
+impl<G, CS> Context<G, CS>
+where
+    G: GraphViewInternalOps + Send + Sync + 'static,
+    CS: ComputeState,
+{
     pub fn agg<A: StateType, IN: 'static, OUT: 'static, ACC: Accumulator<A, IN, OUT>>(
         &mut self,
         id: AccId<A, IN, OUT, ACC>,
@@ -116,23 +142,25 @@ impl<G: GraphViewOps, CS: ComputeState> Context<G, CS> {
     }
 }
 
-impl<G: GraphViewOps, CS: ComputeState> From<G> for Context<G, CS> {
-    fn from(g: G) -> Self {
+impl<G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeState> From<&G>
+    for Context<G, CS>
+{
+    fn from(g: &G) -> Self {
         Self {
             ss: 0,
-            g: Arc::new(g),
+            g: Arc::new(g.clone()),
             merge_fns: vec![],
             resetable_states: vec![],
         }
     }
 }
 
-pub struct TaskRunner<G: GraphViewOps, CS: ComputeState> {
+pub struct TaskRunner<G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeState> {
     tasks: Vec<Box<dyn Task<G, CS> + Sync + Send>>,
     ctx: Context<G, CS>,
 }
 
-impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
+impl<G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeState> TaskRunner<G, CS> {
     pub fn new(tasks: Vec<Box<dyn Task<G, CS> + Sync + Send>>, ctx: Context<G, CS>) -> Self {
         Self { tasks, ctx: ctx }
     }
@@ -325,13 +353,16 @@ pub fn custom_pool(n_threads: usize) -> Arc<ThreadPool> {
     Arc::new(pool)
 }
 
-pub struct EvalVertexView<G: GraphViewOps, CS: ComputeState> {
+pub struct EvalVertexView<G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeState>
+{
     ss: usize,
     vv: VertexView<G>,
     state: Rc<RefCell<ShuffleComputeState<CS>>>,
 }
 
-impl<G: GraphViewOps, CS: ComputeState> EvalVertexView<G, CS> {
+impl<G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeState>
+    EvalVertexView<G, CS>
+{
     fn new(ss: usize, vertex: VertexView<G>, state: Rc<RefCell<ShuffleComputeState<CS>>>) -> Self {
         Self {
             ss,
@@ -409,8 +440,11 @@ impl<G: GraphViewOps, CS: ComputeState> EvalVertexView<G, CS> {
     }
 }
 
-pub fn connected_components(graph: Graph, iter_count: usize) {
-    let mut ctx: Context<Graph, ComputeStateVec> = graph.into();
+pub fn weakly_connected_components<G>(graph: &G, iter_count: usize) -> FxHashMap<u64, u64>
+where
+    G: GraphViewInternalOps + Send + Sync + Clone + 'static,
+{
+    let mut ctx: Context<G, ComputeStateVec> = graph.into();
 
     let min = state::def::min::<u64>(0);
 
@@ -439,21 +473,34 @@ pub fn connected_components(graph: Graph, iter_count: usize) {
         }
     });
 
-    let mut runner: TaskRunner<Graph, _> =
-        TaskRunner::new(vec![Box::new(step1), Box::new(step2)], ctx);
+    let mut runner: TaskRunner<G, _> = TaskRunner::new(vec![Box::new(step1), Box::new(step2)], ctx);
 
     let results = runner.run(Some(2), iter_count);
-    println!("results: {:?}", results);
+
+    if let Some(state) = results.as_ref() {
+        let mut map: FxHashMap<u64, u64> = FxHashMap::default();
+
+        state.fold_state_internal(runner.ctx.ss, &mut map, &min, |res, shard, pid, cc| {
+            if let Some(v_ref) = graph.lookup_by_pid_and_shard(pid, shard) {
+                res.insert(v_ref.g_id, cc);
+            }
+            res
+        });
+
+        map
+    } else {
+        FxHashMap::default()
+    }
 }
 
 #[cfg(test)]
 mod tasks_tests {
-    use rustc_hash::FxHashMap;
 
-    use crate::{
-        core::state::{self, ComputeStateVec},
-        db::graph::Graph,
-    };
+    use std::{cmp::Reverse, iter::once};
+
+    use itertools::{chain, Itertools};
+
+    use crate::db::graph::Graph;
 
     use super::*;
 
@@ -475,51 +522,147 @@ mod tasks_tests {
             graph.add_edge(ts, src, dst, &vec![], None).unwrap();
         }
 
-        let mut ctx: Context<Graph, ComputeStateVec> = graph.into();
+        let actual = weakly_connected_components(&graph, usize::MAX);
 
-        let min = state::def::min::<u64>(0);
+        let expected: FxHashMap<u64, u64> = vec![
+            (1, 1),
+            (2, 1),
+            (3, 1),
+            (4, 1),
+            (5, 1),
+            (6, 1),
+            (7, 7),
+            (8, 7),
+        ]
+        .into_iter()
+        .collect();
 
-        // setup the aggregator to be merged post execution
-        ctx.agg(min.clone());
+        assert_eq!(actual, expected)
+    }
 
-        let step1 = ATask::new(TaskType::ALL, move |vv| {
-            vv.update(&min, vv.global_id());
+    #[test]
+    fn simple_connected_components_2() {
+        let graph = Graph::new(2);
 
-            for n in vv.neighbours() {
-                let my_min = vv.read(&min);
-                n.update(&min, my_min)
-            }
+        let edges = vec![
+            (1, 2, 1),
+            (1, 3, 2),
+            (1, 4, 3),
+            (3, 1, 4),
+            (3, 4, 5),
+            (3, 5, 6),
+            (4, 5, 7),
+            (5, 6, 8),
+            (5, 8, 9),
+            (7, 5, 10),
+            (8, 5, 11),
+            (1, 9, 12),
+            (9, 1, 13),
+            (6, 3, 14),
+            (4, 8, 15),
+            (8, 3, 16),
+            (5, 10, 17),
+            (10, 5, 18),
+            (10, 8, 19),
+            (1, 11, 20),
+            (11, 1, 21),
+            (9, 11, 22),
+            (11, 9, 23),
+        ];
 
-            Step::Continue
-        });
+        for (src, dst, ts) in edges {
+            graph.add_edge(ts, src, dst, &vec![], None).unwrap();
+        }
 
-        let step2 = ATask::new(TaskType::ALL, move |vv| {
-            let current = vv.read(&min);
-            let prev = vv.read_prev(&min);
+        let results: FxHashMap<u64, u64> = weakly_connected_components(&graph, usize::MAX);
 
-            if current == prev {
-                Step::Done
-            } else {
-                Step::Continue
-            }
-        });
-
-        let mut runner: TaskRunner<Graph, _> =
-            TaskRunner::new(vec![Box::new(step1), Box::new(step2)], ctx);
-
-        let results = runner.run(Some(2), 10);
-
-        println!("{:?}", results);
-        let mut out = FxHashMap::default();
-
-        results.as_ref().as_ref().unwrap().fold_state(
-            runner.ss(),
-            &mut out,
-            &min,
-            |map, g_id, cc| {
-                map.insert(*g_id, cc);
-                map
-            },
+        assert_eq!(
+            results,
+            vec![
+                (1, 1),
+                (2, 1),
+                (3, 1),
+                (4, 1),
+                (5, 1),
+                (6, 1),
+                (7, 1),
+                (8, 1),
+                (9, 1),
+                (10, 1),
+                (11, 1),
+            ]
+            .into_iter()
+            .collect::<FxHashMap<u64, u64>>()
         );
+    }
+
+    // connected components on a graph with 1 node and a self loop
+    #[test]
+    fn simple_connected_components_3() {
+        let graph = Graph::new(2);
+
+        let edges = vec![(1, 1, 1)];
+
+        for (src, dst, ts) in edges {
+            graph.add_edge(ts, src, dst, &vec![], None).unwrap();
+        }
+
+        let window = 0..25;
+
+        let results: FxHashMap<u64, u64> = weakly_connected_components(&graph, usize::MAX);
+
+        assert_eq!(
+            results,
+            vec![(1, 1),].into_iter().collect::<FxHashMap<u64, u64>>()
+        );
+    }
+
+    #[quickcheck]
+    fn circle_graph_the_smallest_value_is_the_cc(vs: Vec<u64>) {
+        if vs.len() > 0 {
+            let vs = vs.into_iter().unique().collect::<Vec<u64>>();
+
+            let smallest = vs.iter().min().unwrap();
+
+            let first = vs[0];
+            // pairs of vertices from vs one after the next
+            let edges = vs
+                .iter()
+                .zip(chain!(vs.iter().skip(1), once(&first)))
+                .map(|(a, b)| (*a, *b))
+                .collect::<Vec<(u64, u64)>>();
+
+            assert_eq!(edges[0].0, first);
+            assert_eq!(edges.last().unwrap().1, first);
+
+            let graph = Graph::new(2);
+
+            for (src, dst) in edges.iter() {
+                graph.add_edge(0, *src, *dst, &vec![], None).unwrap();
+            }
+
+            // now we do connected components over window 0..1
+
+            let window = 0..1;
+
+            let components: FxHashMap<u64, u64> = weakly_connected_components(&graph, usize::MAX);
+
+            let actual = components
+                .iter()
+                .group_by(|(_, cc)| *cc)
+                .into_iter()
+                .map(|(cc, group)| (cc, Reverse(group.count())))
+                .sorted_by(|l, r| l.1.cmp(&r.1))
+                .map(|(cc, count)| (*cc, count.0))
+                .take(1)
+                .next();
+
+            assert_eq!(
+                actual,
+                Some((*smallest, edges.len())),
+                "actual: {:?}",
+                actual
+            );
+        }
     }
 }

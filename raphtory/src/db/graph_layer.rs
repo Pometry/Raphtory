@@ -444,4 +444,8 @@ impl<G: GraphViewInternalOps> GraphViewInternalOps for LayeredGraph<G> {
     fn edge_timestamps(&self, e: EdgeRef, window: Option<Range<i64>>) -> Vec<i64> {
         self.graph.edge_timestamps(e, window)
     }
+
+    fn lookup_by_pid_and_shard(&self, pid: usize, shard: usize) -> Option<VertexRef> {
+        self.graph.lookup_by_pid_and_shard(pid, shard)
+    }
 }
