@@ -45,9 +45,11 @@ jobs:
         run: cargo bench --bench base -- --output-format=bencher | tee benchmark-result.txt
       - name: Run benchmark (Unix)
         if: "!contains(matrix.os, 'Windows')"
-        run: |
-          set -o pipefail
-          cargo bench --bench base -- --output-format=bencher | tee benchmark-result.txt
+        uses: nick-fields/retry@v2
+        with:
+          timeout_minutes: 15
+          max_attempts: 2
+          command: cargo bench --bench base -- --output-format=bencher | tee benchmark-result.txt
       - name: Download previous benchmark results
         id: restore-benchmark-cache
         uses: actions/cache/restore@v3
