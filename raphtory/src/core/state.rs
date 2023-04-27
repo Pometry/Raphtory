@@ -770,7 +770,7 @@ impl<CS: ComputeState + Send + Clone> ShardComputeState<CS> {
         }
     }
 
-    fn reset_states(&mut self, ss: usize, states: &Vec<u32>) {
+    fn reset_states(&mut self, ss: usize, states: &[u32]) {
         for (id, state) in self.states.iter_mut() {
             if states.contains(id) {
                 state.reset_resetable_states(ss);
@@ -1047,7 +1047,7 @@ impl<CS: ComputeState + Send + Sync> ShuffleComputeState<CS> {
         self.parts.iter_mut().for_each(|p| p.copy_over_next_ss(ss));
     }
 
-    pub fn reset_states(&mut self, ss: usize, states: &Vec<u32>) {
+    pub fn reset_states(&mut self, ss: usize, states: &[u32]) {
         self.global.reset_states(ss, states);
         self.parts
             .iter_mut()
