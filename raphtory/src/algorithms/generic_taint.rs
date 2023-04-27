@@ -6,6 +6,8 @@ use crate::core::state::*;
 use crate::db::graph::Graph;
 use crate::db::program::*;
 use crate::db::view_api::GraphViewOps;
+use itertools::Itertools;
+use roaring::MultiOps;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 #[derive(Eq, Hash, PartialEq, Copy, Clone, Debug)]
@@ -207,10 +209,40 @@ pub fn generic_taint(
 
     gtaint_s0.run_step(g, &mut c);
 
-    let mut i = 0;
+    println!(
+        "step0, taint_status = {:?}",
+        c.read_vec_partitions(&val::<Bool>(0))
+    );
+    println!(
+        "step0, taint_history = {:?}",
+        c.read_vec_partitions(&hash_set::<TaintMessage>(1))
+    );
+    println!(
+        "step0, recv_tainted_msgs = {:?}",
+        c.read_vec_partitions(&hash_set::<TaintMessage>(2))
+    );
+    println!();
 
+    let mut i = 0;
     loop {
         gtaint_s1.run_step(g, &mut c);
+
+        println!(
+            "step{}, taint_status = {:?}",
+            i + 1,
+            c.read_vec_partitions(&val::<Bool>(0))
+        );
+        println!(
+            "step{}, taint_history = {:?}",
+            i + 1,
+            c.read_vec_partitions(&hash_set::<TaintMessage>(1))
+        );
+        println!(
+            "step{}, recv_tainted_msgs = {:?}",
+            i + 1,
+            c.read_vec_partitions(&hash_set::<TaintMessage>(2))
+        );
+        println!();
 
         if i > iter_count {
             break;
@@ -244,13 +276,13 @@ mod generic_taint_tests {
         let graph = load_graph(
             n_shards,
             vec![
-                (10,1,3),
-                (11,1,2),
-                (12,2,4),
-                (13,2,5),
-                (5,4,6),
-                (15,4,7),
-                (10,5,8)
+                (10, 1, 3),
+                (11, 1, 2),
+                (12, 2, 4),
+                (13, 2, 5),
+                (5, 4, 6),
+                (15, 4, 7),
+                (10, 5, 8),
             ],
         );
 

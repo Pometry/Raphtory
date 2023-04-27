@@ -230,7 +230,8 @@ impl<G: GraphViewOps> GlobalEvalState<G> {
     pub fn read_vec_partitions<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
         &self,
         agg: &AccId<A, IN, OUT, ACC>,
-    ) -> Vec<Vec<Vec<OUT>>>
+    ) -> Vec<Vec<Vec<(u64, OUT)>>>
+    // ) -> Vec<Vec<Vec<(u64, OUT)>>>
     where
         OUT: StateType,
         A: 'static,

@@ -278,7 +278,8 @@ pub trait ComputeState: Debug + Clone {
     ) where
         A: StateType;
 
-    fn finalize<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(&self, ss: usize) -> Vec<OUT>
+    fn finalize<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(&self, ss: usize) -> Vec<(u64, OUT)>
+    // fn finalize<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(&self, ss: usize) -> Vec<(u64, OUT)>
     where
         OUT: StateType,
         A: 'static;
@@ -426,8 +427,8 @@ impl ComputeState for ComputeStateMap {
         });
     }
 
-    fn finalize<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(&self, ss: usize) -> Vec<OUT>
-    // fn finalize<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(&self, ss: usize) -> Vec<(u64, OUT)>
+    // fn finalize<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(&self, ss: usize) -> Vec<OUT>
+    fn finalize<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(&self, ss: usize) -> Vec<(u64, OUT)>
     where
         OUT: StateType,
         A: 'static,
@@ -438,15 +439,15 @@ impl ComputeState for ComputeStateMap {
             .downcast_ref::<MapArray<A>>()
             .unwrap();
 
-        // current.map.iter().map(|(c,v)| {
-        //     (*c, ACC::finish(&v[ss % 2]))
-        // }).collect::<Vec<(u64, OUT)>>()
+        current.map.iter().map(|(c,v)| {
+            (*c, ACC::finish(&v[ss % 2]))
+        }).collect::<Vec<(u64, OUT)>>()
 
-        current
-            .map
-            .values()
-            .map(|v| ACC::finish(&v[ss % 2]))
-            .collect()
+        // current
+        //     .map
+        //     .values()
+        //     .map(|v| ACC::finish(&v[ss % 2]))
+        //     .collect()
     }
 
     fn fold<A, IN, OUT, ACC: Accumulator<A, IN, OUT>, F, B>(&self, ss: usize, b: B, f: F) -> B
@@ -514,7 +515,8 @@ impl<CS: ComputeState + Send + Clone> ShardComputeState<CS> {
         &self,
         ss: usize,
         agg_ref: &AccId<A, IN, OUT, ACC>,
-    ) -> Option<Vec<OUT>>
+    ) -> Option<Vec<(u64, OUT)>>
+    // ) -> Option<Vec<(u64, OUT)>>
     where
         OUT: StateType,
         A: 'static,
@@ -623,7 +625,8 @@ impl<CS: ComputeState + Send> ShardComputeState<CS> {
         &mut self,
         ss: usize,
         agg_ref: &AccId<A, IN, OUT, ACC>,
-    ) -> Option<Vec<OUT>>
+    ) -> Option<Vec<(u64, OUT)>>
+    // ) -> Option<Vec<(u64, OUT)>>
     where
         OUT: StateType,
         A: 'static,
@@ -813,7 +816,8 @@ impl<CS: ComputeState + Send + Sync> ShuffleComputeState<CS> {
         &self,
         ss: usize,
         agg_def: &AccId<A, IN, OUT, ACC>,
-    ) -> Vec<Vec<OUT>>
+    ) -> Vec<Vec<(u64, OUT)>>
+    // ) -> Vec<Vec<(u64, OUT)>>
     where
         OUT: StateType,
         A: 'static,
@@ -831,7 +835,8 @@ impl<CS: ComputeState + Send> ShuffleComputeState<CS> {
         &mut self,
         ss: usize,
         agg_def: &AccId<A, IN, OUT, ACC>,
-    ) -> Vec<Option<Vec<OUT>>>
+    ) -> Vec<Option<Vec<(u64, OUT)>>>
+    // ) -> Vec<Option<Vec<(u64, OUT)>>>
     where
         OUT: StateType,
         A: 'static,
@@ -851,6 +856,7 @@ mod state_test {
 
     use super::*;
     use rand::Rng;
+    use rand_distr::weighted_alias::AliasableWeight;
 
     #[test]
     fn min_aggregates_for_3_keys() {
@@ -875,7 +881,7 @@ mod state_test {
         }
 
         let actual = state_map.finalize(0, &min);
-        assert_eq!(actual, Some(vec![actual_min, actual_min, actual_min]));
+        assert_eq!(actual, Some(vec![(0, actual_min), (1,actual_min), (2,actual_min)]));
     }
 
     #[test]
@@ -902,7 +908,7 @@ mod state_test {
 
         let actual_avg = sum / 100;
         let actual = state_map.finalize(0, &avg);
-        assert_eq!(actual, Some(vec![actual_avg, actual_avg, actual_avg]));
+        assert_eq!(actual, Some(vec![(0,actual_avg), (1,actual_avg), (2,actual_avg)]));
     }
 
     #[test]
@@ -921,7 +927,7 @@ mod state_test {
         let actual = state_map.finalize(0, &avg);
         assert_eq!(
             actual,
-            Some(vec![expected.clone(), expected.clone(), expected.clone()])
+            Some(vec![(0,expected.clone()), (1, expected.clone()), (2,expected.clone())])
         );
     }
 
@@ -949,7 +955,7 @@ mod state_test {
 
         let actual = state.finalize(0, &sum);
 
-        assert_eq!(actual, Some(vec![actual_sum, actual_sum, actual_sum]));
+        assert_eq!(actual, Some(vec![(0, actual_sum), (1,actual_sum), (2,actual_sum)]));
     }
 
     #[test]
@@ -997,12 +1003,12 @@ mod state_test {
 
         assert_eq!(
             actual,
-            vec![Some(vec![actual_sum_1]), Some(vec![actual_sum_1])]
+            vec![Some(vec![(2,actual_sum_1)]), Some(vec![(1,actual_sum_1)])]
         );
 
         let actual = part2_state.finalize(0, &sum);
 
-        assert_eq!(actual, vec![None, Some(vec![actual_sum_2, actual_sum_2])]);
+        assert_eq!(actual, vec![None, Some(vec![(1,actual_sum_2), (3,actual_sum_2)])]);
 
         ShuffleComputeState::merge_mut(&mut part1_state, &part2_state, &sum, 0);
         let actual = part1_state.finalize(0, &sum);
@@ -1010,8 +1016,8 @@ mod state_test {
         assert_eq!(
             actual,
             vec![
-                Some(vec![(actual_sum_1)]),
-                Some(vec![(actual_sum_1 + actual_sum_2), (actual_sum_2)]),
+                Some(vec![(2, actual_sum_1)]),
+                Some(vec![(1,(actual_sum_1 + actual_sum_2)), (3, actual_sum_2)]),
             ]
         );
     }
@@ -1066,20 +1072,20 @@ mod state_test {
         let actual = part1_state.finalize(0, &sum);
         assert_eq!(
             actual,
-            vec![Some(vec![actual_sum_1]), Some(vec![actual_sum_1])]
+            vec![Some(vec![(2,actual_sum_1)]), Some(vec![(1, actual_sum_1)])]
         );
 
         let actual = part1_state.finalize(0, &min);
         assert_eq!(
             actual,
-            vec![Some(vec![actual_min_1]), Some(vec![actual_min_1])]
+            vec![Some(vec![(2, actual_min_1)]), Some(vec![(1,actual_min_1)])]
         );
 
         let actual = part2_state.finalize(0, &sum);
-        assert_eq!(actual, vec![None, Some(vec![actual_sum_2, actual_sum_2])]);
+        assert_eq!(actual, vec![None, Some(vec![(1, actual_sum_2), (3,actual_sum_2)])]);
 
         let actual = part2_state.finalize(0, &min);
-        assert_eq!(actual, vec![None, Some(vec![actual_min_2, actual_min_2])]);
+        assert_eq!(actual, vec![None, Some(vec![(1,actual_min_2), (3,actual_min_2)])]);
 
         ShuffleComputeState::merge_mut(&mut part1_state, &part2_state, &sum, 0);
         let actual = part1_state.finalize(0, &sum);
@@ -1087,8 +1093,8 @@ mod state_test {
         assert_eq!(
             actual,
             vec![
-                Some(vec![(actual_sum_1)]),
-                Some(vec![(actual_sum_1 + actual_sum_2), (actual_sum_2)]),
+                Some(vec![((2,actual_sum_1))]),
+                Some(vec![(1,(actual_sum_1 + actual_sum_2)), (3,actual_sum_2)]),
             ]
         );
 
@@ -1097,8 +1103,8 @@ mod state_test {
         assert_eq!(
             actual,
             vec![
-                Some(vec![(actual_min_1)]),
-                Some(vec![(actual_min_1.min(actual_min_2)), (actual_min_2)]),
+                Some(vec![(2,actual_min_1)]),
+                Some(vec![(1, actual_min_1.min(actual_min_2)), (3, actual_min_2)]),
             ]
         );
     }

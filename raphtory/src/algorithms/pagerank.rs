@@ -305,7 +305,7 @@ mod page_rank_tests {
         acc_id: AccId<A, IN, OUT, ACC>,
         c_g1: &GlobalEvalState<Graph>,
         c_g2: &GlobalEvalState<Graph>,
-    ) -> (Vec<OUT>, Vec<Vec<Vec<OUT>>>) {
+    ) -> (Vec<(u64, OUT)>, Vec<Vec<Vec<(u64, OUT)>>>) {
         let actual_g1 = c_g1.read_vec_partitions(&acc_id);
         assert!(actual_g1.len() == 1);
         let actual_g1_part0 = &actual_g1[0][0];
