@@ -210,8 +210,9 @@ impl TemporalGraph {
     }
 
     pub(crate) fn has_vertex_window(&self, v: u64, w: &Range<i64>) -> bool {
+
         if let Some(v_id) = self.logical_to_physical.get(&v) {
-            self.index.range(w.clone()).any(|(_, bs)| bs.contains(v_id))
+            self.timestamps[*v_id].range(w.clone()).next().is_some()
         } else {
             false
         }
@@ -448,16 +449,14 @@ impl TemporalGraph {
         &self,
         w: Range<i64>,
     ) -> Box<dyn Iterator<Item = VertexRef> + Send + '_> {
-        let unique_vids = self
-            .index
-            .range(w.clone())
-            .map(|(_, vs)| vs.iter())
-            .kmerge()
-            .dedup();
-        let vs = unique_vids.map(move |pid| VertexRef {
-            g_id: self.logical_ids[pid],
-            pid: Some(pid),
-        });
+        let vs = self.timestamps.iter()
+            .enumerate()
+            .filter_map(move |(pid, timestamps)| {
+                timestamps
+                    .range(w.clone())
+                    .next()
+                    .map(|_| VertexRef{g_id: self.logical_ids[pid], pid: Some(pid)})
+            });
         Box::new(vs)
     }
 
