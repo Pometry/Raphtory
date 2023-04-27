@@ -156,6 +156,7 @@ impl<G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeState> 
 
     pub fn run(
         &mut self,
+        init_tasks: Vec<Job<G, CS>>,
         tasks: Vec<Job<G, CS>>,
         num_threads: Option<usize>,
         steps: usize,

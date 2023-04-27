@@ -111,9 +111,6 @@ where
         Step::Done
     });
 
-    let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
-    let state = runner.run(vec![Job::new(step1)], Some(threads), 1, None);
-
     let step2 = ATask::new(move |s| {
         let out_degree = s.out_degree();
         if out_degree > 0 {
@@ -137,9 +134,17 @@ where
         Step::Continue
     });
 
+    let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
+
     let tasks = vec![Job::new(step2), Job::new(step3)];
 
-    let state = runner.run(tasks, Some(threads), iter_count, Some(state));
+    let state = runner.run(
+        vec![Job::new(step1)],
+        tasks,
+        Some(threads),
+        iter_count,
+        None,
+    );
 
     FxHashMap::default()
 }
@@ -184,7 +189,7 @@ where
     let tasks = vec![Job::new(step1), Job::read_only(step2)];
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
 
-    let state = runner.run(tasks, Some(threads), iter_count, None);
+    let state = runner.run(vec![], tasks, Some(threads), iter_count, None);
 
     let mut map: FxHashMap<u64, u64> = FxHashMap::default();
 
