@@ -1,8 +1,8 @@
-use docbrown::core::tgraph::{EdgeRef, VertexRef};
-use docbrown::core::{Direction, Prop};
-use docbrown::db::graph::Graph;
-use docbrown::db::view_api::internal::GraphViewInternalOps;
-use docbrown::db::view_api::GraphViewOps;
+use raphtory::core::tgraph::{EdgeRef, VertexRef};
+use raphtory::core::{Direction, Prop};
+use raphtory::db::graph::Graph;
+use raphtory::db::view_api::internal::GraphViewInternalOps;
+use raphtory::db::view_api::GraphViewOps;
 use std::collections::HashMap;
 use std::ops::Range;
 use std::sync::Arc;
@@ -14,15 +14,13 @@ impl<G: GraphViewInternalOps + Send + Sync + 'static> DynamicGraphView for G {}
 #[derive(Clone)]
 pub struct DynamicGraph(Arc<dyn DynamicGraphView>);
 
-impl DynamicGraph {
-    pub fn new<G: GraphViewOps>(graph: G) -> DynamicGraph {
-        Self(Arc::new(graph))
-    }
+pub(crate) trait IntoDynamic {
+    fn into_dynamic(self) -> DynamicGraph;
 }
 
-impl From<Graph> for DynamicGraph {
-    fn from(value: Graph) -> Self {
-        Self(Arc::new(value))
+impl<G: GraphViewOps> IntoDynamic for G {
+    fn into_dynamic(self) -> DynamicGraph {
+        DynamicGraph(Arc::new(self))
     }
 }
 

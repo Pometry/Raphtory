@@ -13,4 +13,13 @@ Rust
 *  `Rust Docs`_
 
 
-.. _Rust Docs: ../_static/docbrown/index.html
+.. _Rust Docs: ../_static/raphtory/index.html
+
+
+Updating
+========
+
+.. toctree::
+   :maxdepth: 3
+
+   update

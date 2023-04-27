@@ -26,7 +26,7 @@ use tokio::runtime::Runtime;
 #[pyfunction]
 #[pyo3(signature = (shards=1))]
 pub(crate) fn lotr_graph(shards: usize) -> PyResult<Py<PyGraph>> {
-    PyGraph::py_from_db_graph(docbrown::graph_loader::example::lotr_graph::lotr_graph(
+    PyGraph::py_from_db_graph(raphtory::graph_loader::example::lotr_graph::lotr_graph(
         shards,
     ))
 }
@@ -70,11 +70,7 @@ pub(crate) fn lotr_graph(shards: usize) -> PyResult<Py<PyGraph>> {
 #[pyo3(signature = (shards=1,timeout_seconds=600))]
 pub(crate) fn reddit_hyperlink_graph(shards: usize, timeout_seconds: u64) -> PyResult<Py<PyGraph>> {
     PyGraph::py_from_db_graph(
-        docbrown::graph_loader::example::reddit_hyperlinks::reddit_graph(
-            shards,
-            timeout_seconds,
-            false,
-        ),
+        raphtory::graph_loader::example::reddit_hyperlinks::reddit_graph(shards, timeout_seconds, false),
     )
 }
 #[pyfunction]
@@ -87,7 +83,7 @@ pub(crate) fn neo4j_movie_graph(
     shards: usize,
 ) -> PyResult<Py<PyGraph>> {
     let g = Runtime::new().unwrap().block_on(
-        docbrown::graph_loader::example::neo4j_examples::neo4j_movie_graph(
+        raphtory::graph_loader::example::neo4j_examples::neo4j_movie_graph(
             uri, username, password, database, shards,
         ),
     );

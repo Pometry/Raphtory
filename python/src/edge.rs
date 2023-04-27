@@ -4,16 +4,17 @@
 //! The PyEdge class also provides access to the perspective APIs, which allow the user to view the
 //! edge as it existed at a particular point in time, or as it existed over a particular time range.
 //!
-use crate::dynamic::DynamicGraph;
+use crate::dynamic::{DynamicGraph, IntoDynamic};
 use crate::types::repr::{iterator_repr, Repr};
 use crate::utils::*;
 use crate::vertex::PyVertex;
 use crate::wrappers::prop::Prop;
-use docbrown::db::edge::EdgeView;
-use docbrown::db::view_api::time::WindowSet;
-use docbrown::db::view_api::*;
 use itertools::Itertools;
 use pyo3::{pyclass, pymethods, PyAny, PyRef, PyRefMut, PyResult};
+use raphtory::db::edge::EdgeView;
+use raphtory::db::graph_window::WindowedGraph;
+use raphtory::db::view_api::time::WindowSet;
+use raphtory::db::view_api::*;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -27,6 +28,17 @@ pub struct PyEdge {
 impl From<EdgeView<DynamicGraph>> for PyEdge {
     fn from(value: EdgeView<DynamicGraph>) -> Self {
         Self { edge: value }
+    }
+}
+
+impl From<EdgeView<WindowedGraph<DynamicGraph>>> for PyEdge {
+    fn from(value: EdgeView<WindowedGraph<DynamicGraph>>) -> Self {
+        Self {
+            edge: EdgeView {
+                graph: value.graph.into_dynamic(),
+                edge: value.edge,
+            },
+        }
     }
 }
 

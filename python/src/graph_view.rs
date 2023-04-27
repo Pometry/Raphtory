@@ -1,11 +1,11 @@
 //! The API for querying a view of the graph in a read-only state
-use crate::dynamic::DynamicGraph;
+use crate::dynamic::{DynamicGraph, IntoDynamic};
 use crate::edge::{PyEdge, PyEdges};
 use crate::utils::{expanding_impl, extract_vertex_ref, rolling_impl, window_impl};
 use crate::vertex::{PyVertex, PyVertices};
-use docbrown::db::view_api::time::WindowSet;
-use docbrown::db::view_api::*;
 use pyo3::prelude::*;
+use raphtory::db::view_api::time::WindowSet;
+use raphtory::db::view_api::*;
 
 /// Graph view is a read-only version of a graph at a certain point in time.
 #[pyclass(name = "GraphView", frozen, subclass)]
@@ -17,7 +17,7 @@ pub struct PyGraphView {
 impl<G: GraphViewOps> From<G> for PyGraphView {
     fn from(value: G) -> Self {
         PyGraphView {
-            graph: DynamicGraph::new(value),
+            graph: value.into_dynamic(),
         }
     }
 }

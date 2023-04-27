@@ -1,4 +1,4 @@
-.. DocBrown documentation master file
+.. raphtory documentation master file
 
 Raphtory
 ==================
@@ -7,7 +7,7 @@ Raphtory
 
    <p align="center"><img src="_static/raphtory-banner.png" alt="Raphtory Banner"/></p>
 
-DocBrown is the new version of Raphtory, rethinking several aspects of the underlying graph model and algorithm API.
+raphtory is the new version of Raphtory, rethinking several aspects of the underlying graph model and algorithm API.
 
 This is a temporal graph analytics engine, built natively in rust with full support in python!
 
@@ -25,7 +25,7 @@ Raphtory can be installed using pip::
 
     pip install raphtory
 
-We also have supporting for building from source and installing the rust version, please see :doc:`installed <Introduction/install>`.
+We also have supporting for building from source and installing the rust version, please see :doc:`installed <install/rust/install>`.
 
 If you want to dive headfirst into the API's you can visit the  :doc:`Python and Rust docs <api/index>`.
 
@@ -38,14 +38,19 @@ If you would like a brief summary of what it's used for before fully diving into
    :caption: Quick Start (Python)
 
    install/python/raphtory.ipynb
+   install/python/build.md
+   install/python/test.md
 
 .. toctree::
    :maxdepth: 1
    :hidden:
    :caption: Quick Start (Rust)
 
+   install/rust/install.md
    Introduction/quickstart.md
-   Introduction/install.md
+   install/rust/build.md
+   install/rust/test.md
+
 
 .. toctree::
    :maxdepth: 1

@@ -1,20 +1,20 @@
-//! Defines the `Graph` struct, which represents a docbrown graph in memory.
+//! Defines the `Graph` struct, which represents a raphtory graph in memory.
 //!
 //! This is the base class used to create a temporal graph, add vertices and edges,
 //! create windows, and query the graph with a variety of algorithms.
 //! It is a wrapper around a set of shards, which are the actual graph data structures.
 //! In Python, this class wraps around the rust graph.
 
-use crate::dynamic::DynamicGraph;
+use crate::dynamic::{DynamicGraph, IntoDynamic};
 use crate::graph_view::PyGraphView;
 use crate::utils::adapt_result;
 use crate::wrappers::prop::Prop;
-use docbrown::core as dbc;
-use docbrown::core::vertex::InputVertex;
-use docbrown::db::graph::Graph;
 use itertools::Itertools;
 use pyo3::exceptions::{PyException, PyTypeError};
 use pyo3::prelude::*;
+use raphtory::core as dbc;
+use raphtory::core::vertex::InputVertex;
+use raphtory::db::graph::Graph;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
@@ -52,7 +52,7 @@ impl PyGraph {
             Self {
                 graph: graph.clone(),
             },
-            PyGraphView::from(DynamicGraph::from(graph)),
+            PyGraphView::from(graph),
         )
     }
 
