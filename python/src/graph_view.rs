@@ -216,14 +216,14 @@ impl PyGraphView {
     /// Create a view including all events between `t_start` (inclusive) and `t_end` (exclusive)
     ///
     /// Arguments:
-    ///   t_start (int): the start time of the window (optional)
-    ///   t_end (int): the end time of the window (optional)
+    ///   start (int): the start time of the window (optional)
+    ///   end (int): the end time of the window (optional)
     ///
     /// Returns:
     ///     a view including all events between `t_start` (inclusive) and `t_end` (exclusive)
-    #[pyo3(signature = (t_start=None, t_end=None))]
-    pub fn window(&self, t_start: Option<i64>, t_end: Option<i64>) -> PyGraphView {
-        window_impl(&self.graph, t_start, t_end).into()
+    #[pyo3(signature = (start=None, end=None))]
+    pub fn window(&self, start: Option<i64>, end: Option<i64>) -> PyGraphView {
+        window_impl(&self.graph, start, end).into()
     }
 
     /// Create a view including all events until `end` (inclusive)

@@ -7,7 +7,7 @@
 
 use crate::dynamic::{DynamicGraph, IntoDynamic};
 use crate::graph_view::PyGraphView;
-use crate::utils::adapt_result;
+use crate::utils::{adapt_result, extract_time};
 use crate::wrappers::prop::Prop;
 use itertools::Itertools;
 use pyo3::exceptions::{PyException, PyTypeError};
@@ -110,24 +110,22 @@ impl PyGraph {
     ///
     /// Returns:
     ///   None
-    #[pyo3(signature = (timestamp, src, dst, properties=None, layer=None))]
+    #[pyo3(signature = (time, src, dst, properties=None, layer=None))]
     pub fn add_edge(
         &self,
-        timestamp: i64,
+        time: &PyAny,
         src: &PyAny,
         dst: &PyAny,
         properties: Option<HashMap<String, Prop>>,
         layer: Option<&str>,
     ) -> PyResult<()> {
+        let time = extract_time(time)?;
         let src = Self::extract_id(src)?;
         let dst = Self::extract_id(dst)?;
-        adapt_result(self.graph.add_edge(
-            timestamp,
-            src,
-            dst,
-            &Self::transform_props(properties),
-            layer,
-        ))
+        adapt_result(
+            self.graph
+                .add_edge(time, src, dst, &Self::transform_props(properties), layer),
+        )
     }
 
     /// Adds properties to an existing edge.

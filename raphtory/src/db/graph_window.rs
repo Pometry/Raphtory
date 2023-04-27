@@ -1487,4 +1487,13 @@ mod views_test {
 
         assert_eq!(actual, expected);
     }
+
+    #[test]
+    fn earliest_and_latest_time() {
+        let g = Graph::new(3);
+        g.add_vertex(2, 0, &vec![]).unwrap();
+        g.add_vertex(6, 0, &vec![]).unwrap();
+        assert_eq!(g.window(3, 8).earliest_time().unwrap(), 6);
+        assert_eq!(g.window(1, 4).latest_time().unwrap(), 6);
+    }
 }

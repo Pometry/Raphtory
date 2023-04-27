@@ -7,7 +7,7 @@ use pyo3::exceptions::{PyException, PyTypeError};
 use pyo3::prelude::*;
 use raphtory::core::tgraph::VertexRef;
 use raphtory::core::time::error::ParseTimeError;
-use raphtory::core::time::Interval;
+use raphtory::core::time::{Interval, IntoTime};
 use raphtory::db::view_api::time::WindowSet;
 use raphtory::db::view_api::TimeOps;
 use std::error::Error;
@@ -78,6 +78,53 @@ where
     adapt_result(slf.rolling(window, step)).map(|iter| iter.into())
 }
 
+fn parse_email_timestamp(timestamp: &str) -> PyResult<i64> {
+    Python::with_gil(|py| {
+        let email_utils = PyModule::import(py, "email.utils")?;
+        let datetime = email_utils.call_method1("parsedate_to_datetime", (timestamp,))?;
+        let py_seconds = datetime.call_method1("timestamp", ())?;
+        let seconds = py_seconds.extract::<f64>()?;
+        Ok(seconds as i64 * 1000)
+    })
+}
+
+pub(crate) fn extract_time(time: &PyAny) -> PyResult<TimeBox> {
+    let string = time.extract::<String>();
+    let result = string.map(|string| {
+        let timestamp = string.as_str();
+        let parsing_result = timestamp
+            .into_time()
+            .or_else(|e| parse_email_timestamp(timestamp).map_err(|py_err| e));
+        TimeBox::new(parsing_result)
+    });
+
+    let result = result.or_else(|_| {
+        let number = time.extract::<i64>();
+        number.map(|number| TimeBox::new(number.into_time()))
+    });
+
+    result.map_err(|_| {
+        let message = format!("time '{time}' must be a str or an integer");
+        PyTypeError::new_err(message)
+    })
+}
+
+pub(crate) struct TimeBox {
+    parsing_result: Result<i64, ParseTimeError>,
+}
+
+impl TimeBox {
+    fn new(parsing_result: Result<i64, ParseTimeError>) -> Self {
+        Self { parsing_result }
+    }
+}
+
+impl IntoTime for TimeBox {
+    fn into_time(self) -> Result<i64, ParseTimeError> {
+        self.parsing_result
+    }
+}
+
 pub(crate) fn extract_interval(interval: &PyAny) -> PyResult<IntervalBox> {
     let string = interval.extract::<String>();
     let result = string.map(|string| IntervalBox::new(string.as_str()));
@@ -88,7 +135,7 @@ pub(crate) fn extract_interval(interval: &PyAny) -> PyResult<IntervalBox> {
     });
 
     result.map_err(|_| {
-        let message = format!("interval '{interval}' must be a str or an unsigned number");
+        let message = format!("interval '{interval}' must be a str or an unsigned integer");
         PyTypeError::new_err(message)
     })
 }
