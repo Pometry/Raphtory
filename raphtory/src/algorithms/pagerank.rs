@@ -1,4 +1,6 @@
 use crate::algorithms::*;
+use crate::core::agg::{InitAcc, InitAcc1};
+use crate::core::state::AccId1;
 use crate::core::{
     agg::{MaxDef, SumDef, ValDef},
     state::{
@@ -8,7 +10,7 @@ use crate::core::{
 };
 use crate::db::{
     graph::Graph,
-    program::{AggRef, GlobalEvalState, LocalState, Program},
+    program::{GlobalEvalState, LocalState, Program},
     view_api::GraphViewOps,
 };
 use num_traits::abs;
@@ -17,14 +19,14 @@ use std::ops::Range;
 
 struct UnweightedPageRankS0 {
     total_vertices: usize,
-    score: AccId<MulF32, MulF32, MulF32, ValDef<MulF32>>,
+    score: AccId1<f32, InitAcc1<f32, ValDef<f32>, InitOneF32>>,
 }
 
 impl UnweightedPageRankS0 {
     fn new(total_vertices: usize) -> Self {
         Self {
             total_vertices,
-            score: val(0),
+            score: val(0).init(),
         }
     }
 }
@@ -33,9 +35,9 @@ impl Program for UnweightedPageRankS0 {
     type Out = ();
 
     fn local_eval<G: GraphViewOps>(&self, c: &LocalState<G>) {
-        let score: AggRef<MulF32, MulF32, MulF32, ValDef<MulF32>> = c.agg(self.score);
+        let score = c.agg(self.score);
 
-        c.step(|s| s.update(&score, MulF32(1f32 / self.total_vertices as f32)));
+        c.step(|s| s.update(&score, 1f32 / self.total_vertices as f32));
     }
 
     fn post_eval<G: GraphViewOps>(&self, c: &mut GlobalEvalState<G>) {
@@ -51,14 +53,14 @@ impl Program for UnweightedPageRankS0 {
 }
 
 struct UnweightedPageRankS1 {
-    score: AccId<MulF32, MulF32, MulF32, ValDef<MulF32>>,
-    recv_score: AccId<SumF32, SumF32, SumF32, SumDef<SumF32>>,
+    score: AccId1<f32, InitAcc1<f32, ValDef<f32>, InitOneF32>>,
+    recv_score: AccId<f32, f32, f32, SumDef<f32>>,
 }
 
 impl UnweightedPageRankS1 {
     fn new() -> Self {
         Self {
-            score: val(0),
+            score: val(0).init(),
             recv_score: sum(1),
         }
     }
@@ -74,9 +76,9 @@ impl Program for UnweightedPageRankS1 {
         c.step(|s| {
             let out_degree = s.out_degree();
             if out_degree > 0 {
-                let new_score = s.read(&score).0 / out_degree as f32;
+                let new_score = s.read(&score) / out_degree as f32;
                 for t in s.neighbours_out() {
-                    t.update(&recv_score, SumF32(new_score))
+                    t.update(&recv_score, new_score)
                 }
             }
         });
@@ -96,15 +98,15 @@ impl Program for UnweightedPageRankS1 {
 }
 
 struct UnweightedPageRankS2 {
-    score: AccId<MulF32, MulF32, MulF32, ValDef<MulF32>>,
-    recv_score: AccId<SumF32, SumF32, SumF32, SumDef<SumF32>>,
+    score: AccId1<f32, InitAcc1<f32, ValDef<f32>, InitOneF32>>,
+    recv_score: AccId<f32, f32, f32, SumDef<f32>>,
     max_diff: AccId<f32, f32, f32, MaxDef<f32>>,
 }
 
 impl UnweightedPageRankS2 {
     fn new() -> Self {
         Self {
-            score: val(0),
+            score: val(0).init(),
             recv_score: sum(1),
             max_diff: max(2),
         }
@@ -123,11 +125,11 @@ impl Program for UnweightedPageRankS2 {
         c.step(|s| {
             s.update(
                 &score,
-                MulF32((1f32 - damping_factor) + (damping_factor * s.read(&recv_score).0)),
+                (1f32 - damping_factor) + (damping_factor * s.read(&recv_score)),
             );
             let prev = s.read_prev(&score);
             let curr = s.read(&score);
-            let md = abs((prev.clone() - curr.clone()).0);
+            let md = abs(prev - curr);
             s.global_update(&max_diff, md);
         });
     }
@@ -147,8 +149,8 @@ impl Program for UnweightedPageRankS2 {
 }
 
 #[allow(unused_variables)]
-pub fn unweighted_page_rank<G: GraphViewOps>(
-    g: &G,
+pub fn unweighted_page_rank(
+    g: &Graph,
     window: Range<i64>,
     iter_count: usize,
 ) -> FxHashMap<u64, f32> {
@@ -164,12 +166,12 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
 
     loop {
         pg_s1.run_step(g, &mut c);
-        // println!("vec parts: {:?}", c.read_vec_partitions(&val::<MulF32>(0)));
+        println!("vec parts: {:?}", c.read_vec_partitions(&val::<f32>(0)));
 
         pg_s2.run_step(g, &mut c);
 
         let r = c.read_global_state(&max::<f32>(2)).unwrap();
-        // println!("max_diff = {:?}", r);
+        println!("max_diff = {:?}", r);
 
         if r <= max_diff || i > iter_count {
             break;
@@ -181,15 +183,13 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
         i += 1;
     }
 
-    println!("Completed {} steps", i);
-
     let mut results: FxHashMap<u64, f32> = FxHashMap::default();
 
-    (0..g.num_shards())
+    (0..g.nr_shards)
         .into_iter()
         .fold(&mut results, |res, part_id| {
-            c.fold_state(&val::<MulF32>(0), part_id, res, |res, v_id, sc| {
-                res.insert(*v_id, sc.0);
+            c.fold_state(&val::<f32>(0), part_id, res, |res, v_id, sc| {
+                res.insert(*v_id, sc);
                 res
             })
         });

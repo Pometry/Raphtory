@@ -76,6 +76,15 @@ where
     }
 }
 
+
+#[allow(unused_variables)]
+pub fn unweighted_page_rank<G:GraphViewInternalOps>(
+    g: &G,
+    iter_count: usize,
+) -> FxHashMap<u64, f32> {
+    FxHashMap::default()
+}
+
 pub fn weakly_connected_components<G>(
     graph: &G,
     iter_count: usize,

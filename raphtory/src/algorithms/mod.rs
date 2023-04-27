@@ -42,6 +42,15 @@ pub mod generic_taint;
 use num_traits::{abs, Bounded, Zero};
 use std::ops::{Add, AddAssign, Div, Mul, Range, Sub};
 
+use crate::core::agg::Init;
+
+struct InitOneF32();
+impl Init<f32> for InitOneF32 {
+    fn init() -> f32 {
+        1.0f32
+    }
+}
+
 #[derive(PartialEq, PartialOrd, Copy, Clone, Debug)]
 struct MulF32(f32);
 

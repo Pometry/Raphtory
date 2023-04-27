@@ -5,14 +5,15 @@ use crate::core::utils::get_shard_id_from_global_vid;
 use rustc_hash::FxHashMap;
 use std::{any::Any, borrow::Borrow, fmt::Debug};
 
+use super::agg::{Init, InitAcc};
+
 #[derive(Debug)]
 pub struct AccId<A, IN, OUT, ACC: Accumulator<A, IN, OUT>> {
     id: u32,
-    _a: std::marker::PhantomData<A>,
-    _acc: std::marker::PhantomData<ACC>,
-    _in: std::marker::PhantomData<IN>,
-    _out: std::marker::PhantomData<OUT>,
+    _a: std::marker::PhantomData<(A, IN, OUT, ACC)>,
 }
+
+pub type AccId1<A, ACC> = AccId<A, A, A, ACC>;
 
 impl<A, IN, OUT, ACC: Accumulator<A, IN, OUT>> Copy for AccId<A, IN, OUT, ACC> {}
 
@@ -21,15 +22,20 @@ impl<A, IN, OUT, ACC: Accumulator<A, IN, OUT>> AccId<A, IN, OUT, ACC> {
         self.id
     }
 }
+impl<A: 'static, IN: 'static, OUT: 'static, ACC: Accumulator<A, IN, OUT>> AccId<A, IN, OUT, ACC> {
+    pub fn init<I: Init<A> + 'static>(self) -> AccId<A, IN, OUT, InitAcc<A, IN, OUT, ACC, I>> {
+        AccId {
+            id: self.id,
+            _a: std::marker::PhantomData,
+        }
+    }
+}
 
 impl<A, IN, OUT, ACC: Accumulator<A, IN, OUT>> Clone for AccId<A, IN, OUT, ACC> {
     fn clone(&self) -> Self {
         Self {
             id: self.id,
             _a: std::marker::PhantomData,
-            _acc: std::marker::PhantomData,
-            _in: std::marker::PhantomData,
-            _out: std::marker::PhantomData,
         }
     }
 }
@@ -58,9 +64,6 @@ pub mod def {
         AccId {
             id,
             _a: std::marker::PhantomData,
-            _acc: std::marker::PhantomData,
-            _in: std::marker::PhantomData,
-            _out: std::marker::PhantomData,
         }
     }
 
@@ -68,9 +71,6 @@ pub mod def {
         AccId {
             id,
             _a: std::marker::PhantomData,
-            _acc: std::marker::PhantomData,
-            _in: std::marker::PhantomData,
-            _out: std::marker::PhantomData,
         }
     }
 
@@ -78,9 +78,6 @@ pub mod def {
         AccId {
             id,
             _a: std::marker::PhantomData,
-            _acc: std::marker::PhantomData,
-            _in: std::marker::PhantomData,
-            _out: std::marker::PhantomData,
         }
     }
 
@@ -88,9 +85,6 @@ pub mod def {
         AccId {
             id,
             _a: std::marker::PhantomData,
-            _acc: std::marker::PhantomData,
-            _in: std::marker::PhantomData,
-            _out: std::marker::PhantomData,
         }
     }
 
@@ -98,9 +92,6 @@ pub mod def {
         AccId {
             id,
             _a: std::marker::PhantomData,
-            _acc: std::marker::PhantomData,
-            _in: std::marker::PhantomData,
-            _out: std::marker::PhantomData,
         }
     }
 
@@ -112,9 +103,6 @@ pub mod def {
         AccId {
             id,
             _a: std::marker::PhantomData,
-            _acc: std::marker::PhantomData,
-            _in: std::marker::PhantomData,
-            _out: std::marker::PhantomData,
         }
     }
 
@@ -124,9 +112,6 @@ pub mod def {
         AccId {
             id,
             _a: std::marker::PhantomData,
-            _acc: std::marker::PhantomData,
-            _in: std::marker::PhantomData,
-            _out: std::marker::PhantomData,
         }
     }
 
@@ -136,9 +121,6 @@ pub mod def {
         AccId {
             id,
             _a: std::marker::PhantomData,
-            _acc: std::marker::PhantomData,
-            _in: std::marker::PhantomData,
-            _out: std::marker::PhantomData,
         }
     }
 
@@ -146,9 +128,6 @@ pub mod def {
         AccId {
             id,
             _a: std::marker::PhantomData,
-            _acc: std::marker::PhantomData,
-            _in: std::marker::PhantomData,
-            _out: std::marker::PhantomData,
         }
     }
 
@@ -156,9 +135,6 @@ pub mod def {
         AccId {
             id,
             _a: std::marker::PhantomData,
-            _acc: std::marker::PhantomData,
-            _in: std::marker::PhantomData,
-            _out: std::marker::PhantomData,
         }
     }
 }

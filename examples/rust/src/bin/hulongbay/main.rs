@@ -17,7 +17,7 @@ use raphtory::core::{state, utils};
 use raphtory::core::{Direction, Prop};
 use raphtory::db::graph::Graph;
 use raphtory::db::program::{GlobalEvalState, Program};
-use raphtory::db::task::weakly_connected_components;
+use raphtory::db::task::task::weakly_connected_components;
 use raphtory::db::view_api::*;
 use raphtory::graph_loader::source::csv_loader::CsvLoader;
 use regex::Regex;

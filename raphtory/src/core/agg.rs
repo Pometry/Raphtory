@@ -177,6 +177,51 @@ where
         a.0.clone() / count
     }
 }
+// use to replace the default zero for A
+pub trait Init<A> {
+    fn init() -> A;
+}
+
+pub struct InitAcc<A, IN, OUT, ACC: Accumulator<A, IN, OUT>, I: Init<A>> {
+    _marker: PhantomData<(A, IN, OUT, ACC, I)>,
+}
+
+pub type InitAcc1<A, ACC, I> = InitAcc<A, A, A, ACC, I>;
+
+// these are safe as long as InitAcc does not have ANY internal state
+unsafe impl<A, IN, OUT, ACC: Accumulator<A, IN, OUT>, I: Init<A>> Sync
+    for InitAcc<A, IN, OUT, ACC, I>
+{
+}
+unsafe impl<A, IN, OUT, ACC: Accumulator<A, IN, OUT>, I: Init<A>> Send
+    for InitAcc<A, IN, OUT, ACC, I>
+{
+}
+
+impl<
+        A: 'static,
+        IN: 'static,
+        OUT: 'static,
+        ACC: Accumulator<A, IN, OUT>,
+        I: Init<A> + 'static,
+    > Accumulator<A, IN, OUT> for InitAcc<A, IN, OUT, ACC, I>
+{
+    fn zero() -> A {
+        I::init()
+    }
+
+    fn add0(a1: &mut A, a: IN) {
+        ACC::add0(a1, a);
+    }
+
+    fn combine(a1: &mut A, a2: &A) {
+        ACC::combine(a1, a2);
+    }
+
+    fn finish(a: &A) -> OUT {
+        ACC::finish(a)
+    }
+}
 
 pub mod set {
     use super::*;
