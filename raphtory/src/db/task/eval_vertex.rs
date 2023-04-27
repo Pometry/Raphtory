@@ -2,8 +2,9 @@ use std::{borrow::Cow, cell::RefCell, rc::Rc, sync::Arc};
 
 use crate::{
     core::{
-        state::{ComputeState, ShuffleComputeState, StateType, AccId},
-        tgraph::VertexRef, agg::Accumulator,
+        agg::Accumulator,
+        state::{AccId, ComputeState, ShuffleComputeState, StateType},
+        tgraph::VertexRef,
     },
     db::view_api::internal::GraphViewInternalOps,
 };
@@ -52,9 +53,19 @@ impl<'a, G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeSta
         }
     }
 
+    pub fn out_degree(&self) -> usize {
+        self.g.degree(self.vv, crate::core::Direction::OUT, None)
+    }
+
     pub fn neighbours(&self) -> impl Iterator<Item = EvalVertexView<'a, G, CS>> + '_ {
         self.g
             .neighbours(self.vv, crate::core::Direction::BOTH, None)
+            .map(move |vv| EvalVertexView::new(self.ss, vv, self.g.clone(), self.state.clone()))
+    }
+
+    pub fn neighbours_out(&self) -> impl Iterator<Item = EvalVertexView<'a, G, CS>> + '_ {
+        self.g
+            .neighbours(self.vv, crate::core::Direction::OUT, None)
             .map(move |vv| EvalVertexView::new(self.ss, vv, self.g.clone(), self.state.clone()))
     }
 
@@ -67,6 +78,18 @@ impl<'a, G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeSta
         let owned_mut = ref_cow.to_mut();
         owned_mut.accumulate_into_pid(self.ss, self.global_id(), self.pid(), a, id);
     }
+
+
+    pub fn global_update<A: StateType, IN: 'static, OUT: 'static, ACC: Accumulator<A, IN, OUT>>(
+        &self,
+        id: &AccId<A, IN, OUT, ACC>,
+        a: IN,
+    ) {
+        let mut ref_cow = self.state.borrow_mut();
+        let owned_mut = ref_cow.to_mut();
+        owned_mut.accumulate_global(self.ss, a, id);
+    }
+    
 
     /// Read the current value of the vertex state using the given accumulator.
     /// Returns a default value if the value is not present.
