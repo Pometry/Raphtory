@@ -1,4 +1,4 @@
-# Installation
+# Install
 
 raphtory requires rust, please see the rust guide to [install](https://doc.rust-lang.org/stable/book/ch01-01-installation.html). 
 
