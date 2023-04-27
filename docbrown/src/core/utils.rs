@@ -10,8 +10,6 @@ pub fn calculate_hash<T: Hash>(t: &T) -> u64 {
     s.finish()
 }
 
-pub fn get_shard_id_from_global_vid<T: Hash>(v_id: T, n_shards: usize) -> usize {
-    let v_hash: u64 = calculate_hash(&v_id);
-    let v: usize = v_hash.try_into().unwrap();
-    v % n_shards
+pub fn get_shard_id_from_global_vid(v_id: u64, n_shards: usize) -> usize {
+    (v_id % n_shards as u64) as usize
 }

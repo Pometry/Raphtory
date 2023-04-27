@@ -19,6 +19,7 @@
 
 use crate::core::tgraph::TemporalGraph;
 use crate::core::tgraph_shard::TGraphShard;
+use crate::core::time::{IntoTime, IntoTimeWithFormat};
 use crate::core::{
     tgraph::{EdgeRef, VertexRef},
     tgraph_shard::errors::GraphError,
@@ -69,7 +70,7 @@ impl GraphViewInternalOps for Graph {
     }
 
     fn view_end(&self) -> Option<i64> {
-        self.latest_time_global()
+        self.latest_time_global().map(|t| t + 1) // so it is exclusive
     }
 
     fn earliest_time_global(&self) -> Option<i64> {
@@ -764,14 +765,25 @@ impl Graph {
     /// let v = g.add_vertex(0, "Alice", &vec![]);
     /// let v = g.add_vertex(0, 5, &vec![]);
     /// ```
-    pub fn add_vertex<T: InputVertex>(
+    pub fn add_vertex<V: InputVertex, T: IntoTime>(
         &self,
-        t: i64,
-        v: T,
+        t: T,
+        v: V,
         props: &Vec<(String, Prop)>,
     ) -> Result<(), GraphError> {
         let shard_id = utils::get_shard_id_from_global_vid(v.id(), self.nr_shards);
-        self.shards[shard_id].add_vertex(t, v, props)
+        self.shards[shard_id].add_vertex(t.into_time()?, v, props)
+    }
+
+    pub fn add_vertex_with_custom_time_format<V: InputVertex>(
+        &self,
+        t: &str,
+        fmt: &str,
+        v: V,
+        props: &Vec<(String, Prop)>,
+    ) -> Result<(), GraphError> {
+        let time: i64 = t.parse_time(fmt)?;
+        self.add_vertex(time, v, props)
     }
 
     /// Adds properties to the given input vertex.
@@ -791,9 +803,9 @@ impl Graph {
     /// let properties = vec![("color".to_owned(), Prop::Str("blue".to_owned())), ("weight".to_owned(), Prop::I64(11))];
     /// let result = graph.add_vertex_properties("Alice", &properties);
     /// ```
-    pub fn add_vertex_properties<T: InputVertex>(
+    pub fn add_vertex_properties<V: InputVertex>(
         &self,
-        v: T,
+        v: V,
         data: &Vec<(String, Prop)>,
     ) -> Result<(), GraphError> {
         let shard_id = utils::get_shard_id_from_global_vid(v.id(), self.nr_shards);
@@ -820,34 +832,48 @@ impl Graph {
     /// graph.add_vertex(2, "Bob", &vec![]);
     /// graph.add_edge(3, "Alice", "Bob", &vec![], None);
     /// ```    
-    pub fn add_edge<T: InputVertex>(
+    pub fn add_edge<V: InputVertex, T: IntoTime>(
         &self,
-        t: i64,
-        src: T,
-        dst: T,
+        t: T,
+        src: V,
+        dst: V,
         props: &Vec<(String, Prop)>,
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
+        let time = t.into_time()?;
         let src_shard_id = utils::get_shard_id_from_global_vid(src.id(), self.nr_shards);
         let dst_shard_id = utils::get_shard_id_from_global_vid(dst.id(), self.nr_shards);
 
         let layer_id = self.get_or_allocate_layer(layer);
 
         if src_shard_id == dst_shard_id {
-            self.shards[src_shard_id].add_edge(t, src, dst, props, layer_id)
+            self.shards[src_shard_id].add_edge(time, src, dst, props, layer_id)
         } else {
             // FIXME these are sort of connected, we need to hold both locks for
             // the src partition and dst partition to add a remote edge between both
             self.shards[src_shard_id].add_edge_remote_out(
-                t,
+                time,
                 src.clone(),
                 dst.clone(),
                 props,
                 layer_id,
             )?;
-            self.shards[dst_shard_id].add_edge_remote_into(t, src, dst, props, layer_id)?;
+            self.shards[dst_shard_id].add_edge_remote_into(time, src, dst, props, layer_id)?;
             Ok(())
         }
+    }
+
+    pub fn add_edge_with_custom_time_format<V: InputVertex>(
+        &self,
+        t: &str,
+        fmt: &str,
+        src: V,
+        dst: V,
+        props: &Vec<(String, Prop)>,
+        layer: Option<&str>,
+    ) -> Result<(), GraphError> {
+        let time: i64 = t.parse_time(fmt)?;
+        self.add_edge(time, src, dst, props, layer)
     }
 
     /// Adds properties to an existing edge between a source and destination vertices
@@ -870,10 +896,10 @@ impl Graph {
     /// let properties = vec![("price".to_owned(), Prop::I64(100))];
     /// let result = graph.add_edge_properties("Alice", "Bob", &properties, None);
     /// ```
-    pub fn add_edge_properties<T: InputVertex>(
+    pub fn add_edge_properties<V: InputVertex>(
         &self,
-        src: T,
-        dst: T,
+        src: V,
+        dst: V,
         props: &Vec<(String, Prop)>,
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
@@ -903,13 +929,10 @@ mod db_tests {
     use crate::core::utils;
     use crate::db::edge::EdgeView;
     use crate::db::path::PathFromVertex;
-    use crate::db::perspective::Perspective;
-    use crate::db::vertex::VertexView;
     use crate::db::view_api::*;
     use crate::graphgen::random_attachment::random_attachment;
     use csv::StringRecord;
     use itertools::Itertools;
-    use quickcheck::quickcheck;
     use std::fs;
     use std::sync::Arc;
     use tempdir::TempDir;
@@ -931,12 +954,12 @@ mod db_tests {
     }
 
     #[quickcheck]
-    fn add_vertex_grows_graph_len(vs: Vec<(u8, u64)>) {
+    fn add_vertex_grows_graph_len(vs: Vec<(i64, u64)>) {
         let g = Graph::new(2);
 
         let expected_len = vs.iter().map(|(_, v)| v).sorted().dedup().count();
         for (t, v) in vs {
-            g.add_vertex(t.into(), v, &vec![])
+            g.add_vertex(t, v, &vec![])
                 .map_err(|err| println!("{:?}", err))
                 .ok();
         }
@@ -1289,35 +1312,35 @@ mod db_tests {
     fn time_test() {
         let g = Graph::new(4);
 
-        assert_eq!(g.end(), None);
-        assert_eq!(g.start(), None);
+        assert_eq!(g.latest_time(), None);
+        assert_eq!(g.earliest_time(), None);
 
         g.add_vertex(5, 1, &vec![])
             .map_err(|err| println!("{:?}", err))
             .ok();
 
-        assert_eq!(g.end(), Some(5));
-        assert_eq!(g.start(), Some(5));
+        assert_eq!(g.latest_time(), Some(5));
+        assert_eq!(g.earliest_time(), Some(5));
 
         let g = Graph::new(4);
 
         g.add_edge(10, 1, 2, &vec![], None).unwrap();
-        assert_eq!(g.end(), Some(10));
-        assert_eq!(g.start(), Some(10));
+        assert_eq!(g.latest_time(), Some(10));
+        assert_eq!(g.earliest_time(), Some(10));
 
         g.add_vertex(5, 1, &vec![])
             .map_err(|err| println!("{:?}", err))
             .ok();
-        assert_eq!(g.end(), Some(10));
-        assert_eq!(g.start(), Some(5));
+        assert_eq!(g.latest_time(), Some(10));
+        assert_eq!(g.earliest_time(), Some(5));
 
         g.add_edge(20, 3, 4, &vec![], None).unwrap();
-        assert_eq!(g.end(), Some(20));
-        assert_eq!(g.start(), Some(5));
+        assert_eq!(g.latest_time(), Some(20));
+        assert_eq!(g.earliest_time(), Some(5));
 
         random_attachment(&g, 100, 10);
-        assert_eq!(g.end(), Some(126));
-        assert_eq!(g.start(), Some(5));
+        assert_eq!(g.latest_time(), Some(126));
+        assert_eq!(g.earliest_time(), Some(5));
     }
 
     #[test]
@@ -1502,8 +1525,8 @@ mod db_tests {
     fn db_lotr() {
         let g = Graph::new(4);
 
-        let data_dir =
-            crate::graph_loader::lotr_graph::lotr_file().expect("Failed to get lotr.csv file");
+        let data_dir = crate::graph_loader::example::lotr_graph::lotr_file()
+            .expect("Failed to get lotr.csv file");
 
         fn parse_record(rec: &StringRecord) -> Option<(String, String, i64)> {
             let src = rec.get(0).and_then(|s| s.parse::<String>().ok())?;
@@ -1551,27 +1574,25 @@ mod db_tests {
     }
 
     #[test]
-    fn test_through_on_empty_graph() {
+    fn test_time_range_on_empty_graph() {
         let g = Graph::new(1);
 
-        let perspectives = Perspective::rolling(1, Some(1), Some(-100), Some(100));
-        let first_view = g.through_perspectives(perspectives).next();
-        assert!(first_view.is_none());
+        let rolling = g.rolling(1, None).unwrap().collect_vec();
+        assert!(rolling.is_empty());
 
-        let perspectives = vec![Perspective::new(Some(-10), Some(10))].into_iter();
-        let first_view = g.through_iter(Box::new(perspectives)).next();
-        assert!(first_view.is_none());
+        let expanding = g.expanding(1).unwrap().collect_vec();
+        assert!(expanding.is_empty());
     }
 
     #[test]
     fn test_lotr_load_graph() {
-        let g = crate::graph_loader::lotr_graph::lotr_graph(4);
+        let g = crate::graph_loader::example::lotr_graph::lotr_graph(4);
         assert_eq!(g.num_edges(), 701);
     }
 
     #[test]
     fn test_graph_at() {
-        let g = crate::graph_loader::lotr_graph::lotr_graph(1);
+        let g = crate::graph_loader::example::lotr_graph::lotr_graph(1);
 
         let g_at_empty = g.at(1);
         let g_at_start = g.at(7059);
@@ -1747,8 +1768,6 @@ mod db_tests {
         g.add_edge(1, 1, 3, &vec![], None).unwrap();
         g.add_edge(2, 1, 3, &vec![], None).unwrap();
 
-        let expected: i64 = 1;
-
         let mut res = g.edge(1, 2, None).unwrap().earliest_time().unwrap();
         assert_eq!(res, 0);
 
@@ -1761,16 +1780,16 @@ mod db_tests {
         res = g.at(1).edge(1, 2, None).unwrap().latest_time().unwrap();
         assert_eq!(res, 1);
 
-        let mut res_list: Vec<i64> = g.vertex(1).unwrap().edges().earliest_time().collect();
+        let res_list: Vec<i64> = g.vertex(1).unwrap().edges().earliest_time().collect();
         assert_eq!(res_list, vec![0, 0]);
 
-        let mut res_list: Vec<i64> = g.vertex(1).unwrap().edges().latest_time().collect();
+        let res_list: Vec<i64> = g.vertex(1).unwrap().edges().latest_time().collect();
         assert_eq!(res_list, vec![2, 2]);
 
-        let mut res_list: Vec<i64> = g.vertex(1).unwrap().at(1).edges().earliest_time().collect();
+        let res_list: Vec<i64> = g.vertex(1).unwrap().at(1).edges().earliest_time().collect();
         assert_eq!(res_list, vec![0, 0]);
 
-        let mut res_list: Vec<i64> = g.vertex(1).unwrap().at(1).edges().latest_time().collect();
+        let res_list: Vec<i64> = g.vertex(1).unwrap().at(1).edges().latest_time().collect();
         assert_eq!(res_list, vec![1, 1]);
     }
 
@@ -1813,17 +1832,13 @@ mod db_tests {
         g.add_edge(4, 1, 4, &vec![], None).unwrap();
 
         let times_of_onetwo = g.edge(1, 2, None).unwrap().history();
-        //todo: bug that Pedro will fix in his PR
-        //let times_of_four = g.edge(1, 4, None).unwrap().window(1,5).history();
-        let times_of_outside_window = g.edge(1, 4, None).unwrap().window(1, 5).history();
-
-        let view = g.window(1, 5);
-        let windowed_times_of_four = view.edge(1, 4, None).unwrap().window(2, 5).history();
+        let times_of_four = g.edge(1, 4, None).unwrap().window(1, 5).history();
+        let view = g.window(2, 5);
+        let windowed_times_of_four = view.edge(1, 4, None).unwrap().window(2, 4).history();
 
         assert_eq!(times_of_onetwo, [1, 3]);
-        //assert_eq!(times_of_four, [4]);
-        assert_eq!(times_of_outside_window, []);
-        assert_eq!(windowed_times_of_four, [4]);
+        assert_eq!(times_of_four, [4]);
+        assert_eq!(windowed_times_of_four, []);
     }
 
     #[test]
@@ -1844,9 +1859,7 @@ mod db_tests {
         let times_of_onetwo = g.edge(1, 2, None).unwrap().history();
         let times_of_four = g.edge(1, 4, None).unwrap().window(1, 5).history();
         let times_of_outside_window = g.edge(1, 4, None).unwrap().window(1, 4).history();
-
-        // todo: bug for Pedro to fix in his PR
-        // let times_of_four_higher = g.edge(1, 4, None).unwrap().window(6, 11).history();
+        let times_of_four_higher = g.edge(1, 4, None).unwrap().window(6, 11).history();
 
         let view = g.window(1, 11);
         let windowed_times_of_four = view.edge(1, 4, None).unwrap().window(2, 5).history();
@@ -1854,7 +1867,7 @@ mod db_tests {
 
         assert_eq!(times_of_onetwo, [1, 3]);
         assert_eq!(times_of_four, [4]);
-        // assert_eq!(times_of_four_higher, [6,7,8,9,10]);
+        assert_eq!(times_of_four_higher, [6, 7, 8, 9, 10]);
         assert_eq!(times_of_outside_window, []);
         assert_eq!(windowed_times_of_four, [4]);
         assert_eq!(windowed_times_of_four_higher, [8, 9, 10]);
@@ -1896,6 +1909,28 @@ mod db_tests {
         assert_eq!(windowed_times_of_one, [1, 2, 3, 4]);
         assert_eq!(windowed_times_of_farquaad, [4, 6, 7]);
         assert_eq!(windowed_times_of_two, [5, 6, 7]);
+    }
+
+    #[test]
+    fn test_ingesting_timestamps() {
+        let earliest_time = "2022-06-06 12:34:00".into_time().unwrap();
+        let latest_time = "2022-06-07 12:34:00".into_time().unwrap();
+
+        let g = Graph::new(4);
+        g.add_vertex("2022-06-06T12:34:00.000", 0, &vec![]).unwrap();
+        g.add_edge("2022-06-07T12:34:00", 1, 2, &vec![], None)
+            .unwrap();
+        assert_eq!(g.earliest_time().unwrap(), earliest_time);
+        assert_eq!(g.latest_time().unwrap(), latest_time);
+
+        let g = Graph::new(4);
+        let fmt = "%Y-%m-%d %H:%M";
+        g.add_vertex_with_custom_time_format("2022-06-06 12:34", fmt, 0, &vec![])
+            .unwrap();
+        g.add_edge_with_custom_time_format("2022-06-07 12:34", fmt, 1, 2, &vec![], None)
+            .unwrap();
+        assert_eq!(g.earliest_time().unwrap(), earliest_time);
+        assert_eq!(g.latest_time().unwrap(), latest_time);
     }
 
     #[test]

@@ -2,6 +2,7 @@
 //! This base class is used to load in-built graphs such as the LOTR, reddit and StackOverflow.
 use crate::graph::PyGraph;
 use pyo3::prelude::*;
+use tokio::runtime::Runtime;
 
 /// Load the Lord of the Rings dataset into a graph.
 /// The dataset is available at https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv
@@ -25,7 +26,9 @@ use pyo3::prelude::*;
 #[pyfunction]
 #[pyo3(signature = (shards=1))]
 pub(crate) fn lotr_graph(shards: usize) -> PyResult<Py<PyGraph>> {
-    PyGraph::py_from_db_graph(docbrown::graph_loader::lotr_graph::lotr_graph(shards))
+    PyGraph::py_from_db_graph(docbrown::graph_loader::example::lotr_graph::lotr_graph(
+        shards,
+    ))
 }
 
 /// Load (a subset of) Reddit hyperlinks dataset into a graph.
@@ -66,9 +69,27 @@ pub(crate) fn lotr_graph(shards: usize) -> PyResult<Py<PyGraph>> {
 #[pyfunction]
 #[pyo3(signature = (shards=1,timeout_seconds=600))]
 pub(crate) fn reddit_hyperlink_graph(shards: usize, timeout_seconds: u64) -> PyResult<Py<PyGraph>> {
-    PyGraph::py_from_db_graph(docbrown::graph_loader::reddit_hyperlinks::reddit_graph(
-        shards,
-        timeout_seconds,
-        false,
-    ))
+    PyGraph::py_from_db_graph(
+        docbrown::graph_loader::example::reddit_hyperlinks::reddit_graph(
+            shards,
+            timeout_seconds,
+            false,
+        ),
+    )
+}
+#[pyfunction]
+#[pyo3(signature = (uri,username,password,database="neo4j".to_string(),shards=1))]
+pub(crate) fn neo4j_movie_graph(
+    uri: String,
+    username: String,
+    password: String,
+    database: String,
+    shards: usize,
+) -> PyResult<Py<PyGraph>> {
+    let g = Runtime::new().unwrap().block_on(
+        docbrown::graph_loader::example::neo4j_examples::neo4j_movie_graph(
+            uri, username, password, database, shards,
+        ),
+    );
+    PyGraph::py_from_db_graph(g)
 }

@@ -14,7 +14,6 @@ use docbrown::algorithms::triangle_count::triangle_counting_fast;
 use docbrown::core::tgraph::TemporalGraph;
 use docbrown::core::{state, utils};
 use docbrown::core::{Direction, Prop};
-use docbrown::db::csv_loader::CsvLoader;
 use docbrown::db::graph::Graph;
 use docbrown::db::program::{GlobalEvalState, Program};
 use docbrown::db::view_api::*;
@@ -24,6 +23,7 @@ use serde::Deserialize;
 use std::fs::File;
 use std::io::{prelude::*, BufReader, LineWriter};
 use std::time::Instant;
+use docbrown::graph_loader::source::csv_loader::CsvLoader;
 
 #[derive(Deserialize, Debug)]
 pub struct Edge {

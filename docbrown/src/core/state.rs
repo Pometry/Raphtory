@@ -340,9 +340,10 @@ impl ComputeState for ComputeStateMap {
             .downcast_ref::<MapArray<A>>()
             .unwrap();
 
-        current.map.get(&(i as u64)).map(|v| {
-            ACC::finish(&v[ss % 2])
-        })
+        current
+            .map
+            .get(&(i as u64))
+            .map(|v| ACC::finish(&v[ss % 2]))
     }
 
     fn read_ref<A: StateType, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
@@ -426,6 +427,7 @@ impl ComputeState for ComputeStateMap {
     }
 
     fn finalize<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(&self, ss: usize) -> Vec<OUT>
+    // fn finalize<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(&self, ss: usize) -> Vec<(u64, OUT)>
     where
         OUT: StateType,
         A: 'static,
@@ -435,6 +437,11 @@ impl ComputeState for ComputeStateMap {
             .as_any()
             .downcast_ref::<MapArray<A>>()
             .unwrap();
+
+        // current.map.iter().map(|(c,v)| {
+        //     (*c, ACC::finish(&v[ss % 2]))
+        // }).collect::<Vec<(u64, OUT)>>()
+
         current
             .map
             .values()
@@ -460,14 +467,12 @@ impl ComputeState for ComputeStateMap {
             .map(|(k, v)| (k, ACC::finish(&v[ss % 2])))
             .fold(b, |b, (k, out)| f(b, k, out))
     }
-
 }
 
 const GLOBAL_STATE_KEY: usize = 0;
 #[derive(Debug, Clone)]
 pub struct ShardComputeState<CS: ComputeState + Send> {
     states: FxHashMap<u32, CS>,
-
 }
 
 impl<CS: ComputeState + Send + Clone> ShardComputeState<CS> {
@@ -522,7 +527,7 @@ impl<CS: ComputeState + Send + Clone> ShardComputeState<CS> {
         &mut self,
         other: &Self,
         agg_ref: &AccId<A, IN, OUT, ACC>,
-        ss: usize,
+        _ss: usize,
     ) where
         A: StateType,
     {
@@ -536,7 +541,7 @@ impl<CS: ComputeState + Send + Clone> ShardComputeState<CS> {
             (None, Some(other_cs)) => {
                 self.states.insert(agg_ref.id, other_cs.clone());
             }
-            _ => { }
+            _ => {}
         }
     }
 
@@ -558,7 +563,7 @@ impl<CS: ComputeState + Send + Clone> ShardComputeState<CS> {
             (None, Some(other_cs)) => {
                 self.states.insert(agg_ref.id, other_cs.clone());
             }
-            _ => { }
+            _ => {}
         }
     }
 
@@ -748,7 +753,7 @@ impl<CS: ComputeState + Send + Sync> ShuffleComputeState<CS> {
     ) where
         A: StateType,
     {
-        let part = get_shard_id_from_global_vid(into, self.parts.len());
+        let part = get_shard_id_from_global_vid(into as u64, self.parts.len());
         self.parts[part].accumulate_into(ss, into, a, agg_ref)
     }
 
@@ -774,7 +779,7 @@ impl<CS: ComputeState + Send + Sync> ShuffleComputeState<CS> {
         A: StateType,
         OUT: Debug,
     {
-        let part = get_shard_id_from_global_vid(into, self.parts.len());
+        let part = get_shard_id_from_global_vid(into as u64, self.parts.len());
         self.parts[part].read::<A, IN, OUT, ACC>(into, agg_ref.id, ss)
     }
 
@@ -787,7 +792,7 @@ impl<CS: ComputeState + Send + Sync> ShuffleComputeState<CS> {
     where
         A: StateType,
     {
-        let part = get_shard_id_from_global_vid(into, self.parts.len());
+        let part = get_shard_id_from_global_vid(into as u64, self.parts.len());
         self.parts[part].read_ref::<A, IN, OUT, ACC>(into, agg_ref.id, ss)
     }
 

@@ -80,6 +80,7 @@ mod lock {
 
 pub mod errors {
     use crate::core::tgraph::errors::MutateGraphError;
+    use crate::core::time::error::ParseTimeError;
 
     #[derive(thiserror::Error, Debug, PartialEq)]
     pub enum GraphError {
@@ -89,6 +90,11 @@ pub mod errors {
         IncorrectPropertyType,
         #[error("Failed to mutate graph")]
         FailedToMutateGraph { source: MutateGraphError },
+        #[error("Failed to parse time strings")]
+        ParseTime {
+            #[from]
+            source: ParseTimeError,
+        },
     }
 }
 

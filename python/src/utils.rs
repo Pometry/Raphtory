@@ -2,15 +2,14 @@
 //!
 //! This module contains helper functions for the Python bindings.
 //! These functions are not part of the public API and are not exported to the Python module.
-use crate::perspective::{PyPerspective, PyPerspectiveSet};
 use crate::vertex::PyVertex;
 use docbrown::core::tgraph::VertexRef;
-use docbrown::db::graph_window::WindowSet;
-use docbrown::db::perspective::Perspective;
+use docbrown::core::time::error::ParseTimeError;
+use docbrown::core::time::Interval;
+use docbrown::db::view_api::time::WindowSet;
 use docbrown::db::view_api::TimeOps;
 use pyo3::exceptions::{PyException, PyTypeError};
 use pyo3::prelude::*;
-use pyo3::types::PyIterator;
 use std::error::Error;
 
 /// Extract a `VertexRef` from a Python object.
@@ -44,36 +43,6 @@ pub(crate) fn window_impl<T: TimeOps + Sized + Clone>(
     slf.window(t_start.unwrap_or(i64::MIN), t_end.unwrap_or(i64::MAX))
 }
 
-pub(crate) fn through_impl<T: TimeOps + Sized + Clone>(
-    slf: &T,
-    perspectives: &PyAny,
-) -> Result<WindowSet<T>, PyErr> {
-    struct PyPerspectiveIterator {
-        pub iter: Py<PyIterator>,
-    }
-    unsafe impl Send for PyPerspectiveIterator {} // iter is used by holding the GIL
-    impl Iterator for PyPerspectiveIterator {
-        type Item = Perspective;
-        fn next(&mut self) -> Option<Self::Item> {
-            Python::with_gil(|py| {
-                let item = self.iter.as_ref(py).next()?.ok()?;
-                Some(item.extract::<PyPerspective>().ok()?.into())
-            })
-        }
-    }
-
-    let result = match perspectives.extract::<PyPerspectiveSet>() {
-        Ok(perspective_set) => slf.through_perspectives(perspective_set.ps),
-        Err(_) => {
-            let iter = PyPerspectiveIterator {
-                iter: Py::from(perspectives.iter()?),
-            };
-            slf.through_iter(Box::new(iter))
-        }
-    };
-    Ok(result)
-}
-
 pub(crate) fn adapt_err_value<E>(err: &E) -> PyErr
 where
     E: Error + ?Sized,
@@ -83,8 +52,65 @@ where
 }
 
 pub fn adapt_result<U, E>(result: Result<U, E>) -> PyResult<U>
+// TODO: make this private
 where
     E: Error,
 {
     result.map_err(|e| adapt_err_value(&e))
+}
+
+pub(crate) fn expanding_impl<T, O>(slf: &T, step: &PyAny) -> PyResult<O>
+where
+    T: TimeOps + Clone + 'static,
+    O: From<WindowSet<T>>,
+{
+    let step = extract_interval(step)?;
+    adapt_result(slf.expanding(step)).map(|iter| iter.into())
+}
+
+pub(crate) fn rolling_impl<T, O>(slf: &T, window: &PyAny, step: Option<&PyAny>) -> PyResult<O>
+where
+    T: TimeOps + Clone + 'static,
+    O: From<WindowSet<T>>,
+{
+    let window = extract_interval(window)?;
+    let step = step.map(|step| extract_interval(step)).transpose()?;
+    adapt_result(slf.rolling(window, step)).map(|iter| iter.into())
+}
+
+pub(crate) fn extract_interval(interval: &PyAny) -> PyResult<IntervalBox> {
+    let string = interval.extract::<String>();
+    let result = string.map(|string| IntervalBox::new(string.as_str()));
+
+    let result = result.or_else(|_| {
+        let number = interval.extract::<u64>();
+        number.map(|number| IntervalBox::new(number))
+    });
+
+    result.map_err(|_| {
+        let message = format!("interval '{interval}' must be a str or an unsigned number");
+        PyTypeError::new_err(message)
+    })
+}
+
+pub(crate) struct IntervalBox {
+    interval: Result<Interval, ParseTimeError>,
+}
+
+impl IntervalBox {
+    fn new<I>(interval: I) -> Self
+    where
+        I: TryInto<Interval, Error = ParseTimeError>,
+    {
+        Self {
+            interval: interval.try_into(),
+        }
+    }
+}
+
+impl TryFrom<IntervalBox> for Interval {
+    type Error = ParseTimeError;
+    fn try_from(value: IntervalBox) -> Result<Self, Self::Error> {
+        value.interval
+    }
 }

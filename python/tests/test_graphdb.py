@@ -4,7 +4,6 @@ import sys
 import pytest
 from raphtory import Graph
 from raphtory import algorithms
-from raphtory import Perspective
 from raphtory import graph_loader
 import tempfile
 from math import isclose
@@ -497,6 +496,15 @@ def test_edge_properties():
     assert g.at(1).edge(1, 2).has_static_property("static prop")
 
 
+def test_exploded_edge_time():
+    g = graph_loader.lotr_graph()
+    e = g.edge("Frodo","Gandalf")
+    his = e.history()
+    exploded_his = []
+    for ee in e.explode():
+        exploded_his.append(ee.time())
+    assert(his,exploded_his)
+
 # assert g.vertex(1).property_history("prop 3") == [(1, 3), (3, 'hello')]
 
 
@@ -531,20 +539,16 @@ def test_algorithms():
     assert lotr_clustering_coefficient == 0.1984313726425171
     assert lotr_local_triangle_count == 253
 
-def test_perspective_set():
+def test_graph_time_api():
     g = create_graph(1)
 
-    perspectives = [Perspective(start=0, end=2), Perspective(start=4), Perspective(end=6)]
-    views = g.through(perspectives)
-    assert len(list(views)) == 3
+    earliest_time = g.earliest_time()
+    latest_time = g.latest_time()
+    assert len(list(g.rolling(1))) == latest_time - earliest_time + 1
+    assert len(list(g.expanding(2))) == (latest_time - earliest_time) / 2
 
-    perspectives = Perspective.rolling(5, start=0, end=4)
-    views = g.through(perspectives)
-    assert len(list(views)) == 2
-
-    perspectives = Perspective.expanding(5, start=0, end=4)
-    views = g.through(perspectives)
-    assert len(list(views)) == 2
+    w = g.window(2, 6)
+    assert len(list(w.rolling(window=10, step=3))) == 1
 
 
 def test_save_load_graph():
@@ -733,11 +737,6 @@ def test_edge_time_apis():
     e = g.edge(1, 2)
 
     for e in e.expanding(1):
-        assert e.src().name() == '1'
-        assert e.dst().name() == '2'
-
-    for view in g.expanding(1, start=1):
-        e = view.edge(1, 2)
         assert e.src().name() == '1'
         assert e.dst().name() == '2'
 

@@ -24,9 +24,8 @@ use std::io::{copy, Cursor, Read};
 use std::path::PathBuf;
 use std::time::Duration;
 
-pub mod lotr_graph;
-pub mod reddit_hyperlinks;
-pub mod sx_superuser_graph;
+pub mod example;
+pub mod source;
 
 pub fn fetch_file(
     name: &str,

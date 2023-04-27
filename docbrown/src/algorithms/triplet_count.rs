@@ -161,7 +161,7 @@ mod program_test {
         ];
 
         for (src, dst) in edges {
-            graph.add_edge(0, src, dst, &vec![], None);
+            graph.add_edge(0, src, dst, &vec![], None).unwrap();
         }
         let exp_triplet_count = 20;
         let results = triplet_count(&graph.at(1));
@@ -206,7 +206,7 @@ mod triplet_test {
         ];
 
         for (src, dst) in edges {
-            graph.add_edge(0, src, dst, &vec![], None);
+            graph.add_edge(0, src, dst, &vec![], None).unwrap();
         }
         let exp_triplet_count = 20;
         let results = triplet_count(&graph.at(1));
