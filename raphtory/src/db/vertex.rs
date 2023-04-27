@@ -8,7 +8,6 @@ use crate::db::path::{Operations, PathFromVertex};
 use crate::db::view_api::vertex::VertexViewOps;
 use crate::db::view_api::{BoxedIter, GraphViewOps, TimeOps, VertexListOps};
 use std::collections::HashMap;
-use std::ops::Range;
 
 #[derive(Debug, Clone)]
 pub struct VertexView<G: GraphViewOps> {

@@ -70,7 +70,11 @@ pub(crate) fn lotr_graph(shards: usize) -> PyResult<Py<PyGraph>> {
 #[pyo3(signature = (shards=1,timeout_seconds=600))]
 pub(crate) fn reddit_hyperlink_graph(shards: usize, timeout_seconds: u64) -> PyResult<Py<PyGraph>> {
     PyGraph::py_from_db_graph(
-        raphtory::graph_loader::example::reddit_hyperlinks::reddit_graph(shards, timeout_seconds, false),
+        raphtory::graph_loader::example::reddit_hyperlinks::reddit_graph(
+            shards,
+            timeout_seconds,
+            false,
+        ),
     )
 }
 #[pyfunction]

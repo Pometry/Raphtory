@@ -20,7 +20,7 @@
 
 use std::env;
 use std::fs::File;
-use std::io::{copy, Cursor, Read};
+use std::io::{copy, Cursor};
 use std::path::PathBuf;
 use std::time::Duration;
 

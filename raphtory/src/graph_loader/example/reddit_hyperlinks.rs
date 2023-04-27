@@ -156,7 +156,7 @@ pub fn reddit_graph(shards: usize, timeout: u64, test_file: bool) -> Graph {
 #[cfg(test)]
 mod reddit_test {
     use crate::db::view_api::GraphViewOps;
-    use crate::graph_loader::reddit_hyperlinks::{reddit_file, reddit_graph};
+    use crate::graph_loader::example::reddit_hyperlinks::{reddit_file, reddit_graph};
 
     #[test]
     fn check_data() {

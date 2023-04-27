@@ -42,7 +42,6 @@ use crate::core::{
     Direction, Prop,
 };
 use crate::db::view_api::internal::GraphViewInternalOps;
-use crate::db::view_api::time::TimeOps;
 use crate::db::view_api::GraphViewOps;
 use std::cmp::{max, min};
 use std::{collections::HashMap, ops::Range};

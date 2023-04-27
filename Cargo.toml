@@ -4,7 +4,7 @@ members = [
 	"examples/rust",
 	"python"
 ]
-default-members = ["raphtory", "python"]
+default-members = ["raphtory"]
 
 [workspace.package]
 version = "0.0.11"
