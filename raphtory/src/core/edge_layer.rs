@@ -1,6 +1,7 @@
 use itertools::chain;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeSet;
 use std::ops::Range;
 
 use crate::core::adj::Adj;
@@ -15,6 +16,7 @@ use super::tadjset::TAdjSet;
 pub(crate) struct EdgeLayer {
     layer_id: usize,
     next_edge_id: usize,
+    timestamps: Vec<BTreeSet<i64>>,
 
     // Vector of adjacency lists. It is populated lazyly, so avoid using [] accessor for reading
     pub(crate) adj_lists: Vec<Adj>,
@@ -33,6 +35,7 @@ impl EdgeLayer {
             next_edge_id: 1,
             adj_lists: Default::default(),
             props: Default::default(),
+            timestamps: Default::default(),
         }
     }
 }
@@ -204,84 +207,6 @@ impl EdgeLayer {
         }
     }
 
-    fn edge_history_helper(
-        &self,
-        out: &TAdjSet<usize, i64>,
-        dst_pid: usize,
-        window: Option<Range<i64>>,
-    ) -> Vec<i64> {
-        match out {
-            super::tadjset::TAdjSet::Empty => vec![],
-            super::tadjset::TAdjSet::One(t, id, _) => {
-                if *id == dst_pid {
-                    vec![*t]
-                } else {
-                    vec![]
-                }
-            }
-            super::tadjset::TAdjSet::Small {
-                vs,
-                edges: _,
-                t_index,
-            } => {
-                if vs.contains(&dst_pid) {
-                    match window {
-                        None => t_index
-                            .iter()
-                            .filter_map(|(time, bitset)| {
-                                if bitset.contains(&dst_pid) {
-                                    Some(*time)
-                                } else {
-                                    None
-                                }
-                            })
-                            .collect(),
-                        Some(w) => t_index
-                            .range(w)
-                            .filter_map(|(time, bitset)| {
-                                if bitset.contains(&dst_pid) {
-                                    Some(*time)
-                                } else {
-                                    None
-                                }
-                            })
-                            .collect(),
-                    }
-                } else {
-                    vec![]
-                }
-            }
-            super::tadjset::TAdjSet::Large { vs, t_index } => {
-                if vs.contains_key(&dst_pid) {
-                    match window {
-                        None => t_index
-                            .iter()
-                            .filter_map(|(time, bitset)| {
-                                if bitset.contains(&dst_pid) {
-                                    Some(*time)
-                                } else {
-                                    None
-                                }
-                            })
-                            .collect(),
-                        Some(w) => t_index
-                            .range(w)
-                            .filter_map(|(time, bitset)| {
-                                if bitset.contains(&dst_pid) {
-                                    Some(*time)
-                                } else {
-                                    None
-                                }
-                            })
-                            .collect(),
-                    }
-                } else {
-                    vec![]
-                }
-            }
-        }
-    }
-
     pub(crate) fn get_edge_history(
         &self,
         src_pid: usize,
@@ -295,9 +220,23 @@ impl EdgeLayer {
                 out, remote_out, ..
             } => {
                 if local {
-                    self.edge_history_helper(out, dst_pid, window)
+                    match window {
+                        None => out
+                            .find_t(dst_pid)
+                            .map_or(vec![], |it| it.map(|(t, _)| t).collect()),
+                        Some(w) => out
+                            .find_window_t(dst_pid, &w)
+                            .map_or(vec![], |it| it.map(|(t, _)| t).collect()),
+                    }
                 } else {
-                    self.edge_history_helper(remote_out, dst_pid, window)
+                    match window {
+                        None => remote_out
+                            .find_t(dst_pid)
+                            .map_or(vec![], |it| it.map(|(t, _)| t).collect()),
+                        Some(w) => remote_out
+                            .find_window_t(dst_pid, &w)
+                            .map_or(vec![], |it| it.map(|(t, _)| t).collect()),
+                    }
                 }
             }
         }

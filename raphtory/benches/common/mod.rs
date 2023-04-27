@@ -230,20 +230,32 @@ pub fn run_analysis_benchmarks<F, G>(
         b.iter(|| graph.num_vertices())
     });
 
-    bench(group, "has_vertex_existing", parameter, |b: &mut Bencher| {
-        let mut rng = rand::thread_rng();
-        let v = *vertices.iter().choose(&mut rng).expect("non-empty graph");
-        b.iter(|| graph.has_vertex(v))
-    });
+    bench(
+        group,
+        "has_vertex_existing",
+        parameter,
+        |b: &mut Bencher| {
+            let mut rng = rand::thread_rng();
+            let v = *vertices.iter().choose(&mut rng).expect("non-empty graph");
+            b.iter(|| graph.has_vertex(v))
+        },
+    );
 
-    bench(group, "has_vertex_nonexisting", parameter, |b: &mut Bencher| {
-        let mut rng = rand::thread_rng();
-        let v: u64 = loop { let v: u64 = rng.gen();
-        if !vertices.contains(&v) {
-            break v
-        }};
-        b.iter(|| graph.has_vertex(v))
-    });
+    bench(
+        group,
+        "has_vertex_nonexisting",
+        parameter,
+        |b: &mut Bencher| {
+            let mut rng = rand::thread_rng();
+            let v: u64 = loop {
+                let v: u64 = rng.gen();
+                if !vertices.contains(&v) {
+                    break v;
+                }
+            };
+            b.iter(|| graph.has_vertex(v))
+        },
+    );
 
     bench(group, "max_id", parameter, |b: &mut Bencher| {
         b.iter(|| graph.vertices().id().max())
@@ -253,16 +265,17 @@ pub fn run_analysis_benchmarks<F, G>(
         b.iter(|| graph.vertices().degree().max())
     });
 
-    bench(
-        group,
-        "max_neighbour_degree",
-        parameter,
-        |b: &mut Bencher| {
-            let mut rng = rand::thread_rng();
-            let v = graph
-                .vertex(*vertices.iter().choose(&mut rng).expect("non-empty graph"))
-                .expect("existing vertex");
-            b.iter(|| v.neighbours().degree().max())
-        },
-    );
+    // Too noisy due to degree variability and confuses criterion
+    // bench(
+    //     group,
+    //     "max_neighbour_degree",
+    //     parameter,
+    //     |b: &mut Bencher| {
+    //         let mut rng = rand::thread_rng();
+    //         let v = graph
+    //             .vertex(*vertices.iter().choose(&mut rng).expect("non-empty graph"))
+    //             .expect("existing vertex");
+    //         b.iter(|| v.neighbours().degree().max())
+    //     },
+    // );
 }

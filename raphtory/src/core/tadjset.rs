@@ -1,5 +1,7 @@
 //! A data structure for efficiently storing and querying the temporal adjacency set of a node in a temporal graph.
 
+use std::collections::btree_map::Entry;
+use std::collections::BTreeSet;
 use std::{
     borrow::{Borrow, BorrowMut},
     collections::BTreeMap,
@@ -14,9 +16,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::core::bitset::BitSet;
 use crate::core::sorted_vec_map::SVM;
+use crate::core::tgraph::TimeIndex;
 
 const SMALL_SET: usize = 1024;
-
+type Time = i64;
 /**
  * Temporal adjacency set can track when adding edge v -> u
  * does u exist already
@@ -25,120 +28,60 @@ const SMALL_SET: usize = 1024;
  *
  *  */
 #[derive(Debug, Default, Serialize, Deserialize, PartialEq)]
-pub enum TAdjSet<V: Ord + TryInto<usize> + Hash, Time: Copy + Ord> {
+pub enum TAdjSet<V: Ord + TryInto<usize> + Hash> {
     #[default]
     Empty,
-    One(Time, V, AdjEdge),
-    Small {
-        vs: Vec<V>,                 // the neighbours
-        edges: Vec<AdjEdge>,        // edge metadata
-        t_index: SVM<Time, BitSet>, // index from t -> [v] where v is the value of vs and edges
+    // One(Time, V, AdjEdge),
+    Many {
+        n_map: BTreeMap<V, (AdjEdge, TimeIndex)>,
     },
-    Large {
-        vs: FxHashMap<V, AdjEdge>, // this is equiv to vs and edges
-        t_index: BTreeMap<Time, BitSet>,
-    },
+    // Small {
+    //     vs: Vec<V>,                 // the neighbours
+    //     edges: Vec<AdjEdge>,        // edge metadata
+    //     t_index: SVM<Time, BitSet>, // index from t -> [v] where v is the value of vs and edges
+    // },
+    // Large {
+    //     vs: FxHashMap<V, AdjEdge>, // this is equiv to vs and edges
+    //     t_index: BTreeMap<Time, BitSet>,
+    // },
 }
 
-impl<
-        V: Ord + Into<usize> + From<usize> + Copy + Hash + Send + Sync,
-        Time: Copy + Ord + Send + Sync,
-    > TAdjSet<V, Time>
-{
+impl<V: Ord + Into<usize> + From<usize> + Copy + Hash + Send + Sync> TAdjSet<V> {
     pub fn new(t: Time, v: V, e: AdjEdge) -> Self {
-        Self::One(t, v, e)
+        let mut n_map = BTreeMap::new();
+        n_map.insert(v, (e, TimeIndex::one(t)));
+        Self::Many { n_map }
     }
 
     pub fn len(&self) -> usize {
         match self {
             TAdjSet::Empty => 0,
-            TAdjSet::One(_, _, _) => 1,
-            TAdjSet::Small { vs, .. } => vs.len(),
-            TAdjSet::Large { vs, .. } => vs.len(),
+            TAdjSet::Many { n_map } => n_map.len(),
         }
     }
 
-    pub fn len_window(&self, window: &Range<Time>) -> usize {
+    pub fn len_window(&self, w: &Range<Time>) -> usize {
         match self {
             TAdjSet::Empty => 0,
-            TAdjSet::One(t, _, _) => {
-                if window.contains(t) {
-                    1
-                } else {
-                    0
-                }
-            }
-            TAdjSet::Small { t_index, .. } => t_index
-                .range(window.clone())
-                .map(|(_, bs)| bs.iter())
-                .kmerge()
-                .dedup()
-                .count(),
-            TAdjSet::Large { t_index, .. } => t_index
-                .range(window.clone())
-                .map(|(_, bs)| bs.iter())
-                .kmerge()
-                .dedup()
+            TAdjSet::Many { n_map } => n_map
+                .values()
+                .filter(|(_, timestamps)| timestamps.active(w.clone()))
                 .count(),
         }
     }
 
     pub fn push(&mut self, t: Time, v: V, e: AdjEdge) {
-        match self.borrow() {
+        match self {
             TAdjSet::Empty => {
                 *self = Self::new(t, v, e);
             }
-            TAdjSet::One(t0, v0, e0) => {
-                let vs = vec![v];
-                let edges = vec![e];
-                let t_index = SVM::from_iter(vec![(t, BitSet::one(v.into()))]);
-
-                let mut new_set = TAdjSet::Small { vs, edges, t_index };
-                new_set.push(*t0, *v0, *e0);
-
-                *self = new_set;
-            }
-            TAdjSet::Small { vs, .. } => {
-                if vs.len() < SMALL_SET {
-                    if let TAdjSet::Small { vs, edges, t_index } = self {
-                        if let Err(i) = vs.binary_search(&v) {
-                            vs.insert(i, v);
-                            edges.insert(i, e);
-                        }
-                        t_index
-                            .entry(t)
-                            .and_modify(|set| set.push(v.into()))
-                            .or_insert(BitSet::one(v.into()));
-                    }
-                } else {
-                    replace_with_or_abort(self, |_self| {
-                        if let TAdjSet::Small { vs, edges, t_index } = _self {
-                            let pairs: Vec<(V, AdjEdge)> =
-                                vs.into_iter().zip(edges.into_iter()).collect();
-                            let mut bt = BTreeMap::default();
-                            for (t, bs) in t_index {
-                                bt.insert(t, bs);
-                            }
-                            let mut entry = TAdjSet::Large {
-                                vs: FxHashMap::from_iter(pairs),
-                                t_index: bt,
-                            };
-                            entry.push(t, v, e);
-                            entry
-                        } else {
-                            _self
-                        }
-                    });
-                }
-            }
-            TAdjSet::Large { .. } => {
-                if let TAdjSet::Large { vs, t_index } = self.borrow_mut() {
-                    vs.entry(v).and_modify(|e0| *e0 = e).or_insert(e);
-                    t_index
-                        .entry(t)
-                        .and_modify(|set| set.push(v.into()))
-                        .or_insert(BitSet::one(v.into()));
-                }
+            TAdjSet::Many { n_map } => {
+                n_map
+                    .entry(v)
+                    .and_modify(|(_, timestamps)| {
+                        timestamps.insert(t);
+                    })
+                    .or_insert((e, TimeIndex::one(t)));
             }
         }
     }
@@ -146,11 +89,7 @@ impl<
     pub fn iter(&self) -> Box<dyn Iterator<Item = (&V, AdjEdge)> + Send + '_> {
         match self {
             TAdjSet::Empty => Box::new(std::iter::empty()),
-            TAdjSet::One(_, v, e) => Box::new(std::iter::once((v, *e))),
-            TAdjSet::Small { vs, edges, .. } => {
-                Box::new(vs.iter().zip(Box::new(edges.iter().map(|e| *e))))
-            }
-            TAdjSet::Large { vs, .. } => Box::new(vs.iter().map(|(v, e)| (v, *e))),
+            TAdjSet::Many { n_map } => Box::new(n_map.iter().map(|(v, (e, _))| (v, *e))),
         }
     }
 
@@ -158,41 +97,14 @@ impl<
         &self,
         r: &Range<Time>,
     ) -> Box<dyn Iterator<Item = (V, AdjEdge)> + Send + '_> {
+        let r = r.clone();
         match self {
             TAdjSet::Empty => Box::new(std::iter::empty()),
-            TAdjSet::One(t, v, e) => {
-                if r.contains(t) {
-                    Box::new(std::iter::once((*v, *e)))
-                } else {
-                    Box::new(std::iter::empty())
-                }
-            }
-            TAdjSet::Small { vs, edges, t_index } => {
-                let iter = t_index
-                    .range(r.clone())
-                    .map(|(_, v_ids)| v_ids.iter())
-                    .kmerge()
-                    .dedup()
-                    .flat_map(|v| {
-                        let key = V::from(v);
-                        vs.binary_search(&key).ok().map(|i| (V::from(v), edges[i]))
-                    });
-
-                Box::new(iter)
-            }
-            TAdjSet::Large { vs, t_index } => {
-                let iter = t_index
-                    .range(r.clone())
-                    .map(|(_, v_ids)| v_ids.iter())
-                    .kmerge()
-                    .dedup()
-                    .flat_map(|v| {
-                        let key = V::from(v);
-                        vs.get(&key).map(|e| (V::from(v), *e))
-                    });
-
-                Box::new(iter)
-            }
+            TAdjSet::Many { n_map } => Box::new(
+                n_map
+                    .iter()
+                    .filter_map(move |(v, (e, ts))| ts.active(r.clone()).then_some((*v, *e))),
+            ),
         }
     }
 
@@ -200,62 +112,57 @@ impl<
         &self,
         r: &Range<Time>,
     ) -> Box<dyn Iterator<Item = (V, Time, AdjEdge)> + Send + '_> {
+        let r = r.clone();
         match self {
             TAdjSet::Empty => Box::new(std::iter::empty()),
-            TAdjSet::One(t, v, e) => {
-                if r.contains(t) {
-                    Box::new(std::iter::once((*v, *t, *e)))
-                } else {
-                    Box::new(std::iter::empty())
-                }
-            }
-            TAdjSet::Small { vs, edges, t_index } => {
-                let iter = t_index.range(r.clone()).flat_map(|(t, v_ids)| {
-                    // for all the vertices at time t
-                    v_ids.iter().flat_map(|v| {
-                        let key = V::from(v);
-                        vs.binary_search(&key)
-                            .ok()
-                            .map(|i| (V::from(v), *t, edges[i])) // return the (vertex, time, edge_id)
-                    })
-                });
-
-                Box::new(iter)
-            }
-            TAdjSet::Large { vs, t_index } => {
-                let iter = t_index.range(r.clone()).flat_map(|(t, v_ids)| {
-                    // for all the vertices at time t
-                    v_ids.iter().flat_map(|v| {
-                        let key = V::from(v);
-                        vs.get(&key).map(|e| (V::from(v), *t, *e)) // return the (vertex, time, edge_id)
-                    })
-                });
-
-                Box::new(iter)
-            }
+            TAdjSet::Many { n_map } => Box::new(
+                n_map
+                    .iter()
+                    .flat_map(move |(v, (e, ts))| ts.range(r.clone()).map(|t| (*v, *t, *e))),
+            ),
         }
     }
 
     pub fn find(&self, v: V) -> Option<AdjEdge> {
         match self {
             TAdjSet::Empty => None,
-            TAdjSet::One(_, v0, e) => {
-                if v0 == &v {
-                    Some(*e)
-                } else {
-                    None
-                }
-            }
-            TAdjSet::Small { vs, edges, .. } => match vs.binary_search(&v) {
-                Ok(i) => edges.get(i).copied(),
-                _ => None,
-            },
-            TAdjSet::Large { vs, .. } => vs.get(&v).map(|e| *e),
+            TAdjSet::Many { n_map } => n_map.get(&v).map(|(e, _)| *e),
+        }
+    }
+
+    pub fn find_t(&self, v: V) -> Option<Box<dyn Iterator<Item = (Time, AdjEdge)> + Send + '_>> {
+        match self {
+            TAdjSet::Empty => None,
+            TAdjSet::Many { n_map } => n_map.get(&v).map(|(e, ts)| {
+                let iter: Box<dyn Iterator<Item = (Time, AdjEdge)> + Send + '_> =
+                    Box::new(ts.iter().map(|t| (*t, *e)));
+                iter
+            }),
         }
     }
 
     pub fn find_window(&self, v: V, w: &Range<Time>) -> Option<AdjEdge> {
-        self.iter_window(w).find(|t| t.0 == v).map(|f| f.1)
+        match self {
+            TAdjSet::Empty => None,
+            TAdjSet::Many { n_map } => n_map
+                .get(&v)
+                .and_then(|(e, ts)| ts.active(w.clone()).then_some(*e)),
+        }
+    }
+
+    pub fn find_window_t(
+        &self,
+        v: V,
+        w: &Range<Time>,
+    ) -> Option<Box<dyn Iterator<Item = (Time, AdjEdge)> + Send + '_>> {
+        match self {
+            TAdjSet::Empty => None,
+            TAdjSet::Many { n_map } => n_map.get(&v).map(|(e, ts)| {
+                let iter: Box<dyn Iterator<Item = (Time, AdjEdge)> + Send + '_> =
+                    Box::new(ts.range(w.clone()).map(|t| (*t, *e)));
+                iter
+            }),
+        }
     }
 }
 
@@ -307,7 +214,7 @@ mod tadjset_tests {
 
     #[test]
     fn insert() {
-        let mut ts: TAdjSet<usize, i64> = TAdjSet::default();
+        let mut ts: TAdjSet<usize> = TAdjSet::default();
 
         ts.push(3, 7, AdjEdge::remote(5));
 
@@ -322,7 +229,7 @@ mod tadjset_tests {
 
     #[test]
     fn insert_large() {
-        let mut ts: TAdjSet<usize, i64> = TAdjSet::default();
+        let mut ts: TAdjSet<usize> = TAdjSet::default();
 
         for i in 0..SMALL_SET + 2 {
             ts.push(i.try_into().unwrap(), i, AdjEdge::remote(i));
@@ -350,7 +257,7 @@ mod tadjset_tests {
 
     #[test]
     fn insert_twice() {
-        let mut ts: TAdjSet<usize, u64> = TAdjSet::default();
+        let mut ts: TAdjSet<usize> = TAdjSet::default();
 
         ts.push(3, 7, AdjEdge::local(9));
         ts.push(3, 7, AdjEdge::local(9));
@@ -366,7 +273,7 @@ mod tadjset_tests {
 
     #[test]
     fn insert_twice_different_time() {
-        let mut ts: TAdjSet<usize, i64> = TAdjSet::default();
+        let mut ts: TAdjSet<usize> = TAdjSet::default();
 
         ts.push(3, 7, AdjEdge::remote(19));
         ts.push(9, 7, AdjEdge::remote(19));
@@ -386,7 +293,7 @@ mod tadjset_tests {
 
     #[test]
     fn insert_different_time() {
-        let mut ts: TAdjSet<usize, i64> = TAdjSet::default();
+        let mut ts: TAdjSet<usize> = TAdjSet::default();
 
         ts.push(9, 1, AdjEdge::local(0));
         ts.push(3, 7, AdjEdge::remote(1));
@@ -410,7 +317,7 @@ mod tadjset_tests {
 
     #[test]
     fn insert_different_time_with_times() {
-        let mut ts: TAdjSet<usize, i64> = TAdjSet::default();
+        let mut ts: TAdjSet<usize> = TAdjSet::default();
 
         ts.push(9, 1, AdjEdge::local(0));
         ts.push(3, 7, AdjEdge::remote(1));
@@ -429,7 +336,7 @@ mod tadjset_tests {
 
         let actual = ts.iter_window_t(&(0..12)).collect::<Vec<_>>();
         let expected: Vec<(usize, i64, AdjEdge)> =
-            vec![(7, 3, AdjEdge::remote(1)), (1, 9, AdjEdge::local(0))];
+            vec![(1, 9, AdjEdge::local(0)), (7, 3, AdjEdge::remote(1))];
         assert_eq!(actual, expected);
     }
 

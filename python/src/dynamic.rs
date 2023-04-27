@@ -142,14 +142,6 @@ impl GraphViewInternalOps for DynamicGraph {
         self.0.vertex_latest_time_window(v, t_start, t_end)
     }
 
-    fn vertex_ids(&self) -> Box<dyn Iterator<Item = u64> + Send> {
-        self.0.vertex_ids()
-    }
-
-    fn vertex_ids_window(&self, t_start: i64, t_end: i64) -> Box<dyn Iterator<Item = u64> + Send> {
-        self.0.vertex_ids_window(t_start, t_end)
-    }
-
     fn vertex_refs(&self) -> Box<dyn Iterator<Item = VertexRef> + Send> {
         self.0.vertex_refs()
     }

@@ -1,5 +1,6 @@
 //! A data structure for representing temporal graphs.
 
+use std::collections::btree_set::Iter;
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap},
     ops::Range,
@@ -19,6 +20,40 @@ use crate::core::{Prop, Time};
 use self::errors::MutateGraphError;
 
 use super::utils;
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TimeIndex(BTreeSet<i64>);
+
+impl TimeIndex {
+    pub fn one(t: i64) -> Self {
+        let mut s = Self::default();
+        s.insert(t);
+        s
+    }
+    pub fn active(&self, w: Range<i64>) -> bool {
+        self.0.range(w).next().is_some()
+    }
+
+    pub fn range(&self, w: Range<i64>) -> std::collections::btree_set::Range<'_, i64> {
+        self.0.range(w)
+    }
+
+    pub fn first(&self) -> Option<&i64> {
+        self.0.first()
+    }
+
+    pub fn last(&self) -> Option<&i64> {
+        self.0.last()
+    }
+
+    pub fn insert(&mut self, t: i64) -> bool {
+        self.0.insert(t)
+    }
+
+    pub fn iter(&self) -> Iter<'_, i64> {
+        self.0.iter()
+    }
+}
 
 pub(crate) mod errors {
     use crate::core::props::IllegalMutate;
@@ -59,10 +94,7 @@ pub struct TemporalGraph {
     pub(crate) logical_ids: Vec<u64>,
 
     // Set of timestamps per vertex for fast window filtering
-    timestamps: Vec<BTreeSet<i64>>,
-
-    // Time index pointing at the index against adjacency lists.
-    index: BTreeMap<i64, BitSet>,
+    timestamps: Vec<TimeIndex>,
 
     // Properties abstraction for both vertices and edges
     pub(crate) vertex_props: Props,
@@ -83,7 +115,6 @@ impl Default for TemporalGraph {
             logical_to_physical: Default::default(),
             logical_ids: Default::default(),
             timestamps: Default::default(),
-            index: Default::default(),
             vertex_props: Default::default(),
             layers: vec![EdgeLayer::new(0)],
             earliest_time: i64::MAX,
@@ -141,7 +172,7 @@ impl TemporalGraph {
     pub(crate) fn len_window(&self, w: &Range<i64>) -> usize {
         self.timestamps
             .iter()
-            .filter(|&ts| ts.range(w.clone()).next().is_some())
+            .filter(|&ts| ts.active(w.clone()))
             .count()
     }
 
@@ -157,7 +188,7 @@ impl TemporalGraph {
                 .timestamps
                 .iter()
                 .enumerate()
-                .filter(|(_index, timestamps)| timestamps.range(w.clone()).next().is_some())
+                .filter(|(_index, timestamps)| timestamps.active(w.clone()))
                 .map(|(index, _timestamps)| layer.out_edges_len_window(index, w))
                 .reduce(|s1, s2| s1 + s2)
                 .unwrap_or(0),
@@ -165,7 +196,7 @@ impl TemporalGraph {
                 .timestamps
                 .iter()
                 .enumerate()
-                .filter(|&(_, timestamps)| timestamps.range(w.clone()).next().is_some())
+                .filter(|&(_, timestamps)| timestamps.active(w.clone()))
                 .map(|(index, _)| {
                     layers
                         .iter()
@@ -210,9 +241,8 @@ impl TemporalGraph {
     }
 
     pub(crate) fn has_vertex_window(&self, v: u64, w: &Range<i64>) -> bool {
-
         if let Some(v_id) = self.logical_to_physical.get(&v) {
-            self.timestamps[*v_id].range(w.clone()).next().is_some()
+            self.timestamps[*v_id].active(w.clone())
         } else {
             false
         }
@@ -241,27 +271,12 @@ impl TemporalGraph {
                 let physical_id: usize = self.logical_ids.len();
                 self.logical_to_physical.insert(v.id(), physical_id);
                 self.logical_ids.push(v.id());
-                let mut timestamps = BTreeSet::new();
-                timestamps.insert(t);
+                let timestamps = TimeIndex::one(t);
                 self.timestamps.push(timestamps);
-
-                self.index
-                    .entry(t)
-                    .and_modify(|set| {
-                        set.push(physical_id);
-                    })
-                    .or_insert_with(|| BitSet::one(physical_id));
                 physical_id
             }
             Some(pid) => {
                 self.timestamps[*pid].insert(t);
-
-                self.index
-                    .entry(t)
-                    .and_modify(|set| {
-                        set.push(*pid);
-                    })
-                    .or_insert_with(|| BitSet::one(*pid));
                 *pid
             }
         };
@@ -405,32 +420,11 @@ impl TemporalGraph {
 
     pub(crate) fn vertex_window(&self, v: u64, w: &Range<i64>) -> Option<VertexRef> {
         let pid = self.logical_to_physical.get(&v)?;
-        let mut vs = self.index.range(w.clone()).flat_map(|(_, vs)| vs.iter());
-        match vs.contains(&pid) {
-            true => Some(VertexRef {
-                g_id: v,
-                pid: Some(*pid),
-            }),
-            false => None,
-        }
-    }
-
-    pub(crate) fn vertex_ids(&self) -> Box<dyn Iterator<Item = u64> + Send + '_> {
-        Box::new(self.logical_ids.iter().cloned())
-    }
-
-    pub(crate) fn vertex_ids_window(
-        &self,
-        w: Range<i64>,
-    ) -> Box<dyn Iterator<Item = u64> + Send + '_> {
-        Box::new(
-            self.index
-                .range(w.clone())
-                .map(|(_, vs)| vs.iter())
-                .kmerge()
-                .dedup()
-                .map(move |pid| self.logical_ids[pid]),
-        )
+        let timestamps = &self.timestamps[*pid];
+        timestamps.range(w.clone()).next().map(|_| VertexRef {
+            g_id: v,
+            pid: Some(*pid),
+        })
     }
 
     pub fn vertices(&self) -> Box<dyn Iterator<Item = VertexRef> + Send + '_> {
@@ -449,13 +443,15 @@ impl TemporalGraph {
         &self,
         w: Range<i64>,
     ) -> Box<dyn Iterator<Item = VertexRef> + Send + '_> {
-        let vs = self.timestamps.iter()
+        let vs = self
+            .timestamps
+            .iter()
             .enumerate()
             .filter_map(move |(pid, timestamps)| {
-                timestamps
-                    .range(w.clone())
-                    .next()
-                    .map(|_| VertexRef{g_id: self.logical_ids[pid], pid: Some(pid)})
+                timestamps.range(w.clone()).next().map(|_| VertexRef {
+                    g_id: self.logical_ids[pid],
+                    pid: Some(pid),
+                })
             });
         Box::new(vs)
     }
@@ -600,12 +596,10 @@ impl TemporalGraph {
             } else {
                 VertexRef::new(dst_g_id, Some(dst_id))
             }
+        } else if is_remote {
+            VertexRef::new(src_g_id, None)
         } else {
-            if is_remote {
-                VertexRef::new(src_g_id, None)
-            } else {
-                VertexRef::new(src_g_id, Some(src_id))
-            }
+            VertexRef::new(src_g_id, Some(src_id))
         }
     }
 

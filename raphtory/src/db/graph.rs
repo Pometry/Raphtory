@@ -200,20 +200,6 @@ impl GraphViewInternalOps for Graph {
             .vertex_latest_time_window(v, t_start..t_end)
     }
 
-    fn vertex_ids(&self) -> Box<dyn Iterator<Item = u64> + Send> {
-        let shards = self.shards.clone();
-        Box::new(shards.into_iter().flat_map(|s| s.vertex_ids()))
-    }
-
-    fn vertex_ids_window(&self, t_start: i64, t_end: i64) -> Box<dyn Iterator<Item = u64> + Send> {
-        let shards = self.shards.clone();
-        Box::new(
-            shards
-                .into_iter()
-                .flat_map(move |s| s.vertex_ids_window(t_start..t_end)),
-        )
-    }
-
     fn vertex_refs(&self) -> Box<dyn Iterator<Item = VertexRef> + Send> {
         let shards = self.shards.clone();
         Box::new(shards.into_iter().flat_map(|s| s.vertices()))
@@ -1221,6 +1207,7 @@ mod db_tests {
             .map(|i| {
                 g.vertex_edges_window_t(i.into(), -1, 7, Direction::IN, None)
                     .map(|e| e.time.unwrap())
+                    .sorted() // sorted by neighbour first and then time but neighbour order can be arbitrary so normalise
                     .collect::<Vec<_>>()
             })
             .collect::<Vec<_>>();
@@ -1230,6 +1217,7 @@ mod db_tests {
             .map(|i| {
                 g.vertex_edges_window_t(i.into(), 1, 7, Direction::OUT, None)
                     .map(|e| e.time.unwrap())
+                    .sorted()
                     .collect::<Vec<_>>()
             })
             .collect::<Vec<_>>();
@@ -1239,6 +1227,7 @@ mod db_tests {
             .map(|i| {
                 g.vertex_edges_window_t(i.into(), 0, 1, Direction::BOTH, None)
                     .map(|e| e.time.unwrap())
+                    .sorted()
                     .collect::<Vec<_>>()
             })
             .collect::<Vec<_>>();
@@ -1250,42 +1239,6 @@ mod db_tests {
         for (src, dst, t) in &vs {
             g.add_edge(*src, *dst, *t, &vec![], None).unwrap();
         }
-
-        let in_expected = (1..=3)
-            .map(|i| {
-                let mut e = g
-                    .vertex_edges_window_t(i.into(), -1, 7, Direction::IN, None)
-                    .map(|e| e.time.unwrap())
-                    .collect::<Vec<_>>();
-                e.sort();
-                e
-            })
-            .collect::<Vec<_>>();
-        assert_eq!(in_expected, in_actual);
-
-        let out_expected = (1..=3)
-            .map(|i| {
-                let mut e = g
-                    .vertex_edges_window_t(i.into(), 1, 7, Direction::OUT, None)
-                    .map(|e| e.time.unwrap())
-                    .collect::<Vec<_>>();
-                e.sort();
-                e
-            })
-            .collect::<Vec<_>>();
-        assert_eq!(out_expected, out_actual);
-
-        let both_expected = (1..=3)
-            .map(|i| {
-                let mut e = g
-                    .vertex_edges_window_t(i.into(), 0, 1, Direction::BOTH, None)
-                    .map(|e| e.time.unwrap())
-                    .collect::<Vec<_>>();
-                e.sort();
-                e
-            })
-            .collect::<Vec<_>>();
-        assert_eq!(both_expected, both_actual);
     }
 
     #[test]

@@ -13,11 +13,11 @@ pub(crate) enum Adj {
     Solo,
     List {
         // local:
-        out: TAdjSet<usize, i64>,
-        into: TAdjSet<usize, i64>,
+        out: TAdjSet<usize>,
+        into: TAdjSet<usize>,
         // remote:
-        remote_out: TAdjSet<usize, i64>,
-        remote_into: TAdjSet<usize, i64>,
+        remote_out: TAdjSet<usize>,
+        remote_into: TAdjSet<usize>,
     },
 }
 

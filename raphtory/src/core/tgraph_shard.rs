@@ -324,36 +324,6 @@ impl TGraphShard<TemporalGraph> {
         self.read_shard(|tg| tg.vertex_window(v, &w))
     }
 
-    pub fn vertex_ids(&self) -> Box<dyn Iterator<Item = u64> + Send> {
-        let tgshard = self.rc.clone();
-        let iter: GenBoxed<u64> = GenBoxed::new_boxed(|co| async move {
-            let binding = tgshard.read();
-            if let Some(g) = binding.as_ref() {
-                let iter = (*g).vertex_ids();
-                for v_id in iter {
-                    co.yield_(v_id).await;
-                }
-            };
-        });
-
-        Box::new(iter.into_iter())
-    }
-
-    pub fn vertex_ids_window(&self, w: Range<i64>) -> Box<dyn Iterator<Item = u64> + Send> {
-        let tgshard = self.rc.clone();
-        let iter: GenBoxed<u64> = GenBoxed::new_boxed(|co| async move {
-            let binding = tgshard.read();
-            if let Some(g) = binding.as_ref() {
-                let iter = (*g).vertex_ids_window(w).map(|v| v.into());
-                for v_id in iter {
-                    co.yield_(v_id).await;
-                }
-            }
-        });
-
-        Box::new(iter.into_iter())
-    }
-
     pub fn vertices(&self) -> Box<dyn Iterator<Item = VertexRef> + Send> {
         let tgshard = self.rc.clone();
         let iter: GenBoxed<VertexRef> = GenBoxed::new_boxed(|co| async move {
@@ -792,7 +762,7 @@ mod temporal_graph_partition_test {
             g.add_edge(*t, *src, *dst, &vec![], 0).unwrap();
         }
 
-        let actual = g.vertex_ids().collect::<Vec<_>>();
+        let actual = g.vertices().map(|v| v.g_id).collect::<Vec<_>>();
         assert_eq!(actual, vec![1, 2, 3]);
     }
 
@@ -979,7 +949,7 @@ mod temporal_graph_partition_test {
                     .collect::<Vec<_>>()
             })
             .collect::<Vec<_>>();
-        assert_eq!(vec![vec![-1, 0, 1], vec![1], vec![2]], in_actual);
+        assert_eq!(vec![vec![0, 1, -1], vec![1], vec![2]], in_actual);
 
         let out_actual = (1..=3)
             .map(|i| {

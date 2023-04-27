@@ -333,30 +333,6 @@ impl<G: GraphViewOps> GraphViewInternalOps for WindowedGraph<G> {
             .vertex_latest_time_window(v, self.actual_start(t_start), self.actual_end(t_end))
     }
 
-    /// Get an iterator over the IDs of all vertices
-    ///
-    /// # Returns
-    ///
-    /// An iterator over the IDs of all vertices
-    fn vertex_ids(&self) -> Box<dyn Iterator<Item = u64> + Send> {
-        self.graph.vertex_ids_window(self.t_start, self.t_end)
-    }
-
-    /// Get an iterator over the IDs of all vertices in a window
-    ///
-    /// # Arguments
-    ///
-    /// - `t_start` - The inclusive start time of the window.
-    /// - `t_end` - The exclusive end time of the window.
-    ///
-    /// # Returns
-    ///
-    /// An iterator over the IDs of all vertices
-    fn vertex_ids_window(&self, t_start: i64, t_end: i64) -> Box<dyn Iterator<Item = u64> + Send> {
-        self.graph
-            .vertex_ids_window(self.actual_start(t_start), self.actual_end(t_end))
-    }
-
     /// Get an iterator over the references of all vertices as references
     ///
     /// # Returns
@@ -991,8 +967,14 @@ impl<G: GraphViewOps> GraphViewInternalOps for WindowedGraph<G> {
         )
     }
 
-    fn vertex_edges(&self, v: VertexRef, d: Direction, layer: Option<usize>) -> Box<dyn Iterator<Item=EdgeRef> + Send> {
-        self.graph.vertex_edges_window(v, self.t_start, self.t_end, d, layer)
+    fn vertex_edges(
+        &self,
+        v: VertexRef,
+        d: Direction,
+        layer: Option<usize>,
+    ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
+        self.graph
+            .vertex_edges_window(v, self.t_start, self.t_end, d, layer)
     }
 }
 
@@ -1329,7 +1311,7 @@ mod views_test {
         let res: Vec<_> = (0..=3)
             .map(|i| {
                 let wg = g.window(args[i].0, args[i].1);
-                let mut e = wg.vertex_ids().collect::<Vec<_>>();
+                let mut e = wg.vertices().id().collect::<Vec<_>>();
                 e.sort();
                 e
             })
@@ -1344,7 +1326,7 @@ mod views_test {
         let res: Vec<_> = (0..=3)
             .map(|i| {
                 let wg = g.window(args[i].0, args[i].1);
-                let mut e = wg.vertex_ids().collect::<Vec<_>>();
+                let mut e = wg.vertices().id().collect::<Vec<_>>();
                 e.sort();
                 e
             })

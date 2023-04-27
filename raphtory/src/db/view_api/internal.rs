@@ -148,22 +148,6 @@ pub trait GraphViewInternalOps {
     /// Return the latest time for a vertex in a window
     fn vertex_latest_time_window(&self, v: VertexRef, t_start: i64, t_end: i64) -> Option<i64>;
 
-    /// Retuns all the vertex IDs in the graph.
-    /// # Returns
-    /// * `Box<dyn Iterator<Item = u64> + Send>` - An iterator over all the vertex IDs in the graph.
-    fn vertex_ids(&self) -> Box<dyn Iterator<Item = u64> + Send>;
-
-    /// Returns all the vertex IDs in the graph created between the start (t_start) and
-    /// end (t_end) timestamps
-    /// # Arguments
-    ///
-    /// * `t_start` - The start time of the window (inclusive).
-    /// * `t_end` - The end time of the window (exclusive).
-    ///
-    /// # Returns
-    /// * `Box<dyn Iterator<Item = u64> + Send>` - An iterator over all the vertex IDs in the graph.
-    fn vertex_ids_window(&self, t_start: i64, t_end: i64) -> Box<dyn Iterator<Item = u64> + Send>;
-
     /// Returns all the vertex references in the graph.
     /// # Returns
     /// * `Box<dyn Iterator<Item = VertexRef> + Send>` - An iterator over all the vertex
