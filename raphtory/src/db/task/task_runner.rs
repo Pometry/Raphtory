@@ -25,13 +25,12 @@ use super::{
 };
 
 pub struct TaskRunner<G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeState> {
-    tasks: Vec<Job<G, CS>>,
     pub(crate) ctx: Context<G, CS>,
 }
 
 impl<G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeState> TaskRunner<G, CS> {
-    pub fn new(tasks: Vec<Job<G, CS>>, ctx: Context<G, CS>) -> Self {
-        Self { tasks, ctx }
+    pub fn new(ctx: Context<G, CS>) -> Self {
+        Self { ctx }
     }
 
     fn merge_states(
@@ -106,6 +105,7 @@ impl<G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeState> 
 
     pub fn run_task_list(
         &mut self,
+        tasks: &[Job<G, CS>],
         pool: &ThreadPool,
         total_state: Arc<ShuffleComputeState<CS>>,
         num_threads: usize,
@@ -117,7 +117,7 @@ impl<G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeState> 
 
             let num_tasks = min(num_shards, num_threads);
 
-            for task in self.tasks.iter() {
+            for task in tasks.iter() {
                 let done_v2 = AtomicBool::new(true);
 
                 let updated_state = {
@@ -156,8 +156,10 @@ impl<G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeState> 
 
     pub fn run(
         &mut self,
+        tasks: Vec<Job<G, CS>>,
         num_threads: Option<usize>,
         steps: usize,
+        initial_state: Option<Arc<ShuffleComputeState<CS>>>,
     ) -> Arc<ShuffleComputeState<CS>> {
         // say we go over all the vertices on all the threads but we partition the vertices
         // on each thread and we only run the function if the vertex is in the partition
@@ -173,13 +175,15 @@ impl<G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeState> 
         // let all_stop = state::def::and(u32::MAX);
         // self.ctx.global_agg_reset(all_stop);
 
-        let mut total_state = Arc::new(ShuffleComputeState::new(graph_shards));
+        let mut total_state =
+            initial_state.unwrap_or_else(|| Arc::new(ShuffleComputeState::new(graph_shards)));
 
         // the only benefit in this case is that we do not clone when we run with 1 thread
 
         let mut done = false;
         while !done && self.ctx.ss() < steps {
-            (done, total_state) = self.run_task_list(&pool, total_state, num_threads, graph_shards);
+            (done, total_state) =
+                self.run_task_list(&tasks, &pool, total_state, num_threads, graph_shards);
             // copy and reset the state from the step that just ended
 
             Arc::get_mut(&mut total_state).map(|s| {

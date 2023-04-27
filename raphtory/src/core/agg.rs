@@ -198,13 +198,8 @@ unsafe impl<A, IN, OUT, ACC: Accumulator<A, IN, OUT>, I: Init<A>> Send
 {
 }
 
-impl<
-        A: 'static,
-        IN: 'static,
-        OUT: 'static,
-        ACC: Accumulator<A, IN, OUT>,
-        I: Init<A> + 'static,
-    > Accumulator<A, IN, OUT> for InitAcc<A, IN, OUT, ACC, I>
+impl<A: 'static, IN: 'static, OUT: 'static, ACC: Accumulator<A, IN, OUT>, I: Init<A> + 'static>
+    Accumulator<A, IN, OUT> for InitAcc<A, IN, OUT, ACC, I>
 {
     fn zero() -> A {
         I::init()
@@ -222,6 +217,39 @@ impl<
         ACC::finish(a)
     }
 }
+
+// struct OptionAcc<A, IN, OUT, ACC: Accumulator<Option<A>, IN, OUT>> {
+//     _marker: PhantomData<(A, IN, OUT, ACC)>,
+// }
+
+// unsafe impl<A, IN, OUT, ACC: Accumulator<Option<A>, IN, OUT>> Sync for OptionAcc<A, IN, OUT, ACC> {}
+// unsafe impl<A, IN, OUT, ACC: Accumulator<Option<A>, IN, OUT>> Send for OptionAcc<A, IN, OUT, ACC> {}
+
+// impl<A: 'static, IN: 'static, OUT: 'static, ACC: Accumulator<Option<A>, IN, OUT>>
+//     Accumulator<Option<A>, IN, OUT> for OptionAcc<A, IN, OUT, ACC>
+// {
+//     fn zero() -> Option<A> {
+//         None
+//     }
+
+//     fn add0(a1: &mut Option<A>, a: IN) {
+//         match a1 {
+//             None => { 
+//                 let a1 = ACC::zero();
+//                 *a1 = ACC::add0(a1, a);
+//             },
+//             Some(a1) => ACC::add0(a1, a),
+//         }
+//     }
+
+//     fn combine(a1: &mut Option<A>, a2: &Option<A>) {
+//         todo!()
+//     }
+
+//     fn finish(a: &Option<A>) -> OUT {
+//         todo!()
+//     }
+// }
 
 pub mod set {
     use super::*;

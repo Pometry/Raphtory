@@ -2,7 +2,8 @@ use num_traits::abs;
 // the main execution unit of an algorithm
 use rustc_hash::FxHashMap;
 
-use crate::core::agg::{Init, InitAcc1, MaxDef, SumDef, ValDef};
+use crate::core::agg::{Init, InitAcc1, ValDef};
+use crate::core::state::def::max;
 use crate::core::state::{self, AccId1, ComputeState, ComputeStateVec};
 
 use crate::db::view_api::internal::GraphViewInternalOps;
@@ -102,10 +103,16 @@ where
     let recv_score = state::def::sum::<f32>(1);
     let max_diff = state::def::max::<f32>(2);
 
+    ctx.global_agg_reset(recv_score);
+    ctx.global_agg_reset(max_diff);
+
     let step1 = ATask::new(move |vv| {
         vv.update(&score, 1f32 / total_vertices as f32);
         Step::Done
     });
+
+    let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
+    let state = runner.run(vec![Job::new(step1)], Some(threads), 1, None);
 
     let step2 = ATask::new(move |s| {
         let out_degree = s.out_degree();
@@ -130,10 +137,9 @@ where
         Step::Continue
     });
 
-    let mut runner: TaskRunner<G, _> =
-        TaskRunner::new(vec![Job::new(step1), Job::new(step2), Job::new(step3)], ctx);
+    let tasks = vec![Job::new(step2), Job::new(step3)];
 
-    let state = runner.run(Some(threads), iter_count);
+    let state = runner.run(tasks, Some(threads), iter_count, Some(state));
 
     FxHashMap::default()
 }
@@ -175,10 +181,10 @@ where
         }
     });
 
-    let mut runner: TaskRunner<G, _> =
-        TaskRunner::new(vec![Job::new(step1), Job::read_only(step2)], ctx);
+    let tasks = vec![Job::new(step1), Job::read_only(step2)];
+    let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
 
-    let state = runner.run(Some(threads), iter_count);
+    let state = runner.run(tasks, Some(threads), iter_count, None);
 
     let mut map: FxHashMap<u64, u64> = FxHashMap::default();
 
