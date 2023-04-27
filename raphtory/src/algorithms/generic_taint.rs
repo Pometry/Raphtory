@@ -9,13 +9,14 @@ use crate::db::view_api::GraphViewOps;
 use itertools::Itertools;
 use roaring::MultiOps;
 use rustc_hash::{FxHashMap, FxHashSet};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
+use std::vec;
 
-#[derive(Eq, Hash, PartialEq, Copy, Clone, Debug)]
-struct TaintMessage {
-    edge_id: usize,
-    event_time: i64,
-    src_vertex: u64,
+#[derive(Eq, Hash, PartialEq, Copy, Clone, Debug, Default)]
+pub struct TaintMessage {
+    pub edge_id: usize,
+    pub event_time: i64,
+    pub src_vertex: u64,
 }
 
 impl Add for TaintMessage {
@@ -203,7 +204,7 @@ pub fn generic_taint(
     start_time: i64,
     infected_nodes: Vec<u64>,
     stop_nodes: Vec<u64>,
-) -> FxHashMap<u64, (f32, f32)> {
+) -> HashMap<u64, Vec<(usize, i64, u64)>> {
     let mut c = GlobalEvalState::new(g.clone(), true);
     let gtaint_s0 = GenericTaintS0::new(start_time, infected_nodes);
     let gtaint_s1 = GenericTaintS1::new(stop_nodes);
@@ -274,7 +275,27 @@ pub fn generic_taint(
         i += 1;
     }
 
-    let results: FxHashMap<u64, (f32, f32)> = FxHashMap::default();
+    let mut results: HashMap<u64, Vec<(usize, i64, u64)>> = HashMap::default();
+
+    (0..g.nr_shards)
+        .into_iter()
+        .fold(&mut results, |res, part_id| {
+            c.fold_state(
+                &hash_set::<TaintMessage>(1),
+                part_id,
+                res,
+                |res, v_id, sc| {
+                    res.insert(
+                        *v_id,
+                        sc.into_iter()
+                            .map(|msg| (msg.edge_id, msg.event_time, msg.src_vertex))
+                            .collect_vec(),
+                    );
+                    res
+                },
+            )
+        });
+
     results
 }
 
@@ -299,44 +320,33 @@ mod generic_taint_tests {
                 (11, 1, 2),
                 (12, 2, 4),
                 (13, 2, 5),
+                (14, 5, 5),
+                (14, 5, 4),
                 (5, 4, 6),
                 (15, 4, 7),
+                (10, 4, 7),
                 (10, 5, 8),
             ],
         );
 
-        let results: FxHashMap<u64, (f32, f32)> = generic_taint(&graph, 20, 11, vec![2], vec![])
-            .into_iter()
-            .collect();
+        let results: HashMap<u64, Vec<(usize, i64, u64)>> =
+            generic_taint(&graph, 20, 11, vec![2], vec![])
+                .into_iter()
+                .collect();
 
         assert_eq!(
             results,
-            vec![].into_iter().collect::<FxHashMap<u64, (f32, f32)>>()
+            HashMap::from([
+                (5, vec![(4, 13, 2), (5, 14, 5)]),
+                (2, vec![(0, 11, 2)]),
+                (7, vec![(8, 15, 4)]),
+                (4, vec![(3, 12, 2), (6, 14, 5)])
+            ])
         );
     }
 
     #[test]
     fn test_generic_taint_1() {
         test_generic_taint(1);
-    }
-
-    #[test]
-    fn test_diff() {
-        let mut last = HashSet::<&u64>::new();
-        last.insert(&1);
-        last.insert(&2);
-        last.insert(&3);
-        last.insert(&4);
-        last.insert(&5);
-
-        let mut curr = HashSet::<&u64>::new();
-        curr.insert(&1);
-        curr.insert(&2);
-        curr.insert(&3);
-        curr.insert(&4);
-        curr.insert(&5);
-
-        let difference: Vec<_> = curr.iter().filter(|item| !last.contains(*item)).collect();
-        println!("difference = {:?}", difference);
     }
 }
