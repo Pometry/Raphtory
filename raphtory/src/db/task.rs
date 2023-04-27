@@ -194,7 +194,7 @@ impl<G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeState> 
             }
             a
         } else if let Some(right) = Arc::get_mut(&mut b) {
-             for merge_fn in self.ctx.merge_fns.iter() {
+            for merge_fn in self.ctx.merge_fns.iter() {
                 merge_fn(right, &a, self.ctx.ss);
             }
             b
@@ -224,9 +224,9 @@ impl<G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeState> 
         done_v2: &AtomicBool,
         task: &Box<dyn Task<G, CS> + Send + Sync>,
     ) -> Arc<ShuffleComputeState<CS>> {
-        let what = Cow::Borrowed(state.as_ref());
-        let rc_local_state = Rc::new(RefCell::new(what)); // make_mut clones the state
+        let rc_local_state = Rc::new(RefCell::new(Cow::Borrowed(state.as_ref())));
 
+        let mut done = true;
         for shard in 0..num_shards {
             if shard % num_tasks == *job_id {
                 for vertex in self.ctx.g.vertices_shard(shard) {
@@ -239,12 +239,15 @@ impl<G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeState> 
 
                     match task.run(&vv) {
                         Step::Continue => {
-                            done_v2.store(false, Ordering::Relaxed);
+                            done = false; 
                         }
                         Step::Done => {}
                     }
                 }
             }
+        }
+        if !done {
+            done_v2.store(false, Ordering::Relaxed);
         }
 
         let cow_state: Cow<ShuffleComputeState<CS>> =
@@ -296,23 +299,12 @@ impl<G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeState> 
                     out_state
                 };
 
+                if let Some(arc_state) = updated_state {
+                    new_total_state = arc_state;
+                }
+
                 if done_v2.load(Ordering::Relaxed) {
                     done = true;
-                }
-
-                // restore the shape of new_total_state Vec<(usize, Arc<Option<ShuffleComputeState<CS>>>)> from updated state using num_threads for vec len
-                if let Some(arc_state) = updated_state {
-                    let mut state = Arc::try_unwrap(arc_state)
-                        .expect("should be able to unwrap Arc, no other reference can exist");
-
-                    // we reset the all_stop state in between states to figure out if it's time to stop
-                    // if !done {
-                    //     state.reset_global_states(self.ctx.ss + 1, &vec![all_stop.id()]);
-                    // }
-                    new_total_state = Arc::new(state);
-                }
-
-                if done {
                     break;
                 }
             }
