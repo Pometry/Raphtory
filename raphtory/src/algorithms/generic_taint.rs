@@ -7,10 +7,8 @@ use crate::db::graph::Graph;
 use crate::db::program::*;
 use crate::db::view_api::GraphViewOps;
 use itertools::Itertools;
-use roaring::MultiOps;
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashSet;
 use std::collections::{HashMap, HashSet};
-use std::vec;
 
 #[derive(Eq, Hash, PartialEq, Copy, Clone, Debug, Default)]
 pub struct TaintMessage {
@@ -313,13 +311,23 @@ mod generic_taint_tests {
     }
 
     fn test_generic_taint(
-        n_shards: usize,
+        graph: Graph,
         start_time: i64,
         infected_nodes: Vec<u64>,
         stop_nodes: Vec<u64>,
     ) -> HashMap<u64, Vec<(usize, i64, u64)>> {
+        let results: HashMap<u64, Vec<(usize, i64, u64)>> =
+            generic_taint(&graph, 20, start_time, infected_nodes, stop_nodes)
+                .into_iter()
+                .collect();
+
+        results
+    }
+
+    #[test]
+    fn test_generic_taint_1() {
         let graph = load_graph(
-            n_shards,
+            1,
             vec![
                 (10, 1, 3),
                 (11, 1, 2),
@@ -334,17 +342,7 @@ mod generic_taint_tests {
             ],
         );
 
-        let results: HashMap<u64, Vec<(usize, i64, u64)>> =
-            generic_taint(&graph, 20, start_time, infected_nodes, stop_nodes)
-                .into_iter()
-                .collect();
-
-        results
-    }
-
-    #[test]
-    fn test_generic_taint_1() {
-        let results = test_generic_taint(1, 11, vec![2], vec![]);
+        let results = test_generic_taint(graph, 11, vec![2], vec![]);
 
         assert_eq!(
             results,
@@ -359,7 +357,23 @@ mod generic_taint_tests {
 
     #[test]
     fn test_generic_taint_1_multiple_start() {
-        let results = test_generic_taint(1, 11, vec![1, 2], vec![]);
+        let graph = load_graph(
+            1,
+            vec![
+                (10, 1, 3),
+                (11, 1, 2),
+                (12, 2, 4),
+                (13, 2, 5),
+                (14, 5, 5),
+                (14, 5, 4),
+                (5, 4, 6),
+                (15, 4, 7),
+                (10, 4, 7),
+                (10, 5, 8),
+            ],
+        );
+
+        let results = test_generic_taint(graph, 11, vec![1, 2], vec![]);
 
         assert_eq!(
             results,
@@ -375,7 +389,23 @@ mod generic_taint_tests {
 
     #[test]
     fn test_generic_taint_1_stop_nodes() {
-        let results = test_generic_taint(1, 11, vec![1, 2], vec![4, 5]);
+        let graph = load_graph(
+            1,
+            vec![
+                (10, 1, 3),
+                (11, 1, 2),
+                (12, 2, 4),
+                (13, 2, 5),
+                (14, 5, 5),
+                (14, 5, 4),
+                (5, 4, 6),
+                (15, 4, 7),
+                (10, 4, 7),
+                (10, 5, 8),
+            ],
+        );
+
+        let results = test_generic_taint(graph, 11, vec![1, 2], vec![4, 5]);
 
         assert_eq!(
             results,
@@ -383,6 +413,39 @@ mod generic_taint_tests {
                 (5, vec![(4, 13, 2)]),
                 (2, vec![(0, 11, 2), (2, 11, 1)]),
                 (4, vec![(3, 12, 2)]),
+                (1, vec![(0, 11, 1)])
+            ])
+        );
+    }
+
+    #[test]
+    fn test_generic_taint_1_multiple_history_points() {
+        let graph = load_graph(
+            1,
+            vec![
+                (10, 1, 3),
+                (11, 1, 2),
+                (12, 1, 2),
+                (9, 1, 2),
+                (12, 2, 4),
+                (13, 2, 5),
+                (14, 5, 5),
+                (14, 5, 4),
+                (5, 4, 6),
+                (15, 4, 7),
+                (10, 4, 7),
+                (10, 5, 8),
+            ],
+        );
+
+        let results = test_generic_taint(graph, 11, vec![1, 2], vec![4, 5]);
+
+        assert_eq!(
+            results,
+            HashMap::from([
+                (5, vec![(6, 13, 2)]),
+                (2, vec![(2, 12, 1), (0, 11, 2), (2, 11, 1)]),
+                (4, vec![(5, 12, 2)]),
                 (1, vec![(0, 11, 1)])
             ])
         );
