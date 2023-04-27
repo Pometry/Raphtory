@@ -312,7 +312,12 @@ mod generic_taint_tests {
         graph
     }
 
-    fn test_generic_taint(n_shards: usize) {
+    fn test_generic_taint(
+        n_shards: usize,
+        start_time: i64,
+        infected_nodes: Vec<u64>,
+        stop_nodes: Vec<u64>,
+    ) -> HashMap<u64, Vec<(usize, i64, u64)>> {
         let graph = load_graph(
             n_shards,
             vec![
@@ -330,9 +335,16 @@ mod generic_taint_tests {
         );
 
         let results: HashMap<u64, Vec<(usize, i64, u64)>> =
-            generic_taint(&graph, 20, 11, vec![2], vec![])
+            generic_taint(&graph, 20, start_time, infected_nodes, stop_nodes)
                 .into_iter()
                 .collect();
+
+        results
+    }
+
+    #[test]
+    fn test_generic_taint_1() {
+        let results = test_generic_taint(1, 11, vec![2], vec![]);
 
         assert_eq!(
             results,
@@ -346,7 +358,33 @@ mod generic_taint_tests {
     }
 
     #[test]
-    fn test_generic_taint_1() {
-        test_generic_taint(1);
+    fn test_generic_taint_1_multiple_start() {
+        let results = test_generic_taint(1, 11, vec![1, 2], vec![]);
+
+        assert_eq!(
+            results,
+            HashMap::from([
+                (5, vec![(4, 13, 2), (5, 14, 5)]),
+                (2, vec![(0, 11, 2), (2, 11, 1)]),
+                (7, vec![(8, 15, 4)]),
+                (4, vec![(3, 12, 2), (6, 14, 5)]),
+                (1, vec![(0, 11, 1)])
+            ])
+        );
+    }
+
+    #[test]
+    fn test_generic_taint_1_stop_nodes() {
+        let results = test_generic_taint(1, 11, vec![1, 2], vec![4, 5]);
+
+        assert_eq!(
+            results,
+            HashMap::from([
+                (5, vec![(4, 13, 2)]),
+                (2, vec![(0, 11, 2), (2, 11, 1)]),
+                (4, vec![(3, 12, 2)]),
+                (1, vec![(0, 11, 1)])
+            ])
+        );
     }
 }
