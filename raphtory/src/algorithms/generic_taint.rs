@@ -9,6 +9,7 @@ use crate::db::view_api::GraphViewOps;
 use itertools::Itertools;
 use roaring::MultiOps;
 use rustc_hash::{FxHashMap, FxHashSet};
+use std::collections::HashSet;
 
 #[derive(Eq, Hash, PartialEq, Copy, Clone, Debug)]
 struct TaintMessage {
@@ -223,15 +224,23 @@ pub fn generic_taint(
     );
     println!();
 
+    let mut last_taint_list = HashSet::<u64>::new();
     let mut i = 0;
     loop {
         gtaint_s1.run_step(g, &mut c);
+
+        let r = c.read_vec_partitions(&val::<Bool>(0));
+        let taint_list: HashSet<_> = r
+            .into_iter()
+            .flat_map(|v| v.into_iter().flat_map(|c| c.into_iter().map(|(a, b)| a)))
+            .collect();
 
         println!(
             "step{}, taint_status = {:?}",
             i + 1,
             c.read_vec_partitions(&val::<Bool>(0))
         );
+        println!("step{}, taint_list = {:?}", i + 1, taint_list);
         println!(
             "step{}, taint_history = {:?}",
             i + 1,
@@ -242,11 +251,21 @@ pub fn generic_taint(
             i + 1,
             c.read_vec_partitions(&hash_set::<TaintMessage>(2))
         );
+
+        let difference: Vec<_> = taint_list
+            .iter()
+            .filter(|item| !last_taint_list.contains(*item))
+            .collect();
+        let converged = difference.is_empty();
+
+        println!("taint_list diff = {:?}", difference);
         println!();
 
-        if i > iter_count {
+        if converged || i > iter_count {
             break;
         }
+
+        last_taint_list = taint_list;
 
         if c.keep_past_state {
             c.ss += 1;
@@ -299,5 +318,25 @@ mod generic_taint_tests {
     #[test]
     fn test_generic_taint_1() {
         test_generic_taint(1);
+    }
+
+    #[test]
+    fn test_diff() {
+        let mut last = HashSet::<&u64>::new();
+        last.insert(&1);
+        last.insert(&2);
+        last.insert(&3);
+        last.insert(&4);
+        last.insert(&5);
+
+        let mut curr = HashSet::<&u64>::new();
+        curr.insert(&1);
+        curr.insert(&2);
+        curr.insert(&3);
+        curr.insert(&4);
+        curr.insert(&5);
+
+        let difference: Vec<_> = curr.iter().filter(|item| !last.contains(*item)).collect();
+        println!("difference = {:?}", difference);
     }
 }
