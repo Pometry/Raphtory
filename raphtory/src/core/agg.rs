@@ -2,7 +2,7 @@
 
 use std::{
     marker::PhantomData,
-    ops::{AddAssign, Div},
+    ops::{Add, AddAssign, Div},
 };
 
 use num_traits::{Bounded, Zero};
@@ -149,6 +149,63 @@ where
 }
 
 #[derive(Clone, Debug, Copy)]
+pub struct Store<A>(PhantomData<A>);
+
+impl<A> Accumulator<Var<A>, A, A> for Store<A>
+where
+    A: StateType + Zero + AddAssign,
+{
+    fn zero() -> Var<A> {
+        Var::new(A::zero())
+    }
+
+    fn add0(a1: &mut Var<A>, a: A) {
+        *a1 += a;
+    }
+
+    fn combine(a1: &mut Var<A>, a2: &Var<A>) {
+        *a1 += a2;
+    }
+
+    fn finish(a: &Var<A>) -> A {
+        a.value().clone()
+    }
+}
+
+#[derive(Clone, Debug, Copy, PartialEq)]
+pub struct Var<A> {
+    val: A,
+    i: u32,
+}
+
+impl<A> Var<A> {
+    pub fn new(val: A) -> Self {
+        Self { val, i: 0 }
+    }
+
+    pub fn value(&self) -> &A {
+        &self.val
+    }
+}
+
+impl<A: AddAssign<A>> AddAssign<A> for Var<A> {
+    fn add_assign(&mut self, rhs: A) {
+        self.val = rhs;
+        self.i += 1;
+    }
+}
+
+impl<A: AddAssign<A> + Clone> AddAssign<&Var<A>> for Var<A> {
+    // we keep the keep the value with the largest modification count
+    fn add_assign(&mut self, rhs: &Var<A>) {
+        if rhs.i >= self.i {
+            self.val = rhs.val.clone();
+            self.i = self.i;
+        } 
+    }
+}
+
+#[derive(Clone, Debug, Copy)]
 pub struct AvgDef<A: StateType + Zero + AddAssign<A> + TryFrom<usize> + Div<A, Output = A>> {
     _marker: PhantomData<A>,
 }
@@ -217,39 +274,6 @@ impl<A: 'static, IN: 'static, OUT: 'static, ACC: Accumulator<A, IN, OUT>, I: Ini
         ACC::finish(a)
     }
 }
-
-// struct OptionAcc<A, IN, OUT, ACC: Accumulator<Option<A>, IN, OUT>> {
-//     _marker: PhantomData<(A, IN, OUT, ACC)>,
-// }
-
-// unsafe impl<A, IN, OUT, ACC: Accumulator<Option<A>, IN, OUT>> Sync for OptionAcc<A, IN, OUT, ACC> {}
-// unsafe impl<A, IN, OUT, ACC: Accumulator<Option<A>, IN, OUT>> Send for OptionAcc<A, IN, OUT, ACC> {}
-
-// impl<A: 'static, IN: 'static, OUT: 'static, ACC: Accumulator<Option<A>, IN, OUT>>
-//     Accumulator<Option<A>, IN, OUT> for OptionAcc<A, IN, OUT, ACC>
-// {
-//     fn zero() -> Option<A> {
-//         None
-//     }
-
-//     fn add0(a1: &mut Option<A>, a: IN) {
-//         match a1 {
-//             None => { 
-//                 let a1 = ACC::zero();
-//                 *a1 = ACC::add0(a1, a);
-//             },
-//             Some(a1) => ACC::add0(a1, a),
-//         }
-//     }
-
-//     fn combine(a1: &mut Option<A>, a2: &Option<A>) {
-//         todo!()
-//     }
-
-//     fn finish(a: &Option<A>) -> OUT {
-//         todo!()
-//     }
-// }
 
 pub mod set {
     use super::*;

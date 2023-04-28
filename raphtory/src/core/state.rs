@@ -49,7 +49,7 @@ pub mod def {
     use crate::core::agg::{
         set::{BitSet, Set},
         topk::{TopK, TopKHeap},
-        AndDef, AvgDef, MaxDef, MinDef, SumDef, ValDef,
+        AndDef, AvgDef, MaxDef, MinDef, SumDef, ValDef, Var, Store,
     };
     use num_traits::{Bounded, Zero};
     use roaring::{RoaringBitmap, RoaringTreemap};
@@ -89,6 +89,13 @@ pub mod def {
     }
 
     pub fn val<A: StateType + Zero>(id: u32) -> AccId<A, A, A, ValDef<A>> {
+        AccId {
+            id,
+            _a: std::marker::PhantomData,
+        }
+    }
+
+    pub fn store<A: StateType + Zero + AddAssign>(id: u32) -> AccId<Var<A>, A, A, Store<A>>{
         AccId {
             id,
             _a: std::marker::PhantomData,
@@ -653,6 +660,7 @@ impl ComputeState for ComputeStateVec {
         if v.len() <= ki {
             v.resize(ki + 1, ACC::zero());
         }
+
         ACC::add0(&mut v[ki], a);
     }
 
@@ -683,17 +691,20 @@ impl ComputeState for ComputeStateVec {
             .downcast_mut::<VecArray<A>>()
             .unwrap();
 
-        let v = vec.current_mut(ss);
-
         let other_vec = other
             .current()
             .as_any()
             .downcast_ref::<VecArray<A>>()
             .unwrap();
 
+        println!("merge {:?} {:?}", vec, other_vec);
+
+        let v = vec.current_mut(ss);
         let v_other = other_vec.current(ss);
 
         merge_2_vecs(v, v_other, |a, b| ACC::combine(a, b));
+
+        println!("post merge {:?} {:?}", vec, other_vec);
     }
 
     fn finalize<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(&self, ss: usize) -> Vec<OUT>

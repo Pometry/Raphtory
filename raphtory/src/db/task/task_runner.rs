@@ -38,7 +38,11 @@ impl<G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeState> 
         a: Arc<ShuffleComputeState<CS>>,
         b: Arc<ShuffleComputeState<CS>>,
     ) -> Arc<ShuffleComputeState<CS>> {
-        self.ctx.run_merge(a, b)
+        // println!("merging states \n {:?} \n {:?}", a, b);
+        let a = self.ctx.run_merge(a, b);
+
+        // println!("merged states  \n {:?}", a);
+        a
     }
 
     fn make_total_state<B: Clone, F: Fn() -> B>(
@@ -162,9 +166,6 @@ impl<G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeState> 
         steps: usize,
         initial_state: Option<Arc<ShuffleComputeState<CS>>>,
     ) -> Arc<ShuffleComputeState<CS>> {
-        // say we go over all the vertices on all the threads but we partition the vertices
-        // on each thread and we only run the function if the vertex is in the partition
-
         let graph_shards = self.ctx.graph().num_shards();
 
         let pool = num_threads
@@ -173,16 +174,15 @@ impl<G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeState> 
 
         let num_threads = pool.current_num_threads();
 
-        // let all_stop = state::def::and(u32::MAX);
-        // self.ctx.global_agg_reset(all_stop);
-
         let mut total_state =
             initial_state.unwrap_or_else(|| Arc::new(ShuffleComputeState::new(graph_shards)));
 
-        // the only benefit in this case is that we do not clone when we run with 1 thread
-
         let mut done = false;
-        while !done && self.ctx.ss() < steps {
+
+        (done, total_state) =
+            self.run_task_list(&init_tasks, &pool, total_state, num_threads, graph_shards);
+
+        while !done && self.ctx.ss() < steps && tasks.len() > 0 {
             (done, total_state) =
                 self.run_task_list(&tasks, &pool, total_state, num_threads, graph_shards);
             // copy and reset the state from the step that just ended
