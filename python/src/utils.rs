@@ -37,10 +37,20 @@ pub(crate) fn extract_vertex_ref(vref: &PyAny) -> PyResult<VertexRef> {
 
 pub(crate) fn window_impl<T: TimeOps + Sized + Clone>(
     slf: &T,
-    t_start: Option<i64>,
-    t_end: Option<i64>,
-) -> T::WindowedViewType {
-    slf.window(t_start.unwrap_or(i64::MIN), t_end.unwrap_or(i64::MAX))
+    t_start: Option<&PyAny>,
+    t_end: Option<&PyAny>,
+) -> PyResult<T::WindowedViewType> {
+    let t_start = t_start.map(|t| extract_time(t)).transpose()?;
+    let t_end = t_end.map(|t| extract_time(t)).transpose()?;
+    Ok(slf.window(t_start.unwrap_or(i64::MIN), t_end.unwrap_or(i64::MAX)))
+}
+
+pub(crate) fn at_impl<T: TimeOps + Sized + Clone>(
+    slf: &T,
+    end: &PyAny,
+) -> PyResult<T::WindowedViewType> {
+    let end = extract_time(end)?;
+    Ok(slf.at(end))
 }
 
 pub(crate) fn adapt_err_value<E>(err: &E) -> PyErr
@@ -88,13 +98,34 @@ fn parse_email_timestamp(timestamp: &str) -> PyResult<i64> {
     })
 }
 
-pub(crate) fn extract_time(time: &PyAny) -> PyResult<TimeBox> {
+pub(crate) fn extract_time(time: &PyAny) -> PyResult<i64> {
+    let from_number = time.extract::<i64>().map(|n| Ok(n));
+    let from_str = time.extract::<&str>().map(|str| {
+        str.into_time()
+            .or_else(|e| parse_email_timestamp(str).map_err(|_| e))
+    });
+
+    let mut extract_results = vec![from_number, from_str].into_iter();
+    let first_valid_extraction = extract_results
+        .find_map(|result| match result {
+            Ok(val) => Some(Ok(val)),
+            Err(_) => None,
+        })
+        .unwrap_or_else(|| {
+            let message = format!("time '{time}' must be a str or an int");
+            Err(PyTypeError::new_err(message))
+        })?;
+
+    adapt_result(first_valid_extraction)
+}
+
+pub(crate) fn extract_into_time(time: &PyAny) -> PyResult<TimeBox> {
     let string = time.extract::<String>();
     let result = string.map(|string| {
         let timestamp = string.as_str();
         let parsing_result = timestamp
             .into_time()
-            .or_else(|e| parse_email_timestamp(timestamp).map_err(|py_err| e));
+            .or_else(|e| parse_email_timestamp(timestamp).map_err(|_| e));
         TimeBox::new(parsing_result)
     });
 

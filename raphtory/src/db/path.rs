@@ -1,6 +1,7 @@
 use crate::core::tgraph::VertexRef;
 use crate::core::{Direction, Prop};
 use crate::db::edge::EdgeView;
+use crate::db::graph_layer::LayeredGraph;
 use crate::db::graph_window::WindowedGraph;
 use crate::db::vertex::VertexView;
 use crate::db::view_api::BoxedIter;
@@ -229,6 +230,7 @@ impl<G: GraphViewOps> VertexViewOps for PathFromGraph<G> {
 
 impl<G: GraphViewOps> TimeOps for PathFromGraph<G> {
     type WindowedViewType = PathFromGraph<WindowedGraph<G>>;
+    type LayeredViewType = PathFromGraph<LayeredGraph<G>>;
 
     fn start(&self) -> Option<i64> {
         self.graph.start()
@@ -243,6 +245,20 @@ impl<G: GraphViewOps> TimeOps for PathFromGraph<G> {
             graph: self.graph.window(t_start, t_end),
             operations: self.operations.clone(),
         }
+    }
+
+    fn default_layer(&self) -> Self::LayeredViewType {
+        PathFromGraph {
+            graph: self.graph.default_layer(),
+            operations: self.operations.clone(),
+        }
+    }
+
+    fn layer(&self, name: &str) -> Option<Self::LayeredViewType> {
+        Some(PathFromGraph {
+            graph: self.graph.layer(name)?,
+            operations: self.operations.clone(),
+        })
     }
 }
 
@@ -395,6 +411,7 @@ impl<G: GraphViewOps> VertexViewOps for PathFromVertex<G> {
 
 impl<G: GraphViewOps> TimeOps for PathFromVertex<G> {
     type WindowedViewType = PathFromVertex<WindowedGraph<G>>;
+    type LayeredViewType = PathFromVertex<LayeredGraph<G>>;
 
     fn start(&self) -> Option<i64> {
         self.graph.start()
@@ -410,6 +427,22 @@ impl<G: GraphViewOps> TimeOps for PathFromVertex<G> {
             vertex: self.vertex,
             operations: self.operations.clone(),
         }
+    }
+
+    fn default_layer(&self) -> Self::LayeredViewType {
+        PathFromVertex {
+            graph: self.graph.default_layer(),
+            vertex: self.vertex,
+            operations: self.operations.clone(),
+        }
+    }
+
+    fn layer(&self, name: &str) -> Option<Self::LayeredViewType> {
+        Some(PathFromVertex {
+            graph: self.graph.layer(name)?,
+            vertex: self.vertex,
+            operations: self.operations.clone(),
+        })
     }
 }
 

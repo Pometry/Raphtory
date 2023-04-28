@@ -1,7 +1,7 @@
 //! The API for querying a view of the graph in a read-only state
 use crate::dynamic::{DynamicGraph, IntoDynamic};
 use crate::edge::{PyEdge, PyEdges};
-use crate::utils::{expanding_impl, extract_vertex_ref, rolling_impl, window_impl};
+use crate::utils::{at_impl, expanding_impl, extract_vertex_ref, rolling_impl, window_impl};
 use crate::vertex::{PyVertex, PyVertices};
 use pyo3::prelude::*;
 use raphtory::db::view_api::time::WindowSet;
@@ -241,8 +241,8 @@ impl PyGraphView {
     /// Returns:
     ///     a view including all events between `t_start` (inclusive) and `t_end` (exclusive)
     #[pyo3(signature = (start=None, end=None))]
-    pub fn window(&self, start: Option<i64>, end: Option<i64>) -> PyGraphView {
-        window_impl(&self.graph, start, end).into()
+    pub fn window(&self, start: Option<&PyAny>, end: Option<&PyAny>) -> PyResult<PyGraphView> {
+        window_impl(&self.graph, start, end).map(|g| g.into())
     }
 
     /// Create a view including all events until `end` (inclusive)
@@ -253,8 +253,8 @@ impl PyGraphView {
     /// Returns:
     ///     a view including all events until `end` (inclusive)
     #[pyo3(signature = (end))]
-    pub fn at(&self, end: i64) -> PyGraphView {
-        self.graph.at(end).into()
+    pub fn at(&self, end: &PyAny) -> PyResult<PyGraphView> {
+        at_impl(&self.graph, end).map(|g| g.into())
     }
 
     /// Create a view including all the edges in the default layer

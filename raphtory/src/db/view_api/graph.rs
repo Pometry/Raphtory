@@ -50,12 +50,6 @@ pub trait GraphViewOps: Send + Sync + Sized + GraphViewInternalOps + 'static + C
 
     /// Return an iterator over all edges in the graph.
     fn edges(&self) -> Box<dyn Iterator<Item = EdgeView<Self>> + Send>;
-
-    /// Return a graph containing only the default edge layer
-    fn default_layer(&self) -> LayeredGraph<Self>;
-
-    /// Return a graph containing the layer `name`
-    fn layer(&self, name: &str) -> Option<LayeredGraph<Self>>;
 }
 
 impl<G: Send + Sync + Sized + GraphViewInternalOps + 'static + Clone> GraphViewOps for G {
@@ -110,19 +104,11 @@ impl<G: Send + Sync + Sized + GraphViewInternalOps + 'static + Clone> GraphViewO
     fn edges(&self) -> Box<dyn Iterator<Item = EdgeView<Self>> + Send> {
         Box::new(self.vertices().iter().flat_map(|v| v.out_edges()))
     }
-
-    fn default_layer(&self) -> LayeredGraph<Self> {
-        LayeredGraph::new(self.clone(), 0)
-    }
-
-    fn layer(&self, name: &str) -> Option<LayeredGraph<Self>> {
-        let id = self.get_layer(Some(name))?;
-        Some(LayeredGraph::new(self.clone(), id))
-    }
 }
 
 impl<G: GraphViewOps> TimeOps for G {
     type WindowedViewType = WindowedGraph<Self>;
+    type LayeredViewType = LayeredGraph<G>;
 
     fn start(&self) -> Option<i64> {
         self.view_start()
@@ -134,5 +120,14 @@ impl<G: GraphViewOps> TimeOps for G {
 
     fn window(&self, t_start: i64, t_end: i64) -> WindowedGraph<Self> {
         WindowedGraph::new(self.clone(), t_start, t_end)
+    }
+
+    fn default_layer(&self) -> Self::LayeredViewType {
+        LayeredGraph::new(self.clone(), 0)
+    }
+
+    fn layer(&self, name: &str) -> Option<Self::LayeredViewType> {
+        let id = self.get_layer(Some(name))?;
+        Some(LayeredGraph::new(self.clone(), id))
     }
 }

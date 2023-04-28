@@ -245,8 +245,8 @@ impl PyEdge {
     /// Returns:
     ///   A new Edge with the properties of this Edge within the specified time window.
     #[pyo3(signature = (t_start = None, t_end = None))]
-    pub fn window(&self, t_start: Option<i64>, t_end: Option<i64>) -> PyEdge {
-        window_impl(&self.edge, t_start, t_end).into()
+    pub fn window(&self, t_start: Option<&PyAny>, t_end: Option<&PyAny>) -> PyResult<PyEdge> {
+        window_impl(&self.edge, t_start, t_end).map(|e| e.into())
     }
 
     /// Get a new Edge with the properties of this Edge at a specified time.
@@ -257,8 +257,8 @@ impl PyEdge {
     /// Returns:
     ///   A new Edge with the properties of this Edge at a specified time.
     #[pyo3(signature = (end))]
-    pub fn at(&self, end: i64) -> PyEdge {
-        self.edge.at(end).into()
+    pub fn at(&self, end: &PyAny) -> PyResult<PyEdge> {
+        at_impl(&self.edge, end).map(|e| e.into())
     }
 
     /// Explodes an Edge into a list of PyEdges. This is useful when you want to iterate over

@@ -7,7 +7,7 @@
 
 use crate::dynamic::{DynamicGraph, IntoDynamic};
 use crate::graph_view::PyGraphView;
-use crate::utils::{adapt_result, extract_time};
+use crate::utils::{adapt_result, extract_into_time};
 use crate::wrappers::prop::Prop;
 use itertools::Itertools;
 use pyo3::exceptions::{PyException, PyTypeError};
@@ -119,7 +119,7 @@ impl PyGraph {
         properties: Option<HashMap<String, Prop>>,
         layer: Option<&str>,
     ) -> PyResult<()> {
-        let time = extract_time(time)?;
+        let time = extract_into_time(time)?;
         let src = Self::extract_id(src)?;
         let dst = Self::extract_id(dst)?;
         adapt_result(

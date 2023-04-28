@@ -4,7 +4,7 @@
 use crate::dynamic::{DynamicGraph, IntoDynamic};
 use crate::edge::{PyEdges, PyNestedEdges};
 use crate::types::repr::{iterator_repr, Repr};
-use crate::utils::{expanding_impl, extract_vertex_ref, rolling_impl, window_impl};
+use crate::utils::{at_impl, expanding_impl, extract_vertex_ref, rolling_impl, window_impl};
 use crate::wrappers::iterators::*;
 use crate::wrappers::prop::Prop;
 use itertools::Itertools;
@@ -340,8 +340,8 @@ impl PyVertex {
     /// Returns:
     ///    A `PyVertex` object.
     #[pyo3(signature = (t_start = None, t_end = None))]
-    pub fn window(&self, t_start: Option<i64>, t_end: Option<i64>) -> PyVertex {
-        window_impl(&self.vertex, t_start, t_end).into()
+    pub fn window(&self, t_start: Option<&PyAny>, t_end: Option<&PyAny>) -> PyResult<PyVertex> {
+        window_impl(&self.vertex, t_start, t_end).map(|v| v.into())
     }
 
     /// Create a view of the vertex including all events at `t`.
@@ -352,8 +352,8 @@ impl PyVertex {
     /// Returns:
     ///     A `PyVertex` object.
     #[pyo3(signature = (end))]
-    pub fn at(&self, end: i64) -> PyVertex {
-        self.vertex.at(end).into()
+    pub fn at(&self, end: &PyAny) -> PyResult<PyVertex> {
+        at_impl(&self.vertex, end).map(|v| v.into())
     }
 
     /// Returns the history of a vertex, including vertex additions and changes made to vertex.
@@ -544,8 +544,8 @@ impl PyVertices {
     }
 
     #[pyo3(signature = (t_start = None, t_end = None))]
-    pub fn window(&self, t_start: Option<i64>, t_end: Option<i64>) -> PyVertices {
-        window_impl(&self.vertices, t_start, t_end).into()
+    pub fn window(&self, t_start: Option<&PyAny>, t_end: Option<&PyAny>) -> PyResult<PyVertices> {
+        window_impl(&self.vertices, t_start, t_end).map(|v| v.into())
     }
 
     /// Create a view of the vertices including all events at `t`.
@@ -556,8 +556,8 @@ impl PyVertices {
     /// Returns:
     ///     A `PyVertices` object.
     #[pyo3(signature = (end))]
-    pub fn at(&self, end: i64) -> PyVertices {
-        self.vertices.at(end).into()
+    pub fn at(&self, end: &PyAny) -> PyResult<PyVertices> {
+        at_impl(&self.vertices, end).map(|v| v.into())
     }
 
     //****** Python *******
@@ -730,8 +730,8 @@ impl PyPathFromGraph {
     }
 
     #[pyo3(signature = (t_start = None, t_end = None))]
-    pub fn window(&self, t_start: Option<i64>, t_end: Option<i64>) -> Self {
-        window_impl(&self.path, t_start, t_end).into()
+    pub fn window(&self, t_start: Option<&PyAny>, t_end: Option<&PyAny>) -> PyResult<Self> {
+        window_impl(&self.path, t_start, t_end).map(|p| p.into())
     }
 
     /// Create a view of the vertex including all events at `t`.
@@ -742,8 +742,8 @@ impl PyPathFromGraph {
     /// Returns:
     ///     A `PyVertex` object.
     #[pyo3(signature = (end))]
-    pub fn at(&self, end: i64) -> Self {
-        self.path.at(end).into()
+    pub fn at(&self, end: &PyAny) -> PyResult<Self> {
+        at_impl(&self.path, end).map(|p| p.into())
     }
 
     fn __repr__(&self) -> String {
@@ -930,8 +930,8 @@ impl PyPathFromVertex {
     }
 
     #[pyo3(signature = (t_start = None, t_end = None))]
-    pub fn window(&self, t_start: Option<i64>, t_end: Option<i64>) -> Self {
-        window_impl(&self.path, t_start, t_end).into()
+    pub fn window(&self, t_start: Option<&PyAny>, t_end: Option<&PyAny>) -> PyResult<Self> {
+        window_impl(&self.path, t_start, t_end).map(|p| p.into())
     }
 
     /// Create a view of the vertex including all events at `t`.
@@ -942,8 +942,8 @@ impl PyPathFromVertex {
     /// Returns:
     ///     A `PyVertex` object.
     #[pyo3(signature = (end))]
-    pub fn at(&self, end: i64) -> Self {
-        self.path.at(end).into()
+    pub fn at(&self, end: &PyAny) -> PyResult<Self> {
+        at_impl(&self.path, end).map(|p| p.into())
     }
 
     fn __repr__(&self) -> String {

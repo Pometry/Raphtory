@@ -1,6 +1,7 @@
 use crate::core::tgraph::VertexRef;
 use crate::core::{Direction, Prop};
 use crate::db::edge::EdgeView;
+use crate::db::graph_layer::LayeredGraph;
 use crate::db::graph_window::WindowedGraph;
 use crate::db::path::{Operations, PathFromGraph};
 use crate::db::vertex::VertexView;
@@ -137,6 +138,7 @@ impl<G: GraphViewOps> VertexViewOps for Vertices<G> {
 
 impl<G: GraphViewOps> TimeOps for Vertices<G> {
     type WindowedViewType = Vertices<WindowedGraph<G>>;
+    type LayeredViewType = Vertices<LayeredGraph<G>>;
 
     fn start(&self) -> Option<i64> {
         self.graph.start()
@@ -150,6 +152,18 @@ impl<G: GraphViewOps> TimeOps for Vertices<G> {
         Vertices {
             graph: self.graph.window(t_start, t_end),
         }
+    }
+
+    fn default_layer(&self) -> Self::LayeredViewType {
+        Vertices {
+            graph: self.graph.default_layer(),
+        }
+    }
+
+    fn layer(&self, name: &str) -> Option<Self::LayeredViewType> {
+        Some(Vertices {
+            graph: self.graph.layer(name)?,
+        })
     }
 }
 

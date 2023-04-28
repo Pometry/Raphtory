@@ -6,10 +6,14 @@
 //!
 
 use crate::core::tgraph::{EdgeRef, VertexRef};
+use crate::core::time::error::ParseTimeError;
+use crate::core::time::Interval;
 use crate::core::Direction;
 use crate::core::Prop;
+use crate::db::graph_layer::LayeredGraph;
 use crate::db::graph_window::WindowedGraph;
 use crate::db::vertex::VertexView;
+use crate::db::view_api::time::WindowSet;
 use crate::db::view_api::{BoxedIter, EdgeListOps, GraphViewOps, TimeOps};
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
@@ -219,6 +223,7 @@ impl<G: GraphViewOps> EdgeView<G> {
 
 impl<G: GraphViewOps> TimeOps for EdgeView<G> {
     type WindowedViewType = EdgeView<WindowedGraph<G>>;
+    type LayeredViewType = EdgeView<LayeredGraph<G>>;
 
     fn start(&self) -> Option<i64> {
         self.graph.start()
@@ -233,6 +238,20 @@ impl<G: GraphViewOps> TimeOps for EdgeView<G> {
             graph: self.graph.window(t_start, t_end),
             edge: self.edge,
         }
+    }
+
+    fn default_layer(&self) -> Self::LayeredViewType {
+        EdgeView {
+            graph: self.graph.default_layer(),
+            edge: self.edge,
+        }
+    }
+
+    fn layer(&self, name: &str) -> Option<Self::LayeredViewType> {
+        Some(EdgeView {
+            graph: self.graph.layer(name)?,
+            edge: self.edge,
+        })
     }
 }
 
