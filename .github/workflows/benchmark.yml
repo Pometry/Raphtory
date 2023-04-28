@@ -44,7 +44,6 @@ jobs:
           toolchain: nightly
           override: true
           components: rustfmt, clippy
-        run: cargo bench --bench base -- --output-format=bencher | tee benchmark-result.txt
       - name: Run benchmark (Unix)
         run: |
           set -o pipefail
