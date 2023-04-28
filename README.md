@@ -172,6 +172,12 @@ Learn how to use Raphtory in your analysis and project by following these links.
 - [Complete list of available algorithms](https://docs.raphtory.com/en/v0.0.11/api/_autosummary/raphtory.algorithms.html)
 - [Writing your own algorithm in Raphtory (COMING SOON)]()
 
+# Benchmarks
+
+We host a page which triggers and saves the result of two benchmarks upon every push to the master branch. 
+
+View this here [https://pometry.github.io/Raphtory/dev/bench/](https://pometry.github.io/Raphtory/dev/bench/)
+
 # Bounty board
 
 Raphtory is currently offering rewards for contributions, such as new features or algorithms. Contributors will receive swag and prizes! 
