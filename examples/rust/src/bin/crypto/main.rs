@@ -8,9 +8,7 @@ use raphtory::graph_loader::source::csv_loader::CsvLoader;
 use serde::Deserialize;
 use std::path::PathBuf;
 use std::{env, path::Path, time::Instant};
-
-// block_number,transaction_index,from_address,to_address,time_stamp,contract_address,value
-// 14669683,7,0xd30b438df65f4f788563b2b3611bd6059bff4ad9,0xda816e2122a8a39b0926bfa84edd3d42477e9efd,1651105815,0xdac17f958d2ee523a2206206994597c13d831ec7,18.67
+use raphtory::algorithms::generic_taint::generic_taint;
 
 #[derive(Deserialize, std::fmt::Debug)]
 pub struct StableCoin {
@@ -26,10 +24,7 @@ pub struct StableCoin {
 fn main() {
     let args: Vec<String> = env::args().collect();
 
-    // let default_data_dir: PathBuf = PathBuf::from("/tmp/stablecoin");
-    let default_data_dir: PathBuf = [env!("CARGO_MANIFEST_DIR"), "src/bin/crypto/data"]
-        .iter()
-        .collect();
+    let default_data_dir: PathBuf = PathBuf::from("/tmp/stablecoin");
 
     let data_dir = if args.len() < 2 {
         &default_data_dir
@@ -43,7 +38,7 @@ fn main() {
 
     let encoded_data_dir = data_dir.join("graphdb.bincode");
 
-    let graph = if encoded_data_dir.exists() {
+    let g = if encoded_data_dir.exists() {
         let now = Instant::now();
         let g = Graph::load_from_file(encoded_data_dir.as_path())
             .expect("Failed to load graph from encoded data files");
@@ -88,9 +83,15 @@ fn main() {
         g
     };
 
-    // assert_eq!(graph.num_vertices(), 139);
-    // assert_eq!(graph.num_edges(), 701);
-    //
+    assert_eq!(g.num_vertices(), 1523333);
+    assert_eq!(g.num_edges(), 2814155);
+
+    let gandalf = utils::calculate_hash(&"0xd30b438df65f4f788563b2b3611bd6059bff4ad9");
+    let now = Instant::now();
+    let r = generic_taint(&g, 20, 1651105815, vec![gandalf], vec![]);
+    println!("Time taken: {}", now.elapsed().as_secs());
+    println!("{:?}", r);
+
     // let gandalf = utils::calculate_hash(&"Gandalf");
     //
     // assert_eq!(gandalf, 8703678510860200260);
