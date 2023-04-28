@@ -1,0 +1,19 @@
+[workspace]
+members = [
+	"raphtory",
+	"examples/rust",
+	"python"
+]
+default-members = ["raphtory", "python"]
+
+[workspace.package]
+version = "0.0.11"
+documentation = "https://raphtory.readthedocs.io/en/latest/"
+repository = "https://github.com/Raphtory/raphtory/"
+license = "AGPL-3.0-only"
+readme = "README.md"
+homepage = "https://github.com/Raphtory/raphtory/"
+keywords = ["graph", "temporal-graph", "temporal"]
+authors = ["Pometry"]
+rust-version = "1.67.1"
+edition = "2021"

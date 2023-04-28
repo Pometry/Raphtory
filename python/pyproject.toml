@@ -1,0 +1,30 @@
+[build-system]
+requires = ["maturin>=0.13,<0.14"]
+build-backend = "maturin"
+
+[project]
+name = "raphtory"
+requires-python = ">=3.7"
+classifiers = [
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: Implementation :: PyPy",
+]
+dependencies = [
+    "pandas >= 1.3.3",
+]
+
+[project.urls]
+homepage = "https://github.com/raphtory/raphtory"
+documentation = "https://docs.raphtory.com/"
+repository = "https://github.com/raphtory/raphtory"
+twitter = "https://twitter.com/raphtory/"
+slack = "https://join.slack.com/t/raphtory/shared_invite/zt-xbebws9j-VgPIFRleJFJBwmpf81tvxA"
+youtube = "https://www.youtube.com/@pometry8546/videos"
+
+[project.optional-dependencies]
+vis = ["pyvis >= 0.3.2", "networkx >= 2.6.3", "matplotlib >= 3.4.3", "seaborn >= 0.11.2"]
+
+[tool.maturin]
+features = ["pyo3/extension-module"]
+python-source = "python"

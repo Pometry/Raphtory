@@ -1,0 +1,8 @@
+# exclude .ipynb from stats
+*.ipynb linguist-documentation
+
+# exclude docs from stats
+docs/* linguist-documentation
+
+# exclude makefile from stats
+Makefile linguist-documentation
