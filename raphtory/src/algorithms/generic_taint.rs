@@ -195,9 +195,8 @@ impl Program for GenericTaintS1 {
     }
 }
 
-pub fn generic_taint(
-    g: &Graph,
-    // window: Range<i64>,
+pub fn generic_taint<G: GraphViewOps>(
+    g: &G,
     iter_count: usize,
     start_time: i64,
     infected_nodes: Vec<u64>,
@@ -275,7 +274,7 @@ pub fn generic_taint(
 
     let mut results: HashMap<u64, Vec<(usize, i64, u64)>> = HashMap::default();
 
-    (0..g.nr_shards)
+    (0..g.num_shards())
         .into_iter()
         .fold(&mut results, |res, part_id| {
             c.fold_state(

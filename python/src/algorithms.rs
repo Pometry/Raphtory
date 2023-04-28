@@ -18,6 +18,7 @@ use raphtory::algorithms::local_triangle_count::local_triangle_count as local_tr
 use raphtory::algorithms::reciprocity::{
     all_local_reciprocity as all_local_reciprocity_rs, global_reciprocity as global_reciprocity_rs,
 };
+use raphtory::algorithms::generic_taint::generic_taint as generic_taint_rs;
 
 /// Local triangle count - calculates the number of triangles (a cycle of length 3) for a node.
 /// It measures the local clustering of a graph.
@@ -39,6 +40,17 @@ use raphtory::algorithms::reciprocity::{
 pub(crate) fn local_triangle_count(g: &PyGraphView, v: &PyAny) -> PyResult<Option<usize>> {
     let v = utils::extract_vertex_ref(v)?;
     Ok(local_triangle_count_rs(&g.graph, v.g_id))
+}
+
+#[pyfunction]
+pub(crate) fn generic_taint(
+    g: &PyGraphView,
+    iter_count: usize,
+    start_time: i64,
+    infected_nodes: Vec<u64>,
+    stop_nodes: Vec<u64>,
+) -> PyResult<HashMap<u64, Vec<(usize, i64, u64)>>> {
+    Ok(generic_taint_rs(&g.graph, iter_count, start_time, infected_nodes, stop_nodes))
 }
 
 /// Local Clustering coefficient - measures the degree to which nodes in a graph tend to cluster together.

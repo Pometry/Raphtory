@@ -827,3 +827,21 @@ def test_lotr_edge_history():
     assert(g.edge('Frodo','Gandalf').at(1000).history() == [329, 555, 861])
     assert(g.window(100,1000).edge('Frodo','Gandalf').history() == [329, 555, 861])
     assert(g.edge('Frodo','Gandalf').window(100,1000).history() == [329, 555, 861])
+
+
+def test_generic_taint():
+    g = Graph(1)
+    g.add_edge(10, 1, 3, {})
+    g.add_edge(11, 1, 2, {})
+    g.add_edge(12, 1, 2, {})
+    g.add_edge(9, 1, 2, {})
+    g.add_edge(12, 2, 4, {})
+    g.add_edge(13, 2, 5, {})
+    g.add_edge(14, 5, 5, {})
+    g.add_edge(14, 5, 4, {})
+    g.add_edge(5, 4, 6, {})
+    g.add_edge(15, 4, 7, {})
+    g.add_edge(10, 4, 7, {})
+    g.add_edge(10, 5, 8, {})
+
+    # algorithms.local_triangle_count
