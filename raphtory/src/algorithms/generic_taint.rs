@@ -208,19 +208,19 @@ pub fn generic_taint<G: GraphViewOps>(
 
     gtaint_s0.run_step(g, &mut c);
 
-    println!(
-        "step0, taint_status = {:?}",
-        c.read_vec_partitions(&val::<Bool>(0))
-    );
-    println!(
-        "step0, taint_history = {:?}",
-        c.read_vec_partitions(&hash_set::<TaintMessage>(1))
-    );
-    println!(
-        "step0, recv_tainted_msgs = {:?}",
-        c.read_vec_partitions(&hash_set::<TaintMessage>(2))
-    );
-    println!();
+    // println!(
+    //     "step0, taint_status = {:?}",
+    //     c.read_vec_partitions(&val::<Bool>(0))
+    // );
+    // println!(
+    //     "step0, taint_history = {:?}",
+    //     c.read_vec_partitions(&hash_set::<TaintMessage>(1))
+    // );
+    // println!(
+    //     "step0, recv_tainted_msgs = {:?}",
+    //     c.read_vec_partitions(&hash_set::<TaintMessage>(2))
+    // );
+    // println!();
 
     let mut last_taint_list = HashSet::<u64>::new();
     let mut i = 0;
@@ -233,22 +233,22 @@ pub fn generic_taint<G: GraphViewOps>(
             .flat_map(|v| v.into_iter().flat_map(|c| c.into_iter().map(|(a, b)| a)))
             .collect();
 
-        println!(
-            "step{}, taint_status = {:?}",
-            i + 1,
-            c.read_vec_partitions(&val::<Bool>(0))
-        );
-        println!("step{}, taint_list = {:?}", i + 1, taint_list);
-        println!(
-            "step{}, taint_history = {:?}",
-            i + 1,
-            c.read_vec_partitions(&hash_set::<TaintMessage>(1))
-        );
-        println!(
-            "step{}, recv_tainted_msgs = {:?}",
-            i + 1,
-            c.read_vec_partitions(&hash_set::<TaintMessage>(2))
-        );
+        // println!(
+        //     "step{}, taint_status = {:?}",
+        //     i + 1,
+        //     c.read_vec_partitions(&val::<Bool>(0))
+        // );
+        // println!("step{}, taint_list = {:?}", i + 1, taint_list);
+        // println!(
+        //     "step{}, taint_history = {:?}",
+        //     i + 1,
+        //     c.read_vec_partitions(&hash_set::<TaintMessage>(1))
+        // );
+        // println!(
+        //     "step{}, recv_tainted_msgs = {:?}",
+        //     i + 1,
+        //     c.read_vec_partitions(&hash_set::<TaintMessage>(2))
+        // );
 
         let difference: Vec<_> = taint_list
             .iter()
@@ -256,8 +256,8 @@ pub fn generic_taint<G: GraphViewOps>(
             .collect();
         let converged = difference.is_empty();
 
-        println!("taint_list diff = {:?}", difference);
-        println!();
+        // println!("taint_list diff = {:?}", difference);
+        // println!();
 
         if converged || i > iter_count {
             break;
