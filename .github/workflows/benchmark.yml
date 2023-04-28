@@ -75,6 +75,7 @@ jobs:
           comment-on-alert: true
           fail-on-alert: true
           summary-always: true
+          save-data-file: false
 
 
 # TODO
