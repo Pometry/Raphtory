@@ -120,3 +120,25 @@ impl<G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeState> 
         }
     }
 }
+
+pub struct GlobalState<CS:ComputeState>{state: Arc<ShuffleComputeState<CS>>, ss: usize}
+
+impl <CS:ComputeState>  GlobalState<CS> {
+    pub fn new(state: Arc<ShuffleComputeState<CS>>, ss:usize,) -> Self {
+        Self { state, ss }
+    }
+
+    pub fn read<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
+        &self,
+        acc_id: &AccId<A, IN, OUT, ACC>,
+    ) -> OUT
+    where
+        A: StateType,
+        OUT: std::fmt::Debug,
+    {
+        self.state
+            .read_global(self.ss, acc_id)
+            .unwrap_or(ACC::finish(&ACC::zero()))
+    }
+
+}

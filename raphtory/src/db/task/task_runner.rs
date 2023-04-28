@@ -17,7 +17,7 @@ use crate::{
 };
 
 use super::{
-    context::Context,
+    context::{Context, GlobalState},
     custom_pool,
     eval_vertex::EvalVertexView,
     task::{Job, Step, Task},
@@ -62,7 +62,7 @@ impl<G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeState> 
         num_shards: usize,
         num_tasks: usize,
         job_id: &usize,
-        done_v2: &AtomicBool,
+        atomic_done: &AtomicBool,
         task: &Box<dyn Task<G, CS> + Send + Sync>,
     ) -> Arc<ShuffleComputeState<CS>> {
         let rc_local_state = Rc::new(RefCell::new(Cow::Borrowed(state.as_ref())));
@@ -90,7 +90,7 @@ impl<G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeState> 
             }
         }
         if !done {
-            done_v2.store(false, Ordering::Relaxed);
+            atomic_done.store(false, Ordering::Relaxed);
         }
 
         let cow_state: Cow<ShuffleComputeState<CS>> =
@@ -122,7 +122,7 @@ impl<G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeState> 
             let num_tasks = min(num_shards, num_threads);
 
             for task in tasks.iter() {
-                let done_v2 = AtomicBool::new(true);
+                let atomic_done = AtomicBool::new(true);
 
                 let updated_state = {
                     let task_states = self.make_total_state(num_tasks, || new_total_state.clone());
@@ -131,13 +131,22 @@ impl<G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeState> 
                         Job::Write(task) => task_states
                             .par_iter()
                             .map(|(job_id, state)| {
-                                self.run_task(state, num_shards, num_tasks, job_id, &done_v2, task)
+                                self.run_task(state, num_shards, num_tasks, job_id, &atomic_done, task)
                             })
                             .reduce_with(|a, b| self.merge_states(a, b)),
                         Job::Read(task) => {
                             task_states.par_iter().for_each(|(job_id, state)| {
-                                self.run_task(state, num_shards, num_tasks, job_id, &done_v2, task);
+                                self.run_task(state, num_shards, num_tasks, job_id, &atomic_done, task);
                             });
+                            None
+                        }
+                        Job::Check(task) => {
+                            match task(&GlobalState::new(new_total_state.clone(), self.ctx.ss())) {
+                                Step::Continue => {
+                                    atomic_done.store(false, Ordering::Relaxed);
+                                }
+                                Step::Done => {}
+                            };
                             None
                         }
                     };
@@ -148,7 +157,7 @@ impl<G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeState> 
                     new_total_state = arc_state;
                 }
 
-                if done_v2.load(Ordering::Relaxed) {
+                if atomic_done.load(Ordering::Relaxed) {
                     done = true;
                     break;
                 }
@@ -198,3 +207,4 @@ impl<G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeState> 
         total_state
     }
 }
+

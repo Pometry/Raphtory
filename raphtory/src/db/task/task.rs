@@ -2,13 +2,13 @@ use num_traits::abs;
 // the main execution unit of an algorithm
 use rustc_hash::FxHashMap;
 
-use crate::core::agg::{Init, InitAcc1, Var, Store, ValDef};
-use crate::core::state::{self, AccId, AccId1, ComputeState, ComputeStateVec};
+use crate::core::agg::{Init, Var};
+use crate::core::state::{self, ComputeState, ComputeStateVec};
 
 use crate::db::view_api::internal::GraphViewInternalOps;
 use crate::db::view_api::GraphViewOps;
 
-use super::context::Context;
+use super::context::{Context, GlobalState};
 use super::eval_vertex::EvalVertexView;
 use super::task_runner::TaskRunner;
 
@@ -38,9 +38,10 @@ where
 }
 
 // determines if the task is executed for all vertices or only for updated vertices (vertices that had a state change since last sync)
-pub enum Job<G, CS> {
+pub enum Job<G, CS: ComputeState> {
     Read(Box<dyn Task<G, CS> + Sync + Send>),
     Write(Box<dyn Task<G, CS> + Sync + Send>),
+    Check(Box<dyn Fn(&GlobalState<CS>) -> Step + Send + Sync + 'static>),
 }
 
 impl<G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeState> Job<G, CS> {
@@ -95,6 +96,7 @@ where
 
     let mut ctx: Context<G, ComputeStateVec> = g.into();
 
+    let MAX_DIFF = 0.01f32;
     let damping_factor = 0.85;
 
     let score = state::def::store::<f32>(0).init::<InitOneF32>();
@@ -135,11 +137,19 @@ where
         Step::Continue
     });
 
+    let step4 = Job::Check(Box::new(move |state| {
+        if state.read(&max_diff) > MAX_DIFF {
+            Step::Continue
+        } else {
+            Step::Done
+        }
+    }));
+
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
 
     let state = runner.run(
         vec![Job::new(step1)],
-        vec![Job::new(step2), Job::new(step3)],
+        vec![Job::new(step2), Job::new(step3), step4],
         Some(threads),
         iter_count,
         None,
@@ -238,7 +248,8 @@ mod page_rank_tests {
     fn test_page_rank(n_shards: usize) {
         let graph = load_graph(n_shards);
 
-        let results: FxHashMap<u64, f32> = unweighted_page_rank(&graph, 19, 2).into_iter().collect();
+        let results: FxHashMap<u64, f32> =
+            unweighted_page_rank(&graph, 19, 2).into_iter().collect();
 
         assert_eq!(
             results,
