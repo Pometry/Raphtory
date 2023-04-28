@@ -65,7 +65,6 @@ jobs:
           alert-threshold: '200%'
           comment-on-alert: true
           fail-on-alert: true
-          external-data-json-path: ./cache/benchmark-data.json
 
 
 # TODO
