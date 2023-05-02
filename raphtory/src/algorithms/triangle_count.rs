@@ -1,4 +1,9 @@
+use crate::core::state::ComputeStateVec;
 use crate::core::{state, tgraph_shard::errors::GraphError};
+use crate::db::task::context::Context;
+use crate::db::task::task::{ATask, Job, Step};
+use crate::db::task::task_runner::TaskRunner;
+use crate::db::view_api::internal::GraphViewInternalOps;
 use crate::db::{
     graph::Graph,
     program::{GlobalEvalState, LocalState, Program},
@@ -146,6 +151,66 @@ pub fn triangle_counting_fast(g: &Graph) -> Option<usize> {
     tc.run_step(g, &mut gs);
 
     tc.produce_output(g, &gs)
+}
+
+pub fn triangle_counting_fast_2<G: GraphViewInternalOps + Send + Sync + Clone + 'static>(
+    g: &G,
+    num_threads: Option<usize>,
+) -> Option<usize> {
+    let mut ctx: Context<G, ComputeStateVec> = g.into();
+
+    let neighbours_set = state::def::hash_set::<u64>(0);
+    let count = state::def::sum::<usize>(1);
+
+    ctx.agg(neighbours_set.clone());
+    ctx.global_agg(count.clone());
+
+    let step1 = ATask::new(move |s| {
+        for t in s.neighbours() {
+            if s.global_id() > t.global_id() {
+                t.update(&neighbours_set, s.global_id());
+            }
+        }
+        Step::Continue
+    });
+
+    let step2 = ATask::new(move |s| {
+        for t in s.neighbours() {
+            if s.global_id() > t.global_id() {
+                let intersection_count = {
+                    // when using entry() we need to make sure the reference is released before we can update the state, otherwise we break the Rc<RefCell<_>> invariant
+                    // where there can either be one mutable or many immutable references
+
+                    match (
+                        s.entry(&neighbours_set)
+                            .read_ref()
+                            .unwrap_or(&FxHashSet::default()),
+                        t.entry(&neighbours_set)
+                            .read_ref()
+                            .unwrap_or(&FxHashSet::default()),
+                    ) {
+                        (s_set, t_set) => {
+                            let intersection = s_set.intersection(t_set);
+                            intersection.count()
+                        }
+                    }
+                };
+
+                s.global_update(&count, intersection_count);
+            }
+        }
+        Step::Continue
+    });
+
+    let init_tasks = vec![Job::new(step1)];
+    let tasks = vec![Job::new(step2)];
+
+    let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
+
+    let (state, _) = runner.run(init_tasks, tasks, num_threads, 1, None);
+
+    // state.read_global(ctx.ss(), &count)
+    todo!()
 }
 
 pub struct TriangleCountS2 {}

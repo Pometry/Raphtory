@@ -1,8 +1,13 @@
 use crate::{
-    core::state,
-    db::graph::Graph,
-    db::program::{GlobalEvalState, LocalState, Program},
-    db::view_api::GraphViewOps,
+    core::state::{self, ComputeStateVec},
+    db::{
+        task::{
+            context::Context,
+            task::{ATask, Job, Step},
+            task_runner::TaskRunner,
+        },
+        view_api::internal::GraphViewInternalOps,
+    },
 };
 use rustc_hash::FxHashMap;
 
@@ -18,159 +23,67 @@ use rustc_hash::FxHashMap;
 ///
 /// A hash map containing the mapping from component ID to the number of vertices in the component
 ///
-pub fn weakly_connected_components(g: &Graph, iter_count: usize) -> FxHashMap<u64, u64> {
-    let cc = WeaklyConnectedComponents {};
+pub fn weakly_connected_components<G>(
+    graph: &G,
+    iter_count: usize,
+    threads: Option<usize>,
+) -> FxHashMap<u64, u64>
+where
+    G: GraphViewInternalOps + Send + Sync + Clone + 'static,
+{
+    let mut ctx: Context<G, ComputeStateVec> = graph.into();
 
-    let gs = cc.run(g, true, iter_count);
+    let min = state::def::min::<u64>(0);
 
-    cc.produce_output(g, &gs)
-}
+    // setup the aggregator to be merged post execution
+    ctx.agg(min.clone());
 
-#[derive(Default)]
-struct WeaklyConnectedComponents {}
+    let step1 = ATask::new(move |vv| {
+        vv.update(&min, vv.global_id());
 
-impl Program for WeaklyConnectedComponents {
-    type Out = FxHashMap<u64, u64>;
+        for n in vv.neighbours() {
+            let my_min = vv.read(&min);
+            n.update(&min, my_min)
+        }
 
-    fn local_eval<G: GraphViewOps>(&self, c: &LocalState<G>) {
-        let min = c.agg(state::def::min(0));
+        Step::Continue
+    });
 
-        c.step(|vv| {
-            let g_id = vv.global_id();
-            vv.update(&min, g_id);
+    let step2 = ATask::new(move |vv| {
+        let current = vv.read(&min);
+        let prev = vv.read_prev(&min);
 
-            for n in vv.neighbours() {
-                let my_min = vv.read(&min);
-                n.update(&min, my_min);
-            }
-        })
-    }
+        if current == prev {
+            Step::Done
+        } else {
+            Step::Continue
+        }
+    });
 
-    fn post_eval<G: GraphViewOps>(&self, c: &mut GlobalEvalState<G>) {
-        // this will make the global state merge all the values for all partitions
-        let min = c.agg(state::def::min::<u64>(0));
+    let tasks = vec![Job::new(step1), Job::read_only(step2)];
+    let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
 
-        c.step(|vv| {
-            let current = vv.read(&min);
-            let prev = vv.read_prev(&min);
-            current != prev
-        })
-    }
+    let (state, _) = runner.run(vec![], tasks, threads, iter_count, None);
 
-    fn produce_output<G: GraphViewOps>(&self, g: &G, gs: &GlobalEvalState<G>) -> Self::Out
-    where
-        Self: Sync,
-    {
-        let agg = state::def::min::<u64>(0);
+    let mut map: FxHashMap<u64, u64> = FxHashMap::default();
 
-        let mut results: FxHashMap<u64, u64> = FxHashMap::default();
+    state.fold_state_internal(runner.ctx.ss(), &mut map, &min, |res, shard, pid, cc| {
+        if let Some(v_ref) = graph.lookup_by_pid_and_shard(pid, shard) {
+            res.insert(v_ref.g_id, cc);
+        }
+        res
+    });
 
-        (0..g.num_shards())
-            .into_iter()
-            .fold(&mut results, |res, part_id| {
-                gs.fold_state(&agg, part_id, res, |res, v_id, cc| {
-                    res.insert(*v_id, cc);
-                    res
-                })
-            });
-
-        results
-    }
+    map
 }
 
 #[cfg(test)]
 mod cc_test {
+    use crate::db::graph::Graph;
+
     use super::*;
     use itertools::*;
     use std::{cmp::Reverse, iter::once};
-
-    #[test]
-    fn simple_connected_components() {
-        let program = WeaklyConnectedComponents::default();
-
-        let graph = Graph::new(2);
-
-        let edges = vec![
-            (1, 2, 1),
-            (2, 3, 2),
-            (3, 4, 3),
-            (3, 5, 4),
-            (6, 5, 5),
-            (7, 8, 6),
-            (8, 7, 7),
-        ];
-
-        for (src, dst, ts) in edges {
-            graph.add_edge(ts, src, dst, &vec![], None).unwrap();
-        }
-
-        let mut gs = GlobalEvalState::new(graph.clone(), true);
-        program.run_step(&graph, &mut gs);
-
-        let agg = state::def::min::<u64>(0);
-
-        let expected =             // output from the eval running on the first shard
-            vec![
-                vec![(8, 7), (2, 1), (4, 3), (6, 3)], // shard 0 (2, 4, 6, 8)
-                vec![(5, 3), (7, 7), (1, 1), (3, 2)], // shard 1 (1, 3, 5, 7)
-            ];
-
-        let actual_part1 = &gs.read_vec_partitions(&agg)[0];
-        let actual_part2 = &gs.read_vec_partitions(&agg)[1];
-
-        // after one step all partitions have the same data since it's been merged and broadcasted
-        assert_eq!(actual_part1, actual_part2);
-        println!("ACTUAL: {:?}", actual_part1);
-        assert_eq!(actual_part1, &expected);
-
-        program.run_step(&graph, &mut gs);
-
-        let expected =             // output from the eval running on the first shard
-            vec![
-                vec![(8, 7), (2, 1), (4, 2), (6, 3)], // shard 0 (2, 4, 6, 8)
-                vec![(5, 2), (7, 7), (1, 1), (3, 1)], // shard 1 (1, 3, 5, 7)
-            ];
-
-        let actual_part1 = &gs.read_vec_partitions(&agg)[0];
-        let actual_part2 = &gs.read_vec_partitions(&agg)[1];
-
-        // after one step all partitions have the same data since it's been merged and broadcasted
-        assert_eq!(actual_part1, actual_part2);
-        println!("ACTUAL: {:?}", actual_part1);
-        assert_eq!(actual_part1, &expected);
-
-        program.run_step(&graph, &mut gs);
-
-        let expected =             // output from the eval running on the first shard
-            vec![
-                vec![(8, 7), (2, 1), (4, 1), (6, 2)], // shard 0 (2, 4, 6, 8)
-                vec![(5, 1), (7, 7), (1, 1), (3, 1)], // shard 1 (1, 3, 5, 7)
-            ];
-
-        let actual_part1 = &gs.read_vec_partitions(&agg)[0];
-        let actual_part2 = &gs.read_vec_partitions(&agg)[1];
-
-        // after one step all partitions have the same data since it's been merged and broadcasted
-        assert_eq!(actual_part1, actual_part2);
-        println!("ACTUAL: {:?}", actual_part1);
-        assert_eq!(actual_part1, &expected);
-
-        program.run_step(&graph, &mut gs);
-
-        let expected =             // output from the eval running on the first shard
-            vec![
-                vec![(8, 7), (2, 1), (4, 1), (6, 1)], // shard 0 (2, 4, 6, 8)
-                vec![(5, 1), (7, 7), (1, 1), (3, 1)], // shard 1 (1, 3, 5, 7)
-            ];
-
-        let actual_part1 = &gs.read_vec_partitions(&agg)[0];
-        let actual_part2 = &gs.read_vec_partitions(&agg)[1];
-
-        // after one step all partitions have the same data since it's been merged and broadcasted
-        assert_eq!(actual_part1, actual_part2);
-        println!("ACTUAL: {:?}", actual_part1);
-        assert_eq!(actual_part1, &expected);
-    }
 
     #[test]
     fn run_loop_simple_connected_components() {
@@ -190,7 +103,7 @@ mod cc_test {
             graph.add_edge(ts, src, dst, &vec![], None).unwrap();
         }
 
-        let results: FxHashMap<u64, u64> = weakly_connected_components(&graph, usize::MAX);
+        let results: FxHashMap<u64, u64> = weakly_connected_components(&graph, usize::MAX, None);
 
         assert_eq!(
             results,
@@ -243,7 +156,7 @@ mod cc_test {
             graph.add_edge(ts, src, dst, &vec![], None).unwrap();
         }
 
-        let results: FxHashMap<u64, u64> = weakly_connected_components(&graph, usize::MAX);
+        let results: FxHashMap<u64, u64> = weakly_connected_components(&graph, usize::MAX, None);
 
         assert_eq!(
             results,
@@ -276,7 +189,7 @@ mod cc_test {
             graph.add_edge(ts, src, dst, &vec![], None).unwrap();
         }
 
-        let results: FxHashMap<u64, u64> = weakly_connected_components(&graph, usize::MAX);
+        let results: FxHashMap<u64, u64> = weakly_connected_components(&graph, usize::MAX, None);
 
         assert_eq!(
             results,
@@ -310,7 +223,8 @@ mod cc_test {
 
             // now we do connected components over window 0..1
 
-            let components: FxHashMap<u64, u64> = weakly_connected_components(&graph, usize::MAX);
+            let components: FxHashMap<u64, u64> =
+                weakly_connected_components(&graph, usize::MAX, None);
 
             let actual = components
                 .iter()

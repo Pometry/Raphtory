@@ -1,29 +1,19 @@
-#![allow(unused_imports)]
-use std::cmp::Reverse;
-use std::collections::HashMap;
+// #![allow(unused_imports)]
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
-use std::marker::PhantomData;
-use std::path::{Path, PathBuf};
-use std::thread::JoinHandle;
-use std::{env, thread};
+use std::path::Path;
+use std::env;
 
-use chrono::{DateTime, Utc};
 use itertools::Itertools;
+use raphtory::algorithms::connected_components::weakly_connected_components;
 // use raphtory::algorithms::connected_components::weakly_connected_components;
 use raphtory::algorithms::triangle_count::triangle_counting_fast;
-use raphtory::core::tgraph::TemporalGraph;
-use raphtory::core::{state, utils};
 use raphtory::core::{Direction, Prop};
 use raphtory::db::graph::Graph;
-use raphtory::db::program::{GlobalEvalState, Program};
-use raphtory::db::task::task::weakly_connected_components;
 use raphtory::db::view_api::*;
 use raphtory::graph_loader::source::csv_loader::CsvLoader;
 use regex::Regex;
 use serde::Deserialize;
-use std::fs::File;
-use std::io::{prelude::*, BufReader, LineWriter};
 use std::time::Instant;
 
 #[derive(Deserialize, Debug)]
@@ -123,18 +113,18 @@ fn try_main() -> Result<(), Box<dyn Error>> {
     let max_time = graph.end().ok_or(GraphEmptyError)?;
     let mid_time = (min_time + max_time) / 2;
 
-    // let now = Instant::now();
-    // let actual_tri_count = triangle_counting_fast(&graph);
+    let now = Instant::now();
+    let actual_tri_count = triangle_counting_fast(&graph);
 
-    // println!("Actual triangle count: {:?}", actual_tri_count);
+    println!("Actual triangle count: {:?}", actual_tri_count);
 
-    // println!(
-    //     "Counting triangles took {} seconds",
-    //     now.elapsed().as_secs()
-    // );
+    println!(
+        "Counting triangles took {} seconds",
+        now.elapsed().as_secs()
+    );
 
     let now = Instant::now();
-    let components = weakly_connected_components(&graph, 5, 16);
+    let components = weakly_connected_components(&graph, 5, Some(16));
 
     components
         .into_iter()
@@ -152,35 +142,35 @@ fn try_main() -> Result<(), Box<dyn Error>> {
         now.elapsed().as_secs()
     );
 
-    // let now = Instant::now();
-    // let num_edges: usize = graph.vertices().out_degree().sum();
-    // println!(
-    //     "Counting edges by summing degrees returned {} in {} seconds",
-    //     num_edges,
-    //     now.elapsed().as_secs()
-    // );
-    // let earliest_time = graph.start().ok_or(GraphEmptyError)?;
-    // let latest_time = graph.end().ok_or(GraphEmptyError)?;
-    // println!("graph time range: {}-{}", earliest_time, latest_time);
-    // let now = Instant::now();
-    // let window = graph.window(i64::MIN, i64::MAX);
-    // println!("Creating window took {} seconds", now.elapsed().as_secs());
+    let now = Instant::now();
+    let num_edges: usize = graph.vertices().out_degree().sum();
+    println!(
+        "Counting edges by summing degrees returned {} in {} seconds",
+        num_edges,
+        now.elapsed().as_secs()
+    );
+    let earliest_time = graph.start().ok_or(GraphEmptyError)?;
+    let latest_time = graph.end().ok_or(GraphEmptyError)?;
+    println!("graph time range: {}-{}", earliest_time, latest_time);
+    let now = Instant::now();
+    let window = graph.window(i64::MIN, i64::MAX);
+    println!("Creating window took {} seconds", now.elapsed().as_secs());
 
-    // let now = Instant::now();
-    // let num_windowed_edges: usize = window.vertices().out_degree().sum();
-    // println!(
-    //     "Counting edges in window by summing degrees returned {} in {} seconds",
-    //     num_windowed_edges,
-    //     now.elapsed().as_secs()
-    // );
+    let now = Instant::now();
+    let num_windowed_edges: usize = window.vertices().out_degree().sum();
+    println!(
+        "Counting edges in window by summing degrees returned {} in {} seconds",
+        num_windowed_edges,
+        now.elapsed().as_secs()
+    );
 
-    // let now = Instant::now();
-    // let num_windowed_edges2 = window.num_edges();
-    // println!(
-    //     "Window num_edges returned {} in {} seconds",
-    //     num_windowed_edges2,
-    //     now.elapsed().as_secs()
-    // );
+    let now = Instant::now();
+    let num_windowed_edges2 = window.num_edges();
+    println!(
+        "Window num_edges returned {} in {} seconds",
+        num_windowed_edges2,
+        now.elapsed().as_secs()
+    );
 
     Ok(())
 }
@@ -243,7 +233,7 @@ fn try_main_bm() -> Result<(), Box<dyn Error>> {
 }
 
 fn main() {
-    if let Err(e) = try_main() {
+    if let Err(e) = try_main_bm() {
         eprintln!("Failed: {}", e);
         std::process::exit(1)
     }

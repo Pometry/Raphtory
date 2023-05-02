@@ -1,4 +1,9 @@
-use std::{borrow::Cow, cell::RefCell, rc::Rc, sync::Arc};
+use std::{
+    borrow::Cow,
+    cell::{Ref, RefCell},
+    rc::Rc,
+    sync::Arc,
+};
 
 use crate::{
     core::{
@@ -140,6 +145,25 @@ impl<'a, G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeSta
 
     /// Read the current value of the vertex state using the given accumulator.
     /// Returns a default value if the value is not present.
+    pub fn entry<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
+        &self,
+        agg_r: &AccId<A, IN, OUT, ACC>,
+    ) -> Entry<'_, '_, A, IN, OUT, ACC, CS>
+    where
+        A: StateType,
+        OUT: std::fmt::Debug,
+    {
+        Entry::new(
+            self.state.borrow(),
+            *agg_r,
+            self.pid(),
+            self.global_id(),
+            self.ss,
+        )
+    }
+
+    /// Read the current value of the vertex state using the given accumulator.
+    /// Returns a default value if the value is not present.
     pub fn read_local<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
         &self,
         agg_r: &AccId<A, IN, OUT, ACC>,
@@ -184,5 +208,53 @@ impl<'a, G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeSta
             .borrow()
             .read_with_pid(self.ss + 1, self.global_id(), self.pid(), agg_r)
             .unwrap_or(ACC::finish(&ACC::zero()))
+    }
+}
+
+/// Represents an entry in the shuffle table.
+///
+/// The entry contains a reference to a `ShuffleComputeState` and an `AccId` representing the accumulator
+/// for which the entry is being accessed. It also contains the index of the entry in the shuffle table
+/// and the super-step counter.
+pub struct Entry<'a, 'b, A: StateType, IN, OUT, ACC: Accumulator<A, IN, OUT>, CS: ComputeState> {
+    state: Ref<'a, Cow<'b, ShuffleComputeState<CS>>>,
+    acc_id: AccId<A, IN, OUT, ACC>,
+    pid: usize,
+    gid: u64,
+    ss: usize,
+}
+
+// Entry implementation has read_ref function to access Option<&A>
+impl<'a, 'b, A: StateType, IN, OUT, ACC: Accumulator<A, IN, OUT>, CS: ComputeState>
+    Entry<'a, 'b, A, IN, OUT, ACC, CS>
+{
+    /// Creates a new `Entry` instance.
+    ///
+    /// # Arguments
+    ///
+    /// * `state` - A reference to a `ShuffleComputeState` instance.
+    /// * `acc_id` - An `AccId` representing the accumulator for which the entry is being accessed.
+    /// * `i` - The index of the entry in the shuffle table.
+    /// * `ss` - The super-step counter.
+    pub fn new(
+        state: Ref<'a, Cow<'b, ShuffleComputeState<CS>>>,
+        acc_id: AccId<A, IN, OUT, ACC>,
+        pid: usize,
+        gid: u64,
+        ss: usize,
+    ) -> Entry<'a, 'b, A, IN, OUT, ACC, CS> {
+        Entry {
+            state,
+            acc_id,
+            pid,
+            gid,
+            ss,
+        }
+    }
+
+    /// Returns a reference to the value stored in the `Entry` if it exists.
+    pub fn read_ref(&self) -> Option<&A> {
+        self.state
+            .read_ref_with_pid(self.ss, self.gid, self.pid, &self.acc_id)
     }
 }
