@@ -14,7 +14,7 @@ pub struct PyGraphView {
 }
 
 /// Graph view is a read-only version of a graph at a certain point in time.
-impl<G: GraphViewOps> From<G> for PyGraphView {
+impl<G: GraphViewOps + IntoDynamic> From<G> for PyGraphView {
     fn from(value: G) -> Self {
         PyGraphView {
             graph: value.into_dynamic(),

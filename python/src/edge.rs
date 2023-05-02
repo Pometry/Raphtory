@@ -25,14 +25,8 @@ pub struct PyEdge {
     pub(crate) edge: EdgeView<DynamicGraph>,
 }
 
-impl From<EdgeView<DynamicGraph>> for PyEdge {
-    fn from(value: EdgeView<DynamicGraph>) -> Self {
-        Self { edge: value }
-    }
-}
-
-impl From<EdgeView<WindowedGraph<DynamicGraph>>> for PyEdge {
-    fn from(value: EdgeView<WindowedGraph<DynamicGraph>>) -> Self {
+impl<G: GraphViewOps + IntoDynamic> From<EdgeView<G>> for PyEdge {
+    fn from(value: EdgeView<G>) -> Self {
         Self {
             edge: EdgeView {
                 graph: value.graph.into_dynamic(),
@@ -259,6 +253,14 @@ impl PyEdge {
     #[pyo3(signature = (end))]
     pub fn at(&self, end: &PyAny) -> PyResult<PyEdge> {
         at_impl(&self.edge, end).map(|e| e.into())
+    }
+
+    pub fn default_layer(&self) -> PyEdge {
+        self.edge.default_layer().into()
+    }
+
+    pub fn layer(&self, name: &str) -> Option<PyEdge> {
+        Some(self.edge.layer(name)?.into())
     }
 
     /// Explodes an Edge into a list of PyEdges. This is useful when you want to iterate over

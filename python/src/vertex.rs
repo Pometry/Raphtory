@@ -26,25 +26,7 @@ pub struct PyVertex {
     vertex: VertexView<DynamicGraph>,
 }
 
-/// Converts a rust vertex into a python vertex.
-// impl From<VertexView<DynamicGraph>> for PyVertex {
-//     fn from(value: VertexView<DynamicGraph>) -> Self {
-//         PyVertex { vertex: value }
-//     }
-// }
-
-// impl From<VertexView<WindowedGraph<DynamicGraph>>> for PyVertex {
-//     fn from(value: VertexView<WindowedGraph<DynamicGraph>>) -> Self {
-//         Self {
-//             vertex: VertexView {
-//                 graph: value.graph.into_dynamic(),
-//                 vertex: value.vertex,
-//             },
-//         }
-//     }
-// }
-
-impl<G: GraphViewOps> From<VertexView<G>> for PyVertex {
+impl<G: GraphViewOps + IntoDynamic> From<VertexView<G>> for PyVertex {
     fn from(value: VertexView<G>) -> Self {
         Self {
             vertex: VertexView {
@@ -372,7 +354,7 @@ impl PyVertex {
     }
 
     pub fn layer(&self, name: &str) -> Option<PyVertex> {
-        self.vertex.layer(name).map(|v| v.into())
+        Some(self.vertex.layer(name)?.into())
     }
 
     /// Returns the history of a vertex, including vertex additions and changes made to vertex.
@@ -421,14 +403,8 @@ pub struct PyVertices {
     pub(crate) vertices: Vertices<DynamicGraph>,
 }
 
-impl From<Vertices<DynamicGraph>> for PyVertices {
-    fn from(value: Vertices<DynamicGraph>) -> Self {
-        Self { vertices: value }
-    }
-}
-
-impl From<Vertices<WindowedGraph<DynamicGraph>>> for PyVertices {
-    fn from(value: Vertices<WindowedGraph<DynamicGraph>>) -> Self {
+impl<G: GraphViewOps + IntoDynamic> From<Vertices<G>> for PyVertices {
+    fn from(value: Vertices<G>) -> Self {
         Self {
             vertices: Vertices::new(value.graph.into_dynamic()),
         }
@@ -577,6 +553,14 @@ impl PyVertices {
     #[pyo3(signature = (end))]
     pub fn at(&self, end: &PyAny) -> PyResult<PyVertices> {
         at_impl(&self.vertices, end).map(|v| v.into())
+    }
+
+    pub fn default_layer(&self) -> PyVertices {
+        self.vertices.default_layer().into()
+    }
+
+    pub fn layer(&self, name: &str) -> Option<PyVertices> {
+        Some(self.vertices.layer(name)?.into())
     }
 
     //****** Python *******
@@ -765,6 +749,14 @@ impl PyPathFromGraph {
         at_impl(&self.path, end).map(|p| p.into())
     }
 
+    pub fn default_layer(&self) -> Self {
+        self.path.default_layer().into()
+    }
+
+    pub fn layer(&self, name: &str) -> Option<Self> {
+        Some(self.path.layer(name)?.into())
+    }
+
     fn __repr__(&self) -> String {
         self.repr()
     }
@@ -779,14 +771,8 @@ impl Repr for PyPathFromGraph {
     }
 }
 
-impl From<PathFromGraph<DynamicGraph>> for PyPathFromGraph {
-    fn from(value: PathFromGraph<DynamicGraph>) -> Self {
-        Self { path: value }
-    }
-}
-
-impl From<PathFromGraph<WindowedGraph<DynamicGraph>>> for PyPathFromGraph {
-    fn from(value: PathFromGraph<WindowedGraph<DynamicGraph>>) -> Self {
+impl<G: GraphViewOps + IntoDynamic> From<PathFromGraph<G>> for PyPathFromGraph {
+    fn from(value: PathFromGraph<G>) -> Self {
         Self {
             path: PathFromGraph {
                 graph: value.graph.into_dynamic(),
@@ -801,14 +787,8 @@ pub struct PyPathFromVertex {
     path: PathFromVertex<DynamicGraph>,
 }
 
-impl From<PathFromVertex<DynamicGraph>> for PyPathFromVertex {
-    fn from(value: PathFromVertex<DynamicGraph>) -> Self {
-        Self { path: value }
-    }
-}
-
-impl From<PathFromVertex<WindowedGraph<DynamicGraph>>> for PyPathFromVertex {
-    fn from(value: PathFromVertex<WindowedGraph<DynamicGraph>>) -> Self {
+impl<G: GraphViewOps + IntoDynamic> From<PathFromVertex<G>> for PyPathFromVertex {
+    fn from(value: PathFromVertex<G>) -> Self {
         Self {
             path: PathFromVertex {
                 graph: value.graph.into_dynamic(),
@@ -963,6 +943,14 @@ impl PyPathFromVertex {
     #[pyo3(signature = (end))]
     pub fn at(&self, end: &PyAny) -> PyResult<Self> {
         at_impl(&self.path, end).map(|p| p.into())
+    }
+
+    pub fn default_layer(&self) -> Self {
+        self.path.default_layer().into()
+    }
+
+    pub fn layer(&self, name: &str) -> Option<Self> {
+        Some(self.path.layer(name)?.into())
     }
 
     fn __repr__(&self) -> String {
