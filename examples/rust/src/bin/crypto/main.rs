@@ -23,7 +23,7 @@ pub struct StableCoin {
 }
 
 fn main() {
-    let g = stable_coin_graph(Some("/tmp/stablecoin".to_string()), 1);
+    let g = stable_coin_graph(Some("/tmp/stablecoin/mydir".to_string()), 1, 600);
 
     assert_eq!(g.num_vertices(), 1523333);
     assert_eq!(g.num_edges(), 2814155);
