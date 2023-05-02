@@ -1,12 +1,9 @@
-use num_traits::abs;
 // the main execution unit of an algorithm
 use rustc_hash::FxHashMap;
 
-use crate::core::agg::{Init, Var};
 use crate::core::state::{self, ComputeState, ComputeStateVec};
 
 use crate::db::view_api::internal::GraphViewInternalOps;
-use crate::db::view_api::GraphViewOps;
 
 use super::context::{Context, GlobalState};
 use super::eval_vertex::EvalVertexView;
@@ -45,11 +42,11 @@ pub enum Job<G, CS: ComputeState> {
 }
 
 impl<G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeState> Job<G, CS> {
-    fn new<T: Task<G, CS> + Send + Sync + 'static>(t: T) -> Self {
+    pub fn new<T: Task<G, CS> + Send + Sync + 'static>(t: T) -> Self {
         Self::Write(Box::new(t))
     }
 
-    fn read_only<T: Task<G, CS> + Send + Sync + 'static>(t: T) -> Self {
+    pub fn read_only<T: Task<G, CS> + Send + Sync + 'static>(t: T) -> Self {
         Self::Read(Box::new(t))
     }
 }
@@ -60,7 +57,7 @@ where
     CS: ComputeState,
     F: Fn(&EvalVertexView<G, CS>) -> Step,
 {
-    fn new(f: F) -> Self {
+    pub fn new(f: F) -> Self {
         Self {
             f,
             _g: std::marker::PhantomData,
@@ -78,98 +75,6 @@ where
     fn run(&self, vv: &EvalVertexView<G, CS>) -> Step {
         (self.f)(vv)
     }
-}
-
-struct InitOneF32();
-impl Init<Var<f32>> for InitOneF32 {
-    fn init() -> Var<f32> {
-        Var::new(1.0f32)
-    }
-}
-
-#[allow(unused_variables)]
-pub fn unweighted_page_rank<G>(g: &G, iter_count: usize, threads: usize) -> FxHashMap<u64, f32>
-where
-    G: GraphViewInternalOps + Send + Sync + Clone + 'static,
-{
-    let total_vertices = g.num_vertices();
-
-    let mut ctx: Context<G, ComputeStateVec> = g.into();
-
-    let MAX_DIFF = 0.01f32;
-    let damping_factor = 0.85;
-
-    let score = state::def::store::<f32>(0).init::<InitOneF32>();
-    let recv_score = state::def::sum::<f32>(1);
-    let max_diff = state::def::max::<f32>(2);
-
-    ctx.agg(score);
-    ctx.agg_reset(recv_score);
-    ctx.global_agg_reset(max_diff);
-
-    let step1 = ATask::new(move |vv| {
-        let initial_score = 1f32 / total_vertices as f32;
-        println!("v: {}, initial score: {}", vv.global_id(), initial_score);
-        vv.update(&score, initial_score);
-        Step::Continue
-    });
-
-    let step2 = ATask::new(move |s| {
-        let out_degree = s.out_degree();
-        if out_degree > 0 {
-            let new_score = s.read(&score) / out_degree as f32;
-            for t in s.neighbours_out() {
-                t.update(&recv_score, new_score)
-            }
-        }
-        Step::Continue
-    });
-
-    let step3 = ATask::new(move |s| {
-        s.update(
-            &score,
-            (1f32 - damping_factor) + (damping_factor * s.read(&recv_score)),
-        );
-        let prev = s.read_prev(&score);
-        let curr = s.read(&score);
-        let md = abs(prev - curr);
-        s.global_update(&max_diff, md);
-        Step::Continue
-    });
-
-    let step4 = Job::Check(Box::new(move |state| {
-        if state.read(&max_diff) > MAX_DIFF {
-            Step::Continue
-        } else {
-            Step::Done
-        }
-    }));
-
-    let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
-
-    let state = runner.run(
-        vec![Job::new(step1)],
-        vec![Job::new(step2), Job::new(step3), step4],
-        Some(threads),
-        iter_count,
-        None,
-    );
-
-    let mut map: FxHashMap<u64, f32> = FxHashMap::default();
-
-    state.fold_state_internal(
-        runner.ctx.ss(),
-        &mut map,
-        &score,
-        |res, shard, pid, score| {
-            if let Some(v_ref) = g.lookup_by_pid_and_shard(pid, shard) {
-                res.insert(v_ref.g_id, score);
-            }
-            res
-        },
-    );
-
-    map
 }
 
 pub fn weakly_connected_components<G>(
@@ -224,62 +129,6 @@ where
     });
 
     map
-}
-
-#[cfg(test)]
-mod page_rank_tests {
-    use pretty_assertions::assert_eq;
-
-    use crate::db::graph::Graph;
-
-    use super::*;
-
-    fn load_graph(n_shards: usize) -> Graph {
-        let graph = Graph::new(n_shards);
-
-        let edges = vec![(1, 2), (1, 4), (2, 3), (3, 1), (4, 1)];
-
-        for (src, dst) in edges {
-            graph.add_edge(0, src, dst, &vec![], None).unwrap();
-        }
-        graph
-    }
-
-    fn test_page_rank(n_shards: usize) {
-        let graph = load_graph(n_shards);
-
-        let results: FxHashMap<u64, f32> =
-            unweighted_page_rank(&graph, 19, 2).into_iter().collect();
-
-        assert_eq!(
-            results,
-            vec![
-                (2, 0.78044075),
-                (4, 0.78044075),
-                (1, 1.4930439),
-                (3, 0.8092761)
-            ]
-            // {8: 1.0, 5: 0.575, 2: 0.5, 7: 1.0, 4: 0.5, 1: 1.0, 3: 1.0}
-            // vec![(8, 20.7725), (5, 29.76125), (2, 25.38375), (7, 20.7725), (4, 16.161251), (1, 21.133749), (3, 21.133749)]
-            .into_iter()
-            .collect::<FxHashMap<u64, f32>>()
-        );
-    }
-
-    #[test]
-    fn test_page_rank_1() {
-        test_page_rank(1);
-    }
-
-    #[test]
-    fn test_page_rank_2() {
-        test_page_rank(2);
-    }
-
-    #[test]
-    fn test_page_rank_3() {
-        test_page_rank(3);
-    }
 }
 
 #[cfg(test)]

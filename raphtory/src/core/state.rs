@@ -697,14 +697,10 @@ impl ComputeState for ComputeStateVec {
             .downcast_ref::<VecArray<A>>()
             .unwrap();
 
-        println!("merge {:?} {:?}", vec, other_vec);
-
         let v = vec.current_mut(ss);
         let v_other = other_vec.current(ss);
 
         merge_2_vecs(v, v_other, |a, b| ACC::combine(a, b));
-
-        println!("post merge {:?} {:?}", vec, other_vec);
     }
 
     fn finalize<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(&self, ss: usize) -> Vec<OUT>

@@ -2,7 +2,7 @@
 
 use std::{
     marker::PhantomData,
-    ops::{Add, AddAssign, Div},
+    ops::{AddAssign, Div},
 };
 
 use num_traits::{Bounded, Zero};
@@ -17,6 +17,13 @@ pub trait Accumulator<A, IN, OUT>: Send + Sync + 'static {
     fn combine(a1: &mut A, a2: &A);
 
     fn finish(a: &A) -> OUT;
+}
+
+pub struct InitOneF32();
+impl Init<Var<f32>> for InitOneF32 {
+    fn init() -> Var<f32> {
+        Var::new(1.0f32)
+    }
 }
 
 #[derive(Clone, Debug, Copy)]
@@ -195,13 +202,13 @@ impl<A: AddAssign<A>> AddAssign<A> for Var<A> {
     }
 }
 
-impl<A: AddAssign<A> + Clone> AddAssign<&Var<A>> for Var<A> {
+impl<A: AddAssign<A> + Clone + std::fmt::Debug> AddAssign<&Var<A>> for Var<A> {
     // we keep the keep the value with the largest modification count
     fn add_assign(&mut self, rhs: &Var<A>) {
         if rhs.i >= self.i {
             self.val = rhs.val.clone();
-            self.i = self.i;
-        } 
+            self.i = rhs.i;
+        }
     }
 }
 

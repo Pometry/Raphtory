@@ -38,11 +38,7 @@ impl<G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeState> 
         a: Arc<ShuffleComputeState<CS>>,
         b: Arc<ShuffleComputeState<CS>>,
     ) -> Arc<ShuffleComputeState<CS>> {
-        // println!("merging states \n {:?} \n {:?}", a, b);
-        let a = self.ctx.run_merge(a, b);
-
-        // println!("merged states  \n {:?}", a);
-        a
+        self.ctx.run_merge(a, b)
     }
 
     fn make_total_state<B: Clone, F: Fn() -> B>(
@@ -182,6 +178,8 @@ impl<G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeState> 
             .unwrap_or_else(|| POOL.clone());
 
         let num_threads = pool.current_num_threads();
+
+        println!("Running with {} threads", num_threads);
 
         let mut total_state =
             initial_state.unwrap_or_else(|| Arc::new(ShuffleComputeState::new(graph_shards)));

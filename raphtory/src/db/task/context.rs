@@ -48,6 +48,7 @@ where
         mut a: Arc<ShuffleComputeState<CS>>,
         mut b: Arc<ShuffleComputeState<CS>>,
     ) -> Arc<ShuffleComputeState<CS>> {
+        // println!("Running merge \na: {:?} \nb: {:?}", a,b);
         if let Some(left) = Arc::get_mut(&mut a) {
             for merge_fn in self.merge_fns.iter() {
                 merge_fn(left, &b, self.ss);
