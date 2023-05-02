@@ -49,7 +49,7 @@ pub mod def {
     use crate::core::agg::{
         set::{BitSet, Set},
         topk::{TopK, TopKHeap},
-        AndDef, AvgDef, MaxDef, MinDef, SumDef, ValDef, Var, Store,
+        AndDef, AvgDef, MaxDef, MinDef, SumDef, ValDef, 
     };
     use num_traits::{Bounded, Zero};
     use roaring::{RoaringBitmap, RoaringTreemap};
@@ -89,13 +89,6 @@ pub mod def {
     }
 
     pub fn val<A: StateType + Zero>(id: u32) -> AccId<A, A, A, ValDef<A>> {
-        AccId {
-            id,
-            _a: std::marker::PhantomData,
-        }
-    }
-
-    pub fn store<A: StateType + Zero + AddAssign>(id: u32) -> AccId<Var<A>, A, A, Store<A>>{
         AccId {
             id,
             _a: std::marker::PhantomData,

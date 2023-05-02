@@ -84,6 +84,13 @@ where
         self.resetable_states.push(id.id());
     }
 
+    pub fn local_reset<A: StateType, IN: 'static, OUT: 'static, ACC: Accumulator<A, IN, OUT>>(
+        &mut self,
+        id: AccId<A, IN, OUT, ACC>,
+    ) {
+        self.resetable_states.push(id.id());
+    }
+
     pub fn global_agg<A: StateType, IN: 'static, OUT: 'static, ACC: Accumulator<A, IN, OUT>>(
         &mut self,
         id: AccId<A, IN, OUT, ACC>,

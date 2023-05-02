@@ -18,6 +18,7 @@ pub struct EvalVertexView<
     vv: VertexRef,
     g: Arc<G>,
     state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
+    local_state: Rc<RefCell<ShuffleComputeState<CS>>>,
 }
 
 impl<'a, G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeState>
@@ -28,12 +29,14 @@ impl<'a, G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeSta
         vertex: VertexRef,
         g: Arc<G>,
         state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
+        local_state: Rc<RefCell<ShuffleComputeState<CS>>>,
     ) -> Self {
         Self {
             ss,
             vv: vertex,
             g,
             state,
+            local_state,
         }
     }
 
@@ -60,13 +63,29 @@ impl<'a, G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeSta
     pub fn neighbours(&self) -> impl Iterator<Item = EvalVertexView<'a, G, CS>> + '_ {
         self.g
             .neighbours(self.vv, crate::core::Direction::BOTH, None)
-            .map(move |vv| EvalVertexView::new(self.ss, vv, self.g.clone(), self.state.clone()))
+            .map(move |vv| {
+                EvalVertexView::new(
+                    self.ss,
+                    vv,
+                    self.g.clone(),
+                    self.state.clone(),
+                    self.local_state.clone(),
+                )
+            })
     }
 
     pub fn neighbours_out(&self) -> impl Iterator<Item = EvalVertexView<'a, G, CS>> + '_ {
         self.g
             .neighbours(self.vv, crate::core::Direction::OUT, None)
-            .map(move |vv| EvalVertexView::new(self.ss, vv, self.g.clone(), self.state.clone()))
+            .map(move |vv| {
+                EvalVertexView::new(
+                    self.ss,
+                    vv,
+                    self.g.clone(),
+                    self.state.clone(),
+                    self.local_state.clone(),
+                )
+            })
     }
 
     pub fn update<A: StateType, IN: 'static, OUT: 'static, ACC: Accumulator<A, IN, OUT>>(
@@ -79,6 +98,19 @@ impl<'a, G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeSta
         owned_mut.accumulate_into_pid(self.ss, self.global_id(), self.pid(), a, id);
     }
 
+    pub fn update_local<A: StateType, IN: 'static, OUT: 'static, ACC: Accumulator<A, IN, OUT>>(
+        &self,
+        id: &AccId<A, IN, OUT, ACC>,
+        a: IN,
+    ) {
+        self.local_state.borrow_mut().accumulate_into_pid(
+            self.ss,
+            self.global_id(),
+            self.pid(),
+            a,
+            id,
+        );
+    }
 
     pub fn global_update<A: StateType, IN: 'static, OUT: 'static, ACC: Accumulator<A, IN, OUT>>(
         &self,
@@ -89,7 +121,6 @@ impl<'a, G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeSta
         let owned_mut = ref_cow.to_mut();
         owned_mut.accumulate_global(self.ss, a, id);
     }
-    
 
     /// Read the current value of the vertex state using the given accumulator.
     /// Returns a default value if the value is not present.
@@ -107,6 +138,22 @@ impl<'a, G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeSta
             .unwrap_or(ACC::finish(&ACC::zero()))
     }
 
+    /// Read the current value of the vertex state using the given accumulator.
+    /// Returns a default value if the value is not present.
+    pub fn read_local<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
+        &self,
+        agg_r: &AccId<A, IN, OUT, ACC>,
+    ) -> OUT
+    where
+        A: StateType,
+        OUT: std::fmt::Debug,
+    {
+        self.local_state
+            .borrow()
+            .read_with_pid(self.ss, self.global_id(), self.pid(), agg_r)
+            .unwrap_or(ACC::finish(&ACC::zero()))
+    }
+
     /// Read the prev value of the vertex state using the given accumulator.
     /// Returns a default value if the value is not present.
     pub fn read_prev<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
@@ -118,6 +165,22 @@ impl<'a, G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeSta
         OUT: std::fmt::Debug,
     {
         self.state
+            .borrow()
+            .read_with_pid(self.ss + 1, self.global_id(), self.pid(), agg_r)
+            .unwrap_or(ACC::finish(&ACC::zero()))
+    }
+
+    /// Read the prev value of the vertex state using the given accumulator.
+    /// Returns a default value if the value is not present.
+    pub fn read_local_prev<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
+        &self,
+        agg_r: &AccId<A, IN, OUT, ACC>,
+    ) -> OUT
+    where
+        A: StateType,
+        OUT: std::fmt::Debug,
+    {
+        self.local_state
             .borrow()
             .read_with_pid(self.ss + 1, self.global_id(), self.pid(), agg_r)
             .unwrap_or(ACC::finish(&ACC::zero()))

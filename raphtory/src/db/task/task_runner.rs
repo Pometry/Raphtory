@@ -9,6 +9,7 @@ use std::{
     },
 };
 
+use itertools::Itertools;
 use rayon::{prelude::*, ThreadPool};
 
 use crate::{
@@ -55,13 +56,18 @@ impl<G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeState> 
     fn run_task(
         &self,
         state: &Arc<ShuffleComputeState<CS>>,
+        local_state: &mut Arc<Option<ShuffleComputeState<CS>>>,
         num_shards: usize,
         num_tasks: usize,
         job_id: &usize,
         atomic_done: &AtomicBool,
         task: &Box<dyn Task<G, CS> + Send + Sync>,
     ) -> Arc<ShuffleComputeState<CS>> {
-        let rc_local_state = Rc::new(RefCell::new(Cow::Borrowed(state.as_ref())));
+        // the view for this task of the global state
+        let global_state_view = Rc::new(RefCell::new(Cow::Borrowed(state.as_ref())));
+
+        let owned_local_state = Arc::get_mut(local_state).and_then(|x| x.take()).unwrap();
+        let rc_local_state = Rc::new(RefCell::new(owned_local_state));
 
         let g = self.ctx.graph();
 
@@ -73,6 +79,7 @@ impl<G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeState> 
                         self.ctx.ss(),
                         vertex,
                         g.clone(),
+                        global_state_view.clone(),
                         rc_local_state.clone(),
                     );
 
@@ -85,12 +92,16 @@ impl<G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeState> 
                 }
             }
         }
+        // put the local state back
+        *local_state = Arc::new(Some(Rc::try_unwrap(rc_local_state).unwrap().into_inner()));
+
+
         if !done {
             atomic_done.store(false, Ordering::Relaxed);
         }
 
         let cow_state: Cow<ShuffleComputeState<CS>> =
-            Rc::try_unwrap(rc_local_state).unwrap().into_inner();
+            Rc::try_unwrap(global_state_view).unwrap().into_inner();
         match cow_state {
             Cow::Owned(state) => {
                 // the state was changed in some way so we need to update the arc
@@ -108,11 +119,17 @@ impl<G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeState> 
         tasks: &[Job<G, CS>],
         pool: &ThreadPool,
         total_state: Arc<ShuffleComputeState<CS>>,
+        mut local_state: Vec<Arc<Option<ShuffleComputeState<CS>>>>,
         num_threads: usize,
         num_shards: usize,
-    ) -> (bool, Arc<ShuffleComputeState<CS>>) {
+    ) -> (
+        bool,
+        Arc<ShuffleComputeState<CS>>,
+        Vec<Arc<Option<ShuffleComputeState<CS>>>>,
+    ) {
         pool.install(move || {
             let mut new_total_state = total_state;
+
             let mut done = false;
 
             let num_tasks = min(num_shards, num_threads);
@@ -123,17 +140,40 @@ impl<G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeState> 
                 let updated_state = {
                     let task_states = self.make_total_state(num_tasks, || new_total_state.clone());
 
+                    let mut task_states = local_state
+                        .iter_mut()
+                        .zip(task_states.into_iter())
+                        .collect_vec();
+
                     let out_state = match task {
                         Job::Write(task) => task_states
-                            .par_iter()
-                            .map(|(job_id, state)| {
-                                self.run_task(state, num_shards, num_tasks, job_id, &atomic_done, task)
+                            .par_iter_mut()
+                            .map(|(local_state, (job_id, state))| {
+                                self.run_task(
+                                    state,
+                                    local_state,
+                                    num_shards,
+                                    num_tasks,
+                                    job_id,
+                                    &atomic_done,
+                                    task,
+                                )
                             })
                             .reduce_with(|a, b| self.merge_states(a, b)),
                         Job::Read(task) => {
-                            task_states.par_iter().for_each(|(job_id, state)| {
-                                self.run_task(state, num_shards, num_tasks, job_id, &atomic_done, task);
-                            });
+                            task_states.par_iter_mut().for_each(
+                                |(local_state, (job_id, state))| {
+                                    self.run_task(
+                                        state,
+                                        local_state,
+                                        num_shards,
+                                        num_tasks,
+                                        job_id,
+                                        &atomic_done,
+                                        task,
+                                    );
+                                },
+                            );
                             None
                         }
                         Job::Check(task) => {
@@ -159,7 +199,7 @@ impl<G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeState> 
                 }
             }
 
-            (done, new_total_state)
+            (done, new_total_state, local_state)
         })
     }
 
@@ -170,7 +210,7 @@ impl<G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeState> 
         num_threads: Option<usize>,
         steps: usize,
         initial_state: Option<Arc<ShuffleComputeState<CS>>>,
-    ) -> Arc<ShuffleComputeState<CS>> {
+    ) -> (Arc<ShuffleComputeState<CS>>, Vec<Arc<Option<ShuffleComputeState<CS>>>>) {
         let graph_shards = self.ctx.graph().num_shards();
 
         let pool = num_threads
@@ -179,30 +219,55 @@ impl<G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeState> 
 
         let num_threads = pool.current_num_threads();
 
-        println!("Running with {} threads", num_threads);
-
         let mut total_state =
             initial_state.unwrap_or_else(|| Arc::new(ShuffleComputeState::new(graph_shards)));
 
+        let mut local_state: Vec<Arc<Option<ShuffleComputeState<CS>>>> = (0..num_threads)
+            .into_iter()
+            .map(|_| Arc::new(Some(ShuffleComputeState::new(graph_shards))))
+            .collect_vec();
+
         let mut done = false;
 
-        (done, total_state) =
-            self.run_task_list(&init_tasks, &pool, total_state, num_threads, graph_shards);
+        (done, total_state, local_state) = self.run_task_list(
+            &init_tasks,
+            &pool,
+            total_state,
+            local_state,
+            num_threads,
+            graph_shards,
+        );
 
         while !done && self.ctx.ss() < steps && tasks.len() > 0 {
-            (done, total_state) =
-                self.run_task_list(&tasks, &pool, total_state, num_threads, graph_shards);
-            // copy and reset the state from the step that just ended
+            (done, total_state, local_state) = self.run_task_list(
+                &tasks,
+                &pool,
+                total_state,
+                local_state,
+                num_threads,
+                graph_shards,
+            );
 
+            // copy and reset the state from the step that just ended
             Arc::get_mut(&mut total_state).map(|s| {
                 s.copy_over_next_ss(self.ctx.ss());
                 s.reset_states(self.ctx.ss(), self.ctx.resetable_states());
             });
 
+            // Copy and reset the local states from the step that just ended
+
+            for local_state in local_state.iter_mut() {
+                Arc::get_mut(local_state).map(|s| {
+                    s.as_mut().map(|s| {
+                        s.copy_over_next_ss(self.ctx.ss());
+                        s.reset_states(self.ctx.ss(), self.ctx.resetable_states());
+                    });
+                });
+            }
+
             self.ctx.increment_ss();
         }
 
-        total_state
+        (total_state, local_state)
     }
 }
-

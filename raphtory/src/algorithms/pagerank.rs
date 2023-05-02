@@ -29,24 +29,23 @@ pub fn unweighted_page_rank<G: GraphViewInternalOps + Send + Sync + Clone + 'sta
     let max_diff_val: f32 = tol.unwrap_or_else(|| 0.01f32);
     let damping_factor = 0.85;
 
-    let score = state::def::store::<f32>(0).init::<InitOneF32>();
+    let score = state::def::val::<f32>(0).init::<InitOneF32>();
     let recv_score = state::def::sum::<f32>(1);
     let max_diff = state::def::max::<f32>(2);
 
-    ctx.agg(score);
     ctx.agg_reset(recv_score);
     ctx.global_agg_reset(max_diff);
 
     let step1 = ATask::new(move |vv| {
         let initial_score = 1f32 / total_vertices as f32;
-        vv.update(&score, initial_score);
+        vv.update_local(&score, initial_score);
         Step::Continue
     });
 
     let step2 = ATask::new(move |s| {
         let out_degree = s.out_degree();
         if out_degree > 0 {
-            let new_score = s.read(&score) / out_degree as f32;
+            let new_score = s.read_local(&score) / out_degree as f32;
             for t in s.neighbours_out() {
                 t.update(&recv_score, new_score)
             }
@@ -55,12 +54,13 @@ pub fn unweighted_page_rank<G: GraphViewInternalOps + Send + Sync + Clone + 'sta
     });
 
     let step3 = ATask::new(move |s| {
-        s.update(
+        s.update_local(
             &score,
             (1f32 - damping_factor) + (damping_factor * s.read(&recv_score)),
         );
-        let prev = s.read_prev(&score);
-        let curr = s.read(&score);
+        let prev = s.read_local_prev(&score);
+        let curr = s.read_local(&score);
+        
         let md = abs(prev - curr);
         s.global_update(&max_diff, md);
         Step::Continue
@@ -76,7 +76,7 @@ pub fn unweighted_page_rank<G: GraphViewInternalOps + Send + Sync + Clone + 'sta
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
 
-    let state = runner.run(
+    let (_, local_states) = runner.run(
         vec![Job::new(step1)],
         vec![Job::new(step2), Job::new(step3), step4],
         threads,
@@ -86,17 +86,21 @@ pub fn unweighted_page_rank<G: GraphViewInternalOps + Send + Sync + Clone + 'sta
 
     let mut map: FxHashMap<u64, f32> = FxHashMap::default();
 
-    state.fold_state_internal(
-        runner.ctx.ss(),
-        &mut map,
-        &score,
-        |res, shard, pid, score| {
-            if let Some(v_ref) = g.lookup_by_pid_and_shard(pid, shard) {
-                res.insert(v_ref.g_id, score);
-            }
-            res
-        },
-    );
+    for state in local_states {
+        if let Some(state) = state.as_ref() {
+            state.fold_state_internal(
+                runner.ctx.ss(),
+                &mut map,
+                &score,
+                |res, shard, pid, score| {
+                    if let Some(v_ref) = g.lookup_by_pid_and_shard(pid, shard) {
+                        res.insert(v_ref.g_id, score);
+                    }
+                    res
+                },
+            );
+        }
+    }
 
     map
 }
@@ -123,7 +127,7 @@ mod page_rank_tests {
     fn test_page_rank(n_shards: usize) {
         let graph = load_graph(n_shards);
 
-        let results: FxHashMap<u64, f32> = unweighted_page_rank(&graph, 20, Some(4), None)
+        let results: FxHashMap<u64, f32> = unweighted_page_rank(&graph, 20, Some(1), None)
             .into_iter()
             .collect();
 
@@ -161,7 +165,6 @@ mod page_rank_tests {
     }
 
     #[test]
-    #[ignore = "these don't match the expected values, need investigation"]
     fn motif_page_rank() {
         let edges = vec![
             (1, 2, 1),

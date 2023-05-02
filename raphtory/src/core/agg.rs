@@ -20,9 +20,9 @@ pub trait Accumulator<A, IN, OUT>: Send + Sync + 'static {
 }
 
 pub struct InitOneF32();
-impl Init<Var<f32>> for InitOneF32 {
-    fn init() -> Var<f32> {
-        Var::new(1.0f32)
+impl Init<f32> for InitOneF32 {
+    fn init() -> f32 {
+        1.0f32
     }
 }
 
@@ -152,63 +152,6 @@ where
 
     fn finish(a: &A) -> A {
         a.clone()
-    }
-}
-
-#[derive(Clone, Debug, Copy)]
-pub struct Store<A>(PhantomData<A>);
-
-impl<A> Accumulator<Var<A>, A, A> for Store<A>
-where
-    A: StateType + Zero + AddAssign,
-{
-    fn zero() -> Var<A> {
-        Var::new(A::zero())
-    }
-
-    fn add0(a1: &mut Var<A>, a: A) {
-        *a1 += a;
-    }
-
-    fn combine(a1: &mut Var<A>, a2: &Var<A>) {
-        *a1 += a2;
-    }
-
-    fn finish(a: &Var<A>) -> A {
-        a.value().clone()
-    }
-}
-
-#[derive(Clone, Debug, Copy, PartialEq)]
-pub struct Var<A> {
-    val: A,
-    i: u32,
-}
-
-impl<A> Var<A> {
-    pub fn new(val: A) -> Self {
-        Self { val, i: 0 }
-    }
-
-    pub fn value(&self) -> &A {
-        &self.val
-    }
-}
-
-impl<A: AddAssign<A>> AddAssign<A> for Var<A> {
-    fn add_assign(&mut self, rhs: A) {
-        self.val = rhs;
-        self.i += 1;
-    }
-}
-
-impl<A: AddAssign<A> + Clone + std::fmt::Debug> AddAssign<&Var<A>> for Var<A> {
-    // we keep the keep the value with the largest modification count
-    fn add_assign(&mut self, rhs: &Var<A>) {
-        if rhs.i >= self.i {
-            self.val = rhs.val.clone();
-            self.i = rhs.i;
-        }
     }
 }
 
