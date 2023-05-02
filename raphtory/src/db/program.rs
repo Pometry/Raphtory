@@ -795,6 +795,10 @@ impl<G: GraphViewOps> EvalVertexView<G> {
         Self { ss, vv, state }
     }
 
+    pub fn name(&self) -> String {
+        self.vv.name()
+    }
+
     /// Obtain the global id of the vertex.
     pub fn global_id(&self) -> u64 {
         self.vv.id()
