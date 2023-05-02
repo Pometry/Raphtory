@@ -27,14 +27,25 @@ pub struct PyVertex {
 }
 
 /// Converts a rust vertex into a python vertex.
-impl From<VertexView<DynamicGraph>> for PyVertex {
-    fn from(value: VertexView<DynamicGraph>) -> Self {
-        PyVertex { vertex: value }
-    }
-}
+// impl From<VertexView<DynamicGraph>> for PyVertex {
+//     fn from(value: VertexView<DynamicGraph>) -> Self {
+//         PyVertex { vertex: value }
+//     }
+// }
 
-impl From<VertexView<WindowedGraph<DynamicGraph>>> for PyVertex {
-    fn from(value: VertexView<WindowedGraph<DynamicGraph>>) -> Self {
+// impl From<VertexView<WindowedGraph<DynamicGraph>>> for PyVertex {
+//     fn from(value: VertexView<WindowedGraph<DynamicGraph>>) -> Self {
+//         Self {
+//             vertex: VertexView {
+//                 graph: value.graph.into_dynamic(),
+//                 vertex: value.vertex,
+//             },
+//         }
+//     }
+// }
+
+impl<G: GraphViewOps> From<VertexView<G>> for PyVertex {
+    fn from(value: VertexView<G>) -> Self {
         Self {
             vertex: VertexView {
                 graph: value.graph.into_dynamic(),
@@ -354,6 +365,14 @@ impl PyVertex {
     #[pyo3(signature = (end))]
     pub fn at(&self, end: &PyAny) -> PyResult<PyVertex> {
         at_impl(&self.vertex, end).map(|v| v.into())
+    }
+
+    pub fn default_layer(&self) -> PyVertex {
+        self.vertex.default_layer().into()
+    }
+
+    pub fn layer(&self, name: &str) -> Option<PyVertex> {
+        self.vertex.layer(name).map(|v| v.into())
     }
 
     /// Returns the history of a vertex, including vertex additions and changes made to vertex.
@@ -1031,6 +1050,7 @@ impl PathIterator {
 }
 
 #[pyclass(name = "VertexWindowSet")]
+#[derive(Clone)]
 pub struct PyVertexWindowSet {
     window_set: WindowSet<VertexView<DynamicGraph>>,
 }
@@ -1043,11 +1063,30 @@ impl From<WindowSet<VertexView<DynamicGraph>>> for PyVertexWindowSet {
 
 #[pymethods]
 impl PyVertexWindowSet {
+    fn __iter__(&self) -> PyVertexWindowIterator {
+        self.window_set.clone().into()
+    }
+}
+
+#[pyclass(name = "VertexWindowIterator")]
+#[derive(Clone)]
+pub struct PyVertexWindowIterator {
+    window_set: WindowSet<VertexView<DynamicGraph>>,
+}
+
+impl From<WindowSet<VertexView<DynamicGraph>>> for PyVertexWindowIterator {
+    fn from(value: WindowSet<VertexView<DynamicGraph>>) -> Self {
+        Self { window_set: value }
+    }
+}
+
+#[pymethods]
+impl PyVertexWindowIterator {
     fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
         slf
     }
-    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<PyVertex> {
-        slf.window_set.next().map(|g| g.into())
+    fn __next__(&mut self) -> Option<PyVertex> {
+        self.window_set.next().map(|v| v.into())
     }
 }
 
