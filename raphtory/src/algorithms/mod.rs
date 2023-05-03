@@ -37,6 +37,7 @@ pub mod pagerank;
 pub mod reciprocity;
 pub mod triangle_count;
 pub mod triplet_count;
+pub mod generic_taint;
 
 use num_traits::{abs, Bounded, Zero};
 use std::ops::{Add, AddAssign, Div, Mul, Range, Sub};
@@ -170,5 +171,30 @@ impl Bounded for SumF32 {
 
     fn max_value() -> Self {
         SumF32(f32::MAX)
+    }
+}
+
+#[derive(PartialEq, PartialOrd, Copy, Clone, Debug)]
+struct Bool(bool);
+
+impl Zero for Bool {
+    fn zero() -> Self {
+        Bool(false)
+    }
+
+    fn set_zero(&mut self) {
+        *self = Zero::zero();
+    }
+
+    fn is_zero(&self) -> bool {
+        *self == Bool(false)
+    }
+}
+
+impl Add for Bool {
+    type Output = Bool;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        rhs
     }
 }
