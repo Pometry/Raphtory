@@ -5,7 +5,7 @@ use crate::db::graph_window::WindowedGraph;
 use crate::db::vertex::VertexView;
 use crate::db::vertices::Vertices;
 use crate::db::view_api::internal::GraphViewInternalOps;
-use crate::db::view_api::time::TimeOps;
+use crate::db::view_api::time::{LayerOps, TimeOps};
 use crate::db::view_api::VertexViewOps;
 
 /// This trait GraphViewOps defines operations for accessing
@@ -108,7 +108,6 @@ impl<G: Send + Sync + Sized + GraphViewInternalOps + 'static + Clone> GraphViewO
 
 impl<G: GraphViewOps> TimeOps for G {
     type WindowedViewType = WindowedGraph<Self>;
-    type LayeredViewType = LayeredGraph<G>;
 
     fn start(&self) -> Option<i64> {
         self.view_start()
@@ -121,6 +120,10 @@ impl<G: GraphViewOps> TimeOps for G {
     fn window(&self, t_start: i64, t_end: i64) -> WindowedGraph<Self> {
         WindowedGraph::new(self.clone(), t_start, t_end)
     }
+}
+
+impl<G: GraphViewOps> LayerOps for G {
+    type LayeredViewType = LayeredGraph<G>;
 
     fn default_layer(&self) -> Self::LayeredViewType {
         LayeredGraph::new(self.clone(), 0)

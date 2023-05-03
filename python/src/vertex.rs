@@ -15,8 +15,9 @@ use raphtory::db::graph_window::WindowedGraph;
 use raphtory::db::path::{PathFromGraph, PathFromVertex};
 use raphtory::db::vertex::VertexView;
 use raphtory::db::vertices::Vertices;
-use raphtory::db::view_api::time::WindowSet;
+use raphtory::db::view_api::time::{LayerOps, WindowSet};
 use raphtory::db::view_api::*;
+use raphtory::default_layer_doc_string;
 use std::collections::HashMap;
 
 /// A vertex (or node) in the graph.
@@ -349,6 +350,7 @@ impl PyVertex {
         at_impl(&self.vertex, end).map(|v| v.into())
     }
 
+    #[doc = default_layer_doc_string!()]
     pub fn default_layer(&self) -> PyVertex {
         self.vertex.default_layer().into()
     }
@@ -555,6 +557,7 @@ impl PyVertices {
         at_impl(&self.vertices, end).map(|v| v.into())
     }
 
+    #[doc = default_layer_doc_string!()]
     pub fn default_layer(&self) -> PyVertices {
         self.vertices.default_layer().into()
     }
@@ -749,6 +752,7 @@ impl PyPathFromGraph {
         at_impl(&self.path, end).map(|p| p.into())
     }
 
+    #[doc = default_layer_doc_string!()]
     pub fn default_layer(&self) -> Self {
         self.path.default_layer().into()
     }

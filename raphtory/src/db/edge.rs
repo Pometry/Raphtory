@@ -223,7 +223,6 @@ impl<G: GraphViewOps> EdgeView<G> {
 
 impl<G: GraphViewOps> TimeOps for EdgeView<G> {
     type WindowedViewType = EdgeView<WindowedGraph<G>>;
-    type LayeredViewType = EdgeView<LayeredGraph<G>>;
 
     fn start(&self) -> Option<i64> {
         self.graph.start()
@@ -238,20 +237,6 @@ impl<G: GraphViewOps> TimeOps for EdgeView<G> {
             graph: self.graph.window(t_start, t_end),
             edge: self.edge,
         }
-    }
-
-    fn default_layer(&self) -> Self::LayeredViewType {
-        EdgeView {
-            graph: self.graph.default_layer(),
-            edge: self.edge,
-        }
-    }
-
-    fn layer(&self, name: &str) -> Option<Self::LayeredViewType> {
-        Some(EdgeView {
-            graph: self.graph.layer(name)?,
-            edge: self.edge,
-        })
     }
 }
 

@@ -4,8 +4,9 @@ use crate::edge::{PyEdge, PyEdges};
 use crate::utils::{at_impl, expanding_impl, extract_vertex_ref, rolling_impl, window_impl};
 use crate::vertex::{PyVertex, PyVertices};
 use pyo3::prelude::*;
-use raphtory::db::view_api::time::WindowSet;
+use raphtory::db::view_api::time::{LayerOps, WindowSet};
 use raphtory::db::view_api::*;
+use raphtory::default_layer_doc_string;
 
 /// Graph view is a read-only version of a graph at a certain point in time.
 #[pyclass(name = "GraphView", frozen, subclass)]
@@ -257,10 +258,7 @@ impl PyGraphView {
         at_impl(&self.graph, end).map(|g| g.into())
     }
 
-    /// Create a view including all the edges in the default layer
-    ///
-    /// Returns:
-    ///     a view including all the edges in the default layer
+    #[doc = default_layer_doc_string!()]
     pub fn default_layer(&self) -> PyGraphView {
         self.graph.default_layer().into()
     }

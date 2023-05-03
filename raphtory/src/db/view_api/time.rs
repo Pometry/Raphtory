@@ -5,7 +5,6 @@ use std::cmp::{max, min};
 /// Trait defining time query operations
 pub trait TimeOps {
     type WindowedViewType;
-    type LayeredViewType: TimeOps;
 
     /// Return the timestamp of the default start for perspectives of the view (if any).
     fn start(&self) -> Option<i64>;
@@ -20,12 +19,6 @@ pub trait TimeOps {
     fn at(&self, end: i64) -> Self::WindowedViewType {
         self.window(i64::MIN, end.saturating_add(1))
     }
-
-    /// Return a graph containing only the default edge layer
-    fn default_layer(&self) -> Self::LayeredViewType;
-
-    /// Return a graph containing the layer `name`
-    fn layer(&self, name: &str) -> Option<Self::LayeredViewType>;
 
     /// Creates a `WindowSet` with the given `step` size and optional `start` and `end` times,    
     /// using an expanding window.
@@ -71,6 +64,17 @@ pub trait TimeOps {
     }
 }
 
+/// Trait defining layer operations
+pub trait LayerOps {
+    type LayeredViewType;
+
+    /// Return a graph containing only the default edge layer
+    fn default_layer(&self) -> Self::LayeredViewType;
+
+    /// Return a graph containing the layer `name`
+    fn layer(&self, name: &str) -> Option<Self::LayeredViewType>;
+}
+
 #[derive(Clone)]
 pub struct WindowSet<T: TimeOps> {
     view: T,
@@ -103,16 +107,6 @@ impl<T: TimeOps> WindowSet<T> {
     fn empty(view: T) -> Self {
         // timeline_start is greater than end, so no windows to return, even with end inclusive
         WindowSet::new(view, 1, 0, Default::default(), None)
-    }
-
-    fn layer(&self, name: &str) -> Option<WindowSet<T::LayeredViewType>> {
-        Some(WindowSet {
-            view: self.view.layer(name)?,
-            cursor: self.cursor,
-            end: self.end,
-            step: self.step,
-            window: self.window,
-        })
     }
 }
 

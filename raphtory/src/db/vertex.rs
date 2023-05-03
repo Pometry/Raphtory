@@ -6,6 +6,7 @@ use crate::db::edge::{EdgeList, EdgeView};
 use crate::db::graph_layer::LayeredGraph;
 use crate::db::graph_window::WindowedGraph;
 use crate::db::path::{Operations, PathFromVertex};
+use crate::db::view_api::time::LayerOps;
 use crate::db::view_api::vertex::VertexViewOps;
 use crate::db::view_api::{BoxedIter, GraphViewOps, TimeOps, VertexListOps};
 use std::collections::HashMap;
@@ -204,7 +205,6 @@ impl<G: GraphViewOps> VertexViewOps for VertexView<G> {
 
 impl<G: GraphViewOps> TimeOps for VertexView<G> {
     type WindowedViewType = VertexView<WindowedGraph<G>>;
-    type LayeredViewType = VertexView<LayeredGraph<G>>;
 
     fn start(&self) -> Option<i64> {
         self.graph.start()
@@ -220,6 +220,10 @@ impl<G: GraphViewOps> TimeOps for VertexView<G> {
             vertex: self.vertex,
         }
     }
+}
+
+impl<G: GraphViewOps> LayerOps for VertexView<G> {
+    type LayeredViewType = VertexView<LayeredGraph<G>>;
 
     fn default_layer(&self) -> Self::LayeredViewType {
         VertexView {

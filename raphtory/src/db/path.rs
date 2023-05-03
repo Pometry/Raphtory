@@ -4,6 +4,7 @@ use crate::db::edge::EdgeView;
 use crate::db::graph_layer::LayeredGraph;
 use crate::db::graph_window::WindowedGraph;
 use crate::db::vertex::VertexView;
+use crate::db::view_api::time::LayerOps;
 use crate::db::view_api::BoxedIter;
 use crate::db::view_api::*;
 use std::collections::HashMap;
@@ -230,7 +231,6 @@ impl<G: GraphViewOps> VertexViewOps for PathFromGraph<G> {
 
 impl<G: GraphViewOps> TimeOps for PathFromGraph<G> {
     type WindowedViewType = PathFromGraph<WindowedGraph<G>>;
-    type LayeredViewType = PathFromGraph<LayeredGraph<G>>;
 
     fn start(&self) -> Option<i64> {
         self.graph.start()
@@ -246,6 +246,10 @@ impl<G: GraphViewOps> TimeOps for PathFromGraph<G> {
             operations: self.operations.clone(),
         }
     }
+}
+
+impl<G: GraphViewOps> LayerOps for PathFromGraph<G> {
+    type LayeredViewType = PathFromGraph<LayeredGraph<G>>;
 
     fn default_layer(&self) -> Self::LayeredViewType {
         PathFromGraph {
@@ -411,7 +415,6 @@ impl<G: GraphViewOps> VertexViewOps for PathFromVertex<G> {
 
 impl<G: GraphViewOps> TimeOps for PathFromVertex<G> {
     type WindowedViewType = PathFromVertex<WindowedGraph<G>>;
-    type LayeredViewType = PathFromVertex<LayeredGraph<G>>;
 
     fn start(&self) -> Option<i64> {
         self.graph.start()
@@ -428,6 +431,10 @@ impl<G: GraphViewOps> TimeOps for PathFromVertex<G> {
             operations: self.operations.clone(),
         }
     }
+}
+
+impl<G: GraphViewOps> LayerOps for PathFromVertex<G> {
+    type LayeredViewType = PathFromVertex<LayeredGraph<G>>;
 
     fn default_layer(&self) -> Self::LayeredViewType {
         PathFromVertex {
