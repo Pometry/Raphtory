@@ -13,7 +13,7 @@ use itertools::Itertools;
 use pyo3::{pyclass, pymethods, PyAny, PyRef, PyRefMut, PyResult};
 use raphtory::db::edge::EdgeView;
 use raphtory::db::graph_window::WindowedGraph;
-use raphtory::db::view_api::time::{LayerOps, WindowSet};
+use raphtory::db::view_api::time::WindowSet;
 use raphtory::db::view_api::*;
 use raphtory::default_layer_doc_string;
 use std::collections::HashMap;

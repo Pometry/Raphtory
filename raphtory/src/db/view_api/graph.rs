@@ -5,7 +5,8 @@ use crate::db::graph_window::WindowedGraph;
 use crate::db::vertex::VertexView;
 use crate::db::vertices::Vertices;
 use crate::db::view_api::internal::GraphViewInternalOps;
-use crate::db::view_api::time::{LayerOps, TimeOps};
+use crate::db::view_api::layer::LayerOps;
+use crate::db::view_api::time::TimeOps;
 use crate::db::view_api::VertexViewOps;
 
 /// This trait GraphViewOps defines operations for accessing

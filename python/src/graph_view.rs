@@ -4,7 +4,8 @@ use crate::edge::{PyEdge, PyEdges};
 use crate::utils::{at_impl, expanding_impl, extract_vertex_ref, rolling_impl, window_impl};
 use crate::vertex::{PyVertex, PyVertices};
 use pyo3::prelude::*;
-use raphtory::db::view_api::time::{LayerOps, WindowSet};
+use raphtory::db::view_api::layer::LayerOps;
+use raphtory::db::view_api::time::WindowSet;
 use raphtory::db::view_api::*;
 use raphtory::*;
 
