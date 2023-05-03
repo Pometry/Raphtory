@@ -1,6 +1,8 @@
 use raphtory::core::tgraph::{EdgeRef, VertexRef};
 use raphtory::core::{Direction, Prop};
 use raphtory::db::graph::Graph;
+use raphtory::db::graph_layer::LayeredGraph;
+use raphtory::db::graph_window::WindowedGraph;
 use raphtory::db::view_api::internal::GraphViewInternalOps;
 use raphtory::db::view_api::GraphViewOps;
 use std::collections::HashMap;
@@ -18,9 +20,27 @@ pub(crate) trait IntoDynamic {
     fn into_dynamic(self) -> DynamicGraph;
 }
 
-impl<G: GraphViewOps> IntoDynamic for G {
+impl IntoDynamic for Graph {
     fn into_dynamic(self) -> DynamicGraph {
         DynamicGraph(Arc::new(self))
+    }
+}
+
+impl<G: GraphViewOps> IntoDynamic for WindowedGraph<G> {
+    fn into_dynamic(self) -> DynamicGraph {
+        DynamicGraph(Arc::new(self))
+    }
+}
+
+impl<G: GraphViewOps> IntoDynamic for LayeredGraph<G> {
+    fn into_dynamic(self) -> DynamicGraph {
+        DynamicGraph(Arc::new(self))
+    }
+}
+
+impl IntoDynamic for DynamicGraph {
+    fn into_dynamic(self) -> DynamicGraph {
+        self
     }
 }
 
