@@ -17,7 +17,7 @@ use raphtory::db::vertex::VertexView;
 use raphtory::db::vertices::Vertices;
 use raphtory::db::view_api::time::{LayerOps, WindowSet};
 use raphtory::db::view_api::*;
-use raphtory::default_layer_doc_string;
+use raphtory::*;
 use std::collections::HashMap;
 
 /// A vertex (or node) in the graph.
@@ -355,6 +355,8 @@ impl PyVertex {
         self.vertex.default_layer().into()
     }
 
+    #[doc = layer_doc_string!()]
+    #[pyo3(signature = (name))]
     pub fn layer(&self, name: &str) -> Option<PyVertex> {
         Some(self.vertex.layer(name)?.into())
     }
@@ -562,6 +564,8 @@ impl PyVertices {
         self.vertices.default_layer().into()
     }
 
+    #[doc = layer_doc_string!()]
+    #[pyo3(signature = (name))]
     pub fn layer(&self, name: &str) -> Option<PyVertices> {
         Some(self.vertices.layer(name)?.into())
     }
@@ -757,6 +761,8 @@ impl PyPathFromGraph {
         self.path.default_layer().into()
     }
 
+    #[doc = layer_doc_string!()]
+    #[pyo3(signature = (name))]
     pub fn layer(&self, name: &str) -> Option<Self> {
         Some(self.path.layer(name)?.into())
     }
@@ -953,6 +959,8 @@ impl PyPathFromVertex {
         self.path.default_layer().into()
     }
 
+    #[doc = layer_doc_string!()]
+    #[pyo3(signature = (name))]
     pub fn layer(&self, name: &str) -> Option<Self> {
         Some(self.path.layer(name)?.into())
     }

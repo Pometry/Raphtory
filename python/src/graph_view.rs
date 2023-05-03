@@ -6,7 +6,7 @@ use crate::vertex::{PyVertex, PyVertices};
 use pyo3::prelude::*;
 use raphtory::db::view_api::time::{LayerOps, WindowSet};
 use raphtory::db::view_api::*;
-use raphtory::default_layer_doc_string;
+use raphtory::*;
 
 /// Graph view is a read-only version of a graph at a certain point in time.
 #[pyclass(name = "GraphView", frozen, subclass)]
@@ -263,13 +263,7 @@ impl PyGraphView {
         self.graph.default_layer().into()
     }
 
-    /// Create a view including all the edges in the layer `layer_name`
-    ///
-    /// Arguments:
-    ///     name (str) : the name of the layer
-    ///
-    /// Returns:
-    ///     a view including all the edges in the layer `layer_name`
+    #[doc = layer_doc_string!()]
     #[pyo3(signature = (name))]
     pub fn layer(&self, name: &str) -> Option<PyGraphView> {
         self.graph.layer(name).map(|layer| layer.into())
