@@ -109,16 +109,16 @@ impl PyGraph {
     ///
     /// Returns:
     ///   None
-    #[pyo3(signature = (time, src, dst, properties=None, layer=None))]
+    #[pyo3(signature = (timestamp, src, dst, properties=None, layer=None))]
     pub fn add_edge(
         &self,
-        time: &PyAny,
+        timestamp: &PyAny,
         src: &PyAny,
         dst: &PyAny,
         properties: Option<HashMap<String, Prop>>,
         layer: Option<&str>,
     ) -> PyResult<()> {
-        let time = extract_into_time(time)?;
+        let time = extract_into_time(timestamp)?;
         let src = Self::extract_id(src)?;
         let dst = Self::extract_id(dst)?;
         adapt_result(
