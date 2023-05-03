@@ -526,10 +526,6 @@ impl TemporalGraph {
         Self: Sized,
     {
         let v_pid = self.logical_to_physical[&v];
-        println!(
-            "vertex_edges_window(v={:?}, w={:?}, d={:?}, layer={:?}), v_pid={:?}",
-            v, w, d, layer, v_pid
-        );
         match self.layer_iter_optm(layer) {
             LayerIterator::Single(layer) => {
                 layer.edges_iter_window(v, v_pid, w, d, &self.logical_ids)
@@ -1200,7 +1196,6 @@ mod graph_test {
             .vertex_edges_window(1, &(0..4), Direction::IN, None)
             .map(|e| e.1)
             .collect();
-        println!("{:?}", actual_all);
         assert_eq!(actual, vec![9]);
     }
 

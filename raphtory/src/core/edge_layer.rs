@@ -459,10 +459,7 @@ impl EdgeLayer {
                         out.iter_window(&self.timestamps, r),
                         remote_out.iter_window(&self.timestamps, r)
                     )
-                    .map(move |(dst, e)| {
-                        println!("dst={:?}, e={:?}", dst, e);
-                        (dst, builder.out_edge(dst, e))
-                    });
+                    .map(move |(dst, e)| (dst, builder.out_edge(dst, e)));
                     Box::new(iter)
                 }
                 Direction::IN => {
