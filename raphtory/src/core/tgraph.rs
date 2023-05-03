@@ -184,27 +184,10 @@ impl TemporalGraph {
 
     pub fn out_edges_len_window(&self, w: &Range<Time>, layer: Option<usize>) -> usize {
         match self.layer_iter_optm(layer) {
-            LayerIterator::Single(layer) => self
-                .timestamps
-                .iter()
-                .enumerate()
-                .filter(|(_index, timestamps)| timestamps.active(w.clone()))
-                .map(|(index, _timestamps)| layer.out_edges_len_window(index, w))
-                .reduce(|s1, s2| s1 + s2)
-                .unwrap_or(0),
-            LayerIterator::Vector(layers) => self
-                .timestamps
-                .iter()
-                .enumerate()
-                .filter(|&(_, timestamps)| timestamps.active(w.clone()))
-                .map(|(index, _)| {
-                    layers
-                        .iter()
-                        .map(|layer| layer.out_edges_len_window(index, w))
-                        .sum()
-                })
-                .reduce(|s1, s2| s1 + s2)
-                .unwrap_or(0),
+            LayerIterator::Single(layer) => layer.out_edges_len_window(w),
+            LayerIterator::Vector(layers) => {
+                layers.into_iter().map(|l| l.out_edges_len_window(w)).sum()
+            }
         }
     }
 
@@ -381,7 +364,7 @@ impl TemporalGraph {
     ) -> MutateGraphResult {
         let edge = self
             .edge(src, dst, layer)
-            .ok_or_else(|| MutateGraphError::MissingEdge(src, dst))?;
+            .ok_or(MutateGraphError::MissingEdge(src, dst))?;
         let result = self.layers[edge.layer_id]
             .props
             .set_static_props(edge.edge_id, data);
@@ -543,6 +526,10 @@ impl TemporalGraph {
         Self: Sized,
     {
         let v_pid = self.logical_to_physical[&v];
+        println!(
+            "vertex_edges_window(v={:?}, w={:?}, d={:?}, layer={:?}), v_pid={:?}",
+            v, w, d, layer, v_pid
+        );
         match self.layer_iter_optm(layer) {
             LayerIterator::Single(layer) => {
                 layer.edges_iter_window(v, v_pid, w, d, &self.logical_ids)
@@ -558,22 +545,21 @@ impl TemporalGraph {
     }
 
     // This doesn't returns edges sorted by neighbour because it is not useful for any dependency
-    pub(crate) fn vertex_edges_window_t(
-        &self,
+    pub(crate) fn vertex_edges_window_t<'a>(
+        &'a self,
         v: u64,
-        w: &Range<i64>,
+        w: &'a Range<i64>,
         d: Direction,
         layer: Option<usize>,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send + '_> {
-        let w = w.clone();
         let v_pid = self.logical_to_physical[&v];
         match self.layer_iter_optm(layer) {
             LayerIterator::Single(layer) => {
-                layer.edges_iter_window_t(v, v_pid, &w, d, &self.logical_ids)
+                layer.edges_iter_window_t(v, v_pid, w, d, &self.logical_ids)
             }
             LayerIterator::Vector(layers) => {
                 let iter = layers.iter().flat_map(move |layer| {
-                    layer.edges_iter_window_t(v, v_pid, &w, d, &self.logical_ids)
+                    layer.edges_iter_window_t(v, v_pid, w, d, &self.logical_ids)
                 });
                 Box::new(iter)
             }
@@ -1210,6 +1196,11 @@ mod graph_test {
             .vertex_edges_window(1, &(0..4), Direction::IN, None)
             .map(|e| e.1.src_g_id)
             .collect();
+        let actual_all: Vec<EdgeRef> = g
+            .vertex_edges_window(1, &(0..4), Direction::IN, None)
+            .map(|e| e.1)
+            .collect();
+        println!("{:?}", actual_all);
         assert_eq!(actual, vec![9]);
     }
 
@@ -1763,7 +1754,7 @@ mod graph_test {
             g.edge(11, 22, 0),
             Some(EdgeRef {
                 layer_id: 0,
-                edge_id: 1,
+                edge_id: 0,
                 src_g_id: 11,
                 dst_g_id: 22,
                 src_id: 0,
@@ -1778,7 +1769,7 @@ mod graph_test {
             g.edge_window(11, 22, &(1..5), 0),
             Some(EdgeRef {
                 layer_id: 0,
-                edge_id: 1,
+                edge_id: 0,
                 src_g_id: 11,
                 dst_g_id: 22,
                 src_id: 0,
@@ -1793,7 +1784,7 @@ mod graph_test {
             g.edge_window(11, 22, &(4..5), 0),
             Some(EdgeRef {
                 layer_id: 0,
-                edge_id: 1,
+                edge_id: 0,
                 src_g_id: 11,
                 dst_g_id: 22,
                 src_id: 0,

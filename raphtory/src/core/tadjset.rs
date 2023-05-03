@@ -31,137 +31,95 @@ type Time = i64;
 pub enum TAdjSet<V: Ord + TryInto<usize> + Hash> {
     #[default]
     Empty,
-    // One(Time, V, AdjEdge),
-    Many {
-        n_map: BTreeMap<V, (AdjEdge, TimeIndex)>,
+    One(V, AdjEdge),
+    Small {
+        vs: Vec<V>,          // the neighbours
+        edges: Vec<AdjEdge>, // edge metadata
     },
-    // Small {
-    //     vs: Vec<V>,                 // the neighbours
-    //     edges: Vec<AdjEdge>,        // edge metadata
-    //     t_index: SVM<Time, BitSet>, // index from t -> [v] where v is the value of vs and edges
-    // },
-    // Large {
-    //     vs: FxHashMap<V, AdjEdge>, // this is equiv to vs and edges
-    //     t_index: BTreeMap<Time, BitSet>,
-    // },
+    Large {
+        vs: BTreeMap<V, AdjEdge>, // this is equiv to vs and edges
+    },
 }
 
 impl<V: Ord + Into<usize> + From<usize> + Copy + Hash + Send + Sync> TAdjSet<V> {
-    pub fn new(t: Time, v: V, e: AdjEdge) -> Self {
-        let mut n_map = BTreeMap::new();
-        n_map.insert(v, (e, TimeIndex::one(t)));
-        Self::Many { n_map }
+    pub fn new(v: V, e: AdjEdge) -> Self {
+        Self::One(v, e)
     }
 
     pub fn len(&self) -> usize {
         match self {
             TAdjSet::Empty => 0,
-            TAdjSet::Many { n_map } => n_map.len(),
+            TAdjSet::One(_, _) => 1,
+            TAdjSet::Small { vs, .. } => vs.len(),
+            TAdjSet::Large { vs } => vs.len(),
         }
     }
 
-    pub fn len_window(&self, w: &Range<Time>) -> usize {
-        match self {
-            TAdjSet::Empty => 0,
-            TAdjSet::Many { n_map } => n_map
-                .values()
-                .filter(|(_, timestamps)| timestamps.active(w.clone()))
-                .count(),
-        }
-    }
-
-    pub fn push(&mut self, t: Time, v: V, e: AdjEdge) {
+    pub fn push(&mut self, v: V, e: AdjEdge) {
         match self {
             TAdjSet::Empty => {
-                *self = Self::new(t, v, e);
+                *self = Self::new(v, e);
             }
-            TAdjSet::Many { n_map } => {
-                n_map
-                    .entry(v)
-                    .and_modify(|(_, timestamps)| {
-                        timestamps.insert(t);
-                    })
-                    .or_insert((e, TimeIndex::one(t)));
+            TAdjSet::One(vv, ee) => {
+                if *vv < v {
+                    *self = Self::Small {
+                        vs: vec![*vv, v],
+                        edges: vec![*ee, e],
+                    }
+                } else if *vv > v {
+                    *self = Self::Small {
+                        vs: vec![v, *vv],
+                        edges: vec![e, *ee],
+                    }
+                }
+            }
+            TAdjSet::Small { vs, edges } => match vs.binary_search(&v) {
+                Ok(_) => {}
+                Err(i) => {
+                    if vs.len() < SMALL_SET {
+                        vs.insert(i, v);
+                        edges.insert(i, e);
+                    } else {
+                        let mut map =
+                            BTreeMap::from_iter(vs.iter().copied().zip(edges.iter().copied()));
+                        map.insert(v, e);
+                        *self = Self::Large { vs: map }
+                    }
+                }
+            },
+            TAdjSet::Large { vs } => {
+                vs.insert(v, e);
             }
         }
     }
 
-    pub fn iter(&self) -> Box<dyn Iterator<Item = (&V, AdjEdge)> + Send + '_> {
+    pub fn iter(&self) -> Box<dyn Iterator<Item = (V, AdjEdge)> + Send + '_> {
         match self {
             TAdjSet::Empty => Box::new(std::iter::empty()),
-            TAdjSet::Many { n_map } => Box::new(n_map.iter().map(|(v, (e, _))| (v, *e))),
+            TAdjSet::One(v, e) => Box::new(std::iter::once((*v, *e))),
+            TAdjSet::Small { vs, edges } => Box::new(vs.iter().copied().zip(edges.iter().copied())),
+            TAdjSet::Large { vs } => Box::new(vs.iter().map(|(k, v)| (*k, *v))),
         }
     }
 
-    pub fn iter_window(
-        &self,
-        r: &Range<Time>,
-    ) -> Box<dyn Iterator<Item = (V, AdjEdge)> + Send + '_> {
-        let r = r.clone();
-        match self {
-            TAdjSet::Empty => Box::new(std::iter::empty()),
-            TAdjSet::Many { n_map } => Box::new(
-                n_map
-                    .iter()
-                    .filter_map(move |(v, (e, ts))| ts.active(r.clone()).then_some((*v, *e))),
-            ),
-        }
-    }
-
-    pub fn iter_window_t(
-        &self,
-        r: &Range<Time>,
-    ) -> Box<dyn Iterator<Item = (V, Time, AdjEdge)> + Send + '_> {
-        let r = r.clone();
-        match self {
-            TAdjSet::Empty => Box::new(std::iter::empty()),
-            TAdjSet::Many { n_map } => Box::new(
-                n_map
-                    .iter()
-                    .flat_map(move |(v, (e, ts))| ts.range(r.clone()).map(|t| (*v, *t, *e))),
-            ),
-        }
+    pub fn iter_window<'a>(
+        &'a self,
+        timestamps: &'a [TimeIndex],
+        window: &Range<i64>,
+    ) -> Box<dyn Iterator<Item = (V, AdjEdge)> + Send + 'a> {
+        let w = window.clone();
+        Box::new(
+            self.iter()
+                .filter(move |(_, e)| timestamps[e.edge_id()].active(w.clone())),
+        )
     }
 
     pub fn find(&self, v: V) -> Option<AdjEdge> {
         match self {
             TAdjSet::Empty => None,
-            TAdjSet::Many { n_map } => n_map.get(&v).map(|(e, _)| *e),
-        }
-    }
-
-    pub fn find_t(&self, v: V) -> Option<Box<dyn Iterator<Item = (Time, AdjEdge)> + Send + '_>> {
-        match self {
-            TAdjSet::Empty => None,
-            TAdjSet::Many { n_map } => n_map.get(&v).map(|(e, ts)| {
-                let iter: Box<dyn Iterator<Item = (Time, AdjEdge)> + Send + '_> =
-                    Box::new(ts.iter().map(|t| (*t, *e)));
-                iter
-            }),
-        }
-    }
-
-    pub fn find_window(&self, v: V, w: &Range<Time>) -> Option<AdjEdge> {
-        match self {
-            TAdjSet::Empty => None,
-            TAdjSet::Many { n_map } => n_map
-                .get(&v)
-                .and_then(|(e, ts)| ts.active(w.clone()).then_some(*e)),
-        }
-    }
-
-    pub fn find_window_t(
-        &self,
-        v: V,
-        w: &Range<Time>,
-    ) -> Option<Box<dyn Iterator<Item = (Time, AdjEdge)> + Send + '_>> {
-        match self {
-            TAdjSet::Empty => None,
-            TAdjSet::Many { n_map } => n_map.get(&v).map(|(e, ts)| {
-                let iter: Box<dyn Iterator<Item = (Time, AdjEdge)> + Send + '_> =
-                    Box::new(ts.range(w.clone()).map(|t| (*t, *e)));
-                iter
-            }),
+            TAdjSet::One(vv, e) => (*vv == v).then_some(*e),
+            TAdjSet::Small { vs, edges } => vs.binary_search(&v).ok().map(|i| edges[i]),
+            TAdjSet::Large { vs } => vs.get(&v).copied(),
         }
     }
 }
@@ -178,6 +136,7 @@ pub(crate) struct Edge<V: Clone + PartialEq + Eq + PartialOrd + Ord> {
 pub struct AdjEdge(pub(crate) i64);
 
 impl AdjEdge {
+    // Internal id uses sign to store remote/local flag, hence it is offset by 1 as 0 cannot be used
     pub fn new(i: usize, local: bool) -> Self {
         if local {
             Self::local(i)
@@ -187,15 +146,15 @@ impl AdjEdge {
     }
 
     pub(crate) fn local(i: usize) -> Self {
-        AdjEdge(i.try_into().unwrap())
+        AdjEdge((i + 1).try_into().unwrap())
     }
 
     pub(crate) fn remote(i: usize) -> Self {
         let rev: i64 = i.try_into().unwrap();
-        AdjEdge(rev.neg())
+        AdjEdge(rev.neg() - 1)
     }
 
-    fn is_remote(&self) -> bool {
+    pub(crate) fn is_remote(&self) -> bool {
         self.0 < 0
     }
 
@@ -204,25 +163,53 @@ impl AdjEdge {
     }
 
     pub fn edge_id(&self) -> usize {
-        self.0.abs().try_into().unwrap()
+        (self.0.abs() - 1).try_into().unwrap()
     }
 }
 
 #[cfg(test)]
 mod tadjset_tests {
     use super::*;
+    use crate::core::adj::Adj;
+    use quickcheck::TestResult;
+
+    #[quickcheck]
+    fn insert_fuzz(input: Vec<(usize, bool)>) -> bool {
+        let mut ts: TAdjSet<usize> = TAdjSet::default();
+
+        for (e, (i, is_remote)) in input.iter().enumerate() {
+            if *is_remote {
+                ts.push(*i, AdjEdge::remote(e));
+            } else {
+                ts.push(*i, AdjEdge::local(e));
+            }
+        }
+
+        let res = input.iter().all(|(i, _)| ts.find(*i).is_some());
+        if !res {
+            let ts_vec: Vec<(usize, AdjEdge)> = ts.iter().collect();
+            println!("Input: {:?}", input);
+            println!("TAdjSet: {:?}", ts_vec);
+        }
+        res
+    }
+
+    #[quickcheck]
+    fn adjedge_fuzz(e_id: i64, is_remote: bool) -> TestResult {
+        if e_id < 0 || e_id == i64::MAX {
+            return TestResult::discard();
+        }
+        let e_id = e_id as usize;
+        let e = AdjEdge::new(e_id, !is_remote);
+        TestResult::from_bool(e.is_remote() == is_remote && e_id == e.edge_id())
+    }
 
     #[test]
     fn insert() {
         let mut ts: TAdjSet<usize> = TAdjSet::default();
 
-        ts.push(3, 7, AdjEdge::remote(5));
-
-        let actual = ts.iter_window(&(0..3)).collect::<Vec<_>>();
-        let expected: Vec<(usize, AdjEdge)> = vec![];
-        assert_eq!(actual, expected);
-
-        let actual = ts.iter_window(&(0..4)).collect::<Vec<_>>();
+        ts.push(7, AdjEdge::remote(5));
+        let actual = ts.iter().collect::<Vec<_>>();
         let expected: Vec<(usize, AdjEdge)> = vec![(7, AdjEdge::remote(5))];
         assert_eq!(actual, expected)
     }
@@ -232,26 +219,11 @@ mod tadjset_tests {
         let mut ts: TAdjSet<usize> = TAdjSet::default();
 
         for i in 0..SMALL_SET + 2 {
-            ts.push(i.try_into().unwrap(), i, AdjEdge::remote(i));
+            ts.push(i, AdjEdge::remote(i));
         }
 
         for i in 0..SMALL_SET + 2 {
             assert_eq!(ts.find(i), Some(AdjEdge::remote(i)));
-        }
-
-        for i in 0..SMALL_SET + 2 {
-            let start: i64 = i.try_into().unwrap();
-            let mut iter = ts.iter_window(&(start..start + 1));
-            assert_eq!(iter.next(), Some((i, AdjEdge::remote(i))));
-            assert_eq!(iter.next(), None);
-        }
-
-        for i in 0..SMALL_SET + 2 {
-            let start: i64 = i.try_into().unwrap();
-            let mut iter = ts.iter_window_t(&(start..start + 1));
-            let t: i64 = i.try_into().unwrap();
-            assert_eq!(iter.next(), Some((i, t, AdjEdge::remote(i))));
-            assert_eq!(iter.next(), None);
         }
     }
 
@@ -259,99 +231,23 @@ mod tadjset_tests {
     fn insert_twice() {
         let mut ts: TAdjSet<usize> = TAdjSet::default();
 
-        ts.push(3, 7, AdjEdge::local(9));
-        ts.push(3, 7, AdjEdge::local(9));
+        ts.push(7, AdjEdge::local(9));
+        ts.push(7, AdjEdge::local(9));
 
-        let actual = ts.iter_window(&(0..3)).collect::<Vec<_>>();
-        let expected: Vec<(usize, AdjEdge)> = vec![];
-        assert_eq!(actual, expected);
-
-        let actual = ts.iter_window(&(0..4)).collect::<Vec<_>>();
+        let actual = ts.iter().collect::<Vec<_>>();
         let expected: Vec<(usize, AdjEdge)> = vec![(7, AdjEdge::local(9))];
         assert_eq!(actual, expected);
     }
 
     #[test]
-    fn insert_twice_different_time() {
+    fn insert_two_different() {
         let mut ts: TAdjSet<usize> = TAdjSet::default();
 
-        ts.push(3, 7, AdjEdge::remote(19));
-        ts.push(9, 7, AdjEdge::remote(19));
+        ts.push(1, AdjEdge::local(0));
+        ts.push(7, AdjEdge::remote(1));
 
-        let actual = ts.iter_window(&(0..3)).collect::<Vec<_>>();
-        let expected: Vec<(usize, AdjEdge)> = vec![];
-        assert_eq!(actual, expected);
-
-        let actual = ts.iter_window(&(0..4)).collect::<Vec<_>>();
-        let expected: Vec<(usize, AdjEdge)> = vec![(7, AdjEdge::remote(19))];
-        assert_eq!(actual, expected);
-
-        let actual = ts.iter_window(&(0..12)).collect::<Vec<_>>();
-        let expected: Vec<(usize, AdjEdge)> = vec![(7, AdjEdge::remote(19))];
-        assert_eq!(actual, expected)
-    }
-
-    #[test]
-    fn insert_different_time() {
-        let mut ts: TAdjSet<usize> = TAdjSet::default();
-
-        ts.push(9, 1, AdjEdge::local(0));
-        ts.push(3, 7, AdjEdge::remote(1));
-
-        let actual = ts.iter_window(&(0..3)).collect::<Vec<_>>();
-        let expected: Vec<(usize, AdjEdge)> = vec![];
-        assert_eq!(actual, expected);
-
-        let actual = ts.iter_window(&(0..4)).collect::<Vec<_>>();
-        let expected: Vec<(usize, AdjEdge)> = vec![(7, AdjEdge::remote(1))];
-        assert_eq!(actual, expected);
-
-        let actual = ts.iter_window(&(4..10)).collect::<Vec<_>>();
-        let expected: Vec<(usize, AdjEdge)> = vec![(1, AdjEdge::local(0))];
-        assert_eq!(actual, expected);
-
-        let actual = ts.iter_window(&(0..12)).collect::<Vec<_>>();
+        let actual = ts.iter().collect::<Vec<_>>();
         let expected: Vec<(usize, AdjEdge)> = vec![(1, AdjEdge::local(0)), (7, AdjEdge::remote(1))];
         assert_eq!(actual, expected);
-    }
-
-    #[test]
-    fn insert_different_time_with_times() {
-        let mut ts: TAdjSet<usize> = TAdjSet::default();
-
-        ts.push(9, 1, AdjEdge::local(0));
-        ts.push(3, 7, AdjEdge::remote(1));
-
-        let actual = ts.iter_window(&(0..3)).collect::<Vec<_>>();
-        let expected: Vec<(usize, AdjEdge)> = vec![];
-        assert_eq!(actual, expected);
-
-        let actual = ts.iter_window_t(&(0..4)).collect::<Vec<_>>();
-        let expected: Vec<(usize, i64, AdjEdge)> = vec![(7, 3, AdjEdge::remote(1))];
-        assert_eq!(actual, expected);
-
-        let actual = ts.iter_window_t(&(4..10)).collect::<Vec<_>>();
-        let expected: Vec<(usize, i64, AdjEdge)> = vec![(1, 9, AdjEdge::local(0))];
-        assert_eq!(actual, expected);
-
-        let actual = ts.iter_window_t(&(0..12)).collect::<Vec<_>>();
-        let expected: Vec<(usize, i64, AdjEdge)> =
-            vec![(1, 9, AdjEdge::local(0)), (7, 3, AdjEdge::remote(1))];
-        assert_eq!(actual, expected);
-    }
-
-    #[test]
-    fn k_merge() {
-        let a: Vec<usize> = vec![7];
-        let b: Vec<usize> = vec![1];
-
-        let actual = vec![a.iter(), b.iter()]
-            .into_iter()
-            .kmerge()
-            .dedup()
-            .collect::<Vec<_>>();
-
-        let expected: Vec<&usize> = vec![&1, &7];
-        assert_eq!(actual, expected)
     }
 }
