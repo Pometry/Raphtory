@@ -36,11 +36,15 @@ fn fetch_file(file_path: PathBuf, timeout: u64) -> Result<(), Box<dyn std::error
 }
 
 pub fn stable_coin_graph(path: Option<String>, num_shards: usize) -> Graph {
-    let default_data_dir: PathBuf = PathBuf::from("/tmp/stablecoin");
+    let dir_str = "/tmp/stablecoin";
+    let default_data_dir: PathBuf = PathBuf::from(dir_str);
 
     let data_dir = match path {
         Some(path) => PathBuf::from(path),
-        None => default_data_dir,
+        None => {
+            fs::create_dir_all(dir_str).unwrap();
+            default_data_dir
+        },
     };
 
     if !data_dir.exists() {
