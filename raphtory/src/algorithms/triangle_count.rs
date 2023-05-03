@@ -103,7 +103,7 @@ pub fn global_triangle_count<G: GraphViewOps>(graph: &G) -> Result<usize, GraphE
 ///     graph.add_edge(ts, src, dst, &vec![], None);
 /// }
 ///
-/// let actual_tri_count = triangle_counting_fast(&graph);
+/// let actual_tri_count = triangle_counting_fast(&graph, None);
 /// ```
 ///
 pub fn triangle_counting_fast<G: GraphViewInternalOps + Send + Sync + Clone + 'static>(
