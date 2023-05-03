@@ -42,7 +42,7 @@ pub fn stable_coin_graph(path: Option<String>, num_shards: usize) -> Graph {
     let data_dir = match path {
         Some(path) => PathBuf::from(path),
         None => {
-            fs::create_dir_all(dir_str).unwrap();
+            fs::create_dir_all(dir_str).expect("Failed to create default directory /tmp/stablecoin");
             default_data_dir
         },
     };
