@@ -7,7 +7,7 @@
 use crate::dynamic::{DynamicGraph, IntoDynamic};
 use crate::types::repr::{iterator_repr, Repr};
 use crate::utils::*;
-use crate::vertex::PyVertex;
+use crate::vertex::{PyVertex, PyVertexIterable, PyVertices};
 use crate::wrappers::prop::Prop;
 use itertools::Itertools;
 use pyo3::{pyclass, pymethods, PyAny, PyRef, PyRefMut, PyResult};
@@ -164,14 +164,6 @@ impl PyEdge {
 
     pub fn static_property(&self, name: String) -> Option<Prop> {
         self.edge.static_property(name).map(|prop| prop.into())
-    }
-
-    /// Get the id of the Edge.
-    ///
-    /// Returns:
-    ///   The id of the Edge.
-    pub fn id(&self) -> usize {
-        self.edge.id()
     }
 
     /// Get the source vertex of the Edge.
@@ -368,7 +360,17 @@ impl PyEdges {
     }
 
     fn __len__(&self) -> usize {
-        self.py_iter().count()
+        self.iter().count()
+    }
+
+    fn src(&self) -> PyVertexIterable {
+        let builder = self.builder.clone();
+        (move || builder().src()).into()
+    }
+
+    fn dst(&self) -> PyVertexIterable {
+        let builder = self.builder.clone();
+        (move || builder().dst()).into()
     }
 
     /// Returns all edges as a list

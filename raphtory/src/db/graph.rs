@@ -421,22 +421,22 @@ impl GraphViewInternalOps for Graph {
 
     fn static_edge_prop(&self, e: EdgeRef, name: String) -> Option<Prop> {
         self.get_shard_from_e(e)
-            .static_edge_prop(e.edge_id, e.layer_id, name)
+            .static_edge_prop(e, name)
     }
 
     fn static_edge_prop_names(&self, e: EdgeRef) -> Vec<String> {
         self.get_shard_from_e(e)
-            .static_edge_prop_names(e.edge_id, e.layer_id)
+            .static_edge_prop_names(e)
     }
 
     fn temporal_edge_prop_names(&self, e: EdgeRef) -> Vec<String> {
         self.get_shard_from_e(e)
-            .temporal_edge_prop_names(e.edge_id, e.layer_id)
+            .temporal_edge_prop_names(e)
     }
 
     fn temporal_edge_props_vec(&self, e: EdgeRef, name: String) -> Vec<(i64, Prop)> {
         self.get_shard_from_e(e)
-            .temporal_edge_prop_vec(e.edge_id, e.layer_id, name)
+            .temporal_edge_prop_vec(e, name)
     }
 
     fn temporal_edge_props_vec_window(
@@ -446,12 +446,8 @@ impl GraphViewInternalOps for Graph {
         t_start: i64,
         t_end: i64,
     ) -> Vec<(i64, Prop)> {
-        self.get_shard_from_e(e).temporal_edge_props_vec_window(
-            e.edge_id,
-            e.layer_id,
-            name,
-            t_start..t_end,
-        )
+        self.get_shard_from_e(e)
+            .temporal_edge_props_vec_window(e, name, t_start..t_end)
     }
 
     fn vertex_timestamps(&self, v: VertexRef) -> Vec<i64> {
@@ -464,18 +460,12 @@ impl GraphViewInternalOps for Graph {
     }
 
     fn edge_timestamps(&self, e: EdgeRef, window: Option<Range<i64>>) -> Vec<i64> {
-        self.get_shard_from_e(e).edge_timestamps(
-            e.src_g_id,
-            e.dst_g_id,
-            e.layer_id,
-            window,
-            self.nr_shards,
-        )
+        self.get_shard_from_e(e)
+            .edge_timestamps(e, window, self.nr_shards)
     }
 
     fn temporal_edge_props(&self, e: EdgeRef) -> HashMap<String, Vec<(i64, Prop)>> {
-        self.get_shard_from_e(e)
-            .temporal_edge_props(e.edge_id, e.layer_id)
+        self.get_shard_from_e(e).temporal_edge_props(e)
     }
 
     fn temporal_edge_props_window(
@@ -485,7 +475,7 @@ impl GraphViewInternalOps for Graph {
         t_end: i64,
     ) -> HashMap<String, Vec<(i64, Prop)>> {
         self.get_shard_from_e(e)
-            .temporal_edge_props_window(e.edge_id, e.layer_id, t_start..t_end)
+            .temporal_edge_props_window(e, t_start..t_end)
     }
 
     fn num_shards(&self) -> usize {

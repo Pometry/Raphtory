@@ -669,15 +669,15 @@ def test_all_edge_window():
 
     view = g.at(4)
     v = view.vertex(2)
-    assert list(map(lambda e: e.id(), v.window(0, 4).in_edges())) == [1, 3, 5]
-    assert list(map(lambda e: e.id(), v.window(t_end=4).in_edges())) == [1, 3, 5]
-    assert list(map(lambda e: e.id(), v.window(t_start=2).in_edges())) == [3, 5]
-    assert list(map(lambda e: e.id(), v.window(0, 4).out_edges())) == [2]
-    assert list(map(lambda e: e.id(), v.window(t_end=3).out_edges())) == [2]
-    assert list(map(lambda e: e.id(), v.window(t_start=2).out_edges())) == [6]
-    assert sorted(list(map(lambda e: e.id(), v.window(0, 4).edges()))) == [1, 2, 3, 5]
-    assert sorted(list(map(lambda e: e.id(), v.window(t_end=4).edges()))) == [1, 2, 3, 5]
-    assert sorted(list(map(lambda e: e.id(), v.window(t_start=1).edges()))) == [1, 2, 3, 5, 6]
+    assert sorted(v.window(0, 4).in_edges().src().id()) == [1, 3, 4]
+    assert sorted(v.window(t_end=4).in_edges().src().id()) == [1, 3, 4]
+    assert sorted(v.window(t_start=2).in_edges().src().id()) == [3, 4]
+    assert sorted(v.window(0, 4).out_edges().dst().id()) == [3]
+    assert sorted(v.window(t_end=3).out_edges().dst().id()) == [3]
+    assert sorted(v.window(t_start=2).out_edges().dst().id()) == [4]
+    assert sorted((e.src().id(), e.dst().id()) for e in v.window(0, 4).edges()) == [(1, 2), (2, 3), (3, 2), (4, 2)]
+    assert sorted((e.src().id(), e.dst().id()) for e in v.window(t_end=4).edges()) == [(1, 2), (2, 3), (3, 2), (4, 2)]
+    assert sorted((e.src().id(), e.dst().id()) for e in v.window(t_start=1).edges()) == [(1, 2), (2, 3), (2, 4), (3, 2), (4, 2)]
 
 
 def test_static_prop_change():

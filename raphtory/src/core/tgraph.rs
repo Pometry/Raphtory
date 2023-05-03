@@ -16,6 +16,7 @@ use crate::core::tprop::TProp;
 use crate::core::vertex::InputVertex;
 use crate::core::{bitset::BitSet, Direction};
 use crate::core::{Prop, Time};
+use crate::db::view_api::BoxedIter;
 
 use self::errors::MutateGraphError;
 
@@ -457,9 +458,9 @@ impl TemporalGraph {
         layer: usize,
     ) -> Option<EdgeRef> {
         // First check if src exists within the given window
-        if self.has_vertex_window(src, w) {
+        if self.has_vertex(src) {
             let src_pid = *self.logical_to_physical.get(&src)?;
-            if self.has_vertex_window(dst, &w) {
+            if self.has_vertex(dst) {
                 let dst_pid = self.logical_to_physical[&dst]; // we have this for sure
                 self.layers[layer].local_edge_window(src, dst, src_pid, dst_pid, w)
             } else {
@@ -931,15 +932,24 @@ impl From<&str> for VertexRef {
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct EdgeRef {
-    pub layer_id: usize,
-    pub edge_id: usize,
+    pub(in crate::core) layer_id: usize,
+    pub(in crate::core) edge_id: usize,
     pub src_g_id: u64,
     pub dst_g_id: u64,
     // src_id and dst_id could be global or physical depending upon edge being remote or local respectively
-    pub src_id: usize, // TODO: make private again when ported to EdgeLayer
-    pub dst_id: usize, // TODO: make private again when ported to EdgeLayer
+    pub(in crate::core) src_id: usize, // TODO: make private again when ported to EdgeLayer
+    pub(in crate::core) dst_id: usize, // TODO: make private again when ported to EdgeLayer
     pub time: Option<i64>,
-    pub is_remote: bool,
+    pub(in crate::core) is_remote: bool,
+}
+
+impl EdgeRef {
+    pub fn at(&self, time: i64) -> Self {
+        Self {
+            time: Some(time),
+            ..*self
+        }
+    }
 }
 
 #[cfg(test)]

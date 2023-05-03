@@ -18,6 +18,7 @@ use std::sync::Arc;
 use genawaiter::sync::{gen, GenBoxed};
 use genawaiter::yield_;
 
+use crate::core::tadjset::Edge;
 use crate::core::tgraph::{EdgeRef, TemporalGraph, VertexRef};
 use crate::core::vertex::InputVertex;
 use crate::core::{Direction, Prop, Time};
@@ -566,54 +567,54 @@ impl TGraphShard<TemporalGraph> {
     ) -> HashMap<String, Vec<(i64, Prop)>> {
         self.read_shard(|tg| tg.temporal_vertex_props_window(v, &w))
     }
-    pub fn static_edge_prop(&self, e: usize, layer: usize, name: String) -> Option<Prop> {
-        self.read_shard(|tg| tg.static_edge_prop(e, layer, &name))
+    pub fn static_edge_prop(&self, e: EdgeRef, name: String) -> Option<Prop> {
+        self.read_shard(|tg| tg.static_edge_prop(e.edge_id, e.layer_id, &name))
     }
 
-    pub fn static_edge_prop_names(&self, e: usize, layer: usize) -> Vec<String> {
-        self.read_shard(|tg| tg.static_edge_prop_names(e, layer))
+    pub fn static_edge_prop_names(&self, e: EdgeRef) -> Vec<String> {
+        self.read_shard(|tg| tg.static_edge_prop_names(e.edge_id, e.layer_id))
     }
 
-    pub fn temporal_edge_prop_names(&self, e: usize, layer: usize) -> Vec<String> {
-        self.read_shard(|tg| (tg.temporal_edge_prop_names(e, layer)))
+    pub fn temporal_edge_prop_names(&self, e: EdgeRef) -> Vec<String> {
+        self.read_shard(|tg| (tg.temporal_edge_prop_names(e.edge_id, e.layer_id)))
     }
 
-    pub fn temporal_edge_prop_vec(&self, e: usize, layer: usize, name: String) -> Vec<(i64, Prop)> {
-        self.read_shard(|tg| tg.temporal_edge_prop_vec(e, layer, &name))
+    pub fn temporal_edge_prop_vec(&self, e: EdgeRef, name: String) -> Vec<(i64, Prop)> {
+        self.read_shard(|tg| tg.temporal_edge_prop_vec(e.edge_id, e.layer_id, &name))
     }
 
     pub fn temporal_edge_props_vec_window(
         &self,
-        e: usize,
-        layer: usize,
+        e: EdgeRef,
         name: String,
         w: Range<i64>,
     ) -> Vec<(i64, Prop)> {
-        self.read_shard(|tg| tg.temporal_edge_prop_vec_window(e, layer, &name, w.clone()))
+        self.read_shard(|tg| {
+            tg.temporal_edge_prop_vec_window(e.edge_id, e.layer_id, &name, w.clone())
+        })
     }
 
-    pub fn temporal_edge_props(&self, e: usize, layer: usize) -> HashMap<String, Vec<(i64, Prop)>> {
-        self.read_shard(|tg| tg.temporal_edge_props(e, layer))
+    pub fn temporal_edge_props(&self, e: EdgeRef) -> HashMap<String, Vec<(i64, Prop)>> {
+        self.read_shard(|tg| tg.temporal_edge_props(e.edge_id, e.layer_id))
     }
 
     pub fn edge_timestamps(
         &self,
-        src: u64,
-        dst: u64,
-        layer: usize,
+        e: EdgeRef,
         window: Option<Range<i64>>,
         nr_shards: usize,
     ) -> Vec<i64> {
-        self.read_shard(|tg| tg.edge_timestamps(src, dst, layer, window, nr_shards))
+        self.read_shard(|tg| {
+            tg.edge_timestamps(e.src_g_id, e.dst_g_id, e.layer_id, window, nr_shards)
+        })
     }
 
     pub fn temporal_edge_props_window(
         &self,
-        e: usize,
-        layer: usize,
+        e: EdgeRef,
         w: Range<i64>,
     ) -> HashMap<String, Vec<(i64, Prop)>> {
-        self.read_shard(|tg| tg.temporal_edge_props_window(e, layer, w.clone()))
+        self.read_shard(|tg| tg.temporal_edge_props_window(e.edge_id, e.layer_id, w.clone()))
     }
 }
 

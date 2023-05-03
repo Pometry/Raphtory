@@ -1,5 +1,6 @@
 use crate::core::tgraph::{EdgeRef, VertexRef};
 use crate::core::{Direction, Prop};
+use crate::db::view_api::BoxedIter;
 use rayon::prelude::*;
 use std::collections::HashMap;
 use std::{ops::Range, sync::Arc};
@@ -220,7 +221,7 @@ pub trait GraphViewInternalOps {
         t_end: i64,
         layer: usize,
     ) -> Option<EdgeRef>;
-
+    
     /// Returns all the edge references in the graph.
     ///
     /// # Returns

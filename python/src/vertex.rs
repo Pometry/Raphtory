@@ -1113,3 +1113,118 @@ impl PyPathFromVertexWindowSet {
         slf.window_set.next().map(|g| g.into())
     }
 }
+
+py_iterable!(
+    PyVertexIterable,
+    VertexView<DynamicGraph>,
+    PyVertex,
+    PyVertexIterator
+);
+
+#[pymethods]
+impl PyVertexIterable {
+    fn id(&self) -> U64Iterable {
+        let builder = self.builder.clone();
+        (move || builder().id()).into()
+    }
+
+    fn name(&self) -> StringIterable {
+        let vertices = self.builder.clone();
+        (move || vertices().name()).into()
+    }
+
+    fn earliest_time(&self) -> OptionI64Iterable {
+        let vertices = self.builder.clone();
+        (move || vertices().earliest_time()).into()
+    }
+
+    fn latest_time(&self) -> OptionI64Iterable {
+        let vertices = self.builder.clone();
+        (move || vertices().latest_time()).into()
+    }
+
+    fn property(&self, name: String, include_static: Option<bool>) -> OptionPropIterable {
+        let vertices = self.builder.clone();
+        (move || vertices().property(name.clone(), include_static.unwrap_or(true))).into()
+    }
+
+    fn property_history(&self, name: String) -> PropHistoryIterable {
+        let vertices = self.builder.clone();
+        (move || vertices().property_history(name.clone())).into()
+    }
+
+    fn properties(&self, include_static: Option<bool>) -> PropsIterable {
+        let vertices = self.builder.clone();
+        (move || vertices().properties(include_static.unwrap_or(true))).into()
+    }
+
+    fn property_histories(&self) -> PropHistoriesIterable {
+        let vertices = self.builder.clone();
+        (move || vertices().property_histories()).into()
+    }
+
+    fn property_names(&self, include_static: Option<bool>) -> StringVecIterable {
+        let vertices = self.builder.clone();
+        (move || vertices().property_names(include_static.unwrap_or(true))).into()
+    }
+
+    fn has_property(&self, name: String, include_static: Option<bool>) -> BoolIterable {
+        let vertices = self.builder.clone();
+        (move || vertices().has_property(name.clone(), include_static.unwrap_or(true))).into()
+    }
+
+    fn has_static_property(&self, name: String) -> BoolIterable {
+        let vertices = self.builder.clone();
+        (move || vertices().has_static_property(name.clone())).into()
+    }
+
+    fn static_property(&self, name: String) -> OptionPropIterable {
+        let vertices = self.builder.clone();
+        (move || vertices().static_property(name.clone())).into()
+    }
+
+    fn degree(&self) -> UsizeIterable {
+        let vertices = self.builder.clone();
+        (move || vertices().degree()).into()
+    }
+
+    fn in_degree(&self) -> UsizeIterable {
+        let vertices = self.builder.clone();
+        (move || vertices().in_degree()).into()
+    }
+
+    fn out_degree(&self) -> UsizeIterable {
+        let vertices = self.builder.clone();
+        (move || vertices().out_degree()).into()
+    }
+
+    fn edges(&self) -> PyEdges {
+        let clone = self.builder.clone();
+        (move || clone().edges()).into()
+    }
+
+    fn in_edges(&self) -> PyEdges {
+        let clone = self.builder.clone();
+        (move || clone().in_edges()).into()
+    }
+
+    fn out_edges(&self) -> PyEdges {
+        let clone = self.builder.clone();
+        (move || clone().out_edges()).into()
+    }
+
+    fn out_neighbours(&self) -> Self {
+        let builder = self.builder.clone();
+        (move || builder().out_neighbours()).into()
+    }
+
+    fn in_neighbours(&self) -> Self {
+        let builder = self.builder.clone();
+        (move || builder().in_neighbours()).into()
+    }
+
+    fn neighbours(&self) -> Self {
+        let builder = self.builder.clone();
+        (move || builder().neighbours()).into()
+    }
+}

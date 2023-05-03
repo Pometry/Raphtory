@@ -161,54 +161,30 @@ impl<G: GraphViewOps> EdgeView<G> {
         VertexView::new(self.graph.clone(), vertex)
     }
 
-    /// Gets the id of the edge
-    pub fn id(&self) -> usize {
-        self.edge.edge_id
-    }
-
     /// Explodes an edge and returns all instances it had been updated as seperate edges
     pub fn explode(&self) -> BoxedIter<EdgeView<G>> {
-        let vertex = VertexRef {
-            g_id: self.edge.src_g_id,
-            pid: None,
-        };
-
+        let g = self.graph.clone();
+        let e = self.edge;
+        let ev = self.clone();
         if self.edge.time.is_some() {
-            Box::new(iter::once(self.clone()))
+            Box::new(iter::once(ev))
         } else {
-            let r: Vec<EdgeView<G>> = self
-                .graph
-                .vertex_edges_t(vertex, Direction::OUT, None)
-                .filter(|e| e.edge_id == self.edge.edge_id)
-                .map(|e| EdgeView::new(self.graph.clone(), e))
-                .collect();
-            Box::new(r.into_iter())
+            Box::new(
+                g.edge_timestamps(e, None)
+                    .into_iter()
+                    .map(move |t| EdgeView::new(g.clone(), e.at(t))),
+            )
         }
-    }
-
-    /// Gets the edge object from the vertex
-    fn get_edges(&self) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
-        let vertex = VertexRef {
-            g_id: self.edge.src_g_id,
-            pid: None,
-        };
-        self.graph.vertex_edges_t(vertex, Direction::OUT, None)
     }
 
     /// Gets the first time an edge was seen
     pub fn earliest_time(&self) -> Option<i64> {
-        self.get_edges()
-            .filter(|e| e.edge_id == self.edge.edge_id)
-            .map(|e| e.time.unwrap())
-            .min()
+        self.graph.edge_timestamps(self.edge, None).first().copied()
     }
 
     /// Gets the latest time an edge was updated
     pub fn latest_time(&self) -> Option<i64> {
-        self.get_edges()
-            .filter(|e| e.edge_id == self.edge.edge_id)
-            .map(|e| e.time.unwrap())
-            .max()
+        self.graph.edge_timestamps(self.edge, None).last().copied()
     }
 
     pub fn time(&self) -> Option<i64> {
