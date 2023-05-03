@@ -297,6 +297,7 @@ impl<G: GraphViewOps> PathFromVertex<G> {
         }
     }
 }
+
 impl<G: GraphViewOps> VertexViewOps for PathFromVertex<G> {
     type Graph = G;
     type ValueType<T> = BoxedIter<T>;

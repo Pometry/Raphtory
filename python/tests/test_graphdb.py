@@ -331,34 +331,39 @@ def test_vertex_properties():
     assert g.vertex(1).properties(include_static=False) == {'prop 2': 0.9, 'prop 3': 'hello', 'prop 1': 2,
                                                             'prop 4': True}
     assert g.vertices.properties(include_static=False).collect() == [{'prop 2': 0.9, 'prop 3': 'hello', 'prop 1': 2,
-                                                            'prop 4': True}]
-    assert g.vertices.out_neighbours().properties(include_static=False).collect() == [[{'prop 2': 0.9, 'prop 3': 'hello', 'prop 1': 2,
-                                                            'prop 4': True}]]
+                                                                      'prop 4': True}]
+    assert g.vertices.out_neighbours().properties(include_static=False).collect() == [
+        [{'prop 2': 0.9, 'prop 3': 'hello', 'prop 1': 2,
+          'prop 4': True}]]
 
     assert g.at(2).vertex(1).properties() == {'prop 1': 2, 'prop 4': False, 'prop 2': 0.6, 'static prop': 123,
                                               'prop 3': 'hi'}
     assert g.at(2).vertices.properties().collect() == [{'prop 1': 2, 'prop 4': False, 'prop 2': 0.6, 'static prop': 123,
-                                              'prop 3': 'hi'}]
-    assert g.at(2).vertices.out_neighbours().properties().collect() == [[{'prop 1': 2, 'prop 4': False, 'prop 2': 0.6, 'static prop': 123,
-                                              'prop 3': 'hi'}]]
+                                                        'prop 3': 'hi'}]
+    assert g.at(2).vertices.out_neighbours().properties().collect() == [
+        [{'prop 1': 2, 'prop 4': False, 'prop 2': 0.6, 'static prop': 123,
+          'prop 3': 'hi'}]]
 
     # testing property histories
     assert g.vertex(1).property_histories() == {'prop 3': [(1, 'hi'), (3, 'hello')], 'prop 1': [(1, 1), (2, 2)],
                                                 'prop 4': [(1, True), (2, False), (3, True)],
                                                 'prop 2': [(2, 0.6), (3, 0.9)]}
-    assert g.vertices.property_histories().collect() == [{'prop 3': [(1, 'hi'), (3, 'hello')], 'prop 1': [(1, 1), (2, 2)],
-                                                'prop 4': [(1, True), (2, False), (3, True)],
-                                                'prop 2': [(2, 0.6), (3, 0.9)]}]
-    assert g.vertices.out_neighbours().property_histories().collect() == [[{'prop 3': [(1, 'hi'), (3, 'hello')], 'prop 1': [(1, 1), (2, 2)],
-                                                'prop 4': [(1, True), (2, False), (3, True)],
-                                                'prop 2': [(2, 0.6), (3, 0.9)]}]]
+    assert g.vertices.property_histories().collect() == [
+        {'prop 3': [(1, 'hi'), (3, 'hello')], 'prop 1': [(1, 1), (2, 2)],
+         'prop 4': [(1, True), (2, False), (3, True)],
+         'prop 2': [(2, 0.6), (3, 0.9)]}]
+    assert g.vertices.out_neighbours().property_histories().collect() == [
+        [{'prop 3': [(1, 'hi'), (3, 'hello')], 'prop 1': [(1, 1), (2, 2)],
+          'prop 4': [(1, True), (2, False), (3, True)],
+          'prop 2': [(2, 0.6), (3, 0.9)]}]]
 
     assert g.at(2).vertex(1).property_histories() == {'prop 2': [(2, 0.6)], 'prop 4': [(1, True), (2, False)],
                                                       'prop 1': [(1, 1), (2, 2)], 'prop 3': [(1, 'hi')]}
     assert g.at(2).vertices.property_histories().collect() == [{'prop 2': [(2, 0.6)], 'prop 4': [(1, True), (2, False)],
-                                                      'prop 1': [(1, 1), (2, 2)], 'prop 3': [(1, 'hi')]}]
-    assert g.at(2).vertices.out_neighbours().property_histories().collect() == [[{'prop 2': [(2, 0.6)], 'prop 4': [(1, True), (2, False)],
-                                                      'prop 1': [(1, 1), (2, 2)], 'prop 3': [(1, 'hi')]}]]
+                                                                'prop 1': [(1, 1), (2, 2)], 'prop 3': [(1, 'hi')]}]
+    assert g.at(2).vertices.out_neighbours().property_histories().collect() == [
+        [{'prop 2': [(2, 0.6)], 'prop 4': [(1, True), (2, False)],
+          'prop 1': [(1, 1), (2, 2)], 'prop 3': [(1, 'hi')]}]]
 
     # testing property names
     expected_names = sorted(['prop 4', 'prop 1', 'prop 2', 'prop 3', 'static prop'])
@@ -498,12 +503,13 @@ def test_edge_properties():
 
 def test_exploded_edge_time():
     g = graph_loader.lotr_graph()
-    e = g.edge("Frodo","Gandalf")
+    e = g.edge("Frodo", "Gandalf")
     his = e.history()
     exploded_his = []
     for ee in e.explode():
         exploded_his.append(ee.time())
-    assert(his,exploded_his)
+    assert (his, exploded_his)
+
 
 # assert g.vertex(1).property_history("prop 3") == [(1, 3), (3, 'hello')]
 
@@ -533,11 +539,12 @@ def test_algorithms():
     assert min_out_degree == 1
     assert min_in_degree == 1
     assert clustering_coefficient == 1.0
-    
+
     lotr_clustering_coefficient = algorithms.local_clustering_coefficient(lotr_graph, 'Frodo')
     lotr_local_triangle_count = algorithms.local_triangle_count(lotr_graph, 'Frodo')
     assert lotr_clustering_coefficient == 0.1984313726425171
     assert lotr_local_triangle_count == 253
+
 
 def test_graph_time_api():
     g = create_graph(1)
@@ -772,7 +779,6 @@ def test_edge_earliest_latest_time():
     g.add_edge(1, 1, 3, {})
     g.add_edge(2, 1, 3, {})
 
-
     assert g.edge(1, 2).earliest_time() == 0
     assert g.edge(1, 2).latest_time() == 2
 
@@ -795,14 +801,15 @@ def test_vertex_history():
     g.add_vertex(6, "Lord Farquaad", {})
     g.add_vertex(7, "Lord Farquaad", {})
     g.add_vertex(8, "Lord Farquaad", {})
-                 
-    assert(g.vertex(1).history() == [1, 2, 3, 4, 8])
-    assert(g.vertex("Lord Farquaad").history() == [4, 6, 7, 8])
+
+    assert (g.vertex(1).history() == [1, 2, 3, 4, 8])
+    assert (g.vertex("Lord Farquaad").history() == [4, 6, 7, 8])
 
     view = g.window(1, 8)
 
-    assert(view.vertex(1).history() == [1, 2 ,3 ,4])
-    assert(view.vertex("Lord Farquaad").history() == [4, 6, 7])
+    assert (view.vertex(1).history() == [1, 2, 3, 4])
+    assert (view.vertex("Lord Farquaad").history() == [4, 6, 7])
+
 
 def test_edge_history():
     g = Graph(1)
@@ -814,19 +821,64 @@ def test_edge_history():
 
     view = g.window(1, 5)
 
-    assert(g.edge(1,2).history() == [1,3])
+    assert (g.edge(1, 2).history() == [1, 3])
 
     # also needs to be fixed in Pedros PR
     # assert(view.edge(1, 4).history() == [4])
 
+
 def test_lotr_edge_history():
     g = graph_loader.lotr_graph()
-    
-    assert(g.edge('Frodo','Gandalf').history() == [329, 555, 861, 1056, 1130, 1160, 1234, 1241, 1390, 1417, 1656, 1741, 1783, 1785, 1792, 1804, 1809, 1999, 2056, 2254, 2925, 2999, 3703, 3914, 4910, 5620, 5775, 6381, 6531, 6578, 6661, 6757, 7041, 7356, 8183, 8190, 8276, 8459, 8598, 8871, 9098, 9343, 9903, 11189, 11192, 11279, 11365, 14364, 21551, 21706, 23212, 26958, 27060, 29024, 30173, 30737, 30744, 31023, 31052, 31054, 31103, 31445, 32656])
-    assert(g.at(1000).edge('Frodo','Gandalf').history() == [329, 555, 861])
-    assert(g.edge('Frodo','Gandalf').at(1000).history() == [329, 555, 861])
-    assert(g.window(100,1000).edge('Frodo','Gandalf').history() == [329, 555, 861])
-    assert(g.edge('Frodo','Gandalf').window(100,1000).history() == [329, 555, 861])
+
+    assert (g.edge('Frodo', 'Gandalf').history() == [329, 555, 861, 1056, 1130, 1160, 1234, 1241, 1390, 1417, 1656,
+                                                     1741, 1783, 1785, 1792, 1804, 1809, 1999, 2056, 2254, 2925, 2999,
+                                                     3703, 3914, 4910, 5620, 5775, 6381, 6531, 6578, 6661, 6757, 7041,
+                                                     7356, 8183, 8190, 8276, 8459, 8598, 8871, 9098, 9343, 9903, 11189,
+                                                     11192, 11279, 11365, 14364, 21551, 21706, 23212, 26958, 27060,
+                                                     29024, 30173, 30737, 30744, 31023, 31052, 31054, 31103, 31445,
+                                                     32656])
+    assert (g.at(1000).edge('Frodo', 'Gandalf').history() == [329, 555, 861])
+    assert (g.edge('Frodo', 'Gandalf').at(1000).history() == [329, 555, 861])
+    assert (g.window(100, 1000).edge('Frodo', 'Gandalf').history() == [329, 555, 861])
+    assert (g.edge('Frodo', 'Gandalf').window(100, 1000).history() == [329, 555, 861])
+
+
+def test_generic_taint():
+    g = Graph(1)
+    g.add_edge(10, 1, 3, {})
+    g.add_edge(11, 1, 2, {})
+    g.add_edge(12, 1, 2, {})
+    g.add_edge(9, 1, 2, {})
+    g.add_edge(12, 2, 4, {})
+    g.add_edge(13, 2, 5, {})
+    g.add_edge(14, 5, 5, {})
+    g.add_edge(14, 5, 4, {})
+    g.add_edge(5, 4, 6, {})
+    g.add_edge(15, 4, 7, {})
+    g.add_edge(10, 4, 7, {})
+    g.add_edge(10, 5, 8, {})
+
+    actual = algorithms.generic_taint(g, 20, 11, [1, 2], [4, 5])
+    expected = {
+        '1': [(0, 11, '1')],
+        '2': [(2, 12, '1'), (2, 11, '1'), (0, 11, '2')],
+        '4': [(5, 12, '2')],
+        '5': [(6, 13, '2')],
+    }
+
+    assert (actual == expected)
+
+
+def test_generic_taint_loader():
+    g = graph_loader.stable_coin_graph("/tmp/stablecoin", 1)
+
+    actual = algorithms.generic_taint(g, 20, 1651105815, ["0xd30b438df65f4f788563b2b3611bd6059bff4ad9"], [])
+    expected = {
+        '0xd30b438df65f4f788563b2b3611bd6059bff4ad9': [(0, 1651105815, '0xd30b438df65f4f788563b2b3611bd6059bff4ad9')],
+        '0xda816e2122a8a39b0926bfa84edd3d42477e9efd': [(1, 1651105815, '0xd30b438df65f4f788563b2b3611bd6059bff4ad9')],
+    }
+
+    assert (actual == expected)
 
 def test_layer():
     g = Graph(1)

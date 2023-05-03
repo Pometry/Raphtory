@@ -147,8 +147,8 @@ impl Program for UnweightedPageRankS2 {
 }
 
 #[allow(unused_variables)]
-pub fn unweighted_page_rank(
-    g: &Graph,
+pub fn unweighted_page_rank<G: GraphViewOps>(
+    g: &G,
     window: Range<i64>,
     iter_count: usize,
 ) -> FxHashMap<u64, f32> {
@@ -164,12 +164,12 @@ pub fn unweighted_page_rank(
 
     loop {
         pg_s1.run_step(g, &mut c);
-        println!("vec parts: {:?}", c.read_vec_partitions(&val::<MulF32>(0)));
+        // println!("vec parts: {:?}", c.read_vec_partitions(&val::<MulF32>(0)));
 
         pg_s2.run_step(g, &mut c);
 
         let r = c.read_global_state(&max::<f32>(2)).unwrap();
-        println!("max_diff = {:?}", r);
+        // println!("max_diff = {:?}", r);
 
         if r <= max_diff || i > iter_count {
             break;
@@ -181,9 +181,11 @@ pub fn unweighted_page_rank(
         i += 1;
     }
 
+    println!("Completed {} steps", i);
+
     let mut results: FxHashMap<u64, f32> = FxHashMap::default();
 
-    (0..g.nr_shards)
+    (0..g.num_shards())
         .into_iter()
         .fold(&mut results, |res, part_id| {
             c.fold_state(&val::<MulF32>(0), part_id, res, |res, v_id, sc| {
@@ -305,7 +307,7 @@ mod page_rank_tests {
         acc_id: AccId<A, IN, OUT, ACC>,
         c_g1: &GlobalEvalState<Graph>,
         c_g2: &GlobalEvalState<Graph>,
-    ) -> (Vec<OUT>, Vec<Vec<Vec<OUT>>>) {
+    ) -> (Vec<(u64, OUT)>, Vec<Vec<Vec<(u64, OUT)>>>) {
         let actual_g1 = c_g1.read_vec_partitions(&acc_id);
         assert!(actual_g1.len() == 1);
         let actual_g1_part0 = &actual_g1[0][0];
