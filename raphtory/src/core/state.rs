@@ -910,6 +910,7 @@ pub struct ShuffleComputeState<CS: ComputeState + Send> {
 
 // every partition has a struct as such
 impl<CS: ComputeState + Send + Sync> ShuffleComputeState<CS> {
+
     pub fn fold_state<A, IN, OUT, ACC: Accumulator<A, IN, OUT>, B, F>(
         &self,
         ss: usize,

@@ -82,6 +82,7 @@ pub fn unweighted_page_rank<G: GraphViewInternalOps + Send + Sync + Clone + 'sta
         threads,
         iter_count,
         None,
+        None
     );
 
     let mut map: FxHashMap<u64, f32> = FxHashMap::default();
@@ -127,7 +128,7 @@ mod page_rank_tests {
     fn test_page_rank(n_shards: usize) {
         let graph = load_graph(n_shards);
 
-        let results: FxHashMap<u64, f32> = unweighted_page_rank(&graph, 20, Some(1), None)
+        let results: FxHashMap<u64, f32> = unweighted_page_rank(&graph, 25, Some(1), None)
             .into_iter()
             .collect();
 

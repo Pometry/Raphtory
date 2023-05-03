@@ -7,6 +7,7 @@ pub mod eval_vertex;
 pub mod task;
 pub mod task_runner;
 pub(crate) mod context;
+pub(crate) mod global_state;
 
 
 pub static POOL: Lazy<Arc<ThreadPool>> = Lazy::new(|| {

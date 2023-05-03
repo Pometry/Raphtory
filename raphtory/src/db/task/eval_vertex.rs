@@ -22,7 +22,8 @@ pub struct EvalVertexView<
     ss: usize,
     vv: VertexRef,
     g: Arc<G>,
-    state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
+    shard_state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
+    global_state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
     local_state: Rc<RefCell<ShuffleComputeState<CS>>>,
 }
 
@@ -33,14 +34,16 @@ impl<'a, G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeSta
         ss: usize,
         vertex: VertexRef,
         g: Arc<G>,
-        state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
+        shard_state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
+        global_state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
         local_state: Rc<RefCell<ShuffleComputeState<CS>>>,
     ) -> Self {
         Self {
             ss,
             vv: vertex,
             g,
-            state,
+            shard_state,
+            global_state,
             local_state,
         }
     }
@@ -73,7 +76,8 @@ impl<'a, G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeSta
                     self.ss,
                     vv,
                     self.g.clone(),
-                    self.state.clone(),
+                    self.shard_state.clone(),
+                    self.global_state.clone(),
                     self.local_state.clone(),
                 )
             })
@@ -87,7 +91,8 @@ impl<'a, G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeSta
                     self.ss,
                     vv,
                     self.g.clone(),
-                    self.state.clone(),
+                    self.shard_state.clone(),
+                    self.global_state.clone(),
                     self.local_state.clone(),
                 )
             })
@@ -98,7 +103,7 @@ impl<'a, G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeSta
         id: &AccId<A, IN, OUT, ACC>,
         a: IN,
     ) {
-        let mut ref_cow = self.state.borrow_mut();
+        let mut ref_cow = self.shard_state.borrow_mut();
         let owned_mut = ref_cow.to_mut();
         owned_mut.accumulate_into_pid(self.ss, self.global_id(), self.pid(), a, id);
     }
@@ -122,9 +127,39 @@ impl<'a, G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeSta
         id: &AccId<A, IN, OUT, ACC>,
         a: IN,
     ) {
-        let mut ref_cow = self.state.borrow_mut();
+        let mut ref_cow = self.global_state.borrow_mut();
         let owned_mut = ref_cow.to_mut();
         owned_mut.accumulate_global(self.ss, a, id);
+    }
+
+
+    /// Reads the global state for a given accumulator, returned value is the global
+    /// accumulated value for all shards. If the state does not exist, returns None.
+    ///
+    /// # Arguments
+    ///
+    /// * `agg` - A reference to the `AccId` struct representing the accumulator.
+    ///
+    /// # Type Parameters
+    ///
+    /// * `A` - The type of the state that the accumulator uses.
+    /// * `IN` - The input type of the accumulator.
+    /// * `OUT` - The output type of the accumulator.
+    /// * `ACC` - The type of the accumulator.
+    ///
+    /// # Return Value
+    ///
+    /// An optional `OUT` value representing the global state for the accumulator.
+    pub fn read_global_state<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
+        &self,
+        agg: &AccId<A, IN, OUT, ACC>,
+    ) -> Option<OUT>
+    where
+        OUT: StateType,
+        A: StateType,
+    {
+        self.global_state.borrow().read_global(self.ss, agg)
+        
     }
 
     /// Read the current value of the vertex state using the given accumulator.
@@ -137,7 +172,7 @@ impl<'a, G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeSta
         A: StateType,
         OUT: std::fmt::Debug,
     {
-        self.state
+        self.shard_state
             .borrow()
             .read_with_pid(self.ss, self.global_id(), self.pid(), agg_r)
             .unwrap_or(ACC::finish(&ACC::zero()))
@@ -154,7 +189,7 @@ impl<'a, G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeSta
         OUT: std::fmt::Debug,
     {
         Entry::new(
-            self.state.borrow(),
+            self.shard_state.borrow(),
             *agg_r,
             self.pid(),
             self.global_id(),
@@ -188,7 +223,7 @@ impl<'a, G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeSta
         A: StateType,
         OUT: std::fmt::Debug,
     {
-        self.state
+        self.shard_state
             .borrow()
             .read_with_pid(self.ss + 1, self.global_id(), self.pid(), agg_r)
             .unwrap_or(ACC::finish(&ACC::zero()))

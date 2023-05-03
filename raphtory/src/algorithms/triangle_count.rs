@@ -207,7 +207,7 @@ pub fn triangle_counting_fast_2<G: GraphViewInternalOps + Send + Sync + Clone + 
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
 
-    let (state, _) = runner.run(init_tasks, tasks, num_threads, 1, None);
+    let (state, _) = runner.run(init_tasks, tasks, num_threads, 1, None, None);
 
     // state.read_global(ctx.ss(), &count)
     todo!()
