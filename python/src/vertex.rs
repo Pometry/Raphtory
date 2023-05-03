@@ -1091,6 +1091,7 @@ impl PyVertexWindowIterator {
 }
 
 #[pyclass(name = "VerticesWindowSet")]
+#[derive(Clone)]
 pub struct PyVerticesWindowSet {
     window_set: WindowSet<Vertices<DynamicGraph>>,
 }
@@ -1103,15 +1104,35 @@ impl From<WindowSet<Vertices<DynamicGraph>>> for PyVerticesWindowSet {
 
 #[pymethods]
 impl PyVerticesWindowSet {
+    fn __iter__(&self) -> PyVerticesWindowIterator {
+        self.window_set.clone().into()
+    }
+}
+
+#[pyclass(name = "VerticesWindowIterator")]
+#[derive(Clone)]
+pub struct PyVerticesWindowIterator {
+    window_set: WindowSet<Vertices<DynamicGraph>>,
+}
+
+impl From<WindowSet<Vertices<DynamicGraph>>> for PyVerticesWindowIterator {
+    fn from(value: WindowSet<Vertices<DynamicGraph>>) -> Self {
+        Self { window_set: value }
+    }
+}
+
+#[pymethods]
+impl PyVerticesWindowIterator {
     fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
         slf
     }
-    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<PyVertices> {
-        slf.window_set.next().map(|g| g.into())
+    fn __next__(&mut self) -> Option<PyVertices> {
+        self.window_set.next().map(|g| g.into())
     }
 }
 
 #[pyclass(name = "PathFromGraphWindowSet")]
+#[derive(Clone)]
 pub struct PyPathFromGraphWindowSet {
     window_set: WindowSet<PathFromGraph<DynamicGraph>>,
 }
@@ -1124,15 +1145,35 @@ impl From<WindowSet<PathFromGraph<DynamicGraph>>> for PyPathFromGraphWindowSet {
 
 #[pymethods]
 impl PyPathFromGraphWindowSet {
+    fn __iter__(&self) -> PyPathFromGraphWindowIterator {
+        self.window_set.clone().into()
+    }
+}
+
+#[pyclass(name = "PathFromGraphWindowIterator")]
+#[derive(Clone)]
+pub struct PyPathFromGraphWindowIterator {
+    window_set: WindowSet<PathFromGraph<DynamicGraph>>,
+}
+
+impl From<WindowSet<PathFromGraph<DynamicGraph>>> for PyPathFromGraphWindowIterator {
+    fn from(value: WindowSet<PathFromGraph<DynamicGraph>>) -> Self {
+        Self { window_set: value }
+    }
+}
+
+#[pymethods]
+impl PyPathFromGraphWindowIterator {
     fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
         slf
     }
-    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<PyPathFromGraph> {
-        slf.window_set.next().map(|g| g.into())
+    fn __next__(&mut self) -> Option<PyPathFromGraph> {
+        self.window_set.next().map(|g| g.into())
     }
 }
 
 #[pyclass(name = "PathFromVertexWindowSet")]
+#[derive(Clone)]
 pub struct PyPathFromVertexWindowSet {
     window_set: WindowSet<PathFromVertex<DynamicGraph>>,
 }
@@ -1145,10 +1186,29 @@ impl From<WindowSet<PathFromVertex<DynamicGraph>>> for PyPathFromVertexWindowSet
 
 #[pymethods]
 impl PyPathFromVertexWindowSet {
+    fn __iter__(&self) -> PyPathFromVertexWindowIterator {
+        self.window_set.clone().into()
+    }
+}
+
+#[pyclass(name = "PathFromVertexWindowIterator")]
+#[derive(Clone)]
+pub struct PyPathFromVertexWindowIterator {
+    window_set: WindowSet<PathFromVertex<DynamicGraph>>,
+}
+
+impl From<WindowSet<PathFromVertex<DynamicGraph>>> for PyPathFromVertexWindowIterator {
+    fn from(value: WindowSet<PathFromVertex<DynamicGraph>>) -> Self {
+        Self { window_set: value }
+    }
+}
+
+#[pymethods]
+impl PyPathFromVertexWindowIterator {
     fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
         slf
     }
-    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<PyPathFromVertex> {
-        slf.window_set.next().map(|g| g.into())
+    fn __next__(&mut self) -> Option<PyPathFromVertex> {
+        self.window_set.next().map(|g| g.into())
     }
 }

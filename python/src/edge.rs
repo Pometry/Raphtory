@@ -431,6 +431,7 @@ py_iterator!(
 );
 
 #[pyclass(name = "EdgeWindowSet")]
+#[derive(Clone)]
 pub struct PyEdgeWindowSet {
     window_set: WindowSet<EdgeView<DynamicGraph>>,
 }
@@ -443,12 +444,30 @@ impl From<WindowSet<EdgeView<DynamicGraph>>> for PyEdgeWindowSet {
 
 #[pymethods]
 impl PyEdgeWindowSet {
+    fn __iter__(&self) -> PyEdgeWindowIterator {
+        self.window_set.clone().into()
+    }
+}
+
+#[pyclass(name = "EdgeWindowIterator")]
+#[derive(Clone)]
+pub struct PyEdgeWindowIterator {
+    window_set: WindowSet<EdgeView<DynamicGraph>>,
+}
+
+impl From<WindowSet<EdgeView<DynamicGraph>>> for PyEdgeWindowIterator {
+    fn from(value: WindowSet<EdgeView<DynamicGraph>>) -> Self {
+        Self { window_set: value }
+    }
+}
+
+#[pymethods]
+impl PyEdgeWindowIterator {
     fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
         slf
     }
-
-    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<PyEdge> {
-        slf.window_set.next().map(|g| g.into())
+    fn __next__(&mut self) -> Option<PyEdge> {
+        self.window_set.next().map(|g| g.into())
     }
 }
 
