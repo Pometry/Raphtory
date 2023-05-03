@@ -3,6 +3,7 @@
 pub mod edge;
 pub mod graph;
 pub mod internal;
+pub mod layer;
 pub mod time;
 pub mod vertex;
 

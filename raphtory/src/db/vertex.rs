@@ -3,8 +3,10 @@
 use crate::core::tgraph::VertexRef;
 use crate::core::{Direction, Prop};
 use crate::db::edge::{EdgeList, EdgeView};
+use crate::db::graph_layer::LayeredGraph;
 use crate::db::graph_window::WindowedGraph;
 use crate::db::path::{Operations, PathFromVertex};
+use crate::db::view_api::layer::LayerOps;
 use crate::db::view_api::vertex::VertexViewOps;
 use crate::db::view_api::{BoxedIter, GraphViewOps, TimeOps, VertexListOps};
 use std::collections::HashMap;
@@ -217,6 +219,24 @@ impl<G: GraphViewOps> TimeOps for VertexView<G> {
             graph: self.graph.window(t_start, t_end),
             vertex: self.vertex,
         }
+    }
+}
+
+impl<G: GraphViewOps> LayerOps for VertexView<G> {
+    type LayeredViewType = VertexView<LayeredGraph<G>>;
+
+    fn default_layer(&self) -> Self::LayeredViewType {
+        VertexView {
+            graph: self.graph.default_layer(),
+            vertex: self.vertex,
+        }
+    }
+
+    fn layer(&self, name: &str) -> Option<Self::LayeredViewType> {
+        Some(VertexView {
+            graph: self.graph.layer(name)?,
+            vertex: self.vertex,
+        })
     }
 }
 

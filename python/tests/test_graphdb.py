@@ -814,10 +814,10 @@ def test_vertex_history():
 def test_edge_history():
     g = Graph(1)
 
-    g.add_edge(1, 1, 2, {})
-    g.add_edge(2, 1, 3, {})
-    g.add_edge(3, 1, 2, {})
-    g.add_edge(4, 1, 4, {})
+    g.add_edge(1, 1, 2)
+    g.add_edge(2, 1, 3)
+    g.add_edge(3, 1, 2)
+    g.add_edge(4, 1, 4)
 
     view = g.window(1, 5)
 
@@ -879,3 +879,31 @@ def test_generic_taint_loader():
     }
 
     assert (actual == expected)
+
+def test_layer():
+    g = Graph(1)
+
+    g.add_edge(0, 1, 2)
+    g.add_edge(0, 1, 3, layer='layer1')
+    g.add_edge(0, 1, 4, layer='layer2')
+
+    assert(g.default_layer().num_edges() == 1)
+    assert(g.layer('layer1').num_edges() == 1)
+    assert(g.layer('layer2').num_edges() == 1)
+
+def test_rolling_as_iterable():
+    g = Graph(1)
+
+    g.add_vertex(1, 1)
+    g.add_vertex(4, 4)
+
+    rolling = g.rolling(1)
+
+    # a normal operation is reusing the object returned by rolling twice, to get both results and an index.
+    # So the following should work fine:
+    n_vertices = [w.num_vertices() for w in rolling]
+    time_index = [w.start() for w in rolling]
+
+
+    assert n_vertices == [1, 0, 0, 1]
+    assert time_index == [1, 2, 3, 4]

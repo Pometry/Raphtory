@@ -5,6 +5,7 @@ use crate::db::graph_window::WindowedGraph;
 use crate::db::vertex::VertexView;
 use crate::db::vertices::Vertices;
 use crate::db::view_api::internal::GraphViewInternalOps;
+use crate::db::view_api::layer::LayerOps;
 use crate::db::view_api::time::TimeOps;
 use crate::db::view_api::VertexViewOps;
 
@@ -50,12 +51,6 @@ pub trait GraphViewOps: Send + Sync + Sized + GraphViewInternalOps + 'static + C
 
     /// Return an iterator over all edges in the graph.
     fn edges(&self) -> Box<dyn Iterator<Item = EdgeView<Self>> + Send>;
-
-    /// Return a graph containing only the default edge layer
-    fn default_layer(&self) -> LayeredGraph<Self>;
-
-    /// Return a graph containing the layer `name`
-    fn layer(&self, name: &str) -> Option<LayeredGraph<Self>>;
 }
 
 impl<G: Send + Sync + Sized + GraphViewInternalOps + 'static + Clone> GraphViewOps for G {
@@ -110,15 +105,6 @@ impl<G: Send + Sync + Sized + GraphViewInternalOps + 'static + Clone> GraphViewO
     fn edges(&self) -> Box<dyn Iterator<Item = EdgeView<Self>> + Send> {
         Box::new(self.vertices().iter().flat_map(|v| v.out_edges()))
     }
-
-    fn default_layer(&self) -> LayeredGraph<Self> {
-        LayeredGraph::new(self.clone(), 0)
-    }
-
-    fn layer(&self, name: &str) -> Option<LayeredGraph<Self>> {
-        let id = self.get_layer(Some(name))?;
-        Some(LayeredGraph::new(self.clone(), id))
-    }
 }
 
 impl<G: GraphViewOps> TimeOps for G {
@@ -134,5 +120,18 @@ impl<G: GraphViewOps> TimeOps for G {
 
     fn window(&self, t_start: i64, t_end: i64) -> WindowedGraph<Self> {
         WindowedGraph::new(self.clone(), t_start, t_end)
+    }
+}
+
+impl<G: GraphViewOps> LayerOps for G {
+    type LayeredViewType = LayeredGraph<G>;
+
+    fn default_layer(&self) -> Self::LayeredViewType {
+        LayeredGraph::new(self.clone(), 0)
+    }
+
+    fn layer(&self, name: &str) -> Option<Self::LayeredViewType> {
+        let id = self.get_layer(Some(name))?;
+        Some(LayeredGraph::new(self.clone(), id))
     }
 }
