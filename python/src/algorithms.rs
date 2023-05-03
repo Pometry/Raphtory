@@ -3,9 +3,12 @@
 /// To run an algorithm simply import the module and call the function with the graph as the argument
 ///
 use crate::graph_view::PyGraphView;
+use itertools::Itertools;
+use pyo3::exceptions::PyTypeError;
 use std::collections::HashMap;
 
 use crate::utils;
+use crate::utils::{extract_input_vertex, InputVertexBox};
 use pyo3::prelude::*;
 use raphtory::algorithms::degree::{
     average_degree as average_degree_rs, max_in_degree as max_in_degree_rs,
@@ -13,12 +16,13 @@ use raphtory::algorithms::degree::{
     min_out_degree as min_out_degree_rs,
 };
 use raphtory::algorithms::directed_graph_density::directed_graph_density as directed_graph_density_rs;
+use raphtory::algorithms::generic_taint::generic_taint as generic_taint_rs;
 use raphtory::algorithms::local_clustering_coefficient::local_clustering_coefficient as local_clustering_coefficient_rs;
 use raphtory::algorithms::local_triangle_count::local_triangle_count as local_triangle_count_rs;
 use raphtory::algorithms::reciprocity::{
     all_local_reciprocity as all_local_reciprocity_rs, global_reciprocity as global_reciprocity_rs,
 };
-use raphtory::algorithms::generic_taint::generic_taint as generic_taint_rs;
+use raphtory::core::vertex::InputVertex;
 
 /// Local triangle count - calculates the number of triangles (a cycle of length 3) for a node.
 /// It measures the local clustering of a graph.
@@ -47,10 +51,25 @@ pub(crate) fn generic_taint(
     g: &PyGraphView,
     iter_count: usize,
     start_time: i64,
-    infected_nodes: Vec<u64>,
-    stop_nodes: Vec<u64>,
-) -> PyResult<HashMap<u64, Vec<(usize, i64, u64)>>> {
-    Ok(generic_taint_rs(&g.graph, iter_count, start_time, infected_nodes, stop_nodes))
+    infected_nodes: Vec<&PyAny>,
+    stop_nodes: Vec<&PyAny>,
+) -> PyResult<HashMap<String, Vec<(usize, i64, String)>>> {
+    let infected_nodes: PyResult<Vec<InputVertexBox>> = infected_nodes
+        .into_iter()
+        .map(|v| extract_input_vertex(v))
+        .collect();
+    let stop_nodes: PyResult<Vec<InputVertexBox>> = stop_nodes
+        .into_iter()
+        .map(|v| extract_input_vertex(v))
+        .collect();
+
+    Ok(generic_taint_rs(
+        &g.graph,
+        iter_count,
+        start_time,
+        infected_nodes?,
+        stop_nodes?,
+    ))
 }
 
 /// Local Clustering coefficient - measures the degree to which nodes in a graph tend to cluster together.

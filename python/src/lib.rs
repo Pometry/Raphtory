@@ -55,6 +55,7 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         graph_loader_module
     )?)?;
     graph_loader_module.add_function(wrap_pyfunction!(neo4j_movie_graph, graph_loader_module)?)?;
+    graph_loader_module.add_function(wrap_pyfunction!(stable_coin_graph, graph_loader_module)?)?;
     m.add_submodule(graph_loader_module)?;
 
     let graph_gen_module = PyModule::new(py, "graph_gen")?;
