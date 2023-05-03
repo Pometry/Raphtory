@@ -8,6 +8,10 @@ use raphtory::graph_loader::source::csv_loader::CsvLoader;
 use serde::Deserialize;
 use std::path::PathBuf;
 use std::{env, path::Path, time::Instant};
+use itertools::Itertools;
+use raphtory::algorithms::generic_taint::generic_taint;
+use raphtory::db::view_api::internal::GraphViewInternalOps;
+use raphtory::graph_loader::example::lotr_graph::lotr_graph;
 
 #[derive(Deserialize, std::fmt::Debug)]
 pub struct Lotr {
@@ -55,30 +59,32 @@ fn main() {
 
         CsvLoader::new(data_dir)
             .load_into_graph(&g, |lotr: Lotr, g: &Graph| {
-                let src_id = utils::calculate_hash(&lotr.src_id);
-                let dst_id = utils::calculate_hash(&lotr.dst_id);
-                let time = lotr.time;
+                g.add_vertex(
+                    lotr.time,
+                    lotr.src_id.clone(),
+                    &vec![
+                        ("type".to_string(), Prop::Str("Character".to_string()))
+                    ],
+                ).expect("Failed to add vertex");
 
                 g.add_vertex(
-                    time,
-                    src_id,
-                    &vec![("name".to_string(), Prop::Str("Character".to_string()))],
-                );
-                g.add_vertex(
-                    time,
-                    src_id,
-                    &vec![("name".to_string(), Prop::Str("Character".to_string()))],
-                );
+                    lotr.time,
+                    lotr.dst_id.clone(),
+                    &vec![
+                        ("type".to_string(), Prop::Str("Character".to_string()))
+                    ],
+                ).expect("Failed to add vertex");
+
                 g.add_edge(
-                    time,
-                    src_id,
-                    dst_id,
+                    lotr.time,
+                    lotr.src_id.clone(),
+                    lotr.dst_id.clone(),
                     &vec![(
-                        "name".to_string(),
+                        "type".to_string(),
                         Prop::Str("Character Co-occurrence".to_string()),
                     )],
                     None,
-                );
+                ).expect("Failed to add edge");
             })
             .expect("Failed to load graph from CSV data files");
 
@@ -90,8 +96,8 @@ fn main() {
             now.elapsed().as_secs()
         );
 
-        // g.save_to_file(encoded_data_dir)
-        //     .expect("Failed to save graph");
+        g.save_to_file(encoded_data_dir)
+            .expect("Failed to save graph");
 
         g
     };
@@ -101,141 +107,10 @@ fn main() {
 
     let gandalf = utils::calculate_hash(&"Gandalf");
 
-    assert_eq!(gandalf, 8703678510860200260);
+    assert_eq!(gandalf, 2760374808085341115);
     assert!(graph.has_vertex(gandalf));
+    assert_eq!(graph.vertex(gandalf).unwrap().name(), "Gandalf");
 
-    let program_s1 = TriangleCountS1 {};
-    let program_s2 = TriangleCountS2 {};
-    let agg = state::def::sum::<u64>(1);
-
-    let mut gs = GlobalEvalState::new(graph.clone(), false);
-
-    program_s1.run_step(&graph, &mut gs);
-
-    program_s2.run_step(&graph, &mut gs);
-
-    let actual_tri_count = gs.read_global_state(&agg);
-
-    println!("Actual triangle count: {:?}", actual_tri_count);
-
-    let program = TriangleCountSlowS2 {};
-    let agg = state::def::sum::<usize>(0);
-
-    let mut gs = GlobalEvalState::new(graph.clone(), false);
-
-    program.run_step(&graph, &mut gs);
-
-    let actual_tri_count = gs.read_global_state(&agg).map(|v| v / 3);
-
-    println!("Actual triangle count: {:?}", actual_tri_count);
-
-    // assert_eq!(v.in_degree().unwrap(), 24);
-    // assert_eq!(v.out_degree().unwrap(), 35);
-    // assert_eq!(v.degree().unwrap(), 49);
-    //
-    // let windowed_graph = graph.window(0, i64::MAX);
-    // let v = windowed_graph.vertex(gandalf).unwrap().unwrap();
-    //
-    // assert_eq!(v.in_degree().unwrap(), 24);
-    // assert_eq!(v.out_degree().unwrap(), 35);
-    // assert_eq!(v.degree().unwrap(), 49);
-    //
-    // let windowed_graph = graph.window(100, 9000);
-    // let v = windowed_graph.vertex(gandalf).unwrap().unwrap();
-
-    // let windowed_graph = graph.window(100, 9000);
-    // let v = windowed_graph.vertex(gandalf).unwrap();
-
-    // let actual = v
-    //     .out_edges()
-    //     .map(|e| (e.src().id(), e.dst().id()))
-    //     .collect::<Vec<_>>();
-
-    // let expected = vec![
-    //     (13840129630991083248, 6768237561757024290),
-    //     (13840129630991083248, 2582862946330553552),
-    //     (13840129630991083248, 13415634039873497660),
-    //     (13840129630991083248, 357812470600089148),
-    //     (13840129630991083248, 17764752901005380738),
-    //     (13840129630991083248, 6484040860173734298),
-    //     (0, 2914346725110218071),
-    //     (0, 5956895584314169235),
-    //     (0, 12936471037316398897),
-    //     (0, 13050559475682228465),
-    //     (0, 13789593425373656861),
-    //     (0, 14223985880962197705),
-    // ];
-
-    // let windowed_graph = graph.window(i64::MIN, i64::MAX);
-    // let v = windowed_graph.vertex(gandalf).unwrap().unwrap();
-    // let actual = v
-    //     .out_edges()
-    //     .take(10)
-    //     .map(|e| (e.src().id(), e.dst().id()))
-    //     .collect::<Vec<_>>();
-
-    // let windowed_graph = graph.window(i64::MIN, i64::MAX);
-    // let v = windowed_graph.vertex(gandalf).unwrap();
-    // let actual = v
-    //     .out_edges()
-    //     .take(10)
-    //     .map(|e| (e.src().id(), e.dst().id()))
-    //     .collect::<Vec<_>>();
-
-    // let expected: Vec<(u64, u64)> = vec![
-    //     (13840129630991083248, 12772980705568717046),
-    //     (13840129630991083248, 6768237561757024290),
-    //     (13840129630991083248, 11214194356141027632),
-    //     (13840129630991083248, 2582862946330553552),
-    //     (13840129630991083248, 13415634039873497660),
-    //     (13840129630991083248, 6514938325906662882),
-    //     (13840129630991083248, 13854913496482509346),
-    //     (13840129630991083248, 357812470600089148),
-    //     (13840129630991083248, 17764752901005380738),
-    //     (13840129630991083248, 15044750458947305290),
-    // ];
-
-    // assert_eq!(actual, expected);
-
-    // let windowed_graph = graph.window(i64::MIN, i64::MAX);
-    // let actual = windowed_graph
-    //     .vertices()
-    //     .take(10)
-    //     .map(|tv| tv.id())
-    //     .collect::<Vec<u64>>();
-
-    // let expected: Vec<u64> = vec![
-    //     13840129630991083248,
-    //     12772980705568717046,
-    //     8366058037510783370,
-    //     11638942476191275730,
-    //     6768237561757024290,
-    //     13652678879212650868,
-    //     10620258110842154986,
-    //     12687378031997996522,
-    //     11214194356141027632,
-    //     2582862946330553552,
-    // ];
-
-    // assert_eq!(actual, expected);
-
-    // let windowed_graph = graph.window(0, 300);
-    // let actual = windowed_graph
-    //     .vertices()
-    //     .map(|v| v.id())
-    //     .collect::<Vec<u64>>();
-
-    // let expected = vec![
-    //     13840129630991083248,
-    //     12772980705568717046,
-    //     8366058037510783370,
-    //     11638942476191275730,
-    //     12936471037316398897,
-    //     5956895584314169235,
-    //     5402476312775412883,
-    //     7320164159843417887,
-    // ];
-    // assert_eq!(actual, expected);
-
-    // triangle count global
+    let r = generic_taint(&graph, 20, 31930, vec!["Gandalf"], vec![]);
+    assert_eq!(r.keys().sorted().collect_vec(), vec!["Gandalf", "Saruman", "Wormtongue"])
 }

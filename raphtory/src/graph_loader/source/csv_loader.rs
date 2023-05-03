@@ -350,7 +350,7 @@ impl CsvLoader {
 
         //TODO this needs better error handling for files without perfect data
         for rec in records_iter {
-            let record = rec?;
+            let record = rec.expect("Failed to deserialize");
             loader(record, g)
         }
 
