@@ -56,9 +56,9 @@ graph = Graph()
 graph.add_vertex(timestamp=1,  id="Alice")
 graph.add_vertex(timestamp=1,  id="Bob")
 graph.add_vertex(timestamp=1,  id="Charlie")
-graph.add_edge  (timestamp=2, src="Bob",   dst="Charlie", properties={"friend": "yes","weight":5.0})
-graph.add_edge  (timestamp=3, src="Alice", dst="Bob",     properties={"friend": "yes","weight":10.0})
-graph.add_edge  (timestamp=3, src="Bob",   dst="Charlie", properties={"friend": "no","weight":-15.0})
+graph.add_edge  (timestamp=2, src="Bob",   dst="Charlie", properties={"weight":5.0})
+graph.add_edge  (timestamp=3, src="Alice", dst="Bob",     properties={"weight":10.0})
+graph.add_edge  (timestamp=3, src="Bob",   dst="Charlie", properties={"weight":-15.0})
 
 # Check the number of unique nodes/edges in the graph and earliest/latest time seen.
 print(graph)
@@ -78,9 +78,8 @@ cb_edge = graph.edge("Bob","Charlie")
 weight_history = cb_edge.property_history("weight")
 print("The edge between Bob and Charlie has the following weight history:", weight_history)
 
-weight_at_t2 = cb_edge.at(2)["weight"]
-weight_at_t3 = cb_edge.at(3)["weight"]
-print("The weight of the edge between Bob and Charlie has dropped by",weight_at_t2-weight_at_t3,"pts")
+weight_change = cb_edge.at(2)["weight"] - cb_edge.at(3)["weight"]
+print("The weight of the edge between Bob and Charlie has dropped by",weight_change,"pts")
 ```
 
 ```a
