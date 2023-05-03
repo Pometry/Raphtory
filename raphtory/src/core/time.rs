@@ -252,12 +252,4 @@ mod time_tests {
             _ => panic!(),
         }
     }
-
-    #[test]
-    fn timestamp_parsing() {
-        let time = "Mon, 14 May 2001 16:39:00 -0700 (PDT)".into_time();
-        dbg!(time);
-        let time = "Wed, 21 Dec 0001 22:31:43 -0800 (PST)".into_time();
-        dbg!(time);
-    }
 }

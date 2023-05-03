@@ -7,7 +7,7 @@
 
 use crate::dynamic::IntoDynamic;
 use crate::graph_view::PyGraphView;
-use crate::utils::{adapt_result, extract_input_vertex, InputVertexBox};
+use crate::utils::{adapt_result, extract_input_vertex, extract_into_time, InputVertexBox};
 use crate::wrappers::prop::Prop;
 use itertools::Itertools;
 use pyo3::exceptions::PyException;
