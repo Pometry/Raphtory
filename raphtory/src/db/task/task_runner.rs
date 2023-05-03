@@ -245,6 +245,7 @@ impl<G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeState> 
         global_initial_state: Option<Arc<ShuffleComputeState<CS>>>,
     ) -> (
         Arc<ShuffleComputeState<CS>>,
+        Arc<ShuffleComputeState<CS>>,
         Vec<Arc<Option<ShuffleComputeState<CS>>>>,
     ) {
         let graph_shards = self.ctx.graph().num_shards();
@@ -295,6 +296,11 @@ impl<G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeState> 
                 s.reset_states(self.ctx.ss(), self.ctx.resetable_states());
             });
 
+            Arc::get_mut(&mut global_state).map(|s| {
+                s.copy_over_next_ss(self.ctx.ss());
+                s.reset_states(self.ctx.ss(), self.ctx.resetable_states());
+            });
+
             // Copy and reset the local states from the step that just ended
 
             for local_state in local_state.iter_mut() {
@@ -309,6 +315,6 @@ impl<G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeState> 
             self.ctx.increment_ss();
         }
 
-        (shard_state, local_state)
+        (shard_state, global_state, local_state)
     }
 }

@@ -46,6 +46,7 @@ pub fn unweighted_page_rank<G: GraphViewInternalOps + Send + Sync + Clone + 'sta
         let out_degree = s.out_degree();
         if out_degree > 0 {
             let new_score = s.read_local(&score) / out_degree as f32;
+            println!("{} new score: {}", s.global_id(), new_score);
             for t in s.neighbours_out() {
                 t.update(&recv_score, new_score)
             }
@@ -62,6 +63,8 @@ pub fn unweighted_page_rank<G: GraphViewInternalOps + Send + Sync + Clone + 'sta
         let curr = s.read_local(&score);
         
         let md = abs(prev - curr);
+        println!("{}, prev: {}, curr: {}, md: {}", s.global_id(), prev, curr, md);
+
         s.global_update(&max_diff, md);
         Step::Continue
     });
@@ -76,7 +79,7 @@ pub fn unweighted_page_rank<G: GraphViewInternalOps + Send + Sync + Clone + 'sta
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
 
-    let (_, local_states) = runner.run(
+    let (_, _, local_states) = runner.run(
         vec![Job::new(step1)],
         vec![Job::new(step2), Job::new(step3), step4],
         threads,

@@ -195,7 +195,6 @@ pub fn triangle_counting_fast_2<G: GraphViewInternalOps + Send + Sync + Clone + 
                         }
                     }
                 };
-
                 s.global_update(&count, intersection_count);
             }
         }
@@ -207,10 +206,12 @@ pub fn triangle_counting_fast_2<G: GraphViewInternalOps + Send + Sync + Clone + 
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
 
-    let (state, _) = runner.run(init_tasks, tasks, num_threads, 1, None, None);
+    let (_, global_state, _) = runner.run(init_tasks, tasks, num_threads, 1, None, None);
 
-    // state.read_global(ctx.ss(), &count)
-    todo!()
+    println!("Global state: {:?}", global_state);
+    // ss needs to be incremented because the loop ran once and at the end it incremented the state thus
+    // the value is on the previous ss
+    global_state.read_global(runner.ctx.ss() + 1, &count)
 }
 
 pub struct TriangleCountS2 {}
@@ -419,7 +420,7 @@ mod triangle_count_tests {
             graph.add_edge(ts, src, dst, &vec![], None).unwrap();
         }
 
-        let actual_tri_count = triangle_counting_fast(&graph);
+        let actual_tri_count = triangle_counting_fast_2(&graph, Some(2));
 
         assert_eq!(actual_tri_count, Some(4))
     }

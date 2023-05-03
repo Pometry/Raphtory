@@ -63,7 +63,7 @@ where
     let tasks = vec![Job::new(step1), Job::read_only(step2)];
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
 
-    let (state, _) = runner.run(vec![], tasks, threads, iter_count, None, None);
+    let (state, _, _) = runner.run(vec![], tasks, threads, iter_count, None, None);
 
     let mut map: FxHashMap<u64, u64> = FxHashMap::default();
 
