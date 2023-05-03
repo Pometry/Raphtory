@@ -112,9 +112,9 @@ fn try_main() -> Result<(), Box<dyn Error>> {
     let min_time = graph.start().ok_or(GraphEmptyError)?;
     let max_time = graph.end().ok_or(GraphEmptyError)?;
     let mid_time = (min_time + max_time) / 2;
-
+    //2575786
     let now = Instant::now();
-    let actual_tri_count = triangle_counting_fast(&graph);
+    let actual_tri_count = triangle_counting_fast(&graph, None);
 
     println!("Actual triangle count: {:?}", actual_tri_count);
 
@@ -233,7 +233,7 @@ fn try_main_bm() -> Result<(), Box<dyn Error>> {
 }
 
 fn main() {
-    if let Err(e) = try_main_bm() {
+    if let Err(e) = try_main() {
         eprintln!("Failed: {}", e);
         std::process::exit(1)
     }
