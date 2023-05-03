@@ -211,7 +211,7 @@ pub fn triangle_counting_fast_2<G: GraphViewInternalOps + Send + Sync + Clone + 
     println!("Global state: {:?}", global_state);
     // ss needs to be incremented because the loop ran once and at the end it incremented the state thus
     // the value is on the previous ss
-    global_state.read_global(runner.ctx.ss() + 1, &count)
+    global_state.inner().read_global(runner.ctx.ss() + 1, &count)
 }
 
 pub struct TriangleCountS2 {}

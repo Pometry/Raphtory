@@ -5,7 +5,7 @@ use rayon::{ThreadPool, ThreadPoolBuilder};
 
 pub(crate) mod context;
 pub mod eval_vertex;
-pub(crate) mod global_state;
+pub(crate) mod task_state;
 pub mod task;
 pub mod task_runner;
 
@@ -86,7 +86,7 @@ mod task_tests {
         let (_, global_state, _) =
             runner.run(vec![], vec![Job::new(step1)], Some(2), 1, None, None);
 
-        let actual = global_state.read_global(0, &count);
+        let actual = global_state.inner().read_global(0, &count);
 
         assert_eq!(actual, Some(8));
     }

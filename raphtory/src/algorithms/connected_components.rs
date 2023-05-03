@@ -67,7 +67,7 @@ where
 
     let mut map: FxHashMap<u64, u64> = FxHashMap::default();
 
-    state.fold_state_internal(runner.ctx.ss(), &mut map, &min, |res, shard, pid, cc| {
+    state.inner().fold_state_internal(runner.ctx.ss(), &mut map, &min, |res, shard, pid, cc| {
         if let Some(v_ref) = graph.lookup_by_pid_and_shard(pid, shard) {
             res.insert(v_ref.g_id, cc);
         }

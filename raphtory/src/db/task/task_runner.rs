@@ -23,6 +23,7 @@ use super::{
     custom_pool,
     eval_vertex::EvalVertexView,
     task::{Job, Step, Task},
+    task_state::{Global, Shard},
     POOL,
 };
 
@@ -37,11 +38,11 @@ impl<G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeState> 
 
     fn merge_states(
         &self,
-        a: (Arc<ShuffleComputeState<CS>>, Arc<ShuffleComputeState<CS>>),
-        b: (Arc<ShuffleComputeState<CS>>, Arc<ShuffleComputeState<CS>>),
-    ) -> (Arc<ShuffleComputeState<CS>>, Arc<ShuffleComputeState<CS>>) {
-        let shard = self.ctx.run_merge(a.0, b.0);
-        let global = self.ctx.run_merge(a.1, b.1);
+        a: (Shard<CS>, Global<CS>),
+        b: (Shard<CS>, Global<CS>),
+    ) -> (Shard<CS>, Global<CS>) {
+        let shard = self.ctx.run_merge_shard(a.0, b.0);
+        let global = self.ctx.run_merge_global(a.1, b.1);
         (shard, global)
     }
 
@@ -58,18 +59,18 @@ impl<G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeState> 
 
     fn run_task(
         &self,
-        shard_state: &Arc<ShuffleComputeState<CS>>,
-        global_state: &Arc<ShuffleComputeState<CS>>,
+        shard_state: &Shard<CS>,
+        global_state: &Global<CS>,
         local_state: &mut Arc<Option<ShuffleComputeState<CS>>>,
         num_shards: usize,
         num_tasks: usize,
         job_id: &usize,
         atomic_done: &AtomicBool,
         task: &Box<dyn Task<G, CS> + Send + Sync>,
-    ) -> (Arc<ShuffleComputeState<CS>>, Arc<ShuffleComputeState<CS>>) {
+    ) -> (Shard<CS>, Global<CS>) {
         // the view for this task of the global state
-        let shard_state_view = Rc::new(RefCell::new(Cow::Borrowed(shard_state.as_ref())));
-        let global_state_view = Rc::new(RefCell::new(Cow::Borrowed(global_state.as_ref())));
+        let shard_state_view = shard_state.as_cow_rc();
+        let global_state_view = global_state.as_cow_rc();
 
         let owned_local_state = Arc::get_mut(local_state).and_then(|x| x.take()).unwrap();
         let rc_local_state = Rc::new(RefCell::new(owned_local_state));
@@ -113,7 +114,7 @@ impl<G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeState> 
         match (cow_shard_state, cow_global_state) {
             (Cow::Owned(state), Cow::Owned(global_state)) => {
                 // the state was changed in some way so we need to update the arc
-                (Arc::new(state), Arc::new(global_state))
+                (Shard::from_state(state), Global::from_state(global_state))
             }
             (Cow::Borrowed(_), Cow::Borrowed(_)) => {
                 // the state was only read, so we can just return the original arc
@@ -121,11 +122,11 @@ impl<G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeState> 
             }
             (Cow::Owned(state), Cow::Borrowed(_)) => {
                 // the state was changed in some way so we need to update the arc
-                (Arc::new(state), global_state.clone())
+                (Shard::from_state(state), global_state.clone())
             }
             (Cow::Borrowed(_), Cow::Owned(global_state)) => {
                 // the state was changed in some way so we need to update the arc
-                (shard_state.clone(), Arc::new(global_state))
+                (shard_state.clone(), Global::from_state(global_state))
             }
         }
     }
@@ -134,15 +135,15 @@ impl<G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeState> 
         &mut self,
         tasks: &[Job<G, CS>],
         pool: &ThreadPool,
-        shard_state: Arc<ShuffleComputeState<CS>>,
-        global_state: Arc<ShuffleComputeState<CS>>,
+        shard_state: Shard<CS>,
+        global_state: Global<CS>,
         mut local_state: Vec<Arc<Option<ShuffleComputeState<CS>>>>,
         num_threads: usize,
         num_shards: usize,
     ) -> (
         bool,
-        Arc<ShuffleComputeState<CS>>,
-        Arc<ShuffleComputeState<CS>>,
+        Shard<CS>,
+        Global<CS>,
         Vec<Arc<Option<ShuffleComputeState<CS>>>>,
     ) {
         pool.install(move || {
@@ -241,11 +242,11 @@ impl<G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeState> 
         tasks: Vec<Job<G, CS>>,
         num_threads: Option<usize>,
         steps: usize,
-        shard_initial_state: Option<Arc<ShuffleComputeState<CS>>>,
-        global_initial_state: Option<Arc<ShuffleComputeState<CS>>>,
+        shard_initial_state: Option<Shard<CS>>,
+        global_initial_state: Option<Global<CS>>,
     ) -> (
-        Arc<ShuffleComputeState<CS>>,
-        Arc<ShuffleComputeState<CS>>,
+        Shard<CS>,
+        Global<CS>,
         Vec<Arc<Option<ShuffleComputeState<CS>>>>,
     ) {
         let graph_shards = self.ctx.graph().num_shards();
@@ -256,11 +257,9 @@ impl<G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeState> 
 
         let num_threads = pool.current_num_threads();
 
-        let mut shard_state =
-            shard_initial_state.unwrap_or_else(|| Arc::new(ShuffleComputeState::new(graph_shards)));
+        let mut shard_state = shard_initial_state.unwrap_or_else(|| Shard::new(graph_shards));
 
-        let mut global_state =
-            global_initial_state.unwrap_or_else(|| Arc::new(ShuffleComputeState::new(0)));
+        let mut global_state = global_initial_state.unwrap_or_else(|| Global::new());
 
         let mut local_state: Vec<Arc<Option<ShuffleComputeState<CS>>>> = (0..num_threads)
             .into_iter()
@@ -291,18 +290,10 @@ impl<G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeState> 
             );
 
             // copy and reset the state from the step that just ended
-            Arc::get_mut(&mut shard_state).map(|s| {
-                s.copy_over_next_ss(self.ctx.ss());
-                s.reset_states(self.ctx.ss(), self.ctx.resetable_states());
-            });
-
-            Arc::get_mut(&mut global_state).map(|s| {
-                s.copy_over_next_ss(self.ctx.ss());
-                s.reset_states(self.ctx.ss(), self.ctx.resetable_states());
-            });
+            shard_state.reset(self.ctx.ss(), self.ctx.resetable_states());
+            global_state.reset(self.ctx.ss(), self.ctx.resetable_states());
 
             // Copy and reset the local states from the step that just ended
-
             for local_state in local_state.iter_mut() {
                 Arc::get_mut(local_state).map(|s| {
                     s.as_mut().map(|s| {
