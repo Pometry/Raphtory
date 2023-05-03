@@ -1,3 +1,5 @@
+use std::env;
+use std::path::Path;
 use raphtory::algorithms::generic_taint::generic_taint;
 use raphtory::db::view_api::*;
 use raphtory::graph_loader::example::stable_coins::stable_coin_graph;
@@ -17,7 +19,15 @@ pub struct StableCoin {
 }
 
 fn main() {
-    let g = stable_coin_graph(None, 1);
+    let args: Vec<String> = env::args().collect();
+
+    let data_dir = if args.len() < 2 {
+        None
+    } else {
+        Some(args.get(1).unwrap().to_string())
+    };
+
+    let g = stable_coin_graph(data_dir, 1);
 
     assert_eq!(g.num_vertices(), 1523333);
     assert_eq!(g.num_edges(), 2871269);
