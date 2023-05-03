@@ -73,11 +73,12 @@ for graph_view in graph.rolling(window=1):
 # Print the results
 print(pd.DataFrame(results[1:], columns=results[0]))
 
-# Grab an edge, explore the history of its 'weight' and then compare this at different time points.
+# Grab an edge, explore the history of its 'weight' 
 cb_edge = graph.edge("Bob","Charlie")
 weight_history = cb_edge.property_history("weight")
 print("The edge between Bob and Charlie has the following weight history:", weight_history)
 
+# Compare this weight between time 2 and time 3
 weight_change = cb_edge.at(2)["weight"] - cb_edge.at(3)["weight"]
 print("The weight of the edge between Bob and Charlie has dropped by",weight_change,"pts")
 ```
