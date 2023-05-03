@@ -36,8 +36,7 @@ fn fetch_file(file_path: PathBuf, timeout: u64) -> Result<(), Box<dyn std::error
 }
 
 pub fn stable_coin_graph(path: Option<String>, num_shards: usize) -> Graph {
-    let dir_str = "/tmp/stablecoin";
-    let default_data_dir: PathBuf = PathBuf::from(dir_str);
+    let default_data_dir: PathBuf = PathBuf::from("/tmp/stablecoin");
 
     let data_dir = match path {
         Some(path) => PathBuf::from(path),
@@ -46,7 +45,8 @@ pub fn stable_coin_graph(path: Option<String>, num_shards: usize) -> Graph {
         },
     };
 
-    fs::create_dir_all(data_dir.to_str().unwrap()).expect("Failed to create default directory /tmp/stablecoin");
+    let dir_str = data_dir.to_str().unwrap();
+    fs::create_dir_all(dir_str).expect(&format!("Failed to create directory {}", dir_str));
 
     if !data_dir.join("token_transfers.csv").exists() {
         fetch_file(data_dir.join("token_transfers.csv"), 10).expect("Failed to fetch stable coin data: https://raw.githubusercontent.com/Raphtory/Data/main/token_transfers.csv");
