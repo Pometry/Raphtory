@@ -8,6 +8,7 @@ use crate::db::view_api::{GraphViewOps, VertexViewOps};
 use itertools::Itertools;
 use rustc_hash::FxHashSet;
 use std::collections::{HashMap, HashSet};
+use tokio::time::Instant;
 use crate::core::utils::calculate_hash;
 use crate::core::vertex::InputVertex;
 
@@ -272,6 +273,8 @@ pub fn generic_taint<G: GraphViewOps, T: InputVertex>(
 
         i += 1;
     }
+
+    println!("Completed {} steps", i);
 
     let mut results: HashMap<String, Vec<(usize, i64, String)>> = HashMap::default();
 

@@ -4,9 +4,11 @@ use crate::db::view_api::internal::GraphViewInternalOps;
 use crate::db::view_api::GraphViewOps;
 use crate::graph_loader::source::csv_loader::CsvLoader;
 use serde::Deserialize;
-use std::path::PathBuf;
-use std::{env, fs, io, path::Path, time::Instant};
+use std::fs::File;
 use std::io::{copy, Cursor};
+use std::path::PathBuf;
+use std::time::Duration;
+use std::{env, fs, io, path::Path, time::Instant};
 
 #[derive(Deserialize, std::fmt::Debug)]
 pub struct StableCoin {
@@ -17,6 +19,20 @@ pub struct StableCoin {
     time_stamp: i64,
     contract_address: String,
     value: f64,
+}
+
+fn fetch_file(file_path: PathBuf, timeout: u64) -> Result<(), Box<dyn std::error::Error>> {
+    let client = reqwest::blocking::Client::builder()
+        .timeout(Duration::from_secs(timeout))
+        .build()?;
+    let response = client
+        .get("https://raw.githubusercontent.com/Raphtory/Data/main/token_transfers.csv")
+        .send()?;
+    let mut content = Cursor::new(response.bytes()?);
+    let mut file = File::create(&file_path)?;
+    copy(&mut content, &mut file)?;
+
+    Ok(())
 }
 
 pub fn stable_coin_graph(path: Option<String>, num_shards: usize) -> Graph {
@@ -32,7 +48,7 @@ pub fn stable_coin_graph(path: Option<String>, num_shards: usize) -> Graph {
     }
 
     if !data_dir.join("token_transfers.csv").exists() {
-        println!("Please download the stablecoin data from https://github.com/Raphtory/Data/raw/main/apache-ivy-2.5.0-bin.zip to a desired location and provide that location on next run!");
+        fetch_file(data_dir.join("token_transfers.csv"), 10).expect("Failed to fetch stable coin data: https://raw.githubusercontent.com/Raphtory/Data/main/token_transfers.csv");
     }
 
     let encoded_data_dir = data_dir.join("graphdb.bincode");
@@ -65,9 +81,9 @@ pub fn stable_coin_graph(path: Option<String>, num_shards: usize) -> Graph {
                     stablecoin.from_address,
                     stablecoin.to_address,
                     &vec![],
-                    None,
+                    Some(&stablecoin.contract_address),
                 )
-                    .expect("Failed to add edge");
+                .expect("Failed to add edge");
             })
             .expect("Failed to load graph from CSV data files");
 
