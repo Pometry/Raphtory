@@ -3,18 +3,20 @@ use crate::core::agg::set::Set;
 use crate::core::agg::*;
 use crate::core::state::def::*;
 use crate::core::state::*;
-use crate::db::graph::Graph;
 use crate::db::program::*;
-use crate::db::view_api::GraphViewOps;
+use crate::db::view_api::{GraphViewOps, VertexViewOps};
 use itertools::Itertools;
 use rustc_hash::FxHashSet;
 use std::collections::{HashMap, HashSet};
+use tokio::time::Instant;
+use crate::core::utils::calculate_hash;
+use crate::core::vertex::InputVertex;
 
-#[derive(Eq, Hash, PartialEq, Copy, Clone, Debug, Default)]
+#[derive(Eq, Hash, PartialEq, Clone, Debug, Default)]
 pub struct TaintMessage {
     pub edge_id: usize,
     pub event_time: i64,
-    pub src_vertex: u64,
+    pub src_vertex: String,
 }
 
 impl Add for TaintMessage {
@@ -30,7 +32,7 @@ impl Zero for TaintMessage {
         TaintMessage {
             edge_id: 0,
             event_time: -1,
-            src_vertex: 0,
+            src_vertex: "".to_string(),
         }
     }
 
@@ -43,7 +45,7 @@ impl Zero for TaintMessage {
             == TaintMessage {
                 edge_id: 0,
                 event_time: -1,
-                src_vertex: 0,
+                src_vertex: "".to_string(),
             }
     }
 }
@@ -86,7 +88,7 @@ impl Program for GenericTaintS0 {
                     TaintMessage {
                         edge_id: 0,
                         event_time: self.start_time,
-                        src_vertex: evv.global_id(),
+                        src_vertex: evv.name(),
                     },
                 );
                 evv.out_edges(self.start_time).for_each(|eev| {
@@ -97,7 +99,7 @@ impl Program for GenericTaintS0 {
                             TaintMessage {
                                 edge_id: eev.id(),
                                 event_time: t,
-                                src_vertex: evv.global_id(),
+                                src_vertex: evv.name(),
                             },
                         )
                     });
@@ -158,7 +160,7 @@ impl Program for GenericTaintS1 {
                     evv.update(&taint_status, Bool(true));
                 }
                 msgs.iter().for_each(|msg| {
-                    evv.update(&taint_history, *msg);
+                    evv.update(&taint_history, msg.clone());
                 });
 
                 let earliest_taint_time = msgs.into_iter().map(|msg| msg.event_time).min().unwrap();
@@ -172,7 +174,7 @@ impl Program for GenericTaintS1 {
                                 TaintMessage {
                                     edge_id: eev.id(),
                                     event_time: t,
-                                    src_vertex: evv.global_id(),
+                                    src_vertex: evv.name(),
                                 },
                             )
                         });
@@ -195,33 +197,32 @@ impl Program for GenericTaintS1 {
     }
 }
 
-pub fn generic_taint(
-    g: &Graph,
-    // window: Range<i64>,
+pub fn generic_taint<G: GraphViewOps, T: InputVertex>(
+    g: &G,
     iter_count: usize,
     start_time: i64,
-    infected_nodes: Vec<u64>,
-    stop_nodes: Vec<u64>,
-) -> HashMap<u64, Vec<(usize, i64, u64)>> {
+    infected_nodes: Vec<T>,
+    stop_nodes: Vec<T>,
+) -> HashMap<String, Vec<(usize, i64, String)>> {
     let mut c = GlobalEvalState::new(g.clone(), true);
-    let gtaint_s0 = GenericTaintS0::new(start_time, infected_nodes);
-    let gtaint_s1 = GenericTaintS1::new(stop_nodes);
+    let gtaint_s0 = GenericTaintS0::new(start_time, infected_nodes.into_iter().map(|n| n.id()).collect_vec());
+    let gtaint_s1 = GenericTaintS1::new(stop_nodes.into_iter().map(|n| n.id()).collect_vec());
 
     gtaint_s0.run_step(g, &mut c);
 
-    println!(
-        "step0, taint_status = {:?}",
-        c.read_vec_partitions(&val::<Bool>(0))
-    );
-    println!(
-        "step0, taint_history = {:?}",
-        c.read_vec_partitions(&hash_set::<TaintMessage>(1))
-    );
-    println!(
-        "step0, recv_tainted_msgs = {:?}",
-        c.read_vec_partitions(&hash_set::<TaintMessage>(2))
-    );
-    println!();
+    // println!(
+    //     "step0, taint_status = {:?}",
+    //     c.read_vec_partitions(&val::<Bool>(0))
+    // );
+    // println!(
+    //     "step0, taint_history = {:?}",
+    //     c.read_vec_partitions(&hash_set::<TaintMessage>(1))
+    // );
+    // println!(
+    //     "step0, recv_tainted_msgs = {:?}",
+    //     c.read_vec_partitions(&hash_set::<TaintMessage>(2))
+    // );
+    // println!();
 
     let mut last_taint_list = HashSet::<u64>::new();
     let mut i = 0;
@@ -234,22 +235,22 @@ pub fn generic_taint(
             .flat_map(|v| v.into_iter().flat_map(|c| c.into_iter().map(|(a, b)| a)))
             .collect();
 
-        println!(
-            "step{}, taint_status = {:?}",
-            i + 1,
-            c.read_vec_partitions(&val::<Bool>(0))
-        );
-        println!("step{}, taint_list = {:?}", i + 1, taint_list);
-        println!(
-            "step{}, taint_history = {:?}",
-            i + 1,
-            c.read_vec_partitions(&hash_set::<TaintMessage>(1))
-        );
-        println!(
-            "step{}, recv_tainted_msgs = {:?}",
-            i + 1,
-            c.read_vec_partitions(&hash_set::<TaintMessage>(2))
-        );
+        // println!(
+        //     "step{}, taint_status = {:?}",
+        //     i + 1,
+        //     c.read_vec_partitions(&val::<Bool>(0))
+        // );
+        // println!("step{}, taint_list = {:?}", i + 1, taint_list);
+        // println!(
+        //     "step{}, taint_history = {:?}",
+        //     i + 1,
+        //     c.read_vec_partitions(&hash_set::<TaintMessage>(1))
+        // );
+        // println!(
+        //     "step{}, recv_tainted_msgs = {:?}",
+        //     i + 1,
+        //     c.read_vec_partitions(&hash_set::<TaintMessage>(2))
+        // );
 
         let difference: Vec<_> = taint_list
             .iter()
@@ -257,8 +258,8 @@ pub fn generic_taint(
             .collect();
         let converged = difference.is_empty();
 
-        println!("taint_list diff = {:?}", difference);
-        println!();
+        // println!("taint_list diff = {:?}", difference);
+        // println!();
 
         if converged || i > iter_count {
             break;
@@ -273,9 +274,11 @@ pub fn generic_taint(
         i += 1;
     }
 
-    let mut results: HashMap<u64, Vec<(usize, i64, u64)>> = HashMap::default();
+    println!("Completed {} steps", i);
 
-    (0..g.nr_shards)
+    let mut results: HashMap<String, Vec<(usize, i64, String)>> = HashMap::default();
+
+    (0..g.num_shards())
         .into_iter()
         .fold(&mut results, |res, part_id| {
             c.fold_state(
@@ -284,7 +287,8 @@ pub fn generic_taint(
                 res,
                 |res, v_id, sc| {
                     res.insert(
-                        *v_id,
+                        g.vertex(*v_id).unwrap().name(),
+                        // *v_id,
                         sc.into_iter()
                             .map(|msg| (msg.edge_id, msg.event_time, msg.src_vertex))
                             .collect_vec(),
@@ -299,6 +303,7 @@ pub fn generic_taint(
 
 #[cfg(test)]
 mod generic_taint_tests {
+    use crate::db::graph::Graph;
     use super::*;
 
     fn load_graph(n_shards: usize, edges: Vec<(i64, u64, u64)>) -> Graph {
@@ -310,17 +315,17 @@ mod generic_taint_tests {
         graph
     }
 
-    fn test_generic_taint(
+    fn test_generic_taint<T: InputVertex>(
         graph: Graph,
+        iter_count: usize,
         start_time: i64,
-        infected_nodes: Vec<u64>,
-        stop_nodes: Vec<u64>,
-    ) -> HashMap<u64, Vec<(usize, i64, u64)>> {
-        let results: HashMap<u64, Vec<(usize, i64, u64)>> =
-            generic_taint(&graph, 20, start_time, infected_nodes, stop_nodes)
+        infected_nodes: Vec<T>,
+        stop_nodes: Vec<T>,
+    ) -> HashMap<String, Vec<(usize, i64, String)>> {
+        let results: HashMap<String, Vec<(usize, i64, String)>> =
+            generic_taint(&graph, iter_count, start_time, infected_nodes, stop_nodes)
                 .into_iter()
                 .collect();
-
         results
     }
 
@@ -342,15 +347,15 @@ mod generic_taint_tests {
             ],
         );
 
-        let results = test_generic_taint(graph, 11, vec![2], vec![]);
+        let results = test_generic_taint(graph, 20, 11, vec![2], vec![]);
 
         assert_eq!(
             results,
             HashMap::from([
-                (5, vec![(4, 13, 2), (5, 14, 5)]),
-                (2, vec![(0, 11, 2)]),
-                (7, vec![(8, 15, 4)]),
-                (4, vec![(3, 12, 2), (6, 14, 5)])
+                ("5".to_string(), vec![(4, 13, "2".to_string()), (5, 14, "5".to_string())]),
+                ("2".to_string(), vec![(0, 11, "2".to_string())]),
+                ("7".to_string(), vec![(8, 15, "4".to_string())]),
+                ("4".to_string(), vec![(3, 12, "2".to_string()), (6, 14, "5".to_string())])
             ])
         );
     }
@@ -373,16 +378,16 @@ mod generic_taint_tests {
             ],
         );
 
-        let results = test_generic_taint(graph, 11, vec![1, 2], vec![]);
+        let results = test_generic_taint(graph, 20, 11, vec![1, 2], vec![]);
 
         assert_eq!(
             results,
             HashMap::from([
-                (5, vec![(4, 13, 2), (5, 14, 5)]),
-                (2, vec![(0, 11, 2), (2, 11, 1)]),
-                (7, vec![(8, 15, 4)]),
-                (4, vec![(3, 12, 2), (6, 14, 5)]),
-                (1, vec![(0, 11, 1)])
+                ("4".to_string(), vec![(3, 12, "2".to_string()), (6, 14, "5".to_string())]),
+                ("1".to_string(), vec![(0, 11, "1".to_string())]),
+                ("5".to_string(), vec![(4, 13, "2".to_string()), (5, 14, "5".to_string())]),
+                ("7".to_string(), vec![(8, 15, "4".to_string())]),
+                ("2".to_string(), vec![(2, 11, "1".to_string()), (0, 11, "2".to_string())]),
             ])
         );
     }
@@ -405,15 +410,15 @@ mod generic_taint_tests {
             ],
         );
 
-        let results = test_generic_taint(graph, 11, vec![1, 2], vec![4, 5]);
+        let results = test_generic_taint(graph, 20, 11, vec![1, 2], vec![4, 5]);
 
         assert_eq!(
             results,
             HashMap::from([
-                (5, vec![(4, 13, 2)]),
-                (2, vec![(0, 11, 2), (2, 11, 1)]),
-                (4, vec![(3, 12, 2)]),
-                (1, vec![(0, 11, 1)])
+                ("5".to_string(), vec![(4, 13, "2".to_string())]),
+                ("2".to_string(), vec![(2, 11, "1".to_string()), (0, 11, "2".to_string())]),
+                ("1".to_string(), vec![(0, 11, "1".to_string())]),
+                ("4".to_string(), vec![(3, 12, "2".to_string())]),
             ])
         );
     }
@@ -438,15 +443,22 @@ mod generic_taint_tests {
             ],
         );
 
-        let results = test_generic_taint(graph, 11, vec![1, 2], vec![4, 5]);
+        let results = test_generic_taint(graph, 20, 11, vec![1, 2], vec![4, 5]);
 
         assert_eq!(
             results,
             HashMap::from([
-                (5, vec![(6, 13, 2)]),
-                (2, vec![(2, 12, 1), (0, 11, 2), (2, 11, 1)]),
-                (4, vec![(5, 12, 2)]),
-                (1, vec![(0, 11, 1)])
+                ("1".to_string(), vec![(0, 11, "1".to_string())]),
+                ("5".to_string(), vec![(6, 13, "2".to_string())]),
+                (
+                    "2".to_string(),
+                    vec![
+                        (2, 12, "1".to_string()),
+                        (2, 11, "1".to_string()),
+                        (0, 11, "2".to_string())
+                    ]
+                ),
+                ("4".to_string(), vec![(5, 12, "2".to_string())]),
             ])
         );
     }
