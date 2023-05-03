@@ -42,14 +42,11 @@ pub fn stable_coin_graph(path: Option<String>, num_shards: usize) -> Graph {
     let data_dir = match path {
         Some(path) => PathBuf::from(path),
         None => {
-            fs::create_dir_all(dir_str).expect("Failed to create default directory /tmp/stablecoin");
             default_data_dir
         },
     };
 
-    if !data_dir.exists() {
-        panic!("Missing data dir = {}", data_dir.to_str().unwrap())
-    }
+    fs::create_dir_all(data_dir.to_str().unwrap()).expect("Failed to create default directory /tmp/stablecoin");
 
     if !data_dir.join("token_transfers.csv").exists() {
         fetch_file(data_dir.join("token_transfers.csv"), 10).expect("Failed to fetch stable coin data: https://raw.githubusercontent.com/Raphtory/Data/main/token_transfers.csv");
