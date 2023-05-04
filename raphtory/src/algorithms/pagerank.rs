@@ -1,7 +1,7 @@
 use crate::{
     core::{
         agg::InitOneF32,
-        state::{self, ComputeStateVec},
+        state::{self, accumulator_id, compute_state::ComputeStateVec},
     },
     db::{
         task::{
@@ -29,9 +29,9 @@ pub fn unweighted_page_rank<G: GraphViewInternalOps + Send + Sync + Clone + 'sta
     let max_diff_val: f32 = tol.unwrap_or_else(|| 0.01f32);
     let damping_factor = 0.85;
 
-    let score = state::def::val::<f32>(0).init::<InitOneF32>();
-    let recv_score = state::def::sum::<f32>(1);
-    let max_diff = state::def::max::<f32>(2);
+    let score = accumulator_id::def::val::<f32>(0).init::<InitOneF32>();
+    let recv_score = accumulator_id::def::sum::<f32>(1);
+    let max_diff = accumulator_id::def::max::<f32>(2);
 
     ctx.agg_reset(recv_score);
     ctx.global_agg_reset(max_diff);
@@ -61,9 +61,15 @@ pub fn unweighted_page_rank<G: GraphViewInternalOps + Send + Sync + Clone + 'sta
         );
         let prev = s.read_local_prev(&score);
         let curr = s.read_local(&score);
-        
+
         let md = abs(prev - curr);
-        println!("{}, prev: {}, curr: {}, md: {}", s.global_id(), prev, curr, md);
+        println!(
+            "{}, prev: {}, curr: {}, md: {}",
+            s.global_id(),
+            prev,
+            curr,
+            md
+        );
 
         s.global_update(&max_diff, md);
         Step::Continue
@@ -85,7 +91,7 @@ pub fn unweighted_page_rank<G: GraphViewInternalOps + Send + Sync + Clone + 'sta
         threads,
         iter_count,
         None,
-        None
+        None,
     );
 
     let mut map: FxHashMap<u64, f32> = FxHashMap::default();

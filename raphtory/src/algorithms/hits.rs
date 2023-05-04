@@ -1,7 +1,10 @@
 use crate::algorithms::*;
 use crate::core::agg::*;
-use crate::core::state::def::*;
 use crate::core::state::*;
+use crate::core::state::accumulator_id::AccId;
+use crate::core::state::accumulator_id::def::max;
+use crate::core::state::accumulator_id::def::sum;
+use crate::core::state::accumulator_id::def::val;
 use crate::db::graph::Graph;
 use crate::db::program::*;
 use crate::db::view_api::GraphViewOps;

@@ -1,5 +1,5 @@
 use crate::{
-    core::state::{self, ComputeStateVec},
+    core::state::{self, compute_state::ComputeStateVec},
     db::{
         task::{
             context::Context,
@@ -33,7 +33,7 @@ where
 {
     let mut ctx: Context<G, ComputeStateVec> = graph.into();
 
-    let min = state::def::min::<u64>(0);
+    let min = state::accumulator_id::def::min::<u64>(0);
 
     // setup the aggregator to be merged post execution
     ctx.agg(min.clone());
@@ -67,12 +67,14 @@ where
 
     let mut map: FxHashMap<u64, u64> = FxHashMap::default();
 
-    state.inner().fold_state_internal(runner.ctx.ss(), &mut map, &min, |res, shard, pid, cc| {
-        if let Some(v_ref) = graph.lookup_by_pid_and_shard(pid, shard) {
-            res.insert(v_ref.g_id, cc);
-        }
-        res
-    });
+    state
+        .inner()
+        .fold_state_internal(runner.ctx.ss(), &mut map, &min, |res, shard, pid, cc| {
+            if let Some(v_ref) = graph.lookup_by_pid_and_shard(pid, shard) {
+                res.insert(v_ref.g_id, cc);
+            }
+            res
+        });
 
     map
 }

@@ -2,8 +2,7 @@ use std::sync::Arc;
 
 use crate::{
     core::{
-        agg::Accumulator,
-        state::{AccId, ComputeState, ShuffleComputeState, StateType},
+        agg::Accumulator, state::{shuffle_state::ShuffleComputeState, compute_state::ComputeState, StateType, accumulator_id::AccId},
     },
     db::view_api::internal::GraphViewInternalOps,
 };

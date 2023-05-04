@@ -9,9 +9,7 @@ use std::{
 };
 
 use crate::core::{
-    agg::Accumulator,
-    state::{AccId, ComputeState, ShuffleComputeState},
-    state::{ComputeStateMap, StateType},
+    agg::Accumulator, state::{accumulator_id::AccId, StateType, compute_state::{ComputeState, ComputeStateMap}, shuffle_state::ShuffleComputeState},
 };
 use crate::db::edge::EdgeView;
 use crate::db::vertex::VertexView;

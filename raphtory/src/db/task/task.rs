@@ -1,5 +1,4 @@
-use crate::core::state::ComputeState;
-
+use crate::core::state::compute_state::ComputeState;
 use crate::db::view_api::internal::GraphViewInternalOps;
 
 use super::context::GlobalState;

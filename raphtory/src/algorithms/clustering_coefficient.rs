@@ -62,7 +62,7 @@ pub struct TriangleCountS1 {}
 
 impl Program for TriangleCountS1 {
     fn local_eval<G: GraphViewOps>(&self, c: &LocalState<G>) {
-        let neighbors_set = c.agg(state::def::hash_set(0));
+        let neighbors_set = c.agg(state::accumulator_id::def::hash_set(0));
 
         c.step(|s| {
             for t in s.neighbours() {
@@ -74,7 +74,7 @@ impl Program for TriangleCountS1 {
     }
 
     fn post_eval<G: GraphViewOps>(&self, c: &mut GlobalEvalState<G>) {
-        let _ = c.agg(state::def::hash_set::<u64>(0));
+        let _ = c.agg(state::accumulator_id::def::hash_set::<u64>(0));
         c.step(|_| false)
     }
 
@@ -93,8 +93,8 @@ pub struct TriangleCountS2 {}
 impl Program for TriangleCountS2 {
     type Out = Option<usize>;
     fn local_eval<G: GraphViewOps>(&self, c: &LocalState<G>) {
-        let neighbors_set = c.agg(state::def::hash_set::<u64>(0));
-        let count = c.global_agg(state::def::sum::<usize>(1));
+        let neighbors_set = c.agg(state::accumulator_id::def::hash_set::<u64>(0));
+        let count = c.global_agg(state::accumulator_id::def::sum::<usize>(1));
 
         c.step(|s| {
             for t in s.neighbours() {
@@ -125,7 +125,7 @@ impl Program for TriangleCountS2 {
     }
 
     fn post_eval<G: GraphViewOps>(&self, c: &mut GlobalEvalState<G>) {
-        let _ = c.global_agg(state::def::sum::<usize>(1));
+        let _ = c.global_agg(state::accumulator_id::def::sum::<usize>(1));
         c.step(|_| false)
     }
 
@@ -134,7 +134,7 @@ impl Program for TriangleCountS2 {
     where
         Self: Sync,
     {
-        gs.read_global_state(&state::def::sum::<usize>(1))
+        gs.read_global_state(&state::accumulator_id::def::sum::<usize>(1))
     }
 }
 

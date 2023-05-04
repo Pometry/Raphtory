@@ -44,7 +44,8 @@
 //! println!("all_local_reciprocity: {:?}", all_local_reciprocity(&g));
 //! println!("global_reciprocity: {:?}", global_reciprocity(&g));
 //! ```
-use crate::core::state::{self, ComputeStateMap, ComputeState};
+use crate::core::state::compute_state::ComputeStateMap;
+use crate::core::state::{self};
 use crate::db::program::{EvalVertexView, GlobalEvalState, LocalState, Program};
 use crate::db::view_api::GraphViewOps;
 use std::collections::{HashMap, HashSet};
@@ -82,8 +83,8 @@ impl Program for GlobalReciprocity {
     type Out = f64;
 
     fn local_eval<G: GraphViewOps>(&self, c: &LocalState<G>) {
-        let total_out_neighbours = c.agg(state::def::sum::<usize>(0));
-        let total_out_inter_in = c.agg(state::def::sum::<usize>(1));
+        let total_out_neighbours = c.agg(state::accumulator_id::def::sum::<usize>(0));
+        let total_out_inter_in = c.agg(state::accumulator_id::def::sum::<usize>(1));
 
         c.step(|v| {
             let edge_counts = get_reciprocal_edge_count(&v);
@@ -93,8 +94,8 @@ impl Program for GlobalReciprocity {
     }
 
     fn post_eval<G: GraphViewOps>(&self, c: &mut GlobalEvalState<G>) {
-        let _ = c.global_agg(state::def::sum::<usize>(0));
-        let _ = c.global_agg(state::def::sum::<usize>(1));
+        let _ = c.global_agg(state::accumulator_id::def::sum::<usize>(0));
+        let _ = c.global_agg(state::accumulator_id::def::sum::<usize>(1));
         c.step(|_| true);
     }
 
@@ -103,9 +104,9 @@ impl Program for GlobalReciprocity {
     where
         Self: Sync,
     {
-        gs.read_global_state(&state::def::sum::<usize>(1))
+        gs.read_global_state(&state::accumulator_id::def::sum::<usize>(1))
             .unwrap_or(0) as f64
-            / gs.read_global_state(&state::def::sum::<usize>(0))
+            / gs.read_global_state(&state::accumulator_id::def::sum::<usize>(0))
                 .unwrap_or(0) as f64
     }
 }
@@ -116,7 +117,7 @@ impl Program for AllLocalReciprocity {
     type Out = HashMap<u64, f64>;
 
     fn local_eval<G: GraphViewOps>(&self, c: &LocalState<G>) {
-        let min = c.agg(state::def::sum(0));
+        let min = c.agg(state::accumulator_id::def::sum(0));
 
         c.step(|v| {
             let edge_counts = get_reciprocal_edge_count(&v);
@@ -130,7 +131,7 @@ impl Program for AllLocalReciprocity {
     }
 
     fn post_eval<G: GraphViewOps>(&self, c: &mut GlobalEvalState<G>) {
-        let _ = c.agg(state::def::sum::<usize>(0));
+        let _ = c.agg(state::accumulator_id::def::sum::<usize>(0));
         c.step(|_| true);
     }
 
@@ -138,7 +139,7 @@ impl Program for AllLocalReciprocity {
     where
         Self: Sync,
     {
-        let agg = state::def::sum::<f64>(0);
+        let agg = state::accumulator_id::def::sum::<f64>(0);
 
         let mut results: HashMap<u64, f64> = HashMap::default();
 

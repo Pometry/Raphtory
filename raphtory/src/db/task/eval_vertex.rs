@@ -8,7 +8,10 @@ use std::{
 use crate::{
     core::{
         agg::Accumulator,
-        state::{AccId, ComputeState, ShuffleComputeState, StateType},
+        state::{
+            accumulator_id::AccId, compute_state::ComputeState, shuffle_state::ShuffleComputeState,
+            StateType,
+        },
         tgraph::VertexRef,
     },
     db::view_api::internal::GraphViewInternalOps,
@@ -132,7 +135,6 @@ impl<'a, G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeSta
         owned_mut.accumulate_global(self.ss, a, id);
     }
 
-
     /// Reads the global state for a given accumulator, returned value is the global
     /// accumulated value for all shards. If the state does not exist, returns None.
     ///
@@ -159,7 +161,6 @@ impl<'a, G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeSta
         A: StateType,
     {
         self.global_state.borrow().read_global(self.ss, agg)
-        
     }
 
     /// Read the current value of the vertex state using the given accumulator.

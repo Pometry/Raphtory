@@ -1,6 +1,6 @@
 use std::{borrow::Cow, cell::RefCell, rc::Rc, sync::Arc};
 
-use crate::core::state::{ComputeState, ShuffleComputeState};
+use crate::core::state::{compute_state::ComputeState, shuffle_state::ShuffleComputeState};
 
 // this only contains the global state and it is synchronized after each task run
 #[derive(Clone, Debug)]

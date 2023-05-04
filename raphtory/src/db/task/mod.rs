@@ -5,9 +5,9 @@ use rayon::{ThreadPool, ThreadPoolBuilder};
 
 pub(crate) mod context;
 pub mod eval_vertex;
-pub(crate) mod task_state;
 pub mod task;
 pub mod task_runner;
+pub(crate) mod task_state;
 
 pub static POOL: Lazy<Arc<ThreadPool>> = Lazy::new(|| {
     let num_threads = std::env::var("DOCBROWN_MAX_THREADS")
@@ -41,7 +41,7 @@ pub fn custom_pool(n_threads: usize) -> Arc<ThreadPool> {
 #[cfg(test)]
 mod task_tests {
     use crate::{
-        core::state::{self, ComputeStateVec},
+        core::state::{self, compute_state::ComputeStateVec},
         db::graph::Graph,
     };
 
@@ -72,7 +72,7 @@ mod task_tests {
 
         let mut ctx: Context<Graph, ComputeStateVec> = (&graph).into();
 
-        let count = state::def::sum::<usize>(0);
+        let count = state::accumulator_id::def::sum::<usize>(0);
 
         ctx.global_agg(count.clone());
 

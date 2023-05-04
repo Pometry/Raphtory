@@ -7,7 +7,7 @@ use std::{
 
 use num_traits::{Bounded, Zero};
 
-use crate::core::state::StateType;
+use super::state::StateType;
 
 pub trait Accumulator<A, IN, OUT>: Send + Sync + 'static {
     fn zero() -> A;
