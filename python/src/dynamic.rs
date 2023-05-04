@@ -45,8 +45,8 @@ impl IntoDynamic for DynamicGraph {
 }
 
 impl GraphViewInternalOps for DynamicGraph {
-    fn get_unique_layers(&self) -> Vec<String> {
-        self.0.get_unique_layers()
+    fn get_unique_layers_internal(&self) -> Vec<String> {
+        self.0.get_unique_layers_internal()
     }
 
     fn get_layer(&self, key: Option<&str>) -> Option<usize> {

@@ -62,8 +62,8 @@ pub struct WindowedGraph<G: GraphViewInternalOps> {
 /// This trait provides operations to a `WindowedGraph` used internally by the `GraphWindowSet`.
 /// *Note: All functions in this are bound by the time set in the windowed graph.
 impl<G: GraphViewOps> GraphViewInternalOps for WindowedGraph<G> {
-    fn get_unique_layers(&self) -> Vec<String> {
-        self.graph.get_unique_layers()
+    fn get_unique_layers_internal(&self) -> Vec<String> {
+        self.graph.get_unique_layers_internal()
     }
 
     fn get_layer(&self, key: Option<&str>) -> Option<usize> {

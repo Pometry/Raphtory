@@ -58,7 +58,7 @@ pub struct Graph {
 }
 
 impl GraphViewInternalOps for Graph {
-    fn get_unique_layers(&self) -> Vec<String> {
+    fn get_unique_layers_internal(&self) -> Vec<String> {
         self.layer_ids.read().keys().into_iter().map(|c| c.clone()).collect_vec()
     }
 

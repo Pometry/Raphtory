@@ -1,5 +1,6 @@
 import re
 import sys
+import time
 
 import pytest
 from raphtory import Graph
@@ -872,20 +873,24 @@ def test_generic_taint():
 def test_generic_taint_loader():
     g = graph_loader.stable_coin_graph("/tmp/stablecoin", 1)
 
+    assert(g.get_unique_layers() == ["0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48", "0xd2877702675e6ceb975b4a1dff9fb7baf4c91ea9", "0xa47c8bf37f92abed4a126bda807a7b7498661acd", "0x6b175474e89094c44da98b954eedeac495271d0f", "0xdac17f958d2ee523a2206206994597c13d831ec7", "0x8e870d67f660d95d5be530380d0ec0bd388289e1"])
+
     max_size = sys.maxsize
     min_size = -sys.maxsize - 1
 
-    res = algorithms.pagerank(g, min_size, max_size, 20)
+    start_time = time.time()
+    algorithms.pagerank(g, min_size, max_size, 20)
+    end_time = time.time()
 
-    print(res)
+    print("Time taken (in secs) to run pagerank on stablecoin data", end_time - start_time)
 
-    # actual = algorithms.generic_taint(g, 20, 1651105815, ["0xd30b438df65f4f788563b2b3611bd6059bff4ad9"], [])
-    # expected = {
-    #     '0xd30b438df65f4f788563b2b3611bd6059bff4ad9': [(0, 1651105815, '0xd30b438df65f4f788563b2b3611bd6059bff4ad9')],
-    #     '0xda816e2122a8a39b0926bfa84edd3d42477e9efd': [(1, 1651105815, '0xd30b438df65f4f788563b2b3611bd6059bff4ad9')],
-    # }
-    #
-    # assert (actual == expected)
+    actual = algorithms.generic_taint(g, 20, 1651105815, ["0xd30b438df65f4f788563b2b3611bd6059bff4ad9"], [])
+    expected = {
+        '0xd30b438df65f4f788563b2b3611bd6059bff4ad9': [(0, 1651105815, '0xd30b438df65f4f788563b2b3611bd6059bff4ad9')],
+        '0xda816e2122a8a39b0926bfa84edd3d42477e9efd': [(1, 1651105815, '0xd30b438df65f4f788563b2b3611bd6059bff4ad9')],
+    }
+
+    assert (actual == expected)
 
 def test_layer():
     g = Graph(1)
