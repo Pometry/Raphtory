@@ -7,7 +7,7 @@ use std::ops::Range;
 use crate::core::adj::Adj;
 use crate::core::props::Props;
 use crate::core::tadjset::AdjEdge;
-use crate::core::tgraph::{EdgeRef, TimeIndex};
+use crate::core::tgraph::{EdgeRef, TimeIndex, VertexRef};
 use crate::core::{Direction, Prop};
 
 use super::tadjset::TAdjSet;
@@ -137,9 +137,7 @@ impl EdgeLayer {
             Some(ts) => {
                 ts.insert(t);
             }
-            None => {
-                self.timestamps.push(TimeIndex::one(t))
-            }
+            None => self.timestamps.push(TimeIndex::one(t)),
         };
         edge
     }
@@ -382,6 +380,43 @@ impl EdgeLayer {
 
 // MULTIPLE EDGE ACCES:
 impl EdgeLayer {
+    pub fn degree(&self, v_pid: usize, d: Direction) -> usize {
+        match d {
+            Direction::OUT => match &self.adj_lists[v_pid] {
+                Adj::Solo => 0,
+                Adj::List {
+                    out, remote_out, ..
+                } => out.len() + remote_out.len(),
+            },
+            Direction::IN => match &self.adj_lists[v_pid] {
+                Adj::Solo => 0,
+                Adj::List {
+                    into, remote_into, ..
+                } => into.len() + remote_into.len(),
+            },
+            Direction::BOTH => match &self.adj_lists[v_pid] {
+                Adj::Solo => 0,
+                Adj::List {
+                    out,
+                    remote_out,
+                    into,
+                    remote_into,
+                } => {
+                    [out.iter(), into.iter()]
+                        .into_iter()
+                        .kmerge()
+                        .dedup()
+                        .count()
+                        + [remote_out.iter(), remote_into.iter()]
+                            .into_iter()
+                            .kmerge()
+                            .dedup()
+                            .count()
+                }
+            },
+        }
+    }
+
     pub(crate) fn edges_iter<'a>(
         &'a self,
         vertex_id: u64,

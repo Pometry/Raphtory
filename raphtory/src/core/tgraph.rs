@@ -389,9 +389,13 @@ impl TemporalGraph {
     }
 
     pub(crate) fn degree(&self, v: u64, d: Direction, layer: Option<usize>) -> usize {
-        self.vertex_edges(v, d, layer)
-            .dedup_by(|(left, e1), (right, e2)| left == right && e1.is_remote == e2.is_remote)
-            .count()
+        let v_pid = self.logical_to_physical[&v];
+        match self.layer_iter_optm(layer) {
+            LayerIterator::Single(layer) => layer.degree(v_pid, d),
+            LayerIterator::Vector(layers) => {
+                layers.iter().map(|layer| layer.degree(v_pid, d)).sum()
+            }
+        }
     }
 
     pub fn degree_window(
