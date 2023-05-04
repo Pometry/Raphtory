@@ -8,7 +8,6 @@ pub struct AccId<A, IN, OUT, ACC: Accumulator<A, IN, OUT>> {
 
 pub type AccId1<A, ACC> = AccId<A, A, A, ACC>;
 
-
 impl<A, IN, OUT, ACC: Accumulator<A, IN, OUT>> Copy for AccId<A, IN, OUT, ACC> {}
 
 impl<A, IN, OUT, ACC: Accumulator<A, IN, OUT>> AccId<A, IN, OUT, ACC> {
@@ -40,11 +39,14 @@ unsafe impl<A, IN, OUT, ACC: Accumulator<A, IN, OUT>> Sync for AccId<A, IN, OUT,
 
 pub mod def {
     use super::AccId;
-    use crate::core::{agg::{
-        set::{BitSet, Set},
-        topk::{TopK, TopKHeap},
-        AndDef, AvgDef, MaxDef, MinDef, SumDef, ValDef, 
-    }, state::StateType};
+    use crate::core::{
+        agg::{
+            set::{BitSet, Set},
+            topk::{TopK, TopKHeap},
+            AndDef, AvgDef, MaxDef, MinDef, SumDef, ValDef,
+        },
+        state::StateType,
+    };
     use num_traits::{Bounded, Zero};
     use roaring::{RoaringBitmap, RoaringTreemap};
     use rustc_hash::FxHashSet;

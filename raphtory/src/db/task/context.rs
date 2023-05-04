@@ -2,12 +2,16 @@ use std::sync::Arc;
 
 use crate::{
     core::{
-        agg::Accumulator, state::{shuffle_state::ShuffleComputeState, compute_state::ComputeState, StateType, accumulator_id::AccId},
+        agg::Accumulator,
+        state::{
+            accumulator_id::AccId, compute_state::ComputeState, shuffle_state::ShuffleComputeState,
+            StateType,
+        },
     },
     db::view_api::internal::GraphViewInternalOps,
 };
 
-use super::task_state::{Shard, Global};
+use super::task_state::{Global, Shard};
 
 type MergeFn<CS> =
     Arc<dyn Fn(&mut ShuffleComputeState<CS>, &ShuffleComputeState<CS>, usize) + Send + Sync>;
@@ -44,11 +48,11 @@ where
         &self.resetable_states
     }
 
-    pub(crate) fn run_merge_shard(&self, mut a: Shard<CS>, mut b : Shard<CS>) -> Shard<CS>{
+    pub(crate) fn run_merge_shard(&self, mut a: Shard<CS>, mut b: Shard<CS>) -> Shard<CS> {
         self.run_merge(a.unwrap(), b.unwrap()).into()
     }
 
-    pub(crate) fn run_merge_global(&self, mut a: Global<CS>, mut b : Global<CS>) -> Global<CS>{
+    pub(crate) fn run_merge_global(&self, mut a: Global<CS>, mut b: Global<CS>) -> Global<CS> {
         self.run_merge(a.unwrap(), b.unwrap()).into()
     }
 
@@ -138,10 +142,13 @@ impl<G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeState> 
     }
 }
 
-pub struct GlobalState<CS:ComputeState>{state: Global<CS>, ss: usize}
+pub struct GlobalState<CS: ComputeState> {
+    state: Global<CS>,
+    ss: usize,
+}
 
-impl <CS:ComputeState>  GlobalState<CS> {
-    pub(crate) fn new(state: Global<CS>, ss:usize,) -> Self {
+impl<CS: ComputeState> GlobalState<CS> {
+    pub(crate) fn new(state: Global<CS>, ss: usize) -> Self {
         Self { state, ss }
     }
 
@@ -153,9 +160,9 @@ impl <CS:ComputeState>  GlobalState<CS> {
         A: StateType,
         OUT: std::fmt::Debug,
     {
-        self.state.inner()
+        self.state
+            .inner()
             .read_global(self.ss, acc_id)
             .unwrap_or(ACC::finish(&ACC::zero()))
     }
-
 }

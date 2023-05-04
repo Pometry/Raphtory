@@ -9,15 +9,21 @@ use std::{
 };
 
 use crate::core::{
-    agg::Accumulator, state::{accumulator_id::AccId, StateType, compute_state::{ComputeState, ComputeStateMap}, shuffle_state::ShuffleComputeState},
+    agg::Accumulator,
+    state::{
+        accumulator_id::AccId,
+        compute_state::{ComputeState, ComputeStateMap},
+        shuffle_state::ShuffleComputeState,
+        StateType,
+    },
 };
 use crate::db::edge::EdgeView;
+use crate::db::graph_window::WindowedGraph;
 use crate::db::vertex::VertexView;
 use crate::db::view_api::{GraphViewOps, TimeOps, VertexViewOps};
 use itertools::Itertools;
 use rayon::prelude::*;
 use rustc_hash::FxHashSet;
-use crate::db::graph_window::WindowedGraph;
 
 use super::view_api::internal::GraphViewInternalOps;
 
@@ -679,7 +685,6 @@ impl<G: GraphViewOps> EvalVertexView<G> {
             .accumulate_into(self.ss, self.vv.id() as usize, a, agg)
     }
 
-
     pub fn update2<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
         &self,
         id: &AccId<A, IN, OUT, ACC>,
@@ -853,13 +858,14 @@ impl<G: GraphViewOps> EvalVertexView<G> {
             .map(move |vv| EvalVertexView::new(self.ss, vv, self.state.clone()))
     }
 
-    pub fn out_edges(&self, after: i64) -> impl Iterator<Item = EvalEdgeView<WindowedGraph<G>>> + '_ {
+    pub fn out_edges(
+        &self,
+        after: i64,
+    ) -> impl Iterator<Item = EvalEdgeView<WindowedGraph<G>>> + '_ {
         self.vv
             .window(after, i64::MAX)
             .out_edges()
-            .map(move |ev| {
-                EvalEdgeView::new(self.ss, ev, self.state.clone())
-            })
+            .map(move |ev| EvalEdgeView::new(self.ss, ev, self.state.clone()))
     }
 }
 

@@ -14,7 +14,8 @@ use itertools::Itertools;
 use rayon::{prelude::*, ThreadPool};
 
 use crate::{
-    db::view_api::internal::GraphViewInternalOps, core::state::{compute_state::ComputeState, shuffle_state::ShuffleComputeState},
+    core::state::{compute_state::ComputeState, shuffle_state::ShuffleComputeState},
+    db::view_api::internal::GraphViewInternalOps,
 };
 
 use super::{

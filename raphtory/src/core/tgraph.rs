@@ -126,7 +126,7 @@ impl TemporalGraph {
         &self,
         start: Time,
         end: Time,
-    ) -> impl ParallelIterator<Item = VertexRef> + '_{
+    ) -> impl ParallelIterator<Item = VertexRef> + '_ {
         let chunk_size = 64_000;
         let iter =
             self.logical_ids

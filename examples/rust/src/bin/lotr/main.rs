@@ -1,7 +1,7 @@
 use itertools::Itertools;
 use raphtory::algorithms::generic_taint::generic_taint;
+use raphtory::core::utils;
 use raphtory::core::Prop;
-use raphtory::core:: utils;
 use raphtory::db::graph::Graph;
 use raphtory::db::view_api::*;
 use raphtory::graph_loader::source::csv_loader::CsvLoader;

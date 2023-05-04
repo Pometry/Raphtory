@@ -133,7 +133,7 @@ impl<G: GraphViewOps> VertexViewOps for Vertices<G> {
 
     fn out_neighbours(&self) -> PathFromGraph<G> {
         let dir = Direction::OUT;
-        PathFromGraph::new(Arc::new( self.graph.clone() ), Operations::Neighbours { dir })
+        PathFromGraph::new(Arc::new(self.graph.clone()), Operations::Neighbours { dir })
     }
 }
 

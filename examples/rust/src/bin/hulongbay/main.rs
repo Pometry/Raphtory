@@ -1,12 +1,11 @@
 // #![allow(unused_imports)]
+use std::env;
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
 use std::path::Path;
-use std::env;
 
 use itertools::Itertools;
 use raphtory::algorithms::connected_components::weakly_connected_components;
-// use raphtory::algorithms::connected_components::weakly_connected_components;
 use raphtory::algorithms::triangle_count::triangle_counting_fast;
 use raphtory::core::{Direction, Prop};
 use raphtory::db::graph::Graph;
@@ -112,7 +111,6 @@ fn try_main() -> Result<(), Box<dyn Error>> {
     let min_time = graph.start().ok_or(GraphEmptyError)?;
     let max_time = graph.end().ok_or(GraphEmptyError)?;
     let mid_time = (min_time + max_time) / 2;
-    //2575786
     let now = Instant::now();
     let actual_tri_count = triangle_counting_fast(&graph, None);
 
@@ -233,7 +231,7 @@ fn try_main_bm() -> Result<(), Box<dyn Error>> {
 }
 
 fn main() {
-    if let Err(e) = try_main() {
+    if let Err(e) = try_main_bm() {
         eprintln!("Failed: {}", e);
         std::process::exit(1)
     }

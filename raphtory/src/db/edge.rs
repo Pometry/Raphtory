@@ -55,7 +55,10 @@ impl<G: GraphViewOps> EdgeView<G> {
     }
 
     pub fn new_from_graph(graph: G, edge: EdgeRef) -> Self {
-        EdgeView { graph: Arc::new(graph), edge }
+        EdgeView {
+            graph: Arc::new(graph),
+            edge,
+        }
     }
 
     /// Returns a reference to the underlying edge reference.
