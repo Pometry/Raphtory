@@ -15,6 +15,13 @@
 <a href="https://github.com/Raphtory/Raphtory/issues">
 <img alt="Issues" src="https://img.shields.io/github/issues/Raphtory/Raphtory?color=brightgreen" />
 </a>
+<a href="https://crates.io/crates/docbrown">
+<img alt="Crates.io" src="https://img.shields.io/crates/v/docbrown">
+</a>
+<a href="https://pypi.org/project/raphtory/">
+<img alt="PyPI" src="https://img.shields.io/pypi/v/raphtory">
+</a>
+
 <a href="https://mybinder.org/v2/gh/Raphtory/Raphtory/master?labpath=examples%2Fpy%2Flotr%2Flotr.ipynb">
 <img alt="Launch Notebook" src="https://mybinder.org/badge_logo.svg" />
 </a>
@@ -36,7 +43,7 @@
 <br>
 
 Raphtory is an in-memory graph tool written in Rust with friendly Python APIs on top. It is blazingly fast, scales to hundreds of millions of edges 
-on your laptop, and can be dropped into your existing pipelines with a simple `pip install raphtory`/  
+on your laptop, and can be dropped into your existing pipelines with a simple `pip install raphtory`.  
 
 It supports time traveling, multilayer modelling, and advanced analytics beyond simple querying like community evolution, dynamic scoring, and mining temporal motifs.
 
@@ -53,9 +60,9 @@ import pandas as pd
 graph = Graph()
 
 # Add some data to your graph
-graph.add_vertex(timestamp=1,  id="Alice")
-graph.add_vertex(timestamp=1,  id="Bob")
-graph.add_vertex(timestamp=1,  id="Charlie")
+graph.add_vertex(timestamp=1, id="Alice")
+graph.add_vertex(timestamp=1, id="Bob")
+graph.add_vertex(timestamp=1, id="Charlie")
 graph.add_edge  (timestamp=2, src="Bob",   dst="Charlie", properties={"weight":5.0})
 graph.add_edge  (timestamp=3, src="Alice", dst="Bob",     properties={"weight":10.0})
 graph.add_edge  (timestamp=3, src="Bob",   dst="Charlie", properties={"weight":-15.0})
@@ -68,7 +75,7 @@ results = [["earliest_time", "name", "out_degree", "in_degree"]]
 # Collect some simple vertex metrics Ran across the history of your graph with a rolling window
 for graph_view in graph.rolling(window=1):
     for v in graph_view.vertices():
-        results.append([graph_view.earliest_time(),v.name(),v.out_degree(), v.in_degree()])
+        results.append([graph_view.earliest_time(), v.name(), v.out_degree(), v.in_degree()])
 
 # Print the results
 print(pd.DataFrame(results[1:], columns=results[0]))
@@ -80,7 +87,7 @@ print("The edge between Bob and Charlie has the following weight history:", weig
 
 # Compare this weight between time 2 and time 3
 weight_change = cb_edge.at(2)["weight"] - cb_edge.at(3)["weight"]
-print("The weight of the edge between Bob and Charlie has dropped by",weight_change,"pts")
+print("The weight of the edge between Bob and Charlie has changed by",weight_change,"pts")
 ```
 
 ```a
@@ -99,7 +106,7 @@ Graph(number_of_edges=2, number_of_vertices=3, earliest_time=1, latest_time=3)
 
 The edge between Bob and Charlie has the following weight history: [(2, 5.0), (3, -15.0)]
 
-The weight of the edge between Bob and Charlie has dropped by 20.0 pts
+The weight of the edge between Bob and Charlie has changed by 20.0 pts
 ```
 
 
