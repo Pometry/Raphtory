@@ -28,21 +28,26 @@ pub mod error {
 }
 
 pub trait IntoTime {
-    fn into_time(&self) -> Result<i64, ParseTimeError>;
+    fn into_time(self) -> Result<i64, ParseTimeError>;
 }
 
 impl IntoTime for i64 {
-    fn into_time(&self) -> Result<i64, ParseTimeError> {
-        Ok(*self)
+    fn into_time(self) -> Result<i64, ParseTimeError> {
+        Ok(self)
     }
 }
 
 impl IntoTime for &str {
     /// Tries to parse the timestamp as RFC3339 and then as ISO 8601 with local format and all
     /// fields mandatory except for milliseconds and allows replacing the T with a space
-    fn into_time(&self) -> Result<i64, ParseTimeError> {
+    fn into_time(self) -> Result<i64, ParseTimeError> {
         let rfc_result = DateTime::parse_from_rfc3339(self);
         if let Ok(datetime) = rfc_result {
+            return Ok(datetime.timestamp_millis());
+        }
+
+        let result = DateTime::parse_from_rfc2822(self);
+        if let Ok(datetime) = result {
             return Ok(datetime.timestamp_millis());
         }
 
@@ -193,7 +198,7 @@ impl Add<Interval> for i64 {
 
 #[cfg(test)]
 mod time_tests {
-    use crate::core::time::{Interval, ParseTimeError};
+    use crate::core::time::{Interval, IntoTime, ParseTimeError};
     #[test]
     fn interval_parsing() {
         let second: u64 = 1000;

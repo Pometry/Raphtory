@@ -1,3 +1,4 @@
+pub mod doc_strings;
 pub mod edge;
 pub mod graph;
 pub mod graph_immutable;

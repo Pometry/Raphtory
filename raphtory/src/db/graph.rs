@@ -885,6 +885,7 @@ mod db_tests {
     use crate::core::utils;
     use crate::db::edge::EdgeView;
     use crate::db::path::PathFromVertex;
+    use crate::db::view_api::layer::LayerOps;
     use crate::db::view_api::*;
     use crate::graphgen::random_attachment::random_attachment;
     use csv::StringRecord;

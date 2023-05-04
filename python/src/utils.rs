@@ -7,10 +7,12 @@ use pyo3::exceptions::{PyException, PyTypeError};
 use pyo3::prelude::*;
 use raphtory::core::tgraph::VertexRef;
 use raphtory::core::time::error::ParseTimeError;
-use raphtory::core::time::Interval;
+use raphtory::core::time::{Interval, IntoTime};
 use raphtory::db::view_api::time::WindowSet;
 use raphtory::db::view_api::TimeOps;
 use std::error::Error;
+use raphtory::core::vertex::InputVertex;
+use raphtory::core as dbc;
 
 /// Extract a `VertexRef` from a Python object.
 /// The object can be a `str`, `u64` or `PyVertex`.
@@ -37,10 +39,20 @@ pub(crate) fn extract_vertex_ref(vref: &PyAny) -> PyResult<VertexRef> {
 
 pub(crate) fn window_impl<T: TimeOps + Sized + Clone>(
     slf: &T,
-    t_start: Option<i64>,
-    t_end: Option<i64>,
-) -> T::WindowedViewType {
-    slf.window(t_start.unwrap_or(i64::MIN), t_end.unwrap_or(i64::MAX))
+    t_start: Option<&PyAny>,
+    t_end: Option<&PyAny>,
+) -> PyResult<T::WindowedViewType> {
+    let t_start = t_start.map(|t| extract_time(t)).transpose()?;
+    let t_end = t_end.map(|t| extract_time(t)).transpose()?;
+    Ok(slf.window(t_start.unwrap_or(i64::MIN), t_end.unwrap_or(i64::MAX)))
+}
+
+pub(crate) fn at_impl<T: TimeOps + Sized + Clone>(
+    slf: &T,
+    end: &PyAny,
+) -> PyResult<T::WindowedViewType> {
+    let end = extract_time(end)?;
+    Ok(slf.at(end))
 }
 
 pub(crate) fn adapt_err_value<E>(err: &E) -> PyErr
@@ -78,6 +90,74 @@ where
     adapt_result(slf.rolling(window, step)).map(|iter| iter.into())
 }
 
+fn parse_email_timestamp(timestamp: &str) -> PyResult<i64> {
+    Python::with_gil(|py| {
+        let email_utils = PyModule::import(py, "email.utils")?;
+        let datetime = email_utils.call_method1("parsedate_to_datetime", (timestamp,))?;
+        let py_seconds = datetime.call_method1("timestamp", ())?;
+        let seconds = py_seconds.extract::<f64>()?;
+        Ok(seconds as i64 * 1000)
+    })
+}
+
+pub(crate) fn extract_time(time: &PyAny) -> PyResult<i64> {
+    let from_number = time.extract::<i64>().map(|n| Ok(n));
+    let from_str = time.extract::<&str>().map(|str| {
+        str.into_time()
+            .or_else(|e| parse_email_timestamp(str).map_err(|_| e))
+    });
+
+    let mut extract_results = vec![from_number, from_str].into_iter();
+    let first_valid_extraction = extract_results
+        .find_map(|result| match result {
+            Ok(val) => Some(Ok(val)),
+            Err(_) => None,
+        })
+        .unwrap_or_else(|| {
+            let message = format!("time '{time}' must be a str or an int");
+            Err(PyTypeError::new_err(message))
+        })?;
+
+    adapt_result(first_valid_extraction)
+}
+
+pub(crate) fn extract_into_time(time: &PyAny) -> PyResult<TimeBox> {
+    let string = time.extract::<String>();
+    let result = string.map(|string| {
+        let timestamp = string.as_str();
+        let parsing_result = timestamp
+            .into_time()
+            .or_else(|e| parse_email_timestamp(timestamp).map_err(|_| e));
+        TimeBox::new(parsing_result)
+    });
+
+    let result = result.or_else(|_| {
+        let number = time.extract::<i64>();
+        number.map(|number| TimeBox::new(number.into_time()))
+    });
+
+    result.map_err(|_| {
+        let message = format!("time '{time}' must be a str or an integer");
+        PyTypeError::new_err(message)
+    })
+}
+
+pub(crate) struct TimeBox {
+    parsing_result: Result<i64, ParseTimeError>,
+}
+
+impl TimeBox {
+    fn new(parsing_result: Result<i64, ParseTimeError>) -> Self {
+        Self { parsing_result }
+    }
+}
+
+impl IntoTime for TimeBox {
+    fn into_time(self) -> Result<i64, ParseTimeError> {
+        self.parsing_result
+    }
+}
+
 pub(crate) fn extract_interval(interval: &PyAny) -> PyResult<IntervalBox> {
     let string = interval.extract::<String>();
     let result = string.map(|string| IntervalBox::new(string.as_str()));
@@ -88,7 +168,7 @@ pub(crate) fn extract_interval(interval: &PyAny) -> PyResult<IntervalBox> {
     });
 
     result.map_err(|_| {
-        let message = format!("interval '{interval}' must be a str or an unsigned number");
+        let message = format!("interval '{interval}' must be a str or an unsigned integer");
         PyTypeError::new_err(message)
     })
 }
@@ -112,5 +192,52 @@ impl TryFrom<IntervalBox> for Interval {
     type Error = ParseTimeError;
     fn try_from(value: IntervalBox) -> Result<Self, Self::Error> {
         value.interval
+    }
+}
+
+/// A trait for vertices that can be used as input for the graph.
+/// This allows us to add vertices with different types of ids, either strings or ints.
+#[derive(Clone, Debug)]
+pub struct InputVertexBox {
+    id: u64,
+    name_prop: Option<dbc::Prop>,
+}
+
+/// Implementation for vertices that can be used as input for the graph.
+/// This allows us to add vertices with different types of ids, either strings or ints.
+impl InputVertexBox {
+    pub(crate) fn new<T>(vertex: T) -> InputVertexBox
+        where
+            T: InputVertex,
+    {
+        InputVertexBox {
+            id: vertex.id(),
+            name_prop: vertex.name_prop(),
+        }
+    }
+}
+
+/// Implementation for vertices that can be used as input for the graph.
+/// This allows us to add vertices with different types of ids, either strings or ints.
+impl InputVertex for InputVertexBox {
+    /// Returns the id of the vertex.
+    fn id(&self) -> u64 {
+        self.id
+    }
+
+    /// Returns the name property of the vertex.
+    fn name_prop(&self) -> Option<dbc::Prop> {
+        self.name_prop.clone()
+    }
+}
+
+pub(crate) fn extract_input_vertex(id: &PyAny) -> PyResult<InputVertexBox> {
+    match id.extract::<String>() {
+        Ok(string) => Ok(InputVertexBox::new(string)),
+        Err(_) => {
+            let msg = "IDs need to be strings or an unsigned integers";
+            let number = id.extract::<u64>().map_err(|_| PyTypeError::new_err(msg))?;
+            Ok(InputVertexBox::new(number))
+        }
     }
 }

@@ -91,7 +91,7 @@ pub mod errors {
         IncorrectPropertyType,
         #[error("Failed to mutate graph")]
         FailedToMutateGraph { source: MutateGraphError },
-        #[error("Failed to parse time strings")]
+        #[error("Failed to parse time string")]
         ParseTime {
             #[from]
             source: ParseTimeError,

@@ -1,8 +1,10 @@
 use crate::core::tgraph::VertexRef;
 use crate::core::{Direction, Prop};
 use crate::db::edge::EdgeView;
+use crate::db::graph_layer::LayeredGraph;
 use crate::db::graph_window::WindowedGraph;
 use crate::db::vertex::VertexView;
+use crate::db::view_api::layer::LayerOps;
 use crate::db::view_api::BoxedIter;
 use crate::db::view_api::*;
 use std::collections::HashMap;
@@ -245,6 +247,24 @@ impl<G: GraphViewOps> TimeOps for PathFromGraph<G> {
     }
 }
 
+impl<G: GraphViewOps> LayerOps for PathFromGraph<G> {
+    type LayeredViewType = PathFromGraph<LayeredGraph<G>>;
+
+    fn default_layer(&self) -> Self::LayeredViewType {
+        PathFromGraph {
+            graph: self.graph.default_layer(),
+            operations: self.operations.clone(),
+        }
+    }
+
+    fn layer(&self, name: &str) -> Option<Self::LayeredViewType> {
+        Some(PathFromGraph {
+            graph: self.graph.layer(name)?,
+            operations: self.operations.clone(),
+        })
+    }
+}
+
 #[derive(Clone)]
 pub struct PathFromVertex<G: GraphViewOps> {
     pub graph: G,
@@ -276,6 +296,7 @@ impl<G: GraphViewOps> PathFromVertex<G> {
         }
     }
 }
+
 impl<G: GraphViewOps> VertexViewOps for PathFromVertex<G> {
     type Graph = G;
     type ValueType<T> = BoxedIter<T>;
@@ -409,6 +430,26 @@ impl<G: GraphViewOps> TimeOps for PathFromVertex<G> {
             vertex: self.vertex,
             operations: self.operations.clone(),
         }
+    }
+}
+
+impl<G: GraphViewOps> LayerOps for PathFromVertex<G> {
+    type LayeredViewType = PathFromVertex<LayeredGraph<G>>;
+
+    fn default_layer(&self) -> Self::LayeredViewType {
+        PathFromVertex {
+            graph: self.graph.default_layer(),
+            vertex: self.vertex,
+            operations: self.operations.clone(),
+        }
+    }
+
+    fn layer(&self, name: &str) -> Option<Self::LayeredViewType> {
+        Some(PathFromVertex {
+            graph: self.graph.layer(name)?,
+            vertex: self.vertex,
+            operations: self.operations.clone(),
+        })
     }
 }
 

@@ -5,14 +5,14 @@
 //! It is a wrapper around a set of shards, which are the actual graph data structures.
 //! In Python, this class wraps around the rust graph.
 
+use crate::dynamic::IntoDynamic;
 use crate::graph_view::PyGraphView;
-use crate::utils::adapt_result;
+use crate::utils::{adapt_result, extract_input_vertex, extract_into_time, InputVertexBox};
 use crate::wrappers::prop::Prop;
 use itertools::Itertools;
-use pyo3::exceptions::{PyException, PyTypeError};
+use pyo3::exceptions::PyException;
 use pyo3::prelude::*;
 use raphtory::core as dbc;
-use raphtory::core::vertex::InputVertex;
 use raphtory::db::graph::Graph;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -112,21 +112,19 @@ impl PyGraph {
     #[pyo3(signature = (timestamp, src, dst, properties=None, layer=None))]
     pub fn add_edge(
         &self,
-        timestamp: i64,
+        timestamp: &PyAny,
         src: &PyAny,
         dst: &PyAny,
         properties: Option<HashMap<String, Prop>>,
         layer: Option<&str>,
     ) -> PyResult<()> {
+        let time = extract_into_time(timestamp)?;
         let src = Self::extract_id(src)?;
         let dst = Self::extract_id(dst)?;
-        adapt_result(self.graph.add_edge(
-            timestamp,
-            src,
-            dst,
-            &Self::transform_props(properties),
-            layer,
-        ))
+        adapt_result(
+            self.graph
+                .add_edge(time, src, dst, &Self::transform_props(properties), layer),
+        )
     }
 
     /// Adds properties to an existing edge.
@@ -214,49 +212,6 @@ impl PyGraph {
     /// Arguments:
     ///     id (str or int): The id of the vertex.
     pub(crate) fn extract_id(id: &PyAny) -> PyResult<InputVertexBox> {
-        match id.extract::<String>() {
-            Ok(string) => Ok(InputVertexBox::new(string)),
-            Err(_) => {
-                let msg = "IDs need to be strings or an unsigned integers";
-                let number = id.extract::<u64>().map_err(|_| PyTypeError::new_err(msg))?;
-                Ok(InputVertexBox::new(number))
-            }
-        }
-    }
-}
-
-/// A trait for vertices that can be used as input for the graph.
-/// This allows us to add vertices with different types of ids, either strings or ints.
-#[derive(Clone)]
-pub struct InputVertexBox {
-    id: u64,
-    name_prop: Option<dbc::Prop>,
-}
-
-/// Implementation for vertices that can be used as input for the graph.
-/// This allows us to add vertices with different types of ids, either strings or ints.
-impl InputVertexBox {
-    pub(crate) fn new<T>(vertex: T) -> InputVertexBox
-    where
-        T: InputVertex,
-    {
-        InputVertexBox {
-            id: vertex.id(),
-            name_prop: vertex.name_prop(),
-        }
-    }
-}
-
-/// Implementation for vertices that can be used as input for the graph.
-/// This allows us to add vertices with different types of ids, either strings or ints.
-impl InputVertex for InputVertexBox {
-    /// Returns the id of the vertex.
-    fn id(&self) -> u64 {
-        self.id
-    }
-
-    /// Returns the name property of the vertex.
-    fn name_prop(&self) -> Option<dbc::Prop> {
-        self.name_prop.clone()
+        extract_input_vertex(id)
     }
 }
