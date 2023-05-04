@@ -3,6 +3,7 @@
 use std::collections::btree_set::Iter;
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap},
+    iter,
     ops::Range,
 };
 
@@ -10,6 +11,7 @@ use itertools::Itertools;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 
+use crate::core::adj::Adj;
 use crate::core::edge_layer::EdgeLayer;
 use crate::core::props::Props;
 use crate::core::tprop::TProp;
@@ -392,7 +394,18 @@ impl TemporalGraph {
         match self.layer_iter_optm(layer) {
             LayerIterator::Single(layer) => layer.degree(v_pid, d),
             LayerIterator::Vector(layers) => {
-                layers.iter().map(|layer| layer.degree(v_pid, d)).sum()
+                layers
+                    .iter()
+                    .map(|layer| layer.local_vertex_neighbours(v_pid, d))
+                    .kmerge()
+                    .dedup()
+                    .count()
+                    + layers
+                        .iter()
+                        .map(|layer| layer.remote_vertex_neighbours(v_pid, d))
+                        .kmerge()
+                        .dedup()
+                        .count()
             }
         }
     }
@@ -407,10 +420,20 @@ impl TemporalGraph {
         let v_pid = self.pid(&v).expect("local vertex");
         match self.layer_iter_optm(layer) {
             LayerIterator::Single(layer) => layer.degree_window(v_pid, d, w),
-            LayerIterator::Vector(layers) => layers
-                .iter()
-                .map(|layer| layer.degree_window(v_pid, d, w))
-                .sum(),
+            LayerIterator::Vector(layers) => {
+                layers
+                    .iter()
+                    .map(|layer| layer.local_vertex_neighbours_window(v_pid, d, w))
+                    .kmerge()
+                    .dedup()
+                    .count()
+                    + layers
+                        .iter()
+                        .map(|layer| layer.remote_vertex_neighbours_window(v_pid, d, w))
+                        .kmerge()
+                        .dedup()
+                        .count()
+            }
         }
     }
 

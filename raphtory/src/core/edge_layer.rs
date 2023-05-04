@@ -2,6 +2,7 @@ use itertools::chain;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
+use std::iter;
 use std::ops::Range;
 
 use crate::core::adj::Adj;
@@ -380,6 +381,162 @@ impl EdgeLayer {
 
 // MULTIPLE EDGE ACCES:
 impl EdgeLayer {
+    pub fn local_vertex_neighbours(
+        &self,
+        v_pid: usize,
+        d: Direction,
+    ) -> Box<dyn Iterator<Item = usize> + Send + '_> {
+        let adj = self.adj_lists.get(v_pid).unwrap_or(&Adj::Solo);
+        match adj {
+            Adj::Solo => {
+                let iter: Box<dyn Iterator<Item = usize> + Send + '_> = Box::new(iter::empty());
+                iter
+            }
+            Adj::List { out, into, .. } => match d {
+                Direction::OUT => {
+                    let iter: Box<dyn Iterator<Item = usize> + Send + '_> =
+                        Box::new(out.vertices());
+                    iter
+                }
+                Direction::IN => {
+                    let iter: Box<dyn Iterator<Item = usize> + Send + '_> =
+                        Box::new(into.vertices());
+                    iter
+                }
+                Direction::BOTH => {
+                    let iter: Box<dyn Iterator<Item = usize> + Send + '_> = Box::new(
+                        [out.vertices(), into.vertices()]
+                            .into_iter()
+                            .kmerge()
+                            .dedup(),
+                    );
+                    iter
+                }
+            },
+        }
+    }
+
+    pub fn remote_vertex_neighbours(
+        &self,
+        v_pid: usize,
+        d: Direction,
+    ) -> Box<dyn Iterator<Item = usize> + Send + '_> {
+        let adj = self.adj_lists.get(v_pid).unwrap_or(&Adj::Solo);
+        match adj {
+            Adj::Solo => {
+                let iter: Box<dyn Iterator<Item = usize> + Send + '_> = Box::new(iter::empty());
+                iter
+            }
+            Adj::List {
+                remote_out,
+                remote_into,
+                ..
+            } => match d {
+                Direction::OUT => {
+                    let iter: Box<dyn Iterator<Item = usize> + Send + '_> =
+                        Box::new(remote_out.vertices());
+                    iter
+                }
+                Direction::IN => {
+                    let iter: Box<dyn Iterator<Item = usize> + Send + '_> =
+                        Box::new(remote_into.vertices());
+                    iter
+                }
+                Direction::BOTH => {
+                    let iter: Box<dyn Iterator<Item = usize> + Send + '_> = Box::new(
+                        [remote_out.vertices(), remote_into.vertices()]
+                            .into_iter()
+                            .kmerge()
+                            .dedup(),
+                    );
+                    iter
+                }
+            },
+        }
+    }
+
+    pub fn local_vertex_neighbours_window(
+        &self,
+        v_pid: usize,
+        d: Direction,
+        window: &Range<i64>,
+    ) -> Box<dyn Iterator<Item = usize> + Send + '_> {
+        let adj = self.adj_lists.get(v_pid).unwrap_or(&Adj::Solo);
+        match adj {
+            Adj::Solo => {
+                let iter: Box<dyn Iterator<Item = usize> + Send + '_> = Box::new(iter::empty());
+                iter
+            }
+            Adj::List { out, into, .. } => match d {
+                Direction::OUT => {
+                    let iter: Box<dyn Iterator<Item = usize> + Send + '_> =
+                        Box::new(out.vertices_window(&self.timestamps, window));
+                    iter
+                }
+                Direction::IN => {
+                    let iter: Box<dyn Iterator<Item = usize> + Send + '_> =
+                        Box::new(into.vertices_window(&self.timestamps, window));
+                    iter
+                }
+                Direction::BOTH => {
+                    let iter: Box<dyn Iterator<Item = usize> + Send + '_> = Box::new(
+                        [
+                            out.vertices_window(&self.timestamps, window),
+                            into.vertices_window(&self.timestamps, window),
+                        ]
+                        .into_iter()
+                        .kmerge()
+                        .dedup(),
+                    );
+                    iter
+                }
+            },
+        }
+    }
+
+    pub fn remote_vertex_neighbours_window(
+        &self,
+        v_pid: usize,
+        d: Direction,
+        window: &Range<i64>,
+    ) -> Box<dyn Iterator<Item = usize> + Send + '_> {
+        let adj = self.adj_lists.get(v_pid).unwrap_or(&Adj::Solo);
+        match adj {
+            Adj::Solo => {
+                let iter: Box<dyn Iterator<Item = usize> + Send + '_> = Box::new(iter::empty());
+                iter
+            }
+            Adj::List {
+                remote_out,
+                remote_into,
+                ..
+            } => match d {
+                Direction::OUT => {
+                    let iter: Box<dyn Iterator<Item = usize> + Send + '_> =
+                        Box::new(remote_out.vertices_window(&self.timestamps, window));
+                    iter
+                }
+                Direction::IN => {
+                    let iter: Box<dyn Iterator<Item = usize> + Send + '_> =
+                        Box::new(remote_into.vertices_window(&self.timestamps, window));
+                    iter
+                }
+                Direction::BOTH => {
+                    let iter: Box<dyn Iterator<Item = usize> + Send + '_> = Box::new(
+                        [
+                            remote_out.vertices_window(&self.timestamps, window),
+                            remote_into.vertices_window(&self.timestamps, window),
+                        ]
+                        .into_iter()
+                        .kmerge()
+                        .dedup(),
+                    );
+                    iter
+                }
+            },
+        }
+    }
+
     pub fn degree(&self, v_pid: usize, d: Direction) -> usize {
         match d {
             Direction::OUT => match &self.adj_lists[v_pid] {
@@ -418,7 +575,7 @@ impl EdgeLayer {
     }
 
     pub fn degree_window(&self, v_pid: usize, d: Direction, window: &Range<i64>) -> usize {
-        let adj = &self.adj_lists[v_pid];
+        let adj = &self.adj_lists.get(v_pid).unwrap_or(&Adj::Solo);
         match adj {
             Adj::Solo => 0,
             Adj::List {
