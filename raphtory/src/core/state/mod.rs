@@ -111,7 +111,7 @@ mod state_test {
         let actual = state_map.finalize(0, &avg, 0, &g);
         assert_eq!(
             actual,
-            Some(vec![(1, actual_avg), (2, actual_avg), (3, actual_avg)])
+            Some(vec![(0, actual_avg), (1, actual_avg), (2, actual_avg)])
         );
     }
 
@@ -169,7 +169,7 @@ mod state_test {
 
         assert_eq!(
             actual,
-            Some(vec![(1, actual_sum), (2, actual_sum), (3, actual_sum)])
+            Some(vec![(0, actual_sum), (1, actual_sum), (2, actual_sum)])
         );
     }
 
