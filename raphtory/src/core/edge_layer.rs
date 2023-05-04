@@ -402,12 +402,12 @@ impl EdgeLayer {
                     into,
                     remote_into,
                 } => {
-                    [out.iter(), into.iter()]
+                    [out.vertices(), into.vertices()]
                         .into_iter()
                         .kmerge()
                         .dedup()
                         .count()
-                        + [remote_out.iter(), remote_into.iter()]
+                        + [remote_out.vertices(), remote_into.vertices()]
                             .into_iter()
                             .kmerge()
                             .dedup()
@@ -437,16 +437,16 @@ impl EdgeLayer {
                 }
                 Direction::BOTH => {
                     [
-                        out.iter_window(&self.timestamps, window),
-                        into.iter_window(&self.timestamps, window),
+                        out.vertices_window(&self.timestamps, window),
+                        into.vertices_window(&self.timestamps, window),
                     ]
                     .into_iter()
                     .kmerge()
                     .dedup()
                     .count()
                         + [
-                            remote_out.iter_window(&self.timestamps, window),
-                            remote_into.iter_window(&self.timestamps, window),
+                            remote_out.vertices_window(&self.timestamps, window),
+                            remote_into.vertices_window(&self.timestamps, window),
                         ]
                         .into_iter()
                         .kmerge()

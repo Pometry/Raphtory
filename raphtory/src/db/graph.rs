@@ -133,8 +133,7 @@ impl GraphViewInternalOps for Graph {
     }
 
     fn has_edge_ref(&self, src: VertexRef, dst: VertexRef, layer: usize) -> bool {
-        self.get_shard_from_v(src)
-            .has_edge(src, dst, layer)
+        self.get_shard_from_v(src).has_edge(src, dst, layer)
     }
 
     fn has_edge_ref_window(
@@ -159,7 +158,7 @@ impl GraphViewInternalOps for Graph {
     }
 
     fn degree(&self, v: VertexRef, d: Direction, layer: Option<usize>) -> usize {
-        self.get_shard_from_v(v).degree(v.g_id, d, layer)
+        self.get_shard_from_v(v).degree(v, d, layer)
     }
 
     fn degree_window(
@@ -171,7 +170,7 @@ impl GraphViewInternalOps for Graph {
         layer: Option<usize>,
     ) -> usize {
         self.get_shard_from_v(v)
-            .degree_window(v.g_id, t_start..t_end, d, layer)
+            .degree_window(v, t_start..t_end, d, layer)
     }
 
     fn vertex_ref(&self, v: u64) -> Option<VertexRef> {
@@ -420,23 +419,19 @@ impl GraphViewInternalOps for Graph {
     }
 
     fn static_edge_prop(&self, e: EdgeRef, name: String) -> Option<Prop> {
-        self.get_shard_from_e(e)
-            .static_edge_prop(e, name)
+        self.get_shard_from_e(e).static_edge_prop(e, name)
     }
 
     fn static_edge_prop_names(&self, e: EdgeRef) -> Vec<String> {
-        self.get_shard_from_e(e)
-            .static_edge_prop_names(e)
+        self.get_shard_from_e(e).static_edge_prop_names(e)
     }
 
     fn temporal_edge_prop_names(&self, e: EdgeRef) -> Vec<String> {
-        self.get_shard_from_e(e)
-            .temporal_edge_prop_names(e)
+        self.get_shard_from_e(e).temporal_edge_prop_names(e)
     }
 
     fn temporal_edge_props_vec(&self, e: EdgeRef, name: String) -> Vec<(i64, Prop)> {
-        self.get_shard_from_e(e)
-            .temporal_edge_prop_vec(e, name)
+        self.get_shard_from_e(e).temporal_edge_prop_vec(e, name)
     }
 
     fn temporal_edge_props_vec_window(

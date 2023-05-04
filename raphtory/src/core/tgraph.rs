@@ -200,10 +200,9 @@ impl TemporalGraph {
     }
 
     pub fn out_edges_len_window(&self, w: &Range<Time>, layer: Option<usize>) -> usize {
-        match self.layer_iter_optm(layer) {
-            LayerIterator::Single(layer) => layer.out_edges_len_window(w),
-            LayerIterator::Vector(layers) => layers.iter().map(|l| l.out_edges_len_window(w)).sum(),
-        }
+        self.vertices_window(w.clone())
+            .map(|v| self.degree_window(v, w, Direction::OUT, layer))
+            .sum()
     }
 
     pub(crate) fn has_edge(&self, src: VertexRef, dst: VertexRef, layer: usize) -> bool {
@@ -388,8 +387,8 @@ impl TemporalGraph {
         })
     }
 
-    pub(crate) fn degree(&self, v: u64, d: Direction, layer: Option<usize>) -> usize {
-        let v_pid = self.logical_to_physical[&v];
+    pub(crate) fn degree(&self, v: VertexRef, d: Direction, layer: Option<usize>) -> usize {
+        let v_pid = self.pid(&v).expect("local vertex");
         match self.layer_iter_optm(layer) {
             LayerIterator::Single(layer) => layer.degree(v_pid, d),
             LayerIterator::Vector(layers) => {
@@ -400,12 +399,12 @@ impl TemporalGraph {
 
     pub fn degree_window(
         &self,
-        v: u64,
+        v: VertexRef,
         w: &Range<i64>,
         d: Direction,
         layer: Option<usize>,
     ) -> usize {
-        let v_pid = self.logical_to_physical[&v];
+        let v_pid = self.pid(&v).expect("local vertex");
         match self.layer_iter_optm(layer) {
             LayerIterator::Single(layer) => layer.degree_window(v_pid, d, w),
             LayerIterator::Vector(layers) => layers
@@ -444,12 +443,8 @@ impl TemporalGraph {
         )
     }
 
-    pub fn vertices_window(
-        &self,
-        w: Range<i64>,
-    ) -> Box<dyn Iterator<Item = VertexRef> + Send + '_> {
-        let vs = self
-            .timestamps
+    pub fn vertices_window(&self, w: Range<i64>) -> impl Iterator<Item = VertexRef> + Send + '_ {
+        self.timestamps
             .iter()
             .enumerate()
             .filter_map(move |(pid, timestamps)| {
@@ -457,8 +452,7 @@ impl TemporalGraph {
                     g_id: self.logical_ids[pid],
                     pid: Some(pid),
                 })
-            });
-        Box::new(vs)
+            })
     }
 
     pub(crate) fn edge(&self, src: u64, dst: u64, layer: usize) -> Option<EdgeRef> {
@@ -1875,12 +1869,12 @@ mod graph_test {
 
             assert_eq!(out1, out2);
             assert_eq!(
-                g.degree(i, Direction::OUT, None),
-                g.degree_window(i, &(1..7), Direction::OUT, None)
+                g.degree(i.into(), Direction::OUT, None),
+                g.degree_window(i.into(), &(1..7), Direction::OUT, None)
             );
             assert_eq!(
-                g.degree(i, Direction::IN, None),
-                g.degree_window(i, &(1..7), Direction::IN, None)
+                g.degree(i.into(), Direction::IN, None),
+                g.degree_window(i.into(), &(1..7), Direction::IN, None)
             );
         }
 
@@ -1889,9 +1883,9 @@ mod graph_test {
             .map(|v| {
                 (
                     v.g_id,
-                    g.degree(v.g_id, Direction::IN, None),
-                    g.degree(v.g_id, Direction::OUT, None),
-                    g.degree(v.g_id, Direction::BOTH, None),
+                    g.degree(v, Direction::IN, None),
+                    g.degree(v, Direction::OUT, None),
+                    g.degree(v, Direction::BOTH, None),
                 )
             })
             .collect_vec();
@@ -1901,9 +1895,9 @@ mod graph_test {
             .map(|v| {
                 (
                     v.g_id,
-                    g.degree(v.g_id, Direction::IN, None),
-                    g.degree(v.g_id, Direction::OUT, None),
-                    g.degree(v.g_id, Direction::BOTH, None),
+                    g.degree(v, Direction::IN, None),
+                    g.degree(v, Direction::OUT, None),
+                    g.degree(v, Direction::BOTH, None),
                 )
             })
             .collect_vec();
@@ -1954,9 +1948,9 @@ mod graph_test {
             .map(|v| {
                 (
                     v.g_id,
-                    g.degree_window(v.g_id, &w, Direction::IN, None),
-                    g.degree_window(v.g_id, &w, Direction::OUT, None),
-                    g.degree_window(v.g_id, &w, Direction::BOTH, None),
+                    g.degree_window(v, &w, Direction::IN, None),
+                    g.degree_window(v, &w, Direction::OUT, None),
+                    g.degree_window(v, &w, Direction::BOTH, None),
                 )
             })
             .collect_vec();
@@ -2014,9 +2008,9 @@ mod graph_test {
             .map(|v| {
                 (
                     v.g_id,
-                    g.degree_window(v.g_id, &w, Direction::IN, None),
-                    g.degree_window(v.g_id, &w, Direction::OUT, None),
-                    g.degree_window(v.g_id, &w, Direction::BOTH, None),
+                    g.degree_window(v, &w, Direction::IN, None),
+                    g.degree_window(v, &w, Direction::OUT, None),
+                    g.degree_window(v, &w, Direction::BOTH, None),
                 )
             })
             .collect_vec();

@@ -124,6 +124,15 @@ impl<V: Ord + Into<usize> + From<usize> + Copy + Hash + Send + Sync> TAdjSet<V> 
         }
     }
 
+    pub fn vertices(&self) -> Box<dyn Iterator<Item = V> + Send + '_> {
+        match self {
+            TAdjSet::Empty => Box::new(std::iter::empty()),
+            TAdjSet::One(v, ..) => Box::new(std::iter::once(*v)),
+            TAdjSet::Small { vs, .. } => Box::new(vs.iter().copied()),
+            TAdjSet::Large { vs } => Box::new(vs.keys().copied()),
+        }
+    }
+
     pub fn iter_window<'a>(
         &'a self,
         timestamps: &'a [TimeIndex],
@@ -133,6 +142,19 @@ impl<V: Ord + Into<usize> + From<usize> + Copy + Hash + Send + Sync> TAdjSet<V> 
         Box::new(
             self.iter()
                 .filter(move |(_, e)| timestamps[e.edge_id()].active(w.clone())),
+        )
+    }
+
+    pub fn vertices_window<'a>(
+        &'a self,
+        timestamps: &'a [TimeIndex],
+        window: &Range<i64>,
+    ) -> Box<dyn Iterator<Item = V> + Send + 'a> {
+        let w = window.clone();
+        Box::new(
+            self.iter()
+                .filter(move |(_, e)| timestamps[e.edge_id()].active(w.clone()))
+                .map(|(v, e)| v),
         )
     }
 

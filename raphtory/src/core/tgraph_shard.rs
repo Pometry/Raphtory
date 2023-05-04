@@ -287,13 +287,13 @@ impl TGraphShard<TemporalGraph> {
         })
     }
 
-    pub fn degree(&self, v: u64, d: Direction, layer: Option<usize>) -> usize {
+    pub fn degree(&self, v: VertexRef, d: Direction, layer: Option<usize>) -> usize {
         self.read_shard(|tg: &TemporalGraph| tg.degree(v, d, layer))
     }
 
     pub fn degree_window(
         &self,
-        v: u64,
+        v: VertexRef,
         w: Range<i64>,
         d: Direction,
         layer: Option<usize>,
@@ -646,7 +646,7 @@ impl ImmutableTGraphShard<TemporalGraph> {
         self.rc.latest_time
     }
 
-    pub fn degree(&self, v: u64, d: Direction, layer: Option<usize>) -> usize {
+    pub fn degree(&self, v: VertexRef, d: Direction, layer: Option<usize>) -> usize {
         self.rc.degree(v, d, layer)
     }
 
@@ -812,9 +812,9 @@ mod temporal_graph_partition_test {
         let actual = (1..=3)
             .map(|i| {
                 (
-                    g.degree(i, Direction::IN, None),
-                    g.degree(i, Direction::OUT, None),
-                    g.degree(i, Direction::BOTH, None),
+                    g.degree(i.into(), Direction::IN, None),
+                    g.degree(i.into(), Direction::OUT, None),
+                    g.degree(i.into(), Direction::BOTH, None),
                 )
             })
             .collect::<Vec<_>>();
@@ -839,23 +839,59 @@ mod temporal_graph_partition_test {
         g.add_edge(9, 102, 104, &vec![], 0).unwrap();
         g.add_edge(9, 110, 104, &vec![], 0).unwrap();
 
-        assert_eq!(g.degree_window(101, 0i64..i64::MAX, Direction::IN, None), 1);
-        assert_eq!(g.degree_window(100, 0..i64::MAX, Direction::IN, None), 0);
-        assert_eq!(g.degree_window(101, 0..1, Direction::IN, None), 0);
-        assert_eq!(g.degree_window(101, 10..20, Direction::IN, None), 0);
-        assert_eq!(g.degree_window(105, 0..i64::MAX, Direction::IN, None), 0);
-        assert_eq!(g.degree_window(104, 0..i64::MAX, Direction::IN, None), 2);
-        assert_eq!(g.degree_window(101, 0..i64::MAX, Direction::OUT, None), 1);
-        assert_eq!(g.degree_window(103, 0..i64::MAX, Direction::OUT, None), 0);
-        assert_eq!(g.degree_window(105, 0..i64::MAX, Direction::OUT, None), 0);
-        assert_eq!(g.degree_window(101, 0..1, Direction::OUT, None), 0);
-        assert_eq!(g.degree_window(101, 10..20, Direction::OUT, None), 0);
-        assert_eq!(g.degree_window(100, 0..i64::MAX, Direction::OUT, None), 2);
-        assert_eq!(g.degree_window(101, 0..i64::MAX, Direction::BOTH, None), 2);
-        assert_eq!(g.degree_window(100, 0..i64::MAX, Direction::BOTH, None), 2);
-        assert_eq!(g.degree_window(100, 0..1, Direction::BOTH, None), 0);
-        assert_eq!(g.degree_window(100, 10..20, Direction::BOTH, None), 0);
-        assert_eq!(g.degree_window(105, 0..i64::MAX, Direction::BOTH, None), 0);
+        assert_eq!(
+            g.degree_window(101.into(), 0i64..i64::MAX, Direction::IN, None),
+            1
+        );
+        assert_eq!(
+            g.degree_window(100.into(), 0..i64::MAX, Direction::IN, None),
+            0
+        );
+        assert_eq!(g.degree_window(101.into(), 0..1, Direction::IN, None), 0);
+        assert_eq!(g.degree_window(101.into(), 10..20, Direction::IN, None), 0);
+        assert_eq!(
+            g.degree_window(105.into(), 0..i64::MAX, Direction::IN, None),
+            0
+        );
+        assert_eq!(
+            g.degree_window(104.into(), 0..i64::MAX, Direction::IN, None),
+            2
+        );
+        assert_eq!(
+            g.degree_window(101.into(), 0..i64::MAX, Direction::OUT, None),
+            1
+        );
+        assert_eq!(
+            g.degree_window(103.into(), 0..i64::MAX, Direction::OUT, None),
+            0
+        );
+        assert_eq!(
+            g.degree_window(105.into(), 0..i64::MAX, Direction::OUT, None),
+            0
+        );
+        assert_eq!(g.degree_window(101.into(), 0..1, Direction::OUT, None), 0);
+        assert_eq!(g.degree_window(101.into(), 10..20, Direction::OUT, None), 0);
+        assert_eq!(
+            g.degree_window(100.into(), 0..i64::MAX, Direction::OUT, None),
+            2
+        );
+        assert_eq!(
+            g.degree_window(101.into(), 0..i64::MAX, Direction::BOTH, None),
+            2
+        );
+        assert_eq!(
+            g.degree_window(100.into(), 0..i64::MAX, Direction::BOTH, None),
+            2
+        );
+        assert_eq!(g.degree_window(100.into(), 0..1, Direction::BOTH, None), 0);
+        assert_eq!(
+            g.degree_window(100.into(), 10..20, Direction::BOTH, None),
+            0
+        );
+        assert_eq!(
+            g.degree_window(105.into(), 0..i64::MAX, Direction::BOTH, None),
+            0
+        );
     }
 
     #[test]
