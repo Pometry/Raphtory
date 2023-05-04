@@ -14,7 +14,6 @@ use tokio::time::Instant;
 
 #[derive(Eq, Hash, PartialEq, Clone, Debug, Default)]
 pub struct TaintMessage {
-    pub edge_id: u64,
     pub event_time: i64,
     pub src_vertex: String,
 }
@@ -30,7 +29,6 @@ impl Add for TaintMessage {
 impl Zero for TaintMessage {
     fn zero() -> Self {
         TaintMessage {
-            edge_id: 0,
             event_time: -1,
             src_vertex: "".to_string(),
         }
@@ -43,7 +41,6 @@ impl Zero for TaintMessage {
     fn is_zero(&self) -> bool {
         *self
             == TaintMessage {
-                edge_id: 0,
                 event_time: -1,
                 src_vertex: "".to_string(),
             }
@@ -86,7 +83,6 @@ impl Program for GenericTaintS0 {
                 evv.update(
                     &taint_history,
                     TaintMessage {
-                        edge_id: 0,
                         event_time: self.start_time,
                         src_vertex: evv.name(),
                     },
@@ -97,7 +93,6 @@ impl Program for GenericTaintS0 {
                         dst.update(
                             &recv_tainted_msgs,
                             TaintMessage {
-                                edge_id: eev.dst().global_id(),
                                 event_time: t,
                                 src_vertex: evv.name(),
                             },
@@ -172,7 +167,6 @@ impl Program for GenericTaintS1 {
                             dst.update(
                                 &recv_tainted_msgs,
                                 TaintMessage {
-                                    edge_id: eev.dst().global_id(),
                                     event_time: t,
                                     src_vertex: evv.name(),
                                 },
@@ -203,7 +197,7 @@ pub fn generic_taint<G: GraphViewOps, T: InputVertex>(
     start_time: i64,
     infected_nodes: Vec<T>,
     stop_nodes: Vec<T>,
-) -> HashMap<String, Vec<(u64, i64, String)>> {
+) -> HashMap<String, Vec<(i64, String)>> {
     let mut c = GlobalEvalState::new(g.clone(), true);
     let gtaint_s0 = GenericTaintS0::new(
         start_time,
@@ -279,7 +273,7 @@ pub fn generic_taint<G: GraphViewOps, T: InputVertex>(
 
     println!("Completed {} steps", i);
 
-    let mut results: HashMap<String, Vec<(u64, i64, String)>> = HashMap::default();
+    let mut results: HashMap<String, Vec<(i64, String)>> = HashMap::default();
 
     (0..g.num_shards())
         .into_iter()
@@ -293,7 +287,7 @@ pub fn generic_taint<G: GraphViewOps, T: InputVertex>(
                         g.vertex(*v_id).unwrap().name(),
                         // *v_id,
                         sc.into_iter()
-                            .map(|msg| (msg.edge_id, msg.event_time, msg.src_vertex))
+                            .map(|msg| (msg.event_time, msg.src_vertex))
                             .collect_vec(),
                     );
                     res
@@ -324,8 +318,8 @@ mod generic_taint_tests {
         start_time: i64,
         infected_nodes: Vec<T>,
         stop_nodes: Vec<T>,
-    ) -> HashMap<String, Vec<(u64, i64, String)>> {
-        let results: HashMap<String, Vec<(u64, i64, String)>> =
+    ) -> HashMap<String, Vec<(i64, String)>> {
+        let results: HashMap<String, Vec<(i64, String)>> =
             generic_taint(&graph, iter_count, start_time, infected_nodes, stop_nodes)
                 .into_iter()
                 .collect();
@@ -357,13 +351,13 @@ mod generic_taint_tests {
             HashMap::from([
                 (
                     "5".to_string(),
-                    vec![(4, 13, "2".to_string()), (5, 14, "5".to_string())]
+                    vec![(13, "2".to_string()), (14, "5".to_string())]
                 ),
-                ("2".to_string(), vec![(0, 11, "2".to_string())]),
-                ("7".to_string(), vec![(8, 15, "4".to_string())]),
+                ("2".to_string(), vec![(11, "2".to_string())]),
+                ("7".to_string(), vec![(15, "4".to_string())]),
                 (
                     "4".to_string(),
-                    vec![(3, 12, "2".to_string()), (6, 14, "5".to_string())]
+                    vec![(12, "2".to_string()), (14, "5".to_string())]
                 )
             ])
         );
@@ -394,17 +388,17 @@ mod generic_taint_tests {
             HashMap::from([
                 (
                     "4".to_string(),
-                    vec![(3, 12, "2".to_string()), (6, 14, "5".to_string())]
+                    vec![(12, "2".to_string()), (14, "5".to_string())]
                 ),
-                ("1".to_string(), vec![(0, 11, "1".to_string())]),
+                ("1".to_string(), vec![(11, "1".to_string())]),
                 (
                     "5".to_string(),
-                    vec![(4, 13, "2".to_string()), (5, 14, "5".to_string())]
+                    vec![(13, "2".to_string()), (14, "5".to_string())]
                 ),
-                ("7".to_string(), vec![(8, 15, "4".to_string())]),
+                ("7".to_string(), vec![(15, "4".to_string())]),
                 (
                     "2".to_string(),
-                    vec![(2, 11, "1".to_string()), (0, 11, "2".to_string())]
+                    vec![(11, "1".to_string()), (11, "2".to_string())]
                 ),
             ])
         );
@@ -433,13 +427,13 @@ mod generic_taint_tests {
         assert_eq!(
             results,
             HashMap::from([
-                ("5".to_string(), vec![(4, 13, "2".to_string())]),
+                ("5".to_string(), vec![(13, "2".to_string())]),
                 (
                     "2".to_string(),
-                    vec![(2, 11, "1".to_string()), (0, 11, "2".to_string())]
+                    vec![(11, "1".to_string()), (11, "2".to_string())]
                 ),
-                ("1".to_string(), vec![(0, 11, "1".to_string())]),
-                ("4".to_string(), vec![(3, 12, "2".to_string())]),
+                ("1".to_string(), vec![(11, "1".to_string())]),
+                ("4".to_string(), vec![(12, "2".to_string())]),
             ])
         );
     }
@@ -469,17 +463,17 @@ mod generic_taint_tests {
         assert_eq!(
             results,
             HashMap::from([
-                ("1".to_string(), vec![(0, 11, "1".to_string())]),
-                ("5".to_string(), vec![(6, 13, "2".to_string())]),
+                ("1".to_string(), vec![(11, "1".to_string())]),
+                ("5".to_string(), vec![(13, "2".to_string())]),
                 (
                     "2".to_string(),
                     vec![
-                        (2, 12, "1".to_string()),
-                        (2, 11, "1".to_string()),
-                        (0, 11, "2".to_string())
+                        (12, "1".to_string()),
+                        (11, "1".to_string()),
+                        (11, "2".to_string())
                     ]
                 ),
-                ("4".to_string(), vec![(5, 12, "2".to_string())]),
+                ("4".to_string(), vec![(12, "2".to_string())]),
             ])
         );
     }
