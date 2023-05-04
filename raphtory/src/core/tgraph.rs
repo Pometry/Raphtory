@@ -405,9 +405,14 @@ impl TemporalGraph {
         d: Direction,
         layer: Option<usize>,
     ) -> usize {
-        self.vertex_edges_window(v, w, d, layer)
-            .dedup_by(|(left, e1), (right, e2)| left == right && e1.is_remote == e2.is_remote)
-            .count()
+        let v_pid = self.logical_to_physical[&v];
+        match self.layer_iter_optm(layer) {
+            LayerIterator::Single(layer) => layer.degree_window(v_pid, d, w),
+            LayerIterator::Vector(layers) => layers
+                .iter()
+                .map(|layer| layer.degree_window(v_pid, d, w))
+                .sum(),
+        }
     }
 
     pub fn vertex(&self, v: u64) -> Option<VertexRef> {
