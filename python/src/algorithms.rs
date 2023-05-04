@@ -19,10 +19,11 @@ use raphtory::algorithms::directed_graph_density::directed_graph_density as dire
 use raphtory::algorithms::generic_taint::generic_taint as generic_taint_rs;
 use raphtory::algorithms::local_clustering_coefficient::local_clustering_coefficient as local_clustering_coefficient_rs;
 use raphtory::algorithms::local_triangle_count::local_triangle_count as local_triangle_count_rs;
+use raphtory::algorithms::pagerank::unweighted_page_rank;
 use raphtory::algorithms::reciprocity::{
     all_local_reciprocity as all_local_reciprocity_rs, global_reciprocity as global_reciprocity_rs,
 };
-use raphtory::core::vertex::InputVertex;
+use rustc_hash::FxHashMap;
 
 /// Local triangle count - calculates the number of triangles (a cycle of length 3) for a node.
 /// It measures the local clustering of a graph.
@@ -44,6 +45,11 @@ use raphtory::core::vertex::InputVertex;
 pub(crate) fn local_triangle_count(g: &PyGraphView, v: &PyAny) -> PyResult<Option<usize>> {
     let v = utils::extract_vertex_ref(v)?;
     Ok(local_triangle_count_rs(&g.graph, v.g_id))
+}
+
+#[pyfunction]
+pub(crate) fn pagerank(g: &PyGraphView, start: i64, end: i64, iter_count: usize) -> PyResult<FxHashMap<u64, f32>> {
+    Ok(unweighted_page_rank(&g.graph, start..end, iter_count))
 }
 
 #[pyfunction]

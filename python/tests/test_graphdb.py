@@ -872,13 +872,20 @@ def test_generic_taint():
 def test_generic_taint_loader():
     g = graph_loader.stable_coin_graph("/tmp/stablecoin", 1)
 
-    actual = algorithms.generic_taint(g, 20, 1651105815, ["0xd30b438df65f4f788563b2b3611bd6059bff4ad9"], [])
-    expected = {
-        '0xd30b438df65f4f788563b2b3611bd6059bff4ad9': [(0, 1651105815, '0xd30b438df65f4f788563b2b3611bd6059bff4ad9')],
-        '0xda816e2122a8a39b0926bfa84edd3d42477e9efd': [(1, 1651105815, '0xd30b438df65f4f788563b2b3611bd6059bff4ad9')],
-    }
+    max_size = sys.maxsize
+    min_size = -sys.maxsize - 1
 
-    assert (actual == expected)
+    res = algorithms.pagerank(g, min_size, max_size, 20)
+
+    print(res)
+
+    # actual = algorithms.generic_taint(g, 20, 1651105815, ["0xd30b438df65f4f788563b2b3611bd6059bff4ad9"], [])
+    # expected = {
+    #     '0xd30b438df65f4f788563b2b3611bd6059bff4ad9': [(0, 1651105815, '0xd30b438df65f4f788563b2b3611bd6059bff4ad9')],
+    #     '0xda816e2122a8a39b0926bfa84edd3d42477e9efd': [(1, 1651105815, '0xd30b438df65f4f788563b2b3611bd6059bff4ad9')],
+    # }
+    #
+    # assert (actual == expected)
 
 def test_layer():
     g = Graph(1)

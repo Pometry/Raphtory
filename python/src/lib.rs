@@ -46,6 +46,7 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     algorithm_module.add_function(wrap_pyfunction!(max_in_degree, algorithm_module)?)?;
     algorithm_module.add_function(wrap_pyfunction!(min_out_degree, algorithm_module)?)?;
     algorithm_module.add_function(wrap_pyfunction!(min_in_degree, algorithm_module)?)?;
+    algorithm_module.add_function(wrap_pyfunction!(pagerank, algorithm_module)?)?;
     m.add_submodule(algorithm_module)?;
 
     let graph_loader_module = PyModule::new(py, "graph_loader")?;
