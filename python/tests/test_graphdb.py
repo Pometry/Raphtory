@@ -684,7 +684,8 @@ def test_all_edge_window():
     assert sorted(v.window(t_start=2).out_edges().dst().id()) == [4]
     assert sorted((e.src().id(), e.dst().id()) for e in v.window(0, 4).edges()) == [(1, 2), (2, 3), (3, 2), (4, 2)]
     assert sorted((e.src().id(), e.dst().id()) for e in v.window(t_end=4).edges()) == [(1, 2), (2, 3), (3, 2), (4, 2)]
-    assert sorted((e.src().id(), e.dst().id()) for e in v.window(t_start=1).edges()) == [(1, 2), (2, 3), (2, 4), (3, 2), (4, 2)]
+    assert sorted((e.src().id(), e.dst().id()) for e in v.window(t_start=1).edges()) == [(1, 2), (2, 3), (2, 4), (3, 2),
+                                                                                         (4, 2)]
 
 
 def test_static_prop_change():
@@ -880,6 +881,7 @@ def test_generic_taint_loader():
 
     assert (actual == expected)
 
+
 def test_layer():
     g = Graph(1)
 
@@ -887,9 +889,10 @@ def test_layer():
     g.add_edge(0, 1, 3, layer='layer1')
     g.add_edge(0, 1, 4, layer='layer2')
 
-    assert(g.default_layer().num_edges() == 1)
-    assert(g.layer('layer1').num_edges() == 1)
-    assert(g.layer('layer2').num_edges() == 1)
+    assert (g.default_layer().num_edges() == 1)
+    assert (g.layer('layer1').num_edges() == 1)
+    assert (g.layer('layer2').num_edges() == 1)
+
 
 def test_rolling_as_iterable():
     g = Graph(1)
@@ -903,7 +906,6 @@ def test_rolling_as_iterable():
     # So the following should work fine:
     n_vertices = [w.num_vertices() for w in rolling]
     time_index = [w.start() for w in rolling]
-
 
     assert n_vertices == [1, 0, 0, 1]
     assert time_index == [1, 2, 3, 4]

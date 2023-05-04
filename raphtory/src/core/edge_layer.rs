@@ -365,9 +365,11 @@ impl EdgeLayer {
     }
 
     pub(crate) fn out_edges_len_window(&self, w: &Range<i64>) -> usize {
-        self.adj_lists
+        self.timestamps
             .iter()
-            .map(|adj| match adj {
+            .enumerate()
+            .filter_map(|(i, ts)| ts.active(w.clone()).then_some(i))
+            .map(|i| match &self.adj_lists[i] {
                 Adj::Solo => 0,
                 Adj::List {
                     out, remote_out, ..
