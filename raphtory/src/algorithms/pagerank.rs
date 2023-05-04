@@ -14,6 +14,7 @@ use crate::db::{
 use num_traits::abs;
 use rustc_hash::FxHashMap;
 use std::ops::Range;
+use crate::db::view_api::VertexViewOps;
 
 struct UnweightedPageRankS0 {
     total_vertices: usize,
@@ -151,7 +152,7 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
     g: &G,
     window: Range<i64>,
     iter_count: usize,
-) -> FxHashMap<u64, f32> {
+) -> FxHashMap<String, f32> {
     let mut c = GlobalEvalState::new(g.clone(), true);
     let pg_s0 = UnweightedPageRankS0::new(g.num_vertices());
     let pg_s1 = UnweightedPageRankS1::new();
@@ -183,13 +184,13 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
 
     println!("Completed {} steps", i);
 
-    let mut results: FxHashMap<u64, f32> = FxHashMap::default();
+    let mut results: FxHashMap<String, f32> = FxHashMap::default();
 
     (0..g.num_shards())
         .into_iter()
         .fold(&mut results, |res, part_id| {
             c.fold_state(&val::<MulF32>(0), part_id, res, |res, v_id, sc| {
-                res.insert(*v_id, sc.0);
+                res.insert(g.vertex(*v_id).unwrap().name(), sc.0);
                 res
             })
         });
@@ -221,22 +222,22 @@ mod page_rank_tests {
 
         let window = 0..10;
 
-        let results: FxHashMap<u64, f32> = unweighted_page_rank(&graph, window, 20)
+        let results: FxHashMap<String, f32> = unweighted_page_rank(&graph, window, 20)
             .into_iter()
             .collect();
 
         assert_eq!(
             results,
             vec![
-                (2, 0.78044075),
-                (4, 0.78044075),
-                (1, 1.4930439),
-                (3, 0.8092761)
+                ("2".to_string(), 0.78044075),
+                ("4".to_string(), 0.78044075),
+                ("1".to_string(), 1.4930439),
+                ("3".to_string(), 0.8092761)
             ]
             // {8: 1.0, 5: 0.575, 2: 0.5, 7: 1.0, 4: 0.5, 1: 1.0, 3: 1.0}
             // vec![(8, 20.7725), (5, 29.76125), (2, 25.38375), (7, 20.7725), (4, 16.161251), (1, 21.133749), (3, 21.133749)]
             .into_iter()
-            .collect::<FxHashMap<u64, f32>>()
+            .collect::<FxHashMap<String, f32>>()
         );
     }
 

@@ -48,7 +48,7 @@ pub(crate) fn local_triangle_count(g: &PyGraphView, v: &PyAny) -> PyResult<Optio
 }
 
 #[pyfunction]
-pub(crate) fn pagerank(g: &PyGraphView, start: i64, end: i64, iter_count: usize) -> PyResult<FxHashMap<u64, f32>> {
+pub(crate) fn pagerank(g: &PyGraphView, start: i64, end: i64, iter_count: usize) -> PyResult<FxHashMap<String, f32>> {
     Ok(unweighted_page_rank(&g.graph, start..end, iter_count))
 }
 
