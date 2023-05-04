@@ -1,3 +1,4 @@
+use crate::core::state::accumulator_id::accumulators;
 use crate::core::state::compute_state::ComputeStateVec;
 use crate::core::{state, tgraph_shard::errors::GraphError};
 use crate::db::task::context::Context;
@@ -112,8 +113,8 @@ pub fn triangle_counting_fast<G: GraphViewInternalOps + Send + Sync + Clone + 's
 ) -> Option<usize> {
     let mut ctx: Context<G, ComputeStateVec> = g.into();
 
-    let neighbours_set = state::accumulator_id::def::hash_set::<u64>(0);
-    let count = state::accumulator_id::def::sum::<usize>(1);
+    let neighbours_set = accumulators::hash_set::<u64>(0);
+    let count = accumulators::sum::<usize>(1);
 
     ctx.agg(neighbours_set.clone());
     ctx.global_agg(count.clone());

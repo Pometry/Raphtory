@@ -1,8 +1,8 @@
 use crate::algorithms::*;
 use crate::core::agg::*;
-use crate::core::state::accumulator_id::def::max;
-use crate::core::state::accumulator_id::def::sum;
-use crate::core::state::accumulator_id::def::val;
+use crate::core::state::accumulator_id::accumulators::max;
+use crate::core::state::accumulator_id::accumulators::sum;
+use crate::core::state::accumulator_id::accumulators::val;
 use crate::core::state::accumulator_id::AccId;
 use crate::core::state::*;
 use crate::db::graph::Graph;

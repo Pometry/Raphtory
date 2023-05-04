@@ -1,7 +1,7 @@
 use crate::{
     core::{
         agg::InitOneF32,
-        state::{self, accumulator_id, compute_state::ComputeStateVec},
+        state::{self, accumulator_id::{self, accumulators}, compute_state::ComputeStateVec},
     },
     db::{
         task::{
@@ -29,9 +29,9 @@ pub fn unweighted_page_rank<G: GraphViewInternalOps + Send + Sync + Clone + 'sta
     let max_diff_val: f32 = tol.unwrap_or_else(|| 0.01f32);
     let damping_factor = 0.85;
 
-    let score = accumulator_id::def::val::<f32>(0).init::<InitOneF32>();
-    let recv_score = accumulator_id::def::sum::<f32>(1);
-    let max_diff = accumulator_id::def::max::<f32>(2);
+    let score = accumulators::val::<f32>(0).init::<InitOneF32>();
+    let recv_score = accumulators::sum::<f32>(1);
+    let max_diff = accumulators::max::<f32>(2);
 
     ctx.agg_reset(recv_score);
     ctx.global_agg_reset(max_diff);

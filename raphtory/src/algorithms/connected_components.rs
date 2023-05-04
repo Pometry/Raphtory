@@ -1,5 +1,5 @@
 use crate::{
-    core::state::{self, compute_state::ComputeStateVec},
+    core::state::{self, compute_state::ComputeStateVec, accumulator_id::accumulators},
     db::{
         task::{
             context::Context,
@@ -33,7 +33,7 @@ where
 {
     let mut ctx: Context<G, ComputeStateVec> = graph.into();
 
-    let min = state::accumulator_id::def::min::<u64>(0);
+    let min = accumulators::min::<u64>(0);
 
     // setup the aggregator to be merged post execution
     ctx.agg(min.clone());

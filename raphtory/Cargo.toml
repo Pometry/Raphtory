@@ -79,10 +79,3 @@ harness = false
 [[bench]]
 name = "algobench"
 harness = false
-
-
-[profile.release]
-debug = 1
-
-[rust]
-debuginfo-level = 1

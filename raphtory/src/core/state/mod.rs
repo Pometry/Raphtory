@@ -15,7 +15,7 @@ mod state_test {
 
     use crate::{
         core::state::{
-            accumulator_id::def,
+            accumulator_id::accumulators,
             compute_state::{ComputeStateMap, ComputeStateVec},
             container::merge_2_vecs,
             shard_state::ShardComputeState,
@@ -56,7 +56,7 @@ mod state_test {
     fn min_aggregates_for_3_keys() {
         let g = tiny_graph(1);
 
-        let min = def::min(0);
+        let min = accumulators::min(0);
 
         let mut state_map: ShardComputeState<ComputeStateVec> = ShardComputeState::new();
 
@@ -87,7 +87,7 @@ mod state_test {
     fn avg_aggregates_for_3_keys() {
         let g = tiny_graph(2);
 
-        let avg = def::avg(0);
+        let avg = accumulators::avg(0);
 
         let mut state_map: ShardComputeState<ComputeStateMap> = ShardComputeState::new();
 
@@ -119,7 +119,7 @@ mod state_test {
     fn top3_aggregates_for_3_keys() {
         let g = tiny_graph(1);
 
-        let top3 = def::topk::<i32, 3>(0);
+        let top3 = accumulators::topk::<i32, 3>(0);
 
         let mut state_map: ShardComputeState<ComputeStateVec> = ShardComputeState::new();
 
@@ -145,7 +145,7 @@ mod state_test {
     fn sum_aggregates_for_3_keys() {
         let g = tiny_graph(1);
 
-        let sum = def::sum(0);
+        let sum = accumulators::sum(0);
 
         let mut state: ShardComputeState<ComputeStateMap> = ShardComputeState::new();
 
@@ -177,7 +177,7 @@ mod state_test {
     fn sum_aggregates_for_3_keys_2_parts() {
         let g = tiny_graph(2);
 
-        let sum = def::sum(0);
+        let sum = accumulators::sum(0);
 
         let mut part1_state: ShuffleComputeState<ComputeStateMap> = ShuffleComputeState::new(2);
         let mut part2_state: ShuffleComputeState<ComputeStateMap> = ShuffleComputeState::new(2);
@@ -246,8 +246,8 @@ mod state_test {
     fn min_sum_aggregates_for_3_keys_2_parts() {
         let g = tiny_graph(2);
 
-        let sum = def::sum(0);
-        let min = def::min(1);
+        let sum = accumulators::sum(0);
+        let min = accumulators::min(1);
 
         let mut part1_state: ShuffleComputeState<ComputeStateMap> = ShuffleComputeState::new(2);
         let mut part2_state: ShuffleComputeState<ComputeStateMap> = ShuffleComputeState::new(2);

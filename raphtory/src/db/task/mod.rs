@@ -72,7 +72,7 @@ mod task_tests {
 
         let mut ctx: Context<Graph, ComputeStateVec> = (&graph).into();
 
-        let count = state::accumulator_id::def::sum::<usize>(0);
+        let count = state::accumulator_id::accumulators::sum::<usize>(0);
 
         ctx.global_agg(count.clone());
 

@@ -1,7 +1,7 @@
 use crate::algorithms::*;
 use crate::core::agg::set::Set;
 use crate::core::agg::*;
-use crate::core::state::accumulator_id::def::{hash_set, val};
+use crate::core::state::accumulator_id::accumulators::{hash_set, val};
 use crate::core::state::accumulator_id::AccId;
 use crate::core::vertex::InputVertex;
 use crate::db::program::*;

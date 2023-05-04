@@ -37,7 +37,7 @@ unsafe impl<A, IN, OUT, ACC: Accumulator<A, IN, OUT>> Send for AccId<A, IN, OUT,
 
 unsafe impl<A, IN, OUT, ACC: Accumulator<A, IN, OUT>> Sync for AccId<A, IN, OUT, ACC> {}
 
-pub mod def {
+pub mod accumulators {
     use super::AccId;
     use crate::core::{
         agg::{
