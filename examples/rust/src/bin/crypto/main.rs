@@ -5,7 +5,6 @@ use raphtory::db::view_api::*;
 use raphtory::graph_loader::example::stable_coins::stable_coin_graph;
 use serde::Deserialize;
 use std::env;
-use std::path::Path;
 use std::time::Instant;
 
 #[derive(Deserialize, std::fmt::Debug)]
@@ -35,15 +34,16 @@ fn main() {
 
     println!("Pagerank");
     let now = Instant::now();
-    let _ = unweighted_page_rank(&g, i64::MIN..i64::MAX, 20);
+    let _ = unweighted_page_rank(&g, 20, None, None);
     println!("Time taken: {} secs", now.elapsed().as_secs());
 
     let now = Instant::now();
     let _ = unweighted_page_rank(
         &g.layer("0xdac17f958d2ee523a2206206994597c13d831ec7")
             .unwrap(),
-        i64::MIN..i64::MAX,
         20,
+        None,
+        None,
     );
     println!("Time taken: {} secs", now.elapsed().as_secs());
 

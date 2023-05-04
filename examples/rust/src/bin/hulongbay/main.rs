@@ -1,28 +1,18 @@
-#![allow(unused_imports)]
-use std::cmp::Reverse;
-use std::collections::HashMap;
+// #![allow(unused_imports)]
+use std::env;
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
-use std::marker::PhantomData;
-use std::path::{Path, PathBuf};
-use std::thread::JoinHandle;
-use std::{env, thread};
+use std::path::Path;
 
-use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use raphtory::algorithms::connected_components::weakly_connected_components;
 use raphtory::algorithms::triangle_count::triangle_counting_fast;
-use raphtory::core::tgraph::TemporalGraph;
-use raphtory::core::{state, utils};
 use raphtory::core::{Direction, Prop};
 use raphtory::db::graph::Graph;
-use raphtory::db::program::{GlobalEvalState, Program};
 use raphtory::db::view_api::*;
 use raphtory::graph_loader::source::csv_loader::CsvLoader;
 use regex::Regex;
 use serde::Deserialize;
-use std::fs::File;
-use std::io::{prelude::*, BufReader, LineWriter};
 use std::time::Instant;
 
 #[derive(Deserialize, Debug)]
@@ -121,9 +111,8 @@ fn try_main() -> Result<(), Box<dyn Error>> {
     let min_time = graph.start().ok_or(GraphEmptyError)?;
     let max_time = graph.end().ok_or(GraphEmptyError)?;
     let mid_time = (min_time + max_time) / 2;
-
     let now = Instant::now();
-    let actual_tri_count = triangle_counting_fast(&graph);
+    let actual_tri_count = triangle_counting_fast(&graph, None);
 
     println!("Actual triangle count: {:?}", actual_tri_count);
 
@@ -133,7 +122,7 @@ fn try_main() -> Result<(), Box<dyn Error>> {
     );
 
     let now = Instant::now();
-    let components = weakly_connected_components(&graph, 5);
+    let components = weakly_connected_components(&graph, 5, Some(16));
 
     components
         .into_iter()
