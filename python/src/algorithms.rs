@@ -53,7 +53,7 @@ pub(crate) fn generic_taint(
     start_time: i64,
     infected_nodes: Vec<&PyAny>,
     stop_nodes: Vec<&PyAny>,
-) -> PyResult<HashMap<String, Vec<(u64, i64, String)>>> {
+) -> Result<HashMap<String, Vec<(i64, String)>>, PyErr> {
     let infected_nodes: PyResult<Vec<InputVertexBox>> = infected_nodes
         .into_iter()
         .map(|v| extract_input_vertex(v))
