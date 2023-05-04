@@ -417,6 +417,46 @@ impl EdgeLayer {
         }
     }
 
+    pub fn degree_window(&self, v_pid: usize, d: Direction, window: &Range<i64>) -> usize {
+        let adj = &self.adj_lists[v_pid];
+        match adj {
+            Adj::Solo => 0,
+            Adj::List {
+                out,
+                remote_out,
+                into,
+                remote_into,
+            } => match d {
+                Direction::OUT => {
+                    out.len_window(&self.timestamps, window)
+                        + remote_out.len_window(&self.timestamps, window)
+                }
+                Direction::IN => {
+                    into.len_window(&self.timestamps, window)
+                        + remote_into.len_window(&self.timestamps, window)
+                }
+                Direction::BOTH => {
+                    [
+                        out.iter_window(&self.timestamps, window),
+                        into.iter_window(&self.timestamps, window),
+                    ]
+                    .into_iter()
+                    .kmerge()
+                    .dedup()
+                    .count()
+                        + [
+                            remote_out.iter_window(&self.timestamps, window),
+                            remote_into.iter_window(&self.timestamps, window),
+                        ]
+                        .into_iter()
+                        .kmerge()
+                        .dedup()
+                        .count()
+                }
+            },
+        }
+    }
+
     pub(crate) fn edges_iter<'a>(
         &'a self,
         vertex_id: u64,
