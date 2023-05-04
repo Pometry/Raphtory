@@ -1,8 +1,11 @@
 use rustc_hash::FxHashMap;
 
-use crate::core::agg::Accumulator;
+use crate::{core::agg::Accumulator, db::view_api::internal::GraphViewInternalOps};
 
-use super::{StateType, container::{DynArray, MapArray, VecArray, merge_2_vecs}};
+use super::{
+    container::{merge_2_vecs, DynArray, MapArray, VecArray},
+    StateType,
+};
 
 pub trait ComputeState: std::fmt::Debug + Clone + Send + Sync {
     fn clone_current_into_other(&mut self, ss: usize);
@@ -42,7 +45,12 @@ pub trait ComputeState: std::fmt::Debug + Clone + Send + Sync {
     where
         A: StateType;
 
-    fn finalize<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(&self, ss: usize) -> Vec<OUT>
+    fn finalize<A, IN, OUT, ACC: Accumulator<A, IN, OUT>, G: GraphViewInternalOps>(
+        &self,
+        ss: usize,
+        shard_id: usize,
+        g: &G,
+    ) -> Vec<(u64, OUT)>
     where
         OUT: StateType,
         A: 'static;
@@ -187,7 +195,12 @@ impl ComputeState for ComputeStateMap {
         });
     }
 
-    fn finalize<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(&self, ss: usize) -> Vec<OUT>
+    fn finalize<A, IN, OUT, ACC: Accumulator<A, IN, OUT>, G: GraphViewInternalOps>(
+        &self,
+        ss: usize,
+        shard_id: usize,
+        g: &G,
+    ) -> Vec<(u64, OUT)>
     where
         OUT: StateType,
         A: 'static,
@@ -199,8 +212,8 @@ impl ComputeState for ComputeStateMap {
             .unwrap();
         current
             .map
-            .values()
-            .map(|v| ACC::finish(&v[ss % 2]))
+            .iter()
+            .map(|(c, v)| (*c, ACC::finish(&v[ss % 2])))
             .collect()
     }
 
@@ -262,7 +275,7 @@ impl ComputeState for ComputeStateVec {
         i: usize,
     ) -> Option<OUT>
     where
-        OUT:std::fmt::Debug,
+        OUT: std::fmt::Debug,
     {
         let vec = self
             .current()
@@ -360,7 +373,12 @@ impl ComputeState for ComputeStateVec {
         merge_2_vecs(v, v_other, |a, b| ACC::combine(a, b));
     }
 
-    fn finalize<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(&self, ss: usize) -> Vec<OUT>
+    fn finalize<A, IN, OUT, ACC: Accumulator<A, IN, OUT>, G: GraphViewInternalOps>(
+        &self,
+        ss: usize,
+        shard_id: usize,
+        g: &G,
+    ) -> Vec<(u64, OUT)>
     where
         OUT: StateType,
         A: 'static,
@@ -372,7 +390,16 @@ impl ComputeState for ComputeStateVec {
             .unwrap()
             .current(ss);
 
-        current.iter().map(|a| ACC::finish(a)).collect()
+        current
+            .iter()
+            .enumerate()
+            .flat_map(|(p_id, a)| {
+                g.lookup_by_pid_and_shard(p_id, shard_id).map(|v_ref| {
+                    let out = ACC::finish(a);
+                    (v_ref.g_id, out)
+                })
+            })
+            .collect()
     }
 
     fn fold<A, IN, OUT, ACC: Accumulator<A, IN, OUT>, F, B>(&self, ss: usize, b: B, f: F) -> B

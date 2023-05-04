@@ -55,7 +55,7 @@ struct GlobalReciprocity {}
 type CS = ComputeStateMap;
 /// Gets the unique edge counts excluding cycles for a vertex. Returns a tuple of usize
 /// (out neighbours, in neighbours, the intersection of the out and in neighbours)
-fn get_reciprocal_edge_count<G: GraphViewOps>(v: &EvalVertexView<G, CS>) -> (usize, usize, usize) {
+fn get_reciprocal_edge_count<G: GraphViewOps>(v: &EvalVertexView<G>) -> (usize, usize, usize) {
     let out_neighbours: HashSet<u64> = v
         .neighbours_out()
         .map(|n| n.global_id())

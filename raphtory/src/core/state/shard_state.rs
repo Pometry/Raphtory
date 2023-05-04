@@ -1,8 +1,8 @@
 use rustc_hash::FxHashMap;
 
-use crate::core::agg::Accumulator;
+use crate::{core::agg::Accumulator, db::view_api::internal::GraphViewInternalOps};
 
-use super::{compute_state::ComputeState, accumulator_id::AccId, StateType};
+use super::{accumulator_id::AccId, compute_state::ComputeState, StateType};
 
 pub const GLOBAL_STATE_KEY: usize = 0;
 
@@ -46,17 +46,19 @@ impl<CS: ComputeState + Send + Clone> ShardComputeState<CS> {
         }
     }
 
-    pub fn read_vec<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
+    pub fn read_vec<A, IN, OUT, ACC: Accumulator<A, IN, OUT>, G: GraphViewInternalOps>(
         &self,
         ss: usize,
         agg_ref: &AccId<A, IN, OUT, ACC>,
-    ) -> Option<Vec<OUT>>
+        shard_id: usize,
+        g: &G,
+    ) -> Option<Vec<(u64, OUT)>>
     where
         OUT: StateType,
         A: 'static,
     {
         let cs = self.states.get(&agg_ref.id())?;
-        Some(cs.finalize::<A, IN, OUT, ACC>(ss))
+        Some(cs.finalize::<A, IN, OUT, ACC, G>(ss, shard_id, g))
     }
 
     pub(crate) fn set_from_other<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
@@ -139,7 +141,7 @@ impl<CS: ComputeState + Send + Clone> ShardComputeState<CS> {
     pub(crate) fn accumulate_into<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
         &mut self,
         ss: usize,
-        into: usize,
+        key: usize,
         a: IN,
         agg_ref: &AccId<A, IN, OUT, ACC>,
     ) where
@@ -149,17 +151,19 @@ impl<CS: ComputeState + Send + Clone> ShardComputeState<CS> {
             .states
             .entry(agg_ref.id())
             .or_insert_with(|| CS::new_mutable_primitive(ACC::zero()));
-        state.agg::<A, IN, OUT, ACC>(ss, a, into);
+        state.agg::<A, IN, OUT, ACC>(ss, a, key);
     }
 }
 
 #[cfg(test)]
 impl<CS: ComputeState + Send> ShardComputeState<CS> {
-    pub fn finalize<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
+    pub fn finalize<A, IN, OUT, ACC: Accumulator<A, IN, OUT>, G: GraphViewInternalOps>(
         &mut self,
         ss: usize,
         agg_ref: &AccId<A, IN, OUT, ACC>,
-    ) -> Option<Vec<OUT>>
+        shard_id: usize,
+        g: &G,
+    ) -> Option<Vec<(u64, OUT)>>
     where
         OUT: StateType,
         A: 'static,
@@ -167,7 +171,7 @@ impl<CS: ComputeState + Send> ShardComputeState<CS> {
         // finalize the accumulator
         // print the states
         let state = self.states.get(&agg_ref.id())?;
-        let state_arr = state.finalize::<A, IN, OUT, ACC>(ss);
+        let state_arr = state.finalize::<A, IN, OUT, ACC, G>(ss, shard_id, g);
         Some(state_arr)
     }
 }

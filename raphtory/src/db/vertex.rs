@@ -227,14 +227,14 @@ impl<G: GraphViewOps> LayerOps for VertexView<G> {
 
     fn default_layer(&self) -> Self::LayeredViewType {
         VertexView {
-            graph: self.graph.default_layer(),
+            graph: self.graph.default_layer().as_arc(),
             vertex: self.vertex,
         }
     }
 
     fn layer(&self, name: &str) -> Option<Self::LayeredViewType> {
         Some(VertexView {
-            graph: self.graph.layer(name)?,
+            graph: self.graph.layer(name)?.as_arc(),
             vertex: self.vertex,
         })
     }

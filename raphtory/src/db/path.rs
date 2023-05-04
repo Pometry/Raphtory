@@ -253,14 +253,14 @@ impl<G: GraphViewOps> LayerOps for PathFromGraph<G> {
 
     fn default_layer(&self) -> Self::LayeredViewType {
         PathFromGraph {
-            graph: self.graph.default_layer(),
+            graph: self.graph.default_layer().as_arc(),
             operations: self.operations.clone(),
         }
     }
 
     fn layer(&self, name: &str) -> Option<Self::LayeredViewType> {
         Some(PathFromGraph {
-            graph: self.graph.layer(name)?,
+            graph: self.graph.layer(name)?.as_arc(),
             operations: self.operations.clone(),
         })
     }
@@ -439,7 +439,7 @@ impl<G: GraphViewOps> LayerOps for PathFromVertex<G> {
 
     fn default_layer(&self) -> Self::LayeredViewType {
         PathFromVertex {
-            graph: self.graph.default_layer(),
+            graph: self.graph.default_layer().as_arc(),
             vertex: self.vertex,
             operations: self.operations.clone(),
         }
@@ -447,7 +447,7 @@ impl<G: GraphViewOps> LayerOps for PathFromVertex<G> {
 
     fn layer(&self, name: &str) -> Option<Self::LayeredViewType> {
         Some(PathFromVertex {
-            graph: self.graph.layer(name)?,
+            graph: self.graph.layer(name)?.as_arc(),
             vertex: self.vertex,
             operations: self.operations.clone(),
         })

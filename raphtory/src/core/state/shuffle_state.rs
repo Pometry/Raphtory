@@ -1,9 +1,16 @@
 use std::borrow::Borrow;
 
-use crate::core::{agg::Accumulator, utils::get_shard_id_from_global_vid};
+use crate::{
+    core::{agg::Accumulator, utils::get_shard_id_from_global_vid},
+    db::view_api::internal::GraphViewInternalOps,
+};
 
-use super::{compute_state::ComputeState, shard_state::{ShardComputeState, GLOBAL_STATE_KEY}, accumulator_id::AccId, StateType};
-
+use super::{
+    accumulator_id::AccId,
+    compute_state::ComputeState,
+    shard_state::{ShardComputeState, GLOBAL_STATE_KEY},
+    StateType,
+};
 
 #[derive(Debug, Clone)]
 pub struct ShuffleComputeState<CS: ComputeState + Send> {
@@ -13,7 +20,6 @@ pub struct ShuffleComputeState<CS: ComputeState + Send> {
 
 // every partition has a struct as such
 impl<CS: ComputeState + Send + Sync> ShuffleComputeState<CS> {
-
     pub fn fold_state<A, IN, OUT, ACC: Accumulator<A, IN, OUT>, B, F>(
         &self,
         ss: usize,
@@ -243,7 +249,6 @@ impl<CS: ComputeState + Send + Sync> ShuffleComputeState<CS> {
         self.parts[part].read_ref::<A, IN, OUT, ACC>(into, agg_ref.id(), ss)
     }
 
-
     pub fn read_ref_with_pid<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
         &self,
         ss: usize,
@@ -271,36 +276,40 @@ impl<CS: ComputeState + Send + Sync> ShuffleComputeState<CS> {
             .read::<A, IN, OUT, ACC>(GLOBAL_STATE_KEY, agg_ref.id(), ss)
     }
 
-    pub fn read_vec_partition<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
+    pub fn read_vec_partition<A, IN, OUT, ACC: Accumulator<A, IN, OUT>, G: GraphViewInternalOps>(
         &self,
         ss: usize,
         agg_def: &AccId<A, IN, OUT, ACC>,
-    ) -> Vec<Vec<OUT>>
+        g: &G,
+    ) -> Vec<Vec<(u64, OUT)>>
     where
         OUT: StateType,
         A: 'static,
     {
         self.parts
             .iter()
-            .flat_map(|part| part.read_vec(ss, agg_def))
+            .enumerate()
+            .flat_map(|(shard_id, part)| part.read_vec(ss, agg_def, shard_id, g))
             .collect()
     }
 }
 
 #[cfg(test)]
 impl<CS: ComputeState + Send> ShuffleComputeState<CS> {
-    pub fn finalize<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
+    pub fn finalize<A, IN, OUT, ACC: Accumulator<A, IN, OUT>, G: GraphViewInternalOps>(
         &mut self,
         ss: usize,
         agg_def: &AccId<A, IN, OUT, ACC>,
-    ) -> Vec<Option<Vec<OUT>>>
+        g: &G,
+    ) -> Vec<Option<Vec<(u64, OUT)>>>
     where
         OUT: StateType,
         A: 'static,
     {
         self.parts
             .iter_mut()
-            .map(|part| part.finalize(ss, &agg_def))
+            .enumerate()
+            .map(|(shard_id, part)| part.finalize(ss, &agg_def, shard_id, g))
             .collect()
     }
 }

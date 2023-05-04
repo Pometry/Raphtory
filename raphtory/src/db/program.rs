@@ -15,11 +15,13 @@ use crate::db::edge::EdgeView;
 use crate::db::vertex::VertexView;
 use crate::db::view_api::{GraphViewOps, TimeOps, VertexViewOps};
 use itertools::Itertools;
-use rand_distr::weighted_alias::AliasableWeight;
 use rayon::prelude::*;
 use rustc_hash::FxHashSet;
 use crate::db::graph_window::WindowedGraph;
 
+use super::view_api::internal::GraphViewInternalOps;
+
+type CS = ComputeStateMap;
 /// A reference to an accumulator for aggregation operations.
 /// `A` is the type of the state being accumulated.
 /// `IN` is the type of the input messages.
@@ -50,7 +52,7 @@ where
 }
 
 /// A struct representing the local state of a shard.
-pub struct BaseLocalState<G: GraphViewOps, CS: ComputeState> {
+pub struct LocalState<G: GraphViewOps> {
     ss: usize,
     shard: usize,
     graph: G,
@@ -58,9 +60,7 @@ pub struct BaseLocalState<G: GraphViewOps, CS: ComputeState> {
     next_vertex_set: Option<Arc<FxHashSet<u64>>>,
 }
 
-pub type LocalState<G> = BaseLocalState<G, ComputeStateMap>;
-
-impl<G: GraphViewOps, CS: ComputeState> BaseLocalState<G, CS> {
+impl<G: GraphViewOps> LocalState<G> {
     /// Creates a new `LocalState` object.
     ///
     /// # Arguments
@@ -138,7 +138,7 @@ impl<G: GraphViewOps, CS: ComputeState> BaseLocalState<G, CS> {
     /// * `f` - The function to execute on each vertex.
     pub(crate) fn step<F>(&self, f: F)
     where
-        F: Fn(EvalVertexView<G, CS>),
+        F: Fn(EvalVertexView<G>),
     {
         let graph = Arc::new(self.graph.clone());
 
@@ -186,7 +186,7 @@ impl<G: GraphViewOps, CS: ComputeState> BaseLocalState<G, CS> {
 ///  * `post_agg_state`: an arc pointer to a read-write lock that contains the state of the computation after aggregation.
 ///
 #[derive(Debug)]
-pub struct BaseGlobalEvalState<G: GraphViewOps, CS: ComputeState> {
+pub struct GlobalEvalState<G: GraphViewInternalOps> {
     pub ss: usize,
     g: G,
     pub keep_past_state: bool,
@@ -196,8 +196,6 @@ pub struct BaseGlobalEvalState<G: GraphViewOps, CS: ComputeState> {
     resetable_states: Vec<u32>,
 }
 
-pub type GlobalEvalState<G> = BaseGlobalEvalState<G, ComputeStateMap>;
-
 /// Implementation of the GlobalEvalState struct.
 /// The GlobalEvalState struct is used to represent the state of the computation across all shards.
 ///
@@ -205,7 +203,7 @@ pub type GlobalEvalState<G> = BaseGlobalEvalState<G, ComputeStateMap>;
 ///
 ///
 ///
-impl<G: GraphViewOps, CS: ComputeState> BaseGlobalEvalState<G, CS> {
+impl<G: GraphViewInternalOps + Send + Sync + Clone + 'static> GlobalEvalState<G> {
     /// Reads the vector partitions for the given accumulator.
     ///
     /// # Arguments
@@ -231,7 +229,6 @@ impl<G: GraphViewOps, CS: ComputeState> BaseGlobalEvalState<G, CS> {
         &self,
         agg: &AccId<A, IN, OUT, ACC>,
     ) -> Vec<Vec<Vec<(u64, OUT)>>>
-    // ) -> Vec<Vec<Vec<(u64, OUT)>>>
     where
         OUT: StateType,
         A: 'static,
@@ -241,7 +238,7 @@ impl<G: GraphViewOps, CS: ComputeState> BaseGlobalEvalState<G, CS> {
             .map(|state| {
                 let state = state.read();
                 let state = state.as_ref().unwrap();
-                state.read_vec_partition::<A, IN, OUT, ACC>(self.ss, agg)
+                state.read_vec_partition::<A, IN, OUT, ACC, G>(self.ss, agg, &self.g)
             })
             .collect()
     }
@@ -561,7 +558,7 @@ impl<G: GraphViewOps, CS: ComputeState> BaseGlobalEvalState<G, CS> {
     ///
     pub(crate) fn step<F>(&mut self, f: F)
     where
-        F: Fn(EvalVertexView<G, CS>) -> bool + Sync,
+        F: Fn(EvalVertexView<G>) -> bool + Sync,
     {
         let ss = self.ss;
         let graph = Arc::new(self.g.clone());
@@ -661,14 +658,14 @@ impl<'a, A: StateType, IN, OUT, ACC: Accumulator<A, IN, OUT>, CS: ComputeState>
 ///
 /// The view contains the evaluation step, the `WindowedVertex` representing the vertex, and a shared
 /// reference to the `ShuffleComputeState`.
-pub struct EvalVertexView<G: GraphViewOps, CS: ComputeState> {
+pub struct EvalVertexView<G: GraphViewOps> {
     ss: usize,
     vv: VertexView<G>,
     state: Rc<RefCell<ShuffleComputeState<CS>>>,
 }
 
 /// `EvalVertexView` represents a view of a vertex in a computation graph.
-impl<G: GraphViewOps, CS: ComputeState> EvalVertexView<G, CS> {
+impl<G: GraphViewOps> EvalVertexView<G> {
     pub fn update<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
         &self,
         agg_r: &AggRef<A, IN, OUT, ACC>,
@@ -861,8 +858,6 @@ impl<G: GraphViewOps, CS: ComputeState> EvalVertexView<G, CS> {
             .window(after, i64::MAX)
             .out_edges()
             .map(move |ev| {
-                // let et = ev.history().into_iter().filter(|t| t >= &after).min().unwrap();
-                // ev.dst();
                 EvalEdgeView::new(self.ss, ev, self.state.clone())
             })
     }

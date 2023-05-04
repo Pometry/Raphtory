@@ -13,7 +13,16 @@ mod state_test {
 
     use rand::Rng;
 
-    use crate::core::state::{container::merge_2_vecs, accumulator_id::def, shard_state::ShardComputeState, compute_state::{ComputeStateVec, ComputeStateMap}, shuffle_state::ShuffleComputeState};
+    use crate::{
+        core::state::{
+            accumulator_id::def,
+            compute_state::{ComputeStateMap, ComputeStateVec},
+            container::merge_2_vecs,
+            shard_state::ShardComputeState,
+            shuffle_state::ShuffleComputeState,
+        },
+        db::graph::Graph,
+    };
 
     #[quickcheck]
     fn check_merge_2_vecs(mut a: Vec<usize>, b: Vec<usize>) {
@@ -34,8 +43,19 @@ mod state_test {
         }
     }
 
+    fn tiny_graph(n_shards: usize) -> Graph {
+        let g = Graph::new(n_shards);
+
+        g.add_vertex(1, 1, &vec![]);
+        g.add_vertex(1, 2, &vec![]);
+        g.add_vertex(1, 3, &vec![]);
+        g
+    }
+
     #[test]
     fn min_aggregates_for_3_keys() {
+        let g = tiny_graph(1);
+
         let min = def::min(0);
 
         let mut state_map: ShardComputeState<ComputeStateVec> = ShardComputeState::new();
@@ -56,12 +76,17 @@ mod state_test {
             state_map.accumulate_into(0, 2, a, &min);
         }
 
-        let actual = state_map.finalize(0, &min);
-        assert_eq!(actual, Some(vec![actual_min, actual_min, actual_min]));
+        let actual = state_map.finalize(0, &min, 0, &g);
+        assert_eq!(
+            actual,
+            Some(vec![(1, actual_min), (2, actual_min), (3, actual_min)])
+        );
     }
 
     #[test]
     fn avg_aggregates_for_3_keys() {
+        let g = tiny_graph(2);
+
         let avg = def::avg(0);
 
         let mut state_map: ShardComputeState<ComputeStateMap> = ShardComputeState::new();
@@ -83,12 +108,17 @@ mod state_test {
         }
 
         let actual_avg = sum / 100;
-        let actual = state_map.finalize(0, &avg);
-        assert_eq!(actual, Some(vec![actual_avg, actual_avg, actual_avg]));
+        let actual = state_map.finalize(0, &avg, 0, &g);
+        assert_eq!(
+            actual,
+            Some(vec![(1, actual_avg), (2, actual_avg), (3, actual_avg)])
+        );
     }
 
     #[test]
     fn top3_aggregates_for_3_keys() {
+        let g = tiny_graph(1);
+
         let top3 = def::topk::<i32, 3>(0);
 
         let mut state_map: ShardComputeState<ComputeStateVec> = ShardComputeState::new();
@@ -100,15 +130,21 @@ mod state_test {
         }
         let expected = vec![99, 98, 97];
 
-        let actual = state_map.finalize(0, &top3);
+        let actual = state_map.finalize(0, &top3, 0, &g);
         assert_eq!(
             actual,
-            Some(vec![expected.clone(), expected.clone(), expected.clone()])
+            Some(vec![
+                (1, expected.clone()),
+                (2, expected.clone()),
+                (3, expected.clone())
+            ])
         );
     }
 
     #[test]
     fn sum_aggregates_for_3_keys() {
+        let g = tiny_graph(1);
+
         let sum = def::sum(0);
 
         let mut state: ShardComputeState<ComputeStateMap> = ShardComputeState::new();
@@ -129,13 +165,18 @@ mod state_test {
             state.accumulate_into(0, 2, a, &sum);
         }
 
-        let actual = state.finalize(0, &sum);
+        let actual = state.finalize(0, &sum, 0, &g);
 
-        assert_eq!(actual, Some(vec![actual_sum, actual_sum, actual_sum]));
+        assert_eq!(
+            actual,
+            Some(vec![(1, actual_sum), (2, actual_sum), (3, actual_sum)])
+        );
     }
 
     #[test]
     fn sum_aggregates_for_3_keys_2_parts() {
+        let g = tiny_graph(2);
+
         let sum = def::sum(0);
 
         let mut part1_state: ShuffleComputeState<ComputeStateMap> = ShuffleComputeState::new(2);
@@ -175,31 +216,36 @@ mod state_test {
         println!("part1_state: {:?}", part1_state);
         println!("part2_state: {:?}", part2_state);
 
-        let actual = part1_state.finalize(0, &sum);
+        let actual = part1_state.finalize(0, &sum, &g);
 
         assert_eq!(
             actual,
-            vec![Some(vec![actual_sum_1]), Some(vec![actual_sum_1])]
+            vec![Some(vec![(2, actual_sum_1)]), Some(vec![(1, actual_sum_1)])]
         );
 
-        let actual = part2_state.finalize(0, &sum);
+        let actual = part2_state.finalize(0, &sum, &g);
 
-        assert_eq!(actual, vec![None, Some(vec![actual_sum_2, actual_sum_2])]);
+        assert_eq!(
+            actual,
+            vec![None, Some(vec![(1, actual_sum_2), (3, actual_sum_2)])]
+        );
 
         ShuffleComputeState::merge_mut(&mut part1_state, &part2_state, &sum, 0);
-        let actual = part1_state.finalize(0, &sum);
+        let actual = part1_state.finalize(0, &sum, &g);
 
         assert_eq!(
             actual,
             vec![
-                Some(vec![(actual_sum_1)]),
-                Some(vec![(actual_sum_1 + actual_sum_2), (actual_sum_2)]),
+                Some(vec![(2, actual_sum_1)]),
+                Some(vec![(1, (actual_sum_1 + actual_sum_2)), (3, actual_sum_2)]),
             ]
         );
     }
 
     #[test]
     fn min_sum_aggregates_for_3_keys_2_parts() {
+        let g = tiny_graph(2);
+
         let sum = def::sum(0);
         let min = def::min(1);
 
@@ -245,42 +291,48 @@ mod state_test {
             part2_state.accumulate_into(0, 3, a, &min);
         }
 
-        let actual = part1_state.finalize(0, &sum);
+        let actual = part1_state.finalize(0, &sum, &g);
         assert_eq!(
             actual,
-            vec![Some(vec![actual_sum_1]), Some(vec![actual_sum_1])]
+            vec![Some(vec![(2, actual_sum_1)]), Some(vec![(1, actual_sum_1)])]
         );
 
-        let actual = part1_state.finalize(0, &min);
+        let actual = part1_state.finalize(0, &min, &g);
         assert_eq!(
             actual,
-            vec![Some(vec![actual_min_1]), Some(vec![actual_min_1])]
+            vec![Some(vec![(2, actual_min_1)]), Some(vec![(1, actual_min_1)])]
         );
 
-        let actual = part2_state.finalize(0, &sum);
-        assert_eq!(actual, vec![None, Some(vec![actual_sum_2, actual_sum_2])]);
+        let actual = part2_state.finalize(0, &sum, &g);
+        assert_eq!(
+            actual,
+            vec![None, Some(vec![(1, actual_sum_2), (3, actual_sum_2)])]
+        );
 
-        let actual = part2_state.finalize(0, &min);
-        assert_eq!(actual, vec![None, Some(vec![actual_min_2, actual_min_2])]);
+        let actual = part2_state.finalize(0, &min, &g);
+        assert_eq!(
+            actual,
+            vec![None, Some(vec![(1, actual_min_2), (3, actual_min_2)])]
+        );
 
         ShuffleComputeState::merge_mut(&mut part1_state, &part2_state, &sum, 0);
-        let actual = part1_state.finalize(0, &sum);
+        let actual = part1_state.finalize(0, &sum, &g);
 
         assert_eq!(
             actual,
             vec![
-                Some(vec![(actual_sum_1)]),
-                Some(vec![(actual_sum_1 + actual_sum_2), (actual_sum_2)]),
+                Some(vec![((2, actual_sum_1))]),
+                Some(vec![(1, (actual_sum_1 + actual_sum_2)), (3, actual_sum_2)]),
             ]
         );
 
         ShuffleComputeState::merge_mut(&mut part1_state, &part2_state, &min, 0);
-        let actual = part1_state.finalize(0, &min);
+        let actual = part1_state.finalize(0, &min, &g);
         assert_eq!(
             actual,
             vec![
-                Some(vec![(actual_min_1)]),
-                Some(vec![(actual_min_1.min(actual_min_2)), (actual_min_2)]),
+                Some(vec![(2, actual_min_1)]),
+                Some(vec![(1, actual_min_1.min(actual_min_2)), (3, actual_min_2)]),
             ]
         );
     }

@@ -1,13 +1,9 @@
 use itertools::Itertools;
 use raphtory::algorithms::generic_taint::generic_taint;
-use raphtory::algorithms::triangle_count::{TriangleCountS1, TriangleCountS2, TriangleCountSlowS2};
 use raphtory::core::Prop;
-use raphtory::core::{state, utils};
+use raphtory::core:: utils;
 use raphtory::db::graph::Graph;
-use raphtory::db::program::{GlobalEvalState, Program};
-use raphtory::db::view_api::internal::GraphViewInternalOps;
 use raphtory::db::view_api::*;
-use raphtory::graph_loader::example::lotr_graph::lotr_graph;
 use raphtory::graph_loader::source::csv_loader::CsvLoader;
 use serde::Deserialize;
 use std::path::PathBuf;
