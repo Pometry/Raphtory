@@ -322,6 +322,10 @@ mod generic_taint_tests {
         let results: HashMap<String, Vec<(i64, String)>> =
             generic_taint(&graph, iter_count, start_time, infected_nodes, stop_nodes)
                 .into_iter()
+                .map(|(k, mut v)| {
+                    v.sort();
+                    (k, v)
+                })
                 .collect();
         results
     }
@@ -468,9 +472,9 @@ mod generic_taint_tests {
                 (
                     "2".to_string(),
                     vec![
-                        (12, "1".to_string()),
                         (11, "1".to_string()),
-                        (11, "2".to_string())
+                        (11, "2".to_string()),
+                        (12, "1".to_string())
                     ]
                 ),
                 ("4".to_string(), vec![(12, "2".to_string())]),
