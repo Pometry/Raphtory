@@ -202,7 +202,7 @@ impl TGraphShard<TemporalGraph> {
         self.read_shard(|tg| tg.len_window(&w))
     }
 
-    pub fn has_edge(&self, src: u64, dst: u64, layer: usize) -> bool {
+    pub fn has_edge(&self, src: VertexRef, dst: VertexRef, layer: usize) -> bool {
         self.read_shard(|tg| tg.has_edge(src, dst, layer))
     }
 

@@ -131,6 +131,15 @@ impl Default for TemporalGraph {
     }
 }
 
+// Internal helpers
+impl TemporalGraph {
+    #[inline(always)]
+    fn pid(&self, v: &VertexRef) -> Option<usize> {
+        v.pid
+            .or_else(|| self.logical_to_physical.get(&v.g_id).copied())
+    }
+}
+
 // Layer management:
 impl TemporalGraph {
     fn layer_iter(&self, id: Option<usize>) -> Box<dyn Iterator<Item = &EdgeLayer> + Send + '_> {
@@ -197,18 +206,16 @@ impl TemporalGraph {
         }
     }
 
-    pub(crate) fn has_edge(&self, src: u64, dst: u64, layer: usize) -> bool {
-        match self.logical_to_physical.get(&src) {
+    pub(crate) fn has_edge(&self, src: VertexRef, dst: VertexRef, layer: usize) -> bool {
+        match self.pid(&src) {
             Some(src_pid) => {
                 // TODO: if we should own dst but we don't, we should directly return false
-                if self.has_vertex(dst) {
-                    let dst_pid = self.logical_to_physical[&dst];
-                    self.layers[layer].has_local_edge(*src_pid, dst_pid)
-                } else {
-                    self.layers[layer].has_remote_edge(*src_pid, dst)
+                match self.pid(&dst) {
+                    Some(dst_pid) => self.layers[layer].has_local_edge(src_pid, dst_pid),
+                    None => self.layers[layer].has_remote_edge(src_pid, dst.g_id),
                 }
             }
-            _ => false,
+            None => false,
         }
     }
 
@@ -1225,13 +1232,13 @@ mod graph_test {
         g.add_edge(3, 8, 9, 0);
         g.add_edge(3, 9, 11, 0);
 
-        assert_eq!(g.has_edge(8, 9, 0), true);
-        assert_eq!(g.has_edge(9, 8, 0), true);
-        assert_eq!(g.has_edge(9, 11, 0), true);
-        assert_eq!(g.has_edge(11, 9, 0), false);
-        assert_eq!(g.has_edge(10, 11, 0), false);
-        assert_eq!(g.has_edge(10, 9, 0), false);
-        assert_eq!(g.has_edge(100, 101, 0), false);
+        assert_eq!(g.has_edge(8.into(), 9.into(), 0), true);
+        assert_eq!(g.has_edge(9.into(), 8.into(), 0), true);
+        assert_eq!(g.has_edge(9.into(), 11.into(), 0), true);
+        assert_eq!(g.has_edge(11.into(), 9.into(), 0), false);
+        assert_eq!(g.has_edge(10.into(), 11.into(), 0), false);
+        assert_eq!(g.has_edge(10.into(), 9.into(), 0), false);
+        assert_eq!(g.has_edge(100.into(), 101.into(), 0), false);
     }
 
     #[test]
@@ -1243,7 +1250,7 @@ mod graph_test {
 
         let actual: Vec<bool> = g
             .vertex_edges_window(5, &(0..4), Direction::OUT, None)
-            .map(|e| g.has_edge(e.1.src_g_id, e.1.dst_g_id, 0))
+            .map(|e| g.has_edge(e.1.src_g_id.into(), e.1.dst_g_id.into(), 0))
             .collect();
 
         assert_eq!(actual, vec![true]);
@@ -1258,7 +1265,7 @@ mod graph_test {
 
         let actual: Vec<bool> = g
             .vertex_edges_window(9, &(0..4), Direction::OUT, None)
-            .map(|e| g.has_edge(e.1.src_g_id, e.1.dst_g_id, 0))
+            .map(|e| g.has_edge(e.1.src_g_id.into(), e.1.dst_g_id.into(), 0))
             .collect();
 
         //return empty as no edges in this window

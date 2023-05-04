@@ -138,7 +138,6 @@ impl EdgeLayer {
                 ts.insert(t);
             }
             None => {
-                assert_eq!(self.timestamps.len(), edge.edge_id());
                 self.timestamps.push(TimeIndex::one(t))
             }
         };

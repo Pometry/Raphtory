@@ -134,7 +134,7 @@ impl GraphViewInternalOps for Graph {
 
     fn has_edge_ref(&self, src: VertexRef, dst: VertexRef, layer: usize) -> bool {
         self.get_shard_from_v(src)
-            .has_edge(src.g_id, dst.g_id, layer)
+            .has_edge(src, dst, layer)
     }
 
     fn has_edge_ref_window(
