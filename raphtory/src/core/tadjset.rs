@@ -55,6 +55,28 @@ impl<V: Ord + Into<usize> + From<usize> + Copy + Hash + Send + Sync> TAdjSet<V> 
         }
     }
 
+    pub fn len_window(&self, timestamps: &[TimeIndex], window: &Range<i64>) -> usize {
+        match self {
+            TAdjSet::Empty => 0,
+            TAdjSet::One(_, e) => {
+                if timestamps[e.edge_id()].active(window.clone()) {
+                    1
+                } else {
+                    0
+                }
+            }
+
+            TAdjSet::Small { edges, .. } => edges
+                .iter()
+                .filter(|&&e| timestamps[e.edge_id()].active(window.clone()))
+                .count(),
+            TAdjSet::Large { vs } => vs
+                .values()
+                .filter(|&&e| timestamps[e.edge_id()].active(window.clone()))
+                .count(),
+        }
+    }
+
     pub fn push(&mut self, v: V, e: AdjEdge) {
         match self {
             TAdjSet::Empty => {

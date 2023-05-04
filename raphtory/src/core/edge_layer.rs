@@ -374,8 +374,7 @@ impl EdgeLayer {
                 Adj::List {
                     out, remote_out, ..
                 } => {
-                    out.iter_window(&self.timestamps, w).count()
-                        + remote_out.iter_window(&self.timestamps, w).count()
+                    out.len_window(&self.timestamps, w) + remote_out.len_window(&self.timestamps, w)
                 }
             })
             .sum()

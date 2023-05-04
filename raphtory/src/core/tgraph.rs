@@ -31,26 +31,33 @@ impl TimeIndex {
         s.insert(t);
         s
     }
+
+    #[inline(always)]
     pub fn active(&self, w: Range<i64>) -> bool {
         self.0.range(w).next().is_some()
     }
 
+    #[inline(always)]
     pub fn range(&self, w: Range<i64>) -> std::collections::btree_set::Range<'_, i64> {
         self.0.range(w)
     }
 
+    #[inline(always)]
     pub fn first(&self) -> Option<&i64> {
         self.0.first()
     }
 
+    #[inline(always)]
     pub fn last(&self) -> Option<&i64> {
         self.0.last()
     }
 
+    #[inline(always)]
     pub fn insert(&mut self, t: i64) -> bool {
         self.0.insert(t)
     }
 
+    #[inline(always)]
     pub fn iter(&self) -> Iter<'_, i64> {
         self.0.iter()
     }
@@ -186,9 +193,7 @@ impl TemporalGraph {
     pub fn out_edges_len_window(&self, w: &Range<Time>, layer: Option<usize>) -> usize {
         match self.layer_iter_optm(layer) {
             LayerIterator::Single(layer) => layer.out_edges_len_window(w),
-            LayerIterator::Vector(layers) => {
-                layers.into_iter().map(|l| l.out_edges_len_window(w)).sum()
-            }
+            LayerIterator::Vector(layers) => layers.iter().map(|l| l.out_edges_len_window(w)).sum(),
         }
     }
 
