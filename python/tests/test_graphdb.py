@@ -860,10 +860,10 @@ def test_generic_taint():
 
     actual = algorithms.generic_taint(g, 20, 11, [1, 2], [4, 5])
     expected = {
-        '1': [(0, 11, '1')],
-        '2': [(2, 12, '1'), (2, 11, '1'), (0, 11, '2')],
-        '4': [(5, 12, '2')],
-        '5': [(6, 13, '2')],
+        '1': [(11, '1')],
+        '2': [(12, '1'), (11, '1'), (11, '2')],
+        '4': [(12, '2')],
+        '5': [(13, '2')],
     }
 
     assert (actual == expected)
@@ -874,8 +874,8 @@ def test_generic_taint_loader():
 
     actual = algorithms.generic_taint(g, 20, 1651105815, ["0xd30b438df65f4f788563b2b3611bd6059bff4ad9"], [])
     expected = {
-        '0xd30b438df65f4f788563b2b3611bd6059bff4ad9': [(0, 1651105815, '0xd30b438df65f4f788563b2b3611bd6059bff4ad9')],
-        '0xda816e2122a8a39b0926bfa84edd3d42477e9efd': [(1, 1651105815, '0xd30b438df65f4f788563b2b3611bd6059bff4ad9')],
+        '0xd30b438df65f4f788563b2b3611bd6059bff4ad9': [(1651105815, '0xd30b438df65f4f788563b2b3611bd6059bff4ad9')],
+        '0xda816e2122a8a39b0926bfa84edd3d42477e9efd': [(1651105815, '0xd30b438df65f4f788563b2b3611bd6059bff4ad9')],
     }
 
     assert (actual == expected)
