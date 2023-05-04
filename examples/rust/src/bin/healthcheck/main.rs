@@ -256,8 +256,8 @@ mod test {
             load::<PairNoTime>(&g1, &gn, csv_path.clone());
 
             let iter_count = 50;
-            let cc1 = weakly_connected_components(&g1, iter_count);
-            let ccn = weakly_connected_components(&gn, iter_count);
+            let cc1 = weakly_connected_components(&g1, iter_count, None);
+            let ccn = weakly_connected_components(&gn, iter_count, None);
 
             // get LCC
             let counts = cc1.iter().counts_by(|(_, cc)| cc);

@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::core::tgraph::VertexRef;
 use crate::db::edge::EdgeView;
 use crate::db::graph_layer::LayeredGraph;
@@ -14,6 +16,7 @@ use crate::db::view_api::VertexViewOps;
 /// that are used to define the type of the vertices, edges
 /// and the corresponding iterators.
 pub trait GraphViewOps: Send + Sync + Sized + GraphViewInternalOps + 'static + Clone {
+    fn as_arc(&self) -> Arc<Self>;
     /// Timestamp of earliest activity in the graph
     fn earliest_time(&self) -> Option<i64>;
     /// Timestamp of latest activity in the graph
@@ -83,7 +86,8 @@ impl<G: Send + Sync + Sized + GraphViewInternalOps + 'static + Clone> GraphViewO
 
     fn vertex<T: Into<VertexRef>>(&self, v: T) -> Option<VertexView<Self>> {
         let v = v.into().g_id;
-        self.vertex_ref(v).map(|v| VertexView::new(self.clone(), v))
+        self.vertex_ref(v)
+            .map(|v| VertexView::new(Arc::new(self.clone()), v))
     }
 
     fn vertices(&self) -> Vertices<Self> {
@@ -99,11 +103,15 @@ impl<G: Send + Sync + Sized + GraphViewInternalOps + 'static + Clone> GraphViewO
     ) -> Option<EdgeView<Self>> {
         let layer_id = self.get_layer(layer)?;
         self.edge_ref(src.into(), dst.into(), layer_id)
-            .map(|e| EdgeView::new(self.clone(), e))
+            .map(|e| EdgeView::new(Arc::new(self.clone()), e))
     }
 
     fn edges(&self) -> Box<dyn Iterator<Item = EdgeView<Self>> + Send> {
         Box::new(self.vertices().iter().flat_map(|v| v.out_edges()))
+    }
+
+    fn as_arc(&self) -> Arc<Self> {
+        Arc::new(self.clone())
     }
 }
 

@@ -40,9 +40,7 @@ pub fn stable_coin_graph(path: Option<String>, num_shards: usize) -> Graph {
 
     let data_dir = match path {
         Some(path) => PathBuf::from(path),
-        None => {
-            default_data_dir
-        },
+        None => default_data_dir,
     };
 
     let dir_str = data_dir.to_str().unwrap();

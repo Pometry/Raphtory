@@ -18,11 +18,16 @@ pub struct DynamicGraph(Arc<dyn DynamicGraphView>);
 
 pub(crate) trait IntoDynamic {
     fn into_dynamic(self) -> DynamicGraph;
+    fn into_dynamic_arc(&self) -> DynamicGraph;
 }
 
 impl IntoDynamic for Graph {
     fn into_dynamic(self) -> DynamicGraph {
-        DynamicGraph(Arc::new(self))
+        DynamicGraph(self.as_arc())
+    }
+
+    fn into_dynamic_arc(&self) -> DynamicGraph {
+        DynamicGraph(self.as_arc())
     }
 }
 
@@ -30,17 +35,28 @@ impl<G: GraphViewOps> IntoDynamic for WindowedGraph<G> {
     fn into_dynamic(self) -> DynamicGraph {
         DynamicGraph(Arc::new(self))
     }
+
+    fn into_dynamic_arc(&self) -> DynamicGraph {
+        DynamicGraph(self.as_arc())
+    }
 }
 
 impl<G: GraphViewOps> IntoDynamic for LayeredGraph<G> {
     fn into_dynamic(self) -> DynamicGraph {
         DynamicGraph(Arc::new(self))
     }
+
+    fn into_dynamic_arc(&self) -> DynamicGraph {
+        DynamicGraph(self.as_arc())
+    }
 }
 
 impl IntoDynamic for DynamicGraph {
     fn into_dynamic(self) -> DynamicGraph {
         self
+    }
+    fn into_dynamic_arc(&self) -> DynamicGraph {
+        self.clone()
     }
 }
 
@@ -407,5 +423,9 @@ impl GraphViewInternalOps for DynamicGraph {
         t_end: i64,
     ) -> Box<dyn Iterator<Item = VertexRef> + Send> {
         self.0.vertices_shard_window(shard_id, t_start, t_end)
+    }
+
+    fn lookup_by_pid_and_shard(&self, pid: usize, shard: usize) -> Option<VertexRef> {
+        self.0.lookup_by_pid_and_shard(pid, shard)
     }
 }

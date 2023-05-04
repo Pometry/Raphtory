@@ -1020,6 +1020,15 @@ impl<G: GraphViewOps> GraphViewInternalOps for WindowedGraph<G> {
             self.actual_end(t_end),
         )
     }
+
+    fn lookup_by_pid_and_shard(&self, pid: usize, shard: usize) -> Option<VertexRef> {
+        self.graph
+            .lookup_by_pid_and_shard(pid, shard)
+            .filter(|v_ref| {
+                self.graph
+                    .has_vertex_ref_window(*v_ref, self.t_start, self.t_end)
+            })
+    }
 }
 
 /// A windowed graph is a graph that only allows access to vertices and edges within a time window.

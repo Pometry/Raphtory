@@ -1,6 +1,9 @@
-use crate::algorithms::triangle_count::{TriangleCountS1, TriangleCountS2};
+use rustc_hash::FxHashSet;
+
 use crate::algorithms::triplet_count::TripletCount;
-use crate::db::program::{GlobalEvalState, Program};
+use crate::core::state;
+use crate::core::state::accumulator_id::accumulators;
+use crate::db::program::{GlobalEvalState, LocalState, Program};
 use crate::db::view_api::GraphViewOps;
 
 /// Computes the global clustering coefficient of a graph. The global clustering coefficient is
@@ -53,6 +56,86 @@ pub fn clustering_coefficient<G: GraphViewOps>(g: &G) -> f64 {
         0.0
     } else {
         3.0 * tc_val as f64 / output as f64
+    }
+}
+
+pub struct TriangleCountS1 {}
+
+impl Program for TriangleCountS1 {
+    fn local_eval<G: GraphViewOps>(&self, c: &LocalState<G>) {
+        let neighbors_set = c.agg(accumulators::hash_set(0));
+
+        c.step(|s| {
+            for t in s.neighbours() {
+                if s.global_id() > t.global_id() {
+                    t.update(&neighbors_set, s.global_id());
+                }
+            }
+        });
+    }
+
+    fn post_eval<G: GraphViewOps>(&self, c: &mut GlobalEvalState<G>) {
+        let _ = c.agg(accumulators::hash_set::<u64>(0));
+        c.step(|_| false)
+    }
+
+    type Out = ();
+
+    #[allow(unused_variables)]
+    fn produce_output<G: GraphViewOps>(&self, g: &G, gs: &GlobalEvalState<G>) -> Self::Out
+    where
+        Self: Sync,
+    {
+    }
+}
+
+pub struct TriangleCountS2 {}
+
+impl Program for TriangleCountS2 {
+    type Out = Option<usize>;
+    fn local_eval<G: GraphViewOps>(&self, c: &LocalState<G>) {
+        let neighbors_set = c.agg(accumulators::hash_set::<u64>(0));
+        let count = c.global_agg(accumulators::sum::<usize>(1));
+
+        c.step(|s| {
+            for t in s.neighbours() {
+                if s.global_id() > t.global_id() {
+                    let intersection_count = {
+                        // when using entry() we need to make sure the reference is released before we can update the state, otherwise we break the Rc<RefCell<_>> invariant
+                        // where there can either be one mutable or many immutable references
+
+                        match (
+                            s.entry(&neighbors_set)
+                                .read_ref()
+                                .unwrap_or(&FxHashSet::default()),
+                            t.entry(&neighbors_set)
+                                .read_ref()
+                                .unwrap_or(&FxHashSet::default()),
+                        ) {
+                            (s_set, t_set) => {
+                                let intersection = s_set.intersection(t_set);
+                                intersection.count()
+                            }
+                        }
+                    };
+
+                    s.global_update(&count, intersection_count);
+                }
+            }
+        });
+    }
+
+    fn post_eval<G: GraphViewOps>(&self, c: &mut GlobalEvalState<G>) {
+        let _ = c.global_agg(accumulators::sum::<usize>(1));
+        c.step(|_| false)
+    }
+
+    #[allow(unused_variables)]
+    fn produce_output<G: GraphViewOps>(&self, g: &G, gs: &GlobalEvalState<G>) -> Self::Out
+    where
+        Self: Sync,
+    {
+        gs.read_global_state(&accumulators::sum::<usize>(1))
     }
 }
 

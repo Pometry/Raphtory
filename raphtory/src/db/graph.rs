@@ -538,6 +538,10 @@ impl GraphViewInternalOps for Graph {
     ) -> Box<dyn Iterator<Item = VertexRef> + Send> {
         Box::new(self.shards[shard_id].vertices_window(t_start..t_end))
     }
+
+    fn lookup_by_pid_and_shard(&self, pid: usize, shard: usize) -> Option<VertexRef> {
+        self.shards.get(shard).and_then(|s| s.lookup_by_pid(pid))
+    }
 }
 
 /// The implementation of a temporal graph composed of multiple shards.

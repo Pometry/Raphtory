@@ -1,17 +1,13 @@
-use raphtory::algorithms::triangle_count::{TriangleCountS1, TriangleCountS2, TriangleCountSlowS2};
+use itertools::Itertools;
+use raphtory::algorithms::generic_taint::generic_taint;
+use raphtory::core::utils;
 use raphtory::core::Prop;
-use raphtory::core::{state, utils};
 use raphtory::db::graph::Graph;
-use raphtory::db::program::{GlobalEvalState, Program};
 use raphtory::db::view_api::*;
 use raphtory::graph_loader::source::csv_loader::CsvLoader;
 use serde::Deserialize;
 use std::path::PathBuf;
 use std::{env, path::Path, time::Instant};
-use itertools::Itertools;
-use raphtory::algorithms::generic_taint::generic_taint;
-use raphtory::db::view_api::internal::GraphViewInternalOps;
-use raphtory::graph_loader::example::lotr_graph::lotr_graph;
 
 #[derive(Deserialize, std::fmt::Debug)]
 pub struct Lotr {
@@ -62,18 +58,16 @@ fn main() {
                 g.add_vertex(
                     lotr.time,
                     lotr.src_id.clone(),
-                    &vec![
-                        ("type".to_string(), Prop::Str("Character".to_string()))
-                    ],
-                ).expect("Failed to add vertex");
+                    &vec![("type".to_string(), Prop::Str("Character".to_string()))],
+                )
+                .expect("Failed to add vertex");
 
                 g.add_vertex(
                     lotr.time,
                     lotr.dst_id.clone(),
-                    &vec![
-                        ("type".to_string(), Prop::Str("Character".to_string()))
-                    ],
-                ).expect("Failed to add vertex");
+                    &vec![("type".to_string(), Prop::Str("Character".to_string()))],
+                )
+                .expect("Failed to add vertex");
 
                 g.add_edge(
                     lotr.time,
@@ -84,7 +78,8 @@ fn main() {
                         Prop::Str("Character Co-occurrence".to_string()),
                     )],
                     None,
-                ).expect("Failed to add edge");
+                )
+                .expect("Failed to add edge");
             })
             .expect("Failed to load graph from CSV data files");
 
@@ -112,5 +107,8 @@ fn main() {
     assert_eq!(graph.vertex(gandalf).unwrap().name(), "Gandalf");
 
     let r = generic_taint(&graph, 20, 31930, vec!["Gandalf"], vec![]);
-    assert_eq!(r.keys().sorted().collect_vec(), vec!["Gandalf", "Saruman", "Wormtongue"])
+    assert_eq!(
+        r.keys().sorted().collect_vec(),
+        vec!["Gandalf", "Saruman", "Wormtongue"]
+    )
 }

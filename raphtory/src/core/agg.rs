@@ -7,9 +7,9 @@ use std::{
 
 use num_traits::{Bounded, Zero};
 
-use crate::core::state::StateType;
+use super::state::StateType;
 
-pub trait Accumulator<A, IN, OUT>: Send + Sync {
+pub trait Accumulator<A, IN, OUT>: Send + Sync + 'static {
     fn zero() -> A;
 
     fn add0(a1: &mut A, a: IN);
@@ -17,6 +17,34 @@ pub trait Accumulator<A, IN, OUT>: Send + Sync {
     fn combine(a1: &mut A, a2: &A);
 
     fn finish(a: &A) -> OUT;
+}
+
+pub struct InitOneF32();
+impl Init<f32> for InitOneF32 {
+    fn init() -> f32 {
+        1.0f32
+    }
+}
+
+#[derive(Clone, Debug, Copy)]
+pub struct AndDef();
+
+impl Accumulator<bool, bool, bool> for AndDef {
+    fn zero() -> bool {
+        true
+    }
+
+    fn add0(a1: &mut bool, a: bool) {
+        *a1 = *a1 && a;
+    }
+
+    fn combine(a1: &mut bool, a2: &bool) {
+        Self::add0(a1, *a2);
+    }
+
+    fn finish(a: &bool) -> bool {
+        *a
+    }
 }
 
 #[derive(Clone, Debug, Copy)]
@@ -154,6 +182,46 @@ where
     fn finish(a: &(A, usize)) -> A {
         let count: A = A::try_from(a.1).expect("failed to convert usize to A");
         a.0.clone() / count
+    }
+}
+// use to replace the default zero for A
+pub trait Init<A> {
+    fn init() -> A;
+}
+
+pub struct InitAcc<A, IN, OUT, ACC: Accumulator<A, IN, OUT>, I: Init<A>> {
+    _marker: PhantomData<(A, IN, OUT, ACC, I)>,
+}
+
+pub type InitAcc1<A, ACC, I> = InitAcc<A, A, A, ACC, I>;
+
+// these are safe as long as InitAcc does not have ANY internal state
+unsafe impl<A, IN, OUT, ACC: Accumulator<A, IN, OUT>, I: Init<A>> Sync
+    for InitAcc<A, IN, OUT, ACC, I>
+{
+}
+unsafe impl<A, IN, OUT, ACC: Accumulator<A, IN, OUT>, I: Init<A>> Send
+    for InitAcc<A, IN, OUT, ACC, I>
+{
+}
+
+impl<A: 'static, IN: 'static, OUT: 'static, ACC: Accumulator<A, IN, OUT>, I: Init<A> + 'static>
+    Accumulator<A, IN, OUT> for InitAcc<A, IN, OUT, ACC, I>
+{
+    fn zero() -> A {
+        I::init()
+    }
+
+    fn add0(a1: &mut A, a: IN) {
+        ACC::add0(a1, a);
+    }
+
+    fn combine(a1: &mut A, a2: &A) {
+        ACC::combine(a1, a2);
+    }
+
+    fn finish(a: &A) -> OUT {
+        ACC::finish(a)
     }
 }
 

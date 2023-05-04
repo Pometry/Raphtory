@@ -30,7 +30,7 @@ impl<G: GraphViewOps + IntoDynamic> From<EdgeView<G>> for PyEdge {
     fn from(value: EdgeView<G>) -> Self {
         Self {
             edge: EdgeView {
-                graph: value.graph.into_dynamic(),
+                graph: Arc::new(value.graph.into_dynamic_arc()),
                 edge: value.edge,
             },
         }
