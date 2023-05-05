@@ -66,7 +66,7 @@ jobs:
           if: ${{ !inputs.skip_tests }}
           uses: lewagon/wait-on-check-action@master
           with:
-            ref: ${{ github.ref }}
+            ref: ${{ inputs.base }}
             check-name: 'Rust Tests'
             repo-token: ${{ secrets.GH_TOKEN }}
             wait-interval: 10
@@ -74,7 +74,7 @@ jobs:
           if: ${{ !inputs.skip_tests }}
           uses: lewagon/wait-on-check-action@master
           with:
-            ref: ${{ github.ref }}
+            ref: ${{ inputs.base }}
             check-name: 'Python Tests'
             repo-token: ${{ secrets.GH_TOKEN }}
             wait-interval: 10
