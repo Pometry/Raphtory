@@ -1,10 +1,10 @@
 use std::{collections::HashMap, sync::Arc};
 
 use crate::{
-    core::{tgraph::VertexRef, Prop},
+    core::{tgraph::VertexRef, Direction, Prop},
     db::{
         edge::EdgeView,
-        path::PathFromVertex,
+        path::{Operations, PathFromVertex},
         view_api::{
             internal::GraphViewInternalOps, BoxedIter, GraphViewOps, TimeOps, VertexViewOps,
         },
@@ -20,7 +20,7 @@ pub trait VertexViewInternal {
 
 impl<V> VertexViewOps for V
 where
-    V: VertexViewInternal + TimeOps + Send + Sync,
+    V: VertexViewInternal + TimeOps,
 {
     type Graph = V::Graph;
 
@@ -108,58 +108,93 @@ where
     fn property_histories(
         &self,
     ) -> Self::ValueType<std::collections::HashMap<String, Vec<(i64, crate::core::Prop)>>> {
-        todo!()
+        self.graph().temporal_vertex_props(self.vertex_ref())
     }
 
     fn property_names(&self, include_static: bool) -> Self::ValueType<Vec<String>> {
-        todo!()
+        let mut names: Vec<String> = self.graph().temporal_vertex_prop_names(self.vertex_ref());
+        if include_static {
+            names.extend(self.graph().static_vertex_prop_names(self.vertex_ref()))
+        }
+        names
     }
 
     fn has_property(&self, name: String, include_static: bool) -> Self::ValueType<bool> {
-        todo!()
+        (!self.property_history(name.clone()).is_empty())
+            || (include_static
+                && self
+                    .graph()
+                    .static_vertex_prop_names(self.vertex_ref())
+                    .contains(&name))
     }
 
     fn has_static_property(&self, name: String) -> Self::ValueType<bool> {
-        todo!()
+        self.graph()
+            .static_vertex_prop_names(self.vertex_ref())
+            .contains(&name)
     }
 
     fn static_property(&self, name: String) -> Self::ValueType<Option<crate::core::Prop>> {
-        todo!()
+        self.graph().static_vertex_prop(self.vertex_ref(), name)
     }
 
     fn degree(&self) -> Self::ValueType<usize> {
-        todo!()
+        let dir = Direction::BOTH;
+        self.graph().degree(self.vertex_ref(), dir, None)
     }
 
     fn in_degree(&self) -> Self::ValueType<usize> {
-        todo!()
+        let dir = Direction::IN;
+        self.graph().degree(self.vertex_ref(), dir, None)
     }
 
     fn out_degree(&self) -> Self::ValueType<usize> {
-        todo!()
+        let dir = Direction::OUT;
+        self.graph().degree(self.vertex_ref(), dir, None)
     }
 
     fn edges(&self) -> Self::EList {
-        todo!()
+        let g = self.graph_arc().clone();
+        let dir = Direction::BOTH;
+        Box::new(
+            g.vertex_edges_all_layers(self.vertex_ref(), dir)
+                .map(move |e| EdgeView::new(g.clone(), e)),
+        )
     }
 
     fn in_edges(&self) -> Self::EList {
-        todo!()
+        let g = self.graph_arc().clone();
+        let dir = Direction::IN;
+        Box::new(
+            g.vertex_edges_all_layers(self.vertex_ref(), dir)
+                .map(move |e| EdgeView::new(g.clone(), e)),
+        )
     }
 
     fn out_edges(&self) -> Self::EList {
-        todo!()
+        let g = self.graph_arc().clone();
+        let dir = Direction::OUT;
+        Box::new(
+            g.vertex_edges_all_layers(self.vertex_ref(), dir)
+                .map(move |e| EdgeView::new(g.clone(), e)),
+        )
     }
 
     fn neighbours(&self) -> Self::PathType {
-        todo!()
+        let g = self.graph_arc().clone();
+        let dir = Direction::BOTH;
+        PathFromVertex::new(g, self.vertex_ref(), Operations::Neighbours { dir })
     }
 
     fn in_neighbours(&self) -> Self::PathType {
-        todo!()
+        let g = self.graph_arc().clone();
+        let dir = Direction::IN;
+        PathFromVertex::new(g, self.vertex_ref(), Operations::Neighbours { dir })
     }
 
     fn out_neighbours(&self) -> Self::PathType {
-        todo!()
+        let g = self.graph_arc().clone();
+        let dir = Direction::OUT;
+        PathFromVertex::new(g, self.vertex_ref(), Operations::Neighbours { dir })
     }
 }

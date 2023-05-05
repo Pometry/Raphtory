@@ -8,9 +8,9 @@ use crate::{
         task::{
             context::Context,
             task::{ATask, Job, Step},
-            task_runner::TaskRunner,
+            task_runner::TaskRunner, eval_vertex::EvalVertexView,
         },
-        view_api::GraphViewOps,
+        view_api::{GraphViewOps, VertexViewOps},
     },
 };
 use num_traits::abs;
@@ -43,7 +43,7 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
         Step::Continue
     });
 
-    let step2 = ATask::new(move |s| {
+    let step2 = ATask::new(move |s:&EvalVertexView<G, ComputeStateVec>| {
         let out_degree = s.out_degree();
         if out_degree > 0 {
             let new_score = s.read_local(&score) / out_degree as f32;

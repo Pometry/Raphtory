@@ -7,7 +7,7 @@ use crate::{
             task::{ATask, Job, Step},
             task_runner::TaskRunner,
         },
-        view_api::GraphViewOps,
+        view_api::{GraphViewOps, VertexViewOps},
     },
 };
 use rustc_hash::FxHashMap;
