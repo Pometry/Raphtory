@@ -72,6 +72,10 @@ impl PyGraphWindowIterator {
 /// The API for querying a view of the graph in a read-only state
 #[pymethods]
 impl PyGraphView {
+    pub fn get_unique_layers(&self) -> Vec<String> {
+        self.graph.get_unique_layers()
+    }
+
     //******  Metrics APIs ******//
 
     /// Timestamp of earliest activity in the graph
