@@ -1,11 +1,11 @@
 // Internal macro to create the struct for a nested iterable
 macro_rules! _py_nested_iterable_base {
-    ($name:ident, $item:ty) => {
+    ($name:ident, $item:ty, $pyitem:ty) => {
         #[pyclass]
-        pub struct $name($crate::types::iterable::NestedIterable<$item>);
+        pub struct $name($crate::types::iterable::NestedIterable<$item, $pyitem>);
 
         impl Deref for $name {
-            type Target = $crate::types::iterable::NestedIterable<$item>;
+            type Target = $crate::types::iterable::NestedIterable<$item, $pyitem>;
 
             fn deref(&self) -> &Self::Target {
                 &self.0
@@ -25,12 +25,12 @@ macro_rules! _py_nested_iterable_base {
 
 // Internal macro to create basic methods for a nested iterable
 macro_rules! _py_nested_iterable_methods {
-    ($name:ident, $item:ty, $iter:ty) => {
+    ($name:ident, $pyitem:ty, $iter:ty) => {
         _py_iterable_base_methods!($name, $iter);
 
         #[pymethods]
         impl $name {
-            pub fn collect(&self) -> Vec<Vec<$item>> {
+            pub fn collect(&self) -> Vec<Vec<$pyitem>> {
                 self.iter()
                     .map(|it| it.map(|v| v.into()).collect())
                     .collect()
@@ -134,7 +134,7 @@ macro_rules! py_nested_iterable {
         py_nested_iterable!($name, $item, $item, $iter);
     };
     ($name:ident, $item:ty, $pyitem:ty, $iter:ty) => {
-        _py_nested_iterable_base!($name, $item);
+        _py_nested_iterable_base!($name, $item, $pyitem);
         _py_nested_iterable_methods!($name, $pyitem, $iter);
     };
 }

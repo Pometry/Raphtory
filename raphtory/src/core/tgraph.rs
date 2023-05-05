@@ -1,7 +1,9 @@
 //! A data structure for representing temporal graphs.
 
+use std::collections::btree_set::Iter;
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap},
+    iter,
     ops::Range,
 };
 
@@ -13,16 +15,59 @@ use rayon::{
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 
+use crate::core::adj::Adj;
 use crate::core::edge_layer::EdgeLayer;
 use crate::core::props::Props;
 use crate::core::tprop::TProp;
 use crate::core::vertex::InputVertex;
 use crate::core::{bitset::BitSet, Direction};
 use crate::core::{Prop, Time};
+use crate::db::view_api::BoxedIter;
 
 use self::errors::MutateGraphError;
 
 use super::utils;
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TimeIndex(BTreeSet<i64>);
+
+impl TimeIndex {
+    pub fn one(t: i64) -> Self {
+        let mut s = Self::default();
+        s.insert(t);
+        s
+    }
+
+    #[inline(always)]
+    pub fn active(&self, w: Range<i64>) -> bool {
+        self.0.range(w).next().is_some()
+    }
+
+    #[inline(always)]
+    pub fn range(&self, w: Range<i64>) -> std::collections::btree_set::Range<'_, i64> {
+        self.0.range(w)
+    }
+
+    #[inline(always)]
+    pub fn first(&self) -> Option<&i64> {
+        self.0.first()
+    }
+
+    #[inline(always)]
+    pub fn last(&self) -> Option<&i64> {
+        self.0.last()
+    }
+
+    #[inline(always)]
+    pub fn insert(&mut self, t: i64) -> bool {
+        self.0.insert(t)
+    }
+
+    #[inline(always)]
+    pub fn iter(&self) -> Iter<'_, i64> {
+        self.0.iter()
+    }
+}
 
 pub(crate) mod errors {
     use crate::core::props::IllegalMutate;
@@ -63,10 +108,7 @@ pub struct TemporalGraph {
     pub(crate) logical_ids: Vec<u64>,
 
     // Set of timestamps per vertex for fast window filtering
-    timestamps: Vec<BTreeSet<i64>>,
-
-    // Time index pointing at the index against adjacency lists.
-    index: BTreeMap<i64, BitSet>,
+    timestamps: Vec<TimeIndex>,
 
     // Properties abstraction for both vertices and edges
     pub(crate) vertex_props: Props,
@@ -87,12 +129,20 @@ impl Default for TemporalGraph {
             logical_to_physical: Default::default(),
             logical_ids: Default::default(),
             timestamps: Default::default(),
-            index: Default::default(),
             vertex_props: Default::default(),
             layers: vec![EdgeLayer::new(0)],
             earliest_time: i64::MAX,
             latest_time: i64::MIN,
         }
+    }
+}
+
+// Internal helpers
+impl TemporalGraph {
+    #[inline(always)]
+    fn pid(&self, v: &VertexRef) -> Option<usize> {
+        v.pid
+            .or_else(|| self.logical_to_physical.get(&v.g_id).copied())
     }
 }
 
@@ -163,54 +213,40 @@ impl TemporalGraph {
     pub(crate) fn len_window(&self, w: &Range<i64>) -> usize {
         self.timestamps
             .iter()
-            .filter(|&ts| ts.range(w.clone()).next().is_some())
+            .filter(|&ts| ts.active(w.clone()))
             .count()
     }
 
     pub(crate) fn out_edges_len(&self, layer: Option<usize>) -> usize {
-        self.layer_iter(layer)
-            .map(|layer| layer.out_edges_len())
-            .sum()
+        match self.layer_iter_optm(layer) {
+            LayerIterator::Single(layer) => layer.out_edges_len(),
+            LayerIterator::Vector(_) => self
+                .vertices()
+                .map(|v| self.degree(v, Direction::OUT, None))
+                .sum(),
+        }
     }
 
     pub fn out_edges_len_window(&self, w: &Range<Time>, layer: Option<usize>) -> usize {
         match self.layer_iter_optm(layer) {
-            LayerIterator::Single(layer) => self
-                .timestamps
-                .iter()
-                .enumerate()
-                .filter(|(_index, timestamps)| timestamps.range(w.clone()).next().is_some())
-                .map(|(index, _timestamps)| layer.out_edges_len_window(index, w))
-                .reduce(|s1, s2| s1 + s2)
-                .unwrap_or(0),
-            LayerIterator::Vector(layers) => self
-                .timestamps
-                .iter()
-                .enumerate()
-                .filter(|&(_, timestamps)| timestamps.range(w.clone()).next().is_some())
-                .map(|(index, _)| {
-                    layers
-                        .iter()
-                        .map(|layer| layer.out_edges_len_window(index, w))
-                        .sum()
-                })
-                .reduce(|s1, s2| s1 + s2)
-                .unwrap_or(0),
+            LayerIterator::Single(layer) => layer.out_edges_len_window(w, &self.timestamps),
+            LayerIterator::Vector(_) => self
+                .vertices_window(w.clone())
+                .map(|v| self.degree_window(v, w, Direction::OUT, None))
+                .sum(),
         }
     }
 
-    pub(crate) fn has_edge(&self, src: u64, dst: u64, layer: usize) -> bool {
-        match self.logical_to_physical.get(&src) {
+    pub(crate) fn has_edge(&self, src: VertexRef, dst: VertexRef, layer: usize) -> bool {
+        match self.pid(&src) {
             Some(src_pid) => {
                 // TODO: if we should own dst but we don't, we should directly return false
-                if self.has_vertex(dst) {
-                    let dst_pid = self.logical_to_physical[&dst];
-                    self.layers[layer].has_local_edge(*src_pid, dst_pid)
-                } else {
-                    self.layers[layer].has_remote_edge(*src_pid, dst)
+                match self.pid(&dst) {
+                    Some(dst_pid) => self.layers[layer].has_local_edge(src_pid, dst_pid),
+                    None => self.layers[layer].has_remote_edge(src_pid, dst.g_id),
                 }
             }
-            _ => false,
+            None => false,
         }
     }
 
@@ -218,7 +254,7 @@ impl TemporalGraph {
         // First check if src exists within the given window
         self.has_vertex_window(src, w) && {
             let src_pid = self.logical_to_physical[&src];
-            if self.has_vertex_window(dst, &w) {
+            if self.has_vertex_window(dst, w) {
                 let dst_pid = self.logical_to_physical[&dst];
                 self.layers[layer].has_local_edge_window(src_pid, dst_pid, w)
             } else {
@@ -233,7 +269,7 @@ impl TemporalGraph {
 
     pub(crate) fn has_vertex_window(&self, v: u64, w: &Range<i64>) -> bool {
         if let Some(v_id) = self.logical_to_physical.get(&v) {
-            self.index.range(w.clone()).any(|(_, bs)| bs.contains(v_id))
+            self.timestamps[*v_id].active(w.clone())
         } else {
             false
         }
@@ -262,27 +298,12 @@ impl TemporalGraph {
                 let physical_id: usize = self.logical_ids.len();
                 self.logical_to_physical.insert(v.id(), physical_id);
                 self.logical_ids.push(v.id());
-                let mut timestamps = BTreeSet::new();
-                timestamps.insert(t);
+                let timestamps = TimeIndex::one(t);
                 self.timestamps.push(timestamps);
-
-                self.index
-                    .entry(t)
-                    .and_modify(|set| {
-                        set.push(physical_id);
-                    })
-                    .or_insert_with(|| BitSet::one(physical_id));
                 physical_id
             }
             Some(pid) => {
                 self.timestamps[*pid].insert(t);
-
-                self.index
-                    .entry(t)
-                    .and_modify(|set| {
-                        set.push(*pid);
-                    })
-                    .or_insert_with(|| BitSet::one(*pid));
                 *pid
             }
         };
@@ -387,7 +408,7 @@ impl TemporalGraph {
     ) -> MutateGraphResult {
         let edge = self
             .edge(src, dst, layer)
-            .ok_or_else(|| MutateGraphError::MissingEdge(src, dst))?;
+            .ok_or(MutateGraphError::MissingEdge(src, dst))?;
         let result = self.layers[edge.layer_id]
             .props
             .set_static_props(edge.edge_id, data);
@@ -398,22 +419,52 @@ impl TemporalGraph {
         })
     }
 
-    pub(crate) fn degree(&self, v: u64, d: Direction, layer: Option<usize>) -> usize {
-        self.vertex_edges(v, d, layer)
-            .dedup_by(|(left, e1), (right, e2)| left == right && e1.is_remote == e2.is_remote)
-            .count()
+    pub(crate) fn degree(&self, v: VertexRef, d: Direction, layer: Option<usize>) -> usize {
+        let v_pid = self.pid(&v).expect("local vertex");
+        match self.layer_iter_optm(layer) {
+            LayerIterator::Single(layer) => layer.degree(v_pid, d),
+            LayerIterator::Vector(layers) => {
+                layers
+                    .iter()
+                    .map(|layer| layer.local_vertex_neighbours(v_pid, d))
+                    .kmerge()
+                    .dedup()
+                    .count()
+                    + layers
+                        .iter()
+                        .map(|layer| layer.remote_vertex_neighbours(v_pid, d))
+                        .kmerge()
+                        .dedup()
+                        .count()
+            }
+        }
     }
 
     pub fn degree_window(
         &self,
-        v: u64,
+        v: VertexRef,
         w: &Range<i64>,
         d: Direction,
         layer: Option<usize>,
     ) -> usize {
-        self.vertex_edges_window(v, w, d, layer)
-            .dedup_by(|(left, e1), (right, e2)| left == right && e1.is_remote == e2.is_remote)
-            .count()
+        let v_pid = self.pid(&v).expect("local vertex");
+        match self.layer_iter_optm(layer) {
+            LayerIterator::Single(layer) => layer.degree_window(v_pid, d, w),
+            LayerIterator::Vector(layers) => {
+                layers
+                    .iter()
+                    .map(|layer| layer.local_vertex_neighbours_window(v_pid, d, w))
+                    .kmerge()
+                    .dedup()
+                    .count()
+                    + layers
+                        .iter()
+                        .map(|layer| layer.remote_vertex_neighbours_window(v_pid, d, w))
+                        .kmerge()
+                        .dedup()
+                        .count()
+            }
+        }
     }
 
     pub fn vertex(&self, v: u64) -> Option<VertexRef> {
@@ -426,32 +477,11 @@ impl TemporalGraph {
 
     pub(crate) fn vertex_window(&self, v: u64, w: &Range<i64>) -> Option<VertexRef> {
         let pid = self.logical_to_physical.get(&v)?;
-        let mut vs = self.index.range(w.clone()).flat_map(|(_, vs)| vs.iter());
-        match vs.contains(&pid) {
-            true => Some(VertexRef {
-                g_id: v,
-                pid: Some(*pid),
-            }),
-            false => None,
-        }
-    }
-
-    pub(crate) fn vertex_ids(&self) -> Box<dyn Iterator<Item = u64> + Send + '_> {
-        Box::new(self.logical_ids.iter().cloned())
-    }
-
-    pub(crate) fn vertex_ids_window(
-        &self,
-        w: Range<i64>,
-    ) -> Box<dyn Iterator<Item = u64> + Send + '_> {
-        Box::new(
-            self.index
-                .range(w.clone())
-                .map(|(_, vs)| vs.iter())
-                .kmerge()
-                .dedup()
-                .map(move |pid| self.logical_ids[pid]),
-        )
+        let timestamps = &self.timestamps[*pid];
+        timestamps.range(w.clone()).next().map(|_| VertexRef {
+            g_id: v,
+            pid: Some(*pid),
+        })
     }
 
     pub fn vertices(&self) -> Box<dyn Iterator<Item = VertexRef> + Send + '_> {
@@ -466,21 +496,16 @@ impl TemporalGraph {
         )
     }
 
-    pub fn vertices_window(
-        &self,
-        w: Range<i64>,
-    ) -> Box<dyn Iterator<Item = VertexRef> + Send + '_> {
-        let unique_vids = self
-            .index
-            .range(w.clone())
-            .map(|(_, vs)| vs.iter())
-            .kmerge()
-            .dedup();
-        let vs = unique_vids.map(move |pid| VertexRef {
-            g_id: self.logical_ids[pid],
-            pid: Some(pid),
-        });
-        Box::new(vs)
+    pub fn vertices_window(&self, w: Range<i64>) -> impl Iterator<Item = VertexRef> + Send + '_ {
+        self.timestamps
+            .iter()
+            .enumerate()
+            .filter_map(move |(pid, timestamps)| {
+                timestamps.range(w.clone()).next().map(|_| VertexRef {
+                    g_id: self.logical_ids[pid],
+                    pid: Some(pid),
+                })
+            })
     }
 
     pub(crate) fn edge(&self, src: u64, dst: u64, layer: usize) -> Option<EdgeRef> {
@@ -501,9 +526,9 @@ impl TemporalGraph {
         layer: usize,
     ) -> Option<EdgeRef> {
         // First check if src exists within the given window
-        if self.has_vertex_window(src, w) {
+        if self.has_vertex(src) {
             let src_pid = *self.logical_to_physical.get(&src)?;
-            if self.has_vertex_window(dst, &w) {
+            if self.has_vertex(dst) {
                 let dst_pid = self.logical_to_physical[&dst]; // we have this for sure
                 self.layers[layer].local_edge_window(src, dst, src_pid, dst_pid, w)
             } else {
@@ -585,22 +610,21 @@ impl TemporalGraph {
     }
 
     // This doesn't returns edges sorted by neighbour because it is not useful for any dependency
-    pub(crate) fn vertex_edges_window_t(
-        &self,
+    pub(crate) fn vertex_edges_window_t<'a>(
+        &'a self,
         v: u64,
-        w: &Range<i64>,
+        w: &'a Range<i64>,
         d: Direction,
         layer: Option<usize>,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send + '_> {
-        let w = w.clone();
         let v_pid = self.logical_to_physical[&v];
         match self.layer_iter_optm(layer) {
             LayerIterator::Single(layer) => {
-                layer.edges_iter_window_t(v, v_pid, &w, d, &self.logical_ids)
+                layer.edges_iter_window_t(v, v_pid, w, d, &self.logical_ids)
             }
             LayerIterator::Vector(layers) => {
                 let iter = layers.iter().flat_map(move |layer| {
-                    layer.edges_iter_window_t(v, v_pid, &w, d, &self.logical_ids)
+                    layer.edges_iter_window_t(v, v_pid, w, d, &self.logical_ids)
                 });
                 Box::new(iter)
             }
@@ -623,12 +647,10 @@ impl TemporalGraph {
             } else {
                 VertexRef::new(dst_g_id, Some(dst_id))
             }
+        } else if is_remote {
+            VertexRef::new(src_g_id, None)
         } else {
-            if is_remote {
-                VertexRef::new(src_g_id, None)
-            } else {
-                VertexRef::new(src_g_id, Some(src_id))
-            }
+            VertexRef::new(src_g_id, Some(src_id))
         }
     }
 
@@ -978,15 +1000,24 @@ impl From<&str> for VertexRef {
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct EdgeRef {
-    pub layer_id: usize,
-    pub edge_id: usize,
+    pub(in crate::core) layer_id: usize,
+    pub(in crate::core) edge_id: usize,
     pub src_g_id: u64,
     pub dst_g_id: u64,
     // src_id and dst_id could be global or physical depending upon edge being remote or local respectively
-    pub src_id: usize, // TODO: make private again when ported to EdgeLayer
-    pub dst_id: usize, // TODO: make private again when ported to EdgeLayer
+    pub(in crate::core) src_id: usize, // TODO: make private again when ported to EdgeLayer
+    pub(in crate::core) dst_id: usize, // TODO: make private again when ported to EdgeLayer
     pub time: Option<i64>,
-    pub is_remote: bool,
+    pub(in crate::core) is_remote: bool,
+}
+
+impl EdgeRef {
+    pub fn at(&self, time: i64) -> Self {
+        Self {
+            time: Some(time),
+            ..*self
+        }
+    }
 }
 
 #[cfg(test)]
@@ -1239,6 +1270,10 @@ mod graph_test {
             .vertex_edges_window(1, &(0..4), Direction::IN, None)
             .map(|e| e.1.src_g_id)
             .collect();
+        let actual_all: Vec<EdgeRef> = g
+            .vertex_edges_window(1, &(0..4), Direction::IN, None)
+            .map(|e| e.1)
+            .collect();
         assert_eq!(actual, vec![9]);
     }
 
@@ -1253,13 +1288,13 @@ mod graph_test {
         g.add_edge(3, 8, 9, 0);
         g.add_edge(3, 9, 11, 0);
 
-        assert_eq!(g.has_edge(8, 9, 0), true);
-        assert_eq!(g.has_edge(9, 8, 0), true);
-        assert_eq!(g.has_edge(9, 11, 0), true);
-        assert_eq!(g.has_edge(11, 9, 0), false);
-        assert_eq!(g.has_edge(10, 11, 0), false);
-        assert_eq!(g.has_edge(10, 9, 0), false);
-        assert_eq!(g.has_edge(100, 101, 0), false);
+        assert_eq!(g.has_edge(8.into(), 9.into(), 0), true);
+        assert_eq!(g.has_edge(9.into(), 8.into(), 0), true);
+        assert_eq!(g.has_edge(9.into(), 11.into(), 0), true);
+        assert_eq!(g.has_edge(11.into(), 9.into(), 0), false);
+        assert_eq!(g.has_edge(10.into(), 11.into(), 0), false);
+        assert_eq!(g.has_edge(10.into(), 9.into(), 0), false);
+        assert_eq!(g.has_edge(100.into(), 101.into(), 0), false);
     }
 
     #[test]
@@ -1271,7 +1306,7 @@ mod graph_test {
 
         let actual: Vec<bool> = g
             .vertex_edges_window(5, &(0..4), Direction::OUT, None)
-            .map(|e| g.has_edge(e.1.src_g_id, e.1.dst_g_id, 0))
+            .map(|e| g.has_edge(e.1.src_g_id.into(), e.1.dst_g_id.into(), 0))
             .collect();
 
         assert_eq!(actual, vec![true]);
@@ -1286,7 +1321,7 @@ mod graph_test {
 
         let actual: Vec<bool> = g
             .vertex_edges_window(9, &(0..4), Direction::OUT, None)
-            .map(|e| g.has_edge(e.1.src_g_id, e.1.dst_g_id, 0))
+            .map(|e| g.has_edge(e.1.src_g_id.into(), e.1.dst_g_id.into(), 0))
             .collect();
 
         //return empty as no edges in this window
@@ -1792,7 +1827,7 @@ mod graph_test {
             g.edge(11, 22, 0),
             Some(EdgeRef {
                 layer_id: 0,
-                edge_id: 1,
+                edge_id: 0,
                 src_g_id: 11,
                 dst_g_id: 22,
                 src_id: 0,
@@ -1807,7 +1842,7 @@ mod graph_test {
             g.edge_window(11, 22, &(1..5), 0),
             Some(EdgeRef {
                 layer_id: 0,
-                edge_id: 1,
+                edge_id: 0,
                 src_g_id: 11,
                 dst_g_id: 22,
                 src_id: 0,
@@ -1822,7 +1857,7 @@ mod graph_test {
             g.edge_window(11, 22, &(4..5), 0),
             Some(EdgeRef {
                 layer_id: 0,
-                edge_id: 1,
+                edge_id: 0,
                 src_g_id: 11,
                 dst_g_id: 22,
                 src_id: 0,
@@ -1887,12 +1922,12 @@ mod graph_test {
 
             assert_eq!(out1, out2);
             assert_eq!(
-                g.degree(i, Direction::OUT, None),
-                g.degree_window(i, &(1..7), Direction::OUT, None)
+                g.degree(i.into(), Direction::OUT, None),
+                g.degree_window(i.into(), &(1..7), Direction::OUT, None)
             );
             assert_eq!(
-                g.degree(i, Direction::IN, None),
-                g.degree_window(i, &(1..7), Direction::IN, None)
+                g.degree(i.into(), Direction::IN, None),
+                g.degree_window(i.into(), &(1..7), Direction::IN, None)
             );
         }
 
@@ -1901,9 +1936,9 @@ mod graph_test {
             .map(|v| {
                 (
                     v.g_id,
-                    g.degree(v.g_id, Direction::IN, None),
-                    g.degree(v.g_id, Direction::OUT, None),
-                    g.degree(v.g_id, Direction::BOTH, None),
+                    g.degree(v, Direction::IN, None),
+                    g.degree(v, Direction::OUT, None),
+                    g.degree(v, Direction::BOTH, None),
                 )
             })
             .collect_vec();
@@ -1913,9 +1948,9 @@ mod graph_test {
             .map(|v| {
                 (
                     v.g_id,
-                    g.degree(v.g_id, Direction::IN, None),
-                    g.degree(v.g_id, Direction::OUT, None),
-                    g.degree(v.g_id, Direction::BOTH, None),
+                    g.degree(v, Direction::IN, None),
+                    g.degree(v, Direction::OUT, None),
+                    g.degree(v, Direction::BOTH, None),
                 )
             })
             .collect_vec();
@@ -1966,9 +2001,9 @@ mod graph_test {
             .map(|v| {
                 (
                     v.g_id,
-                    g.degree_window(v.g_id, &w, Direction::IN, None),
-                    g.degree_window(v.g_id, &w, Direction::OUT, None),
-                    g.degree_window(v.g_id, &w, Direction::BOTH, None),
+                    g.degree_window(v, &w, Direction::IN, None),
+                    g.degree_window(v, &w, Direction::OUT, None),
+                    g.degree_window(v, &w, Direction::BOTH, None),
                 )
             })
             .collect_vec();
@@ -2026,9 +2061,9 @@ mod graph_test {
             .map(|v| {
                 (
                     v.g_id,
-                    g.degree_window(v.g_id, &w, Direction::IN, None),
-                    g.degree_window(v.g_id, &w, Direction::OUT, None),
-                    g.degree_window(v.g_id, &w, Direction::BOTH, None),
+                    g.degree_window(v, &w, Direction::IN, None),
+                    g.degree_window(v, &w, Direction::OUT, None),
+                    g.degree_window(v, &w, Direction::BOTH, None),
                 )
             })
             .collect_vec();

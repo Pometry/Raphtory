@@ -9,7 +9,6 @@ use crate::db::view_api::BoxedIter;
 use crate::db::view_api::*;
 use std::collections::HashMap;
 use std::iter;
-use std::ops::Range;
 use std::sync::Arc;
 
 #[derive(Copy, Clone)]

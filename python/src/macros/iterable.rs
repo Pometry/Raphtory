@@ -95,10 +95,10 @@ macro_rules! py_iterable {
     };
     ($name:ident, $item:ty, $pyitem:ty, $pyiter:ty) => {
         #[pyclass]
-        pub struct $name($crate::types::iterable::Iterable<$item>);
+        pub struct $name($crate::types::iterable::Iterable<$item, $pyitem>);
 
-        impl Deref for $name {
-            type Target = $crate::types::iterable::Iterable<$item>;
+        impl std::ops::Deref for $name {
+            type Target = $crate::types::iterable::Iterable<$item, $pyitem>;
 
             fn deref(&self) -> &Self::Target {
                 &self.0

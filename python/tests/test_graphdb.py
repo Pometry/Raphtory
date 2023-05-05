@@ -677,15 +677,16 @@ def test_all_edge_window():
 
     view = g.at(4)
     v = view.vertex(2)
-    assert list(map(lambda e: e.id(), v.window(0, 4).in_edges())) == [1, 3, 5]
-    assert list(map(lambda e: e.id(), v.window(t_end=4).in_edges())) == [1, 3, 5]
-    assert list(map(lambda e: e.id(), v.window(t_start=2).in_edges())) == [3, 5]
-    assert list(map(lambda e: e.id(), v.window(0, 4).out_edges())) == [2]
-    assert list(map(lambda e: e.id(), v.window(t_end=3).out_edges())) == [2]
-    assert list(map(lambda e: e.id(), v.window(t_start=2).out_edges())) == [6]
-    assert sorted(list(map(lambda e: e.id(), v.window(0, 4).edges()))) == [1, 2, 3, 5]
-    assert sorted(list(map(lambda e: e.id(), v.window(t_end=4).edges()))) == [1, 2, 3, 5]
-    assert sorted(list(map(lambda e: e.id(), v.window(t_start=1).edges()))) == [1, 2, 3, 5, 6]
+    assert sorted(v.window(0, 4).in_edges().src().id()) == [1, 3, 4]
+    assert sorted(v.window(t_end=4).in_edges().src().id()) == [1, 3, 4]
+    assert sorted(v.window(t_start=2).in_edges().src().id()) == [3, 4]
+    assert sorted(v.window(0, 4).out_edges().dst().id()) == [3]
+    assert sorted(v.window(t_end=3).out_edges().dst().id()) == [3]
+    assert sorted(v.window(t_start=2).out_edges().dst().id()) == [4]
+    assert sorted((e.src().id(), e.dst().id()) for e in v.window(0, 4).edges()) == [(1, 2), (2, 3), (3, 2), (4, 2)]
+    assert sorted((e.src().id(), e.dst().id()) for e in v.window(t_end=4).edges()) == [(1, 2), (2, 3), (3, 2), (4, 2)]
+    assert sorted((e.src().id(), e.dst().id()) for e in v.window(t_start=1).edges()) == [(1, 2), (2, 3), (2, 4), (3, 2),
+                                                                                         (4, 2)]
 
 
 def test_static_prop_change():
@@ -881,10 +882,10 @@ def test_generic_taint():
 
     actual = algorithms.generic_taint(g, 20, 11, [1, 2], [4, 5])
     expected = {
-        '1': [(0, 11, '1')],
-        '2': [(2, 12, '1'), (2, 11, '1'), (0, 11, '2')],
-        '4': [(5, 12, '2')],
-        '5': [(6, 13, '2')],
+        '1': [(11, '1')],
+        '2': [(12, '1'), (11, '1'), (11, '2')],
+        '4': [(12, '2')],
+        '5': [(13, '2')],
     }
 
     assert (actual == expected)
@@ -904,11 +905,12 @@ def test_generic_taint_loader():
 
     actual = algorithms.generic_taint(g, 20, 1651105815, ["0xd30b438df65f4f788563b2b3611bd6059bff4ad9"], [])
     expected = {
-        '0xd30b438df65f4f788563b2b3611bd6059bff4ad9': [(0, 1651105815, '0xd30b438df65f4f788563b2b3611bd6059bff4ad9')],
-        '0xda816e2122a8a39b0926bfa84edd3d42477e9efd': [(1, 1651105815, '0xd30b438df65f4f788563b2b3611bd6059bff4ad9')],
+        '0xd30b438df65f4f788563b2b3611bd6059bff4ad9': [(1651105815, '0xd30b438df65f4f788563b2b3611bd6059bff4ad9')],
+        '0xda816e2122a8a39b0926bfa84edd3d42477e9efd': [(1651105815, '0xd30b438df65f4f788563b2b3611bd6059bff4ad9')],
     }
 
     assert (actual == expected)
+
 
 def test_layer():
     g = Graph(1)
@@ -917,9 +919,10 @@ def test_layer():
     g.add_edge(0, 1, 3, layer='layer1')
     g.add_edge(0, 1, 4, layer='layer2')
 
-    assert(g.default_layer().num_edges() == 1)
-    assert(g.layer('layer1').num_edges() == 1)
-    assert(g.layer('layer2').num_edges() == 1)
+    assert (g.default_layer().num_edges() == 1)
+    assert (g.layer('layer1').num_edges() == 1)
+    assert (g.layer('layer2').num_edges() == 1)
+
 
 def test_rolling_as_iterable():
     g = Graph(1)
@@ -933,7 +936,6 @@ def test_rolling_as_iterable():
     # So the following should work fine:
     n_vertices = [w.num_vertices() for w in rolling]
     time_index = [w.start() for w in rolling]
-
 
     assert n_vertices == [1, 0, 0, 1]
     assert time_index == [1, 2, 3, 4]

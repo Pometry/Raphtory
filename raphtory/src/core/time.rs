@@ -154,7 +154,7 @@ impl TryFrom<u64> for Interval {
 
 impl Interval {
     /// Return an option because there might be no exact translation to millis for some intervals
-    pub(crate) fn to_millis(&self) -> Option<u64> {
+    pub fn to_millis(&self) -> Option<u64> {
         match self.size {
             IntervalSize::Discrete(millis) => Some(millis),
             IntervalSize::Temporal(duration) => Some(duration.num_milliseconds() as u64),

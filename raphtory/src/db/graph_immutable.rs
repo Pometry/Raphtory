@@ -179,7 +179,7 @@ impl ImmutableGraph {
 
     /// Get the degree for a vertex in the graph given its direction.
     pub fn degree(&self, v: VertexRef, d: Direction) -> usize {
-        self.get_shard_from_v(v).degree(v.g_id, d, None)
+        self.get_shard_from_v(v).degree(v, d, None)
     }
 
     /// Get all vertices in the graph.
