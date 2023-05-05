@@ -1,5 +1,5 @@
 use crate::{
-    core::state::{self, compute_state::ComputeStateVec, accumulator_id::accumulators},
+    core::state::{self, accumulator_id::accumulators, compute_state::ComputeStateVec},
     db::{
         task::{
             context::Context,

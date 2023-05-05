@@ -1,7 +1,12 @@
+use crate::db::view_api::VertexViewOps;
 use crate::{
     core::{
         agg::InitOneF32,
-        state::{self, accumulator_id::{self, accumulators}, compute_state::ComputeStateVec},
+        state::{
+            self,
+            accumulator_id::{self, accumulators},
+            compute_state::ComputeStateVec,
+        },
     },
     db::{
         task::{
@@ -21,7 +26,7 @@ pub fn unweighted_page_rank<G: GraphViewInternalOps + Send + Sync + Clone + 'sta
     iter_count: usize,
     threads: Option<usize>,
     tol: Option<f32>,
-) -> FxHashMap<u64, f32> {
+) -> FxHashMap<String, f32> {
     let total_vertices = g.num_vertices();
 
     let mut ctx: Context<G, ComputeStateVec> = g.into();
@@ -94,7 +99,7 @@ pub fn unweighted_page_rank<G: GraphViewInternalOps + Send + Sync + Clone + 'sta
         None,
     );
 
-    let mut map: FxHashMap<u64, f32> = FxHashMap::default();
+    let mut map: FxHashMap<String, f32> = FxHashMap::default();
 
     for state in local_states {
         if let Some(state) = state.as_ref() {
@@ -104,7 +109,7 @@ pub fn unweighted_page_rank<G: GraphViewInternalOps + Send + Sync + Clone + 'sta
                 &score,
                 |res, shard, pid, score| {
                     if let Some(v_ref) = g.lookup_by_pid_and_shard(pid, shard) {
-                        res.insert(v_ref.g_id, score);
+                        res.insert(g.vertex(v_ref.g_id).unwrap().name(), score);
                     }
                     res
                 },
@@ -137,7 +142,7 @@ mod page_rank_tests {
     fn test_page_rank(n_shards: usize) {
         let graph = load_graph(n_shards);
 
-        let results: FxHashMap<u64, f32> = unweighted_page_rank(&graph, 25, Some(1), None)
+        let results: FxHashMap<String, f32> = unweighted_page_rank(&graph, 25, Some(1), None)
             .into_iter()
             .collect();
 
@@ -208,23 +213,23 @@ mod page_rank_tests {
             graph.add_edge(t, src, dst, &vec![], None).unwrap();
         }
 
-        let results: FxHashMap<u64, f32> =
+        let results: FxHashMap<String, f32> =
             unweighted_page_rank(&graph, 1000, Some(4), Some(0.00001))
                 .into_iter()
                 .collect();
 
         let expected_2 = vec![
-            (10, 0.6598998),
-            (7, 0.14999998),
-            (4, 0.72722703),
-            (1, 1.0329459),
-            (11, 0.5662594),
-            (8, 1.2494258),
-            (5, 1.7996559),
-            (2, 0.32559997),
-            (9, 0.5662594),
-            (6, 0.6598998),
-            (3, 1.4175149),
+            ("10".to_string(), 0.6598998),
+            ("7".to_string(), 0.14999998),
+            ("4".to_string(), 0.72722703),
+            ("1".to_string(), 1.0329459),
+            ("11".to_string(), 0.5662594),
+            ("8".to_string(), 1.2494258),
+            ("5".to_string(), 1.7996559),
+            ("2".to_string(), 0.32559997),
+            ("9".to_string(), 0.5662594),
+            ("6".to_string(), 0.6598998),
+            ("3".to_string(), 1.4175149),
         ];
 
         // let expected = vec![
@@ -243,7 +248,7 @@ mod page_rank_tests {
 
         assert_eq!(
             results,
-            expected_2.into_iter().collect::<FxHashMap<u64, f32>>()
+            expected_2.into_iter().collect::<FxHashMap<String, f32>>()
         );
     }
 }

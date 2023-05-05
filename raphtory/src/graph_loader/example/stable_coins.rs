@@ -1,4 +1,4 @@
-use crate::core::{Prop, utils};
+use crate::core::{utils, Prop};
 use crate::db::graph::Graph;
 use crate::db::view_api::internal::GraphViewInternalOps;
 use crate::db::view_api::GraphViewOps;

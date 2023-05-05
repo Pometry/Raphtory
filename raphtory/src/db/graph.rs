@@ -59,7 +59,12 @@ pub struct Graph {
 
 impl GraphViewInternalOps for Graph {
     fn get_unique_layers_internal(&self) -> Vec<String> {
-        self.layer_ids.read().keys().into_iter().map(|c| c.clone()).collect_vec()
+        self.layer_ids
+            .read()
+            .keys()
+            .into_iter()
+            .map(|c| c.clone())
+            .collect_vec()
     }
 
     fn get_layer(&self, key: Option<&str>) -> Option<usize> {

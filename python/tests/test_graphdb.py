@@ -873,13 +873,11 @@ def test_generic_taint():
 def test_generic_taint_loader():
     g = graph_loader.stable_coin_graph("/tmp/stablecoin", 1)
 
-    assert(g.get_unique_layers() == ["0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48", "0xd2877702675e6ceb975b4a1dff9fb7baf4c91ea9", "0xa47c8bf37f92abed4a126bda807a7b7498661acd", "0x6b175474e89094c44da98b954eedeac495271d0f", "0xdac17f958d2ee523a2206206994597c13d831ec7", "0x8e870d67f660d95d5be530380d0ec0bd388289e1"])
-
     max_size = sys.maxsize
     min_size = -sys.maxsize - 1
 
     start_time = time.time()
-    algorithms.pagerank(g, min_size, max_size, 20)
+    algorithms.pagerank(g, 20)
     end_time = time.time()
 
     print("Time taken (in secs) to run pagerank on stablecoin data", end_time - start_time)

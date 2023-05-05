@@ -17,9 +17,9 @@ use crate::db::view_api::VertexViewOps;
 /// and the corresponding iterators.
 pub trait GraphViewOps: Send + Sync + Sized + GraphViewInternalOps + 'static + Clone {
     fn get_unique_layers(&self) -> Vec<String>;
-    
+
     fn as_arc(&self) -> Arc<Self>;
-    
+
     /// Timestamp of earliest activity in the graph
     fn earliest_time(&self) -> Option<i64>;
     /// Timestamp of latest activity in the graph
