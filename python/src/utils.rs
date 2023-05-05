@@ -241,3 +241,36 @@ pub(crate) fn extract_input_vertex(id: &PyAny) -> PyResult<InputVertexBox> {
         }
     }
 }
+
+#[pyclass(name = "Iterator")]
+pub struct PyGenericIterator {
+    iter: Box<dyn Iterator<Item = PyObject> + Send>,
+}
+
+// TODO we could have this for ToPyObject instead of only for IntoPy<PyObject> if we need to
+// impl PyGenericIterator {
+//     pub(crate) fn new<T: IntoPy<PyObject> + 'static>(iter: Box<dyn Iterator<Item = T> + Send>) -> Self {
+//         let py_iter = Box::new(iter.map(|item| Python::with_gil(|py| item.into_py(py))));
+//         Self { iter: py_iter }
+//     }
+// }
+impl PyGenericIterator {
+    pub(crate) fn new<I, T>(iter: I) -> Self
+    where
+        I: Iterator<Item = T> + Send + 'static,
+        T: IntoPy<PyObject> + 'static,
+    {
+        let py_iter = Box::new(iter.map(|item| Python::with_gil(|py| item.into_py(py))));
+        Self { iter: py_iter }
+    }
+}
+
+#[pymethods]
+impl PyGenericIterator {
+    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        slf
+    }
+    fn __next__(&mut self) -> Option<PyObject> {
+        self.iter.next()
+    }
+}
