@@ -7,6 +7,8 @@ use std::{ops::Range, sync::Arc};
 /// The GraphViewInternalOps trait provides a set of methods to query a directed graph
 /// represented by the raphtory_core::tgraph::TGraph struct.
 pub trait GraphViewInternalOps {
+    fn get_unique_layers_internal(&self) -> Vec<String>;
+
     /// Get the layer id for the given layer name
     fn get_layer(&self, key: Option<&str>) -> Option<usize>;
 

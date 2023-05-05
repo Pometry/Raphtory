@@ -1517,6 +1517,7 @@ dependencies = [
  "rayon",
  "regex",
  "replace_with",
+ "rustc-hash",
  "serde",
  "tokio",
 ]

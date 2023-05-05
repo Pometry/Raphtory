@@ -30,6 +30,10 @@ impl<G: GraphViewInternalOps> LayeredGraph<G> {
 }
 
 impl<G: GraphViewInternalOps> GraphViewInternalOps for LayeredGraph<G> {
+    fn get_unique_layers_internal(&self) -> Vec<String> {
+        self.graph.get_unique_layers_internal()
+    }
+
     fn get_layer(&self, key: Option<&str>) -> Option<usize> {
         self.graph.get_layer(key)
     }
