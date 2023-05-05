@@ -1,5 +1,6 @@
 import re
 import sys
+import time
 
 import pytest
 from raphtory import Graph
@@ -844,6 +845,26 @@ def test_lotr_edge_history():
     assert (g.edge('Frodo', 'Gandalf').window(100, 1000).history() == [329, 555, 861])
 
 
+def test_connected_components():
+    g = Graph(1)
+    g.add_edge(10, 1, 3, {})
+    g.add_edge(11, 1, 2, {})
+    g.add_edge(12, 1, 2, {})
+    g.add_edge(9, 1, 2, {})
+    g.add_edge(12, 2, 4, {})
+    g.add_edge(13, 2, 5, {})
+    g.add_edge(14, 5, 5, {})
+    g.add_edge(14, 5, 4, {})
+    g.add_edge(5, 4, 6, {})
+    g.add_edge(15, 4, 7, {})
+    g.add_edge(10, 4, 7, {})
+    g.add_edge(10, 5, 8, {})
+
+    actual = algorithms.weakly_connected_components(g, 20)
+    expected = {'1': 1, '2': 1, '3': 1, '4': 1, '5': 1, '6': 1, '7': 1, '8': 1}
+    assert (actual == expected)
+
+
 def test_generic_taint():
     g = Graph(1)
     g.add_edge(10, 1, 3, {})
@@ -872,6 +893,15 @@ def test_generic_taint():
 
 def test_generic_taint_loader():
     g = graph_loader.stable_coin_graph("/tmp/stablecoin", 1)
+
+    max_size = sys.maxsize
+    min_size = -sys.maxsize - 1
+
+    start_time = time.time()
+    algorithms.pagerank(g, 20)
+    end_time = time.time()
+
+    print("Time taken (in secs) to run pagerank on stablecoin data", end_time - start_time)
 
     actual = algorithms.generic_taint(g, 20, 1651105815, ["0xd30b438df65f4f788563b2b3611bd6059bff4ad9"], [])
     expected = {

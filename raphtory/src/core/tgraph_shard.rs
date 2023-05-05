@@ -168,6 +168,11 @@ impl TGraphShard<TemporalGraph> {
         f(shard)
     }
 
+    pub fn lookup_by_pid(&self, pid: usize) -> Option<VertexRef> {
+        self.read_shard(|tg| tg.logical_ids.get(pid).map(|id| *id))
+            .map(|id| VertexRef::new(id, Some(pid)))
+    }
+
     pub fn freeze(&self) -> ImmutableTGraphShard<TemporalGraph> {
         let mut inner = self.rc.write();
         let g = inner.take().unwrap();

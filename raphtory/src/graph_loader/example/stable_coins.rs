@@ -1,4 +1,4 @@
-use crate::core::utils;
+use crate::core::{utils, Prop};
 use crate::db::graph::Graph;
 use crate::db::view_api::internal::GraphViewInternalOps;
 use crate::db::view_api::GraphViewOps;
@@ -40,9 +40,7 @@ pub fn stable_coin_graph(path: Option<String>, num_shards: usize) -> Graph {
 
     let data_dir = match path {
         Some(path) => PathBuf::from(path),
-        None => {
-            default_data_dir
-        },
+        None => default_data_dir,
     };
 
     let dir_str = data_dir.to_str().unwrap();
@@ -81,7 +79,7 @@ pub fn stable_coin_graph(path: Option<String>, num_shards: usize) -> Graph {
                     stablecoin.time_stamp,
                     stablecoin.from_address,
                     stablecoin.to_address,
-                    &vec![],
+                    &vec![("value".into(), Prop::F64(stablecoin.value.into()))],
                     Some(&stablecoin.contract_address),
                 )
                 .expect("Failed to add edge");

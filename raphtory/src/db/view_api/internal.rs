@@ -8,6 +8,8 @@ use std::{ops::Range, sync::Arc};
 /// The GraphViewInternalOps trait provides a set of methods to query a directed graph
 /// represented by the raphtory_core::tgraph::TGraph struct.
 pub trait GraphViewInternalOps {
+    fn get_unique_layers_internal(&self) -> Vec<String>;
+
     /// Get the layer id for the given layer name
     fn get_layer(&self, key: Option<&str>) -> Option<usize>;
 
@@ -123,6 +125,10 @@ pub trait GraphViewInternalOps {
     ///
     /// * `v` - The vertex ID to lookup.
     fn vertex_ref(&self, v: u64) -> Option<VertexRef>;
+
+    /// Returns the VertexRef that corresponds to the specified phisical id
+    /// (pid) and shard.
+    fn lookup_by_pid_and_shard(&self, pid: usize, shard: usize) -> Option<VertexRef>;
 
     /// Returns the VertexRef that corresponds to the specified vertex ID (v) created
     /// between the start (t_start) and end (t_end) timestamps (inclusive).

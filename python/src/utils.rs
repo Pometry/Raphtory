@@ -5,14 +5,14 @@
 use crate::vertex::PyVertex;
 use pyo3::exceptions::{PyException, PyTypeError};
 use pyo3::prelude::*;
+use raphtory::core as dbc;
 use raphtory::core::tgraph::VertexRef;
 use raphtory::core::time::error::ParseTimeError;
 use raphtory::core::time::{Interval, IntoTime};
+use raphtory::core::vertex::InputVertex;
 use raphtory::db::view_api::time::WindowSet;
 use raphtory::db::view_api::TimeOps;
 use std::error::Error;
-use raphtory::core::vertex::InputVertex;
-use raphtory::core as dbc;
 
 /// Extract a `VertexRef` from a Python object.
 /// The object can be a `str`, `u64` or `PyVertex`.
@@ -207,8 +207,8 @@ pub struct InputVertexBox {
 /// This allows us to add vertices with different types of ids, either strings or ints.
 impl InputVertexBox {
     pub(crate) fn new<T>(vertex: T) -> InputVertexBox
-        where
-            T: InputVertex,
+    where
+        T: InputVertex,
     {
         InputVertexBox {
             id: vertex.id(),

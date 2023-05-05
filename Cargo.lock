@@ -1517,6 +1517,7 @@ dependencies = [
  "rayon",
  "regex",
  "replace_with",
+ "rustc-hash",
  "serde",
  "tokio",
 ]
@@ -1689,6 +1690,7 @@ dependencies = [
  "itertools",
  "neo4rs",
  "num-traits",
+ "once_cell",
  "openssl",
  "parking_lot",
  "pretty_assertions",

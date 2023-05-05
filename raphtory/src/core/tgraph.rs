@@ -8,6 +8,10 @@ use std::{
 };
 
 use itertools::Itertools;
+use rayon::{
+    prelude::{IndexedParallelIterator, ParallelIterator},
+    slice::ParallelSlice,
+};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 
@@ -166,6 +170,24 @@ impl TemporalGraph {
 
     fn single_layer_access(&self, layer: Option<usize>) -> bool {
         matches!(self.layer_iter_optm(layer), LayerIterator::Single(_))
+    }
+
+    fn par_iterator_vertices(
+        &self,
+        start: Time,
+        end: Time,
+    ) -> impl ParallelIterator<Item = VertexRef> + '_ {
+        let chunk_size = 64_000;
+        let iter =
+            self.logical_ids
+                .par_chunks(chunk_size)
+                .enumerate()
+                .flat_map_iter(move |(chunk_id, chunk)| {
+                    chunk.iter().enumerate().map(move |(i, g_id)| {
+                        VertexRef::new(*g_id, Some(chunk_size * chunk_id + i))
+                    })
+                });
+        iter
     }
 }
 

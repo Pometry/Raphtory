@@ -30,6 +30,10 @@ impl<G: GraphViewInternalOps> LayeredGraph<G> {
 }
 
 impl<G: GraphViewInternalOps> GraphViewInternalOps for LayeredGraph<G> {
+    fn get_unique_layers_internal(&self) -> Vec<String> {
+        self.graph.get_unique_layers_internal()
+    }
+
     fn get_layer(&self, key: Option<&str>) -> Option<usize> {
         self.graph.get_layer(key)
     }
@@ -416,7 +420,16 @@ impl<G: GraphViewInternalOps> GraphViewInternalOps for LayeredGraph<G> {
         self.graph.edge_timestamps(e, window)
     }
 
-    fn vertex_edges(&self, v: VertexRef, d: Direction, layer: Option<usize>) -> Box<dyn Iterator<Item=EdgeRef> + Send> {
+    fn vertex_edges(
+        &self,
+        v: VertexRef,
+        d: Direction,
+        layer: Option<usize>,
+    ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
         self.graph.vertex_edges(v, d, self.constrain(layer))
+    }
+
+    fn lookup_by_pid_and_shard(&self, pid: usize, shard: usize) -> Option<VertexRef> {
+        self.graph.lookup_by_pid_and_shard(pid, shard)
     }
 }

@@ -58,6 +58,15 @@ pub struct Graph {
 }
 
 impl GraphViewInternalOps for Graph {
+    fn get_unique_layers_internal(&self) -> Vec<String> {
+        self.layer_ids
+            .read()
+            .keys()
+            .into_iter()
+            .map(|c| c.clone())
+            .collect_vec()
+    }
+
     fn get_layer(&self, key: Option<&str>) -> Option<usize> {
         match key {
             None => Some(0),
@@ -488,6 +497,10 @@ impl GraphViewInternalOps for Graph {
         t_end: i64,
     ) -> Box<dyn Iterator<Item = VertexRef> + Send> {
         Box::new(self.shards[shard_id].vertices_window(t_start..t_end))
+    }
+
+    fn lookup_by_pid_and_shard(&self, pid: usize, shard: usize) -> Option<VertexRef> {
+        self.shards.get(shard).and_then(|s| s.lookup_by_pid(pid))
     }
 }
 

@@ -52,18 +52,13 @@ pub async fn neo4j_movie_graph(
     uri: String,
     username: String,
     password: String,
-    database: String,    shards: usize
-
+    database: String,
+    shards: usize,
 ) -> Graph {
     let g = Graph::new(shards);
-    let neo = Neo4JConnection::new(
-        uri,
-        username,
-        password,
-        database,
-    )
-    .await
-    .unwrap();
+    let neo = Neo4JConnection::new(uri, username, password, database)
+        .await
+        .unwrap();
 
     neo.load_query_into_graph(
         &g,
