@@ -2,11 +2,7 @@ use crate::db::view_api::VertexViewOps;
 use crate::{
     core::{
         agg::InitOneF32,
-        state::{
-            self,
-            accumulator_id::{self, accumulators},
-            compute_state::ComputeStateVec,
-        },
+        state::{accumulator_id::accumulators, compute_state::ComputeStateVec},
     },
     db::{
         task::{

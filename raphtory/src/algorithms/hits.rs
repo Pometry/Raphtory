@@ -4,7 +4,6 @@ use crate::core::state::accumulator_id::accumulators::max;
 use crate::core::state::accumulator_id::accumulators::sum;
 use crate::core::state::accumulator_id::accumulators::val;
 use crate::core::state::accumulator_id::AccId;
-use crate::core::state::*;
 use crate::db::graph::Graph;
 use crate::db::program::*;
 use crate::db::view_api::GraphViewOps;

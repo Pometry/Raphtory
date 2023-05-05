@@ -46,9 +46,9 @@ mod state_test {
     fn tiny_graph(n_shards: usize) -> Graph {
         let g = Graph::new(n_shards);
 
-        g.add_vertex(1, 1, &vec![]);
-        g.add_vertex(1, 2, &vec![]);
-        g.add_vertex(1, 3, &vec![]);
+        g.add_vertex(1, 1, &vec![]).unwrap();
+        g.add_vertex(1, 2, &vec![]).unwrap();
+        g.add_vertex(1, 3, &vec![]).unwrap();
         g
     }
 

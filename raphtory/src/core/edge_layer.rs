@@ -1,17 +1,14 @@
 use itertools::chain;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeSet;
 use std::iter;
 use std::ops::Range;
 
 use crate::core::adj::Adj;
 use crate::core::props::Props;
 use crate::core::tadjset::AdjEdge;
-use crate::core::tgraph::{EdgeRef, TimeIndex, VertexRef};
+use crate::core::tgraph::{EdgeRef, TimeIndex};
 use crate::core::{Direction, Prop};
-
-use super::tadjset::TAdjSet;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub(crate) struct EdgeLayer {
@@ -41,8 +38,8 @@ impl EdgeLayer {
     pub(crate) fn add_edge_with_props(
         &mut self,
         t: i64,
-        src: u64,
-        dst: u64,
+        _src: u64,
+        _dst: u64,
         src_pid: usize,
         dst_pid: usize,
         props: &Vec<(String, Prop)>,
@@ -844,9 +841,4 @@ impl<'a> EdgeRefBuilder<'a> {
             vertex_pid as u64
         }
     }
-}
-
-#[cfg(test)]
-mod edge_layer_tests {
-    use super::*;
 }

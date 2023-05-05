@@ -1,32 +1,21 @@
 //! A data structure for representing temporal graphs.
 
-use std::collections::btree_set::Iter;
-use std::{
-    collections::{BTreeMap, BTreeSet, HashMap},
-    iter,
-    ops::Range,
-};
-
-use itertools::Itertools;
-use rayon::{
-    prelude::{IndexedParallelIterator, ParallelIterator},
-    slice::ParallelSlice,
-};
-use rustc_hash::FxHashMap;
-use serde::{Deserialize, Serialize};
-
-use crate::core::adj::Adj;
+use self::errors::MutateGraphError;
+use super::utils;
 use crate::core::edge_layer::EdgeLayer;
 use crate::core::props::Props;
 use crate::core::tprop::TProp;
 use crate::core::vertex::InputVertex;
-use crate::core::{bitset::BitSet, Direction};
+use crate::core::Direction;
 use crate::core::{Prop, Time};
-use crate::db::view_api::BoxedIter;
-
-use self::errors::MutateGraphError;
-
-use super::utils;
+use itertools::Itertools;
+use rustc_hash::FxHashMap;
+use serde::{Deserialize, Serialize};
+use std::collections::btree_set::Iter;
+use std::{
+    collections::{BTreeSet, HashMap},
+    ops::Range,
+};
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TimeIndex(BTreeSet<i64>);
@@ -170,24 +159,6 @@ impl TemporalGraph {
 
     fn single_layer_access(&self, layer: Option<usize>) -> bool {
         matches!(self.layer_iter_optm(layer), LayerIterator::Single(_))
-    }
-
-    fn par_iterator_vertices(
-        &self,
-        start: Time,
-        end: Time,
-    ) -> impl ParallelIterator<Item = VertexRef> + '_ {
-        let chunk_size = 64_000;
-        let iter =
-            self.logical_ids
-                .par_chunks(chunk_size)
-                .enumerate()
-                .flat_map_iter(move |(chunk_id, chunk)| {
-                    chunk.iter().enumerate().map(move |(i, g_id)| {
-                        VertexRef::new(*g_id, Some(chunk_size * chunk_id + i))
-                    })
-                });
-        iter
     }
 }
 
@@ -1269,10 +1240,6 @@ mod graph_test {
         let actual: Vec<u64> = g
             .vertex_edges_window(1, &(0..4), Direction::IN, None)
             .map(|e| e.1.src_g_id)
-            .collect();
-        let actual_all: Vec<EdgeRef> = g
-            .vertex_edges_window(1, &(0..4), Direction::IN, None)
-            .map(|e| e.1)
             .collect();
         assert_eq!(actual, vec![9]);
     }

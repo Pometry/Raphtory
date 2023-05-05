@@ -9,22 +9,18 @@
 //!
 //! Each shard will have its own set of vertex and edge data, and will be able to be queried independently.
 
+use self::errors::GraphError;
+use self::lock::OptionLock;
+use crate::core::tgraph::{EdgeRef, TemporalGraph, VertexRef};
+use crate::core::vertex::InputVertex;
+use crate::core::{Direction, Prop, Time};
+use genawaiter::sync::{gen, GenBoxed};
+use genawaiter::yield_;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::ops::Range;
 use std::path::Path;
 use std::sync::Arc;
-
-use genawaiter::sync::{gen, GenBoxed};
-use genawaiter::yield_;
-
-use crate::core::tadjset::Edge;
-use crate::core::tgraph::{EdgeRef, TemporalGraph, VertexRef};
-use crate::core::vertex::InputVertex;
-use crate::core::{Direction, Prop, Time};
-
-use self::errors::GraphError;
-use self::lock::OptionLock;
 
 mod lock {
     use serde::{Deserialize, Serialize};

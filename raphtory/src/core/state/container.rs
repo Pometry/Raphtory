@@ -134,7 +134,7 @@ impl<T: StateType> DynArray for VecArray<T> {
         todo!()
     }
 
-    fn iter_keys_changed(&self, ss: usize) -> Box<dyn Iterator<Item = u64> + '_> {
+    fn iter_keys_changed(&self, _ss: usize) -> Box<dyn Iterator<Item = u64> + '_> {
         todo!()
     }
 }

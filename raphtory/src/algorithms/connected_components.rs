@@ -1,5 +1,6 @@
+use crate::db::view_api::{GraphViewOps, VertexViewOps};
 use crate::{
-    core::state::{self, accumulator_id::accumulators, compute_state::ComputeStateVec},
+    core::state::{accumulator_id::accumulators, compute_state::ComputeStateVec},
     db::{
         task::{
             context::Context,
@@ -10,7 +11,6 @@ use crate::{
     },
 };
 use rustc_hash::FxHashMap;
-use crate::db::view_api::{GraphViewOps, VertexViewOps};
 
 /// Computes the connected components of a graph using the Simple Connected Components algorithm
 ///
@@ -196,7 +196,9 @@ mod cc_test {
 
         assert_eq!(
             results,
-            vec![("1".to_string(), 1),].into_iter().collect::<FxHashMap<String, u64>>()
+            vec![("1".to_string(), 1),]
+                .into_iter()
+                .collect::<FxHashMap<String, u64>>()
         );
     }
 

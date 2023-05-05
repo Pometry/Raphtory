@@ -1,11 +1,8 @@
-use std::ops::Range;
-
-use serde::{Deserialize, Serialize};
-
 use crate::core::{
     tadjset::{AdjEdge, TAdjSet},
-    Direction, Time,
+    Direction,
 };
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Default)]
 pub(crate) enum Adj {

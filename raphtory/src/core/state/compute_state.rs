@@ -198,8 +198,8 @@ impl ComputeState for ComputeStateMap {
     fn finalize<A, IN, OUT, ACC: Accumulator<A, IN, OUT>, G: GraphViewInternalOps>(
         &self,
         ss: usize,
-        shard_id: usize,
-        g: &G,
+        _shard_id: usize,
+        _g: &G,
     ) -> Vec<(u64, OUT)>
     where
         OUT: StateType,
@@ -312,7 +312,7 @@ impl ComputeState for ComputeStateVec {
         todo!()
     }
 
-    fn iter_keys_changed(&self, ss: usize) -> Box<dyn Iterator<Item = u64> + '_> {
+    fn iter_keys_changed(&self, _ss: usize) -> Box<dyn Iterator<Item = u64> + '_> {
         todo!()
     }
 
