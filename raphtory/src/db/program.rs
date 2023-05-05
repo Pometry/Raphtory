@@ -894,13 +894,14 @@ impl<G: GraphViewOps> EvalEdgeView<G> {
         Self { ss, ev, state }
     }
 
-    pub fn id(&self) -> usize {
-        self.ev.id()
-    }
-
     pub fn dst(&self) -> EvalVertexView<G> {
         self.ev.dst();
         EvalVertexView::new(self.ss, self.ev.dst(), self.state.clone())
+    }
+
+    pub fn src(&self) -> EvalVertexView<G> {
+        self.ev.dst();
+        EvalVertexView::new(self.ss, self.ev.src(), self.state.clone())
     }
 
     pub fn history(&self) -> Vec<i64> {

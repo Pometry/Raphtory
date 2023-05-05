@@ -42,7 +42,6 @@ use crate::core::{
     Direction, Prop,
 };
 use crate::db::view_api::internal::GraphViewInternalOps;
-use crate::db::view_api::time::TimeOps;
 use crate::db::view_api::GraphViewOps;
 use std::cmp::{max, min};
 use std::{collections::HashMap, ops::Range};
@@ -338,30 +337,6 @@ impl<G: GraphViewOps> GraphViewInternalOps for WindowedGraph<G> {
             .vertex_latest_time_window(v, self.actual_start(t_start), self.actual_end(t_end))
     }
 
-    /// Get an iterator over the IDs of all vertices
-    ///
-    /// # Returns
-    ///
-    /// An iterator over the IDs of all vertices
-    fn vertex_ids(&self) -> Box<dyn Iterator<Item = u64> + Send> {
-        self.graph.vertex_ids_window(self.t_start, self.t_end)
-    }
-
-    /// Get an iterator over the IDs of all vertices in a window
-    ///
-    /// # Arguments
-    ///
-    /// - `t_start` - The inclusive start time of the window.
-    /// - `t_end` - The exclusive end time of the window.
-    ///
-    /// # Returns
-    ///
-    /// An iterator over the IDs of all vertices
-    fn vertex_ids_window(&self, t_start: i64, t_end: i64) -> Box<dyn Iterator<Item = u64> + Send> {
-        self.graph
-            .vertex_ids_window(self.actual_start(t_start), self.actual_end(t_end))
-    }
-
     /// Get an iterator over the references of all vertices as references
     ///
     /// # Returns
@@ -477,35 +452,6 @@ impl<G: GraphViewOps> GraphViewInternalOps for WindowedGraph<G> {
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
         self.graph
             .edge_refs_window(self.actual_start(t_start), self.actual_end(t_end), layer)
-    }
-
-    /// Get an iterator of all edges as references for a given vertex and direction
-    ///
-    /// # Arguments
-    ///
-    /// - `v` - The vertex to get the edges for
-    /// - `d` - The direction of the edges
-    ///
-    /// # Returns
-    ///
-    /// An iterator over all edges in that vertex direction as references
-    fn vertex_edges_all_layers(
-        &self,
-        v: VertexRef,
-        d: Direction,
-    ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
-        self.graph
-            .vertex_edges_window(v, self.t_start, self.t_end, d, None)
-    }
-
-    fn vertex_edges_single_layer(
-        &self,
-        v: VertexRef,
-        d: Direction,
-        layer: usize,
-    ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
-        self.graph
-            .vertex_edges_window(v, self.t_start, self.t_end, d, Some(layer))
     }
 
     fn vertex_edges_t(
@@ -1025,6 +971,16 @@ impl<G: GraphViewOps> GraphViewInternalOps for WindowedGraph<G> {
         )
     }
 
+    fn vertex_edges(
+        &self,
+        v: VertexRef,
+        d: Direction,
+        layer: Option<usize>,
+    ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
+        self.graph
+            .vertex_edges_window(v, self.t_start, self.t_end, d, layer)
+    }
+
     fn lookup_by_pid_and_shard(&self, pid: usize, shard: usize) -> Option<VertexRef> {
         self.graph
             .lookup_by_pid_and_shard(pid, shard)
@@ -1308,6 +1264,14 @@ mod views_test {
         }
 
         let wg = WindowedGraph::new(g, window.start, window.end);
+        if wg.num_edges() != true_edge_count {
+            println!(
+                "failed, g.num_edges() = {}, true count = {}",
+                wg.num_edges(),
+                true_edge_count
+            );
+            println!("g.edges() = {:?}", wg.edges().collect_vec());
+        }
         TestResult::from_bool(wg.num_edges() == true_edge_count)
     }
 
@@ -1368,7 +1332,7 @@ mod views_test {
         let res: Vec<_> = (0..=3)
             .map(|i| {
                 let wg = g.window(args[i].0, args[i].1);
-                let mut e = wg.vertex_ids().collect::<Vec<_>>();
+                let mut e = wg.vertices().id().collect::<Vec<_>>();
                 e.sort();
                 e
             })
@@ -1383,7 +1347,7 @@ mod views_test {
         let res: Vec<_> = (0..=3)
             .map(|i| {
                 let wg = g.window(args[i].0, args[i].1);
-                let mut e = wg.vertex_ids().collect::<Vec<_>>();
+                let mut e = wg.vertices().id().collect::<Vec<_>>();
                 e.sort();
                 e
             })

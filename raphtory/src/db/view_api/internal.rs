@@ -1,5 +1,6 @@
 use crate::core::tgraph::{EdgeRef, VertexRef};
 use crate::core::{Direction, Prop};
+use crate::db::view_api::BoxedIter;
 use rayon::prelude::*;
 use std::collections::HashMap;
 use std::{ops::Range, sync::Arc};
@@ -154,22 +155,6 @@ pub trait GraphViewInternalOps {
     /// Return the latest time for a vertex in a window
     fn vertex_latest_time_window(&self, v: VertexRef, t_start: i64, t_end: i64) -> Option<i64>;
 
-    /// Retuns all the vertex IDs in the graph.
-    /// # Returns
-    /// * `Box<dyn Iterator<Item = u64> + Send>` - An iterator over all the vertex IDs in the graph.
-    fn vertex_ids(&self) -> Box<dyn Iterator<Item = u64> + Send>;
-
-    /// Returns all the vertex IDs in the graph created between the start (t_start) and
-    /// end (t_end) timestamps
-    /// # Arguments
-    ///
-    /// * `t_start` - The start time of the window (inclusive).
-    /// * `t_end` - The end time of the window (exclusive).
-    ///
-    /// # Returns
-    /// * `Box<dyn Iterator<Item = u64> + Send>` - An iterator over all the vertex IDs in the graph.
-    fn vertex_ids_window(&self, t_start: i64, t_end: i64) -> Box<dyn Iterator<Item = u64> + Send>;
-
     /// Returns all the vertex references in the graph.
     /// # Returns
     /// * `Box<dyn Iterator<Item = VertexRef> + Send>` - An iterator over all the vertex
@@ -242,7 +227,7 @@ pub trait GraphViewInternalOps {
         t_end: i64,
         layer: usize,
     ) -> Option<EdgeRef>;
-
+    
     /// Returns all the edge references in the graph.
     ///
     /// # Returns
@@ -273,23 +258,17 @@ pub trait GraphViewInternalOps {
     ///
     /// * `v` - A reference to the vertex for which the edges are being queried.
     /// * `d` - The direction in which to search for edges.
+    /// * `layer` - The optional layer to consider
     ///
     /// # Returns
     ///
     /// Box<dyn Iterator<Item = EdgeRef> + Send> -  A boxed iterator that yields references to
     /// the edges connected to the vertex.
-
-    fn vertex_edges_all_layers(
+    fn vertex_edges(
         &self,
         v: VertexRef,
         d: Direction,
-    ) -> Box<dyn Iterator<Item = EdgeRef> + Send>;
-
-    fn vertex_edges_single_layer(
-        &self,
-        v: VertexRef,
-        d: Direction,
-        layer: usize,
+        layer: Option<usize>,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send>;
 
     /// Returns an iterator over the exploded edges connected to a given vertex in a given direction.

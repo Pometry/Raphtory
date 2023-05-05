@@ -64,17 +64,14 @@ impl From<db_c::Prop> for Prop {
     }
 }
 
-impl Repr for db_c::Prop {
+impl Repr for Prop {
     fn repr(&self) -> String {
         match &self {
-            db_c::Prop::Str(v) => v.repr(),
-            db_c::Prop::Bool(v) => v.repr(),
-            db_c::Prop::I64(v) => v.repr(),
-            db_c::Prop::U64(v) => v.repr(),
-            db_c::Prop::F64(v) => v.repr(),
-            db_c::Prop::I32(v) => v.repr(),
-            db_c::Prop::U32(v) => v.repr(),
-            db_c::Prop::F32(v) => v.repr(),
+            Prop::Str(v) => v.repr(),
+            Prop::Bool(v) => v.repr(),
+            Prop::I64(v) => v.repr(),
+            Prop::U64(v) => v.repr(),
+            Prop::F64(v) => v.repr(),
         }
     }
 }
@@ -93,7 +90,19 @@ impl IntoPy<PyObject> for PropValue {
     }
 }
 
+impl Repr for PropValue {
+    fn repr(&self) -> String {
+        self.0.repr()
+    }
+}
+
 pub struct Props(HashMap<String, Prop>);
+
+impl Repr for Props {
+    fn repr(&self) -> String {
+        self.0.repr()
+    }
+}
 
 impl From<HashMap<String, db_c::Prop>> for Props {
     fn from(value: HashMap<String, db_c::Prop>) -> Self {
@@ -109,6 +118,12 @@ impl IntoPy<PyObject> for Props {
 
 pub struct PropHistory(Vec<(i64, Prop)>);
 
+impl Repr for PropHistory {
+    fn repr(&self) -> String {
+        self.0.repr()
+    }
+}
+
 impl From<Vec<(i64, db_c::Prop)>> for PropHistory {
     fn from(value: Vec<(i64, db_c::Prop)>) -> Self {
         Self(value.into_iter().map(|(t, v)| (t, v.into())).collect())
@@ -122,6 +137,12 @@ impl IntoPy<PyObject> for PropHistory {
 }
 
 pub struct PropHistories(HashMap<String, PropHistory>);
+
+impl Repr for PropHistories {
+    fn repr(&self) -> String {
+        self.0.repr()
+    }
+}
 
 impl From<HashMap<String, Vec<(i64, db_c::Prop)>>> for PropHistories {
     fn from(value: HashMap<String, Vec<(i64, db_c::Prop)>>) -> Self {

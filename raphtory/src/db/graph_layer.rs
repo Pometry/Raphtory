@@ -152,14 +152,6 @@ impl<G: GraphViewInternalOps> GraphViewInternalOps for LayeredGraph<G> {
         self.graph.vertex_latest_time_window(v, t_start, t_end)
     }
 
-    fn vertex_ids(&self) -> Box<dyn Iterator<Item = u64> + Send> {
-        self.graph.vertex_ids()
-    }
-
-    fn vertex_ids_window(&self, t_start: i64, t_end: i64) -> Box<dyn Iterator<Item = u64> + Send> {
-        self.graph.vertex_ids_window(t_start, t_end)
-    }
-
     fn vertex_refs(&self) -> Box<dyn Iterator<Item = VertexRef> + Send> {
         self.graph.vertex_refs()
     }
@@ -220,27 +212,6 @@ impl<G: GraphViewInternalOps> GraphViewInternalOps for LayeredGraph<G> {
         self.constrain(layer)
             .map(|layer| self.graph.edge_refs_window(t_start, t_end, Some(layer)))
             .unwrap_or_else(|| Box::new(std::iter::empty()))
-    }
-
-    fn vertex_edges_all_layers(
-        &self,
-        v: VertexRef,
-        d: Direction,
-    ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
-        self.graph.vertex_edges_single_layer(v, d, self.layer)
-    }
-
-    fn vertex_edges_single_layer(
-        &self,
-        v: VertexRef,
-        d: Direction,
-        layer: usize,
-    ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
-        if layer == self.layer {
-            self.graph.vertex_edges_single_layer(v, d, layer)
-        } else {
-            Box::new(std::iter::empty())
-        }
     }
 
     fn vertex_edges_t(
@@ -447,6 +418,15 @@ impl<G: GraphViewInternalOps> GraphViewInternalOps for LayeredGraph<G> {
 
     fn edge_timestamps(&self, e: EdgeRef, window: Option<Range<i64>>) -> Vec<i64> {
         self.graph.edge_timestamps(e, window)
+    }
+
+    fn vertex_edges(
+        &self,
+        v: VertexRef,
+        d: Direction,
+        layer: Option<usize>,
+    ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
+        self.graph.vertex_edges(v, d, self.constrain(layer))
     }
 
     fn lookup_by_pid_and_shard(&self, pid: usize, shard: usize) -> Option<VertexRef> {

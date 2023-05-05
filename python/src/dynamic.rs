@@ -183,14 +183,6 @@ impl GraphViewInternalOps for DynamicGraph {
         self.0.vertex_latest_time_window(v, t_start, t_end)
     }
 
-    fn vertex_ids(&self) -> Box<dyn Iterator<Item = u64> + Send> {
-        self.0.vertex_ids()
-    }
-
-    fn vertex_ids_window(&self, t_start: i64, t_end: i64) -> Box<dyn Iterator<Item = u64> + Send> {
-        self.0.vertex_ids_window(t_start, t_end)
-    }
-
     fn vertex_refs(&self) -> Box<dyn Iterator<Item = VertexRef> + Send> {
         self.0.vertex_refs()
     }
@@ -242,23 +234,6 @@ impl GraphViewInternalOps for DynamicGraph {
         layer: Option<usize>,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
         self.0.edge_refs_window(t_start, t_end, layer)
-    }
-
-    fn vertex_edges_all_layers(
-        &self,
-        v: VertexRef,
-        d: Direction,
-    ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
-        self.0.vertex_edges_all_layers(v, d)
-    }
-
-    fn vertex_edges_single_layer(
-        &self,
-        v: VertexRef,
-        d: Direction,
-        layer: usize,
-    ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
-        self.0.vertex_edges_single_layer(v, d, layer)
     }
 
     fn vertex_edges_t(
@@ -427,6 +402,15 @@ impl GraphViewInternalOps for DynamicGraph {
         t_end: i64,
     ) -> Box<dyn Iterator<Item = VertexRef> + Send> {
         self.0.vertices_shard_window(shard_id, t_start, t_end)
+    }
+
+    fn vertex_edges(
+        &self,
+        v: VertexRef,
+        d: Direction,
+        layer: Option<usize>,
+    ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
+        self.0.vertex_edges(v, d, layer)
     }
 
     fn lookup_by_pid_and_shard(&self, pid: usize, shard: usize) -> Option<VertexRef> {

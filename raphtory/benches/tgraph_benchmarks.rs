@@ -91,27 +91,8 @@ fn bm_tadjset(c: &mut Criterion) {
             |b, (time, srcs, dsts)| {
                 b.iter(|| {
                     for i in 0..time.len() {
-                        tadjset.push(
-                            time[i],
-                            srcs[i] as usize,
-                            AdjEdge::new(dsts[i] as usize, false),
-                        );
+                        tadjset.push(srcs[i] as usize, AdjEdge::new(dsts[i] as usize, false));
                     }
-                });
-            },
-        );
-
-        group.bench_with_input(
-            BenchmarkId::new("TAdjSet degree window", size),
-            &tadjset,
-            |b, tadjset| {
-                b.iter(|| {
-                    let mut start = t_range.sample(&mut rng);
-                    let mut end = t_range.sample(&mut rng);
-                    if start > end {
-                        std::mem::swap(&mut start, &mut end)
-                    }
-                    tadjset.len_window(&(start..end));
                 });
             },
         );
