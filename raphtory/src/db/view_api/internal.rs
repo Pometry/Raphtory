@@ -227,29 +227,29 @@ pub trait GraphViewInternalOps {
         layer: usize,
     ) -> Option<EdgeRef>;
 
-    /// Returns all the edge references in the graph.
-    ///
-    /// # Returns
-    ///
-    /// * `Box<dyn Iterator<Item = EdgeRef> + Send>` - An iterator over all the edge references.
-    fn edge_refs(&self, layer: Option<usize>) -> Box<dyn Iterator<Item = EdgeRef> + Send>;
+    // /// Returns all the edge references in the graph.
+    // ///
+    // /// # Returns
+    // ///
+    // /// * `Box<dyn Iterator<Item = EdgeRef> + Send>` - An iterator over all the edge references.
+    // fn edge_refs(&self, layer: Option<usize>) -> Box<dyn Iterator<Item = EdgeRef> + Send>;
 
-    /// Returns all the edge references in the graph created between the start (t_start) and
-    /// end (t_end) timestamps (inclusive).
-    ///
-    /// # Arguments
-    ///
-    /// * `t_start` - The start time of the window (inclusive).
-    /// * `t_end` - The end time of the window (exclusive).
-    /// # Returns
-    ///
-    /// * `Box<dyn Iterator<Item = EdgeRef> + Send>` - An iterator over all the edge references.
-    fn edge_refs_window(
-        &self,
-        t_start: i64,
-        t_end: i64,
-        layer: Option<usize>,
-    ) -> Box<dyn Iterator<Item = EdgeRef> + Send>;
+    // /// Returns all the edge references in the graph created between the start (t_start) and
+    // /// end (t_end) timestamps (inclusive).
+    // ///
+    // /// # Arguments
+    // ///
+    // /// * `t_start` - The start time of the window (inclusive).
+    // /// * `t_end` - The end time of the window (exclusive).
+    // /// # Returns
+    // ///
+    // /// * `Box<dyn Iterator<Item = EdgeRef> + Send>` - An iterator over all the edge references.
+    // fn edge_refs_window(
+    //     &self,
+    //     t_start: i64,
+    //     t_end: i64,
+    //     layer: Option<usize>,
+    // ) -> Box<dyn Iterator<Item = EdgeRef> + Send>;
 
     /// Returns an iterator over the edges connected to a given vertex in a given direction.
     ///
@@ -372,44 +372,44 @@ pub trait GraphViewInternalOps {
         layer: Option<usize>,
     ) -> Box<dyn Iterator<Item = VertexRef> + Send>;
 
-    ///  Returns the vertex ids of the neighbors of a given vertex in a given direction.
-    /// # Arguments
-    ///
-    /// * `v` - A reference to the vertex for which the neighbors are being queried.
-    /// * `d` - The direction in which to search for neighbors.
-    ///
-    /// # Returns
-    ///
-    /// A boxed iterator that yields the ids of the neighboring vertices.
-    fn neighbours_ids(
-        &self,
-        v: VertexRef,
-        d: Direction,
-        layer: Option<usize>,
-    ) -> Box<dyn Iterator<Item = u64> + Send>;
+    // ///  Returns the vertex ids of the neighbors of a given vertex in a given direction.
+    // /// # Arguments
+    // ///
+    // /// * `v` - A reference to the vertex for which the neighbors are being queried.
+    // /// * `d` - The direction in which to search for neighbors.
+    // ///
+    // /// # Returns
+    // ///
+    // /// A boxed iterator that yields the ids of the neighboring vertices.
+    // fn neighbours_ids(
+    //     &self,
+    //     v: VertexRef,
+    //     d: Direction,
+    //     layer: Option<usize>,
+    // ) -> Box<dyn Iterator<Item = u64> + Send>;
 
-    /// Returns the vertex ids of the neighbors of a given vertex within a specified
-    /// time window in a given direction.
-    ///
-    /// # Arguments
-    ///
-    /// * `v` - A reference to the vertex for which the neighbors are being queried.
-    /// * `t_start` - The start time of the window (inclusive).
-    /// * `t_end` - The end time of the window (exclusive).
-    /// * `d` - The direction in which to search for neighbors.
-    ///
-    /// # Returns
-    ///
-    /// A boxed iterator that yields the ids of the neighboring vertices within the
-    /// specified time window.
-    fn neighbours_ids_window(
-        &self,
-        v: VertexRef,
-        t_start: i64,
-        t_end: i64,
-        d: Direction,
-        layer: Option<usize>,
-    ) -> Box<dyn Iterator<Item = u64> + Send>;
+    // /// Returns the vertex ids of the neighbors of a given vertex within a specified
+    // /// time window in a given direction.
+    // ///
+    // /// # Arguments
+    // ///
+    // /// * `v` - A reference to the vertex for which the neighbors are being queried.
+    // /// * `t_start` - The start time of the window (inclusive).
+    // /// * `t_end` - The end time of the window (exclusive).
+    // /// * `d` - The direction in which to search for neighbors.
+    // ///
+    // /// # Returns
+    // ///
+    // /// A boxed iterator that yields the ids of the neighboring vertices within the
+    // /// specified time window.
+    // fn neighbours_ids_window(
+    //     &self,
+    //     v: VertexRef,
+    //     t_start: i64,
+    //     t_end: i64,
+    //     d: Direction,
+    //     layer: Option<usize>,
+    // ) -> Box<dyn Iterator<Item = u64> + Send>;
 
     /// Gets a static property of a given vertex given the name and vertex reference.
     ///
@@ -657,126 +657,4 @@ pub trait GraphViewInternalOps {
         t_start: i64,
         t_end: i64,
     ) -> Box<dyn Iterator<Item = VertexRef> + Send>;
-}
-
-pub trait ParIterGraphOps {
-    fn vertices_par_map<O, F>(&self, f: F) -> Box<dyn Iterator<Item = O>>
-    where
-        O: Send + 'static,
-        F: Fn(VertexRef) -> O + Send + Sync + Copy;
-
-    fn vertices_par_fold<S, F, F2>(&self, f: F, agg: F2) -> Option<S>
-    where
-        S: Send + 'static,
-        F: Fn(VertexRef) -> S + Send + Sync + Copy,
-        F2: Fn(S, S) -> S + Sync + Send + Copy;
-
-    fn vertices_window_par_map<O, F>(
-        &self,
-        t_start: i64,
-        t_end: i64,
-        f: F,
-    ) -> Box<dyn Iterator<Item = O>>
-    where
-        O: Send + 'static,
-        F: Fn(VertexRef) -> O + Send + Sync + Copy;
-
-    fn vertices_window_par_fold<S, F, F2>(
-        &self,
-        t_start: i64,
-        t_end: i64,
-        f: F,
-        agg: F2,
-    ) -> Option<S>
-    where
-        S: Send + 'static,
-        F: Fn(VertexRef) -> S + Send + Sync + Copy,
-        F2: Fn(S, S) -> S + Sync + Send + Copy;
-}
-
-impl<G: GraphViewInternalOps + Send + Sync> ParIterGraphOps for G {
-    fn vertices_par_map<O, F>(&self, f: F) -> Box<dyn Iterator<Item = O>>
-    where
-        O: Send + 'static,
-        F: Fn(VertexRef) -> O + Send + Sync + Copy,
-    {
-        let (tx, rx) = flume::unbounded();
-
-        let arc_tx = Arc::new(tx);
-        (0..self.num_shards())
-            .into_par_iter()
-            .flat_map(|shard_id| self.vertices_shard(shard_id).par_bridge().map(f))
-            .for_each(move |o| {
-                arc_tx.send(o).unwrap();
-            });
-
-        Box::new(rx.into_iter())
-    }
-
-    fn vertices_par_fold<S, F, F2>(&self, f: F, agg: F2) -> Option<S>
-    where
-        S: Send + 'static,
-        F: Fn(VertexRef) -> S + Send + Sync + Copy,
-        F2: Fn(S, S) -> S + Sync + Send + Copy,
-    {
-        (0..self.num_shards())
-            .into_par_iter()
-            .flat_map(|shard_id| {
-                self.vertices_shard(shard_id)
-                    .par_bridge()
-                    .map(f)
-                    .reduce_with(agg)
-            })
-            .reduce_with(agg)
-    }
-
-    fn vertices_window_par_map<O, F>(
-        &self,
-        t_start: i64,
-        t_end: i64,
-        f: F,
-    ) -> Box<dyn Iterator<Item = O>>
-    where
-        O: Send + 'static,
-        F: Fn(VertexRef) -> O + Send + Sync + Copy,
-    {
-        let (tx, rx) = flume::unbounded();
-
-        let arc_tx = Arc::new(tx);
-        (0..self.num_shards())
-            .into_par_iter()
-            .flat_map(|shard_id| {
-                self.vertices_shard_window(shard_id, t_start, t_end)
-                    .par_bridge()
-                    .map(f)
-            })
-            .for_each(move |o| {
-                arc_tx.send(o).unwrap();
-            });
-
-        Box::new(rx.into_iter())
-    }
-
-    fn vertices_window_par_fold<S, F, F2>(
-        &self,
-        t_start: i64,
-        t_end: i64,
-        f: F,
-        agg: F2,
-    ) -> Option<S>
-    where
-        S: Send + 'static,
-        F: Fn(VertexRef) -> S + Send + Sync + Copy,
-        F2: Fn(S, S) -> S + Sync + Send + Copy,
-    {
-        (0..self.num_shards())
-            .into_par_iter()
-            .flat_map(|shard| {
-                self.vertices_shard_window(shard, t_start, t_end)
-                    .par_bridge()
-                    .map(f)
-                    .reduce_with(agg)
-            })
-            .reduce_with(agg)
-    }
 }
