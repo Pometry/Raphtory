@@ -48,11 +48,11 @@ where
         &self.resetable_states
     }
 
-    pub(crate) fn run_merge_shard(&self, mut a: Shard<CS>, mut b: Shard<CS>) -> Shard<CS> {
+    pub(crate) fn run_merge_shard(&self, a: Shard<CS>, b: Shard<CS>) -> Shard<CS> {
         self.run_merge(a.unwrap(), b.unwrap()).into()
     }
 
-    pub(crate) fn run_merge_global(&self, mut a: Global<CS>, mut b: Global<CS>) -> Global<CS> {
+    pub(crate) fn run_merge_global(&self, a: Global<CS>, b: Global<CS>) -> Global<CS> {
         self.run_merge(a.unwrap(), b.unwrap()).into()
     }
 

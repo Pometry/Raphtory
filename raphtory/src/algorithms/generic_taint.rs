@@ -107,7 +107,7 @@ impl Program for GenericTaintS0 {
         c.step(|_| true)
     }
 
-    fn produce_output<G: GraphViewOps>(&self, g: &G, gs: &GlobalEvalState<G>) -> Self::Out
+    fn produce_output<G: GraphViewOps>(&self, _g: &G, _gs: &GlobalEvalState<G>) -> Self::Out
     where
         Self: Sync,
     {
@@ -182,7 +182,7 @@ impl Program for GenericTaintS1 {
         c.step(|_| true)
     }
 
-    fn produce_output<G: GraphViewOps>(&self, g: &G, gs: &GlobalEvalState<G>) -> Self::Out
+    fn produce_output<G: GraphViewOps>(&self, _g: &G, _gs: &GlobalEvalState<G>) -> Self::Out
     where
         Self: Sync,
     {
@@ -227,7 +227,7 @@ pub fn generic_taint<G: GraphViewOps, T: InputVertex>(
         let r = c.read_vec_partitions(&val::<Bool>(0));
         let taint_list: HashSet<_> = r
             .into_iter()
-            .flat_map(|v| v.into_iter().flat_map(|c| c.into_iter().map(|(a, b)| a)))
+            .flat_map(|v| v.into_iter().flat_map(|c| c.into_iter().map(|(a, _b)| a)))
             .collect();
 
         // println!(
