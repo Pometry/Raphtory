@@ -1,3 +1,4 @@
+use crate::core::vertex_ref::{LocalVertexRef, VertexRef};
 use crate::{
     core::state::{accumulator_id::accumulators, compute_state::ComputeStateVec},
     db::{
@@ -67,12 +68,12 @@ where
 
     let mut map: FxHashMap<String, u64> = FxHashMap::default();
 
+    // FIXME: make this a proper method!
     state
         .inner()
         .fold_state_internal(runner.ctx.ss(), &mut map, &min, |res, shard, pid, cc| {
-            if let Some(v_ref) = graph.lookup_by_pid_and_shard(pid, shard) {
-                res.insert(graph.vertex(v_ref.g_id).unwrap().name(), cc);
-            }
+            let v_ref = LocalVertexRef::new(pid, shard);
+            res.insert(graph.vertex_name(v_ref), cc);
             res
         });
 

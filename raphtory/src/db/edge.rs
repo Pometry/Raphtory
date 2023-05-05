@@ -5,7 +5,8 @@
 //! and can have properties associated with them.
 //!
 
-use crate::core::tgraph::{EdgeRef, VertexRef};
+use crate::core::edge_ref::EdgeRef;
+use crate::core::vertex_ref::VertexRef;
 use crate::core::Prop;
 use crate::db::graph_window::WindowedGraph;
 use crate::db::vertex::VertexView;
@@ -16,7 +17,7 @@ use std::iter;
 use std::sync::Arc;
 
 /// A view of an edge in the graph.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct EdgeView<G: GraphViewOps> {
     /// A view of an edge in the graph.
     pub graph: Arc<G>,
@@ -24,15 +25,15 @@ pub struct EdgeView<G: GraphViewOps> {
     pub edge: EdgeRef,
 }
 
-impl<G: GraphViewOps> Debug for EdgeView<G> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "EdgeView({}, {})",
-            self.edge.src_g_id, self.edge.dst_g_id
-        )
-    }
-}
+// impl<G: GraphViewOps> Debug for EdgeView<G> {
+//     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+//         write!(
+//             f,
+//             "EdgeView({}, {})",
+//             self.edge.src_g_id, self.edge.dst_g_id
+//         )
+//     }
+// }
 
 impl<G: GraphViewOps> EdgeView<G> {
     /// Creates a new `EdgeView`.
@@ -84,14 +85,12 @@ impl<G: GraphViewOps> EdgeView<G> {
     }
 
     pub fn property_history(&self, name: String) -> Vec<(i64, Prop)> {
-        match self.edge.time {
+        match self.edge.time() {
             None => self.graph.temporal_edge_props_vec(self.edge, name),
-            Some(_) => self.graph.temporal_edge_props_vec_window(
-                self.edge,
-                name,
-                self.edge.time.unwrap(),
-                self.edge.time.unwrap() + 1,
-            ),
+            Some(t) => {
+                self.graph
+                    .temporal_edge_props_vec_window(self.edge, name, t, t.saturating_add(1))
+            }
         }
     }
 
@@ -119,13 +118,11 @@ impl<G: GraphViewOps> EdgeView<G> {
     pub fn property_histories(&self) -> HashMap<String, Vec<(i64, Prop)>> {
         // match on the self.edge.time option property and run two function s
         // one for static and one for temporal
-        match self.edge.time {
+        match self.edge.time() {
             None => self.graph.temporal_edge_props(self.edge),
-            Some(_) => self.graph.temporal_edge_props_window(
-                self.edge,
-                self.edge.time.unwrap(),
-                self.edge.time.unwrap() + 1,
-            ),
+            Some(t) => self
+                .graph
+                .temporal_edge_props_window(self.edge, t, t.saturating_add(1)),
         }
     }
 
@@ -151,20 +148,13 @@ impl<G: GraphViewOps> EdgeView<G> {
 
     /// Returns the source vertex of the edge.
     pub fn src(&self) -> VertexView<G> {
-        //FIXME: Make local ids on EdgeReference optional
-        let vertex = VertexRef {
-            g_id: self.edge.src_g_id,
-            pid: None,
-        };
+        let vertex = self.edge.src();
         VertexView::new(self.graph.clone(), vertex)
     }
 
+    /// Returns the destination vertex of the edge.
     pub fn dst(&self) -> VertexView<G> {
-        //FIXME: Make local ids on EdgeReference optional
-        let vertex = VertexRef {
-            g_id: self.edge.dst_g_id,
-            pid: None,
-        };
+        let vertex = self.edge.dst();
         VertexView::new(self.graph.clone(), vertex)
     }
 
@@ -173,7 +163,7 @@ impl<G: GraphViewOps> EdgeView<G> {
         let g = self.graph.clone();
         let e = self.edge;
         let ev = self.clone();
-        if self.edge.time.is_some() {
+        if self.edge.time().is_some() {
             Box::new(iter::once(ev))
         } else {
             Box::new(
@@ -194,16 +184,17 @@ impl<G: GraphViewOps> EdgeView<G> {
         self.graph.edge_timestamps(self.edge, None).last().copied()
     }
 
+    /// Gets the time stamp of the edge if it is exploded
     pub fn time(&self) -> Option<i64> {
-        self.edge.time
+        self.edge.time()
     }
 
     /// Gets the name of the layer this edge belongs to
     pub fn layer_name(&self) -> String {
-        if self.edge.layer_id == 0 {
+        if self.edge.layer() == 0 {
             "default layer".to_string()
         } else {
-            self.graph.get_layer_name_by_id(self.edge.layer_id)
+            self.graph.get_layer_name_by_id(self.edge.layer())
         }
     }
 }

@@ -1,6 +1,6 @@
 //! Defines the `Vertex` struct, which represents a vertex in the graph.
 
-use crate::core::tgraph::VertexRef;
+use crate::core::vertex_ref::{LocalVertexRef, VertexRef};
 use crate::core::{Direction, Prop};
 use crate::db::edge::{EdgeList, EdgeView};
 use crate::db::graph_layer::LayeredGraph;
@@ -15,24 +15,30 @@ use std::sync::Arc;
 #[derive(Debug, Clone)]
 pub struct VertexView<G: GraphViewOps> {
     pub graph: Arc<G>,
-    pub vertex: VertexRef,
+    pub vertex: LocalVertexRef,
 }
 
 impl<G: GraphViewOps> From<VertexView<G>> for VertexRef {
     fn from(value: VertexView<G>) -> Self {
-        value.vertex
+        VertexRef::Local(value.vertex)
     }
 }
 
 impl<G: GraphViewOps> From<&VertexView<G>> for VertexRef {
     fn from(value: &VertexView<G>) -> Self {
-        value.vertex
+        VertexRef::Local(value.vertex)
     }
 }
 
 impl<G: GraphViewOps> VertexView<G> {
-    /// Creates a new `VertexView` wrapping a vertex reference and a graph.
+    /// Creates a new `VertexView` wrapping a vertex reference and a graph, localising any remote vertices to the correct shard.
     pub(crate) fn new(graph: Arc<G>, vertex: VertexRef) -> VertexView<G> {
+        let v = graph.localise_vertex_unchecked(vertex);
+        VertexView { graph, vertex: v }
+    }
+
+    /// Creates a new `VertexView` wrapping a local vertex reference and a graph
+    pub(crate) fn new_local(graph: Arc<G>, vertex: LocalVertexRef) -> VertexView<G> {
         VertexView { graph, vertex }
     }
 }
@@ -45,14 +51,11 @@ impl<G: GraphViewOps> VertexViewOps for VertexView<G> {
     type EList = BoxedIter<EdgeView<G>>;
 
     fn id(&self) -> u64 {
-        self.vertex.g_id
+        self.graph.vertex_id(self.vertex)
     }
 
     fn name(&self) -> String {
-        match self.static_property("_id".to_string()) {
-            None => self.id().to_string(),
-            Some(prop) => prop.to_string(),
-        }
+        self.graph.vertex_name(self.vertex)
     }
 
     fn earliest_time(&self) -> Option<i64> {
@@ -479,6 +482,16 @@ mod vertex_test {
 
         assert_eq!(g.num_edges(), 701);
         assert_eq!(g.vertex("Gandalf").unwrap().neighbours().iter().count(), 49);
+
+        for v in g
+            .vertex("Gandalf")
+            .unwrap()
+            .window(1356, 24792)
+            .neighbours()
+            .iter()
+        {
+            println!("{:?}", v.id())
+        }
         assert_eq!(
             g.vertex("Gandalf")
                 .unwrap()

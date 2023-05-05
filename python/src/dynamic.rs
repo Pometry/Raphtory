@@ -176,7 +176,7 @@ impl GraphViewInternalOps for DynamicGraph {
     }
 
     fn vertex_earliest_time_window(&self, v: VertexRef, t_start: i64, t_end: i64) -> Option<i64> {
-        self.0.vertex_latest_time_window(v, t_start, t_end)
+        self.0.vertex_earliest_time_window(v, t_start, t_end)
     }
 
     fn vertex_latest_time(&self, v: VertexRef) -> Option<i64> {
@@ -395,9 +395,5 @@ impl GraphViewInternalOps for DynamicGraph {
         layer: Option<usize>,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
         self.0.vertex_edges(v, d, layer)
-    }
-
-    fn lookup_by_pid_and_shard(&self, pid: usize, shard: usize) -> Option<VertexRef> {
-        self.0.lookup_by_pid_and_shard(pid, shard)
     }
 }

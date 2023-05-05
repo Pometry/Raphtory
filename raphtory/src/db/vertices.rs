@@ -1,4 +1,4 @@
-use crate::core::tgraph::VertexRef;
+use crate::core::vertex_ref::VertexRef;
 use crate::core::{Direction, Prop};
 use crate::db::edge::EdgeView;
 use crate::db::graph_layer::LayeredGraph;
@@ -23,7 +23,10 @@ impl<G: GraphViewOps> Vertices<G> {
 
     pub fn iter(&self) -> Box<dyn Iterator<Item = VertexView<G>> + Send> {
         let g = Arc::new(self.graph.clone());
-        Box::new(g.vertex_refs().map(move |v| VertexView::new(g.clone(), v)))
+        Box::new(
+            g.vertex_refs()
+                .map(move |v| VertexView::new_local(g.clone(), v)),
+        )
     }
 
     pub fn len(&self) -> usize {

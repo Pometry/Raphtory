@@ -1,5 +1,6 @@
 use rustc_hash::FxHashMap;
 
+use crate::core::vertex_ref::{LocalVertexRef, VertexRef};
 use crate::{core::agg::Accumulator, db::view_api::internal::GraphViewInternalOps};
 
 use super::{
@@ -393,11 +394,11 @@ impl ComputeState for ComputeStateVec {
         current
             .iter()
             .enumerate()
-            .flat_map(|(p_id, a)| {
-                g.lookup_by_pid_and_shard(p_id, shard_id).map(|v_ref| {
-                    let out = ACC::finish(a);
-                    (v_ref.g_id, out)
-                })
+            .map(|(p_id, a)| {
+                let v_ref = LocalVertexRef::new(p_id, shard_id);
+
+                let out = ACC::finish(a);
+                (g.vertex_id(v_ref), out)
             })
             .collect()
     }
