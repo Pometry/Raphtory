@@ -15,8 +15,8 @@
 <a href="https://github.com/Raphtory/Raphtory/issues">
 <img alt="Issues" src="https://img.shields.io/github/issues/Raphtory/Raphtory?color=brightgreen" />
 </a>
-<a href="https://crates.io/crates/docbrown">
-<img alt="Crates.io" src="https://img.shields.io/crates/v/docbrown">
+<a href="https://crates.io/crates/raphtory">
+<img alt="Crates.io" src="https://img.shields.io/crates/v/raphtory">
 </a>
 <a href="https://pypi.org/project/raphtory/">
 <img alt="PyPI" src="https://img.shields.io/pypi/v/raphtory">
