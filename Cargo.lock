@@ -1690,6 +1690,7 @@ dependencies = [
  "itertools",
  "neo4rs",
  "num-traits",
+ "once_cell",
  "openssl",
  "parking_lot",
  "pretty_assertions",

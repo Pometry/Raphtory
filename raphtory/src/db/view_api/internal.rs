@@ -125,6 +125,10 @@ pub trait GraphViewInternalOps {
     /// * `v` - The vertex ID to lookup.
     fn vertex_ref(&self, v: u64) -> Option<VertexRef>;
 
+    /// Returns the VertexRef that corresponds to the specified phisical id
+    /// (pid) and shard.
+    fn lookup_by_pid_and_shard(&self, pid: usize, shard: usize) -> Option<VertexRef>;
+
     /// Returns the VertexRef that corresponds to the specified vertex ID (v) created
     /// between the start (t_start) and end (t_end) timestamps (inclusive).
     /// Returns None if the vertex ID is not present in the graph.

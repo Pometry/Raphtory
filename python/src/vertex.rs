@@ -20,6 +20,7 @@ use raphtory::db::view_api::time::WindowSet;
 use raphtory::db::view_api::*;
 use raphtory::*;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 /// A vertex (or node) in the graph.
 #[pyclass(name = "Vertex")]
@@ -32,7 +33,7 @@ impl<G: GraphViewOps + IntoDynamic> From<VertexView<G>> for PyVertex {
     fn from(value: VertexView<G>) -> Self {
         Self {
             vertex: VertexView {
-                graph: value.graph.into_dynamic(),
+                graph: Arc::new(value.graph.into_dynamic_arc()),
                 vertex: value.vertex,
             },
         }
@@ -786,7 +787,7 @@ impl<G: GraphViewOps + IntoDynamic> From<PathFromGraph<G>> for PyPathFromGraph {
     fn from(value: PathFromGraph<G>) -> Self {
         Self {
             path: PathFromGraph {
-                graph: value.graph.into_dynamic(),
+                graph: Arc::new(value.graph.into_dynamic_arc()),
                 operations: value.operations,
             },
         }
@@ -802,7 +803,7 @@ impl<G: GraphViewOps + IntoDynamic> From<PathFromVertex<G>> for PyPathFromVertex
     fn from(value: PathFromVertex<G>) -> Self {
         Self {
             path: PathFromVertex {
-                graph: value.graph.into_dynamic(),
+                graph: Arc::new(value.graph.into_dynamic_arc()),
                 vertex: value.vertex,
                 operations: value.operations,
             },

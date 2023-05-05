@@ -35,6 +35,7 @@
 //!
 
 use crate::core::state;
+use crate::core::state::accumulator_id::accumulators;
 use crate::db::program::{GlobalEvalState, LocalState, Program};
 use crate::db::view_api::GraphViewOps;
 
@@ -89,7 +90,7 @@ impl Program for TripletCount {
     type Out = usize;
 
     fn local_eval<G: GraphViewOps>(&self, c: &LocalState<G>) {
-        let count = c.global_agg(state::def::sum::<usize>(111));
+        let count = c.global_agg(accumulators::sum::<usize>(111));
 
         /// Source: https://stackoverflow.com/questions/65561566/number-of-combinations-permutations
         fn count_two_combinations(n: u64) -> u64 {
@@ -110,7 +111,7 @@ impl Program for TripletCount {
     }
 
     fn post_eval<G: GraphViewOps>(&self, c: &mut GlobalEvalState<G>) {
-        let _ = c.global_agg(state::def::sum::<usize>(111));
+        let _ = c.global_agg(accumulators::sum::<usize>(111));
         c.step(|_| false)
     }
 
@@ -119,7 +120,7 @@ impl Program for TripletCount {
     where
         Self: Sync,
     {
-        gs.read_global_state(&state::def::sum::<usize>(111))
+        gs.read_global_state(&accumulators::sum::<usize>(111))
             .unwrap_or(0)
     }
 }
