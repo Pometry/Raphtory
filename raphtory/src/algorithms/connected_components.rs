@@ -10,6 +10,7 @@ use crate::{
     },
 };
 use rustc_hash::FxHashMap;
+use crate::db::view_api::{GraphViewOps, VertexViewOps};
 
 /// Computes the connected components of a graph using the Simple Connected Components algorithm
 ///
@@ -27,7 +28,7 @@ pub fn weakly_connected_components<G>(
     graph: &G,
     iter_count: usize,
     threads: Option<usize>,
-) -> FxHashMap<u64, u64>
+) -> FxHashMap<String, u64>
 where
     G: GraphViewInternalOps + Send + Sync + Clone + 'static,
 {
@@ -65,13 +66,13 @@ where
 
     let (state, _, _) = runner.run(vec![], tasks, threads, iter_count, None, None);
 
-    let mut map: FxHashMap<u64, u64> = FxHashMap::default();
+    let mut map: FxHashMap<String, u64> = FxHashMap::default();
 
     state
         .inner()
         .fold_state_internal(runner.ctx.ss(), &mut map, &min, |res, shard, pid, cc| {
             if let Some(v_ref) = graph.lookup_by_pid_and_shard(pid, shard) {
-                res.insert(v_ref.g_id, cc);
+                res.insert(graph.vertex(v_ref.g_id).unwrap().name(), cc);
             }
             res
         });
@@ -105,22 +106,22 @@ mod cc_test {
             graph.add_edge(ts, src, dst, &vec![], None).unwrap();
         }
 
-        let results: FxHashMap<u64, u64> = weakly_connected_components(&graph, usize::MAX, None);
+        let results: FxHashMap<String, u64> = weakly_connected_components(&graph, usize::MAX, None);
 
         assert_eq!(
             results,
             vec![
-                (1, 1),
-                (2, 1),
-                (3, 1),
-                (4, 1),
-                (5, 1),
-                (6, 1),
-                (7, 7),
-                (8, 7),
+                ("1".to_string(), 1),
+                ("2".to_string(), 1),
+                ("3".to_string(), 1),
+                ("4".to_string(), 1),
+                ("5".to_string(), 1),
+                ("6".to_string(), 1),
+                ("7".to_string(), 7),
+                ("8".to_string(), 7),
             ]
             .into_iter()
-            .collect::<FxHashMap<u64, u64>>()
+            .collect::<FxHashMap<String, u64>>()
         );
     }
 
@@ -158,25 +159,25 @@ mod cc_test {
             graph.add_edge(ts, src, dst, &vec![], None).unwrap();
         }
 
-        let results: FxHashMap<u64, u64> = weakly_connected_components(&graph, usize::MAX, None);
+        let results: FxHashMap<String, u64> = weakly_connected_components(&graph, usize::MAX, None);
 
         assert_eq!(
             results,
             vec![
-                (1, 1),
-                (2, 1),
-                (3, 1),
-                (4, 1),
-                (5, 1),
-                (6, 1),
-                (7, 1),
-                (8, 1),
-                (9, 1),
-                (10, 1),
-                (11, 1),
+                ("1".to_string(), 1),
+                ("2".to_string(), 1),
+                ("3".to_string(), 1),
+                ("4".to_string(), 1),
+                ("5".to_string(), 1),
+                ("6".to_string(), 1),
+                ("7".to_string(), 1),
+                ("8".to_string(), 1),
+                ("9".to_string(), 1),
+                ("10".to_string(), 1),
+                ("11".to_string(), 1),
             ]
             .into_iter()
-            .collect::<FxHashMap<u64, u64>>()
+            .collect::<FxHashMap<String, u64>>()
         );
     }
 
@@ -191,11 +192,11 @@ mod cc_test {
             graph.add_edge(ts, src, dst, &vec![], None).unwrap();
         }
 
-        let results: FxHashMap<u64, u64> = weakly_connected_components(&graph, usize::MAX, None);
+        let results: FxHashMap<String, u64> = weakly_connected_components(&graph, usize::MAX, None);
 
         assert_eq!(
             results,
-            vec![(1, 1),].into_iter().collect::<FxHashMap<u64, u64>>()
+            vec![("1".to_string(), 1),].into_iter().collect::<FxHashMap<String, u64>>()
         );
     }
 
@@ -225,7 +226,7 @@ mod cc_test {
 
             // now we do connected components over window 0..1
 
-            let components: FxHashMap<u64, u64> =
+            let components: FxHashMap<String, u64> =
                 weakly_connected_components(&graph, usize::MAX, None);
 
             let actual = components
