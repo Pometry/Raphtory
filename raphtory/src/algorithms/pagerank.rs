@@ -10,14 +10,14 @@ use crate::{
             task::{ATask, Job, Step},
             task_runner::TaskRunner,
         },
-        view_api::{internal::GraphViewInternalOps, GraphViewOps},
+        view_api::GraphViewOps,
     },
 };
 use num_traits::abs;
 use rustc_hash::FxHashMap;
 
 #[allow(unused_variables)]
-pub fn unweighted_page_rank<G: GraphViewInternalOps + Send + Sync + Clone + 'static>(
+pub fn unweighted_page_rank<G: GraphViewOps>(
     g: &G,
     iter_count: usize,
     threads: Option<usize>,
@@ -47,7 +47,6 @@ pub fn unweighted_page_rank<G: GraphViewInternalOps + Send + Sync + Clone + 'sta
         let out_degree = s.out_degree();
         if out_degree > 0 {
             let new_score = s.read_local(&score) / out_degree as f32;
-            println!("{} new score: {}", s.global_id(), new_score);
             for t in s.neighbours_out() {
                 t.update(&recv_score, new_score)
             }
@@ -64,14 +63,6 @@ pub fn unweighted_page_rank<G: GraphViewInternalOps + Send + Sync + Clone + 'sta
         let curr = s.read_local(&score);
 
         let md = abs(prev - curr);
-        println!(
-            "{}, prev: {}, curr: {}, md: {}",
-            s.global_id(),
-            prev,
-            curr,
-            md
-        );
-
         s.global_update(&max_diff, md);
         Step::Continue
     });

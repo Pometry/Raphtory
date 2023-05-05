@@ -12,6 +12,8 @@ use crate::db::view_api::{BoxedIter, GraphViewOps, TimeOps, VertexListOps};
 use std::collections::HashMap;
 use std::sync::Arc;
 
+pub mod vertex_view;
+
 #[derive(Debug, Clone)]
 pub struct VertexView<G: GraphViewOps> {
     pub graph: Arc<G>,

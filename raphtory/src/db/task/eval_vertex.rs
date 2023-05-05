@@ -14,12 +14,12 @@ use crate::{
         },
         tgraph::VertexRef,
     },
-    db::view_api::internal::GraphViewInternalOps,
+    db::{vertex::vertex_view::VertexViewInternal, view_api::GraphViewOps},
 };
 
 pub struct EvalVertexView<
     'a,
-    G: GraphViewInternalOps + Send + Sync + Clone + 'static,
+    G: GraphViewOps,
     CS: ComputeState,
 > {
     ss: usize,
@@ -30,7 +30,27 @@ pub struct EvalVertexView<
     local_state: Rc<RefCell<ShuffleComputeState<CS>>>,
 }
 
-impl<'a, G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeState>
+impl<'a, G, CS> VertexViewInternal for EvalVertexView<'a, G, CS>
+where
+    G: GraphViewOps,
+    CS: ComputeState,
+{
+    type Graph = G;
+
+    fn vertex_ref(&self) -> VertexRef {
+        self.vv
+    }
+
+    fn graph(&self) -> &Self::Graph {
+        self.g.as_ref()
+    }
+
+    fn graph_arc(&self) -> Arc<Self::Graph> {
+        self.g.clone()
+    }
+}
+
+impl<'a, G: GraphViewOps, CS: ComputeState>
     EvalVertexView<'a, G, CS>
 {
     pub fn new(

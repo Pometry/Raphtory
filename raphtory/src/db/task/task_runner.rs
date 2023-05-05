@@ -15,7 +15,7 @@ use rayon::{prelude::*, ThreadPool};
 
 use crate::{
     core::state::{compute_state::ComputeState, shuffle_state::ShuffleComputeState},
-    db::view_api::internal::GraphViewInternalOps,
+    db::view_api::GraphViewOps,
 };
 
 use super::{
@@ -27,11 +27,11 @@ use super::{
     POOL,
 };
 
-pub struct TaskRunner<G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeState> {
+pub struct TaskRunner<G: GraphViewOps, CS: ComputeState> {
     pub(crate) ctx: Context<G, CS>,
 }
 
-impl<G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeState> TaskRunner<G, CS> {
+impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
     pub fn new(ctx: Context<G, CS>) -> Self {
         Self { ctx }
     }
