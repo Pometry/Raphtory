@@ -23,12 +23,8 @@ use crate::core::{
 };
 use crate::db::graph::Graph;
 use rustc_hash::FxHashMap;
-
 use serde::{Deserialize, Serialize};
-use std::cmp::{max, min};
 use std::sync::Arc;
-
-use super::view_api::internal::GraphViewInternalOps;
 
 /// A raphtory graph in a frozen state that is read-only.
 /// This graph can be queried in a read-only format avoiding any locks placed when using a

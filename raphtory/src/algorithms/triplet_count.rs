@@ -34,7 +34,6 @@
 //! ```
 //!
 
-use crate::core::state;
 use crate::core::state::accumulator_id::accumulators;
 use crate::db::program::{GlobalEvalState, LocalState, Program};
 use crate::db::view_api::GraphViewOps;

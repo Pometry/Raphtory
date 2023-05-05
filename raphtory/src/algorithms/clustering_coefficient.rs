@@ -1,7 +1,6 @@
 use rustc_hash::FxHashSet;
 
 use crate::algorithms::triplet_count::TripletCount;
-use crate::core::state;
 use crate::core::state::accumulator_id::accumulators;
 use crate::db::program::{GlobalEvalState, LocalState, Program};
 use crate::db::view_api::GraphViewOps;

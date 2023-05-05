@@ -1,4 +1,4 @@
-use crate::core::{utils, Prop};
+use crate::core::Prop;
 use crate::db::graph::Graph;
 use crate::db::view_api::internal::GraphViewInternalOps;
 use crate::db::view_api::GraphViewOps;
@@ -8,7 +8,7 @@ use std::fs::File;
 use std::io::{copy, Cursor};
 use std::path::PathBuf;
 use std::time::Duration;
-use std::{env, fs, io, path::Path, time::Instant};
+use std::{fs, time::Instant};
 
 #[derive(Deserialize, std::fmt::Debug)]
 pub struct StableCoin {

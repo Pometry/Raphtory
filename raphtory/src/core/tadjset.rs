@@ -1,25 +1,15 @@
 //! A data structure for efficiently storing and querying the temporal adjacency set of a node in a temporal graph.
 
-use std::collections::btree_map::Entry;
-use std::collections::BTreeSet;
+use crate::core::tgraph::TimeIndex;
+use serde::{Deserialize, Serialize};
 use std::{
-    borrow::{Borrow, BorrowMut},
     collections::BTreeMap,
     hash::Hash,
     ops::{Neg, Range},
 };
 
-use itertools::Itertools;
-use replace_with::replace_with_or_abort;
-use rustc_hash::FxHashMap;
-use serde::{Deserialize, Serialize};
-
-use crate::core::bitset::BitSet;
-use crate::core::sorted_vec_map::SVM;
-use crate::core::tgraph::TimeIndex;
-
 const SMALL_SET: usize = 1024;
-type Time = i64;
+
 /**
  * Temporal adjacency set can track when adding edge v -> u
  * does u exist already
@@ -154,7 +144,7 @@ impl<V: Ord + Into<usize> + From<usize> + Copy + Hash + Send + Sync> TAdjSet<V> 
         Box::new(
             self.iter()
                 .filter(move |(_, e)| timestamps[e.edge_id()].active(w.clone()))
-                .map(|(v, e)| v),
+                .map(|(v, _)| v),
         )
     }
 
@@ -214,7 +204,6 @@ impl AdjEdge {
 #[cfg(test)]
 mod tadjset_tests {
     use super::*;
-    use crate::core::adj::Adj;
     use quickcheck::TestResult;
 
     #[quickcheck]
