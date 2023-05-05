@@ -15,7 +15,7 @@ use rayon::{prelude::*, ThreadPool};
 
 use crate::{
     core::state::{compute_state::ComputeState, shuffle_state::ShuffleComputeState},
-    db::view_api::GraphViewOps,
+    db::{view_api::GraphViewOps},
 };
 
 use super::{
@@ -24,7 +24,7 @@ use super::{
     eval_vertex::EvalVertexView,
     task::{Job, Step, Task},
     task_state::{Global, Shard},
-    POOL,
+    POOL
 };
 
 pub struct TaskRunner<G: GraphViewOps, CS: ComputeState> {

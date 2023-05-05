@@ -107,39 +107,39 @@ impl<'a, G: GraphViewOps, CS: ComputeState> EvalVertexView<'a, G, CS> {
         }
     }
 
-    pub fn out_degree(&self) -> usize {
-        self.g.degree(self.vv, crate::core::Direction::OUT, None)
-    }
+    // pub fn out_degree(&self) -> usize {
+    //     self.g.degree(self.vv, crate::core::Direction::OUT, None)
+    // }
 
-    pub fn neighbours(&self) -> impl Iterator<Item = EvalVertexView<'a, G, CS>> + '_ {
-        self.g
-            .neighbours(self.vv, crate::core::Direction::BOTH, None)
-            .map(move |vv| {
-                EvalVertexView::new(
-                    self.ss,
-                    vv,
-                    self.g.clone(),
-                    self.shard_state.clone(),
-                    self.global_state.clone(),
-                    self.local_state.clone(),
-                )
-            })
-    }
+    // pub fn neighbours(&self) -> impl Iterator<Item = EvalVertexView<'a, G, CS>> + '_ {
+    //     self.g
+    //         .neighbours(self.vv, crate::core::Direction::BOTH, None)
+    //         .map(move |vv| {
+    //             EvalVertexView::new(
+    //                 self.ss,
+    //                 vv,
+    //                 self.g.clone(),
+    //                 self.shard_state.clone(),
+    //                 self.global_state.clone(),
+    //                 self.local_state.clone(),
+    //             )
+    //         })
+    // }
 
-    pub fn neighbours_out(&self) -> impl Iterator<Item = EvalVertexView<'a, G, CS>> + '_ {
-        self.g
-            .neighbours(self.vv, crate::core::Direction::OUT, None)
-            .map(move |vv| {
-                EvalVertexView::new(
-                    self.ss,
-                    vv,
-                    self.g.clone(),
-                    self.shard_state.clone(),
-                    self.global_state.clone(),
-                    self.local_state.clone(),
-                )
-            })
-    }
+    // pub fn neighbours_out(&self) -> impl Iterator<Item = EvalVertexView<'a, G, CS>> + '_ {
+    //     self.g
+    //         .neighbours(self.vv, crate::core::Direction::OUT, None)
+    //         .map(move |vv| {
+    //             EvalVertexView::new(
+    //                 self.ss,
+    //                 vv,
+    //                 self.g.clone(),
+    //                 self.shard_state.clone(),
+    //                 self.global_state.clone(),
+    //                 self.local_state.clone(),
+    //             )
+    //         })
+    // }
 
     pub fn update<A: StateType, IN: 'static, OUT: 'static, ACC: Accumulator<A, IN, OUT>>(
         &self,
