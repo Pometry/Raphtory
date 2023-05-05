@@ -207,7 +207,7 @@ impl TemporalGraph {
 
     pub fn out_edges_len_window(&self, w: &Range<Time>, layer: Option<usize>) -> usize {
         match self.layer_iter_optm(layer) {
-            LayerIterator::Single(layer) => layer.out_edges_len_window(w),
+            LayerIterator::Single(layer) => layer.out_edges_len_window(w, &self.timestamps),
             LayerIterator::Vector(_) => self
                 .vertices_window(w.clone())
                 .map(|v| self.degree_window(v, w, Direction::OUT, None))

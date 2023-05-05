@@ -364,12 +364,12 @@ impl EdgeLayer {
         self.adj_lists.iter().map(|adj| adj.out_edges_len()).sum()
     }
 
-    pub(crate) fn out_edges_len_window(&self, w: &Range<i64>) -> usize {
-        self.timestamps
+    pub(crate) fn out_edges_len_window(&self, w: &Range<i64>, v_timestamps: &[TimeIndex]) -> usize {
+        v_timestamps
             .iter()
             .enumerate()
             .filter_map(|(i, ts)| ts.active(w.clone()).then_some(i))
-            .map(|i| match &self.adj_lists[i] {
+            .map(|i| match &self.adj_lists.get(i).unwrap_or(&Adj::Solo) {
                 Adj::Solo => 0,
                 Adj::List {
                     out, remote_out, ..

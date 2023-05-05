@@ -1251,6 +1251,14 @@ mod views_test {
         }
 
         let wg = WindowedGraph::new(g, window.start, window.end);
+        if wg.num_edges() != true_edge_count {
+            println!(
+                "failed, g.num_edges() = {}, true count = {}",
+                wg.num_edges(),
+                true_edge_count
+            );
+            println!("g.edges() = {:?}", wg.edges().collect_vec());
+        }
         TestResult::from_bool(wg.num_edges() == true_edge_count)
     }
 
