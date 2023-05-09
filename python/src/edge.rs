@@ -286,6 +286,10 @@ impl PyEdge {
         self.edge.time()
     }
 
+    /// Gets the name of the layer this edge belongs to
+    ///
+    /// Returns:
+    ///     (str) The name of the layer
     pub fn layer_name(&self) -> String {
         self.edge.layer_name()
     }

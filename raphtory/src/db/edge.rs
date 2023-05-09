@@ -198,6 +198,7 @@ impl<G: GraphViewOps> EdgeView<G> {
         self.edge.time
     }
 
+    /// Gets the name of the layer this edge belongs to
     pub fn layer_name(&self) -> String {
         if self.edge.layer_id == 0 {
             "default layer".to_string()
