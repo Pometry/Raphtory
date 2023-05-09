@@ -1812,4 +1812,89 @@ mod db_tests {
         assert_eq!(g.earliest_time().unwrap(), earliest_time);
         assert_eq!(g.latest_time().unwrap(), latest_time);
     }
+
+    #[test]
+    fn test_prop_display_str() {
+        let mut prop = Prop::Str(String::from("hello"));
+        assert_eq!(format!("{}", prop), "hello");
+
+        prop = Prop::I32(42);
+        assert_eq!(format!("{}", prop), "42");
+
+        prop = Prop::I64(9223372036854775807);
+        assert_eq!(format!("{}", prop), "9223372036854775807");
+
+        prop = Prop::U32(4294967295);
+        assert_eq!(format!("{}", prop), "4294967295");
+
+        prop = Prop::U64(18446744073709551615);
+        assert_eq!(format!("{}", prop), "18446744073709551615");
+
+        prop = Prop::F32(3.14159);
+        assert_eq!(format!("{}", prop), "3.14159");
+
+        prop = Prop::F64(3.141592653589793);
+        assert_eq!(format!("{}", prop), "3.141592653589793");
+
+        prop = Prop::Bool(true);
+        assert_eq!(format!("{}", prop), "true");
+    }
+
+    #[test]
+    fn test_temporral_edge_props_window() {
+        let g = Graph::new(1);
+        g.add_edge(1, 1, 2, &vec![("weight".to_string(), Prop::I64(1))], None)
+            .unwrap();
+        g.add_edge(2, 1, 2, &vec![("weight".to_string(), Prop::I64(2))], None)
+            .unwrap();
+        g.add_edge(3, 1, 2, &vec![("weight".to_string(), Prop::I64(3))], None)
+            .unwrap();
+
+        let e = g.vertex(1).unwrap().out_edges().next().unwrap();
+
+        let res = g.temporal_edge_props_window(EdgeRef::from(e), 1, 3);
+        let mut exp = HashMap::new();
+        exp.insert(
+            "weight".to_string(),
+            vec![(1, Prop::I64(1)), (2, Prop::I64(2))],
+        );
+        assert_eq!(res, exp);
+    }
+
+    #[test]
+    fn test_vertex_early_late_times() {
+        let g = Graph::new(1);
+        g.add_vertex(1, 1, &vec![]).unwrap();
+        g.add_vertex(2, 1, &vec![]).unwrap();
+        g.add_vertex(3, 1, &vec![]).unwrap();
+
+        assert_eq!(g.vertex(1).unwrap().earliest_time(), Some(1));
+        assert_eq!(g.vertex(1).unwrap().latest_time(), Some(3));
+
+        assert_eq!(g.at(2).vertex(1).unwrap().earliest_time(), Some(1));
+        assert_eq!(g.at(2).vertex(1).unwrap().latest_time(), Some(2));
+    }
+
+    #[test]
+    fn test_vertex_ids() {
+        let g = Graph::new(1);
+        g.add_vertex(1, 1, &vec![]).unwrap();
+        g.add_vertex(1, 2, &vec![]).unwrap();
+        g.add_vertex(2, 3, &vec![]).unwrap();
+
+        assert_eq!(g.vertices().id().collect::<Vec<u64>>(), vec![1, 2, 3]);
+
+        let g_at = g.at(1);
+        assert_eq!(g_at.vertices().id().collect::<Vec<u64>>(), vec![1, 2]);
+    }
+
+    // #[test]
+    // fn test_vertex_refs_shard() {
+    //     let g = Graph::new(2);
+    //     g.add_vertex(1, 1, &vec![]).unwrap();
+    //     g.add_vertex(1, 2, &vec![]).unwrap();
+    //     g.add_vertex(2, 3, &vec![]).unwrap();
+    //
+    //     assert_eq!(g.vertex_refs_shard(0).collect::<Vec<_>>(), vec![1, 2]);
+    // }
 }
