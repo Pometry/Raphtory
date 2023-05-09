@@ -6,6 +6,12 @@ on:
         type: 'string'
         default: 'master'
 
+permissions:
+  contents: write
+  pull-requests: write
+  deployments: write
+  packages: write
+
 jobs:
   publish-github:
     name: publish to Github
