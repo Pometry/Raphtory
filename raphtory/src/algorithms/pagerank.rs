@@ -6,9 +6,8 @@ use crate::{
     db::{
         task::{
             context::Context,
-            eval_vertex::EvalVertexView,
             task::{ATask, Job, Step},
-            task_runner::TaskRunner
+            task_runner::TaskRunner,
         },
         view_api::{GraphViewOps, VertexViewOps},
     },
@@ -36,12 +35,6 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
 
     ctx.agg_reset(recv_score);
     ctx.global_agg_reset(max_diff);
-
-    let step1 = ATask::new(move |vv| {
-        let initial_score = 1f32 / total_vertices as f32;
-        vv.update_local(&score, initial_score);
-        Step::Continue
-    });
 
     let step2 = ATask::new(move |s| {
         let out_degree = s.out_degree();
@@ -78,7 +71,7 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
 
     let (_, _, local_states) = runner.run(
-        vec![Job::new(step1)],
+        vec![],
         vec![Job::new(step2), Job::new(step3), step4],
         threads,
         iter_count,
@@ -88,6 +81,8 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
 
     let mut map: FxHashMap<String, f32> = FxHashMap::default();
 
+    let num_vertices = g.num_vertices() as f32;
+
     for state in local_states {
         if let Some(state) = state.as_ref() {
             state.fold_state_internal(
@@ -96,7 +91,7 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
                 &score,
                 |res, shard, pid, score| {
                     if let Some(v_ref) = g.lookup_by_pid_and_shard(pid, shard) {
-                        res.insert(g.vertex(v_ref.g_id).unwrap().name(), score);
+                        res.insert(g.vertex(v_ref.g_id).unwrap().name(), score / num_vertices);
                     }
                     res
                 },
@@ -112,7 +107,7 @@ mod page_rank_tests {
     use itertools::Itertools;
     use pretty_assertions::assert_eq;
 
-    use crate::{db::graph::Graph, core::Prop};
+    use crate::db::graph::Graph;
 
     use super::*;
 
@@ -137,10 +132,10 @@ mod page_rank_tests {
         assert_eq!(
             results,
             vec![
-                ("2".to_string(), 0.78044075),
-                ("4".to_string(), 0.78044075),
-                ("1".to_string(), 1.4930439),
-                ("3".to_string(), 0.8092761)
+                ("2".to_string(), 0.20249715),
+                ("4".to_string(), 0.20249715),
+                ("1".to_string(), 0.38669053),
+                ("3".to_string(), 0.20831521)
             ]
             .into_iter()
             .collect::<FxHashMap<String, f32>>()
@@ -207,36 +202,45 @@ mod page_rank_tests {
                 .collect();
 
         let expected_2 = vec![
-            ("10".to_string(), 0.6598998),
-            ("7".to_string(), 0.14999998),
-            ("4".to_string(), 0.72722703),
-            ("1".to_string(), 1.0329459),
-            ("11".to_string(), 0.5662594),
-            ("8".to_string(), 1.2494258),
-            ("5".to_string(), 1.7996559),
-            ("2".to_string(), 0.32559997),
-            ("9".to_string(), 0.5662594),
-            ("6".to_string(), 0.6598998),
-            ("3".to_string(), 1.4175149),
+            ("10".to_string(), 0.05999366),
+            ("11".to_string(), 0.05147976),
+            ("5".to_string(), 0.16361322),
+            ("4".to_string(), 0.06611458),
+            ("9".to_string(), 0.05147976),
+            ("3".to_string(), 0.12887157),
+            ("8".to_string(), 0.11358989),
+            ("2".to_string(), 0.029600797),
+            ("7".to_string(), 0.013636362),
+            ("1".to_string(), 0.09390808),
+            ("6".to_string(), 0.05999366),
         ];
-
-        // let expected = vec![
-        //     (1, 1.2411863819664029),
-        //     (2, 0.39123721383779864),
-        //     (3, 1.7032272385548306),
-        //     (4, 0.873814473224871),
-        //     (5, 2.162387978524525),
-        //     (6, 0.7929037468922092),
-        //     (8, 1.5012556698522248),
-        //     (7, 0.1802324126887131),
-        //     (9, 0.6804255687831074),
-        //     (10, 0.7929037468922092),
-        //     (11, 0.6804255687831074),
-        // ];
 
         assert_eq!(
             results,
             expected_2.into_iter().collect::<FxHashMap<String, f32>>()
+        );
+    }
+
+    #[test]
+    fn two_nodes_page_rank() {
+        let edges = vec![(1, 2), (2, 1)];
+
+        let graph = Graph::new(4);
+
+        for (t, (src, dst)) in edges.into_iter().enumerate() {
+            graph.add_edge(t as i64, src, dst, &vec![], None).unwrap();
+        }
+
+        let results: FxHashMap<String, f32> =
+            unweighted_page_rank(&graph, 1000, Some(4), Some(0.00001))
+                .into_iter()
+                .collect();
+
+        assert_eq!(
+            results,
+            vec![("1".to_string(), 0.5), ("2".to_string(), 0.5)]
+                .into_iter()
+                .collect::<FxHashMap<String, f32>>()
         );
     }
 
@@ -274,9 +278,23 @@ mod page_rank_tests {
                 .into_iter()
                 .collect();
 
+        let expected = vec![
+            ("10".to_string(), 0.06892874),
+            ("11".to_string(), 0.07222628),
+            ("5".to_string(), 0.041368324),
+            ("4".to_string(), 0.032625638),
+            ("9".to_string(), 0.06504937),
+            ("3".to_string(), 0.06702048),
+            ("8".to_string(), 0.060485493),
+            ("2".to_string(), 0.046491623),
+            ("7".to_string(), 0.055116292),
+            ("1".to_string(), 0.032625638),
+            ("6".to_string(), 0.048799634),
+        ];
+
         assert_eq!(
             results,
-            vec![].into_iter().collect::<FxHashMap<String, f32>>()
+            expected.into_iter().collect::<FxHashMap<String, f32>>()
         );
     }
 }
