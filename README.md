@@ -124,7 +124,7 @@ Check out Raphtory in action with our interactive Jupyter Notebook! Just click t
 
  [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/Raphtory/Raphtory/master?labpath=examples%2Fpy%2Flotr%2Flotr.ipynb) 
 
-Want to give Raphtory a go on your laptop? You can checkout out the [latest documentation](https://docs.raphtory.com/) and [complete list of available algorithms](https://docs.raphtory.com/en/v0.2.0/api/_autosummary/raphtory.algorithms.html) or hop on our notebook based tutorials below!
+Want to give Raphtory a go on your laptop? You can checkout out the [latest documentation](https://docs.raphtory.com/) and [complete list of available algorithms](https://docs.raphtory.com/en/v0.3.0/api/_autosummary/raphtory.algorithms.html) or hop on our notebook based tutorials below!
 
 
 #### Getting started
