@@ -20,13 +20,13 @@ pub trait VertexViewInternal {
 
 impl<V> VertexViewOps for V
 where
-    V: VertexViewInternal + TimeOps,
+    V: VertexViewInternal + TimeOps + Clone + From<(Arc<V::Graph>, VertexRef)> 
 {
     type Graph = V::Graph;
 
     type ValueType<T> = T;
 
-    type PathType = PathFromVertex<V::Graph>;
+    type PathType = PathFromVertex<V::Graph, V>;
 
     type EList = BoxedIter<EdgeView<V::Graph>>;
 
@@ -183,18 +183,18 @@ where
     fn neighbours(&self) -> Self::PathType {
         let g = self.graph_arc().clone();
         let dir = Direction::BOTH;
-        PathFromVertex::new(g, self.vertex_ref(), Operations::Neighbours { dir })
+        PathFromVertex::new(g, self.clone(), Operations::Neighbours { dir })
     }
 
     fn in_neighbours(&self) -> Self::PathType {
         let g = self.graph_arc().clone();
         let dir = Direction::IN;
-        PathFromVertex::new(g, self.vertex_ref(), Operations::Neighbours { dir })
+        PathFromVertex::new(g, self.clone(), Operations::Neighbours { dir })
     }
 
     fn out_neighbours(&self) -> Self::PathType {
         let g = self.graph_arc().clone();
         let dir = Direction::OUT;
-        PathFromVertex::new(g, self.vertex_ref(), Operations::Neighbours { dir })
+        PathFromVertex::new(g, self.clone(), Operations::Neighbours { dir })
     }
 }

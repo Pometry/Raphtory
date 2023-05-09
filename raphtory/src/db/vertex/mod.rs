@@ -12,12 +12,20 @@ use crate::db::view_api::{BoxedIter, GraphViewOps, TimeOps, VertexListOps};
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use self::vertex_view::VertexViewInternal;
+
 pub mod vertex_view;
 
 #[derive(Debug, Clone)]
 pub struct VertexView<G: GraphViewOps> {
     pub graph: Arc<G>,
     pub vertex: VertexRef,
+}
+
+impl<G: GraphViewOps> From<(Arc<G>, VertexRef)> for VertexView<G> {
+    fn from(value: (Arc<G>, VertexRef)) -> Self {
+        VertexView::new(value.0, value.1)
+    }
 }
 
 impl<G: GraphViewOps> From<VertexView<G>> for VertexRef {
@@ -43,7 +51,7 @@ impl<G: GraphViewOps> VertexView<G> {
 impl<G: GraphViewOps> VertexViewOps for VertexView<G> {
     type Graph = G;
     type ValueType<T> = T;
-    type PathType = PathFromVertex<G>;
+    type PathType = PathFromVertex<G, Self>;
     type EList = BoxedIter<EdgeView<G>>;
 
     fn id(&self) -> u64 {
@@ -180,22 +188,22 @@ impl<G: GraphViewOps> VertexViewOps for VertexView<G> {
         )
     }
 
-    fn neighbours(&self) -> PathFromVertex<G> {
+    fn neighbours(&self) -> PathFromVertex<G, Self> {
         let g = self.graph.clone();
         let dir = Direction::BOTH;
-        PathFromVertex::new(g, self, Operations::Neighbours { dir })
+        PathFromVertex::new(g, self.clone(), Operations::Neighbours { dir })
     }
 
-    fn in_neighbours(&self) -> PathFromVertex<G> {
+    fn in_neighbours(&self) -> PathFromVertex<G, Self> {
         let g = self.graph.clone();
         let dir = Direction::IN;
-        PathFromVertex::new(g, self, Operations::Neighbours { dir })
+        PathFromVertex::new(g, self.clone(), Operations::Neighbours { dir })
     }
 
-    fn out_neighbours(&self) -> PathFromVertex<G> {
+    fn out_neighbours(&self) -> PathFromVertex<G, Self> {
         let g = self.graph.clone();
         let dir = Direction::OUT;
-        PathFromVertex::new(g, self, Operations::Neighbours { dir })
+        PathFromVertex::new(g, self.clone(), Operations::Neighbours { dir })
     }
 }
 
@@ -238,9 +246,12 @@ impl<G: GraphViewOps> LayerOps for VertexView<G> {
 
 /// Implementation of the VertexListOps trait for an iterator of VertexView objects.
 ///
-impl<G: GraphViewOps> VertexListOps for Box<dyn Iterator<Item = VertexView<G>> + Send> {
-    type Graph = G;
-    type IterType = Box<dyn Iterator<Item = VertexView<G>> + Send>;
+impl<V> VertexListOps for Box<dyn Iterator<Item = V> + Send>
+where
+    V: VertexViewInternal + TimeOps + Clone + From<(Arc<V::Graph>, VertexRef)> + Send,
+{
+    type Graph = V::Graph;
+    type IterType = Box<dyn Iterator<Item = V> + Send>;
     type EList = Box<dyn Iterator<Item = EdgeView<Self::Graph>> + Send>;
     type VList = Box<dyn Iterator<Item = VertexView<Self::Graph>> + Send>;
     type ValueType<T: Send> = T;

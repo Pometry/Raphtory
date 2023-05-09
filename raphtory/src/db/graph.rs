@@ -841,6 +841,7 @@ mod db_tests {
     use crate::core::utils;
     use crate::db::edge::EdgeView;
     use crate::db::path::PathFromVertex;
+    use crate::db::vertex::VertexView;
     use crate::db::view_api::layer::LayerOps;
     use crate::db::view_api::*;
     use crate::graphgen::random_attachment::random_attachment;
@@ -1585,7 +1586,7 @@ mod db_tests {
         assert_eq!(to_tuples(vertex1.out_edges()), vec![(11, 22)]);
         assert_eq!(to_tuples(vertex2.out_edges()), vec![(11, 33), (11, 44)]);
 
-        fn to_ids<G: GraphViewOps>(neighbours: PathFromVertex<G>) -> Vec<u64> {
+        fn to_ids<G: GraphViewOps>(neighbours: PathFromVertex<G, VertexView<G>>) -> Vec<u64> {
             neighbours.iter().map(|n| n.id()).sorted().collect_vec()
         }
 
