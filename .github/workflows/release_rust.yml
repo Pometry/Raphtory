@@ -21,6 +21,12 @@ jobs:
         include:
           - os: ubuntu-latest
     steps:
+      - name: "Check if user has write access"
+        uses: "lannonbr/repo-permission-check-action@2.0.0"
+        with:
+          permission: "write"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Set up cargo cache
         uses: actions/cache@v3
         continue-on-error: false
