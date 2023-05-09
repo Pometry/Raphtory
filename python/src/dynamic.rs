@@ -69,6 +69,10 @@ impl GraphViewInternalOps for DynamicGraph {
         self.0.get_layer(key)
     }
 
+    fn get_layer_name_by_id(&self, layer_id: usize) -> String {
+        self.0.get_layer_name_by_id(layer_id)
+    }
+
     fn view_start(&self) -> Option<i64> {
         self.0.view_start()
     }
