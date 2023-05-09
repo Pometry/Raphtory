@@ -286,6 +286,10 @@ impl PyEdge {
         self.edge.time()
     }
 
+    pub fn layer_name(&self) -> String {
+        self.edge.layer_name()
+    }
+
     /// Displays the Edge as a string.
     pub fn __repr__(&self) -> String {
         self.repr()
