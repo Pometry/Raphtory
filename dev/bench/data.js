@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1683649293547,
+  "lastUpdate": 1683650901310,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -319,6 +319,42 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions",
             "value": 720762,
             "range": "± 94926",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ricopinazo@gmail.com",
+            "name": "Pedro Rico Pinazo",
+            "username": "ricopinazo"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "bc41aff99b384ea975325e417e09dbf5e53f9355",
+          "message": "add layer_name function to EdgeView and PyEdge (#864)\n\n* add layer_name function to EdgeView and PyEdge\r\n\r\n* add doc strings",
+          "timestamp": "2023-05-09T17:46:47+01:00",
+          "tree_id": "db34d4007f81fed2992cc8a0a97585996327218f",
+          "url": "https://github.com/Pometry/Raphtory/commit/bc41aff99b384ea975325e417e09dbf5e53f9355"
+        },
+        "date": 1683650900239,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 339858,
+            "range": "± 3572",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 393378,
+            "range": "± 32809",
             "unit": "ns/iter"
           }
         ]
