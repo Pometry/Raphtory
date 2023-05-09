@@ -1,6 +1,6 @@
 name: Release 4 - Publish to Github
 on:
-  workflow_call:
+  workflow_dispatch:
     inputs:
       base:
         type: 'string'
