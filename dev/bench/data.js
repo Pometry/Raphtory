@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1683650901310,
+  "lastUpdate": 1683651329162,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -355,6 +355,42 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions",
             "value": 393378,
             "range": "± 32809",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "41898282+github-actions[bot]@users.noreply.github.com",
+            "name": "github-actions[bot]",
+            "username": "github-actions[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "afcbf0f4c448212771dfa2905485a7f555bf5ecc",
+          "message": "Release v0.2.2 (#866)\n\nchore: Release\r\n\r\nCo-authored-by: Haaroon <Haaroon@users.noreply.github.com>",
+          "timestamp": "2023-05-09T17:49:48+01:00",
+          "tree_id": "992fc6da071eee9b726e51b44f2118d5d6bedd5b",
+          "url": "https://github.com/Pometry/Raphtory/commit/afcbf0f4c448212771dfa2905485a7f555bf5ecc"
+        },
+        "date": 1683651327894,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 372520,
+            "range": "± 2701",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 705451,
+            "range": "± 113381",
             "unit": "ns/iter"
           }
         ]
