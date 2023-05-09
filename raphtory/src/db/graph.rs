@@ -257,6 +257,35 @@ impl GraphViewInternalOps for Graph {
             .edge_window(src.g_id, dst.g_id, t_start..t_end, layer)
     }
 
+    fn edge_refs(&self, layer: Option<usize>) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
+        //FIXME: needs low-level primitive
+        let g = self.clone();
+        match layer {
+            Some(layer) => Box::new(
+                self.vertex_refs()
+                    .flat_map(move |v| g.vertex_edges(v, Direction::OUT, Some(layer))),
+            ),
+            None => Box::new(
+                self.vertex_refs()
+                    .flat_map(move |v| g.vertex_edges(v, Direction::OUT, None)),
+            ),
+        }
+    }
+
+    fn edge_refs_window(
+        &self,
+        t_start: i64,
+        t_end: i64,
+        layer: Option<usize>,
+    ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
+        //FIXME: needs low-level primitive
+        let g = self.clone();
+        Box::new(
+            self.vertex_refs()
+                .flat_map(move |v| g.vertex_edges_window(v, t_start, t_end, Direction::OUT, layer)),
+        )
+    }
+
     // FIXME: we should be able to have just `vertex_edges` which gets layer: Option<usize>
     fn vertex_edges(
         &self,

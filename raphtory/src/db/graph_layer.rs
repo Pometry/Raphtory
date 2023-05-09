@@ -196,6 +196,24 @@ impl<G: GraphViewInternalOps> GraphViewInternalOps for LayeredGraph<G> {
             .flatten()
     }
 
+    fn edge_refs(&self, layer: Option<usize>) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
+        // TODO: create a function empty_iter which returns a boxed empty iterator so we use it in all these functions
+        self.constrain(layer)
+            .map(|layer| self.graph.edge_refs(Some(layer)))
+            .unwrap_or_else(|| Box::new(std::iter::empty()))
+    }
+
+    fn edge_refs_window(
+        &self,
+        t_start: i64,
+        t_end: i64,
+        layer: Option<usize>,
+    ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
+        self.constrain(layer)
+            .map(|layer| self.graph.edge_refs_window(t_start, t_end, Some(layer)))
+            .unwrap_or_else(|| Box::new(std::iter::empty()))
+    }
+
     fn vertex_edges_t(
         &self,
         v: VertexRef,

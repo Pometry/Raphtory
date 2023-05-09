@@ -227,6 +227,30 @@ pub trait GraphViewInternalOps {
         layer: usize,
     ) -> Option<EdgeRef>;
 
+    /// Returns all the edge references in the graph.
+    ///
+    /// # Returns
+    ///
+    /// * `Box<dyn Iterator<Item = EdgeRef> + Send>` - An iterator over all the edge references.
+    fn edge_refs(&self, layer: Option<usize>) -> Box<dyn Iterator<Item = EdgeRef> + Send>;
+
+    /// Returns all the edge references in the graph created between the start (t_start) and
+    /// end (t_end) timestamps (inclusive).
+    ///
+    /// # Arguments
+    ///
+    /// * `t_start` - The start time of the window (inclusive).
+    /// * `t_end` - The end time of the window (exclusive).
+    /// # Returns
+    ///
+    /// * `Box<dyn Iterator<Item = EdgeRef> + Send>` - An iterator over all the edge references.
+    fn edge_refs_window(
+        &self,
+        t_start: i64,
+        t_end: i64,
+        layer: Option<usize>,
+    ) -> Box<dyn Iterator<Item = EdgeRef> + Send>;
+
     /// Returns an iterator over the edges connected to a given vertex in a given direction.
     ///
     /// # Arguments
