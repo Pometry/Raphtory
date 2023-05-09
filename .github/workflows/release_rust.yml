@@ -17,8 +17,6 @@ jobs:
   release-rust:
     name: Release Rust package to crates.io
     runs-on: '${{ matrix.os }}'
-    outputs:
-      crate_version: ${{ steps.set_version.outputs.crate_version }}
     strategy:
       matrix:
         include:
