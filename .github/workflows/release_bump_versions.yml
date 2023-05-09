@@ -75,7 +75,6 @@ jobs:
       - name: "Make a PR to bump version"
         uses: peter-evans/create-pull-request@v5
         with:
-          token: ${{ secrets.GH_TOKEN }}
           base: ${{ inputs.base }}
           author: ${{ github.actor }} <${{ github.actor }}@users.noreply.github.com>
           branch: ${{ env.CRATE_VERSION }}
