@@ -67,12 +67,12 @@ Note: The path should be the path to the raphtory directory
 
 
     [dependencies]
-    raphtory = {path = "../raphtory", version = "0.3.0" }
+    raphtory = {path = "../raphtory", version = "0.2.0" }
      
     or 
 
     [dependencies]
-    raphtory = "0.3.0"
+    raphtory = "0.2.0"
 
 
 ## Run Tests

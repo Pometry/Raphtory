@@ -155,7 +155,7 @@ pyvis==0.3.2
     # via -r requirements.in
 queuelib==1.6.2
     # via scrapy
-raphtory==0.3.0
+raphtory==0.2.0
     # via -r requirements.in
 requests==2.28.2
     # via
