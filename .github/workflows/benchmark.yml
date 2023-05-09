@@ -6,6 +6,11 @@ on:
         type: boolean
         default: false
         required: false
+
+permissions:
+  contents: write
+  deployments: write
+
 # DO NOT CHANGE NAME OF WORKFLOW, USED IN OTHER WORKFLOWS KEEP "Rust Tests"
 jobs:
   benchmark:
@@ -16,7 +21,6 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-#          - os: windows-latest
     steps:
       - uses: actions/checkout@v3
         name: Checkout
@@ -37,41 +41,41 @@ jobs:
         name: Setup Rust
         with:
           profile: minimal
-          toolchain: stable
+          toolchain: nightly
           override: true
           components: rustfmt, clippy
-      - name: Run benchmark (windows)
-        if: "contains(matrix.os, 'Windows')"
-        run: cargo bench --bench base -- --output-format=bencher | tee benchmark-result.txt
       - name: Run benchmark (Unix)
-        if: "!contains(matrix.os, 'Windows')"
         run: |
           set -o pipefail
-          cargo bench --bench base -- --output-format=bencher | tee benchmark-result.txt
-      - name: Download previous benchmark results
-        id: restore-benchmark-cache
-        uses: actions/cache/restore@v3
+          cargo +nightly bench --bench base -- --output-format=bencher | tee benchmark-result.txt
+      - name: Store benchmark result if repo is master
+        if: github.ref == 'refs/heads/master'
+        uses: benchmark-action/github-action-benchmark@v1
         with:
-          path: ./benchmark-cache
-          key: ${{ runner.os }}-benchmark
-      - name: Check benchmark results
+          name: Rust Benchmark
+          tool: 'cargo'
+          output-file-path: benchmark-result.txt
+          github-token: ${{ secrets.CLASSIC_REPO_ACCESS_TOKEN_BENCHMARK }}
+          auto-push: true
+          # Show alert with commit comment on detecting possible performance regression
+          alert-threshold: '200%'
+          comment-on-alert: true
+          fail-on-alert: true
+      - name: Compare benchmark results if repo is not master
         if: github.ref != 'refs/heads/master'
         uses: benchmark-action/github-action-benchmark@v1
         with:
+          name: Rust Benchmark
           tool: 'cargo'
           output-file-path: benchmark-result.txt
-          external-data-json-path: ./benchmark-cache/benchmark-result.json
+          auto-push: false
+          # Show alert with commit comment on detecting possible performance regression
+          alert-threshold: '200%'
           fail-on-alert: true
-      - name: Generate benchmark results
-        if: github.ref == 'refs/heads/master'
-        uses: benchmark-action/github-action-benchmark@v1
-        with:
-          tool: 'cargo'
-          output-file-path: benchmark-result.txt
-          external-data-json-path: ./benchmark-cache/benchmark-result.json
-      - name: Save benchmark results
-        if: github.ref == 'refs/heads/master'
-        uses: actions/cache/save@v3
-        with:
-          path: ./benchmark-cache
-          key: ${{ steps.restore-benchmark-cache.outputs.cache-primary-key }}
+          save-data-file: false
+
+
+# TODO
+# ON PR DO NOT UPLOAD
+# IF MASTER THEN UPLOAD
+

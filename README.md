@@ -139,7 +139,22 @@ Want to give Raphtory a go on your laptop? You can checkout out the [latest docu
 | ------------- |---------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | Notebook | [Use our powerful time APIs to find pump and dump scams in popular NFTs](https://github.com/Raphtory/Raphtory/blob/master/examples/py/nft/nft_analysis.ipynb) |
 
-## Community  
+
+# Benchmarks
+
+We host a page which triggers and saves the result of two benchmarks upon every push to the master branch. 
+
+View this here [https://pometry.github.io/Raphtory/dev/bench/](https://pometry.github.io/Raphtory/dev/bench/)
+
+# Bounty board
+
+Raphtory is currently offering rewards for contributions, such as new features or algorithms. Contributors will receive swag and prizes! 
+
+To get started, check out our list of desired algorithms at https://github.com/Raphtory/Raphtory/discussions/categories/bounty-board which include some low hanging fruit (🍇) that are easy to implement. 
+
+
+# Community  
+
 Join the growing community of open-source enthusiasts using Raphtory to power their graph analysis projects!
 
 - Follow [![Slack](https://img.shields.io/twitter/follow/raphtory?label=@raphtory)](https://twitter.com/raphtory) for the latest Raphtory news and development
