@@ -16,6 +16,10 @@ on:
           - minor
           - patch
 
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
   bump-packages:
     name: Build & Bump packages
@@ -69,7 +73,7 @@ jobs:
           echo CRATE_VERSION=$(cat Cargo.toml | grep version | head -n1 | cut -d '"' -f2) >> $GITHUB_ENV
           echo "Crate version is $CRATE_VERSION"
       - name: "Make a PR to bump version"
-        uses: peter-evans/create-pull-request@v4
+        uses: peter-evans/create-pull-request@v5
         with:
           token: ${{ secrets.GH_TOKEN }}
           base: ${{ inputs.base }}
