@@ -1,4 +1,3 @@
-use crate::db::view_api::{GraphViewOps, VertexViewOps};
 use crate::{
     core::state::{accumulator_id::accumulators, compute_state::ComputeStateVec},
     db::{
@@ -7,7 +6,7 @@ use crate::{
             task::{ATask, Job, Step},
             task_runner::TaskRunner,
         },
-        view_api::internal::GraphViewInternalOps,
+        view_api::{GraphViewOps, VertexViewOps},
     },
 };
 use rustc_hash::FxHashMap;
@@ -30,7 +29,7 @@ pub fn weakly_connected_components<G>(
     threads: Option<usize>,
 ) -> FxHashMap<String, u64>
 where
-    G: GraphViewInternalOps + Send + Sync + Clone + 'static,
+    G: GraphViewOps,
 {
     let mut ctx: Context<G, ComputeStateVec> = graph.into();
 

@@ -574,55 +574,6 @@ impl<G: GraphViewOps> GraphViewInternalOps for WindowedGraph<G> {
         )
     }
 
-    /// Get the neighbours of a vertex as vertex ids in a given direction
-    ///
-    /// # Arguments
-    ///
-    /// - `v` - The vertex to get the neighbours for
-    /// - `d` - The direction of the edges
-    ///
-    /// # Returns
-    ///
-    /// An iterator over all neighbours in that vertex direction as ids
-    fn neighbours_ids(
-        &self,
-        v: VertexRef,
-        d: Direction,
-        layer: Option<usize>,
-    ) -> Box<dyn Iterator<Item = u64> + Send> {
-        self.graph
-            .neighbours_ids_window(v, self.t_start, self.t_end, d, layer)
-    }
-
-    /// Get the neighbours of a vertex as vertex ids in a given direction across a window
-    ///
-    /// # Arguments
-    ///
-    /// - `v` - The vertex to get the neighbours for
-    /// - `t_start` - The inclusive start time of the window.
-    /// - `t_end` - The exclusive end time of the window.
-    /// - `d` - The direction of the edges
-    ///
-    /// # Returns
-    ///
-    /// An iterator over all neighbours in that vertex direction as ids
-    fn neighbours_ids_window(
-        &self,
-        v: VertexRef,
-        t_start: i64,
-        t_end: i64,
-        d: Direction,
-        layer: Option<usize>,
-    ) -> Box<dyn Iterator<Item = u64> + Send> {
-        self.graph.neighbours_ids_window(
-            v,
-            self.actual_start(t_start),
-            self.actual_end(t_end),
-            d,
-            layer,
-        )
-    }
-
     /// Get the static property of a vertex
     ///
     /// # Arguments
