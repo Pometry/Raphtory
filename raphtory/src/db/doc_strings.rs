@@ -22,3 +22,14 @@ Returns:
     a view including all the edges in the layer `name`"
     };
 }
+
+#[macro_export]
+macro_rules! window_size_doc_string {
+    () => {
+        "
+Returns the size of the window covered by this view
+
+Returns:
+   the size of the window"
+    };
+}
