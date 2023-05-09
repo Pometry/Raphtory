@@ -32,9 +32,19 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
     let score = accumulators::val::<f32>(0).init::<InitOneF32>();
     let recv_score = accumulators::sum::<f32>(1);
     let max_diff = accumulators::max::<f32>(2);
+    let dangling = accumulators::sum::<f32>(3);
 
     ctx.agg_reset(recv_score);
     ctx.global_agg_reset(max_diff);
+    ctx.global_agg_reset(dangling);
+
+    let step1 = ATask::new(move |s| {
+        if s.out_degree() == 0{
+            s.global_update(&dangling, 1.0f32 / total_vertices as f32);
+        }
+
+        Step::Continue
+    });
 
     let step2 = ATask::new(move |s| {
         let out_degree = s.out_degree();
@@ -43,14 +53,19 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
             for t in s.neighbours_out() {
                 t.update(&recv_score, new_score)
             }
+        } else {
+            s.global_update(&dangling, s.read_local(&score) / total_vertices as f32);
         }
         Step::Continue
     });
 
     let step3 = ATask::new(move |s| {
+
+        let dangling_v = s.read_global_state(&dangling).unwrap_or_default();
+
         s.update_local(
             &score,
-            (1f32 - damping_factor) + (damping_factor * s.read(&recv_score)),
+            (1f32 - damping_factor) + (damping_factor * ( s.read(&recv_score) + dangling_v )),
         );
         let prev = s.read_local_prev(&score);
         let curr = s.read_local(&score);
@@ -71,7 +86,7 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
 
     let (_, _, local_states) = runner.run(
-        vec![],
+        vec![Job::new(step1)],
         vec![Job::new(step2), Job::new(step3), step4],
         threads,
         iter_count,
@@ -243,6 +258,31 @@ mod page_rank_tests {
                 .collect::<FxHashMap<String, f32>>()
         );
     }
+
+
+    #[test]
+    fn three_nodes_page_rank_one_dangling() {
+        let edges = vec![(1, 2), (2, 1), (2, 3)];
+
+        let graph = Graph::new(4);
+
+        for (t, (src, dst)) in edges.into_iter().enumerate() {
+            graph.add_edge(t as i64, src, dst, &vec![], None).unwrap();
+        }
+
+        let results: FxHashMap<String, f32> =
+            unweighted_page_rank(&graph, 1000, Some(4), Some(0.00001))
+                .into_iter()
+                .collect();
+
+        assert_eq!(
+            results,
+            vec![("1".to_string(), 0.3032041), ("2".to_string(), 0.39363384), ("3".to_string(), 0.3032041)]
+                .into_iter()
+                .collect::<FxHashMap<String, f32>>()
+        );
+    }
+
 
     #[test]
     fn dangling_page_rank() {
