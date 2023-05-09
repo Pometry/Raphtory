@@ -1,4 +1,3 @@
-use crate::db::view_api::VertexViewOps;
 use crate::{
     core::{
         agg::InitOneF32,

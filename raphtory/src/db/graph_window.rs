@@ -425,35 +425,6 @@ impl<G: GraphViewOps> GraphViewInternalOps for WindowedGraph<G> {
         )
     }
 
-    // /// Get an iterator of all edges as references
-    // ///
-    // /// # Returns
-    // ///
-    // /// An iterator over all edges as references
-    // fn edge_refs(&self, layer: Option<usize>) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
-    //     self.graph.edge_refs_window(self.t_start, self.t_end, layer)
-    // }
-
-    // /// Get an iterator of all edges as references in a window
-    // ///
-    // /// # Arguments
-    // ///
-    // /// - `t_start` - The inclusive start time of the window.
-    // /// - `t_end` - The exclusive end time of the window.
-    // ///
-    // /// # Returns
-    // ///
-    // /// An iterator over all edges as references
-    // fn edge_refs_window(
-    //     &self,
-    //     t_start: i64,
-    //     t_end: i64,
-    //     layer: Option<usize>,
-    // ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
-    //     self.graph
-    //         .edge_refs_window(self.actual_start(t_start), self.actual_end(t_end), layer)
-    // }
-
     fn vertex_edges_t(
         &self,
         v: VertexRef,
