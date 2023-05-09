@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1683646025886,
+  "lastUpdate": 1683646846672,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -211,6 +211,42 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions",
             "value": 558738,
             "range": "± 165142",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "Haaroon@users.noreply.github.com",
+            "name": "Haaroon Yousaf",
+            "username": "Haaroon"
+          },
+          "committer": {
+            "email": "Haaroon@users.noreply.github.com",
+            "name": "Haaroon Yousaf",
+            "username": "Haaroon"
+          },
+          "distinct": true,
+          "id": "1bf63c5b48c358dee2f749aac94eb3f77bd70537",
+          "message": "Merge remote-tracking branch 'origin/master'",
+          "timestamp": "2023-05-09T16:35:28+01:00",
+          "tree_id": "091e4dabfb58d40ad9d4f49b4a417bc727524ed7",
+          "url": "https://github.com/Pometry/Raphtory/commit/1bf63c5b48c358dee2f749aac94eb3f77bd70537"
+        },
+        "date": 1683646845080,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 358534,
+            "range": "± 2115",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 762097,
+            "range": "± 115498",
             "unit": "ns/iter"
           }
         ]
