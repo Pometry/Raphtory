@@ -13,192 +13,192 @@ on:
         default: true
         required: true
 
-
-python-linux:
-  runs-on: ubuntu-latest
-  strategy:
-    matrix:
-      target: [x86_64, aarch64, armv7]
-  steps:
-    - name: "Check if user has write access"
-      uses: "lannonbr/repo-permission-check-action@2.0.0"
-      with:
-        permission: "write"
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    - name: Set up cargo cache
-      uses: actions/cache@v3
-      continue-on-error: false
-      with:
-        path: |
-          ~/.cargo/bin/
-          ~/.cargo/registry/index/
-          ~/.cargo/registry/cache/
-          ~/.cargo/git/db/
-        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-        restore-keys: ${{ runner.os }}-cargo-
-    - uses: actions/checkout@v3
-      with:
-        ref: ${{ needs.release-rust.outputs.crate_version }}
-    - uses: actions/setup-python@v4
-      with:
-        python-version: '3.10'
-    - name: Setup QEMU
-      uses: docker/setup-qemu-action@v1
-    - name: Build wheels
-      uses: PyO3/maturin-action@v1
-      with:
-        working-directory: ./python
-        command: build
-        target: ${{ matrix.target }}
-        args: --release -i python3.10 --out dist
-        manylinux: 2014
-        before-script-linux: |
-          if [[ -f /etc/os-release ]]; then
-            . /etc/os-release
-            case $ID in
-              ubuntu)
-                echo "Installing openssl-dev on Ubuntu..."
-                apt update -y
-                apt install -y pkg-config libssl-dev libc6 build-essential
-                ;;
-              arch)
-                echo "Installing openssl-dev on Arch Linux..."
-                pacman -Syu --noconfirm pkg-config openssl
-                ;;
-              fedora)
-                echo "Installing openssl-dev on Fedora..."
-                dnf update -y
-                dnf install -y pkg-config openssl-devel
-                ;;
-              alpine)
-                echo "Installing openssl-dev on Alpine Linux..."
-                apk update -y
-                apk add pkgconfig openssl-dev
-                ;;
-              centos)
-                  echo "Installing openssl-dev on CentOS..."
-                  yum update -y
-                  yum install -y pkgconfig openssl-devel
-                  ;;  
-              *)
-                  echo "Unsupported distribution: $ID"
-                  exit 1
+jobs:
+  python-linux:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target: [x86_64, aarch64, armv7]
+    steps:
+      - name: "Check if user has write access"
+        uses: "lannonbr/repo-permission-check-action@2.0.0"
+        with:
+          permission: "write"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Set up cargo cache
+        uses: actions/cache@v3
+        continue-on-error: false
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ needs.release-rust.outputs.crate_version }}
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      - name: Setup QEMU
+        uses: docker/setup-qemu-action@v1
+      - name: Build wheels
+        uses: PyO3/maturin-action@v1
+        with:
+          working-directory: ./python
+          command: build
+          target: ${{ matrix.target }}
+          args: --release -i python3.10 --out dist
+          manylinux: 2014
+          before-script-linux: |
+            if [[ -f /etc/os-release ]]; then
+              . /etc/os-release
+              case $ID in
+                ubuntu)
+                  echo "Installing openssl-dev on Ubuntu..."
+                  apt update -y
+                  apt install -y pkg-config libssl-dev libc6 build-essential
                   ;;
-            esac    
-          else
-            echo "Could not determine distribution."
-            exit 1
-          fi
-    - name: Upload wheels to gh artifact
-      uses: actions/upload-artifact@v3
-      with:
-        name: pyartifacts
-        path: ./python/dist
-python-windows:
-  needs: release-rust
-  runs-on: windows-latest
-  strategy:
-    matrix:
-      target: [x64]
-  steps:
-    - name: "Check if user has write access"
-      uses: "lannonbr/repo-permission-check-action@2.0.0"
-      with:
-        permission: "write"
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    - uses: actions/checkout@v3
-      with:
-        ref: ${{ needs.release-rust.outputs.crate_version }}
-    - uses: actions/setup-python@v4
-      with:
-        python-version: '3.10'
-        architecture: ${{ matrix.target }}
-    - name: Build wheels
-      uses: PyO3/maturin-action@v1
-      with:
-        working-directory: ./python
-        command: build
-        target: ${{ matrix.target }}
-        args: --release --out dist --find-interpreter
-    - name: Upload wheels to gh artifact
-      uses: actions/upload-artifact@v3
-      with:
-        name: pyartifacts
-        path: ./python/dist
-python-macos:
-  needs: release-rust
-  runs-on: macos-latest
-  strategy:
-    matrix:
-      target: [x86_64, aarch64]
-  steps:
-    - name: "Check if user has write access"
-      uses: "lannonbr/repo-permission-check-action@2.0.0"
-      with:
-        permission: "write"
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    - name: Set up cargo cache
-      uses: actions/cache@v3
-      continue-on-error: false
-      with:
-        path: |
-          ~/.cargo/bin/
-          ~/.cargo/registry/index/
-          ~/.cargo/registry/cache/
-          ~/.cargo/git/db/
-        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-        restore-keys: ${{ runner.os }}-cargo-
-    - uses: actions/checkout@v3
-      with:
-        ref: ${{ needs.release-rust.outputs.crate_version }}
-    - uses: actions/setup-python@v4
-      with:
-        python-version: '3.10'
-    - name: Build wheels
-      uses: PyO3/maturin-action@v1
-      with:
-        working-directory: ./python
-        command: build
-        target: ${{ matrix.target }}
-        args: --release --out dist --find-interpreter
-    - name: Upload wheels to gh artifact
-      uses: actions/upload-artifact@v3
-      with:
-        name: pyartifacts
-        path: ./python/dist
-publish-python:
-  needs: [python-linux, python-windows, python-macos]
-  name: Publish to PyPi
-  runs-on: ubuntu-latest
-  steps:
-    - name: "Check if user has write access"
-      uses: "lannonbr/repo-permission-check-action@2.0.0"
-      with:
-        permission: "write"
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    - uses: actions/download-artifact@v3
-      with:
-        name: pyartifacts
-        path: pyartifacts
-    - name: Display structure of downloaded files
-      run: ls -R
-      working-directory: pyartifacts
-    - name: Publish a Python distribution to PyPI
-      if: ${{ !inputs.dry_run }}
-      uses: pypa/gh-action-pypi-publish@release/v1
-      with:
-        password: ${{ secrets.PYPI_API_TOKEN }}
-        packages_dir: pyartifacts/
-        verbose: true
-        skip_existing: true
-        verify_metadata: false
-    - name: "Deleting artifacts"
-      uses: geekyeggo/delete-artifact@v2
-      with:
-        failOnError: false
-        name: |
-          pyartifacts
+                arch)
+                  echo "Installing openssl-dev on Arch Linux..."
+                  pacman -Syu --noconfirm pkg-config openssl
+                  ;;
+                fedora)
+                  echo "Installing openssl-dev on Fedora..."
+                  dnf update -y
+                  dnf install -y pkg-config openssl-devel
+                  ;;
+                alpine)
+                  echo "Installing openssl-dev on Alpine Linux..."
+                  apk update -y
+                  apk add pkgconfig openssl-dev
+                  ;;
+                centos)
+                    echo "Installing openssl-dev on CentOS..."
+                    yum update -y
+                    yum install -y pkgconfig openssl-devel
+                    ;;  
+                *)
+                    echo "Unsupported distribution: $ID"
+                    exit 1
+                    ;;
+              esac    
+            else
+              echo "Could not determine distribution."
+              exit 1
+            fi
+      - name: Upload wheels to gh artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: pyartifacts
+          path: ./python/dist
+  python-windows:
+    needs: release-rust
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        target: [x64]
+    steps:
+      - name: "Check if user has write access"
+        uses: "lannonbr/repo-permission-check-action@2.0.0"
+        with:
+          permission: "write"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ needs.release-rust.outputs.crate_version }}
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+          architecture: ${{ matrix.target }}
+      - name: Build wheels
+        uses: PyO3/maturin-action@v1
+        with:
+          working-directory: ./python
+          command: build
+          target: ${{ matrix.target }}
+          args: --release --out dist --find-interpreter
+      - name: Upload wheels to gh artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: pyartifacts
+          path: ./python/dist
+  python-macos:
+    needs: release-rust
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        target: [x86_64, aarch64]
+    steps:
+      - name: "Check if user has write access"
+        uses: "lannonbr/repo-permission-check-action@2.0.0"
+        with:
+          permission: "write"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Set up cargo cache
+        uses: actions/cache@v3
+        continue-on-error: false
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ needs.release-rust.outputs.crate_version }}
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      - name: Build wheels
+        uses: PyO3/maturin-action@v1
+        with:
+          working-directory: ./python
+          command: build
+          target: ${{ matrix.target }}
+          args: --release --out dist --find-interpreter
+      - name: Upload wheels to gh artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: pyartifacts
+          path: ./python/dist
+  publish-python:
+    needs: [python-linux, python-windows, python-macos]
+    name: Publish to PyPi
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Check if user has write access"
+        uses: "lannonbr/repo-permission-check-action@2.0.0"
+        with:
+          permission: "write"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/download-artifact@v3
+        with:
+          name: pyartifacts
+          path: pyartifacts
+      - name: Display structure of downloaded files
+        run: ls -R
+        working-directory: pyartifacts
+      - name: Publish a Python distribution to PyPI
+        if: ${{ !inputs.dry_run }}
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}
+          packages_dir: pyartifacts/
+          verbose: true
+          skip_existing: true
+          verify_metadata: false
+      - name: "Deleting artifacts"
+        uses: geekyeggo/delete-artifact@v2
+        with:
+          failOnError: false
+          name: |
+            pyartifacts
