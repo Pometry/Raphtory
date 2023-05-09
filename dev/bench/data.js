@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1683648219615,
+  "lastUpdate": 1683649293547,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -283,6 +283,42 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions",
             "value": 397900,
             "range": "± 70571",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "Haaroon@users.noreply.github.com",
+            "name": "Haaroon Yousaf",
+            "username": "Haaroon"
+          },
+          "committer": {
+            "email": "Haaroon@users.noreply.github.com",
+            "name": "Haaroon Yousaf",
+            "username": "Haaroon"
+          },
+          "distinct": true,
+          "id": "210886cfae58ba8dade9530c9779931c15bea26f",
+          "message": "remove bad needs",
+          "timestamp": "2023-05-09T17:16:13+01:00",
+          "tree_id": "c8700527a270fc3ed5b866556ad5a5ad9fccc7b6",
+          "url": "https://github.com/Pometry/Raphtory/commit/210886cfae58ba8dade9530c9779931c15bea26f"
+        },
+        "date": 1683649292841,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 368951,
+            "range": "± 10229",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 720762,
+            "range": "± 94926",
             "unit": "ns/iter"
           }
         ]
