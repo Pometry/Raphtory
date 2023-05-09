@@ -14,10 +14,7 @@ use crate::{
         },
         tgraph::VertexRef,
     },
-    db::{
-        vertex::vertex_view::VertexViewInternal,
-        view_api::{GraphViewOps, TimeOps}, graph_window::WindowedGraph,
-    },
+    db::{view_api::{GraphViewOps, TimeOps}, graph_window::WindowedGraph},
 };
 
 pub struct EvalVertexView<'a, G: GraphViewOps, CS: ComputeState> {
@@ -27,49 +24,6 @@ pub struct EvalVertexView<'a, G: GraphViewOps, CS: ComputeState> {
     shard_state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
     global_state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
     local_state: Rc<RefCell<ShuffleComputeState<CS>>>,
-}
-
-impl<'a, G: GraphViewOps, CS: ComputeState> TimeOps for EvalVertexView<'a, G, CS> {
-    type WindowedViewType = EvalVertexView<'a, WindowedGraph<G>, CS>;
-
-    fn start(&self) -> Option<i64> {
-        self.graph().start()
-    }
-
-    fn end(&self) -> Option<i64> {
-        self.graph().end()
-    }
-
-    fn window(&self, t_start: i64, t_end: i64) -> Self::WindowedViewType {
-        EvalVertexView::new(
-            self.ss,
-            self.vv,
-            Arc::new(self.graph().window(t_start, t_end)),
-            self.shard_state.clone(),
-            self.global_state.clone(),
-            self.local_state.clone(),
-        )
-    }
-}
-
-impl<'a, G, CS> VertexViewInternal for EvalVertexView<'a, G, CS>
-where
-    G: GraphViewOps,
-    CS: ComputeState,
-{
-    type Graph = G;
-
-    fn vertex_ref(&self) -> VertexRef {
-        self.vv
-    }
-
-    fn graph(&self) -> &Self::Graph {
-        self.g.as_ref()
-    }
-
-    fn graph_arc(&self) -> Arc<Self::Graph> {
-        self.g.clone()
-    }
 }
 
 impl<'a, G: GraphViewOps, CS: ComputeState> EvalVertexView<'a, G, CS> {
@@ -107,9 +61,9 @@ impl<'a, G: GraphViewOps, CS: ComputeState> EvalVertexView<'a, G, CS> {
         }
     }
 
-    // pub fn out_degree(&self) -> usize {
-    //     self.g.degree(self.vv, crate::core::Direction::OUT, None)
-    // }
+    pub fn out_degree(&self) -> usize {
+        self.g.degree(self.vv, crate::core::Direction::OUT, None)
+    }
 
     pub fn neighbours(&self) -> impl Iterator<Item = EvalVertexView<'a, G, CS>> + '_ {
         self.g

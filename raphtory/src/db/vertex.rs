@@ -120,10 +120,10 @@ impl<G: GraphViewOps> VertexViewOps for VertexView<G> {
     fn has_property(&self, name: String, include_static: bool) -> bool {
         (!self.property_history(name.clone()).is_empty())
             || (include_static
-                && self
-                    .graph
-                    .static_vertex_prop_names(self.vertex)
-                    .contains(&name))
+            && self
+            .graph
+            .static_vertex_prop_names(self.vertex)
+            .contains(&name))
     }
 
     fn has_static_property(&self, name: String) -> bool {
@@ -155,7 +155,7 @@ impl<G: GraphViewOps> VertexViewOps for VertexView<G> {
         let g = self.graph.clone();
         let dir = Direction::BOTH;
         Box::new(
-            g.vertex_edges(self.vertex, dir, None)
+            g.vertex_edges_all_layers(self.vertex, dir)
                 .map(move |e| EdgeView::new(g.clone(), e)),
         )
     }
@@ -164,7 +164,7 @@ impl<G: GraphViewOps> VertexViewOps for VertexView<G> {
         let g = self.graph.clone();
         let dir = Direction::IN;
         Box::new(
-            g.vertex_edges(self.vertex, dir, None)
+            g.vertex_edges_all_layers(self.vertex, dir)
                 .map(move |e| EdgeView::new(g.clone(), e)),
         )
     }
@@ -173,7 +173,7 @@ impl<G: GraphViewOps> VertexViewOps for VertexView<G> {
         let g = self.graph.clone();
         let dir = Direction::OUT;
         Box::new(
-            g.vertex_edges(self.vertex, dir, None)
+            g.vertex_edges_all_layers(self.vertex, dir)
                 .map(move |e| EdgeView::new(g.clone(), e)),
         )
     }
@@ -236,11 +236,11 @@ impl<G: GraphViewOps> LayerOps for VertexView<G> {
 
 /// Implementation of the VertexListOps trait for an iterator of VertexView objects.
 ///
-impl<G: GraphViewOps> VertexListOps for Box<dyn Iterator<Item = VertexView<G>> + Send> {
+impl<G: GraphViewOps> VertexListOps for Box<dyn Iterator<Item=VertexView<G>> + Send> {
     type Graph = G;
-    type IterType = Box<dyn Iterator<Item = VertexView<G>> + Send>;
-    type EList = Box<dyn Iterator<Item = EdgeView<Self::Graph>> + Send>;
-    type VList = Box<dyn Iterator<Item = VertexView<Self::Graph>> + Send>;
+    type IterType = Box<dyn Iterator<Item=VertexView<G>> + Send>;
+    type EList = Box<dyn Iterator<Item=EdgeView<Self::Graph>> + Send>;
+    type VList = Box<dyn Iterator<Item=VertexView<Self::Graph>> + Send>;
     type ValueType<T: Send> = T;
 
     fn earliest_time(self) -> BoxedIter<Option<i64>> {
