@@ -1934,10 +1934,10 @@ mod db_tests {
         g.add_vertex(1, 2, &vec![]).unwrap();
         g.add_vertex(2, 3, &vec![]).unwrap();
 
-        assert_eq!(g.vertex_ids().collect::<Vec<u64>>(), vec![1, 2, 3]);
+        assert_eq!(g.vertices().id().collect::<Vec<u64>>(), vec![1, 2, 3]);
 
         let g_at = g.at(1);
-        assert_eq!(g_at.vertex_ids().collect::<Vec<u64>>(), vec![1, 2]);
+        assert_eq!(g_at.vertices().id().collect::<Vec<u64>>(), vec![1, 2]);
     }
 
     // #[test]
