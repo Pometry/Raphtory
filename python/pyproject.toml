@@ -14,10 +14,11 @@ dependencies = [
     "pandas >= 1.3.3",
 ]
 
+
 [project.urls]
-homepage = "https://github.com/raphtory/raphtory"
+homepage = "https://github.com/pometry/raphtory"
 documentation = "https://docs.raphtory.com/"
-repository = "https://github.com/raphtory/raphtory"
+repository = "https://github.com/pometry/raphtory"
 twitter = "https://twitter.com/raphtory/"
 slack = "https://join.slack.com/t/raphtory/shared_invite/zt-xbebws9j-VgPIFRleJFJBwmpf81tvxA"
 youtube = "https://www.youtube.com/@pometry8546/videos"
