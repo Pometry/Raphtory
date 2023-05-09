@@ -1,4 +1,5 @@
 use crate::core::state::compute_state::ComputeState;
+use crate::db::view_api::GraphViewOps;
 use crate::db::view_api::internal::GraphViewInternalOps;
 
 use super::context::GlobalState;
@@ -6,7 +7,7 @@ use super::eval_vertex::EvalVertexView;
 
 pub trait Task<G, CS>
 where
-    G: GraphViewInternalOps + Send + Sync + Clone + 'static,
+    G: GraphViewOps,
     CS: ComputeState,
 {
     fn run(&self, vv: &EvalVertexView<G, CS>) -> Step;
@@ -20,7 +21,7 @@ pub enum Step {
 
 pub struct ATask<G, CS, F>
 where
-    G: GraphViewInternalOps + Send + Sync + 'static,
+    G: GraphViewOps,
     CS: ComputeState,
     F: Fn(&EvalVertexView<G, CS>) -> Step,
 {
@@ -48,7 +49,7 @@ impl<G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeState> 
 
 impl<G, CS, F> ATask<G, CS, F>
 where
-    G: GraphViewInternalOps + Send + Sync + 'static,
+    G: GraphViewOps,
     CS: ComputeState,
     F: Fn(&EvalVertexView<G, CS>) -> Step,
 {
@@ -63,7 +64,7 @@ where
 
 impl<G, CS, F> Task<G, CS> for ATask<G, CS, F>
 where
-    G: GraphViewInternalOps + Send + Sync + Clone + 'static,
+    G: GraphViewOps,
     CS: ComputeState,
     F: Fn(&EvalVertexView<G, CS>) -> Step,
 {

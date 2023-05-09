@@ -284,33 +284,6 @@ impl<G: GraphViewInternalOps> GraphViewInternalOps for LayeredGraph<G> {
             .unwrap_or_else(|| Box::new(std::iter::empty()))
     }
 
-    fn neighbours_ids(
-        &self,
-        v: VertexRef,
-        d: Direction,
-        layer: Option<usize>,
-    ) -> Box<dyn Iterator<Item = u64> + Send> {
-        self.constrain(layer)
-            .map(|layer| self.graph.neighbours_ids(v, d, Some(layer)))
-            .unwrap_or_else(|| Box::new(std::iter::empty()))
-    }
-
-    fn neighbours_ids_window(
-        &self,
-        v: VertexRef,
-        t_start: i64,
-        t_end: i64,
-        d: Direction,
-        layer: Option<usize>,
-    ) -> Box<dyn Iterator<Item = u64> + Send> {
-        self.constrain(layer)
-            .map(|layer| {
-                self.graph
-                    .neighbours_ids_window(v, t_start, t_end, d, Some(layer))
-            })
-            .unwrap_or_else(|| Box::new(std::iter::empty()))
-    }
-
     fn static_vertex_prop(&self, v: VertexRef, name: String) -> Option<Prop> {
         self.graph.static_vertex_prop(v, name)
     }
