@@ -362,29 +362,6 @@ impl GraphViewInternalOps for Graph {
         )
     }
 
-    fn neighbours_ids(
-        &self,
-        v: VertexRef,
-        d: Direction,
-        layer: Option<usize>,
-    ) -> Box<dyn Iterator<Item = u64> + Send> {
-        Box::new(self.get_shard_from_v(v).neighbours_ids(v.g_id, d, layer))
-    }
-
-    fn neighbours_ids_window(
-        &self,
-        v: VertexRef,
-        t_start: i64,
-        t_end: i64,
-        d: Direction,
-        layer: Option<usize>,
-    ) -> Box<dyn Iterator<Item = u64> + Send> {
-        Box::new(
-            self.get_shard_from_v(v)
-                .neighbours_ids_window(v.g_id, t_start..t_end, d, layer),
-        )
-    }
-
     fn static_vertex_prop(&self, v: VertexRef, name: String) -> Option<Prop> {
         self.get_shard_from_v(v).static_vertex_prop(v.g_id, name)
     }
