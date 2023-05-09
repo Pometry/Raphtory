@@ -27,7 +27,7 @@ jobs:
           git config --global user.name "Haaroon"
       - name: "Set version number to env var using bash script"
         run: |
-          export CRATE_VERSION=$(cat Cargo.toml | grep version | head -n1 | cut -d '"' -f2)
+          echo CRATE_VERSION=$(cat Cargo.toml | grep version | head -n1 | cut -d '"' -f2) >> $GITHUB_ENV
           echo "Crate version is $CRATE_VERSION"
       - name: "Releasing to Github"
         if: ${{ !inputs.dry_run }}
