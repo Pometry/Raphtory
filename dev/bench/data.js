@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1683646846672,
+  "lastUpdate": 1683648219615,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -247,6 +247,42 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions",
             "value": 762097,
             "range": "± 115498",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "Haaroon@users.noreply.github.com",
+            "name": "Haaroon Yousaf",
+            "username": "Haaroon"
+          },
+          "committer": {
+            "email": "Haaroon@users.noreply.github.com",
+            "name": "Haaroon Yousaf",
+            "username": "Haaroon"
+          },
+          "distinct": true,
+          "id": "6bde743fe7ab748365d57a28b2f1acf94cd2eb2e",
+          "message": "Change WF permission and add PR",
+          "timestamp": "2023-05-09T16:58:51+01:00",
+          "tree_id": "c4c40b631fc790041df0ce0a586ea325cba6c6ec",
+          "url": "https://github.com/Pometry/Raphtory/commit/6bde743fe7ab748365d57a28b2f1acf94cd2eb2e"
+        },
+        "date": 1683648218054,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 329370,
+            "range": "± 1880",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 397900,
+            "range": "± 70571",
             "unit": "ns/iter"
           }
         ]
