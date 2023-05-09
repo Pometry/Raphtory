@@ -1,0 +1,56 @@
+name: Release Rust package to crates.io
+on:
+  workflow_call:
+    inputs:
+      base:
+        type: 'string'
+        default: 'master'
+      dry_run:
+        type: boolean
+        default: true
+        required: true
+
+jobs:
+  release-rust:
+    name: Release Rust package to crates.io
+    runs-on: '${{ matrix.os }}'
+    outputs:
+      crate_version: ${{ steps.set_version.outputs.crate_version }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+    steps:
+      - name: Set up cargo cache
+        uses: actions/cache@v3
+        continue-on-error: false
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+      - uses: actions/checkout@v3
+      - run: |
+          git config --global user.email "Haaroon@users.noreply.github.com"
+          git config --global user.name "Haaroon"
+      - name: "Set up Rust toolchain"
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+          components: rustfmt, clippy
+      - name: "Install cargo release"
+        uses: actions-rs/cargo@v1
+        with:
+          command: install
+          args: cargo-release --force
+      - name: "Publish raphtory to crates.io"
+        if: ${{ !inputs.dry_run }}
+        uses: actions-rs/cargo@v1
+        with:
+          command: publish
+          args: --token ${{ secrets.CRATES_TOKEN }} --package raphtory --allow-dirty
