@@ -6,6 +6,7 @@ use crate::{
     db::{
         task::{
             context::Context,
+            eval_vertex::EvalVertexView,
             task::{ATask, Job, Step},
             task_runner::TaskRunner
         },
@@ -108,9 +109,10 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
 
 #[cfg(test)]
 mod page_rank_tests {
+    use itertools::Itertools;
     use pretty_assertions::assert_eq;
 
-    use crate::db::graph::Graph;
+    use crate::{db::graph::Graph, core::Prop};
 
     use super::*;
 
@@ -235,6 +237,46 @@ mod page_rank_tests {
         assert_eq!(
             results,
             expected_2.into_iter().collect::<FxHashMap<String, f32>>()
+        );
+    }
+
+    #[test]
+    fn dangling_page_rank() {
+        let edges = vec![
+            (1, 2),
+            (1, 3),
+            (2, 3),
+            (3, 1),
+            (3, 2),
+            (3, 4),
+            // dangling from here
+            (4, 5),
+            (5, 6),
+            (6, 7),
+            (7, 8),
+            (8, 9),
+            (9, 10),
+            (10, 11),
+        ]
+        .into_iter()
+        .enumerate()
+        .map(|(t, (src, dst))| (src, dst, t as i64))
+        .collect_vec();
+
+        let graph = Graph::new(4);
+
+        for (src, dst, t) in edges {
+            graph.add_edge(t, src, dst, &vec![], None).unwrap();
+        }
+
+        let results: FxHashMap<String, f32> =
+            unweighted_page_rank(&graph, 1000, Some(4), Some(0.00001))
+                .into_iter()
+                .collect();
+
+        assert_eq!(
+            results,
+            vec![].into_iter().collect::<FxHashMap<String, f32>>()
         );
     }
 }

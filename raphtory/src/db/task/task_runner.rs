@@ -306,6 +306,9 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
             self.ctx.increment_ss();
         }
 
+        //print the context ss count
+        println!("Context ss count: {}", self.ctx.ss());
+
         (shard_state, global_state, local_state)
     }
 }
