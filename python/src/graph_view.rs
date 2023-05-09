@@ -1,11 +1,13 @@
 //! The API for querying a view of the graph in a read-only state
 use crate::dynamic::{DynamicGraph, IntoDynamic};
 use crate::edge::{PyEdge, PyEdges};
-use crate::utils::{expanding_impl, extract_vertex_ref, rolling_impl, window_impl};
+use crate::utils::{at_impl, expanding_impl, extract_vertex_ref, rolling_impl, window_impl};
 use crate::vertex::{PyVertex, PyVertices};
 use pyo3::prelude::*;
+use raphtory::db::view_api::layer::LayerOps;
 use raphtory::db::view_api::time::WindowSet;
 use raphtory::db::view_api::*;
+use raphtory::*;
 
 /// Graph view is a read-only version of a graph at a certain point in time.
 #[pyclass(name = "GraphView", frozen, subclass)]
@@ -14,7 +16,7 @@ pub struct PyGraphView {
 }
 
 /// Graph view is a read-only version of a graph at a certain point in time.
-impl<G: GraphViewOps> From<G> for PyGraphView {
+impl<G: GraphViewOps + IntoDynamic> From<G> for PyGraphView {
     fn from(value: G) -> Self {
         PyGraphView {
             graph: value.into_dynamic(),
@@ -25,6 +27,7 @@ impl<G: GraphViewOps> From<G> for PyGraphView {
 /// A set of windowed views of a `Graph`, allows user to iterating over a Graph broken
 /// down into multiple windowed views.
 #[pyclass(name = "GraphWindowSet")]
+#[derive(Clone)]
 pub struct PyGraphWindowSet {
     window_set: WindowSet<DynamicGraph>,
 }
@@ -39,18 +42,40 @@ impl From<WindowSet<DynamicGraph>> for PyGraphWindowSet {
 /// down into multiple windowed views.
 #[pymethods]
 impl PyGraphWindowSet {
+    fn __iter__(&self) -> PyGraphWindowIterator {
+        self.window_set.clone().into()
+    }
+}
+
+#[pyclass(name = "GraphWindowIterator")]
+#[derive(Clone)]
+pub struct PyGraphWindowIterator {
+    window_set: WindowSet<DynamicGraph>,
+}
+
+impl From<WindowSet<DynamicGraph>> for PyGraphWindowIterator {
+    fn from(value: WindowSet<DynamicGraph>) -> Self {
+        Self { window_set: value }
+    }
+}
+
+#[pymethods]
+impl PyGraphWindowIterator {
     fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
         slf
     }
-    /// gets the next windowed view of the graph
-    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<PyGraphView> {
-        slf.window_set.next().map(|g| g.into())
+    fn __next__(&mut self) -> Option<PyGraphView> {
+        self.window_set.next().map(|g| g.into())
     }
 }
 
 /// The API for querying a view of the graph in a read-only state
 #[pymethods]
 impl PyGraphView {
+    pub fn get_unique_layers(&self) -> Vec<String> {
+        self.graph.get_unique_layers()
+    }
+
     //******  Metrics APIs ******//
 
     /// Timestamp of earliest activity in the graph
@@ -216,14 +241,14 @@ impl PyGraphView {
     /// Create a view including all events between `t_start` (inclusive) and `t_end` (exclusive)
     ///
     /// Arguments:
-    ///   t_start (int): the start time of the window (optional)
-    ///   t_end (int): the end time of the window (optional)
+    ///   start (int): the start time of the window (optional)
+    ///   end (int): the end time of the window (optional)
     ///
     /// Returns:
     ///     a view including all events between `t_start` (inclusive) and `t_end` (exclusive)
-    #[pyo3(signature = (t_start=None, t_end=None))]
-    pub fn window(&self, t_start: Option<i64>, t_end: Option<i64>) -> PyGraphView {
-        window_impl(&self.graph, t_start, t_end).into()
+    #[pyo3(signature = (start=None, end=None))]
+    pub fn window(&self, start: Option<&PyAny>, end: Option<&PyAny>) -> PyResult<PyGraphView> {
+        window_impl(&self.graph, start, end).map(|g| g.into())
     }
 
     /// Create a view including all events until `end` (inclusive)
@@ -234,8 +259,19 @@ impl PyGraphView {
     /// Returns:
     ///     a view including all events until `end` (inclusive)
     #[pyo3(signature = (end))]
-    pub fn at(&self, end: i64) -> PyGraphView {
-        self.graph.at(end).into()
+    pub fn at(&self, end: &PyAny) -> PyResult<PyGraphView> {
+        at_impl(&self.graph, end).map(|g| g.into())
+    }
+
+    #[doc = default_layer_doc_string!()]
+    pub fn default_layer(&self) -> PyGraphView {
+        self.graph.default_layer().into()
+    }
+
+    #[doc = layer_doc_string!()]
+    #[pyo3(signature = (name))]
+    pub fn layer(&self, name: &str) -> Option<PyGraphView> {
+        self.graph.layer(name).map(|layer| layer.into())
     }
 
     /// Displays the graph

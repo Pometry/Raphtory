@@ -1,11 +1,8 @@
-use std::ops::Range;
-
-use serde::{Deserialize, Serialize};
-
 use crate::core::{
     tadjset::{AdjEdge, TAdjSet},
-    Time,
+    Direction,
 };
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Default)]
 pub(crate) enum Adj {
@@ -13,28 +10,48 @@ pub(crate) enum Adj {
     Solo,
     List {
         // local:
-        out: TAdjSet<usize, i64>,
-        into: TAdjSet<usize, i64>,
+        out: TAdjSet<usize>,
+        into: TAdjSet<usize>,
         // remote:
-        remote_out: TAdjSet<usize, i64>,
-        remote_into: TAdjSet<usize, i64>,
+        remote_out: TAdjSet<usize>,
+        remote_into: TAdjSet<usize>,
     },
 }
 
 impl Adj {
-    pub(crate) fn out_len_window(&self, w: &Range<Time>) -> usize {
+    pub(crate) fn get_edge(&self, v: usize, dir: Direction, is_remote: bool) -> Option<AdjEdge> {
         match self {
-            Adj::Solo => 0,
+            Adj::Solo => None,
             Adj::List {
-                out, remote_out, ..
-            } => out.len_window(w) + remote_out.len_window(w),
+                out,
+                into,
+                remote_out,
+                remote_into,
+            } => match dir {
+                Direction::OUT => {
+                    if is_remote {
+                        remote_out.find(v)
+                    } else {
+                        out.find(v)
+                    }
+                }
+                Direction::IN => {
+                    if is_remote {
+                        remote_into.find(v)
+                    } else {
+                        into.find(v)
+                    }
+                }
+                Direction::BOTH => self
+                    .get_edge(v, Direction::OUT, is_remote)
+                    .or_else(|| self.get_edge(v, Direction::IN, is_remote)),
+            },
         }
     }
-
-    pub(crate) fn new_out(v: usize, t: i64, e: AdjEdge) -> Self {
+    pub(crate) fn new_out(v: usize, e: AdjEdge) -> Self {
         if e.is_local() {
             Adj::List {
-                out: TAdjSet::new(t, v, e),
+                out: TAdjSet::new(v, e),
                 into: TAdjSet::default(),
                 remote_out: TAdjSet::default(),
                 remote_into: TAdjSet::default(),
@@ -43,16 +60,16 @@ impl Adj {
             Adj::List {
                 out: TAdjSet::default(),
                 into: TAdjSet::default(),
-                remote_out: TAdjSet::new(t, v, e),
+                remote_out: TAdjSet::new(v, e),
                 remote_into: TAdjSet::default(),
             }
         }
     }
 
-    pub(crate) fn new_into(v: usize, t: i64, e: AdjEdge) -> Self {
+    pub(crate) fn new_into(v: usize, e: AdjEdge) -> Self {
         if e.is_local() {
             Adj::List {
-                into: TAdjSet::new(t, v, e),
+                into: TAdjSet::new(v, e),
                 out: TAdjSet::default(),
                 remote_out: TAdjSet::default(),
                 remote_into: TAdjSet::default(),
@@ -61,7 +78,7 @@ impl Adj {
             Adj::List {
                 out: TAdjSet::default(),
                 into: TAdjSet::default(),
-                remote_into: TAdjSet::new(t, v, e),
+                remote_into: TAdjSet::new(v, e),
                 remote_out: TAdjSet::default(),
             }
         }

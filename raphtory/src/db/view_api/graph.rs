@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::core::tgraph::VertexRef;
 use crate::db::edge::EdgeView;
 use crate::db::graph_layer::LayeredGraph;
@@ -5,6 +7,7 @@ use crate::db::graph_window::WindowedGraph;
 use crate::db::vertex::VertexView;
 use crate::db::vertices::Vertices;
 use crate::db::view_api::internal::GraphViewInternalOps;
+use crate::db::view_api::layer::LayerOps;
 use crate::db::view_api::time::TimeOps;
 use crate::db::view_api::VertexViewOps;
 
@@ -13,6 +16,10 @@ use crate::db::view_api::VertexViewOps;
 /// that are used to define the type of the vertices, edges
 /// and the corresponding iterators.
 pub trait GraphViewOps: Send + Sync + Sized + GraphViewInternalOps + 'static + Clone {
+    fn get_unique_layers(&self) -> Vec<String>;
+
+    fn as_arc(&self) -> Arc<Self>;
+
     /// Timestamp of earliest activity in the graph
     fn earliest_time(&self) -> Option<i64>;
     /// Timestamp of latest activity in the graph
@@ -50,15 +57,13 @@ pub trait GraphViewOps: Send + Sync + Sized + GraphViewInternalOps + 'static + C
 
     /// Return an iterator over all edges in the graph.
     fn edges(&self) -> Box<dyn Iterator<Item = EdgeView<Self>> + Send>;
-
-    /// Return a graph containing only the default edge layer
-    fn default_layer(&self) -> LayeredGraph<Self>;
-
-    /// Return a graph containing the layer `name`
-    fn layer(&self, name: &str) -> Option<LayeredGraph<Self>>;
 }
 
 impl<G: Send + Sync + Sized + GraphViewInternalOps + 'static + Clone> GraphViewOps for G {
+    fn get_unique_layers(&self) -> Vec<String> {
+        self.get_unique_layers_internal()
+    }
+
     fn earliest_time(&self) -> Option<i64> {
         self.earliest_time_global()
     }
@@ -88,7 +93,8 @@ impl<G: Send + Sync + Sized + GraphViewInternalOps + 'static + Clone> GraphViewO
 
     fn vertex<T: Into<VertexRef>>(&self, v: T) -> Option<VertexView<Self>> {
         let v = v.into().g_id;
-        self.vertex_ref(v).map(|v| VertexView::new(self.clone(), v))
+        self.vertex_ref(v)
+            .map(|v| VertexView::new(Arc::new(self.clone()), v))
     }
 
     fn vertices(&self) -> Vertices<Self> {
@@ -104,20 +110,15 @@ impl<G: Send + Sync + Sized + GraphViewInternalOps + 'static + Clone> GraphViewO
     ) -> Option<EdgeView<Self>> {
         let layer_id = self.get_layer(layer)?;
         self.edge_ref(src.into(), dst.into(), layer_id)
-            .map(|e| EdgeView::new(self.clone(), e))
+            .map(|e| EdgeView::new(Arc::new(self.clone()), e))
     }
 
     fn edges(&self) -> Box<dyn Iterator<Item = EdgeView<Self>> + Send> {
         Box::new(self.vertices().iter().flat_map(|v| v.out_edges()))
     }
 
-    fn default_layer(&self) -> LayeredGraph<Self> {
-        LayeredGraph::new(self.clone(), 0)
-    }
-
-    fn layer(&self, name: &str) -> Option<LayeredGraph<Self>> {
-        let id = self.get_layer(Some(name))?;
-        Some(LayeredGraph::new(self.clone(), id))
+    fn as_arc(&self) -> Arc<Self> {
+        Arc::new(self.clone())
     }
 }
 
@@ -134,5 +135,18 @@ impl<G: GraphViewOps> TimeOps for G {
 
     fn window(&self, t_start: i64, t_end: i64) -> WindowedGraph<Self> {
         WindowedGraph::new(self.clone(), t_start, t_end)
+    }
+}
+
+impl<G: GraphViewOps> LayerOps for G {
+    type LayeredViewType = LayeredGraph<G>;
+
+    fn default_layer(&self) -> Self::LayeredViewType {
+        LayeredGraph::new(self.clone(), 0)
+    }
+
+    fn layer(&self, name: &str) -> Option<Self::LayeredViewType> {
+        let id = self.get_layer(Some(name))?;
+        Some(LayeredGraph::new(self.clone(), id))
     }
 }

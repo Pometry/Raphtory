@@ -10,17 +10,24 @@ use std::{
 
 use crate::core::{
     agg::Accumulator,
-    state::{AccId, ShuffleComputeState},
-    state::{ComputeStateMap, StateType},
+    state::{
+        accumulator_id::AccId,
+        compute_state::{ComputeState, ComputeStateMap},
+        shuffle_state::ShuffleComputeState,
+        StateType,
+    },
 };
+use crate::db::edge::EdgeView;
+use crate::db::graph_window::WindowedGraph;
 use crate::db::vertex::VertexView;
-use crate::db::view_api::{GraphViewOps, VertexViewOps};
+use crate::db::view_api::{GraphViewOps, TimeOps, VertexViewOps};
 use itertools::Itertools;
 use rayon::prelude::*;
 use rustc_hash::FxHashSet;
 
-type CS = ComputeStateMap;
+use super::view_api::internal::GraphViewInternalOps;
 
+type CS = ComputeStateMap;
 /// A reference to an accumulator for aggregation operations.
 /// `A` is the type of the state being accumulated.
 /// `IN` is the type of the input messages.
@@ -139,7 +146,7 @@ impl<G: GraphViewOps> LocalState<G> {
     where
         F: Fn(EvalVertexView<G>),
     {
-        let graph = self.graph.clone();
+        let graph = Arc::new(self.graph.clone());
 
         let iter: Box<dyn Iterator<Item = VertexView<G>>> = match self.next_vertex_set {
             None => Box::new(
@@ -185,7 +192,7 @@ impl<G: GraphViewOps> LocalState<G> {
 ///  * `post_agg_state`: an arc pointer to a read-write lock that contains the state of the computation after aggregation.
 ///
 #[derive(Debug)]
-pub struct GlobalEvalState<G: GraphViewOps> {
+pub struct GlobalEvalState<G: GraphViewInternalOps> {
     pub ss: usize,
     g: G,
     pub keep_past_state: bool,
@@ -202,7 +209,7 @@ pub struct GlobalEvalState<G: GraphViewOps> {
 ///
 ///
 ///
-impl<G: GraphViewOps> GlobalEvalState<G> {
+impl<G: GraphViewInternalOps + Send + Sync + Clone + 'static> GlobalEvalState<G> {
     /// Reads the vector partitions for the given accumulator.
     ///
     /// # Arguments
@@ -227,7 +234,7 @@ impl<G: GraphViewOps> GlobalEvalState<G> {
     pub fn read_vec_partitions<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
         &self,
         agg: &AccId<A, IN, OUT, ACC>,
-    ) -> Vec<Vec<Vec<OUT>>>
+    ) -> Vec<Vec<Vec<(u64, OUT)>>>
     where
         OUT: StateType,
         A: 'static,
@@ -237,7 +244,7 @@ impl<G: GraphViewOps> GlobalEvalState<G> {
             .map(|state| {
                 let state = state.read();
                 let state = state.as_ref().unwrap();
-                state.read_vec_partition::<A, IN, OUT, ACC>(self.ss, agg)
+                state.read_vec_partition::<A, IN, OUT, ACC, G>(self.ss, agg, &self.g)
             })
             .collect()
     }
@@ -614,7 +621,7 @@ impl<G: GraphViewOps> GlobalEvalState<G> {
 /// The entry contains a reference to a `ShuffleComputeState` and an `AccId` representing the accumulator
 /// for which the entry is being accessed. It also contains the index of the entry in the shuffle table
 /// and the super-step counter.
-pub struct Entry<'a, A: StateType, IN, OUT, ACC: Accumulator<A, IN, OUT>> {
+pub struct Entry<'a, A: StateType, IN, OUT, ACC: Accumulator<A, IN, OUT>, CS: ComputeState> {
     state: Ref<'a, ShuffleComputeState<CS>>,
     acc_id: AccId<A, IN, OUT, ACC>,
     i: usize,
@@ -622,7 +629,9 @@ pub struct Entry<'a, A: StateType, IN, OUT, ACC: Accumulator<A, IN, OUT>> {
 }
 
 // Entry implementation has read_ref function to access Option<&A>
-impl<'a, A: StateType, IN, OUT, ACC: Accumulator<A, IN, OUT>> Entry<'a, A, IN, OUT, ACC> {
+impl<'a, A: StateType, IN, OUT, ACC: Accumulator<A, IN, OUT>, CS: ComputeState>
+    Entry<'a, A, IN, OUT, ACC, CS>
+{
     /// Creates a new `Entry` instance.
     ///
     /// # Arguments
@@ -636,7 +645,7 @@ impl<'a, A: StateType, IN, OUT, ACC: Accumulator<A, IN, OUT>> Entry<'a, A, IN, O
         acc_id: AccId<A, IN, OUT, ACC>,
         i: usize,
         ss: usize,
-    ) -> Entry<'a, A, IN, OUT, ACC> {
+    ) -> Entry<'a, A, IN, OUT, ACC, CS> {
         Entry {
             state,
             acc_id,
@@ -674,6 +683,18 @@ impl<G: GraphViewOps> EvalVertexView<G> {
         self.state
             .borrow_mut()
             .accumulate_into(self.ss, self.vv.id() as usize, a, agg)
+    }
+
+    pub fn update2<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
+        &self,
+        id: &AccId<A, IN, OUT, ACC>,
+        a: IN,
+    ) where
+        A: StateType,
+    {
+        self.state
+            .borrow_mut()
+            .accumulate_into(self.ss, self.vv.id() as usize, a, id)
     }
 
     /// Update the global state with the provided input value using the given accumulator.
@@ -738,7 +759,7 @@ impl<G: GraphViewOps> EvalVertexView<G> {
     pub fn entry<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
         &self,
         agg_r: &AggRef<A, IN, OUT, ACC>,
-    ) -> Entry<'_, A, IN, OUT, ACC>
+    ) -> Entry<'_, A, IN, OUT, ACC, CS>
     where
         A: StateType,
     {
@@ -791,6 +812,10 @@ impl<G: GraphViewOps> EvalVertexView<G> {
         Self { ss, vv, state }
     }
 
+    pub fn name(&self) -> String {
+        self.vv.name()
+    }
+
     /// Obtain the global id of the vertex.
     pub fn global_id(&self) -> u64 {
         self.vv.id()
@@ -831,6 +856,56 @@ impl<G: GraphViewOps> EvalVertexView<G> {
             .neighbours()
             .iter()
             .map(move |vv| EvalVertexView::new(self.ss, vv, self.state.clone()))
+    }
+
+    pub fn out_edges(
+        &self,
+        after: i64,
+    ) -> impl Iterator<Item = EvalEdgeView<WindowedGraph<G>>> + '_ {
+        self.vv
+            .window(after, i64::MAX)
+            .out_edges()
+            .map(move |ev| EvalEdgeView::new(self.ss, ev, self.state.clone()))
+    }
+}
+
+/// `EvalEdgeView` represents a view of a edge in a computation graph.
+///
+/// The view contains the evaluation step, the `WindowedEdge` representing the edge.
+pub struct EvalEdgeView<G: GraphViewOps> {
+    ss: usize,
+    ev: EdgeView<G>,
+    state: Rc<RefCell<ShuffleComputeState<CS>>>,
+}
+
+/// `EvalEdgeView` represents a view of a edge in a computation graph.
+impl<G: GraphViewOps> EvalEdgeView<G> {
+    /// Create a new `EvalEdgeView` from the given super-step counter, `WindowedEdge`
+    ///
+    /// # Arguments
+    ///
+    /// * `ss` - super-step counter
+    /// * `ev` - The `WindowedEdge` representing the edge.
+    ///
+    /// # Returns
+    ///
+    /// A new `EvalVertexView`.
+    pub fn new(ss: usize, ev: EdgeView<G>, state: Rc<RefCell<ShuffleComputeState<CS>>>) -> Self {
+        Self { ss, ev, state }
+    }
+
+    pub fn dst(&self) -> EvalVertexView<G> {
+        self.ev.dst();
+        EvalVertexView::new(self.ss, self.ev.dst(), self.state.clone())
+    }
+
+    pub fn src(&self) -> EvalVertexView<G> {
+        self.ev.dst();
+        EvalVertexView::new(self.ss, self.ev.src(), self.state.clone())
+    }
+
+    pub fn history(&self) -> Vec<i64> {
+        self.ev.history()
     }
 }
 
