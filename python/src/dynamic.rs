@@ -223,18 +223,18 @@ impl GraphViewInternalOps for DynamicGraph {
         self.0.edge_ref_window(src, dst, t_start, t_end, layer)
     }
 
-    // fn edge_refs(&self, layer: Option<usize>) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
-    //     self.0.edge_refs(layer)
-    // }
+    fn edge_refs(&self, layer: Option<usize>) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
+        self.0.edge_refs(layer)
+    }
 
-    // fn edge_refs_window(
-    //     &self,
-    //     t_start: i64,
-    //     t_end: i64,
-    //     layer: Option<usize>,
-    // ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
-    //     self.0.edge_refs_window(t_start, t_end, layer)
-    // }
+    fn edge_refs_window(
+        &self,
+        t_start: i64,
+        t_end: i64,
+        layer: Option<usize>,
+    ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
+        self.0.edge_refs_window(t_start, t_end, layer)
+    }
 
     fn vertex_edges_t(
         &self,
