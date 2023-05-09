@@ -23,10 +23,6 @@ impl<CS: ComputeState> Shard<CS> {
         Rc::new(RefCell::new(Cow::Borrowed(&*self.0)))
     }
 
-    pub(crate) fn as_cow_arc(&self) -> Arc<RefCell<Cow<'_, ShuffleComputeState<CS>>>> {
-        Arc::new(RefCell::new(Cow::Borrowed(&*self.0)))
-    }
-
     pub(crate) fn from_state(state: ShuffleComputeState<CS>) -> Shard<CS> {
         Self(Arc::new(state))
     }
@@ -60,10 +56,6 @@ impl<CS: ComputeState> Global<CS> {
 
     pub(crate) fn as_cow_rc(&self) -> Rc<RefCell<Cow<'_, ShuffleComputeState<CS>>>> {
         Rc::new(RefCell::new(Cow::Borrowed(&*self.0)))
-    }
-
-    pub(crate) fn as_cow_arc(&self) -> Arc<RefCell<Cow<'_, ShuffleComputeState<CS>>>> {
-        Arc::new(RefCell::new(Cow::Borrowed(&*self.0)))
     }
 
     pub(crate) fn from_state(global_state: ShuffleComputeState<CS>) -> Global<CS> {

@@ -227,30 +227,6 @@ pub trait GraphViewInternalOps {
         layer: usize,
     ) -> Option<EdgeRef>;
 
-    // /// Returns all the edge references in the graph.
-    // ///
-    // /// # Returns
-    // ///
-    // /// * `Box<dyn Iterator<Item = EdgeRef> + Send>` - An iterator over all the edge references.
-    // fn edge_refs(&self, layer: Option<usize>) -> Box<dyn Iterator<Item = EdgeRef> + Send>;
-
-    // /// Returns all the edge references in the graph created between the start (t_start) and
-    // /// end (t_end) timestamps (inclusive).
-    // ///
-    // /// # Arguments
-    // ///
-    // /// * `t_start` - The start time of the window (inclusive).
-    // /// * `t_end` - The end time of the window (exclusive).
-    // /// # Returns
-    // ///
-    // /// * `Box<dyn Iterator<Item = EdgeRef> + Send>` - An iterator over all the edge references.
-    // fn edge_refs_window(
-    //     &self,
-    //     t_start: i64,
-    //     t_end: i64,
-    //     layer: Option<usize>,
-    // ) -> Box<dyn Iterator<Item = EdgeRef> + Send>;
-
     /// Returns an iterator over the edges connected to a given vertex in a given direction.
     ///
     /// # Arguments
@@ -371,45 +347,6 @@ pub trait GraphViewInternalOps {
         d: Direction,
         layer: Option<usize>,
     ) -> Box<dyn Iterator<Item = VertexRef> + Send>;
-
-    // ///  Returns the vertex ids of the neighbors of a given vertex in a given direction.
-    // /// # Arguments
-    // ///
-    // /// * `v` - A reference to the vertex for which the neighbors are being queried.
-    // /// * `d` - The direction in which to search for neighbors.
-    // ///
-    // /// # Returns
-    // ///
-    // /// A boxed iterator that yields the ids of the neighboring vertices.
-    // fn neighbours_ids(
-    //     &self,
-    //     v: VertexRef,
-    //     d: Direction,
-    //     layer: Option<usize>,
-    // ) -> Box<dyn Iterator<Item = u64> + Send>;
-
-    // /// Returns the vertex ids of the neighbors of a given vertex within a specified
-    // /// time window in a given direction.
-    // ///
-    // /// # Arguments
-    // ///
-    // /// * `v` - A reference to the vertex for which the neighbors are being queried.
-    // /// * `t_start` - The start time of the window (inclusive).
-    // /// * `t_end` - The end time of the window (exclusive).
-    // /// * `d` - The direction in which to search for neighbors.
-    // ///
-    // /// # Returns
-    // ///
-    // /// A boxed iterator that yields the ids of the neighboring vertices within the
-    // /// specified time window.
-    // fn neighbours_ids_window(
-    //     &self,
-    //     v: VertexRef,
-    //     t_start: i64,
-    //     t_end: i64,
-    //     d: Direction,
-    //     layer: Option<usize>,
-    // ) -> Box<dyn Iterator<Item = u64> + Send>;
 
     /// Gets a static property of a given vertex given the name and vertex reference.
     ///
