@@ -69,6 +69,10 @@ impl<G: GraphViewOps> GraphViewInternalOps for WindowedGraph<G> {
         self.graph.get_layer(key)
     }
 
+    fn get_layer_name_by_id(&self, layer_id: usize) -> String {
+        self.graph.get_layer_name_by_id(layer_id)
+    }
+
     fn view_start(&self) -> Option<i64> {
         Some(self.t_start)
     }

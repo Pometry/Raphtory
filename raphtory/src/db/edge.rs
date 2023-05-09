@@ -197,6 +197,15 @@ impl<G: GraphViewOps> EdgeView<G> {
     pub fn time(&self) -> Option<i64> {
         self.edge.time
     }
+
+    /// Gets the name of the layer this edge belongs to
+    pub fn layer_name(&self) -> String {
+        if self.edge.layer_id == 0 {
+            "default layer".to_string()
+        } else {
+            self.graph.get_layer_name_by_id(self.edge.layer_id)
+        }
+    }
 }
 
 impl<G: GraphViewOps> TimeOps for EdgeView<G> {

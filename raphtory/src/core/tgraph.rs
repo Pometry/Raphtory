@@ -971,7 +971,7 @@ impl From<&str> for VertexRef {
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct EdgeRef {
-    pub(in crate::core) layer_id: usize,
+    pub(crate) layer_id: usize,
     pub(in crate::core) edge_id: usize,
     pub src_g_id: u64,
     pub dst_g_id: u64,

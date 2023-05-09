@@ -9,6 +9,8 @@ use std::{ops::Range, sync::Arc};
 pub trait GraphViewInternalOps {
     fn get_unique_layers_internal(&self) -> Vec<String>;
 
+    fn get_layer_name_by_id(&self, layer_id: usize) -> String;
+
     /// Get the layer id for the given layer name
     fn get_layer(&self, key: Option<&str>) -> Option<usize>;
 
