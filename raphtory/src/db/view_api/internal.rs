@@ -7,6 +7,8 @@ use std::{ops::Range, sync::Arc};
 /// The GraphViewInternalOps trait provides a set of methods to query a directed graph
 /// represented by the raphtory_core::tgraph::TGraph struct.
 pub trait GraphViewInternalOps {
+    fn get_unique_layers_internal(&self) -> Vec<String>;
+
     /// Get the layer id for the given layer name
     fn get_layer(&self, key: Option<&str>) -> Option<usize>;
 
@@ -123,6 +125,10 @@ pub trait GraphViewInternalOps {
     /// * `v` - The vertex ID to lookup.
     fn vertex_ref(&self, v: u64) -> Option<VertexRef>;
 
+    /// Returns the VertexRef that corresponds to the specified phisical id
+    /// (pid) and shard.
+    fn lookup_by_pid_and_shard(&self, pid: usize, shard: usize) -> Option<VertexRef>;
+
     /// Returns the VertexRef that corresponds to the specified vertex ID (v) created
     /// between the start (t_start) and end (t_end) timestamps (inclusive).
     /// Returns None if the vertex ID is not present in the graph.
@@ -147,22 +153,6 @@ pub trait GraphViewInternalOps {
 
     /// Return the latest time for a vertex in a window
     fn vertex_latest_time_window(&self, v: VertexRef, t_start: i64, t_end: i64) -> Option<i64>;
-
-    /// Retuns all the vertex IDs in the graph.
-    /// # Returns
-    /// * `Box<dyn Iterator<Item = u64> + Send>` - An iterator over all the vertex IDs in the graph.
-    fn vertex_ids(&self) -> Box<dyn Iterator<Item = u64> + Send>;
-
-    /// Returns all the vertex IDs in the graph created between the start (t_start) and
-    /// end (t_end) timestamps
-    /// # Arguments
-    ///
-    /// * `t_start` - The start time of the window (inclusive).
-    /// * `t_end` - The end time of the window (exclusive).
-    ///
-    /// # Returns
-    /// * `Box<dyn Iterator<Item = u64> + Send>` - An iterator over all the vertex IDs in the graph.
-    fn vertex_ids_window(&self, t_start: i64, t_end: i64) -> Box<dyn Iterator<Item = u64> + Send>;
 
     /// Returns all the vertex references in the graph.
     /// # Returns
@@ -267,23 +257,17 @@ pub trait GraphViewInternalOps {
     ///
     /// * `v` - A reference to the vertex for which the edges are being queried.
     /// * `d` - The direction in which to search for edges.
+    /// * `layer` - The optional layer to consider
     ///
     /// # Returns
     ///
     /// Box<dyn Iterator<Item = EdgeRef> + Send> -  A boxed iterator that yields references to
     /// the edges connected to the vertex.
-
-    fn vertex_edges_all_layers(
+    fn vertex_edges(
         &self,
         v: VertexRef,
         d: Direction,
-    ) -> Box<dyn Iterator<Item = EdgeRef> + Send>;
-
-    fn vertex_edges_single_layer(
-        &self,
-        v: VertexRef,
-        d: Direction,
-        layer: usize,
+        layer: Option<usize>,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send>;
 
     /// Returns an iterator over the exploded edges connected to a given vertex in a given direction.

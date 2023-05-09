@@ -7,7 +7,7 @@
 use crate::dynamic::{DynamicGraph, IntoDynamic};
 use crate::types::repr::{iterator_repr, Repr};
 use crate::utils::*;
-use crate::vertex::PyVertex;
+use crate::vertex::{PyVertex, PyVertexIterable, PyVertices};
 use crate::wrappers::prop::Prop;
 use itertools::Itertools;
 use pyo3::{pyclass, pymethods, PyAny, PyRef, PyRefMut, PyResult};
@@ -15,6 +15,7 @@ use raphtory::db::edge::EdgeView;
 use raphtory::db::graph_window::WindowedGraph;
 use raphtory::db::view_api::time::WindowSet;
 use raphtory::db::view_api::*;
+use raphtory::default_layer_doc_string;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -25,17 +26,11 @@ pub struct PyEdge {
     pub(crate) edge: EdgeView<DynamicGraph>,
 }
 
-impl From<EdgeView<DynamicGraph>> for PyEdge {
-    fn from(value: EdgeView<DynamicGraph>) -> Self {
-        Self { edge: value }
-    }
-}
-
-impl From<EdgeView<WindowedGraph<DynamicGraph>>> for PyEdge {
-    fn from(value: EdgeView<WindowedGraph<DynamicGraph>>) -> Self {
+impl<G: GraphViewOps + IntoDynamic> From<EdgeView<G>> for PyEdge {
+    fn from(value: EdgeView<G>) -> Self {
         Self {
             edge: EdgeView {
-                graph: value.graph.into_dynamic(),
+                graph: Arc::new(value.graph.into_dynamic_arc()),
                 edge: value.edge,
             },
         }
@@ -166,14 +161,6 @@ impl PyEdge {
         self.edge.static_property(name).map(|prop| prop.into())
     }
 
-    /// Get the id of the Edge.
-    ///
-    /// Returns:
-    ///   The id of the Edge.
-    pub fn id(&self) -> usize {
-        self.edge.id()
-    }
-
     /// Get the source vertex of the Edge.
     ///
     /// Returns:
@@ -245,8 +232,8 @@ impl PyEdge {
     /// Returns:
     ///   A new Edge with the properties of this Edge within the specified time window.
     #[pyo3(signature = (t_start = None, t_end = None))]
-    pub fn window(&self, t_start: Option<i64>, t_end: Option<i64>) -> PyEdge {
-        window_impl(&self.edge, t_start, t_end).into()
+    pub fn window(&self, t_start: Option<&PyAny>, t_end: Option<&PyAny>) -> PyResult<PyEdge> {
+        window_impl(&self.edge, t_start, t_end).map(|e| e.into())
     }
 
     /// Get a new Edge with the properties of this Edge at a specified time.
@@ -257,8 +244,8 @@ impl PyEdge {
     /// Returns:
     ///   A new Edge with the properties of this Edge at a specified time.
     #[pyo3(signature = (end))]
-    pub fn at(&self, end: i64) -> PyEdge {
-        self.edge.at(end).into()
+    pub fn at(&self, end: &PyAny) -> PyResult<PyEdge> {
+        at_impl(&self.edge, end).map(|e| e.into())
     }
 
     /// Explodes an Edge into a list of PyEdges. This is useful when you want to iterate over
@@ -368,7 +355,17 @@ impl PyEdges {
     }
 
     fn __len__(&self) -> usize {
-        self.py_iter().count()
+        self.iter().count()
+    }
+
+    fn src(&self) -> PyVertexIterable {
+        let builder = self.builder.clone();
+        (move || builder().src()).into()
+    }
+
+    fn dst(&self) -> PyVertexIterable {
+        let builder = self.builder.clone();
+        (move || builder().dst()).into()
     }
 
     /// Returns all edges as a list
@@ -436,6 +433,7 @@ py_iterator!(
 );
 
 #[pyclass(name = "EdgeWindowSet")]
+#[derive(Clone)]
 pub struct PyEdgeWindowSet {
     window_set: WindowSet<EdgeView<DynamicGraph>>,
 }
@@ -448,12 +446,30 @@ impl From<WindowSet<EdgeView<DynamicGraph>>> for PyEdgeWindowSet {
 
 #[pymethods]
 impl PyEdgeWindowSet {
+    fn __iter__(&self) -> PyEdgeWindowIterator {
+        self.window_set.clone().into()
+    }
+}
+
+#[pyclass(name = "EdgeWindowIterator")]
+#[derive(Clone)]
+pub struct PyEdgeWindowIterator {
+    window_set: WindowSet<EdgeView<DynamicGraph>>,
+}
+
+impl From<WindowSet<EdgeView<DynamicGraph>>> for PyEdgeWindowIterator {
+    fn from(value: WindowSet<EdgeView<DynamicGraph>>) -> Self {
+        Self { window_set: value }
+    }
+}
+
+#[pymethods]
+impl PyEdgeWindowIterator {
     fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
         slf
     }
-
-    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<PyEdge> {
-        slf.window_set.next().map(|g| g.into())
+    fn __next__(&mut self) -> Option<PyEdge> {
+        self.window_set.next().map(|g| g.into())
     }
 }
 

@@ -30,6 +30,7 @@ pub mod clustering_coefficient;
 pub mod connected_components;
 pub mod degree;
 pub mod directed_graph_density;
+pub mod generic_taint;
 pub mod hits;
 pub mod local_clustering_coefficient;
 pub mod local_triangle_count;
@@ -40,6 +41,15 @@ pub mod triplet_count;
 
 use num_traits::{abs, Bounded, Zero};
 use std::ops::{Add, AddAssign, Div, Mul, Range, Sub};
+
+use crate::core::agg::Init;
+
+struct InitOneF32();
+impl Init<f32> for InitOneF32 {
+    fn init() -> f32 {
+        1.0f32
+    }
+}
 
 #[derive(PartialEq, PartialOrd, Copy, Clone, Debug)]
 struct MulF32(f32);
@@ -170,5 +180,30 @@ impl Bounded for SumF32 {
 
     fn max_value() -> Self {
         SumF32(f32::MAX)
+    }
+}
+
+#[derive(PartialEq, PartialOrd, Copy, Clone, Debug)]
+struct Bool(bool);
+
+impl Zero for Bool {
+    fn zero() -> Self {
+        Bool(false)
+    }
+
+    fn set_zero(&mut self) {
+        *self = Zero::zero();
+    }
+
+    fn is_zero(&self) -> bool {
+        *self == Bool(false)
+    }
+}
+
+impl Add for Bool {
+    type Output = Bool;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        rhs
     }
 }

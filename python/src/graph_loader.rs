@@ -77,6 +77,15 @@ pub(crate) fn reddit_hyperlink_graph(shards: usize, timeout_seconds: u64) -> PyR
         ),
     )
 }
+
+#[pyfunction]
+#[pyo3(signature = (path=None,shards=1))]
+pub(crate) fn stable_coin_graph(path: Option<String>, shards: usize) -> PyResult<Py<PyGraph>> {
+    PyGraph::py_from_db_graph(
+        raphtory::graph_loader::example::stable_coins::stable_coin_graph(path, shards),
+    )
+}
+
 #[pyfunction]
 #[pyo3(signature = (uri,username,password,database="neo4j".to_string(),shards=1))]
 pub(crate) fn neo4j_movie_graph(

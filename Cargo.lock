@@ -495,7 +495,7 @@ dependencies = [
 
 [[package]]
 name = "examples"
-version = "0.0.11"
+version = "0.2.0"
 dependencies = [
  "chrono",
  "itertools",
@@ -1499,7 +1499,7 @@ dependencies = [
 
 [[package]]
 name = "pyraphtory"
-version = "0.0.11"
+version = "0.2.0"
 dependencies = [
  "bincode",
  "chrono",
@@ -1517,6 +1517,7 @@ dependencies = [
  "rayon",
  "regex",
  "replace_with",
+ "rustc-hash",
  "serde",
  "tokio",
 ]
@@ -1675,7 +1676,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory"
-version = "0.0.11"
+version = "0.2.0"
 dependencies = [
  "bincode",
  "bzip2",
@@ -1689,6 +1690,7 @@ dependencies = [
  "itertools",
  "neo4rs",
  "num-traits",
+ "once_cell",
  "openssl",
  "parking_lot",
  "pretty_assertions",

@@ -63,6 +63,7 @@ pub trait TimeOps {
     }
 }
 
+#[derive(Clone)]
 pub struct WindowSet<T: TimeOps> {
     view: T,
     cursor: i64,
