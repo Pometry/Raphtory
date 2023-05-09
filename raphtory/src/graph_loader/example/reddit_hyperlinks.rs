@@ -33,7 +33,7 @@
 //! use raphtory::db::graph::Graph;
 //! use raphtory::db::view_api::*;
 //!
-//! let graph = reddit_graph(1, 120);
+//! let graph = reddit_graph(1, 120, false);
 //!
 //! println!("The graph has {:?} vertices", graph.num_vertices());
 //! println!("The graph has {:?} edges", graph.num_edges());
@@ -53,12 +53,22 @@ use std::path::PathBuf;
 /// * `timeout` - The timeout in seconds for downloading the dataset
 /// # Returns
 /// * `PathBuf` - The path to the file
-pub fn reddit_file(timeout: u64) -> Result<PathBuf, Box<dyn std::error::Error>> {
-    fetch_file(
-        "reddit-title.tsv",
-        "http://snap.stanford.edu/data/soc-redditHyperlinks-title.tsv",
-        timeout,
-    )
+pub fn reddit_file(
+    timeout: u64,
+    test_file: Option<bool>,
+) -> Result<PathBuf, Box<dyn std::error::Error>> {
+    match test_file {
+        Some(true) => fetch_file(
+            "reddit-title-test.tsv",
+            "https://raw.githubusercontent.com/Raphtory/Data/main/reddit-title-test.tsv",
+            timeout,
+        ),
+        _ => fetch_file(
+            "reddit-title.tsv",
+            "http://snap.stanford.edu/data/soc-redditHyperlinks-title.tsv",
+            timeout,
+        ),
+    }
 }
 
 /// Read the file line by line
@@ -80,11 +90,11 @@ where
 /// # Returns
 ///
 /// * `Graph` - The graph containing the Reddit hyperlinks dataset
-pub fn reddit_graph(shards: usize, timeout: u64) -> Graph {
+pub fn reddit_graph(shards: usize, timeout: u64, test_file: bool) -> Graph {
     let graph = {
         let g = Graph::new(shards);
 
-        if let Ok(path) = reddit_file(timeout) {
+        if let Ok(path) = reddit_file(timeout, Some(test_file)) {
             if let Ok(lines) = read_lines(path.as_path()) {
                 // Consumes the iterator, returns an (Optional) String
                 for reddit in lines.dropping(1).flatten() {
@@ -142,16 +152,22 @@ pub fn reddit_graph(shards: usize, timeout: u64) -> Graph {
     };
     graph
 }
-// #[cfg(test)]
-// mod reddit_test {
-//     use crate::graph_loader::reddit_hyperlinks::reddit_graph;
-//     use crate::db::view_api::GraphViewOps;
-//
-//     #[test]
-//     fn check_data() {
-//         if let Ok(g) = reddit_graph(1, 600) {
-//             println!("{} {}",g.num_vertices(),g.num_edges());
-//         };
-//     }
-// }
-//
+
+#[cfg(test)]
+mod reddit_test {
+    use crate::db::view_api::GraphViewOps;
+    use crate::graph_loader::example::reddit_hyperlinks::{reddit_file, reddit_graph};
+
+    #[test]
+    fn check_data() {
+        let file = reddit_file(100, Some(true));
+        assert!(file.is_ok());
+    }
+
+    #[test]
+    fn check_graph() {
+        let graph = reddit_graph(1, 100, true);
+        assert_eq!(graph.num_vertices(), 16);
+        assert_eq!(graph.num_edges(), 9);
+    }
+}

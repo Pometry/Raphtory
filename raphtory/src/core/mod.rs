@@ -36,7 +36,6 @@ mod bitset;
 mod edge_layer;
 mod lazy_vec;
 pub mod lsm;
-mod misc;
 mod props;
 mod sorted_vec_map;
 pub mod state;
