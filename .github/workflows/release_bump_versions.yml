@@ -1,18 +1,20 @@
-name: Publish Rust/raphtory to Github, crates.io
+name: Release 1 - Bumps all packages + PR
 on:
-  workflow_call:
+  workflow_dispatch:
     inputs:
       base:
+        description: 'Name of branch to open PR against'
         type: 'string'
         default: 'master'
       version:
-        type: 'string'
+        description: 'Select level for version increment'
+        type: choice
         required: true
         default: patch
-      dry_run:
-        type: boolean
-        default: true
-        required: true
+        options:
+          - major
+          - minor
+          - patch
 
 jobs:
   bump-packages:

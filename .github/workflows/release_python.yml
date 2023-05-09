@@ -1,14 +1,18 @@
-name: Release python to pypi
+name: Release 3 - Publish python to pypi
 on:
-  workflow_call:
+  workflow_dispatch:
     inputs:
       base:
+        description: 'Name of branch to open PR against'
         type: 'string'
         default: 'master'
       dry_run:
+        description: 'DRY RUN: If true will not publish the release and will not push anything to PyPi/crates.io. 
+        However it will still make a PR and a branch to show you what it changed'
         type: boolean
         default: true
         required: true
+
 
 python-linux:
   runs-on: ubuntu-latest
