@@ -1,7 +1,7 @@
 use chrono::{DateTime, Duration, NaiveDateTime};
 use itertools::{Either, Itertools};
 use regex::Regex;
-
+use chrono::NaiveDate;
 use crate::core::time::error::*;
 use std::ops::{Add, Sub};
 
@@ -49,6 +49,11 @@ impl IntoTime for &str {
         let result = DateTime::parse_from_rfc2822(self);
         if let Ok(datetime) = result {
             return Ok(datetime.timestamp_millis());
+        }
+
+        let result = NaiveDate::parse_from_str(self, "%Y-%m-%d");
+        if let Ok(date) = result {
+            return Ok(date.and_hms_opt(00, 00, 00).unwrap().timestamp_millis());
         }
 
         let result = NaiveDateTime::parse_from_str(self, "%Y-%m-%dT%H:%M:%S%.3f");

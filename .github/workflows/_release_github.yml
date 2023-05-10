@@ -1,10 +1,16 @@
-name: Release 4 - Publish to Github
+name: _Release 4 - Publish to Github
 on:
-  workflow_dispatch:
+  workflow_call:
     inputs:
       base:
         type: 'string'
         default: 'master'
+
+permissions:
+  contents: write
+  pull-requests: write
+  deployments: write
+  packages: write
 
 jobs:
   publish-github:

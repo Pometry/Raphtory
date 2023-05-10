@@ -1,6 +1,6 @@
-name: Release 2 - Publish Rust package to crates.io
+name: _Release 2 - Publish Rust package to crates.io
 on:
-  workflow_dispatch:
+  workflow_call:
     inputs:
       base:
         description: 'Name of branch to open PR against'
@@ -10,15 +10,13 @@ on:
         description: 'DRY RUN: If true will not publish the release and will not push anything to PyPi/crates.io. 
         However it will still make a PR and a branch to show you what it changed'
         type: boolean
-        default: true
-        required: true
+        default: false
+        required: false
 
 jobs:
   release-rust:
     name: Release Rust package to crates.io
     runs-on: '${{ matrix.os }}'
-    outputs:
-      crate_version: ${{ steps.set_version.outputs.crate_version }}
     strategy:
       matrix:
         include:

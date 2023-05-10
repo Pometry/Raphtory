@@ -1,6 +1,6 @@
-name: Release 3 - Publish python to pypi
+name: _Release 3 - Publish python to pypi
 on:
-  workflow_dispatch:
+  workflow_call:
     inputs:
       base:
         description: 'Name of branch to open PR against'
@@ -10,8 +10,8 @@ on:
         description: 'DRY RUN: If true will not publish the release and will not push anything to PyPi/crates.io. 
         However it will still make a PR and a branch to show you what it changed'
         type: boolean
-        default: true
-        required: true
+        default: false
+        required: false
 
 jobs:
   python-linux:
@@ -39,7 +39,7 @@ jobs:
           restore-keys: ${{ runner.os }}-cargo-
       - uses: actions/checkout@v3
         with:
-          ref: ${{ needs.release-rust.outputs.crate_version }}
+          ref: ${{ inputs.base }}
       - uses: actions/setup-python@v4
         with:
           python-version: '3.10'
@@ -96,7 +96,6 @@ jobs:
           name: pyartifacts
           path: ./python/dist
   python-windows:
-    needs: release-rust
     runs-on: windows-latest
     strategy:
       matrix:
@@ -110,7 +109,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions/checkout@v3
         with:
-          ref: ${{ needs.release-rust.outputs.crate_version }}
+          ref: ${{ inputs.base }}
       - uses: actions/setup-python@v4
         with:
           python-version: '3.10'
@@ -128,7 +127,6 @@ jobs:
           name: pyartifacts
           path: ./python/dist
   python-macos:
-    needs: release-rust
     runs-on: macos-latest
     strategy:
       matrix:
@@ -153,7 +151,7 @@ jobs:
           restore-keys: ${{ runner.os }}-cargo-
       - uses: actions/checkout@v3
         with:
-          ref: ${{ needs.release-rust.outputs.crate_version }}
+          ref: ${{ inputs.base }}
       - uses: actions/setup-python@v4
         with:
           python-version: '3.10'

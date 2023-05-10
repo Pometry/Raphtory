@@ -1,0 +1,18 @@
+name: (Manual) Release Python
+on:
+  workflow_dispatch:
+    inputs:
+      base:
+        description: 'Name of branch to open PR against'
+        type: 'string'
+        default: 'master'
+      dry_run:
+        description: 'DRY RUN: If true will not publish the release to pypi/crates but will release to github'
+        type: boolean
+        default: false
+
+jobs:
+  call-release-python-workflow:
+    name: _Release 3 - Publish python to pypi
+    uses: ./.github/workflows/_release_python.yml
+    secrets: inherit

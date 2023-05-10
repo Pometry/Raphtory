@@ -67,6 +67,15 @@ impl GraphViewInternalOps for Graph {
             .collect_vec()
     }
 
+    fn get_layer_name_by_id(&self, layer_id: usize) -> String {
+        let layer_ids = self.layer_ids.read();
+        layer_ids
+            .iter()
+            .find_map(|(name, &id)| (layer_id == id).then_some(name))
+            .expect(&format!("layer id '{layer_id}' doesn't exist"))
+            .to_string()
+    }
+
     fn get_layer(&self, key: Option<&str>) -> Option<usize> {
         match key {
             None => Some(0),
@@ -1926,4 +1935,14 @@ mod db_tests {
     //
     //     assert_eq!(g.vertex_refs_shard(0).collect::<Vec<_>>(), vec![1, 2]);
     // }
+
+    #[test]
+    fn test_edge_layer_name() {
+        let g = Graph::new(4);
+        g.add_edge(0, 0, 1, &vec![], None);
+        g.add_edge(0, 0, 1, &vec![], Some("awesome name"));
+
+        let layer_names = g.edges().map(|e| e.layer_name()).sorted().collect_vec();
+        assert_eq!(layer_names, vec!["awesome name", "default layer"]);
+    }
 }

@@ -1,4 +1,4 @@
-name: Release 1 - Bumps all packages + PR
+name: (Manual Release) - Bumps all packages + PR
 on:
   workflow_dispatch:
     inputs:
@@ -16,12 +16,14 @@ on:
           - minor
           - patch
 
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
   bump-packages:
     name: Build & Bump packages
     runs-on: '${{ matrix.os }}'
-    outputs:
-      crate_version: ${{ steps.set_version.outputs.crate_version }}
     strategy:
       matrix:
         include:
@@ -68,14 +70,11 @@ jobs:
       - name: "Fetch version of crate package and save to env"
         id: set_version
         run: |
-          echo "CRATE_VERSION=$(cargo pkgid -p raphtory | cut -d# -f2 | cut -d@ -f2)" >> $GITHUB_ENV
-          echo "crate_version=$(cargo pkgid -p raphtory | cut -d# -f2 | cut -d@ -f2)" >> $GITHUB_OUTPUT
-          echo $crate_version
-            - name: "Push version changes & Make PR"
+          echo CRATE_VERSION=$(cat Cargo.toml | grep version | head -n1 | cut -d '"' -f2) >> $GITHUB_ENV
+          echo "Crate version is $CRATE_VERSION"
       - name: "Make a PR to bump version"
-        uses: peter-evans/create-pull-request@v4
+        uses: peter-evans/create-pull-request@v5
         with:
-          token: ${{ secrets.GH_TOKEN }}
           base: ${{ inputs.base }}
           author: ${{ github.actor }} <${{ github.actor }}@users.noreply.github.com>
           branch: ${{ env.CRATE_VERSION }}

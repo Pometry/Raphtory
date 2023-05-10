@@ -939,3 +939,12 @@ def test_rolling_as_iterable():
 
     assert n_vertices == [1, 0, 0, 1]
     assert time_index == [1, 2, 3, 4]
+
+def test_layer_name():
+    g = Graph(4)
+
+    g.add_edge(0, 0, 1)
+    g.add_edge(0, 0, 2, layer="awesome layer")
+
+    assert g.edge(0, 1).layer_name() == "default layer"
+    assert g.edge(0, 2, "awesome layer").layer_name() == "awesome layer"
