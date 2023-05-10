@@ -10,8 +10,8 @@ on:
         description: 'DRY RUN: If true will not publish the release and will not push anything to PyPi/crates.io. 
         However it will still make a PR and a branch to show you what it changed'
         type: boolean
-        default: true
-        required: true
+        default: false
+        required: false
 
 jobs:
   release-rust:
