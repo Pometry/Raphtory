@@ -1,4 +1,4 @@
-name: Release 2 - Publish Rust package to crates.io
+name: (Manual) Release 2 - Publish Rust package to crates.io
 on:
   workflow_dispatch:
     inputs:
