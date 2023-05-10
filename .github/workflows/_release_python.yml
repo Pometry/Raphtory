@@ -1,6 +1,6 @@
-name: (Manual) Release 3 - Publish python to pypi
+name: _Release 3 - Publish python to pypi
 on:
-  workflow_dispatch:
+  workflow_call:
     inputs:
       base:
         description: 'Name of branch to open PR against'

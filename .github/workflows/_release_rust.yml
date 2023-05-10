@@ -1,6 +1,6 @@
-name: (Manual) Release 2 - Publish Rust package to crates.io
+name: _Release 2 - Publish Rust package to crates.io
 on:
-  workflow_dispatch:
+  workflow_call:
     inputs:
       base:
         description: 'Name of branch to open PR against'
