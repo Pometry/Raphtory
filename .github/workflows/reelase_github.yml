@@ -1,4 +1,4 @@
-name: Release 4 - Publish to Github
+name: (Manual) Release 4 - Publish to Github
 on:
   workflow_dispatch:
     inputs:

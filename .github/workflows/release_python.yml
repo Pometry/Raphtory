@@ -1,4 +1,4 @@
-name: Release 3 - Publish python to pypi
+name: (Manual) Release 3 - Publish python to pypi
 on:
   workflow_dispatch:
     inputs:
