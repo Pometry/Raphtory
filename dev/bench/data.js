@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1683723931130,
+  "lastUpdate": 1683731647242,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -607,6 +607,42 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions",
             "value": 816359,
             "range": "± 155186",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "2404621+fabianmurariu@users.noreply.github.com",
+            "name": "Fabian Murariu",
+            "username": "fabianmurariu"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d1bbeee16ff36c83e3c47e9449df662128637b21",
+          "message": "Dev 1654 pagerank (#869)\n\n* add dangling test\r\n\r\n* simplify page_rank and set initial value to 1\r\n\r\n* added initial support for dangling\r\n\r\n* remove println\r\n\r\n* a few more changes to match PageRank on old Raphtory\r\n\r\n* pagerank has the expected results",
+          "timestamp": "2023-05-10T16:06:34+01:00",
+          "tree_id": "5fff933b2efb54cb5347936cf9ba2c3e8bcabe9a",
+          "url": "https://github.com/Pometry/Raphtory/commit/d1bbeee16ff36c83e3c47e9449df662128637b21"
+        },
+        "date": 1683731646633,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 312277,
+            "range": "± 994",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 574641,
+            "range": "± 82931",
             "unit": "ns/iter"
           }
         ]
