@@ -536,6 +536,11 @@ impl PyVertices {
         self.vertices.end()
     }
 
+    #[doc = window_size_doc_string!()]
+    pub fn window_size(&self) -> Option<u64> {
+        self.vertices.window_size()
+    }
+
     fn expanding(&self, step: &PyAny) -> PyResult<PyVerticesWindowSet> {
         expanding_impl(&self.vertices, step)
     }
@@ -731,6 +736,11 @@ impl PyPathFromGraph {
 
     pub fn end(&self) -> Option<i64> {
         self.path.end()
+    }
+
+    #[doc = window_size_doc_string!()]
+    pub fn window_size(&self) -> Option<u64> {
+        self.path.window_size()
     }
 
     fn expanding(&self, step: &PyAny) -> PyResult<PyPathFromGraphWindowSet> {
@@ -930,6 +940,11 @@ impl PyPathFromVertex {
 
     pub fn end(&self) -> Option<i64> {
         self.path.end()
+    }
+
+    #[doc = window_size_doc_string!()]
+    pub fn window_size(&self) -> Option<u64> {
+        self.path.window_size()
     }
 
     fn expanding(&self, step: &PyAny) -> PyResult<PyPathFromVertexWindowSet> {

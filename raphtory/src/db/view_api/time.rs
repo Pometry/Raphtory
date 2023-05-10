@@ -11,6 +11,14 @@ pub trait TimeOps {
     /// Return the timestamp of the default for perspectives of the view (if any).
     fn end(&self) -> Option<i64>;
 
+    /// Return the size of the window covered by this view
+    fn window_size(&self) -> Option<u64> {
+        match (self.start(), self.end()) {
+            (Some(start), Some(end)) => Some((end - start) as u64),
+            _ => None,
+        }
+    }
+
     /// Create a view including all events between `t_start` (inclusive) and `t_end` (exclusive)
     fn window(&self, t_start: i64, t_end: i64) -> Self::WindowedViewType;
 

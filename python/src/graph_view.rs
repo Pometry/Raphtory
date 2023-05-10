@@ -204,6 +204,11 @@ impl PyGraphView {
         self.graph.end()
     }
 
+    #[doc = window_size_doc_string!()]
+    pub fn window_size(&self) -> Option<u64> {
+        self.graph.window_size()
+    }
+
     /// Creates a `WindowSet` with the given `step` size and optional `start` and `end` times,    
     /// using an expanding window.
     ///
