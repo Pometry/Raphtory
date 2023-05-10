@@ -38,13 +38,13 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
     ctx.global_agg_reset(max_diff);
     ctx.global_agg_reset(dangling);
 
-    let step1 = ATask::new(move |s| {
-        if s.out_degree() == 0{
-            s.global_update(&dangling, 1.0f32 / total_vertices as f32);
-        }
+    // let step1 = ATask::new(move |s| {
+    //     if s.out_degree() == 0{
+    //         s.global_update(&dangling, 1.0f32 / total_vertices as f32);
+    //     }
 
-        Step::Continue
-    });
+    //     Step::Continue
+    // });
 
     let step2 = ATask::new(move |s| {
         let out_degree = s.out_degree();
@@ -86,7 +86,7 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
 
     let (_, _, local_states) = runner.run(
-        vec![Job::new(step1)],
+        vec![],
         vec![Job::new(step2), Job::new(step3), step4],
         threads,
         iter_count,
@@ -271,7 +271,7 @@ mod page_rank_tests {
         }
 
         let results: FxHashMap<String, f32> =
-            unweighted_page_rank(&graph, 1000, Some(4), Some(0.00001))
+            unweighted_page_rank(&graph, 1000, Some(4), Some(0.0000001))
                 .into_iter()
                 .collect();
 
