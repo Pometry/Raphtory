@@ -30,6 +30,6 @@ macro_rules! window_size_doc_string {
 Returns the size of the window covered by this view
 
 Returns:
-   the size of the window"
+    int: the size of the window"
     };
 }
