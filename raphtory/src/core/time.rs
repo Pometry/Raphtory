@@ -228,9 +228,13 @@ impl Sub<Interval> for i64 {
         match rhs.size {
             IntervalSize::Discrete(number) => self - (number as i64),
             IntervalSize::Temporal { millis, months } => {
-                let datetime = NaiveDateTime::from_timestamp_millis(self - millis as i64).expect(
-                    &format!("{self} cannot be interpreted as a milliseconds timestamp"),
-                );
+                // first we subtract the number of milliseconds and then the number of months for
+                // consistency with the implementation of Add (we revert back the steps) so we
+                // guarantee that:  time + interval - interval = time
+                let datetime = NaiveDateTime::from_timestamp_millis(self - millis as i64)
+                    .unwrap_or_else(|| {
+                        panic!("{self} cannot be interpreted as a milliseconds timestamp")
+                    });
                 (datetime - Months::new(months)).timestamp_millis()
             }
         }
@@ -243,6 +247,9 @@ impl Add<Interval> for i64 {
         match rhs.size {
             IntervalSize::Discrete(number) => self + (number as i64),
             IntervalSize::Temporal { millis, months } => {
+                // first we add the number of months and then the number of milliseconds for
+                // consistency with the implementation of Sub (we revert back the steps) so we
+                // guarantee that:  time + interval - interval = time
                 let datetime = NaiveDateTime::from_timestamp_millis(self).unwrap_or_else(|| {
                     panic!("{self} cannot be interpreted as a milliseconds timestamp")
                 });
