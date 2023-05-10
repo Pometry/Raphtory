@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1683712169960,
+  "lastUpdate": 1683713636470,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -499,6 +499,42 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions",
             "value": 1077480,
             "range": "± 210700",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "Haaroon@users.noreply.github.com",
+            "name": "Haaroon Y",
+            "username": "Haaroon"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "da597d5ae1f2eb099de777f95a963622c6f41a21",
+          "message": "Featurebug/pipeline revamp3 (#873)\n\n* rename to manual\r\n\r\n* undo manual",
+          "timestamp": "2023-05-10T11:08:02+01:00",
+          "tree_id": "be9443aa5352d68108917cf1ce43303756bf6a9a",
+          "url": "https://github.com/Pometry/Raphtory/commit/da597d5ae1f2eb099de777f95a963622c6f41a21"
+        },
+        "date": 1683713635088,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 377781,
+            "range": "± 6537",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 825170,
+            "range": "± 114578",
             "unit": "ns/iter"
           }
         ]
