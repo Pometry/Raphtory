@@ -1,8 +1,7 @@
 use crate::core::tgraph::{EdgeRef, VertexRef};
 use crate::core::{Direction, Prop};
-use rayon::prelude::*;
 use std::collections::HashMap;
-use std::{ops::Range, sync::Arc};
+use std::ops::Range;
 
 /// The GraphViewInternalOps trait provides a set of methods to query a directed graph
 /// represented by the raphtory_core::tgraph::TGraph struct.
