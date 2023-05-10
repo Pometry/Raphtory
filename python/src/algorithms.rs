@@ -19,6 +19,7 @@ use raphtory::algorithms::directed_graph_density::directed_graph_density as dire
 use raphtory::algorithms::generic_taint::generic_taint as generic_taint_rs;
 use raphtory::algorithms::local_clustering_coefficient::local_clustering_coefficient as local_clustering_coefficient_rs;
 use raphtory::algorithms::local_triangle_count::local_triangle_count as local_triangle_count_rs;
+use raphtory::algorithms::three_node_local::all_motifs_count as all_motifs_rs;
 use raphtory::algorithms::pagerank::unweighted_page_rank;
 use raphtory::algorithms::connected_components;
 use raphtory::algorithms::reciprocity::{
@@ -218,4 +219,9 @@ pub(crate) fn triplet_count(g: &PyGraphView) -> usize {
 #[pyfunction]
 pub(crate) fn global_clustering_coefficient(g: &PyGraphView) -> f64 {
     raphtory::algorithms::clustering_coefficient::clustering_coefficient(&g.graph)
+}
+
+#[pyfunction]
+pub(crate) fn all_motifs_count(g: &PyGraphView, delta:i64) -> HashMap<u64,Vec<usize>> {
+    all_motifs_rs(&g.graph,delta)
 }
