@@ -1,6 +1,6 @@
-name: (Manual) Release 4 - Publish to Github
+name: _Release 4 - Publish to Github
 on:
-  workflow_dispatch:
+  workflow_call:
     inputs:
       base:
         type: 'string'
