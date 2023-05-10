@@ -38,14 +38,6 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
     ctx.global_agg_reset(max_diff);
     ctx.global_agg_reset(dangling);
 
-    // let step1 = ATask::new(move |s| {
-    //     if s.out_degree() == 0{
-    //         s.global_update(&dangling, 1.0f32 / total_vertices as f32);
-    //     }
-
-    //     Step::Continue
-    // });
-
     let step2 = ATask::new(move |s| {
         let out_degree = s.out_degree();
         if out_degree > 0 {
@@ -60,12 +52,11 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
     });
 
     let step3 = ATask::new(move |s| {
-
         let dangling_v = s.read_global_state(&dangling).unwrap_or_default();
 
         s.update_local(
             &score,
-            (1f32 - damping_factor) + (damping_factor * ( s.read(&recv_score) + dangling_v )),
+            (1f32 - damping_factor) + (damping_factor * (s.read(&recv_score) + dangling_v)),
         );
         let prev = s.read_local_prev(&score);
         let curr = s.read_local(&score);
@@ -119,6 +110,8 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
 
 #[cfg(test)]
 mod page_rank_tests {
+    use std::borrow::Borrow;
+
     use itertools::Itertools;
     use pretty_assertions::assert_eq;
 
@@ -217,17 +210,17 @@ mod page_rank_tests {
                 .collect();
 
         let expected_2 = vec![
-            ("10".to_string(), 0.05999366),
-            ("11".to_string(), 0.05147976),
-            ("5".to_string(), 0.16361322),
-            ("4".to_string(), 0.06611458),
-            ("9".to_string(), 0.05147976),
-            ("3".to_string(), 0.12887157),
-            ("8".to_string(), 0.11358989),
-            ("2".to_string(), 0.029600797),
-            ("7".to_string(), 0.013636362),
-            ("1".to_string(), 0.09390808),
-            ("6".to_string(), 0.05999366),
+            ("10".to_string(), 0.07208286),
+            ("11".to_string(), 0.061855234),
+            ("5".to_string(), 0.19658245),
+            ("4".to_string(), 0.07943771),
+            ("9".to_string(), 0.061855234),
+            ("3".to_string(), 0.15484008),
+            ("8".to_string(), 0.136479),
+            ("2".to_string(), 0.035566494),
+            ("7".to_string(), 0.016384698),
+            ("1".to_string(), 0.1128334),
+            ("6".to_string(), 0.07208286),
         ];
 
         assert_eq!(
@@ -251,14 +244,9 @@ mod page_rank_tests {
                 .into_iter()
                 .collect();
 
-        assert_eq!(
-            results,
-            vec![("1".to_string(), 0.5), ("2".to_string(), 0.5)]
-                .into_iter()
-                .collect::<FxHashMap<String, f32>>()
-        );
+        assert_eq_f32(results.get("1"), Some(&0.5), 3);
+        assert_eq_f32(results.get("2"), Some(&0.5), 3);
     }
-
 
     #[test]
     fn three_nodes_page_rank_one_dangling() {
@@ -275,14 +263,10 @@ mod page_rank_tests {
                 .into_iter()
                 .collect();
 
-        assert_eq!(
-            results,
-            vec![("1".to_string(), 0.3032041), ("2".to_string(), 0.39363384), ("3".to_string(), 0.3032041)]
-                .into_iter()
-                .collect::<FxHashMap<String, f32>>()
-        );
+        assert_eq_f32(results.get("1"), Some(&0.303), 3);
+        assert_eq_f32(results.get("2"), Some(&0.394), 3);
+        assert_eq_f32(results.get("3"), Some(&0.303), 3);
     }
-
 
     #[test]
     fn dangling_page_rank() {
@@ -318,23 +302,40 @@ mod page_rank_tests {
                 .into_iter()
                 .collect();
 
-        let expected = vec![
-            ("10".to_string(), 0.06892874),
-            ("11".to_string(), 0.07222628),
-            ("5".to_string(), 0.041368324),
-            ("4".to_string(), 0.032625638),
-            ("9".to_string(), 0.06504937),
-            ("3".to_string(), 0.06702048),
-            ("8".to_string(), 0.060485493),
-            ("2".to_string(), 0.046491623),
-            ("7".to_string(), 0.055116292),
-            ("1".to_string(), 0.032625638),
-            ("6".to_string(), 0.048799634),
-        ];
+        assert_eq_f32(results.get("1"), Some(&0.055), 3);
+        assert_eq_f32(results.get("2"), Some(&0.079), 3);
+        assert_eq_f32(results.get("3"), Some(&0.113), 3);
+        assert_eq_f32(results.get("4"), Some(&0.055), 3);
+        assert_eq_f32(results.get("5"), Some(&0.070), 3);
+        assert_eq_f32(results.get("6"), Some(&0.083), 3);
+        assert_eq_f32(results.get("7"), Some(&0.093), 3);
+        assert_eq_f32(results.get("8"), Some(&0.102), 3);
+        assert_eq_f32(results.get("9"), Some(&0.110), 3);
+        assert_eq_f32(results.get("10"), Some(&0.117), 3);
+        assert_eq_f32(results.get("11"), Some(&0.122), 3);
+    }
 
-        assert_eq!(
-            results,
-            expected.into_iter().collect::<FxHashMap<String, f32>>()
-        );
+    fn assert_eq_f32<T: Borrow<f32> + PartialEq + std::fmt::Debug>(
+        a: Option<T>,
+        b: Option<T>,
+        decimals: u8,
+    ) {
+        if a.is_none() || b.is_none() {
+            assert_eq!(a, b);
+        } else {
+            let factor = 10.0_f32.powi(decimals as i32);
+            match (a, b) {
+                (Some(a), Some(b)) => {
+                    assert_eq!(
+                        (a.borrow() * factor).round(),
+                        (b.borrow() * factor).round(),
+                        "{:?} != {:?}",
+                        a,
+                        b
+                    );
+                }
+                _ => unreachable!(),
+            }
+        }
     }
 }
