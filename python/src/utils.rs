@@ -3,12 +3,13 @@
 //! This module contains helper functions for the Python bindings.
 //! These functions are not part of the public API and are not exported to the Python module.
 use crate::vertex::PyVertex;
+use chrono::NaiveDateTime;
 use pyo3::exceptions::{PyException, PyTypeError};
 use pyo3::prelude::*;
 use raphtory::core as dbc;
 use raphtory::core::tgraph::VertexRef;
 use raphtory::core::time::error::ParseTimeError;
-use raphtory::core::time::{Interval, IntoTime};
+use raphtory::core::time::{Interval, TryIntoTime};
 use raphtory::core::vertex::InputVertex;
 use raphtory::db::view_api::time::WindowSet;
 use raphtory::db::view_api::TimeOps;
@@ -103,7 +104,7 @@ fn parse_email_timestamp(timestamp: &str) -> PyResult<i64> {
 pub(crate) fn extract_time(time: &PyAny) -> PyResult<i64> {
     let from_number = time.extract::<i64>().map(|n| Ok(n));
     let from_str = time.extract::<&str>().map(|str| {
-        str.into_time()
+        str.try_into_time()
             .or_else(|e| parse_email_timestamp(str).map_err(|_| e))
     });
 
@@ -126,14 +127,14 @@ pub(crate) fn extract_into_time(time: &PyAny) -> PyResult<TimeBox> {
     let result = string.map(|string| {
         let timestamp = string.as_str();
         let parsing_result = timestamp
-            .into_time()
+            .try_into_time()
             .or_else(|e| parse_email_timestamp(timestamp).map_err(|_| e));
         TimeBox::new(parsing_result)
     });
 
     let result = result.or_else(|_| {
         let number = time.extract::<i64>();
-        number.map(|number| TimeBox::new(number.into_time()))
+        number.map(|number| TimeBox::new(number.try_into_time()))
     });
 
     result.map_err(|_| {
@@ -152,8 +153,8 @@ impl TimeBox {
     }
 }
 
-impl IntoTime for TimeBox {
-    fn into_time(self) -> Result<i64, ParseTimeError> {
+impl TryIntoTime for TimeBox {
+    fn try_into_time(self) -> Result<i64, ParseTimeError> {
         self.parsing_result
     }
 }
@@ -239,5 +240,95 @@ pub(crate) fn extract_input_vertex(id: &PyAny) -> PyResult<InputVertexBox> {
             let number = id.extract::<u64>().map_err(|_| PyTypeError::new_err(msg))?;
             Ok(InputVertexBox::new(number))
         }
+    }
+}
+
+pub(crate) fn time_index_impl<T: TimeOps + Clone + Sync + 'static>(
+    window_set: &WindowSet<T>,
+    center: bool,
+) -> PyGenericIterable {
+    let window_set = window_set.clone();
+    if window_set.temporal() {
+        PyGenericIterable::new(move || {
+            Box::new(
+                window_set
+                    .clone()
+                    .time_index(center)
+                    .map(|epoch| NaiveDateTime::from_timestamp_millis(epoch).unwrap()),
+            )
+        })
+    } else {
+        PyGenericIterable::new(move || Box::new(window_set.time_index(center)))
+    }
+}
+
+trait PyObjectIterator: Iterator<Item = PyObject> + Clone + Sized {}
+
+#[pyclass(name = "Iterable")]
+pub struct PyGenericIterable {
+    // if we just store the iterator, we need to clone it to return a new one for each __iter__ call
+    // but we can't have Box<yn Iterator + Clone> because Clone requires Sized, so it is not object
+    // safe
+    build_iter: Box<dyn Fn() -> Box<dyn Iterator<Item = PyObject> + Send> + Send>,
+}
+
+impl PyGenericIterable {
+    pub(crate) fn new<F, I, T>(build_iter: F) -> Self
+    where
+        F: (Fn() -> I) + Send + Sync + 'static,
+        I: Iterator<Item = T> + Send + 'static,
+        T: IntoPy<PyObject> + 'static,
+    {
+        let build_py_iter: Box<dyn Fn() -> Box<dyn Iterator<Item = PyObject> + Send> + Send> =
+            Box::new(move || {
+                Box::new(build_iter().map(|item| Python::with_gil(|py| item.into_py(py))))
+            });
+        Self {
+            build_iter: build_py_iter,
+        }
+    }
+}
+
+#[pymethods]
+impl PyGenericIterable {
+    fn __iter__(&self) -> PyGenericIterator {
+        PyGenericIterator::from_python((self.build_iter)())
+    }
+}
+
+#[pyclass(name = "Iterator")]
+pub struct PyGenericIterator {
+    iter: Box<dyn Iterator<Item = PyObject> + Send>,
+}
+
+// TODO we could have this for ToPyObject instead of only for IntoPy<PyObject> if we need to
+// impl PyGenericIterator {
+//     pub(crate) fn new<T: IntoPy<PyObject> + 'static>(iter: Box<dyn Iterator<Item = T> + Send>) -> Self {
+//         let py_iter = Box::new(iter.map(|item| Python::with_gil(|py| item.into_py(py))));
+//         Self { iter: py_iter }
+//     }
+// }
+impl PyGenericIterator {
+    pub(crate) fn from_rust<I, T>(iter: I) -> Self
+    where
+        I: Iterator<Item = T> + Send + 'static,
+        T: IntoPy<PyObject> + 'static,
+    {
+        let py_iter = Box::new(iter.map(|item| Python::with_gil(|py| item.into_py(py))));
+        Self { iter: py_iter }
+    }
+
+    pub(crate) fn from_python(iter: Box<dyn Iterator<Item = PyObject> + Send>) -> Self {
+        Self { iter }
+    }
+}
+
+#[pymethods]
+impl PyGenericIterator {
+    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        slf
+    }
+    fn __next__(&mut self) -> Option<PyObject> {
+        self.iter.next()
     }
 }

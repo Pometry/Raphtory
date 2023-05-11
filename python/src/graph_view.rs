@@ -1,7 +1,10 @@
 //! The API for querying a view of the graph in a read-only state
 use crate::dynamic::{DynamicGraph, IntoDynamic};
 use crate::edge::{PyEdge, PyEdges};
-use crate::utils::{at_impl, expanding_impl, extract_vertex_ref, rolling_impl, window_impl};
+use crate::utils::{
+    at_impl, expanding_impl, extract_vertex_ref, rolling_impl, time_index_impl, window_impl,
+    PyGenericIterable,
+};
 use crate::vertex::{PyVertex, PyVertices};
 use pyo3::prelude::*;
 use raphtory::db::view_api::layer::LayerOps;
@@ -44,6 +47,11 @@ impl From<WindowSet<DynamicGraph>> for PyGraphWindowSet {
 impl PyGraphWindowSet {
     fn __iter__(&self) -> PyGraphWindowIterator {
         self.window_set.clone().into()
+    }
+
+    #[pyo3(signature = (center=false))]
+    fn time_index(&self, center: bool) -> PyGenericIterable {
+        time_index_impl(&self.window_set, center)
     }
 }
 
