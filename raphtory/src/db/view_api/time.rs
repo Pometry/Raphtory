@@ -114,6 +114,7 @@ impl<T: TimeOps + Clone + 'static> WindowSet<T> {
             }
     }
 
+    /// Returns the time index of this window set
     pub fn time_index(&self, center: bool) -> Box<dyn Iterator<Item = i64> + Send> {
         if center {
             Box::new(self.clone().map(|view| {

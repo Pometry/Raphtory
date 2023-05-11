@@ -1087,6 +1087,7 @@ impl PyVertexWindowSet {
         self.window_set.clone().into()
     }
 
+    #[doc = time_index_doc_string!()]
     #[pyo3(signature = (center=false))]
     fn time_index(&self, center: bool) -> PyGenericIterable {
         time_index_impl(&self.window_set, center)
@@ -1133,6 +1134,7 @@ impl PyVerticesWindowSet {
         self.window_set.clone().into()
     }
 
+    #[doc = time_index_doc_string!()]
     #[pyo3(signature = (center=false))]
     fn time_index(&self, center: bool) -> PyGenericIterable {
         time_index_impl(&self.window_set, center)
@@ -1179,6 +1181,7 @@ impl PyPathFromGraphWindowSet {
         self.window_set.clone().into()
     }
 
+    #[doc = time_index_doc_string!()]
     #[pyo3(signature = (center=false))]
     fn time_index(&self, center: bool) -> PyGenericIterable {
         time_index_impl(&self.window_set, center)
@@ -1225,6 +1228,7 @@ impl PyPathFromVertexWindowSet {
         self.window_set.clone().into()
     }
 
+    #[doc = time_index_doc_string!()]
     #[pyo3(signature = (center=false))]
     fn time_index(&self, center: bool) -> PyGenericIterable {
         time_index_impl(&self.window_set, center)
