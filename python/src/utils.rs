@@ -292,7 +292,7 @@ impl PyGenericIterable {
 #[pymethods]
 impl PyGenericIterable {
     fn __iter__(&self) -> PyGenericIterator {
-        PyGenericIterator::from_python((self.build_iter)())
+        (self.build_iter)().into()
     }
 }
 
@@ -308,20 +308,28 @@ pub struct PyGenericIterator {
 //         Self { iter: py_iter }
 //     }
 // }
-impl PyGenericIterator {
-    pub(crate) fn from_rust<I, T>(iter: I) -> Self
-    where
-        I: Iterator<Item = T> + Send + 'static,
-        T: IntoPy<PyObject> + 'static,
-    {
-        let py_iter = Box::new(iter.map(|item| Python::with_gil(|py| item.into_py(py))));
+// impl PyGenericIterator {
+//     pub(crate) fn from_python(iter: Box<dyn Iterator<Item = PyObject> + Send>) -> Self {
+//         Self { iter }
+//     }
+// }
+
+impl<I, T> From<I> for PyGenericIterator
+where
+    I: Iterator<Item = T> + Send + 'static,
+    T: IntoPy<PyObject> + 'static,
+{
+    fn from(value: I) -> Self {
+        let py_iter = Box::new(value.map(|item| Python::with_gil(|py| item.into_py(py))));
         Self { iter: py_iter }
     }
-
-    pub(crate) fn from_python(iter: Box<dyn Iterator<Item = PyObject> + Send>) -> Self {
-        Self { iter }
-    }
 }
+
+// impl From<Box<dyn Iterator<Item = PyObject> + Send>> for PyGenericIterator {
+//     fn from(value: Box<dyn Iterator<Item = PyObject> + Send>) -> Self {
+//         Self { iter: value }
+//     }
+// }
 
 #[pymethods]
 impl PyGenericIterator {
