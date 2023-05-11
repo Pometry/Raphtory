@@ -81,7 +81,7 @@ pub struct WindowSet<T: TimeOps + Clone> {
     window: Option<Interval>,
 }
 
-impl<T: TimeOps + Clone + Send + 'static> WindowSet<T> {
+impl<T: TimeOps + Clone + 'static> WindowSet<T> {
     fn new(view: T, start: i64, end: i64, step: Interval, window: Option<Interval>) -> Self {
         // let cursor_start = if step.epoch_alignment {
         //     let step = step.to_millis().unwrap() as i64;
