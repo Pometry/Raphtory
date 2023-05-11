@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1683731647242,
+  "lastUpdate": 1683807793686,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -643,6 +643,42 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions",
             "value": 574641,
             "range": "± 82931",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ricopinazo@gmail.com",
+            "name": "Pedro Rico Pinazo",
+            "username": "ricopinazo"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "36d5656b40b217e664f0c93a91f1c822bb1bc5c1",
+          "message": "add month/year support (#878)\n\n* add month/year support\r\n\r\n* add comments to clarify Add and Sub implementation",
+          "timestamp": "2023-05-11T13:18:01+01:00",
+          "tree_id": "3480300c06c6a918cbe3eb51907e52d5c4c36f6d",
+          "url": "https://github.com/Pometry/Raphtory/commit/36d5656b40b217e664f0c93a91f1c822bb1bc5c1"
+        },
+        "date": 1683807792607,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 362755,
+            "range": "± 12965",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 687588,
+            "range": "± 114791",
             "unit": "ns/iter"
           }
         ]
