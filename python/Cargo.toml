@@ -1,7 +1,7 @@
 [package]
 name = "pyraphtory"
 description = "Python package for raphtory, a temporal graph library"
-version = "0.2.0"
+version = "0.3.1"
 edition.workspace = true
 rust-version.workspace = true
 keywords.workspace = true
@@ -19,7 +19,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 pyo3 =  {version="0.18.1", features=["multiple-pymethods"]}
-raphtory = {path = "../raphtory", version = "0.2.0" }
+raphtory = {path = "../raphtory", version = "0.3.1" }
 rustc-hash = "1.1.0"
 parking_lot = { version = "0.12" , features = ["serde"] }
 flume = "0.10"

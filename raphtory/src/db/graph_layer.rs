@@ -38,6 +38,10 @@ impl<G: GraphViewInternalOps> GraphViewInternalOps for LayeredGraph<G> {
         self.graph.get_layer(key)
     }
 
+    fn get_layer_name_by_id(&self, layer_id: usize) -> String {
+        self.graph.get_layer_name_by_id(layer_id)
+    }
+
     fn view_start(&self) -> Option<i64> {
         self.graph.view_start()
     }
@@ -280,33 +284,6 @@ impl<G: GraphViewInternalOps> GraphViewInternalOps for LayeredGraph<G> {
             .map(|layer| {
                 self.graph
                     .neighbours_window(v, t_start, t_end, d, Some(layer))
-            })
-            .unwrap_or_else(|| Box::new(std::iter::empty()))
-    }
-
-    fn neighbours_ids(
-        &self,
-        v: VertexRef,
-        d: Direction,
-        layer: Option<usize>,
-    ) -> Box<dyn Iterator<Item = u64> + Send> {
-        self.constrain(layer)
-            .map(|layer| self.graph.neighbours_ids(v, d, Some(layer)))
-            .unwrap_or_else(|| Box::new(std::iter::empty()))
-    }
-
-    fn neighbours_ids_window(
-        &self,
-        v: VertexRef,
-        t_start: i64,
-        t_end: i64,
-        d: Direction,
-        layer: Option<usize>,
-    ) -> Box<dyn Iterator<Item = u64> + Send> {
-        self.constrain(layer)
-            .map(|layer| {
-                self.graph
-                    .neighbours_ids_window(v, t_start, t_end, d, Some(layer))
             })
             .unwrap_or_else(|| Box::new(std::iter::empty()))
     }

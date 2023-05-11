@@ -1,0 +1,63 @@
+name: _Release 2 - Publish Rust package to crates.io
+on:
+  workflow_call:
+    inputs:
+      base:
+        description: 'Name of branch to open PR against'
+        type: 'string'
+        default: 'master'
+      dry_run:
+        description: 'DRY RUN: If true will not publish the release and will not push anything to PyPi/crates.io. 
+        However it will still make a PR and a branch to show you what it changed'
+        type: boolean
+        default: false
+        required: false
+
+jobs:
+  release-rust:
+    name: Release Rust package to crates.io
+    runs-on: '${{ matrix.os }}'
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+    steps:
+      - name: "Check if user has write access"
+        uses: "lannonbr/repo-permission-check-action@2.0.0"
+        with:
+          permission: "write"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Set up cargo cache
+        uses: actions/cache@v3
+        continue-on-error: false
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+      - uses: actions/checkout@v3
+      - run: |
+          git config --global user.email "Haaroon@users.noreply.github.com"
+          git config --global user.name "Haaroon"
+      - name: "Set up Rust toolchain"
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+          components: rustfmt, clippy
+      - name: "Install cargo release"
+        uses: actions-rs/cargo@v1
+        with:
+          command: install
+          args: cargo-release --force
+      - name: "Publish raphtory to crates.io"
+        if: ${{ !inputs.dry_run }}
+        uses: actions-rs/cargo@v1
+        with:
+          command: publish
+          args: --token ${{ secrets.CRATES_TOKEN }} --package raphtory --allow-dirty

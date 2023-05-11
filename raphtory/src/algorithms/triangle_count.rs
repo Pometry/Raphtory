@@ -4,7 +4,6 @@ use crate::core::tgraph_shard::errors::GraphError;
 use crate::db::task::context::Context;
 use crate::db::task::task::{ATask, Job, Step};
 use crate::db::task::task_runner::TaskRunner;
-use crate::db::view_api::internal::GraphViewInternalOps;
 use crate::db::view_api::*;
 use itertools::Itertools;
 use rayon::prelude::*;
@@ -107,7 +106,7 @@ pub fn global_triangle_count<G: GraphViewOps>(graph: &G) -> Result<usize, GraphE
 /// let actual_tri_count = triangle_counting_fast(&graph, None);
 /// ```
 ///
-pub fn triangle_counting_fast<G: GraphViewInternalOps + Send + Sync + Clone + 'static>(
+pub fn triangle_counting_fast<G: GraphViewOps>(
     g: &G,
     num_threads: Option<usize>,
 ) -> Option<usize> {

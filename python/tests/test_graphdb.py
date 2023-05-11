@@ -509,7 +509,7 @@ def test_exploded_edge_time():
     exploded_his = []
     for ee in e.explode():
         exploded_his.append(ee.time())
-    assert (his, exploded_his)
+    assert his == exploded_his
 
 
 # assert g.vertex(1).property_history("prop 3") == [(1, 3), (3, 'hello')]
@@ -790,6 +790,20 @@ def test_edge_earliest_latest_time():
     assert g.vertex(1).at(1).edges().latest_time() == [1, 1]
 
 
+def test_vertex_earliest_time():
+    g = Graph(1)
+    g.add_vertex(0, 1, {})
+    g.add_vertex(1, 1, {})
+    g.add_vertex(2, 1, {})
+
+    view = g.at(1)
+    assert view.vertex(1).earliest_time() == 0
+    assert view.vertex(1).latest_time() == 1
+    view = g.at(3)
+    assert view.vertex(1).earliest_time() == 0
+    assert view.vertex(1).latest_time() == 2
+
+
 def test_vertex_history():
     g = Graph(1)
 
@@ -965,3 +979,21 @@ def test_rolling_as_iterable():
 
     assert n_vertices == [1, 0, 0, 1]
     assert time_index == [1, 2, 3, 4]
+
+
+def test_layer_name():
+    g = Graph(4)
+
+    g.add_edge(0, 0, 1)
+    g.add_edge(0, 0, 2, layer="awesome layer")
+
+    assert g.edge(0, 1).layer_name() == "default layer"
+    assert g.edge(0, 2, "awesome layer").layer_name() == "awesome layer"
+
+
+def test_window_size():
+    g = Graph(4)
+    g.add_vertex(1, 1)
+    g.add_vertex(4, 4)
+
+    assert g.window_size() == 4

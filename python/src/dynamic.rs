@@ -69,6 +69,10 @@ impl GraphViewInternalOps for DynamicGraph {
         self.0.get_layer(key)
     }
 
+    fn get_layer_name_by_id(&self, layer_id: usize) -> String {
+        self.0.get_layer_name_by_id(layer_id)
+    }
+
     fn view_start(&self) -> Option<i64> {
         self.0.view_start()
     }
@@ -172,7 +176,7 @@ impl GraphViewInternalOps for DynamicGraph {
     }
 
     fn vertex_earliest_time_window(&self, v: VertexRef, t_start: i64, t_end: i64) -> Option<i64> {
-        self.0.vertex_latest_time_window(v, t_start, t_end)
+        self.0.vertex_earliest_time_window(v, t_start, t_end)
     }
 
     fn vertex_latest_time(&self, v: VertexRef) -> Option<i64> {
@@ -285,26 +289,6 @@ impl GraphViewInternalOps for DynamicGraph {
         layer: Option<usize>,
     ) -> Box<dyn Iterator<Item = VertexRef> + Send> {
         self.0.neighbours_window(v, t_start, t_end, d, layer)
-    }
-
-    fn neighbours_ids(
-        &self,
-        v: VertexRef,
-        d: Direction,
-        layer: Option<usize>,
-    ) -> Box<dyn Iterator<Item = u64> + Send> {
-        self.0.neighbours_ids(v, d, layer)
-    }
-
-    fn neighbours_ids_window(
-        &self,
-        v: VertexRef,
-        t_start: i64,
-        t_end: i64,
-        d: Direction,
-        layer: Option<usize>,
-    ) -> Box<dyn Iterator<Item = u64> + Send> {
-        self.0.neighbours_ids_window(v, t_start, t_end, d, layer)
     }
 
     fn static_vertex_prop(&self, v: VertexRef, name: String) -> Option<Prop> {

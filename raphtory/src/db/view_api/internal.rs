@@ -1,13 +1,14 @@
 use crate::core::tgraph::{EdgeRef, VertexRef};
 use crate::core::{Direction, Prop};
-use rayon::prelude::*;
 use std::collections::HashMap;
-use std::{ops::Range, sync::Arc};
+use std::ops::Range;
 
 /// The GraphViewInternalOps trait provides a set of methods to query a directed graph
 /// represented by the raphtory_core::tgraph::TGraph struct.
 pub trait GraphViewInternalOps {
     fn get_unique_layers_internal(&self) -> Vec<String>;
+
+    fn get_layer_name_by_id(&self, layer_id: usize) -> String;
 
     /// Get the layer id for the given layer name
     fn get_layer(&self, key: Option<&str>) -> Option<usize>;
@@ -372,45 +373,6 @@ pub trait GraphViewInternalOps {
         layer: Option<usize>,
     ) -> Box<dyn Iterator<Item = VertexRef> + Send>;
 
-    ///  Returns the vertex ids of the neighbors of a given vertex in a given direction.
-    /// # Arguments
-    ///
-    /// * `v` - A reference to the vertex for which the neighbors are being queried.
-    /// * `d` - The direction in which to search for neighbors.
-    ///
-    /// # Returns
-    ///
-    /// A boxed iterator that yields the ids of the neighboring vertices.
-    fn neighbours_ids(
-        &self,
-        v: VertexRef,
-        d: Direction,
-        layer: Option<usize>,
-    ) -> Box<dyn Iterator<Item = u64> + Send>;
-
-    /// Returns the vertex ids of the neighbors of a given vertex within a specified
-    /// time window in a given direction.
-    ///
-    /// # Arguments
-    ///
-    /// * `v` - A reference to the vertex for which the neighbors are being queried.
-    /// * `t_start` - The start time of the window (inclusive).
-    /// * `t_end` - The end time of the window (exclusive).
-    /// * `d` - The direction in which to search for neighbors.
-    ///
-    /// # Returns
-    ///
-    /// A boxed iterator that yields the ids of the neighboring vertices within the
-    /// specified time window.
-    fn neighbours_ids_window(
-        &self,
-        v: VertexRef,
-        t_start: i64,
-        t_end: i64,
-        d: Direction,
-        layer: Option<usize>,
-    ) -> Box<dyn Iterator<Item = u64> + Send>;
-
     /// Gets a static property of a given vertex given the name and vertex reference.
     ///
     /// # Arguments
@@ -657,126 +619,4 @@ pub trait GraphViewInternalOps {
         t_start: i64,
         t_end: i64,
     ) -> Box<dyn Iterator<Item = VertexRef> + Send>;
-}
-
-pub trait ParIterGraphOps {
-    fn vertices_par_map<O, F>(&self, f: F) -> Box<dyn Iterator<Item = O>>
-    where
-        O: Send + 'static,
-        F: Fn(VertexRef) -> O + Send + Sync + Copy;
-
-    fn vertices_par_fold<S, F, F2>(&self, f: F, agg: F2) -> Option<S>
-    where
-        S: Send + 'static,
-        F: Fn(VertexRef) -> S + Send + Sync + Copy,
-        F2: Fn(S, S) -> S + Sync + Send + Copy;
-
-    fn vertices_window_par_map<O, F>(
-        &self,
-        t_start: i64,
-        t_end: i64,
-        f: F,
-    ) -> Box<dyn Iterator<Item = O>>
-    where
-        O: Send + 'static,
-        F: Fn(VertexRef) -> O + Send + Sync + Copy;
-
-    fn vertices_window_par_fold<S, F, F2>(
-        &self,
-        t_start: i64,
-        t_end: i64,
-        f: F,
-        agg: F2,
-    ) -> Option<S>
-    where
-        S: Send + 'static,
-        F: Fn(VertexRef) -> S + Send + Sync + Copy,
-        F2: Fn(S, S) -> S + Sync + Send + Copy;
-}
-
-impl<G: GraphViewInternalOps + Send + Sync> ParIterGraphOps for G {
-    fn vertices_par_map<O, F>(&self, f: F) -> Box<dyn Iterator<Item = O>>
-    where
-        O: Send + 'static,
-        F: Fn(VertexRef) -> O + Send + Sync + Copy,
-    {
-        let (tx, rx) = flume::unbounded();
-
-        let arc_tx = Arc::new(tx);
-        (0..self.num_shards())
-            .into_par_iter()
-            .flat_map(|shard_id| self.vertices_shard(shard_id).par_bridge().map(f))
-            .for_each(move |o| {
-                arc_tx.send(o).unwrap();
-            });
-
-        Box::new(rx.into_iter())
-    }
-
-    fn vertices_par_fold<S, F, F2>(&self, f: F, agg: F2) -> Option<S>
-    where
-        S: Send + 'static,
-        F: Fn(VertexRef) -> S + Send + Sync + Copy,
-        F2: Fn(S, S) -> S + Sync + Send + Copy,
-    {
-        (0..self.num_shards())
-            .into_par_iter()
-            .flat_map(|shard_id| {
-                self.vertices_shard(shard_id)
-                    .par_bridge()
-                    .map(f)
-                    .reduce_with(agg)
-            })
-            .reduce_with(agg)
-    }
-
-    fn vertices_window_par_map<O, F>(
-        &self,
-        t_start: i64,
-        t_end: i64,
-        f: F,
-    ) -> Box<dyn Iterator<Item = O>>
-    where
-        O: Send + 'static,
-        F: Fn(VertexRef) -> O + Send + Sync + Copy,
-    {
-        let (tx, rx) = flume::unbounded();
-
-        let arc_tx = Arc::new(tx);
-        (0..self.num_shards())
-            .into_par_iter()
-            .flat_map(|shard_id| {
-                self.vertices_shard_window(shard_id, t_start, t_end)
-                    .par_bridge()
-                    .map(f)
-            })
-            .for_each(move |o| {
-                arc_tx.send(o).unwrap();
-            });
-
-        Box::new(rx.into_iter())
-    }
-
-    fn vertices_window_par_fold<S, F, F2>(
-        &self,
-        t_start: i64,
-        t_end: i64,
-        f: F,
-        agg: F2,
-    ) -> Option<S>
-    where
-        S: Send + 'static,
-        F: Fn(VertexRef) -> S + Send + Sync + Copy,
-        F2: Fn(S, S) -> S + Sync + Send + Copy,
-    {
-        (0..self.num_shards())
-            .into_par_iter()
-            .flat_map(|shard| {
-                self.vertices_shard_window(shard, t_start, t_end)
-                    .par_bridge()
-                    .map(f)
-                    .reduce_with(agg)
-            })
-            .reduce_with(agg)
-    }
 }

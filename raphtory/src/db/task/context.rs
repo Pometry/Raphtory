@@ -8,7 +8,7 @@ use crate::{
             StateType,
         },
     },
-    db::view_api::internal::GraphViewInternalOps,
+    db::view_api::GraphViewOps,
 };
 
 use super::task_state::{Global, Shard};
@@ -18,7 +18,7 @@ type MergeFn<CS> =
 
 pub struct Context<G, CS>
 where
-    G: GraphViewInternalOps + Send + Sync + 'static,
+    G: GraphViewOps,
     CS: ComputeState,
 {
     ss: usize,
@@ -29,7 +29,7 @@ where
 
 impl<G, CS> Context<G, CS>
 where
-    G: GraphViewInternalOps + Send + Sync + 'static,
+    G: GraphViewOps,
     CS: ComputeState,
 {
     pub fn ss(&self) -> usize {
@@ -129,9 +129,7 @@ where
     }
 }
 
-impl<G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeState> From<&G>
-    for Context<G, CS>
-{
+impl<G: GraphViewOps, CS: ComputeState> From<&G> for Context<G, CS> {
     fn from(g: &G) -> Self {
         Self {
             ss: 0,

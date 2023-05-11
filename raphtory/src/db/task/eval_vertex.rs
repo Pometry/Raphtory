@@ -20,14 +20,10 @@ use crate::{
         },
         tgraph::VertexRef,
     },
-    db::view_api::internal::GraphViewInternalOps,
+    db::{view_api::{GraphViewOps, TimeOps}, graph_window::WindowedGraph},
 };
 
-pub struct EvalVertexView<
-    'a,
-    G: GraphViewInternalOps + Send + Sync + Clone + 'static,
-    CS: ComputeState,
-> {
+pub struct EvalVertexView<'a, G: GraphViewOps, CS: ComputeState> {
     ss: usize,
     vv: VertexView<G>,
     shard_state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
@@ -35,9 +31,7 @@ pub struct EvalVertexView<
     local_state: Rc<RefCell<ShuffleComputeState<CS>>>,
 }
 
-impl<'a, G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeState>
-    EvalVertexView<'a, G, CS>
-{
+impl<'a, G: GraphViewOps, CS: ComputeState> EvalVertexView<'a, G, CS> {
     pub fn new(
         ss: usize,
         vertex: VertexRef,
