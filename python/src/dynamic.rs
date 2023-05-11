@@ -176,7 +176,7 @@ impl GraphViewInternalOps for DynamicGraph {
     }
 
     fn vertex_earliest_time_window(&self, v: VertexRef, t_start: i64, t_end: i64) -> Option<i64> {
-        self.0.vertex_latest_time_window(v, t_start, t_end)
+        self.0.vertex_earliest_time_window(v, t_start, t_end)
     }
 
     fn vertex_latest_time(&self, v: VertexRef) -> Option<i64> {
