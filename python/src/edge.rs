@@ -457,6 +457,11 @@ impl PyEdgeWindowSet {
     fn __iter__(&self) -> PyEdgeWindowIterator {
         self.window_set.clone().into()
     }
+
+    #[pyo3(signature = (center=false))]
+    fn time_index(&self, center: bool) -> PyGenericIterable {
+        time_index_impl(&self.window_set, center)
+    }
 }
 
 #[pyclass(name = "EdgeWindowIterator")]

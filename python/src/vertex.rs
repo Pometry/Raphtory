@@ -4,7 +4,10 @@
 use crate::dynamic::{DynamicGraph, IntoDynamic};
 use crate::edge::{PyEdges, PyNestedEdges};
 use crate::types::repr::{iterator_repr, Repr};
-use crate::utils::{at_impl, expanding_impl, extract_vertex_ref, rolling_impl, window_impl};
+use crate::utils::{
+    at_impl, expanding_impl, extract_vertex_ref, rolling_impl, time_index_impl, window_impl,
+    PyGenericIterable,
+};
 use crate::wrappers::iterators::*;
 use crate::wrappers::prop::Prop;
 use itertools::Itertools;
@@ -1083,6 +1086,11 @@ impl PyVertexWindowSet {
     fn __iter__(&self) -> PyVertexWindowIterator {
         self.window_set.clone().into()
     }
+
+    #[pyo3(signature = (center=false))]
+    fn time_index(&self, center: bool) -> PyGenericIterable {
+        time_index_impl(&self.window_set, center)
+    }
 }
 
 #[pyclass(name = "VertexWindowIterator")]
@@ -1123,6 +1131,11 @@ impl From<WindowSet<Vertices<DynamicGraph>>> for PyVerticesWindowSet {
 impl PyVerticesWindowSet {
     fn __iter__(&self) -> PyVerticesWindowIterator {
         self.window_set.clone().into()
+    }
+
+    #[pyo3(signature = (center=false))]
+    fn time_index(&self, center: bool) -> PyGenericIterable {
+        time_index_impl(&self.window_set, center)
     }
 }
 
@@ -1165,6 +1178,11 @@ impl PyPathFromGraphWindowSet {
     fn __iter__(&self) -> PyPathFromGraphWindowIterator {
         self.window_set.clone().into()
     }
+
+    #[pyo3(signature = (center=false))]
+    fn time_index(&self, center: bool) -> PyGenericIterable {
+        time_index_impl(&self.window_set, center)
+    }
 }
 
 #[pyclass(name = "PathFromGraphWindowIterator")]
@@ -1205,6 +1223,11 @@ impl From<WindowSet<PathFromVertex<DynamicGraph>>> for PyPathFromVertexWindowSet
 impl PyPathFromVertexWindowSet {
     fn __iter__(&self) -> PyPathFromVertexWindowIterator {
         self.window_set.clone().into()
+    }
+
+    #[pyo3(signature = (center=false))]
+    fn time_index(&self, center: bool) -> PyGenericIterable {
+        time_index_impl(&self.window_set, center)
     }
 }
 
