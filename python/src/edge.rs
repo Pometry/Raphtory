@@ -15,7 +15,7 @@ use raphtory::db::edge::EdgeView;
 use raphtory::db::graph_window::WindowedGraph;
 use raphtory::db::view_api::time::WindowSet;
 use raphtory::db::view_api::*;
-use raphtory::default_layer_doc_string;
+use raphtory::*;
 use std::collections::HashMap;
 use std::sync::Arc;
 
