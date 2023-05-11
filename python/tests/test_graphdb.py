@@ -1035,7 +1035,7 @@ def test_date_time_window():
     assert view2.edge(1, 2).start_date_time() == datetime.datetime(2014, 2, 2, 0, 0)
     assert view2.edge(1, 2).end_date_time() == datetime.datetime(2014, 2, 5, 0, 0)
 
-    assert view.vertex(1).earliest_date_time() == datetime.datetime(2014, 2, 3, 0, 0)
+    assert view.vertex(1).earliest_date_time() == datetime.datetime(2014, 2, 2, 0, 0)
     assert view.vertex(1).latest_date_time() == datetime.datetime(2014, 2, 3, 0, 0)
 
     e = view.edge(1, 2)
