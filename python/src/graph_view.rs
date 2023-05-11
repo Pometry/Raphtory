@@ -3,10 +3,11 @@ use crate::dynamic::{DynamicGraph, IntoDynamic};
 use crate::edge::{PyEdge, PyEdges};
 use crate::utils::{
     at_impl, expanding_impl, extract_vertex_ref, rolling_impl, time_index_impl, window_impl,
-    PyGenericIterable,
+    PyGenericIterable, PyGenericIterator,
 };
 use crate::vertex::{PyVertex, PyVertices};
 use pyo3::prelude::*;
+use raphtory::db::graph_window::WindowedGraph;
 use raphtory::db::view_api::layer::LayerOps;
 use raphtory::db::view_api::time::WindowSet;
 use raphtory::db::view_api::*;
@@ -45,36 +46,17 @@ impl From<WindowSet<DynamicGraph>> for PyGraphWindowSet {
 /// down into multiple windowed views.
 #[pymethods]
 impl PyGraphWindowSet {
-    fn __iter__(&self) -> PyGraphWindowIterator {
-        self.window_set.clone().into()
+    fn __iter__(&self) -> PyGenericIterator {
+        self.window_set
+            .clone()
+            .map(<WindowedGraph<DynamicGraph> as Into<PyGraphView>>::into)
+            .into()
     }
 
     #[doc = time_index_doc_string!()]
     #[pyo3(signature = (center=false))]
     fn time_index(&self, center: bool) -> PyGenericIterable {
         time_index_impl(&self.window_set, center)
-    }
-}
-
-#[pyclass(name = "GraphWindowIterator")]
-#[derive(Clone)]
-pub struct PyGraphWindowIterator {
-    window_set: WindowSet<DynamicGraph>,
-}
-
-impl From<WindowSet<DynamicGraph>> for PyGraphWindowIterator {
-    fn from(value: WindowSet<DynamicGraph>) -> Self {
-        Self { window_set: value }
-    }
-}
-
-#[pymethods]
-impl PyGraphWindowIterator {
-    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
-        slf
-    }
-    fn __next__(&mut self) -> Option<PyGraphView> {
-        self.window_set.next().map(|g| g.into())
     }
 }
 
