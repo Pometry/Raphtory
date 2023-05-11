@@ -38,6 +38,7 @@ pub mod pagerank;
 pub mod reciprocity;
 pub mod triangle_count;
 pub mod triplet_count;
+pub mod generic_taint_v2;
 
 use num_traits::{abs, Bounded, Zero};
 use std::ops::{Add, AddAssign, Div, Mul, Range, Sub};

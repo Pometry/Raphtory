@@ -43,7 +43,7 @@ pub mod accumulators {
         agg::{
             set::{BitSet, Set},
             topk::{TopK, TopKHeap},
-            AndDef, AvgDef, MaxDef, MinDef, SumDef, ValDef,
+            AndDef, AvgDef, MaxDef, MinDef, SumDef, ValDef, OrDef
         },
         state::StateType,
     };
@@ -57,6 +57,13 @@ pub mod accumulators {
     };
 
     pub fn and(id: u32) -> AccId<bool, bool, bool, AndDef> {
+        AccId {
+            id,
+            _a: std::marker::PhantomData,
+        }
+    }
+
+    pub fn or(id: u32) -> AccId<bool, bool, bool, OrDef> {
         AccId {
             id,
             _a: std::marker::PhantomData,

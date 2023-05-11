@@ -22,6 +22,7 @@ use crate::db::graph_window::WindowedGraph;
 use crate::db::vertex::VertexView;
 use crate::db::view_api::{GraphViewOps, TimeOps, VertexViewOps};
 use itertools::Itertools;
+use rand_distr::weighted_alias::AliasableWeight;
 use rayon::prelude::*;
 use rustc_hash::FxHashSet;
 
@@ -325,6 +326,19 @@ impl<G: GraphViewInternalOps + Send + Sync + Clone + 'static> GlobalEvalState<G>
         let state = self.states[0].read();
         let state = state.as_ref().unwrap();
         state.read_global(self.ss, agg)
+    }
+
+    pub fn read_global_state_prev<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
+        &self,
+        agg: &AccId<A, IN, OUT, ACC>,
+    ) -> Option<OUT>
+        where
+            OUT: StateType,
+            A: StateType,
+    {
+        let state = self.states[0].read();
+        let state = state.as_ref().unwrap();
+        state.read_global(self.ss + 1, agg)
     }
 
     /// Determines whether the `next_vertex_set` is empty or not.
@@ -755,6 +769,21 @@ impl<G: GraphViewOps> EvalVertexView<G> {
             .unwrap_or(ACC::finish(&ACC::zero()))
     }
 
+
+    pub fn read_global_prev<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
+        &self,
+        agg_r: &AggRef<A, IN, OUT, ACC>,
+    ) -> OUT
+        where
+            A: StateType,
+            OUT: Debug,
+    {
+        self.state
+            .borrow()
+            .read_global(self.ss + 1, &agg_r.0)
+            .unwrap_or(ACC::finish(&ACC::zero()))
+    }
+
     /// Returns an entry object representing the current state of the vertex with the given accumulator.
     pub fn entry<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
         &self,
@@ -895,12 +924,10 @@ impl<G: GraphViewOps> EvalEdgeView<G> {
     }
 
     pub fn dst(&self) -> EvalVertexView<G> {
-        self.ev.dst();
         EvalVertexView::new(self.ss, self.ev.dst(), self.state.clone())
     }
 
     pub fn src(&self) -> EvalVertexView<G> {
-        self.ev.dst();
         EvalVertexView::new(self.ss, self.ev.src(), self.state.clone())
     }
 

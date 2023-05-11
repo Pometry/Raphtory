@@ -60,6 +60,16 @@ fn main() {
     );
     println!("Time taken: {} secs", now.elapsed().as_secs());
 
+    let now = Instant::now();
+    let _ = unweighted_page_rank(
+        &g.layer("0xdac17f958d2ee523a2206206994597c13d831ec7")
+            .unwrap(),
+        20,
+        None,
+        None,
+    );
+    println!("Time taken: {} secs", now.elapsed().as_secs());
+
     println!("Generic taint");
     let now = Instant::now();
     let _ = generic_taint(

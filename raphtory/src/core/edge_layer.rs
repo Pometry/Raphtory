@@ -538,19 +538,19 @@ impl EdgeLayer {
 
     pub fn degree(&self, v_pid: usize, d: Direction) -> usize {
         match d {
-            Direction::OUT => match &self.adj_lists[v_pid] {
+            Direction::OUT => match &self.adj_lists.get(v_pid).unwrap_or(&Adj::Solo) {
                 Adj::Solo => 0,
                 Adj::List {
                     out, remote_out, ..
                 } => out.len() + remote_out.len(),
             },
-            Direction::IN => match &self.adj_lists[v_pid] {
+            Direction::IN => match &self.adj_lists.get(v_pid).unwrap_or(&Adj::Solo) {
                 Adj::Solo => 0,
                 Adj::List {
                     into, remote_into, ..
                 } => into.len() + remote_into.len(),
             },
-            Direction::BOTH => match &self.adj_lists[v_pid] {
+            Direction::BOTH => match &self.adj_lists.get(v_pid).unwrap_or(&Adj::Solo) {
                 Adj::Solo => 0,
                 Adj::List {
                     out,

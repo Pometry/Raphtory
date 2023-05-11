@@ -865,6 +865,35 @@ def test_connected_components():
     assert (actual == expected)
 
 
+def test_page_rank():
+    g = Graph(1)
+    g.add_edge(10, 1, 3, {})
+    g.add_edge(11, 1, 2, {})
+    g.add_edge(12, 1, 2, {})
+    g.add_edge(9, 1, 2, {})
+    g.add_edge(12, 2, 4, {})
+    g.add_edge(13, 2, 5, {})
+    g.add_edge(14, 5, 5, {})
+    g.add_edge(14, 5, 4, {})
+    g.add_edge(5, 4, 6, {})
+    g.add_edge(15, 4, 7, {})
+    g.add_edge(10, 4, 7, {})
+    g.add_edge(10, 5, 8, {})
+
+    actual = algorithms.pagerank(g, 20)
+    expected = {
+        '1': 0.1499999761581421,
+        '2': 0.2137499749660492,
+        '3': 0.2137499749660492,
+        '4': 0.3334803879261017,
+        '5': 0.3334803879261017,
+        '6': 0.2889549732208252,
+        '7': 0.2889549732208252,
+        '8': 0.24263665080070496
+    }
+    assert (actual == expected)
+
+
 def test_generic_taint():
     g = Graph(1)
     g.add_edge(10, 1, 3, {})
@@ -893,9 +922,6 @@ def test_generic_taint():
 
 def test_generic_taint_loader():
     g = graph_loader.stable_coin_graph("/tmp/stablecoin", 1)
-
-    max_size = sys.maxsize
-    min_size = -sys.maxsize - 1
 
     start_time = time.time()
     algorithms.pagerank(g, 20)

@@ -165,4 +165,18 @@ impl<CS: ComputeState> GlobalState<CS> {
             .read_global(self.ss, acc_id)
             .unwrap_or(ACC::finish(&ACC::zero()))
     }
+
+    pub fn read_prev<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
+        &self,
+        acc_id: &AccId<A, IN, OUT, ACC>,
+    ) -> OUT
+        where
+            A: StateType,
+            OUT: std::fmt::Debug,
+    {
+        self.state
+            .inner()
+            .read_global(self.ss + 1, acc_id)
+            .unwrap_or(ACC::finish(&ACC::zero()))
+    }
 }
