@@ -2,11 +2,7 @@
 
 use crate::core::timeindex::TimeIndex;
 use serde::{Deserialize, Serialize};
-use std::{
-    collections::BTreeMap,
-    hash::Hash,
-    ops::{Neg, Range},
-};
+use std::{collections::BTreeMap, hash::Hash, ops::Range};
 
 const SMALL_SET: usize = 1024;
 
@@ -23,7 +19,7 @@ pub enum TAdjSet<V: Ord + Copy + Hash + Send + Sync> {
     Empty,
     One(V, usize),
     Small {
-        vs: Vec<V>,          // the neighbours
+        vs: Vec<V>,        // the neighbours
         edges: Vec<usize>, // edge metadata
     },
     Large {
@@ -158,60 +154,16 @@ impl<V: Ord + Copy + Hash + Send + Sync> TAdjSet<V> {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub(crate) struct Edge<V: Clone + PartialEq + Eq + PartialOrd + Ord> {
-    v: V,
-    edge_meta: AdjEdge,
-    t: Option<u64>,
-}
-
-#[repr(transparent)]
-#[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct AdjEdge(i64);
-
-impl AdjEdge {
-    // Internal id uses sign to store remote/local flag, hence it is offset by 1 as 0 cannot be used
-    pub fn new(i: usize, local: bool) -> Self {
-        if local {
-            Self::local(i)
-        } else {
-            Self::remote(i)
-        }
-    }
-
-    pub(crate) fn local(i: usize) -> Self {
-        AdjEdge((i + 1).try_into().unwrap())
-    }
-
-    pub(crate) fn remote(i: usize) -> Self {
-        let rev: i64 = i.try_into().unwrap();
-        AdjEdge(rev.neg() - 1)
-    }
-
-    pub(crate) fn is_remote(&self) -> bool {
-        self.0 < 0
-    }
-
-    pub fn is_local(&self) -> bool {
-        !self.is_remote()
-    }
-
-    pub fn edge_id(&self) -> usize {
-        (self.0.abs() - 1).try_into().unwrap()
-    }
-}
-
 #[cfg(test)]
 mod tadjset_tests {
     use super::*;
-    use quickcheck::TestResult;
 
     #[quickcheck]
     fn insert_fuzz(input: Vec<usize>) -> bool {
         let mut ts: TAdjSet<usize> = TAdjSet::default();
 
         for (e, i) in input.iter().enumerate() {
-                ts.push(*i, e);
+            ts.push(*i, e);
         }
 
         let res = input.iter().all(|i| ts.find(*i).is_some());

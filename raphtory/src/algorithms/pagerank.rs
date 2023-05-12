@@ -1,4 +1,4 @@
-use crate::core::vertex_ref::{LocalVertexRef, VertexRef};
+use crate::core::vertex_ref::LocalVertexRef;
 use crate::{
     core::{
         agg::InitOneF32,
@@ -10,7 +10,7 @@ use crate::{
             task::{ATask, Job, Step},
             task_runner::TaskRunner,
         },
-        view_api::{GraphViewOps, VertexViewOps},
+        view_api::GraphViewOps,
     },
 };
 use num_traits::abs;

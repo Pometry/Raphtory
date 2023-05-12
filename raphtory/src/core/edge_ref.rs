@@ -1,4 +1,3 @@
-use crate::core::edge_layer::VID;
 use crate::core::vertex_ref::VertexRef;
 
 #[derive(Debug, Copy, Clone, PartialEq)]

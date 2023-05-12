@@ -10,7 +10,6 @@ use crate::core::vertex::InputVertex;
 use crate::core::vertex_ref::{LocalVertexRef, VertexRef};
 use crate::core::Direction;
 use crate::core::{Prop, Time};
-use crate::db::task::task_state::Local;
 use itertools::Itertools;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
@@ -88,12 +87,6 @@ impl TemporalGraph {
 
 // Internal helpers
 impl TemporalGraph {
-    /// Get local pid of a vertex if it is local to this shard
-    #[inline(always)]
-    fn pid(&self, vid: u64) -> Option<usize> {
-        self.logical_to_physical.get(&vid).copied()
-    }
-
     /// Checks if vertex ref is actually local and returns appropriate ID (either local pid or global id)
     #[inline(always)]
     fn local_id(&self, v: VertexRef) -> VID {
@@ -130,16 +123,9 @@ impl TemporalGraph {
 
 // Layer management:
 impl TemporalGraph {
-    fn layer_iter(&self, id: Option<usize>) -> Box<dyn Iterator<Item = &EdgeLayer> + Send + '_> {
-        match self.layer_iter_optm(id) {
-            LayerIterator::Single(layer) => Box::new(std::iter::once(layer)),
-            LayerIterator::Vector(layers) => Box::new(layers.iter()),
-        }
-    }
-
     // TODO: we can completely replace this function with `layer_iter` if we are sure that doesn't
     // affect performance
-    fn layer_iter_optm(&self, id: Option<usize>) -> LayerIterator {
+    fn layer_iter(&self, id: Option<usize>) -> LayerIterator {
         if self.layers.len() == 1 {
             LayerIterator::Single(&self.layers[0])
         } else {
@@ -148,10 +134,6 @@ impl TemporalGraph {
                 None => LayerIterator::Vector(&self.layers),
             }
         }
-    }
-
-    fn single_layer_access(&self, layer: Option<usize>) -> bool {
-        matches!(self.layer_iter_optm(layer), LayerIterator::Single(_))
     }
 }
 
@@ -183,7 +165,7 @@ impl TemporalGraph {
     }
 
     pub(crate) fn out_edges_len(&self, layer: Option<usize>) -> usize {
-        match self.layer_iter_optm(layer) {
+        match self.layer_iter(layer) {
             LayerIterator::Single(layer) => layer.out_edges_len(),
             LayerIterator::Vector(_) => self
                 .vertices()
@@ -193,7 +175,7 @@ impl TemporalGraph {
     }
 
     pub fn out_edges_len_window(&self, w: &Range<Time>, layer: Option<usize>) -> usize {
-        match self.layer_iter_optm(layer) {
+        match self.layer_iter(layer) {
             LayerIterator::Single(layer) => layer.out_edges_len_window(w),
             LayerIterator::Vector(_) => self
                 .vertices_window(w.clone())
@@ -372,7 +354,7 @@ impl TemporalGraph {
 
     pub(crate) fn degree(&self, v: LocalVertexRef, d: Direction, layer: Option<usize>) -> usize {
         let v_pid = v.pid;
-        match self.layer_iter_optm(layer) {
+        match self.layer_iter(layer) {
             LayerIterator::Single(layer) => layer.degree(v_pid, d),
             LayerIterator::Vector(layers) => layers
                 .iter()
@@ -391,7 +373,7 @@ impl TemporalGraph {
         layer: Option<usize>,
     ) -> usize {
         let v_pid = v.pid;
-        match self.layer_iter_optm(layer) {
+        match self.layer_iter(layer) {
             LayerIterator::Single(layer) => layer.degree_window(v_pid, d, w),
             LayerIterator::Vector(layers) => layers
                 .iter()
@@ -476,7 +458,7 @@ impl TemporalGraph {
         Self: Sized,
     {
         let v_pid = v.pid;
-        match self.layer_iter_optm(layer) {
+        match self.layer_iter(layer) {
             LayerIterator::Single(layer) => layer.vertex_edges_iter(v_pid, d),
             LayerIterator::Vector(layers) => {
                 let iter = layers
@@ -500,7 +482,7 @@ impl TemporalGraph {
         Self: Sized,
     {
         let v_pid = v.pid;
-        match self.layer_iter_optm(layer) {
+        match self.layer_iter(layer) {
             LayerIterator::Single(layer) => layer.vertex_edges_iter_window(v_pid, w, d),
             LayerIterator::Vector(layers) => {
                 let iter = layers
@@ -521,7 +503,7 @@ impl TemporalGraph {
         layer: Option<usize>,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send + '_> {
         let v_pid = v.pid;
-        match self.layer_iter_optm(layer) {
+        match self.layer_iter(layer) {
             LayerIterator::Single(layer) => layer.vertex_edges_iter_window_t(v_pid, w, d),
             LayerIterator::Vector(layers) => {
                 let iter = layers
@@ -530,10 +512,6 @@ impl TemporalGraph {
                 Box::new(iter)
             }
         }
-    }
-
-    fn vertex_ref_from_edge_ref(&self, edge: EdgeRef) -> VertexRef {
-        edge.remote()
     }
 
     #[inline(always)]
@@ -554,7 +532,7 @@ impl TemporalGraph {
         Self: Sized,
     {
         let v_pid = v.pid;
-        match self.layer_iter_optm(layer) {
+        match self.layer_iter(layer) {
             LayerIterator::Single(layer) => Box::new(
                 layer
                     .vertex_neighbours(v_pid, d)
@@ -583,7 +561,7 @@ impl TemporalGraph {
         Self: Sized,
     {
         let v_pid = v.pid;
-        match self.layer_iter_optm(layer) {
+        match self.layer_iter(layer) {
             LayerIterator::Single(layer) => Box::new(
                 layer
                     .vertex_neighbours_window(v_pid, d, w)

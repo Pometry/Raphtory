@@ -6,13 +6,12 @@
 //!
 
 use crate::core::edge_ref::EdgeRef;
-use crate::core::vertex_ref::VertexRef;
 use crate::core::Prop;
 use crate::db::graph_window::WindowedGraph;
 use crate::db::vertex::VertexView;
 use crate::db::view_api::{BoxedIter, EdgeListOps, GraphViewOps, TimeOps};
 use std::collections::HashMap;
-use std::fmt::{Debug, Formatter};
+use std::fmt::Debug;
 use std::iter;
 use std::sync::Arc;
 

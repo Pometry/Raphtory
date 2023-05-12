@@ -15,10 +15,7 @@ use crate::{
         },
         vertex_ref::LocalVertexRef,
     },
-    db::{
-        graph_window::WindowedGraph,
-        view_api::{GraphViewOps, TimeOps},
-    },
+    db::view_api::GraphViewOps,
 };
 
 pub struct EvalVertexView<'a, G: GraphViewOps, CS: ComputeState> {

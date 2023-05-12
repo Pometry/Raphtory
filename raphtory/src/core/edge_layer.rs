@@ -8,9 +8,8 @@ use std::ops::Range;
 use crate::core::adj::Adj;
 use crate::core::edge_ref::EdgeRef;
 use crate::core::props::Props;
-use crate::core::tadjset::{AdjEdge, Edge};
 use crate::core::timeindex::TimeIndex;
-use crate::core::{Direction, Prop, Time};
+use crate::core::{Direction, Prop};
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) enum VID {

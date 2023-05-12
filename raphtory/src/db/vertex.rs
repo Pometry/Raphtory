@@ -533,9 +533,9 @@ mod vertex_test {
     #[test]
     fn test_earliest_time() {
         let g = Graph::new(4);
-        g.add_vertex(0, 1, &vec![]);
-        g.add_vertex(1, 1, &vec![]);
-        g.add_vertex(2, 1, &vec![]);
+        g.add_vertex(0, 1, &vec![]).unwrap();
+        g.add_vertex(1, 1, &vec![]).unwrap();
+        g.add_vertex(2, 1, &vec![]).unwrap();
         let mut view = g.at(1);
         assert_eq!(view.vertex(1).expect("v").earliest_time().unwrap(), 0);
         assert_eq!(view.vertex(1).expect("v").latest_time().unwrap(), 1);

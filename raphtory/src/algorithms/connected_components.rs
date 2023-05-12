@@ -1,4 +1,4 @@
-use crate::core::vertex_ref::{LocalVertexRef, VertexRef};
+use crate::core::vertex_ref::LocalVertexRef;
 use crate::{
     core::state::{accumulator_id::accumulators, compute_state::ComputeStateVec},
     db::{
@@ -7,7 +7,7 @@ use crate::{
             task::{ATask, Job, Step},
             task_runner::TaskRunner,
         },
-        view_api::{GraphViewOps, VertexViewOps},
+        view_api::GraphViewOps,
     },
 };
 use rustc_hash::FxHashMap;
@@ -37,7 +37,7 @@ where
     let min = accumulators::min::<u64>(0);
 
     // setup the aggregator to be merged post execution
-    ctx.agg(min.clone());
+    ctx.agg(min);
 
     let step1 = ATask::new(move |vv| {
         vv.update(&min, vv.global_id());
@@ -204,7 +204,7 @@ mod cc_test {
 
     #[quickcheck]
     fn circle_graph_the_smallest_value_is_the_cc(vs: Vec<u64>) {
-        if vs.len() > 0 {
+        if !vs.is_empty() {
             let vs = vs.into_iter().unique().collect::<Vec<u64>>();
 
             let smallest = vs.iter().min().unwrap();

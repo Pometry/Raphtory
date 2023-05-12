@@ -1,6 +1,6 @@
 use rustc_hash::FxHashMap;
 
-use crate::core::vertex_ref::{LocalVertexRef, VertexRef};
+use crate::core::vertex_ref::LocalVertexRef;
 use crate::{core::agg::Accumulator, db::view_api::internal::GraphViewInternalOps};
 
 use super::{

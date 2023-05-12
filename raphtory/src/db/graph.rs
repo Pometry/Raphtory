@@ -1007,7 +1007,7 @@ mod db_tests {
 
         edges
             .iter()
-            .all(|&(t, src, dst)| g.has_edge(src, dst, None))
+            .all(|&(_, src, dst)| g.has_edge(src, dst, None))
     }
 
     #[quickcheck]
@@ -1019,7 +1019,7 @@ mod db_tests {
 
         edges
             .iter()
-            .all(|&(t, src, dst)| g.edge(src, dst, None).is_some())
+            .all(|&(_, src, dst)| g.edge(src, dst, None).is_some())
     }
 
     #[test]
@@ -1982,8 +1982,8 @@ mod db_tests {
     #[test]
     fn test_edge_layer_name() {
         let g = Graph::new(4);
-        g.add_edge(0, 0, 1, &vec![], None);
-        g.add_edge(0, 0, 1, &vec![], Some("awesome name"));
+        g.add_edge(0, 0, 1, &vec![], None).unwrap();
+        g.add_edge(0, 0, 1, &vec![], Some("awesome name")).unwrap();
 
         let layer_names = g.edges().map(|e| e.layer_name()).sorted().collect_vec();
         assert_eq!(layer_names, vec!["awesome name", "default layer"]);

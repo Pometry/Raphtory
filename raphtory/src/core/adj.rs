@@ -1,10 +1,5 @@
-use std::iter;
-use itertools::Itertools;
 use crate::core::edge_layer::VID;
-use crate::core::{
-    tadjset::{AdjEdge, TAdjSet},
-    Direction,
-};
+use crate::core::{tadjset::TAdjSet, Direction};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Default)]
@@ -22,7 +17,6 @@ pub(crate) enum Adj {
 }
 
 impl Adj {
-
     pub(crate) fn get_edge(&self, v: VID, dir: Direction) -> Option<usize> {
         match self {
             Adj::Solo => None,
@@ -78,15 +72,6 @@ impl Adj {
                 remote_into: TAdjSet::new(v, e),
                 remote_out: TAdjSet::default(),
             },
-        }
-    }
-
-    pub(crate) fn out_edges_len(&self) -> usize {
-        match self {
-            Adj::Solo => 0,
-            Adj::List {
-                out, remote_out, ..
-            } => out.len() + remote_out.len(),
         }
     }
 }
