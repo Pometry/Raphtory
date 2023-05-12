@@ -1,11 +1,13 @@
 //! The API for querying a view of the graph in a read-only state
 use crate::dynamic::{DynamicGraph, IntoDynamic};
 use crate::edge::{PyEdge, PyEdges};
-use crate::utils::{at_impl, expanding_impl, extract_vertex_ref, rolling_impl, window_impl};
+use crate::utils::{
+    at_impl, expanding_impl, extract_vertex_ref, rolling_impl, window_impl, IntoPyObject,
+    PyWindowSet,
+};
 use crate::vertex::{PyVertex, PyVertices};
 use pyo3::prelude::*;
 use raphtory::db::view_api::layer::LayerOps;
-use raphtory::db::view_api::time::WindowSet;
 use raphtory::db::view_api::*;
 use raphtory::*;
 
@@ -24,48 +26,10 @@ impl<G: GraphViewOps + IntoDynamic> From<G> for PyGraphView {
     }
 }
 
-/// A set of windowed views of a `Graph`, allows user to iterating over a Graph broken
-/// down into multiple windowed views.
-#[pyclass(name = "GraphWindowSet")]
-#[derive(Clone)]
-pub struct PyGraphWindowSet {
-    window_set: WindowSet<DynamicGraph>,
-}
-
-impl From<WindowSet<DynamicGraph>> for PyGraphWindowSet {
-    fn from(value: WindowSet<DynamicGraph>) -> Self {
-        Self { window_set: value }
-    }
-}
-
-/// A set of windowed views of a `Graph`, allows user to iterating over a Graph broken
-/// down into multiple windowed views.
-#[pymethods]
-impl PyGraphWindowSet {
-    fn __iter__(&self) -> PyGraphWindowIterator {
-        self.window_set.clone().into()
-    }
-}
-
-#[pyclass(name = "GraphWindowIterator")]
-#[derive(Clone)]
-pub struct PyGraphWindowIterator {
-    window_set: WindowSet<DynamicGraph>,
-}
-
-impl From<WindowSet<DynamicGraph>> for PyGraphWindowIterator {
-    fn from(value: WindowSet<DynamicGraph>) -> Self {
-        Self { window_set: value }
-    }
-}
-
-#[pymethods]
-impl PyGraphWindowIterator {
-    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
-        slf
-    }
-    fn __next__(&mut self) -> Option<PyGraphView> {
-        self.window_set.next().map(|g| g.into())
+impl<G: GraphViewOps + IntoDynamic> IntoPyObject for G {
+    fn into_py_object(self) -> PyObject {
+        let py_version: PyGraphView = self.into();
+        Python::with_gil(|py| py_version.into_py(py))
     }
 }
 
@@ -222,7 +186,7 @@ impl PyGraphView {
     /// Returns:
     ///     A `WindowSet` with the given `step` size and optional `start` and `end` times,
     #[pyo3(signature = (step))]
-    fn expanding(&self, step: &PyAny) -> PyResult<PyGraphWindowSet> {
+    fn expanding(&self, step: &PyAny) -> PyResult<PyWindowSet> {
         expanding_impl(&self.graph, step)
     }
 
@@ -239,7 +203,7 @@ impl PyGraphView {
     ///
     /// Returns:
     ///  a `WindowSet` with the given `window` size and optional `step`, `start` and `end` times,
-    fn rolling(&self, window: &PyAny, step: Option<&PyAny>) -> PyResult<PyGraphWindowSet> {
+    fn rolling(&self, window: &PyAny, step: Option<&PyAny>) -> PyResult<PyWindowSet> {
         rolling_impl(&self.graph, window, step)
     }
 

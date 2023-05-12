@@ -5,7 +5,6 @@
 //! It is a wrapper around a set of shards, which are the actual graph data structures.
 //! In Python, this class wraps around the rust graph.
 
-use crate::dynamic::IntoDynamic;
 use crate::graph_view::PyGraphView;
 use crate::utils::{adapt_result, extract_input_vertex, extract_into_time, InputVertexBox};
 use crate::wrappers::prop::Prop;

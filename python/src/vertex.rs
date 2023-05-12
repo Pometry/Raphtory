@@ -4,19 +4,21 @@
 use crate::dynamic::{DynamicGraph, IntoDynamic};
 use crate::edge::{PyEdges, PyNestedEdges};
 use crate::types::repr::{iterator_repr, Repr};
-use crate::utils::{at_impl, expanding_impl, extract_vertex_ref, rolling_impl, window_impl};
+use crate::utils::{
+    at_impl, expanding_impl, extract_vertex_ref, rolling_impl, window_impl, IntoPyObject,
+    PyWindowSet,
+};
 use crate::wrappers::iterators::*;
 use crate::wrappers::prop::Prop;
 use itertools::Itertools;
 use pyo3::exceptions::PyIndexError;
-use pyo3::{pyclass, pymethods, PyAny, PyRef, PyRefMut, PyResult};
+use pyo3::prelude::*;
+use pyo3::{pyclass, pymethods, PyAny, PyObject, PyRef, PyRefMut, PyResult, Python};
 use raphtory::core::tgraph::VertexRef;
-use raphtory::db::graph_window::WindowedGraph;
 use raphtory::db::path::{PathFromGraph, PathFromVertex};
 use raphtory::db::vertex::VertexView;
 use raphtory::db::vertices::Vertices;
 use raphtory::db::view_api::layer::LayerOps;
-use raphtory::db::view_api::time::WindowSet;
 use raphtory::db::view_api::*;
 use raphtory::*;
 use std::collections::HashMap;
@@ -37,6 +39,13 @@ impl<G: GraphViewOps + IntoDynamic> From<VertexView<G>> for PyVertex {
                 vertex: value.vertex,
             },
         }
+    }
+}
+
+impl<G: GraphViewOps + IntoDynamic> IntoPyObject for VertexView<G> {
+    fn into_py_object(self) -> PyObject {
+        let py_version: PyVertex = self.into();
+        Python::with_gil(|py| py_version.into_py(py))
     }
 }
 
@@ -304,7 +313,7 @@ impl PyVertex {
     ///
     /// Returns:
     ///  A `PyVertexWindowSet` object.
-    fn expanding(&self, step: &PyAny) -> PyResult<PyVertexWindowSet> {
+    fn expanding(&self, step: &PyAny) -> PyResult<PyWindowSet> {
         expanding_impl(&self.vertex, step)
     }
 
@@ -323,7 +332,7 @@ impl PyVertex {
     ///
     /// Returns:
     /// A `PyVertexWindowSet` object.
-    fn rolling(&self, window: &PyAny, step: Option<&PyAny>) -> PyResult<PyVertexWindowSet> {
+    fn rolling(&self, window: &PyAny, step: Option<&PyAny>) -> PyResult<PyWindowSet> {
         rolling_impl(&self.vertex, window, step)
     }
 
@@ -414,6 +423,13 @@ impl<G: GraphViewOps + IntoDynamic> From<Vertices<G>> for PyVertices {
         Self {
             vertices: Vertices::new(value.graph.into_dynamic()),
         }
+    }
+}
+
+impl<G: GraphViewOps + IntoDynamic> IntoPyObject for Vertices<G> {
+    fn into_py_object(self) -> PyObject {
+        let py_version: PyVertices = self.into();
+        Python::with_gil(|py| py_version.into_py(py))
     }
 }
 
@@ -541,11 +557,11 @@ impl PyVertices {
         self.vertices.window_size()
     }
 
-    fn expanding(&self, step: &PyAny) -> PyResult<PyVerticesWindowSet> {
+    fn expanding(&self, step: &PyAny) -> PyResult<PyWindowSet> {
         expanding_impl(&self.vertices, step)
     }
 
-    fn rolling(&self, window: &PyAny, step: Option<&PyAny>) -> PyResult<PyVerticesWindowSet> {
+    fn rolling(&self, window: &PyAny, step: Option<&PyAny>) -> PyResult<PyWindowSet> {
         rolling_impl(&self.vertices, window, step)
     }
 
@@ -743,11 +759,11 @@ impl PyPathFromGraph {
         self.path.window_size()
     }
 
-    fn expanding(&self, step: &PyAny) -> PyResult<PyPathFromGraphWindowSet> {
+    fn expanding(&self, step: &PyAny) -> PyResult<PyWindowSet> {
         expanding_impl(&self.path, step)
     }
 
-    fn rolling(&self, window: &PyAny, step: Option<&PyAny>) -> PyResult<PyPathFromGraphWindowSet> {
+    fn rolling(&self, window: &PyAny, step: Option<&PyAny>) -> PyResult<PyWindowSet> {
         rolling_impl(&self.path, window, step)
     }
 
@@ -804,6 +820,13 @@ impl<G: GraphViewOps + IntoDynamic> From<PathFromGraph<G>> for PyPathFromGraph {
     }
 }
 
+impl<G: GraphViewOps + IntoDynamic> IntoPyObject for PathFromGraph<G> {
+    fn into_py_object(self) -> PyObject {
+        let py_version: PyPathFromGraph = self.into();
+        Python::with_gil(|py| py_version.into_py(py))
+    }
+}
+
 #[pyclass(name = "PathFromVertex")]
 pub struct PyPathFromVertex {
     path: PathFromVertex<DynamicGraph>,
@@ -818,6 +841,13 @@ impl<G: GraphViewOps + IntoDynamic> From<PathFromVertex<G>> for PyPathFromVertex
                 operations: value.operations,
             },
         }
+    }
+}
+
+impl<G: GraphViewOps + IntoDynamic> IntoPyObject for PathFromVertex<G> {
+    fn into_py_object(self) -> PyObject {
+        let py_version: PyPathFromVertex = self.into();
+        Python::with_gil(|py| py_version.into_py(py))
     }
 }
 
@@ -947,11 +977,11 @@ impl PyPathFromVertex {
         self.path.window_size()
     }
 
-    fn expanding(&self, step: &PyAny) -> PyResult<PyPathFromVertexWindowSet> {
+    fn expanding(&self, step: &PyAny) -> PyResult<PyWindowSet> {
         expanding_impl(&self.path, step)
     }
 
-    fn rolling(&self, window: &PyAny, step: Option<&PyAny>) -> PyResult<PyPathFromVertexWindowSet> {
+    fn rolling(&self, window: &PyAny, step: Option<&PyAny>) -> PyResult<PyWindowSet> {
         rolling_impl(&self.path, window, step)
     }
 
@@ -1063,170 +1093,6 @@ impl PathIterator {
     }
     fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<PyPathFromVertex> {
         slf.iter.next()
-    }
-}
-
-#[pyclass(name = "VertexWindowSet")]
-#[derive(Clone)]
-pub struct PyVertexWindowSet {
-    window_set: WindowSet<VertexView<DynamicGraph>>,
-}
-
-impl From<WindowSet<VertexView<DynamicGraph>>> for PyVertexWindowSet {
-    fn from(value: WindowSet<VertexView<DynamicGraph>>) -> Self {
-        Self { window_set: value }
-    }
-}
-
-#[pymethods]
-impl PyVertexWindowSet {
-    fn __iter__(&self) -> PyVertexWindowIterator {
-        self.window_set.clone().into()
-    }
-}
-
-#[pyclass(name = "VertexWindowIterator")]
-#[derive(Clone)]
-pub struct PyVertexWindowIterator {
-    window_set: WindowSet<VertexView<DynamicGraph>>,
-}
-
-impl From<WindowSet<VertexView<DynamicGraph>>> for PyVertexWindowIterator {
-    fn from(value: WindowSet<VertexView<DynamicGraph>>) -> Self {
-        Self { window_set: value }
-    }
-}
-
-#[pymethods]
-impl PyVertexWindowIterator {
-    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
-        slf
-    }
-    fn __next__(&mut self) -> Option<PyVertex> {
-        self.window_set.next().map(|v| v.into())
-    }
-}
-
-#[pyclass(name = "VerticesWindowSet")]
-#[derive(Clone)]
-pub struct PyVerticesWindowSet {
-    window_set: WindowSet<Vertices<DynamicGraph>>,
-}
-
-impl From<WindowSet<Vertices<DynamicGraph>>> for PyVerticesWindowSet {
-    fn from(value: WindowSet<Vertices<DynamicGraph>>) -> Self {
-        Self { window_set: value }
-    }
-}
-
-#[pymethods]
-impl PyVerticesWindowSet {
-    fn __iter__(&self) -> PyVerticesWindowIterator {
-        self.window_set.clone().into()
-    }
-}
-
-#[pyclass(name = "VerticesWindowIterator")]
-#[derive(Clone)]
-pub struct PyVerticesWindowIterator {
-    window_set: WindowSet<Vertices<DynamicGraph>>,
-}
-
-impl From<WindowSet<Vertices<DynamicGraph>>> for PyVerticesWindowIterator {
-    fn from(value: WindowSet<Vertices<DynamicGraph>>) -> Self {
-        Self { window_set: value }
-    }
-}
-
-#[pymethods]
-impl PyVerticesWindowIterator {
-    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
-        slf
-    }
-    fn __next__(&mut self) -> Option<PyVertices> {
-        self.window_set.next().map(|g| g.into())
-    }
-}
-
-#[pyclass(name = "PathFromGraphWindowSet")]
-#[derive(Clone)]
-pub struct PyPathFromGraphWindowSet {
-    window_set: WindowSet<PathFromGraph<DynamicGraph>>,
-}
-
-impl From<WindowSet<PathFromGraph<DynamicGraph>>> for PyPathFromGraphWindowSet {
-    fn from(value: WindowSet<PathFromGraph<DynamicGraph>>) -> Self {
-        Self { window_set: value }
-    }
-}
-
-#[pymethods]
-impl PyPathFromGraphWindowSet {
-    fn __iter__(&self) -> PyPathFromGraphWindowIterator {
-        self.window_set.clone().into()
-    }
-}
-
-#[pyclass(name = "PathFromGraphWindowIterator")]
-#[derive(Clone)]
-pub struct PyPathFromGraphWindowIterator {
-    window_set: WindowSet<PathFromGraph<DynamicGraph>>,
-}
-
-impl From<WindowSet<PathFromGraph<DynamicGraph>>> for PyPathFromGraphWindowIterator {
-    fn from(value: WindowSet<PathFromGraph<DynamicGraph>>) -> Self {
-        Self { window_set: value }
-    }
-}
-
-#[pymethods]
-impl PyPathFromGraphWindowIterator {
-    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
-        slf
-    }
-    fn __next__(&mut self) -> Option<PyPathFromGraph> {
-        self.window_set.next().map(|g| g.into())
-    }
-}
-
-#[pyclass(name = "PathFromVertexWindowSet")]
-#[derive(Clone)]
-pub struct PyPathFromVertexWindowSet {
-    window_set: WindowSet<PathFromVertex<DynamicGraph>>,
-}
-
-impl From<WindowSet<PathFromVertex<DynamicGraph>>> for PyPathFromVertexWindowSet {
-    fn from(value: WindowSet<PathFromVertex<DynamicGraph>>) -> Self {
-        Self { window_set: value }
-    }
-}
-
-#[pymethods]
-impl PyPathFromVertexWindowSet {
-    fn __iter__(&self) -> PyPathFromVertexWindowIterator {
-        self.window_set.clone().into()
-    }
-}
-
-#[pyclass(name = "PathFromVertexWindowIterator")]
-#[derive(Clone)]
-pub struct PyPathFromVertexWindowIterator {
-    window_set: WindowSet<PathFromVertex<DynamicGraph>>,
-}
-
-impl From<WindowSet<PathFromVertex<DynamicGraph>>> for PyPathFromVertexWindowIterator {
-    fn from(value: WindowSet<PathFromVertex<DynamicGraph>>) -> Self {
-        Self { window_set: value }
-    }
-}
-
-#[pymethods]
-impl PyPathFromVertexWindowIterator {
-    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
-        slf
-    }
-    fn __next__(&mut self) -> Option<PyPathFromVertex> {
-        self.window_set.next().map(|g| g.into())
     }
 }
 
