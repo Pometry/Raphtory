@@ -206,6 +206,11 @@ impl EdgeLayer {
         }
     }
 
+    #[inline]
+    fn get_adj(&self, v_pid: usize) -> &Adj {
+        self.adj_lists.get(v_pid).unwrap_or(&Adj::Solo)
+    }
+
     fn get_edge_and_update_time(
         &mut self,
         local_v: usize,
@@ -280,7 +285,7 @@ impl EdgeLayer {
     pub(crate) fn edge(&self, src: VID, dst: VID, w: Option<Range<i64>>) -> Option<EdgeRef> {
         match src {
             VID::Local(src_pid) => {
-                let adj = &self.adj_lists[src_pid];
+                let adj = self.get_adj(src_pid);
                 match adj {
                     Adj::Solo => None,
                     Adj::List {
@@ -319,7 +324,7 @@ impl EdgeLayer {
             }
             VID::Remote(src) => match dst {
                 VID::Local(dst_pid) => {
-                    let adj = &self.adj_lists[dst_pid];
+                    let adj = self.get_adj(dst_pid);
                     match adj {
                         Adj::Solo => None,
                         Adj::List { remote_into, .. } => {
@@ -338,7 +343,7 @@ impl EdgeLayer {
                         }
                     }
                 }
-                VID::Remote(dst) => None,
+                VID::Remote(_) => None,
             },
         }
     }
@@ -411,7 +416,7 @@ impl EdgeLayer {
         v_pid: usize,
         d: Direction,
     ) -> Box<dyn Iterator<Item = VID> + Send + '_> {
-        let adj = self.adj_lists.get(v_pid).unwrap_or(&Adj::Solo);
+        let adj = self.get_adj(v_pid);
         match adj {
             Adj::Solo => {
                 let iter: Box<dyn Iterator<Item = VID> + Send + '_> = Box::new(iter::empty());
@@ -465,7 +470,7 @@ impl EdgeLayer {
         d: Direction,
         window: &Range<i64>,
     ) -> Box<dyn Iterator<Item = VID> + Send + '_> {
-        let adj = &self.adj_lists[v_pid];
+        let adj = self.get_adj(v_pid);
         match adj {
             Adj::Solo => {
                 let iter: Box<dyn Iterator<Item = VID> + Send + '_> = Box::new(iter::empty());
@@ -525,27 +530,18 @@ impl EdgeLayer {
     }
 
     pub fn degree(&self, v_pid: usize, d: Direction) -> usize {
-        match d {
-            Direction::OUT => match &self.adj_lists[v_pid] {
-                Adj::Solo => 0,
-                Adj::List {
-                    out, remote_out, ..
-                } => out.len() + remote_out.len(),
-            },
-            Direction::IN => match &self.adj_lists[v_pid] {
-                Adj::Solo => 0,
-                Adj::List {
-                    into, remote_into, ..
-                } => into.len() + remote_into.len(),
-            },
-            Direction::BOTH => match &self.adj_lists[v_pid] {
-                Adj::Solo => 0,
-                Adj::List {
-                    out,
-                    remote_out,
-                    into,
-                    remote_into,
-                } => {
+        let adj = self.get_adj(v_pid);
+        match adj {
+            Adj::Solo => 0,
+            Adj::List {
+                out,
+                into,
+                remote_out,
+                remote_into,
+            } => match d {
+                Direction::OUT => out.len() + remote_out.len(),
+                Direction::IN => into.len() + remote_into.len(),
+                Direction::BOTH => {
                     out.vertices().merge(into.vertices()).dedup().count()
                         + remote_out
                             .vertices()
@@ -558,7 +554,7 @@ impl EdgeLayer {
     }
 
     pub fn degree_window(&self, v_pid: usize, d: Direction, window: &Range<i64>) -> usize {
-        let adj = &self.adj_lists.get(v_pid).unwrap_or(&Adj::Solo);
+        let adj = self.get_adj(v_pid);
         match adj {
             Adj::Solo => 0,
             Adj::List {
@@ -597,7 +593,7 @@ impl EdgeLayer {
         v_pid: usize,
         d: Direction,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send + '_> {
-        match &self.adj_lists[v_pid] {
+        match self.get_adj(v_pid) {
             Adj::List {
                 out,
                 into,
@@ -668,7 +664,7 @@ impl EdgeLayer {
         r: &Range<i64>,
         d: Direction,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send + '_> {
-        match &self.adj_lists[v_pid] {
+        match self.get_adj(v_pid) {
             Adj::List {
                 out,
                 into,
