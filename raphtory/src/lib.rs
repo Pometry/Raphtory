@@ -84,28 +84,6 @@
 //! println!("Number of Edges {:?}", graph.num_edges());
 //! ```
 //!
-//! Load a pre-built graph
-//! ```rust
-//! use raphtory::algorithms::degree::average_degree;
-//! use raphtory::db::graph::Graph;
-//! use raphtory::db::view_api::*;
-//! use raphtory_io::graph_loader::example::lotr_graph::lotr_graph;
-//!
-//! let graph = lotr_graph(3);
-//!
-//! // Get the in-degree, out-degree of Gandalf
-//! // The graph.vertex option returns a result of an option,
-//! // so we need to unwrap the result and the option or
-//! // we can use this if let instead
-//! if let Some(gandalf) = graph.vertex("Gandalf") {
-//!    println!("Gandalf in degree: {:?}", gandalf.in_degree());
-//!   println!("Gandalf out degree: {:?}", gandalf.out_degree());
-//! }
-//!
-//! // Run an average degree algorithm on the graph
-//! println!("Average degree: {:?}", average_degree(&graph));
-//! ```
-//!
 //! ## Supported Operating Systems
 //! This library requires Rust 1.54 or later.
 //!
