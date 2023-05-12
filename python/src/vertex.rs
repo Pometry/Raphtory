@@ -6,13 +6,14 @@ use crate::edge::{PyEdges, PyNestedEdges};
 use crate::types::repr::{iterator_repr, Repr};
 use crate::utils::{
     at_impl, expanding_impl, extract_vertex_ref, rolling_impl, time_index_impl, window_impl,
-    PyGenericIterable, PyWindowSet,
+    IntoPyObject, PyGenericIterable, PyWindowSet,
 };
 use crate::wrappers::iterators::*;
 use crate::wrappers::prop::Prop;
 use itertools::Itertools;
 use pyo3::exceptions::PyIndexError;
-use pyo3::{pyclass, pymethods, PyAny, PyRef, PyRefMut, PyResult};
+use pyo3::prelude::*;
+use pyo3::{pyclass, pymethods, PyAny, PyObject, PyRef, PyRefMut, PyResult, Python};
 use raphtory::core::tgraph::VertexRef;
 use raphtory::db::graph_window::WindowedGraph;
 use raphtory::db::path::{PathFromGraph, PathFromVertex};
@@ -32,6 +33,7 @@ pub struct PyVertex {
     vertex: VertexView<DynamicGraph>,
 }
 
+// TODO: these might be not useful anymore at some point
 impl<G: GraphViewOps + IntoDynamic> From<VertexView<G>> for PyVertex {
     fn from(value: VertexView<G>) -> Self {
         Self {
@@ -40,6 +42,13 @@ impl<G: GraphViewOps + IntoDynamic> From<VertexView<G>> for PyVertex {
                 vertex: value.vertex,
             },
         }
+    }
+}
+
+impl<G: GraphViewOps + IntoDynamic> IntoPyObject for VertexView<G> {
+    fn into_py_object(self) -> PyObject {
+        let py_version: PyVertex = self.into();
+        Python::with_gil(|py| py_version.into_py(py))
     }
 }
 
@@ -308,11 +317,7 @@ impl PyVertex {
     /// Returns:
     ///  A `PyVertexWindowSet` object.
     fn expanding(&self, step: &PyAny) -> PyResult<PyWindowSet> {
-        let window_set = expanding_impl(&self.vertex, step)?;
-        let iter = window_set
-            .clone()
-            .map(<VertexView<WindowedGraph<DynamicGraph>> as Into<PyVertex>>::into);
-        Ok(PyWindowSet::new(window_set, move || iter.clone()))
+        expanding_impl(&self.vertex, step)
     }
 
     /// Creates a `PyVertexWindowSet` with the given `window` size and optional `step`, `start` and `end` times,
@@ -331,11 +336,7 @@ impl PyVertex {
     /// Returns:
     /// A `PyVertexWindowSet` object.
     fn rolling(&self, window: &PyAny, step: Option<&PyAny>) -> PyResult<PyWindowSet> {
-        let window_set = rolling_impl(&self.vertex, window, step)?;
-        let iter = window_set
-            .clone()
-            .map(<VertexView<WindowedGraph<DynamicGraph>> as Into<PyVertex>>::into);
-        Ok(PyWindowSet::new(window_set, move || iter.clone()))
+        rolling_impl(&self.vertex, window, step)
     }
 
     /// Create a view of the vertex including all events between `t_start` (inclusive) and `t_end` (exclusive)
@@ -425,6 +426,13 @@ impl<G: GraphViewOps + IntoDynamic> From<Vertices<G>> for PyVertices {
         Self {
             vertices: Vertices::new(value.graph.into_dynamic()),
         }
+    }
+}
+
+impl<G: GraphViewOps + IntoDynamic> IntoPyObject for Vertices<G> {
+    fn into_py_object(self) -> PyObject {
+        let py_version: PyVertices = self.into();
+        Python::with_gil(|py| py_version.into_py(py))
     }
 }
 
@@ -553,19 +561,11 @@ impl PyVertices {
     }
 
     fn expanding(&self, step: &PyAny) -> PyResult<PyWindowSet> {
-        let window_set = expanding_impl(&self.vertices, step)?;
-        let iter = window_set
-            .clone()
-            .map(<Vertices<WindowedGraph<DynamicGraph>> as Into<PyVertices>>::into);
-        Ok(PyWindowSet::new(window_set, move || iter.clone()))
+        expanding_impl(&self.vertices, step)
     }
 
     fn rolling(&self, window: &PyAny, step: Option<&PyAny>) -> PyResult<PyWindowSet> {
-        let window_set = rolling_impl(&self.vertices, window, step)?;
-        let iter = window_set
-            .clone()
-            .map(<Vertices<WindowedGraph<DynamicGraph>> as Into<PyVertices>>::into);
-        Ok(PyWindowSet::new(window_set, move || iter.clone()))
+        rolling_impl(&self.vertices, window, step)
     }
 
     #[pyo3(signature = (t_start = None, t_end = None))]
@@ -763,19 +763,11 @@ impl PyPathFromGraph {
     }
 
     fn expanding(&self, step: &PyAny) -> PyResult<PyWindowSet> {
-        let window_set = expanding_impl(&self.path, step)?;
-        let iter = window_set
-            .clone()
-            .map(<PathFromGraph<WindowedGraph<DynamicGraph>> as Into<PyPathFromGraph>>::into);
-        Ok(PyWindowSet::new(window_set, move || iter.clone()))
+        expanding_impl(&self.path, step)
     }
 
     fn rolling(&self, window: &PyAny, step: Option<&PyAny>) -> PyResult<PyWindowSet> {
-        let window_set = rolling_impl(&self.path, window, step)?;
-        let iter = window_set
-            .clone()
-            .map(<PathFromGraph<WindowedGraph<DynamicGraph>> as Into<PyPathFromGraph>>::into);
-        Ok(PyWindowSet::new(window_set, move || iter.clone()))
+        rolling_impl(&self.path, window, step)
     }
 
     #[pyo3(signature = (t_start = None, t_end = None))]
@@ -831,6 +823,13 @@ impl<G: GraphViewOps + IntoDynamic> From<PathFromGraph<G>> for PyPathFromGraph {
     }
 }
 
+impl<G: GraphViewOps + IntoDynamic> IntoPyObject for PathFromGraph<G> {
+    fn into_py_object(self) -> PyObject {
+        let py_version: PyPathFromGraph = self.into();
+        Python::with_gil(|py| py_version.into_py(py))
+    }
+}
+
 #[pyclass(name = "PathFromVertex")]
 pub struct PyPathFromVertex {
     path: PathFromVertex<DynamicGraph>,
@@ -845,6 +844,13 @@ impl<G: GraphViewOps + IntoDynamic> From<PathFromVertex<G>> for PyPathFromVertex
                 operations: value.operations,
             },
         }
+    }
+}
+
+impl<G: GraphViewOps + IntoDynamic> IntoPyObject for PathFromVertex<G> {
+    fn into_py_object(self) -> PyObject {
+        let py_version: PyPathFromVertex = self.into();
+        Python::with_gil(|py| py_version.into_py(py))
     }
 }
 
@@ -975,19 +981,11 @@ impl PyPathFromVertex {
     }
 
     fn expanding(&self, step: &PyAny) -> PyResult<PyWindowSet> {
-        let window_set = expanding_impl(&self.path, step)?;
-        let iter = window_set
-            .clone()
-            .map(<PathFromVertex<WindowedGraph<DynamicGraph>> as Into<PyPathFromVertex>>::into);
-        Ok(PyWindowSet::new(window_set, move || iter.clone()))
+        expanding_impl(&self.path, step)
     }
 
     fn rolling(&self, window: &PyAny, step: Option<&PyAny>) -> PyResult<PyWindowSet> {
-        let window_set = rolling_impl(&self.path, window, step)?;
-        let iter = window_set
-            .clone()
-            .map(<PathFromVertex<WindowedGraph<DynamicGraph>> as Into<PyPathFromVertex>>::into);
-        Ok(PyWindowSet::new(window_set, move || iter.clone()))
+        rolling_impl(&self.path, window, step)
     }
 
     #[pyo3(signature = (t_start = None, t_end = None))]

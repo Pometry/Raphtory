@@ -10,6 +10,7 @@ use crate::utils::*;
 use crate::vertex::{PyVertex, PyVertexIterable, PyVertices};
 use crate::wrappers::prop::Prop;
 use itertools::Itertools;
+use pyo3::prelude::*;
 use pyo3::{pyclass, pymethods, PyAny, PyRef, PyRefMut, PyResult};
 use raphtory::db::edge::EdgeView;
 use raphtory::db::graph_window::WindowedGraph;
@@ -34,6 +35,13 @@ impl<G: GraphViewOps + IntoDynamic> From<EdgeView<G>> for PyEdge {
                 edge: value.edge,
             },
         }
+    }
+}
+
+impl<G: GraphViewOps + IntoDynamic> IntoPyObject for EdgeView<G> {
+    fn into_py_object(self) -> PyObject {
+        let py_version: PyEdge = self.into();
+        Python::with_gil(|py| py_version.into_py(py))
     }
 }
 
@@ -204,11 +212,7 @@ impl PyEdge {
     ///   A set of windows containing edges that fall in the time period
     #[pyo3(signature = (step))]
     fn expanding(&self, step: &PyAny) -> PyResult<PyWindowSet> {
-        let window_set = expanding_impl(&self.edge, step)?;
-        let iter = window_set
-            .clone()
-            .map(<EdgeView<WindowedGraph<DynamicGraph>> as Into<PyEdge>>::into);
-        Ok(PyWindowSet::new(window_set, move || iter.clone()))
+        expanding_impl(&self.edge, step)
     }
 
     /// Get a set of Edge windows for a given window size, step, start time
@@ -224,11 +228,7 @@ impl PyEdge {
     /// Returns:
     ///   A set of windows containing edges that fall in the time period
     fn rolling(&self, window: &PyAny, step: Option<&PyAny>) -> PyResult<PyWindowSet> {
-        let window_set = rolling_impl(&self.edge, window, step)?;
-        let iter = window_set
-            .clone()
-            .map(<EdgeView<WindowedGraph<DynamicGraph>> as Into<PyEdge>>::into);
-        Ok(PyWindowSet::new(window_set, move || iter.clone()))
+        rolling_impl(&self.edge, window, step)
     }
 
     /// Get a new Edge with the properties of this Edge within the specified time window.

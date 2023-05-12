@@ -73,46 +73,34 @@ where
     result.map_err(|e| adapt_err_value(&e))
 }
 
-pub(crate) fn expanding_impl<T>(slf: &T, step: &PyAny) -> PyResult<WindowSet<T>>
+pub(crate) fn expanding_impl<T>(slf: &T, step: &PyAny) -> PyResult<PyWindowSet>
 where
-    T: TimeOps + Clone + 'static,
+    T: TimeOps + Clone + Sync + 'static,
+    T::WindowedViewType: IntoPyObject,
 {
     let step = extract_interval(step)?;
-    adapt_result(slf.expanding(step)).map(|iter| iter.into())
+    let window_set: WindowSet<T> = adapt_result(slf.expanding(step)).map(|iter| iter.into())?;
+    let iter = window_set.clone().map(|v| v.into_py_object());
+    Ok(PyWindowSet::new(window_set, move || iter.clone()))
 }
 
 // TODO: trying to generalize, we should probably have a trait that transforms to PyObject instead
 // of From<T> for PyT
-// pub(crate) fn rolling_impl<T>(
-//     slf: &T,
-//     window: &PyAny,
-//     step: Option<&PyAny>,
-// ) -> PyResult<PyWindowSet>
-//     where
-//         T: TimeOps + Clone + 'static,
-// {
-//     let window = extract_interval(window)?;
-//     let step = step.map(|step| extract_interval(step)).transpose()?;
-//     let window_set = adapt_result(slf.rolling(window, step)).map(|iter| iter.into())?;
-//
-//
-//     let iter = window_set
-//         .clone()
-//         .map(<WindowedGraph<DynamicGraph> as Into<PyGraphView>>::into);
-//     Ok(PyWindowSet::new(window_set, move || iter.clone()))
-// }
-
 pub(crate) fn rolling_impl<T>(
     slf: &T,
     window: &PyAny,
     step: Option<&PyAny>,
-) -> PyResult<WindowSet<T>>
+) -> PyResult<PyWindowSet>
 where
-    T: TimeOps + Clone + 'static,
+    T: TimeOps + Clone + Sync + 'static,
+    T::WindowedViewType: IntoPyObject,
 {
     let window = extract_interval(window)?;
     let step = step.map(|step| extract_interval(step)).transpose()?;
-    adapt_result(slf.rolling(window, step)).map(|iter| iter.into())
+    let window_set: WindowSet<T> =
+        adapt_result(slf.rolling(window, step)).map(|iter| iter.into())?;
+    let iter = window_set.clone().map(|v| v.into_py_object());
+    Ok(PyWindowSet::new(window_set, move || iter.clone()))
 }
 
 fn parse_email_timestamp(timestamp: &str) -> PyResult<i64> {
@@ -418,4 +406,8 @@ impl PyGenericIterator {
     fn __next__(&mut self) -> Option<PyObject> {
         self.iter.next()
     }
+}
+
+pub(crate) trait IntoPyObject {
+    fn into_py_object(self) -> PyObject;
 }

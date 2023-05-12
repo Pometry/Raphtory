@@ -3,7 +3,7 @@ use crate::dynamic::{DynamicGraph, IntoDynamic};
 use crate::edge::{PyEdge, PyEdges};
 use crate::utils::{
     at_impl, expanding_impl, extract_vertex_ref, rolling_impl, time_index_impl, window_impl,
-    PyGenericIterable, PyGenericIterator, PyWindowSet,
+    IntoPyObject, PyGenericIterable, PyGenericIterator, PyWindowSet,
 };
 use crate::vertex::{PyVertex, PyVertices};
 use pyo3::prelude::*;
@@ -25,6 +25,13 @@ impl<G: GraphViewOps + IntoDynamic> From<G> for PyGraphView {
         PyGraphView {
             graph: value.into_dynamic(),
         }
+    }
+}
+
+impl<G: GraphViewOps + IntoDynamic> IntoPyObject for G {
+    fn into_py_object(self) -> PyObject {
+        let py_version: PyGraphView = self.into();
+        Python::with_gil(|py| py_version.into_py(py))
     }
 }
 
@@ -182,11 +189,7 @@ impl PyGraphView {
     ///     A `WindowSet` with the given `step` size and optional `start` and `end` times,
     #[pyo3(signature = (step))]
     fn expanding(&self, step: &PyAny) -> PyResult<PyWindowSet> {
-        let window_set = expanding_impl(&self.graph, step)?;
-        let iter = window_set
-            .clone()
-            .map(<WindowedGraph<DynamicGraph> as Into<PyGraphView>>::into);
-        Ok(PyWindowSet::new(window_set, move || iter.clone()))
+        expanding_impl(&self.graph, step)
     }
 
     /// Creates a `WindowSet` with the given `window` size and optional `step`, `start` and `end` times,
@@ -203,11 +206,7 @@ impl PyGraphView {
     /// Returns:
     ///  a `WindowSet` with the given `window` size and optional `step`, `start` and `end` times,
     fn rolling(&self, window: &PyAny, step: Option<&PyAny>) -> PyResult<PyWindowSet> {
-        let window_set = rolling_impl(&self.graph, window, step)?;
-        let iter = window_set
-            .clone()
-            .map(<WindowedGraph<DynamicGraph> as Into<PyGraphView>>::into);
-        Ok(PyWindowSet::new(window_set, move || iter.clone()))
+        rolling_impl(&self.graph, window, step)
     }
 
     /// Create a view including all events between `t_start` (inclusive) and `t_end` (exclusive)
