@@ -253,26 +253,6 @@ pub(crate) fn extract_input_vertex(id: &PyAny) -> PyResult<InputVertexBox> {
     }
 }
 
-pub(crate) fn time_index_impl<T: TimeOps + Clone + Sync + 'static>(
-    window_set: &WindowSet<T>,
-    center: bool,
-) -> PyGenericIterable {
-    let window_set = window_set.clone();
-    if window_set.temporal() {
-        let iterable = move || {
-            Box::new(
-                window_set
-                    .clone()
-                    .time_index(center)
-                    .map(|epoch| NaiveDateTime::from_timestamp_millis(epoch).unwrap()),
-            )
-        };
-        iterable.into()
-    } else {
-        (move || Box::new(window_set.time_index(center))).into()
-    }
-}
-
 pub trait WindowSetOps {
     fn build_iter(&self) -> PyGenericIterator;
     fn time_index(&self, center: bool) -> PyGenericIterable;
@@ -288,7 +268,20 @@ where
     }
 
     fn time_index(&self, center: bool) -> PyGenericIterable {
-        time_index_impl(self, center)
+        let window_set = self.clone();
+        if window_set.temporal() {
+            let iterable = move || {
+                Box::new(
+                    window_set
+                        .clone()
+                        .time_index(center)
+                        .map(|epoch| NaiveDateTime::from_timestamp_millis(epoch).unwrap()),
+                )
+            };
+            iterable.into()
+        } else {
+            (move || Box::new(window_set.time_index(center))).into()
+        }
     }
 }
 
@@ -315,7 +308,16 @@ impl PyWindowSet {
         self.window_set.build_iter()
     }
 
-    #[doc = time_index_doc_string!()]
+    /// Returns the time index of this window set
+    ///
+    /// It uses the last time of each window as the reference or the center of each if `center` is
+    /// set to `True`
+    ///
+    /// Arguments:
+    ///     center (bool): if True time indexes are centered. Defaults to False
+    ///
+    /// Returns:
+    ///     Iterable: the time index"
     #[pyo3(signature = (center=false))]
     fn time_index(&self, center: bool) -> PyGenericIterable {
         self.window_set.time_index(center)
