@@ -1,6 +1,7 @@
 [workspace]
 members = [
 	"raphtory",
+	"raphtory-io",
 	"examples/rust",
 	"python"
 ]

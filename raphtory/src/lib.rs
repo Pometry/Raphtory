@@ -89,7 +89,7 @@
 //! use raphtory::algorithms::degree::average_degree;
 //! use raphtory::db::graph::Graph;
 //! use raphtory::db::view_api::*;
-//! use raphtory::graph_loader::example::lotr_graph::lotr_graph;
+//! use raphtory_io::graph_loader::example::lotr_graph::lotr_graph;
 //!
 //! let graph = lotr_graph(3);
 //!
@@ -133,5 +133,4 @@ extern crate quickcheck_macros;
 pub mod algorithms;
 pub mod core;
 pub mod db;
-pub mod graph_loader;
 pub mod graphgen;
