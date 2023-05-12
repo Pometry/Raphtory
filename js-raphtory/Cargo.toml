@@ -12,6 +12,7 @@ default = ["console_error_panic_hook"]
 
 [dependencies]
 wasm-bindgen = "0.2.63"
+js-sys = "0.3"
 raphtory = { path = "../raphtory" }
 
 # The `console_error_panic_hook` crate provides better debugging of panics by
