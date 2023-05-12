@@ -8,9 +8,7 @@ use std::{
 
 use crate::core::tgraph::EdgeRef;
 use crate::db::edge::EdgeView;
-use crate::db::graph_window::WindowedGraph;
 use crate::db::vertex::VertexView;
-use crate::db::view_api::{TimeOps, VertexViewOps};
 use crate::{
     core::{
         agg::Accumulator,
@@ -20,8 +18,9 @@ use crate::{
         },
         tgraph::VertexRef,
     },
-    db::{view_api::{GraphViewOps, TimeOps}, graph_window::WindowedGraph},
+    db::{view_api::{GraphViewOps, VertexViewOps, TimeOps}, graph_window::WindowedGraph},
 };
+use crate::db::view_api::internal::GraphViewInternalOps;
 
 pub struct EvalVertexView<'a, G: GraphViewOps, CS: ComputeState> {
     ss: usize,
