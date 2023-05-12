@@ -7,16 +7,13 @@
 use crate::dynamic::{DynamicGraph, IntoDynamic};
 use crate::types::repr::{iterator_repr, Repr};
 use crate::utils::*;
-use crate::vertex::{PyVertex, PyVertexIterable, PyVertices};
+use crate::vertex::{PyVertex, PyVertexIterable};
 use crate::wrappers::prop::Prop;
 use itertools::Itertools;
 use pyo3::prelude::*;
 use pyo3::{pyclass, pymethods, PyAny, PyRef, PyRefMut, PyResult};
 use raphtory::db::edge::EdgeView;
-use raphtory::db::graph_window::WindowedGraph;
-use raphtory::db::view_api::time::WindowSet;
 use raphtory::db::view_api::*;
-use raphtory::*;
 use std::collections::HashMap;
 use std::sync::Arc;
 

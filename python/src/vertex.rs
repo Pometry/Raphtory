@@ -6,7 +6,7 @@ use crate::edge::{PyEdges, PyNestedEdges};
 use crate::types::repr::{iterator_repr, Repr};
 use crate::utils::{
     at_impl, expanding_impl, extract_vertex_ref, rolling_impl, window_impl, IntoPyObject,
-    PyGenericIterable, PyWindowSet,
+    PyWindowSet,
 };
 use crate::wrappers::iterators::*;
 use crate::wrappers::prop::Prop;
@@ -15,12 +15,10 @@ use pyo3::exceptions::PyIndexError;
 use pyo3::prelude::*;
 use pyo3::{pyclass, pymethods, PyAny, PyObject, PyRef, PyRefMut, PyResult, Python};
 use raphtory::core::tgraph::VertexRef;
-use raphtory::db::graph_window::WindowedGraph;
 use raphtory::db::path::{PathFromGraph, PathFromVertex};
 use raphtory::db::vertex::VertexView;
 use raphtory::db::vertices::Vertices;
 use raphtory::db::view_api::layer::LayerOps;
-use raphtory::db::view_api::time::WindowSet;
 use raphtory::db::view_api::*;
 use raphtory::*;
 use std::collections::HashMap;
