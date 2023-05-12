@@ -6,6 +6,7 @@
 //!
 
 use crate::core::tgraph::{EdgeRef, VertexRef};
+use crate::core::time::IntoTime;
 use crate::core::Prop;
 use crate::db::graph_window::WindowedGraph;
 use crate::db::vertex::VertexView;
@@ -219,7 +220,7 @@ impl<G: GraphViewOps> TimeOps for EdgeView<G> {
         self.graph.end()
     }
 
-    fn window(&self, t_start: i64, t_end: i64) -> Self::WindowedViewType {
+    fn window<T: IntoTime>(&self, t_start: T, t_end: T) -> Self::WindowedViewType {
         EdgeView {
             graph: Arc::new(self.graph.window(t_start, t_end)),
             edge: self.edge,

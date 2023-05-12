@@ -19,7 +19,7 @@
 
 use crate::core::tgraph::TemporalGraph;
 use crate::core::tgraph_shard::TGraphShard;
-use crate::core::time::{IntoTime, IntoTimeWithFormat};
+use crate::core::time::{TryIntoTime, IntoTimeWithFormat};
 use crate::core::{
     tgraph::{EdgeRef, VertexRef},
     tgraph_shard::errors::GraphError,
@@ -715,14 +715,14 @@ impl Graph {
     /// let v = g.add_vertex(0, "Alice", &vec![]);
     /// let v = g.add_vertex(0, 5, &vec![]);
     /// ```
-    pub fn add_vertex<V: InputVertex, T: IntoTime>(
+    pub fn add_vertex<V: InputVertex, T: TryIntoTime>(
         &self,
         t: T,
         v: V,
         props: &Vec<(String, Prop)>,
     ) -> Result<(), GraphError> {
         let shard_id = utils::get_shard_id_from_global_vid(v.id(), self.nr_shards);
-        self.shards[shard_id].add_vertex(t.into_time()?, v, props)
+        self.shards[shard_id].add_vertex(t.try_into_time()?, v, props)
     }
 
     pub fn add_vertex_with_custom_time_format<V: InputVertex>(
@@ -782,7 +782,7 @@ impl Graph {
     /// graph.add_vertex(2, "Bob", &vec![]);
     /// graph.add_edge(3, "Alice", "Bob", &vec![], None);
     /// ```    
-    pub fn add_edge<V: InputVertex, T: IntoTime>(
+    pub fn add_edge<V: InputVertex, T: TryIntoTime>(
         &self,
         t: T,
         src: V,
@@ -790,7 +790,7 @@ impl Graph {
         props: &Vec<(String, Prop)>,
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
-        let time = t.into_time()?;
+        let time = t.try_into_time()?;
         let src_shard_id = utils::get_shard_id_from_global_vid(src.id(), self.nr_shards);
         let dst_shard_id = utils::get_shard_id_from_global_vid(dst.id(), self.nr_shards);
 
@@ -1831,8 +1831,8 @@ mod db_tests {
 
     #[test]
     fn test_ingesting_timestamps() {
-        let earliest_time = "2022-06-06 12:34:00".into_time().unwrap();
-        let latest_time = "2022-06-07 12:34:00".into_time().unwrap();
+        let earliest_time = "2022-06-06 12:34:00".try_into_time().unwrap();
+        let latest_time = "2022-06-07 12:34:00".try_into_time().unwrap();
 
         let g = Graph::new(4);
         g.add_vertex("2022-06-06T12:34:00.000", 0, &vec![]).unwrap();
