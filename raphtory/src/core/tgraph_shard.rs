@@ -128,14 +128,14 @@ impl TGraphShard<TemporalGraph> {
         path: P,
     ) -> Result<TGraphShard<TemporalGraph>, Box<bincode::ErrorKind>> {
         // use BufReader for better performance
-        let f = std::fs::File::open(path).unwrap();
+        let f = std::fs::File::open(path)?;
         let mut reader = std::io::BufReader::new(f);
         bincode::deserialize_from(&mut reader)
     }
 
     pub fn save_to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), Box<bincode::ErrorKind>> {
         // use BufWriter for better performance
-        let f = std::fs::File::create(path).unwrap();
+        let f = std::fs::File::create(path)?;
         let mut writer = std::io::BufWriter::new(f);
         bincode::serialize_into(&mut writer, self)
     }
