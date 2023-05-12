@@ -449,6 +449,7 @@ impl<G: GraphViewOps> VertexListOps for BoxedIter<BoxedIter<VertexView<G>>> {
 
 #[cfg(test)]
 mod vertex_test {
+    use crate::db::graph::Graph;
     use crate::db::view_api::*;
 
     #[test]
@@ -527,6 +528,21 @@ mod vertex_test {
                 .count(),
             20
         );
+    }
+
+    #[test]
+    fn test_earliest_time() {
+        let g = Graph::new(4);
+        g.add_vertex(0, 1, &vec![]);
+        g.add_vertex(1, 1, &vec![]);
+        g.add_vertex(2, 1, &vec![]);
+        let mut view = g.at(1);
+        assert_eq!(view.vertex(1).expect("v").earliest_time().unwrap(), 0);
+        assert_eq!(view.vertex(1).expect("v").latest_time().unwrap(), 1);
+
+        view = g.at(3);
+        assert_eq!(view.vertex(1).expect("v").earliest_time().unwrap(), 0);
+        assert_eq!(view.vertex(1).expect("v").latest_time().unwrap(), 2);
     }
 
     #[test]
