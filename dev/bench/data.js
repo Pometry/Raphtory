@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1683807793686,
+  "lastUpdate": 1683907885180,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -679,6 +679,42 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions",
             "value": 687588,
             "range": "± 114791",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ricopinazo@gmail.com",
+            "name": "Pedro Rico Pinazo",
+            "username": "ricopinazo"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f9b97250bec11d63d352d6352cc51aff80a5139b",
+          "message": "Add time_index and generalize PyWindowSet (#884)\n\n* implement time_index for PyGraphWindowSet\r\n\r\n* add time_index to the rest of window sets\r\n\r\n* remove unused trait restriction\r\n\r\n* add dostring to time_index functions\r\n\r\n* fix compilation error\r\n\r\n* implement From for PyGenericIterator\r\n\r\n* use PyGenericIterator for PyGraphWindowSet\r\n\r\n* replace all python window sets with a new PyWindowSet struct\r\n\r\n* add IntoPyObject trait to avoid boilerplate\r\n\r\n* add custom name for PyWindowSet\r\n\r\n* simplify PyWindowSet struct\r\n\r\n* move time_index_impl inside the new PyWindowSet\r\n\r\n* fix compilation error\r\n\r\n* remove time_index_doc_string macro\r\n\r\n* remove unused imports\r\n\r\n* address comments",
+          "timestamp": "2023-05-12T17:06:17+01:00",
+          "tree_id": "1f7eecd70081b96d8e0865cac5158836b8d9185d",
+          "url": "https://github.com/Pometry/Raphtory/commit/f9b97250bec11d63d352d6352cc51aff80a5139b"
+        },
+        "date": 1683907883960,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 357876,
+            "range": "± 4597",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 688348,
+            "range": "± 102097",
             "unit": "ns/iter"
           }
         ]
