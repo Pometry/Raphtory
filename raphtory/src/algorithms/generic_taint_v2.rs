@@ -53,7 +53,7 @@ impl Zero for TaintMessage {
     }
 }
 
-pub fn generic_taint<G: GraphViewOps, T: InputVertex>(
+pub fn generic_taint_v2<G: GraphViewOps, T: InputVertex>(
     g: &G,
     threads: Option<usize>,
     iter_count: usize,
@@ -216,7 +216,7 @@ mod generic_taint_tests_v2 {
         infected_nodes: Vec<T>,
         stop_nodes: Vec<T>,
     ) -> Vec<(String, Vec<(i64, String)>)> {
-        let mut results: Vec<(String, Vec<(i64, String)>)> = generic_taint(
+        let mut results: Vec<(String, Vec<(i64, String)>)> = generic_taint_v2(
             &graph,
             None,
             iter_count,

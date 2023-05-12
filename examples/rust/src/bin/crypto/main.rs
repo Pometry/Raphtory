@@ -7,6 +7,7 @@ use raphtory::graph_loader::example::stable_coins::stable_coin_graph;
 use serde::Deserialize;
 use std::env;
 use std::time::Instant;
+use raphtory::algorithms::generic_taint_v2::generic_taint_v2;
 
 #[derive(Deserialize, std::fmt::Debug)]
 pub struct StableCoin {
@@ -80,5 +81,18 @@ fn main() {
         vec!["0xd30b438df65f4f788563b2b3611bd6059bff4ad9"],
         vec![],
     );
-    println!("Time taken: {}", now.elapsed().as_secs());
+    println!("Time taken: {} secs", now.elapsed().as_secs());
+
+    println!("Generic taint V2");
+    let now = Instant::now();
+    let _ = generic_taint_v2(
+        &g.layer("0xdac17f958d2ee523a2206206994597c13d831ec7")
+            .unwrap(),
+        None,
+        20,
+        1651105815,
+        vec!["0xd30b438df65f4f788563b2b3611bd6059bff4ad9"],
+        vec![],
+    );
+    println!("Time taken: {} secs", now.elapsed().as_secs());
 }
