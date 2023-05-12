@@ -138,6 +138,22 @@ impl<'a, G: GraphViewOps, CS: ComputeState> EvalVertexView<'a, G, CS> {
             })
     }
 
+    pub fn neighbours_in(&self) -> impl Iterator<Item = EvalVertexView<'a, G, CS>> + '_ {
+        self.vv
+            .graph
+            .neighbours(self.vv.vertex, crate::core::Direction::IN, None)
+            .map(move |vv| {
+                EvalVertexView::new(
+                    self.ss,
+                    vv,
+                    self.vv.graph.clone(),
+                    self.shard_state.clone(),
+                    self.global_state.clone(),
+                    self.local_state.clone(),
+                )
+            })
+    }
+
     pub fn update<A: StateType, IN: 'static, OUT: 'static, ACC: Accumulator<A, IN, OUT>>(
         &self,
         id: &AccId<A, IN, OUT, ACC>,

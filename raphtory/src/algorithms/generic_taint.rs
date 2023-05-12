@@ -1,14 +1,22 @@
 use crate::algorithms::*;
 use crate::core::agg::set::Set;
 use crate::core::agg::*;
-use crate::core::state::accumulator_id::accumulators::{hash_set, val};
-use crate::core::state::accumulator_id::AccId;
+use crate::core::state::accumulator_id::accumulators::{hash_set, min, or, val};
+use crate::core::state::accumulator_id::{accumulators, AccId};
+use crate::core::state::compute_state::ComputeStateVec;
 use crate::core::vertex::InputVertex;
 use crate::db::program::*;
+use crate::db::task::context::Context;
+use crate::db::task::task::{ATask, Job, Step};
+use crate::db::task::task_runner::TaskRunner;
 use crate::db::view_api::{GraphViewOps, VertexViewOps};
 use itertools::Itertools;
-use rustc_hash::FxHashSet;
+use rustc_hash::{FxHashMap, FxHashSet};
 use std::collections::{HashMap, HashSet};
+use std::sync::{Arc, Mutex};
+use futures::AsyncReadExt;
+use crate::core::state::shuffle_state::ShuffleComputeState;
+use crate::db::task::task_state::Shard;
 
 #[derive(Eq, Hash, PartialEq, Clone, Debug, Default)]
 pub struct TaintMessage {
@@ -39,55 +47,91 @@ impl Zero for TaintMessage {
     fn is_zero(&self) -> bool {
         *self
             == TaintMessage {
-                event_time: -1,
-                src_vertex: "".to_string(),
-            }
-    }
-}
-
-struct GenericTaintS0 {
-    start_time: i64,
-    infected_nodes: Vec<u64>,
-    taint_status: AccId<Bool, Bool, Bool, ValDef<Bool>>,
-    taint_history:
-        AccId<FxHashSet<TaintMessage>, TaintMessage, FxHashSet<TaintMessage>, Set<TaintMessage>>,
-    recv_tainted_msgs:
-        AccId<FxHashSet<TaintMessage>, TaintMessage, FxHashSet<TaintMessage>, Set<TaintMessage>>,
-}
-
-impl GenericTaintS0 {
-    fn new(start_time: i64, infected_nodes: Vec<u64>) -> Self {
-        Self {
-            start_time,
-            infected_nodes,
-            taint_status: val(0),
-            taint_history: hash_set(1),
-            recv_tainted_msgs: hash_set(2),
+            event_time: -1,
+            src_vertex: "".to_string(),
         }
     }
 }
 
-impl Program for GenericTaintS0 {
-    type Out = ();
+pub fn generic_taint<G: GraphViewOps, T: InputVertex>(
+    g: &G,
+    threads: Option<usize>,
+    iter_count: usize,
+    start_time: i64,
+    infected_nodes: Vec<T>,
+    stop_nodes: Vec<T>,
+) -> HashMap<String, Vec<(i64, String)>> {
+    let mut ctx: Context<G, ComputeStateVec> = g.into();
 
-    fn local_eval<G: GraphViewOps>(&self, c: &LocalState<G>) {
-        let taint_status = c.agg(self.taint_status);
-        let taint_history = c.agg(self.taint_history.clone());
-        let recv_tainted_msgs = c.agg(self.recv_tainted_msgs.clone());
+    let infected_nodes = infected_nodes.into_iter().map(|n| n.id()).collect_vec();
+    let stop_nodes = stop_nodes.into_iter().map(|n| n.id()).collect_vec();
 
-        c.step(|evv| {
-            if self.infected_nodes.contains(&evv.global_id()) {
-                evv.update(&taint_status, Bool(true));
-                evv.update(
-                    &taint_history,
-                    TaintMessage {
-                        event_time: self.start_time,
-                        src_vertex: evv.name(),
-                    },
-                );
-                evv.out_edges(self.start_time).for_each(|eev| {
+    let taint_status = or(0);
+    ctx.global_agg(taint_status);
+
+    let taint_history = hash_set::<TaintMessage>(1);
+    ctx.agg(taint_history);
+
+    let recv_tainted_msgs = hash_set::<TaintMessage>(2);
+    ctx.agg(recv_tainted_msgs);
+
+    let earliest_taint_time = min::<i64>(3);
+    ctx.agg(earliest_taint_time);
+
+    let tainted_vertices = hash_set::<u64>(4);
+    ctx.global_agg(tainted_vertices);
+
+    let step1 = ATask::new(move |evv| {
+        if infected_nodes.contains(&evv.global_id()) {
+            evv.global_update(&tainted_vertices, evv.global_id());
+            evv.update(&taint_status, true);
+            evv.update(&earliest_taint_time, start_time);
+            evv.update(
+                &taint_history,
+                TaintMessage {
+                    event_time: start_time,
+                    src_vertex: "start".to_string(),
+                },
+            );
+            evv.out_edges(start_time).for_each(|eev| {
+                let dst = eev.dst();
+                eev.history().into_iter().for_each(|t| {
+                    dst.update(&earliest_taint_time, t);
+                    dst.update(
+                        &recv_tainted_msgs,
+                        TaintMessage {
+                            event_time: t,
+                            src_vertex: evv.name(),
+                        },
+                    )
+                });
+            });
+        }
+        Step::Continue
+    });
+
+    let step2 = ATask::new(move |evv| {
+        let msgs = evv.read(&recv_tainted_msgs);
+
+        // println!("v = {}, msgs = {:?}, taint_history = {:?}", evv.global_id(), msgs, evv.read(&taint_history));
+
+        if !msgs.is_empty() {
+            evv.global_update(&tainted_vertices, evv.global_id());
+
+            if !evv.read(&taint_status) {
+                evv.update(&taint_status, true);
+            }
+            msgs.iter().for_each(|msg| {
+                evv.update(&taint_history, msg.clone());
+            });
+
+            // println!("v = {}, taint_history = {:?}", evv.global_id(), evv.read(&taint_history));
+
+            if stop_nodes.is_empty() || !stop_nodes.contains(&evv.global_id()) {
+                evv.out_edges(evv.read(&earliest_taint_time)).for_each(|eev| {
                     let dst = eev.dst();
                     eev.history().into_iter().for_each(|t| {
+                        dst.update(&earliest_taint_time, t);
                         dst.update(
                             &recv_tainted_msgs,
                             TaintMessage {
@@ -98,206 +142,61 @@ impl Program for GenericTaintS0 {
                     });
                 });
             }
-        });
-    }
-
-    fn post_eval<G: GraphViewOps>(&self, c: &mut GlobalEvalState<G>) {
-        let _ = c.agg(self.taint_history.clone());
-        let _ = c.agg(self.recv_tainted_msgs.clone());
-        c.step(|_| true)
-    }
-
-    fn produce_output<G: GraphViewOps>(&self, _g: &G, _gs: &GlobalEvalState<G>) -> Self::Out
-    where
-        Self: Sync,
-    {
-    }
-}
-
-struct GenericTaintS1 {
-    stop_nodes: Vec<u64>,
-    taint_status: AccId<Bool, Bool, Bool, ValDef<Bool>>,
-    taint_history:
-        AccId<FxHashSet<TaintMessage>, TaintMessage, FxHashSet<TaintMessage>, Set<TaintMessage>>,
-    recv_tainted_msgs:
-        AccId<FxHashSet<TaintMessage>, TaintMessage, FxHashSet<TaintMessage>, Set<TaintMessage>>,
-}
-
-impl GenericTaintS1 {
-    fn new(stop_nodes: Vec<u64>) -> Self {
-        Self {
-            stop_nodes,
-            taint_status: val(0),
-            taint_history: hash_set(1),
-            recv_tainted_msgs: hash_set(2),
         }
-    }
-}
+        Step::Continue
+    });
 
-impl Program for GenericTaintS1 {
-    type Out = ();
-
-    fn local_eval<G: GraphViewOps>(&self, c: &LocalState<G>) {
-        let taint_status = c.agg(self.taint_status);
-        let taint_history = c.agg(self.taint_history.clone());
-        let recv_tainted_msgs = c.agg(self.recv_tainted_msgs.clone());
-
-        // Check if vertices have received tainted message
-        // If yes, if the vertex was not already tainted, update the accumulators else, update tainted history
-        // Spread the taint messages if no stop_nodes provided
-
-        c.step(|evv| {
-            let msgs = evv.read(&recv_tainted_msgs);
-            if !msgs.is_empty() {
-                if !evv.read(&taint_status).0 {
-                    evv.update(&taint_status, Bool(true));
-                }
-                msgs.iter().for_each(|msg| {
-                    evv.update(&taint_history, msg.clone());
-                });
-
-                let earliest_taint_time = msgs.into_iter().map(|msg| msg.event_time).min().unwrap();
-
-                if self.stop_nodes.is_empty() || !self.stop_nodes.contains(&evv.global_id()) {
-                    evv.out_edges(earliest_taint_time).for_each(|eev| {
-                        let dst = eev.dst();
-                        eev.history().into_iter().for_each(|t| {
-                            dst.update(
-                                &recv_tainted_msgs,
-                                TaintMessage {
-                                    event_time: t,
-                                    src_vertex: evv.name(),
-                                },
-                            )
-                        });
-                    });
-                }
-            }
-        });
-    }
-
-    fn post_eval<G: GraphViewOps>(&self, c: &mut GlobalEvalState<G>) {
-        let _ = c.agg(self.taint_history.clone());
-        let _ = c.agg(self.recv_tainted_msgs.clone());
-        c.step(|_| true)
-    }
-
-    fn produce_output<G: GraphViewOps>(&self, _g: &G, _gs: &GlobalEvalState<G>) -> Self::Out
-    where
-        Self: Sync,
-    {
-    }
-}
-
-pub fn generic_taint<G: GraphViewOps, T: InputVertex>(
-    g: &G,
-    iter_count: usize,
-    start_time: i64,
-    infected_nodes: Vec<T>,
-    stop_nodes: Vec<T>,
-) -> HashMap<String, Vec<(i64, String)>> {
-    let mut c = GlobalEvalState::new(g.clone(), true);
-    let gtaint_s0 = GenericTaintS0::new(
-        start_time,
-        infected_nodes.into_iter().map(|n| n.id()).collect_vec(),
-    );
-    let gtaint_s1 = GenericTaintS1::new(stop_nodes.into_iter().map(|n| n.id()).collect_vec());
-
-    gtaint_s0.run_step(g, &mut c);
-
-    // println!(
-    //     "step0, taint_status = {:?}",
-    //     c.read_vec_partitions(&val::<Bool>(0))
-    // );
-    // println!(
-    //     "step0, taint_history = {:?}",
-    //     c.read_vec_partitions(&hash_set::<TaintMessage>(1))
-    // );
-    // println!(
-    //     "step0, recv_tainted_msgs = {:?}",
-    //     c.read_vec_partitions(&hash_set::<TaintMessage>(2))
-    // );
-    // println!();
-
-    let mut last_taint_list = HashSet::<u64>::new();
-    let mut i = 0;
-    loop {
-        gtaint_s1.run_step(g, &mut c);
-
-        let r = c.read_vec_partitions(&val::<Bool>(0));
-        let taint_list: HashSet<_> = r
-            .into_iter()
-            .flat_map(|v| v.into_iter().flat_map(|c| c.into_iter().map(|(a, _b)| a)))
-            .collect();
-
-        // println!(
-        //     "step{}, taint_status = {:?}",
-        //     i + 1,
-        //     c.read_vec_partitions(&val::<Bool>(0))
-        // );
-        // println!("step{}, taint_list = {:?}", i + 1, taint_list);
-        // println!(
-        //     "step{}, taint_history = {:?}",
-        //     i + 1,
-        //     c.read_vec_partitions(&hash_set::<TaintMessage>(1))
-        // );
-        // println!(
-        //     "step{}, recv_tainted_msgs = {:?}",
-        //     i + 1,
-        //     c.read_vec_partitions(&hash_set::<TaintMessage>(2))
-        // );
-
-        let difference: Vec<_> = taint_list
+    let step3 = Job::Check(Box::new(move |state| {
+        let prev_tainted_vs = state.read_prev(&tainted_vertices);
+        let curr_tainted_vs = state.read(&tainted_vertices);
+        let difference: Vec<_> = curr_tainted_vs
             .iter()
-            .filter(|item| !last_taint_list.contains(*item))
+            .filter(|item| !prev_tainted_vs.contains(*item))
             .collect();
-        let converged = difference.is_empty();
-
-        // println!("taint_list diff = {:?}", difference);
-        // println!();
-
-        if converged || i > iter_count {
-            break;
+        if difference.is_empty() {
+            Step::Done
+        } else {
+            Step::Continue
         }
+    }));
 
-        last_taint_list = taint_list;
+    let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
 
-        if c.keep_past_state {
-            c.ss += 1;
-        }
-
-        i += 1;
-    }
-
-    println!("Completed {} steps", i);
+    let (shard_states, _, _) = runner.run(
+        vec![Job::new(step1)],
+        vec![Job::new(step2), step3],
+        threads,
+        iter_count,
+        None,
+        None,
+    );
 
     let mut results: HashMap<String, Vec<(i64, String)>> = HashMap::default();
 
-    (0..g.num_shards())
-        .into_iter()
-        .fold(&mut results, |res, part_id| {
-            c.fold_state(
-                &hash_set::<TaintMessage>(1),
-                part_id,
-                res,
-                |res, v_id, sc| {
-                    res.insert(
-                        g.vertex(*v_id).unwrap().name(),
-                        // *v_id,
-                        sc.into_iter()
-                            .map(|msg| (msg.event_time, msg.src_vertex))
-                            .collect_vec(),
-                    );
-                    res
-                },
-            )
-        });
+    shard_states.inner().fold_state_internal(
+        runner.ctx.ss(),
+        &mut results,
+        &taint_history,
+        |res, shard, pid, taint_history| {
+            // println!("v0 = {}, taint_history0 = {:?}", pid, taint_history);
+            if let Some(v_ref) = g.lookup_by_pid_and_shard(pid, shard) {
+                res.insert(
+                    g.vertex(v_ref.g_id).unwrap().name(),
+                    taint_history
+                        .into_iter()
+                        .map(|tmsg| (tmsg.event_time, tmsg.src_vertex))
+                        .collect_vec(),
+                );
+            }
+            res
+        },
+    );
 
     results
 }
 
 #[cfg(test)]
-mod generic_taint_tests {
+mod generic_taint_tests_v2 {
     use super::*;
     use crate::db::graph::Graph;
 
@@ -316,15 +215,22 @@ mod generic_taint_tests {
         start_time: i64,
         infected_nodes: Vec<T>,
         stop_nodes: Vec<T>,
-    ) -> HashMap<String, Vec<(i64, String)>> {
-        let results: HashMap<String, Vec<(i64, String)>> =
-            generic_taint(&graph, iter_count, start_time, infected_nodes, stop_nodes)
-                .into_iter()
-                .map(|(k, mut v)| {
-                    v.sort();
-                    (k, v)
-                })
-                .collect();
+    ) -> Vec<(String, Vec<(i64, String)>)> {
+        let mut results: Vec<(String, Vec<(i64, String)>)> = generic_taint(
+            &graph,
+            None,
+            iter_count,
+            start_time,
+            infected_nodes,
+            stop_nodes,
+        )
+            .into_iter()
+            .map(|(k, mut v)| {
+                v.sort();
+                (k, v)
+            }).collect_vec();
+
+        results.sort();
         results
     }
 
@@ -350,17 +256,29 @@ mod generic_taint_tests {
 
         assert_eq!(
             results,
-            HashMap::from([
+            Vec::from([
+                (
+                    "1".to_string(),
+                    vec![]
+                ),
+                ("2".to_string(), vec![(11, "start".to_string())]),
+                (
+                    "3".to_string(),
+                    vec![]
+                ),
+                (
+                    "4".to_string(),
+                    vec![(12, "2".to_string()), (14, "5".to_string())]
+                ),
                 (
                     "5".to_string(),
                     vec![(13, "2".to_string()), (14, "5".to_string())]
                 ),
-                ("2".to_string(), vec![(11, "2".to_string())]),
-                ("7".to_string(), vec![(15, "4".to_string())]),
                 (
-                    "4".to_string(),
-                    vec![(12, "2".to_string()), (14, "5".to_string())]
-                )
+                    "6".to_string(),
+                    vec![]
+                ),
+                ("7".to_string(), vec![(15, "4".to_string())]),
             ])
         );
     }
@@ -387,21 +305,29 @@ mod generic_taint_tests {
 
         assert_eq!(
             results,
-            HashMap::from([
+            Vec::from([
+                (
+                    "1".to_string(),
+                    vec![(11, "start".to_string())]
+                ),
+                ("2".to_string(), vec![(11, "1".to_string()), (11, "start".to_string())]),
+                (
+                    "3".to_string(),
+                    vec![]
+                ),
                 (
                     "4".to_string(),
                     vec![(12, "2".to_string()), (14, "5".to_string())]
                 ),
-                ("1".to_string(), vec![(11, "1".to_string())]),
                 (
                     "5".to_string(),
                     vec![(13, "2".to_string()), (14, "5".to_string())]
                 ),
-                ("7".to_string(), vec![(15, "4".to_string())]),
                 (
-                    "2".to_string(),
-                    vec![(11, "1".to_string()), (11, "2".to_string())]
+                    "6".to_string(),
+                    vec![]
                 ),
+                ("7".to_string(), vec![(15, "4".to_string())]),
             ])
         );
     }
@@ -428,14 +354,24 @@ mod generic_taint_tests {
 
         assert_eq!(
             results,
-            HashMap::from([
-                ("5".to_string(), vec![(13, "2".to_string())]),
+            Vec::from([
                 (
-                    "2".to_string(),
-                    vec![(11, "1".to_string()), (11, "2".to_string())]
+                    "1".to_string(),
+                    vec![(11, "start".to_string())]
                 ),
-                ("1".to_string(), vec![(11, "1".to_string())]),
-                ("4".to_string(), vec![(12, "2".to_string())]),
+                ("2".to_string(), vec![(11, "1".to_string()), (11, "start".to_string())]),
+                (
+                    "3".to_string(),
+                    vec![]
+                ),
+                (
+                    "4".to_string(),
+                    vec![(12, "2".to_string())]
+                ),
+                (
+                    "5".to_string(),
+                    vec![(13, "2".to_string())]
+                ),
             ])
         );
     }
@@ -464,18 +400,24 @@ mod generic_taint_tests {
 
         assert_eq!(
             results,
-            HashMap::from([
-                ("1".to_string(), vec![(11, "1".to_string())]),
-                ("5".to_string(), vec![(13, "2".to_string())]),
+            Vec::from([
                 (
-                    "2".to_string(),
-                    vec![
-                        (11, "1".to_string()),
-                        (11, "2".to_string()),
-                        (12, "1".to_string())
-                    ]
+                    "1".to_string(),
+                    vec![(11, "start".to_string())]
                 ),
-                ("4".to_string(), vec![(12, "2".to_string())]),
+                ("2".to_string(), vec![(11, "1".to_string()), (11, "start".to_string()), (12, "1".to_string())]),
+                (
+                    "3".to_string(),
+                    vec![]
+                ),
+                (
+                    "4".to_string(),
+                    vec![(12, "2".to_string())]
+                ),
+                (
+                    "5".to_string(),
+                    vec![(13, "2".to_string())]
+                ),
             ])
         );
     }

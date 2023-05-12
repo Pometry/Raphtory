@@ -84,6 +84,7 @@ pub(crate) fn generic_taint(
 
     Ok(generic_taint_rs(
         &g.graph,
+        None,
         iter_count,
         start_time,
         infected_nodes?,
