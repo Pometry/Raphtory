@@ -83,8 +83,6 @@ where
     Ok(window_set.into())
 }
 
-// TODO: trying to generalize, we should probably have a trait that transforms to PyObject instead
-// of From<T> for PyT
 pub(crate) fn rolling_impl<T>(
     slf: &T,
     window: &PyAny,

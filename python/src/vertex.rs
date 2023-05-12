@@ -31,7 +31,6 @@ pub struct PyVertex {
     vertex: VertexView<DynamicGraph>,
 }
 
-// TODO: these might be not useful anymore at some point
 impl<G: GraphViewOps + IntoDynamic> From<VertexView<G>> for PyVertex {
     fn from(value: VertexView<G>) -> Self {
         Self {

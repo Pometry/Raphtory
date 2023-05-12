@@ -106,6 +106,7 @@ impl<T: TimeOps + Clone + 'static> WindowSet<T> {
         WindowSet::new(view, 1, 0, Default::default(), None)
     }
 
+    // TODO: make this optionally public only for the development feature flag
     pub fn temporal(&self) -> bool {
         self.step.epoch_alignment
             || match self.window {
