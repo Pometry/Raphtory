@@ -1,4 +1,5 @@
 use crate::core::tgraph::VertexRef;
+use crate::core::time::IntoTime;
 use crate::core::{Direction, Prop};
 use crate::db::edge::EdgeView;
 use crate::db::graph_layer::LayeredGraph;
@@ -148,7 +149,7 @@ impl<G: GraphViewOps> TimeOps for Vertices<G> {
         self.graph.end()
     }
 
-    fn window(&self, t_start: i64, t_end: i64) -> Self::WindowedViewType {
+    fn window<T: IntoTime>(&self, t_start: T, t_end: T) -> Self::WindowedViewType {
         Vertices {
             graph: self.graph.window(t_start, t_end),
         }
