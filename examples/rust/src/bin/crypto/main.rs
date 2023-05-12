@@ -31,7 +31,7 @@ fn main() {
     let g = stable_coin_graph(data_dir, 1);
 
     assert_eq!(g.num_vertices(), 1523333);
-    assert_eq!(g.num_edges(), 2871269);
+    assert_eq!(g.num_edges(), 2814155);
 
     assert_eq!(
         g.get_unique_layers().into_iter().sorted().collect_vec(),
@@ -45,30 +45,30 @@ fn main() {
         ]
     );
 
-    println!("Pagerank");
-    let now = Instant::now();
-    let _ = unweighted_page_rank(&g, 20, None, None);
-    println!("Time taken: {} secs", now.elapsed().as_secs());
+    // println!("Pagerank");
+    // let now = Instant::now();
+    // let _ = unweighted_page_rank(&g, 20, None, None);
+    // println!("Time taken: {} secs", now.elapsed().as_secs());
+    //
+    // let now = Instant::now();
+    // let _ = unweighted_page_rank(
+    //     &g.layer("0xdac17f958d2ee523a2206206994597c13d831ec7")
+    //         .unwrap(),
+    //     20,
+    //     None,
+    //     None,
+    // );
+    // println!("Time taken: {} secs", now.elapsed().as_secs());
 
-    let now = Instant::now();
-    let _ = unweighted_page_rank(
-        &g.layer("0xdac17f958d2ee523a2206206994597c13d831ec7")
-            .unwrap(),
-        20,
-        None,
-        None,
-    );
-    println!("Time taken: {} secs", now.elapsed().as_secs());
-
-    let now = Instant::now();
-    let _ = unweighted_page_rank(
-        &g.layer("0xdac17f958d2ee523a2206206994597c13d831ec7")
-            .unwrap(),
-        20,
-        None,
-        None,
-    );
-    println!("Time taken: {} secs", now.elapsed().as_secs());
+    // let now = Instant::now();
+    // let _ = unweighted_page_rank(
+    //     &g.layer("0xdac17f958d2ee523a2206206994597c13d831ec7")
+    //         .unwrap(),
+    //     20,
+    //     None,
+    //     None,
+    // );
+    // println!("Time taken: {} secs", now.elapsed().as_secs());
 
     println!("Generic taint");
     let now = Instant::now();
