@@ -33,20 +33,3 @@ Returns:
     int: the size of the window"
     };
 }
-
-#[macro_export]
-macro_rules! time_index_doc_string {
-    () => {
-        "
-Returns the time index of this window set
-
-It uses the last time of each window as the reference or the center of each if `center` is set to
-`True`
-
-Arguments:
-    center (bool): if True time indexes are centered. Defaults to False
-
-Returns:
-    Iterable: the time index"
-    };
-}
