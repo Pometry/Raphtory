@@ -288,7 +288,7 @@ where
     }
 }
 
-#[pyclass]
+#[pyclass(name = "WindowSet")]
 pub struct PyWindowSet {
     window_set: Box<dyn WindowSetOps + Send>,
     iter: PyGenericIterable,
@@ -339,23 +339,6 @@ where
     }
 }
 
-// impl PyGenericIterable {
-//     pub(crate) fn new<F, I, T>(build_iter: F) -> Self
-//     where
-//         F: (Fn() -> I) + Send + Sync + 'static,
-//         I: Iterator<Item = T> + Send + 'static,
-//         T: IntoPy<PyObject> + 'static,
-//     {
-//         let build_py_iter: Box<dyn Fn() -> Box<dyn Iterator<Item = PyObject> + Send> + Send> =
-//             Box::new(move || {
-//                 Box::new(build_iter().map(|item| Python::with_gil(|py| item.into_py(py))))
-//             });
-//         Self {
-//             build_iter: build_py_iter,
-//         }
-//     }
-// }
-
 #[pymethods]
 impl PyGenericIterable {
     fn __iter__(&self) -> PyGenericIterator {
@@ -368,19 +351,6 @@ pub struct PyGenericIterator {
     iter: Box<dyn Iterator<Item = PyObject> + Send>,
 }
 
-// TODO we could have this for ToPyObject instead of only for IntoPy<PyObject> if we need to
-// impl PyGenericIterator {
-//     pub(crate) fn new<T: IntoPy<PyObject> + 'static>(iter: Box<dyn Iterator<Item = T> + Send>) -> Self {
-//         let py_iter = Box::new(iter.map(|item| Python::with_gil(|py| item.into_py(py))));
-//         Self { iter: py_iter }
-//     }
-// }
-// impl PyGenericIterator {
-//     pub(crate) fn from_python(iter: Box<dyn Iterator<Item = PyObject> + Send>) -> Self {
-//         Self { iter }
-//     }
-// }
-
 impl<I, T> From<I> for PyGenericIterator
 where
     I: Iterator<Item = T> + Send + 'static,
@@ -391,12 +361,6 @@ where
         Self { iter: py_iter }
     }
 }
-
-// impl From<Box<dyn Iterator<Item = PyObject> + Send>> for PyGenericIterator {
-//     fn from(value: Box<dyn Iterator<Item = PyObject> + Send>) -> Self {
-//         Self { iter: value }
-//     }
-// }
 
 #[pymethods]
 impl PyGenericIterator {
