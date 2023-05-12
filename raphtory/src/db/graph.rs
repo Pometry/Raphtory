@@ -149,9 +149,8 @@ impl GraphViewInternalOps for Graph {
     }
 
     fn has_edge_ref(&self, src: VertexRef, dst: VertexRef, layer: usize) -> bool {
-        self.localise_edge(src, dst)
-            .filter(|&(shard, src, dst)| self.shards[shard].has_edge(src, dst, layer))
-            .is_some()
+        let (shard, src, dst) = self.localise_edge(src, dst);
+        self.shards[shard].has_edge(src, dst, layer)
     }
 
     fn has_edge_ref_window(
@@ -162,11 +161,8 @@ impl GraphViewInternalOps for Graph {
         t_end: i64,
         layer: usize,
     ) -> bool {
-        self.localise_edge(src, dst)
-            .filter(|&(shard, src, dst)| {
-                self.shards[shard].has_edge_window(src, dst, t_start..t_end, layer)
-            })
-            .is_some()
+        let (shard, src, dst) = self.localise_edge(src, dst);
+        self.shards[shard].has_edge_window(src, dst, t_start..t_end, layer)
     }
 
     fn has_vertex_ref(&self, v: VertexRef) -> bool {
@@ -264,8 +260,8 @@ impl GraphViewInternalOps for Graph {
     }
 
     fn edge_ref(&self, src: VertexRef, dst: VertexRef, layer: usize) -> Option<EdgeRef> {
-        self.localise_edge(src, dst)
-            .and_then(|(shard_id, src, dst)| self.shards[shard_id].edge(src, dst, layer))
+        let (shard_id, src, dst) = self.localise_edge(src, dst);
+        self.shards[shard_id].edge(src, dst, layer)
     }
 
     fn edge_ref_window(
@@ -276,10 +272,8 @@ impl GraphViewInternalOps for Graph {
         t_end: i64,
         layer: usize,
     ) -> Option<EdgeRef> {
-        self.localise_edge(src, dst)
-            .and_then(|(shard_id, src, dst)| {
-                self.shards[shard_id].edge_window(src, dst, t_start..t_end, layer)
-            })
+        let (shard_id, src, dst) = self.localise_edge(src, dst);
+        self.shards[shard_id].edge_window(src, dst, t_start..t_end, layer)
     }
 
     fn edge_refs(&self, layer: Option<usize>) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
@@ -548,29 +542,25 @@ impl Graph {
         }
     }
 
-    fn localise_edge(
-        &self,
-        src: VertexRef,
-        dst: VertexRef,
-    ) -> Option<(usize, VertexRef, VertexRef)> {
+    fn localise_edge(&self, src: VertexRef, dst: VertexRef) -> (usize, VertexRef, VertexRef) {
         match src {
             VertexRef::Local(local_src) => match dst {
                 VertexRef::Local(local_dst) => {
                     if local_src.shard_id == local_dst.shard_id {
-                        Some((local_src.shard_id, src, dst))
+                        (local_src.shard_id, src, dst)
                     } else {
-                        Some((
+                        (
                             local_src.shard_id,
                             src,
                             VertexRef::Remote(self.vertex_id(local_dst)),
-                        ))
+                        )
                     }
                 }
-                VertexRef::Remote(_) => Some((local_src.shard_id, src, dst)),
+                VertexRef::Remote(_) => (local_src.shard_id, src, dst),
             },
-            VertexRef::Remote(_) => match dst {
-                VertexRef::Local(local_dst) => Some((local_dst.shard_id, src, dst)),
-                VertexRef::Remote(_) => self.local_vertex(src).map(|v| (v.shard_id, v.into(), dst)),
+            VertexRef::Remote(gid) => match dst {
+                VertexRef::Local(local_dst) => (local_dst.shard_id, src, dst),
+                VertexRef::Remote(_) => (self.shard_id(gid), src, dst),
             },
         }
     }
