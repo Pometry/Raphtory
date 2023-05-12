@@ -3,7 +3,7 @@ use crate::dynamic::{DynamicGraph, IntoDynamic};
 use crate::edge::{PyEdge, PyEdges};
 use crate::utils::{
     at_impl, expanding_impl, extract_vertex_ref, rolling_impl, time_index_impl, window_impl,
-    PyGenericIterable, PyGenericIterator,
+    PyGenericIterable, PyGenericIterator, PyWindowSet,
 };
 use crate::vertex::{PyVertex, PyVertices};
 use pyo3::prelude::*;
@@ -25,38 +25,6 @@ impl<G: GraphViewOps + IntoDynamic> From<G> for PyGraphView {
         PyGraphView {
             graph: value.into_dynamic(),
         }
-    }
-}
-
-/// A set of windowed views of a `Graph`, allows user to iterating over a Graph broken
-/// down into multiple windowed views.
-#[pyclass(name = "GraphWindowSet")]
-#[derive(Clone)]
-pub struct PyGraphWindowSet {
-    window_set: WindowSet<DynamicGraph>,
-}
-
-impl From<WindowSet<DynamicGraph>> for PyGraphWindowSet {
-    fn from(value: WindowSet<DynamicGraph>) -> Self {
-        Self { window_set: value }
-    }
-}
-
-/// A set of windowed views of a `Graph`, allows user to iterating over a Graph broken
-/// down into multiple windowed views.
-#[pymethods]
-impl PyGraphWindowSet {
-    fn __iter__(&self) -> PyGenericIterator {
-        self.window_set
-            .clone()
-            .map(<WindowedGraph<DynamicGraph> as Into<PyGraphView>>::into)
-            .into()
-    }
-
-    #[doc = time_index_doc_string!()]
-    #[pyo3(signature = (center=false))]
-    fn time_index(&self, center: bool) -> PyGenericIterable {
-        time_index_impl(&self.window_set, center)
     }
 }
 
@@ -213,8 +181,12 @@ impl PyGraphView {
     /// Returns:
     ///     A `WindowSet` with the given `step` size and optional `start` and `end` times,
     #[pyo3(signature = (step))]
-    fn expanding(&self, step: &PyAny) -> PyResult<PyGraphWindowSet> {
-        expanding_impl(&self.graph, step)
+    fn expanding(&self, step: &PyAny) -> PyResult<PyWindowSet> {
+        let window_set = expanding_impl(&self.graph, step)?;
+        let iter = window_set
+            .clone()
+            .map(<WindowedGraph<DynamicGraph> as Into<PyGraphView>>::into);
+        Ok(PyWindowSet::new(window_set, move || iter.clone()))
     }
 
     /// Creates a `WindowSet` with the given `window` size and optional `step`, `start` and `end` times,
@@ -230,8 +202,12 @@ impl PyGraphView {
     ///
     /// Returns:
     ///  a `WindowSet` with the given `window` size and optional `step`, `start` and `end` times,
-    fn rolling(&self, window: &PyAny, step: Option<&PyAny>) -> PyResult<PyGraphWindowSet> {
-        rolling_impl(&self.graph, window, step)
+    fn rolling(&self, window: &PyAny, step: Option<&PyAny>) -> PyResult<PyWindowSet> {
+        let window_set = rolling_impl(&self.graph, window, step)?;
+        let iter = window_set
+            .clone()
+            .map(<WindowedGraph<DynamicGraph> as Into<PyGraphView>>::into);
+        Ok(PyWindowSet::new(window_set, move || iter.clone()))
     }
 
     /// Create a view including all events between `t_start` (inclusive) and `t_end` (exclusive)

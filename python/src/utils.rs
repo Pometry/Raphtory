@@ -13,6 +13,7 @@ use raphtory::core::time::{Interval, TryIntoTime};
 use raphtory::core::vertex::InputVertex;
 use raphtory::db::view_api::time::WindowSet;
 use raphtory::db::view_api::TimeOps;
+use raphtory::*;
 use std::error::Error;
 
 /// Extract a `VertexRef` from a Python object.
@@ -72,19 +73,42 @@ where
     result.map_err(|e| adapt_err_value(&e))
 }
 
-pub(crate) fn expanding_impl<T, O>(slf: &T, step: &PyAny) -> PyResult<O>
+pub(crate) fn expanding_impl<T>(slf: &T, step: &PyAny) -> PyResult<WindowSet<T>>
 where
     T: TimeOps + Clone + 'static,
-    O: From<WindowSet<T>>,
 {
     let step = extract_interval(step)?;
     adapt_result(slf.expanding(step)).map(|iter| iter.into())
 }
 
-pub(crate) fn rolling_impl<T, O>(slf: &T, window: &PyAny, step: Option<&PyAny>) -> PyResult<O>
+// TODO: trying to generalize, we should probably have a trait that transforms to PyObject instead
+// of From<T> for PyT
+// pub(crate) fn rolling_impl<T>(
+//     slf: &T,
+//     window: &PyAny,
+//     step: Option<&PyAny>,
+// ) -> PyResult<PyWindowSet>
+//     where
+//         T: TimeOps + Clone + 'static,
+// {
+//     let window = extract_interval(window)?;
+//     let step = step.map(|step| extract_interval(step)).transpose()?;
+//     let window_set = adapt_result(slf.rolling(window, step)).map(|iter| iter.into())?;
+//
+//
+//     let iter = window_set
+//         .clone()
+//         .map(<WindowedGraph<DynamicGraph> as Into<PyGraphView>>::into);
+//     Ok(PyWindowSet::new(window_set, move || iter.clone()))
+// }
+
+pub(crate) fn rolling_impl<T>(
+    slf: &T,
+    window: &PyAny,
+    step: Option<&PyAny>,
+) -> PyResult<WindowSet<T>>
 where
     T: TimeOps + Clone + 'static,
-    O: From<WindowSet<T>>,
 {
     let window = extract_interval(window)?;
     let step = step.map(|step| extract_interval(step)).transpose()?;
@@ -249,45 +273,100 @@ pub(crate) fn time_index_impl<T: TimeOps + Clone + Sync + 'static>(
 ) -> PyGenericIterable {
     let window_set = window_set.clone();
     if window_set.temporal() {
-        PyGenericIterable::new(move || {
+        let iterable = move || {
             Box::new(
                 window_set
                     .clone()
                     .time_index(center)
                     .map(|epoch| NaiveDateTime::from_timestamp_millis(epoch).unwrap()),
             )
-        })
+        };
+        iterable.into()
     } else {
-        PyGenericIterable::new(move || Box::new(window_set.time_index(center)))
+        (move || Box::new(window_set.time_index(center))).into()
     }
 }
 
-trait PyObjectIterator: Iterator<Item = PyObject> + Clone + Sized {}
+pub trait WindowSetOps {
+    fn time_index(&self, center: bool) -> PyGenericIterable;
+}
+
+impl<T> WindowSetOps for WindowSet<T>
+where
+    T: TimeOps + Clone + Sync + 'static,
+{
+    fn time_index(&self, center: bool) -> PyGenericIterable {
+        time_index_impl(self, center)
+    }
+}
+
+#[pyclass]
+pub struct PyWindowSet {
+    window_set: Box<dyn WindowSetOps + Send>,
+    iter: PyGenericIterable,
+}
+
+impl PyWindowSet {
+    pub(crate) fn new<T, I: Into<PyGenericIterable>>(window_set: WindowSet<T>, iter: I) -> Self
+    where
+        T: TimeOps + Clone + Sync + 'static,
+    {
+        Self {
+            window_set: Box::new(window_set),
+            iter: iter.into(),
+        }
+    }
+}
+
+#[pymethods]
+impl PyWindowSet {
+    fn __iter__(&self) -> PyGenericIterator {
+        self.iter.__iter__()
+    }
+
+    #[doc = time_index_doc_string!()]
+    #[pyo3(signature = (center=false))]
+    fn time_index(&self, center: bool) -> PyGenericIterable {
+        self.window_set.time_index(center)
+    }
+}
 
 #[pyclass(name = "Iterable")]
 pub struct PyGenericIterable {
-    // if we just store the iterator, we need to clone it to return a new one for each __iter__ call
-    // but we can't have Box<yn Iterator + Clone> because Clone requires Sized, so it is not object
-    // safe
     build_iter: Box<dyn Fn() -> Box<dyn Iterator<Item = PyObject> + Send> + Send>,
 }
 
-impl PyGenericIterable {
-    pub(crate) fn new<F, I, T>(build_iter: F) -> Self
-    where
-        F: (Fn() -> I) + Send + Sync + 'static,
-        I: Iterator<Item = T> + Send + 'static,
-        T: IntoPy<PyObject> + 'static,
-    {
+impl<F, I, T> From<F> for PyGenericIterable
+where
+    F: (Fn() -> I) + Send + Sync + 'static,
+    I: Iterator<Item = T> + Send + 'static,
+    T: IntoPy<PyObject> + 'static,
+{
+    fn from(value: F) -> Self {
         let build_py_iter: Box<dyn Fn() -> Box<dyn Iterator<Item = PyObject> + Send> + Send> =
-            Box::new(move || {
-                Box::new(build_iter().map(|item| Python::with_gil(|py| item.into_py(py))))
-            });
+            Box::new(move || Box::new(value().map(|item| Python::with_gil(|py| item.into_py(py)))));
         Self {
             build_iter: build_py_iter,
         }
     }
 }
+
+// impl PyGenericIterable {
+//     pub(crate) fn new<F, I, T>(build_iter: F) -> Self
+//     where
+//         F: (Fn() -> I) + Send + Sync + 'static,
+//         I: Iterator<Item = T> + Send + 'static,
+//         T: IntoPy<PyObject> + 'static,
+//     {
+//         let build_py_iter: Box<dyn Fn() -> Box<dyn Iterator<Item = PyObject> + Send> + Send> =
+//             Box::new(move || {
+//                 Box::new(build_iter().map(|item| Python::with_gil(|py| item.into_py(py))))
+//             });
+//         Self {
+//             build_iter: build_py_iter,
+//         }
+//     }
+// }
 
 #[pymethods]
 impl PyGenericIterable {

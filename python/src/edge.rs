@@ -203,8 +203,12 @@ impl PyEdge {
     /// Returns:
     ///   A set of windows containing edges that fall in the time period
     #[pyo3(signature = (step))]
-    fn expanding(&self, step: &PyAny) -> PyResult<PyEdgeWindowSet> {
-        expanding_impl(&self.edge, step)
+    fn expanding(&self, step: &PyAny) -> PyResult<PyWindowSet> {
+        let window_set = expanding_impl(&self.edge, step)?;
+        let iter = window_set
+            .clone()
+            .map(<EdgeView<WindowedGraph<DynamicGraph>> as Into<PyEdge>>::into);
+        Ok(PyWindowSet::new(window_set, move || iter.clone()))
     }
 
     /// Get a set of Edge windows for a given window size, step, start time
@@ -219,8 +223,12 @@ impl PyEdge {
     ///
     /// Returns:
     ///   A set of windows containing edges that fall in the time period
-    fn rolling(&self, window: &PyAny, step: Option<&PyAny>) -> PyResult<PyEdgeWindowSet> {
-        rolling_impl(&self.edge, window, step)
+    fn rolling(&self, window: &PyAny, step: Option<&PyAny>) -> PyResult<PyWindowSet> {
+        let window_set = rolling_impl(&self.edge, window, step)?;
+        let iter = window_set
+            .clone()
+            .map(<EdgeView<WindowedGraph<DynamicGraph>> as Into<PyEdge>>::into);
+        Ok(PyWindowSet::new(window_set, move || iter.clone()))
     }
 
     /// Get a new Edge with the properties of this Edge within the specified time window.
@@ -439,53 +447,6 @@ py_iterator!(
     PyEdgeIter,
     "NestedEdgeIter"
 );
-
-#[pyclass(name = "EdgeWindowSet")]
-#[derive(Clone)]
-pub struct PyEdgeWindowSet {
-    window_set: WindowSet<EdgeView<DynamicGraph>>,
-}
-
-impl From<WindowSet<EdgeView<DynamicGraph>>> for PyEdgeWindowSet {
-    fn from(value: WindowSet<EdgeView<DynamicGraph>>) -> Self {
-        Self { window_set: value }
-    }
-}
-
-#[pymethods]
-impl PyEdgeWindowSet {
-    fn __iter__(&self) -> PyEdgeWindowIterator {
-        self.window_set.clone().into()
-    }
-
-    #[doc = time_index_doc_string!()]
-    #[pyo3(signature = (center=false))]
-    fn time_index(&self, center: bool) -> PyGenericIterable {
-        time_index_impl(&self.window_set, center)
-    }
-}
-
-#[pyclass(name = "EdgeWindowIterator")]
-#[derive(Clone)]
-pub struct PyEdgeWindowIterator {
-    window_set: WindowSet<EdgeView<DynamicGraph>>,
-}
-
-impl From<WindowSet<EdgeView<DynamicGraph>>> for PyEdgeWindowIterator {
-    fn from(value: WindowSet<EdgeView<DynamicGraph>>) -> Self {
-        Self { window_set: value }
-    }
-}
-
-#[pymethods]
-impl PyEdgeWindowIterator {
-    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
-        slf
-    }
-    fn __next__(&mut self) -> Option<PyEdge> {
-        self.window_set.next().map(|g| g.into())
-    }
-}
 
 #[pyclass(name = "NestedEdges")]
 pub struct PyNestedEdges {
