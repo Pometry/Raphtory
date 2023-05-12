@@ -56,9 +56,9 @@ mod test {
 
             assert_eq!(expect_1, expect_n, "Graphs are not equal {n_parts}");
 
-            for v_ref in g1.vertices() {
-                let v1 = g1.vertex(&v_ref).unwrap().id();
-                let vn = gn.vertex(&v_ref).unwrap().id();
+            for v_ref in g1.vertices().id() {
+                let v1 = g1.vertex(v_ref).unwrap().id();
+                let vn = gn.vertex(v_ref).unwrap().id();
                 assert_eq!(v1, vn, "Graphs are not equal {n_parts}");
 
                 let v_id = v1;
