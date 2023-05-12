@@ -5,8 +5,8 @@ use crate::dynamic::{DynamicGraph, IntoDynamic};
 use crate::edge::{PyEdges, PyNestedEdges};
 use crate::types::repr::{iterator_repr, Repr};
 use crate::utils::{
-    at_impl, expanding_impl, extract_vertex_ref, rolling_impl, time_index_impl, window_impl,
-    IntoPyObject, PyGenericIterable, PyWindowSet,
+    at_impl, expanding_impl, extract_vertex_ref, rolling_impl, window_impl, IntoPyObject,
+    PyGenericIterable, PyWindowSet,
 };
 use crate::wrappers::iterators::*;
 use crate::wrappers::prop::Prop;

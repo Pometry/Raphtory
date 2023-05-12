@@ -2,8 +2,8 @@
 use crate::dynamic::{DynamicGraph, IntoDynamic};
 use crate::edge::{PyEdge, PyEdges};
 use crate::utils::{
-    at_impl, expanding_impl, extract_vertex_ref, rolling_impl, time_index_impl, window_impl,
-    IntoPyObject, PyGenericIterable, PyGenericIterator, PyWindowSet,
+    at_impl, expanding_impl, extract_vertex_ref, rolling_impl, window_impl, IntoPyObject,
+    PyGenericIterable, PyGenericIterator, PyWindowSet,
 };
 use crate::vertex::{PyVertex, PyVertices};
 use pyo3::prelude::*;
