@@ -106,7 +106,7 @@ fn main() {
     assert!(graph.has_vertex(gandalf));
     assert_eq!(graph.vertex(gandalf).unwrap().name(), "Gandalf");
 
-    let r = generic_taint(&graph, 20, 31930, vec!["Gandalf"], vec![]);
+    let r = generic_taint(&graph, None, 20, 31930, vec!["Gandalf"], vec![]);
     assert_eq!(
         r.keys().sorted().collect_vec(),
         vec!["Gandalf", "Saruman", "Wormtongue"]
