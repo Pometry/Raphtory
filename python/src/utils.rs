@@ -80,8 +80,7 @@ where
 {
     let step = extract_interval(step)?;
     let window_set: WindowSet<T> = adapt_result(slf.expanding(step)).map(|iter| iter.into())?;
-    let iter = window_set.clone().map(|v| v.into_py_object());
-    Ok(PyWindowSet::new(window_set, move || iter.clone()))
+    Ok(window_set.into())
 }
 
 // TODO: trying to generalize, we should probably have a trait that transforms to PyObject instead
@@ -99,8 +98,7 @@ where
     let step = step.map(|step| extract_interval(step)).transpose()?;
     let window_set: WindowSet<T> =
         adapt_result(slf.rolling(window, step)).map(|iter| iter.into())?;
-    let iter = window_set.clone().map(|v| v.into_py_object());
-    Ok(PyWindowSet::new(window_set, move || iter.clone()))
+    Ok(window_set.into())
 }
 
 fn parse_email_timestamp(timestamp: &str) -> PyResult<i64> {
@@ -276,13 +274,19 @@ pub(crate) fn time_index_impl<T: TimeOps + Clone + Sync + 'static>(
 }
 
 pub trait WindowSetOps {
+    fn build_iter(&self) -> PyGenericIterator;
     fn time_index(&self, center: bool) -> PyGenericIterable;
 }
 
 impl<T> WindowSetOps for WindowSet<T>
 where
     T: TimeOps + Clone + Sync + 'static,
+    T::WindowedViewType: IntoPyObject,
 {
+    fn build_iter(&self) -> PyGenericIterator {
+        self.clone().map(|v| v.into_py_object()).into()
+    }
+
     fn time_index(&self, center: bool) -> PyGenericIterable {
         time_index_impl(self, center)
     }
@@ -291,17 +295,16 @@ where
 #[pyclass(name = "WindowSet")]
 pub struct PyWindowSet {
     window_set: Box<dyn WindowSetOps + Send>,
-    iter: PyGenericIterable,
 }
 
-impl PyWindowSet {
-    pub(crate) fn new<T, I: Into<PyGenericIterable>>(window_set: WindowSet<T>, iter: I) -> Self
-    where
-        T: TimeOps + Clone + Sync + 'static,
-    {
+impl<T> From<WindowSet<T>> for PyWindowSet
+where
+    T: TimeOps + Clone + Sync + 'static,
+    T::WindowedViewType: IntoPyObject,
+{
+    fn from(value: WindowSet<T>) -> Self {
         Self {
-            window_set: Box::new(window_set),
-            iter: iter.into(),
+            window_set: Box::new(value),
         }
     }
 }
@@ -309,7 +312,7 @@ impl PyWindowSet {
 #[pymethods]
 impl PyWindowSet {
     fn __iter__(&self) -> PyGenericIterator {
-        self.iter.__iter__()
+        self.window_set.build_iter()
     }
 
     #[doc = time_index_doc_string!()]
