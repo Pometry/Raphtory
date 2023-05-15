@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use crate::core::time::IntoTime;
 use crate::core::vertex_ref::VertexRef;
 use crate::db::edge::EdgeView;
 use crate::db::graph_layer::LayeredGraph;
@@ -133,7 +134,7 @@ impl<G: GraphViewOps> TimeOps for G {
         self.view_end()
     }
 
-    fn window(&self, t_start: i64, t_end: i64) -> WindowedGraph<Self> {
+    fn window<T: IntoTime>(&self, t_start: T, t_end: T) -> WindowedGraph<Self> {
         WindowedGraph::new(self.clone(), t_start, t_end)
     }
 }

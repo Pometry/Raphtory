@@ -38,6 +38,7 @@
 //! ```
 
 use crate::core::edge_ref::EdgeRef;
+use crate::core::time::IntoTime;
 use crate::core::vertex_ref::{LocalVertexRef, VertexRef};
 use crate::core::{Direction, Prop};
 use crate::db::view_api::internal::GraphViewInternalOps;
@@ -992,11 +993,11 @@ impl<G: GraphViewInternalOps> WindowedGraph<G> {
     /// # Returns
     ///
     /// A new windowed graph
-    pub fn new(graph: G, t_start: i64, t_end: i64) -> Self {
+    pub fn new<T: IntoTime>(graph: G, t_start: T, t_end: T) -> Self {
         WindowedGraph {
             graph,
-            t_start,
-            t_end,
+            t_start: t_start.into_time(),
+            t_end: t_end.into_time(),
         }
     }
 

@@ -1,6 +1,7 @@
 import re
 import sys
 import time
+import datetime
 
 import pytest
 from raphtory import Graph
@@ -971,3 +972,22 @@ def test_window_size():
     g.add_vertex(4, 4)
 
     assert g.window_size() == 4
+
+
+def test_time_index():
+    g = Graph(4)
+
+    w = g.window("2020-01-01", "2020-01-03")
+    rolling = w.rolling("1 day")
+    time_index = rolling.time_index()
+    assert list(time_index) == [datetime.datetime(2020, 1, 1, 23, 59, 59, 999000), datetime.datetime(2020, 1, 2, 23, 59, 59, 999000)]
+
+    w = g.window(1, 3)
+    rolling = w.rolling(1)
+    time_index = rolling.time_index()
+    assert list(time_index) == [1, 2]
+
+    w = g.window(0, 100)
+    rolling = w.rolling(50)
+    time_index = rolling.time_index(center=True)
+    assert list(time_index) == [25, 75]

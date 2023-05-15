@@ -6,17 +6,18 @@
 //!
 
 use crate::core::edge_ref::EdgeRef;
+use crate::core::time::IntoTime;
 use crate::core::Prop;
 use crate::db::graph_window::WindowedGraph;
 use crate::db::vertex::VertexView;
 use crate::db::view_api::{BoxedIter, EdgeListOps, GraphViewOps, TimeOps};
 use std::collections::HashMap;
-use std::fmt::Debug;
+use std::fmt::{Debug, Formatter};
 use std::iter;
 use std::sync::Arc;
 
 /// A view of an edge in the graph.
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct EdgeView<G: GraphViewOps> {
     /// A view of an edge in the graph.
     pub graph: Arc<G>,
@@ -24,15 +25,15 @@ pub struct EdgeView<G: GraphViewOps> {
     pub edge: EdgeRef,
 }
 
-// impl<G: GraphViewOps> Debug for EdgeView<G> {
-//     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-//         write!(
-//             f,
-//             "EdgeView({}, {})",
-//             self.edge.src_g_id, self.edge.dst_g_id
-//         )
-//     }
-// }
+impl<G: GraphViewOps> Debug for EdgeView<G> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "EdgeView({}, {})",
+            self.edge.src_g_id, self.edge.dst_g_id
+        )
+    }
+}
 
 impl<G: GraphViewOps> EdgeView<G> {
     /// Creates a new `EdgeView`.
@@ -209,7 +210,7 @@ impl<G: GraphViewOps> TimeOps for EdgeView<G> {
         self.graph.end()
     }
 
-    fn window(&self, t_start: i64, t_end: i64) -> Self::WindowedViewType {
+    fn window<T: IntoTime>(&self, t_start: T, t_end: T) -> Self::WindowedViewType {
         EdgeView {
             graph: Arc::new(self.graph.window(t_start, t_end)),
             edge: self.edge,

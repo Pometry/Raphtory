@@ -1,5 +1,6 @@
 //! Defines the `Vertex` struct, which represents a vertex in the graph.
 
+use crate::core::time::IntoTime;
 use crate::core::vertex_ref::{LocalVertexRef, VertexRef};
 use crate::core::{Direction, Prop};
 use crate::db::edge::{EdgeList, EdgeView};
@@ -211,7 +212,7 @@ impl<G: GraphViewOps> TimeOps for VertexView<G> {
         self.graph.end()
     }
 
-    fn window(&self, t_start: i64, t_end: i64) -> Self::WindowedViewType {
+    fn window<T: IntoTime>(&self, t_start: T, t_end: T) -> Self::WindowedViewType {
         VertexView {
             graph: Arc::new(self.graph.window(t_start, t_end)),
             vertex: self.vertex,

@@ -1,9 +1,10 @@
 use crate::core::time::error::ParseTimeError;
-use crate::core::time::Interval;
+use crate::core::time::{Interval, IntervalSize, IntoTime};
+use chrono::DateTime;
 
 /// Trait defining time query operations
-pub trait TimeOps {
-    type WindowedViewType;
+pub trait TimeOps: Send {
+    type WindowedViewType: TimeOps;
 
     /// Return the timestamp of the default start for perspectives of the view (if any).
     fn start(&self) -> Option<i64>;
@@ -20,11 +21,11 @@ pub trait TimeOps {
     }
 
     /// Create a view including all events between `t_start` (inclusive) and `t_end` (exclusive)
-    fn window(&self, t_start: i64, t_end: i64) -> Self::WindowedViewType;
+    fn window<T: IntoTime>(&self, t_start: T, t_end: T) -> Self::WindowedViewType;
 
     /// Create a view including all events until `end` (inclusive)
-    fn at(&self, end: i64) -> Self::WindowedViewType {
-        self.window(i64::MIN, end.saturating_add(1))
+    fn at<T: IntoTime>(&self, end: T) -> Self::WindowedViewType {
+        self.window(i64::MIN, end.into_time().saturating_add(1))
     }
 
     /// Creates a `WindowSet` with the given `step` size and optional `start` and `end` times,    
@@ -72,7 +73,7 @@ pub trait TimeOps {
 }
 
 #[derive(Clone)]
-pub struct WindowSet<T: TimeOps> {
+pub struct WindowSet<T: TimeOps + Clone> {
     view: T,
     cursor: i64,
     end: i64,
@@ -80,7 +81,7 @@ pub struct WindowSet<T: TimeOps> {
     window: Option<Interval>,
 }
 
-impl<T: TimeOps> WindowSet<T> {
+impl<T: TimeOps + Clone + 'static> WindowSet<T> {
     fn new(view: T, start: i64, end: i64, step: Interval, window: Option<Interval>) -> Self {
         // let cursor_start = if step.epoch_alignment {
         //     let step = step.to_millis().unwrap() as i64;
@@ -104,9 +105,29 @@ impl<T: TimeOps> WindowSet<T> {
         // timeline_start is greater than end, so no windows to return, even with end inclusive
         WindowSet::new(view, 1, 0, Default::default(), None)
     }
+
+    // TODO: make this optionally public only for the development feature flag
+    pub fn temporal(&self) -> bool {
+        self.step.epoch_alignment
+            || match self.window {
+                Some(window) => window.epoch_alignment,
+                None => false,
+            }
+    }
+
+    /// Returns the time index of this window set
+    pub fn time_index(&self, center: bool) -> Box<dyn Iterator<Item = i64> + Send> {
+        if center {
+            Box::new(self.clone().map(|view| {
+                view.start().unwrap() + ((view.end().unwrap() - view.start().unwrap()) / 2)
+            }))
+        } else {
+            Box::new(self.clone().map(|view| view.end().unwrap() - 1))
+        }
+    }
 }
 
-impl<T: TimeOps> Iterator for WindowSet<T> {
+impl<T: TimeOps + Clone> Iterator for WindowSet<T> {
     type Item = T::WindowedViewType;
     fn next(&mut self) -> Option<Self::Item> {
         if self.cursor < self.end {
@@ -123,7 +144,7 @@ impl<T: TimeOps> Iterator for WindowSet<T> {
 
 #[cfg(test)]
 mod time_tests {
-    use crate::core::time::IntoTime;
+    use crate::core::time::TryIntoTime;
     use crate::db::graph::Graph;
     use crate::db::view_api::internal::GraphViewInternalOps;
     use crate::db::view_api::time::WindowSet;
@@ -187,28 +208,28 @@ mod time_tests {
 
     #[test]
     fn rolling_dates() {
-        let start = "2020-06-06 00:00:00".into_time().unwrap();
-        let end = "2020-06-07 23:59:59.999".into_time().unwrap();
+        let start = "2020-06-06 00:00:00".try_into_time().unwrap();
+        let end = "2020-06-07 23:59:59.999".try_into_time().unwrap();
         let g = graph_with_timeline(start, end);
         let windows = g.rolling("1 day", None).unwrap();
         let expected = vec![(
-            "2020-06-06 00:00:00".into_time().unwrap(), // entire 2020-06-06
-            "2020-06-07 00:00:00".into_time().unwrap(),
+            "2020-06-06 00:00:00".try_into_time().unwrap(), // entire 2020-06-06
+            "2020-06-07 00:00:00".try_into_time().unwrap(),
         )];
         assert_bounds(windows, expected);
 
-        let start = "2020-06-06 00:00:00".into_time().unwrap();
-        let end = "2020-06-08 00:00:00".into_time().unwrap();
+        let start = "2020-06-06 00:00:00".try_into_time().unwrap();
+        let end = "2020-06-08 00:00:00".try_into_time().unwrap();
         let g = graph_with_timeline(start, end);
         let windows = g.rolling("1 day", None).unwrap();
         let expected = vec![
             (
-                "2020-06-06 00:00:00".into_time().unwrap(), // entire 2020-06-06
-                "2020-06-07 00:00:00".into_time().unwrap(),
+                "2020-06-06 00:00:00".try_into_time().unwrap(), // entire 2020-06-06
+                "2020-06-07 00:00:00".try_into_time().unwrap(),
             ),
             (
-                "2020-06-07 00:00:00".into_time().unwrap(), // entire 2020-06-07
-                "2020-06-08 00:00:00".into_time().unwrap(),
+                "2020-06-07 00:00:00".try_into_time().unwrap(), // entire 2020-06-07
+                "2020-06-08 00:00:00".try_into_time().unwrap(),
             ),
         ];
         assert_bounds(windows, expected);
@@ -235,20 +256,20 @@ mod time_tests {
     fn expanding_dates() {
         let min = i64::MIN;
 
-        let start = "2020-06-06 00:00:00".into_time().unwrap();
-        let end = "2020-06-07 23:59:59.999".into_time().unwrap();
+        let start = "2020-06-06 00:00:00".try_into_time().unwrap();
+        let end = "2020-06-07 23:59:59.999".try_into_time().unwrap();
         let g = graph_with_timeline(start, end);
         let windows = g.expanding("1 day").unwrap();
-        let expected = vec![(min, "2020-06-07 00:00:00".into_time().unwrap())];
+        let expected = vec![(min, "2020-06-07 00:00:00".try_into_time().unwrap())];
         assert_bounds(windows, expected);
 
-        let start = "2020-06-06 00:00:00".into_time().unwrap();
-        let end = "2020-06-08 00:00:00".into_time().unwrap();
+        let start = "2020-06-06 00:00:00".try_into_time().unwrap();
+        let end = "2020-06-08 00:00:00".try_into_time().unwrap();
         let g = graph_with_timeline(start, end);
         let windows = g.expanding("1 day").unwrap();
         let expected = vec![
-            (min, "2020-06-07 00:00:00".into_time().unwrap()),
-            (min, "2020-06-08 00:00:00".into_time().unwrap()),
+            (min, "2020-06-07 00:00:00".try_into_time().unwrap()),
+            (min, "2020-06-08 00:00:00".try_into_time().unwrap()),
         ];
         assert_bounds(windows, expected);
     }
