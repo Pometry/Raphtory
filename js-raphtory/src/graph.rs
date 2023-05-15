@@ -16,6 +16,7 @@ use raphtory::db::graph_window::WindowedGraph;
 use raphtory::db::vertex::VertexView;
 use raphtory::db::view_api::internal::GraphViewInternalOps;
 use raphtory::db::view_api::GraphViewOps;
+use raphtory::db::view_api::VertexViewOps;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 
@@ -78,6 +79,20 @@ impl From<JsObjectEntry> for Option<(String, Prop)> {
 
 #[wasm_bindgen]
 pub struct Vertex(VertexView<Graph>);
+
+#[wasm_bindgen]
+pub struct VertexVec(Vec<Vertex>);
+
+#[wasm_bindgen]
+impl Vertex {
+    #[wasm_bindgen(js_name = neighbours)]
+    pub fn neighbours(&self, direction: Direction) -> js_sys::Array {
+        let vec = self.0.neighbours().iter().map(Vertex).collect::<Vec<_>>();
+
+        vec.into_iter().map(JsValue::from).collect()
+
+    }
+}
 
 enum JsVertex {
     Str(String),
