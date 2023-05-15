@@ -180,7 +180,7 @@ pub(crate) fn min_in_degree(g: &PyGraphView) -> usize {
 /// it could imply a less reciprocal or more one-sided relationship.
 #[pyfunction]
 pub(crate) fn global_reciprocity(g: &PyGraphView) -> f64 {
-    global_reciprocity_rs(&g.graph)
+    global_reciprocity_rs(&g.graph, None)
 }
 
 /// Reciprocity - measure of the symmetry of relationships in a graph.
@@ -202,7 +202,7 @@ pub(crate) fn global_reciprocity(g: &PyGraphView) -> f64 {
 ///
 #[pyfunction]
 pub(crate) fn all_local_reciprocity(g: &PyGraphView) -> HashMap<u64, f64> {
-    all_local_reciprocity_rs(&g.graph)
+    all_local_reciprocity_rs(&g.graph, None)
 }
 
 /// Computes the number of both open and closed triplets within a graph
