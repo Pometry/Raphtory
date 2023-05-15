@@ -37,11 +37,10 @@
 //!  assert_eq!(wg.edge(1, 2, None).unwrap().src().id(), 1);
 //! ```
 
+use crate::core::edge_ref::EdgeRef;
 use crate::core::time::IntoTime;
-use crate::core::{
-    tgraph::{EdgeRef, VertexRef},
-    Direction, Prop,
-};
+use crate::core::vertex_ref::{LocalVertexRef, VertexRef};
+use crate::core::{Direction, Prop};
 use crate::db::view_api::internal::GraphViewInternalOps;
 use crate::db::view_api::GraphViewOps;
 use std::cmp::{max, min};
@@ -244,7 +243,7 @@ impl<G: GraphViewOps> GraphViewInternalOps for WindowedGraph<G> {
     /// # Errors
     ///
     /// Returns an error if `v` is not a valid vertex.
-    fn degree(&self, v: VertexRef, d: Direction, layer: Option<usize>) -> usize {
+    fn degree(&self, v: LocalVertexRef, d: Direction, layer: Option<usize>) -> usize {
         self.graph
             .degree_window(v, self.t_start, self.t_end, d, layer)
     }
@@ -267,7 +266,7 @@ impl<G: GraphViewOps> GraphViewInternalOps for WindowedGraph<G> {
     /// Returns an error if `v` is not a valid vertex.
     fn degree_window(
         &self,
-        v: VertexRef,
+        v: LocalVertexRef,
         t_start: i64,
         t_end: i64,
         d: Direction,
@@ -295,7 +294,7 @@ impl<G: GraphViewOps> GraphViewInternalOps for WindowedGraph<G> {
     /// # Errors
     ///
     /// Returns an error if `v` is not a valid vertex.
-    fn vertex_ref(&self, v: u64) -> Option<VertexRef> {
+    fn vertex_ref(&self, v: u64) -> Option<LocalVertexRef> {
         self.graph.vertex_ref_window(v, self.t_start, self.t_end)
     }
 
@@ -314,17 +313,22 @@ impl<G: GraphViewOps> GraphViewInternalOps for WindowedGraph<G> {
     /// # Errors
     ///
     /// Returns an error if `v` is not a valid vertex.
-    fn vertex_ref_window(&self, v: u64, t_start: i64, t_end: i64) -> Option<VertexRef> {
+    fn vertex_ref_window(&self, v: u64, t_start: i64, t_end: i64) -> Option<LocalVertexRef> {
         self.graph
             .vertex_ref_window(v, self.actual_start(t_start), self.actual_end(t_end))
     }
 
-    fn vertex_earliest_time(&self, v: VertexRef) -> Option<i64> {
+    fn vertex_earliest_time(&self, v: LocalVertexRef) -> Option<i64> {
         self.graph
             .vertex_earliest_time_window(v, self.t_start, self.t_end)
     }
 
-    fn vertex_earliest_time_window(&self, v: VertexRef, t_start: i64, t_end: i64) -> Option<i64> {
+    fn vertex_earliest_time_window(
+        &self,
+        v: LocalVertexRef,
+        t_start: i64,
+        t_end: i64,
+    ) -> Option<i64> {
         self.graph.vertex_earliest_time_window(
             v,
             self.actual_start(t_start),
@@ -332,12 +336,17 @@ impl<G: GraphViewOps> GraphViewInternalOps for WindowedGraph<G> {
         )
     }
 
-    fn vertex_latest_time(&self, v: VertexRef) -> Option<i64> {
+    fn vertex_latest_time(&self, v: LocalVertexRef) -> Option<i64> {
         self.graph
             .vertex_latest_time_window(v, self.t_start, self.t_end)
     }
 
-    fn vertex_latest_time_window(&self, v: VertexRef, t_start: i64, t_end: i64) -> Option<i64> {
+    fn vertex_latest_time_window(
+        &self,
+        v: LocalVertexRef,
+        t_start: i64,
+        t_end: i64,
+    ) -> Option<i64> {
         self.graph
             .vertex_latest_time_window(v, self.actual_start(t_start), self.actual_end(t_end))
     }
@@ -347,7 +356,7 @@ impl<G: GraphViewOps> GraphViewInternalOps for WindowedGraph<G> {
     /// # Returns
     ///
     /// An iterator over the references of all vertices
-    fn vertex_refs(&self) -> Box<dyn Iterator<Item = VertexRef> + Send> {
+    fn vertex_refs(&self) -> Box<dyn Iterator<Item = LocalVertexRef> + Send> {
         self.graph.vertex_refs_window(self.t_start, self.t_end)
     }
 
@@ -355,12 +364,12 @@ impl<G: GraphViewOps> GraphViewInternalOps for WindowedGraph<G> {
         &self,
         t_start: i64,
         t_end: i64,
-    ) -> Box<dyn Iterator<Item = VertexRef> + Send> {
+    ) -> Box<dyn Iterator<Item = LocalVertexRef> + Send> {
         self.graph
             .vertex_refs_window(self.actual_start(t_start), self.actual_end(t_end))
     }
 
-    fn vertex_refs_shard(&self, shard: usize) -> Box<dyn Iterator<Item = VertexRef> + Send> {
+    fn vertex_refs_shard(&self, shard: usize) -> Box<dyn Iterator<Item = LocalVertexRef> + Send> {
         self.graph
             .vertex_refs_window_shard(shard, self.t_start, self.t_end)
     }
@@ -370,7 +379,7 @@ impl<G: GraphViewOps> GraphViewInternalOps for WindowedGraph<G> {
         shard: usize,
         t_start: i64,
         t_end: i64,
-    ) -> Box<dyn Iterator<Item = VertexRef> + Send> {
+    ) -> Box<dyn Iterator<Item = LocalVertexRef> + Send> {
         self.graph.vertex_refs_window_shard(
             shard,
             self.actual_start(t_start),
@@ -461,7 +470,7 @@ impl<G: GraphViewOps> GraphViewInternalOps for WindowedGraph<G> {
 
     fn vertex_edges_t(
         &self,
-        v: VertexRef,
+        v: LocalVertexRef,
         d: Direction,
         layer: Option<usize>,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
@@ -483,7 +492,7 @@ impl<G: GraphViewOps> GraphViewInternalOps for WindowedGraph<G> {
     /// An iterator over all edges in that vertex direction as references
     fn vertex_edges_window(
         &self,
-        v: VertexRef,
+        v: LocalVertexRef,
         t_start: i64,
         t_end: i64,
         d: Direction,
@@ -515,7 +524,7 @@ impl<G: GraphViewOps> GraphViewInternalOps for WindowedGraph<G> {
 
     fn vertex_edges_window_t(
         &self,
-        v: VertexRef,
+        v: LocalVertexRef,
         t_start: i64,
         t_end: i64,
         d: Direction,
@@ -542,7 +551,7 @@ impl<G: GraphViewOps> GraphViewInternalOps for WindowedGraph<G> {
     /// An iterator over all neighbours in that vertex direction as references
     fn neighbours(
         &self,
-        v: VertexRef,
+        v: LocalVertexRef,
         d: Direction,
         layer: Option<usize>,
     ) -> Box<dyn Iterator<Item = VertexRef> + Send> {
@@ -564,7 +573,7 @@ impl<G: GraphViewOps> GraphViewInternalOps for WindowedGraph<G> {
     /// An iterator over all neighbours in that vertex direction as references
     fn neighbours_window(
         &self,
-        v: VertexRef,
+        v: LocalVertexRef,
         t_start: i64,
         t_end: i64,
         d: Direction,
@@ -589,7 +598,7 @@ impl<G: GraphViewOps> GraphViewInternalOps for WindowedGraph<G> {
     /// # Returns
     ///
     /// A result of an option of a property
-    fn static_vertex_prop(&self, v: VertexRef, name: String) -> Option<Prop> {
+    fn static_vertex_prop(&self, v: LocalVertexRef, name: String) -> Option<Prop> {
         self.graph.static_vertex_prop(v, name)
     }
 
@@ -602,7 +611,7 @@ impl<G: GraphViewOps> GraphViewInternalOps for WindowedGraph<G> {
     /// # Returns
     ///
     /// a Vector of Strings representing all the property names
-    fn static_vertex_prop_names(&self, v: VertexRef) -> Vec<String> {
+    fn static_vertex_prop_names(&self, v: LocalVertexRef) -> Vec<String> {
         self.graph.static_vertex_prop_names(v)
     }
 
@@ -615,7 +624,7 @@ impl<G: GraphViewOps> GraphViewInternalOps for WindowedGraph<G> {
     /// # Returns
     ///
     /// a Vector of Strings representing all the property names
-    fn temporal_vertex_prop_names(&self, v: VertexRef) -> Vec<String> {
+    fn temporal_vertex_prop_names(&self, v: LocalVertexRef) -> Vec<String> {
         self.graph.temporal_vertex_prop_names(v)
     }
 
@@ -629,7 +638,7 @@ impl<G: GraphViewOps> GraphViewInternalOps for WindowedGraph<G> {
     /// # Returns
     ///
     /// A result of an vector of a tuple of a timestamp and a property
-    fn temporal_vertex_prop_vec(&self, v: VertexRef, name: String) -> Vec<(i64, Prop)> {
+    fn temporal_vertex_prop_vec(&self, v: LocalVertexRef, name: String) -> Vec<(i64, Prop)> {
         self.graph
             .temporal_vertex_prop_vec_window(v, name, self.t_start, self.t_end)
     }
@@ -652,7 +661,7 @@ impl<G: GraphViewOps> GraphViewInternalOps for WindowedGraph<G> {
     /// - `GraphError` - Raised if vertex or property does not exist
     fn temporal_vertex_prop_vec_window(
         &self,
-        v: VertexRef,
+        v: LocalVertexRef,
         name: String,
         t_start: i64,
         t_end: i64,
@@ -678,7 +687,7 @@ impl<G: GraphViewOps> GraphViewInternalOps for WindowedGraph<G> {
     /// # Errors
     ///
     /// - `GraphError` - Raised if vertex does not exist
-    fn vertex_timestamps(&self, v: VertexRef) -> Vec<i64> {
+    fn vertex_timestamps(&self, v: LocalVertexRef) -> Vec<i64> {
         self.graph
             .vertex_timestamps_window(v, self.t_start, self.t_end)
     }
@@ -699,7 +708,7 @@ impl<G: GraphViewOps> GraphViewInternalOps for WindowedGraph<G> {
     ///
     /// - `GraphError` - Raised if vertex does not exist
 
-    fn vertex_timestamps_window(&self, v: VertexRef, t_start: i64, t_end: i64) -> Vec<i64> {
+    fn vertex_timestamps_window(&self, v: LocalVertexRef, t_start: i64, t_end: i64) -> Vec<i64> {
         self.graph
             .vertex_timestamps_window(v, self.actual_start(t_start), self.actual_end(t_end))
     }
@@ -740,7 +749,7 @@ impl<G: GraphViewOps> GraphViewInternalOps for WindowedGraph<G> {
     /// # Errors
     ///
     /// - `GraphError` - Raised if vertex or property does not exist
-    fn temporal_vertex_props(&self, v: VertexRef) -> HashMap<String, Vec<(i64, Prop)>> {
+    fn temporal_vertex_props(&self, v: LocalVertexRef) -> HashMap<String, Vec<(i64, Prop)>> {
         self.graph
             .temporal_vertex_props_window(v, self.t_start, self.t_end)
     }
@@ -763,7 +772,7 @@ impl<G: GraphViewOps> GraphViewInternalOps for WindowedGraph<G> {
     /// - `GraphError` - Raised if vertex or property does not exist
     fn temporal_vertex_props_window(
         &self,
-        v: VertexRef,
+        v: LocalVertexRef,
         t_start: i64,
         t_end: i64,
     ) -> HashMap<String, Vec<(i64, Prop)>> {
@@ -909,7 +918,7 @@ impl<G: GraphViewOps> GraphViewInternalOps for WindowedGraph<G> {
         self.graph.num_shards()
     }
 
-    fn vertices_shard(&self, shard_id: usize) -> Box<dyn Iterator<Item = VertexRef> + Send> {
+    fn vertices_shard(&self, shard_id: usize) -> Box<dyn Iterator<Item = LocalVertexRef> + Send> {
         self.graph
             .vertices_shard_window(shard_id, self.t_start, self.t_end)
     }
@@ -919,7 +928,7 @@ impl<G: GraphViewOps> GraphViewInternalOps for WindowedGraph<G> {
         shard_id: usize,
         t_start: i64,
         t_end: i64,
-    ) -> Box<dyn Iterator<Item = VertexRef> + Send> {
+    ) -> Box<dyn Iterator<Item = LocalVertexRef> + Send> {
         self.graph.vertices_shard_window(
             shard_id,
             self.actual_start(t_start),
@@ -929,7 +938,7 @@ impl<G: GraphViewOps> GraphViewInternalOps for WindowedGraph<G> {
 
     fn vertex_edges(
         &self,
-        v: VertexRef,
+        v: LocalVertexRef,
         d: Direction,
         layer: Option<usize>,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
@@ -937,13 +946,22 @@ impl<G: GraphViewOps> GraphViewInternalOps for WindowedGraph<G> {
             .vertex_edges_window(v, self.t_start, self.t_end, d, layer)
     }
 
-    fn lookup_by_pid_and_shard(&self, pid: usize, shard: usize) -> Option<VertexRef> {
+    fn vertex_id(&self, v: LocalVertexRef) -> u64 {
+        self.graph.vertex_id(v)
+    }
+
+    fn local_vertex(&self, v: VertexRef) -> Option<LocalVertexRef> {
+        self.graph.local_vertex_window(v, self.t_start, self.t_end)
+    }
+
+    fn local_vertex_window(
+        &self,
+        v: VertexRef,
+        t_start: i64,
+        t_end: i64,
+    ) -> Option<LocalVertexRef> {
         self.graph
-            .lookup_by_pid_and_shard(pid, shard)
-            .filter(|v_ref| {
-                self.graph
-                    .has_vertex_ref_window(*v_ref, self.t_start, self.t_end)
-            })
+            .local_vertex_window(v, self.actual_start(t_start), self.actual_end(t_end))
     }
 }
 

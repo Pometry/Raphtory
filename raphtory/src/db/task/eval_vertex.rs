@@ -5,6 +5,7 @@ use std::{
     sync::Arc,
 };
 
+use crate::core::vertex_ref::VertexRef;
 use crate::{
     core::{
         agg::Accumulator,
@@ -12,14 +13,14 @@ use crate::{
             accumulator_id::AccId, compute_state::ComputeState, shuffle_state::ShuffleComputeState,
             StateType,
         },
-        tgraph::VertexRef,
+        vertex_ref::LocalVertexRef,
     },
-    db::{view_api::{GraphViewOps, TimeOps}, graph_window::WindowedGraph},
+    db::view_api::GraphViewOps,
 };
 
 pub struct EvalVertexView<'a, G: GraphViewOps, CS: ComputeState> {
     ss: usize,
-    vv: VertexRef,
+    vv: LocalVertexRef,
     g: Arc<G>,
     shard_state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
     global_state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
@@ -27,9 +28,9 @@ pub struct EvalVertexView<'a, G: GraphViewOps, CS: ComputeState> {
 }
 
 impl<'a, G: GraphViewOps, CS: ComputeState> EvalVertexView<'a, G, CS> {
-    pub fn new(
+    pub fn new_local(
         ss: usize,
-        vertex: VertexRef,
+        vertex: LocalVertexRef,
         g: Arc<G>,
         shard_state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
         global_state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
@@ -45,20 +46,30 @@ impl<'a, G: GraphViewOps, CS: ComputeState> EvalVertexView<'a, G, CS> {
         }
     }
 
-    pub fn global_id(&self) -> u64 {
-        self.vv.g_id
+    pub fn new(
+        ss: usize,
+        vertex: VertexRef,
+        g: Arc<G>,
+        shard_state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
+        global_state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
+        local_state: Rc<RefCell<ShuffleComputeState<CS>>>,
+    ) -> Self {
+        Self {
+            ss,
+            vv: g.localise_vertex_unchecked(vertex),
+            g,
+            shard_state,
+            global_state,
+            local_state,
+        }
     }
 
-    // TODO: do we always look-up the pid in the graph? or when calling neighbours we look-it up?
     fn pid(&self) -> usize {
-        if let Some(pid) = self.vv.pid {
-            pid
-        } else {
-            self.g
-                .vertex_ref(self.global_id())
-                .and_then(|v_ref| v_ref.pid)
-                .unwrap()
-        }
+        self.vv.pid
+    }
+
+    pub fn global_id(&self) -> u64 {
+        self.g.vertex_id(self.vv)
     }
 
     pub fn out_degree(&self) -> usize {

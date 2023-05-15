@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use crate::core::tgraph::VertexRef;
 use crate::core::time::IntoTime;
+use crate::core::vertex_ref::VertexRef;
 use crate::db::edge::EdgeView;
 use crate::db::graph_layer::LayeredGraph;
 use crate::db::graph_window::WindowedGraph;
@@ -93,9 +93,9 @@ impl<G: Send + Sync + Sized + GraphViewInternalOps + 'static + Clone> GraphViewO
     }
 
     fn vertex<T: Into<VertexRef>>(&self, v: T) -> Option<VertexView<Self>> {
-        let v = v.into().g_id;
-        self.vertex_ref(v)
-            .map(|v| VertexView::new(Arc::new(self.clone()), v))
+        let v = v.into();
+        self.local_vertex(v)
+            .map(|v| VertexView::new_local(Arc::new(self.clone()), v))
     }
 
     fn vertices(&self) -> Vertices<Self> {

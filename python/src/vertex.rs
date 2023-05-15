@@ -14,7 +14,7 @@ use itertools::Itertools;
 use pyo3::exceptions::PyIndexError;
 use pyo3::prelude::*;
 use pyo3::{pyclass, pymethods, PyAny, PyObject, PyRef, PyRefMut, PyResult, Python};
-use raphtory::core::tgraph::VertexRef;
+use raphtory::core::vertex_ref::VertexRef;
 use raphtory::db::path::{PathFromGraph, PathFromVertex};
 use raphtory::db::vertex::VertexView;
 use raphtory::db::vertices::Vertices;

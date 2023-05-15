@@ -50,10 +50,15 @@
 //! ```
 
 use crate::algorithms::local_triangle_count::local_triangle_count;
+use crate::core::vertex_ref::VertexRef;
 use crate::db::view_api::*;
 
 /// measures the degree to which nodes in a graph tend to cluster together
-pub fn local_clustering_coefficient<G: GraphViewOps>(graph: &G, v: u64) -> Option<f32> {
+pub fn local_clustering_coefficient<G: GraphViewOps, V: Into<VertexRef>>(
+    graph: &G,
+    v: V,
+) -> Option<f32> {
+    let v = v.into();
     if let Some(vertex) = graph.vertex(v) {
         if let Some(triangle_count) = local_triangle_count(graph, v) {
             let triangle_count = triangle_count as f32;

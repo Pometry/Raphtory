@@ -152,13 +152,13 @@ impl<G: GraphViewOps> LocalState<G> {
             None => Box::new(
                 graph
                     .vertices_shard(self.shard)
-                    .map(|vref| VertexView::new(graph.clone(), vref)),
+                    .map(|vref| VertexView::new_local(graph.clone(), vref)),
             ),
             Some(ref next_vertex_set) => Box::new(
                 next_vertex_set
                     .iter()
                     .flat_map(|&v| graph.vertex_ref(v))
-                    .map(|vref| VertexView::new(graph.clone(), vref)),
+                    .map(|vref| VertexView::new_local(graph.clone(), vref)),
             ),
         };
 
