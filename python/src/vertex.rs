@@ -10,6 +10,7 @@ use crate::utils::{
 };
 use crate::wrappers::iterators::*;
 use crate::wrappers::prop::Prop;
+use chrono::NaiveDateTime;
 use itertools::Itertools;
 use pyo3::exceptions::PyIndexError;
 use pyo3::prelude::*;
@@ -89,6 +90,18 @@ impl PyVertex {
         self.vertex.earliest_time()
     }
 
+    /// Returns the earliest datetime that the vertex exists.
+    ///
+    /// Arguments:
+    ///    None
+    ///
+    /// Returns:
+    ///     The earliest datetime that the vertex exists as an integer.
+    pub fn earliest_date_time(&self) ->Option<NaiveDateTime> {
+        let earliest_time = self.vertex.earliest_time()?;
+        Some(NaiveDateTime::from_timestamp_millis(earliest_time).unwrap())
+    }
+
     /// Returns the latest time that the vertex exists.
     ///
     /// Returns:
@@ -96,6 +109,19 @@ impl PyVertex {
     pub fn latest_time(&self) -> Option<i64> {
         self.vertex.latest_time()
     }
+
+    /// Returns the latest datetime that the vertex exists.
+    ///
+    /// Arguments:
+    ///    None
+    ///
+    /// Returns:
+    ///     The latest datetime that the vertex exists as an integer.
+    pub fn latest_date_time(&self) ->Option<NaiveDateTime> {
+        let latest_time = self.vertex.latest_time()?;
+        Some(NaiveDateTime::from_timestamp_millis(latest_time).unwrap())
+    }
+
 
     /// Gets the property value of this vertex given the name of the property.
     ///
@@ -291,12 +317,30 @@ impl PyVertex {
         self.vertex.start()
     }
 
+    /// Gets the earliest datetime that this vertex is valid
+    ///
+    /// Returns:
+    ///     The earliest datetime that this vertex is valid or None if the vertex is valid for all times.
+    pub fn start_date_time(&self) ->Option<NaiveDateTime> {
+        let start_time = self.vertex.start()?;
+        Some(NaiveDateTime::from_timestamp_millis(start_time).unwrap())
+    }
+
     /// Gets the latest time that this vertex is valid.
     ///
     /// Returns:
     ///   The latest time that this vertex is valid or None if the vertex is valid for all times.
     pub fn end(&self) -> Option<i64> {
         self.vertex.end()
+    }
+
+    /// Gets the latest datetime that this vertex is valid
+    ///
+    /// Returns:
+    ///     The latest datetime that this vertex is valid or None if the vertex is valid for all times.
+    pub fn end_date_time(&self) ->Option<NaiveDateTime> {
+        let end_time = self.vertex.end()?;
+        Some(NaiveDateTime::from_timestamp_millis(end_time).unwrap())
     }
 
     /// Creates a `PyVertexWindowSet` with the given `step` size and optional `start` and `end` times,    
