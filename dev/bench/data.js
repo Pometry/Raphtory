@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1683907885180,
+  "lastUpdate": 1684169197921,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -715,6 +715,42 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions",
             "value": 688348,
             "range": "± 102097",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "25484244+rachchan@users.noreply.github.com",
+            "name": "Rachel Chan",
+            "username": "rachchan"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3798473957d74e4ebf50b00e4fef52814966d0b1",
+          "message": "Updated Companies House notebook and added new date time methods in python (#880)\n\n* updated notebook and added new date time methods in python\r\n\r\n* fix test\r\n\r\n* Delete utils.js\r\n\r\n* Delete tom-select.complete.min.js\r\n\r\n* Delete tom-select.css\r\n\r\n* Delete vis-network.css\r\n\r\n* Delete vis-network.min.js\r\n\r\n* Delete nx.html\r\n\r\n* Delete nx.html\r\n\r\n* remove file name",
+          "timestamp": "2023-05-15T17:41:50+01:00",
+          "tree_id": "e6ce6af500c2b2cfb23ad665195230f4c4a04975",
+          "url": "https://github.com/Pometry/Raphtory/commit/3798473957d74e4ebf50b00e4fef52814966d0b1"
+        },
+        "date": 1684169197183,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 327457,
+            "range": "± 2141",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 486597,
+            "range": "± 63453",
             "unit": "ns/iter"
           }
         ]
