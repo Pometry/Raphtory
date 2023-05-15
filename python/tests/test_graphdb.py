@@ -991,6 +991,18 @@ def test_time_index():
     rolling = w.rolling(50)
     time_index = rolling.time_index(center=True)
     assert list(time_index) == [25, 75]
+
+
+def test_datetime_props():
+    g = Graph(4)
+    dt1 = datetime.datetime(2020, 1, 1, 23, 59, 59, 999000)
+    g.add_vertex(0, 0, {"time": dt1})
+    assert g.vertex(0).property("time") == dt1
+
+    dt2 = datetime.datetime(2020, 1, 1, 23, 59, 59, 999999)
+    g.add_vertex(0, 1, {"time": dt2})
+    assert g.vertex(1).property("time") == dt2
+
     
 def test_date_time():
     g = Graph(1)
@@ -1044,4 +1056,3 @@ def test_date_time_window():
         exploded_edges.append(edge.date_time())
     assert exploded_edges == [datetime.datetime(2014, 2, 2)]
 
-    
