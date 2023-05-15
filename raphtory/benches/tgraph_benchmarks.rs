@@ -1,11 +1,8 @@
 use std::collections::BTreeSet;
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
-use rand::{distributions::Uniform, prelude::Distribution, Rng};
-use raphtory::core::{
-    lsm::LSMSet,
-    tadjset::{AdjEdge, TAdjSet},
-};
+use rand::{distributions::Uniform, Rng};
+use raphtory::core::{lsm::LSMSet, tadjset::TAdjSet};
 use sorted_vector_map::SortedVectorSet;
 
 fn btree_set_u64(c: &mut Criterion) {
@@ -68,12 +65,12 @@ fn bm_tadjset(c: &mut Criterion) {
         group.throughput(Throughput::Elements(*size as u64));
 
         let mut rng = rand::thread_rng();
-        let range = Uniform::new(0u64, size * 10);
-        let init_srcs: Vec<u64> = (&mut rng)
+        let range = Uniform::new(0, size * 10);
+        let init_srcs: Vec<usize> = (&mut rng)
             .sample_iter(&range)
             .take(*size as usize)
             .collect();
-        let init_dsts: Vec<u64> = (&mut rng)
+        let init_dsts: Vec<usize> = (&mut rng)
             .sample_iter(&range)
             .take(*size as usize)
             .collect();
@@ -91,7 +88,7 @@ fn bm_tadjset(c: &mut Criterion) {
             |b, (time, srcs, dsts)| {
                 b.iter(|| {
                     for i in 0..time.len() {
-                        tadjset.push(srcs[i] as usize, AdjEdge::new(dsts[i] as usize, false));
+                        tadjset.push(srcs[i], dsts[i]);
                     }
                 });
             },

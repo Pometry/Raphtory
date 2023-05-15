@@ -1,34 +1,129 @@
 use itertools::chain;
 use itertools::Itertools;
+use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::iter;
 use std::ops::Range;
 
 use crate::core::adj::Adj;
+use crate::core::edge_ref::EdgeRef;
 use crate::core::props::Props;
-use crate::core::tadjset::AdjEdge;
-use crate::core::tgraph::{EdgeRef, TimeIndex};
+use crate::core::timeindex::TimeIndex;
 use crate::core::{Direction, Prop};
+
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) enum VID {
+    Local(usize),
+    Remote(u64),
+}
+
+impl From<u64> for VID {
+    fn from(value: u64) -> Self {
+        VID::Remote(value)
+    }
+}
+
+impl From<usize> for VID {
+    fn from(value: usize) -> Self {
+        VID::Local(value)
+    }
+}
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub(crate) struct EdgeLayer {
     layer_id: usize,
-    next_edge_id: usize,
-    timestamps: Vec<TimeIndex>,
+    shard_id: usize,
+    local_timestamps: Vec<TimeIndex>,
+    remote_out_timestamps: Vec<TimeIndex>,
+    remote_into_timestamps: Vec<TimeIndex>,
 
     // Vector of adjacency lists. It is populated lazyly, so avoid using [] accessor for reading
-    pub(crate) adj_lists: Vec<Adj>,
-    pub(crate) props: Props,
+    adj_lists: Vec<Adj>,
+    local_props: Props,
+    remote_out_props: Props,
+    remote_into_props: Props,
 }
 
 impl EdgeLayer {
-    pub(crate) fn new(id: usize) -> Self {
+    pub(crate) fn new(layer_id: usize, shard_id: usize) -> Self {
         Self {
-            layer_id: id,
-            next_edge_id: 0,
+            layer_id,
+            shard_id,
             adj_lists: Default::default(),
-            props: Default::default(),
-            timestamps: Default::default(),
+            local_props: Default::default(),
+            remote_out_props: Default::default(),
+            local_timestamps: Default::default(),
+            remote_out_timestamps: Default::default(),
+            remote_into_timestamps: Default::default(),
+            remote_into_props: Default::default(),
+        }
+    }
+
+    fn new_local_out_edge_ref(
+        &self,
+        src_pid: usize,
+        dst_pid: usize,
+        e_pid: usize,
+        time: Option<i64>,
+    ) -> EdgeRef {
+        EdgeRef::LocalOut {
+            e_pid,
+            shard_id: self.shard_id,
+            layer_id: self.layer_id,
+            src_pid,
+            dst_pid,
+            time,
+        }
+    }
+
+    fn new_local_into_edge_ref(
+        &self,
+        src_pid: usize,
+        dst_pid: usize,
+        e_pid: usize,
+        time: Option<i64>,
+    ) -> EdgeRef {
+        EdgeRef::LocalInto {
+            e_pid,
+            shard_id: self.shard_id,
+            layer_id: self.layer_id,
+            src_pid,
+            dst_pid,
+            time,
+        }
+    }
+
+    fn new_remote_out_edge_ref(
+        &self,
+        src_pid: usize,
+        dst: u64,
+        e_pid: usize,
+        time: Option<i64>,
+    ) -> EdgeRef {
+        EdgeRef::RemoteOut {
+            e_pid,
+            shard_id: self.shard_id,
+            layer_id: self.layer_id,
+            src_pid,
+            dst,
+            time,
+        }
+    }
+
+    fn new_remote_into_edge_ref(
+        &self,
+        src: u64,
+        dst_pid: usize,
+        e_pid: usize,
+        time: Option<i64>,
+    ) -> EdgeRef {
+        EdgeRef::RemoteInto {
+            e_pid,
+            shard_id: self.shard_id,
+            layer_id: self.layer_id,
+            src,
+            dst_pid,
+            time,
         }
     }
 }
@@ -38,46 +133,34 @@ impl EdgeLayer {
     pub(crate) fn add_edge_with_props(
         &mut self,
         t: i64,
-        _src: u64,
-        _dst: u64,
         src_pid: usize,
         dst_pid: usize,
         props: &Vec<(String, Prop)>,
     ) {
         let required_len = std::cmp::max(src_pid, dst_pid) + 1;
+        let dst = VID::Local(dst_pid);
+        let src = VID::Local(src_pid);
         self.ensure_adj_lists_len(required_len);
-        let edge_meta = self.get_edge_and_update_time(src_pid, dst_pid, t, Direction::OUT, false);
-        self.link_outbound_edge(edge_meta, src_pid, dst_pid);
-        self.link_inbound_edge(edge_meta, src_pid, dst_pid);
-
-        self.props
-            .upsert_temporal_props(t, edge_meta.edge_id(), props);
+        let edge_meta = self.get_edge_and_update_time(src_pid, dst, t, Direction::OUT);
+        self.link_outbound_edge(edge_meta, src_pid, dst);
+        self.link_inbound_edge(edge_meta, src, dst_pid);
+        self.local_props.upsert_temporal_props(t, edge_meta, props);
     }
 
     #[allow(unused_variables)]
     pub(crate) fn add_edge_remote_out(
         &mut self,
         t: i64,
-        src: u64, // we are on the source shard
-        dst: u64,
         src_pid: usize,
+        dst: u64,
         props: &Vec<(String, Prop)>,
     ) {
         self.ensure_adj_lists_len(src_pid + 1);
-        let edge_meta = self.get_edge_and_update_time(
-            src_pid,
-            dst.try_into().expect("assuming 64-bit platform"),
-            t,
-            Direction::OUT,
-            true,
-        );
-        self.link_outbound_edge(
-            edge_meta,
-            src_pid,
-            dst.try_into().expect("assuming 64-bit platform"),
-        );
-        self.props
-            .upsert_temporal_props(t, edge_meta.edge_id(), props);
+        let dst = VID::Remote(dst);
+        let edge_meta = self.get_edge_and_update_time(src_pid, dst, t, Direction::OUT);
+        self.link_outbound_edge(edge_meta, src_pid, dst);
+        self.remote_out_props
+            .upsert_temporal_props(t, edge_meta, props);
     }
 
     #[allow(unused_variables)]
@@ -85,25 +168,31 @@ impl EdgeLayer {
         &mut self,
         t: i64,
         src: u64,
-        dst: u64, // we are on the destination shard
         dst_pid: usize,
         props: &Vec<(String, Prop)>,
     ) {
+        let src = VID::Remote(src);
         self.ensure_adj_lists_len(dst_pid + 1);
-        let edge_meta = self.get_edge_and_update_time(
-            dst_pid,
-            src.try_into().expect("assuming 64-bit platform"),
-            t,
-            Direction::IN,
-            true,
-        );
-        self.link_inbound_edge(
-            edge_meta,
-            src.try_into().expect("assuming 64-bit platform"),
-            dst_pid,
-        );
-        self.props
-            .upsert_temporal_props(t, edge_meta.edge_id(), props);
+        let edge_meta = self.get_edge_and_update_time(dst_pid, src, t, Direction::IN);
+        self.link_inbound_edge(edge_meta, src, dst_pid);
+        self.remote_into_props
+            .upsert_temporal_props(t, edge_meta, props);
+    }
+
+    pub(crate) fn edge_props_mut(&mut self, edge: EdgeRef) -> &mut Props {
+        match edge {
+            EdgeRef::RemoteInto { .. } => &mut self.remote_into_props,
+            EdgeRef::RemoteOut { .. } => &mut self.remote_out_props,
+            _ => &mut self.local_props,
+        }
+    }
+
+    pub(crate) fn edge_props(&self, edge: EdgeRef) -> &Props {
+        match edge {
+            EdgeRef::RemoteInto { .. } => &self.remote_into_props,
+            EdgeRef::RemoteOut { .. } => &self.remote_out_props,
+            _ => &self.local_props,
+        }
     }
 }
 
@@ -116,34 +205,45 @@ impl EdgeLayer {
         }
     }
 
+    #[inline]
+    fn get_adj(&self, v_pid: usize) -> &Adj {
+        self.adj_lists.get(v_pid).unwrap_or(&Adj::Solo)
+    }
+
     fn get_edge_and_update_time(
         &mut self,
         local_v: usize,
-        other: usize,
+        other: VID,
         t: i64,
         dir: Direction,
-        is_remote: bool,
-    ) -> AdjEdge {
-        let edge = self.adj_lists[local_v]
-            .get_edge(other, dir, is_remote)
-            .unwrap_or_else(|| {
-                let edge = AdjEdge::new(self.next_edge_id, !is_remote);
-                self.next_edge_id += 1;
-                edge
-            });
-        match self.timestamps.get_mut(edge.edge_id()) {
-            Some(ts) => {
-                ts.insert(t);
-            }
-            None => self.timestamps.push(TimeIndex::one(t)),
+    ) -> usize {
+        let timestamps = match other {
+            VID::Remote(_) => match dir {
+                Direction::IN => &mut self.remote_into_timestamps,
+                Direction::OUT => &mut self.remote_out_timestamps,
+                Direction::BOTH => {
+                    panic!("Internal get_edge function should not be called with `Direction::BOTH`")
+                }
+            },
+            VID::Local(_) => &mut self.local_timestamps,
         };
-        edge
+        match self.adj_lists[local_v].get_edge(other, dir) {
+            Some(edge) => {
+                timestamps[edge].insert(t);
+                edge
+            }
+            None => {
+                let edge = timestamps.len();
+                timestamps.push(TimeIndex::one(t));
+                edge
+            }
+        }
     }
 
     pub(crate) fn link_inbound_edge(
         &mut self,
-        edge: AdjEdge,
-        src: usize, // may or may not be physical id depending on remote_edge flag
+        edge: usize,
+        src: VID, // may or may not be physical id depending on remote_edge flag
         dst_pid: usize,
     ) {
         match &mut self.adj_lists[dst_pid] {
@@ -152,18 +252,18 @@ impl EdgeLayer {
             }
             Adj::List {
                 into, remote_into, ..
-            } => {
-                let list = if edge.is_remote() { remote_into } else { into };
-                list.push(src, edge);
-            }
+            } => match src {
+                VID::Remote(v) => remote_into.push(v, edge),
+                VID::Local(v) => into.push(v, edge),
+            },
         }
     }
 
     pub(crate) fn link_outbound_edge(
         &mut self,
-        edge: AdjEdge,
+        edge: usize,
         src_pid: usize,
-        dst: usize, // may or may not pe physical id depending on remote_edge flag
+        dst: VID, // may or may not pe physical id depending on remote_edge flag
     ) {
         match &mut self.adj_lists[src_pid] {
             entry @ Adj::Solo => {
@@ -171,282 +271,191 @@ impl EdgeLayer {
             }
             Adj::List {
                 out, remote_out, ..
-            } => {
-                let list = if edge.is_remote() { remote_out } else { out };
-                list.push(dst, edge);
-            }
+            } => match dst {
+                VID::Remote(v) => remote_out.push(v, edge),
+                VID::Local(v) => out.push(v, edge),
+            },
         }
     }
 }
 
 // SINGLE EDGE ACCESS:
 impl EdgeLayer {
-    // TODO reuse function to return edge
-    pub(crate) fn has_local_edge(&self, src_pid: usize, dst_pid: usize) -> bool {
-        match self.adj_lists.get(src_pid).unwrap_or(&Adj::Solo) {
-            Adj::Solo => false,
-            Adj::List { out, .. } => out.find(dst_pid).is_some(),
-        }
-    }
-
-    pub(crate) fn has_local_edge_window(
-        &self,
-        src_pid: usize,
-        dst_pid: usize,
-        w: &Range<i64>,
-    ) -> bool {
-        match self.adj_lists.get(src_pid).unwrap_or(&Adj::Solo) {
-            Adj::Solo => false,
-            Adj::List { out, .. } => out
-                .find(dst_pid)
-                .filter(|e| self.timestamps[e.edge_id()].active(w.clone()))
-                .is_some(),
-        }
-    }
-
-    pub(crate) fn has_remote_edge(&self, src_pid: usize, dst: u64) -> bool {
-        match self.adj_lists.get(src_pid).unwrap_or(&Adj::Solo) {
-            Adj::Solo => false,
-            Adj::List { remote_out, .. } => remote_out
-                .find(dst.try_into().expect("assuming 64-bit platform"))
-                .is_some(),
-        }
-    }
-
-    pub(crate) fn has_remote_edge_window(&self, src_pid: usize, dst: u64, w: &Range<i64>) -> bool {
-        match self.adj_lists.get(src_pid).unwrap_or(&Adj::Solo) {
-            Adj::Solo => false,
-            Adj::List { remote_out, .. } => remote_out
-                .find(dst.try_into().expect("assuming 64-bit platform"))
-                .filter(|e| self.timestamps[e.edge_id()].active(w.clone()))
-                .is_some(),
-        }
-    }
-
-    pub(crate) fn get_edge_history(
-        &self,
-        src_pid: usize,
-        dst_pid: usize,
-        local: bool,
-        window: Option<Range<i64>>,
-    ) -> Vec<i64> {
-        match self.adj_lists.get(src_pid).unwrap_or(&Adj::Solo) {
-            Adj::Solo => vec![],
-            Adj::List {
-                out, remote_out, ..
-            } => {
-                if local {
-                    match window {
-                        None => out.find(dst_pid).map_or(vec![], |e| {
-                            self.timestamps[e.edge_id()].iter().copied().collect()
-                        }),
-                        Some(w) => out.find(dst_pid).map_or(vec![], |e| {
-                            self.timestamps[e.edge_id()].range(w).copied().collect()
-                        }),
-                    }
-                } else {
-                    match window {
-                        None => remote_out.find(dst_pid).map_or(vec![], |e| {
-                            self.timestamps[e.edge_id()].iter().copied().collect()
-                        }),
-                        Some(w) => remote_out.find(dst_pid).map_or(vec![], |e| {
-                            self.timestamps[e.edge_id()].range(w).copied().collect()
-                        }),
-                    }
+    pub(crate) fn edge(&self, src: VID, dst: VID, w: Option<Range<i64>>) -> Option<EdgeRef> {
+        match src {
+            VID::Local(src_pid) => {
+                let adj = self.get_adj(src_pid);
+                match adj {
+                    Adj::Solo => None,
+                    Adj::List {
+                        out, remote_out, ..
+                    } => match dst {
+                        VID::Local(dst_pid) => {
+                            let e = out.find(dst_pid).and_then(|e| match w {
+                                Some(w) => self.local_timestamps[e].active(w).then_some(e),
+                                None => Some(e),
+                            })?;
+                            Some(EdgeRef::LocalOut {
+                                e_pid: e,
+                                shard_id: self.shard_id,
+                                layer_id: self.layer_id,
+                                src_pid,
+                                dst_pid,
+                                time: None,
+                            })
+                        }
+                        VID::Remote(dst) => {
+                            let e = remote_out.find(dst).and_then(|e| match w {
+                                Some(w) => self.remote_out_timestamps[e].active(w).then_some(e),
+                                None => Some(e),
+                            })?;
+                            Some(EdgeRef::RemoteOut {
+                                e_pid: e,
+                                shard_id: self.shard_id,
+                                layer_id: self.layer_id,
+                                src_pid,
+                                dst,
+                                time: None,
+                            })
+                        }
+                    },
                 }
             }
+            VID::Remote(src) => match dst {
+                VID::Local(dst_pid) => {
+                    let adj = self.get_adj(dst_pid);
+                    match adj {
+                        Adj::Solo => None,
+                        Adj::List { remote_into, .. } => {
+                            let e = remote_into.find(src).filter(|e| match w {
+                                Some(w) => self.remote_into_timestamps[*e].active(w),
+                                None => true,
+                            })?;
+                            Some(EdgeRef::RemoteInto {
+                                e_pid: e,
+                                shard_id: self.shard_id,
+                                layer_id: self.layer_id,
+                                src,
+                                dst_pid,
+                                time: None,
+                            })
+                        }
+                    }
+                }
+                VID::Remote(_) => None,
+            },
         }
     }
 
-    // try to merge the next four functions together
-    pub(crate) fn local_edge(
+    pub(crate) fn has_edge(&self, src: VID, dst: VID, w: Option<Range<i64>>) -> bool {
+        self.edge(src, dst, w).is_some()
+    }
+
+    #[inline]
+    pub(crate) fn get_edge_history(&self, edge: EdgeRef) -> impl Iterator<Item = i64> + '_ {
+        let timestamps = match edge {
+            EdgeRef::RemoteInto { e_pid, .. } => &self.remote_into_timestamps[e_pid],
+            EdgeRef::RemoteOut { e_pid, .. } => &self.remote_out_timestamps[e_pid],
+            local_edge => &self.local_timestamps[local_edge.pid()],
+        };
+        timestamps.iter().copied()
+    }
+
+    #[inline]
+    pub(crate) fn get_edge_history_window(
         &self,
-        src: u64,
-        dst: u64,
-        src_pid: usize,
-        dst_pid: usize,
-    ) -> Option<EdgeRef> {
-        match self.adj_lists.get(src_pid).unwrap_or(&Adj::Solo) {
-            Adj::Solo => None,
-            Adj::List { out, .. } => {
-                let e = out.find(dst_pid)?;
-                Some(EdgeRef {
-                    layer_id: self.layer_id,
-                    edge_id: e.edge_id(),
-                    src_g_id: src,
-                    dst_g_id: dst,
-                    src_id: src_pid,
-                    dst_id: dst_pid,
-                    time: None,
-                    is_remote: false,
-                })
-            }
-        }
+        edge: EdgeRef,
+        w: Range<i64>,
+    ) -> impl Iterator<Item = i64> + '_ {
+        let timestamps = match edge {
+            EdgeRef::RemoteInto { e_pid, .. } => &self.remote_into_timestamps[e_pid],
+            EdgeRef::RemoteOut { e_pid, .. } => &self.remote_out_timestamps[e_pid],
+            local_edge => &self.local_timestamps[local_edge.pid()],
+        };
+        timestamps.range(w).copied()
     }
 
-    pub(crate) fn local_edge_window(
+    pub(crate) fn explode_edge(&self, edge: EdgeRef) -> impl Iterator<Item = EdgeRef> + '_ {
+        self.get_edge_history(edge).map(move |t| edge.at(t))
+    }
+
+    pub(crate) fn explode_edge_window(
         &self,
-        src: u64,
-        dst: u64,
-        src_pid: usize,
-        dst_pid: usize,
-        w: &Range<i64>,
-    ) -> Option<EdgeRef> {
-        match self.adj_lists.get(src_pid).unwrap_or(&Adj::Solo) {
-            Adj::Solo => None,
-            Adj::List { out, .. } => out
-                .find(dst_pid)
-                .filter(|e| self.timestamps[e.edge_id()].active(w.clone()))
-                .map(|e| EdgeRef {
-                    layer_id: self.layer_id,
-                    edge_id: e.edge_id(),
-                    src_g_id: src,
-                    dst_g_id: dst,
-                    src_id: src_pid,
-                    dst_id: dst_pid,
-                    time: None,
-                    is_remote: false,
-                }),
-        }
-    }
-
-    pub(crate) fn remote_edge(&self, src: u64, dst: u64, src_pid: usize) -> Option<EdgeRef> {
-        match self.adj_lists.get(src_pid).unwrap_or(&Adj::Solo) {
-            Adj::Solo => None,
-            Adj::List { remote_out, .. } => {
-                let e = remote_out.find(dst.try_into().expect("assuming 64-bit platform"))?;
-                Some(EdgeRef {
-                    layer_id: self.layer_id,
-                    edge_id: e.edge_id(),
-                    src_g_id: src,
-                    dst_g_id: dst,
-                    src_id: src_pid,
-                    dst_id: dst as usize,
-                    time: None,
-                    is_remote: true,
-                })
-            }
-        }
-    }
-
-    pub(crate) fn remote_edge_window(
-        &self,
-        src: u64,
-        dst: u64,
-        src_pid: usize,
-        w: &Range<i64>,
-    ) -> Option<EdgeRef> {
-        match self.adj_lists.get(src_pid).unwrap_or(&Adj::Solo) {
-            Adj::Solo => None,
-            Adj::List { remote_out, .. } => remote_out
-                .find(dst.try_into().expect("assuming 64-bit platform"))
-                .filter(|e| self.timestamps[e.edge_id()].active(w.clone()))
-                .map(|e| EdgeRef {
-                    layer_id: self.layer_id,
-                    edge_id: e.edge_id(),
-                    src_g_id: src,
-                    dst_g_id: dst,
-                    src_id: src_pid,
-                    dst_id: dst as usize,
-                    time: None,
-                    is_remote: true,
-                }),
-        }
+        edge: EdgeRef,
+        w: Range<i64>,
+    ) -> impl Iterator<Item = EdgeRef> + '_ {
+        self.get_edge_history_window(edge, w)
+            .map(move |t| edge.at(t))
     }
 }
 
 // AGGREGATED ACCESS:
 impl EdgeLayer {
     pub(crate) fn out_edges_len(&self) -> usize {
-        self.adj_lists.iter().map(|adj| adj.out_edges_len()).sum()
+        self.local_timestamps.len() + self.remote_out_timestamps.len()
     }
 
-    pub(crate) fn out_edges_len_window(&self, w: &Range<i64>, v_timestamps: &[TimeIndex]) -> usize {
-        v_timestamps
-            .iter()
-            .enumerate()
-            .filter_map(|(i, ts)| ts.active(w.clone()).then_some(i))
-            .map(|i| match &self.adj_lists.get(i).unwrap_or(&Adj::Solo) {
-                Adj::Solo => 0,
-                Adj::List {
-                    out, remote_out, ..
-                } => {
-                    out.len_window(&self.timestamps, w) + remote_out.len_window(&self.timestamps, w)
-                }
-            })
-            .sum()
+    pub(crate) fn out_edges_len_window(&self, w: &Range<i64>) -> usize {
+        self.local_timestamps
+            .par_iter()
+            .filter(|ts| ts.active(w.clone()))
+            .count()
+            + self
+                .remote_out_timestamps
+                .par_iter()
+                .filter(|ts| ts.active(w.clone()))
+                .count()
     }
 }
 
 // MULTIPLE EDGE ACCES:
 impl EdgeLayer {
-    pub fn local_vertex_neighbours(
+    pub fn vertex_neighbours(
         &self,
         v_pid: usize,
         d: Direction,
-    ) -> Box<dyn Iterator<Item = usize> + Send + '_> {
-        let adj = self.adj_lists.get(v_pid).unwrap_or(&Adj::Solo);
+    ) -> Box<dyn Iterator<Item = VID> + Send + '_> {
+        let adj = self.get_adj(v_pid);
         match adj {
             Adj::Solo => {
-                let iter: Box<dyn Iterator<Item = usize> + Send + '_> = Box::new(iter::empty());
-                iter
-            }
-            Adj::List { out, into, .. } => match d {
-                Direction::OUT => {
-                    let iter: Box<dyn Iterator<Item = usize> + Send + '_> =
-                        Box::new(out.vertices());
-                    iter
-                }
-                Direction::IN => {
-                    let iter: Box<dyn Iterator<Item = usize> + Send + '_> =
-                        Box::new(into.vertices());
-                    iter
-                }
-                Direction::BOTH => {
-                    let iter: Box<dyn Iterator<Item = usize> + Send + '_> = Box::new(
-                        [out.vertices(), into.vertices()]
-                            .into_iter()
-                            .kmerge()
-                            .dedup(),
-                    );
-                    iter
-                }
-            },
-        }
-    }
-
-    pub fn remote_vertex_neighbours(
-        &self,
-        v_pid: usize,
-        d: Direction,
-    ) -> Box<dyn Iterator<Item = usize> + Send + '_> {
-        let adj = self.adj_lists.get(v_pid).unwrap_or(&Adj::Solo);
-        match adj {
-            Adj::Solo => {
-                let iter: Box<dyn Iterator<Item = usize> + Send + '_> = Box::new(iter::empty());
+                let iter: Box<dyn Iterator<Item = VID> + Send + '_> = Box::new(iter::empty());
                 iter
             }
             Adj::List {
+                out,
+                into,
                 remote_out,
                 remote_into,
-                ..
             } => match d {
                 Direction::OUT => {
-                    let iter: Box<dyn Iterator<Item = usize> + Send + '_> =
-                        Box::new(remote_out.vertices());
+                    let iter: Box<dyn Iterator<Item = VID> + Send + '_> = Box::new(
+                        out.vertices()
+                            .map_into()
+                            .chain(remote_out.vertices().map_into()),
+                    );
                     iter
                 }
                 Direction::IN => {
-                    let iter: Box<dyn Iterator<Item = usize> + Send + '_> =
-                        Box::new(remote_into.vertices());
+                    let iter: Box<dyn Iterator<Item = VID> + Send + '_> = Box::new(
+                        into.vertices()
+                            .map_into()
+                            .chain(remote_into.vertices().map_into()),
+                    );
                     iter
                 }
                 Direction::BOTH => {
-                    let iter: Box<dyn Iterator<Item = usize> + Send + '_> = Box::new(
-                        [remote_out.vertices(), remote_into.vertices()]
-                            .into_iter()
-                            .kmerge()
-                            .dedup(),
+                    let iter: Box<dyn Iterator<Item = VID> + Send + '_> = Box::new(
+                        out.vertices()
+                            .merge(into.vertices())
+                            .dedup()
+                            .map_into()
+                            .chain(
+                                remote_out
+                                    .vertices()
+                                    .merge(remote_into.vertices())
+                                    .dedup()
+                                    .map_into(),
+                            ),
                     );
                     iter
                 }
@@ -454,81 +463,64 @@ impl EdgeLayer {
         }
     }
 
-    pub fn local_vertex_neighbours_window(
+    pub fn vertex_neighbours_window(
         &self,
         v_pid: usize,
         d: Direction,
         window: &Range<i64>,
-    ) -> Box<dyn Iterator<Item = usize> + Send + '_> {
-        let adj = self.adj_lists.get(v_pid).unwrap_or(&Adj::Solo);
+    ) -> Box<dyn Iterator<Item = VID> + Send + '_> {
+        let adj = self.get_adj(v_pid);
         match adj {
             Adj::Solo => {
-                let iter: Box<dyn Iterator<Item = usize> + Send + '_> = Box::new(iter::empty());
-                iter
-            }
-            Adj::List { out, into, .. } => match d {
-                Direction::OUT => {
-                    let iter: Box<dyn Iterator<Item = usize> + Send + '_> =
-                        Box::new(out.vertices_window(&self.timestamps, window));
-                    iter
-                }
-                Direction::IN => {
-                    let iter: Box<dyn Iterator<Item = usize> + Send + '_> =
-                        Box::new(into.vertices_window(&self.timestamps, window));
-                    iter
-                }
-                Direction::BOTH => {
-                    let iter: Box<dyn Iterator<Item = usize> + Send + '_> = Box::new(
-                        [
-                            out.vertices_window(&self.timestamps, window),
-                            into.vertices_window(&self.timestamps, window),
-                        ]
-                        .into_iter()
-                        .kmerge()
-                        .dedup(),
-                    );
-                    iter
-                }
-            },
-        }
-    }
-
-    pub fn remote_vertex_neighbours_window(
-        &self,
-        v_pid: usize,
-        d: Direction,
-        window: &Range<i64>,
-    ) -> Box<dyn Iterator<Item = usize> + Send + '_> {
-        let adj = self.adj_lists.get(v_pid).unwrap_or(&Adj::Solo);
-        match adj {
-            Adj::Solo => {
-                let iter: Box<dyn Iterator<Item = usize> + Send + '_> = Box::new(iter::empty());
+                let iter: Box<dyn Iterator<Item = VID> + Send + '_> = Box::new(iter::empty());
                 iter
             }
             Adj::List {
+                out,
+                into,
                 remote_out,
                 remote_into,
-                ..
             } => match d {
                 Direction::OUT => {
-                    let iter: Box<dyn Iterator<Item = usize> + Send + '_> =
-                        Box::new(remote_out.vertices_window(&self.timestamps, window));
+                    let iter: Box<dyn Iterator<Item = VID> + Send + '_> = Box::new(
+                        out.vertices_window(&self.local_timestamps, window)
+                            .map_into()
+                            .chain(
+                                remote_out
+                                    .vertices_window(&self.remote_out_timestamps, window)
+                                    .map_into(),
+                            ),
+                    );
                     iter
                 }
                 Direction::IN => {
-                    let iter: Box<dyn Iterator<Item = usize> + Send + '_> =
-                        Box::new(remote_into.vertices_window(&self.timestamps, window));
+                    let iter: Box<dyn Iterator<Item = VID> + Send + '_> = Box::new(
+                        into.vertices_window(&self.local_timestamps, window)
+                            .map_into()
+                            .chain(
+                                remote_into
+                                    .vertices_window(&self.remote_into_timestamps, window)
+                                    .map_into(),
+                            ),
+                    );
                     iter
                 }
                 Direction::BOTH => {
-                    let iter: Box<dyn Iterator<Item = usize> + Send + '_> = Box::new(
-                        [
-                            remote_out.vertices_window(&self.timestamps, window),
-                            remote_into.vertices_window(&self.timestamps, window),
-                        ]
-                        .into_iter()
-                        .kmerge()
-                        .dedup(),
+                    let iter: Box<dyn Iterator<Item = VID> + Send + '_> = Box::new(
+                        out.vertices_window(&self.local_timestamps, window)
+                            .merge(into.vertices_window(&self.local_timestamps, window))
+                            .dedup()
+                            .map_into()
+                            .chain(
+                                remote_out
+                                    .vertices_window(&self.remote_out_timestamps, window)
+                                    .merge(
+                                        remote_into
+                                            .vertices_window(&self.remote_into_timestamps, window),
+                                    )
+                                    .dedup()
+                                    .map_into(),
+                            ),
                     );
                     iter
                 }
@@ -537,35 +529,22 @@ impl EdgeLayer {
     }
 
     pub fn degree(&self, v_pid: usize, d: Direction) -> usize {
-        match d {
-            Direction::OUT => match &self.adj_lists[v_pid] {
-                Adj::Solo => 0,
-                Adj::List {
-                    out, remote_out, ..
-                } => out.len() + remote_out.len(),
-            },
-            Direction::IN => match &self.adj_lists[v_pid] {
-                Adj::Solo => 0,
-                Adj::List {
-                    into, remote_into, ..
-                } => into.len() + remote_into.len(),
-            },
-            Direction::BOTH => match &self.adj_lists[v_pid] {
-                Adj::Solo => 0,
-                Adj::List {
-                    out,
-                    remote_out,
-                    into,
-                    remote_into,
-                } => {
-                    [out.vertices(), into.vertices()]
-                        .into_iter()
-                        .kmerge()
-                        .dedup()
-                        .count()
-                        + [remote_out.vertices(), remote_into.vertices()]
-                            .into_iter()
-                            .kmerge()
+        let adj = self.get_adj(v_pid);
+        match adj {
+            Adj::Solo => 0,
+            Adj::List {
+                out,
+                into,
+                remote_out,
+                remote_into,
+            } => match d {
+                Direction::OUT => out.len() + remote_out.len(),
+                Direction::IN => into.len() + remote_into.len(),
+                Direction::BOTH => {
+                    out.vertices().merge(into.vertices()).dedup().count()
+                        + remote_out
+                            .vertices()
+                            .merge(remote_into.vertices())
                             .dedup()
                             .count()
                 }
@@ -574,7 +553,7 @@ impl EdgeLayer {
     }
 
     pub fn degree_window(&self, v_pid: usize, d: Direction, window: &Range<i64>) -> usize {
-        let adj = &self.adj_lists.get(v_pid).unwrap_or(&Adj::Solo);
+        let adj = self.get_adj(v_pid);
         match adj {
             Adj::Solo => 0,
             Adj::List {
@@ -584,82 +563,93 @@ impl EdgeLayer {
                 remote_into,
             } => match d {
                 Direction::OUT => {
-                    out.len_window(&self.timestamps, window)
-                        + remote_out.len_window(&self.timestamps, window)
+                    out.len_window(&self.local_timestamps, window)
+                        + remote_out.len_window(&self.remote_out_timestamps, window)
                 }
                 Direction::IN => {
-                    into.len_window(&self.timestamps, window)
-                        + remote_into.len_window(&self.timestamps, window)
+                    into.len_window(&self.local_timestamps, window)
+                        + remote_into.len_window(&self.remote_into_timestamps, window)
                 }
                 Direction::BOTH => {
-                    [
-                        out.vertices_window(&self.timestamps, window),
-                        into.vertices_window(&self.timestamps, window),
-                    ]
-                    .into_iter()
-                    .kmerge()
-                    .dedup()
-                    .count()
-                        + [
-                            remote_out.vertices_window(&self.timestamps, window),
-                            remote_into.vertices_window(&self.timestamps, window),
-                        ]
-                        .into_iter()
-                        .kmerge()
+                    out.vertices_window(&self.local_timestamps, window)
+                        .merge(into.vertices_window(&self.local_timestamps, window))
                         .dedup()
                         .count()
+                        + remote_out
+                            .vertices_window(&self.remote_out_timestamps, window)
+                            .merge(
+                                remote_into.vertices_window(&self.remote_into_timestamps, window),
+                            )
+                            .dedup()
+                            .count()
                 }
             },
         }
     }
 
-    pub(crate) fn edges_iter<'a>(
-        &'a self,
-        vertex_id: u64,
-        vertex_pid: usize,
+    pub(crate) fn vertex_edges_iter(
+        &self,
+        v_pid: usize,
         d: Direction,
-        global_ids: &'a Vec<u64>,
-    ) -> Box<dyn Iterator<Item = (usize, EdgeRef)> + Send + '_> {
-        let builder = EdgeRefBuilder::new(self.layer_id, vertex_id, vertex_pid, global_ids);
-        match self.adj_lists.get(vertex_pid).unwrap_or(&Adj::Solo) {
+    ) -> Box<dyn Iterator<Item = EdgeRef> + Send + '_> {
+        match self.get_adj(v_pid) {
             Adj::List {
                 out,
                 into,
                 remote_out,
                 remote_into,
             } => match d {
-                Direction::OUT => {
-                    let iter = chain!(out.iter(), remote_out.iter())
-                        .map(move |(dst, e)| (dst, builder.out_edge(dst, e)));
-                    Box::new(iter)
-                }
-                Direction::IN => {
-                    let iter = chain!(into.iter(), remote_into.iter())
-                        .map(move |(dst, e)| (dst, builder.in_edge(dst, e)));
-                    Box::new(iter)
-                }
+                Direction::OUT => Box::new(
+                    out.iter()
+                        .map(move |(dst_pid, e)| {
+                            self.new_local_out_edge_ref(v_pid, dst_pid, e, None)
+                        })
+                        .chain(remote_out.iter().map(move |(dst, e)| {
+                            self.new_remote_out_edge_ref(v_pid, dst, e, None)
+                        })),
+                ),
+                Direction::IN => Box::new(
+                    into.iter()
+                        .map(move |(src_pid, e)| {
+                            self.new_local_into_edge_ref(src_pid, v_pid, e, None)
+                        })
+                        .chain(remote_into.iter().map(move |(src, e)| {
+                            self.new_remote_into_edge_ref(src, v_pid, e, None)
+                        })),
+                ),
+
                 Direction::BOTH => {
-                    let out_mapper =
-                        move |(dst, e): (usize, AdjEdge)| (dst, builder.clone().out_edge(dst, e));
-                    let in_mapper =
-                        move |(dst, e): (usize, AdjEdge)| (dst, builder.in_edge(dst, e));
+                    let remote = remote_out
+                        .iter()
+                        .map(move |(dst, e)| {
+                            (dst, self.new_remote_out_edge_ref(v_pid, dst, e, None))
+                        })
+                        .merge_by(
+                            remote_into.iter().map(move |(src, e)| {
+                                (src, self.new_remote_into_edge_ref(src, v_pid, e, None))
+                            }),
+                            |(left, _), (right, _)| left < right,
+                        )
+                        .map(|item| item.1);
 
-                    let remote_out: Box<dyn Iterator<Item = (usize, EdgeRef)> + Send> =
-                        Box::new(remote_out.iter().map(out_mapper));
-                    let remote_into: Box<dyn Iterator<Item = (usize, EdgeRef)> + Send> =
-                        Box::new(remote_into.iter().map(in_mapper));
-                    let remote = vec![remote_out, remote_into]
-                        .into_iter()
-                        .kmerge_by(|(left, _), (right, _)| left < right);
-
-                    let out: Box<dyn Iterator<Item = (usize, EdgeRef)> + Send> =
-                        Box::new(out.iter().map(out_mapper));
-                    let into: Box<dyn Iterator<Item = (usize, EdgeRef)> + Send> =
-                        Box::new(into.iter().map(in_mapper));
-                    let local = vec![out, into]
-                        .into_iter()
-                        .kmerge_by(|(left, _), (right, _)| left < right);
-
+                    let local = out
+                        .iter()
+                        .map(move |(dst_pid, e)| {
+                            (
+                                dst_pid,
+                                self.new_local_out_edge_ref(v_pid, dst_pid, e, None),
+                            )
+                        })
+                        .merge_by(
+                            into.iter().map(move |(src_pid, e)| {
+                                (
+                                    src_pid,
+                                    self.new_local_into_edge_ref(src_pid, v_pid, e, None),
+                                )
+                            }),
+                            |(left, _), (right, _)| left < right,
+                        )
+                        .map(|item| item.1);
                     Box::new(chain!(local, remote))
                 }
             },
@@ -667,178 +657,97 @@ impl EdgeLayer {
         }
     }
 
-    pub(crate) fn edges_iter_window<'a>(
-        &'a self,
-        vertex_id: u64,
-        vertex_pid: usize,
+    pub(crate) fn vertex_edges_iter_window(
+        &self,
+        v_pid: usize,
         r: &Range<i64>,
         d: Direction,
-        global_ids: &'a Vec<u64>,
-    ) -> Box<dyn Iterator<Item = (usize, EdgeRef)> + Send + '_> {
-        let builder = EdgeRefBuilder::new(self.layer_id, vertex_id, vertex_pid, global_ids);
-        match self.adj_lists.get(vertex_pid).unwrap_or(&Adj::Solo) {
+    ) -> Box<dyn Iterator<Item = EdgeRef> + Send + '_> {
+        match self.get_adj(v_pid) {
             Adj::List {
                 out,
                 into,
                 remote_out,
                 remote_into,
             } => match d {
-                Direction::OUT => {
-                    let iter = chain!(
-                        out.iter_window(&self.timestamps, r),
-                        remote_out.iter_window(&self.timestamps, r)
-                    )
-                    .map(move |(dst, e)| (dst, builder.out_edge(dst, e)));
-                    Box::new(iter)
-                }
+                Direction::OUT => Box::new(chain!(
+                    out.iter_window(&self.local_timestamps, r)
+                        .map(move |(dst_pid, e)| self
+                            .new_local_out_edge_ref(v_pid, dst_pid, e, None)),
+                    remote_out
+                        .iter_window(&self.remote_out_timestamps, r)
+                        .map(move |(dst, e)| self.new_remote_out_edge_ref(v_pid, dst, e, None))
+                )),
                 Direction::IN => {
                     let iter = chain!(
-                        into.iter_window(&self.timestamps, r),
-                        remote_into.iter_window(&self.timestamps, r)
-                    )
-                    .map(move |(dst, e)| (dst, builder.in_edge(dst, e)));
+                        into.iter_window(&self.local_timestamps, r)
+                            .map(move |(src_pid, e)| self
+                                .new_local_into_edge_ref(src_pid, v_pid, e, None)),
+                        remote_into
+                            .iter_window(&self.remote_into_timestamps, r)
+                            .map(move |(src, e)| self.new_remote_into_edge_ref(src, v_pid, e, None))
+                    );
                     Box::new(iter)
                 }
-                Direction::BOTH => {
-                    let out_mapper =
-                        move |(dst, e): (usize, AdjEdge)| (dst, builder.out_edge(dst, e));
-                    let in_mapper =
-                        move |(dst, e): (usize, AdjEdge)| (dst, builder.in_edge(dst, e));
-
-                    let remote_out: Box<dyn Iterator<Item = (usize, EdgeRef)> + Send> =
-                        Box::new(remote_out.iter_window(&self.timestamps, r).map(out_mapper));
-                    let remote_into: Box<dyn Iterator<Item = (usize, EdgeRef)> + Send> =
-                        Box::new(remote_into.iter_window(&self.timestamps, r).map(in_mapper));
-                    let remote = vec![remote_out, remote_into]
-                        .into_iter()
-                        .kmerge_by(|(left, _), (right, _)| left < right);
-
-                    let out: Box<dyn Iterator<Item = (usize, EdgeRef)> + Send> =
-                        Box::new(out.iter_window(&self.timestamps, r).map(out_mapper));
-                    let into: Box<dyn Iterator<Item = (usize, EdgeRef)> + Send> =
-                        Box::new(into.iter_window(&self.timestamps, r).map(in_mapper));
-                    let local = vec![out, into]
-                        .into_iter()
-                        .kmerge_by(|(left, _), (right, _)| left < right);
-
-                    Box::new(chain!(local, remote))
-                }
+                Direction::BOTH => Box::new(chain!(
+                    out.iter_window(&self.local_timestamps, r)
+                        .map(move |(dst_pid, e)| (
+                            dst_pid,
+                            self.new_local_out_edge_ref(v_pid, dst_pid, e, None)
+                        ))
+                        .merge_by(
+                            into.iter_window(&self.local_timestamps, r)
+                                .map(move |(src_pid, e)| (
+                                    src_pid,
+                                    self.new_local_into_edge_ref(src_pid, v_pid, e, None)
+                                )),
+                            |left, right| left.0 < right.0
+                        )
+                        .map(|item| item.1),
+                    remote_out
+                        .iter_window(&self.remote_out_timestamps, r)
+                        .map(move |(dst, e)| (
+                            dst,
+                            self.new_remote_out_edge_ref(v_pid, dst, e, None)
+                        ))
+                        .merge_by(
+                            remote_into
+                                .iter_window(&self.remote_into_timestamps, r)
+                                .map(move |(src, e)| (
+                                    src,
+                                    self.new_remote_into_edge_ref(src, v_pid, e, None)
+                                )),
+                            |left, right| left.0 < right.0
+                        )
+                        .map(|item| item.1)
+                )),
             },
             _ => Box::new(std::iter::empty()),
         }
     }
 
-    pub(crate) fn edges_iter_window_t<'a>(
+    pub(crate) fn vertex_edges_iter_t(
+        // TODO: change back to private if appropriate
+        &self,
+        v_pid: usize,
+        d: Direction,
+    ) -> Box<dyn Iterator<Item = EdgeRef> + Send + '_> {
+        Box::new(
+            self.vertex_edges_iter(v_pid, d)
+                .flat_map(|e| self.explode_edge(e)),
+        )
+    }
+
+    pub(crate) fn vertex_edges_iter_window_t<'a>(
         // TODO: change back to private if appropriate
         &'a self,
-        v_id: u64,
         v_pid: usize,
         w: &'a Range<i64>,
         d: Direction,
-        global_ids: &'a Vec<u64>,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send + '_> {
-        let builder = EdgeRefBuilder::new(self.layer_id, v_id, v_pid, global_ids);
-        match self.adj_lists.get(v_pid).unwrap_or(&Adj::Solo) {
-            Adj::List {
-                out,
-                into,
-                remote_out,
-                remote_into,
-            } => match d {
-                Direction::OUT => Box::new(chain!(out.iter(), remote_out.iter()).flat_map(
-                    move |(dst, e)| {
-                        self.timestamps[e.edge_id()]
-                            .range(w.clone())
-                            .map(move |t| builder.out_edge_t(dst, e, *t))
-                    },
-                )),
-                Direction::IN => Box::new(chain!(into.iter(), remote_into.iter()).flat_map(
-                    move |(dst, e)| {
-                        self.timestamps[e.edge_id()]
-                            .range(w.clone())
-                            .map(move |t| builder.in_edge_t(dst, e, *t))
-                    },
-                )),
-                Direction::BOTH => Box::new(chain!(
-                    self.edges_iter_window_t(v_id, v_pid, w, Direction::IN, global_ids),
-                    self.edges_iter_window_t(v_id, v_pid, w, Direction::OUT, global_ids),
-                )),
-            },
-            _ => Box::new(std::iter::empty()),
-        }
-    }
-}
-
-#[derive(Copy, Clone)]
-struct EdgeRefBuilder<'a> {
-    layer_id: usize,
-    v_ref: u64,
-    v_ref_pid: usize,
-    logical_ids: &'a Vec<u64>,
-}
-
-impl<'a> EdgeRefBuilder<'a> {
-    fn new(layer_id: usize, v_ref: u64, v_ref_pid: usize, logical_ids: &'a Vec<u64>) -> Self {
-        Self {
-            layer_id,
-            v_ref,
-            v_ref_pid,
-            logical_ids,
-        }
-    }
-    fn out_edge(&self, vertex: usize, e: AdjEdge) -> EdgeRef {
-        EdgeRef {
-            layer_id: self.layer_id,
-            edge_id: e.edge_id(),
-            src_g_id: self.v_ref,
-            dst_g_id: self.v_g_id(vertex, e),
-            src_id: self.v_ref_pid,
-            dst_id: vertex,
-            time: None,
-            is_remote: !e.is_local(),
-        }
-    }
-    fn out_edge_t(&self, vertex: usize, e: AdjEdge, t: i64) -> EdgeRef {
-        EdgeRef {
-            layer_id: self.layer_id,
-            edge_id: e.edge_id(),
-            src_g_id: self.v_ref,
-            dst_g_id: self.v_g_id(vertex, e),
-            src_id: self.v_ref_pid,
-            dst_id: vertex,
-            time: Some(t),
-            is_remote: !e.is_local(),
-        }
-    }
-    fn in_edge(&self, vertex: usize, e: AdjEdge) -> EdgeRef {
-        EdgeRef {
-            layer_id: self.layer_id,
-            edge_id: e.edge_id(),
-            src_g_id: self.v_g_id(vertex, e),
-            dst_g_id: self.v_ref,
-            src_id: vertex,
-            dst_id: self.v_ref_pid,
-            time: None,
-            is_remote: !e.is_local(),
-        }
-    }
-    fn in_edge_t(&self, vertex: usize, e: AdjEdge, t: i64) -> EdgeRef {
-        EdgeRef {
-            layer_id: self.layer_id,
-            edge_id: e.edge_id(),
-            src_g_id: self.v_g_id(vertex, e),
-            dst_g_id: self.v_ref,
-            src_id: vertex,
-            dst_id: self.v_ref_pid,
-            time: Some(t),
-            is_remote: !e.is_local(),
-        }
-    }
-    fn v_g_id(&self, vertex_pid: usize, e: AdjEdge) -> u64 {
-        if e.is_local() {
-            self.logical_ids[vertex_pid]
-        } else {
-            vertex_pid as u64
-        }
+        Box::new(
+            self.vertex_edges_iter_window(v_pid, w, d)
+                .flat_map(|e| self.explode_edge_window(e, w.clone())),
+        )
     }
 }
