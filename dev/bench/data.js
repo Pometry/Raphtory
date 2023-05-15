@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1684169197921,
+  "lastUpdate": 1684170090825,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -751,6 +751,42 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions",
             "value": 486597,
             "range": "± 63453",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ricopinazo@gmail.com",
+            "name": "Pedro Rico Pinazo",
+            "username": "ricopinazo"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "95bae46ccaff1143756c1158fda01a2c97ff2f3c",
+          "message": "add support for datetime properties (#888)\n\nadd suport for datetime properties\r\n\r\nCo-authored-by: Ben Steer <b.a.steer@qmul.ac.uk>",
+          "timestamp": "2023-05-15T17:56:29+01:00",
+          "tree_id": "e707c3b15485627abbb898239e993bc159983ad5",
+          "url": "https://github.com/Pometry/Raphtory/commit/95bae46ccaff1143756c1158fda01a2c97ff2f3c"
+        },
+        "date": 1684170089544,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 315446,
+            "range": "± 13201",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 823160,
+            "range": "± 191267",
             "unit": "ns/iter"
           }
         ]
