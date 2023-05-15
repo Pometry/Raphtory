@@ -7,6 +7,7 @@ use std::ops::Range;
 /// The GraphViewInternalOps trait provides a set of methods to query a directed graph
 /// represented by the raphtory_core::tgraph::TGraph struct.
 pub trait GraphViewInternalOps {
+
     /// Gets the local reference for a remote vertex and keeps local references unchanged. Assumes vertex exists!
     fn localise_vertex_unchecked(&self, v: VertexRef) -> LocalVertexRef {
         match v {
@@ -22,7 +23,7 @@ pub trait GraphViewInternalOps {
     fn local_vertex_window(&self, v: VertexRef, t_start: i64, t_end: i64)
         -> Option<LocalVertexRef>;
 
-    fn get_unique_layers_internal(&self) -> Vec<String>;
+    fn get_unique_layers_internal(&self) -> Vec<usize>;
 
     fn get_layer_name_by_id(&self, layer_id: usize) -> String;
 
