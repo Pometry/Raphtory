@@ -1,6 +1,6 @@
 use std::{ops::Range, collections::HashMap};
 
-use raphtory::{db::view_api::internal::GraphViewInternalOps, core::{tgraph::{VertexRef, EdgeRef}, Prop}};
+use raphtory::{db::view_api::{internal::GraphViewInternalOps, TimeOps}, core::{tgraph::{VertexRef, EdgeRef}, Prop}};
 
 use super::Graph;
 

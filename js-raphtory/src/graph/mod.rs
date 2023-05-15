@@ -10,6 +10,7 @@ use raphtory::db::graph::Graph as TGraph;
 use raphtory::db::graph_window::WindowedGraph;
 use raphtory::db::view_api::internal::GraphViewInternalOps;
 use raphtory::db::view_api::GraphViewOps;
+use raphtory::db::view_api::TimeOps;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 
@@ -89,6 +90,26 @@ impl Graph {
     #[wasm_bindgen(constructor)]
     pub fn new() -> Self {
         Graph(UnderGraph::TGraph(Arc::new(TGraph::new(1))))
+    }
+
+    #[wasm_bindgen(js_name = window)]
+    pub fn window(&self, t_start: i64, t_end: i64) -> Self {
+        match &self.0 {
+            UnderGraph::TGraph(g) => Graph(UnderGraph::WindowedGraph(Arc::new(
+                g.window(t_start, t_end),
+            ))),
+            UnderGraph::WindowedGraph(g) => {
+                // take the largest of g.start() and t_start
+                // and the smallest of g.end and t_end
+                // and apply the window to the parent graph
+                let t_start = std::cmp::max(g.start(), Some(t_start));
+                let t_end = std::cmp::min(g.end(), Some(t_end));
+
+                Graph(UnderGraph::WindowedGraph(Arc::new(
+                    g.graph.window(t_start.unwrap(), t_end.unwrap()),
+                )))
+            }
+        }
     }
 
     #[wasm_bindgen(js_name = getVertex)]

@@ -1890,24 +1890,15 @@ mod db_tests {
         assert_eq!(g_at.vertices().id().collect::<Vec<u64>>(), vec![1, 2]);
     }
 
-    // #[test]
-    // fn test_vertex_refs_shard() {
-    //     let g = Graph::new(2);
-    //     g.add_vertex(1, 1, &vec![]).unwrap();
-    //     g.add_vertex(1, 2, &vec![]).unwrap();
-    //     g.add_vertex(2, 3, &vec![]).unwrap();
-    //
-    //     assert_eq!(g.vertex_refs_shard(0).collect::<Vec<_>>(), vec![1, 2]);
-    // }
-
     #[test]
-    fn test_edge_layer_name() {
+    fn test_edge_layer_name() -> Result<(), GraphError> {
         let g = Graph::new(4);
-        g.add_edge(0, 0, 1, &vec![], None).unwrap();
-        g.add_edge(0, 0, 1, &vec![], Some("awesome name")).unwrap();
+        g.add_edge(0, 0, 1, &vec![], None)?;
+        g.add_edge(0, 0, 1, &vec![], Some("awesome name"))?;
 
         let layer_names = g.edges().map(|e| e.layer_name()).sorted().collect_vec();
         assert_eq!(layer_names, vec!["awesome name", "default layer"]);
+        Ok(())
     }
 
     #[test]
