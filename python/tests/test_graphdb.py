@@ -945,10 +945,11 @@ def test_generic_taint_loader():
 
     print("Time taken (in secs) to run pagerank on stablecoin data", end_time - start_time)
 
-    actual = algorithms.generic_taint(g, 20, 1651105815, ["0xd30b438df65f4f788563b2b3611bd6059bff4ad9"], [])
+    actual = algorithms.generic_taint(g, 20, 1651105815000, ["0xd30b438df65f4f788563b2b3611bd6059bff4ad9"], [])
+    print(actual)
     expected = {
-        '0xd30b438df65f4f788563b2b3611bd6059bff4ad9': [(1651105815, 'start')],
-        '0xda816e2122a8a39b0926bfa84edd3d42477e9efd': [(1651105815, '0xd30b438df65f4f788563b2b3611bd6059bff4ad9')],
+        '0xd30b438df65f4f788563b2b3611bd6059bff4ad9': [(1651105815000, 'start')],
+        '0xda816e2122a8a39b0926bfa84edd3d42477e9efd': [(1651105815000, '0xd30b438df65f4f788563b2b3611bd6059bff4ad9')],
     }
 
     assert (actual == expected)

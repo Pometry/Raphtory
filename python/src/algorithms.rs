@@ -211,7 +211,7 @@ pub(crate) fn all_local_reciprocity(g: &PyGraphView) -> HashMap<u64, f64> {
 /// A closed triplet is one where a node has two neighbors, and an edge between them.
 #[pyfunction]
 pub(crate) fn triplet_count(g: &PyGraphView) -> usize {
-    raphtory::algorithms::triplet_count::triplet_count(&g.graph)
+    raphtory::algorithms::triplet_count::triplet_count(&g.graph, None)
 }
 
 /// Computes the global clustering coefficient of a graph. The global clustering coefficient is

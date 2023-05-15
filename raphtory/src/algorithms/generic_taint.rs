@@ -196,7 +196,7 @@ pub fn generic_taint<G: GraphViewOps, T: InputVertex>(
 }
 
 #[cfg(test)]
-mod generic_taint_tests_v2 {
+mod generic_taint_tests {
     use super::*;
     use crate::db::graph::Graph;
 

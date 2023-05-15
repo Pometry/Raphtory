@@ -1,6 +1,6 @@
 use rustc_hash::FxHashSet;
+use crate::algorithms::triplet_count::triplet_count;
 
-use crate::algorithms::triplet_count::TripletCount;
 use crate::core::state::accumulator_id::accumulators;
 use crate::db::program::{GlobalEvalState, LocalState, Program};
 use crate::db::view_api::GraphViewOps;
@@ -46,10 +46,7 @@ pub fn clustering_coefficient<G: GraphViewOps>(g: &G) -> f64 {
     tc.run_step(g, &mut gs);
     let tc_val = tc.produce_output(g, &gs).unwrap_or(0);
 
-    let mut gss = GlobalEvalState::new(g.clone(), false);
-    let triplets = TripletCount {};
-    triplets.run_step(g, &mut gss);
-    let output = triplets.produce_output(g, &gss);
+    let output = triplet_count(g, None);
 
     if output == 0 || tc_val == 0 {
         0.0

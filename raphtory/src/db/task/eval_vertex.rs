@@ -48,7 +48,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState> EvalVertexView<'a, G, CS> {
         }
     }
 
-    pub fn new2(
+    pub fn new_(
         ss: usize,
         vertex: VertexView<G>,
         shard_state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
@@ -96,7 +96,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState> EvalVertexView<'a, G, CS> {
         after: i64,
     ) -> impl Iterator<Item = EvalEdgeView<'a, WindowedGraph<G>, CS>> + '_ {
         self.vv.window(after, i64::MAX).out_edges().map(move |ev| {
-            EvalEdgeView::new2(
+            EvalEdgeView::new_(
                 self.ss,
                 ev,
                 self.shard_state.clone(),
@@ -346,7 +346,7 @@ impl<'a, G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeSta
         }
     }
 
-    pub fn new2(
+    pub fn new_(
         ss: usize,
         ev: EdgeView<G>,
         shard_state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
@@ -363,7 +363,7 @@ impl<'a, G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeSta
     }
 
     pub fn dst(&self) -> EvalVertexView<'a, G, CS> {
-        EvalVertexView::new2(
+        EvalVertexView::new_(
             self.ss,
             self.ev.dst(),
             self.shard_state.clone(),
@@ -373,7 +373,7 @@ impl<'a, G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeSta
     }
 
     pub fn src(&self) -> EvalVertexView<'a, G, CS> {
-        EvalVertexView::new2(
+        EvalVertexView::new_(
             self.ss,
             self.ev.src(),
             self.shard_state.clone(),
