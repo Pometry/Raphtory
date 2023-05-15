@@ -19,7 +19,7 @@
 
 use crate::core::tgraph::TemporalGraph;
 use crate::core::tgraph_shard::TGraphShard;
-use crate::core::time::{TryIntoTime, IntoTimeWithFormat};
+use crate::core::time::{IntoTimeWithFormat, TryIntoTime};
 use crate::core::{
     tgraph::{EdgeRef, VertexRef},
     tgraph_shard::errors::GraphError,
@@ -37,6 +37,7 @@ use serde::{Deserialize, Serialize};
 use std::cmp::{max, min};
 use std::{
     collections::HashMap,
+    iter,
     ops::Range,
     path::{Path, PathBuf},
     sync::Arc,
@@ -58,13 +59,9 @@ pub struct Graph {
 }
 
 impl GraphViewInternalOps for Graph {
-    fn get_unique_layers_internal(&self) -> Vec<String> {
-        self.layer_ids
-            .read()
-            .keys()
-            .into_iter()
-            .map(|c| c.clone())
-            .collect_vec()
+    /// Return all the layer ids, included the id of the default layer, 0
+    fn get_unique_layers_internal(&self) -> Vec<usize> {
+        Box::new(iter::once(0).chain(self.layer_ids.read().values().copied())).collect_vec()
     }
 
     fn get_layer_name_by_id(&self, layer_id: usize) -> String {
@@ -1944,5 +1941,14 @@ mod db_tests {
 
         let layer_names = g.edges().map(|e| e.layer_name()).sorted().collect_vec();
         assert_eq!(layer_names, vec!["awesome name", "default layer"]);
+    }
+
+    #[test]
+    fn test_edge_from_single_layer() {
+        let g = Graph::new(4);
+        g.add_edge(0, 1, 2, &vec![], Some("layer"));
+
+        assert!(g.edge(1, 2, None).is_none());
+        assert!(g.layer("layer").unwrap().edge(1, 2, None).is_some())
     }
 }

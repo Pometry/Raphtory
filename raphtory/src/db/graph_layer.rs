@@ -3,6 +3,7 @@ use crate::core::{
     Direction, Prop,
 };
 use crate::db::view_api::internal::GraphViewInternalOps;
+use itertools::Itertools;
 use std::{collections::HashMap, ops::Range};
 
 #[derive(Debug, Clone)]
@@ -30,8 +31,12 @@ impl<G: GraphViewInternalOps> LayeredGraph<G> {
 }
 
 impl<G: GraphViewInternalOps> GraphViewInternalOps for LayeredGraph<G> {
-    fn get_unique_layers_internal(&self) -> Vec<String> {
-        self.graph.get_unique_layers_internal()
+    fn get_unique_layers_internal(&self) -> Vec<usize> {
+        let layers = self.graph.get_unique_layers_internal();
+        layers
+            .into_iter()
+            .filter(|id| *id == self.layer)
+            .collect_vec()
     }
 
     fn get_layer(&self, key: Option<&str>) -> Option<usize> {

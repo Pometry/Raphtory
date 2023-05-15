@@ -991,3 +991,9 @@ def test_time_index():
     rolling = w.rolling(50)
     time_index = rolling.time_index(center=True)
     assert list(time_index) == [25, 75]
+
+def test_edge_from_layer():
+    g = Graph(4)
+    g.add_edge(0, 1, 2, layer="layer1")
+    g.add_edge(0, 1, 2, layer="layer2")
+    assert g.layer("layer2").get_unique_layers() == ["layer2"]

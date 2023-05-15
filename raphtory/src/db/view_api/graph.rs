@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use std::sync::Arc;
 
 use crate::core::tgraph::VertexRef;
@@ -63,6 +64,10 @@ pub trait GraphViewOps: Send + Sync + Sized + GraphViewInternalOps + 'static + C
 impl<G: Send + Sync + Sized + GraphViewInternalOps + 'static + Clone> GraphViewOps for G {
     fn get_unique_layers(&self) -> Vec<String> {
         self.get_unique_layers_internal()
+            .into_iter()
+            .filter(|id| *id != 0) // the default layer has no name
+            .map(|id| self.get_layer_name_by_id(id))
+            .collect_vec()
     }
 
     fn earliest_time(&self) -> Option<i64> {
@@ -109,7 +114,16 @@ impl<G: Send + Sync + Sized + GraphViewInternalOps + 'static + Clone> GraphViewO
         dst: T,
         layer: Option<&str>,
     ) -> Option<EdgeView<Self>> {
-        let layer_id = self.get_layer(layer)?;
+        let layer_id = match layer {
+            Some(_) => self.get_layer(layer)?,
+            None => {
+                let layers = self.get_unique_layers_internal();
+                match layers[..] {
+                    [layer_id] => layer_id,
+                    _ => 0,
+                }
+            }
+        };
         self.edge_ref(src.into(), dst.into(), layer_id)
             .map(|e| EdgeView::new(Arc::new(self.clone()), e))
     }
