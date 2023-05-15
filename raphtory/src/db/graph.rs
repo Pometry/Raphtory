@@ -1951,4 +1951,15 @@ mod db_tests {
         assert!(g.edge(1, 2, None).is_none());
         assert!(g.layer("layer").unwrap().edge(1, 2, None).is_some())
     }
+
+    #[test]
+    fn test_unique_layers() {
+        let g = Graph::new(4);
+        g.add_edge(0, 1, 2, &vec![], Some("layer1")).unwrap();
+        g.add_edge(0, 1, 2, &vec![], Some("layer2")).unwrap();
+        assert_eq!(
+            g.layer("layer2").unwrap().get_unique_layers(),
+            vec!["layer2"]
+        )
+    }
 }
