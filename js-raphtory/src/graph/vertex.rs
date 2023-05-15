@@ -6,7 +6,7 @@ use raphtory::{
 };
 use wasm_bindgen::prelude::*;
 
-use crate::graph::edge::Edge;
+use crate::{graph::edge::Edge, log};
 
 use super::{Graph, JSError};
 
@@ -32,7 +32,10 @@ impl Vertex {
 
     #[wasm_bindgen(js_name = inDegree)]
     pub fn in_degree(&self) -> usize {
-        self.0.in_degree()
+        log(&"in_degree");
+        let out = self.0.in_degree();
+        log(&format!("in_degree: {}", out));
+        out
     }
 
     #[wasm_bindgen(js_name = degree)]
