@@ -1,4 +1,5 @@
 use crate::types::repr::Repr;
+use chrono::{DateTime, Local, NaiveDateTime};
 use pyo3::{FromPyObject, IntoPy, PyObject, Python};
 use raphtory::core as db_c;
 use std::collections::HashMap;
@@ -11,6 +12,7 @@ pub enum Prop {
     I64(i64),
     U64(u64),
     F64(f64),
+    DTime(NaiveDateTime),
 }
 
 impl fmt::Display for Prop {
@@ -21,6 +23,7 @@ impl fmt::Display for Prop {
             Prop::I64(value) => write!(f, "{}", value),
             Prop::U64(value) => write!(f, "{}", value),
             Prop::F64(value) => write!(f, "{}", value),
+            Prop::DTime(value) => write!(f, "{}", value),
         }
     }
 }
@@ -33,6 +36,7 @@ impl IntoPy<PyObject> for Prop {
             Prop::I64(i64) => i64.into_py(py),
             Prop::U64(u64) => u64.into_py(py),
             Prop::F64(f64) => f64.into_py(py),
+            Prop::DTime(dtime) => dtime.into_py(py),
         }
     }
 }
@@ -45,6 +49,7 @@ impl From<Prop> for db_c::Prop {
             Prop::I64(i64) => db_c::Prop::I64(i64),
             Prop::U64(u64) => db_c::Prop::U64(u64),
             Prop::F64(f64) => db_c::Prop::F64(f64),
+            Prop::DTime(dtime) => db_c::Prop::DTime(dtime),
         }
     }
 }
@@ -60,6 +65,7 @@ impl From<db_c::Prop> for Prop {
             db_c::Prop::U64(u64) => Prop::U64(u64),
             db_c::Prop::F64(f64) => Prop::F64(f64),
             db_c::Prop::F32(f32) => Prop::F64(f32 as f64),
+            db_c::Prop::DTime(dtime) => Prop::DTime(dtime),
         }
     }
 }
@@ -72,6 +78,7 @@ impl Repr for Prop {
             Prop::I64(v) => v.repr(),
             Prop::U64(v) => v.repr(),
             Prop::F64(v) => v.repr(),
+            Prop::DTime(v) => v.repr(),
         }
     }
 }
