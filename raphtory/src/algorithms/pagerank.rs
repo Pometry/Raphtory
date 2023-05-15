@@ -1,3 +1,4 @@
+use crate::core::vertex_ref::LocalVertexRef;
 use crate::{
     core::{
         agg::InitOneF32,
@@ -9,7 +10,7 @@ use crate::{
             task::{ATask, Job, Step},
             task_runner::TaskRunner,
         },
-        view_api::{GraphViewOps, VertexViewOps},
+        view_api::GraphViewOps,
     },
 };
 use num_traits::abs;
@@ -96,9 +97,8 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
                 &mut map,
                 &score,
                 |res, shard, pid, score| {
-                    if let Some(v_ref) = g.lookup_by_pid_and_shard(pid, shard) {
-                        res.insert(g.vertex(v_ref.g_id).unwrap().name(), score / num_vertices);
-                    }
+                    let v_ref = LocalVertexRef::new(pid, shard);
+                    res.insert(g.vertex_name(v_ref), score / num_vertices);
                     res
                 },
             );

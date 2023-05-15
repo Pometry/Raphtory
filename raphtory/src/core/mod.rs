@@ -34,6 +34,7 @@ mod adj;
 pub mod agg;
 mod bitset;
 mod edge_layer;
+pub mod edge_ref;
 mod lazy_vec;
 pub mod lsm;
 mod props;
@@ -47,6 +48,8 @@ pub mod time;
 mod tprop;
 pub mod utils;
 pub mod vertex;
+pub mod vertex_ref;
+pub mod timeindex;
 
 type Time = i64;
 
