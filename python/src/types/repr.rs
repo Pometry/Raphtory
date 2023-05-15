@@ -1,3 +1,4 @@
+use chrono::NaiveDateTime;
 use itertools::Itertools;
 use std::collections::HashMap;
 
@@ -69,6 +70,12 @@ impl Repr for String {
 }
 
 impl Repr for &str {
+    fn repr(&self) -> String {
+        self.to_string()
+    }
+}
+
+impl Repr for &NaiveDateTime {
     fn repr(&self) -> String {
         self.to_string()
     }

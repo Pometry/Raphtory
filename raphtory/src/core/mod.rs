@@ -24,6 +24,7 @@
 //!    * `macOS`
 //!
 
+use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
@@ -72,6 +73,7 @@ pub enum Prop {
     F32(f32),
     F64(f64),
     Bool(bool),
+    DTime(NaiveDateTime),
 }
 
 impl fmt::Display for Prop {
@@ -85,6 +87,7 @@ impl fmt::Display for Prop {
             Prop::F32(value) => write!(f, "{}", value),
             Prop::F64(value) => write!(f, "{}", value),
             Prop::Bool(value) => write!(f, "{}", value),
+            Prop::DTime(value) => write!(f, "{}", value),
         }
     }
 }

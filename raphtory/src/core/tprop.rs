@@ -1,5 +1,6 @@
 use crate::core::tcell::TCell;
 use crate::core::Prop;
+use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 use std::ops::Range;
 
@@ -17,6 +18,7 @@ pub(crate) enum TProp {
     F32(TCell<f32>),
     F64(TCell<f64>),
     Bool(TCell<bool>),
+    DTime(TCell<NaiveDateTime>),
 }
 
 impl TProp {
@@ -30,6 +32,7 @@ impl TProp {
             Prop::F32(value) => TProp::F32(TCell::new(t, *value)),
             Prop::F64(value) => TProp::F64(TCell::new(t, *value)),
             Prop::Bool(value) => TProp::Bool(TCell::new(t, *value)),
+            Prop::DTime(value) => TProp::DTime(TCell::new(t, *value)),
         }
     }
 
@@ -78,6 +81,11 @@ impl TProp {
                     cell.set(t, *a);
                 }
             }
+            TProp::DTime(cell) => {
+                if let Prop::DTime(a) = prop {
+                    cell.set(t, *a);
+                }
+            }
         }
     }
 
@@ -95,6 +103,9 @@ impl TProp {
             TProp::F32(cell) => Box::new(cell.iter_t().map(|(t, value)| (t, Prop::F32(*value)))),
             TProp::F64(cell) => Box::new(cell.iter_t().map(|(t, value)| (t, Prop::F64(*value)))),
             TProp::Bool(cell) => Box::new(cell.iter_t().map(|(t, value)| (t, Prop::Bool(*value)))),
+            TProp::DTime(cell) => {
+                Box::new(cell.iter_t().map(|(t, value)| (t, Prop::DTime(*value))))
+            }
         }
     }
 
@@ -132,6 +143,10 @@ impl TProp {
             TProp::Bool(cell) => Box::new(
                 cell.iter_window_t(r)
                     .map(|(t, value)| (t, Prop::Bool(*value))),
+            ),
+            TProp::DTime(cell) => Box::new(
+                cell.iter_window_t(r)
+                    .map(|(t, value)| (t, Prop::DTime(*value))),
             ),
         }
     }
