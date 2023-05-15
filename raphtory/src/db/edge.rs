@@ -10,7 +10,7 @@ use crate::core::time::IntoTime;
 use crate::core::Prop;
 use crate::db::graph_window::WindowedGraph;
 use crate::db::vertex::VertexView;
-use crate::db::view_api::{BoxedIter, EdgeListOps, GraphViewOps, TimeOps};
+use crate::db::view_api::*;
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 use std::iter;
@@ -30,7 +30,8 @@ impl<G: GraphViewOps> Debug for EdgeView<G> {
         write!(
             f,
             "EdgeView({}, {})",
-            self.edge.src_g_id, self.edge.dst_g_id
+            self.graph.vertex(self.edge.src()).unwrap().id(),
+            self.graph.vertex(self.edge.dst()).unwrap().id()
         )
     }
 }
