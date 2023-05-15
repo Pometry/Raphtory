@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1684170090825,
+  "lastUpdate": 1684171502296,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -787,6 +787,42 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions",
             "value": 823160,
             "range": "± 191267",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ricopinazo@gmail.com",
+            "name": "Pedro Rico Pinazo",
+            "username": "ricopinazo"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "834a42cde5d092de58d42cbf92cec03a479e1fdd",
+          "message": "fix bug edge function pointing always to default layer (#889)\n\n* fix bug edge function pointing always to default layer\r\n\r\n* port python test for unique layers over to rust\r\n\r\n* add nice comment to explain edge function implementation\r\n\r\n---------\r\n\r\nCo-authored-by: Ben Steer <b.a.steer@qmul.ac.uk>",
+          "timestamp": "2023-05-15T18:19:23+01:00",
+          "tree_id": "bee9ff61d7f55b1d448c4b80482c4391763fe6e0",
+          "url": "https://github.com/Pometry/Raphtory/commit/834a42cde5d092de58d42cbf92cec03a479e1fdd"
+        },
+        "date": 1684171500489,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 362677,
+            "range": "± 1086",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 895215,
+            "range": "± 94222",
             "unit": "ns/iter"
           }
         ]
