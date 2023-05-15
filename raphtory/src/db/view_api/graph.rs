@@ -119,8 +119,8 @@ impl<G: Send + Sync + Sized + GraphViewInternalOps + 'static + Clone> GraphViewO
             None => {
                 let layers = self.get_unique_layers_internal();
                 match layers[..] {
-                    [layer_id] => layer_id,
-                    _ => 0,
+                    [layer_id] => layer_id, // if only one layer we search the edge there
+                    _ => 0,                 // if more than one, we point to the default one
                 }
             }
         };
