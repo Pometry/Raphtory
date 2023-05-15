@@ -9,59 +9,6 @@ use itertools::Itertools;
 use rayon::prelude::*;
 use rustc_hash::FxHashSet;
 
-pub fn local_triangle_count<G: GraphViewOps>(graph: &G, v: u64) -> Result<usize, GraphError> {
-    let vertex = graph.vertex(v).unwrap();
-
-    let count = if vertex.degree() >= 2 {
-        let r: Result<Vec<_>, GraphError> = vertex
-            .neighbours()
-            .id()
-            .into_iter()
-            .combinations(2)
-            .filter_map(|nb| match graph.has_edge(nb[0], nb[1], None) {
-                true => Some(Ok(nb)),
-                false => match graph.has_edge(nb[1], nb[0], None) {
-                    true => Some(Ok(nb)),
-                    false => None,
-                },
-            })
-            .collect();
-
-        r.map(|t| t.len())?
-    } else {
-        0
-    };
-
-    Ok(count)
-}
-
-pub fn global_triangle_count<G: GraphViewOps>(graph: &G) -> Result<usize, GraphError> {
-    let r: Result<Vec<_>, GraphError> = graph
-        .vertices()
-        .into_iter()
-        .par_bridge()
-        .map(|v| {
-            let r: Result<Vec<_>, _> = v
-                .neighbours()
-                .id()
-                .into_iter()
-                .combinations(2)
-                .filter_map(|nb| match graph.has_edge(nb[0], nb[1], None) {
-                    true => Some(Ok(nb)),
-                    false => match graph.has_edge(nb[1], nb[0], None) {
-                        true => Some(Ok(nb)),
-                        false => None,
-                    },
-                })
-                .collect();
-            r.map(|t| t.len())
-        })
-        .collect();
-
-    let count: usize = r?.into_iter().sum();
-    Ok(count / 3)
-}
-
 /// Computes the number of triangles in a graph using a fast algorithm
 ///
 /// # Arguments
@@ -78,7 +25,7 @@ pub fn global_triangle_count<G: GraphViewOps>(graph: &G) -> Result<usize, GraphE
 /// ```rust
 /// use std::{cmp::Reverse, iter::once};
 /// use raphtory::db::graph::Graph;
-/// use raphtory::algorithms::triangle_count::triangle_counting_fast;
+/// use raphtory::algorithms::triangle_count::triangle_count;
 ///
 /// let graph = Graph::new(2);
 ///
@@ -103,12 +50,12 @@ pub fn global_triangle_count<G: GraphViewOps>(graph: &G) -> Result<usize, GraphE
 ///     graph.add_edge(ts, src, dst, &vec![], None);
 /// }
 ///
-/// let actual_tri_count = triangle_counting_fast(&graph, None);
+/// let actual_tri_count = triangle_count(&graph, None);
 /// ```
 ///
-pub fn triangle_counting_fast<G: GraphViewOps>(
+pub fn triangle_count<G: GraphViewOps>(
     g: &G,
-    num_threads: Option<usize>,
+    threads: Option<usize>,
 ) -> Option<usize> {
     let mut ctx: Context<G, ComputeStateVec> = g.into();
 
@@ -159,7 +106,7 @@ pub fn triangle_counting_fast<G: GraphViewOps>(
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
 
-    let (_, global_state, _) = runner.run(init_tasks, tasks, num_threads, 1, None, None);
+    let (_, global_state, _) = runner.run(init_tasks, tasks, threads, 1, None, None);
 
     // ss needs to be incremented because the loop ran once and at the end it incremented the state thus
     // the value is on the previous ss
@@ -172,84 +119,6 @@ pub fn triangle_counting_fast<G: GraphViewOps>(
 mod triangle_count_tests {
     use super::*;
     use crate::db::graph::Graph;
-
-    #[test]
-    fn counts_triangles_local() {
-        let g = Graph::new(1);
-        let vs = vec![(1, 1, 2), (2, 1, 3), (3, 2, 1), (4, 3, 2)];
-
-        for (t, src, dst) in &vs {
-            g.add_edge(*t, *src, *dst, &vec![], None).unwrap();
-        }
-
-        let windowed_graph = g.window(0, 5);
-        let expected = vec![(1), (1), (1)];
-
-        let actual = (1..=3)
-            .map(|v| local_triangle_count(&windowed_graph, v).unwrap())
-            .collect::<Vec<_>>();
-
-        assert_eq!(actual, expected);
-    }
-
-    #[test]
-    fn counts_triangles_global() {
-        let g = Graph::new(1);
-        let vs = vec![(1, 1, 2), (2, 1, 3), (3, 2, 1), (4, 3, 2)];
-
-        for (t, src, dst) in &vs {
-            g.add_edge(*t, *src, *dst, &vec![], None).unwrap();
-        }
-
-        let windowed_graph = g.window(0, 5);
-        let expected = 1;
-
-        let actual = global_triangle_count(&windowed_graph).unwrap();
-
-        assert_eq!(actual, expected);
-    }
-
-    #[test]
-    fn counts_triangles_global_again() {
-        let g = Graph::new(1);
-
-        let edges = vec![
-            (1, 2, 1),
-            (1, 3, 2),
-            (1, 4, 3),
-            (3, 1, 4),
-            (3, 4, 5),
-            (3, 5, 6),
-            (4, 5, 7),
-            (5, 6, 8),
-            (5, 8, 9),
-            (7, 5, 10),
-            (8, 5, 11),
-            (1, 9, 12),
-            (9, 1, 13),
-            (6, 3, 14),
-            (4, 8, 15),
-            (8, 3, 16),
-            (5, 10, 17),
-            (10, 5, 18),
-            (10, 8, 19),
-            (1, 11, 20),
-            (11, 1, 21),
-            (9, 11, 22),
-            (11, 9, 23),
-        ];
-
-        for (src, dst, t) in &edges {
-            g.add_edge(*t, *src, *dst, &vec![], None).unwrap();
-        }
-
-        let windowed_graph = g.window(0, 95);
-        let expected = 8;
-
-        let actual = global_triangle_count(&windowed_graph).unwrap();
-
-        assert_eq!(actual, expected);
-    }
 
     #[test]
     fn triangle_count_1() {
@@ -276,7 +145,7 @@ mod triangle_count_tests {
             graph.add_edge(ts, src, dst, &vec![], None).unwrap();
         }
 
-        let actual_tri_count = triangle_counting_fast(&graph, Some(2));
+        let actual_tri_count = triangle_count(&graph, Some(2));
 
         assert_eq!(actual_tri_count, Some(4))
     }
@@ -315,7 +184,7 @@ mod triangle_count_tests {
             graph.add_edge(ts, src, dst, &vec![], None).unwrap();
         }
 
-        let actual_tri_count = triangle_counting_fast(&graph, None);
+        let actual_tri_count = triangle_count(&graph, None);
 
         assert_eq!(actual_tri_count, Some(8))
     }

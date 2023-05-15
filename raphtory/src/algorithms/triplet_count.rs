@@ -29,7 +29,7 @@
 //!  for (src, dst) in edges {
 //!      graph.add_edge(0, src, dst, &vec![], None);
 //!  }
-//!  let results = triplet_count(&graph.at(1));
+//!  let results = triplet_count(&graph.at(1), None);
 //!  println!("triplet count: {}", results);
 //! ```
 //!
@@ -74,7 +74,7 @@ use crate::db::view_api::GraphViewOps;
 ///      graph.add_edge(0, src, dst, &vec![], None);
 ///  }
 ///
-///  let results = triplet_count(&graph.at(1));
+///  let results = triplet_count(&graph.at(1), None);
 ///  println!("triplet count: {}", results);
 /// ```
 ///
