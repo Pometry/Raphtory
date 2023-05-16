@@ -1,4 +1,5 @@
-use crate::core::tgraph::VertexRef;
+use crate::core::time::IntoTime;
+use crate::core::vertex_ref::{LocalVertexRef, VertexRef};
 use crate::core::{Direction, Prop};
 use crate::db::edge::EdgeView;
 use crate::db::graph_layer::LayeredGraph;
@@ -30,16 +31,22 @@ impl Operations {
         iter: Box<dyn Iterator<Item = VertexRef> + Send>,
     ) -> Box<dyn Iterator<Item = VertexRef> + Send> {
         match self {
-            Operations::Neighbours { dir } => {
-                Box::new(iter.flat_map(move |v| graph.neighbours(v, dir, None)))
-            }
+            Operations::Neighbours { dir } => Box::new(iter.flat_map(move |v| {
+                graph.neighbours(graph.localise_vertex_unchecked(v), dir, None)
+            })),
             Operations::NeighboursWindow {
                 dir,
                 t_start,
                 t_end,
-            } => Box::new(
-                iter.flat_map(move |v| graph.neighbours_window(v, t_start, t_end, dir, None)),
-            ),
+            } => Box::new(iter.flat_map(move |v| {
+                graph.neighbours_window(
+                    graph.localise_vertex_unchecked(v),
+                    t_start,
+                    t_end,
+                    dir,
+                    None,
+                )
+            })),
         }
     }
 }
@@ -239,7 +246,7 @@ impl<G: GraphViewOps> TimeOps for PathFromGraph<G> {
         self.graph.end()
     }
 
-    fn window(&self, t_start: i64, t_end: i64) -> Self::WindowedViewType {
+    fn window<T: IntoTime>(&self, t_start: T, t_end: T) -> Self::WindowedViewType {
         PathFromGraph {
             graph: Arc::new(self.graph.window(t_start, t_end)),
             operations: self.operations.clone(),
@@ -268,13 +275,14 @@ impl<G: GraphViewOps> LayerOps for PathFromGraph<G> {
 #[derive(Clone)]
 pub struct PathFromVertex<G: GraphViewOps> {
     pub graph: Arc<G>,
-    pub vertex: VertexRef,
+    pub vertex: LocalVertexRef,
     pub operations: Arc<Vec<Operations>>,
 }
 
 impl<G: GraphViewOps> PathFromVertex<G> {
     pub fn iter(&self) -> Box<dyn Iterator<Item = VertexView<G>> + Send> {
-        let init: Box<dyn Iterator<Item = VertexRef> + Send> = Box::new(iter::once(self.vertex));
+        let init: Box<dyn Iterator<Item = VertexRef> + Send> =
+            Box::new(iter::once(VertexRef::Local(self.vertex)));
         let g = self.graph.clone();
         let ops = self.operations.clone();
         let iter = ops
@@ -289,9 +297,10 @@ impl<G: GraphViewOps> PathFromVertex<G> {
         vertex: V,
         operation: Operations,
     ) -> PathFromVertex<G> {
+        let v = graph.localise_vertex_unchecked(vertex.into());
         PathFromVertex {
             graph,
-            vertex: vertex.into(),
+            vertex: v,
             operations: Arc::new(vec![operation]),
         }
     }
@@ -424,7 +433,7 @@ impl<G: GraphViewOps> TimeOps for PathFromVertex<G> {
         self.graph.end()
     }
 
-    fn window(&self, t_start: i64, t_end: i64) -> Self::WindowedViewType {
+    fn window<T: IntoTime>(&self, t_start: T, t_end: T) -> Self::WindowedViewType {
         PathFromVertex {
             graph: Arc::new(self.graph.window(t_start, t_end)),
             vertex: self.vertex,

@@ -1,8 +1,9 @@
 use crate::core::time::error::*;
-use chrono::NaiveDate;
-use chrono::{DateTime, Duration, Months, NaiveDateTime};
+use chrono::{DateTime, Duration, Months, NaiveDateTime, TimeZone};
+use chrono::{NaiveDate, Timelike};
 use itertools::{Either, Itertools};
 use regex::Regex;
+use serde::{Serialize, Serializer};
 use std::ops::{Add, Sub};
 
 pub mod error {
@@ -28,19 +29,41 @@ pub mod error {
 }
 
 pub trait IntoTime {
-    fn into_time(self) -> Result<i64, ParseTimeError>;
+    fn into_time(self) -> i64;
 }
 
 impl IntoTime for i64 {
-    fn into_time(self) -> Result<i64, ParseTimeError> {
-        Ok(self)
+    fn into_time(self) -> i64 {
+        self
     }
 }
 
-impl IntoTime for &str {
+impl<Tz: TimeZone> IntoTime for DateTime<Tz> {
+    fn into_time(self) -> i64 {
+        self.timestamp_millis()
+    }
+}
+
+impl IntoTime for NaiveDateTime {
+    fn into_time(self) -> i64 {
+        self.timestamp_millis()
+    }
+}
+
+pub trait TryIntoTime {
+    fn try_into_time(self) -> Result<i64, ParseTimeError>;
+}
+
+impl<T: IntoTime> TryIntoTime for T {
+    fn try_into_time(self) -> Result<i64, ParseTimeError> {
+        Ok(self.into_time())
+    }
+}
+
+impl TryIntoTime for &str {
     /// Tries to parse the timestamp as RFC3339 and then as ISO 8601 with local format and all
     /// fields mandatory except for milliseconds and allows replacing the T with a space
-    fn into_time(self) -> Result<i64, ParseTimeError> {
+    fn try_into_time(self) -> Result<i64, ParseTimeError> {
         let rfc_result = DateTime::parse_from_rfc3339(self);
         if let Ok(datetime) = rfc_result {
             return Ok(datetime.timestamp_millis());
@@ -136,7 +159,7 @@ impl From<Duration> for IntervalSize {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Interval {
     pub(crate) epoch_alignment: bool,
-    size: IntervalSize,
+    pub(crate) size: IntervalSize,
 }
 
 impl Default for Interval {
@@ -261,7 +284,7 @@ impl Add<Interval> for i64 {
 
 #[cfg(test)]
 mod time_tests {
-    use crate::core::time::{Interval, IntoTime, ParseTimeError};
+    use crate::core::time::{Interval, IntoTime, ParseTimeError, TryIntoTime};
 
     #[test]
     fn interval_parsing() {
@@ -297,18 +320,18 @@ mod time_tests {
 
     #[test]
     fn interval_parsing_with_months_and_years() {
-        let dt = "2020-01-01 00:00:00".into_time().unwrap();
+        let dt = "2020-01-01 00:00:00".try_into_time().unwrap();
 
         let two_months: Interval = "2 months".try_into().unwrap();
-        let dt_plus_2_months = "2020-03-01 00:00:00".into_time().unwrap();
+        let dt_plus_2_months = "2020-03-01 00:00:00".try_into_time().unwrap();
         assert_eq!(dt + two_months, dt_plus_2_months);
 
         let two_years: Interval = "2 years".try_into().unwrap();
-        let dt_plus_2_years = "2022-01-01 00:00:00".into_time().unwrap();
+        let dt_plus_2_years = "2022-01-01 00:00:00".try_into_time().unwrap();
         assert_eq!(dt + two_years, dt_plus_2_years);
 
         let mix_interval: Interval = "1 year 1 month and 1 second".try_into().unwrap();
-        let dt_mix = "2021-02-01 00:00:01".into_time().unwrap();
+        let dt_mix = "2021-02-01 00:00:01".try_into_time().unwrap();
         assert_eq!(dt + mix_interval, dt_mix);
     }
 

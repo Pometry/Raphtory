@@ -1,6 +1,8 @@
+use itertools::Itertools;
 use std::sync::Arc;
 
-use crate::core::tgraph::VertexRef;
+use crate::core::time::IntoTime;
+use crate::core::vertex_ref::VertexRef;
 use crate::db::edge::EdgeView;
 use crate::db::graph_layer::LayeredGraph;
 use crate::db::graph_window::WindowedGraph;
@@ -62,6 +64,10 @@ pub trait GraphViewOps: Send + Sync + Sized + GraphViewInternalOps + 'static + C
 impl<G: Send + Sync + Sized + GraphViewInternalOps + 'static + Clone> GraphViewOps for G {
     fn get_unique_layers(&self) -> Vec<String> {
         self.get_unique_layers_internal()
+            .into_iter()
+            .filter(|id| *id != 0) // the default layer has no name
+            .map(|id| self.get_layer_name_by_id(id))
+            .collect_vec()
     }
 
     fn earliest_time(&self) -> Option<i64> {
@@ -92,9 +98,9 @@ impl<G: Send + Sync + Sized + GraphViewInternalOps + 'static + Clone> GraphViewO
     }
 
     fn vertex<T: Into<VertexRef>>(&self, v: T) -> Option<VertexView<Self>> {
-        let v = v.into().g_id;
-        self.vertex_ref(v)
-            .map(|v| VertexView::new(Arc::new(self.clone()), v))
+        let v = v.into();
+        self.local_vertex(v)
+            .map(|v| VertexView::new_local(Arc::new(self.clone()), v))
     }
 
     fn vertices(&self) -> Vertices<Self> {
@@ -108,7 +114,16 @@ impl<G: Send + Sync + Sized + GraphViewInternalOps + 'static + Clone> GraphViewO
         dst: T,
         layer: Option<&str>,
     ) -> Option<EdgeView<Self>> {
-        let layer_id = self.get_layer(layer)?;
+        let layer_id = match layer {
+            Some(_) => self.get_layer(layer)?,
+            None => {
+                let layers = self.get_unique_layers_internal();
+                match layers[..] {
+                    [layer_id] => layer_id, // if only one layer we search the edge there
+                    _ => 0,                 // if more than one, we point to the default one
+                }
+            }
+        };
         self.edge_ref(src.into(), dst.into(), layer_id)
             .map(|e| EdgeView::new(Arc::new(self.clone()), e))
     }
@@ -133,7 +148,7 @@ impl<G: GraphViewOps> TimeOps for G {
         self.view_end()
     }
 
-    fn window(&self, t_start: i64, t_end: i64) -> WindowedGraph<Self> {
+    fn window<T: IntoTime>(&self, t_start: T, t_end: T) -> WindowedGraph<Self> {
         WindowedGraph::new(self.clone(), t_start, t_end)
     }
 }

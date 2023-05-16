@@ -3,15 +3,17 @@
 //! This module contains helper functions for the Python bindings.
 //! These functions are not part of the public API and are not exported to the Python module.
 use crate::vertex::PyVertex;
+use chrono::NaiveDateTime;
 use pyo3::exceptions::{PyException, PyTypeError};
 use pyo3::prelude::*;
 use raphtory::core as dbc;
-use raphtory::core::tgraph::VertexRef;
 use raphtory::core::time::error::ParseTimeError;
-use raphtory::core::time::{Interval, IntoTime};
+use raphtory::core::time::{Interval, TryIntoTime};
 use raphtory::core::vertex::InputVertex;
+use raphtory::core::vertex_ref::VertexRef;
 use raphtory::db::view_api::time::WindowSet;
 use raphtory::db::view_api::TimeOps;
+use raphtory::*;
 use std::error::Error;
 
 /// Extract a `VertexRef` from a Python object.
@@ -71,23 +73,30 @@ where
     result.map_err(|e| adapt_err_value(&e))
 }
 
-pub(crate) fn expanding_impl<T, O>(slf: &T, step: &PyAny) -> PyResult<O>
+pub(crate) fn expanding_impl<T>(slf: &T, step: &PyAny) -> PyResult<PyWindowSet>
 where
-    T: TimeOps + Clone + 'static,
-    O: From<WindowSet<T>>,
+    T: TimeOps + Clone + Sync + 'static,
+    T::WindowedViewType: IntoPyObject,
 {
     let step = extract_interval(step)?;
-    adapt_result(slf.expanding(step)).map(|iter| iter.into())
+    let window_set: WindowSet<T> = adapt_result(slf.expanding(step)).map(|iter| iter.into())?;
+    Ok(window_set.into())
 }
 
-pub(crate) fn rolling_impl<T, O>(slf: &T, window: &PyAny, step: Option<&PyAny>) -> PyResult<O>
+pub(crate) fn rolling_impl<T>(
+    slf: &T,
+    window: &PyAny,
+    step: Option<&PyAny>,
+) -> PyResult<PyWindowSet>
 where
-    T: TimeOps + Clone + 'static,
-    O: From<WindowSet<T>>,
+    T: TimeOps + Clone + Sync + 'static,
+    T::WindowedViewType: IntoPyObject,
 {
     let window = extract_interval(window)?;
     let step = step.map(|step| extract_interval(step)).transpose()?;
-    adapt_result(slf.rolling(window, step)).map(|iter| iter.into())
+    let window_set: WindowSet<T> =
+        adapt_result(slf.rolling(window, step)).map(|iter| iter.into())?;
+    Ok(window_set.into())
 }
 
 fn parse_email_timestamp(timestamp: &str) -> PyResult<i64> {
@@ -103,7 +112,7 @@ fn parse_email_timestamp(timestamp: &str) -> PyResult<i64> {
 pub(crate) fn extract_time(time: &PyAny) -> PyResult<i64> {
     let from_number = time.extract::<i64>().map(|n| Ok(n));
     let from_str = time.extract::<&str>().map(|str| {
-        str.into_time()
+        str.try_into_time()
             .or_else(|e| parse_email_timestamp(str).map_err(|_| e))
     });
 
@@ -126,14 +135,14 @@ pub(crate) fn extract_into_time(time: &PyAny) -> PyResult<TimeBox> {
     let result = string.map(|string| {
         let timestamp = string.as_str();
         let parsing_result = timestamp
-            .into_time()
+            .try_into_time()
             .or_else(|e| parse_email_timestamp(timestamp).map_err(|_| e));
         TimeBox::new(parsing_result)
     });
 
     let result = result.or_else(|_| {
         let number = time.extract::<i64>();
-        number.map(|number| TimeBox::new(number.into_time()))
+        number.map(|number| TimeBox::new(number.try_into_time()))
     });
 
     result.map_err(|_| {
@@ -152,8 +161,8 @@ impl TimeBox {
     }
 }
 
-impl IntoTime for TimeBox {
-    fn into_time(self) -> Result<i64, ParseTimeError> {
+impl TryIntoTime for TimeBox {
+    fn try_into_time(self) -> Result<i64, ParseTimeError> {
         self.parsing_result
     }
 }
@@ -240,4 +249,132 @@ pub(crate) fn extract_input_vertex(id: &PyAny) -> PyResult<InputVertexBox> {
             Ok(InputVertexBox::new(number))
         }
     }
+}
+
+pub trait WindowSetOps {
+    fn build_iter(&self) -> PyGenericIterator;
+    fn time_index(&self, center: bool) -> PyGenericIterable;
+}
+
+impl<T> WindowSetOps for WindowSet<T>
+where
+    T: TimeOps + Clone + Sync + 'static,
+    T::WindowedViewType: IntoPyObject,
+{
+    fn build_iter(&self) -> PyGenericIterator {
+        self.clone().map(|v| v.into_py_object()).into()
+    }
+
+    fn time_index(&self, center: bool) -> PyGenericIterable {
+        let window_set = self.clone();
+        if window_set.temporal() {
+            let iterable = move || {
+                Box::new(
+                    window_set
+                        .clone()
+                        .time_index(center)
+                        .map(|epoch| NaiveDateTime::from_timestamp_millis(epoch).unwrap()),
+                )
+            };
+            iterable.into()
+        } else {
+            (move || Box::new(window_set.time_index(center))).into()
+        }
+    }
+}
+
+#[pyclass(name = "WindowSet")]
+pub struct PyWindowSet {
+    window_set: Box<dyn WindowSetOps + Send>,
+}
+
+impl<T> From<WindowSet<T>> for PyWindowSet
+where
+    T: TimeOps + Clone + Sync + 'static,
+    T::WindowedViewType: IntoPyObject,
+{
+    fn from(value: WindowSet<T>) -> Self {
+        Self {
+            window_set: Box::new(value),
+        }
+    }
+}
+
+#[pymethods]
+impl PyWindowSet {
+    fn __iter__(&self) -> PyGenericIterator {
+        self.window_set.build_iter()
+    }
+
+    /// Returns the time index of this window set
+    ///
+    /// It uses the last time of each window as the reference or the center of each if `center` is
+    /// set to `True`
+    ///
+    /// Arguments:
+    ///     center (bool): if True time indexes are centered. Defaults to False
+    ///
+    /// Returns:
+    ///     Iterable: the time index"
+    #[pyo3(signature = (center=false))]
+    fn time_index(&self, center: bool) -> PyGenericIterable {
+        self.window_set.time_index(center)
+    }
+}
+
+#[pyclass(name = "Iterable")]
+pub struct PyGenericIterable {
+    build_iter: Box<dyn Fn() -> Box<dyn Iterator<Item = PyObject> + Send> + Send>,
+}
+
+impl<F, I, T> From<F> for PyGenericIterable
+where
+    F: (Fn() -> I) + Send + Sync + 'static,
+    I: Iterator<Item = T> + Send + 'static,
+    T: IntoPy<PyObject> + 'static,
+{
+    fn from(value: F) -> Self {
+        let build_py_iter: Box<dyn Fn() -> Box<dyn Iterator<Item = PyObject> + Send> + Send> =
+            Box::new(move || Box::new(value().map(|item| Python::with_gil(|py| item.into_py(py)))));
+        Self {
+            build_iter: build_py_iter,
+        }
+    }
+}
+
+#[pymethods]
+impl PyGenericIterable {
+    fn __iter__(&self) -> PyGenericIterator {
+        (self.build_iter)().into()
+    }
+}
+
+#[pyclass(name = "Iterator")]
+pub struct PyGenericIterator {
+    iter: Box<dyn Iterator<Item = PyObject> + Send>,
+}
+
+impl<I, T> From<I> for PyGenericIterator
+where
+    I: Iterator<Item = T> + Send + 'static,
+    T: IntoPy<PyObject> + 'static,
+{
+    fn from(value: I) -> Self {
+        let py_iter = Box::new(value.map(|item| Python::with_gil(|py| item.into_py(py))));
+        Self { iter: py_iter }
+    }
+}
+
+#[pymethods]
+impl PyGenericIterator {
+    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        slf
+    }
+    fn __next__(&mut self) -> Option<PyObject> {
+        self.iter.next()
+    }
+}
+
+pub(crate) trait IntoPyObject {
+    fn into_py_object(self) -> PyObject;
 }

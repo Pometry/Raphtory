@@ -7,15 +7,15 @@
 use crate::dynamic::{DynamicGraph, IntoDynamic};
 use crate::types::repr::{iterator_repr, Repr};
 use crate::utils::*;
-use crate::vertex::{PyVertex, PyVertexIterable, PyVertices};
+use crate::vertex::{PyVertex, PyVertexIterable};
+use crate::wrappers::iterators::{OptionPropIterable, I64Iterable};
 use crate::wrappers::prop::Prop;
+use chrono::NaiveDateTime;
 use itertools::Itertools;
+use pyo3::prelude::*;
 use pyo3::{pyclass, pymethods, PyAny, PyRef, PyRefMut, PyResult};
 use raphtory::db::edge::EdgeView;
-use raphtory::db::graph_window::WindowedGraph;
-use raphtory::db::view_api::time::WindowSet;
 use raphtory::db::view_api::*;
-use raphtory::default_layer_doc_string;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -34,6 +34,13 @@ impl<G: GraphViewOps + IntoDynamic> From<EdgeView<G>> for PyEdge {
                 edge: value.edge,
             },
         }
+    }
+}
+
+impl<G: GraphViewOps + IntoDynamic> IntoPyObject for EdgeView<G> {
+    fn into_py_object(self) -> PyObject {
+        let py_version: PyEdge = self.into();
+        Python::with_gil(|py| py_version.into_py(py))
     }
 }
 
@@ -187,12 +194,30 @@ impl PyEdge {
         self.edge.start()
     }
 
+    /// Get the start datetime of the Edge.
+    ///
+    /// Returns:
+    ///     the start datetime of the Edge.
+    pub fn start_date_time(&self) ->Option<NaiveDateTime> {
+        let start_time = self.edge.start()?;
+        Some(NaiveDateTime::from_timestamp_millis(start_time).unwrap())
+    }
+
     /// Get the end time of the Edge.
     ///
     /// Returns:
     ///   The end time of the Edge.
     pub fn end(&self) -> Option<i64> {
         self.edge.end()
+    }
+
+    /// Get the end datetime of the Edge.
+    ///
+    /// Returns:
+    ///    The end datetime of the Edge
+    pub fn end_date_time(&self) ->Option<NaiveDateTime> {
+        let end_time = self.edge.end()?;
+        Some(NaiveDateTime::from_timestamp_millis(end_time).unwrap())
     }
 
     /// Get the duration of the Edge.
@@ -203,7 +228,7 @@ impl PyEdge {
     /// Returns:
     ///   A set of windows containing edges that fall in the time period
     #[pyo3(signature = (step))]
-    fn expanding(&self, step: &PyAny) -> PyResult<PyEdgeWindowSet> {
+    fn expanding(&self, step: &PyAny) -> PyResult<PyWindowSet> {
         expanding_impl(&self.edge, step)
     }
 
@@ -219,7 +244,7 @@ impl PyEdge {
     ///
     /// Returns:
     ///   A set of windows containing edges that fall in the time period
-    fn rolling(&self, window: &PyAny, step: Option<&PyAny>) -> PyResult<PyEdgeWindowSet> {
+    fn rolling(&self, window: &PyAny, step: Option<&PyAny>) -> PyResult<PyWindowSet> {
         rolling_impl(&self.edge, window, step)
     }
 
@@ -270,12 +295,29 @@ impl PyEdge {
         self.edge.earliest_time()
     }
 
+    /// Gets of earliest datetime of an edge.
+    ///
+    /// Returns:
+    ///     the earliest datetime of an edge
+    pub fn earliest_date_time(&self) -> Option<NaiveDateTime> {
+        Some(NaiveDateTime::from_timestamp_millis(self.edge.earliest_time()?).unwrap())
+    }
+
     /// Gets the latest time of an edge.
     ///
     /// Returns:
     ///     (int) The latest time of an edge
     pub fn latest_time(&self) -> Option<i64> {
         self.edge.latest_time()
+    }
+
+    /// Gets of latest datetime of an edge.
+    ///
+    /// Returns:
+    ///     the latest datetime of an edge
+    pub fn latest_date_time(&self) -> Option<NaiveDateTime> {
+        let latest_time = self.edge.latest_time()?;
+        Some(NaiveDateTime::from_timestamp_millis(latest_time).unwrap())
     }
 
     /// Gets the time of an exploded edge.
@@ -292,6 +334,15 @@ impl PyEdge {
     ///     (str) The name of the layer
     pub fn layer_name(&self) -> String {
         self.edge.layer_name()
+    }
+    
+    /// Gets the datetime of an exploded edge.
+    ///
+    /// Returns:
+    ///     (datetime) the datetime of an exploded edge
+    pub fn date_time(&self) -> Option<NaiveDateTime> {
+        let date_time = self.edge.time()?;
+        Some(NaiveDateTime::from_timestamp_millis(date_time).unwrap())
     }
 
     /// Displays the Edge as a string.
@@ -405,13 +456,20 @@ impl PyEdges {
     }
 
     /// Returns the earliest time of the edges.
-    fn earliest_time(&self) -> Vec<Option<i64>> {
-        self.py_iter().map(|e| e.earliest_time()).collect()
+    fn earliest_time(&self) -> I64Iterable {
+        let edges: Arc<dyn Fn() -> Box<dyn Iterator<Item = EdgeView<DynamicGraph>> + Send> + Send + Sync> = self.builder.clone();
+        (move || edges().earliest_time()).into()
     }
 
     /// Returns the latest time of the edges.
-    fn latest_time(&self) -> Vec<Option<i64>> {
-        self.py_iter().map(|e| e.latest_time()).collect()
+    fn latest_time(&self) -> I64Iterable {
+        let edges: Arc<dyn Fn() -> Box<dyn Iterator<Item = EdgeView<DynamicGraph>> + Send> + Send + Sync> = self.builder.clone();
+        (move || edges().latest_time()).into()
+    }
+
+    fn property(&self, name: String, include_static: Option<bool>) -> OptionPropIterable {
+        let edges: Arc<dyn Fn() -> Box<dyn Iterator<Item = EdgeView<DynamicGraph>> + Send> + Send + Sync> = self.builder.clone();
+        (move || edges().property(name.clone(), include_static.unwrap_or(true))).into()
     }
 
     fn __repr__(&self) -> String {
@@ -439,47 +497,6 @@ py_iterator!(
     PyEdgeIter,
     "NestedEdgeIter"
 );
-
-#[pyclass(name = "EdgeWindowSet")]
-#[derive(Clone)]
-pub struct PyEdgeWindowSet {
-    window_set: WindowSet<EdgeView<DynamicGraph>>,
-}
-
-impl From<WindowSet<EdgeView<DynamicGraph>>> for PyEdgeWindowSet {
-    fn from(value: WindowSet<EdgeView<DynamicGraph>>) -> Self {
-        Self { window_set: value }
-    }
-}
-
-#[pymethods]
-impl PyEdgeWindowSet {
-    fn __iter__(&self) -> PyEdgeWindowIterator {
-        self.window_set.clone().into()
-    }
-}
-
-#[pyclass(name = "EdgeWindowIterator")]
-#[derive(Clone)]
-pub struct PyEdgeWindowIterator {
-    window_set: WindowSet<EdgeView<DynamicGraph>>,
-}
-
-impl From<WindowSet<EdgeView<DynamicGraph>>> for PyEdgeWindowIterator {
-    fn from(value: WindowSet<EdgeView<DynamicGraph>>) -> Self {
-        Self { window_set: value }
-    }
-}
-
-#[pymethods]
-impl PyEdgeWindowIterator {
-    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
-        slf
-    }
-    fn __next__(&mut self) -> Option<PyEdge> {
-        self.window_set.next().map(|g| g.into())
-    }
-}
 
 #[pyclass(name = "NestedEdges")]
 pub struct PyNestedEdges {

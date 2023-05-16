@@ -81,7 +81,7 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         for shard in 0..num_shards {
             if shard % num_tasks == *job_id {
                 for vertex in self.ctx.graph().vertices_shard(shard) {
-                    let vv = EvalVertexView::new(
+                    let vv = EvalVertexView::new_local(
                         self.ctx.ss(),
                         vertex,
                         g.clone(),
