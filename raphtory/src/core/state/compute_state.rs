@@ -213,7 +213,6 @@ impl ComputeState for ComputeStateMap {
             .as_any()
             .downcast_ref::<MapArray<A>>()
             .unwrap();
-        current.map.iter().for_each(|(c, _)| {println!("c = {}", c)});
         current
             .map
             .iter()

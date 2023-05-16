@@ -113,7 +113,8 @@ mod state_test {
         }
 
         let actual_avg = sum / 100;
-        let actual = state_map.finalize(0, &avg, 0, &g).into_iter().collect_vec();
+        let mut actual = state_map.finalize(0, &avg, 0, &g).into_iter().collect_vec();
+        actual.sort();
         assert_eq!(
             actual,
             vec![
@@ -180,8 +181,8 @@ mod state_test {
             state.accumulate_into(0, 3, a, &sum);
         }
 
-        let actual = state.finalize(0, &sum, 0, &g).into_iter().collect_vec();
-
+        let mut actual = state.finalize(0, &sum, 0, &g).into_iter().collect_vec();
+        actual.sort();
         assert_eq!(
             actual,
             vec![
