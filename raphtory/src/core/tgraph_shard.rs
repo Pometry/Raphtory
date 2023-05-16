@@ -94,6 +94,9 @@ pub mod errors {
             #[from]
             source: ParseTimeError,
         },
+        // wasm
+        #[error("Vertex is not String or Number")]
+        VertexIdNotStringOrNumber,
     }
 }
 
