@@ -1,9 +1,10 @@
 use std::sync::Arc;
 
 use raphtory::{
+    core::Prop,
     db::{graph::Graph, view_api::GraphViewOps},
-    graph_loader::source::csv_loader::CsvLoader, core::Prop,
 };
+use raphtory_io::graph_loader::source::csv_loader::CsvLoader;
 use serde::Deserialize;
 
 pub(crate) type TGraph = Graph;
@@ -19,7 +20,6 @@ pub struct Lotr {
 }
 
 impl Metadata<TGraph> {
-
     pub(crate) fn graph(&self) -> &TGraph {
         &self.parent_graph
     }

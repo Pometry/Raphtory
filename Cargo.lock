@@ -857,6 +857,7 @@ dependencies = [
  "opentelemetry",
  "opentelemetry-jaeger",
  "raphtory",
+ "raphtory-io",
  "serde",
  "tokio",
  "tracing",

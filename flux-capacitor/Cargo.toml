@@ -6,6 +6,7 @@ rust-version = "1.67.1"
 
 [dependencies]
 raphtory = { path = "../raphtory" }
+raphtory-io = { path = "../raphtory-io" }
 
 dotenv = "0.15.0"
 serde = {version = "1.0.147", features = ["derive"]}
