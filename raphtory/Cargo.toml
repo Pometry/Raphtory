@@ -44,28 +44,7 @@ twox-hash = "1.6.3"
 uuid = { version = "1.3.0", features = ["v4"] }
 
 [dev-dependencies]
-criterion = "0.4"
 csv = "1"
 pretty_assertions = "1"
 quickcheck = "1"
 quickcheck_macros = "1"
-
-[[bench]]
-name = "tgraph_benchmarks"
-harness = false
-
-[[bench]]
-name = "base"
-harness = false
-
-[[bench]]
-name = "parameterized"
-harness = false
-
-[[bench]]
-name = "graph_ops"
-harness = false
-
-[[bench]]
-name = "algobench"
-harness = false

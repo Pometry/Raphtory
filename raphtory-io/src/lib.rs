@@ -21,7 +21,7 @@
 //! - **Horizontal Scalability** - raphtory is designed to be horizontally scalable.
 //! - **Distributed** - raphtory can be distributed across multiple machines.
 //! - **Fast** - raphtory is fast, and can process large amounts of data in a short amount of time.
-//! - **Open Source** - raphtory is open source, and is available on Github under a AGPL-3.0 license.
+//! - **Open Source** - raphtory is open source, and is available on Github under a GPL-3.0 license.
 //!
 //! ### Shards
 //!
@@ -78,7 +78,7 @@
 //!
 //! ## License
 //!
-//! This project is licensed under the terms of the AGPL-3.0 license.
+//! This project is licensed under the terms of the GPL-3.0 license.
 //! Please see the Github repository for more information.
 //!
 //! ## Contributing

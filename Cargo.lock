@@ -1674,7 +1674,6 @@ version = "0.3.1"
 dependencies = [
  "bincode",
  "chrono",
- "criterion",
  "csv",
  "flume",
  "futures",
@@ -1699,6 +1698,18 @@ dependencies = [
  "thiserror",
  "twox-hash",
  "uuid",
+]
+
+[[package]]
+name = "raphtory-benchmark"
+version = "0.3.1"
+dependencies = [
+ "criterion",
+ "rand 0.8.5",
+ "raphtory",
+ "raphtory-io",
+ "rayon",
+ "sorted_vector_map",
 ]
 
 [[package]]
