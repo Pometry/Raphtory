@@ -1,4 +1,4 @@
-use crate::db::graph as raphtory;
+use raphtory::db::graph as rap;
 use neo4rs::*;
 /// A struct that defines the Neo4J loader with configurable options.
 pub struct Neo4JConnection {
@@ -33,9 +33,9 @@ impl Neo4JConnection {
 
     pub async fn load_query_into_graph(
         &self,
-        g: &raphtory::Graph,
+        g: &rap::Graph,
         query: Query,
-        loader: fn(Row, &raphtory::Graph),
+        loader: fn(Row, &rap::Graph),
     ) -> Result<()> {
         let mut result = self.neo_graph.execute(query).await.unwrap();
 
@@ -48,13 +48,13 @@ impl Neo4JConnection {
 
 #[cfg(test)]
 mod neo_loader_test {
-    use crate::core::Prop;
-    use crate::db::graph as raphtory;
-    use crate::db::view_api::GraphViewOps;
+    use raphtory::core::Prop;
+    use raphtory::db::graph as rap;
+    use raphtory::db::view_api::GraphViewOps;
     use crate::graph_loader::source::neo4j_loader::Neo4JConnection;
     use neo4rs::*;
 
-    fn load_movies(row: Row, graph: &raphtory::Graph) {
+    fn load_movies(row: Row, graph: &rap::Graph) {
         let film: Node = row.get("film").unwrap();
         let film_title: String = film.get("title").unwrap();
         let film_tagline: String = film.get("tagline").unwrap_or("No tagline :(".to_string());
@@ -110,7 +110,7 @@ mod neo_loader_test {
         )
         .await
         .unwrap();
-        let doc_graph = raphtory::Graph::new(1);
+        let doc_graph = rap::Graph::new(1);
 
         neo.load_query_into_graph(
             &doc_graph,

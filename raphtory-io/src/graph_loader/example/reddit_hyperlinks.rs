@@ -29,7 +29,7 @@
 //!
 //! Example:
 //! ```no_run
-//! use raphtory::graph_loader::example::reddit_hyperlinks::reddit_graph;
+//! use raphtory_io::graph_loader::example::reddit_hyperlinks::reddit_graph;
 //! use raphtory::db::graph::Graph;
 //! use raphtory::db::view_api::*;
 //!
@@ -39,8 +39,9 @@
 //! println!("The graph has {:?} edges", graph.num_edges());
 //! ```
 
-use crate::core::Prop;
-use crate::{db::graph::Graph, graph_loader::fetch_file};
+use raphtory::core::Prop;
+use raphtory::db::graph::Graph;
+use crate::graph_loader::fetch_file;
 use chrono::*;
 use itertools::Itertools;
 use std::fs::File;
@@ -155,7 +156,7 @@ pub fn reddit_graph(shards: usize, timeout: u64, test_file: bool) -> Graph {
 
 #[cfg(test)]
 mod reddit_test {
-    use crate::db::view_api::GraphViewOps;
+    use raphtory::db::view_api::GraphViewOps;
     use crate::graph_loader::example::reddit_hyperlinks::{reddit_file, reddit_graph};
 
     #[test]

@@ -8,6 +8,7 @@ keywords = ["graph", "temporal-graph", "temporal", "examples"]
 
 [dependencies]
 raphtory = {path = "../../raphtory"}
+raphtory-io = {path = "../../raphtory-io"}
 chrono = "0.4"
 regex = "1"
 serde = { version = "1", features = ["derive", "rc"] }

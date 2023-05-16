@@ -1,9 +1,9 @@
-use crate::core::Prop;
-use crate::db::graph::Graph;
 use crate::graph_loader::source::neo4j_loader::Neo4JConnection;
 use neo4rs::*;
+use raphtory::core::Prop;
+use raphtory::db::graph as rap;
 
-fn load_movies(row: Row, graph: &Graph) {
+fn load_movies(row: Row, graph: &rap::Graph) {
     let film: Node = row.get("film").unwrap();
     let film_title: String = film.get("title").unwrap();
     let film_tagline: String = film.get("tagline").unwrap_or("No tagline :(".to_string());
@@ -54,8 +54,8 @@ pub async fn neo4j_movie_graph(
     password: String,
     database: String,
     shards: usize,
-) -> Graph {
-    let g = Graph::new(shards);
+) -> rap::Graph {
+    let g = rap::Graph::new(shards);
     let neo = Neo4JConnection::new(uri, username, password, database)
         .await
         .unwrap();

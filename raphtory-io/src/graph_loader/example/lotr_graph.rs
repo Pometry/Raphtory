@@ -13,7 +13,7 @@
 //!
 //! Example:
 //! ```rust
-//! use raphtory::graph_loader::example::lotr_graph::lotr_graph;
+//! use raphtory_io::graph_loader::example::lotr_graph::lotr_graph;
 //! use raphtory::db::graph::Graph;
 //! use raphtory::db::view_api::*;
 //!
@@ -22,8 +22,9 @@
 //! println!("The graph has {:?} vertices", graph.num_vertices());
 //! println!("The graph has {:?} edges", graph.num_edges());
 //! ```
+use raphtory::db::graph::Graph;
 
-use crate::{db::graph::Graph, graph_loader::fetch_file};
+use crate::graph_loader::fetch_file;
 
 use crate::graph_loader::source::csv_loader::CsvLoader;
 use serde::Deserialize;

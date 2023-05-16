@@ -3,7 +3,7 @@ use raphtory::algorithms::generic_taint::generic_taint;
 use raphtory::algorithms::pagerank::unweighted_page_rank;
 use raphtory::db::view_api::layer::LayerOps;
 use raphtory::db::view_api::*;
-use raphtory::graph_loader::example::stable_coins::stable_coin_graph;
+use raphtory_io::graph_loader::example::stable_coins::stable_coin_graph;
 use serde::Deserialize;
 use std::env;
 use std::time::Instant;

@@ -1,7 +1,7 @@
-use crate::core::Prop;
-use crate::db::graph::Graph;
-use crate::db::view_api::internal::GraphViewInternalOps;
-use crate::db::view_api::GraphViewOps;
+use raphtory::core::Prop;
+use raphtory::db::graph::Graph;
+use raphtory::db::view_api::internal::GraphViewInternalOps;
+use raphtory::db::view_api::GraphViewOps;
 use crate::graph_loader::source::csv_loader::CsvLoader;
 use serde::Deserialize;
 use std::fs::File;

@@ -6,9 +6,9 @@
 //! use regex::Regex;
 //! use raphtory::core::Prop;
 //! use raphtory::core::utils::calculate_hash;
-//! use raphtory::graph_loader::source::csv_loader::CsvLoader;
+//! use raphtory_io::graph_loader::source::csv_loader::CsvLoader;
 //! use raphtory::db::graph::Graph;
-//! use raphtory::graph_loader::example::lotr_graph::Lotr;
+//! use raphtory_io::graph_loader::example::lotr_graph::Lotr;
 //!
 //!  let g = Graph::new(2);
 //!  let csv_path: PathBuf = [env!("CARGO_MANIFEST_DIR"), "../../resource/"]
@@ -136,7 +136,7 @@ impl CsvLoader {
     ///
     /// ```no_run
     ///
-    /// use raphtory::graph_loader::source::csv_loader::CsvLoader;
+    /// use raphtory_io::graph_loader::source::csv_loader::CsvLoader;
     /// let loader = CsvLoader::new("/path/to/csv_file.csv");
     /// ```
     pub fn new<P: Into<PathBuf>>(p: P) -> Self {
@@ -157,7 +157,7 @@ impl CsvLoader {
     /// # Example
     ///
     /// ```no_run
-    /// use raphtory::graph_loader::source::csv_loader::CsvLoader;
+    /// use raphtory_io::graph_loader::source::csv_loader::CsvLoader;
     /// let loader = CsvLoader::new("/path/to/csv_file.csv").set_header(true);
     /// ```
     pub fn set_header(mut self, h: bool) -> Self {
@@ -174,7 +174,7 @@ impl CsvLoader {
     /// # Example
     ///
     /// ```no_run
-    /// use raphtory::graph_loader::source::csv_loader::CsvLoader;
+    /// use raphtory_io::graph_loader::source::csv_loader::CsvLoader;
     /// let loader = CsvLoader::new("/path/to/csv_file.csv").set_delimiter("|");
     /// ```
     pub fn set_delimiter(mut self, d: &str) -> Self {
@@ -192,7 +192,7 @@ impl CsvLoader {
     ///
     /// ```no_run
     /// use regex::Regex;
-    /// use raphtory::graph_loader::source::csv_loader::CsvLoader;
+    /// use raphtory_io::graph_loader::source::csv_loader::CsvLoader;
     ///
     /// let loader = CsvLoader::new("/path/to/csv_files")
     ///    .with_filter(Regex::new(r"file_name_pattern").unwrap());
@@ -402,10 +402,10 @@ impl CsvLoader {
 
 #[cfg(test)]
 mod csv_loader_test {
-    use crate::core::utils::calculate_hash;
-    use crate::core::Prop;
-    use crate::db::graph::Graph;
     use crate::graph_loader::source::csv_loader::CsvLoader;
+    use raphtory::core::utils::calculate_hash;
+    use raphtory::core::Prop;
+    use raphtory::db::graph::Graph;
     use regex::Regex;
     use serde::Deserialize;
     use std::path::{Path, PathBuf};
