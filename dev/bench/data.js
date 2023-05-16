@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1684265279258,
+  "lastUpdate": 1684273297411,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -895,6 +895,42 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions",
             "value": 401123,
             "range": "± 37325",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "2404621+fabianmurariu@users.noreply.github.com",
+            "name": "Fabian Murariu",
+            "username": "fabianmurariu"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "dc8c387a64d2598ad06921f09a9e3568593f189a",
+          "message": "Moved Fabians flux capacitor work over to the main repo (#896)\n\n* Moved Fabians flux capacitor work over to the main repo\r\n\r\n* fixes post rebase\r\n\r\n---------\r\n\r\nCo-authored-by: miratepuffin <b.a.steer@qmul.ac.uk>",
+          "timestamp": "2023-05-16T22:37:54+01:00",
+          "tree_id": "bb403b03b9fbfe5f1039f4674b834bae74b9199e",
+          "url": "https://github.com/Pometry/Raphtory/commit/dc8c387a64d2598ad06921f09a9e3568593f189a"
+        },
+        "date": 1684273296801,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 317424,
+            "range": "± 2296",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 778589,
+            "range": "± 143067",
             "unit": "ns/iter"
           }
         ]
