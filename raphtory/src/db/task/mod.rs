@@ -3,7 +3,7 @@ use std::sync::Arc;
 use once_cell::sync::Lazy;
 use rayon::{ThreadPool, ThreadPoolBuilder};
 
-pub(crate) mod context;
+pub mod context;
 pub mod eval_vertex;
 pub mod task;
 pub mod task_runner;
