@@ -7,7 +7,7 @@ use raphtory::db::view_api::internal::GraphViewInternalOps;
 use raphtory::db::view_api::layer::LayerOps;
 use raphtory::db::view_api::time::WindowSet;
 use raphtory::db::view_api::*;
-use raphtory::graph_loader::example::stable_coins::stable_coin_graph;
+use raphtory_io::graph_loader::example::stable_coins::stable_coin_graph;
 use serde::Deserialize;
 use std::env;
 use std::time::Instant;
