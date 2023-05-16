@@ -3,7 +3,9 @@ use raphtory::db::graph::Graph;
 use raphtory::db::view_api::internal::GraphViewInternalOps;
 use raphtory::db::view_api::GraphViewOps;
 use crate::graph_loader::source::csv_loader::CsvLoader;
+use chrono::NaiveDateTime;
 use serde::Deserialize;
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::{copy, Cursor};
 use std::path::PathBuf;
@@ -83,16 +85,27 @@ pub fn stable_coin_graph(path: Option<String>, num_shards: usize) -> Graph {
         let g = Graph::new(num_shards);
         let now = Instant::now();
 
+        let contract_addr_labels = HashMap::from([
+            ("0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48", "USD"),
+            ("0xd2877702675e6ceb975b4a1dff9fb7baf4c91ea9", "LUNC"),
+            ("0xa47c8bf37f92abed4a126bda807a7b7498661acd", "USTC"),
+            ("0x6b175474e89094c44da98b954eedeac495271d0f", "Dai"),
+            ("0xdac17f958d2ee523a2206206994597c13d831ec7", "USDT"),
+            ("0x8e870d67f660d95d5be530380d0ec0bd388289e1", "USDP"),
+        ]);
+
         CsvLoader::new(data_dir)
             .set_header(true)
             .set_delimiter(",")
             .load_into_graph(&g, |stablecoin: StableCoin, g: &Graph| {
+                let s: &str = &stablecoin.contract_address;
+                let label = *contract_addr_labels.get(s).unwrap();
                 g.add_edge(
-                    stablecoin.time_stamp,
+                    NaiveDateTime::from_timestamp_opt(stablecoin.time_stamp, 0).unwrap(),
                     stablecoin.from_address,
                     stablecoin.to_address,
-                    &vec![("value".into(), Prop::F64(stablecoin.value))],
-                    Some(&stablecoin.contract_address),
+                    &vec![("value".into(), Prop::F64(stablecoin.value.into()))],
+                    Some(label),
                 )
                 .expect("Failed to add edge");
             })

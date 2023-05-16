@@ -1,4 +1,3 @@
-use crate::core::vertex_ref::LocalVertexRef;
 use crate::{
     core::{
         agg::InitOneF32,
@@ -15,6 +14,7 @@ use crate::{
 };
 use num_traits::abs;
 use rustc_hash::FxHashMap;
+use std::collections::HashMap;
 
 #[allow(unused_variables)]
 pub fn unweighted_page_rank<G: GraphViewOps>(
@@ -22,7 +22,7 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
     iter_count: usize,
     threads: Option<usize>,
     tol: Option<f32>,
-) -> FxHashMap<String, f32> {
+) -> HashMap<String, f32> {
     let total_vertices = g.num_vertices();
 
     let mut ctx: Context<G, ComputeStateVec> = g.into();
@@ -63,6 +63,7 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
         let curr = s.read_local(&score);
 
         let md = abs(prev - curr);
+
         s.global_update(&max_diff, md);
         Step::Continue
     });
@@ -77,35 +78,16 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
 
-    let (_, _, local_states) = runner.run(
+    let num_vertices = g.num_vertices() as f32;
+    runner.run(
         vec![],
         vec![Job::new(step2), Job::new(step3), step4],
+        |_, _, els| els.finalize(&score, |score| score / num_vertices),
         threads,
         iter_count,
         None,
         None,
-    );
-
-    let mut map: FxHashMap<String, f32> = FxHashMap::default();
-
-    let num_vertices = g.num_vertices() as f32;
-
-    for state in local_states {
-        if let Some(state) = state.as_ref() {
-            state.fold_state_internal(
-                runner.ctx.ss(),
-                &mut map,
-                &score,
-                |res, shard, pid, score| {
-                    let v_ref = LocalVertexRef::new(pid, shard);
-                    res.insert(g.vertex_name(v_ref), score / num_vertices);
-                    res
-                },
-            );
-        }
-    }
-
-    map
+    )
 }
 
 #[cfg(test)]
@@ -133,7 +115,7 @@ mod page_rank_tests {
     fn test_page_rank(n_shards: usize) {
         let graph = load_graph(n_shards);
 
-        let results: FxHashMap<String, f32> = unweighted_page_rank(&graph, 25, Some(1), None)
+        let results: HashMap<String, f32> = unweighted_page_rank(&graph, 25, Some(1), None)
             .into_iter()
             .collect();
 
@@ -146,7 +128,7 @@ mod page_rank_tests {
                 ("3".to_string(), 0.20831521)
             ]
             .into_iter()
-            .collect::<FxHashMap<String, f32>>()
+            .collect::<HashMap<String, f32>>()
         );
     }
 
@@ -204,7 +186,7 @@ mod page_rank_tests {
             graph.add_edge(t, src, dst, &vec![], None).unwrap();
         }
 
-        let results: FxHashMap<String, f32> =
+        let results: HashMap<String, f32> =
             unweighted_page_rank(&graph, 1000, Some(4), Some(0.00001))
                 .into_iter()
                 .collect();
@@ -225,7 +207,7 @@ mod page_rank_tests {
 
         assert_eq!(
             results,
-            expected_2.into_iter().collect::<FxHashMap<String, f32>>()
+            expected_2.into_iter().collect::<HashMap<String, f32>>()
         );
     }
 
@@ -239,7 +221,7 @@ mod page_rank_tests {
             graph.add_edge(t as i64, src, dst, &vec![], None).unwrap();
         }
 
-        let results: FxHashMap<String, f32> =
+        let results: HashMap<String, f32> =
             unweighted_page_rank(&graph, 1000, Some(4), Some(0.00001))
                 .into_iter()
                 .collect();
@@ -258,7 +240,7 @@ mod page_rank_tests {
             graph.add_edge(t as i64, src, dst, &vec![], None).unwrap();
         }
 
-        let results: FxHashMap<String, f32> =
+        let results: HashMap<String, f32> =
             unweighted_page_rank(&graph, 1000, Some(4), Some(0.0000001))
                 .into_iter()
                 .collect();
@@ -297,7 +279,7 @@ mod page_rank_tests {
             graph.add_edge(t, src, dst, &vec![], None).unwrap();
         }
 
-        let results: FxHashMap<String, f32> =
+        let results: HashMap<String, f32> =
             unweighted_page_rank(&graph, 1000, Some(4), Some(0.00001))
                 .into_iter()
                 .collect();
