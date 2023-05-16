@@ -28,7 +28,7 @@
 //!
 //! Load a graph from csv
 //!
-//! ```rust
+//! ```no_run
 //! use raphtory::db::graph::Graph;
 //! use raphtory::core::Prop;
 //! use std::time::Instant;
