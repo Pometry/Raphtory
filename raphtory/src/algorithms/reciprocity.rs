@@ -41,11 +41,15 @@
 //!     g.add_edge(*t, *src, *dst, &vec![], None);
 //! }
 //!
-//! println!("all_local_reciprocity: {:?}", all_local_reciprocity(&g));
-//! println!("global_reciprocity: {:?}", global_reciprocity(&g));
+//! println!("all_local_reciprocity: {:?}", all_local_reciprocity(&g, None));
+//! println!("global_reciprocity: {:?}", global_reciprocity(&g, None));
 //! ```
-use crate::core::state::accumulator_id::accumulators;
-use crate::db::program::{EvalVertexView, GlobalEvalState, LocalState, Program};
+use crate::core::state::accumulator_id::accumulators::sum;
+use crate::core::state::compute_state::{ComputeState, ComputeStateVec};
+use crate::db::task::context::Context;
+use crate::db::task::eval_vertex::EvalVertexView;
+use crate::db::task::task::{ATask, Job, Step};
+use crate::db::task::task_runner::TaskRunner;
 use crate::db::view_api::GraphViewOps;
 use std::collections::{HashMap, HashSet};
 
@@ -53,7 +57,9 @@ struct GlobalReciprocity {}
 
 /// Gets the unique edge counts excluding cycles for a vertex. Returns a tuple of usize
 /// (out neighbours, in neighbours, the intersection of the out and in neighbours)
-fn get_reciprocal_edge_count<G: GraphViewOps>(v: &EvalVertexView<G>) -> (usize, usize, usize) {
+fn get_reciprocal_edge_count<G: GraphViewOps, CS: ComputeState>(
+    v: &EvalVertexView<G, CS>,
+) -> (usize, usize, usize) {
     let out_neighbours: HashSet<u64> = v
         .neighbours_out()
         .map(|n| n.global_id())
@@ -77,97 +83,69 @@ fn get_reciprocal_edge_count<G: GraphViewOps>(v: &EvalVertexView<G>) -> (usize, 
     (out_neighbours.len(), in_neighbours, out_inter_in)
 }
 
-impl Program for GlobalReciprocity {
-    type Out = f64;
-
-    fn local_eval<G: GraphViewOps>(&self, c: &LocalState<G>) {
-        let total_out_neighbours = c.agg(accumulators::sum::<usize>(0));
-        let total_out_inter_in = c.agg(accumulators::sum::<usize>(1));
-
-        c.step(|v| {
-            let edge_counts = get_reciprocal_edge_count(&v);
-            v.global_update(&total_out_neighbours, edge_counts.0);
-            v.global_update(&total_out_inter_in, edge_counts.2);
-        });
-    }
-
-    fn post_eval<G: GraphViewOps>(&self, c: &mut GlobalEvalState<G>) {
-        let _ = c.global_agg(accumulators::sum::<usize>(0));
-        let _ = c.global_agg(accumulators::sum::<usize>(1));
-        c.step(|_| true);
-    }
-
-    #[allow(unused_variables)]
-    fn produce_output<G: GraphViewOps>(&self, g: &G, gs: &GlobalEvalState<G>) -> Self::Out
-    where
-        Self: Sync,
-    {
-        gs.read_global_state(&accumulators::sum::<usize>(1))
-            .unwrap_or(0) as f64
-            / gs.read_global_state(&accumulators::sum::<usize>(0))
-                .unwrap_or(0) as f64
-    }
-}
-
-struct AllLocalReciprocity {}
-
-impl Program for AllLocalReciprocity {
-    type Out = HashMap<u64, f64>;
-
-    fn local_eval<G: GraphViewOps>(&self, c: &LocalState<G>) {
-        let min = c.agg(accumulators::sum(0));
-
-        c.step(|v| {
-            let edge_counts = get_reciprocal_edge_count(&v);
-            let res = (2.0 * edge_counts.2 as f64) / (edge_counts.1 as f64 + edge_counts.0 as f64);
-            if res.is_nan() {
-                v.global_update(&min, 0.0);
-            } else {
-                v.update(&min, res);
-            }
-        });
-    }
-
-    fn post_eval<G: GraphViewOps>(&self, c: &mut GlobalEvalState<G>) {
-        let _ = c.agg(accumulators::sum::<usize>(0));
-        c.step(|_| true);
-    }
-
-    fn produce_output<G: GraphViewOps>(&self, g: &G, gs: &GlobalEvalState<G>) -> Self::Out
-    where
-        Self: Sync,
-    {
-        let agg = accumulators::sum::<f64>(0);
-
-        let mut results: HashMap<u64, f64> = HashMap::default();
-
-        (0..g.num_shards())
-            .into_iter()
-            .fold(&mut results, |res, part_id| {
-                gs.fold_state(&agg, part_id, res, |res, v_id, cc| {
-                    res.insert(*v_id, cc);
-                    res
-                })
-            });
-
-        results
-    }
-}
-
 /// returns the global reciprocity of the entire graph
-pub fn global_reciprocity<G: GraphViewOps>(g: &G) -> f64 {
-    let mut gs = GlobalEvalState::new(g.clone(), false);
-    let gr = GlobalReciprocity {};
-    gr.run_step(g, &mut gs);
-    gr.produce_output(g, &gs)
+pub fn global_reciprocity<G: GraphViewOps>(g: &G, threads: Option<usize>) -> f64 {
+    let mut ctx: Context<G, ComputeStateVec> = g.into();
+
+    let total_out_neighbours = sum::<usize>(0);
+    ctx.global_agg(total_out_neighbours);
+    let total_out_inter_in = sum::<usize>(1);
+    ctx.global_agg(total_out_inter_in);
+
+    let step1 = ATask::new(move |evv| {
+        let edge_counts = get_reciprocal_edge_count(evv);
+        evv.global_update(&total_out_neighbours, edge_counts.0);
+        evv.global_update(&total_out_inter_in, edge_counts.2);
+        Step::Continue
+    });
+
+    let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
+
+    runner.run(
+        vec![],
+        vec![Job::new(step1)],
+        |egs, _, _| {
+            (egs.finalize(&total_out_inter_in) as f64) / (egs.finalize(&total_out_neighbours) as  f64)
+        },
+        threads,
+        1,
+        None,
+        None,
+    )
 }
 
 /// returns the reciprocity of every vertex in the graph as a tuple of
-pub fn all_local_reciprocity<G: GraphViewOps>(g: &G) -> HashMap<u64, f64> {
-    let mut gs = GlobalEvalState::new(g.clone(), false);
-    let gr = AllLocalReciprocity {};
-    gr.run_step(g, &mut gs);
-    gr.produce_output(g, &gs)
+pub fn all_local_reciprocity<G: GraphViewOps>(
+    g: &G,
+    threads: Option<usize>,
+) -> HashMap<String, f64> {
+    let mut ctx: Context<G, ComputeStateVec> = g.into();
+
+    let min = sum(0);
+    ctx.agg(min);
+
+    let step1 = ATask::new(move |evv| {
+        let edge_counts = get_reciprocal_edge_count(&evv);
+        let res = (2.0 * edge_counts.2 as f64) / (edge_counts.1 as f64 + edge_counts.0 as f64);
+        if res.is_nan() {
+            evv.global_update(&min, 0.0);
+        } else {
+            evv.update(&min, res);
+        }
+        Step::Continue
+    });
+
+    let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
+
+    runner.run(
+        vec![],
+        vec![Job::new(step1)],
+        |_, ess, _| ess.finalize(&min, |min| min),
+        threads,
+        1,
+        None,
+        None,
+    )
 }
 
 #[cfg(test)]
@@ -196,15 +174,23 @@ mod reciprocity_test {
             graph.add_edge(0, *src, *dst, &vec![], None).unwrap();
         }
 
-        let actual = global_reciprocity(&graph);
+        let actual = global_reciprocity(&graph, None);
         assert_eq!(actual, 0.5);
 
-        let expected_vec: Vec<(u64, f64)> =
-            vec![(1, 0.4), (2, 2.0 / 3.0), (3, 0.5), (4, 2.0 / 3.0), (5, 0.0)];
+        let expected_vec: Vec<(String, f64)> = vec![
+            ("1".to_string(), 0.4),
+            ("2".to_string(), 2.0 / 3.0),
+            ("3".to_string(), 0.5),
+            ("4".to_string(), 2.0 / 3.0),
+            ("5".to_string(), 0.0),
+        ];
 
-        let map_names_by_id: HashMap<u64, f64> = expected_vec.iter().map(|x| (x.0, x.1)).collect();
+        let map_names_by_id: HashMap<String, f64> = expected_vec
+            .iter()
+            .map(|x| (x.0.to_string(), x.1))
+            .collect();
 
-        let actual = all_local_reciprocity(&graph);
+        let actual = all_local_reciprocity(&graph, None);
         assert_eq!(actual, map_names_by_id);
     }
 }

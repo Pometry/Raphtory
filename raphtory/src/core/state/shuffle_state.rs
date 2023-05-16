@@ -1,9 +1,12 @@
-use std::borrow::Borrow;
-
+use crate::db::task::task_state::{Global, Shard};
+use crate::db::view_api::GraphViewOps;
 use crate::{
     core::{agg::Accumulator, utils::get_shard_id_from_global_vid},
     db::view_api::internal::GraphViewInternalOps,
 };
+use std::borrow::Borrow;
+use std::collections::HashMap;
+use std::sync::Arc;
 
 use super::{
     accumulator_id::AccId,
@@ -281,7 +284,7 @@ impl<CS: ComputeState + Send + Sync> ShuffleComputeState<CS> {
         ss: usize,
         agg_def: &AccId<A, IN, OUT, ACC>,
         g: &G,
-    ) -> Vec<Vec<(u64, OUT)>>
+    ) -> Vec<HashMap<String, OUT>>
     where
         OUT: StateType,
         A: 'static,
@@ -294,22 +297,132 @@ impl<CS: ComputeState + Send + Sync> ShuffleComputeState<CS> {
     }
 }
 
-#[cfg(test)]
 impl<CS: ComputeState + Send> ShuffleComputeState<CS> {
-    pub fn finalize<A, IN, OUT, ACC: Accumulator<A, IN, OUT>, G: GraphViewInternalOps>(
-        &mut self,
-        ss: usize,
+    pub fn finalize<A, B, F, IN, OUT, ACC: Accumulator<A, IN, OUT>, G: GraphViewOps>(
+        &self,
         agg_def: &AccId<A, IN, OUT, ACC>,
+        ss: usize,
         g: &G,
-    ) -> Vec<Option<Vec<(u64, OUT)>>>
+        f: F,
+    ) -> HashMap<String, B>
     where
         OUT: StateType,
         A: 'static,
+        F: Fn(OUT) -> B + Copy,
     {
-        self.parts
-            .iter_mut()
+        let r = self
+            .parts
+            .iter()
             .enumerate()
-            .map(|(shard_id, part)| part.finalize(ss, &agg_def, shard_id, g))
+            .map(|(shard_id, part)| part.finalize(ss, &agg_def, shard_id, g));
+
+        r.into_iter()
+            .flat_map(|c| c.into_iter().map(|(k, v)| (k, f(v))))
+            .collect()
+    }
+}
+
+pub struct EvalGlobalState<G: GraphViewOps, CS: ComputeState + Send> {
+    ss: usize,
+    g: Arc<G>,
+    global_state: Global<CS>,
+}
+
+impl<G: GraphViewOps, CS: ComputeState + Send> EvalGlobalState<G, CS> {
+    pub fn new(ss: usize, g: Arc<G>, global_state: Global<CS>) -> EvalGlobalState<G, CS> {
+        Self {
+            ss,
+            g,
+            global_state,
+        }
+    }
+
+    pub fn finalize<A: StateType, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
+        &self,
+        agg_def: &AccId<A, IN, OUT, ACC>,
+    ) -> OUT
+    where
+        OUT: StateType + Default,
+        A: 'static,
+    {
+        // ss needs to be incremented because the loop ran once and at the end it incremented the state thus
+        // the value is on the previous ss
+        self.global_state
+            .inner()
+            .read_global(self.ss + 1, agg_def)
+            .unwrap_or_default()
+    }
+}
+
+pub struct EvalShardState<G: GraphViewOps, CS: ComputeState + Send> {
+    ss: usize,
+    g: Arc<G>,
+    shard_states: Shard<CS>,
+}
+
+impl<G: GraphViewOps, CS: ComputeState + Send> EvalShardState<G, CS> {
+    pub fn new(ss: usize, g: Arc<G>, shard_states: Shard<CS>) -> EvalShardState<G, CS> {
+        Self {
+            ss,
+            g,
+            shard_states,
+        }
+    }
+
+    pub fn finalize<A, B, F, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
+        &self,
+        agg_def: &AccId<A, IN, OUT, ACC>,
+        f: F,
+    ) -> HashMap<String, B>
+    where
+        OUT: StateType,
+        A: 'static,
+        F: Fn(OUT) -> B + Copy,
+    {
+        self.shard_states
+            .inner()
+            .finalize(agg_def, self.ss, self.g.as_ref(), f)
+    }
+}
+
+pub struct EvalLocalState<G: GraphViewOps, CS: ComputeState + Send> {
+    ss: usize,
+    g: Arc<G>,
+    local_states: Vec<Arc<Option<ShuffleComputeState<CS>>>>,
+}
+
+impl<G: GraphViewOps, CS: ComputeState + Send> EvalLocalState<G, CS> {
+    pub fn new(
+        ss: usize,
+        g: Arc<G>,
+        local_states: Vec<Arc<Option<ShuffleComputeState<CS>>>>,
+    ) -> EvalLocalState<G, CS> {
+        Self {
+            ss,
+            g,
+            local_states,
+        }
+    }
+
+    pub fn finalize<A, B, F, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
+        &self,
+        agg_def: &AccId<A, IN, OUT, ACC>,
+        f: F,
+    ) -> HashMap<String, B>
+    where
+        OUT: StateType,
+        A: 'static,
+        F: Fn(OUT) -> B + Copy,
+    {
+        self.local_states
+            .iter()
+            .flat_map(|state| {
+                if let Some(state) = state.as_ref() {
+                    state.finalize(agg_def, self.ss, self.g.as_ref(), f)
+                } else {
+                    HashMap::<String, B>::new()
+                }
+            })
             .collect()
     }
 }

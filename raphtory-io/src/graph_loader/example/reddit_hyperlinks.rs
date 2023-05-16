@@ -106,7 +106,7 @@ pub fn reddit_graph(shards: usize, timeout: u64, test_file: bool) -> Graph {
 
                     match NaiveDateTime::parse_from_str(reddit[3], "%Y-%m-%d %H:%M:%S") {
                         Ok(time) => {
-                            let time = time.timestamp()*1000;
+                            let time = time.timestamp() * 1000;
                             let post_label: i32 = reddit[4].parse::<i32>().unwrap();
                             let post_properties: Vec<f64> = reddit[5]
                                 .split(',')

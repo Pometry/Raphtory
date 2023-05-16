@@ -880,6 +880,35 @@ def test_connected_components():
     assert (actual == expected)
 
 
+def test_page_rank():
+    g = Graph(1)
+    g.add_edge(10, 1, 3, {})
+    g.add_edge(11, 1, 2, {})
+    g.add_edge(12, 1, 2, {})
+    g.add_edge(9, 1, 2, {})
+    g.add_edge(12, 2, 4, {})
+    g.add_edge(13, 2, 5, {})
+    g.add_edge(14, 5, 5, {})
+    g.add_edge(14, 5, 4, {})
+    g.add_edge(5, 4, 6, {})
+    g.add_edge(15, 4, 7, {})
+    g.add_edge(10, 4, 7, {})
+    g.add_edge(10, 5, 8, {})
+
+    actual = algorithms.pagerank(g, 20)
+    expected = {
+        '1': 0.07218629121780396,
+        '2': 0.10296038538217545,
+        '3': 0.10296038538217545,
+        '4': 0.16141937673091888,
+        '5': 0.16141937673091888,
+        '6': 0.14062204957008362,
+        '7': 0.14062204957008362,
+        '8': 0.11781013011932373
+    }
+    assert (actual == expected)
+
+
 def test_generic_taint():
     g = Graph(1)
     g.add_edge(10, 1, 3, {})
@@ -897,8 +926,9 @@ def test_generic_taint():
 
     actual = algorithms.generic_taint(g, 20, 11, [1, 2], [4, 5])
     expected = {
-        '1': [(11, '1')],
-        '2': [(12, '1'), (11, '1'), (11, '2')],
+        '1': [(11, 'start')],
+        '2': [(11, 'start'), (12, '1'), (11, '1')],
+        '3': [],
         '4': [(12, '2')],
         '5': [(13, '2')],
     }
@@ -909,19 +939,17 @@ def test_generic_taint():
 def test_generic_taint_loader():
     g = graph_loader.stable_coin_graph("/tmp/stablecoin", 1)
 
-    max_size = sys.maxsize
-    min_size = -sys.maxsize - 1
-
     start_time = time.time()
     algorithms.pagerank(g, 20)
     end_time = time.time()
 
     print("Time taken (in secs) to run pagerank on stablecoin data", end_time - start_time)
 
-    actual = algorithms.generic_taint(g, 20, 1651105815, ["0xd30b438df65f4f788563b2b3611bd6059bff4ad9"], [])
+    actual = algorithms.generic_taint(g, 20, 1651105815000, ["0xd30b438df65f4f788563b2b3611bd6059bff4ad9"], [])
+    print(actual)
     expected = {
-        '0xd30b438df65f4f788563b2b3611bd6059bff4ad9': [(1651105815, '0xd30b438df65f4f788563b2b3611bd6059bff4ad9')],
-        '0xda816e2122a8a39b0926bfa84edd3d42477e9efd': [(1651105815, '0xd30b438df65f4f788563b2b3611bd6059bff4ad9')],
+        '0xd30b438df65f4f788563b2b3611bd6059bff4ad9': [(1651105815000, 'start')],
+        '0xda816e2122a8a39b0926bfa84edd3d42477e9efd': [(1651105815000, '0xd30b438df65f4f788563b2b3611bd6059bff4ad9')],
     }
 
     assert (actual == expected)

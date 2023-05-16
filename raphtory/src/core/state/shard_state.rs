@@ -1,8 +1,7 @@
-use rustc_hash::FxHashMap;
-
-use crate::{core::agg::Accumulator, db::view_api::internal::GraphViewInternalOps};
-
 use super::{accumulator_id::AccId, compute_state::ComputeState, StateType};
+use crate::{core::agg::Accumulator, db::view_api::internal::GraphViewInternalOps};
+use rustc_hash::FxHashMap;
+use std::collections::HashMap;
 
 pub const GLOBAL_STATE_KEY: usize = 0;
 
@@ -52,7 +51,7 @@ impl<CS: ComputeState + Send + Clone> ShardComputeState<CS> {
         agg_ref: &AccId<A, IN, OUT, ACC>,
         shard_id: usize,
         g: &G,
-    ) -> Option<Vec<(u64, OUT)>>
+    ) -> Option<HashMap<String, OUT>>
     where
         OUT: StateType,
         A: 'static,
@@ -155,23 +154,21 @@ impl<CS: ComputeState + Send + Clone> ShardComputeState<CS> {
     }
 }
 
-#[cfg(test)]
 impl<CS: ComputeState + Send> ShardComputeState<CS> {
     pub fn finalize<A, IN, OUT, ACC: Accumulator<A, IN, OUT>, G: GraphViewInternalOps>(
-        &mut self,
+        &self,
         ss: usize,
         agg_ref: &AccId<A, IN, OUT, ACC>,
         shard_id: usize,
         g: &G,
-    ) -> Option<Vec<(u64, OUT)>>
+    ) -> HashMap<String, OUT>
     where
         OUT: StateType,
         A: 'static,
     {
-        // finalize the accumulator
-        // print the states
-        let state = self.states.get(&agg_ref.id())?;
-        let state_arr = state.finalize::<A, IN, OUT, ACC, G>(ss, shard_id, g);
-        Some(state_arr)
+        self.states
+            .get(&agg_ref.id())
+            .map(|s| s.finalize::<A, IN, OUT, ACC, G>(ss, shard_id, g))
+            .unwrap_or(HashMap::<String, OUT>::default())
     }
 }
