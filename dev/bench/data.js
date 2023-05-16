@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1684253560397,
+  "lastUpdate": 1684265279258,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -859,6 +859,42 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions",
             "value": 613407,
             "range": "± 125556",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "4599890+iamsmkr@users.noreply.github.com",
+            "name": "Shivam Kapoor",
+            "username": "iamsmkr"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d621a57955536513bf1f239e41bf8aa1ce169f56",
+          "message": "Gtnotebook (#882)\n\n* impl generic taint v2\r\n\r\n* fix merge compile/test issues\r\n\r\n* fix test\r\n\r\n* intro v2\r\n\r\n* impl hits with new apis\r\n\r\n* fix example\r\n\r\n* fix lotr\r\n\r\n* update ingestion\r\n\r\n* impl triplet count using new api\r\n\r\n* rid old triangle count impl\r\n\r\n* impl reciprocity using new api\r\n\r\n* impl cluster using new api\r\n\r\n* fix test",
+          "timestamp": "2023-05-16T20:26:32+01:00",
+          "tree_id": "2652d9197bd7ca790cb628a88aedb8fccb07442e",
+          "url": "https://github.com/Pometry/Raphtory/commit/d621a57955536513bf1f239e41bf8aa1ce169f56"
+        },
+        "date": 1684265278672,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 336453,
+            "range": "± 1710",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 401123,
+            "range": "± 37325",
             "unit": "ns/iter"
           }
         ]
