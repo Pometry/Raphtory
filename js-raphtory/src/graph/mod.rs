@@ -1,3 +1,5 @@
+extern crate console_error_panic_hook;
+
 use core::panic;
 use std::convert::TryFrom;
 use std::sync::Arc;
@@ -50,18 +52,6 @@ impl UnderGraph {
 #[derive(Clone)]
 pub struct Graph(UnderGraph);
 
-impl From<TGraph> for Graph {
-    fn from(g: TGraph) -> Self {
-        Graph(UnderGraph::TGraph(Arc::new(g)))
-    }
-}
-
-impl From<WindowedGraph<TGraph>> for Graph {
-    fn from(g: WindowedGraph<TGraph>) -> Self {
-        Graph(UnderGraph::WindowedGraph(Arc::new(g)))
-    }
-}
-
 #[wasm_bindgen]
 #[derive(Debug)]
 pub struct JSError(GraphError);
@@ -79,16 +69,10 @@ impl From<JsObjectEntry> for Option<(String, Prop)> {
 }
 
 #[wasm_bindgen]
-pub enum Direction {
-    Out = 0,
-    In = 1,
-    Both = 2,
-}
-
-#[wasm_bindgen]
 impl Graph {
     #[wasm_bindgen(constructor)]
     pub fn new() -> Self {
+        console_error_panic_hook::set_once();
         Graph(UnderGraph::TGraph(Arc::new(TGraph::new(1))))
     }
 
