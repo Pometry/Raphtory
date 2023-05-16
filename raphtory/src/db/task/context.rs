@@ -168,9 +168,9 @@ impl<CS: ComputeState> GlobalState<CS> {
         &self,
         acc_id: &AccId<A, IN, OUT, ACC>,
     ) -> OUT
-        where
-            A: StateType,
-            OUT: std::fmt::Debug,
+    where
+        A: StateType,
+        OUT: std::fmt::Debug,
     {
         self.state
             .inner()

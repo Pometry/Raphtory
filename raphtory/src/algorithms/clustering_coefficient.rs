@@ -1,9 +1,5 @@
-use rustc_hash::FxHashSet;
 use crate::algorithms::triangle_count::triangle_count;
 use crate::algorithms::triplet_count::triplet_count;
-
-use crate::core::state::accumulator_id::accumulators;
-use crate::db::program::{GlobalEvalState, LocalState, Program};
 use crate::db::view_api::GraphViewOps;
 
 /// Computes the global clustering coefficient of a graph. The global clustering coefficient is
@@ -40,7 +36,7 @@ use crate::db::view_api::GraphViewOps;
 /// ```
 ///
 pub fn clustering_coefficient<G: GraphViewOps>(g: &G) -> f64 {
-    let tc_val = triangle_count(g, None).unwrap_or(0);
+    let tc_val = triangle_count(g, None);
     let output = triplet_count(g, None);
 
     if output == 0 || tc_val == 0 {

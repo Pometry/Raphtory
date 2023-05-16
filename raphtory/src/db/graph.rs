@@ -19,15 +19,13 @@
 
 use crate::core::tgraph::TemporalGraph;
 use crate::core::tgraph_shard::TGraphShard;
-use crate::core::time::{TryIntoTime, IntoTimeWithFormat};
+use crate::core::time::{IntoTimeWithFormat, TryIntoTime};
 use crate::core::{
-    tgraph::{EdgeRef, VertexRef},
-    tgraph_shard::errors::GraphError,
-    utils,
-    vertex::InputVertex,
-    Direction, Prop,
+    edge_ref::EdgeRef, tgraph_shard::errors::GraphError, utils, vertex::InputVertex,
+    vertex_ref::VertexRef, Direction, Prop,
 };
 
+use crate::core::vertex_ref::LocalVertexRef;
 use crate::db::graph_immutable::ImmutableGraph;
 use crate::db::view_api::internal::GraphViewInternalOps;
 use itertools::Itertools;
@@ -151,7 +149,8 @@ impl GraphViewInternalOps for Graph {
     }
 
     fn has_edge_ref(&self, src: VertexRef, dst: VertexRef, layer: usize) -> bool {
-        self.get_shard_from_v(src).has_edge(src, dst, layer)
+        let (shard, src, dst) = self.localise_edge(src, dst);
+        self.shards[shard].has_edge(src, dst, layer)
     }
 
     fn has_edge_ref_window(
@@ -162,62 +161,72 @@ impl GraphViewInternalOps for Graph {
         t_end: i64,
         layer: usize,
     ) -> bool {
-        self.get_shard_from_v(src)
-            .has_edge_window(src.g_id, dst.g_id, t_start..t_end, layer)
+        let (shard, src, dst) = self.localise_edge(src, dst);
+        self.shards[shard].has_edge_window(src, dst, t_start..t_end, layer)
     }
 
     fn has_vertex_ref(&self, v: VertexRef) -> bool {
-        self.get_shard_from_v(v).has_vertex(v.g_id)
+        self.get_shard_from_v(v).has_vertex(v)
     }
 
     fn has_vertex_ref_window(&self, v: VertexRef, t_start: i64, t_end: i64) -> bool {
         self.get_shard_from_v(v)
-            .has_vertex_window(v.g_id, t_start..t_end)
+            .has_vertex_window(v, t_start..t_end)
     }
 
-    fn degree(&self, v: VertexRef, d: Direction, layer: Option<usize>) -> usize {
-        self.get_shard_from_v(v).degree(v, d, layer)
+    fn degree(&self, v: LocalVertexRef, d: Direction, layer: Option<usize>) -> usize {
+        self.get_shard_from_local_v(v).degree(v, d, layer)
     }
 
     fn degree_window(
         &self,
-        v: VertexRef,
+        v: LocalVertexRef,
         t_start: i64,
         t_end: i64,
         d: Direction,
         layer: Option<usize>,
     ) -> usize {
-        self.get_shard_from_v(v)
+        self.get_shard_from_local_v(v)
             .degree_window(v, t_start..t_end, d, layer)
     }
 
-    fn vertex_ref(&self, v: u64) -> Option<VertexRef> {
+    fn vertex_ref(&self, v: u64) -> Option<LocalVertexRef> {
         self.get_shard_from_id(v).vertex(v)
     }
 
-    fn vertex_ref_window(&self, v: u64, t_start: i64, t_end: i64) -> Option<VertexRef> {
+    fn vertex_ref_window(&self, v: u64, t_start: i64, t_end: i64) -> Option<LocalVertexRef> {
         self.get_shard_from_id(v).vertex_window(v, t_start..t_end)
     }
 
-    fn vertex_earliest_time(&self, v: VertexRef) -> Option<i64> {
-        self.get_shard_from_v(v).vertex_earliest_time(v)
+    fn vertex_earliest_time(&self, v: LocalVertexRef) -> Option<i64> {
+        self.get_shard_from_local_v(v).vertex_earliest_time(v)
     }
 
-    fn vertex_earliest_time_window(&self, v: VertexRef, t_start: i64, t_end: i64) -> Option<i64> {
-        self.get_shard_from_v(v)
+    fn vertex_earliest_time_window(
+        &self,
+        v: LocalVertexRef,
+        t_start: i64,
+        t_end: i64,
+    ) -> Option<i64> {
+        self.get_shard_from_local_v(v)
             .vertex_earliest_time_window(v, t_start..t_end)
     }
 
-    fn vertex_latest_time(&self, v: VertexRef) -> Option<i64> {
-        self.get_shard_from_v(v).vertex_latest_time(v)
+    fn vertex_latest_time(&self, v: LocalVertexRef) -> Option<i64> {
+        self.get_shard_from_local_v(v).vertex_latest_time(v)
     }
 
-    fn vertex_latest_time_window(&self, v: VertexRef, t_start: i64, t_end: i64) -> Option<i64> {
-        self.get_shard_from_v(v)
+    fn vertex_latest_time_window(
+        &self,
+        v: LocalVertexRef,
+        t_start: i64,
+        t_end: i64,
+    ) -> Option<i64> {
+        self.get_shard_from_local_v(v)
             .vertex_latest_time_window(v, t_start..t_end)
     }
 
-    fn vertex_refs(&self) -> Box<dyn Iterator<Item = VertexRef> + Send> {
+    fn vertex_refs(&self) -> Box<dyn Iterator<Item = LocalVertexRef> + Send> {
         let shards = self.shards.clone();
         Box::new(shards.into_iter().flat_map(|s| s.vertices()))
     }
@@ -226,7 +235,7 @@ impl GraphViewInternalOps for Graph {
         &self,
         t_start: i64,
         t_end: i64,
-    ) -> Box<dyn Iterator<Item = VertexRef> + Send> {
+    ) -> Box<dyn Iterator<Item = LocalVertexRef> + Send> {
         let shards = self.shards.clone();
         Box::new(
             shards
@@ -235,7 +244,7 @@ impl GraphViewInternalOps for Graph {
         )
     }
 
-    fn vertex_refs_shard(&self, shard: usize) -> Box<dyn Iterator<Item = VertexRef> + Send> {
+    fn vertex_refs_shard(&self, shard: usize) -> Box<dyn Iterator<Item = LocalVertexRef> + Send> {
         let shard = self.shards[shard].clone();
         Box::new(shard.vertices())
     }
@@ -245,13 +254,14 @@ impl GraphViewInternalOps for Graph {
         shard: usize,
         t_start: i64,
         t_end: i64,
-    ) -> Box<dyn Iterator<Item = VertexRef> + Send> {
+    ) -> Box<dyn Iterator<Item = LocalVertexRef> + Send> {
         let shard = self.shards[shard].clone();
         Box::new(shard.vertices_window(t_start..t_end))
     }
 
     fn edge_ref(&self, src: VertexRef, dst: VertexRef, layer: usize) -> Option<EdgeRef> {
-        self.get_shard_from_v(src).edge(src.g_id, dst.g_id, layer)
+        let (shard_id, src, dst) = self.localise_edge(src, dst);
+        self.shards[shard_id].edge(src, dst, layer)
     }
 
     fn edge_ref_window(
@@ -262,8 +272,8 @@ impl GraphViewInternalOps for Graph {
         t_end: i64,
         layer: usize,
     ) -> Option<EdgeRef> {
-        self.get_shard_from_v(src)
-            .edge_window(src.g_id, dst.g_id, t_start..t_end, layer)
+        let (shard_id, src, dst) = self.localise_edge(src, dst);
+        self.shards[shard_id].edge_window(src, dst, t_start..t_end, layer)
     }
 
     fn edge_refs(&self, layer: Option<usize>) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
@@ -295,25 +305,24 @@ impl GraphViewInternalOps for Graph {
         )
     }
 
-    // FIXME: we should be able to have just `vertex_edges` which gets layer: Option<usize>
     fn vertex_edges(
         &self,
-        v: VertexRef,
+        v: LocalVertexRef,
         d: Direction,
         layer: Option<usize>,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
-        Box::new(self.get_shard_from_v(v).vertex_edges(v.g_id, d, layer))
+        Box::new(self.get_shard_from_local_v(v).vertex_edges(v, d, layer))
     }
 
     fn vertex_edges_t(
         &self,
-        v: VertexRef,
+        v: LocalVertexRef,
         d: Direction,
         layer: Option<usize>,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
         // FIXME: missing low-level implementation
-        Box::new(self.get_shard_from_v(v).vertex_edges_window_t(
-            v.g_id,
+        Box::new(self.get_shard_from_local_v(v).vertex_edges_window_t(
+            v,
             i64::MIN..i64::MAX,
             d,
             layer,
@@ -322,95 +331,95 @@ impl GraphViewInternalOps for Graph {
 
     fn vertex_edges_window(
         &self,
-        v: VertexRef,
+        v: LocalVertexRef,
         t_start: i64,
         t_end: i64,
         d: Direction,
         layer: Option<usize>,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
         Box::new(
-            self.get_shard_from_v(v)
-                .vertex_edges_window(v.g_id, t_start..t_end, d, layer),
+            self.get_shard_from_local_v(v)
+                .vertex_edges_window(v, t_start..t_end, d, layer),
         )
     }
 
     fn vertex_edges_window_t(
         &self,
-        v: VertexRef,
+        v: LocalVertexRef,
         t_start: i64,
         t_end: i64,
         d: Direction,
         layer: Option<usize>,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
         Box::new(
-            self.get_shard_from_v(v)
-                .vertex_edges_window_t(v.g_id, t_start..t_end, d, layer),
+            self.get_shard_from_local_v(v)
+                .vertex_edges_window_t(v, t_start..t_end, d, layer),
         )
     }
 
     fn neighbours(
         &self,
-        v: VertexRef,
+        v: LocalVertexRef,
         d: Direction,
         layer: Option<usize>,
     ) -> Box<dyn Iterator<Item = VertexRef> + Send> {
-        Box::new(self.get_shard_from_v(v).neighbours(v.g_id, d, layer))
+        Box::new(self.get_shard_from_local_v(v).neighbours(v, d, layer))
     }
 
     fn neighbours_window(
         &self,
-        v: VertexRef,
+        v: LocalVertexRef,
         t_start: i64,
         t_end: i64,
         d: Direction,
         layer: Option<usize>,
     ) -> Box<dyn Iterator<Item = VertexRef> + Send> {
         Box::new(
-            self.get_shard_from_v(v)
-                .neighbours_window(v.g_id, t_start..t_end, d, layer),
+            self.get_shard_from_local_v(v)
+                .neighbours_window(v, t_start..t_end, d, layer),
         )
     }
 
-    fn static_vertex_prop(&self, v: VertexRef, name: String) -> Option<Prop> {
-        self.get_shard_from_v(v).static_vertex_prop(v.g_id, name)
+    fn static_vertex_prop(&self, v: LocalVertexRef, name: String) -> Option<Prop> {
+        self.get_shard_from_local_v(v).static_vertex_prop(v, name)
     }
 
-    fn static_vertex_prop_names(&self, v: VertexRef) -> Vec<String> {
-        self.get_shard_from_v(v).static_vertex_prop_names(v.g_id)
+    fn static_vertex_prop_names(&self, v: LocalVertexRef) -> Vec<String> {
+        self.get_shard_from_local_v(v).static_vertex_prop_names(v)
     }
 
-    fn temporal_vertex_prop_names(&self, v: VertexRef) -> Vec<String> {
-        self.get_shard_from_v(v).temporal_vertex_prop_names(v.g_id)
+    fn temporal_vertex_prop_names(&self, v: LocalVertexRef) -> Vec<String> {
+        self.get_shard_from_local_v(v).temporal_vertex_prop_names(v)
     }
 
-    fn temporal_vertex_prop_vec(&self, v: VertexRef, name: String) -> Vec<(i64, Prop)> {
-        self.get_shard_from_v(v)
-            .temporal_vertex_prop_vec(v.g_id, name)
+    fn temporal_vertex_prop_vec(&self, v: LocalVertexRef, name: String) -> Vec<(i64, Prop)> {
+        self.get_shard_from_local_v(v)
+            .temporal_vertex_prop_vec(v, name)
     }
 
     fn temporal_vertex_prop_vec_window(
         &self,
-        v: VertexRef,
+        v: LocalVertexRef,
         name: String,
         t_start: i64,
         t_end: i64,
     ) -> Vec<(i64, Prop)> {
-        self.get_shard_from_v(v)
-            .temporal_vertex_prop_vec_window(v.g_id, name, t_start..t_end)
+        self.get_shard_from_local_v(v)
+            .temporal_vertex_prop_vec_window(v, name, t_start..t_end)
     }
 
-    fn temporal_vertex_props(&self, v: VertexRef) -> HashMap<String, Vec<(i64, Prop)>> {
-        self.get_shard_from_v(v).temporal_vertex_props(v.g_id)
+    fn temporal_vertex_props(&self, v: LocalVertexRef) -> HashMap<String, Vec<(i64, Prop)>> {
+        self.get_shard_from_local_v(v).temporal_vertex_props(v)
     }
 
     fn temporal_vertex_props_window(
         &self,
-        v: VertexRef,
+        v: LocalVertexRef,
         t_start: i64,
         t_end: i64,
     ) -> HashMap<String, Vec<(i64, Prop)>> {
-        self.get_shard_from_v(v)
-            .temporal_vertex_props_window(v.g_id, t_start..t_end)
+        self.get_shard_from_local_v(v)
+            .temporal_vertex_props_window(v, t_start..t_end)
     }
 
     fn static_edge_prop(&self, e: EdgeRef, name: String) -> Option<Prop> {
@@ -440,18 +449,17 @@ impl GraphViewInternalOps for Graph {
             .temporal_edge_props_vec_window(e, name, t_start..t_end)
     }
 
-    fn vertex_timestamps(&self, v: VertexRef) -> Vec<i64> {
-        self.get_shard_from_v(v).vertex_timestamps(v.g_id)
+    fn vertex_timestamps(&self, v: LocalVertexRef) -> Vec<i64> {
+        self.get_shard_from_local_v(v).vertex_timestamps(v)
     }
 
-    fn vertex_timestamps_window(&self, v: VertexRef, t_start: i64, t_end: i64) -> Vec<i64> {
-        self.get_shard_from_v(v)
-            .vertex_timestamps_window(v.g_id, t_start..t_end)
+    fn vertex_timestamps_window(&self, v: LocalVertexRef, t_start: i64, t_end: i64) -> Vec<i64> {
+        self.get_shard_from_local_v(v)
+            .vertex_timestamps_window(v, t_start..t_end)
     }
 
     fn edge_timestamps(&self, e: EdgeRef, window: Option<Range<i64>>) -> Vec<i64> {
-        self.get_shard_from_e(e)
-            .edge_timestamps(e, window, self.nr_shards)
+        self.get_shard_from_e(e).edge_timestamps(e, window)
     }
 
     fn temporal_edge_props(&self, e: EdgeRef) -> HashMap<String, Vec<(i64, Prop)>> {
@@ -472,7 +480,7 @@ impl GraphViewInternalOps for Graph {
         self.nr_shards
     }
 
-    fn vertices_shard(&self, shard_id: usize) -> Box<dyn Iterator<Item = VertexRef> + Send> {
+    fn vertices_shard(&self, shard_id: usize) -> Box<dyn Iterator<Item = LocalVertexRef> + Send> {
         Box::new(self.shards[shard_id].vertices())
     }
 
@@ -481,12 +489,26 @@ impl GraphViewInternalOps for Graph {
         shard_id: usize,
         t_start: i64,
         t_end: i64,
-    ) -> Box<dyn Iterator<Item = VertexRef> + Send> {
+    ) -> Box<dyn Iterator<Item = LocalVertexRef> + Send> {
         Box::new(self.shards[shard_id].vertices_window(t_start..t_end))
     }
 
-    fn lookup_by_pid_and_shard(&self, pid: usize, shard: usize) -> Option<VertexRef> {
-        self.shards.get(shard).and_then(|s| s.lookup_by_pid(pid))
+    fn vertex_id(&self, v: LocalVertexRef) -> u64 {
+        self.shards[v.shard_id].vertex_id(v)
+    }
+
+    fn local_vertex(&self, v: VertexRef) -> Option<LocalVertexRef> {
+        self.get_shard_from_v(v).local_vertex(v)
+    }
+
+    fn local_vertex_window(
+        &self,
+        v: VertexRef,
+        t_start: i64,
+        t_end: i64,
+    ) -> Option<LocalVertexRef> {
+        self.get_shard_from_v(v)
+            .local_vertex_window(v, t_start..t_end)
     }
 }
 
@@ -520,6 +542,29 @@ impl Graph {
         }
     }
 
+    fn localise_edge(&self, src: VertexRef, dst: VertexRef) -> (usize, VertexRef, VertexRef) {
+        match src {
+            VertexRef::Local(local_src) => match dst {
+                VertexRef::Local(local_dst) => {
+                    if local_src.shard_id == local_dst.shard_id {
+                        (local_src.shard_id, src, dst)
+                    } else {
+                        (
+                            local_src.shard_id,
+                            src,
+                            VertexRef::Remote(self.vertex_id(local_dst)),
+                        )
+                    }
+                }
+                VertexRef::Remote(_) => (local_src.shard_id, src, dst),
+            },
+            VertexRef::Remote(gid) => match dst {
+                VertexRef::Local(local_dst) => (local_dst.shard_id, src, dst),
+                VertexRef::Remote(_) => (self.shard_id(gid), src, dst),
+            },
+        }
+    }
+
     /// Get the shard id from a global vertex id
     ///
     /// # Arguments
@@ -546,7 +591,7 @@ impl Graph {
         &self.shards[self.shard_id(g_id)]
     }
 
-    /// Get the shard from a global vertex id
+    /// Get the shard from a vertex reference
     ///
     /// # Arguments
     ///
@@ -556,7 +601,15 @@ impl Graph {
     ///
     /// The shard reference
     fn get_shard_from_v(&self, v: VertexRef) -> &TGraphShard<TemporalGraph> {
-        &self.shards[self.shard_id(v.g_id)]
+        match v {
+            VertexRef::Local(v) => self.get_shard_from_local_v(v),
+            VertexRef::Remote(g_id) => self.get_shard_from_id(g_id),
+        }
+    }
+
+    #[inline(always)]
+    fn get_shard_from_local_v(&self, v: LocalVertexRef) -> &TGraphShard<TemporalGraph> {
+        &self.shards[v.shard_id]
     }
 
     /// Get the shard from an edge reference
@@ -569,7 +622,7 @@ impl Graph {
     ///
     /// The shard reference
     fn get_shard_from_e(&self, e: EdgeRef) -> &TGraphShard<TemporalGraph> {
-        &self.shards[self.shard_id(e.src_g_id)]
+        &self.shards[e.shard()]
     }
 
     /// Create a new graph with the specified number of shards
@@ -591,7 +644,7 @@ impl Graph {
     pub fn new(nr_shards: usize) -> Self {
         Graph {
             nr_shards,
-            shards: (0..nr_shards).map(|_| TGraphShard::default()).collect(),
+            shards: (0..nr_shards).map(|i| TGraphShard::new(i)).collect(),
             layer_ids: Default::default(),
         }
     }
@@ -945,6 +998,30 @@ mod db_tests {
         assert_eq!(g.num_edges(), unique_edge_count);
     }
 
+    #[quickcheck]
+    fn add_edge_works(edges: Vec<(i64, u64, u64)>) -> bool {
+        let g = Graph::new(3);
+        for &(t, src, dst) in edges.iter() {
+            g.add_edge(t, src, dst, &vec![], None).unwrap();
+        }
+
+        edges
+            .iter()
+            .all(|&(_, src, dst)| g.has_edge(src, dst, None))
+    }
+
+    #[quickcheck]
+    fn get_edge_works(edges: Vec<(i64, u64, u64)>) -> bool {
+        let g = Graph::new(100);
+        for &(t, src, dst) in edges.iter() {
+            g.add_edge(t, src, dst, &vec![], None).unwrap();
+        }
+
+        edges
+            .iter()
+            .all(|&(_, src, dst)| g.edge(src, dst, None).is_some())
+    }
+
     #[test]
     fn graph_save_to_load_from_file() {
         let vs = vec![
@@ -1041,18 +1118,11 @@ mod db_tests {
             g.add_edge(t, src, dst, &vec![], None).unwrap()
         }
 
-        assert_eq!(
-            g.edge_ref_window(1.into(), 3.into(), i64::MIN, i64::MAX, 0)
-                .unwrap()
-                .src_g_id,
-            1u64
-        );
-        assert_eq!(
-            g.edge_ref_window(1.into(), 3.into(), i64::MIN, i64::MAX, 0)
-                .unwrap()
-                .dst_g_id,
-            3u64
-        );
+        let e = g
+            .edge_ref_window(1.into(), 3.into(), i64::MIN, i64::MAX, 0)
+            .unwrap();
+        assert_eq!(g.vertex_id(g.localise_vertex_unchecked(e.src())), 1u64);
+        assert_eq!(g.vertex_id(g.localise_vertex_unchecked(e.dst())), 3u64);
     }
 
     #[test]
@@ -1075,7 +1145,7 @@ mod db_tests {
         let expected = vec![(2, 3, 1), (1, 0, 0), (1, 0, 0)];
         let actual = (1..=3)
             .map(|i| {
-                let i = VertexRef::new_remote(i);
+                let i = g.vertex_ref(i).unwrap();
                 (
                     g.degree_window(i, -1, 7, Direction::IN, None),
                     g.degree_window(i, 1, 7, Direction::OUT, None),
@@ -1095,7 +1165,7 @@ mod db_tests {
 
         let expected = (1..=3)
             .map(|i| {
-                let i = VertexRef::new_remote(i);
+                let i = g.vertex_ref(i).unwrap();
                 (
                     g.degree_window(i, -1, 7, Direction::IN, None),
                     g.degree_window(i, 1, 7, Direction::OUT, None),
@@ -1127,7 +1197,7 @@ mod db_tests {
         let expected = vec![(2, 3, 2), (1, 0, 0), (1, 0, 0)];
         let actual = (1..=3)
             .map(|i| {
-                let i = VertexRef { g_id: i, pid: None };
+                let i = g.vertex_ref(i).unwrap();
                 (
                     g.vertex_edges_window(i, -1, 7, Direction::IN, None)
                         .collect::<Vec<_>>()
@@ -1153,7 +1223,7 @@ mod db_tests {
 
         let expected = (1..=3)
             .map(|i| {
-                let i = VertexRef { g_id: i, pid: None };
+                let i = g.vertex_ref(i).unwrap();
                 (
                     g.vertex_edges_window(i, -1, 7, Direction::IN, None)
                         .collect::<Vec<_>>()
@@ -1190,8 +1260,9 @@ mod db_tests {
 
         let in_actual = (1..=3)
             .map(|i| {
-                g.vertex_edges_window_t(i.into(), -1, 7, Direction::IN, None)
-                    .map(|e| e.time.unwrap())
+                let i = g.vertex_ref(i).unwrap();
+                g.vertex_edges_window_t(i, -1, 7, Direction::IN, None)
+                    .map(|e| e.time().unwrap())
                     .sorted() // sorted by neighbour first and then time but neighbour order can be arbitrary so normalise
                     .collect::<Vec<_>>()
             })
@@ -1200,8 +1271,9 @@ mod db_tests {
 
         let out_actual = (1..=3)
             .map(|i| {
-                g.vertex_edges_window_t(i.into(), 1, 7, Direction::OUT, None)
-                    .map(|e| e.time.unwrap())
+                let i = g.vertex_ref(i).unwrap();
+                g.vertex_edges_window_t(i, 1, 7, Direction::OUT, None)
+                    .map(|e| e.time().unwrap())
                     .sorted()
                     .collect::<Vec<_>>()
             })
@@ -1210,8 +1282,9 @@ mod db_tests {
 
         let both_actual = (1..=3)
             .map(|i| {
-                g.vertex_edges_window_t(i.into(), 0, 1, Direction::BOTH, None)
-                    .map(|e| e.time.unwrap())
+                let i = g.vertex_ref(i).unwrap();
+                g.vertex_edges_window_t(i, 0, 1, Direction::BOTH, None)
+                    .map(|e| e.time().unwrap())
                     .sorted()
                     .collect::<Vec<_>>()
             })
@@ -1277,20 +1350,12 @@ mod db_tests {
         g.add_edge(0, 33, 11, &vec![], None).unwrap();
         g.add_vertex(0, 11, &vec![("temp".to_string(), Prop::Bool(true))])
             .unwrap();
-
-        let edges11 = g
-            .vertex_edges_window(11.into(), 0, 1, Direction::OUT, None)
-            .collect_vec();
-        let _edge1122 = *edges11.iter().find(|e| e.dst_g_id == 22).unwrap();
-        let edge1111 = *edges11.iter().find(|e| e.dst_g_id == 11).unwrap();
-        let edge2233 = g
-            .vertex_edges_window(22.into(), 0, 1, Direction::OUT, None)
-            .next()
-            .unwrap();
-        let edge3311 = g
-            .vertex_edges_window(33.into(), 0, 1, Direction::OUT, None)
-            .next()
-            .unwrap();
+        let v11 = g.vertex_ref(11).unwrap();
+        let v22 = g.vertex_ref(22).unwrap();
+        let v33 = g.vertex_ref(33).unwrap();
+        let edge1111 = g.edge_ref(11.into(), 11.into(), 0).unwrap();
+        let edge2233 = g.edge_ref(v22.into(), v33.into(), 0).unwrap();
+        let edge3311 = g.edge_ref(v33.into(), v11.into(), 0).unwrap();
 
         g.add_vertex_properties(
             11,
@@ -1309,30 +1374,30 @@ mod db_tests {
         g.add_edge_properties(33, 11, &vec![("a".to_string(), Prop::U64(3311))], None)
             .unwrap();
 
-        assert_eq!(g.static_vertex_prop_names(11.into()), vec!["a", "b", "c"]);
-        assert_eq!(g.static_vertex_prop_names(22.into()), vec!["b"]);
-        assert!(g.static_vertex_prop_names(33.into()).is_empty());
+        assert_eq!(g.static_vertex_prop_names(v11), vec!["a", "b", "c"]);
+        assert_eq!(g.static_vertex_prop_names(v22), vec!["b"]);
+        assert!(g.static_vertex_prop_names(v33).is_empty());
         assert_eq!(g.static_edge_prop_names(edge1111), vec!["d"]);
         assert_eq!(g.static_edge_prop_names(edge3311), vec!["a"]);
         assert!(g.static_edge_prop_names(edge2233).is_empty());
 
         assert_eq!(
-            g.static_vertex_prop(11.into(), "a".to_string()),
+            g.static_vertex_prop(v11, "a".to_string()),
             Some(Prop::U64(11))
         );
         assert_eq!(
-            g.static_vertex_prop(11.into(), "b".to_string()),
+            g.static_vertex_prop(v11, "b".to_string()),
             Some(Prop::I64(11))
         );
         assert_eq!(
-            g.static_vertex_prop(11.into(), "c".to_string()),
+            g.static_vertex_prop(v11, "c".to_string()),
             Some(Prop::U32(11))
         );
         assert_eq!(
-            g.static_vertex_prop(22.into(), "b".to_string()),
+            g.static_vertex_prop(v22, "b".to_string()),
             Some(Prop::U64(22))
         );
-        assert_eq!(g.static_vertex_prop(22.into(), "a".to_string()), None);
+        assert_eq!(g.static_vertex_prop(v22, "a".to_string()), None);
         assert_eq!(
             g.static_edge_prop(edge1111, "d".to_string()),
             Some(Prop::U64(1111))
@@ -1387,44 +1452,22 @@ mod db_tests {
             g.add_edge(*t, *src, *dst, &vec![], None).unwrap();
         }
 
+        let local_1 = VertexRef::new_local(0, 1);
+        let remote_2 = VertexRef::Remote(2);
+        let local_3 = VertexRef::new_local(1, 1);
+
         let expected = [
             (
-                vec![
-                    VertexRef {
-                        g_id: 1,
-                        pid: Some(0),
-                    },
-                    VertexRef { g_id: 2, pid: None },
-                ],
-                vec![
-                    VertexRef {
-                        g_id: 1,
-                        pid: Some(0),
-                    },
-                    VertexRef {
-                        g_id: 3,
-                        pid: Some(1),
-                    },
-                    VertexRef { g_id: 2, pid: None },
-                ],
-                vec![VertexRef {
-                    g_id: 1,
-                    pid: Some(0),
-                }],
+                vec![local_1, remote_2],
+                vec![local_1, local_3, remote_2],
+                vec![local_1],
             ),
-            (vec![VertexRef { g_id: 1, pid: None }], vec![], vec![]),
-            (
-                vec![VertexRef {
-                    g_id: 1,
-                    pid: Some(0),
-                }],
-                vec![],
-                vec![],
-            ),
+            (vec![VertexRef::Remote(1)], vec![], vec![]),
+            (vec![local_1], vec![], vec![]),
         ];
         let actual = (1..=3)
             .map(|i| {
-                let i = i.into();
+                let i = g.vertex_ref(i).unwrap();
                 (
                     g.neighbours_window(i, -1, 7, Direction::IN, None)
                         .collect::<Vec<_>>(),
@@ -1939,8 +1982,8 @@ mod db_tests {
     #[test]
     fn test_edge_layer_name() {
         let g = Graph::new(4);
-        g.add_edge(0, 0, 1, &vec![], None);
-        g.add_edge(0, 0, 1, &vec![], Some("awesome name"));
+        g.add_edge(0, 0, 1, &vec![], None).unwrap();
+        g.add_edge(0, 0, 1, &vec![], Some("awesome name")).unwrap();
 
         let layer_names = g.edges().map(|e| e.layer_name()).sorted().collect_vec();
         assert_eq!(layer_names, vec!["awesome name", "default layer"]);

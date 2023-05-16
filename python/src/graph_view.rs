@@ -6,6 +6,7 @@ use crate::utils::{
     PyWindowSet,
 };
 use crate::vertex::{PyVertex, PyVertices};
+use chrono::prelude::*;
 use pyo3::prelude::*;
 use raphtory::db::view_api::layer::LayerOps;
 use raphtory::db::view_api::*;
@@ -50,12 +51,30 @@ impl PyGraphView {
         self.graph.earliest_time()
     }
 
+    /// DateTime of earliest activity in the graph
+    ///
+    /// Returns:
+    ///     the datetime of the earliest activity in the graph
+    pub fn earliest_date_time(&self) -> Option<NaiveDateTime> {
+        let earliest_time = self.graph.earliest_time()?;
+        Some(NaiveDateTime::from_timestamp_millis(earliest_time).unwrap())
+    }
+
     /// Timestamp of latest activity in the graph
     ///
     /// Returns:
     ///     the timestamp of the latest activity in the graph
     pub fn latest_time(&self) -> Option<i64> {
         self.graph.latest_time()
+    }
+
+    /// DateTime of latest activity in the graph
+    ///
+    /// Returns:
+    ///     the datetime of the latest activity in the graph
+    pub fn latest_date_time(&self) -> Option<NaiveDateTime> {
+        let latest_time = self.graph.latest_time()?;
+        Some(NaiveDateTime::from_timestamp_millis(latest_time).unwrap())
     }
 
     /// Number of edges in the graph
@@ -160,6 +179,15 @@ impl PyGraphView {
         self.graph.start()
     }
 
+    /// Returns the default start datetime for perspectives over the view
+    ///
+    /// Returns:
+    ///     the default start datetime for perspectives over the view
+    pub fn start_date_time(&self) -> Option<NaiveDateTime> {
+        let start_time = self.graph.start()?;
+        Some(NaiveDateTime::from_timestamp_millis(start_time).unwrap())
+    }
+
     /// Returns the default end time for perspectives over the view
     ///
     /// Returns:
@@ -171,6 +199,15 @@ impl PyGraphView {
     #[doc = window_size_doc_string!()]
     pub fn window_size(&self) -> Option<u64> {
         self.graph.window_size()
+    }
+
+    /// Returns the default end datetime for perspectives over the view
+    ///
+    /// Returns:
+    ///    the default end datetime for perspectives over the view
+    pub fn end_date_time(&self) -> Option<NaiveDateTime> {
+        let end_time = self.graph.end()?;
+        Some(NaiveDateTime::from_timestamp_millis(end_time).unwrap())
     }
 
     /// Creates a `WindowSet` with the given `step` size and optional `start` and `end` times,    

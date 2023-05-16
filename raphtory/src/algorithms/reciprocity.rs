@@ -44,22 +44,22 @@
 //! println!("all_local_reciprocity: {:?}", all_local_reciprocity(&g, None));
 //! println!("global_reciprocity: {:?}", global_reciprocity(&g, None));
 //! ```
-use crate::core::state::accumulator_id::accumulators;
-use crate::db::program::{GlobalEvalState, LocalState, Program};
-use crate::db::view_api::GraphViewOps;
-use std::collections::{HashMap, HashSet};
 use crate::core::state::accumulator_id::accumulators::sum;
 use crate::core::state::compute_state::{ComputeState, ComputeStateVec};
 use crate::db::task::context::Context;
 use crate::db::task::eval_vertex::EvalVertexView;
 use crate::db::task::task::{ATask, Job, Step};
 use crate::db::task::task_runner::TaskRunner;
+use crate::db::view_api::GraphViewOps;
+use std::collections::{HashMap, HashSet};
 
 struct GlobalReciprocity {}
 
 /// Gets the unique edge counts excluding cycles for a vertex. Returns a tuple of usize
 /// (out neighbours, in neighbours, the intersection of the out and in neighbours)
-fn get_reciprocal_edge_count<G: GraphViewOps, CS: ComputeState>(v: &EvalVertexView<G, CS>) -> (usize, usize, usize) {
+fn get_reciprocal_edge_count<G: GraphViewOps, CS: ComputeState>(
+    v: &EvalVertexView<G, CS>,
+) -> (usize, usize, usize) {
     let out_neighbours: HashSet<u64> = v
         .neighbours_out()
         .map(|n| n.global_id())
@@ -101,23 +101,24 @@ pub fn global_reciprocity<G: GraphViewOps>(g: &G, threads: Option<usize>) -> f64
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
 
-    let (_, global_state, _) = runner.run(
+    runner.run(
         vec![],
         vec![Job::new(step1)],
+        |egs, _, _| {
+            (egs.finalize(&total_out_inter_in) as f64) / (egs.finalize(&total_out_neighbours) as  f64)
+        },
         threads,
         1,
         None,
         None,
-    );
-
-    global_state.inner().read_global(runner.ctx.ss() + 1, &total_out_inter_in)
-        .unwrap_or(0) as f64
-        / global_state.inner().read_global(runner.ctx.ss() + 1, &total_out_neighbours)
-        .unwrap_or(0) as f64
+    )
 }
 
 /// returns the reciprocity of every vertex in the graph as a tuple of
-pub fn all_local_reciprocity<G: GraphViewOps>(g: &G, threads: Option<usize>) -> HashMap<u64, f64> {
+pub fn all_local_reciprocity<G: GraphViewOps>(
+    g: &G,
+    threads: Option<usize>,
+) -> HashMap<String, f64> {
     let mut ctx: Context<G, ComputeStateVec> = g.into();
 
     let min = sum(0);
@@ -136,30 +137,15 @@ pub fn all_local_reciprocity<G: GraphViewOps>(g: &G, threads: Option<usize>) -> 
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
 
-    let (shards_states, _, _) = runner.run(
+    runner.run(
         vec![],
         vec![Job::new(step1)],
+        |_, ess, _| ess.finalize(&min, |min| min),
         threads,
         1,
         None,
         None,
-    );
-
-    let mut results: HashMap<u64, f64> = HashMap::default();
-
-    shards_states.inner().fold_state_internal(
-        runner.ctx.ss(),
-        &mut results,
-        &min,
-        |res, shard, pid, min| {
-            // println!("v0 = {}, taint_history0 = {:?}", pid, taint_history);
-            if let Some(v_ref) = g.lookup_by_pid_and_shard(pid, shard) {
-                res.insert(v_ref.g_id, min);
-            }
-            res
-        },
-    );
-    results
+    )
 }
 
 #[cfg(test)]
@@ -191,10 +177,18 @@ mod reciprocity_test {
         let actual = global_reciprocity(&graph, None);
         assert_eq!(actual, 0.5);
 
-        let expected_vec: Vec<(u64, f64)> =
-            vec![(1, 0.4), (2, 2.0 / 3.0), (3, 0.5), (4, 2.0 / 3.0), (5, 0.0)];
+        let expected_vec: Vec<(String, f64)> = vec![
+            ("1".to_string(), 0.4),
+            ("2".to_string(), 2.0 / 3.0),
+            ("3".to_string(), 0.5),
+            ("4".to_string(), 2.0 / 3.0),
+            ("5".to_string(), 0.0),
+        ];
 
-        let map_names_by_id: HashMap<u64, f64> = expected_vec.iter().map(|x| (x.0, x.1)).collect();
+        let map_names_by_id: HashMap<String, f64> = expected_vec
+            .iter()
+            .map(|x| (x.0.to_string(), x.1))
+            .collect();
 
         let actual = all_local_reciprocity(&graph, None);
         assert_eq!(actual, map_names_by_id);

@@ -1,3 +1,4 @@
+use std::ops::Range;
 use crate::algorithms::*;
 use crate::core::agg::*;
 use crate::core::state::accumulator_id::accumulators::val;
@@ -125,9 +126,15 @@ pub fn hits<G: GraphViewOps>(
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
 
-    let (shard_states, global_state, local_states) = runner.run(
+    let (hub_scores, auth_scores) = runner.run(
         vec![Job::new(step1)],
         vec![Job::new(step2), Job::new(step3), Job::new(step4), step5],
+        |_, _, els| {
+            (
+                els.finalize(&hub_score, |hub_score| hub_score),
+                els.finalize(&auth_score, |auth_score| auth_score),
+            )
+        },
         threads,
         iter_count,
         None,
@@ -136,35 +143,16 @@ pub fn hits<G: GraphViewOps>(
 
     let mut results: FxHashMap<String, (f32, f32)> = FxHashMap::default();
 
-    for state in local_states {
-        if let Some(state) = state.as_ref() {
-            state.fold_state_internal(
-                runner.ctx.ss(),
-                &mut results,
-                &hub_score,
-                |res, shard, pid, hub_score| {
-                    // println!("v0 = {}, taint_history0 = {:?}", pid, taint_history);
-                    if let Some(v_ref) = g.lookup_by_pid_and_shard(pid, shard) {
-                        res.insert(g.vertex(v_ref.g_id).unwrap().name(), (hub_score, 0.0f32));
-                    }
-                    res
-                },
-            );
-            state.fold_state_internal(
-                runner.ctx.ss(),
-                &mut results,
-                &auth_score,
-                |res, shard, pid, auth_score| {
-                    // println!("v0 = {}, taint_history0 = {:?}", pid, taint_history);
-                    if let Some(v_ref) = g.lookup_by_pid_and_shard(pid, shard) {
-                        let (a, _) = res.get(&g.vertex(v_ref.g_id).unwrap().name()).unwrap();
-                        res.insert(g.vertex(v_ref.g_id).unwrap().name(), (*a, auth_score));
-                    }
-                    res
-                },
-            );
-        }
-    }
+    hub_scores
+        .into_iter()
+        .for_each(|(k, v)| {
+            results.insert(k, (v, 0.0));
+        });
+
+    auth_scores.into_iter().for_each(|(k, v)| {
+        let (a, _) = results.get(&k).unwrap();
+        results.insert(k, (*a, v));
+    });
 
     results
 }

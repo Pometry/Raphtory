@@ -54,22 +54,34 @@ pub fn stable_coin_graph(path: Option<String>, num_shards: usize) -> Graph {
 
     let encoded_data_dir = data_dir.join("graphdb.bincode");
 
-    let g = if encoded_data_dir.exists() {
-        let now = Instant::now();
-        let g = Graph::load_from_file(encoded_data_dir.as_path())
-            .expect("Failed to load graph from encoded data files");
+    fn restore_from_bincode(encoded_data_dir: &PathBuf) -> Option<Graph> {
+        if encoded_data_dir.exists() {
+            let now = Instant::now();
+            let g = Graph::load_from_file(encoded_data_dir.as_path())
+                .map_err(|err| {
+                    println!(
+                        "Restoring from bincode failed with error: {}! Reloading file!",
+                        err
+                    )
+                })
+                .ok()?;
 
-        println!(
-            "Loaded graph with {} shards from encoded data files {} with {} vertices, {} edges which took {} seconds",
-            g.num_shards(),
-            encoded_data_dir.to_str().unwrap(),
-            g.num_vertices(),
-            g.num_edges(),
-            now.elapsed().as_secs()
-        );
+            println!(
+                "Loaded graph with {} shards from encoded data files {} with {} vertices, {} edges which took {} seconds",
+                g.num_shards(),
+                encoded_data_dir.to_str().unwrap(),
+                g.num_vertices(),
+                g.num_edges(),
+                now.elapsed().as_secs()
+            );
 
-        g
-    } else {
+            Some(g)
+        } else {
+            None
+        }
+    }
+
+    let g = restore_from_bincode(&encoded_data_dir).unwrap_or_else(|| {
         let g = Graph::new(num_shards);
         let now = Instant::now();
 
@@ -112,7 +124,7 @@ pub fn stable_coin_graph(path: Option<String>, num_shards: usize) -> Graph {
             .expect("Failed to save graph");
 
         g
-    };
+    });
 
     g
 }

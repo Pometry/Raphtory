@@ -38,11 +38,12 @@
 //! println!("local_triangle_count: {:?}", result);
 //! ```
 //!
+use crate::core::vertex_ref::VertexRef;
 use crate::db::view_api::*;
 use itertools::Itertools;
 
 /// calculates the number of triangles (a cycle of length 3) for a node.
-pub fn local_triangle_count<G: GraphViewOps>(graph: &G, v: u64) -> Option<usize> {
+pub fn local_triangle_count<G: GraphViewOps, V: Into<VertexRef>>(graph: &G, v: V) -> Option<usize> {
     if let Some(vertex) = graph.vertex(v) {
         if vertex.degree() >= 2 {
             let x: Vec<usize> = vertex

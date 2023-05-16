@@ -9,7 +9,7 @@ from raphtory import algorithms
 from raphtory import graph_loader
 import tempfile
 from math import isclose
-
+import datetime
 
 def create_graph(num_shards):
     g = Graph(num_shards)
@@ -785,10 +785,10 @@ def test_edge_earliest_latest_time():
     assert g.edge(1, 2).earliest_time() == 0
     assert g.edge(1, 2).latest_time() == 2
 
-    assert g.vertex(1).edges().earliest_time() == [0, 0]
-    assert g.vertex(1).edges().latest_time() == [2, 2]
-    assert g.vertex(1).at(1).edges().earliest_time() == [0, 0]
-    assert g.vertex(1).at(1).edges().latest_time() == [1, 1]
+    assert list(g.vertex(1).edges().earliest_time()) == [0, 0]
+    assert list(g.vertex(1).edges().latest_time()) == [2, 2]
+    assert list(g.vertex(1).at(1).edges().earliest_time()) == [0, 0]
+    assert list(g.vertex(1).at(1).edges().latest_time()) == [1, 1]
 
 
 def test_vertex_earliest_time():
@@ -1019,3 +1019,68 @@ def test_time_index():
     rolling = w.rolling(50)
     time_index = rolling.time_index(center=True)
     assert list(time_index) == [25, 75]
+
+
+def test_datetime_props():
+    g = Graph(4)
+    dt1 = datetime.datetime(2020, 1, 1, 23, 59, 59, 999000)
+    g.add_vertex(0, 0, {"time": dt1})
+    assert g.vertex(0).property("time") == dt1
+
+    dt2 = datetime.datetime(2020, 1, 1, 23, 59, 59, 999999)
+    g.add_vertex(0, 1, {"time": dt2})
+    assert g.vertex(1).property("time") == dt2
+
+    
+def test_date_time():
+    g = Graph(1)
+
+    g.add_edge('2014-02-02', 1, 2)
+    g.add_edge('2014-02-03', 1, 3)
+    g.add_edge('2014-02-04', 1, 4)
+    g.add_edge('2014-02-05', 1, 2)
+
+    assert g.earliest_date_time() == datetime.datetime(2014, 2, 2, 0, 0)
+    assert g.latest_date_time() == datetime.datetime(2014, 2, 5, 0, 0)
+
+    e = g.edge(1, 3)
+    exploded_edges = []
+    for edge in e.explode():
+        exploded_edges.append(edge.date_time())
+    assert exploded_edges == [datetime.datetime(2014, 2, 3)]
+    assert g.edge(1, 2).earliest_date_time() == datetime.datetime(2014, 2, 2, 0, 0)
+    assert g.edge(1, 2).latest_date_time() == datetime.datetime(2014, 2, 5, 0, 0)
+
+    assert g.vertex(1).earliest_date_time() == datetime.datetime(2014, 2, 2, 0, 0)
+    assert g.vertex(1).latest_date_time() == datetime.datetime(2014, 2, 5, 0, 0)
+
+def test_date_time_window():
+    g = Graph(1)
+
+    g.add_edge('2014-02-02', 1, 2)
+    g.add_edge('2014-02-03', 1, 3)
+    g.add_edge('2014-02-04', 1, 4)
+    g.add_edge('2014-02-05', 1, 2)
+    g.add_edge('2014-02-06', 1, 2)
+
+    view = g.window('2014-02-02', '2014-02-04')
+    view2 = g.window('2014-02-02', '2014-02-05')
+
+    assert view.start_date_time() == datetime.datetime(2014, 2, 2, 0, 0)
+    assert view.end_date_time() == datetime.datetime(2014, 2, 4, 0, 0)
+
+    assert view.earliest_date_time() == datetime.datetime(2014, 2, 2, 0, 0)
+    assert view.latest_date_time() == datetime.datetime(2014, 2, 4, 0, 0)
+
+    assert view2.edge(1, 2).start_date_time() == datetime.datetime(2014, 2, 2, 0, 0)
+    assert view2.edge(1, 2).end_date_time() == datetime.datetime(2014, 2, 5, 0, 0)
+
+    assert view.vertex(1).earliest_date_time() == datetime.datetime(2014, 2, 2, 0, 0)
+    assert view.vertex(1).latest_date_time() == datetime.datetime(2014, 2, 3, 0, 0)
+
+    e = view.edge(1, 2)
+    exploded_edges = []
+    for edge in e.explode():
+        exploded_edges.append(edge.date_time())
+    assert exploded_edges == [datetime.datetime(2014, 2, 2)]
+

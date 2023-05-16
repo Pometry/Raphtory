@@ -1,4 +1,5 @@
-use crate::core::tgraph::{EdgeRef, VertexRef};
+use crate::core::edge_ref::EdgeRef;
+use crate::core::vertex_ref::{LocalVertexRef, VertexRef};
 use crate::core::{Direction, Prop};
 use std::collections::HashMap;
 use std::ops::Range;
@@ -6,6 +7,21 @@ use std::ops::Range;
 /// The GraphViewInternalOps trait provides a set of methods to query a directed graph
 /// represented by the raphtory_core::tgraph::TGraph struct.
 pub trait GraphViewInternalOps {
+    /// Gets the local reference for a remote vertex and keeps local references unchanged. Assumes vertex exists!
+    fn localise_vertex_unchecked(&self, v: VertexRef) -> LocalVertexRef {
+        match v {
+            VertexRef::Local(v) => v,
+            VertexRef::Remote(g_id) => self.vertex_ref(g_id).expect("Vertex should already exists"),
+        }
+    }
+
+    /// Check if a vertex exists locally and returns local reference.
+    fn local_vertex(&self, v: VertexRef) -> Option<LocalVertexRef>;
+
+    /// Check if a vertex exists locally in the window and returns local reference.
+    fn local_vertex_window(&self, v: VertexRef, t_start: i64, t_end: i64)
+        -> Option<LocalVertexRef>;
+
     fn get_unique_layers_internal(&self) -> Vec<String>;
 
     fn get_layer_name_by_id(&self, layer_id: usize) -> String;
@@ -98,39 +114,46 @@ pub trait GraphViewInternalOps {
     /// (v) based on the direction (d).
     /// # Arguments
     ///
-    /// * `v` - VertexRef of the vertex to check.
+    /// * `v` - LocalVertexRef of the vertex to check.
     /// * `d` - Direction of the edges to count.
-    fn degree(&self, v: VertexRef, d: Direction, layer: Option<usize>) -> usize;
+    fn degree(&self, v: LocalVertexRef, d: Direction, layer: Option<usize>) -> usize;
 
     /// Returns the number of edges that point towards or from the specified vertex (v)
     /// created between the start (t_start) and end (t_end) timestamps (inclusive) based
     /// on the direction (d).
     /// # Arguments
     ///
-    /// * `v` - VertexRef of the vertex to check.
+    /// * `v` - LocalVertexRef of the vertex to check.
     /// * `t_start` - The start time of the window (inclusive).
     /// * `t_end` - The end time of the window (exclusive).
     fn degree_window(
         &self,
-        v: VertexRef,
+        v: LocalVertexRef,
         t_start: i64,
         t_end: i64,
         d: Direction,
         layer: Option<usize>,
     ) -> usize;
 
-    /// Returns the VertexRef that corresponds to the specified vertex ID (v).
+    /// Returns the LocalVertexRef that corresponds to the specified vertex ID (v).
     /// Returns None if the vertex ID is not present in the graph.
     /// # Arguments
     ///
     /// * `v` - The vertex ID to lookup.
-    fn vertex_ref(&self, v: u64) -> Option<VertexRef>;
+    fn vertex_ref(&self, v: u64) -> Option<LocalVertexRef>;
 
-    /// Returns the VertexRef that corresponds to the specified phisical id
-    /// (pid) and shard.
-    fn lookup_by_pid_and_shard(&self, pid: usize, shard: usize) -> Option<VertexRef>;
+    /// Returns the global ID for a vertex
+    fn vertex_id(&self, v: LocalVertexRef) -> u64;
 
-    /// Returns the VertexRef that corresponds to the specified vertex ID (v) created
+    /// Returns the string name for a vertex
+    fn vertex_name(&self, v: LocalVertexRef) -> String {
+        match self.static_vertex_prop(v, "_id".to_string()) {
+            None => self.vertex_id(v).to_string(),
+            Some(prop) => prop.to_string(),
+        }
+    }
+
+    /// Returns the LocalVertexRef that corresponds to the specified vertex ID (v) created
     /// between the start (t_start) and end (t_end) timestamps (inclusive).
     /// Returns None if the vertex ID is not present in the graph.
     /// # Arguments
@@ -140,26 +163,32 @@ pub trait GraphViewInternalOps {
     /// * `t_end` - The end time of the window (exclusive).
     ///
     /// # Returns
-    /// * `Option<VertexRef>` - The VertexRef of the vertex if it exists in the graph.
-    fn vertex_ref_window(&self, v: u64, t_start: i64, t_end: i64) -> Option<VertexRef>;
+    /// * `Option<LocalVertexRef>` - The LocalVertexRef of the vertex if it exists in the graph.
+    fn vertex_ref_window(&self, v: u64, t_start: i64, t_end: i64) -> Option<LocalVertexRef>;
 
     /// Return the earliest time for a vertex
-    fn vertex_earliest_time(&self, v: VertexRef) -> Option<i64>;
+    fn vertex_earliest_time(&self, v: LocalVertexRef) -> Option<i64>;
 
     /// Return the earliest time for a vertex in a window
-    fn vertex_earliest_time_window(&self, v: VertexRef, t_start: i64, t_end: i64) -> Option<i64>;
+    fn vertex_earliest_time_window(
+        &self,
+        v: LocalVertexRef,
+        t_start: i64,
+        t_end: i64,
+    ) -> Option<i64>;
 
     /// Return the latest time for a vertex
-    fn vertex_latest_time(&self, v: VertexRef) -> Option<i64>;
+    fn vertex_latest_time(&self, v: LocalVertexRef) -> Option<i64>;
 
     /// Return the latest time for a vertex in a window
-    fn vertex_latest_time_window(&self, v: VertexRef, t_start: i64, t_end: i64) -> Option<i64>;
+    fn vertex_latest_time_window(&self, v: LocalVertexRef, t_start: i64, t_end: i64)
+        -> Option<i64>;
 
     /// Returns all the vertex references in the graph.
     /// # Returns
-    /// * `Box<dyn Iterator<Item = VertexRef> + Send>` - An iterator over all the vertex
+    /// * `Box<dyn Iterator<Item = LocalVertexRef> + Send>` - An iterator over all the vertex
     /// references in the graph.
-    fn vertex_refs(&self) -> Box<dyn Iterator<Item = VertexRef> + Send>;
+    fn vertex_refs(&self) -> Box<dyn Iterator<Item = LocalVertexRef> + Send>;
 
     /// Returns all the vertex references in the graph created between the start (t_start) and
     /// end (t_end) timestamps (inclusive).
@@ -169,14 +198,14 @@ pub trait GraphViewInternalOps {
     /// * `t_end` - The end time of the window (exclusive).
     ///
     /// # Returns
-    /// * `Box<dyn Iterator<Item = VertexRef> + Send>` - An iterator over all the vertexes
+    /// * `Box<dyn Iterator<Item = LocalVertexRef> + Send>` - An iterator over all the vertexes
     fn vertex_refs_window(
         &self,
         t_start: i64,
         t_end: i64,
-    ) -> Box<dyn Iterator<Item = VertexRef> + Send>;
+    ) -> Box<dyn Iterator<Item = LocalVertexRef> + Send>;
 
-    fn vertex_refs_shard(&self, shard: usize) -> Box<dyn Iterator<Item = VertexRef> + Send>;
+    fn vertex_refs_shard(&self, shard: usize) -> Box<dyn Iterator<Item = LocalVertexRef> + Send>;
 
     /// Returns all the vertex references in the graph that are in the specified shard.
     /// Between the start (t_start) and end (t_end)
@@ -187,13 +216,13 @@ pub trait GraphViewInternalOps {
     /// t_end - The end time of the window (exclusive).
     ///
     /// # Returns
-    /// * `Box<dyn Iterator<Item = VertexRef> + Send>` - An iterator over all the vertexes
+    /// * `Box<dyn Iterator<Item = LocalVertexRef> + Send>` - An iterator over all the vertexes
     fn vertex_refs_window_shard(
         &self,
         shard: usize,
         t_start: i64,
         t_end: i64,
-    ) -> Box<dyn Iterator<Item = VertexRef> + Send>;
+    ) -> Box<dyn Iterator<Item = LocalVertexRef> + Send>;
 
     /// Returns the edge reference that corresponds to the specified src and dst vertex
     /// # Arguments
@@ -266,7 +295,7 @@ pub trait GraphViewInternalOps {
     /// the edges connected to the vertex.
     fn vertex_edges(
         &self,
-        v: VertexRef,
+        v: LocalVertexRef,
         d: Direction,
         layer: Option<usize>,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send>;
@@ -284,7 +313,7 @@ pub trait GraphViewInternalOps {
     /// the edges connected to the vertex.
     fn vertex_edges_t(
         &self,
-        v: VertexRef,
+        v: LocalVertexRef,
         d: Direction,
         layer: Option<usize>,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send>;
@@ -305,7 +334,7 @@ pub trait GraphViewInternalOps {
     /// to the edges connected to the vertex within the specified time window.
     fn vertex_edges_window(
         &self,
-        v: VertexRef,
+        v: LocalVertexRef,
         t_start: i64,
         t_end: i64,
         d: Direction,
@@ -328,7 +357,7 @@ pub trait GraphViewInternalOps {
     ///  within the specified time window but exploded.
     fn vertex_edges_window_t(
         &self,
-        v: VertexRef,
+        v: LocalVertexRef,
         t_start: i64,
         t_end: i64,
         d: Direction,
@@ -347,7 +376,7 @@ pub trait GraphViewInternalOps {
     /// A boxed iterator that yields references to the neighboring vertices.
     fn neighbours(
         &self,
-        v: VertexRef,
+        v: LocalVertexRef,
         d: Direction,
         layer: Option<usize>,
     ) -> Box<dyn Iterator<Item = VertexRef> + Send>;
@@ -366,7 +395,7 @@ pub trait GraphViewInternalOps {
     /// A boxed iterator that yields references to the neighboring vertices within the specified time window.
     fn neighbours_window(
         &self,
-        v: VertexRef,
+        v: LocalVertexRef,
         t_start: i64,
         t_end: i64,
         d: Direction,
@@ -383,7 +412,7 @@ pub trait GraphViewInternalOps {
     /// # Returns
     ///
     /// Option<Prop> - The property value if it exists.
-    fn static_vertex_prop(&self, v: VertexRef, name: String) -> Option<Prop>;
+    fn static_vertex_prop(&self, v: LocalVertexRef, name: String) -> Option<Prop>;
 
     /// Gets the keys of static properties of a given vertex
     ///
@@ -394,7 +423,7 @@ pub trait GraphViewInternalOps {
     /// # Returns
     ///
     /// Vec<String> - The keys of the static properties.
-    fn static_vertex_prop_names(&self, v: VertexRef) -> Vec<String>;
+    fn static_vertex_prop_names(&self, v: LocalVertexRef) -> Vec<String>;
 
     /// Returns a vector of all names of temporal properties within the given vertex
     ///
@@ -405,7 +434,7 @@ pub trait GraphViewInternalOps {
     /// # Returns
     ///
     /// A vector of strings representing the names of the temporal properties
-    fn temporal_vertex_prop_names(&self, v: VertexRef) -> Vec<String>;
+    fn temporal_vertex_prop_names(&self, v: LocalVertexRef) -> Vec<String>;
 
     /// Returns a vector of all temporal values of the vertex property with the given name for the
     /// given vertex
@@ -420,7 +449,7 @@ pub trait GraphViewInternalOps {
     /// A vector of tuples representing the temporal values of the property for the given vertex
     /// that fall within the specified time window, where the first element of each tuple is the timestamp
     /// and the second element is the property value.
-    fn temporal_vertex_prop_vec(&self, v: VertexRef, name: String) -> Vec<(i64, Prop)>;
+    fn temporal_vertex_prop_vec(&self, v: LocalVertexRef, name: String) -> Vec<(i64, Prop)>;
 
     /// Returns a vector of all temporal values of the vertex
     ///
@@ -431,7 +460,7 @@ pub trait GraphViewInternalOps {
     /// # Returns
     ///
     /// A vector of timestamps representing the temporal values for the given vertex.
-    fn vertex_timestamps(&self, v: VertexRef) -> Vec<i64>;
+    fn vertex_timestamps(&self, v: LocalVertexRef) -> Vec<i64>;
 
     /// Returns a vector of all temporal values of the vertex for a given window.
     ///
@@ -444,7 +473,7 @@ pub trait GraphViewInternalOps {
     /// # Returns
     ///
     /// A vector of timestamps representing the temporal values for the given vertex in a given window.
-    fn vertex_timestamps_window(&self, v: VertexRef, t_start: i64, t_end: i64) -> Vec<i64>;
+    fn vertex_timestamps_window(&self, v: LocalVertexRef, t_start: i64, t_end: i64) -> Vec<i64>;
 
     /// Returns a vector of all temporal values of the vertex property with the given name for the given vertex
     /// that fall within the specified time window.
@@ -463,7 +492,7 @@ pub trait GraphViewInternalOps {
     /// and the second element is the property value.
     fn temporal_vertex_prop_vec_window(
         &self,
-        v: VertexRef,
+        v: LocalVertexRef,
         name: String,
         t_start: i64,
         t_end: i64,
@@ -478,7 +507,7 @@ pub trait GraphViewInternalOps {
     ///
     /// # Returns
     /// - A map of all temporal values of the vertex properties for the given vertex.
-    fn temporal_vertex_props(&self, v: VertexRef) -> HashMap<String, Vec<(i64, Prop)>>;
+    fn temporal_vertex_props(&self, v: LocalVertexRef) -> HashMap<String, Vec<(i64, Prop)>>;
 
     /// Returns a map of all temporal values of the vertex properties for the given vertex
     /// that fall within the specified time window.
@@ -493,7 +522,7 @@ pub trait GraphViewInternalOps {
     /// - A map of all temporal values of the vertex properties for the given vertex
     fn temporal_vertex_props_window(
         &self,
-        v: VertexRef,
+        v: LocalVertexRef,
         t_start: i64,
         t_end: i64,
     ) -> HashMap<String, Vec<(i64, Prop)>>;
@@ -611,12 +640,12 @@ pub trait GraphViewInternalOps {
 
     fn num_shards(&self) -> usize;
 
-    fn vertices_shard(&self, shard_id: usize) -> Box<dyn Iterator<Item = VertexRef> + Send>;
+    fn vertices_shard(&self, shard_id: usize) -> Box<dyn Iterator<Item = LocalVertexRef> + Send>;
 
     fn vertices_shard_window(
         &self,
         shard_id: usize,
         t_start: i64,
         t_end: i64,
-    ) -> Box<dyn Iterator<Item = VertexRef> + Send>;
+    ) -> Box<dyn Iterator<Item = LocalVertexRef> + Send>;
 }

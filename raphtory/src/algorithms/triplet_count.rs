@@ -41,6 +41,7 @@ use crate::db::task::context::Context;
 use crate::db::task::task::{ATask, Job, Step};
 use crate::db::task::task_runner::TaskRunner;
 use crate::db::view_api::GraphViewOps;
+use futures::TryFutureExt;
 
 /// Computes the number of both open and closed triplets within a graph
 ///
@@ -78,8 +79,7 @@ use crate::db::view_api::GraphViewOps;
 ///  println!("triplet count: {}", results);
 /// ```
 ///
-pub fn triplet_count<G: GraphViewOps>(g: &G, threads: Option<usize>,) -> usize {
-
+pub fn triplet_count<G: GraphViewOps>(g: &G, threads: Option<usize>) -> usize {
     /// Source: https://stackoverflow.com/questions/65561566/number-of-combinations-permutations
     fn count_two_combinations(n: u64) -> u64 {
         ((0.5 * n as f64) * (n - 1) as f64) as u64
@@ -103,16 +103,15 @@ pub fn triplet_count<G: GraphViewOps>(g: &G, threads: Option<usize>,) -> usize {
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
 
-    let (_, global_state, _) = runner.run(
+    runner.run(
         vec![],
         vec![Job::new(step1)],
+        |egs, _, _| egs.finalize(&count),
         threads,
         1,
         None,
         None,
-    );
-
-    global_state.inner().read_global(runner.ctx.ss() + 1, &count).unwrap()
+    )
 }
 
 #[cfg(test)]

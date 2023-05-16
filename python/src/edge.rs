@@ -8,7 +8,9 @@ use crate::dynamic::{DynamicGraph, IntoDynamic};
 use crate::types::repr::{iterator_repr, Repr};
 use crate::utils::*;
 use crate::vertex::{PyVertex, PyVertexIterable};
+use crate::wrappers::iterators::{I64Iterable, OptionPropIterable};
 use crate::wrappers::prop::Prop;
+use chrono::NaiveDateTime;
 use itertools::Itertools;
 use pyo3::prelude::*;
 use pyo3::{pyclass, pymethods, PyAny, PyRef, PyRefMut, PyResult};
@@ -192,12 +194,30 @@ impl PyEdge {
         self.edge.start()
     }
 
+    /// Get the start datetime of the Edge.
+    ///
+    /// Returns:
+    ///     the start datetime of the Edge.
+    pub fn start_date_time(&self) -> Option<NaiveDateTime> {
+        let start_time = self.edge.start()?;
+        Some(NaiveDateTime::from_timestamp_millis(start_time).unwrap())
+    }
+
     /// Get the end time of the Edge.
     ///
     /// Returns:
     ///   The end time of the Edge.
     pub fn end(&self) -> Option<i64> {
         self.edge.end()
+    }
+
+    /// Get the end datetime of the Edge.
+    ///
+    /// Returns:
+    ///    The end datetime of the Edge
+    pub fn end_date_time(&self) -> Option<NaiveDateTime> {
+        let end_time = self.edge.end()?;
+        Some(NaiveDateTime::from_timestamp_millis(end_time).unwrap())
     }
 
     /// Get the duration of the Edge.
@@ -275,12 +295,29 @@ impl PyEdge {
         self.edge.earliest_time()
     }
 
+    /// Gets of earliest datetime of an edge.
+    ///
+    /// Returns:
+    ///     the earliest datetime of an edge
+    pub fn earliest_date_time(&self) -> Option<NaiveDateTime> {
+        Some(NaiveDateTime::from_timestamp_millis(self.edge.earliest_time()?).unwrap())
+    }
+
     /// Gets the latest time of an edge.
     ///
     /// Returns:
     ///     (int) The latest time of an edge
     pub fn latest_time(&self) -> Option<i64> {
         self.edge.latest_time()
+    }
+
+    /// Gets of latest datetime of an edge.
+    ///
+    /// Returns:
+    ///     the latest datetime of an edge
+    pub fn latest_date_time(&self) -> Option<NaiveDateTime> {
+        let latest_time = self.edge.latest_time()?;
+        Some(NaiveDateTime::from_timestamp_millis(latest_time).unwrap())
     }
 
     /// Gets the time of an exploded edge.
@@ -297,6 +334,15 @@ impl PyEdge {
     ///     (str) The name of the layer
     pub fn layer_name(&self) -> String {
         self.edge.layer_name()
+    }
+
+    /// Gets the datetime of an exploded edge.
+    ///
+    /// Returns:
+    ///     (datetime) the datetime of an exploded edge
+    pub fn date_time(&self) -> Option<NaiveDateTime> {
+        let date_time = self.edge.time()?;
+        Some(NaiveDateTime::from_timestamp_millis(date_time).unwrap())
     }
 
     /// Displays the Edge as a string.
@@ -410,13 +456,26 @@ impl PyEdges {
     }
 
     /// Returns the earliest time of the edges.
-    fn earliest_time(&self) -> Vec<Option<i64>> {
-        self.py_iter().map(|e| e.earliest_time()).collect()
+    fn earliest_time(&self) -> I64Iterable {
+        let edges: Arc<
+            dyn Fn() -> Box<dyn Iterator<Item = EdgeView<DynamicGraph>> + Send> + Send + Sync,
+        > = self.builder.clone();
+        (move || edges().earliest_time()).into()
     }
 
     /// Returns the latest time of the edges.
-    fn latest_time(&self) -> Vec<Option<i64>> {
-        self.py_iter().map(|e| e.latest_time()).collect()
+    fn latest_time(&self) -> I64Iterable {
+        let edges: Arc<
+            dyn Fn() -> Box<dyn Iterator<Item = EdgeView<DynamicGraph>> + Send> + Send + Sync,
+        > = self.builder.clone();
+        (move || edges().latest_time()).into()
+    }
+
+    fn property(&self, name: String, include_static: Option<bool>) -> OptionPropIterable {
+        let edges: Arc<
+            dyn Fn() -> Box<dyn Iterator<Item = EdgeView<DynamicGraph>> + Send> + Send + Sync,
+        > = self.builder.clone();
+        (move || edges().property(name.clone(), include_static.unwrap_or(true))).into()
     }
 
     fn __repr__(&self) -> String {

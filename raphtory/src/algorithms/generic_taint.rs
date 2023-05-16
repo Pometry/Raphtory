@@ -1,22 +1,15 @@
 use crate::algorithms::*;
-use crate::core::agg::set::Set;
-use crate::core::agg::*;
 use crate::core::state::accumulator_id::accumulators::{hash_set, min, or, val};
-use crate::core::state::accumulator_id::{accumulators, AccId};
 use crate::core::state::compute_state::ComputeStateVec;
 use crate::core::vertex::InputVertex;
-use crate::db::program::*;
 use crate::db::task::context::Context;
 use crate::db::task::task::{ATask, Job, Step};
 use crate::db::task::task_runner::TaskRunner;
-use crate::db::view_api::{GraphViewOps, VertexViewOps};
+use crate::db::view_api::GraphViewOps;
 use itertools::Itertools;
-use rustc_hash::{FxHashMap, FxHashSet};
-use std::collections::{HashMap, HashSet};
-use std::sync::{Arc, Mutex};
-use futures::AsyncReadExt;
-use crate::core::state::shuffle_state::ShuffleComputeState;
-use crate::db::task::task_state::Shard;
+use std::collections::HashMap;
+use std::ops::Add;
+use num_traits::Zero;
 
 #[derive(Eq, Hash, PartialEq, Clone, Debug, Default)]
 pub struct TaintMessage {
@@ -47,9 +40,9 @@ impl Zero for TaintMessage {
     fn is_zero(&self) -> bool {
         *self
             == TaintMessage {
-            event_time: -1,
-            src_vertex: "".to_string(),
-        }
+                event_time: -1,
+                src_vertex: "".to_string(),
+            }
     }
 }
 
@@ -128,19 +121,20 @@ pub fn generic_taint<G: GraphViewOps, T: InputVertex>(
             // println!("v = {}, taint_history = {:?}", evv.global_id(), evv.read(&taint_history));
 
             if stop_nodes.is_empty() || !stop_nodes.contains(&evv.global_id()) {
-                evv.out_edges(evv.read(&earliest_taint_time)).for_each(|eev| {
-                    let dst = eev.dst();
-                    eev.history().into_iter().for_each(|t| {
-                        dst.update(&earliest_taint_time, t);
-                        dst.update(
-                            &recv_tainted_msgs,
-                            TaintMessage {
-                                event_time: t,
-                                src_vertex: evv.name(),
-                            },
-                        )
+                evv.out_edges(evv.read(&earliest_taint_time))
+                    .for_each(|eev| {
+                        let dst = eev.dst();
+                        eev.history().into_iter().for_each(|t| {
+                            dst.update(&earliest_taint_time, t);
+                            dst.update(
+                                &recv_tainted_msgs,
+                                TaintMessage {
+                                    event_time: t,
+                                    src_vertex: evv.name(),
+                                },
+                            )
+                        });
                     });
-                });
             }
         }
         Step::Continue
@@ -162,37 +156,22 @@ pub fn generic_taint<G: GraphViewOps, T: InputVertex>(
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
 
-    let (shard_states, _, _) = runner.run(
+    runner.run(
         vec![Job::new(step1)],
         vec![Job::new(step2), step3],
+        |_, ess, _| {
+            ess.finalize(&taint_history, |taint_history| {
+                taint_history
+                    .into_iter()
+                    .map(|tmsg| (tmsg.event_time, tmsg.src_vertex))
+                    .collect_vec()
+            })
+        },
         threads,
         iter_count,
         None,
         None,
-    );
-
-    let mut results: HashMap<String, Vec<(i64, String)>> = HashMap::default();
-
-    shard_states.inner().fold_state_internal(
-        runner.ctx.ss(),
-        &mut results,
-        &taint_history,
-        |res, shard, pid, taint_history| {
-            // println!("v0 = {}, taint_history0 = {:?}", pid, taint_history);
-            if let Some(v_ref) = g.lookup_by_pid_and_shard(pid, shard) {
-                res.insert(
-                    g.vertex(v_ref.g_id).unwrap().name(),
-                    taint_history
-                        .into_iter()
-                        .map(|tmsg| (tmsg.event_time, tmsg.src_vertex))
-                        .collect_vec(),
-                );
-            }
-            res
-        },
-    );
-
-    results
+    )
 }
 
 #[cfg(test)]
@@ -224,11 +203,12 @@ mod generic_taint_tests {
             infected_nodes,
             stop_nodes,
         )
-            .into_iter()
-            .map(|(k, mut v)| {
-                v.sort();
-                (k, v)
-            }).collect_vec();
+        .into_iter()
+        .map(|(k, mut v)| {
+            v.sort();
+            (k, v)
+        })
+        .collect_vec();
 
         results.sort();
         results
@@ -257,15 +237,9 @@ mod generic_taint_tests {
         assert_eq!(
             results,
             Vec::from([
-                (
-                    "1".to_string(),
-                    vec![]
-                ),
+                ("1".to_string(), vec![]),
                 ("2".to_string(), vec![(11, "start".to_string())]),
-                (
-                    "3".to_string(),
-                    vec![]
-                ),
+                ("3".to_string(), vec![]),
                 (
                     "4".to_string(),
                     vec![(12, "2".to_string()), (14, "5".to_string())]
@@ -274,10 +248,7 @@ mod generic_taint_tests {
                     "5".to_string(),
                     vec![(13, "2".to_string()), (14, "5".to_string())]
                 ),
-                (
-                    "6".to_string(),
-                    vec![]
-                ),
+                ("6".to_string(), vec![]),
                 ("7".to_string(), vec![(15, "4".to_string())]),
             ])
         );
@@ -306,15 +277,12 @@ mod generic_taint_tests {
         assert_eq!(
             results,
             Vec::from([
+                ("1".to_string(), vec![(11, "start".to_string())]),
                 (
-                    "1".to_string(),
-                    vec![(11, "start".to_string())]
+                    "2".to_string(),
+                    vec![(11, "1".to_string()), (11, "start".to_string())]
                 ),
-                ("2".to_string(), vec![(11, "1".to_string()), (11, "start".to_string())]),
-                (
-                    "3".to_string(),
-                    vec![]
-                ),
+                ("3".to_string(), vec![]),
                 (
                     "4".to_string(),
                     vec![(12, "2".to_string()), (14, "5".to_string())]
@@ -323,10 +291,7 @@ mod generic_taint_tests {
                     "5".to_string(),
                     vec![(13, "2".to_string()), (14, "5".to_string())]
                 ),
-                (
-                    "6".to_string(),
-                    vec![]
-                ),
+                ("6".to_string(), vec![]),
                 ("7".to_string(), vec![(15, "4".to_string())]),
             ])
         );
@@ -355,23 +320,14 @@ mod generic_taint_tests {
         assert_eq!(
             results,
             Vec::from([
+                ("1".to_string(), vec![(11, "start".to_string())]),
                 (
-                    "1".to_string(),
-                    vec![(11, "start".to_string())]
+                    "2".to_string(),
+                    vec![(11, "1".to_string()), (11, "start".to_string())]
                 ),
-                ("2".to_string(), vec![(11, "1".to_string()), (11, "start".to_string())]),
-                (
-                    "3".to_string(),
-                    vec![]
-                ),
-                (
-                    "4".to_string(),
-                    vec![(12, "2".to_string())]
-                ),
-                (
-                    "5".to_string(),
-                    vec![(13, "2".to_string())]
-                ),
+                ("3".to_string(), vec![]),
+                ("4".to_string(), vec![(12, "2".to_string())]),
+                ("5".to_string(), vec![(13, "2".to_string())]),
             ])
         );
     }
@@ -401,23 +357,18 @@ mod generic_taint_tests {
         assert_eq!(
             results,
             Vec::from([
+                ("1".to_string(), vec![(11, "start".to_string())]),
                 (
-                    "1".to_string(),
-                    vec![(11, "start".to_string())]
+                    "2".to_string(),
+                    vec![
+                        (11, "1".to_string()),
+                        (11, "start".to_string()),
+                        (12, "1".to_string())
+                    ]
                 ),
-                ("2".to_string(), vec![(11, "1".to_string()), (11, "start".to_string()), (12, "1".to_string())]),
-                (
-                    "3".to_string(),
-                    vec![]
-                ),
-                (
-                    "4".to_string(),
-                    vec![(12, "2".to_string())]
-                ),
-                (
-                    "5".to_string(),
-                    vec![(13, "2".to_string())]
-                ),
+                ("3".to_string(), vec![]),
+                ("4".to_string(), vec![(12, "2".to_string())]),
+                ("5".to_string(), vec![(13, "2".to_string())]),
             ])
         );
     }

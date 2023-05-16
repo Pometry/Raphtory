@@ -1,14 +1,9 @@
-use rand_distr::weighted_alias::AliasableWeight;
-use std::{
-    borrow::Cow,
-    cell::{Ref, RefCell},
-    rc::Rc,
-    sync::Arc,
-};
-
-use crate::core::tgraph::EdgeRef;
+use crate::core::edge_ref::EdgeRef;
+use crate::core::vertex_ref::VertexRef;
 use crate::db::edge::EdgeView;
 use crate::db::vertex::VertexView;
+use crate::db::view_api::internal::GraphViewInternalOps;
+use crate::db::view_api::VertexViewOps;
 use crate::{
     core::{
         agg::Accumulator,
@@ -16,11 +11,19 @@ use crate::{
             accumulator_id::AccId, compute_state::ComputeState, shuffle_state::ShuffleComputeState,
             StateType,
         },
-        tgraph::VertexRef,
+        vertex_ref::LocalVertexRef,
     },
-    db::{view_api::{GraphViewOps, VertexViewOps, TimeOps}, graph_window::WindowedGraph},
+    db::{
+        graph_window::WindowedGraph,
+        view_api::{GraphViewOps, TimeOps},
+    },
 };
-use crate::db::view_api::internal::GraphViewInternalOps;
+use std::{
+    borrow::Cow,
+    cell::{Ref, RefCell},
+    rc::Rc,
+    sync::Arc,
+};
 
 pub struct EvalVertexView<'a, G: GraphViewOps, CS: ComputeState> {
     ss: usize,
@@ -31,6 +34,23 @@ pub struct EvalVertexView<'a, G: GraphViewOps, CS: ComputeState> {
 }
 
 impl<'a, G: GraphViewOps, CS: ComputeState> EvalVertexView<'a, G, CS> {
+    pub fn new_local(
+        ss: usize,
+        vertex: LocalVertexRef,
+        g: Arc<G>,
+        shard_state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
+        global_state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
+        local_state: Rc<RefCell<ShuffleComputeState<CS>>>,
+    ) -> Self {
+        Self {
+            ss,
+            vv: VertexView::new(g, vertex.into()),
+            shard_state,
+            global_state,
+            local_state,
+        }
+    }
+
     pub fn new(
         ss: usize,
         vertex: VertexRef,
@@ -39,9 +59,10 @@ impl<'a, G: GraphViewOps, CS: ComputeState> EvalVertexView<'a, G, CS> {
         global_state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
         local_state: Rc<RefCell<ShuffleComputeState<CS>>>,
     ) -> Self {
+        let v = g.localise_vertex_unchecked(vertex).into();
         Self {
             ss,
-            vv: VertexView::new(g, vertex),
+            vv: VertexView::new(g, v),
             shard_state,
             global_state,
             local_state,
@@ -64,21 +85,12 @@ impl<'a, G: GraphViewOps, CS: ComputeState> EvalVertexView<'a, G, CS> {
         }
     }
 
-    pub fn global_id(&self) -> u64 {
-        self.vv.id()
+    fn pid(&self) -> usize {
+        self.vv.vertex.pid
     }
 
-    // TODO: do we always look-up the pid in the graph? or when calling neighbours we look-it up?
-    fn pid(&self) -> usize {
-        if let Some(pid) = self.vv.vertex.pid {
-            pid
-        } else {
-            self.vv
-                .graph
-                .vertex_ref(self.global_id())
-                .and_then(|v_ref| v_ref.pid)
-                .unwrap()
-        }
+    pub fn global_id(&self) -> u64 {
+        self.vv.id()
     }
 
     pub fn name(&self) -> String {
@@ -303,9 +315,9 @@ impl<'a, G: GraphViewOps, CS: ComputeState> EvalVertexView<'a, G, CS> {
         &self,
         agg_r: &AccId<A, IN, OUT, ACC>,
     ) -> OUT
-        where
-            A: StateType,
-            OUT: std::fmt::Debug,
+    where
+        A: StateType,
+        OUT: std::fmt::Debug,
     {
         self.global_state
             .borrow()

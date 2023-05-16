@@ -1,12 +1,9 @@
 use crate::core::state::accumulator_id::accumulators;
 use crate::core::state::compute_state::ComputeStateVec;
-use crate::core::tgraph_shard::errors::GraphError;
 use crate::db::task::context::Context;
 use crate::db::task::task::{ATask, Job, Step};
 use crate::db::task::task_runner::TaskRunner;
 use crate::db::view_api::*;
-use itertools::Itertools;
-use rayon::prelude::*;
 use rustc_hash::FxHashSet;
 
 /// Computes the number of triangles in a graph using a fast algorithm
@@ -53,10 +50,7 @@ use rustc_hash::FxHashSet;
 /// let actual_tri_count = triangle_count(&graph, None);
 /// ```
 ///
-pub fn triangle_count<G: GraphViewOps>(
-    g: &G,
-    threads: Option<usize>,
-) -> Option<usize> {
+pub fn triangle_count<G: GraphViewOps>(g: &G, threads: Option<usize>) -> usize {
     let mut ctx: Context<G, ComputeStateVec> = g.into();
 
     let neighbours_set = accumulators::hash_set::<u64>(0);
@@ -106,13 +100,15 @@ pub fn triangle_count<G: GraphViewOps>(
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
 
-    let (_, global_state, _) = runner.run(init_tasks, tasks, threads, 1, None, None);
-
-    // ss needs to be incremented because the loop ran once and at the end it incremented the state thus
-    // the value is on the previous ss
-    global_state
-        .inner()
-        .read_global(runner.ctx.ss() + 1, &count)
+    runner.run(
+        init_tasks,
+        tasks,
+        |egs, _, _| egs.finalize(&count),
+        threads,
+        1,
+        None,
+        None,
+    )
 }
 
 #[cfg(test)]
@@ -147,7 +143,7 @@ mod triangle_count_tests {
 
         let actual_tri_count = triangle_count(&graph, Some(2));
 
-        assert_eq!(actual_tri_count, Some(4))
+        assert_eq!(actual_tri_count, 4)
     }
 
     #[test]
@@ -186,6 +182,6 @@ mod triangle_count_tests {
 
         let actual_tri_count = triangle_count(&graph, None);
 
-        assert_eq!(actual_tri_count, Some(8))
+        assert_eq!(actual_tri_count, 8)
     }
 }

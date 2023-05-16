@@ -43,7 +43,7 @@ pub mod accumulators {
         agg::{
             set::{BitSet, Set},
             topk::{TopK, TopKHeap},
-            AndDef, AvgDef, MaxDef, MinDef, SumDef, ValDef, OrDef
+            AndDef, AvgDef, MaxDef, MinDef, OrDef, SumDef, ValDef,
         },
         state::StateType,
     };

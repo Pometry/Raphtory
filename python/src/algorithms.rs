@@ -10,6 +10,7 @@ use std::collections::HashMap;
 use crate::utils;
 use crate::utils::{extract_input_vertex, InputVertexBox};
 use pyo3::prelude::*;
+use raphtory::algorithms::connected_components;
 use raphtory::algorithms::degree::{
     average_degree as average_degree_rs, max_in_degree as max_in_degree_rs,
     max_out_degree as max_out_degree_rs, min_in_degree as min_in_degree_rs,
@@ -20,7 +21,6 @@ use raphtory::algorithms::generic_taint::generic_taint as generic_taint_rs;
 use raphtory::algorithms::local_clustering_coefficient::local_clustering_coefficient as local_clustering_coefficient_rs;
 use raphtory::algorithms::local_triangle_count::local_triangle_count as local_triangle_count_rs;
 use raphtory::algorithms::pagerank::unweighted_page_rank;
-use raphtory::algorithms::connected_components;
 use raphtory::algorithms::reciprocity::{
     all_local_reciprocity as all_local_reciprocity_rs, global_reciprocity as global_reciprocity_rs,
 };
@@ -45,15 +45,17 @@ use rustc_hash::FxHashMap;
 #[pyfunction]
 pub(crate) fn local_triangle_count(g: &PyGraphView, v: &PyAny) -> PyResult<Option<usize>> {
     let v = utils::extract_vertex_ref(v)?;
-    Ok(local_triangle_count_rs(&g.graph, v.g_id))
+    Ok(local_triangle_count_rs(&g.graph, v))
 }
 
 #[pyfunction]
 pub(crate) fn weakly_connected_components(
     g: &PyGraphView,
     iter_count: usize,
-) -> PyResult<FxHashMap<String, u64>> {
-    Ok(connected_components::weakly_connected_components(&g.graph, iter_count, None))
+) -> PyResult<HashMap<String, u64>> {
+    Ok(connected_components::weakly_connected_components(
+        &g.graph, iter_count, None,
+    ))
 }
 
 #[pyfunction]
@@ -61,7 +63,7 @@ pub(crate) fn pagerank(
     g: &PyGraphView,
     iter_count: usize,
     max_diff: Option<f32>,
-) -> PyResult<FxHashMap<String, f32>> {
+) -> PyResult<HashMap<String, f32>> {
     Ok(unweighted_page_rank(&g.graph, iter_count, None, max_diff))
 }
 
@@ -116,7 +118,7 @@ pub(crate) fn generic_taint(
 #[pyfunction]
 pub(crate) fn local_clustering_coefficient(g: &PyGraphView, v: &PyAny) -> PyResult<Option<f32>> {
     let v = utils::extract_vertex_ref(v)?;
-    Ok(local_clustering_coefficient_rs(&g.graph, v.g_id))
+    Ok(local_clustering_coefficient_rs(&g.graph, v))
 }
 
 /// Graph density - measures how dense or sparse a graph is.
@@ -201,7 +203,7 @@ pub(crate) fn global_reciprocity(g: &PyGraphView) -> f64 {
 /// it could imply a less reciprocal or more one-sided relationship.
 ///
 #[pyfunction]
-pub(crate) fn all_local_reciprocity(g: &PyGraphView) -> HashMap<u64, f64> {
+pub(crate) fn all_local_reciprocity(g: &PyGraphView) -> HashMap<String, f64> {
     all_local_reciprocity_rs(&g.graph, None)
 }
 
