@@ -1,10 +1,9 @@
 from benchmark_base import BenchmarkBase
-# Load raphtory
 import gzip
 import csv
 import raphtory
 from tqdm import tqdm
-import random
+from raphtory.algorithms import pagerank, weakly_connected_components
 
 profiles_file = "data/soc-pokec-profiles.txt.gz" # 1,632,803
 relationships_file = "data/soc-pokec-relationships.txt.gz" # 30,622,564
@@ -22,13 +21,14 @@ class RaphtoryBench(BenchmarkBase):
                 self.graph.add_edge(1, row[0], row[1], {})
 
     def degree(self):
-        self.graph
+        list(self.graph.vertices().degree())
 
     def out_neighbours(self, id):
         pass
+        list([list(o) for o in self.graph.vertices().out_neighbours()])
 
     def page_rank(self):
-        pass
+        pagerank(self.graph, iter_count=20)
 
     def connected_components(self):
-        pass
+        weakly_connected_components(self.graph, iter_count=20)
