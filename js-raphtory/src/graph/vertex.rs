@@ -32,10 +32,7 @@ impl Vertex {
 
     #[wasm_bindgen(js_name = inDegree)]
     pub fn in_degree(&self) -> usize {
-        log(&"in_degree");
-        let out = self.0.in_degree();
-        log(&format!("in_degree: {}", out));
-        out
+        self.0.in_degree()
     }
 
     #[wasm_bindgen(js_name = degree)]
@@ -75,33 +72,20 @@ impl Vertex {
 
     #[wasm_bindgen(js_name = edges)]
     pub fn edges(&self) -> js_sys::Array {
-        self.0
-            .edges()
-            .map(Edge)
-            .map(JsValue::from)
-            .collect()
+        self.0.edges().map(Edge).map(JsValue::from).collect()
     }
 
     // out_edges
     #[wasm_bindgen(js_name = outEdges)]
     pub fn out_edges(&self) -> js_sys::Array {
-        self.0
-            .out_edges()
-            .map(Edge)
-            .map(JsValue::from)
-            .collect()
+        self.0.out_edges().map(Edge).map(JsValue::from).collect()
     }
 
     // in_edges
     #[wasm_bindgen(js_name = inEdges)]
     pub fn in_edges(&self) -> js_sys::Array {
-        self.0
-            .in_edges()
-            .map(Edge)
-            .map(JsValue::from)
-            .collect()
+        self.0.in_edges().map(Edge).map(JsValue::from).collect()
     }
-
 }
 
 pub enum JsVertex {
