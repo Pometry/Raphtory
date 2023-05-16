@@ -177,6 +177,16 @@ mod graph_loader_test {
 
         assert_eq!(g.num_edges(), 701);
         assert_eq!(g.vertex("Gandalf").unwrap().neighbours().iter().count(), 49);
+
+        for v in g
+            .vertex("Gandalf")
+            .unwrap()
+            .window(1356, 24792)
+            .neighbours()
+            .iter()
+        {
+            println!("{:?}", v.id())
+        }
         assert_eq!(
             g.vertex("Gandalf")
                 .unwrap()
