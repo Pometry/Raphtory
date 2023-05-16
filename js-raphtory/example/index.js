@@ -22,7 +22,9 @@ function printVertex(v) {
             neighbours_in: v.inNeighbours(),
             neighbours: v.neighbours(),
             inDegree: v.inDegree(),
-            outDegree: v.outDegree()
+            outDegree: v.outDegree(),
+            props: v.properties(),
+            edges: v.edges(),
         }
     );
 }

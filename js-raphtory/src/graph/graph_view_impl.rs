@@ -6,7 +6,7 @@ use raphtory::{
         vertex_ref::{LocalVertexRef, VertexRef},
         Direction, Prop,
     },
-    db::view_api::{internal::GraphViewInternalOps, GraphViewOps},
+    db::view_api::internal::GraphViewInternalOps,
 };
 
 use super::Graph;

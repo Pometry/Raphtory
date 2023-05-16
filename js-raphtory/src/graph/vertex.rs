@@ -6,7 +6,7 @@ use raphtory::{
 };
 use wasm_bindgen::prelude::*;
 
-use crate::{graph::edge::Edge, log};
+use crate::graph::{edge::Edge, JsProp};
 
 use super::{Graph, JSError};
 
@@ -85,6 +85,24 @@ impl Vertex {
     #[wasm_bindgen(js_name = inEdges)]
     pub fn in_edges(&self) -> js_sys::Array {
         self.0.in_edges().map(Edge).map(JsValue::from).collect()
+    }
+
+    #[wasm_bindgen(js_name = properties)]
+    pub fn properties(&self) -> js_sys::Map {
+        let obj = js_sys::Map::new();
+        for (k, v) in self.0.properties(true) {
+            obj.set(&k.into(), &JsProp(v).into());
+        }
+        obj
+    }
+
+    #[wasm_bindgen(js_name = getProperty)]
+    pub fn get_property(&self, name: String) -> JsValue {
+        if let Some(prop) = self.0.property(name, true).map(JsProp) {
+            prop.into()
+        } else {
+            JsValue::NULL
+        }
     }
 }
 
