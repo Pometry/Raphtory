@@ -6,9 +6,9 @@ use raphtory::{
 };
 use wasm_bindgen::prelude::*;
 
-use crate::graph::{edge::Edge, JsProp};
+use crate::graph::{edge::Edge, misc::JsProp};
 
-use super::{Graph, JSError};
+use super::{Graph, misc::JSError};
 
 #[wasm_bindgen]
 pub struct Vertex(pub(crate) VertexView<Graph>);

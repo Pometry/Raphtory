@@ -1,4 +1,4 @@
-import { Graph, Direction } from "js-raphtory";
+import { Graph } from "js-raphtory";
 
 const g = new Graph();
 

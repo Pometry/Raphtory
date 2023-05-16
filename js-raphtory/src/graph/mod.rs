@@ -2,10 +2,8 @@ extern crate console_error_panic_hook;
 
 use core::panic;
 use std::convert::TryFrom;
-use std::ops::Deref;
 use std::sync::Arc;
 
-use js_sys::Array;
 use js_sys::Object;
 use raphtory::core::tgraph_shard::errors::GraphError;
 use raphtory::core::Prop;
@@ -17,8 +15,8 @@ use raphtory::db::view_api::TimeOps;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 
-use chrono::{Datelike, Timelike};
-
+use crate::graph::misc::JSError;
+use crate::graph::misc::JsObjectEntry;
 use crate::graph::vertex::JsVertex;
 use crate::graph::vertex::Vertex;
 use crate::log;
@@ -26,7 +24,13 @@ use crate::utils::set_panic_hook;
 
 mod edge;
 mod graph_view_impl;
+mod misc;
 mod vertex;
+
+#[wasm_bindgen]
+#[repr(transparent)]
+#[derive(Clone)]
+pub struct Graph(UnderGraph);
 
 #[derive(Clone, Debug)]
 enum UnderGraph {
@@ -51,64 +55,7 @@ impl UnderGraph {
     }
 }
 
-#[wasm_bindgen]
-#[repr(transparent)]
-#[derive(Clone)]
-pub struct Graph(UnderGraph);
 
-#[wasm_bindgen]
-#[derive(Debug)]
-pub struct JSError(GraphError);
-
-struct JsObjectEntry(JsValue);
-
-#[repr(transparent)]
-pub(crate) struct JsProp(Prop);
-
-impl Into<JsValue> for JsProp {
-    fn into(self) -> JsValue {
-        match self.0 {
-            raphtory::core::Prop::Str(v) => v.into(),
-            raphtory::core::Prop::I32(v) => v.into(),
-            raphtory::core::Prop::I64(v) => v.into(),
-            raphtory::core::Prop::U32(v) => v.into(),
-            raphtory::core::Prop::U64(v) => v.into(),
-            raphtory::core::Prop::F32(v) => v.into(),
-            raphtory::core::Prop::F64(v) => v.into(),
-            raphtory::core::Prop::Bool(v) => v.into(),
-            raphtory::core::Prop::DTime(v) => {
-                js_sys::Date::new_with_year_month_day_hr_min_sec_milli(
-                    v.year() as u32,
-                    v.month() as i32,
-                    v.day() as i32,
-                    v.hour() as i32,
-                    v.minute() as i32,
-                    v.second() as i32,
-                    0,
-                )
-                .into()
-            }
-        }
-    }
-}
-
-impl Deref for JsProp {
-    type Target = Prop;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl From<JsObjectEntry> for Option<(String, Prop)> {
-    fn from(entry: JsObjectEntry) -> Self {
-        let arr: Array = entry.0.into();
-
-        let key = arr.at(0).as_string().unwrap();
-        let value = arr.at(1).as_string().unwrap();
-        Some((key, Prop::Str(value)))
-    }
-}
 
 #[wasm_bindgen]
 impl Graph {
@@ -231,10 +178,6 @@ mod js_test {
     use wasm_bindgen::JsValue;
     use wasm_bindgen_test::*;
 
-    #[wasm_bindgen_test]
-    fn one() {
-        assert_eq!(1, 2)
-    }
     #[wasm_bindgen_test]
     fn add_one_edge_get_neighbours() -> Result<(), super::JSError> {
         let graph = super::Graph::new();

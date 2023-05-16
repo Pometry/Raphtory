@@ -2,7 +2,7 @@ use raphtory::db::edge::EdgeView;
 use wasm_bindgen::prelude::*;
 
 use super::Graph;
-use crate::graph::{vertex::Vertex, JsProp};
+use crate::graph::{vertex::Vertex, misc::JsProp};
 
 #[wasm_bindgen]
 pub struct Edge(pub(crate) EdgeView<Graph>);
