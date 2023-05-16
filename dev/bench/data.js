@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1684171502296,
+  "lastUpdate": 1684253560397,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -823,6 +823,42 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions",
             "value": 895215,
             "range": "± 94222",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "2404621+fabianmurariu@users.noreply.github.com",
+            "name": "Fabian Murariu",
+            "username": "fabianmurariu"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c013a96f99223559de2607eefb0f3a80fbba5d18",
+          "message": "first take for wasm (#883)\n\n* first take for wasm\r\n\r\n* rename raphtory::graph_loader to raphtory_io::graph_loader\r\n\r\n* fix python module compilation issue\r\n\r\n* fix various tests that depend on csv add Graph is JS land\r\n\r\n* managed to add edges and vertices into raphtory from Javascript\r\n\r\n* actually push the wasm layer for graph\r\n\r\n* fix addVertex and addEdge to take either String or numbers\r\n\r\n* some sanity is revealed\r\n\r\n* attempt to return Vertex from rust when calling neighbours\r\n\r\n* neighbours finally works\r\n\r\n* break appart the various bits needed for wasm\r\n\r\n* added edges support and window\r\n\r\n* added a bit of extra logging to check why in_degree fails\r\n\r\n* added support for showing stack traces\r\n\r\n* add stuff back missed from the rebase\r\n\r\n* wasm POC works fine, next stop properties\r\n\r\n* remove the www submodule\r\n\r\n* add www as a folder not submodule\r\n\r\n* rename www to example\r\n\r\n* added properties for vertices and edges\r\n\r\n* move the benches into a separate project\r\n\r\n* setup benchmark workflor for raphtory-benchmark subproject\r\n\r\n* changes as per review\r\n\r\n* fix the docs for raphtory-io\r\n\r\n* fix the docs running the CsvLoader\r\n\r\n* Hello Raphtory in index.html",
+          "timestamp": "2023-05-16T17:06:14+01:00",
+          "tree_id": "63f2a707f64e87ce683eba490ed21cc6fbe49300",
+          "url": "https://github.com/Pometry/Raphtory/commit/c013a96f99223559de2607eefb0f3a80fbba5d18"
+        },
+        "date": 1684253559132,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 334199,
+            "range": "± 13303",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 613407,
+            "range": "± 125556",
             "unit": "ns/iter"
           }
         ]
