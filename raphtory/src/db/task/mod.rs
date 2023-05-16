@@ -83,11 +83,16 @@ mod task_tests {
 
         let mut runner = TaskRunner::new(ctx);
 
-        let (_, global_state, _) =
-            runner.run(vec![], vec![Job::new(step1)], Some(2), 1, None, None);
+        let actual = runner.run(
+            vec![],
+            vec![Job::new(step1)],
+            |egs, _, _| egs.finalize(&count),
+            Some(2),
+            1,
+            None,
+            None,
+        );
 
-        let actual = global_state.inner().read_global(0, &count);
-
-        assert_eq!(actual, Some(8));
+        assert_eq!(actual, 8);
     }
 }

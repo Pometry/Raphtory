@@ -8,7 +8,7 @@ use crate::dynamic::{DynamicGraph, IntoDynamic};
 use crate::types::repr::{iterator_repr, Repr};
 use crate::utils::*;
 use crate::vertex::{PyVertex, PyVertexIterable};
-use crate::wrappers::iterators::{OptionPropIterable, I64Iterable};
+use crate::wrappers::iterators::{I64Iterable, OptionPropIterable};
 use crate::wrappers::prop::Prop;
 use chrono::NaiveDateTime;
 use itertools::Itertools;
@@ -198,7 +198,7 @@ impl PyEdge {
     ///
     /// Returns:
     ///     the start datetime of the Edge.
-    pub fn start_date_time(&self) ->Option<NaiveDateTime> {
+    pub fn start_date_time(&self) -> Option<NaiveDateTime> {
         let start_time = self.edge.start()?;
         Some(NaiveDateTime::from_timestamp_millis(start_time).unwrap())
     }
@@ -215,7 +215,7 @@ impl PyEdge {
     ///
     /// Returns:
     ///    The end datetime of the Edge
-    pub fn end_date_time(&self) ->Option<NaiveDateTime> {
+    pub fn end_date_time(&self) -> Option<NaiveDateTime> {
         let end_time = self.edge.end()?;
         Some(NaiveDateTime::from_timestamp_millis(end_time).unwrap())
     }
@@ -335,7 +335,7 @@ impl PyEdge {
     pub fn layer_name(&self) -> String {
         self.edge.layer_name()
     }
-    
+
     /// Gets the datetime of an exploded edge.
     ///
     /// Returns:
@@ -457,18 +457,24 @@ impl PyEdges {
 
     /// Returns the earliest time of the edges.
     fn earliest_time(&self) -> I64Iterable {
-        let edges: Arc<dyn Fn() -> Box<dyn Iterator<Item = EdgeView<DynamicGraph>> + Send> + Send + Sync> = self.builder.clone();
+        let edges: Arc<
+            dyn Fn() -> Box<dyn Iterator<Item = EdgeView<DynamicGraph>> + Send> + Send + Sync,
+        > = self.builder.clone();
         (move || edges().earliest_time()).into()
     }
 
     /// Returns the latest time of the edges.
     fn latest_time(&self) -> I64Iterable {
-        let edges: Arc<dyn Fn() -> Box<dyn Iterator<Item = EdgeView<DynamicGraph>> + Send> + Send + Sync> = self.builder.clone();
+        let edges: Arc<
+            dyn Fn() -> Box<dyn Iterator<Item = EdgeView<DynamicGraph>> + Send> + Send + Sync,
+        > = self.builder.clone();
         (move || edges().latest_time()).into()
     }
 
     fn property(&self, name: String, include_static: Option<bool>) -> OptionPropIterable {
-        let edges: Arc<dyn Fn() -> Box<dyn Iterator<Item = EdgeView<DynamicGraph>> + Send> + Send + Sync> = self.builder.clone();
+        let edges: Arc<
+            dyn Fn() -> Box<dyn Iterator<Item = EdgeView<DynamicGraph>> + Send> + Send + Sync,
+        > = self.builder.clone();
         (move || edges().property(name.clone(), include_static.unwrap_or(true))).into()
     }
 

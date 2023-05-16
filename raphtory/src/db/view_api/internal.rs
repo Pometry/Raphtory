@@ -12,7 +12,7 @@ pub trait GraphViewInternalOps {
     fn localise_vertex_unchecked(&self, v: VertexRef) -> LocalVertexRef {
         match v {
             VertexRef::Local(v) => v,
-            VertexRef::Remote(g_id) => self.vertex_ref(g_id).expect("vertex exists"),
+            VertexRef::Remote(g_id) => self.vertex_ref(g_id).expect("Vertex should already exists"),
         }
     }
 

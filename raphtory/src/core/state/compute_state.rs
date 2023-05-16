@@ -1,6 +1,8 @@
 use rustc_hash::FxHashMap;
+use std::collections::HashMap;
 
-use crate::core::vertex_ref::LocalVertexRef;
+use crate::core::vertex_ref::{LocalVertexRef, VertexRef};
+use crate::db::view_api::*;
 use crate::{core::agg::Accumulator, db::view_api::internal::GraphViewInternalOps};
 
 use super::{
@@ -51,7 +53,7 @@ pub trait ComputeState: std::fmt::Debug + Clone + Send + Sync {
         ss: usize,
         shard_id: usize,
         g: &G,
-    ) -> Vec<(u64, OUT)>
+    ) -> HashMap<String, OUT>
     where
         OUT: StateType,
         A: 'static;
@@ -201,7 +203,7 @@ impl ComputeState for ComputeStateMap {
         ss: usize,
         _shard_id: usize,
         _g: &G,
-    ) -> Vec<(u64, OUT)>
+    ) -> HashMap<String, OUT>
     where
         OUT: StateType,
         A: 'static,
@@ -214,7 +216,13 @@ impl ComputeState for ComputeStateMap {
         current
             .map
             .iter()
-            .map(|(c, v)| (*c, ACC::finish(&v[ss % 2])))
+            .map(|(c, v)| {
+                // println!("c? = {}", c);
+                (
+                    _g.vertex_name(_g.localise_vertex_unchecked((*c).into())),
+                    ACC::finish(&v[ss % 2]),
+                )
+            })
             .collect()
     }
 
@@ -379,7 +387,7 @@ impl ComputeState for ComputeStateVec {
         ss: usize,
         shard_id: usize,
         g: &G,
-    ) -> Vec<(u64, OUT)>
+    ) -> HashMap<String, OUT>
     where
         OUT: StateType,
         A: 'static,
@@ -398,7 +406,7 @@ impl ComputeState for ComputeStateVec {
                 let v_ref = LocalVertexRef::new(p_id, shard_id);
 
                 let out = ACC::finish(a);
-                (g.vertex_id(v_ref), out)
+                (g.vertex_name(v_ref), out)
             })
             .collect()
     }
