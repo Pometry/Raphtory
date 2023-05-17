@@ -115,44 +115,31 @@ impl<T: TimeOps + Clone + 'static> WindowSet<T> {
             }
     }
 
-    /// Returns the centered time index of this window set
-    pub fn center_time_index(&self) -> CentredTimeIndex<T> {
-        CentredTimeIndex {
+    /// Returns the time index of this window set
+    pub fn time_index(&self, center: bool) -> TimeIndex<T> {
+        TimeIndex {
             windowset: self.clone(),
-        }
-    }
-
-    /// Returns the end time index of this window set
-    pub fn end_time_index(&self) -> EndTimeIndex<T> {
-        EndTimeIndex {
-            windowset: self.clone(),
+            center,
         }
     }
 }
 
-pub struct CentredTimeIndex<T: TimeOps + Clone> {
+pub struct TimeIndex<T: TimeOps + Clone> {
     windowset: WindowSet<T>,
+    center: bool,
 }
 
-impl<T: TimeOps + Clone> Iterator for CentredTimeIndex<T> {
+impl<T: TimeOps + Clone> Iterator for TimeIndex<T> {
     type Item = i64;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.windowset
-            .next()
-            .map(|view| view.start().unwrap() + ((view.end().unwrap() - view.start().unwrap()) / 2))
-    }
-}
-
-pub struct EndTimeIndex<T: TimeOps + Clone> {
-    windowset: WindowSet<T>,
-}
-
-impl<T: TimeOps + Clone> Iterator for EndTimeIndex<T> {
-    type Item = i64;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.windowset.next().map(|view| view.end().unwrap() - 1)
+        self.windowset.next().map(|view| {
+            if self.center {
+                view.start().unwrap() + ((view.end().unwrap() - view.start().unwrap()) / 2)
+            } else {
+                view.end().unwrap() - 1
+            }
+        })
     }
 }
 

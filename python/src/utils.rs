@@ -269,31 +269,19 @@ where
 
         if window_set.temporal() {
             let iterable = move || {
-                let iter: Box<dyn Iterator<Item = NaiveDateTime> + Send> = if center {
-                    Box::new(
-                        window_set
-                            .clone()
-                            .center_time_index()
-                            .map(|epoch| NaiveDateTime::from_timestamp_millis(epoch).unwrap()),
-                    )
-                } else {
-                    Box::new(
-                        window_set
-                            .clone()
-                            .end_time_index()
-                            .map(|epoch| NaiveDateTime::from_timestamp_millis(epoch).unwrap()),
-                    )
-                };
+                let iter: Box<dyn Iterator<Item = NaiveDateTime> + Send> = Box::new(
+                    window_set
+                        .clone()
+                        .time_index(center)
+                        .map(|epoch| NaiveDateTime::from_timestamp_millis(epoch).unwrap()),
+                );
                 iter
             };
             iterable.into()
         } else {
             (move || {
-                let iter: Box<dyn Iterator<Item = i64> + Send> = if center {
-                    Box::new(window_set.center_time_index())
-                } else {
-                    Box::new(window_set.end_time_index())
-                };
+                let iter: Box<dyn Iterator<Item = i64> + Send> =
+                    Box::new(window_set.time_index(center));
                 iter
             })
             .into()
