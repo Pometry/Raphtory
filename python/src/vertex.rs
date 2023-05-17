@@ -1084,7 +1084,7 @@ impl From<Box<dyn Iterator<Item = VertexView<DynamicGraph>> + Send>> for PyVerte
 
 impl IntoIterator for PyVertexIterator {
     type Item = PyVertex;
-    type IntoIter = Box<dyn Iterator<Item = PyVertex> + Send>;
+    type IntoIter = Box<dyn Iterator<Item = PyVertex> + Send >;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter
