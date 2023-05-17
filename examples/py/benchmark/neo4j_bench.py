@@ -35,8 +35,7 @@ def query_degree(tx):
     result = tx.run("""
         MATCH p=(n:Node)-[r:FOLLOWS]->() RETURN n.id, COUNT(p)
         """)
-    for record in result:
-        print(record)
+    return list(result)
 
 
 def get_out_neighbors(tx):
@@ -44,22 +43,19 @@ def get_out_neighbors(tx):
         MATCH p=(n:Node)-[:FOLLOWS]->(neighbor)
         RETURN n.id, COUNT(p)
     """)
-    for record in result:
-        print(record)
+    return list(result)
 
 
 def run_pagerank(tx):
     result = tx.run("""CALL gds.pageRank.stream("social")""")
-    for record in result:
-        print(record)
+    return list(result)
 
 
 def run_connected_components(tx):
     result = tx.run("""
         CALL gds.wcc.stream("social")
     """)
-    for record in result:
-        print(record)
+    return list(result)
 
 
 class Neo4jBench(BenchmarkBase):
@@ -75,21 +71,23 @@ class Neo4jBench(BenchmarkBase):
         self.execute_write(create_graph_projection)
 
     def execute_read(self, query):
+        x = None
         with self.driver.session() as session:
-            session.execute_read(query)
+            x = session.execute_read(query)
+        return x
 
     def execute_write(self, query):
         with self.driver.session() as session:
             session.execute_write(query)
 
     def degree(self):
-        self.execute_read(query_degree)
+        return self.execute_read(query_degree)
 
     def out_neighbours(self):
-        self.execute_read(get_out_neighbors)
+        return self.execute_read(get_out_neighbors)
 
     def page_rank(self):
-        self.execute_read(run_pagerank)
+        return self.execute_read(run_pagerank)
 
     def connected_components(self):
-        self.execute_read(run_connected_components)
+        return self.execute_read(run_connected_components)
