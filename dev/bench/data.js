@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1684273297411,
+  "lastUpdate": 1684332841467,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -931,6 +931,42 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions",
             "value": 778589,
             "range": "± 143067",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97447091+ljeub-pometry@users.noreply.github.com",
+            "name": "ljeub-pometry",
+            "username": "ljeub-pometry"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f0e5ed8d6137cf5477b8e2c71a8caee0fd25ff36",
+          "message": "Feature/vertex view ops in eval (#897)\n\n* context needs to be public to use state api\r\n\r\n* Make EvalVertexView support VertexViewOps\r\n\r\n* implement EvalEdgeView properly and fix issues after rebase\r\n\r\n* add EdgeViewOps to view_api::*\r\n\r\n* change TimeIndex iterator to restore original api",
+          "timestamp": "2023-05-17T16:09:32+02:00",
+          "tree_id": "00ce6d4a0a3e9c21e0fb38e4d4266f5148ad506a",
+          "url": "https://github.com/Pometry/Raphtory/commit/f0e5ed8d6137cf5477b8e2c71a8caee0fd25ff36"
+        },
+        "date": 1684332840105,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 359975,
+            "range": "± 2528",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 831508,
+            "range": "± 112627",
             "unit": "ns/iter"
           }
         ]
