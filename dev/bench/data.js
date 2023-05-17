@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1684332841467,
+  "lastUpdate": 1684338977264,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -967,6 +967,42 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions",
             "value": 831508,
             "range": "± 112627",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "2404621+fabianmurariu@users.noreply.github.com",
+            "name": "Fabian Murariu",
+            "username": "fabianmurariu"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "796d906fbd92292d749d5cfcef20344bbb2659be",
+          "message": "remove the need to declare a GraphViewInternalOps when proxying one (#898)\n\n* remove the need to declare a GraphViewInternalOps when proxying one\r\n\r\n* implement GraphViewInternalOps for any proxy\r\n\r\n---------\r\n\r\nCo-authored-by: Ben Steer <b.a.steer@qmul.ac.uk>",
+          "timestamp": "2023-05-17T16:52:37+01:00",
+          "tree_id": "0edc149b92149f31316e19ca3107cbbadecac42a",
+          "url": "https://github.com/Pometry/Raphtory/commit/796d906fbd92292d749d5cfcef20344bbb2659be"
+        },
+        "date": 1684338976386,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 333957,
+            "range": "± 2607",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 467458,
+            "range": "± 68369",
             "unit": "ns/iter"
           }
         ]
