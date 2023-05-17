@@ -75,8 +75,8 @@ where
 
 pub(crate) fn expanding_impl<T>(slf: &T, step: &PyAny) -> PyResult<PyWindowSet>
 where
-    T: TimeOps + Clone + Sync + 'static,
-    T::WindowedViewType: IntoPyObject,
+    T: TimeOps + Clone + Sync + Send + 'static,
+    T::WindowedViewType: IntoPyObject + Send + Sync,
 {
     let step = extract_interval(step)?;
     let window_set: WindowSet<T> = adapt_result(slf.expanding(step)).map(|iter| iter.into())?;
@@ -89,13 +89,12 @@ pub(crate) fn rolling_impl<T>(
     step: Option<&PyAny>,
 ) -> PyResult<PyWindowSet>
 where
-    T: TimeOps + Clone + Sync + 'static,
-    T::WindowedViewType: IntoPyObject,
+    T: TimeOps + Clone + Sync + Send + 'static,
+    T::WindowedViewType: IntoPyObject + Send + Sync,
 {
     let window = extract_interval(window)?;
-    let step = step.map(|step| extract_interval(step)).transpose()?;
-    let window_set: WindowSet<T> =
-        adapt_result(slf.rolling(window, step)).map(|iter| iter.into())?;
+    let step = step.map(extract_interval).transpose()?;
+    let window_set: WindowSet<T> = adapt_result(slf.rolling(window, step))?;
     Ok(window_set.into())
 }
 
@@ -258,8 +257,8 @@ pub trait WindowSetOps {
 
 impl<T> WindowSetOps for WindowSet<T>
 where
-    T: TimeOps + Clone + Sync + 'static,
-    T::WindowedViewType: IntoPyObject,
+    T: TimeOps + Clone + Sync + 'static + Send,
+    T::WindowedViewType: IntoPyObject + Send,
 {
     fn build_iter(&self) -> PyGenericIterator {
         self.clone().map(|v| v.into_py_object()).into()
@@ -267,18 +266,25 @@ where
 
     fn time_index(&self, center: bool) -> PyGenericIterable {
         let window_set = self.clone();
+
         if window_set.temporal() {
             let iterable = move || {
-                Box::new(
+                let iter: Box<dyn Iterator<Item = NaiveDateTime> + Send> = Box::new(
                     window_set
                         .clone()
                         .time_index(center)
                         .map(|epoch| NaiveDateTime::from_timestamp_millis(epoch).unwrap()),
-                )
+                );
+                iter
             };
             iterable.into()
         } else {
-            (move || Box::new(window_set.time_index(center))).into()
+            (move || {
+                let iter: Box<dyn Iterator<Item = i64> + Send> =
+                    Box::new(window_set.time_index(center));
+                iter
+            })
+            .into()
         }
     }
 }
@@ -290,8 +296,8 @@ pub struct PyWindowSet {
 
 impl<T> From<WindowSet<T>> for PyWindowSet
 where
-    T: TimeOps + Clone + Sync + 'static,
-    T::WindowedViewType: IntoPyObject,
+    T: TimeOps + Clone + Sync + Send + 'static,
+    T::WindowedViewType: IntoPyObject + Send + Sync,
 {
     fn from(value: WindowSet<T>) -> Self {
         Self {

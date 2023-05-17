@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use crate::db::view_api::VertexViewOps;
 use crate::{
     core::state::{accumulator_id::accumulators, compute_state::ComputeStateVec},
     db::{
@@ -10,6 +10,7 @@ use crate::{
         view_api::GraphViewOps,
     },
 };
+use std::collections::HashMap;
 
 /// Computes the connected components of a graph using the Simple Connected Components algorithm
 ///
@@ -39,7 +40,7 @@ where
     ctx.agg(min);
 
     let step1 = ATask::new(move |vv| {
-        vv.update(&min, vv.global_id());
+        vv.update(&min, vv.id());
 
         for n in vv.neighbours() {
             let my_min = vv.read(&min);
@@ -66,13 +67,11 @@ where
     runner.run(
         vec![],
         tasks,
-        |_, ess, _| {
-            ess.finalize(&min, |c| c)
-        },
+        |_, ess, _| ess.finalize(&min, |c| c),
         threads,
         iter_count,
         None,
-        None
+        None,
     )
 }
 
