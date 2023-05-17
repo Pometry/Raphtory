@@ -1,0 +1,40 @@
+# !pip install gqlalchemy
+# docker run -it -p 7687:7687 -p 7444:7444 -p 3000:3000 -v mg_lib:/var/lib/memgraph memgraph/memgraph-platform
+# http://localhost:3000/quick-connect has the memgraph lab!
+
+from benchmark_base import BenchmarkBase
+from gqlalchemy import Memgraph
+
+class MemgraphBench(BenchmarkBase):
+    def __init__(self):
+        self.graph = Memgraph(host='127.0.0.1', port=7687)
+        self.setup()
+
+    def import_data(self):
+        with open('data/rel.csv', 'r') as file:
+            for line in file:
+                source, target = line.strip().split('\t')
+                query = f"CREATE (n1:Node {{id: '{source}'}})-[:FOLLOWS]->(n2:Node {{id: '{target}'}})"
+                self.graph.execute(query)
+
+    def setup(self):
+        query = "MATCH (n) DETACH DELETE n"
+        self.graph.execute(query)
+        self.import_data()
+
+    def degree(self):
+        query = "MATCH (n)-[f]-() RETURN n.id, COUNT(f);"
+        result = self.graph.execute_and_fetch(query)
+        return list(result)
+
+    def out_neighbours(self):
+        query = f"MATCH (n)-[:FOLLOWS]->(neighbor) RETURN n.id AS node_id, COLLECT(neighbor.id) AS neighbor_ids"
+        return list(self.graph.execute_and_fetch(query))
+
+    def page_rank(self):
+        query = "CALL pagerank.get() YIELD node, rank RETURN node, rank;"
+        return list(self.graph.execute_and_fetch(query))
+
+    def connected_components(self):
+        query = "CALL weakly_connected_components.get() YIELD node, component_id;"
+        return list(self.graph.execute_and_fetch(query))
