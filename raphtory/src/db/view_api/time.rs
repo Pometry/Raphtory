@@ -3,7 +3,7 @@ use crate::core::time::{Interval, IntervalSize, IntoTime};
 use chrono::DateTime;
 
 /// Trait defining time query operations
-pub trait TimeOps: Send {
+pub trait TimeOps {
     type WindowedViewType: TimeOps;
 
     /// Return the timestamp of the default start for perspectives of the view (if any).
@@ -115,15 +115,44 @@ impl<T: TimeOps + Clone + 'static> WindowSet<T> {
             }
     }
 
-    /// Returns the time index of this window set
-    pub fn time_index(&self, center: bool) -> Box<dyn Iterator<Item = i64> + Send> {
-        if center {
-            Box::new(self.clone().map(|view| {
-                view.start().unwrap() + ((view.end().unwrap() - view.start().unwrap()) / 2)
-            }))
-        } else {
-            Box::new(self.clone().map(|view| view.end().unwrap() - 1))
+    /// Returns the centered time index of this window set
+    pub fn center_time_index(&self) -> CentredTimeIndex<T> {
+        CentredTimeIndex {
+            windowset: self.clone(),
         }
+    }
+
+    /// Returns the end time index of this window set
+    pub fn end_time_index(&self) -> EndTimeIndex<T> {
+        EndTimeIndex {
+            windowset: self.clone(),
+        }
+    }
+}
+
+pub struct CentredTimeIndex<T: TimeOps + Clone> {
+    windowset: WindowSet<T>,
+}
+
+impl<T: TimeOps + Clone> Iterator for CentredTimeIndex<T> {
+    type Item = i64;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.windowset
+            .next()
+            .map(|view| view.start().unwrap() + ((view.end().unwrap() - view.start().unwrap()) / 2))
+    }
+}
+
+pub struct EndTimeIndex<T: TimeOps + Clone> {
+    windowset: WindowSet<T>,
+}
+
+impl<T: TimeOps + Clone> Iterator for EndTimeIndex<T> {
+    type Item = i64;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.windowset.next().map(|view| view.end().unwrap() - 1)
     }
 }
 

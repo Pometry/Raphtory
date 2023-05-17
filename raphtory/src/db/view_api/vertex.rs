@@ -9,7 +9,9 @@ use std::collections::HashMap;
 pub trait VertexViewOps: TimeOps {
     type Graph: GraphViewOps;
     type ValueType<T>;
-    type PathType: VertexViewOps<Graph = Self::Graph>;
+    type PathType<'a>: VertexViewOps<Graph = Self::Graph> + 'a
+    where
+        Self: 'a;
     type EList: EdgeListOps<Graph = Self::Graph>;
 
     /// Get the numeric id of the vertex
@@ -158,21 +160,21 @@ pub trait VertexViewOps: TimeOps {
     /// # Returns
     ///
     /// An iterator over the neighbours of this vertex.
-    fn neighbours(&self) -> Self::PathType;
+    fn neighbours(&self) -> Self::PathType<'_>;
 
     /// Get the neighbours of this vertex that point into this vertex.
     ///
     /// # Returns
     ///
     /// An iterator over the neighbours of this vertex that point into this vertex.
-    fn in_neighbours(&self) -> Self::PathType;
+    fn in_neighbours(&self) -> Self::PathType<'_>;
 
     /// Get the neighbours of this vertex that point out of this vertex.
     ///
     /// # Returns
     ///
     /// An iterator over the neighbours of this vertex that point out of this vertex.
-    fn out_neighbours(&self) -> Self::PathType;
+    fn out_neighbours(&self) -> Self::PathType<'_>;
 }
 
 /// A trait for operations on a list of vertices.

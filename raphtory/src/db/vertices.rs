@@ -46,7 +46,7 @@ impl<G: GraphViewOps> Vertices<G> {
 impl<G: GraphViewOps> VertexViewOps for Vertices<G> {
     type Graph = G;
     type ValueType<T> = BoxedIter<T>;
-    type PathType = PathFromGraph<G>;
+    type PathType<'a> = PathFromGraph<G>;
     type EList = BoxedIter<BoxedIter<EdgeView<G>>>;
 
     fn id(&self) -> Self::ValueType<u64> {
