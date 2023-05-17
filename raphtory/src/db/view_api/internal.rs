@@ -7,7 +7,6 @@ use std::ops::Range;
 /// The GraphViewInternalOps trait provides a set of methods to query a directed graph
 /// represented by the raphtory_core::tgraph::TGraph struct.
 pub trait GraphViewInternalOps {
-
     /// Gets the local reference for a remote vertex and keeps local references unchanged. Assumes vertex exists!
     fn localise_vertex_unchecked(&self, v: VertexRef) -> LocalVertexRef {
         match v {
@@ -649,4 +648,372 @@ pub trait GraphViewInternalOps {
         t_start: i64,
         t_end: i64,
     ) -> Box<dyn Iterator<Item = LocalVertexRef> + Send>;
+}
+
+/// Helper trait for various graphs that just delegate to the internal graph
+///
+impl<G> GraphViewInternalOps for G
+where
+    G: AsRef<dyn GraphViewInternalOps + Send + Sync + 'static>,
+{
+    fn local_vertex(&self, v: VertexRef) -> Option<LocalVertexRef> {
+        self.as_ref().local_vertex(v)
+    }
+
+    fn local_vertex_window(
+        &self,
+        v: VertexRef,
+        t_start: i64,
+        t_end: i64,
+    ) -> Option<LocalVertexRef> {
+        self.as_ref().local_vertex_window(v, t_start, t_end)
+    }
+
+    fn get_unique_layers_internal(&self) -> Vec<usize> {
+        todo!()
+    }
+
+    fn get_layer_name_by_id(&self, layer_id: usize) -> String {
+        todo!()
+    }
+
+    fn get_layer(&self, key: Option<&str>) -> Option<usize> {
+        todo!()
+    }
+
+    fn view_start(&self) -> Option<i64> {
+        todo!()
+    }
+
+    fn view_end(&self) -> Option<i64> {
+        todo!()
+    }
+
+    fn earliest_time_global(&self) -> Option<i64> {
+        todo!()
+    }
+
+    fn earliest_time_window(&self, t_start: i64, t_end: i64) -> Option<i64> {
+        todo!()
+    }
+
+    fn latest_time_global(&self) -> Option<i64> {
+        todo!()
+    }
+
+    fn latest_time_window(&self, t_start: i64, t_end: i64) -> Option<i64> {
+        todo!()
+    }
+
+    fn vertices_len(&self) -> usize {
+        todo!()
+    }
+
+    fn vertices_len_window(&self, t_start: i64, t_end: i64) -> usize {
+        todo!()
+    }
+
+    fn edges_len(&self, layer: Option<usize>) -> usize {
+        todo!()
+    }
+
+    fn edges_len_window(&self, t_start: i64, t_end: i64, layer: Option<usize>) -> usize {
+        todo!()
+    }
+
+    fn has_edge_ref(&self, src: VertexRef, dst: VertexRef, layer: usize) -> bool {
+        todo!()
+    }
+
+    fn has_edge_ref_window(
+        &self,
+        src: VertexRef,
+        dst: VertexRef,
+        t_start: i64,
+        t_end: i64,
+        layer: usize,
+    ) -> bool {
+        todo!()
+    }
+
+    fn has_vertex_ref(&self, v: VertexRef) -> bool {
+        todo!()
+    }
+
+    fn has_vertex_ref_window(&self, v: VertexRef, t_start: i64, t_end: i64) -> bool {
+        todo!()
+    }
+
+    fn degree(&self, v: LocalVertexRef, d: Direction, layer: Option<usize>) -> usize {
+        todo!()
+    }
+
+    fn degree_window(
+        &self,
+        v: LocalVertexRef,
+        t_start: i64,
+        t_end: i64,
+        d: Direction,
+        layer: Option<usize>,
+    ) -> usize {
+        todo!()
+    }
+
+    fn vertex_ref(&self, v: u64) -> Option<LocalVertexRef> {
+        todo!()
+    }
+
+    fn vertex_id(&self, v: LocalVertexRef) -> u64 {
+        todo!()
+    }
+
+    fn vertex_ref_window(&self, v: u64, t_start: i64, t_end: i64) -> Option<LocalVertexRef> {
+        todo!()
+    }
+
+    fn vertex_earliest_time(&self, v: LocalVertexRef) -> Option<i64> {
+        todo!()
+    }
+
+    fn vertex_earliest_time_window(
+        &self,
+        v: LocalVertexRef,
+        t_start: i64,
+        t_end: i64,
+    ) -> Option<i64> {
+        todo!()
+    }
+
+    fn vertex_latest_time(&self, v: LocalVertexRef) -> Option<i64> {
+        todo!()
+    }
+
+    fn vertex_latest_time_window(
+        &self,
+        v: LocalVertexRef,
+        t_start: i64,
+        t_end: i64,
+    ) -> Option<i64> {
+        todo!()
+    }
+
+    fn vertex_refs(&self) -> Box<dyn Iterator<Item = LocalVertexRef> + Send> {
+        todo!()
+    }
+
+    fn vertex_refs_window(
+        &self,
+        t_start: i64,
+        t_end: i64,
+    ) -> Box<dyn Iterator<Item = LocalVertexRef> + Send> {
+        todo!()
+    }
+
+    fn vertex_refs_shard(&self, shard: usize) -> Box<dyn Iterator<Item = LocalVertexRef> + Send> {
+        todo!()
+    }
+
+    fn vertex_refs_window_shard(
+        &self,
+        shard: usize,
+        t_start: i64,
+        t_end: i64,
+    ) -> Box<dyn Iterator<Item = LocalVertexRef> + Send> {
+        todo!()
+    }
+
+    fn edge_ref(&self, src: VertexRef, dst: VertexRef, layer: usize) -> Option<EdgeRef> {
+        todo!()
+    }
+
+    fn edge_ref_window(
+        &self,
+        src: VertexRef,
+        dst: VertexRef,
+        t_start: i64,
+        t_end: i64,
+        layer: usize,
+    ) -> Option<EdgeRef> {
+        todo!()
+    }
+
+    fn edge_refs(&self, layer: Option<usize>) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
+        todo!()
+    }
+
+    fn edge_refs_window(
+        &self,
+        t_start: i64,
+        t_end: i64,
+        layer: Option<usize>,
+    ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
+        todo!()
+    }
+
+    fn vertex_edges(
+        &self,
+        v: LocalVertexRef,
+        d: Direction,
+        layer: Option<usize>,
+    ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
+        todo!()
+    }
+
+    fn vertex_edges_t(
+        &self,
+        v: LocalVertexRef,
+        d: Direction,
+        layer: Option<usize>,
+    ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
+        todo!()
+    }
+
+    fn vertex_edges_window(
+        &self,
+        v: LocalVertexRef,
+        t_start: i64,
+        t_end: i64,
+        d: Direction,
+        layer: Option<usize>,
+    ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
+        todo!()
+    }
+
+    fn vertex_edges_window_t(
+        &self,
+        v: LocalVertexRef,
+        t_start: i64,
+        t_end: i64,
+        d: Direction,
+        layer: Option<usize>,
+    ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
+        todo!()
+    }
+
+    fn neighbours(
+        &self,
+        v: LocalVertexRef,
+        d: Direction,
+        layer: Option<usize>,
+    ) -> Box<dyn Iterator<Item = VertexRef> + Send> {
+        todo!()
+    }
+
+    fn neighbours_window(
+        &self,
+        v: LocalVertexRef,
+        t_start: i64,
+        t_end: i64,
+        d: Direction,
+        layer: Option<usize>,
+    ) -> Box<dyn Iterator<Item = VertexRef> + Send> {
+        todo!()
+    }
+
+    fn static_vertex_prop(&self, v: LocalVertexRef, name: String) -> Option<Prop> {
+        todo!()
+    }
+
+    fn static_vertex_prop_names(&self, v: LocalVertexRef) -> Vec<String> {
+        todo!()
+    }
+
+    fn temporal_vertex_prop_names(&self, v: LocalVertexRef) -> Vec<String> {
+        todo!()
+    }
+
+    fn temporal_vertex_prop_vec(&self, v: LocalVertexRef, name: String) -> Vec<(i64, Prop)> {
+        todo!()
+    }
+
+    fn vertex_timestamps(&self, v: LocalVertexRef) -> Vec<i64> {
+        todo!()
+    }
+
+    fn vertex_timestamps_window(&self, v: LocalVertexRef, t_start: i64, t_end: i64) -> Vec<i64> {
+        todo!()
+    }
+
+    fn temporal_vertex_prop_vec_window(
+        &self,
+        v: LocalVertexRef,
+        name: String,
+        t_start: i64,
+        t_end: i64,
+    ) -> Vec<(i64, Prop)> {
+        todo!()
+    }
+
+    fn temporal_vertex_props(&self, v: LocalVertexRef) -> HashMap<String, Vec<(i64, Prop)>> {
+        todo!()
+    }
+
+    fn temporal_vertex_props_window(
+        &self,
+        v: LocalVertexRef,
+        t_start: i64,
+        t_end: i64,
+    ) -> HashMap<String, Vec<(i64, Prop)>> {
+        todo!()
+    }
+
+    fn static_edge_prop(&self, e: EdgeRef, name: String) -> Option<Prop> {
+        todo!()
+    }
+
+    fn static_edge_prop_names(&self, e: EdgeRef) -> Vec<String> {
+        todo!()
+    }
+
+    fn temporal_edge_prop_names(&self, e: EdgeRef) -> Vec<String> {
+        todo!()
+    }
+
+    fn temporal_edge_props_vec(&self, e: EdgeRef, name: String) -> Vec<(i64, Prop)> {
+        todo!()
+    }
+
+    fn temporal_edge_props_vec_window(
+        &self,
+        e: EdgeRef,
+        name: String,
+        t_start: i64,
+        t_end: i64,
+    ) -> Vec<(i64, Prop)> {
+        todo!()
+    }
+
+    fn edge_timestamps(&self, e: EdgeRef, window: Option<Range<i64>>) -> Vec<i64> {
+        todo!()
+    }
+
+    fn temporal_edge_props(&self, e: EdgeRef) -> HashMap<String, Vec<(i64, Prop)>> {
+        todo!()
+    }
+
+    fn temporal_edge_props_window(
+        &self,
+        e: EdgeRef,
+        t_start: i64,
+        t_end: i64,
+    ) -> HashMap<String, Vec<(i64, Prop)>> {
+        todo!()
+    }
+
+    fn num_shards(&self) -> usize {
+        todo!()
+    }
+
+    fn vertices_shard(&self, shard_id: usize) -> Box<dyn Iterator<Item = LocalVertexRef> + Send> {
+        todo!()
+    }
+
+    fn vertices_shard_window(
+        &self,
+        shard_id: usize,
+        t_start: i64,
+        t_end: i64,
+    ) -> Box<dyn Iterator<Item = LocalVertexRef> + Send> {
+        todo!()
+    }
 }
