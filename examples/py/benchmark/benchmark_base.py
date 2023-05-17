@@ -19,7 +19,7 @@ class BenchmarkBase(ABC):
         pass
 
     @abstractmethod
-    def out_neighbours(self, id):
+    def out_neighbours(self):
         pass
 
     @abstractmethod

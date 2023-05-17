@@ -21,8 +21,8 @@ class NetworkXBench(BenchmarkBase):
     def degree(self):
         self.graph.degree()
 
-    def out_neighbours(self, id):
-        len([n for n in self.graph.neighbors(id)])
+    def out_neighbours(self):
+        len([n for n in self.graph.neighbors(1)])
 
     def page_rank(self):
         nx.pagerank(self.graph)

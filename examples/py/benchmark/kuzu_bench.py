@@ -22,7 +22,7 @@ class KuzuBench(BenchmarkBase):
         res = self.run_query('MATCH (a:User)-[f:Follows]->(b:User) RETURN a.id,COUNT(f)')
         df = res.get_as_df()
 
-    def out_neighbours(self, id):
+    def out_neighbours(self):
         res = self.run_query('MATCH (u:User)-[:Follows]->(n)'
                              'RETURN u.id, COLLECT(n.id) AS out_neighbours')
         df = res.get_as_df()
