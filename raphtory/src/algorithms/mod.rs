@@ -38,3 +38,5 @@ pub mod pagerank;
 pub mod reciprocity;
 pub mod triangle_count;
 pub mod triplet_count;
+pub mod three_node_local;
+pub mod three_node_motifs;
