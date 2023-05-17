@@ -179,17 +179,15 @@ pub trait VertexViewOps: TimeOps {
 
 /// A trait for operations on a list of vertices.
 pub trait VertexListOps:
-    IntoIterator<Item = Self::ValueType<VertexView<Self::Graph>>, IntoIter = Self::IterType>
-    + Sized
-    + Send
+    IntoIterator<Item = Self::ValueType<Self::Vertex>, IntoIter = Self::IterType> + Sized
 {
     type Graph: GraphViewOps;
+    type Vertex: VertexViewOps<Graph = Self::Graph>;
     /// The type of the iterator for the list of vertices
-    type IterType: Iterator<Item = Self::ValueType<VertexView<Self::Graph>>> + Send;
+    type IterType: Iterator<Item = Self::ValueType<Self::Vertex>>;
     /// The type of the iterator for the list of edges
-    type EList: EdgeListOps<Graph = Self::Graph>;
-    type VList: VertexListOps<Graph = Self::Graph>;
-    type ValueType<T: Send>: Send;
+    type EList: EdgeListOps<Graph = Self::Graph, Vertex = Self::Vertex>;
+    type ValueType<T>;
 
     /// Return the timestamp of the earliest activity.
     fn earliest_time(self) -> BoxedIter<Self::ValueType<Option<i64>>>;
@@ -289,19 +287,19 @@ pub trait VertexListOps:
     /// # Returns
     ///
     /// An iterator over the neighbours of the vertices as VertexViews.
-    fn neighbours(self) -> Self::VList;
+    fn neighbours(self) -> Self;
 
     /// Returns an iterator over the incoming neighbours of the vertices.
     ///
     /// # Returns
     ///
     /// An iterator over the incoming neighbours of the vertices as VertexViews.
-    fn in_neighbours(self) -> Self::VList;
+    fn in_neighbours(self) -> Self;
 
     /// Returns an iterator over the outgoing neighbours of the vertices.
     ///
     /// # Returns
     ///
     /// An iterator over the outgoing neighbours of the vertices as VertexViews.
-    fn out_neighbours(self) -> Self::VList;
+    fn out_neighbours(self) -> Self;
 }

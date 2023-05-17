@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::f32::consts::E;
 use std::{
     borrow::Cow,
     cell::{Ref, RefCell},
@@ -13,9 +14,10 @@ use crate::core::Prop;
 use crate::db::edge::EdgeView;
 use crate::db::graph_window::WindowedGraph;
 use crate::db::path::PathFromVertex;
+use crate::db::task::eval_edge::EvalEdgeView;
 use crate::db::vertex::VertexView;
 use crate::db::view_api::time::WindowSet;
-use crate::db::view_api::{BoxedIter, TimeOps, VertexViewOps};
+use crate::db::view_api::{BoxedIter, TimeOps, VertexListOps, VertexViewOps};
 use crate::{
     core::{
         agg::Accumulator,
@@ -28,6 +30,7 @@ use crate::{
     db::view_api::GraphViewOps,
 };
 
+#[derive(Clone)]
 pub struct EvalVertexView<'a, G: GraphViewOps, CS: ComputeState> {
     ss: usize,
     vv: VertexView<G>,
@@ -52,6 +55,16 @@ impl<'a, G: GraphViewOps, CS: ComputeState> EvalVertexView<'a, G, CS> {
             global_state,
             local_state,
         }
+    }
+
+    pub fn new_edge(&self, e: EdgeView<G>) -> EvalEdgeView<'a, G, CS> {
+        EvalEdgeView::new_(
+            self.ss,
+            e,
+            self.shard_state.clone(),
+            self.global_state.clone(),
+            self.local_state.clone(),
+        )
     }
 
     pub fn new_from_view(
@@ -245,73 +258,6 @@ impl<'a, G: GraphViewOps, CS: ComputeState> EvalVertexView<'a, G, CS> {
             .borrow()
             .read_global(self.ss + 1, agg_r)
             .unwrap_or(ACC::finish(&ACC::zero()))
-    }
-}
-
-pub struct EvalEdgeView<'a, G: GraphViewOps, CS: ComputeState> {
-    ss: usize,
-    ev: EdgeView<G>,
-    shard_state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
-    global_state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
-    local_state: Rc<RefCell<ShuffleComputeState<CS>>>,
-}
-
-impl<'a, G: GraphViewOps, CS: ComputeState> EvalEdgeView<'a, G, CS> {
-    pub fn new(
-        ss: usize,
-        edge: EdgeRef,
-        g: Arc<G>,
-        shard_state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
-        global_state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
-        local_state: Rc<RefCell<ShuffleComputeState<CS>>>,
-    ) -> Self {
-        Self {
-            ss,
-            ev: EdgeView::new(g, edge),
-            shard_state,
-            global_state,
-            local_state,
-        }
-    }
-
-    pub fn new_(
-        ss: usize,
-        ev: EdgeView<G>,
-        shard_state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
-        global_state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
-        local_state: Rc<RefCell<ShuffleComputeState<CS>>>,
-    ) -> Self {
-        Self {
-            ss,
-            ev,
-            shard_state,
-            global_state,
-            local_state,
-        }
-    }
-
-    pub fn dst(&self) -> EvalVertexView<'a, G, CS> {
-        EvalVertexView::new_(
-            self.ss,
-            self.ev.dst(),
-            self.shard_state.clone(),
-            self.global_state.clone(),
-            self.local_state.clone(),
-        )
-    }
-
-    pub fn src(&self) -> EvalVertexView<'a, G, CS> {
-        EvalVertexView::new_(
-            self.ss,
-            self.ev.src(),
-            self.shard_state.clone(),
-            self.global_state.clone(),
-            self.local_state.clone(),
-        )
-    }
-
-    pub fn history(&self) -> Vec<i64> {
-        self.ev.history()
     }
 }
 
@@ -527,7 +473,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState> VertexViewOps for EvalVertexView<'a,
     type Graph = G;
     type ValueType<T> = T;
     type PathType<'b> = EvalPathFromVertex<'a, G, CS> where Self: 'b;
-    type EList = BoxedIter<EdgeView<G>>;
+    type EList = Box<dyn Iterator<Item = EvalEdgeView<'a, G, CS>> + 'a>;
 
     fn id(&self) -> Self::ValueType<u64> {
         self.vv.id()
@@ -594,15 +540,18 @@ impl<'a, G: GraphViewOps, CS: ComputeState> VertexViewOps for EvalVertexView<'a,
     }
 
     fn edges(&self) -> Self::EList {
-        self.vv.edges()
+        let eev = self.clone();
+        Box::new(self.vv.edges().map(move |e| eev.new_edge(e)))
     }
 
     fn in_edges(&self) -> Self::EList {
-        self.vv.in_edges()
+        let eev = self.clone();
+        Box::new(self.vv.in_edges().map(move |e| eev.new_edge(e)))
     }
 
     fn out_edges(&self) -> Self::EList {
-        self.vv.out_edges()
+        let eev = self.clone();
+        Box::new(self.vv.out_edges().map(move |e| eev.new_edge(e)))
     }
 
     fn neighbours(&self) -> Self::PathType<'_> {
@@ -663,5 +612,115 @@ impl<'a, 'b, A: StateType, IN, OUT, ACC: Accumulator<A, IN, OUT>, CS: ComputeSta
     pub fn read_ref(&self) -> Option<&A> {
         self.state
             .read_ref_with_pid(self.ss, self.gid, self.pid, &self.acc_id)
+    }
+}
+
+impl<'a, G: GraphViewOps, CS: ComputeState> VertexListOps
+    for Box<dyn Iterator<Item = EvalVertexView<'a, G, CS>> + 'a>
+{
+    type Graph = G;
+    type Vertex = EvalVertexView<'a, G, CS>;
+    type IterType = Self;
+    type EList = Box<dyn Iterator<Item = EvalEdgeView<'a, G, CS>> + 'a>;
+    type ValueType<T> = T;
+
+    fn earliest_time(self) -> BoxedIter<Self::ValueType<Option<i64>>> {
+        todo!()
+    }
+
+    fn latest_time(self) -> BoxedIter<Self::ValueType<Option<i64>>> {
+        todo!()
+    }
+
+    fn window(
+        self,
+        t_start: i64,
+        t_end: i64,
+    ) -> BoxedIter<Self::ValueType<VertexView<WindowedGraph<Self::Graph>>>> {
+        todo!()
+    }
+
+    fn id(self) -> BoxedIter<Self::ValueType<u64>> {
+        todo!()
+    }
+
+    fn name(self) -> BoxedIter<Self::ValueType<String>> {
+        todo!()
+    }
+
+    fn property(
+        self,
+        name: String,
+        include_static: bool,
+    ) -> BoxedIter<Self::ValueType<Option<Prop>>> {
+        todo!()
+    }
+
+    fn property_history(self, name: String) -> BoxedIter<Self::ValueType<Vec<(i64, Prop)>>> {
+        todo!()
+    }
+
+    fn properties(self, include_static: bool) -> BoxedIter<Self::ValueType<HashMap<String, Prop>>> {
+        todo!()
+    }
+
+    fn history(self) -> BoxedIter<Self::ValueType<Vec<i64>>> {
+        todo!()
+    }
+
+    fn property_histories(self) -> BoxedIter<Self::ValueType<HashMap<String, Vec<(i64, Prop)>>>> {
+        todo!()
+    }
+
+    fn property_names(self, include_static: bool) -> BoxedIter<Self::ValueType<Vec<String>>> {
+        todo!()
+    }
+
+    fn has_property(self, name: String, include_static: bool) -> BoxedIter<Self::ValueType<bool>> {
+        todo!()
+    }
+
+    fn has_static_property(self, name: String) -> BoxedIter<Self::ValueType<bool>> {
+        todo!()
+    }
+
+    fn static_property(self, name: String) -> BoxedIter<Self::ValueType<Option<Prop>>> {
+        todo!()
+    }
+
+    fn degree(self) -> BoxedIter<Self::ValueType<usize>> {
+        todo!()
+    }
+
+    fn in_degree(self) -> BoxedIter<Self::ValueType<usize>> {
+        todo!()
+    }
+
+    fn out_degree(self) -> BoxedIter<Self::ValueType<usize>> {
+        todo!()
+    }
+
+    fn edges(self) -> Self::EList {
+        todo!()
+    }
+
+    fn in_edges(self) -> Self::EList {
+        todo!()
+    }
+
+    fn out_edges(self) -> Self::EList {
+        todo!()
+    }
+
+    fn neighbours(self) -> Self {
+        todo!()
+    }
+
+    fn in_neighbours(self) -> Self {
+        todo!()
+    }
+
+    fn out_neighbours(self) -> Self {
+        todo!()
     }
 }
