@@ -24,7 +24,6 @@ class RaphtoryBench(BenchmarkBase):
         list(self.graph.vertices().degree())
 
     def out_neighbours(self, id):
-        pass
         list([list(o) for o in self.graph.vertices().out_neighbours()])
 
     def page_rank(self):
