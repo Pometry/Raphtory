@@ -1,6 +1,7 @@
 //! Defines the `Vertex` struct, which represents a vertex in the graph.
 
-use crate::core::tgraph::VertexRef;
+use crate::core::time::IntoTime;
+use crate::core::vertex_ref::{LocalVertexRef, VertexRef};
 use crate::core::{Direction, Prop};
 use crate::db::edge::{EdgeList, EdgeView};
 use crate::db::graph_layer::LayeredGraph;
@@ -15,24 +16,30 @@ use std::sync::Arc;
 #[derive(Debug, Clone)]
 pub struct VertexView<G: GraphViewOps> {
     pub graph: Arc<G>,
-    pub vertex: VertexRef,
+    pub vertex: LocalVertexRef,
 }
 
 impl<G: GraphViewOps> From<VertexView<G>> for VertexRef {
     fn from(value: VertexView<G>) -> Self {
-        value.vertex
+        VertexRef::Local(value.vertex)
     }
 }
 
 impl<G: GraphViewOps> From<&VertexView<G>> for VertexRef {
     fn from(value: &VertexView<G>) -> Self {
-        value.vertex
+        VertexRef::Local(value.vertex)
     }
 }
 
 impl<G: GraphViewOps> VertexView<G> {
-    /// Creates a new `VertexView` wrapping a vertex reference and a graph.
+    /// Creates a new `VertexView` wrapping a vertex reference and a graph, localising any remote vertices to the correct shard.
     pub(crate) fn new(graph: Arc<G>, vertex: VertexRef) -> VertexView<G> {
+        let v = graph.localise_vertex_unchecked(vertex);
+        VertexView { graph, vertex: v }
+    }
+
+    /// Creates a new `VertexView` wrapping a local vertex reference and a graph
+    pub(crate) fn new_local(graph: Arc<G>, vertex: LocalVertexRef) -> VertexView<G> {
         VertexView { graph, vertex }
     }
 }
@@ -41,18 +48,15 @@ impl<G: GraphViewOps> VertexView<G> {
 impl<G: GraphViewOps> VertexViewOps for VertexView<G> {
     type Graph = G;
     type ValueType<T> = T;
-    type PathType = PathFromVertex<G>;
+    type PathType<'a> = PathFromVertex<G> where Self: 'a;
     type EList = BoxedIter<EdgeView<G>>;
 
     fn id(&self) -> u64 {
-        self.vertex.g_id
+        self.graph.vertex_id(self.vertex)
     }
 
     fn name(&self) -> String {
-        match self.static_property("_id".to_string()) {
-            None => self.id().to_string(),
-            Some(prop) => prop.to_string(),
-        }
+        self.graph.vertex_name(self.vertex)
     }
 
     fn earliest_time(&self) -> Option<i64> {
@@ -208,7 +212,7 @@ impl<G: GraphViewOps> TimeOps for VertexView<G> {
         self.graph.end()
     }
 
-    fn window(&self, t_start: i64, t_end: i64) -> Self::WindowedViewType {
+    fn window<T: IntoTime>(&self, t_start: T, t_end: T) -> Self::WindowedViewType {
         VertexView {
             graph: Arc::new(self.graph.window(t_start, t_end)),
             vertex: self.vertex,
@@ -238,10 +242,10 @@ impl<G: GraphViewOps> LayerOps for VertexView<G> {
 ///
 impl<G: GraphViewOps> VertexListOps for Box<dyn Iterator<Item = VertexView<G>> + Send> {
     type Graph = G;
+    type Vertex = VertexView<G>;
     type IterType = Box<dyn Iterator<Item = VertexView<G>> + Send>;
     type EList = Box<dyn Iterator<Item = EdgeView<Self::Graph>> + Send>;
-    type VList = Box<dyn Iterator<Item = VertexView<Self::Graph>> + Send>;
-    type ValueType<T: Send> = T;
+    type ValueType<T> = T;
 
     fn earliest_time(self) -> BoxedIter<Option<i64>> {
         Box::new(self.map(|v| v.start()))
@@ -323,25 +327,25 @@ impl<G: GraphViewOps> VertexListOps for Box<dyn Iterator<Item = VertexView<G>> +
         Box::new(self.flat_map(|v| v.out_edges()))
     }
 
-    fn neighbours(self) -> Self::VList {
+    fn neighbours(self) -> Self {
         Box::new(self.flat_map(|v| v.neighbours()))
     }
 
-    fn in_neighbours(self) -> Self::VList {
+    fn in_neighbours(self) -> Self {
         Box::new(self.flat_map(|v| v.in_neighbours()))
     }
 
-    fn out_neighbours(self) -> Self::VList {
+    fn out_neighbours(self) -> Self {
         Box::new(self.flat_map(|v| v.out_neighbours()))
     }
 }
 
 impl<G: GraphViewOps> VertexListOps for BoxedIter<BoxedIter<VertexView<G>>> {
     type Graph = G;
+    type Vertex = VertexView<G>;
     type IterType = Self;
     type EList = BoxedIter<BoxedIter<EdgeView<G>>>;
-    type VList = Self;
-    type ValueType<T: Send> = BoxedIter<T>;
+    type ValueType<T> = BoxedIter<T>;
 
     fn earliest_time(self) -> BoxedIter<Self::ValueType<Option<i64>>> {
         Box::new(self.map(|it| it.earliest_time()))
@@ -431,122 +435,36 @@ impl<G: GraphViewOps> VertexListOps for BoxedIter<BoxedIter<VertexView<G>>> {
         Box::new(self.map(|it| it.out_edges()))
     }
 
-    fn neighbours(self) -> Self::VList {
+    fn neighbours(self) -> Self {
         Box::new(self.map(|it| it.neighbours()))
     }
 
-    fn in_neighbours(self) -> Self::VList {
+    fn in_neighbours(self) -> Self {
         Box::new(self.map(|it| it.in_neighbours()))
     }
 
-    fn out_neighbours(self) -> Self::VList {
+    fn out_neighbours(self) -> Self {
         Box::new(self.map(|it| it.out_neighbours()))
     }
 }
 
 #[cfg(test)]
 mod vertex_test {
+    use crate::db::graph::Graph;
     use crate::db::view_api::*;
 
     #[test]
-    fn test_all_degrees_window() {
-        let g = crate::graph_loader::example::lotr_graph::lotr_graph(4);
+    fn test_earliest_time() {
+        let g = Graph::new(4);
+        g.add_vertex(0, 1, &vec![]).unwrap();
+        g.add_vertex(1, 1, &vec![]).unwrap();
+        g.add_vertex(2, 1, &vec![]).unwrap();
+        let mut view = g.at(1);
+        assert_eq!(view.vertex(1).expect("v").earliest_time().unwrap(), 0);
+        assert_eq!(view.vertex(1).expect("v").latest_time().unwrap(), 1);
 
-        assert_eq!(g.num_edges(), 701);
-        assert_eq!(g.vertex("Gandalf").unwrap().degree(), 49);
-        assert_eq!(
-            g.vertex("Gandalf").unwrap().window(1356, 24792).degree(),
-            34
-        );
-        assert_eq!(g.vertex("Gandalf").unwrap().in_degree(), 24);
-        assert_eq!(
-            g.vertex("Gandalf").unwrap().window(1356, 24792).in_degree(),
-            16
-        );
-        assert_eq!(g.vertex("Gandalf").unwrap().out_degree(), 35);
-        assert_eq!(
-            g.vertex("Gandalf")
-                .unwrap()
-                .window(1356, 24792)
-                .out_degree(),
-            20
-        );
-    }
-
-    #[test]
-    fn test_all_neighbours_window() {
-        let g = crate::graph_loader::example::lotr_graph::lotr_graph(4);
-
-        assert_eq!(g.num_edges(), 701);
-        assert_eq!(g.vertex("Gandalf").unwrap().neighbours().iter().count(), 49);
-        assert_eq!(
-            g.vertex("Gandalf")
-                .unwrap()
-                .window(1356, 24792)
-                .neighbours()
-                .iter()
-                .count(),
-            34
-        );
-        assert_eq!(
-            g.vertex("Gandalf").unwrap().in_neighbours().iter().count(),
-            24
-        );
-        assert_eq!(
-            g.vertex("Gandalf")
-                .unwrap()
-                .window(1356, 24792)
-                .in_neighbours()
-                .iter()
-                .count(),
-            16
-        );
-        assert_eq!(
-            g.vertex("Gandalf").unwrap().out_neighbours().iter().count(),
-            35
-        );
-        assert_eq!(
-            g.vertex("Gandalf")
-                .unwrap()
-                .window(1356, 24792)
-                .out_neighbours()
-                .iter()
-                .count(),
-            20
-        );
-    }
-
-    #[test]
-    fn test_all_edges_window() {
-        let g = crate::graph_loader::example::lotr_graph::lotr_graph(4);
-
-        assert_eq!(g.num_edges(), 701);
-        assert_eq!(g.vertex("Gandalf").unwrap().edges().count(), 59);
-        assert_eq!(
-            g.vertex("Gandalf")
-                .unwrap()
-                .window(1356, 24792)
-                .edges()
-                .count(),
-            36
-        );
-        assert_eq!(g.vertex("Gandalf").unwrap().in_edges().count(), 24);
-        assert_eq!(
-            g.vertex("Gandalf")
-                .unwrap()
-                .window(1356, 24792)
-                .in_edges()
-                .count(),
-            16
-        );
-        assert_eq!(g.vertex("Gandalf").unwrap().out_edges().count(), 35);
-        assert_eq!(
-            g.vertex("Gandalf")
-                .unwrap()
-                .window(1356, 24792)
-                .out_edges()
-                .count(),
-            20
-        );
+        view = g.at(3);
+        assert_eq!(view.vertex(1).expect("v").earliest_time().unwrap(), 0);
+        assert_eq!(view.vertex(1).expect("v").latest_time().unwrap(), 2);
     }
 }

@@ -1,11 +1,14 @@
 //! The API for querying a view of the graph in a read-only state
 use crate::dynamic::{DynamicGraph, IntoDynamic};
 use crate::edge::{PyEdge, PyEdges};
-use crate::utils::{at_impl, expanding_impl, extract_vertex_ref, rolling_impl, window_impl};
+use crate::utils::{
+    at_impl, expanding_impl, extract_vertex_ref, rolling_impl, window_impl, IntoPyObject,
+    PyWindowSet,
+};
 use crate::vertex::{PyVertex, PyVertices};
+use chrono::prelude::*;
 use pyo3::prelude::*;
 use raphtory::db::view_api::layer::LayerOps;
-use raphtory::db::view_api::time::WindowSet;
 use raphtory::db::view_api::*;
 use raphtory::*;
 
@@ -24,48 +27,10 @@ impl<G: GraphViewOps + IntoDynamic> From<G> for PyGraphView {
     }
 }
 
-/// A set of windowed views of a `Graph`, allows user to iterating over a Graph broken
-/// down into multiple windowed views.
-#[pyclass(name = "GraphWindowSet")]
-#[derive(Clone)]
-pub struct PyGraphWindowSet {
-    window_set: WindowSet<DynamicGraph>,
-}
-
-impl From<WindowSet<DynamicGraph>> for PyGraphWindowSet {
-    fn from(value: WindowSet<DynamicGraph>) -> Self {
-        Self { window_set: value }
-    }
-}
-
-/// A set of windowed views of a `Graph`, allows user to iterating over a Graph broken
-/// down into multiple windowed views.
-#[pymethods]
-impl PyGraphWindowSet {
-    fn __iter__(&self) -> PyGraphWindowIterator {
-        self.window_set.clone().into()
-    }
-}
-
-#[pyclass(name = "GraphWindowIterator")]
-#[derive(Clone)]
-pub struct PyGraphWindowIterator {
-    window_set: WindowSet<DynamicGraph>,
-}
-
-impl From<WindowSet<DynamicGraph>> for PyGraphWindowIterator {
-    fn from(value: WindowSet<DynamicGraph>) -> Self {
-        Self { window_set: value }
-    }
-}
-
-#[pymethods]
-impl PyGraphWindowIterator {
-    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
-        slf
-    }
-    fn __next__(&mut self) -> Option<PyGraphView> {
-        self.window_set.next().map(|g| g.into())
+impl<G: GraphViewOps + IntoDynamic> IntoPyObject for G {
+    fn into_py_object(self) -> PyObject {
+        let py_version: PyGraphView = self.into();
+        Python::with_gil(|py| py_version.into_py(py))
     }
 }
 
@@ -86,12 +51,30 @@ impl PyGraphView {
         self.graph.earliest_time()
     }
 
+    /// DateTime of earliest activity in the graph
+    ///
+    /// Returns:
+    ///     the datetime of the earliest activity in the graph
+    pub fn earliest_date_time(&self) -> Option<NaiveDateTime> {
+        let earliest_time = self.graph.earliest_time()?;
+        Some(NaiveDateTime::from_timestamp_millis(earliest_time).unwrap())
+    }
+
     /// Timestamp of latest activity in the graph
     ///
     /// Returns:
     ///     the timestamp of the latest activity in the graph
     pub fn latest_time(&self) -> Option<i64> {
         self.graph.latest_time()
+    }
+
+    /// DateTime of latest activity in the graph
+    ///
+    /// Returns:
+    ///     the datetime of the latest activity in the graph
+    pub fn latest_date_time(&self) -> Option<NaiveDateTime> {
+        let latest_time = self.graph.latest_time()?;
+        Some(NaiveDateTime::from_timestamp_millis(latest_time).unwrap())
     }
 
     /// Number of edges in the graph
@@ -196,12 +179,35 @@ impl PyGraphView {
         self.graph.start()
     }
 
+    /// Returns the default start datetime for perspectives over the view
+    ///
+    /// Returns:
+    ///     the default start datetime for perspectives over the view
+    pub fn start_date_time(&self) -> Option<NaiveDateTime> {
+        let start_time = self.graph.start()?;
+        Some(NaiveDateTime::from_timestamp_millis(start_time).unwrap())
+    }
+
     /// Returns the default end time for perspectives over the view
     ///
     /// Returns:
     ///    the default end time for perspectives over the view
     pub fn end(&self) -> Option<i64> {
         self.graph.end()
+    }
+
+    #[doc = window_size_doc_string!()]
+    pub fn window_size(&self) -> Option<u64> {
+        self.graph.window_size()
+    }
+
+    /// Returns the default end datetime for perspectives over the view
+    ///
+    /// Returns:
+    ///    the default end datetime for perspectives over the view
+    pub fn end_date_time(&self) -> Option<NaiveDateTime> {
+        let end_time = self.graph.end()?;
+        Some(NaiveDateTime::from_timestamp_millis(end_time).unwrap())
     }
 
     /// Creates a `WindowSet` with the given `step` size and optional `start` and `end` times,    
@@ -217,7 +223,7 @@ impl PyGraphView {
     /// Returns:
     ///     A `WindowSet` with the given `step` size and optional `start` and `end` times,
     #[pyo3(signature = (step))]
-    fn expanding(&self, step: &PyAny) -> PyResult<PyGraphWindowSet> {
+    fn expanding(&self, step: &PyAny) -> PyResult<PyWindowSet> {
         expanding_impl(&self.graph, step)
     }
 
@@ -234,7 +240,7 @@ impl PyGraphView {
     ///
     /// Returns:
     ///  a `WindowSet` with the given `window` size and optional `step`, `start` and `end` times,
-    fn rolling(&self, window: &PyAny, step: Option<&PyAny>) -> PyResult<PyGraphWindowSet> {
+    fn rolling(&self, window: &PyAny, step: Option<&PyAny>) -> PyResult<PyWindowSet> {
         rolling_impl(&self.graph, window, step)
     }
 

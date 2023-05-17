@@ -1,3 +1,4 @@
+use std::marker::PhantomData;
 use std::{
     borrow::Cow,
     cell::RefCell,
@@ -13,9 +14,10 @@ use std::{
 use itertools::Itertools;
 use rayon::{prelude::*, ThreadPool};
 
+use crate::core::state::shuffle_state::{EvalGlobalState, EvalLocalState, EvalShardState};
 use crate::{
     core::state::{compute_state::ComputeState, shuffle_state::ShuffleComputeState},
-    db::{view_api::GraphViewOps},
+    db::view_api::GraphViewOps,
 };
 
 use super::{
@@ -24,7 +26,7 @@ use super::{
     eval_vertex::EvalVertexView,
     task::{Job, Step, Task},
     task_state::{Global, Shard},
-    POOL
+    POOL,
 };
 
 pub struct TaskRunner<G: GraphViewOps, CS: ComputeState> {
@@ -81,7 +83,7 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         for shard in 0..num_shards {
             if shard % num_tasks == *job_id {
                 for vertex in self.ctx.graph().vertices_shard(shard) {
-                    let vv = EvalVertexView::new(
+                    let vv = EvalVertexView::new_local(
                         self.ctx.ss(),
                         vertex,
                         g.clone(),
@@ -236,19 +238,19 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         })
     }
 
-    pub fn run(
+    pub fn run<
+        B,
+        F: FnOnce(EvalGlobalState<G, CS>, EvalShardState<G, CS>, EvalLocalState<G, CS>) -> B,
+    >(
         &mut self,
         init_tasks: Vec<Job<G, CS>>,
         tasks: Vec<Job<G, CS>>,
+        f: F,
         num_threads: Option<usize>,
         steps: usize,
         shard_initial_state: Option<Shard<CS>>,
         global_initial_state: Option<Global<CS>>,
-    ) -> (
-        Shard<CS>,
-        Global<CS>,
-        Vec<Arc<Option<ShuffleComputeState<CS>>>>,
-    ) {
+    ) -> B {
         let graph_shards = self.ctx.graph().num_shards();
 
         let pool = num_threads
@@ -306,6 +308,12 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
             self.ctx.increment_ss();
         }
 
-        (shard_state, global_state, local_state)
+        let ss: usize = self.ctx.ss();
+
+        f(
+            EvalGlobalState::new(ss, self.ctx.graph(), global_state),
+            EvalShardState::new(ss, self.ctx.graph(), shard_state),
+            EvalLocalState::new(ss, self.ctx.graph(), local_state),
+        )
     }
 }

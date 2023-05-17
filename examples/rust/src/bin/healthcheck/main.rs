@@ -15,7 +15,7 @@ mod test {
         view_api::*,
         view_api::{internal::GraphViewInternalOps, GraphViewOps},
     };
-    use raphtory::graph_loader::source::csv_loader::CsvLoader;
+    use raphtory_io::graph_loader::source::csv_loader::CsvLoader;
     use serde::de::DeserializeOwned;
 
     trait TestEdge {
@@ -44,145 +44,68 @@ mod test {
 
         load::<REC>(&g1, &gn, path);
 
-        assert_eq!(g1.vertices_len(), gn.vertices_len());
-        // NON-TEMPORAL TESTS HERE!
+        fn check_graphs<G: GraphViewOps>(g1: &G, gn: &G, n_parts: usize) {
+            assert_eq!(g1.num_vertices(), gn.num_vertices());
+            // NON-TEMPORAL TESTS HERE!
 
-        let mut expect_1 = g1.vertex_refs().map(|v| v.g_id).collect::<Vec<_>>();
-        let mut expect_n = gn.vertex_refs().map(|v| v.g_id).collect::<Vec<_>>();
+            let mut expect_1 = g1.vertices().id().collect::<Vec<_>>();
+            let mut expect_n = gn.vertices().id().collect::<Vec<_>>();
 
-        expect_1.sort();
-        expect_n.sort();
+            expect_1.sort();
+            expect_n.sort();
 
-        assert_eq!(expect_1, expect_n, "Graphs are not equal {n_parts}");
+            assert_eq!(expect_1, expect_n, "Graphs are not equal {n_parts}");
 
-        for v_ref in g1.vertex_refs() {
-            let v1 = g1.vertex(v_ref.g_id).unwrap().id();
-            let vn = gn.vertex(v_ref.g_id).unwrap().id();
+            for v_ref in g1.vertices().id() {
+                let v1 = g1.vertex(v_ref).unwrap().id();
+                let vn = gn.vertex(v_ref).unwrap().id();
+                assert_eq!(v1, vn, "Graphs are not equal {n_parts}");
 
-            assert_eq!(v1, vn, "Graphs are not equal {n_parts}");
-            let v_id = v1;
-            for d in [Direction::OUT, Direction::IN, Direction::BOTH] {
-                let mut expect_1 = g1
-                    .neighbours(v_id.into(), d, None)
-                    .map(|id| id.g_id)
-                    .collect::<Vec<_>>();
-
-                let mut expect_n = gn
-                    .neighbours(v_id.into(), d, None)
-                    .map(|id| id.g_id)
-                    .collect::<Vec<_>>();
-
+                let v_id = v1;
+                let v1 = g1.vertex(v_id).unwrap();
+                let vn = gn.vertex(v_id).unwrap();
+                let mut expect_1 = v1.neighbours().id().collect_vec();
+                let mut expect_n = vn.neighbours().id().collect_vec();
                 expect_1.sort();
                 expect_n.sort();
+                assert_eq!(expect_1, expect_n, "Graphs are not equal {n_parts}");
 
+                let mut expect_1 = v1.in_neighbours().id().collect_vec();
+                let mut expect_n = vn.in_neighbours().id().collect_vec();
+                expect_1.sort();
+                expect_n.sort();
+                assert_eq!(expect_1, expect_n, "Graphs are not equal {n_parts}");
+
+                let mut expect_1 = v1.out_neighbours().id().collect_vec();
+                let mut expect_n = vn.out_neighbours().id().collect_vec();
+                expect_1.sort();
+                expect_n.sort();
                 assert_eq!(expect_1, expect_n, "Graphs are not equal {n_parts}");
 
                 // now we test degrees
-                let expect_1 = g1.degree(v_id.into(), d, None);
-                let expect_n = gn.degree(v_id.into(), d, None);
+                let expect_1 = v1.degree();
+                let expect_n = vn.degree();
+                assert_eq!(expect_1, expect_n, "Graphs are not equal {n_parts}");
 
-                assert_eq!(expect_1, expect_n, "Graphs are not equal {n_parts} {d:?}");
+                let expect_1 = v1.in_degree();
+                let expect_n = vn.in_degree();
+                assert_eq!(expect_1, expect_n, "Graphs are not equal {n_parts}");
+
+                let expect_1 = v1.out_degree();
+                let expect_n = vn.out_degree();
+                assert_eq!(expect_1, expect_n, "Graphs are not equal {n_parts}");
             }
         }
+
+        check_graphs(&g1, &gn, n_parts);
 
         // TEMPORAL TESTS HERE!
         let t_start = 0;
         let t_end = 100;
+        let g1_w = g1.window(t_start, t_end);
+        let gn_w = gn.window(t_start, t_end);
 
-        let mut expected_1 = g1
-            .vertex_refs_window(t_start, t_end)
-            .map(|v| v.g_id)
-            .collect::<Vec<_>>();
-        let mut expected_n = gn
-            .vertex_refs_window(t_start, t_end)
-            .map(|v| v.g_id)
-            .collect::<Vec<_>>();
-
-        expected_1.sort();
-        expected_n.sort();
-
-        assert_eq!(expected_1, expected_n, "Graphs are not equal {n_parts}");
-
-        for v_ref in g1.vertex_refs_window(t_start, t_end) {
-            let v1 = g1.vertex(v_ref.g_id).unwrap().id();
-            let vn = gn.vertex(v_ref.g_id).unwrap().id();
-
-            assert_eq!(v1, vn, "Graphs are not equal {n_parts}");
-            let v_id = v1;
-            for d in [Direction::OUT, Direction::IN, Direction::BOTH] {
-                let mut expected_1 = g1
-                    .neighbours_window(v_id.into(), t_start, t_end, d, None)
-                    .map(|id| id.g_id)
-                    .collect::<Vec<_>>();
-
-                let mut expected_n = gn
-                    .neighbours_window(v_id.into(), t_start, t_end, d, None)
-                    .map(|id| id.g_id)
-                    .collect::<Vec<_>>();
-
-                expected_1.sort();
-                expected_n.sort();
-
-                assert_eq!(expected_1, expected_n, "Graphs are not equal {n_parts}");
-
-                // now we test degrees
-                let expected_1 = g1.degree_window(v_id.into(), t_start, t_end, d, None);
-                let expected_n = gn.degree_window(v_id.into(), t_start, t_end, d, None);
-
-                assert_eq!(
-                    expected_1, expected_n,
-                    "Graphs are not equal {n_parts} {d:?}"
-                );
-            }
-        }
-
-        let mut expected_1 = g1
-            .vertex_refs_window(t_start, t_end)
-            .map(|id| {
-                let deg = g1.degree_window(id, t_start, t_end, Direction::BOTH, None);
-                let out_deg = g1.degree_window(id, t_start, t_end, Direction::OUT, None);
-                let in_deg = g1.degree_window(id, t_start, t_end, Direction::IN, None);
-                (id.g_id, deg, out_deg, in_deg)
-            })
-            .collect::<Vec<_>>();
-        expected_1.sort_by(|v1, v2| v1.0.cmp(&v2.0));
-
-        let mut expected_n = gn
-            .vertex_refs_window(t_start, t_end)
-            .map(|id| {
-                let deg = gn.degree_window(id, t_start, t_end, Direction::BOTH, None);
-                let out_deg = gn.degree_window(id, t_start, t_end, Direction::OUT, None);
-                let in_deg = gn.degree_window(id, t_start, t_end, Direction::IN, None);
-                (id.g_id, deg, out_deg, in_deg)
-            })
-            .collect::<Vec<_>>();
-        expected_n.sort_by(|v1, v2| v1.0.cmp(&v2.0));
-
-        assert!(!expected_1.is_empty(), "Graph is empty {n_parts}");
-        assert!(!expected_n.is_empty(), "Graph is empty {n_parts}");
-        assert_eq!(expected_1, expected_n, "Graphs are not equal {n_parts}");
-
-        let wg1 = g1.window(t_start, t_end);
-        let wgn = gn.window(t_start, t_end);
-
-        assert_eq!(wg1.vertices_len(), wgn.vertices_len());
-
-        let mut expected_1 = wg1
-            .vertices()
-            .iter()
-            .map(|vs| (vs.id(), vs.degree(), vs.out_degree(), vs.in_degree()))
-            .collect::<Vec<_>>();
-        expected_1.sort_by(|v1, v2| v1.0.cmp(&v2.0));
-
-        let mut expected_n = wgn
-            .vertices()
-            .iter()
-            .map(|vs| (vs.id(), vs.degree(), vs.out_degree(), vs.in_degree()))
-            .collect::<Vec<_>>();
-
-        expected_n.sort_by(|v1, v2| v1.0.cmp(&v2.0));
-
-        assert_eq!(expected_1, expected_n, "Graphs are not equal {n_parts}");
+        check_graphs(&g1_w, &gn_w, n_parts);
     }
 
     #[derive(serde::Deserialize, Debug)]

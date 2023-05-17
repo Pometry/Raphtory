@@ -14,13 +14,12 @@
 //! let immutable_graph = graph.freeze();
 //! ```
 
+use crate::core::edge_ref::EdgeRef;
 use crate::core::tgraph::TemporalGraph;
 use crate::core::tgraph_shard::ImmutableTGraphShard;
+use crate::core::utils;
+use crate::core::vertex_ref::{LocalVertexRef, VertexRef};
 use crate::core::Direction;
-use crate::core::{
-    tgraph::{EdgeRef, VertexRef},
-    utils,
-};
 use crate::db::graph::Graph;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
@@ -124,13 +123,23 @@ impl ImmutableGraph {
     /// Get an immutable graph shard for a given vertex.
     ///
     pub fn get_shard_from_v(&self, v: VertexRef) -> &ImmutableTGraphShard<TemporalGraph> {
-        &self.shards[self.shard_id(v.g_id)]
+        match v {
+            VertexRef::Local(local) => &self.shards[local.shard_id],
+            VertexRef::Remote(g_id) => &self.shards[self.shard_id(g_id)],
+        }
+    }
+
+    pub fn get_shard_from_local_v(
+        &self,
+        v: LocalVertexRef,
+    ) -> &ImmutableTGraphShard<TemporalGraph> {
+        &self.shards[v.shard_id]
     }
 
     /// Get an immutable graph shard for a given edge.
     ///
     pub fn get_shard_from_e(&self, e: EdgeRef) -> &ImmutableTGraphShard<TemporalGraph> {
-        &self.shards[self.shard_id(e.src_g_id)]
+        &self.shards[e.shard()]
     }
 
     // Get the earliest time in the graph.
@@ -174,8 +183,8 @@ impl ImmutableGraph {
     }
 
     /// Get the degree for a vertex in the graph given its direction.
-    pub fn degree(&self, v: VertexRef, d: Direction) -> usize {
-        self.get_shard_from_v(v).degree(v, d, None)
+    pub fn degree(&self, v: LocalVertexRef, d: Direction) -> usize {
+        self.get_shard_from_local_v(v).degree(v, d, None)
     }
 
     /// Get all vertices in the graph.
@@ -193,7 +202,7 @@ impl ImmutableGraph {
     /// // Unfreeze the graph
     /// let vertices = immutable_graph.vertices();
     /// ```
-    pub fn vertices(&self) -> Box<dyn Iterator<Item = VertexRef> + Send + '_> {
+    pub fn vertices(&self) -> Box<dyn Iterator<Item = LocalVertexRef> + Send + '_> {
         Box::new(self.shards.iter().flat_map(|s| s.vertices()))
     }
 
@@ -212,11 +221,11 @@ impl ImmutableGraph {
     /// // Unfreeze the graph
     /// let edges = immutable_graph.edges();
     /// ```
-    pub fn edges(&self) -> Box<dyn Iterator<Item = (usize, EdgeRef)> + Send + '_> {
-        Box::new(
-            self.vertices()
-                .flat_map(|v| self.get_shard_from_v(v).edges(v.g_id, Direction::OUT, None)),
-        )
+    pub fn edges(&self) -> Box<dyn Iterator<Item = EdgeRef> + Send + '_> {
+        Box::new(self.vertices().flat_map(|v| {
+            self.get_shard_from_local_v(v)
+                .vertex_edges(v, Direction::OUT, None)
+        }))
     }
 
     /// Get number of edges in the graph.

@@ -21,7 +21,7 @@
 //! - **Horizontal Scalability** - raphtory is designed to be horizontally scalable.
 //! - **Distributed** - raphtory can be distributed across multiple machines.
 //! - **Fast** - raphtory is fast, and can process large amounts of data in a short amount of time.
-//! - **Open Source** - raphtory is open source, and is available on Github under a AGPL-3.0 license.
+//! - **Open Source** - raphtory is open source, and is available on Github under a GPL-3.0 license.
 //!
 //! ### Shards
 //!
@@ -84,28 +84,6 @@
 //! println!("Number of Edges {:?}", graph.num_edges());
 //! ```
 //!
-//! Load a pre-built graph
-//! ```rust
-//! use raphtory::algorithms::degree::average_degree;
-//! use raphtory::db::graph::Graph;
-//! use raphtory::db::view_api::*;
-//! use raphtory::graph_loader::example::lotr_graph::lotr_graph;
-//!
-//! let graph = lotr_graph(3);
-//!
-//! // Get the in-degree, out-degree of Gandalf
-//! // The graph.vertex option returns a result of an option,
-//! // so we need to unwrap the result and the option or
-//! // we can use this if let instead
-//! if let Some(gandalf) = graph.vertex("Gandalf") {
-//!    println!("Gandalf in degree: {:?}", gandalf.in_degree());
-//!   println!("Gandalf out degree: {:?}", gandalf.out_degree());
-//! }
-//!
-//! // Run an average degree algorithm on the graph
-//! println!("Average degree: {:?}", average_degree(&graph));
-//! ```
-//!
 //! ## Supported Operating Systems
 //! This library requires Rust 1.54 or later.
 //!
@@ -117,7 +95,7 @@
 //!
 //! ## License
 //!
-//! This project is licensed under the terms of the AGPL-3.0 license.
+//! This project is licensed under the terms of the GPL-3.0 license.
 //! Please see the Github repository for more information.
 //!
 //! ## Contributing
@@ -133,5 +111,4 @@ extern crate quickcheck_macros;
 pub mod algorithms;
 pub mod core;
 pub mod db;
-pub mod graph_loader;
 pub mod graphgen;
