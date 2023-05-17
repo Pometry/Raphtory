@@ -2,7 +2,6 @@ use std::collections::{HashMap};
 
 use crate::db::{
     graph::Graph,
-    program::{GlobalEvalState, LocalState, Program},
     view_api::*, edge::EdgeView,
 };
 use crate::algorithms::three_node_motifs::*;
