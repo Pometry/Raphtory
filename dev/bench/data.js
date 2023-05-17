@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1684338977264,
+  "lastUpdate": 1684343085068,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -1003,6 +1003,42 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions",
             "value": 467458,
             "range": "± 68369",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "33124479+narnolddd@users.noreply.github.com",
+            "name": "Naomi Arnold",
+            "username": "narnolddd"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a207f50cc4338ee38454f03a2700fb0194b959e9",
+          "message": "Feature/temporal motifs (#876)\n\n* moved motifs to new raphtory repo\r\n\r\n* added so that accessible in python\r\n\r\n* removed ref to old API\r\n\r\n---------\r\n\r\nCo-authored-by: miratepuffin <b.a.steer@qmul.ac.uk>",
+          "timestamp": "2023-05-17T18:01:05+01:00",
+          "tree_id": "896a0f40b3a7b20d36114db90116306a3112bf56",
+          "url": "https://github.com/Pometry/Raphtory/commit/a207f50cc4338ee38454f03a2700fb0194b959e9"
+        },
+        "date": 1684343084464,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 332260,
+            "range": "± 2109",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 415070,
+            "range": "± 81421",
             "unit": "ns/iter"
           }
         ]
