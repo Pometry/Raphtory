@@ -8,6 +8,7 @@ pub mod time;
 pub mod vertex;
 
 pub use edge::EdgeListOps;
+pub use edge::EdgeViewOps;
 pub use graph::GraphViewOps;
 pub use time::TimeOps;
 pub use vertex::VertexListOps;

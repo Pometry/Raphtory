@@ -1,3 +1,4 @@
+use crate::db::view_api::VertexViewOps;
 use crate::{
     core::{
         agg::InitOneF32,
@@ -43,7 +44,7 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
         let out_degree = s.out_degree();
         if out_degree > 0 {
             let new_score = s.read_local(&score) / out_degree as f32;
-            for t in s.neighbours_out() {
+            for t in s.out_neighbours() {
                 t.update(&recv_score, new_score)
             }
         } else {

@@ -5,11 +5,12 @@ use crate::core::vertex::InputVertex;
 use crate::db::task::context::Context;
 use crate::db::task::task::{ATask, Job, Step};
 use crate::db::task::task_runner::TaskRunner;
-use crate::db::view_api::GraphViewOps;
+use crate::db::view_api::edge::EdgeViewOps;
+use crate::db::view_api::{GraphViewOps, TimeOps, VertexViewOps};
 use itertools::Itertools;
+use num_traits::Zero;
 use std::collections::HashMap;
 use std::ops::Add;
-use num_traits::Zero;
 
 #[derive(Eq, Hash, PartialEq, Clone, Debug, Default)]
 pub struct TaintMessage {
@@ -75,8 +76,8 @@ pub fn generic_taint<G: GraphViewOps, T: InputVertex>(
     ctx.global_agg(tainted_vertices);
 
     let step1 = ATask::new(move |evv| {
-        if infected_nodes.contains(&evv.global_id()) {
-            evv.global_update(&tainted_vertices, evv.global_id());
+        if infected_nodes.contains(&evv.id()) {
+            evv.global_update(&tainted_vertices, evv.id());
             evv.update(&taint_status, true);
             evv.update(&earliest_taint_time, start_time);
             evv.update(
@@ -86,19 +87,21 @@ pub fn generic_taint<G: GraphViewOps, T: InputVertex>(
                     src_vertex: "start".to_string(),
                 },
             );
-            evv.out_edges(start_time).for_each(|eev| {
-                let dst = eev.dst();
-                eev.history().into_iter().for_each(|t| {
-                    dst.update(&earliest_taint_time, t);
-                    dst.update(
-                        &recv_tainted_msgs,
-                        TaintMessage {
-                            event_time: t,
-                            src_vertex: evv.name(),
-                        },
-                    )
+            evv.window(start_time, i64::MAX)
+                .out_edges()
+                .for_each(|eev| {
+                    let dst = eev.dst();
+                    eev.history().into_iter().for_each(|t| {
+                        dst.update(&earliest_taint_time, t);
+                        dst.update(
+                            &recv_tainted_msgs,
+                            TaintMessage {
+                                event_time: t,
+                                src_vertex: evv.name(),
+                            },
+                        )
+                    });
                 });
-            });
         }
         Step::Continue
     });
@@ -109,7 +112,7 @@ pub fn generic_taint<G: GraphViewOps, T: InputVertex>(
         // println!("v = {}, msgs = {:?}, taint_history = {:?}", evv.global_id(), msgs, evv.read(&taint_history));
 
         if !msgs.is_empty() {
-            evv.global_update(&tainted_vertices, evv.global_id());
+            evv.global_update(&tainted_vertices, evv.id());
 
             if !evv.read(&taint_status) {
                 evv.update(&taint_status, true);
@@ -120,21 +123,21 @@ pub fn generic_taint<G: GraphViewOps, T: InputVertex>(
 
             // println!("v = {}, taint_history = {:?}", evv.global_id(), evv.read(&taint_history));
 
-            if stop_nodes.is_empty() || !stop_nodes.contains(&evv.global_id()) {
-                evv.out_edges(evv.read(&earliest_taint_time))
-                    .for_each(|eev| {
-                        let dst = eev.dst();
-                        eev.history().into_iter().for_each(|t| {
-                            dst.update(&earliest_taint_time, t);
-                            dst.update(
-                                &recv_tainted_msgs,
-                                TaintMessage {
-                                    event_time: t,
-                                    src_vertex: evv.name(),
-                                },
-                            )
-                        });
+            if stop_nodes.is_empty() || !stop_nodes.contains(&evv.id()) {
+                let earliest = evv.read(&earliest_taint_time);
+                evv.window(earliest, i64::MAX).out_edges().for_each(|eev| {
+                    let dst = eev.dst();
+                    eev.history().into_iter().for_each(|t| {
+                        dst.update(&earliest_taint_time, t);
+                        dst.update(
+                            &recv_tainted_msgs,
+                            TaintMessage {
+                                event_time: t,
+                                src_vertex: evv.name(),
+                            },
+                        )
                     });
+                });
             }
         }
         Step::Continue

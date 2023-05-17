@@ -1,4 +1,3 @@
-use std::ops::Range;
 use crate::algorithms::*;
 use crate::core::agg::*;
 use crate::core::state::accumulator_id::accumulators::val;
@@ -16,6 +15,7 @@ use crate::{
 };
 use num_traits::abs;
 use rustc_hash::FxHashMap;
+use std::ops::Range;
 
 // HITS (Hubs and Authority) Algorithm:
 // AuthScore of a vertex (A) = Sum of HubScore of all vertices pointing at vertex (A) from previous iteration /
@@ -67,10 +67,10 @@ pub fn hits<G: GraphViewOps>(
     let step2 = ATask::new(move |evv| {
         let hub_score = evv.read_local(&hub_score);
         let auth_score = evv.read_local(&auth_score);
-        for t in evv.neighbours_out() {
+        for t in evv.out_neighbours() {
             t.update(&recv_hub_score, hub_score)
         }
-        for t in evv.neighbours_in() {
+        for t in evv.in_neighbours() {
             t.update(&recv_auth_score, auth_score)
         }
         Step::Continue
@@ -143,11 +143,9 @@ pub fn hits<G: GraphViewOps>(
 
     let mut results: FxHashMap<String, (f32, f32)> = FxHashMap::default();
 
-    hub_scores
-        .into_iter()
-        .for_each(|(k, v)| {
-            results.insert(k, (v, 0.0));
-        });
+    hub_scores.into_iter().for_each(|(k, v)| {
+        results.insert(k, (v, 0.0));
+    });
 
     auth_scores.into_iter().for_each(|(k, v)| {
         let (a, _) = results.get(&k).unwrap();

@@ -1018,6 +1018,7 @@ mod views_test {
     use super::*;
     use crate::core::Prop;
     use crate::db::graph::Graph;
+    use crate::db::view_api::edge::EdgeViewOps;
     use crate::db::view_api::*;
     use itertools::Itertools;
     use quickcheck::TestResult;

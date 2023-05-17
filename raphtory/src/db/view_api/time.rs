@@ -3,7 +3,7 @@ use crate::core::time::{Interval, IntervalSize, IntoTime};
 use chrono::DateTime;
 
 /// Trait defining time query operations
-pub trait TimeOps: Send {
+pub trait TimeOps {
     type WindowedViewType: TimeOps;
 
     /// Return the timestamp of the default start for perspectives of the view (if any).
@@ -116,14 +116,30 @@ impl<T: TimeOps + Clone + 'static> WindowSet<T> {
     }
 
     /// Returns the time index of this window set
-    pub fn time_index(&self, center: bool) -> Box<dyn Iterator<Item = i64> + Send> {
-        if center {
-            Box::new(self.clone().map(|view| {
-                view.start().unwrap() + ((view.end().unwrap() - view.start().unwrap()) / 2)
-            }))
-        } else {
-            Box::new(self.clone().map(|view| view.end().unwrap() - 1))
+    pub fn time_index(&self, center: bool) -> TimeIndex<T> {
+        TimeIndex {
+            windowset: self.clone(),
+            center,
         }
+    }
+}
+
+pub struct TimeIndex<T: TimeOps + Clone> {
+    windowset: WindowSet<T>,
+    center: bool,
+}
+
+impl<T: TimeOps + Clone> Iterator for TimeIndex<T> {
+    type Item = i64;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.windowset.next().map(|view| {
+            if self.center {
+                view.start().unwrap() + ((view.end().unwrap() - view.start().unwrap()) / 2)
+            } else {
+                view.end().unwrap() - 1
+            }
+        })
     }
 }
 

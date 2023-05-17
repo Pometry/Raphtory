@@ -48,7 +48,7 @@ impl<G: GraphViewOps> VertexView<G> {
 impl<G: GraphViewOps> VertexViewOps for VertexView<G> {
     type Graph = G;
     type ValueType<T> = T;
-    type PathType = PathFromVertex<G>;
+    type PathType<'a> = PathFromVertex<G> where Self: 'a;
     type EList = BoxedIter<EdgeView<G>>;
 
     fn id(&self) -> u64 {
@@ -242,10 +242,10 @@ impl<G: GraphViewOps> LayerOps for VertexView<G> {
 ///
 impl<G: GraphViewOps> VertexListOps for Box<dyn Iterator<Item = VertexView<G>> + Send> {
     type Graph = G;
+    type Vertex = VertexView<G>;
     type IterType = Box<dyn Iterator<Item = VertexView<G>> + Send>;
     type EList = Box<dyn Iterator<Item = EdgeView<Self::Graph>> + Send>;
-    type VList = Box<dyn Iterator<Item = VertexView<Self::Graph>> + Send>;
-    type ValueType<T: Send> = T;
+    type ValueType<T> = T;
 
     fn earliest_time(self) -> BoxedIter<Option<i64>> {
         Box::new(self.map(|v| v.start()))
@@ -327,25 +327,25 @@ impl<G: GraphViewOps> VertexListOps for Box<dyn Iterator<Item = VertexView<G>> +
         Box::new(self.flat_map(|v| v.out_edges()))
     }
 
-    fn neighbours(self) -> Self::VList {
+    fn neighbours(self) -> Self {
         Box::new(self.flat_map(|v| v.neighbours()))
     }
 
-    fn in_neighbours(self) -> Self::VList {
+    fn in_neighbours(self) -> Self {
         Box::new(self.flat_map(|v| v.in_neighbours()))
     }
 
-    fn out_neighbours(self) -> Self::VList {
+    fn out_neighbours(self) -> Self {
         Box::new(self.flat_map(|v| v.out_neighbours()))
     }
 }
 
 impl<G: GraphViewOps> VertexListOps for BoxedIter<BoxedIter<VertexView<G>>> {
     type Graph = G;
+    type Vertex = VertexView<G>;
     type IterType = Self;
     type EList = BoxedIter<BoxedIter<EdgeView<G>>>;
-    type VList = Self;
-    type ValueType<T: Send> = BoxedIter<T>;
+    type ValueType<T> = BoxedIter<T>;
 
     fn earliest_time(self) -> BoxedIter<Self::ValueType<Option<i64>>> {
         Box::new(self.map(|it| it.earliest_time()))
@@ -435,15 +435,15 @@ impl<G: GraphViewOps> VertexListOps for BoxedIter<BoxedIter<VertexView<G>>> {
         Box::new(self.map(|it| it.out_edges()))
     }
 
-    fn neighbours(self) -> Self::VList {
+    fn neighbours(self) -> Self {
         Box::new(self.map(|it| it.neighbours()))
     }
 
-    fn in_neighbours(self) -> Self::VList {
+    fn in_neighbours(self) -> Self {
         Box::new(self.map(|it| it.in_neighbours()))
     }
 
-    fn out_neighbours(self) -> Self::VList {
+    fn out_neighbours(self) -> Self {
         Box::new(self.map(|it| it.out_neighbours()))
     }
 }
@@ -467,5 +467,4 @@ mod vertex_test {
         assert_eq!(view.vertex(1).expect("v").earliest_time().unwrap(), 0);
         assert_eq!(view.vertex(1).expect("v").latest_time().unwrap(), 2);
     }
-
 }

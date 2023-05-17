@@ -79,7 +79,7 @@ impl<G: GraphViewOps> PathFromGraph<G> {
 impl<G: GraphViewOps> VertexViewOps for PathFromGraph<G> {
     type Graph = G;
     type ValueType<T> = Box<dyn Iterator<Item = Box<dyn Iterator<Item = T> + Send>> + Send>;
-    type PathType = Self;
+    type PathType<'a> = Self where Self: 'a;
     type EList = Box<dyn Iterator<Item = Box<dyn Iterator<Item = EdgeView<G>> + Send>> + Send>;
 
     fn id(&self) -> Box<dyn Iterator<Item = Box<dyn Iterator<Item = u64> + Send>> + Send> {
@@ -309,7 +309,7 @@ impl<G: GraphViewOps> PathFromVertex<G> {
 impl<G: GraphViewOps> VertexViewOps for PathFromVertex<G> {
     type Graph = G;
     type ValueType<T> = BoxedIter<T>;
-    type PathType = Self;
+    type PathType<'a> = Self where Self: 'a;
     type EList = BoxedIter<EdgeView<G>>;
 
     fn id(&self) -> Self::ValueType<u64> {

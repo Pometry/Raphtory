@@ -61,8 +61,8 @@ pub fn triangle_count<G: GraphViewOps>(g: &G, threads: Option<usize>) -> usize {
 
     let step1 = ATask::new(move |s| {
         for t in s.neighbours() {
-            if s.global_id() > t.global_id() {
-                t.update(&neighbours_set, s.global_id());
+            if s.id() > t.id() {
+                t.update(&neighbours_set, s.id());
             }
         }
         Step::Continue
@@ -70,7 +70,7 @@ pub fn triangle_count<G: GraphViewOps>(g: &G, threads: Option<usize>) -> usize {
 
     let step2 = ATask::new(move |s| {
         for t in s.neighbours() {
-            if s.global_id() > t.global_id() {
+            if s.id() > t.id() {
                 let intersection_count = {
                     // when using entry() we need to make sure the reference is released before we can update the state, otherwise we break the Rc<RefCell<_>> invariant
                     // where there can either be one mutable or many immutable references

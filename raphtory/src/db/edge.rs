@@ -7,9 +7,11 @@
 
 use crate::core::edge_ref::EdgeRef;
 use crate::core::time::IntoTime;
+use crate::core::vertex_ref::VertexRef;
 use crate::core::Prop;
 use crate::db::graph_window::WindowedGraph;
 use crate::db::vertex::VertexView;
+use crate::db::view_api::edge::{EdgeViewInternalOps, EdgeViewOps};
 use crate::db::view_api::*;
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
@@ -25,6 +27,51 @@ pub struct EdgeView<G: GraphViewOps> {
     pub edge: EdgeRef,
 }
 
+impl<G: GraphViewOps> EdgeView<G> {
+    pub fn new(graph: Arc<G>, edge: EdgeRef) -> Self {
+        Self { graph, edge }
+    }
+}
+
+impl<G: GraphViewOps> EdgeViewInternalOps<G, VertexView<G>> for EdgeView<G> {
+    fn graph(&self) -> Arc<G> {
+        self.graph.clone()
+    }
+
+    fn eref(&self) -> EdgeRef {
+        self.edge
+    }
+
+    fn new_vertex(&self, v: VertexRef) -> VertexView<G> {
+        VertexView::new(self.graph(), v)
+    }
+
+    fn new_edge(&self, e: EdgeRef) -> Self {
+        Self {
+            graph: self.graph(),
+            edge: e,
+        }
+    }
+}
+
+impl<G: GraphViewOps> EdgeViewOps for EdgeView<G> {
+    type Graph = G;
+    type Vertex = VertexView<G>;
+    type EList = BoxedIter<Self>;
+
+    fn explode(&self) -> Self::EList {
+        let ev = self.clone();
+        match self.edge.time() {
+            Some(t) => Box::new(iter::once(ev)),
+            None => {
+                let e = self.edge;
+                let ts = self.graph.edge_timestamps(self.edge, None);
+                Box::new(ts.into_iter().map(move |t| ev.new_edge(e.at(t))))
+            }
+        }
+    }
+}
+
 impl<G: GraphViewOps> Debug for EdgeView<G> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
@@ -36,167 +83,9 @@ impl<G: GraphViewOps> Debug for EdgeView<G> {
     }
 }
 
-impl<G: GraphViewOps> EdgeView<G> {
-    /// Creates a new `EdgeView`.
-    ///
-    /// # Arguments
-    ///
-    /// * `graph` - A reference to the graph.
-    /// * `edge` - A reference to the edge.
-    ///
-    /// # Returns
-    ///
-    /// A new `EdgeView`.
-    pub(crate) fn new(graph: Arc<G>, edge: EdgeRef) -> Self {
-        EdgeView { graph, edge }
-    }
-
-    pub fn new_from_graph(graph: G, edge: EdgeRef) -> Self {
-        EdgeView {
-            graph: Arc::new(graph),
-            edge,
-        }
-    }
-
-    /// Returns a reference to the underlying edge reference.
-    pub fn as_ref(&self) -> EdgeRef {
-        self.edge
-    }
-}
-
 impl<G: GraphViewOps> From<EdgeView<G>> for EdgeRef {
     fn from(value: EdgeView<G>) -> Self {
         value.edge
-    }
-}
-
-impl<G: GraphViewOps> EdgeView<G> {
-    pub fn property(&self, name: String, include_static: bool) -> Option<Prop> {
-        let props = self.property_history(name.clone());
-        match props.last() {
-            None => {
-                if include_static {
-                    self.graph.static_edge_prop(self.edge, name)
-                } else {
-                    None
-                }
-            }
-            Some((_, prop)) => Some(prop.clone()),
-        }
-    }
-
-    pub fn property_history(&self, name: String) -> Vec<(i64, Prop)> {
-        match self.edge.time() {
-            None => self.graph.temporal_edge_props_vec(self.edge, name),
-            Some(t) => {
-                self.graph
-                    .temporal_edge_props_vec_window(self.edge, name, t, t.saturating_add(1))
-            }
-        }
-    }
-
-    pub fn history(&self) -> Vec<i64> {
-        self.graph.edge_timestamps(self.edge, None)
-    }
-
-    pub fn properties(&self, include_static: bool) -> HashMap<String, Prop> {
-        let mut props: HashMap<String, Prop> = self
-            .property_histories()
-            .iter()
-            .map(|(key, values)| (key.clone(), values.last().unwrap().1.clone()))
-            .collect();
-
-        if include_static {
-            for prop_name in self.graph.static_edge_prop_names(self.edge) {
-                if let Some(prop) = self.graph.static_edge_prop(self.edge, prop_name.clone()) {
-                    props.insert(prop_name, prop);
-                }
-            }
-        }
-        props
-    }
-
-    pub fn property_histories(&self) -> HashMap<String, Vec<(i64, Prop)>> {
-        // match on the self.edge.time option property and run two function s
-        // one for static and one for temporal
-        match self.edge.time() {
-            None => self.graph.temporal_edge_props(self.edge),
-            Some(t) => self
-                .graph
-                .temporal_edge_props_window(self.edge, t, t.saturating_add(1)),
-        }
-    }
-
-    pub fn property_names(&self, include_static: bool) -> Vec<String> {
-        let mut names: Vec<String> = self.graph.temporal_edge_prop_names(self.edge);
-        if include_static {
-            names.extend(self.graph.static_edge_prop_names(self.edge))
-        }
-        names
-    }
-    pub fn has_property(&self, name: String, include_static: bool) -> bool {
-        (!self.property_history(name.clone()).is_empty())
-            || (include_static && self.graph.static_edge_prop_names(self.edge).contains(&name))
-    }
-
-    pub fn has_static_property(&self, name: String) -> bool {
-        self.graph.static_edge_prop_names(self.edge).contains(&name)
-    }
-
-    pub fn static_property(&self, name: String) -> Option<Prop> {
-        self.graph.static_edge_prop(self.edge, name)
-    }
-
-    /// Returns the source vertex of the edge.
-    pub fn src(&self) -> VertexView<G> {
-        let vertex = self.edge.src();
-        VertexView::new(self.graph.clone(), vertex)
-    }
-
-    /// Returns the destination vertex of the edge.
-    pub fn dst(&self) -> VertexView<G> {
-        let vertex = self.edge.dst();
-        VertexView::new(self.graph.clone(), vertex)
-    }
-
-    /// Explodes an edge and returns all instances it had been updated as seperate edges
-    pub fn explode(&self) -> BoxedIter<EdgeView<G>> {
-        let g = self.graph.clone();
-        let e = self.edge;
-        let ev = self.clone();
-        if self.edge.time().is_some() {
-            Box::new(iter::once(ev))
-        } else {
-            Box::new(
-                g.edge_timestamps(e, None)
-                    .into_iter()
-                    .map(move |t| EdgeView::new(g.clone(), e.at(t))),
-            )
-        }
-    }
-
-    /// Gets the first time an edge was seen
-    pub fn earliest_time(&self) -> Option<i64> {
-        self.graph.edge_timestamps(self.edge, None).first().copied()
-    }
-
-    /// Gets the latest time an edge was updated
-    pub fn latest_time(&self) -> Option<i64> {
-        self.graph.edge_timestamps(self.edge, None).last().copied()
-    }
-
-    /// Gets the time stamp of the edge if it is exploded
-    pub fn time(&self) -> Option<i64> {
-        self.edge.time()
-    }
-
-    /// Gets the name of the layer this edge belongs to
-    pub fn layer_name(&self) -> String {
-        if self.edge.layer() == 0 {
-            "default layer".to_string()
-        } else {
-            self.graph.get_layer_name_by_id(self.edge.layer())
-        }
     }
 }
 
@@ -225,7 +114,9 @@ impl<G: GraphViewOps> TimeOps for EdgeView<G> {
 /// connected to the edges inside the iterator.
 impl<G: GraphViewOps> EdgeListOps for BoxedIter<EdgeView<G>> {
     type Graph = G;
-    type ValueType<T: Send + Sync> = T;
+    type Vertex = VertexView<G>;
+    type Edge = EdgeView<G>;
+    type ValueType<T> = T;
 
     /// Specifies the associated type for an iterator over vertices.
     type VList = Box<dyn Iterator<Item = VertexView<G>> + Send>;
@@ -307,7 +198,9 @@ impl<G: GraphViewOps> EdgeListOps for BoxedIter<EdgeView<G>> {
 
 impl<G: GraphViewOps> EdgeListOps for BoxedIter<BoxedIter<EdgeView<G>>> {
     type Graph = G;
-    type ValueType<T: Send + Sync> = Box<dyn Iterator<Item = T> + Send>;
+    type Vertex = VertexView<G>;
+    type Edge = EdgeView<G>;
+    type ValueType<T> = Box<dyn Iterator<Item = T> + Send>;
     type VList = Box<dyn Iterator<Item = Box<dyn Iterator<Item = VertexView<G>> + Send>> + Send>;
     type IterType = Box<dyn Iterator<Item = Box<dyn Iterator<Item = EdgeView<G>> + Send>> + Send>;
 

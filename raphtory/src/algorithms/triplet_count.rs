@@ -40,7 +40,7 @@ use crate::core::state::compute_state::ComputeStateVec;
 use crate::db::task::context::Context;
 use crate::db::task::task::{ATask, Job, Step};
 use crate::db::task::task_runner::TaskRunner;
-use crate::db::view_api::GraphViewOps;
+use crate::db::view_api::{GraphViewOps, VertexViewOps};
 use futures::TryFutureExt;
 
 /// Computes the number of both open and closed triplets within a graph
@@ -81,8 +81,8 @@ use futures::TryFutureExt;
 ///
 pub fn triplet_count<G: GraphViewOps>(g: &G, threads: Option<usize>) -> usize {
     /// Source: https://stackoverflow.com/questions/65561566/number-of-combinations-permutations
-    fn count_two_combinations(n: u64) -> u64 {
-        ((0.5 * n as f64) * (n - 1) as f64) as u64
+    fn count_two_combinations(n: usize) -> usize {
+        ((0.5 * n as f64) * (n - 1) as f64) as usize
     }
 
     let mut ctx: Context<G, ComputeStateVec> = g.into();
@@ -91,12 +91,8 @@ pub fn triplet_count<G: GraphViewOps>(g: &G, threads: Option<usize>) -> usize {
     ctx.global_agg(count);
 
     let step1 = ATask::new(move |evv| {
-        let c1 = evv
-            .neighbours()
-            .map(|n| n.global_id())
-            .filter(|n| *n != evv.global_id())
-            .count();
-        let c2 = count_two_combinations(c1 as u64) as usize;
+        let c1 = evv.neighbours().id().filter(|n| *n != evv.id()).count();
+        let c2 = count_two_combinations(c1);
         evv.global_update(&count, c2);
         Step::Continue
     });

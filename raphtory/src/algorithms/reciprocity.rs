@@ -50,7 +50,7 @@ use crate::db::task::context::Context;
 use crate::db::task::eval_vertex::EvalVertexView;
 use crate::db::task::task::{ATask, Job, Step};
 use crate::db::task::task_runner::TaskRunner;
-use crate::db::view_api::GraphViewOps;
+use crate::db::view_api::{GraphViewOps, VertexViewOps};
 use std::collections::{HashMap, HashSet};
 
 struct GlobalReciprocity {}
@@ -60,25 +60,13 @@ struct GlobalReciprocity {}
 fn get_reciprocal_edge_count<G: GraphViewOps, CS: ComputeState>(
     v: &EvalVertexView<G, CS>,
 ) -> (usize, usize, usize) {
-    let out_neighbours: HashSet<u64> = v
-        .neighbours_out()
-        .map(|n| n.global_id())
-        .filter(|x| *x != v.global_id())
-        .collect();
+    let id = v.id();
+    let out_neighbours: HashSet<u64> = v.out_neighbours().id().filter(|x| *x != id).collect();
 
-    let in_neighbours = v
-        .neighbours_in()
-        .map(|n| n.global_id())
-        .filter(|x| *x != v.global_id())
-        .count();
+    let in_neighbours = v.in_neighbours().id().filter(|x| *x != id).count();
 
     let out_inter_in = out_neighbours
-        .intersection(
-            &v.neighbours_in()
-                .map(|n| n.global_id())
-                .filter(|x| *x != v.global_id())
-                .collect(),
-        )
+        .intersection(&v.in_neighbours().id().filter(|x| *x != id).collect())
         .count();
     (out_neighbours.len(), in_neighbours, out_inter_in)
 }
@@ -105,7 +93,8 @@ pub fn global_reciprocity<G: GraphViewOps>(g: &G, threads: Option<usize>) -> f64
         vec![],
         vec![Job::new(step1)],
         |egs, _, _| {
-            (egs.finalize(&total_out_inter_in) as f64) / (egs.finalize(&total_out_neighbours) as  f64)
+            (egs.finalize(&total_out_inter_in) as f64)
+                / (egs.finalize(&total_out_neighbours) as f64)
         },
         threads,
         1,
