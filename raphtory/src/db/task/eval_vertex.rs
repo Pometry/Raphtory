@@ -1,9 +1,23 @@
+use std::collections::HashMap;
+use std::f32::consts::E;
+use std::{
+    borrow::Cow,
+    cell::{Ref, RefCell},
+    rc::Rc,
+    sync::Arc,
+};
+
 use crate::core::edge_ref::EdgeRef;
+use crate::core::time::IntoTime;
 use crate::core::vertex_ref::VertexRef;
+use crate::core::Prop;
 use crate::db::edge::EdgeView;
+use crate::db::graph_window::WindowedGraph;
+use crate::db::path::PathFromVertex;
+use crate::db::task::eval_edge::EvalEdgeView;
 use crate::db::vertex::VertexView;
-use crate::db::view_api::internal::GraphViewInternalOps;
-use crate::db::view_api::VertexViewOps;
+use crate::db::view_api::time::WindowSet;
+use crate::db::view_api::{BoxedIter, TimeOps, VertexListOps, VertexViewOps};
 use crate::{
     core::{
         agg::Accumulator,
@@ -13,18 +27,10 @@ use crate::{
         },
         vertex_ref::LocalVertexRef,
     },
-    db::{
-        graph_window::WindowedGraph,
-        view_api::{GraphViewOps, TimeOps},
-    },
-};
-use std::{
-    borrow::Cow,
-    cell::{Ref, RefCell},
-    rc::Rc,
-    sync::Arc,
+    db::view_api::GraphViewOps,
 };
 
+#[derive(Clone)]
 pub struct EvalVertexView<'a, G: GraphViewOps, CS: ComputeState> {
     ss: usize,
     vv: VertexView<G>,
@@ -44,7 +50,33 @@ impl<'a, G: GraphViewOps, CS: ComputeState> EvalVertexView<'a, G, CS> {
     ) -> Self {
         Self {
             ss,
-            vv: VertexView::new(g, vertex.into()),
+            vv: VertexView::new_local(g, vertex),
+            shard_state,
+            global_state,
+            local_state,
+        }
+    }
+
+    pub fn new_edge(&self, e: EdgeView<G>) -> EvalEdgeView<'a, G, CS> {
+        EvalEdgeView::new_(
+            self.ss,
+            e,
+            self.shard_state.clone(),
+            self.global_state.clone(),
+            self.local_state.clone(),
+        )
+    }
+
+    pub fn new_from_view(
+        ss: usize,
+        vv: VertexView<G>,
+        shard_state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
+        global_state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
+        local_state: Rc<RefCell<ShuffleComputeState<CS>>>,
+    ) -> Self {
+        Self {
+            ss,
+            vv,
             shard_state,
             global_state,
             local_state,
@@ -59,26 +91,10 @@ impl<'a, G: GraphViewOps, CS: ComputeState> EvalVertexView<'a, G, CS> {
         global_state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
         local_state: Rc<RefCell<ShuffleComputeState<CS>>>,
     ) -> Self {
-        let v = g.localise_vertex_unchecked(vertex).into();
+        let vref = g.localise_vertex_unchecked(vertex);
         Self {
             ss,
-            vv: VertexView::new(g, v),
-            shard_state,
-            global_state,
-            local_state,
-        }
-    }
-
-    pub fn new_(
-        ss: usize,
-        vertex: VertexView<G>,
-        shard_state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
-        global_state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
-        local_state: Rc<RefCell<ShuffleComputeState<CS>>>,
-    ) -> Self {
-        Self {
-            ss,
-            vv: vertex,
+            vv: VertexView::new_local(g, vref),
             shard_state,
             global_state,
             local_state,
@@ -89,83 +105,6 @@ impl<'a, G: GraphViewOps, CS: ComputeState> EvalVertexView<'a, G, CS> {
         self.vv.vertex.pid
     }
 
-    pub fn global_id(&self) -> u64 {
-        self.vv.id()
-    }
-
-    pub fn name(&self) -> String {
-        self.vv.name()
-    }
-
-    pub fn out_degree(&self) -> usize {
-        self.vv
-            .graph
-            .degree(self.vv.vertex, crate::core::Direction::OUT, None)
-    }
-
-    pub fn out_edges(
-        &self,
-        after: i64,
-    ) -> impl Iterator<Item = EvalEdgeView<'a, WindowedGraph<G>, CS>> + '_ {
-        self.vv.window(after, i64::MAX).out_edges().map(move |ev| {
-            EvalEdgeView::new_(
-                self.ss,
-                ev,
-                self.shard_state.clone(),
-                self.global_state.clone(),
-                self.local_state.clone(),
-            )
-        })
-    }
-
-    pub fn neighbours(&self) -> impl Iterator<Item = EvalVertexView<'a, G, CS>> + '_ {
-        self.vv
-            .graph
-            .neighbours(self.vv.vertex, crate::core::Direction::BOTH, None)
-            .map(move |vv| {
-                EvalVertexView::new(
-                    self.ss,
-                    vv,
-                    self.vv.graph.clone(),
-                    self.shard_state.clone(),
-                    self.global_state.clone(),
-                    self.local_state.clone(),
-                )
-            })
-    }
-
-    pub fn neighbours_out(&self) -> impl Iterator<Item = EvalVertexView<'a, G, CS>> + '_ {
-        self.vv
-            .graph
-            .neighbours(self.vv.vertex, crate::core::Direction::OUT, None)
-            .map(move |vv| {
-                EvalVertexView::new(
-                    self.ss,
-                    vv,
-                    self.vv.graph.clone(),
-                    self.shard_state.clone(),
-                    self.global_state.clone(),
-                    self.local_state.clone(),
-                )
-            })
-    }
-
-    pub fn neighbours_in(&self) -> impl Iterator<Item = EvalVertexView<'a, G, CS>> + '_ {
-        self.vv
-            .graph
-            .neighbours(self.vv.vertex, crate::core::Direction::IN, None)
-            .map(move |vv| {
-                EvalVertexView::new(
-                    self.ss,
-                    vv,
-                    self.vv.graph.clone(),
-                    self.shard_state.clone(),
-                    self.global_state.clone(),
-                    self.local_state.clone(),
-                )
-            })
-    }
-
     pub fn update<A: StateType, IN: 'static, OUT: 'static, ACC: Accumulator<A, IN, OUT>>(
         &self,
         id: &AccId<A, IN, OUT, ACC>,
@@ -173,7 +112,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState> EvalVertexView<'a, G, CS> {
     ) {
         let mut ref_cow = self.shard_state.borrow_mut();
         let owned_mut = ref_cow.to_mut();
-        owned_mut.accumulate_into_pid(self.ss, self.global_id(), self.pid(), a, id);
+        owned_mut.accumulate_into_pid(self.ss, self.id(), self.pid(), a, id);
     }
 
     pub fn update_local<A: StateType, IN: 'static, OUT: 'static, ACC: Accumulator<A, IN, OUT>>(
@@ -181,13 +120,9 @@ impl<'a, G: GraphViewOps, CS: ComputeState> EvalVertexView<'a, G, CS> {
         id: &AccId<A, IN, OUT, ACC>,
         a: IN,
     ) {
-        self.local_state.borrow_mut().accumulate_into_pid(
-            self.ss,
-            self.global_id(),
-            self.pid(),
-            a,
-            id,
-        );
+        self.local_state
+            .borrow_mut()
+            .accumulate_into_pid(self.ss, self.id(), self.pid(), a, id);
     }
 
     pub fn global_update<A: StateType, IN: 'static, OUT: 'static, ACC: Accumulator<A, IN, OUT>>(
@@ -240,7 +175,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState> EvalVertexView<'a, G, CS> {
     {
         self.shard_state
             .borrow()
-            .read_with_pid(self.ss, self.global_id(), self.pid(), agg_r)
+            .read_with_pid(self.ss, self.id(), self.pid(), agg_r)
             .unwrap_or(ACC::finish(&ACC::zero()))
     }
 
@@ -258,7 +193,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState> EvalVertexView<'a, G, CS> {
             self.shard_state.borrow(),
             *agg_r,
             self.pid(),
-            self.global_id(),
+            self.id(),
             self.ss,
         )
     }
@@ -275,7 +210,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState> EvalVertexView<'a, G, CS> {
     {
         self.local_state
             .borrow()
-            .read_with_pid(self.ss, self.global_id(), self.pid(), agg_r)
+            .read_with_pid(self.ss, self.id(), self.pid(), agg_r)
             .unwrap_or(ACC::finish(&ACC::zero()))
     }
 
@@ -291,7 +226,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState> EvalVertexView<'a, G, CS> {
     {
         self.shard_state
             .borrow()
-            .read_with_pid(self.ss + 1, self.global_id(), self.pid(), agg_r)
+            .read_with_pid(self.ss + 1, self.id(), self.pid(), agg_r)
             .unwrap_or(ACC::finish(&ACC::zero()))
     }
 
@@ -307,7 +242,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState> EvalVertexView<'a, G, CS> {
     {
         self.local_state
             .borrow()
-            .read_with_pid(self.ss + 1, self.global_id(), self.pid(), agg_r)
+            .read_with_pid(self.ss + 1, self.id(), self.pid(), agg_r)
             .unwrap_or(ACC::finish(&ACC::zero()))
     }
 
@@ -326,76 +261,309 @@ impl<'a, G: GraphViewOps, CS: ComputeState> EvalVertexView<'a, G, CS> {
     }
 }
 
-pub struct EvalEdgeView<
-    'a,
-    G: GraphViewInternalOps + Send + Sync + Clone + 'static,
-    CS: ComputeState,
-> {
+pub struct EvalPathFromVertex<'a, G: GraphViewOps, CS: ComputeState> {
+    path: PathFromVertex<G>,
     ss: usize,
-    ev: EdgeView<G>,
     shard_state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
     global_state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
     local_state: Rc<RefCell<ShuffleComputeState<CS>>>,
 }
 
-impl<'a, G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeState>
-    EvalEdgeView<'a, G, CS>
-{
-    pub fn new(
-        ss: usize,
-        edge: EdgeRef,
-        g: Arc<G>,
-        shard_state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
-        global_state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
-        local_state: Rc<RefCell<ShuffleComputeState<CS>>>,
-    ) -> Self {
-        Self {
-            ss,
-            ev: EdgeView::new(g, edge),
-            shard_state,
-            global_state,
-            local_state,
+impl<'a, G: GraphViewOps, CS: ComputeState> EvalPathFromVertex<'a, G, CS> {
+    fn update_path(&self, path: PathFromVertex<G>) -> Self {
+        EvalPathFromVertex {
+            path,
+            ss: self.ss,
+            shard_state: self.shard_state.clone(),
+            global_state: self.global_state.clone(),
+            local_state: self.local_state.clone(),
         }
     }
 
-    pub fn new_(
-        ss: usize,
-        ev: EdgeView<G>,
-        shard_state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
-        global_state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
-        local_state: Rc<RefCell<ShuffleComputeState<CS>>>,
-    ) -> Self {
-        Self {
-            ss,
-            ev,
-            shard_state,
-            global_state,
-            local_state,
+    fn new_from_path_and_vertex(
+        path: PathFromVertex<G>,
+        vertex: &EvalVertexView<'a, G, CS>,
+    ) -> EvalPathFromVertex<'a, G, CS> {
+        EvalPathFromVertex {
+            path,
+            ss: vertex.ss,
+            shard_state: vertex.shard_state.clone(),
+            global_state: vertex.global_state.clone(),
+            local_state: vertex.local_state.clone(),
         }
     }
 
-    pub fn dst(&self) -> EvalVertexView<'a, G, CS> {
-        EvalVertexView::new_(
+    pub fn iter(&'a self) -> Box<dyn Iterator<Item = EvalVertexView<'a, G, CS>> + 'a> {
+        Box::new(self.path.iter().map(|v| {
+            EvalVertexView::new_from_view(
+                self.ss,
+                v,
+                self.shard_state.clone(),
+                self.global_state.clone(),
+                self.local_state.clone(),
+            )
+        }))
+    }
+}
+
+impl<'a, G: GraphViewOps, CS: ComputeState> IntoIterator for EvalPathFromVertex<'a, G, CS> {
+    type Item = EvalVertexView<'a, G, CS>;
+    type IntoIter = Box<dyn Iterator<Item = EvalVertexView<'a, G, CS>> + 'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        // carefully decouple the lifetimes!
+        let path = self.path.clone();
+        let shard_state = self.shard_state.clone();
+        let global_state = self.global_state.clone();
+        let local_state = self.local_state.clone();
+        let ss = self.ss;
+        Box::new(path.iter().map(move |v| {
+            EvalVertexView::new_from_view(
+                ss,
+                v,
+                shard_state.clone(),
+                global_state.clone(),
+                local_state.clone(),
+            )
+        }))
+    }
+}
+
+impl<'a, G: GraphViewOps, CS: ComputeState> TimeOps for EvalPathFromVertex<'a, G, CS> {
+    type WindowedViewType = EvalPathFromVertex<'a, WindowedGraph<G>, CS>;
+
+    fn start(&self) -> Option<i64> {
+        self.path.start()
+    }
+
+    fn end(&self) -> Option<i64> {
+        self.path.end()
+    }
+
+    fn window<T: IntoTime>(&self, t_start: T, t_end: T) -> Self::WindowedViewType {
+        EvalPathFromVertex {
+            path: self.path.window(t_start, t_end),
+            ss: self.ss,
+            shard_state: self.shard_state.clone(),
+            global_state: self.global_state.clone(),
+            local_state: self.local_state.clone(),
+        }
+    }
+}
+
+impl<'a, G: GraphViewOps, CS: ComputeState> VertexViewOps for EvalPathFromVertex<'a, G, CS> {
+    type Graph = G;
+    type ValueType<T> = BoxedIter<T>;
+    type PathType<'b> = EvalPathFromVertex<'a, G, CS> where Self: 'b;
+    type EList = BoxedIter<EdgeView<G>>;
+
+    fn id(&self) -> Self::ValueType<u64> {
+        self.path.id()
+    }
+
+    fn name(&self) -> Self::ValueType<String> {
+        self.path.name()
+    }
+
+    fn earliest_time(&self) -> Self::ValueType<Option<i64>> {
+        self.path.earliest_time()
+    }
+
+    fn latest_time(&self) -> Self::ValueType<Option<i64>> {
+        self.path.latest_time()
+    }
+
+    fn property(&self, name: String, include_static: bool) -> Self::ValueType<Option<Prop>> {
+        self.path.property(name, include_static)
+    }
+
+    fn history(&self) -> Self::ValueType<Vec<i64>> {
+        self.path.history()
+    }
+
+    fn property_history(&self, name: String) -> Self::ValueType<Vec<(i64, Prop)>> {
+        self.path.property_history(name)
+    }
+
+    fn properties(&self, include_static: bool) -> Self::ValueType<HashMap<String, Prop>> {
+        self.path.properties(include_static)
+    }
+
+    fn property_histories(&self) -> Self::ValueType<HashMap<String, Vec<(i64, Prop)>>> {
+        self.path.property_histories()
+    }
+
+    fn property_names(&self, include_static: bool) -> Self::ValueType<Vec<String>> {
+        self.path.property_names(include_static)
+    }
+
+    fn has_property(&self, name: String, include_static: bool) -> Self::ValueType<bool> {
+        self.path.has_property(name, include_static)
+    }
+
+    fn has_static_property(&self, name: String) -> Self::ValueType<bool> {
+        self.path.has_static_property(name)
+    }
+
+    fn static_property(&self, name: String) -> Self::ValueType<Option<Prop>> {
+        self.path.static_property(name)
+    }
+
+    fn degree(&self) -> Self::ValueType<usize> {
+        self.path.degree()
+    }
+
+    fn in_degree(&self) -> Self::ValueType<usize> {
+        self.path.in_degree()
+    }
+
+    fn out_degree(&self) -> Self::ValueType<usize> {
+        self.path.out_degree()
+    }
+
+    fn edges(&self) -> Self::EList {
+        self.path.edges()
+    }
+
+    fn in_edges(&self) -> Self::EList {
+        self.path.in_edges()
+    }
+
+    fn out_edges(&self) -> Self::EList {
+        self.path.out_edges()
+    }
+
+    fn neighbours(&self) -> Self::PathType<'a> {
+        self.update_path(self.path.neighbours())
+    }
+
+    fn in_neighbours(&self) -> Self::PathType<'_> {
+        self.update_path(self.path.in_neighbours())
+    }
+
+    fn out_neighbours(&self) -> Self::PathType<'_> {
+        self.update_path(self.path.out_neighbours())
+    }
+}
+
+impl<'a, G: GraphViewOps, CS: ComputeState> TimeOps for EvalVertexView<'a, G, CS> {
+    type WindowedViewType = EvalVertexView<'a, WindowedGraph<G>, CS>;
+
+    fn start(&self) -> Option<i64> {
+        self.vv.start()
+    }
+
+    fn end(&self) -> Option<i64> {
+        self.vv.end()
+    }
+
+    fn window<T: IntoTime>(&self, t_start: T, t_end: T) -> Self::WindowedViewType {
+        EvalVertexView::new_local(
             self.ss,
-            self.ev.dst(),
+            self.vv.vertex,
+            Arc::from(self.vv.graph.window(t_start, t_end)),
             self.shard_state.clone(),
             self.global_state.clone(),
             self.local_state.clone(),
         )
     }
+}
 
-    pub fn src(&self) -> EvalVertexView<'a, G, CS> {
-        EvalVertexView::new_(
-            self.ss,
-            self.ev.src(),
-            self.shard_state.clone(),
-            self.global_state.clone(),
-            self.local_state.clone(),
-        )
+impl<'a, G: GraphViewOps, CS: ComputeState> VertexViewOps for EvalVertexView<'a, G, CS> {
+    type Graph = G;
+    type ValueType<T> = T;
+    type PathType<'b> = EvalPathFromVertex<'a, G, CS> where Self: 'b;
+    type EList = Box<dyn Iterator<Item = EvalEdgeView<'a, G, CS>> + 'a>;
+
+    fn id(&self) -> Self::ValueType<u64> {
+        self.vv.id()
     }
 
-    pub fn history(&self) -> Vec<i64> {
-        self.ev.history()
+    fn name(&self) -> Self::ValueType<String> {
+        self.vv.name()
+    }
+
+    fn earliest_time(&self) -> Self::ValueType<Option<i64>> {
+        self.vv.earliest_time()
+    }
+
+    fn latest_time(&self) -> Self::ValueType<Option<i64>> {
+        self.vv.latest_time()
+    }
+
+    fn property(&self, name: String, include_static: bool) -> Self::ValueType<Option<Prop>> {
+        self.vv.property(name, include_static)
+    }
+
+    fn history(&self) -> Self::ValueType<Vec<i64>> {
+        self.vv.history()
+    }
+
+    fn property_history(&self, name: String) -> Self::ValueType<Vec<(i64, Prop)>> {
+        self.vv.property_history(name)
+    }
+
+    fn properties(&self, include_static: bool) -> Self::ValueType<HashMap<String, Prop>> {
+        self.vv.properties(include_static)
+    }
+
+    fn property_histories(&self) -> Self::ValueType<HashMap<String, Vec<(i64, Prop)>>> {
+        self.vv.property_histories()
+    }
+
+    fn property_names(&self, include_static: bool) -> Self::ValueType<Vec<String>> {
+        self.vv.property_names(include_static)
+    }
+
+    fn has_property(&self, name: String, include_static: bool) -> Self::ValueType<bool> {
+        self.vv.has_property(name, include_static)
+    }
+
+    fn has_static_property(&self, name: String) -> Self::ValueType<bool> {
+        self.vv.has_static_property(name)
+    }
+
+    fn static_property(&self, name: String) -> Self::ValueType<Option<Prop>> {
+        self.vv.static_property(name)
+    }
+
+    fn degree(&self) -> Self::ValueType<usize> {
+        self.vv.degree()
+    }
+
+    fn in_degree(&self) -> Self::ValueType<usize> {
+        self.vv.in_degree()
+    }
+
+    fn out_degree(&self) -> Self::ValueType<usize> {
+        self.vv.out_degree()
+    }
+
+    fn edges(&self) -> Self::EList {
+        let eev = self.clone();
+        Box::new(self.vv.edges().map(move |e| eev.new_edge(e)))
+    }
+
+    fn in_edges(&self) -> Self::EList {
+        let eev = self.clone();
+        Box::new(self.vv.in_edges().map(move |e| eev.new_edge(e)))
+    }
+
+    fn out_edges(&self) -> Self::EList {
+        let eev = self.clone();
+        Box::new(self.vv.out_edges().map(move |e| eev.new_edge(e)))
+    }
+
+    fn neighbours(&self) -> Self::PathType<'_> {
+        EvalPathFromVertex::new_from_path_and_vertex(self.vv.neighbours(), self)
+    }
+
+    fn in_neighbours(&self) -> Self::PathType<'_> {
+        EvalPathFromVertex::new_from_path_and_vertex(self.vv.in_neighbours(), self)
+    }
+
+    fn out_neighbours(&self) -> Self::PathType<'_> {
+        EvalPathFromVertex::new_from_path_and_vertex(self.vv.out_neighbours(), self)
     }
 }
 
@@ -444,5 +612,115 @@ impl<'a, 'b, A: StateType, IN, OUT, ACC: Accumulator<A, IN, OUT>, CS: ComputeSta
     pub fn read_ref(&self) -> Option<&A> {
         self.state
             .read_ref_with_pid(self.ss, self.gid, self.pid, &self.acc_id)
+    }
+}
+
+impl<'a, G: GraphViewOps, CS: ComputeState> VertexListOps
+    for Box<dyn Iterator<Item = EvalVertexView<'a, G, CS>> + 'a>
+{
+    type Graph = G;
+    type Vertex = EvalVertexView<'a, G, CS>;
+    type IterType = Self;
+    type EList = Box<dyn Iterator<Item = EvalEdgeView<'a, G, CS>> + 'a>;
+    type ValueType<T> = T;
+
+    fn earliest_time(self) -> BoxedIter<Self::ValueType<Option<i64>>> {
+        todo!()
+    }
+
+    fn latest_time(self) -> BoxedIter<Self::ValueType<Option<i64>>> {
+        todo!()
+    }
+
+    fn window(
+        self,
+        t_start: i64,
+        t_end: i64,
+    ) -> BoxedIter<Self::ValueType<VertexView<WindowedGraph<Self::Graph>>>> {
+        todo!()
+    }
+
+    fn id(self) -> BoxedIter<Self::ValueType<u64>> {
+        todo!()
+    }
+
+    fn name(self) -> BoxedIter<Self::ValueType<String>> {
+        todo!()
+    }
+
+    fn property(
+        self,
+        name: String,
+        include_static: bool,
+    ) -> BoxedIter<Self::ValueType<Option<Prop>>> {
+        todo!()
+    }
+
+    fn property_history(self, name: String) -> BoxedIter<Self::ValueType<Vec<(i64, Prop)>>> {
+        todo!()
+    }
+
+    fn properties(self, include_static: bool) -> BoxedIter<Self::ValueType<HashMap<String, Prop>>> {
+        todo!()
+    }
+
+    fn history(self) -> BoxedIter<Self::ValueType<Vec<i64>>> {
+        todo!()
+    }
+
+    fn property_histories(self) -> BoxedIter<Self::ValueType<HashMap<String, Vec<(i64, Prop)>>>> {
+        todo!()
+    }
+
+    fn property_names(self, include_static: bool) -> BoxedIter<Self::ValueType<Vec<String>>> {
+        todo!()
+    }
+
+    fn has_property(self, name: String, include_static: bool) -> BoxedIter<Self::ValueType<bool>> {
+        todo!()
+    }
+
+    fn has_static_property(self, name: String) -> BoxedIter<Self::ValueType<bool>> {
+        todo!()
+    }
+
+    fn static_property(self, name: String) -> BoxedIter<Self::ValueType<Option<Prop>>> {
+        todo!()
+    }
+
+    fn degree(self) -> BoxedIter<Self::ValueType<usize>> {
+        todo!()
+    }
+
+    fn in_degree(self) -> BoxedIter<Self::ValueType<usize>> {
+        todo!()
+    }
+
+    fn out_degree(self) -> BoxedIter<Self::ValueType<usize>> {
+        todo!()
+    }
+
+    fn edges(self) -> Self::EList {
+        todo!()
+    }
+
+    fn in_edges(self) -> Self::EList {
+        todo!()
+    }
+
+    fn out_edges(self) -> Self::EList {
+        todo!()
+    }
+
+    fn neighbours(self) -> Self {
+        todo!()
+    }
+
+    fn in_neighbours(self) -> Self {
+        todo!()
+    }
+
+    fn out_neighbours(self) -> Self {
+        todo!()
     }
 }

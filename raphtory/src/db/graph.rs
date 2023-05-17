@@ -928,6 +928,7 @@ mod db_tests {
     use super::*;
     use crate::db::edge::EdgeView;
     use crate::db::path::PathFromVertex;
+    use crate::db::view_api::edge::EdgeViewOps;
     use crate::db::view_api::layer::LayerOps;
     use crate::db::view_api::*;
     use crate::graphgen::random_attachment::random_attachment;
@@ -1476,7 +1477,6 @@ mod db_tests {
 
         assert_eq!(actual, expected);
     }
-
 
     #[test]
     fn test_time_range_on_empty_graph() {
