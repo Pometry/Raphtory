@@ -28,12 +28,12 @@ class NetworkXBench(BenchmarkBase):
     def out_neighbours(self):
         sizes = []
         for node in self.graph.nodes:
-            out_neighbors = [edge.target for edge in self.graph.edges if edge.source == node.id]
+            out_neighbors = [edge[1] for edge in self.graph.edges if edge[0] == node.id]
             sizes.append(len(out_neighbors))
         return sizes
 
     def page_rank(self):
-        return nx.pagerank(self.graph)
+        return nx.pagerank(self.graph.to_undirected())
 
     def connected_components(self):
         return [len(comp) for comp in nx.connected_components(self.graph.to_undirected())]
