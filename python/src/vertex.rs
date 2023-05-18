@@ -97,7 +97,7 @@ impl PyVertex {
     ///
     /// Returns:
     ///     The earliest datetime that the vertex exists as an integer.
-    pub fn earliest_date_time(&self) ->Option<NaiveDateTime> {
+    pub fn earliest_date_time(&self) -> Option<NaiveDateTime> {
         let earliest_time = self.vertex.earliest_time()?;
         Some(NaiveDateTime::from_timestamp_millis(earliest_time).unwrap())
     }
@@ -117,11 +117,10 @@ impl PyVertex {
     ///
     /// Returns:
     ///     The latest datetime that the vertex exists as an integer.
-    pub fn latest_date_time(&self) ->Option<NaiveDateTime> {
+    pub fn latest_date_time(&self) -> Option<NaiveDateTime> {
         let latest_time = self.vertex.latest_time()?;
         Some(NaiveDateTime::from_timestamp_millis(latest_time).unwrap())
     }
-
 
     /// Gets the property value of this vertex given the name of the property.
     ///
@@ -321,7 +320,7 @@ impl PyVertex {
     ///
     /// Returns:
     ///     The earliest datetime that this vertex is valid or None if the vertex is valid for all times.
-    pub fn start_date_time(&self) ->Option<NaiveDateTime> {
+    pub fn start_date_time(&self) -> Option<NaiveDateTime> {
         let start_time = self.vertex.start()?;
         Some(NaiveDateTime::from_timestamp_millis(start_time).unwrap())
     }
@@ -338,7 +337,7 @@ impl PyVertex {
     ///
     /// Returns:
     ///     The latest datetime that this vertex is valid or None if the vertex is valid for all times.
-    pub fn end_date_time(&self) ->Option<NaiveDateTime> {
+    pub fn end_date_time(&self) -> Option<NaiveDateTime> {
         let end_time = self.vertex.end()?;
         Some(NaiveDateTime::from_timestamp_millis(end_time).unwrap())
     }
@@ -1085,7 +1084,7 @@ impl From<Box<dyn Iterator<Item = VertexView<DynamicGraph>> + Send>> for PyVerte
 
 impl IntoIterator for PyVertexIterator {
     type Item = PyVertex;
-    type IntoIter = Box<dyn Iterator<Item = PyVertex> + Send>;
+    type IntoIter = Box<dyn Iterator<Item = PyVertex> + Send >;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter

@@ -1,0 +1,34 @@
+[package]
+name = "raphtory-benchmark"
+version.workspace = true
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+criterion = "0.4"
+raphtory = { path = "../raphtory" }
+raphtory-io = { path = "../raphtory-io" }
+sorted_vector_map = "0.1"
+rand = "0.8.5"
+rayon = "1"
+
+[[bench]]
+name = "tgraph_benchmarks"
+harness = false
+
+[[bench]]
+name = "base"
+harness = false
+
+[[bench]]
+name = "parameterized"
+harness = false
+
+[[bench]]
+name = "graph_ops"
+harness = false
+
+[[bench]]
+name = "algobench"
+harness = false

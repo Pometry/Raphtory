@@ -1,6 +1,6 @@
 use crate::core::state::compute_state::ComputeState;
-use crate::db::view_api::GraphViewOps;
 use crate::db::view_api::internal::GraphViewInternalOps;
+use crate::db::view_api::GraphViewOps;
 
 use super::context::GlobalState;
 use super::eval_vertex::EvalVertexView;

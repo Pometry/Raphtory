@@ -6,11 +6,11 @@ use crate::utils::{
     PyWindowSet,
 };
 use crate::vertex::{PyVertex, PyVertices};
+use chrono::prelude::*;
 use pyo3::prelude::*;
 use raphtory::db::view_api::layer::LayerOps;
 use raphtory::db::view_api::*;
 use raphtory::*;
-use chrono::prelude::*;
 
 /// Graph view is a read-only version of a graph at a certain point in time.
 #[pyclass(name = "GraphView", frozen, subclass)]
@@ -55,7 +55,7 @@ impl PyGraphView {
     ///
     /// Returns:
     ///     the datetime of the earliest activity in the graph
-    pub fn earliest_date_time(&self) ->Option<NaiveDateTime> {
+    pub fn earliest_date_time(&self) -> Option<NaiveDateTime> {
         let earliest_time = self.graph.earliest_time()?;
         Some(NaiveDateTime::from_timestamp_millis(earliest_time).unwrap())
     }
@@ -72,7 +72,7 @@ impl PyGraphView {
     ///
     /// Returns:
     ///     the datetime of the latest activity in the graph
-    pub fn latest_date_time(&self) ->Option<NaiveDateTime> {
+    pub fn latest_date_time(&self) -> Option<NaiveDateTime> {
         let latest_time = self.graph.latest_time()?;
         Some(NaiveDateTime::from_timestamp_millis(latest_time).unwrap())
     }
@@ -183,7 +183,7 @@ impl PyGraphView {
     ///
     /// Returns:
     ///     the default start datetime for perspectives over the view
-    pub fn start_date_time(&self) ->Option<NaiveDateTime> {
+    pub fn start_date_time(&self) -> Option<NaiveDateTime> {
         let start_time = self.graph.start()?;
         Some(NaiveDateTime::from_timestamp_millis(start_time).unwrap())
     }
@@ -200,12 +200,12 @@ impl PyGraphView {
     pub fn window_size(&self) -> Option<u64> {
         self.graph.window_size()
     }
-    
+
     /// Returns the default end datetime for perspectives over the view
     ///
     /// Returns:
     ///    the default end datetime for perspectives over the view
-    pub fn end_date_time(&self) ->Option<NaiveDateTime> {
+    pub fn end_date_time(&self) -> Option<NaiveDateTime> {
         let end_time = self.graph.end()?;
         Some(NaiveDateTime::from_timestamp_millis(end_time).unwrap())
     }

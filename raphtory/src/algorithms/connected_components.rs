@@ -1,4 +1,4 @@
-use crate::core::vertex_ref::LocalVertexRef;
+use crate::db::view_api::VertexViewOps;
 use crate::{
     core::state::{accumulator_id::accumulators, compute_state::ComputeStateVec},
     db::{
@@ -10,7 +10,7 @@ use crate::{
         view_api::GraphViewOps,
     },
 };
-use rustc_hash::FxHashMap;
+use std::collections::HashMap;
 
 /// Computes the connected components of a graph using the Simple Connected Components algorithm
 ///
@@ -28,7 +28,7 @@ pub fn weakly_connected_components<G>(
     graph: &G,
     iter_count: usize,
     threads: Option<usize>,
-) -> FxHashMap<String, u64>
+) -> HashMap<String, u64>
 where
     G: GraphViewOps,
 {
@@ -40,7 +40,7 @@ where
     ctx.agg(min);
 
     let step1 = ATask::new(move |vv| {
-        vv.update(&min, vv.global_id());
+        vv.update(&min, vv.id());
 
         for n in vv.neighbours() {
             let my_min = vv.read(&min);
@@ -64,20 +64,15 @@ where
     let tasks = vec![Job::new(step1), Job::read_only(step2)];
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
 
-    let (state, _, _) = runner.run(vec![], tasks, threads, iter_count, None, None);
-
-    let mut map: FxHashMap<String, u64> = FxHashMap::default();
-
-    // FIXME: make this a proper method!
-    state
-        .inner()
-        .fold_state_internal(runner.ctx.ss(), &mut map, &min, |res, shard, pid, cc| {
-            let v_ref = LocalVertexRef::new(pid, shard);
-            res.insert(graph.vertex_name(v_ref), cc);
-            res
-        });
-
-    map
+    runner.run(
+        vec![],
+        tasks,
+        |_, ess, _| ess.finalize(&min, |c| c),
+        threads,
+        iter_count,
+        None,
+        None,
+    )
 }
 
 #[cfg(test)]
@@ -106,7 +101,7 @@ mod cc_test {
             graph.add_edge(ts, src, dst, &vec![], None).unwrap();
         }
 
-        let results: FxHashMap<String, u64> = weakly_connected_components(&graph, usize::MAX, None);
+        let results: HashMap<String, u64> = weakly_connected_components(&graph, usize::MAX, None);
 
         assert_eq!(
             results,
@@ -121,7 +116,7 @@ mod cc_test {
                 ("8".to_string(), 7),
             ]
             .into_iter()
-            .collect::<FxHashMap<String, u64>>()
+            .collect::<HashMap<String, u64>>()
         );
     }
 
@@ -159,7 +154,7 @@ mod cc_test {
             graph.add_edge(ts, src, dst, &vec![], None).unwrap();
         }
 
-        let results: FxHashMap<String, u64> = weakly_connected_components(&graph, usize::MAX, None);
+        let results: HashMap<String, u64> = weakly_connected_components(&graph, usize::MAX, None);
 
         assert_eq!(
             results,
@@ -177,7 +172,7 @@ mod cc_test {
                 ("11".to_string(), 1),
             ]
             .into_iter()
-            .collect::<FxHashMap<String, u64>>()
+            .collect::<HashMap<String, u64>>()
         );
     }
 
@@ -192,13 +187,13 @@ mod cc_test {
             graph.add_edge(ts, src, dst, &vec![], None).unwrap();
         }
 
-        let results: FxHashMap<String, u64> = weakly_connected_components(&graph, usize::MAX, None);
+        let results: HashMap<String, u64> = weakly_connected_components(&graph, usize::MAX, None);
 
         assert_eq!(
             results,
             vec![("1".to_string(), 1),]
                 .into_iter()
-                .collect::<FxHashMap<String, u64>>()
+                .collect::<HashMap<String, u64>>()
         );
     }
 
@@ -228,7 +223,7 @@ mod cc_test {
 
             // now we do connected components over window 0..1
 
-            let components: FxHashMap<String, u64> =
+            let components: HashMap<String, u64> =
                 weakly_connected_components(&graph, usize::MAX, None);
 
             let actual = components

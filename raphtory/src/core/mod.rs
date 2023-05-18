@@ -46,11 +46,11 @@ mod tcell;
 pub mod tgraph;
 pub mod tgraph_shard;
 pub mod time;
+pub mod timeindex;
 mod tprop;
 pub mod utils;
 pub mod vertex;
 pub mod vertex_ref;
-pub mod timeindex;
 
 type Time = i64;
 

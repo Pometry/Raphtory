@@ -926,13 +926,12 @@ impl Graph {
 #[cfg(test)]
 mod db_tests {
     use super::*;
-    use crate::core::utils;
     use crate::db::edge::EdgeView;
     use crate::db::path::PathFromVertex;
+    use crate::db::view_api::edge::EdgeViewOps;
     use crate::db::view_api::layer::LayerOps;
     use crate::db::view_api::*;
     use crate::graphgen::random_attachment::random_attachment;
-    use csv::StringRecord;
     use itertools::Itertools;
     use std::fs;
     use std::sync::Arc;
@@ -1480,58 +1479,6 @@ mod db_tests {
     }
 
     #[test]
-    fn db_lotr() {
-        let g = Graph::new(4);
-
-        let data_dir = crate::graph_loader::example::lotr_graph::lotr_file()
-            .expect("Failed to get lotr.csv file");
-
-        fn parse_record(rec: &StringRecord) -> Option<(String, String, i64)> {
-            let src = rec.get(0).and_then(|s| s.parse::<String>().ok())?;
-            let dst = rec.get(1).and_then(|s| s.parse::<String>().ok())?;
-            let t = rec.get(2).and_then(|s| s.parse::<i64>().ok())?;
-            Some((src, dst, t))
-        }
-
-        if let Ok(mut reader) = csv::Reader::from_path(data_dir) {
-            for rec in reader.records().flatten() {
-                if let Some((src, dst, t)) = parse_record(&rec) {
-                    let src_id = utils::calculate_hash(&src);
-                    let dst_id = utils::calculate_hash(&dst);
-
-                    g.add_vertex(
-                        t,
-                        src_id,
-                        &vec![("name".to_string(), Prop::Str("Character".to_string()))],
-                    )
-                    .unwrap();
-                    g.add_vertex(
-                        t,
-                        dst_id,
-                        &vec![("name".to_string(), Prop::Str("Character".to_string()))],
-                    )
-                    .unwrap();
-                    g.add_edge(
-                        t,
-                        src_id,
-                        dst_id,
-                        &vec![(
-                            "name".to_string(),
-                            Prop::Str("Character Co-occurrence".to_string()),
-                        )],
-                        None,
-                    )
-                    .unwrap();
-                }
-            }
-        }
-
-        let gandalf = utils::calculate_hash(&"Gandalf");
-        assert!(g.has_vertex(gandalf));
-        assert!(g.has_vertex("Gandalf"))
-    }
-
-    #[test]
     fn test_time_range_on_empty_graph() {
         let g = Graph::new(1);
 
@@ -1540,29 +1487,6 @@ mod db_tests {
 
         let expanding = g.expanding(1).unwrap().collect_vec();
         assert!(expanding.is_empty());
-    }
-
-    #[test]
-    fn test_lotr_load_graph() {
-        let g = crate::graph_loader::example::lotr_graph::lotr_graph(4);
-        assert_eq!(g.num_edges(), 701);
-    }
-
-    #[test]
-    fn test_graph_at() {
-        let g = crate::graph_loader::example::lotr_graph::lotr_graph(1);
-
-        let g_at_empty = g.at(1);
-        let g_at_start = g.at(7059);
-        let g_at_another = g.at(28373);
-        let g_at_max = g.at(i64::MAX);
-        let g_at_min = g.at(i64::MIN);
-
-        assert_eq!(g_at_empty.num_vertices(), 0);
-        assert_eq!(g_at_start.num_vertices(), 70);
-        assert_eq!(g_at_another.num_vertices(), 123);
-        assert_eq!(g_at_max.num_vertices(), 139);
-        assert_eq!(g_at_min.num_vertices(), 0);
     }
 
     #[test]
@@ -1679,8 +1603,8 @@ mod db_tests {
 
         assert_eq!(to_ids(vertex.in_neighbours()), vec![33]);
         assert_eq!(to_ids(vertex_dft.in_neighbours()), vec![33]);
-        assert_eq!(to_ids(vertex1.in_neighbours()), vec![]);
-        assert_eq!(to_ids(vertex2.in_neighbours()), vec![]);
+        assert!(to_ids(vertex1.in_neighbours()).is_empty());
+        assert!(to_ids(vertex2.in_neighbours()).is_empty());
     }
 
     #[test]
@@ -1796,7 +1720,7 @@ mod db_tests {
 
         assert_eq!(times_of_onetwo, [1, 3]);
         assert_eq!(times_of_four, [4]);
-        assert_eq!(windowed_times_of_four, []);
+        assert!(windowed_times_of_four.is_empty());
     }
 
     #[test]
@@ -1826,7 +1750,7 @@ mod db_tests {
         assert_eq!(times_of_onetwo, [1, 3]);
         assert_eq!(times_of_four, [4]);
         assert_eq!(times_of_four_higher, [6, 7, 8, 9, 10]);
-        assert_eq!(times_of_outside_window, []);
+        assert!(times_of_outside_window.is_empty());
         assert_eq!(windowed_times_of_four, [4]);
         assert_eq!(windowed_times_of_four_higher, [8, 9, 10]);
     }
@@ -1966,24 +1890,15 @@ mod db_tests {
         assert_eq!(g_at.vertices().id().collect::<Vec<u64>>(), vec![1, 2]);
     }
 
-    // #[test]
-    // fn test_vertex_refs_shard() {
-    //     let g = Graph::new(2);
-    //     g.add_vertex(1, 1, &vec![]).unwrap();
-    //     g.add_vertex(1, 2, &vec![]).unwrap();
-    //     g.add_vertex(2, 3, &vec![]).unwrap();
-    //
-    //     assert_eq!(g.vertex_refs_shard(0).collect::<Vec<_>>(), vec![1, 2]);
-    // }
-
     #[test]
-    fn test_edge_layer_name() {
+    fn test_edge_layer_name() -> Result<(), GraphError> {
         let g = Graph::new(4);
-        g.add_edge(0, 0, 1, &vec![], None).unwrap();
-        g.add_edge(0, 0, 1, &vec![], Some("awesome name")).unwrap();
+        g.add_edge(0, 0, 1, &vec![], None)?;
+        g.add_edge(0, 0, 1, &vec![], Some("awesome name"))?;
 
         let layer_names = g.edges().map(|e| e.layer_name()).sorted().collect_vec();
         assert_eq!(layer_names, vec!["awesome name", "default layer"]);
+        Ok(())
     }
 
     #[test]

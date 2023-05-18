@@ -1,242 +1,21 @@
 use crate::algorithms::*;
 use crate::core::agg::*;
-use crate::core::state::accumulator_id::accumulators::max;
-use crate::core::state::accumulator_id::accumulators::sum;
 use crate::core::state::accumulator_id::accumulators::val;
-use crate::core::state::accumulator_id::AccId;
-use crate::db::graph::Graph;
-use crate::db::program::*;
-use crate::db::view_api::GraphViewOps;
+use crate::core::state::accumulator_id::accumulators::{max, sum};
+use crate::{
+    core::{agg::InitOneF32, state::compute_state::ComputeStateVec},
+    db::{
+        task::{
+            context::Context,
+            task::{ATask, Job, Step},
+            task_runner::TaskRunner,
+        },
+        view_api::{GraphViewOps, VertexViewOps},
+    },
+};
+use num_traits::abs;
 use rustc_hash::FxHashMap;
-
-struct HitsS0 {
-    hub_score: AccId<MulF32, MulF32, MulF32, ValDef<MulF32>>,
-    auth_score: AccId<MulF32, MulF32, MulF32, ValDef<MulF32>>,
-}
-
-impl HitsS0 {
-    fn new() -> Self {
-        Self {
-            hub_score: val(0),
-            auth_score: val(1),
-        }
-    }
-}
-
-impl Program for HitsS0 {
-    type Out = ();
-
-    fn local_eval<G: GraphViewOps>(&self, c: &LocalState<G>) {
-        let hub_score = c.agg(self.hub_score);
-        let auth_score = c.agg(self.auth_score);
-        c.step(|s| {
-            s.update(&hub_score, MulF32::zero());
-            s.update(&auth_score, MulF32::zero())
-        });
-    }
-
-    fn post_eval<G: GraphViewOps>(&self, c: &mut GlobalEvalState<G>) {
-        c.step(|_| true)
-    }
-
-    #[allow(unused_variables)]
-    fn produce_output<G: GraphViewOps>(&self, g: &G, gs: &GlobalEvalState<G>) -> Self::Out
-    where
-        Self: Sync,
-    {
-    }
-}
-
-struct HitsS1 {
-    hub_score: AccId<MulF32, MulF32, MulF32, ValDef<MulF32>>,
-    auth_score: AccId<MulF32, MulF32, MulF32, ValDef<MulF32>>,
-    recv_hub_score: AccId<SumF32, SumF32, SumF32, SumDef<SumF32>>,
-    recv_auth_score: AccId<SumF32, SumF32, SumF32, SumDef<SumF32>>,
-}
-
-impl HitsS1 {
-    fn new() -> Self {
-        Self {
-            hub_score: val(0),
-            auth_score: val(1),
-            recv_hub_score: sum(2),
-            recv_auth_score: sum(3),
-        }
-    }
-}
-
-impl Program for HitsS1 {
-    type Out = ();
-
-    fn local_eval<G: GraphViewOps>(&self, c: &LocalState<G>) {
-        let hub_score = c.agg(self.hub_score);
-        let auth_score = c.agg(self.auth_score);
-        let recv_hub_score = c.agg(self.recv_hub_score);
-        let recv_auth_score = c.agg(self.recv_auth_score);
-
-        c.step(|s| {
-            let hub_score = s.read(&hub_score).0;
-            let auth_score = s.read(&auth_score).0;
-            for t in s.neighbours_out() {
-                t.update(&recv_hub_score, SumF32(hub_score))
-            }
-            for t in s.neighbours_in() {
-                t.update(&recv_auth_score, SumF32(auth_score))
-            }
-        });
-    }
-
-    fn post_eval<G: GraphViewOps>(&self, c: &mut GlobalEvalState<G>) {
-        let _ = c.agg(self.recv_hub_score);
-        let _ = c.agg(self.recv_auth_score);
-        c.step(|_| true)
-    }
-
-    #[allow(unused_variables)]
-    fn produce_output<G: GraphViewOps>(&self, g: &G, gs: &GlobalEvalState<G>) -> Self::Out
-    where
-        Self: Sync,
-    {
-    }
-}
-
-struct HitsS2 {
-    recv_hub_score: AccId<SumF32, SumF32, SumF32, SumDef<SumF32>>,
-    recv_auth_score: AccId<SumF32, SumF32, SumF32, SumDef<SumF32>>,
-    total_hub_score: AccId<SumF32, SumF32, SumF32, SumDef<SumF32>>,
-    total_auth_score: AccId<SumF32, SumF32, SumF32, SumDef<SumF32>>,
-}
-
-impl HitsS2 {
-    fn new() -> Self {
-        Self {
-            recv_hub_score: sum(2),
-            recv_auth_score: sum(3),
-            total_hub_score: sum(4),
-            total_auth_score: sum(5),
-        }
-    }
-}
-
-impl Program for HitsS2 {
-    type Out = ();
-
-    fn local_eval<G: GraphViewOps>(&self, c: &LocalState<G>) {
-        let recv_hub_score = c.agg(self.recv_hub_score);
-        let recv_auth_score = c.agg(self.recv_auth_score);
-        let total_hub_score = c.global_agg(self.total_hub_score);
-        let total_auth_score = c.global_agg(self.total_auth_score);
-
-        c.step(|s| {
-            let recv_hub_score = s.read(&recv_hub_score).0;
-            let recv_auth_score = s.read(&recv_auth_score).0;
-
-            s.global_update(&total_hub_score, SumF32(recv_hub_score));
-            s.global_update(&total_auth_score, SumF32(recv_auth_score));
-        });
-    }
-
-    fn post_eval<G: GraphViewOps>(&self, c: &mut GlobalEvalState<G>) {
-        let _ = c.global_agg(self.total_hub_score);
-        let _ = c.global_agg(self.total_auth_score);
-        c.step(|_| true)
-    }
-
-    #[allow(unused_variables)]
-    fn produce_output<G: GraphViewOps>(&self, g: &G, gs: &GlobalEvalState<G>) -> Self::Out
-    where
-        Self: Sync,
-    {
-    }
-}
-
-struct HitsS3 {
-    hub_score: AccId<MulF32, MulF32, MulF32, ValDef<MulF32>>,
-    auth_score: AccId<MulF32, MulF32, MulF32, ValDef<MulF32>>,
-    recv_hub_score: AccId<SumF32, SumF32, SumF32, SumDef<SumF32>>,
-    recv_auth_score: AccId<SumF32, SumF32, SumF32, SumDef<SumF32>>,
-    total_hub_score: AccId<SumF32, SumF32, SumF32, SumDef<SumF32>>,
-    total_auth_score: AccId<SumF32, SumF32, SumF32, SumDef<SumF32>>,
-    max_diff_hub_score: AccId<f32, f32, f32, MaxDef<f32>>,
-    max_diff_auth_score: AccId<f32, f32, f32, MaxDef<f32>>,
-}
-
-impl HitsS3 {
-    fn new() -> Self {
-        Self {
-            hub_score: val(0),
-            auth_score: val(1),
-            recv_hub_score: sum(2),
-            recv_auth_score: sum(3),
-            total_hub_score: sum(4),
-            total_auth_score: sum(5),
-            max_diff_hub_score: max(6),
-            max_diff_auth_score: max(7),
-        }
-    }
-}
-
-impl Program for HitsS3 {
-    type Out = ();
-
-    fn local_eval<G: GraphViewOps>(&self, c: &LocalState<G>) {
-        let hub_score = c.agg(self.hub_score);
-        let auth_score = c.agg(self.auth_score);
-        let recv_hub_score = c.agg(self.recv_hub_score);
-        let recv_auth_score = c.agg(self.recv_auth_score);
-        let total_hub_score = c.global_agg(self.total_hub_score);
-        let total_auth_score = c.global_agg(self.total_auth_score);
-        let max_diff_hub_score = c.global_agg(self.max_diff_hub_score);
-        let max_diff_auth_score = c.global_agg(self.max_diff_auth_score);
-
-        c.step(|s| {
-            let recv_hub_score = s.read(&recv_hub_score).0;
-            let recv_auth_score = s.read(&recv_auth_score).0;
-            println!("s = {}, recv_hub_score = {}", s.global_id(), recv_hub_score);
-            println!(
-                "s = {}, recv_auth_score = {}",
-                s.global_id(),
-                recv_auth_score
-            );
-
-            s.update(
-                &auth_score,
-                MulF32(recv_hub_score / s.read_global(&total_hub_score).0),
-            );
-            s.update(
-                &hub_score,
-                MulF32(recv_auth_score / s.read_global(&total_auth_score).0),
-            );
-
-            let prev_hub_score = s.read_prev(&hub_score);
-            let curr_hub_score = s.read(&hub_score);
-            let md_hub_score = abs((prev_hub_score - curr_hub_score).0);
-            s.global_update(&max_diff_hub_score, md_hub_score);
-
-            let prev_auth_score = s.read_prev(&auth_score);
-            let curr_auth_score = s.read(&auth_score);
-            let md_auth_score = abs((prev_auth_score - curr_auth_score).0);
-            s.global_update(&max_diff_auth_score, md_auth_score);
-        });
-    }
-
-    fn post_eval<G: GraphViewOps>(&self, c: &mut GlobalEvalState<G>) {
-        let _ = c.agg_reset(self.recv_hub_score);
-        let _ = c.agg_reset(self.recv_auth_score);
-        let _ = c.global_agg_reset(self.total_hub_score);
-        let _ = c.global_agg_reset(self.total_auth_score);
-        let _ = c.global_agg_reset(self.max_diff_hub_score);
-        let _ = c.global_agg_reset(self.max_diff_auth_score);
-        c.step(|_| true)
-    }
-
-    #[allow(unused_variables)]
-    fn produce_output<G: GraphViewOps>(&self, g: &G, gs: &GlobalEvalState<G>) -> Self::Out
-    where
-        Self: Sync,
-    {
-    }
-}
+use std::ops::Range;
 
 // HITS (Hubs and Authority) Algorithm:
 // AuthScore of a vertex (A) = Sum of HubScore of all vertices pointing at vertex (A) from previous iteration /
@@ -246,70 +25,132 @@ impl Program for HitsS3 {
 //     Sum of AuthScore of all vertices in the current iteration
 
 #[allow(unused_variables)]
-pub fn hits(g: &Graph, window: Range<i64>, iter_count: usize) -> FxHashMap<u64, (f32, f32)> {
-    let mut c = GlobalEvalState::new(g.clone(), true);
-    let hits_s0 = HitsS0::new();
-    let hits_s1 = HitsS1::new();
-    let hits_s2 = HitsS2::new();
-    let hits_s3 = HitsS3::new();
+pub fn hits<G: GraphViewOps>(
+    g: &G,
+    window: Range<i64>,
+    iter_count: usize,
+    threads: Option<usize>,
+) -> FxHashMap<String, (f32, f32)> {
+    let mut ctx: Context<G, ComputeStateVec> = g.into();
 
-    hits_s0.run_step(g, &mut c);
+    let hub_score = val::<f32>(0).init::<InitOneF32>();
+    let auth_score = val::<f32>(1).init::<InitOneF32>();
 
-    let max_diff_hub_score = 0.01f32;
-    let max_diff_auth_score = max_diff_hub_score;
-    let mut i = 0;
+    let recv_hub_score = sum::<f32>(2);
+    let recv_auth_score = sum::<f32>(3);
 
-    loop {
-        hits_s1.run_step(g, &mut c);
-        println!("step1, hub: {:?}", c.read_vec_partitions(&val::<MulF32>(0)));
-        println!(
-            "step1, auth: {:?}",
-            c.read_vec_partitions(&val::<MulF32>(1))
-        );
+    let total_hub_score = sum::<f32>(4);
+    let total_auth_score = sum::<f32>(5);
 
-        hits_s2.run_step(g, &mut c);
-        hits_s3.run_step(g, &mut c);
-        println!(
-            "total_hub = {:?}",
-            c.read_global_state(&sum::<SumF32>(4)).unwrap()
-        );
-        println!(
-            "total_auth = {:?}",
-            c.read_global_state(&sum::<SumF32>(5)).unwrap()
-        );
+    let max_diff_hub_score = max::<f32>(6);
+    let max_diff_auth_score = max::<f32>(7);
 
-        let r1 = c.read_global_state(&max::<f32>(6)).unwrap();
-        println!("max_diff_hub = {:?}", r1);
-        let r2 = c.read_global_state(&max::<f32>(7)).unwrap();
-        println!("max_diff_auth = {:?}", r2);
+    ctx.agg(recv_hub_score);
+    ctx.agg(recv_auth_score);
+    ctx.agg_reset(recv_hub_score);
+    ctx.agg_reset(recv_auth_score);
+    ctx.global_agg(total_hub_score);
+    ctx.global_agg(total_auth_score);
+    ctx.global_agg(max_diff_hub_score);
+    ctx.global_agg(max_diff_auth_score);
+    ctx.global_agg_reset(total_hub_score);
+    ctx.global_agg_reset(total_auth_score);
+    ctx.global_agg_reset(max_diff_hub_score);
+    ctx.global_agg_reset(max_diff_auth_score);
 
-        if (r1 <= max_diff_hub_score && r2 <= max_diff_auth_score) || i > iter_count {
-            break;
+    let step1 = ATask::new(move |evv| {
+        evv.update_local(&hub_score, InitOneF32::init());
+        evv.update_local(&auth_score, InitOneF32::init());
+        Step::Continue
+    });
+
+    let step2 = ATask::new(move |evv| {
+        let hub_score = evv.read_local(&hub_score);
+        let auth_score = evv.read_local(&auth_score);
+        for t in evv.out_neighbours() {
+            t.update(&recv_hub_score, hub_score)
         }
-
-        if c.keep_past_state {
-            c.ss += 1;
+        for t in evv.in_neighbours() {
+            t.update(&recv_auth_score, auth_score)
         }
-        i += 1;
-    }
+        Step::Continue
+    });
 
-    println!("i = {}", i);
+    let step3 = ATask::new(move |evv| {
+        let recv_hub_score = evv.read(&recv_hub_score);
+        let recv_auth_score = evv.read(&recv_auth_score);
 
-    let mut results: FxHashMap<u64, (f32, f32)> = FxHashMap::default();
+        evv.global_update(&total_hub_score, recv_hub_score);
+        evv.global_update(&total_auth_score, recv_auth_score);
+        Step::Continue
+    });
 
-    (0..g.nr_shards)
-        .into_iter()
-        .fold(&mut results, |res, part_id| {
-            let r = c.fold_state(&val::<MulF32>(0), part_id, res, |res, v_id, sc| {
-                res.insert(*v_id, (sc.0, 0.0));
-                res
-            });
-            c.fold_state(&val::<MulF32>(1), part_id, r, |res, v_id, sc| {
-                let (a, _) = res.get(v_id).unwrap();
-                res.insert(*v_id, (*a, sc.0));
-                res
-            })
-        });
+    let step4 = ATask::new(move |evv| {
+        let recv_hub_score = evv.read(&recv_hub_score);
+        let recv_auth_score = evv.read(&recv_auth_score);
+
+        evv.update_local(
+            &auth_score,
+            recv_hub_score / evv.read_global_state(&total_hub_score).unwrap(),
+        );
+        evv.update_local(
+            &hub_score,
+            recv_auth_score / evv.read_global_state(&total_auth_score).unwrap(),
+        );
+
+        let prev_hub_score = evv.read_local_prev(&hub_score);
+        let curr_hub_score = evv.read_local(&hub_score);
+        let md_hub_score = abs((prev_hub_score - curr_hub_score));
+        evv.global_update(&max_diff_hub_score, md_hub_score);
+
+        let prev_auth_score = evv.read_local_prev(&auth_score);
+        let curr_auth_score = evv.read_local(&auth_score);
+        let md_auth_score = abs((prev_auth_score - curr_auth_score));
+        evv.global_update(&max_diff_auth_score, md_auth_score);
+
+        Step::Continue
+    });
+
+    let max_diff_hs = 0.01f32;
+    let max_diff_as = max_diff_hs;
+
+    let step5 = Job::Check(Box::new(move |state| {
+        if state.read(&max_diff_hub_score) <= max_diff_hs
+            && state.read(&max_diff_auth_score) <= max_diff_as
+        {
+            Step::Done
+        } else {
+            Step::Continue
+        }
+    }));
+
+    let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
+
+    let (hub_scores, auth_scores) = runner.run(
+        vec![Job::new(step1)],
+        vec![Job::new(step2), Job::new(step3), Job::new(step4), step5],
+        |_, _, els| {
+            (
+                els.finalize(&hub_score, |hub_score| hub_score),
+                els.finalize(&auth_score, |auth_score| auth_score),
+            )
+        },
+        threads,
+        iter_count,
+        None,
+        None,
+    );
+
+    let mut results: FxHashMap<String, (f32, f32)> = FxHashMap::default();
+
+    hub_scores.into_iter().for_each(|(k, v)| {
+        results.insert(k, (v, 0.0));
+    });
+
+    auth_scores.into_iter().for_each(|(k, v)| {
+        let (a, _) = results.get(&k).unwrap();
+        results.insert(k, (*a, v));
+    });
 
     results
 }
@@ -317,6 +158,8 @@ pub fn hits(g: &Graph, window: Range<i64>, iter_count: usize) -> FxHashMap<u64, 
 #[cfg(test)]
 mod hits_tests {
     use super::*;
+    use crate::db::graph::Graph;
+    use itertools::Itertools;
 
     fn load_graph(n_shards: usize, edges: Vec<(u64, u64)>) -> Graph {
         let graph = Graph::new(n_shards);
@@ -351,7 +194,10 @@ mod hits_tests {
 
         let window = 0..10;
 
-        let results: FxHashMap<u64, (f32, f32)> = hits(&graph, window, 20).into_iter().collect();
+        let mut results: Vec<(String, (f32, f32))> =
+            hits(&graph, window, 20, None).into_iter().collect_vec();
+
+        results.sort_by_key(|k| (*k).0.clone());
 
         // NetworkX results
         // >>> G = nx.DiGraph()
@@ -385,22 +231,20 @@ mod hits_tests {
         assert_eq!(
             results,
             vec![
-                (7, (0.15471625, 0.0)),
-                (4, (0.18654142, 0.12442485)),
-                (1, (0.043136504, 0.096625775)),
-                (8, (0.030866565, 0.05943252)),
-                (5, (0.26667947, 0.05943252)),
-                (2, (0.14359663, 0.18366565)),
-                (6, (0.14359663, 0.10755368)),
-                (3, (0.030866565, 0.36886504))
+                ("1".to_string(), (0.0431365, 0.096625775)),
+                ("2".to_string(), (0.14359662, 0.18366566)),
+                ("3".to_string(), (0.030866561, 0.36886504)),
+                ("4".to_string(), (0.1865414, 0.12442485)),
+                ("5".to_string(), (0.26667944, 0.05943252)),
+                ("6".to_string(), (0.14359662, 0.10755368)),
+                ("7".to_string(), (0.15471625, 0.0)),
+                ("8".to_string(), (0.030866561, 0.05943252))
             ]
-            .into_iter()
-            .collect::<FxHashMap<u64, (f32, f32)>>()
         );
     }
 
     #[test]
-    fn test_hits_1() {
+    fn test_hits_11() {
         test_hits(1);
     }
 }

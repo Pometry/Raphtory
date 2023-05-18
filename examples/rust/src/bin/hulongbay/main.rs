@@ -6,11 +6,11 @@ use std::path::Path;
 
 use itertools::Itertools;
 use raphtory::algorithms::connected_components::weakly_connected_components;
-use raphtory::algorithms::triangle_count::triangle_counting_fast;
+use raphtory::algorithms::triangle_count::triangle_count;
 use raphtory::core::{Direction, Prop};
 use raphtory::db::graph::Graph;
 use raphtory::db::view_api::*;
-use raphtory::graph_loader::source::csv_loader::CsvLoader;
+use raphtory_io::graph_loader::source::csv_loader::CsvLoader;
 use regex::Regex;
 use serde::Deserialize;
 use std::time::Instant;
@@ -112,7 +112,7 @@ fn try_main() -> Result<(), Box<dyn Error>> {
     let max_time = graph.end().ok_or(GraphEmptyError)?;
     let mid_time = (min_time + max_time) / 2;
     let now = Instant::now();
-    let actual_tri_count = triangle_counting_fast(&graph, None);
+    let actual_tri_count = triangle_count(&graph, None);
 
     println!("Actual triangle count: {:?}", actual_tri_count);
 
