@@ -8,6 +8,7 @@ use dotenv::dotenv;
 use dynamic_graphql::App;
 use poem::listener::TcpListener;
 use poem::{get, Route, Server};
+use raphtory::db::view_api::GraphViewOps;
 use std::future::ready;
 use tokio::signal;
 use tracing::info;
@@ -71,6 +72,7 @@ async fn main() {
     use async_graphql::dynamic::Schema;
 
     #[derive(App)]
+    // struct App(QueryRoot, GqlWindowGraph);
     struct App(QueryRoot);
     let schema = App::create_schema()
         .data(Metadata::lotr())
