@@ -25,13 +25,13 @@ class RaphtoryBench(BenchmarkBase):
                 self.graph.add_edge(1, row[0], row[1], {})
 
     def degree(self):
-        list(self.graph.vertices().degree())
+        return list(self.graph.vertices().degree())
 
     def out_neighbours(self):
-        list([list(o) for o in self.graph.vertices().out_neighbours()])
+        return list([list(o) for o in self.graph.vertices().out_neighbours()])
 
     def page_rank(self):
-        pagerank(self.graph, iter_count=20)
+        return pagerank(self.graph, iter_count=20)
 
     def connected_components(self):
-        weakly_connected_components(self.graph, iter_count=20)
+        return weakly_connected_components(self.graph, iter_count=20)

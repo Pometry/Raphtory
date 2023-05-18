@@ -15,9 +15,9 @@ class NetworkXBench(BenchmarkBase):
         self.graph = None
 
     def setup(self):
-        self.graph = nx.Graph()
-        #with gzip.open(relationships_file, 'rt') as f:
-        with open(simple_relationship_file, 'r') as f:
+        self.graph = nx.DiGraph()
+        with gzip.open(relationships_file, 'rt') as f:
+        #with open(simple_relationship_file, 'r') as f:
             reader = csv.reader(f, delimiter='\t')
             for row in tqdm(reader, total=30622564):
                 self.graph.add_edge(int(row[0]), int(row[1]))
@@ -26,10 +26,14 @@ class NetworkXBench(BenchmarkBase):
         return self.graph.degree()
 
     def out_neighbours(self):
-        return len([n for n in self.graph.neighbors(1)])
+        sizes = []
+        for node in self.graph.nodes:
+            out_neighbors = [edge.target for edge in self.graph.edges if edge.source == node.id]
+            sizes.append(len(out_neighbors))
+        return sizes
 
     def page_rank(self):
         return nx.pagerank(self.graph)
 
     def connected_components(self):
-        return len([len(comp) for comp in nx.connected_components(self.graph)])
+        return [len(comp) for comp in nx.connected_components(self.graph.to_undirected())]
