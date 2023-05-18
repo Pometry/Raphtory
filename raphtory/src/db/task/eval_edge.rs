@@ -1,7 +1,7 @@
 use crate::core::edge_ref::EdgeRef;
 use crate::core::state::compute_state::ComputeState;
 use crate::core::state::shuffle_state::ShuffleComputeState;
-use crate::core::vertex_ref::VertexRef;
+use crate::core::vertex_ref::{VertexRef, LocalVertexRef};
 use crate::core::Prop;
 use crate::db::edge::EdgeView;
 use crate::db::task::eval_vertex::EvalVertexView;
@@ -19,6 +19,7 @@ pub struct EvalEdgeView<'a, G: GraphViewOps, CS: ComputeState> {
     ev: EdgeView<G>,
     shard_state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
     global_state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
+    pub local_state_prev: &'a Vec<(LocalVertexRef, f64)>,
 }
 
 impl<'a, G: GraphViewOps, CS: ComputeState> EvalEdgeView<'a, G, CS> {
@@ -28,6 +29,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState> EvalEdgeView<'a, G, CS> {
             ev,
             shard_state: self.shard_state.clone(),
             global_state: self.global_state.clone(),
+            local_state_prev: self.local_state_prev,
         }
     }
 }
@@ -52,6 +54,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState> EdgeViewInternalOps<G, EvalVertexVie
             g,
             self.shard_state.clone(),
             self.global_state.clone(),
+            self.local_state_prev,
         )
     }
 
@@ -62,6 +65,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState> EdgeViewInternalOps<G, EvalVertexVie
             self.graph(),
             self.shard_state.clone(),
             self.global_state.clone(),
+            self.local_state_prev,
         )
     }
 }
@@ -149,12 +153,14 @@ impl<'a, G: GraphViewOps, CS: ComputeState> EvalEdgeView<'a, G, CS> {
         g: G,
         shard_state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
         global_state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
+        local_state_prev: &'a Vec<(LocalVertexRef, f64)>,
     ) -> Self {
         Self {
             ss,
             ev: EdgeView::new(g, edge),
             shard_state,
             global_state,
+            local_state_prev,
         }
     }
 
@@ -163,12 +169,14 @@ impl<'a, G: GraphViewOps, CS: ComputeState> EvalEdgeView<'a, G, CS> {
         ev: EdgeView<G>,
         shard_state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
         global_state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
+        local_state_prev: &'a Vec<(LocalVertexRef, f64)>
     ) -> Self {
         Self {
             ss,
             ev,
             shard_state,
             global_state,
+            local_state_prev,
         }
     }
 }

@@ -135,6 +135,7 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         shard_state: &Shard<CS>,
         global_state: &Global<CS>,
         morcel: &mut [(LocalVertexRef, f64)],
+        prev_local_state: &Vec<(LocalVertexRef, f64)>,
         atomic_done: &AtomicBool,
         task: &Box<dyn Task<G, CS> + Send + Sync>,
     ) -> (Shard<CS>, Global<CS>) {
@@ -154,6 +155,7 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
                 shard_state_view.clone(),
                 global_state_view.clone(),
                 Some(local_state),
+                prev_local_state,
             );
 
             match task.run(&vv) {
@@ -222,6 +224,7 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
                                 &new_shard_state,
                                 &new_global_state,
                                 morcel,
+                                prev_local_state,
                                 &atomic_done,
                                 task,
                             )
@@ -233,6 +236,7 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
                                 &new_shard_state,
                                 &new_global_state,
                                 morcel,
+                                prev_local_state,
                                 &atomic_done,
                                 task,
                             );
