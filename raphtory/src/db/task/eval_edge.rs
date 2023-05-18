@@ -19,7 +19,6 @@ pub struct EvalEdgeView<'a, G: GraphViewOps, CS: ComputeState> {
     ev: EdgeView<G>,
     shard_state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
     global_state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
-    local_state: Rc<RefCell<ShuffleComputeState<CS>>>,
 }
 
 impl<'a, G: GraphViewOps, CS: ComputeState> EvalEdgeView<'a, G, CS> {
@@ -29,7 +28,6 @@ impl<'a, G: GraphViewOps, CS: ComputeState> EvalEdgeView<'a, G, CS> {
             ev,
             shard_state: self.shard_state.clone(),
             global_state: self.global_state.clone(),
-            local_state: self.local_state.clone(),
         }
     }
 }
@@ -54,7 +52,6 @@ impl<'a, G: GraphViewOps, CS: ComputeState> EdgeViewInternalOps<G, EvalVertexVie
             g,
             self.shard_state.clone(),
             self.global_state.clone(),
-            self.local_state.clone(),
         )
     }
 
@@ -65,7 +62,6 @@ impl<'a, G: GraphViewOps, CS: ComputeState> EdgeViewInternalOps<G, EvalVertexVie
             self.graph(),
             self.shard_state.clone(),
             self.global_state.clone(),
-            self.local_state.clone(),
         )
     }
 }
@@ -153,14 +149,12 @@ impl<'a, G: GraphViewOps, CS: ComputeState> EvalEdgeView<'a, G, CS> {
         g: G,
         shard_state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
         global_state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
-        local_state: Rc<RefCell<ShuffleComputeState<CS>>>,
     ) -> Self {
         Self {
             ss,
             ev: EdgeView::new(g, edge),
             shard_state,
             global_state,
-            local_state,
         }
     }
 
@@ -169,14 +163,12 @@ impl<'a, G: GraphViewOps, CS: ComputeState> EvalEdgeView<'a, G, CS> {
         ev: EdgeView<G>,
         shard_state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
         global_state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
-        local_state: Rc<RefCell<ShuffleComputeState<CS>>>,
     ) -> Self {
         Self {
             ss,
             ev,
             shard_state,
             global_state,
-            local_state,
         }
     }
 }

@@ -286,8 +286,7 @@ impl GraphViewInternalOps for InternalGraph {
     }
 
     fn vertices_len(&self) -> usize {
-        let vs: Vec<usize> = self.shards.iter().map(|shard| shard.len()).collect();
-        vs.iter().sum()
+        self.shards.iter().map(|shard| shard.len()).sum()
     }
 
     fn vertices_len_window(&self, t_start: i64, t_end: i64) -> usize {

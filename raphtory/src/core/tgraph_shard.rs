@@ -614,6 +614,21 @@ impl ImmutableTGraphShard<TemporalGraph> {
         self.rc.vertices()
     }
 
+    pub fn vertices_window(
+        &self,
+        w: Range<i64>,
+    ) -> Box<dyn Iterator<Item = LocalVertexRef> + Send> {
+        let tgshard = self.rc.clone();
+        let iter: GenBoxed<LocalVertexRef> = GenBoxed::new_boxed(|co| async move {
+            let g = tgshard.clone();
+            let iter = (&g).vertices_window(w);
+            for vv in iter {
+                co.yield_(vv).await;
+            }
+        });
+        Box::new(iter.into_iter())
+    }
+
     pub fn vertex_edges(
         &self,
         v: LocalVertexRef,
@@ -625,6 +640,18 @@ impl ImmutableTGraphShard<TemporalGraph> {
 
     pub fn out_edges_len(&self, layer: Option<usize>) -> usize {
         self.rc.out_edges_len(layer)
+    }
+
+    pub fn out_edges_len_window(&self, w: &Range<Time>, layer: Option<usize>) -> usize {
+        self.rc.out_edges_len_window(w, layer)
+    }
+
+    pub fn len(&self) -> usize {
+        self.rc.len()
+    }
+
+    pub fn local_vertex_window(&self, v: VertexRef, w: Range<i64>) -> Option<LocalVertexRef> {
+        self.rc.local_vertex_window(v, w)
     }
 }
 

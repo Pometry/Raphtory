@@ -26,29 +26,26 @@ use std::{
     sync::Arc,
 };
 
-#[derive(Clone)]
 pub struct EvalVertexView<'a, G: GraphViewOps, CS: ComputeState> {
     ss: usize,
     vv: VertexView<G>,
-    pub g: G,
     shard_state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
     global_state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
-    local_state: Rc<RefCell<ShuffleComputeState<CS>>>,
+    pub local_state: Option<&'a mut f64>,
 }
 
 impl<'a, G: GraphViewOps, CS: ComputeState> EvalVertexView<'a, G, CS> {
     pub fn new_local(
         ss: usize,
         vertex: LocalVertexRef,
-        g: G,
+        g: Arc<G>,
         shard_state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
         global_state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
-        local_state: Rc<RefCell<ShuffleComputeState<CS>>>,
+        local_state: Option<&'a mut f64>,
     ) -> Self {
         Self {
             ss,
-            vv: VertexView::new_local(g.clone(), vertex),
-            g,
+            vv: VertexView::new_local(g, vertex),
             shard_state,
             global_state,
             local_state,
@@ -61,44 +58,39 @@ impl<'a, G: GraphViewOps, CS: ComputeState> EvalVertexView<'a, G, CS> {
             e,
             self.shard_state.clone(),
             self.global_state.clone(),
-            self.local_state.clone(),
         )
     }
 
     pub fn new_from_view(
         ss: usize,
         vv: VertexView<G>,
-        g: G,
         shard_state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
         global_state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
-        local_state: Rc<RefCell<ShuffleComputeState<CS>>>,
     ) -> Self {
         Self {
             ss,
             vv,
-            g,
             shard_state,
             global_state,
-            local_state,
+            local_state: None,
         }
     }
 
     pub fn new(
         ss: usize,
         vertex: VertexRef,
-        g: G,
+        g: Arc<G>,
         shard_state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
         global_state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
-        local_state: Rc<RefCell<ShuffleComputeState<CS>>>,
+        local_state: &'a mut f64,
     ) -> Self {
         let vref = g.localise_vertex_unchecked(vertex);
         Self {
             ss,
-            vv: VertexView::new_local(g.clone(), vref),
-            g,
+            vv: VertexView::new_local(g, vref),
             shard_state,
             global_state,
-            local_state,
+            local_state: Some(local_state),
         }
     }
 
@@ -241,10 +233,11 @@ impl<'a, G: GraphViewOps, CS: ComputeState> EvalVertexView<'a, G, CS> {
         A: StateType,
         OUT: std::fmt::Debug,
     {
-        self.local_state
-            .borrow()
-            .read_with_pid(self.ss + 1, self.id(), self.pid(), agg_r)
-            .unwrap_or(ACC::finish(&ACC::zero()))
+        // self.local_state
+        //     .borrow()
+        //     .read_with_pid(self.ss + 1, self.id(), self.pid(), agg_r)
+        //     .unwrap_or(ACC::finish(&ACC::zero()))
+        todo!()
     }
 
     pub fn read_global_state_prev<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
@@ -267,7 +260,6 @@ pub struct EvalPathFromVertex<'a, G: GraphViewOps, CS: ComputeState> {
     ss: usize,
     shard_state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
     global_state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
-    local_state: Rc<RefCell<ShuffleComputeState<CS>>>,
 }
 
 impl<'a, G: GraphViewOps, CS: ComputeState> EvalPathFromVertex<'a, G, CS> {
@@ -277,7 +269,6 @@ impl<'a, G: GraphViewOps, CS: ComputeState> EvalPathFromVertex<'a, G, CS> {
             ss: self.ss,
             shard_state: self.shard_state.clone(),
             global_state: self.global_state.clone(),
-            local_state: self.local_state.clone(),
         }
     }
 
@@ -290,34 +281,18 @@ impl<'a, G: GraphViewOps, CS: ComputeState> EvalPathFromVertex<'a, G, CS> {
             ss: vertex.ss,
             shard_state: vertex.shard_state.clone(),
             global_state: vertex.global_state.clone(),
-            local_state: vertex.local_state.clone(),
         }
     }
 
     pub fn iter(&'a self) -> Box<dyn Iterator<Item = EvalVertexView<'a, G, CS>> + 'a> {
         Box::new(self.path.iter().map(|v| {
-            let g = v.graph.clone();
             EvalVertexView::new_from_view(
                 self.ss,
                 v,
-                g,
                 self.shard_state.clone(),
                 self.global_state.clone(),
-                self.local_state.clone(),
             )
         }))
-    }
-
-    pub fn read_prev<'b, A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
-        self,
-        acc_id: &'b AccId<A, IN, OUT, ACC>,
-    ) -> Box<dyn Iterator<Item = OUT> + '_>
-    where
-        A: StateType,
-        OUT: std::fmt::Debug,
-        Self: 'b,
-    {
-        Box::new(self.into_iter().map(|vv| vv.read_prev(acc_id)))
     }
 }
 
@@ -330,18 +305,9 @@ impl<'a, G: GraphViewOps, CS: ComputeState> IntoIterator for EvalPathFromVertex<
         let path = self.path.clone();
         let shard_state = self.shard_state.clone();
         let global_state = self.global_state.clone();
-        let local_state = self.local_state.clone();
         let ss = self.ss;
         Box::new(path.iter().map(move |v| {
-            let g = v.graph.clone();
-            EvalVertexView::new_from_view(
-                ss,
-                v,
-                g,
-                shard_state.clone(),
-                global_state.clone(),
-                local_state.clone(),
-            )
+            EvalVertexView::new_from_view(ss, v, shard_state.clone(), global_state.clone())
         }))
     }
 }
@@ -363,7 +329,6 @@ impl<'a, G: GraphViewOps, CS: ComputeState> TimeOps for EvalPathFromVertex<'a, G
             ss: self.ss,
             shard_state: self.shard_state.clone(),
             global_state: self.global_state.clone(),
-            local_state: self.local_state.clone(),
         }
     }
 }
@@ -478,10 +443,10 @@ impl<'a, G: GraphViewOps, CS: ComputeState> TimeOps for EvalVertexView<'a, G, CS
         EvalVertexView::new_local(
             self.ss,
             self.vv.vertex,
-            self.vv.graph.window(t_start, t_end),
+            Arc::from(self.vv.graph.window(t_start, t_end)),
             self.shard_state.clone(),
             self.global_state.clone(),
-            self.local_state.clone(),
+            None,
         )
     }
 }
@@ -557,18 +522,36 @@ impl<'a, G: GraphViewOps, CS: ComputeState> VertexViewOps for EvalVertexView<'a,
     }
 
     fn edges(&self) -> Self::EList {
-        let eev = self.clone();
-        Box::new(self.vv.edges().map(move |e| eev.new_edge(e)))
+        let shard_state = self.shard_state.clone();
+        let global_state = self.global_state.clone();
+        let ss = self.ss;
+        Box::new(
+            self.vv
+                .edges()
+                .map(move |e| EvalEdgeView::new_(ss, e, shard_state.clone(), global_state.clone())),
+        )
     }
 
     fn in_edges(&self) -> Self::EList {
-        let eev = self.clone();
-        Box::new(self.vv.in_edges().map(move |e| eev.new_edge(e)))
+        let shard_state = self.shard_state.clone();
+        let global_state = self.global_state.clone();
+        let ss = self.ss;
+        Box::new(
+            self.vv
+                .in_edges()
+                .map(move |e| EvalEdgeView::new_(ss, e, shard_state.clone(), global_state.clone())),
+        )
     }
 
     fn out_edges(&self) -> Self::EList {
-        let eev = self.clone();
-        Box::new(self.vv.out_edges().map(move |e| eev.new_edge(e)))
+        let shard_state = self.shard_state.clone();
+        let global_state = self.global_state.clone();
+        let ss = self.ss;
+        Box::new(
+            self.vv
+                .out_edges()
+                .map(move |e| EvalEdgeView::new_(ss, e, shard_state.clone(), global_state.clone())),
+        )
     }
 
     fn neighbours(&self) -> Self::PathType<'_> {

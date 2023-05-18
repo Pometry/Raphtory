@@ -1,4 +1,3 @@
-use crate::core::state::accumulator_id::accumulators::max;
 use crate::db::view_api::VertexViewOps;
 use crate::{
     core::{
@@ -94,7 +93,6 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
         vec![Job::new(step1)],
         vec![Job::new(step2), Job::new(step3), step4],
         |_, _, els| els.finalize(&score, |score| score),
-        // |_, _, els| els.finalize(&score, |score| score).values().sum(),
         threads,
         iter_count,
         None,
