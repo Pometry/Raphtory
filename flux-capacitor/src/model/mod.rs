@@ -20,6 +20,12 @@ impl QueryRootFields<'_> {
         "Hello world"
     }
 
+    async fn window<'a>(ctx: &Context<'a>, t_start: i64, t_end: i64) -> usize {
+        let meta = ctx.data_unchecked::<Metadata<Graph>>();
+        let g = meta.graph().window(t_start, t_end);
+        g.num_vertices()
+    }
+
     // async fn window<'a>(
     //     &self,
     //     ctx: &Context<'a>,
@@ -35,6 +41,7 @@ impl QueryRootFields<'_> {
 #[derive(App)]
 pub struct QueryApp(QueryRootFields<'static>);
 
+// #[derive(SimpleObject)]
 // pub(crate) struct GqlWindowGraph<G: GraphViewOps> {
 //     graph: WindowedGraph<G>,
 // }
@@ -44,7 +51,7 @@ pub struct QueryApp(QueryRootFields<'static>);
 //         Self { graph }
 //     }
 // }
-//
+
 // #[Object]
 // impl<G: GraphViewOps> GqlWindowGraph<G> {
 //     async fn nodes<'a>(&self, _ctx: &Context<'a>) -> Vec<Node<WindowedGraph<G>>> {

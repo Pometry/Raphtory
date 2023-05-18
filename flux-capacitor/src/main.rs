@@ -68,9 +68,14 @@ async fn main() {
             .expect("Failed to register tracer with registry"),
     }
 
+    use async_graphql::dynamic::Schema;
+
     #[derive(App)]
     struct App(QueryRoot, QueryApp);
-    let schema = App::create_schema().finish().unwrap();
+    let schema = App::create_schema()
+        .data(Metadata::lotr())
+        .finish()
+        .unwrap();
     let app = Route::new()
         .at("/", get(graphql_playground).post(GraphQL::new(schema)))
         .at("/health", get(health));
