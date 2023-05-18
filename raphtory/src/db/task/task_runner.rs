@@ -148,7 +148,7 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         let mut done = true;
 
         for (v_ref, local_state) in morcel {
-            let vv = EvalVertexView::new_local(
+            let mut vv = EvalVertexView::new_local(
                 self.ctx.ss(),
                 v_ref.clone(),
                 g.clone(),
@@ -158,7 +158,7 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
                 prev_local_state,
             );
 
-            match task.run(&vv) {
+            match task.run(&mut vv) {
                 Step::Continue => {
                     done = false;
                 }

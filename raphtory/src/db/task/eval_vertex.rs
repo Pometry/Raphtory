@@ -36,6 +36,15 @@ pub struct EvalVertexView<'a, G: GraphViewOps, CS: ComputeState> {
 }
 
 impl<'a, G: GraphViewOps, CS: ComputeState> EvalVertexView<'a, G, CS> {
+
+    pub fn set(&mut self, value: f64) {
+        match &mut self.local_state {
+            Some(state) => **state = value,
+            None => {
+            }
+        }
+    }
+
     pub fn new_local(
         ss: usize,
         vertex: LocalVertexRef,

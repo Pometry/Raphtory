@@ -10,7 +10,7 @@ where
     G: GraphViewOps,
     CS: ComputeState,
 {
-    fn run(&self, vv: &EvalVertexView<G, CS>) -> Step;
+    fn run(&self, vv: &mut EvalVertexView<G, CS>) -> Step;
 }
 
 #[derive(Debug, PartialEq)]
@@ -23,7 +23,7 @@ pub struct ATask<G, CS, F>
 where
     G: GraphViewOps,
     CS: ComputeState,
-    F: Fn(&EvalVertexView<G, CS>) -> Step,
+    F: Fn(&mut EvalVertexView<G, CS>) -> Step,
 {
     f: F,
     _g: std::marker::PhantomData<G>,
@@ -51,7 +51,7 @@ impl<G, CS, F> ATask<G, CS, F>
 where
     G: GraphViewOps,
     CS: ComputeState,
-    F: Fn(&EvalVertexView<G, CS>) -> Step,
+    F: Fn(&mut EvalVertexView<G, CS>) -> Step,
 {
     pub fn new(f: F) -> Self {
         Self {
@@ -66,9 +66,9 @@ impl<G, CS, F> Task<G, CS> for ATask<G, CS, F>
 where
     G: GraphViewOps,
     CS: ComputeState,
-    F: Fn(&EvalVertexView<G, CS>) -> Step,
+    F: Fn(&mut EvalVertexView<G, CS>) -> Step,
 {
-    fn run(&self, vv: &EvalVertexView<G, CS>) -> Step {
+    fn run(&self, vv: &mut EvalVertexView<G, CS>) -> Step {
         (self.f)(vv)
     }
 }

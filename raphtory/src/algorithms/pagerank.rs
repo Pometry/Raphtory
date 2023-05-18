@@ -47,6 +47,9 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
 
     let step2 = ATask::new(move |s| {
         let out_degree = s.out_degree();
+
+        s.set(12f64); //<-- we can change our local state
+
         if out_degree > 0 {
             let new_score = s.read_local(&score) / out_degree as f64;
             for t in s.out_neighbours() {
