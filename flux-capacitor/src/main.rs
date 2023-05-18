@@ -1,11 +1,13 @@
 use crate::data::Metadata;
-use crate::model::QueryRoot;
-use crate::observability::metrics::{create_prometheus_recorder, track_metrics};
+use crate::model::{QueryApp, QueryRoot, QueryRootFields};
+use crate::observability::metrics::create_prometheus_recorder;
 use crate::observability::tracing::create_tracer_from_env;
-use crate::routes::{graphql_handler, graphql_playground, health};
-use async_graphql::{EmptyMutation, EmptySubscription, Schema};
-use axum::{extract::Extension, middleware, routing::get, Router, Server};
+use crate::routes::{graphql_playground, health};
+use async_graphql_poem::GraphQL;
 use dotenv::dotenv;
+use dynamic_graphql::App;
+use poem::listener::TcpListener;
+use poem::{get, Route, Server};
 use std::future::ready;
 use tokio::signal;
 use tracing::info;
@@ -48,11 +50,11 @@ async fn shutdown_signal() {
 async fn main() {
     dotenv().ok();
 
-    let schema = Schema::build(QueryRoot, EmptyMutation, EmptySubscription)
-        .data(Metadata::lotr())
-        .finish();
+    // let schema = Schema::build(QueryRoot, EmptyMutation, EmptySubscription)
+    //     .data(Metadata::lotr())
+    //     .finish();
 
-    let prometheus_recorder = create_prometheus_recorder();
+    // let prometheus_recorder = create_prometheus_recorder();
 
     let registry = Registry::default().with(tracing_subscriber::fmt::layer().pretty());
 
@@ -66,18 +68,18 @@ async fn main() {
             .expect("Failed to register tracer with registry"),
     }
 
-    info!("Service starting");
+    #[derive(App)]
+    struct App(QueryRoot, QueryApp);
+    let schema = App::create_schema().finish().unwrap();
+    let app = Route::new()
+        .at("/", get(graphql_playground).post(GraphQL::new(schema)))
+        .at("/health", get(health));
+    // .at("/metrics", get(move || ready(prometheus_recorder.render())))
+    // .route_layer(middleware::from_fn(track_metrics))
 
-    let app = Router::new()
-        .route("/", get(graphql_playground).post(graphql_handler))
-        .route("/health", get(health))
-        .route("/metrics", get(move || ready(prometheus_recorder.render())))
-        .route_layer(middleware::from_fn(track_metrics))
-        .layer(Extension(schema));
-
-    Server::bind(&"0.0.0.0:8000".parse().unwrap())
-        .serve(app.into_make_service())
-        .with_graceful_shutdown(shutdown_signal())
+    println!("Playground: http://localhost:8000");
+    Server::new(TcpListener::bind("0.0.0.0:8000"))
+        .run_with_graceful_shutdown(app, shutdown_signal(), None)
         .await
         .unwrap();
 }
