@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1684343085068,
+  "lastUpdate": 1684403641224,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -1039,6 +1039,42 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions",
             "value": 415070,
             "range": "± 81421",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "4599890+iamsmkr@users.noreply.github.com",
+            "name": "Shivam Kapoor",
+            "username": "iamsmkr"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6063957d14f4907c31ee0f8dfb676f8c59b602a8",
+          "message": "More stable coin graphs (#899)\n\nmore graphs",
+          "timestamp": "2023-05-18T10:49:46+01:00",
+          "tree_id": "f9c5e7fb874e3361f4b5f753c528d88e0def60cc",
+          "url": "https://github.com/Pometry/Raphtory/commit/6063957d14f4907c31ee0f8dfb676f8c59b602a8"
+        },
+        "date": 1684403640041,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 366774,
+            "range": "± 18388",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 780588,
+            "range": "± 93260",
             "unit": "ns/iter"
           }
         ]
