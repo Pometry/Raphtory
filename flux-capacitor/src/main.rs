@@ -1,5 +1,5 @@
 use crate::data::Metadata;
-use crate::model::{QueryApp, QueryRoot, QueryRootFields};
+use crate::model::QueryRoot;
 use crate::observability::metrics::create_prometheus_recorder;
 use crate::observability::tracing::create_tracer_from_env;
 use crate::routes::{graphql_playground, health};
@@ -71,7 +71,7 @@ async fn main() {
     use async_graphql::dynamic::Schema;
 
     #[derive(App)]
-    struct App(QueryRoot, QueryApp);
+    struct App(QueryRoot);
     let schema = App::create_schema()
         .data(Metadata::lotr())
         .finish()

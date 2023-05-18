@@ -1,5 +1,7 @@
 use async_graphql::Context;
-use dynamic_graphql::{App, ExpandObject, ExpandObjectFields, SimpleObject};
+use dynamic_graphql::{
+    App, ExpandObject, ExpandObjectFields, ResolvedObject, ResolvedObjectFields, SimpleObject,
+};
 use raphtory::db::graph::Graph;
 use raphtory::db::graph_window::WindowedGraph;
 use raphtory::db::vertex::VertexView;
@@ -7,15 +9,12 @@ use raphtory::db::view_api::{GraphViewOps, TimeOps, VertexViewOps};
 
 use crate::data::Metadata;
 
-#[derive(SimpleObject)]
+#[derive(ResolvedObject)]
 #[graphql(root)]
 pub(crate) struct QueryRoot;
 
-#[derive(ExpandObject)]
-pub(crate) struct QueryRootFields<'a>(&'a QueryRoot);
-
-#[ExpandObjectFields]
-impl QueryRootFields<'_> {
+#[ResolvedObjectFields]
+impl QueryRoot {
     async fn hello() -> &'static str {
         "Hello world"
     }
@@ -37,9 +36,6 @@ impl QueryRootFields<'_> {
     //     GqlWindowGraph::new(g)
     // }
 }
-
-#[derive(App)]
-pub struct QueryApp(QueryRootFields<'static>);
 
 // #[derive(SimpleObject)]
 // pub(crate) struct GqlWindowGraph<G: GraphViewOps> {
