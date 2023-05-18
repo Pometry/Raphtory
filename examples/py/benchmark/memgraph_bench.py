@@ -2,24 +2,30 @@
 # docker run -it -p 7687:7687 -p 7444:7444 -p 3000:3000 -v mg_lib:/var/lib/memgraph memgraph/memgraph-platform
 # http://localhost:3000/quick-connect has the memgraph lab!
 
+profiles_file = "data/soc-pokec-profiles.txt.gz"  # 1,632,803
+relationships_file = "data/soc-pokec-relationships.txt.gz"  # 30,622,564
+simple_profile_file = "data/simple-profiles.csv"
+simple_relationship_file = "data/simple-relationships.csv"
+
+
 from benchmark_base import BenchmarkBase
 from gqlalchemy import Memgraph
 
 class MemgraphBench(BenchmarkBase):
     def __init__(self):
-        self.graph = Memgraph(host='127.0.0.1', port=7687)
-        self.setup()
+        self.graph = None
 
     def import_data(self):
-        with open('data/rel.csv', 'r') as file:
+        with open(simple_relationship_file, 'r') as file:
             for line in file:
                 source, target = line.strip().split('\t')
                 query = f"CREATE (n1:Node {{id: '{source}'}})-[:FOLLOWS]->(n2:Node {{id: '{target}'}})"
                 self.graph.execute(query)
 
     def setup(self):
-        query = "MATCH (n) DETACH DELETE n"
-        self.graph.execute(query)
+        self.graph = Memgraph(host='127.0.0.1', port=7687)
+        # query = "MATCH (n) DETACH DELETE n"
+        # self.graph.execute(query)
         self.import_data()
 
     def degree(self):

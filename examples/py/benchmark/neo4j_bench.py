@@ -11,7 +11,7 @@ from neo4j import GraphDatabase
 
 def import_data(tx):
     tx.run("""
-    LOAD CSV FROM 'file:///data2/rel.csv' AS row
+    LOAD CSV FROM 'file:///data2/simple-relationships.csv' AS row
     FIELDTERMINATOR '\t'
     WITH row[0] AS source, row[1] AS target
     MERGE (n1:Node {id: source})
@@ -60,13 +60,13 @@ def run_connected_components(tx):
 
 class Neo4jBench(BenchmarkBase):
     def __init__(self):
+        self.driver = None
+
+    def setup(self):
         uri = "bolt://localhost:7687"
         username = "neo4j"
         password = "password"
         self.driver = GraphDatabase.driver(uri, auth=(username, password))
-        self.setup()
-
-    def setup(self):
         self.execute_write(import_data)
         self.execute_write(create_graph_projection)
 

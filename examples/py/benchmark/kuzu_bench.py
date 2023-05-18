@@ -15,8 +15,8 @@ class KuzuBench(BenchmarkBase):
         self.conn = kuzu.Connection(self.db)
         self.run_query("CREATE NODE TABLE User(id INT64, PRIMARY KEY (id))")
         self.run_query("CREATE REL TABLE Follows(FROM User TO User)")
-        self.run_query('COPY User FROM "data/nodes.csv"')
-        self.run_query('COPY Follows FROM "data/rel.csv" (DELIM="\t")')
+        self.run_query('COPY User FROM "data/simple-profiles.csv"')
+        self.run_query('COPY Follows FROM "data/simple-relationships.csv" (DELIM="\t")')
 
     def degree(self):
         res = self.run_query('MATCH (a:User)-[f:Follows]->(b:User) RETURN a.id,COUNT(f)')
