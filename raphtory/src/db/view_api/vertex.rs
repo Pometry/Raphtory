@@ -179,31 +179,37 @@ pub trait VertexViewOps: TimeOps {
 
 /// A trait for operations on a list of vertices.
 pub trait VertexListOps:
-    IntoIterator<Item = Self::ValueType<Self::Vertex>, IntoIter = Self::IterType> + Sized
+    IntoIterator<
+        Item = Self::ValueType<Self::Vertex>,
+        IntoIter = Self::IterType<Self::Vertex>,
+    > + Sized
 {
     type Graph: GraphViewOps;
     type Vertex: VertexViewOps<Graph = Self::Graph>;
     /// The type of the iterator for the list of vertices
-    type IterType: Iterator<Item = Self::ValueType<Self::Vertex>>;
+    type IterType<T>: Iterator<Item=Self::ValueType<T>>;
     /// The type of the iterator for the list of edges
     type EList: EdgeListOps<Graph = Self::Graph, Vertex = Self::Vertex>;
     type ValueType<T>;
-
+    
     /// Return the timestamp of the earliest activity.
-    fn earliest_time(self) -> BoxedIter<Self::ValueType<Option<i64>>>;
+    fn earliest_time(self) -> Self::IterType<Option<i64>>;
 
     /// Return the timestamp of the latest activity.
-    fn latest_time(self) -> BoxedIter<Self::ValueType<Option<i64>>>;
+    fn latest_time(self) -> Self::IterType<Option<i64>>;
 
     /// Create views for the vertices including all events between `t_start` (inclusive) and `t_end` (exclusive)
     fn window(
         self,
         t_start: i64,
         t_end: i64,
-    ) -> BoxedIter<Self::ValueType<VertexView<WindowedGraph<Self::Graph>>>>;
+    ) -> Self::IterType<<Self::Vertex as TimeOps>::WindowedViewType>;
 
     /// Create views for the vertices including all events until `end` (inclusive)
-    fn at(self, end: i64) -> BoxedIter<Self::ValueType<VertexView<WindowedGraph<Self::Graph>>>> {
+    fn at(
+        self,
+        end: i64,
+    ) -> Self::IterType<<Self::Vertex as TimeOps>::WindowedViewType> {
         self.window(i64::MIN, end.saturating_add(1))
     }
 
@@ -211,14 +217,14 @@ pub trait VertexListOps:
     ///
     /// # Returns
     /// The ids of vertices in the list.
-    fn id(self) -> BoxedIter<Self::ValueType<u64>>;
-    fn name(self) -> BoxedIter<Self::ValueType<String>>;
+    fn id(self) -> Self::IterType<u64>;
+    fn name(self) -> Self::IterType<String>;
 
     fn property(
         self,
         name: String,
         include_static: bool,
-    ) -> BoxedIter<Self::ValueType<Option<Prop>>>;
+    ) -> Self::IterType<Option<Prop>>;
 
     /// Returns an iterator of the values of the given property name
     /// including the times when it changed
@@ -229,33 +235,42 @@ pub trait VertexListOps:
     /// # Returns
     /// An iterator of the values of the given property name including the times when it changed
     /// as a vector of tuples of the form (time, property).
-    fn property_history(self, name: String) -> BoxedIter<Self::ValueType<Vec<(i64, Prop)>>>;
-    fn properties(self, include_static: bool) -> BoxedIter<Self::ValueType<HashMap<String, Prop>>>;
-    fn history(self) -> BoxedIter<Self::ValueType<Vec<i64>>>;
+    fn property_history(self, name: String) -> Self::IterType<Vec<(i64, Prop)>>;
+    fn properties(
+        self,
+        include_static: bool,
+    ) -> Self::IterType<HashMap<String, Prop>>;
+    fn history(self) -> Self::IterType<Vec<i64>>;
     /// Returns an iterator over all vertex properties.
     ///
     /// # Returns
     /// An iterator over all vertex properties.
-    fn property_histories(self) -> BoxedIter<Self::ValueType<HashMap<String, Vec<(i64, Prop)>>>>;
-    fn property_names(self, include_static: bool) -> BoxedIter<Self::ValueType<Vec<String>>>;
-    fn has_property(self, name: String, include_static: bool) -> BoxedIter<Self::ValueType<bool>>;
+    fn property_histories(
+        self,
+    ) -> Self::IterType<HashMap<String, Vec<(i64, Prop)>>>;
+    fn property_names(self, include_static: bool) -> Self::IterType<Vec<String>>;
+    fn has_property(
+        self,
+        name: String,
+        include_static: bool,
+    ) -> Self::IterType<bool>;
 
-    fn has_static_property(self, name: String) -> BoxedIter<Self::ValueType<bool>>;
+    fn has_static_property(self, name: String) -> Self::IterType<bool>;
 
-    fn static_property(self, name: String) -> BoxedIter<Self::ValueType<Option<Prop>>>;
+    fn static_property(self, name: String) -> Self::IterType<Option<Prop>>;
 
     /// Returns an iterator over the degree of the vertices.
     ///
     /// # Returns
     /// An iterator over the degree of the vertices.
-    fn degree(self) -> BoxedIter<Self::ValueType<usize>>;
+    fn degree(self) -> Self::IterType<usize>;
 
     /// Returns an iterator over the in-degree of the vertices.
     /// The in-degree of a vertex is the number of edges that connect to it from other vertices.
     ///
     /// # Returns
     /// An iterator over the in-degree of the vertices.
-    fn in_degree(self) -> BoxedIter<Self::ValueType<usize>>;
+    fn in_degree(self) -> Self::IterType<usize>;
 
     /// Returns an iterator over the out-degree of the vertices.
     /// The out-degree of a vertex is the number of edges that connects to it from the vertex.
@@ -263,7 +278,7 @@ pub trait VertexListOps:
     /// # Returns
     ///
     /// An iterator over the out-degree of the vertices.
-    fn out_degree(self) -> BoxedIter<Self::ValueType<usize>>;
+    fn out_degree(self) -> Self::IterType<usize>;
 
     /// Returns an iterator over the edges of the vertices.
     fn edges(self) -> Self::EList;
