@@ -28,7 +28,7 @@ class NetworkXBench(BenchmarkBase):
     def out_neighbours(self):
         sizes = []
         for node in self.graph.nodes:
-            out_neighbors = [edge[1] for edge in self.graph.edges if edge[0] == node.id]
+            out_neighbors = [edge[1] for edge in self.graph.edges if edge[0] == node]
             sizes.append(len(out_neighbors))
         return sizes
 
