@@ -238,8 +238,8 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
     }
 
     pub fn run<
-        B,
-        F: FnOnce(EvalGlobalState<G, CS>, EvalShardState<G, CS>, EvalLocalState<G, CS>) -> B,
+        B: std::fmt::Debug,
+        F: FnOnce(EvalGlobalState<G, CS>, EvalShardState<G, CS>, EvalLocalState<G, CS>) -> B + std::marker::Copy,
     >(
         &mut self,
         init_tasks: Vec<Job<G, CS>>,
@@ -305,6 +305,14 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
             }
 
             self.ctx.increment_ss();
+            let ss = self.ctx.ss();
+            println!("Step {}", ss);
+            // let b = f(
+            //     EvalGlobalState::new(ss, self.ctx.graph(), global_state.clone()),
+            //     EvalShardState::new(ss, self.ctx.graph(), shard_state.clone()),
+            //     EvalLocalState::new(ss, self.ctx.graph(), local_state.clone()),
+            // );
+            // println!("B = {:?}", b);
         }
 
         let ss: usize = self.ctx.ss();

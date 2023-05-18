@@ -19,6 +19,13 @@ pub trait Accumulator<A, IN, OUT>: Send + Sync + 'static {
     fn finish(a: &A) -> OUT;
 }
 
+pub struct InitOneF32();
+impl Init<f32> for InitOneF32 {
+    fn init() -> f32 {
+        1.0f32
+    }
+}
+
 pub struct InitOneF64();
 impl Init<f64> for InitOneF64 {
     fn init() -> f64 {
@@ -26,12 +33,6 @@ impl Init<f64> for InitOneF64 {
     }
 }
 
-pub struct InitOneF32();
-impl Init<f32> for InitOneF32 {
-    fn init() -> f32 {
-        1.0f32
-    }
-}
 #[derive(Clone, Debug, Copy)]
 pub struct AndDef();
 
