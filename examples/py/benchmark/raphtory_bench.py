@@ -33,7 +33,7 @@ class RaphtoryBench(BenchmarkBase):
         return list([list(o) for o in self.graph.vertices().out_neighbours()])
 
     def page_rank(self):
-        return pagerank(self.graph, iter_count=20)
+        return pagerank(self.graph, iter_count=100)
 
     def connected_components(self):
         return weakly_connected_components(self.graph, iter_count=20)

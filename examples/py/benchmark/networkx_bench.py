@@ -33,7 +33,7 @@ class NetworkXBench(BenchmarkBase):
         return sizes
 
     def page_rank(self):
-        return nx.pagerank(self.graph.to_undirected())
+        return nx.pagerank(self.graph)
 
     def connected_components(self):
         return [len(comp) for comp in nx.connected_components(self.graph.to_undirected())]
