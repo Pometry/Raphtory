@@ -1662,16 +1662,42 @@ mod db_tests {
         res = g.at(1).edge(1, 2, None).unwrap().latest_time().unwrap();
         assert_eq!(res, 1);
 
-        let res_list: Vec<i64> = g.vertex(1).unwrap().edges().earliest_time().collect();
+        let res_list: Vec<i64> = g
+            .vertex(1)
+            .unwrap()
+            .edges()
+            .earliest_time()
+            .flatten()
+            .collect();
         assert_eq!(res_list, vec![0, 0]);
 
-        let res_list: Vec<i64> = g.vertex(1).unwrap().edges().latest_time().collect();
+        let res_list: Vec<i64> = g
+            .vertex(1)
+            .unwrap()
+            .edges()
+            .latest_time()
+            .flatten()
+            .collect();
         assert_eq!(res_list, vec![2, 2]);
 
-        let res_list: Vec<i64> = g.vertex(1).unwrap().at(1).edges().earliest_time().collect();
+        let res_list: Vec<i64> = g
+            .vertex(1)
+            .unwrap()
+            .at(1)
+            .edges()
+            .earliest_time()
+            .flatten()
+            .collect();
         assert_eq!(res_list, vec![0, 0]);
 
-        let res_list: Vec<i64> = g.vertex(1).unwrap().at(1).edges().latest_time().collect();
+        let res_list: Vec<i64> = g
+            .vertex(1)
+            .unwrap()
+            .at(1)
+            .edges()
+            .latest_time()
+            .flatten()
+            .collect();
         assert_eq!(res_list, vec![1, 1]);
     }
 
@@ -1904,7 +1930,7 @@ mod db_tests {
     #[test]
     fn test_edge_from_single_layer() {
         let g = Graph::new(4);
-        g.add_edge(0, 1, 2, &vec![], Some("layer"));
+        g.add_edge(0, 1, 2, &vec![], Some("layer")).unwrap();
 
         assert!(g.edge(1, 2, None).is_none());
         assert!(g.layer("layer").unwrap().edge(1, 2, None).is_some())

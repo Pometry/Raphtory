@@ -13,7 +13,6 @@ use raphtory::core::vertex::InputVertex;
 use raphtory::core::vertex_ref::VertexRef;
 use raphtory::db::view_api::time::WindowSet;
 use raphtory::db::view_api::TimeOps;
-use raphtory::*;
 use std::error::Error;
 
 /// Extract a `VertexRef` from a Python object.

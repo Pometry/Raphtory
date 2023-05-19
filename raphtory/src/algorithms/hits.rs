@@ -1,4 +1,3 @@
-use crate::algorithms::*;
 use crate::core::agg::*;
 use crate::core::state::accumulator_id::accumulators::val;
 use crate::core::state::accumulator_id::accumulators::{max, sum};
@@ -100,12 +99,12 @@ pub fn hits<G: GraphViewOps>(
 
         let prev_hub_score = evv.read_local_prev(&hub_score);
         let curr_hub_score = evv.read_local(&hub_score);
-        let md_hub_score = abs((prev_hub_score - curr_hub_score));
+        let md_hub_score = abs(prev_hub_score - curr_hub_score);
         evv.global_update(&max_diff_hub_score, md_hub_score);
 
         let prev_auth_score = evv.read_local_prev(&auth_score);
         let curr_auth_score = evv.read_local(&auth_score);
-        let md_auth_score = abs((prev_auth_score - curr_auth_score));
+        let md_auth_score = abs(prev_auth_score - curr_auth_score);
         evv.global_update(&max_diff_auth_score, md_auth_score);
 
         Step::Continue
