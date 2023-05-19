@@ -677,6 +677,8 @@ checksum = "77c90badedccf4105eca100756a0b1289e191f6fcbdadd3cee1d2f614f97da8f"
 [[package]]
 name = "dynamic-graphql"
 version = "0.7.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0e39ca7874ad3e6315bb19ef5a75ea8c98b06fe02909096c18127c17c9b90925"
 dependencies = [
  "async-graphql",
  "dynamic-graphql-derive",
@@ -686,6 +688,8 @@ dependencies = [
 [[package]]
 name = "dynamic-graphql-derive"
 version = "0.7.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1c547074a568bfe79c9858a4be0ba42abb18b21f9ddfee44b3c83b96a24d7ef7"
 dependencies = [
  "Inflector",
  "darling",
