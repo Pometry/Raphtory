@@ -23,7 +23,7 @@ impl InputVertex for u64 {
 
 impl<'a> InputVertex for &'a str {
     fn id(&self) -> u64 {
-        utils::calculate_hash(self)
+        self.parse().unwrap_or(utils::calculate_hash(self))
     }
 
     fn name_prop(&self) -> Option<Prop> {
@@ -33,7 +33,8 @@ impl<'a> InputVertex for &'a str {
 
 impl InputVertex for String {
     fn id(&self) -> u64 {
-        utils::calculate_hash(self)
+        let s: &str = self;
+        s.id()
     }
 
     fn name_prop(&self) -> Option<Prop> {
