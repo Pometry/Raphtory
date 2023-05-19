@@ -62,7 +62,7 @@ impl<G: GraphViewOps> EdgeViewOps for EdgeView<G> {
     fn explode(&self) -> Self::EList {
         let ev = self.clone();
         match self.edge.time() {
-            Some(t) => Box::new(iter::once(ev)),
+            Some(_) => Box::new(iter::once(ev)),
             None => {
                 let e = self.edge;
                 let ts = self.graph.edge_timestamps(self.edge, None);

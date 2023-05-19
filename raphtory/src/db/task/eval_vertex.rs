@@ -1,13 +1,3 @@
-use std::collections::HashMap;
-use std::f32::consts::E;
-use std::{
-    borrow::Cow,
-    cell::{Ref, RefCell},
-    rc::Rc,
-    sync::Arc,
-};
-
-use crate::core::edge_ref::EdgeRef;
 use crate::core::time::IntoTime;
 use crate::core::vertex_ref::VertexRef;
 use crate::core::Prop;
@@ -16,7 +6,6 @@ use crate::db::graph_window::WindowedGraph;
 use crate::db::path::PathFromVertex;
 use crate::db::task::eval_edge::EvalEdgeView;
 use crate::db::vertex::VertexView;
-use crate::db::view_api::time::WindowSet;
 use crate::db::view_api::{BoxedIter, TimeOps, VertexListOps, VertexViewOps};
 use crate::{
     core::{
@@ -28,6 +17,13 @@ use crate::{
         vertex_ref::LocalVertexRef,
     },
     db::view_api::GraphViewOps,
+};
+use std::collections::HashMap;
+use std::{
+    borrow::Cow,
+    cell::{Ref, RefCell},
+    rc::Rc,
+    sync::Arc,
 };
 
 #[derive(Clone)]

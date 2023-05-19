@@ -1,11 +1,9 @@
 use crate::core::edge_ref::EdgeRef;
 use crate::core::vertex_ref::VertexRef;
 use crate::core::Prop;
-use crate::db::edge::EdgeView;
 use crate::db::view_api::internal::GraphViewInternalOps;
-use crate::db::view_api::{BoxedIter, GraphViewOps, VertexListOps, VertexViewOps};
+use crate::db::view_api::{GraphViewOps, VertexListOps, VertexViewOps};
 use std::collections::HashMap;
-use std::iter;
 use std::sync::Arc;
 
 pub trait EdgeViewInternalOps<G: GraphViewOps, V: VertexViewOps<Graph = G>> {

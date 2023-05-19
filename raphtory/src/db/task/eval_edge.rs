@@ -6,7 +6,7 @@ use crate::core::Prop;
 use crate::db::edge::EdgeView;
 use crate::db::task::eval_vertex::EvalVertexView;
 use crate::db::view_api::edge::{EdgeViewInternalOps, EdgeViewOps};
-use crate::db::view_api::{BoxedIter, EdgeListOps, GraphViewOps};
+use crate::db::view_api::{EdgeListOps, GraphViewOps};
 use std::borrow::Cow;
 use std::cell::RefCell;
 use std::collections::HashMap;

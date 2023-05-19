@@ -1,8 +1,6 @@
 use crate::core::Prop;
-use crate::db::graph_window::WindowedGraph;
-use crate::db::vertex::VertexView;
 use crate::db::view_api::edge::EdgeListOps;
-use crate::db::view_api::{BoxedIter, GraphViewOps, TimeOps};
+use crate::db::view_api::{GraphViewOps, TimeOps};
 use std::collections::HashMap;
 
 /// Operations defined for a vertex
@@ -179,19 +177,16 @@ pub trait VertexViewOps: TimeOps {
 
 /// A trait for operations on a list of vertices.
 pub trait VertexListOps:
-    IntoIterator<
-        Item = Self::ValueType<Self::Vertex>,
-        IntoIter = Self::IterType<Self::Vertex>,
-    > + Sized
+    IntoIterator<Item = Self::ValueType<Self::Vertex>, IntoIter = Self::IterType<Self::Vertex>> + Sized
 {
     type Graph: GraphViewOps;
     type Vertex: VertexViewOps<Graph = Self::Graph>;
     /// The type of the iterator for the list of vertices
-    type IterType<T>: Iterator<Item=Self::ValueType<T>>;
+    type IterType<T>: Iterator<Item = Self::ValueType<T>>;
     /// The type of the iterator for the list of edges
     type EList: EdgeListOps<Graph = Self::Graph, Vertex = Self::Vertex>;
     type ValueType<T>;
-    
+
     /// Return the timestamp of the earliest activity.
     fn earliest_time(self) -> Self::IterType<Option<i64>>;
 
@@ -206,10 +201,7 @@ pub trait VertexListOps:
     ) -> Self::IterType<<Self::Vertex as TimeOps>::WindowedViewType>;
 
     /// Create views for the vertices including all events until `end` (inclusive)
-    fn at(
-        self,
-        end: i64,
-    ) -> Self::IterType<<Self::Vertex as TimeOps>::WindowedViewType> {
+    fn at(self, end: i64) -> Self::IterType<<Self::Vertex as TimeOps>::WindowedViewType> {
         self.window(i64::MIN, end.saturating_add(1))
     }
 
@@ -220,11 +212,7 @@ pub trait VertexListOps:
     fn id(self) -> Self::IterType<u64>;
     fn name(self) -> Self::IterType<String>;
 
-    fn property(
-        self,
-        name: String,
-        include_static: bool,
-    ) -> Self::IterType<Option<Prop>>;
+    fn property(self, name: String, include_static: bool) -> Self::IterType<Option<Prop>>;
 
     /// Returns an iterator of the values of the given property name
     /// including the times when it changed
@@ -236,24 +224,15 @@ pub trait VertexListOps:
     /// An iterator of the values of the given property name including the times when it changed
     /// as a vector of tuples of the form (time, property).
     fn property_history(self, name: String) -> Self::IterType<Vec<(i64, Prop)>>;
-    fn properties(
-        self,
-        include_static: bool,
-    ) -> Self::IterType<HashMap<String, Prop>>;
+    fn properties(self, include_static: bool) -> Self::IterType<HashMap<String, Prop>>;
     fn history(self) -> Self::IterType<Vec<i64>>;
     /// Returns an iterator over all vertex properties.
     ///
     /// # Returns
     /// An iterator over all vertex properties.
-    fn property_histories(
-        self,
-    ) -> Self::IterType<HashMap<String, Vec<(i64, Prop)>>>;
+    fn property_histories(self) -> Self::IterType<HashMap<String, Vec<(i64, Prop)>>>;
     fn property_names(self, include_static: bool) -> Self::IterType<Vec<String>>;
-    fn has_property(
-        self,
-        name: String,
-        include_static: bool,
-    ) -> Self::IterType<bool>;
+    fn has_property(self, name: String, include_static: bool) -> Self::IterType<bool>;
 
     fn has_static_property(self, name: String) -> Self::IterType<bool>;
 

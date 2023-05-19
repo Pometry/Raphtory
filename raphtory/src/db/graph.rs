@@ -1930,7 +1930,7 @@ mod db_tests {
     #[test]
     fn test_edge_from_single_layer() {
         let g = Graph::new(4);
-        g.add_edge(0, 1, 2, &vec![], Some("layer"));
+        g.add_edge(0, 1, 2, &vec![], Some("layer")).unwrap();
 
         assert!(g.edge(1, 2, None).is_none());
         assert!(g.layer("layer").unwrap().edge(1, 2, None).is_some())
