@@ -1,5 +1,5 @@
 use crate::types::repr::{iterator_repr, Repr};
-use pyo3::{IntoPy, PyAny, PyObject};
+use pyo3::{IntoPy, PyObject};
 use raphtory::db::view_api::BoxedIter;
 use std::marker::PhantomData;
 use std::sync::Arc;
