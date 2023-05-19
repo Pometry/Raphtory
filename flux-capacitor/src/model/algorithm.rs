@@ -26,18 +26,7 @@ impl<G: GraphViewOps> Register for Algorithms<G> {
         let mut registry = registry;
         let mut object = Object::new("Algorithms");
 
-        object = object.field(Field::new(
-            "numVerticesAlgo",
-            TypeRef::named_nn(TypeRef::INT),
-            |ctx| {
-                let algos: &Algorithms<G> = ctx.parent_value.downcast_ref().unwrap();
-                let graph = &algos.graph;
-                FieldFuture::new(async move { Ok(Some(FieldValue::value(graph.num_vertices()))) })
-            },
-        ));
-
         let algos = HashMap::from([("pagerank", Pagerank::register_algo::<G>)]);
-
         for (name, register_algo) in algos {
             (registry, object) = register_algo(name, registry, object);
         }
