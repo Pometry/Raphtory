@@ -51,7 +51,9 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         weakly_connected_components,
         algorithm_module
     )?)?;
-    algorithm_module.add_function(wrap_pyfunction!(all_motifs_count, algorithm_module)?)?;
+    algorithm_module.add_function(wrap_pyfunction!(temporal_three_node_motif, algorithm_module)?)?;
+    algorithm_module.add_function(wrap_pyfunction!(global_temporal_three_node_motif, algorithm_module)?)?;
+    algorithm_module.add_function(wrap_pyfunction!(global_temporal_three_node_motif_from_local, algorithm_module)?)?;
 
     m.add_submodule(algorithm_module)?;
     let graph_loader_module = PyModule::new(py, "graph_loader")?;
