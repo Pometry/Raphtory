@@ -1,3 +1,4 @@
+use core::num;
 use std::{
     borrow::Cow,
     rc::Rc,
@@ -21,6 +22,7 @@ use super::{
     context::{Context, GlobalState},
     custom_pool,
     eval_vertex::EvalVertexView,
+    eval_vertex_state::EVState,
     task::{Job, Step, Task},
     task_state::{Global, Shard},
     POOL,
@@ -45,91 +47,6 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         (shard, global)
     }
 
-    fn make_total_state<B: Clone, F: Fn() -> B>(
-        &self,
-        num_threads: usize,
-        f: F,
-    ) -> Vec<(usize, B)> {
-        vec![f(); num_threads]
-            .into_iter()
-            .enumerate()
-            .collect::<Vec<_>>()
-    }
-
-    // fn run_task(
-    //     &self,
-    //     shard_state: &Shard<CS>,
-    //     global_state: &Global<CS>,
-    //     local_state: &mut Arc<Option<ShuffleComputeState<CS>>>,
-    //     num_shards: usize,
-    //     num_tasks: usize,
-    //     job_id: &usize,
-    //     atomic_done: &AtomicBool,
-    //     task: &Box<dyn Task<G, CS> + Send + Sync>,
-    // ) -> (Shard<CS>, Global<CS>) {
-    //     // the view for this task of the global state
-    //     let shard_state_view = shard_state.as_cow_rc();
-    //     let global_state_view = global_state.as_cow_rc();
-
-    //     let owned_local_state = Arc::get_mut(local_state).and_then(|x| x.take()).unwrap();
-    //     let rc_local_state = Rc::new(RefCell::new(owned_local_state));
-
-    //     let g = self.ctx.graph();
-
-    //     let mut done = true;
-    //     for shard in 0..num_shards {
-    //         if shard % num_tasks == *job_id {
-    //             for vertex in self.ctx.graph().vertices_shard(shard) {
-    //                 let vv = EvalVertexView::new_local(
-    //                     self.ctx.ss(),
-    //                     vertex,
-    //                     g.clone(),
-    //                     shard_state_view.clone(),
-    //                     global_state_view.clone(),
-    //                     rc_local_state.clone(),
-    //                 );
-
-    //                 match task.run(&vv) {
-    //                     Step::Continue => {
-    //                         done = false;
-    //                     }
-    //                     Step::Done => {}
-    //                 }
-    //             }
-    //         }
-    //     }
-    //     // put the local state back
-    //     *local_state = Arc::new(Some(Rc::try_unwrap(rc_local_state).unwrap().into_inner()));
-
-    //     if !done {
-    //         atomic_done.store(false, Ordering::Relaxed);
-    //     }
-
-    //     let cow_shard_state: Cow<ShuffleComputeState<CS>> =
-    //         Rc::try_unwrap(shard_state_view).unwrap().into_inner();
-
-    //     let cow_global_state = Rc::try_unwrap(global_state_view).unwrap().into_inner();
-
-    //     match (cow_shard_state, cow_global_state) {
-    //         (Cow::Owned(state), Cow::Owned(global_state)) => {
-    //             // the state was changed in some way so we need to update the arc
-    //             (Shard::from_state(state), Global::from_state(global_state))
-    //         }
-    //         (Cow::Borrowed(_), Cow::Borrowed(_)) => {
-    //             // the state was only read, so we can just return the original arc
-    //             (shard_state.clone(), global_state.clone())
-    //         }
-    //         (Cow::Owned(state), Cow::Borrowed(_)) => {
-    //             // the state was changed in some way so we need to update the arc
-    //             (Shard::from_state(state), global_state.clone())
-    //         }
-    //         (Cow::Borrowed(_), Cow::Owned(global_state)) => {
-    //             // the state was changed in some way so we need to update the arc
-    //             (shard_state.clone(), Global::from_state(global_state))
-    //         }
-    //     }
-    // }
-
     fn run_task_v2(
         &self,
         shard_state: &Shard<CS>,
@@ -140,23 +57,23 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         task: &Box<dyn Task<G, CS> + Send + Sync>,
     ) -> (Shard<CS>, Global<CS>) {
         // the view for this task of the global state
-        let shard_state_view = shard_state.as_cow_rc();
-        let global_state_view = global_state.as_cow_rc();
+        let shard_state_view = shard_state.as_cow();
+        let global_state_view = global_state.as_cow();
 
         let g = self.ctx.graph();
 
         let mut done = true;
 
         for (v_ref, local_state) in morcel {
-            let mut vv = EvalVertexView::new_local(
-                self.ctx.ss(),
-                v_ref.clone(),
-                g.clone(),
+            let vertex_state = EVState::rc_from(
                 shard_state_view.clone(),
                 global_state_view.clone(),
                 Some(local_state),
                 prev_local_state,
+                g.num_shards(),
             );
+            let mut vv =
+                EvalVertexView::new_local(self.ctx.ss(), v_ref.clone(), g.clone(), vertex_state);
 
             match task.run(&mut vv) {
                 Step::Continue => {
@@ -170,12 +87,7 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
             atomic_done.store(false, Ordering::Relaxed);
         }
 
-        let cow_shard_state: Cow<ShuffleComputeState<CS>> =
-            Rc::try_unwrap(shard_state_view).unwrap().into_inner();
-
-        let cow_global_state = Rc::try_unwrap(global_state_view).unwrap().into_inner();
-
-        match (cow_shard_state, cow_global_state) {
+        match (shard_state_view, global_state_view) {
             (Cow::Owned(state), Cow::Owned(global_state)) => {
                 // the state was changed in some way so we need to update the arc
                 (Shard::from_state(state), Global::from_state(global_state))
@@ -269,6 +181,26 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         })
     }
 
+    fn make_cur_and_prev_states(&self) -> (Vec<Option<(LocalVertexRef, f64)>>, Vec<Option<(LocalVertexRef, f64)>>) {
+        let g = self.ctx.graph();
+
+        // find the shard with the largest number of vertices
+        let max_shard_len = (0 .. g.num_shards()).into_iter().fold(0, |b, shard_id|{
+            let num_vertices = g.vertices_shard(shard_id).count();
+            num_vertices.max(b)
+        });
+
+        let mut states = vec![None; max_shard_len * g.num_shards()];
+
+        for v_ref in g.vertex_refs() {
+            let LocalVertexRef { shard_id, pid } = v_ref;
+            let i = max_shard_len * shard_id + pid;
+            states[i] = Some((v_ref.clone(), 0 as f64));
+        }
+
+        (states.clone(), states)
+    }
+
     pub fn run<
         B: std::fmt::Debug,
         F: FnOnce(EvalGlobalState<G, CS>, EvalShardState<G, CS>, EvalLocalState<G, CS>) -> B
@@ -295,19 +227,7 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
 
         let mut global_state = global_initial_state.unwrap_or_else(|| Global::new());
 
-        let mut cur_local_state = self
-            .ctx
-            .graph()
-            .vertex_refs()
-            .map(|v_ref| (v_ref, 0 as f64))
-            .collect_vec();
-
-        let mut prev_local_state = self
-            .ctx
-            .graph()
-            .vertex_refs()
-            .map(|v_ref| (v_ref, 0 as f64))
-            .collect_vec();
+        let (mut cur_local_state, mut prev_local_state) = self.make_cur_and_prev_states();
 
         let mut done = false;
 

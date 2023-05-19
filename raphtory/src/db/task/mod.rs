@@ -6,6 +6,7 @@ use rayon::{ThreadPool, ThreadPoolBuilder};
 pub mod context;
 pub mod eval_edge;
 pub mod eval_vertex;
+pub mod eval_vertex_state;
 pub mod task;
 pub mod task_runner;
 pub(crate) mod task_state;
