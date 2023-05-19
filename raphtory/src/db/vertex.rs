@@ -243,7 +243,7 @@ impl<G: GraphViewOps> LayerOps for VertexView<G> {
 impl<G: GraphViewOps> VertexListOps for Box<dyn Iterator<Item = VertexView<G>> + Send> {
     type Graph = G;
     type Vertex = VertexView<G>;
-    type IterType = Box<dyn Iterator<Item = VertexView<G>> + Send>;
+    type IterType<T> = Box<dyn Iterator<Item = T> + Send>;
     type EList = Box<dyn Iterator<Item = EdgeView<Self::Graph>> + Send>;
     type ValueType<T> = T;
 
@@ -343,7 +343,7 @@ impl<G: GraphViewOps> VertexListOps for Box<dyn Iterator<Item = VertexView<G>> +
 impl<G: GraphViewOps> VertexListOps for BoxedIter<BoxedIter<VertexView<G>>> {
     type Graph = G;
     type Vertex = VertexView<G>;
-    type IterType = Self;
+    type IterType<T> = BoxedIter<BoxedIter<T>>;
     type EList = BoxedIter<BoxedIter<EdgeView<G>>>;
     type ValueType<T> = BoxedIter<T>;
 

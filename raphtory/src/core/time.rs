@@ -1,9 +1,8 @@
 use crate::core::time::error::*;
+use chrono::NaiveDate;
 use chrono::{DateTime, Duration, Months, NaiveDateTime, TimeZone};
-use chrono::{NaiveDate, Timelike};
 use itertools::{Either, Itertools};
 use regex::Regex;
-use serde::{Serialize, Serializer};
 use std::ops::{Add, Sub};
 
 pub mod error {
@@ -284,7 +283,7 @@ impl Add<Interval> for i64 {
 
 #[cfg(test)]
 mod time_tests {
-    use crate::core::time::{Interval, IntoTime, ParseTimeError, TryIntoTime};
+    use crate::core::time::{Interval, ParseTimeError, TryIntoTime};
 
     #[test]
     fn interval_parsing() {

@@ -8,7 +8,7 @@ use crate::dynamic::{DynamicGraph, IntoDynamic};
 use crate::types::repr::{iterator_repr, Repr};
 use crate::utils::*;
 use crate::vertex::{PyVertex, PyVertexIterable};
-use crate::wrappers::iterators::{I64Iterable, OptionPropIterable};
+use crate::wrappers::iterators::{OptionI64Iterable, OptionPropIterable};
 use crate::wrappers::prop::Prop;
 use chrono::NaiveDateTime;
 use itertools::Itertools;
@@ -456,7 +456,7 @@ impl PyEdges {
     }
 
     /// Returns the earliest time of the edges.
-    fn earliest_time(&self) -> I64Iterable {
+    fn earliest_time(&self) -> OptionI64Iterable {
         let edges: Arc<
             dyn Fn() -> Box<dyn Iterator<Item = EdgeView<DynamicGraph>> + Send> + Send + Sync,
         > = self.builder.clone();
@@ -464,7 +464,7 @@ impl PyEdges {
     }
 
     /// Returns the latest time of the edges.
-    fn latest_time(&self) -> I64Iterable {
+    fn latest_time(&self) -> OptionI64Iterable {
         let edges: Arc<
             dyn Fn() -> Box<dyn Iterator<Item = EdgeView<DynamicGraph>> + Send> + Send + Sync,
         > = self.builder.clone();
