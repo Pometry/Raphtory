@@ -9,6 +9,7 @@ raphtory = { path = "../raphtory" }
 raphtory-io = { path = "../raphtory-io" }
 
 dotenv = "0.15.0"
+itertools = "0.10"
 serde = {version = "1.0.147", features = ["derive"]}
 
 poem = "1.3.48"

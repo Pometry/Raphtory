@@ -817,6 +817,7 @@ dependencies = [
  "dotenv",
  "dynamic-graphql",
  "futures-util",
+ "itertools",
  "metrics",
  "metrics-exporter-prometheus",
  "opentelemetry",
