@@ -1,6 +1,5 @@
 use crate::data::Metadata;
 use crate::model::QueryRoot;
-use crate::observability::metrics::create_prometheus_recorder;
 use crate::observability::tracing::create_tracer_from_env;
 use crate::routes::{graphql_playground, health};
 use async_graphql_poem::GraphQL;
@@ -8,10 +7,7 @@ use dotenv::dotenv;
 use dynamic_graphql::App;
 use poem::listener::TcpListener;
 use poem::{get, Route, Server};
-use raphtory::db::view_api::GraphViewOps;
-use std::future::ready;
 use tokio::signal;
-use tracing::info;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::Registry;
@@ -62,8 +58,6 @@ async fn main() {
             .try_init()
             .expect("Failed to register tracer with registry"),
     }
-
-    use async_graphql::dynamic::Schema;
 
     #[derive(App)]
     struct App(QueryRoot);
