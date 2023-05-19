@@ -51,12 +51,6 @@ async fn shutdown_signal() {
 async fn main() {
     dotenv().ok();
 
-    // let schema = Schema::build(QueryRoot, EmptyMutation, EmptySubscription)
-    //     .data(Metadata::lotr())
-    //     .finish();
-
-    // let prometheus_recorder = create_prometheus_recorder();
-
     let registry = Registry::default().with(tracing_subscriber::fmt::layer().pretty());
 
     match create_tracer_from_env() {
@@ -80,8 +74,6 @@ async fn main() {
     let app = Route::new()
         .at("/", get(graphql_playground).post(GraphQL::new(schema)))
         .at("/health", get(health));
-    // .at("/metrics", get(move || ready(prometheus_recorder.render())))
-    // .route_layer(middleware::from_fn(track_metrics))
 
     println!("Playground: http://localhost:8000");
     Server::new(TcpListener::bind("0.0.0.0:8000"))
