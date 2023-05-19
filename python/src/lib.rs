@@ -11,7 +11,7 @@ pub mod graph_gen;
 pub mod graph_loader;
 pub mod graph_view;
 pub mod types;
-mod utils;
+pub mod utils;
 pub mod vertex;
 pub mod wrappers;
 
