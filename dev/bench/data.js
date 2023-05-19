@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1684510672024,
+  "lastUpdate": 1684514351374,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -1237,6 +1237,60 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions with numeric string input",
             "value": 2491265,
             "range": "± 150852",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ricopinazo@gmail.com",
+            "name": "Pedro Rico Pinazo",
+            "username": "ricopinazo"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "985881cba2a1640ea98874210b966fefdf82f743",
+          "message": "Switch to dynamic-graphql (#912)\n\n* hello world\r\n\r\n* basic window\r\n\r\n* switch to ResolvedObject\r\n\r\n* complete implementation for the rest of the objects\r\n\r\n* add pagerank\r\n\r\n* add separate algorithms.rs file to model module\r\n\r\n* cleanup\r\n\r\n* remove commented out code\r\n\r\n* re-establish dynamic-graphql version\r\n\r\n* remove dangling code\r\n\r\n* wip\r\n\r\n* make threads and tol args optional for pagerank\r\n\r\n* rename PageRank to Pagerank\r\n\r\n* change port to 1736\r\n\r\n* remove example algorithm",
+          "timestamp": "2023-05-19T17:35:16+01:00",
+          "tree_id": "993ed2c7e8e0883b8997c05039f723fca452b9b2",
+          "url": "https://github.com/Pometry/Raphtory/commit/985881cba2a1640ea98874210b966fefdf82f743"
+        },
+        "date": 1684514350465,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 314693,
+            "range": "± 714",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and numeric string input",
+            "value": 851324,
+            "range": "± 6492",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and string input",
+            "value": 885350,
+            "range": "± 2870",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 651864,
+            "range": "± 110884",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions with numeric string input",
+            "value": 2105018,
+            "range": "± 147069",
             "unit": "ns/iter"
           }
         ]
