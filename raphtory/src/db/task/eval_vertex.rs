@@ -36,13 +36,20 @@ pub struct EvalVertexView<'a, G: GraphViewOps, CS: ComputeState> {
 }
 
 impl<'a, G: GraphViewOps, CS: ComputeState> EvalVertexView<'a, G, CS> {
-
     pub fn set(&mut self, value: f64) {
         match &mut self.local_state {
             Some(state) => **state = value,
-            None => {
-            }
+            None => {}
         }
+    }
+
+    pub fn read_prev_state(&self) -> &f64 {
+        let i = self.recover_offset();
+        &self.local_state_prev[i].1
+    }
+
+    pub fn recover_offset(&self) -> usize {
+        0 // TODO figure out how to get the offset propper
     }
 
     pub fn new_local(
@@ -555,13 +562,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState> VertexViewOps for EvalVertexView<'a,
         let ss = self.ss;
         let prev = self.local_state_prev;
         Box::new(self.vv.edges().map(move |e| {
-            EvalEdgeView::new_(
-                ss,
-                e,
-                shard_state.clone(),
-                global_state.clone(),
-                prev,
-            )
+            EvalEdgeView::new_(ss, e, shard_state.clone(), global_state.clone(), prev)
         }))
     }
 
@@ -571,13 +572,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState> VertexViewOps for EvalVertexView<'a,
         let ss = self.ss;
         let prev = self.local_state_prev;
         Box::new(self.vv.in_edges().map(move |e| {
-            EvalEdgeView::new_(
-                ss,
-                e,
-                shard_state.clone(),
-                global_state.clone(),
-                prev,
-            )
+            EvalEdgeView::new_(ss, e, shard_state.clone(), global_state.clone(), prev)
         }))
     }
 
@@ -587,13 +582,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState> VertexViewOps for EvalVertexView<'a,
         let ss = self.ss;
         let prev = self.local_state_prev;
         Box::new(self.vv.out_edges().map(move |e| {
-            EvalEdgeView::new_(
-                ss,
-                e,
-                shard_state.clone(),
-                global_state.clone(),
-                prev
-            )
+            EvalEdgeView::new_(ss, e, shard_state.clone(), global_state.clone(), prev)
         }))
     }
 
