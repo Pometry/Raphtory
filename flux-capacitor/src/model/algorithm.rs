@@ -1,7 +1,7 @@
 use async_graphql::dynamic::{
     Field, FieldFuture, FieldValue, InputValue, Object, ResolverContext, TypeRef,
 };
-use async_graphql::Context;
+use async_graphql::{Context, FieldResult};
 use dynamic_graphql::internal::{OutputTypeName, Register, Registry, ResolveOwned, TypeName};
 use dynamic_graphql::SimpleObject;
 use raphtory::algorithms::pagerank::unweighted_page_rank;
@@ -48,7 +48,7 @@ impl<G: GraphViewOps> Register for Algorithms<G> {
         //     container.register_algo(registry, object)
         // };
 
-        registry.register_type(object) // .set_root("Query")
+        registry.register_type(object)
     }
 }
 
@@ -69,7 +69,10 @@ impl<'a, G: GraphViewOps> ResolveOwned<'a> for Algorithms<G> {
 trait Algo: Register + 'static {
     fn output_type() -> TypeRef;
     fn args<'a>() -> Vec<(&'a str, TypeRef)>;
-    fn apply_algo<'a, G: GraphViewOps>(graph: &G, ctx: ResolverContext) -> FieldValue<'a>;
+    fn apply_algo<'a, G: GraphViewOps>(
+        graph: &G,
+        ctx: ResolverContext,
+    ) -> FieldResult<Option<FieldValue<'a>>>;
     fn register_algo<G: GraphViewOps>(
         name: &str,
         registry: Registry,
@@ -80,7 +83,7 @@ trait Algo: Register + 'static {
             FieldFuture::new(async move {
                 let algos: &Algorithms<G> = ctx.parent_value.downcast_ref().unwrap();
                 let graph = &algos.graph;
-                Ok(Some(Self::apply_algo(graph, ctx)))
+                Self::apply_algo(graph, ctx)
             })
         });
         for (name, type_ref) in Self::args() {
@@ -97,6 +100,12 @@ struct PageRank {
     rank: f32,
 }
 
+impl From<(String, f32)> for PageRank {
+    fn from((name, rank): (String, f32)) -> Self {
+        Self { name, rank }
+    }
+}
+
 impl Algo for PageRank {
     fn output_type() -> TypeRef {
         TypeRef::named_nn_list(Self::get_type_name())
@@ -108,25 +117,19 @@ impl Algo for PageRank {
             ("tol", TypeRef::named_nn(TypeRef::FLOAT)),
         ]
     }
-    fn apply_algo<'a, G: GraphViewOps>(graph: &G, ctx: ResolverContext) -> FieldValue<'a> {
-        let iter_count = ctx.args.try_get("iterCount").unwrap().u64().unwrap();
-        let threads = ctx.args.try_get("threads").unwrap().u64().unwrap();
-        let tol = ctx.args.try_get("tol").unwrap().f32().unwrap();
+    fn apply_algo<'a, G: GraphViewOps>(
+        graph: &G,
+        ctx: ResolverContext,
+    ) -> FieldResult<Option<FieldValue<'a>>> {
+        let iter_count = ctx.args.try_get("iterCount")?.u64()? as usize;
+        let threads = ctx.args.get("threads").map(|v| v.u64()).transpose()?;
+        let threads = threads.map(|v| v as usize);
+        let tol = ctx.args.get("tol").map(|v| v.f32()).transpose()?;
 
-        let result = unweighted_page_rank(
-            graph,
-            iter_count as usize,
-            Some(threads as usize),
-            Some(tol),
-        )
-        .into_iter()
-        .map(|(key, value)| {
-            FieldValue::owned_any(PageRank {
-                name: key,
-                rank: value,
-            })
-        });
+        let result = unweighted_page_rank(graph, iter_count, threads, tol)
+            .into_iter()
+            .map(PageRank::from);
 
-        FieldValue::list(result)
+        Ok(Some(FieldValue::list(result)))
     }
 }
