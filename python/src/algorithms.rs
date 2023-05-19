@@ -22,9 +22,9 @@ use raphtory::algorithms::pagerank::unweighted_page_rank;
 use raphtory::algorithms::reciprocity::{
     all_local_reciprocity as all_local_reciprocity_rs, global_reciprocity as global_reciprocity_rs,
 };
-use raphtory::algorithms::motifs::temporal_three_node_motif as temporal_three_node_motif_rs;
-use raphtory::algorithms::motifs::global_temporal_three_node_motif as global_temporal_three_node_motif_rs;
-use raphtory::algorithms::motifs::global_temporal_three_node_motif_from_local as global_temporal_three_node_motif_from_local_rs;
+use raphtory::algorithms::motifs::three_node_local::temporal_three_node_motif as temporal_three_node_motif_rs;
+use raphtory::algorithms::motifs::three_node_local::global_temporal_three_node_motif as global_temporal_three_node_motif_rs;
+use raphtory::algorithms::motifs::three_node_local::global_temporal_three_node_motif_from_local as global_temporal_three_node_motif_from_local_rs;
 
 /// Local triangle count - calculates the number of triangles (a cycle of length 3) for a node.
 /// It measures the local clustering of a graph.
