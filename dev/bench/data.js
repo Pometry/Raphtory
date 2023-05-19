@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1684484324614,
+  "lastUpdate": 1684489617227,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -1129,6 +1129,60 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions with numeric string input",
             "value": 2065707,
             "range": "± 186831",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97447091+ljeub-pometry@users.noreply.github.com",
+            "name": "ljeub-pometry",
+            "username": "ljeub-pometry"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "51a9d5e46143d01494e3aeda8167d8608248f963",
+          "message": "Bug/missing implementations in eval (#908)\n\n* finish implementing VertexView api for eval\r\n\r\n* Fix Vertex and Edge iterator methods and implement them for eval views\r\n\r\n* fix python and clean up warnings\r\n\r\n---------\r\n\r\nCo-authored-by: Shivam Kapoor <4599890+iamsmkr@users.noreply.github.com>",
+          "timestamp": "2023-05-19T10:43:05+01:00",
+          "tree_id": "6cdb7252ca361703af7425e80a646e1c98d6ad3d",
+          "url": "https://github.com/Pometry/Raphtory/commit/51a9d5e46143d01494e3aeda8167d8608248f963"
+        },
+        "date": 1684489616611,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 294720,
+            "range": "± 1115",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and numeric string input",
+            "value": 855982,
+            "range": "± 2758",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and string input",
+            "value": 901569,
+            "range": "± 4021",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 715464,
+            "range": "± 139100",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions with numeric string input",
+            "value": 2038609,
+            "range": "± 164684",
             "unit": "ns/iter"
           }
         ]
