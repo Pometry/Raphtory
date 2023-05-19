@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1684403641224,
+  "lastUpdate": 1684484324614,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -1075,6 +1075,60 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions",
             "value": 780588,
             "range": "± 93260",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97447091+ljeub-pometry@users.noreply.github.com",
+            "name": "ljeub-pometry",
+            "username": "ljeub-pometry"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0b8cce84b52ebb5ed0c2d03095d5ca9198a4cd9c",
+          "message": "Bug/vertex name (#901)\n\n* add test for consistent name\r\n\r\n* some benchmarks\r\n\r\n* more micro-benchmarks\r\n\r\n* make vertex look-up consistent independent of whether vertices were added using String or ID",
+          "timestamp": "2023-05-19T10:14:46+02:00",
+          "tree_id": "fe0f15c6a2ec95315e0f96b7b23d0b9708d99ec2",
+          "url": "https://github.com/Pometry/Raphtory/commit/0b8cce84b52ebb5ed0c2d03095d5ca9198a4cd9c"
+        },
+        "date": 1684484323595,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 295426,
+            "range": "± 717",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and numeric string input",
+            "value": 841505,
+            "range": "± 3056",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and string input",
+            "value": 888411,
+            "range": "± 5573",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 678717,
+            "range": "± 114942",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions with numeric string input",
+            "value": 2065707,
+            "range": "± 186831",
             "unit": "ns/iter"
           }
         ]
