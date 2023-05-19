@@ -108,13 +108,14 @@ impl From<(String, f32)> for PageRank {
 
 impl Algo for PageRank {
     fn output_type() -> TypeRef {
-        TypeRef::named_nn_list(Self::get_type_name())
+        // first _nn means that the list is never nul, second _nn means no element is null
+        TypeRef::named_nn_list_nn(Self::get_type_name()) //
     }
     fn args<'a>() -> Vec<(&'a str, TypeRef)> {
         vec![
-            ("iterCount", TypeRef::named_nn(TypeRef::INT)),
-            ("threads", TypeRef::named_nn(TypeRef::INT)),
-            ("tol", TypeRef::named_nn(TypeRef::FLOAT)),
+            ("iterCount", TypeRef::named_nn(TypeRef::INT)), // _nn stands for not null
+            ("threads", TypeRef::named(TypeRef::INT)),      // this one though might be null
+            ("tol", TypeRef::named(TypeRef::FLOAT)),
         ]
     }
     fn apply_algo<'a, G: GraphViewOps>(
@@ -125,11 +126,9 @@ impl Algo for PageRank {
         let threads = ctx.args.get("threads").map(|v| v.u64()).transpose()?;
         let threads = threads.map(|v| v as usize);
         let tol = ctx.args.get("tol").map(|v| v.f32()).transpose()?;
-
         let result = unweighted_page_rank(graph, iter_count, threads, tol)
             .into_iter()
-            .map(PageRank::from);
-
+            .map(|pair| FieldValue::owned_any(PageRank::from(pair)));
         Ok(Some(FieldValue::list(result)))
     }
 }
