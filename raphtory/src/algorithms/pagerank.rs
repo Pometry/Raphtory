@@ -14,7 +14,6 @@ use crate::{
     },
 };
 use num_traits::abs;
-use rustc_hash::FxHashMap;
 use std::collections::HashMap;
 
 #[allow(unused_variables)]

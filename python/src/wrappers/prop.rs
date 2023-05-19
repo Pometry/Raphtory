@@ -1,5 +1,5 @@
 use crate::types::repr::Repr;
-use chrono::{DateTime, Local, NaiveDateTime};
+use chrono::NaiveDateTime;
 use pyo3::{FromPyObject, IntoPy, PyObject, Python};
 use raphtory::core as db_c;
 use std::collections::HashMap;

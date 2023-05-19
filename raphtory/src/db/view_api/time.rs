@@ -1,6 +1,5 @@
 use crate::core::time::error::ParseTimeError;
-use crate::core::time::{Interval, IntervalSize, IntoTime};
-use chrono::DateTime;
+use crate::core::time::{Interval, IntoTime};
 
 /// Trait defining time query operations
 pub trait TimeOps {
