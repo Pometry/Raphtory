@@ -1946,4 +1946,16 @@ mod db_tests {
             vec!["layer2"]
         )
     }
+
+    #[quickcheck]
+    fn vertex_from_id_is_consistent(vertices: Vec<u64>) -> bool {
+        let g = Graph::new(1);
+        for v in vertices.iter() {
+            g.add_vertex(0, *v, &vec![]).unwrap();
+        }
+        g.vertices()
+            .name()
+            .map(|name| g.vertex(name))
+            .all(|v| v.is_some())
+    }
 }
