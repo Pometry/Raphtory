@@ -39,9 +39,12 @@ impl<'a, G: GraphViewOps, CS: ComputeState> EvalVertexView<'a, G, CS> {
         self.vertex_state.borrow_mut().set(value);
     }
 
-    pub fn get(&self) -> f64 {
-        let a = self.vertex_state.borrow();
-        *a.read_prev(&self.vv.vertex)
+    pub fn read_local_prev_2(&self) -> Option<f64> {
+        // FIXME: this needs to be &f64 but will do for now
+        self.vertex_state
+            .borrow()
+            .read_prev(&self.vv.vertex)
+            .map(|v| *v)
     }
 
     pub(crate) fn new_local(

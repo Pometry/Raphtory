@@ -51,8 +51,8 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         &self,
         shard_state: &Shard<CS>,
         global_state: &Global<CS>,
-        morcel: &mut [(LocalVertexRef, f64)],
-        prev_local_state: &Vec<(LocalVertexRef, f64)>,
+        morcel: &mut [Option<(LocalVertexRef, f64)>],
+        prev_local_state: &Vec<Option<(LocalVertexRef, f64)>>,
         atomic_done: &AtomicBool,
         task: &Box<dyn Task<G, CS> + Send + Sync>,
     ) -> (Shard<CS>, Global<CS>) {
@@ -64,22 +64,28 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
 
         let mut done = true;
 
-        for (v_ref, local_state) in morcel {
-            let vertex_state = EVState::rc_from(
-                shard_state_view.clone(),
-                global_state_view.clone(),
-                Some(local_state),
-                prev_local_state,
-                g.num_shards(),
-            );
-            let mut vv =
-                EvalVertexView::new_local(self.ctx.ss(), v_ref.clone(), g.clone(), vertex_state);
+        for line in morcel {
+            if let Some((v_ref, local_state)) = line {
+                let vertex_state = EVState::rc_from(
+                    shard_state_view.clone(),
+                    global_state_view.clone(),
+                    Some(local_state),
+                    prev_local_state,
+                    g.num_shards(),
+                );
+                let mut vv = EvalVertexView::new_local(
+                    self.ctx.ss(),
+                    v_ref.clone(),
+                    g.clone(),
+                    vertex_state,
+                );
 
-            match task.run(&mut vv) {
-                Step::Continue => {
-                    done = false;
+                match task.run(&mut vv) {
+                    Step::Continue => {
+                        done = false;
+                    }
+                    Step::Done => {}
                 }
-                Step::Done => {}
             }
         }
 
@@ -113,11 +119,16 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         pool: &ThreadPool,
         shard_state: Shard<CS>,
         global_state: Global<CS>,
-        mut local_state: Vec<(LocalVertexRef, f64)>,
-        prev_local_state: &Vec<(LocalVertexRef, f64)>,
+        mut local_state: Vec<Option<(LocalVertexRef, f64)>>,
+        prev_local_state: &Vec<Option<(LocalVertexRef, f64)>>,
         num_threads: usize,
         num_shards: usize,
-    ) -> (bool, Shard<CS>, Global<CS>, Vec<(LocalVertexRef, f64)>) {
+    ) -> (
+        bool,
+        Shard<CS>,
+        Global<CS>,
+        Vec<Option<(LocalVertexRef, f64)>>,
+    ) {
         pool.install(move || {
             let chunk_size = 65_536;
             let mut new_shard_state = shard_state;
@@ -181,11 +192,16 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         })
     }
 
-    fn make_cur_and_prev_states(&self) -> (Vec<Option<(LocalVertexRef, f64)>>, Vec<Option<(LocalVertexRef, f64)>>) {
+    fn make_cur_and_prev_states(
+        &self,
+    ) -> (
+        Vec<Option<(LocalVertexRef, f64)>>,
+        Vec<Option<(LocalVertexRef, f64)>>,
+    ) {
         let g = self.ctx.graph();
 
         // find the shard with the largest number of vertices
-        let max_shard_len = (0 .. g.num_shards()).into_iter().fold(0, |b, shard_id|{
+        let max_shard_len = (0..g.num_shards()).into_iter().fold(0, |b, shard_id| {
             let num_vertices = g.vertices_shard(shard_id).count();
             num_vertices.max(b)
         });
