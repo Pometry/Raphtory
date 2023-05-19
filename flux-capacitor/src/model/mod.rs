@@ -20,6 +20,7 @@ impl QueryRoot {
         "Hello world"
     }
 
+    /// Returns a view including all events between `t_start` (inclusive) and `t_end` (exclusive)
     async fn window<'a>(ctx: &Context<'a>, t_start: i64, t_end: i64) -> GqlWindowGraph<Graph> {
         let meta = ctx.data_unchecked::<Metadata<Graph>>();
         let g = meta.graph().window(t_start, t_end);

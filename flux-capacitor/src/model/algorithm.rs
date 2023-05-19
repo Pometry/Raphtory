@@ -3,9 +3,8 @@ use async_graphql::dynamic::{
 };
 use async_graphql::Context;
 use dynamic_graphql::internal::{OutputTypeName, Register, Registry, ResolveOwned, TypeName};
-use dynamic_graphql::{ResolvedObjectFields, SimpleObject};
+use dynamic_graphql::SimpleObject;
 use raphtory::algorithms::pagerank::unweighted_page_rank;
-use raphtory::db::graph_window::WindowedGraph;
 use raphtory::db::view_api::GraphViewOps;
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -49,7 +48,7 @@ impl<G: GraphViewOps> Register for Algorithms<G> {
         //     container.register_algo(registry, object)
         // };
 
-        registry.register_type(object).set_root("Query")
+        registry.register_type(object) // .set_root("Query")
     }
 }
 

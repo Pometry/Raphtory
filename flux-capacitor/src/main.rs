@@ -72,7 +72,6 @@ async fn main() {
     use async_graphql::dynamic::Schema;
 
     #[derive(App)]
-    // struct App(QueryRoot, GqlWindowGraph);
     struct App(QueryRoot);
     let schema = App::create_schema()
         .data(Metadata::lotr())
