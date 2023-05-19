@@ -69,8 +69,8 @@ async fn main() {
         .at("/", get(graphql_playground).post(GraphQL::new(schema)))
         .at("/health", get(health));
 
-    println!("Playground: http://localhost:8000");
-    Server::new(TcpListener::bind("0.0.0.0:8000"))
+    println!("Playground: http://localhost:1736");
+    Server::new(TcpListener::bind("0.0.0.0:1736"))
         .run_with_graceful_shutdown(app, shutdown_signal(), None)
         .await
         .unwrap();

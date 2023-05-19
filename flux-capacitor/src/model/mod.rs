@@ -35,7 +35,7 @@ pub(crate) struct GqlWindowGraph<G: GraphViewOps> {
 
 impl<G: GraphViewOps> GqlWindowGraph<G> {
     pub fn new(graph: WindowedGraph<G>) -> Self {
-        Self { graph: graph }
+        Self { graph }
     }
 }
 
