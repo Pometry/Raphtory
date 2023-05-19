@@ -36,7 +36,7 @@ impl<G: GraphViewOps> Register for Algorithms<G> {
             },
         ));
 
-        let algos = HashMap::from([("pageRank", PageRank::register_algo::<G>)]);
+        let algos = HashMap::from([("pagerank", Pagerank::register_algo::<G>)]);
 
         for (name, register_algo) in algos {
             (registry, object) = register_algo(name, registry, object);
@@ -95,18 +95,18 @@ trait Algo: Register + 'static {
 }
 
 #[derive(SimpleObject)]
-struct PageRank {
+struct Pagerank {
     name: String,
     rank: f32,
 }
 
-impl From<(String, f32)> for PageRank {
+impl From<(String, f32)> for Pagerank {
     fn from((name, rank): (String, f32)) -> Self {
         Self { name, rank }
     }
 }
 
-impl Algo for PageRank {
+impl Algo for Pagerank {
     fn output_type() -> TypeRef {
         // first _nn means that the list is never nul, second _nn means no element is null
         TypeRef::named_nn_list_nn(Self::get_type_name()) //
@@ -128,7 +128,7 @@ impl Algo for PageRank {
         let tol = ctx.args.get("tol").map(|v| v.f32()).transpose()?;
         let result = unweighted_page_rank(graph, iter_count, threads, tol)
             .into_iter()
-            .map(|pair| FieldValue::owned_any(PageRank::from(pair)));
+            .map(|pair| FieldValue::owned_any(Pagerank::from(pair)));
         Ok(Some(FieldValue::list(result)))
     }
 }
