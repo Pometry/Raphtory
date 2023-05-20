@@ -88,7 +88,7 @@ mod task_tests {
         let actual = runner.run(
             vec![],
             vec![Job::new(step1)],
-            |egs, _, _| egs.finalize(&count),
+            |egs, _, _, _| egs.finalize(&count),
             Some(2),
             1,
             None,

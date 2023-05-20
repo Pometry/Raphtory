@@ -1,5 +1,6 @@
 use num_traits::abs;
 
+use crate::core::vertex_ref::LocalVertexRef;
 use crate::db::view_api::VertexViewOps;
 use crate::{
     core::{
@@ -23,7 +24,7 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
     iter_count: usize,
     threads: Option<usize>,
     tol: Option<f64>,
-) -> HashMap<String, f32> {
+) -> HashMap<String, f64> {
     let total_vertices = g.num_vertices();
     let total_edges = g.num_edges();
 
@@ -63,8 +64,8 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
         *s.unwrap_local_state() = 0f64;
 
         for t in s.in_neighbours() {
-            
-            let prev = t.entry(&score)
+            let prev = t
+                .entry(&score)
                 .read_local_prev()
                 .map(|x| *x)
                 .unwrap_or_else(|| (1f64 / total_vertices as f64));
@@ -153,10 +154,18 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
 
     let num_vertices = g.num_vertices() as f64;
 
-    let out = runner.run(
+    let out: HashMap<LocalVertexRef, f64> = runner.run(
         vec![Job::new(step1)],
         vec![Job::new(step2), Job::new(step3), Job::new(step4), step5],
-        |_, _, els| els.finalize(&score, |score| score),
+        |g, _, _, local| {
+            let total_sink_contribution_val = g.read(&total_sink_contribution) / factor;
+            let norm_factor = (1.0f64 / total_vertices as f64)
+                * ((1.0 - damping_factor) + (damping_factor * total_sink_contribution_val));
+            local
+                .iter()
+                .filter_map(|line| line.map(|(v_ref, score)| (v_ref, score / norm_factor)))
+                .collect::<HashMap<_, _>>()
+        },
         threads,
         iter_count,
         None,
@@ -164,7 +173,7 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
     );
 
     out.into_iter()
-        .map(|(k, v)| (k, v as f32 / num_vertices as f32))
+        .map(|(k, v)| (g.vertex_name(k), v))
         .collect()
 }
 
@@ -193,7 +202,7 @@ mod page_rank_tests {
     fn test_page_rank(n_shards: usize) {
         let graph = load_graph(n_shards);
 
-        let results: HashMap<String, f32> = unweighted_page_rank(&graph, 25, Some(1), None)
+        let results: HashMap<String, f64> = unweighted_page_rank(&graph, 25, Some(1), None)
             .into_iter()
             .collect();
 
@@ -206,7 +215,7 @@ mod page_rank_tests {
                 ("3".to_string(), 0.20831521)
             ]
             .into_iter()
-            .collect::<HashMap<String, f32>>()
+            .collect::<HashMap<String, f64>>()
         );
     }
 
@@ -264,7 +273,7 @@ mod page_rank_tests {
             graph.add_edge(t, src, dst, &vec![], None).unwrap();
         }
 
-        let results: HashMap<String, f32> = unweighted_page_rank(&graph, 1000, Some(4), None)
+        let results: HashMap<String, f64> = unweighted_page_rank(&graph, 1000, Some(4), None)
             .into_iter()
             .collect();
 
@@ -284,7 +293,7 @@ mod page_rank_tests {
 
         assert_eq!(
             results,
-            expected_2.into_iter().collect::<HashMap<String, f32>>()
+            expected_2.into_iter().collect::<HashMap<String, f64>>()
         );
     }
 
@@ -298,7 +307,7 @@ mod page_rank_tests {
             graph.add_edge(t as i64, src, dst, &vec![], None).unwrap();
         }
 
-        let results: HashMap<String, f32> = unweighted_page_rank(&graph, 1000, Some(4), None)
+        let results: HashMap<String, f64> = unweighted_page_rank(&graph, 1000, Some(4), None)
             .into_iter()
             .collect();
 
@@ -316,7 +325,7 @@ mod page_rank_tests {
             graph.add_edge(t as i64, src, dst, &vec![], None).unwrap();
         }
 
-        let results: HashMap<String, f32> = unweighted_page_rank(&graph, 1000, Some(4), None)
+        let results: HashMap<String, f64> = unweighted_page_rank(&graph, 1000, Some(4), None)
             .into_iter()
             .collect();
 
@@ -354,7 +363,7 @@ mod page_rank_tests {
             graph.add_edge(t, src, dst, &vec![], None).unwrap();
         }
 
-        let results: HashMap<String, f32> = unweighted_page_rank(&graph, 1000, Some(4), None)
+        let results: HashMap<String, f64> = unweighted_page_rank(&graph, 1000, Some(4), None)
             .into_iter()
             .collect();
 
@@ -371,7 +380,7 @@ mod page_rank_tests {
         assert_eq_f32(results.get("11"), Some(&0.122), 3);
     }
 
-    fn assert_eq_f32<T: Borrow<f32> + PartialEq + std::fmt::Debug>(
+    fn assert_eq_f32<T: Borrow<f64> + PartialEq + std::fmt::Debug>(
         a: Option<T>,
         b: Option<T>,
         decimals: u8,
@@ -379,7 +388,7 @@ mod page_rank_tests {
         if a.is_none() || b.is_none() {
             assert_eq!(a, b);
         } else {
-            let factor = 10.0_f32.powi(decimals as i32);
+            let factor = 10.0_f64.powi(decimals as i32);
             match (a, b) {
                 (Some(a), Some(b)) => {
                     assert_eq!(

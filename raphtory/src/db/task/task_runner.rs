@@ -1,21 +1,14 @@
 use std::{
     borrow::Cow,
     rc::Rc,
-    sync::{
-        atomic::{AtomicBool, Ordering},
-    }
+    sync::atomic::{AtomicBool, Ordering},
 };
 
 use rayon::{prelude::*, ThreadPool};
 
-use crate::core::state::{
-    shuffle_state::{EvalGlobalState, EvalLocalState, EvalShardState},
-};
+use crate::core::state::shuffle_state::{EvalGlobalState, EvalLocalState, EvalShardState};
 use crate::core::vertex_ref::LocalVertexRef;
-use crate::{
-    core::state::compute_state::ComputeState,
-    db::view_api::GraphViewOps,
-};
+use crate::{core::state::compute_state::ComputeState, db::view_api::GraphViewOps};
 
 use super::{
     context::{Context, GlobalState},
@@ -94,7 +87,7 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
             atomic_done.store(false, Ordering::Relaxed);
         }
 
-        let vertex_state:EVState<CS> = Rc::try_unwrap(vertex_state).unwrap().into_inner();
+        let vertex_state: EVState<CS> = Rc::try_unwrap(vertex_state).unwrap().into_inner();
         let (shard_state_view, global_state_view) = vertex_state.restore_states();
 
         match (shard_state_view, global_state_view) {
@@ -227,7 +220,12 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
 
     pub fn run<
         B: std::fmt::Debug,
-        F: FnOnce(EvalGlobalState<G, CS>, EvalShardState<G, CS>, EvalLocalState<G, CS>) -> B
+        F: FnOnce(
+                GlobalState<CS>,
+                EvalShardState<G, CS>,
+                EvalLocalState<G, CS>,
+                &Vec<Option<(LocalVertexRef, f64)>>,
+            ) -> B
             + std::marker::Copy,
     >(
         &mut self,
@@ -244,8 +242,6 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         let pool = num_threads
             .map(|nt| custom_pool(nt))
             .unwrap_or_else(|| POOL.clone());
-
-        let num_threads = pool.current_num_threads();
 
         let mut shard_state = shard_initial_state.unwrap_or_else(|| Shard::new(graph_shards));
 
@@ -286,22 +282,20 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
 
             // Copy and reset the local states from the step that just ended
             self.ctx.increment_ss();
-            let ss = self.ctx.ss();
-            println!("Step {}", ss);
-            // let b = f(
-            //     EvalGlobalState::new(ss, self.ctx.graph(), global_state.clone()),
-            //     EvalShardState::new(ss, self.ctx.graph(), shard_state.clone()),
-            //     EvalLocalState::new(ss, self.ctx.graph(), local_state.clone()),
-            // );
-            // println!("B = {:?}", b);
         }
 
         let ss: usize = self.ctx.ss();
+        let last_local_state = if ss % 2 == 0 {
+            cur_local_state
+        } else {
+            prev_local_state
+        };
 
         f(
-            EvalGlobalState::new(ss, self.ctx.graph(), global_state),
+            GlobalState::new(global_state , ss -1) ,
             EvalShardState::new(ss, self.ctx.graph(), shard_state),
             EvalLocalState::new(ss, self.ctx.graph(), vec![]),
+            &last_local_state,
         )
     }
 }

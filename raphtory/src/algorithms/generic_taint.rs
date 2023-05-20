@@ -161,7 +161,7 @@ pub fn generic_taint<G: GraphViewOps, T: InputVertex>(
     runner.run(
         vec![Job::new(step1)],
         vec![Job::new(step2), step3],
-        |_, ess, _| {
+        |_, ess, _, _| {
             ess.finalize(&taint_history, |taint_history| {
                 taint_history
                     .into_iter()

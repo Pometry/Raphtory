@@ -99,7 +99,7 @@ pub fn triplet_count<G: GraphViewOps>(g: &G, threads: Option<usize>) -> usize {
     runner.run(
         vec![],
         vec![Job::new(step1)],
-        |egs, _, _| egs.finalize(&count),
+        |egs, _, _, _| egs.finalize(&count),
         threads,
         1,
         None,
