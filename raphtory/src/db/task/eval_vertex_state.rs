@@ -5,6 +5,7 @@ use crate::core::{
     vertex_ref::LocalVertexRef,
 };
 
+#[derive(Debug)]
 pub(crate) struct EVState<'a, CS: ComputeState> {
     pub(crate) shard_state: Cow<'a, ShuffleComputeState<CS>>,
     pub(crate) global_state: Cow<'a, ShuffleComputeState<CS>>,
@@ -25,6 +26,10 @@ impl<'a, CS: ComputeState> EVState<'a, CS> {
             local_state_prev,
             shard_size,
         }))
+    }
+
+    pub fn restore_states(self) -> (Cow<'a, ShuffleComputeState<CS>>, Cow<'a, ShuffleComputeState<CS>>) {
+        (self.shard_state, self.global_state)
     }
 
     pub fn read_prev(&self, v: &LocalVertexRef) -> Option<&f64> {
