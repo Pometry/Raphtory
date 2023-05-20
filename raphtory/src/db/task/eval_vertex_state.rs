@@ -8,7 +8,6 @@ use crate::core::{
 pub(crate) struct EVState<'a, CS: ComputeState> {
     pub(crate) shard_state: Cow<'a, ShuffleComputeState<CS>>,
     pub(crate) global_state: Cow<'a, ShuffleComputeState<CS>>,
-    local_state: Option<&'a mut f64>,
     pub(crate) local_state_prev: &'a Vec<Option<(LocalVertexRef, f64)>>,
     shard_size: usize,
 }
@@ -17,14 +16,12 @@ impl<'a, CS: ComputeState> EVState<'a, CS> {
     pub fn rc_from(
         shard_state: Cow<'a, ShuffleComputeState<CS>>,
         global_state: Cow<'a, ShuffleComputeState<CS>>,
-        local_state: Option<&'a mut f64>,
         local_state_prev: &'a Vec<Option<(LocalVertexRef, f64)>>,
         shard_size: usize,
     ) -> Rc<RefCell<Self>> {
         Rc::new(RefCell::new(Self {
             shard_state,
             global_state,
-            local_state,
             local_state_prev,
             shard_size,
         }))
@@ -34,20 +31,6 @@ impl<'a, CS: ComputeState> EVState<'a, CS> {
         let LocalVertexRef { shard_id, pid } = v;
         let i = self.shard_size * *shard_id + *pid;
         self.local_state_prev[i].as_ref().map(|(_, val)| val)
-    }
-
-    pub fn set(&mut self, val: f64) {
-        match self.local_state.as_mut() {
-            Some(state) => **state = val,
-            None => {}
-        }
-    }
-
-    pub fn unsafe_mut(&mut self) -> &mut f64 {
-        match self.local_state {
-            Some(state) => state,
-            None => panic!("unsafe read on None state"),
-        }
     }
 
     pub(crate) fn shard_mut(&mut self) -> &mut ShuffleComputeState<CS> {

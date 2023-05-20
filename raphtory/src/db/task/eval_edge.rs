@@ -43,7 +43,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState> EdgeViewInternalOps<G, EvalVertexVie
 
     fn new_vertex(&self, v: VertexRef) -> EvalVertexView<'a, G, CS> {
         let vv = self.ev.new_vertex(v);
-        EvalVertexView::new_from_view(self.ss, vv, self.vertex_state.clone())
+        EvalVertexView::new_from_view(self.ss, vv, None, self.vertex_state.clone())
     }
 
     fn new_edge(&self, e: EdgeRef) -> Self {

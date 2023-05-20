@@ -69,7 +69,6 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
                 let vertex_state = EVState::rc_from(
                     shard_state_view.clone(),
                     global_state_view.clone(),
-                    Some(local_state),
                     prev_local_state,
                     g.num_shards(),
                 );
@@ -77,6 +76,7 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
                     self.ctx.ss(),
                     v_ref.clone(),
                     g.clone(),
+                    Some(local_state),
                     vertex_state,
                 );
 

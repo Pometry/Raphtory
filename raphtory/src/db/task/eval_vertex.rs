@@ -20,7 +20,6 @@ use crate::{
 };
 use std::collections::HashMap;
 use std::{
-    borrow::Cow,
     cell::{Ref, RefCell},
     rc::Rc,
     sync::Arc,
@@ -31,31 +30,29 @@ use super::eval_vertex_state::EVState;
 pub struct EvalVertexView<'a, G: GraphViewOps, CS: ComputeState> {
     ss: usize,
     vv: VertexView<G>,
+    local_state: Option<&'a mut f64>,
     vertex_state: Rc<RefCell<EVState<'a, CS>>>,
 }
 
 impl<'a, G: GraphViewOps, CS: ComputeState> EvalVertexView<'a, G, CS> {
-    pub fn set(&mut self, value: f64) {
-        self.vertex_state.borrow_mut().set(value);
-    }
-
-    pub fn read_local_prev_2(&self) -> Option<f64> {
-        // FIXME: this needs to be &f64 but will do for now
-        self.vertex_state
-            .borrow()
-            .read_prev(&self.vv.vertex)
-            .map(|v| *v)
+    pub fn unwrap_local_state(&mut self) -> &mut f64 {
+        match &mut self.local_state {
+            Some(state) => state,
+            None => panic!("unwrap on None state"),
+        }
     }
 
     pub(crate) fn new_local(
         ss: usize,
         vertex: LocalVertexRef,
         g: Arc<G>,
+        local_state: Option<&'a mut f64>,
         vertex_state: Rc<RefCell<EVState<'a, CS>>>,
     ) -> Self {
         Self {
             ss,
             vv: VertexView::new_local(g, vertex),
+            local_state,
             vertex_state,
         }
     }
@@ -67,11 +64,13 @@ impl<'a, G: GraphViewOps, CS: ComputeState> EvalVertexView<'a, G, CS> {
     pub(crate) fn new_from_view(
         ss: usize,
         vv: VertexView<G>,
+        local_state: Option<&'a mut f64>,
         vertex_state: Rc<RefCell<EVState<'a, CS>>>,
     ) -> Self {
         Self {
             ss,
             vv,
+            local_state,
             vertex_state,
         }
     }
@@ -80,12 +79,14 @@ impl<'a, G: GraphViewOps, CS: ComputeState> EvalVertexView<'a, G, CS> {
         ss: usize,
         vertex: VertexRef,
         g: Arc<G>,
+        local_state: Option<&'a mut f64>,
         vertex_state: Rc<RefCell<EVState<'a, CS>>>,
     ) -> Self {
         let vref = g.localise_vertex_unchecked(vertex);
         Self {
             ss,
             vv: VertexView::new_local(g, vref),
+            local_state,
             vertex_state,
         }
     }
@@ -187,7 +188,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState> EvalVertexView<'a, G, CS> {
         Entry::new(
             self.vertex_state.borrow(),
             *agg_r,
-            self.pid(),
+            &self.vv.vertex,
             self.id(),
             self.ss,
         )
@@ -288,9 +289,9 @@ impl<'a, G: GraphViewOps, CS: ComputeState> EvalPathFromVertex<'a, G, CS> {
 
     pub fn iter(&'a self) -> Box<dyn Iterator<Item = EvalVertexView<'a, G, CS>> + 'a> {
         Box::new(
-            self.path
-                .iter()
-                .map(|v| EvalVertexView::new_from_view(self.ss, v, self.vertex_state.clone())),
+            self.path.iter().map(|v| {
+                EvalVertexView::new_from_view(self.ss, v, None, self.vertex_state.clone())
+            }),
         )
     }
 }
@@ -306,7 +307,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState> IntoIterator for EvalPathFromVertex<
         let ss = self.ss;
         Box::new(
             path.iter()
-                .map(move |v| EvalVertexView::new_from_view(ss, v, vertex_state.clone())),
+                .map(move |v| EvalVertexView::new_from_view(ss, v, None, vertex_state.clone())),
         )
     }
 }
@@ -442,6 +443,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState> TimeOps for EvalVertexView<'a, G, CS
             self.ss,
             self.vv.vertex,
             Arc::from(self.vv.graph.window(t_start, t_end)),
+            None,
             self.vertex_state.clone(),
         )
     }
@@ -568,7 +570,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState> VertexViewOps for EvalVertexView<'a,
 pub struct Entry<'a, 'b, A: StateType, IN, OUT, ACC: Accumulator<A, IN, OUT>, CS: ComputeState> {
     state: Ref<'a, EVState<'b, CS>>,
     acc_id: AccId<A, IN, OUT, ACC>,
-    pid: usize,
+    v_ref: &'a LocalVertexRef,
     gid: u64,
     ss: usize,
 }
@@ -588,14 +590,14 @@ impl<'a, 'b, A: StateType, IN, OUT, ACC: Accumulator<A, IN, OUT>, CS: ComputeSta
     pub(crate) fn new(
         state: Ref<'a, EVState<'b, CS>>,
         acc_id: AccId<A, IN, OUT, ACC>,
-        pid: usize,
+        v_ref: &'a LocalVertexRef,
         gid: u64,
         ss: usize,
     ) -> Entry<'a, 'b, A, IN, OUT, ACC, CS> {
         Entry {
             state,
             acc_id,
-            pid,
+            v_ref,
             gid,
             ss,
         }
@@ -605,7 +607,13 @@ impl<'a, 'b, A: StateType, IN, OUT, ACC: Accumulator<A, IN, OUT>, CS: ComputeSta
     pub fn read_ref(&self) -> Option<&A> {
         self.state
             .shard()
-            .read_ref_with_pid(self.ss, self.gid, self.pid, &self.acc_id)
+            .read_ref_with_pid(self.ss, self.gid, self.v_ref.pid, &self.acc_id)
+    }
+
+    pub fn read_local_prev_ref(&self) -> Option<&f64> {
+        self
+            .state
+            .read_prev(self.v_ref)
     }
 }
 
