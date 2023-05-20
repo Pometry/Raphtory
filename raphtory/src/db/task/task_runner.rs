@@ -65,8 +65,8 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         let mut done = true;
 
         let vertex_state = EVState::rc_from(
-            shard_state_view.clone(),
-            global_state_view.clone(),
+            shard_state_view,
+            global_state_view,
             prev_local_state,
             max_shard_len,
         );
