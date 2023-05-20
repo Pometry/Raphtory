@@ -610,7 +610,7 @@ impl<'a, 'b, A: StateType, IN, OUT, ACC: Accumulator<A, IN, OUT>, CS: ComputeSta
             .read_ref_with_pid(self.ss, self.gid, self.v_ref.pid, &self.acc_id)
     }
 
-    pub fn read_local_prev_ref(&self) -> Option<&f64> {
+    pub fn read_local_prev(&'a self) -> Option<&'a f64> {
         self
             .state
             .read_prev(self.v_ref)

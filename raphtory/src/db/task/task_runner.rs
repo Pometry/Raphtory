@@ -11,7 +11,7 @@ use std::{
 use itertools::Itertools;
 use rayon::{prelude::*, ThreadPool};
 
-use crate::core::state::shuffle_state::{EvalGlobalState, EvalLocalState, EvalShardState};
+use crate::core::state::{shuffle_state::{EvalGlobalState, EvalLocalState, EvalShardState}, accumulator_id::accumulators::max};
 use crate::core::vertex_ref::LocalVertexRef;
 use crate::{
     core::state::{compute_state::ComputeState, shuffle_state::ShuffleComputeState},
@@ -53,6 +53,7 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         global_state: &Global<CS>,
         morcel: &mut [Option<(LocalVertexRef, f64)>],
         prev_local_state: &Vec<Option<(LocalVertexRef, f64)>>,
+        max_shard_len: usize,
         atomic_done: &AtomicBool,
         task: &Box<dyn Task<G, CS> + Send + Sync>,
     ) -> (Shard<CS>, Global<CS>) {
@@ -70,7 +71,7 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
                     shard_state_view.clone(),
                     global_state_view.clone(),
                     prev_local_state,
-                    g.num_shards(),
+                    max_shard_len,
                 );
                 let mut vv = EvalVertexView::new_local(
                     self.ctx.ss(),
@@ -121,8 +122,7 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         global_state: Global<CS>,
         mut local_state: Vec<Option<(LocalVertexRef, f64)>>,
         prev_local_state: &Vec<Option<(LocalVertexRef, f64)>>,
-        num_threads: usize,
-        num_shards: usize,
+        max_shard_len: usize
     ) -> (
         bool,
         Shard<CS>,
@@ -148,6 +148,7 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
                                 &new_global_state,
                                 morcel,
                                 prev_local_state,
+                                max_shard_len,
                                 &atomic_done,
                                 task,
                             )
@@ -160,6 +161,7 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
                                 &new_global_state,
                                 morcel,
                                 prev_local_state,
+                                max_shard_len,
                                 &atomic_done,
                                 task,
                             );
@@ -195,6 +197,7 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
     fn make_cur_and_prev_states(
         &self,
     ) -> (
+        usize,
         Vec<Option<(LocalVertexRef, f64)>>,
         Vec<Option<(LocalVertexRef, f64)>>,
     ) {
@@ -206,7 +209,10 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
             num_vertices.max(b)
         });
 
-        let mut states = vec![None; max_shard_len * g.num_shards()];
+
+        let n_shards = g.num_shards();
+
+        let mut states = vec![None; max_shard_len * n_shards];
 
         for v_ref in g.vertex_refs() {
             let LocalVertexRef { shard_id, pid } = v_ref;
@@ -214,7 +220,7 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
             states[i] = Some((v_ref.clone(), 0 as f64));
         }
 
-        (states.clone(), states)
+        (max_shard_len, states.clone(), states)
     }
 
     pub fn run<
@@ -243,7 +249,7 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
 
         let mut global_state = global_initial_state.unwrap_or_else(|| Global::new());
 
-        let (mut cur_local_state, mut prev_local_state) = self.make_cur_and_prev_states();
+        let (max_shard_len, mut cur_local_state, mut prev_local_state) = self.make_cur_and_prev_states();
 
         let mut done = false;
 
@@ -254,8 +260,7 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
             global_state,
             cur_local_state,
             &prev_local_state,
-            num_threads,
-            graph_shards,
+            max_shard_len,
         );
 
         while !done && self.ctx.ss() < steps && tasks.len() > 0 {
@@ -266,8 +271,7 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
                 global_state,
                 cur_local_state,
                 &prev_local_state,
-                num_threads,
-                graph_shards,
+                max_shard_len
             );
 
             // copy and reset the state from the step that just ended

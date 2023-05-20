@@ -1,3 +1,5 @@
+use num_traits::abs;
+
 use crate::db::view_api::VertexViewOps;
 use crate::{
     core::{
@@ -13,7 +15,6 @@ use crate::{
         view_api::GraphViewOps,
     },
 };
-use num_traits::abs;
 use std::collections::HashMap;
 
 #[allow(unused_variables)]
@@ -30,56 +31,118 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
 
     let max_diff_val: f64 = tol.unwrap_or_else(|| 0.0000001f64);
     let damping_factor = 0.85;
+    let teleport_prob = (1f64 - damping_factor) / total_vertices as f64;
+    let factor = damping_factor / total_vertices as f64;
+
+    println!("teleport_prob: {}", teleport_prob);
+    println!("factor: {}", factor);
 
     let score = accumulators::val::<f64>(0).init::<InitOneF64>();
-    let recv_score = accumulators::sum::<f64>(1);
+    // let recv_score = accumulators::sum::<f64>(1);
     let max_diff = accumulators::max::<f64>(2);
-    let dangling = accumulators::sum::<f64>(3);
+    // let dangling = accumulators::sum::<f64>(3);
 
-    ctx.agg_reset(recv_score);
+    let total_sink_contribution = accumulators::sum::<f64>(4);
+
+    // ctx.agg_reset(recv_score);
     ctx.global_agg_reset(max_diff);
-    ctx.global_agg_reset(dangling);
+    // ctx.global_agg_reset(dangling);
+
+    ctx.global_agg_reset(total_sink_contribution);
 
     let step1 = ATask::new(move |s| {
-        s.update_local(&score, s.in_degree() as f64 / total_edges as f64 * total_vertices as f64);
+        // s.update_local(&score, s.in_degree() as f64 / total_edges as f64 * total_vertices as f64);
+
+        *s.unwrap_local_state() = 1f64 / total_vertices as f64;
+
         Step::Continue
     });
 
     let step2 = ATask::new(move |s| {
-        let out_degree = s.out_degree();
+        // reset score
+        *s.unwrap_local_state() = 0f64;
 
-        if out_degree > 0 {
-            let new_score = s.read_local(&score) / out_degree as f64;
-            for t in s.out_neighbours() {
-                t.update(&recv_score, new_score)
-            }
-        } else {
-            s.global_update(&dangling, s.read_local(&score) / total_vertices as f64);
+        for t in s.in_neighbours() {
+            
+            let prev = t.entry(&score)
+                .read_local_prev()
+                .map(|x| *x)
+                .unwrap_or_else(|| (1f64 / total_vertices as f64));
+
+            *s.unwrap_local_state() += prev / t.in_degree() as f64;
         }
+
+        *s.unwrap_local_state() *= damping_factor;
+
+        *s.unwrap_local_state() += teleport_prob;
+
+        println!("score {}: {}", s.id(), s.unwrap_local_state());
+
+        // let out_degree = s.out_degree();
+        // if out_degree > 0 {
+        //     let new_score = s.read_local(&score) / out_degree as f64;
+        //     for t in s.out_neighbours() {
+        //         t.update(&recv_score, new_score)
+        //     }
+        // } else {
+        //     s.global_update(&dangling, s.read_local(&score) / total_vertices as f64);
+        // }
         Step::Continue
     });
 
     let step3 = ATask::new(move |s| {
-        let dangling_v = s.read_global_state(&dangling).unwrap_or_default();
+        if s.out_degree() == 0 {
+            let what = s.entry(&score);
+            let curr = what
+                .read_local_prev()
+                .map(|x| *x)
+                .unwrap_or(1 as f64 / total_vertices as f64);
 
-        s.update_local(
-            &score,
-            (1f64 - damping_factor) + (damping_factor * (s.read(&recv_score) + dangling_v)),
-        );
-        let prev = s.read_local_prev(&score);
-        let curr = s.read_local(&score);
+            s.global_update(&total_sink_contribution, factor * curr);
+        }
+        // let dangling_v = s.read_global_state(&dangling).unwrap_or_default();
+
+        // s.update_local(
+        //     &score,
+        //     (1f64 - damping_factor) + (damping_factor * (s.read(&recv_score) + dangling_v)),
+        // );
+        // let prev = s.read_local_prev(&score);
+        // let curr = s.read_local(&score);
+
+        // let md = abs(prev - curr);
+
+        // s.global_update(&max_diff, md);
+        Step::Continue
+    });
+
+    let step4 = ATask::new(move |s| {
+        //read total sink contribution
+        let total_sink_contribution = s
+            .read_global_state(&total_sink_contribution)
+            .unwrap_or_default();
+        // update local score with total sink contribution
+        *s.unwrap_local_state() += total_sink_contribution;
+
+        // update global max diff
+
+        let curr = *s.unwrap_local_state();
+        let prev = s
+            .entry(&score)
+            .read_local_prev()
+            .map(|x| *x)
+            .unwrap_or(1 as f64 / total_vertices as f64);
 
         let md = abs(prev - curr);
-
         s.global_update(&max_diff, md);
         Step::Continue
     });
 
-    let step4 = Job::Check(Box::new(move |state| {
+    let step5 = Job::Check(Box::new(move |state| {
         let max_d = state.read(&max_diff);
         println!("max diff: {}", max_d);
 
-        if (max_d / total_vertices as f64) > max_diff_val {
+        // if (max_d / total_vertices as f64) > max_diff_val {
+        if (max_d as f64) > max_diff_val {
             Step::Continue
         } else {
             Step::Done
@@ -92,7 +155,7 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
 
     let out = runner.run(
         vec![Job::new(step1)],
-        vec![Job::new(step2), Job::new(step3), step4],
+        vec![Job::new(step2), Job::new(step3), Job::new(step4), step5],
         |_, _, els| els.finalize(&score, |score| score),
         threads,
         iter_count,
@@ -201,10 +264,9 @@ mod page_rank_tests {
             graph.add_edge(t, src, dst, &vec![], None).unwrap();
         }
 
-        let results: HashMap<String, f32> =
-            unweighted_page_rank(&graph, 1000, Some(4), None)
-                .into_iter()
-                .collect();
+        let results: HashMap<String, f32> = unweighted_page_rank(&graph, 1000, Some(4), None)
+            .into_iter()
+            .collect();
 
         let expected_2 = vec![
             ("10".to_string(), 0.07208286),
@@ -236,10 +298,9 @@ mod page_rank_tests {
             graph.add_edge(t as i64, src, dst, &vec![], None).unwrap();
         }
 
-        let results: HashMap<String, f32> =
-            unweighted_page_rank(&graph, 1000, Some(4), None)
-                .into_iter()
-                .collect();
+        let results: HashMap<String, f32> = unweighted_page_rank(&graph, 1000, Some(4), None)
+            .into_iter()
+            .collect();
 
         assert_eq_f32(results.get("1"), Some(&0.5), 3);
         assert_eq_f32(results.get("2"), Some(&0.5), 3);
@@ -255,10 +316,9 @@ mod page_rank_tests {
             graph.add_edge(t as i64, src, dst, &vec![], None).unwrap();
         }
 
-        let results: HashMap<String, f32> =
-            unweighted_page_rank(&graph, 1000, Some(4), None)
-                .into_iter()
-                .collect();
+        let results: HashMap<String, f32> = unweighted_page_rank(&graph, 1000, Some(4), None)
+            .into_iter()
+            .collect();
 
         assert_eq_f32(results.get("1"), Some(&0.303), 3);
         assert_eq_f32(results.get("2"), Some(&0.394), 3);
@@ -294,10 +354,9 @@ mod page_rank_tests {
             graph.add_edge(t, src, dst, &vec![], None).unwrap();
         }
 
-        let results: HashMap<String, f32> =
-            unweighted_page_rank(&graph, 1000, Some(4), None)
-                .into_iter()
-                .collect();
+        let results: HashMap<String, f32> = unweighted_page_rank(&graph, 1000, Some(4), None)
+            .into_iter()
+            .collect();
 
         assert_eq_f32(results.get("1"), Some(&0.055), 3);
         assert_eq_f32(results.get("2"), Some(&0.079), 3);
