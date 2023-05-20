@@ -25,15 +25,15 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
     threads: Option<usize>,
     tol: Option<f64>,
 ) -> HashMap<String, f64> {
-    let total_vertices = g.num_vertices();
+    let n = g.num_vertices();
     let total_edges = g.num_edges();
 
     let mut ctx: Context<G, ComputeStateVec> = g.into();
 
-    let max_diff_val: f64 = tol.unwrap_or_else(|| 0.0000001f64);
-    let damping_factor = 0.85;
-    let teleport_prob = (1f64 - damping_factor) / total_vertices as f64;
-    let factor = damping_factor / total_vertices as f64;
+    let tol: f64 = tol.unwrap_or_else(|| 0.0000001f64);
+    let damp = 0.85;
+    let teleport_prob = (1f64 - damp) / n as f64;
+    let factor = damp / n as f64;
 
     println!("teleport_prob: {}", teleport_prob);
     println!("factor: {}", factor);
@@ -54,7 +54,7 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
     let step1 = ATask::new(move |s| {
         // s.update_local(&score, s.in_degree() as f64 / total_edges as f64 * total_vertices as f64);
 
-        *s.unwrap_local_state() = 1f64 / total_vertices as f64;
+        *s.unwrap_local_state() = 1f64 / n as f64;
 
         Step::Continue
     });
@@ -68,12 +68,12 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
                 .entry(&score)
                 .read_local_prev()
                 .map(|x| *x)
-                .unwrap_or_else(|| (1f64 / total_vertices as f64));
+                .unwrap_or_else(|| (1f64 / n as f64));
 
-            *s.unwrap_local_state() += prev / t.in_degree() as f64;
+            *s.unwrap_local_state() += prev / t.out_degree() as f64;
         }
 
-        *s.unwrap_local_state() *= damping_factor;
+        *s.unwrap_local_state() *= damp;
 
         *s.unwrap_local_state() += teleport_prob;
 
@@ -92,12 +92,11 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
     });
 
     let step3 = ATask::new(move |s| {
-        if s.out_degree() == 0 {
-            let what = s.entry(&score);
-            let curr = what
+        if s.degree() == 0 {
+            let curr = s.entry(&score)
                 .read_local_prev()
                 .map(|x| *x)
-                .unwrap_or(1 as f64 / total_vertices as f64);
+                .unwrap_or(1 as f64 / n as f64);
 
             s.global_update(&total_sink_contribution, factor * curr);
         }
@@ -131,7 +130,7 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
             .entry(&score)
             .read_local_prev()
             .map(|x| *x)
-            .unwrap_or(1 as f64 / total_vertices as f64);
+            .unwrap_or(1 as f64 / n as f64);
 
         let md = abs(prev - curr);
         s.global_update(&max_diff, md);
@@ -143,7 +142,7 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
         println!("max diff: {}", max_d);
 
         // if (max_d / total_vertices as f64) > max_diff_val {
-        if (max_d as f64) > max_diff_val {
+        if (max_d as f64) > tol {
             Step::Continue
         } else {
             Step::Done
@@ -159,8 +158,10 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
         vec![Job::new(step2), Job::new(step3), Job::new(step4), step5],
         |g, _, _, local| {
             let total_sink_contribution_val = g.read(&total_sink_contribution) / factor;
-            let norm_factor = (1.0f64 / total_vertices as f64)
-                * ((1.0 - damping_factor) + (damping_factor * total_sink_contribution_val));
+            let norm_factor = (1.0f64 / n as f64)
+                * ((1.0 - damp) + (damp * total_sink_contribution_val));
+
+            let norm_factor = 1.0f64;
             local
                 .iter()
                 .filter_map(|line| line.map(|(v_ref, score)| (v_ref, score / norm_factor)))
@@ -325,7 +326,7 @@ mod page_rank_tests {
             graph.add_edge(t as i64, src, dst, &vec![], None).unwrap();
         }
 
-        let results: HashMap<String, f64> = unweighted_page_rank(&graph, 1000, Some(4), None)
+        let results: HashMap<String, f64> = unweighted_page_rank(&graph, 5, Some(4), None)
             .into_iter()
             .collect();
 
