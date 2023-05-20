@@ -217,7 +217,7 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         for v_ref in g.vertex_refs() {
             let LocalVertexRef { shard_id, pid } = v_ref;
             let i = max_shard_len * shard_id + pid;
-            states[i] = Some((v_ref.clone(), 0 as f64));
+            states[i] = Some((v_ref.clone(), 1.0 / g.num_vertices() as f64));
         }
 
         (max_shard_len, states.clone(), states)
