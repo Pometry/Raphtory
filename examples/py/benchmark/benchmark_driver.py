@@ -9,8 +9,8 @@ from memgraph_bench import MemgraphBench
 from cozo_bench import CozoDBBench
 import time
 
-
 fns = ['setup', 'degree', 'out_neighbours', 'page_rank', 'connected_components']
+
 
 # Display menu and get user's choice
 def display_menu():
@@ -30,7 +30,7 @@ def display_menu():
 
 def setup():
     return {
-        # 0: RunAll(),
+        0: 'ALL',
         1: RaphtoryBench(),
         2: GraphToolBench(),
         3: KuzuBench(),
@@ -54,6 +54,18 @@ def run_benchmark(choice):
     return driver.name(), times
 
 
+def run_all():
+    print("** Running all benchmarks...")
+    results = {}
+    for key in setup().keys():
+        if key == 0:
+            continue
+        print("** Running benchmark " + str(key) + "...")
+        name, result = run_benchmark(key)
+        results[name] = result
+    return results
+
+
 def print_table(data):
     if len(data) == 0:
         return
@@ -70,12 +82,16 @@ def main():
             if choice not in setup():
                 print(str(choice) + " not found. Exiting...")
                 break
-            name, result = run_benchmark(choice)
-            results[name] = result
+            if choice == 0:
+                results = run_all()
+            else:
+                name, result = run_benchmark(choice)
+                results[name] = result
     except Exception as e:
         print("Error: " + str(e))
     finally:
         print_table(results)
+
 
 if __name__ == "__main__":
     main()
