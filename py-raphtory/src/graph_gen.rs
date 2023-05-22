@@ -2,7 +2,7 @@
 //! Allows us to generate graphs using the preferential attachment model and
 //! the random attachment model.
 
-use crate::PyGraph;
+use crate::graph::PyGraph;
 use pyo3::prelude::*;
 use raphtory::graphgen::preferential_attachment::ba_preferential_attachment as pa;
 use raphtory::graphgen::random_attachment::random_attachment as ra;

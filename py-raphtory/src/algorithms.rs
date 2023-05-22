@@ -41,13 +41,13 @@ use raphtory::algorithms::three_node_local::all_motifs_count as all_motifs_rs;
 /// to identify critical junctions or potential traffic bottlenecks.
 ///
 #[pyfunction]
-pub(crate) fn local_triangle_count(g: &PyGraphView, v: &PyAny) -> PyResult<Option<usize>> {
+pub fn local_triangle_count(g: &PyGraphView, v: &PyAny) -> PyResult<Option<usize>> {
     let v = utils::extract_vertex_ref(v)?;
     Ok(local_triangle_count_rs(&g.graph, v))
 }
 
 #[pyfunction]
-pub(crate) fn weakly_connected_components(
+pub fn weakly_connected_components(
     g: &PyGraphView,
     iter_count: usize,
 ) -> PyResult<HashMap<String, u64>> {
@@ -57,7 +57,7 @@ pub(crate) fn weakly_connected_components(
 }
 
 #[pyfunction]
-pub(crate) fn pagerank(
+pub fn pagerank(
     g: &PyGraphView,
     iter_count: usize,
     max_diff: Option<f32>,
@@ -66,7 +66,7 @@ pub(crate) fn pagerank(
 }
 
 #[pyfunction]
-pub(crate) fn generic_taint(
+pub fn generic_taint(
     g: &PyGraphView,
     iter_count: usize,
     start_time: i64,
@@ -114,7 +114,7 @@ pub(crate) fn generic_taint(
 /// its neighbors are relatively less connected with each other, suggesting a more fragmented
 /// or diverse community.
 #[pyfunction]
-pub(crate) fn local_clustering_coefficient(g: &PyGraphView, v: &PyAny) -> PyResult<Option<f32>> {
+pub fn local_clustering_coefficient(g: &PyGraphView, v: &PyAny) -> PyResult<Option<f32>> {
     let v = utils::extract_vertex_ref(v)?;
     Ok(local_clustering_coefficient_rs(&g.graph, v))
 }
@@ -128,37 +128,37 @@ pub(crate) fn local_clustering_coefficient(g: &PyGraphView, v: &PyAny) -> PyResu
 /// For example in social network analysis, a dense graph may indicate a highly interconnected
 /// community, while a sparse graph may indicate more isolated individuals.
 #[pyfunction]
-pub(crate) fn directed_graph_density(g: &PyGraphView) -> f32 {
+pub fn directed_graph_density(g: &PyGraphView) -> f32 {
     directed_graph_density_rs(&g.graph)
 }
 
 /// The average degree of all vertices in the graph.
 #[pyfunction]
-pub(crate) fn average_degree(g: &PyGraphView) -> f64 {
+pub fn average_degree(g: &PyGraphView) -> f64 {
     average_degree_rs(&g.graph)
 }
 
 /// The maximum out degree of any vertex in the graph.
 #[pyfunction]
-pub(crate) fn max_out_degree(g: &PyGraphView) -> usize {
+pub fn max_out_degree(g: &PyGraphView) -> usize {
     max_out_degree_rs(&g.graph)
 }
 
 /// The maximum in degree of any vertex in the graph.
 #[pyfunction]
-pub(crate) fn max_in_degree(g: &PyGraphView) -> usize {
+pub fn max_in_degree(g: &PyGraphView) -> usize {
     max_in_degree_rs(&g.graph)
 }
 
 /// The minimum out degree of any vertex in the graph.
 #[pyfunction]
-pub(crate) fn min_out_degree(g: &PyGraphView) -> usize {
+pub fn min_out_degree(g: &PyGraphView) -> usize {
     min_out_degree_rs(&g.graph)
 }
 
 /// The minimum in degree of any vertex in the graph.
 #[pyfunction]
-pub(crate) fn min_in_degree(g: &PyGraphView) -> usize {
+pub fn min_in_degree(g: &PyGraphView) -> usize {
     min_in_degree_rs(&g.graph)
 }
 
@@ -179,7 +179,7 @@ pub(crate) fn min_in_degree(g: &PyGraphView) -> usize {
 /// between them. On the other hand, if the seller does not make a purchase from the same customer,
 /// it could imply a less reciprocal or more one-sided relationship.
 #[pyfunction]
-pub(crate) fn global_reciprocity(g: &PyGraphView) -> f64 {
+pub fn global_reciprocity(g: &PyGraphView) -> f64 {
     global_reciprocity_rs(&g.graph, None)
 }
 
@@ -201,7 +201,7 @@ pub(crate) fn global_reciprocity(g: &PyGraphView) -> f64 {
 /// it could imply a less reciprocal or more one-sided relationship.
 ///
 #[pyfunction]
-pub(crate) fn all_local_reciprocity(g: &PyGraphView) -> HashMap<String, f64> {
+pub fn all_local_reciprocity(g: &PyGraphView) -> HashMap<String, f64> {
     all_local_reciprocity_rs(&g.graph, None)
 }
 
@@ -210,18 +210,18 @@ pub(crate) fn all_local_reciprocity(g: &PyGraphView) -> HashMap<String, f64> {
 /// An open triplet, is one where a node has two neighbors, but no edge between them.
 /// A closed triplet is one where a node has two neighbors, and an edge between them.
 #[pyfunction]
-pub(crate) fn triplet_count(g: &PyGraphView) -> usize {
+pub fn triplet_count(g: &PyGraphView) -> usize {
     raphtory::algorithms::triplet_count::triplet_count(&g.graph, None)
 }
 
 /// Computes the global clustering coefficient of a graph. The global clustering coefficient is
 /// defined as the number of triangles in the graph divided by the number of triplets in the graph.
 #[pyfunction]
-pub(crate) fn global_clustering_coefficient(g: &PyGraphView) -> f64 {
+pub fn global_clustering_coefficient(g: &PyGraphView) -> f64 {
     raphtory::algorithms::clustering_coefficient::clustering_coefficient(&g.graph)
 }
 
 #[pyfunction]
-pub(crate) fn all_motifs_count(g: &PyGraphView, delta: i64) -> HashMap<u64, Vec<usize>> {
+pub fn all_motifs_count(g: &PyGraphView, delta: i64) -> HashMap<u64, Vec<usize>> {
     all_motifs_rs(&g.graph, delta)
 }
