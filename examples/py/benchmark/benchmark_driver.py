@@ -1,3 +1,5 @@
+import pandas as pd
+
 from raphtory_bench import RaphtoryBench
 from kuzu_bench import KuzuBench
 from networkx_bench import NetworkXBench
@@ -7,6 +9,8 @@ from memgraph_bench import MemgraphBench
 from cozo_bench import CozoDBBench
 import time
 
+
+fns = ['setup', 'degree', 'out_neighbours', 'page_rank', 'connected_components']
 
 # Display menu and get user's choice
 def display_menu():
@@ -39,26 +43,39 @@ def setup():
 
 def run_benchmark(choice):
     driver = setup()[choice]
-    times = {}
-    fns = ['setup', 'degree', 'out_neighbours', 'page_rank', 'connected_components']
+    times = []
     for fn in fns:
         print("** Running " + fn + "...")
         start_time = time.time()
         getattr(driver, fn)()
         end_time = time.time()
         print(fn + " time: " + str(end_time - start_time))
-        times[fn] = end_time - start_time
-    return times
+        times.append(end_time - start_time)
+    return driver.name(), times
+
+
+def print_table(data):
+    if len(data) == 0:
+        return
+    df = pd.DataFrame.from_dict(data, orient='index', columns=fns)
+    # Extract header keys from the first inner dictionary
+    print(df.to_string(index=True, justify='left'))
+
 
 def main():
     results = {}
-    while True:
-        choice = display_menu()
-        if choice not in setup():
-            print(str(choice) + " not found. Exiting...")
-            break
-        results[choice] = run_benchmark(choice)
-
+    try:
+        while True:
+            choice = display_menu()
+            if choice not in setup():
+                print(str(choice) + " not found. Exiting...")
+                break
+            name, result = run_benchmark(choice)
+            results[name] = result
+    except Exception as e:
+        print("Error: " + str(e))
+    finally:
+        print_table(results)
 
 if __name__ == "__main__":
     main()
