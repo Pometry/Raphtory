@@ -226,7 +226,7 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
                 &Vec<Option<(LocalVertexRef, S)>>,
             ) -> B
             + std::marker::Copy,
-        S: Send + Sync + Clone + 'static,
+        S: Send + Sync + Clone + 'static + std::fmt::Debug,
     >(
         &mut self,
         init_tasks: Vec<Job<G, CS, S>>,
@@ -262,6 +262,9 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
             &prev_local_state,
             max_shard_len,
         );
+
+        // To allow the init step to cache stuff we will copy everything from cur_local_state to prev_local_state
+        prev_local_state.clone_from_slice(&cur_local_state);
 
         while !done && self.ctx.ss() < steps && tasks.len() > 0 {
             (done, shard_state, global_state, cur_local_state) = self.run_task_list(

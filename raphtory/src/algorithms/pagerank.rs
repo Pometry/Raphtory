@@ -18,6 +18,25 @@ use crate::{
 };
 use std::collections::HashMap;
 
+#[derive(Clone, Debug)]
+struct PageRankState {
+    score: f64,
+    out_degree: usize,
+}
+
+impl PageRankState {
+    fn new(num_vertices: usize) -> Self {
+        Self {
+            score: 1f64 / num_vertices as f64,
+            out_degree: 0,
+        }
+    }
+
+    fn reset(&mut self) {
+        self.score = 0f64;
+    }
+}
+
 #[allow(unused_variables)]
 pub fn unweighted_page_rank<G: GraphViewOps>(
     g: &G,
@@ -46,29 +65,36 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
     ctx.global_agg_reset(total_sink_contribution);
 
     let step1 = ATask::new(move |s| {
-        *s.get_mut() = 1f64 / n as f64;
+        let out_degree = s.out_degree();
+        let state: &mut PageRankState = s.get_mut();
+        state.out_degree = out_degree;
         Step::Continue
     });
 
-    let step2 = ATask::new(move |s| {
+    let step2:ATask<G, ComputeStateVec, PageRankState, _> = ATask::new(move |s| {
         // reset score
-        *s.get_mut() = 0f64;
+        {
+            let state: &mut PageRankState = s.get_mut();
+            state.reset();
+        }
 
         for t in s.in_neighbours() {
             let prev = t.prev();
 
-            *s.get_mut() += prev / t.out_degree() as f64;
+            s.get_mut().score += prev.score / prev.out_degree as f64;
         }
 
-        *s.get_mut() *= damp;
+        s.get_mut().score *= damp;
 
-        *s.get_mut() += teleport_prob;
+        s.get_mut().score += teleport_prob;
         Step::Continue
     });
 
     let step3 = ATask::new(move |s| {
-        if s.out_degree() == 0 {
-            let curr = s.prev();
+        let state: &mut PageRankState = s.get_mut();
+
+        if state.out_degree == 0 {
+            let curr = s.prev().score;
 
             let ts_contrib = factor * curr;
             s.global_update(&total_sink_contribution, ts_contrib);
@@ -82,12 +108,13 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
             .read_global_state(&total_sink_contribution)
             .unwrap_or_default();
         // update local score with total sink contribution
-        *s.get_mut() += total_sink_contribution;
+        let state: &mut PageRankState = s.get_mut();
+        state.score += total_sink_contribution;
 
         // update global max diff
 
-        let curr = *s.get_mut();
-        let prev = s.prev();
+        let curr = state.score;
+        let prev = s.prev().score;
         let md = abs(prev - curr);
         s.global_update(&max_diff, md);
         Step::Continue
@@ -104,16 +131,19 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
 
-    let num_vertices = g.num_vertices() as f64;
+    let num_vertices = g.num_vertices();
 
     let out: HashMap<LocalVertexRef, f64> = runner.run(
         vec![Job::new(step1)],
         vec![Job::new(step2), Job::new(step3), Job::new(step4), step5],
-        1 as f64 / num_vertices,
+        PageRankState::new(num_vertices),
         |g, _, _, local| {
             local
                 .iter()
-                .filter_map(|line| line.map(|(v_ref, score)| (v_ref, score)))
+                .filter_map(|line| {
+                    line.as_ref()
+                        .map(|(v_ref, state)| (v_ref.clone(), state.score))
+                })
                 .collect::<HashMap<_, _>>()
         },
         threads,
