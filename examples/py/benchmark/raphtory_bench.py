@@ -11,6 +11,12 @@ simple_relationship_file = "data/simple-relationships.csv"
 
 class RaphtoryBench(BenchmarkBase):
 
+    def start_docker(self):
+        pass
+
+    def shutdown(self):
+        del self.graph
+
     def name(self):
         return "Raphtory"
 

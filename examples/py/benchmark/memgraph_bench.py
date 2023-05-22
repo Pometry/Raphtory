@@ -11,6 +11,12 @@ from gqlalchemy import Memgraph
 
 class MemgraphBench(BenchmarkBase):
 
+    def start_docker(self):
+        pass
+
+    def shutdown(self):
+        del self.graph
+
     def name(self):
         return "Memgraph"
 

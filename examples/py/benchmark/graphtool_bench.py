@@ -7,6 +7,12 @@ simple_relationship_file = "data/simple-relationships.csv"
 
 
 class GraphToolBench(BenchmarkBase):
+    def start_docker(self):
+        pass
+
+    def shutdown(self):
+        self.graph.clear()
+
     def __init__(self):
         self.graph = None
 

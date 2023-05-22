@@ -8,6 +8,10 @@ from abc import ABC, abstractmethod
 class BenchmarkBase(ABC):
 
     @abstractmethod
+    def start_docker(self):
+        pass
+
+    @abstractmethod
     def name(self):
         return self.name()
 
@@ -34,4 +38,8 @@ class BenchmarkBase(ABC):
 
     @abstractmethod
     def connected_components(self):
+        pass
+
+    @abstractmethod
+    def shutdown(self):
         pass

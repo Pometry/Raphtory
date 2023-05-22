@@ -3,6 +3,12 @@ from pycozo.client import Client
 
 
 class CozoDBBench(BenchmarkBase):
+    def start_docker(self):
+        pass
+
+    def shutdown(self):
+        self.client.close()
+
     def __init__(self):
         self.client = Client()
 

@@ -4,6 +4,13 @@ import kuzu
 
 class KuzuBench(BenchmarkBase):
 
+    def start_docker(self):
+        pass
+
+    def shutdown(self):
+        del self.conn
+        del self.db
+
     def name(self):
         return "Kuzu"
 

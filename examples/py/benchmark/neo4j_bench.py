@@ -59,6 +59,12 @@ def run_connected_components(tx):
 
 
 class Neo4jBench(BenchmarkBase):
+    def start_docker(self):
+        pass
+
+    def shutdown(self):
+        self.driver.close()
+
     def __init__(self):
         self.driver = None
 

@@ -8,6 +8,13 @@ simple_relationship_file = "data/simple-relationships.csv"
 
 
 class NetworkXBench(BenchmarkBase):
+    def start_docker(self):
+        pass
+
+    def shutdown(self):
+        self.graph.clear()
+        del self.graph
+
     def __init__(self):
         self.graph = None
 
