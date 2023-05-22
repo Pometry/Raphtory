@@ -103,6 +103,7 @@ pub fn triangle_count<G: GraphViewOps>(g: &G, threads: Option<usize>) -> usize {
     runner.run(
         init_tasks,
         tasks,
+        (),
         |egs, _, _, _| egs.finalize(&count),
         threads,
         1,

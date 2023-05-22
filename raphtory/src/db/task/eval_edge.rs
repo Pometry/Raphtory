@@ -8,30 +8,40 @@ use crate::db::view_api::edge::{EdgeViewInternalOps, EdgeViewOps};
 use crate::db::view_api::{EdgeListOps, GraphViewOps};
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::marker::PhantomData;
 use std::rc::Rc;
 use std::sync::Arc;
 
 use super::eval_vertex_state::EVState;
+use super::task_state::Local2;
 
-#[derive(Clone)]
-pub struct EvalEdgeView<'a, G: GraphViewOps, CS: ComputeState> {
+pub struct EvalEdgeView<'a, G: GraphViewOps, CS: ComputeState, S> {
     ss: usize,
     ev: EdgeView<G>,
     vertex_state: Rc<RefCell<EVState<'a, CS>>>,
+    local_state_prev: &'a Local2<'a, S>,
+    _s: PhantomData<S>,
 }
 
-impl<'a, G: GraphViewOps, CS: ComputeState> EvalEdgeView<'a, G, CS> {
-    fn new_from_view(&self, ev: EdgeView<G>) -> Self {
+impl<'a, G: GraphViewOps, CS: ComputeState, S> EvalEdgeView<'a, G, CS, S> {
+    fn new_from_view(
+        ev: EdgeView<G>,
+        ss: usize,
+        vertex_state: Rc<RefCell<EVState<'a, CS>>>,
+        local_state_prev: &'a Local2<'a, S>
+    ) -> Self {
         Self {
-            ss: self.ss,
+            ss,
             ev,
-            vertex_state: self.vertex_state.clone(),
+            vertex_state,
+            local_state_prev,
+            _s: PhantomData,
         }
     }
 }
 
-impl<'a, G: GraphViewOps, CS: ComputeState> EdgeViewInternalOps<G, EvalVertexView<'a, G, CS>>
-    for EvalEdgeView<'a, G, CS>
+impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static>
+    EdgeViewInternalOps<G, EvalVertexView<'a, G, CS, S>> for EvalEdgeView<'a, G, CS, S>
 {
     fn graph(&self) -> Arc<G> {
         self.ev.graph()
@@ -41,33 +51,49 @@ impl<'a, G: GraphViewOps, CS: ComputeState> EdgeViewInternalOps<G, EvalVertexVie
         self.ev.eref()
     }
 
-    fn new_vertex(&self, v: VertexRef) -> EvalVertexView<'a, G, CS> {
+    fn new_vertex(&self, v: VertexRef) -> EvalVertexView<'a, G, CS, S> {
         let vv = self.ev.new_vertex(v);
-        EvalVertexView::new_from_view(self.ss, vv, None, self.vertex_state.clone())
+        EvalVertexView::new_from_view(
+            self.ss,
+            vv,
+            None,
+            self.local_state_prev,
+            self.vertex_state.clone(),
+        )
     }
 
     fn new_edge(&self, e: EdgeRef) -> Self {
-        EvalEdgeView::new(self.ss, e, self.graph(), self.vertex_state.clone())
+        EvalEdgeView::new(
+            self.ss,
+            e,
+            self.graph(),
+            self.local_state_prev,
+            self.vertex_state.clone(),
+        )
     }
 }
 
-impl<'a, G: GraphViewOps, CS: ComputeState> EdgeViewOps for EvalEdgeView<'a, G, CS> {
+impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeViewOps for EvalEdgeView<'a, G, CS, S> {
     type Graph = G;
-    type Vertex = EvalVertexView<'a, G, CS>;
+    type Vertex = EvalVertexView<'a, G, CS, S>;
     type EList = Box<dyn Iterator<Item = Self> + 'a>;
 
     fn explode(&self) -> Self::EList {
-        let eev = self.clone();
-        Box::new(self.ev.explode().map(move |ev| eev.new_from_view(ev)))
+        let ss = self.ss;
+        let vertex_state = self.vertex_state.clone();
+        let local_state_prev = self.local_state_prev;
+        Box::new(self.ev.explode().map(move |ev| {
+            EvalEdgeView::new_from_view(ev, ss, vertex_state.clone(), local_state_prev)
+        }))
     }
 }
 
-impl<'a, G: GraphViewOps, CS: ComputeState> EdgeListOps
-    for Box<dyn Iterator<Item = EvalEdgeView<'a, G, CS>> + 'a>
+impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeListOps
+    for Box<dyn Iterator<Item = EvalEdgeView<'a, G, CS, S>> + 'a>
 {
     type Graph = G;
-    type Vertex = EvalVertexView<'a, G, CS>;
-    type Edge = EvalEdgeView<'a, G, CS>;
+    type Vertex = EvalVertexView<'a, G, CS, S>;
+    type Edge = EvalEdgeView<'a, G, CS, S>;
     type ValueType<T> = T;
     type VList = Box<dyn Iterator<Item = Self::Vertex> + 'a>;
     type IterType<T> = Box<dyn Iterator<Item = T> + 'a>;
@@ -127,25 +153,35 @@ impl<'a, G: GraphViewOps, CS: ComputeState> EdgeListOps
     }
 }
 
-impl<'a, G: GraphViewOps, CS: ComputeState> EvalEdgeView<'a, G, CS> {
+impl<'a, G: GraphViewOps, CS: ComputeState, S> EvalEdgeView<'a, G, CS, S> {
     pub(crate) fn new(
         ss: usize,
         edge: EdgeRef,
         g: Arc<G>,
+        local_state_prev: &'a Local2<'a, S>,
         vertex_state: Rc<RefCell<EVState<'a, CS>>>,
     ) -> Self {
         Self {
             ss,
             ev: EdgeView::new(g, edge),
             vertex_state,
+            local_state_prev,
+            _s: PhantomData,
         }
     }
 
-    pub(crate) fn new_(ss: usize, ev: EdgeView<G>, vertex_state: Rc<RefCell<EVState<'a, CS>>>) -> Self {
+    pub(crate) fn new_(
+        ss: usize,
+        ev: EdgeView<G>,
+        local_state_prev: &'a Local2<'a, S>,
+        vertex_state: Rc<RefCell<EVState<'a, CS>>>,
+    ) -> Self {
         Self {
             ss,
             ev,
             vertex_state,
+            local_state_prev,
+            _s: PhantomData,
         }
     }
 }

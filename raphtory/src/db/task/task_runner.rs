@@ -6,7 +6,7 @@ use std::{
 
 use rayon::{prelude::*, ThreadPool};
 
-use crate::core::state::shuffle_state::{EvalGlobalState, EvalLocalState, EvalShardState};
+use crate::core::state::shuffle_state::{EvalLocalState, EvalShardState};
 use crate::core::vertex_ref::LocalVertexRef;
 use crate::{core::state::compute_state::ComputeState, db::view_api::GraphViewOps};
 
@@ -16,7 +16,7 @@ use super::{
     eval_vertex::EvalVertexView,
     eval_vertex_state::EVState,
     task::{Job, Step, Task},
-    task_state::{Global, Shard},
+    task_state::{Global, Local2, Shard},
     POOL,
 };
 
@@ -39,15 +39,15 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         (shard, global)
     }
 
-    fn run_task_v2(
+    fn run_task_v2<S: 'static>(
         &self,
         shard_state: &Shard<CS>,
         global_state: &Global<CS>,
-        morcel: &mut [Option<(LocalVertexRef, f64)>],
-        prev_local_state: &Vec<Option<(LocalVertexRef, f64)>>,
+        morcel: &mut [Option<(LocalVertexRef, S)>],
+        prev_local_state: &Vec<Option<(LocalVertexRef, S)>>,
         max_shard_len: usize,
         atomic_done: &AtomicBool,
-        task: &Box<dyn Task<G, CS> + Send + Sync>,
+        task: &Box<dyn Task<G, CS, S> + Send + Sync>,
     ) -> (Shard<CS>, Global<CS>) {
         // the view for this task of the global state
         let shard_state_view = shard_state.as_cow();
@@ -57,12 +57,9 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
 
         let mut done = true;
 
-        let vertex_state = EVState::rc_from(
-            shard_state_view,
-            global_state_view,
-            prev_local_state,
-            max_shard_len,
-        );
+        let vertex_state = EVState::rc_from(shard_state_view, global_state_view);
+
+        let local = Local2::new(max_shard_len, prev_local_state);
 
         for line in morcel {
             if let Some((v_ref, local_state)) = line {
@@ -71,6 +68,7 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
                     v_ref.clone(),
                     g.clone(),
                     Some(local_state),
+                    &local,
                     vertex_state.clone(),
                 );
 
@@ -110,20 +108,20 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         }
     }
 
-    pub fn run_task_list(
+    pub fn run_task_list<S: Send + Sync + 'static>(
         &mut self,
-        tasks: &[Job<G, CS>],
+        tasks: &[Job<G, CS, S>],
         pool: &ThreadPool,
         shard_state: Shard<CS>,
         global_state: Global<CS>,
-        mut local_state: Vec<Option<(LocalVertexRef, f64)>>,
-        prev_local_state: &Vec<Option<(LocalVertexRef, f64)>>,
+        mut local_state: Vec<Option<(LocalVertexRef, S)>>,
+        prev_local_state: &Vec<Option<(LocalVertexRef, S)>>,
         max_shard_len: usize,
     ) -> (
         bool,
         Shard<CS>,
         Global<CS>,
-        Vec<Option<(LocalVertexRef, f64)>>,
+        Vec<Option<(LocalVertexRef, S)>>,
     ) {
         pool.install(move || {
             let chunk_size = 65_536;
@@ -190,12 +188,13 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         })
     }
 
-    fn make_cur_and_prev_states(
+    fn make_cur_and_prev_states<S: Clone>(
         &self,
+        init: S,
     ) -> (
         usize,
-        Vec<Option<(LocalVertexRef, f64)>>,
-        Vec<Option<(LocalVertexRef, f64)>>,
+        Vec<Option<(LocalVertexRef, S)>>,
+        Vec<Option<(LocalVertexRef, S)>>,
     ) {
         let g = self.ctx.graph();
 
@@ -212,7 +211,7 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         for v_ref in g.vertex_refs() {
             let LocalVertexRef { shard_id, pid } = v_ref;
             let i = max_shard_len * shard_id + pid;
-            states[i] = Some((v_ref.clone(), 1.0 / g.num_vertices() as f64));
+            states[i] = Some((v_ref.clone(), init.clone()));
         }
 
         (max_shard_len, states.clone(), states)
@@ -224,13 +223,15 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
                 GlobalState<CS>,
                 EvalShardState<G, CS>,
                 EvalLocalState<G, CS>,
-                &Vec<Option<(LocalVertexRef, f64)>>,
+                &Vec<Option<(LocalVertexRef, S)>>,
             ) -> B
             + std::marker::Copy,
+        S: Send + Sync + Clone + 'static,
     >(
         &mut self,
-        init_tasks: Vec<Job<G, CS>>,
-        tasks: Vec<Job<G, CS>>,
+        init_tasks: Vec<Job<G, CS, S>>,
+        tasks: Vec<Job<G, CS, S>>,
+        init: S,
         f: F,
         num_threads: Option<usize>,
         steps: usize,
@@ -248,7 +249,7 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         let mut global_state = global_initial_state.unwrap_or_else(|| Global::new());
 
         let (max_shard_len, mut cur_local_state, mut prev_local_state) =
-            self.make_cur_and_prev_states();
+            self.make_cur_and_prev_states::<S>(init);
 
         let mut done = false;
 
@@ -292,7 +293,7 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         };
 
         f(
-            GlobalState::new(global_state , ss -1) ,
+            GlobalState::new(global_state, ss - 1),
             EvalShardState::new(ss, self.ctx.graph(), shard_state),
             EvalLocalState::new(ss, self.ctx.graph(), vec![]),
             &last_local_state,

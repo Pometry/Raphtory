@@ -46,37 +46,29 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
     ctx.global_agg_reset(total_sink_contribution);
 
     let step1 = ATask::new(move |s| {
-        *s.unwrap_local_state() = 1f64 / n as f64;
+        *s.get_mut() = 1f64 / n as f64;
         Step::Continue
     });
 
     let step2 = ATask::new(move |s| {
         // reset score
-        *s.unwrap_local_state() = 0f64;
+        *s.get_mut() = 0f64;
 
         for t in s.in_neighbours() {
-            let prev = t
-                .entry(&score)
-                .read_local_prev()
-                .map(|x| *x)
-                .unwrap_or_else(|| (1f64 / n as f64));
+            let prev = t.prev();
 
-            *s.unwrap_local_state() += prev / t.out_degree() as f64;
+            *s.get_mut() += prev / t.out_degree() as f64;
         }
 
-        *s.unwrap_local_state() *= damp;
+        *s.get_mut() *= damp;
 
-        *s.unwrap_local_state() += teleport_prob;
+        *s.get_mut() += teleport_prob;
         Step::Continue
     });
 
     let step3 = ATask::new(move |s| {
         if s.out_degree() == 0 {
-            let curr = s
-                .entry(&score)
-                .read_local_prev()
-                .map(|x| *x)
-                .unwrap_or(1 as f64 / n as f64);
+            let curr = s.prev();
 
             let ts_contrib = factor * curr;
             s.global_update(&total_sink_contribution, ts_contrib);
@@ -90,17 +82,12 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
             .read_global_state(&total_sink_contribution)
             .unwrap_or_default();
         // update local score with total sink contribution
-        *s.unwrap_local_state() += total_sink_contribution;
+        *s.get_mut() += total_sink_contribution;
 
         // update global max diff
 
-        let curr = *s.unwrap_local_state();
-        let prev = s
-            .entry(&score)
-            .read_local_prev()
-            .map(|x| *x)
-            .unwrap_or(1 as f64 / n as f64);
-
+        let curr = *s.get_mut();
+        let prev = s.prev();
         let md = abs(prev - curr);
         s.global_update(&max_diff, md);
         Step::Continue
@@ -122,6 +109,7 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
     let out: HashMap<LocalVertexRef, f64> = runner.run(
         vec![Job::new(step1)],
         vec![Job::new(step2), Job::new(step3), Job::new(step4), step5],
+        1 as f64 / num_vertices,
         |g, _, _, local| {
             local
                 .iter()

@@ -56,7 +56,7 @@ use std::collections::{HashMap, HashSet};
 /// Gets the unique edge counts excluding cycles for a vertex. Returns a tuple of usize
 /// (out neighbours, in neighbours, the intersection of the out and in neighbours)
 fn get_reciprocal_edge_count<G: GraphViewOps, CS: ComputeState>(
-    v: &EvalVertexView<G, CS>,
+    v: &EvalVertexView<G, CS, ()>,
 ) -> (usize, usize, usize) {
     let id = v.id();
     let out_neighbours: HashSet<u64> = v.out_neighbours().id().filter(|x| *x != id).collect();
@@ -90,6 +90,7 @@ pub fn global_reciprocity<G: GraphViewOps>(g: &G, threads: Option<usize>) -> f64
     runner.run(
         vec![],
         vec![Job::new(step1)],
+        (),
         |egs, _, _, _| {
             (egs.finalize(&total_out_inter_in) as f64)
                 / (egs.finalize(&total_out_neighbours) as f64)
@@ -127,6 +128,7 @@ pub fn all_local_reciprocity<G: GraphViewOps>(
     runner.run(
         vec![],
         vec![Job::new(step1)],
+        (),
         |_, ess, _, _| ess.finalize(&min, |min| min),
         threads,
         1,

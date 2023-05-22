@@ -15,7 +15,7 @@ struct Edge {
 }
 
 fn main() {
-    let shards = 16;
+    let shards = 4;
     let g = Graph::new(shards);
     let now = Instant::now();
 

@@ -128,6 +128,7 @@ pub fn hits<G: GraphViewOps>(
     let (hub_scores, auth_scores) = runner.run(
         vec![Job::new(step1)],
         vec![Job::new(step2), Job::new(step3), Job::new(step4), step5],
+        (),
         |_, _, els, _| {
             (
                 els.finalize(&hub_score, |hub_score| hub_score),
