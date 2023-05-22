@@ -1,16 +1,45 @@
 from benchmark_base import BenchmarkBase
 from pycozo.client import Client
+import docker
+import os
 
 
 class CozoDBBench(BenchmarkBase):
     def start_docker(self):
-        pass
+        print('Creating Docker client...')
+        self.docker = docker.from_env()
+        print('Pulling Docker image...')
+        image_name = 'python:3.10-bullseye'
+        self.docker.images.pull(image_name)
+        print('Defining volumes...')
+        local_folder = os.path.abspath(os.getcwd()) + '/data'
+        container_folder = '/app/data'
+        volumes = {local_folder: {'bind': container_folder, 'mode': 'ro'}}
+        print('Running Docker container & benchmark...')
+        self.container = self.docker.containers.run(
+            image_name,
+            command='pip install "pycozo[embedded,requests,pandas]" '
+                    '&& python /app/data/benchmark_driver.py --bench cozo',
+            volumes=volumes,
+            detach=True
+        )
+        print('Waiting for container to finish...')
+        exit_code = self.container.wait()['StatusCode']
+        print('Retrieving container logs...')
+        logs = self.container.logs().decode('utf-8')
+        # Remove the container
+        print('Removing container...')
+        self.container.remove()
+        # Return the exit code and logs
+        return exit_code, logs
 
     def shutdown(self):
         self.client.close()
 
     def __init__(self):
         self.client = Client()
+        self.docker = None
+        self.container = None
 
     def name(self):
         return "CozoDB"

@@ -26,8 +26,7 @@ class RaphtoryBench(BenchmarkBase):
     def setup(self):
         # Load edges
         self.graph = raphtory.Graph(multiprocessing.cpu_count())
-        with gzip.open(simple_relationship_file, 'rt') as f:
-            # with open(simple_relationship_file, 'r') as f:
+        with open(simple_relationship_file, 'r') as f:
             reader = csv.reader(f, delimiter='\t')
             for row in tqdm(reader, total=30622564):
                 self.graph.add_edge(1, row[0], row[1], {})

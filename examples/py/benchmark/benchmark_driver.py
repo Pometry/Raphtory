@@ -20,21 +20,23 @@ fns = ['setup', 'degree', 'out_neighbours', 'page_rank', 'connected_components']
 
 def process_arguments():
     parser = argparse.ArgumentParser(description='benchmark args')
-    parser.add_argument('-d', '--docker', type=bool, help='Launch with docker containers (default: False)', default=False)
-    parser.add_argument('-b', '--bench', type=int, help="""
+    parser.add_argument('-d', '--docker', type=bool, help='Launch with docker containers (default: False)',
+                        default=False)
+    parser.add_argument('-s', '--save', type=bool, help='Save results to file (default: False)', default=False)
+    parser.add_argument('-b', '--bench', type=str, help="""
     Run specific benchmark,
-    default: Goes to Menu,
-    0. Run All,
-    1. Download Data,
-    2. Run Raphtory Benchmark,
-    3. Run GraphTool Benchmark,
-    4. Run Kuzu Benchmark,
-    5. Run NetworkX Benchmark,
-    6. Run Neo4j Benchmark,
-    7. Run Memgraph Benchmark,
-    8. Run CozoDB Benchmark,
-    9. Exit
-    """, default=-1)
+    default: Goes to Menu (if docker runs all),
+    all: Run All
+    download: Download Data
+    r: Run Raphtory Benchmark
+    gt: Run GraphTool Benchmark
+    k: Run Kuzu Benchmark
+    nx: Run NetworkX Benchmark
+    neo: Run Neo4j Benchmark
+    mem: Run Memgraph Benchmark
+    cozo: Run CozoDB Benchmark
+    exit: Exit
+    """, default='menu')
     argsx = parser.parse_args()
     return argsx
 
@@ -42,31 +44,31 @@ def process_arguments():
 # Display menu and get user's choice
 def display_menu():
     print("Benchmark Options:")
-    print("0. Run All")
-    print("1. Download Data")
-    print("2. Run Raphtory Benchmark")
-    print("3. Run GraphTool Benchmark")
-    print("4. Run Kuzu Benchmark")
-    print("5. Run NetworkX Benchmark")
-    print("6. Run Neo4j Benchmark")
-    print("7. Run Memgraph Benchmark")
-    print("8. Run CozoDB Benchmark")
-    print("9. Exit")
+    print("all: Run All")
+    print("download: Download Data")
+    print("r: Run Raphtory Benchmark")
+    print("gt: Run GraphTool Benchmark")
+    print("k: Run Kuzu Benchmark")
+    print("nx: Run NetworkX Benchmark")
+    print("neo: Run Neo4j Benchmark")
+    print("mem: Run Memgraph Benchmark")
+    print("cozo: Run CozoDB Benchmark")
+    print("exit: Exit")
     choice = int(input("Enter your choice: "))
     return choice
 
 
 def setup():
     return {
-        0: 'ALL',
-        1: 'DOWNLOAD',
-        2: RaphtoryBench(),
-        3: GraphToolBench(),
-        4: KuzuBench(),
-        5: NetworkXBench(),
-        6: Neo4jBench(),
-        7: MemgraphBench(),
-        8: CozoDBBench()
+        'all': 'ALL',
+        'download': 'DOWNLOAD',
+        'r': RaphtoryBench(),
+        'gt': GraphToolBench(),
+        'k': KuzuBench(),
+        'nx': NetworkXBench(),
+        'neo': Neo4jBench(),
+        'mem': MemgraphBench(),
+        'cozo': CozoDBBench()
     }
 
 
@@ -83,7 +85,7 @@ def run_benchmark(choice, save=False):
         times.append(end_time - start_time)
     filename = ''
     if save:
-        filename = '/tmp/bench-'+driver.name()+str(int(time.time())) + '.csv'
+        filename = '/tmp/bench-' + driver.name() + str(int(time.time())) + '.csv'
         pd.DataFrame([times], columns=fns).to_csv(filename, index=False)
     return driver.name(), times, filename
 
@@ -92,7 +94,7 @@ def run_all():
     print("** Running all benchmarks...")
     results = {}
     for key in setup().keys():
-        if key == 0:
+        if key == 'menu' or key == 'all' or key == 'download':
             continue
         print("** Running benchmark " + str(key) + "...")
         name, result, filename = run_benchmark(key)
@@ -155,25 +157,54 @@ def download_data():
     return 'data/simple-profiles.csv', 'data/simple-relationships.csv'
 
 
-def main(docker, bench):
+def run_benchmark_docker(bench):
+    results = {}
+    benchmarks_to_run = []
+    if bench == 'menu':
+        for key in setup().keys():
+            if key == 'menu' or key == 'all' or key == 'download':
+                continue
+            benchmarks_to_run.append(key)
+    else:
+        benchmarks_to_run.append(bench)
+    for key in benchmarks_to_run:
+        print("** Running dockerized benchmark " + str(key) + "...")
+        driver = setup()[key]
+        print("** Running for " + driver.name() + "...")
+        print("Starting docker container...")
+        exit_code, logs = driver.start_docker()
+        if exit_code != 0:
+            print("Docker container exited with non-zero code " + str(exit_code))
+            print("Logs: " + logs)
+    else:
+        pass
+
+
+def main(docker, bench, save):
+    print("Welcome to the Raphtory Benchmarking Tool")
     results = {}
     try:
-        if bench == -1:
-            while True:
-                choice = display_menu()
-                if choice not in setup():
-                    print(str(choice) + " not found. Exiting...")
-                    break
-                if choice == 0:
-                    results = run_all()
-                elif choice == 1:
-                    download_data()
-                else:
-                    name, result, filename = run_benchmark(choice)
-                    results[name] = result
+        if docker:
+            print("Running dockerised benchmarking...")
+            run_benchmark_docker(bench)
         else:
-            name, result, filename = run_benchmark(bench)
-            results[name] = result
+            print("Running local benchmarking...")
+            if bench == 'menu':
+                while True:
+                    choice = display_menu()
+                    if choice not in setup():
+                        print(str(choice) + " not found. Exiting...")
+                        break
+                    if choice == 0:
+                        results = run_all()
+                    elif choice == 1:
+                        download_data()
+                    else:
+                        name, result, filename = run_benchmark(choice, save)
+                        results[name] = result
+            else:
+                name, result, filename = run_benchmark(bench, save)
+                results[name] = result
     except Exception as e:
         print("Error: " + str(e))
         raise e
@@ -183,4 +214,4 @@ def main(docker, bench):
 
 if __name__ == "__main__":
     args = process_arguments()
-    main(args.docker, args.bench)
+    main(args.docker, args.bench, args.save)
