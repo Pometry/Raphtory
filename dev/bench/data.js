@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1684514351374,
+  "lastUpdate": 1684774615828,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -1291,6 +1291,60 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions with numeric string input",
             "value": 2105018,
             "range": "± 147069",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97447091+ljeub-pometry@users.noreply.github.com",
+            "name": "ljeub-pometry",
+            "username": "ljeub-pometry"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "76895047ef4f429fad2d42fc92ff5468f804aa0a",
+          "message": "Feature/api improvements (#961)\n\n* make python wrappers useable outside of crate\r\n\r\n* small eval improvements\r\n\r\n* return the pyvis graph for further tweaks\r\n\r\n* refactor python bindings to make exposing them possible\r\n\r\n* fix imports (maybe we should move algirhtms)\r\n\r\n* make all the things public\r\n\r\n* move the tests to the correct place\r\n\r\n* ignore all the python generated things\r\n\r\n* fix workflows and improve naming",
+          "timestamp": "2023-05-22T17:53:00+01:00",
+          "tree_id": "d813ea809bcbc4f3bdc746947dc9a43dd17dd249",
+          "url": "https://github.com/Pometry/Raphtory/commit/76895047ef4f429fad2d42fc92ff5468f804aa0a"
+        },
+        "date": 1684774614828,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 313772,
+            "range": "± 1220",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and numeric string input",
+            "value": 864692,
+            "range": "± 9218",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and string input",
+            "value": 901498,
+            "range": "± 16894",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 725371,
+            "range": "± 124056",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions with numeric string input",
+            "value": 2250769,
+            "range": "± 129302",
             "unit": "ns/iter"
           }
         ]
