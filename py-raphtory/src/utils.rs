@@ -56,7 +56,7 @@ pub(crate) fn at_impl<T: TimeOps + Sized + Clone>(
     Ok(slf.at(end))
 }
 
-pub(crate) fn adapt_err_value<E>(err: &E) -> PyErr
+pub fn adapt_err_value<E>(err: &E) -> PyErr
 where
     E: Error + ?Sized,
 {

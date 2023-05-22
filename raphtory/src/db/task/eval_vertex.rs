@@ -307,6 +307,18 @@ impl<'a, G: GraphViewOps, CS: ComputeState> EvalPathFromVertex<'a, G, CS> {
             )
         }))
     }
+
+    pub fn read_prev<'b, A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
+        self,
+        acc_id: &'b AccId<A, IN, OUT, ACC>,
+    ) -> Box<dyn Iterator<Item = OUT> + '_>
+    where
+        A: StateType,
+        OUT: std::fmt::Debug,
+        Self: 'b,
+    {
+        Box::new(self.into_iter().map(|vv| vv.read_prev(acc_id)))
+    }
 }
 
 impl<'a, G: GraphViewOps, CS: ComputeState> IntoIterator for EvalPathFromVertex<'a, G, CS> {

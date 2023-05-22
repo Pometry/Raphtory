@@ -2,7 +2,7 @@
 //! Allows us to generate graphs using the preferential attachment model and
 //! the random attachment model.
 
-use crate::PyGraph;
+use crate::graph::PyGraph;
 use pyo3::prelude::*;
 use raphtory::graphgen::preferential_attachment::ba_preferential_attachment as pa;
 use raphtory::graphgen::random_attachment::random_attachment as ra;
@@ -21,7 +21,7 @@ use raphtory::graphgen::random_attachment::random_attachment as ra;
 /// Returns:
 ///  None
 #[pyfunction]
-pub(crate) fn random_attachment(g: &PyGraph, vertices_to_add: usize, edges_per_step: usize) {
+pub fn random_attachment(g: &PyGraph, vertices_to_add: usize, edges_per_step: usize) {
     ra(&g.graph, vertices_to_add, edges_per_step);
 }
 
@@ -47,10 +47,6 @@ pub(crate) fn random_attachment(g: &PyGraph, vertices_to_add: usize, edges_per_s
 ///
 /// None
 #[pyfunction]
-pub(crate) fn ba_preferential_attachment(
-    g: &PyGraph,
-    vertices_to_add: usize,
-    edges_per_step: usize,
-) {
+pub fn ba_preferential_attachment(g: &PyGraph, vertices_to_add: usize, edges_per_step: usize) {
     pa(&g.graph, vertices_to_add, edges_per_step);
 }

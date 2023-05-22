@@ -2095,6 +2095,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "py-raphtory"
+version = "0.3.1"
+dependencies = [
+ "bincode",
+ "chrono",
+ "csv",
+ "display-error-chain",
+ "flate2",
+ "flume",
+ "futures",
+ "itertools",
+ "num",
+ "parking_lot",
+ "pyo3",
+ "raphtory",
+ "raphtory-io",
+ "rayon",
+ "regex",
+ "replace_with",
+ "rustc-hash",
+ "serde",
+ "tokio",
+]
+
+[[package]]
 name = "pyo3"
 version = "0.18.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2154,32 +2179,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 1.0.109",
-]
-
-[[package]]
-name = "pyraphtory"
-version = "0.3.1"
-dependencies = [
- "bincode",
- "chrono",
- "csv",
- "display-error-chain",
- "flate2",
- "flume",
- "futures",
- "itertools",
- "num",
- "parking_lot",
- "pyo3",
- "pyo3-build-config",
- "raphtory",
- "raphtory-io",
- "rayon",
- "regex",
- "replace_with",
- "rustc-hash",
- "serde",
- "tokio",
 ]
 
 [[package]]
@@ -2410,6 +2409,15 @@ dependencies = [
  "reqwest",
  "serde",
  "tokio",
+]
+
+[[package]]
+name = "raphtory-pymodule"
+version = "0.3.1"
+dependencies = [
+ "py-raphtory",
+ "pyo3",
+ "pyo3-build-config",
 ]
 
 [[package]]
