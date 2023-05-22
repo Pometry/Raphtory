@@ -1,3 +1,5 @@
+import argparse
+
 import pandas as pd
 
 from raphtory_bench import RaphtoryBench
@@ -14,6 +16,27 @@ import requests
 import os
 
 fns = ['setup', 'degree', 'out_neighbours', 'page_rank', 'connected_components']
+
+
+def process_arguments():
+    parser = argparse.ArgumentParser(description='benchmark args')
+    parser.add_argument('-d', '--docker', type=bool, help='Launch with docker containers (default: False)', default=False)
+    parser.add_argument('-b', '--bench', type=int, help="""
+    Run specific benchmark,
+    default: Goes to Menu,
+    0. Run All,
+    1. Download Data,
+    2. Run Raphtory Benchmark,
+    3. Run GraphTool Benchmark,
+    4. Run Kuzu Benchmark,
+    5. Run NetworkX Benchmark,
+    6. Run Neo4j Benchmark,
+    7. Run Memgraph Benchmark,
+    8. Run CozoDB Benchmark,
+    9. Exit
+    """, default=-1)
+    argsx = parser.parse_args()
+    return argsx
 
 
 # Display menu and get user's choice
@@ -47,8 +70,9 @@ def setup():
     }
 
 
-def run_benchmark(choice):
+def run_benchmark(choice, save=False):
     driver = setup()[choice]
+    print("** Running for " + driver.name() + "...")
     times = []
     for fn in fns:
         print("** Running " + fn + "...")
@@ -57,7 +81,11 @@ def run_benchmark(choice):
         end_time = time.time()
         print(fn + " time: " + str(end_time - start_time))
         times.append(end_time - start_time)
-    return driver.name(), times
+    filename = ''
+    if save:
+        filename = '/tmp/bench-'+driver.name()+str(int(time.time())) + '.csv'
+        pd.DataFrame([times], columns=fns).to_csv(filename, index=False)
+    return driver.name(), times, filename
 
 
 def run_all():
@@ -67,7 +95,7 @@ def run_all():
         if key == 0:
             continue
         print("** Running benchmark " + str(key) + "...")
-        name, result = run_benchmark(key)
+        name, result, filename = run_benchmark(key)
         results[name] = result
     return results
 
@@ -127,26 +155,32 @@ def download_data():
     return 'data/simple-profiles.csv', 'data/simple-relationships.csv'
 
 
-def main():
+def main(docker, bench):
     results = {}
     try:
-        while True:
-            choice = display_menu()
-            if choice not in setup():
-                print(str(choice) + " not found. Exiting...")
-                break
-            if choice == 0:
-                results = run_all()
-            elif choice == 1:
-                download_data()
-            else:
-                name, result = run_benchmark(choice)
-                results[name] = result
+        if bench == -1:
+            while True:
+                choice = display_menu()
+                if choice not in setup():
+                    print(str(choice) + " not found. Exiting...")
+                    break
+                if choice == 0:
+                    results = run_all()
+                elif choice == 1:
+                    download_data()
+                else:
+                    name, result, filename = run_benchmark(choice)
+                    results[name] = result
+        else:
+            name, result, filename = run_benchmark(bench)
+            results[name] = result
     except Exception as e:
         print("Error: " + str(e))
+        raise e
     finally:
         print_table(results)
 
 
 if __name__ == "__main__":
-    main()
+    args = process_arguments()
+    main(args.docker, args.bench)

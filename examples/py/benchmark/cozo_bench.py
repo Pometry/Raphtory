@@ -21,7 +21,7 @@ class CozoDBBench(BenchmarkBase):
         self.client.run("""
             res[user] <~
                 CsvReader(types: ['Int'],
-                          url: 'file:///./data/simple-profiles.csv',
+                          url: 'file://./data/simple-profiles.csv',
                           has_headers: false)
             
             ?[code] :=
