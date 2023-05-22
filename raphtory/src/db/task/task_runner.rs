@@ -291,7 +291,6 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
             prev_local_state
         };
 
-        println!("Done after {} iterations", ss);
         f(
             GlobalState::new(global_state , ss -1) ,
             EvalShardState::new(ss, self.ctx.graph(), shard_state),
