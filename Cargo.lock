@@ -13,15 +13,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "_raphtory"
-version = "0.3.1"
-dependencies = [
- "py-raphtory",
- "pyo3",
- "pyo3-build-config",
-]
-
-[[package]]
 name = "adler"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2418,6 +2409,15 @@ dependencies = [
  "reqwest",
  "serde",
  "tokio",
+]
+
+[[package]]
+name = "raphtory-pymodule"
+version = "0.3.1"
+dependencies = [
+ "py-raphtory",
+ "pyo3",
+ "pyo3-build-config",
 ]
 
 [[package]]
