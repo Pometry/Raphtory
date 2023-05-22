@@ -2,8 +2,6 @@
 # docker run -it -p 7687:7687 -p 7444:7444 -p 3000:3000 -v mg_lib:/var/lib/memgraph memgraph/memgraph-platform
 # http://localhost:3000/quick-connect has the memgraph lab!
 
-profiles_file = "data/soc-pokec-profiles.txt.gz"  # 1,632,803
-relationships_file = "data/soc-pokec-relationships.txt.gz"  # 30,622,564
 simple_profile_file = "data/simple-profiles.csv"
 simple_relationship_file = "data/simple-relationships.csv"
 

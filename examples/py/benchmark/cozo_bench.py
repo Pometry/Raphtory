@@ -1,13 +1,5 @@
 from benchmark_base import BenchmarkBase
-import gzip
-import csv
-from tqdm import tqdm
 from pycozo.client import Client
-
-profiles_file = "data/soc-pokec-profiles.txt.gz"  # 1,632,803
-relationships_file = "data/soc-pokec-relationships.txt.gz"  # 30,622,564
-simple_profile_file = "data/simple-profiles.csv"
-simple_relationship_file = "data/simple-relationships.csv"
 
 
 class CozoDBBench(BenchmarkBase):
@@ -23,7 +15,7 @@ class CozoDBBench(BenchmarkBase):
         self.client.run("""
             res[user] <~
                 CsvReader(types: ['Int'],
-                          url: 'file:///Users/haaroony/Documents/dev/raphtory/examples/py/benchmark/data/simple-profiles.csv',
+                          url: 'file:///./data/simple-profiles.csv',
                           has_headers: false)
             
             ?[code] :=
@@ -36,7 +28,7 @@ class CozoDBBench(BenchmarkBase):
         self.client.run("""
             res[] <~
                 CsvReader(types: ['Int', 'Int'],
-                          url: 'file:///Users/haaroony/Documents/dev/raphtory/examples/py/benchmark/data/simple-relationships-50000.csv',
+                          url: 'file://./data/simple-relationships.csv',
                           delimiter: '\t',
                           has_headers: false)
             ?[fr, to] :=

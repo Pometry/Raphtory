@@ -1,13 +1,7 @@
-from abc import ABC
 from benchmark_base import BenchmarkBase
 import graph_tool.all as gt
-import gzip
 import csv
-# from tqdm import tqdm
-import random
 
-profiles_file = "data/soc-pokec-profiles.txt.gz"  # 1,632,803
-relationships_file = "data/soc-pokec-relationships.txt.gz"  # 30,622,564
 simple_profile_file = "data/simple-profiles.csv"
 simple_relationship_file = "data/simple-relationships.csv"
 
@@ -30,8 +24,8 @@ class GraphToolBench(BenchmarkBase):
     def degree(self):
         self.graph.degree_property_map('total').get_array()
 
-    def out_neighbours(self, id):
-        len(list(self.graph.iter_out_neighbors(id)))
+    def out_neighbours(self):
+        [len(list(v.out_neighbours())) for v in self.graph.vertices()]
 
     def page_rank(self):
         pr = gt.pagerank(self.graph)
