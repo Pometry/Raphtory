@@ -25,7 +25,7 @@ use tokio::runtime::Runtime;
 ///   A Graph containing the LOTR dataset
 #[pyfunction]
 #[pyo3(signature = (shards=1))]
-pub(crate) fn lotr_graph(shards: usize) -> PyResult<Py<PyGraph>> {
+pub fn lotr_graph(shards: usize) -> PyResult<Py<PyGraph>> {
     PyGraph::py_from_db_graph(raphtory_io::graph_loader::example::lotr_graph::lotr_graph(
         shards,
     ))
@@ -68,7 +68,7 @@ pub(crate) fn lotr_graph(shards: usize) -> PyResult<Py<PyGraph>> {
 ///  A Graph containing the Reddit hyperlinks dataset
 #[pyfunction]
 #[pyo3(signature = (shards=1,timeout_seconds=600))]
-pub(crate) fn reddit_hyperlink_graph(shards: usize, timeout_seconds: u64) -> PyResult<Py<PyGraph>> {
+pub fn reddit_hyperlink_graph(shards: usize, timeout_seconds: u64) -> PyResult<Py<PyGraph>> {
     PyGraph::py_from_db_graph(
         raphtory_io::graph_loader::example::reddit_hyperlinks::reddit_graph(
             shards,
@@ -80,7 +80,7 @@ pub(crate) fn reddit_hyperlink_graph(shards: usize, timeout_seconds: u64) -> PyR
 
 #[pyfunction]
 #[pyo3(signature = (path=None,shards=1))]
-pub(crate) fn stable_coin_graph(path: Option<String>, shards: usize) -> PyResult<Py<PyGraph>> {
+pub fn stable_coin_graph(path: Option<String>, shards: usize) -> PyResult<Py<PyGraph>> {
     PyGraph::py_from_db_graph(
         raphtory_io::graph_loader::example::stable_coins::stable_coin_graph(path, shards),
     )
@@ -88,7 +88,7 @@ pub(crate) fn stable_coin_graph(path: Option<String>, shards: usize) -> PyResult
 
 #[pyfunction]
 #[pyo3(signature = (uri,username,password,database="neo4j".to_string(),shards=1))]
-pub(crate) fn neo4j_movie_graph(
+pub fn neo4j_movie_graph(
     uri: String,
     username: String,
     password: String,
