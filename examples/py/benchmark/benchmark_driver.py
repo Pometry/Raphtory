@@ -11,6 +11,7 @@ import time
 # Display menu and get user's choice
 def display_menu():
     print("Benchmark Options:")
+    print("0. Run All")
     print("1. Run Raphtory Benchmark")
     print("2. Run GraphTool Benchmark")
     print("3. Run Kuzu Benchmark")
@@ -18,13 +19,14 @@ def display_menu():
     print("5. Run Neo4j Benchmark")
     print("6. Run Memgraph Benchmark")
     print("7. Run CozoDB Benchmark")
-    print("0. Exit")
+    print("8. Exit")
     choice = int(input("Enter your choice: "))
     return choice
 
 
 def setup():
     return {
+        # 0: RunAll(),
         1: RaphtoryBench(),
         2: GraphToolBench(),
         3: KuzuBench(),
@@ -37,6 +39,7 @@ def setup():
 
 def run_benchmark(choice):
     driver = setup()[choice]
+    times = {}
     fns = ['setup', 'degree', 'out_neighbours', 'page_rank', 'connected_components']
     for fn in fns:
         print("** Running " + fn + "...")
@@ -44,14 +47,17 @@ def run_benchmark(choice):
         getattr(driver, fn)()
         end_time = time.time()
         print(fn + " time: " + str(end_time - start_time))
-
+        times[fn] = end_time - start_time
+    return times
 
 def main():
+    results = {}
     while True:
         choice = display_menu()
-        if choice == 0:
+        if choice not in setup():
+            print(str(choice) + " not found. Exiting...")
             break
-        run_benchmark(choice)
+        results[choice] = run_benchmark(choice)
 
 
 if __name__ == "__main__":

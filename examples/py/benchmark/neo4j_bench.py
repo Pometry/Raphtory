@@ -62,6 +62,9 @@ class Neo4jBench(BenchmarkBase):
     def __init__(self):
         self.driver = None
 
+    def name(self):
+        return "Neo4j"
+
     def setup(self):
         uri = "bolt://localhost:7687"
         username = "neo4j"

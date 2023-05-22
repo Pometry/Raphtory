@@ -4,15 +4,18 @@ import csv
 from tqdm import tqdm
 from pycozo.client import Client
 
-
-profiles_file = "data/soc-pokec-profiles.txt.gz" # 1,632,803
-relationships_file = "data/soc-pokec-relationships.txt.gz" # 30,622,564
+profiles_file = "data/soc-pokec-profiles.txt.gz"  # 1,632,803
+relationships_file = "data/soc-pokec-relationships.txt.gz"  # 30,622,564
 simple_profile_file = "data/simple-profiles.csv"
 simple_relationship_file = "data/simple-relationships.csv"
+
 
 class CozoDBBench(BenchmarkBase):
     def __init__(self):
         self.client = Client()
+
+    def name(self):
+        return "CozoDB"
 
     def setup(self):
         self.client.run("{:create user { code: Int }}")

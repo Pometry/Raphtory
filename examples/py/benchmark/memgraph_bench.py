@@ -7,11 +7,15 @@ relationships_file = "data/soc-pokec-relationships.txt.gz"  # 30,622,564
 simple_profile_file = "data/simple-profiles.csv"
 simple_relationship_file = "data/simple-relationships.csv"
 
-
 from benchmark_base import BenchmarkBase
 from gqlalchemy import Memgraph
 
+
 class MemgraphBench(BenchmarkBase):
+
+    def name(self):
+        return "Memgraph"
+
     def __init__(self):
         self.graph = None
 

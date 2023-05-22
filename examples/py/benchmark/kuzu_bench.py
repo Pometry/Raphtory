@@ -1,7 +1,11 @@
 from benchmark_base import BenchmarkBase
 import kuzu
 
+
 class KuzuBench(BenchmarkBase):
+
+    def name(self):
+        return "Kuzu"
 
     def run_query(self, query):
         print("Running query: " + query)

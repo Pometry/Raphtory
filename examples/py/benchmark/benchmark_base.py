@@ -6,6 +6,11 @@ from abc import ABC, abstractmethod
 
 
 class BenchmarkBase(ABC):
+
+    @abstractmethod
+    def name(self):
+        return self.name()
+
     @abstractmethod
     def __init__(self):
         pass
