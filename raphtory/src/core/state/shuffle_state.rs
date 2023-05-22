@@ -383,6 +383,10 @@ impl<G: GraphViewOps, CS: ComputeState + Send> EvalShardState<G, CS> {
             .inner()
             .finalize(agg_def, self.ss, self.g.as_ref(), f)
     }
+
+    pub fn values(self) -> Shard<CS> {
+        self.shard_states
+    }
 }
 
 pub struct EvalLocalState<G: GraphViewOps, CS: ComputeState + Send> {

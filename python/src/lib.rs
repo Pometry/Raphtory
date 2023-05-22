@@ -1,24 +1,9 @@
 extern crate core;
 
-#[macro_use]
-mod macros;
-
-pub mod algorithms;
-mod dynamic;
-pub mod edge;
-pub mod graph;
-pub mod graph_gen;
-pub mod graph_loader;
-pub mod graph_view;
-pub mod types;
-mod utils;
-pub mod vertex;
-pub mod wrappers;
-
-use crate::algorithms::*;
-use crate::graph::PyGraph;
-use crate::graph_gen::*;
-use crate::graph_loader::*;
+use py_raphtory::algorithms::*;
+use py_raphtory::graph::PyGraph;
+use py_raphtory::graph_gen::*;
+use py_raphtory::graph_loader::*;
 use pyo3::prelude::*;
 
 /// Raphtory graph analytics library

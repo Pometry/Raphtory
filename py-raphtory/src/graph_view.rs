@@ -15,7 +15,7 @@ use raphtory::*;
 /// Graph view is a read-only version of a graph at a certain point in time.
 #[pyclass(name = "GraphView", frozen, subclass)]
 pub struct PyGraphView {
-    pub(crate) graph: DynamicGraph,
+    pub graph: DynamicGraph,
 }
 
 /// Graph view is a read-only version of a graph at a certain point in time.
