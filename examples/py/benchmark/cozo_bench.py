@@ -12,26 +12,41 @@ class CozoDBBench(BenchmarkBase):
         image_name = 'python:3.10-bullseye'
         self.docker.images.pull(image_name)
         print('Defining volumes...')
-        local_folder = os.path.abspath(os.getcwd()) + '/data'
+        local_folder = os.path.abspath(os.getcwd())
         container_folder = '/app/data'
         volumes = {local_folder: {'bind': container_folder, 'mode': 'ro'}}
         print('Running Docker container & benchmark...')
         self.container = self.docker.containers.run(
             image_name,
-            command='pip install "pycozo[embedded,requests,pandas]" '
-                    '&& python /app/data/benchmark_driver.py --bench cozo',
             volumes=volumes,
-            detach=True
+            detach=True,
+            tty=True,
         )
-        print('Waiting for container to finish...')
-        exit_code = self.container.wait()['StatusCode']
-        print('Retrieving container logs...')
-        logs = self.container.logs().decode('utf-8')
+        print('Waiting for container to finish pip setup...')
+        exec_command = self.container.exec_run('pip install requests docker pycozo[embedded,pandas]')
+        if exec_command.exit_code != 0:
+            print('Error installing pip packages')
+            print(exec_command.output.decode('utf-8'))
+            self.container.stop()
+            self.container.remove()
+            return exec_command.exit_code, exec_command.output.decode('utf-8')
+        print("Completed pip setup, running benchmark...")
+        exec_command = self.container.exec_run('/bin/bash -c "cd /app/data;python benchmark_driver.py --bench cozo --save True"') #
+        if exec_command.exit_code != 0:
+            print('Error running packages')
+            print(exec_command.output.decode('utf-8'))
+            self.container.stop()
+            self.container.remove()
+            return exec_command.exit_code, exec_command.output.decode('utf-8')
+        print('Benchmark completed, retrieving container logs...')
+        file_path = '/tmp/bench-*.csv'
+        file_contents = self.container.exec_run(['/bin/bash', '-c', f'cat {file_path}']).output.decode('utf-8').strip()
         # Remove the container
         print('Removing container...')
+        self.container.stop()
         self.container.remove()
         # Return the exit code and logs
-        return exit_code, logs
+        return exec_command.exit_code, file_contents
 
     def shutdown(self):
         self.client.close()

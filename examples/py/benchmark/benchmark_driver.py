@@ -2,13 +2,31 @@ import argparse
 
 import pandas as pd
 
-from raphtory_bench import RaphtoryBench
-from kuzu_bench import KuzuBench
-from networkx_bench import NetworkXBench
-from neo4j_bench import Neo4jBench
-from graphtool_bench import GraphToolBench
-from memgraph_bench import MemgraphBench
-from cozo_bench import CozoDBBench
+# packages = {
+#     'raphtory_bench': 'RaphtoryBench',
+#     'kuzu_bench':  'KuzuBench',
+#     'networkx_bench': 'NetworkXBench',
+#     'neo4j_bench':  'Neo4jBench',
+#     'graphtool_bench': 'GraphToolBench',
+#     'memgraph_bench': 'MemgraphBench',
+#     'cozo_bench':  'CozoDBBench',
+# }
+#
+# for package, classx in packages.items():
+#     try:
+#         exec(f'from {package} import {classx}')
+#     except ImportError:
+#         continue
+
+# from raphtory_bench import RaphtoryBench
+# from kuzu_bench import KuzuBench
+# from networkx_bench import NetworkXBench
+# from neo4j_bench import Neo4jBench
+# from graphtool_bench import GraphToolBench
+# from memgraph_bench import MemgraphBench
+# from cozo_bench import CozoDBBench
+
+from benchmark_imports import *
 import time
 import shutil
 import gzip
@@ -62,13 +80,13 @@ def setup():
     return {
         'all': 'ALL',
         'download': 'DOWNLOAD',
-        'r': RaphtoryBench(),
-        'gt': GraphToolBench(),
-        'k': KuzuBench(),
-        'nx': NetworkXBench(),
-        'neo': Neo4jBench(),
-        'mem': MemgraphBench(),
-        'cozo': CozoDBBench()
+        'r': RaphtoryBench,
+        'gt': GraphToolBench,
+        'k': KuzuBench,
+        'nx': NetworkXBench,
+        'neo': Neo4jBench,
+        'mem': MemgraphBench,
+        'cozo': CozoDBBench
     }
 
 
@@ -173,9 +191,8 @@ def run_benchmark_docker(bench):
         print("** Running for " + driver.name() + "...")
         print("Starting docker container...")
         exit_code, logs = driver.start_docker()
-        if exit_code != 0:
-            print("Docker container exited with non-zero code " + str(exit_code))
-            print("Logs: " + logs)
+        print("Docker container exited with non-zero code " + str(exit_code))
+        print("Logs: " + logs)
     else:
         pass
 
