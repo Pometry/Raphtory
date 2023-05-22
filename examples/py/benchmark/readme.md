@@ -1,4 +1,6 @@
+# Benchmarks
 
+# Setup Instructions
 
     conda create --name gt -c conda-forge graph-tool
     conda activate gt
@@ -8,3 +10,9 @@
 
 ### then install raphtory with
     maturin develop -r
+
+
+# How to run 
+
+
+# Results 
