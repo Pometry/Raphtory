@@ -2,16 +2,9 @@ from benchmark_base import BenchmarkBase
 from neo4j import GraphDatabase
 
 
-# docker run --publish 7474:7474 --publish 7687:7687
-# --volume /Users/haaroony/Documents/dev/raphtory/examples/py/benchmark/neo:/data
-# --volume /Users/haaroony/Documents/dev/raphtory/examples/py/benchmark/data:/var/lib/neo4j/import/data2
-# --env NEO4J_AUTH=neo4j/password
-# --env NEO4J_PLUGINS='["graph-data-science"]'
-# neo4j
-
 def import_data(tx):
     tx.run("""
-    LOAD CSV FROM 'file:///data2/simple-relationships.csv' AS row
+    LOAD CSV FROM 'file:///data2/data/simple-relationships.csv' AS row
     FIELDTERMINATOR '\t'
     WITH row[0] AS source, row[1] AS target
     MERGE (n1:Node {id: source})
@@ -25,7 +18,7 @@ def create_graph_projection(tx):
         CALL gds.graph.project.cypher(
         'social',
         'MATCH (n:Node) RETURN id(n) AS id',
-        'MATCH (n:Node)-[r:FOLLOWs]->(m:node) RETURN id(n) AS source, id(m) AS target')
+        'MATCH (n:Node)-[r:FOLLOWS]->(m:node) RETURN id(n) AS source, id(m) AS target')
         YIELD
           graphName AS graph, nodeQuery, nodeCount AS nodes, relationshipQuery, relationshipCount AS rels
           """)
@@ -59,8 +52,23 @@ def run_connected_components(tx):
 
 
 class Neo4jBench(BenchmarkBase):
-    def start_docker(self):
-        pass
+    def start_docker(self, **kwargs):
+        image_name = 'neo4j:5.8.0'
+        container_folder = '/var/lib/neo4j/import/data2/'
+        envs = {
+            'NEO4J_AUTH': 'neo4j/password',
+            'NEO4J_PLUGINS': '["graph-data-science"]'
+        }
+        ports = {
+            '7474': '7474',
+            '7687': '7687'
+        }
+        exec_commands = [
+            '/bin/bash -c "cd /var/lib/neo4j/import/data2/; python3 benchmark_driver.py --bench neo --save True"'
+        ]
+        image_path = 'DockerFiles/pyneo'
+        code, contents = super().start_docker(image_name, container_folder, exec_commands, envs, ports, image_path, wait=35)
+        return code, contents
 
     def shutdown(self):
         self.driver.close()

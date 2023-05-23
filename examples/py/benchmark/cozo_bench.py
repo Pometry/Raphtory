@@ -6,7 +6,7 @@ import os
 
 class CozoDBBench(BenchmarkBase):
 
-    def start_docker(self, image_name=None, container_folder=None, exec_commands=None):
+    def start_docker(self, **kwargs):
         image_name = 'python:3.10-bullseye'
         container_folder = '/app/data'
         exec_commands = [

@@ -1,7 +1,7 @@
 ### Create a abstract base class with abstract methods for benchmarking graph tools
 ### This class is used by the benchmarking scripts to benchmark the graph tools
 ### The benchmarking scripts are located in the examples/py/benchmark directory
-
+import time
 from abc import ABC, abstractmethod
 import docker
 import os
@@ -9,7 +9,9 @@ import os
 
 class BenchmarkBase(ABC):
 
-    def start_docker(self, image_name, container_folder, exec_commands):
+    def start_docker(self, image_name, container_folder, exec_commands, envs={}, ports={}, image_path=None, wait=0):
+        if envs is None:
+            envs = {}
         print('Creating Docker client...')
         self.docker = docker.from_env()
 
@@ -18,15 +20,27 @@ class BenchmarkBase(ABC):
 
         print('Defining volumes...')
         local_folder = os.path.abspath(os.getcwd())
-        volumes = {local_folder: {'bind': container_folder, 'mode': 'ro'}}
+        volumes = {local_folder: {'bind': container_folder, 'mode': 'rw'}}
+
+        if image_path:
+            image, build_logs = self.docker.images.build(
+                path=image_path,  # Replace with the path to your Dockerfile
+            )
+            image_name = image.id
 
         print('Running Docker container & benchmark...')
+
         self.container = self.docker.containers.run(
             image_name,
             volumes=volumes,
             detach=True,
             tty=True,
+            environment=envs,
+            ports=ports,
         )
+
+        time.sleep(wait)
+
         try:
             for cmd in exec_commands:
                 print(f'Running command {cmd}...')
@@ -42,10 +56,11 @@ class BenchmarkBase(ABC):
                 #     self.container.remove()
                 #     return exec_command.exit_code, exec_command.output.decode('utf-8')
                 print("Completed command...")
-        except:
+        except Exception as e:
+            print(e)
             print('Error running command')
-            self.container.stop()
-            self.container.remove()
+            # self.container.stop()
+            # self.container.remove()
             return 1, 'Error running command'
 
         print('Benchmark completed, retrieving results...')
@@ -53,8 +68,8 @@ class BenchmarkBase(ABC):
         file_contents = self.container.exec_run(['/bin/bash', '-c', f'cat {file_path}']).output.decode('utf-8').strip()
 
         print('Removing container...')
-        self.container.stop()
-        self.container.remove()
+        # self.container.stop()
+        # self.container.remove()
 
         return 0, file_contents
 
