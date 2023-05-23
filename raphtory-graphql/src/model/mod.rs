@@ -5,6 +5,7 @@ use raphtory::db::graph::Graph;
 use raphtory::db::graph_window::WindowedGraph;
 use raphtory::db::vertex::VertexView;
 use raphtory::db::view_api::{GraphViewOps, TimeOps, VertexViewOps};
+use std::sync::Arc;
 
 use crate::model::algorithm::Algorithms;
 
@@ -30,11 +31,12 @@ impl QueryRoot {
 
 #[derive(ResolvedObject)]
 pub(crate) struct GqlGraph {
-    graph: Graph,
+    graph: Arc<Graph>,
 }
 
 impl From<Graph> for GqlGraph {
-    fn from(graph: Graph) -> Self {
+    fn from(value: Graph) -> Self {
+        let graph = Arc::new(value);
         Self { graph }
     }
 }
@@ -49,11 +51,12 @@ impl GqlGraph {
 
 #[derive(ResolvedObject)]
 pub(crate) struct GqlWindowGraph<G: GraphViewOps> {
-    graph: WindowedGraph<G>,
+    graph: Arc<WindowedGraph<G>>,
 }
 
 impl<G: GraphViewOps> From<WindowedGraph<G>> for GqlWindowGraph<G> {
-    fn from(graph: WindowedGraph<G>) -> Self {
+    fn from(value: WindowedGraph<G>) -> Self {
+        let graph = Arc::new(value);
         Self { graph }
     }
 }
