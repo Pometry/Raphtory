@@ -3,13 +3,50 @@
 ### The benchmarking scripts are located in the examples/py/benchmark directory
 
 from abc import ABC, abstractmethod
-
+import docker
+import os
 
 class BenchmarkBase(ABC):
 
-    @abstractmethod
-    def start_docker(self):
-        pass
+    def start_docker(self, image_name, container_folder, exec_commands ):
+        print('Creating Docker client...')
+        self.docker = docker.from_env()
+
+        print('Pulling Docker image...')
+        self.docker.images.pull(image_name)
+
+        print('Defining volumes...')
+        local_folder = os.path.abspath(os.getcwd())
+        volumes = {local_folder: {'bind': container_folder, 'mode': 'ro'}}
+
+        print('Running Docker container & benchmark...')
+        self.container = self.docker.containers.run(
+            image_name,
+            volumes=volumes,
+            detach=True,
+            tty=True,
+        )
+
+        for cmd in exec_commands:
+            print(f'Running command {cmd}...')
+            exec_command = self.container.exec_run(cmd)
+            if exec_command.exit_code != 0:
+                print(f'Error running command')
+                print(exec_command.output.decode('utf-8'))
+                self.container.stop()
+                self.container.remove()
+                return exec_command.exit_code, exec_command.output.decode('utf-8')
+            print("Completed command...")
+
+        print('Benchmark completed, retrieving container logs...')
+        file_path = '/tmp/bench-*.csv'
+        file_contents = self.container.exec_run(['/bin/bash', '-c', f'cat {file_path}']).output.decode('utf-8').strip()
+
+        print('Removing container...')
+        self.container.stop()
+        self.container.remove()
+
+        return 0, file_contents
 
     @abstractmethod
     def name(self):
@@ -17,7 +54,8 @@ class BenchmarkBase(ABC):
 
     @abstractmethod
     def __init__(self):
-        pass
+        self.container = None
+        self.docker = None
 
     @abstractmethod
     def setup(self):
