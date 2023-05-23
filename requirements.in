@@ -3,7 +3,7 @@ pandas
 matplotlib
 tqdm
 raphtory
-requests==2.28.2
+requests==2.31.0
 pyvis
 seaborn
 scipy
