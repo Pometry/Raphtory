@@ -13,9 +13,6 @@ readme.workspace = true
 homepage.workspace = true
 doc = false
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-[lib]
-name = "py_raphtory"
-crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 pyo3 =  {version="0.18.1", features=["multiple-pymethods", "chrono"]}
@@ -37,10 +34,3 @@ bincode = "1"
 display-error-chain = "0.1.1"
 num = "0.4.0"
 tokio = { version = "1.27.0", features = ["full"] }
-
-[features]
-extension-module = ["pyo3/extension-module"]
-default = ["extension-module"]
-
-[build-dependencies]
-pyo3-build-config = "0.18.1"

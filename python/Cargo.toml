@@ -21,6 +21,7 @@ crate-type = ["cdylib"]
 pyo3 =  {version="0.18.1", features=["multiple-pymethods", "chrono"]}
 py-raphtory = {path = "../py-raphtory", version = "0.3.1" }
 
+
 [features]
 extension-module = ["pyo3/extension-module"]
 default = ["extension-module"]
