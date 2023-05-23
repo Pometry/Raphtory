@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1684774615828,
+  "lastUpdate": 1684830907504,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -1345,6 +1345,60 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions with numeric string input",
             "value": 2250769,
             "range": "± 129302",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e94fd1bbc6d0c3647e8abd930d5046b64b87aa27",
+          "message": "Bump requests from 2.28.2 to 2.31.0 (#967)\n\nBumps [requests](https://github.com/psf/requests) from 2.28.2 to 2.31.0.\r\n- [Release notes](https://github.com/psf/requests/releases)\r\n- [Changelog](https://github.com/psf/requests/blob/main/HISTORY.md)\r\n- [Commits](https://github.com/psf/requests/compare/v2.28.2...v2.31.0)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: requests\r\n  dependency-type: direct:production\r\n...",
+          "timestamp": "2023-05-23T09:30:27+01:00",
+          "tree_id": "27de67346cb9c5ffc242aa8a965df551a33f5761",
+          "url": "https://github.com/Pometry/Raphtory/commit/e94fd1bbc6d0c3647e8abd930d5046b64b87aa27"
+        },
+        "date": 1684830906472,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 336365,
+            "range": "± 7941",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and numeric string input",
+            "value": 983161,
+            "range": "± 57529",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and string input",
+            "value": 1042297,
+            "range": "± 28814",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 843690,
+            "range": "± 200626",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions with numeric string input",
+            "value": 2542226,
+            "range": "± 242432",
             "unit": "ns/iter"
           }
         ]
