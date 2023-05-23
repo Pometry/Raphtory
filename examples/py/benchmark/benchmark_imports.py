@@ -9,7 +9,7 @@ CozoDBBench = None
 try:
     from raphtory_bench import RaphtoryBench
     RaphtoryBench = RaphtoryBench()
-except ImportError:
+except ImportError as e:
     pass
 
 try:
@@ -21,8 +21,8 @@ except ImportError:
 try:
     from networkx_bench import NetworkXBench
     NetworkXBench = NetworkXBench()
-except ImportError:
-    pass
+except ImportError as e:
+    print(e)
 
 try:
     from neo4j_bench import Neo4jBench

@@ -6,9 +6,10 @@ from abc import ABC, abstractmethod
 import docker
 import os
 
+
 class BenchmarkBase(ABC):
 
-    def start_docker(self, image_name, container_folder, exec_commands ):
+    def start_docker(self, image_name, container_folder, exec_commands):
         print('Creating Docker client...')
         self.docker = docker.from_env()
 
@@ -26,19 +27,28 @@ class BenchmarkBase(ABC):
             detach=True,
             tty=True,
         )
+        try:
+            for cmd in exec_commands:
+                print(f'Running command {cmd}...')
+                _, stream = self.container.exec_run(cmd, stream=True)
+                for data in stream:
+                    print(data.decode(), end='')
+                print()
+                # print(exec_command)
+                # if exec_command.exit_code != 0:
+                #     print(f'Error running command')
+                #     print(exec_command.output.decode('utf-8'))
+                #     self.container.stop()
+                #     self.container.remove()
+                #     return exec_command.exit_code, exec_command.output.decode('utf-8')
+                print("Completed command...")
+        except:
+            print('Error running command')
+            self.container.stop()
+            self.container.remove()
+            return 1, 'Error running command'
 
-        for cmd in exec_commands:
-            print(f'Running command {cmd}...')
-            exec_command = self.container.exec_run(cmd)
-            if exec_command.exit_code != 0:
-                print(f'Error running command')
-                print(exec_command.output.decode('utf-8'))
-                self.container.stop()
-                self.container.remove()
-                return exec_command.exit_code, exec_command.output.decode('utf-8')
-            print("Completed command...")
-
-        print('Benchmark completed, retrieving container logs...')
+        print('Benchmark completed, retrieving results...')
         file_path = '/tmp/bench-*.csv'
         file_contents = self.container.exec_run(['/bin/bash', '-c', f'cat {file_path}']).output.decode('utf-8').strip()
 
@@ -50,7 +60,7 @@ class BenchmarkBase(ABC):
 
     @abstractmethod
     def name(self):
-        return self.name()
+        return ""
 
     @abstractmethod
     def __init__(self):
@@ -72,7 +82,6 @@ class BenchmarkBase(ABC):
     @abstractmethod
     def page_rank(self):
         pass
-
 
     @abstractmethod
     def connected_components(self):

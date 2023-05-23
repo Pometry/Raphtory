@@ -8,8 +8,15 @@ simple_relationship_file = "data/simple-relationships.csv"
 
 
 class NetworkXBench(BenchmarkBase):
-    def start_docker(self):
-        pass
+    def start_docker(self, image_name=None, container_folder=None, exec_commands=None):
+        image_name = 'python:3.10-bullseye'
+        container_folder = '/app/data'
+        exec_commands = [
+            'pip install requests tqdm docker networkx pandas numpy scipy',
+            '/bin/bash -c "cd /app/data;python benchmark_driver.py --bench nx --save True"'
+        ]
+        code, contents = super().start_docker(image_name, container_folder, exec_commands)
+        return code, contents
 
     def shutdown(self):
         self.graph.clear()
@@ -23,9 +30,9 @@ class NetworkXBench(BenchmarkBase):
 
     def setup(self):
         self.graph = nx.DiGraph()
-        with gzip.open(simple_relationship_file, 'rt') as f:
+        with open(simple_relationship_file, 'r') as f:
             reader = csv.reader(f, delimiter='\t')
-            for row in tqdm(reader, total=30622564):
+            for row in reader:
                 self.graph.add_edge(int(row[0]), int(row[1]))
 
     def degree(self):
