@@ -593,35 +593,119 @@ impl Clone for ImmutableTGraphShard<TemporalGraph> {
 }
 
 impl ImmutableTGraphShard<TemporalGraph> {
+    #[inline(always)]
+    fn read_shard<A, F>(&self, f: F) -> A
+    where
+        F: FnOnce(&TemporalGraph) -> A,
+    {
+        f(self.rc.as_ref())
+    }
+
     pub fn unfreeze(self) -> Result<TGraphShard<TemporalGraph>, Arc<TemporalGraph>> {
         let tg = Arc::try_unwrap(self.rc)?;
         Ok(TGraphShard::new_from_tgraph(tg))
     }
 
+    pub fn local_vertex(&self, v: VertexRef) -> Option<LocalVertexRef> {
+        self.read_shard(|tg| tg.local_vertex(v))
+    }
+
+    pub fn local_vertex_window(&self, v: VertexRef, w: Range<i64>) -> Option<LocalVertexRef> {
+        self.read_shard(|tg| tg.local_vertex_window(v, w))
+    }
+
+    pub fn vertex_id(&self, v: LocalVertexRef) -> u64 {
+        self.read_shard(|tg| tg.vertex_id(v))
+    }
+
     pub fn earliest_time(&self) -> i64 {
-        self.rc.earliest_time
+        self.read_shard(|tg| tg.earliest_time)
     }
 
     pub fn latest_time(&self) -> i64 {
-        self.rc.latest_time
+        self.read_shard(|tg| tg.latest_time)
+    }
+
+    pub fn len(&self) -> usize {
+        self.read_shard(|tg| tg.len())
+    }
+
+    pub fn out_edges_len(&self, layer: Option<usize>) -> usize {
+        self.read_shard(|tg| tg.out_edges_len(layer))
+    }
+
+    pub fn out_edges_len_window(&self, w: &Range<Time>, layer: Option<usize>) -> usize {
+        self.read_shard(|tg| tg.out_edges_len_window(w, layer))
+    }
+
+    pub fn len_window(&self, w: Range<i64>) -> usize {
+        self.read_shard(|tg| tg.len_window(&w))
+    }
+
+    pub fn has_edge(&self, src: VertexRef, dst: VertexRef, layer: usize) -> bool {
+        self.read_shard(|tg| tg.has_edge(src, dst, layer))
+    }
+
+    pub fn has_edge_window(
+        &self,
+        src: VertexRef,
+        dst: VertexRef,
+        w: Range<i64>,
+        layer: usize,
+    ) -> bool {
+        self.read_shard(|tg| tg.has_edge_window(src, dst, &w, layer))
+    }
+
+    pub fn has_vertex(&self, v: VertexRef) -> bool {
+        self.read_shard(|tg| tg.has_vertex(v))
+    }
+
+    pub fn has_vertex_window(&self, v: VertexRef, w: Range<i64>) -> bool {
+        self.read_shard(|tg| tg.has_vertex_window(v, &w))
     }
 
     pub fn degree(&self, v: LocalVertexRef, d: Direction, layer: Option<usize>) -> usize {
-        self.rc.degree(v, d, layer)
+        self.read_shard(|tg: &TemporalGraph| tg.degree(v, d, layer))
     }
 
-    pub fn vertices(&self) -> Box<dyn Iterator<Item = LocalVertexRef> + Send + '_> {
-        self.rc.vertices()
-    }
-
-    pub fn vertices_window(
+    pub fn degree_window(
         &self,
+        v: LocalVertexRef,
         w: Range<i64>,
-    ) -> Box<dyn Iterator<Item = LocalVertexRef> + Send> {
+        d: Direction,
+        layer: Option<usize>,
+    ) -> usize {
+        self.read_shard(|tg: &TemporalGraph| tg.degree_window(v, &w, d, layer))
+    }
+
+    pub fn vertex_earliest_time(&self, v: LocalVertexRef) -> Option<i64> {
+        self.read_shard(|tg| tg.vertex_earliest_time(v))
+    }
+
+    pub fn vertex_earliest_time_window(&self, v: LocalVertexRef, w: Range<i64>) -> Option<i64> {
+        self.read_shard(move |tg| tg.vertex_earliest_time_window(v, w))
+    }
+
+    pub fn vertex_latest_time(&self, v: LocalVertexRef) -> Option<i64> {
+        self.read_shard(|tg| tg.vertex_latest_time(v))
+    }
+
+    pub fn vertex_latest_time_window(&self, v: LocalVertexRef, w: Range<i64>) -> Option<i64> {
+        self.read_shard(|tg| tg.vertex_latest_time_window(v, w))
+    }
+
+    pub fn vertex(&self, v: u64) -> Option<LocalVertexRef> {
+        self.read_shard(|tg| tg.vertex(v))
+    }
+
+    pub fn vertex_window(&self, v: u64, w: Range<i64>) -> Option<LocalVertexRef> {
+        self.read_shard(|tg| tg.vertex_window(v, &w))
+    }
+
+    pub fn vertices(&self) -> Box<dyn Iterator<Item = LocalVertexRef> + Send> {
         let tgshard = self.rc.clone();
         let iter: GenBoxed<LocalVertexRef> = GenBoxed::new_boxed(|co| async move {
-            let g = tgshard.clone();
-            let iter = (&g).vertices_window(w);
+            let iter = tgshard.vertices();
             for vv in iter {
                 co.yield_(vv).await;
             }
@@ -629,29 +713,219 @@ impl ImmutableTGraphShard<TemporalGraph> {
         Box::new(iter.into_iter())
     }
 
+    pub fn vertices_window(
+        &self,
+        w: Range<i64>,
+    ) -> Box<dyn Iterator<Item = LocalVertexRef> + Send> {
+        let tgshard = self.rc.clone();
+        let iter: GenBoxed<Vec<LocalVertexRef>> = GenBoxed::new_boxed(|co| async move {
+            let iter = tgshard.vertices_window(w);
+            let mut chunk = Vec::with_capacity(64);
+            for v in iter {
+                chunk.push(v);
+                if chunk.len() == 64 {
+                    let mut swap_me = Vec::with_capacity(64);
+                    std::mem::swap(&mut chunk, &mut swap_me);
+                    co.yield_(swap_me).await;
+                }
+            }
+            if chunk.len() > 0 {
+                co.yield_(chunk).await;
+            }
+        });
+
+        Box::new(iter.into_iter().flatten())
+    }
+
+    pub fn edge(&self, src: VertexRef, dst: VertexRef, layer: usize) -> Option<EdgeRef> {
+        self.read_shard(|tg| tg.edge(src, dst, layer))
+    }
+
+    pub fn edge_window(
+        &self,
+        src: VertexRef,
+        dst: VertexRef,
+        w: Range<i64>,
+        layer: usize,
+    ) -> Option<EdgeRef> {
+        self.read_shard(|tg| tg.edge_window(src, dst, &w, layer))
+    }
+
     pub fn vertex_edges(
         &self,
         v: LocalVertexRef,
         d: Direction,
         layer: Option<usize>,
-    ) -> Box<dyn Iterator<Item = EdgeRef> + Send + '_> {
-        self.rc.vertex_edges(v, d, layer)
+    ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
+        let tgshard = self.rc.clone();
+        let iter: GenBoxed<EdgeRef> = GenBoxed::new_boxed(|co| async move {
+            let iter = tgshard.vertex_edges(v, d, layer);
+            for ev in iter {
+                co.yield_(ev).await;
+            }
+        });
+
+        Box::new(iter.into_iter())
     }
 
-    pub fn out_edges_len(&self, layer: Option<usize>) -> usize {
-        self.rc.out_edges_len(layer)
+    pub fn vertex_edges_window(
+        &self,
+        v: LocalVertexRef,
+        w: Range<i64>,
+        d: Direction,
+        layer: Option<usize>,
+    ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
+        let tgshard = self.rc.clone();
+        let iter = gen!({
+            let chunks = tgshard.vertex_edges_window(v, &w, d, layer);
+            let iter = chunks.into_iter();
+            for v_id in iter {
+                yield_!(v_id)
+            }
+        });
+
+        Box::new(iter.into_iter())
     }
 
-    pub fn out_edges_len_window(&self, w: &Range<Time>, layer: Option<usize>) -> usize {
-        self.rc.out_edges_len_window(w, layer)
+    pub fn vertex_edges_window_t(
+        &self,
+        v: LocalVertexRef,
+        w: Range<i64>,
+        d: Direction,
+        layer: Option<usize>,
+    ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
+        let tgshard = self.rc.clone();
+        let iter = gen!({
+            let chunks = tgshard.vertex_edges_window_t(v, &w, d, layer);
+            let iter = chunks.into_iter();
+            for v_id in iter {
+                yield_!(v_id)
+            }
+        });
+
+        Box::new(iter.into_iter())
     }
 
-    pub fn len(&self) -> usize {
-        self.rc.len()
+    pub fn neighbours(
+        &self,
+        v: LocalVertexRef,
+        d: Direction,
+        layer: Option<usize>,
+    ) -> Box<dyn Iterator<Item = VertexRef> + Send> {
+        let tgshard = self.rc.clone();
+        let iter = gen!({
+            let chunks = (tgshard).neighbours(v, d, layer);
+            let iter = chunks.into_iter();
+            for v_id in iter {
+                yield_!(v_id)
+            }
+        });
+
+        Box::new(iter.into_iter())
     }
 
-    pub fn local_vertex_window(&self, v: VertexRef, w: Range<i64>) -> Option<LocalVertexRef> {
-        self.rc.local_vertex_window(v, w)
+    pub fn neighbours_window(
+        &self,
+        v: LocalVertexRef,
+        w: Range<i64>,
+        d: Direction,
+        layer: Option<usize>,
+    ) -> Box<dyn Iterator<Item = VertexRef> + Send> {
+        let tgshard = self.rc.clone();
+        let iter = gen!({
+            let chunks = tgshard.neighbours_window(v, &w, d, layer);
+            let iter = chunks.into_iter();
+            for v_id in iter {
+                yield_!(v_id)
+            }
+        });
+
+        Box::new(iter.into_iter())
+    }
+
+    pub fn static_vertex_prop(&self, v: LocalVertexRef, name: String) -> Option<Prop> {
+        self.read_shard(|tg| tg.static_vertex_prop(v, &name))
+    }
+
+    pub fn static_vertex_prop_names(&self, v: LocalVertexRef) -> Vec<String> {
+        self.read_shard(|tg| tg.static_vertex_prop_names(v))
+    }
+
+    pub fn temporal_vertex_prop_names(&self, v: LocalVertexRef) -> Vec<String> {
+        self.read_shard(|tg| tg.temporal_vertex_prop_names(v))
+    }
+
+    pub fn temporal_vertex_prop_vec(&self, v: LocalVertexRef, name: String) -> Vec<(i64, Prop)> {
+        self.read_shard(|tg| tg.temporal_vertex_prop_vec(v, &name))
+    }
+
+    pub fn temporal_vertex_prop_vec_window(
+        &self,
+        v: LocalVertexRef,
+        name: String,
+        w: Range<i64>,
+    ) -> Vec<(i64, Prop)> {
+        self.read_shard(|tg| (tg.temporal_vertex_prop_vec_window(v, &name, &w)))
+    }
+
+    pub fn vertex_timestamps(&self, v: LocalVertexRef) -> Vec<i64> {
+        self.read_shard(|tg| tg.vertex_timestamps(v))
+    }
+
+    pub fn vertex_timestamps_window(&self, v: LocalVertexRef, w: Range<i64>) -> Vec<i64> {
+        self.read_shard(|tg| tg.vertex_timestamps_window(v, w))
+    }
+
+    pub fn temporal_vertex_props(&self, v: LocalVertexRef) -> HashMap<String, Vec<(i64, Prop)>> {
+        self.read_shard(|tg| tg.temporal_vertex_props(v))
+    }
+
+    pub fn temporal_vertex_props_window(
+        &self,
+        v: LocalVertexRef,
+        w: Range<i64>,
+    ) -> HashMap<String, Vec<(i64, Prop)>> {
+        self.read_shard(|tg| tg.temporal_vertex_props_window(v, &w))
+    }
+    pub fn static_edge_prop(&self, e: EdgeRef, name: String) -> Option<Prop> {
+        self.read_shard(|tg| tg.static_edge_prop(e, &name))
+    }
+
+    pub fn static_edge_prop_names(&self, e: EdgeRef) -> Vec<String> {
+        self.read_shard(|tg| tg.static_edge_prop_names(e))
+    }
+
+    pub fn temporal_edge_prop_names(&self, e: EdgeRef) -> Vec<String> {
+        self.read_shard(|tg| (tg.temporal_edge_prop_names(e)))
+    }
+
+    pub fn temporal_edge_prop_vec(&self, e: EdgeRef, name: String) -> Vec<(i64, Prop)> {
+        self.read_shard(|tg| tg.temporal_edge_prop_vec(e, &name))
+    }
+
+    pub fn temporal_edge_props_vec_window(
+        &self,
+        e: EdgeRef,
+        name: String,
+        w: Range<i64>,
+    ) -> Vec<(i64, Prop)> {
+        self.read_shard(|tg| tg.temporal_edge_prop_vec_window(e, &name, w.clone()))
+    }
+
+    pub fn temporal_edge_props(&self, e: EdgeRef) -> HashMap<String, Vec<(i64, Prop)>> {
+        self.read_shard(|tg| tg.temporal_edge_props(e))
+    }
+
+    pub fn edge_timestamps(&self, e: EdgeRef, window: Option<Range<i64>>) -> Vec<i64> {
+        self.read_shard(|tg| tg.edge_timestamps(e, window))
+    }
+
+    pub fn temporal_edge_props_window(
+        &self,
+        e: EdgeRef,
+        w: Range<i64>,
+    ) -> HashMap<String, Vec<(i64, Prop)>> {
+        self.read_shard(|tg| tg.temporal_edge_props_window(e, w.clone()))
     }
 }
 

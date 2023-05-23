@@ -71,7 +71,7 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
         Step::Continue
     });
 
-    let step2:ATask<G, ComputeStateVec, PageRankState, _> = ATask::new(move |s| {
+    let step2: ATask<G, ComputeStateVec, PageRankState, _> = ATask::new(move |s| {
         // reset score
         {
             let state: &mut PageRankState = s.get_mut();
