@@ -115,14 +115,22 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
 
         let curr = state.score;
         let prev = s.prev().score;
-        let md = abs(prev - curr);
+        // let md = abs(prev - curr);
+
+        let md = f64::powi(abs(prev - curr) as f64, 2);
+
         s.global_update(&max_diff, md);
         Step::Continue
     });
 
     let step5 = Job::Check(Box::new(move |state| {
-        let sum_d = state.read(&max_diff);
+        let max_diff_val = state.read(&max_diff);
+        println!("Max DIFF {max_diff_val}");
+        let sum_d = f64::sqrt(max_diff_val as f64);
         if (sum_d as f64) > tol * n as f64 {
+
+        // let sum_d = state.read(&max_diff);
+        // if (sum_d as f64) > tol * n as f64 {
             Step::Continue
         } else {
             Step::Done

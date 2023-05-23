@@ -124,7 +124,7 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         Vec<Option<(LocalVertexRef, S)>>,
     ) {
         pool.install(move || {
-            let chunk_size = 65_536;
+            let chunk_size = 16_000;
             let mut new_shard_state = shard_state;
             let mut new_global_state = global_state;
 
@@ -244,6 +244,8 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
             .map(|nt| custom_pool(nt))
             .unwrap_or_else(|| POOL.clone());
 
+        println!("Num Threads {}", pool.current_num_threads());
+
         let mut shard_state = shard_initial_state.unwrap_or_else(|| Shard::new(graph_shards));
 
         let mut global_state = global_initial_state.unwrap_or_else(|| Global::new());
@@ -294,6 +296,8 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         } else {
             prev_local_state
         };
+
+        println!("Done running iterations: {ss}");
 
         f(
             GlobalState::new(global_state, ss - 1),

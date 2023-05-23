@@ -14,7 +14,7 @@ struct Edge {
 }
 
 fn main() {
-    let shards = 4;
+    let shards = 1;
     let g = Graph::new(shards);
     let now = Instant::now();
 
@@ -41,7 +41,7 @@ fn main() {
 
     let now = Instant::now();
 
-    unweighted_page_rank(&frozen, 100, None , Some(0.00001));
+    unweighted_page_rank(&frozen, 100, None , Some(0.00000001));
 
-    println!("PageRank took {} seconds", now.elapsed().as_secs());
+    println!("PageRank took {} millis", now.elapsed().as_millis());
 }

@@ -610,14 +610,27 @@ macro_rules! erase_lifetime2 {
     ($tgshard:expr, |$g:ident| { $f:expr }) => {
         let $g = $tgshard;
 
+        let chunk_size = 64;
+
         let iter = gen!({
             let chunks = $f;
             let iter = chunks.into_iter();
+            let mut chunk = Vec::with_capacity(chunk_size);
+
             for v_id in iter {
-                yield_!(v_id)
+                chunk.push(v_id);
+                if chunk.len() == chunk_size {
+                    let mut swap_me = Vec::with_capacity(chunk_size);
+                    std::mem::swap(&mut chunk, &mut swap_me);
+                    yield_!(swap_me);
+                }
+                // yield_!(v_id)
+            }
+            if chunk.len() > 0 {
+                yield_!(chunk);
             }
         });
-        return Box::new(iter.into_iter())
+        return Box::new(iter.into_iter().flatten())
     };
 }
 
