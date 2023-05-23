@@ -1,6 +1,6 @@
 [package]
 edition = "2021"
-name = "flux-capacitor"
+name = "raphtory-graphql"
 version = "0.1.0"
 rust-version = "1.67.1"
 

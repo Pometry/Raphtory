@@ -17,7 +17,7 @@ pub(crate) struct QueryRoot;
 #[ResolvedObjectFields]
 impl QueryRoot {
     async fn hello() -> &'static str {
-        "Hello world"
+        "Hello world from raphtory-graphql"
     }
 
     /// Returns a view including all events between `t_start` (inclusive) and `t_end` (exclusive)
