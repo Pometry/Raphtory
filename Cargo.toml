@@ -6,7 +6,7 @@ members = [
 	"examples/rust",
 	"python",
 	"py-raphtory",
-	"flux-capacitor"
+	"raphtory-graphql"
 ]
 default-members = ["raphtory"]
 
