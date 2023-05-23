@@ -32,8 +32,8 @@ except ImportError:
 
 try:
     from graphtool_bench import GraphToolBench
-    GraphToolBench = GraphToolBench
-except ImportError:
+    GraphToolBench = GraphToolBench()
+except ImportError as e:
     pass
 
 try:

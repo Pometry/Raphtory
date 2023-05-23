@@ -1,8 +1,6 @@
 from benchmark_base import BenchmarkBase
 import networkx as nx
-import gzip
 import csv
-from tqdm import tqdm
 
 simple_relationship_file = "data/simple-relationships.csv"
 
