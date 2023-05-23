@@ -63,6 +63,12 @@ pub struct InternalGraph {
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
 pub struct Graph(Arc<InternalGraph>);
 
+impl Display for Graph {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 impl Deref for Graph {
     type Target = Arc<InternalGraph>;
 
