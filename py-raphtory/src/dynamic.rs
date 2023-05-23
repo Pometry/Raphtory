@@ -1,7 +1,7 @@
 use raphtory::db::graph::Graph;
 use raphtory::db::graph_layer::LayeredGraph;
 use raphtory::db::graph_window::WindowedGraph;
-use raphtory::db::view_api::internal::GraphViewInternalOps;
+use raphtory::db::view_api::internal::{GraphViewInternalOps, WrappedGraph};
 use raphtory::db::view_api::GraphViewOps;
 use std::sync::Arc;
 
@@ -52,8 +52,9 @@ impl IntoDynamic for DynamicGraph {
     }
 }
 
-impl AsRef<dyn GraphViewInternalOps + Send + Sync + 'static> for DynamicGraph {
-    fn as_ref(&self) -> &(dyn GraphViewInternalOps + Send + Sync + 'static) {
+impl WrappedGraph for DynamicGraph {
+    type Internal = dyn GraphViewInternalOps + Send + Sync + 'static;
+    fn as_graph(&self) -> &(dyn GraphViewInternalOps + Send + Sync + 'static) {
         &*self.0
     }
 }

@@ -7,9 +7,9 @@
 //! # Examples
 //!
 //! ```rust
-//! use raphtory::db::graph::Graph;
+//! use raphtory::db::graph::InternalGraph;
 //! use raphtory::db::view_api::*;
-//! let graph = Graph::new(2);
+//! let graph = InternalGraph::new(2);
 //! graph.add_vertex(0, "Alice", &vec![]);
 //! graph.add_vertex(1, "Bob", &vec![]);
 //! graph.add_edge(2, "Alice", "Bob", &vec![], None);
@@ -27,7 +27,7 @@ use crate::core::{
 
 use crate::core::vertex_ref::LocalVertexRef;
 use crate::db::graph_immutable::ImmutableGraph;
-use crate::db::view_api::internal::GraphViewInternalOps;
+use crate::db::view_api::internal::{GraphViewInternalOps, WrappedGraph};
 use crate::db::view_api::*;
 use itertools::Itertools;
 use rayon::prelude::*;
@@ -35,6 +35,7 @@ use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use std::cmp::{max, min};
 use std::fmt::{Display, Formatter};
+use std::ops::{Deref, DerefMut};
 use std::{
     collections::HashMap,
     iter,
@@ -49,7 +50,7 @@ use std::{
 /// create windows, and query the graph with a variety of algorithms.
 /// It is a wrapper around a set of shards, which are the actual graph data structures.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Graph {
+pub struct InternalGraph {
     /// The number of shards in the graph.
     pub(crate) nr_shards: usize,
     /// A vector of `TGraphShard<TemporalGraph>` representing the shards in the graph.
@@ -58,13 +59,121 @@ pub struct Graph {
     pub(crate) layer_ids: Arc<parking_lot::RwLock<FxHashMap<String, usize>>>,
 }
 
-impl Default for Graph {
-    fn default() -> Self {
-        Graph::new(1)
+#[repr(transparent)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+pub struct Graph(Arc<InternalGraph>);
+
+impl Deref for Graph {
+    type Target = Arc<InternalGraph>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 
-impl Display for Graph {
+impl DerefMut for Graph {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl WrappedGraph for Graph {
+    type Internal = InternalGraph;
+
+    fn as_graph(&self) -> &InternalGraph {
+        &self.0
+    }
+}
+
+impl Graph {
+    /// Create a new graph with the specified number of shards
+    ///
+    /// # Arguments
+    ///
+    /// * `nr_shards` - The number of shards
+    ///
+    /// # Returns
+    ///
+    /// A raphtory graph
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use raphtory::db::graph::Graph;
+    /// let g = Graph::new(4);
+    /// ```
+    pub fn new(nr_shards: usize) -> Self {
+        Self(Arc::new(InternalGraph::new(nr_shards)))
+    }
+
+    pub(crate) fn new_from_frozen(
+        nr_shards: usize,
+        shards: Vec<TGraphShard<TemporalGraph>>,
+        layer_ids: Arc<parking_lot::RwLock<FxHashMap<String, usize>>>,
+    ) -> Self {
+        Self(Arc::new(InternalGraph {
+            nr_shards,
+            shards,
+            layer_ids,
+        }))
+    }
+
+    /// Load a graph from a directory
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - The path to the directory
+    ///
+    /// # Returns
+    ///
+    /// A raphtory graph
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use raphtory::db::graph::InternalGraph;
+    /// // let g = Graph::load_from_file("path/to/graph");
+    /// ```
+    pub fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self, Box<bincode::ErrorKind>> {
+        Ok(Self(Arc::new(InternalGraph::load_from_file(path)?)))
+    }
+
+    /// Freezes the current mutable graph into an immutable graph.
+    ///
+    /// This removes the internal locks, allowing the graph to be queried in
+    /// a read-only fashion.
+    ///
+    /// # Returns
+    ///
+    /// An `ImmutableGraph` which is an immutable copy of the current graph.
+    ///
+    /// # Example
+    /// ```
+    /// use raphtory::db::view_api::*;
+    /// use raphtory::db::graph::Graph;
+    ///
+    /// let mut mutable_graph = Graph::new(1);
+    /// // ... add vertices and edges to the graph
+    ///
+    /// // Freeze the mutable graph into an immutable graph
+    /// let immutable_graph = mutable_graph.freeze();
+    /// ```
+    pub fn freeze(self) -> ImmutableGraph {
+        ImmutableGraph {
+            nr_shards: self.nr_shards,
+            shards: self.shards.iter().map(|s| s.freeze()).collect_vec(),
+            layer_ids: Arc::new(self.layer_ids.read().clone()),
+        }
+    }
+}
+
+impl Default for InternalGraph {
+    fn default() -> Self {
+        InternalGraph::new(1)
+    }
+}
+
+impl Display for InternalGraph {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
@@ -75,7 +184,7 @@ impl Display for Graph {
     }
 }
 
-impl<G: GraphViewOps> PartialEq<G> for Graph {
+impl<G: GraphViewOps> PartialEq<G> for InternalGraph {
     fn eq(&self, other: &G) -> bool {
         if self.num_vertices() == other.num_vertices() && self.num_edges() == other.num_edges() {
             self.vertices().id().all(|v| other.has_vertex(v)) && // all vertices exist in other 
@@ -92,7 +201,7 @@ impl<G: GraphViewOps> PartialEq<G> for Graph {
     }
 }
 
-impl GraphViewInternalOps for Graph {
+impl GraphViewInternalOps for InternalGraph {
     fn local_vertex(&self, v: VertexRef) -> Option<LocalVertexRef> {
         self.get_shard_from_v(v).local_vertex(v)
     }
@@ -546,7 +655,7 @@ impl GraphViewInternalOps for Graph {
 }
 
 /// The implementation of a temporal graph composed of multiple shards.
-impl Graph {
+impl InternalGraph {
     /// Freezes the current mutable graph into an immutable graph.
     ///
     /// This removes the internal locks, allowing the graph to be queried in
@@ -675,7 +784,7 @@ impl Graph {
     /// let g = Graph::new(4);
     /// ```
     pub fn new(nr_shards: usize) -> Self {
-        Graph {
+        InternalGraph {
             nr_shards,
             shards: (0..nr_shards).map(|i| TGraphShard::new(i)).collect(),
             layer_ids: Default::default(),
@@ -695,7 +804,7 @@ impl Graph {
     /// # Example
     ///
     /// ```
-    /// use raphtory::db::graph::Graph;
+    /// use raphtory::db::graph::InternalGraph;
     /// // let g = Graph::load_from_file("path/to/graph");
     /// ```
     pub fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self, Box<bincode::ErrorKind>> {
@@ -727,7 +836,7 @@ impl Graph {
         shards.sort_by_cached_key(|(i, _)| *i);
 
         let shards = shards.into_iter().map(|(_, shard)| shard).collect();
-        Ok(Graph {
+        Ok(InternalGraph {
             nr_shards,
             shards,
             layer_ids,
@@ -747,9 +856,9 @@ impl Graph {
     /// # Example
     ///
     /// ```
-    /// use raphtory::db::graph::Graph;
+    /// use raphtory::db::graph::InternalGraph;
     /// use std::fs::File;
-    /// let g = Graph::new(4);
+    /// let g = InternalGraph::new(4);
     /// g.add_vertex(1, 1, &vec![]);
     /// // g.save_to_file("path_str");
     /// ```
@@ -796,8 +905,8 @@ impl Graph {
     /// # Example
     ///
     /// ```
-    /// use raphtory::db::graph::Graph;
-    /// let g = Graph::new(1);
+    /// use raphtory::db::graph::InternalGraph;
+    /// let g = InternalGraph::new(1);
     /// let v = g.add_vertex(0, "Alice", &vec![]);
     /// let v = g.add_vertex(0, 5, &vec![]);
     /// ```
@@ -832,9 +941,9 @@ impl Graph {
     /// # Example
     ///
     /// ```
-    /// use raphtory::db::graph::Graph;
+    /// use raphtory::db::graph::InternalGraph;
     /// use raphtory::core::Prop;
-    /// let graph = Graph::new(1);
+    /// let graph = InternalGraph::new(1);
     /// graph.add_vertex(0, "Alice", &vec![]);
     /// let properties = vec![("color".to_owned(), Prop::Str("blue".to_owned())), ("weight".to_owned(), Prop::I64(11))];
     /// let result = graph.add_vertex_properties("Alice", &properties);
@@ -861,9 +970,9 @@ impl Graph {
     /// # Example
     ///
     /// ```
-    /// use raphtory::db::graph::Graph;
+    /// use raphtory::db::graph::InternalGraph;
     ///
-    /// let graph = Graph::new(1);
+    /// let graph = InternalGraph::new(1);
     /// graph.add_vertex(1, "Alice", &vec![]);
     /// graph.add_vertex(2, "Bob", &vec![]);
     /// graph.add_edge(3, "Alice", "Bob", &vec![], None);
@@ -923,9 +1032,9 @@ impl Graph {
     /// # Example
     ///
     /// ```
-    /// use raphtory::db::graph::Graph;
+    /// use raphtory::db::graph::InternalGraph;
     /// use raphtory::core::Prop;
-    /// let graph = Graph::new(1);
+    /// let graph = InternalGraph::new(1);
     /// graph.add_vertex(1, "Alice", &vec![]);
     /// graph.add_vertex(2, "Bob", &vec![]);
     /// graph.add_edge(3, "Alice", "Bob", &vec![], None);
@@ -1007,7 +1116,7 @@ mod db_tests {
     fn add_edge_grows_graph_edge_len(edges: Vec<(i64, u64, u64)>) {
         let nr_shards: usize = 2;
 
-        let g = Graph::new(nr_shards);
+        let g = InternalGraph::new(nr_shards);
 
         let unique_vertices_count = edges
             .iter()
@@ -1032,7 +1141,7 @@ mod db_tests {
 
     #[quickcheck]
     fn add_edge_works(edges: Vec<(i64, u64, u64)>) -> bool {
-        let g = Graph::new(3);
+        let g = InternalGraph::new(3);
         for &(t, src, dst) in edges.iter() {
             g.add_edge(t, src, dst, &vec![], None).unwrap();
         }
@@ -1044,7 +1153,7 @@ mod db_tests {
 
     #[quickcheck]
     fn get_edge_works(edges: Vec<(i64, u64, u64)>) -> bool {
-        let g = Graph::new(100);
+        let g = InternalGraph::new(100);
         for &(t, src, dst) in edges.iter() {
             g.add_edge(t, src, dst, &vec![], None).unwrap();
         }
@@ -1065,7 +1174,7 @@ mod db_tests {
             (1, 1, 1),
         ];
 
-        let g = Graph::new(2);
+        let g = InternalGraph::new(2);
 
         for (t, src, dst) in &vs {
             g.add_edge(*t, *src, *dst, &vec![], None).unwrap();
@@ -1106,7 +1215,7 @@ mod db_tests {
         }
 
         // Load from files
-        match Graph::load_from_file(Path::new(&shards_path)) {
+        match InternalGraph::load_from_file(Path::new(&shards_path)) {
             Ok(g) => {
                 assert!(g.has_vertex_ref(1.into()));
                 assert_eq!(g.nr_shards, 2);
@@ -1119,7 +1228,7 @@ mod db_tests {
 
     #[test]
     fn has_edge() {
-        let g = Graph::new(2);
+        let g = InternalGraph::new(2);
         g.add_edge(1, 7, 8, &vec![], None).unwrap();
 
         assert!(!g.has_edge(8, 7, None));
@@ -1137,7 +1246,7 @@ mod db_tests {
 
     #[test]
     fn graph_edge() {
-        let g = Graph::new(2);
+        let g = InternalGraph::new(2);
         let es = vec![
             (1, 1, 2),
             (2, 1, 3),
@@ -1168,7 +1277,7 @@ mod db_tests {
             (1, 1, 1),
         ];
 
-        let g = Graph::new(1);
+        let g = InternalGraph::new(1);
 
         for (t, src, dst) in &vs {
             g.add_edge(*t, *src, *dst, &vec![], None).unwrap();
@@ -1189,7 +1298,7 @@ mod db_tests {
         assert_eq!(actual, expected);
 
         // Check results from multiple graphs with different number of shards
-        let g = Graph::new(3);
+        let g = InternalGraph::new(3);
 
         for (t, src, dst) in &vs {
             g.add_edge(*t, *src, *dst, &vec![], None).unwrap();
@@ -1220,7 +1329,7 @@ mod db_tests {
             (1, 1, 1),
         ];
 
-        let g = Graph::new(1);
+        let g = InternalGraph::new(1);
 
         for (t, src, dst) in &vs {
             g.add_edge(*t, *src, *dst, &vec![], None).unwrap();
@@ -1247,7 +1356,7 @@ mod db_tests {
         assert_eq!(actual, expected);
 
         // Check results from multiple graphs with different number of shards
-        let g = Graph::new(10);
+        let g = InternalGraph::new(10);
 
         for (t, src, dst) in &vs {
             g.add_edge(*t, *src, *dst, &vec![], None).unwrap();
@@ -1284,7 +1393,7 @@ mod db_tests {
             (1, 1, 1),
         ];
 
-        let g = Graph::new(1);
+        let g = InternalGraph::new(1);
 
         for (t, src, dst) in &vs {
             g.add_edge(*t, *src, *dst, &vec![], None).unwrap();
@@ -1324,7 +1433,7 @@ mod db_tests {
         assert_eq!(vec![vec![0, 0], vec![], vec![]], both_actual);
 
         // Check results from multiple graphs with different number of shards
-        let g = Graph::new(4);
+        let g = InternalGraph::new(4);
 
         for (src, dst, t) in &vs {
             g.add_edge(*src, *dst, *t, &vec![], None).unwrap();
@@ -1444,7 +1553,7 @@ mod db_tests {
     #[test]
     #[should_panic]
     fn changing_property_type_for_vertex_panics() {
-        let g = Graph::new(4);
+        let g = InternalGraph::new(4);
         g.add_vertex(0, 11, &vec![("test".to_string(), Prop::Bool(true))])
             .unwrap();
         g.add_vertex_properties(11, &vec![("test".to_string(), Prop::Bool(true))])
@@ -1454,7 +1563,7 @@ mod db_tests {
     #[test]
     #[should_panic]
     fn changing_property_type_for_edge_panics() {
-        let g = Graph::new(4);
+        let g = InternalGraph::new(4);
         g.add_edge(
             0,
             11,
@@ -1478,7 +1587,7 @@ mod db_tests {
             (1, 1, 1),
         ];
 
-        let g = Graph::new(2);
+        let g = InternalGraph::new(2);
 
         for (t, src, dst) in &vs {
             g.add_edge(*t, *src, *dst, &vec![], None).unwrap();
@@ -1516,7 +1625,7 @@ mod db_tests {
 
     #[test]
     fn test_time_range_on_empty_graph() {
-        let g = Graph::new(1);
+        let g = InternalGraph::new(1);
 
         let rolling = g.rolling(1, None).unwrap().collect_vec();
         assert!(rolling.is_empty());
@@ -1527,7 +1636,7 @@ mod db_tests {
 
     #[test]
     fn test_add_vertex_with_strings() {
-        let g = Graph::new(1);
+        let g = InternalGraph::new(1);
 
         g.add_vertex(0, "haaroon", &vec![]).unwrap();
         g.add_vertex(1, "hamza", &vec![]).unwrap();
@@ -1542,7 +1651,7 @@ mod db_tests {
 
     #[test]
     fn layers() {
-        let g = Graph::new(4);
+        let g = InternalGraph::new(4);
         g.add_edge(0, 11, 22, &vec![], None).unwrap();
         g.add_edge(0, 11, 33, &vec![], None).unwrap();
         g.add_edge(0, 33, 11, &vec![], None).unwrap();
@@ -1645,7 +1754,7 @@ mod db_tests {
 
     #[test]
     fn test_exploded_edge() {
-        let g = Graph::new(1);
+        let g = InternalGraph::new(1);
         g.add_edge(0, 1, 2, &vec![("weight".to_string(), Prop::I64(1))], None)
             .unwrap();
         g.add_edge(1, 1, 2, &vec![("weight".to_string(), Prop::I64(2))], None)
@@ -1678,7 +1787,7 @@ mod db_tests {
 
     #[test]
     fn test_edge_earliest_latest() {
-        let g = Graph::new(1);
+        let g = InternalGraph::new(1);
         g.add_edge(0, 1, 2, &vec![], None).unwrap();
         g.add_edge(1, 1, 2, &vec![], None).unwrap();
         g.add_edge(2, 1, 2, &vec![], None).unwrap();
@@ -1739,7 +1848,7 @@ mod db_tests {
 
     #[test]
     fn check_vertex_history() {
-        let g = Graph::new(1);
+        let g = InternalGraph::new(1);
 
         g.add_vertex(1, 1, &vec![]).unwrap();
         g.add_vertex(2, 1, &vec![]).unwrap();
@@ -1768,7 +1877,7 @@ mod db_tests {
 
     #[test]
     fn check_edge_history() {
-        let g = Graph::new(1);
+        let g = InternalGraph::new(1);
 
         g.add_edge(1, 1, 2, &vec![], None).unwrap();
         g.add_edge(2, 1, 3, &vec![], None).unwrap();
@@ -1787,7 +1896,7 @@ mod db_tests {
 
     #[test]
     fn check_edge_history_on_multiple_shards() {
-        let g = Graph::new(10);
+        let g = InternalGraph::new(10);
 
         g.add_edge(1, 1, 2, &vec![], None).unwrap();
         g.add_edge(2, 1, 3, &vec![], None).unwrap();
@@ -1819,7 +1928,7 @@ mod db_tests {
 
     #[test]
     fn check_vertex_history_multiple_shards() {
-        let g = Graph::new(10);
+        let g = InternalGraph::new(10);
 
         g.add_vertex(1, 1, &vec![]).unwrap();
         g.add_vertex(2, 1, &vec![]).unwrap();
@@ -1860,14 +1969,14 @@ mod db_tests {
         let earliest_time = "2022-06-06 12:34:00".try_into_time().unwrap();
         let latest_time = "2022-06-07 12:34:00".try_into_time().unwrap();
 
-        let g = Graph::new(4);
+        let g = InternalGraph::new(4);
         g.add_vertex("2022-06-06T12:34:00.000", 0, &vec![]).unwrap();
         g.add_edge("2022-06-07T12:34:00", 1, 2, &vec![], None)
             .unwrap();
         assert_eq!(g.earliest_time().unwrap(), earliest_time);
         assert_eq!(g.latest_time().unwrap(), latest_time);
 
-        let g = Graph::new(4);
+        let g = InternalGraph::new(4);
         let fmt = "%Y-%m-%d %H:%M";
         g.add_vertex_with_custom_time_format("2022-06-06 12:34", fmt, 0, &vec![])
             .unwrap();
@@ -1927,7 +2036,7 @@ mod db_tests {
 
     #[test]
     fn test_vertex_early_late_times() {
-        let g = Graph::new(1);
+        let g = InternalGraph::new(1);
         g.add_vertex(1, 1, &vec![]).unwrap();
         g.add_vertex(2, 1, &vec![]).unwrap();
         g.add_vertex(3, 1, &vec![]).unwrap();
@@ -1941,7 +2050,7 @@ mod db_tests {
 
     #[test]
     fn test_vertex_ids() {
-        let g = Graph::new(1);
+        let g = InternalGraph::new(1);
         g.add_vertex(1, 1, &vec![]).unwrap();
         g.add_vertex(1, 2, &vec![]).unwrap();
         g.add_vertex(2, 3, &vec![]).unwrap();
@@ -1954,7 +2063,7 @@ mod db_tests {
 
     #[test]
     fn test_edge_layer_name() -> Result<(), GraphError> {
-        let g = Graph::new(4);
+        let g = InternalGraph::new(4);
         g.add_edge(0, 0, 1, &vec![], None)?;
         g.add_edge(0, 0, 1, &vec![], Some("awesome name"))?;
 
@@ -1965,7 +2074,7 @@ mod db_tests {
 
     #[test]
     fn test_edge_from_single_layer() {
-        let g = Graph::new(4);
+        let g = InternalGraph::new(4);
         g.add_edge(0, 1, 2, &vec![], Some("layer")).unwrap();
 
         assert!(g.edge(1, 2, None).is_none());
@@ -1974,7 +2083,7 @@ mod db_tests {
 
     #[test]
     fn test_unique_layers() {
-        let g = Graph::new(4);
+        let g = InternalGraph::new(4);
         g.add_edge(0, 1, 2, &vec![], Some("layer1")).unwrap();
         g.add_edge(0, 1, 2, &vec![], Some("layer2")).unwrap();
         assert_eq!(
@@ -1985,7 +2094,7 @@ mod db_tests {
 
     #[quickcheck]
     fn vertex_from_id_is_consistent(vertices: Vec<u64>) -> bool {
-        let g = Graph::new(1);
+        let g = InternalGraph::new(1);
         for v in vertices.iter() {
             g.add_vertex(0, *v, &vec![]).unwrap();
         }
