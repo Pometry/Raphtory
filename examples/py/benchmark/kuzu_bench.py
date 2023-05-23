@@ -5,7 +5,14 @@ import kuzu
 class KuzuBench(BenchmarkBase):
 
     def start_docker(self):
-        pass
+        image_name = 'python:3.10-bullseye'
+        container_folder = '/app/data'
+        exec_commands = [
+            'pip install requests tqdm docker kuzu pandas numpy scipy',
+            '/bin/bash -c "cd /app/data;python benchmark_driver.py --bench k --save True"'
+        ]
+        code, contents = super().start_docker(image_name, container_folder, exec_commands)
+        return code, contents
 
     def shutdown(self):
         del self.conn
