@@ -1,4 +1,4 @@
-use crate::data::Metadata;
+use crate::data::Data;
 use crate::model::QueryRoot;
 use crate::observability::tracing::create_tracer_from_env;
 use crate::routes::{graphql_playground, health};
@@ -7,6 +7,7 @@ use dotenv::dotenv;
 use dynamic_graphql::App;
 use poem::listener::TcpListener;
 use poem::{get, Route, Server};
+use std::env;
 use tokio::signal;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
@@ -59,10 +60,12 @@ async fn main() {
             .expect("Failed to register tracer with registry"),
     }
 
+    let graph_directory = env::var("GRAPH_DIRECTORY").unwrap_or("graphs".to_string());
+
     #[derive(App)]
     struct App(QueryRoot);
     let schema = App::create_schema()
-        .data(Metadata::lotr())
+        .data(Data::load(&graph_directory))
         .finish()
         .unwrap();
     let app = Route::new()

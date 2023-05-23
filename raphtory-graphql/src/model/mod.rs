@@ -1,3 +1,4 @@
+use crate::Data;
 use async_graphql::Context;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, SimpleObject};
 use raphtory::db::graph::Graph;
@@ -5,7 +6,6 @@ use raphtory::db::graph_window::WindowedGraph;
 use raphtory::db::vertex::VertexView;
 use raphtory::db::view_api::{GraphViewOps, TimeOps, VertexViewOps};
 
-use crate::data::Metadata;
 use crate::model::algorithm::Algorithms;
 
 mod algorithm;
@@ -21,10 +21,29 @@ impl QueryRoot {
     }
 
     /// Returns a view including all events between `t_start` (inclusive) and `t_end` (exclusive)
-    async fn window<'a>(ctx: &Context<'a>, t_start: i64, t_end: i64) -> GqlWindowGraph<Graph> {
-        let meta = ctx.data_unchecked::<Metadata<Graph>>();
-        let g = meta.graph().window(t_start, t_end);
-        GqlWindowGraph::new(g)
+    async fn graph<'a>(ctx: &Context<'a>, name: &str) -> Option<GqlGraph> {
+        let data = ctx.data_unchecked::<Data>();
+        let g = data.graphs.get(name)?;
+        Some(g.clone().into())
+    }
+}
+
+#[derive(ResolvedObject)]
+pub(crate) struct GqlGraph {
+    graph: Graph,
+}
+
+impl From<Graph> for GqlGraph {
+    fn from(graph: Graph) -> Self {
+        Self { graph }
+    }
+}
+
+#[ResolvedObjectFields]
+impl GqlGraph {
+    async fn window<'a>(&self, t_start: i64, t_end: i64) -> GqlWindowGraph<Graph> {
+        let w = self.graph.window(t_start, t_end);
+        w.into()
     }
 }
 
@@ -33,8 +52,8 @@ pub(crate) struct GqlWindowGraph<G: GraphViewOps> {
     graph: WindowedGraph<G>,
 }
 
-impl<G: GraphViewOps> GqlWindowGraph<G> {
-    pub fn new(graph: WindowedGraph<G>) -> Self {
+impl<G: GraphViewOps> From<WindowedGraph<G>> for GqlWindowGraph<G> {
+    fn from(graph: WindowedGraph<G>) -> Self {
         Self { graph }
     }
 }

@@ -36,12 +36,9 @@ WORKDIR /app
 
 RUN groupadd -g 999 appuser && \
     useradd -r -u 999 -g appuser appuser
-
 USER appuser
 
 COPY --from=builder /app/target/release/raphtory-graphql /app
-
-COPY  resource/lotr-without-header.csv /tmp/lotr.csv
 
 EXPOSE 1736
 
