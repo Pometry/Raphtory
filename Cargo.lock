@@ -812,31 +812,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "flux-capacitor"
-version = "0.1.0"
-dependencies = [
- "async-graphql",
- "async-graphql-poem",
- "async-stream",
- "dotenv",
- "dynamic-graphql",
- "futures-util",
- "itertools",
- "metrics",
- "metrics-exporter-prometheus",
- "opentelemetry",
- "opentelemetry-jaeger",
- "poem",
- "raphtory",
- "raphtory-io",
- "serde",
- "tokio",
- "tracing",
- "tracing-opentelemetry",
- "tracing-subscriber",
-]
-
-[[package]]
 name = "fnv"
 version = "1.0.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2391,6 +2366,31 @@ dependencies = [
  "raphtory-io",
  "rayon",
  "sorted_vector_map",
+]
+
+[[package]]
+name = "raphtory-graphql"
+version = "0.1.0"
+dependencies = [
+ "async-graphql",
+ "async-graphql-poem",
+ "async-stream",
+ "dotenv",
+ "dynamic-graphql",
+ "futures-util",
+ "itertools",
+ "metrics",
+ "metrics-exporter-prometheus",
+ "opentelemetry",
+ "opentelemetry-jaeger",
+ "poem",
+ "raphtory",
+ "raphtory-io",
+ "serde",
+ "tokio",
+ "tracing",
+ "tracing-opentelemetry",
+ "tracing-subscriber",
 ]
 
 [[package]]
