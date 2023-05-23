@@ -191,7 +191,7 @@ def run_benchmark_docker(bench):
         print("** Running for " + driver.name() + "...")
         print("Starting docker container...")
         exit_code, logs = driver.start_docker()
-        print("Docker container exited with non-zero code " + str(exit_code))
+        print("Docker container exited with code " + str(exit_code))
         print("Logs: " + logs)
     else:
         pass

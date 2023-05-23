@@ -1,5 +1,4 @@
 from benchmark_base import BenchmarkBase
-import gzip
 import csv
 import raphtory
 from tqdm import tqdm
@@ -11,8 +10,15 @@ simple_relationship_file = "data/simple-relationships.csv"
 
 class RaphtoryBench(BenchmarkBase):
 
-    def start_docker(self):
-        pass
+    def start_docker(self, image_name=None, container_folder=None, exec_commands=None):
+        image_name = 'python:3.10-bullseye'
+        container_folder = '/app/data'
+        exec_commands = [
+            'pip install raphtory requests tqdm pandas numpy docker',
+            '/bin/bash -c "cd /app/data;python benchmark_driver.py --bench r --save True"'
+        ]
+        code, contents = super().start_docker(image_name, container_folder, exec_commands)
+        return code, contents
 
     def shutdown(self):
         del self.graph

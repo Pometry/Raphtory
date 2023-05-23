@@ -22,7 +22,7 @@ try:
     from networkx_bench import NetworkXBench
     NetworkXBench = NetworkXBench()
 except ImportError as e:
-    print(e)
+    pass
 
 try:
     from neo4j_bench import Neo4jBench
