@@ -28,11 +28,13 @@ use crate::core::{
 use crate::core::vertex_ref::LocalVertexRef;
 use crate::db::graph_immutable::ImmutableGraph;
 use crate::db::view_api::internal::GraphViewInternalOps;
+use crate::db::view_api::*;
 use itertools::Itertools;
 use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use std::cmp::{max, min};
+use std::fmt::{Display, Formatter};
 use std::{
     collections::HashMap,
     iter,
@@ -56,7 +58,55 @@ pub struct Graph {
     pub(crate) layer_ids: Arc<parking_lot::RwLock<FxHashMap<String, usize>>>,
 }
 
+impl Default for Graph {
+    fn default() -> Self {
+        Graph::new(1)
+    }
+}
+
+impl Display for Graph {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Graph(num_vertices={}, num_edges={})",
+            self.num_vertices(),
+            self.num_edges()
+        )
+    }
+}
+
+impl<G: GraphViewOps> PartialEq<G> for Graph {
+    fn eq(&self, other: &G) -> bool {
+        if self.num_vertices() == other.num_vertices() && self.num_edges() == other.num_edges() {
+            self.vertices().id().all(|v| other.has_vertex(v)) && // all vertices exist in other 
+            self.edges().explode().count() == other.edges().explode().count() && // same number of exploded edges
+            self.edges().explode().all(|e| { // all exploded edges exist in other
+                other
+                    .edge(e.src().id(), e.dst().id(), None)
+                    .filter(|ee| ee.active(e.time().expect("exploded")))
+                    .is_some()
+            })
+        } else {
+            false
+        }
+    }
+}
+
 impl GraphViewInternalOps for Graph {
+    fn local_vertex(&self, v: VertexRef) -> Option<LocalVertexRef> {
+        self.get_shard_from_v(v).local_vertex(v)
+    }
+
+    fn local_vertex_window(
+        &self,
+        v: VertexRef,
+        t_start: i64,
+        t_end: i64,
+    ) -> Option<LocalVertexRef> {
+        self.get_shard_from_v(v)
+            .local_vertex_window(v, t_start..t_end)
+    }
+
     /// Return all the layer ids, included the id of the default layer, 0
     fn get_unique_layers_internal(&self) -> Vec<usize> {
         Box::new(iter::once(0).chain(self.layer_ids.read().values().copied())).collect_vec()
@@ -189,6 +239,10 @@ impl GraphViewInternalOps for Graph {
 
     fn vertex_ref(&self, v: u64) -> Option<LocalVertexRef> {
         self.get_shard_from_id(v).vertex(v)
+    }
+
+    fn vertex_id(&self, v: LocalVertexRef) -> u64 {
+        self.shards[v.shard_id].vertex_id(v)
     }
 
     fn vertex_ref_window(&self, v: u64, t_start: i64, t_end: i64) -> Option<LocalVertexRef> {
@@ -394,6 +448,15 @@ impl GraphViewInternalOps for Graph {
             .temporal_vertex_prop_vec(v, name)
     }
 
+    fn vertex_timestamps(&self, v: LocalVertexRef) -> Vec<i64> {
+        self.get_shard_from_local_v(v).vertex_timestamps(v)
+    }
+
+    fn vertex_timestamps_window(&self, v: LocalVertexRef, t_start: i64, t_end: i64) -> Vec<i64> {
+        self.get_shard_from_local_v(v)
+            .vertex_timestamps_window(v, t_start..t_end)
+    }
+
     fn temporal_vertex_prop_vec_window(
         &self,
         v: LocalVertexRef,
@@ -446,15 +509,6 @@ impl GraphViewInternalOps for Graph {
             .temporal_edge_props_vec_window(e, name, t_start..t_end)
     }
 
-    fn vertex_timestamps(&self, v: LocalVertexRef) -> Vec<i64> {
-        self.get_shard_from_local_v(v).vertex_timestamps(v)
-    }
-
-    fn vertex_timestamps_window(&self, v: LocalVertexRef, t_start: i64, t_end: i64) -> Vec<i64> {
-        self.get_shard_from_local_v(v)
-            .vertex_timestamps_window(v, t_start..t_end)
-    }
-
     fn edge_timestamps(&self, e: EdgeRef, window: Option<Range<i64>>) -> Vec<i64> {
         self.get_shard_from_e(e).edge_timestamps(e, window)
     }
@@ -488,24 +542,6 @@ impl GraphViewInternalOps for Graph {
         t_end: i64,
     ) -> Box<dyn Iterator<Item = LocalVertexRef> + Send> {
         Box::new(self.shards[shard_id].vertices_window(t_start..t_end))
-    }
-
-    fn vertex_id(&self, v: LocalVertexRef) -> u64 {
-        self.shards[v.shard_id].vertex_id(v)
-    }
-
-    fn local_vertex(&self, v: VertexRef) -> Option<LocalVertexRef> {
-        self.get_shard_from_v(v).local_vertex(v)
-    }
-
-    fn local_vertex_window(
-        &self,
-        v: VertexRef,
-        t_start: i64,
-        t_end: i64,
-    ) -> Option<LocalVertexRef> {
-        self.get_shard_from_v(v)
-            .local_vertex_window(v, t_start..t_end)
     }
 }
 

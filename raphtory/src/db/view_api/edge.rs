@@ -120,6 +120,16 @@ pub trait EdgeViewOps: EdgeViewInternalOps<Self::Graph, Self::Vertex> {
         self.new_vertex(vertex)
     }
 
+    fn active(&self, t: i64) -> bool {
+        self.graph().has_edge_ref_window(
+            self.eref().src(),
+            self.eref().dst(),
+            t,
+            t.saturating_add(1),
+            self.eref().layer(),
+        )
+    }
+
     /// Explodes an edge and returns all instances it had been updated as seperate edges
     fn explode(&self) -> Self::EList;
 

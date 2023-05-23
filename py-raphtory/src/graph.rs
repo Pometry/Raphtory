@@ -14,12 +14,20 @@ use pyo3::prelude::*;
 use raphtory::core as dbc;
 use raphtory::db::graph::Graph;
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::fmt::{Debug, Formatter};
+use std::path::{Display, Path, PathBuf};
 
 /// A temporal graph.
+#[derive(Clone)]
 #[pyclass(name="Graph", extends=PyGraphView)]
 pub struct PyGraph {
     pub(crate) graph: Graph,
+}
+
+impl Debug for PyGraph {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.graph)
+    }
 }
 
 impl From<Graph> for PyGraph {
