@@ -592,6 +592,35 @@ impl Clone for ImmutableTGraphShard<TemporalGraph> {
     }
 }
 
+macro_rules! erase_lifetime {
+    ($tgshard:expr, |$g:ident| { $f:expr }) => {
+        let $g = $tgshard;
+        let iter = GenBoxed::new_boxed(|co| async move {
+            let iter = $f;
+            for vv in iter {
+                co.yield_(vv).await;
+            }
+        });
+        return Box::new(iter.into_iter())
+    };
+}
+
+
+macro_rules! erase_lifetime2 {
+    ($tgshard:expr, |$g:ident| { $f:expr }) => {
+        let $g = $tgshard;
+
+        let iter = gen!({
+            let chunks = $f;
+            let iter = chunks.into_iter();
+            for v_id in iter {
+                yield_!(v_id)
+            }
+        });
+        return Box::new(iter.into_iter())
+    };
+}
+
 impl ImmutableTGraphShard<TemporalGraph> {
     #[inline(always)]
     fn read_shard<A, F>(&self, f: F) -> A
@@ -703,14 +732,7 @@ impl ImmutableTGraphShard<TemporalGraph> {
     }
 
     pub fn vertices(&self) -> Box<dyn Iterator<Item = LocalVertexRef> + Send> {
-        let tgshard = self.rc.clone();
-        let iter: GenBoxed<LocalVertexRef> = GenBoxed::new_boxed(|co| async move {
-            let iter = tgshard.vertices();
-            for vv in iter {
-                co.yield_(vv).await;
-            }
-        });
-        Box::new(iter.into_iter())
+        erase_lifetime!(self.rc.clone(), |tg| { tg.vertices() });
     }
 
     pub fn vertices_window(
@@ -757,15 +779,7 @@ impl ImmutableTGraphShard<TemporalGraph> {
         d: Direction,
         layer: Option<usize>,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
-        let tgshard = self.rc.clone();
-        let iter: GenBoxed<EdgeRef> = GenBoxed::new_boxed(|co| async move {
-            let iter = tgshard.vertex_edges(v, d, layer);
-            for ev in iter {
-                co.yield_(ev).await;
-            }
-        });
-
-        Box::new(iter.into_iter())
+        erase_lifetime!(self.rc.clone(), |tg| { tg.vertex_edges(v, d, layer) });
     }
 
     pub fn vertex_edges_window(
@@ -775,16 +789,9 @@ impl ImmutableTGraphShard<TemporalGraph> {
         d: Direction,
         layer: Option<usize>,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
-        let tgshard = self.rc.clone();
-        let iter = gen!({
-            let chunks = tgshard.vertex_edges_window(v, &w, d, layer);
-            let iter = chunks.into_iter();
-            for v_id in iter {
-                yield_!(v_id)
-            }
+        erase_lifetime2!(self.rc.clone(), |tg| {
+            tg.vertex_edges_window(v, &w, d, layer).into_iter()
         });
-
-        Box::new(iter.into_iter())
     }
 
     pub fn vertex_edges_window_t(
@@ -794,16 +801,9 @@ impl ImmutableTGraphShard<TemporalGraph> {
         d: Direction,
         layer: Option<usize>,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
-        let tgshard = self.rc.clone();
-        let iter = gen!({
-            let chunks = tgshard.vertex_edges_window_t(v, &w, d, layer);
-            let iter = chunks.into_iter();
-            for v_id in iter {
-                yield_!(v_id)
-            }
+        erase_lifetime2!(self.rc.clone(), |tg|{
+            tg.vertex_edges_window_t(v, &w, d, layer).into_iter()
         });
-
-        Box::new(iter.into_iter())
     }
 
     pub fn neighbours(
@@ -812,16 +812,9 @@ impl ImmutableTGraphShard<TemporalGraph> {
         d: Direction,
         layer: Option<usize>,
     ) -> Box<dyn Iterator<Item = VertexRef> + Send> {
-        let tgshard = self.rc.clone();
-        let iter = gen!({
-            let chunks = (tgshard).neighbours(v, d, layer);
-            let iter = chunks.into_iter();
-            for v_id in iter {
-                yield_!(v_id)
-            }
+        erase_lifetime2!(self.rc.clone(), |tg|{
+            tg.neighbours(v, d, layer).into_iter()
         });
-
-        Box::new(iter.into_iter())
     }
 
     pub fn neighbours_window(
@@ -831,16 +824,9 @@ impl ImmutableTGraphShard<TemporalGraph> {
         d: Direction,
         layer: Option<usize>,
     ) -> Box<dyn Iterator<Item = VertexRef> + Send> {
-        let tgshard = self.rc.clone();
-        let iter = gen!({
-            let chunks = tgshard.neighbours_window(v, &w, d, layer);
-            let iter = chunks.into_iter();
-            for v_id in iter {
-                yield_!(v_id)
-            }
+        erase_lifetime2!(self.rc.clone(), |tg|{
+            tg.neighbours_window(v, &w, d, layer).into_iter()
         });
-
-        Box::new(iter.into_iter())
     }
 
     pub fn static_vertex_prop(&self, v: LocalVertexRef, name: String) -> Option<Prop> {
