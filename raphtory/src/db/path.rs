@@ -293,13 +293,8 @@ impl<G: GraphViewOps> PathFromVertex<G> {
     }
 
     pub fn iter(&self) -> Box<dyn Iterator<Item = VertexView<G>> + Send> {
-        let init: Box<dyn Iterator<Item = VertexRef> + Send> =
-            Box::new(iter::once(VertexRef::Local(self.vertex)));
         let g = self.graph.clone();
-        let ops = self.operations.clone();
-        let iter = ops
-            .iter()
-            .fold(init, |it, op| Box::new(op.op(g.clone(), it)))
+        let iter = self.iter_refs()
             .map(move |v| VertexView::new(g.clone(), v));
         Box::new(iter)
     }
