@@ -38,8 +38,8 @@ fns = ['setup', 'degree', 'out_neighbours', 'page_rank', 'connected_components']
 
 def process_arguments():
     parser = argparse.ArgumentParser(description='benchmark args')
-    parser.add_argument('-d', '--docker', type=bool, help='Launch with docker containers (default: False)',
-                        default=False)
+    parser.add_argument('-d', '--docker', type=bool, help='Launch with docker containers (default: True)',
+                        default=True)
     parser.add_argument('-s', '--save', type=bool, help='Save results to file (default: False)', default=False)
     parser.add_argument('-b', '--bench', type=str, help="""
     Run specific benchmark,
