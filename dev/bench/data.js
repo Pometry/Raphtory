@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1684837534718,
+  "lastUpdate": 1684921200122,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -1453,6 +1453,60 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions with numeric string input",
             "value": 2001373,
             "range": "± 120975",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97447091+ljeub-pometry@users.noreply.github.com",
+            "name": "ljeub-pometry",
+            "username": "ljeub-pometry"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b88df921fe60b7e2b94d7a0362a64e20062290a9",
+          "message": "Feature/graph ception (#972)\n\n* add a graph as a property\r\n\r\n* Make Graph wrap an Arc of the actual graph for extra-cheap clone\r\n\r\n* need Display\r\n\r\n* make the Graph wrap an Arc over the shards for hopefully faster clone",
+          "timestamp": "2023-05-24T11:36:09+02:00",
+          "tree_id": "3eff87a5450296530e0f83b9f259554df0714e50",
+          "url": "https://github.com/Pometry/Raphtory/commit/b88df921fe60b7e2b94d7a0362a64e20062290a9"
+        },
+        "date": 1684921199462,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 294956,
+            "range": "± 1202",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and numeric string input",
+            "value": 855380,
+            "range": "± 6357",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and string input",
+            "value": 895113,
+            "range": "± 15120",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 699476,
+            "range": "± 100373",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions with numeric string input",
+            "value": 2163949,
+            "range": "± 121129",
             "unit": "ns/iter"
           }
         ]
