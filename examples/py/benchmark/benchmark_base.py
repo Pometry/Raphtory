@@ -37,6 +37,7 @@ class BenchmarkBase(ABC):
             tty=True,
             environment=envs,
             ports=ports,
+            mem_limit='4g'
         )
 
         time.sleep(wait)
@@ -59,8 +60,8 @@ class BenchmarkBase(ABC):
         except Exception as e:
             print(e)
             print('Error running command')
-            # self.container.stop()
-            # self.container.remove()
+            self.container.stop()
+            self.container.remove()
             return 1, 'Error running command'
 
         print('Benchmark completed, retrieving results...')
@@ -68,8 +69,8 @@ class BenchmarkBase(ABC):
         file_contents = self.container.exec_run(['/bin/bash', '-c', f'cat {file_path}']).output.decode('utf-8').strip()
 
         print('Removing container...')
-        # self.container.stop()
-        # self.container.remove()
+        self.container.stop()
+        self.container.remove()
 
         return 0, file_contents
 
