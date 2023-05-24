@@ -1,11 +1,9 @@
 use crate::core::time::IntoTime;
-use crate::core::vertex_ref::VertexRef;
 use crate::core::{Direction, Prop};
 use crate::db::edge::EdgeView;
 use crate::db::graph_window::WindowedGraph;
 use crate::db::path::{Operations, PathFromVertex};
 use crate::db::task::eval_edge::EvalEdgeView;
-use crate::db::vertex::VertexView;
 use crate::db::view_api::{BoxedIter, TimeOps, VertexListOps, VertexViewOps};
 use crate::{
     core::{
@@ -20,11 +18,11 @@ use std::marker::PhantomData;
 use std::{
     cell::{Ref, RefCell},
     rc::Rc,
-    sync::Arc,
 };
 
 use super::eval_vertex_state::EVState;
 use super::task_state::Local2;
+use super::window_eval_vertex::{WindowEvalPathFromVertex, WindowEvalVertex};
 
 pub struct EvalVertexView<'a, G: GraphViewOps, CS: ComputeState, S: 'static> {
     ss: usize,
@@ -336,7 +334,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> IntoIterator
 impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> TimeOps
     for EvalPathFromVertex<'a, G, CS, S>
 {
-    type WindowedViewType = EvalPathFromVertex<'a, WindowedGraph<G>, CS, S>;
+    type WindowedViewType = WindowEvalPathFromVertex<'a, G, CS, S>;
 
     fn start(&self) -> Option<i64> {
         self.path.start()
@@ -347,16 +345,15 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> TimeOps
     }
 
     fn window<T: IntoTime>(&self, t_start: T, t_end: T) -> Self::WindowedViewType {
-        // let (t_start, t_end) = (t_start.into_time(), t_end.into_time());
-        // EvalPathFromVertex {
-        //     path: self.path.window(t_start, t_end),
-        //     g: self.g.window(t_start, t_end).as_arc(),
-        //     ss: self.ss,
-        //     vertex_state: self.vertex_state.clone(),
-        //     local_state_prev: self.local_state_prev.clone(),
-        //     _s: PhantomData,
-        // }
-        todo!()
+        WindowEvalPathFromVertex::new(
+            self.path.clone(),
+            self.ss,
+            self.g,
+            self.vertex_state.clone(),
+            self.local_state_prev.clone(),
+            t_start.into_time(),
+            t_end.into_time(),
+        )
     }
 }
 
@@ -458,7 +455,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
 }
 
 impl<'a, G: GraphViewOps, CS: ComputeState, S> TimeOps for EvalVertexView<'a, G, CS, S> {
-    type WindowedViewType = EvalVertexView<'a, WindowedGraph<G>, CS, S>;
+    type WindowedViewType = WindowEvalVertex<'a, G, CS, S>;
 
     fn start(&self) -> Option<i64> {
         self.graph.start()
@@ -469,15 +466,16 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S> TimeOps for EvalVertexView<'a, G,
     }
 
     fn window<T: IntoTime>(&self, t_start: T, t_end: T) -> Self::WindowedViewType {
-        // EvalVertexView::new_local(
-        //     self.ss,
-        //     self.vertex,
-        //     &self.graph.window(t_start, t_end),
-        //     None,
-        //     self.local_state_prev.clone(),
-        //     self.vertex_state.clone(),
-        // )
-        todo!()
+        WindowEvalVertex::new(
+            self.ss,
+            self.vertex,
+            self.graph,
+            None,
+            self.local_state_prev.clone(),
+            self.vertex_state.clone(),
+            t_start.into_time(),
+            t_end.into_time(),
+        )
     }
 }
 

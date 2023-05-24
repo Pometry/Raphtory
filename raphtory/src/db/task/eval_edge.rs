@@ -11,7 +11,6 @@ use std::collections::HashMap;
 use std::iter;
 use std::marker::PhantomData;
 use std::rc::Rc;
-use std::sync::Arc;
 
 use super::eval_vertex_state::EVState;
 use super::task_state::Local2;

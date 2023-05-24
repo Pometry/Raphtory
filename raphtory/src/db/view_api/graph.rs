@@ -1,5 +1,4 @@
 use itertools::Itertools;
-use std::sync::Arc;
 
 use crate::core::time::IntoTime;
 use crate::core::vertex_ref::VertexRef;

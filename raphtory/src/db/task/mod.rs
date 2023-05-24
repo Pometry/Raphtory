@@ -10,6 +10,7 @@ pub mod eval_vertex_state;
 pub mod task;
 pub mod task_runner;
 pub(crate) mod task_state;
+pub mod window_eval_vertex;
 
 pub static POOL: Lazy<Arc<ThreadPool>> = Lazy::new(|| {
     let num_threads = std::env::var("DOCBROWN_MAX_THREADS")
