@@ -606,34 +606,6 @@ macro_rules! erase_lifetime {
 }
 
 
-macro_rules! erase_lifetime2 {
-    ($tgshard:expr, |$g:ident| { $f:expr }) => {
-        let $g = $tgshard;
-
-        let chunk_size = 64;
-
-        let iter = gen!({
-            let chunks = $f;
-            let iter = chunks.into_iter();
-            let mut chunk = Vec::with_capacity(chunk_size);
-
-            for v_id in iter {
-                chunk.push(v_id);
-                if chunk.len() == chunk_size {
-                    let mut swap_me = Vec::with_capacity(chunk_size);
-                    std::mem::swap(&mut chunk, &mut swap_me);
-                    yield_!(swap_me);
-                }
-                // yield_!(v_id)
-            }
-            if chunk.len() > 0 {
-                yield_!(chunk);
-            }
-        });
-        return Box::new(iter.into_iter().flatten())
-    };
-}
-
 impl ImmutableTGraphShard<TemporalGraph> {
     #[inline(always)]
     fn read_shard<A, F>(&self, f: F) -> A
@@ -802,7 +774,7 @@ impl ImmutableTGraphShard<TemporalGraph> {
         d: Direction,
         layer: Option<usize>,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
-        erase_lifetime2!(self.rc.clone(), |tg| {
+        erase_lifetime!(self.rc.clone(), |tg| {
             tg.vertex_edges_window(v, &w, d, layer).into_iter()
         });
     }
@@ -814,7 +786,7 @@ impl ImmutableTGraphShard<TemporalGraph> {
         d: Direction,
         layer: Option<usize>,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
-        erase_lifetime2!(self.rc.clone(), |tg|{
+        erase_lifetime!(self.rc.clone(), |tg|{
             tg.vertex_edges_window_t(v, &w, d, layer).into_iter()
         });
     }
@@ -825,7 +797,7 @@ impl ImmutableTGraphShard<TemporalGraph> {
         d: Direction,
         layer: Option<usize>,
     ) -> Box<dyn Iterator<Item = VertexRef> + Send> {
-        erase_lifetime2!(self.rc.clone(), |tg|{
+        erase_lifetime!(self.rc.clone(), |tg|{
             tg.neighbours(v, d, layer).into_iter()
         });
     }
@@ -837,7 +809,7 @@ impl ImmutableTGraphShard<TemporalGraph> {
         d: Direction,
         layer: Option<usize>,
     ) -> Box<dyn Iterator<Item = VertexRef> + Send> {
-        erase_lifetime2!(self.rc.clone(), |tg|{
+        erase_lifetime!(self.rc.clone(), |tg|{
             tg.neighbours_window(v, &w, d, layer).into_iter()
         });
     }

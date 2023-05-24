@@ -66,7 +66,7 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
                 let mut vv = EvalVertexView::new_local(
                     self.ctx.ss(),
                     v_ref.clone(),
-                    g.clone(),
+                    g.as_ref(),
                     Some(local_state),
                     &local,
                     vertex_state.clone(),
