@@ -59,15 +59,18 @@ class Neo4jBench(BenchmarkBase):
             'NEO4J_AUTH': 'neo4j/password',
             'NEO4J_PLUGINS': '["graph-data-science"]'
         }
-        ports = {
-            '7474': '7474',
-            '7687': '7687'
-        }
+        # ports = {
+        #     '7474': '7474',
+        #     '7687': '7687'
+        # }
         exec_commands = [
-            '/bin/bash -c "cd /var/lib/neo4j/import/data2/; python3 benchmark_driver.py --bench neo --save True"'
+            '/bin/bash -c "apt update && apt install python3-pip -y"',
+            '/bin/bash -c "python3 -m pip install neo4j requests tqdm pandas numpy docker"',
+            '/bin/bash -c "cd /var/lib/neo4j/import/data2/; python3 benchmark_driver.py --bench neo --save True"',
         ]
-        image_path = 'DockerFiles/pyneo'
-        code, contents = super().start_docker(image_name, container_folder, exec_commands, envs, ports, image_path, wait=35)
+        # image_path = 'DockerFiles/pyneo' image_path ports
+        code, contents = super().start_docker(image_name=image_name, container_folder=container_folder,
+                                              exec_commands=exec_commands, envs=envs, wait=35)
         return code, contents
 
     def shutdown(self):
