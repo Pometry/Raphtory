@@ -171,6 +171,10 @@ impl Graph {
             layer_ids: Arc::new(self.layer_ids.read().clone()),
         }
     }
+
+    pub fn as_arc(&self) -> Arc<InternalGraph> {
+        self.0.clone()
+    }
 }
 
 impl Default for InternalGraph {

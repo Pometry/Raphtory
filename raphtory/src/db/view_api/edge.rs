@@ -4,10 +4,9 @@ use crate::core::Prop;
 use crate::db::view_api::internal::GraphViewInternalOps;
 use crate::db::view_api::{GraphViewOps, VertexListOps, VertexViewOps};
 use std::collections::HashMap;
-use std::sync::Arc;
 
 pub trait EdgeViewInternalOps<G: GraphViewOps, V: VertexViewOps<Graph = G>> {
-    fn graph(&self) -> Arc<G>;
+    fn graph(&self) -> G;
 
     fn eref(&self) -> EdgeRef;
 

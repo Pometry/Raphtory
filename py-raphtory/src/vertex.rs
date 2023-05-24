@@ -36,7 +36,7 @@ impl<G: GraphViewOps + IntoDynamic> From<VertexView<G>> for PyVertex {
     fn from(value: VertexView<G>) -> Self {
         Self {
             vertex: VertexView {
-                graph: Arc::new(value.graph.into_dynamic_arc()),
+                graph: value.graph.clone().into_dynamic(),
                 vertex: value.vertex,
             },
         }
@@ -856,7 +856,7 @@ impl<G: GraphViewOps + IntoDynamic> From<PathFromGraph<G>> for PyPathFromGraph {
     fn from(value: PathFromGraph<G>) -> Self {
         Self {
             path: PathFromGraph {
-                graph: Arc::new(value.graph.into_dynamic_arc()),
+                graph: value.graph.clone().into_dynamic(),
                 operations: value.operations,
             },
         }
@@ -879,7 +879,7 @@ impl<G: GraphViewOps + IntoDynamic> From<PathFromVertex<G>> for PyPathFromVertex
     fn from(value: PathFromVertex<G>) -> Self {
         Self {
             path: PathFromVertex {
-                graph: Arc::new(value.graph.into_dynamic_arc()),
+                graph: value.graph.clone().into_dynamic(),
                 vertex: value.vertex,
                 operations: value.operations,
             },
@@ -1084,7 +1084,7 @@ impl From<Box<dyn Iterator<Item = VertexView<DynamicGraph>> + Send>> for PyVerte
 
 impl IntoIterator for PyVertexIterator {
     type Item = PyVertex;
-    type IntoIter = Box<dyn Iterator<Item = PyVertex> + Send >;
+    type IntoIter = Box<dyn Iterator<Item = PyVertex> + Send>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter
