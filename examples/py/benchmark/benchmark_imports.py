@@ -34,7 +34,7 @@ try:
     from graphtool_bench import GraphToolBench
     GraphToolBench = GraphToolBench()
 except ImportError as e:
-    pass
+    print(e)
 
 try:
     from memgraph_bench import MemgraphBench

@@ -8,10 +8,11 @@ simple_relationship_file = "data/simple-relationships.csv"
 
 class GraphToolBench(BenchmarkBase):
     def start_docker(self, **kwargs):
-        image_name = 'tiagopeixoto/graph-tool'
+        image_name = 'tiagopeixoto/graph-tool:latest'
         container_folder = '/app/data'
         exec_commands = [
-            'pip install requests tqdm docker pandas',
+            'python -m ensurepip --upgrade',
+            'python -m pip install requests tqdm docker pandas',
             '/bin/bash -c "cd /app/data;python benchmark_driver.py --bench gt --save True"'
         ]
         code, contents = super().start_docker(image_name, container_folder, exec_commands)
