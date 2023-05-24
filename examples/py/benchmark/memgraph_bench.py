@@ -10,9 +10,26 @@ from gqlalchemy import Memgraph
 
 
 class MemgraphBench(BenchmarkBase):
+    def start_docker(self, **kwargs):
+        image_name = 'memgraph/memgraph-platform'
+        container_folder = '/app/data'
+        exec_commands = [
+            'python3 -m pip install gqlalchemy requests tqdm docker pandas',
+            '/bin/bash -c "cd /app/data;python3 benchmark_driver.py --bench mem --save True"'
+        ]
+        # ports = {
+        #     '7444': '7444',
+        #     '7687': '7687',
+        #     '3000': '3000'
+        # }
+        code, contents = super().start_docker(
+            image_name=image_name,
+            container_folder=container_folder,
+            exec_commands=exec_commands,
+            # ports=ports,
 
-    def start_docker(self):
-        pass
+        )
+        return code, contents
 
     def shutdown(self):
         del self.graph
@@ -24,11 +41,9 @@ class MemgraphBench(BenchmarkBase):
         self.graph = None
 
     def import_data(self):
-        with open(simple_relationship_file, 'r') as file:
-            for line in file:
-                source, target = line.strip().split('\t')
-                query = f"CREATE (n1:Node {{id: '{source}'}})-[:FOLLOWS]->(n2:Node {{id: '{target}'}})"
-                self.graph.execute(query)
+        query = 'LOAD CSV FROM "/app/data/data/simple-relationships.csv" NO HEADER DELIMITER  "\t" AS row WITH row ' \
+                'MERGE (n1:Node {id: row[0]}) MERGE (n2:Node {id: row[1]}) CREATE (n1)-[:FOLLOWS]->(n2);'
+        self.graph.execute(query)
 
     def setup(self):
         self.graph = Memgraph(host='127.0.0.1', port=7687)

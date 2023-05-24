@@ -34,12 +34,12 @@ try:
     from graphtool_bench import GraphToolBench
     GraphToolBench = GraphToolBench()
 except ImportError as e:
-    print(e)
+    pass
 
 try:
     from memgraph_bench import MemgraphBench
     MemgraphBench = MemgraphBench()
-except ImportError:
+except ImportError as e:
     pass
 
 try:
