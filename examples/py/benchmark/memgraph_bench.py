@@ -14,8 +14,8 @@ class MemgraphBench(BenchmarkBase):
         image_name = 'memgraph/memgraph-platform:2.8.0-memgraph2.8.0-lab2.6.0'
         container_folder = '/app/data'
         exec_commands = [
-            'python3 -m pip install gqlalchemy requests tqdm docker pandas',
-            '/bin/bash -c "cd /app/data;python3 benchmark_driver.py --bench mem --save True"'
+            '/bin/bash -c "python3 -m pip install pandas gqlalchemy requests tqdm docker"',
+            '/bin/bash -c "cd /app/data;python3 benchmark_driver.py --no-docker --bench mem"'
         ]
         # ports = {
         #     '7444': '7444',

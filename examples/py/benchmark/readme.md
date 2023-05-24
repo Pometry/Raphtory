@@ -89,4 +89,10 @@ You will see the following
     Logs: setup,degree,out_neighbours,page_rank,connected_components
     19.72971820831299,0.30420994758605957,0.12140679359436035,0.6003847122192383,0.3989684581756592
 
+## Alternative args
+
+- To run without docker add the `--no-docker` arg
+- To run without saving add the `--no-save` arg
+
+
 # Results 

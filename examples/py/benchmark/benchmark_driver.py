@@ -38,9 +38,8 @@ fns = ['setup', 'degree', 'out_neighbours', 'page_rank', 'connected_components']
 
 def process_arguments():
     parser = argparse.ArgumentParser(description='benchmark args')
-    parser.add_argument('-d', '--docker', type=bool, help='Launch with docker containers (default: True)',
-                        default=True)
-    parser.add_argument('-s', '--save', type=bool, help='Save results to file (default: False)', default=False)
+    parser.add_argument('--docker', action=argparse.BooleanOptionalAction, help='Launch with docker containers, --no-docker to run locally', default=True)
+    parser.add_argument('--save', action=argparse.BooleanOptionalAction, help='Save results to file in /tmp folder, --no-save to not save', default=True)
     parser.add_argument('-b', '--bench', type=str, help="""
     Run specific benchmark,
     default: Goes to Menu (if docker runs all),
@@ -55,8 +54,7 @@ def process_arguments():
     cozo: Run CozoDB Benchmark
     exit: Exit
     """, default='menu')
-    argsx = parser.parse_args()
-    return argsx
+    return parser.parse_args()
 
 
 # Display menu and get user's choice

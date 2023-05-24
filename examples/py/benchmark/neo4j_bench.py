@@ -66,7 +66,7 @@ class Neo4jBench(BenchmarkBase):
         exec_commands = [
             '/bin/bash -c "apt update && apt install python3-pip -y"',
             '/bin/bash -c "python3 -m pip install neo4j requests tqdm pandas numpy docker"',
-            '/bin/bash -c "cd /var/lib/neo4j/import/data2/; python3 benchmark_driver.py --bench neo --save True"',
+            '/bin/bash -c "cd /var/lib/neo4j/import/data2/; python3 benchmark_driver.py --no-docker --bench neo"',
         ]
         # image_path = 'DockerFiles/pyneo' image_path ports
         code, contents = super().start_docker(image_name=image_name, container_folder=container_folder,

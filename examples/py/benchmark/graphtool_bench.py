@@ -13,7 +13,7 @@ class GraphToolBench(BenchmarkBase):
         exec_commands = [
             'python -m ensurepip --upgrade',
             'python -m pip install requests tqdm docker pandas',
-            '/bin/bash -c "cd /app/data;python benchmark_driver.py --bench gt --save True"'
+            '/bin/bash -c "cd /app/data;python benchmark_driver.py --no-docker --bench gt"'
         ]
         code, contents = super().start_docker(image_name, container_folder, exec_commands)
         return code, contents

@@ -11,7 +11,7 @@ class NetworkXBench(BenchmarkBase):
         container_folder = '/app/data'
         exec_commands = [
             'pip install requests tqdm docker networkx pandas numpy scipy',
-            '/bin/bash -c "cd /app/data;python benchmark_driver.py --bench nx --save True"'
+            '/bin/bash -c "cd /app/data;python benchmark_driver.py --no-docker --bench nx"'
         ]
         code, contents = super().start_docker(image_name, container_folder, exec_commands)
         return code, contents
