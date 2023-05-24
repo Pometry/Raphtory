@@ -17,7 +17,7 @@ use num_traits::Zero;
 use std::ops::Add;
 
 pub fn star_motif_count<G: GraphViewOps>(
-    evv: &EvalVertexView<G, ComputeStateVec>,
+    evv: &EvalVertexView<G, ComputeStateVec, ()>,
     delta: i64,
 ) -> [usize; 24] {
     let neigh_map: HashMap<u64, usize> = evv
@@ -46,7 +46,7 @@ pub fn star_motif_count<G: GraphViewOps>(
 
 pub fn twonode_motif_count<G: GraphViewOps>(
     graph: &G,
-    evv: &EvalVertexView<G, ComputeStateVec>,
+    evv: &EvalVertexView<G, ComputeStateVec, ()>,
     delta: i64,
 ) -> [usize; 8] {
     let mut counts = [0; 8];
@@ -88,7 +88,7 @@ pub fn twonode_motif_count<G: GraphViewOps>(
 
 pub fn triangle_motif_count<G: GraphViewOps>(
     graph: &G,
-    evv: &EvalVertexView<G, ComputeStateVec>,
+    evv: &EvalVertexView<G, ComputeStateVec, ()>,
     delta: i64,
     motif_counter: AccId<MotifCounter, MotifCounter, MotifCounter, ValDef<MotifCounter>>,
 ) {
@@ -210,7 +210,7 @@ pub fn triangle_motif_count<G: GraphViewOps>(
 }
 
 fn update_counter<G: GraphViewOps>(
-    vs: Vec<&EvalVertexView<G, ComputeStateVec>>,
+    vs: Vec<&EvalVertexView<G, ComputeStateVec, ()>>,
     motif_counter: AccId<MotifCounter, MotifCounter, MotifCounter, ValDef<MotifCounter>>,
     tmp_counts: Iter<usize>,
 ) {
@@ -317,8 +317,8 @@ pub fn temporal_three_node_motif<G: GraphViewOps>(
     let ctx: Context<G, ComputeStateVec> = g.into();
     let motifs_counter = val::<MotifCounter>(0);
 
-    let step1 = ATask::new(move |evv: &EvalVertexView<G, ComputeStateVec>| {
-        let g = &evv.g;
+    let step1 = ATask::new(move |evv| {
+        let g = evv.graph;
 
         triangle_motif_count(g, evv, delta, motifs_counter);
         let two_nodes = twonode_motif_count(g, evv, delta);
@@ -341,7 +341,8 @@ pub fn temporal_three_node_motif<G: GraphViewOps>(
     runner.run(
         vec![],
         vec![Job::new(step1)],
-        |_, _, els| {
+        (),
+        |_, _, els, _| {
             els.finalize(&motifs_counter, |motifs_counter| {
                 let triangles = motifs_counter.triangle.to_vec();
                 let two_nodes = motifs_counter.two_nodes.to_vec();

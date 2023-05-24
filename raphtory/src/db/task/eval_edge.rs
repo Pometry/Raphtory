@@ -47,8 +47,8 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EvalEdgeView<'a, G, CS, 
 impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static>
     EdgeViewInternalOps<G, EvalVertexView<'a, G, CS, S>> for EvalEdgeView<'a, G, CS, S>
 {
-    fn graph(&self) -> Arc<G> {
-        self.graph.as_arc()
+    fn graph(&self) -> G {
+        self.graph.clone()
     }
 
     fn eref(&self) -> EdgeRef {

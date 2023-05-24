@@ -29,7 +29,7 @@ use super::task_state::Local2;
 pub struct EvalVertexView<'a, G: GraphViewOps, CS: ComputeState, S: 'static> {
     ss: usize,
     vertex: LocalVertexRef,
-    graph: &'a G,
+    pub(crate) graph: &'a G,
     local_state: Option<&'a mut S>,
     local_state_prev: &'a Local2<'a, S>,
     vertex_state: Rc<RefCell<EVState<'a, CS>>>,
@@ -628,7 +628,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
 
     fn neighbours(&self) -> Self::PathType<'_> {
         let neighbours = PathFromVertex::new(
-            self.graph.as_arc(),
+            self.graph.clone(),
             self.vertex,
             Operations::Neighbours {
                 dir: Direction::BOTH,
@@ -640,7 +640,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
 
     fn in_neighbours(&self) -> Self::PathType<'_> {
         let neighbours = PathFromVertex::new(
-            self.graph.as_arc(),
+            self.graph.clone(),
             self.vertex,
             Operations::Neighbours { dir: Direction::IN },
         );
@@ -650,7 +650,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
 
     fn out_neighbours(&self) -> Self::PathType<'_> {
         let neighbours = PathFromVertex::new(
-            self.graph.as_arc(),
+            self.graph.clone(),
             self.vertex,
             Operations::Neighbours { dir: Direction::IN },
         );
