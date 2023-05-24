@@ -24,6 +24,8 @@
 //!    * `macOS`
 //!
 
+use crate::db::graph::Graph;
+use crate::db::view_api::GraphViewOps;
 use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -74,6 +76,7 @@ pub enum Prop {
     F64(f64),
     Bool(bool),
     DTime(NaiveDateTime),
+    Graph(Graph),
 }
 
 impl fmt::Display for Prop {
@@ -88,6 +91,12 @@ impl fmt::Display for Prop {
             Prop::F64(value) => write!(f, "{}", value),
             Prop::Bool(value) => write!(f, "{}", value),
             Prop::DTime(value) => write!(f, "{}", value),
+            Prop::Graph(value) => write!(
+                f,
+                "Graph(num_vertices={}, num_edges={})",
+                value.num_vertices(),
+                value.num_edges()
+            ),
         }
     }
 }

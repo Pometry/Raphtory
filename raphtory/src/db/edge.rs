@@ -22,19 +22,19 @@ use std::sync::Arc;
 #[derive(Clone)]
 pub struct EdgeView<G: GraphViewOps> {
     /// A view of an edge in the graph.
-    pub graph: Arc<G>,
+    pub graph: G,
     /// A reference to the edge.
     pub edge: EdgeRef,
 }
 
 impl<G: GraphViewOps> EdgeView<G> {
-    pub fn new(graph: Arc<G>, edge: EdgeRef) -> Self {
+    pub fn new(graph: G, edge: EdgeRef) -> Self {
         Self { graph, edge }
     }
 }
 
 impl<G: GraphViewOps> EdgeViewInternalOps<G, VertexView<G>> for EdgeView<G> {
-    fn graph(&self) -> Arc<G> {
+    fn graph(&self) -> G {
         self.graph.clone()
     }
 
@@ -102,7 +102,7 @@ impl<G: GraphViewOps> TimeOps for EdgeView<G> {
 
     fn window<T: IntoTime>(&self, t_start: T, t_end: T) -> Self::WindowedViewType {
         EdgeView {
-            graph: Arc::new(self.graph.window(t_start, t_end)),
+            graph: self.graph.window(t_start, t_end),
             edge: self.edge,
         }
     }

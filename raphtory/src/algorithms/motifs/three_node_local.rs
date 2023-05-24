@@ -5,16 +5,16 @@ use crate::core::agg::ValDef;
 use crate::core::state::accumulator_id::AccId;
 use crate::db::view_api::*;
 
+use crate::algorithms::motifs::three_node_motifs::*;
 use crate::core::state::accumulator_id::accumulators::val;
+use crate::core::state::compute_state::ComputeStateVec;
 use crate::db::task::context::Context;
+use crate::db::task::eval_vertex::EvalVertexView;
 use crate::db::task::task::{ATask, Job, Step};
 use crate::db::task::task_runner::TaskRunner;
 use crate::db::view_api::{GraphViewOps, VertexViewOps};
 use num_traits::Zero;
 use std::ops::Add;
-use crate::algorithms::motifs::three_node_motifs::*;
-use crate::core::state::compute_state::ComputeStateVec;
-use crate::db::task::eval_vertex::EvalVertexView;
 
 pub fn star_motif_count<G: GraphViewOps>(
     evv: &EvalVertexView<G, ComputeStateVec>,
@@ -318,7 +318,7 @@ pub fn temporal_three_node_motif<G: GraphViewOps>(
     let motifs_counter = val::<MotifCounter>(0);
 
     let step1 = ATask::new(move |evv: &EvalVertexView<G, ComputeStateVec>| {
-        let g = evv.g.as_ref();
+        let g = &evv.g;
 
         triangle_motif_count(g, evv, delta, motifs_counter);
         let two_nodes = twonode_motif_count(g, evv, delta);
@@ -501,4 +501,3 @@ mod motifs_test {
         }
     }
 }
-

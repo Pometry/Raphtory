@@ -30,7 +30,7 @@ use std::{
 pub struct EvalVertexView<'a, G: GraphViewOps, CS: ComputeState> {
     ss: usize,
     vv: VertexView<G>,
-    pub g: Arc<G>,
+    pub g: G,
     shard_state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
     global_state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
     local_state: Rc<RefCell<ShuffleComputeState<CS>>>,
@@ -40,7 +40,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState> EvalVertexView<'a, G, CS> {
     pub fn new_local(
         ss: usize,
         vertex: LocalVertexRef,
-        g: Arc<G>,
+        g: G,
         shard_state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
         global_state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
         local_state: Rc<RefCell<ShuffleComputeState<CS>>>,
@@ -68,7 +68,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState> EvalVertexView<'a, G, CS> {
     pub fn new_from_view(
         ss: usize,
         vv: VertexView<G>,
-        g: Arc<G>,
+        g: G,
         shard_state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
         global_state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
         local_state: Rc<RefCell<ShuffleComputeState<CS>>>,
@@ -86,7 +86,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState> EvalVertexView<'a, G, CS> {
     pub fn new(
         ss: usize,
         vertex: VertexRef,
-        g: Arc<G>,
+        g: G,
         shard_state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
         global_state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
         local_state: Rc<RefCell<ShuffleComputeState<CS>>>,
@@ -478,7 +478,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState> TimeOps for EvalVertexView<'a, G, CS
         EvalVertexView::new_local(
             self.ss,
             self.vv.vertex,
-            Arc::from(self.vv.graph.window(t_start, t_end)),
+            self.vv.graph.window(t_start, t_end),
             self.shard_state.clone(),
             self.global_state.clone(),
             self.local_state.clone(),

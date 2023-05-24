@@ -324,12 +324,12 @@ impl<CS: ComputeState + Send> ShuffleComputeState<CS> {
 
 pub struct EvalGlobalState<G: GraphViewOps, CS: ComputeState + Send> {
     ss: usize,
-    g: Arc<G>,
+    g: G,
     global_state: Global<CS>,
 }
 
 impl<G: GraphViewOps, CS: ComputeState + Send> EvalGlobalState<G, CS> {
-    pub fn new(ss: usize, g: Arc<G>, global_state: Global<CS>) -> EvalGlobalState<G, CS> {
+    pub fn new(ss: usize, g: G, global_state: Global<CS>) -> EvalGlobalState<G, CS> {
         Self {
             ss,
             g,
@@ -356,12 +356,12 @@ impl<G: GraphViewOps, CS: ComputeState + Send> EvalGlobalState<G, CS> {
 
 pub struct EvalShardState<G: GraphViewOps, CS: ComputeState + Send> {
     ss: usize,
-    g: Arc<G>,
+    g: G,
     shard_states: Shard<CS>,
 }
 
 impl<G: GraphViewOps, CS: ComputeState + Send> EvalShardState<G, CS> {
-    pub fn new(ss: usize, g: Arc<G>, shard_states: Shard<CS>) -> EvalShardState<G, CS> {
+    pub fn new(ss: usize, g: G, shard_states: Shard<CS>) -> EvalShardState<G, CS> {
         Self {
             ss,
             g,
@@ -381,7 +381,7 @@ impl<G: GraphViewOps, CS: ComputeState + Send> EvalShardState<G, CS> {
     {
         self.shard_states
             .inner()
-            .finalize(agg_def, self.ss, self.g.as_ref(), f)
+            .finalize(agg_def, self.ss, &self.g, f)
     }
 
     pub fn values(self) -> Shard<CS> {
@@ -391,14 +391,14 @@ impl<G: GraphViewOps, CS: ComputeState + Send> EvalShardState<G, CS> {
 
 pub struct EvalLocalState<G: GraphViewOps, CS: ComputeState + Send> {
     ss: usize,
-    g: Arc<G>,
+    g: G,
     local_states: Vec<Arc<Option<ShuffleComputeState<CS>>>>,
 }
 
 impl<G: GraphViewOps, CS: ComputeState + Send> EvalLocalState<G, CS> {
     pub fn new(
         ss: usize,
-        g: Arc<G>,
+        g: G,
         local_states: Vec<Arc<Option<ShuffleComputeState<CS>>>>,
     ) -> EvalLocalState<G, CS> {
         Self {
@@ -422,7 +422,7 @@ impl<G: GraphViewOps, CS: ComputeState + Send> EvalLocalState<G, CS> {
             .iter()
             .flat_map(|state| {
                 if let Some(state) = state.as_ref() {
-                    state.finalize(agg_def, self.ss, self.g.as_ref(), f)
+                    state.finalize(agg_def, self.ss, &self.g, f)
                 } else {
                     HashMap::<String, B>::new()
                 }
