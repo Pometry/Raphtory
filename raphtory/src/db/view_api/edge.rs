@@ -129,6 +129,15 @@ pub trait EdgeViewOps: EdgeViewInternalOps<Self::Graph, Self::Vertex> {
         )
     }
 
+    fn id(
+        &self,
+    ) -> (
+        <Self::Vertex as VertexViewOps>::ValueType<u64>,
+        <Self::Vertex as VertexViewOps>::ValueType<u64>,
+    ) {
+        (self.src().id(), self.dst().id())
+    }
+
     /// Explodes an edge and returns all instances it had been updated as seperate edges
     fn explode(&self) -> Self::EList;
 
@@ -198,6 +207,8 @@ pub trait EdgeListOps:
 
     /// gets the destination vertices of the edges in the list
     fn dst(self) -> Self::VList;
+
+    fn id(self) -> Self::IterType<(u64, u64)>;
 
     /// returns a list of exploded edges that include an edge at each point in time
     fn explode(self) -> Self::IterType<Self::Edge>;
