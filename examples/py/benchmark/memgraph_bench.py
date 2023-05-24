@@ -11,10 +11,11 @@ from gqlalchemy import Memgraph
 
 class MemgraphBench(BenchmarkBase):
     def start_docker(self, **kwargs):
-        image_name = 'memgraph/memgraph-platform:2.8.0-memgraph2.8.0-lab2.6.0'
+        image_name = 'memgraph/memgraph-platform:latest'
         container_folder = '/app/data'
         exec_commands = [
-            '/bin/bash -c "python3 -m pip install pandas gqlalchemy requests tqdm docker"',
+            '/bin/bash -c "apt update && apt install -y libssl-dev"',
+            '/bin/bash -c "python3 -m pip install gqlalchemy requests tqdm docker pandas"',
             '/bin/bash -c "cd /app/data;python3 benchmark_driver.py --no-docker --bench mem"'
         ]
         # ports = {
