@@ -15,7 +15,7 @@ use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub struct VertexView<G: GraphViewOps> {
-    pub graph: Arc<G>,
+    pub graph: G,
     pub vertex: LocalVertexRef,
 }
 
@@ -33,13 +33,13 @@ impl<G: GraphViewOps> From<&VertexView<G>> for VertexRef {
 
 impl<G: GraphViewOps> VertexView<G> {
     /// Creates a new `VertexView` wrapping a vertex reference and a graph, localising any remote vertices to the correct shard.
-    pub(crate) fn new(graph: Arc<G>, vertex: VertexRef) -> VertexView<G> {
+    pub(crate) fn new(graph: G, vertex: VertexRef) -> VertexView<G> {
         let v = graph.localise_vertex_unchecked(vertex);
         VertexView { graph, vertex: v }
     }
 
     /// Creates a new `VertexView` wrapping a local vertex reference and a graph
-    pub(crate) fn new_local(graph: Arc<G>, vertex: LocalVertexRef) -> VertexView<G> {
+    pub(crate) fn new_local(graph: G, vertex: LocalVertexRef) -> VertexView<G> {
         VertexView { graph, vertex }
     }
 }
@@ -214,7 +214,7 @@ impl<G: GraphViewOps> TimeOps for VertexView<G> {
 
     fn window<T: IntoTime>(&self, t_start: T, t_end: T) -> Self::WindowedViewType {
         VertexView {
-            graph: Arc::new(self.graph.window(t_start, t_end)),
+            graph: self.graph.window(t_start, t_end),
             vertex: self.vertex,
         }
     }
@@ -225,14 +225,14 @@ impl<G: GraphViewOps> LayerOps for VertexView<G> {
 
     fn default_layer(&self) -> Self::LayeredViewType {
         VertexView {
-            graph: self.graph.default_layer().as_arc(),
+            graph: self.graph.default_layer(),
             vertex: self.vertex,
         }
     }
 
     fn layer(&self, name: &str) -> Option<Self::LayeredViewType> {
         Some(VertexView {
-            graph: self.graph.layer(name)?.as_arc(),
+            graph: self.graph.layer(name)?,
             vertex: self.vertex,
         })
     }

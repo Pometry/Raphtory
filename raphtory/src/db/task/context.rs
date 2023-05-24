@@ -22,7 +22,7 @@ where
     CS: ComputeState,
 {
     ss: usize,
-    g: Arc<G>,
+    g: G,
     merge_fns: Vec<MergeFn<CS>>,
     resetable_states: Vec<u32>,
 }
@@ -36,7 +36,7 @@ where
         self.ss
     }
 
-    pub fn graph(&self) -> Arc<G> {
+    pub fn graph(&self) -> G {
         self.g.clone()
     }
 
@@ -133,7 +133,7 @@ impl<G: GraphViewOps, CS: ComputeState> From<&G> for Context<G, CS> {
     fn from(g: &G) -> Self {
         Self {
             ss: 0,
-            g: Arc::new(g.clone()),
+            g: g.clone(),
             merge_fns: vec![],
             resetable_states: vec![],
         }

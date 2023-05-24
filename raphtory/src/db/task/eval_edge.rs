@@ -37,7 +37,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState> EvalEdgeView<'a, G, CS> {
 impl<'a, G: GraphViewOps, CS: ComputeState> EdgeViewInternalOps<G, EvalVertexView<'a, G, CS>>
     for EvalEdgeView<'a, G, CS>
 {
-    fn graph(&self) -> Arc<G> {
+    fn graph(&self) -> G {
         self.ev.graph()
     }
 
@@ -148,7 +148,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState> EvalEdgeView<'a, G, CS> {
     pub fn new(
         ss: usize,
         edge: EdgeRef,
-        g: Arc<G>,
+        g: G,
         shard_state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
         global_state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
         local_state: Rc<RefCell<ShuffleComputeState<CS>>>,

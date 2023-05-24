@@ -34,4 +34,4 @@ wasm-bindgen-test = "0.3.35"
 # Tell `rustc` to optimize for small code size.
 opt-level = "s"
 
-[workspace]
+#[workspace]

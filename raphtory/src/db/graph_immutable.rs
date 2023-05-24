@@ -75,11 +75,11 @@ impl ImmutableGraph {
                 Err(_) => return Err(UnfreezeFailure),
             }
         }
-        Ok(Graph {
-            nr_shards: self.nr_shards,
+        Ok(Graph::new_from_frozen(
+            self.nr_shards,
             shards,
-            layer_ids: Arc::new(parking_lot::RwLock::new((*self.layer_ids).clone())),
-        })
+            Arc::new(parking_lot::RwLock::new((*self.layer_ids).clone())),
+        ))
     }
 
     /// Get the shard id for a given global vertex id.

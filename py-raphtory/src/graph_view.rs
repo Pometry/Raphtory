@@ -1,6 +1,7 @@
 //! The API for querying a view of the graph in a read-only state
 use crate::dynamic::{DynamicGraph, IntoDynamic};
 use crate::edge::{PyEdge, PyEdges};
+use crate::types::repr::Repr;
 use crate::utils::{
     at_impl, expanding_impl, extract_vertex_ref, rolling_impl, window_impl, IntoPyObject,
     PyWindowSet,
@@ -282,6 +283,12 @@ impl PyGraphView {
 
     /// Displays the graph
     pub fn __repr__(&self) -> String {
+        self.repr()
+    }
+}
+
+impl Repr for PyGraphView {
+    fn repr(&self) -> String {
         let num_edges = self.graph.num_edges();
         let num_vertices = self.graph.num_vertices();
         let earliest_time = self.graph.earliest_time().unwrap_or_default();

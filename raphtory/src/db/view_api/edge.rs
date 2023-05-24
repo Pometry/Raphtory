@@ -4,10 +4,9 @@ use crate::core::Prop;
 use crate::db::view_api::internal::GraphViewInternalOps;
 use crate::db::view_api::{GraphViewOps, VertexListOps, VertexViewOps};
 use std::collections::HashMap;
-use std::sync::Arc;
 
 pub trait EdgeViewInternalOps<G: GraphViewOps, V: VertexViewOps<Graph = G>> {
-    fn graph(&self) -> Arc<G>;
+    fn graph(&self) -> G;
 
     fn eref(&self) -> EdgeRef;
 
@@ -118,6 +117,16 @@ pub trait EdgeViewOps: EdgeViewInternalOps<Self::Graph, Self::Vertex> {
     fn dst(&self) -> Self::Vertex {
         let vertex = self.eref().dst();
         self.new_vertex(vertex)
+    }
+
+    fn active(&self, t: i64) -> bool {
+        self.graph().has_edge_ref_window(
+            self.eref().src(),
+            self.eref().dst(),
+            t,
+            t.saturating_add(1),
+            self.eref().layer(),
+        )
     }
 
     /// Explodes an edge and returns all instances it had been updated as seperate edges
