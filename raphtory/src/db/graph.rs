@@ -2113,4 +2113,45 @@ mod db_tests {
             .map(|name| g.vertex(name))
             .all(|v| v.is_some())
     }
+
+    #[quickcheck]
+    fn exploded_edge_times_is_consistent(edges: Vec<(u64, u64, Vec<i64>)>) -> bool {
+        // checks that exploded edges are preserved with correct timestamps
+        let mut edges: Vec<(u64, u64, Vec<i64>)> =
+            edges.into_iter().filter(|e| !e.2.is_empty()).collect();
+        // discard edges without timestamps
+        for e in edges.iter_mut() {
+            e.2.sort();
+            e.2.dedup(); // add each timestamp only once (multi-edge per timestamp currently not implemented)
+        }
+        edges.sort();
+        let g = Graph::new(1);
+        for (src, dst, times) in edges.iter() {
+            for t in times.iter() {
+                g.add_edge(*t, *src, *dst, &vec![], None).unwrap();
+            }
+        }
+
+        let mut actual_edges: Vec<(u64, u64, Vec<i64>)> = g
+            .edges()
+            .map(|e| {
+                (
+                    e.src().id(),
+                    e.dst().id(),
+                    e.explode()
+                        .map(|ee| {
+                            assert_eq!(ee.earliest_time(), ee.latest_time());
+                            ee.earliest_time().unwrap()
+                        })
+                        .collect(),
+                )
+            })
+            .collect();
+
+        for e in actual_edges.iter_mut() {
+            e.2.sort();
+        }
+        actual_edges.sort();
+        actual_edges == edges
+    }
 }
