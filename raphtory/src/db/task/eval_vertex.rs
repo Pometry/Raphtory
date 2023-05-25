@@ -51,6 +51,13 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S> EvalVertexView<'a, G, CS, S> {
         }
     }
 
+    pub fn get(&self) -> &S {
+        match &self.local_state {
+            Some(state) => state,
+            None => panic!("unwrap on None state"),
+        }
+    }
+
     pub(crate) fn new_local(
         ss: usize,
         v_ref: LocalVertexRef,
@@ -650,7 +657,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
         let neighbours = PathFromVertex::new(
             self.graph.clone(),
             self.vertex,
-            Operations::Neighbours { dir: Direction::IN },
+            Operations::Neighbours { dir: Direction::OUT },
         );
 
         EvalPathFromVertex::new_from_path_and_vertex(neighbours, self)

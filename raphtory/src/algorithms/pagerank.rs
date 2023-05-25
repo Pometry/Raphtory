@@ -125,7 +125,6 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
 
     let step5 = Job::Check(Box::new(move |state| {
         let max_diff_val = state.read(&max_diff);
-        println!("Max DIFF {max_diff_val}");
         let sum_d = f64::sqrt(max_diff_val as f64);
         if (sum_d as f64) > tol * n as f64 {
 
@@ -259,7 +258,7 @@ mod page_rank_tests {
             .collect();
 
         assert_eq_f64(results.get("10"), Some(&0.072082), 5);
-        assert_eq_f64(results.get("8"), Some(&0.136477), 5);
+        assert_eq_f64(results.get("8"), Some(&0.136473), 5);
         assert_eq_f64(results.get("3"), Some(&0.15484), 5);
         assert_eq_f64(results.get("6"), Some(&0.07208), 5);
         assert_eq_f64(results.get("11"), Some(&0.06186), 5);

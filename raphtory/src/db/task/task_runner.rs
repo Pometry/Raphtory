@@ -284,6 +284,7 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
             global_state.reset(self.ctx.ss(), self.ctx.resetable_states());
 
             // swap the two local states
+            prev_local_state.clone_from_slice(&cur_local_state);
             std::mem::swap(&mut cur_local_state, &mut prev_local_state);
 
             // Copy and reset the local states from the step that just ended
@@ -300,7 +301,7 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         println!("Done running iterations: {ss}");
 
         f(
-            GlobalState::new(global_state, ss - 1),
+            GlobalState::new(global_state, ss),
             EvalShardState::new(ss, self.ctx.graph(), shard_state),
             EvalLocalState::new(ss, self.ctx.graph(), vec![]),
             &last_local_state,
