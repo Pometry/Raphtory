@@ -1,0 +1,9 @@
+version: '3'
+
+services:
+  app:
+    image: pometry/raphtory
+    ports:
+      - "1736:1736"
+    volumes:
+      - ./lotr:/app/graphs/lotr
