@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1685015527090,
+  "lastUpdate": 1685016717098,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -1561,6 +1561,60 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions with numeric string input",
             "value": 2262042,
             "range": "± 104349",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ricopinazo@gmail.com",
+            "name": "Pedro Rico Pinazo",
+            "username": "ricopinazo"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "76da906de9a4511468026d89444378dc45faf615",
+          "message": "make graphql server load all the graphs under graphs folder (#971)\n\n* make graphql server load all the graphs under graphs folder\r\n\r\n* replace Dockerfile with docker-compose.yml\r\n\r\n* try removing  --no-default-features from raphtory-pymodule\r\n\r\n* revert back changes in cargo config files\r\n\r\n* remove commented out code in data.rs\r\n\r\n* Use Arc instead of cloning graphs\r\n\r\n* turn back on --no-default-features flag for code coverage\r\n\r\n* remove line in Cargo.toml\r\n\r\n* add README.md to docker example\r\n\r\n* add example data to .gitignore\r\n\r\n* make versions depend on root Cargo.toml\r\n\r\n* make python/Cargo.toml rely on the root for the version number\r\n\r\n* add versions to local dependencies for raphtory-graphql\r\n\r\n---------\r\n\r\nCo-authored-by: Ben Steer <b.a.steer@qmul.ac.uk>",
+          "timestamp": "2023-05-25T13:08:00+01:00",
+          "tree_id": "2b61ef641f283367e0861eb23a0e821bc0b85028",
+          "url": "https://github.com/Pometry/Raphtory/commit/76da906de9a4511468026d89444378dc45faf615"
+        },
+        "date": 1685016716103,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 301024,
+            "range": "± 739",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and numeric string input",
+            "value": 862397,
+            "range": "± 3065",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and string input",
+            "value": 903845,
+            "range": "± 3203",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 719927,
+            "range": "± 106775",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions with numeric string input",
+            "value": 2196730,
+            "range": "± 126634",
             "unit": "ns/iter"
           }
         ]
