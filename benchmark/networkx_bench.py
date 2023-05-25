@@ -4,7 +4,7 @@ import csv
 try:
     import networkx as nx
 except ImportError:
-    print("NetworkX not installed")
+    pass
 
 
 simple_relationship_file = "data/simple-relationships.csv"

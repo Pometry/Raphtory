@@ -3,7 +3,7 @@ from benchmark_base import BenchmarkBase
 try:
     from gqlalchemy import Memgraph
 except ImportError:
-    print("Memgraph not installed")
+    pass
 
 
 simple_profile_file = "data/simple-profiles.csv"
@@ -17,6 +17,7 @@ class MemgraphBench(BenchmarkBase):
         exec_commands = [
             '/bin/bash -c "apt update && apt install -y libssl-dev"',
             '/bin/bash -c "python3 -m pip install gqlalchemy requests tqdm docker pandas"',
+            '/bin/bash -c "cp -R /app/data/data /tmp/;chmod 777 -R /tmp/data"',
             '/bin/bash -c "cd /app/data;python3 benchmark_driver.py --no-docker --bench mem"'
         ]
         # ports = {
@@ -43,7 +44,7 @@ class MemgraphBench(BenchmarkBase):
         self.graph = None
 
     def import_data(self):
-        query = 'LOAD CSV FROM "/app/data/data/simple-relationships.csv" NO HEADER DELIMITER  "\t" AS row WITH row ' \
+        query = 'LOAD CSV FROM "/tmp/data/simple-relationships.csv" NO HEADER DELIMITER  "\t" AS row WITH row ' \
                 'MERGE (n1:Node {id: row[0]}) MERGE (n2:Node {id: row[1]}) CREATE (n1)-[:FOLLOWS]->(n2);'
         self.graph.execute(query)
 

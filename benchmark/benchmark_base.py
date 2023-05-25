@@ -4,6 +4,7 @@ import time
 from abc import ABC, abstractmethod
 import docker
 import os
+import multiprocessing
 
 
 class BenchmarkBase(ABC):
@@ -19,7 +20,7 @@ class BenchmarkBase(ABC):
 
         print('Defining volumes...')
         local_folder = os.path.abspath(os.getcwd())
-        volumes = {local_folder: {'bind': container_folder, 'mode': 'rw'}}
+        volumes = {local_folder: {'bind': container_folder, 'mode': 'Z'}}
 
         if image_path:
             image, build_logs = self.docker.images.build(
@@ -29,6 +30,8 @@ class BenchmarkBase(ABC):
 
         print('Running Docker container & benchmark...')
 
+        num_cpus = multiprocessing.cpu_count()-1
+
         self.container = self.docker.containers.run(
             image_name,
             volumes=volumes,
@@ -37,7 +40,8 @@ class BenchmarkBase(ABC):
             tty=True,
             environment=envs,
             ports=ports,
-            mem_limit='4g'
+            mem_limit='4g',
+            cpuset_cpus='0-{}'.format(num_cpus),
         )
 
         time.sleep(wait)

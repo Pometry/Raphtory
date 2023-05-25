@@ -3,7 +3,7 @@ from benchmark_base import BenchmarkBase
 try:
     import kuzu
 except ImportError:
-    print("Kuzu not installed")
+    pass
 
 
 class KuzuBench(BenchmarkBase):

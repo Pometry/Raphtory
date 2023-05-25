@@ -8,7 +8,7 @@ try:
     from tqdm import tqdm
     from raphtory.algorithms import pagerank, weakly_connected_components
 except ImportError:
-    print("Raphtory not installed")
+    pass
 
 simple_relationship_file = "data/simple-relationships.csv"
 

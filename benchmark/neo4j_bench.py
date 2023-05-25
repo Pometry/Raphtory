@@ -3,7 +3,7 @@ from benchmark_base import BenchmarkBase
 try:
     from neo4j import GraphDatabase
 except ImportError:
-    print("neo4j not installed")
+    pass
 
 
 def import_data(tx):
