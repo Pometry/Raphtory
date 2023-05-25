@@ -79,7 +79,6 @@ def run_benchmark(choice, docker=False):
     print("Running benchmarks: " + str(benchmarks_to_run))
     for key in benchmarks_to_run[:2]:
         driver = setup()[key]
-        print("** Running for " + driver.name() + "...")
         if docker:
             print("** Running dockerized benchmark " + str(key) + "...")
             print("Starting docker container...")
@@ -88,6 +87,7 @@ def run_benchmark(choice, docker=False):
             print("Logs: " + logs)
             results[driver.name()] = logs
         else:
+            print("** Running for " + driver.name() + "...")
             times = ''
             fn_header = ''
             for fn in fns:
