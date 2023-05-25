@@ -2129,6 +2129,7 @@ mod db_tests {
         // discard edges without timestamps
         for e in edges.iter_mut() {
             e.2.sort();
+            // FIXME: Should not have to do this, see issue https://github.com/Pometry/Raphtory/issues/973
             e.2.dedup(); // add each timestamp only once (multi-edge per timestamp currently not implemented)
         }
         edges.sort();
