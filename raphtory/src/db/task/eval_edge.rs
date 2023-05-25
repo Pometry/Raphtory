@@ -6,7 +6,7 @@ use crate::core::Prop;
 use crate::db::edge::EdgeView;
 use crate::db::task::eval_vertex::EvalVertexView;
 use crate::db::view_api::edge::{EdgeViewInternalOps, EdgeViewOps};
-use crate::db::view_api::{BoxedIter, EdgeListOps, GraphViewOps};
+use crate::db::view_api::{EdgeListOps, GraphViewOps};
 use std::borrow::Cow;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -37,7 +37,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState> EvalEdgeView<'a, G, CS> {
 impl<'a, G: GraphViewOps, CS: ComputeState> EdgeViewInternalOps<G, EvalVertexView<'a, G, CS>>
     for EvalEdgeView<'a, G, CS>
 {
-    fn graph(&self) -> Arc<G> {
+    fn graph(&self) -> G {
         self.ev.graph()
     }
 
@@ -47,9 +47,11 @@ impl<'a, G: GraphViewOps, CS: ComputeState> EdgeViewInternalOps<G, EvalVertexVie
 
     fn new_vertex(&self, v: VertexRef) -> EvalVertexView<'a, G, CS> {
         let vv = self.ev.new_vertex(v);
+        let g = vv.graph.clone();
         EvalVertexView::new_from_view(
             self.ss,
             vv,
+            g,
             self.shard_state.clone(),
             self.global_state.clone(),
             self.local_state.clone(),
@@ -87,83 +89,58 @@ impl<'a, G: GraphViewOps, CS: ComputeState> EdgeListOps
     type Edge = EvalEdgeView<'a, G, CS>;
     type ValueType<T> = T;
     type VList = Box<dyn Iterator<Item = Self::Vertex> + 'a>;
-    type IterType = Self;
+    type IterType<T> = Box<dyn Iterator<Item = T> + 'a>;
 
-    fn has_property(
-        self,
-        name: String,
-        include_static: bool,
-    ) -> Box<dyn Iterator<Item = Self::ValueType<bool>> + Send> {
-        todo!()
+    fn has_property(self, name: String, include_static: bool) -> Self::IterType<bool> {
+        Box::new(self.map(move |e| e.has_property(name.clone(), include_static)))
     }
 
-    fn property(
-        self,
-        name: String,
-        include_static: bool,
-    ) -> Box<dyn Iterator<Item = Self::ValueType<Option<Prop>>> + Send> {
-        todo!()
+    fn property(self, name: String, include_static: bool) -> Self::IterType<Option<Prop>> {
+        Box::new(self.map(move |e| e.property(name.clone(), include_static)))
     }
 
-    fn properties(
-        self,
-        include_static: bool,
-    ) -> Box<dyn Iterator<Item = Self::ValueType<HashMap<String, Prop>>> + Send> {
-        todo!()
+    fn properties(self, include_static: bool) -> Self::IterType<HashMap<String, Prop>> {
+        Box::new(self.map(move |e| e.properties(include_static)))
     }
 
-    fn property_names(
-        self,
-        include_static: bool,
-    ) -> Box<dyn Iterator<Item = Self::ValueType<Vec<String>>> + Send> {
-        todo!()
+    fn property_names(self, include_static: bool) -> Self::IterType<Vec<String>> {
+        Box::new(self.map(move |e| e.property_names(include_static)))
     }
 
-    fn has_static_property(
-        self,
-        name: String,
-    ) -> Box<dyn Iterator<Item = Self::ValueType<bool>> + Send> {
-        todo!()
+    fn has_static_property(self, name: String) -> Self::IterType<bool> {
+        Box::new(self.map(move |e| e.has_static_property(name.clone())))
     }
 
-    fn static_property(
-        self,
-        name: String,
-    ) -> Box<dyn Iterator<Item = Self::ValueType<Option<Prop>>> + Send> {
-        todo!()
+    fn static_property(self, name: String) -> Self::IterType<Option<Prop>> {
+        Box::new(self.map(move |e| e.static_property(name.clone())))
     }
 
-    fn property_history(
-        self,
-        name: String,
-    ) -> Box<dyn Iterator<Item = Self::ValueType<Vec<(i64, Prop)>>> + Send> {
-        todo!()
+    fn property_history(self, name: String) -> Self::IterType<Vec<(i64, Prop)>> {
+        Box::new(self.map(move |e| e.property_history(name.clone())))
     }
 
-    fn property_histories(
-        self,
-    ) -> Box<dyn Iterator<Item = Self::ValueType<HashMap<String, Vec<(i64, Prop)>>>> + Send> {
-        todo!()
+    fn property_histories(self) -> Self::IterType<HashMap<String, Vec<(i64, Prop)>>> {
+        Box::new(self.map(|e| e.property_histories()))
     }
 
     fn src(self) -> Self::VList {
-        todo!()
+        Box::new(self.map(|e| e.src()))
     }
 
     fn dst(self) -> Self::VList {
-        todo!()
+        Box::new(self.map(|e| e.dst()))
     }
 
-    fn explode(self) -> Self::IterType {
-        todo!()
+    fn explode(self) -> Self::IterType<Self::Edge> {
+        Box::new(self.flat_map(|e| e.explode()))
     }
 
-    fn earliest_time(self) -> BoxedIter<i64> {
-        todo!()
+    fn earliest_time(self) -> Self::IterType<Option<i64>> {
+        Box::new(self.map(|e| e.earliest_time()))
     }
 
-    fn latest_time(self) -> BoxedIter<i64> {
-        todo!()
+    fn latest_time(self) -> Self::IterType<Option<i64>> {
+        Box::new(self.map(|e| e.latest_time()))
     }
 }
 
@@ -171,7 +148,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState> EvalEdgeView<'a, G, CS> {
     pub fn new(
         ss: usize,
         edge: EdgeRef,
-        g: Arc<G>,
+        g: G,
         shard_state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
         global_state: Rc<RefCell<Cow<'a, ShuffleComputeState<CS>>>>,
         local_state: Rc<RefCell<ShuffleComputeState<CS>>>,

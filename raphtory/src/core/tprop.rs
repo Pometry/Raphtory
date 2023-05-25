@@ -1,5 +1,6 @@
 use crate::core::tcell::TCell;
 use crate::core::Prop;
+use crate::db::graph::Graph;
 use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 use std::ops::Range;
@@ -19,6 +20,7 @@ pub(crate) enum TProp {
     F64(TCell<f64>),
     Bool(TCell<bool>),
     DTime(TCell<NaiveDateTime>),
+    Graph(TCell<Graph>),
 }
 
 impl TProp {
@@ -33,6 +35,7 @@ impl TProp {
             Prop::F64(value) => TProp::F64(TCell::new(t, *value)),
             Prop::Bool(value) => TProp::Bool(TCell::new(t, *value)),
             Prop::DTime(value) => TProp::DTime(TCell::new(t, *value)),
+            Prop::Graph(value) => TProp::Graph(TCell::new(t, value.clone())),
         }
     }
 
@@ -86,6 +89,12 @@ impl TProp {
                     cell.set(t, *a);
                 }
             }
+
+            TProp::Graph(cell) => {
+                if let Prop::Graph(a) = prop {
+                    cell.set(t, a.clone());
+                }
+            }
         }
     }
 
@@ -106,6 +115,10 @@ impl TProp {
             TProp::DTime(cell) => {
                 Box::new(cell.iter_t().map(|(t, value)| (t, Prop::DTime(*value))))
             }
+            TProp::Graph(cell) => Box::new(
+                cell.iter_t()
+                    .map(|(t, value)| (t, Prop::Graph(value.clone()))),
+            ),
         }
     }
 
@@ -147,6 +160,10 @@ impl TProp {
             TProp::DTime(cell) => Box::new(
                 cell.iter_window_t(r)
                     .map(|(t, value)| (t, Prop::DTime(*value))),
+            ),
+            TProp::Graph(cell) => Box::new(
+                cell.iter_window_t(r)
+                    .map(|(t, value)| (t, Prop::Graph(value.clone()))),
             ),
         }
     }

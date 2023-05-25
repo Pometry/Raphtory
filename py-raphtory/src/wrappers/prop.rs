@@ -1,9 +1,29 @@
+use crate::graph::PyGraph;
+use crate::graph_view::PyGraphView;
 use crate::types::repr::Repr;
-use chrono::{DateTime, Local, NaiveDateTime};
-use pyo3::{FromPyObject, IntoPy, PyObject, Python};
+use chrono::NaiveDateTime;
+use pyo3::{FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python};
 use raphtory::core as db_c;
+use raphtory::db;
 use std::collections::HashMap;
 use std::{fmt, i64};
+
+#[repr(transparent)]
+#[derive(Debug, Clone)]
+pub struct PGraph(db::graph::Graph);
+
+impl IntoPy<PyObject> for PGraph {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        PyGraph::py_from_db_graph(self.0).unwrap().into_py(py)
+    }
+}
+
+impl<'source> FromPyObject<'source> for PGraph {
+    fn extract(ob: &'source PyAny) -> PyResult<Self> {
+        let res: PyGraph = ob.extract()?;
+        Ok(PGraph(res.graph))
+    }
+}
 
 #[derive(FromPyObject, Debug, Clone)]
 pub enum Prop {
@@ -13,6 +33,7 @@ pub enum Prop {
     U64(u64),
     F64(f64),
     DTime(NaiveDateTime),
+    Graph(PGraph),
 }
 
 impl fmt::Display for Prop {
@@ -24,6 +45,7 @@ impl fmt::Display for Prop {
             Prop::U64(value) => write!(f, "{}", value),
             Prop::F64(value) => write!(f, "{}", value),
             Prop::DTime(value) => write!(f, "{}", value),
+            Prop::Graph(value) => write!(f, "{}", value.0),
         }
     }
 }
@@ -37,6 +59,7 @@ impl IntoPy<PyObject> for Prop {
             Prop::U64(u64) => u64.into_py(py),
             Prop::F64(f64) => f64.into_py(py),
             Prop::DTime(dtime) => dtime.into_py(py),
+            Prop::Graph(g) => g.into_py(py), // Need to find a better way
         }
     }
 }
@@ -50,6 +73,7 @@ impl From<Prop> for db_c::Prop {
             Prop::U64(u64) => db_c::Prop::U64(u64),
             Prop::F64(f64) => db_c::Prop::F64(f64),
             Prop::DTime(dtime) => db_c::Prop::DTime(dtime),
+            Prop::Graph(g) => db_c::Prop::Graph(g.0),
         }
     }
 }
@@ -66,6 +90,7 @@ impl From<db_c::Prop> for Prop {
             db_c::Prop::F64(f64) => Prop::F64(f64),
             db_c::Prop::F32(f32) => Prop::F64(f32 as f64),
             db_c::Prop::DTime(dtime) => Prop::DTime(dtime),
+            db_c::Prop::Graph(g) => Prop::Graph(PGraph(g)),
         }
     }
 }
@@ -79,6 +104,7 @@ impl Repr for Prop {
             Prop::U64(v) => v.repr(),
             Prop::F64(v) => v.repr(),
             Prop::DTime(v) => v.repr(),
+            Prop::Graph(g) => g.0.to_string(),
         }
     }
 }

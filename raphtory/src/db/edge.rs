@@ -22,19 +22,19 @@ use std::sync::Arc;
 #[derive(Clone)]
 pub struct EdgeView<G: GraphViewOps> {
     /// A view of an edge in the graph.
-    pub graph: Arc<G>,
+    pub graph: G,
     /// A reference to the edge.
     pub edge: EdgeRef,
 }
 
 impl<G: GraphViewOps> EdgeView<G> {
-    pub fn new(graph: Arc<G>, edge: EdgeRef) -> Self {
+    pub fn new(graph: G, edge: EdgeRef) -> Self {
         Self { graph, edge }
     }
 }
 
 impl<G: GraphViewOps> EdgeViewInternalOps<G, VertexView<G>> for EdgeView<G> {
-    fn graph(&self) -> Arc<G> {
+    fn graph(&self) -> G {
         self.graph.clone()
     }
 
@@ -62,7 +62,7 @@ impl<G: GraphViewOps> EdgeViewOps for EdgeView<G> {
     fn explode(&self) -> Self::EList {
         let ev = self.clone();
         match self.edge.time() {
-            Some(t) => Box::new(iter::once(ev)),
+            Some(_) => Box::new(iter::once(ev)),
             None => {
                 let e = self.edge;
                 let ts = self.graph.edge_timestamps(self.edge, None);
@@ -102,7 +102,7 @@ impl<G: GraphViewOps> TimeOps for EdgeView<G> {
 
     fn window<T: IntoTime>(&self, t_start: T, t_end: T) -> Self::WindowedViewType {
         EdgeView {
-            graph: Arc::new(self.graph.window(t_start, t_end)),
+            graph: self.graph.window(t_start, t_end),
             edge: self.edge,
         }
     }
@@ -122,7 +122,7 @@ impl<G: GraphViewOps> EdgeListOps for BoxedIter<EdgeView<G>> {
     type VList = Box<dyn Iterator<Item = VertexView<G>> + Send>;
 
     /// Specifies the associated type for the iterator over edges.
-    type IterType = Box<dyn Iterator<Item = EdgeView<G>> + Send>;
+    type IterType<T> = Box<dyn Iterator<Item = T> + Send>;
 
     fn has_property(self, name: String, include_static: bool) -> BoxedIter<bool> {
         let r: Vec<_> = self
@@ -179,20 +179,18 @@ impl<G: GraphViewOps> EdgeListOps for BoxedIter<EdgeView<G>> {
     }
 
     /// returns an iterator of exploded edges that include an edge at each point in time
-    fn explode(self) -> Self::IterType {
+    fn explode(self) -> Self {
         Box::new(self.flat_map(move |e| e.explode()))
     }
 
     /// Gets the earliest times of a list of edges
-    fn earliest_time(self) -> BoxedIter<i64> {
-        let r: Vec<i64> = self.flat_map(move |e| e.earliest_time()).collect();
-        Box::new(r.into_iter())
+    fn earliest_time(self) -> Self::IterType<Option<i64>> {
+        Box::new(self.map(|e| e.earliest_time()))
     }
 
     /// Gets the latest times of a list of edges
-    fn latest_time(self) -> BoxedIter<i64> {
-        let r: Vec<i64> = self.flat_map(move |e| e.latest_time()).collect();
-        Box::new(r.into_iter())
+    fn latest_time(self) -> Self::IterType<Option<i64>> {
+        Box::new(self.map(|e| e.latest_time()))
     }
 }
 
@@ -202,7 +200,7 @@ impl<G: GraphViewOps> EdgeListOps for BoxedIter<BoxedIter<EdgeView<G>>> {
     type Edge = EdgeView<G>;
     type ValueType<T> = Box<dyn Iterator<Item = T> + Send>;
     type VList = Box<dyn Iterator<Item = Box<dyn Iterator<Item = VertexView<G>> + Send>> + Send>;
-    type IterType = Box<dyn Iterator<Item = Box<dyn Iterator<Item = EdgeView<G>> + Send>> + Send>;
+    type IterType<T> = Box<dyn Iterator<Item = Box<dyn Iterator<Item = T> + Send>> + Send>;
 
     fn has_property(self, name: String, include_static: bool) -> BoxedIter<Self::ValueType<bool>> {
         Box::new(self.map(move |it| {
@@ -253,20 +251,18 @@ impl<G: GraphViewOps> EdgeListOps for BoxedIter<BoxedIter<EdgeView<G>>> {
         Box::new(self.map(|it| it.dst()))
     }
 
-    fn explode(self) -> Self::IterType {
+    fn explode(self) -> Self {
         Box::new(self.map(move |it| it.explode()))
     }
 
     /// Gets the earliest times of a list of edges
-    fn earliest_time(self) -> BoxedIter<i64> {
-        let r: Vec<i64> = self.flat_map(move |e| e.earliest_time()).collect();
-        Box::new(r.into_iter())
+    fn earliest_time(self) -> Self::IterType<Option<i64>> {
+        Box::new(self.map(|e| e.earliest_time()))
     }
 
     /// Gets the latest times of a list of edges
-    fn latest_time(self) -> BoxedIter<i64> {
-        let r: Vec<i64> = self.flat_map(move |e| e.latest_time()).collect();
-        Box::new(r.into_iter())
+    fn latest_time(self) -> Self::IterType<Option<i64>> {
+        Box::new(self.map(|e| e.latest_time()))
     }
 }
 

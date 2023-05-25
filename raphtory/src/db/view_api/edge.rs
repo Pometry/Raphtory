@@ -1,15 +1,12 @@
 use crate::core::edge_ref::EdgeRef;
 use crate::core::vertex_ref::VertexRef;
 use crate::core::Prop;
-use crate::db::edge::EdgeView;
 use crate::db::view_api::internal::GraphViewInternalOps;
-use crate::db::view_api::{BoxedIter, GraphViewOps, VertexListOps, VertexViewOps};
+use crate::db::view_api::{GraphViewOps, VertexListOps, VertexViewOps};
 use std::collections::HashMap;
-use std::iter;
-use std::sync::Arc;
 
 pub trait EdgeViewInternalOps<G: GraphViewOps, V: VertexViewOps<Graph = G>> {
-    fn graph(&self) -> Arc<G>;
+    fn graph(&self) -> G;
 
     fn eref(&self) -> EdgeRef;
 
@@ -122,6 +119,16 @@ pub trait EdgeViewOps: EdgeViewInternalOps<Self::Graph, Self::Vertex> {
         self.new_vertex(vertex)
     }
 
+    fn active(&self, t: i64) -> bool {
+        self.graph().has_edge_ref_window(
+            self.eref().src(),
+            self.eref().dst(),
+            t,
+            t.saturating_add(1),
+            self.eref().layer(),
+        )
+    }
+
     /// Explodes an edge and returns all instances it had been updated as seperate edges
     fn explode(&self) -> Self::EList;
 
@@ -159,7 +166,7 @@ pub trait EdgeViewOps: EdgeViewInternalOps<Self::Graph, Self::Vertex> {
 /// This trait defines the operations that can be
 /// performed on a list of edges in a temporal graph view.
 pub trait EdgeListOps:
-    IntoIterator<Item = Self::ValueType<Self::Edge>, IntoIter = Self::IterType> + Sized
+    IntoIterator<Item = Self::ValueType<Self::Edge>, IntoIter = Self::IterType<Self::Edge>> + Sized
 {
     type Graph: GraphViewOps;
     type Vertex: VertexViewOps<Graph = Self::Graph>;
@@ -170,46 +177,21 @@ pub trait EdgeListOps:
     type VList: VertexListOps<Graph = Self::Graph, Vertex = Self::Vertex>;
 
     /// the type of iterator
-    type IterType: Iterator<Item = Self::ValueType<Self::Edge>>;
+    type IterType<T>: Iterator<Item = Self::ValueType<T>>;
 
-    fn has_property(
-        self,
-        name: String,
-        include_static: bool,
-    ) -> Box<dyn Iterator<Item = Self::ValueType<bool>> + Send>;
+    fn has_property(self, name: String, include_static: bool) -> Self::IterType<bool>;
 
-    fn property(
-        self,
-        name: String,
-        include_static: bool,
-    ) -> Box<dyn Iterator<Item = Self::ValueType<Option<Prop>>> + Send>;
-    fn properties(
-        self,
-        include_static: bool,
-    ) -> Box<dyn Iterator<Item = Self::ValueType<HashMap<String, Prop>>> + Send>;
-    fn property_names(
-        self,
-        include_static: bool,
-    ) -> Box<dyn Iterator<Item = Self::ValueType<Vec<String>>> + Send>;
+    fn property(self, name: String, include_static: bool) -> Self::IterType<Option<Prop>>;
+    fn properties(self, include_static: bool) -> Self::IterType<HashMap<String, Prop>>;
+    fn property_names(self, include_static: bool) -> Self::IterType<Vec<String>>;
 
-    fn has_static_property(
-        self,
-        name: String,
-    ) -> Box<dyn Iterator<Item = Self::ValueType<bool>> + Send>;
-    fn static_property(
-        self,
-        name: String,
-    ) -> Box<dyn Iterator<Item = Self::ValueType<Option<Prop>>> + Send>;
+    fn has_static_property(self, name: String) -> Self::IterType<bool>;
+    fn static_property(self, name: String) -> Self::IterType<Option<Prop>>;
 
     /// gets a property of an edge with the given name
     /// includes the timestamp of the property
-    fn property_history(
-        self,
-        name: String,
-    ) -> Box<dyn Iterator<Item = Self::ValueType<Vec<(i64, Prop)>>> + Send>;
-    fn property_histories(
-        self,
-    ) -> Box<dyn Iterator<Item = Self::ValueType<HashMap<String, Vec<(i64, Prop)>>>> + Send>;
+    fn property_history(self, name: String) -> Self::IterType<Vec<(i64, Prop)>>;
+    fn property_histories(self) -> Self::IterType<HashMap<String, Vec<(i64, Prop)>>>;
 
     /// gets the source vertices of the edges in the list
     fn src(self) -> Self::VList;
@@ -218,11 +200,11 @@ pub trait EdgeListOps:
     fn dst(self) -> Self::VList;
 
     /// returns a list of exploded edges that include an edge at each point in time
-    fn explode(self) -> Self::IterType;
+    fn explode(self) -> Self::IterType<Self::Edge>;
 
     /// Get the timestamp for the earliest activity of the edge
-    fn earliest_time(self) -> BoxedIter<i64>;
+    fn earliest_time(self) -> Self::IterType<Option<i64>>;
 
     /// Get the timestamp for the latest activity of the edge
-    fn latest_time(self) -> BoxedIter<i64>;
+    fn latest_time(self) -> Self::IterType<Option<i64>>;
 }

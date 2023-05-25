@@ -13,7 +13,6 @@ use raphtory::core::vertex::InputVertex;
 use raphtory::core::vertex_ref::VertexRef;
 use raphtory::db::view_api::time::WindowSet;
 use raphtory::db::view_api::TimeOps;
-use raphtory::*;
 use std::error::Error;
 
 /// Extract a `VertexRef` from a Python object.
@@ -57,7 +56,7 @@ pub(crate) fn at_impl<T: TimeOps + Sized + Clone>(
     Ok(slf.at(end))
 }
 
-pub(crate) fn adapt_err_value<E>(err: &E) -> PyErr
+pub fn adapt_err_value<E>(err: &E) -> PyErr
 where
     E: Error + ?Sized,
 {

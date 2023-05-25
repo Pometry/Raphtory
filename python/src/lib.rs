@@ -1,24 +1,9 @@
 extern crate core;
 
-#[macro_use]
-mod macros;
-
-pub mod algorithms;
-mod dynamic;
-pub mod edge;
-pub mod graph;
-pub mod graph_gen;
-pub mod graph_loader;
-pub mod graph_view;
-pub mod types;
-mod utils;
-pub mod vertex;
-pub mod wrappers;
-
-use crate::algorithms::*;
-use crate::graph::PyGraph;
-use crate::graph_gen::*;
-use crate::graph_loader::*;
+use py_raphtory::algorithms::*;
+use py_raphtory::graph::PyGraph;
+use py_raphtory::graph_gen::*;
+use py_raphtory::graph_loader::*;
 use pyo3::prelude::*;
 
 /// Raphtory graph analytics library
@@ -51,7 +36,9 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         weakly_connected_components,
         algorithm_module
     )?)?;
-    algorithm_module.add_function(wrap_pyfunction!(all_motifs_count, algorithm_module)?)?;
+    algorithm_module.add_function(wrap_pyfunction!(temporal_three_node_motif, algorithm_module)?)?;
+    algorithm_module.add_function(wrap_pyfunction!(global_temporal_three_node_motif, algorithm_module)?)?;
+    algorithm_module.add_function(wrap_pyfunction!(global_temporal_three_node_motif_from_local, algorithm_module)?)?;
 
     m.add_submodule(algorithm_module)?;
     let graph_loader_module = PyModule::new(py, "graph_loader")?;

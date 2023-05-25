@@ -19,13 +19,19 @@ pub trait Accumulator<A, IN, OUT>: Send + Sync + 'static {
     fn finish(a: &A) -> OUT;
 }
 
+pub struct InitOneF64();
+impl Init<f64> for InitOneF64 {
+    fn init() -> f64 {
+        1.0f64
+    }
+}
+
 pub struct InitOneF32();
 impl Init<f32> for InitOneF32 {
     fn init() -> f32 {
         1.0f32
     }
 }
-
 #[derive(Clone, Debug, Copy)]
 pub struct AndDef();
 
@@ -123,8 +129,8 @@ where
         a.clone()
     }
 }
-#[derive(Clone, Debug, Copy)]
 
+#[derive(Clone, Debug, Copy)]
 pub struct SumDef<A: StateType + Zero + AddAssign<A>> {
     _marker: PhantomData<A>,
 }
@@ -172,6 +178,36 @@ where
     }
 
     fn finish(a: &A) -> A {
+        a.clone()
+    }
+}
+
+#[derive(Clone, Debug, Copy)]
+pub struct ArrConst<A, const N: usize>(pub [A; N]);
+
+impl<A: Accumulator<A, A, A>, const N: usize> Accumulator<[A; N], (usize, A), [A; N]>
+    for ArrConst<A, N>
+where
+    A: StateType + Copy,
+{
+    fn zero() -> [A; N] {
+        [A::zero(); N]
+    }
+
+    fn add0(a1: &mut [A; N], a: (usize, A)) {
+        let (i, a) = a;
+        if i < N {
+            A::add0(&mut a1[i], a);
+        }
+    }
+
+    fn combine(a1: &mut [A; N], a2: &[A; N]) {
+        for (into, from) in a1.iter_mut().zip(a2.iter()) {
+            A::combine(into, from)
+        }
+    }
+
+    fn finish(a: &[A; N]) -> [A; N] {
         a.clone()
     }
 }
@@ -377,6 +413,7 @@ mod agg_test {
         let mut max = MaxDef::<i32>::zero();
         let mut top3 = TopK::<i32, 3>::zero();
         let mut top5 = TopK::<i32, 5>::zero();
+        // let mut arr = ArrConst::<u32, 5>::zero();
 
         for i in 0..100 {
             <AvgDef<i32> as Accumulator<(i32, usize), i32, i32>>::add0(&mut avg, i);
