@@ -1,6 +1,7 @@
 [package]
 edition = "2021"
 name = "raphtory-graphql"
+description = "Raphtory GraphQL server"
 version.workspace = true
 rust-version = "1.67.1"
 
