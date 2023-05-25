@@ -62,8 +62,8 @@ pub fn weakly_connected_components(
 pub fn pagerank(
     g: &PyGraphView,
     iter_count: usize,
-    max_diff: Option<f32>,
-) -> PyResult<HashMap<String, f32>> {
+    max_diff: Option<f64>,
+) -> PyResult<HashMap<String, f64>> {
     Ok(unweighted_page_rank(&g.graph, iter_count, None, max_diff))
 }
 
