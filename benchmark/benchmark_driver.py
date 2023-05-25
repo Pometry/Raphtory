@@ -77,7 +77,7 @@ def run_benchmark(choice, docker=False):
 
     results = {}
     print("Running benchmarks: " + str(benchmarks_to_run))
-    for key in benchmarks_to_run[:2]:
+    for key in benchmarks_to_run:
         driver = setup()[key]
         if docker:
             print("** Running dockerized benchmark " + str(key) + "...")
