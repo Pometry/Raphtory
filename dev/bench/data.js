@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1685016717098,
+  "lastUpdate": 1685022562541,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -1615,6 +1615,60 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions with numeric string input",
             "value": 2196730,
             "range": "± 126634",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97447091+ljeub-pometry@users.noreply.github.com",
+            "name": "ljeub-pometry",
+            "username": "ljeub-pometry"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b544bf4e11444fdc72aa9dfd8294652427c5c479",
+          "message": "Add edge id as tuple of src and dst id and clean up temporary vectors (#970)\n\n* Add edge id as tuple of src and dst id and clean up temporary vectors\r\n\r\n* make edge.explode() return edges object in python so we have vectorised access to properties/etc.\r\n\r\n* fix active for exploded edge\r\n\r\n* fix earliest and latest time for exploded edge\r\n\r\n* add test to check sanity of exploded edges\r\n\r\n* exploded edge test fixes\r\n\r\n* add FIXME note for exploded edges\r\n\r\n---------\r\n\r\nCo-authored-by: Ben Steer <b.a.steer@qmul.ac.uk>",
+          "timestamp": "2023-05-25T14:47:16+01:00",
+          "tree_id": "c96df2e7ef531e30f93ef9052417da178802e328",
+          "url": "https://github.com/Pometry/Raphtory/commit/b544bf4e11444fdc72aa9dfd8294652427c5c479"
+        },
+        "date": 1685022561465,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 416385,
+            "range": "± 94406",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and numeric string input",
+            "value": 1196171,
+            "range": "± 51615",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and string input",
+            "value": 1229249,
+            "range": "± 108261",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 1094436,
+            "range": "± 224397",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions with numeric string input",
+            "value": 2835308,
+            "range": "± 369724",
             "unit": "ns/iter"
           }
         ]
