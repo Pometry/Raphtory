@@ -84,7 +84,6 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeViewOps for EvalEdge
         let iter: Box<dyn Iterator<Item = EdgeRef>> = match self.ev.time() {
             Some(_) => Box::new(iter::once(self.ev.clone())),
             None => {
-                let g = self.graph;
                 let e = self.ev.clone();
                 let ts = self.graph.edge_timestamps(self.ev, None);
                 Box::new(ts.into_iter().map(move |t| e.at(t)))

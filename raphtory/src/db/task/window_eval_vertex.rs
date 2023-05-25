@@ -2,17 +2,16 @@ use std::{cell::RefCell, collections::HashMap, marker::PhantomData, rc::Rc};
 
 use crate::{
     core::{
-        state::compute_state::ComputeState, time::IntoTime, vertex_ref::LocalVertexRef, Direction,
-        Prop,
+        state::{compute_state::ComputeState, StateType, accumulator_id::AccId}, time::IntoTime, vertex_ref::LocalVertexRef, Direction,
+        Prop, agg::Accumulator,
     },
     db::{
-        edge::EdgeView,
         path::{Operations, PathFromVertex},
-        view_api::{BoxedIter, GraphViewOps, TimeOps, VertexViewOps},
+        view_api::{GraphViewOps, TimeOps, VertexViewOps, VertexListOps},
     },
 };
 
-use super::{eval_edge::EvalEdgeView, eval_vertex_state::EVState, task_state::Local2};
+use super::{eval_vertex_state::EVState, task_state::Local2, window_eval_edge::WindowEvalEdgeView};
 
 pub struct WindowEvalVertex<'a, G: GraphViewOps, CS: ComputeState, S: 'static> {
     ss: usize,
@@ -26,6 +25,22 @@ pub struct WindowEvalVertex<'a, G: GraphViewOps, CS: ComputeState, S: 'static> {
 }
 
 impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> WindowEvalVertex<'a, G, CS, S> {
+
+    fn pid(&self) -> usize {
+        self.vertex.pid
+    }
+
+    pub fn update<A: StateType, IN: 'static, OUT: 'static, ACC: Accumulator<A, IN, OUT>>(
+        &self,
+        id: &AccId<A, IN, OUT, ACC>,
+        a: IN,
+    ) {
+        self.vertex_state
+            .borrow_mut()
+            .shard_mut()
+            .accumulate_into_pid(self.ss, self.id(), self.pid(), a, id);
+    }
+
     pub(crate) fn new(
         ss: usize,
         vertex: LocalVertexRef,
@@ -80,7 +95,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
     type Graph = G;
     type ValueType<T> = T;
     type PathType<'b> = WindowEvalPathFromVertex<'a, G, CS, S> where Self: 'b;
-    type EList = Box<dyn Iterator<Item = EvalEdgeView<'a, G, CS, S>> + 'a>;
+    type EList = Box<dyn Iterator<Item = WindowEvalEdgeView<'a, G, CS, S>> + 'a>;
 
     fn id(&self) -> Self::ValueType<u64> {
         self.graph.vertex_id(self.vertex)
@@ -208,10 +223,12 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
         let vertex_state = self.vertex_state.clone();
         let local = self.local_state_prev;
         let graph = self.graph;
+        let t_start = self.t_start;
+        let t_end = self.t_end;
         Box::new(
             self.graph
                 .vertex_edges_window(self.vertex, self.t_start, self.t_end, Direction::BOTH, None)
-                .map(move |e| EvalEdgeView::new_(ss, e, graph, local, vertex_state.clone())),
+                .map(move |e| WindowEvalEdgeView::new(ss, e, graph, local, vertex_state.clone(), t_start, t_end)),
         )
     }
 
@@ -220,10 +237,12 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
         let vertex_state = self.vertex_state.clone();
         let local = self.local_state_prev;
         let graph = self.graph;
+        let t_start = self.t_start;
+        let t_end = self.t_end;
         Box::new(
             self.graph
                 .vertex_edges_window(self.vertex, self.t_start, self.t_end, Direction::IN, None)
-                .map(move |e| EvalEdgeView::new_(ss, e, graph, local, vertex_state.clone())),
+                .map(move |e|  WindowEvalEdgeView::new(ss, e, graph, local, vertex_state.clone(), t_start, t_end)),
         )
     }
 
@@ -232,10 +251,12 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
         let vertex_state = self.vertex_state.clone();
         let local = self.local_state_prev;
         let graph = self.graph;
+        let t_start = self.t_start;
+        let t_end = self.t_end;
         Box::new(
             self.graph
                 .vertex_edges_window(self.vertex, self.t_start, self.t_end, Direction::OUT, None)
-                .map(move |e| EvalEdgeView::new_(ss, e, graph, local, vertex_state.clone())),
+                .map(move |e|  WindowEvalEdgeView::new(ss, e, graph, local, vertex_state.clone(), t_start, t_end)),
         )
     }
 
@@ -346,7 +367,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> WindowEvalPathFromVertex
     fn edges_internal(
         &self,
         dir: Direction,
-    ) -> Box<dyn Iterator<Item = EvalEdgeView<'a, G, CS, S>> + 'a> {
+    ) -> Box<dyn Iterator<Item = WindowEvalEdgeView<'a, G, CS, S>> + 'a> {
         let ss = self.ss;
         let g = self.g;
         let vertex_state = self.vertex_state.clone();
@@ -362,7 +383,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> WindowEvalPathFromVertex
                 g.vertex_edges_window(local_ref, t_start, t_end, dir, None)
             })
             .map(move |e_ref| {
-                EvalEdgeView::new(ss, e_ref, g, vertex_state.clone(), local_state_prev)
+                WindowEvalEdgeView::new(ss, e_ref, g, local_state_prev, vertex_state.clone(), t_start, t_end)
             });
 
         Box::new(iter)
@@ -417,7 +438,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
 
     type PathType<'b> = WindowEvalPathFromVertex<'a, G, CS, S> where Self: 'b;
 
-    type EList = Box<dyn Iterator<Item = EvalEdgeView<'a, G, CS, S>> + 'a>;
+    type EList = Box<dyn Iterator<Item = WindowEvalEdgeView<'a, G, CS, S>> + 'a>;
 
     fn id(&self) -> Self::ValueType<u64> {
         self.path.id()
@@ -579,5 +600,142 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
             self.path
                 .neighbours_window(Direction::OUT, self.t_start, self.t_end),
         )
+    }
+}
+
+
+impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexListOps
+    for Box<dyn Iterator<Item = WindowEvalVertex<'a, G, CS, S>> + 'a>
+{
+    type Graph = G;
+    type Vertex = WindowEvalVertex<'a, G, CS, S>;
+    type IterType<T> = Box<dyn Iterator<Item = T> + 'a>;
+    type EList = Box<dyn Iterator<Item = WindowEvalEdgeView<'a, G, CS, S>> + 'a>;
+    type ValueType<T> = T;
+
+    fn earliest_time(self) -> Self::IterType<Option<i64>> {
+        Box::new(self.map(|v| v.earliest_time()))
+    }
+
+    fn latest_time(self) -> Self::IterType<Option<i64>> {
+        Box::new(self.map(|v| v.latest_time()))
+    }
+
+    fn window(
+        self,
+        t_start: i64,
+        t_end: i64,
+    ) -> Self::IterType<<Self::Vertex as TimeOps>::WindowedViewType> {
+        Box::new(self.map(move |v| v.window(t_start, t_end)))
+    }
+
+    fn id(self) -> Self::IterType<u64> {
+        Box::new(self.map(|v| v.id()))
+    }
+
+    fn name(self) -> Self::IterType<String> {
+        Box::new(self.map(|v| v.name()))
+    }
+
+    fn property(self, name: String, include_static: bool) -> Self::IterType<Option<Prop>> {
+        Box::new(self.map(move |v| v.property(name.clone(), include_static)))
+    }
+
+    fn property_history(self, name: String) -> Self::IterType<Vec<(i64, Prop)>> {
+        Box::new(self.map(move |v| v.property_history(name.clone())))
+    }
+
+    fn properties(self, include_static: bool) -> Self::IterType<HashMap<String, Prop>> {
+        Box::new(self.map(move |v| v.properties(include_static)))
+    }
+
+    fn history(self) -> Self::IterType<Vec<i64>> {
+        Box::new(self.map(|v| v.history()))
+    }
+
+    fn property_histories(self) -> Self::IterType<HashMap<String, Vec<(i64, Prop)>>> {
+        Box::new(self.map(|v| v.property_histories()))
+    }
+
+    fn property_names(self, include_static: bool) -> Self::IterType<Vec<String>> {
+        Box::new(self.map(move |v| v.property_names(include_static)))
+    }
+
+    fn has_property(self, name: String, include_static: bool) -> Self::IterType<bool> {
+        Box::new(self.map(move |v| v.has_property(name.clone(), include_static)))
+    }
+
+    fn has_static_property(self, name: String) -> Self::IterType<bool> {
+        Box::new(self.map(move |v| v.has_static_property(name.clone())))
+    }
+
+    fn static_property(self, name: String) -> Self::IterType<Option<Prop>> {
+        Box::new(self.map(move |v| v.static_property(name.clone())))
+    }
+
+    fn degree(self) -> Self::IterType<usize> {
+        Box::new(self.map(|v| v.degree()))
+    }
+
+    fn in_degree(self) -> Self::IterType<usize> {
+        Box::new(self.map(|v| v.in_degree()))
+    }
+
+    fn out_degree(self) -> Self::IterType<usize> {
+        Box::new(self.map(|v| v.out_degree()))
+    }
+
+    fn edges(self) -> Self::EList {
+        Box::new(self.flat_map(|v| v.edges()))
+    }
+
+    fn in_edges(self) -> Self::EList {
+        Box::new(self.flat_map(|v| v.in_edges()))
+    }
+
+    fn out_edges(self) -> Self::EList {
+        Box::new(self.flat_map(|v| v.out_edges()).map(|ev| WindowEvalEdgeView::from(ev)))
+    }
+
+    fn neighbours(self) -> Self {
+        Box::new(self.flat_map(|v| v.neighbours()))
+    }
+
+    fn in_neighbours(self) -> Self {
+        Box::new(self.flat_map(|v| v.in_neighbours()))
+    }
+
+    fn out_neighbours(self) -> Self {
+        Box::new(self.flat_map(|v| v.out_neighbours()))
+    }
+}
+
+
+impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> IntoIterator
+    for WindowEvalPathFromVertex<'a, G, CS, S>
+{
+    type Item = WindowEvalVertex<'a, G, CS, S>;
+    type IntoIter = Box<dyn Iterator<Item = WindowEvalVertex<'a, G, CS, S>> + 'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        // carefully decouple the lifetimes!
+        let path = self.path.clone();
+        let vertex_state = self.vertex_state.clone();
+        let ss = self.ss;
+        let g: &G = self.g;
+        let t_start = self.t_start;
+        let t_end = self.t_end;
+        Box::new(path.iter_refs().map(move |v| {
+            WindowEvalVertex::new(
+                ss,
+                self.g.localise_vertex_unchecked(v),
+                g,
+                None,
+                self.local_state_prev.clone(),
+                vertex_state.clone(),
+                t_start,
+                t_end,
+            )
+        }))
     }
 }
