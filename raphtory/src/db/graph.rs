@@ -2113,4 +2113,81 @@ mod db_tests {
             .map(|name| g.vertex(name))
             .all(|v| v.is_some())
     }
+
+    #[quickcheck]
+    fn exploded_edge_times_is_consistent(edges: Vec<(u64, u64, Vec<i64>)>, offset: i64) -> bool {
+        let mut correct = true;
+        let mut check = |condition: bool, message: String| {
+            if !condition {
+                println!("Failed: {}", message);
+            }
+            correct = correct && condition;
+        };
+        // checks that exploded edges are preserved with correct timestamps
+        let mut edges: Vec<(u64, u64, Vec<i64>)> =
+            edges.into_iter().filter(|e| !e.2.is_empty()).collect();
+        // discard edges without timestamps
+        for e in edges.iter_mut() {
+            e.2.sort();
+            // FIXME: Should not have to do this, see issue https://github.com/Pometry/Raphtory/issues/973
+            e.2.dedup(); // add each timestamp only once (multi-edge per timestamp currently not implemented)
+        }
+        edges.sort();
+        edges.dedup_by_key(|(src, dst, _)| (*src, *dst));
+
+        let g = Graph::new(1);
+        for (src, dst, times) in edges.iter() {
+            for t in times.iter() {
+                g.add_edge(*t, *src, *dst, &vec![], None).unwrap();
+            }
+        }
+
+        let mut actual_edges: Vec<(u64, u64, Vec<i64>)> = g
+            .edges()
+            .map(|e| {
+                (
+                    e.src().id(),
+                    e.dst().id(),
+                    e.explode()
+                        .map(|ee| {
+                            check(
+                                ee.earliest_time() == ee.latest_time(),
+                                format!("times mismatched for {:?}", ee),
+                            ); // times are the same for exploded edge
+                            let t = ee.earliest_time().unwrap();
+                            check(
+                                ee.active(t),
+                                format!("exploded edge {:?} inactive at {}", ee, t),
+                            );
+                            if t < i64::MAX {
+                                // window is broken at MAX!
+                                check(e.active(t), format!("edge {:?} inactive at {}", e, t));
+                            }
+                            let t_test = t.saturating_add(offset);
+                            if t_test != t && t_test < i64::MAX && t_test > i64::MIN {
+                                check(
+                                    !ee.active(t_test),
+                                    format!("exploded edge {:?} active at {}", ee, t_test),
+                                );
+                            }
+                            t
+                        })
+                        .collect(),
+                )
+            })
+            .collect();
+
+        for e in actual_edges.iter_mut() {
+            e.2.sort();
+        }
+        actual_edges.sort();
+        check(
+            actual_edges == edges,
+            format!(
+                "actual edges didn't match input actual: {:?}, expected: {:?}",
+                actual_edges, edges
+            ),
+        );
+        correct
+    }
 }
