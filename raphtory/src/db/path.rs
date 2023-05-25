@@ -311,6 +311,16 @@ impl<G: GraphViewOps> PathFromVertex<G> {
             operations: Arc::new(vec![operation]),
         }
     }
+
+    pub(crate) fn neighbours_window(&self, dir:Direction, t_start: i64, t_end:i64) -> Self {
+        let mut new_ops = (*self.operations).clone();
+        new_ops.push(Operations::NeighboursWindow { dir, t_start, t_end });
+        Self {
+            graph: self.graph.clone(),
+            vertex: self.vertex,
+            operations: Arc::new(new_ops),
+        }
+    }
 }
 
 impl<G: GraphViewOps> VertexViewOps for PathFromVertex<G> {
@@ -405,6 +415,7 @@ impl<G: GraphViewOps> VertexViewOps for PathFromVertex<G> {
             operations: Arc::new(new_ops),
         }
     }
+
 
     fn in_neighbours(&self) -> Self {
         let mut new_ops = (*self.operations).clone();

@@ -68,8 +68,8 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> TimeOps for WindowEvalVe
             local_state: None,
             local_state_prev: self.local_state_prev,
             vertex_state: self.vertex_state.clone(),
-            t_start: t_start.into_time(),
-            t_end: t_end.into_time(),
+            t_start: t_start.into_time().max(self.t_start),
+            t_end: t_end.into_time().min(self.t_end),
         }
     }
 }
@@ -159,35 +159,60 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
     }
 
     fn property_names(&self, include_static: bool) -> Self::ValueType<Vec<String>> {
-        todo!()
+        let mut names: Vec<String> = self.graph.temporal_vertex_prop_names(self.vertex);
+        if include_static {
+            names.extend(self.graph.static_vertex_prop_names(self.vertex))
+        }
+        names
     }
 
     fn has_property(&self, name: String, include_static: bool) -> Self::ValueType<bool> {
-        todo!()
+        (!self.property_history(name.clone()).is_empty())
+            || (include_static
+                && self
+                    .graph
+                    .static_vertex_prop_names(self.vertex)
+                    .contains(&name))
     }
 
     fn has_static_property(&self, name: String) -> Self::ValueType<bool> {
-        todo!()
+        self.graph
+            .static_vertex_prop_names(self.vertex)
+            .contains(&name)
     }
 
     fn static_property(&self, name: String) -> Self::ValueType<Option<crate::core::Prop>> {
-        todo!()
+        self.graph.static_vertex_prop(self.vertex, name)
     }
 
     fn degree(&self) -> Self::ValueType<usize> {
-        todo!()
+        let dir = Direction::BOTH;
+        self.graph
+            .degree_window(self.vertex, self.t_start, self.t_end, dir, None)
     }
 
     fn in_degree(&self) -> Self::ValueType<usize> {
-        todo!()
+        let dir = Direction::IN;
+        self.graph
+            .degree_window(self.vertex, self.t_start, self.t_end, dir, None)
     }
 
     fn out_degree(&self) -> Self::ValueType<usize> {
-        todo!()
+        let dir = Direction::OUT;
+        self.graph
+            .degree_window(self.vertex, self.t_start, self.t_end, dir, None)
     }
 
     fn edges(&self) -> Self::EList {
-        todo!()
+        let ss = self.ss;
+        let vertex_state = self.vertex_state.clone();
+        let local = self.local_state_prev;
+        let graph = self.graph;
+        Box::new(
+            self.graph
+                .vertex_edges_window(self.vertex, self.t_start, self.t_end, Direction::BOTH, None)
+                .map(move |e| EvalEdgeView::new_(ss, e, graph, local, vertex_state.clone())),
+        )
     }
 
     fn in_edges(&self) -> Self::EList {
@@ -203,7 +228,15 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
     }
 
     fn out_edges(&self) -> Self::EList {
-        todo!()
+        let ss = self.ss;
+        let vertex_state = self.vertex_state.clone();
+        let local = self.local_state_prev;
+        let graph = self.graph;
+        Box::new(
+            self.graph
+                .vertex_edges_window(self.vertex, self.t_start, self.t_end, Direction::OUT, None)
+                .map(move |e| EvalEdgeView::new_(ss, e, graph, local, vertex_state.clone())),
+        )
     }
 
     fn neighbours(&self) -> Self::PathType<'_> {
@@ -221,11 +254,31 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
     }
 
     fn in_neighbours(&self) -> Self::PathType<'_> {
-        todo!()
+        let neighbours = PathFromVertex::new(
+            self.graph.clone(),
+            self.vertex,
+            Operations::NeighboursWindow {
+                dir: Direction::IN,
+                t_start: self.t_start,
+                t_end: self.t_end,
+            },
+        );
+
+        WindowEvalPathFromVertex::new_from_path_and_vertex(neighbours, self)
     }
 
     fn out_neighbours(&self) -> Self::PathType<'_> {
-        todo!()
+        let neighbours = PathFromVertex::new(
+            self.graph.clone(),
+            self.vertex,
+            Operations::NeighboursWindow {
+                dir: Direction::OUT,
+                t_start: self.t_start,
+                t_end: self.t_end,
+            },
+        );
+
+        WindowEvalPathFromVertex::new_from_path_and_vertex(neighbours, self)
     }
 }
 
@@ -239,7 +292,20 @@ pub struct WindowEvalPathFromVertex<'a, G: GraphViewOps, CS: ComputeState, S> {
     t_start: i64,
     t_end: i64,
 }
-impl<'a, G: GraphViewOps, CS: ComputeState, S> WindowEvalPathFromVertex<'a, G, CS, S> {
+impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> WindowEvalPathFromVertex<'a, G, CS, S> {
+    fn update_path(&self, path: PathFromVertex<G>) -> Self {
+        WindowEvalPathFromVertex {
+            path,
+            ss: self.ss,
+            g: self.g,
+            vertex_state: self.vertex_state.clone(),
+            local_state_prev: self.local_state_prev,
+            t_start: self.t_start,
+            t_end: self.t_end,
+            _s: PhantomData,
+        }
+    }
+
     pub(crate) fn new_from_path_and_vertex(
         path: PathFromVertex<G>,
         vertex: &WindowEvalVertex<'a, G, CS, S>,
@@ -276,9 +342,49 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S> WindowEvalPathFromVertex<'a, G, C
             t_end,
         }
     }
+
+    fn edges_internal(
+        &self,
+        dir: Direction,
+    ) -> Box<dyn Iterator<Item = EvalEdgeView<'a, G, CS, S>> + 'a> {
+        let ss = self.ss;
+        let g = self.g;
+        let vertex_state = self.vertex_state.clone();
+        let local_state_prev = self.local_state_prev;
+        let t_start = self.t_start;
+        let t_end = self.t_end;
+
+        let iter = self
+            .path
+            .iter_refs()
+            .flat_map(move |v_ref| {
+                let local_ref = g.localise_vertex_unchecked(v_ref);
+                g.vertex_edges_window(local_ref, t_start, t_end, dir, None)
+            })
+            .map(move |e_ref| {
+                EvalEdgeView::new(ss, e_ref, g, vertex_state.clone(), local_state_prev)
+            });
+
+        Box::new(iter)
+    }
+
+    fn degree(&self, dir: Direction) -> Box<dyn Iterator<Item = usize> + 'a> {
+        let g = self.g;
+        let t_start = self.t_start;
+        let t_end = self.t_end;
+
+        let iter = self.path.iter_refs().map(move |v_ref| {
+            let local_ref = g.localise_vertex_unchecked(v_ref);
+            g.degree_window(local_ref, t_start, t_end, dir, None)
+        });
+
+        Box::new(iter)
+    }
 }
 
-impl<'a, G: GraphViewOps, CS: ComputeState, S> TimeOps for WindowEvalPathFromVertex<'a, G, CS, S> {
+impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> TimeOps
+    for WindowEvalPathFromVertex<'a, G, CS, S>
+{
     type WindowedViewType = WindowEvalPathFromVertex<'a, G, CS, S>;
 
     fn start(&self) -> Option<i64> {
@@ -296,37 +402,37 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S> TimeOps for WindowEvalPathFromVer
             self.g,
             self.vertex_state.clone(),
             self.local_state_prev,
-            t_start.into_time(),
-            t_end.into_time(),
+            t_start.into_time().max(self.t_start),
+            t_end.into_time().min(self.t_end),
         )
     }
 }
 
-impl<'a, G: GraphViewOps, CS: ComputeState, S> VertexViewOps
+impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
     for WindowEvalPathFromVertex<'a, G, CS, S>
 {
     type Graph = G;
 
-    type ValueType<T> = BoxedIter<T>;
+    type ValueType<T> = Box<dyn Iterator<Item = T> + 'a>;
 
     type PathType<'b> = WindowEvalPathFromVertex<'a, G, CS, S> where Self: 'b;
 
-    type EList = BoxedIter<EdgeView<G>>;
+    type EList = Box<dyn Iterator<Item = EvalEdgeView<'a, G, CS, S>> + 'a>;
 
     fn id(&self) -> Self::ValueType<u64> {
-        todo!()
+        self.path.id()
     }
 
     fn name(&self) -> Self::ValueType<String> {
-        todo!()
+        self.path.name()
     }
 
     fn earliest_time(&self) -> Self::ValueType<Option<i64>> {
-        todo!()
+        self.path.earliest_time()
     }
 
     fn latest_time(&self) -> Self::ValueType<Option<i64>> {
-        todo!()
+        self.path.latest_time()
     }
 
     fn property(
@@ -334,79 +440,144 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S> VertexViewOps
         name: String,
         include_static: bool,
     ) -> Self::ValueType<Option<crate::core::Prop>> {
-        todo!()
+        let g = self.g;
+        let t_start = self.t_start;
+        let t_end = self.t_end;
+
+        let iter = self.path.iter_refs().map(move |v_ref| {
+            let local_ref = g.localise_vertex_unchecked(v_ref);
+            let props = g.temporal_vertex_prop_vec_window(local_ref, name.clone(), t_start, t_end);
+            match props.last() {
+                None => {
+                    if include_static {
+                        g.static_vertex_prop(local_ref, name.clone())
+                    } else {
+                        None
+                    }
+                }
+                Some((_, prop)) => Some(prop.clone()),
+            }
+        });
+        Box::new(iter)
     }
 
     fn history(&self) -> Self::ValueType<Vec<i64>> {
-        todo!()
+        let g = self.g;
+        let t_start = self.t_start;
+        let t_end = self.t_end;
+
+        let iter = self.path.iter_refs().map(move |v_ref| {
+            let local_ref = g.localise_vertex_unchecked(v_ref);
+            g.vertex_timestamps_window(local_ref, t_start, t_end)
+        });
+
+        Box::new(iter)
     }
 
     fn property_history(&self, name: String) -> Self::ValueType<Vec<(i64, crate::core::Prop)>> {
-        todo!()
+        let g = self.g;
+        let t_start = self.t_start;
+        let t_end = self.t_end;
+
+        let iter = self.path.iter_refs().map(move |v_ref| {
+            let local_ref = g.localise_vertex_unchecked(v_ref);
+            g.temporal_vertex_prop_vec_window(local_ref, name.clone(), t_start, t_end)
+        });
+
+        Box::new(iter)
     }
 
     fn properties(
         &self,
         include_static: bool,
     ) -> Self::ValueType<std::collections::HashMap<String, crate::core::Prop>> {
-        todo!()
+        self.path.properties(include_static)
     }
 
     fn property_histories(
         &self,
     ) -> Self::ValueType<std::collections::HashMap<String, Vec<(i64, crate::core::Prop)>>> {
-        todo!()
+        let g = self.g;
+        let t_start = self.t_start;
+        let t_end = self.t_end;
+
+        let iter = self.path.iter_refs().map(move |v_ref| {
+            let local_ref = g.localise_vertex_unchecked(v_ref);
+            g.temporal_vertex_props_window(local_ref, t_start, t_end)
+        });
+
+        Box::new(iter)
     }
 
     fn property_names(&self, include_static: bool) -> Self::ValueType<Vec<String>> {
-        todo!()
+        self.path.property_names(include_static)
     }
 
     fn has_property(&self, name: String, include_static: bool) -> Self::ValueType<bool> {
-        todo!()
+        let g = self.g;
+        let t_start = self.t_start;
+        let t_end = self.t_end;
+        let iter = self.path.iter_refs().map(move |v_ref| {
+            let local_ref = g.localise_vertex_unchecked(v_ref);
+            let props = g.temporal_vertex_prop_vec_window(local_ref, name.clone(), t_start, t_end);
+
+            !props.is_empty()
+                || (include_static && g.static_vertex_prop_names(local_ref).contains(&name))
+        });
+
+        Box::new(iter)
     }
 
     fn has_static_property(&self, name: String) -> Self::ValueType<bool> {
-        todo!()
+        self.path.has_static_property(name)
     }
 
     fn static_property(&self, name: String) -> Self::ValueType<Option<crate::core::Prop>> {
-        todo!()
+        self.path.static_property(name)
     }
 
     fn degree(&self) -> Self::ValueType<usize> {
-        todo!()
+        self.degree(Direction::BOTH)
     }
 
     fn in_degree(&self) -> Self::ValueType<usize> {
-        todo!()
+        self.degree(Direction::IN)
     }
 
     fn out_degree(&self) -> Self::ValueType<usize> {
-        todo!()
+        self.degree(Direction::OUT)
     }
 
     fn edges(&self) -> Self::EList {
-        todo!()
+        self.edges_internal(Direction::BOTH)
     }
 
     fn in_edges(&self) -> Self::EList {
-        todo!()
+        self.edges_internal(Direction::IN)
     }
 
     fn out_edges(&self) -> Self::EList {
-        todo!()
+        self.edges_internal(Direction::OUT)
     }
 
     fn neighbours(&self) -> Self::PathType<'_> {
-        todo!()
+        self.update_path(
+            self.path
+                .neighbours_window(Direction::BOTH, self.t_start, self.t_end),
+        )
     }
 
     fn in_neighbours(&self) -> Self::PathType<'_> {
-        todo!()
+        self.update_path(
+            self.path
+                .neighbours_window(Direction::IN, self.t_start, self.t_end),
+        )
     }
 
     fn out_neighbours(&self) -> Self::PathType<'_> {
-        todo!()
+        self.update_path(
+            self.path
+                .neighbours_window(Direction::OUT, self.t_start, self.t_end),
+        )
     }
 }
