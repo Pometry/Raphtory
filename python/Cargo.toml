@@ -19,7 +19,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 pyo3 =  {version="0.18.1", features=["multiple-pymethods", "chrono"]}
-py-raphtory = {path = "../py-raphtory", version = "0.3.1" }
+py-raphtory = {path = "../py-raphtory", version = "0.3.2" }
 
 
 [features]

@@ -5,8 +5,8 @@ version.workspace = true
 rust-version = "1.67.1"
 
 [dependencies]
-raphtory = { path = "../raphtory", version = "0.3.1" }
-raphtory-io = { path = "../raphtory-io", version = "0.3.1" }
+raphtory = { path = "../raphtory", version = "0.3.2" }
+raphtory-io = { path = "../raphtory-io", version = "0.3.2" }
 
 dotenv = "0.15.0"
 itertools = "0.10"
