@@ -27,6 +27,9 @@ More information available [here](https://snap.stanford.edu/data/soc-pokec.html)
       - requests
       - tqdm
       - pandas
+      - raphtory
+      - neo4j
+      - 
 
 # How to run
 

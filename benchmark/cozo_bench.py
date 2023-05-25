@@ -1,5 +1,8 @@
 from benchmark_base import BenchmarkBase
-from pycozo.client import Client
+try:
+    from pycozo.client import Client
+except ImportError:
+    print("CozoDB is not installed.")
 
 class CozoDBBench(BenchmarkBase):
 

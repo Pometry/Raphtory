@@ -1,8 +1,13 @@
+from benchmark_base import BenchmarkBase
+
+try:
+    from gqlalchemy import Memgraph
+except ImportError:
+    print("Memgraph not installed")
+
+
 simple_profile_file = "data/simple-profiles.csv"
 simple_relationship_file = "data/simple-relationships.csv"
-
-from benchmark_base import BenchmarkBase
-from gqlalchemy import Memgraph
 
 
 class MemgraphBench(BenchmarkBase):

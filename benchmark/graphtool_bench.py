@@ -1,6 +1,10 @@
 from benchmark_base import BenchmarkBase
-import graph_tool.all as gt
 import csv
+
+try:
+    import graph_tool.all as gt
+except ImportError:
+    print("GraphTool not installed")
 
 simple_profile_file = "data/simple-profiles.csv"
 simple_relationship_file = "data/simple-relationships.csv"

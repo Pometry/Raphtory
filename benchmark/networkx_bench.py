@@ -1,6 +1,11 @@
 from benchmark_base import BenchmarkBase
-import networkx as nx
 import csv
+# Dont fail if not imported locally
+try:
+    import networkx as nx
+except ImportError:
+    print("NetworkX not installed")
+
 
 simple_relationship_file = "data/simple-relationships.csv"
 

@@ -1,5 +1,9 @@
 from benchmark_base import BenchmarkBase
-import kuzu
+# Dont fail if not installed
+try:
+    import kuzu
+except ImportError:
+    print("Kuzu not installed")
 
 
 class KuzuBench(BenchmarkBase):

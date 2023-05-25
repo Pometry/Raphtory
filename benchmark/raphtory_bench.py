@@ -1,9 +1,14 @@
 from benchmark_base import BenchmarkBase
 import csv
-import raphtory
-from tqdm import tqdm
-from raphtory.algorithms import pagerank, weakly_connected_components
 import multiprocessing
+
+# Dont fail if not imported locally
+try:
+    import raphtory
+    from tqdm import tqdm
+    from raphtory.algorithms import pagerank, weakly_connected_components
+except ImportError:
+    print("Raphtory not installed")
 
 simple_relationship_file = "data/simple-relationships.csv"
 

@@ -1,5 +1,9 @@
 from benchmark_base import BenchmarkBase
-from neo4j import GraphDatabase
+# Dont fail if not imported locally
+try:
+    from neo4j import GraphDatabase
+except ImportError:
+    print("neo4j not installed")
 
 
 def import_data(tx):
