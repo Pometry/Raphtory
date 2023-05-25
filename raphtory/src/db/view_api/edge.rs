@@ -147,18 +147,22 @@ pub trait EdgeViewOps: EdgeViewInternalOps<Self::Graph, Self::Vertex> {
 
     /// Gets the first time an edge was seen
     fn earliest_time(&self) -> Option<i64> {
-        self.graph()
-            .edge_timestamps(self.eref(), None)
-            .first()
-            .copied()
+        self.eref().time().or_else(|| {
+            self.graph()
+                .edge_timestamps(self.eref(), None)
+                .first()
+                .copied()
+        })
     }
 
     /// Gets the latest time an edge was updated
     fn latest_time(&self) -> Option<i64> {
-        self.graph()
-            .edge_timestamps(self.eref(), None)
-            .last()
-            .copied()
+        self.eref().time().or_else(|| {
+            self.graph()
+                .edge_timestamps(self.eref(), None)
+                .last()
+                .copied()
+        })
     }
 
     /// Gets the time stamp of the edge if it is exploded
