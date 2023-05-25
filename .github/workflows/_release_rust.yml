@@ -61,3 +61,21 @@ jobs:
         with:
           command: publish
           args: --token ${{ secrets.CRATES_TOKEN }} --package raphtory --allow-dirty
+      - name: "Publish raphtory-io to crates.io"
+        if: ${{ !inputs.dry_run }}
+        uses: actions-rs/cargo@v1
+        with:
+          command: publish
+          args: --token ${{ secrets.CRATES_TOKEN }} --package raphtory-io --allow-dirty
+      - name: "Publish raphtory-graphql to crates.io"
+        if: ${{ !inputs.dry_run }}
+        uses: actions-rs/cargo@v1
+        with:
+          command: publish
+          args: --token ${{ secrets.CRATES_TOKEN }} --package raphtory-graphql --allow-dirty
+      - name: "Publish py-raphtory to crates.io"
+        if: ${{ !inputs.dry_run }}
+        uses: actions-rs/cargo@v1
+        with:
+          command: publish
+          args: --token ${{ secrets.CRATES_TOKEN }} --package py-raphtory --allow-dirty
