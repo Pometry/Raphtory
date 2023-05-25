@@ -6,12 +6,14 @@ use async_graphql_poem::GraphQL;
 use dotenv::dotenv;
 use dynamic_graphql::App;
 use poem::listener::TcpListener;
+use poem::middleware::Cors;
 use poem::{get, Route, Server};
 use std::env;
 use tokio::signal;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::Registry;
+use poem::EndpointExt;
 
 mod data;
 mod model;
@@ -70,7 +72,9 @@ async fn main() {
         .unwrap();
     let app = Route::new()
         .at("/", get(graphql_playground).post(GraphQL::new(schema)))
-        .at("/health", get(health));
+        .at("/health", get(health))
+        .with(Cors::new());
+
 
     println!("Playground: http://localhost:1736");
     Server::new(TcpListener::bind("0.0.0.0:1736"))

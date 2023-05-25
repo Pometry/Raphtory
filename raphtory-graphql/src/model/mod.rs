@@ -1,11 +1,15 @@
 use crate::Data;
 use async_graphql::Context;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, SimpleObject};
+use raphtory::db::edge::EdgeView;
 use raphtory::db::graph::Graph;
 use raphtory::db::graph_window::WindowedGraph;
 use raphtory::db::vertex::VertexView;
 use raphtory::db::view_api::{GraphViewOps, TimeOps, VertexViewOps};
 use std::sync::Arc;
+use raphtory::db::view_api::EdgeListOps;
+use raphtory::db::view_api::EdgeViewOps;
+
 
 use crate::model::algorithm::Algorithms;
 
@@ -132,4 +136,60 @@ impl<G: GraphViewOps> Node<G> {
     async fn in_degree(&self) -> usize {
         self.vv.in_degree()
     }
+
+    async fn out_edges(&self, _ctx: &Context<'_>) -> Vec<Edge<G>> {
+        self.vv.out_edges().map(|ee| Edge::new(ee.clone())).collect()
+    }
+
+    async fn in_edges(&self, _ctx: &Context<'_>) -> Vec<Edge<G>> {
+        self.vv.in_edges().map(|ee| Edge::new(ee.clone())).collect()
+    }
+
+    async fn exploded_edges(&self, _ctx: &Context<'_>) -> Vec<Edge<G>> {
+        self.vv.out_edges().explode().map(|ee| Edge::new(ee.clone())).collect()
+    }
+
+    async fn start_date(&self, _ctx: &Context<'_>) -> Option<i64> {
+        self.vv.earliest_time()
+    }
+
+    async fn end_date(&self, _ctx: &Context<'_>) -> Option<i64> {
+        self.vv.latest_time()
+    }
+}
+
+#[derive(ResolvedObject)]
+pub(crate) struct Edge<G: GraphViewOps> {
+    ee: EdgeView<G>,
+}
+
+
+impl<G: GraphViewOps> Edge<G> {
+    pub fn new(ee: EdgeView<G>) -> Self {
+        Self { ee }
+    }
+}
+
+#[ResolvedObjectFields]
+impl<G: GraphViewOps> Edge<G> {
+    async fn earliest_time(&self, _ctx: &Context<'_>) -> Option<i64> {
+        self.ee.earliest_time()
+    }
+
+    async fn latest_time(&self, _ctx: &Context<'_>) -> Option<i64> {
+        self.ee.latest_time()
+    }
+
+    async fn src(&self, _ctx: &Context<'_>) -> Node<G> {
+        Node::new(self.ee.src())
+    }
+
+    async fn dst(&self, _ctx: &Context<'_>) -> Node<G> {
+        Node::new(self.ee.dst())
+    }
+
+    async fn history(&self, _ctx: &Context<'_>) -> Vec<i64> {
+        self.ee.history()
+    }
+
 }
