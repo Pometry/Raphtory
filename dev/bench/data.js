@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1685022562541,
+  "lastUpdate": 1685030674195,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -1669,6 +1669,60 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions with numeric string input",
             "value": 2835308,
             "range": "± 369724",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "Haaroon@users.noreply.github.com",
+            "name": "Haaroon Y",
+            "username": "Haaroon"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "bc110d75c4598c7bb4293d36355f1a85cce7284d",
+          "message": "publish py-raphtory, raphtory-io and raphtory-graphql into crates wit… (#980)\n\npublish py-raphtory, raphtory-io and raphtory-graphql into crates with CI/CD",
+          "timestamp": "2023-05-25T17:02:34+01:00",
+          "tree_id": "160f9abce736332fa0e2a693484bfb23deaea8f2",
+          "url": "https://github.com/Pometry/Raphtory/commit/bc110d75c4598c7bb4293d36355f1a85cce7284d"
+        },
+        "date": 1685030672758,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 369066,
+            "range": "± 24261",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and numeric string input",
+            "value": 1069527,
+            "range": "± 24798",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and string input",
+            "value": 1092897,
+            "range": "± 26491",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 1016808,
+            "range": "± 209861",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions with numeric string input",
+            "value": 2997018,
+            "range": "± 201885",
             "unit": "ns/iter"
           }
         ]
