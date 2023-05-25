@@ -33,6 +33,7 @@ class BenchmarkBase(ABC):
             image_name,
             volumes=volumes,
             detach=True,
+            stdin_open = True,
             tty=True,
             environment=envs,
             ports=ports,
@@ -48,6 +49,7 @@ class BenchmarkBase(ABC):
                 for data in stream:
                     print(data.decode(), end='')
                 print()
+                del stream
                 # print(exec_command)
                 # if exec_command.exit_code != 0:
                 #     print(f'Error running command')
