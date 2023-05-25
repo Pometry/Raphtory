@@ -79,6 +79,72 @@ pub enum Prop {
     Graph(Graph),
 }
 
+impl Prop {
+    pub fn into_str(self) -> Option<String> {
+        if let Prop::Str(s) = self {
+            Some(s)
+        } else {
+            None
+        }
+    }
+
+    pub fn into_i32(self) -> Option<i32> {
+        if let Prop::I32(v) = self {
+            Some(v)
+        } else {
+            None
+        }
+    }
+
+    pub fn into_i64(self) -> Option<i64> {
+        if let Prop::I64(v) = self {
+            Some(v)
+        } else {
+            None
+        }
+    }
+
+    pub fn into_f32(self) -> Option<f32> {
+        if let Prop::F32(v) = self {
+            Some(v)
+        } else {
+            None
+        }
+    }
+
+    pub fn into_f64(self) -> Option<f64> {
+        if let Prop::F64(v) = self {
+            Some(v)
+        } else {
+            None
+        }
+    }
+
+    pub fn into_bool(self) -> Option<bool> {
+        if let Prop::Bool(v) = self {
+            Some(v)
+        } else {
+            None
+        }
+    }
+
+    pub fn into_dtime(self) -> Option<NaiveDateTime> {
+        if let Prop::DTime(v) = self {
+            Some(v)
+        } else {
+            None
+        }
+    }
+
+    pub fn into_graph(self) -> Option<Graph> {
+        if let Prop::Graph(g) = self {
+            Some(g)
+        } else {
+            None
+        }
+    }
+}
+
 impl fmt::Display for Prop {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
