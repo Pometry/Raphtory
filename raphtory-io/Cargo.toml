@@ -1,5 +1,6 @@
 [package]
 name = "raphtory-io"
+description = "raphtory-io, contains all connectors and example datasets for raphtory"
 edition.workspace = true
 rust-version.workspace = true
 version.workspace = true

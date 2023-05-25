@@ -79,3 +79,9 @@ jobs:
         with:
           command: publish
           args: --token ${{ secrets.CRATES_TOKEN }} --package py-raphtory --allow-dirty
+      - name: "Publish raphtory-pymodule to crates.io"
+        if: ${{ !inputs.dry_run }}
+        uses: actions-rs/cargo@v1
+        with:
+          command: publish
+          args: --token ${{ secrets.CRATES_TOKEN }} --package raphtory-pymodule --allow-dirty

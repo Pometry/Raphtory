@@ -1,8 +1,16 @@
 [package]
 name = "js-raphtory"
-version = "0.1.1"
 authors = ["Fabian Murariu <murariu.fabian@gmail.com>"]
-edition = "2018"
+description = "A library for interacting with Raphtory from JavaScript."
+edition.workspace = true
+rust-version.workspace = true
+version.workspace = true
+keywords.workspace = true
+documentation.workspace = true
+repository.workspace = true
+license.workspace = true
+readme.workspace = true
+homepage.workspace = true
 
 [lib]
 crate-type = ["cdylib", "rlib"]
