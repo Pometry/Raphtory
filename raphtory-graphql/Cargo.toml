@@ -1,8 +1,16 @@
 [package]
-edition = "2021"
 name = "raphtory-graphql"
+description = "Raphtory GraphQL server"
+edition.workspace = true
+rust-version.workspace = true
 version.workspace = true
-rust-version = "1.67.1"
+keywords.workspace = true
+authors.workspace = true
+documentation.workspace = true
+repository.workspace = true
+license.workspace = true
+readme.workspace = true
+homepage.workspace = true
 
 [dependencies]
 raphtory = { path = "../raphtory", version = "0.3.2" }

@@ -1,6 +1,6 @@
 [package]
 name = "py-raphtory"
-description = "Python package for raphtory, a temporal graph library"
+description = "Raphtory python bindings allowing custom rust algorithms compatible with the python client"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
