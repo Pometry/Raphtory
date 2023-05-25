@@ -14,7 +14,7 @@ import pandas as pd
 #
 # for package, classx in packages.items():
 #     try:
-#         exec(f'from {package} import {classx}')
+#         exec(f'from {package} import {classx}()')
 #     except ImportError:
 #         continue
 
@@ -32,14 +32,15 @@ import shutil
 import gzip
 import requests
 import os
+from io import StringIO
 
 fns = ['setup', 'degree', 'out_neighbours', 'page_rank', 'connected_components']
 
 
 def process_arguments():
     parser = argparse.ArgumentParser(description='benchmark args')
-    parser.add_argument('--docker', action=argparse.BooleanOptionalAction, help='Launch with docker containers, --no-docker to run locally', default=True)
-    parser.add_argument('--save', action=argparse.BooleanOptionalAction, help='Save results to file in /tmp folder, --no-save to not save', default=True)
+    parser.add_argument('--docker', action=argparse.BooleanOptionalAction,
+                        help='Launch with docker containers, --no-docker to run locally', default=True)
     parser.add_argument('-b', '--bench', type=str, help="""
     Run specific benchmark,
     default: Goes to Menu (if docker runs all),
@@ -88,42 +89,60 @@ def setup():
     }
 
 
-def run_benchmark(choice, save=False):
-    driver = setup()[choice]
-    print("** Running for " + driver.name() + "...")
-    times = []
-    for fn in fns:
-        print("** Running " + fn + "...")
-        start_time = time.time()
-        getattr(driver, fn)()
-        end_time = time.time()
-        print(fn + " time: " + str(end_time - start_time))
-        times.append(end_time - start_time)
-    filename = ''
-    if save:
-        filename = '/tmp/bench-' + driver.name() + str(int(time.time())) + '.csv'
-        pd.DataFrame([times], columns=fns).to_csv(filename, index=False)
-    return driver.name(), times, filename
+def run_benchmark(choice, docker=False):
+    benchmarks_to_run = []
+    if choice.lower() == 'all':
+        for key in setup().keys():
+            if key == 'menu' or key == 'all' or key == 'download':
+                continue
+            benchmarks_to_run.append(key)
+    elif choice == 'download' or choice == 'menu':
+        return
+    elif choice in setup().keys():
+        benchmarks_to_run.append(choice)
 
-
-def run_all():
-    print("** Running all benchmarks...")
     results = {}
-    for key in setup().keys():
-        if key == 'menu' or key == 'all' or key == 'download':
-            continue
-        print("** Running benchmark " + str(key) + "...")
-        name, result, filename = run_benchmark(key)
-        results[name] = result
+    print("Running benchmarks: " + str(benchmarks_to_run))
+    for key in benchmarks_to_run[:2]:
+        driver = setup()[key]
+        print("** Running for " + driver.name() + "...")
+        if docker:
+            print("** Running dockerized benchmark " + str(key) + "...")
+            print("Starting docker container...")
+            exit_code, logs = driver.start_docker()
+            print("Docker container exited with code " + str(exit_code))
+            print("Logs: " + logs)
+            results[driver.name()] = logs
+        else:
+            times = ''
+            fn_header = ''
+            for fn in fns:
+                print("** Running " + fn + "...")
+                start_time = time.time()
+                getattr(driver, fn)()
+                end_time = time.time()
+                print(fn + " time: " + str(end_time - start_time))
+                fn_header += fn + ','
+                times += str(end_time - start_time) + ','
+            fn_header = fn_header[:-1]
+            times = times[:-1]
+            results[driver.name()] = fn_header + '\n' + times
+            pd.DataFrame([times.split(',')], columns=fns).to_csv('/tmp/bench-'+driver.name()+'-'+str(time.time())+'.csv')
     return results
 
 
 def print_table(data):
     if len(data) == 0:
         return
-    df = pd.DataFrame.from_dict(data, orient='index', columns=fns)
-    # Extract header keys from the first inner dictionary
-    print(df.to_string(index=True, justify='left'))
+    _data = {}
+    for key, value in data.items():
+        _data[key] = pd.read_csv(StringIO(value))
+    merged_df = pd.concat([df.assign(key=key) for key, df in _data.items()])
+    col = merged_df.pop("key")
+    if 'Unnamed: 0' in merged_df.columns:
+        merged_df.drop('Unnamed: 0', axis=1, inplace=True)
+    merged_df.insert(0, 'System', col)
+    print(merged_df.to_string(index=False, justify='left'))
 
 
 def dl_file(url, path):
@@ -173,60 +192,25 @@ def download_data():
     return 'data/simple-profiles.csv', 'data/simple-relationships.csv'
 
 
-def run_benchmark_docker(bench):
-    results = {}
-    benchmarks_to_run = []
-    if bench == 'menu':
-        for key in setup().keys():
-            if key == 'menu' or key == 'all' or key == 'download':
-                continue
-            benchmarks_to_run.append(key)
-    else:
-        benchmarks_to_run.append(bench)
-    for key in benchmarks_to_run:
-        print("** Running dockerized benchmark " + str(key) + "...")
-        driver = setup()[key]
-        print("** Running for " + driver.name() + "...")
-        print("Starting docker container...")
-        exit_code, logs = driver.start_docker()
-        print("Docker container exited with code " + str(exit_code))
-        print("Logs: " + logs)
-    else:
-        pass
-
-
-def main(docker, bench, save):
+def main(docker, choice):
     print("Welcome to the Raphtory Benchmarking Tool")
     results = {}
     try:
-        if docker:
-            print("Running dockerised benchmarking...")
-            run_benchmark_docker(bench)
+        if choice == 'menu':
+            choice = display_menu()
+        if choice == 'download' or choice == 1:
+            download_data()
+        elif choice == 'exit' or choice not in setup():
+            print(str(choice) + ". Exiting...")
         else:
-            print("Running local benchmarking...")
-            if bench == 'menu':
-                while True:
-                    choice = display_menu()
-                    if choice not in setup():
-                        print(str(choice) + " not found. Exiting...")
-                        break
-                    if choice == 0:
-                        results = run_all()
-                    elif choice == 1:
-                        download_data()
-                    else:
-                        name, result, filename = run_benchmark(choice, save)
-                        results[name] = result
-            else:
-                name, result, filename = run_benchmark(bench, save)
-                results[name] = result
-    except Exception as e:
-        print("Error: " + str(e))
-        raise e
+            results = run_benchmark(choice, docker)
+    except Exception as ex:
+        print("Error: " + str(ex))
+        raise ex
     finally:
         print_table(results)
 
 
 if __name__ == "__main__":
     args = process_arguments()
-    main(args.docker, args.bench, args.save)
+    main(args.docker, args.bench)

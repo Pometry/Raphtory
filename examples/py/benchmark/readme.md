@@ -15,7 +15,7 @@ Systems currently supported are:
 All benchmarks are run in docker, this documentation ONLY supports docker.
 They can be run outside of docker, however this requires you to install all the systems yourself.
 
-These benchmarks run using the pokec dataset, which is a social network dataset. 
+These benchmarks run using a slim version of the pokec dataset, which is a social network dataset. 
 More information available [here](https://snap.stanford.edu/data/soc-pokec.html)
 
 # Requirements
@@ -92,7 +92,6 @@ You will see the following
 ## Alternative args
 
 - To run without docker add the `--no-docker` arg
-- To run without saving add the `--no-save` arg
 
 
 # Results 
