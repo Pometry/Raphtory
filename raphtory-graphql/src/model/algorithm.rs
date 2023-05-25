@@ -86,11 +86,11 @@ trait Algo: Register + 'static {
 #[derive(SimpleObject)]
 struct Pagerank {
     name: String,
-    rank: f32,
+    rank: f64,
 }
 
-impl From<(String, f32)> for Pagerank {
-    fn from((name, rank): (String, f32)) -> Self {
+impl From<(String, f64)> for Pagerank {
+    fn from((name, rank): (String, f64)) -> Self {
         Self { name, rank }
     }
 }
@@ -114,7 +114,7 @@ impl Algo for Pagerank {
         let iter_count = ctx.args.try_get("iterCount")?.u64()? as usize;
         let threads = ctx.args.get("threads").map(|v| v.u64()).transpose()?;
         let threads = threads.map(|v| v as usize);
-        let tol = ctx.args.get("tol").map(|v| v.f32()).transpose()?;
+        let tol = ctx.args.get("tol").map(|v| v.f64()).transpose()?;
         let result = unweighted_page_rank(graph, iter_count, threads, tol)
             .into_iter()
             .map(|pair| FieldValue::owned_any(Pagerank::from(pair)));
