@@ -1,6 +1,5 @@
 ### Create a abstract base class with abstract methods for benchmarking graph tools
 ### This class is used by the benchmarking scripts to benchmark the graph tools
-### The benchmarking scripts are located in the examples/py/benchmark directory
 import time
 from abc import ABC, abstractmethod
 import docker

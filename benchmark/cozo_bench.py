@@ -1,8 +1,5 @@
 from benchmark_base import BenchmarkBase
 from pycozo.client import Client
-import docker
-import os
-
 
 class CozoDBBench(BenchmarkBase):
 
