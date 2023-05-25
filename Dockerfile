@@ -1,4 +1,4 @@
-FROM --platform=linux/amd64 rust:1.67.1 AS builder
+FROM rust:1.67.1 AS builder
 
 WORKDIR /app
 
@@ -30,18 +30,15 @@ COPY raphtory-graphql ./raphtory-graphql
 WORKDIR /app/raphtory-graphql
 RUN cargo build --release
 
-FROM --platform=linux/amd64 rust:1.67.1 AS runner
+FROM rust:1.67.1-slim AS runner
 
 WORKDIR /app
 
 RUN groupadd -g 999 appuser && \
     useradd -r -u 999 -g appuser appuser
-
 USER appuser
 
 COPY --from=builder /app/target/release/raphtory-graphql /app
-
-COPY  resource/lotr-without-header.csv /tmp/lotr.csv
 
 EXPOSE 1736
 

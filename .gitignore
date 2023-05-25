@@ -17,3 +17,5 @@ docs/source/_rustdoc/*
 docs/build/*
 docs/logs/*
 _autosummary
+examples/docker/lotr/lotr
+examples/py/enron/emails.csv
