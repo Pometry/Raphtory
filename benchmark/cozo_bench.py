@@ -1,8 +1,10 @@
 from benchmark_base import BenchmarkBase
+
 try:
     from pycozo.client import Client
 except ImportError:
     print("CozoDB is not installed.")
+
 
 class CozoDBBench(BenchmarkBase):
 
@@ -20,7 +22,7 @@ class CozoDBBench(BenchmarkBase):
         self.client.close()
 
     def __init__(self):
-        self.client = Client()
+        self.client = None
         self.docker = None
         self.container = None
 
@@ -28,6 +30,7 @@ class CozoDBBench(BenchmarkBase):
         return "CozoDB"
 
     def setup(self):
+        self.client = Client()
         self.client.run("{:create user { code: Int }}")
         self.client.run("{:create friend { fr: Int, to: Int }}")
         self.client.run("""
