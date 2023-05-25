@@ -1,12 +1,12 @@
 [package]
 edition = "2021"
 name = "raphtory-graphql"
-version = "0.1.0"
+version.workspace = true
 rust-version = "1.67.1"
 
 [dependencies]
-raphtory = { path = "../raphtory" }
-raphtory-io = { path = "../raphtory-io" }
+raphtory = { path = "../raphtory", version = "0.3.1" }
+raphtory-io = { path = "../raphtory-io", version = "0.3.1" }
 
 dotenv = "0.15.0"
 itertools = "0.10"

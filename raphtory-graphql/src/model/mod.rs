@@ -1,11 +1,16 @@
+use crate::Data;
 use async_graphql::Context;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, SimpleObject};
+use raphtory::db::edge::EdgeView;
 use raphtory::db::graph::Graph;
 use raphtory::db::graph_window::WindowedGraph;
 use raphtory::db::vertex::VertexView;
 use raphtory::db::view_api::{GraphViewOps, TimeOps, VertexViewOps};
+use std::sync::Arc;
+use raphtory::db::view_api::EdgeListOps;
+use raphtory::db::view_api::EdgeViewOps;
 
-use crate::data::Metadata;
+
 use crate::model::algorithm::Algorithms;
 
 mod algorithm;
@@ -21,20 +26,41 @@ impl QueryRoot {
     }
 
     /// Returns a view including all events between `t_start` (inclusive) and `t_end` (exclusive)
-    async fn window<'a>(ctx: &Context<'a>, t_start: i64, t_end: i64) -> GqlWindowGraph<Graph> {
-        let meta = ctx.data_unchecked::<Metadata<Graph>>();
-        let g = meta.graph().window(t_start, t_end);
-        GqlWindowGraph::new(g)
+    async fn graph<'a>(ctx: &Context<'a>, name: &str) -> Option<GqlGraph> {
+        let data = ctx.data_unchecked::<Data>();
+        let g = data.graphs.get(name)?;
+        Some(g.clone().into())
+    }
+}
+
+#[derive(ResolvedObject)]
+pub(crate) struct GqlGraph {
+    graph: Arc<Graph>,
+}
+
+impl From<Graph> for GqlGraph {
+    fn from(value: Graph) -> Self {
+        let graph = Arc::new(value);
+        Self { graph }
+    }
+}
+
+#[ResolvedObjectFields]
+impl GqlGraph {
+    async fn window<'a>(&self, t_start: i64, t_end: i64) -> GqlWindowGraph<Graph> {
+        let w = self.graph.window(t_start, t_end);
+        w.into()
     }
 }
 
 #[derive(ResolvedObject)]
 pub(crate) struct GqlWindowGraph<G: GraphViewOps> {
-    graph: WindowedGraph<G>,
+    graph: Arc<WindowedGraph<G>>,
 }
 
-impl<G: GraphViewOps> GqlWindowGraph<G> {
-    pub fn new(graph: WindowedGraph<G>) -> Self {
+impl<G: GraphViewOps> From<WindowedGraph<G>> for GqlWindowGraph<G> {
+    fn from(value: WindowedGraph<G>) -> Self {
+        let graph = Arc::new(value);
         Self { graph }
     }
 }
@@ -110,4 +136,60 @@ impl<G: GraphViewOps> Node<G> {
     async fn in_degree(&self) -> usize {
         self.vv.in_degree()
     }
+
+    async fn out_edges(&self, _ctx: &Context<'_>) -> Vec<Edge<G>> {
+        self.vv.out_edges().map(|ee| Edge::new(ee.clone())).collect()
+    }
+
+    async fn in_edges(&self, _ctx: &Context<'_>) -> Vec<Edge<G>> {
+        self.vv.in_edges().map(|ee| Edge::new(ee.clone())).collect()
+    }
+
+    async fn exploded_edges(&self, _ctx: &Context<'_>) -> Vec<Edge<G>> {
+        self.vv.out_edges().explode().map(|ee| Edge::new(ee.clone())).collect()
+    }
+
+    async fn start_date(&self, _ctx: &Context<'_>) -> Option<i64> {
+        self.vv.earliest_time()
+    }
+
+    async fn end_date(&self, _ctx: &Context<'_>) -> Option<i64> {
+        self.vv.latest_time()
+    }
+}
+
+#[derive(ResolvedObject)]
+pub(crate) struct Edge<G: GraphViewOps> {
+    ee: EdgeView<G>,
+}
+
+
+impl<G: GraphViewOps> Edge<G> {
+    pub fn new(ee: EdgeView<G>) -> Self {
+        Self { ee }
+    }
+}
+
+#[ResolvedObjectFields]
+impl<G: GraphViewOps> Edge<G> {
+    async fn earliest_time(&self, _ctx: &Context<'_>) -> Option<i64> {
+        self.ee.earliest_time()
+    }
+
+    async fn latest_time(&self, _ctx: &Context<'_>) -> Option<i64> {
+        self.ee.latest_time()
+    }
+
+    async fn src(&self, _ctx: &Context<'_>) -> Node<G> {
+        Node::new(self.ee.src())
+    }
+
+    async fn dst(&self, _ctx: &Context<'_>) -> Node<G> {
+        Node::new(self.ee.dst())
+    }
+
+    async fn history(&self, _ctx: &Context<'_>) -> Vec<i64> {
+        self.ee.history()
+    }
+
 }

@@ -1,4 +1,4 @@
-use crate::data::Metadata;
+use crate::data::Data;
 use crate::model::QueryRoot;
 use crate::observability::tracing::create_tracer_from_env;
 use crate::routes::{graphql_playground, health};
@@ -6,11 +6,14 @@ use async_graphql_poem::GraphQL;
 use dotenv::dotenv;
 use dynamic_graphql::App;
 use poem::listener::TcpListener;
+use poem::middleware::Cors;
 use poem::{get, Route, Server};
+use std::env;
 use tokio::signal;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::Registry;
+use poem::EndpointExt;
 
 mod data;
 mod model;
@@ -59,15 +62,19 @@ async fn main() {
             .expect("Failed to register tracer with registry"),
     }
 
+    let graph_directory = env::var("GRAPH_DIRECTORY").unwrap_or("graphs".to_string());
+
     #[derive(App)]
     struct App(QueryRoot);
     let schema = App::create_schema()
-        .data(Metadata::lotr())
+        .data(Data::load(&graph_directory))
         .finish()
         .unwrap();
     let app = Route::new()
         .at("/", get(graphql_playground).post(GraphQL::new(schema)))
-        .at("/health", get(health));
+        .at("/health", get(health))
+        .with(Cors::new());
+
 
     println!("Playground: http://localhost:1736");
     Server::new(TcpListener::bind("0.0.0.0:1736"))
