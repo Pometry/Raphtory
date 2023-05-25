@@ -119,14 +119,18 @@ pub trait EdgeViewOps: EdgeViewInternalOps<Self::Graph, Self::Vertex> {
         self.new_vertex(vertex)
     }
 
+    /// Check if edge is active at a given time point
     fn active(&self, t: i64) -> bool {
-        self.graph().has_edge_ref_window(
-            self.eref().src(),
-            self.eref().dst(),
-            t,
-            t.saturating_add(1),
-            self.eref().layer(),
-        )
+        match self.eref().time() {
+            Some(tt) => tt == t,
+            None => self.graph().has_edge_ref_window(
+                self.eref().src(),
+                self.eref().dst(),
+                t,
+                t.saturating_add(1),
+                self.eref().layer(),
+            ),
+        }
     }
 
     fn id(
