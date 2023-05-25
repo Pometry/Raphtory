@@ -39,7 +39,7 @@ class RaphtoryBench(BenchmarkBase):
         self.graph = raphtory.Graph(multiprocessing.cpu_count())
         with open(simple_relationship_file, 'r') as f:
             reader = csv.reader(f, delimiter='\t')
-            for row in tqdm(reader, total=30622564):
+            for row in reader:
                 self.graph.add_edge(1, row[0], row[1], {})
 
     def degree(self):
