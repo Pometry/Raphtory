@@ -125,47 +125,35 @@ impl<G: GraphViewOps> EdgeListOps for BoxedIter<EdgeView<G>> {
     type IterType<T> = Box<dyn Iterator<Item = T> + Send>;
 
     fn has_property(self, name: String, include_static: bool) -> BoxedIter<bool> {
-        let r: Vec<_> = self
-            .map(|e| e.has_property(name.clone(), include_static))
-            .collect();
-        Box::new(r.into_iter())
+        Box::new(self.map(move |e| e.has_property(name.clone(), include_static)))
     }
 
     fn property(self, name: String, include_static: bool) -> BoxedIter<Option<Prop>> {
-        let r: Vec<_> = self
-            .map(|e| e.property(name.clone(), include_static))
-            .collect();
-        Box::new(r.into_iter())
+        Box::new(self.map(move |e| e.property(name.clone(), include_static)))
     }
 
     fn properties(self, include_static: bool) -> BoxedIter<HashMap<String, Prop>> {
-        let r: Vec<_> = self.map(|e| e.properties(include_static)).collect();
-        Box::new(r.into_iter())
+        Box::new(self.map(move |e| e.properties(include_static)))
     }
 
     fn property_names(self, include_static: bool) -> BoxedIter<Vec<String>> {
-        let r: Vec<_> = self.map(|e| e.property_names(include_static)).collect();
-        Box::new(r.into_iter())
+        Box::new(self.map(move |e| e.property_names(include_static)))
     }
 
     fn has_static_property(self, name: String) -> BoxedIter<bool> {
-        let r: Vec<_> = self.map(|e| e.has_static_property(name.clone())).collect();
-        Box::new(r.into_iter())
+        Box::new(self.map(move |e| e.has_static_property(name.clone())))
     }
 
     fn static_property(self, name: String) -> BoxedIter<Option<Prop>> {
-        let r: Vec<_> = self.map(|e| e.static_property(name.clone())).collect();
-        Box::new(r.into_iter())
+        Box::new(self.map(move |e| e.static_property(name.clone())))
     }
 
     fn property_history(self, name: String) -> BoxedIter<Vec<(i64, Prop)>> {
-        let r: Vec<_> = self.map(|e| e.property_history(name.clone())).collect();
-        Box::new(r.into_iter())
+        Box::new(self.map(move |e| e.property_history(name.clone())))
     }
 
     fn property_histories(self) -> BoxedIter<HashMap<String, Vec<(i64, Prop)>>> {
-        let r: Vec<_> = self.map(|e| e.property_histories()).collect();
-        Box::new(r.into_iter())
+        Box::new(self.map(|e| e.property_histories()))
     }
 
     /// Returns an iterator over the source vertices of the edges in the iterator.
@@ -175,7 +163,11 @@ impl<G: GraphViewOps> EdgeListOps for BoxedIter<EdgeView<G>> {
 
     /// Returns an iterator over the destination vertices of the edges in the iterator.
     fn dst(self) -> Self::VList {
-        Box::new(self.into_iter().map(|e| e.dst()))
+        Box::new(self.map(|e| e.dst()))
+    }
+
+    fn id(self) -> Self::IterType<(u64, u64)> {
+        Box::new(self.map(|e| e.id()))
     }
 
     /// returns an iterator of exploded edges that include an edge at each point in time
@@ -249,6 +241,10 @@ impl<G: GraphViewOps> EdgeListOps for BoxedIter<BoxedIter<EdgeView<G>>> {
 
     fn dst(self) -> Self::VList {
         Box::new(self.map(|it| it.dst()))
+    }
+
+    fn id(self) -> Self::IterType<(u64, u64)> {
+        Box::new(self.map(|it| it.id()))
     }
 
     fn explode(self) -> Self {

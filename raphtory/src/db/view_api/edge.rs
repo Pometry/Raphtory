@@ -119,14 +119,27 @@ pub trait EdgeViewOps: EdgeViewInternalOps<Self::Graph, Self::Vertex> {
         self.new_vertex(vertex)
     }
 
+    /// Check if edge is active at a given time point
     fn active(&self, t: i64) -> bool {
-        self.graph().has_edge_ref_window(
-            self.eref().src(),
-            self.eref().dst(),
-            t,
-            t.saturating_add(1),
-            self.eref().layer(),
-        )
+        match self.eref().time() {
+            Some(tt) => tt == t,
+            None => self.graph().has_edge_ref_window(
+                self.eref().src(),
+                self.eref().dst(),
+                t,
+                t.saturating_add(1),
+                self.eref().layer(),
+            ),
+        }
+    }
+
+    fn id(
+        &self,
+    ) -> (
+        <Self::Vertex as VertexViewOps>::ValueType<u64>,
+        <Self::Vertex as VertexViewOps>::ValueType<u64>,
+    ) {
+        (self.src().id(), self.dst().id())
     }
 
     /// Explodes an edge and returns all instances it had been updated as seperate edges
@@ -134,18 +147,22 @@ pub trait EdgeViewOps: EdgeViewInternalOps<Self::Graph, Self::Vertex> {
 
     /// Gets the first time an edge was seen
     fn earliest_time(&self) -> Option<i64> {
-        self.graph()
-            .edge_timestamps(self.eref(), None)
-            .first()
-            .copied()
+        self.eref().time().or_else(|| {
+            self.graph()
+                .edge_timestamps(self.eref(), None)
+                .first()
+                .copied()
+        })
     }
 
     /// Gets the latest time an edge was updated
     fn latest_time(&self) -> Option<i64> {
-        self.graph()
-            .edge_timestamps(self.eref(), None)
-            .last()
-            .copied()
+        self.eref().time().or_else(|| {
+            self.graph()
+                .edge_timestamps(self.eref(), None)
+                .last()
+                .copied()
+        })
     }
 
     /// Gets the time stamp of the edge if it is exploded
@@ -198,6 +215,8 @@ pub trait EdgeListOps:
 
     /// gets the destination vertices of the edges in the list
     fn dst(self) -> Self::VList;
+
+    fn id(self) -> Self::IterType<(u64, u64)>;
 
     /// returns a list of exploded edges that include an edge at each point in time
     fn explode(self) -> Self::IterType<Self::Edge>;
