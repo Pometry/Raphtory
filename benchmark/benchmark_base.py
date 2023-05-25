@@ -20,7 +20,7 @@ class BenchmarkBase(ABC):
 
         print('Defining volumes...')
         local_folder = os.path.abspath(os.getcwd())
-        volumes = {local_folder: {'bind': container_folder, 'mode': 'Z'}}
+        volumes = {local_folder: {'bind': container_folder, 'mode': 'z'}}
 
         if image_path:
             image, build_logs = self.docker.images.build(
