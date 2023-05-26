@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1685031413927,
+  "lastUpdate": 1685097768943,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -1777,6 +1777,60 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions with numeric string input",
             "value": 2919627,
             "range": "± 397107",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "Haaroon@users.noreply.github.com",
+            "name": "Haaroon Yousaf",
+            "username": "Haaroon"
+          },
+          "committer": {
+            "email": "Haaroon@users.noreply.github.com",
+            "name": "Haaroon Yousaf",
+            "username": "Haaroon"
+          },
+          "distinct": true,
+          "id": "6d564fb2056239cc462276ac4dd37f04e446aef5",
+          "message": "update lockfile",
+          "timestamp": "2023-05-26T11:38:48+01:00",
+          "tree_id": "800fb992a87f30399b2279709bb1f2a236a2af4f",
+          "url": "https://github.com/Pometry/Raphtory/commit/6d564fb2056239cc462276ac4dd37f04e446aef5"
+        },
+        "date": 1685097768298,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 341155,
+            "range": "± 2086",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and numeric string input",
+            "value": 934442,
+            "range": "± 10535",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and string input",
+            "value": 966056,
+            "range": "± 2102",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 419930,
+            "range": "± 99978",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions with numeric string input",
+            "value": 1748538,
+            "range": "± 43116",
             "unit": "ns/iter"
           }
         ]
