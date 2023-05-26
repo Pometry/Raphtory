@@ -23,7 +23,6 @@ futures = {version = "0.3", features = ["thread-pool"] }
 genawaiter = "0.99"
 itertools="0.10"
 num-traits = "0.2"
-# openssl = { version = "0.10", features = ["vendored"] }
 parking_lot = { version = "0.12" , features = ["serde", "arc_lock"] }
 quickcheck = "1"
 quickcheck_macros = "1"
