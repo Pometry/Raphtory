@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1685097768943,
+  "lastUpdate": 1685102722364,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -1831,6 +1831,60 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions with numeric string input",
             "value": 1748538,
             "range": "± 43116",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97447091+ljeub-pometry@users.noreply.github.com",
+            "name": "ljeub-pometry",
+            "username": "ljeub-pometry"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "fa538349143ebf0a44623c86957cca4a033d03f4",
+          "message": "Freature/property access improvements (#979)\n\n* add conversion methods for different property types\r\n\r\n* easy unwrapping of property values in rust",
+          "timestamp": "2023-05-26T13:01:26+01:00",
+          "tree_id": "0f1a52453f25dbf22deb7e01e604d3ccfed89e74",
+          "url": "https://github.com/Pometry/Raphtory/commit/fa538349143ebf0a44623c86957cca4a033d03f4"
+        },
+        "date": 1685102721670,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 315723,
+            "range": "± 729",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and numeric string input",
+            "value": 879059,
+            "range": "± 43439",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and string input",
+            "value": 916846,
+            "range": "± 3036",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 605447,
+            "range": "± 101346",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions with numeric string input",
+            "value": 2020634,
+            "range": "± 150622",
             "unit": "ns/iter"
           }
         ]
