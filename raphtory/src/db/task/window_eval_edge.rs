@@ -2,7 +2,7 @@ use std::{cell::RefCell, marker::PhantomData, rc::Rc};
 
 use crate::{
     core::{edge_ref::EdgeRef, state::compute_state::ComputeState},
-    db::view_api::{GraphViewOps, edge::EdgeViewInternalOps, EdgeViewOps, EdgeListOps},
+    db::view_api::{edge::EdgeViewInternalOps, EdgeListOps, EdgeViewOps, GraphViewOps},
 };
 
 use super::{eval_vertex_state::EVState, task_state::Local2, window_eval_vertex::WindowEvalVertex};
@@ -18,7 +18,16 @@ pub struct WindowEvalEdgeView<'a, G: GraphViewOps, CS: ComputeState, S: 'static>
     _s: PhantomData<S>,
 }
 
-impl <'a, G: GraphViewOps, CS: ComputeState, S: 'static> WindowEvalEdgeView<'a, G, CS, S>{
+impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> WindowEvalEdgeView<'a, G, CS, S> {
+    pub fn id(&self) -> (u64, u64) {
+        (
+            self.g
+                .vertex_id(self.g.localise_vertex_unchecked(self.ev.src())),
+            self.g
+                .vertex_id(self.g.localise_vertex_unchecked(self.ev.dst())),
+        )
+    }
+
     pub(crate) fn new(
         ss: usize,
         ev: EdgeRef,
@@ -39,8 +48,14 @@ impl <'a, G: GraphViewOps, CS: ComputeState, S: 'static> WindowEvalEdgeView<'a, 
             _s: PhantomData,
         }
     }
+
+    pub fn history(&self) -> Vec<i64> {
+        self.graph().edge_timestamps(self.eref(), Some(self.t_start..self.t_end))
+    }
 }
-impl <'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeViewInternalOps<G, WindowEvalVertex<'a, G, CS, S>>  for WindowEvalEdgeView<'a, G, CS, S>{
+impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static>
+    EdgeViewInternalOps<G, WindowEvalVertex<'a, G, CS, S>> for WindowEvalEdgeView<'a, G, CS, S>
+{
     fn graph(&self) -> G {
         self.g.clone()
     }
@@ -75,8 +90,9 @@ impl <'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeViewInternalOps<G, 
     }
 }
 
-
-impl <'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeViewOps for WindowEvalEdgeView<'a, G, CS, S>{
+impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeViewOps
+    for WindowEvalEdgeView<'a, G, CS, S>
+{
     type Graph = G;
 
     type Vertex = WindowEvalVertex<'a, G, CS, S>;
@@ -88,7 +104,9 @@ impl <'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeViewOps for WindowE
     }
 }
 
-impl <'a, G: GraphViewOps, CS: ComputeState, S: 'static>  EdgeListOps for Box<dyn Iterator<Item = WindowEvalEdgeView<'a, G, CS, S>> + 'a>{
+impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeListOps
+    for Box<dyn Iterator<Item = WindowEvalEdgeView<'a, G, CS, S>> + 'a>
+{
     type Graph = G;
     type Vertex = WindowEvalVertex<'a, G, CS, S>;
     type Edge = WindowEvalEdgeView<'a, G, CS, S>;
@@ -100,11 +118,18 @@ impl <'a, G: GraphViewOps, CS: ComputeState, S: 'static>  EdgeListOps for Box<dy
         todo!()
     }
 
-    fn property(self, name: String, include_static: bool) -> Self::IterType<Option<crate::core::Prop>> {
+    fn property(
+        self,
+        name: String,
+        include_static: bool,
+    ) -> Self::IterType<Option<crate::core::Prop>> {
         todo!()
     }
 
-    fn properties(self, include_static: bool) -> Self::IterType<std::collections::HashMap<String, crate::core::Prop>> {
+    fn properties(
+        self,
+        include_static: bool,
+    ) -> Self::IterType<std::collections::HashMap<String, crate::core::Prop>> {
         todo!()
     }
 
@@ -124,7 +149,9 @@ impl <'a, G: GraphViewOps, CS: ComputeState, S: 'static>  EdgeListOps for Box<dy
         todo!()
     }
 
-    fn property_histories(self) -> Self::IterType<std::collections::HashMap<String, Vec<(i64, crate::core::Prop)>>> {
+    fn property_histories(
+        self,
+    ) -> Self::IterType<std::collections::HashMap<String, Vec<(i64, crate::core::Prop)>>> {
         todo!()
     }
 
