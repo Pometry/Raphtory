@@ -1,4 +1,4 @@
-use std::time::Instant;
+use std::{time::Instant, env, path::Path};
 
 use raphtory::{
     algorithms::pagerank::unweighted_page_rank,
@@ -18,9 +18,10 @@ fn main() {
     let g = Graph::new(shards);
     let now = Instant::now();
 
+    let args: Vec<String> = env::args().collect();
+    let data_dir = Path::new(args.get(1).expect("No data directory provided"));
 
-
-    CsvLoader::new("/home/murariuf/Offline/pokec/soc-pokec-relationships.txt.gz")
+    CsvLoader::new(data_dir)
         .set_delimiter("\t")
         .set_header(false)
         .load_into_graph(&g, |e: Edge, g| {
@@ -41,7 +42,7 @@ fn main() {
 
     let now = Instant::now();
 
-    unweighted_page_rank(&frozen, 100, None , Some(0.00000001));
+    unweighted_page_rank(&frozen, 100, None , Some(0.00000001), true);
 
     println!("PageRank took {} millis", now.elapsed().as_millis());
 }

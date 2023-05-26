@@ -1084,7 +1084,6 @@ mod db_tests {
     use crate::db::path::PathFromVertex;
     use crate::db::view_api::edge::EdgeViewOps;
     use crate::db::view_api::layer::LayerOps;
-    use crate::db::view_api::*;
     use crate::graphgen::random_attachment::random_attachment;
     use itertools::Itertools;
     use std::fs;

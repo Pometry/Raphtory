@@ -3,10 +3,7 @@ use num_traits::abs;
 use crate::core::vertex_ref::LocalVertexRef;
 use crate::db::view_api::VertexViewOps;
 use crate::{
-    core::{
-        agg::InitOneF64,
-        state::{accumulator_id::accumulators, compute_state::ComputeStateVec},
-    },
+    core::state::{accumulator_id::accumulators, compute_state::ComputeStateVec} ,
     db::{
         task::{
             context::Context,
@@ -43,6 +40,7 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
     iter_count: usize,
     threads: Option<usize>,
     tol: Option<f64>,
+    use_l2_norm: bool,
 ) -> HashMap<String, f64> {
     let n = g.num_vertices();
     let total_edges = g.num_edges();
@@ -54,8 +52,6 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
     let teleport_prob = (1f64 - damp) / n as f64;
     let factor = damp / n as f64;
 
-    //FIXME: remove this
-    let score = accumulators::val::<f64>(0).init::<InitOneF64>();
     let max_diff = accumulators::sum::<f64>(2);
 
     let total_sink_contribution = accumulators::sum::<f64>(4);
@@ -115,9 +111,12 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
 
         let curr = state.score;
         let prev = s.prev().score;
-        // let md = abs(prev - curr);
 
-        let md = f64::powi(abs(prev - curr) as f64, 2);
+        let md = if use_l2_norm {
+            f64::powi(abs(prev - curr) as f64, 2)
+        } else {
+            abs(prev - curr)
+        };
 
         s.global_update(&max_diff, md);
         Step::Continue
@@ -125,11 +124,13 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
 
     let step5 = Job::Check(Box::new(move |state| {
         let max_diff_val = state.read(&max_diff);
-        let sum_d = f64::sqrt(max_diff_val as f64);
-        if (sum_d as f64) > tol * n as f64 {
-
-        // let sum_d = state.read(&max_diff);
-        // if (sum_d as f64) > tol * n as f64 {
+        let cont = if use_l2_norm {
+            let sum_d = f64::sqrt(max_diff_val as f64);
+            (sum_d as f64) > tol * n as f64
+        } else {
+            (max_diff_val as f64) > tol * n as f64
+        };
+        if cont {
             Step::Continue
         } else {
             Step::Done
@@ -189,7 +190,7 @@ mod page_rank_tests {
     fn test_page_rank(n_shards: usize) {
         let graph = load_graph(n_shards);
 
-        let results: HashMap<String, f64> = unweighted_page_rank(&graph, 1000, Some(1), None)
+        let results: HashMap<String, f64> = unweighted_page_rank(&graph, 1000, Some(1), None, true)
             .into_iter()
             .collect();
 
@@ -253,7 +254,7 @@ mod page_rank_tests {
             graph.add_edge(t, src, dst, &vec![], None).unwrap();
         }
 
-        let results: HashMap<String, f64> = unweighted_page_rank(&graph, 1000, Some(4), None)
+        let results: HashMap<String, f64> = unweighted_page_rank(&graph, 1000, Some(4), None, true)
             .into_iter()
             .collect();
 
@@ -280,7 +281,7 @@ mod page_rank_tests {
             graph.add_edge(t as i64, src, dst, &vec![], None).unwrap();
         }
 
-        let results: HashMap<String, f64> = unweighted_page_rank(&graph, 1000, Some(4), None)
+        let results: HashMap<String, f64> = unweighted_page_rank(&graph, 1000, Some(4), None, false)
             .into_iter()
             .collect();
 
@@ -298,7 +299,7 @@ mod page_rank_tests {
             graph.add_edge(t as i64, src, dst, &vec![], None).unwrap();
         }
 
-        let results: HashMap<String, f64> = unweighted_page_rank(&graph, 10, Some(4), None)
+        let results: HashMap<String, f64> = unweighted_page_rank(&graph, 10, Some(4), None, false)
             .into_iter()
             .collect();
 
@@ -336,7 +337,7 @@ mod page_rank_tests {
             graph.add_edge(t, src, dst, &vec![], None).unwrap();
         }
 
-        let results: HashMap<String, f64> = unweighted_page_rank(&graph, 1000, Some(4), None)
+        let results: HashMap<String, f64> = unweighted_page_rank(&graph, 1000, Some(4), None, true)
             .into_iter()
             .collect();
 
@@ -369,9 +370,6 @@ mod page_rank_tests {
                     assert_eq!(
                         left,
                         right,
-                        // "{:?} != {:?}",
-                        // a,
-                        // b
                     );
                 }
                 _ => unreachable!(),

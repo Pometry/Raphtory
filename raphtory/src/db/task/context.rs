@@ -4,7 +4,7 @@ use crate::{
     core::{
         agg::Accumulator,
         state::{
-            accumulator_id::AccId, compute_state::ComputeState, shuffle_state::{ShuffleComputeState, EvalGlobalState},
+            accumulator_id::AccId, compute_state::ComputeState, shuffle_state::ShuffleComputeState,
             StateType,
         },
     },

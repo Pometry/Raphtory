@@ -1,7 +1,6 @@
 use crate::core::time::IntoTime;
 use crate::core::{Direction, Prop};
 use crate::db::edge::EdgeView;
-use crate::db::graph_window::WindowedGraph;
 use crate::db::path::{Operations, PathFromVertex};
 use crate::db::task::eval_edge::EvalEdgeView;
 use crate::db::view_api::{BoxedIter, TimeOps, VertexListOps, VertexViewOps};
@@ -76,23 +75,23 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S> EvalVertexView<'a, G, CS, S> {
         }
     }
 
-    pub(crate) fn from_edge_ref(
-        ss: usize,
-        v_ref: LocalVertexRef,
-        g: &'a G,
-        local_state: Option<&'a mut S>,
-        local_state_prev: &'a Local2<'a, S>,
-        vertex_state: Rc<RefCell<EVState<'a, CS>>>,
-    ) -> Self {
-        Self {
-            ss,
-            vertex: v_ref,
-            graph: g,
-            local_state,
-            local_state_prev,
-            vertex_state,
-        }
-    }
+    // pub(crate) fn from_edge_ref(
+    //     ss: usize,
+    //     v_ref: LocalVertexRef,
+    //     g: &'a G,
+    //     local_state: Option<&'a mut S>,
+    //     local_state_prev: &'a Local2<'a, S>,
+    //     vertex_state: Rc<RefCell<EVState<'a, CS>>>,
+    // ) -> Self {
+    //     Self {
+    //         ss,
+    //         vertex: v_ref,
+    //         graph: g,
+    //         local_state,
+    //         local_state_prev,
+    //         vertex_state,
+    //     }
+    // }
 
     fn pid(&self) -> usize {
         self.vertex.pid

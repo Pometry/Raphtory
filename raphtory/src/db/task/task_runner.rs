@@ -244,8 +244,6 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
             .map(|nt| custom_pool(nt))
             .unwrap_or_else(|| POOL.clone());
 
-        println!("Num Threads {}", pool.current_num_threads());
-
         let mut shard_state = shard_initial_state.unwrap_or_else(|| Shard::new(graph_shards));
 
         let mut global_state = global_initial_state.unwrap_or_else(|| Global::new());
