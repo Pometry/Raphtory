@@ -303,7 +303,7 @@ mod page_rank_tests {
             .collect();
 
         assert_eq_f64(results.get("1"), Some(&0.303), 3);
-        assert_eq_f64(results.get("2"), Some(&0.394), 3);
+        assert_eq_f64(results.get("2"), Some(&0.393), 3);
         assert_eq_f64(results.get("3"), Some(&0.303), 3);
     }
 

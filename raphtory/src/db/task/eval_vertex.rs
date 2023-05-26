@@ -109,16 +109,6 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S> EvalVertexView<'a, G, CS, S> {
             .accumulate_into_pid(self.ss, self.id(), self.pid(), a, id);
     }
 
-    pub fn update_local<A: StateType, IN: 'static, OUT: 'static, ACC: Accumulator<A, IN, OUT>>(
-        &self,
-        id: &AccId<A, IN, OUT, ACC>,
-        a: IN,
-    ) {
-        // self.local_state
-        //     .borrow_mut()
-        //     .accumulate_into_pid(self.ss, self.id(), self.pid(), a, id);
-    }
-
     pub fn global_update<A: StateType, IN: 'static, OUT: 'static, ACC: Accumulator<A, IN, OUT>>(
         &self,
         id: &AccId<A, IN, OUT, ACC>,
@@ -197,23 +187,6 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S> EvalVertexView<'a, G, CS, S> {
         )
     }
 
-    /// Read the current value of the vertex state using the given accumulator.
-    /// Returns a default value if the value is not present.
-    pub fn read_local<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
-        &self,
-        agg_r: &AccId<A, IN, OUT, ACC>,
-    ) -> OUT
-    where
-        A: StateType,
-        OUT: std::fmt::Debug,
-    {
-        // self.local_state
-        //     .borrow()
-        //     .read_with_pid(self.ss, self.id(), self.pid(), agg_r)
-        //     .unwrap_or(ACC::finish(&ACC::zero()))
-        todo!()
-    }
-
     /// Read the prev value of the vertex state using the given accumulator.
     /// Returns a default value if the value is not present.
     pub fn read_prev<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
@@ -229,23 +202,6 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S> EvalVertexView<'a, G, CS, S> {
             .shard()
             .read_with_pid(self.ss + 1, self.id(), self.pid(), agg_r)
             .unwrap_or(ACC::finish(&ACC::zero()))
-    }
-
-    /// Read the prev value of the vertex state using the given accumulator.
-    /// Returns a default value if the value is not present.
-    pub fn read_local_prev<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
-        &self,
-        agg_r: &AccId<A, IN, OUT, ACC>,
-    ) -> OUT
-    where
-        A: StateType,
-        OUT: std::fmt::Debug,
-    {
-        // self.local_state
-        //     .borrow()
-        //     .read_with_pid(self.ss + 1, self.id(), self.pid(), agg_r)
-        //     .unwrap_or(ACC::finish(&ACC::zero()))
-        todo!()
     }
 
     pub fn read_global_state_prev<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
