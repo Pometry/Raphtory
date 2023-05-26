@@ -130,6 +130,8 @@ impl<'a, G: GraphViewOps, CS: ComputeState> EdgeListOps
     fn dst(self) -> Self::VList {
         Box::new(self.map(|e| e.dst()))
     }
+    
+    fn id(self) -> Self::IterType<(u64, u64)> {Box::new(self.map(|e| e.id()))}
 
     fn explode(self) -> Self::IterType<Self::Edge> {
         Box::new(self.flat_map(|e| e.explode()))
