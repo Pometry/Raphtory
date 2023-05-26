@@ -38,9 +38,6 @@ pub fn hits<G: GraphViewOps>(
 ) -> FxHashMap<String, (f32, f32)> {
     let mut ctx: Context<G, ComputeStateVec> = g.into();
 
-    // let hub_score = val::<f32>(0).init::<InitOneF32>();
-    // let auth_score = val::<f32>(1).init::<InitOneF32>();
-
     let recv_hub_score = sum::<f32>(2);
     let recv_auth_score = sum::<f32>(3);
 
