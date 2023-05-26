@@ -62,7 +62,7 @@ async fn main() {
             .expect("Failed to register tracer with registry"),
     }
 
-    let graph_directory = env::var("GRAPH_DIRECTORY").unwrap_or("graphs".to_string());
+    let graph_directory = env::var("GRAPH_DIRECTORY").unwrap_or("/tmp/graphs/".to_string());
 
     #[derive(App)]
     struct App(QueryRoot);
@@ -74,7 +74,6 @@ async fn main() {
         .at("/", get(graphql_playground).post(GraphQL::new(schema)))
         .at("/health", get(health))
         .with(Cors::new());
-
 
     println!("Playground: http://localhost:1736");
     Server::new(TcpListener::bind("0.0.0.0:1736"))

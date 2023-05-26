@@ -75,6 +75,14 @@ impl<G: GraphViewOps> GqlWindowGraph<G> {
             .collect()
     }
 
+    async fn edges<'a>(&self, _ctx: &Context<'a>) -> Vec<Edge<WindowedGraph<G>>> {
+        self.graph
+            .edges()
+            .into_iter()
+            .map(|ev| Edge::new(ev))
+            .collect()
+    }
+
     async fn node<'a>(&self, _ctx: &Context<'a>, name: String) -> Option<Node<WindowedGraph<G>>> {
         self.graph
             .vertices()
