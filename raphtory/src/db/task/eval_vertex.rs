@@ -75,24 +75,6 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S> EvalVertexView<'a, G, CS, S> {
         }
     }
 
-    // pub(crate) fn from_edge_ref(
-    //     ss: usize,
-    //     v_ref: LocalVertexRef,
-    //     g: &'a G,
-    //     local_state: Option<&'a mut S>,
-    //     local_state_prev: &'a Local2<'a, S>,
-    //     vertex_state: Rc<RefCell<EVState<'a, CS>>>,
-    // ) -> Self {
-    //     Self {
-    //         ss,
-    //         vertex: v_ref,
-    //         graph: g,
-    //         local_state,
-    //         local_state_prev,
-    //         vertex_state,
-    //     }
-    // }
-
     fn pid(&self) -> usize {
         self.vertex.pid
     }

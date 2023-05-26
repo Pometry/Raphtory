@@ -147,10 +147,6 @@ pub struct GlobalState<CS: ComputeState> {
 
 impl<CS: ComputeState> GlobalState<CS> {
 
-    // pub fn new(ss: usize, state: Global<CS>) -> Self {
-    //     Self{ss, state}
-    // }
-
     pub fn finalize<A: StateType, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
         &self,
         agg_def: &AccId<A, IN, OUT, ACC>,
