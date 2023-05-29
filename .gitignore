@@ -17,3 +17,4 @@ docs/source/_rustdoc/*
 docs/build/*
 docs/logs/*
 _autosummary
+Cargo.toml
