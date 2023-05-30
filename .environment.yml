@@ -41,6 +41,7 @@ dependencies:
       - mdit-py-plugins==0.3.0
       - mdurl==0.1.1
       - myst-parser==0.17.2
+      - numpydoc==1.5.0
       - packaging==21.3
       - pandas==2.0.2
       - patchelf==0.17.2.1
