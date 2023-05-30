@@ -20,6 +20,9 @@ itertools = "0.10"
 name = "btc"
 
 [[bin]]
+name = "bench"
+
+[[bin]]
 name = "lotr"
 
 [[bin]]
