@@ -8,7 +8,7 @@ Getting started
 
 
 Installation (python)
-------------
+----------------------
 
 .. grid:: 1 2 2 2
     :gutter: 2
@@ -85,7 +85,7 @@ Building / Source
 .. _gentle_intro:
 
 Intro to Raphtory
----------------
+------------------
 
 .. raw:: html
 
@@ -145,9 +145,6 @@ Nlah Nlah Nlah Nlah.
 
 Tutorials
 ---------
-
-For a quick overview of Raphtory functionality, see :ref:`intro to raphtory`.
-
 
 .. If you update this toctree, also update the manual toctree in the
    main index.rst.template

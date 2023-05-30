@@ -1,6 +1,6 @@
 {{ header }}
 
-.. _10times1minute:
+.. _gettingstarted:
 
 =========================
 Getting started tutorials
@@ -10,5 +10,5 @@ Getting started tutorials
     :maxdepth: 1
 
     01_quickstart
-    02_lotr
+    lotr.ipynb
 

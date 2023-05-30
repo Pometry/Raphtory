@@ -21,7 +21,7 @@ Installing raphtory
 -------------------
 
 Installing from Cargo
-~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~
 
 Raphtory can be installed via pip from
 `Cargo <https://crates.io/crates/raphtory>`__.

@@ -4,6 +4,12 @@
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 from sphinx.ext.autosummary import _import_by_name
 
+import os
+import sys
+import warnings
+
+import jinja2
+
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
@@ -40,12 +46,16 @@ exclude_patterns = [
 ]
 
 header = f"""\
-.. currentmodule:: pandas
+.. currentmodule:: raphtory
 
 .. ipython:: python
    :suppress:
 
    import raphtory
+   from raphtory import vis
+   import os   
+   os.chdir(r'{os.path.dirname(os.path.dirname(__file__))}')
+
 """
 
 
@@ -80,3 +90,18 @@ extlinks = {
 }
 
 # numpydoc
+def rstjinja(app, docname, source):
+    """
+    Render our pages as a jinja template for fancy templating goodness.
+    """
+    # https://www.ericholscher.com/blog/2016/jul/25/integrating-jinja-rst-sphinx/
+    # Make sure we're outputting HTML
+    if app.builder.format != "html":
+        return
+    src = source[0]
+    rendered = app.builder.templates.render_string(src, app.config.html_context)
+    source[0] = rendered
+
+def setup(app):
+    app.connect("source-read", rstjinja)
+
