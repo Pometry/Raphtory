@@ -59,20 +59,14 @@ where
 
     let step2 = ATask::new(move |vv: &mut EvalVertexView<'_, G,ComputeStateVec, WccState>| {
         let prev:u64 = vv.prev().component;
-
-        let mut current = prev;
-        for t in vv.neighbours() {
-            let n_prev = t.prev().component;
-            if n_prev<current {
-                current=n_prev;
-            }
-        }
+        let current = vv.neighbours().into_iter().map(|n|n.prev().component).min().unwrap_or(prev);
         let state: &mut WccState = vv.get_mut();
-        state.component = current;
-        if current == prev {
-            Step::Done
-        } else {
+        if current<prev {
+            state.component = current;
             Step::Continue
+        }
+        else {
+            Step::Done
         }
     });
 
