@@ -1,5 +1,6 @@
 [package]
 name = "raphtory-io"
+description = "raphtory-io, contains all connectors and example datasets for raphtory"
 edition.workspace = true
 rust-version.workspace = true
 version.workspace = true
@@ -14,7 +15,7 @@ homepage.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-raphtory = { path = "../raphtory" }
+raphtory = { path = "../raphtory", version = "0.3.2" }
 reqwest = { version = "0.11.14", features = ["blocking"] }
 neo4rs = "0.6.0"
 csv = "1.1.6"
