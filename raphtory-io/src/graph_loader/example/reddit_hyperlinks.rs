@@ -39,11 +39,11 @@
 //! println!("The graph has {:?} edges", graph.num_edges());
 //! ```
 
-use raphtory::core::Prop;
-use raphtory::db::graph::Graph;
 use crate::graph_loader::fetch_file;
 use chrono::*;
 use itertools::Itertools;
+use raphtory::core::Prop;
+use raphtory::db::graph::Graph;
 use std::fs::File;
 use std::io::{self, BufRead};
 use std::path::Path;
@@ -156,8 +156,8 @@ pub fn reddit_graph(shards: usize, timeout: u64, test_file: bool) -> Graph {
 
 #[cfg(test)]
 mod reddit_test {
-    use raphtory::db::view_api::GraphViewOps;
     use crate::graph_loader::example::reddit_hyperlinks::{reddit_file, reddit_graph};
+    use raphtory::db::view_api::GraphViewOps;
 
     #[test]
     fn check_data() {

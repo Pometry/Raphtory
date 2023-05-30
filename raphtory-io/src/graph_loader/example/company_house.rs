@@ -1,9 +1,9 @@
+use crate::graph_loader::source::csv_loader::CsvLoader;
+use chrono::NaiveDateTime;
 use raphtory::core::Prop;
 use raphtory::db::graph::Graph;
 use raphtory::db::view_api::internal::GraphViewInternalOps;
 use raphtory::db::view_api::GraphViewOps;
-use crate::graph_loader::source::csv_loader::CsvLoader;
-use chrono::NaiveDateTime;
 use serde::Deserialize;
 use std::path::PathBuf;
 use std::{fs, time::Instant};
@@ -73,38 +73,63 @@ pub fn company_house_graph(path: Option<String>, num_shards: usize) -> Graph {
                 g.add_vertex(
                     NaiveDateTime::from_timestamp_opt(ts, 0).unwrap(),
                     owner.clone(),
-                    &vec![("type".into(), Prop::Str("owner".into()))],
+                    &vec![],
                 ).expect("Failed to add vertex");
+
+                g.add_vertex_properties(owner.clone(), &vec![("type".into(), Prop::Str("owner".into()))])
+                    .expect("Failed to add vertex static property");
 
                 g.add_vertex(
                     NaiveDateTime::from_timestamp_opt(ts, 0).unwrap(),
                     company.clone(),
-                    &vec![("type".into(), Prop::Str("company".into()))],
+                    &vec![],
                 ).expect("Failed to add vertex");
+
+                g.add_vertex_properties(company.clone(), &vec![("type".into(), Prop::Str("company".into()))])
+                    .expect("Failed to add vertex static property");
 
                 g.add_vertex(
                     NaiveDateTime::from_timestamp_opt(ts, 0).unwrap(),
                     address.clone(),
-                    &vec![("type".into(), Prop::Str("house".into()))],
+                    &vec![],
                 ).expect("Failed to add vertex");
+
+                g.add_vertex_properties(address.clone(), &vec![("type".into(), Prop::Str("address".into()))])
+                    .expect("Failed to add vertex static property");
 
                 g.add_edge(
                     NaiveDateTime::from_timestamp_opt(ts, 0).unwrap(),
+                    owner.clone(),
+                    company.clone(),
+                    &vec![],
+                    Some(pincode),
+                )
+                    .expect("Failed to add edge");
+
+                g.add_edge_properties(
                     owner,
                     company.clone(),
                     &vec![("rel".into(), Prop::Str("owns".into()))],
                     Some(pincode),
                 )
-                    .expect("Failed to add edge");
+                    .expect("Failed to add edge static property");
 
                 g.add_edge(
                     NaiveDateTime::from_timestamp_opt(ts, 0).unwrap(),
+                    company.clone(),
+                    address.clone(),
+                    &vec![],
+                    None,
+                )
+                    .expect("Failed to add edge");
+
+                g.add_edge_properties(
                     company,
                     address,
                     &vec![("rel".into(), Prop::Str("owns".into()))],
                     None,
                 )
-                    .expect("Failed to add edge");
+                    .expect("Failed to add edge static property");
             })
             .expect("Failed to load graph from CSV data files");
 
@@ -128,16 +153,20 @@ pub fn company_house_graph(path: Option<String>, num_shards: usize) -> Graph {
 
 #[cfg(test)]
 mod company_house_graph_test {
-    use raphtory::db::view_api::{TimeOps, VertexViewOps};
     use super::*;
+    use raphtory::db::view_api::{TimeOps, VertexViewOps};
 
     #[test]
     fn test_ch_load() {
-        let g = company_house_graph(Some("/Users/shivamkapoor/Official/data/company-house".to_string()), 1);
+        let g = company_house_graph(
+            Some("/Users/shivamkapoor/Official/data/company-house".to_string()),
+            1,
+        );
         assert_eq!(g.start().unwrap(), 1000);
         assert_eq!(g.end().unwrap(), 1001);
-        g.window(1000, 1001).vertices().into_iter().for_each(|v|{
-            println!("vertexid = {}", v.id())
-        });
+        g.window(1000, 1001)
+            .vertices()
+            .into_iter()
+            .for_each(|v| println!("vertexid = {}", v.id()));
     }
 }

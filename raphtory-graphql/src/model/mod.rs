@@ -1,17 +1,23 @@
+use crate::model::algorithm::Algorithms;
 use crate::Data;
-use async_graphql::Context;
-use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, SimpleObject};
+use async_graphql::{Context, Json};
+use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, Scalar, SimpleObject};
+use dynamic_graphql::{ScalarValue, Value};
+use itertools::Itertools;
+use raphtory::core::Prop;
 use raphtory::db::edge::EdgeView;
 use raphtory::db::graph::Graph;
 use raphtory::db::graph_window::WindowedGraph;
 use raphtory::db::vertex::VertexView;
-use raphtory::db::view_api::{GraphViewOps, TimeOps, VertexViewOps};
-use std::sync::Arc;
+use raphtory::db::view_api::internal::GraphViewInternalOps;
 use raphtory::db::view_api::EdgeListOps;
 use raphtory::db::view_api::EdgeViewOps;
-
-
-use crate::model::algorithm::Algorithms;
+use raphtory::db::view_api::{GraphViewOps, TimeOps, VertexViewOps};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::fmt;
+use std::net::{IpAddr, Ipv4Addr};
+use std::sync::Arc;
 
 mod algorithm;
 
@@ -105,6 +111,29 @@ impl<G: GraphViewOps> GqlWindowGraph<G> {
 }
 
 #[derive(ResolvedObject)]
+pub(crate) struct Property {
+    key: String,
+    value: Prop,
+}
+
+impl Property {
+    fn new(key: String, value: Prop) -> Self {
+        Self { key, value }
+    }
+}
+
+#[ResolvedObjectFields]
+impl Property {
+    async fn key(&self, _ctx: &Context<'_>) -> String {
+        self.key.to_string()
+    }
+
+    async fn value(&self, _ctx: &Context<'_>) -> String {
+        self.value.to_string()
+    }
+}
+
+#[derive(ResolvedObject)]
 pub(crate) struct Node<G: GraphViewOps> {
     vv: VertexView<G>,
 }
@@ -123,6 +152,25 @@ impl<G: GraphViewOps> Node<G> {
 
     async fn name(&self, _ctx: &Context<'_>) -> String {
         self.vv.name()
+    }
+
+    async fn property_names<'a>(&self, _ctx: &Context<'a>) -> Vec<String> {
+        self.vv.property_names(true)
+    }
+
+    async fn properties(&self) -> Option<Vec<Property>> {
+        Some(
+            self.vv
+                .properties(true)
+                .into_iter()
+                .map(|(k, v)| Property::new(k, v))
+                .collect_vec(),
+        )
+    }
+
+    async fn property(&self, name: String) -> Option<Property> {
+        let prop = self.vv.property(name.clone(), true)?;
+        Some(Property::new(name, prop))
     }
 
     async fn out_neighbours<'a>(&self, _ctx: &Context<'a>) -> Vec<Node<G>> {
@@ -146,7 +194,10 @@ impl<G: GraphViewOps> Node<G> {
     }
 
     async fn out_edges(&self, _ctx: &Context<'_>) -> Vec<Edge<G>> {
-        self.vv.out_edges().map(|ee| Edge::new(ee.clone())).collect()
+        self.vv
+            .out_edges()
+            .map(|ee| Edge::new(ee.clone()))
+            .collect()
     }
 
     async fn in_edges(&self, _ctx: &Context<'_>) -> Vec<Edge<G>> {
@@ -154,7 +205,11 @@ impl<G: GraphViewOps> Node<G> {
     }
 
     async fn exploded_edges(&self, _ctx: &Context<'_>) -> Vec<Edge<G>> {
-        self.vv.out_edges().explode().map(|ee| Edge::new(ee.clone())).collect()
+        self.vv
+            .out_edges()
+            .explode()
+            .map(|ee| Edge::new(ee.clone()))
+            .collect()
     }
 
     async fn start_date(&self, _ctx: &Context<'_>) -> Option<i64> {
@@ -170,7 +225,6 @@ impl<G: GraphViewOps> Node<G> {
 pub(crate) struct Edge<G: GraphViewOps> {
     ee: EdgeView<G>,
 }
-
 
 impl<G: GraphViewOps> Edge<G> {
     pub fn new(ee: EdgeView<G>) -> Self {
@@ -196,8 +250,12 @@ impl<G: GraphViewOps> Edge<G> {
         Node::new(self.ee.dst())
     }
 
+    async fn property(&self, name: String) -> Option<Property> {
+        let prop = self.ee.property(name.clone(), true)?;
+        Some(Property::new(name, prop))
+    }
+
     async fn history(&self, _ctx: &Context<'_>) -> Vec<i64> {
         self.ee.history()
     }
-
 }

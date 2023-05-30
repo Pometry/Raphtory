@@ -7,13 +7,13 @@ use dotenv::dotenv;
 use dynamic_graphql::App;
 use poem::listener::TcpListener;
 use poem::middleware::Cors;
+use poem::EndpointExt;
 use poem::{get, Route, Server};
 use std::env;
 use tokio::signal;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::Registry;
-use poem::EndpointExt;
 
 mod data;
 mod model;

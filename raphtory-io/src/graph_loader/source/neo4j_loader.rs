@@ -1,5 +1,5 @@
-use raphtory::db::graph as rap;
 use neo4rs::*;
+use raphtory::db::graph as rap;
 /// A struct that defines the Neo4J loader with configurable options.
 pub struct Neo4JConnection {
     // The created graph object given the arguments
@@ -48,11 +48,11 @@ impl Neo4JConnection {
 
 #[cfg(test)]
 mod neo_loader_test {
+    use crate::graph_loader::source::neo4j_loader::Neo4JConnection;
+    use neo4rs::*;
     use raphtory::core::Prop;
     use raphtory::db::graph as rap;
     use raphtory::db::view_api::GraphViewOps;
-    use crate::graph_loader::source::neo4j_loader::Neo4JConnection;
-    use neo4rs::*;
 
     fn load_movies(row: Row, graph: &rap::Graph) {
         let film: Node = row.get("film").unwrap();
