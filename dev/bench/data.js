@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1685448768939,
+  "lastUpdate": 1685457870326,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -1993,6 +1993,60 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions with numeric string input",
             "value": 1789969,
             "range": "± 61174",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "Haaroon@users.noreply.github.com",
+            "name": "Haaroon Y",
+            "username": "Haaroon"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d7dfc32d91fb1fce14ffe12eef344b3e7a5f837c",
+          "message": "Benchmark Suite v1 (#977)\n\n* memmy benchy\r\n\r\n* graph_Tool\r\n\r\n* networkx\r\n\r\n* cozo start, annoying\r\n\r\n* checkin\r\n\r\n* raphtory bench\r\n\r\n* kuzu bench\r\n\r\n* neo4j bench\r\n\r\n* fix out neighbours no ids\r\n\r\n* return all results\r\n\r\n* memgraph bench\r\n\r\n* add driver\r\n\r\n* add driver\r\n\r\n* use complex rel file\r\n\r\n* set shards to cpu count\r\n\r\n* fix n x bench\r\n\r\n* fix n x bench\r\n\r\n* fix n x bench\r\n\r\n* add cozo bench\r\n\r\n* add names\r\n\r\n* add pp result when complete\r\n\r\n* allow running all benchmarks\r\n\r\n* add download and unzip data files\r\n\r\n* fix graph tool and point to correct file for all benches\r\n\r\n* add close() fn to all benches to release graph resources and delete graph object\r\n\r\n* add arg selection to driver, add docker option but no implementation, fix cozo bench dir issue\r\n\r\n* initial docker test but its fialing on some xcode issue\r\n\r\n* benchmark with cozo and docker complete\r\n\r\n* better docker bench\r\n\r\n* networkx with docker\r\n\r\n* raphtory docker\r\n\r\n* i dont know why my neo bench gets stuck\r\n\r\n* add kuzu docker\r\n\r\n* graph tool potentially done?\r\n\r\n* graph tool done\r\n\r\n* memgraph done, use internal csv loader instead\r\n\r\n* fix memgraph version\r\n\r\n* fix neo benchmark\r\n\r\n* benchmark complete\r\n\r\n* enable docker by default, add start of readme\r\n\r\n* everything works except memgraph :<\r\n\r\n* memgraph now works,\r\n\r\n* benchmark complete\r\n\r\n* move folder\r\n\r\n* add better template\r\n\r\n* cleanup soft\r\n\r\n* fix outside name\r\n\r\n* dont fail if not locally installed\r\n\r\n* fix cozo import too quick\r\n\r\n* run all\r\n\r\n* fix networkx hang\r\n\r\n* remove ugly not found, maybe fix memgraph?\r\n\r\n* use z mode for volume\r\n\r\n* remove tqdm in raphtory\r\n\r\n* Fixed call to pagerank\r\n\r\n---------\r\n\r\nCo-authored-by: Ben Steer <b.a.steer@qmul.ac.uk>",
+          "timestamp": "2023-05-30T15:40:04+01:00",
+          "tree_id": "49255babe07ea12d9ff3594c9365cc79faa91c5b",
+          "url": "https://github.com/Pometry/Raphtory/commit/d7dfc32d91fb1fce14ffe12eef344b3e7a5f837c"
+        },
+        "date": 1685457869647,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 354072,
+            "range": "± 10266",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and numeric string input",
+            "value": 1038738,
+            "range": "± 49185",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and string input",
+            "value": 1077906,
+            "range": "± 19305",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 735298,
+            "range": "± 114484",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions with numeric string input",
+            "value": 2450058,
+            "range": "± 182358",
             "unit": "ns/iter"
           }
         ]
