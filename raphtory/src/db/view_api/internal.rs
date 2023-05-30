@@ -3,7 +3,6 @@ use crate::core::vertex_ref::{LocalVertexRef, VertexRef};
 use crate::core::{Direction, Prop};
 use std::collections::HashMap;
 use std::ops::Range;
-use std::sync::Arc;
 
 /// The GraphViewInternalOps trait provides a set of methods to query a directed graph
 /// represented by the raphtory_core::tgraph::TGraph struct.

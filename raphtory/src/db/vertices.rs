@@ -10,7 +10,6 @@ use crate::db::view_api::layer::LayerOps;
 use crate::db::view_api::BoxedIter;
 use crate::db::view_api::*;
 use std::collections::HashMap;
-use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct Vertices<G: GraphViewOps> {

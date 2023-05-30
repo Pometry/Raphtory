@@ -1,9 +1,9 @@
+use num_traits::abs;
+
+use crate::core::vertex_ref::LocalVertexRef;
 use crate::db::view_api::VertexViewOps;
 use crate::{
-    core::{
-        agg::InitOneF64,
-        state::{accumulator_id::accumulators, compute_state::ComputeStateVec},
-    },
+    core::state::{accumulator_id::accumulators, compute_state::ComputeStateVec} ,
     db::{
         task::{
             context::Context,
@@ -13,8 +13,26 @@ use crate::{
         view_api::GraphViewOps,
     },
 };
-use num_traits::abs;
 use std::collections::HashMap;
+
+#[derive(Clone, Debug)]
+struct PageRankState {
+    score: f64,
+    out_degree: usize,
+}
+
+impl PageRankState {
+    fn new(num_vertices: usize) -> Self {
+        Self {
+            score: 1f64 / num_vertices as f64,
+            out_degree: 0,
+        }
+    }
+
+    fn reset(&mut self) {
+        self.score = 0f64;
+    }
+}
 
 #[allow(unused_variables)]
 pub fn unweighted_page_rank<G: GraphViewOps>(
@@ -22,64 +40,97 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
     iter_count: usize,
     threads: Option<usize>,
     tol: Option<f64>,
+    use_l2_norm: bool,
 ) -> HashMap<String, f64> {
-    let total_vertices = g.num_vertices();
+    let n = g.num_vertices();
     let total_edges = g.num_edges();
 
     let mut ctx: Context<G, ComputeStateVec> = g.into();
 
-    let max_diff_val: f64 = tol.unwrap_or_else(|| 0.0000001f64);
-    let damping_factor = 0.85;
+    let tol: f64 = tol.unwrap_or_else(|| 0.000001f64);
+    let damp = 0.85;
+    let teleport_prob = (1f64 - damp) / n as f64;
+    let factor = damp / n as f64;
 
-    let score = accumulators::val::<f64>(0).init::<InitOneF64>();
-    let recv_score = accumulators::sum::<f64>(1);
-    let max_diff = accumulators::max::<f64>(2);
-    let dangling = accumulators::sum::<f64>(3);
+    let max_diff = accumulators::sum::<f64>(2);
 
-    ctx.agg_reset(recv_score);
+    let total_sink_contribution = accumulators::sum::<f64>(4);
+
     ctx.global_agg_reset(max_diff);
-    ctx.global_agg_reset(dangling);
+
+    ctx.global_agg_reset(total_sink_contribution);
 
     let step1 = ATask::new(move |s| {
-        s.update_local(
-            &score,
-            s.in_degree() as f64 / total_edges as f64 * total_vertices as f64,
-        );
+        let out_degree = s.out_degree();
+        let state: &mut PageRankState = s.get_mut();
+        state.out_degree = out_degree;
         Step::Continue
     });
 
-    let step2 = ATask::new(move |s| {
-        let out_degree = s.out_degree();
-        if out_degree > 0 {
-            let new_score = s.read_local(&score) / out_degree as f64;
-            for t in s.out_neighbours() {
-                t.update(&recv_score, new_score)
-            }
-        } else {
-            s.global_update(&dangling, s.read_local(&score) / total_vertices as f64);
+    let step2: ATask<G, ComputeStateVec, PageRankState, _> = ATask::new(move |s| {
+        // reset score
+        {
+            let state: &mut PageRankState = s.get_mut();
+            state.reset();
         }
+
+        for t in s.in_neighbours() {
+            let prev = t.prev();
+
+            s.get_mut().score += prev.score / prev.out_degree as f64;
+        }
+
+        s.get_mut().score *= damp;
+
+        s.get_mut().score += teleport_prob;
         Step::Continue
     });
 
     let step3 = ATask::new(move |s| {
-        let dangling_v = s.read_global_state(&dangling).unwrap_or_default();
+        let state: &mut PageRankState = s.get_mut();
 
-        s.update_local(
-            &score,
-            (1f64 - damping_factor) + (damping_factor * (s.read(&recv_score) + dangling_v)),
-        );
-        let prev = s.read_local_prev(&score);
-        let curr = s.read_local(&score);
+        if state.out_degree == 0 {
+            let curr = s.prev().score;
 
-        let md = abs(prev - curr);
+            let ts_contrib = factor * curr;
+            s.global_update(&total_sink_contribution, ts_contrib);
+        }
+        Step::Continue
+    });
+
+    let step4 = ATask::new(move |s| {
+        //read total sink contribution
+        let total_sink_contribution = s
+            .read_global_state(&total_sink_contribution)
+            .unwrap_or_default();
+        // update local score with total sink contribution
+        let state: &mut PageRankState = s.get_mut();
+        state.score += total_sink_contribution;
+
+        // update global max diff
+
+        let curr = state.score;
+        let prev = s.prev().score;
+
+        let md = if use_l2_norm {
+            f64::powi(abs(prev - curr) as f64, 2)
+        } else {
+            abs(prev - curr)
+        };
 
         s.global_update(&max_diff, md);
         Step::Continue
     });
 
-    let step4 = Job::Check(Box::new(move |state| {
-        let max_d = state.read(&max_diff);
-        if (max_d / total_vertices as f64) > max_diff_val {
+    let step5 = Job::Check(Box::new(move |state| {
+        let max_diff_val = state.read(&max_diff);
+        let cont = if use_l2_norm {
+            let sum_d = f64::sqrt(max_diff_val as f64);
+            (sum_d as f64) > tol * n as f64
+        } else {
+            (max_diff_val as f64) > tol * n as f64
+        };
+        if cont {
             Step::Continue
         } else {
             Step::Done
@@ -88,12 +139,21 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
 
-    let num_vertices = g.num_vertices() as f64;
+    let num_vertices = g.num_vertices();
 
-    let out = runner.run(
+    let out: HashMap<LocalVertexRef, f64> = runner.run(
         vec![Job::new(step1)],
-        vec![Job::new(step2), Job::new(step3), step4],
-        |_, _, els| els.finalize(&score, |score| score),
+        vec![Job::new(step2), Job::new(step3), Job::new(step4), step5],
+        PageRankState::new(num_vertices),
+        |g, _, _, local| {
+            local
+                .iter()
+                .filter_map(|line| {
+                    line.as_ref()
+                        .map(|(v_ref, state)| (v_ref.clone(), state.score))
+                })
+                .collect::<HashMap<_, _>>()
+        },
         threads,
         iter_count,
         None,
@@ -101,7 +161,7 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
     );
 
     out.into_iter()
-        .map(|(k, v)| (k, v as f64 / num_vertices as f64))
+        .map(|(k, v)| (g.vertex_name(k), v))
         .collect()
 }
 
@@ -130,9 +190,10 @@ mod page_rank_tests {
     fn test_page_rank(n_shards: usize) {
         let graph = load_graph(n_shards);
 
-        let results: HashMap<String, f64> = unweighted_page_rank(&graph, 25, Some(1), None)
+        let results: HashMap<String, f64> = unweighted_page_rank(&graph, 1000, Some(1), None, true)
             .into_iter()
             .collect();
+
         assert_eq_f64(results.get("1"), Some(&0.38694), 5);
         assert_eq_f64(results.get("2"), Some(&0.20195), 5);
         assert_eq_f64(results.get("4"), Some(&0.20195), 5);
@@ -193,20 +254,20 @@ mod page_rank_tests {
             graph.add_edge(t, src, dst, &vec![], None).unwrap();
         }
 
-        let results: HashMap<String, f64> = unweighted_page_rank(&graph, 1000, Some(4), None)
+        let results: HashMap<String, f64> = unweighted_page_rank(&graph, 1000, Some(4), None, true)
             .into_iter()
             .collect();
 
         assert_eq_f64(results.get("10"), Some(&0.072082), 5);
-        assert_eq_f64(results.get("8"), Some(&0.136477), 5);
+        assert_eq_f64(results.get("8"), Some(&0.136473), 5);
         assert_eq_f64(results.get("3"), Some(&0.15484), 5);
         assert_eq_f64(results.get("6"), Some(&0.07208), 5);
-        assert_eq_f64(results.get("11"), Some(&0.06185), 5);
+        assert_eq_f64(results.get("11"), Some(&0.06186), 5);
         assert_eq_f64(results.get("2"), Some(&0.03557), 5);
-        assert_eq_f64(results.get("1"), Some(&0.11283), 5);
+        assert_eq_f64(results.get("1"), Some(&0.11284), 5);
         assert_eq_f64(results.get("4"), Some(&0.07944), 5);
         assert_eq_f64(results.get("7"), Some(&0.01638), 5);
-        assert_eq_f64(results.get("9"), Some(&0.06185), 5);
+        assert_eq_f64(results.get("9"), Some(&0.06186), 5);
         assert_eq_f64(results.get("5"), Some(&0.19658), 5);
     }
 
@@ -220,7 +281,7 @@ mod page_rank_tests {
             graph.add_edge(t as i64, src, dst, &vec![], None).unwrap();
         }
 
-        let results: HashMap<String, f64> = unweighted_page_rank(&graph, 1000, Some(4), None)
+        let results: HashMap<String, f64> = unweighted_page_rank(&graph, 1000, Some(4), None, false)
             .into_iter()
             .collect();
 
@@ -238,12 +299,12 @@ mod page_rank_tests {
             graph.add_edge(t as i64, src, dst, &vec![], None).unwrap();
         }
 
-        let results: HashMap<String, f64> = unweighted_page_rank(&graph, 1000, Some(4), None)
+        let results: HashMap<String, f64> = unweighted_page_rank(&graph, 10, Some(4), None, false)
             .into_iter()
             .collect();
 
         assert_eq_f64(results.get("1"), Some(&0.303), 3);
-        assert_eq_f64(results.get("2"), Some(&0.394), 3);
+        assert_eq_f64(results.get("2"), Some(&0.393), 3);
         assert_eq_f64(results.get("3"), Some(&0.303), 3);
     }
 
@@ -276,7 +337,7 @@ mod page_rank_tests {
             graph.add_edge(t, src, dst, &vec![], None).unwrap();
         }
 
-        let results: HashMap<String, f64> = unweighted_page_rank(&graph, 1000, Some(4), None)
+        let results: HashMap<String, f64> = unweighted_page_rank(&graph, 1000, Some(4), None, true)
             .into_iter()
             .collect();
 
@@ -304,12 +365,11 @@ mod page_rank_tests {
             let factor = 10.0_f64.powi(decimals as i32);
             match (a, b) {
                 (Some(a), Some(b)) => {
+                    let left = (a.borrow() * factor).round();
+                    let right = (b.borrow() * factor).round();
                     assert_eq!(
-                        (a.borrow() * factor).round(),
-                        (b.borrow() * factor).round(),
-                        "{:?} != {:?}",
-                        a,
-                        b
+                        left,
+                        right,
                     );
                 }
                 _ => unreachable!(),

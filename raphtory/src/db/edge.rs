@@ -16,7 +16,6 @@ use crate::db::view_api::*;
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 use std::iter;
-use std::sync::Arc;
 
 /// A view of an edge in the graph.
 #[derive(Clone)]

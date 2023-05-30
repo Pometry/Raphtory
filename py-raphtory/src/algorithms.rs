@@ -64,7 +64,7 @@ pub fn pagerank(
     iter_count: usize,
     max_diff: Option<f64>,
 ) -> PyResult<HashMap<String, f64>> {
-    Ok(unweighted_page_rank(&g.graph, iter_count, None, max_diff))
+    Ok(unweighted_page_rank(&g.graph, iter_count, None, max_diff, true))
 }
 
 #[pyfunction]

@@ -280,14 +280,21 @@ pub struct PathFromVertex<G: GraphViewOps> {
 }
 
 impl<G: GraphViewOps> PathFromVertex<G> {
-    pub fn iter(&self) -> Box<dyn Iterator<Item = VertexView<G>> + Send> {
+
+    pub fn iter_refs(&self) -> Box<dyn Iterator<Item = VertexRef> + Send> {
         let init: Box<dyn Iterator<Item = VertexRef> + Send> =
             Box::new(iter::once(VertexRef::Local(self.vertex)));
         let g = self.graph.clone();
         let ops = self.operations.clone();
         let iter = ops
             .iter()
-            .fold(init, |it, op| Box::new(op.op(g.clone(), it)))
+            .fold(init, |it, op| Box::new(op.op(g.clone(), it)));
+        Box::new(iter)
+    }
+
+    pub fn iter(&self) -> Box<dyn Iterator<Item = VertexView<G>> + Send> {
+        let g = self.graph.clone();
+        let iter = self.iter_refs()
             .map(move |v| VertexView::new(g.clone(), v));
         Box::new(iter)
     }
@@ -302,6 +309,16 @@ impl<G: GraphViewOps> PathFromVertex<G> {
             graph,
             vertex: v,
             operations: Arc::new(vec![operation]),
+        }
+    }
+
+    pub(crate) fn neighbours_window(&self, dir:Direction, t_start: i64, t_end:i64) -> Self {
+        let mut new_ops = (*self.operations).clone();
+        new_ops.push(Operations::NeighboursWindow { dir, t_start, t_end });
+        Self {
+            graph: self.graph.clone(),
+            vertex: self.vertex,
+            operations: Arc::new(new_ops),
         }
     }
 }
@@ -398,6 +415,7 @@ impl<G: GraphViewOps> VertexViewOps for PathFromVertex<G> {
             operations: Arc::new(new_ops),
         }
     }
+
 
     fn in_neighbours(&self) -> Self {
         let mut new_ops = (*self.operations).clone();

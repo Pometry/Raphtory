@@ -1,6 +1,9 @@
-use std::{borrow::Cow, cell::RefCell, rc::Rc, sync::Arc};
+use std::{borrow::Cow, sync::Arc};
 
-use crate::core::state::{compute_state::ComputeState, shuffle_state::ShuffleComputeState};
+use crate::core::{
+    state::{compute_state::ComputeState, shuffle_state::ShuffleComputeState},
+    vertex_ref::LocalVertexRef,
+};
 
 // this only contains the global state and it is synchronized after each task run
 #[derive(Clone, Debug)]
@@ -14,13 +17,31 @@ pub struct Shard<CS: ComputeState>(Arc<ShuffleComputeState<CS>>);
 #[derive(Clone, Debug)]
 pub(crate) struct Local<CS: ComputeState>(Arc<Option<ShuffleComputeState<CS>>>);
 
+#[derive(Debug)]
+pub(crate) struct Local2<'a, S> {
+    pub(crate) shard_len: usize,
+    pub(crate) state: &'a Vec<Option<(LocalVertexRef, S)>>,
+}
+
+impl<'a, S: 'static> Local2<'a, S> {
+    pub(crate) fn new(
+        max_shard_len: usize,
+        prev_local_state: &'a Vec<Option<(LocalVertexRef, S)>>,
+    ) -> Self {
+        Self {
+            shard_len: max_shard_len,
+            state: prev_local_state,
+        }
+    }
+}
+
 impl<CS: ComputeState> Shard<CS> {
     pub(crate) fn new(graph_shards: usize) -> Self {
         Self(Arc::new(ShuffleComputeState::new(graph_shards)))
     }
 
-    pub(crate) fn as_cow_rc(&self) -> Rc<RefCell<Cow<'_, ShuffleComputeState<CS>>>> {
-        Rc::new(RefCell::new(Cow::Borrowed(&*self.0)))
+    pub(crate) fn as_cow(&self) -> Cow<'_, ShuffleComputeState<CS>> {
+        Cow::Borrowed(&*self.0)
     }
 
     pub(crate) fn from_state(state: ShuffleComputeState<CS>) -> Shard<CS> {
@@ -54,8 +75,8 @@ impl<CS: ComputeState> Global<CS> {
         Self(Arc::new(ShuffleComputeState::new(0)))
     }
 
-    pub(crate) fn as_cow_rc(&self) -> Rc<RefCell<Cow<'_, ShuffleComputeState<CS>>>> {
-        Rc::new(RefCell::new(Cow::Borrowed(&*self.0)))
+    pub(crate) fn as_cow(&self) -> Cow<'_, ShuffleComputeState<CS>> {
+        Cow::Borrowed(&*self.0)
     }
 
     pub(crate) fn from_state(global_state: ShuffleComputeState<CS>) -> Global<CS> {

@@ -88,6 +88,7 @@ pub trait EdgeViewOps: EdgeViewInternalOps<Self::Graph, Self::Vertex> {
         }
         names
     }
+
     fn has_property(&self, name: String, include_static: bool) -> bool {
         (!self.property_history(name.clone()).is_empty())
             || (include_static
