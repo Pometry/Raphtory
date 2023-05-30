@@ -279,12 +279,9 @@ impl PyEdge {
     ///
     /// Returns:
     ///     A list of PyEdges
-    pub fn explode(&self) -> Vec<PyEdge> {
-        self.edge
-            .explode()
-            .into_iter()
-            .map(|e| e.into())
-            .collect::<Vec<PyEdge>>()
+    pub fn explode(&self) -> PyEdges {
+        let edge = self.edge.clone();
+        (move || edge.explode()).into()
     }
 
     /// Gets the earliest time of an edge.

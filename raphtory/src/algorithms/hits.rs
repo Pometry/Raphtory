@@ -1,8 +1,7 @@
-use crate::core::agg::*;
-use crate::core::state::accumulator_id::accumulators::val;
 use crate::core::state::accumulator_id::accumulators::{max, sum};
+use crate::db::task::eval_vertex::EvalVertexView;
 use crate::{
-    core::{agg::InitOneF32, state::compute_state::ComputeStateVec},
+    core::state::compute_state::ComputeStateVec,
     db::{
         task::{
             context::Context,
@@ -14,7 +13,14 @@ use crate::{
 };
 use num_traits::abs;
 use rustc_hash::FxHashMap;
+use std::collections::HashMap;
 use std::ops::Range;
+
+#[derive(Debug, Clone)]
+struct Hits {
+    hub_score: f32,
+    auth_score: f32,
+}
 
 // HITS (Hubs and Authority) Algorithm:
 // AuthScore of a vertex (A) = Sum of HubScore of all vertices pointing at vertex (A) from previous iteration /
@@ -31,9 +37,6 @@ pub fn hits<G: GraphViewOps>(
     threads: Option<usize>,
 ) -> FxHashMap<String, (f32, f32)> {
     let mut ctx: Context<G, ComputeStateVec> = g.into();
-
-    let hub_score = val::<f32>(0).init::<InitOneF32>();
-    let auth_score = val::<f32>(1).init::<InitOneF32>();
 
     let recv_hub_score = sum::<f32>(2);
     let recv_auth_score = sum::<f32>(3);
@@ -57,15 +60,9 @@ pub fn hits<G: GraphViewOps>(
     ctx.global_agg_reset(max_diff_hub_score);
     ctx.global_agg_reset(max_diff_auth_score);
 
-    let step1 = ATask::new(move |evv| {
-        evv.update_local(&hub_score, InitOneF32::init());
-        evv.update_local(&auth_score, InitOneF32::init());
-        Step::Continue
-    });
-
-    let step2 = ATask::new(move |evv| {
-        let hub_score = evv.read_local(&hub_score);
-        let auth_score = evv.read_local(&auth_score);
+    let step2 = ATask::new(move |evv: &mut EvalVertexView<G, ComputeStateVec, Hits>| {
+        let hub_score = evv.get().hub_score;
+        let auth_score = evv.get().auth_score;
         for t in evv.out_neighbours() {
             t.update(&recv_hub_score, hub_score)
         }
@@ -75,7 +72,7 @@ pub fn hits<G: GraphViewOps>(
         Step::Continue
     });
 
-    let step3 = ATask::new(move |evv| {
+    let step3 = ATask::new(move |evv: &mut EvalVertexView<G, ComputeStateVec, Hits>| {
         let recv_hub_score = evv.read(&recv_hub_score);
         let recv_auth_score = evv.read(&recv_auth_score);
 
@@ -84,26 +81,23 @@ pub fn hits<G: GraphViewOps>(
         Step::Continue
     });
 
-    let step4 = ATask::new(move |evv| {
+    let step4 = ATask::new(move |evv: &mut EvalVertexView<G, ComputeStateVec, Hits>| {
         let recv_hub_score = evv.read(&recv_hub_score);
         let recv_auth_score = evv.read(&recv_auth_score);
 
-        evv.update_local(
-            &auth_score,
-            recv_hub_score / evv.read_global_state(&total_hub_score).unwrap(),
-        );
-        evv.update_local(
-            &hub_score,
-            recv_auth_score / evv.read_global_state(&total_auth_score).unwrap(),
-        );
+        evv.get_mut().auth_score =
+            recv_hub_score / evv.read_global_state(&total_hub_score).unwrap();
+        evv.get_mut().hub_score =
+            recv_auth_score / evv.read_global_state(&total_auth_score).unwrap();
 
-        let prev_hub_score = evv.read_local_prev(&hub_score);
-        let curr_hub_score = evv.read_local(&hub_score);
+        let prev_hub_score = evv.prev().hub_score;
+        let curr_hub_score = evv.get().hub_score;
+
         let md_hub_score = abs(prev_hub_score - curr_hub_score);
         evv.global_update(&max_diff_hub_score, md_hub_score);
 
-        let prev_auth_score = evv.read_local_prev(&auth_score);
-        let curr_auth_score = evv.read_local(&auth_score);
+        let prev_auth_score = evv.prev().auth_score; 
+        let curr_auth_score = evv.get().auth_score; 
         let md_auth_score = abs(prev_auth_score - curr_auth_score);
         evv.global_update(&max_diff_auth_score, md_auth_score);
 
@@ -126,13 +120,23 @@ pub fn hits<G: GraphViewOps>(
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
 
     let (hub_scores, auth_scores) = runner.run(
-        vec![Job::new(step1)],
+        vec![],
         vec![Job::new(step2), Job::new(step3), Job::new(step4), step5],
-        |_, _, els| {
-            (
-                els.finalize(&hub_score, |hub_score| hub_score),
-                els.finalize(&auth_score, |auth_score| auth_score),
-            )
+        Hits {
+            hub_score: 1f32,
+            auth_score: 1f32,
+        },
+        |_, _, els, local| {
+            let mut hubs = HashMap::new();
+            let mut auths = HashMap::new();
+            for line in local.iter() {
+                if let Some((v_ref, hit)) = line {
+                    let v_gid = g.vertex_name(v_ref.clone());
+                    hubs.insert(v_gid.clone(), hit.hub_score);
+                    auths.insert(v_gid, hit.auth_score);
+                }
+            }
+            (hubs, auths)
         },
         threads,
         iter_count,

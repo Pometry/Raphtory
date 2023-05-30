@@ -48,6 +48,9 @@ jobs:
         run: |
           set -o pipefail
           cargo +nightly bench --bench base -p raphtory-benchmark -- --output-format=bencher | tee benchmark-result.txt
+      - name: Delete cargo.lock if it exists
+        run: |
+          rm -f Cargo.lock
       - name: Store benchmark result if repo is master
         if: github.ref == 'refs/heads/master'
         uses: benchmark-action/github-action-benchmark@v1

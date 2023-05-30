@@ -67,7 +67,8 @@ where
     runner.run(
         vec![],
         tasks,
-        |_, ess, _| ess.finalize(&min, |c| c),
+        (),
+        |_, ess, _, _| ess.finalize(&min, |c| c),
         threads,
         iter_count,
         None,

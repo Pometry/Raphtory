@@ -1,12 +1,20 @@
 [package]
-edition = "2021"
 name = "raphtory-graphql"
-version = "0.1.0"
-rust-version = "1.67.1"
+description = "Raphtory GraphQL server"
+edition.workspace = true
+rust-version.workspace = true
+version.workspace = true
+keywords.workspace = true
+authors.workspace = true
+documentation.workspace = true
+repository.workspace = true
+license.workspace = true
+readme.workspace = true
+homepage.workspace = true
 
 [dependencies]
-raphtory = { path = "../raphtory" }
-raphtory-io = { path = "../raphtory-io" }
+raphtory = { path = "../raphtory", version = "0.3.2" }
+raphtory-io = { path = "../raphtory-io", version = "0.3.2" }
 
 dotenv = "0.15.0"
 itertools = "0.10"

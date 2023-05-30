@@ -11,7 +11,6 @@ use crate::db::view_api::layer::LayerOps;
 use crate::db::view_api::vertex::VertexViewOps;
 use crate::db::view_api::{BoxedIter, GraphViewOps, TimeOps, VertexListOps};
 use std::collections::HashMap;
-use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub struct VertexView<G: GraphViewOps> {
@@ -34,8 +33,13 @@ impl<G: GraphViewOps> From<&VertexView<G>> for VertexRef {
 impl<G: GraphViewOps> VertexView<G> {
     /// Creates a new `VertexView` wrapping a vertex reference and a graph, localising any remote vertices to the correct shard.
     pub(crate) fn new(graph: G, vertex: VertexRef) -> VertexView<G> {
-        let v = graph.localise_vertex_unchecked(vertex);
-        VertexView { graph, vertex: v }
+        match vertex {
+            VertexRef::Local(local) => Self::new_local(graph, local),
+            _ => {
+                let v = graph.localise_vertex_unchecked(vertex);
+                VertexView { graph, vertex: v }
+            }
+        }
     }
 
     /// Creates a new `VertexView` wrapping a local vertex reference and a graph
