@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1685355898347,
+  "lastUpdate": 1685448768939,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -1939,6 +1939,60 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions with numeric string input",
             "value": 1761273,
             "range": "± 54331",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "2404621+fabianmurariu@users.noreply.github.com",
+            "name": "Fabian Murariu",
+            "username": "fabianmurariu"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8a754b8cbf4c48d585bcf14beda9076edd2bc1e9",
+          "message": "Pagerankv2 (#978)\n\n* move pagerank to f64 and relax the convergence\r\n\r\n* completely revamp local state\r\n\r\n* completely revamp local state - add prev_local_state\r\n\r\n* confirm we can set the local state from ATask\r\n\r\n* need to define EvalVertexState and make the vector of local states fixed size to address quickly\r\n\r\n* setup for the state is ready\r\n\r\n* it finally compiles\r\n\r\n* actually add the verte state\r\n\r\n* pull the local state out of EVState to avoid the Rc cost\r\n\r\n* began testing pull vesion of pagerank\r\n\r\n* found a bug in max_diff but pagerank first iteration shows up the right result\r\n\r\n* fix state update\r\n\r\n* remove useless clone\r\n\r\n* fixed all the types to f64, results are correct but normalisation fails\r\n\r\n* pagerank not working out yet\r\n\r\n* pagerank works now\r\n\r\n* all pagerank tests pass\r\n\r\n* added generic state S to the task eval\r\n\r\n* pagerank is at 4s\r\n\r\n* ImmutableGraph is now GraphViewInternalOps\r\n\r\n* erase lifetimes with macros\r\n\r\n* various attempts at improving speed\r\n\r\n* pagerank at 1.3s\r\n\r\n* minor change before rebase\r\n\r\n* fix issues after rebase\r\n\r\n* setting up to support window on EvalVertexView\r\n\r\n* Only WindowEvalEdgeView left\r\n\r\n* still loads of todos but we compile, need to adapt algos next\r\n\r\n* hits now works\r\n\r\n* generic taint works\r\n\r\n* all algos work appart from node motifs which didn't work in parallel before\r\n\r\n* mostly done\r\n\r\n* removed some warnings and bitset\r\n\r\n* fix the python test\r\n\r\n---------\r\n\r\nCo-authored-by: Lucas Jeub <lucas.jeub@pometry.com>",
+          "timestamp": "2023-05-30T14:08:45+02:00",
+          "tree_id": "73f7cb4c2a0aa07b399ef1094953e0837f3b4eb7",
+          "url": "https://github.com/Pometry/Raphtory/commit/8a754b8cbf4c48d585bcf14beda9076edd2bc1e9"
+        },
+        "date": 1685448767871,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 338395,
+            "range": "± 1356",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and numeric string input",
+            "value": 950581,
+            "range": "± 1371",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and string input",
+            "value": 976917,
+            "range": "± 1971",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 453579,
+            "range": "± 80056",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions with numeric string input",
+            "value": 1789969,
+            "range": "± 61174",
             "unit": "ns/iter"
           }
         ]
