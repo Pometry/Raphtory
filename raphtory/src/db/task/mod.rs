@@ -6,9 +6,12 @@ use rayon::{ThreadPool, ThreadPoolBuilder};
 pub mod context;
 pub mod eval_edge;
 pub mod eval_vertex;
+pub mod eval_vertex_state;
 pub mod task;
 pub mod task_runner;
 pub(crate) mod task_state;
+pub mod window_eval_vertex;
+pub mod window_eval_edge;
 
 pub static POOL: Lazy<Arc<ThreadPool>> = Lazy::new(|| {
     let num_threads = std::env::var("DOCBROWN_MAX_THREADS")
@@ -87,7 +90,8 @@ mod task_tests {
         let actual = runner.run(
             vec![],
             vec![Job::new(step1)],
-            |egs, _, _| egs.finalize(&count),
+            (),
+            |egs, _, _, _| egs.finalize(&count),
             Some(2),
             1,
             None,

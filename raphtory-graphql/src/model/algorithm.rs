@@ -115,7 +115,7 @@ impl Algo for Pagerank {
         let threads = ctx.args.get("threads").map(|v| v.u64()).transpose()?;
         let threads = threads.map(|v| v as usize);
         let tol = ctx.args.get("tol").map(|v| v.f64()).transpose()?;
-        let result = unweighted_page_rank(graph, iter_count, threads, tol)
+        let result = unweighted_page_rank(graph, iter_count, threads, tol, true)
             .into_iter()
             .map(|pair| FieldValue::owned_any(Pagerank::from(pair)));
         Ok(Some(FieldValue::list(result)))

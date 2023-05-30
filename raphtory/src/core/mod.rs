@@ -35,7 +35,6 @@ extern crate core;
 
 mod adj;
 pub mod agg;
-mod bitset;
 mod edge_layer;
 pub mod edge_ref;
 mod lazy_vec;
