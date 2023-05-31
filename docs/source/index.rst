@@ -25,7 +25,7 @@ dropped into your existing pipelines with a simple `pip install raphtory`.
     :class-container: sd-text-center
 
     .. grid-item-card:: Getting started
-        :img-top: _static/index_getting_started.svg
+        :img-top: images/index_getting_started.svg
         :class-card: intro-card
         :shadow: md
 
@@ -43,7 +43,7 @@ dropped into your existing pipelines with a simple `pip install raphtory`.
             To the getting started guides
 
     .. grid-item-card::  User guide
-        :img-top: _static/index_user_guide.svg
+        :img-top: images/index_user_guide.svg
         :class-card: intro-card
         :shadow: md
 
@@ -61,7 +61,7 @@ dropped into your existing pipelines with a simple `pip install raphtory`.
             To the user guide
 
     .. grid-item-card::  API reference
-        :img-top: _static/index_api.svg
+        :img-top: images/index_api.svg
         :class-card: intro-card
         :shadow: md
 
@@ -80,7 +80,7 @@ dropped into your existing pipelines with a simple `pip install raphtory`.
             To the reference guide
 
     .. grid-item-card::  Developer guide
-        :img-top: _static/index_contribute.svg
+        :img-top: images/index_contribute.svg
         :class-card: intro-card
         :shadow: md
 
