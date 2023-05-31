@@ -1,69 +1,112 @@
-.. raphtory documentation master file
+:notoc:
 
-Raphtory
-==================
+.. Raphtory documentation master file, created by
 
-.. raw:: html
+.. module:: Raphtory
 
-   <p align="center"><img src="_static/raphtory-banner.png" alt="Raphtory Banner"/></p>
+****************************************
+Raphtory documentation
+****************************************
 
-raphtory is the new version of Raphtory, rethinking several aspects of the underlying graph model and algorithm API.
+**Date**: |today| **Version**: |version|
 
-This is a temporal graph analytics engine, built natively in rust with full support in python!
+**Useful links**:
+`Source Repository <https://github.com/Pometry/Raphtory>`__ |
+`Issues & Ideas <https://github.com/Pometry/Raphtory/issues>`__ |
+`Slack Support <https://slack.com/raphtory>`__
 
-You can create and analyse graphs as easy as this in python::
+:mod:`Raphtory` is an in-memory graph tool written in Rust with friendly Python APIs on top.
+It is blazingly fast, scales to hundreds of millions of edges on your laptop, and can be
+dropped into your existing pipelines with a simple `pip install raphtory`.
 
-    from raphtory import Graph
-    g = Graph(1)
-    g.add_edge(0, "Ben", "Hamza", {"type": "friend"})
-    g.add_edge(1, "Hamza", "Haaroon", {"type": "friend"})
-    print(g.num_vertices())
-    print(g.num_edges())
+.. grid:: 1 2 2 2
+    :gutter: 4
+    :padding: 2 2 0 0
+    :class-container: sd-text-center
 
+    .. grid-item-card:: Getting started
+        :img-top: images/index_getting_started.svg
+        :class-card: intro-card
+        :shadow: md
 
-Raphtory can be installed using pip::
+        New to *Raphtory*? Check out the getting started guides. They contain an
+        introduction to *Raphtory'* main concepts and links to additional tutorials.
 
-    pip install raphtory
+        +++
 
-We also have supporting for building from source and installing the rust version, please see :doc:`installed <install/rust/install>`.
+        .. button-ref:: getting_started
+            :ref-type: ref
+            :click-parent:
+            :color: secondary
+            :expand:
 
-If you want to dive headfirst into the API's you can visit the  :doc:`Python and Rust docs <api/index>`.
+            To the getting started guides
 
-If you would like a brief summary of what it's used for before fully diving into the getting start guide please check out our latest talks and blogs on the `Raphtory website <https://raphtory.com>`_.
+    .. grid-item-card::  User guide
+        :img-top: images/index_user_guide.svg
+        :class-card: intro-card
+        :shadow: md
+
+        The user guide provides in-depth information on the
+        key concepts of Raphtory with useful background information and explanation.
+
+        +++
+
+        .. button-ref:: user_guide
+            :ref-type: ref
+            :click-parent:
+            :color: secondary
+            :expand:
+
+            To the user guide
+
+    .. grid-item-card::  API reference
+        :img-top: images/index_api.svg
+        :class-card: intro-card
+        :shadow: md
+
+        The reference guide contains a detailed description of
+        the Raphtory API. The reference describes how the methods work and which parameters can
+        be used. It assumes that you have an understanding of the key concepts.
+
+        +++
+
+        .. button-ref:: api
+            :ref-type: ref
+            :click-parent:
+            :color: secondary
+            :expand:
+
+            To the reference guide
+
+    .. grid-item-card::  Developer guide
+        :img-top: images/index_contribute.svg
+        :class-card: intro-card
+        :shadow: md
+
+        Saw a typo in the documentation? Want to improve
+        existing functionalities? The contributing guidelines will guide
+        you through the process of improving Raphtory.
+
+        +++
+
+        .. button-ref:: development
+            :ref-type: ref
+            :click-parent:
+            :color: secondary
+            :expand:
+
+            To the development guide
 
 
 .. toctree::
-   :maxdepth: 1
-   :hidden:
-   :caption: Quick Start (Python)
-
-   install/python/raphtory.ipynb
-   install/python/build.md
-   install/python/test.md
-
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-   :caption: Quick Start (Rust)
-
-   install/rust/install.md
-   Introduction/quickstart.md
-   install/rust/build.md
-   install/rust/test.md
+    :maxdepth: 3
+    :hidden:
+    :titlesonly:
 
 
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-   :caption: Introduction
+    getting_started/index
+    development/index
+    api/index
+    userguide/index
 
-   Introduction/ingestion.ipynb
-   Introduction/how_does_it_work
-
-
-.. toctree::
-   :hidden:
-   :maxdepth: 1
-   :caption: Documentation
-
-   api/index

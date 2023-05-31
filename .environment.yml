@@ -33,27 +33,36 @@ dependencies:
       - idna==3.3
       - imagesize==1.3.0
       - importlib-metadata==4.11.3
+      - jupyter==1.0.0
       - markdown-it-py==2.1.0
       - markupsafe==2.1.1
+      - matplotlib==3.7.1
       - maturin==0.14.17
       - mdit-py-plugins==0.3.0
       - mdurl==0.1.1
       - myst-parser==0.17.2
+      - numpydoc==1.5.0
       - packaging==21.3
+      - pandas==2.0.2
       - patchelf==0.17.2.1
       - poetry==1.2.0
       - pygments==2.12.0
       - pyparsing==3.0.8
       - pytz==2022.1
       - pyyaml==6.0
+      - pydata-sphinx-theme==0.13.3
+      - pyvis==0.3.2
       - requests==2.27.1
       - snowballstemmer==2.2.0
       - nbsphinx>=0.8.7
       - sphinx==4.5.0
       - sphinx-rtd-theme==1.0.0
       - sphinxcontrib-applehelp==1.0.2
+      - sphinx_copybutton==0.5.2
+      - sphinx_design==0.4.1
       - sphinxcontrib-devhelp==1.0.2
       - sphinxcontrib-htmlhelp==2.0.0
+      - sphinx_toggleprompt==0.4.0
       - sphinx-tabs==3.4.0
       - sphinxcontrib-jsmath==1.0.1
       - sphinxcontrib-qthelp==1.0.3
