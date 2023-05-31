@@ -12,14 +12,10 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::sync::Mutex;
 
-// lazy_static! {
-//     static ref PLUGIN_ALGOS: HashMap<String, Box<fn(&str, Registry, Object) -> (Registry, Object)>> =
-//         Default::default();
-// }
+type RegisterFunction = fn(&str, Registry, Object) -> (Registry, Object);
 
-pub(crate) static PLUGIN_ALGOS: Lazy<
-    Mutex<HashMap<String, fn(&str, Registry, Object) -> (Registry, Object)>>,
-> = Lazy::new(|| Mutex::new(HashMap::new()));
+pub(crate) static PLUGIN_ALGOS: Lazy<Mutex<HashMap<String, RegisterFunction>>> =
+    Lazy::new(|| Mutex::new(HashMap::new()));
 
 pub(crate) struct Algorithms {
     graph: DynamicGraph,
@@ -33,8 +29,6 @@ impl From<DynamicGraph> for Algorithms {
 
 impl Register for Algorithms {
     fn register(registry: Registry) -> Registry {
-        println!(">>>>>>>>>>> register being called in Algorithms");
-
         let mut registry = registry;
         let mut object = Object::new("Algorithms");
 
@@ -76,7 +70,6 @@ pub trait Algorithm: Register + 'static {
         let registry = registry.register::<Self>();
         let mut field = Field::new(name, Self::output_type(), |ctx| {
             FieldFuture::new(async move {
-                // dbg!(ctx.ctx.path_node.unwrap().parents().last().unwrap()); TODO: this allows us to know potentially which graph is being queried
                 let algos: &Algorithms = ctx.parent_value.downcast_ref().unwrap();
                 Self::apply_algo(&algos.graph, ctx)
             })

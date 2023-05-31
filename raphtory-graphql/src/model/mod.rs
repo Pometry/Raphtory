@@ -1,6 +1,6 @@
 use crate::data::Data;
 use async_graphql::Context;
-use dynamic_graphql::{Instance, ResolvedObject, ResolvedObjectFields, SimpleObject};
+use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, SimpleObject};
 use raphtory::db::edge::EdgeView;
 use raphtory::db::graph::Graph;
 use raphtory::db::graph_window::WindowedGraph;
@@ -18,7 +18,7 @@ pub(crate) mod algorithm;
 
 #[derive(ResolvedObject)]
 #[graphql(root)]
-pub struct QueryRoot;
+pub(crate) struct QueryRoot;
 
 #[ResolvedObjectFields]
 impl QueryRoot {
@@ -48,13 +48,6 @@ impl WrappedGraph for DynamicGraph {
 pub(crate) struct GqlGraph {
     graph: DynamicGraph,
 }
-
-// impl WrappedGraph for GqlGraph {
-//     type Internal = dyn GraphViewInternalOps + Send + Sync + 'static;
-//     fn as_graph(&self) -> &(dyn GraphViewInternalOps + Send + Sync + 'static) {
-//         &*self.graph
-//     }
-// }
 
 impl<G: GraphViewOps> From<G> for GqlGraph {
     fn from(value: G) -> Self {

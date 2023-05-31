@@ -6,7 +6,8 @@ use crate::routes::{graphql_playground, health};
 use async_graphql_poem::GraphQL;
 use dynamic_graphql::App;
 use poem::listener::TcpListener;
-use poem::{get, Route, Server};
+use poem::middleware::Cors;
+use poem::{get, EndpointExt, Route, Server};
 use tokio::io::Result as IoResult;
 use tokio::signal;
 use tracing_subscriber::layer::SubscriberExt;
@@ -57,7 +58,8 @@ impl RaphtoryServer {
         let schema = schema_builder.finish().unwrap();
         let app = Route::new()
             .at("/", get(graphql_playground).post(GraphQL::new(schema)))
-            .at("/health", get(health));
+            .at("/health", get(health))
+            .with(Cors::new());
 
         println!("Playground: http://localhost:{port}");
         Server::new(TcpListener::bind(format!("0.0.0.0:{port}")))
