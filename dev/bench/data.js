@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1685457870326,
+  "lastUpdate": 1685537581730,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -2047,6 +2047,60 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions with numeric string input",
             "value": 2450058,
             "range": "± 182358",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "Haaroon@users.noreply.github.com",
+            "name": "Haaroon Y",
+            "username": "Haaroon"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b8daedc666312735bbf6c6cc3de9529b461a423b",
+          "message": "new docs (#994)\n\n* new docs\r\n\r\n* finished getting started, added intro guide, added lotr ipynb, finished development guide with many pages, added initial api\r\n\r\n* added modules as docs\r\n\r\n* fix reqs\r\n\r\n* fix pands version\r\n\r\n* numpydoc\r\n\r\n* numpydoc\r\n\r\n* fix api doc to use google format\r\n\r\n* docs strings all expand now\r\n\r\n* move images to their own folder\r\n\r\n* move images to their own folder\r\n\r\n* move images to their own folder\r\n\r\n* fixed colors\r\n\r\n* add license and clean user guide\r\n\r\n* reqs\r\n\r\n* fix reqs for test\r\n\r\n* install raph into docs",
+          "timestamp": "2023-05-31T13:48:58+01:00",
+          "tree_id": "6d5b23fb931bb7d73afdb4e9cceb2c945a1dc991",
+          "url": "https://github.com/Pometry/Raphtory/commit/b8daedc666312735bbf6c6cc3de9529b461a423b"
+        },
+        "date": 1685537580694,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 309557,
+            "range": "± 831",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and numeric string input",
+            "value": 880385,
+            "range": "± 2009",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and string input",
+            "value": 921948,
+            "range": "± 3821",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 751409,
+            "range": "± 102691",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions with numeric string input",
+            "value": 2272238,
+            "range": "± 109204",
             "unit": "ns/iter"
           }
         ]
