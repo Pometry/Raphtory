@@ -1,3 +1,4 @@
+use std::cmp;
 use crate::db::view_api::VertexViewOps;
 use crate::{
     core::state::{accumulator_id::accumulators, compute_state::ComputeStateVec},
@@ -11,6 +12,20 @@ use crate::{
     },
 };
 use std::collections::HashMap;
+use crate::db::task::eval_vertex::EvalVertexView;
+
+#[derive(Clone, Debug)]
+struct WccState {
+    component: u64,
+}
+
+impl WccState {
+    fn new() -> Self {
+        Self {
+            component: 0,
+        }
+    }
+}
 
 /// Computes the connected components of a graph using the Simple Connected Components algorithm
 ///
@@ -34,46 +49,49 @@ where
 {
     let mut ctx: Context<G, ComputeStateVec> = graph.into();
 
-    let min = accumulators::min::<u64>(0);
-
-    // setup the aggregator to be merged post execution
-    ctx.agg(min);
-
     let step1 = ATask::new(move |vv| {
-        vv.update(&min, vv.id());
-
-        for n in vv.neighbours() {
-            let my_min = vv.read(&min);
-            n.update(&min, my_min)
-        }
-
+        let min_neighbour_id = vv.neighbours().id().min();
+        let id = vv.id();
+        let state: &mut WccState = vv.get_mut();
+        state.component = cmp::min(min_neighbour_id.unwrap_or(id), id);
         Step::Continue
     });
 
-    let step2 = ATask::new(move |vv| {
-        let current = vv.read(&min);
-        let prev = vv.read_prev(&min);
-
-        if current == prev {
-            Step::Done
-        } else {
+    let step2 = ATask::new(move |vv: &mut EvalVertexView<'_, G,ComputeStateVec, WccState>| {
+        let prev:u64 = vv.prev().component;
+        let current = vv.neighbours().into_iter().map(|n|n.prev().component).min().unwrap_or(prev);
+        let state: &mut WccState = vv.get_mut();
+        if current<prev {
+            state.component = current;
             Step::Continue
+        }
+        else {
+            Step::Done
         }
     });
 
-    let tasks = vec![Job::new(step1), Job::read_only(step2)];
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
 
     runner.run(
-        vec![],
-        tasks,
-        (),
-        |_, ess, _, _| ess.finalize(&min, |c| c),
+        vec![Job::new(step1)],
+        vec![Job::read_only(step2)],
+        WccState::new(),
+        |g, _, _, local| {
+            local
+                .iter()
+                .filter_map(|line| {
+                    line.as_ref()
+                        .map(|(v_ref, state)| (v_ref.clone(), state.component))
+                })
+                .collect::<HashMap<_, _>>()
+        },
         threads,
         iter_count,
         None,
         None,
-    )
+    ).into_iter()
+        .map(|(k, v)| (graph.vertex_name(k), v))
+        .collect()
 }
 
 #[cfg(test)]
@@ -101,7 +119,6 @@ mod cc_test {
         for (src, dst, ts) in edges {
             graph.add_edge(ts, src, dst, &vec![], None).unwrap();
         }
-
         let results: HashMap<String, u64> = weakly_connected_components(&graph, usize::MAX, None);
 
         assert_eq!(
