@@ -22,7 +22,7 @@ table {
 }
 
 .intro-card .sd-card-title {
-  color: var(--pst-color-primary);
+  color: #f04040;
   font-size: var(--pst-font-size-h5);
   padding: 1rem 0rem 0.5rem 0rem;
 }
@@ -53,4 +53,22 @@ table {
 
 .navbar-brand img {
    max-width: 80%;
+}
+
+h1, h2 {
+     color: #f04040;
+}
+
+html[data-theme="light"] {
+    --pst-color-primary: #f04040;
+}
+
+html[data-theme="dark"] {
+    --pst-color-primary: #f04040;
+}
+
+:root {
+    --pst-color-primary: #f04040;
+    --pst-color-link: #eb6060;
+    --pst-color-primary-light: #f04040;
 }
