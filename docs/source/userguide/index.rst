@@ -25,9 +25,6 @@ The first block is a standard python input, while in the second the ``In [1]:`` 
 Guides
 -------
 
-.. If you update this toctree, also update the manual toctree in the
-main index.rst.template
-
 .. toctree::
     :maxdepth: 2
 

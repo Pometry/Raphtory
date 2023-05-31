@@ -50,3 +50,7 @@ table {
 .card, .card img {
   background-color: var(--pst-color-background);
 }
+
+.navbar-brand img {
+   max-width: 80%;
+}
