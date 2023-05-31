@@ -11,6 +11,7 @@ Raphtory
    :undoc-members:
    :show-inheritance:
    :private-members:
+   :inherited-members:
 
 raphtory.vis
 -------------------
@@ -20,6 +21,7 @@ raphtory.vis
    :undoc-members:
    :show-inheritance:
    :private-members:
+   :inherited-members:
 
 
 raphtory.nullmodels
@@ -30,7 +32,7 @@ raphtory.nullmodels
    :undoc-members:
    :show-inheritance:
    :private-members:
-
+   :inherited-members:
 
 
 

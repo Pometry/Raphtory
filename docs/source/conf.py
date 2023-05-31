@@ -92,6 +92,9 @@ extlinks = {
     "issue": ("https://github.com/pometry/raphtory/issues/%s", "GH %s"),
 }
 
+autosummary_generate = True
+autosummary_imported_members = True
+
 # numpydoc
 def rstjinja(app, docname, source):
     """
