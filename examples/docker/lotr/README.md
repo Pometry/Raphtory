@@ -47,3 +47,15 @@ The output should be:
   }
 }
 ```
+
+## Develop your own algorithm as a plugin (advanced)
+
+https://betterprogramming.pub/cross-compiling-rust-from-mac-to-linux-7fad5a454ab1
+
+https://github.com/messense/homebrew-macos-cross-toolchains/tree/main
+
+```shell
+brew install SergioBenitez/osxct/x86_64-unknown-linux-gnu
+rustup target add aarch64-unknown-linux-gnu
+cargo build -p dummyalgo --release --target-dir target
+```

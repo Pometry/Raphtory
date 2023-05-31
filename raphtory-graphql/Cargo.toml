@@ -14,11 +14,13 @@ homepage.workspace = true
 
 [dependencies]
 raphtory = { path = "../raphtory", version = "0.3.2" }
-raphtory-io = { path = "../raphtory-io", version = "0.3.2" }
 
+libloading = "0.8.0"
 dotenv = "0.15.0"
 itertools = "0.10"
 serde = {version = "1.0.147", features = ["derive"]}
+lazy_static = "1.4.0"
+once_cell = "1.17.2"
 
 poem = "1.3.48"
 tokio = {version = "1.18.2", features = ["full"]}
@@ -30,6 +32,7 @@ async-graphql-poem = "5.0.5"
 futures-util = "0.3.0"
 async-stream = "0.3.0"
 
+# TODO: review we really need all of these:
 metrics = "0.20.1"
 metrics-exporter-prometheus = "0.11.0"
 opentelemetry = {version = "0.18.0", features = ["rt-tokio"]}
@@ -37,3 +40,7 @@ opentelemetry-jaeger = {version = "0.17.0", features = ["rt-tokio"]}
 tracing = "0.1.37"
 tracing-opentelemetry = "0.18.0"
 tracing-subscriber = {version = "0.3.16", features = ["std", "env-filter"]}
+
+[dev-dependencies]
+raphtory-io = { path = "../raphtory-io", version = "0.3.1" }
+

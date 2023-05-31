@@ -1,78 +1,84 @@
+use crate::model::DynamicGraph;
 use async_graphql::dynamic::{
     Field, FieldFuture, FieldValue, InputValue, Object, ResolverContext, TypeRef,
 };
 use async_graphql::{Context, FieldResult};
 use dynamic_graphql::internal::{OutputTypeName, Register, Registry, ResolveOwned, TypeName};
 use dynamic_graphql::SimpleObject;
+use once_cell::sync::Lazy;
 use raphtory::algorithms::pagerank::unweighted_page_rank;
 use raphtory::db::view_api::GraphViewOps;
 use std::borrow::Cow;
 use std::collections::HashMap;
+use std::sync::Mutex;
 
-pub(crate) struct Algorithms<G: GraphViewOps> {
-    graph: G,
+// lazy_static! {
+//     static ref PLUGIN_ALGOS: HashMap<String, Box<fn(&str, Registry, Object) -> (Registry, Object)>> =
+//         Default::default();
+// }
+
+pub(crate) static PLUGIN_ALGOS: Lazy<
+    Mutex<HashMap<String, fn(&str, Registry, Object) -> (Registry, Object)>>,
+> = Lazy::new(|| Mutex::new(HashMap::new()));
+
+pub(crate) struct Algorithms {
+    graph: DynamicGraph,
 }
 
-impl<G: GraphViewOps> Algorithms<G> {
-    pub(crate) fn new(graph: &G) -> Self {
-        Self {
-            graph: graph.clone(),
-        }
+impl From<DynamicGraph> for Algorithms {
+    fn from(graph: DynamicGraph) -> Self {
+        Self { graph }
     }
 }
 
-impl<G: GraphViewOps> Register for Algorithms<G> {
+impl Register for Algorithms {
     fn register(registry: Registry) -> Registry {
+        println!(">>>>>>>>>>> register being called in Algorithms");
+
         let mut registry = registry;
         let mut object = Object::new("Algorithms");
 
-        let algos = HashMap::from([("pagerank", Pagerank::register_algo::<G>)]);
+        let algos = HashMap::from([("pagerank", Pagerank::register_algo)]);
         for (name, register_algo) in algos {
             (registry, object) = register_algo(name, registry, object);
         }
 
-        // TODO: uncomment this for plugins
-        // let (registry, object) = unsafe {
-        //     let mut container: Container<ExternalAlgo> = Container::load("libalgo3.dylib").unwrap();
-        //     container.register_algo(registry, object)
-        // };
+        for (name, register_algo) in PLUGIN_ALGOS.lock().unwrap().iter() {
+            (registry, object) = register_algo(name, registry, object);
+        }
 
         registry.register_type(object)
     }
 }
 
-impl<G: GraphViewOps> TypeName for Algorithms<G> {
+impl TypeName for Algorithms {
     fn get_type_name() -> Cow<'static, str> {
         "Algorithms".into()
     }
 }
 
-impl<G: GraphViewOps> OutputTypeName for Algorithms<G> {}
+impl OutputTypeName for Algorithms {}
 
-impl<'a, G: GraphViewOps> ResolveOwned<'a> for Algorithms<G> {
+impl<'a> ResolveOwned<'a> for Algorithms {
     fn resolve_owned(self, _ctx: &Context) -> dynamic_graphql::Result<Option<FieldValue<'a>>> {
         Ok(Some(FieldValue::owned_any(self)))
     }
 }
 
-trait Algo: Register + 'static {
+pub trait Algorithm: Register + 'static {
     fn output_type() -> TypeRef;
     fn args<'a>() -> Vec<(&'a str, TypeRef)>;
     fn apply_algo<'a, G: GraphViewOps>(
         graph: &G,
         ctx: ResolverContext,
     ) -> FieldResult<Option<FieldValue<'a>>>;
-    fn register_algo<G: GraphViewOps>(
-        name: &str,
-        registry: Registry,
-        parent: Object,
-    ) -> (Registry, Object) {
+    fn register_algo(name: &str, registry: Registry, parent: Object) -> (Registry, Object) {
         let registry = registry.register::<Self>();
         let mut field = Field::new(name, Self::output_type(), |ctx| {
             FieldFuture::new(async move {
-                let algos: &Algorithms<G> = ctx.parent_value.downcast_ref().unwrap();
-                let graph = &algos.graph;
-                Self::apply_algo(graph, ctx)
+                // dbg!(ctx.ctx.path_node.unwrap().parents().last().unwrap()); TODO: this allows us to know potentially which graph is being queried
+                let algos: &Algorithms = ctx.parent_value.downcast_ref().unwrap();
+                Self::apply_algo(&algos.graph, ctx)
             })
         });
         for (name, type_ref) in Self::args() {
@@ -95,9 +101,9 @@ impl From<(String, f64)> for Pagerank {
     }
 }
 
-impl Algo for Pagerank {
+impl Algorithm for Pagerank {
     fn output_type() -> TypeRef {
-        // first _nn means that the list is never nul, second _nn means no element is null
+        // first _nn means that the list is never null, second _nn means no element is null
         TypeRef::named_nn_list_nn(Self::get_type_name()) //
     }
     fn args<'a>() -> Vec<(&'a str, TypeRef)> {

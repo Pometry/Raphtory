@@ -7,3 +7,4 @@ services:
       - "1736:1736"
     volumes:
       - ./lotr:/app/graphs/lotr
+      - ./plugin/target/release/libdummyalgo.so:/app/plugins/dummyalgo
