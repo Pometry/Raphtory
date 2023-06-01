@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1685633073408,
+  "lastUpdate": 1685644325810,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -2263,6 +2263,60 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions with numeric string input",
             "value": 1922813,
             "range": "± 71793",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97447091+ljeub-pometry@users.noreply.github.com",
+            "name": "ljeub-pometry",
+            "username": "ljeub-pometry"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0f9f70e84b36d8b598bcc6e9528240a577fdb9f1",
+          "message": "remove duplicate method and fix local state for windowed view (#1004)\n\n* remove duplicate method and fix local state for windowed view\r\n\r\n* len is max id + 1!",
+          "timestamp": "2023-06-01T19:30:22+01:00",
+          "tree_id": "6f7ffe6b1a9d2382beb631f34b0767f7f3edde48",
+          "url": "https://github.com/Pometry/Raphtory/commit/0f9f70e84b36d8b598bcc6e9528240a577fdb9f1"
+        },
+        "date": 1685644324655,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 336932,
+            "range": "± 1952",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and numeric string input",
+            "value": 945226,
+            "range": "± 6324",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and string input",
+            "value": 1008074,
+            "range": "± 5553",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 444232,
+            "range": "± 79625",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions with numeric string input",
+            "value": 1808090,
+            "range": "± 59567",
             "unit": "ns/iter"
           }
         ]
