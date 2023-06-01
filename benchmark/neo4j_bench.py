@@ -109,6 +109,7 @@ def import_data():
 
 class Neo4jBench(BenchmarkBase):
     def start_docker(self, **kwargs):
+        modify_data()
         image_name = 'neo4j:5.8.0'
         container_folder = '/var/lib/neo4j/import/data2/'
         envs = {
@@ -137,7 +138,7 @@ class Neo4jBench(BenchmarkBase):
 
     def __init__(self):
         self.driver = None
-        modify_data()
+
 
     def name(self):
         return "Neo4j"
