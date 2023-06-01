@@ -7,7 +7,7 @@ members = [
 	"python",
 	"py-raphtory",
 	"js-raphtory",
-	"raphtory-graphql"
+	"raphtory-graphql",
 ]
 default-members = ["raphtory"]
 
