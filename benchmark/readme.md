@@ -99,12 +99,12 @@ You will see the following
 
 # Results 
 
-|           | Setup | Degree | Out Neighbours | Page Rank | Connected Components |
-|-----------|-------|--------|---------------|-----------|----------------------|
-| Raphtory  |       |        |               |           |                      |
-| GraphTool | 194.09 | 0.008  |  43.30  | 4.75 |   3.83  |
-| Kuzu      |       |        |               |           |                      |
-| NetworkX  |       |        |               |           |                      |
-| Neo4J     |       |        |               |           |                      |
-| MemGraph  |       |        |               |           |                      |
-| Cozo      |       |        |               |           |                      |
+|           | Setup  | Degree | Out Neighbours | Page Rank | Connected Components |
+|------------|--------|-------|----------------|-----------|----------------------|
+| Raphtory   | 121.04 | 3.90  | 28.69          | 153.22    | 67.6301              |
+| GraphTool  | 194.09 | 0.008 | 43.30          | 4.75      | 3.83                 |
+| Kuzu       |        |       |                |           |                      |
+| NetworkX   |        |       |                |           |                      |
+| Neo4J      |        |       |                |           |                      |
+| MemGraph   |        |       |                |           |                      |
+| Cozo       |        |       |                |           |                      |
