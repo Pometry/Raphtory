@@ -7,9 +7,10 @@ pub(crate) struct Data {
 }
 
 impl Data {
-    pub(crate) fn load(directory_path: &str) -> Self {
-        let paths = fs::read_dir(directory_path)
-            .unwrap_or_else(|_| panic!("error reading directory {directory_path}"));
+    pub fn load(directory_path: &str) -> Self {
+        let paths = fs::read_dir(directory_path).unwrap_or_else(|_| {
+            panic!("path '{directory_path}' doesn't exist or it is not a directory")
+        });
 
         let graphs = paths
             .filter_map(|entry| {
