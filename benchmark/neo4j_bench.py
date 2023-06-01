@@ -156,8 +156,8 @@ class Neo4jBench(BenchmarkBase):
         execute_bash_command('export NEO4J_AUTH="neo4j/password"; export NEO4J_PLUGINS=\'['
                              '"graph-data-science"]\';/bin/bash -c "tini -s -g -- '
                              '/startup/docker-entrypoint.sh neo4j start &"', background=True)
-        print("Sleeping for 30 seconds...")
-        time.sleep(30)
+        print("Sleeping for 50 seconds...")
+        time.sleep(50)
         # print("Updating password")
         # change user password on neo4j login
         self.driver = GraphDatabase.driver(uri, auth=(username, password))

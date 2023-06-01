@@ -99,7 +99,7 @@ def run_benchmark(choice, docker=False):
                 fn_header += fn + ','
                 if driver.name() == 'Neo4j' and fn == 'setup':
                     # take away 15 seconds for the sleep time when restarting the database
-                    end_time = end_time - 30
+                    end_time = end_time - 50
                 times += str(end_time - start_time) + ','
             fn_header = fn_header[:-1]
             times = times[:-1]
