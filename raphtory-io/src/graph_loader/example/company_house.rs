@@ -3,7 +3,7 @@ use chrono::NaiveDateTime;
 use raphtory::core::Prop;
 use raphtory::db::graph::Graph;
 use raphtory::db::view_api::internal::GraphViewInternalOps;
-use raphtory::db::view_api::GraphViewOps;
+use raphtory::db::view_api::{GraphViewOps, VertexViewOps};
 use serde::Deserialize;
 use std::path::PathBuf;
 use std::{fs, time::Instant};
@@ -14,6 +14,7 @@ pub struct CompanyHouse {
     pincode: String,
     company: String,
     owner: String,
+    illegal_hmo: Option<String>
 }
 
 pub fn company_house_graph(path: Option<String>, num_shards: usize) -> Graph {
@@ -69,6 +70,14 @@ pub fn company_house_graph(path: Option<String>, num_shards: usize) -> Graph {
                 let address = company_house.address + ", " + pincode;
                 let company = company_house.company;
                 let owner = company_house.owner;
+                // let illegal_flag : Option<String> = match company_house.illegal_hmo {
+                //     Some(value) => match value.as_str() {
+                //         "true" => Some("true".to_string()),
+                //         "false" => Some("false".to_string()),
+                //         _ => None
+                //     },
+                //     None => None
+                // };
 
                 g.add_vertex(
                     NaiveDateTime::from_timestamp_opt(ts, 0).unwrap(),
@@ -76,16 +85,22 @@ pub fn company_house_graph(path: Option<String>, num_shards: usize) -> Graph {
                     &vec![],
                 ).expect("Failed to add vertex");
 
-                g.add_vertex_properties(owner.clone(), &vec![("type".into(), Prop::Str("owner".into()))])
+                g.add_vertex_properties(owner.clone(), &vec![
+                    ("type".into(), Prop::Str("owner".into()))
+                    ])
                     .expect("Failed to add vertex static property");
 
+              
                 g.add_vertex(
                     NaiveDateTime::from_timestamp_opt(ts, 0).unwrap(),
                     company.clone(),
                     &vec![],
                 ).expect("Failed to add vertex");
 
-                g.add_vertex_properties(company.clone(), &vec![("type".into(), Prop::Str("company".into()))])
+                g.add_vertex_properties(company.clone(), &vec![
+                    ("type".into(), Prop::Str("company".into())),
+                    ("flag".into(), Prop::Str(company_house.illegal_hmo.clone().unwrap_or("None".into())))
+                    ])
                     .expect("Failed to add vertex static property");
 
                 g.add_vertex(
@@ -93,8 +108,11 @@ pub fn company_house_graph(path: Option<String>, num_shards: usize) -> Graph {
                     address.clone(),
                     &vec![],
                 ).expect("Failed to add vertex");
-
-                g.add_vertex_properties(address.clone(), &vec![("type".into(), Prop::Str("address".into()))])
+                
+                g.add_vertex_properties(address.clone(), &vec![
+                    ("type".into(), Prop::Str("address".into())),
+                    ("flag".into(), Prop::Str(company_house.illegal_hmo.clone().unwrap_or("None".into())))
+                    ])
                     .expect("Failed to add vertex static property");
 
                 g.add_edge(
@@ -159,7 +177,7 @@ mod company_house_graph_test {
     #[test]
     fn test_ch_load() {
         let g = company_house_graph(
-            Some("/Users/shivamkapoor/Official/data/company-house".to_string()),
+            None,
             1,
         );
         assert_eq!(g.start().unwrap(), 1000);
