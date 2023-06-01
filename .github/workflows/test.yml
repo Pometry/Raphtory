@@ -21,6 +21,10 @@ jobs:
     name: Run Python tests
     uses: ./.github/workflows/test_python_workflow.yml
     secrets: inherit
+  call-test-docker-workflow-in-local-repo:
+    name: Run Docker tests
+    uses: ./.github/workflows/test_docker_workflow.yml
+    secrets: inherit
   call-benchmark-workflow-in-local-repo:
     name: Run benchmarks
     uses: ./.github/workflows/benchmark.yml

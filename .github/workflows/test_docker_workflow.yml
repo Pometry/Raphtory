@@ -1,0 +1,36 @@
+name: Run Python test
+on:
+  workflow_call:
+    inputs:
+      skip_tests:
+        type: boolean
+        default: false
+        required: false
+
+jobs:
+  docker-test:
+    if: ${{ !inputs.skip_tests }}
+    name: Docker Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        name: Checkout
+      - uses: docker/setup-buildx-action@v2
+        name: Set up Docker Buildx
+      - name: Build image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          load: true
+          tags: "pometry/raphtory"
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+      - name: Install Python dependencies
+        run: |
+          python -m pip install -q gql aiohttp
+      - name: Run Docker tests
+        run: make test-docker

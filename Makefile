@@ -23,3 +23,6 @@ test-all: rust-test
 
 install-python:
 	cd python && maturin build && pip install ../target/wheels/*.whl
+
+test-docker:
+	python raphtory-graphql/test_graphql_docker.py
