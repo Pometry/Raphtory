@@ -125,7 +125,7 @@ Some key notes:
   - Due to this, we had to change the format of the data specifically for Neo4J so it would
     import properly. So Neo4J runs a pre-processing step before running the benchmark. This
     alters the data, creating a header and adding labels. This is not counted in the setup time. 
-    However, it means the data ingested by neo is ever so smaller
+    However, it means the data ingested by neo is ever so larger
   - The admin ingestion also required that we use both a node list and edge list, which we did
     not need for some of the other tools. 
 
