@@ -66,7 +66,7 @@ pub fn company_house_graph(path: Option<String>, num_shards: usize) -> Graph {
             .set_delimiter(",")
             .load_into_graph(&g, |company_house: CompanyHouse, g: &Graph| {
                 let pincode = &company_house.pincode;
-                let address = company_house.address + pincode;
+                let address = company_house.address + ", " + pincode;
                 let company = company_house.company;
                 let owner = company_house.owner;
 
