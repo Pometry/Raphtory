@@ -181,6 +181,14 @@ impl<G: GraphViewOps> Node<G> {
             .collect()
     }
 
+    async fn neighbours<'a>(&self, _ctx: &Context<'a>) -> Vec<Node<G>> {
+        self.vv
+            .neighbours()
+            .iter()
+            .map(|vv| Node::new(vv.clone()))
+            .collect()
+    }
+
     async fn degree(&self) -> usize {
         self.vv.degree()
     }
