@@ -109,7 +109,7 @@ All the scripts and data were stored on the instance NVME drive.
 | Kuzu      | 63.30   | 1.08   | 0.591856       | NOT IMPL  | NOT IMPL             |
 | NetworkX  |         |        |                |           |                      |
 | Neo4J     |         |        |                |           |                      |
-| MemGraph  |         |        |                |           |                      |
+| MemGraph  | 498.38  | 73.08  |  75.574        | 131.46    | 142.55               |
 | Cozo      | 137.82  | 35.36  |  35.17         | 32.83     | N/A SEG FAULT        |
 
 Some key notes:
@@ -128,6 +128,11 @@ Some key notes:
     However, it means the data ingested by neo is ever so larger
   - The admin ingestion also required that we use both a node list and edge list, which we did
     not need for some of the other tools. 
+
+- Memgraph 
+  - It was advised to create indexes with the node list prior to relationships, which was done
+    in the setup time. This could be why it took the longest to setup.
+    https://memgraph.com/docs/memgraph/import-data/load-csv-clause#one-type-of-nodes-and-relationships
 
 - Cozo
   - Triggered a segmentation fault when running the connected components algorithm 
