@@ -44,6 +44,11 @@ class MemgraphBench(BenchmarkBase):
         self.graph = None
 
     def import_data(self):
+        query = 'LOAD CSV FROM "/tmp/data/simple-profiles.csv" NO HEADER DELIMITER  "\t" AS row '\
+                'CREATE (n:Node {id: row[0]});'
+        self.graph.execute(query)
+        query = 'CREATE INDEX ON :Node(id);'
+        self.graph.execute(query)
         query = 'LOAD CSV FROM "/tmp/data/simple-relationships.csv" NO HEADER DELIMITER  "\t" AS row WITH row ' \
                 'MERGE (n1:Node {id: row[0]}) MERGE (n2:Node {id: row[1]}) CREATE (n1)-[:FOLLOWS]->(n2);'
         self.graph.execute(query)
