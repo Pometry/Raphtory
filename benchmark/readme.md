@@ -102,15 +102,15 @@ You will see the following
 These benchmarks were run on Amazon AWS m5ad.4xlarge instances. 
 All the scripts and data were stored on the instance NVME drive.
 
-|           | Setup   | Degree | Out Neighbours | Page Rank | Connected Components |
-|-----------|---------|--------|----------------|-----------|----------------------|
-| Raphtory  | 121.04  | 3.90   | 28.69          | 153.22    | 67.6301              |
-| GraphTool | 194.09  | 0.008  | 43.30          | 4.75      | 3.83                 |
-| Kuzu      | 63.30   | 1.08   | 0.591856       | NOT IMPL  | NOT IMPL             |
-| NetworkX  |         |        |                |           |                      |
-| Neo4J     |         |        |                |           |                      |
-| MemGraph  | 498.38  | 73.08  |  75.574        | 131.46    | 142.55               |
-| Cozo      | 137.82  | 35.36  |  35.17         | 32.83     | N/A SEG FAULT        |
+|           | Setup   | Degree   | Out Neighbours | Page Rank | Connected Components |
+|-----------|---------|----------|----------------|-----------|----------------------|
+| Raphtory  | 121.04  | 3.90     | 28.69          | 153.22    | 67.6301              |
+| GraphTool | 194.09  | 0.008    | 43.30          | 4.75      | 3.83                 |
+| Kuzu      | 63.30   | 1.08     | 0.591856       | NOT IMPL  | NOT IMPL             |
+| NetworkX  | 130.66  | 0.000027 |                |           |                      |
+| Neo4J     |         |          |                |           |                      |
+| MemGraph  | 498.38  | 73.08    |  75.574        | 131.46    | 142.55               |
+| Cozo      | 137.82  | 35.36    |  35.17         | 32.83     | N/A SEG FAULT        |
 
 Some key notes:
 - Kuzu
