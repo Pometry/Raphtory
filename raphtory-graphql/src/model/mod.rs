@@ -173,6 +173,14 @@ impl<G: GraphViewOps> Node<G> {
         Some(Property::new(name, prop))
     }
 
+    async fn in_neighbours<'a>(&self, _ctx: &Context<'a>) -> Vec<Node<G>> {
+        self.vv
+            .in_neighbours()
+            .iter()
+            .map(|vv| Node::new(vv.clone()))
+            .collect()
+    }
+
     async fn out_neighbours<'a>(&self, _ctx: &Context<'a>) -> Vec<Node<G>> {
         self.vv
             .out_neighbours()
