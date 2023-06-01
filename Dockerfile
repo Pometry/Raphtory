@@ -3,11 +3,8 @@ FROM rust:1.67.1 AS builder
 WORKDIR /app
 
 COPY Cargo.toml Cargo.lock ./
-RUN sed -i '/raphtory-benchmark/d' Cargo.toml
-RUN sed -i '/raphtory-io/d' Cargo.toml
-RUN sed -i '/examples\/rust/d' Cargo.toml
-RUN sed -i '/python/d' Cargo.toml
-RUN sed -i '/py-raphtory/d' Cargo.toml
+RUN sed -i '/default-members/d' Cargo.toml
+RUN sed -i '/members = \[/,/\]/c\members = ["raphtory", "raphtory-graphql"]' Cargo.toml
 
 WORKDIR /app/raphtory
 COPY raphtory/Cargo.toml ./
@@ -21,7 +18,6 @@ WORKDIR /app
 RUN cargo build --release --workspace
 
 COPY raphtory ./raphtory
-COPY raphtory-io ./raphtory-io
 COPY raphtory-graphql ./raphtory-graphql
 
 WORKDIR /app/raphtory-graphql
