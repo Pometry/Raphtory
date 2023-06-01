@@ -99,6 +99,9 @@ You will see the following
 
 # Results 
 
+These benchmarks were run on Amazon AWS m5ad.4xlarge instances. 
+All the scripts and data were stored on the instance NVME drive.
+
 |           | Setup   | Degree | Out Neighbours | Page Rank | Connected Components |
 |------------|---------|-------|----------------|-----------|----------------------|
 | Raphtory   | 121.04  | 3.90  | 28.69          | 153.22    | 67.6301              |
@@ -107,4 +110,18 @@ You will see the following
 | NetworkX   |         |       |                |           |                      |
 | Neo4J      |         |       |                |           |                      |
 | MemGraph   |         |       |                |           |                      |
-| Cozo       |         |       |                |           |                      |
+| Cozo       | 137.82  | 35.36 |  35.17         | 32.83     | N/A SEG FAULT        |
+
+Some key notes:
+- Kuzu
+  - Does not support page rank or connected components
+  - Out neighbours was run as a count as Kuzu emitted runtime errors if you attempt to get all the results
+
+- Neo4J
+  - Due to the way Neo4J imports batch data, the data import was run in offline mode using
+    the Neo4j admin tool, this was counted in the setup time. The script then starts a Neo4J
+    instance and waits for it to be online, we give the script 50 seconds to do this. These 
+    50 seconds are removed from the setup time
+
+- Cozo
+  - Triggered a segmentation fault when running the connected components algorithm 
