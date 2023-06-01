@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1685550552743,
+  "lastUpdate": 1685615063727,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -2155,6 +2155,60 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions with numeric string input",
             "value": 2059399,
             "range": "± 163118",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ricopinazo@gmail.com",
+            "name": "Pedro Rico Pinazo",
+            "username": "ricopinazo"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "37c403630a9ff4f951198b75655878ccee7e0784",
+          "message": "add initial plugin example (#998)\n\n* add initial plugin example\r\n\r\n* revert back testing changes\r\n\r\n* clean up changes\r\n\r\n* fix Dockerfile",
+          "timestamp": "2023-06-01T11:20:27+01:00",
+          "tree_id": "69bb6a8bb8a775dfe422916a3eda28a4d03f7d08",
+          "url": "https://github.com/Pometry/Raphtory/commit/37c403630a9ff4f951198b75655878ccee7e0784"
+        },
+        "date": 1685615063107,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 316461,
+            "range": "± 2415",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and numeric string input",
+            "value": 896054,
+            "range": "± 3610",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and string input",
+            "value": 935646,
+            "range": "± 3009",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 725418,
+            "range": "± 109748",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions with numeric string input",
+            "value": 2217248,
+            "range": "± 137905",
             "unit": "ns/iter"
           }
         ]
