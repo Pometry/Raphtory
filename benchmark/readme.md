@@ -100,11 +100,11 @@ You will see the following
 # Results 
 
 |           | Setup | Degree | Out Neighbours | Page Rank | Connected Components |
-|-----------|-------|--------|----------------|-----------|----------------------|
-| Raphtory  |       |        |                |           |                      |
-| GraphTool |       |        |                |           |                      |
-| Kuzu      |       |        |                |           |                      |
-| NetworkX  |       |        |                |           |                      |
-| Neo4J     |       |        |                |           |                      |
-| MemGraph  |       |        |                |           |                      |
-| Cozo      |       |        |                |           |                      |
+|-----------|-------|--------|---------------|-----------|----------------------|
+| Raphtory  |       |        |               |           |                      |
+| GraphTool | 194.09 | 0.008  |  43.30  | 4.75 |   3.83  |
+| Kuzu      |       |        |               |           |                      |
+| NetworkX  |       |        |               |           |                      |
+| Neo4J     |       |        |               |           |                      |
+| MemGraph  |       |        |               |           |                      |
+| Cozo      |       |        |               |           |                      |
