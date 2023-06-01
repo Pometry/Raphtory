@@ -639,15 +639,6 @@ pub trait GraphViewInternalOps {
     ) -> HashMap<String, Vec<(i64, Prop)>>;
 
     fn num_shards(&self) -> usize;
-
-    fn vertices_shard(&self, shard_id: usize) -> Box<dyn Iterator<Item = LocalVertexRef> + Send>;
-
-    fn vertices_shard_window(
-        &self,
-        shard_id: usize,
-        t_start: i64,
-        t_end: i64,
-    ) -> Box<dyn Iterator<Item = LocalVertexRef> + Send>;
 }
 
 pub trait WrappedGraph {
@@ -1019,19 +1010,5 @@ where
 
     fn num_shards(&self) -> usize {
         self.as_graph().num_shards()
-    }
-
-    fn vertices_shard(&self, shard_id: usize) -> Box<dyn Iterator<Item = LocalVertexRef> + Send> {
-        self.as_graph().vertices_shard(shard_id)
-    }
-
-    fn vertices_shard_window(
-        &self,
-        shard_id: usize,
-        t_start: i64,
-        t_end: i64,
-    ) -> Box<dyn Iterator<Item = LocalVertexRef> + Send> {
-        self.as_graph()
-            .vertices_shard_window(shard_id, t_start, t_end)
     }
 }

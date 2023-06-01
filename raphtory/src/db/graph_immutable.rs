@@ -726,17 +726,4 @@ impl GraphViewInternalOps for ImmutableGraph {
     fn num_shards(&self) -> usize {
         self.nr_shards
     }
-
-    fn vertices_shard(&self, shard_id: usize) -> Box<dyn Iterator<Item = LocalVertexRef> + Send> {
-        Box::new(self.shards[shard_id].vertices())
-    }
-
-    fn vertices_shard_window(
-        &self,
-        shard_id: usize,
-        t_start: i64,
-        t_end: i64,
-    ) -> Box<dyn Iterator<Item = LocalVertexRef> + Send> {
-        Box::new(self.shards[shard_id].vertices_window(t_start..t_end))
-    }
 }
