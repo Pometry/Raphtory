@@ -98,3 +98,13 @@ You will see the following
 
 
 # Results 
+
+|           | Setup | Degree | Out Neighbours | Page Rank | Connected Components |
+|-----------|-------|--------|----------------|-----------|----------------------|
+| Raphtory  |       |        |                |           |                      |
+| GraphTool |       |        |                |           |                      |
+| Kuzu      |       |        |                |           |                      |
+| NetworkX  |       |        |                |           |                      |
+| Neo4J     |       |        |                |           |                      |
+| MemGraph  |       |        |                |           |                      |
+| Cozo      |       |        |                |           |                      |
