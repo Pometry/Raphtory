@@ -45,6 +45,7 @@ class KuzuBench(BenchmarkBase):
         df = res.get_as_df()
 
     def out_neighbours(self):
+        self.conn.set_query_timeout(300000) # 300 seconds
         res = self.run_query('MATCH (u:User)-[:Follows]->(n)'
                              'RETURN u.id, COLLECT(n.id) AS out_neighbours')
         df = res.get_as_df()
