@@ -9,7 +9,7 @@ import multiprocessing
 
 class BenchmarkBase(ABC):
 
-    def start_docker(self, image_name, container_folder, exec_commands, envs={}, ports={}, image_path=None, wait=0):
+    def start_docker(self, image_name, container_folder, exec_commands, envs={}, ports={}, image_path=None, wait=0, start_cmd=None):
         if envs is None:
             envs = {}
         print('Creating Docker client...')
@@ -30,19 +30,29 @@ class BenchmarkBase(ABC):
 
         print('Running Docker container & benchmark...')
 
-        num_cpus = multiprocessing.cpu_count()-1
-
-        self.container = self.docker.containers.run(
-            image_name,
-            volumes=volumes,
-            detach=True,
-            stdin_open = True,
-            tty=True,
-            environment=envs,
-            ports=ports,
-            mem_limit='4g',
-            cpuset_cpus='0-{}'.format(num_cpus),
-        )
+        if start_cmd is None:
+            self.container = self.docker.containers.run(
+                image_name,
+                volumes=volumes,
+                detach=True,
+                stdin_open = True,
+                tty=True,
+                environment=envs,
+                ports=ports,
+                mem_limit='4g',
+            )
+        else:
+            self.container = self.docker.containers.run(
+                image_name,
+                command=start_cmd,
+                volumes=volumes,
+                detach=True,
+                stdin_open = True,
+                tty=True,
+                environment=envs,
+                ports=ports,
+                mem_limit='4g',
+            )
 
         time.sleep(wait)
 

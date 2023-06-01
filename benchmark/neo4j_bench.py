@@ -1,20 +1,16 @@
+import os
+import subprocess
+import time
+
 from benchmark_base import BenchmarkBase
+import pandas as pd
+import csv
+
 # Dont fail if not imported locally
 try:
     from neo4j import GraphDatabase
 except ImportError:
     pass
-
-
-def import_data(tx):
-    tx.run("""
-    LOAD CSV FROM 'file:///data2/data/simple-relationships.csv' AS row
-    FIELDTERMINATOR '\t'
-    WITH row[0] AS source, row[1] AS target
-    MERGE (n1:Node {id: source})
-    MERGE (n2:Node {id: target})
-    MERGE (n1)-[:FOLLOWS]->(n2)
-    """)
 
 
 def create_graph_projection(tx):
@@ -55,6 +51,58 @@ def run_connected_components(tx):
     return list(result)
 
 
+def execute_bash_command(command):
+    process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    stdout, stderr = process.communicate()
+    return stdout.decode('utf-8'), stderr.decode('utf-8')
+
+
+def write_array_to_csv(arr, file_path):
+    with open(file_path, 'w', newline='') as csv_file:
+        writer = csv.writer(csv_file, delimiter='\t')
+        writer.writerows(arr)
+
+
+def modify_data():
+    print("Generating data...")
+    file_dir = os.path.abspath(os.getcwd()) + '/data/'
+    print("File dir: ", file_dir)
+    if 'simple-profiles-header-neo4j.csv' not in os.listdir(file_dir):
+        print("Generating node header")
+        write_array_to_csv([['node:ID', 'name']], file_dir + 'simple-profiles-header-neo4j.csv')
+
+        print("Generating relationship header")
+        write_array_to_csv([['node:START_ID', 'node:END_ID', ':TYPE']],
+                           file_dir + 'simple-relationships-headers-neo4j.csv')
+
+        print("Generating node data")
+        df = pd.read_csv(file_dir + 'simple-profiles.csv', sep='\t', header=None)
+        df['copy'] = df[0].copy()
+        df.to_csv(file_dir + 'simple-profiles-neo4j.csv', index=None, header=None, sep='\t')
+
+        print("Generating relationship data")
+        df = pd.read_csv(file_dir + 'simple-relationships.csv', sep='\t', header=None)
+        df['type'] = 'FOLLOWS'
+        df.to_csv(file_dir + 'simple-relationships-neo4j.csv', sep='\t', index=None, header=None)
+        print("Done")
+
+
+def import_data():
+    return execute_bash_command("neo4j-admin database import full --overwrite-destination --delimiter='TAB' "
+                         "--nodes=/var/lib/neo4j/import/data2/data/simple-profiles-header-neo4j.csv,"
+                         "/var/lib/neo4j/import/data2/data/simple-profiles-neo4j.csv"
+                         "--relationships=/var/lib/neo4j/import/data2/data/simple-relationships-headers-neo4j.csv,"
+                         "/var/lib/neo4j/import/data2/data/simple-relationships-neo4j.csv neo4j")
+    # tx.run("""
+    # LOAD CSV FROM 'file:///data2/data/simple-relationships.csv' AS row
+    # FIELDTERMINATOR '\t'
+    # WITH row[0] AS source, row[1] AS target
+    # MERGE (n1:Node {id: source})
+    # MERGE (n2:Node {id: target})
+    # MERGE (n1)-[:FOLLOWS]->(n2)
+    # """)
+
+
 class Neo4jBench(BenchmarkBase):
     def start_docker(self, **kwargs):
         image_name = 'neo4j:5.8.0'
@@ -70,11 +118,14 @@ class Neo4jBench(BenchmarkBase):
         exec_commands = [
             '/bin/bash -c "apt update && apt install python3-pip -y"',
             '/bin/bash -c "python3 -m pip install neo4j requests tqdm pandas numpy docker"',
+            # '/bin/bash -c "neo4j start"',
+            # '/bin/bash -c "sleep 15"',
             '/bin/bash -c "cd /var/lib/neo4j/import/data2/; python3 benchmark_driver.py --no-docker --bench neo"',
         ]
         # image_path = 'DockerFiles/pyneo' image_path ports
         code, contents = super().start_docker(image_name=image_name, container_folder=container_folder,
-                                              exec_commands=exec_commands, envs=envs, wait=35)
+                                              exec_commands=exec_commands, envs=envs, wait=35,
+                                              start_cmd='tail -f /dev/null')
         return code, contents
 
     def shutdown(self):
@@ -82,6 +133,7 @@ class Neo4jBench(BenchmarkBase):
 
     def __init__(self):
         self.driver = None
+        modify_data()
 
     def name(self):
         return "Neo4j"
@@ -89,16 +141,27 @@ class Neo4jBench(BenchmarkBase):
     def setup(self):
         uri = "bolt://localhost:7687"
         username = "neo4j"
-        password = "password"
+        password = "neo4j"
+        print("Logging into neo4j")
+        # self.driver = GraphDatabase.driver(uri, auth=(username, password))
+        print("Importing data")
+        stout, sterr = import_data()
+        print("status: ", stout)
+        print("Restarting neo4j")
+        print("status: ", stout)
+        stout, sterr = execute_bash_command('export NEO4J_PLUGINS=\'["graph-data-science"]\';neo4j start')
+        print("status: ", stout)
+        time.sleep(15)
+        print("Creating graph projection")
+        # change user password on neo4j login
         self.driver = GraphDatabase.driver(uri, auth=(username, password))
-        self.execute_write(import_data)
+        self.execute_write("ALTER CURRENT USER SET PASSWORD FROM 'neo4j' TO 'password'")
         self.execute_write(create_graph_projection)
+        print("Done")
 
     def execute_read(self, query):
-        x = None
         with self.driver.session() as session:
-            x = session.execute_read(query)
-        return x
+            return session.execute_read(query)
 
     def execute_write(self, query):
         with self.driver.session() as session:
