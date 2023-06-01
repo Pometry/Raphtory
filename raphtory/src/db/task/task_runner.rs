@@ -199,7 +199,7 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         let g = self.ctx.graph();
 
         // find the shard with the largest number of vertices
-        let max_shard_len = g.vertex_refs().map(|v| v.pid).max().unwrap_or(0);
+        let max_shard_len = g.vertex_refs().map(|v| v.pid).max().unwrap_or(0) + 1;
 
         let n_shards = g.num_shards();
 
