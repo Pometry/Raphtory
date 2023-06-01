@@ -53,8 +53,6 @@ use crate::db::task::task_runner::TaskRunner;
 use crate::db::view_api::{GraphViewOps, VertexViewOps};
 use std::collections::{HashMap, HashSet};
 
-struct GlobalReciprocity {}
-
 /// Gets the unique edge counts excluding cycles for a vertex. Returns a tuple of usize
 /// (out neighbours, in neighbours, the intersection of the out and in neighbours)
 fn get_reciprocal_edge_count<G: GraphViewOps, CS: ComputeState>(

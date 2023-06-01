@@ -33,15 +33,12 @@
 //!  println!("triplet count: {}", results);
 //! ```
 //!
-
-use crate::core::state::accumulator_id::accumulators;
 use crate::core::state::accumulator_id::accumulators::sum;
 use crate::core::state::compute_state::ComputeStateVec;
 use crate::db::task::context::Context;
 use crate::db::task::task::{ATask, Job, Step};
 use crate::db::task::task_runner::TaskRunner;
 use crate::db::view_api::{GraphViewOps, VertexViewOps};
-use futures::TryFutureExt;
 
 /// Computes the number of both open and closed triplets within a graph
 ///

@@ -151,6 +151,50 @@ pub fn run_large_ingestion_benchmarks<F>(
 
     bench(
         group,
+        "1k fixed edge updates with varying time and numeric string input",
+        parameter,
+        |b: &mut Bencher| {
+            b.iter_batched_ref(
+                || {
+                    (
+                        make_graph(),
+                        make_time_gen().take(updates).collect::<Vec<i64>>(),
+                    )
+                },
+                |(g, times)| {
+                    for t in times.iter() {
+                        g.add_edge(*t, "0", "0", &vec![], None).unwrap()
+                    }
+                },
+                BatchSize::SmallInput,
+            )
+        },
+    );
+
+    bench(
+        group,
+        "1k fixed edge updates with varying time and string input",
+        parameter,
+        |b: &mut Bencher| {
+            b.iter_batched_ref(
+                || {
+                    (
+                        make_graph(),
+                        make_time_gen().take(updates).collect::<Vec<i64>>(),
+                    )
+                },
+                |(g, times)| {
+                    for t in times.iter() {
+                        g.add_edge(*t, "test", "other", &vec![], None).unwrap()
+                    }
+                },
+                BatchSize::SmallInput,
+            )
+        },
+    );
+
+    bench(
+        group,
         "1k random edge additions",
         parameter,
         |b: &mut Bencher| {
@@ -160,6 +204,37 @@ pub fn run_large_ingestion_benchmarks<F>(
                         make_graph(),
                         make_index_gen(),
                         make_index_gen(),
+                        make_time_gen().take(updates).collect::<Vec<i64>>(),
+                    )
+                },
+                |(g, src_gen, dst_gen, times)| {
+                    for t in times.iter() {
+                        g.add_edge(
+                            *t,
+                            src_gen.next().unwrap(),
+                            dst_gen.next().unwrap(),
+                            &vec![],
+                            None,
+                        )
+                        .unwrap()
+                    }
+                },
+                BatchSize::SmallInput,
+            )
+        },
+    );
+
+    bench(
+        group,
+        "1k random edge additions with numeric string input",
+        parameter,
+        |b: &mut Bencher| {
+            b.iter_batched_ref(
+                || {
+                    (
+                        make_graph(),
+                        make_index_gen().map(|v| v.to_string()),
+                        make_index_gen().map(|v| v.to_string()),
                         make_time_gen().take(updates).collect::<Vec<i64>>(),
                     )
                 },
