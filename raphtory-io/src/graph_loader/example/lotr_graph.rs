@@ -45,6 +45,7 @@ pub struct Lotr {
 pub fn lotr_file() -> Result<PathBuf, Box<dyn std::error::Error>> {
     fetch_file(
         "lotr.csv",
+        true,
         "https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv",
         600,
     )

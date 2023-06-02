@@ -32,7 +32,7 @@ fn main() {
         Some(args.get(1).unwrap().to_string())
     };
 
-    let g = stable_coin_graph(data_dir, 1);
+    let g = stable_coin_graph(data_dir,true, 1);
 
     assert_eq!(g.num_vertices(), 1523333);
     assert_eq!(g.num_edges(), 2814155);

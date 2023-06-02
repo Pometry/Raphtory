@@ -292,8 +292,8 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         } else {
             prev_local_state
         };
-
-        println!("Done running iterations: {ss}");
+        //TODO change to log
+        //println!("Done running iterations: {ss}");
 
         f(
             GlobalState::new(global_state, ss),

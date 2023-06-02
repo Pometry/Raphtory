@@ -61,11 +61,13 @@ pub fn reddit_file(
     match test_file {
         Some(true) => fetch_file(
             "reddit-title-test.tsv",
+            true,
             "https://raw.githubusercontent.com/Raphtory/Data/main/reddit-title-test.tsv",
             timeout,
         ),
         _ => fetch_file(
             "reddit-title.tsv",
+            true,
             "http://snap.stanford.edu/data/soc-redditHyperlinks-title.tsv",
             timeout,
         ),
