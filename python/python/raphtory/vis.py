@@ -78,6 +78,7 @@ def to_pyvis(
        
     visGraph.show_buttons(filter_=['physics'])
     visGraph.show('nx.html')
+    return visGraph
     
 r"""Draw a graph with NetworkX.
 

@@ -1,0 +1,14 @@
+[workspace]
+
+[package]
+name = "dummyalgo"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+raphtory = { path = "/tmp/raphtory/raphtory", version = "0.3.1" }
+raphtory-graphql = { path = "/tmp/raphtory/raphtory-graphql", version = "0.3.1" }
+
+async-graphql = {version = "5.0.5", features = ["dynamic-schema"]}
+dynamic-graphql = "0.7.3"
+tokio = {version = "1.18.2", features = ["full"]}

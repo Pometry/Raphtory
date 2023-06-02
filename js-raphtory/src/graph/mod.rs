@@ -1,3 +1,4 @@
+#[cfg(feature = "console_error_panic_hook")]
 extern crate console_error_panic_hook;
 
 use core::panic;
@@ -54,8 +55,6 @@ impl UnderGraph {
         }
     }
 }
-
-
 
 #[wasm_bindgen]
 impl Graph {

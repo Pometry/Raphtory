@@ -44,7 +44,7 @@ fn main() {
 
     println!("Pagerank");
     let now = Instant::now();
-    let _ = unweighted_page_rank(&g, 20, None, None);
+    let _ = unweighted_page_rank(&g, 20, None, None, true);
     println!("Time taken: {} secs", now.elapsed().as_secs());
 
     let now = Instant::now();
@@ -53,6 +53,7 @@ fn main() {
         20,
         None,
         None,
+        true,
     );
     println!("Time taken: {} secs", now.elapsed().as_secs());
 
@@ -63,6 +64,7 @@ fn main() {
         20,
         None,
         None,
+        true
     );
     println!("Time taken: {} secs", now.elapsed().as_secs());
 

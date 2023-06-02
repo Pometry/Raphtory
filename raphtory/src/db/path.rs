@@ -27,7 +27,7 @@ pub enum Operations {
 impl Operations {
     fn op<G: GraphViewOps>(
         self,
-        graph: Arc<G>,
+        graph: G,
         iter: Box<dyn Iterator<Item = VertexRef> + Send>,
     ) -> Box<dyn Iterator<Item = VertexRef> + Send> {
         match self {
@@ -53,12 +53,12 @@ impl Operations {
 
 #[derive(Clone)]
 pub struct PathFromGraph<G: GraphViewOps> {
-    pub graph: Arc<G>,
+    pub graph: G,
     pub operations: Arc<Vec<Operations>>,
 }
 
 impl<G: GraphViewOps> PathFromGraph<G> {
-    pub(crate) fn new(graph: Arc<G>, operation: Operations) -> PathFromGraph<G> {
+    pub(crate) fn new(graph: G, operation: Operations) -> PathFromGraph<G> {
         PathFromGraph {
             graph,
             operations: Arc::new(vec![operation]),
@@ -248,7 +248,7 @@ impl<G: GraphViewOps> TimeOps for PathFromGraph<G> {
 
     fn window<T: IntoTime>(&self, t_start: T, t_end: T) -> Self::WindowedViewType {
         PathFromGraph {
-            graph: Arc::new(self.graph.window(t_start, t_end)),
+            graph: self.graph.window(t_start, t_end),
             operations: self.operations.clone(),
         }
     }
@@ -259,14 +259,14 @@ impl<G: GraphViewOps> LayerOps for PathFromGraph<G> {
 
     fn default_layer(&self) -> Self::LayeredViewType {
         PathFromGraph {
-            graph: self.graph.default_layer().as_arc(),
+            graph: self.graph.default_layer(),
             operations: self.operations.clone(),
         }
     }
 
     fn layer(&self, name: &str) -> Option<Self::LayeredViewType> {
         Some(PathFromGraph {
-            graph: self.graph.layer(name)?.as_arc(),
+            graph: self.graph.layer(name)?,
             operations: self.operations.clone(),
         })
     }
@@ -274,26 +274,33 @@ impl<G: GraphViewOps> LayerOps for PathFromGraph<G> {
 
 #[derive(Clone)]
 pub struct PathFromVertex<G: GraphViewOps> {
-    pub graph: Arc<G>,
+    pub graph: G,
     pub vertex: LocalVertexRef,
     pub operations: Arc<Vec<Operations>>,
 }
 
 impl<G: GraphViewOps> PathFromVertex<G> {
-    pub fn iter(&self) -> Box<dyn Iterator<Item = VertexView<G>> + Send> {
+
+    pub fn iter_refs(&self) -> Box<dyn Iterator<Item = VertexRef> + Send> {
         let init: Box<dyn Iterator<Item = VertexRef> + Send> =
             Box::new(iter::once(VertexRef::Local(self.vertex)));
         let g = self.graph.clone();
         let ops = self.operations.clone();
         let iter = ops
             .iter()
-            .fold(init, |it, op| Box::new(op.op(g.clone(), it)))
+            .fold(init, |it, op| Box::new(op.op(g.clone(), it)));
+        Box::new(iter)
+    }
+
+    pub fn iter(&self) -> Box<dyn Iterator<Item = VertexView<G>> + Send> {
+        let g = self.graph.clone();
+        let iter = self.iter_refs()
             .map(move |v| VertexView::new(g.clone(), v));
         Box::new(iter)
     }
 
     pub(crate) fn new<V: Into<VertexRef>>(
-        graph: Arc<G>,
+        graph: G,
         vertex: V,
         operation: Operations,
     ) -> PathFromVertex<G> {
@@ -302,6 +309,16 @@ impl<G: GraphViewOps> PathFromVertex<G> {
             graph,
             vertex: v,
             operations: Arc::new(vec![operation]),
+        }
+    }
+
+    pub(crate) fn neighbours_window(&self, dir:Direction, t_start: i64, t_end:i64) -> Self {
+        let mut new_ops = (*self.operations).clone();
+        new_ops.push(Operations::NeighboursWindow { dir, t_start, t_end });
+        Self {
+            graph: self.graph.clone(),
+            vertex: self.vertex,
+            operations: Arc::new(new_ops),
         }
     }
 }
@@ -399,6 +416,7 @@ impl<G: GraphViewOps> VertexViewOps for PathFromVertex<G> {
         }
     }
 
+
     fn in_neighbours(&self) -> Self {
         let mut new_ops = (*self.operations).clone();
         let dir = Direction::IN;
@@ -435,7 +453,7 @@ impl<G: GraphViewOps> TimeOps for PathFromVertex<G> {
 
     fn window<T: IntoTime>(&self, t_start: T, t_end: T) -> Self::WindowedViewType {
         PathFromVertex {
-            graph: Arc::new(self.graph.window(t_start, t_end)),
+            graph: self.graph.window(t_start, t_end),
             vertex: self.vertex,
             operations: self.operations.clone(),
         }
@@ -447,7 +465,7 @@ impl<G: GraphViewOps> LayerOps for PathFromVertex<G> {
 
     fn default_layer(&self) -> Self::LayeredViewType {
         PathFromVertex {
-            graph: self.graph.default_layer().as_arc(),
+            graph: self.graph.default_layer(),
             vertex: self.vertex,
             operations: self.operations.clone(),
         }
@@ -455,7 +473,7 @@ impl<G: GraphViewOps> LayerOps for PathFromVertex<G> {
 
     fn layer(&self, name: &str) -> Option<Self::LayeredViewType> {
         Some(PathFromVertex {
-            graph: self.graph.layer(name)?.as_arc(),
+            graph: self.graph.layer(name)?,
             vertex: self.vertex,
             operations: self.operations.clone(),
         })

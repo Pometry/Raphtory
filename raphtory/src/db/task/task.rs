@@ -1,3 +1,5 @@
+use std::marker::PhantomData;
+
 use crate::core::state::compute_state::ComputeState;
 use crate::db::view_api::internal::GraphViewInternalOps;
 use crate::db::view_api::GraphViewOps;
@@ -5,12 +7,12 @@ use crate::db::view_api::GraphViewOps;
 use super::context::GlobalState;
 use super::eval_vertex::EvalVertexView;
 
-pub trait Task<G, CS>
+pub trait Task<G, CS, S>
 where
     G: GraphViewOps,
     CS: ComputeState,
 {
-    fn run(&self, vv: &EvalVertexView<G, CS>) -> Step;
+    fn run(&self, vv: &mut EvalVertexView<G, CS, S>) -> Step;
 }
 
 #[derive(Debug, PartialEq)]
@@ -19,56 +21,58 @@ pub enum Step {
     Continue,
 }
 
-pub struct ATask<G, CS, F>
+pub struct ATask<G, CS, S, F>
 where
     G: GraphViewOps,
     CS: ComputeState,
-    F: Fn(&EvalVertexView<G, CS>) -> Step,
+    F: Fn(&mut EvalVertexView<G, CS, S>) -> Step,
 {
     f: F,
-    _g: std::marker::PhantomData<G>,
-    _cs: std::marker::PhantomData<CS>,
+    _g: PhantomData<G>,
+    _cs: PhantomData<CS>,
+    _s: PhantomData<S>,
 }
 
 // determines if the task is executed for all vertices or only for updated vertices (vertices that had a state change since last sync)
-pub enum Job<G, CS: ComputeState> {
-    Read(Box<dyn Task<G, CS> + Sync + Send>),
-    Write(Box<dyn Task<G, CS> + Sync + Send>),
+pub enum Job<G, CS: ComputeState, S> {
+    Read(Box<dyn Task<G, CS, S> + Sync + Send>),
+    Write(Box<dyn Task<G, CS, S> + Sync + Send>),
     Check(Box<dyn Fn(&GlobalState<CS>) -> Step + Send + Sync + 'static>),
 }
 
-impl<G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeState> Job<G, CS> {
-    pub fn new<T: Task<G, CS> + Send + Sync + 'static>(t: T) -> Self {
+impl<G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeState, S> Job<G, CS, S> {
+    pub fn new<T: Task<G, CS, S> + Send + Sync + 'static>(t: T) -> Self {
         Self::Write(Box::new(t))
     }
 
-    pub fn read_only<T: Task<G, CS> + Send + Sync + 'static>(t: T) -> Self {
+    pub fn read_only<T: Task<G, CS, S> + Send + Sync + 'static>(t: T) -> Self {
         Self::Read(Box::new(t))
     }
 }
 
-impl<G, CS, F> ATask<G, CS, F>
+impl<G, CS, S, F> ATask<G, CS, S, F>
 where
     G: GraphViewOps,
     CS: ComputeState,
-    F: Fn(&EvalVertexView<G, CS>) -> Step,
+    F: Fn(&mut EvalVertexView<G, CS, S>) -> Step,
 {
     pub fn new(f: F) -> Self {
         Self {
             f,
-            _g: std::marker::PhantomData,
-            _cs: std::marker::PhantomData,
+            _g: PhantomData,
+            _cs: PhantomData,
+            _s: PhantomData,
         }
     }
 }
 
-impl<G, CS, F> Task<G, CS> for ATask<G, CS, F>
+impl<G, CS, S, F> Task<G, CS, S> for ATask<G, CS, S, F>
 where
     G: GraphViewOps,
     CS: ComputeState,
-    F: Fn(&EvalVertexView<G, CS>) -> Step,
+    F: Fn(&mut EvalVertexView<G, CS, S>) -> Step,
 {
-    fn run(&self, vv: &EvalVertexView<G, CS>) -> Step {
+    fn run(&self, vv: &mut EvalVertexView<G, CS, S>) -> Step {
         (self.f)(vv)
     }
 }

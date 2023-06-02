@@ -22,7 +22,7 @@ where
     CS: ComputeState,
 {
     ss: usize,
-    g: Arc<G>,
+    g: G,
     merge_fns: Vec<MergeFn<CS>>,
     resetable_states: Vec<u32>,
 }
@@ -36,7 +36,7 @@ where
         self.ss
     }
 
-    pub fn graph(&self) -> Arc<G> {
+    pub fn graph(&self) -> G {
         self.g.clone()
     }
 
@@ -133,7 +133,7 @@ impl<G: GraphViewOps, CS: ComputeState> From<&G> for Context<G, CS> {
     fn from(g: &G) -> Self {
         Self {
             ss: 0,
-            g: Arc::new(g.clone()),
+            g: g.clone(),
             merge_fns: vec![],
             resetable_states: vec![],
         }
@@ -146,6 +146,22 @@ pub struct GlobalState<CS: ComputeState> {
 }
 
 impl<CS: ComputeState> GlobalState<CS> {
+
+    pub fn finalize<A: StateType, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
+        &self,
+        agg_def: &AccId<A, IN, OUT, ACC>,
+    ) -> OUT
+    where
+        OUT: StateType + Default,
+        A: 'static,
+    {
+        // ss needs to be incremented because the loop ran once and at the end it incremented the state thus
+        // the value is on the previous ss
+        self.state.inner()
+            .read_global(self.ss + 1, agg_def)
+            .unwrap_or_default()
+    }
+
     pub(crate) fn new(state: Global<CS>, ss: usize) -> Self {
         Self { state, ss }
     }
