@@ -12,6 +12,7 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 use std::{fs, time::Instant};
 use regex::Regex;
+use crate::graph_loader::{fetch_file, unzip_file};
 
 #[derive(Deserialize, std::fmt::Debug)]
 pub struct StableCoin {
@@ -24,20 +25,6 @@ pub struct StableCoin {
     value: f64,
 }
 
-fn fetch_file(file_path: PathBuf, timeout: u64) -> Result<(), Box<dyn std::error::Error>> {
-    let client = reqwest::blocking::Client::builder()
-        .timeout(Duration::from_secs(timeout))
-        .build()?;
-    let response = client
-        .get("https://snap.stanford.edu/data/ERC20-stablecoins.zip")
-        .send()?;
-    let mut content = Cursor::new(response.bytes()?);
-    let mut file = File::create(&file_path)?;
-    copy(&mut content, &mut file)?;
-
-    Ok(())
-}
-
 pub fn stable_coin_graph(path: Option<String>, subset:bool, num_shards: usize) -> Graph {
     let data_dir = match path {
         Some(path) => PathBuf::from(path),
@@ -45,12 +32,12 @@ pub fn stable_coin_graph(path: Option<String>, subset:bool, num_shards: usize) -
     };
 
     if !data_dir.join("token_transfers.csv").exists() {
-        let parent =  match data_dir.parent() {
-            Some(p) => {p.to_str()},
-            None => {data_dir.to_str().unwrap()}
-        };
+        let dir_str = data_dir.to_str().unwrap();
+        let zip_path =data_dir.join("ERC20-stablecoins.zip");
+        let zip_str = zip_path.to_str().unwrap();
         fs::create_dir_all(dir_str).expect(&format!("Failed to create directory {}", dir_str));
-        fetch_file(data_dir.join("token_transfers.csv"), 600000).expect("Failed to fetch stable coin data: https://snap.stanford.edu/data/ERC20-stablecoins.zip");
+        fetch_file(zip_str,false,"https://snap.stanford.edu/data/ERC20-stablecoins.zip",600000).expect("Failed to fetch stable coin data: https://snap.stanford.edu/data/ERC20-stablecoins.zip");
+        unzip_file(zip_str,dir_str).expect("Failed to unzip stable coin data from https://snap.stanford.edu/data/ERC20-stablecoins.zip");
     }
 
     fn restore_from_bincode(encoded_data_dir: &PathBuf) -> Option<Graph> {
