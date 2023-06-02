@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1685644325810,
+  "lastUpdate": 1685728231248,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -2317,6 +2317,60 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions with numeric string input",
             "value": 1808090,
             "range": "± 59567",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "b.a.steer@qmul.ac.uk",
+            "name": "Ben Steer",
+            "username": "miratepuffin"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "57d845c552cfe8d35e420385ccbaa44ffa948aaa",
+          "message": "Fixing the ingestion of the stable coin data (#1011)\n\n* Fixed the ingestion of the stable coin data - just need to manage the zip extraction\r\n\r\n* Added unzipping to raphtory-io\r\n\r\n* Notebook fixed\r\n\r\n* Turn off taint test\r\n\r\n* Missing arg\r\n\r\n* Fixed comment example",
+          "timestamp": "2023-06-02T18:46:36+01:00",
+          "tree_id": "95fd955b2454302375df445bc6bf78913238f56e",
+          "url": "https://github.com/Pometry/Raphtory/commit/57d845c552cfe8d35e420385ccbaa44ffa948aaa"
+        },
+        "date": 1685728230644,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 312078,
+            "range": "± 566",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and numeric string input",
+            "value": 866275,
+            "range": "± 7782",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and string input",
+            "value": 909588,
+            "range": "± 14944",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 705851,
+            "range": "± 88309",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions with numeric string input",
+            "value": 2202899,
+            "range": "± 135357",
             "unit": "ns/iter"
           }
         ]
