@@ -25,7 +25,7 @@ def shuffle_column(graph_df:pd.DataFrame, col_number=None, col_name=None, inplac
     if col_name is not None:
         col = df[col_name].sample(n=no_events)
         col.reset_index(inplace=True,drop=True)
-        df[col_name]=col    
+        df[col_name]=col
     return df
 
 def shuffle_multiple_columns(graph_df:pd.DataFrame, col_numbers:list=None, col_names:list=None, inplace=False):
@@ -41,7 +41,6 @@ def shuffle_multiple_columns(graph_df:pd.DataFrame, col_numbers:list=None, col_n
     if col_names is not None:
         for name in col_names:
             df = shuffle_column(graph_df, col_name=name)
-    
     return df
     
 def permuted_timestamps_model(graph_df:pd.DataFrame, time_col:int=None, time_name:str=None, inplace=False, sorted=False):
