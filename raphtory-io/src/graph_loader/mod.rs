@@ -9,6 +9,7 @@
 //!
 //! let path = fetch_file(
 //!     "lotr.csv",
+//!     true,
 //!     "https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv",
 //!     600
 //! );
