@@ -74,14 +74,15 @@ impl PyGraph {
     #[pyo3(signature = (timestamp, id, properties=None))]
     pub fn add_vertex(
         &self,
-        timestamp: i64,
+        timestamp:  &PyAny,
         id: &PyAny,
         properties: Option<HashMap<String, Prop>>,
     ) -> PyResult<()> {
+        let time = extract_into_time(timestamp)?;
         let v = Self::extract_id(id)?;
         let result = self
             .graph
-            .add_vertex(timestamp, v, &Self::transform_props(properties));
+            .add_vertex(time, v, &Self::transform_props(properties));
         adapt_result(result)
     }
 
