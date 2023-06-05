@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1685870620081,
+  "lastUpdate": 1686000836021,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -2425,6 +2425,60 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions with numeric string input",
             "value": 2051775,
             "range": "± 145610",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "Haaroon@users.noreply.github.com",
+            "name": "Haaroon Y",
+            "username": "Haaroon"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "74d6340701c4a25dfbe87c529cdac0f689af953d",
+          "message": "Add Vertex and Edges to docs (#1020)\n\ninitial nx ones",
+          "timestamp": "2023-06-05T22:30:05+01:00",
+          "tree_id": "d29496f95ebb04d66933bcc6b40ed10db519ae4c",
+          "url": "https://github.com/Pometry/Raphtory/commit/74d6340701c4a25dfbe87c529cdac0f689af953d"
+        },
+        "date": 1686000835433,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 293586,
+            "range": "± 840",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and numeric string input",
+            "value": 865615,
+            "range": "± 1349",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and string input",
+            "value": 903811,
+            "range": "± 3328",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 613929,
+            "range": "± 98535",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions with numeric string input",
+            "value": 2062828,
+            "range": "± 132962",
             "unit": "ns/iter"
           }
         ]
