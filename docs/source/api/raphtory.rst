@@ -13,7 +13,6 @@ Raphtory
    :private-members:
    :inherited-members:
 
-
 raphtory.algorithms
 -------------------
 
