@@ -9,12 +9,13 @@ keywords = ["graph", "temporal-graph", "temporal", "examples"]
 [dependencies]
 raphtory = {path = "../../raphtory"}
 raphtory-io = {path = "../../raphtory-io"}
-chrono = "0.4"
+chrono = {version = "0.4", features = ["serde"]}
 regex = "1"
 serde = { version = "1", features = ["derive", "rc"] }
 rayon = "1"
 rand = "0.8.5"
 itertools = "0.10"
+serde_json = "1"
 
 [[bin]]
 name = "btc"
@@ -36,6 +37,9 @@ name = "crypto"
 
 [[bin]]
 name = "pokec"
+
+[[bin]]
+name = "jira"
 
 
 [target.x86_64-unknown-linux-gnu]
