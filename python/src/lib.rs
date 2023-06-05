@@ -5,6 +5,8 @@ use py_raphtory::graph::PyGraph;
 use py_raphtory::graph_gen::*;
 use py_raphtory::graph_loader::*;
 use pyo3::prelude::*;
+use py_raphtory::edge::{PyEdge, PyEdges};
+use py_raphtory::vertex::{PyVertex, PyVertices};
 
 /// Raphtory graph analytics library
 #[pymodule]
@@ -67,6 +69,11 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         graph_gen_module
     )?)?;
     m.add_submodule(graph_gen_module)?;
+
+    m.add_class::<PyVertex>()?;
+    m.add_class::<PyVertices>()?;
+    m.add_class::<PyEdge>()?;
+    m.add_class::<PyEdges>()?;
 
     Ok(())
 }
