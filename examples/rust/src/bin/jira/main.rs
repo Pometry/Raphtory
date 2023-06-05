@@ -1,6 +1,15 @@
+use std::iter::{Map, FlatMap};
+
 use raphtory::{core::Prop, db::{graph::Graph, view_api::internal::GraphViewInternalOps}};
 use raphtory_io::graph_loader::source::json_loader::JsonLinesLoader;
 use serde::Deserialize;
+
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+struct Changelog{
+
+}
 
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -24,6 +33,7 @@ struct JiraIssue {
     id: String,
     key: String,
     fields: Fields,
+    changelog: Changelog
 }
 
 fn main() {
