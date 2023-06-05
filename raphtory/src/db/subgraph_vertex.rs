@@ -15,6 +15,13 @@ pub struct VertexSubgraph<G: GraphViewOps> {
     vertices: Arc<FxHashSet<LocalVertexRef>>,
 }
 
+impl<G: GraphViewOps> VertexSubgraph<G> {
+    pub(crate) fn new(graph: G, vertices: FxHashSet<LocalVertexRef>) -> Self {
+        Self {graph, vertices: Arc::new(vertices)}
+    }
+}
+
+
 impl<G: GraphViewOps> GraphViewInternalOps for VertexSubgraph<G> {
     fn local_vertex(&self, v: VertexRef) -> Option<LocalVertexRef> {
         self.graph
