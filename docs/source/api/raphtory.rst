@@ -13,6 +13,17 @@ Raphtory
    :private-members:
    :inherited-members:
 
+raphtory.algorithms
+-------------------
+
+.. automodule:: raphtory.algorithms
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :private-members:
+   :inherited-members:
+
+
 raphtory.vis
 -------------------
 

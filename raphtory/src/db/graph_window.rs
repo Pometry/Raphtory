@@ -918,24 +918,6 @@ impl<G: GraphViewOps> GraphViewInternalOps for WindowedGraph<G> {
         self.graph.num_shards()
     }
 
-    fn vertices_shard(&self, shard_id: usize) -> Box<dyn Iterator<Item = LocalVertexRef> + Send> {
-        self.graph
-            .vertices_shard_window(shard_id, self.t_start, self.t_end)
-    }
-
-    fn vertices_shard_window(
-        &self,
-        shard_id: usize,
-        t_start: i64,
-        t_end: i64,
-    ) -> Box<dyn Iterator<Item = LocalVertexRef> + Send> {
-        self.graph.vertices_shard_window(
-            shard_id,
-            self.actual_start(t_start),
-            self.actual_end(t_end),
-        )
-    }
-
     fn vertex_edges(
         &self,
         v: LocalVertexRef,

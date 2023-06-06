@@ -25,6 +25,7 @@ regex = "1"
 chrono = "0.4"
 itertools="0.10"
 
+zip = "0.5"
 bzip2 = "0.4"
 flate2 = "1.0"
 

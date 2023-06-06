@@ -199,10 +199,7 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         let g = self.ctx.graph();
 
         // find the shard with the largest number of vertices
-        let max_shard_len = (0..g.num_shards()).into_iter().fold(0, |b, shard_id| {
-            let num_vertices = g.vertices_shard(shard_id).count();
-            num_vertices.max(b)
-        });
+        let max_shard_len = g.vertex_refs().map(|v| v.pid).max().unwrap_or(0) + 1;
 
         let n_shards = g.num_shards();
 
@@ -295,8 +292,8 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         } else {
             prev_local_state
         };
-
-        println!("Done running iterations: {ss}");
+        //TODO change to log
+        //println!("Done running iterations: {ss}");
 
         f(
             GlobalState::new(global_state, ss),
