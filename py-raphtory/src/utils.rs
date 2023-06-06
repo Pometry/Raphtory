@@ -3,7 +3,7 @@
 //! This module contains helper functions for the Python bindings.
 //! These functions are not part of the public API and are not exported to the Python module.
 use crate::vertex::PyVertex;
-use chrono::{DateTime, NaiveDateTime, Utc};
+use chrono::NaiveDateTime;
 use pyo3::exceptions::{PyException, PyTypeError};
 use pyo3::prelude::*;
 use raphtory::core as dbc;
