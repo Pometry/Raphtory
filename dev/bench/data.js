@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1686000836021,
+  "lastUpdate": 1686049691458,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -2479,6 +2479,60 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions with numeric string input",
             "value": 2062828,
             "range": "± 132962",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "Haaroon@users.noreply.github.com",
+            "name": "Haaroon Y",
+            "username": "Haaroon"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0cfde833547737127f59550e863b90942b67d5d5",
+          "message": "Multiple Benchmarks (#1009)\n\n* trying to fix neo4j\r\n\r\n* nearly there but its mad slow\r\n\r\n* nearly there but its mad slow\r\n\r\n* results table\r\n\r\n* only modify if start docker\r\n\r\n* added grap tool bench\r\n\r\n* add raphtory bench\r\n\r\n* kzu timesout\r\n\r\n* dont pull much data from kuzu\r\n\r\n* dont pull much data from kuzu\r\n\r\n* kuzu done\r\n\r\n* Add cozo and key notes\r\n\r\n* added more neo notes\r\n\r\n* correction\r\n\r\n* memgraph potentially load CSV nodelist and create index to improve speed?\r\n\r\n* memgraph potentially load CSV nodelist and create index to improve speed?\r\n\r\n* slowgraph added\r\n\r\n* initial nx ones",
+          "timestamp": "2023-06-06T12:04:13+01:00",
+          "tree_id": "71dfcfa47a155ebf3698636d13972f8250ef9a7a",
+          "url": "https://github.com/Pometry/Raphtory/commit/0cfde833547737127f59550e863b90942b67d5d5"
+        },
+        "date": 1686049690799,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 300278,
+            "range": "± 1062",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and numeric string input",
+            "value": 857199,
+            "range": "± 21234",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and string input",
+            "value": 899464,
+            "range": "± 3410",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 752440,
+            "range": "± 128363",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions with numeric string input",
+            "value": 2285089,
+            "range": "± 129210",
             "unit": "ns/iter"
           }
         ]
