@@ -65,7 +65,7 @@ impl PyGraph {
     /// Adds a new vertex with the given id and properties to the graph.
     ///
     /// Arguments:
-    ///    timestamp (int): The timestamp of the vertex.
+    ///    timestamp (int, str, or datetime(utc)): The timestamp of the vertex.
     ///    id (str or int): The id of the vertex.
     ///    properties (dict): The properties of the vertex.
     ///
