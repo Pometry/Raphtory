@@ -143,8 +143,13 @@ pub(crate) fn extract_into_time(time: &PyAny) -> PyResult<TimeBox> {
         number.map(|number| TimeBox::new(number.try_into_time()))
     });
 
+    let result = result.or_else(|_| {
+        let parsed_datetime = time.extract::<NaiveDateTime>();
+        parsed_datetime.map(|parsed_datetime | TimeBox::new(parsed_datetime.try_into_time()))
+    });
+
     result.map_err(|_| {
-        let message = format!("time '{time}' must be a str or an integer");
+        let message = format!("time '{time}' must be a str, dt or an integer");
         PyTypeError::new_err(message)
     })
 }

@@ -1084,3 +1084,27 @@ def test_date_time_window():
         exploded_edges.append(edge.date_time())
     assert exploded_edges == [datetime.datetime(2014, 2, 2)]
 
+
+def test_datetime_add_vertex():
+    g = Graph(1)
+    g.add_vertex(datetime.datetime(2014, 2, 2), 1)
+    g.add_vertex(datetime.datetime(2014, 2, 3), 2)
+    g.add_vertex(datetime.datetime(2014, 2, 4), 2)
+    g.add_vertex(datetime.datetime(2014, 2, 5), 4)
+    g.add_vertex(datetime.datetime(2014, 2, 6), 5)
+
+    view = g.window('2014-02-02', '2014-02-04')
+    view2 = g.window('2014-02-02', '2014-02-05')
+
+    assert view.start_date_time() == datetime.datetime(2014, 2, 2, 0, 0)
+    assert view.end_date_time() == datetime.datetime(2014, 2, 4, 0, 0)
+
+    assert view2.earliest_date_time() == datetime.datetime(2014, 2, 2, 0, 0)
+    assert view2.latest_date_time() == datetime.datetime(2014, 2, 5, 0, 0)
+
+    assert view2.vertex(1).start_date_time() == datetime.datetime(2014, 2, 2, 0, 0)
+    assert view2.vertex(1).end_date_time() == datetime.datetime(2014, 2, 5, 0, 0)
+
+    assert view.vertex(2).earliest_date_time() == datetime.datetime(2014, 2, 3, 0, 0)
+    assert view.vertex(2).latest_date_time() == datetime.datetime(2014, 2, 3, 0, 0)
+
