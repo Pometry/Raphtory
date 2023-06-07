@@ -52,7 +52,7 @@ jobs:
           working-directory: ./python
           command: build
           target: ${{ matrix.target }}
-          args: --release --out dist
+          args: --release --out dist --find-interpreter
           manylinux: 2014
           before-script-linux: |
             if [[ -f /etc/os-release ]]; then
