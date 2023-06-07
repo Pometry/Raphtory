@@ -48,6 +48,7 @@ fn main() {
     println!("Time taken: {} secs", now.elapsed().as_secs());
 
     let now = Instant::now();
+
     let _ = unweighted_page_rank(
         &g,
         20,
@@ -71,8 +72,7 @@ fn main() {
     println!("Generic taint");
     let now = Instant::now();
     let _ = generic_taint(
-        &g.layer("USDT")
-            .unwrap(),
+        &g.layer("USDT").unwrap(),
         None,
         20,
         1651105815,

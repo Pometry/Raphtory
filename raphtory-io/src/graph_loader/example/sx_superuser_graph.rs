@@ -46,9 +46,9 @@
 //! println!("The graph has {:?} edges", graph.num_edges());
 //! ```
 
-use raphtory::db::graph::Graph ;
+use raphtory::db::graph::Graph;
 
-use crate::graph_loader::{source::csv_loader::CsvLoader, fetch_file};
+use crate::graph_loader::{fetch_file, source::csv_loader::CsvLoader};
 use serde::Deserialize;
 use std::path::PathBuf;
 

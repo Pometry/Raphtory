@@ -209,6 +209,23 @@ pub fn triangle_motif_count<G: GraphViewOps>(
     }
 }
 
+// works fine for 1 shard but breaks on more shard
+// v1 - shard1, v2,v3 - shard2
+// distributed acc
+// v1 -> v2 (sending new count v2/)
+// v2 -> v1 (sending new count v1) 5, 6 (motif 3 c)
+
+// per vertex (motif counts)
+// every iteration (sum them up)
+// A -> B -> C-> A (motif 3)
+
+// A: [1, 2, 3(1), 4, 5, 6, 7, 8], B: [1, 2, 3(1), 4, 5, 6, 7, 8], C: [1, 2, 3(1), 4, 5, 6, 7, 8] - shard1
+// A: [1, 2, 3(0), 4, 5, 6, 7, 8], B: [1, 2, 3(0), 4, 5, 6, 7, 8], C: [1, 2, 3(0), 4, 5, 6, 7, 8] - shard2
+// A: [1, 2, 3(0), 4, 5, 6, 7, 8], B: [1, 2, 3(0), 4, 5, 6, 7, 8], C: [1, 2, 3(0), 4, 5, 6, 7, 8] - shard3
+
+// global acc
+// 1, 2, 3, 4, 5, 6, 7, 8
+
 fn update_counter<G: GraphViewOps>(
     vs: Vec<&EvalVertexView<G, ComputeStateVec, MotifCounter>>,
     motif_counter: AccId<MotifCounter, MotifCounter, MotifCounter, ValDef<MotifCounter>>,
