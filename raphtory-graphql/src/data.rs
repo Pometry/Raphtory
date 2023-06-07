@@ -1,6 +1,7 @@
 use raphtory::db::graph::Graph;
 use std::collections::HashMap;
 use std::fs;
+use std::path::{Path, PathBuf};
 
 pub(crate) struct Data {
     pub(crate) graphs: HashMap<String, Graph>,
@@ -14,11 +15,15 @@ impl Data {
 
         let graphs = paths
             .filter_map(|entry| {
-                let path = entry.unwrap().path();
-                let graph = Graph::load_from_file(&path).ok()?;
-                let filename = path.file_name()?.to_str()?.to_string();
-
-                Some((filename, graph))
+                let path:PathBuf = entry.unwrap().path();
+                if path.is_dir(){
+                    let graph = Graph::load_from_file(&path).ok()?;
+                    let filename = path.file_name()?.to_str()?.to_string();
+                    Some((filename, graph))
+                }
+                else{
+                    None
+                }
             })
             .collect();
 
