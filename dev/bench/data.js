@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1686064072387,
+  "lastUpdate": 1686134740908,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -2641,6 +2641,60 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions with numeric string input",
             "value": 2309186,
             "range": "± 165110",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "4599890+iamsmkr@users.noreply.github.com",
+            "name": "Shivam Kapoor",
+            "username": "iamsmkr"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c1a0f1da1b8cb17c5a95397d19b3bf18415f91f4",
+          "message": "Lotrgql (#1023)\n\n* impl edges gql\r\n\r\n* company house data\r\n\r\n* add properties and project wide fmt\r\n\r\n* impl neoghbours\r\n\r\n* adding flag\r\n\r\n* add inneighs\r\n\r\n* merge from master\r\n\r\n* ignore test\r\n\r\n---------\r\n\r\nCo-authored-by: RachelChan <25484244+rachchan@users.noreply.github.com>",
+          "timestamp": "2023-06-07T11:41:35+01:00",
+          "tree_id": "2e9031307a72129d46638aad0e4a657c641a0b3a",
+          "url": "https://github.com/Pometry/Raphtory/commit/c1a0f1da1b8cb17c5a95397d19b3bf18415f91f4"
+        },
+        "date": 1686134740223,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 329603,
+            "range": "± 1635",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and numeric string input",
+            "value": 907569,
+            "range": "± 3831",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and string input",
+            "value": 939096,
+            "range": "± 3653",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 546376,
+            "range": "± 42731",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions with numeric string input",
+            "value": 1943140,
+            "range": "± 63813",
             "unit": "ns/iter"
           }
         ]
