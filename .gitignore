@@ -19,3 +19,6 @@ docs/logs/*
 _autosummary
 examples/docker/lotr/lotr
 examples/py/enron/emails.csv
+/docs/lib/
+/docs/build/
+docs/source/

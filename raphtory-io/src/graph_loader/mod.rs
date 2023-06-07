@@ -9,6 +9,7 @@
 //!
 //! let path = fetch_file(
 //!     "lotr.csv",
+//!     true,
 //!     "https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv",
 //!     600
 //! );
@@ -21,19 +22,28 @@
 use std::env;
 use std::fs::File;
 use std::io::{copy, Cursor};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
+use std::io::prelude::*;
+use zip::read::{ZipArchive, ZipFile};
+use std::fs::*;
 
 pub mod example;
 pub mod source;
 
 pub fn fetch_file(
     name: &str,
+    tmp_save:bool,
     url: &str,
     timeout: u64,
 ) -> Result<PathBuf, Box<dyn std::error::Error>> {
-    let tmp_dir = env::temp_dir();
-    let filepath = tmp_dir.join(name);
+    let filepath = if tmp_save {
+        let tmp_dir = env::temp_dir();
+        tmp_dir.join(name)
+    }
+    else {
+        PathBuf::from(name)
+    };
     if !filepath.exists() {
         let client = reqwest::blocking::Client::builder()
             .timeout(Duration::from_secs(timeout))
@@ -48,6 +58,35 @@ pub fn fetch_file(
     Ok(filepath)
 }
 
+
+fn unzip_file(zip_file_path: &str, destination_path: &str) -> std::io::Result<()> {
+    let file = File::open(zip_file_path)?;
+    let mut archive = ZipArchive::new(file)?;
+
+    for i in 0..archive.len() {
+        let mut file = archive.by_index(i)?;
+        let file_path = file.name();
+        let dest_path = format!("{}/{}", destination_path, file_path);
+
+        if file.is_dir() {
+            create_dir_all(&dest_path)?;
+        } else {
+            if let Some(parent) = Path::new(&dest_path).parent() {
+                if !parent.exists() {
+                   create_dir_all(&parent)?;
+                }
+            }
+            let mut output_file = File::create(&dest_path)?;
+            std::io::copy(&mut file, &mut output_file)?;
+        }
+    }
+
+    Ok(())
+}
+
+
+
+
 #[cfg(test)]
 mod graph_loader_test {
     use csv::StringRecord;
@@ -59,12 +98,15 @@ mod graph_loader_test {
         },
     };
 
-    use crate::graph_loader::fetch_file;
+    use crate::graph_loader::{fetch_file, unzip_file};
+    use crate::graph_loader::example::stable_coins::stable_coin_graph;
+
 
     #[test]
     fn test_fetch_file() {
         let path = fetch_file(
             "lotr2.csv",
+            true,
             "https://raw.githubusercontent.com/Raphtory/Data/main/lotr_test.csv",
             600,
         );

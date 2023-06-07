@@ -1,6 +1,6 @@
 use crate::core::vertex::InputVertex;
 
-#[derive(Copy, Clone, PartialOrd, PartialEq, Debug)]
+#[derive(Copy, Clone, PartialOrd, PartialEq, Debug, Eq, Hash)]
 pub struct LocalVertexRef {
     pub shard_id: usize,
     pub pid: usize,

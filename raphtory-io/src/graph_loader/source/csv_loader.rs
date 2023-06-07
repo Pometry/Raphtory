@@ -98,7 +98,7 @@ impl Display for CsvErr {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self.source() {
             Some(error) => write!(f, "CSV loader failed with error: {}", error),
-            None => write!(f, "CSV loader failed with unknonw error"),
+            None => write!(f, "CSV loader failed with unknown error"),
         }
     }
 }

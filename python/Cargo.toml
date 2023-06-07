@@ -20,7 +20,7 @@ crate-type = ["cdylib"]
 [dependencies]
 pyo3 =  {version="0.18.1", features=["multiple-pymethods", "chrono"]}
 py-raphtory = {path = "../py-raphtory", version = "0.3.2" }
-
+openssl = { version = "0.10", features = ["vendored"] } # DO NOT REMOVE IT BREAKS PYTHON RELEASE
 
 [features]
 extension-module = ["pyo3/extension-module"]

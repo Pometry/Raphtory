@@ -56,8 +56,8 @@ pub fn triangle_count<G: GraphViewOps>(g: &G, threads: Option<usize>) -> usize {
     let neighbours_set = accumulators::hash_set::<u64>(0);
     let count = accumulators::sum::<usize>(1);
 
-    ctx.agg(neighbours_set.clone());
-    ctx.global_agg(count.clone());
+    ctx.agg(neighbours_set);
+    ctx.global_agg(count);
 
     let step1 = ATask::new(move |s| {
         for t in s.neighbours() {
@@ -103,7 +103,8 @@ pub fn triangle_count<G: GraphViewOps>(g: &G, threads: Option<usize>) -> usize {
     runner.run(
         init_tasks,
         tasks,
-        |egs, _, _| egs.finalize(&count),
+        (),
+        |egs, _, _, _| egs.finalize(&count),
         threads,
         1,
         None,

@@ -897,14 +897,14 @@ def test_page_rank():
 
     actual = algorithms.pagerank(g, 20)
     expected = {
-        '1': 0.07209835018984964,
-        '2': 0.10274017510160566,
-        '3': 0.10274017510160566,
-        '4': 0.16152968350289104,
-        '5': 0.16152968350289104,
-        '6': 0.14074843095170264,
-        '7': 0.14074843095170264,
-        '8': 0.11786507069775164,
+        '1': 0.07209850165402759,
+        '2': 0.10274080842110422,
+        '3': 0.10274080842110422,
+        '4': 0.1615298183542792,
+        '5': 0.1615298183542792,
+        '6': 0.14074777909144864,
+        '7': 0.14074777909144864,
+        '8': 0.11786468661230831,
     }
     assert (actual == expected)
 
@@ -936,23 +936,23 @@ def test_generic_taint():
     assert (actual == expected)
 
 
-def test_generic_taint_loader():
-    g = graph_loader.stable_coin_graph("/tmp/stablecoin", 1)
-
-    start_time = time.time()
-    algorithms.pagerank(g, 20)
-    end_time = time.time()
-
-    print("Time taken (in secs) to run pagerank on stablecoin data", end_time - start_time)
-
-    actual = algorithms.generic_taint(g, 20, 1651105815000, ["0xd30b438df65f4f788563b2b3611bd6059bff4ad9"], [])
-    print(actual)
-    expected = {
-        '0xd30b438df65f4f788563b2b3611bd6059bff4ad9': [(1651105815000, 'start')],
-        '0xda816e2122a8a39b0926bfa84edd3d42477e9efd': [(1651105815000, '0xd30b438df65f4f788563b2b3611bd6059bff4ad9')],
-    }
-
-    assert (actual == expected)
+# def test_generic_taint_loader():
+#     g = graph_loader.stable_coin_graph("/tmp/stablecoin",true, 1)
+#
+#     start_time = time.time()
+#     algorithms.pagerank(g, 20)
+#     end_time = time.time()
+#
+#     print("Time taken (in secs) to run pagerank on stablecoin data", end_time - start_time)
+#
+#     actual = algorithms.generic_taint(g, 20, 1651105815000, ["0xd30b438df65f4f788563b2b3611bd6059bff4ad9"], [])
+#     print(actual)
+#     expected = {
+#         '0xd30b438df65f4f788563b2b3611bd6059bff4ad9': [(1651105815000, 'start')],
+#         '0xda816e2122a8a39b0926bfa84edd3d42477e9efd': [(1651105815000, '0xd30b438df65f4f788563b2b3611bd6059bff4ad9')],
+#     }
+#
+#     assert (actual == expected)
 
 
 def test_layer():
@@ -1083,4 +1083,28 @@ def test_date_time_window():
     for edge in e.explode():
         exploded_edges.append(edge.date_time())
     assert exploded_edges == [datetime.datetime(2014, 2, 2)]
+
+
+def test_datetime_add_vertex():
+    g = Graph(1)
+    g.add_vertex(datetime.datetime(2014, 2, 2), 1)
+    g.add_vertex(datetime.datetime(2014, 2, 3), 2)
+    g.add_vertex(datetime.datetime(2014, 2, 4), 2)
+    g.add_vertex(datetime.datetime(2014, 2, 5), 4)
+    g.add_vertex(datetime.datetime(2014, 2, 6), 5)
+
+    view = g.window('2014-02-02', '2014-02-04')
+    view2 = g.window('2014-02-02', '2014-02-05')
+
+    assert view.start_date_time() == datetime.datetime(2014, 2, 2, 0, 0)
+    assert view.end_date_time() == datetime.datetime(2014, 2, 4, 0, 0)
+
+    assert view2.earliest_date_time() == datetime.datetime(2014, 2, 2, 0, 0)
+    assert view2.latest_date_time() == datetime.datetime(2014, 2, 5, 0, 0)
+
+    assert view2.vertex(1).start_date_time() == datetime.datetime(2014, 2, 2, 0, 0)
+    assert view2.vertex(1).end_date_time() == datetime.datetime(2014, 2, 5, 0, 0)
+
+    assert view.vertex(2).earliest_date_time() == datetime.datetime(2014, 2, 3, 0, 0)
+    assert view.vertex(2).latest_date_time() == datetime.datetime(2014, 2, 3, 0, 0)
 

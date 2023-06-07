@@ -1,25 +1,19 @@
-use crate::model::algorithm::Algorithms;
-use crate::Data;
-use async_graphql::{Context, Json};
-use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, Scalar, SimpleObject};
-use dynamic_graphql::{ScalarValue, Value};
+use crate::data::Data;
+use async_graphql::Context;
+use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::core::Prop;
 use raphtory::db::edge::EdgeView;
-use raphtory::db::graph::Graph;
-use raphtory::db::graph_window::WindowedGraph;
 use raphtory::db::vertex::VertexView;
-use raphtory::db::view_api::internal::GraphViewInternalOps;
+use raphtory::db::view_api::internal::{GraphViewInternalOps, WrappedGraph};
 use raphtory::db::view_api::EdgeListOps;
 use raphtory::db::view_api::EdgeViewOps;
 use raphtory::db::view_api::{GraphViewOps, TimeOps, VertexViewOps};
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::fmt;
-use std::net::{IpAddr, Ipv4Addr};
 use std::sync::Arc;
 
-mod algorithm;
+use crate::model::algorithm::Algorithms;
+
+pub(crate) mod algorithm;
 
 #[derive(ResolvedObject)]
 #[graphql(root)]
@@ -39,74 +33,61 @@ impl QueryRoot {
     }
 }
 
-#[derive(ResolvedObject)]
-pub(crate) struct GqlGraph {
-    graph: Arc<Graph>,
+#[derive(Clone)]
+pub struct DynamicGraph(Arc<dyn GraphViewInternalOps + Send + Sync + 'static>);
+
+impl WrappedGraph for DynamicGraph {
+    type Internal = dyn GraphViewInternalOps + Send + Sync + 'static;
+    fn as_graph(&self) -> &(dyn GraphViewInternalOps + Send + Sync + 'static) {
+        &*self.0
+    }
 }
 
-impl From<Graph> for GqlGraph {
-    fn from(value: Graph) -> Self {
-        let graph = Arc::new(value);
+#[derive(ResolvedObject)]
+pub(crate) struct GqlGraph {
+    graph: DynamicGraph,
+}
+
+impl<G: GraphViewOps> From<G> for GqlGraph {
+    fn from(value: G) -> Self {
+        let graph = DynamicGraph(Arc::new(value));
         Self { graph }
     }
 }
 
 #[ResolvedObjectFields]
 impl GqlGraph {
-    async fn window<'a>(&self, t_start: i64, t_end: i64) -> GqlWindowGraph<Graph> {
+    async fn window(&self, t_start: i64, t_end: i64) -> GqlGraph {
         let w = self.graph.window(t_start, t_end);
         w.into()
     }
-}
 
-#[derive(ResolvedObject)]
-pub(crate) struct GqlWindowGraph<G: GraphViewOps> {
-    graph: Arc<WindowedGraph<G>>,
-}
-
-impl<G: GraphViewOps> From<WindowedGraph<G>> for GqlWindowGraph<G> {
-    fn from(value: WindowedGraph<G>) -> Self {
-        let graph = Arc::new(value);
-        Self { graph }
-    }
-}
-
-#[ResolvedObjectFields]
-impl<G: GraphViewOps> GqlWindowGraph<G> {
-    async fn nodes<'a>(&self, _ctx: &Context<'a>) -> Vec<Node<WindowedGraph<G>>> {
-        self.graph
-            .vertices()
-            .iter()
-            .map(|vv| Node::new(vv))
-            .collect()
+    async fn nodes(&self) -> Vec<Node> {
+        self.graph.vertices().iter().map(|vv| vv.into()).collect()
     }
 
-    async fn edges<'a>(&self, _ctx: &Context<'a>) -> Vec<Edge<WindowedGraph<G>>> {
-        self.graph
-            .edges()
-            .into_iter()
-            .map(|ev| Edge::new(ev))
-            .collect()
+    async fn edges<'a>(&self) -> Vec<Edge> {
+        self.graph.edges().into_iter().map(|ev| ev.into()).collect()
     }
 
-    async fn node<'a>(&self, _ctx: &Context<'a>, name: String) -> Option<Node<WindowedGraph<G>>> {
+    async fn node(&self, name: String) -> Option<Node> {
         self.graph
             .vertices()
             .iter()
             .find(|vv| &vv.name() == &name)
-            .map(|vv| Node::new(vv))
+            .map(|vv| vv.into())
     }
 
-    async fn node_id<'a>(&self, _ctx: &Context<'a>, id: u64) -> Option<Node<WindowedGraph<G>>> {
+    async fn node_id(&self, id: u64) -> Option<Node> {
         self.graph
             .vertices()
             .iter()
             .find(|vv| vv.id() == id)
-            .map(|vv| Node::new(vv))
+            .map(|vv| vv.into())
     }
 
-    async fn algorithms<'a>(&self, _ctx: &Context<'a>) -> Algorithms<WindowedGraph<G>> {
-        Algorithms::new(&self.graph)
+    async fn algorithms(&self) -> Algorithms {
+        self.graph.clone().into()
     }
 }
 
@@ -134,23 +115,23 @@ impl Property {
 }
 
 #[derive(ResolvedObject)]
-pub(crate) struct Node<G: GraphViewOps> {
-    vv: VertexView<G>,
+pub(crate) struct Node {
+    vv: VertexView<DynamicGraph>,
 }
 
-impl<G: GraphViewOps> Node<G> {
-    pub fn new(vv: VertexView<G>) -> Self {
+impl From<VertexView<DynamicGraph>> for Node {
+    fn from(vv: VertexView<DynamicGraph>) -> Self {
         Self { vv }
     }
 }
 
 #[ResolvedObjectFields]
-impl<G: GraphViewOps> Node<G> {
-    async fn id(&self, _ctx: &Context<'_>) -> u64 {
+impl Node {
+    async fn id(&self) -> u64 {
         self.vv.id()
     }
 
-    async fn name(&self, _ctx: &Context<'_>) -> String {
+    async fn name(&self) -> String {
         self.vv.name()
     }
 
@@ -173,28 +154,20 @@ impl<G: GraphViewOps> Node<G> {
         Some(Property::new(name, prop))
     }
 
-    async fn in_neighbours<'a>(&self, _ctx: &Context<'a>) -> Vec<Node<G>> {
-        self.vv
-            .in_neighbours()
-            .iter()
-            .map(|vv| Node::new(vv.clone()))
-            .collect()
+    async fn in_neighbours<'a>(&self, _ctx: &Context<'a>) -> Vec<Node> {
+        self.vv.in_neighbours().iter().map(|vv| vv.into()).collect()
     }
 
-    async fn out_neighbours<'a>(&self, _ctx: &Context<'a>) -> Vec<Node<G>> {
+    async fn out_neighbours(&self) -> Vec<Node> {
         self.vv
             .out_neighbours()
             .iter()
-            .map(|vv| Node::new(vv.clone()))
+            .map(|vv| vv.into())
             .collect()
     }
 
-    async fn neighbours<'a>(&self, _ctx: &Context<'a>) -> Vec<Node<G>> {
-        self.vv
-            .neighbours()
-            .iter()
-            .map(|vv| Node::new(vv.clone()))
-            .collect()
+    async fn neighbours<'a>(&self, _ctx: &Context<'a>) -> Vec<Node> {
+        self.vv.neighbours().iter().map(|vv| vv.into()).collect()
     }
 
     async fn degree(&self) -> usize {
@@ -209,61 +182,54 @@ impl<G: GraphViewOps> Node<G> {
         self.vv.in_degree()
     }
 
-    async fn out_edges(&self, _ctx: &Context<'_>) -> Vec<Edge<G>> {
-        self.vv
-            .out_edges()
-            .map(|ee| Edge::new(ee.clone()))
-            .collect()
+    async fn out_edges(&self) -> Vec<Edge> {
+        self.vv.out_edges().map(|ee| ee.clone().into()).collect()
     }
 
-    async fn in_edges(&self, _ctx: &Context<'_>) -> Vec<Edge<G>> {
-        self.vv.in_edges().map(|ee| Edge::new(ee.clone())).collect()
+    async fn in_edges(&self) -> Vec<Edge> {
+        self.vv.in_edges().map(|ee| ee.into()).collect()
     }
 
-    async fn exploded_edges(&self, _ctx: &Context<'_>) -> Vec<Edge<G>> {
-        self.vv
-            .out_edges()
-            .explode()
-            .map(|ee| Edge::new(ee.clone()))
-            .collect()
+    async fn exploded_edges(&self) -> Vec<Edge> {
+        self.vv.out_edges().explode().map(|ee| ee.into()).collect()
     }
 
-    async fn start_date(&self, _ctx: &Context<'_>) -> Option<i64> {
+    async fn start_date(&self) -> Option<i64> {
         self.vv.earliest_time()
     }
 
-    async fn end_date(&self, _ctx: &Context<'_>) -> Option<i64> {
+    async fn end_date(&self) -> Option<i64> {
         self.vv.latest_time()
     }
 }
 
 #[derive(ResolvedObject)]
-pub(crate) struct Edge<G: GraphViewOps> {
-    ee: EdgeView<G>,
+pub(crate) struct Edge {
+    ee: EdgeView<DynamicGraph>,
 }
 
-impl<G: GraphViewOps> Edge<G> {
-    pub fn new(ee: EdgeView<G>) -> Self {
+impl From<EdgeView<DynamicGraph>> for Edge {
+    fn from(ee: EdgeView<DynamicGraph>) -> Self {
         Self { ee }
     }
 }
 
 #[ResolvedObjectFields]
-impl<G: GraphViewOps> Edge<G> {
-    async fn earliest_time(&self, _ctx: &Context<'_>) -> Option<i64> {
+impl Edge {
+    async fn earliest_time(&self) -> Option<i64> {
         self.ee.earliest_time()
     }
 
-    async fn latest_time(&self, _ctx: &Context<'_>) -> Option<i64> {
+    async fn latest_time(&self) -> Option<i64> {
         self.ee.latest_time()
     }
 
-    async fn src(&self, _ctx: &Context<'_>) -> Node<G> {
-        Node::new(self.ee.src())
+    async fn src(&self) -> Node {
+        self.ee.src().into()
     }
 
-    async fn dst(&self, _ctx: &Context<'_>) -> Node<G> {
-        Node::new(self.ee.dst())
+    async fn dst(&self) -> Node {
+        self.ee.dst().into()
     }
 
     async fn property(&self, name: String) -> Option<Property> {
@@ -271,7 +237,7 @@ impl<G: GraphViewOps> Edge<G> {
         Some(Property::new(name, prop))
     }
 
-    async fn history(&self, _ctx: &Context<'_>) -> Vec<i64> {
+    async fn history(&self) -> Vec<i64> {
         self.ee.history()
     }
 }
