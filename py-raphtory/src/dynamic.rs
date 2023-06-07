@@ -8,7 +8,7 @@ use std::sync::Arc;
 #[derive(Clone)]
 pub struct DynamicGraph(Arc<dyn GraphViewInternalOps + Send + Sync + 'static>);
 
-pub(crate) trait IntoDynamic {
+pub trait IntoDynamic {
     fn into_dynamic(self) -> DynamicGraph;
 }
 

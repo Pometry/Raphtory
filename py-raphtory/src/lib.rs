@@ -4,7 +4,7 @@ extern crate core;
 mod macros;
 
 pub mod algorithms;
-mod dynamic;
+pub mod dynamic;
 pub mod edge;
 pub mod graph;
 pub mod graph_gen;
