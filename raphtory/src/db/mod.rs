@@ -5,6 +5,7 @@ pub mod graph_immutable;
 pub mod graph_layer;
 pub mod graph_window;
 pub mod path;
+pub mod subgraph_vertex;
 pub mod task;
 pub mod vertex;
 pub mod vertices;
