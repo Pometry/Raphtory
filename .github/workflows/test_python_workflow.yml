@@ -11,14 +11,12 @@ jobs:
   python-test:
     if: ${{ !inputs.skip_tests }}
     name: Python Tests
-    runs-on: '${{ matrix.os }}'
     strategy:
       matrix:
         include:
-          - os: macos-latest
-          - os: ubuntu-latest
-          - os: windows-latest
+          - os: [ 'macos-latest', 'ubuntu-latest', 'windows-latest']
           - python: [3.9, 3.10]
+    runs-on: '${{ matrix.os }}'
     steps:
       - uses: actions/checkout@v3
         name: Checkout
