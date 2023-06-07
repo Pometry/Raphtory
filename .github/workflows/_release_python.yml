@@ -19,7 +19,7 @@ jobs:
     strategy:
       matrix:
         target: [x86_64, aarch64, armv7]
-        python: [3.9, 3.10]
+        python: ['3.9', '3.10']
     steps:
       - name: "Check if user has write access"
         uses: "lannonbr/repo-permission-check-action@2.0.0"
@@ -101,6 +101,7 @@ jobs:
     strategy:
       matrix:
         target: [x64]
+        python: ['3.9', '3.10']
     steps:
       - name: "Check if user has write access"
         uses: "lannonbr/repo-permission-check-action@2.0.0"
@@ -132,6 +133,7 @@ jobs:
     strategy:
       matrix:
         target: [x86_64, aarch64]
+        python: ['3.9', '3.10']
     steps:
       - name: "Check if user has write access"
         uses: "lannonbr/repo-permission-check-action@2.0.0"
