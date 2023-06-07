@@ -1,9 +1,9 @@
+use crate::graph_loader::source::csv_loader::CsvLoader;
+use chrono::NaiveDateTime;
 use raphtory::core::Prop;
 use raphtory::db::graph::Graph;
 use raphtory::db::view_api::internal::GraphViewInternalOps;
 use raphtory::db::view_api::GraphViewOps;
-use crate::graph_loader::source::csv_loader::CsvLoader;
-use chrono::NaiveDateTime;
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::fs::File;

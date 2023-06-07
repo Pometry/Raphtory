@@ -34,9 +34,9 @@
 //! use std::time::Instant;
 //! use raphtory_io::graph_loader::source::csv_loader::CsvLoader;
 //! use serde::Deserialize;
-//! 
+//!
 //! let data_dir = "/tmp/lotr.csv";
-//! 
+//!
 //! #[derive(Deserialize, std::fmt::Debug)]
 //! pub struct Lotr {
 //!    src_id: String,

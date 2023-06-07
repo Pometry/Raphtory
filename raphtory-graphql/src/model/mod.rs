@@ -1,15 +1,14 @@
 use crate::data::Data;
 use async_graphql::Context;
-use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, SimpleObject};
+use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
+use itertools::Itertools;
+use raphtory::core::Prop;
 use raphtory::db::edge::EdgeView;
-use raphtory::db::graph::Graph;
-use raphtory::db::graph_window::WindowedGraph;
 use raphtory::db::vertex::VertexView;
 use raphtory::db::view_api::internal::{GraphViewInternalOps, WrappedGraph};
 use raphtory::db::view_api::EdgeListOps;
 use raphtory::db::view_api::EdgeViewOps;
 use raphtory::db::view_api::{GraphViewOps, TimeOps, VertexViewOps};
-use std::any::Any;
 use std::sync::Arc;
 
 use crate::model::algorithm::Algorithms;
@@ -67,6 +66,10 @@ impl GqlGraph {
         self.graph.vertices().iter().map(|vv| vv.into()).collect()
     }
 
+    async fn edges<'a>(&self) -> Vec<Edge> {
+        self.graph.edges().into_iter().map(|ev| ev.into()).collect()
+    }
+
     async fn node(&self, name: String) -> Option<Node> {
         self.graph
             .vertices()
@@ -85,6 +88,29 @@ impl GqlGraph {
 
     async fn algorithms(&self) -> Algorithms {
         self.graph.clone().into()
+    }
+}
+
+#[derive(ResolvedObject)]
+pub(crate) struct Property {
+    key: String,
+    value: Prop,
+}
+
+impl Property {
+    fn new(key: String, value: Prop) -> Self {
+        Self { key, value }
+    }
+}
+
+#[ResolvedObjectFields]
+impl Property {
+    async fn key(&self, _ctx: &Context<'_>) -> String {
+        self.key.to_string()
+    }
+
+    async fn value(&self, _ctx: &Context<'_>) -> String {
+        self.value.to_string()
     }
 }
 
@@ -109,12 +135,39 @@ impl Node {
         self.vv.name()
     }
 
+    async fn property_names<'a>(&self, _ctx: &Context<'a>) -> Vec<String> {
+        self.vv.property_names(true)
+    }
+
+    async fn properties(&self) -> Option<Vec<Property>> {
+        Some(
+            self.vv
+                .properties(true)
+                .into_iter()
+                .map(|(k, v)| Property::new(k, v))
+                .collect_vec(),
+        )
+    }
+
+    async fn property(&self, name: String) -> Option<Property> {
+        let prop = self.vv.property(name.clone(), true)?;
+        Some(Property::new(name, prop))
+    }
+
+    async fn in_neighbours<'a>(&self, _ctx: &Context<'a>) -> Vec<Node> {
+        self.vv.in_neighbours().iter().map(|vv| vv.into()).collect()
+    }
+
     async fn out_neighbours(&self) -> Vec<Node> {
         self.vv
             .out_neighbours()
             .iter()
             .map(|vv| vv.into())
             .collect()
+    }
+
+    async fn neighbours<'a>(&self, _ctx: &Context<'a>) -> Vec<Node> {
+        self.vv.neighbours().iter().map(|vv| vv.into()).collect()
     }
 
     async fn degree(&self) -> usize {
@@ -177,6 +230,11 @@ impl Edge {
 
     async fn dst(&self) -> Node {
         self.ee.dst().into()
+    }
+
+    async fn property(&self, name: String) -> Option<Property> {
+        let prop = self.ee.property(name.clone(), true)?;
+        Some(Property::new(name, prop))
     }
 
     async fn history(&self) -> Vec<i64> {

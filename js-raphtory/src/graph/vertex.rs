@@ -8,7 +8,7 @@ use wasm_bindgen::prelude::*;
 
 use crate::graph::{edge::Edge, misc::JsProp};
 
-use super::{Graph, misc::JSError};
+use super::{misc::JSError, Graph};
 
 #[wasm_bindgen]
 pub struct Vertex(pub(crate) VertexView<Graph>);
