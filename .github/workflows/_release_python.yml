@@ -19,6 +19,7 @@ jobs:
     strategy:
       matrix:
         target: [x86_64, aarch64, armv7]
+        python: ['3.9', '3.10']
     steps:
       - name: "Check if user has write access"
         uses: "lannonbr/repo-permission-check-action@2.0.0"
@@ -42,7 +43,7 @@ jobs:
           ref: ${{ inputs.base }}
       - uses: actions/setup-python@v4
         with:
-          python-version: '3.10'
+          python-version: ${{ matrix.python }}
       - name: Setup QEMU
         uses: docker/setup-qemu-action@v1
       - name: Build wheels
@@ -51,7 +52,7 @@ jobs:
           working-directory: ./python
           command: build
           target: ${{ matrix.target }}
-          args: --release -i python3.10 --out dist
+          args: --release --out dist
           manylinux: 2014
           before-script-linux: |
             if [[ -f /etc/os-release ]]; then
@@ -100,6 +101,7 @@ jobs:
     strategy:
       matrix:
         target: [x64]
+        python: ['3.9', '3.10']
     steps:
       - name: "Check if user has write access"
         uses: "lannonbr/repo-permission-check-action@2.0.0"
@@ -112,7 +114,7 @@ jobs:
           ref: ${{ inputs.base }}
       - uses: actions/setup-python@v4
         with:
-          python-version: '3.10'
+          python-version: ${{ matrix.python }}
           architecture: ${{ matrix.target }}
       - name: Build wheels
         uses: PyO3/maturin-action@v1
@@ -131,6 +133,7 @@ jobs:
     strategy:
       matrix:
         target: [x86_64, aarch64]
+        python: ['3.9', '3.10']
     steps:
       - name: "Check if user has write access"
         uses: "lannonbr/repo-permission-check-action@2.0.0"
@@ -154,7 +157,7 @@ jobs:
           ref: ${{ inputs.base }}
       - uses: actions/setup-python@v4
         with:
-          python-version: '3.10'
+          python-version: ${{ matrix.python }}
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
