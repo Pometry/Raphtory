@@ -15,7 +15,9 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: ['macos-latest', 'ubuntu-latest', 'windows-latest']
+          - os: macos-latest
+          - os: ubuntu-latest
+          - os: windows-latest
           - python: [3.9, 3.10]
     steps:
       - uses: actions/checkout@v3
