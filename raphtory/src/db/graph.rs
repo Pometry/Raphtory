@@ -807,7 +807,7 @@ impl InternalGraph {
         // use BufReader for better performance
 
         //TODO turn to logging?
-        //println!("loading from {:?}", path.as_ref());
+        println!("loading from {:?}", path.as_ref());
         let mut p = PathBuf::from(path.as_ref());
         p.push("graphdb_nr_shards");
 
