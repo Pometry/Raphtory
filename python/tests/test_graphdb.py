@@ -1109,16 +1109,20 @@ def test_datetime_add_vertex():
     assert view.vertex(2).latest_date_time() == datetime.datetime(2014, 2, 3, 0, 0)
 
 
-def test_equivalent_vertices_and_sets():
+def test_equivalent_vertices_edges_and_sets():
     g = Graph(1)
     g.add_vertex(1, 1)
     g.add_vertex(1, 2)
     g.add_vertex(1, 3)
 
     g.add_edge(1, 1, 2)
-    g.add_edge(1, 3, 2)
+    g.add_edge(1, 2, 3)
 
     assert  g.vertex(1) == g.vertex(1)
     assert list(g.vertex(1).neighbours())[0] == list(g.vertex(3).neighbours())[0]
     assert set(g.vertex(1).neighbours()) == set(g.vertex(3).neighbours())
+    assert set(g.vertex(1).out_edges()) == set(g.vertex(2).in_edges())
+
+    assert g.edge(1, 1) == g.edge(1, 1)
+
 
