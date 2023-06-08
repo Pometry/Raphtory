@@ -34,8 +34,11 @@ pub(crate) struct EdgeLayer {
     layer_id: usize,
     shard_id: usize,
     local_timestamps: Vec<TimeIndex>,
+    local_deletions: Vec<TimeIndex>,
     remote_out_timestamps: Vec<TimeIndex>,
+    remote_out_deletions: Vec<TimeIndex>,
     remote_into_timestamps: Vec<TimeIndex>,
+    remote_into_deletions: Vec<TimeIndex>,
 
     // Vector of adjacency lists. It is populated lazyly, so avoid using [] accessor for reading
     adj_lists: Vec<Adj>,
@@ -53,8 +56,11 @@ impl EdgeLayer {
             local_props: Default::default(),
             remote_out_props: Default::default(),
             local_timestamps: Default::default(),
+            local_deletions: Default::default(),
             remote_out_timestamps: Default::default(),
+            remote_out_deletions: Default::default(),
             remote_into_timestamps: Default::default(),
+            remote_into_deletions: Default::default(),
             remote_into_props: Default::default(),
         }
     }
@@ -141,13 +147,13 @@ impl EdgeLayer {
         let dst = VID::Local(dst_pid);
         let src = VID::Local(src_pid);
         self.ensure_adj_lists_len(required_len);
-        let edge_meta = self.get_edge_and_update_time(src_pid, dst, t, Direction::OUT);
+        let (edge_meta, timestamps, _) = self.get_edge_and_timestamps(src_pid, dst, Direction::OUT);
+        timestamps.insert(t);
         self.link_outbound_edge(edge_meta, src_pid, dst);
         self.link_inbound_edge(edge_meta, src, dst_pid);
         self.local_props.upsert_temporal_props(t, edge_meta, props);
     }
 
-    #[allow(unused_variables)]
     pub(crate) fn add_edge_remote_out(
         &mut self,
         t: i64,
@@ -157,13 +163,13 @@ impl EdgeLayer {
     ) {
         self.ensure_adj_lists_len(src_pid + 1);
         let dst = VID::Remote(dst);
-        let edge_meta = self.get_edge_and_update_time(src_pid, dst, t, Direction::OUT);
+        let (edge_meta, timestamps, _) = self.get_edge_and_timestamps(src_pid, dst, Direction::OUT);
+        timestamps.insert(t);
         self.link_outbound_edge(edge_meta, src_pid, dst);
         self.remote_out_props
             .upsert_temporal_props(t, edge_meta, props);
     }
 
-    #[allow(unused_variables)]
     pub(crate) fn add_edge_remote_into(
         &mut self,
         t: i64,
@@ -173,7 +179,8 @@ impl EdgeLayer {
     ) {
         let src = VID::Remote(src);
         self.ensure_adj_lists_len(dst_pid + 1);
-        let edge_meta = self.get_edge_and_update_time(dst_pid, src, t, Direction::IN);
+        let (edge_meta, timestamps, _) = self.get_edge_and_timestamps(dst_pid, src, Direction::IN);
+        timestamps.insert(t);
         self.link_inbound_edge(edge_meta, src, dst_pid);
         self.remote_into_props
             .upsert_temporal_props(t, edge_meta, props);
@@ -210,34 +217,37 @@ impl EdgeLayer {
         self.adj_lists.get(v_pid).unwrap_or(&Adj::Solo)
     }
 
-    fn get_edge_and_update_time(
+    fn get_edge_and_timestamps(
         &mut self,
         local_v: usize,
         other: VID,
-        t: i64,
         dir: Direction,
-    ) -> usize {
-        let timestamps = match other {
+    ) -> (usize, &mut TimeIndex, &mut TimeIndex) {
+        let (timestamps, deletions) = match other {
             VID::Remote(_) => match dir {
-                Direction::IN => &mut self.remote_into_timestamps,
-                Direction::OUT => &mut self.remote_out_timestamps,
+                Direction::IN => (
+                    &mut self.remote_into_timestamps,
+                    &mut self.remote_into_deletions,
+                ),
+                Direction::OUT => (
+                    &mut self.remote_out_timestamps,
+                    &mut self.remote_out_deletions,
+                ),
                 Direction::BOTH => {
                     panic!("Internal get_edge function should not be called with `Direction::BOTH`")
                 }
             },
-            VID::Local(_) => &mut self.local_timestamps,
+            VID::Local(_) => (&mut self.local_timestamps, &mut self.local_deletions),
         };
-        match self.adj_lists[local_v].get_edge(other, dir) {
-            Some(edge) => {
-                timestamps[edge].insert(t);
-                edge
-            }
-            None => {
+        let edge = self.adj_lists[local_v]
+            .get_edge(other, dir)
+            .unwrap_or_else(|| {
                 let edge = timestamps.len();
-                timestamps.push(TimeIndex::one(t));
+                timestamps.push(TimeIndex::default());
+                deletions.push(TimeIndex::default());
                 edge
-            }
-        }
+            });
+        (edge, &mut timestamps[edge], &mut deletions[edge])
     }
 
     pub(crate) fn link_inbound_edge(
