@@ -286,8 +286,7 @@ impl GraphViewInternalOps for InternalGraph {
     }
 
     fn vertices_len(&self) -> usize {
-        let vs: Vec<usize> = self.shards.iter().map(|shard| shard.len()).collect();
-        vs.iter().sum()
+        self.shards.iter().map(|shard| shard.len()).sum()
     }
 
     fn vertices_len_window(&self, t_start: i64, t_end: i64) -> usize {
@@ -649,19 +648,6 @@ impl GraphViewInternalOps for InternalGraph {
     fn num_shards(&self) -> usize {
         self.nr_shards
     }
-
-    fn vertices_shard(&self, shard_id: usize) -> Box<dyn Iterator<Item = LocalVertexRef> + Send> {
-        Box::new(self.shards[shard_id].vertices())
-    }
-
-    fn vertices_shard_window(
-        &self,
-        shard_id: usize,
-        t_start: i64,
-        t_end: i64,
-    ) -> Box<dyn Iterator<Item = LocalVertexRef> + Send> {
-        Box::new(self.shards[shard_id].vertices_window(t_start..t_end))
-    }
 }
 
 /// The implementation of a temporal graph composed of multiple shards.
@@ -821,7 +807,7 @@ impl InternalGraph {
         // use BufReader for better performance
 
         //TODO turn to logging?
-        //println!("loading from {:?}", path.as_ref());
+        println!("loading from {:?}", path.as_ref());
         let mut p = PathBuf::from(path.as_ref());
         p.push("graphdb_nr_shards");
 
@@ -1085,7 +1071,6 @@ mod db_tests {
     use crate::db::path::PathFromVertex;
     use crate::db::view_api::edge::EdgeViewOps;
     use crate::db::view_api::layer::LayerOps;
-    use crate::db::view_api::*;
     use crate::graphgen::random_attachment::random_attachment;
     use itertools::Itertools;
     use std::fs;

@@ -32,7 +32,7 @@ fn main() {
         Some(args.get(1).unwrap().to_string())
     };
 
-    let g = stable_coin_graph(data_dir, 1);
+    let g = stable_coin_graph(data_dir,true, 1);
 
     assert_eq!(g.num_vertices(), 1523333);
     assert_eq!(g.num_edges(), 2814155);
@@ -44,15 +44,29 @@ fn main() {
 
     println!("Pagerank");
     let now = Instant::now();
-    let _ = unweighted_page_rank(&g, 20, None, None);
+    let _ = unweighted_page_rank(&g, 20, None, None, true);
     println!("Time taken: {} secs", now.elapsed().as_secs());
 
     let now = Instant::now();
-    let _ = unweighted_page_rank(&g, 20, None, None);
+
+    let _ = unweighted_page_rank(
+        &g,
+        20,
+        None,
+        None,
+        true,
+    );
     println!("Time taken: {} secs", now.elapsed().as_secs());
 
     let now = Instant::now();
-    let _ = unweighted_page_rank(&g.layer("USDT").unwrap(), 20, None, None);
+    let _ = unweighted_page_rank(
+        &g.layer("USDT")
+            .unwrap(),
+        20,
+        None,
+        None,
+        true
+    );
     println!("Time taken: {} secs", now.elapsed().as_secs());
 
     println!("Generic taint");

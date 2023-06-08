@@ -1,11 +1,12 @@
 use itertools::Itertools;
-use std::sync::Arc;
+use rustc_hash::FxHashSet;
 
 use crate::core::time::IntoTime;
-use crate::core::vertex_ref::VertexRef;
+use crate::core::vertex_ref::{LocalVertexRef, VertexRef};
 use crate::db::edge::EdgeView;
 use crate::db::graph_layer::LayeredGraph;
 use crate::db::graph_window::WindowedGraph;
+use crate::db::subgraph_vertex::VertexSubgraph;
 use crate::db::vertex::VertexView;
 use crate::db::vertices::Vertices;
 use crate::db::view_api::internal::GraphViewInternalOps;
@@ -18,6 +19,10 @@ use crate::db::view_api::VertexViewOps;
 /// that are used to define the type of the vertices, edges
 /// and the corresponding iterators.
 pub trait GraphViewOps: Send + Sync + Sized + GraphViewInternalOps + 'static + Clone {
+    fn subgraph<I: IntoIterator<Item = V>, V: Into<VertexRef>>(
+        &self,
+        vertices: I,
+    ) -> VertexSubgraph<Self>;
     fn get_unique_layers(&self) -> Vec<String>;
     /// Timestamp of earliest activity in the graph
     fn earliest_time(&self) -> Option<i64>;
@@ -59,6 +64,17 @@ pub trait GraphViewOps: Send + Sync + Sized + GraphViewInternalOps + 'static + C
 }
 
 impl<G: Send + Sync + Sized + GraphViewInternalOps + 'static + Clone> GraphViewOps for G {
+    fn subgraph<I: IntoIterator<Item = V>, V: Into<VertexRef>>(
+        &self,
+        vertices: I,
+    ) -> VertexSubgraph<G> {
+        let vertices: FxHashSet<LocalVertexRef> = vertices
+            .into_iter()
+            .flat_map(|v| self.local_vertex(v.into()))
+            .collect();
+        VertexSubgraph::new(self.clone(), vertices)
+    }
+
     fn get_unique_layers(&self) -> Vec<String> {
         self.get_unique_layers_internal()
             .into_iter()

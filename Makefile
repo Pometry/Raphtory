@@ -23,3 +23,6 @@ test-all: rust-test
 
 install-python:
 	cd python && maturin build && pip install ../target/wheels/*.whl
+
+run-graphql:
+	cargo run --release -p raphtory-graphql

@@ -386,19 +386,6 @@ impl<G: GraphViewInternalOps> GraphViewInternalOps for LayeredGraph<G> {
         self.graph.num_shards()
     }
 
-    fn vertices_shard(&self, shard_id: usize) -> Box<dyn Iterator<Item = LocalVertexRef> + Send> {
-        self.graph.vertices_shard(shard_id)
-    }
-
-    fn vertices_shard_window(
-        &self,
-        shard_id: usize,
-        t_start: i64,
-        t_end: i64,
-    ) -> Box<dyn Iterator<Item = LocalVertexRef> + Send> {
-        self.graph.vertices_shard_window(shard_id, t_start, t_end)
-    }
-
     fn vertex_timestamps(&self, v: LocalVertexRef) -> Vec<i64> {
         self.graph.vertex_timestamps(v)
     }

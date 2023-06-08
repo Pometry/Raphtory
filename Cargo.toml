@@ -7,12 +7,12 @@ members = [
 	"python",
 	"py-raphtory",
 	"js-raphtory",
-	"raphtory-graphql"
+	"raphtory-graphql",
 ]
 default-members = ["raphtory"]
 
 [workspace.package]
-version = "0.3.2"
+version = "0.4.0"
 documentation = "https://raphtory.readthedocs.io/en/latest/"
 repository = "https://github.com/Raphtory/raphtory/"
 license = "GPL-3.0"

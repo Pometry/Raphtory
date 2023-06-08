@@ -15,16 +15,18 @@ homepage.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-raphtory = { path = "../raphtory", version = "0.3.2" }
+raphtory = { path = "../raphtory", version = "0.4.0" }
 reqwest = { version = "0.11.14", features = ["blocking"] }
 neo4rs = "0.6.0"
 csv = "1.1.6"
 serde = { version = "1", features = ["derive","rc"] }
+serde_json = "1"
 rayon = "1"
 regex = "1"
 chrono = "0.4"
 itertools="0.10"
 
+zip = "0.5"
 bzip2 = "0.4"
 flate2 = "1.0"
 

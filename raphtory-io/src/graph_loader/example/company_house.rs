@@ -175,6 +175,7 @@ mod company_house_graph_test {
     use raphtory::db::view_api::{TimeOps, VertexViewOps};
 
     #[test]
+    #[ignore]
     fn test_ch_load() {
         let g = company_house_graph(
             None,

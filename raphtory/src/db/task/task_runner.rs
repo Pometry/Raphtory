@@ -1,30 +1,22 @@
 use std::{
     borrow::Cow,
-    cell::RefCell,
-    cmp::min,
-    iter::zip,
     rc::Rc,
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc,
-    },
+    sync::atomic::{AtomicBool, Ordering},
 };
 
-use itertools::Itertools;
 use rayon::{prelude::*, ThreadPool};
 
-use crate::core::state::shuffle_state::{EvalGlobalState, EvalLocalState, EvalShardState};
-use crate::{
-    core::state::{compute_state::ComputeState, shuffle_state::ShuffleComputeState},
-    db::view_api::GraphViewOps,
-};
+use crate::core::state::shuffle_state::{EvalLocalState, EvalShardState};
+use crate::core::vertex_ref::LocalVertexRef;
+use crate::{core::state::compute_state::ComputeState, db::view_api::GraphViewOps};
 
 use super::{
     context::{Context, GlobalState},
     custom_pool,
     eval_vertex::EvalVertexView,
+    eval_vertex_state::EVState,
     task::{Job, Step, Task},
-    task_state::{Global, Shard},
+    task_state::{Global, Local2, Shard},
     POOL,
 };
 
@@ -47,72 +39,56 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         (shard, global)
     }
 
-    fn make_total_state<B: Clone, F: Fn() -> B>(
-        &self,
-        num_threads: usize,
-        f: F,
-    ) -> Vec<(usize, B)> {
-        vec![f(); num_threads]
-            .into_iter()
-            .enumerate()
-            .collect::<Vec<_>>()
-    }
-
-    fn run_task(
+    fn run_task_v2<S: 'static>(
         &self,
         shard_state: &Shard<CS>,
         global_state: &Global<CS>,
-        local_state: &mut Arc<Option<ShuffleComputeState<CS>>>,
-        num_shards: usize,
-        num_tasks: usize,
-        job_id: &usize,
+        morcel: &mut [Option<(LocalVertexRef, S)>],
+        prev_local_state: &Vec<Option<(LocalVertexRef, S)>>,
+        max_shard_len: usize,
         atomic_done: &AtomicBool,
-        task: &Box<dyn Task<G, CS> + Send + Sync>,
+        task: &Box<dyn Task<G, CS, S> + Send + Sync>,
     ) -> (Shard<CS>, Global<CS>) {
         // the view for this task of the global state
-        let shard_state_view = shard_state.as_cow_rc();
-        let global_state_view = global_state.as_cow_rc();
-
-        let owned_local_state = Arc::get_mut(local_state).and_then(|x| x.take()).unwrap();
-        let rc_local_state = Rc::new(RefCell::new(owned_local_state));
+        let shard_state_view = shard_state.as_cow();
+        let global_state_view = global_state.as_cow();
 
         let g = self.ctx.graph();
 
         let mut done = true;
-        for shard in 0..num_shards {
-            if shard % num_tasks == *job_id {
-                for vertex in self.ctx.graph().vertices_shard(shard) {
-                    let vv = EvalVertexView::new_local(
-                        self.ctx.ss(),
-                        vertex,
-                        g.clone(),
-                        shard_state_view.clone(),
-                        global_state_view.clone(),
-                        rc_local_state.clone(),
-                    );
 
-                    match task.run(&vv) {
-                        Step::Continue => {
-                            done = false;
-                        }
-                        Step::Done => {}
+        let vertex_state = EVState::rc_from(shard_state_view, global_state_view);
+
+        let local = Local2::new(max_shard_len, prev_local_state);
+
+        for line in morcel {
+            if let Some((v_ref, local_state)) = line {
+                let mut vv = EvalVertexView::new_local(
+                    self.ctx.ss(),
+                    v_ref.clone(),
+                    &g,
+                    Some(local_state),
+                    &local,
+                    vertex_state.clone(),
+                );
+
+                match task.run(&mut vv) {
+                    Step::Continue => {
+                        done = false;
                     }
+                    Step::Done => {}
                 }
             }
         }
-        // put the local state back
-        *local_state = Arc::new(Some(Rc::try_unwrap(rc_local_state).unwrap().into_inner()));
 
         if !done {
             atomic_done.store(false, Ordering::Relaxed);
         }
 
-        let cow_shard_state: Cow<ShuffleComputeState<CS>> =
-            Rc::try_unwrap(shard_state_view).unwrap().into_inner();
+        let vertex_state: EVState<CS> = Rc::try_unwrap(vertex_state).unwrap().into_inner();
+        let (shard_state_view, global_state_view) = vertex_state.restore_states();
 
-        let cow_global_state = Rc::try_unwrap(global_state_view).unwrap().into_inner();
-
-        match (cow_shard_state, cow_global_state) {
+        match (shard_state_view, global_state_view) {
             (Cow::Owned(state), Cow::Owned(global_state)) => {
                 // the state was changed in some way so we need to update the arc
                 (Shard::from_state(state), Global::from_state(global_state))
@@ -132,94 +108,69 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         }
     }
 
-    pub fn run_task_list(
+    pub fn run_task_list<S: Send + Sync + 'static>(
         &mut self,
-        tasks: &[Job<G, CS>],
+        tasks: &[Job<G, CS, S>],
         pool: &ThreadPool,
         shard_state: Shard<CS>,
         global_state: Global<CS>,
-        mut local_state: Vec<Arc<Option<ShuffleComputeState<CS>>>>,
-        num_threads: usize,
-        num_shards: usize,
+        mut local_state: Vec<Option<(LocalVertexRef, S)>>,
+        prev_local_state: &Vec<Option<(LocalVertexRef, S)>>,
+        max_shard_len: usize,
     ) -> (
         bool,
         Shard<CS>,
         Global<CS>,
-        Vec<Arc<Option<ShuffleComputeState<CS>>>>,
+        Vec<Option<(LocalVertexRef, S)>>,
     ) {
         pool.install(move || {
+            let chunk_size = 16_000;
             let mut new_shard_state = shard_state;
             let mut new_global_state = global_state;
 
             let mut done = false;
 
-            let num_tasks = min(num_shards, num_threads);
-
             for task in tasks.iter() {
                 let atomic_done = AtomicBool::new(true);
 
-                let updated_state = {
-                    let task_shard_states =
-                        self.make_total_state(num_tasks, || new_shard_state.clone());
-
-                    let task_global_states =
-                        self.make_total_state(num_shards, || new_global_state.clone());
-
-                    let mut task_states = zip(
-                        zip(local_state.iter_mut(), task_shard_states.into_iter()),
-                        task_global_states.into_iter(),
-                    )
-                    .map(
-                        |((local_state, (_, shard_state)), (job_id, global_state))| {
-                            (job_id, local_state, shard_state, global_state)
-                        },
-                    )
-                    .collect_vec();
-
-                    let out_state = match task {
-                        Job::Write(task) => task_states
-                            .par_iter_mut()
-                            .map(|(job_id, local_state, shard_state, global_state)| {
-                                self.run_task(
-                                    shard_state,
-                                    global_state,
-                                    local_state,
-                                    num_shards,
-                                    num_tasks,
-                                    job_id,
-                                    &atomic_done,
-                                    task,
-                                )
-                            })
-                            .reduce_with(|a, b| self.merge_states(a, b)),
-                        Job::Read(task) => {
-                            task_states.par_iter_mut().for_each(
-                                |(job_id, local_state, shard_state, global_state)| {
-                                    self.run_task(
-                                        shard_state,
-                                        global_state,
-                                        local_state,
-                                        num_shards,
-                                        num_tasks,
-                                        job_id,
-                                        &atomic_done,
-                                        task,
-                                    );
-                                },
+                let updated_state: Option<(Shard<CS>, Global<CS>)> = match task {
+                    Job::Write(task) => local_state
+                        .par_chunks_mut(chunk_size)
+                        .map(|morcel| {
+                            self.run_task_v2(
+                                &new_shard_state,
+                                &new_global_state,
+                                morcel,
+                                prev_local_state,
+                                max_shard_len,
+                                &atomic_done,
+                                task,
+                            )
+                        })
+                        .reduce_with(|a, b| self.merge_states(a, b)),
+                    Job::Read(task) => {
+                        local_state.par_chunks_mut(chunk_size).for_each(|morcel| {
+                            self.run_task_v2(
+                                &new_shard_state,
+                                &new_global_state,
+                                morcel,
+                                prev_local_state,
+                                max_shard_len,
+                                &atomic_done,
+                                task,
                             );
-                            None
-                        }
-                        Job::Check(task) => {
-                            match task(&GlobalState::new(new_global_state.clone(), self.ctx.ss())) {
-                                Step::Continue => {
-                                    atomic_done.store(false, Ordering::Relaxed);
-                                }
-                                Step::Done => {}
-                            };
-                            None
-                        }
-                    };
-                    out_state
+                        });
+                        None
+                    }
+                    Job::Check(task) => {
+                        match task(&GlobalState::new(new_global_state.clone(), self.ctx.ss())) {
+                            Step::Continue => {
+                                atomic_done.store(false, Ordering::Relaxed);
+                            }
+                            Step::Done => {}
+                        };
+                        None
+                    }
                 };
 
                 if let Some((shard_state, global_state)) = updated_state {
@@ -237,13 +188,47 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         })
     }
 
+    fn make_cur_and_prev_states<S: Clone>(
+        &self,
+        init: S,
+    ) -> (
+        usize,
+        Vec<Option<(LocalVertexRef, S)>>,
+        Vec<Option<(LocalVertexRef, S)>>,
+    ) {
+        let g = self.ctx.graph();
+
+        // find the shard with the largest number of vertices
+        let max_shard_len = g.vertex_refs().map(|v| v.pid).max().unwrap_or(0) + 1;
+
+        let n_shards = g.num_shards();
+
+        let mut states = vec![None; max_shard_len * n_shards];
+
+        for v_ref in g.vertex_refs() {
+            let LocalVertexRef { shard_id, pid } = v_ref;
+            let i = max_shard_len * shard_id + pid;
+            states[i] = Some((v_ref.clone(), init.clone()));
+        }
+
+        (max_shard_len, states.clone(), states)
+    }
+
     pub fn run<
-        B,
-        F: FnOnce(EvalGlobalState<G, CS>, EvalShardState<G, CS>, EvalLocalState<G, CS>) -> B,
+        B: std::fmt::Debug,
+        F: FnOnce(
+                GlobalState<CS>,
+                EvalShardState<G, CS>,
+                EvalLocalState<G, CS>,
+                &Vec<Option<(LocalVertexRef, S)>>,
+            ) -> B
+            + std::marker::Copy,
+        S: Send + Sync + Clone + 'static + std::fmt::Debug,
     >(
         &mut self,
-        init_tasks: Vec<Job<G, CS>>,
-        tasks: Vec<Job<G, CS>>,
+        init_tasks: Vec<Job<G, CS, S>>,
+        tasks: Vec<Job<G, CS, S>>,
+        init: S,
         f: F,
         num_threads: Option<usize>,
         steps: usize,
@@ -256,63 +241,65 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
             .map(|nt| custom_pool(nt))
             .unwrap_or_else(|| POOL.clone());
 
-        let num_threads = pool.current_num_threads();
-
         let mut shard_state = shard_initial_state.unwrap_or_else(|| Shard::new(graph_shards));
 
         let mut global_state = global_initial_state.unwrap_or_else(|| Global::new());
 
-        let mut local_state: Vec<Arc<Option<ShuffleComputeState<CS>>>> = (0..num_threads)
-            .into_iter()
-            .map(|_| Arc::new(Some(ShuffleComputeState::new(graph_shards))))
-            .collect_vec();
+        let (max_shard_len, mut cur_local_state, mut prev_local_state) =
+            self.make_cur_and_prev_states::<S>(init);
 
         let mut done = false;
 
-        (done, shard_state, global_state, local_state) = self.run_task_list(
+        (done, shard_state, global_state, cur_local_state) = self.run_task_list(
             &init_tasks,
             &pool,
             shard_state,
             global_state,
-            local_state,
-            num_threads,
-            graph_shards,
+            cur_local_state,
+            &prev_local_state,
+            max_shard_len,
         );
 
+        // To allow the init step to cache stuff we will copy everything from cur_local_state to prev_local_state
+        prev_local_state.clone_from_slice(&cur_local_state);
+
         while !done && self.ctx.ss() < steps && tasks.len() > 0 {
-            (done, shard_state, global_state, local_state) = self.run_task_list(
+            (done, shard_state, global_state, cur_local_state) = self.run_task_list(
                 &tasks,
                 &pool,
                 shard_state,
                 global_state,
-                local_state,
-                num_threads,
-                graph_shards,
+                cur_local_state,
+                &prev_local_state,
+                max_shard_len,
             );
 
             // copy and reset the state from the step that just ended
             shard_state.reset(self.ctx.ss(), self.ctx.resetable_states());
             global_state.reset(self.ctx.ss(), self.ctx.resetable_states());
 
-            // Copy and reset the local states from the step that just ended
-            for local_state in local_state.iter_mut() {
-                Arc::get_mut(local_state).map(|s| {
-                    s.as_mut().map(|s| {
-                        s.copy_over_next_ss(self.ctx.ss());
-                        s.reset_states(self.ctx.ss(), self.ctx.resetable_states());
-                    });
-                });
-            }
+            // swap the two local states
+            prev_local_state.clone_from_slice(&cur_local_state);
+            std::mem::swap(&mut cur_local_state, &mut prev_local_state);
 
+            // Copy and reset the local states from the step that just ended
             self.ctx.increment_ss();
         }
 
         let ss: usize = self.ctx.ss();
+        let last_local_state = if ss % 2 == 0 {
+            cur_local_state
+        } else {
+            prev_local_state
+        };
+        //TODO change to log
+        //println!("Done running iterations: {ss}");
 
         f(
-            EvalGlobalState::new(ss, self.ctx.graph(), global_state),
+            GlobalState::new(global_state, ss),
             EvalShardState::new(ss, self.ctx.graph(), shard_state),
-            EvalLocalState::new(ss, self.ctx.graph(), local_state),
+            EvalLocalState::new(ss, self.ctx.graph(), vec![]),
+            &last_local_state,
         )
     }
 }
