@@ -1,5 +1,5 @@
 ---
-title: 'Raphtory: a library for mining large temporal graphs'
+title: 'Raphtory: The temporal graph engine for Rust and Python'
 tags:
   - Python
   - Rust
@@ -31,14 +31,14 @@ authors:
     affiliation: 1
   - name: Richard G. Clegg
     affiliation: 4
+  - name: Felix Cuadrado
+    affiliation: "7, 4"
   - name: Matt Barnes
     affiliation: 4
   - name: Peijie Zhong
     affiliation: 4
-  - name: Felix Cuadrado
-    affiliation: 7
   - name: Cheick Ba
-    affiliation: 6
+    affiliation: "6, 4"
   - name: John Pougué-Biyong
     affiliation: 2
   - name: Alhamza Alnaimi
@@ -67,8 +67,6 @@ bibliography: joss-raphtory.bib
 # aas-doi: 10.3847/xxxxx <- update this with the DOI from AAS once you know it.
 # aas-journal: Astrophysical Journal <- The name of the AAS journal.
 ---
-
-# Raphtory: The temporal graph engine for Rust and Python
 
 # Summary
 
