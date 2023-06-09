@@ -15,7 +15,7 @@ authors:
     affiliation: 3
   - name: Haaroon Yousaf
     affiliation: 1
-  - name: Renaud Lambiotte:
+  - name: Renaud Lambiotte
     affiliation: 2
 affiliations:
  - name: Pometry, United Kingdom
