@@ -34,8 +34,10 @@ use std::fmt;
 extern crate core;
 
 mod adj;
+// mod adj2;
 pub mod agg;
 mod edge_layer;
+// mod edge_layer2;
 pub mod edge_ref;
 mod lazy_vec;
 pub mod lsm;
@@ -45,6 +47,7 @@ pub mod state;
 pub mod tadjset;
 mod tcell;
 pub mod tgraph;
+// pub mod tgraph2;
 pub mod tgraph_shard;
 pub mod time;
 pub mod timeindex;

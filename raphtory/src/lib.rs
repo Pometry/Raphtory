@@ -109,6 +109,7 @@ pub mod algorithms;
 pub mod core;
 pub mod db;
 pub mod graphgen;
+pub mod storage;
 
 #[cfg(feature = "python")]
 pub mod python;

@@ -996,6 +996,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "guardian"
+version = "1.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1e6a69583cad3dbae65891b78a9899fa093773d0d6ef78a108c02e63223d885c"
+
+[[package]]
 name = "h2"
 version = "0.3.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2257,12 +2263,15 @@ dependencies = [
  "bzip2",
  "chrono",
  "csv",
+ "dashmap",
  "display-error-chain",
  "flate2",
  "flume",
  "futures",
  "genawaiter",
+ "guardian",
  "itertools",
+ "lock_api",
  "neo4rs",
  "num",
  "num-traits",
