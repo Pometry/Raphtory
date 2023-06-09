@@ -24,6 +24,7 @@ use raphtory::db::view_api::*;
 use raphtory::*;
 use std::collections::HashMap;
 use std::sync::Arc;
+use pyo3::pyclass::CompareOp;
 
 /// A vertex (or node) in the graph.
 #[pyclass(name = "Vertex")]
@@ -62,6 +63,37 @@ impl From<PyVertex> for VertexRef {
 /// It can also be used to navigate the graph.
 #[pymethods]
 impl PyVertex {
+
+    /// Rich Comparison for Vertex objects
+    pub fn __richcmp__(&self, other: PyRef<PyVertex>, op: CompareOp) -> Py<PyAny> {
+        let py = other.py();
+        match op {
+            CompareOp::Eq => (self.vertex.id() == other.id()).into_py(py),
+            CompareOp::Ne => (self.vertex.id() != other.id()).into_py(py),
+            _ => py.NotImplemented(),
+        }
+    }
+
+    /// TODO: uncomment when we update to py03 0.2
+    /// checks if a vertex is equal to another by their id (ids are unqiue)
+    ///
+    /// Arguments:
+    ///    other: The other vertex to compare to.
+    ///
+    /// Returns:
+    ///   True if the vertices are equal, false otherwise.
+    // pub fn __eq__(&self, other: &PyVertex) -> bool {
+    //     self.vertex.id() == other.vertex.id()
+    // }
+
+    /// Returns the hash of the vertex.
+    ///
+    /// Returns:
+    ///   The vertex id.
+    pub fn __hash__(&self) -> u64 {
+        self.vertex.id()
+    }
+
     /// Returns the id of the vertex.
     /// This is a unique identifier for the vertex.
     ///
@@ -480,6 +512,22 @@ impl<G: GraphViewOps + IntoDynamic> IntoPyObject for Vertices<G> {
 /// These use all the same functions as a normal vertex except it returns a list of results.
 #[pymethods]
 impl PyVertices {
+    /// checks if a list of vertices is equal to another list by their idd (ids are unique)
+    ///
+    /// Arguments:
+    ///    other: The other vertices to compare to.
+    ///
+    /// Returns:
+    ///   True if the vertices are equal, false otherwise.
+    fn __eq__(&self, other: &PyVertices) -> bool {
+        for (v1, v2) in self.vertices.iter().zip(other.vertices.iter()) {
+            if v1.id() != v2.id() {
+                return false;
+            }
+        }
+        return true;
+    }
+
     fn id(&self) -> U64Iterable {
         let vertices = self.vertices.clone();
         (move || vertices.id()).into()
