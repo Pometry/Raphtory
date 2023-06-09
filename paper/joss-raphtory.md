@@ -51,23 +51,6 @@ Besides the packages for static networks aforementioned, few open access tools h
 For instance, EvolvingGraphs.jl only proposes a small number of algorithms and its development has been interrupted 5 years ago [@zhang2015dynamic]. pathpy is a Python package for the analysis of time series data on networks adopting the viewpoint of multi-order network models [@hackl2021analysis]. More recently, but in a relatively preliminary form, Reticula offers a range of methods developed in C++ with a Python interface [@badie2023reticula].
 Raphtory is a valuable addition to this ecosystem for the following reasons. Originally developed in Scala [@steer2020raphtory], its current core is entirely written in Rust, to ensure smooth distributed computations together with a Python interface for the facility of use. The distributed setting is particularly critical, to handle the sheer volume of temporal network data, whose size is often significantly larger than that of their static counterparts.
 
-# Mathematics
-
-Single dollars ($) are required for inline mathematics e.g. $f(x) = e^{\pi/x}$
-
-Double dollars make self-standing equations:
-
-$$\Theta(x) = \left\{\begin{array}{l}
-0\textrm{ if } x < 0\cr
-1\textrm{ else}
-\end{array}\right.$$
-
-You can also use plain \LaTeX for equations
-\begin{equation}\label{eq:fourier}
-\hat f(\omega) = \int_{-\infty}^{\infty} f(x) e^{i\omega x} dx
-\end{equation}
-and refer to \autoref{eq:fourier} from text.
-
 # Overview
 
 The installation is run with a single `pip install raphtory` command, facilitating its fit into a Python/Pandas pipeline for input and output.
