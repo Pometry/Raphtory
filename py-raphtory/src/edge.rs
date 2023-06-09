@@ -4,6 +4,7 @@
 //! The PyEdge class also provides access to the perspective APIs, which allow the user to view the
 //! edge as it existed at a particular point in time, or as it existed over a particular time range.
 //!
+use std::collections::hash_map::DefaultHasher;
 use crate::dynamic::{DynamicGraph, IntoDynamic};
 use crate::types::repr::{iterator_repr, Repr};
 use crate::utils::*;
@@ -17,7 +18,9 @@ use pyo3::{pyclass, pymethods, PyAny, PyRef, PyRefMut, PyResult};
 use raphtory::db::edge::EdgeView;
 use raphtory::db::view_api::*;
 use std::collections::HashMap;
+use std::hash::{Hash, Hasher};
 use std::sync::Arc;
+use pyo3::pyclass::CompareOp;
 
 /// PyEdge is a Python class that represents an edge in the graph.
 /// An edge is a directed connection between two vertices.
@@ -48,6 +51,31 @@ impl<G: GraphViewOps + IntoDynamic> IntoPyObject for EdgeView<G> {
 /// An edge is a directed connection between two vertices.
 #[pymethods]
 impl PyEdge {
+
+    /// Rich Comparison for Vertex objects
+    pub fn __richcmp__(&self, other: PyRef<PyEdge>, op: CompareOp) -> Py<PyAny> {
+        let py = other.py();
+        match op {
+            CompareOp::Eq => (self.edge.id() == other.id()).into_py(py),
+            CompareOp::Ne => (self.edge.id() != other.id()).into_py(py),
+            _ => py.NotImplemented(),
+        }
+    }
+
+    /// Returns the hash of the edge and edge properties.
+    ///
+    /// Returns:
+    ///   A hash of the edge.
+    pub fn __hash__(&self) -> u64 {
+        let mut s = DefaultHasher::new();
+        self.edge.id().hash(&mut s);
+        s.finish()
+    }
+
+    pub fn id(&self) -> (u64, u64) {
+        self.edge.id()
+    }
+
     pub fn __getitem__(&self, name: String) -> Option<Prop> {
         self.property(name, Some(true))
     }
