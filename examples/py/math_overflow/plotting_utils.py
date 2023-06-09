@@ -65,7 +65,7 @@ def get_labels(motif_map):
     return np.vectorize(human_format)(motif_map)
 
 def get_motif(xory:str,y:int):
-    path = "../motif-pics/"+xory+str(y)+".png"
+    path = "motif-pics/"+xory+str(y)+".png"
     return plt.imread(path)
 
 def offset_image(xory, coord, name, ax):
