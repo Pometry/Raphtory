@@ -29,6 +29,8 @@ authors:
     affiliation: 1
   - name: Louis Chan
     affiliation: 1
+  - name: James Alford
+    affiliation: 1
   - name: Richard G. Clegg
     affiliation: 4
   - name: Felix Cuadrado
