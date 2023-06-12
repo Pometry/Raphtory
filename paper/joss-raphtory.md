@@ -39,7 +39,7 @@ authors:
     affiliation: 4
   - name: Peijie Zhong
     affiliation: 4
-  - name: Cheick Ba
+  - name: Cheick Tidiane Ba
     affiliation: "6, 4"
   - name: John Pougué-Biyong
     affiliation: 2
@@ -57,7 +57,7 @@ affiliations:
    index: 4
  - name: 32 Bytes Software, United Kingdom
    index: 5
- - name: Politecnico di Milano, Italy
+ - name: University of Milan, Italy
    index: 6
  - name: Universidad Politécnica de Madrid, Spain
    index: 7
