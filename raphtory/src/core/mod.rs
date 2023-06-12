@@ -34,7 +34,6 @@ use std::fmt;
 extern crate core;
 
 mod adj;
-// mod adj2;
 pub mod agg;
 mod edge_layer;
 // mod edge_layer2;
@@ -44,6 +43,7 @@ pub mod lsm;
 mod props;
 mod sorted_vec_map;
 pub mod state;
+pub mod tgraph2;
 pub mod tadjset;
 mod tcell;
 pub mod tgraph;
