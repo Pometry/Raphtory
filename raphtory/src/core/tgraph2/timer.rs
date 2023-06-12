@@ -2,7 +2,7 @@ use std::sync::atomic::{AtomicI64, Ordering};
 
 use serde::{Deserialize, Serialize};
 
-trait TimeCounterTrait {
+pub(crate) trait TimeCounterTrait {
     fn cmp(a: i64, b: i64) -> bool;
     fn counter(&self) -> &AtomicI64;
 

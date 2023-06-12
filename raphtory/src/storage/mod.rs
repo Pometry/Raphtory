@@ -3,7 +3,7 @@ mod iter;
 
 use std::{
     fmt::Debug,
-    ops::Deref,
+    ops::{Deref, DerefMut},
     sync::atomic::{AtomicUsize, Ordering},
 };
 
@@ -55,18 +55,45 @@ impl<T, L: RawRwLock, const N: usize> RawStorage<T, L, N> {
         (bucket, offset)
     }
 
-    pub fn push(&self, value: T) {
+    pub fn push(&self, value: T) -> usize {
         let index = self.len.fetch_add(1, Ordering::SeqCst);
         let (bucket, offset) = self.resolve(index);
         let mut vec = self.data[bucket].data.write();
         vec.resize_with(offset, || None);
         vec.insert(offset, Some(value));
+        index
     }
 
     pub fn entry(&self, index: usize) -> Entry<'_, T, L> {
         let (bucket, offset) = self.resolve(index);
-        let guard= self.data[bucket].data.read();
+        let guard = self.data[bucket].data.read();
         Entry { i: offset, guard }
+    }
+
+    pub fn entry_mut(&self, index: usize) -> EntryMut<'_, T, L> {
+        let (bucket, offset) = self.resolve(index);
+        let guard = self.data[bucket].data.write();
+        EntryMut { i: offset, guard }
+    }
+
+    // This helps get the right locks when adding an edge
+    pub fn pair_entry_mut(&self, i: usize, j: usize) -> PairEntryMut<'_, T, L> {
+        let (bucket, offset_i) = self.resolve(i);
+        let (bucket2, offset_j) = self.resolve(j);
+        if bucket != bucket2 {
+            PairEntryMut::Different {
+                i: offset_i,
+                j: offset_j,
+                guard1: self.data[bucket].data.write(),
+                guard2: self.data[bucket2].data.write(),
+            }
+        } else {
+            PairEntryMut::Same {
+                i: offset_i,
+                j: offset_j,
+                guard: self.data[bucket].data.write(),
+            }
+        }
     }
 
     pub fn len(&self) -> usize {
@@ -93,6 +120,56 @@ impl<'a, T, L: lock_api::RawRwLock> Deref for Entry<'a, T, L> {
 
     fn deref(&self) -> &Self::Target {
         self.guard[self.i].as_ref().unwrap()
+    }
+}
+
+pub enum PairEntryMut<'a, T: 'static, L: RawRwLock> {
+    Same {
+        i: usize,
+        j: usize,
+        guard: lock_api::RwLockWriteGuard<'a, L, Vec<Option<T>>>,
+    },
+    Different {
+        i: usize,
+        j: usize,
+        guard1: lock_api::RwLockWriteGuard<'a, L, Vec<Option<T>>>,
+        guard2: lock_api::RwLockWriteGuard<'a, L, Vec<Option<T>>>,
+    },
+}
+
+impl <'a, T: 'static, L: RawRwLock> PairEntryMut<'a, T, L> {
+
+    pub(crate) fn get_mut_i(&mut self) -> &mut T{
+        match self {
+            PairEntryMut::Same { i, guard, .. } => guard[*i].as_mut().unwrap(),
+            PairEntryMut::Different { i, guard1, .. } => guard1[*i].as_mut().unwrap(),
+        }
+    }
+
+    pub(crate) fn get_mut_j(&mut self) -> &mut T{
+        match self {
+            PairEntryMut::Same { j, guard, .. } => guard[*j].as_mut().unwrap(),
+            PairEntryMut::Different { j, guard2, .. } => guard2[*j].as_mut().unwrap(),
+        }
+    }
+}
+
+pub struct EntryMut<'a, T: 'static, L: RawRwLock> {
+    i: usize,
+    guard: lock_api::RwLockWriteGuard<'a, L, Vec<Option<T>>>,
+}
+
+impl<'a, T, L: lock_api::RawRwLock> Deref for EntryMut<'a, T, L> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        self.guard[self.i].as_ref().unwrap()
+    }
+}
+
+impl<'a, T, L: lock_api::RawRwLock> DerefMut for EntryMut<'a, T, L> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.guard[self.i].as_mut().unwrap()
     }
 }
 

@@ -24,6 +24,12 @@ impl From<usize> for VID {
     }
 }
 
+impl From<VID> for usize{
+    fn from(id: VID) -> Self {
+        id.0
+    }
+}
+
 impl VID {
     #[inline(always)]
     pub(crate) fn as_local<const N: usize>(&self) -> LocalID {

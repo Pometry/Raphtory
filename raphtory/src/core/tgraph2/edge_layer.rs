@@ -6,3 +6,9 @@ use super::adj::Adj;
 pub(crate) struct EdgeLayer {
     adj: Adj,
 }
+
+impl EdgeLayer {
+    pub fn new() -> Self {
+        Self { adj: Adj::Solo }
+    }
+}
