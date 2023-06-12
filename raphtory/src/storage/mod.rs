@@ -1,11 +1,15 @@
+mod items;
+mod iter;
+
 use std::{
     fmt::Debug,
     ops::Deref,
-    rc::Rc,
     sync::atomic::{AtomicUsize, Ordering},
 };
 
 use lock_api::{RawRwLock, RwLock};
+
+use self::{items::Items, iter::Iter};
 
 #[derive(Debug)]
 pub struct LockVec<T, L: RawRwLock> {
@@ -66,28 +70,13 @@ impl<T: std::fmt::Debug + Default, L: RawRwLock, const N: usize> RawStorage<T, L
         self.len.load(Ordering::SeqCst)
     }
 
-    pub fn items<'a>(&'a self) -> IterableGuards<'a, T, L> {
+    pub fn items<'a>(&'a self) -> Items<'a, T, L> {
         let guards = self.data.iter().map(|vec| vec.data.read()).collect();
-        IterableGuards { guards }
+        Items::new(guards)
     }
 
     pub fn iter2<'a>(&'a self) -> Iter<'a, T, L, N> {
-        Iter {
-            raw: self,
-            i: 0,
-            current: None,
-        }
-    }
-}
-
-pub struct IterableGuards<'a, T: 'static, L: RawRwLock> {
-    guards: Vec<lock_api::RwLockReadGuard<'a, L, Vec<T>>>,
-}
-
-impl<'a, T: 'static, L: RawRwLock> IterableGuards<'a, T, L> {
-    pub fn iter(&'a self) -> Box<dyn Iterator<Item = &'a T> + 'a> {
-        let iter = self.guards.iter().flat_map(|guard| guard.iter());
-        Box::new(iter)
+        Iter::new(self)
     }
 }
 
@@ -101,76 +90,6 @@ impl<'a, T, L: lock_api::RawRwLock> Deref for Entry<'a, T, L> {
 
     fn deref(&self) -> &Self::Target {
         &self.guard[self.i]
-    }
-}
-
-type GuardIter<'a, T, L> = (
-    Rc<lock_api::RwLockReadGuard<'a, L, Vec<T>>>,
-    std::slice::Iter<'a, T>,
-);
-
-pub struct Iter<'a, T, L: lock_api::RawRwLock, const N: usize> {
-    raw: &'a RawStorage<T, L, N>,
-    i: usize,
-    current: Option<GuardIter<'a, T, L>>,
-}
-
-pub struct RefT<'a, T, L: lock_api::RawRwLock, const N: usize> {
-    _guard: Rc<lock_api::RwLockReadGuard<'a, L, Vec<T>>>,
-    t: &'a T,
-}
-
-impl<'a, T, L: lock_api::RawRwLock, const N: usize> Deref for RefT<'a, T, L, N> {
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        self.t
-    }
-}
-
-// simple impl for RefT that returns &T in the value function
-impl<'a, T, L: lock_api::RawRwLock, const N: usize> RefT<'a, T, L, N> {
-    pub fn value(&self) -> &T {
-        self.t
-    }
-}
-
-/// # Safety
-///
-/// Requires that you ensure the reference does not become invalid.
-/// The object has to outlive the reference.
-pub unsafe fn change_lifetime_const<'a, 'b, T>(x: &'a T) -> &'b T {
-    &*(x as *const T)
-}
-
-impl<'a, T: Debug + Default, L: lock_api::RawRwLock, const N: usize> Iterator
-    for Iter<'a, T, L, N>
-{
-    type Item = RefT<'a, T, L, N>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        loop {
-            if let Some(current) = self.current.as_mut() {
-                if let Some(t) = current.1.next() {
-                    let guard = current.0.clone();
-                    return Some(RefT { _guard: guard, t });
-                }
-            }
-
-            if self.i >= N {
-                return None;
-            }
-
-            let guard = self.raw.data[self.i].data.read();
-
-            let raw = unsafe { change_lifetime_const(&*guard) };
-
-            let iter = raw.iter();
-
-            self.current = Some((Rc::new(guard), iter));
-
-            self.i += 1;
-        }
     }
 }
 
