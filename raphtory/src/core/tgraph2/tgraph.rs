@@ -8,6 +8,7 @@ use std::{
 
 use dashmap::DashMap;
 use rustc_hash::FxHasher;
+use serde::{Serialize, Deserialize};
 
 use crate::storage;
 
@@ -19,6 +20,7 @@ use super::{
 
 type FxDashMap<K, V> = DashMap<K, V, BuildHasherDefault<FxHasher>>;
 
+#[derive(Serialize, Deserialize)]
 pub struct TemporalGraph<const N: usize, L: lock_api::RawRwLock> {
     // mapping between logical and physical ids
     logical_to_physical: FxDashMap<u64, usize>,
@@ -34,4 +36,17 @@ pub struct TemporalGraph<const N: usize, L: lock_api::RawRwLock> {
 
     //latest time seen in this graph
     pub(crate) latest_time: MaxCounter,
+}
+
+
+impl <const N:usize, L: lock_api::RawRwLock> TemporalGraph<N, L> {
+    pub fn new() -> Self {
+        Self {
+            logical_to_physical: FxDashMap::default(),
+            nodes: Arc::new(storage::RawStorage::new()),
+            edges: Arc::new(storage::RawStorage::new()),
+            earliest_time: MinCounter::new(),
+            latest_time: MaxCounter::new(),
+        }
+    }
 }

@@ -7,13 +7,15 @@ use std::{
     sync::atomic::{AtomicUsize, Ordering},
 };
 
+use itertools::Itertools;
 use lock_api::{RawRwLock, RwLock};
+use serde::{Deserialize, Serialize};
 
 use self::{items::Items, iter::Iter};
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct LockVec<T, L: RawRwLock> {
-    data: RwLock<L, Vec<T>>,
+    data: RwLock<L, Vec<Option<T>>>,
 }
 
 impl<T, L: RawRwLock> LockVec<T, L> {
@@ -24,12 +26,13 @@ impl<T, L: RawRwLock> LockVec<T, L> {
     }
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct RawStorage<T, L: RawRwLock, const N: usize> {
-    data: Box<[LockVec<T, L>; N]>,
+    data: Box<[LockVec<T, L>]>,
     len: AtomicUsize,
 }
 
-impl<T: std::fmt::Debug + Default, L: RawRwLock, const N: usize> RawStorage<T, L, N> {
+impl<T, L: RawRwLock, const N: usize> RawStorage<T, L, N> {
     pub fn new() -> Self {
         let mut data = Vec::with_capacity(N);
         for _ in 0..N {
@@ -56,13 +59,13 @@ impl<T: std::fmt::Debug + Default, L: RawRwLock, const N: usize> RawStorage<T, L
         let index = self.len.fetch_add(1, Ordering::SeqCst);
         let (bucket, offset) = self.resolve(index);
         let mut vec = self.data[bucket].data.write();
-        vec.resize_with(offset, || T::default());
-        vec.insert(offset, value);
+        vec.resize_with(offset, || None);
+        vec.insert(offset, Some(value));
     }
 
     pub fn entry(&self, index: usize) -> Entry<'_, T, L> {
         let (bucket, offset) = self.resolve(index);
-        let guard: lock_api::RwLockReadGuard<'_, L, Vec<T>> = self.data[bucket].data.read();
+        let guard= self.data[bucket].data.read();
         Entry { i: offset, guard }
     }
 
@@ -82,14 +85,14 @@ impl<T: std::fmt::Debug + Default, L: RawRwLock, const N: usize> RawStorage<T, L
 
 pub struct Entry<'a, T: 'static, L: RawRwLock> {
     i: usize,
-    guard: lock_api::RwLockReadGuard<'a, L, Vec<T>>,
+    guard: lock_api::RwLockReadGuard<'a, L, Vec<Option<T>>>,
 }
 
 impl<'a, T, L: lock_api::RawRwLock> Deref for Entry<'a, T, L> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        &self.guard[self.i]
+        self.guard[self.i].as_ref().unwrap()
     }
 }
 

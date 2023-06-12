@@ -1,8 +1,6 @@
-use std::{rc::Rc, ops::Deref};
+use std::{ops::Deref, rc::Rc};
 
 use super::RawStorage;
-
-
 
 pub struct Iter<'a, T, L: lock_api::RawRwLock, const N: usize> {
     raw: &'a RawStorage<T, L, N>,
@@ -22,12 +20,12 @@ impl<'a, T, L: lock_api::RawRwLock, const N: usize> Iter<'a, T, L, N> {
 }
 
 type GuardIter<'a, T, L> = (
-    Rc<lock_api::RwLockReadGuard<'a, L, Vec<T>>>,
-    std::slice::Iter<'a, T>,
+    Rc<lock_api::RwLockReadGuard<'a, L, Vec<Option<T>>>>,
+    std::iter::Flatten<std::slice::Iter<'a, std::option::Option<T>>>,
 );
 
 pub struct RefT<'a, T, L: lock_api::RawRwLock, const N: usize> {
-    _guard: Rc<lock_api::RwLockReadGuard<'a, L, Vec<T>>>,
+    _guard: Rc<lock_api::RwLockReadGuard<'a, L, Vec<Option<T>>>>,
     t: &'a T,
 }
 
@@ -76,7 +74,7 @@ impl<'a, T: std::fmt::Debug + Default, L: lock_api::RawRwLock, const N: usize> I
 
             let raw = unsafe { change_lifetime_const(&*guard) };
 
-            let iter = raw.iter();
+            let iter = raw.iter().flatten();
 
             self.current = Some((Rc::new(guard), iter));
 
