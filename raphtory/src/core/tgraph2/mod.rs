@@ -5,6 +5,7 @@ mod edge_layer;
 mod edge_store;
 mod node_store;
 mod props;
+mod timer;
 pub mod tgraph;
 
 #[repr(transparent)]

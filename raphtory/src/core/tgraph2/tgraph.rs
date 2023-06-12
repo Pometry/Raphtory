@@ -11,7 +11,11 @@ use rustc_hash::FxHasher;
 
 use crate::storage;
 
-use super::{node_store::NodeStore, edge_store::EdgeStore};
+use super::{
+    edge_store::EdgeStore,
+    node_store::NodeStore,
+    timer::{MaxCounter, MinCounter},
+};
 
 type FxDashMap<K, V> = DashMap<K, V, BuildHasherDefault<FxHasher>>;
 
@@ -30,62 +34,4 @@ pub struct TemporalGraph<const N: usize, L: lock_api::RawRwLock> {
 
     //latest time seen in this graph
     pub(crate) latest_time: MaxCounter,
-}
-
-
-trait TimeCounterTrait {
-    fn cmp(a: i64, b: i64) -> bool;
-    fn counter(&self) -> &AtomicI64;
-
-    fn update(&self, time: i64) -> bool {
-        let mut current = self.get();
-        while Self::cmp(current, time) {
-            match self.counter().compare_exchange_weak(
-                current,
-                time,
-                Ordering::Relaxed,
-                Ordering::Relaxed,
-            ) {
-                Ok(_) => return true,
-                Err(x) => current = x,
-            }
-        }
-        false
-    }
-    fn get(&self) -> i64;
-}
-
-pub(crate) struct MinCounter {
-    counter: AtomicI64,
-}
-
-impl TimeCounterTrait for MinCounter {
-    fn get(&self) -> i64 {
-        self.counter.load(Ordering::Relaxed)
-    }
-
-    fn cmp(a: i64, b: i64) -> bool {
-        a < b
-    }
-
-    fn counter(&self) -> &AtomicI64 {
-        &self.counter
-    }
-}
-
-pub(crate) struct MaxCounter {
-    counter: AtomicI64,
-}
-
-impl TimeCounterTrait for MaxCounter {
-    fn cmp(a: i64, b: i64) -> bool {
-        a > b
-    }
-    fn get(&self) -> i64 {
-        self.counter.load(Ordering::Relaxed)
-    }
-
-    fn counter(&self) -> &AtomicI64 {
-        &self.counter
-    }
 }
