@@ -43,7 +43,7 @@ impl VID {
 
 #[repr(transparent)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Deserialize, Serialize)]
-pub(crate) struct EID(usize);
+pub struct EID(usize);
 
 impl From<EID> for usize {
     fn from(id: EID) -> Self {

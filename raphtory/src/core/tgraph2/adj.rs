@@ -1,7 +1,8 @@
 use crate::core::{tadjset::TAdjSet, Direction};
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
-use super::{VID, EID};
+use super::{EID, VID};
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Default)]
 pub(crate) enum Adj {
@@ -53,6 +54,22 @@ impl Adj {
         match self {
             Adj::Solo => *self = Self::new_out(v, e),
             Adj::List { out, .. } => out.push(v, e.into()),
+        }
+    }
+
+    pub(crate) fn iter(&self, dir: Direction) -> Box<dyn Iterator<Item = (VID, EID)> + '_> {
+        match self {
+            Adj::Solo => Box::new(std::iter::empty()),
+            Adj::List { out, into } => match dir {
+                Direction::OUT => Box::new(out.iter().map(|(v, e)| (v, e.into()))),
+                Direction::IN => Box::new(into.iter().map(|(v, e)| (v, e.into()))),
+                Direction::BOTH => Box::new(
+                    out.iter()
+                        .merge(into.iter())
+                        .dedup()
+                        .map(|(v, e)| (v, e.into())),
+                ),
+            },
         }
     }
 }

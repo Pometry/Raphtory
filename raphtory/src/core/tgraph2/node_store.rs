@@ -55,9 +55,8 @@ impl<const N: usize> NodeStore<N> {
         layer: usize,
         edge_id: super::EID,
     ) {
-
-        if layer >= self.layers.len(){
-            self.layers.resize_with(layer+1,||Adj::Solo);
+        if layer >= self.layers.len() {
+            self.layers.resize_with(layer + 1, || Adj::Solo);
         }
 
         match dir {
@@ -71,7 +70,17 @@ impl<const N: usize> NodeStore<N> {
         self.timestamps.range(window).next().is_some()
     }
 
-    pub(crate) fn temporal_properties<'a>(&'a self, prop_id: usize) -> impl Iterator<Item = (i64, Prop)> + 'a{
+    pub(crate) fn temporal_properties<'a>(
+        &'a self,
+        prop_id: usize,
+    ) -> impl Iterator<Item = (i64, Prop)> + 'a {
         self.props.temporal_props(prop_id)
+    }
+
+    pub(crate) fn out_edges<'a>(
+        &'a self,
+        layer_id: usize,
+    ) -> impl Iterator<Item = (VID, super::EID)> + 'a {
+        self.layers[layer_id].iter(Direction::OUT)
     }
 }

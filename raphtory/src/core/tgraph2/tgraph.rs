@@ -14,7 +14,7 @@ use super::{
     node_store::NodeStore,
     props::Meta,
     timer::{MaxCounter, MinCounter, TimeCounterTrait},
-    VID,
+    EID, VID,
 };
 
 pub(crate) type FxDashMap<K, V> = DashMap<K, V, BuildHasherDefault<FxHasher>>;
@@ -129,18 +129,25 @@ impl<const N: usize, L: lock_api::RawRwLock> TGraph<N, L> {
         v_id.into()
     }
 
+    pub fn add_edge<T: InputVertex>(&self, t: i64, src: T, dst: T, layer: &str) {
+        self.add_edge_with_props(t, src, dst, vec![], layer)
+    }
+
     pub fn add_edge_with_props<T: InputVertex>(
-        &mut self,
+        &self,
         t: i64,
         src: T,
         dst: T,
         props: Vec<(String, Prop)>,
-        layer: String,
+        layer: &str,
     ) {
         let src_id = self.add_vertex_internal(t, src, vec![]);
         let dst_id = self.add_vertex_internal(t, dst, vec![]);
 
-        let layer = self.inner.props_meta.get_or_create_layer_id(layer);
+        let layer = self
+            .inner
+            .props_meta
+            .get_or_create_layer_id(layer.to_owned());
         let props = self
             .inner
             .props_meta
@@ -230,10 +237,50 @@ pub struct Vertex<'a, const N: usize, L: lock_api::RawRwLock> {
     graph: &'a TGraph<N, L>,
 }
 
+pub struct Edge<'a, const N: usize, L: lock_api::RawRwLock> {
+    src: VID,
+    dst: VID,
+    edge_id: EID,
+    graph: &'a TGraph<N, L>,
+}
+
+impl <'a, const N: usize, L: lock_api::RawRwLock> Edge<'a, N, L> {
+    pub fn src(&self) -> VID {
+        self.src
+    }
+
+    pub fn dst(&self) -> VID {
+        self.dst
+    }
+
+    pub fn edge_id(&self) -> EID {
+        self.edge_id
+    }
+
+}
+
 impl<'a, const N: usize, L: lock_api::RawRwLock> Vertex<'a, N, L> {
     pub fn temporal_properties(&'a self, name: &str) -> impl Iterator<Item = (i64, Prop)> + 'a {
         let prop_id = self.graph.inner.props_meta.resolve_prop_id(name);
         (&self.node).value().temporal_properties(prop_id)
+    }
+
+    pub fn out_edges(&'a self, layer: &str) -> impl Iterator<Item = Edge<'a, N, L>> + 'a {
+        let layer = self
+            .graph
+            .inner
+            .props_meta
+            .get_or_create_layer_id(layer.to_owned());
+        let node_id = 0.into();
+        (&self.node)
+            .value()
+            .out_edges(layer)
+            .map(move |(dst, e_id)| Edge {
+                src: node_id,
+                dst,
+                edge_id: e_id,
+                graph: self.graph,
+            })
     }
 }
 
@@ -285,5 +332,25 @@ mod test {
             .collect_vec();
 
         assert_eq!(res, vec![(1i64, Prop::Str("wallet".into()))]);
+    }
+
+    #[test]
+    fn add_edge_at_t1() {
+        let g: TGraph<4, parking_lot::RawRwLock> = TGraph::new();
+
+        let src = 1;
+        let dst = 2;
+        let ts = 1;
+        g.add_vertex(ts, src);
+        g.add_vertex(ts, dst);
+
+        g.add_edge(ts, src, dst, "follows");
+
+        let res = g
+            .vertices()
+            .flat_map(|v| v.out_edges("follows").map(|e| (e.src(), e.dst())).collect_vec())
+            .collect_vec();
+
+        assert_eq!(res, vec![(0.into(), 1.into())]);
     }
 }
