@@ -830,7 +830,7 @@ where
     ) -> Box<dyn Iterator<Item = LocalVertexRef> + Send> {
         self.as_graph().vertex_refs_window(t_start, t_end)
     }
-gi
+
     fn vertex_refs_shard(&self, shard: usize) -> Box<dyn Iterator<Item = LocalVertexRef> + Send> {
         self.as_graph().vertex_refs_shard(shard)
     }
