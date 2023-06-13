@@ -64,8 +64,9 @@ impl<G: GraphViewOps> EdgeViewOps for EdgeView<G> {
             Some(_) => Box::new(iter::once(ev)),
             None => {
                 let e = self.edge;
-                let ts = self.graph.edge_timestamps(self.edge, None);
-                Box::new(ts.into_iter().map(move |t| ev.new_edge(e.at(t))))
+                let ts = self.graph.edge_history(e);
+                // FIXME: use duration
+                Box::new(ts.map(move |(t, duration)| ev.new_edge(e.at(t))))
             }
         }
     }

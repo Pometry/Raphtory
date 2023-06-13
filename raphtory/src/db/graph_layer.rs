@@ -1,7 +1,13 @@
 use crate::core::edge_ref::EdgeRef;
+use crate::core::timeindex::TimeIndex;
+use crate::core::tprop::TProp;
 use crate::core::vertex_ref::{LocalVertexRef, VertexRef};
 use crate::core::{Direction, Prop};
-use crate::db::view_api::internal::GraphViewInternalOps;
+use crate::db::view_api::internal::time_semantics::{InheritTimeSemantics, TimeSemantics};
+use crate::db::view_api::internal::{
+    CoreGraphOps, GraphViewInternalOps, InheritCoreOps, WrappedGraph,
+};
+use crate::db::view_api::GraphViewOps;
 use itertools::Itertools;
 use std::{collections::HashMap, ops::Range};
 
@@ -11,6 +17,22 @@ pub struct LayeredGraph<G: GraphViewInternalOps> {
     pub graph: G,
     /// The layer this graphs points to.
     pub layer: usize,
+}
+
+impl<G: GraphViewInternalOps + TimeSemantics> InheritTimeSemantics for LayeredGraph<G> {
+    type Internal = G;
+
+    fn graph(&self) -> &Self::Internal {
+        &self.graph
+    }
+}
+
+impl<G: GraphViewInternalOps + CoreGraphOps> InheritCoreOps for LayeredGraph<G> {
+    type Internal = G;
+
+    fn graph(&self) -> &Self::Internal {
+        &self.graph
+    }
 }
 
 impl<G: GraphViewInternalOps> LayeredGraph<G> {
@@ -30,6 +52,10 @@ impl<G: GraphViewInternalOps> LayeredGraph<G> {
 }
 
 impl<G: GraphViewInternalOps> GraphViewInternalOps for LayeredGraph<G> {
+    fn local_vertex_ref(&self, v: VertexRef) -> Option<LocalVertexRef> {
+        self.graph.local_vertex_ref(v)
+    }
+
     fn get_unique_layers_internal(&self) -> Vec<usize> {
         let layers = self.graph.get_unique_layers_internal();
         layers
@@ -38,44 +64,16 @@ impl<G: GraphViewInternalOps> GraphViewInternalOps for LayeredGraph<G> {
             .collect_vec()
     }
 
-    fn get_layer(&self, key: Option<&str>) -> Option<usize> {
-        self.graph.get_layer(key)
-    }
-
     fn get_layer_name_by_id(&self, layer_id: usize) -> String {
         self.graph.get_layer_name_by_id(layer_id)
     }
 
-    fn view_start(&self) -> Option<i64> {
-        self.graph.view_start()
-    }
-
-    fn view_end(&self) -> Option<i64> {
-        self.graph.view_end()
-    }
-
-    fn earliest_time_global(&self) -> Option<i64> {
-        self.graph.earliest_time_global()
-    }
-
-    fn earliest_time_window(&self, t_start: i64, t_end: i64) -> Option<i64> {
-        self.graph.earliest_time_window(t_start, t_end)
-    }
-
-    fn latest_time_global(&self) -> Option<i64> {
-        self.graph.latest_time_global()
-    }
-
-    fn latest_time_window(&self, t_start: i64, t_end: i64) -> Option<i64> {
-        self.graph.latest_time_window(t_start, t_end)
+    fn get_layer_id(&self, key: Option<&str>) -> Option<usize> {
+        self.graph.get_layer_id(key)
     }
 
     fn vertices_len(&self) -> usize {
         self.graph.vertices_len()
-    }
-
-    fn vertices_len_window(&self, t_start: i64, t_end: i64) -> usize {
-        self.graph.vertices_len_window(t_start, t_end)
     }
 
     fn edges_len(&self, layer: Option<usize>) -> usize {
@@ -84,37 +82,13 @@ impl<G: GraphViewInternalOps> GraphViewInternalOps for LayeredGraph<G> {
             .unwrap_or(0)
     }
 
-    fn edges_len_window(&self, t_start: i64, t_end: i64, layer: Option<usize>) -> usize {
-        self.constrain(layer)
-            .map(|layer| self.graph.edges_len_window(t_start, t_end, Some(layer)))
-            .unwrap_or(0)
-    }
-
     fn has_edge_ref(&self, src: VertexRef, dst: VertexRef, layer: usize) -> bool {
         // FIXME: there is something wrong here, the layer should be able to be None, which would mean, whatever layer this is
         layer == self.layer && self.graph.has_edge_ref(src, dst, layer)
     }
 
-    fn has_edge_ref_window(
-        &self,
-        src: VertexRef,
-        dst: VertexRef,
-        t_start: i64,
-        t_end: i64,
-        layer: usize,
-    ) -> bool {
-        layer == self.layer
-            && self
-                .graph
-                .has_edge_ref_window(src, dst, t_start, t_end, layer)
-    }
-
     fn has_vertex_ref(&self, v: VertexRef) -> bool {
         self.graph.has_vertex_ref(v)
-    }
-
-    fn has_vertex_ref_window(&self, v: VertexRef, t_start: i64, t_end: i64) -> bool {
-        self.graph.has_vertex_ref_window(v, t_start, t_end)
     }
 
     fn degree(&self, v: LocalVertexRef, d: Direction, layer: Option<usize>) -> usize {
@@ -123,76 +97,20 @@ impl<G: GraphViewInternalOps> GraphViewInternalOps for LayeredGraph<G> {
             .unwrap_or(0)
     }
 
-    fn degree_window(
-        &self,
-        v: LocalVertexRef,
-        t_start: i64,
-        t_end: i64,
-        d: Direction,
-        layer: Option<usize>,
-    ) -> usize {
-        self.constrain(layer)
-            .map(|layer| self.graph.degree_window(v, t_start, t_end, d, Some(layer)))
-            .unwrap_or(0)
-    }
-
     fn vertex_ref(&self, v: u64) -> Option<LocalVertexRef> {
         self.graph.vertex_ref(v)
     }
 
-    fn vertex_ref_window(&self, v: u64, t_start: i64, t_end: i64) -> Option<LocalVertexRef> {
-        self.graph.vertex_ref_window(v, t_start, t_end)
-    }
-
-    fn vertex_earliest_time(&self, v: LocalVertexRef) -> Option<i64> {
-        self.graph.vertex_earliest_time(v)
-    }
-
-    fn vertex_earliest_time_window(
-        &self,
-        v: LocalVertexRef,
-        t_start: i64,
-        t_end: i64,
-    ) -> Option<i64> {
-        self.graph.vertex_earliest_time_window(v, t_start, t_end)
-    }
-
-    fn vertex_latest_time(&self, v: LocalVertexRef) -> Option<i64> {
-        self.graph.vertex_latest_time(v)
-    }
-
-    fn vertex_latest_time_window(
-        &self,
-        v: LocalVertexRef,
-        t_start: i64,
-        t_end: i64,
-    ) -> Option<i64> {
-        self.graph.vertex_latest_time_window(v, t_start, t_end)
+    fn vertex_id(&self, v: LocalVertexRef) -> u64 {
+        self.graph.vertex_id(v)
     }
 
     fn vertex_refs(&self) -> Box<dyn Iterator<Item = LocalVertexRef> + Send> {
         self.graph.vertex_refs()
     }
 
-    fn vertex_refs_window(
-        &self,
-        t_start: i64,
-        t_end: i64,
-    ) -> Box<dyn Iterator<Item = LocalVertexRef> + Send> {
-        self.graph.vertex_refs_window(t_start, t_end)
-    }
-
     fn vertex_refs_shard(&self, shard: usize) -> Box<dyn Iterator<Item = LocalVertexRef> + Send> {
         self.graph.vertex_refs_shard(shard)
-    }
-
-    fn vertex_refs_window_shard(
-        &self,
-        shard: usize,
-        t_start: i64,
-        t_end: i64,
-    ) -> Box<dyn Iterator<Item = LocalVertexRef> + Send> {
-        self.graph.vertex_refs_window_shard(shard, t_start, t_end)
     }
 
     fn edge_ref(&self, src: VertexRef, dst: VertexRef, layer: usize) -> Option<EdgeRef> {
@@ -201,201 +119,11 @@ impl<G: GraphViewInternalOps> GraphViewInternalOps for LayeredGraph<G> {
             .flatten()
     }
 
-    fn edge_ref_window(
-        &self,
-        src: VertexRef,
-        dst: VertexRef,
-        t_start: i64,
-        t_end: i64,
-        layer: usize,
-    ) -> Option<EdgeRef> {
-        (layer == self.layer)
-            .then(|| self.graph.edge_ref_window(src, dst, t_start, t_end, layer))
-            .flatten()
-    }
-
     fn edge_refs(&self, layer: Option<usize>) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
         // TODO: create a function empty_iter which returns a boxed empty iterator so we use it in all these functions
         self.constrain(layer)
             .map(|layer| self.graph.edge_refs(Some(layer)))
             .unwrap_or_else(|| Box::new(std::iter::empty()))
-    }
-
-    fn edge_refs_window(
-        &self,
-        t_start: i64,
-        t_end: i64,
-        layer: Option<usize>,
-    ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
-        self.constrain(layer)
-            .map(|layer| self.graph.edge_refs_window(t_start, t_end, Some(layer)))
-            .unwrap_or_else(|| Box::new(std::iter::empty()))
-    }
-
-    fn vertex_edges_t(
-        &self,
-        v: LocalVertexRef,
-        d: Direction,
-        layer: Option<usize>,
-    ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
-        self.constrain(layer)
-            .map(|layer| self.graph.vertex_edges_t(v, d, Some(layer)))
-            .unwrap_or(Box::new(std::iter::empty()))
-    }
-
-    fn vertex_edges_window(
-        &self,
-        v: LocalVertexRef,
-        t_start: i64,
-        t_end: i64,
-        d: Direction,
-        layer: Option<usize>,
-    ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
-        self.constrain(layer)
-            .map(|layer| {
-                self.graph
-                    .vertex_edges_window(v, t_start, t_end, d, Some(layer))
-            })
-            .unwrap_or_else(|| Box::new(std::iter::empty()))
-    }
-
-    fn vertex_edges_window_t(
-        &self,
-        v: LocalVertexRef,
-        t_start: i64,
-        t_end: i64,
-        d: Direction,
-        layer: Option<usize>,
-    ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
-        self.constrain(layer)
-            .map(|layer| {
-                self.graph
-                    .vertex_edges_window_t(v, t_start, t_end, d, Some(layer))
-            })
-            .unwrap_or_else(|| Box::new(std::iter::empty()))
-    }
-
-    fn neighbours(
-        &self,
-        v: LocalVertexRef,
-        d: Direction,
-        layer: Option<usize>,
-    ) -> Box<dyn Iterator<Item = VertexRef> + Send> {
-        self.constrain(layer)
-            .map(|layer| self.graph.neighbours(v, d, Some(layer)))
-            .unwrap_or_else(|| Box::new(std::iter::empty()))
-    }
-
-    fn neighbours_window(
-        &self,
-        v: LocalVertexRef,
-        t_start: i64,
-        t_end: i64,
-        d: Direction,
-        layer: Option<usize>,
-    ) -> Box<dyn Iterator<Item = VertexRef> + Send> {
-        self.constrain(layer)
-            .map(|layer| {
-                self.graph
-                    .neighbours_window(v, t_start, t_end, d, Some(layer))
-            })
-            .unwrap_or_else(|| Box::new(std::iter::empty()))
-    }
-
-    fn static_vertex_prop(&self, v: LocalVertexRef, name: String) -> Option<Prop> {
-        self.graph.static_vertex_prop(v, name)
-    }
-
-    fn static_vertex_prop_names(&self, v: LocalVertexRef) -> Vec<String> {
-        self.graph.static_vertex_prop_names(v)
-    }
-
-    fn temporal_vertex_prop_names(&self, v: LocalVertexRef) -> Vec<String> {
-        self.graph.temporal_vertex_prop_names(v)
-    }
-
-    fn temporal_vertex_prop_vec(&self, v: LocalVertexRef, name: String) -> Vec<(i64, Prop)> {
-        self.graph.temporal_vertex_prop_vec(v, name)
-    }
-
-    fn temporal_vertex_prop_vec_window(
-        &self,
-        v: LocalVertexRef,
-        name: String,
-        t_start: i64,
-        t_end: i64,
-    ) -> Vec<(i64, Prop)> {
-        self.graph
-            .temporal_vertex_prop_vec_window(v, name, t_start, t_end)
-    }
-
-    fn temporal_vertex_props(&self, v: LocalVertexRef) -> HashMap<String, Vec<(i64, Prop)>> {
-        self.graph.temporal_vertex_props(v)
-    }
-
-    fn temporal_vertex_props_window(
-        &self,
-        v: LocalVertexRef,
-        t_start: i64,
-        t_end: i64,
-    ) -> HashMap<String, Vec<(i64, Prop)>> {
-        self.graph.temporal_vertex_props_window(v, t_start, t_end)
-    }
-
-    fn static_edge_prop(&self, e: EdgeRef, name: String) -> Option<Prop> {
-        self.graph.static_edge_prop(e, name)
-    }
-
-    fn static_edge_prop_names(&self, e: EdgeRef) -> Vec<String> {
-        self.graph.static_edge_prop_names(e)
-    }
-
-    fn temporal_edge_prop_names(&self, e: EdgeRef) -> Vec<String> {
-        self.graph.temporal_edge_prop_names(e)
-    }
-
-    fn temporal_edge_props_vec(&self, e: EdgeRef, name: String) -> Vec<(i64, Prop)> {
-        self.graph.temporal_edge_props_vec(e, name)
-    }
-
-    fn temporal_edge_props_vec_window(
-        &self,
-        e: EdgeRef,
-        name: String,
-        t_start: i64,
-        t_end: i64,
-    ) -> Vec<(i64, Prop)> {
-        self.graph
-            .temporal_edge_props_vec_window(e, name, t_start, t_end)
-    }
-
-    fn temporal_edge_props(&self, e: EdgeRef) -> HashMap<String, Vec<(i64, Prop)>> {
-        self.graph.temporal_edge_props(e)
-    }
-
-    fn temporal_edge_props_window(
-        &self,
-        e: EdgeRef,
-        t_start: i64,
-        t_end: i64,
-    ) -> HashMap<String, Vec<(i64, Prop)>> {
-        self.graph.temporal_edge_props_window(e, t_start, t_end)
-    }
-
-    fn num_shards(&self) -> usize {
-        self.graph.num_shards()
-    }
-
-    fn vertex_timestamps(&self, v: LocalVertexRef) -> Vec<i64> {
-        self.graph.vertex_timestamps(v)
-    }
-
-    fn vertex_timestamps_window(&self, v: LocalVertexRef, t_start: i64, t_end: i64) -> Vec<i64> {
-        self.graph.vertex_timestamps_window(v, t_start, t_end)
-    }
-
-    fn edge_timestamps(&self, e: EdgeRef, window: Option<Range<i64>>) -> Vec<i64> {
-        self.graph.edge_timestamps(e, window)
     }
 
     fn vertex_edges(
@@ -407,20 +135,14 @@ impl<G: GraphViewInternalOps> GraphViewInternalOps for LayeredGraph<G> {
         self.graph.vertex_edges(v, d, self.constrain(layer))
     }
 
-    fn vertex_id(&self, v: LocalVertexRef) -> u64 {
-        self.graph.vertex_id(v)
-    }
-
-    fn local_vertex(&self, v: VertexRef) -> Option<LocalVertexRef> {
-        self.graph.local_vertex(v)
-    }
-
-    fn local_vertex_window(
+    fn neighbours(
         &self,
-        v: VertexRef,
-        t_start: i64,
-        t_end: i64,
-    ) -> Option<LocalVertexRef> {
-        self.graph.local_vertex_window(v, t_start, t_end)
+        v: LocalVertexRef,
+        d: Direction,
+        layer: Option<usize>,
+    ) -> Box<dyn Iterator<Item = VertexRef> + Send> {
+        self.constrain(layer)
+            .map(|layer| self.graph.neighbours(v, d, Some(layer)))
+            .unwrap_or_else(|| Box::new(std::iter::empty()))
     }
 }

@@ -40,7 +40,7 @@ pub enum Job<G, CS: ComputeState, S> {
     Check(Box<dyn Fn(&GlobalState<CS>) -> Step + Send + Sync + 'static>),
 }
 
-impl<G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeState, S> Job<G, CS, S> {
+impl<G: GraphViewOps, CS: ComputeState, S> Job<G, CS, S> {
     pub fn new<T: Task<G, CS, S> + Send + Sync + 'static>(t: T) -> Self {
         Self::Write(Box::new(t))
     }

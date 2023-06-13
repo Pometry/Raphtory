@@ -9,7 +9,8 @@ use crate::db::graph_window::WindowedGraph;
 use crate::db::subgraph_vertex::VertexSubgraph;
 use crate::db::vertex::VertexView;
 use crate::db::vertices::Vertices;
-use crate::db::view_api::internal::GraphViewInternalOps;
+use crate::db::view_api::internal::time_semantics::TimeSemantics;
+use crate::db::view_api::internal::{CoreGraphOps, ExplodedEdgeOps, GraphViewInternalOps};
 use crate::db::view_api::layer::LayerOps;
 use crate::db::view_api::time::TimeOps;
 use crate::db::view_api::VertexViewOps;
@@ -18,7 +19,17 @@ use crate::db::view_api::VertexViewOps;
 /// information about a graph. The trait has associated types
 /// that are used to define the type of the vertices, edges
 /// and the corresponding iterators.
-pub trait GraphViewOps: Send + Sync + Sized + GraphViewInternalOps + 'static + Clone {
+pub trait GraphViewOps:
+    Send
+    + Sync
+    + Sized
+    + GraphViewInternalOps
+    + TimeSemantics
+    + CoreGraphOps
+    + ExplodedEdgeOps
+    + 'static
+    + Clone
+{
     fn subgraph<I: IntoIterator<Item = V>, V: Into<VertexRef>>(
         &self,
         vertices: I,
@@ -63,14 +74,25 @@ pub trait GraphViewOps: Send + Sync + Sized + GraphViewInternalOps + 'static + C
     fn edges(&self) -> Box<dyn Iterator<Item = EdgeView<Self>> + Send>;
 }
 
-impl<G: Send + Sync + Sized + GraphViewInternalOps + 'static + Clone> GraphViewOps for G {
+impl<
+        G: Send
+            + Sync
+            + Sized
+            + GraphViewInternalOps
+            + TimeSemantics
+            + CoreGraphOps
+            + ExplodedEdgeOps
+            + 'static
+            + Clone,
+    > GraphViewOps for G
+{
     fn subgraph<I: IntoIterator<Item = V>, V: Into<VertexRef>>(
         &self,
         vertices: I,
     ) -> VertexSubgraph<G> {
         let vertices: FxHashSet<LocalVertexRef> = vertices
             .into_iter()
-            .flat_map(|v| self.local_vertex(v.into()))
+            .flat_map(|v| self.local_vertex_ref(v.into()))
             .collect();
         VertexSubgraph::new(self.clone(), vertices)
     }
@@ -104,7 +126,7 @@ impl<G: Send + Sync + Sized + GraphViewInternalOps + 'static + Clone> GraphViewO
     }
 
     fn has_edge<T: Into<VertexRef>>(&self, src: T, dst: T, layer: Option<&str>) -> bool {
-        match self.get_layer(layer) {
+        match self.get_layer_id(layer) {
             Some(layer_id) => self.has_edge_ref(src.into(), dst.into(), layer_id),
             None => false,
         }
@@ -112,7 +134,7 @@ impl<G: Send + Sync + Sized + GraphViewInternalOps + 'static + Clone> GraphViewO
 
     fn vertex<T: Into<VertexRef>>(&self, v: T) -> Option<VertexView<Self>> {
         let v = v.into();
-        self.local_vertex(v)
+        self.local_vertex_ref(v)
             .map(|v| VertexView::new_local(self.clone(), v))
     }
 
@@ -128,7 +150,7 @@ impl<G: Send + Sync + Sized + GraphViewInternalOps + 'static + Clone> GraphViewO
         layer: Option<&str>,
     ) -> Option<EdgeView<Self>> {
         let layer_id = match layer {
-            Some(_) => self.get_layer(layer)?,
+            Some(_) => self.get_layer_id(layer)?,
             None => {
                 let layers = self.get_unique_layers_internal();
                 match layers[..] {
@@ -170,7 +192,7 @@ impl<G: GraphViewOps> LayerOps for G {
     }
 
     fn layer(&self, name: &str) -> Option<Self::LayeredViewType> {
-        let id = self.get_layer(Some(name))?;
+        let id = self.get_layer_id(Some(name))?;
         Some(LayeredGraph::new(self.clone(), id))
     }
 }

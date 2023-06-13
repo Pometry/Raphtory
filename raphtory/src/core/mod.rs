@@ -48,7 +48,7 @@ pub mod tgraph;
 pub mod tgraph_shard;
 pub mod time;
 pub mod timeindex;
-mod tprop;
+pub mod tprop;
 pub mod utils;
 pub mod vertex;
 pub mod vertex_ref;

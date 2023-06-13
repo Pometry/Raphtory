@@ -1,4 +1,4 @@
-use std::{cell::RefCell, iter, marker::PhantomData, rc::Rc, collections::HashMap};
+use std::{cell::RefCell, collections::HashMap, iter, marker::PhantomData, rc::Rc};
 
 use crate::{
     core::{edge_ref::EdgeRef, state::compute_state::ComputeState, Prop},
@@ -126,13 +126,13 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeViewOps
 
     fn property_history(&self, name: String) -> Vec<(i64, Prop)> {
         match self.eref().time() {
-            None => self.graph().temporal_edge_props_vec_window(
+            None => self.graph().temporal_edge_prop_vec_window(
                 self.eref(),
                 name,
                 self.t_start,
                 self.t_end,
             ),
-            Some(t) => self.graph().temporal_edge_props_vec_window(
+            Some(t) => self.graph().temporal_edge_prop_vec_window(
                 self.eref(),
                 name,
                 t,
@@ -145,7 +145,9 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeViewOps
         // match on the self.edge.time option property and run two function s
         // one for static and one for temporal
         match self.eref().time() {
-            None => self.graph().temporal_edge_props_window(self.eref(), self.t_start, self.t_end),
+            None => self
+                .graph()
+                .temporal_edge_props_window(self.eref(), self.t_start, self.t_end),
             Some(t) => self
                 .graph()
                 .temporal_edge_props_window(self.eref(), t, t.saturating_add(1)),
@@ -156,13 +158,16 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeViewOps
     fn active(&self, t: i64) -> bool {
         match self.eref().time() {
             Some(tt) => tt == t,
-            None => (self.t_start..self.t_end).contains(&t) && self.graph().has_edge_ref_window(
-                self.eref().src(),
-                self.eref().dst(),
-                t,
-                t.saturating_add(1),
-                self.eref().layer(),
-            ),
+            None => {
+                (self.t_start..self.t_end).contains(&t)
+                    && self.graph().has_edge_ref_window(
+                        self.eref().src(),
+                        self.eref().dst(),
+                        t,
+                        t.saturating_add(1),
+                        self.eref().layer(),
+                    )
+            }
         }
     }
 

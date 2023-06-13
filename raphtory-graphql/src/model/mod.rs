@@ -38,7 +38,7 @@ pub struct DynamicGraph(Arc<dyn GraphViewInternalOps + Send + Sync + 'static>);
 
 impl WrappedGraph for DynamicGraph {
     type Internal = dyn GraphViewInternalOps + Send + Sync + 'static;
-    fn as_graph(&self) -> &(dyn GraphViewInternalOps + Send + Sync + 'static) {
+    fn graph(&self) -> &(dyn GraphViewInternalOps + Send + Sync + 'static) {
         &*self.0
     }
 }

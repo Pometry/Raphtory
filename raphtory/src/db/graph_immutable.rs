@@ -17,15 +17,21 @@
 use crate::core::edge_ref::EdgeRef;
 use crate::core::tgraph::TemporalGraph;
 use crate::core::tgraph_shard::ImmutableTGraphShard;
-use crate::core::utils;
+use crate::core::timeindex::TimeIndex;
+use crate::core::tprop::TProp;
 use crate::core::vertex_ref::{LocalVertexRef, VertexRef};
 use crate::core::Direction;
+use crate::core::{utils, Prop};
 use crate::db::graph::Graph;
+use crate::db::view_api::internal::time_semantics::TimeSemantics;
+use crate::db::view_api::internal::CoreGraphOps;
+use crate::db::view_api::BoxedIter;
 use itertools::Itertools;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use std::cmp::{max, min};
 use std::iter;
+use std::ops::Range;
 use std::sync::Arc;
 
 use super::view_api::internal::GraphViewInternalOps;
@@ -279,19 +285,63 @@ impl ImmutableGraph {
     }
 }
 
-impl GraphViewInternalOps for ImmutableGraph {
-    fn local_vertex(&self, v: VertexRef) -> Option<LocalVertexRef> {
-        self.get_shard_from_v(v).local_vertex(v)
+impl CoreGraphOps for ImmutableGraph {
+    fn edge_additions(&self, eref: EdgeRef) -> &TimeIndex {
+        todo!()
     }
 
-    fn local_vertex_window(
-        &self,
-        v: VertexRef,
-        t_start: i64,
-        t_end: i64,
-    ) -> Option<LocalVertexRef> {
-        self.get_shard_from_v(v)
-            .local_vertex_window(v, t_start..t_end)
+    fn edge_deletions(&self, eref: EdgeRef) -> &TimeIndex {
+        todo!()
+    }
+
+    fn vertex_additions(&self, v: LocalVertexRef) -> &TimeIndex {
+        todo!()
+    }
+
+    fn localise_vertex_unchecked(&self, v: VertexRef) -> LocalVertexRef {
+        todo!()
+    }
+
+    fn static_vertex_prop(&self, v: LocalVertexRef, name: String) -> Option<crate::core::Prop> {
+        self.get_shard_from_local_v(v).static_vertex_prop(v, name)
+    }
+
+    fn static_vertex_prop_names(&self, v: LocalVertexRef) -> Vec<String> {
+        self.get_shard_from_local_v(v).static_vertex_prop_names(v)
+    }
+
+    fn temporal_vertex_prop(&self, v: LocalVertexRef, name: String) -> Option<&TProp> {
+        todo!()
+    }
+
+    fn temporal_vertex_prop_names(&self, v: LocalVertexRef) -> Vec<String> {
+        self.get_shard_from_local_v(v).temporal_vertex_prop_names(v)
+    }
+
+    fn static_edge_prop(&self, e: EdgeRef, name: String) -> Option<crate::core::Prop> {
+        self.get_shard_from_e(e).static_edge_prop(e, name)
+    }
+
+    fn static_edge_prop_names(&self, e: EdgeRef) -> Vec<String> {
+        self.get_shard_from_e(e).static_edge_prop_names(e)
+    }
+
+    fn temporal_edge_prop(&self, e: EdgeRef, name: String) -> Option<&TProp> {
+        todo!()
+    }
+
+    fn temporal_edge_prop_names(&self, e: EdgeRef) -> Vec<String> {
+        self.get_shard_from_e(e).temporal_edge_prop_names(e)
+    }
+
+    fn num_shards(&self) -> usize {
+        self.nr_shards
+    }
+}
+
+impl GraphViewInternalOps for ImmutableGraph {
+    fn local_vertex_ref(&self, v: VertexRef) -> Option<LocalVertexRef> {
+        self.get_shard_from_v(v).local_vertex(v)
     }
 
     fn get_unique_layers_internal(&self) -> Vec<usize> {
@@ -308,61 +358,15 @@ impl GraphViewInternalOps for ImmutableGraph {
             .to_string()
     }
 
-    fn get_layer(&self, key: Option<&str>) -> Option<usize> {
+    fn get_layer_id(&self, key: Option<&str>) -> Option<usize> {
         match key {
             None => Some(0),
             Some(key) => self.layer_ids.get(key).copied(),
         }
     }
 
-    fn view_start(&self) -> Option<i64> {
-        self.earliest_time_global()
-    }
-
-    fn view_end(&self) -> Option<i64> {
-        self.latest_time_global().map(|t| t + 1) // so it is exclusive
-    }
-
-    fn earliest_time_global(&self) -> Option<i64> {
-        let min_from_shards = self.shards.iter().map(|shard| shard.earliest_time()).min();
-        min_from_shards.filter(|&min| min != i64::MAX)
-    }
-
-    fn earliest_time_window(&self, t_start: i64, t_end: i64) -> Option<i64> {
-        //FIXME: this is not correct, should actually be the earliest activity in window
-        let earliest = self.earliest_time_global()?;
-        if earliest > t_end {
-            None
-        } else {
-            Some(max(earliest, t_start))
-        }
-    }
-
-    fn latest_time_global(&self) -> Option<i64> {
-        let max_from_shards = self.shards.iter().map(|shard| shard.latest_time()).max();
-        max_from_shards.filter(|&max| max != i64::MIN)
-    }
-
-    fn latest_time_window(&self, t_start: i64, t_end: i64) -> Option<i64> {
-        //FIXME: this is not correct, should actually be the latest activity in window
-        let latest = self.latest_time_global()?;
-        if latest < t_start {
-            None
-        } else {
-            Some(min(latest, t_end))
-        }
-    }
-
     fn vertices_len(&self) -> usize {
         self.shards.iter().map(|shard| shard.len()).sum()
-    }
-
-    fn vertices_len_window(&self, t_start: i64, t_end: i64) -> usize {
-        //FIXME: This nees to be optimised ideally
-        self.shards
-            .iter()
-            .map(|shard| shard.vertices_window(t_start..t_end).count())
-            .sum()
     }
 
     fn edges_len(&self, layer: Option<usize>) -> usize {
@@ -374,53 +378,17 @@ impl GraphViewInternalOps for ImmutableGraph {
         vs.iter().sum()
     }
 
-    fn edges_len_window(&self, t_start: i64, t_end: i64, layer: Option<usize>) -> usize {
-        self.shards
-            .iter()
-            .map(|shard| shard.out_edges_len_window(&(t_start..t_end), layer))
-            .sum()
-    }
-
     fn has_edge_ref(&self, src: VertexRef, dst: VertexRef, layer: usize) -> bool {
         let (shard, src, dst) = self.localise_edge(src, dst);
         self.shards[shard].has_edge(src, dst, layer)
-    }
-
-    fn has_edge_ref_window(
-        &self,
-        src: VertexRef,
-        dst: VertexRef,
-        t_start: i64,
-        t_end: i64,
-        layer: usize,
-    ) -> bool {
-        let (shard, src, dst) = self.localise_edge(src, dst);
-        self.shards[shard].has_edge_window(src, dst, t_start..t_end, layer)
     }
 
     fn has_vertex_ref(&self, v: VertexRef) -> bool {
         self.get_shard_from_v(v).has_vertex(v)
     }
 
-    fn has_vertex_ref_window(&self, v: VertexRef, t_start: i64, t_end: i64) -> bool {
-        self.get_shard_from_v(v)
-            .has_vertex_window(v, t_start..t_end)
-    }
-
     fn degree(&self, v: LocalVertexRef, d: Direction, layer: Option<usize>) -> usize {
         self.get_shard_from_local_v(v).degree(v, d, layer)
-    }
-
-    fn degree_window(
-        &self,
-        v: LocalVertexRef,
-        t_start: i64,
-        t_end: i64,
-        d: Direction,
-        layer: Option<usize>,
-    ) -> usize {
-        self.get_shard_from_local_v(v)
-            .degree_window(v, t_start..t_end, d, layer)
     }
 
     fn vertex_ref(&self, v: u64) -> Option<LocalVertexRef> {
@@ -431,54 +399,9 @@ impl GraphViewInternalOps for ImmutableGraph {
         self.shards[v.shard_id].vertex_id(v)
     }
 
-    fn vertex_ref_window(&self, v: u64, t_start: i64, t_end: i64) -> Option<LocalVertexRef> {
-        self.get_shard_from_id(v).vertex_window(v, t_start..t_end)
-    }
-
-    fn vertex_earliest_time(&self, v: LocalVertexRef) -> Option<i64> {
-        self.get_shard_from_local_v(v).vertex_earliest_time(v)
-    }
-
-    fn vertex_earliest_time_window(
-        &self,
-        v: LocalVertexRef,
-        t_start: i64,
-        t_end: i64,
-    ) -> Option<i64> {
-        self.get_shard_from_local_v(v)
-            .vertex_earliest_time_window(v, t_start..t_end)
-    }
-
-    fn vertex_latest_time(&self, v: LocalVertexRef) -> Option<i64> {
-        self.get_shard_from_local_v(v).vertex_latest_time(v)
-    }
-
-    fn vertex_latest_time_window(
-        &self,
-        v: LocalVertexRef,
-        t_start: i64,
-        t_end: i64,
-    ) -> Option<i64> {
-        self.get_shard_from_local_v(v)
-            .vertex_latest_time_window(v, t_start..t_end)
-    }
-
     fn vertex_refs(&self) -> Box<dyn Iterator<Item = LocalVertexRef> + Send> {
         let shards = self.shards.clone();
         Box::new(shards.into_iter().flat_map(|s| s.vertices()))
-    }
-
-    fn vertex_refs_window(
-        &self,
-        t_start: i64,
-        t_end: i64,
-    ) -> Box<dyn Iterator<Item = LocalVertexRef> + Send> {
-        let shards = self.shards.clone();
-        Box::new(
-            shards
-                .into_iter()
-                .flat_map(move |s| s.vertices_window(t_start..t_end)),
-        )
     }
 
     fn vertex_refs_shard(&self, shard: usize) -> Box<dyn Iterator<Item = LocalVertexRef> + Send> {
@@ -486,31 +409,9 @@ impl GraphViewInternalOps for ImmutableGraph {
         Box::new(shard.vertices())
     }
 
-    fn vertex_refs_window_shard(
-        &self,
-        shard: usize,
-        t_start: i64,
-        t_end: i64,
-    ) -> Box<dyn Iterator<Item = LocalVertexRef> + Send> {
-        let shard = self.shards[shard].clone();
-        Box::new(shard.vertices_window(t_start..t_end))
-    }
-
     fn edge_ref(&self, src: VertexRef, dst: VertexRef, layer: usize) -> Option<EdgeRef> {
         let (shard_id, src, dst) = self.localise_edge(src, dst);
         self.shards[shard_id].edge(src, dst, layer)
-    }
-
-    fn edge_ref_window(
-        &self,
-        src: VertexRef,
-        dst: VertexRef,
-        t_start: i64,
-        t_end: i64,
-        layer: usize,
-    ) -> Option<EdgeRef> {
-        let (shard_id, src, dst) = self.localise_edge(src, dst);
-        self.shards[shard_id].edge_window(src, dst, t_start..t_end, layer)
     }
 
     fn edge_refs(&self, layer: Option<usize>) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
@@ -528,20 +429,6 @@ impl GraphViewInternalOps for ImmutableGraph {
         }
     }
 
-    fn edge_refs_window(
-        &self,
-        t_start: i64,
-        t_end: i64,
-        layer: Option<usize>,
-    ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
-        //FIXME: needs low-level primitive
-        let g = self.clone();
-        Box::new(
-            self.vertex_refs()
-                .flat_map(move |v| g.vertex_edges_window(v, t_start, t_end, Direction::OUT, layer)),
-        )
-    }
-
     fn vertex_edges(
         &self,
         v: LocalVertexRef,
@@ -549,49 +436,6 @@ impl GraphViewInternalOps for ImmutableGraph {
         layer: Option<usize>,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
         Box::new(self.get_shard_from_local_v(v).vertex_edges(v, d, layer))
-    }
-
-    fn vertex_edges_t(
-        &self,
-        v: LocalVertexRef,
-        d: Direction,
-        layer: Option<usize>,
-    ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
-        // FIXME: missing low-level implementation
-        Box::new(self.get_shard_from_local_v(v).vertex_edges_window_t(
-            v,
-            i64::MIN..i64::MAX,
-            d,
-            layer,
-        ))
-    }
-
-    fn vertex_edges_window(
-        &self,
-        v: LocalVertexRef,
-        t_start: i64,
-        t_end: i64,
-        d: Direction,
-        layer: Option<usize>,
-    ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
-        Box::new(
-            self.get_shard_from_local_v(v)
-                .vertex_edges_window(v, t_start..t_end, d, layer),
-        )
-    }
-
-    fn vertex_edges_window_t(
-        &self,
-        v: LocalVertexRef,
-        t_start: i64,
-        t_end: i64,
-        d: Direction,
-        layer: Option<usize>,
-    ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
-        Box::new(
-            self.get_shard_from_local_v(v)
-                .vertex_edges_window_t(v, t_start..t_end, d, layer),
-        )
     }
 
     fn neighbours(
@@ -602,49 +446,87 @@ impl GraphViewInternalOps for ImmutableGraph {
     ) -> Box<dyn Iterator<Item = VertexRef> + Send> {
         Box::new(self.get_shard_from_local_v(v).neighbours(v, d, layer))
     }
+}
 
-    fn neighbours_window(
+impl TimeSemantics for ImmutableGraph {
+    fn view_start(&self) -> Option<i64> {
+        self.earliest_time_global()
+    }
+
+    fn view_end(&self) -> Option<i64> {
+        self.latest_time_global().map(|t| t + 1) // so it is exclusive
+    }
+
+    fn earliest_time_global(&self) -> Option<i64> {
+        let min_from_shards = self.shards.iter().map(|shard| shard.earliest_time()).min();
+        min_from_shards.filter(|&min| min != i64::MAX)
+    }
+
+    fn latest_time_global(&self) -> Option<i64> {
+        let max_from_shards = self.shards.iter().map(|shard| shard.latest_time()).max();
+        max_from_shards.filter(|&max| max != i64::MIN)
+    }
+
+    fn vertex_earliest_time(&self, v: LocalVertexRef) -> Option<i64> {
+        self.get_shard_from_local_v(v).vertex_earliest_time(v)
+    }
+
+    fn vertex_latest_time(&self, v: LocalVertexRef) -> Option<i64> {
+        self.get_shard_from_local_v(v).vertex_latest_time(v)
+    }
+
+    fn earliest_time_window(&self, t_start: i64, t_end: i64) -> Option<i64> {
+        todo!()
+    }
+
+    fn latest_time_window(&self, t_start: i64, t_end: i64) -> Option<i64> {
+        todo!()
+    }
+
+    fn vertex_earliest_time_window(
         &self,
         v: LocalVertexRef,
         t_start: i64,
         t_end: i64,
-        d: Direction,
-        layer: Option<usize>,
-    ) -> Box<dyn Iterator<Item = VertexRef> + Send> {
-        Box::new(
-            self.get_shard_from_local_v(v)
-                .neighbours_window(v, t_start..t_end, d, layer),
-        )
+    ) -> Option<i64> {
+        todo!()
     }
 
-    fn static_vertex_prop(&self, v: LocalVertexRef, name: String) -> Option<crate::core::Prop> {
-        self.get_shard_from_local_v(v).static_vertex_prop(v, name)
-    }
-
-    fn static_vertex_prop_names(&self, v: LocalVertexRef) -> Vec<String> {
-        self.get_shard_from_local_v(v).static_vertex_prop_names(v)
-    }
-
-    fn temporal_vertex_prop_names(&self, v: LocalVertexRef) -> Vec<String> {
-        self.get_shard_from_local_v(v).temporal_vertex_prop_names(v)
-    }
-
-    fn temporal_vertex_prop_vec(
+    fn vertex_latest_time_window(
         &self,
         v: LocalVertexRef,
-        name: String,
-    ) -> Vec<(i64, crate::core::Prop)> {
-        self.get_shard_from_local_v(v)
-            .temporal_vertex_prop_vec(v, name)
+        t_start: i64,
+        t_end: i64,
+    ) -> Option<i64> {
+        todo!()
     }
 
-    fn vertex_timestamps(&self, v: LocalVertexRef) -> Vec<i64> {
-        self.get_shard_from_local_v(v).vertex_timestamps(v)
+    fn include_vertex_window(&self, v: LocalVertexRef, w: Range<i64>) -> bool {
+        todo!()
     }
 
-    fn vertex_timestamps_window(&self, v: LocalVertexRef, t_start: i64, t_end: i64) -> Vec<i64> {
-        self.get_shard_from_local_v(v)
-            .vertex_timestamps_window(v, t_start..t_end)
+    fn include_edge_window(&self, e: EdgeRef, w: Range<i64>) -> bool {
+        todo!()
+    }
+
+    fn vertex_history(&self, v: LocalVertexRef) -> BoxedIter<i64> {
+        todo!()
+    }
+
+    fn vertex_history_window(&self, v: LocalVertexRef, w: Range<i64>) -> BoxedIter<i64> {
+        todo!()
+    }
+
+    fn edge_history(&self, e: EdgeRef) -> BoxedIter<(i64, i64)> {
+        todo!()
+    }
+
+    fn edge_history_window(&self, e: EdgeRef, w: Range<i64>) -> BoxedIter<(i64, i64)> {
+        todo!()
+    }
+
+    fn temporal_vertex_prop_vec(&self, v: LocalVertexRef, name: String) -> Vec<(i64, Prop)> {
+        todo!()
     }
 
     fn temporal_vertex_prop_vec_window(
@@ -653,77 +535,21 @@ impl GraphViewInternalOps for ImmutableGraph {
         name: String,
         t_start: i64,
         t_end: i64,
-    ) -> Vec<(i64, crate::core::Prop)> {
-        self.get_shard_from_local_v(v)
-            .temporal_vertex_prop_vec_window(v, name, t_start..t_end)
+    ) -> Vec<(i64, Prop)> {
+        todo!()
     }
 
-    fn temporal_vertex_props(
-        &self,
-        v: LocalVertexRef,
-    ) -> std::collections::HashMap<String, Vec<(i64, crate::core::Prop)>> {
-        self.get_shard_from_local_v(v).temporal_vertex_props(v)
-    }
-
-    fn temporal_vertex_props_window(
-        &self,
-        v: LocalVertexRef,
-        t_start: i64,
-        t_end: i64,
-    ) -> std::collections::HashMap<String, Vec<(i64, crate::core::Prop)>> {
-        self.get_shard_from_local_v(v)
-            .temporal_vertex_props_window(v, t_start..t_end)
-    }
-
-    fn static_edge_prop(&self, e: EdgeRef, name: String) -> Option<crate::core::Prop> {
-        self.get_shard_from_e(e).static_edge_prop(e, name)
-    }
-
-    fn static_edge_prop_names(&self, e: EdgeRef) -> Vec<String> {
-        self.get_shard_from_e(e).static_edge_prop_names(e)
-    }
-
-    fn temporal_edge_prop_names(&self, e: EdgeRef) -> Vec<String> {
-        self.get_shard_from_e(e).temporal_edge_prop_names(e)
-    }
-
-    fn temporal_edge_props_vec(&self, e: EdgeRef, name: String) -> Vec<(i64, crate::core::Prop)> {
-        self.get_shard_from_e(e).temporal_edge_prop_vec(e, name)
-    }
-
-    fn temporal_edge_props_vec_window(
+    fn temporal_edge_prop_vec_window(
         &self,
         e: EdgeRef,
         name: String,
         t_start: i64,
         t_end: i64,
-    ) -> Vec<(i64, crate::core::Prop)> {
-        self.get_shard_from_e(e)
-            .temporal_edge_props_vec_window(e, name, t_start..t_end)
+    ) -> Vec<(i64, Prop)> {
+        todo!()
     }
 
-    fn edge_timestamps(&self, e: EdgeRef, window: Option<std::ops::Range<i64>>) -> Vec<i64> {
-        self.get_shard_from_e(e).edge_timestamps(e, window)
-    }
-
-    fn temporal_edge_props(
-        &self,
-        e: EdgeRef,
-    ) -> std::collections::HashMap<String, Vec<(i64, crate::core::Prop)>> {
-        self.get_shard_from_e(e).temporal_edge_props(e)
-    }
-
-    fn temporal_edge_props_window(
-        &self,
-        e: EdgeRef,
-        t_start: i64,
-        t_end: i64,
-    ) -> std::collections::HashMap<String, Vec<(i64, crate::core::Prop)>> {
-        self.get_shard_from_e(e)
-            .temporal_edge_props_window(e, t_start..t_end)
-    }
-
-    fn num_shards(&self) -> usize {
-        self.nr_shards
+    fn temporal_edge_prop_vec(&self, e: EdgeRef, name: String) -> Vec<(i64, Prop)> {
+        todo!()
     }
 }

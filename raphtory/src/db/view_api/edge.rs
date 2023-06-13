@@ -36,8 +36,8 @@ pub trait EdgeViewOps: EdgeViewInternalOps<Self::Graph, Self::Vertex> {
 
     fn property_history(&self, name: String) -> Vec<(i64, Prop)> {
         match self.eref().time() {
-            None => self.graph().temporal_edge_props_vec(self.eref(), name),
-            Some(t) => self.graph().temporal_edge_props_vec_window(
+            None => self.graph().temporal_edge_prop_vec(self.eref(), name),
+            Some(t) => self.graph().temporal_edge_prop_vec_window(
                 self.eref(),
                 name,
                 t,
