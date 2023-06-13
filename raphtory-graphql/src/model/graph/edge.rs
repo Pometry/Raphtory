@@ -10,8 +10,8 @@ use raphtory::db::view_api::EdgeListOps;
 use raphtory::db::view_api::EdgeViewOps;
 use raphtory::db::view_api::{GraphViewOps, TimeOps, VertexViewOps};
 use std::sync::Arc;
+use raphtory::db::dynamic::{DynamicGraph, IntoDynamic};
 use crate::model::algorithm::Algorithms;
-use crate::model::graph::graph::DynamicGraph;
 use crate::model::graph::node::Node;
 use crate::model::graph::property::Property;
 
@@ -21,9 +21,14 @@ pub(crate) struct Edge {
     ee: EdgeView<DynamicGraph>,
 }
 
-impl From<EdgeView<DynamicGraph>> for Edge {
-    fn from(ee: EdgeView<DynamicGraph>) -> Self {
-        Self { ee }
+impl<G: GraphViewOps + IntoDynamic> From<EdgeView<G>> for Edge {
+    fn from(value: EdgeView<G>) -> Self {
+        Self {
+            ee: EdgeView {
+                graph: value.graph.clone().into_dynamic(),
+                edge: value.edge,
+            },
+        }
     }
 }
 

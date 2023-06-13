@@ -10,11 +10,11 @@ use raphtory::db::view_api::EdgeListOps;
 use raphtory::db::view_api::EdgeViewOps;
 use raphtory::db::view_api::{GraphViewOps, TimeOps, VertexViewOps};
 use std::sync::Arc;
+use raphtory::db::dynamic::{DynamicGraph, IntoDynamic};
 use raphtory::db::graph_layer::LayeredGraph;
 use raphtory::db::view_api::layer::LayerOps;
 use crate::model::algorithm::Algorithms;
 use crate::model::graph::edge::Edge;
-use crate::model::graph::graph::DynamicGraph;
 use crate::model::graph::property::Property;
 
 
@@ -23,9 +23,14 @@ pub(crate) struct Node {
     pub(crate) vv: VertexView<DynamicGraph>,
 }
 
-impl From<VertexView<DynamicGraph>> for Node {
-    fn from(vv: VertexView<DynamicGraph>) -> Self {
-        Self { vv }
+impl<G: GraphViewOps + IntoDynamic> From<VertexView<G>> for Node {
+    fn from(value: VertexView<G>) -> Self {
+        Self {
+            vv: VertexView {
+                graph: value.graph.clone().into_dynamic(),
+                vertex: value.vertex,
+            },
+        }
     }
 }
 
@@ -68,8 +73,6 @@ impl Node {
             Some(layer) => { match self.vv.layer(layer.as_str()) {
                 None => {vec![]}
                 Some(vvv) => {
-                    vvv.layer()
-
                     vvv.in_neighbours().iter().map(|vv| vv.into()).collect()
                 }
             } }

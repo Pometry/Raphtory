@@ -10,7 +10,7 @@ use raphtory::db::view_api::GraphViewOps;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::sync::Mutex;
-use crate::model::graph::graph::DynamicGraph;
+use raphtory::db::dynamic::DynamicGraph;
 
 type RegisterFunction = fn(&str, Registry, Object) -> (Registry, Object);
 

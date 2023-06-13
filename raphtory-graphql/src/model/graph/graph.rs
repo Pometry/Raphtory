@@ -4,6 +4,7 @@ use async_graphql::Context;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::core::Prop;
+use raphtory::db::dynamic::{DynamicGraph, IntoDynamic};
 use raphtory::db::edge::EdgeView;
 use raphtory::db::vertex::VertexView;
 use raphtory::db::view_api::internal::{GraphViewInternalOps, WrappedGraph};
@@ -16,25 +17,16 @@ use crate::model::graph::node::Node;
 use crate::model::filters::nodefilter::NodeFilter;
 
 
-#[derive(Clone)]
-pub struct DynamicGraph(Arc<dyn GraphViewInternalOps + Send + Sync + 'static>);
-
-impl WrappedGraph for DynamicGraph {
-    type Internal = dyn GraphViewInternalOps + Send + Sync + 'static;
-    fn as_graph(&self) -> &(dyn GraphViewInternalOps + Send + Sync + 'static) {
-        &*self.0
-    }
-}
-
 #[derive(ResolvedObject)]
 pub(crate) struct GqlGraph {
     graph: DynamicGraph,
 }
 
-impl<G: GraphViewOps> From<G> for GqlGraph {
+impl<G: GraphViewOps + IntoDynamic> From<G> for GqlGraph {
     fn from(value: G) -> Self {
-        let graph = DynamicGraph(Arc::new(value));
-        Self { graph }
+        Self {
+            graph: value.into_dynamic(),
+        }
     }
 }
 

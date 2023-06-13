@@ -1,8 +1,8 @@
-use raphtory::db::graph::Graph;
-use raphtory::db::graph_layer::LayeredGraph;
-use raphtory::db::graph_window::WindowedGraph;
-use raphtory::db::view_api::internal::{GraphViewInternalOps, WrappedGraph};
-use raphtory::db::view_api::GraphViewOps;
+use crate::db::graph::Graph;
+use crate::db::graph_layer::LayeredGraph;
+use crate::db::graph_window::WindowedGraph;
+use crate::db::view_api::internal::{GraphViewInternalOps, WrappedGraph};
+use crate::db::view_api::GraphViewOps;
 use std::sync::Arc;
 
 #[derive(Clone)]

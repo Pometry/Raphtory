@@ -1,7 +1,6 @@
 use std::borrow::Cow;
 use raphtory::db::vertex::VertexView;
 use raphtory::db::view_api::VertexViewOps;
-use crate::model::graph::graph::DynamicGraph;
 use crate::model::graph::node::Node;
 use dynamic_graphql::{InputObject};
 use dynamic_graphql::internal::{FromValue, InputTypeName, InputValueResult, Register, TypeName};
