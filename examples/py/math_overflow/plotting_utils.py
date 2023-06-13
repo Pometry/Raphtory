@@ -109,3 +109,10 @@ def lorenz(listlike):
     x= np.arange(listlike.size)/(listlike.size -1)
     y = tmp_arr.cumsum() / tmp_arr.sum()
     return x,y
+
+def get_ordinal_number(num):
+    if 10 < num % 100 < 20:
+        ordinal = str(num) + "th"
+    else:
+        ordinal = str(num) + {1: "st", 2: "nd", 3: "rd"}.get(num % 10, "th")
+    return ordinal
