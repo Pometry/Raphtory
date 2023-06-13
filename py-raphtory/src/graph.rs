@@ -74,7 +74,7 @@ impl PyGraph {
     #[pyo3(signature = (timestamp, id, properties=None))]
     pub fn add_vertex(
         &self,
-        timestamp:  &PyAny,
+        timestamp: &PyAny,
         id: &PyAny,
         properties: Option<HashMap<String, Prop>>,
     ) -> PyResult<()> {
@@ -103,6 +103,25 @@ impl PyGraph {
         let result = self
             .graph
             .add_vertex_properties(v, &Self::transform_props(Some(properties)));
+        adapt_result(result)
+    }
+
+    pub fn add_property(
+        &self,
+        timestamp: &PyAny,
+        properties: HashMap<String, Prop>,
+    ) -> PyResult<()> {
+        let time = extract_into_time(timestamp)?;
+        let result = self
+            .graph
+            .add_property(time, &Self::transform_props(Some(properties)));
+        adapt_result(result)
+    }
+
+    pub fn add_static_property(&self, properties: HashMap<String, Prop>) -> PyResult<()> {
+        let result = self
+            .graph
+            .add_static_property(&Self::transform_props(Some(properties)));
         adapt_result(result)
     }
 

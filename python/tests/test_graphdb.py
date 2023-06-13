@@ -11,6 +11,7 @@ import tempfile
 from math import isclose
 import datetime
 
+
 def create_graph(num_shards):
     g = Graph(num_shards)
     edges = [
@@ -247,6 +248,99 @@ def test_name():
 
 
 # assert g.vertex("Hamza").name() == "Hamza" TODO need to fix
+
+
+def test_graph_properties():
+    g = create_graph(1)
+
+    props = {"prop 1": 1, "prop 2": "hi", "prop 3": True}
+    g.add_static_property(props)
+
+    sp = g.property_names(True)
+    sp.sort()
+    assert sp == ["prop 1", "prop 2", "prop 3"]
+    assert g.property("prop 1") == 1
+
+    props = {"prop 4": 11, "prop 5": "world", "prop 6": False}
+    g.add_property(1, props)
+
+    props = {"prop 6": True}
+    g.add_property(2, props)
+
+    def history_test(key, value):
+        assert g.property_history(key) == value
+
+    history_test("prop 1", [])
+    history_test("prop 2", [])
+    history_test("prop 3", [])
+    history_test("prop 4", [(1, 11)])
+    history_test("prop 5", [(1, "world")])
+    history_test("prop 6", [(1, False), (2, True)])
+    history_test("undefined", [])
+
+    def time_history_test(time, key, value):
+        assert g.at(time).property_history(key) == value
+
+    time_history_test(2, "prop 6", [(1, False), (2, True)])
+    time_history_test(1, "static prop", [])
+
+    def time_static_property_test(time, key, value):
+        assert g.at(time).static_property(key) == value
+
+    def static_property_test(key, value):
+        assert g.static_property(key) == value
+
+    time_static_property_test(1, "prop 1", 1)
+    time_static_property_test(100, "prop 1", 1)
+    static_property_test("prop 1", 1)
+    static_property_test("prop 3", True)
+
+    # testing property
+    def time_property_test(time, key, value):
+        assert g.at(time).property(key) == value
+
+    def property_test(key, value):
+        assert g.property(key) == value
+
+    def no_static_property_test(key, value):
+        assert g.property(key, include_static=False) == value
+
+    property_test("prop 2", "hi")
+    no_static_property_test("prop 1", None)
+    time_property_test(2, "prop 3", True)
+
+    # testing properties
+    assert g.properties() == {"prop 1": 1, "prop 2": "hi", "prop 3": True, "prop 4": 11, "prop 5": "world",
+                              "prop 6": True}
+
+    assert g.properties(include_static=False) == {"prop 4": 11, "prop 5": "world",
+                                                  "prop 6": True}
+    assert g.at(2).properties() == {"prop 1": 1, "prop 2": "hi", "prop 3": True, "prop 4": 11, "prop 5": "world",
+                                    "prop 6": True}
+
+    # testing property histories
+    assert g.property_histories() == {"prop 4": [(1, 11)], "prop 5": [(1, "world")],
+                                      "prop 6": [(1, False), (2, True)]}
+
+    assert g.at(2).property_histories() == {"prop 4": [(1, 11)], "prop 5": [(1, "world")],
+                                            "prop 6": [(1, False), (2, True)]}
+
+    # testing property names
+    expected_names = sorted(['prop 1', 'prop 2', 'prop 3', 'prop 4', 'prop 5', 'prop 6'])
+    assert sorted(g.property_names()) == expected_names
+
+    expected_names_no_static = sorted(['prop 4', 'prop 5', 'prop 6'])
+    assert sorted(g.property_names(include_static=False)) == expected_names_no_static
+
+    assert sorted(g.at(1).property_names(include_static=False)) == expected_names_no_static
+
+    # testing has_property
+    assert g.has_property("prop 4")
+    assert not g.has_property("prop 7")
+    assert not g.at(1).has_property("prop 7")
+    assert g.has_property("prop 1")
+    assert g.at(1).has_property("prop 2")
+    assert not g.has_static_property("static prop")
 
 
 def test_vertex_properties():
@@ -1008,7 +1102,8 @@ def test_time_index():
     w = g.window("2020-01-01", "2020-01-03")
     rolling = w.rolling("1 day")
     time_index = rolling.time_index()
-    assert list(time_index) == [datetime.datetime(2020, 1, 1, 23, 59, 59, 999000), datetime.datetime(2020, 1, 2, 23, 59, 59, 999000)]
+    assert list(time_index) == [datetime.datetime(2020, 1, 1, 23, 59, 59, 999000),
+                                datetime.datetime(2020, 1, 2, 23, 59, 59, 999000)]
 
     w = g.window(1, 3)
     rolling = w.rolling(1)
@@ -1031,7 +1126,7 @@ def test_datetime_props():
     g.add_vertex(0, 1, {"time": dt2})
     assert g.vertex(1).property("time") == dt2
 
-    
+
 def test_date_time():
     g = Graph(1)
 
@@ -1053,6 +1148,7 @@ def test_date_time():
 
     assert g.vertex(1).earliest_date_time() == datetime.datetime(2014, 2, 2, 0, 0)
     assert g.vertex(1).latest_date_time() == datetime.datetime(2014, 2, 5, 0, 0)
+
 
 def test_date_time_window():
     g = Graph(1)
@@ -1118,11 +1214,9 @@ def test_equivalent_vertices_edges_and_sets():
     g.add_edge(1, 1, 2)
     g.add_edge(1, 2, 3)
 
-    assert  g.vertex(1) == g.vertex(1)
+    assert g.vertex(1) == g.vertex(1)
     assert list(g.vertex(1).neighbours())[0] == list(g.vertex(3).neighbours())[0]
     assert set(g.vertex(1).neighbours()) == set(g.vertex(3).neighbours())
     assert set(g.vertex(1).out_edges()) == set(g.vertex(2).in_edges())
 
     assert g.edge(1, 1) == g.edge(1, 1)
-
-
