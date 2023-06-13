@@ -27,6 +27,8 @@ pub(crate) mod errors {
             vertex_id: u64,
             source: IllegalMutate,
         },
+        #[error("Failed to update graph property")]
+        IllegalGraphPropertyChange { source: IllegalMutate },
         #[error("Create edge '{0}' -> '{1}' first before adding static properties to it")]
         MissingEdge(u64, u64), // src, dst
         #[error("cannot change property for edge '{src_id}' -> '{dst_id}'")]
@@ -60,6 +62,8 @@ pub struct TemporalGraph {
     // Properties abstraction for both vertices and edges
     pub(crate) vertex_props: Props,
 
+    pub(crate) graph_props: Props,
+
     // Edge layers
     pub(crate) layers: Vec<EdgeLayer>,
 
@@ -78,6 +82,7 @@ impl TemporalGraph {
             logical_ids: Default::default(),
             timestamps: Default::default(),
             vertex_props: Default::default(),
+            graph_props: Default::default(),
             layers: vec![EdgeLayer::new(0, id)],
             earliest_time: i64::MAX,
             latest_time: i64::MIN,
@@ -250,6 +255,16 @@ impl TemporalGraph {
             })?
         }
         Ok(self.vertex_props.upsert_temporal_props(t, index, props))
+    }
+
+    pub(crate) fn add_property(&mut self, t: i64, props: &Vec<(String, Prop)>) {
+        self.graph_props.upsert_temporal_props(t, 0, props)
+    }
+
+    pub(crate) fn add_static_property(&mut self, props: &Vec<(String, Prop)>) -> MutateGraphResult {
+        self.graph_props
+            .set_static_props(0, props)
+            .map_err(|e| MutateGraphError::IllegalGraphPropertyChange { source: e })
     }
 
     pub(crate) fn add_vertex_properties(
@@ -583,10 +598,18 @@ impl TemporalGraph {
         self.vertex_props.static_prop(v.pid, name)
     }
 
+    pub fn static_prop(&self, name: &str) -> Option<Prop> {
+        self.graph_props.static_prop(0, name)
+    }
+    
     pub fn static_vertex_prop_names(&self, v: LocalVertexRef) -> Vec<String> {
         self.vertex_props.static_names(v.pid)
     }
 
+    pub fn static_prop_names(&self) -> Vec<String> {
+        self.graph_props.static_names(0)
+    }
+    
     #[allow(dead_code)]
     pub(crate) fn temporal_vertex_prop(
         &self,
@@ -595,6 +618,16 @@ impl TemporalGraph {
     ) -> Box<dyn Iterator<Item = (&i64, Prop)> + '_> {
         self.vertex_props
             .temporal_prop(v.pid, name)
+            .unwrap_or(&TProp::Empty)
+            .iter()
+    }
+    
+    pub(crate) fn temporal_prop(
+        &self,
+        name: &str
+    ) -> Box<dyn Iterator<Item = (&i64, Prop)> + '_> {
+        self.graph_props
+            .temporal_prop(0, name)
             .unwrap_or(&TProp::Empty)
             .iter()
     }
@@ -611,10 +644,26 @@ impl TemporalGraph {
             .unwrap_or(&TProp::Empty)
             .iter_window(w.clone())
     }
+
+    pub(crate) fn temporal_prop_window(
+        &self,
+        name: &str,
+        w: &Range<i64>,
+    ) -> Box<dyn Iterator<Item = (&i64, Prop)> + '_> {
+        self.graph_props
+            .temporal_prop(0, name)
+            .unwrap_or(&TProp::Empty)
+            .iter_window(w.clone())
+    }
+    
     pub fn temporal_vertex_prop_names(&self, v: LocalVertexRef) -> Vec<String> {
         self.vertex_props.temporal_names(v.pid)
     }
 
+    pub fn temporal_prop_names(&self) -> Vec<String> {
+        self.graph_props.temporal_names(0)
+    }
+    
     pub(crate) fn temporal_vertex_prop_vec(
         &self,
         v: LocalVertexRef,
@@ -623,6 +672,17 @@ impl TemporalGraph {
         let tprop = self
             .vertex_props
             .temporal_prop(v.pid, name)
+            .unwrap_or(&TProp::Empty);
+        tprop.iter().map(|(t, p)| (*t, p)).collect_vec()
+    }
+
+    pub(crate) fn temporal_prop_vec(
+        &self,
+        name: &str,
+    ) -> Vec<(i64, Prop)> {
+        let tprop = self
+            .graph_props
+            .temporal_prop(0, name)
             .unwrap_or(&TProp::Empty);
         tprop.iter().map(|(t, p)| (*t, p)).collect_vec()
     }
@@ -643,6 +703,21 @@ impl TemporalGraph {
             .collect_vec()
     }
 
+    pub(crate) fn temporal_prop_vec_window(
+        &self,
+        name: &str,
+        w: &Range<i64>,
+    ) -> Vec<(i64, Prop)> {
+        let tprop = self
+            .graph_props
+            .temporal_prop(0, name)
+            .unwrap_or(&TProp::Empty);
+        tprop
+            .iter_window(w.clone())
+            .map(|(t, p)| (*t, p))
+            .collect_vec()
+    }
+
     pub(crate) fn temporal_vertex_props(
         &self,
         v: LocalVertexRef,
@@ -651,6 +726,17 @@ impl TemporalGraph {
         names
             .into_iter()
             .map(|name| (name.to_string(), self.temporal_vertex_prop_vec(v, &name)))
+            .filter(|(_, v)| !v.is_empty()) // just filtered out None
+            .collect()
+    }
+
+    pub(crate) fn temporal_props(
+        &self,
+    ) -> HashMap<String, Vec<(i64, Prop)>> {
+        let names = self.graph_props.temporal_names(0);
+        names
+            .into_iter()
+            .map(|name| (name.to_string(), self.temporal_prop_vec(&name)))
             .filter(|(_, v)| !v.is_empty()) // just filtered out None
             .collect()
     }
@@ -667,6 +753,23 @@ impl TemporalGraph {
                 (
                     name.to_string(),
                     self.temporal_vertex_prop_vec_window(v, &name, w),
+                )
+            })
+            .filter(|(_, v)| !v.is_empty())
+            .collect()
+    }
+
+    pub(crate) fn temporal_props_window(
+        &self,
+        w: &Range<i64>,
+    ) -> HashMap<String, Vec<(i64, Prop)>> {
+        let names = self.graph_props.temporal_names(0);
+        names
+            .into_iter()
+            .map(|name| {
+                (
+                    name.to_string(),
+                    self.temporal_prop_vec_window(&name, w),
                 )
             })
             .filter(|(_, v)| !v.is_empty())

@@ -1,5 +1,7 @@
+use crate::core::Prop;
 use itertools::Itertools;
 use rustc_hash::FxHashSet;
+use std::collections::HashMap;
 
 use crate::core::time::IntoTime;
 use crate::core::vertex_ref::{LocalVertexRef, VertexRef};
@@ -61,6 +63,86 @@ pub trait GraphViewOps: Send + Sync + Sized + GraphViewInternalOps + 'static + C
 
     /// Return an iterator over all edges in the graph.
     fn edges(&self) -> Box<dyn Iterator<Item = EdgeView<Self>> + Send>;
+
+    /// Gets the property value of this graph given the name of the property.
+    fn property(&self, name: String, include_static: bool) -> Option<Prop>;
+
+    /// Get the temporal property value of this graph.
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - The name of the property to retrieve.
+    ///
+    /// # Returns
+    ///
+    /// A vector of `(i64, Prop)` tuples where the `i64` value is the timestamp of the
+    /// property value and `Prop` is the value itself.
+    fn property_history(&self, name: String) -> Vec<(i64, Prop)>;
+
+    /// Get all property values of this graph.
+    ///
+    /// # Arguments
+    ///
+    /// * `include_static` - If `true` then static properties are included in the result.
+    ///
+    /// # Returns
+    ///
+    /// A HashMap with the names of the properties as keys and the property values as values.
+    fn properties(&self, include_static: bool) -> HashMap<String, Prop>;
+
+    /// Get all temporal property values of this graph.
+    ///
+    /// # Returns
+    ///
+    /// A HashMap with the names of the properties as keys and a vector of `(i64, Prop)` tuples
+    /// as values. The `i64` value is the timestamp of the property value and `Prop`
+    /// is the value itself.
+    fn property_histories(&self) -> HashMap<String, Vec<(i64, Prop)>>;
+
+    /// Get the names of all properties of this graph.
+    ///
+    /// # Arguments
+    ///
+    /// * `include_static` - If `true` then static properties are included in the result.
+    ///
+    /// # Returns
+    ///
+    /// A vector of the names of the properties of this vertex.
+    fn property_names(&self, include_static: bool) -> Vec<String>;
+
+    /// Checks if a property exists on this graph.
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - The name of the property to check for.
+    /// * `include_static` - If `true` then static properties are included in the result.
+    ///
+    /// # Returns
+    ///
+    /// `true` if the property exists, otherwise `false`.
+    fn has_property(&self, name: String, include_static: bool) -> bool;
+
+    /// Checks if a static property exists on this graph.
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - The name of the property to check for.
+    ///
+    /// # Returns
+    ///
+    /// `true` if the property exists, otherwise `false`.
+    fn has_static_property(&self, name: String) -> bool;
+
+    /// Get the static property value of this graph.
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - The name of the property to retrieve.
+    ///
+    /// # Returns
+    ///
+    /// The value of the property if it exists, otherwise `None`.
+    fn static_property(&self, name: String) -> Option<Prop>;
 }
 
 impl<G: Send + Sync + Sized + GraphViewInternalOps + 'static + Clone> GraphViewOps for G {
@@ -143,6 +225,66 @@ impl<G: Send + Sync + Sized + GraphViewInternalOps + 'static + Clone> GraphViewO
 
     fn edges(&self) -> Box<dyn Iterator<Item = EdgeView<Self>> + Send> {
         Box::new(self.vertices().iter().flat_map(|v| v.out_edges()))
+    }
+
+    fn property(&self, name: String, include_static: bool) -> Option<Prop> {
+        let props = self.property_history(name.clone());
+        match props.last() {
+            None => {
+                if include_static {
+                    self.static_prop(name)
+                } else {
+                    None
+                }
+            }
+            Some((_, prop)) => Some(prop.clone()),
+        }
+    }
+
+    fn property_history(&self, name: String) -> Vec<(i64, Prop)> {
+        self.temporal_prop_vec(name)
+    }
+
+    fn properties(&self, include_static: bool) -> HashMap<String, Prop> {
+        let mut props: HashMap<String, Prop> = self
+            .property_histories()
+            .iter()
+            .map(|(key, values)| (key.clone(), values.last().unwrap().1.clone()))
+            .collect();
+
+        if include_static {
+            for prop_name in self.static_prop_names() {
+                if let Some(prop) = self.static_prop(prop_name.clone()) {
+                    props.insert(prop_name, prop);
+                }
+            }
+        }
+        props
+    }
+
+    fn property_histories(&self) -> HashMap<String, Vec<(i64, Prop)>> {
+        self.temporal_props()
+    }
+
+    fn property_names(&self, include_static: bool) -> Vec<String> {
+        let mut names: Vec<String> = self.temporal_prop_names();
+        if include_static {
+            names.extend(self.static_prop_names())
+        }
+        names
+    }
+
+    fn has_property(&self, name: String, include_static: bool) -> bool {
+        (!self.property_history(name.clone()).is_empty())
+            || (include_static && self.static_prop_names().contains(&name))
+    }
+
+    fn has_static_property(&self, name: String) -> bool {
+        self.static_prop_names().contains(&name)
+    }
+
+    fn static_property(&self, name: String) -> Option<Prop> {
+        self.static_prop(name)
     }
 }
 
