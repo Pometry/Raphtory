@@ -1,4 +1,7 @@
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::{
+    hash::Hash,
+    sync::atomic::{AtomicUsize, Ordering},
+};
 
 use serde::{Deserialize, Serialize};
 
@@ -6,7 +9,7 @@ use crate::core::{lazy_vec::LazyVec, tprop::TProp, Prop};
 
 use super::tgraph::FxDashMap;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Default, Debug)]
 pub(crate) struct Props {
     // properties
     static_props: LazyVec<Option<Prop>>,
@@ -25,19 +28,31 @@ impl Props {
         self.temporal_props
             .update_or_set(prop_id, |p| p.set(t, &prop), TProp::from(t, &prop))
     }
+
+    pub(crate) fn temporal_props(
+        &self,
+        prop_id: usize,
+    ) -> Box<dyn Iterator<Item = (i64, Prop)> + '_> {
+        let o = self.temporal_props.get(prop_id);
+        if let Some(t_prop) = o {
+            Box::new(t_prop.iter().map(|(t, p)| (*t, p.clone())))
+        } else {
+            Box::new(std::iter::empty())
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize)]
-pub(crate) struct PropsMeta {
-    meta: FxDashMap<String, usize>,
-    len: AtomicUsize,
+pub(crate) struct Meta {
+    meta_prop: DictMapper<String>,
+    meta_layer: DictMapper<String>,
 }
 
-impl PropsMeta {
+impl Meta {
     pub(crate) fn new() -> Self {
         Self {
-            meta: FxDashMap::default(),
-            len: AtomicUsize::new(0),
+            meta_prop: DictMapper::default(),
+            meta_layer: DictMapper::default(),
         }
     }
 
@@ -45,17 +60,86 @@ impl PropsMeta {
         &self,
         props: Vec<(String, Prop)>,
     ) -> impl Iterator<Item = (usize, Prop)> + '_ {
-        props.into_iter().map(|(name, prop)| {
-            let prop_id = self.meta.get(&name).map(|x| *x).unwrap_or_else(|| {
-                let id = self.increment_len();
-                self.meta.insert(name, id);
-                id
-            });
+        props.into_iter().map(move |(name, prop)| {
+            let prop_id = self.meta_prop.get_or_create_id(name.clone());
             (prop_id, prop)
         })
     }
 
-    fn increment_len(&self) -> usize {
-        self.len.fetch_add(1, Ordering::SeqCst)
+    pub(crate) fn resolve_prop_id(&self, name: &str) -> usize {
+        self.meta_prop.get_or_create_id(name.to_string())
+    }
+
+    pub(crate) fn get_or_create_layer_id(&self, name: String) -> usize {
+        self.meta_layer.get_or_create_id(name)
+    }
+}
+
+#[derive(Serialize, Deserialize, Default)]
+struct DictMapper<T: Hash + Eq> {
+    map: FxDashMap<T, usize>,
+    counter: AtomicUsize,
+}
+
+impl<T: Hash + Eq> DictMapper<T> {
+    fn get_or_create_id(&self, name: T) -> usize {
+        if let Some(existing_id) = self.map.get(&name) {
+            return *existing_id;
+        }
+
+        let new_id = self
+            .map
+            .entry(name)
+            .or_insert_with(|| self.counter.fetch_add(1, Ordering::Relaxed));
+        *new_id
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_dict_mapper() {
+        let mapper = DictMapper::default();
+        assert_eq!(mapper.get_or_create_id("test"), 0);
+        assert_eq!(mapper.get_or_create_id("test"), 0);
+        assert_eq!(mapper.get_or_create_id("test2"), 1);
+        assert_eq!(mapper.get_or_create_id("test2"), 1);
+        assert_eq!(mapper.get_or_create_id("test"), 0);
+    }
+
+    // map 5 strings to 5 ids from 4 threads concurrently 1000 times
+    #[test]
+    fn test_dict_mapper_concurrent() {
+        use std::sync::Arc;
+        use std::thread;
+
+        let mapper = Arc::new(DictMapper::default());
+        let mut threads = Vec::new();
+        for _ in 0..4 {
+            let mapper = Arc::clone(&mapper);
+            threads.push(thread::spawn(move || {
+                for _ in 0..1000 {
+                    mapper.get_or_create_id("test");
+                    mapper.get_or_create_id("test2");
+                    mapper.get_or_create_id("test3");
+                    mapper.get_or_create_id("test4");
+                    mapper.get_or_create_id("test5");
+                }
+            }));
+        }
+
+        for thread in threads {
+            thread.join().unwrap();
+        }
+
+        let mut actual = vec!["test", "test2", "test3", "test4", "test5"]
+            .into_iter()
+            .map(|name| mapper.get_or_create_id(name))
+            .collect::<Vec<_>>();
+        actual.sort();
+
+        assert_eq!(actual, vec![0, 1, 2, 3, 4]);
     }
 }

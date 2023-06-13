@@ -8,9 +8,10 @@ mod props;
 mod timer;
 pub mod tgraph;
 
+// the only reason this is public is because the phisical ids of the vertices don't move
 #[repr(transparent)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Deserialize, Serialize)]
-pub(crate) struct VID(usize);
+pub struct VID(usize);
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct LocalID {

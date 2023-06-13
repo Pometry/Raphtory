@@ -1,5 +1,5 @@
 mod items;
-mod iter;
+pub(crate) mod iter;
 
 use std::{
     fmt::Debug,
@@ -7,7 +7,6 @@ use std::{
     sync::atomic::{AtomicUsize, Ordering},
 };
 
-use itertools::Itertools;
 use lock_api::{RawRwLock, RwLock};
 use serde::{Deserialize, Serialize};
 
@@ -113,6 +112,17 @@ impl<T, L: RawRwLock, const N: usize> RawStorage<T, L, N> {
 pub struct Entry<'a, T: 'static, L: RawRwLock> {
     i: usize,
     guard: lock_api::RwLockReadGuard<'a, L, Vec<Option<T>>>,
+}
+
+impl <'a, T: 'static, L: RawRwLock> Entry<'a, T, L>{
+    pub fn value(&self) -> Option<&T> {
+        let t = self.guard.get(self.i)?;
+        t.as_ref()
+    }
+
+    pub fn is_vacant(&self) -> bool {
+        self.value().is_none()
+    }
 }
 
 impl<'a, T, L: lock_api::RawRwLock> Deref for Entry<'a, T, L> {

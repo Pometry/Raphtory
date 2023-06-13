@@ -1,34 +1,47 @@
-use std::{hash::BuildHasherDefault, sync::Arc};
+use std::{hash::BuildHasherDefault, ops::Range, sync::Arc};
 
-use dashmap::{mapref::entry::Entry, DashMap};
+use dashmap::DashMap;
 use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
 
 use crate::{
     core::{vertex::InputVertex, Direction, Prop},
-    storage,
+    storage::{self, iter::RefT},
 };
 
 use super::{
     edge_store::EdgeStore,
     node_store::NodeStore,
-    props::PropsMeta,
+    props::Meta,
     timer::{MaxCounter, MinCounter, TimeCounterTrait},
-    LocalID, EID, VID,
+    VID,
 };
 
 pub(crate) type FxDashMap<K, V> = DashMap<K, V, BuildHasherDefault<FxHasher>>;
 
 #[derive(Serialize, Deserialize)]
-pub struct TemporalGraph<const N: usize, L: lock_api::RawRwLock> {
+pub struct TGraph<const N: usize, L: lock_api::RawRwLock> {
+    inner: Arc<InnerTemporalGraph<N, L>>,
+}
+
+impl<const N: usize, L: lock_api::RawRwLock> Clone for TGraph<N, L> {
+    fn clone(&self) -> Self {
+        Self {
+            inner: self.inner.clone(),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+struct InnerTemporalGraph<const N: usize, L: lock_api::RawRwLock> {
     // mapping between logical and physical ids
     logical_to_physical: FxDashMap<u64, usize>,
 
     // node storage with having (id, time_index, properties, adj list for each layer)
-    nodes: Arc<storage::RawStorage<NodeStore<N>, L, N>>,
+    nodes: storage::RawStorage<NodeStore<N>, L, N>,
 
     // edge storage with having (src, dst, time_index, properties) for each layer
-    edges: Arc<storage::RawStorage<EdgeStore<N>, L, N>>,
+    edges: storage::RawStorage<EdgeStore<N>, L, N>,
 
     //earliest time seen in this graph
     pub(crate) earliest_time: MinCounter,
@@ -37,25 +50,29 @@ pub struct TemporalGraph<const N: usize, L: lock_api::RawRwLock> {
     pub(crate) latest_time: MaxCounter,
 
     // props meta data (mapping between strings and ids) TODO: this is a bottle neck
-    pub(crate) props_meta: PropsMeta,
+    pub(crate) props_meta: Meta,
 }
 
-impl<const N: usize, L: lock_api::RawRwLock> TemporalGraph<N, L> {
+impl<const N: usize> TGraph<N, parking_lot::RawRwLock> {
     pub fn new() -> Self {
         Self {
-            logical_to_physical: FxDashMap::default(),
-            nodes: Arc::new(storage::RawStorage::new()),
-            edges: Arc::new(storage::RawStorage::new()),
-            earliest_time: MinCounter::new(),
-            latest_time: MaxCounter::new(),
-            props_meta: PropsMeta::new(),
+            inner: Arc::new(InnerTemporalGraph {
+                logical_to_physical: FxDashMap::default(),
+                nodes: storage::RawStorage::new(),
+                edges: storage::RawStorage::new(),
+                earliest_time: MinCounter::new(),
+                latest_time: MaxCounter::new(),
+                props_meta: Meta::new(),
+            }),
         }
     }
+}
 
+impl<const N: usize, L: lock_api::RawRwLock> TGraph<N, L> {
     #[inline]
     fn update_time(&self, time: i64) {
-        self.earliest_time.update(time);
-        self.latest_time.update(time);
+        self.inner.earliest_time.update(time);
+        self.inner.latest_time.update(time);
     }
 
     pub fn add_vertex<T: InputVertex>(&self, t: i64, v: T) {
@@ -69,34 +86,50 @@ impl<const N: usize, L: lock_api::RawRwLock> TemporalGraph<N, L> {
     fn add_vertex_internal<T: InputVertex>(&self, t: i64, v: T, props: Vec<(String, Prop)>) -> VID {
         self.update_time(t);
 
+        // resolve the props without holding any locks
+        let props = self
+            .inner
+            .props_meta
+            .resolve_prop_ids(props)
+            .collect::<Vec<_>>();
+        let node_prop = v
+            .name_prop()
+            .map(|n| {
+                self.inner
+                    .props_meta
+                    .resolve_prop_ids(vec![("_id".to_string(), n)])
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_else(|| vec![]);
+
         // update the logical to physical mapping if needed
-        let v_id = *(self.logical_to_physical.entry(v.id()).or_insert_with(|| {
-            let node_store = NodeStore::new(v.id(), t);
-            self.nodes.push(node_store)
-        }));
+        let v_id = *(self
+            .inner
+            .logical_to_physical
+            .entry(v.id())
+            .or_insert_with(|| {
+                let node_store = NodeStore::new(v.id(), t);
+                self.inner.nodes.push(node_store)
+            }));
 
         // get the node and update the time index
-        let mut node = self.nodes.entry_mut(v_id);
+        let mut node = self.inner.nodes.entry_mut(v_id);
         node.update_time(t);
 
         // update the properties;
-        for (prop_id, prop) in self.props_meta.resolve_prop_ids(props) {
-            node.add_prop(t, prop_id, prop);
+        for (prop_id, prop) in &props {
+            node.add_prop(t, *prop_id, prop.clone());
         }
 
-        // update name
-        if let Some(n) = v.name_prop() {
-            for (prop_id, prop) in self
-                .props_meta
-                .resolve_prop_ids(vec![("_id".to_string(), n)])
-            {
-                node.add_prop(t, prop_id, prop);
-            }
+        // update node prop
+        for (prop_id, prop) in &node_prop {
+            node.add_prop(t, *prop_id, prop.clone());
         }
+
         v_id.into()
     }
 
-    pub(crate) fn add_edge_with_props<T: InputVertex>(
+    pub fn add_edge_with_props<T: InputVertex>(
         &mut self,
         t: i64,
         src: T,
@@ -107,27 +140,150 @@ impl<const N: usize, L: lock_api::RawRwLock> TemporalGraph<N, L> {
         let src_id = self.add_vertex_internal(t, src, vec![]);
         let dst_id = self.add_vertex_internal(t, dst, vec![]);
 
+        let layer = self.inner.props_meta.get_or_create_layer_id(layer);
+        let props = self
+            .inner
+            .props_meta
+            .resolve_prop_ids(props)
+            .collect::<Vec<_>>();
+
         // get the entries for the src and dst nodes
-        let mut node_pair = self.nodes.pair_entry_mut(src_id.into(), dst_id.into());
+        let edge_id = {
+            let mut node_pair = self
+                .inner
+                .nodes
+                .pair_entry_mut(src_id.into(), dst_id.into());
 
-        let src = node_pair.get_mut_i(); // first
+            let src = node_pair.get_mut_i();
 
-        // find the edge_id if it exists and add the time event to the nodes
-        if let Some(edge_id) = src.find_edge(dst_id) {
-            src.add_edge(t, dst_id, Direction::OUT, &layer, edge_id);
-            // add inbound edge for dst
-            let dst = node_pair.get_mut_j(); // second
-            dst.add_edge(t, src_id, Direction::IN, &layer, edge_id);
-        } else {
-            let mut edge = EdgeStore::new(src_id, dst_id, t);
-            for (prop_id, prop) in self.props_meta.resolve_prop_ids(props) {
-                edge.add_prop(t, prop_id, prop);
+            // find the edge_id if it exists and add the time event to the nodes
+            if let Some(edge_id) = src.find_edge(dst_id) {
+                src.add_edge(dst_id, Direction::OUT, layer, edge_id);
+                // add inbound edge for dst
+                let dst = node_pair.get_mut_j();
+                dst.add_edge(src_id, Direction::IN, layer, edge_id);
+                Some(edge_id)
+            } else {
+                let mut edge = EdgeStore::new(src_id, dst_id, t);
+                for (prop_id, prop) in &props {
+                    edge.add_prop(t, *prop_id, prop.clone());
+                }
+                let edge_id = self.inner.edges.push(edge);
+
+                // add the edge to the nodes
+                src.add_edge(dst_id, Direction::OUT, layer, edge_id.into());
+                let dst = node_pair.get_mut_j(); // second
+                dst.add_edge(src_id, Direction::IN, layer, edge_id.into());
+                None
             }
-            self.edges.push(edge);
-        }
+        }; // this is to release the node locks as quick as possible
 
+        if let Some(e_id) = edge_id {
+            // update the edge with properties
+            let mut edge = self.inner.edges.entry_mut(e_id.into());
+            for (prop_id, prop) in &props {
+                edge.add_prop(t, *prop_id, prop.clone());
+            }
+            // update the time event
+            edge.update_time(t);
+        }
+    }
+
+    pub fn has_vertex<V: InputVertex>(&self, v: V) -> bool {
+        self.inner.logical_to_physical.contains_key(&v.id())
+    }
+
+    pub fn has_vertex_window<V: InputVertex>(&self, v: V, window: Range<i64>) -> bool {
+        let v_id = if let Some(v_id) = self.inner.logical_to_physical.get(&v.id()) {
+            *v_id
+        } else {
+            return false;
+        };
+
+        let node = self.inner.nodes.entry(v_id);
+        if let Some(n) = node.value() {
+            n.has_time_window(window)
+        } else {
+            false
+        }
+    }
+
+    pub fn vertex_ids(&self) -> impl Iterator<Item = VID> {
+        (0..self.inner.nodes.len()).map(|i| i.into())
+    }
+
+    pub fn vertices<'a>(&'a self) -> impl Iterator<Item = Vertex<'a, N, L>> {
+        self.inner
+            .nodes
+            .iter2()
+            .map(move |node| Vertex { node, graph: self })
+    }
+
+    pub fn find_global_id(&self, v: VID) -> Option<u64> {
+        let node = self.inner.nodes.entry(v.into());
+        node.value().map(|n| n.global_id())
+    }
+}
+
+pub struct Vertex<'a, const N: usize, L: lock_api::RawRwLock> {
+    node: RefT<'a, NodeStore<N>, L, N>,
+    graph: &'a TGraph<N, L>,
+}
+
+impl<'a, const N: usize, L: lock_api::RawRwLock> Vertex<'a, N, L> {
+    pub fn temporal_properties(&'a self, name: &str) -> impl Iterator<Item = (i64, Prop)> + 'a {
+        let prop_id = self.graph.inner.props_meta.resolve_prop_id(name);
+        (&self.node).value().temporal_properties(prop_id)
     }
 }
 
 #[cfg(test)]
-mod test {}
+mod test {
+
+    use itertools::Itertools;
+
+    use super::*;
+
+    #[test]
+    fn add_vertex_at_time_t1() {
+        let g: TGraph<4, parking_lot::RawRwLock> = TGraph::new();
+
+        g.add_vertex(1, 9);
+
+        assert!(g.has_vertex(9u64));
+        assert!(g.has_vertex_window(9u64, 1..15));
+        assert!(!g.has_vertex_window(9u64, 10..15));
+
+        assert_eq!(
+            g.vertex_ids()
+                .flat_map(|v| g.find_global_id(v))
+                .collect::<Vec<_>>(),
+            vec![9]
+        );
+    }
+
+    #[test]
+    fn add_vertices_with_1_property() {
+        let g: TGraph<4, parking_lot::RawRwLock> = TGraph::new();
+
+        let v_id = 1;
+        let ts = 1;
+        g.add_vertex_with_props(ts, v_id, vec![("type".into(), Prop::Str("wallet".into()))]);
+
+        assert!(g.has_vertex(v_id));
+        assert!(g.has_vertex_window(v_id, 1..15));
+        assert_eq!(
+            g.vertex_ids()
+                .flat_map(|v| g.find_global_id(v))
+                .collect::<Vec<_>>(),
+            vec![v_id]
+        );
+
+        let res = g
+            .vertices()
+            .flat_map(|v| v.temporal_properties("type").collect_vec())
+            .collect_vec();
+
+        assert_eq!(res, vec![(1i64, Prop::Str("wallet".into()))]);
+    }
+}

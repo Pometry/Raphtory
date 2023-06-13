@@ -41,4 +41,18 @@ impl Adj {
             out: TAdjSet::default(),
         }
     }
+
+    pub(crate) fn add_edge_into(&mut self, v: VID, e: EID) {
+        match self {
+            Adj::Solo => *self = Self::new_into(v, e),
+            Adj::List { into, .. } => into.push(v, e.into()),
+        }
+    }
+
+    pub(crate) fn add_edge_out(&mut self, v: VID, e: EID) {
+        match self {
+            Adj::Solo => *self = Self::new_out(v, e),
+            Adj::List { out, .. } => out.push(v, e.into()),
+        }
+    }
 }

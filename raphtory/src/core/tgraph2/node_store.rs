@@ -1,10 +1,12 @@
+use std::ops::Range;
+
 use serde::{Deserialize, Serialize};
 
 use crate::core::{timeindex::TimeIndex, Direction, Prop};
 
-use super::{adj::Adj, edge_layer::EdgeLayer, props::Props, VID};
+use super::{adj::Adj, props::Props, VID};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub(crate) struct NodeStore<const N: usize> {
     global_id: u64,
     // all the timestamps that have been seen by this vertex
@@ -25,6 +27,10 @@ impl<const N: usize> NodeStore<N> {
         }
     }
 
+    pub fn global_id(&self) -> u64 {
+        self.global_id
+    }
+
     pub fn update_time(&mut self, t: i64) {
         self.timestamps.insert(t);
     }
@@ -43,13 +49,29 @@ impl<const N: usize> NodeStore<N> {
     }
 
     pub(crate) fn add_edge(
-        &self,
-        t: i64,
+        &mut self,
         v_id: VID,
         dir: Direction,
-        layer: &str,
+        layer: usize,
         edge_id: super::EID,
-    ) -> super::EID {
-        todo!()
+    ) {
+
+        if layer >= self.layers.len(){
+            self.layers.resize_with(layer+1,||Adj::Solo);
+        }
+
+        match dir {
+            Direction::IN => self.layers[layer].add_edge_into(v_id, edge_id),
+            Direction::OUT => self.layers[layer].add_edge_out(v_id, edge_id),
+            _ => {}
+        }
+    }
+
+    pub(crate) fn has_time_window(&self, window: Range<i64>) -> bool {
+        self.timestamps.range(window).next().is_some()
+    }
+
+    pub(crate) fn temporal_properties<'a>(&'a self, prop_id: usize) -> impl Iterator<Item = (i64, Prop)> + 'a{
+        self.props.temporal_props(prop_id)
     }
 }

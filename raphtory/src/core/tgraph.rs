@@ -629,15 +629,6 @@ mod graph_test {
     use std::vec;
 
     #[test]
-    fn testhm() {
-        let map = std::collections::HashMap::from([("a", 1), ("b", 2), ("c", 3)]);
-
-        for val in map.values() {
-            println!("sk: {:?}", val);
-        }
-    }
-
-    #[test]
     fn add_vertex_at_time_t1() {
         let mut g = TemporalGraph::new(0);
 
