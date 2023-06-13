@@ -33,6 +33,18 @@ def create_graph(num_shards):
     return g
 
 
+def test_graph_property():
+    g = create_graph(1)
+    props = {"prop 1": 1, "prop 2": "hi", "prop 3": True}
+    g.add_static_property(props)
+
+    sp = g.property_names(True)
+    sp.sort()
+    assert sp == ["prop 1", "prop 2", "prop 3"]
+
+    assert g.property("prop 1") == 1
+
+
 def test_graph_len_edge_len():
     g = create_graph(2)
 

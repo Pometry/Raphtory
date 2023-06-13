@@ -7,11 +7,17 @@ use crate::utils::{
     PyWindowSet,
 };
 use crate::vertex::{PyVertex, PyVertices};
+use crate::wrappers::iterators::*;
+use crate::wrappers::prop::Prop;
 use chrono::prelude::*;
+use futures::StreamExt;
+use itertools::Itertools;
 use pyo3::prelude::*;
+use raphtory::db::view_api::internal::GraphViewInternalOps;
 use raphtory::db::view_api::layer::LayerOps;
 use raphtory::db::view_api::*;
 use raphtory::*;
+use std::collections::HashMap;
 
 /// Graph view is a read-only version of a graph at a certain point in time.
 #[pyclass(name = "GraphView", frozen, subclass)]
@@ -279,6 +285,49 @@ impl PyGraphView {
     #[pyo3(signature = (name))]
     pub fn layer(&self, name: &str) -> Option<PyGraphView> {
         self.graph.layer(name).map(|layer| layer.into())
+    }
+
+    fn property(&self, name: String, include_static: Option<bool>) -> Option<Prop> {
+        self.graph
+            .property(name.clone(), include_static.unwrap_or(true))
+            .map(|v| v.into())
+    }
+
+    fn property_history(&self, name: String) -> Vec<(i64, Prop)> {
+        let r: Vec<(i64, raphtory::core::Prop)> = self.graph.property_history(name.clone());
+        r.into_iter().map(|(i, v)| (i, v.into())).collect_vec()
+    }
+
+    fn properties(&self, include_static: Option<bool>) -> HashMap<String, Prop> {
+        let r: HashMap<String, raphtory::core::Prop> =
+            self.graph.properties(include_static.unwrap_or(true));
+        r.into_iter().map(|(i, v)| (i, v.into())).collect()
+    }
+
+    fn property_histories(&self) -> HashMap<String, Vec<(i64, Prop)>> {
+        let r: HashMap<String, Vec<(i64, raphtory::core::Prop)>> = self.graph.property_histories();
+        let w = r.into_iter().map(|(i, v)| {
+            let x = v.into_iter().map(|(a, b)| (a, b.into())).collect_vec();
+            (i, x)
+        });
+        w.collect()
+    }
+
+    fn property_names(&self, include_static: Option<bool>) -> Vec<String> {
+        self.graph.property_names(include_static.unwrap_or(true))
+    }
+
+    fn has_property(&self, name: String, include_static: Option<bool>) -> bool {
+        self.graph
+            .has_property(name.clone(), include_static.unwrap_or(true))
+    }
+
+    fn has_static_property(&self, name: String) -> bool {
+        self.graph.has_static_property(name.clone())
+    }
+
+    fn static_property(&self, name: String) -> Option<Prop> {
+        self.graph.static_prop(name.clone()).map(|v| v.into())
     }
 
     /// Displays the graph
