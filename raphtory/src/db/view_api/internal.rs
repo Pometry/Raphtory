@@ -830,7 +830,7 @@ where
     ) -> Box<dyn Iterator<Item = LocalVertexRef> + Send> {
         self.as_graph().vertex_refs_window(t_start, t_end)
     }
-
+gi
     fn vertex_refs_shard(&self, shard: usize) -> Box<dyn Iterator<Item = LocalVertexRef> + Send> {
         self.as_graph().vertex_refs_shard(shard)
     }
@@ -989,7 +989,7 @@ where
     }
 
     fn temporal_prop_vec_window(&self, name: String, t_start: i64, t_end: i64) -> Vec<(i64, Prop)> {
-        todo!()
+        self.as_graph().temporal_prop_vec_window(name, t_start, t_end)
     }
 
     fn temporal_vertex_props(&self, v: LocalVertexRef) -> HashMap<String, Vec<(i64, Prop)>> {
@@ -997,7 +997,7 @@ where
     }
 
     fn temporal_props(&self) -> HashMap<String, Vec<(i64, Prop)>> {
-        todo!()
+        self.as_graph().temporal_props()
     }
 
     fn temporal_vertex_props_window(
