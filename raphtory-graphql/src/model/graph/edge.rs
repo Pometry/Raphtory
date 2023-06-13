@@ -50,6 +50,10 @@ impl Edge {
         Some(Property::new(name, prop))
     }
 
+    async fn layer(&self) -> String {
+        self.ee.layer_name()
+    }
+
     async fn history(&self) -> Vec<i64> {
         self.ee.history()
     }
