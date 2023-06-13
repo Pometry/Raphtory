@@ -414,6 +414,15 @@ pub trait GraphViewInternalOps {
     /// Option<Prop> - The property value if it exists.
     fn static_vertex_prop(&self, v: LocalVertexRef, name: String) -> Option<Prop>;
 
+    /// Gets a static property of a given graph given the name
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - The name of the property.
+    ///
+    /// # Returns
+    ///
+    /// Option<Prop> - The property value if it exists.
     fn static_prop(&self, name: String) -> Option<Prop>;
 
     /// Gets the keys of static properties of a given vertex
@@ -427,6 +436,13 @@ pub trait GraphViewInternalOps {
     /// Vec<String> - The keys of the static properties.
     fn static_vertex_prop_names(&self, v: LocalVertexRef) -> Vec<String>;
 
+    /// Gets the keys of static properties of graph
+    ///
+    /// # Arguments
+    ///
+    /// # Returns
+    ///
+    /// Vec<String> - The keys of the static properties.
     fn static_prop_names(&self) -> Vec<String>;
 
     /// Returns a vector of all names of temporal properties within the given vertex
@@ -440,6 +456,13 @@ pub trait GraphViewInternalOps {
     /// A vector of strings representing the names of the temporal properties
     fn temporal_vertex_prop_names(&self, v: LocalVertexRef) -> Vec<String>;
 
+    /// Returns a vector of all names of temporal properties within the graph
+    ///
+    /// # Arguments
+    ///
+    /// # Returns
+    ///
+    /// A vector of strings representing the names of the temporal properties
     fn temporal_prop_names(&self) -> Vec<String>;
 
     /// Returns a vector of all temporal values of the vertex property with the given name for the
@@ -457,6 +480,16 @@ pub trait GraphViewInternalOps {
     /// and the second element is the property value.
     fn temporal_vertex_prop_vec(&self, v: LocalVertexRef, name: String) -> Vec<(i64, Prop)>;
 
+    /// Returns a vector of all temporal values of the graph property with the given name
+    ///
+    /// # Arguments
+    /// * `name` - The name of the property to retrieve.
+    ///
+    /// # Returns
+    ///
+    /// A vector of tuples representing the temporal values of the property for the given vertex
+    /// that fall within the specified time window, where the first element of each tuple is the timestamp
+    /// and the second element is the property value.
     fn temporal_prop_vec(&self, name: String) -> Vec<(i64, Prop)>;
 
     /// Returns a vector of all temporal values of the vertex
@@ -506,6 +539,20 @@ pub trait GraphViewInternalOps {
         t_end: i64,
     ) -> Vec<(i64, Prop)>;
 
+    /// Returns a vector of all temporal values of the graph property with the given name
+    /// that fall within the specified time window.
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - The name of the property to retrieve.
+    /// * `t_start` - The start time of the window to consider.
+    /// * `t_end` - The end time of the window to consider.
+    ///
+    /// # Returns
+    ///
+    /// A vector of tuples representing the temporal values of the property for graph
+    /// that fall within the specified time window, where the first element of each tuple is the timestamp
+    /// and the second element is the property value.
     fn temporal_prop_vec_window(
         &self,
         name: String,
@@ -524,6 +571,14 @@ pub trait GraphViewInternalOps {
     /// - A map of all temporal values of the vertex properties for the given vertex.
     fn temporal_vertex_props(&self, v: LocalVertexRef) -> HashMap<String, Vec<(i64, Prop)>>;
 
+    /// Returns a map of all temporal values of the graph properties.
+    /// The keys of the map are the names of the properties, and the values are vectors of tuples
+    ///
+    /// # Arguments
+    ///
+    /// # Returns
+    ///
+    /// - A map of all temporal values of the graph properties.
     fn temporal_props(&self,) -> HashMap<String, Vec<(i64, Prop)>>;
 
     /// Returns a map of all temporal values of the vertex properties for the given vertex
@@ -544,6 +599,16 @@ pub trait GraphViewInternalOps {
         t_end: i64,
     ) -> HashMap<String, Vec<(i64, Prop)>>;
 
+    /// Returns a map of all temporal values of the graph properties
+    /// that fall within the specified time window.
+    ///
+    /// # Arguments
+    ///
+    /// - `t_start` - The start time of the window to consider (inclusive).
+    /// - `t_end` - The end time of the window to consider (exclusive).
+    ///
+    /// # Returns
+    /// - A map of all temporal values of the graph properties
     fn temporal_props_window(
         &self,
         t_start: i64,
