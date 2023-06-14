@@ -394,6 +394,10 @@ impl<G: GraphViewOps> GraphViewInternalOps for VertexSubgraph<G> {
         self.graph.static_prop(name)
     }
 
+    fn static_props(&self) -> HashMap<String, Prop> {
+        self.graph.static_props()
+    }
+
     fn static_vertex_prop_names(&self, v: LocalVertexRef) -> Vec<String> {
         self.graph.static_vertex_prop_names(v)
     }

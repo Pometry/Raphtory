@@ -436,6 +436,15 @@ pub trait GraphViewInternalOps {
     /// Option<Prop> - The property value if it exists.
     fn static_prop(&self, name: String) -> Option<Prop>;
 
+    /// Gets static properties of a given graph
+    ///
+    /// # Arguments
+    ///
+    /// # Returns
+    ///
+    /// HashMap<String, Prop> - Return static properties identified by their names
+    fn static_props(&self) -> HashMap<String, Prop>;
+
     /// Gets the keys of static properties of a given vertex
     ///
     /// # Arguments
@@ -1025,6 +1034,10 @@ where
 
     fn static_prop(&self, name: String) -> Option<Prop> {
         self.as_graph().static_prop(name)
+    }
+
+    fn static_props(&self) -> HashMap<String, Prop> {
+        self.as_graph().static_props()
     }
 
     fn static_vertex_prop_names(&self, v: LocalVertexRef) -> Vec<String> {

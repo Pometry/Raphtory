@@ -520,7 +520,11 @@ impl TGraphShard<TemporalGraph> {
     pub fn static_prop(&self, name: String) -> Option<Prop> {
         self.read_shard(|tg| tg.static_prop( &name))
     }
-    
+
+    pub fn static_props(&self) -> HashMap<String, Prop> {
+        self.read_shard(|tg| tg.static_props())
+    }
+
     pub fn static_vertex_prop_names(&self, v: LocalVertexRef) -> Vec<String> {
         self.read_shard(|tg| tg.static_vertex_prop_names(v))
     }
@@ -884,6 +888,10 @@ impl ImmutableTGraphShard<TemporalGraph> {
 
     pub fn static_prop(&self, name: String) -> Option<Prop> {
         self.read_shard(|tg| tg.static_prop(&name))
+    }
+
+    pub fn static_props(&self) -> HashMap<String, Prop> {
+        self.read_shard(|tg| tg.static_props())
     }
     
     pub fn static_vertex_prop_names(&self, v: LocalVertexRef) -> Vec<String> {

@@ -980,6 +980,10 @@ impl<G: GraphViewOps> GraphViewInternalOps for WindowedGraph<G> {
         self.graph.static_prop(name)
     }
 
+    fn static_props(&self) -> HashMap<String, Prop> {
+        self.graph.static_props()
+    }
+
     fn static_prop_names(&self) -> Vec<String> {
         self.graph.static_prop_names()
     }

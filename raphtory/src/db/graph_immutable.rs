@@ -630,6 +630,10 @@ impl GraphViewInternalOps for ImmutableGraph {
         self.shards.get(0)?.static_prop(name)
     }
 
+    fn static_props(&self) -> HashMap<String, Prop> {
+        self.shards.get(0).expect("Failed to get shard 0").static_props()
+    }
+
     fn static_vertex_prop_names(&self, v: LocalVertexRef) -> Vec<String> {
         self.get_shard_from_local_v(v).static_vertex_prop_names(v)
     }

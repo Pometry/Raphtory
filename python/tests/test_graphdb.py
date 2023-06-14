@@ -1288,3 +1288,8 @@ def test_materialize_graph():
     assert g.has_edge(1, 2) == True
     assert mg.has_edge(2, 1) == True
     assert g.has_edge(2, 1) == True
+
+    sprop = {"sprop 1": "kaggle", "sprop 2": True}
+    g.add_static_property(sprop)
+
+    assert g.static_properties() == sprop

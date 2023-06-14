@@ -146,6 +146,15 @@ pub trait GraphViewOps: Send + Sync + Sized + GraphViewInternalOps + 'static + C
     /// The value of the property if it exists, otherwise `None`.
     fn static_property(&self, name: String) -> Option<Prop>;
 
+    /// Get the static properties value of this graph.
+    ///
+    /// # Arguments
+    ///
+    /// # Returns
+    ///
+    /// HashMap<String, Prop> - Return all static properties identified by their names
+    fn static_properties(&self) -> HashMap<String, Prop>;
+
     fn materialize(&self) -> Result<Graph, GraphError>;
 }
 
@@ -289,6 +298,10 @@ impl<G: Send + Sync + Sized + GraphViewInternalOps + 'static + Clone> GraphViewO
 
     fn static_property(&self, name: String) -> Option<Prop> {
         self.static_prop(name)
+    }
+
+    fn static_properties(&self) -> HashMap<String, Prop> {
+        self.static_props()
     }
 
     fn materialize(&self) -> Result<Graph, GraphError> {

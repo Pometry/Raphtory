@@ -391,6 +391,18 @@ impl PyGraphView {
         self.graph.static_prop(name.clone()).map(|v| v.into())
     }
 
+    /// Returns static properties of a graph
+    ///
+    /// Arguments:
+    ///
+    /// Returns:
+    ///    HashMap<String, Prop> - Returns static properties identified by their names
+    fn static_properties(&self) -> HashMap<String, Prop> {
+        let r: HashMap<String, raphtory::core::Prop> =
+            self.graph.static_properties();
+        r.into_iter().map(|(i, v)| (i, v.into())).collect()
+    }
+
     /// Returns a subgraph given a set of vertices
     ///
     /// Arguments:
