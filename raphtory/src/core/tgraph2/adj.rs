@@ -1,3 +1,5 @@
+use core::panic;
+
 use crate::core::{tadjset::TAdjSet, Direction};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
@@ -69,6 +71,30 @@ impl Adj {
                         .dedup()
                         .map(|(v, e)| (v, e.into())),
                 ),
+            },
+        }
+    }
+
+    pub(crate) fn get_page_vec(
+        &self,
+        last: Option<VID>,
+        page_size: usize,
+        dir: Direction,
+    ) -> Vec<(VID, EID)> {
+        match self {
+            Adj::Solo => Vec::new(),
+            Adj::List { out, into } => match dir {
+                Direction::OUT => out
+                    .get_page_vec(last, page_size)
+                    .into_iter()
+                    .map(|(v, e)| (v, e.into()))
+                    .collect(),
+                Direction::IN => into
+                    .get_page_vec(last, page_size)
+                    .into_iter()
+                    .map(|(v, e)| (v, e.into()))
+                    .collect(),
+                _ => panic!("Cannot get page vec for both direction, need to be handled by the caller"),
             },
         }
     }

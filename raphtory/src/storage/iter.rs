@@ -1,10 +1,11 @@
 use std::{ops::Deref, rc::Rc};
 
-use super::RawStorage;
+use super::{RawStorage, Entry};
 
 pub struct Iter<'a, T, L: lock_api::RawRwLock, const N: usize> {
     raw: &'a RawStorage<T, L, N>,
-    i: usize,
+    segment: usize,
+    offset: usize,
     current: Option<GuardIter<'a, T, L>>,
 }
 
@@ -13,7 +14,8 @@ impl<'a, T, L: lock_api::RawRwLock, const N: usize> Iter<'a, T, L, N> {
     pub fn new(raw: &'a RawStorage<T, L, N>) -> Self {
         Iter {
             raw,
-            i: 0,
+            segment: 0,
+            offset: 0,
             current: None,
         }
     }
@@ -27,6 +29,23 @@ type GuardIter<'a, T, L> = (
 pub struct RefT<'a, T, L: lock_api::RawRwLock, const N: usize> {
     _guard: Rc<lock_api::RwLockReadGuard<'a, L, Vec<Option<T>>>>,
     t: &'a T,
+    i: usize,
+}
+
+impl <'a, T, L: lock_api::RawRwLock, const N: usize> Clone for RefT<'_, T, L, N> {
+    fn clone(&self) -> Self {
+        RefT {
+            _guard: self._guard.clone(),
+            t: self.t,
+            i: self.i,
+        }
+    }
+}
+
+impl <'a, T, L: lock_api::RawRwLock, const N: usize> From<Entry<'a, T, L>> for RefT<'a, T, L, N> {
+    fn from(value: Entry<'a, T, L>) -> Self {
+        todo!()
+    }
 }
 
 impl<'a, T, L: lock_api::RawRwLock, const N: usize> Deref for RefT<'a, T, L, N> {
@@ -41,6 +60,10 @@ impl<'a, T, L: lock_api::RawRwLock, const N: usize> Deref for RefT<'a, T, L, N> 
 impl<'a, T, L: lock_api::RawRwLock, const N: usize> RefT<'a, T, L, N> {
     pub fn value(&self) -> &T {
         self.t
+    }
+
+    pub fn index(&self) -> usize {
+        self.i
     }
 }
 
@@ -62,23 +85,33 @@ impl<'a, T: std::fmt::Debug + Default, L: lock_api::RawRwLock, const N: usize> I
             if let Some(current) = self.current.as_mut() {
                 if let Some(t) = current.1.next() {
                     let guard = current.0.clone();
-                    return Some(RefT { _guard: guard, t });
+                    let next = Some(RefT {
+                        _guard: guard,
+                        i: (self.offset * N + (self.segment - 1)),
+                        t,
+                    });
+                    self.offset += 1;
+                    return next;
                 }
             }
 
-            if self.i >= N {
+            if self.segment >= N {
                 return None;
             }
 
-            let guard = self.raw.data[self.i].data.read();
+            // get the next segment
+            let guard = self.raw.data[self.segment].data.read();
 
+            // convince the rust compiler that the reference is valid
             let raw = unsafe { change_lifetime_const(&*guard) };
 
+            // grab the iterator
             let iter = raw.iter().flatten();
 
+            // set the current segment with the new iterator
             self.current = Some((Rc::new(guard), iter));
-
-            self.i += 1;
+            self.offset = 0;
+            self.segment += 1;
         }
     }
 }

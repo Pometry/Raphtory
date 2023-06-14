@@ -114,7 +114,7 @@ pub struct Entry<'a, T: 'static, L: RawRwLock> {
     guard: lock_api::RwLockReadGuard<'a, L, Vec<Option<T>>>,
 }
 
-impl <'a, T: 'static, L: RawRwLock> Entry<'a, T, L>{
+impl<'a, T: 'static, L: RawRwLock> Entry<'a, T, L> {
     pub fn value(&self) -> Option<&T> {
         let t = self.guard.get(self.i)?;
         t.as_ref()
@@ -147,16 +147,15 @@ pub enum PairEntryMut<'a, T: 'static, L: RawRwLock> {
     },
 }
 
-impl <'a, T: 'static, L: RawRwLock> PairEntryMut<'a, T, L> {
-
-    pub(crate) fn get_mut_i(&mut self) -> &mut T{
+impl<'a, T: 'static, L: RawRwLock> PairEntryMut<'a, T, L> {
+    pub(crate) fn get_mut_i(&mut self) -> &mut T {
         match self {
             PairEntryMut::Same { i, guard, .. } => guard[*i].as_mut().unwrap(),
             PairEntryMut::Different { i, guard1, .. } => guard1[*i].as_mut().unwrap(),
         }
     }
 
-    pub(crate) fn get_mut_j(&mut self) -> &mut T{
+    pub(crate) fn get_mut_j(&mut self) -> &mut T {
         match self {
             PairEntryMut::Same { j, guard, .. } => guard[*j].as_mut().unwrap(),
             PairEntryMut::Different { j, guard2, .. } => guard2[*j].as_mut().unwrap(),
@@ -236,8 +235,29 @@ mod test {
 
         let items_iter = storage.iter2();
 
-        let actual = items_iter.map(|s| s.to_owned()).collect::<Vec<_>>();
+        let actual = items_iter.map(|s| (*s).to_owned()).collect::<Vec<_>>();
 
         assert_eq!(actual, vec!["0", "2", "4", "1", "3"]);
+    }
+
+    #[test]
+    fn test_index_correctness() {
+        let storage = RawStorage::<String, NoLock, 2>::new();
+
+        for i in 0..5 {
+            storage.push(i.to_string());
+        }
+
+        let items_iter = storage.iter2();
+        let actual = items_iter
+            .map(|s| (s.index(), (*s).to_owned()))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            actual,
+            vec![(0, "0"), (2, "2"), (4, "4"), (1, "1"), (3, "3"),]
+                .into_iter()
+                .map(|(i, s)| (i, s.to_string()))
+                .collect::<Vec<_>>()
+        );
     }
 }

@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::core::{timeindex::TimeIndex, Direction, Prop};
 
-use super::{adj::Adj, props::Props, VID};
+use super::{adj::Adj, props::Props, VID, EID};
 
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub(crate) struct NodeStore<const N: usize> {
@@ -77,10 +77,21 @@ impl<const N: usize> NodeStore<N> {
         self.props.temporal_props(prop_id)
     }
 
-    pub(crate) fn out_edges<'a>(
+    pub(crate) fn edges<'a>(
         &'a self,
         layer_id: usize,
+        d: Direction,
     ) -> impl Iterator<Item = (VID, super::EID)> + 'a {
-        self.layers[layer_id].iter(Direction::OUT)
+        self.layers[layer_id].iter(d)
+    }
+
+    pub(crate) fn edges_from_last<'a>(
+        &'a self,
+        layer_id: usize,
+        dir: Direction,
+        last: Option<VID>,
+        page_size: usize,
+    ) -> Vec<(VID, EID)>{
+        self.layers[layer_id].get_page_vec(last, page_size, dir)
     }
 }

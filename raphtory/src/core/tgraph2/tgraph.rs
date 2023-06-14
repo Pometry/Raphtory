@@ -1,4 +1,4 @@
-use std::{hash::BuildHasherDefault, ops::Range, sync::Arc};
+use std::{hash::BuildHasherDefault, ops::Range, rc::Rc, sync::Arc};
 
 use dashmap::DashMap;
 use rustc_hash::FxHasher;
@@ -57,7 +57,7 @@ impl<const N: usize> TGraph<N, parking_lot::RawRwLock> {
     pub fn new() -> Self {
         Self {
             inner: Arc::new(InnerTemporalGraph {
-                logical_to_physical: FxDashMap::default(),
+                logical_to_physical: FxDashMap::default(), // TODO: could use DictMapper here
                 nodes: storage::RawStorage::new(),
                 edges: storage::RawStorage::new(),
                 earliest_time: MinCounter::new(),
@@ -230,6 +230,11 @@ impl<const N: usize, L: lock_api::RawRwLock> TGraph<N, L> {
         let node = self.inner.nodes.entry(v.into());
         node.value().map(|n| n.global_id())
     }
+
+    // fn vertex(&self, v: VID) -> Vertex<'a, N, L> {
+    //     let node = self.inner.nodes.entry(v.into());
+    //     Vertex { node, graph: self }
+    // }
 }
 
 pub struct Vertex<'a, const N: usize, L: lock_api::RawRwLock> {
@@ -244,12 +249,12 @@ pub struct Edge<'a, const N: usize, L: lock_api::RawRwLock> {
     graph: &'a TGraph<N, L>,
 }
 
-impl <'a, const N: usize, L: lock_api::RawRwLock> Edge<'a, N, L> {
-    pub fn src(&self) -> VID {
+impl<'a, const N: usize, L: lock_api::RawRwLock> Edge<'a, N, L> {
+    pub fn src_id(&self) -> VID {
         self.src
     }
 
-    pub fn dst(&self) -> VID {
+    pub fn dst_id(&self) -> VID {
         self.dst
     }
 
@@ -257,6 +262,33 @@ impl <'a, const N: usize, L: lock_api::RawRwLock> Edge<'a, N, L> {
         self.edge_id
     }
 
+    // pub fn src(&self) -> Vertex<'a, N, L> {
+    //     self.graph.vertex(self.src)
+    // }
+
+    // pub fn dst(&self) -> Vertex<'a, N, L> {
+    //     self.graph.vertex(self.dst)
+    // }
+
+    pub fn from_edge_ids(
+        v1: VID,
+        v2: VID,
+        edge_id: EID,
+        dir: Direction,
+        graph: &'a TGraph<N, L>,
+    ) -> Self {
+        let (src, dst) = match dir {
+            Direction::OUT => (v1, v2),
+            Direction::IN => (v2, v1),
+            _ => panic!("Invalid direction"),
+        };
+        Edge {
+            src,
+            dst,
+            edge_id,
+            graph,
+        }
+    }
 }
 
 impl<'a, const N: usize, L: lock_api::RawRwLock> Vertex<'a, N, L> {
@@ -265,22 +297,93 @@ impl<'a, const N: usize, L: lock_api::RawRwLock> Vertex<'a, N, L> {
         (&self.node).value().temporal_properties(prop_id)
     }
 
-    pub fn out_edges(&'a self, layer: &str) -> impl Iterator<Item = Edge<'a, N, L>> + 'a {
+    pub fn into_iter_edges(
+        self,
+        layer: &str,
+        dir: Direction,
+    ) -> impl Iterator<Item = Edge<'a, N, L>> + 'a {
         let layer = self
             .graph
             .inner
             .props_meta
             .get_or_create_layer_id(layer.to_owned());
-        let node_id = 0.into();
-        (&self.node)
-            .value()
-            .out_edges(layer)
-            .map(move |(dst, e_id)| Edge {
-                src: node_id,
-                dst,
-                edge_id: e_id,
-                graph: self.graph,
-            })
+
+        Paged {
+            guard: self.node.clone(),
+            data: Vec::new(),
+            i: 0,
+            size: 0,
+            dir,
+            layer_id: layer,
+            src: self.node.index().into(),
+            graph: self.graph,
+        }
+    }
+
+    pub fn edges(
+        &'a self,
+        layer: &str,
+        dir: Direction,
+    ) -> impl Iterator<Item = Edge<'a, N, L>> + 'a {
+        let layer = self
+            .graph
+            .inner
+            .props_meta
+            .get_or_create_layer_id(layer.to_owned());
+        (*self.node).edges(layer, dir).map(move |(dst, e_id)| Edge {
+            src: self.node.index().into(),
+            dst,
+            edge_id: e_id,
+            graph: self.graph,
+        })
+    }
+}
+
+struct Paged<'a, const N: usize, L: lock_api::RawRwLock> {
+    guard: RefT<'a, NodeStore<N>, L, N>,
+    data: Vec<(VID, EID)>,
+    i: usize,
+    size: usize,
+    dir: Direction,
+    layer_id: usize,
+    src: VID,
+    graph: &'a TGraph<N, L>,
+}
+
+impl<'a, const N: usize, L: lock_api::RawRwLock> Iterator for Paged<'a, N, L> {
+    type Item = Edge<'a, N, L>;
+
+    // FIXME: Edge needs to keep track of the direction when assigning src and dst
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(t) = self.data.get(self.i) {
+            self.i += 1;
+            let edge = Edge::from_edge_ids(self.src, t.0, t.1, self.dir, self.graph);
+            return Some(edge);
+        }
+
+        if let Some(last) = self.data.last() {
+            self.data = self
+                .guard
+                .edges_from_last(self.layer_id, self.dir, Some(last.0), self.size)
+        } else {
+            // fetch the first page
+            self.data = self
+                .guard
+                .edges_from_last(self.layer_id, self.dir, None, self.size)
+        }
+
+        if self.data.is_empty() {
+            return None;
+        } else {
+            self.i = 1;
+            return Some(Edge::from_edge_ids(
+                self.src,
+                self.data[0].0,
+                self.data[0].1,
+                self.dir,
+                self.graph,
+            ));
+        }
     }
 }
 
@@ -348,7 +451,10 @@ mod test {
 
         let res = g
             .vertices()
-            .flat_map(|v| v.out_edges("follows").map(|e| (e.src(), e.dst())).collect_vec())
+            .flat_map(|v| {
+                v.into_iter_edges("follows", Direction::OUT)
+                    .map(|e| (e.src_id(), e.dst_id()))
+            })
             .collect_vec();
 
         assert_eq!(res, vec![(0.into(), 1.into())]);

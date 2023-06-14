@@ -152,6 +152,60 @@ impl<V: Ord + Copy + Hash + Send + Sync> TAdjSet<V> {
             TAdjSet::Large { vs } => vs.get(&v).copied(),
         }
     }
+
+    pub fn get_page_vec(&self, last: Option<V>, page_size: usize) -> Vec<(V, usize)> {
+        match self {
+            TAdjSet::Empty => vec![],
+            TAdjSet::One(v, i) => {
+                if let Some(l) = last {
+                    if l < *v {
+                        vec![(*v, *i)]
+                    } else {
+                        vec![]
+                    }
+                } else {
+                    vec![(*v, *i)]
+                }
+            }
+            TAdjSet::Small { vs, edges } => {
+                if let Some(l) = last {
+
+                    let i = match vs.binary_search(&l) {
+                        Ok(i) => i+1,
+                        Err(i) => i,
+                    };
+
+                    if i >= vs.len() {
+                        return vec![];
+                    }
+
+                    vs[i..]
+                        .iter()
+                        .zip(edges[i..].iter())
+                        .take(page_size)
+                        .map(|(a, b)| (*a, *b))
+                        .collect()
+                } else {
+                    vs.iter()
+                        .zip(edges.iter())
+                        .take(page_size)
+                        .map(|(a, b)| (*a, *b))
+                        .collect()
+                }
+            },
+            TAdjSet::Large { vs } => {
+                if let Some(l) = last {
+                    vs.range(l..)
+                        .skip(1)
+                        .take(page_size)
+                        .map(|(a, b)| (*a, *b))
+                        .collect()
+                } else {
+                    vs.iter().take(page_size).map(|(a, b)| (*a, *b)).collect()
+                }
+            }
+        }
+    }
 }
 
 #[cfg(test)]
