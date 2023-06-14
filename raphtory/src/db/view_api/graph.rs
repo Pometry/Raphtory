@@ -16,7 +16,7 @@ use crate::db::vertices::Vertices;
 use crate::db::view_api::internal::GraphViewInternalOps;
 use crate::db::view_api::layer::LayerOps;
 use crate::db::view_api::time::TimeOps;
-use crate::db::view_api::{EdgeViewOps, VertexViewOps};
+use crate::db::view_api::{EdgeListOps, EdgeViewOps, VertexViewOps};
 
 /// This trait GraphViewOps defines operations for accessing
 /// information about a graph. The trait has associated types
@@ -294,32 +294,35 @@ impl<G: Send + Sync + Sized + GraphViewInternalOps + 'static + Clone> GraphViewO
     fn materialize(&self) -> Result<Graph, GraphError> {
         let g = Graph::new(self.num_shards());
         for v in self.vertices().iter() {
+            for h in v.history() {
+                g.add_vertex(h, v.id(), &vec![])?;
+            }
             for (name, props) in v.property_histories() {
                 for (t, prop) in props {
                     g.add_vertex(t, v.id(), &vec![(name.clone(), prop)])?;
                 }
             }
-            for (name, prop) in v.static_properties() {
-                g.add_vertex_properties(v.id(), &vec![(name.clone(), prop)])?;
-            }
+            g.add_vertex_properties(v.id(), &v.static_properties().into_iter().collect_vec())?;
         }
 
         for e in self.edges() {
             let layer = &e.layer_name().to_string();
-            for (name, props) in e.property_histories() {
-                for (t, prop) in props {
-                    g.add_edge(
-                        t,
-                        e.src().id(),
-                        e.dst().id(),
-                        &vec![(name.clone(), prop)],
-                        Some(layer),
-                    )?;
-                }
+            for ee in e.explode() {
+                g.add_edge(
+                    ee.time().unwrap(),
+                    ee.src().id(),
+                    ee.dst().id(),
+                    &ee.properties(false).into_iter().collect_vec(),
+                    Some(layer),
+                )?;
             }
-            for (name, prop) in e.static_properties() {
-                g.add_edge_properties(e.src().id(), e.dst().id(),  &vec![(name.clone(), prop)], Some(layer))?;
-            }
+
+            g.add_edge_properties(
+                e.src().id(),
+                e.dst().id(),
+                &e.static_properties().into_iter().collect_vec(),
+                Some(layer),
+            )?;
         }
 
         Ok(g)

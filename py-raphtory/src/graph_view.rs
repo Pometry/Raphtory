@@ -1,8 +1,12 @@
 //! The API for querying a view of the graph in a read-only state
 use crate::dynamic::{DynamicGraph, IntoDynamic};
 use crate::edge::{PyEdge, PyEdges};
+use crate::graph::PyGraph;
 use crate::types::repr::Repr;
-use crate::utils::{at_impl, expanding_impl, extract_vertex_ref, rolling_impl, window_impl, IntoPyObject, PyWindowSet, adapt_result};
+use crate::utils::{
+    adapt_err_value, adapt_result, at_impl, expanding_impl, extract_vertex_ref, rolling_impl,
+    window_impl, IntoPyObject, PyWindowSet,
+};
 use crate::vertex::{PyVertex, PyVertices};
 use crate::wrappers::iterators::*;
 use crate::wrappers::prop::Prop;
@@ -398,8 +402,9 @@ impl PyGraphView {
         self.graph.subgraph(vertices).into()
     }
 
-    fn materialize(&self) -> PyResult<PyGraphView> {
-        adapt_result(self.graph.materialize().map(|g| g.into()))
+    fn materialize(&self) -> PyResult<Py<PyGraph>> {
+        let mg = adapt_result(self.graph.materialize())?;
+        PyGraph::py_from_db_graph(mg)
     }
 
     /// Displays the graph
