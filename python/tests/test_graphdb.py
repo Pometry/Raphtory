@@ -1243,3 +1243,48 @@ def test_subgraph():
     x = mg.property_names(True)
     x.sort()
     assert x == ["prop 1", "prop 2", "prop 3", "prop 4", "prop 5", "prop 6"]
+
+
+def test_materialize_graph():
+    g = Graph(1)
+
+    edges = [
+        (1, 1, 2),
+        (2, 1, 3),
+        (-1, 2, 1),
+        (0, 1, 1),
+        (7, 3, 2),
+        (1, 1, 1)
+    ]
+
+    g.add_vertex(0, 1, {"type": "wallet", "cost": 99.5})
+    g.add_vertex(-1, 2, {"type": "wallet", "cost": 10.0})
+    g.add_vertex(6, 3, {"type": "wallet", "cost": 76})
+    g.add_vertex(6, 4)
+    g.add_vertex_properties(4, {"abc": "xyz"})
+
+    for e in edges:
+        g.add_edge(e[0], e[1], e[2], {"prop1": 1,
+                                      "prop2": 9.8, "prop3": "test"})
+
+    g.add_edge(8, 2, 4)
+
+    mg = g.materialize()
+
+    assert mg.vertex(1).property('type') == 'wallet'
+    assert mg.vertex(4).properties() == {'abc': 'xyz'}
+    assert mg.vertex(4).static_property('abc') == 'xyz'
+    assert mg.vertex(1).history() == [-1, 0, 1, 2]
+    assert mg.vertex(4).history() == [6, 8]
+    assert mg.vertices().id().collect() == [1, 2, 3, 4]
+    assert set(mg.edges().id()) == {(1, 1), (1, 2), (1, 3), (2, 1), (3, 2), (2, 4)}
+    assert g.vertices.id().collect() == mg.vertices.id().collect()
+    assert set(g.edges().id()) == set(mg.edges().id())
+    assert mg.vertex(1).static_properties() == {}
+    assert mg.vertex(4).static_properties() == {'abc': 'xyz'}
+    assert g.edge(1, 2).id() == (1, 2)
+    assert mg.edge(1, 2).id() == (1, 2)
+    assert mg.has_edge(1, 2) == True
+    assert g.has_edge(1, 2) == True
+    assert mg.has_edge(2, 1) == True
+    assert g.has_edge(2, 1) == True

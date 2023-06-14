@@ -209,6 +209,7 @@ pub trait EdgeListOps:
 
     fn has_static_property(self, name: String) -> Self::IterType<bool>;
     fn static_property(self, name: String) -> Self::IterType<Option<Prop>>;
+    fn static_properties(self) -> Self::IterType<HashMap<String, Prop>>;
 
     /// gets a property of an edge with the given name
     /// includes the timestamp of the property

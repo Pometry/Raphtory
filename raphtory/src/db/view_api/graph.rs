@@ -306,14 +306,18 @@ impl<G: Send + Sync + Sized + GraphViewInternalOps + 'static + Clone> GraphViewO
         }
 
         for e in self.edges() {
-            let layer = &e.layer_name().to_string();
+            let layer_name = &e.layer_name().to_string();
+            let mut layer: Option<&str> = None;
+            if layer_name != "default layer" {
+                layer = Some(layer_name)
+            }
             for ee in e.explode() {
                 g.add_edge(
                     ee.time().unwrap(),
                     ee.src().id(),
                     ee.dst().id(),
                     &ee.properties(false).into_iter().collect_vec(),
-                    Some(layer),
+                    layer,
                 )?;
             }
 
@@ -321,7 +325,7 @@ impl<G: Send + Sync + Sized + GraphViewInternalOps + 'static + Clone> GraphViewO
                 e.src().id(),
                 e.dst().id(),
                 &e.static_properties().into_iter().collect_vec(),
-                Some(layer),
+                layer,
             )?;
         }
 
