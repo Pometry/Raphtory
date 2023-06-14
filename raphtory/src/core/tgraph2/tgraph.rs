@@ -400,7 +400,6 @@ struct Paged<'a, const N: usize, L: lock_api::RawRwLock> {
 impl<'a, const N: usize, L: lock_api::RawRwLock> Iterator for Paged<'a, N, L> {
     type Item = Edge<'a, N, L>;
 
-    // FIXME: Edge needs to keep track of the direction when assigning src and dst
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(t) = self.data.get(self.i) {
             self.i += 1;
