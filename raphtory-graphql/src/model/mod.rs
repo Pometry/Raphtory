@@ -15,6 +15,7 @@ use crate::model::graph::graph::GqlGraph;
 
 pub(crate) mod algorithm;
 pub(crate) mod graph;
+pub(crate) mod wrappers;
 pub(crate) mod filters;
 
 #[derive(ResolvedObject)]

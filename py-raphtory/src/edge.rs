@@ -5,7 +5,7 @@
 //! edge as it existed at a particular point in time, or as it existed over a particular time range.
 //!
 use std::collections::hash_map::DefaultHasher;
-use raphtory::db::dynamic::{DynamicGraph, IntoDynamic};
+use crate::wrappers::dynamic::{DynamicGraph, IntoDynamic};
 use crate::types::repr::{iterator_repr, Repr};
 use crate::utils::*;
 use crate::vertex::{PyVertex, PyVertexIterable};

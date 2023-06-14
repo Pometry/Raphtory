@@ -10,7 +10,7 @@ use raphtory::db::view_api::EdgeListOps;
 use raphtory::db::view_api::EdgeViewOps;
 use raphtory::db::view_api::{GraphViewOps, TimeOps, VertexViewOps};
 use std::sync::Arc;
-use raphtory::db::dynamic::{DynamicGraph, IntoDynamic};
+use crate::model::wrappers::dynamic::{DynamicGraph, IntoDynamic};
 use raphtory::db::graph_layer::LayeredGraph;
 use raphtory::db::view_api::layer::LayerOps;
 use crate::model::algorithm::Algorithms;
