@@ -1269,6 +1269,10 @@ def test_materialize_graph():
 
     g.add_edge(8, 2, 4)
 
+    sprop = {"sprop 1": "kaggle", "sprop 2": True}
+    g.add_static_property(sprop)
+    assert g.static_properties() == sprop
+
     mg = g.materialize()
 
     assert mg.vertex(1).property('type') == 'wallet'
@@ -1289,7 +1293,7 @@ def test_materialize_graph():
     assert mg.has_edge(2, 1) == True
     assert g.has_edge(2, 1) == True
 
-    sprop = {"sprop 1": "kaggle", "sprop 2": True}
-    g.add_static_property(sprop)
-
-    assert g.static_properties() == sprop
+    sprop2 = {"sprop 3": 11, "sprop 4": 10}
+    mg.add_static_property(sprop2)
+    sprop.update(sprop2)
+    assert mg.static_properties() == sprop

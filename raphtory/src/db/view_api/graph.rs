@@ -342,6 +342,8 @@ impl<G: Send + Sync + Sized + GraphViewInternalOps + 'static + Clone> GraphViewO
             )?;
         }
 
+        g.add_static_property(&self.static_properties().into_iter().collect_vec())?;
+
         Ok(g)
     }
 }
