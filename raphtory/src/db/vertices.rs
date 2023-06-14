@@ -100,6 +100,10 @@ impl<G: GraphViewOps> VertexViewOps for Vertices<G> {
         self.iter().static_property(name)
     }
 
+    fn static_properties(&self) -> Self::ValueType<HashMap<String, Prop>> {
+        self.iter().static_properties()
+    }
+
     fn degree(&self) -> Self::ValueType<usize> {
         self.iter().degree()
     }

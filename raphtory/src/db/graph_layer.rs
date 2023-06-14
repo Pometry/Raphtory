@@ -306,6 +306,10 @@ impl<G: GraphViewInternalOps> GraphViewInternalOps for LayeredGraph<G> {
         self.graph.static_vertex_prop(v, name)
     }
 
+    fn static_vertex_props(&self, v: LocalVertexRef) -> HashMap<String, Prop> {
+        self.graph.static_vertex_props(v)
+    }
+
     fn static_vertex_prop_names(&self, v: LocalVertexRef) -> Vec<String> {
         self.graph.static_vertex_prop_names(v)
     }

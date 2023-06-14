@@ -598,6 +598,14 @@ impl TemporalGraph {
         self.vertex_props.static_prop(v.pid, name)
     }
 
+    pub fn static_vertex_props(&self, v: LocalVertexRef) -> HashMap<String, Prop> {
+        let names = self.vertex_props.static_names(v.pid);
+        names
+            .into_iter()
+            .map(|name| (name.to_string(), self.static_vertex_prop(v, &name).unwrap()))
+            .collect()
+    }
+
     pub fn static_prop(&self, name: &str) -> Option<Prop> {
         self.graph_props.static_prop(0, name)
     }

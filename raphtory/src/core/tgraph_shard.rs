@@ -20,6 +20,7 @@ use genawaiter::sync::{gen, GenBoxed};
 use genawaiter::yield_;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::hash::Hash;
 use std::ops::Range;
 use std::path::Path;
 use std::sync::Arc;
@@ -512,6 +513,10 @@ impl TGraphShard<TemporalGraph> {
         self.read_shard(|tg| tg.static_vertex_prop(v, &name))
     }
 
+    pub fn static_vertex_props(&self, v: LocalVertexRef) -> HashMap<String, Prop> {
+        self.read_shard(|tg| tg.static_vertex_props(v))
+    }
+
     pub fn static_prop(&self, name: String) -> Option<Prop> {
         self.read_shard(|tg| tg.static_prop( &name))
     }
@@ -867,6 +872,10 @@ impl ImmutableTGraphShard<TemporalGraph> {
 
     pub fn static_vertex_prop(&self, v: LocalVertexRef, name: String) -> Option<Prop> {
         self.read_shard(|tg| tg.static_vertex_prop(v, &name))
+    }
+
+    pub fn static_vertex_props(&self, v: LocalVertexRef) -> HashMap<String, Prop> {
+        self.read_shard(|tg| tg.static_vertex_props(v))
     }
 
     pub fn static_prop(&self, name: String) -> Option<Prop> {

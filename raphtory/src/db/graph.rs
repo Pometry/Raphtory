@@ -554,6 +554,10 @@ impl GraphViewInternalOps for InternalGraph {
         self.get_shard_from_local_v(v).static_vertex_prop(v, name)
     }
 
+    fn static_vertex_props(&self, v: LocalVertexRef) -> HashMap<String, Prop> {
+        self.get_shard_from_local_v(v).static_vertex_props(v)
+    }
+
     fn static_prop(&self, name: String) -> Option<Prop> {
         self.shards.get(0)?.static_prop(name)
     }

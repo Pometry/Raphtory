@@ -1,3 +1,4 @@
+use crate::core::tgraph_shard::errors::GraphError;
 use crate::core::Prop;
 use itertools::Itertools;
 use rustc_hash::FxHashSet;
@@ -6,6 +7,7 @@ use std::collections::HashMap;
 use crate::core::time::IntoTime;
 use crate::core::vertex_ref::{LocalVertexRef, VertexRef};
 use crate::db::edge::EdgeView;
+use crate::db::graph::Graph;
 use crate::db::graph_layer::LayeredGraph;
 use crate::db::graph_window::WindowedGraph;
 use crate::db::subgraph_vertex::VertexSubgraph;
@@ -143,6 +145,8 @@ pub trait GraphViewOps: Send + Sync + Sized + GraphViewInternalOps + 'static + C
     ///
     /// The value of the property if it exists, otherwise `None`.
     fn static_property(&self, name: String) -> Option<Prop>;
+
+    // fn materialize_new_graph(&self) -> Result<Graph, GraphError>;
 }
 
 impl<G: Send + Sync + Sized + GraphViewInternalOps + 'static + Clone> GraphViewOps for G {
@@ -286,6 +290,21 @@ impl<G: Send + Sync + Sized + GraphViewInternalOps + 'static + Clone> GraphViewO
     fn static_property(&self, name: String) -> Option<Prop> {
         self.static_prop(name)
     }
+
+//     fn materialize_new_graph(&self) -> Result<Graph, GraphError> {
+//         let g = Graph::new(self.num_shards());
+//         for v in self.vertices().iter() {
+//             for (name, props) in v.property_histories() {
+//                 for (t, prop) in props {
+//                     g.add_vertex(t, v.id(), &vec![(name.clone(), prop)])?;
+//                 }
+//             }
+//             v.static_property()
+//             g.add_vertex_properties(v.id(), )
+//         }
+//
+//         Ok(g)
+//     }
 }
 
 impl<G: GraphViewOps> TimeOps for G {

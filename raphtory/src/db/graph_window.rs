@@ -602,6 +602,10 @@ impl<G: GraphViewOps> GraphViewInternalOps for WindowedGraph<G> {
         self.graph.static_vertex_prop(v, name)
     }
 
+    fn static_vertex_props(&self, v: LocalVertexRef) -> HashMap<String, Prop> {
+        self.graph.static_vertex_props(v)
+    }
+
     /// Get all static property names of a vertex
     ///
     /// # Arguments
