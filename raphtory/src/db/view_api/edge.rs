@@ -108,6 +108,10 @@ pub trait EdgeViewOps: EdgeViewInternalOps<Self::Graph, Self::Vertex> {
         self.graph().static_edge_prop(self.eref(), name)
     }
 
+    fn static_properties(&self) -> HashMap<String, Prop> {
+        self.graph().static_edge_props(self.eref())
+    }
+
     /// Returns the source vertex of the edge.
     fn src(&self) -> Self::Vertex {
         let vertex = self.eref().src();

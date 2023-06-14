@@ -1220,3 +1220,24 @@ def test_equivalent_vertices_edges_and_sets():
     assert set(g.vertex(1).out_edges()) == set(g.vertex(2).in_edges())
 
     assert g.edge(1, 1) == g.edge(1, 1)
+
+def test_subgraph():
+    g = create_graph(1)
+    empty_graph = g.subgraph([])
+    assert empty_graph.vertices.collect() == []
+
+    vertex1 = g.vertices[1]
+    subgraph = g.subgraph([vertex1])
+    assert subgraph.vertices.collect() == [vertex1]
+
+    mg = subgraph.materialize()
+    assert mg.vertices.collect()[0].properties()['type'] == 'wallet'
+    assert mg.vertices.collect()[0].name() == '1'
+
+    # props = {"prop 4": 11, "prop 5": "world", "prop 6": False}
+    # mg.add_property(1, props)
+    #
+    # props = {"prop 1": 1, "prop 2": "hi", "prop 3": True}
+    # mg.add_static_property(props)
+    # x = mg.property_names(True)
+    # assert x == ["prop 1", "prop 2", "prop 3"]

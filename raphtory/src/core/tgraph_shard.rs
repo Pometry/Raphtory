@@ -597,6 +597,10 @@ impl TGraphShard<TemporalGraph> {
         self.read_shard(|tg| tg.static_edge_prop(e, &name))
     }
 
+    pub fn static_edge_props(&self, e: EdgeRef) -> HashMap<String, Prop> {
+        self.read_shard(|tg| tg.static_edge_props(e))
+    }
+
     pub fn static_edge_prop_names(&self, e: EdgeRef) -> Vec<String> {
         self.read_shard(|tg| tg.static_edge_prop_names(e))
     }
@@ -956,6 +960,10 @@ impl ImmutableTGraphShard<TemporalGraph> {
     
     pub fn static_edge_prop(&self, e: EdgeRef, name: String) -> Option<Prop> {
         self.read_shard(|tg| tg.static_edge_prop(e, &name))
+    }
+
+    pub fn static_edge_props(&self, e: EdgeRef) -> HashMap<String, Prop> {
+        self.read_shard(|tg| tg.static_edge_props(e))
     }
 
     pub fn static_edge_prop_names(&self, e: EdgeRef) -> Vec<String> {

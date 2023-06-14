@@ -621,6 +621,8 @@ pub trait GraphViewInternalOps {
     /// A property if it exists
     fn static_edge_prop(&self, e: EdgeRef, name: String) -> Option<Prop>;
 
+    fn static_edge_props(&self, e: EdgeRef) -> HashMap<String, Prop>;
+
     /// Returns a vector of keys for the static properties of the given edge reference.
     ///
     /// # Arguments
@@ -1079,6 +1081,10 @@ where
 
     fn static_edge_prop(&self, e: EdgeRef, name: String) -> Option<Prop> {
         self.as_graph().static_edge_prop(e, name)
+    }
+
+    fn static_edge_props(&self, e: EdgeRef) -> HashMap<String, Prop> {
+        self.as_graph().static_edge_props(e)
     }
 
     fn static_edge_prop_names(&self, e: EdgeRef) -> Vec<String> {

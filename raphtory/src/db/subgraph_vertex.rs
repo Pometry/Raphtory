@@ -466,6 +466,10 @@ impl<G: GraphViewOps> GraphViewInternalOps for VertexSubgraph<G> {
         self.graph.static_edge_prop(e, name)
     }
 
+    fn static_edge_props(&self, e: EdgeRef) -> HashMap<String, Prop> {
+        self.graph.static_edge_props(e)
+    }
+
     fn static_edge_prop_names(&self, e: EdgeRef) -> Vec<String> {
         self.graph.static_edge_prop_names(e)
     }

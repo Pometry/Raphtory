@@ -641,6 +641,10 @@ impl GraphViewInternalOps for InternalGraph {
         self.get_shard_from_e(e).static_edge_prop(e, name)
     }
 
+    fn static_edge_props(&self, e: EdgeRef) -> HashMap<String, Prop> {
+        self.get_shard_from_e(e).static_edge_props(e)
+    }
+
     fn static_edge_prop_names(&self, e: EdgeRef) -> Vec<String> {
         self.get_shard_from_e(e).static_edge_prop_names(e)
     }

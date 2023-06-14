@@ -805,6 +805,10 @@ impl<G: GraphViewOps> GraphViewInternalOps for WindowedGraph<G> {
         self.graph.static_edge_prop(e, name)
     }
 
+    fn static_edge_props(&self, e: EdgeRef) -> HashMap<String, Prop> {
+        self.graph.static_edge_props(e)
+    }
+
     /// Get the names of all static properties of an edge
     ///
     /// # Arguments

@@ -2,10 +2,7 @@
 use crate::dynamic::{DynamicGraph, IntoDynamic};
 use crate::edge::{PyEdge, PyEdges};
 use crate::types::repr::Repr;
-use crate::utils::{
-    at_impl, expanding_impl, extract_vertex_ref, rolling_impl, window_impl, IntoPyObject,
-    PyWindowSet,
-};
+use crate::utils::{at_impl, expanding_impl, extract_vertex_ref, rolling_impl, window_impl, IntoPyObject, PyWindowSet, adapt_result};
 use crate::vertex::{PyVertex, PyVertices};
 use crate::wrappers::iterators::*;
 use crate::wrappers::prop::Prop;
@@ -13,6 +10,7 @@ use chrono::prelude::*;
 use futures::StreamExt;
 use itertools::Itertools;
 use pyo3::prelude::*;
+use raphtory::db::subgraph_vertex::VertexSubgraph;
 use raphtory::db::view_api::internal::GraphViewInternalOps;
 use raphtory::db::view_api::layer::LayerOps;
 use raphtory::db::view_api::*;
@@ -387,6 +385,21 @@ impl PyGraphView {
     ///    Option<Prop> - Returns the static property
     fn static_property(&self, name: String) -> Option<Prop> {
         self.graph.static_prop(name.clone()).map(|v| v.into())
+    }
+
+    /// Returns a subgraph given a set of vertices
+    ///
+    /// Arguments:
+    ///   * `vertices`: set of vertices
+    ///
+    /// Returns:
+    ///    GraphView - Returns the subgraph
+    fn subgraph(&self, vertices: Vec<PyVertex>) -> PyGraphView {
+        self.graph.subgraph(vertices).into()
+    }
+
+    fn materialize(&self) -> PyResult<PyGraphView> {
+        adapt_result(self.graph.materialize().map(|g| g.into()))
     }
 
     /// Displays the graph
