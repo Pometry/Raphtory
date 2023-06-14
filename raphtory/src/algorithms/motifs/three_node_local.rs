@@ -145,7 +145,7 @@ pub fn triangle_motif_count<G:GraphViewOps>(graph:&G, delta:i64) -> HashMap<u64,
 counts
 }
 
-pub fn all_motifs_count<G:GraphViewOps>(graph:&G, delta:i64) -> HashMap<u64,Vec<usize>> {
+pub fn local_temporal_three_node_motifs<G:GraphViewOps>(graph:&G, delta:i64) -> HashMap<u64,Vec<usize>> {
     let mut counts = triangle_motif_count(graph, delta);
     for v in graph.vertices() {
         let vid = v.id();
@@ -165,8 +165,8 @@ pub fn all_motifs_count<G:GraphViewOps>(graph:&G, delta:i64) -> HashMap<u64,Vec<
     counts
 }
 
-pub fn global_motifs_count<G:GraphViewOps>(graph:&G, delta:i64) -> Vec<usize> {
-    let counts = all_motifs_count(graph, delta);
+pub fn global_temporal_three_node_motifs<G:GraphViewOps>(graph:&G, delta:i64) -> Vec<usize> {
+    let counts = local_temporal_three_node_motifs(graph, delta);
     let mut tmp_counts = counts.values().fold(vec![0;40], |acc, x| acc.iter().zip(x.iter()).map(|(x1,x2)| x1 + x2).collect());
     for ind in 32..40 {
         tmp_counts[ind] = tmp_counts[ind]/3;
@@ -214,8 +214,8 @@ mod local_motif_test {
         }
 
         // let counts = star_motif_count(&graph, 1, 100);
-        let counts = all_motifs_count(&graph, 10);
-        let global_counts = global_motifs_count(&graph, 10);
+        let counts = local_temporal_three_node_motifs(&graph, 10);
+        let global_counts = global_temporal_three_node_motifs(&graph, 10);
         
         let expected: HashMap<u64,Vec<usize>> = HashMap::from([
             (1,vec![0,0,0,0,1,2,0,0,0,0,0,0,0,0,1,0,0,0,2,0,0,0,3,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,2,0]),
