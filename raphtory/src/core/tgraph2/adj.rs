@@ -1,10 +1,10 @@
 use core::panic;
 
-use crate::core::{tadjset::TAdjSet, Direction};
+use crate::core::Direction;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
-use super::{EID, VID};
+use super::{EID, VID, tadjset::TAdjSet};
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Default)]
 pub(crate) enum Adj {
@@ -12,8 +12,8 @@ pub(crate) enum Adj {
     Solo,
     List {
         // local:
-        out: TAdjSet<VID>,
-        into: TAdjSet<VID>,
+        out: TAdjSet<VID, EID>,
+        into: TAdjSet<VID, EID>,
     },
 }
 
@@ -22,8 +22,8 @@ impl Adj {
         match self {
             Adj::Solo => None,
             Adj::List { out, into } => match dir {
-                Direction::OUT => out.find(v).map(|e| e.into()),
-                Direction::IN => into.find(v).map(|e| e.into()),
+                Direction::OUT => out.find(v),
+                Direction::IN => into.find(v),
                 Direction::BOTH => self
                     .get_edge(v, Direction::OUT)
                     .or_else(|| self.get_edge(v, Direction::IN)),
@@ -33,14 +33,14 @@ impl Adj {
 
     pub(crate) fn new_out(v: VID, e: EID) -> Self {
         Adj::List {
-            out: TAdjSet::new(v, e.into()),
+            out: TAdjSet::new(v, e),
             into: TAdjSet::default(),
         }
     }
 
     pub(crate) fn new_into(v: VID, e: EID) -> Self {
         Adj::List {
-            into: TAdjSet::new(v, e.into()),
+            into: TAdjSet::new(v, e),
             out: TAdjSet::default(),
         }
     }
@@ -48,14 +48,14 @@ impl Adj {
     pub(crate) fn add_edge_into(&mut self, v: VID, e: EID) {
         match self {
             Adj::Solo => *self = Self::new_into(v, e),
-            Adj::List { into, .. } => into.push(v, e.into()),
+            Adj::List { into, .. } => into.push(v, e),
         }
     }
 
     pub(crate) fn add_edge_out(&mut self, v: VID, e: EID) {
         match self {
             Adj::Solo => *self = Self::new_out(v, e),
-            Adj::List { out, .. } => out.push(v, e.into()),
+            Adj::List { out, .. } => out.push(v, e),
         }
     }
 
@@ -63,13 +63,12 @@ impl Adj {
         match self {
             Adj::Solo => Box::new(std::iter::empty()),
             Adj::List { out, into } => match dir {
-                Direction::OUT => Box::new(out.iter().map(|(v, e)| (v, e.into()))),
-                Direction::IN => Box::new(into.iter().map(|(v, e)| (v, e.into()))),
+                Direction::OUT => Box::new(out.iter()),
+                Direction::IN => Box::new(into.iter()),
                 Direction::BOTH => Box::new(
                     out.iter()
                         .merge(into.iter())
-                        .dedup()
-                        .map(|(v, e)| (v, e.into())),
+                        .dedup(),
                 ),
             },
         }
@@ -85,15 +84,9 @@ impl Adj {
             Adj::Solo => Vec::new(),
             Adj::List { out, into } => match dir {
                 Direction::OUT => out
-                    .get_page_vec(last, page_size)
-                    .into_iter()
-                    .map(|(v, e)| (v, e.into()))
-                    .collect(),
+                    .get_page_vec(last, page_size),
                 Direction::IN => into
-                    .get_page_vec(last, page_size)
-                    .into_iter()
-                    .map(|(v, e)| (v, e.into()))
-                    .collect(),
+                    .get_page_vec(last, page_size),
                 _ => panic!("Cannot get page vec for both direction, need to be handled by the caller"),
             },
         }

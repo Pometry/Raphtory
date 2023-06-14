@@ -6,6 +6,7 @@ mod edge_store;
 mod node_store;
 mod props;
 mod timer;
+mod tadjset;
 pub mod tgraph;
 
 // the only reason this is public is because the phisical ids of the vertices don't move

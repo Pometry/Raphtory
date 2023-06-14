@@ -12,6 +12,12 @@ use serde::{Deserialize, Serialize};
 
 use self::{items::Items, iter::Iter};
 
+fn resolve<const N: usize>(index: usize) -> (usize, usize) {
+    let bucket = index % N;
+    let offset = index / N;
+    (bucket, offset)
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct LockVec<T, L: RawRwLock> {
     data: RwLock<L, Vec<Option<T>>>,
@@ -48,37 +54,31 @@ impl<T, L: RawRwLock, const N: usize> RawStorage<T, L, N> {
         }
     }
 
-    fn resolve(&self, index: usize) -> (usize, usize) {
-        let bucket = index % N;
-        let offset = index / N;
-        (bucket, offset)
-    }
-
     pub fn push(&self, value: T) -> usize {
         let index = self.len.fetch_add(1, Ordering::SeqCst);
-        let (bucket, offset) = self.resolve(index);
+        let (bucket, offset) = resolve::<N>(index);
         let mut vec = self.data[bucket].data.write();
         vec.resize_with(offset, || None);
         vec.insert(offset, Some(value));
         index
     }
 
-    pub fn entry(&self, index: usize) -> Entry<'_, T, L> {
-        let (bucket, offset) = self.resolve(index);
+    pub fn entry(&self, index: usize) -> Entry<'_, T, L, N> {
+        let (bucket, _) = resolve::<N>(index);
         let guard = self.data[bucket].data.read();
-        Entry { i: offset, guard }
+        Entry { i: index, guard }
     }
 
     pub fn entry_mut(&self, index: usize) -> EntryMut<'_, T, L> {
-        let (bucket, offset) = self.resolve(index);
+        let (bucket, offset) = resolve::<N>(index);
         let guard = self.data[bucket].data.write();
         EntryMut { i: offset, guard }
     }
 
     // This helps get the right locks when adding an edge
     pub fn pair_entry_mut(&self, i: usize, j: usize) -> PairEntryMut<'_, T, L> {
-        let (bucket, offset_i) = self.resolve(i);
-        let (bucket2, offset_j) = self.resolve(j);
+        let (bucket, offset_i) = resolve::<N>(i);
+        let (bucket2, offset_j) = resolve::<N>(j);
         if bucket != bucket2 {
             PairEntryMut::Different {
                 i: offset_i,
@@ -109,27 +109,33 @@ impl<T, L: RawRwLock, const N: usize> RawStorage<T, L, N> {
     }
 }
 
-pub struct Entry<'a, T: 'static, L: RawRwLock> {
+pub struct Entry<'a, T: 'static, L: RawRwLock, const N: usize> {
     i: usize,
     guard: lock_api::RwLockReadGuard<'a, L, Vec<Option<T>>>,
 }
 
-impl<'a, T: 'static, L: RawRwLock> Entry<'a, T, L> {
+impl<'a, T: 'static, L: RawRwLock, const N: usize> Entry<'a, T, L, N> {
     pub fn value(&self) -> Option<&T> {
-        let t = self.guard.get(self.i)?;
+        let (_, offset) = resolve::<N>(self.i);
+        let t: &Option<T> = self.guard.get(offset)?;
         t.as_ref()
     }
 
     pub fn is_vacant(&self) -> bool {
         self.value().is_none()
     }
+
+    pub fn index(&self) -> usize {
+        self.i
+    }
 }
 
-impl<'a, T, L: lock_api::RawRwLock> Deref for Entry<'a, T, L> {
+impl<'a, T, L: lock_api::RawRwLock, const N: usize> Deref for Entry<'a, T, L, N> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        self.guard[self.i].as_ref().unwrap()
+        let (_, offset) = resolve::<N>(self.i);
+        self.guard[offset].as_ref().unwrap()
     }
 }
 
@@ -259,5 +265,19 @@ mod test {
                 .map(|(i, s)| (i, s.to_string()))
                 .collect::<Vec<_>>()
         );
+    }
+
+    #[test]
+    fn test_entry() {
+        let storage = RawStorage::<String, NoLock, 2>::new();
+
+        for i in 0..5 {
+            storage.push(i.to_string());
+        }
+
+        for i in 0..5 {
+            let entry = storage.entry(i);
+            assert_eq!(*entry, i.to_string());
+        }
     }
 }

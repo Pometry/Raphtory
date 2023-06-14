@@ -1,4 +1,8 @@
-use std::{hash::BuildHasherDefault, ops::Range, rc::Rc, sync::Arc};
+use std::{
+    hash::BuildHasherDefault,
+    ops::{Deref, Range},
+    sync::Arc,
+};
 
 use dashmap::DashMap;
 use rustc_hash::FxHasher;
@@ -6,7 +10,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     core::{vertex::InputVertex, Direction, Prop},
-    storage::{self, iter::RefT},
+    storage::{self, iter::RefT, Entry},
 };
 
 use super::{
@@ -223,7 +227,7 @@ impl<const N: usize, L: lock_api::RawRwLock> TGraph<N, L> {
         self.inner
             .nodes
             .iter2()
-            .map(move |node| Vertex { node, graph: self })
+            .map(move |node| Vertex::from_ref(node, self))
     }
 
     pub fn find_global_id(&self, v: VID) -> Option<u64> {
@@ -231,15 +235,39 @@ impl<const N: usize, L: lock_api::RawRwLock> TGraph<N, L> {
         node.value().map(|n| n.global_id())
     }
 
-    // fn vertex(&self, v: VID) -> Vertex<'a, N, L> {
-    //     let node = self.inner.nodes.entry(v.into());
-    //     Vertex { node, graph: self }
-    // }
+    pub fn vertex<'a>(&'a self, v: VID) -> Vertex<'a, N, L> {
+        let node = self.inner.nodes.entry(v.into());
+        Vertex {
+            node: VRef::Entry(node),
+            graph: self,
+        }
+    }
 }
 
-pub struct Vertex<'a, const N: usize, L: lock_api::RawRwLock> {
-    node: RefT<'a, NodeStore<N>, L, N>,
-    graph: &'a TGraph<N, L>,
+enum VRef<'a, const N: usize, L: lock_api::RawRwLock> {
+    Entry(Entry<'a, NodeStore<N>, L, N>), // fastest thing, returned from graph.vertex
+    RefT(RefT<'a, NodeStore<N>, L, N>), // returned from graph.vertices
+}
+
+// return index -> usize for VRef
+impl<'a, const N: usize, L: lock_api::RawRwLock> VRef<'a, N, L> {
+    fn index(&'a self) -> usize {
+        match self {
+            VRef::RefT(r) => r.index(),
+            VRef::Entry(e) => e.index(),
+        }
+    }
+}
+
+impl<'a, const N: usize, L: lock_api::RawRwLock> Deref for VRef<'a, N, L> {
+    type Target = NodeStore<N>;
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            VRef::RefT(r) => r,
+            VRef::Entry(e) => e,
+        }
+    }
 }
 
 pub struct Edge<'a, const N: usize, L: lock_api::RawRwLock> {
@@ -291,10 +319,22 @@ impl<'a, const N: usize, L: lock_api::RawRwLock> Edge<'a, N, L> {
     }
 }
 
+pub struct Vertex<'a, const N: usize, L: lock_api::RawRwLock> {
+    node: VRef<'a, N, L>, //RefT<'a, NodeStore<N>, L, N>,
+    graph: &'a TGraph<N, L>,
+}
+
 impl<'a, const N: usize, L: lock_api::RawRwLock> Vertex<'a, N, L> {
+    pub(crate) fn from_ref(node: RefT<'a, NodeStore<N>, L, N>, graph: &'a TGraph<N, L>) -> Self {
+        Vertex {
+            node: VRef::RefT(node),
+            graph,
+        }
+    }
+
     pub fn temporal_properties(&'a self, name: &str) -> impl Iterator<Item = (i64, Prop)> + 'a {
         let prop_id = self.graph.inner.props_meta.resolve_prop_id(name);
-        (&self.node).value().temporal_properties(prop_id)
+        (&self.node).temporal_properties(prop_id)
     }
 
     pub fn into_iter_edges(
@@ -308,14 +348,16 @@ impl<'a, const N: usize, L: lock_api::RawRwLock> Vertex<'a, N, L> {
             .props_meta
             .get_or_create_layer_id(layer.to_owned());
 
+        let src = self.node.index().into();
+
         Paged {
-            guard: self.node.clone(),
+            guard: self.node,
             data: Vec::new(),
             i: 0,
             size: 0,
             dir,
             layer_id: layer,
-            src: self.node.index().into(),
+            src,
             graph: self.graph,
         }
     }
@@ -340,7 +382,7 @@ impl<'a, const N: usize, L: lock_api::RawRwLock> Vertex<'a, N, L> {
 }
 
 struct Paged<'a, const N: usize, L: lock_api::RawRwLock> {
-    guard: RefT<'a, NodeStore<N>, L, N>,
+    guard: VRef<'a, N, L>,
     data: Vec<(VID, EID)>,
     i: usize,
     size: usize,

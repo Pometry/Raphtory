@@ -42,12 +42,6 @@ impl <'a, T, L: lock_api::RawRwLock, const N: usize> Clone for RefT<'_, T, L, N>
     }
 }
 
-impl <'a, T, L: lock_api::RawRwLock, const N: usize> From<Entry<'a, T, L>> for RefT<'a, T, L, N> {
-    fn from(value: Entry<'a, T, L>) -> Self {
-        todo!()
-    }
-}
-
 impl<'a, T, L: lock_api::RawRwLock, const N: usize> Deref for RefT<'a, T, L, N> {
     type Target = T;
 
@@ -82,9 +76,9 @@ impl<'a, T: std::fmt::Debug + Default, L: lock_api::RawRwLock, const N: usize> I
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
-            if let Some(current) = self.current.as_mut() {
-                if let Some(t) = current.1.next() {
-                    let guard = current.0.clone();
+            if let Some((guard, iter)) = self.current.as_mut() {
+                if let Some(t) = iter.next() {
+                    let guard = guard.clone();
                     let next = Some(RefT {
                         _guard: guard,
                         i: (self.offset * N + (self.segment - 1)),
