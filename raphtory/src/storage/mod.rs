@@ -31,7 +31,7 @@ impl<T, L: RawRwLock> LockVec<T, L> {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct RawStorage<T, L: RawRwLock, const N: usize> {
     data: Box<[LockVec<T, L>]>,
     len: AtomicUsize,

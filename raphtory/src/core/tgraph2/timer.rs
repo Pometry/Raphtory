@@ -23,7 +23,7 @@ pub(crate) trait TimeCounterTrait {
     fn get(&self) -> i64;
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub(crate) struct MinCounter {
     counter: AtomicI64,
 }
@@ -50,7 +50,7 @@ impl TimeCounterTrait for MinCounter {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub(crate) struct MaxCounter {
     counter: AtomicI64,
 }

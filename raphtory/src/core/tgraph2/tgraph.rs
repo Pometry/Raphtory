@@ -23,7 +23,7 @@ use super::{
 
 pub(crate) type FxDashMap<K, V> = DashMap<K, V, BuildHasherDefault<FxHasher>>;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct TGraph<const N: usize, L: lock_api::RawRwLock> {
     inner: Arc<InnerTemporalGraph<N, L>>,
 }
@@ -36,7 +36,7 @@ impl<const N: usize, L: lock_api::RawRwLock> Clone for TGraph<N, L> {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 struct InnerTemporalGraph<const N: usize, L: lock_api::RawRwLock> {
     // mapping between logical and physical ids
     logical_to_physical: FxDashMap<u64, usize>,
@@ -235,7 +235,7 @@ impl<const N: usize, L: lock_api::RawRwLock> TGraph<N, L> {
         node.value().map(|n| n.global_id())
     }
 
-    pub fn vertex<'a>(&'a self, v: VID) -> Vertex<'a, N, L> {
+    fn vertex<'a>(&'a self, v: VID) -> Vertex<'a, N, L> {
         let node = self.inner.nodes.entry(v.into());
         Vertex {
             node: VRef::Entry(node),
@@ -246,7 +246,7 @@ impl<const N: usize, L: lock_api::RawRwLock> TGraph<N, L> {
 
 enum VRef<'a, const N: usize, L: lock_api::RawRwLock> {
     Entry(Entry<'a, NodeStore<N>, L, N>), // fastest thing, returned from graph.vertex
-    RefT(RefT<'a, NodeStore<N>, L, N>), // returned from graph.vertices
+    RefT(RefT<'a, NodeStore<N>, L, N>),   // returned from graph.vertices
 }
 
 // return index -> usize for VRef
@@ -270,6 +270,7 @@ impl<'a, const N: usize, L: lock_api::RawRwLock> Deref for VRef<'a, N, L> {
     }
 }
 
+#[derive(Debug)]
 pub struct Edge<'a, const N: usize, L: lock_api::RawRwLock> {
     src: VID,
     dst: VID,
@@ -290,13 +291,13 @@ impl<'a, const N: usize, L: lock_api::RawRwLock> Edge<'a, N, L> {
         self.edge_id
     }
 
-    // pub fn src(&self) -> Vertex<'a, N, L> {
-    //     self.graph.vertex(self.src)
-    // }
+    pub fn src(&self) -> Vertex<'a, N, L> {
+        self.graph.vertex(self.src)
+    }
 
-    // pub fn dst(&self) -> Vertex<'a, N, L> {
-    //     self.graph.vertex(self.dst)
-    // }
+    pub fn dst(&self) -> Vertex<'a, N, L> {
+        self.graph.vertex(self.dst)
+    }
 
     pub fn from_edge_ids(
         v1: VID,
@@ -325,6 +326,10 @@ pub struct Vertex<'a, const N: usize, L: lock_api::RawRwLock> {
 }
 
 impl<'a, const N: usize, L: lock_api::RawRwLock> Vertex<'a, N, L> {
+    pub fn id(&self) -> VID {
+        self.node.index().into()
+    }
+
     pub(crate) fn from_ref(node: RefT<'a, NodeStore<N>, L, N>, graph: &'a TGraph<N, L>) -> Self {
         Vertex {
             node: VRef::RefT(node),
@@ -337,7 +342,7 @@ impl<'a, const N: usize, L: lock_api::RawRwLock> Vertex<'a, N, L> {
         (&self.node).temporal_properties(prop_id)
     }
 
-    pub fn into_iter_edges(
+    pub fn edges(
         self,
         layer: &str,
         dir: Direction,
@@ -362,7 +367,7 @@ impl<'a, const N: usize, L: lock_api::RawRwLock> Vertex<'a, N, L> {
         }
     }
 
-    pub fn edges(
+    pub fn edges_iter(
         &'a self,
         layer: &str,
         dir: Direction,
@@ -494,11 +499,53 @@ mod test {
         let res = g
             .vertices()
             .flat_map(|v| {
-                v.into_iter_edges("follows", Direction::OUT)
+                v.edges("follows", Direction::OUT)
                     .map(|e| (e.src_id(), e.dst_id()))
             })
             .collect_vec();
 
         assert_eq!(res, vec![(0.into(), 1.into())]);
+    }
+
+    #[test]
+    fn triangle_counts_by_iterators() {
+        let g: TGraph<4, parking_lot::RawRwLock> = TGraph::new();
+
+        let ts = 1;
+
+        g.add_edge(ts, 1, 2, "follows");
+        g.add_edge(ts, 2, 3, "follows");
+        g.add_edge(ts, 3, 1, "follows");
+
+        let res = g
+            .vertices()
+            .flat_map(|v| {
+                let v_id = v.id();
+                v.edges("follows", Direction::OUT)
+                    .flat_map(move |edge_1| {
+                        edge_1
+                            .dst()
+                            .edges("follows", Direction::OUT)
+                            .flat_map(move |edge_2| {
+                                edge_2
+                                    .dst()
+                                    .edges("follows", Direction::OUT)
+                                    .filter(move |e| e.dst_id() == v_id)
+                                    .map(move |edge_3| {
+                                        (v_id, edge_2.src_id(), edge_2.dst_id(), edge_3.dst_id())
+                                    })
+                            })
+                    })
+            })
+            .collect_vec();
+
+        assert_eq!(
+            res,
+            vec![
+                (0.into(), 1.into(), 2.into(), 0.into()),
+                (1.into(), 2.into(), 0.into(), 1.into()),
+                (2.into(), 0.into(), 1.into(), 2.into()),
+            ]
+        );
     }
 }

@@ -42,7 +42,7 @@ impl Props {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub(crate) struct Meta {
     meta_prop: DictMapper<String>,
     meta_layer: DictMapper<String>,
@@ -75,7 +75,7 @@ impl Meta {
     }
 }
 
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Serialize, Deserialize, Default, Debug)]
 struct DictMapper<T: Hash + Eq> {
     map: FxDashMap<T, usize>,
     counter: AtomicUsize,
