@@ -602,6 +602,15 @@ impl<G: GraphViewOps> GraphViewInternalOps for WindowedGraph<G> {
         self.graph.static_vertex_prop(v, name)
     }
 
+    /// Get the static properties of a vertex
+    ///
+    /// # Arguments
+    ///
+    /// - `v` - The vertex to get the property for
+    ///
+    /// # Returns
+    ///
+    /// HashMap of all the properties identified by their name
     fn static_vertex_props(&self, v: LocalVertexRef) -> HashMap<String, Prop> {
         self.graph.static_vertex_props(v)
     }
@@ -805,6 +814,19 @@ impl<G: GraphViewOps> GraphViewInternalOps for WindowedGraph<G> {
         self.graph.static_edge_prop(e, name)
     }
 
+    /// Get the static properties of an edge
+    ///
+    /// # Arguments
+    ///
+    /// - `e` - The edge to get the property for
+    ///
+    /// # Returns
+    ///
+    /// HashMap of all the properites identified by their names
+    ///
+    /// # Errors
+    ///
+    /// - `GraphError` - Raised if edge or property does not exist
     fn static_edge_props(&self, e: EdgeRef) -> HashMap<String, Prop> {
         self.graph.static_edge_props(e)
     }

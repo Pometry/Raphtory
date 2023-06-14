@@ -414,6 +414,15 @@ pub trait GraphViewInternalOps {
     /// Option<Prop> - The property value if it exists.
     fn static_vertex_prop(&self, v: LocalVertexRef, name: String) -> Option<Prop>;
 
+    /// Gets all static properties of a given vertex given the vertex reference.
+    ///
+    /// # Arguments
+    ///
+    /// * `v` - A reference to the vertex for which the property is being queried.
+    ///
+    /// # Returns
+    ///
+    /// HashMap<String, Prop> - Static properties
     fn static_vertex_props(&self, v: LocalVertexRef) -> HashMap<String, Prop>;
 
     /// Gets a static property of a given graph given the name
@@ -621,6 +630,15 @@ pub trait GraphViewInternalOps {
     /// A property if it exists
     fn static_edge_prop(&self, e: EdgeRef, name: String) -> Option<Prop>;
 
+    /// Get the static properties of a vertex
+    ///
+    /// # Arguments
+    ///
+    /// * `e` - An `EdgeRef` reference to the edge of interest.
+    ///
+    /// # Returns
+    ///
+    /// Returns a hashmap of all edge static properties
     fn static_edge_props(&self, e: EdgeRef) -> HashMap<String, Prop>;
 
     /// Returns a vector of keys for the static properties of the given edge reference.
