@@ -96,25 +96,14 @@ pub fn generic_taint(
 
 /// Local Clustering coefficient - measures the degree to which nodes in a graph tend to cluster together.
 ///
-/// It is calculated by dividing the number of triangles (sets of three nodes that are all
-/// connected to each other) in the graph by the total number of possible triangles.
-/// The resulting value is a number between 0 and 1 that represents the density of
-/// clustering in the graph.
-///
-/// A high clustering coefficient indicates that nodes tend to be
-/// connected to nodes that are themselves connected to each other, while a low clustering
-/// coefficient indicates that nodes tend to be connected to nodes that are not connected
-/// to each other.
-///
-/// In a social network of a particular community, we can compute the clustering
-/// coefficient of each node to get an idea of how strongly connected and cohesive
-/// that node's neighborhood is.
-///
-/// A high clustering coefficient for a node in a social network indicates that the
-/// node's neighbors tend to be strongly connected with each other, forming a tightly-knit
-/// group or community. In contrast, a low clustering coefficient for a node indicates that
-/// its neighbors are relatively less connected with each other, suggesting a more fragmented
-/// or diverse community.
+/// The proportion of pairs of neighbours of a node who are themselves connected.
+/// 
+/// Arguments:
+///     g (Raphtory graph) : Raphtory graph, can be directed or undirected but will be treated as undirected.
+///     v (int or str): vertex id
+/// 
+/// Returns:
+///     cluster (float) : the local clustering coefficient of vertex v in g.
 #[pyfunction]
 pub fn local_clustering_coefficient(g: &PyGraphView, v: &PyAny) -> PyResult<Option<f32>> {
     let v = utils::extract_vertex_ref(v)?;
@@ -123,12 +112,11 @@ pub fn local_clustering_coefficient(g: &PyGraphView, v: &PyAny) -> PyResult<Opti
 
 /// Graph density - measures how dense or sparse a graph is.
 ///
-/// It is defined as the ratio of the number of edges in the graph to the total number of possible
+/// The ratio of the number of edges in the graph to the total number of possible
 /// edges. A dense graph has a high edge-to-vertex ratio, while a sparse graph has a low
 /// edge-to-vertex ratio.
 ///
-/// For example in social network analysis, a dense graph may indicate a highly interconnected
-/// community, while a sparse graph may indicate more isolated individuals.
+/// 
 #[pyfunction]
 pub fn directed_graph_density(g: &PyGraphView) -> f32 {
     directed_graph_density_rs(&g.graph)

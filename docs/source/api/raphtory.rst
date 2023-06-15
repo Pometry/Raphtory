@@ -13,7 +13,7 @@ Raphtory
    :private-members:
    :inherited-members:
 
-raphtory.algorithms
+Algorithms
 -------------------
 
 .. automodule:: raphtory.algorithms
@@ -24,7 +24,7 @@ raphtory.algorithms
    :inherited-members:
 
 
-raphtory.vis
+Visualisation
 -------------------
 
 .. automodule:: raphtory.vis
@@ -35,10 +35,20 @@ raphtory.vis
    :inherited-members:
 
 
-raphtory.nullmodels
+Null Models
 --------------------------
 
 .. automodule:: raphtory.nullmodels
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :private-members:
+   :inherited-members:
+
+Graph Generation
+--------------------------
+
+.. automodule:: raphtory.graph_gen
    :members:
    :undoc-members:
    :show-inheritance:
