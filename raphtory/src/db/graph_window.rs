@@ -602,6 +602,19 @@ impl<G: GraphViewOps> GraphViewInternalOps for WindowedGraph<G> {
         self.graph.static_vertex_prop(v, name)
     }
 
+    /// Get the static properties of a vertex
+    ///
+    /// # Arguments
+    ///
+    /// - `v` - The vertex to get the property for
+    ///
+    /// # Returns
+    ///
+    /// HashMap of all the properties identified by their name
+    fn static_vertex_props(&self, v: LocalVertexRef) -> HashMap<String, Prop> {
+        self.graph.static_vertex_props(v)
+    }
+
     /// Get all static property names of a vertex
     ///
     /// # Arguments
@@ -801,6 +814,23 @@ impl<G: GraphViewOps> GraphViewInternalOps for WindowedGraph<G> {
         self.graph.static_edge_prop(e, name)
     }
 
+    /// Get the static properties of an edge
+    ///
+    /// # Arguments
+    ///
+    /// - `e` - The edge to get the property for
+    ///
+    /// # Returns
+    ///
+    /// HashMap of all the properites identified by their names
+    ///
+    /// # Errors
+    ///
+    /// - `GraphError` - Raised if edge or property does not exist
+    fn static_edge_props(&self, e: EdgeRef) -> HashMap<String, Prop> {
+        self.graph.static_edge_props(e)
+    }
+
     /// Get the names of all static properties of an edge
     ///
     /// # Arguments
@@ -944,6 +974,57 @@ impl<G: GraphViewOps> GraphViewInternalOps for WindowedGraph<G> {
     ) -> Option<LocalVertexRef> {
         self.graph
             .local_vertex_window(v, self.actual_start(t_start), self.actual_end(t_end))
+    }
+
+    /// Get static property of a graph by name
+    ///
+    /// # Arguments
+    /// - name - Name of the static property
+    ///
+    /// # Returns
+    /// - Option<Prop> - Static property if found
+    fn static_prop(&self, name: String) -> Option<Prop> {
+        self.graph.static_prop(name)
+    }
+
+    /// Get all static properties of a graph
+    ///
+    /// # Arguments
+    ///
+    /// # Returns
+    /// - HashMap<String, Prop> - All static properties of a graph
+    fn static_props(&self) -> HashMap<String, Prop> {
+        self.graph.static_props()
+    }
+
+    /// Get all static property names of a graph
+    ///
+    /// # Arguments
+    ///
+    /// # Returns
+    /// - Vec<String> - Static property names of a graph
+    fn static_prop_names(&self) -> Vec<String> {
+        self.graph.static_prop_names()
+    }
+
+    fn temporal_prop_names(&self) -> Vec<String> {
+        self.graph.temporal_prop_names()
+    }
+
+    fn temporal_prop_vec(&self, name: String) -> Vec<(i64, Prop)> {
+        self.graph.temporal_prop_vec(name)
+    }
+
+    fn temporal_prop_vec_window(&self, name: String, t_start: i64, t_end: i64) -> Vec<(i64, Prop)> {
+        self.graph.temporal_prop_vec_window(name, t_start, t_end)
+    }
+
+    fn temporal_props(&self) -> HashMap<String, Vec<(i64, Prop)>> {
+        self.graph.temporal_props()
+    }
+
+    fn temporal_props_window(&self, t_start: i64, t_end: i64) -> HashMap<String, Vec<(i64, Prop)>> {
+        self.graph.temporal_props_window(t_start, t_end)
     }
 }
 

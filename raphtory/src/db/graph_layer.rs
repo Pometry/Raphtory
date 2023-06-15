@@ -302,6 +302,10 @@ impl<G: GraphViewInternalOps> GraphViewInternalOps for LayeredGraph<G> {
         self.graph.static_vertex_prop(v, name)
     }
 
+    fn static_vertex_props(&self, v: LocalVertexRef) -> HashMap<String, Prop> {
+        self.graph.static_vertex_props(v)
+    }
+
     fn static_vertex_prop_names(&self, v: LocalVertexRef) -> Vec<String> {
         self.graph.static_vertex_prop_names(v)
     }
@@ -340,6 +344,10 @@ impl<G: GraphViewInternalOps> GraphViewInternalOps for LayeredGraph<G> {
 
     fn static_edge_prop(&self, e: EdgeRef, name: String) -> Option<Prop> {
         self.graph.static_edge_prop(e, name)
+    }
+
+    fn static_edge_props(&self, e: EdgeRef) -> HashMap<String, Prop> {
+        self.graph.static_edge_props(e)
     }
 
     fn static_edge_prop_names(&self, e: EdgeRef) -> Vec<String> {
@@ -418,5 +426,37 @@ impl<G: GraphViewInternalOps> GraphViewInternalOps for LayeredGraph<G> {
         t_end: i64,
     ) -> Option<LocalVertexRef> {
         self.graph.local_vertex_window(v, t_start, t_end)
+    }
+
+    fn static_prop(&self, name: String) -> Option<Prop> {
+        self.graph.static_prop(name)
+    }
+
+    fn static_props(&self) -> HashMap<String, Prop> {
+        self.graph.static_props()
+    }
+
+    fn static_prop_names(&self) -> Vec<String> {
+        self.graph.static_prop_names()
+    }
+
+    fn temporal_prop_names(&self) -> Vec<String> {
+        self.graph.temporal_prop_names()
+    }
+
+    fn temporal_prop_vec(&self, name: String) -> Vec<(i64, Prop)> {
+        self.graph.temporal_prop_vec(name)
+    }
+
+    fn temporal_prop_vec_window(&self, name: String, t_start: i64, t_end: i64) -> Vec<(i64, Prop)> {
+        self.graph.temporal_prop_vec_window(name, t_start, t_end)
+    }
+
+    fn temporal_props(&self) -> HashMap<String, Vec<(i64, Prop)>> {
+        self.graph.temporal_props()
+    }
+
+    fn temporal_props_window(&self, t_start: i64, t_end: i64) -> HashMap<String, Vec<(i64, Prop)>> {
+        self.graph.temporal_props_window(t_start, t_end)
     }
 }

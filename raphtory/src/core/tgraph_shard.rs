@@ -20,6 +20,7 @@ use genawaiter::sync::{gen, GenBoxed};
 use genawaiter::yield_;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::hash::Hash;
 use std::ops::Range;
 use std::path::Path;
 use std::sync::Arc;
@@ -89,6 +90,8 @@ pub mod errors {
         IncorrectPropertyType,
         #[error("Failed to mutate graph")]
         FailedToMutateGraph { source: MutateGraphError },
+        #[error("Failed to mutate graph property")]
+        FailedToMutateGraphProperty { source: MutateGraphError },
         #[error("Failed to parse time string")]
         ParseTime {
             #[from]
@@ -250,6 +253,20 @@ impl TGraphShard<TemporalGraph> {
     ) -> Result<(), GraphError> {
         self.write_shard(|tg| {
             let res = tg.add_vertex_properties(v, data);
+            res.map_err(|e| GraphError::FailedToMutateGraph { source: e })
+        })
+    }
+
+    pub fn add_property(&self, t: i64, props: &Vec<(String, Prop)>) -> Result<(), GraphError> {
+        self.write_shard(|tg| {
+            tg.add_property(t, props);
+            Ok(())
+        })
+    }
+
+    pub fn add_static_property(&self, props: &Vec<(String, Prop)>) -> Result<(), GraphError> {
+        self.write_shard(|tg| {
+            let res = tg.add_static_property(props);
             res.map_err(|e| GraphError::FailedToMutateGraph { source: e })
         })
     }
@@ -496,16 +513,40 @@ impl TGraphShard<TemporalGraph> {
         self.read_shard(|tg| tg.static_vertex_prop(v, &name))
     }
 
+    pub fn static_vertex_props(&self, v: LocalVertexRef) -> HashMap<String, Prop> {
+        self.read_shard(|tg| tg.static_vertex_props(v))
+    }
+
+    pub fn static_prop(&self, name: String) -> Option<Prop> {
+        self.read_shard(|tg| tg.static_prop( &name))
+    }
+
+    pub fn static_props(&self) -> HashMap<String, Prop> {
+        self.read_shard(|tg| tg.static_props())
+    }
+
     pub fn static_vertex_prop_names(&self, v: LocalVertexRef) -> Vec<String> {
         self.read_shard(|tg| tg.static_vertex_prop_names(v))
+    }
+
+    pub fn static_prop_names(&self) -> Vec<String> {
+        self.read_shard(|tg| tg.static_prop_names())
     }
 
     pub fn temporal_vertex_prop_names(&self, v: LocalVertexRef) -> Vec<String> {
         self.read_shard(|tg| tg.temporal_vertex_prop_names(v))
     }
+    
+    pub fn temporal_prop_names(&self) -> Vec<String> {
+        self.read_shard(|tg| tg.temporal_prop_names())
+    }
 
     pub fn temporal_vertex_prop_vec(&self, v: LocalVertexRef, name: String) -> Vec<(i64, Prop)> {
         self.read_shard(|tg| tg.temporal_vertex_prop_vec(v, &name))
+    }
+    
+    pub fn temporal_prop_vec(&self, name: String) -> Vec<(i64, Prop)> {
+        self.read_shard(|tg| tg.temporal_prop_vec(&name))
     }
 
     pub fn temporal_vertex_prop_vec_window(
@@ -515,6 +556,14 @@ impl TGraphShard<TemporalGraph> {
         w: Range<i64>,
     ) -> Vec<(i64, Prop)> {
         self.read_shard(|tg| (tg.temporal_vertex_prop_vec_window(v, &name, &w)))
+    }
+
+    pub fn temporal_prop_vec_window(
+        &self,
+        name: String,
+        w: Range<i64>,
+    ) -> Vec<(i64, Prop)> {
+        self.read_shard(|tg| (tg.temporal_prop_vec_window(&name, &w)))
     }
 
     pub fn vertex_timestamps(&self, v: LocalVertexRef) -> Vec<i64> {
@@ -529,6 +578,10 @@ impl TGraphShard<TemporalGraph> {
         self.read_shard(|tg| tg.temporal_vertex_props(v))
     }
 
+    pub fn temporal_props(&self,) -> HashMap<String, Vec<(i64, Prop)>> {
+        self.read_shard(|tg| tg.temporal_props())
+    }
+    
     pub fn temporal_vertex_props_window(
         &self,
         v: LocalVertexRef,
@@ -536,8 +589,20 @@ impl TGraphShard<TemporalGraph> {
     ) -> HashMap<String, Vec<(i64, Prop)>> {
         self.read_shard(|tg| tg.temporal_vertex_props_window(v, &w))
     }
+
+    pub fn temporal_props_window(
+        &self,
+        w: Range<i64>,
+    ) -> HashMap<String, Vec<(i64, Prop)>> {
+        self.read_shard(|tg| tg.temporal_props_window( &w))
+    }
+    
     pub fn static_edge_prop(&self, e: EdgeRef, name: String) -> Option<Prop> {
         self.read_shard(|tg| tg.static_edge_prop(e, &name))
+    }
+
+    pub fn static_edge_props(&self, e: EdgeRef) -> HashMap<String, Prop> {
+        self.read_shard(|tg| tg.static_edge_props(e))
     }
 
     pub fn static_edge_prop_names(&self, e: EdgeRef) -> Vec<String> {
@@ -604,7 +669,6 @@ macro_rules! erase_lifetime {
         return Box::new(iter.into_iter())
     };
 }
-
 
 impl ImmutableTGraphShard<TemporalGraph> {
     #[inline(always)]
@@ -786,7 +850,7 @@ impl ImmutableTGraphShard<TemporalGraph> {
         d: Direction,
         layer: Option<usize>,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
-        erase_lifetime!(self.rc.clone(), |tg|{
+        erase_lifetime!(self.rc.clone(), |tg| {
             tg.vertex_edges_window_t(v, &w, d, layer).into_iter()
         });
     }
@@ -797,7 +861,7 @@ impl ImmutableTGraphShard<TemporalGraph> {
         d: Direction,
         layer: Option<usize>,
     ) -> Box<dyn Iterator<Item = VertexRef> + Send> {
-        erase_lifetime!(self.rc.clone(), |tg|{
+        erase_lifetime!(self.rc.clone(), |tg| {
             tg.neighbours(v, d, layer).into_iter()
         });
     }
@@ -809,7 +873,7 @@ impl ImmutableTGraphShard<TemporalGraph> {
         d: Direction,
         layer: Option<usize>,
     ) -> Box<dyn Iterator<Item = VertexRef> + Send> {
-        erase_lifetime!(self.rc.clone(), |tg|{
+        erase_lifetime!(self.rc.clone(), |tg| {
             tg.neighbours_window(v, &w, d, layer).into_iter()
         });
     }
@@ -818,16 +882,40 @@ impl ImmutableTGraphShard<TemporalGraph> {
         self.read_shard(|tg| tg.static_vertex_prop(v, &name))
     }
 
+    pub fn static_vertex_props(&self, v: LocalVertexRef) -> HashMap<String, Prop> {
+        self.read_shard(|tg| tg.static_vertex_props(v))
+    }
+
+    pub fn static_prop(&self, name: String) -> Option<Prop> {
+        self.read_shard(|tg| tg.static_prop(&name))
+    }
+
+    pub fn static_props(&self) -> HashMap<String, Prop> {
+        self.read_shard(|tg| tg.static_props())
+    }
+    
     pub fn static_vertex_prop_names(&self, v: LocalVertexRef) -> Vec<String> {
         self.read_shard(|tg| tg.static_vertex_prop_names(v))
+    }
+
+    pub fn static_prop_names(&self) -> Vec<String> {
+        self.read_shard(|tg| tg.static_prop_names())
     }
 
     pub fn temporal_vertex_prop_names(&self, v: LocalVertexRef) -> Vec<String> {
         self.read_shard(|tg| tg.temporal_vertex_prop_names(v))
     }
 
+    pub fn temporal_prop_names(&self) -> Vec<String> {
+        self.read_shard(|tg| tg.temporal_prop_names())
+    }
+
     pub fn temporal_vertex_prop_vec(&self, v: LocalVertexRef, name: String) -> Vec<(i64, Prop)> {
         self.read_shard(|tg| tg.temporal_vertex_prop_vec(v, &name))
+    }
+
+    pub fn temporal_prop_vec(&self, name: String) -> Vec<(i64, Prop)> {
+        self.read_shard(|tg| tg.temporal_prop_vec(&name))
     }
 
     pub fn temporal_vertex_prop_vec_window(
@@ -837,6 +925,14 @@ impl ImmutableTGraphShard<TemporalGraph> {
         w: Range<i64>,
     ) -> Vec<(i64, Prop)> {
         self.read_shard(|tg| (tg.temporal_vertex_prop_vec_window(v, &name, &w)))
+    }
+
+    pub fn temporal_prop_vec_window(
+        &self,
+        name: String,
+        w: Range<i64>,
+    ) -> Vec<(i64, Prop)> {
+        self.read_shard(|tg| (tg.temporal_prop_vec_window( &name, &w)))
     }
 
     pub fn vertex_timestamps(&self, v: LocalVertexRef) -> Vec<i64> {
@@ -851,6 +947,10 @@ impl ImmutableTGraphShard<TemporalGraph> {
         self.read_shard(|tg| tg.temporal_vertex_props(v))
     }
 
+    pub fn temporal_props(&self) -> HashMap<String, Vec<(i64, Prop)>> {
+        self.read_shard(|tg| tg.temporal_props())
+    }
+
     pub fn temporal_vertex_props_window(
         &self,
         v: LocalVertexRef,
@@ -858,8 +958,20 @@ impl ImmutableTGraphShard<TemporalGraph> {
     ) -> HashMap<String, Vec<(i64, Prop)>> {
         self.read_shard(|tg| tg.temporal_vertex_props_window(v, &w))
     }
+
+    pub fn temporal_props_window(
+        &self,
+        w: Range<i64>,
+    ) -> HashMap<String, Vec<(i64, Prop)>> {
+        self.read_shard(|tg| tg.temporal_props_window(&w))
+    }
+    
     pub fn static_edge_prop(&self, e: EdgeRef, name: String) -> Option<Prop> {
         self.read_shard(|tg| tg.static_edge_prop(e, &name))
+    }
+
+    pub fn static_edge_props(&self, e: EdgeRef) -> HashMap<String, Prop> {
+        self.read_shard(|tg| tg.static_edge_props(e))
     }
 
     pub fn static_edge_prop_names(&self, e: EdgeRef) -> Vec<String> {

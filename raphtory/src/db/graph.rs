@@ -25,6 +25,7 @@ use crate::core::{
     vertex_ref::VertexRef, Direction, Prop,
 };
 
+use crate::core::tgraph::errors::MutateGraphError;
 use crate::core::vertex_ref::LocalVertexRef;
 use crate::db::graph_immutable::ImmutableGraph;
 use crate::db::view_api::internal::{GraphViewInternalOps, WrappedGraph};
@@ -553,17 +554,42 @@ impl GraphViewInternalOps for InternalGraph {
         self.get_shard_from_local_v(v).static_vertex_prop(v, name)
     }
 
+    fn static_vertex_props(&self, v: LocalVertexRef) -> HashMap<String, Prop> {
+        self.get_shard_from_local_v(v).static_vertex_props(v)
+    }
+
+    fn static_prop(&self, name: String) -> Option<Prop> {
+        self.shards.get(0)?.static_prop(name)
+    }
+
+    fn static_props(&self) -> HashMap<String, Prop> {
+        self.shards.get(0).expect("Failed to get shard 0").static_props()
+    }
+
     fn static_vertex_prop_names(&self, v: LocalVertexRef) -> Vec<String> {
         self.get_shard_from_local_v(v).static_vertex_prop_names(v)
+    }
+
+    fn static_prop_names(&self) -> Vec<String> {
+        self.shards.get(0).expect("Failed to get shard 0").static_prop_names()
     }
 
     fn temporal_vertex_prop_names(&self, v: LocalVertexRef) -> Vec<String> {
         self.get_shard_from_local_v(v).temporal_vertex_prop_names(v)
     }
 
+    fn temporal_prop_names(&self) -> Vec<String> {
+        self.shards.get(0).expect("Failed to get shard 0").temporal_prop_names()
+    }
+
     fn temporal_vertex_prop_vec(&self, v: LocalVertexRef, name: String) -> Vec<(i64, Prop)> {
         self.get_shard_from_local_v(v)
             .temporal_vertex_prop_vec(v, name)
+    }
+
+    fn temporal_prop_vec(&self, name: String) -> Vec<(i64, Prop)> {
+        self.shards.get(0).expect("Failed to get shard 0")
+            .temporal_prop_vec(name)
     }
 
     fn vertex_timestamps(&self, v: LocalVertexRef) -> Vec<i64> {
@@ -586,8 +612,18 @@ impl GraphViewInternalOps for InternalGraph {
             .temporal_vertex_prop_vec_window(v, name, t_start..t_end)
     }
 
+    fn temporal_prop_vec_window(&self, name: String, t_start: i64, t_end: i64) -> Vec<(i64, Prop)> {
+        self.shards.get(0).expect("Failed to get shard 0")
+            .temporal_prop_vec_window(name, t_start..t_end)
+    }
+
     fn temporal_vertex_props(&self, v: LocalVertexRef) -> HashMap<String, Vec<(i64, Prop)>> {
         self.get_shard_from_local_v(v).temporal_vertex_props(v)
+    }
+
+    fn temporal_props(&self) -> HashMap<String, Vec<(i64, Prop)>> {
+        self.shards.get(0).expect("Failed to get shard 0")
+            .temporal_props()
     }
 
     fn temporal_vertex_props_window(
@@ -600,8 +636,17 @@ impl GraphViewInternalOps for InternalGraph {
             .temporal_vertex_props_window(v, t_start..t_end)
     }
 
+    fn temporal_props_window(&self, t_start: i64, t_end: i64) -> HashMap<String, Vec<(i64, Prop)>> {
+        self.shards.get(0).expect("Failed to get shard 0")
+            .temporal_props_window(t_start..t_end)
+    }
+
     fn static_edge_prop(&self, e: EdgeRef, name: String) -> Option<Prop> {
         self.get_shard_from_e(e).static_edge_prop(e, name)
+    }
+
+    fn static_edge_props(&self, e: EdgeRef) -> HashMap<String, Prop> {
+        self.get_shard_from_e(e).static_edge_props(e)
     }
 
     fn static_edge_prop_names(&self, e: EdgeRef) -> Vec<String> {
@@ -951,6 +996,16 @@ impl InternalGraph {
     ) -> Result<(), GraphError> {
         let shard_id = utils::get_shard_id_from_global_vid(v.id(), self.nr_shards);
         self.shards[shard_id].add_vertex_properties(v.id(), data)
+    }
+
+    pub fn add_property<T: TryIntoTime>(&self, t: T, props: &Vec<(String, Prop)>) -> Result<(), GraphError> {
+        let shard_id = utils::get_shard_id_from_global_vid(0, self.nr_shards);
+        self.shards[shard_id].add_property(t.try_into_time()?, props)
+    }
+
+    pub fn add_static_property(&self, props: &Vec<(String, Prop)>) -> Result<(), GraphError> {
+        let shard_id = utils::get_shard_id_from_global_vid(0, self.nr_shards);
+        self.shards[shard_id].add_static_property(props)
     }
 
     // TODO: Vertex.name which gets ._id property else numba as string

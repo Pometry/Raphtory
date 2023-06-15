@@ -17,7 +17,7 @@
 use crate::core::edge_ref::EdgeRef;
 use crate::core::tgraph::TemporalGraph;
 use crate::core::tgraph_shard::ImmutableTGraphShard;
-use crate::core::utils;
+use crate::core::{Prop, utils};
 use crate::core::vertex_ref::{LocalVertexRef, VertexRef};
 use crate::core::Direction;
 use crate::db::graph::Graph;
@@ -25,6 +25,7 @@ use itertools::Itertools;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use std::cmp::{max, min};
+use std::collections::HashMap;
 use std::iter;
 use std::sync::Arc;
 
@@ -621,12 +622,32 @@ impl GraphViewInternalOps for ImmutableGraph {
         self.get_shard_from_local_v(v).static_vertex_prop(v, name)
     }
 
+    fn static_vertex_props(&self, v: LocalVertexRef) -> HashMap<String, Prop> {
+        self.get_shard_from_local_v(v).static_vertex_props(v)
+    }
+
+    fn static_prop(&self, name: String) -> Option<Prop> {
+        self.shards.get(0)?.static_prop(name)
+    }
+
+    fn static_props(&self) -> HashMap<String, Prop> {
+        self.shards.get(0).expect("Failed to get shard 0").static_props()
+    }
+
     fn static_vertex_prop_names(&self, v: LocalVertexRef) -> Vec<String> {
         self.get_shard_from_local_v(v).static_vertex_prop_names(v)
     }
 
+    fn static_prop_names(&self) -> Vec<String> {
+        self.shards.get(0).expect("Failed to get shard 0").static_prop_names()
+    }
+
     fn temporal_vertex_prop_names(&self, v: LocalVertexRef) -> Vec<String> {
         self.get_shard_from_local_v(v).temporal_vertex_prop_names(v)
+    }
+
+    fn temporal_prop_names(&self) -> Vec<String> {
+        self.shards.get(0).expect("Failed to get shard 0").temporal_prop_names()
     }
 
     fn temporal_vertex_prop_vec(
@@ -636,6 +657,11 @@ impl GraphViewInternalOps for ImmutableGraph {
     ) -> Vec<(i64, crate::core::Prop)> {
         self.get_shard_from_local_v(v)
             .temporal_vertex_prop_vec(v, name)
+    }
+
+    fn temporal_prop_vec(&self, name: String) -> Vec<(i64, Prop)> {
+        self.shards.get(0).expect("Failed to get shard 0")
+            .temporal_prop_vec(name)
     }
 
     fn vertex_timestamps(&self, v: LocalVertexRef) -> Vec<i64> {
@@ -658,11 +684,20 @@ impl GraphViewInternalOps for ImmutableGraph {
             .temporal_vertex_prop_vec_window(v, name, t_start..t_end)
     }
 
+    fn temporal_prop_vec_window(&self, name: String, t_start: i64, t_end: i64) -> Vec<(i64, Prop)> {
+        self.shards.get(0).expect("Failed to get shard 0")
+            .temporal_prop_vec_window( name, t_start..t_end)
+    }
+
     fn temporal_vertex_props(
         &self,
         v: LocalVertexRef,
     ) -> std::collections::HashMap<String, Vec<(i64, crate::core::Prop)>> {
         self.get_shard_from_local_v(v).temporal_vertex_props(v)
+    }
+
+    fn temporal_props(&self) -> HashMap<String, Vec<(i64, Prop)>> {
+        self.shards.get(0).expect("Failed to get shard 0").temporal_props()
     }
 
     fn temporal_vertex_props_window(
@@ -675,8 +710,17 @@ impl GraphViewInternalOps for ImmutableGraph {
             .temporal_vertex_props_window(v, t_start..t_end)
     }
 
+    fn temporal_props_window(&self, t_start: i64, t_end: i64) -> HashMap<String, Vec<(i64, Prop)>> {
+        self.shards.get(0).expect("Failed to get shard 0")
+            .temporal_props_window(t_start..t_end)
+    }
+
     fn static_edge_prop(&self, e: EdgeRef, name: String) -> Option<crate::core::Prop> {
         self.get_shard_from_e(e).static_edge_prop(e, name)
+    }
+
+    fn static_edge_props(&self, e: EdgeRef) -> HashMap<String, Prop> {
+        self.get_shard_from_e(e).static_edge_props(e)
     }
 
     fn static_edge_prop_names(&self, e: EdgeRef) -> Vec<String> {

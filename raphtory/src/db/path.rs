@@ -174,6 +174,13 @@ impl<G: GraphViewOps> VertexViewOps for PathFromGraph<G> {
         Box::new(self.iter().map(move |it| it.static_property(name.clone())))
     }
 
+    fn static_properties(
+        &self,
+    ) -> Box<dyn Iterator<Item = Box<dyn Iterator<Item = HashMap<String, Prop>> + Send>> + Send>
+    {
+        Box::new(self.iter().map(move |it| it.static_properties()))
+    }
+
     fn degree(&self) -> Box<dyn Iterator<Item = Box<dyn Iterator<Item = usize> + Send>> + Send> {
         Box::new(self.iter().map(|it| it.degree()))
     }
@@ -280,7 +287,6 @@ pub struct PathFromVertex<G: GraphViewOps> {
 }
 
 impl<G: GraphViewOps> PathFromVertex<G> {
-
     pub fn iter_refs(&self) -> Box<dyn Iterator<Item = VertexRef> + Send> {
         let init: Box<dyn Iterator<Item = VertexRef> + Send> =
             Box::new(iter::once(VertexRef::Local(self.vertex)));
@@ -294,8 +300,7 @@ impl<G: GraphViewOps> PathFromVertex<G> {
 
     pub fn iter(&self) -> Box<dyn Iterator<Item = VertexView<G>> + Send> {
         let g = self.graph.clone();
-        let iter = self.iter_refs()
-            .map(move |v| VertexView::new(g.clone(), v));
+        let iter = self.iter_refs().map(move |v| VertexView::new(g.clone(), v));
         Box::new(iter)
     }
 
@@ -312,9 +317,13 @@ impl<G: GraphViewOps> PathFromVertex<G> {
         }
     }
 
-    pub(crate) fn neighbours_window(&self, dir:Direction, t_start: i64, t_end:i64) -> Self {
+    pub(crate) fn neighbours_window(&self, dir: Direction, t_start: i64, t_end: i64) -> Self {
         let mut new_ops = (*self.operations).clone();
-        new_ops.push(Operations::NeighboursWindow { dir, t_start, t_end });
+        new_ops.push(Operations::NeighboursWindow {
+            dir,
+            t_start,
+            t_end,
+        });
         Self {
             graph: self.graph.clone(),
             vertex: self.vertex,
@@ -381,6 +390,10 @@ impl<G: GraphViewOps> VertexViewOps for PathFromVertex<G> {
         self.iter().static_property(name)
     }
 
+    fn static_properties(&self) -> Self::ValueType<HashMap<String, Prop>> {
+        self.iter().static_properties()
+    }
+
     fn degree(&self) -> Self::ValueType<usize> {
         self.iter().degree()
     }
@@ -415,7 +428,6 @@ impl<G: GraphViewOps> VertexViewOps for PathFromVertex<G> {
             operations: Arc::new(new_ops),
         }
     }
-
 
     fn in_neighbours(&self) -> Self {
         let mut new_ops = (*self.operations).clone();

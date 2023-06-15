@@ -9,18 +9,21 @@ use crate::wrappers::dynamic::{DynamicGraph, IntoDynamic};
 use crate::types::repr::{iterator_repr, Repr};
 use crate::utils::*;
 use crate::vertex::{PyVertex, PyVertexIterable};
-use crate::wrappers::iterators::{OptionI64Iterable, OptionPropIterable};
+use crate::wrappers::iterators::{
+    OptionI64Iterable, OptionPropIterable, PropsIterable, U64Iterable,
+};
 use crate::wrappers::prop::Prop;
 use chrono::NaiveDateTime;
 use itertools::Itertools;
 use pyo3::prelude::*;
+use pyo3::pyclass::CompareOp;
 use pyo3::{pyclass, pymethods, PyAny, PyRef, PyRefMut, PyResult};
 use raphtory::db::edge::EdgeView;
 use raphtory::db::view_api::*;
+use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
-use pyo3::pyclass::CompareOp;
 
 /// PyEdge is a Python class that represents an edge in the graph.
 /// An edge is a directed connection between two vertices.
@@ -51,7 +54,6 @@ impl<G: GraphViewOps + IntoDynamic> IntoPyObject for EdgeView<G> {
 /// An edge is a directed connection between two vertices.
 #[pymethods]
 impl PyEdge {
-
     /// Rich Comparison for Vertex objects
     pub fn __richcmp__(&self, other: PyRef<PyEdge>, op: CompareOp) -> Py<PyAny> {
         let py = other.py();
@@ -192,8 +194,29 @@ impl PyEdge {
         self.edge.has_static_property(name)
     }
 
+    /// Get static property of an edge by name
+    ///
+    /// Arguments:
+    ///   name (String): Name of the static property
+    ///
+    /// Returns:
+    ///   Option<Prop>: Returns static property if found by name
     pub fn static_property(&self, name: String) -> Option<Prop> {
         self.edge.static_property(name).map(|prop| prop.into())
+    }
+
+    /// Get all static properties of an edge
+    ///
+    /// Arguments:
+    ///
+    /// Returns:
+    ///   HashMap<String, Prop>: Returns all static properties identified by their name
+    pub fn static_properties(&self) -> HashMap<String, Prop> {
+        self.edge
+            .static_properties()
+            .into_iter()
+            .map(|(k, v)| (k, v.into()))
+            .collect()
     }
 
     /// Get the source vertex of the Edge.
@@ -501,6 +524,19 @@ impl PyEdges {
             dyn Fn() -> Box<dyn Iterator<Item = EdgeView<DynamicGraph>> + Send> + Send + Sync,
         > = self.builder.clone();
         (move || edges().property(name.clone(), include_static.unwrap_or(true))).into()
+    }
+
+    /// Returns all static properties of the edges
+    fn static_properties(&self) -> PropsIterable {
+        let edges: Arc<
+            dyn Fn() -> Box<dyn Iterator<Item = EdgeView<DynamicGraph>> + Send> + Send + Sync,
+        > = self.builder.clone();
+        (move || edges().static_properties()).into()
+    }
+
+    fn id(&self) -> PyGenericIterable {
+        let edges = self.builder.clone();
+        (move || edges().id()).into()
     }
 
     fn __repr__(&self) -> String {
