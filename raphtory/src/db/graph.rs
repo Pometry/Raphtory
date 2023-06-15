@@ -554,8 +554,16 @@ impl GraphViewInternalOps for InternalGraph {
         self.get_shard_from_local_v(v).static_vertex_prop(v, name)
     }
 
+    fn static_vertex_props(&self, v: LocalVertexRef) -> HashMap<String, Prop> {
+        self.get_shard_from_local_v(v).static_vertex_props(v)
+    }
+
     fn static_prop(&self, name: String) -> Option<Prop> {
         self.shards.get(0)?.static_prop(name)
+    }
+
+    fn static_props(&self) -> HashMap<String, Prop> {
+        self.shards.get(0).expect("Failed to get shard 0").static_props()
     }
 
     fn static_vertex_prop_names(&self, v: LocalVertexRef) -> Vec<String> {
@@ -635,6 +643,10 @@ impl GraphViewInternalOps for InternalGraph {
 
     fn static_edge_prop(&self, e: EdgeRef, name: String) -> Option<Prop> {
         self.get_shard_from_e(e).static_edge_prop(e, name)
+    }
+
+    fn static_edge_props(&self, e: EdgeRef) -> HashMap<String, Prop> {
+        self.get_shard_from_e(e).static_edge_props(e)
     }
 
     fn static_edge_prop_names(&self, e: EdgeRef) -> Vec<String> {

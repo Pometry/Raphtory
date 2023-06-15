@@ -18,9 +18,8 @@ use raphtory::algorithms::directed_graph_density::directed_graph_density as dire
 use raphtory::algorithms::generic_taint::generic_taint as generic_taint_rs;
 use raphtory::algorithms::local_clustering_coefficient::local_clustering_coefficient as local_clustering_coefficient_rs;
 use raphtory::algorithms::local_triangle_count::local_triangle_count as local_triangle_count_rs;
-use raphtory::algorithms::motifs::three_node_local::global_temporal_three_node_motif as global_temporal_three_node_motif_rs;
-use raphtory::algorithms::motifs::three_node_local::global_temporal_three_node_motif_from_local as global_temporal_three_node_motif_from_local_rs;
-use raphtory::algorithms::motifs::three_node_local::temporal_three_node_motif as temporal_three_node_motif_rs;
+use raphtory::algorithms::motifs::three_node_local::local_temporal_three_node_motifs as local_three_node_rs;
+use raphtory::algorithms::motifs::three_node_local::global_temporal_three_node_motifs as global_temporal_three_node_motif_rs;
 use raphtory::algorithms::pagerank::unweighted_page_rank;
 use raphtory::algorithms::reciprocity::{
     all_local_reciprocity as all_local_reciprocity_rs, global_reciprocity as global_reciprocity_rs,
@@ -212,18 +211,13 @@ pub fn global_clustering_coefficient(g: &PyGraphView) -> f64 {
 }
 
 #[pyfunction]
-pub fn temporal_three_node_motif(g: &PyGraphView, delta: i64) -> HashMap<String, Vec<usize>> {
-    temporal_three_node_motif_rs(&g.graph, None, delta)
-}
-
-#[pyfunction]
 pub fn global_temporal_three_node_motif(g: &PyGraphView, delta: i64) -> Vec<usize> {
-    global_temporal_three_node_motif_rs(&g.graph, None, delta)
+    global_temporal_three_node_motif_rs(&g.graph, delta)
 }
 
 #[pyfunction]
-pub fn global_temporal_three_node_motif_from_local(
-    counts: HashMap<String, Vec<usize>>,
-) -> Vec<usize> {
-    global_temporal_three_node_motif_from_local_rs(counts)
+pub fn local_temporal_three_node_motifs(
+    g: &PyGraphView, delta: i64
+) -> HashMap<u64, Vec<usize>> {
+    local_three_node_rs(&g.graph, delta)
 }

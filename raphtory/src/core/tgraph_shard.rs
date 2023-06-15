@@ -20,6 +20,7 @@ use genawaiter::sync::{gen, GenBoxed};
 use genawaiter::yield_;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::hash::Hash;
 use std::ops::Range;
 use std::path::Path;
 use std::sync::Arc;
@@ -512,10 +513,18 @@ impl TGraphShard<TemporalGraph> {
         self.read_shard(|tg| tg.static_vertex_prop(v, &name))
     }
 
+    pub fn static_vertex_props(&self, v: LocalVertexRef) -> HashMap<String, Prop> {
+        self.read_shard(|tg| tg.static_vertex_props(v))
+    }
+
     pub fn static_prop(&self, name: String) -> Option<Prop> {
         self.read_shard(|tg| tg.static_prop( &name))
     }
-    
+
+    pub fn static_props(&self) -> HashMap<String, Prop> {
+        self.read_shard(|tg| tg.static_props())
+    }
+
     pub fn static_vertex_prop_names(&self, v: LocalVertexRef) -> Vec<String> {
         self.read_shard(|tg| tg.static_vertex_prop_names(v))
     }
@@ -590,6 +599,10 @@ impl TGraphShard<TemporalGraph> {
     
     pub fn static_edge_prop(&self, e: EdgeRef, name: String) -> Option<Prop> {
         self.read_shard(|tg| tg.static_edge_prop(e, &name))
+    }
+
+    pub fn static_edge_props(&self, e: EdgeRef) -> HashMap<String, Prop> {
+        self.read_shard(|tg| tg.static_edge_props(e))
     }
 
     pub fn static_edge_prop_names(&self, e: EdgeRef) -> Vec<String> {
@@ -869,8 +882,16 @@ impl ImmutableTGraphShard<TemporalGraph> {
         self.read_shard(|tg| tg.static_vertex_prop(v, &name))
     }
 
+    pub fn static_vertex_props(&self, v: LocalVertexRef) -> HashMap<String, Prop> {
+        self.read_shard(|tg| tg.static_vertex_props(v))
+    }
+
     pub fn static_prop(&self, name: String) -> Option<Prop> {
         self.read_shard(|tg| tg.static_prop(&name))
+    }
+
+    pub fn static_props(&self) -> HashMap<String, Prop> {
+        self.read_shard(|tg| tg.static_props())
     }
     
     pub fn static_vertex_prop_names(&self, v: LocalVertexRef) -> Vec<String> {
@@ -947,6 +968,10 @@ impl ImmutableTGraphShard<TemporalGraph> {
     
     pub fn static_edge_prop(&self, e: EdgeRef, name: String) -> Option<Prop> {
         self.read_shard(|tg| tg.static_edge_prop(e, &name))
+    }
+
+    pub fn static_edge_props(&self, e: EdgeRef) -> HashMap<String, Prop> {
+        self.read_shard(|tg| tg.static_edge_props(e))
     }
 
     pub fn static_edge_prop_names(&self, e: EdgeRef) -> Vec<String> {
