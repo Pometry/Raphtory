@@ -945,6 +945,34 @@ impl<G: GraphViewOps> GraphViewInternalOps for WindowedGraph<G> {
         self.graph
             .local_vertex_window(v, self.actual_start(t_start), self.actual_end(t_end))
     }
+
+    fn static_prop(&self, name: String) -> Option<Prop> {
+        self.graph.static_prop(name)
+    }
+
+    fn static_prop_names(&self) -> Vec<String> {
+        self.graph.static_prop_names()
+    }
+
+    fn temporal_prop_names(&self) -> Vec<String> {
+        self.graph.temporal_prop_names()
+    }
+
+    fn temporal_prop_vec(&self, name: String) -> Vec<(i64, Prop)> {
+        self.graph.temporal_prop_vec(name)
+    }
+
+    fn temporal_prop_vec_window(&self, name: String, t_start: i64, t_end: i64) -> Vec<(i64, Prop)> {
+        self.graph.temporal_prop_vec_window(name, t_start, t_end)
+    }
+
+    fn temporal_props(&self) -> HashMap<String, Vec<(i64, Prop)>> {
+        self.graph.temporal_props()
+    }
+
+    fn temporal_props_window(&self, t_start: i64, t_end: i64) -> HashMap<String, Vec<(i64, Prop)>> {
+        self.graph.temporal_props_window(t_start, t_end)
+    }
 }
 
 /// A windowed graph is a graph that only allows access to vertices and edges within a time window.
