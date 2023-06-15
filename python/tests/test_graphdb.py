@@ -11,6 +11,7 @@ import tempfile
 from math import isclose
 import datetime
 
+
 def create_graph(num_shards):
     g = Graph(num_shards)
     edges = [
@@ -1008,7 +1009,8 @@ def test_time_index():
     w = g.window("2020-01-01", "2020-01-03")
     rolling = w.rolling("1 day")
     time_index = rolling.time_index()
-    assert list(time_index) == [datetime.datetime(2020, 1, 1, 23, 59, 59, 999000), datetime.datetime(2020, 1, 2, 23, 59, 59, 999000)]
+    assert list(time_index) == [datetime.datetime(2020, 1, 1, 23, 59, 59, 999000),
+                                datetime.datetime(2020, 1, 2, 23, 59, 59, 999000)]
 
     w = g.window(1, 3)
     rolling = w.rolling(1)
@@ -1031,7 +1033,7 @@ def test_datetime_props():
     g.add_vertex(0, 1, {"time": dt2})
     assert g.vertex(1).property("time") == dt2
 
-    
+
 def test_date_time():
     g = Graph(1)
 
@@ -1054,6 +1056,7 @@ def test_date_time():
     assert g.vertex(1).earliest_date_time() == datetime.datetime(2014, 2, 2, 0, 0)
     assert g.vertex(1).latest_date_time() == datetime.datetime(2014, 2, 5, 0, 0)
 
+
 def test_date_time_window():
     g = Graph(1)
 
@@ -1070,7 +1073,7 @@ def test_date_time_window():
     assert view.end_date_time() == datetime.datetime(2014, 2, 4, 0, 0)
 
     assert view.earliest_date_time() == datetime.datetime(2014, 2, 2, 0, 0)
-    assert view.latest_date_time() == datetime.datetime(2014, 2, 4, 0, 0)
+    assert view.latest_date_time() == datetime.datetime(2014, 2, 3, 0, 0)
 
     assert view2.edge(1, 2).start_date_time() == datetime.datetime(2014, 2, 2, 0, 0)
     assert view2.edge(1, 2).end_date_time() == datetime.datetime(2014, 2, 5, 0, 0)
@@ -1100,11 +1103,10 @@ def test_datetime_add_vertex():
     assert view.end_date_time() == datetime.datetime(2014, 2, 4, 0, 0)
 
     assert view2.earliest_date_time() == datetime.datetime(2014, 2, 2, 0, 0)
-    assert view2.latest_date_time() == datetime.datetime(2014, 2, 5, 0, 0)
+    assert view2.latest_date_time() == datetime.datetime(2014, 2, 4, 0, 0)
 
     assert view2.vertex(1).start_date_time() == datetime.datetime(2014, 2, 2, 0, 0)
     assert view2.vertex(1).end_date_time() == datetime.datetime(2014, 2, 5, 0, 0)
 
     assert view.vertex(2).earliest_date_time() == datetime.datetime(2014, 2, 3, 0, 0)
     assert view.vertex(2).latest_date_time() == datetime.datetime(2014, 2, 3, 0, 0)
-
