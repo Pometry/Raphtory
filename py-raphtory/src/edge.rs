@@ -193,10 +193,23 @@ impl PyEdge {
         self.edge.has_static_property(name)
     }
 
+    /// Get static property of an edge by name
+    ///
+    /// Arguments:
+    ///   name (String): Name of the static property
+    ///
+    /// Returns:
+    ///   Option<Prop>: Returns static property if found by name
     pub fn static_property(&self, name: String) -> Option<Prop> {
         self.edge.static_property(name).map(|prop| prop.into())
     }
 
+    /// Get all static properties of an edge
+    ///
+    /// Arguments:
+    ///
+    /// Returns:
+    ///   HashMap<String, Prop>: Returns all static properties identified by their name
     pub fn static_properties(&self) -> HashMap<String, Prop> {
         self.edge
             .static_properties()
@@ -512,6 +525,7 @@ impl PyEdges {
         (move || edges().property(name.clone(), include_static.unwrap_or(true))).into()
     }
 
+    /// Returns all static properties of the edges
     fn static_properties(&self) -> PropsIterable {
         let edges: Arc<
             dyn Fn() -> Box<dyn Iterator<Item = EdgeView<DynamicGraph>> + Send> + Send + Sync,

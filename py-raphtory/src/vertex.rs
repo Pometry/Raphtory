@@ -261,6 +261,12 @@ impl PyVertex {
         self.vertex.static_property(name).map(|prop| prop.into())
     }
 
+    /// Returns static properties of a vertex
+    ///
+    /// Arguments:
+    ///
+    /// Returns:
+    ///     HashMap<String, Prop> - Returns static properties of a vertex identified by their names
     pub fn static_properties(&self) -> HashMap<String, Prop> {
         self.vertex
             .static_properties()

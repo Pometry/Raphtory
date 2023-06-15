@@ -414,6 +414,12 @@ impl PyGraphView {
         self.graph.subgraph(vertices).into()
     }
 
+    /// Returns a graph clone
+    ///
+    /// Arguments:
+    ///
+    /// Returns:
+    ///    GraphView - Returns a graph clone
     fn materialize(&self) -> PyResult<Py<PyGraph>> {
         let mg = adapt_result(self.graph.materialize())?;
         PyGraph::py_from_db_graph(mg)
