@@ -52,7 +52,7 @@ pub fn local_triangle_count(g: &PyGraphView, v: &PyAny) -> PyResult<Option<usize
 ///     iter_count (int) : Maximum number of iterations to run. Note that this will terminate early if the labels converge prior to the number of iterations being reached.
 /// 
 /// Returns:
-///     components (dict) : Dictionary with string keys and integer values mapping vertex names to their component ids.
+///     dict : Dictionary with string keys and integer values mapping vertex names to their component ids.
 #[pyfunction]
 pub fn weakly_connected_components(
     g: &PyGraphView,
@@ -76,7 +76,7 @@ pub fn weakly_connected_components(
 /// is less than the max diff value given.
 /// 
 /// Returns:
-///     components (dict) : Dictionary with string keys and integer values mapping vertex names to their component ids.
+///     dict : Dictionary with string keys and float values mapping vertex names to their pagerank value.
 #[pyfunction]
 pub fn pagerank(
     g: &PyGraphView,
@@ -122,7 +122,7 @@ pub fn generic_taint(
 ///     v (int or str): vertex id or name
 /// 
 /// Returns:
-///     clustering (float) : the local clustering coefficient of vertex v in g.
+///     float : the local clustering coefficient of vertex v in g.
 #[pyfunction]
 pub fn local_clustering_coefficient(g: &PyGraphView, v: &PyAny) -> PyResult<Option<f32>> {
     let v = utils::extract_vertex_ref(v)?;
@@ -131,11 +131,14 @@ pub fn local_clustering_coefficient(g: &PyGraphView, v: &PyAny) -> PyResult<Opti
 
 /// Graph density - measures how dense or sparse a graph is.
 ///
-/// The ratio of the number of edges in the graph to the total number of possible
-/// edges. A dense graph has a high edge-to-vertex ratio, while a sparse graph has a low
-/// edge-to-vertex ratio.
+/// The ratio of the number of directed edges in the graph to the total number of possible directed
+/// edges (given by N * (N-1) where N is the number of nodes). 
 ///
+/// Arguments:
+///     g (Raphtory graph) : a directed Raphtory graph
 /// 
+/// Returns:
+///     float : Directed graph density of G.
 #[pyfunction]
 pub fn directed_graph_density(g: &PyGraphView) -> f32 {
     directed_graph_density_rs(&g.graph)
