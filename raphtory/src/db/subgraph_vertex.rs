@@ -4,7 +4,7 @@ use crate::core::tprop::TProp;
 use crate::core::vertex_ref::{LocalVertexRef, VertexRef};
 use crate::core::{Direction, Prop};
 use crate::db::view_api::internal::time_semantics::InheritTimeSemantics;
-use crate::db::view_api::internal::{GraphViewInternalOps, TimeSemantics};
+use crate::db::view_api::internal::{GraphOps, GraphViewInternalOps, TimeSemantics};
 use crate::db::view_api::{BoxedIter, GraphViewOps};
 use itertools::Itertools;
 use rayon::prelude::*;
@@ -187,7 +187,7 @@ impl<G: GraphViewOps> TimeSemantics for VertexSubgraph<G> {
     }
 }
 
-impl<G: GraphViewOps> GraphViewInternalOps for VertexSubgraph<G> {
+impl<G: GraphViewOps> GraphOps for VertexSubgraph<G> {
     fn local_vertex_ref(&self, v: VertexRef) -> Option<LocalVertexRef> {
         self.graph
             .local_vertex_ref(v)

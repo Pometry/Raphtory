@@ -1,9 +1,10 @@
 use std::{cell::RefCell, collections::HashMap, iter, marker::PhantomData, rc::Rc};
 
-use crate::db::view_api::internal::{GraphPropertiesOps, GraphWindowOps, TimeSemantics};
+use crate::db::view_api::edge::EdgeViewInternalOps;
+use crate::db::view_api::internal::*;
 use crate::{
     core::{edge_ref::EdgeRef, state::compute_state::ComputeState, Prop},
-    db::view_api::{edge::EdgeViewInternalOps, EdgeListOps, EdgeViewOps, GraphViewOps},
+    db::view_api::*,
 };
 
 use super::{eval_vertex_state::EVState, task_state::Local2, window_eval_vertex::WindowEvalVertex};

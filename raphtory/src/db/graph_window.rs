@@ -45,7 +45,7 @@ use crate::core::vertex_ref::{LocalVertexRef, VertexRef};
 use crate::core::{Direction, Prop};
 use crate::db::view_api::internal::time_semantics::TimeSemantics;
 use crate::db::view_api::internal::{
-    GraphViewInternalOps, GraphWindowOps, InheritCoreOps, InheritInternalViewOps,
+    GraphOps, GraphViewInternalOps, GraphWindowOps, InheritCoreOps, InheritGraphOps,
 };
 use crate::db::view_api::{BoxedIter, GraphViewOps};
 use std::cmp::{max, min};
@@ -223,7 +223,7 @@ impl<G: GraphViewOps> InheritCoreOps for WindowedGraph<G> {
 /// Implementation of the GraphViewInternalOps trait for WindowedGraph.
 /// This trait provides operations to a `WindowedGraph` used internally by the `GraphWindowSet`.
 /// *Note: All functions in this are bound by the time set in the windowed graph.
-impl<G: GraphViewOps> GraphViewInternalOps for WindowedGraph<G> {
+impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
     fn local_vertex_ref(&self, v: VertexRef) -> Option<LocalVertexRef> {
         self.graph
             .local_vertex_ref_window(v, self.t_start, self.t_end)

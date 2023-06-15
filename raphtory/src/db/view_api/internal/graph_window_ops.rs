@@ -7,6 +7,8 @@ use crate::db::view_api::internal::{CoreGraphOps, GraphViewInternalOps};
 use itertools::Itertools;
 use std::collections::HashMap;
 
+
+/// Methods for interacting with windowed data (automatically implemented based on `TimeSemantics` trait
 pub trait GraphWindowOps: GraphViewInternalOps {
     /// Check if a vertex exists locally in a window and returns local reference.
     fn local_vertex_ref_window(

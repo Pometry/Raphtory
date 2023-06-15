@@ -7,6 +7,8 @@ use crate::db::view_api::internal::GraphViewInternalOps;
 use crate::db::view_api::BoxedIter;
 use std::ops::Range;
 
+
+/// Additional methods for returning exploded edge data that are automatically implemented
 pub trait ExplodedEdgeOps {
     /// Returns an iterator over the exploded edges connected to a given vertex in a given direction.
     ///

@@ -5,7 +5,7 @@ use crate::core::vertex_ref::{LocalVertexRef, VertexRef};
 use crate::core::{Direction, Prop};
 use crate::db::view_api::internal::time_semantics::{InheritTimeSemantics, TimeSemantics};
 use crate::db::view_api::internal::{
-    CoreGraphOps, GraphViewInternalOps, InheritCoreOps, WrappedGraph,
+    CoreGraphOps, GraphOps, GraphViewInternalOps, InheritCoreOps, WrappedGraph,
 };
 use crate::db::view_api::GraphViewOps;
 use itertools::Itertools;
@@ -51,7 +51,7 @@ impl<G: GraphViewInternalOps> LayeredGraph<G> {
     }
 }
 
-impl<G: GraphViewInternalOps> GraphViewInternalOps for LayeredGraph<G> {
+impl<G: GraphViewInternalOps> GraphOps for LayeredGraph<G> {
     fn local_vertex_ref(&self, v: VertexRef) -> Option<LocalVertexRef> {
         self.graph.local_vertex_ref(v)
     }

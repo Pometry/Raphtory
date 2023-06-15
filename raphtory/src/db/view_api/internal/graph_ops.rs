@@ -11,7 +11,7 @@ use std::ops::Range;
 
 /// The GraphViewInternalOps trait provides a set of methods to query a directed graph
 /// represented by the raphtory_core::tgraph::TGraph struct.
-pub trait GraphViewInternalOps: Send + Sync {
+pub trait GraphOps: Send + Sync {
     /// Check if a vertex exists locally and returns local reference.
     fn local_vertex_ref(&self, v: VertexRef) -> Option<LocalVertexRef>;
 
@@ -125,13 +125,13 @@ pub trait GraphViewInternalOps: Send + Sync {
     ) -> Box<dyn Iterator<Item = VertexRef> + Send>;
 }
 
-pub trait InheritInternalViewOps {
-    type Internal: GraphViewInternalOps + ?Sized;
+pub trait InheritGraphOps {
+    type Internal: GraphOps + ?Sized;
 
     fn graph(&self) -> &Self::Internal;
 }
 
-impl<G: InheritInternalViewOps + Send + Sync> GraphViewInternalOps for G {
+impl<G: InheritGraphOps + Send + Sync> GraphOps for G {
     fn local_vertex_ref(&self, v: VertexRef) -> Option<LocalVertexRef> {
         self.graph().local_vertex_ref(v)
     }

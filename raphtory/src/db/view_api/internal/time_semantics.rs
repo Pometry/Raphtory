@@ -7,6 +7,7 @@ use crate::db::view_api::internal::GraphViewInternalOps;
 use crate::db::view_api::{BoxedIter, GraphViewOps};
 use std::ops::Range;
 
+/// Methods for defining time windowing semantics for a graph
 pub trait TimeSemantics {
     /// Return the earliest time for a vertex
     fn vertex_earliest_time(&self, v: LocalVertexRef) -> Option<i64>;

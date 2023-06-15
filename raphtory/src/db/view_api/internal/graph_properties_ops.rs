@@ -5,6 +5,7 @@ use crate::db::view_api::internal::time_semantics::TimeSemantics;
 use crate::db::view_api::internal::{CoreGraphOps, GraphViewInternalOps};
 use std::collections::HashMap;
 
+/// Additional methods for retrieving properties that are automatically implemented
 pub trait GraphPropertiesOps {
     /// Returns a hash map containing all the temporal properties of the given edge reference,
     /// where each key is the name of a temporal property and each value is a vector of tuples containing

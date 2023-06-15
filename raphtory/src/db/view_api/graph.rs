@@ -19,17 +19,7 @@ use crate::db::view_api::VertexViewOps;
 /// information about a graph. The trait has associated types
 /// that are used to define the type of the vertices, edges
 /// and the corresponding iterators.
-pub trait GraphViewOps:
-    Send
-    + Sync
-    + Sized
-    + GraphViewInternalOps
-    + TimeSemantics
-    + CoreGraphOps
-    + ExplodedEdgeOps
-    + 'static
-    + Clone
-{
+pub trait GraphViewOps: GraphViewInternalOps + Sized {
     fn subgraph<I: IntoIterator<Item = V>, V: Into<VertexRef>>(
         &self,
         vertices: I,
@@ -74,18 +64,7 @@ pub trait GraphViewOps:
     fn edges(&self) -> Box<dyn Iterator<Item = EdgeView<Self>> + Send>;
 }
 
-impl<
-        G: Send
-            + Sync
-            + Sized
-            + GraphViewInternalOps
-            + TimeSemantics
-            + CoreGraphOps
-            + ExplodedEdgeOps
-            + 'static
-            + Clone,
-    > GraphViewOps for G
-{
+impl<G: GraphViewInternalOps + Sized> GraphViewOps for G {
     fn subgraph<I: IntoIterator<Item = V>, V: Into<VertexRef>>(
         &self,
         vertices: I,

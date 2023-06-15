@@ -24,7 +24,7 @@ use crate::core::{utils, Prop};
 use crate::core::{Direction, PropUnwrap};
 use crate::db::graph::Graph;
 use crate::db::view_api::internal::time_semantics::TimeSemantics;
-use crate::db::view_api::internal::CoreGraphOps;
+use crate::db::view_api::internal::{CoreGraphOps, GraphOps};
 use crate::db::view_api::BoxedIter;
 use itertools::Itertools;
 use rustc_hash::FxHashMap;
@@ -365,7 +365,7 @@ impl CoreGraphOps for ImmutableGraph {
     }
 }
 
-impl GraphViewInternalOps for ImmutableGraph {
+impl GraphOps for ImmutableGraph {
     fn local_vertex_ref(&self, v: VertexRef) -> Option<LocalVertexRef> {
         self.get_shard_from_v(v).local_vertex(v)
     }
