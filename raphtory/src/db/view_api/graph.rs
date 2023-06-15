@@ -10,7 +10,7 @@ use crate::db::subgraph_vertex::VertexSubgraph;
 use crate::db::vertex::VertexView;
 use crate::db::vertices::Vertices;
 use crate::db::view_api::internal::time_semantics::TimeSemantics;
-use crate::db::view_api::internal::{CoreGraphOps, ExplodedEdgeOps, GraphViewInternalOps};
+use crate::db::view_api::internal::{BoxableGraphView, CoreGraphOps};
 use crate::db::view_api::layer::LayerOps;
 use crate::db::view_api::time::TimeOps;
 use crate::db::view_api::VertexViewOps;
@@ -19,7 +19,7 @@ use crate::db::view_api::VertexViewOps;
 /// information about a graph. The trait has associated types
 /// that are used to define the type of the vertices, edges
 /// and the corresponding iterators.
-pub trait GraphViewOps: GraphViewInternalOps + Sized {
+pub trait GraphViewOps: BoxableGraphView + Clone + Sized {
     fn subgraph<I: IntoIterator<Item = V>, V: Into<VertexRef>>(
         &self,
         vertices: I,
@@ -31,6 +31,9 @@ pub trait GraphViewOps: GraphViewInternalOps + Sized {
     fn latest_time(&self) -> Option<i64>;
     /// Return the number of vertices in the graph.
     fn num_vertices(&self) -> usize;
+
+    /// Return the number of shards
+    fn num_shards(&self) -> usize;
 
     /// Check if the graph is empty.
     fn is_empty(&self) -> bool {
@@ -64,7 +67,7 @@ pub trait GraphViewOps: GraphViewInternalOps + Sized {
     fn edges(&self) -> Box<dyn Iterator<Item = EdgeView<Self>> + Send>;
 }
 
-impl<G: GraphViewInternalOps + Sized> GraphViewOps for G {
+impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
     fn subgraph<I: IntoIterator<Item = V>, V: Into<VertexRef>>(
         &self,
         vertices: I,
@@ -94,6 +97,10 @@ impl<G: GraphViewInternalOps + Sized> GraphViewOps for G {
 
     fn num_vertices(&self) -> usize {
         self.vertices_len()
+    }
+
+    fn num_shards(&self) -> usize {
+        self.num_shards_internal()
     }
 
     fn num_edges(&self) -> usize {

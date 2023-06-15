@@ -2,7 +2,7 @@ use crate::core::edge_ref::EdgeRef;
 use crate::core::vertex_ref::LocalVertexRef;
 use crate::core::Prop;
 use crate::db::view_api::internal::time_semantics::TimeSemantics;
-use crate::db::view_api::internal::{CoreGraphOps, GraphViewInternalOps};
+use crate::db::view_api::internal::CoreGraphOps;
 use std::collections::HashMap;
 
 /// Additional methods for retrieving properties that are automatically implemented
@@ -75,7 +75,7 @@ pub trait GraphPropertiesOps {
     ) -> HashMap<String, Vec<(i64, Prop)>>;
 }
 
-impl<G: GraphViewInternalOps + TimeSemantics + CoreGraphOps> GraphPropertiesOps for G {
+impl<G: TimeSemantics + CoreGraphOps> GraphPropertiesOps for G {
     fn temporal_edge_props(&self, e: EdgeRef) -> HashMap<String, Vec<(i64, Prop)>> {
         let mut map = HashMap::default();
         for name in self.temporal_edge_prop_names(e) {

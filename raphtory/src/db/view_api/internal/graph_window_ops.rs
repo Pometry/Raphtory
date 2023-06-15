@@ -3,13 +3,12 @@ use crate::core::timeindex::TimeIndexOps;
 use crate::core::vertex_ref::{LocalVertexRef, VertexRef};
 use crate::core::{Direction, Prop};
 use crate::db::view_api::internal::time_semantics::TimeSemantics;
-use crate::db::view_api::internal::{CoreGraphOps, GraphViewInternalOps};
+use crate::db::view_api::internal::{CoreGraphOps, GraphOps};
 use itertools::Itertools;
 use std::collections::HashMap;
 
-
 /// Methods for interacting with windowed data (automatically implemented based on `TimeSemantics` trait
-pub trait GraphWindowOps: GraphViewInternalOps {
+pub trait GraphWindowOps {
     /// Check if a vertex exists locally in a window and returns local reference.
     fn local_vertex_ref_window(
         &self,
@@ -207,9 +206,7 @@ pub trait GraphWindowOps: GraphViewInternalOps {
     ) -> Box<dyn Iterator<Item = VertexRef> + Send>;
 }
 
-impl<G: GraphViewInternalOps + TimeSemantics + CoreGraphOps + Clone + 'static> GraphWindowOps
-    for G
-{
+impl<G: TimeSemantics + CoreGraphOps + GraphOps + Clone + 'static> GraphWindowOps for G {
     fn local_vertex_ref_window(
         &self,
         v: VertexRef,

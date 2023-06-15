@@ -1,9 +1,6 @@
+use crate::core::{agg::Accumulator, utils::get_shard_id_from_global_vid};
 use crate::db::task::task_state::{Global, Shard};
 use crate::db::view_api::GraphViewOps;
-use crate::{
-    core::{agg::Accumulator, utils::get_shard_id_from_global_vid},
-    db::view_api::internal::GraphViewInternalOps,
-};
 use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::sync::Arc;

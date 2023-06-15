@@ -1,10 +1,7 @@
 use crate::core::edge_ref::EdgeRef;
-use crate::core::timeindex::{TimeIndex, TimeIndexOps};
 use crate::core::vertex_ref::LocalVertexRef;
 use crate::core::Prop;
-use crate::db::view_api::internal::core_ops::CoreGraphOps;
-use crate::db::view_api::internal::GraphViewInternalOps;
-use crate::db::view_api::{BoxedIter, GraphViewOps};
+use crate::db::view_api::BoxedIter;
 use std::ops::Range;
 
 /// Methods for defining time windowing semantics for a graph

@@ -30,7 +30,7 @@ use crate::core::tprop::TProp;
 use crate::core::vertex_ref::LocalVertexRef;
 use crate::db::graph_immutable::ImmutableGraph;
 use crate::db::view_api::internal::time_semantics::TimeSemantics;
-use crate::db::view_api::internal::{CoreGraphOps, GraphOps, GraphViewInternalOps, WrappedGraph};
+use crate::db::view_api::internal::{CoreGraphOps, GraphOps, WrappedGraph};
 use crate::db::view_api::*;
 use itertools::Itertools;
 use rayon::prelude::*;
@@ -433,7 +433,7 @@ impl CoreGraphOps for InternalGraph {
         self.get_shard_from_e(e).temporal_edge_prop_names(e)
     }
 
-    fn num_shards(&self) -> usize {
+    fn num_shards_internal(&self) -> usize {
         self.nr_shards
     }
 

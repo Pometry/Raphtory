@@ -44,16 +44,14 @@ use crate::core::tprop::TProp;
 use crate::core::vertex_ref::{LocalVertexRef, VertexRef};
 use crate::core::{Direction, Prop};
 use crate::db::view_api::internal::time_semantics::TimeSemantics;
-use crate::db::view_api::internal::{
-    GraphOps, GraphViewInternalOps, GraphWindowOps, InheritCoreOps, InheritGraphOps,
-};
+use crate::db::view_api::internal::{GraphOps, GraphWindowOps, InheritCoreOps, InheritGraphOps};
 use crate::db::view_api::{BoxedIter, GraphViewOps};
 use std::cmp::{max, min};
 use std::{collections::HashMap, ops::Range};
 
 /// A struct that represents a windowed view of a `Graph`.
 #[derive(Debug, Clone)]
-pub struct WindowedGraph<G: GraphViewInternalOps + TimeSemantics> {
+pub struct WindowedGraph<G: GraphViewOps> {
     /// The underlying `Graph` object.
     pub graph: G,
     /// The inclusive start time of the window.
@@ -62,7 +60,7 @@ pub struct WindowedGraph<G: GraphViewInternalOps + TimeSemantics> {
     pub t_end: i64,
 }
 
-impl<G: GraphViewInternalOps + TimeSemantics> TimeSemantics for WindowedGraph<G> {
+impl<G: GraphViewOps> TimeSemantics for WindowedGraph<G> {
     fn vertex_earliest_time(&self, v: LocalVertexRef) -> Option<i64> {
         self.graph
             .vertex_earliest_time_window(v, self.t_start, self.t_end)
@@ -409,7 +407,7 @@ impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
 /// graph.add_edge(1, 2, 3, &vec![], None);
 /// let windowed_graph = graph.window(0, 1);
 /// ```
-impl<G: GraphViewInternalOps + TimeSemantics> WindowedGraph<G> {
+impl<G: GraphViewOps> WindowedGraph<G> {
     /// Create a new windowed graph
     ///
     /// # Arguments

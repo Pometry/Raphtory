@@ -201,7 +201,7 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         // find the shard with the largest number of vertices
         let max_shard_len = g.vertex_refs().map(|v| v.pid).max().unwrap_or(0) + 1;
 
-        let n_shards = g.num_shards();
+        let n_shards = g.num_shards_internal();
 
         let mut states = vec![None; max_shard_len * n_shards];
 
@@ -235,7 +235,7 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         shard_initial_state: Option<Shard<CS>>,
         global_initial_state: Option<Global<CS>>,
     ) -> B {
-        let graph_shards = self.ctx.graph().num_shards();
+        let graph_shards = self.ctx.graph().num_shards_internal();
 
         let pool = num_threads
             .map(|nt| custom_pool(nt))

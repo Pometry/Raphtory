@@ -131,7 +131,7 @@ pub trait InheritGraphOps {
     fn graph(&self) -> &Self::Internal;
 }
 
-impl<G: InheritGraphOps + Send + Sync> GraphOps for G {
+impl<G: InheritGraphOps + Send + Sync + ?Sized> GraphOps for G {
     fn local_vertex_ref(&self, v: VertexRef) -> Option<LocalVertexRef> {
         self.graph().local_vertex_ref(v)
     }

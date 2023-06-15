@@ -1,10 +1,10 @@
 use rustc_hash::FxHashMap;
 use std::collections::HashMap;
 
+use crate::core::agg::Accumulator;
 use crate::core::vertex_ref::LocalVertexRef;
 use crate::db::view_api::internal::CoreGraphOps;
 use crate::db::view_api::GraphViewOps;
-use crate::{core::agg::Accumulator, db::view_api::internal::GraphViewInternalOps};
 
 use super::{
     container::{merge_2_vecs, DynArray, MapArray, VecArray},

@@ -10,7 +10,7 @@ use raphtory::core::tgraph_shard::errors::GraphError;
 use raphtory::core::Prop;
 use raphtory::db::graph::Graph as TGraph;
 use raphtory::db::graph_window::WindowedGraph;
-use raphtory::db::view_api::internal::GraphViewInternalOps;
+use raphtory::db::view_api::internal::BoxableGraphView;
 use raphtory::db::view_api::GraphViewOps;
 use raphtory::db::view_api::TimeOps;
 use wasm_bindgen::prelude::*;
@@ -48,7 +48,7 @@ impl UnderGraph {
     }
 
     // a bit heavy but might work
-    pub fn graph(&self) -> Box<Arc<dyn GraphViewInternalOps + Send + Sync + 'static>> {
+    pub fn graph(&self) -> Box<Arc<dyn BoxableGraphView>> {
         match self {
             UnderGraph::TGraph(g) => Box::new(g.clone()),
             UnderGraph::WindowedGraph(g) => Box::new(g.clone()),

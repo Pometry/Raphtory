@@ -125,7 +125,7 @@ pub trait CoreGraphOps {
     /// * A `Vec` of `String` containing the keys for the temporal properties of the given edge.
     fn temporal_edge_prop_names(&self, e: EdgeRef) -> Vec<String>;
 
-    fn num_shards(&self) -> usize;
+    fn num_shards_internal(&self) -> usize;
 }
 
 pub trait InheritCoreOps {
@@ -134,7 +134,7 @@ pub trait InheritCoreOps {
     fn graph(&self) -> &Self::Internal;
 }
 
-impl<G: InheritCoreOps> CoreGraphOps for G {
+impl<G: InheritCoreOps + ?Sized> CoreGraphOps for G {
     fn get_layer_name_by_id(&self, layer_id: usize) -> String {
         self.graph().get_layer_name_by_id(layer_id)
     }
@@ -195,7 +195,7 @@ impl<G: InheritCoreOps> CoreGraphOps for G {
         self.graph().temporal_edge_prop_names(e)
     }
 
-    fn num_shards(&self) -> usize {
-        self.graph().num_shards()
+    fn num_shards_internal(&self) -> usize {
+        self.graph().num_shards_internal()
     }
 }

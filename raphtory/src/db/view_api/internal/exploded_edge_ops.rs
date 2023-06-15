@@ -1,12 +1,10 @@
 use crate::core::edge_ref::EdgeRef;
 use crate::core::vertex_ref::LocalVertexRef;
 use crate::core::Direction;
-use crate::db::view_api::internal::graph_window_ops::GraphWindowOps;
 use crate::db::view_api::internal::time_semantics::TimeSemantics;
-use crate::db::view_api::internal::GraphViewInternalOps;
+use crate::db::view_api::internal::GraphOps;
 use crate::db::view_api::BoxedIter;
 use std::ops::Range;
-
 
 /// Additional methods for returning exploded edge data that are automatically implemented
 pub trait ExplodedEdgeOps {
@@ -58,7 +56,7 @@ pub trait ExplodedEdgeOps {
     fn edge_history_window(&self, e: EdgeRef, w: Range<i64>) -> BoxedIter<i64>;
 }
 
-impl<G: GraphViewInternalOps + TimeSemantics + Clone + 'static> ExplodedEdgeOps for G {
+impl<G: GraphOps + TimeSemantics + Clone + 'static> ExplodedEdgeOps for G {
     fn vertex_edges_t(
         &self,
         v: LocalVertexRef,

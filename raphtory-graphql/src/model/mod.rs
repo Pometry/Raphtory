@@ -5,7 +5,7 @@ use itertools::Itertools;
 use raphtory::core::Prop;
 use raphtory::db::edge::EdgeView;
 use raphtory::db::vertex::VertexView;
-use raphtory::db::view_api::internal::{GraphViewInternalOps, WrappedGraph};
+use raphtory::db::view_api::internal::{BoxableGraphView, WrappedGraph};
 use raphtory::db::view_api::EdgeListOps;
 use raphtory::db::view_api::EdgeViewOps;
 use raphtory::db::view_api::{GraphViewOps, TimeOps, VertexViewOps};
@@ -34,11 +34,11 @@ impl QueryRoot {
 }
 
 #[derive(Clone)]
-pub struct DynamicGraph(Arc<dyn GraphViewInternalOps + Send + Sync + 'static>);
+pub struct DynamicGraph(Arc<dyn BoxableGraphView + Send + Sync + 'static>);
 
 impl WrappedGraph for DynamicGraph {
-    type Internal = dyn GraphViewInternalOps + Send + Sync + 'static;
-    fn graph(&self) -> &(dyn GraphViewInternalOps + Send + Sync + 'static) {
+    type Internal = dyn BoxableGraphView + Send + Sync + 'static;
+    fn graph(&self) -> &(dyn BoxableGraphView + Send + Sync + 'static) {
         &*self.0
     }
 }
@@ -233,7 +233,7 @@ impl Edge {
     }
 
     async fn property(&self, name: String) -> Option<Property> {
-        let prop = self.ee.property(name.clone(), true)?;
+        let prop = self.ee.property(&name, true)?;
         Some(Property::new(name, prop))
     }
 

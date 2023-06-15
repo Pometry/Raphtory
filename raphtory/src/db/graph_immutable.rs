@@ -34,8 +34,6 @@ use std::iter;
 use std::ops::Range;
 use std::sync::Arc;
 
-use super::view_api::internal::GraphViewInternalOps;
-
 /// A raphtory graph in a frozen state that is read-only.
 /// This graph can be queried in a read-only format avoiding any locks placed when using a
 /// non-immutable graph.
@@ -360,7 +358,7 @@ impl CoreGraphOps for ImmutableGraph {
         self.get_shard_from_e(e).temporal_edge_prop_names(e)
     }
 
-    fn num_shards(&self) -> usize {
+    fn num_shards_internal(&self) -> usize {
         self.nr_shards
     }
 }

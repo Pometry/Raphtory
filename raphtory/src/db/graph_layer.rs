@@ -4,22 +4,20 @@ use crate::core::tprop::TProp;
 use crate::core::vertex_ref::{LocalVertexRef, VertexRef};
 use crate::core::{Direction, Prop};
 use crate::db::view_api::internal::time_semantics::{InheritTimeSemantics, TimeSemantics};
-use crate::db::view_api::internal::{
-    CoreGraphOps, GraphOps, GraphViewInternalOps, InheritCoreOps, WrappedGraph,
-};
+use crate::db::view_api::internal::{CoreGraphOps, GraphOps, InheritCoreOps, WrappedGraph};
 use crate::db::view_api::GraphViewOps;
 use itertools::Itertools;
 use std::{collections::HashMap, ops::Range};
 
 #[derive(Debug, Clone)]
-pub struct LayeredGraph<G: GraphViewInternalOps> {
+pub struct LayeredGraph<G: GraphViewOps> {
     /// The underlying `Graph` object.
     pub graph: G,
     /// The layer this graphs points to.
     pub layer: usize,
 }
 
-impl<G: GraphViewInternalOps + TimeSemantics> InheritTimeSemantics for LayeredGraph<G> {
+impl<G: GraphViewOps> InheritTimeSemantics for LayeredGraph<G> {
     type Internal = G;
 
     fn graph(&self) -> &Self::Internal {
@@ -27,7 +25,7 @@ impl<G: GraphViewInternalOps + TimeSemantics> InheritTimeSemantics for LayeredGr
     }
 }
 
-impl<G: GraphViewInternalOps + CoreGraphOps> InheritCoreOps for LayeredGraph<G> {
+impl<G: GraphViewOps> InheritCoreOps for LayeredGraph<G> {
     type Internal = G;
 
     fn graph(&self) -> &Self::Internal {
@@ -35,7 +33,7 @@ impl<G: GraphViewInternalOps + CoreGraphOps> InheritCoreOps for LayeredGraph<G> 
     }
 }
 
-impl<G: GraphViewInternalOps> LayeredGraph<G> {
+impl<G: GraphViewOps> LayeredGraph<G> {
     pub fn new(graph: G, layer: usize) -> Self {
         Self { graph, layer }
     }
@@ -51,7 +49,7 @@ impl<G: GraphViewInternalOps> LayeredGraph<G> {
     }
 }
 
-impl<G: GraphViewInternalOps> GraphOps for LayeredGraph<G> {
+impl<G: GraphViewOps> GraphOps for LayeredGraph<G> {
     fn local_vertex_ref(&self, v: VertexRef) -> Option<LocalVertexRef> {
         self.graph.local_vertex_ref(v)
     }

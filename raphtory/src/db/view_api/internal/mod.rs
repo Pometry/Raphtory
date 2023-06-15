@@ -15,12 +15,30 @@ pub use time_semantics::{InheritTimeSemantics, TimeSemantics};
 pub use wrapped_graph::WrappedGraph;
 
 /// Marker trait to indicate that an object is a valid graph view
-pub trait GraphViewInternalOps:
-    CoreGraphOps + GraphOps + TimeSemantics + Send + Sync + Clone + 'static
+pub trait BoxableGraphView:
+    CoreGraphOps + GraphOps + TimeSemantics + Send + Sync + 'static
 {
 }
 
-impl<G: CoreGraphOps + GraphOps + TimeSemantics + Send + Sync + Clone + 'static + ?Sized>
-    GraphViewInternalOps for G
+impl<G: CoreGraphOps + GraphOps + TimeSemantics + Send + Sync + 'static + ?Sized> BoxableGraphView
+    for G
 {
+}
+
+#[cfg(test)]
+mod test {
+    use crate::db::graph::Graph;
+    use crate::db::view_api::internal::BoxableGraphView;
+    use crate::db::view_api::*;
+    use itertools::Itertools;
+    use std::sync::Arc;
+
+    #[test]
+    fn test_boxing() {
+        // this tests that a boxed graph actually compiles
+        let g = Graph::new(1);
+        g.add_vertex(0, 1, &vec![]).unwrap();
+        let boxed: Arc<dyn BoxableGraphView> = Arc::new(g);
+        assert_eq!(boxed.vertices().id().collect_vec(), vec![1])
+    }
 }

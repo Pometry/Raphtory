@@ -65,7 +65,7 @@ impl PyEdge {
     pub fn property(&self, name: String, include_static: Option<bool>) -> Option<Prop> {
         let include_static = include_static.unwrap_or(true);
         self.edge
-            .property(name, include_static)
+            .property(&name, include_static)
             .map(|prop| prop.into())
     }
 
@@ -81,7 +81,7 @@ impl PyEdge {
     #[pyo3(signature = (name))]
     pub fn property_history(&self, name: String) -> Vec<(i64, Prop)> {
         self.edge
-            .property_history(name)
+            .property_history(&name)
             .into_iter()
             .map(|(k, v)| (k, v.into()))
             .collect()
@@ -150,7 +150,7 @@ impl PyEdge {
     #[pyo3(signature = (name, include_static = true))]
     pub fn has_property(&self, name: String, include_static: Option<bool>) -> bool {
         let include_static = include_static.unwrap_or(true);
-        self.edge.has_property(name, include_static)
+        self.edge.has_property(&name, include_static)
     }
 
     /// Check if a static property exists with the given name.
@@ -161,11 +161,11 @@ impl PyEdge {
     /// Returns:
     ///   True if a static property exists with the given name, False otherwise.
     pub fn has_static_property(&self, name: String) -> bool {
-        self.edge.has_static_property(name)
+        self.edge.has_static_property(&name)
     }
 
     pub fn static_property(&self, name: String) -> Option<Prop> {
-        self.edge.static_property(name).map(|prop| prop.into())
+        self.edge.static_property(&name).map(|prop| prop.into())
     }
 
     /// Get the source vertex of the Edge.
