@@ -25,21 +25,16 @@ use raphtory::algorithms::reciprocity::{
     all_local_reciprocity as all_local_reciprocity_rs, global_reciprocity as global_reciprocity_rs,
 };
 
-/// Local triangle count - calculates the number of triangles (a cycle of length 3) for a node.
-/// It measures the local clustering of a graph.
+/// Local triangle count - calculates the number of triangles (a cycle of length 3) a vertex participates in.
 ///
-/// This is useful for understanding the level of connectivity and the likelihood of information
-/// or influence spreading through a network.
-///
-/// For example, in a social network, the local triangle count of a user's profile can reveal the
-/// number of mutual friends they have and the level of interconnectivity between those friends.
-/// A high local triangle count for a user indicates that they are part of a tightly-knit group
-/// of people, which can be useful for targeted advertising or identifying key influencers
-/// within a network.
-///
-/// Local triangle count can also be used in other domains such as biology, where it can be used
-/// to analyze protein interaction networks, or in transportation networks, where it can be used
-/// to identify critical junctions or potential traffic bottlenecks.
+/// This function returns the number of pairs of neighbours of a given node which are themselves connected.
+/// 
+/// Arguments:
+///     g (Raphtory graph) : Raphtory graph, this can be directed or undirected but will be treated as undirected
+///     v (int or str) : vertex id or name
+/// 
+/// Returns:
+///     triangles(int) : number of triangles associated with vertex v
 ///
 #[pyfunction]
 pub fn local_triangle_count(g: &PyGraphView, v: &PyAny) -> PyResult<Option<usize>> {
@@ -47,6 +42,17 @@ pub fn local_triangle_count(g: &PyGraphView, v: &PyAny) -> PyResult<Option<usize
     Ok(local_triangle_count_rs(&g.graph, v))
 }
 
+/// Weakly connected components -- partitions the graph into node sets which are mutually reachable by an undirected path
+/// 
+/// This function assigns a component id to each vertex such that vertices with the same component id are mutually reachable
+/// by an undirected path.
+/// 
+/// Arguments:
+///     g (Raphtory graph) : Raphtory graph
+///     iter_count (int) : Maximum number of iterations to run. Note that this will terminate early if the labels converge prior to the number of iterations being reached.
+/// 
+/// Returns:
+///     components (dict) : Dictionary with string keys and integer values mapping vertex names to their component ids.
 #[pyfunction]
 pub fn weakly_connected_components(
     g: &PyGraphView,
@@ -57,6 +63,20 @@ pub fn weakly_connected_components(
     ))
 }
 
+/// Pagerank -- pagerank centrality value of the vertices in a graph
+/// 
+/// This function calculates the Pagerank value of each vertex in a graph. See https://en.wikipedia.org/wiki/PageRank for more information on PageRank centrality.
+/// A default damping factor of 0.85 is used. This is an iterative algorithm which terminates if the sum of the absolute difference in pagerank values between iterations
+/// is less than the max diff value given.
+/// 
+/// Arguments:
+///     g (Raphtory graph) : Raphtory graph
+///     iter_count (int) : Maximum number of iterations to run. Note that this will terminate early if conv
+///     max_diff (float) : Optional parameter providing an alternative stopping condition. The algorithm will terminate if the sum of the absolute difference in pagerank values between iterations
+/// is less than the max diff value given.
+/// 
+/// Returns:
+///     components (dict) : Dictionary with string keys and integer values mapping vertex names to their component ids.
 #[pyfunction]
 pub fn pagerank(
     g: &PyGraphView,
@@ -93,16 +113,16 @@ pub fn generic_taint(
     ))
 }
 
-/// Local Clustering coefficient - measures the degree to which nodes in a graph tend to cluster together.
+/// Local clustering coefficient - measures the degree to which nodes in a graph tend to cluster together.
 ///
 /// The proportion of pairs of neighbours of a node who are themselves connected.
 /// 
 /// Arguments:
 ///     g (Raphtory graph) : Raphtory graph, can be directed or undirected but will be treated as undirected.
-///     v (int or str): vertex id
+///     v (int or str): vertex id or name
 /// 
 /// Returns:
-///     cluster (float) : the local clustering coefficient of vertex v in g.
+///     clustering (float) : the local clustering coefficient of vertex v in g.
 #[pyfunction]
 pub fn local_clustering_coefficient(g: &PyGraphView, v: &PyAny) -> PyResult<Option<f32>> {
     let v = utils::extract_vertex_ref(v)?;
@@ -121,31 +141,64 @@ pub fn directed_graph_density(g: &PyGraphView) -> f32 {
     directed_graph_density_rs(&g.graph)
 }
 
-/// The average degree of all vertices in the graph.
+/// The average (undirected) degree of all vertices in the graph.
+/// 
+/// Note that this treats the graph as simple and undirected and is equal to twice 
+/// the number of undirected edges divided by the number of nodes.
+/// 
+/// Arguments:
+///     g (Raphtory graph) : a Raphtory graph
+/// 
+/// Returns:
+///     float : the average degree of the nodes in the graph
 #[pyfunction]
 pub fn average_degree(g: &PyGraphView) -> f64 {
     average_degree_rs(&g.graph)
 }
 
 /// The maximum out degree of any vertex in the graph.
+/// 
+/// Arguments:
+///     g (Raphtory graph) : a directed Raphtory graph
+/// 
+/// Returns: 
+///     int : value of the largest outdegree
 #[pyfunction]
 pub fn max_out_degree(g: &PyGraphView) -> usize {
     max_out_degree_rs(&g.graph)
 }
 
 /// The maximum in degree of any vertex in the graph.
+/// 
+/// Arguments:
+///     g (Raphtory graph) : a directed Raphtory graph
+/// 
+/// Returns: 
+///     int : value of the largest indegree
 #[pyfunction]
 pub fn max_in_degree(g: &PyGraphView) -> usize {
     max_in_degree_rs(&g.graph)
 }
 
 /// The minimum out degree of any vertex in the graph.
+/// 
+/// Arguments:
+///     g (Raphtory graph) : a directed Raphtory graph
+/// 
+/// Returns: 
+///     int : value of the smallest outdegree
 #[pyfunction]
 pub fn min_out_degree(g: &PyGraphView) -> usize {
     min_out_degree_rs(&g.graph)
 }
 
 /// The minimum in degree of any vertex in the graph.
+/// 
+/// Arguments:
+///     g (Raphtory graph) : a directed Raphtory graph
+/// 
+/// Returns: 
+///     int : value of the smallest indegree
 #[pyfunction]
 pub fn min_in_degree(g: &PyGraphView) -> usize {
     min_in_degree_rs(&g.graph)
@@ -154,50 +207,44 @@ pub fn min_in_degree(g: &PyGraphView) -> usize {
 /// Reciprocity - measure of the symmetry of relationships in a graph, the global reciprocity of
 /// the entire graph.
 /// This calculates the number of reciprocal connections (edges that go in both directions) in a
-/// graph and normalizes it by the total number of edges.
+/// graph and normalizes it by the total number of directed edges.
 ///
-/// In a social network context, reciprocity measures the likelihood that if person A is linked
-/// to person B, then person B is linked to person A. This algorithm can be used to determine the
-/// level of symmetry or balance in a social network. It can also reveal the power dynamics in a
-/// group or community. For example, if one person has many connections that are not reciprocated,
-/// it could indicate that this person has more power or influence in the network than others.
-///
-/// In a business context, reciprocity can be used to study customer behavior. For instance, in a
-/// transactional network, if a customer tends to make a purchase from a seller and then the seller
-/// makes a purchase from the same customer, it can indicate a strong reciprocal relationship
-/// between them. On the other hand, if the seller does not make a purchase from the same customer,
-/// it could imply a less reciprocal or more one-sided relationship.
+/// Arguments:
+///     g (Raphtory graph) : a directed Raphtory graph
+/// 
+/// Returns:
+///     float : reciprocity of the graph between 0 and 1.
+
 #[pyfunction]
 pub fn global_reciprocity(g: &PyGraphView) -> f64 {
     global_reciprocity_rs(&g.graph, None)
 }
 
-/// Reciprocity - measure of the symmetry of relationships in a graph.
-/// the reciprocity of every vertex in the graph as a tuple of vector id and the reciprocity
-/// This calculates the number of reciprocal connections (edges that go in both directions) in a
-/// graph and normalizes it by the total number of edges.
-///
-/// In a social network context, reciprocity measures the likelihood that if person A is linked
-/// to person B, then person B is linked to person A. This algorithm can be used to determine the
-/// level of symmetry or balance in a social network. It can also reveal the power dynamics in a
-/// group or community. For example, if one person has many connections that are not reciprocated,
-/// it could indicate that this person has more power or influence in the network than others.
-///
-/// In a business context, reciprocity can be used to study customer behavior. For instance, in a
-/// transactional network, if a customer tends to make a purchase from a seller and then the seller
-/// makes a purchase from the same customer, it can indicate a strong reciprocal relationship
-/// between them. On the other hand, if the seller does not make a purchase from the same customer,
-/// it could imply a less reciprocal or more one-sided relationship.
+/// Local reciprocity - measure of the symmetry of relationships associated with a vertex
+/// 
+/// This measures the proportion of a vertex's outgoing edges which are reciprocated with an incoming edge.
+/// 
+/// Arguments:
+///     g (Raphtory graph) : a directed Raphtory graph
+/// 
+/// Returns:
+///     dict : a dictionary with string keys and float values mapping each vertex name to its reciprocity value.
 ///
 #[pyfunction]
 pub fn all_local_reciprocity(g: &PyGraphView) -> HashMap<String, f64> {
     all_local_reciprocity_rs(&g.graph, None)
 }
 
-/// Computes the number of both open and closed triplets within a graph
+/// Computes the number of connected triplets within a graph
 ///
-/// An open triplet, is one where a node has two neighbors, but no edge between them.
-/// A closed triplet is one where a node has two neighbors, and an edge between them.
+/// A connected triplet (also known as a wedge, 2-hop path) is a pair of edges with one node in common. For example, the triangle made up of edges
+/// A-B, B-C, C-A is formed of three connected triplets.
+/// 
+/// Arguments:
+///     g (Raphtory graph) : a Raphtory graph, treated as undirected
+/// 
+/// Returns:
+///     int : the number of triplets in the graph
 #[pyfunction]
 pub fn triplet_count(g: &PyGraphView) -> usize {
     raphtory::algorithms::triplet_count::triplet_count(&g.graph, None)
@@ -205,10 +252,22 @@ pub fn triplet_count(g: &PyGraphView) -> usize {
 
 /// Computes the global clustering coefficient of a graph. The global clustering coefficient is
 /// defined as the number of triangles in the graph divided by the number of triplets in the graph.
+/// 
+/// Note that this is also known as transitivity and is different to the average clustering coefficient.
+/// 
+/// Arguments:
+///     g (Raphtory graph) : a Raphtory graph, treated as undirected
+/// 
+/// Returns:
+///     float : the global clustering coefficient of the graph
+/// 
+/// See also:
+///     [`Triplet Count`](triplet_count)
 #[pyfunction]
 pub fn global_clustering_coefficient(g: &PyGraphView) -> f64 {
     raphtory::algorithms::clustering_coefficient::clustering_coefficient(&g.graph)
 }
+
 
 #[pyfunction]
 pub fn global_temporal_three_node_motif(g: &PyGraphView, delta: i64) -> Vec<usize> {
