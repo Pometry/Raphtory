@@ -64,9 +64,9 @@ impl<G: GraphViewOps> EdgeViewOps for EdgeView<G> {
             Some(_) => Box::new(iter::once(ev)),
             None => {
                 let e = self.edge;
-                let ts = self.graph.edge_history(e);
+                let ex_iter = self.graph.edge_t(e);
                 // FIXME: use duration
-                Box::new(ts.map(move |(t, duration)| ev.new_edge(e.at(t))))
+                Box::new(ex_iter.map(move |ex| ev.new_edge(ex)))
             }
         }
     }
@@ -125,11 +125,11 @@ impl<G: GraphViewOps> EdgeListOps for BoxedIter<EdgeView<G>> {
     type IterType<T> = Box<dyn Iterator<Item = T> + Send>;
 
     fn has_property(self, name: String, include_static: bool) -> BoxedIter<bool> {
-        Box::new(self.map(move |e| e.has_property(name.clone(), include_static)))
+        Box::new(self.map(move |e| e.has_property(&name, include_static)))
     }
 
     fn property(self, name: String, include_static: bool) -> BoxedIter<Option<Prop>> {
-        Box::new(self.map(move |e| e.property(name.clone(), include_static)))
+        Box::new(self.map(move |e| e.property(&name, include_static)))
     }
 
     fn properties(self, include_static: bool) -> BoxedIter<HashMap<String, Prop>> {
@@ -141,15 +141,15 @@ impl<G: GraphViewOps> EdgeListOps for BoxedIter<EdgeView<G>> {
     }
 
     fn has_static_property(self, name: String) -> BoxedIter<bool> {
-        Box::new(self.map(move |e| e.has_static_property(name.clone())))
+        Box::new(self.map(move |e| e.has_static_property(&name)))
     }
 
     fn static_property(self, name: String) -> BoxedIter<Option<Prop>> {
-        Box::new(self.map(move |e| e.static_property(name.clone())))
+        Box::new(self.map(move |e| e.static_property(&name)))
     }
 
     fn property_history(self, name: String) -> BoxedIter<Vec<(i64, Prop)>> {
-        Box::new(self.map(move |e| e.property_history(name.clone())))
+        Box::new(self.map(move |e| e.property_history(&name)))
     }
 
     fn property_histories(self) -> BoxedIter<HashMap<String, Vec<(i64, Prop)>>> {
@@ -198,7 +198,7 @@ impl<G: GraphViewOps> EdgeListOps for BoxedIter<BoxedIter<EdgeView<G>>> {
         Box::new(self.map(move |it| {
             let name = name.clone();
             let iter: Self::ValueType<bool> =
-                Box::new(it.map(move |e| e.has_property(name.clone(), include_static)));
+                Box::new(it.map(move |e| e.has_property(&name, include_static)));
             iter
         }))
     }

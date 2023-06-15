@@ -16,12 +16,12 @@
 
 use crate::core::edge_ref::EdgeRef;
 use crate::core::tgraph::TemporalGraph;
-use crate::core::tgraph_shard::ImmutableTGraphShard;
-use crate::core::timeindex::TimeIndex;
+use crate::core::tgraph_shard::{ImmutableTGraphShard, LockedView};
+use crate::core::timeindex::{TimeIndex, TimeIndexOps};
 use crate::core::tprop::TProp;
 use crate::core::vertex_ref::{LocalVertexRef, VertexRef};
-use crate::core::Direction;
 use crate::core::{utils, Prop};
+use crate::core::{Direction, PropUnwrap};
 use crate::db::graph::Graph;
 use crate::db::view_api::internal::time_semantics::TimeSemantics;
 use crate::db::view_api::internal::CoreGraphOps;
@@ -286,23 +286,45 @@ impl ImmutableGraph {
 }
 
 impl CoreGraphOps for ImmutableGraph {
-    fn edge_additions(&self, eref: EdgeRef) -> &TimeIndex {
-        todo!()
+    fn get_layer_name_by_id(&self, layer_id: usize) -> String {
+        self.layer_ids
+            .iter()
+            .find_map(|(name, &id)| (layer_id == id).then_some(name))
+            .expect(&format!("layer id '{layer_id}' doesn't exist"))
+            .to_string()
+    }
+    fn vertex_id(&self, v: LocalVertexRef) -> u64 {
+        self.shards[v.shard_id].vertex_id(v)
+    }
+    fn vertex_name(&self, v: LocalVertexRef) -> String {
+        self.static_vertex_prop(v, "_id")
+            .into_str()
+            .unwrap_or(self.vertex_id(v).to_string())
     }
 
-    fn edge_deletions(&self, eref: EdgeRef) -> &TimeIndex {
-        todo!()
+    fn edge_additions(&self, eref: EdgeRef) -> LockedView<TimeIndex> {
+        LockedView::Frozen(self.get_shard_from_e(eref).rc.edge_additions(eref))
     }
 
-    fn vertex_additions(&self, v: LocalVertexRef) -> &TimeIndex {
-        todo!()
+    fn edge_deletions(&self, eref: EdgeRef) -> LockedView<TimeIndex> {
+        LockedView::Frozen(self.get_shard_from_e(eref).rc.edge_deletions(eref))
+    }
+
+    fn vertex_additions(&self, v: LocalVertexRef) -> LockedView<TimeIndex> {
+        LockedView::Frozen(self.get_shard_from_local_v(v).rc.vertex_additions(v))
     }
 
     fn localise_vertex_unchecked(&self, v: VertexRef) -> LocalVertexRef {
-        todo!()
+        match v {
+            VertexRef::Local(v) => v,
+            vref @ VertexRef::Remote(id) => self
+                .get_shard_from_id(id)
+                .local_vertex(vref)
+                .expect("vertex should exist"),
+        }
     }
 
-    fn static_vertex_prop(&self, v: LocalVertexRef, name: String) -> Option<crate::core::Prop> {
+    fn static_vertex_prop(&self, v: LocalVertexRef, name: &str) -> Option<crate::core::Prop> {
         self.get_shard_from_local_v(v).static_vertex_prop(v, name)
     }
 
@@ -310,15 +332,19 @@ impl CoreGraphOps for ImmutableGraph {
         self.get_shard_from_local_v(v).static_vertex_prop_names(v)
     }
 
-    fn temporal_vertex_prop(&self, v: LocalVertexRef, name: String) -> Option<&TProp> {
-        todo!()
+    fn temporal_vertex_prop(&self, v: LocalVertexRef, name: &str) -> Option<LockedView<TProp>> {
+        let res = self
+            .get_shard_from_local_v(v)
+            .read_shard(|tg| tg.temporal_vertex_prop(v, name))
+            .map(|props| LockedView::Frozen(props));
+        res
     }
 
     fn temporal_vertex_prop_names(&self, v: LocalVertexRef) -> Vec<String> {
         self.get_shard_from_local_v(v).temporal_vertex_prop_names(v)
     }
 
-    fn static_edge_prop(&self, e: EdgeRef, name: String) -> Option<crate::core::Prop> {
+    fn static_edge_prop(&self, e: EdgeRef, name: &str) -> Option<crate::core::Prop> {
         self.get_shard_from_e(e).static_edge_prop(e, name)
     }
 
@@ -326,8 +352,8 @@ impl CoreGraphOps for ImmutableGraph {
         self.get_shard_from_e(e).static_edge_prop_names(e)
     }
 
-    fn temporal_edge_prop(&self, e: EdgeRef, name: String) -> Option<&TProp> {
-        todo!()
+    fn temporal_edge_prop(&self, e: EdgeRef, name: &str) -> Option<LockedView<TProp>> {
+        self.get_shard_from_e(e).temporal_edge_prop(e, name)
     }
 
     fn temporal_edge_prop_names(&self, e: EdgeRef) -> Vec<String> {
@@ -348,14 +374,6 @@ impl GraphViewInternalOps for ImmutableGraph {
         let a = iter::once(0);
         let b = self.layer_ids.values().copied();
         a.chain(b).collect_vec()
-    }
-
-    fn get_layer_name_by_id(&self, layer_id: usize) -> String {
-        self.layer_ids
-            .iter()
-            .find_map(|(name, &id)| (layer_id == id).then_some(name))
-            .expect(&format!("layer id '{layer_id}' doesn't exist"))
-            .to_string()
     }
 
     fn get_layer_id(&self, key: Option<&str>) -> Option<usize> {
@@ -393,10 +411,6 @@ impl GraphViewInternalOps for ImmutableGraph {
 
     fn vertex_ref(&self, v: u64) -> Option<LocalVertexRef> {
         self.get_shard_from_id(v).vertex(v)
-    }
-
-    fn vertex_id(&self, v: LocalVertexRef) -> u64 {
-        self.shards[v.shard_id].vertex_id(v)
     }
 
     fn vertex_refs(&self) -> Box<dyn Iterator<Item = LocalVertexRef> + Send> {
@@ -449,6 +463,14 @@ impl GraphViewInternalOps for ImmutableGraph {
 }
 
 impl TimeSemantics for ImmutableGraph {
+    fn vertex_earliest_time(&self, v: LocalVertexRef) -> Option<i64> {
+        self.vertex_additions(v).first()
+    }
+
+    fn vertex_latest_time(&self, v: LocalVertexRef) -> Option<i64> {
+        self.vertex_additions(v).last()
+    }
+
     fn view_start(&self) -> Option<i64> {
         self.earliest_time_global()
     }
@@ -467,20 +489,16 @@ impl TimeSemantics for ImmutableGraph {
         max_from_shards.filter(|&max| max != i64::MIN)
     }
 
-    fn vertex_earliest_time(&self, v: LocalVertexRef) -> Option<i64> {
-        self.get_shard_from_local_v(v).vertex_earliest_time(v)
-    }
-
-    fn vertex_latest_time(&self, v: LocalVertexRef) -> Option<i64> {
-        self.get_shard_from_local_v(v).vertex_latest_time(v)
-    }
-
     fn earliest_time_window(&self, t_start: i64, t_end: i64) -> Option<i64> {
-        todo!()
+        self.vertex_refs()
+            .flat_map(|v| self.vertex_additions(v).range(t_start..t_end).first())
+            .min()
     }
 
     fn latest_time_window(&self, t_start: i64, t_end: i64) -> Option<i64> {
-        todo!()
+        self.vertex_refs()
+            .flat_map(|v| self.vertex_additions(v).range(t_start..t_end).last())
+            .max()
     }
 
     fn vertex_earliest_time_window(
@@ -489,7 +507,7 @@ impl TimeSemantics for ImmutableGraph {
         t_start: i64,
         t_end: i64,
     ) -> Option<i64> {
-        todo!()
+        self.vertex_additions(v).range(t_start..t_end).first()
     }
 
     fn vertex_latest_time_window(
@@ -498,58 +516,99 @@ impl TimeSemantics for ImmutableGraph {
         t_start: i64,
         t_end: i64,
     ) -> Option<i64> {
-        todo!()
+        self.vertex_additions(v).range(t_start..t_end).last()
     }
 
     fn include_vertex_window(&self, v: LocalVertexRef, w: Range<i64>) -> bool {
-        todo!()
+        self.vertex_additions(v).active(w)
     }
 
     fn include_edge_window(&self, e: EdgeRef, w: Range<i64>) -> bool {
-        todo!()
+        self.edge_additions(e).active(w)
     }
 
-    fn vertex_history(&self, v: LocalVertexRef) -> BoxedIter<i64> {
-        todo!()
+    fn vertex_history(&self, v: LocalVertexRef) -> Vec<i64> {
+        self.vertex_additions(v).iter().copied().collect()
     }
 
-    fn vertex_history_window(&self, v: LocalVertexRef, w: Range<i64>) -> BoxedIter<i64> {
-        todo!()
+    fn vertex_history_window(&self, v: LocalVertexRef, w: Range<i64>) -> Vec<i64> {
+        self.vertex_additions(v).range(w).iter().copied().collect()
     }
 
-    fn edge_history(&self, e: EdgeRef) -> BoxedIter<(i64, i64)> {
-        todo!()
+    fn edge_t(&self, e: EdgeRef) -> BoxedIter<EdgeRef> {
+        Box::new(
+            self.edge_additions(e)
+                .iter()
+                .map(|t| e.at(*t))
+                .collect::<Vec<_>>()
+                .into_iter(),
+        )
     }
 
-    fn edge_history_window(&self, e: EdgeRef, w: Range<i64>) -> BoxedIter<(i64, i64)> {
-        todo!()
+    fn edge_window_t(&self, e: EdgeRef, w: Range<i64>) -> BoxedIter<EdgeRef> {
+        Box::new(
+            self.edge_additions(e)
+                .range(w)
+                .iter()
+                .map(|t| e.at(*t))
+                .collect::<Vec<_>>()
+                .into_iter(),
+        )
     }
 
-    fn temporal_vertex_prop_vec(&self, v: LocalVertexRef, name: String) -> Vec<(i64, Prop)> {
-        todo!()
+    fn edge_earliest_time(&self, e: EdgeRef) -> Option<i64> {
+        self.edge_additions(e).first()
+    }
+
+    fn edge_earliest_time_window(&self, e: EdgeRef, w: Range<i64>) -> Option<i64> {
+        self.edge_additions(e).range(w).first()
+    }
+
+    fn edge_latest_time(&self, e: EdgeRef) -> Option<i64> {
+        self.edge_additions(e).last()
+    }
+
+    fn edge_latest_time_window(&self, e: EdgeRef, w: Range<i64>) -> Option<i64> {
+        self.edge_additions(e).range(w).last()
+    }
+
+    fn temporal_vertex_prop_vec(&self, v: LocalVertexRef, name: &str) -> Vec<(i64, Prop)> {
+        self.temporal_vertex_prop(v, name)
+            .iter()
+            .flat_map(|p| p.iter())
+            .collect()
     }
 
     fn temporal_vertex_prop_vec_window(
         &self,
         v: LocalVertexRef,
-        name: String,
+        name: &str,
         t_start: i64,
         t_end: i64,
     ) -> Vec<(i64, Prop)> {
-        todo!()
+        self.temporal_vertex_prop(v, name)
+            .iter()
+            .flat_map(|p| p.iter_window(t_start..t_end))
+            .collect()
     }
 
     fn temporal_edge_prop_vec_window(
         &self,
         e: EdgeRef,
-        name: String,
+        name: &str,
         t_start: i64,
         t_end: i64,
     ) -> Vec<(i64, Prop)> {
-        todo!()
+        self.temporal_edge_prop(e, name)
+            .iter()
+            .flat_map(|p| p.iter_window(t_start..t_end))
+            .collect()
     }
 
-    fn temporal_edge_prop_vec(&self, e: EdgeRef, name: String) -> Vec<(i64, Prop)> {
-        todo!()
+    fn temporal_edge_prop_vec(&self, e: EdgeRef, name: &str) -> Vec<(i64, Prop)> {
+        self.temporal_edge_prop(e, name)
+            .iter()
+            .flat_map(|p| p.iter())
+            .collect()
     }
 }

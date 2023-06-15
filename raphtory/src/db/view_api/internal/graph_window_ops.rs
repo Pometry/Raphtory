@@ -204,7 +204,9 @@ pub trait GraphWindowOps: GraphViewInternalOps {
     ) -> Box<dyn Iterator<Item = VertexRef> + Send>;
 }
 
-impl<G: GraphViewInternalOps + TimeSemantics> GraphWindowOps for G {
+impl<G: GraphViewInternalOps + TimeSemantics + CoreGraphOps + Clone + 'static> GraphWindowOps
+    for G
+{
     fn local_vertex_ref_window(
         &self,
         v: VertexRef,
@@ -220,9 +222,7 @@ impl<G: GraphViewInternalOps + TimeSemantics> GraphWindowOps for G {
     }
 
     fn edges_len_window(&self, t_start: i64, t_end: i64, layer: Option<usize>) -> usize {
-        self.vertex_refs_window(t_start, t_end)
-            .map(|v| self.degree_window(v, t_start, t_end, Direction::OUT, layer))
-            .sum()
+        self.edge_refs_window(t_start, t_end, layer).count()
     }
 
     fn has_edge_ref_window(
@@ -261,9 +261,10 @@ impl<G: GraphViewInternalOps + TimeSemantics> GraphWindowOps for G {
         t_start: i64,
         t_end: i64,
     ) -> Box<dyn Iterator<Item = LocalVertexRef> + Send> {
+        let g = self.clone();
         Box::new(
             self.vertex_refs()
-                .filter(|&v| self.include_vertex_window(v, t_start..t_end)),
+                .filter(move |&v| g.include_vertex_window(v, t_start..t_end)),
         )
     }
 
@@ -273,9 +274,10 @@ impl<G: GraphViewInternalOps + TimeSemantics> GraphWindowOps for G {
         t_start: i64,
         t_end: i64,
     ) -> Box<dyn Iterator<Item = LocalVertexRef> + Send> {
+        let g = self.clone();
         Box::new(
             self.vertex_refs_shard(shard)
-                .filter(|&v| self.include_vertex_window(v, t_start..t_end)),
+                .filter(move |&v| g.include_vertex_window(v, t_start..t_end)),
         )
     }
 
@@ -297,9 +299,10 @@ impl<G: GraphViewInternalOps + TimeSemantics> GraphWindowOps for G {
         t_end: i64,
         layer: Option<usize>,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
+        let g = self.clone();
         Box::new(
             self.edge_refs(layer)
-                .filter(|&e| self.include_edge_window(e, t_start..t_end)),
+                .filter(move |&e| g.include_edge_window(e, t_start..t_end)),
         )
     }
 
@@ -311,9 +314,10 @@ impl<G: GraphViewInternalOps + TimeSemantics> GraphWindowOps for G {
         d: Direction,
         layer: Option<usize>,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
+        let g = self.clone();
         Box::new(
             self.vertex_edges(v, d, layer)
-                .filter(|&e| self.include_edge_window(e, t_start..t_end)),
+                .filter(move |&e| g.include_edge_window(e, t_start..t_end)),
         )
     }
 
@@ -325,8 +329,9 @@ impl<G: GraphViewInternalOps + TimeSemantics> GraphWindowOps for G {
         d: Direction,
         layer: Option<usize>,
     ) -> Box<dyn Iterator<Item = VertexRef> + Send> {
-        Box::new(self.neighbours(v, d, layer).filter(|&v| {
-            self.include_vertex_window(self.localise_vertex_unchecked(v), t_start..t_end)
+        let g = self.clone();
+        Box::new(self.neighbours(v, d, layer).filter(move |&v| {
+            g.include_vertex_window(g.localise_vertex_unchecked(v), t_start..t_end)
         }))
     }
 }

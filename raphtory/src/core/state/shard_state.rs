@@ -1,4 +1,5 @@
 use super::{accumulator_id::AccId, compute_state::ComputeState, StateType};
+use crate::db::view_api::GraphViewOps;
 use crate::{core::agg::Accumulator, db::view_api::internal::GraphViewInternalOps};
 use rustc_hash::FxHashMap;
 use std::collections::HashMap;
@@ -45,7 +46,7 @@ impl<CS: ComputeState + Send + Clone> ShardComputeState<CS> {
         }
     }
 
-    pub fn read_vec<A, IN, OUT, ACC: Accumulator<A, IN, OUT>, G: GraphViewInternalOps>(
+    pub fn read_vec<A, IN, OUT, ACC: Accumulator<A, IN, OUT>, G: GraphViewOps>(
         &self,
         ss: usize,
         agg_ref: &AccId<A, IN, OUT, ACC>,
@@ -155,7 +156,7 @@ impl<CS: ComputeState + Send + Clone> ShardComputeState<CS> {
 }
 
 impl<CS: ComputeState + Send> ShardComputeState<CS> {
-    pub fn finalize<A, IN, OUT, ACC: Accumulator<A, IN, OUT>, G: GraphViewInternalOps>(
+    pub fn finalize<A, IN, OUT, ACC: Accumulator<A, IN, OUT>, G: GraphViewOps>(
         &self,
         ss: usize,
         agg_ref: &AccId<A, IN, OUT, ACC>,

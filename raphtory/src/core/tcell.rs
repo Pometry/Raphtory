@@ -7,7 +7,7 @@ use crate::core::sorted_vec_map::SVM;
 #[derive(Debug, PartialEq, Default, Clone, Serialize, Deserialize)]
 
 // TCells represent a value in time that can be set at multiple times and keeps a history
-pub(crate) enum TCell<A: Clone + Default + Debug + PartialEq> {
+pub enum TCell<A: Clone + Default + Debug + PartialEq> {
     #[default]
     Empty,
     TCell1(i64, A),

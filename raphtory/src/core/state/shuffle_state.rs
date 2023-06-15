@@ -279,7 +279,7 @@ impl<CS: ComputeState + Send + Sync> ShuffleComputeState<CS> {
             .read::<A, IN, OUT, ACC>(GLOBAL_STATE_KEY, agg_ref.id(), ss)
     }
 
-    pub fn read_vec_partition<A, IN, OUT, ACC: Accumulator<A, IN, OUT>, G: GraphViewInternalOps>(
+    pub fn read_vec_partition<A, IN, OUT, ACC: Accumulator<A, IN, OUT>, G: GraphViewOps>(
         &self,
         ss: usize,
         agg_def: &AccId<A, IN, OUT, ACC>,

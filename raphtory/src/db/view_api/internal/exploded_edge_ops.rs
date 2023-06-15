@@ -8,10 +8,6 @@ use crate::db::view_api::BoxedIter;
 use std::ops::Range;
 
 pub trait ExplodedEdgeOps {
-    fn edge_t(&self, e: EdgeRef) -> BoxedIter<EdgeRef>;
-
-    fn edge_window_t(&self, e: EdgeRef, w: Range<i64>) -> BoxedIter<EdgeRef>;
-
     /// Returns an iterator over the exploded edges connected to a given vertex in a given direction.
     ///
     /// # Arguments
@@ -52,17 +48,15 @@ pub trait ExplodedEdgeOps {
         d: Direction,
         layer: Option<usize>,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send>;
+
+    /// Get the activation timestamps for an edge `e`
+    fn edge_history(&self, e: EdgeRef) -> BoxedIter<i64>;
+
+    /// Get the activation timestamps for an edge `e` in window `w`
+    fn edge_history_window(&self, e: EdgeRef, w: Range<i64>) -> BoxedIter<i64>;
 }
 
-impl<G: GraphViewInternalOps> ExplodedEdgeOps for G {
-    fn edge_t(&self, e: EdgeRef) -> BoxedIter<EdgeRef> {
-        Box::new(self.edge_history(e).map(|(t, d)| e.at(t)))
-    }
-
-    fn edge_window_t(&self, e: EdgeRef, w: Range<i64>) -> BoxedIter<EdgeRef> {
-        Box::new(self.edge_history_window(e, w).map(|(t, d)| e.at(t)))
-    }
-
+impl<G: GraphViewInternalOps + TimeSemantics + Clone + 'static> ExplodedEdgeOps for G {
     fn vertex_edges_t(
         &self,
         v: LocalVertexRef,
@@ -70,7 +64,11 @@ impl<G: GraphViewInternalOps> ExplodedEdgeOps for G {
         layer: Option<usize>,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
         {
-            Box::new(self.vertex_edges(v, d, layer).flat_map(|e| self.edge_t(e)))
+            let g = self.clone();
+            Box::new(
+                self.vertex_edges(v, d, layer)
+                    .flat_map(move |e| g.edge_t(e)),
+            )
         }
     }
 
@@ -82,9 +80,21 @@ impl<G: GraphViewInternalOps> ExplodedEdgeOps for G {
         d: Direction,
         layer: Option<usize>,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
-        Box::new(self.vertex_edges(v, d, layer).flat_map(|e| {
-            self.edge_history_window(e, t_start..t_end)
-                .map(|(t, d)| e.at(t))
-        }))
+        let g = self.clone();
+        Box::new(
+            self.vertex_edges(v, d, layer)
+                .flat_map(move |e| g.edge_window_t(e, t_start..t_end)),
+        )
+    }
+
+    fn edge_history(&self, e: EdgeRef) -> BoxedIter<i64> {
+        Box::new(self.edge_t(e).map(|e| e.time().expect("exploded")))
+    }
+
+    fn edge_history_window(&self, e: EdgeRef, w: Range<i64>) -> BoxedIter<i64> {
+        Box::new(
+            self.edge_window_t(e, w)
+                .map(|e| e.time().expect("exploded")),
+        )
     }
 }

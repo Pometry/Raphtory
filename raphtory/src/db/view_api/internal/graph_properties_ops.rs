@@ -2,7 +2,7 @@ use crate::core::edge_ref::EdgeRef;
 use crate::core::vertex_ref::LocalVertexRef;
 use crate::core::Prop;
 use crate::db::view_api::internal::time_semantics::TimeSemantics;
-use crate::db::view_api::internal::GraphViewInternalOps;
+use crate::db::view_api::internal::{CoreGraphOps, GraphViewInternalOps};
 use std::collections::HashMap;
 
 pub trait GraphPropertiesOps {
@@ -74,11 +74,11 @@ pub trait GraphPropertiesOps {
     ) -> HashMap<String, Vec<(i64, Prop)>>;
 }
 
-impl<G: GraphViewInternalOps + TimeSemantics> GraphPropertiesOps for G {
+impl<G: GraphViewInternalOps + TimeSemantics + CoreGraphOps> GraphPropertiesOps for G {
     fn temporal_edge_props(&self, e: EdgeRef) -> HashMap<String, Vec<(i64, Prop)>> {
         let mut map = HashMap::default();
         for name in self.temporal_edge_prop_names(e) {
-            map.insert(name, self.temporal_edge_prop_vec(e, name.clone()));
+            map.insert(name.clone(), self.temporal_edge_prop_vec(e, &name));
         }
         map
     }
@@ -86,7 +86,7 @@ impl<G: GraphViewInternalOps + TimeSemantics> GraphPropertiesOps for G {
     fn temporal_vertex_props(&self, v: LocalVertexRef) -> HashMap<String, Vec<(i64, Prop)>> {
         let mut map = HashMap::default();
         for name in self.temporal_vertex_prop_names(v) {
-            map.insert(name, self.temporal_vertex_prop_vec(v, name.clone()));
+            map.insert(name.clone(), self.temporal_vertex_prop_vec(v, &name));
         }
         map
     }
@@ -100,8 +100,8 @@ impl<G: GraphViewInternalOps + TimeSemantics> GraphPropertiesOps for G {
         let mut map = HashMap::default();
         for name in self.temporal_vertex_prop_names(v) {
             map.insert(
-                name,
-                self.temporal_vertex_prop_vec_window(v, name.clone(), t_start, t_end),
+                name.clone(),
+                self.temporal_vertex_prop_vec_window(v, &name, t_start, t_end),
             );
         }
         map
@@ -116,8 +116,8 @@ impl<G: GraphViewInternalOps + TimeSemantics> GraphPropertiesOps for G {
         let mut map = HashMap::default();
         for name in self.temporal_edge_prop_names(e) {
             map.insert(
-                name,
-                self.temporal_edge_prop_vec_window(e, name.clone(), t_start, t_end),
+                name.clone(),
+                self.temporal_edge_prop_vec_window(e, &name, t_start, t_end),
             );
         }
         map

@@ -1,13 +1,18 @@
+use itertools::Itertools;
 use std::{cell::RefCell, collections::HashMap, marker::PhantomData, rc::Rc};
 
+use crate::db::view_api::internal::{GraphPropertiesOps, GraphWindowOps, TimeSemantics};
 use crate::{
     core::{
-        state::{compute_state::ComputeState, StateType, accumulator_id::AccId}, time::IntoTime, vertex_ref::LocalVertexRef, Direction,
-        Prop, agg::Accumulator,
+        agg::Accumulator,
+        state::{accumulator_id::AccId, compute_state::ComputeState, StateType},
+        time::IntoTime,
+        vertex_ref::LocalVertexRef,
+        Direction, Prop,
     },
     db::{
         path::{Operations, PathFromVertex},
-        view_api::{GraphViewOps, TimeOps, VertexViewOps, VertexListOps},
+        view_api::{GraphViewOps, TimeOps, VertexListOps, VertexViewOps},
     },
 };
 
@@ -25,7 +30,6 @@ pub struct WindowEvalVertex<'a, G: GraphViewOps, CS: ComputeState, S: 'static> {
 }
 
 impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> WindowEvalVertex<'a, G, CS, S> {
-
     fn pid(&self) -> usize {
         self.vertex.pid
     }
@@ -124,7 +128,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
         match props.last() {
             None => {
                 if include_static {
-                    self.graph.static_vertex_prop(self.vertex, name)
+                    self.graph.static_vertex_prop(self.vertex, &name)
                 } else {
                     None
                 }
@@ -135,12 +139,12 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
 
     fn history(&self) -> Self::ValueType<Vec<i64>> {
         self.graph
-            .vertex_timestamps_window(self.vertex, self.t_start, self.t_end)
+            .vertex_history_window(self.vertex, self.t_start..self.t_end)
     }
 
     fn property_history(&self, name: String) -> Self::ValueType<Vec<(i64, crate::core::Prop)>> {
         self.graph
-            .temporal_vertex_prop_vec_window(self.vertex, name, self.t_start, self.t_end)
+            .temporal_vertex_prop_vec_window(self.vertex, &name, self.t_start, self.t_end)
     }
 
     fn properties(
@@ -155,10 +159,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
 
         if include_static {
             for prop_name in self.graph.static_vertex_prop_names(self.vertex) {
-                if let Some(prop) = self
-                    .graph
-                    .static_vertex_prop(self.vertex, prop_name.clone())
-                {
+                if let Some(prop) = self.graph.static_vertex_prop(self.vertex, &prop_name) {
                     props.insert(prop_name, prop);
                 }
             }
@@ -193,11 +194,11 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
     fn has_static_property(&self, name: String) -> Self::ValueType<bool> {
         self.graph
             .static_vertex_prop_names(self.vertex)
-            .contains(&name)
+            .contains(&name.to_owned())
     }
 
     fn static_property(&self, name: String) -> Self::ValueType<Option<crate::core::Prop>> {
-        self.graph.static_vertex_prop(self.vertex, name)
+        self.graph.static_vertex_prop(self.vertex, &name)
     }
 
     fn degree(&self) -> Self::ValueType<usize> {
@@ -228,7 +229,17 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
         Box::new(
             self.graph
                 .vertex_edges_window(self.vertex, self.t_start, self.t_end, Direction::BOTH, None)
-                .map(move |e| WindowEvalEdgeView::new(ss, e, graph, local, vertex_state.clone(), t_start, t_end)),
+                .map(move |e| {
+                    WindowEvalEdgeView::new(
+                        ss,
+                        e,
+                        graph,
+                        local,
+                        vertex_state.clone(),
+                        t_start,
+                        t_end,
+                    )
+                }),
         )
     }
 
@@ -242,7 +253,17 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
         Box::new(
             self.graph
                 .vertex_edges_window(self.vertex, self.t_start, self.t_end, Direction::IN, None)
-                .map(move |e|  WindowEvalEdgeView::new(ss, e, graph, local, vertex_state.clone(), t_start, t_end)),
+                .map(move |e| {
+                    WindowEvalEdgeView::new(
+                        ss,
+                        e,
+                        graph,
+                        local,
+                        vertex_state.clone(),
+                        t_start,
+                        t_end,
+                    )
+                }),
         )
     }
 
@@ -256,7 +277,17 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
         Box::new(
             self.graph
                 .vertex_edges_window(self.vertex, self.t_start, self.t_end, Direction::OUT, None)
-                .map(move |e|  WindowEvalEdgeView::new(ss, e, graph, local, vertex_state.clone(), t_start, t_end)),
+                .map(move |e| {
+                    WindowEvalEdgeView::new(
+                        ss,
+                        e,
+                        graph,
+                        local,
+                        vertex_state.clone(),
+                        t_start,
+                        t_end,
+                    )
+                }),
         )
     }
 
@@ -383,7 +414,15 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> WindowEvalPathFromVertex
                 g.vertex_edges_window(local_ref, t_start, t_end, dir, None)
             })
             .map(move |e_ref| {
-                WindowEvalEdgeView::new(ss, e_ref, g, local_state_prev, vertex_state.clone(), t_start, t_end)
+                WindowEvalEdgeView::new(
+                    ss,
+                    e_ref,
+                    g,
+                    local_state_prev,
+                    vertex_state.clone(),
+                    t_start,
+                    t_end,
+                )
             });
 
         Box::new(iter)
@@ -467,11 +506,11 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
 
         let iter = self.path.iter_refs().map(move |v_ref| {
             let local_ref = g.localise_vertex_unchecked(v_ref);
-            let props = g.temporal_vertex_prop_vec_window(local_ref, name.clone(), t_start, t_end);
+            let props = g.temporal_vertex_prop_vec_window(local_ref, &name, t_start, t_end);
             match props.last() {
                 None => {
                     if include_static {
-                        g.static_vertex_prop(local_ref, name.clone())
+                        g.static_vertex_prop(local_ref, &name)
                     } else {
                         None
                     }
@@ -489,7 +528,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
 
         let iter = self.path.iter_refs().map(move |v_ref| {
             let local_ref = g.localise_vertex_unchecked(v_ref);
-            g.vertex_timestamps_window(local_ref, t_start, t_end)
+            g.vertex_history_window(local_ref, t_start..t_end)
         });
 
         Box::new(iter)
@@ -502,7 +541,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
 
         let iter = self.path.iter_refs().map(move |v_ref| {
             let local_ref = g.localise_vertex_unchecked(v_ref);
-            g.temporal_vertex_prop_vec_window(local_ref, name.clone(), t_start, t_end)
+            g.temporal_vertex_prop_vec_window(local_ref, &name, t_start, t_end)
         });
 
         Box::new(iter)
@@ -517,7 +556,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
 
     fn property_histories(
         &self,
-    ) -> Self::ValueType<std::collections::HashMap<String, Vec<(i64, crate::core::Prop)>>> {
+    ) -> Self::ValueType<std::collections::HashMap<String, Vec<(i64, Prop)>>> {
         let g = self.g;
         let t_start = self.t_start;
         let t_end = self.t_end;
@@ -540,10 +579,12 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
         let t_end = self.t_end;
         let iter = self.path.iter_refs().map(move |v_ref| {
             let local_ref = g.localise_vertex_unchecked(v_ref);
-            let props = g.temporal_vertex_prop_vec_window(local_ref, name.clone(), t_start, t_end);
+            let props = g.temporal_vertex_prop_vec_window(local_ref, &name, t_start, t_end);
 
             !props.is_empty()
-                || (include_static && g.static_vertex_prop_names(local_ref).contains(&name))
+                || (include_static
+                    && g.static_vertex_prop_names(local_ref)
+                        .contains(&name.to_owned()))
         });
 
         Box::new(iter)
@@ -602,7 +643,6 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
         )
     }
 }
-
 
 impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexListOps
     for Box<dyn Iterator<Item = WindowEvalVertex<'a, G, CS, S>> + 'a>
@@ -694,7 +734,10 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexListOps
     }
 
     fn out_edges(self) -> Self::EList {
-        Box::new(self.flat_map(|v| v.out_edges()).map(|ev| WindowEvalEdgeView::from(ev)))
+        Box::new(
+            self.flat_map(|v| v.out_edges())
+                .map(|ev| WindowEvalEdgeView::from(ev)),
+        )
     }
 
     fn neighbours(self) -> Self {
@@ -709,7 +752,6 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexListOps
         Box::new(self.flat_map(|v| v.out_neighbours()))
     }
 }
-
 
 impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> IntoIterator
     for WindowEvalPathFromVertex<'a, G, CS, S>

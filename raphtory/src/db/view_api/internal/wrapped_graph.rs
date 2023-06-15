@@ -6,7 +6,7 @@ use crate::core::{Direction, Prop};
 use crate::db::view_api::internal::core_ops::InheritCoreOps;
 use crate::db::view_api::internal::graph_ops::InheritInternalViewOps;
 use crate::db::view_api::internal::time_semantics::{InheritTimeSemantics, TimeSemantics};
-use crate::db::view_api::internal::GraphViewInternalOps;
+use crate::db::view_api::internal::{CoreGraphOps, GraphViewInternalOps};
 use crate::db::view_api::BoxedIter;
 use std::ops::Range;
 
@@ -40,7 +40,7 @@ impl<G: WrappedGraph<Internal = I>, I: TimeSemantics + ?Sized> InheritTimeSemant
     }
 }
 
-impl<G: WrappedGraph> InheritCoreOps for G {
+impl<G: WrappedGraph<Internal = I>, I: CoreGraphOps + ?Sized> InheritCoreOps for G {
     type Internal = G::Internal;
 
     fn graph(&self) -> &Self::Internal {

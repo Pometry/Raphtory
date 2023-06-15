@@ -5,6 +5,7 @@ use crate::db::edge::EdgeView;
 use crate::db::graph_layer::LayeredGraph;
 use crate::db::graph_window::WindowedGraph;
 use crate::db::vertex::VertexView;
+use crate::db::view_api::internal::GraphWindowOps;
 use crate::db::view_api::layer::LayerOps;
 use crate::db::view_api::BoxedIter;
 use crate::db::view_api::*;
@@ -280,7 +281,6 @@ pub struct PathFromVertex<G: GraphViewOps> {
 }
 
 impl<G: GraphViewOps> PathFromVertex<G> {
-
     pub fn iter_refs(&self) -> Box<dyn Iterator<Item = VertexRef> + Send> {
         let init: Box<dyn Iterator<Item = VertexRef> + Send> =
             Box::new(iter::once(VertexRef::Local(self.vertex)));
@@ -294,8 +294,7 @@ impl<G: GraphViewOps> PathFromVertex<G> {
 
     pub fn iter(&self) -> Box<dyn Iterator<Item = VertexView<G>> + Send> {
         let g = self.graph.clone();
-        let iter = self.iter_refs()
-            .map(move |v| VertexView::new(g.clone(), v));
+        let iter = self.iter_refs().map(move |v| VertexView::new(g.clone(), v));
         Box::new(iter)
     }
 
@@ -312,9 +311,13 @@ impl<G: GraphViewOps> PathFromVertex<G> {
         }
     }
 
-    pub(crate) fn neighbours_window(&self, dir:Direction, t_start: i64, t_end:i64) -> Self {
+    pub(crate) fn neighbours_window(&self, dir: Direction, t_start: i64, t_end: i64) -> Self {
         let mut new_ops = (*self.operations).clone();
-        new_ops.push(Operations::NeighboursWindow { dir, t_start, t_end });
+        new_ops.push(Operations::NeighboursWindow {
+            dir,
+            t_start,
+            t_end,
+        });
         Self {
             graph: self.graph.clone(),
             vertex: self.vertex,
@@ -415,7 +418,6 @@ impl<G: GraphViewOps> VertexViewOps for PathFromVertex<G> {
             operations: Arc::new(new_ops),
         }
     }
-
 
     fn in_neighbours(&self) -> Self {
         let mut new_ops = (*self.operations).clone();

@@ -44,7 +44,9 @@ use crate::core::tprop::TProp;
 use crate::core::vertex_ref::{LocalVertexRef, VertexRef};
 use crate::core::{Direction, Prop};
 use crate::db::view_api::internal::time_semantics::TimeSemantics;
-use crate::db::view_api::internal::{GraphViewInternalOps, InheritCoreOps, InheritInternalViewOps};
+use crate::db::view_api::internal::{
+    GraphViewInternalOps, GraphWindowOps, InheritCoreOps, InheritInternalViewOps,
+};
 use crate::db::view_api::{BoxedIter, GraphViewOps};
 use std::cmp::{max, min};
 use std::{collections::HashMap, ops::Range};
@@ -130,26 +132,46 @@ impl<G: GraphViewInternalOps + TimeSemantics> TimeSemantics for WindowedGraph<G>
             .include_edge_window(e, self.actual_start(w.start)..self.actual_end(w.end))
     }
 
-    fn vertex_history(&self, v: LocalVertexRef) -> BoxedIter<i64> {
+    fn vertex_history(&self, v: LocalVertexRef) -> Vec<i64> {
         self.graph
             .vertex_history_window(v, self.t_start..self.t_end)
     }
 
-    fn vertex_history_window(&self, v: LocalVertexRef, w: Range<i64>) -> BoxedIter<i64> {
+    fn vertex_history_window(&self, v: LocalVertexRef, w: Range<i64>) -> Vec<i64> {
         self.graph
             .vertex_history_window(v, self.actual_start(w.start)..self.actual_end(w.end))
     }
 
-    fn edge_history(&self, e: EdgeRef) -> BoxedIter<(i64, i64)> {
-        self.graph.edge_history_window(e, self.t_start..self.t_end)
+    fn edge_t(&self, e: EdgeRef) -> BoxedIter<EdgeRef> {
+        self.graph.edge_window_t(e, self.t_start..self.t_end)
     }
 
-    fn edge_history_window(&self, e: EdgeRef, w: Range<i64>) -> BoxedIter<(i64, i64)> {
+    fn edge_window_t(&self, e: EdgeRef, w: Range<i64>) -> BoxedIter<EdgeRef> {
         self.graph
-            .edge_history_window(e, self.actual_start(w.start)..self.actual_end(w.end))
+            .edge_window_t(e, self.actual_start(w.start)..self.actual_end(w.end))
     }
 
-    fn temporal_vertex_prop_vec(&self, v: LocalVertexRef, name: String) -> Vec<(i64, Prop)> {
+    fn edge_earliest_time(&self, e: EdgeRef) -> Option<i64> {
+        self.graph
+            .edge_latest_time_window(e, self.t_start..self.t_end)
+    }
+
+    fn edge_earliest_time_window(&self, e: EdgeRef, w: Range<i64>) -> Option<i64> {
+        self.graph
+            .edge_earliest_time_window(e, self.actual_start(w.start)..self.actual_end(w.end))
+    }
+
+    fn edge_latest_time(&self, e: EdgeRef) -> Option<i64> {
+        self.graph
+            .edge_latest_time_window(e, self.t_start..self.t_end)
+    }
+
+    fn edge_latest_time_window(&self, e: EdgeRef, w: Range<i64>) -> Option<i64> {
+        self.graph
+            .edge_latest_time_window(e, self.actual_start(w.start)..self.actual_end(w.end))
+    }
+
+    fn temporal_vertex_prop_vec(&self, v: LocalVertexRef, name: &str) -> Vec<(i64, Prop)> {
         self.graph
             .temporal_vertex_prop_vec_window(v, name, self.t_start, self.t_end)
     }
@@ -157,7 +179,7 @@ impl<G: GraphViewInternalOps + TimeSemantics> TimeSemantics for WindowedGraph<G>
     fn temporal_vertex_prop_vec_window(
         &self,
         v: LocalVertexRef,
-        name: String,
+        name: &str,
         t_start: i64,
         t_end: i64,
     ) -> Vec<(i64, Prop)> {
@@ -172,7 +194,7 @@ impl<G: GraphViewInternalOps + TimeSemantics> TimeSemantics for WindowedGraph<G>
     fn temporal_edge_prop_vec_window(
         &self,
         e: EdgeRef,
-        name: String,
+        name: &str,
         t_start: i64,
         t_end: i64,
     ) -> Vec<(i64, Prop)> {
@@ -184,7 +206,7 @@ impl<G: GraphViewInternalOps + TimeSemantics> TimeSemantics for WindowedGraph<G>
         )
     }
 
-    fn temporal_edge_prop_vec(&self, e: EdgeRef, name: String) -> Vec<(i64, Prop)> {
+    fn temporal_edge_prop_vec(&self, e: EdgeRef, name: &str) -> Vec<(i64, Prop)> {
         self.graph
             .temporal_edge_prop_vec_window(e, name, self.t_start, self.t_end)
     }
@@ -209,10 +231,6 @@ impl<G: GraphViewOps> GraphViewInternalOps for WindowedGraph<G> {
 
     fn get_unique_layers_internal(&self) -> Vec<usize> {
         self.graph.get_unique_layers_internal()
-    }
-
-    fn get_layer_name_by_id(&self, layer_id: usize) -> String {
-        self.graph.get_layer_name_by_id(layer_id)
     }
 
     fn get_layer_id(&self, key: Option<&str>) -> Option<usize> {
@@ -300,10 +318,6 @@ impl<G: GraphViewOps> GraphViewInternalOps for WindowedGraph<G> {
     /// Returns an error if `v` is not a valid vertex.
     fn vertex_ref(&self, v: u64) -> Option<LocalVertexRef> {
         self.graph.vertex_ref_window(v, self.t_start, self.t_end)
-    }
-
-    fn vertex_id(&self, v: LocalVertexRef) -> u64 {
-        self.graph.vertex_id(v)
     }
 
     /// Get an iterator over the references of all vertices as references
@@ -630,13 +644,16 @@ mod views_test {
     }
 
     #[quickcheck]
-    fn windowed_graph_edge_count(mut edges: Vec<(i64, (u64, u64))>) -> TestResult {
+    fn windowed_graph_edge_count(
+        mut edges: Vec<(i64, (u64, u64))>,
+        window: Range<i64>,
+    ) -> TestResult {
+        if window.end < window.start {
+            return TestResult::discard();
+        }
         edges.sort_by_key(|e| e.1); // Sorted by edge
         edges.dedup_by_key(|e| e.1); // Have each edge only once to avoid headaches
 
-        let mut window: [i64; 2] = thread_rng().gen();
-        window.sort();
-        let window = window[0]..window[1];
         let true_edge_count = edges.iter().filter(|e| window.contains(&e.0)).count();
 
         let g = Graph::new(2);

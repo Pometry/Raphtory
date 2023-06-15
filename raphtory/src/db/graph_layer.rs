@@ -64,10 +64,6 @@ impl<G: GraphViewInternalOps> GraphViewInternalOps for LayeredGraph<G> {
             .collect_vec()
     }
 
-    fn get_layer_name_by_id(&self, layer_id: usize) -> String {
-        self.graph.get_layer_name_by_id(layer_id)
-    }
-
     fn get_layer_id(&self, key: Option<&str>) -> Option<usize> {
         self.graph.get_layer_id(key)
     }
@@ -99,10 +95,6 @@ impl<G: GraphViewInternalOps> GraphViewInternalOps for LayeredGraph<G> {
 
     fn vertex_ref(&self, v: u64) -> Option<LocalVertexRef> {
         self.graph.vertex_ref(v)
-    }
-
-    fn vertex_id(&self, v: LocalVertexRef) -> u64 {
-        self.graph.vertex_id(v)
     }
 
     fn vertex_refs(&self) -> Box<dyn Iterator<Item = LocalVertexRef> + Send> {

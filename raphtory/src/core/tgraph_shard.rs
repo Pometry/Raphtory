@@ -13,6 +13,7 @@ use self::errors::GraphError;
 use self::lock::OptionLock;
 use crate::core::edge_ref::EdgeRef;
 use crate::core::tgraph::TemporalGraph;
+use crate::core::tgraph_shard::lock::MyReadGuard;
 use crate::core::timeindex::TimeIndex;
 use crate::core::tprop::TProp;
 use crate::core::vertex::InputVertex;
@@ -22,11 +23,28 @@ use genawaiter::sync::{gen, GenBoxed};
 use genawaiter::yield_;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::ops::Range;
+use std::ops::{Deref, Range};
 use std::path::Path;
 use std::sync::Arc;
 
+pub enum LockedView<'a, T: ?Sized> {
+    Locked(parking_lot::MappedRwLockReadGuard<'a, T>),
+    Frozen(&'a T),
+}
+
+impl<'a, T> Deref for LockedView<'a, T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            LockedView::Locked(guard) => guard.deref(),
+            LockedView::Frozen(r) => r,
+        }
+    }
+}
+
 mod lock {
+    use crate::core::tgraph_shard::LockedView;
     use serde::{Deserialize, Serialize};
     use std::ops::{Deref, DerefMut};
 
@@ -42,6 +60,17 @@ mod lock {
 
     #[repr(transparent)]
     pub struct MyReadGuard<'a, T>(parking_lot::RwLockReadGuard<'a, Option<T>>);
+
+    impl<'a, T> MyReadGuard<'a, T> {
+        pub fn map<U: ?Sized, F>(s: Self, f: F) -> LockedView<'a, U>
+        where
+            F: FnOnce(&T) -> &U,
+        {
+            LockedView::Locked(parking_lot::RwLockReadGuard::map(s.0, |t_opt| {
+                f(t_opt.as_ref().expect("frozen"))
+            }))
+        }
+    }
 
     #[repr(transparent)]
     pub struct MyWriteGuard<'a, T>(parking_lot::RwLockWriteGuard<'a, Option<T>>);
@@ -163,6 +192,13 @@ impl TGraphShard<TemporalGraph> {
         let binding = self.rc.read();
         let shard = binding.as_ref().unwrap();
         f(shard)
+    }
+
+    fn map<U, F>(&self, f: F) -> LockedView<'_, U>
+    where
+        F: FnOnce(&TemporalGraph) -> &U,
+    {
+        MyReadGuard::map(self.rc.read(), f)
     }
 
     pub fn local_vertex(&self, v: VertexRef) -> Option<LocalVertexRef> {
@@ -444,55 +480,58 @@ impl TGraphShard<TemporalGraph> {
         Box::new(iter.into_iter())
     }
 
-    pub fn static_vertex_prop(&self, v: LocalVertexRef, name: String) -> Option<Prop> {
-        self.read_shard(|tg| tg.static_vertex_prop(v, &name))
+    pub fn static_vertex_prop(&self, v: LocalVertexRef, name: &str) -> Option<Prop> {
+        self.read_shard(|tg| tg.static_vertex_prop(v, name))
     }
 
     pub fn static_vertex_prop_names(&self, v: LocalVertexRef) -> Vec<String> {
         self.read_shard(|tg| tg.static_vertex_prop_names(v))
     }
 
-    pub fn temporal_vertex_prop(&self, v: LocalVertexRef, name: &str) -> Option<&TProp> {
-        self.read_shard(|tg| tg.temporal_vertex_prop(v, name))
+    pub fn temporal_vertex_prop(&self, v: LocalVertexRef, name: &str) -> Option<LockedView<TProp>> {
+        let has_prop = self.read_shard(|tg| tg.temporal_vertex_prop(v, name).is_some());
+        has_prop
+            .then(|| self.map(move |tg| tg.temporal_vertex_prop(v, name).expect("just checked")))
     }
 
     pub fn temporal_vertex_prop_names(&self, v: LocalVertexRef) -> Vec<String> {
         self.read_shard(|tg| tg.temporal_vertex_prop_names(v))
     }
 
-    pub fn vertex_additions(&self, v: LocalVertexRef) -> &TimeIndex {
-        self.read_shard(|tg| tg.vertex_additions(v))
+    pub fn vertex_additions(&self, v: LocalVertexRef) -> LockedView<TimeIndex> {
+        self.map(|tg| tg.vertex_additions(v))
     }
 
-    pub fn static_edge_prop(&self, e: EdgeRef, name: String) -> Option<Prop> {
-        self.read_shard(|tg| tg.static_edge_prop(e, &name))
+    pub fn static_edge_prop(&self, e: EdgeRef, name: &str) -> Option<Prop> {
+        self.read_shard(|tg| tg.static_edge_prop(e, name))
     }
 
     pub fn static_edge_prop_names(&self, e: EdgeRef) -> Vec<String> {
         self.read_shard(|tg| tg.static_edge_prop_names(e))
     }
 
-    pub fn temporal_edge_prop(&self, e: EdgeRef, name: &str) -> Option<&TProp> {
-        self.read_shard(|tg| tg.temporal_edge_prop(e, name))
+    pub fn temporal_edge_prop(&self, e: EdgeRef, name: &str) -> Option<LockedView<TProp>> {
+        self.read_shard(|tg| tg.temporal_edge_prop(e, name).is_some())
+            .then(|| self.map(|tg| tg.temporal_edge_prop(e, name).expect("just checked")))
     }
 
     pub fn temporal_edge_prop_names(&self, e: EdgeRef) -> Vec<String> {
         self.read_shard(|tg| (tg.temporal_edge_prop_names(e)))
     }
 
-    pub fn edge_additions(&self, e: EdgeRef) -> &TimeIndex {
-        self.read_shard(|tg| tg.edge_additions(e))
+    pub fn edge_additions(&self, e: EdgeRef) -> LockedView<TimeIndex> {
+        self.map(|tg| tg.edge_additions(e))
     }
 
-    pub fn edge_deletions(&self, e: EdgeRef) -> &TimeIndex {
-        self.read_shard(|tg| tg.edge_deletions(e))
+    pub fn edge_deletions(&self, e: EdgeRef) -> LockedView<TimeIndex> {
+        self.map(|tg| tg.edge_deletions(e))
     }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[repr(transparent)]
 pub struct ImmutableTGraphShard<TemporalGraph> {
-    rc: Arc<TemporalGraph>,
+    pub(crate) rc: Arc<TemporalGraph>,
 }
 
 impl Clone for ImmutableTGraphShard<TemporalGraph> {
@@ -518,9 +557,10 @@ macro_rules! erase_lifetime {
 
 impl ImmutableTGraphShard<TemporalGraph> {
     #[inline(always)]
-    fn read_shard<A, F>(&self, f: F) -> A
+    pub fn read_shard<'a, A, F>(&'a self, f: F) -> A
     where
-        F: FnOnce(&TemporalGraph) -> A,
+        F: FnOnce(&'a TemporalGraph) -> A,
+        A: 'a,
     {
         f(self.rc.as_ref())
     }
@@ -598,8 +638,8 @@ impl ImmutableTGraphShard<TemporalGraph> {
         });
     }
 
-    pub fn static_vertex_prop(&self, v: LocalVertexRef, name: String) -> Option<Prop> {
-        self.read_shard(|tg| tg.static_vertex_prop(v, &name))
+    pub fn static_vertex_prop(&self, v: LocalVertexRef, name: &str) -> Option<Prop> {
+        self.read_shard(|tg| tg.static_vertex_prop(v, name))
     }
 
     pub fn static_vertex_prop_names(&self, v: LocalVertexRef) -> Vec<String> {
@@ -610,16 +650,17 @@ impl ImmutableTGraphShard<TemporalGraph> {
         self.read_shard(|tg| tg.temporal_vertex_prop_names(v))
     }
 
-    pub fn static_edge_prop(&self, e: EdgeRef, name: String) -> Option<Prop> {
-        self.read_shard(|tg| tg.static_edge_prop(e, &name))
+    pub fn static_edge_prop(&self, e: EdgeRef, name: &str) -> Option<Prop> {
+        self.read_shard(|tg| tg.static_edge_prop(e, name))
     }
 
     pub fn static_edge_prop_names(&self, e: EdgeRef) -> Vec<String> {
         self.read_shard(|tg| tg.static_edge_prop_names(e))
     }
 
-    pub fn temporal_edge_prop(&self, e: EdgeRef, name: &str) -> Option<&TProp> {
+    pub fn temporal_edge_prop(&self, e: EdgeRef, name: &str) -> Option<LockedView<TProp>> {
         self.read_shard(|tg| tg.temporal_edge_prop(e, name))
+            .map(|p| LockedView::Frozen(p))
     }
 
     pub fn temporal_edge_prop_names(&self, e: EdgeRef) -> Vec<String> {

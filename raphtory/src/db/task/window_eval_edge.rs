@@ -1,5 +1,6 @@
 use std::{cell::RefCell, collections::HashMap, iter, marker::PhantomData, rc::Rc};
 
+use crate::db::view_api::internal::{GraphPropertiesOps, GraphWindowOps, TimeSemantics};
 use crate::{
     core::{edge_ref::EdgeRef, state::compute_state::ComputeState, Prop},
     db::view_api::{edge::EdgeViewInternalOps, EdgeListOps, EdgeViewOps, GraphViewOps},
@@ -42,7 +43,9 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> WindowEvalEdgeView<'a, G
 
     pub fn history(&self) -> Vec<i64> {
         self.graph()
-            .edge_timestamps(self.eref(), Some(self.t_start..self.t_end))
+            .edge_window_t(self.eref(), self.t_start..self.t_end)
+            .map(|e| e.time().expect("exploded"))
+            .collect()
     }
 }
 impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static>
@@ -103,11 +106,11 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeViewOps
         match self.ev.time() {
             Some(_) => Box::new(iter::once(self.new_edge(e))),
             None => {
-                let ts = self.g.edge_timestamps(self.ev, Some(t_start..t_end));
-                Box::new(ts.into_iter().map(move |t| {
+                let ts = self.g.edge_window_t(e, t_start..t_end);
+                Box::new(ts.map(move |ex| {
                     WindowEvalEdgeView::new(
                         ss,
-                        e.at(t),
+                        ex,
                         g,
                         local_state_prev,
                         vertex_state.clone(),
@@ -121,10 +124,11 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeViewOps
 
     fn history(&self) -> Vec<i64> {
         self.graph()
-            .edge_timestamps(self.eref(), Some(self.t_start..self.t_end))
+            .edge_history_window(self.ev, self.t_start..self.t_end)
+            .collect()
     }
 
-    fn property_history(&self, name: String) -> Vec<(i64, Prop)> {
+    fn property_history(&self, name: &str) -> Vec<(i64, Prop)> {
         match self.eref().time() {
             None => self.graph().temporal_edge_prop_vec_window(
                 self.eref(),
@@ -175,9 +179,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeViewOps
     fn earliest_time(&self) -> Option<i64> {
         self.eref().time().or_else(|| {
             self.graph()
-                .edge_timestamps(self.eref(), Some(self.t_start..self.t_end))
-                .first()
-                .copied()
+                .edge_earliest_time_window(self.eref(), self.t_start..self.t_end)
         })
     }
 
@@ -185,9 +187,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeViewOps
     fn latest_time(&self) -> Option<i64> {
         self.eref().time().or_else(|| {
             self.graph()
-                .edge_timestamps(self.eref(), Some(self.t_start..self.t_end))
-                .last()
-                .copied()
+                .edge_latest_time_window(self.eref(), self.t_start..self.t_end)
         })
     }
 }
@@ -202,12 +202,8 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeListOps
     type VList = Box<dyn Iterator<Item = Self::Vertex> + 'a>;
     type IterType<T> = Box<dyn Iterator<Item = T> + 'a>;
 
-    fn id(self) -> Self::IterType<(u64, u64)> {
-        Box::new(self.map(|e| e.id()))
-    }
-
     fn has_property(self, name: String, include_static: bool) -> Self::IterType<bool> {
-        Box::new(self.map(move |e| e.has_property(name.clone(), include_static)))
+        Box::new(self.map(move |e| e.has_property(&name, include_static)))
     }
 
     fn property(
@@ -215,7 +211,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeListOps
         name: String,
         include_static: bool,
     ) -> Self::IterType<Option<crate::core::Prop>> {
-        Box::new(self.map(move |e| e.property(name.clone(), include_static)))
+        Box::new(self.map(move |e| e.property(&name, include_static)))
     }
 
     fn properties(
@@ -230,15 +226,15 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeListOps
     }
 
     fn has_static_property(self, name: String) -> Self::IterType<bool> {
-        Box::new(self.map(move |e| e.has_static_property(name.clone())))
+        Box::new(self.map(move |e| e.has_static_property(&name)))
     }
 
-    fn static_property(self, name: String) -> Self::IterType<Option<crate::core::Prop>> {
-        Box::new(self.map(move |it| it.static_property(name.clone())))
+    fn static_property(self, name: String) -> Self::IterType<Option<Prop>> {
+        Box::new(self.map(move |it| it.static_property(&name)))
     }
 
-    fn property_history(self, name: String) -> Self::IterType<Vec<(i64, crate::core::Prop)>> {
-        Box::new(self.map(move |it| it.property_history(name.clone())))
+    fn property_history(self, name: String) -> Self::IterType<Vec<(i64, Prop)>> {
+        Box::new(self.map(move |it| it.property_history(&name)))
     }
 
     fn property_histories(
@@ -253,6 +249,10 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeListOps
 
     fn dst(self) -> Self::VList {
         Box::new(self.map(|e| e.dst()))
+    }
+
+    fn id(self) -> Self::IterType<(u64, u64)> {
+        Box::new(self.map(|e| e.id()))
     }
 
     fn explode(self) -> Self::IterType<Self::Edge> {

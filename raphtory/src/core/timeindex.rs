@@ -60,9 +60,9 @@ pub trait TimeIndexOps {
 
     fn range(&self, w: Range<i64>) -> TimeIndexWindow;
 
-    fn first(&self) -> Option<&i64>;
+    fn first(&self) -> Option<i64>;
 
-    fn last(&self) -> Option<&i64>;
+    fn last(&self) -> Option<i64>;
 
     fn iter(&self) -> Self::IterType<'_>;
 }
@@ -76,17 +76,17 @@ impl TimeIndexOps for TimeIndex {
 
     fn range(&self, w: Range<i64>) -> TimeIndexWindow<'_> {
         TimeIndexWindow::TimeIndexRange {
-            timeindex: &self,
+            timeindex: self,
             range: w,
         }
     }
 
-    fn first(&self) -> Option<&i64> {
-        self.0.first()
+    fn first(&self) -> Option<i64> {
+        self.0.first().copied()
     }
 
-    fn last(&self) -> Option<&i64> {
-        self.0.last()
+    fn last(&self) -> Option<i64> {
+        self.0.last().copied()
     }
 
     fn iter(&self) -> Iter<'_, i64> {
@@ -128,21 +128,21 @@ impl<'b> TimeIndexOps for TimeIndexWindow<'b> {
         }
     }
 
-    fn first(&self) -> Option<&i64> {
+    fn first(&self) -> Option<i64> {
         match self {
             TimeIndexWindow::Empty => None,
             TimeIndexWindow::TimeIndexRange { timeindex, range } => {
-                timeindex.range_iter(range.clone()).next()
+                timeindex.range_iter(range.clone()).next().copied()
             }
             TimeIndexWindow::All(timeindex) => timeindex.first(),
         }
     }
 
-    fn last(&self) -> Option<&i64> {
+    fn last(&self) -> Option<i64> {
         match self {
             TimeIndexWindow::Empty => None,
             TimeIndexWindow::TimeIndexRange { timeindex, range } => {
-                timeindex.range_iter(range.clone()).next_back()
+                timeindex.range_iter(range.clone()).next_back().copied()
             }
             TimeIndexWindow::All(timeindex) => timeindex.last(),
         }
