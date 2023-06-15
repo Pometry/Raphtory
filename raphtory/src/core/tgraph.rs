@@ -598,10 +598,26 @@ impl TemporalGraph {
         self.vertex_props.static_prop(v.pid, name)
     }
 
+    pub fn static_vertex_props(&self, v: LocalVertexRef) -> HashMap<String, Prop> {
+        let names = self.vertex_props.static_names(v.pid);
+        names
+            .into_iter()
+            .map(|name| (name.to_string(), self.static_vertex_prop(v, &name).unwrap()))
+            .collect()
+    }
+
     pub fn static_prop(&self, name: &str) -> Option<Prop> {
         self.graph_props.static_prop(0, name)
     }
-    
+
+    pub fn static_props(&self) -> HashMap<String, Prop> {
+        let names = self.graph_props.static_names(0);
+        names
+            .into_iter()
+            .map(|name| (name.to_string(), self.static_prop(&name).unwrap()))
+            .collect()
+    }
+
     pub fn static_vertex_prop_names(&self, v: LocalVertexRef) -> Vec<String> {
         self.vertex_props.static_names(v.pid)
     }
@@ -609,7 +625,7 @@ impl TemporalGraph {
     pub fn static_prop_names(&self) -> Vec<String> {
         self.graph_props.static_names(0)
     }
-    
+
     #[allow(dead_code)]
     pub(crate) fn temporal_vertex_prop(
         &self,
@@ -621,11 +637,8 @@ impl TemporalGraph {
             .unwrap_or(&TProp::Empty)
             .iter()
     }
-    
-    pub(crate) fn temporal_prop(
-        &self,
-        name: &str
-    ) -> Box<dyn Iterator<Item = (&i64, Prop)> + '_> {
+
+    pub(crate) fn temporal_prop(&self, name: &str) -> Box<dyn Iterator<Item = (&i64, Prop)> + '_> {
         self.graph_props
             .temporal_prop(0, name)
             .unwrap_or(&TProp::Empty)
@@ -655,7 +668,7 @@ impl TemporalGraph {
             .unwrap_or(&TProp::Empty)
             .iter_window(w.clone())
     }
-    
+
     pub fn temporal_vertex_prop_names(&self, v: LocalVertexRef) -> Vec<String> {
         self.vertex_props.temporal_names(v.pid)
     }
@@ -663,7 +676,7 @@ impl TemporalGraph {
     pub fn temporal_prop_names(&self) -> Vec<String> {
         self.graph_props.temporal_names(0)
     }
-    
+
     pub(crate) fn temporal_vertex_prop_vec(
         &self,
         v: LocalVertexRef,
@@ -676,10 +689,7 @@ impl TemporalGraph {
         tprop.iter().map(|(t, p)| (*t, p)).collect_vec()
     }
 
-    pub(crate) fn temporal_prop_vec(
-        &self,
-        name: &str,
-    ) -> Vec<(i64, Prop)> {
+    pub(crate) fn temporal_prop_vec(&self, name: &str) -> Vec<(i64, Prop)> {
         let tprop = self
             .graph_props
             .temporal_prop(0, name)
@@ -703,11 +713,7 @@ impl TemporalGraph {
             .collect_vec()
     }
 
-    pub(crate) fn temporal_prop_vec_window(
-        &self,
-        name: &str,
-        w: &Range<i64>,
-    ) -> Vec<(i64, Prop)> {
+    pub(crate) fn temporal_prop_vec_window(&self, name: &str, w: &Range<i64>) -> Vec<(i64, Prop)> {
         let tprop = self
             .graph_props
             .temporal_prop(0, name)
@@ -730,9 +736,7 @@ impl TemporalGraph {
             .collect()
     }
 
-    pub(crate) fn temporal_props(
-        &self,
-    ) -> HashMap<String, Vec<(i64, Prop)>> {
+    pub(crate) fn temporal_props(&self) -> HashMap<String, Vec<(i64, Prop)>> {
         let names = self.graph_props.temporal_names(0);
         names
             .into_iter()
@@ -766,12 +770,7 @@ impl TemporalGraph {
         let names = self.graph_props.temporal_names(0);
         names
             .into_iter()
-            .map(|name| {
-                (
-                    name.to_string(),
-                    self.temporal_prop_vec_window(&name, w),
-                )
-            })
+            .map(|name| (name.to_string(), self.temporal_prop_vec_window(&name, w)))
             .filter(|(_, v)| !v.is_empty())
             .collect()
     }
@@ -780,6 +779,14 @@ impl TemporalGraph {
         self.layers[e.layer()]
             .edge_props(e)
             .static_prop(e.pid(), name)
+    }
+
+    pub fn static_edge_props(&self, e: EdgeRef) -> HashMap<String, Prop> {
+        let names = self.layers[e.layer()].edge_props(e).static_names(e.pid());
+        names
+            .into_iter()
+            .map(|name| (name.to_string(), self.static_edge_prop(e, &name).unwrap()))
+            .collect()
     }
 
     pub fn static_edge_prop_names(&self, e: EdgeRef) -> Vec<String> {

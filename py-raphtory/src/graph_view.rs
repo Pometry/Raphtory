@@ -1,10 +1,11 @@
 //! The API for querying a view of the graph in a read-only state
 use crate::dynamic::{DynamicGraph, IntoDynamic};
 use crate::edge::{PyEdge, PyEdges};
+use crate::graph::PyGraph;
 use crate::types::repr::Repr;
 use crate::utils::{
-    at_impl, expanding_impl, extract_vertex_ref, rolling_impl, window_impl, IntoPyObject,
-    PyWindowSet,
+    adapt_err_value, adapt_result, at_impl, expanding_impl, extract_vertex_ref, rolling_impl,
+    window_impl, IntoPyObject, PyWindowSet,
 };
 use crate::vertex::{PyVertex, PyVertices};
 use crate::wrappers::iterators::*;
@@ -13,6 +14,7 @@ use chrono::prelude::*;
 use futures::StreamExt;
 use itertools::Itertools;
 use pyo3::prelude::*;
+use raphtory::db::subgraph_vertex::VertexSubgraph;
 use raphtory::db::view_api::internal::GraphViewInternalOps;
 use raphtory::db::view_api::layer::LayerOps;
 use raphtory::db::view_api::*;
@@ -387,6 +389,40 @@ impl PyGraphView {
     ///    Option<Prop> - Returns the static property
     fn static_property(&self, name: String) -> Option<Prop> {
         self.graph.static_prop(name.clone()).map(|v| v.into())
+    }
+
+    /// Returns static properties of a graph
+    ///
+    /// Arguments:
+    ///
+    /// Returns:
+    ///    HashMap<String, Prop> - Returns static properties identified by their names
+    fn static_properties(&self) -> HashMap<String, Prop> {
+        let r: HashMap<String, raphtory::core::Prop> =
+            self.graph.static_properties();
+        r.into_iter().map(|(i, v)| (i, v.into())).collect()
+    }
+
+    /// Returns a subgraph given a set of vertices
+    ///
+    /// Arguments:
+    ///   * `vertices`: set of vertices
+    ///
+    /// Returns:
+    ///    GraphView - Returns the subgraph
+    fn subgraph(&self, vertices: Vec<PyVertex>) -> PyGraphView {
+        self.graph.subgraph(vertices).into()
+    }
+
+    /// Returns a graph clone
+    ///
+    /// Arguments:
+    ///
+    /// Returns:
+    ///    GraphView - Returns a graph clone
+    fn materialize(&self) -> PyResult<Py<PyGraph>> {
+        let mg = adapt_result(self.graph.materialize())?;
+        PyGraph::py_from_db_graph(mg)
     }
 
     /// Displays the graph

@@ -386,8 +386,16 @@ impl<G: GraphViewOps> GraphViewInternalOps for VertexSubgraph<G> {
         self.graph.static_vertex_prop(v, name)
     }
 
+    fn static_vertex_props(&self, v: LocalVertexRef) -> HashMap<String, Prop> {
+        self.graph.static_vertex_props(v)
+    }
+
     fn static_prop(&self, name: String) -> Option<Prop> {
         self.graph.static_prop(name)
+    }
+
+    fn static_props(&self) -> HashMap<String, Prop> {
+        self.graph.static_props()
     }
 
     fn static_vertex_prop_names(&self, v: LocalVertexRef) -> Vec<String> {
@@ -460,6 +468,10 @@ impl<G: GraphViewOps> GraphViewInternalOps for VertexSubgraph<G> {
 
     fn static_edge_prop(&self, e: EdgeRef, name: String) -> Option<Prop> {
         self.graph.static_edge_prop(e, name)
+    }
+
+    fn static_edge_props(&self, e: EdgeRef) -> HashMap<String, Prop> {
+        self.graph.static_edge_props(e)
     }
 
     fn static_edge_prop_names(&self, e: EdgeRef) -> Vec<String> {
