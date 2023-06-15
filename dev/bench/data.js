@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1686670332911,
+  "lastUpdate": 1686823715052,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -3181,6 +3181,60 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions with numeric string input",
             "value": 2324390,
             "range": "± 180789",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "4599890+iamsmkr@users.noreply.github.com",
+            "name": "Shivam Kapoor",
+            "username": "iamsmkr"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5c6c904e2d9e41cb58ce0345d1eecdc32c8fa700",
+          "message": "Features/materialize subgraph (#1044)\n\n* add vertex static props\r\n\r\n* impl graph materialize and edge static properties api\r\n\r\n* add doc comments\r\n\r\n* fix materialize api\r\n\r\n* add static properties apis to python, fix default layer issue with materialized graph, impl materialized graph tests\r\n\r\n* impl static properties on graph\r\n\r\n* add graph static properties to materialized static properties\r\n\r\n* add doc comments on py-raphtory\r\n\r\n* add doc comments to raphtory",
+          "timestamp": "2023-06-15T11:03:37+01:00",
+          "tree_id": "82909d988f43b25ef8bb5abadaa7dddaf510acaa",
+          "url": "https://github.com/Pometry/Raphtory/commit/5c6c904e2d9e41cb58ce0345d1eecdc32c8fa700"
+        },
+        "date": 1686823713892,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 370911,
+            "range": "± 11102",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and numeric string input",
+            "value": 1104170,
+            "range": "± 43630",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and string input",
+            "value": 1186786,
+            "range": "± 42621",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 1217782,
+            "range": "± 182668",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions with numeric string input",
+            "value": 2695351,
+            "range": "± 267613",
             "unit": "ns/iter"
           }
         ]
