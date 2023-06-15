@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1686823715052,
+  "lastUpdate": 1686824266661,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -3235,6 +3235,60 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions with numeric string input",
             "value": 2695351,
             "range": "± 267613",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "33124479+narnolddd@users.noreply.github.com",
+            "name": "Naomi Arnold",
+            "username": "narnolddd"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f72d2d95ca5ab72e3a894ce4c4b46dae3788533b",
+          "message": "Stack exchange data + fixed motifs (#1039)\n\n* impl edges gql\r\n\r\n* company house data\r\n\r\n* add properties and project wide fmt\r\n\r\n* impl neoghbours\r\n\r\n* adding flag\r\n\r\n* add inneighs\r\n\r\n* stack exchange example nb\r\n\r\n* adding plotting utils\r\n\r\n* fix null models and start stackexchange example for notebook\r\n\r\n* plot dump\r\n\r\n* update nb\r\n\r\n* got 3 node motif algo back to working version\r\n\r\n* motifs algorithm works!!!!\r\n\r\n* Correct motif mapper\r\n\r\n* neaten up notebook\r\n\r\n* remove results and python cache file\r\n\r\n* motif rename to be more specific\r\n\r\n* remove accidentally added results file\r\n\r\n* three node eval wip\r\n\r\n* fix broken refactor\r\n\r\n* new function name\r\n\r\n---------\r\n\r\nCo-authored-by: Shivam Kapoor <4599890+iamsmkr@users.noreply.github.com>\r\nCo-authored-by: RachelChan <25484244+rachchan@users.noreply.github.com>\r\nCo-authored-by: Ben Steer <b.a.steer@qmul.ac.uk>",
+          "timestamp": "2023-06-15T11:13:51+01:00",
+          "tree_id": "335de30ff9d287a1c394602615f8e7022486d707",
+          "url": "https://github.com/Pometry/Raphtory/commit/f72d2d95ca5ab72e3a894ce4c4b46dae3788533b"
+        },
+        "date": 1686824265896,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 329251,
+            "range": "± 2613",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and numeric string input",
+            "value": 922299,
+            "range": "± 1375",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and string input",
+            "value": 956015,
+            "range": "± 2840",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 460382,
+            "range": "± 64914",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions with numeric string input",
+            "value": 1824441,
+            "range": "± 69913",
             "unit": "ns/iter"
           }
         ]
