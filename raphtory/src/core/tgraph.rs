@@ -1422,9 +1422,18 @@ mod graph_test {
         let edge_weights = g
             .vertex_edges(v11, Direction::OUT, None)
             .flat_map(|e| {
-                let weight = g.temporal_edge_prop(e, "weight").unwrap().iter();
-                let amount = g.temporal_edge_prop(e, "amount").unwrap().iter();
-                let label = g.temporal_edge_prop(e, "label").unwrap().iter();
+                let weight = g
+                    .temporal_edge_prop(e, "weight")
+                    .into_iter()
+                    .flat_map(|p| p.iter());
+                let amount = g
+                    .temporal_edge_prop(e, "amount")
+                    .into_iter()
+                    .flat_map(|p| p.iter());
+                let label = g
+                    .temporal_edge_prop(e, "label")
+                    .into_iter()
+                    .flat_map(|p| p.iter());
                 weight.chain(amount).chain(label)
             })
             .collect_vec();

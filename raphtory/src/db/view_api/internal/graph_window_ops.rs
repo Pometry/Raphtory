@@ -4,6 +4,7 @@ use crate::core::vertex_ref::{LocalVertexRef, VertexRef};
 use crate::core::{Direction, Prop};
 use crate::db::view_api::internal::time_semantics::TimeSemantics;
 use crate::db::view_api::internal::{CoreGraphOps, GraphViewInternalOps};
+use itertools::Itertools;
 use std::collections::HashMap;
 
 pub trait GraphWindowOps: GraphViewInternalOps {
@@ -329,9 +330,10 @@ impl<G: GraphViewInternalOps + TimeSemantics + CoreGraphOps + Clone + 'static> G
         d: Direction,
         layer: Option<usize>,
     ) -> Box<dyn Iterator<Item = VertexRef> + Send> {
-        let g = self.clone();
-        Box::new(self.neighbours(v, d, layer).filter(move |&v| {
-            g.include_vertex_window(g.localise_vertex_unchecked(v), t_start..t_end)
-        }))
+        Box::new(
+            self.vertex_edges_window(v, t_start, t_end, d, layer)
+                .map(|e| e.remote())
+                .dedup(),
+        )
     }
 }

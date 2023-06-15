@@ -153,7 +153,7 @@ impl<G: GraphViewInternalOps + TimeSemantics> TimeSemantics for WindowedGraph<G>
 
     fn edge_earliest_time(&self, e: EdgeRef) -> Option<i64> {
         self.graph
-            .edge_latest_time_window(e, self.t_start..self.t_end)
+            .edge_earliest_time_window(e, self.t_start..self.t_end)
     }
 
     fn edge_earliest_time_window(&self, e: EdgeRef, w: Range<i64>) -> Option<i64> {
