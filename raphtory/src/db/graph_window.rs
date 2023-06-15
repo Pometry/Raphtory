@@ -976,14 +976,33 @@ impl<G: GraphViewOps> GraphViewInternalOps for WindowedGraph<G> {
             .local_vertex_window(v, self.actual_start(t_start), self.actual_end(t_end))
     }
 
+    /// Get static property of a graph by name
+    ///
+    /// # Arguments
+    /// - name - Name of the static property
+    ///
+    /// # Returns
+    /// - Option<Prop> - Static property if found
     fn static_prop(&self, name: String) -> Option<Prop> {
         self.graph.static_prop(name)
     }
 
+    /// Get all static properties of a graph
+    ///
+    /// # Arguments
+    ///
+    /// # Returns
+    /// - HashMap<String, Prop> - All static properties of a graph
     fn static_props(&self) -> HashMap<String, Prop> {
         self.graph.static_props()
     }
 
+    /// Get all static property names of a graph
+    ///
+    /// # Arguments
+    ///
+    /// # Returns
+    /// - Vec<String> - Static property names of a graph
     fn static_prop_names(&self) -> Vec<String> {
         self.graph.static_prop_names()
     }

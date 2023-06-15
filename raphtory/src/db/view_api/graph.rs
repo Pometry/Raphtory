@@ -155,6 +155,12 @@ pub trait GraphViewOps: Send + Sync + Sized + GraphViewInternalOps + 'static + C
     /// HashMap<String, Prop> - Return all static properties identified by their names
     fn static_properties(&self) -> HashMap<String, Prop>;
 
+    /// Get a graph clone
+    ///
+    /// # Arguments
+    ///
+    /// # Returns
+    /// Graph - Returns clone of the graph
     fn materialize(&self) -> Result<Graph, GraphError>;
 }
 
