@@ -104,8 +104,14 @@ pub trait EdgeViewOps: EdgeViewInternalOps<Self::Graph, Self::Vertex> {
             .contains(&name)
     }
 
+    /// Returns static property of an edge by name
     fn static_property(&self, name: String) -> Option<Prop> {
         self.graph().static_edge_prop(self.eref(), name)
+    }
+
+    /// Returns all static properties of an edge
+    fn static_properties(&self) -> HashMap<String, Prop> {
+        self.graph().static_edge_props(self.eref())
     }
 
     /// Returns the source vertex of the edge.
@@ -205,6 +211,7 @@ pub trait EdgeListOps:
 
     fn has_static_property(self, name: String) -> Self::IterType<bool>;
     fn static_property(self, name: String) -> Self::IterType<Option<Prop>>;
+    fn static_properties(self) -> Self::IterType<HashMap<String, Prop>>;
 
     /// gets a property of an edge with the given name
     /// includes the timestamp of the property

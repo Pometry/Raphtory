@@ -106,6 +106,14 @@ impl PyGraph {
         adapt_result(result)
     }
 
+    /// Adds properties to the graph.
+    ///
+    /// Arguments:
+    ///    timestamp (int, str, or datetime(utc)): The timestamp of the temporal property.
+    ///    properties (dict): The temporal properties of the graph.
+    ///
+    /// Returns:
+    ///    None
     pub fn add_property(
         &self,
         timestamp: &PyAny,
@@ -118,6 +126,13 @@ impl PyGraph {
         adapt_result(result)
     }
 
+    /// Adds static properties to the graph.
+    ///
+    /// Arguments:
+    ///     properties (dict): The static properties of the graph.
+    ///
+    /// Returns:
+    ///    None
     pub fn add_static_property(&self, properties: HashMap<String, Prop>) -> PyResult<()> {
         let result = self
             .graph

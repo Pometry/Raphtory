@@ -414,6 +414,17 @@ pub trait GraphViewInternalOps {
     /// Option<Prop> - The property value if it exists.
     fn static_vertex_prop(&self, v: LocalVertexRef, name: String) -> Option<Prop>;
 
+    /// Gets all static properties of a given vertex given the vertex reference.
+    ///
+    /// # Arguments
+    ///
+    /// * `v` - A reference to the vertex for which the property is being queried.
+    ///
+    /// # Returns
+    ///
+    /// HashMap<String, Prop> - Static properties
+    fn static_vertex_props(&self, v: LocalVertexRef) -> HashMap<String, Prop>;
+
     /// Gets a static property of a given graph given the name
     ///
     /// # Arguments
@@ -424,6 +435,15 @@ pub trait GraphViewInternalOps {
     ///
     /// Option<Prop> - The property value if it exists.
     fn static_prop(&self, name: String) -> Option<Prop>;
+
+    /// Gets static properties of a given graph
+    ///
+    /// # Arguments
+    ///
+    /// # Returns
+    ///
+    /// HashMap<String, Prop> - Return static properties identified by their names
+    fn static_props(&self) -> HashMap<String, Prop>;
 
     /// Gets the keys of static properties of a given vertex
     ///
@@ -553,12 +573,7 @@ pub trait GraphViewInternalOps {
     /// A vector of tuples representing the temporal values of the property for graph
     /// that fall within the specified time window, where the first element of each tuple is the timestamp
     /// and the second element is the property value.
-    fn temporal_prop_vec_window(
-        &self,
-        name: String,
-        t_start: i64,
-        t_end: i64,
-    ) -> Vec<(i64, Prop)>;
+    fn temporal_prop_vec_window(&self, name: String, t_start: i64, t_end: i64) -> Vec<(i64, Prop)>;
 
     /// Returns a map of all temporal values of the vertex properties for the given vertex.
     /// The keys of the map are the names of the properties, and the values are vectors of tuples
@@ -579,7 +594,7 @@ pub trait GraphViewInternalOps {
     /// # Returns
     ///
     /// - A map of all temporal values of the graph properties.
-    fn temporal_props(&self,) -> HashMap<String, Vec<(i64, Prop)>>;
+    fn temporal_props(&self) -> HashMap<String, Vec<(i64, Prop)>>;
 
     /// Returns a map of all temporal values of the vertex properties for the given vertex
     /// that fall within the specified time window.
@@ -609,11 +624,7 @@ pub trait GraphViewInternalOps {
     ///
     /// # Returns
     /// - A map of all temporal values of the graph properties
-    fn temporal_props_window(
-        &self,
-        t_start: i64,
-        t_end: i64,
-    ) -> HashMap<String, Vec<(i64, Prop)>>;
+    fn temporal_props_window(&self, t_start: i64, t_end: i64) -> HashMap<String, Vec<(i64, Prop)>>;
 
     /// Returns a vector of all temporal values of the edge property with the given name for the
     /// given edge reference.
@@ -627,6 +638,17 @@ pub trait GraphViewInternalOps {
     ///
     /// A property if it exists
     fn static_edge_prop(&self, e: EdgeRef, name: String) -> Option<Prop>;
+
+    /// Get the static properties of a vertex
+    ///
+    /// # Arguments
+    ///
+    /// * `e` - An `EdgeRef` reference to the edge of interest.
+    ///
+    /// # Returns
+    ///
+    /// Returns a hashmap of all edge static properties
+    fn static_edge_props(&self, e: EdgeRef) -> HashMap<String, Prop>;
 
     /// Returns a vector of keys for the static properties of the given edge reference.
     ///
@@ -1006,8 +1028,16 @@ where
         self.as_graph().static_vertex_prop(v, name)
     }
 
+    fn static_vertex_props(&self, v: LocalVertexRef) -> HashMap<String, Prop> {
+        self.as_graph().static_vertex_props(v)
+    }
+
     fn static_prop(&self, name: String) -> Option<Prop> {
         self.as_graph().static_prop(name)
+    }
+
+    fn static_props(&self) -> HashMap<String, Prop> {
+        self.as_graph().static_props()
     }
 
     fn static_vertex_prop_names(&self, v: LocalVertexRef) -> Vec<String> {
@@ -1054,7 +1084,8 @@ where
     }
 
     fn temporal_prop_vec_window(&self, name: String, t_start: i64, t_end: i64) -> Vec<(i64, Prop)> {
-        self.as_graph().temporal_prop_vec_window(name, t_start, t_end)
+        self.as_graph()
+            .temporal_prop_vec_window(name, t_start, t_end)
     }
 
     fn temporal_vertex_props(&self, v: LocalVertexRef) -> HashMap<String, Vec<(i64, Prop)>> {
@@ -1081,6 +1112,10 @@ where
 
     fn static_edge_prop(&self, e: EdgeRef, name: String) -> Option<Prop> {
         self.as_graph().static_edge_prop(e, name)
+    }
+
+    fn static_edge_props(&self, e: EdgeRef) -> HashMap<String, Prop> {
+        self.as_graph().static_edge_props(e)
     }
 
     fn static_edge_prop_names(&self, e: EdgeRef) -> Vec<String> {

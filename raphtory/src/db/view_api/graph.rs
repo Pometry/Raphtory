@@ -1,3 +1,4 @@
+use crate::core::tgraph_shard::errors::GraphError;
 use crate::core::Prop;
 use itertools::Itertools;
 use rustc_hash::FxHashSet;
@@ -6,6 +7,7 @@ use std::collections::HashMap;
 use crate::core::time::IntoTime;
 use crate::core::vertex_ref::{LocalVertexRef, VertexRef};
 use crate::db::edge::EdgeView;
+use crate::db::graph::Graph;
 use crate::db::graph_layer::LayeredGraph;
 use crate::db::graph_window::WindowedGraph;
 use crate::db::subgraph_vertex::VertexSubgraph;
@@ -14,7 +16,7 @@ use crate::db::vertices::Vertices;
 use crate::db::view_api::internal::GraphViewInternalOps;
 use crate::db::view_api::layer::LayerOps;
 use crate::db::view_api::time::TimeOps;
-use crate::db::view_api::VertexViewOps;
+use crate::db::view_api::{EdgeListOps, EdgeViewOps, VertexViewOps};
 
 /// This trait GraphViewOps defines operations for accessing
 /// information about a graph. The trait has associated types
@@ -143,6 +145,23 @@ pub trait GraphViewOps: Send + Sync + Sized + GraphViewInternalOps + 'static + C
     ///
     /// The value of the property if it exists, otherwise `None`.
     fn static_property(&self, name: String) -> Option<Prop>;
+
+    /// Get the static properties value of this graph.
+    ///
+    /// # Arguments
+    ///
+    /// # Returns
+    ///
+    /// HashMap<String, Prop> - Return all static properties identified by their names
+    fn static_properties(&self) -> HashMap<String, Prop>;
+
+    /// Get a graph clone
+    ///
+    /// # Arguments
+    ///
+    /// # Returns
+    /// Graph - Returns clone of the graph
+    fn materialize(&self) -> Result<Graph, GraphError>;
 }
 
 impl<G: Send + Sync + Sized + GraphViewInternalOps + 'static + Clone> GraphViewOps for G {
@@ -285,6 +304,53 @@ impl<G: Send + Sync + Sized + GraphViewInternalOps + 'static + Clone> GraphViewO
 
     fn static_property(&self, name: String) -> Option<Prop> {
         self.static_prop(name)
+    }
+
+    fn static_properties(&self) -> HashMap<String, Prop> {
+        self.static_props()
+    }
+
+    fn materialize(&self) -> Result<Graph, GraphError> {
+        let g = Graph::new(self.num_shards());
+        for v in self.vertices().iter() {
+            for h in v.history() {
+                g.add_vertex(h, v.id(), &vec![])?;
+            }
+            for (name, props) in v.property_histories() {
+                for (t, prop) in props {
+                    g.add_vertex(t, v.id(), &vec![(name.clone(), prop)])?;
+                }
+            }
+            g.add_vertex_properties(v.id(), &v.static_properties().into_iter().collect_vec())?;
+        }
+
+        for e in self.edges() {
+            let layer_name = &e.layer_name().to_string();
+            let mut layer: Option<&str> = None;
+            if layer_name != "default layer" {
+                layer = Some(layer_name)
+            }
+            for ee in e.explode() {
+                g.add_edge(
+                    ee.time().unwrap(),
+                    ee.src().id(),
+                    ee.dst().id(),
+                    &ee.properties(false).into_iter().collect_vec(),
+                    layer,
+                )?;
+            }
+
+            g.add_edge_properties(
+                e.src().id(),
+                e.dst().id(),
+                &e.static_properties().into_iter().collect_vec(),
+                layer,
+            )?;
+        }
+
+        g.add_static_property(&self.static_properties().into_iter().collect_vec())?;
+
+        Ok(g)
     }
 }
 

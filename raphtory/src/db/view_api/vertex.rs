@@ -111,6 +111,16 @@ pub trait VertexViewOps: TimeOps {
     /// The value of the property if it exists, otherwise `None`.
     fn static_property(&self, name: String) -> Self::ValueType<Option<Prop>>;
 
+    /// Get the static properties value of this vertex.
+    ///
+    /// # Arguments
+    ///
+    ///
+    /// # Returns
+    ///
+    /// HashMap<String, Prop> - Static properties identified by their name
+    fn static_properties(&self) -> Self::ValueType<HashMap<String, Prop>>;
+
     /// Get the degree of this vertex (i.e., the number of edges that are incident to it).
     ///
     /// # Returns
@@ -236,7 +246,22 @@ pub trait VertexListOps:
 
     fn has_static_property(self, name: String) -> Self::IterType<bool>;
 
+    /// Get static property of a vertex by name
+    ///
+    /// # Arguments
+    /// - name - Name of the static property
+    ///
+    /// # Returns
+    /// - Option<Prop> - Static property if found
     fn static_property(self, name: String) -> Self::IterType<Option<Prop>>;
+
+    /// Get all static properties of a vertex
+    ///
+    /// # Arguments
+    ///
+    /// # Returns
+    /// - HashMap<String, Prop> - All static properties of a vertex
+    fn static_properties(self) -> Self::IterType<HashMap<String, Prop>>;
 
     /// Returns an iterator over the degree of the vertices.
     ///

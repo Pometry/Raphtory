@@ -14,6 +14,7 @@ use chrono::NaiveDateTime;
 use itertools::Itertools;
 use pyo3::exceptions::PyIndexError;
 use pyo3::prelude::*;
+use pyo3::pyclass::CompareOp;
 use pyo3::{pyclass, pymethods, PyAny, PyObject, PyRef, PyRefMut, PyResult, Python};
 use raphtory::core::vertex_ref::VertexRef;
 use raphtory::db::path::{PathFromGraph, PathFromVertex};
@@ -24,7 +25,6 @@ use raphtory::db::view_api::*;
 use raphtory::*;
 use std::collections::HashMap;
 use std::sync::Arc;
-use pyo3::pyclass::CompareOp;
 
 /// A vertex (or node) in the graph.
 #[pyclass(name = "Vertex")]
@@ -63,7 +63,6 @@ impl From<PyVertex> for VertexRef {
 /// It can also be used to navigate the graph.
 #[pymethods]
 impl PyVertex {
-
     /// Rich Comparison for Vertex objects
     pub fn __richcmp__(&self, other: PyRef<PyVertex>, op: CompareOp) -> Py<PyAny> {
         let py = other.py();
@@ -260,6 +259,20 @@ impl PyVertex {
     ///     The property value as a `Prop` object or None if the property does not exist.
     pub fn static_property(&self, name: String) -> Option<Prop> {
         self.vertex.static_property(name).map(|prop| prop.into())
+    }
+
+    /// Returns static properties of a vertex
+    ///
+    /// Arguments:
+    ///
+    /// Returns:
+    ///     HashMap<String, Prop> - Returns static properties of a vertex identified by their names
+    pub fn static_properties(&self) -> HashMap<String, Prop> {
+        self.vertex
+            .static_properties()
+            .into_iter()
+            .map(|(k, v)| (k, v.into()))
+            .collect()
     }
 
     /// Get the degree of this vertex (i.e., the number of edges that are incident to it).
@@ -586,6 +599,11 @@ impl PyVertices {
     fn static_property(&self, name: String) -> OptionPropIterable {
         let vertices = self.vertices.clone();
         (move || vertices.static_property(name.clone())).into()
+    }
+
+    fn static_properties(&self) -> PropsIterable {
+        let vertices = self.vertices.clone();
+        (move || vertices.static_properties()).into()
     }
 
     fn degree(&self) -> UsizeIterable {
