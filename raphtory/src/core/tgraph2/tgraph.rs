@@ -1,6 +1,6 @@
 use std::{
     hash::BuildHasherDefault,
-    ops::{Deref, Range},
+    ops::Range,
     sync::Arc,
 };
 
@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     core::{vertex::InputVertex, Direction, Prop},
-    storage::{self, iter::RefT, Entry},
+    storage,
 };
 
 use super::{
@@ -18,14 +18,14 @@ use super::{
     node_store::NodeStore,
     props::Meta,
     timer::{MaxCounter, MinCounter, TimeCounterTrait},
-    EID, VID,
+    VID, vertex::Vertex,
 };
 
 pub(crate) type FxDashMap<K, V> = DashMap<K, V, BuildHasherDefault<FxHasher>>;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct TGraph<const N: usize, L: lock_api::RawRwLock> {
-    inner: Arc<InnerTemporalGraph<N, L>>,
+    pub(crate) inner: Arc<InnerTemporalGraph<N, L>>,
 }
 
 impl<const N: usize, L: lock_api::RawRwLock> Clone for TGraph<N, L> {
@@ -37,7 +37,7 @@ impl<const N: usize, L: lock_api::RawRwLock> Clone for TGraph<N, L> {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-struct InnerTemporalGraph<const N: usize, L: lock_api::RawRwLock> {
+pub(crate) struct InnerTemporalGraph<const N: usize, L: lock_api::RawRwLock> {
     // mapping between logical and physical ids
     logical_to_physical: FxDashMap<u64, usize>,
 
@@ -235,203 +235,15 @@ impl<const N: usize, L: lock_api::RawRwLock> TGraph<N, L> {
         node.value().map(|n| n.global_id())
     }
 
-    fn vertex<'a>(&'a self, v: VID) -> Vertex<'a, N, L> {
+    pub(crate) fn vertex<'a>(&'a self, v: VID) -> Vertex<'a, N, L> {
         let node = self.inner.nodes.entry(v.into());
-        Vertex {
-            node: VRef::Entry(node),
-            graph: self,
-        }
+        Vertex::from_entry( node, self,)
     }
 }
 
-enum VRef<'a, const N: usize, L: lock_api::RawRwLock> {
-    Entry(Entry<'a, NodeStore<N>, L, N>), // fastest thing, returned from graph.vertex
-    RefT(RefT<'a, NodeStore<N>, L, N>),   // returned from graph.vertices
-}
 
-// return index -> usize for VRef
-impl<'a, const N: usize, L: lock_api::RawRwLock> VRef<'a, N, L> {
-    fn index(&'a self) -> usize {
-        match self {
-            VRef::RefT(r) => r.index(),
-            VRef::Entry(e) => e.index(),
-        }
-    }
-}
 
-impl<'a, const N: usize, L: lock_api::RawRwLock> Deref for VRef<'a, N, L> {
-    type Target = NodeStore<N>;
 
-    fn deref(&self) -> &Self::Target {
-        match self {
-            VRef::RefT(r) => r,
-            VRef::Entry(e) => e,
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct Edge<'a, const N: usize, L: lock_api::RawRwLock> {
-    src: VID,
-    dst: VID,
-    edge_id: EID,
-    graph: &'a TGraph<N, L>,
-}
-
-impl<'a, const N: usize, L: lock_api::RawRwLock> Edge<'a, N, L> {
-    pub fn src_id(&self) -> VID {
-        self.src
-    }
-
-    pub fn dst_id(&self) -> VID {
-        self.dst
-    }
-
-    pub fn edge_id(&self) -> EID {
-        self.edge_id
-    }
-
-    pub fn src(&self) -> Vertex<'a, N, L> {
-        self.graph.vertex(self.src)
-    }
-
-    pub fn dst(&self) -> Vertex<'a, N, L> {
-        self.graph.vertex(self.dst)
-    }
-
-    pub fn from_edge_ids(
-        v1: VID,
-        v2: VID,
-        edge_id: EID,
-        dir: Direction,
-        graph: &'a TGraph<N, L>,
-    ) -> Self {
-        let (src, dst) = match dir {
-            Direction::OUT => (v1, v2),
-            Direction::IN => (v2, v1),
-            _ => panic!("Invalid direction"),
-        };
-        Edge {
-            src,
-            dst,
-            edge_id,
-            graph,
-        }
-    }
-}
-
-pub struct Vertex<'a, const N: usize, L: lock_api::RawRwLock> {
-    node: VRef<'a, N, L>, //RefT<'a, NodeStore<N>, L, N>,
-    graph: &'a TGraph<N, L>,
-}
-
-impl<'a, const N: usize, L: lock_api::RawRwLock> Vertex<'a, N, L> {
-    pub fn id(&self) -> VID {
-        self.node.index().into()
-    }
-
-    pub(crate) fn from_ref(node: RefT<'a, NodeStore<N>, L, N>, graph: &'a TGraph<N, L>) -> Self {
-        Vertex {
-            node: VRef::RefT(node),
-            graph,
-        }
-    }
-
-    pub fn temporal_properties(&'a self, name: &str) -> impl Iterator<Item = (i64, Prop)> + 'a {
-        let prop_id = self.graph.inner.props_meta.resolve_prop_id(name);
-        (&self.node).temporal_properties(prop_id)
-    }
-
-    pub fn edges(
-        self,
-        layer: &str,
-        dir: Direction,
-    ) -> impl Iterator<Item = Edge<'a, N, L>> + 'a {
-        let layer = self
-            .graph
-            .inner
-            .props_meta
-            .get_or_create_layer_id(layer.to_owned());
-
-        let src = self.node.index().into();
-
-        Paged {
-            guard: self.node,
-            data: Vec::new(),
-            i: 0,
-            size: 0,
-            dir,
-            layer_id: layer,
-            src,
-            graph: self.graph,
-        }
-    }
-
-    pub fn edges_iter(
-        &'a self,
-        layer: &str,
-        dir: Direction,
-    ) -> impl Iterator<Item = Edge<'a, N, L>> + 'a {
-        let layer = self
-            .graph
-            .inner
-            .props_meta
-            .get_or_create_layer_id(layer.to_owned());
-        (*self.node).edges(layer, dir).map(move |(dst, e_id)| Edge {
-            src: self.node.index().into(),
-            dst,
-            edge_id: e_id,
-            graph: self.graph,
-        })
-    }
-}
-
-struct Paged<'a, const N: usize, L: lock_api::RawRwLock> {
-    guard: VRef<'a, N, L>,
-    data: Vec<(VID, EID)>,
-    i: usize,
-    size: usize,
-    dir: Direction,
-    layer_id: usize,
-    src: VID,
-    graph: &'a TGraph<N, L>,
-}
-
-impl<'a, const N: usize, L: lock_api::RawRwLock> Iterator for Paged<'a, N, L> {
-    type Item = Edge<'a, N, L>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if let Some(t) = self.data.get(self.i) {
-            self.i += 1;
-            let edge = Edge::from_edge_ids(self.src, t.0, t.1, self.dir, self.graph);
-            return Some(edge);
-        }
-
-        if let Some(last) = self.data.last() {
-            self.data = self
-                .guard
-                .edges_from_last(self.layer_id, self.dir, Some(last.0), self.size)
-        } else {
-            // fetch the first page
-            self.data = self
-                .guard
-                .edges_from_last(self.layer_id, self.dir, None, self.size)
-        }
-
-        if self.data.is_empty() {
-            return None;
-        } else {
-            self.i = 1;
-            return Some(Edge::from_edge_ids(
-                self.src,
-                self.data[0].0,
-                self.data[0].1,
-                self.dir,
-                self.graph,
-            ));
-        }
-    }
-}
 
 #[cfg(test)]
 mod test {

@@ -25,9 +25,11 @@ pub enum TAdjSet<K: Ord + Copy + Hash + Send + Sync, V: Into<usize>+ Copy + Send
     Large {
         vs: BTreeMap<K, V>, // this is equiv to vs and edges
     },
+    // TODO: if we use BTreeSet<(K, Option<V>)> we could implement intersections and support edge label queries such as a && b
 }
 
 impl<K: Ord + Copy + Hash + Send + Sync, V: Into<usize> + Copy + Send + Sync> TAdjSet<K, V> {
+    
     pub fn new(v: K, e: V) -> Self {
         Self::One(v, e)
     }

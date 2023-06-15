@@ -5,6 +5,7 @@ use std::{borrow::Borrow, ops::BitAnd};
 pub enum Layer<B:Borrow<str>> {
     Name(B),
     And(Box<Layer<B>>, Box<Layer<B>>),
+    Or(Box<Layer<B>>, Box<Layer<B>>),
 }
 
 impl<B:Borrow<str>> Layer<B> {
@@ -20,6 +21,11 @@ impl<B:Borrow<str>> Layer<B> {
                 names.extend(l2.names());
                 names
             }
+            Layer::Or(l1, l2) => {
+                let mut names = l1.names();
+                names.extend(l2.names());
+                names
+            },
         }
     }
 }
