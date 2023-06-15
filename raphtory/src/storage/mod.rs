@@ -10,7 +10,7 @@ use std::{
 use lock_api::{RawRwLock, RwLock};
 use serde::{Deserialize, Serialize};
 
-use self::{items::Items, iter::Iter};
+use self::{items::Items, iter::{Iter, LockedIter, RefX}};
 
 fn resolve<const N: usize>(index: usize) -> (usize, usize) {
     let bucket = index % N;
@@ -33,11 +33,41 @@ impl<T, L: RawRwLock> LockVec<T, L> {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct RawStorage<T, L: RawRwLock, const N: usize> {
-    data: Box<[LockVec<T, L>]>,
+    pub(crate) data: Box<[LockVec<T, L>]>,
     len: AtomicUsize,
 }
 
+pub struct ReadLockedStorage<'a, T, L: RawRwLock, const N: usize> {
+    locks: Box<[lock_api::RwLockReadGuard<'a, L, Vec<Option<T>>>; N]>,
+}
+
+impl <'a, T, L:RawRwLock, const N: usize> ReadLockedStorage<'a, T, L, N> {
+    pub(crate) fn get(&'a self, index: usize) -> &'a T {
+        let (bucket, offset) = resolve::<N>(index);
+        let bucket = &self.locks[bucket];
+        bucket[offset].as_ref().unwrap()
+    }
+
+    pub fn iter2(&'a self) -> impl Iterator<Item = &'a T>{
+        self.locks.iter().map(|l| l.iter().flatten()).flatten()
+    }
+
+}
+
 impl<T, L: RawRwLock, const N: usize> RawStorage<T, L, N> {
+
+    pub fn locked_iter<'a>(&'a self) -> impl Iterator<Item = RefX<'a, T, L, N>> {
+        LockedIter::new(self)
+    }
+
+    pub fn read_lock<'a>(&'a self) -> ReadLockedStorage<'a, T, L, N> {
+        let guards: [lock_api::RwLockReadGuard<'a, L, Vec<Option<T>>>; N] =
+            std::array::from_fn(|i| self.data[i].data.read());
+        ReadLockedStorage {
+            locks: guards.into(),
+        }
+    }
+
     pub fn new() -> Self {
         let mut data = Vec::with_capacity(N);
         for _ in 0..N {

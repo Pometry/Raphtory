@@ -18,11 +18,12 @@ mod tadjset;
 mod vertex;
 pub(crate) mod edge;
 mod iter;
+mod tgraph_storage;
 pub mod tgraph;
 
 // the only reason this is public is because the phisical ids of the vertices don't move
 #[repr(transparent)]
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Deserialize, Serialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Deserialize, Serialize, Default)]
 pub struct VID(usize);
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]

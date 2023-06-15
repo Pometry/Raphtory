@@ -1,6 +1,6 @@
 use std::{ops::Deref, rc::Rc};
 
-use super::{RawStorage, Entry};
+use super::{RawStorage, Entry, ReadLockedStorage};
 
 pub struct Iter<'a, T, L: lock_api::RawRwLock, const N: usize> {
     raw: &'a RawStorage<T, L, N>,
@@ -8,6 +8,52 @@ pub struct Iter<'a, T, L: lock_api::RawRwLock, const N: usize> {
     offset: usize,
     current: Option<GuardIter<'a, T, L>>,
 }
+
+pub struct LockedIter<'a, T, L: lock_api::RawRwLock, const N: usize> {
+    raw: &'a RawStorage<T, L, N>,
+    index: usize,
+    until: usize,
+    current: ReadLockedStorage<'a, T, L, N>
+}
+
+impl <'a, T, L: lock_api::RawRwLock, const N: usize> LockedIter<'a, T, L, N> {
+    pub(crate) fn new(storage: &'a RawStorage<T, L, N>) -> Self {
+        LockedIter {
+            raw: &storage,
+            index: 0,
+            until: storage.len(),
+            current: storage.read_lock(),
+        }
+    }
+}
+pub struct RefX<'a, T, L:lock_api::RawRwLock, const N: usize>{
+    locked_storage: &'a ReadLockedStorage<'a, T, L, N>,
+    i: usize,
+}
+
+// now implement deref for RefX
+impl <'a, T, L: lock_api::RawRwLock, const N: usize> Deref for RefX<'a, T, L, N> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        self.locked_storage.get(self.i)
+    }
+}
+
+// impl Iterator for LockedIter
+impl <'a, T, L: lock_api::RawRwLock, const N: usize> Iterator for LockedIter<'a, T, L, N> {
+    type Item = RefX<'a, T, L, N>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let out = Some(RefX {
+            locked_storage: &self.current,
+            i: self.index,
+        });
+        self.index += 1;
+        out
+    }
+}
+
 
 // impl new for Iter
 impl<'a, T, L: lock_api::RawRwLock, const N: usize> Iter<'a, T, L, N> {

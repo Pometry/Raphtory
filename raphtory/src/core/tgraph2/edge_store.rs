@@ -4,7 +4,7 @@ use crate::core::{timeindex::TimeIndex, Prop};
 
 use super::{props::Props, VID};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub(crate) struct EdgeStore<const N: usize> {
     src: VID,
     dst: VID,
