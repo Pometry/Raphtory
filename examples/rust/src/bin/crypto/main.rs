@@ -77,7 +77,7 @@ fn main() {
         20,
         1651105815,
         vec!["0xd30b438df65f4f788563b2b3611bd6059bff4ad9"],
-        Some(vec![]),
+        None,
     );
     println!("Time taken: {} secs", now.elapsed().as_secs());
 }
