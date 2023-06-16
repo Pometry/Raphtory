@@ -15,7 +15,7 @@ use raphtory::algorithms::degree::{
     min_out_degree as min_out_degree_rs,
 };
 use raphtory::algorithms::directed_graph_density::directed_graph_density as directed_graph_density_rs;
-use raphtory::algorithms::generic_taint::generic_taint as generic_taint_rs;
+use raphtory::algorithms::temporal_reachability::temporally_reachable_nodes as generic_taint_rs;
 use raphtory::algorithms::local_clustering_coefficient::local_clustering_coefficient as local_clustering_coefficient_rs;
 use raphtory::algorithms::local_triangle_count::local_triangle_count as local_triangle_count_rs;
 use raphtory::algorithms::motifs::three_node_local::local_temporal_three_node_motifs as local_three_node_rs;

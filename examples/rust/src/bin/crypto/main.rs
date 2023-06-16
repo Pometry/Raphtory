@@ -1,6 +1,6 @@
 use chrono::NaiveDateTime;
 use itertools::Itertools;
-use raphtory::algorithms::generic_taint::generic_taint;
+use raphtory::algorithms::temporal_reachability::temporally_reachable_nodes;
 use raphtory::algorithms::pagerank::unweighted_page_rank;
 use raphtory::core::time::TryIntoTime;
 use raphtory::db::view_api::internal::GraphViewInternalOps;
@@ -71,7 +71,7 @@ fn main() {
 
     println!("Generic taint");
     let now = Instant::now();
-    let _ = generic_taint(
+    let _ = temporally_reachable_nodes(
         &g.layer("USDT").unwrap(),
         None,
         20,
