@@ -1,8 +1,7 @@
 use crate::core::edge_ref::EdgeRef;
 use crate::core::vertex_ref::{LocalVertexRef, VertexRef};
 use crate::core::{Direction, Prop};
-use crate::db::view_api::internal::time_semantics::InheritTimeSemantics;
-use crate::db::view_api::internal::{GraphOps, TimeSemantics};
+use crate::db::view_api::internal::{GraphOps, InheritCoreOps, TimeSemantics};
 use crate::db::view_api::{BoxedIter, GraphViewOps};
 use itertools::Itertools;
 use rayon::prelude::*;
@@ -14,6 +13,14 @@ use std::sync::Arc;
 pub struct VertexSubgraph<G: GraphViewOps> {
     graph: G,
     vertices: Arc<FxHashSet<LocalVertexRef>>,
+}
+
+impl<G: GraphViewOps> InheritCoreOps for VertexSubgraph<G> {
+    type Internal = G;
+
+    fn graph(&self) -> &Self::Internal {
+        &self.graph
+    }
 }
 
 impl<G: GraphViewOps> VertexSubgraph<G> {
@@ -150,6 +157,14 @@ impl<G: GraphViewOps> TimeSemantics for VertexSubgraph<G> {
 
     fn edge_latest_time_window(&self, e: EdgeRef, w: Range<i64>) -> Option<i64> {
         self.graph.edge_latest_time_window(e, w)
+    }
+
+    fn temporal_prop_vec(&self, name: &str) -> Vec<(i64, Prop)> {
+        self.graph.temporal_prop_vec(name)
+    }
+
+    fn temporal_prop_vec_window(&self, name: &str, t_start: i64, t_end: i64) -> Vec<(i64, Prop)> {
+        self.graph.temporal_prop_vec_window(name, t_start, t_end)
     }
 
     fn temporal_vertex_prop_vec(&self, v: LocalVertexRef, name: &str) -> Vec<(i64, Prop)> {

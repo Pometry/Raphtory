@@ -325,6 +325,20 @@ impl TimeSemantics for InternalGraph {
         self.edge_additions(e).range(w).last()
     }
 
+    fn temporal_prop_vec(&self, name: &str) -> Vec<(i64, Prop)> {
+        match self.temporal_prop(name) {
+            Some(props) => props.iter().collect(),
+            None => Default::default(),
+        }
+    }
+
+    fn temporal_prop_vec_window(&self, name: &str, t_start: i64, t_end: i64) -> Vec<(i64, Prop)> {
+        match self.temporal_prop(name) {
+            Some(props) => props.iter_window(t_start..t_end).collect(),
+            None => Default::default(),
+        }
+    }
+
     fn temporal_vertex_prop_vec(&self, v: LocalVertexRef, name: &str) -> Vec<(i64, Prop)> {
         match self.temporal_vertex_prop(v, name) {
             Some(tprop) => tprop.iter().collect(),
@@ -442,6 +456,22 @@ impl CoreGraphOps for InternalGraph {
         self.static_vertex_prop(v, "_id")
             .into_str()
             .unwrap_or(self.vertex_id(v).to_string())
+    }
+
+    fn static_prop_names(&self) -> Vec<String> {
+        self.shards[0].static_prop_names()
+    }
+
+    fn static_prop(&self, name: &str) -> Option<Prop> {
+        self.shards[0].static_prop(name)
+    }
+
+    fn temporal_prop_names(&self) -> Vec<String> {
+        self.shards[0].temporal_prop_names()
+    }
+
+    fn temporal_prop(&self, name: &str) -> Option<LockedView<TProp>> {
+        self.shards[0].temporal_prop(name)
     }
 }
 

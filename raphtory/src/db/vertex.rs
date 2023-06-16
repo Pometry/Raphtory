@@ -146,10 +146,7 @@ impl<G: GraphViewOps> VertexViewOps for VertexView<G> {
         let mut props: HashMap<String, Prop> = HashMap::new();
 
         for prop_name in self.graph.static_vertex_prop_names(self.vertex) {
-            if let Some(prop) = self
-                .graph
-                .static_vertex_prop(self.vertex, prop_name.clone())
-            {
+            if let Some(prop) = self.graph.static_vertex_prop(self.vertex, &prop_name) {
                 props.insert(prop_name, prop);
             }
         }

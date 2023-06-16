@@ -1,20 +1,19 @@
 use crate::data::Data;
+use crate::model::algorithm::Algorithms;
+use crate::model::graph::edge::Edge;
+use crate::model::graph::graph::DynamicGraph;
+use crate::model::graph::property::Property;
 use async_graphql::Context;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::core::Prop;
 use raphtory::db::edge::EdgeView;
 use raphtory::db::vertex::VertexView;
-use raphtory::db::view_api::internal::{GraphViewInternalOps, WrappedGraph};
+use raphtory::db::view_api::internal::WrappedGraph;
 use raphtory::db::view_api::EdgeListOps;
 use raphtory::db::view_api::EdgeViewOps;
 use raphtory::db::view_api::{GraphViewOps, TimeOps, VertexViewOps};
 use std::sync::Arc;
-use crate::model::algorithm::Algorithms;
-use crate::model::graph::edge::Edge;
-use crate::model::graph::graph::DynamicGraph;
-use crate::model::graph::property::Property;
-
 
 #[derive(ResolvedObject)]
 pub(crate) struct Node {
@@ -38,7 +37,10 @@ impl Node {
     }
 
     pub async fn node_type(&self) -> String {
-        self.vv.property("type".to_string(),true).unwrap_or(Prop::Str("NONE".to_string())).to_string()
+        self.vv
+            .property("type".to_string(), true)
+            .unwrap_or(Prop::Str("NONE".to_string()))
+            .to_string()
     }
 
     async fn property_names<'a>(&self, _ctx: &Context<'a>) -> Vec<String> {

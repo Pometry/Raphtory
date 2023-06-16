@@ -14,7 +14,7 @@ use crate::db::subgraph_vertex::VertexSubgraph;
 use crate::db::vertex::VertexView;
 use crate::db::vertices::Vertices;
 use crate::db::view_api::internal::time_semantics::TimeSemantics;
-use crate::db::view_api::internal::{BoxableGraphView, CoreGraphOps};
+use crate::db::view_api::internal::{BoxableGraphView, CoreGraphOps, GraphPropertiesOps};
 use crate::db::view_api::layer::LayerOps;
 use crate::db::view_api::time::TimeOps;
 use crate::db::view_api::{EdgeListOps, EdgeViewOps, VertexViewOps};
@@ -259,7 +259,7 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
         match props.last() {
             None => {
                 if include_static {
-                    self.static_prop(name)
+                    self.static_prop(&name)
                 } else {
                     None
                 }
@@ -269,7 +269,7 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
     }
 
     fn property_history(&self, name: String) -> Vec<(i64, Prop)> {
-        self.temporal_prop_vec(name)
+        self.temporal_prop_vec(&name)
     }
 
     fn properties(&self, include_static: bool) -> HashMap<String, Prop> {
@@ -281,7 +281,7 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
 
         if include_static {
             for prop_name in self.static_prop_names() {
-                if let Some(prop) = self.static_prop(prop_name.clone()) {
+                if let Some(prop) = self.static_prop(&prop_name) {
                     props.insert(prop_name, prop);
                 }
             }
@@ -311,7 +311,7 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
     }
 
     fn static_property(&self, name: String) -> Option<Prop> {
-        self.static_prop(name)
+        self.static_prop(&name)
     }
 
     fn static_properties(&self) -> HashMap<String, Prop> {

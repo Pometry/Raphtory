@@ -562,7 +562,7 @@ impl TemporalGraph {
         self.vertex_props.temporal_prop(v.pid, name)
     }
 
-    pub(crate) fn temporal_prop(&self, name: &str) -> Option<&TProp> {
+    pub fn temporal_prop(&self, name: &str) -> Option<&TProp> {
         self.graph_props.temporal_prop(0, name)
     }
 

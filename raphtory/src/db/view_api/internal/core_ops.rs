@@ -31,6 +31,42 @@ pub trait CoreGraphOps {
     /// Gets the local reference for a remote vertex and keeps local references unchanged. Assumes vertex exists!
     fn localise_vertex_unchecked(&self, v: VertexRef) -> LocalVertexRef;
 
+    /// Lists the keys of all static properties of the graph
+    ///
+    /// # Returns
+    ///
+    /// Vec<String> - The keys of the static properties.
+    fn static_prop_names(&self) -> Vec<String>;
+
+    /// Gets a static graph property.
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - The name of the property.
+    ///
+    /// # Returns
+    ///
+    /// Option<Prop> - The property value if it exists.
+    fn static_prop(&self, name: &str) -> Option<Prop>;
+
+    /// Lists the keys of all temporal properties of the graph
+    ///
+    /// # Returns
+    ///
+    /// Vec<String> - The keys of the static properties.
+    fn temporal_prop_names(&self) -> Vec<String>;
+
+    /// Gets a temporal graph property.
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - The name of the property.
+    ///
+    /// # Returns
+    ///
+    /// Option<LockedView<TProp>> - The history of property values if it exists.
+    fn temporal_prop(&self, name: &str) -> Option<LockedView<TProp>>;
+
     /// Gets a static property of a given vertex given the name and vertex reference.
     ///
     /// # Arguments
@@ -63,7 +99,7 @@ pub trait CoreGraphOps {
     ///
     /// # Returns
     ///
-    /// Option<Prop> - The property value if it exists.
+    /// Option<LockedView<TProp>> - The history of property values if it exists.
     fn temporal_vertex_prop(&self, v: LocalVertexRef, name: &str) -> Option<LockedView<TProp>>;
 
     /// Returns a vector of all names of temporal properties within the given vertex
@@ -161,6 +197,22 @@ impl<G: InheritCoreOps + ?Sized> CoreGraphOps for G {
 
     fn localise_vertex_unchecked(&self, v: VertexRef) -> LocalVertexRef {
         self.graph().localise_vertex_unchecked(v)
+    }
+
+    fn static_prop_names(&self) -> Vec<String> {
+        self.graph().static_prop_names()
+    }
+
+    fn static_prop(&self, name: &str) -> Option<Prop> {
+        self.graph().static_prop(name)
+    }
+
+    fn temporal_prop_names(&self) -> Vec<String> {
+        self.graph().temporal_prop_names()
+    }
+
+    fn temporal_prop(&self, name: &str) -> Option<LockedView<TProp>> {
+        self.graph().temporal_prop(name)
     }
 
     fn static_vertex_prop(&self, v: LocalVertexRef, name: &str) -> Option<Prop> {

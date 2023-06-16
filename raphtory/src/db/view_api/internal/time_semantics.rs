@@ -70,6 +70,35 @@ pub trait TimeSemantics {
     /// Get the time of the latest activity of an edge `e` in window `w`
     fn edge_latest_time_window(&self, e: EdgeRef, w: Range<i64>) -> Option<i64>;
 
+    /// Returns a vector of all temporal values of the graph property with the given name
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - The name of the property to retrieve.
+    ///
+    /// # Returns
+    ///
+    /// A vector of tuples representing the temporal values of the property
+    /// that fall within the specified time window, where the first element of each tuple is the timestamp
+    /// and the second element is the property value.
+    fn temporal_prop_vec(&self, name: &str) -> Vec<(i64, Prop)>;
+
+    /// Returns a vector of all temporal values of the graph property with the given name
+    /// that fall within the specified time window.
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - The name of the property to retrieve.
+    /// * `t_start` - The start time of the window to consider.
+    /// * `t_end` - The end time of the window to consider.
+    ///
+    /// # Returns
+    ///
+    /// A vector of tuples representing the temporal values of the property
+    /// that fall within the specified time window, where the first element of each tuple is the timestamp
+    /// and the second element is the property value.
+    fn temporal_prop_vec_window(&self, name: &str, t_start: i64, t_end: i64) -> Vec<(i64, Prop)>;
+
     /// Returns a vector of all temporal values of the vertex property with the given name for the
     /// given vertex
     ///
@@ -240,6 +269,14 @@ impl<G: InheritTimeSemantics + ?Sized> TimeSemantics for G {
 
     fn edge_latest_time_window(&self, e: EdgeRef, w: Range<i64>) -> Option<i64> {
         self.graph().edge_latest_time_window(e, w)
+    }
+
+    fn temporal_prop_vec(&self, name: &str) -> Vec<(i64, Prop)> {
+        self.graph().temporal_prop_vec(name)
+    }
+
+    fn temporal_prop_vec_window(&self, name: &str, t_start: i64, t_end: i64) -> Vec<(i64, Prop)> {
+        self.graph().temporal_prop_vec_window(name, t_start, t_end)
     }
 
     fn temporal_vertex_prop_vec(&self, v: LocalVertexRef, name: &str) -> Vec<(i64, Prop)> {

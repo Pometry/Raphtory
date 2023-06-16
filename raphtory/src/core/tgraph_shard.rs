@@ -500,7 +500,7 @@ impl TGraphShard<TemporalGraph> {
         self.read_shard(|tg| tg.static_vertex_prop(v, name))
     }
 
-    pub fn static_prop(&self, name: String) -> Option<Prop> {
+    pub fn static_prop(&self, name: &str) -> Option<Prop> {
         self.read_shard(|tg| tg.static_prop(&name))
     }
 
@@ -524,6 +524,11 @@ impl TGraphShard<TemporalGraph> {
 
     pub fn temporal_prop_names(&self) -> Vec<String> {
         self.read_shard(|tg| tg.temporal_prop_names())
+    }
+
+    pub fn temporal_prop(&self, name: &str) -> Option<LockedView<TProp>> {
+        let has_prop = self.read_shard(|tg| tg.temporal_prop(name).is_some());
+        has_prop.then(|| self.map(move |tg| tg.temporal_prop(name).expect("just checked")))
     }
 
     pub fn vertex_additions(&self, v: LocalVertexRef) -> LockedView<TimeIndex> {
@@ -670,8 +675,8 @@ impl ImmutableTGraphShard<TemporalGraph> {
         self.read_shard(|tg| tg.static_vertex_prop(v, name))
     }
 
-    pub fn static_prop(&self, name: String) -> Option<Prop> {
-        self.read_shard(|tg| tg.static_prop(&name))
+    pub fn static_prop(&self, name: &str) -> Option<Prop> {
+        self.read_shard(|tg| tg.static_prop(name))
     }
 
     pub fn static_vertex_prop_names(&self, v: LocalVertexRef) -> Vec<String> {
@@ -688,6 +693,10 @@ impl ImmutableTGraphShard<TemporalGraph> {
 
     pub fn temporal_prop_names(&self) -> Vec<String> {
         self.read_shard(|tg| tg.temporal_prop_names())
+    }
+
+    pub fn temporal_prop(&self, name: &str) -> Option<LockedView<TProp>> {
+        self.rc.temporal_prop(name).map(|p| LockedView::Frozen(p))
     }
 
     pub fn static_edge_prop(&self, e: EdgeRef, name: &str) -> Option<Prop> {

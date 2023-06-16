@@ -22,6 +22,14 @@ pub trait GraphPropertiesOps {
     ///
     fn temporal_edge_props(&self, e: EdgeRef) -> HashMap<String, Vec<(i64, Prop)>>;
 
+    fn static_edge_props(&self, e: EdgeRef) -> HashMap<String, Prop>;
+
+    fn static_vertex_props(&self, v: LocalVertexRef) -> HashMap<String, Prop>;
+
+    fn static_props(&self) -> HashMap<String, Prop>;
+
+    fn temporal_props(&self) -> HashMap<String, Vec<(i64, Prop)>>;
+
     /// Returns a map of all temporal values of the vertex properties for the given vertex.
     /// The keys of the map are the names of the properties, and the values are vectors of tuples
     ///
@@ -80,6 +88,44 @@ impl<G: TimeSemantics + CoreGraphOps> GraphPropertiesOps for G {
         let mut map = HashMap::default();
         for name in self.temporal_edge_prop_names(e) {
             map.insert(name.clone(), self.temporal_edge_prop_vec(e, &name));
+        }
+        map
+    }
+
+    fn static_edge_props(&self, e: EdgeRef) -> HashMap<String, Prop> {
+        let mut map = HashMap::default();
+        for name in self.static_edge_prop_names(e) {
+            if let Some(p) = self.static_edge_prop(e, &name) {
+                map.insert(name.clone(), p);
+            };
+        }
+        map
+    }
+
+    fn static_vertex_props(&self, v: LocalVertexRef) -> HashMap<String, Prop> {
+        let mut map = HashMap::default();
+        for name in self.static_vertex_prop_names(v) {
+            if let Some(p) = self.static_vertex_prop(v, &name) {
+                map.insert(name.clone(), p);
+            }
+        }
+        map
+    }
+
+    fn static_props(&self) -> HashMap<String, Prop> {
+        let mut map = HashMap::default();
+        for name in self.static_prop_names() {
+            if let Some(p) = self.static_prop(&name) {
+                map.insert(name.clone(), p);
+            }
+        }
+        map
+    }
+
+    fn temporal_props(&self) -> HashMap<String, Vec<(i64, Prop)>> {
+        let mut map = HashMap::default();
+        for name in self.temporal_prop_names() {
+            map.insert(name.clone(), self.temporal_prop_vec(&name));
         }
         map
     }

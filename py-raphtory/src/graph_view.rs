@@ -15,7 +15,7 @@ use futures::StreamExt;
 use itertools::Itertools;
 use pyo3::prelude::*;
 use raphtory::db::subgraph_vertex::VertexSubgraph;
-use raphtory::db::view_api::internal::GraphViewInternalOps;
+use raphtory::db::view_api::internal::CoreGraphOps;
 use raphtory::db::view_api::layer::LayerOps;
 use raphtory::db::view_api::*;
 use raphtory::*;
@@ -388,7 +388,7 @@ impl PyGraphView {
     /// Returns:
     ///    Option<Prop> - Returns the static property
     fn static_property(&self, name: String) -> Option<Prop> {
-        self.graph.static_prop(name.clone()).map(|v| v.into())
+        self.graph.static_prop(&name).map(|v| v.into())
     }
 
     /// Returns static properties of a graph
@@ -398,8 +398,7 @@ impl PyGraphView {
     /// Returns:
     ///    HashMap<String, Prop> - Returns static properties identified by their names
     fn static_properties(&self) -> HashMap<String, Prop> {
-        let r: HashMap<String, raphtory::core::Prop> =
-            self.graph.static_properties();
+        let r: HashMap<String, raphtory::core::Prop> = self.graph.static_properties();
         r.into_iter().map(|(i, v)| (i, v.into())).collect()
     }
 
