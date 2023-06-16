@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1686910948761,
+  "lastUpdate": 1686933114360,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -3343,6 +3343,60 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions with numeric string input",
             "value": 1915844,
             "range": "± 89442",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97447091+ljeub-pometry@users.noreply.github.com",
+            "name": "ljeub-pometry",
+            "username": "ljeub-pometry"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d2b1bc813932b16428736551a6c66821c0550ab3",
+          "message": "Feature/edge deletions (#1049)\n\n* add deletion timestamps to EdgeLayer\r\n\r\n* work in progress on getting traits back in order\r\n\r\n* it compiles but neighbours for window seems broken?\r\n\r\n* fix windowing bugs\r\n\r\n* Minor refactor to bring back GraphViewInternalOps as a catch-all trait for box-able graphs\r\n\r\n* fix  the dynamic boxed graph\r\n\r\n* fix broken tests that were checking for buggy behaviour\r\n\r\n* fix issues after merge\r\n\r\n* clean up a lot of warnings\r\n\r\n* more warnings gone\r\n\r\n* start persistent edge view\r\n\r\n* address review comments",
+          "timestamp": "2023-06-16T17:30:18+01:00",
+          "tree_id": "da12f46ebac2bab551c5f594bdca15b1974bce43",
+          "url": "https://github.com/Pometry/Raphtory/commit/d2b1bc813932b16428736551a6c66821c0550ab3"
+        },
+        "date": 1686933113660,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 337452,
+            "range": "± 2717",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and numeric string input",
+            "value": 934874,
+            "range": "± 2096",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and string input",
+            "value": 970646,
+            "range": "± 2220",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 529442,
+            "range": "± 94251",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions with numeric string input",
+            "value": 1880787,
+            "range": "± 71794",
             "unit": "ns/iter"
           }
         ]
