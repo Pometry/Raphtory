@@ -2,16 +2,9 @@ use std::{ops::Deref, rc::Rc};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    core::Direction,
-    storage::{
-        self,
-        iter::RefT,
-        Entry, EntryMut, PairEntryMut,
-    },
-};
+use crate:: storage::{ self, iter::RefT, Entry, EntryMut, PairEntryMut, } ;
 
-use super::{edge_store::EdgeStore, node_store::NodeStore, VID, iter::LockedPaged, EID};
+use super::{edge_store::EdgeStore, node_store::NodeStore};
 
 #[derive(Debug, Deserialize, Serialize)]
 pub(crate) struct GraphStorage<const N: usize, L: lock_api::RawRwLock> {
@@ -71,10 +64,7 @@ impl<const N: usize, L: lock_api::RawRwLock> GraphStorage<N, L> {
     }
 
     fn lock(&self) -> LockedGraphStorage<'_, N, L> {
-        LockedGraphStorage {
-            nodes: self.nodes.read_lock(),
-            edges: self.edges.read_lock(),
-        }
+        LockedGraphStorage::new(self) 
     }
 
     pub(crate) fn locked_nodes(&self) -> impl Iterator<Item = GraphEntry<'_, NodeStore<N>, L, N>> {
@@ -115,7 +105,7 @@ impl<'a, const N: usize, L: lock_api::RawRwLock> Iterator for LockedVIter<'a, N,
 }
 
 // FIXME: this will be the next VertexRef?
-pub(crate) struct GraphEntry<'a, T, L: lock_api::RawRwLock, const N: usize> {
+pub struct GraphEntry<'a, T, L: lock_api::RawRwLock, const N: usize> {
     locked_gs: Rc<LockedGraphStorage<'a, N, L>>,
     i: usize,
     _marker: std::marker::PhantomData<T>,
@@ -124,12 +114,20 @@ pub(crate) struct GraphEntry<'a, T, L: lock_api::RawRwLock, const N: usize> {
 
 // impl new
 impl<'a, const N: usize, L: lock_api::RawRwLock, T> GraphEntry<'a, T, L, N> {
-    pub fn new(gs: Rc<LockedGraphStorage<'a, N, L>>,i: usize) -> Self {
+    pub(crate) fn new(gs: Rc<LockedGraphStorage<'a, N, L>>,i: usize) -> Self {
         Self {
             locked_gs: gs,
             i,
             _marker: std::marker::PhantomData,
         }
+    }
+
+    pub(crate) fn index(&self) -> usize {
+        self.i
+    }
+
+    pub(crate) fn locked_gs(&self) -> &Rc<LockedGraphStorage<'a, N, L>> {
+        &self.locked_gs
     }
 }
 
@@ -142,37 +140,17 @@ impl<'a, const N: usize, L: lock_api::RawRwLock> Deref for GraphEntry<'a, NodeSt
     }
 }
 
-impl<'a, const N: usize, L: lock_api::RawRwLock> GraphEntry<'a, NodeStore<N>, L, N> {
-
-    pub fn edges_iter(
-        &'a self,
-        layer_id: usize,
-        dir: Direction,
-    ) -> impl Iterator<Item = GraphEntry<'a, EdgeStore<N>, L, N>> + 'a {
-        (*self)
-            .edge_tuples(layer_id, dir)
-            .map(move |(vid, eid)| GraphEntry {
-                locked_gs: self.locked_gs.clone(),
-                i: eid.into(),
-                _marker: std::marker::PhantomData,
-            })
-    }
-
-    pub fn edges(self, layer_id: usize, dir: Direction) -> impl Iterator<Item = GraphEntry<'a, EdgeStore<N>, L, N>> + 'a {
-        LockedPaged::new( self.locked_gs, dir, layer_id, self.i.into())
-    }
-}
-
+#[derive(Debug)]
 pub(crate) struct LockedGraphStorage<'a, const N: usize, L: lock_api::RawRwLock> {
     nodes: storage::ReadLockedStorage<'a, NodeStore<N>, L, N>,
-    edges: storage::ReadLockedStorage<'a, EdgeStore<N>, L, N>,
+    _edges: storage::ReadLockedStorage<'a, EdgeStore<N>, L, N>,
 }
 
 impl<'a, const N: usize, L: lock_api::RawRwLock> LockedGraphStorage<'a, N, L> {
     pub(crate) fn new(storage: &'a GraphStorage<N, L>) -> Self {
         Self {
             nodes: storage.nodes.read_lock(),
-            edges: storage.edges.read_lock(),
+            _edges: storage.edges.read_lock(),
         }
     }
 
@@ -180,103 +158,4 @@ impl<'a, const N: usize, L: lock_api::RawRwLock> LockedGraphStorage<'a, N, L> {
         self.nodes.get(id)
     }
 
-    pub(crate) fn edges_from_last(
-        &'a self,
-        id: usize,
-        layer_id: usize,
-        dir: Direction,
-        last: Option<VID>,
-        page_size: usize,
-    ) -> Vec<(VID, EID)>{
-        self.get_node(id).edges_from_last(layer_id, dir, last, page_size)
-    }
 }
-
-// pub(crate) trait GStorage<'a, const N: usize> {
-//     type Ptr<A: 'static>: Deref<Target = A>
-//     where
-//         Self: 'a;
-//     // type PtrMut<A>: DerefMut<Target = A>;
-
-//     fn get_node(&'a self, id: VID) -> Self::Ptr<NodeStore<N>>;
-//     // fn get_edge(&'a self, id: EID) -> Self::Ptr<'a, EdgeStore<N>>;
-
-//     // fn get_node_mut(&mut self, id: VID) -> &mut NodeStore<N>;
-//     // fn get_edge_mut(&mut self, id: EID) -> &mut EdgeStore<N>;
-// }
-
-// impl<'a, const N: usize, L: lock_api::RawRwLock + 'static> GStorage<'a, N> for GraphStorage<N, L> {
-//     type Ptr<A: 'static> = Entry<'a, A, L, N> where Self: 'a;
-//     fn get_node(&'a self, id: VID) -> Self::Ptr<NodeStore<N>> {
-//         self.nodes.entry(id.into())
-//     }
-
-//     // fn get_edge(&self, id: EID) -> &EdgeStore<N> {
-//     //     self.edges.entry(id.into())
-//     // }
-
-//     // fn get_node_mut(&mut self, id: VID) -> &mut NodeStore<N> {
-//     //     self.nodes.entry_mut(id)
-//     // }
-
-//     // fn get_edge_mut(&mut self, id: EID) -> &mut EdgeStore<N> {
-//     //     self.edges.entry_mut(id)
-//     // }
-// }
-
-// impl<'a, const N: usize, L: lock_api::RawRwLock + 'static> GStorage<'a, N>
-//     for LockedGraphStorage<'a, N, L>
-// {
-//     type Ptr<A: 'static> = &'a A where Self: 'a;
-
-//     fn get_node(&'a self, id: VID) -> Self::Ptr<NodeStore<N>> {
-//         self.nodes.get(id.into())
-//     }
-// }
-
-// pub(crate) trait GIter<'a, const N: usize> {
-//     type Ptr<A: 'static>: Deref<Target = A>
-//     where
-//         Self: 'a;
-//     // type PtrMut<A>: DerefMut<Target = A>;
-//     type Iter<A: 'static>: Iterator<Item = Self::Ptr<A>>
-//     where
-//         Self: 'a;
-
-//     fn iter_nodes(&'a self) -> Self::Iter<NodeStore<N>>;
-//     fn iter_edges(&'a self) -> Self::Iter<EdgeStore<N>>;
-//     // fn get_edge(&'a self, id: EID) -> Self::Ptr<'a, EdgeStore<N>>;
-
-//     // fn get_node_mut(&mut self, id: VID) -> &mut NodeStore<N>;
-//     // fn get_edge_mut(&mut self, id: EID) -> &mut EdgeStore<N>;
-// }
-
-// // impl for LockedGraphStorage
-// impl<'a, const N: usize, L: lock_api::RawRwLock + 'static> GIter<'a, N>
-//     for LockedGraphStorage<'a, N, L>
-// {
-//     type Ptr<A: 'static> = &'a A where Self: 'a;
-//     type Iter<A: 'static> = Box<dyn Iterator<Item = Self::Ptr<A>> + 'a>;
-
-//     fn iter_nodes(&'a self) -> Self::Iter<NodeStore<N>> {
-//         Box::new(self.nodes.iter2())
-//     }
-
-//     fn iter_edges(&'a self) -> Self::Iter<EdgeStore<N>> {
-//         Box::new(self.edges.iter2())
-//     }
-// }
-
-// // impl for GraphStorage uses RefT
-// impl<'a, const N: usize, L: lock_api::RawRwLock + 'static> GIter<'a, N> for GraphStorage<N, L> {
-//     type Ptr<A: 'static> = RefT<'a, A, L, N> where Self: 'a;
-//     type Iter<A: 'static> = Box<dyn Iterator<Item = Self::Ptr<A>> + 'a>;
-
-//     fn iter_nodes(&'a self) -> Self::Iter<NodeStore<N>> {
-//         Box::new(self.nodes.iter2())
-//     }
-
-//     fn iter_edges(&'a self) -> Self::Iter<EdgeStore<N>> {
-//         Box::new(self.edges.iter2())
-//     }
-// }

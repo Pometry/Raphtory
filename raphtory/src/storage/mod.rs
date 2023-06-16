@@ -10,7 +10,7 @@ use std::{
 use lock_api::{RawRwLock, RwLock};
 use serde::{Deserialize, Serialize};
 
-use self::{items::Items, iter::Iter};
+use self::iter::Iter;
 
 fn resolve<const N: usize>(index: usize) -> (usize, usize) {
     let bucket = index % N;
@@ -37,6 +37,7 @@ pub struct RawStorage<T, L: RawRwLock, const N: usize> {
     len: AtomicUsize,
 }
 
+#[derive(Debug)]
 pub struct ReadLockedStorage<'a, T, L: RawRwLock, const N: usize> {
     locks: Box<[lock_api::RwLockReadGuard<'a, L, Vec<Option<T>>>; N]>,
 }

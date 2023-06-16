@@ -223,6 +223,12 @@ impl<const N: usize, L: lock_api::RawRwLock + 'static> TGraph<N, L> {
         })
     }
 
+    pub fn locked_vertices<'a>(&'a self) -> impl Iterator<Item = Vertex<'a, N, L>> {
+        self.inner.storage.locked_nodes().map(move |node| {
+            Vertex::from_ge(node, self)
+        })
+    }
+
     pub fn find_global_id(&self, v: VID) -> Option<u64> {
         let node = self.inner.storage.get_node(v.into());
         node.value().map(|n| n.global_id())
@@ -321,6 +327,48 @@ mod test {
 
         let res = g
             .vertices()
+            .flat_map(|v| {
+                let v_id = v.id();
+                v.edges("follows", Direction::OUT)
+                    .flat_map(move |edge_1| {
+                        edge_1
+                            .dst()
+                            .edges("follows", Direction::OUT)
+                            .flat_map(move |edge_2| {
+                                edge_2
+                                    .dst()
+                                    .edges("follows", Direction::OUT)
+                                    .filter(move |e| e.dst_id() == v_id)
+                                    .map(move |edge_3| {
+                                        (v_id, edge_2.src_id(), edge_2.dst_id(), edge_3.dst_id())
+                                    })
+                            })
+                    })
+            })
+            .collect_vec();
+
+        assert_eq!(
+            res,
+            vec![
+                (0.into(), 1.into(), 2.into(), 0.into()),
+                (1.into(), 2.into(), 0.into(), 1.into()),
+                (2.into(), 0.into(), 1.into(), 2.into()),
+            ]
+        );
+    }
+
+    #[test]
+    fn triangle_counts_by_locked_iterators() {
+        let g: TGraph<4, parking_lot::RawRwLock> = TGraph::new();
+
+        let ts = 1;
+
+        g.add_edge(ts, 1, 2, "follows");
+        g.add_edge(ts, 2, 3, "follows");
+        g.add_edge(ts, 3, 1, "follows");
+
+        let res = g
+            .locked_vertices()
             .flat_map(|v| {
                 let v_id = v.id();
                 v.edges("follows", Direction::OUT)

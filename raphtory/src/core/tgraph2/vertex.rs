@@ -12,6 +12,7 @@ use super::{
     iter::{Paged, PagedIter},
     node_store::NodeStore,
     tgraph::TGraph,
+    tgraph_storage::GraphEntry,
     VRef, VID,
 };
 
@@ -25,18 +26,20 @@ impl<'a, const N: usize, L: lock_api::RawRwLock + 'static> Vertex<'a, N, L> {
         self.node.index().into()
     }
 
+    pub(crate) fn new(node: VRef<'a, N, L>, graph: &'a TGraph<N, L>) -> Self {
+        Vertex { node, graph }
+    }
+
     pub(crate) fn from_ref(node: RefT<'a, NodeStore<N>, L, N>, graph: &'a TGraph<N, L>) -> Self {
-        Vertex {
-            node: VRef::RefT(node),
-            graph,
-        }
+        Self::new ( VRef::RefT(node), graph,)
     }
 
     pub(crate) fn from_entry(node: Entry<'a, NodeStore<N>, L, N>, graph: &'a TGraph<N, L>) -> Self {
-        Vertex {
-            node: VRef::Entry(node),
-            graph,
-        }
+        Self::new ( VRef::Entry(node), graph,)
+    }
+
+    pub(crate) fn from_ge(ge: GraphEntry<'a, NodeStore<N>, L, N>, graph: &'a TGraph<N, L>) -> Self {
+        Self::new(VRef::LockedEntry(ge), graph)
     }
 
     pub fn temporal_properties(&'a self, name: &str) -> impl Iterator<Item = (i64, Prop)> + 'a {
@@ -78,7 +81,15 @@ impl<'a, const N: usize, L: lock_api::RawRwLock + 'static> Vertex<'a, N, L> {
             .get_or_create_layer_id(layer.to_owned());
         (*self.node)
             .edge_tuples(layer, dir)
-            .map(move |(dst, e_id)| Edge::new(self.node.index().into(), dst, e_id, dir, self.graph))
+            .map(move |(dst, e_id)| {
+                Edge::new(
+                    self.node.index().into(),
+                    dst,
+                    self.node.edge_ref(e_id),
+                    dir,
+                    self.graph,
+                )
+            })
     }
 
     pub fn neighbours<'b>(

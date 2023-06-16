@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::storage::{Entry, iter::RefT};
 
-use self::{node_store::NodeStore, tgraph::TGraph};
+use self::{node_store::NodeStore, tgraph::TGraph, tgraph_storage::GraphEntry, edge::ERef};
 
 use super::Direction;
 
@@ -80,8 +80,9 @@ impl From<usize> for EID {
 // }
 
 pub(crate) enum VRef<'a, const N: usize, L: lock_api::RawRwLock> {
-    Entry(Entry<'a, NodeStore<N>, L, N>), // fastest thing, returned from graph.vertex
+    Entry(Entry<'a, NodeStore<N>, L, N>), // returned from graph.vertex
     RefT(RefT<'a, NodeStore<N>, L, N>),   // returned from graph.vertices
+    LockedEntry(GraphEntry<'a, NodeStore<N>, L, N>) // returned from locked_vertices
 }
 
 // return index -> usize for VRef
@@ -90,6 +91,16 @@ impl<'a, const N: usize, L: lock_api::RawRwLock> VRef<'a, N, L> {
         match self {
             VRef::RefT(r) => r.index(),
             VRef::Entry(e) => e.index(),
+            VRef::LockedEntry(ge) => ge.index(),
+        }
+    }
+
+    fn edge_ref(&self, edge_id: EID) -> ERef<'a, N, L> {
+        match self {
+            VRef::RefT(_) | VRef::Entry(_) => ERef::EId(edge_id),
+            VRef::LockedEntry(ge) => {
+                ERef::ELock { lock: ge.locked_gs().clone(), eid: edge_id }
+            }
         }
     }
 }
@@ -101,16 +112,17 @@ impl<'a, const N: usize, L: lock_api::RawRwLock> Deref for VRef<'a, N, L> {
         match self {
             VRef::RefT(r) => r,
             VRef::Entry(e) => e,
+            VRef::LockedEntry(e) => e,
         }
     }
 }
 
-pub trait GraphItem<'a, const N: usize, L: lock_api::RawRwLock> {
+pub(crate) trait GraphItem<'a, const N: usize, L: lock_api::RawRwLock> {
 
     fn from_edge_ids(
         src: VID,
         dst: VID,
-        e_id: EID,
+        e_id: ERef<'a, N, L>,
         dir: Direction,
         graph: &'a TGraph<N, L>,
     ) -> Self;
