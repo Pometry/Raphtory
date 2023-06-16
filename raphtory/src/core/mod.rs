@@ -57,7 +57,7 @@ pub mod vertex;
 pub mod vertex_ref;
 
 /// Denotes the direction of an edge. Can be incoming, outgoing or both.
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, PartialOrd, Debug)]
 pub enum Direction {
     OUT,
     IN,

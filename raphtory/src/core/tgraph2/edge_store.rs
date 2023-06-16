@@ -8,7 +8,7 @@ use super::{props::Props, VID};
 pub(crate) struct EdgeStore<const N: usize> {
     src: VID,
     dst: VID,
-    time_index: TimeIndex,
+    timestamps: TimeIndex,
     props: Props,
 }
 
@@ -18,16 +18,20 @@ impl <const N: usize> EdgeStore<N> {
         Self {
             src,
             dst,
-            time_index: TimeIndex::one(t),
+            timestamps: TimeIndex::one(t),
             props: Props::new(),
         }
     }
 
     pub fn update_time(&mut self, t: i64) {
-        self.time_index.insert(t);
+        self.timestamps.insert(t);
     }
 
     pub fn add_prop(&mut self, t: i64, prop_id: usize, prop: Prop) {
         self.props.add_prop(t, prop_id, prop);
+    }
+
+    pub fn timestamps(&self) -> &TimeIndex {
+        &self.timestamps
     }
 }

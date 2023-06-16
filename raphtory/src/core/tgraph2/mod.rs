@@ -9,6 +9,7 @@ use self::{node_store::NodeStore, tgraph::TGraph, tgraph_storage::GraphEntry, ed
 use super::Direction;
 
 mod adj;
+pub mod ops;
 mod edge_layer;
 mod edge_store;
 mod node_store;
@@ -127,4 +128,19 @@ pub(crate) trait GraphItem<'a, const N: usize, L: lock_api::RawRwLock> {
         graph: &'a TGraph<N, L>,
     ) -> Self;
 
+}
+
+
+pub struct EdgeRef{
+    src: VID,
+    dst: VID,
+    id: EID,
+    layer_id: usize,
+    time: Option<i64>,
+}
+
+impl EdgeRef {
+    pub fn new(src: VID, dst: VID, id: EID, layer_id: usize, time: Option<i64>) -> Self {
+        Self { src, dst, id, layer_id, time }
+    }
 }

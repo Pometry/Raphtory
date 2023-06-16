@@ -5,7 +5,7 @@ use itertools::Merge;
 use crate::core::Direction;
 
 use super::{
-    edge::Edge,
+    edge::EdgeView,
     tgraph::TGraph,
     VRef, EID, VID,
 };
@@ -43,13 +43,13 @@ impl<'a, const N: usize, L: lock_api::RawRwLock> Paged<'a, N, L> {
 }
 
 impl<'a, const N: usize, L: lock_api::RawRwLock + 'static> Iterator for Paged<'a, N, L> {
-    type Item = Edge<'a, N, L>;
+    type Item = EdgeView<'a, N, L>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(t) = self.data.get(self.i) {
             self.i += 1;
             let e_id = self.guard.edge_ref(t.1);
-            let edge = Edge::from_edge_ids(self.src, t.0, e_id, self.dir, self.graph);
+            let edge = EdgeView::from_edge_ids(self.src, t.0, e_id, self.dir, self.graph);
             return Some(edge);
         }
 
@@ -69,7 +69,7 @@ impl<'a, const N: usize, L: lock_api::RawRwLock + 'static> Iterator for Paged<'a
         } else {
             self.i = 1;
             let e_id = self.guard.edge_ref(self.data[0].1);
-            return Some(Edge::from_edge_ids(
+            return Some(EdgeView::from_edge_ids(
                 self.src,
                 self.data[0].0,
                 e_id,
@@ -86,7 +86,7 @@ pub enum PagedIter<'a, const N: usize, L: lock_api::RawRwLock + 'static> {
 }
 
 impl<'a, const N: usize, L: lock_api::RawRwLock + 'static> Iterator for PagedIter<'a, N, L> {
-    type Item = Edge<'a, N, L>;
+    type Item = EdgeView<'a, N, L>;
 
     fn next(&mut self) -> Option<Self::Item> {
         match self {

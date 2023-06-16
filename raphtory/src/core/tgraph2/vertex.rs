@@ -8,7 +8,7 @@ use crate::{
 };
 
 use super::{
-    edge::Edge,
+    edge::EdgeView,
     iter::{Paged, PagedIter},
     node_store::NodeStore,
     tgraph::TGraph,
@@ -47,7 +47,7 @@ impl<'a, const N: usize, L: lock_api::RawRwLock + 'static> Vertex<'a, N, L> {
         (&self.node).temporal_properties(prop_id)
     }
 
-    pub fn edges(self, layer: &str, dir: Direction) -> impl Iterator<Item = Edge<'a, N, L>> + 'a {
+    pub fn edges(self, layer: &str, dir: Direction) -> impl Iterator<Item = EdgeView<'a, N, L>> + 'a {
         let layer = self
             .graph
             .inner
@@ -73,7 +73,7 @@ impl<'a, const N: usize, L: lock_api::RawRwLock + 'static> Vertex<'a, N, L> {
         &'a self,
         layer: &str,
         dir: Direction,
-    ) -> impl Iterator<Item = Edge<'a, N, L>> + 'a {
+    ) -> impl Iterator<Item = EdgeView<'a, N, L>> + 'a {
         let layer = self
             .graph
             .inner
@@ -82,7 +82,7 @@ impl<'a, const N: usize, L: lock_api::RawRwLock + 'static> Vertex<'a, N, L> {
         (*self.node)
             .edge_tuples(layer, dir)
             .map(move |(dst, e_id)| {
-                Edge::new(
+                EdgeView::new(
                     self.node.index().into(),
                     dst,
                     self.node.edge_ref(e_id),
@@ -106,5 +106,15 @@ impl<'a, const N: usize, L: lock_api::RawRwLock + 'static> Vertex<'a, N, L> {
         (*self.node)
             .edge_tuples(layer, dir)
             .map(move |(dst, _)| self.graph.vertex(dst))
+    }
+}
+
+
+impl<'a, const N: usize, L: lock_api::RawRwLock> IntoIterator for Vertex<'a, N, L> {
+    type Item = Vertex<'a, N, L>;
+    type IntoIter = std::iter::Once<Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        std::iter::once(self)
     }
 }

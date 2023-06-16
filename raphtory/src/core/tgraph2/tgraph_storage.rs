@@ -16,10 +16,6 @@ pub(crate) struct GraphStorage<const N: usize, L: lock_api::RawRwLock> {
 }
 
 impl<const N: usize, L: lock_api::RawRwLock> GraphStorage<N, L> {
-    fn iter_nodes<'a>(&'a self) -> impl Iterator<Item = RefT<'a, NodeStore<N>, L, N>> {
-        self.nodes.iter()
-    }
-
     pub(crate) fn new() -> Self {
         Self {
             nodes: storage::RawStorage::new(),
@@ -104,7 +100,6 @@ impl<'a, const N: usize, L: lock_api::RawRwLock> Iterator for LockedVIter<'a, N,
     }
 }
 
-// FIXME: this will be the next VertexRef?
 pub struct GraphEntry<'a, T, L: lock_api::RawRwLock, const N: usize> {
     locked_gs: Rc<LockedGraphStorage<'a, N, L>>,
     i: usize,

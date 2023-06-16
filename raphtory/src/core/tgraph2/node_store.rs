@@ -31,6 +31,10 @@ impl<const N: usize> NodeStore<N> {
         self.global_id
     }
 
+    pub fn timestamps(&self) -> &TimeIndex {
+        &self.timestamps
+    }
+
     pub fn update_time(&mut self, t: i64) {
         self.timestamps.insert(t);
     }
@@ -46,6 +50,11 @@ impl<const N: usize> NodeStore<N> {
             }
         }
         None
+    }
+
+    pub(crate) fn find_edge_on_layer(&self, dst: VID, layer_id: usize) -> Option<super::EID> {
+        let layer_adj = self.layers.get(layer_id)?;
+        layer_adj.get_edge(dst, Direction::OUT)
     }
 
     pub(crate) fn add_edge(

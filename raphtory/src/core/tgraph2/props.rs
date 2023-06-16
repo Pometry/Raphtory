@@ -73,6 +73,10 @@ impl Meta {
     pub(crate) fn get_or_create_layer_id(&self, name: String) -> usize {
         self.meta_layer.get_or_create_id(name)
     }
+
+    pub(crate) fn get_layer_id(&self, name: &str) -> Option<usize> {
+        self.meta_layer.map.get(name).as_deref().copied()
+    }
 }
 
 #[derive(Serialize, Deserialize, Default, Debug)]

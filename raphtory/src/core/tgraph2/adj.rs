@@ -68,7 +68,6 @@ impl Adj {
                 Direction::BOTH => Box::new(
                     out.iter()
                         .merge(into.iter())
-                        .dedup(),
                 ),
             },
         }

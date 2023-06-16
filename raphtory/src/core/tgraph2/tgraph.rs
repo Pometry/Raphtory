@@ -1,23 +1,20 @@
-use std::{
-    hash::BuildHasherDefault,
-    ops::Range,
-    sync::Arc,
-};
+use std::{borrow::Borrow, hash::BuildHasherDefault, ops::Range, sync::Arc};
 
 use dashmap::DashMap;
+use itertools::Itertools;
 use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    core::{vertex::InputVertex, Direction, Prop},
-};
+use crate::core::{vertex::InputVertex, Direction, Prop};
 
 use super::{
     edge_store::EdgeStore,
     node_store::NodeStore,
     props::Meta,
+    tgraph_storage::GraphStorage,
     timer::{MaxCounter, MinCounter, TimeCounterTrait},
-    VID, vertex::Vertex, tgraph_storage::GraphStorage
+    vertex::Vertex,
+    EdgeRef, EID, VID,
 };
 
 pub(crate) type FxDashMap<K, V> = DashMap<K, V, BuildHasherDefault<FxHasher>>;
@@ -67,6 +64,41 @@ impl<const N: usize> TGraph<N, parking_lot::RawRwLock> {
 }
 
 impl<const N: usize, L: lock_api::RawRwLock + 'static> TGraph<N, L> {
+    pub fn get_layer_id<B: Borrow<str>>(&self, name: B) -> Option<usize> {
+        self.inner.props_meta.get_layer_id(name.borrow())
+    }
+
+    pub fn vertices_len(&self) -> usize {
+        self.inner.storage.nodes_len()
+    }
+
+    pub fn edges_len(&self) -> usize {
+        self.inner.storage.edges_len()
+    }
+
+    pub fn has_edge_ref(&self, src: VID, dst: VID, layer_id: usize) -> bool {
+        let node_store = self.inner.storage.get_node(src.into());
+        node_store.find_edge_on_layer(dst, layer_id).is_some()
+    }
+
+    pub fn has_vertex_ref(&self, id: VID) -> bool {
+        self.inner.storage.get_node(id.into()).value().is_some()
+    }
+
+    pub fn degree(&self, id: VID, layer_id: usize, dir: Direction) -> usize {
+        let node_store = self.inner.storage.get_node(id.into());
+        node_store.edge_tuples(layer_id, dir).count()
+    }
+
+    pub fn edges<'a>(
+        &'a self,
+        id: VID,
+        layer_id: &str,
+        dir: Direction,
+    ) -> Box<dyn Iterator<Item = EdgeRef> + 'a> {
+        Box::new(self.vertex(id).edges(layer_id, dir).map(|e| EdgeRef::new(e.src_id(), e.dst_id(), e.edge_id(), 0, None)))
+    }
+
     #[inline]
     fn update_time(&self, time: i64) {
         self.inner.earliest_time.update(time);
@@ -217,16 +249,36 @@ impl<const N: usize, L: lock_api::RawRwLock + 'static> TGraph<N, L> {
         (0..self.inner.storage.nodes_len()).map(|i| i.into())
     }
 
-    pub fn vertices<'a>(&'a self) -> impl Iterator<Item = Vertex<'a, N, L>>{
-        self.inner.storage.nodes().map(move |node| {
-            Vertex::from_ref(node, self)
-        })
+    pub fn edge_ids(&self) -> impl Iterator<Item = EID> {
+        (0..self.inner.storage.edges_len()).map(|i| i.into())
+    }
+
+    pub fn vertex_active(&self, v: VID, t_start: i64, t_end: i64) -> bool {
+        let node = self.inner.storage.get_node(v.into());
+        node.value()
+            .map(|n| n.timestamps().active(t_start..t_end))
+            .unwrap_or(false)
+    }
+
+    pub fn edge_active(&self, e: EID, t_start: i64, t_end: i64) -> bool {
+        let edge = self.inner.storage.get_edge(e.into());
+        edge.value()
+            .map(|e| e.timestamps().active(t_start..t_end))
+            .unwrap_or(false)
+    }
+
+    pub fn vertices<'a>(&'a self) -> impl Iterator<Item = Vertex<'a, N, L>> {
+        self.inner
+            .storage
+            .nodes()
+            .map(move |node| Vertex::from_ref(node, self))
     }
 
     pub fn locked_vertices<'a>(&'a self) -> impl Iterator<Item = Vertex<'a, N, L>> {
-        self.inner.storage.locked_nodes().map(move |node| {
-            Vertex::from_ge(node, self)
-        })
+        self.inner
+            .storage
+            .locked_nodes()
+            .map(move |node| Vertex::from_ge(node, self))
     }
 
     pub fn find_global_id(&self, v: VID) -> Option<u64> {
@@ -236,16 +288,16 @@ impl<const N: usize, L: lock_api::RawRwLock + 'static> TGraph<N, L> {
 
     pub(crate) fn vertex<'a>(&'a self, v: VID) -> Vertex<'a, N, L> {
         let node = self.inner.storage.get_node(v.into());
-        Vertex::from_entry( node, self,)
+        Vertex::from_entry(node, self)
     }
 }
-
-
 
 #[cfg(test)]
 mod test {
 
     use itertools::Itertools;
+
+    use crate::core::tgraph2::ops::vertex_ops::VertexListOps;
 
     use super::*;
 
@@ -329,21 +381,20 @@ mod test {
             .vertices()
             .flat_map(|v| {
                 let v_id = v.id();
-                v.edges("follows", Direction::OUT)
-                    .flat_map(move |edge_1| {
-                        edge_1
-                            .dst()
-                            .edges("follows", Direction::OUT)
-                            .flat_map(move |edge_2| {
-                                edge_2
-                                    .dst()
-                                    .edges("follows", Direction::OUT)
-                                    .filter(move |e| e.dst_id() == v_id)
-                                    .map(move |edge_3| {
-                                        (v_id, edge_2.src_id(), edge_2.dst_id(), edge_3.dst_id())
-                                    })
-                            })
-                    })
+                v.edges("follows", Direction::OUT).flat_map(move |edge_1| {
+                    edge_1
+                        .dst()
+                        .edges("follows", Direction::OUT)
+                        .flat_map(move |edge_2| {
+                            edge_2
+                                .dst()
+                                .edges("follows", Direction::OUT)
+                                .filter(move |e| e.dst_id() == v_id)
+                                .map(move |edge_3| {
+                                    (v_id, edge_2.src_id(), edge_2.dst_id(), edge_3.dst_id())
+                                })
+                        })
+                })
             })
             .collect_vec();
 
@@ -371,21 +422,20 @@ mod test {
             .locked_vertices()
             .flat_map(|v| {
                 let v_id = v.id();
-                v.edges("follows", Direction::OUT)
-                    .flat_map(move |edge_1| {
-                        edge_1
-                            .dst()
-                            .edges("follows", Direction::OUT)
-                            .flat_map(move |edge_2| {
-                                edge_2
-                                    .dst()
-                                    .edges("follows", Direction::OUT)
-                                    .filter(move |e| e.dst_id() == v_id)
-                                    .map(move |edge_3| {
-                                        (v_id, edge_2.src_id(), edge_2.dst_id(), edge_3.dst_id())
-                                    })
-                            })
-                    })
+                v.edges("follows", Direction::OUT).flat_map(move |edge_1| {
+                    edge_1
+                        .dst()
+                        .edges("follows", Direction::OUT)
+                        .flat_map(move |edge_2| {
+                            edge_2
+                                .dst()
+                                .edges("follows", Direction::OUT)
+                                .filter(move |e| e.dst_id() == v_id)
+                                .map(move |edge_3| {
+                                    (v_id, edge_2.src_id(), edge_2.dst_id(), edge_3.dst_id())
+                                })
+                        })
+                })
             })
             .collect_vec();
 
@@ -397,5 +447,24 @@ mod test {
                 (2.into(), 0.into(), 1.into(), 2.into()),
             ]
         );
+    }
+
+    #[test]
+    fn test_chaining_vertex_ops() {
+        let g: TGraph<4, parking_lot::RawRwLock> = TGraph::new();
+
+        let ts = 1;
+
+        g.add_edge(ts, 1, 2, "follows");
+        g.add_edge(ts, 2, 3, "follows");
+        g.add_edge(ts, 3, 1, "follows");
+
+        let vertex = g.vertices();
+
+        // let hello = vertex.ids();
+        let hello_edges = vertex.neighbours().neighbours();
+
+        let v = g.vertex(1.into());
+        let what_are_you = v.ids();
     }
 }
