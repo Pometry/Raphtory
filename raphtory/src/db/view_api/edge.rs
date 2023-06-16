@@ -1,8 +1,8 @@
 use crate::core::edge_ref::EdgeRef;
 use crate::core::vertex_ref::VertexRef;
 use crate::core::Prop;
-use crate::db::view_api::internal::GraphViewInternalOps;
-use crate::db::view_api::{GraphViewOps, VertexListOps, VertexViewOps};
+use crate::db::view_api::internal::*;
+use crate::db::view_api::*;
 use std::collections::HashMap;
 
 pub trait EdgeViewInternalOps<G: GraphViewOps, V: VertexViewOps<Graph = G>> {
@@ -20,8 +20,8 @@ pub trait EdgeViewOps: EdgeViewInternalOps<Self::Graph, Self::Vertex> {
     type Vertex: VertexViewOps<Graph = Self::Graph>;
     type EList: EdgeListOps<Graph = Self::Graph, Vertex = Self::Vertex>;
 
-    fn property(&self, name: String, include_static: bool) -> Option<Prop> {
-        let props = self.property_history(name.clone());
+    fn property(&self, name: &str, include_static: bool) -> Option<Prop> {
+        let props = self.property_history(name);
         match props.last() {
             None => {
                 if include_static {
@@ -34,10 +34,10 @@ pub trait EdgeViewOps: EdgeViewInternalOps<Self::Graph, Self::Vertex> {
         }
     }
 
-    fn property_history(&self, name: String) -> Vec<(i64, Prop)> {
+    fn property_history(&self, name: &str) -> Vec<(i64, Prop)> {
         match self.eref().time() {
-            None => self.graph().temporal_edge_props_vec(self.eref(), name),
-            Some(t) => self.graph().temporal_edge_props_vec_window(
+            None => self.graph().temporal_edge_prop_vec(self.eref(), name),
+            Some(t) => self.graph().temporal_edge_prop_vec_window(
                 self.eref(),
                 name,
                 t,
@@ -47,7 +47,10 @@ pub trait EdgeViewOps: EdgeViewInternalOps<Self::Graph, Self::Vertex> {
     }
 
     fn history(&self) -> Vec<i64> {
-        self.graph().edge_timestamps(self.eref(), None)
+        self.graph()
+            .edge_t(self.eref())
+            .map(|e| e.time().expect("exploded"))
+            .collect()
     }
 
     fn properties(&self, include_static: bool) -> HashMap<String, Prop> {
@@ -59,10 +62,7 @@ pub trait EdgeViewOps: EdgeViewInternalOps<Self::Graph, Self::Vertex> {
 
         if include_static {
             for prop_name in self.graph().static_edge_prop_names(self.eref()) {
-                if let Some(prop) = self
-                    .graph()
-                    .static_edge_prop(self.eref(), prop_name.clone())
-                {
+                if let Some(prop) = self.graph().static_edge_prop(self.eref(), &prop_name) {
                     props.insert(prop_name, prop);
                 }
             }
@@ -89,23 +89,23 @@ pub trait EdgeViewOps: EdgeViewInternalOps<Self::Graph, Self::Vertex> {
         names
     }
 
-    fn has_property(&self, name: String, include_static: bool) -> bool {
-        (!self.property_history(name.clone()).is_empty())
+    fn has_property(&self, name: &str, include_static: bool) -> bool {
+        (!self.property_history(name).is_empty())
             || (include_static
                 && self
                     .graph()
                     .static_edge_prop_names(self.eref())
-                    .contains(&name))
+                    .contains(&name.to_owned()))
     }
 
-    fn has_static_property(&self, name: String) -> bool {
+    fn has_static_property(&self, name: &str) -> bool {
         self.graph()
             .static_edge_prop_names(self.eref())
-            .contains(&name)
+            .contains(&name.to_owned())
     }
 
     /// Returns static property of an edge by name
-    fn static_property(&self, name: String) -> Option<Prop> {
+    fn static_property(&self, name: &str) -> Option<Prop> {
         self.graph().static_edge_prop(self.eref(), name)
     }
 
@@ -154,22 +154,16 @@ pub trait EdgeViewOps: EdgeViewInternalOps<Self::Graph, Self::Vertex> {
 
     /// Gets the first time an edge was seen
     fn earliest_time(&self) -> Option<i64> {
-        self.eref().time().or_else(|| {
-            self.graph()
-                .edge_timestamps(self.eref(), None)
-                .first()
-                .copied()
-        })
+        self.eref()
+            .time()
+            .or_else(|| self.graph().edge_earliest_time(self.eref()))
     }
 
     /// Gets the latest time an edge was updated
     fn latest_time(&self) -> Option<i64> {
-        self.eref().time().or_else(|| {
-            self.graph()
-                .edge_timestamps(self.eref(), None)
-                .last()
-                .copied()
-        })
+        self.eref()
+            .time()
+            .or_else(|| self.graph().edge_latest_time(self.eref()))
     }
 
     /// Gets the time stamp of the edge if it is exploded

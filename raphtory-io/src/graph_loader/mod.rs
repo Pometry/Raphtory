@@ -21,27 +21,25 @@
 
 use std::env;
 use std::fs::File;
+use std::fs::*;
 use std::io::{copy, Cursor};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
-use std::io::prelude::*;
-use zip::read::{ZipArchive, ZipFile};
-use std::fs::*;
+use zip::read::ZipArchive;
 
 pub mod example;
 pub mod source;
 
 pub fn fetch_file(
     name: &str,
-    tmp_save:bool,
+    tmp_save: bool,
     url: &str,
     timeout: u64,
 ) -> Result<PathBuf, Box<dyn std::error::Error>> {
     let filepath = if tmp_save {
         let tmp_dir = env::temp_dir();
         tmp_dir.join(name)
-    }
-    else {
+    } else {
         PathBuf::from(name)
     };
     if !filepath.exists() {
@@ -58,7 +56,6 @@ pub fn fetch_file(
     Ok(filepath)
 }
 
-
 fn unzip_file(zip_file_path: &str, destination_path: &str) -> std::io::Result<()> {
     let file = File::open(zip_file_path)?;
     let mut archive = ZipArchive::new(file)?;
@@ -73,7 +70,7 @@ fn unzip_file(zip_file_path: &str, destination_path: &str) -> std::io::Result<()
         } else {
             if let Some(parent) = Path::new(&dest_path).parent() {
                 if !parent.exists() {
-                   create_dir_all(&parent)?;
+                    create_dir_all(&parent)?;
                 }
             }
             let mut output_file = File::create(&dest_path)?;
@@ -83,9 +80,6 @@ fn unzip_file(zip_file_path: &str, destination_path: &str) -> std::io::Result<()
 
     Ok(())
 }
-
-
-
 
 #[cfg(test)]
 mod graph_loader_test {
@@ -98,9 +92,7 @@ mod graph_loader_test {
         },
     };
 
-    use crate::graph_loader::{fetch_file, unzip_file};
-    use crate::graph_loader::example::stable_coins::stable_coin_graph;
-
+    use crate::graph_loader::fetch_file;
 
     #[test]
     fn test_fetch_file() {

@@ -24,7 +24,6 @@ use raphtory::db::view_api::layer::LayerOps;
 use raphtory::db::view_api::*;
 use raphtory::*;
 use std::collections::HashMap;
-use std::sync::Arc;
 
 /// A vertex (or node) in the graph.
 #[pyclass(name = "Vertex")]

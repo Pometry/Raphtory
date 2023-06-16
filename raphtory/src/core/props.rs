@@ -252,7 +252,7 @@ mod props_tests {
                 .unwrap()
                 .iter()
                 .collect::<Vec<_>>(),
-            vec![(&1, Prop::I32(10))]
+            vec![(1, Prop::I32(10))]
         )
     }
 
@@ -272,7 +272,7 @@ mod props_tests {
                 .unwrap()
                 .iter()
                 .collect::<Vec<_>>(),
-            vec![(&1, Prop::I32(10)), (&2, Prop::I32(10))]
+            vec![(1, Prop::I32(10)), (2, Prop::I32(10))]
         )
     }
 
@@ -292,7 +292,7 @@ mod props_tests {
                 .unwrap()
                 .iter()
                 .collect::<Vec<_>>(),
-            vec![(&1, Prop::I32(10))]
+            vec![(1, Prop::I32(10))]
         )
     }
 }

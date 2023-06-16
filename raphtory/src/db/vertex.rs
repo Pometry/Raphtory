@@ -7,6 +7,7 @@ use crate::db::edge::{EdgeList, EdgeView};
 use crate::db::graph_layer::LayeredGraph;
 use crate::db::graph_window::WindowedGraph;
 use crate::db::path::{Operations, PathFromVertex};
+use crate::db::view_api::internal::GraphPropertiesOps;
 use crate::db::view_api::layer::LayerOps;
 use crate::db::view_api::vertex::VertexViewOps;
 use crate::db::view_api::{BoxedIter, GraphViewOps, TimeOps, VertexListOps};
@@ -76,7 +77,7 @@ impl<G: GraphViewOps> VertexViewOps for VertexView<G> {
         match props.last() {
             None => {
                 if include_static {
-                    self.graph.static_vertex_prop(self.vertex, name)
+                    self.graph.static_vertex_prop(self.vertex, &name)
                 } else {
                     None
                 }
@@ -86,11 +87,11 @@ impl<G: GraphViewOps> VertexViewOps for VertexView<G> {
     }
 
     fn history(&self) -> Vec<i64> {
-        self.graph.vertex_timestamps(self.vertex)
+        self.graph.vertex_history(self.vertex)
     }
 
     fn property_history(&self, name: String) -> Vec<(i64, Prop)> {
-        self.graph.temporal_vertex_prop_vec(self.vertex, name)
+        self.graph.temporal_vertex_prop_vec(self.vertex, &name)
     }
 
     fn properties(&self, include_static: bool) -> HashMap<String, Prop> {
@@ -102,10 +103,7 @@ impl<G: GraphViewOps> VertexViewOps for VertexView<G> {
 
         if include_static {
             for prop_name in self.graph.static_vertex_prop_names(self.vertex) {
-                if let Some(prop) = self
-                    .graph
-                    .static_vertex_prop(self.vertex, prop_name.clone())
-                {
+                if let Some(prop) = self.graph.static_vertex_prop(self.vertex, &prop_name) {
                     props.insert(prop_name, prop);
                 }
             }
@@ -137,21 +135,18 @@ impl<G: GraphViewOps> VertexViewOps for VertexView<G> {
     fn has_static_property(&self, name: String) -> bool {
         self.graph
             .static_vertex_prop_names(self.vertex)
-            .contains(&name)
+            .contains(&name.to_owned())
     }
 
     fn static_property(&self, name: String) -> Option<Prop> {
-        self.graph.static_vertex_prop(self.vertex, name)
+        self.graph.static_vertex_prop(self.vertex, &name)
     }
 
     fn static_properties(&self) -> Self::ValueType<HashMap<String, Prop>> {
         let mut props: HashMap<String, Prop> = HashMap::new();
 
         for prop_name in self.graph.static_vertex_prop_names(self.vertex) {
-            if let Some(prop) = self
-                .graph
-                .static_vertex_prop(self.vertex, prop_name.clone())
-            {
+            if let Some(prop) = self.graph.static_vertex_prop(self.vertex, &prop_name) {
                 props.insert(prop_name, prop);
             }
         }

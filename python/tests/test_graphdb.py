@@ -1166,7 +1166,7 @@ def test_date_time_window():
     assert view.end_date_time() == datetime.datetime(2014, 2, 4, 0, 0)
 
     assert view.earliest_date_time() == datetime.datetime(2014, 2, 2, 0, 0)
-    assert view.latest_date_time() == datetime.datetime(2014, 2, 4, 0, 0)
+    assert view.latest_date_time() == datetime.datetime(2014, 2, 3, 0, 0)
 
     assert view2.edge(1, 2).start_date_time() == datetime.datetime(2014, 2, 2, 0, 0)
     assert view2.edge(1, 2).end_date_time() == datetime.datetime(2014, 2, 5, 0, 0)
@@ -1196,7 +1196,7 @@ def test_datetime_add_vertex():
     assert view.end_date_time() == datetime.datetime(2014, 2, 4, 0, 0)
 
     assert view2.earliest_date_time() == datetime.datetime(2014, 2, 2, 0, 0)
-    assert view2.latest_date_time() == datetime.datetime(2014, 2, 5, 0, 0)
+    assert view2.latest_date_time() == datetime.datetime(2014, 2, 4, 0, 0)
 
     assert view2.vertex(1).start_date_time() == datetime.datetime(2014, 2, 2, 0, 0)
     assert view2.vertex(1).end_date_time() == datetime.datetime(2014, 2, 5, 0, 0)

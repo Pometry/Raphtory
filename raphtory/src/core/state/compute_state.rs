@@ -1,8 +1,9 @@
 use rustc_hash::FxHashMap;
 use std::collections::HashMap;
 
+use crate::core::agg::Accumulator;
 use crate::core::vertex_ref::LocalVertexRef;
-use crate::{core::agg::Accumulator, db::view_api::internal::GraphViewInternalOps};
+use crate::db::view_api::GraphViewOps;
 
 use super::{
     container::{merge_2_vecs, DynArray, MapArray, VecArray},
@@ -47,7 +48,7 @@ pub trait ComputeState: std::fmt::Debug + Clone + Send + Sync {
     where
         A: StateType;
 
-    fn finalize<A, IN, OUT, ACC: Accumulator<A, IN, OUT>, G: GraphViewInternalOps>(
+    fn finalize<A, IN, OUT, ACC: Accumulator<A, IN, OUT>, G: GraphViewOps>(
         &self,
         ss: usize,
         shard_id: usize,
@@ -197,7 +198,7 @@ impl ComputeState for ComputeStateMap {
         });
     }
 
-    fn finalize<A, IN, OUT, ACC: Accumulator<A, IN, OUT>, G: GraphViewInternalOps>(
+    fn finalize<A, IN, OUT, ACC: Accumulator<A, IN, OUT>, G: GraphViewOps>(
         &self,
         ss: usize,
         _shard_id: usize,
@@ -381,7 +382,7 @@ impl ComputeState for ComputeStateVec {
         merge_2_vecs(v, v_other, |a, b| ACC::combine(a, b));
     }
 
-    fn finalize<A, IN, OUT, ACC: Accumulator<A, IN, OUT>, G: GraphViewInternalOps>(
+    fn finalize<A, IN, OUT, ACC: Accumulator<A, IN, OUT>, G: GraphViewOps>(
         &self,
         ss: usize,
         shard_id: usize,
