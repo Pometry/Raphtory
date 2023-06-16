@@ -508,6 +508,20 @@ impl TimeSemantics for ImmutableGraph {
         self.vertex_additions(v).range(t_start..t_end).first()
     }
 
+    fn static_prop_names(&self) -> Vec<String> {
+        self.shards
+            .get(0)
+            .expect("Failed to get shard 0")
+            .static_prop_names()
+    }
+
+    fn temporal_prop_names(&self) -> Vec<String> {
+        self.shards
+            .get(0)
+            .expect("Failed to get shard 0")
+            .temporal_prop_names()
+    }
+
     fn vertex_latest_time_window(
         &self,
         v: LocalVertexRef,

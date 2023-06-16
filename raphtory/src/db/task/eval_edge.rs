@@ -132,6 +132,10 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeListOps
         Box::new(self.map(move |e| e.static_property(&name)))
     }
 
+    fn static_properties(self) -> Self::IterType<HashMap<String, Prop>> {
+        Box::new(self.map(move |e| e.static_properties()))
+    }
+
     fn property_history(self, name: String) -> Self::IterType<Vec<(i64, Prop)>> {
         Box::new(self.map(move |e| e.property_history(&name)))
     }

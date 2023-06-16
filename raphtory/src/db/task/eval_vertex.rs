@@ -365,6 +365,10 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
         self.path.static_property(name)
     }
 
+    fn static_properties(&self) -> Self::ValueType<HashMap<String, Prop>> {
+        self.path.static_properties()
+    }
+
     fn degree(&self) -> Self::ValueType<usize> {
         self.path.degree()
     }
@@ -523,6 +527,10 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
 
     fn static_property(&self, name: String) -> Self::ValueType<Option<Prop>> {
         self.graph.static_vertex_prop(self.vertex, &name)
+    }
+
+    fn static_properties(&self) -> Self::ValueType<HashMap<String, Prop>> {
+        self.graph.static_vertex_props(self.vertex)
     }
 
     fn degree(&self) -> Self::ValueType<usize> {
@@ -724,6 +732,10 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexListOps
 
     fn static_property(self, name: String) -> Self::IterType<Option<Prop>> {
         Box::new(self.map(move |v| v.static_property(name.clone())))
+    }
+
+    fn static_properties(self) -> Self::IterType<HashMap<String, Prop>> {
+        Box::new(self.map(move |v| v.static_properties()))
     }
 
     fn degree(self) -> Self::IterType<usize> {

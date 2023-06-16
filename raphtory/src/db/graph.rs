@@ -25,6 +25,7 @@ use crate::core::{
     vertex_ref::VertexRef, Direction, Prop, PropUnwrap,
 };
 
+use crate::core::tgraph::errors::MutateGraphError;
 use crate::core::timeindex::{TimeIndex, TimeIndexOps};
 use crate::core::tprop::TProp;
 use crate::core::vertex_ref::LocalVertexRef;
@@ -841,6 +842,20 @@ impl InternalGraph {
     ) -> Result<(), GraphError> {
         let shard_id = utils::get_shard_id_from_global_vid(v.id(), self.nr_shards);
         self.shards[shard_id].add_vertex_properties(v.id(), data)
+    }
+
+    pub fn add_property<T: TryIntoTime>(
+        &self,
+        t: T,
+        props: &Vec<(String, Prop)>,
+    ) -> Result<(), GraphError> {
+        let shard_id = utils::get_shard_id_from_global_vid(0, self.nr_shards);
+        self.shards[shard_id].add_property(t.try_into_time()?, props)
+    }
+
+    pub fn add_static_property(&self, props: &Vec<(String, Prop)>) -> Result<(), GraphError> {
+        let shard_id = utils::get_shard_id_from_global_vid(0, self.nr_shards);
+        self.shards[shard_id].add_static_property(props)
     }
 
     // TODO: Vertex.name which gets ._id property else numba as string

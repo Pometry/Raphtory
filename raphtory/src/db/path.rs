@@ -175,6 +175,13 @@ impl<G: GraphViewOps> VertexViewOps for PathFromGraph<G> {
         Box::new(self.iter().map(move |it| it.static_property(name.clone())))
     }
 
+    fn static_properties(
+        &self,
+    ) -> Box<dyn Iterator<Item = Box<dyn Iterator<Item = HashMap<String, Prop>> + Send>> + Send>
+    {
+        Box::new(self.iter().map(move |it| it.static_properties()))
+    }
+
     fn degree(&self) -> Box<dyn Iterator<Item = Box<dyn Iterator<Item = usize> + Send>> + Send> {
         Box::new(self.iter().map(|it| it.degree()))
     }
@@ -382,6 +389,10 @@ impl<G: GraphViewOps> VertexViewOps for PathFromVertex<G> {
 
     fn static_property(&self, name: String) -> Self::ValueType<Option<Prop>> {
         self.iter().static_property(name)
+    }
+
+    fn static_properties(&self) -> Self::ValueType<HashMap<String, Prop>> {
+        self.iter().static_properties()
     }
 
     fn degree(&self) -> Self::ValueType<usize> {

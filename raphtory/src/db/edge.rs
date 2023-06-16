@@ -148,6 +148,10 @@ impl<G: GraphViewOps> EdgeListOps for BoxedIter<EdgeView<G>> {
         Box::new(self.map(move |e| e.static_property(&name)))
     }
 
+    fn static_properties(self) -> Self::IterType<HashMap<String, Prop>> {
+        Box::new(self.map(move |e| e.static_properties()))
+    }
+
     fn property_history(self, name: String) -> BoxedIter<Vec<(i64, Prop)>> {
         Box::new(self.map(move |e| e.property_history(&name)))
     }
@@ -225,6 +229,10 @@ impl<G: GraphViewOps> EdgeListOps for BoxedIter<BoxedIter<EdgeView<G>>> {
 
     fn static_property(self, name: String) -> BoxedIter<Self::ValueType<Option<Prop>>> {
         Box::new(self.map(move |it| it.static_property(name.clone())))
+    }
+
+    fn static_properties(self) -> Self::IterType<HashMap<String, Prop>> {
+        Box::new(self.map(move |it| it.static_properties()))
     }
 
     fn property_history(self, name: String) -> BoxedIter<Self::ValueType<Vec<(i64, Prop)>>> {

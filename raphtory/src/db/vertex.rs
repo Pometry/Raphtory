@@ -142,6 +142,21 @@ impl<G: GraphViewOps> VertexViewOps for VertexView<G> {
         self.graph.static_vertex_prop(self.vertex, &name)
     }
 
+    fn static_properties(&self) -> Self::ValueType<HashMap<String, Prop>> {
+        let mut props: HashMap<String, Prop> = HashMap::new();
+
+        for prop_name in self.graph.static_vertex_prop_names(self.vertex) {
+            if let Some(prop) = self
+                .graph
+                .static_vertex_prop(self.vertex, prop_name.clone())
+            {
+                props.insert(prop_name, prop);
+            }
+        }
+
+        props
+    }
+
     fn degree(&self) -> usize {
         let dir = Direction::BOTH;
         self.graph.degree(self.vertex, dir, None)
@@ -305,6 +320,10 @@ impl<G: GraphViewOps> VertexListOps for Box<dyn Iterator<Item = VertexView<G>> +
         Box::new(self.map(move |v| v.static_property(name.clone())))
     }
 
+    fn static_properties(self) -> BoxedIter<HashMap<String, Prop>> {
+        Box::new(self.map(move |v| v.static_properties()))
+    }
+
     fn degree(self) -> BoxedIter<usize> {
         Box::new(self.map(|v| v.degree()))
     }
@@ -411,6 +430,10 @@ impl<G: GraphViewOps> VertexListOps for BoxedIter<BoxedIter<VertexView<G>>> {
 
     fn static_property(self, name: String) -> BoxedIter<Self::ValueType<Option<Prop>>> {
         Box::new(self.map(move |it| it.static_property(name.clone())))
+    }
+
+    fn static_properties(self) -> BoxedIter<Self::ValueType<HashMap<String, Prop>>> {
+        Box::new(self.map(move |it| it.static_properties()))
     }
 
     fn degree(self) -> BoxedIter<Self::ValueType<usize>> {

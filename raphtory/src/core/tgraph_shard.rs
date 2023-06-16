@@ -120,6 +120,8 @@ pub mod errors {
         IncorrectPropertyType,
         #[error("Failed to mutate graph")]
         FailedToMutateGraph { source: MutateGraphError },
+        #[error("Failed to mutate graph property")]
+        FailedToMutateGraphProperty { source: MutateGraphError },
         #[error("Failed to parse time string")]
         ParseTime {
             #[from]
@@ -272,6 +274,20 @@ impl TGraphShard<TemporalGraph> {
     ) -> Result<(), GraphError> {
         self.write_shard(|tg| {
             let res = tg.add_vertex_properties(v, data);
+            res.map_err(|e| GraphError::FailedToMutateGraph { source: e })
+        })
+    }
+
+    pub fn add_property(&self, t: i64, props: &Vec<(String, Prop)>) -> Result<(), GraphError> {
+        self.write_shard(|tg| {
+            tg.add_property(t, props);
+            Ok(())
+        })
+    }
+
+    pub fn add_static_property(&self, props: &Vec<(String, Prop)>) -> Result<(), GraphError> {
+        self.write_shard(|tg| {
+            let res = tg.add_static_property(props);
             res.map_err(|e| GraphError::FailedToMutateGraph { source: e })
         })
     }
@@ -484,6 +500,14 @@ impl TGraphShard<TemporalGraph> {
         self.read_shard(|tg| tg.static_vertex_prop(v, name))
     }
 
+    pub fn static_prop(&self, name: String) -> Option<Prop> {
+        self.read_shard(|tg| tg.static_prop(&name))
+    }
+
+    pub fn static_prop_names(&self) -> Vec<String> {
+        self.read_shard(|tg| tg.static_prop_names())
+    }
+
     pub fn static_vertex_prop_names(&self, v: LocalVertexRef) -> Vec<String> {
         self.read_shard(|tg| tg.static_vertex_prop_names(v))
     }
@@ -496,6 +520,10 @@ impl TGraphShard<TemporalGraph> {
 
     pub fn temporal_vertex_prop_names(&self, v: LocalVertexRef) -> Vec<String> {
         self.read_shard(|tg| tg.temporal_vertex_prop_names(v))
+    }
+
+    pub fn temporal_prop_names(&self) -> Vec<String> {
+        self.read_shard(|tg| tg.temporal_prop_names())
     }
 
     pub fn vertex_additions(&self, v: LocalVertexRef) -> LockedView<TimeIndex> {
@@ -642,12 +670,24 @@ impl ImmutableTGraphShard<TemporalGraph> {
         self.read_shard(|tg| tg.static_vertex_prop(v, name))
     }
 
+    pub fn static_prop(&self, name: String) -> Option<Prop> {
+        self.read_shard(|tg| tg.static_prop(&name))
+    }
+
     pub fn static_vertex_prop_names(&self, v: LocalVertexRef) -> Vec<String> {
         self.read_shard(|tg| tg.static_vertex_prop_names(v))
     }
 
+    pub fn static_prop_names(&self) -> Vec<String> {
+        self.read_shard(|tg| tg.static_prop_names())
+    }
+
     pub fn temporal_vertex_prop_names(&self, v: LocalVertexRef) -> Vec<String> {
         self.read_shard(|tg| tg.temporal_vertex_prop_names(v))
+    }
+
+    pub fn temporal_prop_names(&self) -> Vec<String> {
+        self.read_shard(|tg| tg.temporal_prop_names())
     }
 
     pub fn static_edge_prop(&self, e: EdgeRef, name: &str) -> Option<Prop> {

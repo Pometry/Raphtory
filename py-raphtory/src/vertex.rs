@@ -14,6 +14,7 @@ use chrono::NaiveDateTime;
 use itertools::Itertools;
 use pyo3::exceptions::PyIndexError;
 use pyo3::prelude::*;
+use pyo3::pyclass::CompareOp;
 use pyo3::{pyclass, pymethods, PyAny, PyObject, PyRef, PyRefMut, PyResult, Python};
 use raphtory::core::vertex_ref::VertexRef;
 use raphtory::db::path::{PathFromGraph, PathFromVertex};
@@ -62,6 +63,36 @@ impl From<PyVertex> for VertexRef {
 /// It can also be used to navigate the graph.
 #[pymethods]
 impl PyVertex {
+    /// Rich Comparison for Vertex objects
+    pub fn __richcmp__(&self, other: PyRef<PyVertex>, op: CompareOp) -> Py<PyAny> {
+        let py = other.py();
+        match op {
+            CompareOp::Eq => (self.vertex.id() == other.id()).into_py(py),
+            CompareOp::Ne => (self.vertex.id() != other.id()).into_py(py),
+            _ => py.NotImplemented(),
+        }
+    }
+
+    /// TODO: uncomment when we update to py03 0.2
+    /// checks if a vertex is equal to another by their id (ids are unqiue)
+    ///
+    /// Arguments:
+    ///    other: The other vertex to compare to.
+    ///
+    /// Returns:
+    ///   True if the vertices are equal, false otherwise.
+    // pub fn __eq__(&self, other: &PyVertex) -> bool {
+    //     self.vertex.id() == other.vertex.id()
+    // }
+
+    /// Returns the hash of the vertex.
+    ///
+    /// Returns:
+    ///   The vertex id.
+    pub fn __hash__(&self) -> u64 {
+        self.vertex.id()
+    }
+
     /// Returns the id of the vertex.
     /// This is a unique identifier for the vertex.
     ///
@@ -228,6 +259,20 @@ impl PyVertex {
     ///     The property value as a `Prop` object or None if the property does not exist.
     pub fn static_property(&self, name: String) -> Option<Prop> {
         self.vertex.static_property(name).map(|prop| prop.into())
+    }
+
+    /// Returns static properties of a vertex
+    ///
+    /// Arguments:
+    ///
+    /// Returns:
+    ///     HashMap<String, Prop> - Returns static properties of a vertex identified by their names
+    pub fn static_properties(&self) -> HashMap<String, Prop> {
+        self.vertex
+            .static_properties()
+            .into_iter()
+            .map(|(k, v)| (k, v.into()))
+            .collect()
     }
 
     /// Get the degree of this vertex (i.e., the number of edges that are incident to it).
@@ -480,6 +525,22 @@ impl<G: GraphViewOps + IntoDynamic> IntoPyObject for Vertices<G> {
 /// These use all the same functions as a normal vertex except it returns a list of results.
 #[pymethods]
 impl PyVertices {
+    /// checks if a list of vertices is equal to another list by their idd (ids are unique)
+    ///
+    /// Arguments:
+    ///    other: The other vertices to compare to.
+    ///
+    /// Returns:
+    ///   True if the vertices are equal, false otherwise.
+    fn __eq__(&self, other: &PyVertices) -> bool {
+        for (v1, v2) in self.vertices.iter().zip(other.vertices.iter()) {
+            if v1.id() != v2.id() {
+                return false;
+            }
+        }
+        return true;
+    }
+
     fn id(&self) -> U64Iterable {
         let vertices = self.vertices.clone();
         (move || vertices.id()).into()
@@ -538,6 +599,11 @@ impl PyVertices {
     fn static_property(&self, name: String) -> OptionPropIterable {
         let vertices = self.vertices.clone();
         (move || vertices.static_property(name.clone())).into()
+    }
+
+    fn static_properties(&self) -> PropsIterable {
+        let vertices = self.vertices.clone();
+        (move || vertices.static_properties()).into()
     }
 
     fn degree(&self) -> UsizeIterable {
