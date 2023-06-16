@@ -13,7 +13,7 @@ impl Neo4JConnection {
         password: String,
         database: String,
     ) -> Result<Self> {
-        let config = config()
+        let config = ConfigBuilder::default()
             .uri(uri.as_str())
             .user(username.as_str())
             .password(password.as_str())
