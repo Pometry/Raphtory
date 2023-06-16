@@ -1,10 +1,17 @@
-use std::ops::Deref;
+use std::{ops::Deref, rc::Rc};
 
 use serde::{Deserialize, Serialize};
 
-use crate::storage::{self, iter::{RefT, RefX}, Entry, EntryMut, PairEntryMut};
+use crate::{
+    core::Direction,
+    storage::{
+        self,
+        iter::RefT,
+        Entry, EntryMut, PairEntryMut,
+    },
+};
 
-use super::{edge_store::EdgeStore, node_store::NodeStore, VID};
+use super::{edge_store::EdgeStore, node_store::NodeStore, VID, iter::LockedPaged, EID};
 
 #[derive(Debug, Deserialize, Serialize)]
 pub(crate) struct GraphStorage<const N: usize, L: lock_api::RawRwLock> {
@@ -17,7 +24,7 @@ pub(crate) struct GraphStorage<const N: usize, L: lock_api::RawRwLock> {
 
 impl<const N: usize, L: lock_api::RawRwLock> GraphStorage<N, L> {
     fn iter_nodes<'a>(&'a self) -> impl Iterator<Item = RefT<'a, NodeStore<N>, L, N>> {
-        self.nodes.iter2()
+        self.nodes.iter()
     }
 
     pub(crate) fn new() -> Self {
@@ -51,7 +58,7 @@ impl<const N: usize, L: lock_api::RawRwLock> GraphStorage<N, L> {
         self.edges.entry(id)
     }
 
-    pub(crate) fn pair_node_mut(&self, i:usize, j:usize) -> PairEntryMut<'_, NodeStore<N>, L>{
+    pub(crate) fn pair_node_mut(&self, i: usize, j: usize) -> PairEntryMut<'_, NodeStore<N>, L> {
         self.nodes.pair_entry_mut(i, j)
     }
 
@@ -70,34 +77,34 @@ impl<const N: usize, L: lock_api::RawRwLock> GraphStorage<N, L> {
         }
     }
 
-    pub(crate) fn locked_nodes(&self) -> impl Iterator<Item = RefY<'_, NodeStore<N>, L, N>> {
-        LockedVIter{
-            gs: self,
+    pub(crate) fn locked_nodes(&self) -> impl Iterator<Item = GraphEntry<'_, NodeStore<N>, L, N>> {
+        LockedVIter {
             from: 0,
             to: self.nodes.len(),
-            locked_gs: self.lock()
-        }        
-        
+            locked_gs: Rc::new(self.lock()),
+        }
+    }
+
+    pub(crate) fn nodes(&self) -> impl Iterator<Item = RefT<'_, NodeStore<N>, L, N>> {
+        self.nodes.iter()
     }
 }
 
-
 struct LockedVIter<'a, const N: usize, L: lock_api::RawRwLock> {
-    gs: &'a GraphStorage<N, L>,
     from: usize,
     to: usize,
-    locked_gs: LockedGraphStorage<'a, N, L>
+    locked_gs: Rc<LockedGraphStorage<'a, N, L>>,
 }
 
 impl<'a, const N: usize, L: lock_api::RawRwLock> Iterator for LockedVIter<'a, N, L> {
-    type Item = RefY<'a, NodeStore<N>, L, N>;
+    type Item = GraphEntry<'a, NodeStore<N>, L, N>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.from < self.to {
-            let node = Some(RefY{
-                locked_gs: &self.locked_gs,
+            let node = Some(GraphEntry {
+                locked_gs: self.locked_gs.clone(),
                 i: self.from,
-                _marker: std::marker::PhantomData
+                _marker: std::marker::PhantomData,
             });
             self.from += 1;
             node
@@ -107,16 +114,27 @@ impl<'a, const N: usize, L: lock_api::RawRwLock> Iterator for LockedVIter<'a, N,
     }
 }
 
-// FIXME: this will be the next Vertex
-pub(crate) struct RefY<'a, T, L: lock_api::RawRwLock, const N: usize>{
-    locked_gs: &'a LockedGraphStorage<'a, N, L>,
+// FIXME: this will be the next VertexRef?
+pub(crate) struct GraphEntry<'a, T, L: lock_api::RawRwLock, const N: usize> {
+    locked_gs: Rc<LockedGraphStorage<'a, N, L>>,
     i: usize,
-    _marker: std::marker::PhantomData<T>
+    _marker: std::marker::PhantomData<T>,
 }
 
 
+// impl new
+impl<'a, const N: usize, L: lock_api::RawRwLock, T> GraphEntry<'a, T, L, N> {
+    pub fn new(gs: Rc<LockedGraphStorage<'a, N, L>>,i: usize) -> Self {
+        Self {
+            locked_gs: gs,
+            i,
+            _marker: std::marker::PhantomData,
+        }
+    }
+}
+
 // impl Deref for RefY of NodeStore<N>
-impl<'a, const N: usize, L: lock_api::RawRwLock> Deref for RefY<'a, NodeStore<N>, L, N> {
+impl<'a, const N: usize, L: lock_api::RawRwLock> Deref for GraphEntry<'a, NodeStore<N>, L, N> {
     type Target = NodeStore<N>;
 
     fn deref(&self) -> &Self::Target {
@@ -124,11 +142,31 @@ impl<'a, const N: usize, L: lock_api::RawRwLock> Deref for RefY<'a, NodeStore<N>
     }
 }
 
+impl<'a, const N: usize, L: lock_api::RawRwLock> GraphEntry<'a, NodeStore<N>, L, N> {
+
+    pub fn edges_iter(
+        &'a self,
+        layer_id: usize,
+        dir: Direction,
+    ) -> impl Iterator<Item = GraphEntry<'a, EdgeStore<N>, L, N>> + 'a {
+        (*self)
+            .edge_tuples(layer_id, dir)
+            .map(move |(vid, eid)| GraphEntry {
+                locked_gs: self.locked_gs.clone(),
+                i: eid.into(),
+                _marker: std::marker::PhantomData,
+            })
+    }
+
+    pub fn edges(self, layer_id: usize, dir: Direction) -> impl Iterator<Item = GraphEntry<'a, EdgeStore<N>, L, N>> + 'a {
+        LockedPaged::new( self.locked_gs, dir, layer_id, self.i.into())
+    }
+}
+
 pub(crate) struct LockedGraphStorage<'a, const N: usize, L: lock_api::RawRwLock> {
     nodes: storage::ReadLockedStorage<'a, NodeStore<N>, L, N>,
     edges: storage::ReadLockedStorage<'a, EdgeStore<N>, L, N>,
 }
-
 
 impl<'a, const N: usize, L: lock_api::RawRwLock> LockedGraphStorage<'a, N, L> {
     pub(crate) fn new(storage: &'a GraphStorage<N, L>) -> Self {
@@ -138,16 +176,20 @@ impl<'a, const N: usize, L: lock_api::RawRwLock> LockedGraphStorage<'a, N, L> {
         }
     }
 
-    pub(crate) fn get_node(&self, id: usize) -> &'a NodeStore<N> {
+    pub(crate) fn get_node(&'a self, id: usize) -> &'a NodeStore<N> {
         self.nodes.get(id)
     }
-    // pub(crate) fn iter_nodes(self) -> impl Iterator<Item = &'a NodeStore<N>> {
-    //     self.nodes.into_iter()
-    // }
 
-    // pub(crate) fn iter_edges(&'a self) -> impl Iterator<Item = &'a EdgeStore<N>> {
-    //     self.edges.iter2()
-    // }
+    pub(crate) fn edges_from_last(
+        &'a self,
+        id: usize,
+        layer_id: usize,
+        dir: Direction,
+        last: Option<VID>,
+        page_size: usize,
+    ) -> Vec<(VID, EID)>{
+        self.get_node(id).edges_from_last(layer_id, dir, last, page_size)
+    }
 }
 
 // pub(crate) trait GStorage<'a, const N: usize> {

@@ -10,7 +10,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     core::{vertex::InputVertex, Direction, Prop},
-    storage,
 };
 
 use super::{
@@ -18,7 +17,7 @@ use super::{
     node_store::NodeStore,
     props::Meta,
     timer::{MaxCounter, MinCounter, TimeCounterTrait},
-    EID, VID, vertex::Vertex, tgraph_storage::{GraphStorage, RefY}
+    VID, vertex::Vertex, tgraph_storage::GraphStorage
 };
 
 pub(crate) type FxDashMap<K, V> = DashMap<K, V, BuildHasherDefault<FxHasher>>;
@@ -218,195 +217,137 @@ impl<const N: usize, L: lock_api::RawRwLock + 'static> TGraph<N, L> {
         (0..self.inner.storage.nodes_len()).map(|i| i.into())
     }
 
-    pub fn vertices<'a>(&'a self) -> impl Iterator<Item = RefY<'_, NodeStore<N>, L, N>> {
-        self.inner.storage.locked_nodes()
+    pub fn vertices<'a>(&'a self) -> impl Iterator<Item = Vertex<'a, N, L>>{
+        self.inner.storage.nodes().map(move |node| {
+            Vertex::from_ref(node, self)
+        })
     }
 
-    // pub fn find_global_id(&self, v: VID) -> Option<u64> {
-    //     let node = self.inner.nodes.entry(v.into());
-    //     node.value().map(|n| n.global_id())
-    // }
+    pub fn find_global_id(&self, v: VID) -> Option<u64> {
+        let node = self.inner.storage.get_node(v.into());
+        node.value().map(|n| n.global_id())
+    }
 
-    // pub(crate) fn vertex<'a>(&'a self, v: VID) -> Vertex<'a, N, L> {
-    //     let node = self.inner.storage.get_node(v.into());
-    //     Vertex::from_entry( node, self,)
-    // }
+    pub(crate) fn vertex<'a>(&'a self, v: VID) -> Vertex<'a, N, L> {
+        let node = self.inner.storage.get_node(v.into());
+        Vertex::from_entry( node, self,)
+    }
 }
-
-// #[derive(Debug)]
-// pub struct Edge<'a, const N: usize, L: lock_api::RawRwLock> {
-//     src: VID,
-//     dst: VID,
-//     edge_id: EID,
-//     graph: &'a TGraph<N, L>,
-// }
-
-// impl<'a, const N: usize, L: lock_api::RawRwLock> Edge<'a, N, L> {
-
-//     pub(crate) fn new(src: VID, dst: VID, edge_id: EID, graph: &'a TGraph<N, L>) -> Self {
-//         Self {
-//             src,
-//             dst,
-//             edge_id,
-//             graph,
-//         }
-//     }
-
-//     pub fn src_id(&self) -> VID {
-//         self.src
-//     }
-
-//     pub fn dst_id(&self) -> VID {
-//         self.dst
-//     }
-
-//     pub fn edge_id(&self) -> EID {
-//         self.edge_id
-//     }
-
-//     pub fn src(&self) -> Vertex<'a, N, L> {
-//         self.graph.vertex(self.src)
-//     }
-
-//     pub fn dst(&self) -> Vertex<'a, N, L> {
-//         self.graph.vertex(self.dst)
-//     }
-
-//     pub fn from_edge_ids(
-//         v1: VID,
-//         v2: VID,
-//         edge_id: EID,
-//         dir: Direction,
-//         graph: &'a TGraph<N, L>,
-//     ) -> Self {
-//         let (src, dst) = match dir {
-//             Direction::OUT => (v1, v2),
-//             Direction::IN => (v2, v1),
-//             _ => panic!("Invalid direction"),
-//         };
-//         Edge {
-//             src,
-//             dst,
-//             edge_id,
-//             graph,
-//         }
-//     }
-// }
 
 
 
 #[cfg(test)]
 mod test {
 
-    // use itertools::Itertools;
+    use itertools::Itertools;
 
-    // use super::*;
+    use super::*;
 
-    // #[test]
-    // fn add_vertex_at_time_t1() {
-    //     let g: TGraph<4, parking_lot::RawRwLock> = TGraph::new();
+    #[test]
+    fn add_vertex_at_time_t1() {
+        let g: TGraph<4, parking_lot::RawRwLock> = TGraph::new();
 
-    //     g.add_vertex(1, 9);
+        g.add_vertex(1, 9);
 
-    //     assert!(g.has_vertex(9u64));
-    //     assert!(g.has_vertex_window(9u64, 1..15));
-    //     assert!(!g.has_vertex_window(9u64, 10..15));
+        assert!(g.has_vertex(9u64));
+        assert!(g.has_vertex_window(9u64, 1..15));
+        assert!(!g.has_vertex_window(9u64, 10..15));
 
-    //     assert_eq!(
-    //         g.vertex_ids()
-    //             .flat_map(|v| g.find_global_id(v))
-    //             .collect::<Vec<_>>(),
-    //         vec![9]
-    //     );
-    // }
+        assert_eq!(
+            g.vertex_ids()
+                .flat_map(|v| g.find_global_id(v))
+                .collect::<Vec<_>>(),
+            vec![9]
+        );
+    }
 
-    // #[test]
-    // fn add_vertices_with_1_property() {
-    //     let g: TGraph<4, parking_lot::RawRwLock> = TGraph::new();
+    #[test]
+    fn add_vertices_with_1_property() {
+        let g: TGraph<4, parking_lot::RawRwLock> = TGraph::new();
 
-    //     let v_id = 1;
-    //     let ts = 1;
-    //     g.add_vertex_with_props(ts, v_id, vec![("type".into(), Prop::Str("wallet".into()))]);
+        let v_id = 1;
+        let ts = 1;
+        g.add_vertex_with_props(ts, v_id, vec![("type".into(), Prop::Str("wallet".into()))]);
 
-    //     assert!(g.has_vertex(v_id));
-    //     assert!(g.has_vertex_window(v_id, 1..15));
-    //     assert_eq!(
-    //         g.vertex_ids()
-    //             .flat_map(|v| g.find_global_id(v))
-    //             .collect::<Vec<_>>(),
-    //         vec![v_id]
-    //     );
+        assert!(g.has_vertex(v_id));
+        assert!(g.has_vertex_window(v_id, 1..15));
+        assert_eq!(
+            g.vertex_ids()
+                .flat_map(|v| g.find_global_id(v))
+                .collect::<Vec<_>>(),
+            vec![v_id]
+        );
 
-    //     let res = g
-    //         .vertices()
-    //         .flat_map(|v| v.temporal_properties("type").collect_vec())
-    //         .collect_vec();
+        let res = g
+            .vertices()
+            .flat_map(|v| v.temporal_properties("type").collect_vec())
+            .collect_vec();
 
-    //     assert_eq!(res, vec![(1i64, Prop::Str("wallet".into()))]);
-    // }
+        assert_eq!(res, vec![(1i64, Prop::Str("wallet".into()))]);
+    }
 
-    // #[test]
-    // fn add_edge_at_t1() {
-    //     let g: TGraph<4, parking_lot::RawRwLock> = TGraph::new();
+    #[test]
+    fn add_edge_at_t1() {
+        let g: TGraph<4, parking_lot::RawRwLock> = TGraph::new();
 
-    //     let src = 1;
-    //     let dst = 2;
-    //     let ts = 1;
-    //     g.add_vertex(ts, src);
-    //     g.add_vertex(ts, dst);
+        let src = 1;
+        let dst = 2;
+        let ts = 1;
+        g.add_vertex(ts, src);
+        g.add_vertex(ts, dst);
 
-    //     g.add_edge(ts, src, dst, "follows");
+        g.add_edge(ts, src, dst, "follows");
 
-    //     let res = g
-    //         .vertices()
-    //         .flat_map(|v| {
-    //             v.edges("follows", Direction::OUT)
-    //                 .map(|e| (e.src_id(), e.dst_id()))
-    //         })
-    //         .collect_vec();
+        let res = g
+            .vertices()
+            .flat_map(|v| {
+                v.edges("follows", Direction::OUT)
+                    .map(|e| (e.src_id(), e.dst_id()))
+            })
+            .collect_vec();
 
-    //     assert_eq!(res, vec![(0.into(), 1.into())]);
-    // }
+        assert_eq!(res, vec![(0.into(), 1.into())]);
+    }
 
-    // #[test]
-    // fn triangle_counts_by_iterators() {
-    //     let g: TGraph<4, parking_lot::RawRwLock> = TGraph::new();
+    #[test]
+    fn triangle_counts_by_iterators() {
+        let g: TGraph<4, parking_lot::RawRwLock> = TGraph::new();
 
-    //     let ts = 1;
+        let ts = 1;
 
-    //     g.add_edge(ts, 1, 2, "follows");
-    //     g.add_edge(ts, 2, 3, "follows");
-    //     g.add_edge(ts, 3, 1, "follows");
+        g.add_edge(ts, 1, 2, "follows");
+        g.add_edge(ts, 2, 3, "follows");
+        g.add_edge(ts, 3, 1, "follows");
 
-    //     let res = g
-    //         .vertices()
-    //         .flat_map(|v| {
-    //             let v_id = v.id();
-    //             v.edges("follows", Direction::OUT)
-    //                 .flat_map(move |edge_1| {
-    //                     edge_1
-    //                         .dst()
-    //                         .edges("follows", Direction::OUT)
-    //                         .flat_map(move |edge_2| {
-    //                             edge_2
-    //                                 .dst()
-    //                                 .edges("follows", Direction::OUT)
-    //                                 .filter(move |e| e.dst_id() == v_id)
-    //                                 .map(move |edge_3| {
-    //                                     (v_id, edge_2.src_id(), edge_2.dst_id(), edge_3.dst_id())
-    //                                 })
-    //                         })
-    //                 })
-    //         })
-    //         .collect_vec();
+        let res = g
+            .vertices()
+            .flat_map(|v| {
+                let v_id = v.id();
+                v.edges("follows", Direction::OUT)
+                    .flat_map(move |edge_1| {
+                        edge_1
+                            .dst()
+                            .edges("follows", Direction::OUT)
+                            .flat_map(move |edge_2| {
+                                edge_2
+                                    .dst()
+                                    .edges("follows", Direction::OUT)
+                                    .filter(move |e| e.dst_id() == v_id)
+                                    .map(move |edge_3| {
+                                        (v_id, edge_2.src_id(), edge_2.dst_id(), edge_3.dst_id())
+                                    })
+                            })
+                    })
+            })
+            .collect_vec();
 
-    //     assert_eq!(
-    //         res,
-    //         vec![
-    //             (0.into(), 1.into(), 2.into(), 0.into()),
-    //             (1.into(), 2.into(), 0.into(), 1.into()),
-    //             (2.into(), 0.into(), 1.into(), 2.into()),
-    //         ]
-    //     );
-    // }
+        assert_eq!(
+            res,
+            vec![
+                (0.into(), 1.into(), 2.into(), 0.into()),
+                (1.into(), 2.into(), 0.into(), 1.into()),
+                (2.into(), 0.into(), 1.into(), 2.into()),
+            ]
+        );
+    }
 }

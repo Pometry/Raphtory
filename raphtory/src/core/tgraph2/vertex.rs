@@ -16,11 +16,11 @@ use super::{
 };
 
 pub struct Vertex<'a, const N: usize, L: lock_api::RawRwLock> {
-    node: VRef<'a, N, L>, //RefT<'a, NodeStore<N>, L, N>,
+    node: VRef<'a, N, L>,
     graph: &'a TGraph<N, L>,
 }
 
-impl<'a, const N: usize, L: lock_api::RawRwLock> Vertex<'a, N, L> {
+impl<'a, const N: usize, L: lock_api::RawRwLock + 'static> Vertex<'a, N, L> {
     pub fn id(&self) -> VID {
         self.node.index().into()
     }
@@ -77,13 +77,13 @@ impl<'a, const N: usize, L: lock_api::RawRwLock> Vertex<'a, N, L> {
             .props_meta
             .get_or_create_layer_id(layer.to_owned());
         (*self.node)
-            .edges(layer, dir)
+            .edge_tuples(layer, dir)
             .map(move |(dst, e_id)| Edge::new(self.node.index().into(), dst, e_id, dir, self.graph))
     }
 
-    pub fn neighbours(
+    pub fn neighbours<'b>(
         &'a self,
-        layer: &str,
+        layer: &'b str,
         dir: Direction,
     ) -> impl Iterator<Item = Vertex<'a, N, L>> + 'a {
         let layer = self
@@ -93,7 +93,7 @@ impl<'a, const N: usize, L: lock_api::RawRwLock> Vertex<'a, N, L> {
             .get_or_create_layer_id(layer.to_owned());
 
         (*self.node)
-            .edges(layer, dir)
+            .edge_tuples(layer, dir)
             .map(move |(dst, _)| self.graph.vertex(dst))
     }
 }

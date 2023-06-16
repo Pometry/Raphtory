@@ -10,7 +10,7 @@ use std::{
 use lock_api::{RawRwLock, RwLock};
 use serde::{Deserialize, Serialize};
 
-use self::{items::Items, iter::{Iter, LockedIter, RefX}};
+use self::{items::Items, iter::Iter};
 
 fn resolve<const N: usize>(index: usize) -> (usize, usize) {
     let bucket = index % N;
@@ -55,10 +55,6 @@ impl <'a, T, L:RawRwLock, const N: usize> ReadLockedStorage<'a, T, L, N> {
 }
 
 impl<T, L: RawRwLock, const N: usize> RawStorage<T, L, N> {
-
-    pub fn locked_iter<'a>(&'a self) -> impl Iterator<Item = RefX<'a, T, L, N>> {
-        LockedIter::new(self)
-    }
 
     pub fn read_lock<'a>(&'a self) -> ReadLockedStorage<'a, T, L, N> {
         let guards: [lock_api::RwLockReadGuard<'a, L, Vec<Option<T>>>; N] =
@@ -129,12 +125,12 @@ impl<T, L: RawRwLock, const N: usize> RawStorage<T, L, N> {
         self.len.load(Ordering::SeqCst)
     }
 
-    pub fn items<'a>(&'a self) -> Items<'a, T, L> {
-        let guards = self.data.iter().map(|vec| vec.data.read()).collect();
-        Items::new(guards)
-    }
+    // pub fn items<'a>(&'a self) -> Items<'a, T, L> {
+    //     let guards = self.data.iter().map(|vec| vec.data.read()).collect();
+    //     Items::new(guards)
+    // }
 
-    pub fn iter2<'a>(&'a self) -> Iter<'a, T, L, N> {
+    pub fn iter<'a>(&'a self) -> Iter<'a, T, L, N> {
         Iter::new(self)
     }
 }
@@ -263,13 +259,7 @@ mod test {
             assert_eq!(*entry, i.to_string());
         }
 
-        let items = storage.items();
-
-        let actual = items.iter().map(|s| s.to_owned()).collect::<Vec<_>>();
-
-        assert_eq!(actual, vec!["0", "2", "4", "1", "3"]);
-
-        let items_iter = storage.iter2();
+        let items_iter = storage.iter();
 
         let actual = items_iter.map(|s| (*s).to_owned()).collect::<Vec<_>>();
 
@@ -284,7 +274,7 @@ mod test {
             storage.push(i.to_string());
         }
 
-        let items_iter = storage.iter2();
+        let items_iter = storage.iter();
         let actual = items_iter
             .map(|s| (s.index(), (*s).to_owned()))
             .collect::<Vec<_>>();

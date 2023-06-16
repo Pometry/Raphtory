@@ -2,7 +2,7 @@ use crate::core::Direction;
 
 use super::{tgraph::TGraph, vertex::Vertex, GraphItem, EID, VID};
 
-impl<'a, const N: usize, L: lock_api::RawRwLock> GraphItem<'a, N, L> for Edge<'a, N, L> {
+impl<'a, const N: usize, L: lock_api::RawRwLock + 'static> GraphItem<'a, N, L> for Edge<'a, N, L> {
     fn from_edge_ids(
         src: VID,
         dst: VID,
@@ -28,7 +28,7 @@ impl<'a, const N: usize, L: lock_api::RawRwLock> PartialEq for Edge<'a, N, L> {
     }
 }
 
-impl<'a, const N: usize, L: lock_api::RawRwLock> PartialOrd for Edge<'a, N, L> {
+impl<'a, const N: usize, L: lock_api::RawRwLock + 'static> PartialOrd for Edge<'a, N, L> {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         self.origin()
             .eq(&other.origin())
@@ -36,7 +36,7 @@ impl<'a, const N: usize, L: lock_api::RawRwLock> PartialOrd for Edge<'a, N, L> {
     }
 }
 
-impl<'a, const N: usize, L: lock_api::RawRwLock> Edge<'a, N, L> {
+impl<'a, const N: usize, L: lock_api::RawRwLock + 'static> Edge<'a, N, L> {
     fn neighbour(&self) -> VID {
         match self.dir {
             Direction::OUT => self.dst,
