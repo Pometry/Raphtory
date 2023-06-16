@@ -4,18 +4,15 @@ use crate::edge::{PyEdge, PyEdges};
 use crate::graph::PyGraph;
 use crate::types::repr::Repr;
 use crate::utils::{
-    adapt_err_value, adapt_result, at_impl, expanding_impl, extract_vertex_ref, rolling_impl,
-    window_impl, IntoPyObject, PyWindowSet,
+    adapt_result, at_impl, expanding_impl, extract_vertex_ref, rolling_impl, window_impl,
+    IntoPyObject, PyWindowSet,
 };
 use crate::vertex::{PyVertex, PyVertices};
-use crate::wrappers::iterators::*;
 use crate::wrappers::prop::Prop;
 use chrono::prelude::*;
-use futures::StreamExt;
 use itertools::Itertools;
 use pyo3::prelude::*;
-use raphtory::db::subgraph_vertex::VertexSubgraph;
-use raphtory::db::view_api::internal::GraphViewInternalOps;
+use raphtory::db::view_api::internal::CoreGraphOps;
 use raphtory::db::view_api::layer::LayerOps;
 use raphtory::db::view_api::*;
 use raphtory::*;
@@ -299,7 +296,7 @@ impl PyGraphView {
     ///    Option<Prop> - The property value
     fn property(&self, name: String, include_static: Option<bool>) -> Option<Prop> {
         self.graph
-            .property(name.clone(), include_static.unwrap_or(true))
+            .property(name, include_static.unwrap_or(true))
             .map(|v| v.into())
     }
 
@@ -312,7 +309,7 @@ impl PyGraphView {
     /// Returns:
     ///    Option<Prop> - The property value
     fn property_history(&self, name: String) -> Vec<(i64, Prop)> {
-        let r: Vec<(i64, raphtory::core::Prop)> = self.graph.property_history(name.clone());
+        let r: Vec<(i64, core::Prop)> = self.graph.property_history(name);
         r.into_iter().map(|(i, v)| (i, v.into())).collect_vec()
     }
 
@@ -324,8 +321,7 @@ impl PyGraphView {
     /// Returns:
     ///    HashMap<String, Prop> - Properties paired with their names
     fn properties(&self, include_static: Option<bool>) -> HashMap<String, Prop> {
-        let r: HashMap<String, raphtory::core::Prop> =
-            self.graph.properties(include_static.unwrap_or(true));
+        let r: HashMap<String, core::Prop> = self.graph.properties(include_static.unwrap_or(true));
         r.into_iter().map(|(i, v)| (i, v.into())).collect()
     }
 
@@ -337,7 +333,7 @@ impl PyGraphView {
     /// Returns:
     ///    HashMap<String, Vec<(i64, Prop)>> - Properties paired with their names and timestamps
     fn property_histories(&self) -> HashMap<String, Vec<(i64, Prop)>> {
-        let r: HashMap<String, Vec<(i64, raphtory::core::Prop)>> = self.graph.property_histories();
+        let r: HashMap<String, Vec<(i64, core::Prop)>> = self.graph.property_histories();
         let w = r.into_iter().map(|(i, v)| {
             let x = v.into_iter().map(|(a, b)| (a, b.into())).collect_vec();
             (i, x)
@@ -366,7 +362,7 @@ impl PyGraphView {
     ///    bool - Indicates whether a property is found by name
     fn has_property(&self, name: String, include_static: Option<bool>) -> bool {
         self.graph
-            .has_property(name.clone(), include_static.unwrap_or(true))
+            .has_property(name, include_static.unwrap_or(true))
     }
 
     /// Returns whether a static property is found by name
@@ -377,7 +373,7 @@ impl PyGraphView {
     /// Returns:
     ///    bool - Indicates whether a static property is found by name
     fn has_static_property(&self, name: String) -> bool {
-        self.graph.has_static_property(name.clone())
+        self.graph.has_static_property(name)
     }
 
     /// Returns whether a static property is found by name
@@ -388,7 +384,7 @@ impl PyGraphView {
     /// Returns:
     ///    Option<Prop> - Returns the static property
     fn static_property(&self, name: String) -> Option<Prop> {
-        self.graph.static_prop(name.clone()).map(|v| v.into())
+        self.graph.static_prop(&name).map(|v| v.into())
     }
 
     /// Returns static properties of a graph
@@ -398,8 +394,7 @@ impl PyGraphView {
     /// Returns:
     ///    HashMap<String, Prop> - Returns static properties identified by their names
     fn static_properties(&self) -> HashMap<String, Prop> {
-        let r: HashMap<String, raphtory::core::Prop> =
-            self.graph.static_properties();
+        let r: HashMap<String, core::Prop> = self.graph.static_properties();
         r.into_iter().map(|(i, v)| (i, v.into())).collect()
     }
 

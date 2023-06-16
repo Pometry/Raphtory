@@ -15,7 +15,7 @@ use raphtory::core as dbc;
 use raphtory::db::graph::Graph;
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
-use std::path::{Display, Path, PathBuf};
+use std::path::{Path, PathBuf};
 
 /// A temporal graph.
 #[derive(Clone)]

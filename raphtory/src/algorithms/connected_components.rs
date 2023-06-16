@@ -1,7 +1,7 @@
-use std::cmp;
+use crate::db::task::eval_vertex::EvalVertexView;
 use crate::db::view_api::VertexViewOps;
 use crate::{
-    core::state::{accumulator_id::accumulators, compute_state::ComputeStateVec},
+    core::state::compute_state::ComputeStateVec,
     db::{
         task::{
             context::Context,
@@ -11,8 +11,8 @@ use crate::{
         view_api::GraphViewOps,
     },
 };
+use std::cmp;
 use std::collections::HashMap;
-use crate::db::task::eval_vertex::EvalVertexView;
 
 #[derive(Clone, Debug)]
 struct WccState {
@@ -21,9 +21,7 @@ struct WccState {
 
 impl WccState {
     fn new() -> Self {
-        Self {
-            component: 0,
-        }
+        Self { component: 0 }
     }
 }
 
@@ -47,7 +45,7 @@ pub fn weakly_connected_components<G>(
 where
     G: GraphViewOps,
 {
-    let mut ctx: Context<G, ComputeStateVec> = graph.into();
+    let ctx: Context<G, ComputeStateVec> = graph.into();
 
     let step1 = ATask::new(move |vv| {
         let min_neighbour_id = vv.neighbours().id().min();
@@ -57,39 +55,47 @@ where
         Step::Continue
     });
 
-    let step2 = ATask::new(move |vv: &mut EvalVertexView<'_, G,ComputeStateVec, WccState>| {
-        let prev:u64 = vv.prev().component;
-        let current = vv.neighbours().into_iter().map(|n|n.prev().component).min().unwrap_or(prev);
-        let state: &mut WccState = vv.get_mut();
-        if current<prev {
-            state.component = current;
-            Step::Continue
-        }
-        else {
-            Step::Done
-        }
-    });
+    let step2 = ATask::new(
+        move |vv: &mut EvalVertexView<'_, G, ComputeStateVec, WccState>| {
+            let prev: u64 = vv.prev().component;
+            let current = vv
+                .neighbours()
+                .into_iter()
+                .map(|n| n.prev().component)
+                .min()
+                .unwrap_or(prev);
+            let state: &mut WccState = vv.get_mut();
+            if current < prev {
+                state.component = current;
+                Step::Continue
+            } else {
+                Step::Done
+            }
+        },
+    );
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
 
-    runner.run(
-        vec![Job::new(step1)],
-        vec![Job::read_only(step2)],
-        WccState::new(),
-        |g, _, _, local| {
-            local
-                .iter()
-                .filter_map(|line| {
-                    line.as_ref()
-                        .map(|(v_ref, state)| (v_ref.clone(), state.component))
-                })
-                .collect::<HashMap<_, _>>()
-        },
-        threads,
-        iter_count,
-        None,
-        None,
-    ).into_iter()
+    runner
+        .run(
+            vec![Job::new(step1)],
+            vec![Job::read_only(step2)],
+            WccState::new(),
+            |_, _, _, local| {
+                local
+                    .iter()
+                    .filter_map(|line| {
+                        line.as_ref()
+                            .map(|(v_ref, state)| (v_ref.clone(), state.component))
+                    })
+                    .collect::<HashMap<_, _>>()
+            },
+            threads,
+            iter_count,
+            None,
+            None,
+        )
+        .into_iter()
         .map(|(k, v)| (graph.vertex_name(k), v))
         .collect()
 }

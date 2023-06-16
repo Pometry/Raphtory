@@ -161,7 +161,6 @@ impl<T: TimeOps + Clone> Iterator for WindowSet<T> {
 mod time_tests {
     use crate::core::time::TryIntoTime;
     use crate::db::graph::Graph;
-    use crate::db::view_api::internal::GraphViewInternalOps;
     use crate::db::view_api::time::WindowSet;
     use crate::db::view_api::{GraphViewOps, TimeOps};
     use itertools::Itertools;
@@ -178,7 +177,7 @@ mod time_tests {
 
     fn assert_bounds<G>(windows: WindowSet<G>, expected: Vec<(i64, i64)>)
     where
-        G: GraphViewOps + GraphViewInternalOps,
+        G: GraphViewOps,
     {
         let window_bounds = windows
             .map(|w| (w.start().unwrap(), w.end().unwrap()))

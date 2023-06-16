@@ -3,7 +3,10 @@ use crate::core::{Direction, Prop};
 use crate::db::edge::EdgeView;
 use crate::db::path::{Operations, PathFromVertex};
 use crate::db::task::eval_edge::EvalEdgeView;
-use crate::db::view_api::{BoxedIter, TimeOps, VertexListOps, VertexViewOps};
+use crate::db::view_api::internal::GraphPropertiesOps;
+use crate::db::view_api::{
+    BoxedIter, EdgeListOps, EdgeViewOps, TimeOps, VertexListOps, VertexViewOps,
+};
 use crate::{
     core::{
         agg::Accumulator,
@@ -12,6 +15,7 @@ use crate::{
     },
     db::view_api::GraphViewOps,
 };
+use itertools::Itertools;
 use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::{
@@ -243,7 +247,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EvalPathFromVertex<'a, G
                 self.g.localise_vertex_unchecked(v),
                 self.g,
                 None,
-                self.local_state_prev.clone(),
+                self.local_state_prev,
                 self.vertex_state.clone(),
             )
         }))
@@ -268,7 +272,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> IntoIterator
                 self.g.localise_vertex_unchecked(v),
                 g,
                 None,
-                self.local_state_prev.clone(),
+                self.local_state_prev,
                 vertex_state.clone(),
             )
         }))
@@ -294,7 +298,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> TimeOps
             self.ss,
             self.g,
             self.vertex_state.clone(),
-            self.local_state_prev.clone(),
+            self.local_state_prev,
             t_start.into_time(),
             t_end.into_time(),
         )
@@ -419,7 +423,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S> TimeOps for EvalVertexView<'a, G,
             self.vertex,
             self.graph,
             None,
-            self.local_state_prev.clone(),
+            self.local_state_prev,
             self.vertex_state.clone(),
             t_start.into_time(),
             t_end.into_time(),
@@ -456,7 +460,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
         match props.last() {
             None => {
                 if include_static {
-                    self.graph.static_vertex_prop(self.vertex, name)
+                    self.graph.static_vertex_prop(self.vertex, &name)
                 } else {
                     None
                 }
@@ -466,11 +470,15 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
     }
 
     fn history(&self) -> Self::ValueType<Vec<i64>> {
-        self.graph.vertex_timestamps(self.vertex)
+        self.edges()
+            .map(|e| e.explode().earliest_time().flatten())
+            .kmerge()
+            .dedup()
+            .collect()
     }
 
     fn property_history(&self, name: String) -> Self::ValueType<Vec<(i64, Prop)>> {
-        self.graph.temporal_vertex_prop_vec(self.vertex, name)
+        self.graph.temporal_vertex_prop_vec(self.vertex, &name)
     }
 
     fn properties(&self, include_static: bool) -> Self::ValueType<HashMap<String, Prop>> {
@@ -482,10 +490,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
 
         if include_static {
             for prop_name in self.graph.static_vertex_prop_names(self.vertex) {
-                if let Some(prop) = self
-                    .graph
-                    .static_vertex_prop(self.vertex, prop_name.clone())
-                {
+                if let Some(prop) = self.graph.static_vertex_prop(self.vertex, &prop_name) {
                     props.insert(prop_name, prop);
                 }
             }
@@ -521,7 +526,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
     }
 
     fn static_property(&self, name: String) -> Self::ValueType<Option<Prop>> {
-        self.graph.static_vertex_prop(self.vertex, name)
+        self.graph.static_vertex_prop(self.vertex, &name)
     }
 
     fn static_properties(&self) -> Self::ValueType<HashMap<String, Prop>> {
@@ -602,7 +607,9 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
         let neighbours = PathFromVertex::new(
             self.graph.clone(),
             self.vertex,
-            Operations::Neighbours { dir: Direction::OUT },
+            Operations::Neighbours {
+                dir: Direction::OUT,
+            },
         );
 
         EvalPathFromVertex::new_from_path_and_vertex(neighbours, self)

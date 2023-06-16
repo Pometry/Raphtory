@@ -3,7 +3,7 @@ use itertools::Itertools;
 use raphtory::algorithms::generic_taint::generic_taint;
 use raphtory::algorithms::pagerank::unweighted_page_rank;
 use raphtory::core::time::TryIntoTime;
-use raphtory::db::view_api::internal::GraphViewInternalOps;
+use raphtory::db::view_api::internal::BoxableGraphView;
 use raphtory::db::view_api::layer::LayerOps;
 use raphtory::db::view_api::time::WindowSet;
 use raphtory::db::view_api::*;
@@ -32,7 +32,7 @@ fn main() {
         Some(args.get(1).unwrap().to_string())
     };
 
-    let g = stable_coin_graph(data_dir,true, 1);
+    let g = stable_coin_graph(data_dir, true, 1);
 
     assert_eq!(g.num_vertices(), 1523333);
     assert_eq!(g.num_edges(), 2814155);
@@ -49,24 +49,11 @@ fn main() {
 
     let now = Instant::now();
 
-    let _ = unweighted_page_rank(
-        &g,
-        20,
-        None,
-        None,
-        true,
-    );
+    let _ = unweighted_page_rank(&g, 20, None, None, true);
     println!("Time taken: {} secs", now.elapsed().as_secs());
 
     let now = Instant::now();
-    let _ = unweighted_page_rank(
-        &g.layer("USDT")
-            .unwrap(),
-        20,
-        None,
-        None,
-        true
-    );
+    let _ = unweighted_page_rank(&g.layer("USDT").unwrap(), 20, None, None, true);
     println!("Time taken: {} secs", now.elapsed().as_secs());
 
     println!("Generic taint");

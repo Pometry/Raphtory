@@ -1,9 +1,6 @@
+use crate::core::{agg::Accumulator, utils::get_shard_id_from_global_vid};
 use crate::db::task::task_state::{Global, Shard};
 use crate::db::view_api::GraphViewOps;
-use crate::{
-    core::{agg::Accumulator, utils::get_shard_id_from_global_vid},
-    db::view_api::internal::GraphViewInternalOps,
-};
 use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -279,7 +276,7 @@ impl<CS: ComputeState + Send + Sync> ShuffleComputeState<CS> {
             .read::<A, IN, OUT, ACC>(GLOBAL_STATE_KEY, agg_ref.id(), ss)
     }
 
-    pub fn read_vec_partition<A, IN, OUT, ACC: Accumulator<A, IN, OUT>, G: GraphViewInternalOps>(
+    pub fn read_vec_partition<A, IN, OUT, ACC: Accumulator<A, IN, OUT>, G: GraphViewOps>(
         &self,
         ss: usize,
         agg_def: &AccId<A, IN, OUT, ACC>,
@@ -322,19 +319,14 @@ impl<CS: ComputeState + Send> ShuffleComputeState<CS> {
     }
 }
 
-pub struct EvalGlobalState<G: GraphViewOps, CS: ComputeState + Send> {
+pub struct EvalGlobalState<CS: ComputeState + Send> {
     ss: usize,
-    g: G,
     pub(crate) global_state: Global<CS>,
 }
 
-impl<G: GraphViewOps, CS: ComputeState + Send> EvalGlobalState<G, CS> {
-    pub fn new(ss: usize, g: G, global_state: Global<CS>) -> EvalGlobalState<G, CS> {
-        Self {
-            ss,
-            g,
-            global_state,
-        }
+impl<CS: ComputeState + Send> EvalGlobalState<CS> {
+    pub fn new(ss: usize, global_state: Global<CS>) -> EvalGlobalState<CS> {
+        Self { ss, global_state }
     }
 
     pub fn finalize<A: StateType, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
