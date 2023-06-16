@@ -15,7 +15,7 @@ use raphtory::algorithms::degree::{
     min_out_degree as min_out_degree_rs,
 };
 use raphtory::algorithms::directed_graph_density::directed_graph_density as directed_graph_density_rs;
-use raphtory::algorithms::temporal_reachability::temporally_reachable_nodes as generic_taint_rs;
+use raphtory::algorithms::temporal_reachability::temporally_reachable_nodes as temporal_reachability_rs;
 use raphtory::algorithms::local_clustering_coefficient::local_clustering_coefficient as local_clustering_coefficient_rs;
 use raphtory::algorithms::local_triangle_count::local_triangle_count as local_triangle_count_rs;
 use raphtory::algorithms::motifs::three_node_local::local_temporal_three_node_motifs as local_three_node_rs;
@@ -71,7 +71,7 @@ pub fn weakly_connected_components(
 /// 
 /// Arguments:
 ///     g (Raphtory graph) : Raphtory graph
-///     iter_count (int) : Maximum number of iterations to run. Note that this will terminate early if conv
+///     iter_count (int) : Maximum number of iterations to run. Note that this will terminate early if convergence is reached.
 ///     max_diff (float) : Optional parameter providing an alternative stopping condition. The algorithm will terminate if the sum of the absolute difference in pagerank values between iterations
 /// is less than the max diff value given.
 /// 
@@ -86,30 +86,46 @@ pub fn pagerank(
     Ok(unweighted_page_rank(&g.graph, iter_count, None, max_diff, true))
 }
 
+/// Temporally reachable nodes -- the nodes that are reachable by a time respecting path followed out from a set of seed nodes at a starting time.
+/// 
+/// This function starts at a set of seed nodes and follows all time respecting paths until either a) a maximum number of hops is reached, b) one of a set of
+/// stop nodes is reached, or c) no further time respecting edges exist. A time respecting path is a sequence of nodes v_1, v_2, ... , v_k such that there exists
+/// a sequence of edges (v_i, v_i+1, t_i) with t_i < t_i+1 for i = 1, ... , k - 1.
+/// 
+/// Arguments:
+///     g (Raphtory graph) : directed Raphtory graph
+///     max_hops (int) : maximum number of hops to propagate out
+///     start_time (int) : time at which to start the path (such that t_1 > start_time for any path starting from these seed nodes)
+///     seed_nodes (list(str) or list(int)) : list of vertex names or ids which should be the starting nodes
+///     stop_nodes (list(str) or list(int)) : nodes at which a path shouldn't go any further
+/// 
+/// Returns:
+///     dict : Dictionary with string keys and float values mapping vertex names to their pagerank value.
 #[pyfunction]
-pub fn generic_taint(
+pub fn temporally_reachable_nodes(
     g: &PyGraphView,
-    iter_count: usize,
+    max_hops: usize,
     start_time: i64,
-    infected_nodes: Vec<&PyAny>,
-    stop_nodes: Vec<&PyAny>,
+    seed_nodes: Vec<&PyAny>,
+    stop_nodes: Option<Vec<&PyAny>>,
 ) -> Result<HashMap<String, Vec<(i64, String)>>, PyErr> {
-    let infected_nodes: PyResult<Vec<InputVertexBox>> = infected_nodes
+    let infected_nodes: PyResult<Vec<InputVertexBox>> = seed_nodes
         .into_iter()
         .map(|v| extract_input_vertex(v))
         .collect();
     let stop_nodes: PyResult<Vec<InputVertexBox>> = stop_nodes
+        .unwrap_or(vec![])
         .into_iter()
         .map(|v| extract_input_vertex(v))
         .collect();
 
-    Ok(generic_taint_rs(
+    Ok(temporal_reachability_rs(
         &g.graph,
         None,
-        iter_count,
+        max_hops,
         start_time,
         infected_nodes?,
-        stop_nodes?,
+        Some(stop_nodes?),
     ))
 }
 
