@@ -8,9 +8,7 @@ use crate::dynamic::{DynamicGraph, IntoDynamic};
 use crate::types::repr::{iterator_repr, Repr};
 use crate::utils::*;
 use crate::vertex::{PyVertex, PyVertexIterable};
-use crate::wrappers::iterators::{
-    OptionI64Iterable, OptionPropIterable, PropsIterable, U64Iterable,
-};
+use crate::wrappers::iterators::{OptionI64Iterable, OptionPropIterable, PropsIterable};
 use crate::wrappers::prop::Prop;
 use chrono::NaiveDateTime;
 use itertools::Itertools;

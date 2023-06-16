@@ -1,7 +1,6 @@
-use itertools::Itertools;
 use std::{cell::RefCell, collections::HashMap, marker::PhantomData, rc::Rc};
 
-use crate::db::view_api::internal::{GraphPropertiesOps, GraphWindowOps, TimeSemantics};
+use crate::db::view_api::internal::{GraphPropertiesOps, GraphWindowOps};
 use crate::{
     core::{
         agg::Accumulator,
@@ -22,7 +21,7 @@ pub struct WindowEvalVertex<'a, G: GraphViewOps, CS: ComputeState, S: 'static> {
     ss: usize,
     vertex: LocalVertexRef,
     pub(crate) graph: &'a G,
-    local_state: Option<&'a mut S>,
+    _local_state: Option<&'a mut S>,
     local_state_prev: &'a Local2<'a, S>,
     vertex_state: Rc<RefCell<EVState<'a, CS>>>,
     t_start: i64,
@@ -59,7 +58,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> WindowEvalVertex<'a, G, 
             ss,
             vertex,
             graph,
-            local_state,
+            _local_state: local_state,
             local_state_prev,
             vertex_state,
             t_start,
@@ -84,7 +83,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> TimeOps for WindowEvalVe
             ss: self.ss,
             vertex: self.vertex.clone(),
             graph: self.graph,
-            local_state: None,
+            _local_state: None,
             local_state_prev: self.local_state_prev,
             vertex_state: self.vertex_state.clone(),
             t_start: t_start.into_time().max(self.t_start),
@@ -785,7 +784,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> IntoIterator
                 self.g.localise_vertex_unchecked(v),
                 g,
                 None,
-                self.local_state_prev.clone(),
+                self.local_state_prev,
                 vertex_state.clone(),
                 t_start,
                 t_end,

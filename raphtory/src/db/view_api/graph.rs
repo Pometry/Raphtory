@@ -13,11 +13,9 @@ use crate::db::graph_window::WindowedGraph;
 use crate::db::subgraph_vertex::VertexSubgraph;
 use crate::db::vertex::VertexView;
 use crate::db::vertices::Vertices;
-use crate::db::view_api::internal::time_semantics::TimeSemantics;
-use crate::db::view_api::internal::{BoxableGraphView, CoreGraphOps, GraphPropertiesOps};
+use crate::db::view_api::internal::*;
 use crate::db::view_api::layer::LayerOps;
-use crate::db::view_api::time::TimeOps;
-use crate::db::view_api::{EdgeListOps, EdgeViewOps, VertexViewOps};
+use crate::db::view_api::*;
 
 /// This trait GraphViewOps defines operations for accessing
 /// information about a graph. The trait has associated types

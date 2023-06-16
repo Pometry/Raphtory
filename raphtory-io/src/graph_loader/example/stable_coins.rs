@@ -7,12 +7,10 @@ use raphtory::db::view_api::GraphViewOps;
 use regex::Regex;
 use serde::Deserialize;
 use std::collections::HashMap;
-use std::fs::File;
-use std::io::{copy, Cursor};
-use std::path::{Path, PathBuf};
-use std::time::Duration;
+use std::path::PathBuf;
 use std::{fs, time::Instant};
 
+#[allow(dead_code)]
 #[derive(Deserialize, std::fmt::Debug)]
 pub struct StableCoin {
     block_number: String,

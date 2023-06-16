@@ -1,5 +1,4 @@
 use crate::graph::PyGraph;
-use crate::graph_view::PyGraphView;
 use crate::types::repr::Repr;
 use chrono::NaiveDateTime;
 use pyo3::{FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python};

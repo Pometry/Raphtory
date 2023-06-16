@@ -29,9 +29,9 @@
 //! use raphtory::db::view_api::*;
 //!
 //! let graph = Graph::new(2);
-//! graph.add_edge(0, 1, 2, &vec![], None);
-//! graph.add_edge(1, 1, 3, &vec![], None);
-//! graph.add_edge(2, 2, 3, &vec![], None);
+//! graph.add_edge(0, 1, 2, &vec![], None).unwrap();
+//! graph.add_edge(1, 1, 3, &vec![], None).unwrap();
+//! graph.add_edge(2, 2, 3, &vec![], None).unwrap();
 //!
 //!  let wg = graph.window(0, 1);
 //!  assert_eq!(wg.edge(1, 2, None).unwrap().src().id(), 1);
@@ -39,15 +39,13 @@
 
 use crate::core::edge_ref::EdgeRef;
 use crate::core::time::IntoTime;
-use crate::core::timeindex::TimeIndex;
-use crate::core::tprop::TProp;
 use crate::core::vertex_ref::{LocalVertexRef, VertexRef};
 use crate::core::{Direction, Prop};
 use crate::db::view_api::internal::time_semantics::TimeSemantics;
-use crate::db::view_api::internal::{GraphOps, GraphWindowOps, InheritCoreOps, InheritGraphOps};
+use crate::db::view_api::internal::{GraphOps, GraphWindowOps, InheritCoreOps};
 use crate::db::view_api::{BoxedIter, GraphViewOps};
 use std::cmp::{max, min};
-use std::{collections::HashMap, ops::Range};
+use std::ops::Range;
 
 /// A struct that represents a windowed view of a `Graph`.
 #[derive(Debug, Clone)]
@@ -416,8 +414,8 @@ impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
 /// use raphtory::db::view_api::*;
 ///
 /// let graph = Graph::new(1);
-/// graph.add_edge(0, 1, 2, &vec![], None);
-/// graph.add_edge(1, 2, 3, &vec![], None);
+/// graph.add_edge(0, 1, 2, &vec![], None).unwrap();
+/// graph.add_edge(1, 2, 3, &vec![], None).unwrap();
 /// let windowed_graph = graph.window(0, 1);
 /// ```
 impl<G: GraphViewOps> WindowedGraph<G> {

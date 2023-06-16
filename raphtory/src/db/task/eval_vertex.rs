@@ -247,7 +247,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EvalPathFromVertex<'a, G
                 self.g.localise_vertex_unchecked(v),
                 self.g,
                 None,
-                self.local_state_prev.clone(),
+                self.local_state_prev,
                 self.vertex_state.clone(),
             )
         }))
@@ -272,7 +272,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> IntoIterator
                 self.g.localise_vertex_unchecked(v),
                 g,
                 None,
-                self.local_state_prev.clone(),
+                self.local_state_prev,
                 vertex_state.clone(),
             )
         }))
@@ -298,7 +298,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> TimeOps
             self.ss,
             self.g,
             self.vertex_state.clone(),
-            self.local_state_prev.clone(),
+            self.local_state_prev,
             t_start.into_time(),
             t_end.into_time(),
         )
@@ -423,7 +423,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S> TimeOps for EvalVertexView<'a, G,
             self.vertex,
             self.graph,
             None,
-            self.local_state_prev.clone(),
+            self.local_state_prev,
             self.vertex_state.clone(),
             t_start.into_time(),
             t_end.into_time(),
@@ -522,7 +522,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
     fn has_static_property(&self, name: String) -> Self::ValueType<bool> {
         self.graph
             .static_vertex_prop_names(self.vertex)
-            .contains(&name.to_owned())
+            .contains(&name)
     }
 
     fn static_property(&self, name: String) -> Self::ValueType<Option<Prop>> {

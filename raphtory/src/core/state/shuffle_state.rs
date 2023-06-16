@@ -321,7 +321,7 @@ impl<CS: ComputeState + Send> ShuffleComputeState<CS> {
 
 pub struct EvalGlobalState<G: GraphViewOps, CS: ComputeState + Send> {
     ss: usize,
-    g: G,
+    _g: G,
     pub(crate) global_state: Global<CS>,
 }
 
@@ -329,7 +329,7 @@ impl<G: GraphViewOps, CS: ComputeState + Send> EvalGlobalState<G, CS> {
     pub fn new(ss: usize, g: G, global_state: Global<CS>) -> EvalGlobalState<G, CS> {
         Self {
             ss,
-            g,
+            _g: g,
             global_state,
         }
     }

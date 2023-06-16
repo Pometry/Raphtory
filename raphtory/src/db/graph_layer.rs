@@ -1,13 +1,10 @@
 use crate::core::edge_ref::EdgeRef;
-use crate::core::timeindex::TimeIndex;
-use crate::core::tprop::TProp;
 use crate::core::vertex_ref::{LocalVertexRef, VertexRef};
-use crate::core::{Direction, Prop};
-use crate::db::view_api::internal::time_semantics::{InheritTimeSemantics, TimeSemantics};
-use crate::db::view_api::internal::{CoreGraphOps, GraphOps, InheritCoreOps, WrappedGraph};
+use crate::core::Direction;
+use crate::db::view_api::internal::time_semantics::InheritTimeSemantics;
+use crate::db::view_api::internal::{GraphOps, InheritCoreOps};
 use crate::db::view_api::GraphViewOps;
 use itertools::Itertools;
-use std::{collections::HashMap, ops::Range};
 
 #[derive(Debug, Clone)]
 pub struct LayeredGraph<G: GraphViewOps> {

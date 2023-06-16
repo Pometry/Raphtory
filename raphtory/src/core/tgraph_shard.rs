@@ -18,11 +18,10 @@ use crate::core::timeindex::TimeIndex;
 use crate::core::tprop::TProp;
 use crate::core::vertex::InputVertex;
 use crate::core::vertex_ref::{LocalVertexRef, VertexRef};
-use crate::core::{Direction, Prop, Time};
+use crate::core::{Direction, Prop};
 use genawaiter::sync::{gen, GenBoxed};
 use genawaiter::yield_;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::ops::{Deref, Range};
 use std::path::Path;
 use std::sync::Arc;
@@ -88,7 +87,7 @@ mod lock {
     impl<T> Deref for MyReadGuard<'_, T> {
         type Target = Option<T>;
         fn deref(&self) -> &Self::Target {
-            &self.0.deref()
+            self.0.deref()
         }
     }
 
@@ -218,7 +217,10 @@ impl TGraphShard<TemporalGraph> {
     }
 
     pub fn allocate_layer(&self, id: usize) -> Result<(), GraphError> {
-        self.write_shard(|tg| Ok(tg.allocate_layer(id)))
+        self.write_shard(|tg| {
+            tg.allocate_layer(id);
+            Ok(())
+        })
     }
 
     pub fn earliest_time(&self) -> i64 {
@@ -231,6 +233,10 @@ impl TGraphShard<TemporalGraph> {
 
     pub fn len(&self) -> usize {
         self.read_shard(|tg| tg.len())
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.read_shard(|tg| tg.is_empty())
     }
 
     pub fn out_edges_len(&self, layer: Option<usize>) -> usize {
@@ -300,7 +306,10 @@ impl TGraphShard<TemporalGraph> {
         props: &Vec<(String, Prop)>,
         layer: usize,
     ) -> Result<(), GraphError> {
-        self.write_shard(|tg| Ok(tg.add_edge_with_props(t, src, dst, props, layer)))
+        self.write_shard(|tg| {
+            tg.add_edge_with_props(t, src, dst, props, layer);
+            Ok(())
+        })
     }
 
     pub fn delete_edge<T: InputVertex>(
@@ -310,7 +319,10 @@ impl TGraphShard<TemporalGraph> {
         dst: T,
         layer: usize,
     ) -> Result<(), GraphError> {
-        self.write_shard(|tg| Ok(tg.delete_edge(t, src, dst, layer)))
+        self.write_shard(|tg| {
+            tg.delete_edge(t, src, dst, layer);
+            Ok(())
+        })
     }
 
     pub fn add_edge_remote_out<T: InputVertex>(
@@ -348,7 +360,10 @@ impl TGraphShard<TemporalGraph> {
         props: &Vec<(String, Prop)>,
         layer: usize,
     ) -> Result<(), GraphError> {
-        self.write_shard(|tg| Ok(tg.add_edge_remote_into(t, src, dst, props, layer)))
+        self.write_shard(|tg| {
+            tg.add_edge_remote_into(t, src, dst, props, layer);
+            Ok(())
+        })
     }
 
     pub fn delete_edge_remote_into<T: InputVertex>(
@@ -358,7 +373,10 @@ impl TGraphShard<TemporalGraph> {
         dst: T,
         layer: usize,
     ) -> Result<(), GraphError> {
-        self.write_shard(|tg| Ok(tg.delete_edge_remote_into(t, src, dst, layer)))
+        self.write_shard(|tg| {
+            tg.delete_edge_remote_into(t, src, dst, layer);
+            Ok(())
+        })
     }
 
     pub fn add_edge_properties(
@@ -501,7 +519,7 @@ impl TGraphShard<TemporalGraph> {
     }
 
     pub fn static_prop(&self, name: &str) -> Option<Prop> {
-        self.read_shard(|tg| tg.static_prop(&name))
+        self.read_shard(|tg| tg.static_prop(name))
     }
 
     pub fn static_prop_names(&self) -> Vec<String> {
@@ -623,6 +641,10 @@ impl ImmutableTGraphShard<TemporalGraph> {
         self.read_shard(|tg| tg.len())
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.read_shard(|tg| tg.is_empty())
+    }
+
     pub fn out_edges_len(&self, layer: Option<usize>) -> usize {
         self.read_shard(|tg| tg.out_edges_len(layer))
     }
@@ -666,9 +688,7 @@ impl ImmutableTGraphShard<TemporalGraph> {
         d: Direction,
         layer: Option<usize>,
     ) -> Box<dyn Iterator<Item = VertexRef> + Send> {
-        erase_lifetime!(self.rc.clone(), |tg| {
-            tg.neighbours(v, d, layer).into_iter()
-        });
+        erase_lifetime!(self.rc.clone(), |tg| { tg.neighbours(v, d, layer) });
     }
 
     pub fn static_vertex_prop(&self, v: LocalVertexRef, name: &str) -> Option<Prop> {
@@ -696,7 +716,7 @@ impl ImmutableTGraphShard<TemporalGraph> {
     }
 
     pub fn temporal_prop(&self, name: &str) -> Option<LockedView<TProp>> {
-        self.rc.temporal_prop(name).map(|p| LockedView::Frozen(p))
+        self.rc.temporal_prop(name).map(LockedView::Frozen)
     }
 
     pub fn static_edge_prop(&self, e: EdgeRef, name: &str) -> Option<Prop> {
@@ -709,7 +729,7 @@ impl ImmutableTGraphShard<TemporalGraph> {
 
     pub fn temporal_edge_prop(&self, e: EdgeRef, name: &str) -> Option<LockedView<TProp>> {
         self.read_shard(|tg| tg.temporal_edge_prop(e, name))
-            .map(|p| LockedView::Frozen(p))
+            .map(LockedView::Frozen)
     }
 
     pub fn temporal_edge_prop_names(&self, e: EdgeRef) -> Vec<String> {
@@ -721,7 +741,7 @@ impl ImmutableTGraphShard<TemporalGraph> {
 mod temporal_graph_partition_test {
     use crate::core::{tgraph_shard::TGraphShard, Direction};
     use itertools::Itertools;
-    use quickcheck::{Arbitrary, TestResult};
+    use quickcheck::TestResult;
     use rand::Rng;
 
     #[quickcheck]
@@ -736,8 +756,7 @@ mod temporal_graph_partition_test {
         let rand_vertex = vs.get(rand_index).unwrap().0;
 
         for (v, t) in vs {
-            g.add_vertex(t.into(), v as u64, &vec![])
-                .expect("failed to add vertex");
+            g.add_vertex(t, v, &vec![]).expect("failed to add vertex");
         }
 
         TestResult::from_bool(g.has_vertex(rand_vertex.into()))

@@ -9,11 +9,11 @@ use crate::core::tprop::TProp;
 use crate::core::vertex::InputVertex;
 use crate::core::vertex_ref::{LocalVertexRef, VertexRef};
 use crate::core::Direction;
-use crate::core::{Prop, Time};
+use crate::core::Prop;
 use itertools::Itertools;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, ops::Range};
+use std::ops::Range;
 
 pub(crate) mod errors {
     use crate::core::props::IllegalMutate;
@@ -157,6 +157,10 @@ impl TemporalGraph {
         self.logical_ids.len()
     }
 
+    pub(crate) fn is_empty(&self) -> bool {
+        self.logical_ids.is_empty()
+    }
+
     pub(crate) fn out_edges_len(&self, layer: Option<usize>) -> usize {
         match self.layer_iter(layer) {
             LayerIterator::Single(layer) => layer.out_edges_len(),
@@ -226,7 +230,8 @@ impl TemporalGraph {
                 source: e,
             })?
         }
-        Ok(self.vertex_props.upsert_temporal_props(t, index, props))
+        self.vertex_props.upsert_temporal_props(t, index, props);
+        Ok(())
     }
 
     pub(crate) fn add_property(&mut self, t: i64, props: &Vec<(String, Prop)>) {
@@ -599,13 +604,11 @@ impl TemporalGraph {
     }
 
     pub(crate) fn edge_additions(&self, edge: EdgeRef) -> &TimeIndex {
-        let layer = &self.layers[edge.layer()];
-        &layer.edge_additions(edge)
+        self.layers[edge.layer()].edge_additions(edge)
     }
 
     pub(crate) fn edge_deletions(&self, edge: EdgeRef) -> &TimeIndex {
-        let layer = &self.layers[edge.layer()];
-        &layer.edge_deletions(edge)
+        self.layers[edge.layer()].edge_deletions(edge)
     }
 }
 
@@ -614,14 +617,11 @@ extern crate quickcheck;
 
 #[cfg(test)]
 mod graph_test {
-    use std::{path::PathBuf, vec};
-
-    use csv::StringRecord;
-    use itertools::chain;
-
-    use crate::core::utils;
-
     use super::*;
+    use crate::core::utils;
+    use itertools::chain;
+    use std::collections::HashMap;
+    use std::vec;
 
     #[test]
     fn testhm() {
@@ -905,13 +905,13 @@ mod graph_test {
         g.add_edge(3, 8, 9, 0);
         g.add_edge(3, 9, 11, 0);
 
-        assert_eq!(g.has_edge(8.into(), 9.into(), 0), true);
-        assert_eq!(g.has_edge(9.into(), 8.into(), 0), true);
-        assert_eq!(g.has_edge(9.into(), 11.into(), 0), true);
-        assert_eq!(g.has_edge(11.into(), 9.into(), 0), false);
-        assert_eq!(g.has_edge(10.into(), 11.into(), 0), false);
-        assert_eq!(g.has_edge(10.into(), 9.into(), 0), false);
-        assert_eq!(g.has_edge(100.into(), 101.into(), 0), false);
+        assert!(g.has_edge(8.into(), 9.into(), 0));
+        assert!(g.has_edge(9.into(), 8.into(), 0));
+        assert!(g.has_edge(9.into(), 11.into(), 0));
+        assert!(!g.has_edge(11.into(), 9.into(), 0));
+        assert!(!g.has_edge(10.into(), 11.into(), 0));
+        assert!(!g.has_edge(10.into(), 9.into(), 0));
+        assert!(!g.has_edge(100.into(), 101.into(), 0));
     }
 
     #[test]
@@ -1750,10 +1750,10 @@ mod graph_test {
             let dst_shard = utils::get_shard_id_from_global_vid(dst, n_shards);
 
             shards[src_shard]
-                .add_vertex(t.try_into().unwrap(), src as u64)
+                .add_vertex(t.try_into().unwrap(), src)
                 .unwrap();
             shards[dst_shard]
-                .add_vertex(t.try_into().unwrap(), dst as u64)
+                .add_vertex(t.try_into().unwrap(), dst)
                 .unwrap();
 
             if src_shard == dst_shard {

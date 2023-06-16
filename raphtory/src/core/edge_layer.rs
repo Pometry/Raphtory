@@ -412,18 +412,6 @@ impl EdgeLayer {
     pub(crate) fn out_edges_len(&self) -> usize {
         self.local_timestamps.len() + self.remote_out_timestamps.len()
     }
-
-    pub(crate) fn out_edges_len_window(&self, w: &Range<i64>) -> usize {
-        self.local_timestamps
-            .par_iter()
-            .filter(|ts| ts.active(w.clone()))
-            .count()
-            + self
-                .remote_out_timestamps
-                .par_iter()
-                .filter(|ts| ts.active(w.clone()))
-                .count()
-    }
 }
 
 // MULTIPLE EDGE ACCES:
@@ -563,41 +551,6 @@ impl EdgeLayer {
                         + remote_out
                             .vertices()
                             .merge(remote_into.vertices())
-                            .dedup()
-                            .count()
-                }
-            },
-        }
-    }
-
-    pub fn degree_window(&self, v_pid: usize, d: Direction, window: &Range<i64>) -> usize {
-        let adj = self.get_adj(v_pid);
-        match adj {
-            Adj::Solo => 0,
-            Adj::List {
-                out,
-                remote_out,
-                into,
-                remote_into,
-            } => match d {
-                Direction::OUT => {
-                    out.len_window(&self.local_timestamps, window)
-                        + remote_out.len_window(&self.remote_out_timestamps, window)
-                }
-                Direction::IN => {
-                    into.len_window(&self.local_timestamps, window)
-                        + remote_into.len_window(&self.remote_into_timestamps, window)
-                }
-                Direction::BOTH => {
-                    out.vertices_window(&self.local_timestamps, window)
-                        .merge(into.vertices_window(&self.local_timestamps, window))
-                        .dedup()
-                        .count()
-                        + remote_out
-                            .vertices_window(&self.remote_out_timestamps, window)
-                            .merge(
-                                remote_into.vertices_window(&self.remote_into_timestamps, window),
-                            )
                             .dedup()
                             .count()
                 }

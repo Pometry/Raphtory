@@ -10,9 +10,9 @@
 //! use raphtory::db::graph::InternalGraph;
 //! use raphtory::db::view_api::*;
 //! let graph = InternalGraph::new(2);
-//! graph.add_vertex(0, "Alice", &vec![]);
-//! graph.add_vertex(1, "Bob", &vec![]);
-//! graph.add_edge(2, "Alice", "Bob", &vec![], None);
+//! graph.add_vertex(0, "Alice", &vec![]).unwrap();
+//! graph.add_vertex(1, "Bob", &vec![]).unwrap();
+//! graph.add_edge(2, "Alice", "Bob", &vec![], None).unwrap();
 //! graph.num_edges();
 //! ```
 //!
@@ -25,7 +25,6 @@ use crate::core::{
     vertex_ref::VertexRef, Direction, Prop, PropUnwrap,
 };
 
-use crate::core::tgraph::errors::MutateGraphError;
 use crate::core::timeindex::{TimeIndex, TimeIndexOps};
 use crate::core::tprop::TProp;
 use crate::core::vertex_ref::LocalVertexRef;
@@ -37,11 +36,9 @@ use itertools::Itertools;
 use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
-use std::cmp::{max, min};
 use std::fmt::{Display, Formatter};
 use std::ops::{Deref, DerefMut};
 use std::{
-    collections::HashMap,
     iter,
     ops::Range,
     path::{Path, PathBuf},
@@ -381,16 +378,22 @@ impl TimeSemantics for InternalGraph {
 }
 
 impl CoreGraphOps for InternalGraph {
-    fn vertex_id(&self, v: LocalVertexRef) -> u64 {
-        self.shards[v.shard_id].vertex_id(v)
-    }
     fn get_layer_name_by_id(&self, layer_id: usize) -> String {
         let layer_ids = self.layer_ids.read();
         layer_ids
             .iter()
             .find_map(|(name, &id)| (layer_id == id).then_some(name))
-            .expect(&format!("layer id '{layer_id}' doesn't exist"))
+            .unwrap_or_else(|| panic!("layer id '{layer_id}' doesn't exist"))
             .to_string()
+    }
+    fn vertex_id(&self, v: LocalVertexRef) -> u64 {
+        self.shards[v.shard_id].vertex_id(v)
+    }
+
+    fn vertex_name(&self, v: LocalVertexRef) -> String {
+        self.static_vertex_prop(v, "_id")
+            .into_str()
+            .unwrap_or(self.vertex_id(v).to_string())
     }
 
     fn edge_additions(&self, eref: EdgeRef) -> LockedView<TimeIndex> {
@@ -415,6 +418,22 @@ impl CoreGraphOps for InternalGraph {
         }
     }
 
+    fn static_prop_names(&self) -> Vec<String> {
+        self.shards[0].static_prop_names()
+    }
+
+    fn static_prop(&self, name: &str) -> Option<Prop> {
+        self.shards[0].static_prop(name)
+    }
+
+    fn temporal_prop_names(&self) -> Vec<String> {
+        self.shards[0].temporal_prop_names()
+    }
+
+    fn temporal_prop(&self, name: &str) -> Option<LockedView<TProp>> {
+        self.shards[0].temporal_prop(name)
+    }
+
     fn static_vertex_prop(&self, v: LocalVertexRef, name: &str) -> Option<Prop> {
         self.get_shard_from_local_v(v).static_vertex_prop(v, name)
     }
@@ -424,8 +443,7 @@ impl CoreGraphOps for InternalGraph {
     }
 
     fn temporal_vertex_prop(&self, v: LocalVertexRef, name: &str) -> Option<LockedView<TProp>> {
-        self.get_shard_from_local_v(v)
-            .temporal_vertex_prop(v, &name)
+        self.get_shard_from_local_v(v).temporal_vertex_prop(v, name)
     }
 
     fn temporal_vertex_prop_names(&self, v: LocalVertexRef) -> Vec<String> {
@@ -441,7 +459,7 @@ impl CoreGraphOps for InternalGraph {
     }
 
     fn temporal_edge_prop(&self, e: EdgeRef, name: &str) -> Option<LockedView<TProp>> {
-        self.get_shard_from_e(e).temporal_edge_prop(e, &name)
+        self.get_shard_from_e(e).temporal_edge_prop(e, name)
     }
 
     fn temporal_edge_prop_names(&self, e: EdgeRef) -> Vec<String> {
@@ -450,28 +468,6 @@ impl CoreGraphOps for InternalGraph {
 
     fn num_shards_internal(&self) -> usize {
         self.nr_shards
-    }
-
-    fn vertex_name(&self, v: LocalVertexRef) -> String {
-        self.static_vertex_prop(v, "_id")
-            .into_str()
-            .unwrap_or(self.vertex_id(v).to_string())
-    }
-
-    fn static_prop_names(&self) -> Vec<String> {
-        self.shards[0].static_prop_names()
-    }
-
-    fn static_prop(&self, name: &str) -> Option<Prop> {
-        self.shards[0].static_prop(name)
-    }
-
-    fn temporal_prop_names(&self) -> Vec<String> {
-        self.shards[0].temporal_prop_names()
-    }
-
-    fn temporal_prop(&self, name: &str) -> Option<LockedView<TProp>> {
-        self.shards[0].temporal_prop(name)
     }
 }
 
@@ -703,7 +699,7 @@ impl InternalGraph {
     pub fn new(nr_shards: usize) -> Self {
         InternalGraph {
             nr_shards,
-            shards: (0..nr_shards).map(|i| TGraphShard::new(i)).collect(),
+            shards: (0..nr_shards).map(TGraphShard::new).collect(),
             layer_ids: Default::default(),
         }
     }
@@ -776,7 +772,7 @@ impl InternalGraph {
     /// use raphtory::db::graph::InternalGraph;
     /// use std::fs::File;
     /// let g = InternalGraph::new(4);
-    /// g.add_vertex(1, 1, &vec![]);
+    /// g.add_vertex(1, 1, &vec![]).unwrap();
     /// // g.save_to_file("path_str");
     /// ```
     pub fn save_to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), Box<bincode::ErrorKind>> {
@@ -904,9 +900,9 @@ impl InternalGraph {
     /// use raphtory::db::graph::InternalGraph;
     ///
     /// let graph = InternalGraph::new(1);
-    /// graph.add_vertex(1, "Alice", &vec![]);
-    /// graph.add_vertex(2, "Bob", &vec![]);
-    /// graph.add_edge(3, "Alice", "Bob", &vec![], None);
+    /// graph.add_vertex(1, "Alice", &vec![]).unwrap();
+    /// graph.add_vertex(2, "Bob", &vec![]).unwrap();
+    /// graph.add_edge(3, "Alice", "Bob", &vec![], None).unwrap();
     /// ```    
     pub fn add_edge<V: InputVertex, T: TryIntoTime>(
         &self,
@@ -1045,13 +1041,12 @@ mod db_tests {
     use super::*;
     use crate::db::edge::EdgeView;
     use crate::db::path::PathFromVertex;
-    use crate::db::view_api::edge::EdgeViewOps;
-    use crate::db::view_api::internal::{ExplodedEdgeOps, GraphPropertiesOps, GraphWindowOps};
+    use crate::db::view_api::internal::*;
     use crate::db::view_api::layer::LayerOps;
     use crate::graphgen::random_attachment::random_attachment;
-    use csv::StringRecord;
     use itertools::Itertools;
     use quickcheck::Arbitrary;
+    use std::collections::HashMap;
     use std::fs;
     use std::sync::Arc;
     use tempdir::TempDir;
@@ -1615,10 +1610,10 @@ mod db_tests {
         g.add_edge(0, 11, 33, &vec![], Some("layer2")).unwrap();
         g.add_edge(0, 11, 44, &vec![], Some("layer2")).unwrap();
 
-        assert_eq!(g.has_edge(11, 22, None), true);
-        assert_eq!(g.has_edge(11, 44, None), false);
-        assert_eq!(g.has_edge(11, 22, Some("layer2")), false);
-        assert_eq!(g.has_edge(11, 44, Some("layer2")), true);
+        assert!(g.has_edge(11, 22, None));
+        assert!(!g.has_edge(11, 44, None));
+        assert!(!g.has_edge(11, 22, Some("layer2")));
+        assert!(g.has_edge(11, 44, Some("layer2")));
 
         assert!(g.edge(11, 22, None).is_some());
         assert!(g.edge(11, 44, None).is_none());

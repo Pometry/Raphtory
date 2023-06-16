@@ -53,8 +53,6 @@ pub mod utils;
 pub mod vertex;
 pub mod vertex_ref;
 
-type Time = i64;
-
 /// Denotes the direction of an edge. Can be incoming, outgoing or both.
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum Direction {

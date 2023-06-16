@@ -1,13 +1,6 @@
 use crate::core::edge_ref::EdgeRef;
-use crate::core::timeindex::{TimeIndex, TimeIndexOps, TimeIndexWindow};
-use crate::core::tprop::TProp;
 use crate::core::vertex_ref::{LocalVertexRef, VertexRef};
-use crate::core::{Direction, Prop};
-use crate::db::view_api::internal::time_semantics::TimeSemantics;
-use crate::db::view_api::internal::WrappedGraph;
-use crate::db::view_api::BoxedIter;
-use std::collections::HashMap;
-use std::ops::Range;
+use crate::core::Direction;
 
 /// The GraphViewInternalOps trait provides a set of methods to query a directed graph
 /// represented by the raphtory_core::tgraph::TGraph struct.

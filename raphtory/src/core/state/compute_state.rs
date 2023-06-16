@@ -3,7 +3,6 @@ use std::collections::HashMap;
 
 use crate::core::agg::Accumulator;
 use crate::core::vertex_ref::LocalVertexRef;
-use crate::db::view_api::internal::CoreGraphOps;
 use crate::db::view_api::GraphViewOps;
 
 use super::{

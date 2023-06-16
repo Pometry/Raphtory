@@ -29,7 +29,6 @@ use crate::db::view_api::BoxedIter;
 use itertools::Itertools;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
-use std::cmp::{max, min};
 use std::iter;
 use std::ops::Range;
 use std::sync::Arc;
@@ -288,7 +287,7 @@ impl CoreGraphOps for ImmutableGraph {
         self.layer_ids
             .iter()
             .find_map(|(name, &id)| (layer_id == id).then_some(name))
-            .expect(&format!("layer id '{layer_id}' doesn't exist"))
+            .unwrap_or_else(|| panic!("layer id '{layer_id}' doesn't exist"))
             .to_string()
     }
     fn vertex_id(&self, v: LocalVertexRef) -> u64 {
@@ -344,7 +343,7 @@ impl CoreGraphOps for ImmutableGraph {
         self.shards[0].temporal_prop(name)
     }
 
-    fn static_vertex_prop(&self, v: LocalVertexRef, name: &str) -> Option<crate::core::Prop> {
+    fn static_vertex_prop(&self, v: LocalVertexRef, name: &str) -> Option<Prop> {
         self.get_shard_from_local_v(v).static_vertex_prop(v, name)
     }
 
@@ -356,7 +355,7 @@ impl CoreGraphOps for ImmutableGraph {
         let res = self
             .get_shard_from_local_v(v)
             .read_shard(|tg| tg.temporal_vertex_prop(v, name))
-            .map(|props| LockedView::Frozen(props));
+            .map(LockedView::Frozen);
         res
     }
 
@@ -364,7 +363,7 @@ impl CoreGraphOps for ImmutableGraph {
         self.get_shard_from_local_v(v).temporal_vertex_prop_names(v)
     }
 
-    fn static_edge_prop(&self, e: EdgeRef, name: &str) -> Option<crate::core::Prop> {
+    fn static_edge_prop(&self, e: EdgeRef, name: &str) -> Option<Prop> {
         self.get_shard_from_e(e).static_edge_prop(e, name)
     }
 
