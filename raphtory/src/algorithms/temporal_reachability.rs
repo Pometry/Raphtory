@@ -235,7 +235,7 @@ mod generic_taint_tests {
             ],
         );
 
-        let results = test_generic_taint(graph, 20, 11, vec![2], Some(vec![]));
+        let results = test_generic_taint(graph, 20, 11, vec![2], None);
 
         assert_eq!(
             results,
@@ -275,7 +275,7 @@ mod generic_taint_tests {
             ],
         );
 
-        let results = test_generic_taint(graph, 20, 11, vec![1, 2], Some(vec![]));
+        let results = test_generic_taint(graph, 20, 11, vec![1, 2], None);
 
         assert_eq!(
             results,
