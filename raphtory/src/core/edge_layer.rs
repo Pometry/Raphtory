@@ -1,6 +1,5 @@
 use itertools::chain;
 use itertools::Itertools;
-use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::iter;
 use std::ops::Range;

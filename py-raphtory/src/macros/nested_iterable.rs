@@ -187,7 +187,7 @@ macro_rules! py_nested_numeric_iterable {
 /// * `iter` - The python iterator wrapper that should be returned when calling `__iter__`
 /// * `value_iterable` - The iterable to return for `sum` and `mean`
 /// * `option_value_iterable` - The iterable to return for `max` and `min` (should have item type `Option<Item>`)
-#[allow(dead_code)]
+#[allow(unused_macros)]
 macro_rules! py_nested_float_iterable {
     ($name:ident, $item:ty, $iter:ty, $value_iterable:ty, $option_value_iterable:ty) => {
         py_nested_iterable!($name, $item);
