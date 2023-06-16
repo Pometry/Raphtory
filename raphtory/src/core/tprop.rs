@@ -98,6 +98,22 @@ impl TProp {
         }
     }
 
+    pub(crate) fn last_before(&self, t: i64) -> Option<Prop> {
+        match self {
+            TProp::Empty => None,
+            TProp::Str(cell) => cell.last_before(t).map(|v| Prop::Str(v.clone())),
+            TProp::I32(cell) => cell.last_before(t).map(|v| Prop::I32(*v)),
+            TProp::I64(cell) => cell.last_before(t).map(|v| Prop::I64(*v)),
+            TProp::U32(cell) => cell.last_before(t).map(|v| Prop::U32(*v)),
+            TProp::U64(cell) => cell.last_before(t).map(|v| Prop::U64(*v)),
+            TProp::F32(cell) => cell.last_before(t).map(|v| Prop::F32(*v)),
+            TProp::F64(cell) => cell.last_before(t).map(|v| Prop::F64(*v)),
+            TProp::Bool(cell) => cell.last_before(t).map(|v| Prop::Bool(*v)),
+            TProp::DTime(cell) => cell.last_before(t).map(|v| Prop::DTime(*v)),
+            TProp::Graph(cell) => cell.last_before(t).map(|v| Prop::Graph(v.clone())),
+        }
+    }
+
     pub(crate) fn iter(&self) -> Box<dyn Iterator<Item = (i64, Prop)> + '_> {
         match self {
             TProp::Empty => Box::new(std::iter::empty()),

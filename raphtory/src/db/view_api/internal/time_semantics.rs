@@ -1,33 +1,63 @@
 use crate::core::edge_ref::EdgeRef;
 use crate::core::vertex_ref::LocalVertexRef;
-use crate::core::Prop;
+use crate::core::{Direction, Prop};
+use crate::db::view_api::internal::GraphOps;
 use crate::db::view_api::BoxedIter;
+use itertools::Itertools;
 use std::ops::Range;
 
 /// Methods for defining time windowing semantics for a graph
-pub trait TimeSemantics {
+pub trait TimeSemantics: GraphOps {
     /// Return the earliest time for a vertex
-    fn vertex_earliest_time(&self, v: LocalVertexRef) -> Option<i64>;
+    fn vertex_earliest_time(&self, v: LocalVertexRef) -> Option<i64> {
+        self.vertex_edges(v, Direction::BOTH, None)
+            .flat_map(|e| self.edge_earliest_time(e))
+            .min()
+    }
 
     /// Return the latest time for a vertex
-    fn vertex_latest_time(&self, v: LocalVertexRef) -> Option<i64>;
+    fn vertex_latest_time(&self, v: LocalVertexRef) -> Option<i64> {
+        self.vertex_edges(v, Direction::BOTH, None)
+            .flat_map(|e| self.edge_latest_time(e))
+            .max()
+    }
 
     /// Returns the default start time for perspectives over the view
-    fn view_start(&self) -> Option<i64>;
+    fn view_start(&self) -> Option<i64> {
+        self.earliest_time_global()
+    }
 
     /// Returns the default end time for perspectives over the view
-    fn view_end(&self) -> Option<i64>;
+    fn view_end(&self) -> Option<i64> {
+        self.latest_time_global().map(|v| v.saturating_add(1))
+    }
 
     /// Returns the timestamp for the earliest activity
-    fn earliest_time_global(&self) -> Option<i64>;
+    fn earliest_time_global(&self) -> Option<i64> {
+        self.vertex_refs()
+            .flat_map(|v| self.vertex_earliest_time(v))
+            .min()
+    }
 
     /// Returns the timestamp for the latest activity
-    fn latest_time_global(&self) -> Option<i64>;
+    fn latest_time_global(&self) -> Option<i64> {
+        self.vertex_refs()
+            .flat_map(|v| self.vertex_latest_time(v))
+            .max()
+    }
     /// Returns the timestamp for the earliest activity in the window
-    fn earliest_time_window(&self, t_start: i64, t_end: i64) -> Option<i64>;
+    fn earliest_time_window(&self, t_start: i64, t_end: i64) -> Option<i64> {
+        self.vertex_refs()
+            .flat_map(|v| self.vertex_earliest_time_window(v, t_start, t_end))
+            .min()
+    }
 
     /// Returns the timestamp for the latest activity in the window
-    fn latest_time_window(&self, t_start: i64, t_end: i64) -> Option<i64>;
+    fn latest_time_window(&self, t_start: i64, t_end: i64) -> Option<i64> {
+        self.vertex_refs()
+            .flat_map(|v| self.vertex_latest_time_window(v, t_start, t_end))
+            .max()
+    }
 
     /// Return the earliest time for a vertex in a window
     fn vertex_earliest_time_window(
@@ -35,11 +65,23 @@ pub trait TimeSemantics {
         v: LocalVertexRef,
         t_start: i64,
         t_end: i64,
-    ) -> Option<i64>;
+    ) -> Option<i64> {
+        self.vertex_edges(v, Direction::BOTH, None)
+            .flat_map(|e| self.edge_earliest_time_window(e, t_start..t_end))
+            .min()
+    }
 
     /// Return the latest time for a vertex in a window
-    fn vertex_latest_time_window(&self, v: LocalVertexRef, t_start: i64, t_end: i64)
-        -> Option<i64>;
+    fn vertex_latest_time_window(
+        &self,
+        v: LocalVertexRef,
+        t_start: i64,
+        t_end: i64,
+    ) -> Option<i64> {
+        self.vertex_edges(v, Direction::BOTH, None)
+            .flat_map(|e| self.edge_latest_time_window(e, t_start..t_end))
+            .max()
+    }
     /// check if vertex `v` should be included in window `w`
     fn include_vertex_window(&self, v: LocalVertexRef, w: Range<i64>) -> bool;
 
@@ -47,10 +89,25 @@ pub trait TimeSemantics {
     fn include_edge_window(&self, e: EdgeRef, w: Range<i64>) -> bool;
 
     /// Get the timestamps at which a vertex `v` is active (i.e has an edge addition)
-    fn vertex_history(&self, v: LocalVertexRef) -> Vec<i64>;
+    fn vertex_history(&self, v: LocalVertexRef) -> Vec<i64> {
+        self.vertex_edges(v, Direction::BOTH, None)
+            .map(|e| self.edge_t(e).map(|e| e.time().expect("just exploded")))
+            .kmerge()
+            .dedup()
+            .collect()
+    }
 
     /// Get the timestamps at which a vertex `v` is active in window `w` (i.e has an edge addition)
-    fn vertex_history_window(&self, v: LocalVertexRef, w: Range<i64>) -> Vec<i64>;
+    fn vertex_history_window(&self, v: LocalVertexRef, w: Range<i64>) -> Vec<i64> {
+        self.vertex_edges(v, Direction::BOTH, None)
+            .map(move |e| {
+                self.edge_window_t(e, w.clone())
+                    .map(|e| e.time().expect("just exploded"))
+            })
+            .kmerge()
+            .dedup()
+            .collect()
+    }
 
     /// Exploded edge iterator for edge `e`
     fn edge_t(&self, e: EdgeRef) -> BoxedIter<EdgeRef>;
@@ -174,7 +231,7 @@ pub trait TimeSemantics {
     fn temporal_edge_prop_vec(&self, e: EdgeRef, name: &str) -> Vec<(i64, Prop)>;
 }
 
-pub trait InheritTimeSemantics {
+pub trait InheritTimeSemantics: GraphOps {
     type Internal: TimeSemantics + ?Sized;
 
     fn graph(&self) -> &Self::Internal;

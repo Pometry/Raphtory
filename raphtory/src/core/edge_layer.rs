@@ -160,7 +160,7 @@ impl EdgeLayer {
         self.ensure_adj_lists_len(required_len);
         let (edge_meta, _, deletions) = self.get_edge_and_timestamps(src_pid, dst, Direction::OUT);
         deletions.insert(t);
-        self.link_outbound_edge(edge_meta, src_pid, src);
+        self.link_outbound_edge(edge_meta, src_pid, dst);
         self.link_inbound_edge(edge_meta, src, dst_pid);
     }
 
