@@ -110,7 +110,7 @@ Finally, Rapthory is built with a focus on the ease of use. The installation is 
  Example code             |  Visualisation
 :-------------------------:|:-------------------------:
 ![](https://hackmd.io/_uploads/Bk5MI2Fw2.png)|![](https://hackmd.io/_uploads/BJhzditwn.png)
-![](https://hackmd.io/_uploads/r1RKkp6v3.png)|![](https://hackmd.io/_uploads/BJ-qL2Yvh.png)
+![](https://hackmd.io/_uploads/SJKD-Tpwn.png)|![](https://hackmd.io/_uploads/BJ-qL2Yvh.png)
 ![](https://hackmd.io/_uploads/S1mg_UvP2.png) | ![](https://hackmd.io/_uploads/HJb3uAgv2.png)
 : First line (Example 1): In a temporal network, edges are dynamical entities connecting pairs of nodes at specific times and, possibly, over specific time windows. Second line (Example 2): Raphtory swiftly allows to generate sequences of graphs at a given time resolution, and to run standard network algorithms, here Pagerank. Third line (Example 3): Raphtory also offers rapid implementations of algorithms specifically designed for temporal networks, here counting and estimating the significance of temporal motifs (maybe add a link to the paper of Leskovec, or the one of Naomi?[@paranjape2017motifs]?). For each example, we provide the Python code required to perform the operation.
 
