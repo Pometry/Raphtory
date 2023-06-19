@@ -1,7 +1,8 @@
 use raphtory::db::graph::Graph;
-use std::collections::HashMap;
-use std::fs;
-use std::path::{Path, PathBuf};
+use raphtory::db::view_api::internal::CoreGraphOps;
+use std::collections::{HashMap, HashSet};
+use std::path::Path;
+use walkdir::WalkDir;
 
 pub(crate) struct Data {
     pub(crate) graphs: HashMap<String, Graph>,
@@ -9,21 +10,35 @@ pub(crate) struct Data {
 
 impl Data {
     pub fn load(directory_path: &str) -> Self {
-        let paths = fs::read_dir(directory_path).unwrap_or_else(|_| {
-            panic!("path '{directory_path}' doesn't exist or it is not a directory")
-        });
+        let mut valid_paths = HashSet::<String>::new();
 
-        let graphs = paths
-            .filter_map(|entry| {
-                let path:PathBuf = entry.unwrap().path();
-                if path.is_dir(){
-                    let graph = Graph::load_from_file(&path).ok()?;
-                    let filename = path.file_name()?.to_str()?.to_string();
-                    Some((filename, graph))
-                }
-                else{
-                    None
-                }
+        for entry in WalkDir::new(directory_path)
+            .into_iter()
+            .filter_map(|e| e.ok())
+        {
+            let p = entry.path().display().to_string();
+            if p.contains("graphdb_nr_shards") {
+                valid_paths.insert(p.strip_suffix("graphdb_nr_shards").unwrap().to_string());
+            }
+        }
+
+        let graphs: HashMap<String, Graph> = valid_paths
+            .into_iter()
+            .map(|path| {
+                let graph = Graph::load_from_file(&path).expect("Unable to load from graph");
+                let maybe_graph_name = graph.static_prop("name");
+                return match maybe_graph_name {
+                    None => (
+                        Path::new(&path)
+                            .file_name()
+                            .unwrap()
+                            .to_str()
+                            .unwrap()
+                            .to_string(),
+                        graph,
+                    ),
+                    Some(graph_name) => (graph_name.to_string(), graph),
+                };
             })
             .collect();
 
