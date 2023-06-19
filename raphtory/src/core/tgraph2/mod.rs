@@ -66,14 +66,14 @@ impl From<LocalVertexRef> for VID {
     }
 }
 
-// impl VID {
-//     #[inline(always)]
-//     pub(crate) fn as_local<const N: usize>(&self) -> LocalID {
-//         let bucket = self.0 % N;
-//         let offset = self.0 / N;
-//         LocalID { bucket, offset }
-//     }
-// }
+impl VID {
+    #[inline(always)]
+    pub(crate) fn as_local<const N: usize>(&self) -> LocalID {
+        let bucket = self.0 % N;
+        let offset = self.0 / N;
+        LocalID { bucket, offset }
+    }
+}
 
 #[repr(transparent)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Deserialize, Serialize)]

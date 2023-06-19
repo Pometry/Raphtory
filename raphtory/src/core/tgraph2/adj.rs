@@ -59,7 +59,7 @@ impl Adj {
         }
     }
 
-    pub(crate) fn iter(&self, dir: Direction) -> Box<dyn Iterator<Item = (VID, EID)> + '_> {
+    pub(crate) fn iter(&self, dir: Direction) -> Box<dyn Iterator<Item = (VID, EID)> + Send + '_> {
         match self {
             Adj::Solo => Box::new(std::iter::empty()),
             Adj::List { out, into } => match dir {

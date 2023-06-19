@@ -34,4 +34,12 @@ impl <const N: usize> EdgeStore<N> {
     pub fn timestamps(&self) -> &TimeIndex {
         &self.timestamps
     }
+
+    pub fn src(&self) -> VID {
+        self.src
+    }
+
+    pub fn dst(&self) -> VID {
+        self.dst
+    }
 }

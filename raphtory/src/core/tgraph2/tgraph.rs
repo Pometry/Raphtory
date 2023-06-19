@@ -19,7 +19,7 @@ use super::{
     tgraph_storage::GraphStorage,
     timer::{MaxCounter, MinCounter, TimeCounterTrait},
     vertex::Vertex,
-    EdgeRef, EID, VID,
+    EdgeRef, EID, VID, edge::EdgeView,
 };
 
 pub(crate) type FxDashMap<K, V> = DashMap<K, V, BuildHasherDefault<FxHasher>>;
@@ -366,6 +366,11 @@ impl<const N: usize> InnerTemporalGraph<N> {
     pub(crate) fn vertex<'a>(&'a self, v: VID) -> Vertex<'a, N> {
         let node = self.storage.get_node(v.into());
         Vertex::from_entry(node, self)
+    }
+
+    pub(crate) fn edge<'a>(&'a self, e: EID) -> EdgeView<'a, N> {
+        let edge = self.storage.get_edge(e.into());
+        EdgeView::from_entry(edge, self)
     }
 
     pub(crate) fn find_edge(&self, src: VID, dst: VID, layer_id: usize) -> Option<EID> {

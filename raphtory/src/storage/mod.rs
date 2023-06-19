@@ -150,6 +150,7 @@ impl<T, const N: usize> RawStorage<T, N> {
     }
 }
 
+#[derive(Debug)]
 pub struct Entry<'a, T: 'static, const N: usize> {
     i: usize,
     guard: parking_lot::RwLockReadGuard<'a, Vec<Option<T>>>,

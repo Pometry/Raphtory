@@ -1,17 +1,18 @@
-use std::rc::Rc;
+use std::{rc::Rc, ops::Range};
 
-use crate::core::Direction;
+use crate::{core::{timeindex::{TimeIndex, TimeIndexOps}, Direction, tgraph_shard::LockedView}, storage::Entry};
 
 use super::{
     tgraph::TGraph,
     tgraph_storage::{GraphEntry, LockedGraphStorage},
     vertex::Vertex,
-    GraphItem, VRef, EID, VID,
+    GraphItem, VRef, EID, VID, edge_store::EdgeStore,
 };
 
 #[derive(Debug)]
 pub(crate) enum ERef<'a, const N: usize> {
     EId(EID),
+    ERef(Entry<'a, EdgeStore<N>, N>),
     ELock {
         lock: Rc<LockedGraphStorage<'a, N>>,
         eid: EID,
@@ -24,6 +25,7 @@ impl<'a, const N: usize> ERef<'a, N> {
         match self {
             ERef::EId(eid) => *eid,
             ERef::ELock { lock: _, eid } => *eid,
+            ERef::ERef(es) => es.index().into(),
         }
     }
 
@@ -33,6 +35,7 @@ impl<'a, const N: usize> ERef<'a, N> {
             ERef::ELock { lock, eid } => {
                 Some(VRef::LockedEntry(GraphEntry::new(lock.clone(), src.into())))
             }
+            ERef::ERef(_) => todo!(),
         }
     }
 }
@@ -152,6 +155,35 @@ impl<'a, const N: usize> EdgeView<'a, N> {
             edge_id,
             graph,
             dir,
+        }
+    }
+
+    pub(crate) fn from_entry(
+        entry: Entry<'a, EdgeStore<N>, N>,
+        graph: &'a TGraph<N>,
+    ) -> Self {
+        Self{
+            src: entry.src().into(),
+            dst: entry.dst().into(),
+            edge_id: ERef::ERef(entry),
+            dir: Direction::OUT,
+            graph,
+        }
+    }
+
+    pub(crate) fn active(&'a self, w: Range<i64>) -> bool {
+        match &self.edge_id {
+            ERef::ELock { lock, eid } => {
+                let e = lock.get_edge(self.edge_id().into());
+                e.timestamps().active(w)
+            }
+            ERef::EId(eid) => {
+                let e = self.graph.edge(*eid);
+                e.active(w)
+            },
+            ERef::ERef(entry) => {
+                ( *entry ).timestamps().active(w)
+            },
         }
     }
 }

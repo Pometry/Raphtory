@@ -138,19 +138,23 @@ impl<'a, const N: usize> Deref for GraphEntry<'a, NodeStore<N>, N> {
 #[derive(Debug)]
 pub(crate) struct LockedGraphStorage<'a, const N: usize> {
     nodes: storage::ReadLockedStorage<'a, NodeStore<N>, N>,
-    _edges: storage::ReadLockedStorage<'a, EdgeStore<N>, N>,
+    edges: storage::ReadLockedStorage<'a, EdgeStore<N>, N>,
 }
 
 impl<'a, const N: usize> LockedGraphStorage<'a, N> {
     pub(crate) fn new(storage: &'a GraphStorage<N>) -> Self {
         Self {
             nodes: storage.nodes.read_lock(),
-            _edges: storage.edges.read_lock(),
+            edges: storage.edges.read_lock(),
         }
     }
 
     pub(crate) fn get_node(&'a self, id: usize) -> &'a NodeStore<N> {
         self.nodes.get(id)
+    }
+
+    pub(crate) fn get_edge(&'a self, id: usize) -> &'a EdgeStore<N> {
+        self.edges.get(id)
     }
 
 }

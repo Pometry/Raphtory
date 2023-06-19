@@ -1133,7 +1133,7 @@ mod db_tests {
 
     #[test]
     fn graph_edge() {
-        let g = InternalGraph::new(2);
+        let g = Graph::new(2);
         let es = vec![
             (1, 1, 2),
             (2, 1, 3),
@@ -1164,7 +1164,7 @@ mod db_tests {
             (1, 1, 1),
         ];
 
-        let g = InternalGraph::new(1);
+        let g = Graph::new(0);
 
         for (t, src, dst) in &vs {
             g.add_edge(*t, *src, *dst, &vec![], None).unwrap();

@@ -129,7 +129,7 @@ impl EdgeRef {
     }
 
     #[inline(always)]
-    pub(in crate::core) fn pid(&self) -> usize {
+    pub(crate) fn pid(&self) -> usize {
         match self {
             EdgeRef::RemoteInto { e_pid, .. } => *e_pid,
             EdgeRef::RemoteOut { e_pid, .. } => *e_pid,

@@ -102,7 +102,7 @@ impl<const N: usize> NodeStore<N> {
         &'a self,
         layer_id: usize,
         d: Direction,
-    ) -> impl Iterator<Item = (VID, super::EID)> + 'a {
+    ) -> impl Iterator<Item = (VID, super::EID)> + Send + 'a {
         self.layers[layer_id].iter(d)
     }
 
