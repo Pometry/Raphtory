@@ -78,7 +78,7 @@ Raphtory is a platform for building and analysing temporal networks. The library
 
 # Statement of need
 
-Networks are at the core of data science solutions in a variety of domains, including computer science, computational social science, and the life sciences [@newman2018networks]. Networks are a powerful language focusing on the connectivity of systems, and offer a rich toolbox to extract greater understanding from data. Several network analysis tools exist, including NetworkX [@hagberg2008exploring], graph-tool[@peixoto2014graph]  and igraph [@csardi2006igraph], and are freely accessible to scientists, practitioners and data miners. 
+Networks are at the core of data science solutions in a variety of domains, including computer science, computational social science, and the life sciences [@newman2018networks]. Networks are a powerful language focusing on the connectivity of systems, and offer a rich toolbox to extract greater understanding from data. Several network analysis tools exist, including NetworkX [@hagberg2008exploring], graph-tool [@peixoto2014graph]  and igraph [@csardi2006igraph], and are freely accessible to scientists, practitioners and data miners. 
 
 However, with abundant cheap storage and tools for logging every event which occurs in an ecosystem, datasets have become increasingly rich, combining different types of information that cannot be incorporated in a standard network model [@lambiotte2019networks]. In particular, the temporal nature of many complex systems has led to the emergence of the field of temporal networks, with its own models and algorithms [@holme2012temporal;@masuda2016guide].
 
@@ -88,7 +88,7 @@ Unfortuntely, despite active academic research in the last decade, no efficient,
 
 Besides the aforementioned packages, few open access tools have been developed for the mining of temporal networks, with the existing solutions focusing on specific sub-problems within the space. Those which have attempted to generalise to all temporal network analysis are either actively under development, but too preliminary to use in production, or have been abandoned due to lack of funding or changing research goals. 
 
-As examples of these three catagories: Pathpy is a Python package for the analysis of time series data on networks, but focuses on extracting and analysing time-respecting paths [@hackl2021analysis], and similarly DyNetX [@DyNetX], a pure python library relying on networkX, focuses on temporal slicing and the computation of time-respecting paths. The recently released Reticula offers a range of methods developed in C++ with a Python interface [@badie2023reticula]. EvolvingGraphs.jl[@zhang2015dynamic], RecallGraph[@RecallGraph] and Chronograph[@Chronograph] all saw significant work before development was halted indefinitely.
+As examples of these three catagories: Pathpy is a Python package for the analysis of time series data on networks, but focuses on extracting and analysing time-respecting paths [@hackl2021analysis], and similarly DyNetX [@DyNetX], a pure python library relying on networkX, focuses on temporal slicing and the computation of time-respecting paths. The recently released Reticula offers a range of methods developed in C++ with a Python interface [@badie2023reticula]. EvolvingGraphs.jl [@zhang2015dynamic], RecallGraph [@RecallGraph] and Chronograph [@Chronograph] all saw significant work before development was halted indefinitely.
 
 
 Raphtory is a valuable addition to this ecosystem for the following reasons. Originally developed in Scala [@steer2020raphtory], its current core is entirely written in Rust. This is to ensure fast and memory-effecient computation that a pure python implementation could not achieve, and to handle the sheer volume of temporal network data, which often dwarfs that of an equivalent static network.
@@ -103,18 +103,18 @@ The core objects in Raphtory are the Graph and GraphView objects. The Graph obje
 
 Then, the GraphView object provides a view of the underlying temporal graph, according to a temporal or structural scope, and can be queried in the same way as the Graph object. GraphViews can be generated programmatically over a desired time range (windows) and over a subset of layers if the graph is multilayer. Additionally, the views can leverage event durations and support the modeling of deletion operations. These views can be explored and analysed through the application of traditional graph algorithms and metrics (Example 2). 
 
-Raphtory provides fast and scalable implementation of algorithms for temporal network mining such as temporal motifs (Example 3) and temporal reachability. Moreover, Raphtory is equipped with further utilities for working with temporal data, including null model generation, a time module allowing the use of string dates as well as unix timestamps <!--, and ... ? -->
+Raphtory provides fast and scalable implementation of algorithms for temporal network mining such as temporal motifs (Example 3) and temporal reachability. Moreover, Raphtory is equipped with further utilities for working with temporal data, including null model generation, a time module allowing the use of string dates as well as unix timestamps.<!--, and ... ?-->
 
 Finally, Rapthory is built with a focus on the ease of use. The installation is run with a single `pip install raphtory` command, facilitating its fit into a Python/Pandas pipeline for input and output. In addition, Raphtory APIs should facilitate the path for contribution to the evergrowing selection of availble algorithms. <!-- The history of entities should be the starting block to derive the temporal version of the most common network algorithms. -->
 
-<!-- **Caption:** First line (Example 1): In a temporal network, edges are dynamical entities connecting pairs of nodes at specific times and, possibly, over specific time windows. Second line (Example 2): Raphtory swiftly allows to generate sequences of graphs at a given time resolution, and to run standard network algorithms, here Pagerank. Third line (Example 3): Raphtory also offers rapid implementations of algorithms specifically designed for temporal networks, here counting and estimating the significance of temporal motifs (maybe add a link to the paper of Leskovec, or the one of Naomi?). For each example, we provide the Python code required to perform the operation. -->
-
- Example code             |  Result
+ Example code             |  Visualisation
 :-------------------------:|:-------------------------:
 ![](https://hackmd.io/_uploads/Bk5MI2Fw2.png)|![](https://hackmd.io/_uploads/BJhzditwn.png)
-![](https://hackmd.io/_uploads/B1ZEvdvw2.png)|![](https://hackmd.io/_uploads/BJ-qL2Yvh.png)
+![](https://hackmd.io/_uploads/S1RU62Twh.png)|![](https://hackmd.io/_uploads/BJ-qL2Yvh.png)
 ![](https://hackmd.io/_uploads/S1mg_UvP2.png) | ![](https://hackmd.io/_uploads/HJb3uAgv2.png)
-: First line (Example 1): In a temporal network, edges are dynamical entities connecting pairs of nodes at specific times and, possibly, over specific time windows. Second line (Example 2): Raphtory swiftly allows to generate sequences of graphs at a given time resolution, and to run standard network algorithms, here Pagerank. Third line (Example 3): Raphtory also offers rapid implementations of algorithms specifically designed for temporal networks, here counting and estimating the significance of temporal motifs (maybe add a link to the paper of Leskovec, or the one of Naomi?). For each example, we provide the Python code required to perform the operation.
+: First line (Example 1): In a temporal network, edges are dynamical entities connecting pairs of nodes at specific times and, possibly, over specific time windows. Second line (Example 2): Raphtory swiftly allows to generate sequences of graphs at a given time resolution, and to run standard network algorithms, here Pagerank. Third line (Example 3): Raphtory also offers rapid implementations of algorithms specifically designed for temporal networks, here counting and estimating the significance of temporal motifs (maybe add a link to the paper of Leskovec, or the one of Naomi?[@paranjape2017motifs]?). For each example, we provide the Python code required to perform the operation.
+
+<!-- ![](https://hackmd.io/_uploads/Bk5MI2Fw2.png)-->
 
 
 # Projects using Raphtory
