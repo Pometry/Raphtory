@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1687169470944,
+  "lastUpdate": 1687179638090,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -3559,6 +3559,60 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions with numeric string input",
             "value": 1956149,
             "range": "± 102552",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "b.a.steer@qmul.ac.uk",
+            "name": "Ben Steer",
+            "username": "miratepuffin"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "92f83bb0e1222f2096f6f64c40002b081927214b",
+          "message": "Adding basic layer filtering for graphql functions (#1043)\n\n* Add layer to edge\r\n\r\n* GraphQL Node changes\r\n\r\n* Move dynamic graph to core/db and add layer filtering for graphql\r\n\r\n* Had to duplicate dynamic\r\n\r\n* Enable correct layer semantics\r\n\r\n* Added subgraph back to python dynamic graph\r\n\r\n* Fixed merge",
+          "timestamp": "2023-06-19T13:54:18+01:00",
+          "tree_id": "b558c505e5af2092cbc2e829f191d49ee4fa0436",
+          "url": "https://github.com/Pometry/Raphtory/commit/92f83bb0e1222f2096f6f64c40002b081927214b"
+        },
+        "date": 1687179636712,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 343014,
+            "range": "± 2894",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and numeric string input",
+            "value": 938177,
+            "range": "± 19542",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and string input",
+            "value": 966351,
+            "range": "± 5447",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 602421,
+            "range": "± 63192",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions with numeric string input",
+            "value": 2026727,
+            "range": "± 98633",
             "unit": "ns/iter"
           }
         ]
