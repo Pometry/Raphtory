@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1686933114360,
+  "lastUpdate": 1687168682155,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -3397,6 +3397,60 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions with numeric string input",
             "value": 1880787,
             "range": "± 71794",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "33124479+narnolddd@users.noreply.github.com",
+            "name": "Naomi Arnold",
+            "username": "narnolddd"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8cf65b4469a7311e968cbc0f3042aa5e1c7579ba",
+          "message": "Algo docs (#1047)\n\n* some minor changes to section titles\r\n\r\n* algorithm docs\r\n\r\n* oops forgot graph density\r\n\r\n* change generic taint to temporal reachability\r\n\r\n* changed python references to generic taint\r\n\r\n* forgot to check examples build...\r\n\r\n* further examples\r\n\r\n* realised that Some of an empty vector is None\r\n\r\n* added python docstrings for null models\r\n\r\n* misesed python test",
+          "timestamp": "2023-06-19T10:52:29+01:00",
+          "tree_id": "822a46c2804fd71fd7b371b79fd5fa60a20ed0e1",
+          "url": "https://github.com/Pometry/Raphtory/commit/8cf65b4469a7311e968cbc0f3042aa5e1c7579ba"
+        },
+        "date": 1687168680633,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 376321,
+            "range": "± 11580",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and numeric string input",
+            "value": 1145880,
+            "range": "± 74002",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and string input",
+            "value": 1218946,
+            "range": "± 55628",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 1193701,
+            "range": "± 305456",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions with numeric string input",
+            "value": 3051838,
+            "range": "± 423707",
             "unit": "ns/iter"
           }
         ]
