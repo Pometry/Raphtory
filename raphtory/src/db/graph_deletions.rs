@@ -2,17 +2,17 @@ use crate::core::edge_ref::EdgeRef;
 use crate::core::timeindex::TimeIndexOps;
 use crate::core::vertex_ref::LocalVertexRef;
 use crate::core::{Direction, Prop};
+use crate::db::graph::InternalGraph;
 use crate::db::view_api::internal::{
     CoreGraphOps, GraphOps, InheritCoreOps, InheritGraphOps, TimeSemantics,
 };
 use crate::db::view_api::{BoxedIter, GraphViewOps};
 use std::iter;
 use std::ops::Range;
+use std::sync::Arc;
 
 #[derive(Clone)]
-pub struct GraphWithDeletions<G: GraphViewOps> {
-    graph: G,
-}
+pub struct GraphWithDeletions(Arc<InternalGraph>);
 
 impl<G: GraphViewOps> GraphWithDeletions<G> {
     fn edge_alive_at(&self, e: EdgeRef, t: i64) -> bool {
