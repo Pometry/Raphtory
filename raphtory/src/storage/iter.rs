@@ -2,16 +2,16 @@ use std::{ops::Deref, rc::Rc};
 
 use super::RawStorage;
 
-pub struct Iter<'a, T, L: lock_api::RawRwLock, const N: usize> {
-    raw: &'a RawStorage<T, L, N>,
+pub struct Iter<'a, T, const N: usize> {
+    raw: &'a RawStorage<T, N>,
     segment: usize,
     offset: usize,
-    current: Option<GuardIter<'a, T, L>>,
+    current: Option<GuardIter<'a, T>>,
 }
 
 // impl new for Iter
-impl<'a, T, L: lock_api::RawRwLock, const N: usize> Iter<'a, T, L, N> {
-    pub fn new(raw: &'a RawStorage<T, L, N>) -> Self {
+impl<'a, T, const N: usize> Iter<'a, T, N> {
+    pub fn new(raw: &'a RawStorage<T,  N>) -> Self {
         Iter {
             raw,
             segment: 0,
@@ -21,18 +21,18 @@ impl<'a, T, L: lock_api::RawRwLock, const N: usize> Iter<'a, T, L, N> {
     }
 }
 
-type GuardIter<'a, T, L> = (
-    Rc<lock_api::RwLockReadGuard<'a, L, Vec<Option<T>>>>,
+type GuardIter<'a, T> = (
+    Rc<parking_lot::RwLockReadGuard<'a, Vec<Option<T>>>>,
     std::iter::Flatten<std::slice::Iter<'a, std::option::Option<T>>>,
 );
 
-pub struct RefT<'a, T, L: lock_api::RawRwLock, const N: usize> {
-    _guard: Rc<lock_api::RwLockReadGuard<'a, L, Vec<Option<T>>>>,
+pub struct RefT<'a, T, const N: usize> {
+    _guard: Rc<parking_lot::RwLockReadGuard<'a, Vec<Option<T>>>>,
     t: &'a T,
     i: usize,
 }
 
-impl <'a, T, L: lock_api::RawRwLock, const N: usize> Clone for RefT<'_, T, L, N> {
+impl <'a, T, const N: usize> Clone for RefT<'_, T, N> {
     fn clone(&self) -> Self {
         RefT {
             _guard: self._guard.clone(),
@@ -42,7 +42,7 @@ impl <'a, T, L: lock_api::RawRwLock, const N: usize> Clone for RefT<'_, T, L, N>
     }
 }
 
-impl<'a, T, L: lock_api::RawRwLock, const N: usize> Deref for RefT<'a, T, L, N> {
+impl<'a, T, const N: usize> Deref for RefT<'a, T, N> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
@@ -51,7 +51,7 @@ impl<'a, T, L: lock_api::RawRwLock, const N: usize> Deref for RefT<'a, T, L, N> 
 }
 
 // simple impl for RefT that returns &T in the value function
-impl<'a, T, L: lock_api::RawRwLock, const N: usize> RefT<'a, T, L, N> {
+impl<'a, T, const N: usize> RefT<'a, T, N> {
     pub fn value(&self) -> &T {
         self.t
     }
@@ -69,10 +69,10 @@ pub unsafe fn change_lifetime_const<'a, 'b, T>(x: &'a T) -> &'b T {
     &*(x as *const T)
 }
 
-impl<'a, T: std::fmt::Debug + Default, L: lock_api::RawRwLock, const N: usize> Iterator
-    for Iter<'a, T, L, N>
+impl<'a, T: std::fmt::Debug + Default, const N: usize> Iterator
+    for Iter<'a, T, N>
 {
-    type Item = RefT<'a, T, L, N>;
+    type Item = RefT<'a, T, N>;
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {

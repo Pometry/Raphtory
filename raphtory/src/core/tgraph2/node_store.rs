@@ -6,7 +6,7 @@ use crate::core::{timeindex::TimeIndex, Direction, Prop};
 
 use super::{adj::Adj, props::Props, VID, EID};
 
-#[derive(Serialize, Deserialize, Debug, Default)]
+#[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
 pub(crate) struct NodeStore<const N: usize> {
     global_id: u64,
     // all the timestamps that have been seen by this vertex

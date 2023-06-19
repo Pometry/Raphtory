@@ -2,7 +2,6 @@ pub mod doc_strings;
 pub mod edge;
 pub mod graph;
 pub mod graph_deletions;
-pub mod graph_immutable;
 pub mod graph_layer;
 pub mod graph_window;
 pub mod mutation_api;

@@ -16,29 +16,29 @@ use super::{
     VRef, VID,
 };
 
-pub struct Vertex<'a, const N: usize, L: lock_api::RawRwLock> {
-    node: VRef<'a, N, L>,
-    graph: &'a TGraph<N, L>,
+pub struct Vertex<'a, const N: usize> {
+    node: VRef<'a, N>,
+    graph: &'a TGraph<N>,
 }
 
-impl<'a, const N: usize, L: lock_api::RawRwLock + 'static> Vertex<'a, N, L> {
+impl<'a, const N: usize> Vertex<'a, N> {
     pub fn id(&self) -> VID {
         self.node.index().into()
     }
 
-    pub(crate) fn new(node: VRef<'a, N, L>, graph: &'a TGraph<N, L>) -> Self {
+    pub(crate) fn new(node: VRef<'a, N>, graph: &'a TGraph<N>) -> Self {
         Vertex { node, graph }
     }
 
-    pub(crate) fn from_ref(node: RefT<'a, NodeStore<N>, L, N>, graph: &'a TGraph<N, L>) -> Self {
+    pub(crate) fn from_ref(node: RefT<'a, NodeStore<N>, N>, graph: &'a TGraph<N>) -> Self {
         Self::new ( VRef::RefT(node), graph,)
     }
 
-    pub(crate) fn from_entry(node: Entry<'a, NodeStore<N>, L, N>, graph: &'a TGraph<N, L>) -> Self {
+    pub(crate) fn from_entry(node: Entry<'a, NodeStore<N>, N>, graph: &'a TGraph<N>) -> Self {
         Self::new ( VRef::Entry(node), graph,)
     }
 
-    pub(crate) fn from_ge(ge: GraphEntry<'a, NodeStore<N>, L, N>, graph: &'a TGraph<N, L>) -> Self {
+    pub(crate) fn from_ge(ge: GraphEntry<'a, NodeStore<N>, N>, graph: &'a TGraph<N>) -> Self {
         Self::new(VRef::LockedEntry(ge), graph)
     }
 
@@ -47,7 +47,7 @@ impl<'a, const N: usize, L: lock_api::RawRwLock + 'static> Vertex<'a, N, L> {
         (&self.node).temporal_properties(prop_id)
     }
 
-    pub fn edges(self, layer: &str, dir: Direction) -> impl Iterator<Item = EdgeView<'a, N, L>> + 'a {
+    pub fn edges(self, layer: &str, dir: Direction) -> impl Iterator<Item = EdgeView<'a, N>> + 'a {
         let layer = self
             .graph
             .inner
@@ -73,7 +73,7 @@ impl<'a, const N: usize, L: lock_api::RawRwLock + 'static> Vertex<'a, N, L> {
         &'a self,
         layer: &str,
         dir: Direction,
-    ) -> impl Iterator<Item = EdgeView<'a, N, L>> + 'a {
+    ) -> impl Iterator<Item = EdgeView<'a, N>> + 'a {
         let layer = self
             .graph
             .inner
@@ -96,7 +96,7 @@ impl<'a, const N: usize, L: lock_api::RawRwLock + 'static> Vertex<'a, N, L> {
         &'a self,
         layer: &'b str,
         dir: Direction,
-    ) -> impl Iterator<Item = Vertex<'a, N, L>> + 'a {
+    ) -> impl Iterator<Item = Vertex<'a, N>> + 'a {
         let layer = self
             .graph
             .inner
@@ -110,8 +110,8 @@ impl<'a, const N: usize, L: lock_api::RawRwLock + 'static> Vertex<'a, N, L> {
 }
 
 
-impl<'a, const N: usize, L: lock_api::RawRwLock> IntoIterator for Vertex<'a, N, L> {
-    type Item = Vertex<'a, N, L>;
+impl<'a, const N: usize> IntoIterator for Vertex<'a, N> {
+    type Item = Vertex<'a, N>;
     type IntoIter = std::iter::Once<Self::Item>;
 
     fn into_iter(self) -> Self::IntoIter {

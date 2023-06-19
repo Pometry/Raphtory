@@ -9,7 +9,7 @@ use crate::core::{lazy_vec::LazyVec, tprop::TProp, Prop};
 
 use super::tgraph::FxDashMap;
 
-#[derive(Serialize, Deserialize, Default, Debug)]
+#[derive(Serialize, Deserialize, Default, Debug, PartialEq)]
 pub(crate) struct Props {
     // properties
     static_props: LazyVec<Option<Prop>>,

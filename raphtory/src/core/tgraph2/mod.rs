@@ -80,14 +80,14 @@ impl From<usize> for EID {
 //     }
 // }
 
-pub(crate) enum VRef<'a, const N: usize, L: lock_api::RawRwLock> {
-    Entry(Entry<'a, NodeStore<N>, L, N>), // returned from graph.vertex
-    RefT(RefT<'a, NodeStore<N>, L, N>),   // returned from graph.vertices
-    LockedEntry(GraphEntry<'a, NodeStore<N>, L, N>) // returned from locked_vertices
+pub(crate) enum VRef<'a, const N: usize> {
+    Entry(Entry<'a, NodeStore<N>, N>), // returned from graph.vertex
+    RefT(RefT<'a, NodeStore<N>, N>),   // returned from graph.vertices
+    LockedEntry(GraphEntry<'a, NodeStore<N>, N>) // returned from locked_vertices
 }
 
 // return index -> usize for VRef
-impl<'a, const N: usize, L: lock_api::RawRwLock> VRef<'a, N, L> {
+impl<'a, const N: usize> VRef<'a, N> {
     fn index(&'a self) -> usize {
         match self {
             VRef::RefT(r) => r.index(),
@@ -96,7 +96,7 @@ impl<'a, const N: usize, L: lock_api::RawRwLock> VRef<'a, N, L> {
         }
     }
 
-    fn edge_ref(&self, edge_id: EID) -> ERef<'a, N, L> {
+    fn edge_ref(&self, edge_id: EID) -> ERef<'a, N> {
         match self {
             VRef::RefT(_) | VRef::Entry(_) => ERef::EId(edge_id),
             VRef::LockedEntry(ge) => {
@@ -106,7 +106,7 @@ impl<'a, const N: usize, L: lock_api::RawRwLock> VRef<'a, N, L> {
     }
 }
 
-impl<'a, const N: usize, L: lock_api::RawRwLock> Deref for VRef<'a, N, L> {
+impl<'a, const N: usize> Deref for VRef<'a, N> {
     type Target = NodeStore<N>;
 
     fn deref(&self) -> &Self::Target {
@@ -118,14 +118,14 @@ impl<'a, const N: usize, L: lock_api::RawRwLock> Deref for VRef<'a, N, L> {
     }
 }
 
-pub(crate) trait GraphItem<'a, const N: usize, L: lock_api::RawRwLock> {
+pub(crate) trait GraphItem<'a, const N: usize> {
 
     fn from_edge_ids(
         src: VID,
         dst: VID,
-        e_id: ERef<'a, N, L>,
+        e_id: ERef<'a, N>,
         dir: Direction,
-        graph: &'a TGraph<N, L>,
+        graph: &'a TGraph<N>,
     ) -> Self;
 
 }

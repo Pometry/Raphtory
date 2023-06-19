@@ -10,24 +10,24 @@ use super::{
     VRef, EID, VID,
 };
 
-pub struct Paged<'a, const N: usize, L: lock_api::RawRwLock> {
-    guard: Rc<VRef<'a, N, L>>,
+pub struct Paged<'a, const N: usize> {
+    guard: Rc<VRef<'a, N>>,
     data: Vec<(VID, EID)>,
     i: usize,
     size: usize,
     dir: Direction,
     layer_id: usize,
     src: VID,
-    graph: &'a TGraph<N, L>,
+    graph: &'a TGraph<N>,
 }
 
-impl<'a, const N: usize, L: lock_api::RawRwLock> Paged<'a, N, L> {
+impl<'a, const N: usize> Paged<'a, N> {
     pub(crate) fn new(
-        guard: Rc<VRef<'a, N, L>>,
+        guard: Rc<VRef<'a, N>>,
         dir: Direction,
         layer_id: usize,
         src: VID,
-        graph: &'a TGraph<N, L>,
+        graph: &'a TGraph<N>,
     ) -> Self {
         Paged {
             guard,
@@ -42,8 +42,8 @@ impl<'a, const N: usize, L: lock_api::RawRwLock> Paged<'a, N, L> {
     }
 }
 
-impl<'a, const N: usize, L: lock_api::RawRwLock + 'static> Iterator for Paged<'a, N, L> {
-    type Item = EdgeView<'a, N, L>;
+impl<'a, const N: usize> Iterator for Paged<'a, N> {
+    type Item = EdgeView<'a, N>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(t) = self.data.get(self.i) {
@@ -80,13 +80,13 @@ impl<'a, const N: usize, L: lock_api::RawRwLock + 'static> Iterator for Paged<'a
     }
 }
 
-pub enum PagedIter<'a, const N: usize, L: lock_api::RawRwLock + 'static> {
-    Page(Paged<'a, N, L>),
-    Merged(Merge<Paged<'a, N, L>, Paged<'a, N, L>>),
+pub enum PagedIter<'a, const N: usize> {
+    Page(Paged<'a, N>),
+    Merged(Merge<Paged<'a, N>, Paged<'a, N>>),
 }
 
-impl<'a, const N: usize, L: lock_api::RawRwLock + 'static> Iterator for PagedIter<'a, N, L> {
-    type Item = EdgeView<'a, N, L>;
+impl<'a, const N: usize> Iterator for PagedIter<'a, N> {
+    type Item = EdgeView<'a, N>;
 
     fn next(&mut self) -> Option<Self::Item> {
         match self {

@@ -1,7 +1,6 @@
-use std::{borrow::Borrow, hash::BuildHasherDefault, ops::Range, sync::Arc};
+use std::{borrow::Borrow, hash::BuildHasherDefault, sync::Arc};
 
 use dashmap::DashMap;
-use itertools::Itertools;
 use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
 
@@ -19,12 +18,12 @@ use super::{
 
 pub(crate) type FxDashMap<K, V> = DashMap<K, V, BuildHasherDefault<FxHasher>>;
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct TGraph<const N: usize, L: lock_api::RawRwLock> {
-    pub(crate) inner: Arc<InnerTemporalGraph<N, L>>,
+#[derive(Serialize, Deserialize, Debug, Default)]
+pub struct TGraph<const N: usize> {
+    pub(crate) inner: Arc<InnerTemporalGraph<N>>,
 }
 
-impl<const N: usize, L: lock_api::RawRwLock> Clone for TGraph<N, L> {
+impl<const N: usize> Clone for TGraph<N> {
     fn clone(&self) -> Self {
         Self {
             inner: self.inner.clone(),
@@ -33,11 +32,11 @@ impl<const N: usize, L: lock_api::RawRwLock> Clone for TGraph<N, L> {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub(crate) struct InnerTemporalGraph<const N: usize, L: lock_api::RawRwLock> {
+pub(crate) struct InnerTemporalGraph<const N: usize> {
     // mapping between logical and physical ids
     logical_to_physical: FxDashMap<u64, usize>,
 
-    storage: GraphStorage<N, L>,
+    storage: GraphStorage<N>,
 
     //earliest time seen in this graph
     pub(crate) earliest_time: MinCounter,
@@ -49,21 +48,25 @@ pub(crate) struct InnerTemporalGraph<const N: usize, L: lock_api::RawRwLock> {
     pub(crate) props_meta: Meta,
 }
 
-impl<const N: usize> TGraph<N, parking_lot::RawRwLock> {
-    pub fn new() -> Self {
+impl<const N: usize> PartialEq for InnerTemporalGraph<N> {
+    fn eq(&self, other: &Self) -> bool {
+        self.storage == other.storage
+    }
+}
+
+impl<const N: usize> Default for InnerTemporalGraph<N> {
+    fn default() -> Self {
         Self {
-            inner: Arc::new(InnerTemporalGraph {
-                logical_to_physical: FxDashMap::default(), // TODO: could use DictMapper here
-                storage: GraphStorage::new(),
-                earliest_time: MinCounter::new(),
-                latest_time: MaxCounter::new(),
-                props_meta: Meta::new(),
-            }),
+            logical_to_physical: FxDashMap::default(), // TODO: could use DictMapper here
+            storage: GraphStorage::new(),
+            earliest_time: MinCounter::new(),
+            latest_time: MaxCounter::new(),
+            props_meta: Meta::new(),
         }
     }
 }
 
-impl<const N: usize, L: lock_api::RawRwLock + 'static> TGraph<N, L> {
+impl<const N: usize> TGraph<N> {
     pub fn get_layer_id<B: Borrow<str>>(&self, name: B) -> Option<usize> {
         self.inner.props_meta.get_layer_id(name.borrow())
     }
@@ -96,7 +99,11 @@ impl<const N: usize, L: lock_api::RawRwLock + 'static> TGraph<N, L> {
         layer_id: &str,
         dir: Direction,
     ) -> Box<dyn Iterator<Item = EdgeRef> + 'a> {
-        Box::new(self.vertex(id).edges(layer_id, dir).map(|e| EdgeRef::new(e.src_id(), e.dst_id(), e.edge_id(), 0, None)))
+        Box::new(
+            self.vertex(id)
+                .edges(layer_id, dir)
+                .map(|e| EdgeRef::new(e.src_id(), e.dst_id(), e.edge_id(), 0, None)),
+        )
     }
 
     #[inline]
@@ -267,14 +274,14 @@ impl<const N: usize, L: lock_api::RawRwLock + 'static> TGraph<N, L> {
     //         .unwrap_or(false)
     // }
 
-    pub fn vertices<'a>(&'a self) -> impl Iterator<Item = Vertex<'a, N, L>> {
+    pub fn vertices<'a>(&'a self) -> impl Iterator<Item = Vertex<'a, N>> {
         self.inner
             .storage
             .nodes()
             .map(move |node| Vertex::from_ref(node, self))
     }
 
-    pub fn locked_vertices<'a>(&'a self) -> impl Iterator<Item = Vertex<'a, N, L>> {
+    pub fn locked_vertices<'a>(&'a self) -> impl Iterator<Item = Vertex<'a, N>> {
         self.inner
             .storage
             .locked_nodes()
@@ -286,7 +293,7 @@ impl<const N: usize, L: lock_api::RawRwLock + 'static> TGraph<N, L> {
         node.value().map(|n| n.global_id())
     }
 
-    pub(crate) fn vertex<'a>(&'a self, v: VID) -> Vertex<'a, N, L> {
+    pub(crate) fn vertex<'a>(&'a self, v: VID) -> Vertex<'a, N> {
         let node = self.inner.storage.get_node(v.into());
         Vertex::from_entry(node, self)
     }
@@ -303,7 +310,7 @@ mod test {
 
     #[test]
     fn add_vertex_at_time_t1() {
-        let g: TGraph<4, parking_lot::RawRwLock> = TGraph::new();
+        let g: TGraph<4> = TGraph::default();
 
         g.add_vertex(1, 9);
 
@@ -321,7 +328,7 @@ mod test {
 
     #[test]
     fn add_vertices_with_1_property() {
-        let g: TGraph<4, parking_lot::RawRwLock> = TGraph::new();
+        let g: TGraph<4> = TGraph::default();
 
         let v_id = 1;
         let ts = 1;
@@ -346,7 +353,7 @@ mod test {
 
     #[test]
     fn add_edge_at_t1() {
-        let g: TGraph<4, parking_lot::RawRwLock> = TGraph::new();
+        let g: TGraph<4> = TGraph::default();
 
         let src = 1;
         let dst = 2;
@@ -369,7 +376,7 @@ mod test {
 
     #[test]
     fn triangle_counts_by_iterators() {
-        let g: TGraph<4, parking_lot::RawRwLock> = TGraph::new();
+        let g: TGraph<4> = TGraph::default();
 
         let ts = 1;
 
@@ -410,7 +417,7 @@ mod test {
 
     #[test]
     fn triangle_counts_by_locked_iterators() {
-        let g: TGraph<4, parking_lot::RawRwLock> = TGraph::new();
+        let g: TGraph<4> = TGraph::default();
 
         let ts = 1;
 
@@ -451,7 +458,7 @@ mod test {
 
     #[test]
     fn test_chaining_vertex_ops() {
-        let g: TGraph<4, parking_lot::RawRwLock> = TGraph::new();
+        let g: TGraph<4> = TGraph::default();
 
         let ts = 1;
 

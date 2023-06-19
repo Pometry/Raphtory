@@ -13,13 +13,12 @@ pub trait VertexListOps {
 impl<
         'a,
         const N: usize,
-        L: lock_api::RawRwLock + 'static,
-        I: IntoIterator<Item = Vertex<'a, N, L>> + 'a,
+        I: IntoIterator<Item = Vertex<'a, N>> + 'a,
     > VertexListOps for I
 {
     type Value<T> = Box<dyn Iterator<Item = T> + 'a>;
-    type Edge = EdgeView<'a, N, L>;
-    type Neighbour = Vertex<'a, N, L>;
+    type Edge = EdgeView<'a, N>;
+    type Neighbour = Vertex<'a, N>;
     fn ids(self) -> Self::Value<VID> {
         let iter = self.into_iter().map(|v| v.id());
         Box::new(iter)

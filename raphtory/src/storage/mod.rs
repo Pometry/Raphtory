@@ -7,7 +7,6 @@ use std::{
     sync::atomic::{AtomicUsize, Ordering},
 };
 
-use lock_api::{RawRwLock, RwLock};
 use serde::{Deserialize, Serialize};
 
 use self::iter::Iter;
@@ -19,30 +18,45 @@ fn resolve<const N: usize>(index: usize) -> (usize, usize) {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct LockVec<T, L: RawRwLock> {
-    data: RwLock<L, Vec<Option<T>>>,
+pub struct LockVec<T> {
+    data: parking_lot::RwLock<Vec<Option<T>>>,
 }
 
-impl<T, L: RawRwLock> LockVec<T, L> {
+impl <T:PartialEq> PartialEq for LockVec<T> {
+    fn eq(&self, other: &Self) -> bool {
+        let a = self.data.read();
+        let b = other.data.read();
+        a.deref() == b.deref()
+    }
+}
+
+
+impl<T> LockVec<T> {
     pub fn new() -> Self {
         Self {
-            data: RwLock::new(Vec::new()),
+            data: parking_lot::RwLock::new(Vec::new()),
         }
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct RawStorage<T, L: RawRwLock, const N: usize> {
-    pub(crate) data: Box<[LockVec<T, L>]>,
+#[derive(Serialize, Deserialize, Debug )]
+pub struct RawStorage<T, const N: usize> {
+    pub(crate) data: Box<[LockVec<T>]>,
     len: AtomicUsize,
 }
 
-#[derive(Debug)]
-pub struct ReadLockedStorage<'a, T, L: RawRwLock, const N: usize> {
-    locks: Box<[lock_api::RwLockReadGuard<'a, L, Vec<Option<T>>>; N]>,
+impl <T:PartialEq, const N: usize> PartialEq for RawStorage<T, N> {
+    fn eq(&self, other: &Self) -> bool {
+        self.data.eq(&other.data)
+    }
 }
 
-impl <'a, T, L:RawRwLock, const N: usize> ReadLockedStorage<'a, T, L, N> {
+#[derive(Debug)]
+pub struct ReadLockedStorage<'a, T, const N: usize> {
+    locks: Box<[parking_lot::RwLockReadGuard<'a, Vec<Option<T>>>; N]>,
+}
+
+impl <'a, T, const N: usize> ReadLockedStorage<'a, T, N> {
     pub(crate) fn get(&'a self, index: usize) -> &'a T {
         let (bucket, offset) = resolve::<N>(index);
         let bucket = &self.locks[bucket];
@@ -55,10 +69,10 @@ impl <'a, T, L:RawRwLock, const N: usize> ReadLockedStorage<'a, T, L, N> {
 
 }
 
-impl<T, L: RawRwLock, const N: usize> RawStorage<T, L, N> {
+impl<T, const N: usize> RawStorage<T, N> {
 
-    pub fn read_lock<'a>(&'a self) -> ReadLockedStorage<'a, T, L, N> {
-        let guards: [lock_api::RwLockReadGuard<'a, L, Vec<Option<T>>>; N] =
+    pub fn read_lock<'a>(&'a self) -> ReadLockedStorage<'a, T, N> {
+        let guards: [parking_lot::RwLockReadGuard<'a, Vec<Option<T>>>; N] =
             std::array::from_fn(|i| self.data[i].data.read());
         ReadLockedStorage {
             locks: guards.into(),
@@ -90,20 +104,20 @@ impl<T, L: RawRwLock, const N: usize> RawStorage<T, L, N> {
         index
     }
 
-    pub fn entry(&self, index: usize) -> Entry<'_, T, L, N> {
+    pub fn entry(&self, index: usize) -> Entry<'_, T, N> {
         let (bucket, _) = resolve::<N>(index);
         let guard = self.data[bucket].data.read();
         Entry { i: index, guard }
     }
 
-    pub fn entry_mut(&self, index: usize) -> EntryMut<'_, T, L> {
+    pub fn entry_mut(&self, index: usize) -> EntryMut<'_, T> {
         let (bucket, offset) = resolve::<N>(index);
         let guard = self.data[bucket].data.write();
         EntryMut { i: offset, guard }
     }
 
     // This helps get the right locks when adding an edge
-    pub fn pair_entry_mut(&self, i: usize, j: usize) -> PairEntryMut<'_, T, L> {
+    pub fn pair_entry_mut(&self, i: usize, j: usize) -> PairEntryMut<'_, T> {
         let (bucket, offset_i) = resolve::<N>(i);
         let (bucket2, offset_j) = resolve::<N>(j);
         if bucket != bucket2 {
@@ -131,17 +145,17 @@ impl<T, L: RawRwLock, const N: usize> RawStorage<T, L, N> {
     //     Items::new(guards)
     // }
 
-    pub fn iter<'a>(&'a self) -> Iter<'a, T, L, N> {
+    pub fn iter<'a>(&'a self) -> Iter<'a, T, N> {
         Iter::new(self)
     }
 }
 
-pub struct Entry<'a, T: 'static, L: RawRwLock, const N: usize> {
+pub struct Entry<'a, T: 'static, const N: usize> {
     i: usize,
-    guard: lock_api::RwLockReadGuard<'a, L, Vec<Option<T>>>,
+    guard: parking_lot::RwLockReadGuard<'a, Vec<Option<T>>>,
 }
 
-impl<'a, T: 'static, L: RawRwLock, const N: usize> Entry<'a, T, L, N> {
+impl<'a, T: 'static, const N: usize> Entry<'a, T, N> {
     pub fn value(&self) -> Option<&T> {
         let (_, offset) = resolve::<N>(self.i);
         let t: &Option<T> = self.guard.get(offset)?;
@@ -157,7 +171,7 @@ impl<'a, T: 'static, L: RawRwLock, const N: usize> Entry<'a, T, L, N> {
     }
 }
 
-impl<'a, T, L: lock_api::RawRwLock, const N: usize> Deref for Entry<'a, T, L, N> {
+impl<'a, T, const N: usize> Deref for Entry<'a, T, N> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
@@ -166,21 +180,21 @@ impl<'a, T, L: lock_api::RawRwLock, const N: usize> Deref for Entry<'a, T, L, N>
     }
 }
 
-pub enum PairEntryMut<'a, T: 'static, L: RawRwLock> {
+pub enum PairEntryMut<'a, T: 'static> {
     Same {
         i: usize,
         j: usize,
-        guard: lock_api::RwLockWriteGuard<'a, L, Vec<Option<T>>>,
+        guard: parking_lot::RwLockWriteGuard<'a, Vec<Option<T>>>,
     },
     Different {
         i: usize,
         j: usize,
-        guard1: lock_api::RwLockWriteGuard<'a, L, Vec<Option<T>>>,
-        guard2: lock_api::RwLockWriteGuard<'a, L, Vec<Option<T>>>,
+        guard1: parking_lot::RwLockWriteGuard<'a, Vec<Option<T>>>,
+        guard2: parking_lot::RwLockWriteGuard<'a, Vec<Option<T>>>,
     },
 }
 
-impl<'a, T: 'static, L: RawRwLock> PairEntryMut<'a, T, L> {
+impl<'a, T: 'static> PairEntryMut<'a, T> {
     pub(crate) fn get_mut_i(&mut self) -> &mut T {
         match self {
             PairEntryMut::Same { i, guard, .. } => guard[*i].as_mut().unwrap(),
@@ -196,12 +210,12 @@ impl<'a, T: 'static, L: RawRwLock> PairEntryMut<'a, T, L> {
     }
 }
 
-pub struct EntryMut<'a, T: 'static, L: RawRwLock> {
+pub struct EntryMut<'a, T: 'static> {
     i: usize,
-    guard: lock_api::RwLockWriteGuard<'a, L, Vec<Option<T>>>,
+    guard: parking_lot::RwLockWriteGuard<'a, Vec<Option<T>>>,
 }
 
-impl<'a, T, L: lock_api::RawRwLock> Deref for EntryMut<'a, T, L> {
+impl<'a, T> Deref for EntryMut<'a, T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
@@ -209,7 +223,7 @@ impl<'a, T, L: lock_api::RawRwLock> Deref for EntryMut<'a, T, L> {
     }
 }
 
-impl<'a, T, L: lock_api::RawRwLock> DerefMut for EntryMut<'a, T, L> {
+impl<'a, T> DerefMut for EntryMut<'a, T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.guard[self.i].as_mut().unwrap()
     }
@@ -247,7 +261,7 @@ mod test {
 
     #[test]
     fn add_5_values_to_storage() {
-        let storage = RawStorage::<String, NoLock, 2>::new();
+        let storage = RawStorage::<String, 2>::new();
 
         for i in 0..5 {
             storage.push(i.to_string());
@@ -269,7 +283,7 @@ mod test {
 
     #[test]
     fn test_index_correctness() {
-        let storage = RawStorage::<String, NoLock, 2>::new();
+        let storage = RawStorage::<String, 2>::new();
 
         for i in 0..5 {
             storage.push(i.to_string());
@@ -290,7 +304,7 @@ mod test {
 
     #[test]
     fn test_entry() {
-        let storage = RawStorage::<String, NoLock, 2>::new();
+        let storage = RawStorage::<String, 2>::new();
 
         for i in 0..5 {
             storage.push(i.to_string());
