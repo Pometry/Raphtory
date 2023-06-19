@@ -17,7 +17,6 @@ pub(crate) mod algorithm;
 pub(crate) mod filters;
 pub(crate) mod graph;
 pub(crate) mod wrappers;
-pub(crate) mod filters;
 
 #[derive(ResolvedObject)]
 #[graphql(root)]

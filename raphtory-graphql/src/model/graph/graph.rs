@@ -4,6 +4,8 @@ use crate::model::algorithm::Algorithms;
 use crate::model::filters::nodefilter::NodeFilter;
 use crate::model::graph::edge::Edge;
 use crate::model::graph::node::Node;
+use crate::model::wrappers::dynamic::{DynamicGraph, IntoDynamic};
+
 use async_graphql::Context;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
@@ -14,11 +16,7 @@ use raphtory::db::view_api::internal::{BoxableGraphView, WrappedGraph};
 use raphtory::db::view_api::EdgeListOps;
 use raphtory::db::view_api::EdgeViewOps;
 use raphtory::db::view_api::{GraphViewOps, TimeOps, VertexViewOps};
-use crate::model::algorithm::Algorithms;
-use crate::model::graph::edge::Edge;
-use crate::model::graph::node::Node;
-use crate::model::filters::nodefilter::NodeFilter;
-use crate::model::wrappers::dynamic::{DynamicGraph, IntoDynamic};
+
 
 
 #[derive(ResolvedObject)]

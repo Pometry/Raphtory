@@ -1,6 +1,5 @@
 use crate::data::Data;
 use crate::model::algorithm::Algorithms;
-use crate::model::graph::graph::DynamicGraph;
 use crate::model::graph::node::Node;
 use crate::model::graph::property::Property;
 use async_graphql::Context;
@@ -15,9 +14,6 @@ use raphtory::db::view_api::EdgeViewOps;
 use raphtory::db::view_api::{GraphViewOps, TimeOps, VertexViewOps};
 use std::sync::Arc;
 use crate::model::wrappers::dynamic::{DynamicGraph, IntoDynamic};
-use crate::model::algorithm::Algorithms;
-use crate::model::graph::node::Node;
-use crate::model::graph::property::Property;
 
 
 #[derive(ResolvedObject)]

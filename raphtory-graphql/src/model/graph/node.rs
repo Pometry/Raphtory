@@ -1,7 +1,6 @@
 use crate::data::Data;
 use crate::model::algorithm::Algorithms;
 use crate::model::graph::edge::Edge;
-use crate::model::graph::graph::DynamicGraph;
 use crate::model::graph::property::Property;
 use async_graphql::Context;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
@@ -17,9 +16,6 @@ use std::sync::Arc;
 use crate::model::wrappers::dynamic::{DynamicGraph, IntoDynamic};
 use raphtory::db::graph_layer::LayeredGraph;
 use raphtory::db::view_api::layer::LayerOps;
-use crate::model::algorithm::Algorithms;
-use crate::model::graph::edge::Edge;
-use crate::model::graph::property::Property;
 
 
 #[derive(ResolvedObject)]

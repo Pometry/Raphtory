@@ -18,7 +18,6 @@ use pyo3::pyclass::CompareOp;
 use pyo3::{pyclass, pymethods, PyAny, PyRef, PyRefMut, PyResult};
 use raphtory::db::edge::EdgeView;
 use raphtory::db::view_api::*;
-use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
