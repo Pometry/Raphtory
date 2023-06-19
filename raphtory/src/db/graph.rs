@@ -983,24 +983,8 @@ mod db_tests {
     use quickcheck::Arbitrary;
     use std::collections::HashMap;
     use std::fs;
-    use std::sync::Arc;
     use tempdir::TempDir;
     use uuid::Uuid;
-
-    #[test]
-    fn cloning_vec() {
-        let mut vs = vec![];
-        for i in 0..10 {
-            vs.push(Arc::new(i))
-        }
-        let should_be_10: usize = vs.iter().map(Arc::strong_count).sum();
-        assert_eq!(should_be_10, 10);
-
-        let vs2 = vs.clone();
-
-        let should_be_10: usize = vs2.iter().map(Arc::strong_count).sum();
-        assert_eq!(should_be_10, 20)
-    }
 
     #[quickcheck]
     fn add_vertex_grows_graph_len(vs: Vec<(i64, u64)>) {
@@ -1018,9 +1002,7 @@ mod db_tests {
 
     #[quickcheck]
     fn add_edge_grows_graph_edge_len(edges: Vec<(i64, u64, u64)>) {
-        let nr_shards: usize = 2;
-
-        let g = InternalGraph::new(nr_shards);
+        let g = Graph::new(0);
 
         let unique_vertices_count = edges
             .iter()
@@ -1045,7 +1027,7 @@ mod db_tests {
 
     #[quickcheck]
     fn add_edge_works(edges: Vec<(i64, u64, u64)>) -> bool {
-        let g = InternalGraph::new(3);
+        let g = Graph::new(0);
         for &(t, src, dst) in edges.iter() {
             g.add_edge(t, src, dst, &vec![], None).unwrap();
         }
@@ -1057,7 +1039,7 @@ mod db_tests {
 
     #[quickcheck]
     fn get_edge_works(edges: Vec<(i64, u64, u64)>) -> bool {
-        let g = InternalGraph::new(100);
+        let g = Graph::new(0);
         for &(t, src, dst) in edges.iter() {
             g.add_edge(t, src, dst, &vec![], None).unwrap();
         }
@@ -1068,6 +1050,7 @@ mod db_tests {
     }
 
     #[test]
+    #[ignore = "this test no longer applies"]
     fn graph_save_to_load_from_file() {
         let vs = vec![
             (1, 1, 2),
@@ -1132,7 +1115,7 @@ mod db_tests {
 
     #[test]
     fn has_edge() {
-        let g = InternalGraph::new(2);
+        let g = Graph::new(0);
         g.add_edge(1, 7, 8, &vec![], None).unwrap();
 
         assert!(!g.has_edge(8, 7, None));

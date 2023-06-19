@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::core::{timeindex::TimeIndex, Direction, Prop};
 
-use super::{adj::Adj, props::Props, VID, EID};
+use super::{adj::Adj, props::Props, EID, VID};
 
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
 pub(crate) struct NodeStore<const N: usize> {
@@ -43,10 +43,18 @@ impl<const N: usize> NodeStore<N> {
         self.props.add_prop(t, prop_id, prop);
     }
 
-    pub(crate) fn find_edge(&self, dst: VID) -> Option<super::EID> {
-        for layer in self.layers.iter() {
-            if let Some(eid) = layer.get_edge(dst, Direction::OUT) {
-                return Some(eid);
+    pub(crate) fn find_edge(&self, dst: VID, layer_id: Option<usize>) -> Option<super::EID> {
+        match layer_id {
+            Some(layer_id) => {
+                let layer_adj = self.layers.get(layer_id)?;
+                return layer_adj.get_edge(dst, Direction::OUT);
+            }
+            None => {
+                for layer in self.layers.iter() {
+                    if let Some(eid) = layer.get_edge(dst, Direction::OUT) {
+                        return Some(eid);
+                    }
+                }
             }
         }
         None
@@ -104,7 +112,7 @@ impl<const N: usize> NodeStore<N> {
         dir: Direction,
         last: Option<VID>,
         page_size: usize,
-    ) -> Vec<(VID, EID)>{
+    ) -> Vec<(VID, EID)> {
         self.layers[layer_id].get_page_vec(last, page_size, dir)
     }
 }

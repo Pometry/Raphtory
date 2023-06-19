@@ -5,8 +5,11 @@ use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
 
 use crate::core::{
-    tgraph_shard::errors::GraphError, time::TryIntoTime, vertex::InputVertex, Direction, Prop,
-    PropUnwrap,
+    tgraph_shard::errors::GraphError,
+    time::TryIntoTime,
+    vertex::InputVertex,
+    vertex_ref::{LocalVertexRef, VertexRef},
+    Direction, Prop, PropUnwrap,
 };
 
 use super::{
@@ -109,11 +112,11 @@ impl<const N: usize> InnerTemporalGraph<N> {
         self.props_meta.get_layer_id(name.borrow())
     }
 
-    pub fn vertices_len(&self) -> usize {
+    pub fn num_vertices(&self) -> usize {
         self.storage.nodes_len()
     }
 
-    pub fn edges_len(&self) -> usize {
+    pub fn num_edges(&self) -> usize {
         self.storage.edges_len()
     }
 
@@ -213,6 +216,16 @@ impl<const N: usize> InnerTemporalGraph<N> {
         self.add_edge_with_props(t, src, dst, props.clone(), layer)
     }
 
+    pub fn delete_edge<V: InputVertex, T: TryIntoTime>(
+        &self,
+        t: T,
+        src: V,
+        dst: V,
+        layer: Option<&str>,
+    ) -> Result<(), GraphError> {
+        todo!()
+    }
+
     pub fn add_vertex_properties<V: InputVertex>(
         &self,
         v: V,
@@ -259,7 +272,7 @@ impl<const N: usize> InnerTemporalGraph<N> {
             let src = node_pair.get_mut_i();
 
             // find the edge_id if it exists and add the time event to the nodes
-            if let Some(edge_id) = src.find_edge(dst_id) {
+            if let Some(edge_id) = src.find_edge(dst_id, Some(layer)) {
                 src.add_edge(dst_id, Direction::OUT, layer, edge_id);
                 // add inbound edge for dst
                 let dst = node_pair.get_mut_j();
@@ -353,6 +366,29 @@ impl<const N: usize> InnerTemporalGraph<N> {
     pub(crate) fn vertex<'a>(&'a self, v: VID) -> Vertex<'a, N> {
         let node = self.storage.get_node(v.into());
         Vertex::from_entry(node, self)
+    }
+
+    pub(crate) fn find_edge(&self, src: VID, dst: VID, layer_id: usize) -> Option<EID> {
+        let node = self.storage.get_node(src.into());
+        node.find_edge(dst, Some(layer_id))
+    }
+
+    // pub(crate) fn find_edge<T: InputVertex>(&self, src: T, dst: T, layer: usize) -> Option<EID> {
+    //     let src_id = self.logical_to_physical.get(&src.id())?;
+    //     let dst_id = self.logical_to_physical.get(&dst.id())?;
+    //     self.find_edge_inner((*src_id).into(), (*dst_id).into(), layer)
+    // }
+
+    pub(crate) fn resolve_vertex_ref(&self, v: &VertexRef) -> Option<VID> {
+        match v {
+            VertexRef::Local(LocalVertexRef { shard_id, pid }) => {
+                Some((*shard_id * N + *pid).into())
+            }
+            VertexRef::Remote(gid) => {
+                let v_id = self.logical_to_physical.get(gid)?;
+                Some((*v_id).into())
+            }
+        }
     }
 }
 

@@ -96,6 +96,10 @@ impl Meta {
             .find(|entry| entry.value() == &id)
             .map(|entry| entry.key().clone())
     }
+
+    pub(crate) fn get_all_layers(&self) -> Vec<usize> {
+        self.meta_layer.map.iter().map(|entry| *entry.value()).collect()
+    }
 }
 
 #[derive(Serialize, Deserialize, Default, Debug)]

@@ -2,29 +2,34 @@ use std::ops::Deref;
 
 use serde::{Deserialize, Serialize};
 
-use crate::storage::{Entry, iter::RefT};
+use crate::storage::{iter::RefT, Entry};
 
-use self::{node_store::NodeStore, tgraph::TGraph, tgraph_storage::GraphEntry, edge::ERef};
+use self::{edge::ERef, node_store::NodeStore, tgraph::TGraph, tgraph_storage::GraphEntry};
 
-use super::{Direction, vertex_ref::LocalVertexRef};
+use super::{
+    vertex_ref::{LocalVertexRef, VertexRef},
+    Direction,
+};
 
 mod adj;
-pub mod ops;
+pub(crate) mod edge;
 mod edge_layer;
 mod edge_store;
-mod node_store;
-mod props;
-mod timer;
-mod tadjset;
-mod vertex;
-pub(crate) mod edge;
 mod iter;
-mod tgraph_storage;
+mod node_store;
+pub mod ops;
+mod props;
+mod tadjset;
 pub mod tgraph;
+mod tgraph_storage;
+mod timer;
+mod vertex;
 
 // the only reason this is public is because the phisical ids of the vertices don't move
 #[repr(transparent)]
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Deserialize, Serialize, Default)]
+#[derive(
+    Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Deserialize, Serialize, Default,
+)]
 pub struct VID(usize);
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
@@ -39,9 +44,18 @@ impl From<usize> for VID {
     }
 }
 
-impl From<VID> for usize{
+impl From<VID> for usize {
     fn from(id: VID) -> Self {
         id.0
+    }
+}
+
+impl From<VertexRef> for VID {
+    fn from(id: VertexRef) -> Self {
+        match id {
+            VertexRef::Local(LocalVertexRef { shard_id, pid }) => VID(shard_id * 16 + pid),
+            _ => panic!("Cannot convert remote vertex reference to VID"),
+        }
     }
 }
 
@@ -60,7 +74,6 @@ impl From<LocalVertexRef> for VID {
 //         LocalID { bucket, offset }
 //     }
 // }
-
 
 #[repr(transparent)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Deserialize, Serialize)]
@@ -90,7 +103,7 @@ impl From<usize> for EID {
 pub(crate) enum VRef<'a, const N: usize> {
     Entry(Entry<'a, NodeStore<N>, N>), // returned from graph.vertex
     RefT(RefT<'a, NodeStore<N>, N>),   // returned from graph.vertices
-    LockedEntry(GraphEntry<'a, NodeStore<N>, N>) // returned from locked_vertices
+    LockedEntry(GraphEntry<'a, NodeStore<N>, N>), // returned from locked_vertices
 }
 
 // return index -> usize for VRef
@@ -106,9 +119,10 @@ impl<'a, const N: usize> VRef<'a, N> {
     fn edge_ref(&self, edge_id: EID) -> ERef<'a, N> {
         match self {
             VRef::RefT(_) | VRef::Entry(_) => ERef::EId(edge_id),
-            VRef::LockedEntry(ge) => {
-                ERef::ELock { lock: ge.locked_gs().clone(), eid: edge_id }
-            }
+            VRef::LockedEntry(ge) => ERef::ELock {
+                lock: ge.locked_gs().clone(),
+                eid: edge_id,
+            },
         }
     }
 }
@@ -126,7 +140,6 @@ impl<'a, const N: usize> Deref for VRef<'a, N> {
 }
 
 pub(crate) trait GraphItem<'a, const N: usize> {
-
     fn from_edge_ids(
         src: VID,
         dst: VID,
@@ -134,11 +147,9 @@ pub(crate) trait GraphItem<'a, const N: usize> {
         dir: Direction,
         graph: &'a TGraph<N>,
     ) -> Self;
-
 }
 
-
-pub struct EdgeRef{
+pub struct EdgeRef {
     src: VID,
     dst: VID,
     id: EID,
@@ -148,6 +159,12 @@ pub struct EdgeRef{
 
 impl EdgeRef {
     pub fn new(src: VID, dst: VID, id: EID, layer_id: usize, time: Option<i64>) -> Self {
-        Self { src, dst, id, layer_id, time }
+        Self {
+            src,
+            dst,
+            id,
+            layer_id,
+            time,
+        }
     }
 }
