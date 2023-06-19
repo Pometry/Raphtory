@@ -96,6 +96,24 @@ Raphtory is a valuable addition to this ecosystem for the following reasons. Ori
 
 together with a Python interface for the facility of use.
 
+(Testing table caption)
+
+| Right | Left | Default | Center |
+|------:|:-----|---------|:------:|
+|   12  |  12  |    12   |    12  |
+|  123  |  123 |   123   |   123  |
+|    1  |    1 |     1   |     1  |
+
+: Table caption
+
+| Right | Left | Default | Center |
+|------:|:-----|---------|:------:|
+|   12  |  12  |    12   |    12  |
+|  123  |  123 |   123   |   123  |
+|    1  |    1 |     1   |     1  |
+[Table caption]
+
+
 # Overview
 
 The core objects in Raphtory are the Graph and GraphView objects. The Graph object maintains a chronological log of all vertices, edges and their properties over time. A graph can be created using simple functions for adding vertices and edges at different time points as well as updating their properties, or through in-built loaders for common data formats. Then, the GraphView object provides a view of the graph according to a temporal or structural scope, and can be queried in the same way as the Graph object. Accompanying this is functionality for generating GraphViews programmatically over a desired time range. For example, given a dataset of social network interactions, one might generate a daily, weekly, monthly rolling window view of the graph containing all interactions within that month.
