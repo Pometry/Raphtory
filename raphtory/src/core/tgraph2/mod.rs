@@ -53,7 +53,7 @@ impl From<VID> for usize {
 impl From<VertexRef> for VID {
     fn from(id: VertexRef) -> Self {
         match id {
-            VertexRef::Local(LocalVertexRef { shard_id, pid }) => VID(shard_id * 16 + pid),
+            VertexRef::Local(LocalVertexRef { shard_id, pid }) => VID(pid * 16 + shard_id),
             _ => panic!("Cannot convert remote vertex reference to VID"),
         }
     }
@@ -62,7 +62,7 @@ impl From<VertexRef> for VID {
 impl From<LocalVertexRef> for VID {
     fn from(id: LocalVertexRef) -> Self {
         let LocalVertexRef { shard_id, pid } = id;
-        VID(shard_id * 16 + pid)
+        VID(pid * 16 + shard_id)
     }
 }
 

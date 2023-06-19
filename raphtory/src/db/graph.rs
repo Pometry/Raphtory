@@ -1216,7 +1216,7 @@ mod db_tests {
             (1, 1, 1),
         ];
 
-        let g = InternalGraph::new(1);
+        let g = Graph::new(0);
 
         for (t, src, dst) in &vs {
             g.add_edge(*t, *src, *dst, &vec![], None).unwrap();

@@ -1,10 +1,10 @@
-use std::rc::Rc;
+use std::{rc::Rc, sync::Arc};
 
 use itertools::Itertools;
 
 use crate::{
     core::{Direction, Prop},
-    storage::{iter::RefT, Entry},
+    storage::{iter::RefT, Entry, ArcEntry},
 };
 
 use super::{
@@ -13,7 +13,7 @@ use super::{
     node_store::NodeStore,
     tgraph::TGraph,
     tgraph_storage::GraphEntry,
-    VRef, VID,
+    VRef, VID, EID,
 };
 
 
@@ -58,10 +58,10 @@ impl<'a, const N: usize> Vertex<'a, N> {
 
         match dir {
             Direction::OUT | Direction::IN => {
-                PagedIter::Page(Paged::new(Rc::new(self.node), dir, layer, src, self.graph))
+                PagedIter::Page(Paged::new(Arc::new(self.node), dir, layer, src, self.graph))
             }
             Direction::BOTH => {
-                let node = Rc::new(self.node);
+                let node = Arc::new(self.node);
                 let out = Paged::new(node.clone(), Direction::OUT, layer, src, self.graph);
                 let in_ = Paged::new(node, Direction::IN, layer, src, self.graph);
                 PagedIter::Merged(out.merge(in_))
@@ -70,10 +70,10 @@ impl<'a, const N: usize> Vertex<'a, N> {
     }
 
     pub fn edges_iter(
-        &'a self,
+        &self,
         layer: &str,
         dir: Direction,
-    ) -> impl Iterator<Item = EdgeView<'a, N>> + Send + 'a {
+    ) -> impl Iterator<Item = EdgeView<'a, N>> + Send + '_ {
         let layer = self
             .graph
             .props_meta
@@ -107,12 +107,25 @@ impl<'a, const N: usize> Vertex<'a, N> {
     }
 }
 
-
 impl<'a, const N: usize> IntoIterator for Vertex<'a, N> {
     type Item = Vertex<'a, N>;
     type IntoIter = std::iter::Once<Self::Item>;
 
     fn into_iter(self) -> Self::IntoIter {
         std::iter::once(self)
+    }
+}
+
+pub struct ArcVertex<const N:usize> {
+    e: ArcEntry<NodeStore<N>, N>
+}
+
+impl <const N: usize> ArcVertex<N> {
+    pub(crate) fn from_entry(e: ArcEntry<NodeStore<N>, N>) -> Self {
+        ArcVertex { e }
+    }
+
+    pub fn edge_tuples(&self, layer: Option<usize>, dir: Direction) -> impl Iterator<Item = (VID, EID)> + '_ {
+        self.e.edge_tuples(layer.unwrap_or(0), dir)
     }
 }

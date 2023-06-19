@@ -3,8 +3,14 @@ use std::ops::Range;
 use crate::core::{
     edge_ref::EdgeRef,
     tgraph2::{tgraph::InnerTemporalGraph, VID},
-    vertex_ref::{LocalVertexRef, VertexRef}, timeindex::TimeIndexOps, tprop::TProp, tgraph_shard::LockedView, Prop, Direction,
+    tgraph_shard::LockedView,
+    timeindex::TimeIndexOps,
+    tprop::TProp,
+    vertex_ref::{LocalVertexRef, VertexRef},
+    Direction, Prop,
 };
+
+use genawaiter::{sync::GenBoxed, yield_};
 
 use super::view_api::internal::{CoreGraphOps, GraphOps, TimeSemantics};
 
@@ -25,34 +31,28 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
         self.vertex_name(v.into())
     }
 
-    fn edge_additions(
-        &self,
-        eref: EdgeRef,
-    ) -> LockedView<crate::core::timeindex::TimeIndex> {
+    fn edge_additions(&self, eref: EdgeRef) -> LockedView<crate::core::timeindex::TimeIndex> {
         todo!()
     }
 
-    fn edge_deletions(
-        &self,
-        eref: EdgeRef,
-    ) -> LockedView<crate::core::timeindex::TimeIndex> {
+    fn edge_deletions(&self, eref: EdgeRef) -> LockedView<crate::core::timeindex::TimeIndex> {
         todo!()
     }
 
-    fn vertex_additions(
-        &self,
-        v: LocalVertexRef,
-    ) -> LockedView<crate::core::timeindex::TimeIndex> {
+    fn vertex_additions(&self, v: LocalVertexRef) -> LockedView<crate::core::timeindex::TimeIndex> {
         todo!()
     }
 
     fn localise_vertex_unchecked(&self, v: VertexRef) -> LocalVertexRef {
         match v {
-            VertexRef::Local(l) =>  l ,
+            VertexRef::Local(l) => l,
             VertexRef::Remote(_) => {
                 let vid = self.resolve_vertex_ref(&v).unwrap();
                 let local = vid.as_local::<N>();
-                LocalVertexRef{shard_id: local.bucket, pid: local.offset}
+                LocalVertexRef {
+                    shard_id: local.bucket,
+                    pid: local.offset,
+                }
             }
         }
     }
@@ -69,10 +69,7 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
         todo!()
     }
 
-    fn temporal_prop(
-        &self,
-        name: &str,
-    ) -> Option<LockedView<TProp>> {
+    fn temporal_prop(&self, name: &str) -> Option<LockedView<TProp>> {
         todo!()
     }
 
@@ -84,11 +81,7 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
         todo!()
     }
 
-    fn temporal_vertex_prop(
-        &self,
-        v: LocalVertexRef,
-        name: &str,
-    ) -> Option<LockedView<TProp>> {
+    fn temporal_vertex_prop(&self, v: LocalVertexRef, name: &str) -> Option<LockedView<TProp>> {
         todo!()
     }
 
@@ -104,11 +97,7 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
         todo!()
     }
 
-    fn temporal_edge_prop(
-        &self,
-        e: EdgeRef,
-        name: &str,
-    ) -> Option<LockedView<TProp>> {
+    fn temporal_edge_prop(&self, e: EdgeRef, name: &str) -> Option<LockedView<TProp>> {
         todo!()
     }
 
@@ -124,11 +113,14 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
 impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
     fn local_vertex_ref(&self, v: VertexRef) -> Option<LocalVertexRef> {
         match v {
-            VertexRef::Local(l) =>  Some(l) ,
+            VertexRef::Local(l) => Some(l),
             VertexRef::Remote(_) => {
                 let vid = self.resolve_vertex_ref(&v)?;
                 let local = vid.as_local::<N>();
-                Some(LocalVertexRef{shard_id: local.bucket, pid: local.offset})
+                Some(LocalVertexRef {
+                    shard_id: local.bucket,
+                    pid: local.offset,
+                })
             }
         }
     }
@@ -190,19 +182,23 @@ impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
         layer: Option<usize>,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
         let vid = self.resolve_vertex_ref(&VertexRef::Local(v)).unwrap();
-        let v = self.vertex(vid);
-        let iter = v.edges_iter("aa", d).map(|e_vew|{
-            let e_id = e_vew.edge_id();
-            EdgeRef::LocalOut {
-                e_pid: e_id.into(),
-                shard_id: 0,
-                layer_id: 0,
-                src_pid: e_vew.src_id().into(),
-                dst_pid: e_vew.dst_id().into(),
-                time: None,
+        let v = self.vertex_arc(vid);
+
+        let iter: GenBoxed<EdgeRef> = GenBoxed::new_boxed(|co| async move {
+            for (other_v, eid) in v.edge_tuples(layer, d) {
+                co.yield_(EdgeRef::LocalOut {
+                    e_pid: eid.into(),
+                    shard_id: 0,
+                    layer_id: 0,
+                    src_pid: vid.into(),
+                    dst_pid: other_v.into(),
+                    time: None,
+                })
+                .await;
             }
         });
-        Box::new(iter)
+
+        Box::new(iter.into_iter())
     }
 
     fn neighbours(
@@ -223,7 +219,7 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
     fn include_edge_window(&self, e: EdgeRef, w: Range<i64>) -> bool {
         let shard = e.shard();
         let pid = e.pid();
-        
+
         self.edge((shard * N + pid).into()).active(w)
     }
 
@@ -231,11 +227,7 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
         todo!()
     }
 
-    fn edge_window_t(
-        &self,
-        e: EdgeRef,
-        w: Range<i64>,
-    ) -> super::view_api::BoxedIter<EdgeRef> {
+    fn edge_window_t(&self, e: EdgeRef, w: Range<i64>) -> super::view_api::BoxedIter<EdgeRef> {
         todo!()
     }
 
@@ -259,20 +251,11 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
         todo!()
     }
 
-    fn temporal_prop_vec_window(
-        &self,
-        name: &str,
-        t_start: i64,
-        t_end: i64,
-    ) -> Vec<(i64, Prop)> {
+    fn temporal_prop_vec_window(&self, name: &str, t_start: i64, t_end: i64) -> Vec<(i64, Prop)> {
         todo!()
     }
 
-    fn temporal_vertex_prop_vec(
-        &self,
-        v: LocalVertexRef,
-        name: &str,
-    ) -> Vec<(i64, Prop)> {
+    fn temporal_vertex_prop_vec(&self, v: LocalVertexRef, name: &str) -> Vec<(i64, Prop)> {
         todo!()
     }
 

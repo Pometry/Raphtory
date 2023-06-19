@@ -2,7 +2,7 @@ use std::{ops::Deref, rc::Rc, sync::Arc};
 
 use serde::{Deserialize, Serialize};
 
-use crate:: storage::{ self, iter::RefT, Entry, EntryMut, PairEntryMut, } ;
+use crate:: storage::{ self, iter::RefT, Entry, EntryMut, PairEntryMut, ArcEntry, } ;
 
 use super::{edge_store::EdgeStore, node_store::NodeStore};
 
@@ -41,6 +41,10 @@ impl<const N: usize> GraphStorage<N> {
 
     pub(crate) fn get_node(&self, id: usize) -> Entry<'_, NodeStore<N>, N> {
         self.nodes.entry(id)
+    }
+
+    pub(crate) fn get_node_arc(&self, id: usize) -> ArcEntry<NodeStore<N>, N> {
+        self.nodes.entry_arc(id)
     }
 
     pub(crate) fn get_edge(&self, id: usize) -> Entry<'_, EdgeStore<N>, N> {

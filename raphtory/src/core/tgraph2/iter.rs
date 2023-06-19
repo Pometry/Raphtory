@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::{rc::Rc, sync::Arc};
 
 use itertools::Merge;
 
@@ -11,7 +11,7 @@ use super::{
 };
 
 pub struct Paged<'a, const N: usize> {
-    guard: Rc<VRef<'a, N>>,
+    guard: Arc<VRef<'a, N>>,
     data: Vec<(VID, EID)>,
     i: usize,
     size: usize,
@@ -23,7 +23,7 @@ pub struct Paged<'a, const N: usize> {
 
 impl<'a, const N: usize> Paged<'a, N> {
     pub(crate) fn new(
-        guard: Rc<VRef<'a, N>>,
+        guard: Arc<VRef<'a, N>>,
         dir: Direction,
         layer_id: usize,
         src: VID,

@@ -18,7 +18,7 @@ use super::{
     props::Meta,
     tgraph_storage::GraphStorage,
     timer::{MaxCounter, MinCounter, TimeCounterTrait},
-    vertex::Vertex,
+    vertex::{Vertex, ArcVertex},
     EdgeRef, EID, VID, edge::EdgeView,
 };
 
@@ -368,6 +368,11 @@ impl<const N: usize> InnerTemporalGraph<N> {
         Vertex::from_entry(node, self)
     }
 
+    pub(crate) fn vertex_arc(&self, v: VID) -> ArcVertex<N> {
+        let node = self.storage.get_node_arc(v.into());
+        ArcVertex::from_entry(node) 
+    }
+
     pub(crate) fn edge<'a>(&'a self, e: EID) -> EdgeView<'a, N> {
         let edge = self.storage.get_edge(e.into());
         EdgeView::from_entry(edge, self)
@@ -387,7 +392,7 @@ impl<const N: usize> InnerTemporalGraph<N> {
     pub(crate) fn resolve_vertex_ref(&self, v: &VertexRef) -> Option<VID> {
         match v {
             VertexRef::Local(LocalVertexRef { shard_id, pid }) => {
-                Some((*shard_id * N + *pid).into())
+                Some((*pid * N + *shard_id).into())
             }
             VertexRef::Remote(gid) => {
                 let v_id = self.logical_to_physical.get(gid)?;
@@ -395,6 +400,7 @@ impl<const N: usize> InnerTemporalGraph<N> {
             }
         }
     }
+
 }
 
 // #[cfg(test)]

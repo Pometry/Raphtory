@@ -4,9 +4,10 @@ pub(crate) mod iter;
 use std::{
     fmt::Debug,
     ops::{Deref, DerefMut},
-    sync::atomic::{AtomicUsize, Ordering},
+    sync::{atomic::{AtomicUsize, Ordering}, Arc},
 };
 
+use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 
 use self::iter::Iter;
@@ -19,10 +20,10 @@ fn resolve<const N: usize>(index: usize) -> (usize, usize) {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct LockVec<T> {
-    data: parking_lot::RwLock<Vec<Option<T>>>,
+    data: Arc<parking_lot::RwLock<Vec<Option<T>>>>,
 }
 
-impl <T:PartialEq> PartialEq for LockVec<T> {
+impl<T: PartialEq> PartialEq for LockVec<T> {
     fn eq(&self, other: &Self) -> bool {
         let a = self.data.read();
         let b = other.data.read();
@@ -30,22 +31,21 @@ impl <T:PartialEq> PartialEq for LockVec<T> {
     }
 }
 
-
 impl<T> LockVec<T> {
     pub fn new() -> Self {
         Self {
-            data: parking_lot::RwLock::new(Vec::new()),
+            data: Arc::new(parking_lot::RwLock::new(Vec::new())),
         }
     }
 }
 
-#[derive(Serialize, Deserialize, Debug )]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct RawStorage<T, const N: usize> {
     pub(crate) data: Box<[LockVec<T>]>,
     len: AtomicUsize,
 }
 
-impl <T:PartialEq, const N: usize> PartialEq for RawStorage<T, N> {
+impl<T: PartialEq, const N: usize> PartialEq for RawStorage<T, N> {
     fn eq(&self, other: &Self) -> bool {
         self.data.eq(&other.data)
     }
@@ -56,21 +56,19 @@ pub struct ReadLockedStorage<'a, T, const N: usize> {
     locks: Box<[parking_lot::RwLockReadGuard<'a, Vec<Option<T>>>; N]>,
 }
 
-impl <'a, T, const N: usize> ReadLockedStorage<'a, T, N> {
+impl<'a, T, const N: usize> ReadLockedStorage<'a, T, N> {
     pub(crate) fn get(&'a self, index: usize) -> &'a T {
         let (bucket, offset) = resolve::<N>(index);
         let bucket = &self.locks[bucket];
         bucket[offset].as_ref().unwrap()
     }
 
-    pub fn iter2(&'a self) -> impl Iterator<Item = &'a T>{
+    pub fn iter2(&'a self) -> impl Iterator<Item = &'a T> {
         self.locks.iter().map(|l| l.iter().flatten()).flatten()
     }
-
 }
 
 impl<T, const N: usize> RawStorage<T, N> {
-
     pub fn read_lock<'a>(&'a self) -> ReadLockedStorage<'a, T, N> {
         let guards: [parking_lot::RwLockReadGuard<'a, Vec<Option<T>>>; N] =
             std::array::from_fn(|i| self.data[i].data.read());
@@ -108,6 +106,13 @@ impl<T, const N: usize> RawStorage<T, N> {
         let (bucket, _) = resolve::<N>(index);
         let guard = self.data[bucket].data.read();
         Entry { i: index, guard }
+    }
+
+    pub fn entry_arc(&self, index: usize) -> ArcEntry<T, N>{
+        let (bucket, offset) = resolve::<N>(index);
+        let guard = &self.data[bucket].data;
+        let arc_guard = RwLock::read_arc(guard);
+        ArcEntry { i: offset, guard: arc_guard }
     }
 
     pub fn entry_mut(&self, index: usize) -> EntryMut<'_, T> {
@@ -154,6 +159,19 @@ impl<T, const N: usize> RawStorage<T, N> {
 pub struct Entry<'a, T: 'static, const N: usize> {
     i: usize,
     guard: parking_lot::RwLockReadGuard<'a, Vec<Option<T>>>,
+}
+
+pub struct ArcEntry<T: 'static, const N: usize> {
+    i: usize,
+    guard: lock_api::ArcRwLockReadGuard<parking_lot::RawRwLock,Vec<Option<T>>>,
+}
+
+impl <T: 'static, const N: usize> Deref for ArcEntry<T, N> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        self.guard[self.i].as_ref().unwrap()
+    }
 }
 
 impl<'a, T: 'static, const N: usize> Entry<'a, T, N> {
