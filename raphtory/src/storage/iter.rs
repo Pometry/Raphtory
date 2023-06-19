@@ -1,4 +1,4 @@
-use std::{ops::Deref, rc::Rc};
+use std::{ops::Deref, rc::Rc, sync::Arc};
 
 use super::RawStorage;
 
@@ -22,12 +22,12 @@ impl<'a, T, const N: usize> Iter<'a, T, N> {
 }
 
 type GuardIter<'a, T> = (
-    Rc<parking_lot::RwLockReadGuard<'a, Vec<Option<T>>>>,
+    Arc<parking_lot::RwLockReadGuard<'a, Vec<Option<T>>>>,
     std::iter::Flatten<std::slice::Iter<'a, std::option::Option<T>>>,
 );
 
 pub struct RefT<'a, T, const N: usize> {
-    _guard: Rc<parking_lot::RwLockReadGuard<'a, Vec<Option<T>>>>,
+    _guard: Arc<parking_lot::RwLockReadGuard<'a, Vec<Option<T>>>>,
     t: &'a T,
     i: usize,
 }
@@ -103,7 +103,7 @@ impl<'a, T: std::fmt::Debug + Default, const N: usize> Iterator
             let iter = raw.iter().flatten();
 
             // set the current segment with the new iterator
-            self.current = Some((Rc::new(guard), iter));
+            self.current = Some((Arc::new(guard), iter));
             self.offset = 0;
             self.segment += 1;
         }

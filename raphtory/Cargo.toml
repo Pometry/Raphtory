@@ -23,7 +23,7 @@ futures = {version = "0.3", features = ["thread-pool"] }
 genawaiter = "0.99"
 itertools="0.10"
 num-traits = "0.2"
-parking_lot = { version = "0.12" , features = ["serde", "arc_lock"] }
+parking_lot = { version = "0.12" , features = ["serde", "arc_lock", "send_guard"] }
 quickcheck = "1"
 quickcheck_macros = "1"
 once_cell = "1"

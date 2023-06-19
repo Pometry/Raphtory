@@ -94,12 +94,12 @@ pub trait GraphOps: Send + Sync {
     ///
     /// Box<dyn Iterator<Item = EdgeRef> + Send> -  A boxed iterator that yields references to
     /// the edges connected to the vertex.
-    fn vertex_edges<'a>(
-        &'a self,
+    fn vertex_edges(
+        &self,
         v: LocalVertexRef,
         d: Direction,
         layer: Option<usize>,
-    ) -> Box<dyn Iterator<Item = EdgeRef> + 'a>;
+    ) -> Box<dyn Iterator<Item = EdgeRef> + Send>;
 
     /// Returns an iterator over the neighbors of a given vertex in a given direction.
     ///

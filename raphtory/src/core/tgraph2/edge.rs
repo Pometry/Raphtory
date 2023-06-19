@@ -1,4 +1,4 @@
-use std::{rc::Rc, ops::Range};
+use std::{rc::Rc, ops::Range, sync::Arc};
 
 use crate::{core::{timeindex::{TimeIndex, TimeIndexOps}, Direction, tgraph_shard::LockedView}, storage::Entry};
 
@@ -14,7 +14,7 @@ pub(crate) enum ERef<'a, const N: usize> {
     EId(EID),
     ERef(Entry<'a, EdgeStore<N>, N>),
     ELock {
-        lock: Rc<LockedGraphStorage<'a, N>>,
+        lock: Arc<LockedGraphStorage<'a, N>>,
         eid: EID,
     },
 }

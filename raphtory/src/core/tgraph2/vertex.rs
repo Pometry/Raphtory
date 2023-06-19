@@ -73,7 +73,7 @@ impl<'a, const N: usize> Vertex<'a, N> {
         &'a self,
         layer: &str,
         dir: Direction,
-    ) -> impl Iterator<Item = EdgeView<'a, N>> + 'a {
+    ) -> impl Iterator<Item = EdgeView<'a, N>> + Send + 'a {
         let layer = self
             .graph
             .props_meta

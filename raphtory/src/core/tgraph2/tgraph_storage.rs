@@ -1,4 +1,4 @@
-use std::{ops::Deref, rc::Rc};
+use std::{ops::Deref, rc::Rc, sync::Arc};
 
 use serde::{Deserialize, Serialize};
 
@@ -67,7 +67,7 @@ impl<const N: usize> GraphStorage<N> {
         LockedVIter {
             from: 0,
             to: self.nodes.len(),
-            locked_gs: Rc::new(self.lock()),
+            locked_gs: Arc::new(self.lock()),
         }
     }
 
@@ -79,7 +79,7 @@ impl<const N: usize> GraphStorage<N> {
 struct LockedVIter<'a, const N: usize> {
     from: usize,
     to: usize,
-    locked_gs: Rc<LockedGraphStorage<'a, N>>,
+    locked_gs: Arc<LockedGraphStorage<'a, N>>,
 }
 
 impl<'a, const N: usize> Iterator for LockedVIter<'a, N> {
@@ -101,7 +101,7 @@ impl<'a, const N: usize> Iterator for LockedVIter<'a, N> {
 }
 
 pub struct GraphEntry<'a, T, const N: usize> {
-    locked_gs: Rc<LockedGraphStorage<'a, N>>,
+    locked_gs: Arc<LockedGraphStorage<'a, N>>,
     i: usize,
     _marker: std::marker::PhantomData<T>,
 }
@@ -109,7 +109,7 @@ pub struct GraphEntry<'a, T, const N: usize> {
 
 // impl new
 impl<'a, const N: usize, T> GraphEntry<'a, T, N> {
-    pub(crate) fn new(gs: Rc<LockedGraphStorage<'a, N>>,i: usize) -> Self {
+    pub(crate) fn new(gs: Arc<LockedGraphStorage<'a, N>>,i: usize) -> Self {
         Self {
             locked_gs: gs,
             i,
@@ -121,7 +121,7 @@ impl<'a, const N: usize, T> GraphEntry<'a, T, N> {
         self.i
     }
 
-    pub(crate) fn locked_gs(&self) -> &Rc<LockedGraphStorage<'a, N>> {
+    pub(crate) fn locked_gs(&self) -> &Arc<LockedGraphStorage<'a, N>> {
         &self.locked_gs
     }
 }

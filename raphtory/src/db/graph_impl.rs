@@ -183,12 +183,12 @@ impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
         todo!()
     }
 
-    fn vertex_edges<'a>(
-        &'a self,
+    fn vertex_edges(
+        &self,
         v: LocalVertexRef,
         d: Direction,
         layer: Option<usize>,
-    ) -> Box<dyn Iterator<Item = EdgeRef> + 'a> {
+    ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
         let vid = self.resolve_vertex_ref(&VertexRef::Local(v)).unwrap();
         let v = self.vertex(vid);
         let iter = v.edges_iter("aa", d).map(|e_vew|{
