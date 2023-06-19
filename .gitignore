@@ -8,6 +8,8 @@ massif.*
 **/data/*
 .vscode
 docs/source/_rustdoc/*
+docs/nx.html
+docs/graph.html
 docs/build/*
 .DS_Store
 docs/logs/*

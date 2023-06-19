@@ -17,7 +17,7 @@ import jinja2
 project = 'Raphtory'
 copyright = '2023, Pometry'
 author = 'Pometry'
-release = '2020'
+release = '2023'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration

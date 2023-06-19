@@ -1003,7 +1003,7 @@ def test_page_rank():
     assert (actual == expected)
 
 
-def test_generic_taint():
+def test_temporal_reachability():
     g = Graph(1)
     g.add_edge(10, 1, 3, {})
     g.add_edge(11, 1, 2, {})
@@ -1018,7 +1018,7 @@ def test_generic_taint():
     g.add_edge(10, 4, 7, {})
     g.add_edge(10, 5, 8, {})
 
-    actual = algorithms.generic_taint(g, 20, 11, [1, 2], [4, 5])
+    actual = algorithms.temporally_reachable_nodes(g, 20, 11, [1, 2], [4, 5])
     expected = {
         '1': [(11, 'start')],
         '2': [(11, 'start'), (12, '1'), (11, '1')],

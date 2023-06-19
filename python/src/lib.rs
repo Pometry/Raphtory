@@ -22,7 +22,7 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         algorithm_module
     )?)?;
     algorithm_module.add_function(wrap_pyfunction!(local_triangle_count, algorithm_module)?)?;
-    algorithm_module.add_function(wrap_pyfunction!(generic_taint, algorithm_module)?)?;
+    algorithm_module.add_function(wrap_pyfunction!(temporally_reachable_nodes, algorithm_module)?)?;
     algorithm_module.add_function(wrap_pyfunction!(
         local_clustering_coefficient,
         algorithm_module

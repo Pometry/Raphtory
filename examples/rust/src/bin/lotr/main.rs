@@ -1,5 +1,5 @@
 use itertools::Itertools;
-use raphtory::algorithms::generic_taint::generic_taint;
+use raphtory::algorithms::temporal_reachability::temporally_reachable_nodes;
 use raphtory::core::utils;
 use raphtory::core::Prop;
 use raphtory::db::graph::Graph;
@@ -106,7 +106,7 @@ fn main() {
     assert!(graph.has_vertex(gandalf));
     assert_eq!(graph.vertex(gandalf).unwrap().name(), "Gandalf");
 
-    let r = generic_taint(&graph, None, 20, 31930, vec!["Gandalf"], vec![]);
+    let r = temporally_reachable_nodes(&graph, None, 20, 31930, vec!["Gandalf"], None);
     assert_eq!(
         r.keys().sorted().collect_vec(),
         vec!["Gandalf", "Saruman", "Wormtongue"]
