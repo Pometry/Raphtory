@@ -2,7 +2,7 @@ use raphtory::db::graph::Graph;
 use raphtory::db::graph_layer::LayeredGraph;
 use raphtory::db::graph_window::WindowedGraph;
 use raphtory::db::subgraph_vertex::VertexSubgraph;
-use raphtory::db::view_api::internal::{BoxableGraphView, WrappedGraph};
+use raphtory::db::view_api::internal::BoxableGraphView;
 use raphtory::db::view_api::GraphViewOps;
 use std::sync::Arc;
 
