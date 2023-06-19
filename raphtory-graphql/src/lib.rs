@@ -16,7 +16,6 @@ mod graphql_test {
     use raphtory::core::Prop;
     use raphtory::db::graph::Graph;
     use std::collections::HashMap;
-    use std::env;
 
     #[tokio::test]
     async fn basic_query() {
@@ -92,7 +91,8 @@ mod graphql_test {
         "#;
 
         let root = model::QueryRoot;
-        let req = dynamic_graphql::Request::new(gandalf_query).root_value(FieldValue::owned_any(root));
+        let req =
+            dynamic_graphql::Request::new(gandalf_query).root_value(FieldValue::owned_any(root));
 
         let res = schema.execute(req).await;
         let data = res.data.into_json().unwrap();
@@ -121,7 +121,8 @@ mod graphql_test {
         "#;
 
         let root = model::QueryRoot;
-        let req = dynamic_graphql::Request::new(not_gandalf_query).root_value(FieldValue::owned_any(root));
+        let req = dynamic_graphql::Request::new(not_gandalf_query)
+            .root_value(FieldValue::owned_any(root));
 
         let res = schema.execute(req).await;
         let data = res.data.into_json().unwrap();
@@ -139,17 +140,24 @@ mod graphql_test {
         );
     }
 
-
     #[tokio::test]
     async fn query_properties() {
         let graph = Graph::new(1);
         if let Err(err) = graph.add_vertex(0, "gandalf", &vec![]) {
             panic!("Could not add vertex! {:?}", err);
         }
-        if let Err(err) = graph.add_vertex(0, "bilbo", &vec![("food".to_string(), Prop::Str("lots".to_string()))]) {
+        if let Err(err) = graph.add_vertex(
+            0,
+            "bilbo",
+            &vec![("food".to_string(), Prop::Str("lots".to_string()))],
+        ) {
             panic!("Could not add vertex! {:?}", err);
         }
-        if let Err(err) = graph.add_vertex(0, "frodo", &vec![("food".to_string(), Prop::Str("some".to_string()))]) {
+        if let Err(err) = graph.add_vertex(
+            0,
+            "frodo",
+            &vec![("food".to_string(), Prop::Str("some".to_string()))],
+        ) {
             panic!("Could not add vertex! {:?}", err);
         }
 
@@ -173,7 +181,8 @@ mod graphql_test {
         "#;
 
         let root = model::QueryRoot;
-        let req = dynamic_graphql::Request::new(prop_has_key_filter).root_value(FieldValue::owned_any(root));
+        let req = dynamic_graphql::Request::new(prop_has_key_filter)
+            .root_value(FieldValue::owned_any(root));
 
         let res = schema.execute(req).await;
         let data = res.data.into_json().unwrap();
@@ -203,7 +212,8 @@ mod graphql_test {
         "#;
 
         let root = model::QueryRoot;
-        let req = dynamic_graphql::Request::new(prop_has_value_filter).root_value(FieldValue::owned_any(root));
+        let req = dynamic_graphql::Request::new(prop_has_value_filter)
+            .root_value(FieldValue::owned_any(root));
 
         let res = schema.execute(req).await;
         let data = res.data.into_json().unwrap();

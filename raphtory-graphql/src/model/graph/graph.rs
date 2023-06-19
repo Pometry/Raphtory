@@ -1,18 +1,10 @@
 use std::sync::Arc;
-
 use crate::model::algorithm::Algorithms;
 use crate::model::filters::nodefilter::NodeFilter;
 use crate::model::graph::edge::Edge;
 use crate::model::graph::node::Node;
-use async_graphql::Context;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
-use itertools::Itertools;
-use raphtory::core::Prop;
-use raphtory::db::edge::EdgeView;
-use raphtory::db::vertex::VertexView;
 use raphtory::db::view_api::internal::{BoxableGraphView, WrappedGraph};
-use raphtory::db::view_api::EdgeListOps;
-use raphtory::db::view_api::EdgeViewOps;
 use raphtory::db::view_api::{GraphViewOps, TimeOps, VertexViewOps};
 
 #[derive(Clone)]

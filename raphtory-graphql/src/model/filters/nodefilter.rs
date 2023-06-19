@@ -1,19 +1,14 @@
-use std::borrow::Cow;
-use raphtory::db::vertex::VertexView;
-use raphtory::db::view_api::VertexViewOps;
-use crate::model::graph::graph::DynamicGraph;
-use crate::model::graph::node::Node;
 use crate::model::filters::primitives::{NumberFilter, StringFilter};
 use crate::model::filters::property::PropertyHasFilter;
-use dynamic_graphql::{InputObject};
-use dynamic_graphql::internal::{FromValue, InputTypeName, InputValueResult, Register, TypeName};
+use crate::model::graph::node::Node;
+use dynamic_graphql::InputObject;
 use raphtory::core::Prop;
-
+use raphtory::db::view_api::VertexViewOps;
 
 #[derive(InputObject)]
 pub struct NodeFilter {
     name: Option<StringFilter>,
-    node_type:Option<StringFilter>,
+    node_type: Option<StringFilter>,
     in_degree: Option<NumberFilter>,
     out_degree: Option<NumberFilter>,
     property_has: Option<PropertyHasFilter>,
@@ -28,7 +23,11 @@ impl NodeFilter {
         }
 
         if let Some(type_filter) = &self.node_type {
-            let node_type= node.vv.property("type".to_string(),true).unwrap_or(Prop::Str("NONE".to_string())).to_string();
+            let node_type = node
+                .vv
+                .property("type".to_string(), true)
+                .unwrap_or(Prop::Str("NONE".to_string()))
+                .to_string();
             if !type_filter.matches(&node_type) {
                 return false;
             }

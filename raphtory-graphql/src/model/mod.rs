@@ -1,17 +1,7 @@
 use crate::data::Data;
-use crate::model::algorithm::Algorithms;
 use crate::model::graph::graph::GqlGraph;
 use async_graphql::Context;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
-use itertools::Itertools;
-use raphtory::core::Prop;
-use raphtory::db::edge::EdgeView;
-use raphtory::db::vertex::VertexView;
-use raphtory::db::view_api::internal::{BoxableGraphView, WrappedGraph};
-use raphtory::db::view_api::EdgeListOps;
-use raphtory::db::view_api::EdgeViewOps;
-use raphtory::db::view_api::{GraphViewOps, TimeOps, VertexViewOps};
-use std::sync::Arc;
 
 pub(crate) mod algorithm;
 pub(crate) mod filters;

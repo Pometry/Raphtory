@@ -3,7 +3,6 @@ use poem::http::StatusCode;
 use poem::web::{Html, Json};
 use poem::{handler, IntoResponse};
 use serde::Serialize;
-use tracing::{span, Instrument, Level};
 
 #[derive(Serialize)]
 struct Health {

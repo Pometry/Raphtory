@@ -1,3 +1,4 @@
+use crate::model::graph::graph::DynamicGraph;
 use async_graphql::dynamic::{
     Field, FieldFuture, FieldValue, InputValue, Object, ResolverContext, TypeRef,
 };
@@ -10,7 +11,6 @@ use raphtory::db::view_api::GraphViewOps;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::sync::Mutex;
-use crate::model::graph::graph::DynamicGraph;
 
 type RegisterFunction = fn(&str, Registry, Object) -> (Registry, Object);
 

@@ -1,5 +1,3 @@
-use crate::data::Data;
-use crate::model::algorithm::Algorithms;
 use crate::model::graph::edge::Edge;
 use crate::model::graph::graph::DynamicGraph;
 use crate::model::graph::property::Property;
@@ -7,13 +5,9 @@ use async_graphql::Context;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::core::Prop;
-use raphtory::db::edge::EdgeView;
 use raphtory::db::vertex::VertexView;
-use raphtory::db::view_api::internal::WrappedGraph;
 use raphtory::db::view_api::EdgeListOps;
-use raphtory::db::view_api::EdgeViewOps;
-use raphtory::db::view_api::{GraphViewOps, TimeOps, VertexViewOps};
-use std::sync::Arc;
+use raphtory::db::view_api::VertexViewOps;
 
 #[derive(ResolvedObject)]
 pub(crate) struct Node {
