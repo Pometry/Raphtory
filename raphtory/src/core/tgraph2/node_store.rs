@@ -86,6 +86,10 @@ impl<const N: usize> NodeStore<N> {
         self.props.temporal_props(prop_id)
     }
 
+    pub(crate) fn static_property(&self, prop_id: usize) -> Option<&Prop> {
+        self.props.static_prop(prop_id)
+    }
+
     pub(crate) fn edge_tuples<'a>(
         &'a self,
         layer_id: usize,

@@ -6,7 +6,7 @@ use crate::storage::{Entry, iter::RefT};
 
 use self::{node_store::NodeStore, tgraph::TGraph, tgraph_storage::GraphEntry, edge::ERef};
 
-use super::Direction;
+use super::{Direction, vertex_ref::LocalVertexRef};
 
 mod adj;
 pub mod ops;
@@ -42,6 +42,13 @@ impl From<usize> for VID {
 impl From<VID> for usize{
     fn from(id: VID) -> Self {
         id.0
+    }
+}
+
+impl From<LocalVertexRef> for VID {
+    fn from(id: LocalVertexRef) -> Self {
+        let LocalVertexRef { shard_id, pid } = id;
+        VID(shard_id * 16 + pid)
     }
 }
 

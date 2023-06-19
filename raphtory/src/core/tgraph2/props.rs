@@ -40,19 +40,26 @@ impl Props {
             Box::new(std::iter::empty())
         }
     }
+
+    pub(crate) fn static_prop(&self, prop_id: usize) -> Option<&Prop> {
+        let prop = self.static_props.get(prop_id)?;
+        prop.as_ref()
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub(crate) struct Meta {
-    meta_prop: DictMapper<String>,
+    meta_prop_temporal: DictMapper<String>,
+    meta_prop_static: DictMapper<String>,
     meta_layer: DictMapper<String>,
 }
 
 impl Meta {
     pub(crate) fn new() -> Self {
         Self {
-            meta_prop: DictMapper::default(),
-            meta_layer: DictMapper::default(),
+            meta_prop_temporal: DictMapper::default(),
+            meta_prop_static: DictMapper::default(),
+            meta_layer: DictMapper::new(1), // layer 0 is the default layer
         }
     }
 
@@ -61,13 +68,17 @@ impl Meta {
         props: Vec<(String, Prop)>,
     ) -> impl Iterator<Item = (usize, Prop)> + '_ {
         props.into_iter().map(move |(name, prop)| {
-            let prop_id = self.meta_prop.get_or_create_id(name.clone());
+            let prop_id = self.meta_prop_temporal.get_or_create_id(name.clone());
             (prop_id, prop)
         })
     }
 
-    pub(crate) fn resolve_prop_id(&self, name: &str) -> usize {
-        self.meta_prop.get_or_create_id(name.to_string())
+    pub(crate) fn resolve_prop_id(&self, name: &str, is_static: bool) -> usize {
+        if is_static {
+            self.meta_prop_static.get_or_create_id(name.to_string())
+        } else {
+            self.meta_prop_temporal.get_or_create_id(name.to_string())
+        }
     }
 
     pub(crate) fn get_or_create_layer_id(&self, name: String) -> usize {
@@ -76,6 +87,14 @@ impl Meta {
 
     pub(crate) fn get_layer_id(&self, name: &str) -> Option<usize> {
         self.meta_layer.map.get(name).as_deref().copied()
+    }
+
+    pub(crate) fn get_layer_name_by_id(&self, id: usize) -> Option<String> {
+        self.meta_layer
+            .map
+            .iter()
+            .find(|entry| entry.value() == &id)
+            .map(|entry| entry.key().clone())
     }
 }
 
@@ -86,6 +105,14 @@ struct DictMapper<T: Hash + Eq> {
 }
 
 impl<T: Hash + Eq> DictMapper<T> {
+
+    pub(crate) fn new(start_at: usize) -> Self {
+        Self {
+            map: FxDashMap::default(),
+            counter: AtomicUsize::new(start_at),
+        }
+    }
+
     fn get_or_create_id(&self, name: T) -> usize {
         if let Some(existing_id) = self.map.get(&name) {
             return *existing_id;

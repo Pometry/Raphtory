@@ -6,6 +6,12 @@ pub struct LocalVertexRef {
     pub pid: usize,
 }
 
+impl Into<usize> for LocalVertexRef {
+    fn into(self) -> usize {
+        self.pid
+    }
+}
+
 impl LocalVertexRef {
     pub(crate) fn new(pid: usize, shard_id: usize) -> Self {
         Self { shard_id, pid }

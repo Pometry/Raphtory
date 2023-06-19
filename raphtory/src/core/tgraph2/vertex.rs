@@ -16,6 +16,7 @@ use super::{
     VRef, VID,
 };
 
+
 pub struct Vertex<'a, const N: usize> {
     node: VRef<'a, N>,
     graph: &'a TGraph<N>,
@@ -43,14 +44,13 @@ impl<'a, const N: usize> Vertex<'a, N> {
     }
 
     pub fn temporal_properties(&'a self, name: &str) -> impl Iterator<Item = (i64, Prop)> + 'a {
-        let prop_id = self.graph.inner.props_meta.resolve_prop_id(name);
+        let prop_id = self.graph.props_meta.resolve_prop_id(name, false);
         (&self.node).temporal_properties(prop_id)
     }
 
     pub fn edges(self, layer: &str, dir: Direction) -> impl Iterator<Item = EdgeView<'a, N>> + 'a {
         let layer = self
             .graph
-            .inner
             .props_meta
             .get_or_create_layer_id(layer.to_owned());
 
@@ -76,7 +76,6 @@ impl<'a, const N: usize> Vertex<'a, N> {
     ) -> impl Iterator<Item = EdgeView<'a, N>> + 'a {
         let layer = self
             .graph
-            .inner
             .props_meta
             .get_or_create_layer_id(layer.to_owned());
         (*self.node)
@@ -99,7 +98,6 @@ impl<'a, const N: usize> Vertex<'a, N> {
     ) -> impl Iterator<Item = Vertex<'a, N>> + 'a {
         let layer = self
             .graph
-            .inner
             .props_meta
             .get_or_create_layer_id(layer.to_owned());
 

@@ -60,9 +60,12 @@ pub struct InternalGraph {
     pub(crate) layer_ids: Arc<parking_lot::RwLock<FxHashMap<String, usize>>>,
 }
 
+const SEG: usize = 16;
+type InternalGraph2 = InnerTemporalGraph<SEG>;
+
 #[repr(transparent)]
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
-pub struct Graph(Arc<InnerTemporalGraph<16>>);
+pub struct Graph(Arc<InternalGraph2>);
 
 impl Display for Graph {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -71,7 +74,7 @@ impl Display for Graph {
 }
 
 impl Deref for Graph {
-    type Target = Arc<InternalGraph>;
+    type Target = Arc<InternalGraph2>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -85,9 +88,9 @@ impl DerefMut for Graph {
 }
 
 impl WrappedGraph for Graph {
-    type Internal = InternalGraph;
+    type Internal = InternalGraph2;
 
-    fn graph(&self) -> &InternalGraph {
+    fn graph(&self) -> &Self::Internal {
         &self.0
     }
 }
@@ -110,7 +113,7 @@ impl Graph {
     /// let g = Graph::new(4);
     /// ```
     pub fn new(nr_shards: usize) -> Self {
-        Self(Arc::new(InternalGraph::new(nr_shards)))
+        Self(Arc::new(InternalGraph2::default()))
     }
 
     /// Load a graph from a directory
@@ -130,10 +133,10 @@ impl Graph {
     /// // let g = Graph::load_from_file("path/to/graph");
     /// ```
     pub fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self, Box<bincode::ErrorKind>> {
-        Ok(Self(Arc::new(InternalGraph::load_from_file(path)?)))
+        Ok(Self(Arc::new(InternalGraph2::load_from_file(path)?)))
     }
 
-    pub fn as_arc(&self) -> Arc<InternalGraph> {
+    pub fn as_arc(&self) -> Arc<InternalGraph2> {
         self.0.clone()
     }
 }
@@ -529,7 +532,6 @@ impl GraphOps for InternalGraph {
 
 /// The implementation of a temporal graph composed of multiple shards.
 impl InternalGraph {
-
     fn localise_edge(&self, src: VertexRef, dst: VertexRef) -> (usize, VertexRef, VertexRef) {
         match src {
             VertexRef::Local(local_src) => match dst {
