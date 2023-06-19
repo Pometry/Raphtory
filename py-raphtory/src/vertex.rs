@@ -1,7 +1,7 @@
 //! Defines the `Vertex`, which represents a vertex in the graph.
 //! A vertex is a node in the graph, and can have properties and edges.
 //! It can also be used to navigate the graph.
-use crate::dynamic::{DynamicGraph, IntoDynamic};
+use crate::wrappers::dynamic::{DynamicGraph, IntoDynamic};
 use crate::edge::{PyEdges, PyNestedEdges};
 use crate::types::repr::{iterator_repr, Repr};
 use crate::utils::{

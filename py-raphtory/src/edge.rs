@@ -4,7 +4,8 @@
 //! The PyEdge class also provides access to the perspective APIs, which allow the user to view the
 //! edge as it existed at a particular point in time, or as it existed over a particular time range.
 //!
-use crate::dynamic::{DynamicGraph, IntoDynamic};
+use std::collections::hash_map::DefaultHasher;
+use crate::wrappers::dynamic::{DynamicGraph, IntoDynamic};
 use crate::types::repr::{iterator_repr, Repr};
 use crate::utils::*;
 use crate::vertex::{PyVertex, PyVertexIterable};
@@ -17,7 +18,6 @@ use pyo3::pyclass::CompareOp;
 use pyo3::{pyclass, pymethods, PyAny, PyRef, PyRefMut, PyResult};
 use raphtory::db::edge::EdgeView;
 use raphtory::db::view_api::*;
-use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;

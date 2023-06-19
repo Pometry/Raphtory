@@ -1,5 +1,5 @@
 //! The API for querying a view of the graph in a read-only state
-use crate::dynamic::{DynamicGraph, IntoDynamic};
+use crate::wrappers::dynamic::{DynamicGraph, IntoDynamic};
 use crate::edge::{PyEdge, PyEdges};
 use crate::graph::PyGraph;
 use crate::types::repr::Repr;
