@@ -230,20 +230,20 @@ impl<const N: usize, L: lock_api::RawRwLock + 'static> TGraph<N, L> {
         self.inner.logical_to_physical.contains_key(&v.id())
     }
 
-    pub fn has_vertex_window<V: InputVertex>(&self, v: V, window: Range<i64>) -> bool {
-        let v_id = if let Some(v_id) = self.inner.logical_to_physical.get(&v.id()) {
-            *v_id
-        } else {
-            return false;
-        };
+    // pub fn has_vertex_window<V: InputVertex>(&self, v: V, window: Range<i64>) -> bool {
+    //     let v_id = if let Some(v_id) = self.inner.logical_to_physical.get(&v.id()) {
+    //         *v_id
+    //     } else {
+    //         return false;
+    //     };
 
-        let node = self.inner.storage.get_node(v_id);
-        if let Some(n) = node.value() {
-            n.has_time_window(window)
-        } else {
-            false
-        }
-    }
+    //     let node = self.inner.storage.get_node(v_id);
+    //     if let Some(n) = node.value() {
+    //         n.has_time_window(window)
+    //     } else {
+    //         false
+    //     }
+    // }
 
     pub fn vertex_ids(&self) -> impl Iterator<Item = VID> {
         (0..self.inner.storage.nodes_len()).map(|i| i.into())
@@ -253,19 +253,19 @@ impl<const N: usize, L: lock_api::RawRwLock + 'static> TGraph<N, L> {
         (0..self.inner.storage.edges_len()).map(|i| i.into())
     }
 
-    pub fn vertex_active(&self, v: VID, t_start: i64, t_end: i64) -> bool {
-        let node = self.inner.storage.get_node(v.into());
-        node.value()
-            .map(|n| n.timestamps().active(t_start..t_end))
-            .unwrap_or(false)
-    }
+    // pub fn vertex_active(&self, v: VID, t_start: i64, t_end: i64) -> bool {
+    //     let node = self.inner.storage.get_node(v.into());
+    //     node.value()
+    //         .map(|n| n.timestamps().active(t_start..t_end))
+    //         .unwrap_or(false)
+    // }
 
-    pub fn edge_active(&self, e: EID, t_start: i64, t_end: i64) -> bool {
-        let edge = self.inner.storage.get_edge(e.into());
-        edge.value()
-            .map(|e| e.timestamps().active(t_start..t_end))
-            .unwrap_or(false)
-    }
+    // pub fn edge_active(&self, e: EID, t_start: i64, t_end: i64) -> bool {
+    //     let edge = self.inner.storage.get_edge(e.into());
+    //     edge.value()
+    //         .map(|e| e.timestamps().active(t_start..t_end))
+    //         .unwrap_or(false)
+    // }
 
     pub fn vertices<'a>(&'a self) -> impl Iterator<Item = Vertex<'a, N, L>> {
         self.inner
@@ -308,8 +308,8 @@ mod test {
         g.add_vertex(1, 9);
 
         assert!(g.has_vertex(9u64));
-        assert!(g.has_vertex_window(9u64, 1..15));
-        assert!(!g.has_vertex_window(9u64, 10..15));
+        // assert!(g.has_vertex_window(9u64, 1..15));
+        // assert!(!g.has_vertex_window(9u64, 10..15));
 
         assert_eq!(
             g.vertex_ids()
@@ -328,7 +328,7 @@ mod test {
         g.add_vertex_with_props(ts, v_id, vec![("type".into(), Prop::Str("wallet".into()))]);
 
         assert!(g.has_vertex(v_id));
-        assert!(g.has_vertex_window(v_id, 1..15));
+        // assert!(g.has_vertex_window(v_id, 1..15));
         assert_eq!(
             g.vertex_ids()
                 .flat_map(|v| g.find_global_id(v))

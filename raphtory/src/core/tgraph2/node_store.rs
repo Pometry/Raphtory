@@ -75,9 +75,9 @@ impl<const N: usize> NodeStore<N> {
         }
     }
 
-    pub(crate) fn has_time_window(&self, window: Range<i64>) -> bool {
-        self.timestamps.range(window).next().is_some()
-    }
+    // pub(crate) fn has_time_window(&self, window: Range<i64>) -> bool {
+    //     self.timestamps.range(window).next().is_some()
+    // }
 
     pub(crate) fn temporal_properties<'a>(
         &'a self,

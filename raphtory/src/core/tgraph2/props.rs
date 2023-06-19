@@ -35,7 +35,7 @@ impl Props {
     ) -> Box<dyn Iterator<Item = (i64, Prop)> + '_> {
         let o = self.temporal_props.get(prop_id);
         if let Some(t_prop) = o {
-            Box::new(t_prop.iter().map(|(t, p)| (*t, p.clone())))
+            Box::new(t_prop.iter().map(|(t, p)| (t, p.clone())))
         } else {
             Box::new(std::iter::empty())
         }
