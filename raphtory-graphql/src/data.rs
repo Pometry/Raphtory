@@ -15,13 +15,12 @@ impl Data {
 
         let graphs = paths
             .filter_map(|entry| {
-                let path:PathBuf = entry.unwrap().path();
-                if path.is_dir(){
-                    let graph = Graph::load_from_file(&path).ok()?;
-                    let filename = path.file_name()?.to_str()?.to_string();
+                let path: PathBuf = entry.unwrap().path();
+                if path.is_dir() {
+                    let graph = Graph::load_from_file(&path).expect("Unable to load from graph");
+                    let filename = path.file_name().unwrap().to_str().unwrap().to_string();
                     Some((filename, graph))
-                }
-                else{
+                } else {
                     None
                 }
             })
