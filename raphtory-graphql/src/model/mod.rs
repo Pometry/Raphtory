@@ -16,6 +16,7 @@ use std::sync::Arc;
 pub(crate) mod algorithm;
 pub(crate) mod filters;
 pub(crate) mod graph;
+pub(crate) mod wrappers;
 
 #[derive(ResolvedObject)]
 #[graphql(root)]

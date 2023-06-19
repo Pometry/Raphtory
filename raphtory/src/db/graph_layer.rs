@@ -38,11 +38,7 @@ impl<G: GraphViewOps> LayeredGraph<G> {
     /// Return None if the intersection between the previously requested layers and the layer of
     /// this view is null
     fn constrain(&self, layer: Option<usize>) -> Option<usize> {
-        match layer {
-            None => Some(self.layer),
-            Some(layer) if layer == self.layer => Some(layer),
-            _ => None,
-        }
+        Some(layer.unwrap_or(self.layer))
     }
 }
 
