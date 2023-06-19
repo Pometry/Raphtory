@@ -1,6 +1,5 @@
 use itertools::chain;
 use itertools::Itertools;
-use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::iter;
 use std::ops::Range;
@@ -8,7 +7,7 @@ use std::ops::Range;
 use crate::core::adj::Adj;
 use crate::core::edge_ref::EdgeRef;
 use crate::core::props::Props;
-use crate::core::timeindex::TimeIndex;
+use crate::core::timeindex::{TimeIndex, TimeIndexOps};
 use crate::core::{Direction, Prop};
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -33,9 +32,12 @@ impl From<usize> for VID {
 pub(crate) struct EdgeLayer {
     layer_id: usize,
     shard_id: usize,
-    local_timestamps: Vec<TimeIndex>,
-    remote_out_timestamps: Vec<TimeIndex>,
-    remote_into_timestamps: Vec<TimeIndex>,
+    local_additions: Vec<TimeIndex>,
+    local_deletions: Vec<TimeIndex>,
+    remote_out_additions: Vec<TimeIndex>,
+    remote_out_deletions: Vec<TimeIndex>,
+    remote_into_additions: Vec<TimeIndex>,
+    remote_into_deletions: Vec<TimeIndex>,
 
     // Vector of adjacency lists. It is populated lazyly, so avoid using [] accessor for reading
     adj_lists: Vec<Adj>,
@@ -52,9 +54,12 @@ impl EdgeLayer {
             adj_lists: Default::default(),
             local_props: Default::default(),
             remote_out_props: Default::default(),
-            local_timestamps: Default::default(),
-            remote_out_timestamps: Default::default(),
-            remote_into_timestamps: Default::default(),
+            local_additions: Default::default(),
+            local_deletions: Default::default(),
+            remote_out_additions: Default::default(),
+            remote_out_deletions: Default::default(),
+            remote_into_additions: Default::default(),
+            remote_into_deletions: Default::default(),
             remote_into_props: Default::default(),
         }
     }
@@ -141,13 +146,24 @@ impl EdgeLayer {
         let dst = VID::Local(dst_pid);
         let src = VID::Local(src_pid);
         self.ensure_adj_lists_len(required_len);
-        let edge_meta = self.get_edge_and_update_time(src_pid, dst, t, Direction::OUT);
+        let (edge_meta, timestamps, _) = self.get_edge_and_timestamps(src_pid, dst, Direction::OUT);
+        timestamps.insert(t);
         self.link_outbound_edge(edge_meta, src_pid, dst);
         self.link_inbound_edge(edge_meta, src, dst_pid);
         self.local_props.upsert_temporal_props(t, edge_meta, props);
     }
 
-    #[allow(unused_variables)]
+    pub(crate) fn delete_edge(&mut self, t: i64, src_pid: usize, dst_pid: usize) {
+        let required_len = std::cmp::max(src_pid, dst_pid) + 1;
+        let dst = VID::Local(dst_pid);
+        let src = VID::Local(src_pid);
+        self.ensure_adj_lists_len(required_len);
+        let (edge_meta, _, deletions) = self.get_edge_and_timestamps(src_pid, dst, Direction::OUT);
+        deletions.insert(t);
+        self.link_outbound_edge(edge_meta, src_pid, dst);
+        self.link_inbound_edge(edge_meta, src, dst_pid);
+    }
+
     pub(crate) fn add_edge_remote_out(
         &mut self,
         t: i64,
@@ -157,13 +173,21 @@ impl EdgeLayer {
     ) {
         self.ensure_adj_lists_len(src_pid + 1);
         let dst = VID::Remote(dst);
-        let edge_meta = self.get_edge_and_update_time(src_pid, dst, t, Direction::OUT);
+        let (edge_meta, timestamps, _) = self.get_edge_and_timestamps(src_pid, dst, Direction::OUT);
+        timestamps.insert(t);
         self.link_outbound_edge(edge_meta, src_pid, dst);
         self.remote_out_props
             .upsert_temporal_props(t, edge_meta, props);
     }
 
-    #[allow(unused_variables)]
+    pub(crate) fn delete_edge_remote_out(&mut self, t: i64, src_pid: usize, dst: u64) {
+        self.ensure_adj_lists_len(src_pid + 1);
+        let dst = VID::Remote(dst);
+        let (edge_meta, _, deletions) = self.get_edge_and_timestamps(src_pid, dst, Direction::OUT);
+        deletions.insert(t);
+        self.link_outbound_edge(edge_meta, src_pid, dst);
+    }
+
     pub(crate) fn add_edge_remote_into(
         &mut self,
         t: i64,
@@ -173,10 +197,19 @@ impl EdgeLayer {
     ) {
         let src = VID::Remote(src);
         self.ensure_adj_lists_len(dst_pid + 1);
-        let edge_meta = self.get_edge_and_update_time(dst_pid, src, t, Direction::IN);
+        let (edge_meta, timestamps, _) = self.get_edge_and_timestamps(dst_pid, src, Direction::IN);
+        timestamps.insert(t);
         self.link_inbound_edge(edge_meta, src, dst_pid);
         self.remote_into_props
             .upsert_temporal_props(t, edge_meta, props);
+    }
+
+    pub(crate) fn delete_edge_remote_into(&mut self, t: i64, src: u64, dst_pid: usize) {
+        let src = VID::Remote(src);
+        self.ensure_adj_lists_len(dst_pid + 1);
+        let (edge_meta, _, deletions) = self.get_edge_and_timestamps(dst_pid, src, Direction::IN);
+        deletions.insert(t);
+        self.link_inbound_edge(edge_meta, src, dst_pid);
     }
 
     pub(crate) fn edge_props_mut(&mut self, edge: EdgeRef) -> &mut Props {
@@ -210,34 +243,37 @@ impl EdgeLayer {
         self.adj_lists.get(v_pid).unwrap_or(&Adj::Solo)
     }
 
-    fn get_edge_and_update_time(
+    fn get_edge_and_timestamps(
         &mut self,
         local_v: usize,
         other: VID,
-        t: i64,
         dir: Direction,
-    ) -> usize {
-        let timestamps = match other {
+    ) -> (usize, &mut TimeIndex, &mut TimeIndex) {
+        let (timestamps, deletions) = match other {
             VID::Remote(_) => match dir {
-                Direction::IN => &mut self.remote_into_timestamps,
-                Direction::OUT => &mut self.remote_out_timestamps,
+                Direction::IN => (
+                    &mut self.remote_into_additions,
+                    &mut self.remote_into_deletions,
+                ),
+                Direction::OUT => (
+                    &mut self.remote_out_additions,
+                    &mut self.remote_out_deletions,
+                ),
                 Direction::BOTH => {
                     panic!("Internal get_edge function should not be called with `Direction::BOTH`")
                 }
             },
-            VID::Local(_) => &mut self.local_timestamps,
+            VID::Local(_) => (&mut self.local_additions, &mut self.local_deletions),
         };
-        match self.adj_lists[local_v].get_edge(other, dir) {
-            Some(edge) => {
-                timestamps[edge].insert(t);
-                edge
-            }
-            None => {
+        let edge = self.adj_lists[local_v]
+            .get_edge(other, dir)
+            .unwrap_or_else(|| {
                 let edge = timestamps.len();
-                timestamps.push(TimeIndex::one(t));
+                timestamps.push(TimeIndex::default());
+                deletions.push(TimeIndex::default());
                 edge
-            }
-        }
+            });
+        (edge, &mut timestamps[edge], &mut deletions[edge])
     }
 
     pub(crate) fn link_inbound_edge(
@@ -292,7 +328,7 @@ impl EdgeLayer {
                     } => match dst {
                         VID::Local(dst_pid) => {
                             let e = out.find(dst_pid).and_then(|e| match w {
-                                Some(w) => self.local_timestamps[e].active(w).then_some(e),
+                                Some(w) => self.local_additions[e].active(w).then_some(e),
                                 None => Some(e),
                             })?;
                             Some(EdgeRef::LocalOut {
@@ -306,7 +342,7 @@ impl EdgeLayer {
                         }
                         VID::Remote(dst) => {
                             let e = remote_out.find(dst).and_then(|e| match w {
-                                Some(w) => self.remote_out_timestamps[e].active(w).then_some(e),
+                                Some(w) => self.remote_out_additions[e].active(w).then_some(e),
                                 None => Some(e),
                             })?;
                             Some(EdgeRef::RemoteOut {
@@ -328,7 +364,7 @@ impl EdgeLayer {
                         Adj::Solo => None,
                         Adj::List { remote_into, .. } => {
                             let e = remote_into.find(src).filter(|e| match w {
-                                Some(w) => self.remote_into_timestamps[*e].active(w),
+                                Some(w) => self.remote_into_additions[*e].active(w),
                                 None => true,
                             })?;
                             Some(EdgeRef::RemoteInto {
@@ -351,60 +387,29 @@ impl EdgeLayer {
         self.edge(src, dst, w).is_some()
     }
 
-    #[inline]
-    pub(crate) fn get_edge_history(&self, edge: EdgeRef) -> impl Iterator<Item = i64> + '_ {
-        let timestamps = match edge {
-            EdgeRef::RemoteInto { e_pid, .. } => &self.remote_into_timestamps[e_pid],
-            EdgeRef::RemoteOut { e_pid, .. } => &self.remote_out_timestamps[e_pid],
-            local_edge => &self.local_timestamps[local_edge.pid()],
-        };
-        timestamps.iter().copied()
+    pub(crate) fn edge_additions(&self, edge: EdgeRef) -> &TimeIndex {
+        match edge {
+            EdgeRef::RemoteInto { e_pid, .. } => &self.remote_into_additions[e_pid],
+            EdgeRef::RemoteOut { e_pid, .. } => &self.remote_out_additions[e_pid],
+            EdgeRef::LocalInto { e_pid, .. } => &self.local_additions[e_pid],
+            EdgeRef::LocalOut { e_pid, .. } => &self.local_additions[e_pid],
+        }
     }
 
-    #[inline]
-    pub(crate) fn get_edge_history_window(
-        &self,
-        edge: EdgeRef,
-        w: Range<i64>,
-    ) -> impl Iterator<Item = i64> + '_ {
-        let timestamps = match edge {
-            EdgeRef::RemoteInto { e_pid, .. } => &self.remote_into_timestamps[e_pid],
-            EdgeRef::RemoteOut { e_pid, .. } => &self.remote_out_timestamps[e_pid],
-            local_edge => &self.local_timestamps[local_edge.pid()],
-        };
-        timestamps.range(w).copied()
-    }
-
-    pub(crate) fn explode_edge(&self, edge: EdgeRef) -> impl Iterator<Item = EdgeRef> + '_ {
-        self.get_edge_history(edge).map(move |t| edge.at(t))
-    }
-
-    pub(crate) fn explode_edge_window(
-        &self,
-        edge: EdgeRef,
-        w: Range<i64>,
-    ) -> impl Iterator<Item = EdgeRef> + '_ {
-        self.get_edge_history_window(edge, w)
-            .map(move |t| edge.at(t))
+    pub(crate) fn edge_deletions(&self, edge: EdgeRef) -> &TimeIndex {
+        match edge {
+            EdgeRef::RemoteInto { e_pid, .. } => &self.remote_into_deletions[e_pid],
+            EdgeRef::RemoteOut { e_pid, .. } => &self.remote_out_deletions[e_pid],
+            EdgeRef::LocalInto { e_pid, .. } => &self.local_deletions[e_pid],
+            EdgeRef::LocalOut { e_pid, .. } => &self.local_deletions[e_pid],
+        }
     }
 }
 
 // AGGREGATED ACCESS:
 impl EdgeLayer {
     pub(crate) fn out_edges_len(&self) -> usize {
-        self.local_timestamps.len() + self.remote_out_timestamps.len()
-    }
-
-    pub(crate) fn out_edges_len_window(&self, w: &Range<i64>) -> usize {
-        self.local_timestamps
-            .par_iter()
-            .filter(|ts| ts.active(w.clone()))
-            .count()
-            + self
-                .remote_out_timestamps
-                .par_iter()
-                .filter(|ts| ts.active(w.clone()))
-                .count()
+        self.local_additions.len() + self.remote_out_additions.len()
     }
 }
 
@@ -483,11 +488,11 @@ impl EdgeLayer {
             } => match d {
                 Direction::OUT => {
                     let iter: Box<dyn Iterator<Item = VID> + Send + '_> = Box::new(
-                        out.vertices_window(&self.local_timestamps, window)
+                        out.vertices_window(&self.local_additions, window)
                             .map_into()
                             .chain(
                                 remote_out
-                                    .vertices_window(&self.remote_out_timestamps, window)
+                                    .vertices_window(&self.remote_out_additions, window)
                                     .map_into(),
                             ),
                     );
@@ -495,11 +500,11 @@ impl EdgeLayer {
                 }
                 Direction::IN => {
                     let iter: Box<dyn Iterator<Item = VID> + Send + '_> = Box::new(
-                        into.vertices_window(&self.local_timestamps, window)
+                        into.vertices_window(&self.local_additions, window)
                             .map_into()
                             .chain(
                                 remote_into
-                                    .vertices_window(&self.remote_into_timestamps, window)
+                                    .vertices_window(&self.remote_into_additions, window)
                                     .map_into(),
                             ),
                     );
@@ -507,16 +512,16 @@ impl EdgeLayer {
                 }
                 Direction::BOTH => {
                     let iter: Box<dyn Iterator<Item = VID> + Send + '_> = Box::new(
-                        out.vertices_window(&self.local_timestamps, window)
-                            .merge(into.vertices_window(&self.local_timestamps, window))
+                        out.vertices_window(&self.local_additions, window)
+                            .merge(into.vertices_window(&self.local_additions, window))
                             .dedup()
                             .map_into()
                             .chain(
                                 remote_out
-                                    .vertices_window(&self.remote_out_timestamps, window)
+                                    .vertices_window(&self.remote_out_additions, window)
                                     .merge(
                                         remote_into
-                                            .vertices_window(&self.remote_into_timestamps, window),
+                                            .vertices_window(&self.remote_into_additions, window),
                                     )
                                     .dedup()
                                     .map_into(),
@@ -545,41 +550,6 @@ impl EdgeLayer {
                         + remote_out
                             .vertices()
                             .merge(remote_into.vertices())
-                            .dedup()
-                            .count()
-                }
-            },
-        }
-    }
-
-    pub fn degree_window(&self, v_pid: usize, d: Direction, window: &Range<i64>) -> usize {
-        let adj = self.get_adj(v_pid);
-        match adj {
-            Adj::Solo => 0,
-            Adj::List {
-                out,
-                remote_out,
-                into,
-                remote_into,
-            } => match d {
-                Direction::OUT => {
-                    out.len_window(&self.local_timestamps, window)
-                        + remote_out.len_window(&self.remote_out_timestamps, window)
-                }
-                Direction::IN => {
-                    into.len_window(&self.local_timestamps, window)
-                        + remote_into.len_window(&self.remote_into_timestamps, window)
-                }
-                Direction::BOTH => {
-                    out.vertices_window(&self.local_timestamps, window)
-                        .merge(into.vertices_window(&self.local_timestamps, window))
-                        .dedup()
-                        .count()
-                        + remote_out
-                            .vertices_window(&self.remote_out_timestamps, window)
-                            .merge(
-                                remote_into.vertices_window(&self.remote_into_timestamps, window),
-                            )
                             .dedup()
                             .count()
                 }
@@ -671,32 +641,32 @@ impl EdgeLayer {
                 remote_into,
             } => match d {
                 Direction::OUT => Box::new(chain!(
-                    out.iter_window(&self.local_timestamps, r)
+                    out.iter_window(&self.local_additions, r)
                         .map(move |(dst_pid, e)| self
                             .new_local_out_edge_ref(v_pid, dst_pid, e, None)),
                     remote_out
-                        .iter_window(&self.remote_out_timestamps, r)
+                        .iter_window(&self.remote_out_additions, r)
                         .map(move |(dst, e)| self.new_remote_out_edge_ref(v_pid, dst, e, None))
                 )),
                 Direction::IN => {
                     let iter = chain!(
-                        into.iter_window(&self.local_timestamps, r)
+                        into.iter_window(&self.local_additions, r)
                             .map(move |(src_pid, e)| self
                                 .new_local_into_edge_ref(src_pid, v_pid, e, None)),
                         remote_into
-                            .iter_window(&self.remote_into_timestamps, r)
+                            .iter_window(&self.remote_into_additions, r)
                             .map(move |(src, e)| self.new_remote_into_edge_ref(src, v_pid, e, None))
                     );
                     Box::new(iter)
                 }
                 Direction::BOTH => Box::new(chain!(
-                    out.iter_window(&self.local_timestamps, r)
+                    out.iter_window(&self.local_additions, r)
                         .map(move |(dst_pid, e)| (
                             dst_pid,
                             self.new_local_out_edge_ref(v_pid, dst_pid, e, None)
                         ))
                         .merge_by(
-                            into.iter_window(&self.local_timestamps, r)
+                            into.iter_window(&self.local_additions, r)
                                 .map(move |(src_pid, e)| (
                                     src_pid,
                                     self.new_local_into_edge_ref(src_pid, v_pid, e, None)
@@ -705,18 +675,18 @@ impl EdgeLayer {
                         )
                         .map(|item| item.1),
                     remote_out
-                        .iter_window(&self.remote_out_timestamps, r)
+                        .iter_window(&self.remote_out_additions, r)
                         .map(move |(dst, e)| (
                             dst,
                             self.new_remote_out_edge_ref(v_pid, dst, e, None)
                         ))
                         .merge_by(
-                            remote_into
-                                .iter_window(&self.remote_into_timestamps, r)
-                                .map(move |(src, e)| (
+                            remote_into.iter_window(&self.remote_into_additions, r).map(
+                                move |(src, e)| (
                                     src,
                                     self.new_remote_into_edge_ref(src, v_pid, e, None)
-                                )),
+                                )
+                            ),
                             |left, right| left.0 < right.0
                         )
                         .map(|item| item.1)
@@ -724,30 +694,5 @@ impl EdgeLayer {
             },
             _ => Box::new(std::iter::empty()),
         }
-    }
-
-    pub(crate) fn vertex_edges_iter_t(
-        // TODO: change back to private if appropriate
-        &self,
-        v_pid: usize,
-        d: Direction,
-    ) -> Box<dyn Iterator<Item = EdgeRef> + Send + '_> {
-        Box::new(
-            self.vertex_edges_iter(v_pid, d)
-                .flat_map(|e| self.explode_edge(e)),
-        )
-    }
-
-    pub(crate) fn vertex_edges_iter_window_t<'a>(
-        // TODO: change back to private if appropriate
-        &'a self,
-        v_pid: usize,
-        w: &'a Range<i64>,
-        d: Direction,
-    ) -> Box<dyn Iterator<Item = EdgeRef> + Send + '_> {
-        Box::new(
-            self.vertex_edges_iter_window(v_pid, w, d)
-                .flat_map(|e| self.explode_edge_window(e, w.clone())),
-        )
     }
 }

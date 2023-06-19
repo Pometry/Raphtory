@@ -31,7 +31,7 @@ impl Edge {
 
     #[wasm_bindgen(js_name = getProperty)]
     pub fn get_property(&self, name: String) -> JsValue {
-        if let Some(prop) = self.0.property(name, true).map(JsProp) {
+        if let Some(prop) = self.0.property(&name, true).map(JsProp) {
             prop.into()
         } else {
             JsValue::NULL

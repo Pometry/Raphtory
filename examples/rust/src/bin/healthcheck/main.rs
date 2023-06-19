@@ -13,7 +13,7 @@ mod test {
     use raphtory::db::{
         graph::Graph,
         view_api::*,
-        view_api::{internal::GraphViewInternalOps, GraphViewOps},
+        view_api::{internal::BoxableGraphView, GraphViewOps},
     };
     use raphtory_io::graph_loader::source::csv_loader::CsvLoader;
     use serde::de::DeserializeOwned;

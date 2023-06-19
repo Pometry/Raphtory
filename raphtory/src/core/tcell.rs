@@ -7,7 +7,7 @@ use crate::core::sorted_vec_map::SVM;
 #[derive(Debug, PartialEq, Default, Clone, Serialize, Deserialize)]
 
 // TCells represent a value in time that can be set at multiple times and keeps a history
-pub(crate) enum TCell<A: Clone + Default + Debug + PartialEq> {
+pub enum TCell<A: Clone + Default + Debug + PartialEq> {
     #[default]
     Empty,
     TCell1(i64, A),
@@ -100,6 +100,17 @@ impl<A: Clone + Default + Debug + PartialEq> TCell<A> {
             }
             TCell::TCellCap(svm) => Box::new(svm.range(r)),
             TCell::TCellN(btm) => Box::new(btm.range(r)),
+        }
+    }
+    
+    pub fn last_before(&self, t: i64)-> Option<&A> {
+        match self {
+            TCell::Empty => {None}
+            TCell::TCell1(t2, v) => {
+                (*t2 < t).then_some(v)
+            }
+            TCell::TCellCap(map) => {map.range(i64::MIN..t).last().map(|(_, v)| v)}
+            TCell::TCellN(map) => {map.range(i64::MIN..t).last().map(|(_, v)| v)}
         }
     }
 }

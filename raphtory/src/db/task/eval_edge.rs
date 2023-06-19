@@ -82,12 +82,8 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeViewOps for EvalEdge
 
     fn explode(&self) -> Self::EList {
         let iter: Box<dyn Iterator<Item = EdgeRef>> = match self.ev.time() {
-            Some(_) => Box::new(iter::once(self.ev.clone())),
-            None => {
-                let e = self.ev.clone();
-                let ts = self.graph.edge_timestamps(self.ev, None);
-                Box::new(ts.into_iter().map(move |t| e.at(t)))
-            }
+            Some(_) => Box::new(iter::once(self.ev)),
+            None => Box::new(self.graph.edge_t(self.ev)),
         };
 
         let ss = self.ss;
@@ -113,11 +109,11 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeListOps
     type IterType<T> = Box<dyn Iterator<Item = T> + 'a>;
 
     fn has_property(self, name: String, include_static: bool) -> Self::IterType<bool> {
-        Box::new(self.map(move |e| e.has_property(name.clone(), include_static)))
+        Box::new(self.map(move |e| e.has_property(&name, include_static)))
     }
 
     fn property(self, name: String, include_static: bool) -> Self::IterType<Option<Prop>> {
-        Box::new(self.map(move |e| e.property(name.clone(), include_static)))
+        Box::new(self.map(move |e| e.property(&name, include_static)))
     }
 
     fn properties(self, include_static: bool) -> Self::IterType<HashMap<String, Prop>> {
@@ -129,11 +125,11 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeListOps
     }
 
     fn has_static_property(self, name: String) -> Self::IterType<bool> {
-        Box::new(self.map(move |e| e.has_static_property(name.clone())))
+        Box::new(self.map(move |e| e.has_static_property(&name)))
     }
 
     fn static_property(self, name: String) -> Self::IterType<Option<Prop>> {
-        Box::new(self.map(move |e| e.static_property(name.clone())))
+        Box::new(self.map(move |e| e.static_property(&name)))
     }
 
     fn static_properties(self) -> Self::IterType<HashMap<String, Prop>> {
@@ -141,7 +137,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeListOps
     }
 
     fn property_history(self, name: String) -> Self::IterType<Vec<(i64, Prop)>> {
-        Box::new(self.map(move |e| e.property_history(name.clone())))
+        Box::new(self.map(move |e| e.property_history(&name)))
     }
 
     fn property_histories(self) -> Self::IterType<HashMap<String, Vec<(i64, Prop)>>> {

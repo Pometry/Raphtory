@@ -46,18 +46,18 @@ impl Zero for TaintMessage {
     }
 }
 
-pub fn generic_taint<G: GraphViewOps, T: InputVertex>(
+pub fn temporally_reachable_nodes<G: GraphViewOps, T: InputVertex>(
     g: &G,
     threads: Option<usize>,
-    iter_count: usize,
+    max_hops: usize,
     start_time: i64,
-    infected_nodes: Vec<T>,
-    stop_nodes: Vec<T>,
+    seed_nodes: Vec<T>,
+    stop_nodes: Option<Vec<T>>,
 ) -> HashMap<String, Vec<(i64, String)>> {
     let mut ctx: Context<G, ComputeStateVec> = g.into();
 
-    let infected_nodes = infected_nodes.into_iter().map(|n| n.id()).collect_vec();
-    let stop_nodes = stop_nodes.into_iter().map(|n| n.id()).collect_vec();
+    let infected_nodes = seed_nodes.into_iter().map(|n| n.id()).collect_vec();
+    let stop_nodes = stop_nodes.unwrap_or(vec![]).into_iter().map(|n| n.id()).collect_vec();
 
     let taint_status = or(0);
     ctx.global_agg(taint_status);
@@ -171,7 +171,7 @@ pub fn generic_taint<G: GraphViewOps, T: InputVertex>(
             })
         },
         threads,
-        iter_count,
+        max_hops,
         None,
         None,
     )
@@ -196,9 +196,9 @@ mod generic_taint_tests {
         iter_count: usize,
         start_time: i64,
         infected_nodes: Vec<T>,
-        stop_nodes: Vec<T>,
+        stop_nodes: Option<Vec<T>>,
     ) -> Vec<(String, Vec<(i64, String)>)> {
-        let mut results: Vec<(String, Vec<(i64, String)>)> = generic_taint(
+        let mut results: Vec<(String, Vec<(i64, String)>)> = temporally_reachable_nodes(
             &graph,
             None,
             iter_count,
@@ -235,7 +235,7 @@ mod generic_taint_tests {
             ],
         );
 
-        let results = test_generic_taint(graph, 20, 11, vec![2], vec![]);
+        let results = test_generic_taint(graph, 20, 11, vec![2], None);
 
         assert_eq!(
             results,
@@ -275,7 +275,7 @@ mod generic_taint_tests {
             ],
         );
 
-        let results = test_generic_taint(graph, 20, 11, vec![1, 2], vec![]);
+        let results = test_generic_taint(graph, 20, 11, vec![1, 2], None);
 
         assert_eq!(
             results,
@@ -318,7 +318,7 @@ mod generic_taint_tests {
             ],
         );
 
-        let results = test_generic_taint(graph, 20, 11, vec![1, 2], vec![4, 5]);
+        let results = test_generic_taint(graph, 20, 11, vec![1, 2], Some(vec![4, 5]));
 
         assert_eq!(
             results,
@@ -355,7 +355,7 @@ mod generic_taint_tests {
             ],
         );
 
-        let results = test_generic_taint(graph, 20, 11, vec![1, 2], vec![4, 5]);
+        let results = test_generic_taint(graph, 20, 11, vec![1, 2], Some(vec![4, 5]));
 
         assert_eq!(
             results,

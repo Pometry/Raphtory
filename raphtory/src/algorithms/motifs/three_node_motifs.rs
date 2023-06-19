@@ -81,7 +81,7 @@ pub fn star_event(nb: usize, dir: usize, time: i64) -> StarEvent {
 }
 
 pub struct StarCounter {
-    N: usize,
+    n: usize,
     pre_nodes: Vec<usize>,
     post_nodes: Vec<usize>,
     pre_sum: [usize; 8],
@@ -94,41 +94,41 @@ pub struct StarCounter {
 impl StarCounter {
     fn push_pre(&mut self, cur_edge: &StarEvent) {
         self.pre_sum[map2d(INCOMING, cur_edge.dir)] +=
-            self.pre_nodes[INCOMING * self.N + cur_edge.nb];
+            self.pre_nodes[INCOMING * self.n + cur_edge.nb];
         self.pre_sum[map2d(OUTGOING, cur_edge.dir)] +=
-            self.pre_nodes[OUTGOING * self.N + cur_edge.nb];
-        self.pre_nodes[cur_edge.dir * self.N + cur_edge.nb] += 1;
+            self.pre_nodes[OUTGOING * self.n + cur_edge.nb];
+        self.pre_nodes[cur_edge.dir * self.n + cur_edge.nb] += 1;
     }
 
     fn push_post(&mut self, cur_edge: &StarEvent) {
         self.post_sum[map2d(INCOMING, cur_edge.dir)] +=
-            self.post_nodes[INCOMING * self.N + cur_edge.nb];
+            self.post_nodes[INCOMING * self.n + cur_edge.nb];
         self.post_sum[map2d(OUTGOING, cur_edge.dir)] +=
-            self.post_nodes[OUTGOING * self.N + cur_edge.nb];
-        self.post_nodes[cur_edge.dir * self.N + cur_edge.nb] += 1;
+            self.post_nodes[OUTGOING * self.n + cur_edge.nb];
+        self.post_nodes[cur_edge.dir * self.n + cur_edge.nb] += 1;
     }
 
     fn pop_pre(&mut self, cur_edge: &StarEvent) {
-        self.pre_nodes[cur_edge.dir * self.N + cur_edge.nb] -= 1;
+        self.pre_nodes[cur_edge.dir * self.n + cur_edge.nb] -= 1;
         self.pre_sum[map2d(cur_edge.dir, INCOMING)] -=
-            self.pre_nodes[INCOMING * self.N + cur_edge.nb];
+            self.pre_nodes[INCOMING * self.n + cur_edge.nb];
         self.pre_sum[map2d(cur_edge.dir, OUTGOING)] -=
-            self.pre_nodes[OUTGOING * self.N + cur_edge.nb];
+            self.pre_nodes[OUTGOING * self.n + cur_edge.nb];
     }
 
     fn pop_post(&mut self, cur_edge: &StarEvent) {
-        self.post_nodes[cur_edge.dir * self.N + cur_edge.nb] -= 1;
+        self.post_nodes[cur_edge.dir * self.n + cur_edge.nb] -= 1;
         self.post_sum[map2d(cur_edge.dir, INCOMING)] -=
-            self.post_nodes[INCOMING * self.N + cur_edge.nb];
+            self.post_nodes[INCOMING * self.n + cur_edge.nb];
         self.post_sum[map2d(cur_edge.dir, OUTGOING)] -=
-            self.post_nodes[OUTGOING * self.N + cur_edge.nb];
+            self.post_nodes[OUTGOING * self.n + cur_edge.nb];
     }
 
     fn process_current(&mut self, cur_edge: &StarEvent) {
         self.mid_sum[map2d(INCOMING, cur_edge.dir)] -=
-            self.pre_nodes[INCOMING * self.N + cur_edge.nb];
+            self.pre_nodes[INCOMING * self.n + cur_edge.nb];
         self.mid_sum[map2d(OUTGOING, cur_edge.dir)] -=
-            self.pre_nodes[OUTGOING * self.N + cur_edge.nb];
+            self.pre_nodes[OUTGOING * self.n + cur_edge.nb];
 
         for (d1, d2) in DIRS2D {
             self.count_pre[map3d(d1, d2, cur_edge.dir)] += self.pre_sum[map2d(d1, d2)];
@@ -137,24 +137,24 @@ impl StarCounter {
         }
 
         self.mid_sum[map2d(cur_edge.dir, INCOMING)] +=
-            self.post_nodes[INCOMING * self.N + cur_edge.nb];
+            self.post_nodes[INCOMING * self.n + cur_edge.nb];
         self.mid_sum[map2d(cur_edge.dir, OUTGOING)] +=
-            self.post_nodes[OUTGOING * self.N + cur_edge.nb];
+            self.post_nodes[OUTGOING * self.n + cur_edge.nb];
     }
 
     pub fn execute(&mut self, edges: &Vec<StarEvent>, delta: i64) {
-        let L = edges.len();
-        if L < 3 {
+        let l = edges.len();
+        if l < 3 {
             return;
         }
         let mut start = 0;
         let mut end = 0;
-        for j in 0..L {
-            while start < L && edges[start].time + delta < edges[j].time {
+        for j in 0..l {
+            while start < l && edges[start].time + delta < edges[j].time {
                 self.pop_pre(&edges[start]);
                 start += 1;
             }
-            while (end < L) && edges[end].time <= edges[j].time + delta {
+            while (end < l) && edges[end].time <= edges[j].time + delta {
                 self.push_post(&edges[end]);
                 end += 1;
             }
@@ -174,11 +174,11 @@ impl StarCounter {
         counts
     }
 }
-pub fn init_star_count(N: usize) -> StarCounter {
+pub fn init_star_count(n: usize) -> StarCounter {
     StarCounter {
-        N: N,
-        pre_nodes: vec![0; 2 * N],
-        post_nodes: vec![0; 2 * N],
+        n,
+        pre_nodes: vec![0; 2 * n],
+        post_nodes: vec![0; 2 * n],
         pre_sum: [0; 8],
         mid_sum: [0; 8],
         post_sum: [0; 8],
@@ -214,7 +214,7 @@ pub fn new_triangle_edge(
 }
 
 pub struct TriangleCounter {
-    N: usize,
+    n: usize,
     pre_nodes: Vec<usize>,
     post_nodes: Vec<usize>,
     pre_sum: [usize; 8],
@@ -224,18 +224,18 @@ pub struct TriangleCounter {
 }
 impl TriangleCounter {
     pub fn execute(&mut self, edges: &Vec<TriangleEdge>, delta: i64) {
-        let L = edges.len();
-        if L < 3 {
+        let l = edges.len();
+        if l < 3 {
             return;
         }
         let mut start = 0;
         let mut end = 0;
-        for j in 0..L {
-            while start < L && edges[start].time + delta < edges[j].time {
+        for j in 0..l {
+            while start < l && edges[start].time + delta < edges[j].time {
                 self.pop_pre(&edges[start]);
                 start += 1;
             }
-            while (end < L) && edges[end].time <= edges[j].time + delta {
+            while (end < l) && edges[end].time <= edges[j].time + delta {
                 self.push_post(&edges[end]);
                 end += 1;
             }
@@ -249,10 +249,10 @@ impl TriangleCounter {
         let (is_uor_v, nb, dir) = (cur_edge.uorv, cur_edge.nb, cur_edge.dir);
         if !cur_edge.uv_edge {
             self.pre_sum[map3d(1 - is_uor_v, INCOMING, dir)] +=
-                self.pre_nodes[self.N * map2d(INCOMING, 1 - is_uor_v) + nb];
+                self.pre_nodes[self.n * map2d(INCOMING, 1 - is_uor_v) + nb];
             self.pre_sum[map3d(1 - is_uor_v, OUTGOING, dir)] +=
-                self.pre_nodes[self.N * map2d(OUTGOING, 1 - is_uor_v) + nb];
-            self.pre_nodes[self.N * map2d(dir, is_uor_v) + nb] += 1;
+                self.pre_nodes[self.n * map2d(OUTGOING, 1 - is_uor_v) + nb];
+            self.pre_nodes[self.n * map2d(dir, is_uor_v) + nb] += 1;
         }
     }
 
@@ -260,32 +260,32 @@ impl TriangleCounter {
         let (is_uor_v, nb, dir) = (cur_edge.uorv, cur_edge.nb, cur_edge.dir);
         if !cur_edge.uv_edge {
             self.post_sum[map3d(1 - is_uor_v, INCOMING, dir)] +=
-                self.post_nodes[self.N * map2d(INCOMING, 1 - is_uor_v) + nb];
+                self.post_nodes[self.n * map2d(INCOMING, 1 - is_uor_v) + nb];
             self.post_sum[map3d(1 - is_uor_v, OUTGOING, dir)] +=
-                self.post_nodes[self.N * map2d(OUTGOING, 1 - is_uor_v) + nb];
-            self.post_nodes[self.N * map2d(dir, is_uor_v) + nb] += 1;
+                self.post_nodes[self.n * map2d(OUTGOING, 1 - is_uor_v) + nb];
+            self.post_nodes[self.n * map2d(dir, is_uor_v) + nb] += 1;
         }
     }
 
     fn pop_pre(&mut self, cur_edge: &TriangleEdge) {
         let (is_uor_v, nb, dir) = (cur_edge.uorv, cur_edge.nb, cur_edge.dir);
         if !cur_edge.uv_edge {
-            self.pre_nodes[self.N * map2d(dir, is_uor_v) + nb] -= 1;
+            self.pre_nodes[self.n * map2d(dir, is_uor_v) + nb] -= 1;
             self.pre_sum[map3d(is_uor_v, dir, INCOMING)] -=
-                self.pre_nodes[self.N * map2d(INCOMING, 1 - is_uor_v)];
+                self.pre_nodes[self.n * map2d(INCOMING, 1 - is_uor_v)];
             self.pre_sum[map3d(is_uor_v, dir, OUTGOING)] -=
-                self.pre_nodes[self.N * map2d(OUTGOING, 1 - is_uor_v)];
+                self.pre_nodes[self.n * map2d(OUTGOING, 1 - is_uor_v)];
         }
     }
 
     fn pop_post(&mut self, cur_edge: &TriangleEdge) {
         let (is_uor_v, nb, dir) = (cur_edge.uorv, cur_edge.nb, cur_edge.dir);
         if !cur_edge.uv_edge {
-            self.post_nodes[self.N * map2d(dir, is_uor_v) + nb] -= 1;
+            self.post_nodes[self.n * map2d(dir, is_uor_v) + nb] -= 1;
             self.post_sum[map3d(is_uor_v, dir, INCOMING)] -=
-                self.post_nodes[self.N * map2d(INCOMING, 1 - is_uor_v)];
+                self.post_nodes[self.n * map2d(INCOMING, 1 - is_uor_v)];
             self.post_sum[map3d(is_uor_v, dir, OUTGOING)] -=
-                self.post_nodes[self.N * map2d(OUTGOING, 1 - is_uor_v)];
+                self.post_nodes[self.n * map2d(OUTGOING, 1 - is_uor_v)];
         }
     }
 
@@ -293,13 +293,13 @@ impl TriangleCounter {
         let (is_uor_v, nb, dir) = (cur_edge.uorv, cur_edge.nb, cur_edge.dir);
         if !cur_edge.uv_edge {
             self.mid_sum[map3d(1 - is_uor_v, INCOMING, dir)] -=
-                self.pre_nodes[self.N * map2d(INCOMING, 1 - is_uor_v) + nb];
+                self.pre_nodes[self.n * map2d(INCOMING, 1 - is_uor_v) + nb];
             self.mid_sum[map3d(1 - is_uor_v, OUTGOING, dir)] -=
-                self.pre_nodes[self.N * map2d(OUTGOING, 1 - is_uor_v) + nb];
+                self.pre_nodes[self.n * map2d(OUTGOING, 1 - is_uor_v) + nb];
             self.mid_sum[map3d(is_uor_v, dir, INCOMING)] +=
-                self.post_nodes[self.N * map2d(INCOMING, 1 - is_uor_v) + nb];
+                self.post_nodes[self.n * map2d(INCOMING, 1 - is_uor_v) + nb];
             self.mid_sum[map3d(is_uor_v, dir, OUTGOING)] +=
-                self.post_nodes[self.N * map2d(OUTGOING, 1 - is_uor_v) + nb];
+                self.post_nodes[self.n * map2d(OUTGOING, 1 - is_uor_v) + nb];
         } else {
             self.final_counts[0] += self.mid_sum[map3d(dir, 0, 0)]
                 + self.post_sum[map3d(dir, 0, 1)]
@@ -334,7 +334,7 @@ impl TriangleCounter {
 }
 pub fn init_tri_count(n: usize) -> TriangleCounter {
     TriangleCounter {
-        N: n,
+        n: n,
         pre_nodes: vec![0; 4 * n],
         post_nodes: vec![0; 4 * n],
         pre_sum: [0; 8],

@@ -1,12 +1,16 @@
 use std::sync::Arc;
 
+use crate::model::algorithm::Algorithms;
+use crate::model::filters::nodefilter::NodeFilter;
+use crate::model::graph::edge::Edge;
+use crate::model::graph::node::Node;
 use async_graphql::Context;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::core::Prop;
 use raphtory::db::edge::EdgeView;
 use raphtory::db::vertex::VertexView;
-use raphtory::db::view_api::internal::{GraphViewInternalOps, WrappedGraph};
+use raphtory::db::view_api::internal::{BoxableGraphView, WrappedGraph};
 use raphtory::db::view_api::EdgeListOps;
 use raphtory::db::view_api::EdgeViewOps;
 use raphtory::db::view_api::{GraphViewOps, TimeOps, VertexViewOps};
@@ -37,14 +41,16 @@ impl GqlGraph {
         w.into()
     }
 
-    async fn nodes(&self,filter:Option<NodeFilter>) -> Vec<Node> {
+    async fn nodes(&self, filter: Option<NodeFilter>) -> Vec<Node> {
         match filter {
-            Some(filter) => {
-                self.graph.vertices().iter().map(|vv| vv.into()).filter(|n| filter.matches(n)).collect()
-            }
-            None => {
-                self.graph.vertices().iter().map(|vv| vv.into()).collect()
-            }
+            Some(filter) => self
+                .graph
+                .vertices()
+                .iter()
+                .map(|vv| vv.into())
+                .filter(|n| filter.matches(n))
+                .collect(),
+            None => self.graph.vertices().iter().map(|vv| vv.into()).collect(),
         }
     }
 
