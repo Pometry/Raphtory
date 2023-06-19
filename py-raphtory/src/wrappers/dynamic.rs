@@ -6,8 +6,7 @@ use raphtory::db::view_api::internal::{BoxableGraphView, WrappedGraph};
 use raphtory::db::view_api::GraphViewOps;
 use std::sync::Arc;
 
-#[derive(Clone)]
-pub struct DynamicGraph(Arc<dyn BoxableGraphView + Send + Sync + 'static>);
+pub type DynamicGraph = Arc<dyn BoxableGraphView>;
 
 pub trait IntoDynamic {
     fn into_dynamic(self) -> DynamicGraph;
@@ -15,19 +14,19 @@ pub trait IntoDynamic {
 
 impl IntoDynamic for Graph {
     fn into_dynamic(self) -> DynamicGraph {
-        DynamicGraph(self.as_arc())
+        self.as_arc()
     }
 }
 
 impl<G: GraphViewOps> IntoDynamic for WindowedGraph<G> {
     fn into_dynamic(self) -> DynamicGraph {
-        DynamicGraph(Arc::new(self))
+        Arc::new(self)
     }
 }
 
 impl<G: GraphViewOps> IntoDynamic for LayeredGraph<G> {
     fn into_dynamic(self) -> DynamicGraph {
-        DynamicGraph(Arc::new(self))
+        Arc::new(self)
     }
 }
 
@@ -39,13 +38,6 @@ impl IntoDynamic for DynamicGraph {
 
 impl<G: GraphViewOps> IntoDynamic for VertexSubgraph<G> {
     fn into_dynamic(self) -> DynamicGraph {
-        DynamicGraph(Arc::new(self))
-    }
-}
-
-impl WrappedGraph for DynamicGraph {
-    type Internal = dyn BoxableGraphView + Send + Sync + 'static;
-    fn graph(&self) -> &(dyn BoxableGraphView + Send + Sync + 'static) {
-        &*self.0
+        Arc::new(self)
     }
 }
