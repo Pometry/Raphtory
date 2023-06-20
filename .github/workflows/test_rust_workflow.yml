@@ -47,7 +47,7 @@ jobs:
           RUSTFLAGS: -Awarnings
         with:
           command: test
-          args: --all --no-default-features
+          args: --all --no-default-features --features="raphtory/io raphtory/python"
   doc-test:
     if: ${{ !inputs.skip_tests }}
     name: "Doc tests"
