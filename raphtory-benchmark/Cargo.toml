@@ -7,8 +7,7 @@ edition = "2021"
 
 [dependencies]
 criterion = "0.4"
-raphtory = { path = "../raphtory" }
-raphtory-io = { path = "../raphtory-io" }
+raphtory = { path = "../raphtory" , features=["io"]}
 sorted_vector_map = "0.1"
 rand = "0.8.5"
 rayon = "1"

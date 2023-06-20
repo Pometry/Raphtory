@@ -10,7 +10,7 @@ use raphtory::algorithms::triangle_count::triangle_count;
 use raphtory::core::{Direction, Prop};
 use raphtory::db::graph::Graph;
 use raphtory::db::view_api::*;
-use raphtory_io::graph_loader::source::csv_loader::CsvLoader;
+use raphtory::graph_loader::source::csv_loader::CsvLoader;
 use regex::Regex;
 use serde::Deserialize;
 use std::time::Instant;

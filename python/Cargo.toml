@@ -18,8 +18,8 @@ name = "raphtory"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 =  {version="0.18.1", features=["multiple-pymethods", "chrono"]}
-py-raphtory = {path = "../py-raphtory", version = "0.4.0" }
+pyo3 =  {version= "0.19.0", features=["multiple-pymethods", "chrono"]}
+raphtory_core = {path = "../raphtory", version = "0.4.0", features=["python"], package="raphtory" }
 openssl = { version = "0.10", features = ["vendored"] } # DO NOT REMOVE IT BREAKS PYTHON RELEASE
 
 [features]
@@ -27,4 +27,4 @@ extension-module = ["pyo3/extension-module"]
 default = ["extension-module"]
 
 [build-dependencies]
-pyo3-build-config = "0.18.1"
+pyo3-build-config = "0.19.0"

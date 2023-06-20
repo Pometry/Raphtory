@@ -1,11 +1,9 @@
 [workspace]
 members = [
 	"raphtory",
-	"raphtory-io",
 	"raphtory-benchmark",
 	"examples/rust",
 	"python",
-	"py-raphtory",
 	"js-raphtory",
 	"raphtory-graphql",
 ]

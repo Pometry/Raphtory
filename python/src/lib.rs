@@ -1,12 +1,11 @@
 extern crate core;
-
-use py_raphtory::algorithms::*;
-use py_raphtory::graph::PyGraph;
-use py_raphtory::graph_gen::*;
-use py_raphtory::graph_loader::*;
 use pyo3::prelude::*;
-use py_raphtory::edge::{PyEdge, PyEdges};
-use py_raphtory::vertex::{PyVertex, PyVertices};
+use raphtory_core::python::algorithms::*;
+use raphtory_core::python::edge::{PyEdge, PyEdges};
+use raphtory_core::python::graph::PyGraph;
+use raphtory_core::python::graph_gen::*;
+use raphtory_core::python::graph_loader::*;
+use raphtory_core::python::vertex::{PyVertex, PyVertices};
 
 /// Raphtory graph analytics library
 #[pymodule]
@@ -22,7 +21,10 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         algorithm_module
     )?)?;
     algorithm_module.add_function(wrap_pyfunction!(local_triangle_count, algorithm_module)?)?;
-    algorithm_module.add_function(wrap_pyfunction!(temporally_reachable_nodes, algorithm_module)?)?;
+    algorithm_module.add_function(wrap_pyfunction!(
+        temporally_reachable_nodes,
+        algorithm_module
+    )?)?;
     algorithm_module.add_function(wrap_pyfunction!(
         local_clustering_coefficient,
         algorithm_module

@@ -3,6 +3,7 @@ mod exploded_edge_ops;
 mod graph_ops;
 mod graph_properties_ops;
 mod graph_window_ops;
+mod into_dynamic;
 pub(crate) mod time_semantics;
 mod wrapped_graph;
 
@@ -11,6 +12,8 @@ pub use exploded_edge_ops::ExplodedEdgeOps;
 pub use graph_ops::{GraphOps, InheritGraphOps};
 pub use graph_properties_ops::GraphPropertiesOps;
 pub use graph_window_ops::GraphWindowOps;
+pub use into_dynamic::IntoDynamic;
+use std::sync::Arc;
 pub use time_semantics::{InheritTimeSemantics, TimeSemantics};
 pub use wrapped_graph::WrappedGraph;
 
@@ -24,6 +27,8 @@ impl<G: CoreGraphOps + GraphOps + TimeSemantics + Send + Sync + 'static + ?Sized
     for G
 {
 }
+
+pub type DynamicGraph = Arc<dyn BoxableGraphView>;
 
 #[cfg(test)]
 mod test {

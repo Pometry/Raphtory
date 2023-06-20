@@ -5,10 +5,10 @@ use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::core::Prop;
 use raphtory::db::vertex::VertexView;
+use raphtory::db::view_api::internal::{DynamicGraph, IntoDynamic};
+use raphtory::db::view_api::layer::LayerOps;
 use raphtory::db::view_api::EdgeListOps;
 use raphtory::db::view_api::{GraphViewOps, VertexViewOps};
-use crate::model::wrappers::dynamic::{DynamicGraph, IntoDynamic};
-use raphtory::db::view_api::layer::LayerOps;
 
 #[derive(ResolvedObject)]
 pub(crate) struct Node {
@@ -62,115 +62,114 @@ impl Node {
         Some(Property::new(name, prop))
     }
 
-    async fn in_neighbours<'a>(&self,layer:Option<String>) -> Vec<Node> {
+    async fn in_neighbours<'a>(&self, layer: Option<String>) -> Vec<Node> {
         match layer {
-            None => { self.vv.in_neighbours().iter().map(|vv| vv.into()).collect() }
-            Some(layer) => { match self.vv.layer(layer.as_str()) {
-                None => {vec![]}
-                Some(vvv) => {
-                    vvv.in_neighbours().iter().map(|vv| vv.into()).collect()
+            None => self.vv.in_neighbours().iter().map(|vv| vv.into()).collect(),
+            Some(layer) => match self.vv.layer(layer.as_str()) {
+                None => {
+                    vec![]
                 }
-            } }
+                Some(vvv) => vvv.in_neighbours().iter().map(|vv| vv.into()).collect(),
+            },
         }
     }
 
-    async fn out_neighbours(&self,layer:Option<String>) -> Vec<Node> {
+    async fn out_neighbours(&self, layer: Option<String>) -> Vec<Node> {
         match layer {
-            None => { self.vv.out_neighbours().iter().map(|vv| vv.into()).collect() }
-            Some(layer) => { match self.vv.layer(layer.as_str()) {
-                None => {vec![]}
-                Some(vvv) => {
-                    vvv.out_neighbours().iter().map(|vv| vv.into()).collect()
+            None => self
+                .vv
+                .out_neighbours()
+                .iter()
+                .map(|vv| vv.into())
+                .collect(),
+            Some(layer) => match self.vv.layer(layer.as_str()) {
+                None => {
+                    vec![]
                 }
-            } }
+                Some(vvv) => vvv.out_neighbours().iter().map(|vv| vv.into()).collect(),
+            },
         }
     }
 
-    async fn neighbours<'a>(&self,layer:Option<String>) -> Vec<Node> {
+    async fn neighbours<'a>(&self, layer: Option<String>) -> Vec<Node> {
         match layer {
-            None => { self.vv.neighbours().iter().map(|vv| vv.into()).collect() }
-            Some(layer) => { match self.vv.layer(layer.as_str()) {
-                None => {vec![]}
-                Some(vvv) => {
-                    vvv.neighbours().iter().map(|vv| vv.into()).collect()
+            None => self.vv.neighbours().iter().map(|vv| vv.into()).collect(),
+            Some(layer) => match self.vv.layer(layer.as_str()) {
+                None => {
+                    vec![]
                 }
-            } }
+                Some(vvv) => vvv.neighbours().iter().map(|vv| vv.into()).collect(),
+            },
         }
     }
 
-    async fn degree(&self,layer:Option<String>) -> usize {
+    async fn degree(&self, layer: Option<String>) -> usize {
         match layer {
-            None => { self.vv.degree() }
-            Some(layer) => { match self.vv.layer(layer.as_str()) {
-                None => {0}
-                Some(vvv) => {
-                    vvv.degree()
-                }
-            } }
+            None => self.vv.degree(),
+            Some(layer) => match self.vv.layer(layer.as_str()) {
+                None => 0,
+                Some(vvv) => vvv.degree(),
+            },
         }
     }
 
-    async fn out_degree(&self,layer:Option<String>) -> usize {
+    async fn out_degree(&self, layer: Option<String>) -> usize {
         match layer {
-            None => { self.vv.out_degree() }
-            Some(layer) => { match self.vv.layer(layer.as_str()) {
-                None => {0}
-                Some(vvv) => {
-                    vvv.out_degree()
-                }
-            } }
+            None => self.vv.out_degree(),
+            Some(layer) => match self.vv.layer(layer.as_str()) {
+                None => 0,
+                Some(vvv) => vvv.out_degree(),
+            },
         }
     }
 
-    async fn in_degree(&self,layer:Option<String>) -> usize {
+    async fn in_degree(&self, layer: Option<String>) -> usize {
         match layer {
-            None => { self.vv.in_degree() }
-            Some(layer) => { match self.vv.layer(layer.as_str()) {
-                None => {0}
-                Some(vvv) => {
-                    vvv.in_degree()
-                }
-            } }
+            None => self.vv.in_degree(),
+            Some(layer) => match self.vv.layer(layer.as_str()) {
+                None => 0,
+                Some(vvv) => vvv.in_degree(),
+            },
         }
     }
 
-    async fn out_edges(&self,layer:Option<String>) -> Vec<Edge> {
+    async fn out_edges(&self, layer: Option<String>) -> Vec<Edge> {
         match layer {
-            None => { self.vv.out_edges().map(|ee| ee.clone().into()).collect() }
-            Some(layer) => { match self.vv.layer(layer.as_str()) {
-                None => {vec![]}
-                Some(vvv) => {
-                    vvv.out_edges().map(|ee| ee.clone().into()).collect()
+            None => self.vv.out_edges().map(|ee| ee.clone().into()).collect(),
+            Some(layer) => match self.vv.layer(layer.as_str()) {
+                None => {
+                    vec![]
                 }
-            } }
+                Some(vvv) => vvv.out_edges().map(|ee| ee.clone().into()).collect(),
+            },
         }
     }
 
-    async fn in_edges(&self,layer:Option<String>) -> Vec<Edge> {
+    async fn in_edges(&self, layer: Option<String>) -> Vec<Edge> {
         match layer {
-            None => { self.vv.in_edges().map(|ee| ee.clone().into()).collect() }
-            Some(layer) => { match self.vv.layer(layer.as_str()) {
-                None => {vec![]}
-                Some(vvv) => {
-                    vvv.in_edges().map(|ee| ee.clone().into()).collect()
+            None => self.vv.in_edges().map(|ee| ee.clone().into()).collect(),
+            Some(layer) => match self.vv.layer(layer.as_str()) {
+                None => {
+                    vec![]
                 }
-            } }
+                Some(vvv) => vvv.in_edges().map(|ee| ee.clone().into()).collect(),
+            },
         }
     }
 
-    async fn edges(&self,layer:Option<String>) -> Vec<Edge> {
+    async fn edges(&self, layer: Option<String>) -> Vec<Edge> {
         match layer {
-            None => { self.vv.edges().map(|ee| ee.clone().into()).collect() }
-            Some(layer) => { match self.vv.layer(layer.as_str()) {
-                None => {vec![]}
-                Some(vvv) => {
-                    vvv.edges().map(|ee| ee.clone().into()).collect()
+            None => self.vv.edges().map(|ee| ee.clone().into()).collect(),
+            Some(layer) => match self.vv.layer(layer.as_str()) {
+                None => {
+                    vec![]
                 }
-            } }
+                Some(vvv) => vvv.edges().map(|ee| ee.clone().into()).collect(),
+            },
         }
     }
 
-    async fn exploded_edges(&self,layer:Option<String>) -> Vec<Edge> {
+    async fn exploded_edges(&self, layer: Option<String>) -> Vec<Edge> {
         self.vv.out_edges().explode().map(|ee| ee.into()).collect()
     }
 

@@ -4,7 +4,7 @@ use raphtory::core::utils;
 use raphtory::core::Prop;
 use raphtory::db::graph::Graph;
 use raphtory::db::view_api::*;
-use raphtory_io::graph_loader::source::csv_loader::CsvLoader;
+use raphtory::graph_loader::source::csv_loader::CsvLoader;
 use serde::Deserialize;
 use std::path::PathBuf;
 use std::{env, path::Path, time::Instant};
