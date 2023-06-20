@@ -1,6 +1,7 @@
 use std::{borrow::Borrow, fmt::Debug, hash::BuildHasherDefault, path::Path};
 
 use dashmap::DashMap;
+use itertools::Itertools;
 use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
 
@@ -170,9 +171,9 @@ impl<const N: usize> InnerTemporalGraph<N> {
         self.storage.get_node(id.into()).value().is_some()
     }
 
-    pub fn degree(&self, id: VID, layer_id: usize, dir: Direction) -> usize {
-        let node_store = self.storage.get_node(id.into());
-        node_store.edge_tuples(layer_id, dir).count()
+    pub fn degree(&self, v: VID, dir: Direction, layer: Option<usize>) -> usize {
+        let node_store = self.storage.get_node(v.into());
+        node_store.edge_tuples(v.into(), layer, dir).dedup_by(|(v1, _), (v2, _)| v1 == v2).count()
     }
 
     pub fn edges<'a>(
@@ -374,7 +375,8 @@ impl<const N: usize> InnerTemporalGraph<N> {
             let src = node_pair.get_mut_i();
 
             // find the edge_id if it exists and add the time event to the nodes
-            if let Some(edge_id) = src.find_edge(dst_id, Some(layer)) {
+            if let Some(edge_id) = src.find_edge(dst_id, None) {
+                println!("found edge: {src_id:?} -> {dst_id:?} e_id: {edge_id:?}");
                 src.add_edge(dst_id, Direction::OUT, layer, edge_id);
                 // add inbound edge for dst
                 let dst = node_pair.get_mut_j();

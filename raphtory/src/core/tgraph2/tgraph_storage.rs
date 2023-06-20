@@ -2,7 +2,10 @@ use std::{ops::Deref, rc::Rc, sync::Arc};
 
 use serde::{Deserialize, Serialize};
 
-use crate:: storage::{ self, iter::RefT, Entry, EntryMut, PairEntryMut, ArcEntry, } ;
+use crate::{
+    core::Direction,
+    storage::{self, iter::RefT, ArcEntry, Entry, EntryMut, PairEntryMut},
+};
 
 use super::{edge_store::EdgeStore, node_store::NodeStore};
 
@@ -60,11 +63,16 @@ impl<const N: usize> GraphStorage<N> {
     }
 
     pub(crate) fn edges_len(&self, layer: Option<usize>) -> usize {
-        self.edges.len()
+        match layer {
+            None => self.edges.len(),
+            Some(layer_id) => self.nodes.iter().fold(0, |len, node| {
+                len + node.edge_tuples(Some(layer_id), Direction::OUT).count()
+            }),
+        }
     }
 
     fn lock(&self) -> LockedGraphStorage<'_, N> {
-        LockedGraphStorage::new(self) 
+        LockedGraphStorage::new(self)
     }
 
     pub(crate) fn locked_nodes(&self) -> impl Iterator<Item = GraphEntry<'_, NodeStore<N>, N>> {
@@ -110,10 +118,9 @@ pub struct GraphEntry<'a, T, const N: usize> {
     _marker: std::marker::PhantomData<T>,
 }
 
-
 // impl new
 impl<'a, const N: usize, T> GraphEntry<'a, T, N> {
-    pub(crate) fn new(gs: Arc<LockedGraphStorage<'a, N>>,i: usize) -> Self {
+    pub(crate) fn new(gs: Arc<LockedGraphStorage<'a, N>>, i: usize) -> Self {
         Self {
             locked_gs: gs,
             i,
@@ -160,5 +167,4 @@ impl<'a, const N: usize> LockedGraphStorage<'a, N> {
     pub(crate) fn get_edge(&'a self, id: usize) -> &'a EdgeStore<N> {
         self.edges.get(id)
     }
-
 }

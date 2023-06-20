@@ -530,10 +530,10 @@ mod db_tests {
         let expected = [
             (
                 vec![local_1, local_2],
-                vec![local_1, local_3, local_2],
+                vec![local_1, local_2, local_3],
                 vec![local_1],
             ),
-            (vec![VertexRef::Remote(1)], vec![], vec![]),
+            (vec![local_1], vec![], vec![]),
             (vec![local_1], vec![], vec![]),
         ];
         let actual = (1..=3)
@@ -604,6 +604,7 @@ mod db_tests {
         let layer2 = g.layer("layer2").unwrap();
         assert!(g.layer("missing layer").is_none());
 
+        assert_eq!(g.num_vertices(), 4);
         assert_eq!(g.num_edges(), 4);
         assert_eq!(dft_layer.num_edges(), 3);
         assert_eq!(layer1.num_edges(), 1);

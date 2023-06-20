@@ -1,6 +1,6 @@
-use std::{rc::Rc, ops::Range, sync::Arc};
+use std::{ops::Range, sync::Arc};
 
-use crate::{core::{timeindex::{TimeIndex, TimeIndexOps}, Direction, tgraph_shard::LockedView}, storage::Entry};
+use crate::{core::{timeindex::TimeIndexOps, Direction}, storage::Entry};
 
 use super::{
     tgraph::TGraph,

@@ -78,8 +78,9 @@ impl<'a, const N: usize> Vertex<'a, N> {
             .graph
             .vertex_props_meta
             .get_or_create_layer_id(layer.to_owned());
+
         (*self.node)
-            .edge_tuples(layer, dir)
+            .edge_tuples(Some(layer), dir)
             .map(move |(dst, e_id)| {
                 EdgeView::new(
                     self.node.index().into(),
@@ -102,7 +103,7 @@ impl<'a, const N: usize> Vertex<'a, N> {
             .get_or_create_layer_id(layer.to_owned());
 
         (*self.node)
-            .edge_tuples(layer, dir)
+            .edge_tuples(Some(layer), dir)
             .map(move |(dst, _)| self.graph.vertex(dst))
     }
 }
@@ -126,6 +127,6 @@ impl <const N: usize> ArcVertex<N> {
     }
 
     pub fn edge_tuples(&self, layer: Option<usize>, dir: Direction) -> impl Iterator<Item = (VID, EID)> + '_ {
-        self.e.edge_tuples(layer.unwrap_or(0), dir)
+        self.e.edge_tuples(layer, dir)
     }
 }

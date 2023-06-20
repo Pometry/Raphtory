@@ -1,8 +1,7 @@
-use std::ops::Range;
-
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
-use crate::core::{timeindex::TimeIndex, Direction, Prop, tgraph::errors::MutateGraphError};
+use crate::core::{tgraph::errors::MutateGraphError, timeindex::TimeIndex, Direction, Prop};
 
 use super::{adj::Adj, props::Props, EID, VID};
 
@@ -43,7 +42,12 @@ impl<const N: usize> NodeStore<N> {
         self.props.add_prop(t, prop_id, prop);
     }
 
-    pub fn add_static_prop(&mut self, prop_id: usize, name:&str, prop: Prop) -> Result<(), MutateGraphError>{
+    pub fn add_static_prop(
+        &mut self,
+        prop_id: usize,
+        name: &str,
+        prop: Prop,
+    ) -> Result<(), MutateGraphError> {
         self.props.add_static_prop(prop_id, name, prop)
     }
 
@@ -76,6 +80,8 @@ impl<const N: usize> NodeStore<N> {
         layer: usize,
         edge_id: super::EID,
     ) {
+        println!("adding edge {:?} to layer {}", dir, layer);
+
         if layer >= self.layers.len() {
             self.layers.resize_with(layer + 1, || Adj::Solo);
         }
@@ -100,11 +106,40 @@ impl<const N: usize> NodeStore<N> {
 
     pub(crate) fn edge_tuples<'a>(
         &'a self,
-        layer_id: usize,
+        self_id: VID,
+        layer_id: Option<usize>,
         d: Direction,
-    ) -> impl Iterator<Item = (VID, super::EID)> + Send + 'a {
-        self.layers[layer_id].iter(d)
+    ) -> Box<dyn Iterator<Item = (VID, VID, super::EID)> + Send + 'a> {
+        match layer_id {
+            Some(layer_id) => {
+                if let Some(layer) = self.layers.get(layer_id) {
+                    match d {
+                        Direction::IN => {
+                            Box::new(layer.iter(d).map(|(from_v, e_id)| (from_v, self_id, e_id)))
+                        }
+                        Direction::OUT => {
+                            Box::new(layer.iter(d).map(|(to_v, e_id)| (self_id, to_v, e_id)))
+                        }
+                        Direction::BOTH => Box::new(
+                            self.edge_tuples(self_id, Some(layer_id), Direction::OUT)
+                                .chain(self.edge_tuples(self_id, Some(layer_id), Direction::IN)),
+                        ),
+                    }
+                } else {
+                    Box::new(std::iter::empty())
+                }
+            }
+            None => {
+                let iter = self
+                    .layers
+                    .iter()
+                    .enumerate()
+                    .flat_map(|(layer_id, layer)| self.edge_tuples(self_id, Some(layer_id), d));
+                Box::new(iter)
+            }
+        }
     }
+
 
     pub(crate) fn edges_from_last<'a>(
         &'a self,

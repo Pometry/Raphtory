@@ -140,7 +140,7 @@ impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
 
     fn get_layer_id(&self, key: Option<&str>) -> Option<usize> {
         match key {
-            Some(key) => self.vertex_props_meta.get_layer_id(key),
+            Some(key) => self.edge_props_meta.get_layer_id(key),
             None => Some(0),
         }
     }
@@ -154,7 +154,8 @@ impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
     }
 
     fn degree(&self, v: VID, d: Direction, layer: Option<usize>) -> usize {
-        todo!()
+        println!("degree: {:?} {:?} {:?}", v, d, layer);
+        self.degree(v, d, layer)
     }
 
     fn vertex_refs(&self) -> Box<dyn Iterator<Item = VID> + Send> {
