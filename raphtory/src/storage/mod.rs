@@ -166,6 +166,12 @@ pub struct ArcEntry<T: 'static, const N: usize> {
     guard: lock_api::ArcRwLockReadGuard<parking_lot::RawRwLock,Vec<Option<T>>>,
 }
 
+
+impl <T: 'static, const N: usize> ArcEntry<T, N> {
+    pub(crate) fn index(&self) -> usize {
+        self.i
+    }
+}
 impl <T: 'static, const N: usize> Deref for ArcEntry<T, N> {
     type Target = T;
 

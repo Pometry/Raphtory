@@ -66,7 +66,7 @@ impl<const N: usize> GraphStorage<N> {
         match layer {
             None => self.edges.len(),
             Some(layer_id) => self.nodes.iter().fold(0, |len, node| {
-                len + node.edge_tuples(Some(layer_id), Direction::OUT).count()
+                len + node.edge_tuples(node.index().into(), Some(layer_id), Direction::OUT).count()
             }),
         }
     }

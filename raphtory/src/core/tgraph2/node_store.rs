@@ -106,7 +106,7 @@ impl<const N: usize> NodeStore<N> {
 
     pub(crate) fn edge_tuples<'a>(
         &'a self,
-        self_id: VID,
+        self_id: VID, // we don't actually store the physical id of the vertex
         layer_id: Option<usize>,
         d: Direction,
     ) -> Box<dyn Iterator<Item = (VID, VID, super::EID)> + Send + 'a> {
@@ -140,6 +140,41 @@ impl<const N: usize> NodeStore<N> {
         }
     }
 
+    // every neighbour apears once in the iterator
+    // this is important because it calculates degree
+    pub(crate) fn neighbours<'a>(
+        &'a self,
+        self_id: VID, // we don't actually store the physical id of the vertex
+        layer_id: Option<usize>,
+        d: Direction,
+    ) -> Box<dyn Iterator<Item = VID> + Send + 'a> {
+        match layer_id {
+            Some(layer_id) => {
+                if let Some(layer) = self.layers.get(layer_id) {
+                    match d {
+                        Direction::IN => Box::new(layer.iter(d).map(|(from_v, _)| from_v)),
+                        Direction::OUT => Box::new(layer.iter(d).map(|(to_v, _)| to_v)),
+                        Direction::BOTH => Box::new(
+                            self.neighbours(self_id, Some(layer_id), Direction::OUT)
+                                .merge(self.neighbours(self_id, Some(layer_id), Direction::IN))
+                                .dedup(),
+                        ),
+                    }
+                } else {
+                    Box::new(std::iter::empty())
+                }
+            }
+            None => {
+                let iter = self
+                    .layers
+                    .iter()
+                    .enumerate()
+                    .map(|(layer_id, layer)| self.neighbours(self_id, Some(layer_id), d))
+                    .kmerge();
+                Box::new(iter)
+            }
+        }
+    }
 
     pub(crate) fn edges_from_last<'a>(
         &'a self,

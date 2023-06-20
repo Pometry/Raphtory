@@ -103,8 +103,8 @@ impl<'a, const N: usize> Vertex<'a, N> {
             .get_or_create_layer_id(layer.to_owned());
 
         (*self.node)
-            .edge_tuples(Some(layer), dir)
-            .map(move |(dst, _)| self.graph.vertex(dst))
+            .neighbours(Some(layer), dir)
+            .map(move |dst| self.graph.vertex(dst))
     }
 }
 
@@ -126,7 +126,7 @@ impl <const N: usize> ArcVertex<N> {
         ArcVertex { e }
     }
 
-    pub fn edge_tuples(&self, layer: Option<usize>, dir: Direction) -> impl Iterator<Item = (VID, EID)> + '_ {
-        self.e.edge_tuples(layer, dir)
+    pub fn edge_tuples(&self, layer: Option<usize>, dir: Direction) -> impl Iterator<Item = (VID, VID, EID)> + '_ {
+        self.e.edge_tuples(self.e.index().into(), layer, dir)
     }
 }
