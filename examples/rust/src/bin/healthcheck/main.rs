@@ -15,7 +15,7 @@ mod test {
         view_api::*,
         view_api::{internal::BoxableGraphView, GraphViewOps},
     };
-    use raphtory_io::graph_loader::source::csv_loader::CsvLoader;
+    use raphtory::graph_loader::source::csv_loader::CsvLoader;
     use serde::de::DeserializeOwned;
 
     trait TestEdge {

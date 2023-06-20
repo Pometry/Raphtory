@@ -112,3 +112,9 @@ pub mod algorithms;
 pub mod core;
 pub mod db;
 pub mod graphgen;
+
+#[cfg(feature = "python")]
+pub mod python;
+
+#[cfg(feature = "io")]
+pub mod graph_loader;

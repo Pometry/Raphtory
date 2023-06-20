@@ -2,9 +2,9 @@ use crate::model::algorithm::Algorithms;
 use crate::model::filters::nodefilter::NodeFilter;
 use crate::model::graph::edge::Edge;
 use crate::model::graph::node::Node;
-use crate::model::wrappers::dynamic::{DynamicGraph, IntoDynamic};
 
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
+use raphtory::db::view_api::internal::{DynamicGraph, IntoDynamic};
 use raphtory::db::view_api::{GraphViewOps, TimeOps, VertexViewOps};
 
 #[derive(ResolvedObject)]

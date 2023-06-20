@@ -1,12 +1,12 @@
-use std::{time::Instant, env, path::Path};
+use std::{env, path::Path, time::Instant};
 
+use raphtory::algorithms::connected_components::weakly_connected_components;
+use raphtory::graph_loader::source::csv_loader::CsvLoader;
 use raphtory::{
     algorithms::pagerank::unweighted_page_rank,
     db::{graph::Graph, view_api::GraphViewOps},
 };
-use raphtory_io::graph_loader::source::csv_loader::CsvLoader;
 use serde::Deserialize;
-use raphtory::algorithms::connected_components::weakly_connected_components;
 
 #[derive(Deserialize, std::fmt::Debug)]
 struct Edge {
@@ -25,8 +25,7 @@ fn main() {
 
     let g = if std::path::Path::new("/tmp/pokec").exists() {
         Graph::load_from_file("/tmp/pokec").unwrap()
-    }
-    else{
+    } else {
         let g = Graph::new(shards);
         CsvLoader::new(data_dir)
             .set_delimiter("\t")
@@ -41,7 +40,6 @@ fn main() {
         g
     };
 
-
     println!(
         "Loaded graph from encoded data files {} with {} vertices, {} edges which took {} seconds",
         "/tmp/soc-pokec-relationships.txt",
@@ -54,7 +52,7 @@ fn main() {
 
     let now = Instant::now();
 
-    unweighted_page_rank(&frozen, 100, None , Some(0.00000001), true);
+    unweighted_page_rank(&frozen, 100, None, Some(0.00000001), true);
 
     println!("PageRank took {} millis", now.elapsed().as_millis());
 
@@ -62,5 +60,8 @@ fn main() {
 
     weakly_connected_components(&frozen, 100, None);
 
-    println!("Connected Components took {} millis", now.elapsed().as_millis());
+    println!(
+        "Connected Components took {} millis",
+        now.elapsed().as_millis()
+    );
 }
