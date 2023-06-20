@@ -7,7 +7,7 @@ use crate::storage::{iter::RefT, Entry};
 use self::{edge::ERef, node_store::NodeStore, tgraph::TGraph, tgraph_storage::GraphEntry};
 
 use super::{
-    vertex_ref::{LocalVertexRef, VertexRef},
+    vertex_ref::VertexRef,
     Direction,
 };
 
@@ -53,16 +53,9 @@ impl From<VID> for usize {
 impl From<VertexRef> for VID {
     fn from(id: VertexRef) -> Self {
         match id {
-            VertexRef::Local(LocalVertexRef { shard_id, pid }) => VID(pid * 16 + shard_id),
+            VertexRef::Local(vid) => vid,
             _ => panic!("Cannot convert remote vertex reference to VID"),
         }
-    }
-}
-
-impl From<LocalVertexRef> for VID {
-    fn from(id: LocalVertexRef) -> Self {
-        let LocalVertexRef { shard_id, pid } = id;
-        VID(pid * 16 + shard_id)
     }
 }
 

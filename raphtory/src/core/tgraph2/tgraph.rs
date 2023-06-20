@@ -8,7 +8,7 @@ use crate::core::{
     tgraph_shard::errors::GraphError,
     time::TryIntoTime,
     vertex::InputVertex,
-    vertex_ref::{LocalVertexRef, VertexRef},
+    vertex_ref::VertexRef,
     Direction, Prop, PropUnwrap,
 };
 
@@ -153,10 +153,10 @@ impl<const N: usize> InnerTemporalGraph<N> {
         self.latest_time.update(time);
     }
 
-    pub fn add_vertex<T: InputVertex>(
+    pub fn add_vertex<V: InputVertex, T:TryIntoTime + Debug>(
         &self,
-        t: i64,
-        v: T,
+        t: T,
+        v: V,
         props: &Vec<(String, Prop)>,
     ) -> Result<VID, GraphError> {
         self.add_vertex_internal(t, v, props.clone())
@@ -205,11 +205,11 @@ impl<const N: usize> InnerTemporalGraph<N> {
         Ok(v_id.into())
     }
 
-    pub fn add_edge<T: InputVertex>(
+    pub fn add_edge<V: InputVertex, T: TryIntoTime + Debug>(
         &self,
-        t: i64,
-        src: T,
-        dst: T,
+        t: T,
+        src: V,
+        dst: V,
         props: &Vec<(String, Prop)>,
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
@@ -248,16 +248,18 @@ impl<const N: usize> InnerTemporalGraph<N> {
         todo!()
     }
 
-    pub fn add_edge_with_props<T: InputVertex>(
+    pub fn add_edge_with_props<V: InputVertex, T: TryIntoTime + Debug>(
         &self,
-        t: i64,
-        src: T,
-        dst: T,
+        t: T,
+        src: V,
+        dst: V,
         props: Vec<(String, Prop)>,
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
+        let t = t.try_into_time()?;
         let src_id = self.add_vertex_internal(t, src, vec![])?;
         let dst_id = self.add_vertex_internal(t, dst, vec![])?;
+        let t = t.try_into_time()?;
 
         let layer = layer
             .map(|layer| self.props_meta.get_or_create_layer_id(layer.to_owned()))
@@ -391,8 +393,8 @@ impl<const N: usize> InnerTemporalGraph<N> {
 
     pub(crate) fn resolve_vertex_ref(&self, v: &VertexRef) -> Option<VID> {
         match v {
-            VertexRef::Local(LocalVertexRef { shard_id, pid }) => {
-                Some((*pid * N + *shard_id).into())
+            VertexRef::Local(vid) => {
+                Some(*vid)
             }
             VertexRef::Remote(gid) => {
                 let v_id = self.logical_to_physical.get(gid)?;

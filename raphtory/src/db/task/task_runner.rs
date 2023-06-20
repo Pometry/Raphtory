@@ -6,8 +6,7 @@ use std::{
 
 use rayon::{prelude::*, ThreadPool};
 
-use crate::core::state::shuffle_state::{EvalLocalState, EvalShardState};
-use crate::core::vertex_ref::LocalVertexRef;
+use crate::core::{state::shuffle_state::{EvalLocalState, EvalShardState}, tgraph2::VID};
 use crate::{core::state::compute_state::ComputeState, db::view_api::GraphViewOps};
 
 use super::{
@@ -43,8 +42,8 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         &self,
         shard_state: &Shard<CS>,
         global_state: &Global<CS>,
-        morcel: &mut [Option<(LocalVertexRef, S)>],
-        prev_local_state: &Vec<Option<(LocalVertexRef, S)>>,
+        morcel: &mut [Option<(VID, S)>],
+        prev_local_state: &Vec<Option<(VID, S)>>,
         max_shard_len: usize,
         atomic_done: &AtomicBool,
         task: &Box<dyn Task<G, CS, S> + Send + Sync>,
@@ -114,14 +113,14 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         pool: &ThreadPool,
         shard_state: Shard<CS>,
         global_state: Global<CS>,
-        mut local_state: Vec<Option<(LocalVertexRef, S)>>,
-        prev_local_state: &Vec<Option<(LocalVertexRef, S)>>,
+        mut local_state: Vec<Option<(VID, S)>>,
+        prev_local_state: &Vec<Option<(VID, S)>>,
         max_shard_len: usize,
     ) -> (
         bool,
         Shard<CS>,
         Global<CS>,
-        Vec<Option<(LocalVertexRef, S)>>,
+        Vec<Option<(VID, S)>>,
     ) {
         pool.install(move || {
             let chunk_size = 16_000;
@@ -193,21 +192,20 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         init: S,
     ) -> (
         usize,
-        Vec<Option<(LocalVertexRef, S)>>,
-        Vec<Option<(LocalVertexRef, S)>>,
+        Vec<Option<(VID, S)>>,
+        Vec<Option<(VID, S)>>,
     ) {
         let g = self.ctx.graph();
 
         // find the shard with the largest number of vertices
-        let max_shard_len = g.vertex_refs().map(|v| v.pid).max().unwrap_or(0) + 1;
+        let max_shard_len = g.vertex_refs().map(|v| v.into()).max().unwrap_or(0) + 1;
 
         let n_shards = g.num_shards_internal();
 
         let mut states = vec![None; max_shard_len * n_shards];
 
         for v_ref in g.vertex_refs() {
-            let LocalVertexRef { shard_id, pid } = v_ref;
-            let i = max_shard_len * shard_id + pid;
+            let i:usize = v_ref.into();
             states[i] = Some((v_ref.clone(), init.clone()));
         }
 
@@ -220,7 +218,7 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
                 GlobalState<CS>,
                 EvalShardState<G, CS>,
                 EvalLocalState<G, CS>,
-                &Vec<Option<(LocalVertexRef, S)>>,
+                &Vec<Option<(VID, S)>>,
             ) -> B
             + std::marker::Copy,
         S: Send + Sync + Clone + 'static + std::fmt::Debug,

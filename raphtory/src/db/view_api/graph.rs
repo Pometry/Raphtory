@@ -1,3 +1,4 @@
+use crate::core::tgraph2::VID;
 use crate::core::tgraph_shard::errors::GraphError;
 use crate::core::Prop;
 use itertools::Itertools;
@@ -5,7 +6,7 @@ use rustc_hash::FxHashSet;
 use std::collections::HashMap;
 
 use crate::core::time::IntoTime;
-use crate::core::vertex_ref::{LocalVertexRef, VertexRef};
+use crate::core::vertex_ref::VertexRef;
 use crate::db::edge::EdgeView;
 use crate::db::graph::InternalGraph;
 use crate::db::graph_layer::LayeredGraph;
@@ -172,7 +173,7 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
         &self,
         vertices: I,
     ) -> VertexSubgraph<G> {
-        let vertices: FxHashSet<LocalVertexRef> = vertices
+        let vertices: FxHashSet<VID> = vertices
             .into_iter()
             .flat_map(|v| self.local_vertex_ref(v.into()))
             .collect();

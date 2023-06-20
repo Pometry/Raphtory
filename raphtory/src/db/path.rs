@@ -1,5 +1,6 @@
+use crate::core::tgraph2::VID;
 use crate::core::time::IntoTime;
-use crate::core::vertex_ref::{LocalVertexRef, VertexRef};
+use crate::core::vertex_ref::VertexRef;
 use crate::core::{Direction, Prop};
 use crate::db::edge::EdgeView;
 use crate::db::graph_layer::LayeredGraph;
@@ -281,7 +282,7 @@ impl<G: GraphViewOps> LayerOps for PathFromGraph<G> {
 #[derive(Clone)]
 pub struct PathFromVertex<G: GraphViewOps> {
     pub graph: G,
-    pub vertex: LocalVertexRef,
+    pub vertex: VID,
     pub operations: Arc<Vec<Operations>>,
 }
 

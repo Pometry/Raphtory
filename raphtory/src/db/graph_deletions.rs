@@ -1,7 +1,7 @@
 use crate::core::edge_ref::EdgeRef;
+use crate::core::tgraph2::VID;
 use crate::core::tgraph_shard::errors::GraphError;
 use crate::core::timeindex::TimeIndexOps;
-use crate::core::vertex_ref::LocalVertexRef;
 use crate::core::{Direction, Prop};
 use crate::db::graph::{graph_equal, InternalGraph};
 use crate::db::mutation_api::internal::InheritMutationOps;
@@ -147,7 +147,7 @@ impl InheritCoreDeletionOps for GraphWithDeletions {}
 impl InheritGraphOps for GraphWithDeletions {}
 
 impl TimeSemantics for GraphWithDeletions {
-    fn vertex_earliest_time(&self, v: LocalVertexRef) -> Option<i64> {
+    fn vertex_earliest_time(&self, v: VID) -> Option<i64> {
         self.graph.vertex_earliest_time(v)
     }
 
@@ -163,7 +163,7 @@ impl TimeSemantics for GraphWithDeletions {
         self.graph.earliest_time_global()
     }
 
-    fn include_vertex_window(&self, v: LocalVertexRef, w: Range<i64>) -> bool {
+    fn include_vertex_window(&self, v: VID, w: Range<i64>) -> bool {
         self.vertex_edges(v, Direction::BOTH, None)
             .any(move |e| self.include_edge_window(e, w.clone()))
     }
@@ -173,11 +173,11 @@ impl TimeSemantics for GraphWithDeletions {
         self.edge_alive_at(e, w.start) || self.edge_additions(e).active(w)
     }
 
-    fn vertex_history(&self, v: LocalVertexRef) -> Vec<i64> {
+    fn vertex_history(&self, v: VID) -> Vec<i64> {
         self.graph.vertex_history(v)
     }
 
-    fn vertex_history_window(&self, v: LocalVertexRef, w: Range<i64>) -> Vec<i64> {
+    fn vertex_history_window(&self, v: VID, w: Range<i64>) -> Vec<i64> {
         self.graph.vertex_history_window(v, w)
     }
 
@@ -285,13 +285,13 @@ impl TimeSemantics for GraphWithDeletions {
         self.graph.temporal_prop_vec_window(name, t_start, t_end)
     }
 
-    fn temporal_vertex_prop_vec(&self, v: LocalVertexRef, name: &str) -> Vec<(i64, Prop)> {
+    fn temporal_vertex_prop_vec(&self, v: VID, name: &str) -> Vec<(i64, Prop)> {
         self.graph.temporal_vertex_prop_vec(v, name)
     }
 
     fn temporal_vertex_prop_vec_window(
         &self,
-        v: LocalVertexRef,
+        v: VID,
         name: &str,
         t_start: i64,
         t_end: i64,

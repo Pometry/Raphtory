@@ -1,6 +1,7 @@
 use crate::core::edge_ref::EdgeRef;
-use crate::core::vertex_ref::{LocalVertexRef, VertexRef};
-use crate::core::Direction;
+use crate::core::tgraph2::VID;
+use crate::core::vertex_ref::VertexRef;
+use crate::core::{Direction, Prop};
 use crate::db::view_api::internal::{
     Base, GraphOps, InheritCoreOps, InheritMaterialize, InheritTimeSemantics,
 };
@@ -11,7 +12,7 @@ use std::sync::Arc;
 #[derive(Clone, Debug)]
 pub struct VertexSubgraph<G: GraphViewOps> {
     graph: G,
-    vertices: Arc<FxHashSet<LocalVertexRef>>,
+    vertices: Arc<FxHashSet<VID>>,
 }
 
 impl<G: GraphViewOps> Base for VertexSubgraph<G> {
@@ -29,7 +30,7 @@ impl<G: GraphViewOps> InheritTimeSemantics for VertexSubgraph<G> {}
 impl<G: GraphViewOps> InheritMaterialize for VertexSubgraph<G> {}
 
 impl<G: GraphViewOps> VertexSubgraph<G> {
-    pub(crate) fn new(graph: G, vertices: FxHashSet<LocalVertexRef>) -> Self {
+    pub(crate) fn new(graph: G, vertices: FxHashSet<VID>) -> Self {
         Self {
             graph,
             vertices: Arc::new(vertices),
@@ -38,7 +39,7 @@ impl<G: GraphViewOps> VertexSubgraph<G> {
 }
 
 impl<G: GraphViewOps> GraphOps for VertexSubgraph<G> {
-    fn local_vertex_ref(&self, v: VertexRef) -> Option<LocalVertexRef> {
+    fn local_vertex_ref(&self, v: VertexRef) -> Option<VID> {
         self.graph
             .local_vertex_ref(v)
             .filter(|v| self.vertices.contains(v))
@@ -77,19 +78,14 @@ impl<G: GraphViewOps> GraphOps for VertexSubgraph<G> {
         self.vertex_edges(v, d, layer).count()
     }
 
-    fn vertex_ref(&self, v: u64) -> Option<LocalVertexRef> {
+    fn vertex_ref(&self, v: u64) -> Option<VID> {
         self.local_vertex_ref(v.into())
     }
 
-    fn vertex_refs(&self) -> Box<dyn Iterator<Item = LocalVertexRef> + Send> {
+    fn vertex_refs(&self) -> Box<dyn Iterator<Item = VID> + Send> {
         // this sucks but seems to be the only way currently (see also http://smallcultfollowing.com/babysteps/blog/2018/09/02/rust-pattern-iterating-an-over-a-rc-vec-t/)
         let verts = Vec::from_iter(self.vertices.iter().copied());
         Box::new(verts.into_iter())
-    }
-
-    fn vertex_refs_shard(&self, shard: usize) -> Box<dyn Iterator<Item = LocalVertexRef> + Send> {
-        // FIXME: if keep shards, they need to support views (i.e., implement GraphViewInternalOps, this is terrible!)
-        Box::new(self.vertex_refs().filter(move |&v| v.shard_id == shard))
     }
 
     fn edge_ref(&self, src: VertexRef, dst: VertexRef, layer: usize) -> Option<EdgeRef> {
@@ -110,7 +106,7 @@ impl<G: GraphViewOps> GraphOps for VertexSubgraph<G> {
 
     fn vertex_edges(
         &self,
-        v: LocalVertexRef,
+        v: VID,
         d: Direction,
         layer: Option<usize>,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
@@ -124,7 +120,7 @@ impl<G: GraphViewOps> GraphOps for VertexSubgraph<G> {
 
     fn neighbours(
         &self,
-        v: LocalVertexRef,
+        v: VID,
         d: Direction,
         layer: Option<usize>,
     ) -> Box<dyn Iterator<Item = VertexRef> + Send> {

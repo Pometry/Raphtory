@@ -1,6 +1,6 @@
 use num_traits::abs;
 
-use crate::core::vertex_ref::LocalVertexRef;
+use crate::core::tgraph2::VID;
 use crate::db::view_api::VertexViewOps;
 use crate::{
     core::state::{accumulator_id::accumulators, compute_state::ComputeStateVec},
@@ -141,7 +141,7 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
 
     let num_vertices = g.num_vertices();
 
-    let out: HashMap<LocalVertexRef, f64> = runner.run(
+    let out: HashMap<VID, f64> = runner.run(
         vec![Job::new(step1)],
         vec![Job::new(step2), Job::new(step3), Job::new(step4), step5],
         PageRankState::new(num_vertices),

@@ -1,8 +1,7 @@
 use std::{borrow::Cow, sync::Arc};
 
 use crate::core::{
-    state::{compute_state::ComputeState, shuffle_state::ShuffleComputeState},
-    vertex_ref::LocalVertexRef,
+    state::{compute_state::ComputeState, shuffle_state::ShuffleComputeState}, tgraph2::VID,
 };
 
 // this only contains the global state and it is synchronized after each task run
@@ -20,13 +19,13 @@ pub(crate) struct Local<CS: ComputeState>(Arc<Option<ShuffleComputeState<CS>>>);
 #[derive(Debug)]
 pub(crate) struct Local2<'a, S> {
     pub(crate) shard_len: usize,
-    pub(crate) state: &'a Vec<Option<(LocalVertexRef, S)>>,
+    pub(crate) state: &'a Vec<Option<(VID, S)>>,
 }
 
 impl<'a, S: 'static> Local2<'a, S> {
     pub(crate) fn new(
         max_shard_len: usize,
-        prev_local_state: &'a Vec<Option<(LocalVertexRef, S)>>,
+        prev_local_state: &'a Vec<Option<(VID, S)>>,
     ) -> Self {
         Self {
             shard_len: max_shard_len,

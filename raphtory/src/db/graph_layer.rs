@@ -1,5 +1,6 @@
 use crate::core::edge_ref::EdgeRef;
-use crate::core::vertex_ref::{LocalVertexRef, VertexRef};
+use crate::core::tgraph2::VID;
+use crate::core::vertex_ref::VertexRef;
 use crate::core::Direction;
 use crate::db::view_api::internal::{
     Base, GraphOps, InheritCoreOps, InheritMaterialize, InheritTimeSemantics,
@@ -42,7 +43,7 @@ impl<G: GraphViewOps> LayeredGraph<G> {
 }
 
 impl<G: GraphViewOps> GraphOps for LayeredGraph<G> {
-    fn local_vertex_ref(&self, v: VertexRef) -> Option<LocalVertexRef> {
+    fn local_vertex_ref(&self, v: VertexRef) -> Option<VID> {
         self.graph.local_vertex_ref(v)
     }
 
@@ -77,22 +78,18 @@ impl<G: GraphViewOps> GraphOps for LayeredGraph<G> {
         self.graph.has_vertex_ref(v)
     }
 
-    fn degree(&self, v: LocalVertexRef, d: Direction, layer: Option<usize>) -> usize {
+    fn degree(&self, v: VID, d: Direction, layer: Option<usize>) -> usize {
         self.constrain(layer)
             .map(|layer| self.graph.degree(v, d, Some(layer)))
             .unwrap_or(0)
     }
 
-    fn vertex_ref(&self, v: u64) -> Option<LocalVertexRef> {
+    fn vertex_ref(&self, v: u64) -> Option<VID> {
         self.graph.vertex_ref(v)
     }
 
-    fn vertex_refs(&self) -> Box<dyn Iterator<Item = LocalVertexRef> + Send> {
+    fn vertex_refs(&self) -> Box<dyn Iterator<Item = VID> + Send> {
         self.graph.vertex_refs()
-    }
-
-    fn vertex_refs_shard(&self, shard: usize) -> Box<dyn Iterator<Item = LocalVertexRef> + Send> {
-        self.graph.vertex_refs_shard(shard)
     }
 
     fn edge_ref(&self, src: VertexRef, dst: VertexRef, layer: usize) -> Option<EdgeRef> {
@@ -110,7 +107,7 @@ impl<G: GraphViewOps> GraphOps for LayeredGraph<G> {
 
     fn vertex_edges(
         &self,
-        v: LocalVertexRef,
+        v: VID,
         d: Direction,
         layer: Option<usize>,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
@@ -119,7 +116,7 @@ impl<G: GraphViewOps> GraphOps for LayeredGraph<G> {
 
     fn neighbours(
         &self,
-        v: LocalVertexRef,
+        v: VID,
         d: Direction,
         layer: Option<usize>,
     ) -> Box<dyn Iterator<Item = VertexRef> + Send> {

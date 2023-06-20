@@ -2,7 +2,6 @@ use rustc_hash::FxHashMap;
 use std::collections::HashMap;
 
 use crate::core::agg::Accumulator;
-use crate::core::vertex_ref::LocalVertexRef;
 use crate::db::view_api::GraphViewOps;
 
 use super::{
@@ -403,8 +402,8 @@ impl ComputeState for ComputeStateVec {
             .iter()
             .enumerate()
             .map(|(p_id, a)| {
-                let v_ref = LocalVertexRef::new(p_id, shard_id);
-
+                // todo!("SORT THIS OUT AFTER GRAPH IS SHARD FREE!");
+                let v_ref = 0.into();
                 let out = ACC::finish(a);
                 (g.vertex_name(v_ref), out)
             })
