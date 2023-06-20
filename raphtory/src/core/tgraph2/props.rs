@@ -5,7 +5,9 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 
-use crate::core::{lazy_vec::LazyVec, tprop::TProp, Prop};
+use crate::core::{
+    lazy_vec::LazyVec, props::IllegalMutate, tgraph::errors::MutateGraphError, tprop::TProp, Prop,
+};
 
 use super::tgraph::FxDashMap;
 
@@ -29,6 +31,19 @@ impl Props {
             .update_or_set(prop_id, |p| p.set(t, &prop), TProp::from(t, &prop))
     }
 
+    pub(crate) fn add_static_prop(
+        &mut self,
+        prop_id: usize,
+        prop_name: &str,
+        prop: Prop,
+    ) -> Result<(), MutateGraphError> {
+        self.static_props.set(prop_id, Some(prop)).map_err(|err| {
+            MutateGraphError::IllegalGraphPropertyChange {
+                source: IllegalMutate::from_source(err, prop_name),
+            }
+        })
+    }
+
     pub(crate) fn temporal_props(
         &self,
         prop_id: usize,
@@ -44,6 +59,10 @@ impl Props {
     pub(crate) fn static_prop(&self, prop_id: usize) -> Option<&Prop> {
         let prop = self.static_props.get(prop_id)?;
         prop.as_ref()
+    }
+
+    pub(crate) fn static_prop_ids(&self) -> Vec<usize> {
+        self.static_props.filled_ids()
     }
 }
 
@@ -66,10 +85,15 @@ impl Meta {
     pub(crate) fn resolve_prop_ids(
         &self,
         props: Vec<(String, Prop)>,
-    ) -> impl Iterator<Item = (usize, Prop)> + '_ {
+        is_static: bool,
+    ) -> impl Iterator<Item = (usize, String, Prop)> + '_ {
         props.into_iter().map(move |(name, prop)| {
-            let prop_id = self.meta_prop_temporal.get_or_create_id(name.clone());
-            (prop_id, prop)
+            let prop_id = if !is_static {
+                self.meta_prop_temporal.get_or_create_id(name.clone())
+            } else {
+                self.meta_prop_static.get_or_create_id(name.clone())
+            };
+            (prop_id, name, prop)
         })
     }
 
@@ -78,6 +102,14 @@ impl Meta {
             self.meta_prop_static.get_or_create_id(name.to_string())
         } else {
             self.meta_prop_temporal.get_or_create_id(name.to_string())
+        }
+    }
+
+    pub(crate) fn find_prop_id(&self, name: &str, is_static: bool) -> Option<usize> {
+        if is_static {
+            self.meta_prop_static.get(&name.to_owned())
+        } else {
+            self.meta_prop_temporal.get(&name.to_owned())
         }
     }
 
@@ -98,21 +130,34 @@ impl Meta {
     }
 
     pub(crate) fn get_all_layers(&self) -> Vec<usize> {
-        self.meta_layer.map.iter().map(|entry| *entry.value()).collect()
+        self.meta_layer
+            .map
+            .iter()
+            .map(|entry| *entry.value())
+            .collect()
+    }
+
+    pub(crate) fn reverse_prop_id(&self, prop_id: usize, is_static: bool) -> Option<String> {
+        if is_static {
+            self.meta_prop_static.reverse_lookup(&prop_id)
+        } else {
+            self.meta_prop_temporal.reverse_lookup(&prop_id)
+        }
     }
 }
 
 #[derive(Serialize, Deserialize, Default, Debug)]
 struct DictMapper<T: Hash + Eq> {
     map: FxDashMap<T, usize>,
+    reverse_map: FxDashMap<usize, T>,
     counter: AtomicUsize,
 }
 
-impl<T: Hash + Eq> DictMapper<T> {
-
+impl<T: Hash + Eq + Clone> DictMapper<T> {
     pub(crate) fn new(start_at: usize) -> Self {
         Self {
             map: FxDashMap::default(),
+            reverse_map: FxDashMap::default(),
             counter: AtomicUsize::new(start_at),
         }
     }
@@ -122,11 +167,20 @@ impl<T: Hash + Eq> DictMapper<T> {
             return *existing_id;
         }
 
-        let new_id = self
-            .map
-            .entry(name)
-            .or_insert_with(|| self.counter.fetch_add(1, Ordering::Relaxed));
+        let new_id = self.map.entry(name.clone()).or_insert_with(|| {
+            let id = self.counter.fetch_add(1, Ordering::Relaxed);
+            self.reverse_map.insert(id, name);
+            id
+        });
         *new_id
+    }
+
+    fn get(&self, name: &T) -> Option<usize> {
+        self.map.get(name).map(|id| *id)
+    }
+
+    fn reverse_lookup(&self, id: &usize) -> Option<T> {
+        self.reverse_map.get(id).map(|name| name.clone())
     }
 }
 

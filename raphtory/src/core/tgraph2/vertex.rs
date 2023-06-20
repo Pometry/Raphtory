@@ -44,14 +44,14 @@ impl<'a, const N: usize> Vertex<'a, N> {
     }
 
     pub fn temporal_properties(&'a self, name: &str) -> impl Iterator<Item = (i64, Prop)> + 'a {
-        let prop_id = self.graph.props_meta.resolve_prop_id(name, false);
+        let prop_id = self.graph.vertex_props_meta.resolve_prop_id(name, false);
         (&self.node).temporal_properties(prop_id)
     }
 
     pub fn edges(self, layer: &str, dir: Direction) -> impl Iterator<Item = EdgeView<'a, N>> + 'a {
         let layer = self
             .graph
-            .props_meta
+            .vertex_props_meta
             .get_or_create_layer_id(layer.to_owned());
 
         let src = self.node.index().into();
@@ -76,7 +76,7 @@ impl<'a, const N: usize> Vertex<'a, N> {
     ) -> impl Iterator<Item = EdgeView<'a, N>> + Send + '_ {
         let layer = self
             .graph
-            .props_meta
+            .vertex_props_meta
             .get_or_create_layer_id(layer.to_owned());
         (*self.node)
             .edge_tuples(layer, dir)
@@ -98,7 +98,7 @@ impl<'a, const N: usize> Vertex<'a, N> {
     ) -> impl Iterator<Item = Vertex<'a, N>> + 'a {
         let layer = self
             .graph
-            .props_meta
+            .vertex_props_meta
             .get_or_create_layer_id(layer.to_owned());
 
         (*self.node)

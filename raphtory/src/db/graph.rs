@@ -105,6 +105,11 @@ impl Graph {
         Ok(Self(Arc::new(InternalGraph2::load_from_file(path)?)))
     }
 
+    /// Save a graph to a directory
+    pub fn save_to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), Box<bincode::ErrorKind>> {
+        self.0.save_to_file(path)
+    }
+
     pub fn as_arc(&self) -> Arc<InternalGraph2> {
         self.0.clone()
     }
@@ -195,69 +200,37 @@ mod db_tests {
             .all(|&(_, src, dst)| g.edge(src, dst, None).is_some())
     }
 
-    // #[test]
-    // #[ignore = "this test no longer applies"]
-    // fn graph_save_to_load_from_file() {
-    //     let vs = vec![
-    //         (1, 1, 2),
-    //         (2, 1, 3),
-    //         (-1, 2, 1),
-    //         (0, 1, 1),
-    //         (7, 3, 2),
-    //         (1, 1, 1),
-    //     ];
+    #[test]
+    #[ignore = "this test no longer applies"]
+    fn graph_save_to_load_from_file() {
+        let vs = vec![
+            (1, 1, 2),
+            (2, 1, 3),
+            (-1, 2, 1),
+            (0, 1, 1),
+            (7, 3, 2),
+            (1, 1, 1),
+        ];
 
-    //     let g = Graph::new(2);
+        let g = Graph::new(2);
 
-    //     for (t, src, dst) in &vs {
-    //         g.add_edge(*t, *src, *dst, &vec![], None).unwrap();
-    //     }
+        for (t, src, dst) in &vs {
+            g.add_edge(*t, *src, *dst, &vec![], None).unwrap();
+        }
 
-    //     let rand_dir = Uuid::new_v4();
-    //     let tmp_raphtory_path: TempDir = TempDir::new("raphtory").unwrap();
-    //     let shards_path =
-    //         format!("{:?}/{}", tmp_raphtory_path.path().display(), rand_dir).replace('\"', "");
+        let tmp_raphtory_path: TempDir =
+            TempDir::new("raphtory").expect("Failed to create tempdir");
 
-    //     println!("shards_path: {}", shards_path);
+        g.save_to_file(&tmp_raphtory_path)
+            .expect("Failed to save graph");
 
-    //     // Save to files
-    //     let mut expected = vec![
-    //         format!("{}/shard_1", shards_path),
-    //         format!("{}/shard_0", shards_path),
-    //         format!("{}/graphdb_nr_shards", shards_path),
-    //     ]
-    //     .iter()
-    //     .map(Path::new)
-    //     .map(PathBuf::from)
-    //     .collect::<Vec<_>>();
+        // Load from files
+        let g2 = Graph::load_from_file(&tmp_raphtory_path).expect("Failed to load graph");
 
-    //     expected.sort();
+        assert_eq!(g, g2);
 
-    //     match g.save_to_file(&shards_path) {
-    //         Ok(()) => {
-    //             let mut actual = fs::read_dir(&shards_path)
-    //                 .unwrap()
-    //                 .map(|f| f.unwrap().path())
-    //                 .collect::<Vec<_>>();
-
-    //             actual.sort();
-
-    //             assert_eq!(actual, expected);
-    //         }
-    //         Err(e) => panic!("{e}"),
-    //     }
-
-    //     // Load from files
-    //     match Graph::load_from_file(Path::new(&shards_path)) {
-    //         Ok(g) => {
-    //             assert!(g.has_vertex_ref(1.into()));
-    //             assert_eq!(g.nr_shards, 2);
-    //         }
-    //         Err(e) => panic!("{e}"),
-    //     }
-
-    //     let _ = tmp_raphtory_path.close();
-    // }
+        let _ = tmp_raphtory_path.close();
+    }
 
     #[test]
     fn has_edge() {
@@ -469,7 +442,7 @@ mod db_tests {
         let v11 = g.vertex_ref(11).unwrap();
         let v22 = g.vertex_ref(22).unwrap();
         let v33 = g.vertex_ref(33).unwrap();
-        let edge1111 = g.edge_ref(11.into(), 11.into(), 0).unwrap();
+        let edge1111 = g.edge_ref(v11.into(), v11.into(), 0).unwrap();
         let edge2233 = g.edge_ref(v22.into(), v33.into(), 0).unwrap();
         let edge3311 = g.edge_ref(v33.into(), v11.into(), 0).unwrap();
 

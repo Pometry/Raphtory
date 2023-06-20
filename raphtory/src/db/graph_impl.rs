@@ -2,14 +2,12 @@ use std::ops::Range;
 
 use crate::core::{
     edge_ref::EdgeRef,
-    tgraph2::{tgraph::InnerTemporalGraph, VID, timer::TimeCounterTrait},
+    tgraph2::{tgraph::InnerTemporalGraph, timer::TimeCounterTrait, VID},
     tgraph_shard::LockedView,
     tprop::TProp,
     vertex_ref::VertexRef,
     Direction, Prop,
 };
-
-
 
 use genawaiter::sync::GenBoxed;
 
@@ -17,7 +15,7 @@ use super::view_api::internal::{CoreGraphOps, GraphOps, TimeSemantics};
 
 impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
     fn get_layer_name_by_id(&self, layer_id: usize) -> String {
-        self.props_meta
+        self.vertex_props_meta
             .get_layer_name_by_id(layer_id)
             .unwrap_or_else(|| panic!("layer id '{layer_id}' doesn't exist"))
             .to_string()
@@ -47,9 +45,7 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
     fn localise_vertex_unchecked(&self, v: VertexRef) -> VID {
         match v {
             VertexRef::Local(l) => l,
-            VertexRef::Remote(_) => {
-                self.resolve_vertex_ref(&v).unwrap()
-            }
+            VertexRef::Remote(_) => self.resolve_vertex_ref(&v).unwrap(),
         }
     }
 
@@ -70,11 +66,21 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
     }
 
     fn static_vertex_prop(&self, v: VID, name: &str) -> Option<Prop> {
-        todo!()
+        let entry = self.node_entry(v);
+        let node = entry.value()?;
+        let prop_id = self.vertex_find_prop(name, true)?;
+        node.static_property(prop_id).map(|p|p.clone())
     }
 
     fn static_vertex_prop_names(&self, v: VID) -> Vec<String> {
-        todo!()
+        if let Some(node) = self.node_entry(v).value() {
+            return node
+                .static_prop_ids()
+                .into_iter()
+                .flat_map(|prop_id| self.reverse_prop_id(prop_id, true))
+                .collect();
+        }
+        vec![]
     }
 
     fn temporal_vertex_prop(&self, v: VID, name: &str) -> Option<LockedView<TProp>> {
@@ -86,11 +92,22 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
     }
 
     fn static_edge_prop(&self, e: EdgeRef, name: &str) -> Option<Prop> {
-        todo!()
+        let entry = self.edge_entry(e.pid());
+        let edge = entry.value()?;
+        let prop_id = self.edge_find_prop(name, true)?;
+        edge.static_property(prop_id, e.layer()).map(|p|p.clone())
+
     }
 
     fn static_edge_prop_names(&self, e: EdgeRef) -> Vec<String> {
-        todo!()
+        if let Some(edge) = self.edge_entry(e.pid()).value() {
+            return edge
+                .static_prop_ids(e.layer())
+                .into_iter()
+                .flat_map(|prop_id| self.edge_reverse_prop_id(prop_id, true))
+                .collect();
+        }
+        vec![]
     }
 
     fn temporal_edge_prop(&self, e: EdgeRef, name: &str) -> Option<LockedView<TProp>> {
@@ -118,12 +135,12 @@ impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
     }
 
     fn get_unique_layers_internal(&self) -> Vec<usize> {
-        self.props_meta.get_all_layers()
+        self.vertex_props_meta.get_all_layers()
     }
 
     fn get_layer_id(&self, key: Option<&str>) -> Option<usize> {
         match key {
-            Some(key) => self.props_meta.get_layer_id(key),
+            Some(key) => self.vertex_props_meta.get_layer_id(key),
             None => Some(0),
         }
     }
@@ -149,14 +166,13 @@ impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
         let dst = self.resolve_vertex_ref(&dst)?;
 
         self.find_edge(src, dst, layer)
-            .map(|e_id| { 
-                EdgeRef::LocalOut {
+            .map(|e_id| EdgeRef::LocalOut {
                 e_pid: e_id,
                 layer_id: layer,
                 src_pid: src,
                 dst_pid: dst,
                 time: None,
-            } })
+            })
     }
 
     fn edge_refs(&self, layer: Option<usize>) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
@@ -199,7 +215,6 @@ impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
 }
 
 impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
-
     fn latest_time_global(&self) -> Option<i64> {
         Some(self.latest_time.get()).filter(|t| *t != i64::MIN)
     }

@@ -2,7 +2,7 @@ use std::ops::Range;
 
 use serde::{Deserialize, Serialize};
 
-use crate::core::{timeindex::TimeIndex, Direction, Prop};
+use crate::core::{timeindex::TimeIndex, Direction, Prop, tgraph::errors::MutateGraphError};
 
 use super::{adj::Adj, props::Props, EID, VID};
 
@@ -41,6 +41,10 @@ impl<const N: usize> NodeStore<N> {
 
     pub fn add_prop(&mut self, t: i64, prop_id: usize, prop: Prop) {
         self.props.add_prop(t, prop_id, prop);
+    }
+
+    pub fn add_static_prop(&mut self, prop_id: usize, name:&str, prop: Prop) -> Result<(), MutateGraphError>{
+        self.props.add_static_prop(prop_id, name, prop)
     }
 
     pub(crate) fn find_edge(&self, dst: VID, layer_id: Option<usize>) -> Option<super::EID> {
@@ -83,10 +87,6 @@ impl<const N: usize> NodeStore<N> {
         }
     }
 
-    // pub(crate) fn has_time_window(&self, window: Range<i64>) -> bool {
-    //     self.timestamps.range(window).next().is_some()
-    // }
-
     pub(crate) fn temporal_properties<'a>(
         &'a self,
         prop_id: usize,
@@ -114,5 +114,9 @@ impl<const N: usize> NodeStore<N> {
         page_size: usize,
     ) -> Vec<(VID, EID)> {
         self.layers[layer_id].get_page_vec(last, page_size, dir)
+    }
+
+    pub(crate) fn static_prop_ids(&self) -> Vec<usize> {
+        self.props.static_prop_ids()
     }
 }

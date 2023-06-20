@@ -9,6 +9,8 @@ pub(crate) mod errors {
     pub enum MutateGraphError {
         #[error("Create vertex '{vertex_id}' first before adding static properties to it")]
         VertexNotFoundError { vertex_id: u64 },
+        #[error("Unable to find layer '{layer_name}' to add property to")]
+        LayerNotFoundError { layer_name: String },
         #[error("cannot change property for vertex '{vertex_id}'")]
         IllegalVertexPropertyChange {
             vertex_id: u64,

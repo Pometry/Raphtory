@@ -14,10 +14,10 @@ pub struct IllegalMutate {
 }
 
 impl IllegalMutate {
-    fn from(source: IllegalSet<Option<Prop>>, props: &Props) -> IllegalMutate {
+    pub(crate) fn from_source(source: IllegalSet<Option<Prop>>, prop: &str) -> IllegalMutate {
         let id = PropId::Static(source.index);
         IllegalMutate {
-            name: props.reverse_id(&id).to_string(),
+            name: prop.to_string(),
             source,
         }
     }
@@ -194,23 +194,23 @@ impl Props {
         }
     }
 
-    pub fn set_static_props(
-        &mut self,
-        id: usize,
-        props: Vec<(String, Prop)>,
-    ) -> Result<(), IllegalMutate> {
-        if !props.is_empty() {
-            let translated_props = self.translate_props(props, true);
-            let vertex_slot: &mut LazyVec<Option<Prop>> =
-                Self::grow_and_get_slot(&mut self.static_props, id);
-            for (prop_id, prop) in translated_props {
-                if let Err(e) = vertex_slot.set(prop_id, Some(prop)) {
-                    return Err(IllegalMutate::from(e, &self));
-                }
-            }
-        }
-        Ok(())
-    }
+    // pub fn set_static_props(
+    //     &mut self,
+    //     id: usize,
+    //     props: Vec<(String, Prop)>,
+    // ) -> Result<(), IllegalMutate> {
+    //     if !props.is_empty() {
+    //         let translated_props = self.translate_props(props, true);
+    //         let vertex_slot: &mut LazyVec<Option<Prop>> =
+    //             Self::grow_and_get_slot(&mut self.static_props, id);
+    //         for (prop_id, prop) in translated_props {
+    //             if let Err(e) = vertex_slot.set(prop_id, Some(prop)) {
+    //                 return Err(IllegalMutate::from(e, &self));
+    //             }
+    //         }
+    //     }
+    //     Ok(())
+    // }
 }
 
 #[cfg(test)]
