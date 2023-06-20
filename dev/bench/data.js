@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1687193214689,
+  "lastUpdate": 1687304049304,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -3721,6 +3721,60 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions with numeric string input",
             "value": 2492394,
             "range": "± 352462",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97447091+ljeub-pometry@users.noreply.github.com",
+            "name": "ljeub-pometry",
+            "username": "ljeub-pometry"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ae08e5386536f3d72557194e576589a32e142c82",
+          "message": "Remove dynamic graph (#1055)\n\n* No need for a special DynamicGraph struct anymore\r\n\r\n* no need for DynamicGraph struct\r\n\r\n* refactor to make python bindings and io features rather than crates\r\n\r\n* make sure we still run all the tests\r\n\r\n* remove left-over files\r\n\r\n* fix test workflow?\r\n\r\n* remove deleted packages from release workflow\r\n\r\n* add python and io to code coverage",
+          "timestamp": "2023-06-21T00:28:46+01:00",
+          "tree_id": "ac3bcee96d6578c1805bf96112abea2fbc3695ba",
+          "url": "https://github.com/Pometry/Raphtory/commit/ae08e5386536f3d72557194e576589a32e142c82"
+        },
+        "date": 1687304047940,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 362747,
+            "range": "± 716",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and numeric string input",
+            "value": 1050661,
+            "range": "± 2823",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and string input",
+            "value": 1097239,
+            "range": "± 3394",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 813074,
+            "range": "± 109260",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions with numeric string input",
+            "value": 2579723,
+            "range": "± 177449",
             "unit": "ns/iter"
           }
         ]
