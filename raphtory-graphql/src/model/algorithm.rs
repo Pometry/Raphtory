@@ -6,11 +6,11 @@ use dynamic_graphql::internal::{OutputTypeName, Register, Registry, ResolveOwned
 use dynamic_graphql::SimpleObject;
 use once_cell::sync::Lazy;
 use raphtory::algorithms::pagerank::unweighted_page_rank;
+use raphtory::db::view_api::internal::DynamicGraph;
 use raphtory::db::view_api::GraphViewOps;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::sync::Mutex;
-use crate::model::wrappers::dynamic::DynamicGraph;
 
 type RegisterFunction = fn(&str, Registry, Object) -> (Registry, Object);
 
