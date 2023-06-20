@@ -1271,7 +1271,7 @@ mod db_tests {
 
     #[test]
     fn time_test() {
-        let g = Graph::new(4);
+        let g = Graph::new(0);
 
         assert_eq!(g.latest_time(), None);
         assert_eq!(g.earliest_time(), None);
@@ -1283,7 +1283,7 @@ mod db_tests {
         assert_eq!(g.latest_time(), Some(5));
         assert_eq!(g.earliest_time(), Some(5));
 
-        let g = Graph::new(4);
+        let g = Graph::new(0);
 
         g.add_edge(10, 1, 2, &vec![], None).unwrap();
         assert_eq!(g.latest_time(), Some(10));

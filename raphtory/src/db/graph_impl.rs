@@ -2,15 +2,16 @@ use std::ops::Range;
 
 use crate::core::{
     edge_ref::EdgeRef,
-    tgraph2::{tgraph::InnerTemporalGraph, VID},
+    tgraph2::{tgraph::InnerTemporalGraph, VID, timer::TimeCounterTrait},
     tgraph_shard::LockedView,
-    timeindex::TimeIndexOps,
     tprop::TProp,
     vertex_ref::{LocalVertexRef, VertexRef},
     Direction, Prop,
 };
 
-use genawaiter::{sync::GenBoxed, yield_};
+
+
+use genawaiter::sync::GenBoxed;
 
 use super::view_api::internal::{CoreGraphOps, GraphOps, TimeSemantics};
 
@@ -141,7 +142,7 @@ impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
     }
 
     fn edges_len(&self, layer: Option<usize>) -> usize {
-        self.num_edges() //FIXME: account for layers
+        self.num_edges(layer)
     }
 
     fn degree(&self, v: LocalVertexRef, d: Direction, layer: Option<usize>) -> usize {
@@ -149,7 +150,14 @@ impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
     }
 
     fn vertex_refs(&self) -> Box<dyn Iterator<Item = LocalVertexRef> + Send> {
-        todo!()
+        let iter = self.vertex_ids().map(|v_id| {
+            let local_vid = v_id.as_local::<N>();
+            LocalVertexRef {
+                shard_id: local_vid.bucket,
+                pid: local_vid.offset,
+            }
+        });
+        Box::new(iter)
     }
 
     fn vertex_refs_shard(&self, shard: usize) -> Box<dyn Iterator<Item = LocalVertexRef> + Send> {
@@ -161,14 +169,15 @@ impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
         let dst = self.resolve_vertex_ref(&dst)?;
 
         self.find_edge(src, dst, layer)
-            .map(|e_id| EdgeRef::LocalOut {
+            .map(|e_id| { 
+                EdgeRef::LocalOut {
                 e_pid: e_id.into(),
                 shard_id: 0,
                 layer_id: layer,
                 src_pid: src.into(),
                 dst_pid: dst.into(),
                 time: None,
-            })
+            } })
     }
 
     fn edge_refs(&self, layer: Option<usize>) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
@@ -212,6 +221,15 @@ impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
 }
 
 impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
+
+    fn latest_time_global(&self) -> Option<i64> {
+        Some(self.latest_time.get()).filter(|t| *t != i64::MIN)
+    }
+
+    fn earliest_time_global(&self) -> Option<i64> {
+        Some(self.earliest_time.get()).filter(|t| *t != i64::MAX)
+    }
+
     fn include_vertex_window(&self, v: LocalVertexRef, w: Range<i64>) -> bool {
         todo!()
     }

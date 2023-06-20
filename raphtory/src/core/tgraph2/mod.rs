@@ -22,7 +22,7 @@ mod props;
 mod tadjset;
 pub mod tgraph;
 mod tgraph_storage;
-mod timer;
+pub(crate) mod timer;
 mod vertex;
 
 // the only reason this is public is because the phisical ids of the vertices don't move
@@ -91,14 +91,14 @@ impl From<usize> for EID {
     }
 }
 
-// impl EID {
-//     #[inline(always)]
-//     pub(crate) fn as_local<const N: usize>(&self) -> LocalID {
-//         let bucket = self.0 % N;
-//         let offset = self.0 / N;
-//         LocalID { bucket, offset }
-//     }
-// }
+impl EID {
+    #[inline(always)]
+    pub(crate) fn as_local<const N: usize>(&self) -> LocalID {
+        let bucket = self.0 % N;
+        let offset = self.0 / N;
+        LocalID { bucket, offset }
+    }
+}
 
 pub(crate) enum VRef<'a, const N: usize> {
     Entry(Entry<'a, NodeStore<N>, N>), // returned from graph.vertex

@@ -59,7 +59,7 @@ impl<const N: usize> GraphStorage<N> {
         self.nodes.len()
     }
 
-    pub(crate) fn edges_len(&self) -> usize {
+    pub(crate) fn edges_len(&self, layer: Option<usize>) -> usize {
         self.edges.len()
     }
 

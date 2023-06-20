@@ -62,7 +62,7 @@ impl<const N: usize> std::fmt::Display for InnerTemporalGraph<N> {
             f,
             "Graph(num_vertices={}, num_edges={})",
             self.storage.nodes_len(),
-            self.storage.edges_len()
+            self.storage.edges_len(None)
         )
     }
 }
@@ -116,8 +116,8 @@ impl<const N: usize> InnerTemporalGraph<N> {
         self.storage.nodes_len()
     }
 
-    pub fn num_edges(&self) -> usize {
-        self.storage.edges_len()
+    pub fn num_edges(&self, layer: Option<usize>) -> usize {
+        self.storage.edges_len(layer)
     }
 
     pub fn has_edge_ref(&self, src: VID, dst: VID, layer_id: usize) -> bool {
@@ -328,8 +328,8 @@ impl<const N: usize> InnerTemporalGraph<N> {
         (0..self.storage.nodes_len()).map(|i| i.into())
     }
 
-    pub fn edge_ids(&self) -> impl Iterator<Item = EID> {
-        (0..self.storage.edges_len()).map(|i| i.into())
+    pub fn edge_ids(&self, layer: Option<usize>) -> impl Iterator<Item = EID> {
+        (0..self.storage.edges_len(layer)).map(|i| i.into())
     }
 
     // pub fn vertex_active(&self, v: VID, t_start: i64, t_end: i64) -> bool {
