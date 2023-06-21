@@ -3,7 +3,7 @@ use crate::model::filters::nodefilter::NodeFilter;
 use crate::model::graph::edge::Edge;
 use crate::model::graph::node::Node;
 use crate::model::wrappers::dynamic::{DynamicGraph, IntoDynamic};
-
+use crate::model::graph::property::Property;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::db::view_api::{GraphViewOps, TimeOps, VertexViewOps};
 
@@ -25,6 +25,14 @@ impl GqlGraph {
     async fn window(&self, t_start: i64, t_end: i64) -> GqlGraph {
         let w = self.graph.window(t_start, t_end);
         w.into()
+    }
+
+    async fn static_properties(&self) -> Vec<Property> {
+        self.graph
+            .static_properties()
+            .into_iter()
+            .map(|(k, v)| Property::new(k, v))
+            .collect()
     }
 
     async fn nodes(&self, filter: Option<NodeFilter>) -> Vec<Node> {
