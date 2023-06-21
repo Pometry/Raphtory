@@ -99,10 +99,12 @@ pub(crate) struct Meta {
 
 impl Meta {
     pub(crate) fn new() -> Self {
+        let meta_layer = DictMapper::default();
+        meta_layer.get_or_create_id("_default".to_owned());
         Self {
             meta_prop_temporal: DictMapper::default(),
             meta_prop_static: DictMapper::default(),
-            meta_layer: DictMapper::new(1), // layer 0 is the default layer
+            meta_layer, // layer 0 is the default layer
         }
     }
 

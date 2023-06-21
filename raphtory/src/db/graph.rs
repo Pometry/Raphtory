@@ -968,7 +968,7 @@ mod db_tests {
 
     #[test]
     fn test_vertex_ids() {
-        let g = Graph::new(1);
+        let g = Graph::new(0);
         g.add_vertex(1, 1, &vec![]).unwrap();
         g.add_vertex(1, 2, &vec![]).unwrap();
         g.add_vertex(2, 3, &vec![]).unwrap();
@@ -981,7 +981,7 @@ mod db_tests {
 
     #[test]
     fn test_edge_layer_name() -> Result<(), GraphError> {
-        let g = Graph::new(4);
+        let g = Graph::new(0);
         g.add_edge(0, 0, 1, &vec![], None)?;
         g.add_edge(0, 0, 1, &vec![], Some("awesome name"))?;
 
@@ -992,7 +992,7 @@ mod db_tests {
 
     #[test]
     fn test_edge_from_single_layer() {
-        let g = Graph::new(4);
+        let g = Graph::new(0);
         g.add_edge(0, 1, 2, &vec![], Some("layer")).unwrap();
 
         assert!(g.edge(1, 2, None).is_none());

@@ -141,7 +141,7 @@ impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
     }
 
     fn get_unique_layers_internal(&self) -> Vec<usize> {
-        self.vertex_props_meta.get_all_layers()
+        self.edge_props_meta.get_all_layers()
     }
 
     fn get_layer_id(&self, key: Option<&str>) -> Option<usize> {
