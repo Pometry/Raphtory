@@ -195,7 +195,7 @@ mod time_tests {
 
         let g = graph_with_timeline(1, 6);
         let windows = g.rolling(3, Some(2)).unwrap();
-        let expected = vec![(0, 3), (2, 5)];
+        let expected = vec![(0, 3), (2, 5), (4, 7)];
         assert_bounds(windows, expected.clone());
 
         let g = graph_with_timeline(0, 9).window(1, 6);
@@ -227,10 +227,16 @@ mod time_tests {
         let end = "2020-06-07 23:59:59.999".try_into_time().unwrap();
         let g = graph_with_timeline(start, end);
         let windows = g.rolling("1 day", None).unwrap();
-        let expected = vec![(
-            "2020-06-06 00:00:00".try_into_time().unwrap(), // entire 2020-06-06
-            "2020-06-07 00:00:00".try_into_time().unwrap(),
-        )];
+        let expected = vec![
+            (
+                "2020-06-06 00:00:00".try_into_time().unwrap(), // entire 2020-06-06
+                "2020-06-07 00:00:00".try_into_time().unwrap(),
+            ),
+            (
+                "2020-06-07 00:00:00".try_into_time().unwrap(), // entire 2020-06-06
+                "2020-06-08 00:00:00".try_into_time().unwrap(),
+            ),
+        ];
         assert_bounds(windows, expected);
 
         let start = "2020-06-06 00:00:00".try_into_time().unwrap();
