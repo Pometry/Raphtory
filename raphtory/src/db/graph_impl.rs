@@ -154,7 +154,6 @@ impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
     }
 
     fn degree(&self, v: VID, d: Direction, layer: Option<usize>) -> usize {
-        println!("degree: {:?} {:?} {:?}", v, d, layer);
         self.degree(v, d, layer)
     }
 
@@ -190,14 +189,8 @@ impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
         let v = self.vertex_arc(vid);
 
         let iter: GenBoxed<EdgeRef> = GenBoxed::new_boxed(|co| async move {
-            for (other_v, eid) in v.edge_tuples(layer, d) {
-                co.yield_(EdgeRef::LocalOut {
-                    e_pid: eid,
-                    layer_id: 0,
-                    src_pid: vid,
-                    dst_pid: other_v,
-                    time: None,
-                })
+            for e_ref in v.edge_tuples(layer, d) {
+                co.yield_(e_ref)
                 .await;
             }
         });

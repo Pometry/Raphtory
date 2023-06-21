@@ -3,7 +3,7 @@ use std::{rc::Rc, sync::Arc};
 use itertools::Itertools;
 
 use crate::{
-    core::{Direction, Prop},
+    core::{Direction, Prop, edge_ref::EdgeRef},
     storage::{iter::RefT, Entry, ArcEntry},
 };
 
@@ -69,28 +69,28 @@ impl<'a, const N: usize> Vertex<'a, N> {
         }
     }
 
-    pub fn edges_iter(
-        &self,
-        layer: &str,
-        dir: Direction,
-    ) -> impl Iterator<Item = EdgeView<'a, N>> + Send + '_ {
-        let layer = self
-            .graph
-            .vertex_props_meta
-            .get_or_create_layer_id(layer.to_owned());
+    // pub fn edges_iter(
+    //     &self,
+    //     layer: &str,
+    //     dir: Direction,
+    // ) -> impl Iterator<Item = EdgeView<'a, N>> + Send + '_ {
+    //     let layer = self
+    //         .graph
+    //         .vertex_props_meta
+    //         .get_or_create_layer_id(layer.to_owned());
 
-        (*self.node)
-            .edge_tuples(Some(layer), dir)
-            .map(move |(dst, e_id)| {
-                EdgeView::new(
-                    self.node.index().into(),
-                    dst,
-                    self.node.edge_ref(e_id),
-                    dir,
-                    self.graph,
-                )
-            })
-    }
+    //     (*self.node)
+    //         .edge_tuples(Some(layer), dir)
+    //         .map(move |(from, to, e_id)| {
+    //             EdgeView::new(
+    //                 from,
+    //                 to,
+    //                 self.node.edge_ref(e_id),
+    //                 dir,
+    //                 self.graph,
+    //             )
+    //         })
+    // }
 
     pub fn neighbours<'b>(
         &'a self,
@@ -103,7 +103,7 @@ impl<'a, const N: usize> Vertex<'a, N> {
             .get_or_create_layer_id(layer.to_owned());
 
         (*self.node)
-            .neighbours(Some(layer), dir)
+            .neighbours(self.id(), Some(layer), dir)
             .map(move |dst| self.graph.vertex(dst))
     }
 }
@@ -126,7 +126,7 @@ impl <const N: usize> ArcVertex<N> {
         ArcVertex { e }
     }
 
-    pub fn edge_tuples(&self, layer: Option<usize>, dir: Direction) -> impl Iterator<Item = (VID, VID, EID)> + '_ {
-        self.e.edge_tuples(self.e.index().into(), layer, dir)
+    pub fn edge_tuples(&self, layer: Option<usize>, dir: Direction) -> impl Iterator<Item = EdgeRef> + '_ {
+        self.e.edge_tuples(layer, dir)
     }
 }

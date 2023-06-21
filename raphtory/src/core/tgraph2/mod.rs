@@ -69,7 +69,7 @@ impl VID {
 }
 
 #[repr(transparent)]
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Deserialize, Serialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Deserialize, Serialize, Default)]
 pub struct EID(usize);
 
 impl From<EID> for usize {

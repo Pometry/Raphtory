@@ -1,13 +1,16 @@
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
-use crate::core::{tgraph::errors::MutateGraphError, timeindex::TimeIndex, Direction, Prop};
+use crate::core::{
+    edge_ref::EdgeRef, tgraph::errors::MutateGraphError, timeindex::TimeIndex, Direction, Prop,
+};
 
 use super::{adj::Adj, props::Props, EID, VID};
 
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
 pub(crate) struct NodeStore<const N: usize> {
     global_id: u64,
+    pub(crate) vid: VID,
     // all the timestamps that have been seen by this vertex
     timestamps: TimeIndex,
     // each layer represents a separate view of the graph
@@ -20,6 +23,7 @@ impl<const N: usize> NodeStore<N> {
     pub fn new(global_id: u64, t: i64) -> Self {
         Self {
             global_id,
+            vid: 0.into(),
             timestamps: TimeIndex::one(t),
             layers: vec![Adj::Solo],
             props: Props::new(),
@@ -80,8 +84,6 @@ impl<const N: usize> NodeStore<N> {
         layer: usize,
         edge_id: super::EID,
     ) {
-        println!("adding edge {:?} to layer {}", dir, layer);
-
         if layer >= self.layers.len() {
             self.layers.resize_with(layer + 1, || Adj::Solo);
         }
@@ -106,23 +108,35 @@ impl<const N: usize> NodeStore<N> {
 
     pub(crate) fn edge_tuples<'a>(
         &'a self,
-        self_id: VID, // we don't actually store the physical id of the vertex
         layer_id: Option<usize>,
         d: Direction,
-    ) -> Box<dyn Iterator<Item = (VID, VID, super::EID)> + Send + 'a> {
+    ) -> Box<dyn Iterator<Item = EdgeRef> + Send + 'a> {
+        let self_id = self.vid;
         match layer_id {
             Some(layer_id) => {
                 if let Some(layer) = self.layers.get(layer_id) {
                     match d {
                         Direction::IN => {
-                            Box::new(layer.iter(d).map(|(from_v, e_id)| (from_v, self_id, e_id)))
+                            Box::new(layer.iter(d).map(move |(src_pid, e_id)| EdgeRef::LocalInto {
+                                e_pid: e_id,
+                                src_pid,
+                                dst_pid: self_id,
+                                layer_id: layer_id,
+                                time: None,
+                            }))
                         }
                         Direction::OUT => {
-                            Box::new(layer.iter(d).map(|(to_v, e_id)| (self_id, to_v, e_id)))
+                            Box::new(layer.iter(d).map(move |(dst_pid, e_id)| EdgeRef::LocalOut {
+                                e_pid: e_id,
+                                layer_id: layer_id,
+                                src_pid: self_id,
+                                dst_pid,
+                                time: None,
+                            }))
                         }
                         Direction::BOTH => Box::new(
-                            self.edge_tuples(self_id, Some(layer_id), Direction::OUT)
-                                .chain(self.edge_tuples(self_id, Some(layer_id), Direction::IN)),
+                            self.edge_tuples(Some(layer_id), Direction::OUT)
+                                .chain(self.edge_tuples(Some(layer_id), Direction::IN)),
                         ),
                     }
                 } else {
@@ -134,7 +148,7 @@ impl<const N: usize> NodeStore<N> {
                     .layers
                     .iter()
                     .enumerate()
-                    .flat_map(|(layer_id, layer)| self.edge_tuples(self_id, Some(layer_id), d));
+                    .flat_map(move |(layer_id, _)| self.edge_tuples(Some(layer_id), d));
                 Box::new(iter)
             }
         }
@@ -170,7 +184,8 @@ impl<const N: usize> NodeStore<N> {
                     .iter()
                     .enumerate()
                     .map(|(layer_id, layer)| self.neighbours(self_id, Some(layer_id), d))
-                    .kmerge();
+                    .kmerge()
+                    .dedup();
                 Box::new(iter)
             }
         }

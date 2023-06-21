@@ -3,10 +3,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::core::{timeindex::TimeIndex, Prop, tgraph::errors::MutateGraphError};
 
-use super::{props::Props, VID};
+use super::{props::Props, VID, EID};
 
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
 pub(crate) struct EdgeStore<const N: usize> {
+    pub(crate) eid: EID,
     src: VID,
     dst: VID,
     timestamps: TimeIndex,
@@ -16,6 +17,7 @@ pub(crate) struct EdgeStore<const N: usize> {
 impl<const N: usize> EdgeStore<N> {
     pub fn new(src: VID, dst: VID, t: i64) -> Self {
         Self {
+            eid: 0.into(),
             src,
             dst,
             timestamps: TimeIndex::one(t),

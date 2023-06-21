@@ -27,11 +27,11 @@ impl<const N: usize> GraphStorage<N> {
     }
 
     pub(crate) fn push_node(&self, node: NodeStore<N>) -> usize {
-        self.nodes.push(node)
+        self.nodes.push(node, |vid, node| node.vid = vid.into())
     }
 
     pub(crate) fn push_edge(&self, edge: EdgeStore<N>) -> usize {
-        self.edges.push(edge)
+        self.edges.push(edge, |eid, edge| edge.eid = eid.into())
     }
 
     pub(crate) fn get_node_mut(&self, id: usize) -> EntryMut<'_, NodeStore<N>> {
@@ -66,7 +66,7 @@ impl<const N: usize> GraphStorage<N> {
         match layer {
             None => self.edges.len(),
             Some(layer_id) => self.nodes.iter().fold(0, |len, node| {
-                len + node.edge_tuples(node.index().into(), Some(layer_id), Direction::OUT).count()
+                len + node.edge_tuples(Some(layer_id), Direction::OUT).count()
             }),
         }
     }

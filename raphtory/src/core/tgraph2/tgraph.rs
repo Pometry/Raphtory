@@ -173,7 +173,7 @@ impl<const N: usize> InnerTemporalGraph<N> {
 
     pub fn degree(&self, v: VID, dir: Direction, layer: Option<usize>) -> usize {
         let node_store = self.storage.get_node(v.into());
-        node_store.edge_tuples(v.into(), layer, dir).dedup_by(|(v1, _), (v2, _)| v1 == v2).count()
+        node_store.neighbours(v.into(), layer, dir).count()
     }
 
     pub fn edges<'a>(
@@ -376,7 +376,6 @@ impl<const N: usize> InnerTemporalGraph<N> {
 
             // find the edge_id if it exists and add the time event to the nodes
             if let Some(edge_id) = src.find_edge(dst_id, None) {
-                println!("found edge: {src_id:?} -> {dst_id:?} e_id: {edge_id:?}");
                 src.add_edge(dst_id, Direction::OUT, layer, edge_id);
                 // add inbound edge for dst
                 let dst = node_pair.get_mut_j();

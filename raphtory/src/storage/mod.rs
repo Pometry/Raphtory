@@ -93,11 +93,12 @@ impl<T, const N: usize> RawStorage<T, N> {
         }
     }
 
-    pub fn push(&self, value: T) -> usize {
+    pub fn push<F: Fn(usize, &mut T)>(&self, mut value: T, f: F) -> usize {
         let index = self.len.fetch_add(1, Ordering::SeqCst);
         let (bucket, offset) = resolve::<N>(index);
         let mut vec = self.data[bucket].data.write();
         vec.resize_with(offset, || None);
+        f(index, &mut value);
         vec.insert(offset, Some(value));
         index
     }
@@ -289,7 +290,7 @@ mod test {
         let storage = RawStorage::<String, 2>::new();
 
         for i in 0..5 {
-            storage.push(i.to_string());
+            storage.push(i.to_string(), |_, _| {});
         }
 
         assert_eq!(storage.len(), 5);
@@ -311,7 +312,7 @@ mod test {
         let storage = RawStorage::<String, 2>::new();
 
         for i in 0..5 {
-            storage.push(i.to_string());
+            storage.push(i.to_string(), |_, _| {});
         }
 
         let items_iter = storage.iter();
@@ -332,7 +333,7 @@ mod test {
         let storage = RawStorage::<String, 2>::new();
 
         for i in 0..5 {
-            storage.push(i.to_string());
+            storage.push(i.to_string(), |_, _| {});
         }
 
         for i in 0..5 {
