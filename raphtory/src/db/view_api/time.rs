@@ -1,5 +1,6 @@
 use crate::core::time::error::ParseTimeError;
 use crate::core::time::{Interval, IntoTime};
+use std::cmp::min;
 
 /// Trait defining time query operations
 pub trait TimeOps {
@@ -90,7 +91,7 @@ impl<T: TimeOps + Clone + 'static> WindowSet<T> {
         // } else {
         //     timeline_start + step - 1
         // };
-        let cursor_start = start + step - 1;
+        let cursor_start = start + step;
         Self {
             view,
             cursor: cursor_start,
@@ -145,8 +146,8 @@ impl<T: TimeOps + Clone> Iterator for TimeIndex<T> {
 impl<T: TimeOps + Clone> Iterator for WindowSet<T> {
     type Item = T::WindowedViewType;
     fn next(&mut self) -> Option<Self::Item> {
-        if self.cursor < self.end {
-            let window_end = self.cursor + 1;
+        if self.cursor < self.end + self.step {
+            let window_end = self.cursor;
             let window_start = self.window.map(|w| window_end - w).unwrap_or(i64::MIN);
             let window = self.view.window(window_start, window_end);
             self.cursor = self.cursor + self.step;
@@ -212,7 +213,7 @@ mod time_tests {
 
         let g = graph_with_timeline(1, 6);
         let windows = g.expanding(2).unwrap();
-        let expected = vec![(min, 3), (min, 5)];
+        let expected = vec![(min, 3), (min, 5), (min, 7)];
         assert_bounds(windows, expected.clone());
 
         let g = graph_with_timeline(0, 9).window(1, 6);
@@ -274,7 +275,10 @@ mod time_tests {
         let end = "2020-06-07 23:59:59.999".try_into_time().unwrap();
         let g = graph_with_timeline(start, end);
         let windows = g.expanding("1 day").unwrap();
-        let expected = vec![(min, "2020-06-07 00:00:00".try_into_time().unwrap())];
+        let expected = vec![
+            (min, "2020-06-07 00:00:00".try_into_time().unwrap()),
+            (min, "2020-06-08 00:00:00".try_into_time().unwrap()),
+        ];
         assert_bounds(windows, expected);
 
         let start = "2020-06-06 00:00:00".try_into_time().unwrap();
