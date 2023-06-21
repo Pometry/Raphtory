@@ -96,10 +96,11 @@ impl ImmutableGraph {
     ///
     /// ```rust
     /// use raphtory::db::graph::Graph;
+    /// use raphtory::db::mutation_api::AdditionOps;
     /// use raphtory::db::view_api::*;
     ///
     /// let graph = Graph::new(2);
-    /// graph.add_vertex(0, 1, &vec![]).unwrap();
+    /// graph.add_vertex(0, 1, []).unwrap();
     /// // ... Add vertices and edges ...
     /// let immutable_graph = graph.freeze();
     /// // Unfreeze the graph
@@ -115,10 +116,11 @@ impl ImmutableGraph {
     ///
     /// ```rust
     /// use raphtory::db::graph::Graph;
+    /// use raphtory::db::mutation_api::AdditionOps;
     /// use raphtory::db::view_api::*;
     ///
     /// let graph = Graph::new(2);
-    /// graph.add_vertex(0, 1, &vec![]).unwrap();
+    /// graph.add_vertex(0, 1, []).unwrap();
     /// // ... Add vertices and edges ...
     /// let immutable_graph = graph.freeze();
     /// // Unfreeze the graph
@@ -156,10 +158,11 @@ impl ImmutableGraph {
     ///
     /// ```rust
     /// use raphtory::db::graph::Graph;
+    /// use raphtory::db::mutation_api::AdditionOps;
     /// use raphtory::db::view_api::*;
     ///
     /// let graph = Graph::new(2);
-    /// graph.add_vertex(0, 1, &vec![]).unwrap();
+    /// graph.add_vertex(0, 1, []).unwrap();
     /// // ... Add vertices and edges ...
     /// let immutable_graph = graph.freeze();
     /// // Unfreeze the graph
@@ -179,7 +182,7 @@ impl ImmutableGraph {
     /// use raphtory::db::view_api::*;
     ///
     /// let graph = Graph::new(2);
-    /// graph.add_vertex(0, 1, &vec![]).unwrap();
+    /// graph.add_vertex(0, 1, []).unwrap();
     /// // ... Add vertices and edges ...
     /// let immutable_graph = graph.freeze();
     /// // Unfreeze the graph
@@ -201,10 +204,11 @@ impl ImmutableGraph {
     ///
     /// ```rust
     /// use raphtory::db::graph::Graph;
+    /// use raphtory::db::mutation_api::AdditionOps;
     /// use raphtory::db::view_api::*;
     ///
     /// let graph = Graph::new(2);
-    /// graph.add_vertex(0, 1, &vec![]).unwrap();
+    /// graph.add_vertex(0, 1, []).unwrap();
     /// // ... Add vertices and edges ...
     /// let immutable_graph = graph.freeze();
     /// // Unfreeze the graph
@@ -220,10 +224,11 @@ impl ImmutableGraph {
     ///
     /// ```rust
     /// use raphtory::db::graph::Graph;
+    /// use raphtory::db::mutation_api::AdditionOps;
     /// use raphtory::db::view_api::*;
     ///
     /// let graph = Graph::new(2);
-    /// graph.add_edge(0, 1, 1, &vec![], None).unwrap();
+    /// graph.add_edge(0, 1, 1, [], None).unwrap();
     /// // ... Add vertices and edges ...
     /// let immutable_graph = graph.freeze();
     /// // Unfreeze the graph
@@ -242,10 +247,11 @@ impl ImmutableGraph {
     ///
     /// ```rust
     /// use raphtory::db::graph::Graph;
+    /// use raphtory::db::mutation_api::AdditionOps;
     /// use raphtory::db::view_api::*;
     ///
     /// let graph = Graph::new(2);
-    /// graph.add_edge(0, 1, 2, &vec![], None).unwrap();
+    /// graph.add_edge(0, 1, 2, [], None).unwrap();
     /// // ... Add vertices and edges ...
     /// let immutable_graph = graph.freeze();
     /// // Unfreeze the graph
