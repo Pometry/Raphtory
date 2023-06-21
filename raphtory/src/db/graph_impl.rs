@@ -232,7 +232,7 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
     }
 
     fn include_vertex_window(&self, v: VID, w: Range<i64>) -> bool {
-        todo!()
+        self.node_entry(v).timestamps().active(w)
     }
 
     fn include_edge_window(&self, e: EdgeRef, w: Range<i64>) -> bool {
@@ -311,5 +311,18 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
 
     fn temporal_edge_prop_vec(&self, e: EdgeRef, name: &str) -> Vec<(i64, Prop)> {
         todo!()
+    }
+
+    fn vertex_history(&self, v: VID) -> Vec<i64> {
+        self.node_entry(v).timestamps().iter().copied().collect()
+    }
+
+    fn vertex_history_window(&self, v: VID, w: Range<i64>) -> Vec<i64> {
+        self.node_entry(v)
+            .timestamps()
+            .range(w)
+            .iter()
+            .copied()
+            .collect()
     }
 }

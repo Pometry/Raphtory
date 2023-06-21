@@ -1,14 +1,13 @@
 use std::{borrow::Borrow, fmt::Debug, hash::BuildHasherDefault, path::Path};
 
 use dashmap::DashMap;
-use itertools::Itertools;
 use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
 
 use crate::{
     core::{
         tgraph::errors::MutateGraphError, tgraph_shard::errors::GraphError, time::TryIntoTime,
-        timeindex::TimeIndexOps, tprop::TProp, vertex::InputVertex, vertex_ref::VertexRef,
+        timeindex::TimeIndexOps, vertex::InputVertex, vertex_ref::VertexRef,
         Direction, Prop, PropUnwrap,
     },
     storage::Entry,
@@ -540,6 +539,13 @@ impl<const N: usize> InnerTemporalGraph<N> {
                 .flat_map(|props| props.temporal_props_window(prop_id, t_start, t_end))
                 .collect()
         }
+    }
+
+
+    pub fn vertex_history(&self, v: VID) -> Vec<i64> {
+        println!("vertex_history");
+        vec![]
+
     }
 }
 
