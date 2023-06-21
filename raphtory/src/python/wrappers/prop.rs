@@ -6,6 +6,7 @@ use crate::python::graph::PyGraph;
 use crate::python::graph_view::PyGraphView;
 use crate::python::types::repr::Repr;
 use chrono::NaiveDateTime;
+use pyo3::exceptions::PyTypeError;
 use pyo3::{FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python};
 use std::collections::HashMap;
 use std::{fmt, i64};
@@ -40,6 +41,31 @@ impl IntoPy<PyObject> for Prop {
             Prop::U32(v) => v.into_py(py),
             Prop::F32(v) => v.into_py(py),
         }
+    }
+}
+
+// Manually implemented to make sure we don't end up with f32/i32/u32 from python ints/floats
+impl<'source> FromPyObject<'source> for Prop {
+    fn extract(ob: &'source PyAny) -> PyResult<Self> {
+        if let Ok(v) = ob.extract() {
+            return Ok(Prop::I64(v));
+        }
+        if let Ok(v) = ob.extract() {
+            return Ok(Prop::F64(v));
+        }
+        if let Ok(d) = ob.extract() {
+            return Ok(Prop::DTime(d));
+        }
+        if let Ok(b) = ob.extract() {
+            return Ok(Prop::Bool(b));
+        }
+        if let Ok(s) = ob.extract() {
+            return Ok(Prop::Str(s));
+        }
+        if let Ok(g) = ob.extract() {
+            return Ok(Prop::Graph(g));
+        }
+        Err(PyTypeError::new_err("Not a valid property type"))
     }
 }
 
