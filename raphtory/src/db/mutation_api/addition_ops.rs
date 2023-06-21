@@ -43,7 +43,7 @@ pub trait AdditionOps {
         props: P,
     ) -> Result<(), GraphError> {
         let time: i64 = t.parse_time(fmt)?;
-        self.add_vertex(t, v, props)
+        self.add_vertex(time, v, props)
     }
 
     // TODO: Vertex.name which gets ._id property else numba as string
