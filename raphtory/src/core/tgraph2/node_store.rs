@@ -117,13 +117,17 @@ impl<const N: usize> NodeStore<N> {
                 if let Some(layer) = self.layers.get(layer_id) {
                     match d {
                         Direction::IN => {
-                            Box::new(layer.iter(d).map(move |(src_pid, e_id)| EdgeRef::LocalInto {
-                                e_pid: e_id,
-                                src_pid,
-                                dst_pid: self_id,
-                                layer_id: layer_id,
-                                time: None,
-                            }))
+                            Box::new(
+                                layer
+                                    .iter(d)
+                                    .map(move |(src_pid, e_id)| EdgeRef::LocalInto {
+                                        e_pid: e_id,
+                                        src_pid,
+                                        dst_pid: self_id,
+                                        layer_id: layer_id,
+                                        time: None,
+                                    }),
+                            )
                         }
                         Direction::OUT => {
                             Box::new(layer.iter(d).map(move |(dst_pid, e_id)| EdgeRef::LocalOut {
@@ -158,7 +162,6 @@ impl<const N: usize> NodeStore<N> {
     // this is important because it calculates degree
     pub(crate) fn neighbours<'a>(
         &'a self,
-        self_id: VID, // we don't actually store the physical id of the vertex
         layer_id: Option<usize>,
         d: Direction,
     ) -> Box<dyn Iterator<Item = VID> + Send + 'a> {
@@ -169,8 +172,8 @@ impl<const N: usize> NodeStore<N> {
                         Direction::IN => Box::new(layer.iter(d).map(|(from_v, _)| from_v)),
                         Direction::OUT => Box::new(layer.iter(d).map(|(to_v, _)| to_v)),
                         Direction::BOTH => Box::new(
-                            self.neighbours(self_id, Some(layer_id), Direction::OUT)
-                                .merge(self.neighbours(self_id, Some(layer_id), Direction::IN))
+                            self.neighbours(Some(layer_id), Direction::OUT)
+                                .merge(self.neighbours(Some(layer_id), Direction::IN))
                                 .dedup(),
                         ),
                     }
@@ -183,7 +186,7 @@ impl<const N: usize> NodeStore<N> {
                     .layers
                     .iter()
                     .enumerate()
-                    .map(|(layer_id, layer)| self.neighbours(self_id, Some(layer_id), d))
+                    .map(|(layer_id, layer)| self.neighbours(Some(layer_id), d))
                     .kmerge()
                     .dedup();
                 Box::new(iter)

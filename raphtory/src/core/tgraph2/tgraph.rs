@@ -173,7 +173,7 @@ impl<const N: usize> InnerTemporalGraph<N> {
 
     pub fn degree(&self, v: VID, dir: Direction, layer: Option<usize>) -> usize {
         let node_store = self.storage.get_node(v.into());
-        node_store.neighbours(v.into(), layer, dir).count()
+        node_store.neighbours(layer, dir).count()
     }
 
     pub fn edges<'a>(

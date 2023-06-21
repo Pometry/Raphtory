@@ -3,8 +3,8 @@ use std::{rc::Rc, sync::Arc};
 use itertools::Itertools;
 
 use crate::{
-    core::{Direction, Prop, edge_ref::EdgeRef},
-    storage::{iter::RefT, Entry, ArcEntry},
+    core::{edge_ref::EdgeRef, Direction, Prop},
+    storage::{iter::RefT, ArcEntry, Entry},
 };
 
 use super::{
@@ -13,9 +13,8 @@ use super::{
     node_store::NodeStore,
     tgraph::TGraph,
     tgraph_storage::GraphEntry,
-    VRef, VID, EID,
+    VRef, EID, VID,
 };
-
 
 pub struct Vertex<'a, const N: usize> {
     node: VRef<'a, N>,
@@ -32,11 +31,11 @@ impl<'a, const N: usize> Vertex<'a, N> {
     }
 
     pub(crate) fn from_ref(node: RefT<'a, NodeStore<N>, N>, graph: &'a TGraph<N>) -> Self {
-        Self::new ( VRef::RefT(node), graph,)
+        Self::new(VRef::RefT(node), graph)
     }
 
     pub(crate) fn from_entry(node: Entry<'a, NodeStore<N>, N>, graph: &'a TGraph<N>) -> Self {
-        Self::new ( VRef::Entry(node), graph,)
+        Self::new(VRef::Entry(node), graph)
     }
 
     pub(crate) fn from_ge(ge: GraphEntry<'a, NodeStore<N>, N>, graph: &'a TGraph<N>) -> Self {
@@ -103,7 +102,7 @@ impl<'a, const N: usize> Vertex<'a, N> {
             .get_or_create_layer_id(layer.to_owned());
 
         (*self.node)
-            .neighbours(self.id(), Some(layer), dir)
+            .neighbours(Some(layer), dir)
             .map(move |dst| self.graph.vertex(dst))
     }
 }
@@ -117,16 +116,28 @@ impl<'a, const N: usize> IntoIterator for Vertex<'a, N> {
     }
 }
 
-pub struct ArcVertex<const N:usize> {
-    e: ArcEntry<NodeStore<N>, N>
+pub struct ArcVertex<const N: usize> {
+    e: ArcEntry<NodeStore<N>, N>,
 }
 
-impl <const N: usize> ArcVertex<N> {
+impl<const N: usize> ArcVertex<N> {
     pub(crate) fn from_entry(e: ArcEntry<NodeStore<N>, N>) -> Self {
         ArcVertex { e }
     }
 
-    pub fn edge_tuples(&self, layer: Option<usize>, dir: Direction) -> impl Iterator<Item = EdgeRef> + '_ {
+    pub fn edge_tuples(
+        &self,
+        layer: Option<usize>,
+        dir: Direction,
+    ) -> impl Iterator<Item = EdgeRef> + '_ {
         self.e.edge_tuples(layer, dir)
+    }
+
+    pub fn neighbours(
+        &self,
+        layer: Option<usize>,
+        dir: Direction,
+    ) -> impl Iterator<Item = VID> + '_ {
+        self.e.neighbours(layer, dir)
     }
 }

@@ -69,7 +69,7 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
         let entry = self.node_entry(v);
         let node = entry.value()?;
         let prop_id = self.vertex_find_prop(name, true)?;
-        node.static_property(prop_id).map(|p|p.clone())
+        node.static_property(prop_id).map(|p| p.clone())
     }
 
     fn static_vertex_prop_names(&self, v: VID) -> Vec<String> {
@@ -95,8 +95,7 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
         let entry = self.edge_entry(e.pid());
         let edge = entry.value()?;
         let prop_id = self.edge_find_prop(name, true)?;
-        edge.static_property(prop_id, e.layer()).map(|p|p.clone())
-
+        edge.static_property(prop_id, e.layer()).map(|p| p.clone())
     }
 
     fn static_edge_prop_names(&self, e: EdgeRef) -> Vec<String> {
@@ -190,8 +189,7 @@ impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
 
         let iter: GenBoxed<EdgeRef> = GenBoxed::new_boxed(|co| async move {
             for e_ref in v.edge_tuples(layer, d) {
-                co.yield_(e_ref)
-                .await;
+                co.yield_(e_ref).await;
             }
         });
 
@@ -204,7 +202,16 @@ impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
         d: Direction,
         layer: Option<usize>,
     ) -> Box<dyn Iterator<Item = VertexRef> + Send> {
-        todo!()
+        let vid = self.resolve_vertex_ref(&VertexRef::Local(v)).unwrap();
+        let v = self.vertex_arc(vid);
+
+        let iter: GenBoxed<VertexRef> = GenBoxed::new_boxed(|co| async move {
+            for v_id in v.neighbours(layer, d) {
+                co.yield_(VertexRef::Local(v_id)).await;
+            }
+        });
+
+        Box::new(iter.into_iter())
     }
 }
 
