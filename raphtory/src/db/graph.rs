@@ -481,32 +481,6 @@ mod db_tests {
     }
 
     #[test]
-    #[should_panic]
-    fn changing_property_type_for_vertex_panics() {
-        let g = Graph::new(4);
-        g.add_vertex(0, 11, &vec![("test".to_string(), Prop::Bool(true))])
-            .unwrap();
-        g.add_vertex_properties(11, &vec![("test".to_string(), Prop::Bool(true))])
-            .unwrap();
-    }
-
-    #[test]
-    #[should_panic]
-    fn changing_property_type_for_edge_panics() {
-        let g = Graph::new(4);
-        g.add_edge(
-            0,
-            11,
-            22,
-            &vec![("test".to_string(), Prop::Bool(true))],
-            None,
-        )
-        .unwrap();
-        g.add_edge_properties(11, 22, &vec![("test".to_string(), Prop::Bool(true))], None)
-            .unwrap();
-    }
-
-    #[test]
     fn graph_neighbours_window() {
         let vs = vec![
             (1, 1, 2),
@@ -517,7 +491,7 @@ mod db_tests {
             (1, 1, 1),
         ];
 
-        let g = Graph::new(2);
+        let g = Graph::new(0);
 
         for (t, src, dst) in &vs {
             g.add_edge(*t, *src, *dst, &vec![], None).unwrap();
@@ -555,7 +529,7 @@ mod db_tests {
 
     #[test]
     fn test_time_range_on_empty_graph() {
-        let g = Graph::new(1);
+        let g = Graph::new(0);
 
         let rolling = g.rolling(1, None).unwrap().collect_vec();
         assert!(rolling.is_empty());
@@ -566,7 +540,7 @@ mod db_tests {
 
     #[test]
     fn test_add_vertex_with_strings() {
-        let g = Graph::new(1);
+        let g = Graph::new(0);
 
         g.add_vertex(0, "haaroon", &vec![]).unwrap();
         g.add_vertex(1, "hamza", &vec![]).unwrap();
@@ -581,7 +555,7 @@ mod db_tests {
 
     #[test]
     fn layers() {
-        let g = Graph::new(4);
+        let g = Graph::new(0);
         g.add_edge(0, 11, 22, &vec![], None).unwrap();
         g.add_edge(0, 11, 33, &vec![], None).unwrap();
         g.add_edge(0, 33, 11, &vec![], None).unwrap();
@@ -685,7 +659,7 @@ mod db_tests {
 
     #[test]
     fn test_exploded_edge() {
-        let g = Graph::new(1);
+        let g = Graph::new(0);
         g.add_edge(0, 1, 2, &vec![("weight".to_string(), Prop::I64(1))], None)
             .unwrap();
         g.add_edge(1, 1, 2, &vec![("weight".to_string(), Prop::I64(2))], None)
@@ -718,7 +692,7 @@ mod db_tests {
 
     #[test]
     fn test_edge_earliest_latest() {
-        let g = Graph::new(1);
+        let g = Graph::new(0);
         g.add_edge(0, 1, 2, &vec![], None).unwrap();
         g.add_edge(1, 1, 2, &vec![], None).unwrap();
         g.add_edge(2, 1, 2, &vec![], None).unwrap();
@@ -779,7 +753,7 @@ mod db_tests {
 
     #[test]
     fn check_vertex_history() {
-        let g = Graph::new(1);
+        let g = Graph::new(0);
 
         g.add_vertex(1, 1, &vec![]).unwrap();
         g.add_vertex(2, 1, &vec![]).unwrap();
@@ -808,7 +782,7 @@ mod db_tests {
 
     #[test]
     fn check_edge_history() {
-        let g = Graph::new(1);
+        let g = Graph::new(0);
 
         g.add_edge(1, 1, 2, &vec![], None).unwrap();
         g.add_edge(2, 1, 3, &vec![], None).unwrap();
@@ -827,7 +801,7 @@ mod db_tests {
 
     #[test]
     fn check_edge_history_on_multiple_shards() {
-        let g = Graph::new(10);
+        let g = Graph::new(0);
 
         g.add_edge(1, 1, 2, &vec![], None).unwrap();
         g.add_edge(2, 1, 3, &vec![], None).unwrap();
