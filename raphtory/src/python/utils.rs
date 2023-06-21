@@ -108,7 +108,7 @@ fn parse_email_timestamp(timestamp: &str) -> PyResult<i64> {
 }
 
 pub(crate) fn extract_time(time: &PyAny) -> PyResult<i64> {
-    let from_number = time.extract::<i64>().map(|n| Ok(n));
+    let from_number = time.extract::<i64>().map(Ok);
     let from_str = time.extract::<&str>().map(|str| {
         str.try_into_time()
             .or_else(|e| parse_email_timestamp(str).map_err(|_| e))
@@ -176,7 +176,7 @@ pub(crate) fn extract_interval(interval: &PyAny) -> PyResult<IntervalBox> {
 
     let result = result.or_else(|_| {
         let number = interval.extract::<u64>();
-        number.map(|number| IntervalBox::new(number))
+        number.map(IntervalBox::new)
     });
 
     result.map_err(|_| {
@@ -212,7 +212,7 @@ impl TryFrom<IntervalBox> for Interval {
 #[derive(Clone, Debug)]
 pub struct InputVertexBox {
     id: u64,
-    name_prop: Option<dbc::Prop>,
+    name: Option<String>,
 }
 
 /// Implementation for vertices that can be used as input for the graph.
@@ -224,7 +224,7 @@ impl InputVertexBox {
     {
         InputVertexBox {
             id: vertex.id(),
-            name_prop: vertex.id_str(),
+            name: vertex.id_str().map(|s| s.into()),
         }
     }
 }
@@ -238,8 +238,11 @@ impl InputVertex for InputVertexBox {
     }
 
     /// Returns the name property of the vertex.
-    fn id_str(&self) -> Option<dbc::Prop> {
-        self.name_prop.clone()
+    fn id_str(&self) -> Option<&str> {
+        match &self.name {
+            Some(n) => Some(n),
+            None => None,
+        }
     }
 }
 

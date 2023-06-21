@@ -35,6 +35,7 @@
 //! use raphtory::core::Prop;
 //! use std::time::Instant;
 //! use serde::Deserialize;
+//! use raphtory::db::mutation_api::AdditionOps;
 //! use raphtory::graph_loader::source::csv_loader::CsvLoader;
 //!
 //! let data_dir = "/tmp/lotr.csv";
@@ -54,14 +55,14 @@
 //!     g.add_vertex(
 //!         lotr.time,
 //!         lotr.src_id.clone(),
-//!         &vec![("type".to_string(), Prop::Str("Character".to_string()))],
+//!         [("type".to_string(), Prop::Str("Character".to_string()))],
 //!     )
 //!     .expect("Failed to add vertex");
 //!
 //!     g.add_vertex(
 //!         lotr.time,
 //!         lotr.dst_id.clone(),
-//!         &vec![("type".to_string(), Prop::Str("Character".to_string()))],
+//!         [("type".to_string(), Prop::Str("Character".to_string()))],
 //!     )
 //!     .expect("Failed to add vertex");
 //!
@@ -69,7 +70,7 @@
 //!         lotr.time,
 //!         lotr.src_id.clone(),
 //!         lotr.dst_id.clone(),
-//!         &vec![(
+//!         [(
 //!             "type".to_string(),
 //!             Prop::Str("Character Co-occurrence".to_string()),
 //!         )],
@@ -160,6 +161,7 @@ fn unzip_file(zip_file_path: &str, destination_path: &str) -> std::io::Result<()
 
 #[cfg(test)]
 mod graph_loader_test {
+    use crate::db::mutation_api::AdditionOps;
     use crate::{
         core::{utils, Prop},
         db::{
@@ -228,20 +230,20 @@ mod graph_loader_test {
                     g.add_vertex(
                         t,
                         src_id,
-                        &vec![("name".to_string(), Prop::Str("Character".to_string()))],
+                        [("name".to_string(), Prop::Str("Character".to_string()))],
                     )
                     .unwrap();
                     g.add_vertex(
                         t,
                         dst_id,
-                        &vec![("name".to_string(), Prop::Str("Character".to_string()))],
+                        [("name".to_string(), Prop::Str("Character".to_string()))],
                     )
                     .unwrap();
                     g.add_edge(
                         t,
                         src_id,
                         dst_id,
-                        &vec![(
+                        [(
                             "name".to_string(),
                             Prop::Str("Character Co-occurrence".to_string()),
                         )],

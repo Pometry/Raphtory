@@ -1,4 +1,5 @@
 //! The API for querying a view of the graph in a read-only state
+use crate::core::Prop;
 use crate::db::view_api::internal::{CoreGraphOps, DynamicGraph, IntoDynamic};
 use crate::db::view_api::layer::LayerOps;
 use crate::db::view_api::*;
@@ -15,7 +16,6 @@ use python::utils::{
     IntoPyObject, PyWindowSet,
 };
 use python::vertex::{PyVertex, PyVertices};
-use python::wrappers::prop::Prop;
 use std::collections::HashMap;
 
 /// Graph view is a read-only version of a graph at a certain point in time.

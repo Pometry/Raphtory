@@ -4,6 +4,7 @@
 //! The PyEdge class also provides access to the perspective APIs, which allow the user to view the
 //! edge as it existed at a particular point in time, or as it existed over a particular time range.
 //!
+use crate::core::Prop;
 use crate::db::edge::EdgeView;
 use crate::db::view_api::internal::{DynamicGraph, IntoDynamic};
 use crate::db::view_api::*;
@@ -17,7 +18,6 @@ use python::types::repr::{iterator_repr, Repr};
 use python::utils::*;
 use python::vertex::{PyVertex, PyVertexIterable};
 use python::wrappers::iterators::{OptionI64Iterable, OptionPropIterable, PropsIterable};
-use python::wrappers::prop::Prop;
 use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
@@ -76,7 +76,7 @@ impl PyEdge {
         self.edge.id()
     }
 
-    pub fn __getitem__(&self, name: String) -> Option<Prop> {
+    pub fn __getitem__(&self, name: &str) -> Option<Prop> {
         self.property(name, Some(true))
     }
 
@@ -90,10 +90,10 @@ impl PyEdge {
     /// Returns:
     ///   The value of the property with the given name.
     #[pyo3(signature = (name, include_static = true))]
-    pub fn property(&self, name: String, include_static: Option<bool>) -> Option<Prop> {
+    pub fn property(&self, name: &str, include_static: Option<bool>) -> Option<Prop> {
         let include_static = include_static.unwrap_or(true);
         self.edge
-            .property(&name, include_static)
+            .property(name, include_static)
             .map(|prop| prop.into())
     }
 
@@ -107,9 +107,9 @@ impl PyEdge {
     /// Returns:
     ///  The value of the property with the given name.
     #[pyo3(signature = (name))]
-    pub fn property_history(&self, name: String) -> Vec<(i64, Prop)> {
+    pub fn property_history(&self, name: &str) -> Vec<(i64, Prop)> {
         self.edge
-            .property_history(&name)
+            .property_history(name)
             .into_iter()
             .map(|(k, v)| (k, v.into()))
             .collect()

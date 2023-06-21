@@ -4,7 +4,7 @@
 //! This trait allows you to use a variety of types as input vertices, including
 //! `u64`, `&str`, and `String`.
 
-use crate::core::{utils, Prop};
+use crate::core::utils;
 
 pub trait InputVertex: Clone {
     fn id(&self) -> u64;

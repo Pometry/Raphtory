@@ -2,6 +2,7 @@
 //! A vertex is a node in the graph, and can have properties and edges.
 //! It can also be used to navigate the graph.
 use crate::core::vertex_ref::VertexRef;
+use crate::core::Prop;
 use crate::db::path::{PathFromGraph, PathFromVertex};
 use crate::db::vertex::VertexView;
 use crate::db::vertices::Vertices;
@@ -23,7 +24,6 @@ use python::utils::{
     PyWindowSet,
 };
 use python::wrappers::iterators::*;
-use python::wrappers::prop::Prop;
 use std::collections::HashMap;
 
 /// A vertex (or node) in the graph.

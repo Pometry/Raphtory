@@ -5,14 +5,15 @@
 //! It is a wrapper around a set of shards, which are the actual graph data structures.
 //! In Python, this class wraps around the rust graph.
 use crate::core as dbc;
+use crate::core::Prop;
 use crate::db::graph::Graph;
+use crate::db::mutation_api::{AdditionOps, PropertyAdditionOps};
 use crate::python;
 use itertools::Itertools;
 use pyo3::exceptions::PyException;
 use pyo3::prelude::*;
 use python::graph_view::PyGraphView;
 use python::utils::{adapt_result, extract_input_vertex, extract_into_time, InputVertexBox};
-use python::wrappers::prop::Prop;
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 use std::path::{Path, PathBuf};
@@ -33,6 +34,14 @@ impl Debug for PyGraph {
 impl From<Graph> for PyGraph {
     fn from(value: Graph) -> Self {
         Self { graph: value }
+    }
+}
+
+impl IntoPy<PyObject> for Graph {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        Py::new(py, (PyGraph::from(self.clone()), PyGraphView::from(self)))
+            .unwrap() // I think this only fails if we are out of memory? Seems to be unavoidable if we want to create an actual graph.
+            .into_py(py)
     }
 }
 
@@ -82,7 +91,7 @@ impl PyGraph {
         let v = Self::extract_id(id)?;
         let result = self
             .graph
-            .add_vertex(time, v, &Self::transform_props(properties));
+            .add_vertex(time, v, properties.unwrap_or_default());
         adapt_result(result)
     }
 
@@ -100,9 +109,7 @@ impl PyGraph {
         properties: HashMap<String, Prop>,
     ) -> PyResult<()> {
         let v = Self::extract_id(id)?;
-        let result = self
-            .graph
-            .add_vertex_properties(v, &Self::transform_props(Some(properties)));
+        let result = self.graph.add_vertex_properties(v, properties);
         adapt_result(result)
     }
 
@@ -120,9 +127,7 @@ impl PyGraph {
         properties: HashMap<String, Prop>,
     ) -> PyResult<()> {
         let time = extract_into_time(timestamp)?;
-        let result = self
-            .graph
-            .add_property(time, &Self::transform_props(Some(properties)));
+        let result = self.graph.add_properties(time, properties);
         adapt_result(result)
     }
 
@@ -134,9 +139,7 @@ impl PyGraph {
     /// Returns:
     ///    None
     pub fn add_static_property(&self, properties: HashMap<String, Prop>) -> PyResult<()> {
-        let result = self
-            .graph
-            .add_static_property(&Self::transform_props(Some(properties)));
+        let result = self.graph.add_static_properties(properties);
         adapt_result(result)
     }
 
@@ -165,7 +168,7 @@ impl PyGraph {
         let dst = Self::extract_id(dst)?;
         adapt_result(
             self.graph
-                .add_edge(time, src, dst, &Self::transform_props(properties), layer),
+                .add_edge(time, src, dst, properties.unwrap_or_default(), layer),
         )
     }
 
@@ -189,12 +192,7 @@ impl PyGraph {
     ) -> PyResult<()> {
         let src = Self::extract_id(src)?;
         let dst = Self::extract_id(dst)?;
-        let result = self.graph.add_edge_properties(
-            src,
-            dst,
-            &Self::transform_props(Some(properties)),
-            layer,
-        );
+        let result = self.graph.add_edge_properties(src, dst, properties, layer);
         adapt_result(result)
     }
 

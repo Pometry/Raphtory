@@ -27,6 +27,7 @@
 use crate::db::graph::Graph;
 use crate::db::view_api::GraphViewOps;
 use chrono::NaiveDateTime;
+use pyo3::FromPyObject;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
@@ -63,6 +64,7 @@ pub enum Direction {
 
 /// Denotes the types of properties allowed to be stored in the graph.
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+#[cfg_attr(feature = "python", derive(FromPyObject))]
 pub enum Prop {
     Str(String),
     I32(i32),

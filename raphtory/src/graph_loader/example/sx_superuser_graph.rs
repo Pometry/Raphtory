@@ -48,6 +48,7 @@
 
 use crate::db::graph::Graph;
 
+use crate::db::mutation_api::AdditionOps;
 use crate::graph_loader::{fetch_file, source::csv_loader::CsvLoader};
 use serde::Deserialize;
 use std::path::PathBuf;
@@ -87,7 +88,7 @@ pub fn sx_superuser_graph(shards: usize) -> Result<Graph, Box<dyn std::error::Er
     CsvLoader::new(sx_superuser_file()?)
         .set_delimiter(" ")
         .load_into_graph(&graph, |edge: TEdge, g: &Graph| {
-            g.add_edge(edge.time, edge.src_id, edge.dst_id, &vec![], None)
+            g.add_edge(edge.time, edge.src_id, edge.dst_id, [], None)
                 .expect("Error: Unable to add edge");
         })?;
 
