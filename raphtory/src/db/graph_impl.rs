@@ -250,7 +250,13 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
     }
 
     fn edge_window_t(&self, e: EdgeRef, w: Range<i64>) -> BoxedIter<EdgeRef> {
-        todo!()
+        let arc = self.edge_arc(e.pid());
+        let iter: GenBoxed<EdgeRef> = GenBoxed::new_boxed(|co| async move {
+            for t in arc.timestamps_window(w) {
+                co.yield_(e.at(*t)).await;
+            }
+        });
+        Box::new(iter.into_iter())
     }
 
     fn edge_earliest_time(&self, e: EdgeRef) -> Option<i64> {

@@ -18,7 +18,7 @@ impl TimeIndex {
         self.0.insert(t)
     }
 
-    fn range_iter(&self, w: Range<i64>) -> std::collections::btree_set::Range<'_, i64> {
+    pub(crate) fn range_iter(&self, w: Range<i64>) -> std::collections::btree_set::Range<'_, i64> {
         self.0.range(w)
     }
 }

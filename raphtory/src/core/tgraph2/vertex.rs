@@ -1,4 +1,4 @@
-use std::{rc::Rc, sync::Arc};
+use std::{rc::Rc, sync::Arc, ops::Range};
 
 use itertools::Itertools;
 
@@ -155,4 +155,9 @@ impl<const N:usize> ArcEdge<N>{
     pub(crate) fn timestamps(&self) -> impl Iterator<Item = &i64> + '_ {
         self.e.timestamps().iter()
     }
+
+    pub(crate) fn timestamps_window(&self, w: Range<i64>) -> impl Iterator<Item = &i64> + '_ {
+        self.e.timestamps().range_iter(w)
+    }
+
 }
