@@ -1,6 +1,6 @@
 use std::{ops::Range, sync::Arc};
 
-use crate::{core::{timeindex::TimeIndexOps, Direction}, storage::Entry};
+use crate::{core::{timeindex::TimeIndexOps, Direction, Prop}, storage::Entry};
 
 use super::{
     tgraph::TGraph,
@@ -186,4 +186,5 @@ impl<'a, const N: usize> EdgeView<'a, N> {
             },
         }
     }
+
 }

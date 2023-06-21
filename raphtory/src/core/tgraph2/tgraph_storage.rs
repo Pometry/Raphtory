@@ -50,6 +50,10 @@ impl<const N: usize> GraphStorage<N> {
         self.nodes.entry_arc(id)
     }
 
+    pub(crate) fn get_edge_arc(&self, id: usize) -> ArcEntry<EdgeStore<N>, N> {
+        self.edges.entry_arc(id)
+    }
+
     pub(crate) fn get_edge(&self, id: usize) -> Entry<'_, EdgeStore<N>, N> {
         self.edges.entry(id)
     }

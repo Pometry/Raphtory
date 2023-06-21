@@ -1,9 +1,10 @@
+use itertools::Itertools;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 
-use crate::core::{timeindex::TimeIndex, Prop, tgraph::errors::MutateGraphError};
+use crate::core::{tgraph::errors::MutateGraphError, timeindex::TimeIndex, Prop};
 
-use super::{props::Props, VID, EID};
+use super::{props::Props, EID, VID};
 
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
 pub(crate) struct EdgeStore<const N: usize> {
@@ -37,7 +38,13 @@ impl<const N: usize> EdgeStore<N> {
         layer_props.add_prop(t, prop_id, prop);
     }
 
-    pub fn add_static_prop(&mut self, prop_id: usize, prop_name:&str, prop: Prop, layer_id: usize)  -> Result<(), MutateGraphError> {
+    pub fn add_static_prop(
+        &mut self,
+        prop_id: usize,
+        prop_name: &str,
+        prop: Prop,
+        layer_id: usize,
+    ) -> Result<(), MutateGraphError> {
         self.layer_props
             .entry(layer_id)
             .or_insert_with(|| Props::new())
@@ -66,5 +73,29 @@ impl<const N: usize> EdgeStore<N> {
     pub(crate) fn static_property(&self, prop_id: usize, layer_id: usize) -> Option<&Prop> {
         let layer = self.layer_props.get(&layer_id)?;
         layer.static_prop(prop_id)
+    }
+
+    pub(crate) fn props(&self, layer_id: Option<usize>) -> Box<dyn Iterator<Item = &Props> + '_> {
+        if let Some(layer_id) = layer_id {
+            Box::new(self.layer_props.get(&layer_id).into_iter())
+        } else {
+            Box::new(self.layer_props.values().into_iter())
+        }
+    }
+
+    pub(crate) fn temp_prop_ids(&self, layer_id: Option<usize>) -> Vec<usize> {
+        if let Some(layer_id) = layer_id {
+            self.layer_props
+                .get(&layer_id)
+                .map(|props| props.temporal_prop_ids())
+                .unwrap_or_default()
+        } else {
+            self.layer_props
+                .values()
+                .map(|props| props.temporal_prop_ids())
+                .kmerge()
+                .dedup()
+                .collect()
+        }
     }
 }

@@ -3,7 +3,7 @@ use std::{rc::Rc, sync::Arc};
 use itertools::Itertools;
 
 use crate::{
-    core::{edge_ref::EdgeRef, Direction, Prop},
+    core::{edge_ref::EdgeRef, Direction, Prop, timeindex::TimeIndexOps},
     storage::{iter::RefT, ArcEntry, Entry},
 };
 
@@ -13,7 +13,7 @@ use super::{
     node_store::NodeStore,
     tgraph::TGraph,
     tgraph_storage::GraphEntry,
-    VRef, EID, VID,
+    VRef, EID, VID, edge_store::EdgeStore,
 };
 
 pub struct Vertex<'a, const N: usize> {
@@ -139,5 +139,20 @@ impl<const N: usize> ArcVertex<N> {
         dir: Direction,
     ) -> impl Iterator<Item = VID> + '_ {
         self.e.neighbours(layer, dir)
+    }
+}
+
+
+pub(crate) struct ArcEdge<const N: usize>{
+    e: ArcEntry<EdgeStore<N>, N>,
+}
+
+impl<const N:usize> ArcEdge<N>{
+    pub(crate) fn from_entry(e: ArcEntry<EdgeStore<N>, N>) -> Self {
+        ArcEdge { e }
+    }
+
+    pub(crate) fn timestamps(&self) -> impl Iterator<Item = &i64> + '_ {
+        self.e.timestamps().iter()
     }
 }

@@ -56,6 +56,20 @@ impl Props {
         }
     }
 
+    pub(crate) fn temporal_props_window(
+        &self,
+        prop_id: usize,
+        t_start: i64,
+        t_end: i64,
+    ) -> Box<dyn Iterator<Item = (i64, Prop)> + '_> {
+        let o = self.temporal_props.get(prop_id);
+        if let Some(t_prop) = o {
+            Box::new(t_prop.iter_window(t_start..t_end).map(|(t, p)| (t, p.clone())))
+        } else {
+            Box::new(std::iter::empty())
+        }
+    }
+
     pub(crate) fn static_prop(&self, prop_id: usize) -> Option<&Prop> {
         let prop = self.static_props.get(prop_id)?;
         prop.as_ref()
@@ -63,6 +77,16 @@ impl Props {
 
     pub(crate) fn static_prop_ids(&self) -> Vec<usize> {
         self.static_props.filled_ids()
+    }
+
+    pub(crate) fn temporal_prop_ids(&self) -> Vec<usize> {
+        self.temporal_props.filled_ids()
+    }
+
+    pub(crate) fn temporal_iter(&self) -> impl Iterator<Item = &TProp> + '_ {
+        self.temporal_props.filled_ids().into_iter().flat_map(|prop_id|{
+            self.temporal_props.get(prop_id)
+        })
     }
 }
 

@@ -11,7 +11,10 @@ use crate::core::{
 
 use genawaiter::sync::GenBoxed;
 
-use super::view_api::internal::{CoreGraphOps, GraphOps, TimeSemantics};
+use super::view_api::{
+    internal::{CoreGraphOps, GraphOps, TimeSemantics},
+    BoxedIter,
+};
 
 impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
     fn get_layer_name_by_id(&self, layer_id: usize) -> String {
@@ -77,7 +80,7 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
             return node
                 .static_prop_ids()
                 .into_iter()
-                .flat_map(|prop_id| self.reverse_prop_id(prop_id, true))
+                .flat_map(|prop_id| self.vertex_reverse_prop_id(prop_id, true))
                 .collect();
         }
         vec![]
@@ -114,7 +117,10 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
     }
 
     fn temporal_edge_prop_names(&self, e: EdgeRef) -> Vec<String> {
-        todo!()
+        self.temp_prop_ids(e.pid())
+            .into_iter()
+            .flat_map(|id| self.edge_reverse_prop_id(id, false))
+            .collect()
     }
 
     fn num_shards_internal(&self) -> usize {
@@ -232,11 +238,17 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
         self.edge(e.pid()).active(w)
     }
 
-    fn edge_t(&self, e: EdgeRef) -> super::view_api::BoxedIter<EdgeRef> {
-        todo!()
+    fn edge_t(&self, e: EdgeRef) -> BoxedIter<EdgeRef> {
+        let arc = self.edge_arc(e.pid());
+        let iter: GenBoxed<EdgeRef> = GenBoxed::new_boxed(|co| async move {
+            for t in arc.timestamps() {
+                co.yield_(e.at(*t)).await;
+            }
+        });
+        Box::new(iter.into_iter())
     }
 
-    fn edge_window_t(&self, e: EdgeRef, w: Range<i64>) -> super::view_api::BoxedIter<EdgeRef> {
+    fn edge_window_t(&self, e: EdgeRef, w: Range<i64>) -> BoxedIter<EdgeRef> {
         todo!()
     }
 
@@ -285,7 +297,7 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
         t_start: i64,
         t_end: i64,
     ) -> Vec<(i64, Prop)> {
-        todo!()
+        self.prop_vec_window(e.pid(), name, t_start, t_end)
     }
 
     fn temporal_edge_prop_vec(&self, e: EdgeRef, name: &str) -> Vec<(i64, Prop)> {
