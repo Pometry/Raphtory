@@ -19,7 +19,7 @@ use super::view_api::{
 
 impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
     fn get_layer_name_by_id(&self, layer_id: usize) -> String {
-        self.vertex_props_meta
+        self.edge_props_meta
             .get_layer_name_by_id(layer_id)
             .unwrap_or_else(|| panic!("layer id '{layer_id}' doesn't exist"))
             .to_string()
