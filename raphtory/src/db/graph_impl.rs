@@ -4,6 +4,7 @@ use crate::core::{
     edge_ref::EdgeRef,
     tgraph2::{tgraph::InnerTemporalGraph, timer::TimeCounterTrait, VID},
     tgraph_shard::LockedView,
+    timeindex::TimeIndexOps,
     tprop::TProp,
     vertex_ref::VertexRef,
     Direction, Prop,
@@ -253,19 +254,27 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
     }
 
     fn edge_earliest_time(&self, e: EdgeRef) -> Option<i64> {
-        todo!()
+        self.edge_entry(e.pid())
+            .value()
+            .and_then(|edge| edge.timestamps().first())
     }
 
     fn edge_earliest_time_window(&self, e: EdgeRef, w: Range<i64>) -> Option<i64> {
-        todo!()
+        self.edge_entry(e.pid())
+            .value()
+            .and_then(|edge| edge.timestamps().range(w).first())
     }
 
     fn edge_latest_time(&self, e: EdgeRef) -> Option<i64> {
-        todo!()
+        self.edge_entry(e.pid())
+            .value()
+            .and_then(|edge| edge.timestamps().last())
     }
 
     fn edge_latest_time_window(&self, e: EdgeRef, w: Range<i64>) -> Option<i64> {
-        todo!()
+        self.edge_entry(e.pid())
+            .value()
+            .and_then(|edge| edge.timestamps().range(w).last())
     }
 
     fn temporal_prop_vec(&self, name: &str) -> Vec<(i64, Prop)> {
