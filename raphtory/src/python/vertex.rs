@@ -8,8 +8,10 @@ use crate::db::vertex::VertexView;
 use crate::db::vertices::Vertices;
 use crate::db::view_api::internal::{DynamicGraph, IntoDynamic};
 use crate::db::view_api::layer::LayerOps;
+use crate::db::view_api::time::WindowSet;
 use crate::db::view_api::*;
 use crate::python;
+use crate::python::utils::{adapt_result, IntervalBox};
 use crate::*;
 use chrono::NaiveDateTime;
 use itertools::Itertools;
@@ -44,10 +46,9 @@ impl<G: GraphViewOps + IntoDynamic> From<VertexView<G>> for PyVertex {
     }
 }
 
-impl<G: GraphViewOps + IntoDynamic> IntoPyObject for VertexView<G> {
-    fn into_py_object(self) -> PyObject {
-        let py_version: PyVertex = self.into();
-        Python::with_gil(|py| py_version.into_py(py))
+impl<G: GraphViewOps + IntoDynamic> IntoPy<PyObject> for VertexView<G> {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        PyVertex::from(self).into_py(py)
     }
 }
 
@@ -401,8 +402,8 @@ impl PyVertex {
     ///
     /// Returns:
     ///  A `PyVertexWindowSet` object.
-    fn expanding(&self, step: &PyAny) -> PyResult<PyWindowSet> {
-        expanding_impl(&self.vertex, step)
+    fn expanding(&self, step: IntervalBox) -> PyResult<WindowSet<VertexView<DynamicGraph>>> {
+        adapt_result(self.vertex.expanding(step))
     }
 
     /// Creates a `PyVertexWindowSet` with the given `window` size and optional `step`, `start` and `end` times,
@@ -514,10 +515,9 @@ impl<G: GraphViewOps + IntoDynamic> From<Vertices<G>> for PyVertices {
     }
 }
 
-impl<G: GraphViewOps + IntoDynamic> IntoPyObject for Vertices<G> {
-    fn into_py_object(self) -> PyObject {
-        let py_version: PyVertices = self.into();
-        Python::with_gil(|py| py_version.into_py(py))
+impl<G: GraphViewOps + IntoDynamic> IntoPy<PyObject> for Vertices<G> {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        PyVertices::from(self).into_py(py)
     }
 }
 
@@ -666,8 +666,8 @@ impl PyVertices {
         self.vertices.window_size()
     }
 
-    fn expanding(&self, step: &PyAny) -> PyResult<PyWindowSet> {
-        expanding_impl(&self.vertices, step)
+    fn expanding(&self, step: IntervalBox) -> PyResult<WindowSet<Vertices<DynamicGraph>>> {
+        adapt_result(self.vertices.expanding(step))
     }
 
     fn rolling(&self, window: &PyAny, step: Option<&PyAny>) -> PyResult<PyWindowSet> {
@@ -868,8 +868,8 @@ impl PyPathFromGraph {
         self.path.window_size()
     }
 
-    fn expanding(&self, step: &PyAny) -> PyResult<PyWindowSet> {
-        expanding_impl(&self.path, step)
+    fn expanding(&self, step: IntervalBox) -> PyResult<WindowSet<PathFromGraph<DynamicGraph>>> {
+        adapt_result(self.path.expanding(step))
     }
 
     fn rolling(&self, window: &PyAny, step: Option<&PyAny>) -> PyResult<PyWindowSet> {
@@ -929,10 +929,9 @@ impl<G: GraphViewOps + IntoDynamic> From<PathFromGraph<G>> for PyPathFromGraph {
     }
 }
 
-impl<G: GraphViewOps + IntoDynamic> IntoPyObject for PathFromGraph<G> {
-    fn into_py_object(self) -> PyObject {
-        let py_version: PyPathFromGraph = self.into();
-        Python::with_gil(|py| py_version.into_py(py))
+impl<G: GraphViewOps + IntoDynamic> IntoPy<PyObject> for PathFromGraph<G> {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        PyPathFromGraph::from(self).into_py(py)
     }
 }
 
@@ -953,10 +952,9 @@ impl<G: GraphViewOps + IntoDynamic> From<PathFromVertex<G>> for PyPathFromVertex
     }
 }
 
-impl<G: GraphViewOps + IntoDynamic> IntoPyObject for PathFromVertex<G> {
-    fn into_py_object(self) -> PyObject {
-        let py_version: PyPathFromVertex = self.into();
-        Python::with_gil(|py| py_version.into_py(py))
+impl<G: GraphViewOps + IntoDynamic> IntoPy<PyObject> for PathFromVertex<G> {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        PyPathFromVertex::from(self).into_py(py)
     }
 }
 
@@ -1086,8 +1084,8 @@ impl PyPathFromVertex {
         self.path.window_size()
     }
 
-    fn expanding(&self, step: &PyAny) -> PyResult<PyWindowSet> {
-        expanding_impl(&self.path, step)
+    fn expanding(&self, step: IntervalBox) -> PyResult<WindowSet<PathFromVertex<DynamicGraph>>> {
+        adapt_result(self.path.expanding(step))
     }
 
     fn rolling(&self, window: &PyAny, step: Option<&PyAny>) -> PyResult<PyWindowSet> {

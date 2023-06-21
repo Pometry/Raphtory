@@ -208,16 +208,9 @@ impl PyGraph {
     /// Returns:
     ///  Graph: The loaded graph.
     #[staticmethod]
-    pub fn load_from_file(path: String) -> PyResult<Py<PyGraph>> {
-        let file_path: PathBuf = [env!("CARGO_MANIFEST_DIR"), &path].iter().collect();
-
-        match Graph::load_from_file(file_path) {
-            Ok(g) => Self::py_from_db_graph(g),
-            Err(e) => Err(PyException::new_err(format!(
-                "Failed to load graph from the files. Reason: {}",
-                e
-            ))),
-        }
+    pub fn load_from_file(path: &str) -> PyResult<Graph> {
+        let file_path: PathBuf = [env!("CARGO_MANIFEST_DIR"), path].iter().collect();
+        adapt_result(Graph::load_from_file(file_path))
     }
 
     /// Saves the graph to the given path.
@@ -227,8 +220,8 @@ impl PyGraph {
     ///
     /// Returns:
     /// None
-    pub fn save_to_file(&self, path: String) -> PyResult<()> {
-        match self.graph.save_to_file(Path::new(&path)) {
+    pub fn save_to_file(&self, path: &str) -> PyResult<()> {
+        match self.graph.save_to_file(Path::new(path)) {
             Ok(()) => Ok(()),
             Err(e) => Err(PyException::new_err(format!(
                 "Failed to save graph to the files. Reason: {}",
@@ -239,14 +232,6 @@ impl PyGraph {
 }
 
 impl PyGraph {
-    fn transform_props(props: Option<HashMap<String, Prop>>) -> Vec<(String, dbc::Prop)> {
-        props
-            .unwrap_or_default()
-            .into_iter()
-            .map(|(key, value)| (key, value.into()))
-            .collect_vec()
-    }
-
     /// Extracts the id from the given python vertex
     ///
     /// Arguments:

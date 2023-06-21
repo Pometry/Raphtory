@@ -7,6 +7,7 @@
 use crate::core::Prop;
 use crate::db::edge::EdgeView;
 use crate::db::view_api::internal::{DynamicGraph, IntoDynamic};
+use crate::db::view_api::time::WindowSet;
 use crate::db::view_api::*;
 use crate::python;
 use chrono::NaiveDateTime;
@@ -41,10 +42,10 @@ impl<G: GraphViewOps + IntoDynamic> From<EdgeView<G>> for PyEdge {
     }
 }
 
-impl<G: GraphViewOps + IntoDynamic> IntoPyObject for EdgeView<G> {
-    fn into_py_object(self) -> PyObject {
+impl<G: GraphViewOps + IntoDynamic> IntoPy<PyObject> for EdgeView<G> {
+    fn into_py(self, py: Python<'_>) -> PyObject {
         let py_version: PyEdge = self.into();
-        Python::with_gil(|py| py_version.into_py(py))
+        py_version.into_py(py)
     }
 }
 
@@ -277,8 +278,8 @@ impl PyEdge {
     /// Returns:
     ///   A set of windows containing edges that fall in the time period
     #[pyo3(signature = (step))]
-    fn expanding(&self, step: &PyAny) -> PyResult<PyWindowSet> {
-        expanding_impl(&self.edge, step)
+    fn expanding(&self, step: IntervalBox) -> PyResult<WindowSet<EdgeView<DynamicGraph>>> {
+        adapt_result(self.edge.expanding(step))
     }
 
     /// Get a set of Edge windows for a given window size, step, start time
@@ -293,8 +294,12 @@ impl PyEdge {
     ///
     /// Returns:
     ///   A set of windows containing edges that fall in the time period
-    fn rolling(&self, window: &PyAny, step: Option<&PyAny>) -> PyResult<PyWindowSet> {
-        rolling_impl(&self.edge, window, step)
+    fn rolling(
+        &self,
+        window: IntervalBox,
+        step: Option<IntervalBox>,
+    ) -> PyResult<WindowSet<EdgeView<DynamicGraph>>> {
+        adapt_result(self.edge.rolling(window, step))
     }
 
     /// Get a new Edge with the properties of this Edge within the specified time window.

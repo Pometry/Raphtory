@@ -1,9 +1,14 @@
 //! The API for querying a view of the graph in a read-only state
 use crate::core::Prop;
+use crate::db::graph_layer::LayeredGraph;
+use crate::db::graph_window::WindowedGraph;
+use crate::db::subgraph_vertex::VertexSubgraph;
 use crate::db::view_api::internal::{CoreGraphOps, DynamicGraph, IntoDynamic};
 use crate::db::view_api::layer::LayerOps;
+use crate::db::view_api::time::WindowSet;
 use crate::db::view_api::*;
 use crate::python;
+use crate::python::utils::IntervalBox;
 use crate::*;
 use chrono::prelude::*;
 use itertools::Itertools;
@@ -33,10 +38,21 @@ impl<G: GraphViewOps + IntoDynamic> From<G> for PyGraphView {
     }
 }
 
-impl<G: GraphViewOps + IntoDynamic> IntoPyObject for G {
-    fn into_py_object(self) -> PyObject {
-        let py_version: PyGraphView = self.into();
-        Python::with_gil(|py| py_version.into_py(py))
+impl<G: GraphViewOps + IntoDynamic> IntoPy<PyObject> for WindowedGraph<G> {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        PyGraphView::from(self).into_py(py)
+    }
+}
+
+impl<G: GraphViewOps + IntoDynamic> IntoPy<PyObject> for LayeredGraph<G> {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        PyGraphView::from(self).into_py(py)
+    }
+}
+
+impl<G: GraphViewOps + IntoDynamic> IntoPy<PyObject> for VertexSubgraph<G> {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        PyGraphView::from(self).into_py(py)
     }
 }
 
@@ -229,8 +245,8 @@ impl PyGraphView {
     /// Returns:
     ///     A `WindowSet` with the given `step` size and optional `start` and `end` times,
     #[pyo3(signature = (step))]
-    fn expanding(&self, step: &PyAny) -> PyResult<PyWindowSet> {
-        expanding_impl(&self.graph, step)
+    fn expanding(&self, step: IntervalBox) -> PyResult<WindowSet<DynamicGraph>> {
+        adapt_result(self.graph.expanding(step))
     }
 
     /// Creates a `WindowSet` with the given `window` size and optional `step`, `start` and `end` times,

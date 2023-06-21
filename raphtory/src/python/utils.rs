@@ -72,14 +72,13 @@ where
     result.map_err(|e| adapt_err_value(&e))
 }
 
-pub(crate) fn expanding_impl<T>(slf: &T, step: &PyAny) -> PyResult<PyWindowSet>
+pub(crate) fn expanding_impl<T>(slf: &T, step: &PyAny) -> PyResult<WindowSet<T>>
 where
     T: TimeOps + Clone + Sync + Send + 'static,
-    T::WindowedViewType: IntoPyObject + Send + Sync,
+    T::WindowedViewType: IntoPy<PyObject> + Send + Sync,
 {
     let step = extract_interval(step)?;
-    let window_set: WindowSet<T> = adapt_result(slf.expanding(step)).map(|iter| iter.into())?;
-    Ok(window_set.into())
+    adapt_result(slf.expanding(step))
 }
 
 pub(crate) fn rolling_impl<T>(
@@ -89,7 +88,7 @@ pub(crate) fn rolling_impl<T>(
 ) -> PyResult<PyWindowSet>
 where
     T: TimeOps + Clone + Sync + Send + 'static,
-    T::WindowedViewType: IntoPyObject + Send + Sync,
+    T::WindowedViewType: IntoPy<PyObject> + Send + Sync,
 {
     let window = extract_interval(window)?;
     let step = step.map(extract_interval).transpose()?;
@@ -200,6 +199,23 @@ impl IntervalBox {
     }
 }
 
+impl<'source> FromPyObject<'source> for IntervalBox {
+    fn extract(interval: &'source PyAny) -> PyResult<Self> {
+        let string = interval.extract::<String>();
+        let result = string.map(|string| IntervalBox::new(string.as_str()));
+
+        let result = result.or_else(|_| {
+            let number = interval.extract::<u64>();
+            number.map(IntervalBox::new)
+        });
+
+        result.map_err(|_| {
+            let message = format!("interval '{interval}' must be a str or an unsigned integer");
+            PyTypeError::new_err(message)
+        })
+    }
+}
+
 impl TryFrom<IntervalBox> for Interval {
     type Error = ParseTimeError;
     fn try_from(value: IntervalBox) -> Result<Self, Self::Error> {
@@ -265,10 +281,10 @@ pub trait WindowSetOps {
 impl<T> WindowSetOps for WindowSet<T>
 where
     T: TimeOps + Clone + Sync + 'static + Send,
-    T::WindowedViewType: IntoPyObject + Send,
+    T::WindowedViewType: IntoPy<PyObject> + Send,
 {
     fn build_iter(&self) -> PyGenericIterator {
-        self.clone().map(|v| v.into_py_object()).into()
+        self.clone().into()
     }
 
     fn time_index(&self, center: bool) -> PyGenericIterable {
@@ -304,12 +320,22 @@ pub struct PyWindowSet {
 impl<T> From<WindowSet<T>> for PyWindowSet
 where
     T: TimeOps + Clone + Sync + Send + 'static,
-    T::WindowedViewType: IntoPyObject + Send + Sync,
+    T::WindowedViewType: IntoPy<PyObject> + Send + Sync,
 {
     fn from(value: WindowSet<T>) -> Self {
         Self {
             window_set: Box::new(value),
         }
+    }
+}
+
+impl<T> IntoPy<PyObject> for WindowSet<T>
+where
+    T: TimeOps + Clone + Sync + Send + 'static,
+    T::WindowedViewType: IntoPy<PyObject> + Send + Sync,
+{
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        PyWindowSet::from(self).into_py(py)
     }
 }
 
