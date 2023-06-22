@@ -1,3 +1,4 @@
+import math
 import re
 import sys
 import time
@@ -648,10 +649,10 @@ def test_graph_time_api():
     earliest_time = g.earliest_time()
     latest_time = g.latest_time()
     assert len(list(g.rolling(1))) == latest_time - earliest_time + 1
-    assert len(list(g.expanding(2))) == (latest_time - earliest_time) / 2
+    assert len(list(g.expanding(2))) == math.ceil((latest_time+1 - earliest_time) / 2)
 
     w = g.window(2, 6)
-    assert len(list(w.rolling(window=10, step=3))) == 1
+    assert len(list(w.rolling(window=10, step=3))) == 2
 
 
 def test_save_load_graph():
