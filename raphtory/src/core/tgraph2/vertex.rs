@@ -152,12 +152,12 @@ impl<const N:usize> ArcEdge<N>{
         ArcEdge { e }
     }
 
-    pub(crate) fn timestamps(&self) -> impl Iterator<Item = &i64> + '_ {
-        self.e.timestamps().iter()
+    pub(crate) fn timestamps(&self, layer: usize) -> impl Iterator<Item = &i64> + '_ {
+        self.e.layer_timestamps(layer).iter()
     }
 
-    pub(crate) fn timestamps_window(&self, w: Range<i64>) -> impl Iterator<Item = &i64> + '_ {
-        self.e.timestamps().range_iter(w)
+    pub(crate) fn timestamps_window(&self, layer:usize, w: Range<i64>) -> impl Iterator<Item = &i64> + '_ {
+        self.e.layer_timestamps(layer).range_iter(w)
     }
 
 }

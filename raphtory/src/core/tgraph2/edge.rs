@@ -1,12 +1,16 @@
 use std::{ops::Range, sync::Arc};
 
-use crate::{core::{timeindex::TimeIndexOps, Direction, Prop}, storage::Entry};
+use crate::{
+    core::{timeindex::TimeIndexOps, Direction, Prop},
+    storage::Entry,
+};
 
 use super::{
+    edge_store::EdgeStore,
     tgraph::TGraph,
     tgraph_storage::{GraphEntry, LockedGraphStorage},
     vertex::Vertex,
-    GraphItem, VRef, EID, VID, edge_store::EdgeStore,
+    GraphItem, VRef, EID, VID,
 };
 
 #[derive(Debug)]
@@ -158,11 +162,8 @@ impl<'a, const N: usize> EdgeView<'a, N> {
         }
     }
 
-    pub(crate) fn from_entry(
-        entry: Entry<'a, EdgeStore<N>, N>,
-        graph: &'a TGraph<N>,
-    ) -> Self {
-        Self{
+    pub(crate) fn from_entry(entry: Entry<'a, EdgeStore<N>, N>, graph: &'a TGraph<N>) -> Self {
+        Self {
             src: entry.src().into(),
             dst: entry.dst().into(),
             edge_id: ERef::ERef(entry),
@@ -171,20 +172,18 @@ impl<'a, const N: usize> EdgeView<'a, N> {
         }
     }
 
-    pub(crate) fn active(&'a self, w: Range<i64>) -> bool {
+    pub(crate) fn active(&'a self, layer_id: usize, w: Range<i64>) -> bool {
         match &self.edge_id {
             ERef::ELock { lock, eid } => {
                 let e = lock.get_edge(self.edge_id().into());
-                e.timestamps().active(w)
+                e.unsafe_layer(layer_id).timestamps().active(w)
             }
             ERef::EId(eid) => {
-                let e = self.graph.edge(*eid);
-                e.active(w)
-            },
-            ERef::ERef(entry) => {
-                ( *entry ).timestamps().active(w)
-            },
+                let e = self.graph.edge_entry(*eid);
+                let is_active = e.unsafe_layer(layer_id).timestamps().active(w);
+                is_active
+            }
+            ERef::ERef(entry) => (*entry).unsafe_layer(layer_id).timestamps().active(w),
         }
     }
-
 }

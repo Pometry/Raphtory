@@ -338,14 +338,6 @@ mod test_deletions {
     use itertools::Itertools;
 
     #[test]
-    fn option_partial_ord() {
-        // None is less than any value
-        assert!(Some(1) > None);
-        assert!(!(None::<i64> > None));
-        assert!(!(None::<i64> < None));
-    }
-
-    #[test]
     fn test_edge_deletions() {
         let g = GraphWithDeletions::new(1);
 

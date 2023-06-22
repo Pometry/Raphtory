@@ -18,7 +18,7 @@ use super::{
     edge_store::EdgeStore,
     node_store::NodeStore,
     props::Meta,
-    tgraph_storage::{GraphEntry, GraphStorage, LockedIter},
+    tgraph_storage::{GraphStorage, LockedIter},
     timer::{MaxCounter, MinCounter, TimeCounterTrait},
     vertex::{ArcEdge, ArcVertex, Vertex},
     EID, VID,
@@ -252,16 +252,6 @@ impl<const N: usize> InnerTemporalGraph<N> {
         self.add_edge_with_props(t, src, dst, props.clone(), layer)
     }
 
-    pub fn delete_edge<V: InputVertex, T: TryIntoTime>(
-        &self,
-        t: T,
-        src: V,
-        dst: V,
-        layer: Option<&str>,
-    ) -> Result<(), GraphError> {
-        todo!()
-    }
-
     pub fn add_vertex_properties<V: InputVertex>(
         &self,
         v: V,
@@ -333,8 +323,10 @@ impl<const N: usize> InnerTemporalGraph<N> {
             .resolve_prop_ids(props.clone(), true)
             .collect::<Vec<_>>();
 
+        let mut layer = edge.layer_mut(layer_id);
         for (prop_id, prop_name, prop) in props {
-            edge.add_static_prop(prop_id, &prop_name, prop, layer_id)
+            layer
+                .add_static_prop(prop_id, &prop_name, prop)
                 .expect("you should not fail!");
         }
         Ok(())
@@ -344,12 +336,74 @@ impl<const N: usize> InnerTemporalGraph<N> {
         todo!()
     }
 
-    // pub fn edge_props(&self, e_id: EID, layer: Option<usize>) -> impl Iterator<Item = &TProp> + '_{
-    //     let edge = self.storage .get_edge(e_id.into());
-    //     edge.
-    //         .props(layer)
-    //         .flat_map(|props| props.temporal_iter())
-    // }
+    pub fn delete_edge<V: InputVertex, T: TryIntoTime>(
+        &self,
+        t: T,
+        src: V,
+        dst: V,
+        layer: Option<&str>,
+    ) -> Result<(), GraphError> {
+        let t = t.try_into_time()?;
+        self.update_time(t);
+
+        let src_id = self.add_vertex_internal(t, src, vec![])?;
+        let dst_id = self.add_vertex_internal(t, dst, vec![])?;
+
+        let layer = layer
+            .map(|layer| {
+                self.edge_props_meta
+                    .get_or_create_layer_id(layer.to_owned())
+            })
+            .unwrap_or(0);
+
+        if let Some(e_id) = self.find_edge(src_id, dst_id, Some(layer)) {
+            let mut edge = self.storage.get_edge_mut(e_id.into());
+            edge.layer_mut(layer).delete(t);
+        }
+
+        Ok(())
+    }
+
+    fn link_nodes(
+        &self,
+        src_id: VID,
+        dst_id: VID,
+        t: i64,
+        layer: usize,
+        props: &Vec<(usize, String, Prop)>,
+        activate: bool,
+    ) -> Option<EID> {
+        let mut node_pair = self.storage.pair_node_mut(src_id.into(), dst_id.into());
+
+        let src = node_pair.get_mut_i();
+
+        // find the edge_id if it exists and add the time event to the nodes
+        if let Some(edge_id) = src.find_edge(dst_id, None) {
+            src.add_edge(dst_id, Direction::OUT, layer, edge_id);
+            // add inbound edge for dst
+            let dst = node_pair.get_mut_j();
+            dst.add_edge(src_id, Direction::IN, layer, edge_id);
+            Some(edge_id)
+        } else {
+            let mut edge = EdgeStore::new(src_id, dst_id);
+            {
+                let mut edge_layer = edge.layer_mut(layer);
+                if activate {
+                    edge_layer.update_time(t);
+                }
+                for (prop_id, _, prop) in props {
+                    edge_layer.add_prop(t, *prop_id, prop.clone());
+                }
+            }
+            let edge_id = self.storage.push_edge(edge);
+
+            // add the edge to the nodes
+            src.add_edge(dst_id, Direction::OUT, layer, edge_id.into());
+            let dst = node_pair.get_mut_j(); // second
+            dst.add_edge(src_id, Direction::IN, layer, edge_id.into());
+            None
+        }
+    }
 
     pub fn add_edge_with_props<V: InputVertex, T: TryIntoTime + Debug>(
         &self,
@@ -370,48 +424,23 @@ impl<const N: usize> InnerTemporalGraph<N> {
             })
             .unwrap_or(0);
 
-
         let props = self
             .edge_props_meta
             .resolve_prop_ids(props, false)
             .collect::<Vec<_>>();
 
         // get the entries for the src and dst nodes
-        let edge_id = {
-            let mut node_pair = self.storage.pair_node_mut(src_id.into(), dst_id.into());
-
-            let src = node_pair.get_mut_i();
-
-            // find the edge_id if it exists and add the time event to the nodes
-            if let Some(edge_id) = src.find_edge(dst_id, None) {
-                src.add_edge(dst_id, Direction::OUT, layer, edge_id);
-                // add inbound edge for dst
-                let dst = node_pair.get_mut_j();
-                dst.add_edge(src_id, Direction::IN, layer, edge_id);
-                Some(edge_id)
-            } else {
-                let mut edge = EdgeStore::new(src_id, dst_id, t);
-                for (prop_id, _, prop) in &props {
-                    edge.add_prop(t, *prop_id, prop.clone(), layer);
-                }
-                let edge_id = self.storage.push_edge(edge);
-
-                // add the edge to the nodes
-                src.add_edge(dst_id, Direction::OUT, layer, edge_id.into());
-                let dst = node_pair.get_mut_j(); // second
-                dst.add_edge(src_id, Direction::IN, layer, edge_id.into());
-                None
-            }
-        }; // this is to release the node locks as quick as possible
+        let edge_id = self.link_nodes(src_id, dst_id, t, layer, &props, true); // this is to release the node locks as quick as possible
 
         if let Some(e_id) = edge_id {
             // update the edge with properties
             let mut edge = self.storage.get_edge_mut(e_id.into());
+            let mut edge_layer = edge.layer_mut(layer);
             for (prop_id, _, prop) in &props {
-                edge.add_prop(t, *prop_id, prop.clone(), layer);
+                edge_layer.add_prop(t, *prop_id, prop.clone());
             }
             // update the time event
-            edge.update_time(t);
+            edge_layer.update_time(t);
         }
         Ok(())
     }
@@ -420,21 +449,6 @@ impl<const N: usize> InnerTemporalGraph<N> {
         self.logical_to_physical.contains_key(&v.id())
     }
 
-    // pub fn has_vertex_window<V: InputVertex>(&self, v: V, window: Range<i64>) -> bool {
-    //     let v_id = if let Some(v_id) = self.logical_to_physical.get(&v.id()) {
-    //         *v_id
-    //     } else {
-    //         return false;
-    //     };
-
-    //     let node = self.storage.get_node(v_id);
-    //     if let Some(n) = node.value() {
-    //         n.has_time_window(window)
-    //     } else {
-    //         false
-    //     }
-    // }
-
     pub fn vertex_ids(&self) -> impl Iterator<Item = VID> {
         (0..self.storage.nodes_len()).map(|i| i.into())
     }
@@ -442,20 +456,6 @@ impl<const N: usize> InnerTemporalGraph<N> {
     pub fn edge_ids(&self, layer: Option<usize>) -> impl Iterator<Item = EID> {
         (0..self.storage.edges_len(layer)).map(|i| i.into())
     }
-
-    // pub fn vertex_active(&self, v: VID, t_start: i64, t_end: i64) -> bool {
-    //     let node = self.storage.get_node(v.into());
-    //     node.value()
-    //         .map(|n| n.timestamps().active(t_start..t_end))
-    //         .unwrap_or(false)
-    // }
-
-    // pub fn edge_active(&self, e: EID, t_start: i64, t_end: i64) -> bool {
-    //     let edge = self.storage.get_edge(e.into());
-    //     edge.value()
-    //         .map(|e| e.timestamps().active(t_start..t_end))
-    //         .unwrap_or(false)
-    // }
 
     pub fn vertices<'a>(&'a self) -> impl Iterator<Item = Vertex<'a, N>> {
         self.storage
@@ -511,9 +511,9 @@ impl<const N: usize> InnerTemporalGraph<N> {
         EdgeView::from_entry(edge, self)
     }
 
-    pub(crate) fn find_edge(&self, src: VID, dst: VID, layer_id: usize) -> Option<EID> {
+    pub(crate) fn find_edge(&self, src: VID, dst: VID, layer_id: Option<usize>) -> Option<EID> {
         let node = self.storage.get_node(src.into());
-        node.find_edge(dst, Some(layer_id))
+        node.find_edge(dst, layer_id)
     }
 
     pub(crate) fn resolve_vertex_ref(&self, v: &VertexRef) -> Option<VID> {
@@ -532,9 +532,10 @@ impl<const N: usize> InnerTemporalGraph<N> {
         name: &str,
         t_start: i64,
         t_end: i64,
+        layer: usize,
     ) -> Vec<(i64, Prop)> {
         let edge = self.storage.get_edge(e.into());
-        if !edge.timestamps().active(t_start..t_end) {
+        if !edge.unsafe_layer(layer).timestamps().active(t_start..t_end) {
             vec![]
         } else {
             let prop_id = self.edge_props_meta.resolve_prop_id(name, false);

@@ -1,4 +1,4 @@
-use std::ops::{Range, Deref};
+use std::ops::{Deref, Range};
 
 use crate::core::{
     edge_ref::EdgeRef,
@@ -99,13 +99,17 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
         let entry = self.edge_entry(e.pid());
         let edge = entry.value()?;
         let prop_id = self.edge_find_prop(name, true)?;
-        edge.static_property(prop_id, e.layer()).map(|p| p.clone())
+        let x = edge.unsafe_layer(e.layer())
+            .static_property(prop_id)
+            .map(|p| p.clone());
+        x
     }
 
     fn static_edge_prop_names(&self, e: EdgeRef) -> Vec<String> {
         if let Some(edge) = self.edge_entry(e.pid()).value() {
             return edge
-                .static_prop_ids(e.layer())
+                .unsafe_layer(e.layer())
+                .static_prop_ids()
                 .into_iter()
                 .flat_map(|prop_id| self.edge_reverse_prop_id(prop_id, true))
                 .collect();
@@ -171,7 +175,7 @@ impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
         let src = self.resolve_vertex_ref(&src)?;
         let dst = self.resolve_vertex_ref(&dst)?;
 
-        self.find_edge(src, dst, layer)
+        self.find_edge(src, dst, Some(layer))
             .map(|e_id| EdgeRef::LocalOut {
                 e_pid: e_id,
                 layer_id: layer,
@@ -183,20 +187,23 @@ impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
 
     fn edge_refs(&self, layer: Option<usize>) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
         if let Some(layer_id) = layer {
-            let iter = self.locked_edges().filter_map(move |edge| {
-                if edge.has_layer(layer_id) {
-                    Some((layer_id, edge))
-                } else {
-                    None
-                }
-            }).map(|( layer_id, edge )| {
-                let e_ref:EdgeRef = edge.deref().into();
-                e_ref.at_layer(layer_id)
-            });
+            let iter = self
+                .locked_edges()
+                .filter_map(move |edge| {
+                    if edge.has_layer(layer_id) {
+                        Some((layer_id, edge))
+                    } else {
+                        None
+                    }
+                })
+                .map(|(layer_id, edge)| {
+                    let e_ref: EdgeRef = edge.deref().into();
+                    e_ref.at_layer(layer_id)
+                });
             Box::new(iter)
         } else {
             let iter = self.locked_edges().map(|edge| {
-                let e_ref:EdgeRef = edge.deref().into();
+                let e_ref: EdgeRef = edge.deref().into();
                 e_ref.at_layer(0)
             });
             Box::new(iter)
@@ -254,13 +261,13 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
     }
 
     fn include_edge_window(&self, e: EdgeRef, w: Range<i64>) -> bool {
-        self.edge(e.pid()).active(w)
+        self.edge(e.pid()).active(e.layer(), w)
     }
 
     fn edge_t(&self, e: EdgeRef) -> BoxedIter<EdgeRef> {
         let arc = self.edge_arc(e.pid());
         let iter: GenBoxed<EdgeRef> = GenBoxed::new_boxed(|co| async move {
-            for t in arc.timestamps() {
+            for t in arc.timestamps(e.layer()) {
                 co.yield_(e.at(*t)).await;
             }
         });
@@ -270,7 +277,7 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
     fn edge_window_t(&self, e: EdgeRef, w: Range<i64>) -> BoxedIter<EdgeRef> {
         let arc = self.edge_arc(e.pid());
         let iter: GenBoxed<EdgeRef> = GenBoxed::new_boxed(|co| async move {
-            for t in arc.timestamps_window(w) {
+            for t in arc.timestamps_window(e.layer(), w) {
                 co.yield_(e.at(*t)).await;
             }
         });
@@ -280,25 +287,25 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
     fn edge_earliest_time(&self, e: EdgeRef) -> Option<i64> {
         self.edge_entry(e.pid())
             .value()
-            .and_then(|edge| edge.timestamps().first())
+            .and_then(|edge| edge.unsafe_layer(e.layer()).timestamps().first())
     }
 
     fn edge_earliest_time_window(&self, e: EdgeRef, w: Range<i64>) -> Option<i64> {
         self.edge_entry(e.pid())
             .value()
-            .and_then(|edge| edge.timestamps().range(w).first())
+            .and_then(|edge| edge.unsafe_layer(e.layer()).timestamps().range(w).first())
     }
 
     fn edge_latest_time(&self, e: EdgeRef) -> Option<i64> {
         self.edge_entry(e.pid())
             .value()
-            .and_then(|edge| edge.timestamps().last())
+            .and_then(|edge| edge.unsafe_layer(e.layer()).timestamps().last())
     }
 
     fn edge_latest_time_window(&self, e: EdgeRef, w: Range<i64>) -> Option<i64> {
         self.edge_entry(e.pid())
             .value()
-            .and_then(|edge| edge.timestamps().range(w).last())
+            .and_then(|edge| edge.unsafe_layer(e.layer()).timestamps().range(w).last())
     }
 
     fn vertex_earliest_time(&self, v: VID) -> Option<i64> {
@@ -354,7 +361,7 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
         t_start: i64,
         t_end: i64,
     ) -> Vec<(i64, Prop)> {
-        self.prop_vec_window(e.pid(), name, t_start, t_end)
+        self.prop_vec_window(e.pid(), name, t_start, t_end, e.layer())
     }
 
     fn temporal_edge_prop_vec(&self, e: EdgeRef, name: &str) -> Vec<(i64, Prop)> {
