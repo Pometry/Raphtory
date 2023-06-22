@@ -359,6 +359,14 @@ impl TimeSemantics for InternalGraph {
         e.time().or_else(|| self.edge_additions(e).range(w).last())
     }
 
+    fn edge_deletion_history(&self, e: EdgeRef) -> Vec<i64> {
+        self.edge_deletions(e).iter().copied().collect()
+    }
+
+    fn edge_deletion_history_window(&self, e: EdgeRef, w: Range<i64>) -> Vec<i64> {
+        self.edge_deletions(e).range(w).iter().copied().collect()
+    }
+
     fn temporal_prop_vec(&self, name: &str) -> Vec<(i64, Prop)> {
         match self.temporal_prop(name) {
             Some(props) => props.iter().collect(),

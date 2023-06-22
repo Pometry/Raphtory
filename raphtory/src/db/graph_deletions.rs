@@ -141,6 +141,14 @@ impl TimeSemantics for GraphWithDeletions {
         }
     }
 
+    fn edge_deletion_history(&self, e: EdgeRef) -> Vec<i64> {
+        self.edge_deletions(e).iter().copied().collect()
+    }
+
+    fn edge_deletion_history_window(&self, e: EdgeRef, w: Range<i64>) -> Vec<i64> {
+        self.edge_deletions(e).range(w).iter().copied().collect()
+    }
+
     fn temporal_prop_vec(&self, name: &str) -> Vec<(i64, Prop)> {
         self.graph.temporal_prop_vec(name)
     }

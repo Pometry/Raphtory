@@ -43,7 +43,7 @@ use crate::core::time::IntoTime;
 use crate::core::vertex_ref::{LocalVertexRef, VertexRef};
 use crate::core::{Direction, Prop};
 use crate::db::view_api::internal::time_semantics::TimeSemantics;
-use crate::db::view_api::internal::{GraphOps, GraphWindowOps, DelegateCoreOps};
+use crate::db::view_api::internal::{DelegateCoreOps, GraphOps, GraphWindowOps};
 use crate::db::view_api::{BoxedIter, GraphViewOps};
 use std::cmp::{max, min};
 use std::ops::Range;
@@ -166,6 +166,17 @@ impl<G: GraphViewOps> TimeSemantics for WindowedGraph<G> {
     fn edge_latest_time_window(&self, e: EdgeRef, w: Range<i64>) -> Option<i64> {
         self.graph
             .edge_latest_time_window(e, self.actual_start(w.start)..self.actual_end(w.end))
+    }
+
+
+    fn edge_deletion_history(&self, e: EdgeRef) -> Vec<i64> {
+        self.graph
+            .edge_deletion_history_window(e, self.t_start..self.t_end)
+    }
+
+    fn edge_deletion_history_window(&self, e: EdgeRef, w: Range<i64>) -> Vec<i64> {
+        self.graph
+            .edge_deletion_history_window(e, self.actual_start(w.start)..self.actual_end(w.end))
     }
 
     fn temporal_prop_vec(&self, name: &str) -> Vec<(i64, Prop)> {

@@ -109,6 +109,12 @@ pub trait TimeSemantics: GraphOps + CoreGraphOps {
     /// Get the time of the latest activity of an edge `e` in window `w`
     fn edge_latest_time_window(&self, e: EdgeRef, w: Range<i64>) -> Option<i64>;
 
+    /// Get the edge deletions for use with materialize
+    fn edge_deletion_history(&self, e: EdgeRef) -> Vec<i64>;
+
+    /// Get the edge deletions for use with materialize restricted to window `w`
+    fn edge_deletion_history_window(&self, e: EdgeRef, w: Range<i64>) -> Vec<i64>;
+
     /// Returns a vector of all temporal values of the graph property with the given name
     ///
     /// # Arguments
@@ -321,6 +327,14 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
 
     fn edge_latest_time_window(&self, e: EdgeRef, w: Range<i64>) -> Option<i64> {
         self.graph().edge_latest_time_window(e, w)
+    }
+
+    fn edge_deletion_history(&self, e: EdgeRef) -> Vec<i64> {
+        self.graph().edge_deletion_history(e)
+    }
+
+    fn edge_deletion_history_window(&self, e: EdgeRef, w: Range<i64>) -> Vec<i64> {
+        self.graph().edge_deletion_history_window(e, w)
     }
 
     fn temporal_prop_vec(&self, name: &str) -> Vec<(i64, Prop)> {
