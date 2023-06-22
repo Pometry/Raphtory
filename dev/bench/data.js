@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1687348755711,
+  "lastUpdate": 1687428764759,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -3883,6 +3883,60 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions with numeric string input",
             "value": 1887246,
             "range": "± 83640",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97447091+ljeub-pometry@users.noreply.github.com",
+            "name": "ljeub-pometry",
+            "username": "ljeub-pometry"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "29a0bf8adae8743c619f603b043c93058e8e6c2e",
+          "message": "Bug/partial windows (#1063)\n\n* Change semantics of `expanding` and `rolling` to include partial window at end\r\n\r\n* fix tests\r\n\r\n* improve docs for time windows\r\n\r\n* update python tests to reflect partial windows at end",
+          "timestamp": "2023-06-22T12:07:27+02:00",
+          "tree_id": "58fcb0b0cad7ff3f87c0971f843a3cc15d42e081",
+          "url": "https://github.com/Pometry/Raphtory/commit/29a0bf8adae8743c619f603b043c93058e8e6c2e"
+        },
+        "date": 1687428764035,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 393485,
+            "range": "± 1613",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and numeric string input",
+            "value": 1090711,
+            "range": "± 11918",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and string input",
+            "value": 1141329,
+            "range": "± 6859",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 819029,
+            "range": "± 109253",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions with numeric string input",
+            "value": 2782649,
+            "range": "± 163675",
             "unit": "ns/iter"
           }
         ]
