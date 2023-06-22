@@ -111,12 +111,7 @@ impl<G: GraphViewOps> TimeSemantics for WindowedGraph<G> {
             .latest_time_window(self.actual_start(t_start), self.actual_end(t_end))
     }
 
-    fn vertex_earliest_time_window(
-        &self,
-        v: VID,
-        t_start: i64,
-        t_end: i64,
-    ) -> Option<i64> {
+    fn vertex_earliest_time_window(&self, v: VID, t_start: i64, t_end: i64) -> Option<i64> {
         self.graph.vertex_earliest_time_window(
             v,
             self.actual_start(t_start),
@@ -124,12 +119,7 @@ impl<G: GraphViewOps> TimeSemantics for WindowedGraph<G> {
         )
     }
 
-    fn vertex_latest_time_window(
-        &self,
-        v: VID,
-        t_start: i64,
-        t_end: i64,
-    ) -> Option<i64> {
+    fn vertex_latest_time_window(&self, v: VID, t_start: i64, t_end: i64) -> Option<i64> {
         self.graph
             .vertex_latest_time_window(v, self.actual_start(t_start), self.actual_end(t_end))
     }
@@ -474,7 +464,7 @@ mod views_test {
     use itertools::Itertools;
     use quickcheck::TestResult;
     use rand::prelude::*;
-    use rayon::prelude::*;
+    use rayon::{prelude::*, vec};
 
     #[test]
     fn windowed_graph_vertices_degree() {
@@ -700,9 +690,9 @@ mod views_test {
 
     #[quickcheck]
     fn trivial_window_has_all_edges(edges: Vec<(i64, u64, u64)>) -> bool {
-        let g = Graph::new(10);
+        let g = Graph::new(0);
         edges
-            .into_par_iter()
+            .into_iter()
             .filter(|e| e.0 < i64::MAX)
             .for_each(|(t, src, dst)| {
                 g.add_edge(t, src, dst, [("test".to_owned(), Prop::Bool(true))], None)

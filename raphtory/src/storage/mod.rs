@@ -102,9 +102,11 @@ impl<T, const N: usize> RawStorage<T, N> {
         let index = self.len.fetch_add(1, Ordering::SeqCst);
         let (bucket, offset) = resolve::<N>(index);
         let mut vec = self.data[bucket].data.write();
-        vec.resize_with(offset, || None);
+        if offset >= vec.len() {
+            vec.resize_with(offset + 1, || None);
+        }
         f(index, &mut value);
-        vec.insert(offset, Some(value));
+        vec[offset] = Some(value);
         index
     }
 
@@ -265,6 +267,7 @@ impl<'a, T> DerefMut for EntryMut<'a, T> {
 #[cfg(test)]
 mod test {
     use lock_api::RawRwLock;
+    use rayon::prelude::{IntoParallelIterator, ParallelIterator};
 
     use super::RawStorage;
 
@@ -347,5 +350,28 @@ mod test {
             let entry = storage.entry(i);
             assert_eq!(*entry, i.to_string());
         }
+    }
+
+    use pretty_assertions::assert_eq;
+
+    #[quickcheck]
+    fn concurrent_push(v: Vec<usize>) -> bool{
+        
+            let storage = RawStorage::<usize, 16>::new();
+            let mut expected = v
+                .into_par_iter()
+                .map(|v| {
+                    storage.push(v, |_, _| {});
+                    v
+                })
+                .collect::<Vec<_>>();
+
+            let mut actual = storage.iter().map(|s| *s).collect::<Vec<_>>();
+
+            actual.sort();
+            expected.sort();
+
+            actual == expected
+        
     }
 }
