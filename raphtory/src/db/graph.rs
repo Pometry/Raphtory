@@ -328,19 +328,19 @@ impl TimeSemantics for InternalGraph {
     }
 
     fn edge_earliest_time(&self, e: EdgeRef) -> Option<i64> {
-        self.edge_additions(e).first()
+        e.time().or_else(|| self.edge_additions(e).first())
     }
 
     fn edge_earliest_time_window(&self, e: EdgeRef, w: Range<i64>) -> Option<i64> {
-        self.edge_additions(e).range(w).first()
+        e.time().or_else(|| self.edge_additions(e).range(w).first())
     }
 
     fn edge_latest_time(&self, e: EdgeRef) -> Option<i64> {
-        self.edge_additions(e).last()
+        e.time().or_else(|| self.edge_additions(e).last())
     }
 
     fn edge_latest_time_window(&self, e: EdgeRef, w: Range<i64>) -> Option<i64> {
-        self.edge_additions(e).range(w).last()
+        e.time().or_else(|| self.edge_additions(e).range(w).last())
     }
 
     fn temporal_prop_vec(&self, name: &str) -> Vec<(i64, Prop)> {
