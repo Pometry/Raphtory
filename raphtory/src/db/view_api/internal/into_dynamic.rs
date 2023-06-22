@@ -1,4 +1,3 @@
-use crate::db::graph::Graph;
 use crate::db::graph_layer::LayeredGraph;
 use crate::db::graph_window::WindowedGraph;
 use crate::db::subgraph_vertex::VertexSubgraph;

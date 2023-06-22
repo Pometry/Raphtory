@@ -5,10 +5,10 @@ use crate::core::{Direction, Prop};
 use crate::db::graph::InternalGraph;
 use crate::db::mutation_api::internal::InheritMutationOps;
 use crate::db::view_api::internal::{
-    CoreDeletionOps, CoreGraphOps, DelegateCoreDeletionOps, DelegateCoreOps, DelegateGraphOps,
-    GraphOps, InheritCoreDeletionOps, InheritCoreOps, InheritGraphOps, Inheritable, TimeSemantics,
+    CoreDeletionOps, CoreGraphOps, GraphOps, InheritCoreDeletionOps, InheritCoreOps,
+    InheritGraphOps, Inheritable, TimeSemantics,
 };
-use crate::db::view_api::{BoxedIter, GraphViewOps};
+use crate::db::view_api::BoxedIter;
 use std::iter;
 use std::ops::Range;
 use std::sync::Arc;

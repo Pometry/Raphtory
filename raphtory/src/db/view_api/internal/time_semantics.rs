@@ -1,10 +1,10 @@
 use crate::core::edge_ref::EdgeRef;
 use crate::core::timeindex::TimeIndexOps;
 use crate::core::vertex_ref::LocalVertexRef;
-use crate::core::{Direction, Prop};
+use crate::core::Prop;
 use crate::db::view_api::internal::{CoreGraphOps, GraphOps, Inheritable};
 use crate::db::view_api::BoxedIter;
-use itertools::Itertools;
+
 use std::ops::Range;
 
 /// Methods for defining time windowing semantics for a graph
