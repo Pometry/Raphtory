@@ -28,8 +28,8 @@ pub trait TimeOps {
         self.window(i64::MIN, end.into_time().saturating_add(1))
     }
 
-    /// Creates a `WindowSet` with the given `step` size and optional `start` and `end` times,    
-    /// using an expanding window.
+    /// Creates a `WindowSet` with the given `step` size    
+    /// using an expanding window. The last window may fall partially outside the range of the data/view.
     ///
     /// An expanding window is a window that grows by `step` size at each iteration.
     fn expanding<I>(&self, step: I) -> Result<WindowSet<Self>, ParseTimeError>
@@ -48,8 +48,8 @@ pub trait TimeOps {
         }
     }
 
-    /// Creates a `WindowSet` with the given `window` size and optional `step`, `start` and `end` times,
-    /// using a rolling window.
+    /// Creates a `WindowSet` with the given `window` size and optional `step`
+    /// using a rolling window. The last window may fall partially outside the range of the data/view.
     ///
     /// A rolling window is a window that moves forward by `step` size at each iteration.
     fn rolling<I>(&self, window: I, step: Option<I>) -> Result<WindowSet<Self>, ParseTimeError>
