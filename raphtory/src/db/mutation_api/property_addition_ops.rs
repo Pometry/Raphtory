@@ -2,6 +2,8 @@ use crate::core::tgraph_shard::errors::GraphError;
 use crate::core::time::TryIntoTime;
 use crate::core::vertex::InputVertex;
 use crate::core::Prop;
+use crate::db::mutation_api::internal::InternalPropertyAdditionOps;
+use crate::db::mutation_api::Properties;
 
 pub trait PropertyAdditionOps {
     /// Adds properties to the given input vertex.
@@ -16,24 +18,25 @@ pub trait PropertyAdditionOps {
     /// ```
     /// use raphtory::db::graph::InternalGraph;
     /// use raphtory::core::Prop;
+    /// use raphtory::db::mutation_api::{AdditionOps, PropertyAdditionOps};
     /// let graph = InternalGraph::new(1);
     /// graph.add_vertex(0, "Alice", &vec![]);
     /// let properties = vec![("color".to_owned(), Prop::Str("blue".to_owned())), ("weight".to_owned(), Prop::I64(11))];
     /// let result = graph.add_vertex_properties("Alice", &properties);
     /// ```
-    fn add_vertex_properties<V: InputVertex>(
+    fn add_vertex_properties<V: InputVertex, P: Properties>(
         &self,
         v: V,
-        data: &Vec<(String, Prop)>,
+        data: P,
     ) -> Result<(), GraphError>;
 
-    fn add_property<T: TryIntoTime>(
+    fn add_properties<T: TryIntoTime, P: Properties>(
         &self,
         t: T,
-        props: &Vec<(String, Prop)>,
+        props: P,
     ) -> Result<(), GraphError>;
 
-    fn add_static_property(&self, props: &Vec<(String, Prop)>) -> Result<(), GraphError>;
+    fn add_static_properties<P: Properties>(&self, props: P) -> Result<(), GraphError>;
 
     /// Adds properties to an existing edge between a source and destination vertices
     ///
@@ -48,6 +51,7 @@ pub trait PropertyAdditionOps {
     /// ```
     /// use raphtory::db::graph::InternalGraph;
     /// use raphtory::core::Prop;
+    /// use raphtory::db::mutation_api::{AdditionOps, PropertyAdditionOps};
     /// let graph = InternalGraph::new(1);
     /// graph.add_vertex(1, "Alice", &vec![]);
     /// graph.add_vertex(2, "Bob", &vec![]);
@@ -55,11 +59,43 @@ pub trait PropertyAdditionOps {
     /// let properties = vec![("price".to_owned(), Prop::I64(100))];
     /// let result = graph.add_edge_properties("Alice", "Bob", &properties, None);
     /// ```
-    fn add_edge_properties<V: InputVertex>(
+    fn add_edge_properties<V: InputVertex, P: Properties>(
         &self,
         src: V,
         dst: V,
-        props: &Vec<(String, Prop)>,
+        props: P,
         layer: Option<&str>,
     ) -> Result<(), GraphError>;
+}
+
+impl<G: InternalPropertyAdditionOps> PropertyAdditionOps for G {
+    fn add_vertex_properties<V: InputVertex, P: Properties>(
+        &self,
+        v: V,
+        data: P,
+    ) -> Result<(), GraphError> {
+        self.internal_add_vertex_properties(v.id(), data.collect_properties())
+    }
+
+    fn add_properties<T: TryIntoTime, P: Properties>(
+        &self,
+        t: T,
+        props: P,
+    ) -> Result<(), GraphError> {
+        self.internal_add_properties(t.try_into_time()?, props.collect_properties())
+    }
+
+    fn add_static_properties<P: Properties>(&self, props: P) -> Result<(), GraphError> {
+        self.internal_add_static_properties(props.collect_properties())
+    }
+
+    fn add_edge_properties<V: InputVertex, P: Properties>(
+        &self,
+        src: V,
+        dst: V,
+        props: P,
+        layer: Option<&str>,
+    ) -> Result<(), GraphError> {
+        self.internal_add_edge_properties(src.id(), dst.id(), props.collect_properties(), layer)
+    }
 }

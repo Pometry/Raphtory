@@ -50,6 +50,7 @@ pub fn clustering_coefficient<G: GraphViewOps>(g: &G) -> f64 {
 mod cc_test {
     use super::*;
     use crate::db::graph::Graph;
+    use crate::db::mutation_api::AdditionOps;
     use crate::db::view_api::*;
     use pretty_assertions::assert_eq;
 
@@ -83,7 +84,7 @@ mod cc_test {
         ];
 
         for (src, dst) in edges {
-            graph.add_edge(0, src, dst, &vec![], None).unwrap();
+            graph.add_edge(0, src, dst, [], None).unwrap();
         }
 
         let graph_at = graph.at(1);

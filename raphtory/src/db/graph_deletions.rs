@@ -3,6 +3,7 @@ use crate::core::timeindex::TimeIndexOps;
 use crate::core::vertex_ref::LocalVertexRef;
 use crate::core::{Direction, Prop};
 use crate::db::graph::InternalGraph;
+use crate::db::mutation_api::internal::InheritMutationOps;
 use crate::db::view_api::internal::{
     CoreGraphOps, GraphOps, InheritCoreOps, InheritGraphOps, TimeSemantics,
 };
@@ -12,9 +13,11 @@ use std::ops::Range;
 use std::sync::Arc;
 
 #[derive(Clone)]
-pub struct GraphWithDeletions(Arc<InternalGraph>);
+pub struct GraphWithDeletions {
+    graph: Arc<InternalGraph>,
+}
 
-impl<G: GraphViewOps> GraphWithDeletions<G> {
+impl GraphWithDeletions {
     fn edge_alive_at(&self, e: EdgeRef, t: i64) -> bool {
         // FIXME: assumes additions are before deletions if at the same timestamp (need to have strict ordering/secondary index)
         let additions = self.edge_additions(e);
@@ -27,28 +30,38 @@ impl<G: GraphViewOps> GraphWithDeletions<G> {
         last_addition_before_start > last_deletion_before_start
     }
 
-    pub fn new(graph: G) -> Self {
-        Self { graph }
+    pub fn new(nr_shards: usize) -> Self {
+        Self {
+            graph: Arc::new(InternalGraph::new(nr_shards)),
+        }
     }
 }
 
-impl<G: GraphViewOps> InheritCoreOps for GraphWithDeletions<G> {
-    type Internal = G;
+impl InheritMutationOps for GraphWithDeletions {
+    type Internal = InternalGraph;
 
     fn graph(&self) -> &Self::Internal {
         &self.graph
     }
 }
 
-impl<G: GraphViewOps> InheritGraphOps for GraphWithDeletions<G> {
-    type Internal = G;
+impl InheritCoreOps for GraphWithDeletions {
+    type Internal = InternalGraph;
 
     fn graph(&self) -> &Self::Internal {
         &self.graph
     }
 }
 
-impl<G: GraphViewOps> TimeSemantics for GraphWithDeletions<G> {
+impl InheritGraphOps for GraphWithDeletions {
+    type Internal = InternalGraph;
+
+    fn graph(&self) -> &Self::Internal {
+        &self.graph
+    }
+}
+
+impl TimeSemantics for GraphWithDeletions {
     fn vertex_earliest_time(&self, v: LocalVertexRef) -> Option<i64> {
         self.graph.vertex_earliest_time(v)
     }
@@ -192,6 +205,7 @@ mod test_deletions {
     use crate::core::{Prop, PropUnwrap};
     use crate::db::graph::Graph;
     use crate::db::graph_deletions::GraphWithDeletions;
+    use crate::db::mutation_api::{AdditionOps, DeletionOps};
     use crate::db::view_api::*;
 
     #[test]
@@ -203,24 +217,23 @@ mod test_deletions {
 
     #[test]
     fn test_edge_deletions() {
-        let g = Graph::new(1);
+        let g = GraphWithDeletions::new(1);
 
-        g.add_edge(0, 0, 1, &vec![("added".to_string(), Prop::I64(0))], None)
+        g.add_edge(0, 0, 1, [("added".to_string(), Prop::I64(0))], None)
             .unwrap();
         g.delete_edge(10, 0, 1, None).unwrap();
 
-        let gd = GraphWithDeletions::new(g);
-        assert_eq!(gd.edges().id().collect::<Vec<_>>(), vec![(0, 1)]);
+        assert_eq!(g.edges().id().collect::<Vec<_>>(), vec![(0, 1)]);
 
         assert_eq!(
-            gd.window(1, 2).edges().id().collect::<Vec<_>>(),
+            g.window(1, 2).edges().id().collect::<Vec<_>>(),
             vec![(0, 1)]
         );
 
-        assert!(gd.window(11, 12).is_empty());
+        assert!(g.window(11, 12).is_empty());
 
         assert_eq!(
-            gd.window(1, 2)
+            g.window(1, 2)
                 .edge(0, 1, None)
                 .unwrap()
                 .property("added", true)
@@ -228,17 +241,17 @@ mod test_deletions {
             0
         );
 
-        assert!(gd.window(11, 12).edge(0, 1, None).is_none());
+        assert!(g.window(11, 12).edge(0, 1, None).is_none());
 
         assert_eq!(
-            gd.window(1, 2)
+            g.window(1, 2)
                 .edge(0, 1, None)
                 .unwrap()
                 .property_history("added"),
             vec![(1, Prop::I64(0))]
         );
 
-        assert_eq!(gd.window(1, 2).vertex(0).unwrap().out_degree(), 1)
+        assert_eq!(g.window(1, 2).vertex(0).unwrap().out_degree(), 1)
     }
 
     #[test]

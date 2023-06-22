@@ -3,7 +3,7 @@ use num_traits::abs;
 use crate::core::vertex_ref::LocalVertexRef;
 use crate::db::view_api::VertexViewOps;
 use crate::{
-    core::state::{accumulator_id::accumulators, compute_state::ComputeStateVec} ,
+    core::state::{accumulator_id::accumulators, compute_state::ComputeStateVec},
     db::{
         task::{
             context::Context,
@@ -173,6 +173,7 @@ mod page_rank_tests {
     use pretty_assertions::assert_eq;
 
     use crate::db::graph::Graph;
+    use crate::db::mutation_api::AdditionOps;
 
     use super::*;
 
@@ -182,7 +183,7 @@ mod page_rank_tests {
         let edges = vec![(1, 2), (1, 4), (2, 3), (3, 1), (4, 1)];
 
         for (src, dst) in edges {
-            graph.add_edge(0, src, dst, &vec![], None).unwrap();
+            graph.add_edge(0, src, dst, [], None).unwrap();
         }
         graph
     }
@@ -251,7 +252,7 @@ mod page_rank_tests {
         let graph = Graph::new(4);
 
         for (src, dst, t) in edges {
-            graph.add_edge(t, src, dst, &vec![], None).unwrap();
+            graph.add_edge(t, src, dst, [], None).unwrap();
         }
 
         let results: HashMap<String, f64> = unweighted_page_rank(&graph, 1000, Some(4), None, true)
@@ -278,12 +279,13 @@ mod page_rank_tests {
         let graph = Graph::new(4);
 
         for (t, (src, dst)) in edges.into_iter().enumerate() {
-            graph.add_edge(t as i64, src, dst, &vec![], None).unwrap();
+            graph.add_edge(t as i64, src, dst, [], None).unwrap();
         }
 
-        let results: HashMap<String, f64> = unweighted_page_rank(&graph, 1000, Some(4), None, false)
-            .into_iter()
-            .collect();
+        let results: HashMap<String, f64> =
+            unweighted_page_rank(&graph, 1000, Some(4), None, false)
+                .into_iter()
+                .collect();
 
         assert_eq_f64(results.get("1"), Some(&0.5), 3);
         assert_eq_f64(results.get("2"), Some(&0.5), 3);
@@ -296,7 +298,7 @@ mod page_rank_tests {
         let graph = Graph::new(4);
 
         for (t, (src, dst)) in edges.into_iter().enumerate() {
-            graph.add_edge(t as i64, src, dst, &vec![], None).unwrap();
+            graph.add_edge(t as i64, src, dst, [], None).unwrap();
         }
 
         let results: HashMap<String, f64> = unweighted_page_rank(&graph, 10, Some(4), None, false)
@@ -334,7 +336,7 @@ mod page_rank_tests {
         let graph = Graph::new(4);
 
         for (src, dst, t) in edges {
-            graph.add_edge(t, src, dst, &vec![], None).unwrap();
+            graph.add_edge(t, src, dst, [], None).unwrap();
         }
 
         let results: HashMap<String, f64> = unweighted_page_rank(&graph, 1000, Some(4), None, true)
@@ -367,10 +369,7 @@ mod page_rank_tests {
                 (Some(a), Some(b)) => {
                     let left = (a.borrow() * factor).round();
                     let right = (b.borrow() * factor).round();
-                    assert_eq!(
-                        left,
-                        right,
-                    );
+                    assert_eq!(left, right,);
                 }
                 _ => unreachable!(),
             }

@@ -224,7 +224,7 @@ impl InputVertexBox {
     {
         InputVertexBox {
             id: vertex.id(),
-            name_prop: vertex.name_prop(),
+            name_prop: vertex.id_str(),
         }
     }
 }
@@ -238,7 +238,7 @@ impl InputVertex for InputVertexBox {
     }
 
     /// Returns the name property of the vertex.
-    fn name_prop(&self) -> Option<dbc::Prop> {
+    fn id_str(&self) -> Option<dbc::Prop> {
         self.name_prop.clone()
     }
 }

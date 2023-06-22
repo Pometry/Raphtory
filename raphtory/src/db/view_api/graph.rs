@@ -10,6 +10,7 @@ use crate::db::edge::EdgeView;
 use crate::db::graph::Graph;
 use crate::db::graph_layer::LayeredGraph;
 use crate::db::graph_window::WindowedGraph;
+use crate::db::mutation_api::{AdditionOps, PropertyAdditionOps};
 use crate::db::subgraph_vertex::VertexSubgraph;
 use crate::db::vertex::VertexView;
 use crate::db::vertices::Vertices;
@@ -320,14 +321,14 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
         let g = Graph::new(self.num_shards());
         for v in self.vertices().iter() {
             for h in v.history() {
-                g.add_vertex(h, v.id(), &vec![])?;
+                g.add_vertex(h, v.id(), [])?;
             }
             for (name, props) in v.property_histories() {
                 for (t, prop) in props {
-                    g.add_vertex(t, v.id(), &vec![(name.clone(), prop)])?;
+                    g.add_vertex(t, v.id(), [(name.clone(), prop)])?;
                 }
             }
-            g.add_vertex_properties(v.id(), &v.static_properties().into_iter().collect_vec())?;
+            g.add_vertex_properties(v.id(), v.static_properties())?;
         }
 
         for e in self.edges() {
@@ -341,20 +342,15 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
                     ee.time().unwrap(),
                     ee.src().id(),
                     ee.dst().id(),
-                    &ee.properties(false).into_iter().collect_vec(),
+                    ee.properties(false),
                     layer,
                 )?;
             }
 
-            g.add_edge_properties(
-                e.src().id(),
-                e.dst().id(),
-                &e.static_properties().into_iter().collect_vec(),
-                layer,
-            )?;
+            g.add_edge_properties(e.src().id(), e.dst().id(), e.static_properties(), layer)?;
         }
 
-        g.add_static_property(&self.static_properties().into_iter().collect_vec())?;
+        g.add_static_properties(self.static_properties())?;
 
         Ok(g)
     }

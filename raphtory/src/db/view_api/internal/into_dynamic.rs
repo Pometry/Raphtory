@@ -10,12 +10,6 @@ pub trait IntoDynamic {
     fn into_dynamic(self) -> DynamicGraph;
 }
 
-impl IntoDynamic for Graph {
-    fn into_dynamic(self) -> DynamicGraph {
-        self.as_arc()
-    }
-}
-
 impl<G: GraphViewOps> IntoDynamic for WindowedGraph<G> {
     fn into_dynamic(self) -> DynamicGraph {
         Arc::new(self)

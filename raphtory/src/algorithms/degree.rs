@@ -18,6 +18,7 @@
 //! ```rust
 //! use raphtory::algorithms::degree::{max_out_degree, max_in_degree, min_out_degree, min_in_degree, average_degree};
 //! use raphtory::db::graph::Graph;
+//! use raphtory::db::mutation_api::AdditionOps;
 //! use raphtory::db::view_api::*;
 //!
 //! let g = Graph::new(1);
@@ -102,6 +103,7 @@ pub fn average_degree<G: GraphViewOps>(graph: &G) -> f64 {
 
 #[cfg(test)]
 mod degree_test {
+    use crate::db::mutation_api::AdditionOps;
     use crate::{
         algorithms::degree::{average_degree, max_in_degree, min_in_degree, min_out_degree},
         db::graph::Graph,
@@ -122,7 +124,7 @@ mod degree_test {
         ];
 
         for (t, src, dst) in &vs {
-            g.add_edge(*t, *src, *dst, &vec![], None).unwrap();
+            g.add_edge(*t, *src, *dst, [], None).unwrap();
         }
 
         let expected_max_out_degree = 3;

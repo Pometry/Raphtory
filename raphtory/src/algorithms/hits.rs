@@ -96,8 +96,8 @@ pub fn hits<G: GraphViewOps>(
         let md_hub_score = abs(prev_hub_score - curr_hub_score);
         evv.global_update(&max_diff_hub_score, md_hub_score);
 
-        let prev_auth_score = evv.prev().auth_score; 
-        let curr_auth_score = evv.get().auth_score; 
+        let prev_auth_score = evv.prev().auth_score;
+        let curr_auth_score = evv.get().auth_score;
         let md_auth_score = abs(prev_auth_score - curr_auth_score);
         evv.global_update(&max_diff_auth_score, md_auth_score);
 
@@ -162,13 +162,14 @@ pub fn hits<G: GraphViewOps>(
 mod hits_tests {
     use super::*;
     use crate::db::graph::Graph;
+    use crate::db::mutation_api::AdditionOps;
     use itertools::Itertools;
 
     fn load_graph(n_shards: usize, edges: Vec<(u64, u64)>) -> Graph {
         let graph = Graph::new(n_shards);
 
         for (src, dst) in edges {
-            graph.add_edge(0, src, dst, &vec![], None).unwrap();
+            graph.add_edge(0, src, dst, [], None).unwrap();
         }
         graph
     }

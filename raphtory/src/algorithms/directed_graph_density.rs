@@ -12,6 +12,7 @@
 //! ```rust
 //! use raphtory::algorithms::directed_graph_density::directed_graph_density;
 //! use raphtory::db::graph::Graph;
+//! use raphtory::db::mutation_api::AdditionOps;
 //! use raphtory::db::view_api::*;
 //!
 //! let g = Graph::new(1);
@@ -43,6 +44,7 @@ pub fn directed_graph_density<G: GraphViewOps>(graph: &G) -> f32 {
 mod directed_graph_density_tests {
     use super::*;
     use crate::db::graph::Graph;
+    use crate::db::mutation_api::AdditionOps;
 
     #[test]
     fn low_graph_density() {
@@ -58,7 +60,7 @@ mod directed_graph_density_tests {
         ];
 
         for (t, src, dst) in &vs {
-            g.add_edge(*t, *src, *dst, &vec![], None).unwrap();
+            g.add_edge(*t, *src, *dst, [], None).unwrap();
         }
 
         let actual = directed_graph_density(&windowed_graph);
@@ -74,7 +76,7 @@ mod directed_graph_density_tests {
         let vs = vec![(1, 1, 2), (2, 2, 1)];
 
         for (t, src, dst) in &vs {
-            g.add_edge(*t, *src, *dst, &vec![], None).unwrap();
+            g.add_edge(*t, *src, *dst, [], None).unwrap();
         }
 
         let actual = directed_graph_density(&windowed_graph);

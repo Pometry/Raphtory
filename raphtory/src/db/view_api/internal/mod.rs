@@ -33,6 +33,7 @@ pub type DynamicGraph = Arc<dyn BoxableGraphView>;
 #[cfg(test)]
 mod test {
     use crate::db::graph::Graph;
+    use crate::db::mutation_api::AdditionOps;
     use crate::db::view_api::internal::BoxableGraphView;
     use crate::db::view_api::*;
     use itertools::Itertools;
@@ -42,7 +43,7 @@ mod test {
     fn test_boxing() {
         // this tests that a boxed graph actually compiles
         let g = Graph::new(1);
-        g.add_vertex(0, 1, &vec![]).unwrap();
+        g.add_vertex(0, 1, []).unwrap();
         let boxed: Arc<dyn BoxableGraphView> = Arc::new(g);
         assert_eq!(boxed.vertices().id().collect_vec(), vec![1])
     }
