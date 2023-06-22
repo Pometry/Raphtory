@@ -4,7 +4,7 @@ use crate::core::{
     edge_ref::EdgeRef,
     tgraph2::{tgraph::InnerTemporalGraph, timer::TimeCounterTrait, VID},
     tgraph_shard::LockedView,
-    timeindex::TimeIndexOps,
+    timeindex::{TimeIndexOps, TimeIndex},
     tprop::TProp,
     vertex_ref::VertexRef,
     Direction, Prop,
@@ -34,15 +34,17 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
         self.vertex_name(v.into())
     }
 
-    fn edge_additions(&self, eref: EdgeRef) -> LockedView<crate::core::timeindex::TimeIndex> {
-        todo!()
+    fn edge_additions(&self, eref: EdgeRef) -> LockedView<TimeIndex> {
+        let edge = self.edge(eref.pid());
+        edge.edge_additions(eref.layer()).unwrap()
     }
 
-    fn edge_deletions(&self, eref: EdgeRef) -> LockedView<crate::core::timeindex::TimeIndex> {
-        todo!()
+    fn edge_deletions(&self, eref: EdgeRef) -> LockedView<TimeIndex> {
+        let edge = self.edge(eref.pid());
+        edge.edge_deletions(eref.layer()).unwrap()
     }
 
-    fn vertex_additions(&self, v: VID) -> LockedView<crate::core::timeindex::TimeIndex> {
+    fn vertex_additions(&self, v: VID) -> LockedView<TimeIndex> {
         todo!()
     }
 
@@ -99,7 +101,8 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
         let entry = self.edge_entry(e.pid());
         let edge = entry.value()?;
         let prop_id = self.edge_find_prop(name, true)?;
-        let x = edge.unsafe_layer(e.layer())
+        let x = edge
+            .unsafe_layer(e.layer())
             .static_property(prop_id)
             .map(|p| p.clone());
         x
@@ -118,7 +121,10 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
     }
 
     fn temporal_edge_prop(&self, e: EdgeRef, name: &str) -> Option<LockedView<TProp>> {
-        todo!()
+        let edge = self.edge(e.pid());
+        let prop_id = self.edge_find_prop(name, false)?;
+
+        edge.temporal_property(e.layer(), prop_id)
     }
 
     fn temporal_edge_prop_names(&self, e: EdgeRef) -> Vec<String> {

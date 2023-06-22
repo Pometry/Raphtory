@@ -15,7 +15,7 @@ use crate::{
 
 use super::{
     edge::EdgeView,
-    edge_store::EdgeStore,
+    edge_store::{EdgeLayer, EdgeStore},
     node_store::NodeStore,
     props::Meta,
     tgraph_storage::{GraphStorage, LockedIter},
@@ -349,29 +349,37 @@ impl<const N: usize> InnerTemporalGraph<N> {
         let src_id = self.add_vertex_internal(t, src, vec![])?;
         let dst_id = self.add_vertex_internal(t, dst, vec![])?;
 
-        let layer = layer
-            .map(|layer| {
-                self.edge_props_meta
-                    .get_or_create_layer_id(layer.to_owned())
-            })
-            .unwrap_or(0);
+        let layer = self.get_or_allocate_layer(layer);
 
-        if let Some(e_id) = self.find_edge(src_id, dst_id, Some(layer)) {
+        if let Some(e_id) = self.find_edge(src_id, dst_id, None) {
             let mut edge = self.storage.get_edge_mut(e_id.into());
             edge.layer_mut(layer).delete(t);
+        } else {
+            self.link_nodes(src_id, dst_id, t, layer, &vec![], |edge_layer| {
+                edge_layer.delete(t)
+            });
         }
 
         Ok(())
     }
 
-    fn link_nodes(
+    fn get_or_allocate_layer(&self, layer: Option<&str>) -> usize {
+        layer
+            .map(|layer| {
+                self.edge_props_meta
+                    .get_or_create_layer_id(layer.to_owned())
+            })
+            .unwrap_or(0)
+    }
+
+    fn link_nodes<F: Fn(&mut EdgeLayer)>(
         &self,
         src_id: VID,
         dst_id: VID,
         t: i64,
         layer: usize,
         props: &Vec<(usize, String, Prop)>,
-        activate: bool,
+        new_edge_fn: F,
     ) -> Option<EID> {
         let mut node_pair = self.storage.pair_node_mut(src_id.into(), dst_id.into());
 
@@ -388,9 +396,7 @@ impl<const N: usize> InnerTemporalGraph<N> {
             let mut edge = EdgeStore::new(src_id, dst_id);
             {
                 let mut edge_layer = edge.layer_mut(layer);
-                if activate {
-                    edge_layer.update_time(t);
-                }
+                new_edge_fn(&mut edge_layer);
                 for (prop_id, _, prop) in props {
                     edge_layer.add_prop(t, *prop_id, prop.clone());
                 }
@@ -417,12 +423,7 @@ impl<const N: usize> InnerTemporalGraph<N> {
         let src_id = self.add_vertex_internal(t, src, vec![])?;
         let dst_id = self.add_vertex_internal(t, dst, vec![])?;
 
-        let layer = layer
-            .map(|layer| {
-                self.edge_props_meta
-                    .get_or_create_layer_id(layer.to_owned())
-            })
-            .unwrap_or(0);
+        let layer = self.get_or_allocate_layer(layer);
 
         let props = self
             .edge_props_meta
@@ -430,7 +431,9 @@ impl<const N: usize> InnerTemporalGraph<N> {
             .collect::<Vec<_>>();
 
         // get the entries for the src and dst nodes
-        let edge_id = self.link_nodes(src_id, dst_id, t, layer, &props, true); // this is to release the node locks as quick as possible
+        let edge_id = self.link_nodes(src_id, dst_id, t, layer, &props, |edge_layer| {
+            edge_layer.update_time(t)
+        }); // this is to release the node locks as quick as possible
 
         if let Some(e_id) = edge_id {
             // update the edge with properties

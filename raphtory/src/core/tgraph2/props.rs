@@ -75,6 +75,10 @@ impl Props {
         prop.as_ref()
     }
 
+    pub(crate) fn temporal_prop(&self, prop_id: usize) -> Option<&TProp> {
+        self.temporal_props.get(prop_id)
+    }
+
     pub(crate) fn static_prop_ids(&self) -> Vec<usize> {
         self.static_props.filled_ids()
     }

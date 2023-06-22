@@ -3,7 +3,7 @@ use std::{rc::Rc, sync::Arc, ops::Range};
 use itertools::Itertools;
 
 use crate::{
-    core::{edge_ref::EdgeRef, Direction, Prop, timeindex::TimeIndexOps},
+    core::{edge_ref::EdgeRef, Direction, Prop, timeindex::{TimeIndexOps, TimeIndex}},
     storage::{iter::RefT, ArcEntry, Entry},
 };
 
@@ -158,6 +158,10 @@ impl<const N:usize> ArcEdge<N>{
 
     pub(crate) fn timestamps_window(&self, layer:usize, w: Range<i64>) -> impl Iterator<Item = &i64> + '_ {
         self.e.layer_timestamps(layer).range_iter(w)
+    }
+
+    pub(crate) fn time_index(&self, layer: usize) -> &TimeIndex{
+        self.e.layer_timestamps(layer)
     }
 
 }

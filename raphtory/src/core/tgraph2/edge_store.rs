@@ -5,7 +5,7 @@ use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 
 use crate::core::{
-    edge_ref::EdgeRef, tgraph::errors::MutateGraphError, timeindex::TimeIndex, Prop,
+    edge_ref::EdgeRef, tgraph::errors::MutateGraphError, timeindex::TimeIndex, tprop::TProp, Prop,
 };
 
 use super::{props::Props, EID, VID};
@@ -66,6 +66,10 @@ impl EdgeLayer {
     pub(crate) fn static_property(&self, prop_id: usize) -> Option<&Prop> {
         self.props.static_prop(prop_id)
     }
+
+    pub(crate) fn temporal_property(&self, prop_id: usize) -> Option<&TProp> {
+        self.props.temporal_prop(prop_id)
+    }
 }
 
 impl<const N: usize> Into<EdgeRef> for &EdgeStore<N> {
@@ -104,6 +108,13 @@ impl<const N: usize> EdgeStore<N> {
 
     pub fn layer_timestamps(&self, layer_id: usize) -> &TimeIndex {
         &self.layers.get(&layer_id).unwrap().timestamps
+    }
+    pub fn layer_deletions(&self, layer_id: usize) -> &TimeIndex {
+        &self.layers.get(&layer_id).unwrap().deletions
+    }
+    pub fn temporal_prop(&self, layer_id: usize, prop_id: usize) -> Option<&TProp> {
+        self.layers
+            .get(&layer_id).and_then(|layer| layer.temporal_property(prop_id))
     }
 
     pub fn layer_mut(&mut self, layer_id: usize) -> impl DerefMut<Target = EdgeLayer> + '_ {

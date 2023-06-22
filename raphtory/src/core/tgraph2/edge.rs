@@ -1,7 +1,12 @@
 use std::{ops::Range, sync::Arc};
 
 use crate::{
-    core::{timeindex::TimeIndexOps, Direction, Prop},
+    core::{
+        tgraph_shard::LockedView,
+        timeindex::{TimeIndex, TimeIndexOps},
+        tprop::TProp,
+        Direction, Prop,
+    },
     storage::Entry,
 };
 
@@ -81,6 +86,48 @@ impl<'a, const N: usize> PartialOrd for EdgeView<'a, N> {
 }
 
 impl<'a, const N: usize> EdgeView<'a, N> {
+    pub(crate) fn edge_additions(self, layer_id: usize) -> Option<LockedView<'a, TimeIndex>> {
+        match self.edge_id {
+            ERef::ERef(entry) => {
+                let t_index = entry.map(|entry| entry.layer_timestamps(layer_id));
+                Some(t_index)
+            }
+            _ => None,
+        }
+    }
+
+    pub(crate) fn edge_deletions(self, layer_id: usize) -> Option<LockedView<'a, TimeIndex>> {
+        match self.edge_id {
+            ERef::ERef(entry) => {
+                let t_index = entry.map(|entry| entry.layer_deletions(layer_id));
+                Some(t_index)
+            }
+            _ => None,
+        }
+    }
+
+    pub(crate) fn temporal_property(
+        self,
+        layer_id: usize,
+        prop_id: usize,
+    ) -> Option<LockedView<'a, TProp>> {
+        match self.edge_id {
+            ERef::ERef(entry) => {
+                let prop_exists = entry
+                    .layer(layer_id)
+                    .map(|layer| layer.temporal_property(prop_id).is_some())
+                    .unwrap_or(false);
+                if !prop_exists {
+                    return None;
+                }
+
+                let t_index = entry.map(|entry| entry.temporal_prop(layer_id, prop_id).unwrap());
+                Some(t_index)
+            }
+            _ => None,
+        }
+    }
+
     fn neighbour(&self) -> VID {
         match self.dir {
             Direction::OUT => self.dst,

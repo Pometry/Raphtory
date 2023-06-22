@@ -194,7 +194,7 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
         self.graph().vertex_name(v)
     }
 
-    fn edge_additions(&self, eref: EdgeRef) -> LockedView<TimeIndex> {
+    fn edge_additions(&self, eref: EdgeRef) -> LockedView<TimeIndex>{
         self.graph().edge_additions(eref)
     }
 

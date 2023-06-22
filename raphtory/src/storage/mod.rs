@@ -10,8 +10,11 @@ use std::{
     },
 };
 
-use parking_lot::RwLock;
+use lock_api::MappedRwLockReadGuard;
+use parking_lot::{RwLock, RwLockReadGuard};
 use serde::{Deserialize, Serialize};
+
+use crate::core::{tgraph_shard::LockedView, timeindex::TimeIndex};
 
 use self::iter::Iter;
 
@@ -213,6 +216,16 @@ impl<'a, T: 'static, const N: usize> Entry<'a, T, N> {
 
     pub fn index(&self) -> usize {
         self.i
+    }
+
+    pub fn map<U, F: Fn(&T)->&U>(self, f: F) -> LockedView<'a, U> {
+        let (_, offset) = resolve::<N>(self.i);
+        let x = RwLockReadGuard::map(self.guard, |guard| {
+            let what = &guard[offset].as_ref();
+            f(what.unwrap())
+        });
+        
+        LockedView::Locked(x)
     }
 }
 
