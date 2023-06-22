@@ -692,7 +692,7 @@ mod views_test {
     fn trivial_window_has_all_edges(edges: Vec<(i64, u64, u64)>) -> bool {
         let g = Graph::new(0);
         edges
-            .into_iter()
+            .into_par_iter()
             .filter(|e| e.0 < i64::MAX)
             .for_each(|(t, src, dst)| {
                 g.add_edge(t, src, dst, [("test".to_owned(), Prop::Bool(true))], None)

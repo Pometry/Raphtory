@@ -134,20 +134,35 @@ impl<T, const N: usize> RawStorage<T, N> {
 
     // This helps get the right locks when adding an edge
     pub fn pair_entry_mut(&self, i: usize, j: usize) -> PairEntryMut<'_, T> {
-        let (bucket, offset_i) = resolve::<N>(i);
-        let (bucket2, offset_j) = resolve::<N>(j);
-        if bucket != bucket2 {
-            PairEntryMut::Different {
-                i: offset_i,
-                j: offset_j,
-                guard1: self.data[bucket].data.write(),
-                guard2: self.data[bucket2].data.write(),
+        let (bucket_i, offset_i) = resolve::<N>(i);
+        let (bucket_j, offset_j) = resolve::<N>(j);
+        if bucket_i != bucket_j {
+            // The code below deadlocks! left here as an example of what not to do
+            // PairEntryMut::Different {
+            //     i: offset_i,
+            //     j: offset_j,
+            //     guard1: self.data[bucket].data.write(),
+            //     guard2: self.data[bucket2].data.write(),
+            // }
+            loop {
+                if let Some((guard_i, guard_j)) = self.data[bucket_i]
+                    .data
+                    .try_write()
+                    .zip(self.data[bucket_j].data.try_write())
+                {
+                    break PairEntryMut::Different {
+                        i: offset_i,
+                        j: offset_j,
+                        guard1: guard_i,
+                        guard2: guard_j,
+                    };
+                }
             }
         } else {
             PairEntryMut::Same {
                 i: offset_i,
                 j: offset_j,
-                guard: self.data[bucket].data.write(),
+                guard: self.data[bucket_i].data.write(),
             }
         }
     }
@@ -155,11 +170,6 @@ impl<T, const N: usize> RawStorage<T, N> {
     pub fn len(&self) -> usize {
         self.len.load(Ordering::SeqCst)
     }
-
-    // pub fn items<'a>(&'a self) -> Items<'a, T, L> {
-    //     let guards = self.data.iter().map(|vec| vec.data.read()).collect();
-    //     Items::new(guards)
-    // }
 
     pub fn iter<'a>(&'a self) -> Iter<'a, T, N> {
         Iter::new(self)
@@ -355,23 +365,21 @@ mod test {
     use pretty_assertions::assert_eq;
 
     #[quickcheck]
-    fn concurrent_push(v: Vec<usize>) -> bool{
-        
-            let storage = RawStorage::<usize, 16>::new();
-            let mut expected = v
-                .into_par_iter()
-                .map(|v| {
-                    storage.push(v, |_, _| {});
-                    v
-                })
-                .collect::<Vec<_>>();
+    fn concurrent_push(v: Vec<usize>) -> bool {
+        let storage = RawStorage::<usize, 16>::new();
+        let mut expected = v
+            .into_par_iter()
+            .map(|v| {
+                storage.push(v, |_, _| {});
+                v
+            })
+            .collect::<Vec<_>>();
 
-            let mut actual = storage.iter().map(|s| *s).collect::<Vec<_>>();
+        let mut actual = storage.iter().map(|s| *s).collect::<Vec<_>>();
 
-            actual.sort();
-            expected.sort();
+        actual.sort();
+        expected.sort();
 
-            actual == expected
-        
+        actual == expected
     }
 }

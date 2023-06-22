@@ -362,7 +362,6 @@ impl<const N: usize> InnerTemporalGraph<N> {
         let t = t.try_into_time()?;
         let src_id = self.add_vertex_internal(t, src, vec![])?;
         let dst_id = self.add_vertex_internal(t, dst, vec![])?;
-        let t = t.try_into_time()?;
 
         let layer = layer
             .map(|layer| {
@@ -370,6 +369,7 @@ impl<const N: usize> InnerTemporalGraph<N> {
                     .get_or_create_layer_id(layer.to_owned())
             })
             .unwrap_or(0);
+
 
         let props = self
             .edge_props_meta
