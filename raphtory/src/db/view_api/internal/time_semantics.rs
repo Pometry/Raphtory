@@ -2,7 +2,7 @@ use crate::core::edge_ref::EdgeRef;
 use crate::core::timeindex::TimeIndexOps;
 use crate::core::vertex_ref::LocalVertexRef;
 use crate::core::{Direction, Prop};
-use crate::db::view_api::internal::{CoreGraphOps, GraphOps};
+use crate::db::view_api::internal::{CoreGraphOps, GraphOps, Inheritable};
 use crate::db::view_api::BoxedIter;
 use itertools::Itertools;
 use std::ops::Range;
@@ -213,13 +213,26 @@ pub trait TimeSemantics: GraphOps + CoreGraphOps {
     fn temporal_edge_prop_vec(&self, e: EdgeRef, name: &str) -> Vec<(i64, Prop)>;
 }
 
-pub trait InheritTimeSemantics: GraphOps + CoreGraphOps {
+pub trait InheritTimeSemantics: Inheritable + GraphOps + CoreGraphOps {}
+
+impl<G: InheritTimeSemantics> DelegateTimeSemantics for G
+where
+    <G as Inheritable>::Base: TimeSemantics,
+{
+    type Internal = <G as Inheritable>::Base;
+
+    fn graph(&self) -> &Self::Internal {
+        self.base()
+    }
+}
+
+pub trait DelegateTimeSemantics: GraphOps + CoreGraphOps {
     type Internal: TimeSemantics + ?Sized;
 
     fn graph(&self) -> &Self::Internal;
 }
 
-impl<G: InheritTimeSemantics + ?Sized> TimeSemantics for G {
+impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
     fn vertex_earliest_time(&self, v: LocalVertexRef) -> Option<i64> {
         self.graph().vertex_earliest_time(v)
     }

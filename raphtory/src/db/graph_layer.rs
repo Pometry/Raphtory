@@ -1,8 +1,8 @@
 use crate::core::edge_ref::EdgeRef;
 use crate::core::vertex_ref::{LocalVertexRef, VertexRef};
 use crate::core::Direction;
-use crate::db::view_api::internal::time_semantics::InheritTimeSemantics;
-use crate::db::view_api::internal::{GraphOps, InheritCoreOps};
+use crate::db::view_api::internal::time_semantics::DelegateTimeSemantics;
+use crate::db::view_api::internal::{DelegateCoreOps, GraphOps};
 use crate::db::view_api::GraphViewOps;
 use itertools::Itertools;
 
@@ -14,7 +14,7 @@ pub struct LayeredGraph<G: GraphViewOps> {
     pub layer: usize,
 }
 
-impl<G: GraphViewOps> InheritTimeSemantics for LayeredGraph<G> {
+impl<G: GraphViewOps> DelegateTimeSemantics for LayeredGraph<G> {
     type Internal = G;
 
     fn graph(&self) -> &Self::Internal {
@@ -22,7 +22,7 @@ impl<G: GraphViewOps> InheritTimeSemantics for LayeredGraph<G> {
     }
 }
 
-impl<G: GraphViewOps> InheritCoreOps for LayeredGraph<G> {
+impl<G: GraphViewOps> DelegateCoreOps for LayeredGraph<G> {
     type Internal = G;
 
     fn graph(&self) -> &Self::Internal {

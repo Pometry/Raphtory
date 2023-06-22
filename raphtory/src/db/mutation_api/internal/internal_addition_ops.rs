@@ -1,5 +1,6 @@
 use crate::core::tgraph_shard::errors::GraphError;
 use crate::core::Prop;
+use crate::db::view_api::internal::Inheritable;
 
 pub trait InternalAdditionOps {
     fn internal_add_vertex(
@@ -20,13 +21,23 @@ pub trait InternalAdditionOps {
     ) -> Result<(), GraphError>;
 }
 
+pub trait InheritAdditionOps: Inheritable {}
 
-pub trait InheritAdditionOps {
+impl<G: InheritAdditionOps> DelegateAdditionOps for G where 
+G::Base: InternalAdditionOps {
+    type Internal = G::Base;
+
+    fn graph(&self) -> &Self::Internal {
+        self.base()
+    }
+}
+
+pub trait DelegateAdditionOps {
     type Internal: InternalAdditionOps + ?Sized;
     fn graph(&self) -> &Self::Internal;
 }
 
-impl<G: InheritAdditionOps> InternalAdditionOps for G {
+impl<G: DelegateAdditionOps> InternalAdditionOps for G {
     #[inline(always)]
     fn internal_add_vertex(&self, t: i64, v: u64, name: Option<&str>, props: Vec<(String, Prop)>) -> Result<(), GraphError> {
         self.graph().internal_add_vertex(t, v, name, props)

@@ -24,7 +24,7 @@ use crate::core::{utils, Prop};
 use crate::core::{Direction, PropUnwrap};
 use crate::db::graph::Graph;
 use crate::db::view_api::internal::time_semantics::TimeSemantics;
-use crate::db::view_api::internal::{CoreGraphOps, GraphOps};
+use crate::db::view_api::internal::{CoreDeletionOps, CoreGraphOps, GraphOps};
 use crate::db::view_api::BoxedIter;
 use itertools::Itertools;
 use rustc_hash::FxHashMap;
@@ -288,6 +288,12 @@ impl ImmutableGraph {
     }
 }
 
+impl CoreDeletionOps for ImmutableGraph {
+    fn edge_deletions(&self, eref: EdgeRef) -> LockedView<TimeIndex> {
+        LockedView::Frozen(self.get_shard_from_e(eref).rc.edge_deletions(eref))
+    }
+}
+
 impl CoreGraphOps for ImmutableGraph {
     fn get_layer_name_by_id(&self, layer_id: usize) -> String {
         self.layer_ids
@@ -307,10 +313,6 @@ impl CoreGraphOps for ImmutableGraph {
 
     fn edge_additions(&self, eref: EdgeRef) -> LockedView<TimeIndex> {
         LockedView::Frozen(self.get_shard_from_e(eref).rc.edge_additions(eref))
-    }
-
-    fn edge_deletions(&self, eref: EdgeRef) -> LockedView<TimeIndex> {
-        LockedView::Frozen(self.get_shard_from_e(eref).rc.edge_deletions(eref))
     }
 
     fn vertex_additions(&self, v: LocalVertexRef) -> LockedView<TimeIndex> {

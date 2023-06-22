@@ -30,14 +30,16 @@ use crate::core::timeindex::{TimeIndex, TimeIndexOps};
 use crate::core::tprop::TProp;
 use crate::core::vertex_ref::LocalVertexRef;
 use crate::db::graph_immutable::ImmutableGraph;
-use crate::db::mutation_api::internal::InternalDeletionOps;
 use crate::db::mutation_api::internal::InternalPropertyAdditionOps;
 use crate::db::mutation_api::internal::{
-    InheritAdditionOps, InheritPropertyAdditionOps, InternalAdditionOps,
+    DelegateAdditionOps, DelegatePropertyAdditionOps, InternalAdditionOps,
+};
+use crate::db::mutation_api::internal::{
+    InheritAdditionOps, InheritPropertyAdditionOps, InternalDeletionOps,
 };
 use crate::db::view_api::internal::time_semantics::TimeSemantics;
 use crate::db::view_api::internal::{
-    CoreGraphOps, DynamicGraph, GraphOps, IntoDynamic, WrappedGraph,
+    CoreDeletionOps, CoreGraphOps, DynamicGraph, GraphOps, InheritViewOps, Inheritable, IntoDynamic,
 };
 use crate::db::view_api::*;
 use itertools::Itertools;
@@ -113,29 +115,17 @@ impl DerefMut for Graph {
     }
 }
 
-impl WrappedGraph for Graph {
-    type Internal = InternalGraph;
+impl Inheritable for Graph {
+    type Base = InternalGraph;
 
-    fn graph(&self) -> &InternalGraph {
+    fn base(&self) -> &InternalGraph {
         &self.0
     }
 }
 
-impl InheritAdditionOps for Graph {
-    type Internal = InternalGraph;
-
-    fn graph(&self) -> &Self::Internal {
-        &self.0
-    }
-}
-
-impl InheritPropertyAdditionOps for Graph {
-    type Internal = InternalGraph;
-
-    fn graph(&self) -> &Self::Internal {
-        &self.0
-    }
-}
+impl InheritAdditionOps for Graph {}
+impl InheritPropertyAdditionOps for Graph {}
+impl InheritViewOps for Graph {}
 
 impl Graph {
     /// Create a new graph with the specified number of shards
@@ -424,6 +414,12 @@ impl TimeSemantics for InternalGraph {
     }
 }
 
+impl CoreDeletionOps for InternalGraph {
+    fn edge_deletions(&self, eref: EdgeRef) -> LockedView<TimeIndex> {
+        self.get_shard_from_e(eref).edge_deletions(eref)
+    }
+}
+
 impl CoreGraphOps for InternalGraph {
     fn get_layer_name_by_id(&self, layer_id: usize) -> String {
         let layer_ids = self.layer_ids.read();
@@ -445,10 +441,6 @@ impl CoreGraphOps for InternalGraph {
 
     fn edge_additions(&self, eref: EdgeRef) -> LockedView<TimeIndex> {
         self.get_shard_from_e(eref).edge_additions(eref)
-    }
-
-    fn edge_deletions(&self, eref: EdgeRef) -> LockedView<TimeIndex> {
-        self.get_shard_from_e(eref).edge_deletions(eref)
     }
 
     fn vertex_additions(&self, v: LocalVertexRef) -> LockedView<TimeIndex> {

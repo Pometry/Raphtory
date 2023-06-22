@@ -2,7 +2,7 @@ use crate::core::edge_ref::EdgeRef;
 use crate::core::vertex_ref::{LocalVertexRef, VertexRef};
 use crate::core::{Direction, Prop};
 use crate::db::view_api::internal::{
-    GraphOps, InheritCoreOps, InheritTimeSemantics, TimeSemantics,
+    DelegateCoreOps, DelegateTimeSemantics, GraphOps, TimeSemantics,
 };
 use crate::db::view_api::{BoxedIter, GraphViewOps};
 use itertools::Itertools;
@@ -17,7 +17,7 @@ pub struct VertexSubgraph<G: GraphViewOps> {
     vertices: Arc<FxHashSet<LocalVertexRef>>,
 }
 
-impl<G: GraphViewOps> InheritCoreOps for VertexSubgraph<G> {
+impl<G: GraphViewOps> DelegateCoreOps for VertexSubgraph<G> {
     type Internal = G;
 
     fn graph(&self) -> &Self::Internal {
@@ -34,7 +34,7 @@ impl<G: GraphViewOps> VertexSubgraph<G> {
     }
 }
 
-impl<G: GraphViewOps> InheritTimeSemantics for VertexSubgraph<G> {
+impl<G: GraphViewOps> DelegateTimeSemantics for VertexSubgraph<G> {
     type Internal = G;
 
     fn graph(&self) -> &Self::Internal {
@@ -140,14 +140,15 @@ impl<G: GraphViewOps> GraphOps for VertexSubgraph<G> {
 #[cfg(test)]
 mod subgraph_tests {
     use crate::db::graph::Graph;
+    use crate::db::mutation_api::AdditionOps;
     use crate::db::view_api::*;
 
     #[test]
     fn test_materialize_no_edges() {
         let g = Graph::new(1);
 
-        g.add_vertex(1, 1, &vec![]).unwrap();
-        g.add_vertex(2, 2, &vec![]).unwrap();
+        g.add_vertex(1, 1, []).unwrap();
+        g.add_vertex(2, 2, []).unwrap();
         let sg = g.subgraph([1, 2]);
         assert_eq!(sg.materialize().unwrap(), sg);
     }

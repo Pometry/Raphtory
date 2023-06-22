@@ -5,7 +5,8 @@ use crate::core::{Direction, Prop};
 use crate::db::graph::InternalGraph;
 use crate::db::mutation_api::internal::InheritMutationOps;
 use crate::db::view_api::internal::{
-    CoreGraphOps, GraphOps, InheritCoreOps, InheritGraphOps, TimeSemantics,
+    CoreDeletionOps, CoreGraphOps, DelegateCoreDeletionOps, DelegateCoreOps, DelegateGraphOps,
+    GraphOps, InheritCoreDeletionOps, InheritCoreOps, InheritGraphOps, Inheritable, TimeSemantics,
 };
 use crate::db::view_api::{BoxedIter, GraphViewOps};
 use std::iter;
@@ -37,29 +38,21 @@ impl GraphWithDeletions {
     }
 }
 
-impl InheritMutationOps for GraphWithDeletions {
-    type Internal = InternalGraph;
+impl Inheritable for GraphWithDeletions {
+    type Base = InternalGraph;
 
-    fn graph(&self) -> &Self::Internal {
+    fn base(&self) -> &Self::Base {
         &self.graph
     }
 }
 
-impl InheritCoreOps for GraphWithDeletions {
-    type Internal = InternalGraph;
+impl InheritMutationOps for GraphWithDeletions {}
 
-    fn graph(&self) -> &Self::Internal {
-        &self.graph
-    }
-}
+impl InheritCoreOps for GraphWithDeletions {}
 
-impl InheritGraphOps for GraphWithDeletions {
-    type Internal = InternalGraph;
+impl InheritCoreDeletionOps for GraphWithDeletions {}
 
-    fn graph(&self) -> &Self::Internal {
-        &self.graph
-    }
-}
+impl InheritGraphOps for GraphWithDeletions {}
 
 impl TimeSemantics for GraphWithDeletions {
     fn vertex_earliest_time(&self, v: LocalVertexRef) -> Option<i64> {

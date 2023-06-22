@@ -4,6 +4,7 @@ use crate::core::timeindex::TimeIndex;
 use crate::core::tprop::TProp;
 use crate::core::vertex_ref::{LocalVertexRef, VertexRef};
 use crate::core::Prop;
+use crate::db::view_api::internal::Inheritable;
 
 /// Core functions that should (almost-)always be implemented by pointing at the underlying graph.
 pub trait CoreGraphOps {
@@ -19,10 +20,6 @@ pub trait CoreGraphOps {
     /// Get all the addition timestamps for an edge
     /// (this should always be global and not affected by windowing as deletion semantics may need information outside the current view!)
     fn edge_additions(&self, eref: EdgeRef) -> LockedView<TimeIndex>;
-
-    /// Get all the deletion timestamps for an edge
-    /// (this should always be global and not affected by windowing as deletion semantics may need information outside the current view!)
-    fn edge_deletions(&self, eref: EdgeRef) -> LockedView<TimeIndex>;
 
     /// Get all the addition timestamps for a vertex
     /// (this should always be global and not affected by windowing as deletion semantics may need information outside the current view!)
@@ -164,13 +161,23 @@ pub trait CoreGraphOps {
     fn num_shards_internal(&self) -> usize;
 }
 
-pub trait InheritCoreOps {
+pub trait InheritCoreOps: Inheritable {}
+
+impl<G: InheritCoreOps> DelegateCoreOps for G where G::Base: CoreGraphOps {
+    type Internal = G::Base;
+
+    fn graph(&self) -> &Self::Internal {
+        self.base()
+    }
+}
+
+pub trait DelegateCoreOps {
     type Internal: CoreGraphOps + ?Sized;
 
     fn graph(&self) -> &Self::Internal;
 }
 
-impl<G: InheritCoreOps + ?Sized> CoreGraphOps for G {
+impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
     fn get_layer_name_by_id(&self, layer_id: usize) -> String {
         self.graph().get_layer_name_by_id(layer_id)
     }
@@ -185,10 +192,6 @@ impl<G: InheritCoreOps + ?Sized> CoreGraphOps for G {
 
     fn edge_additions(&self, eref: EdgeRef) -> LockedView<TimeIndex> {
         self.graph().edge_additions(eref)
-    }
-
-    fn edge_deletions(&self, eref: EdgeRef) -> LockedView<TimeIndex> {
-        self.graph().edge_deletions(eref)
     }
 
     fn vertex_additions(&self, v: LocalVertexRef) -> LockedView<TimeIndex> {

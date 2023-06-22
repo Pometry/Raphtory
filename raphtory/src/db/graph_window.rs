@@ -43,7 +43,7 @@ use crate::core::time::IntoTime;
 use crate::core::vertex_ref::{LocalVertexRef, VertexRef};
 use crate::core::{Direction, Prop};
 use crate::db::view_api::internal::time_semantics::TimeSemantics;
-use crate::db::view_api::internal::{GraphOps, GraphWindowOps, InheritCoreOps};
+use crate::db::view_api::internal::{GraphOps, GraphWindowOps, DelegateCoreOps};
 use crate::db::view_api::{BoxedIter, GraphViewOps};
 use std::cmp::{max, min};
 use std::ops::Range;
@@ -222,7 +222,7 @@ impl<G: GraphViewOps> TimeSemantics for WindowedGraph<G> {
     }
 }
 
-impl<G: GraphViewOps> InheritCoreOps for WindowedGraph<G> {
+impl<G: GraphViewOps> DelegateCoreOps for WindowedGraph<G> {
     type Internal = G;
 
     fn graph(&self) -> &Self::Internal {
