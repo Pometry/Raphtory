@@ -501,7 +501,7 @@ mod views_test {
             .map(|v| (v.id(), v.degree()))
             .collect::<Vec<_>>();
 
-        let expected = vec![(2, 1), (1, 2)];
+        let expected = vec![(1, 2), (2, 1)];
 
         assert_eq!(actual, expected);
     }

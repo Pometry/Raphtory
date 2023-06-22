@@ -38,7 +38,7 @@ impl<'a, const N: usize> Vertex<'a, N> {
         Self::new(VRef::Entry(node), graph)
     }
 
-    pub(crate) fn from_ge(ge: GraphEntry<'a, NodeStore<N>, N>, graph: &'a TGraph<N>) -> Self {
+    pub(crate) fn from_ge(ge: GraphEntry<NodeStore<N>, N>, graph: &'a TGraph<N>) -> Self {
         Self::new(VRef::LockedEntry(ge), graph)
     }
 

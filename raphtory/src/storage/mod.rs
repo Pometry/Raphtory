@@ -4,7 +4,10 @@ pub(crate) mod iter;
 use std::{
     fmt::Debug,
     ops::{Deref, DerefMut},
-    sync::{atomic::{AtomicUsize, Ordering}, Arc},
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    },
 };
 
 use parking_lot::RwLock;
@@ -37,6 +40,12 @@ impl<T> LockVec<T> {
             data: Arc::new(parking_lot::RwLock::new(Vec::new())),
         }
     }
+
+    pub fn read_arc_lock(
+        &self,
+    ) -> lock_api::ArcRwLockReadGuard<parking_lot::RawRwLock, Vec<Option<T>>> {
+        RwLock::read_arc(&self.data)
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -52,26 +61,22 @@ impl<T: PartialEq, const N: usize> PartialEq for RawStorage<T, N> {
 }
 
 #[derive(Debug)]
-pub struct ReadLockedStorage<'a, T, const N: usize> {
-    locks: Box<[parking_lot::RwLockReadGuard<'a, Vec<Option<T>>>; N]>,
+pub struct ReadLockedStorage<T, const N: usize> {
+    locks: Box<[lock_api::ArcRwLockReadGuard<parking_lot::RawRwLock, Vec<Option<T>>>; N]>,
 }
 
-impl<'a, T, const N: usize> ReadLockedStorage<'a, T, N> {
-    pub(crate) fn get(&'a self, index: usize) -> &'a T {
+impl<T, const N: usize> ReadLockedStorage<T, N> {
+    pub(crate) fn get(&self, index: usize) -> &T {
         let (bucket, offset) = resolve::<N>(index);
         let bucket = &self.locks[bucket];
         bucket[offset].as_ref().unwrap()
     }
-
-    pub fn iter2(&'a self) -> impl Iterator<Item = &'a T> {
-        self.locks.iter().map(|l| l.iter().flatten()).flatten()
-    }
 }
 
 impl<T, const N: usize> RawStorage<T, N> {
-    pub fn read_lock<'a>(&'a self) -> ReadLockedStorage<'a, T, N> {
-        let guards: [parking_lot::RwLockReadGuard<'a, Vec<Option<T>>>; N] =
-            std::array::from_fn(|i| self.data[i].data.read());
+    pub fn read_lock(&self) -> ReadLockedStorage<T, N> {
+        let guards: [lock_api::ArcRwLockReadGuard<parking_lot::RawRwLock, Vec<Option<T>>>; N] =
+            std::array::from_fn(|i| self.data[i].read_arc_lock());
         ReadLockedStorage {
             locks: guards.into(),
         }
@@ -109,11 +114,14 @@ impl<T, const N: usize> RawStorage<T, N> {
         Entry { i: index, guard }
     }
 
-    pub fn entry_arc(&self, index: usize) -> ArcEntry<T, N>{
+    pub fn entry_arc(&self, index: usize) -> ArcEntry<T, N> {
         let (bucket, offset) = resolve::<N>(index);
         let guard = &self.data[bucket].data;
         let arc_guard = RwLock::read_arc(guard);
-        ArcEntry { i: offset, guard: arc_guard }
+        ArcEntry {
+            i: offset,
+            guard: arc_guard,
+        }
     }
 
     pub fn entry_mut(&self, index: usize) -> EntryMut<'_, T> {
@@ -164,16 +172,15 @@ pub struct Entry<'a, T: 'static, const N: usize> {
 
 pub struct ArcEntry<T: 'static, const N: usize> {
     i: usize,
-    guard: lock_api::ArcRwLockReadGuard<parking_lot::RawRwLock,Vec<Option<T>>>,
+    guard: lock_api::ArcRwLockReadGuard<parking_lot::RawRwLock, Vec<Option<T>>>,
 }
 
-
-impl <T: 'static, const N: usize> ArcEntry<T, N> {
+impl<T: 'static, const N: usize> ArcEntry<T, N> {
     pub(crate) fn index(&self) -> usize {
         self.i
     }
 }
-impl <T: 'static, const N: usize> Deref for ArcEntry<T, N> {
+impl<T: 'static, const N: usize> Deref for ArcEntry<T, N> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {

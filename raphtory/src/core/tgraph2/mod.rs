@@ -96,7 +96,7 @@ impl EID {
 pub(crate) enum VRef<'a, const N: usize> {
     Entry(Entry<'a, NodeStore<N>, N>), // returned from graph.vertex
     RefT(RefT<'a, NodeStore<N>, N>),   // returned from graph.vertices
-    LockedEntry(GraphEntry<'a, NodeStore<N>, N>), // returned from locked_vertices
+    LockedEntry(GraphEntry<NodeStore<N>, N>), // returned from locked_vertices
 }
 
 // return index -> usize for VRef
@@ -140,24 +140,4 @@ pub(crate) trait GraphItem<'a, const N: usize> {
         dir: Direction,
         graph: &'a TGraph<N>,
     ) -> Self;
-}
-
-pub struct EdgeRef {
-    src: VID,
-    dst: VID,
-    id: EID,
-    layer_id: usize,
-    time: Option<i64>,
-}
-
-impl EdgeRef {
-    pub fn new(src: VID, dst: VID, id: EID, layer_id: usize, time: Option<i64>) -> Self {
-        Self {
-            src,
-            dst,
-            id,
-            layer_id,
-            time,
-        }
-    }
 }

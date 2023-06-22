@@ -1,4 +1,4 @@
-use std::ops::Range;
+use std::ops::{Range, Deref};
 
 use crate::core::{
     edge_ref::EdgeRef,
@@ -182,7 +182,25 @@ impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
     }
 
     fn edge_refs(&self, layer: Option<usize>) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
-        todo!()
+        if let Some(layer_id) = layer {
+            let iter = self.locked_edges().filter_map(move |edge| {
+                if edge.has_layer(layer_id) {
+                    Some((layer_id, edge))
+                } else {
+                    None
+                }
+            }).map(|( layer_id, edge )| {
+                let e_ref:EdgeRef = edge.deref().into();
+                e_ref.at_layer(layer_id)
+            });
+            Box::new(iter)
+        } else {
+            let iter = self.locked_edges().map(|edge| {
+                let e_ref:EdgeRef = edge.deref().into();
+                e_ref.at_layer(0)
+            });
+            Box::new(iter)
+        }
     }
 
     fn vertex_edges(
@@ -295,23 +313,13 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
             .and_then(|node| node.timestamps().last())
     }
 
-    fn vertex_earliest_time_window(
-            &self,
-            v: VID,
-            t_start: i64,
-            t_end: i64,
-        ) -> Option<i64> {
+    fn vertex_earliest_time_window(&self, v: VID, t_start: i64, t_end: i64) -> Option<i64> {
         self.node_entry(v)
             .value()
-            .and_then(|node| node.timestamps().range(t_start..t_end).first()) 
+            .and_then(|node| node.timestamps().range(t_start..t_end).first())
     }
 
-    fn vertex_latest_time_window(
-            &self,
-            v: VID,
-            t_start: i64,
-            t_end: i64,
-        ) -> Option<i64> {
+    fn vertex_latest_time_window(&self, v: VID, t_start: i64, t_end: i64) -> Option<i64> {
         self.node_entry(v)
             .value()
             .and_then(|node| node.timestamps().range(t_start..t_end).last())

@@ -6,8 +6,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     core::{
-        tgraph::errors::MutateGraphError, tgraph_shard::errors::GraphError, time::TryIntoTime,
-        timeindex::TimeIndexOps, vertex::InputVertex, vertex_ref::VertexRef,
+        edge_ref::EdgeRef, tgraph::errors::MutateGraphError, tgraph_shard::errors::GraphError,
+        time::TryIntoTime, timeindex::TimeIndexOps, vertex::InputVertex, vertex_ref::VertexRef,
         Direction, Prop, PropUnwrap,
     },
     storage::Entry,
@@ -18,10 +18,10 @@ use super::{
     edge_store::EdgeStore,
     node_store::NodeStore,
     props::Meta,
-    tgraph_storage::GraphStorage,
+    tgraph_storage::{GraphEntry, GraphStorage, LockedIter},
     timer::{MaxCounter, MinCounter, TimeCounterTrait},
     vertex::{ArcEdge, ArcVertex, Vertex},
-    EdgeRef, EID, VID,
+    EID, VID,
 };
 
 pub(crate) type FxDashMap<K, V> = DashMap<K, V, BuildHasherDefault<FxHasher>>;
@@ -178,19 +178,6 @@ impl<const N: usize> InnerTemporalGraph<N> {
     pub fn degree(&self, v: VID, dir: Direction, layer: Option<usize>) -> usize {
         let node_store = self.storage.get_node(v.into());
         node_store.neighbours(layer, dir).count()
-    }
-
-    pub fn edges<'a>(
-        &'a self,
-        id: VID,
-        layer_id: &str,
-        dir: Direction,
-    ) -> Box<dyn Iterator<Item = EdgeRef> + 'a> {
-        Box::new(
-            self.vertex(id)
-                .edges(layer_id, dir)
-                .map(|e| EdgeRef::new(e.src_id(), e.dst_id(), e.edge_id(), 0, None)),
-        )
     }
 
     #[inline]
@@ -482,6 +469,23 @@ impl<const N: usize> InnerTemporalGraph<N> {
             .map(move |node| Vertex::from_ge(node, self))
     }
 
+    pub(crate) fn locked_edges(&self) -> LockedIter<N, EdgeStore<N>> {
+        self.storage.locked_edges()
+    }
+
+    pub(crate) fn locked_edge_refs(
+        &self,
+        layer: Option<usize>,
+    ) -> impl Iterator<Item = EdgeRef> + Send {
+        self.storage.locked_edges().map(|edge| EdgeRef::LocalOut {
+            e_pid: edge.e_id(),
+            layer_id: 0,
+            src_pid: edge.src(),
+            dst_pid: edge.dst(),
+            time: None,
+        })
+    }
+
     pub fn find_global_id(&self, v: VID) -> Option<u64> {
         let node = self.storage.get_node(v.into());
         node.value().map(|n| n.global_id())
@@ -541,11 +545,9 @@ impl<const N: usize> InnerTemporalGraph<N> {
         }
     }
 
-
     pub fn vertex_history(&self, v: VID) -> Vec<i64> {
         println!("vertex_history");
         vec![]
-
     }
 }
 

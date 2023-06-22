@@ -14,7 +14,7 @@ pub(crate) enum ERef<'a, const N: usize> {
     EId(EID),
     ERef(Entry<'a, EdgeStore<N>, N>),
     ELock {
-        lock: Arc<LockedGraphStorage<'a, N>>,
+        lock: Arc<LockedGraphStorage<N>>,
         eid: EID,
     },
 }

@@ -2,7 +2,9 @@ use itertools::Itertools;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 
-use crate::core::{tgraph::errors::MutateGraphError, timeindex::TimeIndex, Prop};
+use crate::core::{
+    edge_ref::EdgeRef, tgraph::errors::MutateGraphError, timeindex::TimeIndex, Prop,
+};
 
 use super::{props::Props, EID, VID};
 
@@ -15,7 +17,23 @@ pub(crate) struct EdgeStore<const N: usize> {
     layer_props: FxHashMap<usize, Props>, // each layer has its own set of properties
 }
 
+impl<const N: usize> Into<EdgeRef> for &EdgeStore<N> {
+    fn into(self) -> EdgeRef {
+        EdgeRef::LocalOut {
+            e_pid: self.e_id(),
+            layer_id: 0,
+            src_pid: self.src(),
+            dst_pid: self.dst(),
+            time: None,
+        }
+    }
+}
+
 impl<const N: usize> EdgeStore<N> {
+    pub fn has_layer(&self, layer_id: usize) -> bool {
+        self.layer_props.contains_key(&layer_id)
+    }
+
     pub fn new(src: VID, dst: VID, t: i64) -> Self {
         Self {
             eid: 0.into(),
@@ -61,6 +79,10 @@ impl<const N: usize> EdgeStore<N> {
 
     pub fn dst(&self) -> VID {
         self.dst
+    }
+
+    pub fn e_id(&self) -> EID {
+        self.eid
     }
 
     pub(crate) fn static_prop_ids(&self, layer: usize) -> Vec<usize> {

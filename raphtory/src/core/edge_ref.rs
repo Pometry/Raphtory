@@ -78,6 +78,19 @@ impl EdgeRef {
             < (other.local(), other.remote(), other.time(), other.layer())
     }
 
+    pub fn at_layer(mut self, layer: usize) -> Self {
+        match self {
+            e_ref @ EdgeRef::LocalInto { ref mut layer_id, .. } => {
+                *layer_id = layer;
+                e_ref
+            }
+            e_ref @ EdgeRef::LocalOut { ref mut layer_id, .. } => {
+                *layer_id = layer;
+                e_ref
+            }
+        }
+    }
+
     pub fn at(&self, time: i64) -> Self {
         match *self {
             EdgeRef::LocalInto {
