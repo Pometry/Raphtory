@@ -60,9 +60,30 @@ pub struct InternalGraph {
     pub(crate) layer_ids: Arc<parking_lot::RwLock<FxHashMap<String, usize>>>,
 }
 
+fn graph_equal<G1: GraphViewOps, G2: GraphViewOps>(g1: &G1, g2: &G2) -> bool {
+    if g1.num_vertices() == g2.num_vertices() && g1.num_edges() == g2.num_edges() {
+        g1.vertices().id().all(|v| g2.has_vertex(v)) && // all vertices exist in other 
+            g1.edges().explode().count() == g2.edges().explode().count() && // same number of exploded edges
+            g1.edges().explode().all(|e| { // all exploded edges exist in other
+                g2
+                    .edge(e.src().id(), e.dst().id(), None)
+                    .filter(|ee| ee.active(e.time().expect("exploded")))
+                    .is_some()
+            })
+    } else {
+        false
+    }
+}
+
 #[repr(transparent)]
-#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Graph(Arc<InternalGraph>);
+
+impl<G: GraphViewOps> PartialEq<G> for Graph {
+    fn eq(&self, other: &G) -> bool {
+        graph_equal(self, other)
+    }
+}
 
 impl Display for Graph {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {

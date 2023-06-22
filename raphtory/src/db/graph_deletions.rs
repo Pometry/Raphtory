@@ -240,4 +240,12 @@ mod test_deletions {
 
         assert_eq!(gd.window(1, 2).vertex(0).unwrap().out_degree(), 1)
     }
+
+    #[test]
+    fn test_materialize_only_deletion() {
+        let g = Graph::new(1);
+        g.delete_edge(1, 1, 2, None).unwrap();
+
+        assert_eq!(g.materialize().unwrap(), g);
+    }
 }
