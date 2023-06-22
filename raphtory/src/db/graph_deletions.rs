@@ -9,6 +9,7 @@ use crate::db::view_api::internal::{
     InheritGraphOps, Inheritable, TimeSemantics,
 };
 use crate::db::view_api::BoxedIter;
+use std::cmp::min;
 use std::iter;
 use std::ops::Range;
 use std::sync::Arc;
@@ -24,11 +25,14 @@ impl GraphWithDeletions {
         let additions = self.edge_additions(e);
         let deletions = self.edge_deletions(e);
 
+        let first_addition = additions.first();
+        let first_deletion = deletions.first();
         let last_addition_before_start = additions.range(i64::MIN..t + 1).last();
         let last_deletion_before_start = deletions.range(i64::MIN..t).last();
 
         // None is less than any value (see test below)
-        last_addition_before_start > last_deletion_before_start
+        (first_deletion < first_addition && first_deletion.filter(|v| *v >= t).is_some())
+            || last_addition_before_start > last_deletion_before_start
     }
 
     pub fn new(nr_shards: usize) -> Self {
@@ -91,30 +95,38 @@ impl TimeSemantics for GraphWithDeletions {
 
     fn edge_t(&self, e: EdgeRef) -> BoxedIter<EdgeRef> {
         //Fixme: Need support for duration on exploded edges
-        self.graph.edge_t(e)
+        if self.edge_alive_at(e, i64::MIN) {
+            Box::new(
+                iter::once(e.at(i64::MIN))
+                    .chain(self.graph.edge_window_t(e, (i64::MIN + 1)..i64::MAX)),
+            )
+        } else {
+            self.graph.edge_t(e)
+        }
     }
 
     fn edge_window_t(&self, e: EdgeRef, w: Range<i64>) -> BoxedIter<EdgeRef> {
         // FIXME: Need better iterators on LockedView that capture the guard
-        let additions = self.edge_additions(e);
-        let collected: Vec<EdgeRef> = if self.edge_alive_at(e, w.start) {
-            iter::once(w.start)
-                .chain(
-                    additions
-                        .range(w.start.saturating_add(1)..w.end)
-                        .iter()
-                        .copied(),
-                )
-                .map(|t| e.at(t))
-                .collect()
+        if self.edge_alive_at(e, w.start) {
+            Box::new(
+                iter::once(e.at(w.start)).chain(
+                    self.graph
+                        .edge_window_t(e, w.start.saturating_add(1)..w.end),
+                ),
+            )
         } else {
-            additions.range(w).iter().map(|t| e.at(*t)).collect()
-        };
-        Box::new(collected.into_iter())
+            self.graph.edge_window_t(e, w)
+        }
     }
 
     fn edge_earliest_time(&self, e: EdgeRef) -> Option<i64> {
-        self.graph.edge_earliest_time(e)
+        e.time().or_else(|| {
+            if self.edge_alive_at(e, i64::MIN) {
+                Some(i64::MIN)
+            } else {
+                self.edge_additions(e).first()
+            }
+        })
     }
 
     fn edge_earliest_time_window(&self, e: EdgeRef, w: Range<i64>) -> Option<i64> {
@@ -126,18 +138,36 @@ impl TimeSemantics for GraphWithDeletions {
     }
 
     fn edge_latest_time(&self, e: EdgeRef) -> Option<i64> {
-        if self.edge_alive_at(e, i64::MAX) {
-            Some(i64::MAX)
-        } else {
-            self.edge_deletions(e).last()
+        match e.time() {
+            Some(t) => min(
+                self.edge_additions(e).range(t + 1..i64::MAX).first(),
+                self.edge_deletions(e).range(t + 1..i64::MAX).first(),
+            )
+            .or(Some(i64::MAX)),
+            None => {
+                if self.edge_alive_at(e, i64::MAX) {
+                    Some(i64::MAX)
+                } else {
+                    self.edge_deletions(e).last()
+                }
+            }
         }
     }
 
     fn edge_latest_time_window(&self, e: EdgeRef, w: Range<i64>) -> Option<i64> {
-        if self.edge_alive_at(e, w.end) {
-            Some(w.end)
-        } else {
-            self.edge_deletions(e).range(w).last()
+        match e.time() {
+            Some(t) => min(
+                self.edge_additions(e).range(t + 1..w.end).first(),
+                self.edge_deletions(e).range(t + 1..w.end).first(),
+            )
+            .or(Some(w.end)),
+            None => {
+                if self.edge_alive_at(e, w.end - 1) {
+                    Some(w.end - 1)
+                } else {
+                    self.edge_deletions(e).range(w).last()
+                }
+            }
         }
     }
 
@@ -214,6 +244,7 @@ mod test_deletions {
         // None is less than any value
         assert!(Some(1) > None);
         assert!(!(None::<i64> > None));
+        assert!(!(None::<i64> < None))
     }
 
     #[test]

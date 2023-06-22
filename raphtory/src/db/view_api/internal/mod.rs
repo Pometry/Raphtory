@@ -8,6 +8,7 @@ mod inherit;
 mod into_dynamic;
 pub(crate) mod time_semantics;
 mod wrapped_graph;
+mod materialize;
 
 pub use core_deletion_ops::*;
 pub use core_ops::*;

@@ -129,7 +129,7 @@ pub trait EdgeViewOps: EdgeViewInternalOps<Self::Graph, Self::Vertex> {
     /// Check if edge is active at a given time point
     fn active(&self, t: i64) -> bool {
         match self.eref().time() {
-            Some(tt) => tt == t,
+            Some(tt) => tt <= t && t <= self.latest_time().unwrap_or(tt),
             None => self.graph().has_edge_ref_window(
                 self.eref().src(),
                 self.eref().dst(),
@@ -154,16 +154,12 @@ pub trait EdgeViewOps: EdgeViewInternalOps<Self::Graph, Self::Vertex> {
 
     /// Gets the first time an edge was seen
     fn earliest_time(&self) -> Option<i64> {
-        self.eref()
-            .time()
-            .or_else(|| self.graph().edge_earliest_time(self.eref()))
+        self.graph().edge_earliest_time(self.eref())
     }
 
     /// Gets the latest time an edge was updated
     fn latest_time(&self) -> Option<i64> {
-        self.eref()
-            .time()
-            .or_else(|| self.graph().edge_latest_time(self.eref()))
+        self.graph().edge_latest_time(self.eref())
     }
 
     /// Gets the time stamp of the edge if it is exploded
