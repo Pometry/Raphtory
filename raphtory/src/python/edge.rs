@@ -286,10 +286,8 @@ impl PyEdge {
     /// A rolling window is a window that moves forward by `step` size at each iteration.
     ///
     /// Arguments:
-    ///   window (int): The size of the window.
-    ///   step (int): The step size to use when calculating the duration.
-    ///   start (int): The start time to use when calculating the duration.
-    ///   end (int): The end time to use when calculating the duration.
+    ///   window (int | str): The size of the window.
+    ///   step (int | str): The step size to use when calculating the duration.
     ///
     /// Returns:
     ///   A set of windows containing edges that fall in the time period
@@ -300,8 +298,8 @@ impl PyEdge {
     /// Get a new Edge with the properties of this Edge within the specified time window.
     ///
     /// Arguments:
-    ///   t_start (int): The start time of the window.
-    ///   t_end (int): The end time of the window.
+    ///   t_start (int | str): The start time of the window (optional).
+    ///   t_end (int | str): The end time of the window (optional).
     ///
     /// Returns:
     ///   A new Edge with the properties of this Edge within the specified time window.
