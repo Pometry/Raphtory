@@ -6,10 +6,7 @@ use std::{
 
 use rayon::{prelude::*, ThreadPool};
 
-use crate::core::{
-    state::shuffle_state::{EvalLocalState, EvalShardState},
-    tgraph2::VID,
-};
+use crate::core:: state::shuffle_state::{EvalLocalState, EvalShardState};
 use crate::{core::state::compute_state::ComputeState, db::view_api::GraphViewOps};
 
 use super::{

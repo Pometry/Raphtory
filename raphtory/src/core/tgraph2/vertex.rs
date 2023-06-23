@@ -47,9 +47,9 @@ impl<'a, const N: usize> Vertex<'a, N> {
         Self::new(VRef::LockedEntry(ge), graph)
     }
 
-    pub fn temporal_properties(&'a self, name: &str) -> impl Iterator<Item = (i64, Prop)> + 'a {
+    pub fn temporal_properties(&'a self, name: &str, window: Option<Range<i64>>) -> impl Iterator<Item = (i64, Prop)> + 'a {
         let prop_id = self.graph.vertex_props_meta.resolve_prop_id(name, false);
-        (&self.node).temporal_properties(prop_id)
+        (&self.node).temporal_properties(prop_id, window)
     }
 
     pub fn edges(

@@ -1,3 +1,5 @@
+use std::ops::Range;
+
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
@@ -98,8 +100,13 @@ impl<const N: usize> NodeStore<N> {
     pub(crate) fn temporal_properties<'a>(
         &'a self,
         prop_id: usize,
+        window: Option<Range<i64>>,
     ) -> impl Iterator<Item = (i64, Prop)> + 'a {
-        self.props.temporal_props(prop_id)
+        if let Some(window) = window {
+            self.props.temporal_props_window(prop_id, window.start, window.end)
+        } else {
+            self.props.temporal_props(prop_id)
+        }
     }
 
     pub(crate) fn static_property(&self, prop_id: usize) -> Option<&Prop> {

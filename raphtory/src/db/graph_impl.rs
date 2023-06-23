@@ -4,7 +4,7 @@ use crate::core::{
     edge_ref::EdgeRef,
     tgraph2::{tgraph::InnerTemporalGraph, timer::TimeCounterTrait, VID},
     tgraph_shard::LockedView,
-    timeindex::{TimeIndexOps, TimeIndex},
+    timeindex::{TimeIndex, TimeIndexOps},
     tprop::TProp,
     vertex_ref::VertexRef,
     Direction, Prop,
@@ -133,7 +133,6 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
             .flat_map(|id| self.edge_reverse_prop_id(id, false))
             .collect()
     }
-
 }
 
 impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
@@ -344,7 +343,7 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
     }
 
     fn temporal_vertex_prop_vec(&self, v: VID, name: &str) -> Vec<(i64, Prop)> {
-        todo!()
+        self.vertex(v).temporal_properties(name, None).collect()
     }
 
     fn temporal_vertex_prop_vec_window(
@@ -354,7 +353,9 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
         t_start: i64,
         t_end: i64,
     ) -> Vec<(i64, Prop)> {
-        todo!()
+        self.vertex(v)
+            .temporal_properties(name, Some(t_start..t_end))
+            .collect()
     }
 
     fn temporal_edge_prop_vec_window(

@@ -18,10 +18,6 @@
 //!
 
 use crate::core::tgraph2::tgraph::InnerTemporalGraph;
-use crate::core::time::{IntoTimeWithFormat, TryIntoTime};
-use crate::core::{
-    edge_ref::EdgeRef, tgraph_shard::errors::GraphError, utils, vertex::InputVertex,
-};
 
 use crate::db::view_api::internal::WrappedGraph;
 use serde::{Deserialize, Serialize};
@@ -118,7 +114,10 @@ impl Graph {
 #[cfg(test)]
 mod db_tests {
     use super::*;
+    use crate::core::edge_ref::EdgeRef;
+    use crate::core::tgraph_shard::errors::GraphError;
     use crate::core::time::error::ParseTimeError;
+    use crate::core::time::TryIntoTime;
     use crate::core::vertex_ref::VertexRef;
     use crate::core::{Direction, Prop};
     use crate::db::edge::EdgeView;
@@ -132,10 +131,7 @@ mod db_tests {
     use itertools::Itertools;
     use quickcheck::Arbitrary;
     use std::collections::HashMap;
-    use std::fs;
-    use std::path::PathBuf;
     use tempdir::TempDir;
-    use uuid::Uuid;
 
     #[quickcheck]
     fn add_vertex_grows_graph_len(vs: Vec<(i64, u64)>) {
@@ -478,6 +474,39 @@ mod db_tests {
         assert_eq!(g.static_edge_prop(edge1111, "d"), Some(Prop::U64(1111)));
         assert_eq!(g.static_edge_prop(edge3311, "a"), Some(Prop::U64(3311)));
         assert_eq!(g.static_edge_prop(edge2233, "a"), None);
+    }
+
+    #[test]
+    fn temporal_props_vertex() {
+        let g = Graph::new(0);
+
+        let v1 = g
+            .add_vertex(0, 1, &vec![("cool".to_string(), Prop::Bool(true))])
+            .unwrap();
+
+        let v = g.vertex(1).unwrap();
+
+        let actual = v.property("cool".to_owned(), false);
+        assert_eq!(actual, Some(Prop::Bool(true)));
+
+        // we flip cool from true to false after t 3
+        let v1 = g
+            .add_vertex(3, 1, &vec![("cool".to_string(), Prop::Bool(false))])
+            .unwrap();
+
+        let wg = g.window(3, 15);
+        let v = wg.vertex(1).unwrap();
+
+        let actual = v.property("cool".to_owned(), false);
+        assert_eq!(actual, Some(Prop::Bool(false)));
+
+        let hist = v.property_history("cool".to_owned());
+        assert_eq!(hist, vec![(3, Prop::Bool(false))]);
+
+        let v = g.vertex(1).unwrap();
+
+        let hist = v.property_history("cool".to_owned());
+        assert_eq!(hist, vec![(0, Prop::Bool(true)), (3, Prop::Bool(false))]);
     }
 
     #[test]

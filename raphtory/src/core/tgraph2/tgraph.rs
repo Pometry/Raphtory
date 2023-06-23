@@ -601,7 +601,7 @@ mod test {
 
         let res = g
             .vertices()
-            .flat_map(|v| v.temporal_properties("type").collect_vec())
+            .flat_map(|v| v.temporal_properties("type", None).collect_vec())
             .collect_vec();
 
         assert_eq!(res, vec![(1i64, Prop::Str("wallet".into()))]);
