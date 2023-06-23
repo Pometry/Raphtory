@@ -147,19 +147,19 @@ impl TryFrom<PyInterval> for Interval {
 /// A trait for vertices that can be used as input for the graph.
 /// This allows us to add vertices with different types of ids, either strings or ints.
 #[derive(Clone, Debug)]
-pub struct InputVertexBox {
+pub struct PyInputVertex {
     id: u64,
     name: Option<String>,
 }
 
-impl<'source> FromPyObject<'source> for InputVertexBox {
+impl<'source> FromPyObject<'source> for PyInputVertex {
     fn extract(id: &'source PyAny) -> PyResult<Self> {
         match id.extract::<String>() {
-            Ok(string) => Ok(InputVertexBox::new(string)),
+            Ok(string) => Ok(PyInputVertex::new(string)),
             Err(_) => {
                 let msg = "IDs need to be strings or an unsigned integers";
                 let number = id.extract::<u64>().map_err(|_| PyTypeError::new_err(msg))?;
-                Ok(InputVertexBox::new(number))
+                Ok(PyInputVertex::new(number))
             }
         }
     }
@@ -167,12 +167,12 @@ impl<'source> FromPyObject<'source> for InputVertexBox {
 
 /// Implementation for vertices that can be used as input for the graph.
 /// This allows us to add vertices with different types of ids, either strings or ints.
-impl InputVertexBox {
-    pub(crate) fn new<T>(vertex: T) -> InputVertexBox
+impl PyInputVertex {
+    pub(crate) fn new<T>(vertex: T) -> PyInputVertex
     where
         T: InputVertex,
     {
-        InputVertexBox {
+        PyInputVertex {
             id: vertex.id(),
             name: vertex.id_str().map(|s| s.into()),
         }
@@ -181,7 +181,7 @@ impl InputVertexBox {
 
 /// Implementation for vertices that can be used as input for the graph.
 /// This allows us to add vertices with different types of ids, either strings or ints.
-impl InputVertex for InputVertexBox {
+impl InputVertex for PyInputVertex {
     /// Returns the id of the vertex.
     fn id(&self) -> u64 {
         self.id
@@ -196,13 +196,13 @@ impl InputVertex for InputVertexBox {
     }
 }
 
-pub(crate) fn extract_input_vertex(id: &PyAny) -> PyResult<InputVertexBox> {
+pub(crate) fn extract_input_vertex(id: &PyAny) -> PyResult<PyInputVertex> {
     match id.extract::<String>() {
-        Ok(string) => Ok(InputVertexBox::new(string)),
+        Ok(string) => Ok(PyInputVertex::new(string)),
         Err(_) => {
             let msg = "IDs need to be strings or an unsigned integers";
             let number = id.extract::<u64>().map_err(|_| PyTypeError::new_err(msg))?;
-            Ok(InputVertexBox::new(number))
+            Ok(PyInputVertex::new(number))
         }
     }
 }

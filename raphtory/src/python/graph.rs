@@ -15,7 +15,7 @@ use itertools::Itertools;
 use pyo3::exceptions::PyException;
 use pyo3::prelude::*;
 use python::graph_view::PyGraphView;
-use python::utils::InputVertexBox;
+use python::utils::PyInputVertex;
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 use std::path::{Path, PathBuf};
@@ -86,7 +86,7 @@ impl PyGraph {
     pub fn add_vertex(
         &self,
         timestamp: PyTime,
-        id: InputVertexBox,
+        id: PyInputVertex,
         properties: Option<HashMap<String, Prop>>,
     ) -> Result<(), GraphError> {
         self.graph
@@ -103,7 +103,7 @@ impl PyGraph {
     ///    None
     pub fn add_vertex_properties(
         &self,
-        id: InputVertexBox,
+        id: PyInputVertex,
         properties: HashMap<String, Prop>,
     ) -> Result<(), GraphError> {
         self.graph.add_vertex_properties(id, properties)
@@ -151,8 +151,8 @@ impl PyGraph {
     pub fn add_edge(
         &self,
         timestamp: PyTime,
-        src: InputVertexBox,
-        dst: InputVertexBox,
+        src: PyInputVertex,
+        dst: PyInputVertex,
         properties: Option<HashMap<String, Prop>>,
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
@@ -173,8 +173,8 @@ impl PyGraph {
     #[pyo3(signature = (src, dst, properties, layer=None))]
     pub fn add_edge_properties(
         &self,
-        src: InputVertexBox,
-        dst: InputVertexBox,
+        src: PyInputVertex,
+        dst: PyInputVertex,
         properties: HashMap<String, Prop>,
         layer: Option<&str>,
     ) -> Result<(), GraphError> {

@@ -23,7 +23,7 @@ use crate::algorithms::reciprocity::{
 use crate::algorithms::temporal_reachability::temporally_reachable_nodes as temporal_reachability_rs;
 use crate::core::vertex_ref::VertexRef;
 use crate::python::utils;
-use crate::python::utils::{extract_input_vertex, InputVertexBox};
+use crate::python::utils::{extract_input_vertex, PyInputVertex};
 use pyo3::prelude::*;
 
 /// Local triangle count - calculates the number of triangles (a cycle of length 3) a vertex participates in.
@@ -111,11 +111,11 @@ pub fn temporally_reachable_nodes(
     seed_nodes: Vec<&PyAny>,
     stop_nodes: Option<Vec<&PyAny>>,
 ) -> Result<HashMap<String, Vec<(i64, String)>>, PyErr> {
-    let infected_nodes: PyResult<Vec<InputVertexBox>> = seed_nodes
+    let infected_nodes: PyResult<Vec<PyInputVertex>> = seed_nodes
         .into_iter()
         .map(|v| extract_input_vertex(v))
         .collect();
-    let stop_nodes: PyResult<Vec<InputVertexBox>> = stop_nodes
+    let stop_nodes: PyResult<Vec<PyInputVertex>> = stop_nodes
         .unwrap_or(vec![])
         .into_iter()
         .map(|v| extract_input_vertex(v))
