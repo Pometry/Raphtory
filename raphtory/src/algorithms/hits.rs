@@ -129,12 +129,10 @@ pub fn hits<G: GraphViewOps>(
         |_, _, els, local| {
             let mut hubs = HashMap::new();
             let mut auths = HashMap::new();
-            for line in local.iter() {
-                if let Some((v_ref, hit)) = line {
-                    let v_gid = g.vertex_name(v_ref.clone());
-                    hubs.insert(v_gid.clone(), hit.hub_score);
-                    auths.insert(v_gid, hit.auth_score);
-                }
+            for (v_ref, hit) in local.iter().enumerate() {
+                let v_gid = g.vertex_name(v_ref.into());
+                hubs.insert(v_gid.clone(), hit.hub_score);
+                auths.insert(v_gid, hit.auth_score);
             }
             (hubs, auths)
         },

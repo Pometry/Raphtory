@@ -134,9 +134,6 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
             .collect()
     }
 
-    fn num_shards_internal(&self) -> usize {
-        todo!()
-    }
 }
 
 impl<const N: usize> GraphOps for InnerTemporalGraph<N> {

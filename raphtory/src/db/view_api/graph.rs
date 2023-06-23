@@ -36,9 +36,6 @@ pub trait GraphViewOps: BoxableGraphView + Clone + Sized {
     /// Return the number of vertices in the graph.
     fn num_vertices(&self) -> usize;
 
-    /// Return the number of shards
-    fn num_shards(&self) -> usize;
-
     /// Check if the graph is empty.
     fn is_empty(&self) -> bool {
         self.num_vertices() == 0
@@ -200,10 +197,6 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
         self.vertices_len()
     }
 
-    fn num_shards(&self) -> usize {
-        self.num_shards_internal()
-    }
-
     fn num_edges(&self) -> usize {
         self.edges_len(None)
     }
@@ -319,7 +312,7 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
     }
 
     fn materialize(&self) -> Result<MaterializedGraph, GraphError> {
-        let g = InternalGraph::new(self.num_shards());
+        let g = Graph::new(0);
         // Add edges first so we definitely have all associated vertices (important in case of persistent edges)
         for e in self.edges() {
             let layer_name = &e.layer_name().to_string();

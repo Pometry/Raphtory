@@ -18,17 +18,14 @@ pub(crate) struct Local<CS: ComputeState>(Arc<Option<ShuffleComputeState<CS>>>);
 
 #[derive(Debug)]
 pub(crate) struct Local2<'a, S> {
-    pub(crate) shard_len: usize,
-    pub(crate) state: &'a Vec<Option<(VID, S)>>,
+    pub(crate) state: &'a Vec<S>,
 }
 
 impl<'a, S: 'static> Local2<'a, S> {
     pub(crate) fn new(
-        max_shard_len: usize,
-        prev_local_state: &'a Vec<Option<(VID, S)>>,
+        prev_local_state: &'a Vec<S>,
     ) -> Self {
         Self {
-            shard_len: max_shard_len,
             state: prev_local_state,
         }
     }

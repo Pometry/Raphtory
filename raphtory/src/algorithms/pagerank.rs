@@ -148,9 +148,9 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
         |g, _, _, local| {
             local
                 .iter()
-                .filter_map(|line| {
-                    line.as_ref()
-                        .map(|(v_ref, state)| (v_ref.clone(), state.score))
+                .enumerate()
+                .map(|(v_ref, score)| {
+                    (v_ref.into(), score.score)
                 })
                 .collect::<HashMap<_, _>>()
         },

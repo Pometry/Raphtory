@@ -39,10 +39,7 @@ pub struct EvalVertexView<'a, G: GraphViewOps, CS: ComputeState, S: 'static> {
 impl<'a, G: GraphViewOps, CS: ComputeState, S> EvalVertexView<'a, G, CS, S> {
     pub fn prev(&self) -> &S {
         let i:usize = self.vertex.into();
-        self.local_state_prev.state[i]
-            .as_ref()
-            .map(|(_, val)| val)
-            .unwrap()
+        &self.local_state_prev.state[i]
     }
 
     pub fn get_mut(&mut self) -> &mut S {

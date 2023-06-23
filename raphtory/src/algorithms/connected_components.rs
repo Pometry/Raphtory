@@ -84,10 +84,8 @@ where
             |_, _, _, local| {
                 local
                     .iter()
-                    .filter_map(|line| {
-                        line.as_ref()
-                            .map(|(v_ref, state)| (v_ref.clone(), state.component))
-                    })
+                    .enumerate()
+                    .map(|(v_ref, state)| (v_ref.into(), state.component))
                     .collect::<HashMap<_, _>>()
             },
             threads,
