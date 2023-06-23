@@ -131,8 +131,8 @@ impl PyGraphView {
     ///
     /// Returns:
     ///   true if the graph contains the specified vertex, false otherwise
-    pub fn has_vertex(&self, v: VertexRef) -> bool {
-        self.graph.has_vertex(v)
+    pub fn has_vertex(&self, id: VertexRef) -> bool {
+        self.graph.has_vertex(id)
     }
 
     /// Returns true if the graph contains the specified edge
