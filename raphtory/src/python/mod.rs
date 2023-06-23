@@ -5,6 +5,7 @@ mod macros;
 
 pub mod algorithms;
 pub mod edge;
+pub mod errors;
 pub mod graph;
 pub mod graph_gen;
 pub mod graph_loader;

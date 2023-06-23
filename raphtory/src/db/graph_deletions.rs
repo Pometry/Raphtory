@@ -1,4 +1,5 @@
 use crate::core::edge_ref::EdgeRef;
+use crate::core::tgraph_shard::errors::GraphError;
 use crate::core::timeindex::TimeIndexOps;
 use crate::core::vertex_ref::LocalVertexRef;
 use crate::core::{Direction, Prop};
@@ -10,6 +11,7 @@ use crate::db::view_api::internal::{
     TimeSemantics,
 };
 use crate::db::view_api::{BoxedIter, GraphViewOps};
+use crate::prelude::Graph;
 use std::cmp::min;
 use std::iter;
 use std::ops::Range;
@@ -77,7 +79,7 @@ impl GraphWithDeletions {
     /// g.add_vertex(1, 1, []).unwrap();
     /// // g.save_to_file("path_str");
     /// ```
-    pub fn save_to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), Box<bincode::ErrorKind>> {
+    pub fn save_to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), GraphError> {
         self.graph.save_to_file(path)
     }
 
@@ -97,7 +99,7 @@ impl GraphWithDeletions {
     /// use raphtory::db::graph::InternalGraph;
     /// // let g = Graph::load_from_file("path/to/graph");
     /// ```
-    pub fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self, Box<bincode::ErrorKind>> {
+    pub fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self, GraphError> {
         Ok(Self {
             graph: Arc::new(InternalGraph::load_from_file(path)?),
         })

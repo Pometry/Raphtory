@@ -1,15 +1,17 @@
 //! Defines the `Vertex`, which represents a vertex in the graph.
 //! A vertex is a node in the graph, and can have properties and edges.
 //! It can also be used to navigate the graph.
+use crate::core::time::error::ParseTimeError;
 use crate::core::vertex_ref::VertexRef;
 use crate::core::Prop;
+use crate::db::graph_window::WindowedGraph;
 use crate::db::path::{PathFromGraph, PathFromVertex};
 use crate::db::vertex::VertexView;
 use crate::db::vertices::Vertices;
 use crate::db::view_api::internal::{DynamicGraph, IntoDynamic};
 use crate::db::view_api::*;
 use crate::python;
-use crate::python::utils::{adapt_result, IntervalBox};
+use crate::python::utils::{PyInterval, PyTime};
 use crate::*;
 use chrono::NaiveDateTime;
 use itertools::Itertools;
@@ -19,7 +21,7 @@ use pyo3::pyclass::CompareOp;
 use pyo3::{pyclass, pymethods, PyAny, PyObject, PyRef, PyRefMut, PyResult, Python};
 use python::edge::{PyEdges, PyNestedEdges};
 use python::types::repr::{iterator_repr, Repr};
-use python::utils::{at_impl, rolling_impl, window_impl, IntoPyObject, PyWindowSet};
+use python::utils::PyWindowSet;
 use python::wrappers::iterators::*;
 use std::collections::HashMap;
 
@@ -397,8 +399,11 @@ impl PyVertex {
     ///
     /// Returns:
     ///  A `PyVertexWindowSet` object.
-    fn expanding(&self, step: IntervalBox) -> PyResult<WindowSet<VertexView<DynamicGraph>>> {
-        adapt_result(self.vertex.expanding(step))
+    fn expanding(
+        &self,
+        step: PyInterval,
+    ) -> Result<WindowSet<VertexView<DynamicGraph>>, ParseTimeError> {
+        self.vertex.expanding(step)
     }
 
     /// Creates a `PyVertexWindowSet` with the given `window` size and optional `step`, `start` and `end` times,
@@ -416,8 +421,12 @@ impl PyVertex {
     ///
     /// Returns:
     /// A `PyVertexWindowSet` object.
-    fn rolling(&self, window: &PyAny, step: Option<&PyAny>) -> PyResult<PyWindowSet> {
-        rolling_impl(&self.vertex, window, step)
+    fn rolling(
+        &self,
+        window: PyInterval,
+        step: Option<PyInterval>,
+    ) -> Result<WindowSet<VertexView<DynamicGraph>>, ParseTimeError> {
+        self.vertex.rolling(window, step)
     }
 
     /// Create a view of the vertex including all events between `t_start` (inclusive) and `t_end` (exclusive)
@@ -429,8 +438,13 @@ impl PyVertex {
     /// Returns:
     ///    A `PyVertex` object.
     #[pyo3(signature = (t_start = None, t_end = None))]
-    pub fn window(&self, t_start: Option<&PyAny>, t_end: Option<&PyAny>) -> PyResult<PyVertex> {
-        window_impl(&self.vertex, t_start, t_end).map(|v| v.into())
+    pub fn window(
+        &self,
+        t_start: Option<PyTime>,
+        t_end: Option<PyTime>,
+    ) -> VertexView<WindowedGraph<DynamicGraph>> {
+        self.vertex
+            .window(t_start.unwrap_or(PyTime::MIN), t_end.unwrap_or(PyTime::MAX))
     }
 
     /// Create a view of the vertex including all events at `t`.
@@ -441,8 +455,8 @@ impl PyVertex {
     /// Returns:
     ///     A `PyVertex` object.
     #[pyo3(signature = (end))]
-    pub fn at(&self, end: &PyAny) -> PyResult<PyVertex> {
-        at_impl(&self.vertex, end).map(|v| v.into())
+    pub fn at(&self, end: PyTime) -> VertexView<WindowedGraph<DynamicGraph>> {
+        self.vertex.at(end)
     }
 
     #[doc = default_layer_doc_string!()]
@@ -661,17 +675,29 @@ impl PyVertices {
         self.vertices.window_size()
     }
 
-    fn expanding(&self, step: IntervalBox) -> PyResult<WindowSet<Vertices<DynamicGraph>>> {
-        adapt_result(self.vertices.expanding(step))
+    fn expanding(
+        &self,
+        step: PyInterval,
+    ) -> Result<WindowSet<Vertices<DynamicGraph>>, ParseTimeError> {
+        self.vertices.expanding(step)
     }
 
-    fn rolling(&self, window: &PyAny, step: Option<&PyAny>) -> PyResult<PyWindowSet> {
-        rolling_impl(&self.vertices, window, step)
+    fn rolling(
+        &self,
+        window: PyInterval,
+        step: Option<PyInterval>,
+    ) -> Result<WindowSet<Vertices<DynamicGraph>>, ParseTimeError> {
+        self.vertices.rolling(window, step)
     }
 
     #[pyo3(signature = (t_start = None, t_end = None))]
-    pub fn window(&self, t_start: Option<&PyAny>, t_end: Option<&PyAny>) -> PyResult<PyVertices> {
-        window_impl(&self.vertices, t_start, t_end).map(|v| v.into())
+    pub fn window(
+        &self,
+        t_start: Option<PyTime>,
+        t_end: Option<PyTime>,
+    ) -> Vertices<WindowedGraph<DynamicGraph>> {
+        self.vertices
+            .window(t_start.unwrap_or(PyTime::MIN), t_end.unwrap_or(PyTime::MAX))
     }
 
     /// Create a view of the vertices including all events at `t`.
@@ -682,8 +708,8 @@ impl PyVertices {
     /// Returns:
     ///     A `PyVertices` object.
     #[pyo3(signature = (end))]
-    pub fn at(&self, end: &PyAny) -> PyResult<PyVertices> {
-        at_impl(&self.vertices, end).map(|v| v.into())
+    pub fn at(&self, end: PyTime) -> Vertices<WindowedGraph<DynamicGraph>> {
+        self.vertices.at(end)
     }
 
     #[doc = default_layer_doc_string!()]
@@ -861,17 +887,29 @@ impl PyPathFromGraph {
         self.path.window_size()
     }
 
-    fn expanding(&self, step: IntervalBox) -> PyResult<WindowSet<PathFromGraph<DynamicGraph>>> {
-        adapt_result(self.path.expanding(step))
+    fn expanding(
+        &self,
+        step: PyInterval,
+    ) -> Result<WindowSet<PathFromGraph<DynamicGraph>>, ParseTimeError> {
+        self.path.expanding(step)
     }
 
-    fn rolling(&self, window: &PyAny, step: Option<&PyAny>) -> PyResult<PyWindowSet> {
-        rolling_impl(&self.path, window, step)
+    fn rolling(
+        &self,
+        window: PyInterval,
+        step: Option<PyInterval>,
+    ) -> Result<WindowSet<PathFromGraph<DynamicGraph>>, ParseTimeError> {
+        self.path.rolling(window, step)
     }
 
     #[pyo3(signature = (t_start = None, t_end = None))]
-    pub fn window(&self, t_start: Option<&PyAny>, t_end: Option<&PyAny>) -> PyResult<Self> {
-        window_impl(&self.path, t_start, t_end).map(|p| p.into())
+    pub fn window(
+        &self,
+        t_start: Option<PyTime>,
+        t_end: Option<PyTime>,
+    ) -> PathFromGraph<WindowedGraph<DynamicGraph>> {
+        self.path
+            .window(t_start.unwrap_or(PyTime::MIN), t_end.unwrap_or(PyTime::MAX))
     }
 
     /// Create a view of the vertex including all events at `t`.
@@ -882,8 +920,8 @@ impl PyPathFromGraph {
     /// Returns:
     ///     A `PyVertex` object.
     #[pyo3(signature = (end))]
-    pub fn at(&self, end: &PyAny) -> PyResult<Self> {
-        at_impl(&self.path, end).map(|p| p.into())
+    pub fn at(&self, end: PyTime) -> PathFromGraph<WindowedGraph<DynamicGraph>> {
+        self.path.at(end)
     }
 
     #[doc = default_layer_doc_string!()]
@@ -1077,17 +1115,29 @@ impl PyPathFromVertex {
         self.path.window_size()
     }
 
-    fn expanding(&self, step: IntervalBox) -> PyResult<WindowSet<PathFromVertex<DynamicGraph>>> {
-        adapt_result(self.path.expanding(step))
+    fn expanding(
+        &self,
+        step: PyInterval,
+    ) -> Result<WindowSet<PathFromVertex<DynamicGraph>>, ParseTimeError> {
+        self.path.expanding(step)
     }
 
-    fn rolling(&self, window: &PyAny, step: Option<&PyAny>) -> PyResult<PyWindowSet> {
-        rolling_impl(&self.path, window, step)
+    fn rolling(
+        &self,
+        window: PyInterval,
+        step: Option<PyInterval>,
+    ) -> Result<WindowSet<PathFromVertex<DynamicGraph>>, ParseTimeError> {
+        self.path.rolling(window, step)
     }
 
     #[pyo3(signature = (t_start = None, t_end = None))]
-    pub fn window(&self, t_start: Option<&PyAny>, t_end: Option<&PyAny>) -> PyResult<Self> {
-        window_impl(&self.path, t_start, t_end).map(|p| p.into())
+    pub fn window(
+        &self,
+        t_start: Option<PyTime>,
+        t_end: Option<PyTime>,
+    ) -> PathFromVertex<WindowedGraph<DynamicGraph>> {
+        self.path
+            .window(t_start.unwrap_or(PyTime::MIN), t_end.unwrap_or(PyTime::MAX))
     }
 
     /// Create a view of the vertex including all events at `t`.
@@ -1098,8 +1148,8 @@ impl PyPathFromVertex {
     /// Returns:
     ///     A `PyVertex` object.
     #[pyo3(signature = (end))]
-    pub fn at(&self, end: &PyAny) -> PyResult<Self> {
-        at_impl(&self.path, end).map(|p| p.into())
+    pub fn at(&self, end: PyTime) -> PathFromVertex<WindowedGraph<DynamicGraph>> {
+        self.path.at(end)
     }
 
     pub fn default_layer(&self) -> Self {

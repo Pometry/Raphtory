@@ -111,7 +111,7 @@ pub mod errors {
     use crate::core::tgraph::errors::MutateGraphError;
     use crate::core::time::error::ParseTimeError;
 
-    #[derive(thiserror::Error, Debug, PartialEq)]
+    #[derive(thiserror::Error, Debug)]
     pub enum GraphError {
         #[error("Immutable graph reference already exists. You can access mutable graph apis only exclusively.")]
         IllegalGraphAccess,
@@ -131,6 +131,22 @@ pub mod errors {
         VertexIdNotStringOrNumber,
         #[error("Invalid layer.")]
         InvalidLayer,
+        #[error("Bincode operation failed")]
+        BinCodeError { source: Box<bincode::ErrorKind> },
+        #[error("IO operation failed")]
+        IOError { source: std::io::Error },
+    }
+}
+
+impl From<bincode::Error> for GraphError {
+    fn from(source: bincode::Error) -> Self {
+        GraphError::BinCodeError { source }
+    }
+}
+
+impl From<std::io::Error> for GraphError {
+    fn from(source: std::io::Error) -> Self {
+        GraphError::IOError { source }
     }
 }
 

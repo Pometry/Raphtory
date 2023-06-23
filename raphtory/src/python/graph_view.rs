@@ -1,4 +1,6 @@
 //! The API for querying a view of the graph in a read-only state
+use crate::core::tgraph_shard::errors::GraphError;
+use crate::core::time::error::ParseTimeError;
 use crate::core::vertex_ref::VertexRef;
 use crate::core::Prop;
 use crate::db::edge::EdgeView;
@@ -9,7 +11,7 @@ use crate::db::vertex::VertexView;
 use crate::db::view_api::internal::{CoreGraphOps, DynamicGraph, IntoDynamic, MaterializedGraph};
 use crate::db::view_api::*;
 use crate::python;
-use crate::python::utils::IntervalBox;
+use crate::python::utils::{PyInterval, PyTime};
 use crate::*;
 use chrono::prelude::*;
 use itertools::Itertools;
@@ -17,7 +19,7 @@ use pyo3::prelude::*;
 use python::edge::{PyEdge, PyEdges};
 use python::graph::PyGraph;
 use python::types::repr::Repr;
-use python::utils::{adapt_result, at_impl, rolling_impl, window_impl, IntoPyObject, PyWindowSet};
+use python::utils::PyWindowSet;
 use python::vertex::{PyVertex, PyVertices};
 use std::collections::HashMap;
 
@@ -251,8 +253,8 @@ impl PyGraphView {
     /// Returns:
     ///     A `WindowSet` with the given `step` size and optional `start` and `end` times,
     #[pyo3(signature = (step))]
-    fn expanding(&self, step: IntervalBox) -> PyResult<WindowSet<DynamicGraph>> {
-        adapt_result(self.graph.expanding(step))
+    fn expanding(&self, step: PyInterval) -> Result<WindowSet<DynamicGraph>, ParseTimeError> {
+        self.graph.expanding(step)
     }
 
     /// Creates a `WindowSet` with the given `window` size and optional `step`, `start` and `end` times,
@@ -268,8 +270,12 @@ impl PyGraphView {
     ///
     /// Returns:
     ///  a `WindowSet` with the given `window` size and optional `step`, `start` and `end` times,
-    fn rolling(&self, window: &PyAny, step: Option<&PyAny>) -> PyResult<PyWindowSet> {
-        rolling_impl(&self.graph, window, step)
+    fn rolling(
+        &self,
+        window: PyInterval,
+        step: Option<PyInterval>,
+    ) -> Result<WindowSet<DynamicGraph>, ParseTimeError> {
+        self.graph.rolling(window, step)
     }
 
     /// Create a view including all events between `t_start` (inclusive) and `t_end` (exclusive)
@@ -281,8 +287,13 @@ impl PyGraphView {
     /// Returns:
     ///     a view including all events between `t_start` (inclusive) and `t_end` (exclusive)
     #[pyo3(signature = (start=None, end=None))]
-    pub fn window(&self, start: Option<&PyAny>, end: Option<&PyAny>) -> PyResult<PyGraphView> {
-        window_impl(&self.graph, start, end).map(|g| g.into())
+    pub fn window(
+        &self,
+        start: Option<PyTime>,
+        end: Option<PyTime>,
+    ) -> WindowedGraph<DynamicGraph> {
+        self.graph
+            .window(start.unwrap_or(PyTime::MIN), end.unwrap_or(PyTime::MAX))
     }
 
     /// Create a view including all events until `end` (inclusive)
@@ -293,8 +304,8 @@ impl PyGraphView {
     /// Returns:
     ///     a view including all events until `end` (inclusive)
     #[pyo3(signature = (end))]
-    pub fn at(&self, end: &PyAny) -> PyResult<PyGraphView> {
-        at_impl(&self.graph, end).map(|g| g.into())
+    pub fn at(&self, end: PyTime) -> WindowedGraph<DynamicGraph> {
+        self.graph.at(end)
     }
 
     #[doc = default_layer_doc_string!()]
@@ -436,8 +447,8 @@ impl PyGraphView {
     ///
     /// Returns:
     ///    GraphView - Returns a graph clone
-    fn materialize(&self) -> PyResult<MaterializedGraph> {
-        adapt_result(self.graph.materialize())
+    fn materialize(&self) -> Result<MaterializedGraph, GraphError> {
+        self.graph.materialize()
     }
 
     /// Displays the graph

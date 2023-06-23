@@ -185,7 +185,7 @@ impl Graph {
     /// g.add_vertex(1, 1, []).unwrap();
     /// // g.save_to_file("path_str");
     /// ```
-    pub fn save_to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), Box<bincode::ErrorKind>> {
+    pub fn save_to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), GraphError> {
         self.0.save_to_file(path)
     }
 
@@ -205,7 +205,7 @@ impl Graph {
     /// use raphtory::db::graph::InternalGraph;
     /// // let g = Graph::load_from_file("path/to/graph");
     /// ```
-    pub fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self, Box<bincode::ErrorKind>> {
+    pub fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self, GraphError> {
         Ok(Self(Arc::new(InternalGraph::load_from_file(path)?)))
     }
 
@@ -806,7 +806,7 @@ impl InternalGraph {
     /// use raphtory::db::graph::InternalGraph;
     /// // let g = Graph::load_from_file("path/to/graph");
     /// ```
-    pub fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self, Box<bincode::ErrorKind>> {
+    pub fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self, GraphError> {
         // use BufReader for better performance
 
         //TODO turn to logging?
@@ -862,7 +862,7 @@ impl InternalGraph {
     /// g.add_vertex(1, 1, []).unwrap();
     /// // g.save_to_file("path_str");
     /// ```
-    pub fn save_to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), Box<bincode::ErrorKind>> {
+    pub fn save_to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), GraphError> {
         // write each shard to a different file
 
         // crate directory path if it doesn't exist

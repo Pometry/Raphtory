@@ -5,15 +5,17 @@
 //! It is a wrapper around a set of shards, which are the actual graph data structures.
 //! In Python, this class wraps around the rust graph.
 use crate::core as dbc;
+use crate::core::tgraph_shard::errors::GraphError;
 use crate::core::Prop;
 use crate::db::graph::Graph;
 use crate::db::mutation_api::{AdditionOps, PropertyAdditionOps};
 use crate::python;
+use crate::python::utils::PyTime;
 use itertools::Itertools;
 use pyo3::exceptions::PyException;
 use pyo3::prelude::*;
 use python::graph_view::PyGraphView;
-use python::utils::{adapt_result, extract_input_vertex, extract_into_time, InputVertexBox};
+use python::utils::InputVertexBox;
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 use std::path::{Path, PathBuf};
@@ -83,16 +85,12 @@ impl PyGraph {
     #[pyo3(signature = (timestamp, id, properties=None))]
     pub fn add_vertex(
         &self,
-        timestamp: &PyAny,
-        id: &PyAny,
+        timestamp: PyTime,
+        id: InputVertexBox,
         properties: Option<HashMap<String, Prop>>,
-    ) -> PyResult<()> {
-        let time = extract_into_time(timestamp)?;
-        let v = Self::extract_id(id)?;
-        let result = self
-            .graph
-            .add_vertex(time, v, properties.unwrap_or_default());
-        adapt_result(result)
+    ) -> Result<(), GraphError> {
+        self.graph
+            .add_vertex(timestamp, id, properties.unwrap_or_default())
     }
 
     /// Adds properties to an existing vertex.
@@ -105,12 +103,10 @@ impl PyGraph {
     ///    None
     pub fn add_vertex_properties(
         &self,
-        id: &PyAny,
+        id: InputVertexBox,
         properties: HashMap<String, Prop>,
-    ) -> PyResult<()> {
-        let v = Self::extract_id(id)?;
-        let result = self.graph.add_vertex_properties(v, properties);
-        adapt_result(result)
+    ) -> Result<(), GraphError> {
+        self.graph.add_vertex_properties(id, properties)
     }
 
     /// Adds properties to the graph.
@@ -123,12 +119,10 @@ impl PyGraph {
     ///    None
     pub fn add_property(
         &self,
-        timestamp: &PyAny,
+        timestamp: PyTime,
         properties: HashMap<String, Prop>,
-    ) -> PyResult<()> {
-        let time = extract_into_time(timestamp)?;
-        let result = self.graph.add_properties(time, properties);
-        adapt_result(result)
+    ) -> Result<(), GraphError> {
+        self.graph.add_properties(timestamp, properties)
     }
 
     /// Adds static properties to the graph.
@@ -138,9 +132,8 @@ impl PyGraph {
     ///
     /// Returns:
     ///    None
-    pub fn add_static_property(&self, properties: HashMap<String, Prop>) -> PyResult<()> {
-        let result = self.graph.add_static_properties(properties);
-        adapt_result(result)
+    pub fn add_static_property(&self, properties: HashMap<String, Prop>) -> Result<(), GraphError> {
+        self.graph.add_static_properties(properties)
     }
 
     /// Adds a new edge with the given source and destination vertices and properties to the graph.
@@ -157,19 +150,14 @@ impl PyGraph {
     #[pyo3(signature = (timestamp, src, dst, properties=None, layer=None))]
     pub fn add_edge(
         &self,
-        timestamp: &PyAny,
-        src: &PyAny,
-        dst: &PyAny,
+        timestamp: PyTime,
+        src: InputVertexBox,
+        dst: InputVertexBox,
         properties: Option<HashMap<String, Prop>>,
         layer: Option<&str>,
-    ) -> PyResult<()> {
-        let time = extract_into_time(timestamp)?;
-        let src = Self::extract_id(src)?;
-        let dst = Self::extract_id(dst)?;
-        adapt_result(
-            self.graph
-                .add_edge(time, src, dst, properties.unwrap_or_default(), layer),
-        )
+    ) -> Result<(), GraphError> {
+        self.graph
+            .add_edge(timestamp, src, dst, properties.unwrap_or_default(), layer)
     }
 
     /// Adds properties to an existing edge.
@@ -185,15 +173,12 @@ impl PyGraph {
     #[pyo3(signature = (src, dst, properties, layer=None))]
     pub fn add_edge_properties(
         &self,
-        src: &PyAny,
-        dst: &PyAny,
+        src: InputVertexBox,
+        dst: InputVertexBox,
         properties: HashMap<String, Prop>,
         layer: Option<&str>,
-    ) -> PyResult<()> {
-        let src = Self::extract_id(src)?;
-        let dst = Self::extract_id(dst)?;
-        let result = self.graph.add_edge_properties(src, dst, properties, layer);
-        adapt_result(result)
+    ) -> Result<(), GraphError> {
+        self.graph.add_edge_properties(src, dst, properties, layer)
     }
 
     //******  Saving And Loading  ******//
@@ -208,9 +193,9 @@ impl PyGraph {
     /// Returns:
     ///  Graph: The loaded graph.
     #[staticmethod]
-    pub fn load_from_file(path: &str) -> PyResult<Graph> {
+    pub fn load_from_file(path: &str) -> Result<Graph, GraphError> {
         let file_path: PathBuf = [env!("CARGO_MANIFEST_DIR"), path].iter().collect();
-        adapt_result(Graph::load_from_file(file_path))
+        Graph::load_from_file(file_path)
     }
 
     /// Saves the graph to the given path.
@@ -220,23 +205,7 @@ impl PyGraph {
     ///
     /// Returns:
     /// None
-    pub fn save_to_file(&self, path: &str) -> PyResult<()> {
-        match self.graph.save_to_file(Path::new(path)) {
-            Ok(()) => Ok(()),
-            Err(e) => Err(PyException::new_err(format!(
-                "Failed to save graph to the files. Reason: {}",
-                e
-            ))),
-        }
-    }
-}
-
-impl PyGraph {
-    /// Extracts the id from the given python vertex
-    ///
-    /// Arguments:
-    ///     id (str or int): The id of the vertex.
-    pub(crate) fn extract_id(id: &PyAny) -> PyResult<InputVertexBox> {
-        extract_input_vertex(id)
+    pub fn save_to_file(&self, path: &str) -> Result<(), GraphError> {
+        self.graph.save_to_file(Path::new(path))
     }
 }

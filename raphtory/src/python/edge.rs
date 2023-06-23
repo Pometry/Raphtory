@@ -4,8 +4,10 @@
 //! The PyEdge class also provides access to the perspective APIs, which allow the user to view the
 //! edge as it existed at a particular point in time, or as it existed over a particular time range.
 //!
+use crate::core::time::error::ParseTimeError;
 use crate::core::Prop;
 use crate::db::edge::EdgeView;
+use crate::db::graph_window::WindowedGraph;
 use crate::db::view_api::internal::{DynamicGraph, IntoDynamic};
 use crate::db::view_api::*;
 use crate::python;
@@ -277,8 +279,11 @@ impl PyEdge {
     /// Returns:
     ///   A set of windows containing edges that fall in the time period
     #[pyo3(signature = (step))]
-    fn expanding(&self, step: IntervalBox) -> PyResult<WindowSet<EdgeView<DynamicGraph>>> {
-        adapt_result(self.edge.expanding(step))
+    fn expanding(
+        &self,
+        step: PyInterval,
+    ) -> Result<WindowSet<EdgeView<DynamicGraph>>, ParseTimeError> {
+        self.edge.expanding(step)
     }
 
     /// Get a set of Edge windows for a given window size, step, start time
@@ -295,10 +300,10 @@ impl PyEdge {
     ///   A set of windows containing edges that fall in the time period
     fn rolling(
         &self,
-        window: IntervalBox,
-        step: Option<IntervalBox>,
-    ) -> PyResult<WindowSet<EdgeView<DynamicGraph>>> {
-        adapt_result(self.edge.rolling(window, step))
+        window: PyInterval,
+        step: Option<PyInterval>,
+    ) -> Result<WindowSet<EdgeView<DynamicGraph>>, ParseTimeError> {
+        self.edge.rolling(window, step)
     }
 
     /// Get a new Edge with the properties of this Edge within the specified time window.
@@ -310,8 +315,13 @@ impl PyEdge {
     /// Returns:
     ///   A new Edge with the properties of this Edge within the specified time window.
     #[pyo3(signature = (t_start = None, t_end = None))]
-    pub fn window(&self, t_start: Option<&PyAny>, t_end: Option<&PyAny>) -> PyResult<PyEdge> {
-        window_impl(&self.edge, t_start, t_end).map(|e| e.into())
+    pub fn window(
+        &self,
+        t_start: Option<PyTime>,
+        t_end: Option<PyTime>,
+    ) -> EdgeView<WindowedGraph<DynamicGraph>> {
+        self.edge
+            .window(t_start.unwrap_or(PyTime::MIN), t_end.unwrap_or(PyTime::MAX))
     }
 
     /// Get a new Edge with the properties of this Edge at a specified time.
@@ -322,8 +332,8 @@ impl PyEdge {
     /// Returns:
     ///   A new Edge with the properties of this Edge at a specified time.
     #[pyo3(signature = (end))]
-    pub fn at(&self, end: &PyAny) -> PyResult<PyEdge> {
-        at_impl(&self.edge, end).map(|e| e.into())
+    pub fn at(&self, end: PyTime) -> EdgeView<WindowedGraph<DynamicGraph>> {
+        self.edge.at(end)
     }
 
     /// Explodes an Edge into a list of PyEdges. This is useful when you want to iterate over
