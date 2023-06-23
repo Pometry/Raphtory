@@ -382,4 +382,19 @@ mod test_deletions {
 
         assert_eq!(g.materialize().unwrap().into_persistent().unwrap(), g);
     }
+
+    #[test]
+    fn test_materialize_window() {
+        let g = GraphWithDeletions::new(1);
+        g.add_edge(0, 1, 2, [], None).unwrap();
+        g.delete_edge(10, 1, 2, None).unwrap();
+
+        let gm = g
+            .window(3, 5)
+            .materialize()
+            .unwrap()
+            .into_persistent()
+            .unwrap();
+        assert_eq!(gm, g.window(3, 5))
+    }
 }

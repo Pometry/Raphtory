@@ -319,18 +319,7 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
 
     fn materialize(&self) -> Result<MaterializedGraph, GraphError> {
         let g = InternalGraph::new(self.num_shards());
-        for v in self.vertices().iter() {
-            for h in v.history() {
-                g.add_vertex(h, v.id(), [])?;
-            }
-            for (name, props) in v.property_histories() {
-                for (t, prop) in props {
-                    g.add_vertex(t, v.id(), [(name.clone(), prop)])?;
-                }
-            }
-            g.add_vertex_properties(v.id(), v.static_properties())?;
-        }
-
+        // Add edges first so we definitely have all associated vertices (important in case of persistent edges)
         for e in self.edges() {
             let layer_name = &e.layer_name().to_string();
             let mut layer: Option<&str> = None;
@@ -353,6 +342,18 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
             }
 
             g.add_edge_properties(e.src().id(), e.dst().id(), e.static_properties(), layer)?;
+        }
+
+        for v in self.vertices().iter() {
+            for h in v.history() {
+                g.add_vertex(h, v.id(), [])?;
+            }
+            for (name, props) in v.property_histories() {
+                for (t, prop) in props {
+                    g.add_vertex(t, v.id(), [(name.clone(), prop)])?;
+                }
+            }
+            g.add_vertex_properties(v.id(), v.static_properties())?;
         }
 
         g.add_static_properties(self.static_properties())?;
