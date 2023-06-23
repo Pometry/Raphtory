@@ -19,10 +19,7 @@ use pyo3::pyclass::CompareOp;
 use pyo3::{pyclass, pymethods, PyAny, PyObject, PyRef, PyRefMut, PyResult, Python};
 use python::edge::{PyEdges, PyNestedEdges};
 use python::types::repr::{iterator_repr, Repr};
-use python::utils::{
-    at_impl, expanding_impl, extract_vertex_ref, rolling_impl, window_impl, IntoPyObject,
-    PyWindowSet,
-};
+use python::utils::{at_impl, rolling_impl, window_impl, IntoPyObject, PyWindowSet};
 use python::wrappers::iterators::*;
 use std::collections::HashMap;
 
@@ -713,12 +710,10 @@ impl PyVertices {
         self.vertices.is_empty()
     }
 
-    pub fn __getitem__(&self, vertex: &PyAny) -> PyResult<PyVertex> {
-        let vref = extract_vertex_ref(vertex)?;
-        self.vertices.get(vref).map_or_else(
-            || Err(PyIndexError::new_err("Vertex does not exist")),
-            |v| Ok(v.into()),
-        )
+    pub fn __getitem__(&self, vertex: VertexRef) -> PyResult<VertexView<DynamicGraph>> {
+        self.vertices
+            .get(vertex)
+            .ok_or_else(|| PyIndexError::new_err("Vertex does not exist"))
     }
 
     pub fn __call__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {

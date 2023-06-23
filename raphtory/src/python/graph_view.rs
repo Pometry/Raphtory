@@ -1,8 +1,11 @@
 //! The API for querying a view of the graph in a read-only state
+use crate::core::vertex_ref::VertexRef;
 use crate::core::Prop;
+use crate::db::edge::EdgeView;
 use crate::db::graph_layer::LayeredGraph;
 use crate::db::graph_window::WindowedGraph;
 use crate::db::subgraph_vertex::VertexSubgraph;
+use crate::db::vertex::VertexView;
 use crate::db::view_api::internal::{CoreGraphOps, DynamicGraph, IntoDynamic, MaterializedGraph};
 use crate::db::view_api::*;
 use crate::python;
@@ -14,10 +17,7 @@ use pyo3::prelude::*;
 use python::edge::{PyEdge, PyEdges};
 use python::graph::PyGraph;
 use python::types::repr::Repr;
-use python::utils::{
-    adapt_result, at_impl, expanding_impl, extract_vertex_ref, rolling_impl, window_impl,
-    IntoPyObject, PyWindowSet,
-};
+use python::utils::{adapt_result, at_impl, rolling_impl, window_impl, IntoPyObject, PyWindowSet};
 use python::vertex::{PyVertex, PyVertices};
 use std::collections::HashMap;
 
@@ -129,9 +129,8 @@ impl PyGraphView {
     ///
     /// Returns:
     ///   true if the graph contains the specified vertex, false otherwise
-    pub fn has_vertex(&self, id: &PyAny) -> PyResult<bool> {
-        let v = extract_vertex_ref(id)?;
-        Ok(self.graph.has_vertex(v))
+    pub fn has_vertex(&self, v: VertexRef) -> bool {
+        self.graph.has_vertex(v)
     }
 
     /// Returns true if the graph contains the specified edge
@@ -144,10 +143,8 @@ impl PyGraphView {
     /// Returns:
     ///  true if the graph contains the specified edge, false otherwise
     #[pyo3(signature = (src, dst, layer=None))]
-    pub fn has_edge(&self, src: &PyAny, dst: &PyAny, layer: Option<&str>) -> PyResult<bool> {
-        let src = extract_vertex_ref(src)?;
-        let dst = extract_vertex_ref(dst)?;
-        Ok(self.graph.has_edge(src, dst, layer))
+    pub fn has_edge(&self, src: VertexRef, dst: VertexRef, layer: Option<&str>) -> bool {
+        self.graph.has_edge(src, dst, layer)
     }
 
     //******  Getter APIs ******//
@@ -159,9 +156,8 @@ impl PyGraphView {
     ///
     /// Returns:
     ///   the vertex with the specified id, or None if the vertex does not exist
-    pub fn vertex(&self, id: &PyAny) -> PyResult<Option<PyVertex>> {
-        let v = extract_vertex_ref(id)?;
-        Ok(self.graph.vertex(v).map(|v| v.into()))
+    pub fn vertex(&self, id: VertexRef) -> Option<VertexView<DynamicGraph>> {
+        self.graph.vertex(id)
     }
 
     /// Gets the vertices in the graph
@@ -183,10 +179,13 @@ impl PyGraphView {
     /// Returns:
     ///     the edge with the specified source and destination vertices, or None if the edge does not exist
     #[pyo3(signature = (src, dst, layer=None))]
-    pub fn edge(&self, src: &PyAny, dst: &PyAny, layer: Option<&str>) -> PyResult<Option<PyEdge>> {
-        let src = extract_vertex_ref(src)?;
-        let dst = extract_vertex_ref(dst)?;
-        Ok(self.graph.edge(src, dst, layer).map(|we| we.into()))
+    pub fn edge(
+        &self,
+        src: VertexRef,
+        dst: VertexRef,
+        layer: Option<&str>,
+    ) -> Option<EdgeView<DynamicGraph>> {
+        self.graph.edge(src, dst, layer)
     }
 
     /// Gets all edges in the graph

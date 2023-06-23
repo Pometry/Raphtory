@@ -24,15 +24,17 @@ use std::error::Error;
 ///
 /// Returns
 ///    A `VertexRef` extracted from the Python object.
-pub(crate) fn extract_vertex_ref(vref: &PyAny) -> PyResult<VertexRef> {
-    if let Ok(s) = vref.extract::<String>() {
-        Ok(s.into())
-    } else if let Ok(gid) = vref.extract::<u64>() {
-        Ok(gid.into())
-    } else if let Ok(v) = vref.extract::<PyVertex>() {
-        Ok(v.into())
-    } else {
-        Err(PyTypeError::new_err("Not a valid vertex"))
+impl<'source> FromPyObject<'source> for VertexRef {
+    fn extract(vref: &'source PyAny) -> PyResult<Self> {
+        if let Ok(s) = vref.extract::<String>() {
+            Ok(s.into())
+        } else if let Ok(gid) = vref.extract::<u64>() {
+            Ok(gid.into())
+        } else if let Ok(v) = vref.extract::<PyVertex>() {
+            Ok(v.into())
+        } else {
+            Err(PyTypeError::new_err("Not a valid vertex"))
+        }
     }
 }
 

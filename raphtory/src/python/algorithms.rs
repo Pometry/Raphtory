@@ -21,6 +21,7 @@ use crate::algorithms::reciprocity::{
     all_local_reciprocity as all_local_reciprocity_rs, global_reciprocity as global_reciprocity_rs,
 };
 use crate::algorithms::temporal_reachability::temporally_reachable_nodes as temporal_reachability_rs;
+use crate::core::vertex_ref::VertexRef;
 use crate::python::utils;
 use crate::python::utils::{extract_input_vertex, InputVertexBox};
 use pyo3::prelude::*;
@@ -37,9 +38,8 @@ use pyo3::prelude::*;
 ///     triangles(int) : number of triangles associated with vertex v
 ///
 #[pyfunction]
-pub fn local_triangle_count(g: &PyGraphView, v: &PyAny) -> PyResult<Option<usize>> {
-    let v = utils::extract_vertex_ref(v)?;
-    Ok(local_triangle_count_rs(&g.graph, v))
+pub fn local_triangle_count(g: &PyGraphView, v: VertexRef) -> Option<usize> {
+    local_triangle_count_rs(&g.graph, v)
 }
 
 /// Weakly connected components -- partitions the graph into node sets which are mutually reachable by an undirected path
@@ -142,9 +142,8 @@ pub fn temporally_reachable_nodes(
 /// Returns:
 ///     float : the local clustering coefficient of vertex v in g.
 #[pyfunction]
-pub fn local_clustering_coefficient(g: &PyGraphView, v: &PyAny) -> PyResult<Option<f32>> {
-    let v = utils::extract_vertex_ref(v)?;
-    Ok(local_clustering_coefficient_rs(&g.graph, v))
+pub fn local_clustering_coefficient(g: &PyGraphView, v: VertexRef) -> Option<f32> {
+    local_clustering_coefficient_rs(&g.graph, v)
 }
 
 /// Graph density - measures how dense or sparse a graph is.
