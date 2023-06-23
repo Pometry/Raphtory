@@ -7,8 +7,6 @@ use crate::db::path::{PathFromGraph, PathFromVertex};
 use crate::db::vertex::VertexView;
 use crate::db::vertices::Vertices;
 use crate::db::view_api::internal::{DynamicGraph, IntoDynamic};
-use crate::db::view_api::layer::LayerOps;
-use crate::db::view_api::time::WindowSet;
 use crate::db::view_api::*;
 use crate::python;
 use crate::python::utils::{adapt_result, IntervalBox};

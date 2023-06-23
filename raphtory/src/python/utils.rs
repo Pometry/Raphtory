@@ -2,13 +2,11 @@
 //!
 //! This module contains helper functions for the Python bindings.
 //! These functions are not part of the public API and are not exported to the Python module.
-use crate::core as dbc;
 use crate::core::time::error::ParseTimeError;
 use crate::core::time::{Interval, TryIntoTime};
 use crate::core::vertex::InputVertex;
 use crate::core::vertex_ref::VertexRef;
-use crate::db::view_api::time::WindowSet;
-use crate::db::view_api::TimeOps;
+use crate::db::view_api::*;
 use crate::python::vertex::PyVertex;
 use chrono::NaiveDateTime;
 use pyo3::exceptions::{PyException, PyTypeError};

@@ -474,7 +474,6 @@ mod views_test {
     use crate::core::Prop;
     use crate::db::graph::Graph;
     use crate::db::mutation_api::AdditionOps;
-    use crate::db::view_api::edge::EdgeViewOps;
     use crate::db::view_api::*;
     use itertools::Itertools;
     use quickcheck::TestResult;

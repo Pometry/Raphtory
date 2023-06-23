@@ -2,9 +2,7 @@ use crate::common::bench;
 use criterion::{criterion_group, criterion_main, Criterion};
 use raphtory::algorithms::local_clustering_coefficient::local_clustering_coefficient;
 use raphtory::algorithms::local_triangle_count::local_triangle_count;
-use raphtory::db::graph::Graph;
-use raphtory::db::mutation_api::AdditionOps;
-use raphtory::db::view_api::*;
+use raphtory::prelude::*;
 use rayon::prelude::*;
 
 mod common;

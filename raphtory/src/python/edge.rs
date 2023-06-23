@@ -7,7 +7,6 @@
 use crate::core::Prop;
 use crate::db::edge::EdgeView;
 use crate::db::view_api::internal::{DynamicGraph, IntoDynamic};
-use crate::db::view_api::time::WindowSet;
 use crate::db::view_api::*;
 use crate::python;
 use chrono::NaiveDateTime;

@@ -22,9 +22,11 @@ use crate::core::tprop::TProp;
 use crate::core::vertex_ref::{LocalVertexRef, VertexRef};
 use crate::core::{utils, Prop};
 use crate::core::{Direction, PropUnwrap};
-use crate::db::graph::Graph;
+use crate::db::graph::{Graph, InternalGraph};
 use crate::db::view_api::internal::time_semantics::TimeSemantics;
-use crate::db::view_api::internal::{CoreDeletionOps, CoreGraphOps, GraphOps};
+use crate::db::view_api::internal::{
+    CoreDeletionOps, CoreGraphOps, GraphOps, InternalMaterialize, MaterializedGraph,
+};
 use crate::db::view_api::BoxedIter;
 use itertools::Itertools;
 use rustc_hash::FxHashMap;
@@ -157,9 +159,7 @@ impl ImmutableGraph {
     /// # Examples
     ///
     /// ```rust
-    /// use raphtory::db::graph::Graph;
-    /// use raphtory::db::mutation_api::AdditionOps;
-    /// use raphtory::db::view_api::*;
+    /// use raphtory::prelude::*;
     ///
     /// let graph = Graph::new(2);
     /// graph.add_vertex(0, 1, []).unwrap();
@@ -178,8 +178,7 @@ impl ImmutableGraph {
     /// # Examples
     ///
     /// ```rust
-    /// use raphtory::db::graph::Graph;
-    /// use raphtory::db::view_api::*;
+    /// use raphtory::prelude::*;
     ///
     /// let graph = Graph::new(2);
     /// graph.add_vertex(0, 1, []).unwrap();
@@ -203,9 +202,7 @@ impl ImmutableGraph {
     /// # Examples
     ///
     /// ```rust
-    /// use raphtory::db::graph::Graph;
-    /// use raphtory::db::mutation_api::AdditionOps;
-    /// use raphtory::db::view_api::*;
+    /// use raphtory::prelude::*;
     ///
     /// let graph = Graph::new(2);
     /// graph.add_vertex(0, 1, []).unwrap();
@@ -285,6 +282,16 @@ impl ImmutableGraph {
                 VertexRef::Remote(_) => (self.shard_id(gid), src, dst),
             },
         }
+    }
+}
+
+impl InternalMaterialize for ImmutableGraph {
+    fn new_base_graph(&self, graph: InternalGraph) -> MaterializedGraph {
+        MaterializedGraph::EventGraph(graph.into())
+    }
+
+    fn include_deletions(&self) -> bool {
+        false
     }
 }
 

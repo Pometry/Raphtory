@@ -16,13 +16,11 @@ pub trait PropertyAdditionOps {
     /// # Example
     ///
     /// ```
-    /// use raphtory::db::graph::InternalGraph;
-    /// use raphtory::core::Prop;
-    /// use raphtory::db::mutation_api::{AdditionOps, PropertyAdditionOps};
-    /// let graph = InternalGraph::new(1);
-    /// graph.add_vertex(0, "Alice", &vec![]);
+    /// use raphtory::prelude::*;
+    /// let graph = Graph::new(1);
+    /// graph.add_vertex(0, "Alice", []);
     /// let properties = vec![("color".to_owned(), Prop::Str("blue".to_owned())), ("weight".to_owned(), Prop::I64(11))];
-    /// let result = graph.add_vertex_properties("Alice", &properties);
+    /// let result = graph.add_vertex_properties("Alice", properties);
     /// ```
     fn add_vertex_properties<V: InputVertex, P: Properties>(
         &self,
@@ -49,15 +47,13 @@ pub trait PropertyAdditionOps {
     /// # Example
     ///
     /// ```
-    /// use raphtory::db::graph::InternalGraph;
-    /// use raphtory::core::Prop;
-    /// use raphtory::db::mutation_api::{AdditionOps, PropertyAdditionOps};
-    /// let graph = InternalGraph::new(1);
-    /// graph.add_vertex(1, "Alice", &vec![]);
-    /// graph.add_vertex(2, "Bob", &vec![]);
-    /// graph.add_edge(3, "Alice", "Bob", &vec![], None);
+    /// use raphtory::prelude::*;
+    /// let graph = Graph::new(1);
+    /// graph.add_vertex(1, "Alice", []);
+    /// graph.add_vertex(2, "Bob", []);
+    /// graph.add_edge(3, "Alice", "Bob", [], None);
     /// let properties = vec![("price".to_owned(), Prop::I64(100))];
-    /// let result = graph.add_edge_properties("Alice", "Bob", &properties, None);
+    /// let result = graph.add_edge_properties("Alice", "Bob", properties, None);
     /// ```
     fn add_edge_properties<V: InputVertex, P: Properties>(
         &self,

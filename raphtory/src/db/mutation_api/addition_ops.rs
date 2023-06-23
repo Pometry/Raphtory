@@ -22,11 +22,10 @@ pub trait AdditionOps {
     /// # Example
     ///
     /// ```
-    /// use raphtory::db::graph::InternalGraph;
-    /// use raphtory::db::mutation_api::AdditionOps;
-    /// let g = InternalGraph::new(1);
-    /// let v = g.add_vertex(0, "Alice", &vec![]);
-    /// let v = g.add_vertex(0, 5, &vec![]);
+    /// use raphtory::prelude::*;
+    /// let g = Graph::new(1);
+    /// let v = g.add_vertex(0, "Alice", []);
+    /// let v = g.add_vertex(0, 5, []);
     /// ```
     fn add_vertex<V: InputVertex, T: TryIntoTime, P: Properties>(
         &self,
@@ -59,13 +58,12 @@ pub trait AdditionOps {
     /// # Example
     ///
     /// ```
-    /// use raphtory::db::graph::InternalGraph;
-    /// use raphtory::db::mutation_api::AdditionOps;
+    /// use raphtory::prelude::*;
     ///
-    /// let graph = InternalGraph::new(1);
-    /// graph.add_vertex(1, "Alice", &vec![]).unwrap();
-    /// graph.add_vertex(2, "Bob", &vec![]).unwrap();
-    /// graph.add_edge(3, "Alice", "Bob", &vec![], None).unwrap();
+    /// let graph = Graph::new(1);
+    /// graph.add_vertex(1, "Alice", []).unwrap();
+    /// graph.add_vertex(2, "Bob", []).unwrap();
+    /// graph.add_edge(3, "Alice", "Bob", [], None).unwrap();
     /// ```    
     fn add_edge<V: InputVertex, T: TryIntoTime, P: Properties>(
         &self,

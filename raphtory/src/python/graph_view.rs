@@ -3,9 +3,7 @@ use crate::core::Prop;
 use crate::db::graph_layer::LayeredGraph;
 use crate::db::graph_window::WindowedGraph;
 use crate::db::subgraph_vertex::VertexSubgraph;
-use crate::db::view_api::internal::{CoreGraphOps, DynamicGraph, IntoDynamic};
-use crate::db::view_api::layer::LayerOps;
-use crate::db::view_api::time::WindowSet;
+use crate::db::view_api::internal::{CoreGraphOps, DynamicGraph, IntoDynamic, MaterializedGraph};
 use crate::db::view_api::*;
 use crate::python;
 use crate::python::utils::IntervalBox;
@@ -22,6 +20,15 @@ use python::utils::{
 };
 use python::vertex::{PyVertex, PyVertices};
 use std::collections::HashMap;
+
+impl IntoPy<PyObject> for MaterializedGraph {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        match self {
+            MaterializedGraph::EventGraph(g) => g.into_py(py),
+            MaterializedGraph::PersistentGraph(g) => PyGraphView::from(g).into_py(py), //FIXME: need mutaable graph with deletions here...
+        }
+    }
+}
 
 /// Graph view is a read-only version of a graph at a certain point in time.
 #[pyclass(name = "GraphView", frozen, subclass)]
@@ -310,7 +317,7 @@ impl PyGraphView {
     ///
     /// Returns:
     ///    Option<Prop> - The property value
-    fn property(&self, name: String, include_static: Option<bool>) -> Option<Prop> {
+    fn property(&self, name: &str, include_static: Option<bool>) -> Option<Prop> {
         self.graph
             .property(name, include_static.unwrap_or(true))
             .map(|v| v.into())
@@ -324,7 +331,7 @@ impl PyGraphView {
     ///
     /// Returns:
     ///    Option<Prop> - The property value
-    fn property_history(&self, name: String) -> Vec<(i64, Prop)> {
+    fn property_history(&self, name: &str) -> Vec<(i64, Prop)> {
         let r: Vec<(i64, core::Prop)> = self.graph.property_history(name);
         r.into_iter().map(|(i, v)| (i, v.into())).collect_vec()
     }
@@ -376,7 +383,7 @@ impl PyGraphView {
     ///
     /// Returns:
     ///    bool - Indicates whether a property is found by name
-    fn has_property(&self, name: String, include_static: Option<bool>) -> bool {
+    fn has_property(&self, name: &str, include_static: Option<bool>) -> bool {
         self.graph
             .has_property(name, include_static.unwrap_or(true))
     }
@@ -388,7 +395,7 @@ impl PyGraphView {
     ///
     /// Returns:
     ///    bool - Indicates whether a static property is found by name
-    fn has_static_property(&self, name: String) -> bool {
+    fn has_static_property(&self, name: &str) -> bool {
         self.graph.has_static_property(name)
     }
 
@@ -399,8 +406,8 @@ impl PyGraphView {
     ///
     /// Returns:
     ///    Option<Prop> - Returns the static property
-    fn static_property(&self, name: String) -> Option<Prop> {
-        self.graph.static_prop(&name).map(|v| v.into())
+    fn static_property(&self, name: &str) -> Option<Prop> {
+        self.graph.static_property(name)
     }
 
     /// Returns static properties of a graph
@@ -410,8 +417,7 @@ impl PyGraphView {
     /// Returns:
     ///    HashMap<String, Prop> - Returns static properties identified by their names
     fn static_properties(&self) -> HashMap<String, Prop> {
-        let r: HashMap<String, core::Prop> = self.graph.static_properties();
-        r.into_iter().map(|(i, v)| (i, v.into())).collect()
+        self.graph.static_properties()
     }
 
     /// Returns a subgraph given a set of vertices
@@ -421,8 +427,8 @@ impl PyGraphView {
     ///
     /// Returns:
     ///    GraphView - Returns the subgraph
-    fn subgraph(&self, vertices: Vec<PyVertex>) -> PyGraphView {
-        self.graph.subgraph(vertices).into()
+    fn subgraph(&self, vertices: Vec<PyVertex>) -> VertexSubgraph<DynamicGraph> {
+        self.graph.subgraph(vertices)
     }
 
     /// Returns a graph clone
@@ -431,9 +437,8 @@ impl PyGraphView {
     ///
     /// Returns:
     ///    GraphView - Returns a graph clone
-    fn materialize(&self) -> PyResult<Py<PyGraph>> {
-        let mg = adapt_result(self.graph.materialize())?;
-        PyGraph::py_from_db_graph(mg)
+    fn materialize(&self) -> PyResult<MaterializedGraph> {
+        adapt_result(self.graph.materialize())
     }
 
     /// Displays the graph

@@ -16,9 +16,8 @@ use crate::db::view_api::GraphViewOps;
 /// # Example
 ///
 /// ```rust
-/// use raphtory::db::graph::Graph;
+/// use raphtory::prelude::*;
 /// use raphtory::algorithms::clustering_coefficient::clustering_coefficient;
-/// use raphtory::db::view_api::*;
 /// let graph = Graph::new(2);
 ///  let edges = vec![
 ///      (1, 2),
@@ -29,7 +28,7 @@ use crate::db::view_api::GraphViewOps;
 ///      (2, 7),
 ///  ];
 ///  for (src, dst) in edges {
-///      graph.add_edge(0, src, dst, &vec![], None).expect("Unable to add edge");
+///      graph.add_edge(0, src, dst, [], None).expect("Unable to add edge");
 ///  }
 ///  let results = clustering_coefficient(&graph.at(1));
 ///  println!("global_clustering_coefficient: {}", results);

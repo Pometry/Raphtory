@@ -100,19 +100,25 @@ impl Display for Graph {
     }
 }
 
-impl Deref for Graph {
-    type Target = Arc<InternalGraph>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
+impl From<InternalGraph> for Graph {
+    fn from(value: InternalGraph) -> Self {
+        Self(Arc::new(value))
     }
 }
 
-impl DerefMut for Graph {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
+// impl Deref for Graph {
+//     type Target = Arc<InternalGraph>;
+//
+//     fn deref(&self) -> &Self::Target {
+//         &self.0
+//     }
+// }
+//
+// impl DerefMut for Graph {
+//     fn deref_mut(&mut self) -> &mut Self::Target {
+//         &mut self.0
+//     }
+// }
 
 impl Inheritable for Graph {
     type Base = InternalGraph;
@@ -159,6 +165,30 @@ impl Graph {
         }))
     }
 
+    /// Save a graph to a directory
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - The path to the directory
+    ///
+    /// # Returns
+    ///
+    /// A raphtory graph
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use raphtory::db::graph::InternalGraph;
+    /// use std::fs::File;
+    /// use raphtory::db::mutation_api::AdditionOps;
+    /// let g = InternalGraph::new(4);
+    /// g.add_vertex(1, 1, []).unwrap();
+    /// // g.save_to_file("path_str");
+    /// ```
+    pub fn save_to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), Box<bincode::ErrorKind>> {
+        self.0.save_to_file(path)
+    }
+
     /// Load a graph from a directory
     ///
     /// # Arguments
@@ -201,9 +231,9 @@ impl Graph {
     /// ```
     pub fn freeze(self) -> ImmutableGraph {
         ImmutableGraph {
-            nr_shards: self.nr_shards,
-            shards: self.shards.iter().map(|s| s.freeze()).collect_vec(),
-            layer_ids: Arc::new(self.layer_ids.read().clone()),
+            nr_shards: self.0.nr_shards,
+            shards: self.0.shards.iter().map(|s| s.freeze()).collect_vec(),
+            layer_ids: Arc::new(self.0.layer_ids.read().clone()),
         }
     }
 }
@@ -975,7 +1005,7 @@ mod db_tests {
     use crate::db::mutation_api::{AdditionOps, PropertyAdditionOps};
     use crate::db::path::PathFromVertex;
     use crate::db::view_api::internal::*;
-    use crate::db::view_api::layer::LayerOps;
+    use crate::db::view_api::LayerOps;
     use crate::graphgen::random_attachment::random_attachment;
     use itertools::Itertools;
     use quickcheck::Arbitrary;

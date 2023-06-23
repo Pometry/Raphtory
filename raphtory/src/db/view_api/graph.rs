@@ -70,7 +70,7 @@ pub trait GraphViewOps: BoxableGraphView + Clone + Sized {
     fn edges(&self) -> Box<dyn Iterator<Item = EdgeView<Self>> + Send>;
 
     /// Gets the property value of this graph given the name of the property.
-    fn property(&self, name: String, include_static: bool) -> Option<Prop>;
+    fn property(&self, name: &str, include_static: bool) -> Option<Prop>;
 
     /// Get the temporal property value of this graph.
     ///
@@ -82,7 +82,7 @@ pub trait GraphViewOps: BoxableGraphView + Clone + Sized {
     ///
     /// A vector of `(i64, Prop)` tuples where the `i64` value is the timestamp of the
     /// property value and `Prop` is the value itself.
-    fn property_history(&self, name: String) -> Vec<(i64, Prop)>;
+    fn property_history(&self, name: &str) -> Vec<(i64, Prop)>;
 
     /// Get all property values of this graph.
     ///
@@ -125,7 +125,7 @@ pub trait GraphViewOps: BoxableGraphView + Clone + Sized {
     /// # Returns
     ///
     /// `true` if the property exists, otherwise `false`.
-    fn has_property(&self, name: String, include_static: bool) -> bool;
+    fn has_property(&self, name: &str, include_static: bool) -> bool;
 
     /// Checks if a static property exists on this graph.
     ///
@@ -136,7 +136,7 @@ pub trait GraphViewOps: BoxableGraphView + Clone + Sized {
     /// # Returns
     ///
     /// `true` if the property exists, otherwise `false`.
-    fn has_static_property(&self, name: String) -> bool;
+    fn has_static_property(&self, name: &str) -> bool;
 
     /// Get the static property value of this graph.
     ///
@@ -147,7 +147,7 @@ pub trait GraphViewOps: BoxableGraphView + Clone + Sized {
     /// # Returns
     ///
     /// The value of the property if it exists, otherwise `None`.
-    fn static_property(&self, name: String) -> Option<Prop>;
+    fn static_property(&self, name: &str) -> Option<Prop>;
 
     /// Get the static properties value of this graph.
     ///
@@ -253,12 +253,12 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
         Box::new(self.vertices().iter().flat_map(|v| v.out_edges()))
     }
 
-    fn property(&self, name: String, include_static: bool) -> Option<Prop> {
-        let props = self.property_history(name.clone());
+    fn property(&self, name: &str, include_static: bool) -> Option<Prop> {
+        let props = self.property_history(name);
         match props.last() {
             None => {
                 if include_static {
-                    self.static_prop(&name)
+                    self.static_prop(name)
                 } else {
                     None
                 }
@@ -267,8 +267,8 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
         }
     }
 
-    fn property_history(&self, name: String) -> Vec<(i64, Prop)> {
-        self.temporal_prop_vec(&name)
+    fn property_history(&self, name: &str) -> Vec<(i64, Prop)> {
+        self.temporal_prop_vec(name)
     }
 
     fn properties(&self, include_static: bool) -> HashMap<String, Prop> {
@@ -300,17 +300,17 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
         names
     }
 
-    fn has_property(&self, name: String, include_static: bool) -> bool {
-        (!self.property_history(name.clone()).is_empty())
-            || (include_static && self.static_prop_names().contains(&name))
+    fn has_property(&self, name: &str, include_static: bool) -> bool {
+        (!self.property_history(name).is_empty())
+            || (include_static && self.static_prop_names().contains(&name.to_owned()))
     }
 
-    fn has_static_property(&self, name: String) -> bool {
-        self.static_prop_names().contains(&name)
+    fn has_static_property(&self, name: &str) -> bool {
+        self.static_prop_names().contains(&name.to_owned())
     }
 
-    fn static_property(&self, name: String) -> Option<Prop> {
-        self.static_prop(&name)
+    fn static_property(&self, name: &str) -> Option<Prop> {
+        self.static_prop(name)
     }
 
     fn static_properties(&self) -> HashMap<String, Prop> {

@@ -14,9 +14,8 @@
 //! # Example
 //!
 //! ```rust
-//! use raphtory::db::graph::Graph;
+//! use raphtory::prelude::*;
 //! use raphtory::algorithms::triplet_count::triplet_count;
-//! use raphtory::db::view_api::*;
 //! let graph = Graph::new(2);
 //!  let edges = vec![
 //!      (1, 2),

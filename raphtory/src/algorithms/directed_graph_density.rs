@@ -11,9 +11,7 @@
 //!
 //! ```rust
 //! use raphtory::algorithms::directed_graph_density::directed_graph_density;
-//! use raphtory::db::graph::Graph;
-//! use raphtory::db::mutation_api::AdditionOps;
-//! use raphtory::db::view_api::*;
+//! use raphtory::prelude::*;
 //!
 //! let g = Graph::new(1);
 //! let windowed_graph = g.window(0, 7);
@@ -27,7 +25,7 @@
 //! ];
 //!
 //! for (t, src, dst) in &vs {
-//! g.add_edge(*t, *src, *dst, &vec![], None);
+//! g.add_edge(*t, *src, *dst, [], None);
 //! }
 //!
 //! println!("graph density: {:?}", directed_graph_density(&windowed_graph));

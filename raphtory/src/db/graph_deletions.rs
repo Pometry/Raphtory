@@ -5,18 +5,34 @@ use crate::core::{Direction, Prop};
 use crate::db::graph::{graph_equal, InternalGraph};
 use crate::db::mutation_api::internal::InheritMutationOps;
 use crate::db::view_api::internal::{
-    CoreDeletionOps, CoreGraphOps, GraphOps, InheritCoreDeletionOps, InheritCoreOps,
-    InheritGraphOps, Inheritable, InternalMaterialize, MaterializedGraph, TimeSemantics,
+    CoreDeletionOps, CoreGraphOps, DynamicGraph, GraphOps, InheritCoreDeletionOps, InheritCoreOps,
+    InheritGraphOps, Inheritable, InternalMaterialize, IntoDynamic, MaterializedGraph,
+    TimeSemantics,
 };
 use crate::db::view_api::{BoxedIter, GraphViewOps};
 use std::cmp::min;
 use std::iter;
 use std::ops::Range;
+use std::path::Path;
 use std::sync::Arc;
 
 #[derive(Clone, Debug)]
 pub struct GraphWithDeletions {
     graph: Arc<InternalGraph>,
+}
+
+impl From<InternalGraph> for GraphWithDeletions {
+    fn from(value: InternalGraph) -> Self {
+        Self {
+            graph: Arc::new(value),
+        }
+    }
+}
+
+impl IntoDynamic for GraphWithDeletions {
+    fn into_dynamic(self) -> DynamicGraph {
+        Arc::new(self)
+    }
 }
 
 impl GraphWithDeletions {
@@ -39,6 +55,52 @@ impl GraphWithDeletions {
         Self {
             graph: Arc::new(InternalGraph::new(nr_shards)),
         }
+    }
+
+    /// Save a graph to a directory
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - The path to the directory
+    ///
+    /// # Returns
+    ///
+    /// A raphtory graph
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use raphtory::db::graph::InternalGraph;
+    /// use std::fs::File;
+    /// use raphtory::db::mutation_api::AdditionOps;
+    /// let g = InternalGraph::new(4);
+    /// g.add_vertex(1, 1, []).unwrap();
+    /// // g.save_to_file("path_str");
+    /// ```
+    pub fn save_to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), Box<bincode::ErrorKind>> {
+        self.graph.save_to_file(path)
+    }
+
+    /// Load a graph from a directory
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - The path to the directory
+    ///
+    /// # Returns
+    ///
+    /// A raphtory graph
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use raphtory::db::graph::InternalGraph;
+    /// // let g = Graph::load_from_file("path/to/graph");
+    /// ```
+    pub fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self, Box<bincode::ErrorKind>> {
+        Ok(Self {
+            graph: Arc::new(InternalGraph::load_from_file(path)?),
+        })
     }
 }
 
