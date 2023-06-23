@@ -402,10 +402,8 @@ impl ComputeState for ComputeStateVec {
             .iter()
             .enumerate()
             .map(|(p_id, a)| {
-                // todo!("SORT THIS OUT AFTER GRAPH IS SHARD FREE!");
-                let v_ref = 0.into();
                 let out = ACC::finish(a);
-                (g.vertex_name(v_ref), out)
+                (g.vertex_name(p_id.into()), out)
             })
             .collect()
     }
