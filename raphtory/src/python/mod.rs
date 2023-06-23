@@ -10,6 +10,7 @@ pub mod graph;
 pub mod graph_gen;
 pub mod graph_loader;
 pub mod graph_view;
+pub mod graph_with_deletions;
 pub mod types;
 pub mod utils;
 pub mod vertex;

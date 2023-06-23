@@ -27,7 +27,7 @@ impl IntoPy<PyObject> for MaterializedGraph {
     fn into_py(self, py: Python<'_>) -> PyObject {
         match self {
             MaterializedGraph::EventGraph(g) => g.into_py(py),
-            MaterializedGraph::PersistentGraph(g) => PyGraphView::from(g).into_py(py), //FIXME: need mutaable graph with deletions here...
+            MaterializedGraph::PersistentGraph(g) => g.into_py(py),
         }
     }
 }
