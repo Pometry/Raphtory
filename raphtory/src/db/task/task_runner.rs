@@ -114,13 +114,13 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         &mut self,
         tasks: &[Job<G, CS, S>],
         pool: &ThreadPool,
+        morcel_size: usize,
         shard_state: Shard<CS>,
         global_state: Global<CS>,
         mut local_state: Vec<S>,
         prev_local_state: &Vec<S>,
     ) -> (bool, Shard<CS>, Global<CS>, Vec<S>) {
         pool.install(move || {
-            let morcel_size = 16_000;
             let mut new_shard_state = shard_state;
             let mut new_global_state = global_state;
 
@@ -224,8 +224,9 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
             .unwrap_or_else(|| POOL.clone());
 
         let num_chunks = pool.current_num_threads();
+        let morcel_size = 16_000;
 
-        let mut shard_state = shard_initial_state.unwrap_or_else(|| Shard::new(num_chunks));
+        let mut shard_state = shard_initial_state.unwrap_or_else(|| Shard::new(num_chunks, morcel_size));
 
         let mut global_state = global_initial_state.unwrap_or_else(|| Global::new());
 
@@ -236,6 +237,7 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         (done, shard_state, global_state, cur_local_state) = self.run_task_list(
             &init_tasks,
             &pool,
+            morcel_size,
             shard_state,
             global_state,
             cur_local_state,
@@ -249,6 +251,7 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
             (done, shard_state, global_state, cur_local_state) = self.run_task_list(
                 &tasks,
                 &pool,
+                morcel_size,
                 shard_state,
                 global_state,
                 cur_local_state,

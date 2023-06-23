@@ -32,8 +32,8 @@ impl<'a, S: 'static> Local2<'a, S> {
 }
 
 impl<CS: ComputeState> Shard<CS> {
-    pub(crate) fn new(graph_shards: usize) -> Self {
-        Self(Arc::new(ShuffleComputeState::new(graph_shards)))
+    pub(crate) fn new(num_morcels: usize, morcel_size: usize) -> Self {
+        Self(Arc::new(ShuffleComputeState::new(num_morcels, morcel_size)))
     }
 
     pub(crate) fn as_cow(&self) -> Cow<'_, ShuffleComputeState<CS>> {
@@ -52,6 +52,10 @@ impl<CS: ComputeState> Shard<CS> {
         &self.0
     }
 
+    pub fn consume(self) -> Result<ShuffleComputeState<CS>, Arc<ShuffleComputeState<CS>>> {
+        Arc::try_unwrap(self.0)
+    }
+
     pub fn reset(&mut self, ss: usize, resetable_states: &[u32]) {
         Arc::get_mut(&mut self.0).map(|s| {
             s.copy_over_next_ss(ss);
@@ -68,7 +72,7 @@ impl<CS: ComputeState> From<Arc<ShuffleComputeState<CS>>> for Shard<CS> {
 
 impl<CS: ComputeState> Global<CS> {
     pub(crate) fn new() -> Self {
-        Self(Arc::new(ShuffleComputeState::new(0)))
+        Self(Arc::new(ShuffleComputeState::new(0, 0)))
     }
 
     pub(crate) fn as_cow(&self) -> Cow<'_, ShuffleComputeState<CS>> {

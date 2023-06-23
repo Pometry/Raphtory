@@ -200,8 +200,10 @@ mod state_test {
 
         let sum = accumulators::sum(0);
 
-        let mut part1_state: ShuffleComputeState<ComputeStateMap> = ShuffleComputeState::new(2);
-        let mut part2_state: ShuffleComputeState<ComputeStateMap> = ShuffleComputeState::new(2);
+        let n = 100;
+
+        let mut part1_state: ShuffleComputeState<ComputeStateVec> = ShuffleComputeState::new(2, 2);
+        let mut part2_state: ShuffleComputeState<ComputeStateVec> = ShuffleComputeState::new(2, 2);
 
         // create random vec of numbers
         let mut rng = rand::thread_rng();
@@ -209,7 +211,7 @@ mod state_test {
         let mut vec2 = vec![];
         let mut actual_sum_1 = 0;
         let mut actual_sum_2 = 0;
-        for _ in 0..100 {
+        for _ in 0..n {
             // data for first partition
             let i = rng.gen_range(0..100);
             actual_sum_1 += i;
@@ -225,19 +227,19 @@ mod state_test {
         // 2 gets the numbers from part1
         // 3 gets the numbers from part2
         for a in vec1 {
+            part1_state.accumulate_into(0, 0, a, &sum);
             part1_state.accumulate_into(0, 1, a, &sum);
-            part1_state.accumulate_into(0, 2, a, &sum);
         }
 
         for a in vec2 {
-            part2_state.accumulate_into(0, 1, a, &sum);
-            part2_state.accumulate_into(0, 3, a, &sum);
+            part2_state.accumulate_into(0, 0, a, &sum);
+            part2_state.accumulate_into(0, 2, a, &sum);
         }
 
         println!("part1_state: {:?}", part1_state);
         println!("part2_state: {:?}", part2_state);
 
-        let mut actual: Vec<(String, i32)> = part1_state
+        let mut actual: Vec<(String, i32)> = part1_state.clone()
             .finalize(&sum, 0, &g, |c| c)
             .into_iter()
             .collect_vec();
@@ -252,7 +254,7 @@ mod state_test {
             ]
         );
 
-        let mut actual = part2_state
+        let mut actual = part2_state.clone()
             .finalize(&sum, 0, &g, |c| c)
             .into_iter()
             .collect_vec();
@@ -292,8 +294,8 @@ mod state_test {
         let sum = accumulators::sum(0);
         let min = accumulators::min(1);
 
-        let mut part1_state: ShuffleComputeState<ComputeStateMap> = ShuffleComputeState::new(2);
-        let mut part2_state: ShuffleComputeState<ComputeStateMap> = ShuffleComputeState::new(2);
+        let mut part1_state: ShuffleComputeState<ComputeStateMap> = ShuffleComputeState::new(2, 2);
+        let mut part2_state: ShuffleComputeState<ComputeStateMap> = ShuffleComputeState::new(2, 2);
 
         // create random vec of numbers
         let mut rng = rand::thread_rng();
@@ -321,20 +323,20 @@ mod state_test {
         // 2 gets the numbers from part1
         // 3 gets the numbers from part2
         for a in vec1 {
+            part1_state.accumulate_into(0, 0, a, &sum);
             part1_state.accumulate_into(0, 1, a, &sum);
-            part1_state.accumulate_into(0, 2, a, &sum);
+            part1_state.accumulate_into(0, 0, a, &min);
             part1_state.accumulate_into(0, 1, a, &min);
-            part1_state.accumulate_into(0, 2, a, &min);
         }
 
         for a in vec2 {
-            part2_state.accumulate_into(0, 1, a, &sum);
-            part2_state.accumulate_into(0, 3, a, &sum);
-            part2_state.accumulate_into(0, 1, a, &min);
-            part2_state.accumulate_into(0, 3, a, &min);
+            part2_state.accumulate_into(0, 0, a, &sum);
+            part2_state.accumulate_into(0, 2, a, &sum);
+            part2_state.accumulate_into(0, 0, a, &min);
+            part2_state.accumulate_into(0, 2, a, &min);
         }
 
-        let mut actual = part1_state
+        let mut actual = part1_state.clone()
             .finalize(&sum, 0, &g, |c| c)
             .into_iter()
             .collect_vec();
@@ -349,7 +351,7 @@ mod state_test {
             ]
         );
 
-        let mut actual = part1_state
+        let mut actual = part1_state.clone()
             .finalize(&min, 0, &g, |c| c)
             .into_iter()
             .collect_vec();
@@ -364,7 +366,7 @@ mod state_test {
             ]
         );
 
-        let mut actual = part2_state
+        let mut actual = part2_state.clone()
             .finalize(&sum, 0, &g, |c| c)
             .into_iter()
             .collect_vec();
@@ -379,7 +381,7 @@ mod state_test {
             ]
         );
 
-        let mut actual = part2_state
+        let mut actual = part2_state.clone()
             .finalize(&min, 0, &g, |c| c)
             .into_iter()
             .collect_vec();
@@ -395,7 +397,7 @@ mod state_test {
         );
 
         ShuffleComputeState::merge_mut(&mut part1_state, &part2_state, &sum, 0);
-        let mut actual = part1_state
+        let mut actual = part1_state.clone()
             .finalize(&sum, 0, &g, |c| c)
             .into_iter()
             .collect_vec();
@@ -412,7 +414,7 @@ mod state_test {
         );
 
         ShuffleComputeState::merge_mut(&mut part1_state, &part2_state, &min, 0);
-        let mut actual = part1_state
+        let mut actual = part1_state.clone()
             .finalize(&min, 0, &g, |c| c)
             .into_iter()
             .collect_vec();

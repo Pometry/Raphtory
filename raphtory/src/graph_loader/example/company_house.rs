@@ -43,8 +43,7 @@ pub fn company_house_graph(path: Option<String>, num_shards: usize) -> Graph {
                 .ok()?;
 
             println!(
-                "Loaded graph with {} shards from encoded data files {} with {} vertices, {} edges which took {} seconds",
-                g.num_shards(),
+                "Loaded graph from encoded data files {} with {} vertices, {} edges which took {} seconds",
                 encoded_data_dir.to_str().unwrap(),
                 g.num_vertices(),
                 g.num_edges(),
@@ -152,8 +151,7 @@ pub fn company_house_graph(path: Option<String>, num_shards: usize) -> Graph {
             .expect("Failed to load graph from CSV data files");
 
         println!(
-            "Loaded graph with {} shards from CSV data files {} with {} vertices, {} edges which took {} seconds",
-            g.num_shards(),
+            "Loaded graph from CSV data files {} with {} vertices, {} edges which took {} seconds",
             encoded_data_dir.to_str().unwrap(),
             g.num_vertices(),
             g.num_edges(),

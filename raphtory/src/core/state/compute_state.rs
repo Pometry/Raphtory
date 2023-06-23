@@ -216,7 +216,6 @@ impl ComputeState for ComputeStateMap {
             .map
             .iter()
             .map(|(c, v)| {
-                // println!("c? = {}", c);
                 (
                     _g.vertex_name(_g.localise_vertex_unchecked((*c).into())),
                     ACC::finish(&v[ss % 2]),

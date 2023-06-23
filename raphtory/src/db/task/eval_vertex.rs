@@ -86,7 +86,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S> EvalVertexView<'a, G, CS, S> {
         self.vertex_state
             .borrow_mut()
             .shard_mut()
-            .accumulate_into_pid(self.ss, self.id(), self.pid(), a, id);
+            .accumulate_into(self.ss, self.pid(), a, id);
     }
 
     pub fn global_update<A: StateType, IN: 'static, OUT: 'static, ACC: Accumulator<A, IN, OUT>>(

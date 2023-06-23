@@ -177,8 +177,7 @@ mod reciprocity_test {
         ];
 
         let map_names_by_id: HashMap<String, f64> = expected_vec
-            .iter()
-            .map(|x| (x.0.to_string(), x.1))
+            .into_iter()
             .collect();
 
         let actual = all_local_reciprocity(&graph, None);
