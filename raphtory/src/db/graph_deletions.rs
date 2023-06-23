@@ -347,7 +347,6 @@ mod test_deletions {
         assert!(Some(1) > None);
         assert!(!(None::<i64> > None));
         assert!(!(None::<i64> < None));
-        assert_eq!(min(None, Some(1)), Some(1));
     }
 
     #[test]
