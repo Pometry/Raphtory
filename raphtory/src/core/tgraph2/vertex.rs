@@ -1,19 +1,24 @@
-use std::{rc::Rc, sync::Arc, ops::Range};
+use std::{ops::Range, sync::Arc};
 
 use itertools::Itertools;
 
 use crate::{
-    core::{edge_ref::EdgeRef, Direction, Prop, timeindex::{TimeIndexOps, TimeIndex}},
+    core::{
+        edge_ref::EdgeRef,
+        timeindex::{TimeIndex, TimeIndexOps},
+        Direction, Prop,
+    },
     storage::{iter::RefT, ArcEntry, Entry},
 };
 
 use super::{
     edge::EdgeView,
+    edge_store::EdgeStore,
     iter::{Paged, PagedIter},
     node_store::NodeStore,
     tgraph::TGraph,
     tgraph_storage::GraphEntry,
-    VRef, EID, VID, edge_store::EdgeStore,
+    VRef, EID, VID,
 };
 
 pub struct Vertex<'a, const N: usize> {
@@ -47,11 +52,18 @@ impl<'a, const N: usize> Vertex<'a, N> {
         (&self.node).temporal_properties(prop_id)
     }
 
-    pub fn edges(self, layer: &str, dir: Direction) -> impl Iterator<Item = EdgeView<'a, N>> + 'a {
-        let layer = self
-            .graph
-            .vertex_props_meta
-            .get_or_create_layer_id(layer.to_owned());
+    pub fn edges(
+        self,
+        layer: Option<&str>,
+        dir: Direction,
+    ) -> impl Iterator<Item = EdgeView<'a, N>> + 'a {
+        let layer = layer
+            .map(|layer| {
+                self.graph
+                    .vertex_props_meta
+                    .get_or_create_layer_id(layer.to_owned())
+            })
+            .unwrap_or_default();
 
         let src = self.node.index().into();
 
@@ -67,29 +79,6 @@ impl<'a, const N: usize> Vertex<'a, N> {
             }
         }
     }
-
-    // pub fn edges_iter(
-    //     &self,
-    //     layer: &str,
-    //     dir: Direction,
-    // ) -> impl Iterator<Item = EdgeView<'a, N>> + Send + '_ {
-    //     let layer = self
-    //         .graph
-    //         .vertex_props_meta
-    //         .get_or_create_layer_id(layer.to_owned());
-
-    //     (*self.node)
-    //         .edge_tuples(Some(layer), dir)
-    //         .map(move |(from, to, e_id)| {
-    //             EdgeView::new(
-    //                 from,
-    //                 to,
-    //                 self.node.edge_ref(e_id),
-    //                 dir,
-    //                 self.graph,
-    //             )
-    //         })
-    // }
 
     pub fn neighbours<'b>(
         &'a self,
@@ -142,12 +131,11 @@ impl<const N: usize> ArcVertex<N> {
     }
 }
 
-
-pub(crate) struct ArcEdge<const N: usize>{
+pub(crate) struct ArcEdge<const N: usize> {
     e: ArcEntry<EdgeStore<N>, N>,
 }
 
-impl<const N:usize> ArcEdge<N>{
+impl<const N: usize> ArcEdge<N> {
     pub(crate) fn from_entry(e: ArcEntry<EdgeStore<N>, N>) -> Self {
         ArcEdge { e }
     }
@@ -156,12 +144,15 @@ impl<const N:usize> ArcEdge<N>{
         self.e.layer_timestamps(layer).iter()
     }
 
-    pub(crate) fn timestamps_window(&self, layer:usize, w: Range<i64>) -> impl Iterator<Item = &i64> + '_ {
+    pub(crate) fn timestamps_window(
+        &self,
+        layer: usize,
+        w: Range<i64>,
+    ) -> impl Iterator<Item = &i64> + '_ {
         self.e.layer_timestamps(layer).range_iter(w)
     }
 
-    pub(crate) fn time_index(&self, layer: usize) -> &TimeIndex{
+    pub(crate) fn time_index(&self, layer: usize) -> &TimeIndex {
         self.e.layer_timestamps(layer)
     }
-
 }

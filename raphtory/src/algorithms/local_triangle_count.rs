@@ -52,12 +52,15 @@ pub fn local_triangle_count<G: GraphViewOps, V: Into<VertexRef>>(graph: &G, v: V
                 .id()
                 .into_iter()
                 .combinations(2)
-                .filter_map(|nb| match graph.has_edge(nb[0], nb[1], None) {
-                    true => Some(1),
-                    false => match graph.has_edge(nb[1], nb[0], None) {
+                .filter_map(|nb| {
+                    println!("nb: {:?}", nb);
+                    match graph.has_edge(nb[0], nb[1], None) {
                         true => Some(1),
-                        false => None,
-                    },
+                        false => match graph.has_edge(nb[1], nb[0], None) {
+                            true => Some(1),
+                            false => None,
+                        },
+                    }
                 })
                 .collect();
             Some(x.len())
@@ -79,7 +82,7 @@ mod triangle_count_tests {
 
     #[test]
     fn counts_triangles() {
-        let g = Graph::new(1);
+        let g = Graph::new(0);
         let vs = vec![(1, 1, 2), (2, 1, 3), (3, 2, 1), (4, 3, 2)];
 
         for (t, src, dst) in &vs {

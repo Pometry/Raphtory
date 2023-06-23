@@ -138,10 +138,12 @@ impl<const N: usize> NodeStore<N> {
                                 time: None,
                             }))
                         }
-                        Direction::BOTH => Box::new(
-                            self.edge_tuples(Some(layer_id), Direction::OUT)
-                                .chain(self.edge_tuples(Some(layer_id), Direction::IN)),
-                        ),
+                        Direction::BOTH => {
+                            Box::new(self.edge_tuples(Some(layer_id), Direction::OUT).merge_by(
+                                self.edge_tuples(Some(layer_id), Direction::IN),
+                                |e1, e2| e1.remote() < e2.remote(),
+                            ))
+                        }
                     }
                 } else {
                     Box::new(std::iter::empty())

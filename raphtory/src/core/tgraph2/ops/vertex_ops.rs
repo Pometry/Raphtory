@@ -27,14 +27,14 @@ impl<
     fn edges(self) -> Self::Value<Self::Edge> {
         let iter = self
             .into_iter()
-            .flat_map(|v| v.edges("follows", Direction::OUT));
+            .flat_map(|v| v.edges(Some("follows"), Direction::OUT));
         Box::new(iter)
     }
 
     fn neighbours(self) -> Self::Value<Self::Neighbour> {
         let iter = self
             .into_iter()
-            .flat_map(|v| v.edges("follows", Direction::OUT).map(|e| e.dst()));
+            .flat_map(|v| v.edges(Some("follows"), Direction::OUT).map(|e| e.dst()));
         Box::new(iter)
     }
 }

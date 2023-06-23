@@ -555,179 +555,176 @@ impl<const N: usize> InnerTemporalGraph<N> {
     }
 }
 
-// #[cfg(test)]
-// mod test {
+#[cfg(test)]
+mod test {
 
-//     use itertools::Itertools;
+    use itertools::Itertools;
 
-//     use crate::core::tgraph2::ops::vertex_ops::VertexListOps;
+    use crate::core::tgraph2::ops::vertex_ops::VertexListOps;
 
-//     use super::*;
+    use super::*;
 
-//     #[test]
-//     fn add_vertex_at_time_t1() {
-//         let g: TGraph<4> = TGraph::default();
+    #[test]
+    fn add_vertex_at_time_t1() {
+        let g: TGraph<4> = TGraph::default();
 
-//         g.add_vertex(1, 9, &vec![]);
+        g.add_vertex(1, 9, &vec![]);
 
-//         assert!(g.has_vertex(9u64));
-//         // assert!(g.has_vertex_window(9u64, 1..15));
-//         // assert!(!g.has_vertex_window(9u64, 10..15));
+        assert!(g.has_vertex(9u64));
+        // assert!(g.has_vertex_window(9u64, 1..15));
+        // assert!(!g.has_vertex_window(9u64, 10..15));
 
-//         assert_eq!(
-//             g.vertex_ids()
-//                 .flat_map(|v| g.find_global_id(v))
-//                 .collect::<Vec<_>>(),
-//             vec![9]
-//         );
-//     }
+        assert_eq!(
+            g.vertex_ids()
+                .flat_map(|v| g.find_global_id(v))
+                .collect::<Vec<_>>(),
+            vec![9]
+        );
+    }
 
-//     #[test]
-//     fn add_vertices_with_1_property() {
-//         let g: TGraph<4> = TGraph::default();
+    #[test]
+    fn add_vertices_with_1_property() {
+        let g: TGraph<4> = TGraph::default();
 
-//         let v_id = 1;
-//         let ts = 1;
-//         g.add_vertex_with_props(ts, v_id, vec![("type".into(), Prop::Str("wallet".into()))]);
+        let v_id = 1;
+        let ts = 1;
+        g.add_vertex(ts, v_id, &vec![("type".into(), Prop::Str("wallet".into()))]);
 
-//         assert!(g.has_vertex(v_id));
-//         // assert!(g.has_vertex_window(v_id, 1..15));
-//         assert_eq!(
-//             g.vertex_ids()
-//                 .flat_map(|v| g.find_global_id(v))
-//                 .collect::<Vec<_>>(),
-//             vec![v_id]
-//         );
+        assert!(g.has_vertex(v_id));
+        // assert!(g.has_vertex_window(v_id, 1..15));
+        assert_eq!(
+            g.vertex_ids()
+                .flat_map(|v| g.find_global_id(v))
+                .collect::<Vec<_>>(),
+            vec![v_id]
+        );
 
-//         let res = g
-//             .vertices()
-//             .flat_map(|v| v.temporal_properties("type").collect_vec())
-//             .collect_vec();
+        let res = g
+            .vertices()
+            .flat_map(|v| v.temporal_properties("type").collect_vec())
+            .collect_vec();
 
-//         assert_eq!(res, vec![(1i64, Prop::Str("wallet".into()))]);
-//     }
+        assert_eq!(res, vec![(1i64, Prop::Str("wallet".into()))]);
+    }
 
-//     #[test]
-//     fn add_edge_at_t1() {
-//         let g: TGraph<4> = TGraph::default();
+    #[test]
+    fn add_edge_at_t1() {
+        let g: TGraph<4> = TGraph::default();
 
-//         let src = 1;
-//         let dst = 2;
-//         let ts = 1;
-//         g.add_vertex(ts, src, &vec![]);
-//         g.add_vertex(ts, dst, &vec![]);
+        let src = 1;
+        let dst = 2;
+        let ts = 1;
+        g.add_vertex(ts, src, &vec![]);
+        g.add_vertex(ts, dst, &vec![]);
 
-//         g.add_edge(ts, src, dst, "follows");
+        g.add_edge(ts, src, dst, &vec![], Some("follows"));
 
-//         let res = g
-//             .vertices()
-//             .flat_map(|v| {
-//                 v.edges("follows", Direction::OUT)
-//                     .map(|e| (e.src_id(), e.dst_id()))
-//             })
-//             .collect_vec();
+        let res = g
+            .vertices()
+            .flat_map(|v| {
+                v.edges(Some("follows"), Direction::OUT)
+                    .map(|e| (e.src_id(), e.dst_id()))
+            })
+            .collect_vec();
 
-//         assert_eq!(res, vec![(0.into(), 1.into())]);
-//     }
+        assert_eq!(res, vec![(0.into(), 1.into())]);
+    }
 
-//     #[test]
-//     fn triangle_counts_by_iterators() {
-//         let g: TGraph<4> = TGraph::default();
+    #[test]
+    fn triangle_counts_by_iterators() {
+        let g: TGraph<4> = TGraph::default();
 
-//         let ts = 1;
+        let ts = 1;
 
-//         g.add_edge(ts, 1, 2, "follows");
-//         g.add_edge(ts, 2, 3, "follows");
-//         g.add_edge(ts, 3, 1, "follows");
+        g.add_edge(ts, 1, 2, &vec![], Some("follows"));
+        g.add_edge(ts, 2, 3, &vec![], Some("follows"));
+        g.add_edge(ts, 3, 1, &vec![], Some("follows"));
 
-//         let res = g
-//             .vertices()
-//             .flat_map(|v| {
-//                 let v_id = v.id();
-//                 v.edges("follows", Direction::OUT).flat_map(move |edge_1| {
-//                     edge_1
-//                         .dst()
-//                         .edges("follows", Direction::OUT)
-//                         .flat_map(move |edge_2| {
-//                             edge_2
-//                                 .dst()
-//                                 .edges("follows", Direction::OUT)
-//                                 .filter(move |e| e.dst_id() == v_id)
-//                                 .map(move |edge_3| {
-//                                     (v_id, edge_2.src_id(), edge_2.dst_id(), edge_3.dst_id())
-//                                 })
-//                         })
-//                 })
-//             })
-//             .collect_vec();
+        let res = g
+            .vertices()
+            .flat_map(|v| {
+                let v_id = v.id();
+                v.edges(Some("follows"), Direction::OUT).flat_map(move |edge_1| {
+                    edge_1
+                        .dst()
+                        .edges(Some("follows"), Direction::OUT)
+                        .flat_map(move |edge_2| {
+                            edge_2
+                                .dst()
+                                .edges(Some("follows"), Direction::OUT)
+                                .filter(move |e| e.dst_id() == v_id)
+                                .map(move |edge_3| {
+                                    (v_id, edge_2.src_id(), edge_2.dst_id(), edge_3.dst_id())
+                                })
+                        })
+                })
+            })
+            .collect_vec();
 
-//         assert_eq!(
-//             res,
-//             vec![
-//                 (0.into(), 1.into(), 2.into(), 0.into()),
-//                 (1.into(), 2.into(), 0.into(), 1.into()),
-//                 (2.into(), 0.into(), 1.into(), 2.into()),
-//             ]
-//         );
-//     }
+        assert_eq!(
+            res,
+            vec![
+                (0.into(), 1.into(), 2.into(), 0.into()),
+                (1.into(), 2.into(), 0.into(), 1.into()),
+                (2.into(), 0.into(), 1.into(), 2.into()),
+            ]
+        );
+    }
 
-//     #[test]
-//     fn triangle_counts_by_locked_iterators() {
-//         let g: TGraph<4> = TGraph::default();
+    #[test]
+    fn triangle_counts_by_locked_iterators() {
+        let g: TGraph<4> = TGraph::default();
 
-//         let ts = 1;
+        let ts = 1;
 
-//         g.add_edge(ts, 1, 2, "follows");
-//         g.add_edge(ts, 2, 3, "follows");
-//         g.add_edge(ts, 3, 1, "follows");
+        g.add_edge(ts, 1, 2, &vec![], Some("follows"));
+        g.add_edge(ts, 2, 3, &vec![], Some("follows"));
+        g.add_edge(ts, 3, 1, &vec![], Some("follows"));
 
-//         let res = g
-//             .locked_vertices()
-//             .flat_map(|v| {
-//                 let v_id = v.id();
-//                 v.edges("follows", Direction::OUT).flat_map(move |edge_1| {
-//                     edge_1
-//                         .dst()
-//                         .edges("follows", Direction::OUT)
-//                         .flat_map(move |edge_2| {
-//                             edge_2
-//                                 .dst()
-//                                 .edges("follows", Direction::OUT)
-//                                 .filter(move |e| e.dst_id() == v_id)
-//                                 .map(move |edge_3| {
-//                                     (v_id, edge_2.src_id(), edge_2.dst_id(), edge_3.dst_id())
-//                                 })
-//                         })
-//                 })
-//             })
-//             .collect_vec();
+        let res = g
+            .locked_vertices()
+            .flat_map(|v| {
+                let v_id = v.id();
+                v.edges(Some("follows"), Direction::OUT).flat_map(move |edge_1| {
+                    edge_1
+                        .dst()
+                        .edges(Some("follows"), Direction::OUT)
+                        .flat_map(move |edge_2| {
+                            edge_2
+                                .dst()
+                                .edges(Some("follows"), Direction::OUT)
+                                .filter(move |e| e.dst_id() == v_id)
+                                .map(move |edge_3| {
+                                    (v_id, edge_2.src_id(), edge_2.dst_id(), edge_3.dst_id())
+                                })
+                        })
+                })
+            })
+            .collect_vec();
 
-//         assert_eq!(
-//             res,
-//             vec![
-//                 (0.into(), 1.into(), 2.into(), 0.into()),
-//                 (1.into(), 2.into(), 0.into(), 1.into()),
-//                 (2.into(), 0.into(), 1.into(), 2.into()),
-//             ]
-//         );
-//     }
+        assert_eq!(
+            res,
+            vec![
+                (0.into(), 1.into(), 2.into(), 0.into()),
+                (1.into(), 2.into(), 0.into(), 1.into()),
+                (2.into(), 0.into(), 1.into(), 2.into()),
+            ]
+        );
+    }
 
-//     #[test]
-//     fn test_chaining_vertex_ops() {
-//         let g: TGraph<4> = TGraph::default();
+    #[test]
+    fn test_chaining_vertex_ops() {
+        let g: TGraph<16> = TGraph::default();
 
-//         let ts = 1;
+        g.add_edge(1, 1, 2, &vec![], None);
+        g.add_edge(2, 1, 3, &vec![], None);
+        g.add_edge(3, 2, 1, &vec![], None);
+        g.add_edge(4, 3, 2, &vec![], None);
 
-//         g.add_edge(ts, 1, 2, "follows");
-//         g.add_edge(ts, 2, 3, "follows");
-//         g.add_edge(ts, 3, 1, "follows");
-
-//         let vertex = g.vertices();
-
-//         // let hello = vertex.ids();
-//         let hello_edges = vertex.neighbours().neighbours();
-
-//         let v = g.vertex(1.into());
-//         let what_are_you = v.ids();
-//     }
-// }
+        for v_id in 0..3{
+            let v = g.vertex(v_id.into());
+            let edges = v.edges(None, Direction::BOTH).map(|e| (e.src_id(), e.dst_id())).collect_vec();
+            println!("v: {:?} edges: {:?}", v_id, edges);
+        }
+    }
+}
