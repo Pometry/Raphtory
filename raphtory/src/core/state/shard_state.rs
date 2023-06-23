@@ -147,6 +147,7 @@ impl<CS: ComputeState + Send + Clone> ShardComputeState<CS> {
     ) where
         A: StateType,
     {
+
         let state = self
             .states
             .entry(agg_ref.id())

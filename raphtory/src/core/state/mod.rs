@@ -17,7 +17,7 @@ mod state_test {
     use crate::{
         core::state::{
             accumulator_id::accumulators,
-            compute_state::{ComputeStateMap, ComputeStateVec},
+            compute_state::ComputeStateVec,
             container::merge_2_vecs,
             shard_state::ShardComputeState,
             shuffle_state::ShuffleComputeState,
@@ -95,7 +95,7 @@ mod state_test {
 
         let avg = accumulators::avg(0);
 
-        let mut state_map: ShardComputeState<ComputeStateMap> = ShardComputeState::new();
+        let mut state_map: ShardComputeState<ComputeStateVec> = ShardComputeState::new();
 
         // create random vec of numbers
         let mut rng = rand::thread_rng();
@@ -108,9 +108,9 @@ mod state_test {
         }
 
         for a in vec {
+            state_map.accumulate_into(0, 0, a, &avg);
             state_map.accumulate_into(0, 1, a, &avg);
             state_map.accumulate_into(0, 2, a, &avg);
-            state_map.accumulate_into(0, 3, a, &avg);
         }
 
         let actual_avg = sum / 100;
@@ -164,7 +164,7 @@ mod state_test {
 
         let sum = accumulators::sum(0);
 
-        let mut state: ShardComputeState<ComputeStateMap> = ShardComputeState::new();
+        let mut state: ShardComputeState<ComputeStateVec> = ShardComputeState::new();
 
         // create random vec of numbers
         let mut rng = rand::thread_rng();
@@ -177,9 +177,9 @@ mod state_test {
         }
 
         for a in vec {
+            state.accumulate_into(0, 0, a, &sum);
             state.accumulate_into(0, 1, a, &sum);
             state.accumulate_into(0, 2, a, &sum);
-            state.accumulate_into(0, 3, a, &sum);
         }
 
         let mut actual = state.finalize(0, &sum, 0, &g).into_iter().collect_vec();
@@ -236,9 +236,6 @@ mod state_test {
             part2_state.accumulate_into(0, 2, a, &sum);
         }
 
-        println!("part1_state: {:?}", part1_state);
-        println!("part2_state: {:?}", part2_state);
-
         let mut actual: Vec<(String, i32)> = part1_state.clone()
             .finalize(&sum, 0, &g, |c| c)
             .into_iter()
@@ -265,6 +262,7 @@ mod state_test {
             actual,
             vec![
                 ("1".to_string(), actual_sum_2),
+                ("2".to_string(), 0),
                 ("3".to_string(), actual_sum_2)
             ]
         );
@@ -294,8 +292,8 @@ mod state_test {
         let sum = accumulators::sum(0);
         let min = accumulators::min(1);
 
-        let mut part1_state: ShuffleComputeState<ComputeStateMap> = ShuffleComputeState::new(2, 2);
-        let mut part2_state: ShuffleComputeState<ComputeStateMap> = ShuffleComputeState::new(2, 2);
+        let mut part1_state: ShuffleComputeState<ComputeStateVec> = ShuffleComputeState::new(2, 2);
+        let mut part2_state: ShuffleComputeState<ComputeStateVec> = ShuffleComputeState::new(2, 2);
 
         // create random vec of numbers
         let mut rng = rand::thread_rng();
@@ -377,6 +375,7 @@ mod state_test {
             actual,
             vec![
                 ("1".to_string(), actual_sum_2),
+                ("2".to_string(), 0),
                 ("3".to_string(), actual_sum_2)
             ]
         );
@@ -392,6 +391,7 @@ mod state_test {
             actual,
             vec![
                 ("1".to_string(), actual_min_2),
+                ("2".to_string(), i32::MAX),
                 ("3".to_string(), actual_min_2)
             ]
         );

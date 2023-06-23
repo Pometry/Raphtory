@@ -656,7 +656,7 @@ impl<'a, 'b, A: StateType, IN, OUT, ACC: Accumulator<A, IN, OUT>, CS: ComputeSta
     pub fn read_ref(&self) -> Option<&A> {
         self.state
             .shard()
-            .read_ref_with_pid(self.ss, self.gid, (*self.v_ref).into(), &self.acc_id)
+            .read_ref(self.ss, (*self.v_ref).into(), &self.acc_id)
     }
 }
 

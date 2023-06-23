@@ -229,28 +229,15 @@ impl<CS: ComputeState + Send + Sync> ShuffleComputeState<CS> {
     pub fn read_ref<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
         &self,
         ss: usize,
-        into: usize,
-        agg_ref: &AccId<A, IN, OUT, ACC>,
-    ) -> Option<&A>
-    where
-        A: StateType,
-    {
-        let part = get_shard_id_from_global_vid(into as u64, self.parts.len());
-        self.parts[part].read_ref::<A, IN, OUT, ACC>(into, agg_ref.id(), ss)
-    }
-
-    pub fn read_ref_with_pid<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
-        &self,
-        ss: usize,
-        g_id: u64,
         p_id: usize,
         agg_ref: &AccId<A, IN, OUT, ACC>,
     ) -> Option<&A>
     where
         A: StateType,
     {
-        let part = get_shard_id_from_global_vid(g_id, self.parts.len());
-        self.parts[part].read_ref::<A, IN, OUT, ACC>(p_id, agg_ref.id(), ss)
+
+        let morcel_id = p_id / self.morcel_size;
+        self.parts[morcel_id].read_ref::<A, IN, OUT, ACC>(p_id, agg_ref.id(), ss)
     }
 
     pub fn read_global<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
