@@ -1,14 +1,11 @@
 use crate::core::edge_ref::EdgeRef;
 use crate::core::vertex_ref::{LocalVertexRef, VertexRef};
-use crate::core::{Direction, Prop};
+use crate::core::Direction;
 use crate::db::view_api::internal::{
-    DelegateCoreOps, DelegateTimeSemantics, GraphOps, TimeSemantics,
+    GraphOps, InheritCoreOps, InheritMaterialize, InheritTimeSemantics, Inheritable,
 };
-use crate::db::view_api::{BoxedIter, GraphViewOps};
-use itertools::Itertools;
-use rayon::prelude::*;
+use crate::db::view_api::GraphViewOps;
 use rustc_hash::FxHashSet;
-use std::ops::Range;
 use std::sync::Arc;
 
 #[derive(Clone, Debug)]
@@ -17,13 +14,19 @@ pub struct VertexSubgraph<G: GraphViewOps> {
     vertices: Arc<FxHashSet<LocalVertexRef>>,
 }
 
-impl<G: GraphViewOps> DelegateCoreOps for VertexSubgraph<G> {
-    type Internal = G;
+impl<G: GraphViewOps> Inheritable for VertexSubgraph<G> {
+    type Base = G;
 
-    fn graph(&self) -> &Self::Internal {
+    fn base(&self) -> &Self::Base {
         &self.graph
     }
 }
+
+impl<G: GraphViewOps> InheritCoreOps for VertexSubgraph<G> {}
+
+impl<G: GraphViewOps> InheritTimeSemantics for VertexSubgraph<G> {}
+
+impl<G: GraphViewOps> InheritMaterialize for VertexSubgraph<G> {}
 
 impl<G: GraphViewOps> VertexSubgraph<G> {
     pub(crate) fn new(graph: G, vertices: FxHashSet<LocalVertexRef>) -> Self {
@@ -31,14 +34,6 @@ impl<G: GraphViewOps> VertexSubgraph<G> {
             graph,
             vertices: Arc::new(vertices),
         }
-    }
-}
-
-impl<G: GraphViewOps> DelegateTimeSemantics for VertexSubgraph<G> {
-    type Internal = G;
-
-    fn graph(&self) -> &Self::Internal {
-        &self.graph
     }
 }
 
@@ -150,6 +145,6 @@ mod subgraph_tests {
         g.add_vertex(1, 1, []).unwrap();
         g.add_vertex(2, 2, []).unwrap();
         let sg = g.subgraph([1, 2]);
-        assert_eq!(sg.materialize().unwrap(), sg);
+        assert_eq!(sg.materialize().unwrap().into_events().unwrap(), sg);
     }
 }

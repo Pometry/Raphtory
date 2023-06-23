@@ -20,7 +20,7 @@
 
 use crate::core::tgraph::TemporalGraph;
 use crate::core::tgraph_shard::{LockedView, TGraphShard};
-use crate::core::time::{IntoTimeWithFormat, TryIntoTime};
+use crate::core::time::TryIntoTime;
 use crate::core::{
     edge_ref::EdgeRef, tgraph_shard::errors::GraphError, utils, vertex::InputVertex,
     vertex_ref::VertexRef, Direction, Prop, PropUnwrap,
@@ -31,15 +31,14 @@ use crate::core::tprop::TProp;
 use crate::core::vertex_ref::LocalVertexRef;
 use crate::db::graph_immutable::ImmutableGraph;
 use crate::db::mutation_api::internal::InternalPropertyAdditionOps;
-use crate::db::mutation_api::internal::{
-    DelegateAdditionOps, DelegatePropertyAdditionOps, InternalAdditionOps,
-};
+use crate::db::mutation_api::internal::{DelegatePropertyAdditionOps, InternalAdditionOps};
 use crate::db::mutation_api::internal::{
     InheritAdditionOps, InheritPropertyAdditionOps, InternalDeletionOps,
 };
 use crate::db::view_api::internal::time_semantics::TimeSemantics;
 use crate::db::view_api::internal::{
-    CoreDeletionOps, CoreGraphOps, DynamicGraph, GraphOps, InheritViewOps, Inheritable, IntoDynamic,
+    CoreDeletionOps, CoreGraphOps, DynamicGraph, GraphOps, InheritViewOps, Inheritable,
+    InternalMaterialize, IntoDynamic, MaterializedGraph,
 };
 use crate::db::view_api::*;
 use itertools::Itertools;
@@ -65,7 +64,7 @@ pub struct InternalGraph {
     pub(crate) layer_ids: Arc<parking_lot::RwLock<FxHashMap<String, usize>>>,
 }
 
-fn graph_equal<G1: GraphViewOps, G2: GraphViewOps>(g1: &G1, g2: &G2) -> bool {
+pub fn graph_equal<G1: GraphViewOps, G2: GraphViewOps>(g1: &G1, g2: &G2) -> bool {
     if g1.num_vertices() == g2.num_vertices() && g1.num_edges() == g2.num_edges() {
         g1.vertices().id().all(|v| g2.has_vertex(v)) && // all vertices exist in other 
             g1.edges().explode().count() == g2.edges().explode().count() && // same number of exploded edges
@@ -246,6 +245,16 @@ impl<G: GraphViewOps> PartialEq<G> for InternalGraph {
         } else {
             false
         }
+    }
+}
+
+impl InternalMaterialize for InternalGraph {
+    fn new_base_graph(&self, graph: InternalGraph) -> MaterializedGraph {
+        MaterializedGraph::EventGraph(Graph(Arc::new(graph)))
+    }
+
+    fn include_deletions(&self) -> bool {
+        false
     }
 }
 

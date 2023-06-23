@@ -7,10 +7,10 @@ use std::collections::HashMap;
 use crate::core::time::IntoTime;
 use crate::core::vertex_ref::{LocalVertexRef, VertexRef};
 use crate::db::edge::EdgeView;
-use crate::db::graph::Graph;
+use crate::db::graph::{Graph, InternalGraph};
 use crate::db::graph_layer::LayeredGraph;
 use crate::db::graph_window::WindowedGraph;
-use crate::db::mutation_api::{AdditionOps, PropertyAdditionOps};
+use crate::db::mutation_api::{AdditionOps, DeletionOps, PropertyAdditionOps};
 use crate::db::subgraph_vertex::VertexSubgraph;
 use crate::db::vertex::VertexView;
 use crate::db::vertices::Vertices;
@@ -164,7 +164,7 @@ pub trait GraphViewOps: BoxableGraphView + Clone + Sized {
     ///
     /// # Returns
     /// Graph - Returns clone of the graph
-    fn materialize(&self) -> Result<Graph, GraphError>;
+    fn materialize(&self) -> Result<MaterializedGraph, GraphError>;
 }
 
 impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
@@ -317,8 +317,8 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
         self.static_props()
     }
 
-    fn materialize(&self) -> Result<Graph, GraphError> {
-        let g = Graph::new(self.num_shards());
+    fn materialize(&self) -> Result<MaterializedGraph, GraphError> {
+        let g = InternalGraph::new(self.num_shards());
         for v in self.vertices().iter() {
             for h in v.history() {
                 g.add_vertex(h, v.id(), [])?;
@@ -346,13 +346,18 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
                     layer,
                 )?;
             }
+            if self.include_deletions() {
+                for t in self.edge_deletion_history(e.edge) {
+                    g.delete_edge(t, e.src().id(), e.dst().id(), layer)?;
+                }
+            }
 
             g.add_edge_properties(e.src().id(), e.dst().id(), e.static_properties(), layer)?;
         }
 
         g.add_static_properties(self.static_properties())?;
 
-        Ok(g)
+        Ok(self.new_base_graph(g))
     }
 }
 

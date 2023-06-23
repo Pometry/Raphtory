@@ -43,7 +43,9 @@ use crate::core::time::IntoTime;
 use crate::core::vertex_ref::{LocalVertexRef, VertexRef};
 use crate::core::{Direction, Prop};
 use crate::db::view_api::internal::time_semantics::TimeSemantics;
-use crate::db::view_api::internal::{DelegateCoreOps, GraphOps, GraphWindowOps};
+use crate::db::view_api::internal::{
+    DelegateCoreOps, GraphOps, GraphWindowOps, InheritCoreOps, InheritMaterialize, Inheritable,
+};
 use crate::db::view_api::{BoxedIter, GraphViewOps};
 use std::cmp::{max, min};
 use std::ops::Range;
@@ -58,6 +60,18 @@ pub struct WindowedGraph<G: GraphViewOps> {
     /// The exclusive end time of the window.
     pub t_end: i64,
 }
+
+impl<G: GraphViewOps> Inheritable for WindowedGraph<G> {
+    type Base = G;
+
+    fn base(&self) -> &Self::Base {
+        &self.graph
+    }
+}
+
+impl<G: GraphViewOps> InheritCoreOps for WindowedGraph<G> {}
+
+impl<G: GraphViewOps> InheritMaterialize for WindowedGraph<G> {}
 
 impl<G: GraphViewOps> TimeSemantics for WindowedGraph<G> {
     fn vertex_earliest_time(&self, v: LocalVertexRef) -> Option<i64> {
@@ -168,7 +182,6 @@ impl<G: GraphViewOps> TimeSemantics for WindowedGraph<G> {
             .edge_latest_time_window(e, self.actual_start(w.start)..self.actual_end(w.end))
     }
 
-
     fn edge_deletion_history(&self, e: EdgeRef) -> Vec<i64> {
         self.graph
             .edge_deletion_history_window(e, self.t_start..self.t_end)
@@ -230,14 +243,6 @@ impl<G: GraphViewOps> TimeSemantics for WindowedGraph<G> {
     fn temporal_edge_prop_vec(&self, e: EdgeRef, name: &str) -> Vec<(i64, Prop)> {
         self.graph
             .temporal_edge_prop_vec_window(e, name, self.t_start, self.t_end)
-    }
-}
-
-impl<G: GraphViewOps> DelegateCoreOps for WindowedGraph<G> {
-    type Internal = G;
-
-    fn graph(&self) -> &Self::Internal {
-        &self.graph
     }
 }
 

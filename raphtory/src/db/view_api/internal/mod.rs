@@ -6,9 +6,9 @@ mod graph_properties_ops;
 mod graph_window_ops;
 mod inherit;
 mod into_dynamic;
+mod materialize;
 pub(crate) mod time_semantics;
 mod wrapped_graph;
-mod materialize;
 
 pub use core_deletion_ops::*;
 pub use core_ops::*;
@@ -18,17 +18,26 @@ pub use graph_properties_ops::GraphPropertiesOps;
 pub use graph_window_ops::GraphWindowOps;
 pub use inherit::Inheritable;
 pub use into_dynamic::IntoDynamic;
+pub use materialize::*;
 use std::sync::Arc;
 pub use time_semantics::*;
 
 /// Marker trait to indicate that an object is a valid graph view
 pub trait BoxableGraphView:
-    CoreGraphOps + GraphOps + TimeSemantics + Send + Sync + 'static
+    CoreGraphOps + GraphOps + TimeSemantics + InternalMaterialize + Send + Sync + 'static
 {
 }
 
-impl<G: CoreGraphOps + GraphOps + TimeSemantics + Send + Sync + 'static + ?Sized> BoxableGraphView
-    for G
+impl<
+        G: CoreGraphOps
+            + GraphOps
+            + TimeSemantics
+            + InternalMaterialize
+            + Send
+            + Sync
+            + 'static
+            + ?Sized,
+    > BoxableGraphView for G
 {
 }
 
@@ -38,6 +47,7 @@ impl<G: InheritViewOps> InheritCoreDeletionOps for G {}
 impl<G: InheritViewOps> InheritGraphOps for G {}
 impl<G: InheritViewOps + CoreGraphOps + GraphOps> InheritTimeSemantics for G {}
 impl<G: InheritViewOps> InheritCoreOps for G {}
+impl<G: InheritViewOps> InheritMaterialize for G {}
 
 pub type DynamicGraph = Arc<dyn BoxableGraphView>;
 

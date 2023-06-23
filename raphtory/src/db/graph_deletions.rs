@@ -2,19 +2,19 @@ use crate::core::edge_ref::EdgeRef;
 use crate::core::timeindex::TimeIndexOps;
 use crate::core::vertex_ref::LocalVertexRef;
 use crate::core::{Direction, Prop};
-use crate::db::graph::InternalGraph;
+use crate::db::graph::{graph_equal, InternalGraph};
 use crate::db::mutation_api::internal::InheritMutationOps;
 use crate::db::view_api::internal::{
     CoreDeletionOps, CoreGraphOps, GraphOps, InheritCoreDeletionOps, InheritCoreOps,
-    InheritGraphOps, Inheritable, TimeSemantics,
+    InheritGraphOps, Inheritable, InternalMaterialize, MaterializedGraph, TimeSemantics,
 };
-use crate::db::view_api::BoxedIter;
+use crate::db::view_api::{BoxedIter, GraphViewOps};
 use std::cmp::min;
 use std::iter;
 use std::ops::Range;
 use std::sync::Arc;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct GraphWithDeletions {
     graph: Arc<InternalGraph>,
 }
@@ -42,11 +42,29 @@ impl GraphWithDeletions {
     }
 }
 
+impl<G: GraphViewOps> PartialEq<G> for GraphWithDeletions {
+    fn eq(&self, other: &G) -> bool {
+        graph_equal(self, other)
+    }
+}
+
 impl Inheritable for GraphWithDeletions {
     type Base = InternalGraph;
 
     fn base(&self) -> &Self::Base {
         &self.graph
+    }
+}
+
+impl InternalMaterialize for GraphWithDeletions {
+    fn new_base_graph(&self, graph: InternalGraph) -> MaterializedGraph {
+        MaterializedGraph::PersistentGraph(GraphWithDeletions {
+            graph: Arc::new(graph),
+        })
+    }
+
+    fn include_deletions(&self) -> bool {
+        true
     }
 }
 
@@ -288,9 +306,9 @@ mod test_deletions {
 
     #[test]
     fn test_materialize_only_deletion() {
-        let g = Graph::new(1);
+        let g = GraphWithDeletions::new(1);
         g.delete_edge(1, 1, 2, None).unwrap();
 
-        assert_eq!(g.materialize().unwrap(), g);
+        assert_eq!(g.materialize().unwrap().into_persistent().unwrap(), g);
     }
 }
