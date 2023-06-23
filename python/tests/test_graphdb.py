@@ -4,7 +4,7 @@ import time
 import datetime
 
 import pytest
-from raphtory import Graph
+from raphtory import Graph, GraphWithDeletions
 from raphtory import algorithms
 from raphtory import graph_loader
 import tempfile
@@ -12,16 +12,18 @@ from math import isclose
 import datetime
 
 
+edges = [
+    (1, 1, 2),
+    (2, 1, 3),
+    (-1, 2, 1),
+    (0, 1, 1),
+    (7, 3, 2),
+    (1, 1, 1)
+]
+
+
 def create_graph(num_shards):
     g = Graph(num_shards)
-    edges = [
-        (1, 1, 2),
-        (2, 1, 3),
-        (-1, 2, 1),
-        (0, 1, 1),
-        (7, 3, 2),
-        (1, 1, 1)
-    ]
 
     g.add_vertex(0, 1, {"type": "wallet", "cost": 99.5})
     g.add_vertex(-1, 2, {"type": "wallet", "cost": 10.0})
@@ -31,6 +33,22 @@ def create_graph(num_shards):
         g.add_edge(e[0], e[1], e[2], {"prop1": 1,
                                       "prop2": 9.8, "prop3": "test"})
 
+    return g
+
+
+def create_graph_with_deletions(num_shards):
+    g = GraphWithDeletions(num_shards)
+
+    g.add_vertex(0, 1, {"type": "wallet", "cost": 99.5})
+    g.add_vertex(-1, 2, {"type": "wallet", "cost": 10.0})
+    g.add_vertex(6, 3, {"type": "wallet", "cost": 76})
+
+    for e in edges:
+        g.add_edge(e[0], e[1], e[2], {"prop1": 1,
+                                      "prop2": 9.8, "prop3": "test"})
+
+    g.add_edge_properties(edges[0][1], edges[0][2], {"static": "test"})
+    g.delete_edge(10, edges[0][1], edges[0][2])
     return g
 
 
@@ -136,8 +154,8 @@ def test_windowed_graph_get_edge():
     view = g.window(min_size, max_size)
 
     assert (view.edge(1, 3).src().id(), view.edge(1, 3).dst().id()) == (1, 3)
-    assert view.edge(2, 3) == None
-    assert view.edge(6, 5) == None
+    assert view.edge(2, 3) is None
+    assert view.edge(6, 5) is None
 
     assert (view.vertex(1).id(), view.vertex(3).id()) == (1, 3)
 
@@ -145,7 +163,7 @@ def test_windowed_graph_get_edge():
     assert (view.edge(1, 3).src().id(), view.edge(1, 3).dst().id()) == (1, 3)
 
     view = g.window(3, 7)
-    assert view.edge(1, 3) == None
+    assert view.edge(1, 3) is None
 
 
 def test_windowed_graph_edges():
@@ -1297,3 +1315,15 @@ def test_materialize_graph():
     mg.add_static_property(sprop2)
     sprop.update(sprop2)
     assert mg.static_properties() == sprop
+
+
+def test_deletions():
+    g = create_graph_with_deletions(2)
+    for e in edges:
+        assert g.at(e[0]).has_edge(e[1], e[2])
+
+    assert not g.window(start=11).has_edge(edges[0][1], edges[0][2])
+    for e in edges[1:]:
+        assert g.window(start=11).has_edge(e[1], e[2])
+
+    assert list(g.edge(edges[0][1], edges[0][2]).explode().latest_time()) == [10]

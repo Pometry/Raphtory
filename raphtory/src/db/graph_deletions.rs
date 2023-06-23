@@ -12,6 +12,7 @@ use crate::db::view_api::internal::{
 };
 use crate::db::view_api::{BoxedIter, GraphViewOps};
 use crate::prelude::Graph;
+use num_traits::Saturating;
 use std::cmp::min;
 use std::fmt::{Display, Formatter};
 use std::iter;
@@ -52,7 +53,7 @@ impl GraphWithDeletions {
 
         let first_addition = additions.first();
         let first_deletion = deletions.first();
-        let last_addition_before_start = additions.range(i64::MIN..t + 1).last();
+        let last_addition_before_start = additions.range(i64::MIN..t.saturating_add(1)).last();
         let last_deletion_before_start = deletions.range(i64::MIN..t).last();
 
         // None is less than any value (see test below)
@@ -228,11 +229,16 @@ impl TimeSemantics for GraphWithDeletions {
 
     fn edge_latest_time(&self, e: EdgeRef) -> Option<i64> {
         match e.time() {
-            Some(t) => min(
-                self.edge_additions(e).range(t + 1..i64::MAX).first(),
-                self.edge_deletions(e).range(t + 1..i64::MAX).first(),
-            )
-            .or(Some(i64::MAX)),
+            Some(t) => Some(min(
+                self.edge_additions(e)
+                    .range(t.saturating_add(1)..i64::MAX)
+                    .first()
+                    .unwrap_or(i64::MAX),
+                self.edge_deletions(e)
+                    .range(t.saturating_add(1)..i64::MAX)
+                    .first()
+                    .unwrap_or(i64::MAX),
+            )),
             None => {
                 if self.edge_alive_at(e, i64::MAX) {
                     Some(i64::MAX)
@@ -245,11 +251,16 @@ impl TimeSemantics for GraphWithDeletions {
 
     fn edge_latest_time_window(&self, e: EdgeRef, w: Range<i64>) -> Option<i64> {
         match e.time() {
-            Some(t) => min(
-                self.edge_additions(e).range(t + 1..w.end).first(),
-                self.edge_deletions(e).range(t + 1..w.end).first(),
-            )
-            .or(Some(w.end)),
+            Some(t) => Some(min(
+                self.edge_additions(e)
+                    .range(t + 1..w.end)
+                    .first()
+                    .unwrap_or(w.end - 1),
+                self.edge_deletions(e)
+                    .range(t + 1..w.end)
+                    .first()
+                    .unwrap_or(w.end - 1),
+            )),
             None => {
                 if self.edge_alive_at(e, w.end - 1) {
                     Some(w.end - 1)
@@ -327,13 +338,16 @@ mod test_deletions {
     use crate::db::graph_deletions::GraphWithDeletions;
     use crate::db::mutation_api::{AdditionOps, DeletionOps};
     use crate::db::view_api::*;
+    use itertools::Itertools;
+    use std::cmp::min;
 
     #[test]
     fn option_partial_ord() {
         // None is less than any value
         assert!(Some(1) > None);
         assert!(!(None::<i64> > None));
-        assert!(!(None::<i64> < None))
+        assert!(!(None::<i64> < None));
+        assert_eq!(min(None, Some(1)), Some(1));
     }
 
     #[test]
@@ -396,5 +410,15 @@ mod test_deletions {
             .into_persistent()
             .unwrap();
         assert_eq!(gm, g.window(3, 5))
+    }
+
+    #[test]
+    fn test_exploded_latest_time() {
+        let g = GraphWithDeletions::new(1);
+        g.add_edge(0, 1, 2, [], None).unwrap();
+        g.delete_edge(10, 1, 2, None).unwrap();
+        let e = g.edge(1, 2, None).unwrap();
+        assert_eq!(e.latest_time(), Some(10));
+        assert_eq!(e.explode().latest_time().collect_vec(), vec![Some(10)]);
     }
 }
