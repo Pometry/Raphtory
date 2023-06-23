@@ -48,7 +48,7 @@ impl<'a, const N: usize> Iterator for Paged<'a, N> {
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(t) = self.data.get(self.i) {
             self.i += 1;
-            let e_id = self.guard.edge_ref(t.1);
+            let e_id = self.guard.edge_ref(t.1, self.graph);
             let edge = EdgeView::from_edge_ids(self.src, t.0, e_id, self.dir, self.graph);
             return Some(edge);
         }
@@ -68,7 +68,7 @@ impl<'a, const N: usize> Iterator for Paged<'a, N> {
             return None;
         } else {
             self.i = 1;
-            let e_id = self.guard.edge_ref(self.data[0].1);
+            let e_id = self.guard.edge_ref(self.data[0].1, self.graph);
             return Some(EdgeView::from_edge_ids(
                 self.src,
                 self.data[0].0,

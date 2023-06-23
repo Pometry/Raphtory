@@ -334,13 +334,6 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
             .and_then(|node| node.timestamps().range(t_start..t_end).last())
     }
 
-    fn temporal_prop_vec(&self, name: &str) -> Vec<(i64, Prop)> {
-        todo!()
-    }
-
-    fn temporal_prop_vec_window(&self, name: &str, t_start: i64, t_end: i64) -> Vec<(i64, Prop)> {
-        todo!()
-    }
 
     fn temporal_vertex_prop_vec(&self, v: VID, name: &str) -> Vec<(i64, Prop)> {
         self.vertex(v).temporal_properties(name, None).collect()
@@ -368,10 +361,6 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
         self.prop_vec_window(e.pid(), name, t_start, t_end, e.layer())
     }
 
-    fn temporal_edge_prop_vec(&self, e: EdgeRef, name: &str) -> Vec<(i64, Prop)> {
-        todo!()
-    }
-
     fn vertex_history(&self, v: VID) -> Vec<i64> {
         self.node_entry(v).timestamps().iter().copied().collect()
     }
@@ -383,5 +372,17 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
             .iter()
             .copied()
             .collect()
+    }
+
+    fn temporal_edge_prop_vec(&self, e: EdgeRef, name: &str) -> Vec<(i64, Prop)> {
+        self.edge(e.pid()).temporal_properties(name, e.layer(), None)
+    }
+
+    fn temporal_prop_vec(&self, name: &str) -> Vec<(i64, Prop)> {
+        todo!()
+    }
+
+    fn temporal_prop_vec_window(&self, name: &str, t_start: i64, t_end: i64) -> Vec<(i64, Prop)> {
+        todo!()
     }
 }

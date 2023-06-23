@@ -109,9 +109,9 @@ impl<'a, const N: usize> VRef<'a, N> {
         }
     }
 
-    fn edge_ref(&self, edge_id: EID) -> ERef<'a, N> {
+    fn edge_ref(&self, edge_id: EID, graph: &'a TGraph<N>) -> ERef<'a, N> {
         match self {
-            VRef::RefT(_) | VRef::Entry(_) => ERef::EId(edge_id),
+            VRef::RefT(_) | VRef::Entry(_) => ERef::ERef(graph.edge_entry(edge_id)),
             VRef::LockedEntry(ge) => ERef::ELock {
                 lock: ge.locked_gs().clone(),
                 eid: edge_id,

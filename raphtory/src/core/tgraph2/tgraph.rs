@@ -241,17 +241,6 @@ impl<const N: usize> InnerTemporalGraph<N> {
         Ok(v_id.into())
     }
 
-    pub fn add_edge<V: InputVertex, T: TryIntoTime + Debug>(
-        &self,
-        t: T,
-        src: V,
-        dst: V,
-        props: &Vec<(String, Prop)>,
-        layer: Option<&str>,
-    ) -> Result<(), GraphError> {
-        self.add_edge_with_props(t, src, dst, props.clone(), layer)
-    }
-
     pub fn add_vertex_properties<V: InputVertex>(
         &self,
         v: V,
@@ -411,12 +400,12 @@ impl<const N: usize> InnerTemporalGraph<N> {
         }
     }
 
-    pub fn add_edge_with_props<V: InputVertex, T: TryIntoTime + Debug>(
+    pub fn add_edge<V: InputVertex, T: TryIntoTime + Debug>(
         &self,
         t: T,
         src: V,
         dst: V,
-        props: Vec<(String, Prop)>,
+        props: &Vec<(String, Prop)>,
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
         let t = t.try_into_time()?;
@@ -427,7 +416,7 @@ impl<const N: usize> InnerTemporalGraph<N> {
 
         let props = self
             .edge_props_meta
-            .resolve_prop_ids(props, false)
+            .resolve_prop_ids(props.clone(), false)
             .collect::<Vec<_>>();
 
         // get the entries for the src and dst nodes
@@ -476,18 +465,18 @@ impl<const N: usize> InnerTemporalGraph<N> {
         self.storage.locked_edges()
     }
 
-    pub(crate) fn locked_edge_refs(
-        &self,
-        layer: Option<usize>,
-    ) -> impl Iterator<Item = EdgeRef> + Send {
-        self.storage.locked_edges().map(|edge| EdgeRef::LocalOut {
-            e_pid: edge.e_id(),
-            layer_id: 0,
-            src_pid: edge.src(),
-            dst_pid: edge.dst(),
-            time: None,
-        })
-    }
+    // pub(crate) fn locked_edge_refs(
+    //     &self,
+    //     layer: Option<usize>,
+    // ) -> impl Iterator<Item = EdgeRef> + Send {
+    //     self.storage.locked_edges().map(|edge| EdgeRef::LocalOut {
+    //         e_pid: edge.e_id(),
+    //         layer_id: 0,
+    //         src_pid: edge.src(),
+    //         dst_pid: edge.dst(),
+    //         time: None,
+    //     })
+    // }
 
     pub fn find_global_id(&self, v: VID) -> Option<u64> {
         let node = self.storage.get_node(v.into());

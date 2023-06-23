@@ -1,4 +1,7 @@
-use std::{ops::Range, sync::Arc};
+use std::{
+    ops::{Deref, Range},
+    sync::Arc,
+};
 
 use crate::{
     core::{
@@ -20,7 +23,6 @@ use super::{
 
 #[derive(Debug)]
 pub(crate) enum ERef<'a, const N: usize> {
-    EId(EID),
     ERef(Entry<'a, EdgeStore<N>, N>),
     ELock {
         lock: Arc<LockedGraphStorage<N>>,
@@ -32,7 +34,6 @@ pub(crate) enum ERef<'a, const N: usize> {
 impl<'a, const N: usize> ERef<'a, N> {
     pub(crate) fn edge_id(&self) -> EID {
         match self {
-            ERef::EId(eid) => *eid,
             ERef::ELock { lock: _, eid } => *eid,
             ERef::ERef(es) => es.index().into(),
         }
@@ -40,11 +41,21 @@ impl<'a, const N: usize> ERef<'a, N> {
 
     fn vertex_ref(&self, src: VID) -> Option<VRef<'a, N>> {
         match self {
-            ERef::EId(_) => None,
             ERef::ELock { lock, eid } => {
                 Some(VRef::LockedEntry(GraphEntry::new(lock.clone(), src.into())))
             }
-            ERef::ERef(_) => todo!(),
+            _ => None,
+        }
+    }
+}
+
+impl<'a, const N: usize> Deref for ERef<'a, N> {
+    type Target = EdgeStore<N>;
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            ERef::ERef(e) => e,
+            ERef::ELock { lock, eid } => lock.get_edge((*eid).into()),
         }
     }
 }
@@ -86,6 +97,22 @@ impl<'a, const N: usize> PartialOrd for EdgeView<'a, N> {
 }
 
 impl<'a, const N: usize> EdgeView<'a, N> {
+    pub fn temporal_properties(
+        &'a self,
+        name: &str,
+        layer: usize,
+        window: Option<Range<i64>>,
+    ) -> Vec<(i64, Prop)> {
+        let prop_id = self.graph.edge_props_meta.resolve_prop_id(name, false);
+        let store = &self.edge_id;
+        let out = store
+            .layer(layer)
+            .unwrap()
+            .temporal_properties(prop_id, window)
+            .collect();
+        out
+    }
+
     pub(crate) fn edge_additions(self, layer_id: usize) -> Option<LockedView<'a, TimeIndex>> {
         match self.edge_id {
             ERef::ERef(entry) => {
@@ -224,11 +251,6 @@ impl<'a, const N: usize> EdgeView<'a, N> {
             ERef::ELock { lock, eid } => {
                 let e = lock.get_edge(self.edge_id().into());
                 e.unsafe_layer(layer_id).timestamps().active(w)
-            }
-            ERef::EId(eid) => {
-                let e = self.graph.edge_entry(*eid);
-                let is_active = e.unsafe_layer(layer_id).timestamps().active(w);
-                is_active
             }
             ERef::ERef(entry) => (*entry).unsafe_layer(layer_id).timestamps().active(w),
         }

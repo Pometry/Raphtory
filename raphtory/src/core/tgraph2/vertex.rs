@@ -18,7 +18,7 @@ use super::{
     node_store::NodeStore,
     tgraph::TGraph,
     tgraph_storage::GraphEntry,
-    VRef, EID, VID,
+    VRef, VID,
 };
 
 pub struct Vertex<'a, const N: usize> {

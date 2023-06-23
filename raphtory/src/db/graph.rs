@@ -480,8 +480,7 @@ mod db_tests {
     fn temporal_props_vertex() {
         let g = Graph::new(0);
 
-        let v1 = g
-            .add_vertex(0, 1, &vec![("cool".to_string(), Prop::Bool(true))])
+        g.add_vertex(0, 1, &vec![("cool".to_string(), Prop::Bool(true))])
             .unwrap();
 
         let v = g.vertex(1).unwrap();
@@ -507,6 +506,18 @@ mod db_tests {
 
         let hist = v.property_history("cool".to_owned());
         assert_eq!(hist, vec![(0, Prop::Bool(true)), (3, Prop::Bool(false))]);
+    }
+
+    #[test]
+    fn temporal_props_edge() {
+        let g = Graph::new(0);
+
+        g.add_edge(1, 0, 1, &vec![("distance".to_string(), Prop::U32(5))], None);
+
+        let e = g.edge(0, 1, None).unwrap();
+
+        let prop = e.property("distance", false).unwrap();
+        assert_eq!(prop, Prop::U32(5));
     }
 
     #[test]

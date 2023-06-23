@@ -1,4 +1,4 @@
-use std::ops::{Deref, DerefMut};
+use std::ops::{Deref, DerefMut, Range};
 
 use itertools::Itertools;
 use rustc_hash::FxHashMap;
@@ -70,6 +70,19 @@ impl EdgeLayer {
     pub(crate) fn temporal_property(&self, prop_id: usize) -> Option<&TProp> {
         self.props.temporal_prop(prop_id)
     }
+
+    pub(crate) fn temporal_properties<'a>(
+        &'a self,
+        prop_id: usize,
+        window: Option<Range<i64>>,
+    ) -> impl Iterator<Item = (i64, Prop)> + 'a {
+        if let Some(window) = window {
+            self.props.temporal_props_window(prop_id, window.start, window.end)
+        } else {
+            self.props.temporal_props(prop_id)
+        }
+    }
+
 }
 
 impl<const N: usize> Into<EdgeRef> for &EdgeStore<N> {
