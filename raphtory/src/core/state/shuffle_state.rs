@@ -182,6 +182,7 @@ impl<CS: ComputeState + Send + Sync> ShuffleComputeState<CS> {
         A: StateType,
     {
         let morcel_id = p_id / self.morcel_size;
+        println!("MS: {} updating {p_id} on morcel_id: {}", self.morcel_size, morcel_id);
         self.parts[morcel_id].accumulate_into(ss, p_id, a, agg_ref)
     }
 
@@ -324,6 +325,7 @@ impl<CS: ComputeState + Send> EvalGlobalState<CS> {
     }
 }
 
+#[derive(Debug)]
 pub struct EvalShardState<G: GraphViewOps, CS: ComputeState + Send> {
     ss: usize,
     g: G,
@@ -357,8 +359,8 @@ impl<G: GraphViewOps, CS: ComputeState + Send> EvalShardState<G, CS> {
         }
     }
 
-    pub fn values(self) -> Shard<CS> {
-        self.shard_states
+    pub fn values(&self) -> &Shard<CS> {
+        &self.shard_states
     }
 }
 

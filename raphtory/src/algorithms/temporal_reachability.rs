@@ -45,7 +45,7 @@ impl Zero for TaintMessage {
     }
 }
 
-pub fn temporally_reachable_nodes<G: GraphViewOps, T: InputVertex>(
+pub fn temporally_reachable_nodes<G: GraphViewOps + std::fmt::Debug, T: InputVertex>(
     g: &G,
     threads: Option<usize>,
     max_hops: usize,
@@ -166,6 +166,8 @@ pub fn temporally_reachable_nodes<G: GraphViewOps, T: InputVertex>(
         vec![Job::new(step2), step3],
         (),
         |_, ess, _, _| {
+
+            println!("ESS {:?}", ess.values());
             ess.finalize(&taint_history, |taint_history| {
                 taint_history
                     .into_iter()
@@ -204,7 +206,7 @@ mod generic_taint_tests {
     ) -> Vec<(String, Vec<(i64, String)>)> {
         let mut results: Vec<(String, Vec<(i64, String)>)> = temporally_reachable_nodes(
             &graph,
-            None,
+            Some(2),
             iter_count,
             start_time,
             infected_nodes,

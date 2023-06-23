@@ -7,9 +7,9 @@
 //! # Examples
 //!
 //! ```rust
-//! use raphtory::db::graph::InternalGraph;
 //! use raphtory::db::view_api::*;
-//! let graph = InternalGraph::new(2);
+//! use raphtory::db::graph::Graph;
+//! let graph = Graph::new(0);
 //! graph.add_vertex(0, "Alice", &vec![]).unwrap();
 //! graph.add_vertex(1, "Bob", &vec![]).unwrap();
 //! graph.add_edge(2, "Alice", "Bob", &vec![], None).unwrap();
@@ -97,9 +97,9 @@ impl Graph {
     ///
     /// # Example
     ///
-    /// ```
-    /// use raphtory::db::graph::InternalGraph;
-    /// // let g = Graph::load_from_file("path/to/graph");
+    /// ```no_run
+    /// use raphtory::db::graph::Graph;
+    /// let g = Graph::load_from_file("path/to/graph");
     /// ```
     pub fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self, Box<bincode::ErrorKind>> {
         Ok(Self(Arc::new(InternalGraph2::load_from_file(path)?)))
