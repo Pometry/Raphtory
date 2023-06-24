@@ -14,7 +14,7 @@ authors:
   - name: Naomi Arnold
     affiliation: 3
   - name: Renaud Lambiotte
-    affiliation: "2, 1"
+    affiliation: "2, 1, 8"
   - name: Haaroon Yousaf
     affiliation: 1
   - name: Lucas Jeub
@@ -61,6 +61,8 @@ affiliations:
    index: 6
  - name: Universidad Politécnica de Madrid, Spain
    index: 7
+ - name: Alan Turing Institute, United Kingdom
+   index: 8
 date: 09 July 2023 
 bibliography: joss-raphtory.bib
 
