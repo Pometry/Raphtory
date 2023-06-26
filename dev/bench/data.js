@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1687428764759,
+  "lastUpdate": 1687781138172,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -3937,6 +3937,60 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions with numeric string input",
             "value": 2782649,
             "range": "± 163675",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97447091+ljeub-pometry@users.noreply.github.com",
+            "name": "ljeub-pometry",
+            "username": "ljeub-pometry"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4f53db429f08f453f9c7121ba2715e3de09b0768",
+          "message": "Feature/graph with deletions (#1065)\n\n* Change time semantics for subgraph and add more tests. Note this makes vertex history behaviour a bit strange for subgraph as it includes timestamps for edges that are outside of the subgraph but there is no easy way to fix this without storing more info during ingestion.\r\n\r\n* start tweaking edge time semantics for exploded edges\r\n\r\n* think about making traits for mutation ops\r\n\r\n* start fleshing out api\r\n\r\n* implement mutations API\r\n\r\n* fix properties and make everything compile again\r\n\r\n* fix python properties conversions so we don't end up with 32bit ints and floats\r\n\r\n* clean up docstrings\r\n\r\n* simplify python wrappers\r\n\r\n* fix add vertex with custom time\r\n\r\n* make inheritance of graph ops easier to use\r\n\r\n* more cleanup and fix js\r\n\r\n* add history methods for deletions\r\n\r\n* fix broken import\r\n\r\n* fix time semantics for exploded edges with deletions and start figuring out materialize with deletions\r\n\r\n* trait cleanup and make materialize work for deletions\r\n\r\n* mayor clean up of imports and fix python\r\n\r\n* more python cleanup\r\n\r\n* fix and cleanup imports\r\n\r\n* clean up python wrappers by implementing pyo3 conversion traits\r\n\r\n* consistent name\r\n\r\n* add python graph with deletions\r\n\r\n* expose GraphWithDeletions to python\r\n\r\n* fix materialize for window with deletions\r\n\r\n* restore old argument name\r\n\r\n* fix exploded latest time for deletions\r\n\r\n* delete broken test\r\n\r\n* Rename Inheritable to Base\r\n\r\n* Avoid hitting SNAP for tests\r\n\r\n* clean up warnings",
+          "timestamp": "2023-06-26T13:59:21+02:00",
+          "tree_id": "0630b69edf48c6195307a67d461b578538780d57",
+          "url": "https://github.com/Pometry/Raphtory/commit/4f53db429f08f453f9c7121ba2715e3de09b0768"
+        },
+        "date": 1687781136692,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 650334,
+            "range": "± 30274",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and numeric string input",
+            "value": 1268314,
+            "range": "± 136983",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and string input",
+            "value": 1344217,
+            "range": "± 82940",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 1220868,
+            "range": "± 219045",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions with numeric string input",
+            "value": 2310350,
+            "range": "± 340355",
             "unit": "ns/iter"
           }
         ]
