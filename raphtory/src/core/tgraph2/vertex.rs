@@ -5,7 +5,9 @@ use itertools::Itertools;
 use crate::{
     core::{
         edge_ref::EdgeRef,
+        tgraph_shard::LockedView,
         timeindex::{TimeIndex, TimeIndexOps},
+        tprop::TProp,
         Direction, Prop,
     },
     storage::{iter::RefT, ArcEntry, Entry},
@@ -47,7 +49,11 @@ impl<'a, const N: usize> Vertex<'a, N> {
         Self::new(VRef::LockedEntry(ge), graph)
     }
 
-    pub fn temporal_properties(&'a self, name: &str, window: Option<Range<i64>>) -> impl Iterator<Item = (i64, Prop)> + 'a {
+    pub fn temporal_properties(
+        &'a self,
+        name: &str,
+        window: Option<Range<i64>>,
+    ) -> impl Iterator<Item = (i64, Prop)> + 'a {
         let prop_id = self.graph.vertex_props_meta.resolve_prop_id(name, false);
         (&self.node).temporal_properties(prop_id, window)
     }
@@ -93,6 +99,30 @@ impl<'a, const N: usize> Vertex<'a, N> {
         (*self.node)
             .neighbours(Some(layer), dir)
             .map(move |dst| self.graph.vertex(dst))
+    }
+
+    pub(crate) fn additions(self) -> Option<LockedView<'a, TimeIndex>> {
+        match self.node {
+            VRef::Entry(entry) => {
+                let t_index = entry.map(|entry| entry.timestamps());
+                Some(t_index)
+            }
+            _ => None,
+        }
+    }
+
+    pub(crate) fn temporal_property(self, prop_id: usize) -> Option<LockedView<'a, TProp>> {
+        match self.node {
+            VRef::Entry(entry) => {
+                if entry.temporal_property(prop_id).is_none() {
+                    return None;
+                }
+
+                let t_index = entry.map(|entry| entry.temporal_property(prop_id).unwrap());
+                Some(t_index)
+            }
+            _ => None,
+        }
     }
 }
 

@@ -64,7 +64,11 @@ impl Props {
     ) -> Box<dyn Iterator<Item = (i64, Prop)> + '_> {
         let o = self.temporal_props.get(prop_id);
         if let Some(t_prop) = o {
-            Box::new(t_prop.iter_window(t_start..t_end).map(|(t, p)| (t, p.clone())))
+            Box::new(
+                t_prop
+                    .iter_window(t_start..t_end)
+                    .map(|(t, p)| (t, p.clone())),
+            )
         } else {
             Box::new(std::iter::empty())
         }
@@ -88,9 +92,10 @@ impl Props {
     }
 
     pub(crate) fn temporal_iter(&self) -> impl Iterator<Item = &TProp> + '_ {
-        self.temporal_props.filled_ids().into_iter().flat_map(|prop_id|{
-            self.temporal_props.get(prop_id)
-        })
+        self.temporal_props
+            .filled_ids()
+            .into_iter()
+            .flat_map(|prop_id| self.temporal_props.get(prop_id))
     }
 }
 
@@ -177,7 +182,7 @@ impl Meta {
 }
 
 #[derive(Serialize, Deserialize, Default, Debug)]
-struct DictMapper<T: Hash + Eq> {
+pub(crate) struct DictMapper<T: Hash + Eq> {
     map: FxDashMap<T, usize>,
     reverse_map: FxDashMap<usize, T>,
     counter: AtomicUsize,
@@ -192,7 +197,7 @@ impl<T: Hash + Eq + Clone> DictMapper<T> {
         }
     }
 
-    fn get_or_create_id(&self, name: T) -> usize {
+    pub(crate) fn get_or_create_id(&self, name: T) -> usize {
         if let Some(existing_id) = self.map.get(&name) {
             return *existing_id;
         }
@@ -205,12 +210,16 @@ impl<T: Hash + Eq + Clone> DictMapper<T> {
         *new_id
     }
 
-    fn get(&self, name: &T) -> Option<usize> {
+    pub(crate) fn get(&self, name: &T) -> Option<usize> {
         self.map.get(name).map(|id| *id)
     }
 
     fn reverse_lookup(&self, id: &usize) -> Option<T> {
         self.reverse_map.get(id).map(|name| name.clone())
+    }
+
+    pub(crate) fn get_keys(&self) -> Vec<T> {
+        self.map.iter().map(|entry| entry.key().clone()).collect()
     }
 }
 

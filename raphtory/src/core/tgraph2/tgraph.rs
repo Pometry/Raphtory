@@ -6,9 +6,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     core::{
-        edge_ref::EdgeRef, tgraph::errors::MutateGraphError, tgraph_shard::errors::GraphError,
-        time::TryIntoTime, timeindex::TimeIndexOps, vertex::InputVertex, vertex_ref::VertexRef,
-        Direction, Prop, PropUnwrap,
+        tgraph::errors::MutateGraphError, tgraph_shard::{errors::GraphError, LockedView}, time::TryIntoTime,
+        timeindex::TimeIndexOps, vertex::InputVertex, vertex_ref::VertexRef, Direction, Prop,
+        PropUnwrap, tprop::TProp,
     },
     storage::Entry,
 };
@@ -16,6 +16,7 @@ use crate::{
 use super::{
     edge::EdgeView,
     edge_store::{EdgeLayer, EdgeStore},
+    graph_props::GraphProps,
     node_store::NodeStore,
     props::Meta,
     tgraph_storage::{GraphStorage, LockedIter},
@@ -25,19 +26,6 @@ use super::{
 };
 
 pub(crate) type FxDashMap<K, V> = DashMap<K, V, BuildHasherDefault<FxHasher>>;
-
-// #[derive(Serialize, Deserialize, Debug, Default)]
-// pub struct TGraph<const N: usize> {
-//     pub(crate) inner: Arc<InnerTemporalGraph<N>>,
-// }
-
-// impl<const N: usize> Clone for TGraph<N> {
-//     fn clone(&self) -> Self {
-//         Self {
-//             inner: self.inner.clone(),
-//         }
-//     }
-// }
 
 pub(crate) type TGraph<const N: usize> = InnerTemporalGraph<N>;
 
@@ -59,6 +47,9 @@ pub struct InnerTemporalGraph<const N: usize> {
 
     // props meta data for edges (mapping between strings and ids)
     pub(crate) edge_props_meta: Meta,
+
+    // graph properties
+    pub(crate) graph_props: GraphProps,
 }
 
 impl<const N: usize> std::fmt::Display for InnerTemporalGraph<N> {
@@ -87,6 +78,7 @@ impl<const N: usize> Default for InnerTemporalGraph<N> {
             latest_time: MaxCounter::new(),
             vertex_props_meta: Meta::new(),
             edge_props_meta: Meta::new(),
+            graph_props: GraphProps::new(),
         }
     }
 }
@@ -130,9 +122,14 @@ impl<const N: usize> InnerTemporalGraph<N> {
         self.vertex_props_meta.reverse_prop_id(prop_id, is_static)
     }
 
-    pub(crate) fn temp_prop_ids(&self, e: EID) -> Vec<usize> {
+    pub(crate) fn edge_temp_prop_ids(&self, e: EID) -> Vec<usize> {
         let edge = self.storage.get_edge(e.into());
         edge.temp_prop_ids(None)
+    }
+
+    pub(crate) fn vertex_temp_prop_ids(&self, e: VID) -> Vec<usize> {
+        let edge = self.storage.get_node(e.into());
+        edge.temp_prop_ids()
     }
 
     pub(crate) fn edge_find_prop(&self, prop: &str, is_static: bool) -> Option<usize> {
@@ -322,7 +319,39 @@ impl<const N: usize> InnerTemporalGraph<N> {
     }
 
     pub fn add_static_property(&self, props: &Vec<(String, Prop)>) -> Result<(), GraphError> {
-        todo!()
+        for (name, prop) in props {
+            self.graph_props.add_static_prop(name, prop.clone());
+        }
+        Ok(())
+    }
+
+    pub fn add_property<T: TryIntoTime>(
+        &self,
+        t: T,
+        props: &Vec<(String, Prop)>,
+    ) -> Result<(), GraphError> {
+        let t = t.try_into_time()?;
+
+        for (name, prop) in props {
+            self.graph_props.add_prop(t, name, prop.clone());
+        }
+        Ok(())
+    }
+
+    pub fn get_static_prop(&self, name: &str) -> Option<Prop> {
+        self.graph_props.get_static(name)
+    }
+
+    pub fn get_temporal_prop(&self, name: &str) -> Option<LockedView<TProp>> {
+        self.graph_props.get_temporal(name)
+    }
+
+    pub fn static_property_names(&self) -> Vec<String> {
+        self.graph_props.static_prop_names()
+    }
+
+    pub fn temporal_property_names(&self) -> Vec<String> {
+        self.graph_props.temporal_prop_names()
     }
 
     pub fn delete_edge<V: InputVertex, T: TryIntoTime>(
@@ -465,19 +494,6 @@ impl<const N: usize> InnerTemporalGraph<N> {
         self.storage.locked_edges()
     }
 
-    // pub(crate) fn locked_edge_refs(
-    //     &self,
-    //     layer: Option<usize>,
-    // ) -> impl Iterator<Item = EdgeRef> + Send {
-    //     self.storage.locked_edges().map(|edge| EdgeRef::LocalOut {
-    //         e_pid: edge.e_id(),
-    //         layer_id: 0,
-    //         src_pid: edge.src(),
-    //         dst_pid: edge.dst(),
-    //         time: None,
-    //     })
-    // }
-
     pub fn find_global_id(&self, v: VID) -> Option<u64> {
         let node = self.storage.get_node(v.into());
         node.value().map(|n| n.global_id())
@@ -548,8 +564,6 @@ impl<const N: usize> InnerTemporalGraph<N> {
 mod test {
 
     use itertools::Itertools;
-
-    use crate::core::tgraph2::ops::vertex_ops::VertexListOps;
 
     use super::*;
 
@@ -633,20 +647,21 @@ mod test {
             .vertices()
             .flat_map(|v| {
                 let v_id = v.id();
-                v.edges(Some("follows"), Direction::OUT).flat_map(move |edge_1| {
-                    edge_1
-                        .dst()
-                        .edges(Some("follows"), Direction::OUT)
-                        .flat_map(move |edge_2| {
-                            edge_2
-                                .dst()
-                                .edges(Some("follows"), Direction::OUT)
-                                .filter(move |e| e.dst_id() == v_id)
-                                .map(move |edge_3| {
-                                    (v_id, edge_2.src_id(), edge_2.dst_id(), edge_3.dst_id())
-                                })
-                        })
-                })
+                v.edges(Some("follows"), Direction::OUT)
+                    .flat_map(move |edge_1| {
+                        edge_1
+                            .dst()
+                            .edges(Some("follows"), Direction::OUT)
+                            .flat_map(move |edge_2| {
+                                edge_2
+                                    .dst()
+                                    .edges(Some("follows"), Direction::OUT)
+                                    .filter(move |e| e.dst_id() == v_id)
+                                    .map(move |edge_3| {
+                                        (v_id, edge_2.src_id(), edge_2.dst_id(), edge_3.dst_id())
+                                    })
+                            })
+                    })
             })
             .collect_vec();
 
@@ -674,20 +689,21 @@ mod test {
             .locked_vertices()
             .flat_map(|v| {
                 let v_id = v.id();
-                v.edges(Some("follows"), Direction::OUT).flat_map(move |edge_1| {
-                    edge_1
-                        .dst()
-                        .edges(Some("follows"), Direction::OUT)
-                        .flat_map(move |edge_2| {
-                            edge_2
-                                .dst()
-                                .edges(Some("follows"), Direction::OUT)
-                                .filter(move |e| e.dst_id() == v_id)
-                                .map(move |edge_3| {
-                                    (v_id, edge_2.src_id(), edge_2.dst_id(), edge_3.dst_id())
-                                })
-                        })
-                })
+                v.edges(Some("follows"), Direction::OUT)
+                    .flat_map(move |edge_1| {
+                        edge_1
+                            .dst()
+                            .edges(Some("follows"), Direction::OUT)
+                            .flat_map(move |edge_2| {
+                                edge_2
+                                    .dst()
+                                    .edges(Some("follows"), Direction::OUT)
+                                    .filter(move |e| e.dst_id() == v_id)
+                                    .map(move |edge_3| {
+                                        (v_id, edge_2.src_id(), edge_2.dst_id(), edge_3.dst_id())
+                                    })
+                            })
+                    })
             })
             .collect_vec();
 
@@ -710,9 +726,12 @@ mod test {
         g.add_edge(3, 2, 1, &vec![], None);
         g.add_edge(4, 3, 2, &vec![], None);
 
-        for v_id in 0..3{
+        for v_id in 0..3 {
             let v = g.vertex(v_id.into());
-            let edges = v.edges(None, Direction::BOTH).map(|e| (e.src_id(), e.dst_id())).collect_vec();
+            let edges = v
+                .edges(None, Direction::BOTH)
+                .map(|e| (e.src_id(), e.dst_id()))
+                .collect_vec();
             println!("v: {:?} edges: {:?}", v_id, edges);
         }
     }

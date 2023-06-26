@@ -130,7 +130,7 @@ mod db_tests {
     use chrono::NaiveDateTime;
     use itertools::Itertools;
     use quickcheck::Arbitrary;
-    use std::collections::HashMap;
+    use std::collections::{HashMap, HashSet};
     use tempdir::TempDir;
 
     #[quickcheck]
@@ -969,6 +969,79 @@ mod db_tests {
 
         prop = Prop::Bool(true);
         assert_eq!(format!("{}", prop), "true");
+    }
+
+    #[quickcheck]
+    fn test_graph_static_props(u64_props: Vec<(String, u64)>) -> bool {
+        let g = Graph::new(0);
+
+        let as_props = u64_props
+            .into_iter()
+            .map(|(name, value)| (name, Prop::U64(value)))
+            .collect::<Vec<_>>();
+
+        g.add_static_property(&as_props).unwrap();
+
+        let props_map = as_props.into_iter().collect::<HashMap<_, _>>();
+
+        props_map
+            .into_iter()
+            .all(|(name, value)| g.static_property(name).unwrap() == value)
+    }
+
+    #[quickcheck]
+    fn test_graph_static_props_names(u64_props: Vec<(String, u64)>) -> bool {
+        let g = Graph::new(0);
+
+        let as_props = u64_props
+            .into_iter()
+            .map(|(name, value)| (name, Prop::U64(value)))
+            .collect::<Vec<_>>();
+
+        g.add_static_property(&as_props).unwrap();
+
+        let props_names = as_props
+            .into_iter()
+            .map(|(name, _)| name)
+            .collect::<HashSet<_>>();
+        g.static_property_names()
+            .into_iter()
+            .collect::<HashSet<_>>()
+            == props_names
+    }
+
+    #[quickcheck]
+    fn test_graph_temporal_props(str_props: Vec<(String, String)>) -> bool {
+        let g = Graph::new(0);
+
+        let (t0, t1) = (1, 2);
+
+        let (t0_props, t1_props): (Vec<_>, Vec<_>) = str_props
+            .into_iter()
+            .enumerate()
+            .map(|(i, props)| {
+                let (name, value) = props;
+                let value = Prop::Str(value);
+                (name, value, i % 2)
+            })
+            .partition(|(_, _, i)| *i == 0);
+
+        let t0_props = t0_props
+            .into_iter()
+            .map(|(name, value, _)| (name, value))
+            .collect();
+        let t1_props = t1_props
+            .into_iter()
+            .map(|(name, value, _)| (name, value))
+            .collect();
+
+        g.add_property(t0, &t0_props).unwrap();
+        g.add_property(t1, &t1_props).unwrap();
+
+
+        t0_props.into_iter().all(|(name, value)| {
+            g.temporal_prop_vec(&name).contains(&(t0, value))
+        })
     }
 
     #[test]

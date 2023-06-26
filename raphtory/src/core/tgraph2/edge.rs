@@ -113,7 +113,7 @@ impl<'a, const N: usize> EdgeView<'a, N> {
         out
     }
 
-    pub(crate) fn edge_additions(self, layer_id: usize) -> Option<LockedView<'a, TimeIndex>> {
+    pub(crate) fn additions(self, layer_id: usize) -> Option<LockedView<'a, TimeIndex>> {
         match self.edge_id {
             ERef::ERef(entry) => {
                 let t_index = entry.map(|entry| entry.layer_timestamps(layer_id));
@@ -123,7 +123,7 @@ impl<'a, const N: usize> EdgeView<'a, N> {
         }
     }
 
-    pub(crate) fn edge_deletions(self, layer_id: usize) -> Option<LockedView<'a, TimeIndex>> {
+    pub(crate) fn deletions(self, layer_id: usize) -> Option<LockedView<'a, TimeIndex>> {
         match self.edge_id {
             ERef::ERef(entry) => {
                 let t_index = entry.map(|entry| entry.layer_deletions(layer_id));

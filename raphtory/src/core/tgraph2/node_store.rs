@@ -4,7 +4,7 @@ use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
 use crate::core::{
-    edge_ref::EdgeRef, tgraph::errors::MutateGraphError, timeindex::TimeIndex, Direction, Prop,
+    edge_ref::EdgeRef, tgraph::errors::MutateGraphError, timeindex::TimeIndex, Direction, Prop, tprop::TProp,
 };
 
 use super::{adj::Adj, props::Props, EID, VID};
@@ -216,4 +216,13 @@ impl<const N: usize> NodeStore<N> {
     pub(crate) fn static_prop_ids(&self) -> Vec<usize> {
         self.props.static_prop_ids()
     }
+
+    pub(crate) fn temporal_property(&self, prop_id: usize) -> Option<&TProp> {
+        self.props.temporal_prop(prop_id)
+    }
+
+    pub(crate) fn temp_prop_ids(&self) -> Vec<usize> {
+        self.props.temporal_prop_ids()
+    }
+
 }

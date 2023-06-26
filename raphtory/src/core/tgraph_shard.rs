@@ -12,9 +12,11 @@
 use self::errors::GraphError;
 use std::ops::{Deref};
 
-pub enum LockedView<'a, T: ?Sized> {
+use dashmap::mapref::one::Ref;
+
+pub enum LockedView<'a, T> {
     Locked(parking_lot::MappedRwLockReadGuard<'a, T>),
-    Frozen(&'a T),
+    DashMap(Ref<'a, usize, T, BuildHasherDefault<rustc_hash::FxHasher>>)
 }
 
 impl<'a, T> Deref for LockedView<'a, T> {
@@ -23,7 +25,7 @@ impl<'a, T> Deref for LockedView<'a, T> {
     fn deref(&self) -> &Self::Target {
         match self {
             LockedView::Locked(guard) => guard.deref(),
-            LockedView::Frozen(r) => r,
+            LockedView::DashMap(r) => (*r).deref(),
         }
     }
 }

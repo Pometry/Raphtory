@@ -18,11 +18,12 @@ mod edge_store;
 mod iter;
 mod node_store;
 pub mod ops;
-mod props;
+pub(crate) mod props;
 mod tadjset;
 pub mod tgraph;
 mod tgraph_storage;
 pub(crate) mod timer;
+mod graph_props;
 mod vertex;
 
 // the only reason this is public is because the phisical ids of the vertices don't move

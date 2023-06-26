@@ -36,16 +36,18 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
 
     fn edge_additions(&self, eref: EdgeRef) -> LockedView<TimeIndex> {
         let edge = self.edge(eref.pid());
-        edge.edge_additions(eref.layer()).unwrap()
+        edge.additions(eref.layer()).unwrap()
     }
 
     fn edge_deletions(&self, eref: EdgeRef) -> LockedView<TimeIndex> {
         let edge = self.edge(eref.pid());
-        edge.edge_deletions(eref.layer()).unwrap()
+        edge.deletions(eref.layer()).unwrap()
     }
 
     fn vertex_additions(&self, v: VID) -> LockedView<TimeIndex> {
-        todo!()
+        let vertex = self.vertex(v);
+        vertex.additions().unwrap()
+
     }
 
     fn localise_vertex_unchecked(&self, v: VertexRef) -> VID {
@@ -56,19 +58,19 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
     }
 
     fn static_prop_names(&self) -> Vec<String> {
-        todo!()
+        self.static_property_names()
     }
 
     fn static_prop(&self, name: &str) -> Option<Prop> {
-        todo!()
+        self.get_static_prop(name).map(|p| p.clone())
     }
 
     fn temporal_prop_names(&self) -> Vec<String> {
-        todo!()
+        self.temporal_property_names()
     }
 
     fn temporal_prop(&self, name: &str) -> Option<LockedView<TProp>> {
-        todo!()
+        self.get_temporal_prop(name)
     }
 
     fn static_vertex_prop(&self, v: VID, name: &str) -> Option<Prop> {
@@ -90,11 +92,17 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
     }
 
     fn temporal_vertex_prop(&self, v: VID, name: &str) -> Option<LockedView<TProp>> {
-        todo!()
+        let vertex = self.vertex(v);
+        let prop_id = self.vertex_find_prop(name, false)?;
+
+        vertex.temporal_property(prop_id)
     }
 
     fn temporal_vertex_prop_names(&self, v: VID) -> Vec<String> {
-        todo!()
+        self.vertex_temp_prop_ids(v)
+            .into_iter()
+            .flat_map(|id| self.vertex_reverse_prop_id(id, false))
+            .collect()
     }
 
     fn static_edge_prop(&self, e: EdgeRef, name: &str) -> Option<Prop> {
@@ -128,7 +136,7 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
     }
 
     fn temporal_edge_prop_names(&self, e: EdgeRef) -> Vec<String> {
-        self.temp_prop_ids(e.pid())
+        self.edge_temp_prop_ids(e.pid())
             .into_iter()
             .flat_map(|id| self.edge_reverse_prop_id(id, false))
             .collect()
@@ -334,7 +342,6 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
             .and_then(|node| node.timestamps().range(t_start..t_end).last())
     }
 
-
     fn temporal_vertex_prop_vec(&self, v: VID, name: &str) -> Vec<(i64, Prop)> {
         self.vertex(v).temporal_properties(name, None).collect()
     }
@@ -375,14 +382,19 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
     }
 
     fn temporal_edge_prop_vec(&self, e: EdgeRef, name: &str) -> Vec<(i64, Prop)> {
-        self.edge(e.pid()).temporal_properties(name, e.layer(), None)
+        self.edge(e.pid())
+            .temporal_properties(name, e.layer(), None)
     }
 
     fn temporal_prop_vec(&self, name: &str) -> Vec<(i64, Prop)> {
-        todo!()
+        self.get_temporal_prop(name)
+            .map(|prop| prop.iter().collect())
+            .unwrap_or_default()
     }
 
     fn temporal_prop_vec_window(&self, name: &str, t_start: i64, t_end: i64) -> Vec<(i64, Prop)> {
-        todo!()
+        self.get_temporal_prop(name)
+            .map(|prop| prop.iter_window(t_start .. t_end).collect())
+            .unwrap_or_default()
     }
 }
