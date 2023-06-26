@@ -1,8 +1,10 @@
 use crate::data::Data;
-use crate::model::graph::graph::GqlGraph;
+use crate::model::graph::graph::{GqlGraph, GraphMeta};
+use crate::model::wrappers::dynamic::IntoDynamic;
 use async_graphql::Context;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
+use raphtory::db::view_api::GraphViewOps;
 
 pub(crate) mod algorithm;
 pub(crate) mod filters;
@@ -20,18 +22,17 @@ impl QueryRoot {
     }
 
     /// Returns a view including all events between `t_start` (inclusive) and `t_end` (exclusive)
-    async fn graph<'a>(ctx: &Context<'a>, name: &str) -> Option<GqlGraph> {
+    async fn graph<'a>(ctx: &Context<'a>, name: &str, node_ids: &Option<Vec<i64>>) -> Option<GqlGraph> {
         let data = ctx.data_unchecked::<Data>();
         let g = data.graphs.get(name)?;
         Some(g.clone().into())
     }
 
-    async fn loaded_graphs<'a>(ctx: &Context<'a>) -> Vec<String> {
+    async fn graphs<'a>(ctx: &Context<'a>) -> Vec<GraphMeta> {
         let data = ctx.data_unchecked::<Data>();
         data.graphs
-            .keys()
-            .into_iter()
-            .map(|s| s.clone())
+            .iter()
+            .map(|(name, g)| GraphMeta::new(name.clone(), g.clone().into_dynamic()))
             .collect_vec()
     }
 }

@@ -9,6 +9,7 @@ use raphtory::db::view_api::EdgeListOps;
 use raphtory::db::view_api::{GraphViewOps, VertexViewOps};
 use crate::model::wrappers::dynamic::{DynamicGraph, IntoDynamic};
 use raphtory::db::view_api::layer::LayerOps;
+use crate::model::filters::edgefilter::EdgeFilter;
 
 #[derive(ResolvedObject)]
 pub(crate) struct Node {
@@ -158,7 +159,7 @@ impl Node {
         }
     }
 
-    async fn edges(&self,layer:Option<String>) -> Vec<Edge> {
+    async fn edges(&self, layer:Option<String>) -> Vec<Edge> {
         match layer {
             None => { self.vv.edges().map(|ee| ee.clone().into()).collect() }
             Some(layer) => { match self.vv.layer(layer.as_str()) {
