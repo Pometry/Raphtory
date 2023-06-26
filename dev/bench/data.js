@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1687787500132,
+  "lastUpdate": 1687792512840,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -4045,6 +4045,60 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions with numeric string input",
             "value": 1803621,
             "range": "± 206213",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97447091+ljeub-pometry@users.noreply.github.com",
+            "name": "ljeub-pometry",
+            "username": "ljeub-pometry"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d5837e95e9b085a1dcb0011170c48dd9361f2156",
+          "message": "bump neo4rs version (#1069)\n\nbump neo4rs version since 0.6.0 seems to not actually have `default` for config?",
+          "timestamp": "2023-06-26T16:09:58+01:00",
+          "tree_id": "e4f202da6ef829815e52c9a7bf2117b2e3e015bb",
+          "url": "https://github.com/Pometry/Raphtory/commit/d5837e95e9b085a1dcb0011170c48dd9361f2156"
+        },
+        "date": 1687792510779,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 644990,
+            "range": "± 6589",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and numeric string input",
+            "value": 1146546,
+            "range": "± 14260",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and string input",
+            "value": 1209378,
+            "range": "± 14110",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 962249,
+            "range": "± 123399",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions with numeric string input",
+            "value": 2024128,
+            "range": "± 188769",
             "unit": "ns/iter"
           }
         ]
