@@ -1,7 +1,6 @@
 use crate::core::tgraph_shard::errors::GraphError;
 use crate::core::time::{IntoTimeWithFormat, TryIntoTime};
 use crate::core::vertex::InputVertex;
-use crate::core::Prop;
 use crate::db::mutation_api::internal::InternalAdditionOps;
 use crate::db::mutation_api::Properties;
 
@@ -95,7 +94,6 @@ impl<G: InternalAdditionOps> AdditionOps for G {
         v: V,
         props: P,
     ) -> Result<(), GraphError> {
-        let mut props: Vec<(String, Prop)> = props.collect_properties();
         self.internal_add_vertex(
             t.try_into_time()?,
             v.id(),

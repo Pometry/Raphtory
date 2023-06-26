@@ -9,9 +9,8 @@ use crate::core::vertex_ref::VertexRef;
 use crate::db::view_api::*;
 use crate::python::vertex::PyVertex;
 use chrono::NaiveDateTime;
-use pyo3::exceptions::{PyException, PyTypeError};
+use pyo3::exceptions::PyTypeError;
 use pyo3::prelude::*;
-use std::error::Error;
 
 /// Extract a `VertexRef` from a Python object.
 /// The object can be a `str`, `u64` or `PyVertex`.
@@ -88,21 +87,6 @@ impl IntoTime for PyTime {
     fn into_time(self) -> i64 {
         self.parsing_result
     }
-}
-
-pub(crate) fn extract_interval(interval: &PyAny) -> PyResult<PyInterval> {
-    let string = interval.extract::<String>();
-    let result = string.map(|string| PyInterval::new(string.as_str()));
-
-    let result = result.or_else(|_| {
-        let number = interval.extract::<u64>();
-        number.map(PyInterval::new)
-    });
-
-    result.map_err(|_| {
-        let message = format!("interval '{interval}' must be a str or an unsigned integer");
-        PyTypeError::new_err(message)
-    })
 }
 
 pub(crate) struct PyInterval {
@@ -192,17 +176,6 @@ impl InputVertex for PyInputVertex {
         match &self.name {
             Some(n) => Some(n),
             None => None,
-        }
-    }
-}
-
-pub(crate) fn extract_input_vertex(id: &PyAny) -> PyResult<PyInputVertex> {
-    match id.extract::<String>() {
-        Ok(string) => Ok(PyInputVertex::new(string)),
-        Err(_) => {
-            let msg = "IDs need to be strings or an unsigned integers";
-            let number = id.extract::<u64>().map_err(|_| PyTypeError::new_err(msg))?;
-            Ok(PyInputVertex::new(number))
         }
     }
 }

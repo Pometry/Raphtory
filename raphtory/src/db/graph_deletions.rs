@@ -11,8 +11,6 @@ use crate::db::view_api::internal::{
     TimeSemantics,
 };
 use crate::db::view_api::{BoxedIter, GraphViewOps};
-use crate::prelude::Graph;
-use num_traits::Saturating;
 use std::cmp::min;
 use std::fmt::{Display, Formatter};
 use std::iter;
@@ -334,12 +332,10 @@ impl TimeSemantics for GraphWithDeletions {
 #[cfg(test)]
 mod test_deletions {
     use crate::core::{Prop, PropUnwrap};
-    use crate::db::graph::Graph;
     use crate::db::graph_deletions::GraphWithDeletions;
     use crate::db::mutation_api::{AdditionOps, DeletionOps};
     use crate::db::view_api::*;
     use itertools::Itertools;
-    use std::cmp::min;
 
     #[test]
     fn option_partial_ord() {

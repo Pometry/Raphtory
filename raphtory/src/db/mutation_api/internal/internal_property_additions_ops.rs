@@ -1,6 +1,5 @@
 use crate::core::tgraph_shard::errors::GraphError;
 use crate::core::Prop;
-use crate::db::mutation_api::PropertyAdditionOps;
 use crate::db::view_api::internal::Base;
 
 /// internal (dyn friendly) methods for adding properties

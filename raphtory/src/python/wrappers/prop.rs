@@ -1,31 +1,9 @@
-use crate::core as db_c;
 use crate::core::Prop;
-use crate::db;
-use crate::db::graph::Graph;
-use crate::python::graph::PyGraph;
 use crate::python::graph_view::PyGraphView;
 use crate::python::types::repr::Repr;
-use chrono::NaiveDateTime;
 use pyo3::exceptions::PyTypeError;
 use pyo3::{FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python};
 use std::collections::HashMap;
-use std::{fmt, i64};
-
-#[repr(transparent)]
-#[derive(Debug, Clone)]
-pub struct PGraph(db::graph::Graph);
-
-impl IntoPy<PyObject> for PGraph {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        PyGraph::py_from_db_graph(self.0).unwrap().into_py(py)
-    }
-}
-
-impl<'source> FromPyObject<'source> for Graph {
-    fn extract(ob: &'source PyAny) -> PyResult<Self> {
-        ob.extract()
-    }
-}
 
 impl IntoPy<PyObject> for Prop {
     fn into_py(self, py: Python<'_>) -> PyObject {
@@ -86,82 +64,7 @@ impl Repr for Prop {
     }
 }
 
-pub struct PropValue(Option<Prop>);
-
-impl From<Option<Prop>> for PropValue {
-    fn from(value: Option<Prop>) -> Self {
-        Self(value)
-    }
-}
-
-impl IntoPy<PyObject> for PropValue {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        self.0.into_py(py)
-    }
-}
-
-impl Repr for PropValue {
-    fn repr(&self) -> String {
-        self.0.repr()
-    }
-}
-
-pub struct Props(HashMap<String, Prop>);
-
-impl Repr for Props {
-    fn repr(&self) -> String {
-        self.0.repr()
-    }
-}
-
-impl From<HashMap<String, db_c::Prop>> for Props {
-    fn from(value: HashMap<String, db_c::Prop>) -> Self {
-        Self(value.into_iter().map(|(k, v)| (k, v.into())).collect())
-    }
-}
-
-impl IntoPy<PyObject> for Props {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        self.0.into_py(py)
-    }
-}
-
-pub struct PropHistory(Vec<(i64, Prop)>);
-
-impl Repr for PropHistory {
-    fn repr(&self) -> String {
-        self.0.repr()
-    }
-}
-
-impl From<Vec<(i64, db_c::Prop)>> for PropHistory {
-    fn from(value: Vec<(i64, db_c::Prop)>) -> Self {
-        Self(value.into_iter().map(|(t, v)| (t, v.into())).collect())
-    }
-}
-
-impl IntoPy<PyObject> for PropHistory {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        self.0.into_py(py)
-    }
-}
-
-pub struct PropHistories(HashMap<String, PropHistory>);
-
-impl Repr for PropHistories {
-    fn repr(&self) -> String {
-        self.0.repr()
-    }
-}
-
-impl From<HashMap<String, Vec<(i64, db_c::Prop)>>> for PropHistories {
-    fn from(value: HashMap<String, Vec<(i64, db_c::Prop)>>) -> Self {
-        Self(value.into_iter().map(|(k, h)| (k, h.into())).collect())
-    }
-}
-
-impl IntoPy<PyObject> for PropHistories {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        self.0.into_py(py)
-    }
-}
+pub type PropValue = Option<Prop>;
+pub type Props = HashMap<String, Prop>;
+pub type PropHistory = Vec<(i64, Prop)>;
+pub type PropHistories = HashMap<String, PropHistory>;

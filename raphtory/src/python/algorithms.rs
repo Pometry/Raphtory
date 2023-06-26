@@ -22,8 +22,7 @@ use crate::algorithms::reciprocity::{
 };
 use crate::algorithms::temporal_reachability::temporally_reachable_nodes as temporal_reachability_rs;
 use crate::core::vertex_ref::VertexRef;
-use crate::python::utils;
-use crate::python::utils::{extract_input_vertex, PyInputVertex};
+use crate::python::utils::PyInputVertex;
 use pyo3::prelude::*;
 
 /// Local triangle count - calculates the number of triangles (a cycle of length 3) a vertex participates in.
@@ -108,26 +107,11 @@ pub fn temporally_reachable_nodes(
     g: &PyGraphView,
     max_hops: usize,
     start_time: i64,
-    seed_nodes: Vec<&PyAny>,
-    stop_nodes: Option<Vec<&PyAny>>,
+    seed_nodes: Vec<PyInputVertex>,
+    stop_nodes: Option<Vec<PyInputVertex>>,
 ) -> Result<HashMap<String, Vec<(i64, String)>>, PyErr> {
-    let infected_nodes: PyResult<Vec<PyInputVertex>> = seed_nodes
-        .into_iter()
-        .map(|v| extract_input_vertex(v))
-        .collect();
-    let stop_nodes: PyResult<Vec<PyInputVertex>> = stop_nodes
-        .unwrap_or(vec![])
-        .into_iter()
-        .map(|v| extract_input_vertex(v))
-        .collect();
-
     Ok(temporal_reachability_rs(
-        &g.graph,
-        None,
-        max_hops,
-        start_time,
-        infected_nodes?,
-        Some(stop_nodes?),
+        &g.graph, None, max_hops, start_time, seed_nodes, stop_nodes,
     ))
 }
 

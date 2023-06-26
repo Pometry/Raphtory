@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use crate::core::time::IntoTime;
 use crate::core::vertex_ref::{LocalVertexRef, VertexRef};
 use crate::db::edge::EdgeView;
-use crate::db::graph::{Graph, InternalGraph};
+use crate::db::graph::InternalGraph;
 use crate::db::graph_layer::LayeredGraph;
 use crate::db::graph_window::WindowedGraph;
 use crate::db::mutation_api::{AdditionOps, DeletionOps, PropertyAdditionOps};

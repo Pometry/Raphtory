@@ -21,7 +21,6 @@ use pyo3::pyclass::CompareOp;
 use pyo3::{pyclass, pymethods, PyAny, PyObject, PyRef, PyRefMut, PyResult, Python};
 use python::edge::{PyEdges, PyNestedEdges};
 use python::types::repr::{iterator_repr, Repr};
-use python::utils::PyWindowSet;
 use python::wrappers::iterators::*;
 use std::collections::HashMap;
 
@@ -161,9 +160,7 @@ impl PyVertex {
     ///    The property value as a `Prop` object.
     pub fn property(&self, name: String, include_static: Option<bool>) -> Option<Prop> {
         let include_static = include_static.unwrap_or(true);
-        self.vertex
-            .property(name, include_static)
-            .map(|prop| prop.into())
+        self.vertex.property(name, include_static)
     }
 
     /// Returns the history of a property value of a vertex at all times
@@ -174,11 +171,7 @@ impl PyVertex {
     /// Returns:
     ///   A list of tuples of the form (time, value) where time is an integer and value is a `Prop` object.
     pub fn property_history(&self, name: String) -> Vec<(i64, Prop)> {
-        self.vertex
-            .property_history(name)
-            .into_iter()
-            .map(|(k, v)| (k, v.into()))
-            .collect()
+        self.vertex.property_history(name)
     }
 
     /// Returns all the properties of the vertex as a dictionary.
@@ -190,11 +183,7 @@ impl PyVertex {
     ///   A dictionary of the form {name: value} where name is a string and value is a `Prop` object.
     pub fn properties(&self, include_static: Option<bool>) -> HashMap<String, Prop> {
         let include_static = include_static.unwrap_or(true);
-        self.vertex
-            .properties(include_static)
-            .into_iter()
-            .map(|(k, v)| (k, v.into()))
-            .collect()
+        self.vertex.properties(include_static)
     }
 
     /// Returns all the properties of the vertex as a dictionary including the history of each property.
@@ -205,11 +194,7 @@ impl PyVertex {
     /// Returns:
     ///  A dictionary of the form {name: [(time, value)]} where name is a string, time is an integer, and value is a `Prop` object.
     pub fn property_histories(&self) -> HashMap<String, Vec<(i64, Prop)>> {
-        self.vertex
-            .property_histories()
-            .into_iter()
-            .map(|(k, v)| (k, v.into_iter().map(|(t, p)| (t, p.into())).collect()))
-            .collect()
+        self.vertex.property_histories()
     }
 
     /// Returns the names of all the properties of the vertex.
@@ -256,7 +241,7 @@ impl PyVertex {
     /// Returns:
     ///     The property value as a `Prop` object or None if the property does not exist.
     pub fn static_property(&self, name: String) -> Option<Prop> {
-        self.vertex.static_property(name).map(|prop| prop.into())
+        self.vertex.static_property(name)
     }
 
     /// Returns static properties of a vertex
@@ -266,11 +251,7 @@ impl PyVertex {
     /// Returns:
     ///     HashMap<String, Prop> - Returns static properties of a vertex identified by their names
     pub fn static_properties(&self) -> HashMap<String, Prop> {
-        self.vertex
-            .static_properties()
-            .into_iter()
-            .map(|(k, v)| (k, v.into()))
-            .collect()
+        self.vertex.static_properties()
     }
 
     /// Get the degree of this vertex (i.e., the number of edges that are incident to it).
@@ -547,7 +528,7 @@ impl PyVertices {
                 return false;
             }
         }
-        return true;
+        true
     }
 
     fn id(&self) -> U64Iterable {

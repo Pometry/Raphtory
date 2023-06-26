@@ -8,18 +8,15 @@ use crate::db::graph_layer::LayeredGraph;
 use crate::db::graph_window::WindowedGraph;
 use crate::db::subgraph_vertex::VertexSubgraph;
 use crate::db::vertex::VertexView;
-use crate::db::view_api::internal::{CoreGraphOps, DynamicGraph, IntoDynamic, MaterializedGraph};
+use crate::db::view_api::internal::{DynamicGraph, IntoDynamic, MaterializedGraph};
 use crate::db::view_api::*;
 use crate::python;
 use crate::python::utils::{PyInterval, PyTime};
 use crate::*;
 use chrono::prelude::*;
-use itertools::Itertools;
 use pyo3::prelude::*;
-use python::edge::{PyEdge, PyEdges};
-use python::graph::PyGraph;
+use python::edge::PyEdges;
 use python::types::repr::Repr;
-use python::utils::PyWindowSet;
 use python::vertex::{PyVertex, PyVertices};
 use std::collections::HashMap;
 
@@ -328,9 +325,7 @@ impl PyGraphView {
     /// Returns:
     ///    Option<Prop> - The property value
     fn property(&self, name: &str, include_static: Option<bool>) -> Option<Prop> {
-        self.graph
-            .property(name, include_static.unwrap_or(true))
-            .map(|v| v.into())
+        self.graph.property(name, include_static.unwrap_or(true))
     }
 
     /// Get graph property against the provided property name
@@ -342,8 +337,7 @@ impl PyGraphView {
     /// Returns:
     ///    Option<Prop> - The property value
     fn property_history(&self, name: &str) -> Vec<(i64, Prop)> {
-        let r: Vec<(i64, core::Prop)> = self.graph.property_history(name);
-        r.into_iter().map(|(i, v)| (i, v.into())).collect_vec()
+        self.graph.property_history(name)
     }
 
     /// Get all graph properties
@@ -354,8 +348,7 @@ impl PyGraphView {
     /// Returns:
     ///    HashMap<String, Prop> - Properties paired with their names
     fn properties(&self, include_static: Option<bool>) -> HashMap<String, Prop> {
-        let r: HashMap<String, core::Prop> = self.graph.properties(include_static.unwrap_or(true));
-        r.into_iter().map(|(i, v)| (i, v.into())).collect()
+        self.graph.properties(include_static.unwrap_or(true))
     }
 
     /// Get all graph properties histories
@@ -366,12 +359,7 @@ impl PyGraphView {
     /// Returns:
     ///    HashMap<String, Vec<(i64, Prop)>> - Properties paired with their names and timestamps
     fn property_histories(&self) -> HashMap<String, Vec<(i64, Prop)>> {
-        let r: HashMap<String, Vec<(i64, core::Prop)>> = self.graph.property_histories();
-        let w = r.into_iter().map(|(i, v)| {
-            let x = v.into_iter().map(|(a, b)| (a, b.into())).collect_vec();
-            (i, x)
-        });
-        w.collect()
+        self.graph.property_histories()
     }
 
     /// Get all graph property names

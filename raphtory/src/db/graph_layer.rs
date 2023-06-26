@@ -1,9 +1,8 @@
 use crate::core::edge_ref::EdgeRef;
 use crate::core::vertex_ref::{LocalVertexRef, VertexRef};
 use crate::core::Direction;
-use crate::db::view_api::internal::time_semantics::DelegateTimeSemantics;
 use crate::db::view_api::internal::{
-    Base, DelegateCoreOps, GraphOps, InheritCoreOps, InheritMaterialize, InheritTimeSemantics,
+    Base, GraphOps, InheritCoreOps, InheritMaterialize, InheritTimeSemantics,
 };
 use crate::db::view_api::GraphViewOps;
 use itertools::Itertools;

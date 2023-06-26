@@ -20,7 +20,6 @@
 
 use crate::core::tgraph::TemporalGraph;
 use crate::core::tgraph_shard::{LockedView, TGraphShard};
-use crate::core::time::TryIntoTime;
 use crate::core::{
     edge_ref::EdgeRef, tgraph_shard::errors::GraphError, utils, vertex::InputVertex,
     vertex_ref::VertexRef, Direction, Prop, PropUnwrap,
@@ -30,10 +29,9 @@ use crate::core::timeindex::{TimeIndex, TimeIndexOps};
 use crate::core::tprop::TProp;
 use crate::core::vertex_ref::LocalVertexRef;
 use crate::db::graph_immutable::ImmutableGraph;
-use crate::db::mutation_api::internal::InternalPropertyAdditionOps;
-use crate::db::mutation_api::internal::{DelegatePropertyAdditionOps, InternalAdditionOps};
 use crate::db::mutation_api::internal::{
-    InheritAdditionOps, InheritPropertyAdditionOps, InternalDeletionOps,
+    InheritAdditionOps, InheritPropertyAdditionOps, InternalAdditionOps, InternalDeletionOps,
+    InternalPropertyAdditionOps,
 };
 use crate::db::view_api::internal::time_semantics::TimeSemantics;
 use crate::db::view_api::internal::{
@@ -46,7 +44,6 @@ use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
-use std::ops::{Deref, DerefMut};
 use std::{
     iter,
     ops::Range,
@@ -987,6 +984,7 @@ impl InternalGraph {
 #[cfg(test)]
 mod db_tests {
     use super::*;
+    use crate::core::time::TryIntoTime;
     use crate::db::edge::EdgeView;
     use crate::db::mutation_api::{AdditionOps, PropertyAdditionOps};
     use crate::db::path::PathFromVertex;

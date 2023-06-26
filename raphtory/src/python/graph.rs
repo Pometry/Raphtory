@@ -4,15 +4,12 @@
 //! create windows, and query the graph with a variety of algorithms.
 //! It is a wrapper around a set of shards, which are the actual graph data structures.
 //! In Python, this class wraps around the rust graph.
-use crate::core as dbc;
 use crate::core::tgraph_shard::errors::GraphError;
 use crate::core::Prop;
 use crate::db::graph::Graph;
 use crate::db::mutation_api::{AdditionOps, PropertyAdditionOps};
 use crate::python;
 use crate::python::utils::PyTime;
-use itertools::Itertools;
-use pyo3::exceptions::PyException;
 use pyo3::prelude::*;
 use python::graph_view::PyGraphView;
 use python::utils::PyInputVertex;
@@ -44,6 +41,12 @@ impl IntoPy<PyObject> for Graph {
         Py::new(py, (PyGraph::from(self.clone()), PyGraphView::from(self)))
             .unwrap() // I think this only fails if we are out of memory? Seems to be unavoidable if we want to create an actual graph.
             .into_py(py)
+    }
+}
+
+impl<'source> FromPyObject<'source> for Graph {
+    fn extract(ob: &'source PyAny) -> PyResult<Self> {
+        ob.extract()
     }
 }
 
