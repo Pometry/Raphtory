@@ -41,6 +41,7 @@
 
 use crate::core::Prop;
 use crate::db::graph::Graph;
+use crate::db::mutation_api::AdditionOps;
 use crate::graph_loader::fetch_file;
 use chrono::*;
 use itertools::Itertools;
@@ -114,7 +115,7 @@ pub fn reddit_graph(shards: usize, timeout: u64, test_file: bool) -> Graph {
                                 .split(',')
                                 .map(|s| s.parse::<f64>().unwrap())
                                 .collect();
-                            let edge_properties = &vec![
+                            let edge_properties = [
                                 ("post_label".to_string(), Prop::I32(post_label)),
                                 ("post_id".to_string(), Prop::Str(post_id)),
                                 ("word_count".to_string(), Prop::F64(post_properties[7])),
@@ -134,10 +135,10 @@ pub fn reddit_graph(shards: usize, timeout: u64, test_file: bool) -> Graph {
                                     Prop::F64(post_properties[20]),
                                 ),
                             ];
-                            g.add_vertex(time, *src_id, &vec![])
+                            g.add_vertex(time, *src_id, [])
                                 .map_err(|err| println!("{:?}", err))
                                 .ok();
-                            g.add_vertex(time, *dst_id, &vec![])
+                            g.add_vertex(time, *dst_id, [])
                                 .map_err(|err| println!("{:?}", err))
                                 .ok();
                             g.add_edge(time, *src_id, *dst_id, edge_properties, None)

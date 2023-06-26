@@ -344,11 +344,7 @@ pub fn temporal_three_node_motif<G: GraphViewOps>(
             let two_nodes = twonode_motif_count(g, evv, delta);
             let star_nodes = star_motif_count(evv, delta);
 
-            *evv.get_mut() = MotifCounter::new(
-                two_nodes,
-                star_nodes,
-                evv.get().triangle,
-            );
+            *evv.get_mut() = MotifCounter::new(two_nodes, star_nodes, evv.get().triangle);
 
             Step::Continue
         },
@@ -389,12 +385,13 @@ pub fn temporal_three_node_motif<G: GraphViewOps>(
 mod motifs_test {
     use super::*;
     use crate::db::graph::Graph;
+    use crate::db::mutation_api::AdditionOps;
 
     fn load_graph(n_shards: usize, edges: Vec<(i64, u64, u64)>) -> Graph {
         let graph = Graph::new(n_shards);
 
         for (t, src, dst) in edges {
-            graph.add_edge(t, src, dst, &vec![], None).unwrap();
+            graph.add_edge(t, src, dst, [], None).unwrap();
         }
         graph
     }

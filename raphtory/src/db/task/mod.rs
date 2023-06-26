@@ -10,8 +10,8 @@ pub mod eval_vertex_state;
 pub mod task;
 pub mod task_runner;
 pub(crate) mod task_state;
-pub mod window_eval_vertex;
 pub mod window_eval_edge;
+pub mod window_eval_vertex;
 
 pub static POOL: Lazy<Arc<ThreadPool>> = Lazy::new(|| {
     let num_threads = std::env::var("DOCBROWN_MAX_THREADS")
@@ -44,6 +44,7 @@ pub fn custom_pool(n_threads: usize) -> Arc<ThreadPool> {
 
 #[cfg(test)]
 mod task_tests {
+    use crate::db::mutation_api::AdditionOps;
     use crate::{
         core::state::{self, compute_state::ComputeStateVec},
         db::graph::Graph,
@@ -71,7 +72,7 @@ mod task_tests {
         ];
 
         for (src, dst, ts) in edges {
-            graph.add_edge(ts, src, dst, &vec![], None).unwrap();
+            graph.add_edge(ts, src, dst, [], None).unwrap();
         }
 
         let mut ctx: Context<Graph, ComputeStateVec> = (&graph).into();

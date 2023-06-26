@@ -105,6 +105,7 @@ mod cc_test {
     use crate::db::graph::Graph;
 
     use super::*;
+    use crate::db::mutation_api::AdditionOps;
     use itertools::*;
     use std::{cmp::Reverse, iter::once};
 
@@ -123,7 +124,7 @@ mod cc_test {
         ];
 
         for (src, dst, ts) in edges {
-            graph.add_edge(ts, src, dst, &vec![], None).unwrap();
+            graph.add_edge(ts, src, dst, [], None).unwrap();
         }
         let results: HashMap<String, u64> = weakly_connected_components(&graph, usize::MAX, None);
 
@@ -175,7 +176,7 @@ mod cc_test {
         ];
 
         for (src, dst, ts) in edges {
-            graph.add_edge(ts, src, dst, &vec![], None).unwrap();
+            graph.add_edge(ts, src, dst, [], None).unwrap();
         }
 
         let results: HashMap<String, u64> = weakly_connected_components(&graph, usize::MAX, None);
@@ -208,7 +209,7 @@ mod cc_test {
         let edges = vec![(1, 1, 1)];
 
         for (src, dst, ts) in edges {
-            graph.add_edge(ts, src, dst, &vec![], None).unwrap();
+            graph.add_edge(ts, src, dst, [], None).unwrap();
         }
 
         let results: HashMap<String, u64> = weakly_connected_components(&graph, usize::MAX, None);
@@ -242,7 +243,7 @@ mod cc_test {
             let graph = Graph::new(2);
 
             for (src, dst) in edges.iter() {
-                graph.add_edge(0, *src, *dst, &vec![], None).unwrap();
+                graph.add_edge(0, *src, *dst, [], None).unwrap();
             }
 
             // now we do connected components over window 0..1

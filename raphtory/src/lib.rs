@@ -47,10 +47,7 @@
 //!
 //! Create your own graph below
 //! ```
-//! use raphtory::db::graph::Graph;
-//! use raphtory::core::Direction;
-//! use raphtory::core::Prop;
-//! use raphtory::db::view_api::*;
+//! use raphtory::prelude::*;
 //!
 //! // Create your GraphDB object and state the number of shards you would like, here we have 2
 //! let graph = Graph::new(2);
@@ -59,20 +56,20 @@
 //! graph.add_vertex(
 //!   1,
 //!   "Gandalf",
-//!   &vec![("type".to_string(), Prop::Str("Character".to_string()))],
+//!   [("type".to_string(), Prop::Str("Character".to_string()))],
 //! );
 //!
 //! graph.add_vertex(
 //!   2,
 //!   "Frodo",
-//!   &vec![("type".to_string(), Prop::Str("Character".to_string()))],
+//!   [("type".to_string(), Prop::Str("Character".to_string()))],
 //! );
 //!
 //! graph.add_edge(
 //!   3,
 //!   "Gandalf",
 //!   "Frodo",
-//!   &vec![(
+//!   [(
 //!       "meeting".to_string(),
 //!       Prop::Str("Character Co-occurrence".to_string()),
 //!   )],
@@ -118,3 +115,13 @@ pub mod python;
 
 #[cfg(feature = "io")]
 pub mod graph_loader;
+
+pub mod prelude {
+    pub use crate::core::Prop;
+    pub use crate::db::graph::Graph;
+    pub use crate::db::graph_deletions::GraphWithDeletions;
+    pub use crate::db::mutation_api::{AdditionOps, DeletionOps, PropertyAdditionOps};
+    pub use crate::db::view_api::{
+        EdgeListOps, EdgeViewOps, GraphViewOps, TimeOps, VertexListOps, VertexViewOps,
+    };
+}

@@ -2,6 +2,7 @@ use criterion::{measurement::WallTime, BatchSize, Bencher, BenchmarkGroup, Bench
 use rand::seq::*;
 use rand::{distributions::Uniform, Rng};
 use raphtory::db::graph::Graph;
+use raphtory::db::mutation_api::AdditionOps;
 use raphtory::db::view_api::*;
 use std::collections::HashSet;
 
@@ -26,7 +27,7 @@ pub fn bootstrap_graph(num_shards: usize, num_vertices: usize) -> Graph {
         let source = indexes.next().unwrap();
         let target = indexes.next().unwrap();
         let time = times.next().unwrap();
-        graph.add_edge(time, source, target, &vec![], None).unwrap();
+        graph.add_edge(time, source, target, [], None).unwrap();
     }
     graph
 }
@@ -68,7 +69,7 @@ pub fn run_ingestion_benchmarks<F>(
         |b: &mut Bencher| {
             b.iter_batched_ref(
                 || (make_graph(), time_sample()),
-                |(g, t): &mut (Graph, i64)| g.add_vertex(*t, 0, &vec![]),
+                |(g, t): &mut (Graph, i64)| g.add_vertex(*t, 0, []),
                 BatchSize::SmallInput,
             )
         },
@@ -80,7 +81,7 @@ pub fn run_ingestion_benchmarks<F>(
         |b: &mut Bencher| {
             b.iter_batched_ref(
                 || (make_graph(), index_sample()),
-                |(g, v): &mut (Graph, u64)| g.add_vertex(0, *v, &vec![]),
+                |(g, v): &mut (Graph, u64)| g.add_vertex(0, *v, []),
                 BatchSize::SmallInput,
             )
         },
@@ -92,7 +93,7 @@ pub fn run_ingestion_benchmarks<F>(
         |b: &mut Bencher| {
             b.iter_batched_ref(
                 || (make_graph(), time_sample()),
-                |(g, t)| g.add_edge(*t, 0, 0, &vec![], None),
+                |(g, t)| g.add_edge(*t, 0, 0, [], None),
                 BatchSize::SmallInput,
             )
         },
@@ -104,7 +105,7 @@ pub fn run_ingestion_benchmarks<F>(
         |b: &mut Bencher| {
             b.iter_batched_ref(
                 || (make_graph(), index_sample(), index_sample()),
-                |(g, s, d)| g.add_edge(0, *s, *d, &vec![], None),
+                |(g, s, d)| g.add_edge(0, *s, *d, [], None),
                 BatchSize::SmallInput,
             )
         },
@@ -141,7 +142,7 @@ pub fn run_large_ingestion_benchmarks<F>(
                 },
                 |(g, times)| {
                     for t in times.iter() {
-                        g.add_edge(*t, 0, 0, &vec![], None).unwrap()
+                        g.add_edge(*t, 0, 0, [], None).unwrap()
                     }
                 },
                 BatchSize::SmallInput,
@@ -163,7 +164,7 @@ pub fn run_large_ingestion_benchmarks<F>(
                 },
                 |(g, times)| {
                     for t in times.iter() {
-                        g.add_edge(*t, "0", "0", &vec![], None).unwrap()
+                        g.add_edge(*t, "0", "0", [], None).unwrap()
                     }
                 },
                 BatchSize::SmallInput,
@@ -185,7 +186,7 @@ pub fn run_large_ingestion_benchmarks<F>(
                 },
                 |(g, times)| {
                     for t in times.iter() {
-                        g.add_edge(*t, "test", "other", &vec![], None).unwrap()
+                        g.add_edge(*t, "test", "other", [], None).unwrap()
                     }
                 },
                 BatchSize::SmallInput,
@@ -213,7 +214,7 @@ pub fn run_large_ingestion_benchmarks<F>(
                             *t,
                             src_gen.next().unwrap(),
                             dst_gen.next().unwrap(),
-                            &vec![],
+                            [],
                             None,
                         )
                         .unwrap()
@@ -244,7 +245,7 @@ pub fn run_large_ingestion_benchmarks<F>(
                             *t,
                             src_gen.next().unwrap(),
                             dst_gen.next().unwrap(),
-                            &vec![],
+                            [],
                             None,
                         )
                         .unwrap()

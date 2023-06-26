@@ -2,9 +2,9 @@ use crate::common::bench;
 use criterion::{criterion_group, criterion_main, Criterion};
 use raphtory::algorithms::local_clustering_coefficient::local_clustering_coefficient;
 use raphtory::algorithms::local_triangle_count::local_triangle_count;
-use raphtory::db::graph::Graph;
-use raphtory::db::view_api::*;
+use raphtory::prelude::*;
 use rayon::prelude::*;
+
 mod common;
 
 //TODO swap to new trianglecount
@@ -75,7 +75,7 @@ pub fn local_clustering_coefficient_analysis(c: &mut Criterion) {
         ];
 
         for (src, dst, t) in &vs {
-            g.add_edge(*t, *src, *dst, &vec![], None).unwrap();
+            g.add_edge(*t, *src, *dst, [], None).unwrap();
         }
 
         b.iter(|| local_clustering_coefficient(&windowed_graph, 1))

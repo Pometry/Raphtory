@@ -1,18 +1,17 @@
 //! Defines the `ViewApi` trait, which represents the API for querying a view of the graph.
 
-pub mod edge;
-pub mod graph;
+mod edge;
+mod graph;
 pub mod internal;
-pub mod layer;
-pub mod time;
-pub mod vertex;
+mod layer;
+mod time;
+mod vertex;
 
-
-pub use edge::EdgeListOps;
-pub use edge::EdgeViewOps;
-pub use graph::GraphViewOps;
-pub use time::TimeOps;
-pub use vertex::VertexListOps;
-pub use vertex::VertexViewOps;
+pub use edge::*;
+pub use graph::*;
+pub use layer::*;
+pub use time::*;
+pub use vertex::*;
+pub use vertex::*;
 
 pub type BoxedIter<T> = Box<dyn Iterator<Item = T> + Send>;

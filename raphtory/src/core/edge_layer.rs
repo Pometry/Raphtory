@@ -140,7 +140,7 @@ impl EdgeLayer {
         t: i64,
         src_pid: usize,
         dst_pid: usize,
-        props: &Vec<(String, Prop)>,
+        props: Vec<(String, Prop)>,
     ) {
         let required_len = std::cmp::max(src_pid, dst_pid) + 1;
         let dst = VID::Local(dst_pid);
@@ -169,7 +169,7 @@ impl EdgeLayer {
         t: i64,
         src_pid: usize,
         dst: u64,
-        props: &Vec<(String, Prop)>,
+        props: Vec<(String, Prop)>,
     ) {
         self.ensure_adj_lists_len(src_pid + 1);
         let dst = VID::Remote(dst);
@@ -193,7 +193,7 @@ impl EdgeLayer {
         t: i64,
         src: u64,
         dst_pid: usize,
-        props: &Vec<(String, Prop)>,
+        props: Vec<(String, Prop)>,
     ) {
         let src = VID::Remote(src);
         self.ensure_adj_lists_len(dst_pid + 1);

@@ -3,6 +3,7 @@ use raphtory::algorithms::pagerank::unweighted_page_rank;
 use raphtory::core::utils;
 use raphtory::core::Prop;
 use raphtory::db::graph::Graph;
+use raphtory::db::mutation_api::AdditionOps;
 use raphtory::db::view_api::*;
 use raphtory::graph_loader::source::csv_loader::CsvLoader;
 use serde::Deserialize;
@@ -56,13 +57,13 @@ fn main() {
         CsvLoader::new(data_dir)
             .set_delimiter("\t")
             .load_into_graph(&g, |lotr: Benchr, g: &Graph| {
-                g.add_vertex(1, lotr.src_id.clone(), &vec![])
+                g.add_vertex(1, lotr.src_id.clone(), [])
                     .expect("Failed to add vertex");
 
-                g.add_vertex(1, lotr.dst_id.clone(), &vec![])
+                g.add_vertex(1, lotr.dst_id.clone(), [])
                     .expect("Failed to add vertex");
 
-                g.add_edge(1, lotr.src_id.clone(), lotr.dst_id.clone(), &vec![], None)
+                g.add_edge(1, lotr.src_id.clone(), lotr.dst_id.clone(), [], None)
                     .expect("Failed to add edge");
             })
             .expect("Failed to load graph from CSV data files");

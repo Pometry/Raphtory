@@ -146,8 +146,8 @@ impl Props {
         vector.get_mut(id).unwrap()
     }
 
-    fn get_or_allocate_id(&mut self, name: &str, should_be_static: bool) -> Result<usize, ()> {
-        match self.prop_ids.get(name) {
+    fn get_or_allocate_id(&mut self, name: String, should_be_static: bool) -> Result<usize, ()> {
+        match self.prop_ids.get(&name) {
             None => {
                 let new_prop_id = if should_be_static {
                     let static_prop_ids = self.prop_ids.iter().filter(|&(_, v)| v.is_static());
@@ -158,7 +158,7 @@ impl Props {
                     let new_id = static_prop_ids.count();
                     PropId::Temporal(new_id)
                 };
-                self.prop_ids.insert(name.to_string(), new_prop_id.clone());
+                self.prop_ids.insert(name, new_prop_id.clone());
                 Ok(new_prop_id.get_id())
             }
             Some(id) if id.is_static() == should_be_static => Ok(id.get_id()),
@@ -168,22 +168,22 @@ impl Props {
 
     fn translate_props(
         &mut self,
-        props: &Vec<(String, Prop)>,
+        props: Vec<(String, Prop)>,
         should_be_static: bool,
     ) -> Vec<(usize, Prop)> {
         // TODO: return Result
         props
-            .iter()
+            .into_iter()
             .map(|(name, prop)| {
                 (
                     self.get_or_allocate_id(name, should_be_static).unwrap(),
-                    prop.clone(),
+                    prop,
                 )
             })
             .collect_vec()
     }
 
-    pub fn upsert_temporal_props(&mut self, t: i64, id: usize, props: &Vec<(String, Prop)>) {
+    pub fn upsert_temporal_props(&mut self, t: i64, id: usize, props: Vec<(String, Prop)>) {
         if !props.is_empty() {
             let translated_props = self.translate_props(props, false);
             let vertex_slot: &mut LazyVec<TProp> =
@@ -197,7 +197,7 @@ impl Props {
     pub fn set_static_props(
         &mut self,
         id: usize,
-        props: &Vec<(String, Prop)>,
+        props: Vec<(String, Prop)>,
     ) -> Result<(), IllegalMutate> {
         if !props.is_empty() {
             let translated_props = self.translate_props(props, true);
@@ -227,22 +227,22 @@ mod props_tests {
             .prop_ids
             .insert(String::from("key2"), PropId::Temporal(1));
 
-        assert_eq!(props.get_or_allocate_id("key2", false), Ok(1));
+        assert_eq!(props.get_or_allocate_id("key2".to_string(), false), Ok(1));
     }
 
     #[test]
     fn return_new_prop_id_if_prop_name_not_found() {
         let mut props = Props::default();
-        assert_eq!(props.get_or_allocate_id("key1", false), Ok(0));
-        assert_eq!(props.get_or_allocate_id("key2", false), Ok(1));
+        assert_eq!(props.get_or_allocate_id("key1".to_string(), false), Ok(0));
+        assert_eq!(props.get_or_allocate_id("key2".to_string(), false), Ok(1));
     }
 
     #[test]
     fn insert_new_vertex_prop() {
         let mut props = Props::default();
-        props.upsert_temporal_props(1, 0, &vec![("bla".to_string(), Prop::I32(10))]);
+        props.upsert_temporal_props(1, 0, vec![("bla".to_string(), Prop::I32(10))]);
 
-        let prop_id = props.get_or_allocate_id("bla", false).unwrap();
+        let prop_id = props.get_or_allocate_id("bla".to_string(), false).unwrap();
         assert_eq!(
             props
                 .temporal_props
@@ -259,10 +259,10 @@ mod props_tests {
     #[test]
     fn update_existing_vertex_prop() {
         let mut props = Props::default();
-        props.upsert_temporal_props(1, 0, &vec![("bla".to_string(), Prop::I32(10))]);
-        props.upsert_temporal_props(2, 0, &vec![("bla".to_string(), Prop::I32(10))]);
+        props.upsert_temporal_props(1, 0, vec![("bla".to_string(), Prop::I32(10))]);
+        props.upsert_temporal_props(2, 0, vec![("bla".to_string(), Prop::I32(10))]);
 
-        let prop_id = props.get_or_allocate_id("bla", false).unwrap();
+        let prop_id = props.get_or_allocate_id("bla".to_string(), false).unwrap();
         assert_eq!(
             props
                 .temporal_props
@@ -279,10 +279,10 @@ mod props_tests {
     #[test]
     fn new_update_with_the_same_time_to_a_vertex_prop_is_ignored() {
         let mut props = Props::default();
-        props.upsert_temporal_props(1, 0, &vec![("bla".to_string(), Prop::I32(10))]);
-        props.upsert_temporal_props(1, 0, &vec![("bla".to_string(), Prop::I32(20))]);
+        props.upsert_temporal_props(1, 0, vec![("bla".to_string(), Prop::I32(10))]);
+        props.upsert_temporal_props(1, 0, vec![("bla".to_string(), Prop::I32(20))]);
 
-        let prop_id = props.get_or_allocate_id("bla", false).unwrap();
+        let prop_id = props.get_or_allocate_id("bla".to_string(), false).unwrap();
         assert_eq!(
             props
                 .temporal_props

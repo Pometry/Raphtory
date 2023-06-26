@@ -17,6 +17,7 @@ use std::io::{prelude::*, BufReader, LineWriter};
 use std::time::Instant;
 
 use raphtory::db::graph::Graph;
+use raphtory::db::mutation_api::AdditionOps;
 use raphtory::db::view_api::*;
 
 #[derive(Deserialize, std::fmt::Debug)]
@@ -96,7 +97,7 @@ fn main() {
                     time,
                     src,
                     dst,
-                    &vec![("amount".to_string(), Prop::U64(sent.amount_btc))],
+                    [("amount".to_string(), Prop::U64(sent.amount_btc))],
                     None,
                 )
                 .unwrap()

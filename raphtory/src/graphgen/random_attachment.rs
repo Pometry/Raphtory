@@ -14,6 +14,7 @@
 //! ```
 
 use crate::db::graph::Graph;
+use crate::db::mutation_api::AdditionOps;
 use crate::db::view_api::*;
 use rand::seq::SliceRandom;
 
@@ -49,7 +50,7 @@ pub fn random_attachment(graph: &Graph, vertices_to_add: usize, edges_per_step: 
         max_id += 1;
         latest_time += 1;
         graph
-            .add_vertex(latest_time, max_id, &vec![])
+            .add_vertex(latest_time, max_id, [])
             .map_err(|err| println!("{:?}", err))
             .ok();
         ids.push(max_id);
@@ -61,7 +62,7 @@ pub fn random_attachment(graph: &Graph, vertices_to_add: usize, edges_per_step: 
         latest_time += 1;
         edges.for_each(|neighbour| {
             graph
-                .add_edge(latest_time, max_id, *neighbour, &vec![], None)
+                .add_edge(latest_time, max_id, *neighbour, [], None)
                 .expect("Not able to add edge");
         });
         ids.push(max_id);
@@ -85,7 +86,7 @@ mod random_graph_test {
         let graph = Graph::new(2);
         for i in 0..10 {
             graph
-                .add_vertex(i, i as u64, &vec![])
+                .add_vertex(i, i as u64, [])
                 .map_err(|err| println!("{:?}", err))
                 .ok();
         }

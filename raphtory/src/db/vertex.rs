@@ -8,9 +8,7 @@ use crate::db::graph_layer::LayeredGraph;
 use crate::db::graph_window::WindowedGraph;
 use crate::db::path::{Operations, PathFromVertex};
 use crate::db::view_api::internal::GraphPropertiesOps;
-use crate::db::view_api::layer::LayerOps;
-use crate::db::view_api::vertex::VertexViewOps;
-use crate::db::view_api::{BoxedIter, GraphViewOps, TimeOps, VertexListOps};
+use crate::db::view_api::*;
 use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
@@ -473,14 +471,15 @@ impl<G: GraphViewOps> VertexListOps for BoxedIter<BoxedIter<VertexView<G>>> {
 #[cfg(test)]
 mod vertex_test {
     use crate::db::graph::Graph;
+    use crate::db::mutation_api::AdditionOps;
     use crate::db::view_api::*;
 
     #[test]
     fn test_earliest_time() {
         let g = Graph::new(4);
-        g.add_vertex(0, 1, &vec![]).unwrap();
-        g.add_vertex(1, 1, &vec![]).unwrap();
-        g.add_vertex(2, 1, &vec![]).unwrap();
+        g.add_vertex(0, 1, []).unwrap();
+        g.add_vertex(1, 1, []).unwrap();
+        g.add_vertex(2, 1, []).unwrap();
         let mut view = g.at(1);
         assert_eq!(view.vertex(1).expect("v").earliest_time().unwrap(), 0);
         assert_eq!(view.vertex(1).expect("v").latest_time().unwrap(), 1);

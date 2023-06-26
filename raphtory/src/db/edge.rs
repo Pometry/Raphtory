@@ -11,7 +11,6 @@ use crate::core::vertex_ref::VertexRef;
 use crate::core::Prop;
 use crate::db::graph_window::WindowedGraph;
 use crate::db::vertex::VertexView;
-use crate::db::view_api::edge::{EdgeViewInternalOps, EdgeViewOps};
 use crate::db::view_api::*;
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};

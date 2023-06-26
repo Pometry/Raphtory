@@ -1,5 +1,6 @@
 use raphtory::db::graph::Graph;
-use raphtory::db::view_api::internal::CoreGraphOps;
+// use raphtory::db::view_api::internal::CoreGraphOps;
+use raphtory::prelude::GraphViewOps;
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use walkdir::WalkDir;
@@ -35,7 +36,7 @@ impl Data {
             .into_iter()
             .map(|path| {
                 let graph = Graph::load_from_file(&path).expect("Unable to load from graph");
-                let maybe_graph_name = graph.static_prop("name");
+                let maybe_graph_name = graph.static_property("name");
 
                 return match maybe_graph_name {
                     None => {

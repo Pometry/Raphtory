@@ -111,7 +111,7 @@ pub mod errors {
     use crate::core::tgraph::errors::MutateGraphError;
     use crate::core::time::error::ParseTimeError;
 
-    #[derive(thiserror::Error, Debug, PartialEq)]
+    #[derive(thiserror::Error, Debug)]
     pub enum GraphError {
         #[error("Immutable graph reference already exists. You can access mutable graph apis only exclusively.")]
         IllegalGraphAccess,
@@ -129,6 +129,24 @@ pub mod errors {
         // wasm
         #[error("Vertex is not String or Number")]
         VertexIdNotStringOrNumber,
+        #[error("Invalid layer.")]
+        InvalidLayer,
+        #[error("Bincode operation failed")]
+        BinCodeError { source: Box<bincode::ErrorKind> },
+        #[error("IO operation failed")]
+        IOError { source: std::io::Error },
+    }
+}
+
+impl From<bincode::Error> for GraphError {
+    fn from(source: bincode::Error) -> Self {
+        GraphError::BinCodeError { source }
+    }
+}
+
+impl From<std::io::Error> for GraphError {
+    fn from(source: std::io::Error) -> Self {
+        GraphError::IOError { source }
     }
 }
 
@@ -261,14 +279,15 @@ impl TGraphShard<TemporalGraph> {
         self.read_shard(|tg| tg.has_vertex(v))
     }
 
-    pub fn add_vertex<T: InputVertex>(
+    pub fn add_vertex(
         &self,
         t: i64,
-        v: T,
-        props: &Vec<(String, Prop)>,
+        v: u64,
+        name: Option<&str>,
+        props: Vec<(String, Prop)>,
     ) -> Result<(), GraphError> {
         self.write_shard(move |tg| {
-            let res = tg.add_vertex_with_props(t, v, props);
+            let res = tg.add_vertex_with_props(t, v, name, props);
             res.map_err(|e| GraphError::FailedToMutateGraph { source: e })
         })
     }
@@ -276,7 +295,7 @@ impl TGraphShard<TemporalGraph> {
     pub fn add_vertex_properties(
         &self,
         v: u64,
-        data: &Vec<(String, Prop)>,
+        data: Vec<(String, Prop)>,
     ) -> Result<(), GraphError> {
         self.write_shard(|tg| {
             let res = tg.add_vertex_properties(v, data);
@@ -284,14 +303,14 @@ impl TGraphShard<TemporalGraph> {
         })
     }
 
-    pub fn add_property(&self, t: i64, props: &Vec<(String, Prop)>) -> Result<(), GraphError> {
+    pub fn add_properties(&self, t: i64, props: Vec<(String, Prop)>) -> Result<(), GraphError> {
         self.write_shard(|tg| {
             tg.add_property(t, props);
             Ok(())
         })
     }
 
-    pub fn add_static_property(&self, props: &Vec<(String, Prop)>) -> Result<(), GraphError> {
+    pub fn add_static_properties(&self, props: Vec<(String, Prop)>) -> Result<(), GraphError> {
         self.write_shard(|tg| {
             let res = tg.add_static_property(props);
             res.map_err(|e| GraphError::FailedToMutateGraph { source: e })
@@ -303,7 +322,7 @@ impl TGraphShard<TemporalGraph> {
         t: i64,
         src: T,
         dst: T,
-        props: &Vec<(String, Prop)>,
+        props: Vec<(String, Prop)>,
         layer: usize,
     ) -> Result<(), GraphError> {
         self.write_shard(|tg| {
@@ -330,7 +349,7 @@ impl TGraphShard<TemporalGraph> {
         t: i64,
         src: T,
         dst: T,
-        props: &Vec<(String, Prop)>,
+        props: Vec<(String, Prop)>,
         layer: usize,
     ) -> Result<(), GraphError> {
         self.write_shard(|tg| {
@@ -357,7 +376,7 @@ impl TGraphShard<TemporalGraph> {
         t: i64,
         src: T,
         dst: T,
-        props: &Vec<(String, Prop)>,
+        props: Vec<(String, Prop)>,
         layer: usize,
     ) -> Result<(), GraphError> {
         self.write_shard(|tg| {
@@ -383,7 +402,7 @@ impl TGraphShard<TemporalGraph> {
         &self,
         src: u64,
         dst: u64,
-        data: &Vec<(String, Prop)>,
+        data: Vec<(String, Prop)>,
         layer: usize,
     ) -> Result<(), GraphError> {
         self.write_shard(|tg| {
@@ -756,7 +775,8 @@ mod temporal_graph_partition_test {
         let rand_vertex = vs.get(rand_index).unwrap().0;
 
         for (v, t) in vs {
-            g.add_vertex(t, v, &vec![]).expect("failed to add vertex");
+            g.add_vertex(t, v, None, vec![])
+                .expect("failed to add vertex");
         }
 
         TestResult::from_bool(g.has_vertex(rand_vertex.into()))
@@ -768,7 +788,7 @@ mod temporal_graph_partition_test {
 
         let expected_len = vs.iter().map(|(_, v)| v).sorted().dedup().count();
         for (t, v) in vs {
-            g.add_vertex(t.into(), v as u64, &vec![])
+            g.add_vertex(t.into(), v as u64, None, vec![])
                 .expect("failed to add vertex");
         }
 
@@ -789,7 +809,7 @@ mod temporal_graph_partition_test {
         let g = TGraphShard::new(0);
 
         for (t, src, dst) in &vs {
-            g.add_edge(*t, *src, *dst, &vec![], 0).unwrap();
+            g.add_edge(*t, *src, *dst, vec![], 0).unwrap();
         }
 
         let actual = g.vertices().map(|v| g.vertex_id(v)).collect::<Vec<_>>();
@@ -810,7 +830,7 @@ mod temporal_graph_partition_test {
         let g = TGraphShard::new(0);
 
         for (t, src, dst) in &vs {
-            g.add_edge(*t, *src, *dst, &vec![], 0).unwrap();
+            g.add_edge(*t, *src, *dst, vec![], 0).unwrap();
         }
 
         let expected = vec![(2, 3, 3), (2, 1, 2), (1, 1, 2)];
@@ -842,7 +862,7 @@ mod temporal_graph_partition_test {
         let g = TGraphShard::new(0);
 
         for (t, src, dst) in &vs {
-            g.add_edge(*t, *src, *dst, &vec![], 0).unwrap();
+            g.add_edge(*t, *src, *dst, vec![], 0).unwrap();
         }
 
         let expected = vec![(2, 3, 5), (2, 1, 3), (1, 1, 2)];
@@ -874,7 +894,7 @@ mod temporal_graph_partition_test {
         let g = TGraphShard::new(0);
 
         for (t, src, dst) in &vs {
-            g.add_edge(*t, *src, *dst, &vec![], 0).unwrap();
+            g.add_edge(*t, *src, *dst, vec![], 0).unwrap();
         }
 
         let expected = vec![(2, 3, 2), (1, 0, 0), (1, 0, 0)];

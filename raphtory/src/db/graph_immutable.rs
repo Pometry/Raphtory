@@ -22,9 +22,11 @@ use crate::core::tprop::TProp;
 use crate::core::vertex_ref::{LocalVertexRef, VertexRef};
 use crate::core::{utils, Prop};
 use crate::core::{Direction, PropUnwrap};
-use crate::db::graph::Graph;
+use crate::db::graph::{Graph, InternalGraph};
 use crate::db::view_api::internal::time_semantics::TimeSemantics;
-use crate::db::view_api::internal::{CoreGraphOps, GraphOps};
+use crate::db::view_api::internal::{
+    CoreDeletionOps, CoreGraphOps, GraphOps, InternalMaterialize, MaterializedGraph,
+};
 use crate::db::view_api::BoxedIter;
 use itertools::Itertools;
 use rustc_hash::FxHashMap;
@@ -96,10 +98,11 @@ impl ImmutableGraph {
     ///
     /// ```rust
     /// use raphtory::db::graph::Graph;
+    /// use raphtory::db::mutation_api::AdditionOps;
     /// use raphtory::db::view_api::*;
     ///
     /// let graph = Graph::new(2);
-    /// graph.add_vertex(0, 1, &vec![]).unwrap();
+    /// graph.add_vertex(0, 1, []).unwrap();
     /// // ... Add vertices and edges ...
     /// let immutable_graph = graph.freeze();
     /// // Unfreeze the graph
@@ -115,10 +118,11 @@ impl ImmutableGraph {
     ///
     /// ```rust
     /// use raphtory::db::graph::Graph;
+    /// use raphtory::db::mutation_api::AdditionOps;
     /// use raphtory::db::view_api::*;
     ///
     /// let graph = Graph::new(2);
-    /// graph.add_vertex(0, 1, &vec![]).unwrap();
+    /// graph.add_vertex(0, 1, []).unwrap();
     /// // ... Add vertices and edges ...
     /// let immutable_graph = graph.freeze();
     /// // Unfreeze the graph
@@ -155,11 +159,10 @@ impl ImmutableGraph {
     /// # Examples
     ///
     /// ```rust
-    /// use raphtory::db::graph::Graph;
-    /// use raphtory::db::view_api::*;
+    /// use raphtory::prelude::*;
     ///
     /// let graph = Graph::new(2);
-    /// graph.add_vertex(0, 1, &vec![]).unwrap();
+    /// graph.add_vertex(0, 1, []).unwrap();
     /// // ... Add vertices and edges ...
     /// let immutable_graph = graph.freeze();
     /// // Unfreeze the graph
@@ -175,11 +178,10 @@ impl ImmutableGraph {
     /// # Examples
     ///
     /// ```rust
-    /// use raphtory::db::graph::Graph;
-    /// use raphtory::db::view_api::*;
+    /// use raphtory::prelude::*;
     ///
     /// let graph = Graph::new(2);
-    /// graph.add_vertex(0, 1, &vec![]).unwrap();
+    /// graph.add_vertex(0, 1, []).unwrap();
     /// // ... Add vertices and edges ...
     /// let immutable_graph = graph.freeze();
     /// // Unfreeze the graph
@@ -200,11 +202,10 @@ impl ImmutableGraph {
     /// # Examples
     ///
     /// ```rust
-    /// use raphtory::db::graph::Graph;
-    /// use raphtory::db::view_api::*;
+    /// use raphtory::prelude::*;
     ///
     /// let graph = Graph::new(2);
-    /// graph.add_vertex(0, 1, &vec![]).unwrap();
+    /// graph.add_vertex(0, 1, []).unwrap();
     /// // ... Add vertices and edges ...
     /// let immutable_graph = graph.freeze();
     /// // Unfreeze the graph
@@ -220,10 +221,11 @@ impl ImmutableGraph {
     ///
     /// ```rust
     /// use raphtory::db::graph::Graph;
+    /// use raphtory::db::mutation_api::AdditionOps;
     /// use raphtory::db::view_api::*;
     ///
     /// let graph = Graph::new(2);
-    /// graph.add_edge(0, 1, 1, &vec![], None).unwrap();
+    /// graph.add_edge(0, 1, 1, [], None).unwrap();
     /// // ... Add vertices and edges ...
     /// let immutable_graph = graph.freeze();
     /// // Unfreeze the graph
@@ -242,10 +244,11 @@ impl ImmutableGraph {
     ///
     /// ```rust
     /// use raphtory::db::graph::Graph;
+    /// use raphtory::db::mutation_api::AdditionOps;
     /// use raphtory::db::view_api::*;
     ///
     /// let graph = Graph::new(2);
-    /// graph.add_edge(0, 1, 2, &vec![], None).unwrap();
+    /// graph.add_edge(0, 1, 2, [], None).unwrap();
     /// // ... Add vertices and edges ...
     /// let immutable_graph = graph.freeze();
     /// // Unfreeze the graph
@@ -282,6 +285,22 @@ impl ImmutableGraph {
     }
 }
 
+impl InternalMaterialize for ImmutableGraph {
+    fn new_base_graph(&self, graph: InternalGraph) -> MaterializedGraph {
+        MaterializedGraph::EventGraph(graph.into())
+    }
+
+    fn include_deletions(&self) -> bool {
+        false
+    }
+}
+
+impl CoreDeletionOps for ImmutableGraph {
+    fn edge_deletions(&self, eref: EdgeRef) -> LockedView<TimeIndex> {
+        LockedView::Frozen(self.get_shard_from_e(eref).rc.edge_deletions(eref))
+    }
+}
+
 impl CoreGraphOps for ImmutableGraph {
     fn get_layer_name_by_id(&self, layer_id: usize) -> String {
         self.layer_ids
@@ -301,10 +320,6 @@ impl CoreGraphOps for ImmutableGraph {
 
     fn edge_additions(&self, eref: EdgeRef) -> LockedView<TimeIndex> {
         LockedView::Frozen(self.get_shard_from_e(eref).rc.edge_additions(eref))
-    }
-
-    fn edge_deletions(&self, eref: EdgeRef) -> LockedView<TimeIndex> {
-        LockedView::Frozen(self.get_shard_from_e(eref).rc.edge_deletions(eref))
     }
 
     fn vertex_additions(&self, v: LocalVertexRef) -> LockedView<TimeIndex> {
@@ -589,6 +604,14 @@ impl TimeSemantics for ImmutableGraph {
 
     fn edge_latest_time_window(&self, e: EdgeRef, w: Range<i64>) -> Option<i64> {
         self.edge_additions(e).range(w).last()
+    }
+
+    fn edge_deletion_history(&self, e: EdgeRef) -> Vec<i64> {
+        self.edge_deletions(e).iter().copied().collect()
+    }
+
+    fn edge_deletion_history_window(&self, e: EdgeRef, w: Range<i64>) -> Vec<i64> {
+        self.edge_deletions(e).range(w).iter().copied().collect()
     }
 
     fn temporal_prop_vec(&self, name: &str) -> Vec<(i64, Prop)> {

@@ -26,12 +26,13 @@
 //! ```rust
 //!
 //! use raphtory::db::graph::Graph;
+//! use raphtory::db::mutation_api::AdditionOps;
 //! use raphtory::db::view_api::*;
 //!
 //! let graph = Graph::new(2);
-//! graph.add_edge(0, 1, 2, &vec![], None).unwrap();
-//! graph.add_edge(1, 1, 3, &vec![], None).unwrap();
-//! graph.add_edge(2, 2, 3, &vec![], None).unwrap();
+//! graph.add_edge(0, 1, 2, [], None).unwrap();
+//! graph.add_edge(1, 1, 3, [], None).unwrap();
+//! graph.add_edge(2, 2, 3, [], None).unwrap();
 //!
 //!  let wg = graph.window(0, 1);
 //!  assert_eq!(wg.edge(1, 2, None).unwrap().src().id(), 1);
@@ -42,7 +43,9 @@ use crate::core::time::IntoTime;
 use crate::core::vertex_ref::{LocalVertexRef, VertexRef};
 use crate::core::{Direction, Prop};
 use crate::db::view_api::internal::time_semantics::TimeSemantics;
-use crate::db::view_api::internal::{GraphOps, GraphWindowOps, InheritCoreOps};
+use crate::db::view_api::internal::{
+    Base, GraphOps, GraphWindowOps, InheritCoreOps, InheritMaterialize,
+};
 use crate::db::view_api::{BoxedIter, GraphViewOps};
 use std::cmp::{max, min};
 use std::ops::Range;
@@ -57,6 +60,18 @@ pub struct WindowedGraph<G: GraphViewOps> {
     /// The exclusive end time of the window.
     pub t_end: i64,
 }
+
+impl<G: GraphViewOps> Base for WindowedGraph<G> {
+    type Base = G;
+
+    fn base(&self) -> &Self::Base {
+        &self.graph
+    }
+}
+
+impl<G: GraphViewOps> InheritCoreOps for WindowedGraph<G> {}
+
+impl<G: GraphViewOps> InheritMaterialize for WindowedGraph<G> {}
 
 impl<G: GraphViewOps> TimeSemantics for WindowedGraph<G> {
     fn vertex_earliest_time(&self, v: LocalVertexRef) -> Option<i64> {
@@ -167,6 +182,16 @@ impl<G: GraphViewOps> TimeSemantics for WindowedGraph<G> {
             .edge_latest_time_window(e, self.actual_start(w.start)..self.actual_end(w.end))
     }
 
+    fn edge_deletion_history(&self, e: EdgeRef) -> Vec<i64> {
+        self.graph
+            .edge_deletion_history_window(e, self.t_start..self.t_end)
+    }
+
+    fn edge_deletion_history_window(&self, e: EdgeRef, w: Range<i64>) -> Vec<i64> {
+        self.graph
+            .edge_deletion_history_window(e, self.actual_start(w.start)..self.actual_end(w.end))
+    }
+
     fn temporal_prop_vec(&self, name: &str) -> Vec<(i64, Prop)> {
         self.graph
             .temporal_prop_vec_window(name, self.t_start, self.t_end)
@@ -218,14 +243,6 @@ impl<G: GraphViewOps> TimeSemantics for WindowedGraph<G> {
     fn temporal_edge_prop_vec(&self, e: EdgeRef, name: &str) -> Vec<(i64, Prop)> {
         self.graph
             .temporal_edge_prop_vec_window(e, name, self.t_start, self.t_end)
-    }
-}
-
-impl<G: GraphViewOps> InheritCoreOps for WindowedGraph<G> {
-    type Internal = G;
-
-    fn graph(&self) -> &Self::Internal {
-        &self.graph
     }
 }
 
@@ -411,11 +428,12 @@ impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
 ///
 /// ```rust
 /// use raphtory::db::graph::Graph;
+/// use raphtory::db::mutation_api::AdditionOps;
 /// use raphtory::db::view_api::*;
 ///
 /// let graph = Graph::new(1);
-/// graph.add_edge(0, 1, 2, &vec![], None).unwrap();
-/// graph.add_edge(1, 2, 3, &vec![], None).unwrap();
+/// graph.add_edge(0, 1, 2, [], None).unwrap();
+/// graph.add_edge(1, 2, 3, [], None).unwrap();
 /// let windowed_graph = graph.window(0, 1);
 /// ```
 impl<G: GraphViewOps> WindowedGraph<G> {
@@ -455,7 +473,7 @@ mod views_test {
     use super::*;
     use crate::core::Prop;
     use crate::db::graph::Graph;
-    use crate::db::view_api::edge::EdgeViewOps;
+    use crate::db::mutation_api::AdditionOps;
     use crate::db::view_api::*;
     use itertools::Itertools;
     use quickcheck::TestResult;
@@ -476,7 +494,7 @@ mod views_test {
         let g = Graph::new(2);
 
         for (t, src, dst) in &vs {
-            g.add_edge(*t, *src, *dst, &vec![], None).unwrap();
+            g.add_edge(*t, *src, *dst, [], None).unwrap();
         }
 
         let wg = WindowedGraph::new(g, -1, 1);
@@ -506,7 +524,7 @@ mod views_test {
         let g = Graph::new(2);
 
         for (t, src, dst) in vs {
-            g.add_edge(t, src, dst, &vec![], None).unwrap();
+            g.add_edge(t, src, dst, [], None).unwrap();
         }
 
         let wg = g.window(i64::MIN, i64::MAX);
@@ -528,7 +546,7 @@ mod views_test {
         let g = Graph::new(2);
 
         for (t, src, dst) in &vs {
-            g.add_edge(*t, *src, *dst, &vec![], None).unwrap();
+            g.add_edge(*t, *src, *dst, [], None).unwrap();
         }
 
         let wg = WindowedGraph::new(g, -1, 1);
@@ -549,7 +567,7 @@ mod views_test {
         let g = Graph::new(2);
 
         for (t, v) in &vs {
-            g.add_vertex(*t, *v, &vec![])
+            g.add_vertex(*t, *v, [])
                 .map_err(|err| println!("{:?}", err))
                 .ok();
         }
@@ -574,7 +592,7 @@ mod views_test {
         let g = Graph::new(2);
 
         for (t, v) in &vs {
-            g.add_vertex(*t, *v, &vec![])
+            g.add_vertex(*t, *v, [])
                 .map_err(|err| println!("{:?}", err))
                 .ok();
         }
@@ -624,7 +642,7 @@ mod views_test {
         let g = Graph::new(2);
 
         for (t, e) in &edges {
-            g.add_edge(*t, e.0, e.1, &vec![], None).unwrap();
+            g.add_edge(*t, e.0, e.1, [], None).unwrap();
         }
 
         let start = edges.get(rand_start_index).expect("start index in range").0;
@@ -668,14 +686,8 @@ mod views_test {
         let g = Graph::new(2);
 
         for (t, e) in &edges {
-            g.add_edge(
-                *t,
-                e.0,
-                e.1,
-                &vec![("test".to_owned(), Prop::Bool(true))],
-                None,
-            )
-            .unwrap();
+            g.add_edge(*t, e.0, e.1, [("test".to_owned(), Prop::Bool(true))], None)
+                .unwrap();
         }
 
         let wg = WindowedGraph::new(g, window.start, window.end);
@@ -697,14 +709,8 @@ mod views_test {
             .into_par_iter()
             .filter(|e| e.0 < i64::MAX)
             .for_each(|(t, src, dst)| {
-                g.add_edge(
-                    t,
-                    src,
-                    dst,
-                    &vec![("test".to_owned(), Prop::Bool(true))],
-                    None,
-                )
-                .unwrap()
+                g.add_edge(t, src, dst, [("test".to_owned(), Prop::Bool(true))], None)
+                    .unwrap()
             });
         let w = g.window(i64::MIN, i64::MAX);
         g.edges()
@@ -719,7 +725,7 @@ mod views_test {
 
         for dst in dsts {
             let t = 1;
-            g.add_edge(t, 0, dst, &vec![], None).unwrap();
+            g.add_edge(t, 0, dst, [], None).unwrap();
         }
         let w = g.window(i64::MIN, i64::MAX);
         w.num_edges() == n
@@ -741,7 +747,7 @@ mod views_test {
         let g = Graph::new(1);
 
         for (t, src, dst) in &vs {
-            g.add_edge(*t, *src, *dst, &vec![], None).unwrap();
+            g.add_edge(*t, *src, *dst, [], None).unwrap();
         }
 
         let res: Vec<_> = (0..=3)
@@ -757,7 +763,7 @@ mod views_test {
 
         let g = Graph::new(3);
         for (src, dst, t) in &vs {
-            g.add_edge(*src, *dst, *t, &vec![], None).unwrap();
+            g.add_edge(*src, *dst, *t, [], None).unwrap();
         }
         let res: Vec<_> = (0..=3)
             .map(|i| {
@@ -786,7 +792,7 @@ mod views_test {
         g.add_vertex(
             0,
             1,
-            &vec![
+            [
                 ("type".into(), Prop::Str("wallet".into())),
                 ("cost".into(), Prop::F32(99.5)),
             ],
@@ -797,7 +803,7 @@ mod views_test {
         g.add_vertex(
             -1,
             2,
-            &vec![
+            [
                 ("type".into(), Prop::Str("wallet".into())),
                 ("cost".into(), Prop::F32(10.0)),
             ],
@@ -808,7 +814,7 @@ mod views_test {
         g.add_vertex(
             6,
             3,
-            &vec![
+            [
                 ("type".into(), Prop::Str("wallet".into())),
                 ("cost".into(), Prop::F32(76.2)),
             ],
@@ -821,7 +827,7 @@ mod views_test {
                 *t,
                 *src,
                 *dst,
-                &vec![("eprop".into(), Prop::Str("commons".into()))],
+                [("eprop".into(), Prop::Str("commons".into()))],
                 None,
             )
             .unwrap();
@@ -841,7 +847,7 @@ mod views_test {
         g.add_vertex(
             0,
             1,
-            &vec![
+            [
                 ("type".into(), Prop::Str("wallet".into())),
                 ("cost".into(), Prop::F32(99.5)),
             ],
@@ -852,7 +858,7 @@ mod views_test {
         g.add_vertex(
             -1,
             2,
-            &vec![
+            [
                 ("type".into(), Prop::Str("wallet".into())),
                 ("cost".into(), Prop::F32(10.0)),
             ],
@@ -863,7 +869,7 @@ mod views_test {
         g.add_vertex(
             6,
             3,
-            &vec![
+            [
                 ("type".into(), Prop::Str("wallet".into())),
                 ("cost".into(), Prop::F32(76.2)),
             ],
@@ -872,7 +878,7 @@ mod views_test {
         .ok();
 
         for (t, src, dst) in &vs {
-            g.add_edge(*t, *src, *dst, &vec![], None).unwrap();
+            g.add_edge(*t, *src, *dst, [], None).unwrap();
         }
 
         let expected = wg.vertices().id().collect::<Vec<_>>();

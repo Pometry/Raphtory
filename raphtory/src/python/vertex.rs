@@ -1,14 +1,17 @@
 //! Defines the `Vertex`, which represents a vertex in the graph.
 //! A vertex is a node in the graph, and can have properties and edges.
 //! It can also be used to navigate the graph.
+use crate::core::time::error::ParseTimeError;
 use crate::core::vertex_ref::VertexRef;
+use crate::core::Prop;
+use crate::db::graph_window::WindowedGraph;
 use crate::db::path::{PathFromGraph, PathFromVertex};
 use crate::db::vertex::VertexView;
 use crate::db::vertices::Vertices;
 use crate::db::view_api::internal::{DynamicGraph, IntoDynamic};
-use crate::db::view_api::layer::LayerOps;
 use crate::db::view_api::*;
 use crate::python;
+use crate::python::utils::{PyInterval, PyTime};
 use crate::*;
 use chrono::NaiveDateTime;
 use itertools::Itertools;
@@ -18,12 +21,7 @@ use pyo3::pyclass::CompareOp;
 use pyo3::{pyclass, pymethods, PyAny, PyObject, PyRef, PyRefMut, PyResult, Python};
 use python::edge::{PyEdges, PyNestedEdges};
 use python::types::repr::{iterator_repr, Repr};
-use python::utils::{
-    at_impl, expanding_impl, extract_vertex_ref, rolling_impl, window_impl, IntoPyObject,
-    PyWindowSet,
-};
 use python::wrappers::iterators::*;
-use python::wrappers::prop::Prop;
 use std::collections::HashMap;
 
 /// A vertex (or node) in the graph.
@@ -44,10 +42,9 @@ impl<G: GraphViewOps + IntoDynamic> From<VertexView<G>> for PyVertex {
     }
 }
 
-impl<G: GraphViewOps + IntoDynamic> IntoPyObject for VertexView<G> {
-    fn into_py_object(self) -> PyObject {
-        let py_version: PyVertex = self.into();
-        Python::with_gil(|py| py_version.into_py(py))
+impl<G: GraphViewOps + IntoDynamic> IntoPy<PyObject> for VertexView<G> {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        PyVertex::from(self).into_py(py)
     }
 }
 
@@ -163,9 +160,7 @@ impl PyVertex {
     ///    The property value as a `Prop` object.
     pub fn property(&self, name: String, include_static: Option<bool>) -> Option<Prop> {
         let include_static = include_static.unwrap_or(true);
-        self.vertex
-            .property(name, include_static)
-            .map(|prop| prop.into())
+        self.vertex.property(name, include_static)
     }
 
     /// Returns the history of a property value of a vertex at all times
@@ -176,11 +171,7 @@ impl PyVertex {
     /// Returns:
     ///   A list of tuples of the form (time, value) where time is an integer and value is a `Prop` object.
     pub fn property_history(&self, name: String) -> Vec<(i64, Prop)> {
-        self.vertex
-            .property_history(name)
-            .into_iter()
-            .map(|(k, v)| (k, v.into()))
-            .collect()
+        self.vertex.property_history(name)
     }
 
     /// Returns all the properties of the vertex as a dictionary.
@@ -192,11 +183,7 @@ impl PyVertex {
     ///   A dictionary of the form {name: value} where name is a string and value is a `Prop` object.
     pub fn properties(&self, include_static: Option<bool>) -> HashMap<String, Prop> {
         let include_static = include_static.unwrap_or(true);
-        self.vertex
-            .properties(include_static)
-            .into_iter()
-            .map(|(k, v)| (k, v.into()))
-            .collect()
+        self.vertex.properties(include_static)
     }
 
     /// Returns all the properties of the vertex as a dictionary including the history of each property.
@@ -207,11 +194,7 @@ impl PyVertex {
     /// Returns:
     ///  A dictionary of the form {name: [(time, value)]} where name is a string, time is an integer, and value is a `Prop` object.
     pub fn property_histories(&self) -> HashMap<String, Vec<(i64, Prop)>> {
-        self.vertex
-            .property_histories()
-            .into_iter()
-            .map(|(k, v)| (k, v.into_iter().map(|(t, p)| (t, p.into())).collect()))
-            .collect()
+        self.vertex.property_histories()
     }
 
     /// Returns the names of all the properties of the vertex.
@@ -258,7 +241,7 @@ impl PyVertex {
     /// Returns:
     ///     The property value as a `Prop` object or None if the property does not exist.
     pub fn static_property(&self, name: String) -> Option<Prop> {
-        self.vertex.static_property(name).map(|prop| prop.into())
+        self.vertex.static_property(name)
     }
 
     /// Returns static properties of a vertex
@@ -268,11 +251,7 @@ impl PyVertex {
     /// Returns:
     ///     HashMap<String, Prop> - Returns static properties of a vertex identified by their names
     pub fn static_properties(&self) -> HashMap<String, Prop> {
-        self.vertex
-            .static_properties()
-            .into_iter()
-            .map(|(k, v)| (k, v.into()))
-            .collect()
+        self.vertex.static_properties()
     }
 
     /// Get the degree of this vertex (i.e., the number of edges that are incident to it).
@@ -401,8 +380,11 @@ impl PyVertex {
     ///
     /// Returns:
     ///  A `PyVertexWindowSet` object.
-    fn expanding(&self, step: &PyAny) -> PyResult<PyWindowSet> {
-        expanding_impl(&self.vertex, step)
+    fn expanding(
+        &self,
+        step: PyInterval,
+    ) -> Result<WindowSet<VertexView<DynamicGraph>>, ParseTimeError> {
+        self.vertex.expanding(step)
     }
 
     /// Creates a `PyVertexWindowSet` with the given `window` size and optional `step`, `start` and `end` times,
@@ -420,8 +402,12 @@ impl PyVertex {
     ///
     /// Returns:
     /// A `PyVertexWindowSet` object.
-    fn rolling(&self, window: &PyAny, step: Option<&PyAny>) -> PyResult<PyWindowSet> {
-        rolling_impl(&self.vertex, window, step)
+    fn rolling(
+        &self,
+        window: PyInterval,
+        step: Option<PyInterval>,
+    ) -> Result<WindowSet<VertexView<DynamicGraph>>, ParseTimeError> {
+        self.vertex.rolling(window, step)
     }
 
     /// Create a view of the vertex including all events between `t_start` (inclusive) and `t_end` (exclusive)
@@ -433,8 +419,13 @@ impl PyVertex {
     /// Returns:
     ///    A `PyVertex` object.
     #[pyo3(signature = (t_start = None, t_end = None))]
-    pub fn window(&self, t_start: Option<&PyAny>, t_end: Option<&PyAny>) -> PyResult<PyVertex> {
-        window_impl(&self.vertex, t_start, t_end).map(|v| v.into())
+    pub fn window(
+        &self,
+        t_start: Option<PyTime>,
+        t_end: Option<PyTime>,
+    ) -> VertexView<WindowedGraph<DynamicGraph>> {
+        self.vertex
+            .window(t_start.unwrap_or(PyTime::MIN), t_end.unwrap_or(PyTime::MAX))
     }
 
     /// Create a view of the vertex including all events at `t`.
@@ -445,8 +436,8 @@ impl PyVertex {
     /// Returns:
     ///     A `PyVertex` object.
     #[pyo3(signature = (end))]
-    pub fn at(&self, end: &PyAny) -> PyResult<PyVertex> {
-        at_impl(&self.vertex, end).map(|v| v.into())
+    pub fn at(&self, end: PyTime) -> VertexView<WindowedGraph<DynamicGraph>> {
+        self.vertex.at(end)
     }
 
     #[doc = default_layer_doc_string!()]
@@ -514,10 +505,9 @@ impl<G: GraphViewOps + IntoDynamic> From<Vertices<G>> for PyVertices {
     }
 }
 
-impl<G: GraphViewOps + IntoDynamic> IntoPyObject for Vertices<G> {
-    fn into_py_object(self) -> PyObject {
-        let py_version: PyVertices = self.into();
-        Python::with_gil(|py| py_version.into_py(py))
+impl<G: GraphViewOps + IntoDynamic> IntoPy<PyObject> for Vertices<G> {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        PyVertices::from(self).into_py(py)
     }
 }
 
@@ -538,7 +528,7 @@ impl PyVertices {
                 return false;
             }
         }
-        return true;
+        true
     }
 
     fn id(&self) -> U64Iterable {
@@ -666,17 +656,29 @@ impl PyVertices {
         self.vertices.window_size()
     }
 
-    fn expanding(&self, step: &PyAny) -> PyResult<PyWindowSet> {
-        expanding_impl(&self.vertices, step)
+    fn expanding(
+        &self,
+        step: PyInterval,
+    ) -> Result<WindowSet<Vertices<DynamicGraph>>, ParseTimeError> {
+        self.vertices.expanding(step)
     }
 
-    fn rolling(&self, window: &PyAny, step: Option<&PyAny>) -> PyResult<PyWindowSet> {
-        rolling_impl(&self.vertices, window, step)
+    fn rolling(
+        &self,
+        window: PyInterval,
+        step: Option<PyInterval>,
+    ) -> Result<WindowSet<Vertices<DynamicGraph>>, ParseTimeError> {
+        self.vertices.rolling(window, step)
     }
 
     #[pyo3(signature = (t_start = None, t_end = None))]
-    pub fn window(&self, t_start: Option<&PyAny>, t_end: Option<&PyAny>) -> PyResult<PyVertices> {
-        window_impl(&self.vertices, t_start, t_end).map(|v| v.into())
+    pub fn window(
+        &self,
+        t_start: Option<PyTime>,
+        t_end: Option<PyTime>,
+    ) -> Vertices<WindowedGraph<DynamicGraph>> {
+        self.vertices
+            .window(t_start.unwrap_or(PyTime::MIN), t_end.unwrap_or(PyTime::MAX))
     }
 
     /// Create a view of the vertices including all events at `t`.
@@ -687,8 +689,8 @@ impl PyVertices {
     /// Returns:
     ///     A `PyVertices` object.
     #[pyo3(signature = (end))]
-    pub fn at(&self, end: &PyAny) -> PyResult<PyVertices> {
-        at_impl(&self.vertices, end).map(|v| v.into())
+    pub fn at(&self, end: PyTime) -> Vertices<WindowedGraph<DynamicGraph>> {
+        self.vertices.at(end)
     }
 
     #[doc = default_layer_doc_string!()]
@@ -715,12 +717,10 @@ impl PyVertices {
         self.vertices.is_empty()
     }
 
-    pub fn __getitem__(&self, vertex: &PyAny) -> PyResult<PyVertex> {
-        let vref = extract_vertex_ref(vertex)?;
-        self.vertices.get(vref).map_or_else(
-            || Err(PyIndexError::new_err("Vertex does not exist")),
-            |v| Ok(v.into()),
-        )
+    pub fn __getitem__(&self, vertex: VertexRef) -> PyResult<VertexView<DynamicGraph>> {
+        self.vertices
+            .get(vertex)
+            .ok_or_else(|| PyIndexError::new_err("Vertex does not exist"))
     }
 
     pub fn __call__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
@@ -868,17 +868,29 @@ impl PyPathFromGraph {
         self.path.window_size()
     }
 
-    fn expanding(&self, step: &PyAny) -> PyResult<PyWindowSet> {
-        expanding_impl(&self.path, step)
+    fn expanding(
+        &self,
+        step: PyInterval,
+    ) -> Result<WindowSet<PathFromGraph<DynamicGraph>>, ParseTimeError> {
+        self.path.expanding(step)
     }
 
-    fn rolling(&self, window: &PyAny, step: Option<&PyAny>) -> PyResult<PyWindowSet> {
-        rolling_impl(&self.path, window, step)
+    fn rolling(
+        &self,
+        window: PyInterval,
+        step: Option<PyInterval>,
+    ) -> Result<WindowSet<PathFromGraph<DynamicGraph>>, ParseTimeError> {
+        self.path.rolling(window, step)
     }
 
     #[pyo3(signature = (t_start = None, t_end = None))]
-    pub fn window(&self, t_start: Option<&PyAny>, t_end: Option<&PyAny>) -> PyResult<Self> {
-        window_impl(&self.path, t_start, t_end).map(|p| p.into())
+    pub fn window(
+        &self,
+        t_start: Option<PyTime>,
+        t_end: Option<PyTime>,
+    ) -> PathFromGraph<WindowedGraph<DynamicGraph>> {
+        self.path
+            .window(t_start.unwrap_or(PyTime::MIN), t_end.unwrap_or(PyTime::MAX))
     }
 
     /// Create a view of the vertex including all events at `t`.
@@ -889,8 +901,8 @@ impl PyPathFromGraph {
     /// Returns:
     ///     A `PyVertex` object.
     #[pyo3(signature = (end))]
-    pub fn at(&self, end: &PyAny) -> PyResult<Self> {
-        at_impl(&self.path, end).map(|p| p.into())
+    pub fn at(&self, end: PyTime) -> PathFromGraph<WindowedGraph<DynamicGraph>> {
+        self.path.at(end)
     }
 
     #[doc = default_layer_doc_string!()]
@@ -929,10 +941,9 @@ impl<G: GraphViewOps + IntoDynamic> From<PathFromGraph<G>> for PyPathFromGraph {
     }
 }
 
-impl<G: GraphViewOps + IntoDynamic> IntoPyObject for PathFromGraph<G> {
-    fn into_py_object(self) -> PyObject {
-        let py_version: PyPathFromGraph = self.into();
-        Python::with_gil(|py| py_version.into_py(py))
+impl<G: GraphViewOps + IntoDynamic> IntoPy<PyObject> for PathFromGraph<G> {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        PyPathFromGraph::from(self).into_py(py)
     }
 }
 
@@ -953,10 +964,9 @@ impl<G: GraphViewOps + IntoDynamic> From<PathFromVertex<G>> for PyPathFromVertex
     }
 }
 
-impl<G: GraphViewOps + IntoDynamic> IntoPyObject for PathFromVertex<G> {
-    fn into_py_object(self) -> PyObject {
-        let py_version: PyPathFromVertex = self.into();
-        Python::with_gil(|py| py_version.into_py(py))
+impl<G: GraphViewOps + IntoDynamic> IntoPy<PyObject> for PathFromVertex<G> {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        PyPathFromVertex::from(self).into_py(py)
     }
 }
 
@@ -1086,17 +1096,29 @@ impl PyPathFromVertex {
         self.path.window_size()
     }
 
-    fn expanding(&self, step: &PyAny) -> PyResult<PyWindowSet> {
-        expanding_impl(&self.path, step)
+    fn expanding(
+        &self,
+        step: PyInterval,
+    ) -> Result<WindowSet<PathFromVertex<DynamicGraph>>, ParseTimeError> {
+        self.path.expanding(step)
     }
 
-    fn rolling(&self, window: &PyAny, step: Option<&PyAny>) -> PyResult<PyWindowSet> {
-        rolling_impl(&self.path, window, step)
+    fn rolling(
+        &self,
+        window: PyInterval,
+        step: Option<PyInterval>,
+    ) -> Result<WindowSet<PathFromVertex<DynamicGraph>>, ParseTimeError> {
+        self.path.rolling(window, step)
     }
 
     #[pyo3(signature = (t_start = None, t_end = None))]
-    pub fn window(&self, t_start: Option<&PyAny>, t_end: Option<&PyAny>) -> PyResult<Self> {
-        window_impl(&self.path, t_start, t_end).map(|p| p.into())
+    pub fn window(
+        &self,
+        t_start: Option<PyTime>,
+        t_end: Option<PyTime>,
+    ) -> PathFromVertex<WindowedGraph<DynamicGraph>> {
+        self.path
+            .window(t_start.unwrap_or(PyTime::MIN), t_end.unwrap_or(PyTime::MAX))
     }
 
     /// Create a view of the vertex including all events at `t`.
@@ -1107,8 +1129,8 @@ impl PyPathFromVertex {
     /// Returns:
     ///     A `PyVertex` object.
     #[pyo3(signature = (end))]
-    pub fn at(&self, end: &PyAny) -> PyResult<Self> {
-        at_impl(&self.path, end).map(|p| p.into())
+    pub fn at(&self, end: PyTime) -> PathFromVertex<WindowedGraph<DynamicGraph>> {
+        self.path.at(end)
     }
 
     pub fn default_layer(&self) -> Self {

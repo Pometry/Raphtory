@@ -26,6 +26,7 @@ use crate::db::graph::Graph;
 
 use crate::graph_loader::fetch_file;
 
+use crate::db::mutation_api::AdditionOps;
 use crate::graph_loader::source::csv_loader::CsvLoader;
 use serde::Deserialize;
 use std::path::PathBuf;
@@ -70,13 +71,13 @@ pub fn lotr_graph(shards: usize) -> Graph {
                 let dst_id = lotr.dst_id;
                 let time = lotr.time;
 
-                g.add_vertex(time, src_id.clone(), &vec![])
+                g.add_vertex(time, src_id.clone(), [])
                     .map_err(|err| println!("{:?}", err))
                     .ok();
-                g.add_vertex(time, dst_id.clone(), &vec![])
+                g.add_vertex(time, dst_id.clone(), [])
                     .map_err(|err| println!("{:?}", err))
                     .ok();
-                g.add_edge(time, src_id.clone(), dst_id.clone(), &vec![], None)
+                g.add_edge(time, src_id.clone(), dst_id.clone(), [], None)
                     .expect("Error: Unable to add edge");
             })
             .expect("Failed to load graph from CSV data files");

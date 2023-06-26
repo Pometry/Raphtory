@@ -1,6 +1,5 @@
 use std::{cell::RefCell, collections::HashMap, iter, marker::PhantomData, rc::Rc};
 
-use crate::db::view_api::edge::EdgeViewInternalOps;
 use crate::db::view_api::internal::*;
 use crate::{
     core::{edge_ref::EdgeRef, state::compute_state::ComputeState, Prop},

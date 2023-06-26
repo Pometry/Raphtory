@@ -5,12 +5,14 @@ use raphtory_core::python::edge::{PyEdge, PyEdges};
 use raphtory_core::python::graph::PyGraph;
 use raphtory_core::python::graph_gen::*;
 use raphtory_core::python::graph_loader::*;
+use raphtory_core::python::graph_with_deletions::PyGraphWithDeletions;
 use raphtory_core::python::vertex::{PyVertex, PyVertices};
 
 /// Raphtory graph analytics library
 #[pymodule]
 fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_class::<PyGraph>()?;
+    m.add_class::<PyGraphWithDeletions>()?;
 
     let algorithm_module = PyModule::new(py, "algorithms")?;
     algorithm_module.add_function(wrap_pyfunction!(global_reciprocity, algorithm_module)?)?;

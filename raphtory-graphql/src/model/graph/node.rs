@@ -6,9 +6,7 @@ use itertools::Itertools;
 use raphtory::core::Prop;
 use raphtory::db::vertex::VertexView;
 use raphtory::db::view_api::internal::{DynamicGraph, IntoDynamic};
-use raphtory::db::view_api::layer::LayerOps;
-use raphtory::db::view_api::EdgeListOps;
-use raphtory::db::view_api::{GraphViewOps, VertexViewOps};
+use raphtory::db::view_api::*;
 
 #[derive(ResolvedObject)]
 pub(crate) struct Node {

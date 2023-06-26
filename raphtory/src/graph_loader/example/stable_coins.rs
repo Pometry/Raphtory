@@ -1,5 +1,6 @@
 use crate::core::Prop;
 use crate::db::graph::Graph;
+use crate::db::mutation_api::AdditionOps;
 use crate::db::view_api::GraphViewOps;
 use crate::graph_loader::source::csv_loader::CsvLoader;
 use crate::graph_loader::{fetch_file, unzip_file};
@@ -96,7 +97,7 @@ pub fn stable_coin_graph(path: Option<String>, subset: bool, num_shards: usize) 
                     NaiveDateTime::from_timestamp_opt(stablecoin.time_stamp, 0).unwrap(),
                     stablecoin.from_address,
                     stablecoin.to_address,
-                    &vec![("value".into(), Prop::F64(stablecoin.value.into()))],
+                    [("value".into(), Prop::F64(stablecoin.value.into()))],
                     Some(label),
                 )
                 .expect("Failed to add edge");

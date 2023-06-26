@@ -21,8 +21,8 @@ use crate::algorithms::reciprocity::{
     all_local_reciprocity as all_local_reciprocity_rs, global_reciprocity as global_reciprocity_rs,
 };
 use crate::algorithms::temporal_reachability::temporally_reachable_nodes as temporal_reachability_rs;
-use crate::python::utils;
-use crate::python::utils::{extract_input_vertex, InputVertexBox};
+use crate::core::vertex_ref::VertexRef;
+use crate::python::utils::PyInputVertex;
 use pyo3::prelude::*;
 
 /// Local triangle count - calculates the number of triangles (a cycle of length 3) a vertex participates in.
@@ -37,9 +37,8 @@ use pyo3::prelude::*;
 ///     triangles(int) : number of triangles associated with vertex v
 ///
 #[pyfunction]
-pub fn local_triangle_count(g: &PyGraphView, v: &PyAny) -> PyResult<Option<usize>> {
-    let v = utils::extract_vertex_ref(v)?;
-    Ok(local_triangle_count_rs(&g.graph, v))
+pub fn local_triangle_count(g: &PyGraphView, v: VertexRef) -> Option<usize> {
+    local_triangle_count_rs(&g.graph, v)
 }
 
 /// Weakly connected components -- partitions the graph into node sets which are mutually reachable by an undirected path
@@ -108,26 +107,11 @@ pub fn temporally_reachable_nodes(
     g: &PyGraphView,
     max_hops: usize,
     start_time: i64,
-    seed_nodes: Vec<&PyAny>,
-    stop_nodes: Option<Vec<&PyAny>>,
+    seed_nodes: Vec<PyInputVertex>,
+    stop_nodes: Option<Vec<PyInputVertex>>,
 ) -> Result<HashMap<String, Vec<(i64, String)>>, PyErr> {
-    let infected_nodes: PyResult<Vec<InputVertexBox>> = seed_nodes
-        .into_iter()
-        .map(|v| extract_input_vertex(v))
-        .collect();
-    let stop_nodes: PyResult<Vec<InputVertexBox>> = stop_nodes
-        .unwrap_or(vec![])
-        .into_iter()
-        .map(|v| extract_input_vertex(v))
-        .collect();
-
     Ok(temporal_reachability_rs(
-        &g.graph,
-        None,
-        max_hops,
-        start_time,
-        infected_nodes?,
-        Some(stop_nodes?),
+        &g.graph, None, max_hops, start_time, seed_nodes, stop_nodes,
     ))
 }
 
@@ -142,9 +126,8 @@ pub fn temporally_reachable_nodes(
 /// Returns:
 ///     float : the local clustering coefficient of vertex v in g.
 #[pyfunction]
-pub fn local_clustering_coefficient(g: &PyGraphView, v: &PyAny) -> PyResult<Option<f32>> {
-    let v = utils::extract_vertex_ref(v)?;
-    Ok(local_clustering_coefficient_rs(&g.graph, v))
+pub fn local_clustering_coefficient(g: &PyGraphView, v: VertexRef) -> Option<f32> {
+    local_clustering_coefficient_rs(&g.graph, v)
 }
 
 /// Graph density - measures how dense or sparse a graph is.

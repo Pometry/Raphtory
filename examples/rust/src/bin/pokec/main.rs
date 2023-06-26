@@ -1,6 +1,7 @@
 use std::{env, path::Path, time::Instant};
 
 use raphtory::algorithms::connected_components::weakly_connected_components;
+use raphtory::db::mutation_api::AdditionOps;
 use raphtory::graph_loader::source::csv_loader::CsvLoader;
 use raphtory::{
     algorithms::pagerank::unweighted_page_rank,
@@ -31,7 +32,7 @@ fn main() {
             .set_delimiter("\t")
             .set_header(false)
             .load_into_graph(&g, |e: Edge, g| {
-                g.add_edge(0, e.src, e.dst, &vec![], None)
+                g.add_edge(0, e.src, e.dst, [], None)
                     .expect("Failed to add edge");
             })
             .expect("Failed to load graph from encoded data files");

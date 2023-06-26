@@ -24,6 +24,7 @@
 //! ```rust
 //! use raphtory::algorithms::reciprocity::{all_local_reciprocity, global_reciprocity};
 //! use raphtory::db::graph::Graph;
+//! use raphtory::db::mutation_api::AdditionOps;
 //! use raphtory::db::view_api::*;
 //! let g = Graph::new(1);
 //! let vs = vec![
@@ -38,7 +39,7 @@
 //! ];
 //!
 //! for (t, src, dst) in &vs {
-//!     g.add_edge(*t, *src, *dst, &vec![], None);
+//!     g.add_edge(*t, *src, *dst, [], None);
 //! }
 //!
 //! println!("all_local_reciprocity: {:?}", all_local_reciprocity(&g, None));
@@ -141,6 +142,7 @@ pub fn all_local_reciprocity<G: GraphViewOps>(
 mod reciprocity_test {
     use crate::algorithms::reciprocity::{all_local_reciprocity, global_reciprocity};
     use crate::db::graph::Graph;
+    use crate::db::mutation_api::AdditionOps;
     use pretty_assertions::assert_eq;
     use std::collections::HashMap;
 
@@ -160,7 +162,7 @@ mod reciprocity_test {
         ];
 
         for (src, dst) in &vs {
-            graph.add_edge(0, *src, *dst, &vec![], None).unwrap();
+            graph.add_edge(0, *src, *dst, [], None).unwrap();
         }
 
         let actual = global_reciprocity(&graph, None);

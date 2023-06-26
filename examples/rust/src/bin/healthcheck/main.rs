@@ -9,12 +9,8 @@ mod test {
 
     use itertools::Itertools;
     use raphtory::algorithms::connected_components::weakly_connected_components;
-    use raphtory::core::Direction;
-    use raphtory::db::{
-        graph::Graph,
-        view_api::*,
-        view_api::{internal::BoxableGraphView, GraphViewOps},
-    };
+    use raphtory::db::mutation_api::AdditionOps;
+    use raphtory::db::{graph::Graph, view_api::*};
     use raphtory::graph_loader::source::csv_loader::CsvLoader;
     use serde::de::DeserializeOwned;
 
@@ -28,8 +24,10 @@ mod test {
         CsvLoader::new(p)
             .set_delimiter(" ")
             .load_into_graph(&(g1, gn), |pair: REC, (g1, gn)| {
-                g1.add_edge(pair.t(), pair.src(), pair.dst(), &vec![], None);
-                gn.add_edge(pair.t(), pair.src(), pair.dst(), &vec![], None);
+                g1.add_edge(pair.t(), pair.src(), pair.dst(), [], None)
+                    .unwrap();
+                gn.add_edge(pair.t(), pair.src(), pair.dst(), [], None)
+                    .unwrap();
             })
             .expect("Failed to load graph from CSV files");
     }

@@ -1,8 +1,9 @@
 use crate::core::edge_ref::EdgeRef;
 use crate::core::vertex_ref::{LocalVertexRef, VertexRef};
 use crate::core::Direction;
-use crate::db::view_api::internal::time_semantics::InheritTimeSemantics;
-use crate::db::view_api::internal::{GraphOps, InheritCoreOps};
+use crate::db::view_api::internal::{
+    Base, GraphOps, InheritCoreOps, InheritMaterialize, InheritTimeSemantics,
+};
 use crate::db::view_api::GraphViewOps;
 use itertools::Itertools;
 
@@ -14,21 +15,19 @@ pub struct LayeredGraph<G: GraphViewOps> {
     pub layer: usize,
 }
 
-impl<G: GraphViewOps> InheritTimeSemantics for LayeredGraph<G> {
-    type Internal = G;
+impl<G: GraphViewOps> Base for LayeredGraph<G> {
+    type Base = G;
 
-    fn graph(&self) -> &Self::Internal {
+    fn base(&self) -> &Self::Base {
         &self.graph
     }
 }
 
-impl<G: GraphViewOps> InheritCoreOps for LayeredGraph<G> {
-    type Internal = G;
+impl<G: GraphViewOps> InheritTimeSemantics for LayeredGraph<G> {}
 
-    fn graph(&self) -> &Self::Internal {
-        &self.graph
-    }
-}
+impl<G: GraphViewOps> InheritCoreOps for LayeredGraph<G> {}
+
+impl<G: GraphViewOps> InheritMaterialize for LayeredGraph<G> {}
 
 impl<G: GraphViewOps> LayeredGraph<G> {
     pub fn new(graph: G, layer: usize) -> Self {

@@ -1,4 +1,3 @@
-use crate::db::graph::Graph;
 use crate::db::graph_layer::LayeredGraph;
 use crate::db::graph_window::WindowedGraph;
 use crate::db::subgraph_vertex::VertexSubgraph;
@@ -8,12 +7,6 @@ use std::sync::Arc;
 
 pub trait IntoDynamic {
     fn into_dynamic(self) -> DynamicGraph;
-}
-
-impl IntoDynamic for Graph {
-    fn into_dynamic(self) -> DynamicGraph {
-        self.as_arc()
-    }
 }
 
 impl<G: GraphViewOps> IntoDynamic for WindowedGraph<G> {

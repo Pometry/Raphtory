@@ -8,6 +8,7 @@
 //! use raphtory::core::utils::calculate_hash;
 //! use raphtory::graph_loader::source::csv_loader::CsvLoader;
 //! use raphtory::db::graph::Graph;
+//! use raphtory::db::mutation_api::AdditionOps;
 //! use raphtory::graph_loader::example::lotr_graph::Lotr;
 //!
 //!  let g = Graph::new(2);
@@ -33,14 +34,14 @@
 //!          g.add_vertex(
 //!              time,
 //!              src_id,
-//!              &vec![("name".to_string(), Prop::Str("Character".to_string()))],
+//!              [("name".to_string(), Prop::Str("Character".to_string()))],
 //!          )
 //!          .map_err(|err| println!("{:?}", err))
 //!          .ok();
 //!          g.add_vertex(
 //!              time,
 //!              dst_id,
-//!              &vec![("name".to_string(), Prop::Str("Character".to_string()))],
+//!              [("name".to_string(), Prop::Str("Character".to_string()))],
 //!          )
 //!          .map_err(|err| println!("{:?}", err))
 //!          .ok();
@@ -48,7 +49,7 @@
 //!              time,
 //!              src_id,
 //!              dst_id,
-//!              &vec![(
+//!              [(
 //!                  "name".to_string(),
 //!                  Prop::Str("Character Co-occurrence".to_string()),
 //!              )],
@@ -405,6 +406,7 @@ mod csv_loader_test {
     use crate::core::utils::calculate_hash;
     use crate::core::Prop;
     use crate::db::graph::Graph;
+    use crate::db::mutation_api::AdditionOps;
     use crate::graph_loader::source::csv_loader::CsvLoader;
     use regex::Regex;
     use serde::Deserialize;
@@ -452,14 +454,14 @@ mod csv_loader_test {
                 g.add_vertex(
                     time,
                     src_id,
-                    &vec![("name".to_string(), Prop::Str("Character".to_string()))],
+                    [("name".to_string(), Prop::Str("Character".to_string()))],
                 )
                 .map_err(|err| println!("{:?}", err))
                 .ok();
                 g.add_vertex(
                     time,
                     dst_id,
-                    &vec![("name".to_string(), Prop::Str("Character".to_string()))],
+                    [("name".to_string(), Prop::Str("Character".to_string()))],
                 )
                 .map_err(|err| println!("{:?}", err))
                 .ok();
@@ -467,7 +469,7 @@ mod csv_loader_test {
                     time,
                     src_id,
                     dst_id,
-                    &vec![(
+                    [(
                         "name".to_string(),
                         Prop::Str("Character Co-occurrence".to_string()),
                     )],

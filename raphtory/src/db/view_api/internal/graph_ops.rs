@@ -1,6 +1,7 @@
 use crate::core::edge_ref::EdgeRef;
 use crate::core::vertex_ref::{LocalVertexRef, VertexRef};
 use crate::core::Direction;
+use crate::db::view_api::internal::Base;
 
 /// The GraphViewInternalOps trait provides a set of methods to query a directed graph
 /// represented by the raphtory_core::tgraph::TGraph struct.
@@ -118,13 +119,26 @@ pub trait GraphOps: Send + Sync {
     ) -> Box<dyn Iterator<Item = VertexRef> + Send>;
 }
 
-pub trait InheritGraphOps {
+pub trait InheritGraphOps: Base {}
+
+impl<G: InheritGraphOps> DelegateGraphOps for G
+where
+    G::Base: GraphOps,
+{
+    type Internal = G::Base;
+
+    fn graph(&self) -> &Self::Internal {
+        self.base()
+    }
+}
+
+pub trait DelegateGraphOps {
     type Internal: GraphOps + ?Sized;
 
     fn graph(&self) -> &Self::Internal;
 }
 
-impl<G: InheritGraphOps + Send + Sync + ?Sized> GraphOps for G {
+impl<G: DelegateGraphOps + Send + Sync + ?Sized> GraphOps for G {
     fn local_vertex_ref(&self, v: VertexRef) -> Option<LocalVertexRef> {
         self.graph().local_vertex_ref(v)
     }

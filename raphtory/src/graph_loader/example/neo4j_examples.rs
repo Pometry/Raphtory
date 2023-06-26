@@ -1,5 +1,6 @@
 use crate::core::Prop;
 use crate::db::graph as rap;
+use crate::db::mutation_api::{AdditionOps, PropertyAdditionOps};
 use crate::graph_loader::source::neo4j_loader::Neo4JConnection;
 use neo4rs::*;
 
@@ -17,21 +18,21 @@ fn load_movies(row: Row, graph: &rap::Graph) {
     let relation_type = relation.typ();
 
     graph
-        .add_vertex(actor_born, actor_name.clone(), &vec![])
+        .add_vertex(actor_born, actor_name.clone(), [])
         .unwrap();
     graph
         .add_vertex_properties(
             actor_name.clone(),
-            &vec![("type".into(), Prop::Str("actor".into()))],
+            [("type".into(), Prop::Str("actor".into()))],
         )
         .unwrap();
     graph
-        .add_vertex(film_release, film_title.clone(), &vec![])
+        .add_vertex(film_release, film_title.clone(), [])
         .unwrap();
     graph
         .add_vertex_properties(
             film_title.clone(),
-            &vec![
+            [
                 ("type".into(), Prop::Str("film".into())),
                 ("tagline".into(), Prop::Str(film_tagline)),
             ],
@@ -42,7 +43,7 @@ fn load_movies(row: Row, graph: &rap::Graph) {
             film_release,
             actor_name,
             film_title,
-            &vec![],
+            [],
             Some(relation_type.as_str()),
         )
         .unwrap();
