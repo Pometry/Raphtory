@@ -44,7 +44,7 @@ use crate::core::vertex_ref::{LocalVertexRef, VertexRef};
 use crate::core::{Direction, Prop};
 use crate::db::view_api::internal::time_semantics::TimeSemantics;
 use crate::db::view_api::internal::{
-    DelegateCoreOps, GraphOps, GraphWindowOps, InheritCoreOps, InheritMaterialize, Inheritable,
+    Base, DelegateCoreOps, GraphOps, GraphWindowOps, InheritCoreOps, InheritMaterialize,
 };
 use crate::db::view_api::{BoxedIter, GraphViewOps};
 use std::cmp::{max, min};
@@ -61,7 +61,7 @@ pub struct WindowedGraph<G: GraphViewOps> {
     pub t_end: i64,
 }
 
-impl<G: GraphViewOps> Inheritable for WindowedGraph<G> {
+impl<G: GraphViewOps> Base for WindowedGraph<G> {
     type Base = G;
 
     fn base(&self) -> &Self::Base {

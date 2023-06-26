@@ -1,5 +1,5 @@
 use crate::core::tgraph_shard::errors::GraphError;
-use crate::db::view_api::internal::Inheritable;
+use crate::db::view_api::internal::Base;
 
 pub trait InternalDeletionOps {
     fn internal_delete_edge(
@@ -11,7 +11,7 @@ pub trait InternalDeletionOps {
     ) -> Result<(), GraphError>;
 }
 
-pub trait InheritDeletionOps: Inheritable {}
+pub trait InheritDeletionOps: Base {}
 
 impl<G: InheritDeletionOps> DelegateDeletionOps for G
 where

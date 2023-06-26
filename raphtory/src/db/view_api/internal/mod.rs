@@ -16,7 +16,7 @@ pub use exploded_edge_ops::ExplodedEdgeOps;
 pub use graph_ops::*;
 pub use graph_properties_ops::GraphPropertiesOps;
 pub use graph_window_ops::GraphWindowOps;
-pub use inherit::Inheritable;
+pub use inherit::Base;
 pub use into_dynamic::IntoDynamic;
 pub use materialize::*;
 use std::sync::Arc;
@@ -41,7 +41,7 @@ impl<
 {
 }
 
-pub trait InheritViewOps: Inheritable {}
+pub trait InheritViewOps: Base {}
 
 impl<G: InheritViewOps> InheritCoreDeletionOps for G {}
 impl<G: InheritViewOps> InheritGraphOps for G {}

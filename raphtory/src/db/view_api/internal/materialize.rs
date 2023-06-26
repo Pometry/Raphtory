@@ -1,6 +1,6 @@
 use crate::db::graph::{Graph, InternalGraph};
 use crate::db::graph_deletions::GraphWithDeletions;
-use crate::db::view_api::internal::Inheritable;
+use crate::db::view_api::internal::Base;
 
 pub enum MaterializedGraph {
     EventGraph(Graph),
@@ -28,7 +28,7 @@ pub trait InternalMaterialize {
     fn include_deletions(&self) -> bool;
 }
 
-pub trait InheritMaterialize: Inheritable {}
+pub trait InheritMaterialize: Base {}
 
 impl<G: InheritMaterialize> InternalMaterialize for G
 where

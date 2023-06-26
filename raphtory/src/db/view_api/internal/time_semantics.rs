@@ -2,7 +2,7 @@ use crate::core::edge_ref::EdgeRef;
 use crate::core::timeindex::TimeIndexOps;
 use crate::core::vertex_ref::LocalVertexRef;
 use crate::core::Prop;
-use crate::db::view_api::internal::{CoreGraphOps, GraphOps, Inheritable};
+use crate::db::view_api::internal::{Base, CoreGraphOps, GraphOps};
 use crate::db::view_api::BoxedIter;
 
 use std::ops::Range;
@@ -219,13 +219,13 @@ pub trait TimeSemantics: GraphOps + CoreGraphOps {
     fn temporal_edge_prop_vec(&self, e: EdgeRef, name: &str) -> Vec<(i64, Prop)>;
 }
 
-pub trait InheritTimeSemantics: Inheritable + GraphOps + CoreGraphOps {}
+pub trait InheritTimeSemantics: Base + GraphOps + CoreGraphOps {}
 
 impl<G: InheritTimeSemantics> DelegateTimeSemantics for G
 where
-    <G as Inheritable>::Base: TimeSemantics,
+    <G as Base>::Base: TimeSemantics,
 {
-    type Internal = <G as Inheritable>::Base;
+    type Internal = <G as Base>::Base;
 
     fn graph(&self) -> &Self::Internal {
         self.base()

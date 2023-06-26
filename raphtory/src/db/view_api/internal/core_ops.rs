@@ -4,7 +4,7 @@ use crate::core::timeindex::TimeIndex;
 use crate::core::tprop::TProp;
 use crate::core::vertex_ref::{LocalVertexRef, VertexRef};
 use crate::core::Prop;
-use crate::db::view_api::internal::Inheritable;
+use crate::db::view_api::internal::Base;
 
 /// Core functions that should (almost-)always be implemented by pointing at the underlying graph.
 pub trait CoreGraphOps {
@@ -161,9 +161,12 @@ pub trait CoreGraphOps {
     fn num_shards_internal(&self) -> usize;
 }
 
-pub trait InheritCoreOps: Inheritable {}
+pub trait InheritCoreOps: Base {}
 
-impl<G: InheritCoreOps> DelegateCoreOps for G where G::Base: CoreGraphOps {
+impl<G: InheritCoreOps> DelegateCoreOps for G
+where
+    G::Base: CoreGraphOps,
+{
     type Internal = G::Base;
 
     fn graph(&self) -> &Self::Internal {

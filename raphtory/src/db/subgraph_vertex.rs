@@ -2,7 +2,7 @@ use crate::core::edge_ref::EdgeRef;
 use crate::core::vertex_ref::{LocalVertexRef, VertexRef};
 use crate::core::Direction;
 use crate::db::view_api::internal::{
-    GraphOps, InheritCoreOps, InheritMaterialize, InheritTimeSemantics, Inheritable,
+    Base, GraphOps, InheritCoreOps, InheritMaterialize, InheritTimeSemantics,
 };
 use crate::db::view_api::GraphViewOps;
 use rustc_hash::FxHashSet;
@@ -14,7 +14,7 @@ pub struct VertexSubgraph<G: GraphViewOps> {
     vertices: Arc<FxHashSet<LocalVertexRef>>,
 }
 
-impl<G: GraphViewOps> Inheritable for VertexSubgraph<G> {
+impl<G: GraphViewOps> Base for VertexSubgraph<G> {
     type Base = G;
 
     fn base(&self) -> &Self::Base {

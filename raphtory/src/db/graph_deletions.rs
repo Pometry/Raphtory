@@ -6,8 +6,8 @@ use crate::core::{Direction, Prop};
 use crate::db::graph::{graph_equal, InternalGraph};
 use crate::db::mutation_api::internal::InheritMutationOps;
 use crate::db::view_api::internal::{
-    CoreDeletionOps, CoreGraphOps, DynamicGraph, GraphOps, InheritCoreDeletionOps, InheritCoreOps,
-    InheritGraphOps, Inheritable, InternalMaterialize, IntoDynamic, MaterializedGraph,
+    Base, CoreDeletionOps, CoreGraphOps, DynamicGraph, GraphOps, InheritCoreDeletionOps,
+    InheritCoreOps, InheritGraphOps, InternalMaterialize, IntoDynamic, MaterializedGraph,
     TimeSemantics,
 };
 use crate::db::view_api::{BoxedIter, GraphViewOps};
@@ -120,7 +120,7 @@ impl<G: GraphViewOps> PartialEq<G> for GraphWithDeletions {
     }
 }
 
-impl Inheritable for GraphWithDeletions {
+impl Base for GraphWithDeletions {
     type Base = InternalGraph;
 
     fn base(&self) -> &Self::Base {

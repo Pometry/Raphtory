@@ -2,12 +2,12 @@ mod internal_addition_ops;
 mod internal_deletion_ops;
 mod internal_property_additions_ops;
 
-use crate::db::view_api::internal::Inheritable;
+use crate::db::view_api::internal::Base;
 pub use internal_addition_ops::*;
 pub use internal_deletion_ops::*;
 pub use internal_property_additions_ops::*;
 
-pub trait InheritMutationOps: Inheritable {}
+pub trait InheritMutationOps: Base {}
 
 impl<G: InheritMutationOps> InheritAdditionOps for G {}
 impl<G: InheritMutationOps> InheritDeletionOps for G {}

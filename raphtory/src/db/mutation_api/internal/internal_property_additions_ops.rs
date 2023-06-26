@@ -1,7 +1,7 @@
 use crate::core::tgraph_shard::errors::GraphError;
 use crate::core::Prop;
 use crate::db::mutation_api::PropertyAdditionOps;
-use crate::db::view_api::internal::Inheritable;
+use crate::db::view_api::internal::Base;
 
 /// internal (dyn friendly) methods for adding properties
 pub trait InternalPropertyAdditionOps {
@@ -26,13 +26,13 @@ pub trait InternalPropertyAdditionOps {
     ) -> Result<(), GraphError>;
 }
 
-pub trait InheritPropertyAdditionOps: Inheritable {}
+pub trait InheritPropertyAdditionOps: Base {}
 
 impl<G: InheritPropertyAdditionOps + ?Sized> DelegatePropertyAdditionOps for G
 where
-    <G as Inheritable>::Base: InternalPropertyAdditionOps,
+    <G as Base>::Base: InternalPropertyAdditionOps,
 {
-    type Internal = <G as Inheritable>::Base;
+    type Internal = <G as Base>::Base;
 
     fn graph(&self) -> &Self::Internal {
         self.base()

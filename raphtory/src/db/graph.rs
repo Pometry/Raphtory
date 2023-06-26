@@ -37,7 +37,7 @@ use crate::db::mutation_api::internal::{
 };
 use crate::db::view_api::internal::time_semantics::TimeSemantics;
 use crate::db::view_api::internal::{
-    CoreDeletionOps, CoreGraphOps, DynamicGraph, GraphOps, InheritViewOps, Inheritable,
+    Base, CoreDeletionOps, CoreGraphOps, DynamicGraph, GraphOps, InheritViewOps,
     InternalMaterialize, IntoDynamic, MaterializedGraph,
 };
 use crate::db::view_api::*;
@@ -106,21 +106,7 @@ impl From<InternalGraph> for Graph {
     }
 }
 
-// impl Deref for Graph {
-//     type Target = Arc<InternalGraph>;
-//
-//     fn deref(&self) -> &Self::Target {
-//         &self.0
-//     }
-// }
-//
-// impl DerefMut for Graph {
-//     fn deref_mut(&mut self) -> &mut Self::Target {
-//         &mut self.0
-//     }
-// }
-
-impl Inheritable for Graph {
+impl Base for Graph {
     type Base = InternalGraph;
 
     fn base(&self) -> &InternalGraph {

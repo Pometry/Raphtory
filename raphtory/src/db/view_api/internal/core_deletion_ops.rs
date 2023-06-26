@@ -1,7 +1,7 @@
 use crate::core::edge_ref::EdgeRef;
 use crate::core::tgraph_shard::LockedView;
 use crate::core::timeindex::TimeIndex;
-use crate::db::view_api::internal::Inheritable;
+use crate::db::view_api::internal::Base;
 
 pub trait CoreDeletionOps {
     /// Get all the deletion timestamps for an edge
@@ -9,9 +9,12 @@ pub trait CoreDeletionOps {
     fn edge_deletions(&self, eref: EdgeRef) -> LockedView<TimeIndex>;
 }
 
-pub trait InheritCoreDeletionOps: Inheritable {}
+pub trait InheritCoreDeletionOps: Base {}
 
-impl<G: InheritCoreDeletionOps> DelegateCoreDeletionOps for G where G::Base: CoreDeletionOps {
+impl<G: InheritCoreDeletionOps> DelegateCoreDeletionOps for G
+where
+    G::Base: CoreDeletionOps,
+{
     type Internal = G::Base;
 
     fn graph(&self) -> &Self::Internal {
