@@ -26,11 +26,11 @@ use std::ops::{Deref, DerefMut};
 use std::{path::Path, sync::Arc};
 
 const SEG: usize = 16;
-type InternalGraph2 = InnerTemporalGraph<SEG>;
+type InternalGraph = InnerTemporalGraph<SEG>;
 
 #[repr(transparent)]
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
-pub struct Graph(Arc<InternalGraph2>);
+pub struct Graph(Arc<InternalGraph>);
 
 impl Display for Graph {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -39,7 +39,7 @@ impl Display for Graph {
 }
 
 impl Deref for Graph {
-    type Target = Arc<InternalGraph2>;
+    type Target = Arc<InternalGraph>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -53,7 +53,7 @@ impl DerefMut for Graph {
 }
 
 impl WrappedGraph for Graph {
-    type Internal = InternalGraph2;
+    type Internal = InternalGraph;
 
     fn graph(&self) -> &Self::Internal {
         &self.0
@@ -78,7 +78,7 @@ impl Graph {
     /// let g = Graph::new(4);
     /// ```
     pub fn new(nr_shards: usize) -> Self {
-        Self(Arc::new(InternalGraph2::default()))
+        Self(Arc::new(InternalGraph::default()))
     }
 
     /// Load a graph from a directory
@@ -98,7 +98,7 @@ impl Graph {
     /// let g = Graph::load_from_file("path/to/graph");
     /// ```
     pub fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self, Box<bincode::ErrorKind>> {
-        Ok(Self(Arc::new(InternalGraph2::load_from_file(path)?)))
+        Ok(Self(Arc::new(InternalGraph::load_from_file(path)?)))
     }
 
     /// Save a graph to a directory
@@ -106,7 +106,7 @@ impl Graph {
         self.0.save_to_file(path)
     }
 
-    pub fn as_arc(&self) -> Arc<InternalGraph2> {
+    pub fn as_arc(&self) -> Arc<InternalGraph> {
         self.0.clone()
     }
 }
@@ -1011,7 +1011,7 @@ mod db_tests {
     }
 
     #[quickcheck]
-    fn test_graph_temporal_props(str_props: Vec<(String, String)>) -> bool {
+    fn test_graph_temporal_props(str_props: HashMap<String, String>) -> bool {
         let g = Graph::new(0);
 
         let (t0, t1) = (1, 2);
@@ -1041,6 +1041,8 @@ mod db_tests {
 
         t0_props.into_iter().all(|(name, value)| {
             g.temporal_prop_vec(&name).contains(&(t0, value))
+        }) && t1_props.into_iter().all(|(name, value)| {
+            g.temporal_prop_vec(&name).contains(&(t1, value))
         })
     }
 
