@@ -5,6 +5,7 @@ use raphtory::db::graph::Graph;
 mod common;
 use rand::distributions::{Alphanumeric, DistString};
 use rand::{thread_rng, Rng};
+use raphtory::db::mutation_api::AdditionOps;
 
 fn random_string(n: usize) -> String {
     Alphanumeric.sample_string(&mut rand::thread_rng(), n)
@@ -35,7 +36,7 @@ pub fn graph(c: &mut Criterion) {
         let src: String = random_string(16);
         let dst: String = random_string(16);
         let t: i64 = thread_rng().gen();
-        bencher.iter(|| g.add_edge(t, src.clone(), dst.clone(), &vec![], None))
+        bencher.iter(|| g.add_edge(t, src.clone(), dst.clone(), [], None))
     });
     graph_group.finish();
 }

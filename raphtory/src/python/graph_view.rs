@@ -1,22 +1,33 @@
 //! The API for querying a view of the graph in a read-only state
-use crate::db::view_api::internal::{CoreGraphOps, DynamicGraph, IntoDynamic};
-use crate::db::view_api::layer::LayerOps;
+use crate::core::tgraph_shard::errors::GraphError;
+use crate::core::time::error::ParseTimeError;
+use crate::core::vertex_ref::VertexRef;
+use crate::core::Prop;
+use crate::db::edge::EdgeView;
+use crate::db::graph_layer::LayeredGraph;
+use crate::db::graph_window::WindowedGraph;
+use crate::db::subgraph_vertex::VertexSubgraph;
+use crate::db::vertex::VertexView;
+use crate::db::view_api::internal::{DynamicGraph, IntoDynamic, MaterializedGraph};
 use crate::db::view_api::*;
 use crate::python;
+use crate::python::utils::{PyInterval, PyTime};
 use crate::*;
 use chrono::prelude::*;
-use itertools::Itertools;
 use pyo3::prelude::*;
-use python::edge::{PyEdge, PyEdges};
-use python::graph::PyGraph;
+use python::edge::PyEdges;
 use python::types::repr::Repr;
-use python::utils::{
-    adapt_result, at_impl, expanding_impl, extract_vertex_ref, rolling_impl, window_impl,
-    IntoPyObject, PyWindowSet,
-};
 use python::vertex::{PyVertex, PyVertices};
-use python::wrappers::prop::Prop;
 use std::collections::HashMap;
+
+impl IntoPy<PyObject> for MaterializedGraph {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        match self {
+            MaterializedGraph::EventGraph(g) => g.into_py(py),
+            MaterializedGraph::PersistentGraph(g) => g.into_py(py),
+        }
+    }
+}
 
 /// Graph view is a read-only version of a graph at a certain point in time.
 #[pyclass(name = "GraphView", frozen, subclass)]
@@ -33,10 +44,21 @@ impl<G: GraphViewOps + IntoDynamic> From<G> for PyGraphView {
     }
 }
 
-impl<G: GraphViewOps + IntoDynamic> IntoPyObject for G {
-    fn into_py_object(self) -> PyObject {
-        let py_version: PyGraphView = self.into();
-        Python::with_gil(|py| py_version.into_py(py))
+impl<G: GraphViewOps + IntoDynamic> IntoPy<PyObject> for WindowedGraph<G> {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        PyGraphView::from(self).into_py(py)
+    }
+}
+
+impl<G: GraphViewOps + IntoDynamic> IntoPy<PyObject> for LayeredGraph<G> {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        PyGraphView::from(self).into_py(py)
+    }
+}
+
+impl<G: GraphViewOps + IntoDynamic> IntoPy<PyObject> for VertexSubgraph<G> {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        PyGraphView::from(self).into_py(py)
     }
 }
 
@@ -106,9 +128,8 @@ impl PyGraphView {
     ///
     /// Returns:
     ///   true if the graph contains the specified vertex, false otherwise
-    pub fn has_vertex(&self, id: &PyAny) -> PyResult<bool> {
-        let v = extract_vertex_ref(id)?;
-        Ok(self.graph.has_vertex(v))
+    pub fn has_vertex(&self, id: VertexRef) -> bool {
+        self.graph.has_vertex(id)
     }
 
     /// Returns true if the graph contains the specified edge
@@ -121,10 +142,8 @@ impl PyGraphView {
     /// Returns:
     ///  true if the graph contains the specified edge, false otherwise
     #[pyo3(signature = (src, dst, layer=None))]
-    pub fn has_edge(&self, src: &PyAny, dst: &PyAny, layer: Option<&str>) -> PyResult<bool> {
-        let src = extract_vertex_ref(src)?;
-        let dst = extract_vertex_ref(dst)?;
-        Ok(self.graph.has_edge(src, dst, layer))
+    pub fn has_edge(&self, src: VertexRef, dst: VertexRef, layer: Option<&str>) -> bool {
+        self.graph.has_edge(src, dst, layer)
     }
 
     //******  Getter APIs ******//
@@ -136,9 +155,8 @@ impl PyGraphView {
     ///
     /// Returns:
     ///   the vertex with the specified id, or None if the vertex does not exist
-    pub fn vertex(&self, id: &PyAny) -> PyResult<Option<PyVertex>> {
-        let v = extract_vertex_ref(id)?;
-        Ok(self.graph.vertex(v).map(|v| v.into()))
+    pub fn vertex(&self, id: VertexRef) -> Option<VertexView<DynamicGraph>> {
+        self.graph.vertex(id)
     }
 
     /// Gets the vertices in the graph
@@ -160,10 +178,13 @@ impl PyGraphView {
     /// Returns:
     ///     the edge with the specified source and destination vertices, or None if the edge does not exist
     #[pyo3(signature = (src, dst, layer=None))]
-    pub fn edge(&self, src: &PyAny, dst: &PyAny, layer: Option<&str>) -> PyResult<Option<PyEdge>> {
-        let src = extract_vertex_ref(src)?;
-        let dst = extract_vertex_ref(dst)?;
-        Ok(self.graph.edge(src, dst, layer).map(|we| we.into()))
+    pub fn edge(
+        &self,
+        src: VertexRef,
+        dst: VertexRef,
+        layer: Option<&str>,
+    ) -> Option<EdgeView<DynamicGraph>> {
+        self.graph.edge(src, dst, layer)
     }
 
     /// Gets all edges in the graph
@@ -229,8 +250,8 @@ impl PyGraphView {
     /// Returns:
     ///     A `WindowSet` with the given `step` size and optional `start` and `end` times,
     #[pyo3(signature = (step))]
-    fn expanding(&self, step: &PyAny) -> PyResult<PyWindowSet> {
-        expanding_impl(&self.graph, step)
+    fn expanding(&self, step: PyInterval) -> Result<WindowSet<DynamicGraph>, ParseTimeError> {
+        self.graph.expanding(step)
     }
 
     /// Creates a `WindowSet` with the given `window` size and optional `step`, `start` and `end` times,
@@ -246,8 +267,12 @@ impl PyGraphView {
     ///
     /// Returns:
     ///  a `WindowSet` with the given `window` size and optional `step`, `start` and `end` times,
-    fn rolling(&self, window: &PyAny, step: Option<&PyAny>) -> PyResult<PyWindowSet> {
-        rolling_impl(&self.graph, window, step)
+    fn rolling(
+        &self,
+        window: PyInterval,
+        step: Option<PyInterval>,
+    ) -> Result<WindowSet<DynamicGraph>, ParseTimeError> {
+        self.graph.rolling(window, step)
     }
 
     /// Create a view including all events between `t_start` (inclusive) and `t_end` (exclusive)
@@ -259,8 +284,13 @@ impl PyGraphView {
     /// Returns:
     ///     a view including all events between `t_start` (inclusive) and `t_end` (exclusive)
     #[pyo3(signature = (start=None, end=None))]
-    pub fn window(&self, start: Option<&PyAny>, end: Option<&PyAny>) -> PyResult<PyGraphView> {
-        window_impl(&self.graph, start, end).map(|g| g.into())
+    pub fn window(
+        &self,
+        start: Option<PyTime>,
+        end: Option<PyTime>,
+    ) -> WindowedGraph<DynamicGraph> {
+        self.graph
+            .window(start.unwrap_or(PyTime::MIN), end.unwrap_or(PyTime::MAX))
     }
 
     /// Create a view including all events until `end` (inclusive)
@@ -271,8 +301,8 @@ impl PyGraphView {
     /// Returns:
     ///     a view including all events until `end` (inclusive)
     #[pyo3(signature = (end))]
-    pub fn at(&self, end: &PyAny) -> PyResult<PyGraphView> {
-        at_impl(&self.graph, end).map(|g| g.into())
+    pub fn at(&self, end: PyTime) -> WindowedGraph<DynamicGraph> {
+        self.graph.at(end)
     }
 
     #[doc = default_layer_doc_string!()]
@@ -294,10 +324,8 @@ impl PyGraphView {
     ///
     /// Returns:
     ///    Option<Prop> - The property value
-    fn property(&self, name: String, include_static: Option<bool>) -> Option<Prop> {
-        self.graph
-            .property(name, include_static.unwrap_or(true))
-            .map(|v| v.into())
+    fn property(&self, name: &str, include_static: Option<bool>) -> Option<Prop> {
+        self.graph.property(name, include_static.unwrap_or(true))
     }
 
     /// Get graph property against the provided property name
@@ -308,9 +336,8 @@ impl PyGraphView {
     ///
     /// Returns:
     ///    Option<Prop> - The property value
-    fn property_history(&self, name: String) -> Vec<(i64, Prop)> {
-        let r: Vec<(i64, core::Prop)> = self.graph.property_history(name);
-        r.into_iter().map(|(i, v)| (i, v.into())).collect_vec()
+    fn property_history(&self, name: &str) -> Vec<(i64, Prop)> {
+        self.graph.property_history(name)
     }
 
     /// Get all graph properties
@@ -321,8 +348,7 @@ impl PyGraphView {
     /// Returns:
     ///    HashMap<String, Prop> - Properties paired with their names
     fn properties(&self, include_static: Option<bool>) -> HashMap<String, Prop> {
-        let r: HashMap<String, core::Prop> = self.graph.properties(include_static.unwrap_or(true));
-        r.into_iter().map(|(i, v)| (i, v.into())).collect()
+        self.graph.properties(include_static.unwrap_or(true))
     }
 
     /// Get all graph properties histories
@@ -333,12 +359,7 @@ impl PyGraphView {
     /// Returns:
     ///    HashMap<String, Vec<(i64, Prop)>> - Properties paired with their names and timestamps
     fn property_histories(&self) -> HashMap<String, Vec<(i64, Prop)>> {
-        let r: HashMap<String, Vec<(i64, core::Prop)>> = self.graph.property_histories();
-        let w = r.into_iter().map(|(i, v)| {
-            let x = v.into_iter().map(|(a, b)| (a, b.into())).collect_vec();
-            (i, x)
-        });
-        w.collect()
+        self.graph.property_histories()
     }
 
     /// Get all graph property names
@@ -360,7 +381,7 @@ impl PyGraphView {
     ///
     /// Returns:
     ///    bool - Indicates whether a property is found by name
-    fn has_property(&self, name: String, include_static: Option<bool>) -> bool {
+    fn has_property(&self, name: &str, include_static: Option<bool>) -> bool {
         self.graph
             .has_property(name, include_static.unwrap_or(true))
     }
@@ -372,7 +393,7 @@ impl PyGraphView {
     ///
     /// Returns:
     ///    bool - Indicates whether a static property is found by name
-    fn has_static_property(&self, name: String) -> bool {
+    fn has_static_property(&self, name: &str) -> bool {
         self.graph.has_static_property(name)
     }
 
@@ -383,8 +404,8 @@ impl PyGraphView {
     ///
     /// Returns:
     ///    Option<Prop> - Returns the static property
-    fn static_property(&self, name: String) -> Option<Prop> {
-        self.graph.static_prop(&name).map(|v| v.into())
+    fn static_property(&self, name: &str) -> Option<Prop> {
+        self.graph.static_property(name)
     }
 
     /// Returns static properties of a graph
@@ -394,8 +415,7 @@ impl PyGraphView {
     /// Returns:
     ///    HashMap<String, Prop> - Returns static properties identified by their names
     fn static_properties(&self) -> HashMap<String, Prop> {
-        let r: HashMap<String, core::Prop> = self.graph.static_properties();
-        r.into_iter().map(|(i, v)| (i, v.into())).collect()
+        self.graph.static_properties()
     }
 
     /// Returns a subgraph given a set of vertices
@@ -405,8 +425,8 @@ impl PyGraphView {
     ///
     /// Returns:
     ///    GraphView - Returns the subgraph
-    fn subgraph(&self, vertices: Vec<PyVertex>) -> PyGraphView {
-        self.graph.subgraph(vertices).into()
+    fn subgraph(&self, vertices: Vec<PyVertex>) -> VertexSubgraph<DynamicGraph> {
+        self.graph.subgraph(vertices)
     }
 
     /// Returns a graph clone
@@ -415,9 +435,8 @@ impl PyGraphView {
     ///
     /// Returns:
     ///    GraphView - Returns a graph clone
-    fn materialize(&self) -> PyResult<Py<PyGraph>> {
-        let mg = adapt_result(self.graph.materialize())?;
-        PyGraph::py_from_db_graph(mg)
+    fn materialize(&self) -> Result<MaterializedGraph, GraphError> {
+        self.graph.materialize()
     }
 
     /// Displays the graph

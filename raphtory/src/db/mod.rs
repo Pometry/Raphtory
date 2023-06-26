@@ -5,6 +5,7 @@ pub mod graph_deletions;
 pub mod graph_immutable;
 pub mod graph_layer;
 pub mod graph_window;
+pub mod mutation_api;
 pub mod path;
 pub mod subgraph_vertex;
 pub mod task;

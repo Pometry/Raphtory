@@ -4,7 +4,10 @@
 //! The PyEdge class also provides access to the perspective APIs, which allow the user to view the
 //! edge as it existed at a particular point in time, or as it existed over a particular time range.
 //!
+use crate::core::time::error::ParseTimeError;
+use crate::core::Prop;
 use crate::db::edge::EdgeView;
+use crate::db::graph_window::WindowedGraph;
 use crate::db::view_api::internal::{DynamicGraph, IntoDynamic};
 use crate::db::view_api::*;
 use crate::python;
@@ -12,12 +15,10 @@ use chrono::NaiveDateTime;
 use itertools::Itertools;
 use pyo3::prelude::*;
 use pyo3::pyclass::CompareOp;
-use pyo3::{pyclass, pymethods, PyAny, PyRef, PyRefMut, PyResult};
 use python::types::repr::{iterator_repr, Repr};
 use python::utils::*;
 use python::vertex::{PyVertex, PyVertexIterable};
 use python::wrappers::iterators::{OptionI64Iterable, OptionPropIterable, PropsIterable};
-use python::wrappers::prop::Prop;
 use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
@@ -41,10 +42,10 @@ impl<G: GraphViewOps + IntoDynamic> From<EdgeView<G>> for PyEdge {
     }
 }
 
-impl<G: GraphViewOps + IntoDynamic> IntoPyObject for EdgeView<G> {
-    fn into_py_object(self) -> PyObject {
+impl<G: GraphViewOps + IntoDynamic> IntoPy<PyObject> for EdgeView<G> {
+    fn into_py(self, py: Python<'_>) -> PyObject {
         let py_version: PyEdge = self.into();
-        Python::with_gil(|py| py_version.into_py(py))
+        py_version.into_py(py)
     }
 }
 
@@ -76,7 +77,7 @@ impl PyEdge {
         self.edge.id()
     }
 
-    pub fn __getitem__(&self, name: String) -> Option<Prop> {
+    pub fn __getitem__(&self, name: &str) -> Option<Prop> {
         self.property(name, Some(true))
     }
 
@@ -90,11 +91,9 @@ impl PyEdge {
     /// Returns:
     ///   The value of the property with the given name.
     #[pyo3(signature = (name, include_static = true))]
-    pub fn property(&self, name: String, include_static: Option<bool>) -> Option<Prop> {
+    pub fn property(&self, name: &str, include_static: Option<bool>) -> Option<Prop> {
         let include_static = include_static.unwrap_or(true);
-        self.edge
-            .property(&name, include_static)
-            .map(|prop| prop.into())
+        self.edge.property(name, include_static)
     }
 
     /// Returns the value of the property with the given name all times.
@@ -107,12 +106,8 @@ impl PyEdge {
     /// Returns:
     ///  The value of the property with the given name.
     #[pyo3(signature = (name))]
-    pub fn property_history(&self, name: String) -> Vec<(i64, Prop)> {
-        self.edge
-            .property_history(&name)
-            .into_iter()
-            .map(|(k, v)| (k, v.into()))
-            .collect()
+    pub fn property_history(&self, name: &str) -> Vec<(i64, Prop)> {
+        self.edge.property_history(name)
     }
 
     /// Returns a list of timestamps of when an edge is added or change to an edge is made.
@@ -135,11 +130,7 @@ impl PyEdge {
     #[pyo3(signature = (include_static = true))]
     pub fn properties(&self, include_static: Option<bool>) -> HashMap<String, Prop> {
         let include_static = include_static.unwrap_or(true);
-        self.edge
-            .properties(include_static)
-            .into_iter()
-            .map(|(k, v)| (k, v.into()))
-            .collect()
+        self.edge.properties(include_static)
     }
 
     /// Returns a dictionary of all properties on the edge at all times.
@@ -147,11 +138,7 @@ impl PyEdge {
     /// Returns:
     ///   A dictionary of all properties on the edge at all times.
     pub fn property_histories(&self) -> HashMap<String, Vec<(i64, Prop)>> {
-        self.edge
-            .property_histories()
-            .into_iter()
-            .map(|(k, v)| (k, v.into_iter().map(|(t, p)| (t, p.into())).collect()))
-            .collect()
+        self.edge.property_histories()
     }
 
     /// Returns a list of all property names on the edge.
@@ -176,9 +163,9 @@ impl PyEdge {
     /// Returns:
     /// True if a property exists with the given name, False otherwise.
     #[pyo3(signature = (name, include_static = true))]
-    pub fn has_property(&self, name: String, include_static: Option<bool>) -> bool {
+    pub fn has_property(&self, name: &str, include_static: Option<bool>) -> bool {
         let include_static = include_static.unwrap_or(true);
-        self.edge.has_property(&name, include_static)
+        self.edge.has_property(name, include_static)
     }
 
     /// Check if a static property exists with the given name.
@@ -188,8 +175,8 @@ impl PyEdge {
     ///
     /// Returns:
     ///   True if a static property exists with the given name, False otherwise.
-    pub fn has_static_property(&self, name: String) -> bool {
-        self.edge.has_static_property(&name)
+    pub fn has_static_property(&self, name: &str) -> bool {
+        self.edge.has_static_property(name)
     }
 
     /// Get static property of an edge by name
@@ -199,8 +186,8 @@ impl PyEdge {
     ///
     /// Returns:
     ///   Option<Prop>: Returns static property if found by name
-    pub fn static_property(&self, name: String) -> Option<Prop> {
-        self.edge.static_property(&name).map(|prop| prop.into())
+    pub fn static_property(&self, name: &str) -> Option<Prop> {
+        self.edge.static_property(name)
     }
 
     /// Get all static properties of an edge
@@ -210,11 +197,7 @@ impl PyEdge {
     /// Returns:
     ///   HashMap<String, Prop>: Returns all static properties identified by their name
     pub fn static_properties(&self) -> HashMap<String, Prop> {
-        self.edge
-            .static_properties()
-            .into_iter()
-            .map(|(k, v)| (k, v.into()))
-            .collect()
+        self.edge.static_properties()
     }
 
     /// Get the source vertex of the Edge.
@@ -277,8 +260,11 @@ impl PyEdge {
     /// Returns:
     ///   A set of windows containing edges that fall in the time period
     #[pyo3(signature = (step))]
-    fn expanding(&self, step: &PyAny) -> PyResult<PyWindowSet> {
-        expanding_impl(&self.edge, step)
+    fn expanding(
+        &self,
+        step: PyInterval,
+    ) -> Result<WindowSet<EdgeView<DynamicGraph>>, ParseTimeError> {
+        self.edge.expanding(step)
     }
 
     /// Get a set of Edge windows for a given window size, step, start time
@@ -291,8 +277,12 @@ impl PyEdge {
     ///
     /// Returns:
     ///   A set of windows containing edges that fall in the time period
-    fn rolling(&self, window: &PyAny, step: Option<&PyAny>) -> PyResult<PyWindowSet> {
-        rolling_impl(&self.edge, window, step)
+    fn rolling(
+        &self,
+        window: PyInterval,
+        step: Option<PyInterval>,
+    ) -> Result<WindowSet<EdgeView<DynamicGraph>>, ParseTimeError> {
+        self.edge.rolling(window, step)
     }
 
     /// Get a new Edge with the properties of this Edge within the specified time window.
@@ -304,8 +294,13 @@ impl PyEdge {
     /// Returns:
     ///   A new Edge with the properties of this Edge within the specified time window.
     #[pyo3(signature = (t_start = None, t_end = None))]
-    pub fn window(&self, t_start: Option<&PyAny>, t_end: Option<&PyAny>) -> PyResult<PyEdge> {
-        window_impl(&self.edge, t_start, t_end).map(|e| e.into())
+    pub fn window(
+        &self,
+        t_start: Option<PyTime>,
+        t_end: Option<PyTime>,
+    ) -> EdgeView<WindowedGraph<DynamicGraph>> {
+        self.edge
+            .window(t_start.unwrap_or(PyTime::MIN), t_end.unwrap_or(PyTime::MAX))
     }
 
     /// Get a new Edge with the properties of this Edge at a specified time.
@@ -316,8 +311,8 @@ impl PyEdge {
     /// Returns:
     ///   A new Edge with the properties of this Edge at a specified time.
     #[pyo3(signature = (end))]
-    pub fn at(&self, end: &PyAny) -> PyResult<PyEdge> {
-        at_impl(&self.edge, end).map(|e| e.into())
+    pub fn at(&self, end: PyTime) -> EdgeView<WindowedGraph<DynamicGraph>> {
+        self.edge.at(end)
     }
 
     /// Explodes an Edge into a list of PyEdges. This is useful when you want to iterate over
@@ -416,7 +411,7 @@ impl Repr for PyEdge {
                 latest_time.unwrap_or(0),
             )
         } else {
-            let property_string: String = "{".to_string() + &properties + "}";
+            let property_string: String = "{".to_string() + properties + "}";
             format!(
                 "Edge(source={}, target={}, earliest_time={}, latest_time={}, properties={})",
                 source.trim_matches('"'),

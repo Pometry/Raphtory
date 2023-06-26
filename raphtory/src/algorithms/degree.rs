@@ -17,8 +17,7 @@
 //!
 //! ```rust
 //! use raphtory::algorithms::degree::{max_out_degree, max_in_degree, min_out_degree, min_in_degree, average_degree};
-//! use raphtory::db::graph::Graph;
-//! use raphtory::db::view_api::*;
+//! use raphtory::prelude::*;
 //!
 //! let g = Graph::new(1);
 //! let windowed_graph = g.window(0, 7);
@@ -32,7 +31,7 @@
 //! ];
 //!
 //! for (t, src, dst) in &vs {
-//!     g.add_edge(*t, *src, *dst, &vec![], None);
+//!     g.add_edge(*t, *src, *dst, [], None);
 //! }
 //!
 //! print!("Max out degree: {:?}", max_out_degree(&windowed_graph));
@@ -102,6 +101,7 @@ pub fn average_degree<G: GraphViewOps>(graph: &G) -> f64 {
 
 #[cfg(test)]
 mod degree_test {
+    use crate::db::mutation_api::AdditionOps;
     use crate::{
         algorithms::degree::{average_degree, max_in_degree, min_in_degree, min_out_degree},
         db::graph::Graph,
@@ -122,7 +122,7 @@ mod degree_test {
         ];
 
         for (t, src, dst) in &vs {
-            g.add_edge(*t, *src, *dst, &vec![], None).unwrap();
+            g.add_edge(*t, *src, *dst, [], None).unwrap();
         }
 
         let expected_max_out_degree = 3;

@@ -4,8 +4,7 @@ use crate::core::vertex::InputVertex;
 use crate::db::task::context::Context;
 use crate::db::task::task::{ATask, Job, Step};
 use crate::db::task::task_runner::TaskRunner;
-use crate::db::view_api::edge::EdgeViewOps;
-use crate::db::view_api::{GraphViewOps, TimeOps, VertexViewOps};
+use crate::db::view_api::*;
 use itertools::Itertools;
 use num_traits::Zero;
 use std::collections::HashMap;
@@ -57,7 +56,11 @@ pub fn temporally_reachable_nodes<G: GraphViewOps, T: InputVertex>(
     let mut ctx: Context<G, ComputeStateVec> = g.into();
 
     let infected_nodes = seed_nodes.into_iter().map(|n| n.id()).collect_vec();
-    let stop_nodes = stop_nodes.unwrap_or(vec![]).into_iter().map(|n| n.id()).collect_vec();
+    let stop_nodes = stop_nodes
+        .unwrap_or(vec![])
+        .into_iter()
+        .map(|n| n.id())
+        .collect_vec();
 
     let taint_status = or(0);
     ctx.global_agg(taint_status);
@@ -181,12 +184,13 @@ pub fn temporally_reachable_nodes<G: GraphViewOps, T: InputVertex>(
 mod generic_taint_tests {
     use super::*;
     use crate::db::graph::Graph;
+    use crate::db::mutation_api::AdditionOps;
 
     fn load_graph(n_shards: usize, edges: Vec<(i64, u64, u64)>) -> Graph {
         let graph = Graph::new(n_shards);
 
         for (t, src, dst) in edges {
-            graph.add_edge(t, src, dst, &vec![], None).unwrap();
+            graph.add_edge(t, src, dst, [], None).unwrap();
         }
         graph
     }

@@ -3,6 +3,7 @@ use raphtory::algorithms::temporal_reachability::temporally_reachable_nodes;
 use raphtory::core::utils;
 use raphtory::core::Prop;
 use raphtory::db::graph::Graph;
+use raphtory::db::mutation_api::AdditionOps;
 use raphtory::db::view_api::*;
 use raphtory::graph_loader::source::csv_loader::CsvLoader;
 use serde::Deserialize;
@@ -58,14 +59,14 @@ fn main() {
                 g.add_vertex(
                     lotr.time,
                     lotr.src_id.clone(),
-                    &vec![("type".to_string(), Prop::Str("Character".to_string()))],
+                    [("type".to_string(), Prop::Str("Character".to_string()))],
                 )
                 .expect("Failed to add vertex");
 
                 g.add_vertex(
                     lotr.time,
                     lotr.dst_id.clone(),
-                    &vec![("type".to_string(), Prop::Str("Character".to_string()))],
+                    [("type".to_string(), Prop::Str("Character".to_string()))],
                 )
                 .expect("Failed to add vertex");
 
@@ -73,7 +74,7 @@ fn main() {
                     lotr.time,
                     lotr.src_id.clone(),
                     lotr.dst_id.clone(),
-                    &vec![(
+                    [(
                         "type".to_string(),
                         Prop::Str("Character Co-occurrence".to_string()),
                     )],

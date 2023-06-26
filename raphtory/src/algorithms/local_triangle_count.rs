@@ -19,13 +19,14 @@
 //! ```rust
 //! use raphtory::algorithms::local_triangle_count::{local_triangle_count};
 //! use raphtory::db::graph::Graph;
+//! use raphtory::db::mutation_api::AdditionOps;
 //! use raphtory::db::view_api::*;
 //!
 //! let g = Graph::new(1);
 //! let vs = vec![(1, 1, 2), (2, 1, 3), (3, 2, 1), (4, 3, 2)];
 //!
 //! for (t, src, dst) in &vs {
-//!     g.add_edge(*t, *src, *dst, &vec![], None);
+//!     g.add_edge(*t, *src, *dst, [], None);
 //! }
 //!
 //! let windowed_graph = g.window(0, 5);
@@ -73,6 +74,7 @@ mod triangle_count_tests {
 
     use super::local_triangle_count;
     use crate::db::graph::Graph;
+    use crate::db::mutation_api::AdditionOps;
     use crate::db::view_api::*;
 
     #[test]
@@ -81,7 +83,7 @@ mod triangle_count_tests {
         let vs = vec![(1, 1, 2), (2, 1, 3), (3, 2, 1), (4, 3, 2)];
 
         for (t, src, dst) in &vs {
-            g.add_edge(*t, *src, *dst, &vec![], None).unwrap();
+            g.add_edge(*t, *src, *dst, [], None).unwrap();
         }
 
         let windowed_graph = g.window(0, 5);

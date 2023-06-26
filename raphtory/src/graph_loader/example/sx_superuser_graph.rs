@@ -48,6 +48,7 @@
 
 use crate::db::graph::Graph;
 
+use crate::db::mutation_api::AdditionOps;
 use crate::graph_loader::{fetch_file, source::csv_loader::CsvLoader};
 use serde::Deserialize;
 use std::path::PathBuf;
@@ -87,7 +88,7 @@ pub fn sx_superuser_graph(shards: usize) -> Result<Graph, Box<dyn std::error::Er
     CsvLoader::new(sx_superuser_file()?)
         .set_delimiter(" ")
         .load_into_graph(&graph, |edge: TEdge, g: &Graph| {
-            g.add_edge(edge.time, edge.src_id, edge.dst_id, &vec![], None)
+            g.add_edge(edge.time, edge.src_id, edge.dst_id, [], None)
                 .expect("Error: Unable to add edge");
         })?;
 
@@ -99,12 +100,14 @@ mod sx_superuser_test {
     use crate::graph_loader::example::sx_superuser_graph::{sx_superuser_file, sx_superuser_graph};
 
     #[test]
+    #[ignore] // don't hit SNAP by default
     fn test_download_works() {
         let file = sx_superuser_file().unwrap();
         assert!(file.is_file())
     }
 
     #[test]
+    #[ignore] // don't hit SNAP by default  FIXME: add a truncated test file for this one?
     fn test_graph_loading_works() {
         sx_superuser_graph(2).unwrap();
     }

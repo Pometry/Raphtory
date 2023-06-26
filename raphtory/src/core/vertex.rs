@@ -4,11 +4,11 @@
 //! This trait allows you to use a variety of types as input vertices, including
 //! `u64`, `&str`, and `String`.
 
-use crate::core::{utils, Prop};
+use crate::core::utils;
 
 pub trait InputVertex: Clone {
     fn id(&self) -> u64;
-    fn name_prop(&self) -> Option<Prop>;
+    fn id_str(&self) -> Option<&str>;
 }
 
 impl InputVertex for u64 {
@@ -16,7 +16,7 @@ impl InputVertex for u64 {
         *self
     }
 
-    fn name_prop(&self) -> Option<Prop> {
+    fn id_str(&self) -> Option<&str> {
         None
     }
 }
@@ -26,8 +26,8 @@ impl<'a> InputVertex for &'a str {
         self.parse().unwrap_or(utils::calculate_hash(self))
     }
 
-    fn name_prop(&self) -> Option<Prop> {
-        Some(Prop::Str(self.to_string()))
+    fn id_str(&self) -> Option<&str> {
+        Some(self)
     }
 }
 
@@ -37,7 +37,7 @@ impl InputVertex for String {
         s.id()
     }
 
-    fn name_prop(&self) -> Option<Prop> {
-        Some(Prop::Str(self.to_string()))
+    fn id_str(&self) -> Option<&str> {
+        Some(self)
     }
 }

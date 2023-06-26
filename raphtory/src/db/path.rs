@@ -6,8 +6,6 @@ use crate::db::graph_layer::LayeredGraph;
 use crate::db::graph_window::WindowedGraph;
 use crate::db::vertex::VertexView;
 use crate::db::view_api::internal::GraphWindowOps;
-use crate::db::view_api::layer::LayerOps;
-use crate::db::view_api::BoxedIter;
 use crate::db::view_api::*;
 use std::collections::HashMap;
 use std::iter;

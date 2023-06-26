@@ -162,6 +162,7 @@ impl<T: TimeOps + Clone> Iterator for WindowSet<T> {
 mod time_tests {
     use crate::core::time::TryIntoTime;
     use crate::db::graph::Graph;
+    use crate::db::mutation_api::AdditionOps;
     use crate::db::view_api::time::WindowSet;
     use crate::db::view_api::{GraphViewOps, TimeOps};
     use itertools::Itertools;
@@ -169,8 +170,8 @@ mod time_tests {
     // start inclusive, end exclusive
     fn graph_with_timeline(start: i64, end: i64) -> Graph {
         let g = Graph::new(4);
-        g.add_vertex(start, 0, &vec![]).unwrap();
-        g.add_vertex(end - 1, 0, &vec![]).unwrap();
+        g.add_vertex(start, 0, []).unwrap();
+        g.add_vertex(end - 1, 0, []).unwrap();
         assert_eq!(g.start().unwrap(), start);
         assert_eq!(g.end().unwrap(), end);
         g

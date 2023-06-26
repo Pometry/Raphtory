@@ -23,6 +23,7 @@ use rustc_hash::FxHashSet;
 /// use std::{cmp::Reverse, iter::once};
 /// use raphtory::db::graph::Graph;
 /// use raphtory::algorithms::triangle_count::triangle_count;
+/// use raphtory::db::mutation_api::AdditionOps;
 ///
 /// let graph = Graph::new(2);
 ///
@@ -44,7 +45,7 @@ use rustc_hash::FxHashSet;
 /// ];
 ///
 /// for (src, dst, ts) in edges {
-///     graph.add_edge(ts, src, dst, &vec![], None);
+///     graph.add_edge(ts, src, dst, [], None);
 /// }
 ///
 /// let actual_tri_count = triangle_count(&graph, None);
@@ -116,6 +117,7 @@ pub fn triangle_count<G: GraphViewOps>(g: &G, threads: Option<usize>) -> usize {
 mod triangle_count_tests {
     use super::*;
     use crate::db::graph::Graph;
+    use crate::db::mutation_api::AdditionOps;
 
     #[test]
     fn triangle_count_1() {
@@ -139,7 +141,7 @@ mod triangle_count_tests {
         ];
 
         for (src, dst, ts) in edges {
-            graph.add_edge(ts, src, dst, &vec![], None).unwrap();
+            graph.add_edge(ts, src, dst, [], None).unwrap();
         }
 
         let actual_tri_count = triangle_count(&graph, Some(2));
@@ -178,7 +180,7 @@ mod triangle_count_tests {
         ];
 
         for (src, dst, ts) in edges {
-            graph.add_edge(ts, src, dst, &vec![], None).unwrap();
+            graph.add_edge(ts, src, dst, [], None).unwrap();
         }
 
         let actual_tri_count = triangle_count(&graph, None);

@@ -13,6 +13,7 @@ mod state_test {
     use itertools::Itertools;
     use rand::Rng;
 
+    use crate::db::mutation_api::AdditionOps;
     use crate::{
         core::state::{
             accumulator_id::accumulators,
@@ -46,9 +47,9 @@ mod state_test {
     fn tiny_graph(n_shards: usize) -> Graph {
         let g = Graph::new(n_shards);
 
-        g.add_vertex(1, 1, &vec![]).unwrap();
-        g.add_vertex(1, 2, &vec![]).unwrap();
-        g.add_vertex(1, 3, &vec![]).unwrap();
+        g.add_vertex(1, 1, []).unwrap();
+        g.add_vertex(1, 2, []).unwrap();
+        g.add_vertex(1, 3, []).unwrap();
         g
     }
 
