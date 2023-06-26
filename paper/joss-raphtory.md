@@ -8,11 +8,12 @@ tags:
   - dynamics
 authors:
   - name: Ben Steer
-    orcid: 0000-0000-0000-0000
     affiliation: "1, 4" # (Multiple affiliations must be quoted)
     corresponding: true # (This is how to denote the corresponding author)
   - name: Naomi Arnold
     affiliation: 3
+  - name: Cheick Tidiane Ba
+    affiliation: "6, 4"
   - name: Renaud Lambiotte
     affiliation: "2, 1, 8"
   - name: Haaroon Yousaf
@@ -39,8 +40,6 @@ authors:
     affiliation: 4
   - name: Peijie Zhong
     affiliation: 4
-  - name: Cheick Tidiane Ba
-    affiliation: "6, 4"
   - name: John Pougué-Biyong
     affiliation: 2
   - name: Alhamza Alnaimi
