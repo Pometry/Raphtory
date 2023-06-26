@@ -1080,6 +1080,20 @@ def test_layer():
     assert (g.layer('layer2').num_edges() == 1)
 
 
+def test_layer_vertex():
+    g = Graph()
+
+    g.add_edge(0, 1, 2, layer="layer1")
+    g.add_edge(0, 2, 3, layer="layer2")
+    g.add_edge(3, 2, 4, layer="layer1")
+    neighbours = g.layer("layer1").vertex(1).neighbours().collect()
+    assert sorted(neighbours[0].layer("layer2").edges().id()) == [(2, 3)]
+    assert sorted(g.layer("layer2").vertex(neighbours[0].name()).edges().id()) == [(2, 3)]
+    assert sorted(g.layer("layer1").vertex(neighbours[0].name()).edges().id()) == [(1, 2), (2, 4)]
+    assert sorted(g.layer("layer1").edges().id()) == [(1, 2), (2, 4)]
+    assert sorted(g.layer("layer1").layer("layer2").edges().id()) == [(2, 3)]
+
+
 def test_rolling_as_iterable():
     g = Graph(1)
 
