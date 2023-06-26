@@ -13,7 +13,6 @@ use super::{
 
 mod adj;
 pub(crate) mod edge;
-mod edge_layer;
 mod edge_store;
 mod iter;
 mod node_store;
