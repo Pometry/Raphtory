@@ -17,7 +17,7 @@ use std::ops::Range;
 use std::path::Path;
 use std::sync::Arc;
 
-use super::graph::InternalGraph;
+use super::graph::{InternalGraph, graph_equal};
 
 #[derive(Clone, Debug)]
 pub struct GraphWithDeletions {
@@ -62,7 +62,7 @@ impl GraphWithDeletions {
 
     pub fn new(nr_shards: usize) -> Self {
         Self {
-            graph: Arc::new(InternalGraph::new(nr_shards)),
+            graph: Arc::new(InternalGraph::default()),
         }
     }
 
@@ -87,7 +87,8 @@ impl GraphWithDeletions {
     /// // g.save_to_file("path_str");
     /// ```
     pub fn save_to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), GraphError> {
-        self.graph.save_to_file(path)
+        self.graph.save_to_file(path)?;
+        Ok(())
     }
 
     /// Load a graph from a directory

@@ -68,11 +68,11 @@ impl<const N: usize> std::fmt::Display for InnerTemporalGraph<N> {
     }
 }
 
-impl<const N: usize> PartialEq for InnerTemporalGraph<N> {
-    fn eq(&self, other: &Self) -> bool {
-        self.storage == other.storage
-    }
-}
+// impl<const N: usize> PartialEq for InnerTemporalGraph<N> {
+//     fn eq(&self, other: &Self) -> bool {
+//         self.storage == other.storage
+//     }
+// }
 
 impl<const N: usize> Default for InnerTemporalGraph<N> {
     fn default() -> Self {
@@ -160,11 +160,11 @@ impl<const N: usize> InnerTemporalGraph<N> {
         self.edge_props_meta.get_layer_id(name.borrow())
     }
 
-    pub fn num_vertices(&self) -> usize {
+    pub fn internal_num_vertices(&self) -> usize {
         self.storage.nodes_len()
     }
 
-    pub fn num_edges(&self, layer: Option<usize>) -> usize {
+    pub fn internal_num_edges(&self, layer: Option<usize>) -> usize {
         self.storage.edges_len(layer)
     }
 

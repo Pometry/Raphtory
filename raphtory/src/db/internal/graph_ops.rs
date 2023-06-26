@@ -33,11 +33,11 @@ impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
     }
 
     fn vertices_len(&self) -> usize {
-        self.num_vertices()
+        self.internal_num_vertices()
     }
 
     fn edges_len(&self, layer: Option<usize>) -> usize {
-        self.num_edges(layer)
+        self.internal_num_edges(layer)
     }
 
     fn degree(&self, v: VID, d: Direction, layer: Option<usize>) -> usize {

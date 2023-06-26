@@ -22,11 +22,6 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
         edge.additions(eref.layer()).unwrap()
     }
 
-    // fn edge_deletions(&self, eref: EdgeRef) -> LockedView<TimeIndex> {
-    //     let edge = self.edge(eref.pid());
-    //     edge.deletions(eref.layer()).unwrap()
-    // }
-
     fn vertex_additions(&self, v: VID) -> LockedView<TimeIndex> {
         let vertex = self.vertex(v);
         vertex.additions().unwrap()
