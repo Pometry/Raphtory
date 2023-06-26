@@ -1,4 +1,5 @@
 use crate::core::tgraph2::VID;
+use crate::core::tgraph2::tgraph::InnerTemporalGraph;
 use crate::core::tgraph_shard::errors::GraphError;
 use crate::core::Prop;
 use itertools::Itertools;
@@ -312,7 +313,7 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
     }
 
     fn materialize(&self) -> Result<MaterializedGraph, GraphError> {
-        let g = Graph::new(0);
+        let g = InnerTemporalGraph::default();
         // Add edges first so we definitely have all associated vertices (important in case of persistent edges)
         for e in self.edges() {
             let layer_name = &e.layer_name().to_string();

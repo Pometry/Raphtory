@@ -3,7 +3,6 @@ use crate::core::tgraph2::VID;
 use crate::core::tgraph_shard::errors::GraphError;
 use crate::core::timeindex::TimeIndexOps;
 use crate::core::{Direction, Prop};
-use crate::db::graph::{graph_equal, InternalGraph};
 use crate::db::mutation_api::internal::InheritMutationOps;
 use crate::db::view_api::internal::{
     Base, CoreDeletionOps, CoreGraphOps, DynamicGraph, GraphOps, InheritCoreDeletionOps,
@@ -17,6 +16,8 @@ use std::iter;
 use std::ops::Range;
 use std::path::Path;
 use std::sync::Arc;
+
+use super::graph::InternalGraph;
 
 #[derive(Clone, Debug)]
 pub struct GraphWithDeletions {

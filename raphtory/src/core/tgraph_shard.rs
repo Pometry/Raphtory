@@ -10,7 +10,7 @@
 //! Each shard will have its own set of vertex and edge data, and will be able to be queried independently.
 
 use self::errors::GraphError;
-use std::ops::{Deref};
+use std::{ops::Deref, hash::BuildHasherDefault};
 
 use dashmap::mapref::one::Ref;
 

@@ -6,9 +6,14 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     core::{
-        tgraph::errors::MutateGraphError, tgraph_shard::{errors::GraphError, LockedView}, time::TryIntoTime,
-        timeindex::TimeIndexOps, vertex::InputVertex, vertex_ref::VertexRef, Direction, Prop,
-        PropUnwrap, tprop::TProp,
+        tgraph::errors::MutateGraphError,
+        tgraph_shard::{errors::GraphError, LockedView},
+        time::TryIntoTime,
+        timeindex::TimeIndexOps,
+        tprop::TProp,
+        vertex::InputVertex,
+        vertex_ref::VertexRef,
+        Direction, Prop, PropUnwrap,
     },
     storage::Entry,
 };
@@ -183,21 +188,13 @@ impl<const N: usize> InnerTemporalGraph<N> {
         self.latest_time.update(time);
     }
 
-    pub fn add_vertex<V: InputVertex, T: TryIntoTime + Debug>(
+    pub(crate) fn add_vertex_internal(
         &self,
-        t: T,
-        v: V,
-        props: &Vec<(String, Prop)>,
-    ) -> Result<VID, GraphError> {
-        self.add_vertex_internal(t, v, props.clone())
-    }
-
-    fn add_vertex_internal<V: InputVertex, T: TryIntoTime + Debug>(
-        &self,
-        time: T,
-        v: V,
+        time: i64,
+        v: u64,
+        name: Option<&str>,
         props: Vec<(String, Prop)>,
-    ) -> Result<VID, GraphError> {
+    ) -> Result<(), GraphError> {
         let t = time.try_into_time()?;
         self.update_time(t);
 
@@ -207,10 +204,10 @@ impl<const N: usize> InnerTemporalGraph<N> {
             .resolve_prop_ids(props, false)
             .collect::<Vec<_>>();
         let node_prop = v
-            .name_prop()
+            .id_str()
             .map(|n| {
                 self.vertex_props_meta
-                    .resolve_prop_ids(vec![("_id".to_string(), n)], true)
+                    .resolve_prop_ids(vec![("_id".to_string(), Prop::Str(n.to_owned()))], true)
                     .collect::<Vec<_>>()
             })
             .unwrap_or_else(|| vec![]);
@@ -235,15 +232,30 @@ impl<const N: usize> InnerTemporalGraph<N> {
             node.add_prop(t, *prop_id, prop.clone());
         }
 
+        Ok(())
+    }
+
+    pub(crate) fn add_vertex_no_props(&self, t: i64, v: u64) -> Result<VID, GraphError> {
+        self.update_time(t);
+
+        // update the logical to physical mapping if needed
+        let v_id = *(self.logical_to_physical.entry(v.id()).or_insert_with(|| {
+            let node_store = NodeStore::new(v.id(), t);
+            self.storage.push_node(node_store)
+        }));
+
+        // get the node and update the time index
+        let mut node = self.storage.get_node_mut(v_id);
+        node.update_time(t);
+
         Ok(v_id.into())
     }
 
-    pub fn add_vertex_properties<V: InputVertex>(
+    pub fn add_vertex_properties_internal(
         &self,
-        v: V,
-        data: &Vec<(String, Prop)>,
+        v: u64,
+        data: Vec<(String, Prop)>,
     ) -> Result<(), GraphError> {
-        let v = v.id();
         if let Some(vid) = self.logical_to_physical.get(&v).map(|entry| *entry) {
             let mut node = self.storage.get_node_mut(vid);
             for (prop_name, prop) in data {
@@ -255,31 +267,27 @@ impl<const N: usize> InnerTemporalGraph<N> {
         Ok(())
     }
 
-    pub fn add_edge_properties<V: InputVertex>(
+    pub fn add_edge_properties_internal(
         &self,
-        src: V,
-        dst: V,
-        props: &Vec<(String, Prop)>,
+        src: u64,
+        dst: u64,
+        props: Vec<(String, Prop)>,
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
         let src_id = self
             .logical_to_physical
-            .get(&src.id())
+            .get(&src)
             .map(|entry| *entry)
             .ok_or(GraphError::FailedToMutateGraph {
-                source: MutateGraphError::VertexNotFoundError {
-                    vertex_id: src.id(),
-                },
+                source: MutateGraphError::VertexNotFoundError { vertex_id: src },
             })?;
 
         let dst_id = self
             .logical_to_physical
-            .get(&dst.id())
+            .get(&dst)
             .map(|entry| *entry)
             .ok_or(GraphError::FailedToMutateGraph {
-                source: MutateGraphError::VertexNotFoundError {
-                    vertex_id: dst.id(),
-                },
+                source: MutateGraphError::VertexNotFoundError { vertex_id: dst },
             })?;
 
         let layer_id = layer
@@ -318,22 +326,16 @@ impl<const N: usize> InnerTemporalGraph<N> {
         Ok(())
     }
 
-    pub fn add_static_property(&self, props: &Vec<(String, Prop)>) -> Result<(), GraphError> {
+    pub fn add_static_property(&self, props: Vec<(String, Prop)>) -> Result<(), GraphError> {
         for (name, prop) in props {
-            self.graph_props.add_static_prop(name, prop.clone());
+            self.graph_props.add_static_prop(&name, prop.clone());
         }
         Ok(())
     }
 
-    pub fn add_property<T: TryIntoTime>(
-        &self,
-        t: T,
-        props: &Vec<(String, Prop)>,
-    ) -> Result<(), GraphError> {
-        let t = t.try_into_time()?;
-
+    pub fn add_property(&self, t: i64, props: Vec<(String, Prop)>) -> Result<(), GraphError> {
         for (name, prop) in props {
-            self.graph_props.add_prop(t, name, prop.clone());
+            self.graph_props.add_prop(t, &name, prop.clone());
         }
         Ok(())
     }
@@ -354,18 +356,17 @@ impl<const N: usize> InnerTemporalGraph<N> {
         self.graph_props.temporal_prop_names()
     }
 
-    pub fn delete_edge<V: InputVertex, T: TryIntoTime>(
+    pub fn delete_edge(
         &self,
-        t: T,
-        src: V,
-        dst: V,
+        t: i64,
+        src: u64,
+        dst: u64,
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
-        let t = t.try_into_time()?;
         self.update_time(t);
 
-        let src_id = self.add_vertex_internal(t, src, vec![])?;
-        let dst_id = self.add_vertex_internal(t, dst, vec![])?;
+        let src_id = self.add_vertex_no_props(t, src)?;
+        let dst_id = self.add_vertex_no_props(t, dst)?;
 
         let layer = self.get_or_allocate_layer(layer);
 
@@ -429,17 +430,17 @@ impl<const N: usize> InnerTemporalGraph<N> {
         }
     }
 
-    pub fn add_edge<V: InputVertex, T: TryIntoTime + Debug>(
+    pub fn add_edge_internal(
         &self,
-        t: T,
-        src: V,
-        dst: V,
-        props: &Vec<(String, Prop)>,
+        t: i64,
+        src: u64,
+        dst: u64,
+        props: Vec<(String, Prop)>,
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
         let t = t.try_into_time()?;
-        let src_id = self.add_vertex_internal(t, src, vec![])?;
-        let dst_id = self.add_vertex_internal(t, dst, vec![])?;
+        let src_id = self.add_vertex_no_props(t, src)?;
+        let dst_id = self.add_vertex_no_props(t, dst)?;
 
         let layer = self.get_or_allocate_layer(layer);
 
@@ -571,11 +572,9 @@ mod test {
     fn add_vertex_at_time_t1() {
         let g: TGraph<4> = TGraph::default();
 
-        g.add_vertex(1, 9, &vec![]);
+        g.add_vertex_internal(1, 9, None, vec![]);
 
         assert!(g.has_vertex(9u64));
-        // assert!(g.has_vertex_window(9u64, 1..15));
-        // assert!(!g.has_vertex_window(9u64, 10..15));
 
         assert_eq!(
             g.vertex_ids()
@@ -591,7 +590,12 @@ mod test {
 
         let v_id = 1;
         let ts = 1;
-        g.add_vertex(ts, v_id, &vec![("type".into(), Prop::Str("wallet".into()))]);
+        g.add_vertex_internal(
+            ts,
+            v_id,
+            None,
+            vec![("type".into(), Prop::Str("wallet".into()))],
+        );
 
         assert!(g.has_vertex(v_id));
         // assert!(g.has_vertex_window(v_id, 1..15));
@@ -617,10 +621,10 @@ mod test {
         let src = 1;
         let dst = 2;
         let ts = 1;
-        g.add_vertex(ts, src, &vec![]);
-        g.add_vertex(ts, dst, &vec![]);
+        g.add_vertex_internal(ts, src, None, vec![]);
+        g.add_vertex_internal(ts, dst, None, vec![]);
 
-        g.add_edge(ts, src, dst, &vec![], Some("follows"));
+        g.add_edge_internal(ts, src, dst, vec![], Some("follows"));
 
         let res = g
             .vertices()
@@ -639,9 +643,9 @@ mod test {
 
         let ts = 1;
 
-        g.add_edge(ts, 1, 2, &vec![], Some("follows"));
-        g.add_edge(ts, 2, 3, &vec![], Some("follows"));
-        g.add_edge(ts, 3, 1, &vec![], Some("follows"));
+        g.add_edge_internal(ts, 1, 2, vec![], Some("follows"));
+        g.add_edge_internal(ts, 2, 3, vec![], Some("follows"));
+        g.add_edge_internal(ts, 3, 1, vec![], Some("follows"));
 
         let res = g
             .vertices()
@@ -681,9 +685,9 @@ mod test {
 
         let ts = 1;
 
-        g.add_edge(ts, 1, 2, &vec![], Some("follows"));
-        g.add_edge(ts, 2, 3, &vec![], Some("follows"));
-        g.add_edge(ts, 3, 1, &vec![], Some("follows"));
+        g.add_edge_internal(ts, 1, 2, vec![], Some("follows"));
+        g.add_edge_internal(ts, 2, 3, vec![], Some("follows"));
+        g.add_edge_internal(ts, 3, 1, vec![], Some("follows"));
 
         let res = g
             .locked_vertices()
@@ -721,10 +725,10 @@ mod test {
     fn test_chaining_vertex_ops() {
         let g: TGraph<16> = TGraph::default();
 
-        g.add_edge(1, 1, 2, &vec![], None);
-        g.add_edge(2, 1, 3, &vec![], None);
-        g.add_edge(3, 2, 1, &vec![], None);
-        g.add_edge(4, 3, 2, &vec![], None);
+        g.add_edge_internal(1, 1, 2, vec![], None);
+        g.add_edge_internal(2, 1, 3, vec![], None);
+        g.add_edge_internal(3, 2, 1, vec![], None);
+        g.add_edge_internal(4, 3, 2, vec![], None);
 
         for v_id in 0..3 {
             let v = g.vertex(v_id.into());
