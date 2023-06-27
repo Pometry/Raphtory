@@ -24,11 +24,13 @@ pub(crate) struct NodeStore<const N: usize> {
 
 impl<const N: usize> NodeStore<N> {
     pub fn new(global_id: u64, t: i64) -> Self {
+        let mut layers = Vec::with_capacity(1);
+        layers.push(Adj::Solo);
         Self {
             global_id,
             vid: 0.into(),
             timestamps: TimeIndex::one(t),
-            layers: vec![Adj::Solo],
+            layers ,
             props: None,
         }
     }
@@ -46,8 +48,8 @@ impl<const N: usize> NodeStore<N> {
     }
 
     pub fn add_prop(&mut self, t: i64, prop_id: usize, prop: Prop) {
-        let props = self.props.get_or_insert_with(|| Props::new());
-        props.add_prop(t, prop_id, prop);
+        // let props = self.props.get_or_insert_with(|| Props::new());
+        // props.add_prop(t, prop_id, prop);
     }
 
     pub fn add_static_prop(
@@ -56,8 +58,8 @@ impl<const N: usize> NodeStore<N> {
         name: &str,
         prop: Prop,
     ) -> Result<(), MutateGraphError> {
-        let props = self.props.get_or_insert_with(|| Props::new());
-        props.add_static_prop(prop_id, name, prop);
+        // let props = self.props.get_or_insert_with(|| Props::new());
+        // props.add_static_prop(prop_id, name, prop)?;
         Ok(())
     }
 
