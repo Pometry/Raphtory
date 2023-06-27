@@ -223,7 +223,7 @@ impl Graph {
 
 impl IntoDynamic for Graph {
     fn into_dynamic(self) -> DynamicGraph {
-        self.0
+        DynamicGraph::new(self)
     }
 }
 
