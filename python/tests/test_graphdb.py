@@ -683,11 +683,12 @@ def test_save_load_graph():
     g.add_edge(6, 13, 11, {"prop1": 645, "prop2": 9.8, "prop3": "test"})
 
     tmpdirname = tempfile.TemporaryDirectory()
-    g.save_to_file(tmpdirname.name)
+    graph_path = tmpdirname.name + "/test_graph.bin"
+    g.save_to_file(graph_path)
 
     del (g)
 
-    g = Graph.load_from_file(tmpdirname.name)
+    g = Graph.load_from_file(graph_path)
 
     view = g.window(0, 10)
     assert g.has_vertex(13)
