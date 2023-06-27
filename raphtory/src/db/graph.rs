@@ -9,10 +9,11 @@
 //! ```rust
 //! use raphtory::db::view_api::*;
 //! use raphtory::db::graph::Graph;
+//! use raphtory::db::mutation_api::AdditionOps;
 //! let graph = Graph::new(0);
-//! graph.add_vertex(0, "Alice", &vec![]).unwrap();
-//! graph.add_vertex(1, "Bob", &vec![]).unwrap();
-//! graph.add_edge(2, "Alice", "Bob", &vec![], None).unwrap();
+//! graph.add_vertex(0, "Alice", vec![]).unwrap();
+//! graph.add_vertex(1, "Bob", vec![]).unwrap();
+//! graph.add_edge(2, "Alice", "Bob", vec![], None).unwrap();
 //! graph.num_edges();
 //! ```
 //!
@@ -1167,8 +1168,21 @@ mod db_tests {
             .all(|v| v.is_some())
     }
 
+
     #[quickcheck]
     fn exploded_edge_times_is_consistent(edges: Vec<(u64, u64, Vec<i64>)>, offset: i64) -> bool {
+        exploded_edge_times_is_consistent_t(edges, offset)
+    }
+
+    #[test]
+    fn exploded_edge_times_is_consistent_1() {
+        let edges = vec![
+            (0, 0, vec![0, 1])
+        ];
+        assert!(exploded_edge_times_is_consistent_t(edges, 0));
+    }
+
+    fn exploded_edge_times_is_consistent_t(edges: Vec<(u64, u64, Vec<i64>)>, offset: i64) -> bool {
         let mut correct = true;
         let mut check = |condition: bool, message: String| {
             if !condition {

@@ -104,8 +104,7 @@ pub fn stable_coin_graph(path: Option<String>, subset: bool, num_shards: usize) 
             .expect("Failed to load graph from CSV data files");
 
         println!(
-            "Loaded graph with {} shards from CSV data files {} with {} vertices, {} edges which took {} seconds",
-            g.num_shards(),
+            "Loaded graph from CSV data files {} with {} vertices, {} edges which took {} seconds",
             encoded_data_dir.to_str().unwrap(),
             g.num_vertices(),
             g.num_edges(),

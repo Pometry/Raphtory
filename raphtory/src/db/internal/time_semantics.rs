@@ -8,7 +8,7 @@ use crate::{
         tgraph2::{tgraph::InnerTemporalGraph, timer::TimeCounterTrait, VID},
         timeindex::TimeIndexOps,
     },
-    db::view_api::{internal::TimeSemantics, BoxedIter},
+    db::view_api::{internal::{TimeSemantics, CoreGraphOps, CoreDeletionOps}, BoxedIter},
     prelude::Prop,
 };
 
@@ -70,27 +70,19 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
     }
 
     fn edge_earliest_time(&self, e: EdgeRef) -> Option<i64> {
-        self.edge_entry(e.pid())
-            .value()
-            .and_then(|edge| edge.unsafe_layer(e.layer()).timestamps().first())
+        e.time().or_else(|| self.edge_additions(e).first())
     }
 
     fn edge_earliest_time_window(&self, e: EdgeRef, w: Range<i64>) -> Option<i64> {
-        self.edge_entry(e.pid())
-            .value()
-            .and_then(|edge| edge.unsafe_layer(e.layer()).timestamps().range(w).first())
+        e.time().or_else(|| self.edge_additions(e).range(w).first())
     }
 
     fn edge_latest_time(&self, e: EdgeRef) -> Option<i64> {
-        self.edge_entry(e.pid())
-            .value()
-            .and_then(|edge| edge.unsafe_layer(e.layer()).timestamps().last())
+        e.time().or_else(|| self.edge_additions(e).last())
     }
 
     fn edge_latest_time_window(&self, e: EdgeRef, w: Range<i64>) -> Option<i64> {
-        self.edge_entry(e.pid())
-            .value()
-            .and_then(|edge| edge.unsafe_layer(e.layer()).timestamps().range(w).last())
+        e.time().or_else(|| self.edge_additions(e).range(w).last())
     }
 
     fn vertex_earliest_time_window(&self, v: VID, t_start: i64, t_end: i64) -> Option<i64> {
@@ -106,43 +98,19 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
     }
 
     fn vertex_history(&self, v: VID) -> Vec<i64> {
-        self.node_entry(v).timestamps().iter().copied().collect()
+        self.vertex_additions(v).iter().copied().collect()
     }
 
     fn vertex_history_window(&self, v: VID, w: Range<i64>) -> Vec<i64> {
-        self.node_entry(v)
-            .timestamps()
-            .range(w)
-            .iter()
-            .copied()
-            .collect()
+        self.vertex_additions(v).range(w).iter().copied().collect()
     }
 
     fn edge_deletion_history(&self, e: EdgeRef) -> Vec<i64> {
-        self.edge_entry(e.pid())
-            .value()
-            .map(|edge| {
-                edge.unsafe_layer(e.layer())
-                    .deletions()
-                    .iter()
-                    .copied()
-                    .collect()
-            })
-            .unwrap_or_default()
+        self.edge_deletions(e).iter().copied().collect()
     }
 
     fn edge_deletion_history_window(&self, e: EdgeRef, w: Range<i64>) -> Vec<i64> {
-        self.edge_entry(e.pid())
-            .value()
-            .map(|edge| {
-                edge.unsafe_layer(e.layer())
-                    .deletions()
-                    .range(w)
-                    .iter()
-                    .copied()
-                    .collect()
-            })
-            .unwrap_or_default()
+        self.edge_deletions(e).range(w).iter().copied().collect()
     }
 
     fn temporal_prop_vec(&self, name: &str) -> Vec<(i64, Prop)> {

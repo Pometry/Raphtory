@@ -78,13 +78,13 @@ impl GraphWithDeletions {
     ///
     /// # Example
     ///
-    /// ```
-    /// use raphtory::db::graph::InternalGraph;
+    /// ```no_run
+    /// use raphtory::db::graph::Graph;
     /// use std::fs::File;
     /// use raphtory::db::mutation_api::AdditionOps;
-    /// let g = InternalGraph::new(4);
+    /// let g = Graph::new(4);
     /// g.add_vertex(1, 1, []).unwrap();
-    /// // g.save_to_file("path_str");
+    /// g.save_to_file("path_str");
     /// ```
     pub fn save_to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), GraphError> {
         self.graph.save_to_file(path)?;
@@ -103,9 +103,9 @@ impl GraphWithDeletions {
     ///
     /// # Example
     ///
-    /// ```
-    /// use raphtory::db::graph::InternalGraph;
-    /// // let g = Graph::load_from_file("path/to/graph");
+    /// ```no_run
+    /// use raphtory::db::graph::Graph;
+    /// let g = Graph::load_from_file("path/to/graph");
     /// ```
     pub fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self, GraphError> {
         Ok(Self {
