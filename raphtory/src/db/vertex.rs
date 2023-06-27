@@ -95,8 +95,8 @@ impl<G: GraphViewOps> VertexViewOps for VertexView<G> {
     fn properties(&self, include_static: bool) -> HashMap<String, Prop> {
         let mut props: HashMap<String, Prop> = self
             .property_histories()
-            .iter()
-            .map(|(key, values)| (key.clone(), values.last().unwrap().1.clone()))
+            .into_iter()
+            .filter_map(|(key, values)| values.last().map(|v| (key, v.1.clone())))
             .collect();
 
         if include_static {
