@@ -74,7 +74,7 @@ bibliography: joss-raphtory.bib
 
 # Summary
 
-Raphtory is a platform for building and analysing temporal networks. The library includes methods for creating networks from a variety of data sources; algorithms to explore their structure and evolution; and an extensible GraphQL server for deployment of applications built on top. Raphtory's core engine is built in Rust, for efficiency, with Python interfaces, for ease of use. Raphtory is developed by network scientists, with a background in Physics, Applied Mathematics, Engineering and Computer Science, for use across academia and industry. 
+Raphtory is a platformß for building and analysing temporal networks. The library includes methods for creating networks from a variety of data sources; algorithms to explore their structure and evolution; and an extensible GraphQL server for deployment of applications built on top. Raphtory's core engine is built in Rust, for efficiency, with Python interfaces, for ease of use. Raphtory is developed by network scientists, with a background in Physics, Applied Mathematics, Engineering and Computer Science, for use across academia and industry. 
 
 
 # Statement of need
@@ -83,7 +83,7 @@ Networks are at the core of data science solutions in a variety of domains, incl
 
 However, with abundant cheap storage and tools for logging every event which occurs in an ecosystem, datasets have become increasingly rich, combining different types of information that cannot be incorporated in a standard network model [@lambiotte2019networks]. In particular, the temporal nature of many complex systems has led to the emergence of the field of temporal networks, with its own models and algorithms [@holme2012temporal;@masuda2016guide].
 
-Unfortuntely, despite active academic research in the last decade, no efficient, generalised and production-ready system has been developed to explore the temporal dimension of networks. To support practitioners who wish to exploit both the structure and dynamics of their data, we have developed Raphtory.
+Unfortunately, despite active academic research in the last decade, no efficient, generalised and production-ready system has been developed to explore the temporal dimension of networks. To support practitioners who wish to exploit both the structure and dynamics of their data, we have developed Raphtory.
 
 # Related Software
 
