@@ -99,15 +99,18 @@ impl Node {
         }
     }
 
-    async fn degree(&self,layer:Option<String>) -> usize {
-        match layer {
-            None => { self.vv.degree() }
-            Some(layer) => { match self.vv.layer(layer.as_str()) {
-                None => {0}
-                Some(vvv) => {
-                    vvv.degree()
+    async fn degree(&self, layers: Option<Vec<String>>) -> usize {
+        match layers {
+            None => self.vv.degree(),
+            Some(layers) =>
+                layers.into_iter().map( |layer| {
+                    let degree = match self.vv.layer(layer.as_str()) {
+                        None => 0,
+                        Some(vvv) => vvv.degree(),
+                    };
+                    return degree;
                 }
-            } }
+                ).sum()
         }
     }
 
@@ -159,15 +162,16 @@ impl Node {
         }
     }
 
-    async fn edges(&self, layer:Option<String>) -> Vec<Edge> {
-        match layer {
-            None => { self.vv.edges().map(|ee| ee.clone().into()).collect() }
-            Some(layer) => { match self.vv.layer(layer.as_str()) {
-                None => {vec![]}
-                Some(vvv) => {
-                    vvv.edges().map(|ee| ee.clone().into()).collect()
-                }
-            } }
+    async fn edges(&self, filter: Option<EdgeFilter>) -> Vec<Edge> {
+        match filter {
+            Some(filter) => self
+                .vv
+                .edges()
+                .into_iter()
+                .map(|ev| ev.into())
+                .filter(|ev| filter.matches(ev))
+                .collect(),
+            None => self.vv.edges().map(|ee| ee.clone().into()).collect(),
         }
     }
 
