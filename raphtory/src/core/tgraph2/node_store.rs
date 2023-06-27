@@ -4,7 +4,7 @@ use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
 use crate::core::{
-    edge_ref::EdgeRef, tgraph::errors::MutateGraphError, timeindex::TimeIndex, Direction, Prop, tprop::TProp,
+    edge_ref::EdgeRef, errors::MutateGraphError, timeindex::TimeIndex, Direction, Prop, tprop::TProp,
 };
 
 use super::{adj::Adj, props::Props, EID, VID};

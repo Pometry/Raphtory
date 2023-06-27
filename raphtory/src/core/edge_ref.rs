@@ -73,11 +73,6 @@ impl EdgeRef {
         }
     }
 
-    pub(in crate::core) fn merge_cmp(&self, other: &EdgeRef) -> bool {
-        (self.local(), self.remote(), self.time(), self.layer())
-            < (other.local(), other.remote(), other.time(), other.layer())
-    }
-
     pub fn at_layer(mut self, layer: usize) -> Self {
         match self {
             e_ref @ EdgeRef::LocalInto { ref mut layer_id, .. } => {

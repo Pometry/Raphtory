@@ -1,5 +1,5 @@
 use crate::{
-    core::{tgraph2::tgraph::InnerTemporalGraph, tgraph_shard::errors::GraphError, timeindex::TimeIndex, edge_ref::EdgeRef}, db::{mutation_api::internal::InternalDeletionOps, view_api::internal::CoreDeletionOps},
+    core::{tgraph2::tgraph::InnerTemporalGraph, errors::GraphError, timeindex::TimeIndex, edge_ref::EdgeRef}, db::{mutation_api::internal::InternalDeletionOps, view_api::internal::CoreDeletionOps},
 };
 
 impl<const N: usize> InternalDeletionOps for InnerTemporalGraph<N> {
@@ -16,7 +16,7 @@ impl<const N: usize> InternalDeletionOps for InnerTemporalGraph<N> {
 
 
 impl<const N:usize> CoreDeletionOps for InnerTemporalGraph<N> {
-    fn edge_deletions(&self, eref: EdgeRef) -> crate::core::tgraph_shard::LockedView<TimeIndex> {
+    fn edge_deletions(&self, eref: EdgeRef) -> crate::core::locked_view::LockedView<TimeIndex> {
         let edge = self.edge(eref.pid());
         edge.deletions(eref.layer()).unwrap()
     }

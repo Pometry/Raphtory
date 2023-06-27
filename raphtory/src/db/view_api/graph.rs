@@ -1,6 +1,6 @@
 use crate::core::tgraph2::VID;
 use crate::core::tgraph2::tgraph::InnerTemporalGraph;
-use crate::core::tgraph_shard::errors::GraphError;
+use crate::core::errors::GraphError;
 use crate::core::Prop;
 use itertools::Itertools;
 use rustc_hash::FxHashSet;

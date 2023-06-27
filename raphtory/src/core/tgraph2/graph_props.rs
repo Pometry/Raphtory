@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::core::{tprop::TProp, Prop, tgraph_shard::LockedView};
+use crate::core::{tprop::TProp, Prop, locked_view::LockedView};
 
 use super::{props::DictMapper, tgraph::FxDashMap};
 

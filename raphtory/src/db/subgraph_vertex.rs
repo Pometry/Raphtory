@@ -1,7 +1,7 @@
 use crate::core::edge_ref::EdgeRef;
 use crate::core::tgraph2::VID;
 use crate::core::vertex_ref::VertexRef;
-use crate::core::{Direction, Prop};
+use crate::core::Direction;
 use crate::db::view_api::internal::{
     Base, GraphOps, InheritCoreOps, InheritMaterialize, InheritTimeSemantics,
 };

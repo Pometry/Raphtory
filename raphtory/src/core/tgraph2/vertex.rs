@@ -5,7 +5,7 @@ use itertools::Itertools;
 use crate::{
     core::{
         edge_ref::EdgeRef,
-        tgraph_shard::LockedView,
+        locked_view::LockedView,
         timeindex::{TimeIndex, TimeIndexOps},
         tprop::TProp,
         Direction, Prop,

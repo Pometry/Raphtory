@@ -19,7 +19,7 @@
 //!
 
 use crate::core::tgraph2::tgraph::InnerTemporalGraph;
-use crate::core::tgraph_shard::errors::GraphError;
+use crate::core::errors::GraphError;
 use crate::prelude::{EdgeListOps, EdgeViewOps, GraphViewOps, VertexViewOps};
 
 use serde::{Deserialize, Serialize};
@@ -147,7 +147,7 @@ impl IntoDynamic for Graph {
 mod db_tests {
     use super::*;
     use crate::core::edge_ref::EdgeRef;
-    use crate::core::tgraph_shard::errors::GraphError;
+    use crate::core::errors::GraphError;
     use crate::core::time::error::ParseTimeError;
     use crate::core::time::TryIntoTime;
     use crate::core::vertex_ref::VertexRef;
@@ -539,7 +539,7 @@ mod db_tests {
         assert_eq!(actual, Some(Prop::Bool(true)));
 
         // we flip cool from true to false after t 3
-        let v1 = g
+        let _ = g
             .add_vertex(3, 1, vec![("cool".to_string(), Prop::Bool(false))])
             .unwrap();
 

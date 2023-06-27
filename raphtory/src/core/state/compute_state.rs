@@ -1,11 +1,10 @@
-use rustc_hash::FxHashMap;
 use std::collections::HashMap;
 
 use crate::core::agg::Accumulator;
 use crate::db::view_api::GraphViewOps;
 
 use super::{
-    container::{merge_2_vecs, DynArray, MapArray, VecArray},
+    container::{merge_2_vecs, DynArray, VecArray},
     StateType,
 };
 
@@ -50,7 +49,6 @@ pub trait ComputeState: std::fmt::Debug + Clone + Send + Sync {
     fn finalize<A, IN, OUT, ACC: Accumulator<A, IN, OUT>, G: GraphViewOps>(
         &self,
         ss: usize,
-        shard_id: usize,
         g: &G,
     ) -> HashMap<String, OUT>
     where
@@ -204,7 +202,6 @@ impl ComputeState for ComputeStateVec {
     fn finalize<A, IN, OUT, ACC: Accumulator<A, IN, OUT>, G: GraphViewOps>(
         &self,
         ss: usize,
-        shard_id: usize,
         g: &G,
     ) -> HashMap<String, OUT>
     where

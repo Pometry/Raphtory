@@ -186,13 +186,13 @@ mod graph_loader_test {
 
     #[test]
     fn test_lotr_load_graph() {
-        let g = crate::graph_loader::example::lotr_graph::lotr_graph(4);
+        let g = crate::graph_loader::example::lotr_graph::lotr_graph();
         assert_eq!(g.num_edges(), 701);
     }
 
     #[test]
     fn test_graph_at() {
-        let g = crate::graph_loader::example::lotr_graph::lotr_graph(1);
+        let g = crate::graph_loader::example::lotr_graph::lotr_graph();
 
         let g_at_empty = g.at(1);
         let g_at_start = g.at(7059);
@@ -261,7 +261,7 @@ mod graph_loader_test {
 
     #[test]
     fn test_all_degrees_window() {
-        let g = crate::graph_loader::example::lotr_graph::lotr_graph(4);
+        let g = crate::graph_loader::example::lotr_graph::lotr_graph();
 
         assert_eq!(g.num_edges(), 701);
         assert_eq!(g.vertex("Gandalf").unwrap().degree(), 49);
@@ -286,7 +286,7 @@ mod graph_loader_test {
 
     #[test]
     fn test_all_neighbours_window() {
-        let g = crate::graph_loader::example::lotr_graph::lotr_graph(4);
+        let g = crate::graph_loader::example::lotr_graph::lotr_graph();
 
         assert_eq!(g.num_edges(), 701);
         assert_eq!(g.vertex("Gandalf").unwrap().neighbours().iter().count(), 49);
@@ -339,7 +339,7 @@ mod graph_loader_test {
 
     #[test]
     fn test_all_edges_window() {
-        let g = crate::graph_loader::example::lotr_graph::lotr_graph(4);
+        let g = crate::graph_loader::example::lotr_graph::lotr_graph();
 
         assert_eq!(g.num_edges(), 701);
         assert_eq!(g.vertex("Gandalf").unwrap().edges().count(), 59);

@@ -5,7 +5,7 @@ use genawaiter::sync::GenBoxed;
 use crate::{
     core::{
         edge_ref::EdgeRef,
-        tgraph2::{tgraph::InnerTemporalGraph, timer::TimeCounterTrait, VID},
+        tgraph2::{tgraph::InnerTemporalGraph, VID},
         timeindex::TimeIndexOps,
     },
     db::view_api::{internal::{TimeSemantics, CoreGraphOps, CoreDeletionOps}, BoxedIter},

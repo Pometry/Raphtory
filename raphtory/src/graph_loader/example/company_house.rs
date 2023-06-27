@@ -17,7 +17,7 @@ pub struct CompanyHouse {
     illegal_hmo: Option<String>
 }
 
-pub fn company_house_graph(path: Option<String>, num_shards: usize) -> Graph {
+pub fn company_house_graph(path: Option<String>) -> Graph {
     let default_data_dir: PathBuf = PathBuf::from("/tmp/company-house");
 
     let data_dir = match path {
@@ -177,7 +177,6 @@ mod company_house_graph_test {
     fn test_ch_load() {
         let g = company_house_graph(
             None,
-            1,
         );
         assert_eq!(g.start().unwrap(), 1000);
         assert_eq!(g.end().unwrap(), 1001);

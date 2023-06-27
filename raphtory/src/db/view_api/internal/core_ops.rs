@@ -1,6 +1,6 @@
 use crate::core::edge_ref::EdgeRef;
 use crate::core::tgraph2::VID;
-use crate::core::tgraph_shard::LockedView;
+use crate::core::locked_view::LockedView;
 use crate::core::timeindex::TimeIndex;
 use crate::core::tprop::TProp;
 use crate::core::vertex_ref::VertexRef;

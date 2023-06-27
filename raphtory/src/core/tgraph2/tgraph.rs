@@ -1,4 +1,4 @@
-use std::{fmt::Debug, hash::BuildHasherDefault, path::Path, sync::Arc, ops::Deref};
+use std::{fmt::Debug, hash::BuildHasherDefault, ops::Deref, path::Path, sync::Arc};
 
 use dashmap::DashMap;
 use rustc_hash::FxHasher;
@@ -6,8 +6,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     core::{
-        tgraph::errors::MutateGraphError,
-        tgraph_shard::{errors::GraphError, LockedView},
+        errors::{GraphError, MutateGraphError},
+        locked_view::LockedView,
         time::TryIntoTime,
         timeindex::TimeIndexOps,
         tprop::TProp,
@@ -37,7 +37,7 @@ pub(crate) type TGraph<const N: usize> = InnerTemporalGraph<N>;
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct InnerTemporalGraph<const N: usize>(Arc<TemporalGraph<N>>);
 
-impl <const N:usize> Deref for InnerTemporalGraph<N>{
+impl<const N: usize> Deref for InnerTemporalGraph<N> {
     type Target = TemporalGraph<N>;
 
     fn deref(&self) -> &Self::Target {
@@ -96,7 +96,6 @@ impl<const N: usize> Default for InnerTemporalGraph<N> {
 }
 
 impl<const N: usize> InnerTemporalGraph<N> {
-
     pub(crate) fn get_all_layers(&self) -> Vec<usize> {
         self.edge_props_meta.get_all_layers()
     }
@@ -129,7 +128,10 @@ impl<const N: usize> InnerTemporalGraph<N> {
         bincode::deserialize_from(&mut reader)
     }
 
-    pub(crate) fn save_to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), Box<bincode::ErrorKind>> {
+    pub(crate) fn save_to_file<P: AsRef<Path>>(
+        &self,
+        path: P,
+    ) -> Result<(), Box<bincode::ErrorKind>> {
         let f = std::fs::File::create(path)?;
         let mut writer = std::io::BufWriter::new(f);
         bincode::serialize_into(&mut writer, self)
@@ -225,7 +227,8 @@ impl<const N: usize> InnerTemporalGraph<N> {
             .resolve_prop_ids(props, false)
             .collect::<Vec<_>>();
 
-        let name_prop = name.or_else(|| v.id_str())
+        let name_prop = name
+            .or_else(|| v.id_str())
             .map(|n| {
                 self.vertex_props_meta
                     .resolve_prop_ids(vec![("_id".to_string(), Prop::Str(n.to_owned()))], true)
@@ -354,7 +357,11 @@ impl<const N: usize> InnerTemporalGraph<N> {
         Ok(())
     }
 
-    pub(crate) fn add_property(&self, t: i64, props: Vec<(String, Prop)>) -> Result<(), GraphError> {
+    pub(crate) fn add_property(
+        &self,
+        t: i64,
+        props: Vec<(String, Prop)>,
+    ) -> Result<(), GraphError> {
         for (name, prop) in props {
             self.graph_props.add_prop(t, &name, prop.clone());
         }
@@ -550,5 +557,4 @@ impl<const N: usize> InnerTemporalGraph<N> {
                 .collect()
         }
     }
-
 }

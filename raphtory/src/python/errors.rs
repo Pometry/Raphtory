@@ -1,4 +1,4 @@
-use crate::core::tgraph_shard::errors::GraphError;
+use crate::core::errors::GraphError;
 use crate::core::time::error::ParseTimeError;
 use pyo3::exceptions::PyException;
 use pyo3::PyErr;

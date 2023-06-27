@@ -35,16 +35,15 @@ extern crate core;
 
 pub mod agg;
 pub mod edge_ref;
+pub mod errors;
 mod lazy_vec;
 pub mod lsm;
 mod props;
 mod sorted_vec_map;
 pub mod state;
 pub mod tgraph2;
-pub mod tadjset;
 mod tcell;
-pub mod tgraph;
-pub mod tgraph_shard;
+pub mod locked_view;
 pub mod time;
 pub mod timeindex;
 pub mod tprop;

@@ -1,6 +1,6 @@
 use crate::core::edge_ref::EdgeRef;
 use crate::core::tgraph2::VID;
-use crate::core::{Direction, Prop};
+use crate::core::Prop;
 use crate::core::timeindex::TimeIndexOps;
 use crate::db::view_api::internal::{Base, CoreGraphOps, GraphOps};
 use crate::db::view_api::BoxedIter;

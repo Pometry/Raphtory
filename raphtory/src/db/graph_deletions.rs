@@ -1,6 +1,6 @@
 use crate::core::edge_ref::EdgeRef;
 use crate::core::tgraph2::VID;
-use crate::core::tgraph_shard::errors::GraphError;
+use crate::core::errors::GraphError;
 use crate::core::timeindex::TimeIndexOps;
 use crate::core::{Direction, Prop};
 use crate::db::mutation_api::internal::InheritMutationOps;

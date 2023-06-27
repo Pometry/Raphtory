@@ -1,8 +1,7 @@
 //! A data structure for efficiently storing and querying the temporal adjacency set of a node in a temporal graph.
 
-use crate::core::timeindex::TimeIndex;
 use serde::{Deserialize, Serialize};
-use std::{collections::BTreeMap, hash::Hash, ops::Range};
+use std::{collections::BTreeMap, hash::Hash};
 
 const SMALL_SET: usize = 1024;
 
@@ -33,38 +32,6 @@ impl<K: Ord + Copy + Hash + Send + Sync, V: Into<usize> + Copy + Send + Sync> TA
     pub fn new(v: K, e: V) -> Self {
         Self::One(v, e)
     }
-
-    pub fn len(&self) -> usize {
-        match self {
-            TAdjSet::Empty => 0,
-            TAdjSet::One(_, _) => 1,
-            TAdjSet::Small { vs, .. } => vs.len(),
-            TAdjSet::Large { vs } => vs.len(),
-        }
-    }
-
-    // pub fn len_window(&self, timestamps: &[TimeIndex], window: &Range<i64>) -> usize {
-    //     match self {
-    //         TAdjSet::Empty => 0,
-    //         TAdjSet::One(_, e) => {
-    //             let i:usize = (*e).into();
-    //             if timestamps[i].active(window.clone()) {
-    //                 1
-    //             } else {
-    //                 0
-    //             }
-    //         }
-
-    //         TAdjSet::Small { edges, .. } => edges
-    //             .iter()
-    //             .filter(|&&e| timestamps[e.into()].active(window.clone()))
-    //             .count(),
-    //         TAdjSet::Large { vs } => vs
-    //             .values()
-    //             .filter(|&&e| timestamps[e.into()].active(window.clone()))
-    //             .count(),
-    //     }
-    // }
 
     pub fn push(&mut self, v: K, e: V) {
         match self {
@@ -121,34 +88,6 @@ impl<K: Ord + Copy + Hash + Send + Sync, V: Into<usize> + Copy + Send + Sync> TA
             TAdjSet::Large { vs } => Box::new(vs.keys().copied()),
         }
     }
-
-    // pub fn iter_window<'a>(
-    //     &'a self,
-    //     timestamps: &'a [TimeIndex],
-    //     window: &Range<i64>,
-    // ) -> Box<dyn Iterator<Item = (K, V)> + Send + 'a> {
-    //     let w = window.clone();
-    //     Box::new(
-    //         self.iter()
-    //             .filter(move |(_, e)| {
-    //                 let i:usize = (*e).into();
-    //                  timestamps[i].active(w.clone()) 
-    //                 }),
-    //     )
-    // }
-
-    // pub fn vertices_window<'a>(
-    //     &'a self,
-    //     timestamps: &'a [TimeIndex],
-    //     window: &Range<i64>,
-    // ) -> Box<dyn Iterator<Item = K> + Send + 'a> {
-    //     let w = window.clone();
-    //     Box::new(
-    //         self.iter()
-    //             .filter(move |(_, e)| timestamps[(*e).into() as usize].active(w.clone()))
-    //             .map(|(v, _)| v),
-    //     )
-    // }
 
     pub fn find(&self, v: K) -> Option<V> {
         match self {

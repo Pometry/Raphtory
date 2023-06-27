@@ -1,4 +1,4 @@
-use crate::core::tgraph2::{VID, LocalID};
+use crate::core::tgraph2::VID;
 use crate::core::time::IntoTime;
 use crate::core::{Direction, Prop};
 use crate::db::edge::EdgeView;

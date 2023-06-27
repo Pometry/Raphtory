@@ -12,7 +12,7 @@ use std::{
 use parking_lot::{RwLock, RwLockReadGuard};
 use serde::{Deserialize, Serialize};
 
-use crate::core::tgraph_shard::LockedView;
+use crate::core::locked_view::LockedView;
 
 use self::iter::Iter;
 

@@ -10,15 +10,15 @@ use std::sync::Arc;
 use super::{
     accumulator_id::AccId,
     compute_state::ComputeState,
-    shard_state::{ShardComputeState, GLOBAL_STATE_KEY},
+    shard_state::{MorcelComputeState, GLOBAL_STATE_KEY},
     StateType,
 };
 
 #[derive(Debug, Clone)]
 pub struct ShuffleComputeState<CS: ComputeState + Send> {
     morcel_size: usize,
-    pub global: ShardComputeState<CS>,
-    pub parts: Vec<ShardComputeState<CS>>,
+    pub global: MorcelComputeState<CS>,
+    pub parts: Vec<MorcelComputeState<CS>>,
 }
 
 // every partition has a struct as such
@@ -152,9 +152,9 @@ impl<CS: ComputeState + Send + Sync> ShuffleComputeState<CS> {
             morcel_size,
             parts: (0..n_parts)
                 .into_iter()
-                .map(|_| ShardComputeState::new())
+                .map(|_| MorcelComputeState::new())
                 .collect(),
-            global: ShardComputeState::new(),
+            global: MorcelComputeState::new(),
         }
     }
 
@@ -182,7 +182,10 @@ impl<CS: ComputeState + Send + Sync> ShuffleComputeState<CS> {
         A: StateType,
     {
         let morcel_id = p_id / self.morcel_size;
-        println!("MS: {} updating {p_id} on morcel_id: {}", self.morcel_size, morcel_id);
+        println!(
+            "MS: {} updating {p_id} on morcel_id: {}",
+            self.morcel_size, morcel_id
+        );
         self.parts[morcel_id].accumulate_into(ss, p_id, a, agg_ref)
     }
 
@@ -236,7 +239,6 @@ impl<CS: ComputeState + Send + Sync> ShuffleComputeState<CS> {
     where
         A: StateType,
     {
-
         let morcel_id = p_id / self.morcel_size;
         self.parts[morcel_id].read_ref::<A, IN, OUT, ACC>(p_id, agg_ref.id(), ss)
     }
@@ -267,7 +269,7 @@ impl<CS: ComputeState + Send + Sync> ShuffleComputeState<CS> {
         self.parts
             .iter()
             .enumerate()
-            .flat_map(|(shard_id, part)| part.read_vec(ss, agg_def, shard_id, g))
+            .flat_map(|(_, part)| part.read_vec(ss, agg_def, g))
             .collect()
     }
 }
@@ -293,8 +295,11 @@ impl<CS: ComputeState + Send> ShuffleComputeState<CS> {
                 part1.merge(&part2, agg_def, ss);
                 part1
             })
-            .map(|part| part.finalize(ss, agg_def, 0, g));
-        out.unwrap_or_default().into_iter().map(|(k, v)| (k, f(v))).collect()
+            .map(|part| part.finalize(ss, agg_def, g));
+        out.unwrap_or_default()
+            .into_iter()
+            .map(|(k, v)| (k, f(v)))
+            .collect()
     }
 }
 

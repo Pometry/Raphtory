@@ -19,7 +19,7 @@ mod state_test {
             accumulator_id::accumulators,
             compute_state::ComputeStateVec,
             container::merge_2_vecs,
-            shard_state::ShardComputeState,
+            shard_state::MorcelComputeState,
             shuffle_state::ShuffleComputeState,
         },
         db::graph::Graph,
@@ -59,7 +59,7 @@ mod state_test {
 
         let min = accumulators::min(0);
 
-        let mut state_map: ShardComputeState<ComputeStateVec> = ShardComputeState::new();
+        let mut state_map: MorcelComputeState<ComputeStateVec> = MorcelComputeState::new();
 
         // create random vec of numbers
         let mut rng = rand::thread_rng();
@@ -77,14 +77,14 @@ mod state_test {
             state_map.accumulate_into(0, 2, a, &min);
         }
 
-        let mut actual = state_map.finalize(0, &min, 0, &g).into_iter().collect_vec();
+        let mut actual = state_map.finalize(0, &min, &g).into_iter().collect_vec();
         actual.sort();
         assert_eq!(
             actual,
             vec![
                 ("1".to_string(), actual_min),
                 ("2".to_string(), actual_min),
-                ("3".to_string(), actual_min)
+                ("3".to_string(), actual_min),
             ]
         );
     }
@@ -95,7 +95,7 @@ mod state_test {
 
         let avg = accumulators::avg(0);
 
-        let mut state_map: ShardComputeState<ComputeStateVec> = ShardComputeState::new();
+        let mut state_map: MorcelComputeState<ComputeStateVec> = MorcelComputeState::new();
 
         // create random vec of numbers
         let mut rng = rand::thread_rng();
@@ -114,14 +114,14 @@ mod state_test {
         }
 
         let actual_avg = sum / 100;
-        let mut actual = state_map.finalize(0, &avg, 0, &g).into_iter().collect_vec();
+        let mut actual = state_map.finalize(0, &avg, &g).into_iter().collect_vec();
         actual.sort();
         assert_eq!(
             actual,
             vec![
                 ("1".to_string(), actual_avg),
                 ("2".to_string(), actual_avg),
-                ("3".to_string(), actual_avg)
+                ("3".to_string(), actual_avg),
             ]
         );
     }
@@ -132,7 +132,7 @@ mod state_test {
 
         let top3 = accumulators::topk::<i32, 3>(0);
 
-        let mut state_map: ShardComputeState<ComputeStateVec> = ShardComputeState::new();
+        let mut state_map: MorcelComputeState<ComputeStateVec> = MorcelComputeState::new();
 
         for a in 0..100 {
             state_map.accumulate_into(0, 0, a, &top3);
@@ -142,7 +142,7 @@ mod state_test {
         let expected = vec![99, 98, 97];
 
         let mut actual = state_map
-            .finalize(0, &top3, 0, &g)
+            .finalize(0, &top3, &g)
             .into_iter()
             .collect_vec();
 
@@ -153,7 +153,7 @@ mod state_test {
             vec![
                 ("1".to_string(), expected.clone()),
                 ("2".to_string(), expected.clone()),
-                ("3".to_string(), expected.clone())
+                ("3".to_string(), expected.clone()),
             ]
         );
     }
@@ -164,7 +164,7 @@ mod state_test {
 
         let sum = accumulators::sum(0);
 
-        let mut state: ShardComputeState<ComputeStateVec> = ShardComputeState::new();
+        let mut state: MorcelComputeState<ComputeStateVec> = MorcelComputeState::new();
 
         // create random vec of numbers
         let mut rng = rand::thread_rng();
@@ -182,14 +182,14 @@ mod state_test {
             state.accumulate_into(0, 2, a, &sum);
         }
 
-        let mut actual = state.finalize(0, &sum, 0, &g).into_iter().collect_vec();
+        let mut actual = state.finalize(0, &sum, &g).into_iter().collect_vec();
         actual.sort();
         assert_eq!(
             actual,
             vec![
                 ("1".to_string(), actual_sum),
                 ("2".to_string(), actual_sum),
-                ("3".to_string(), actual_sum)
+                ("3".to_string(), actual_sum),
             ]
         );
     }
@@ -263,7 +263,7 @@ mod state_test {
             vec![
                 ("1".to_string(), actual_sum_2),
                 ("2".to_string(), 0),
-                ("3".to_string(), actual_sum_2)
+                ("3".to_string(), actual_sum_2),
             ]
         );
 
@@ -280,7 +280,7 @@ mod state_test {
             vec![
                 ("1".to_string(), (actual_sum_1 + actual_sum_2)),
                 ("2".to_string(), actual_sum_1),
-                ("3".to_string(), actual_sum_2)
+                ("3".to_string(), actual_sum_2),
             ]
         );
     }
@@ -376,7 +376,7 @@ mod state_test {
             vec![
                 ("1".to_string(), actual_sum_2),
                 ("2".to_string(), 0),
-                ("3".to_string(), actual_sum_2)
+                ("3".to_string(), actual_sum_2),
             ]
         );
 
@@ -392,7 +392,7 @@ mod state_test {
             vec![
                 ("1".to_string(), actual_min_2),
                 ("2".to_string(), i32::MAX),
-                ("3".to_string(), actual_min_2)
+                ("3".to_string(), actual_min_2),
             ]
         );
 
@@ -409,7 +409,7 @@ mod state_test {
             vec![
                 ("1".to_string(), (actual_sum_1 + actual_sum_2)),
                 ("2".to_string(), actual_sum_1),
-                ("3".to_string(), actual_sum_2)
+                ("3".to_string(), actual_sum_2),
             ]
         );
 
@@ -426,7 +426,7 @@ mod state_test {
             vec![
                 ("1".to_string(), actual_min_1.min(actual_min_2)),
                 ("2".to_string(), actual_min_1),
-                ("3".to_string(), actual_min_2)
+                ("3".to_string(), actual_min_2),
             ]
         );
     }

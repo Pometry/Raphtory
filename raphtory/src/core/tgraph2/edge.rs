@@ -5,7 +5,7 @@ use std::{
 
 use crate::{
     core::{
-        tgraph_shard::LockedView,
+        locked_view::LockedView,
         timeindex::{TimeIndex, TimeIndexOps},
         tprop::TProp,
         Direction, Prop,
@@ -41,7 +41,7 @@ impl<'a, const N: usize> ERef<'a, N> {
 
     fn vertex_ref(&self, src: VID) -> Option<VRef<'a, N>> {
         match self {
-            ERef::ELock { lock, eid } => {
+            ERef::ELock { lock, .. } => {
                 Some(VRef::LockedEntry(GraphEntry::new(lock.clone(), src.into())))
             }
             _ => None,

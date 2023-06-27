@@ -61,7 +61,7 @@ pub fn lotr_file() -> Result<PathBuf, Box<dyn std::error::Error>> {
 ///
 /// # Returns
 /// - A Graph containing the LOTR dataset
-pub fn lotr_graph(shards: usize) -> Graph {
+pub fn lotr_graph() -> Graph {
     let graph = {
         let g = Graph::new();
 
