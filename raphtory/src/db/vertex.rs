@@ -472,7 +472,8 @@ impl<G: GraphViewOps> VertexListOps for BoxedIter<BoxedIter<VertexView<G>>> {
 mod vertex_test {
     use crate::db::graph::Graph;
     use crate::db::mutation_api::AdditionOps;
-    use crate::db::view_api::*;
+    use crate::prelude::*;
+    use std::collections::HashMap;
 
     #[test]
     fn test_earliest_time() {
@@ -487,5 +488,18 @@ mod vertex_test {
         view = g.at(3);
         assert_eq!(view.vertex(1).expect("v").earliest_time().unwrap(), 0);
         assert_eq!(view.vertex(1).expect("v").latest_time().unwrap(), 2);
+    }
+
+    #[test]
+    fn test_properties() {
+        let g = Graph::new(1);
+        let props = [("test".to_string(), Prop::Str("test".to_string()))];
+        g.add_vertex(0, 1, []).unwrap();
+        g.add_vertex(2, 1, props.clone()).unwrap();
+
+        let v1 = g.vertex(1).unwrap();
+        let v1_w = g.window(0, 1).vertex(1).unwrap();
+        assert_eq!(v1.properties(false), props.into());
+        assert_eq!(v1_w.properties(false), HashMap::default())
     }
 }
