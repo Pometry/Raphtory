@@ -124,7 +124,7 @@ pub fn fetch_file(
         let client = reqwest::blocking::Client::builder()
             .timeout(Duration::from_secs(timeout))
             .build()?;
-        let response = client.get(url).send()?;
+        let response = client.get(url).send()?.error_for_status()?;
         let mut content = Cursor::new(response.bytes()?);
         if !filepath.exists() {
             let mut file = File::create(&filepath)?;
