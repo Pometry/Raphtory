@@ -182,10 +182,6 @@ impl<CS: ComputeState + Send + Sync> ShuffleComputeState<CS> {
         A: StateType,
     {
         let morcel_id = p_id / self.morcel_size;
-        println!(
-            "MS: {} updating {p_id} on morcel_id: {}",
-            self.morcel_size, morcel_id
-        );
         self.parts[morcel_id].accumulate_into(ss, p_id, a, agg_ref)
     }
 

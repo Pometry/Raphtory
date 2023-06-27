@@ -23,8 +23,8 @@ edges = [
 ]
 
 
-def create_graph(num_shards):
-    g = Graph(num_shards)
+def create_graph():
+    g = Graph()
 
     g.add_vertex(0, 1, {"type": "wallet", "cost": 99.5})
     g.add_vertex(-1, 2, {"type": "wallet", "cost": 10.0})
@@ -37,8 +37,8 @@ def create_graph(num_shards):
     return g
 
 
-def create_graph_with_deletions(num_shards):
-    g = GraphWithDeletions(num_shards)
+def create_graph_with_deletions():
+    g = GraphWithDeletions()
 
     g.add_vertex(0, 1, {"type": "wallet", "cost": 99.5})
     g.add_vertex(-1, 2, {"type": "wallet", "cost": 10.0})
@@ -54,14 +54,14 @@ def create_graph_with_deletions(num_shards):
 
 
 def test_graph_len_edge_len():
-    g = create_graph(2)
+    g = create_graph()
 
     assert g.num_vertices() == 3
     assert g.num_edges() == 5
 
 
 def test_id_iterable():
-    g = create_graph(2)
+    g = create_graph()
 
     assert g.vertices.id().max() == 3
     assert g.vertices.id().min() == 1
@@ -74,7 +74,7 @@ def test_id_iterable():
 
 
 def test_degree_iterable():
-    g = create_graph(2)
+    g = create_graph()
     assert g.vertices.degree().min() == 2
     assert g.vertices.degree().max() == 3
     assert g.vertices.in_degree().min() == 1
@@ -89,14 +89,14 @@ def test_degree_iterable():
 
 
 def test_vertices_time_iterable():
-    g = create_graph(2)
+    g = create_graph()
 
     assert g.vertices.earliest_time().min() == -1
     assert g.vertices.latest_time().max() == 7
 
 
 def test_graph_has_edge():
-    g = create_graph(2)
+    g = create_graph()
 
     assert not g.window(-1, 1).has_edge(1, 3)
     assert g.window(-1, 3).has_edge(1, 3)
@@ -104,19 +104,19 @@ def test_graph_has_edge():
 
 
 def test_graph_has_vertex():
-    g = create_graph(2)
+    g = create_graph()
 
     assert g.has_vertex(3)
 
 
 def test_windowed_graph_has_vertex():
-    g = create_graph(2)
+    g = create_graph()
 
     assert g.window(-1, 1).has_vertex(1)
 
 
 def test_windowed_graph_get_vertex():
-    g = create_graph(2)
+    g = create_graph()
 
     view = g.window(0, sys.maxsize)
 
@@ -126,7 +126,7 @@ def test_windowed_graph_get_vertex():
 
 
 def test_windowed_graph_degree():
-    g = create_graph(3)
+    g = create_graph()
 
     view = g.window(0, sys.maxsize)
 
@@ -147,7 +147,7 @@ def test_windowed_graph_degree():
 
 
 def test_windowed_graph_get_edge():
-    g = create_graph(2)
+    g = create_graph()
 
     max_size = sys.maxsize
     min_size = -sys.maxsize - 1
@@ -168,7 +168,7 @@ def test_windowed_graph_get_edge():
 
 
 def test_windowed_graph_edges():
-    g = create_graph(1)
+    g = create_graph()
 
     view = g.window(0, sys.maxsize)
 
@@ -217,7 +217,7 @@ def test_windowed_graph_edges():
 
 
 def test_windowed_graph_vertex_ids():
-    g = create_graph(3)
+    g = create_graph()
 
     vs = [v for v in g.window(-1, 2).vertices().id()]
     vs.sort()
@@ -229,7 +229,7 @@ def test_windowed_graph_vertex_ids():
 
 
 def test_windowed_graph_vertices():
-    g = create_graph(1)
+    g = create_graph()
 
     view = g.window(-1, 0)
 
@@ -239,7 +239,7 @@ def test_windowed_graph_vertices():
 
 
 def test_windowed_graph_neighbours():
-    g = create_graph(1)
+    g = create_graph()
 
     max_size = sys.maxsize
     min_size = -sys.maxsize - 1
@@ -270,7 +270,7 @@ def test_name():
 
 
 def test_graph_properties():
-    g = create_graph(1)
+    g = create_graph()
 
     props = {"prop 1": 1, "prop 2": "hi", "prop 3": True}
     g.add_static_property(props)
@@ -630,7 +630,7 @@ def test_exploded_edge_time():
 
 
 def test_algorithms():
-    g = Graph(1)
+    g = Graph()
     lotr_graph = graph_loader.lotr_graph()
     g.add_edge(1, 1, 2, {"prop1": 1})
     g.add_edge(2, 2, 3, {"prop1": 1})
@@ -662,7 +662,7 @@ def test_algorithms():
 
 
 def test_graph_time_api():
-    g = create_graph(1)
+    g = create_graph()
 
     earliest_time = g.earliest_time()
     latest_time = g.latest_time()
@@ -674,7 +674,7 @@ def test_graph_time_api():
 
 
 def test_save_load_graph():
-    g = create_graph(1)
+    g = create_graph()
     g.add_vertex(1, 11, {"type": "wallet", "balance": 99.5})
     g.add_vertex(2, 12, {"type": "wallet", "balance": 10.0})
     g.add_vertex(3, 13, {"type": "wallet", "balance": 76})
@@ -706,7 +706,7 @@ def test_save_load_graph():
 
 
 def test_graph_at():
-    g = create_graph(1)
+    g = create_graph()
 
     view = g.at(2)
     assert view.vertex(1).degree() == 3
@@ -717,7 +717,7 @@ def test_graph_at():
 
 
 def test_add_node_string():
-    g = Graph(1)
+    g = Graph()
 
     g.add_vertex(0, 1, {})
     g.add_vertex(1, "haaroon", {})
@@ -728,7 +728,7 @@ def test_add_node_string():
 
 
 def test_add_edge_string():
-    g = Graph(1)
+    g = Graph()
 
     g.add_edge(0, 1, 2, {})
     g.add_edge(1, "haaroon", "ben", {})
@@ -743,7 +743,7 @@ def test_add_edge_string():
 
 
 def test_all_neighbours_window():
-    g = Graph(4)
+    g = Graph()
     g.add_edge(1, 1, 2, {})
     g.add_edge(1, 2, 3, {})
     g.add_edge(2, 3, 2, {})
@@ -758,7 +758,7 @@ def test_all_neighbours_window():
 
 
 def test_all_degrees_window():
-    g = Graph(4)
+    g = Graph()
     g.add_edge(1, 1, 2, {})
     g.add_edge(1, 2, 3, {})
     g.add_edge(2, 3, 2, {})
@@ -781,7 +781,7 @@ def test_all_degrees_window():
 
 
 def test_all_edge_window():
-    g = Graph(4)
+    g = Graph()
     g.add_edge(1, 1, 2, {})
     g.add_edge(1, 2, 3, {})
     g.add_edge(2, 3, 2, {})
@@ -806,7 +806,7 @@ def test_all_edge_window():
 
 def test_static_prop_change():
     # with pytest.raises(Exception):
-    g = Graph(1)
+    g = Graph()
 
     g.add_edge(0, 1, 2, {})
     g.add_vertex_properties(1, {"name": "value1"})
@@ -825,7 +825,7 @@ def test_static_prop_change():
 
 
 def test_triplet_count():
-    g = Graph(1)
+    g = Graph()
 
     g.add_edge(0, 1, 2, {})
     g.add_edge(0, 2, 3, {})
@@ -836,7 +836,7 @@ def test_triplet_count():
 
 
 def test_global_clustering_coeffficient():
-    g = Graph(1)
+    g = Graph()
 
     g.add_edge(0, 1, 2, {})
     g.add_edge(0, 2, 3, {})
@@ -850,7 +850,7 @@ def test_global_clustering_coeffficient():
 
 
 def test_edge_time_apis():
-    g = Graph(1)
+    g = Graph()
 
     g.add_edge(1, 1, 2, {"prop2": 10})
     g.add_edge(2, 2, 4, {"prop2": 11})
@@ -888,7 +888,7 @@ def test_edge_time_apis():
 
 
 def test_edge_earliest_latest_time():
-    g = Graph(1)
+    g = Graph()
     g.add_edge(0, 1, 2, {})
     g.add_edge(1, 1, 2, {})
     g.add_edge(2, 1, 2, {})
@@ -906,7 +906,7 @@ def test_edge_earliest_latest_time():
 
 
 def test_vertex_earliest_time():
-    g = Graph(1)
+    g = Graph()
     g.add_vertex(0, 1, {})
     g.add_vertex(1, 1, {})
     g.add_vertex(2, 1, {})
@@ -920,7 +920,7 @@ def test_vertex_earliest_time():
 
 
 def test_vertex_history():
-    g = Graph(1)
+    g = Graph()
 
     g.add_vertex(1, 1, {})
     g.add_vertex(2, 1, {})
@@ -943,7 +943,7 @@ def test_vertex_history():
 
 
 def test_edge_history():
-    g = Graph(1)
+    g = Graph()
 
     g.add_edge(1, 1, 2)
     g.add_edge(2, 1, 3)
@@ -975,7 +975,7 @@ def test_lotr_edge_history():
 
 
 def test_connected_components():
-    g = Graph(1)
+    g = Graph()
     g.add_edge(10, 1, 3, {})
     g.add_edge(11, 1, 2, {})
     g.add_edge(12, 1, 2, {})
@@ -995,7 +995,7 @@ def test_connected_components():
 
 
 def test_page_rank():
-    g = Graph(1)
+    g = Graph()
     g.add_edge(10, 1, 3, {})
     g.add_edge(11, 1, 2, {})
     g.add_edge(12, 1, 2, {})
@@ -1024,7 +1024,7 @@ def test_page_rank():
 
 
 def test_temporal_reachability():
-    g = Graph(1)
+    g = Graph()
     g.add_edge(10, 1, 3, {})
     g.add_edge(11, 1, 2, {})
     g.add_edge(12, 1, 2, {})
@@ -1070,7 +1070,7 @@ def test_temporal_reachability():
 
 
 def test_layer():
-    g = Graph(1)
+    g = Graph()
 
     g.add_edge(0, 1, 2)
     g.add_edge(0, 1, 3, layer='layer1')
@@ -1082,7 +1082,7 @@ def test_layer():
 
 
 def test_rolling_as_iterable():
-    g = Graph(1)
+    g = Graph()
 
     g.add_vertex(1, 1)
     g.add_vertex(4, 4)
@@ -1099,7 +1099,7 @@ def test_rolling_as_iterable():
 
 
 def test_layer_name():
-    g = Graph(4)
+    g = Graph()
 
     g.add_edge(0, 0, 1)
     g.add_edge(0, 0, 2, layer="awesome layer")
@@ -1109,7 +1109,7 @@ def test_layer_name():
 
 
 def test_window_size():
-    g = Graph(4)
+    g = Graph()
     g.add_vertex(1, 1)
     g.add_vertex(4, 4)
 
@@ -1117,7 +1117,7 @@ def test_window_size():
 
 
 def test_time_index():
-    g = Graph(4)
+    g = Graph()
 
     w = g.window("2020-01-01", "2020-01-03")
     rolling = w.rolling("1 day")
@@ -1137,7 +1137,7 @@ def test_time_index():
 
 
 def test_datetime_props():
-    g = Graph(4)
+    g = Graph()
     dt1 = datetime.datetime(2020, 1, 1, 23, 59, 59, 999000)
     g.add_vertex(0, 0, {"time": dt1})
     assert g.vertex(0).property("time") == dt1
@@ -1148,7 +1148,7 @@ def test_datetime_props():
 
 
 def test_date_time():
-    g = Graph(1)
+    g = Graph()
 
     g.add_edge('2014-02-02', 1, 2)
     g.add_edge('2014-02-03', 1, 3)
@@ -1171,7 +1171,7 @@ def test_date_time():
 
 
 def test_date_time_window():
-    g = Graph(1)
+    g = Graph()
 
     g.add_edge('2014-02-02', 1, 2)
     g.add_edge('2014-02-03', 1, 3)
@@ -1202,7 +1202,7 @@ def test_date_time_window():
 
 
 def test_datetime_add_vertex():
-    g = Graph(1)
+    g = Graph()
     g.add_vertex(datetime.datetime(2014, 2, 2), 1)
     g.add_vertex(datetime.datetime(2014, 2, 3), 2)
     g.add_vertex(datetime.datetime(2014, 2, 4), 2)
@@ -1226,7 +1226,7 @@ def test_datetime_add_vertex():
 
 
 def test_equivalent_vertices_edges_and_sets():
-    g = Graph(1)
+    g = Graph()
     g.add_vertex(1, 1)
     g.add_vertex(1, 2)
     g.add_vertex(1, 3)
@@ -1243,7 +1243,7 @@ def test_equivalent_vertices_edges_and_sets():
 
 
 def test_subgraph():
-    g = create_graph(1)
+    g = create_graph()
     empty_graph = g.subgraph([])
     assert empty_graph.vertices.collect() == []
 
@@ -1266,7 +1266,7 @@ def test_subgraph():
 
 
 def test_materialize_graph():
-    g = Graph(1)
+    g = Graph()
 
     edges = [
         (1, 1, 2),
@@ -1320,7 +1320,7 @@ def test_materialize_graph():
 
 
 def test_deletions():
-    g = create_graph_with_deletions(2)
+    g = create_graph_with_deletions()
     for e in edges:
         assert g.at(e[0]).has_edge(e[1], e[2])
 
