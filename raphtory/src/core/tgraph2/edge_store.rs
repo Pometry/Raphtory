@@ -59,10 +59,6 @@ impl EdgeLayer {
         &self.timestamps
     }
 
-    pub fn deletions(&self) -> &TimeIndex {
-        &self.deletions
-    }
-
     pub(crate) fn static_property(&self, prop_id: usize) -> Option<&Prop> {
         self.props.static_prop(prop_id)
     }
@@ -133,10 +129,6 @@ impl<const N: usize> EdgeStore<N> {
     pub fn layer_mut(&mut self, layer_id: usize) -> impl DerefMut<Target = EdgeLayer> + '_ {
         self.layers.entry(layer_id).or_default();
         self.layers.get_mut(&layer_id).unwrap()
-    }
-
-    pub fn get_or_create_layer(&mut self, layer_id: usize) -> &mut EdgeLayer {
-        self.layers.entry(layer_id).or_default()
     }
 
     pub fn src(&self) -> VID {

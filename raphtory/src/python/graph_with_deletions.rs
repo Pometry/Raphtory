@@ -69,9 +69,8 @@ impl PyGraphWithDeletions {
 #[pymethods]
 impl PyGraphWithDeletions {
     #[new]
-    #[pyo3(signature = (nr_shards=1))]
-    pub fn py_new(nr_shards: usize) -> (Self, PyGraphView) {
-        let graph = GraphWithDeletions::new(nr_shards);
+    pub fn py_new() -> (Self, PyGraphView) {
+        let graph = GraphWithDeletions::new();
         (
             Self {
                 graph: graph.clone(),

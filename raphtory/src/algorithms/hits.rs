@@ -163,7 +163,7 @@ mod hits_tests {
     use crate::db::mutation_api::AdditionOps;
     use itertools::Itertools;
 
-    fn load_graph(n_shards: usize, edges: Vec<(u64, u64)>) -> Graph {
+    fn load_graph(edges: Vec<(u64, u64)>) -> Graph {
         let graph = Graph::new();
 
         for (src, dst) in edges {
@@ -172,9 +172,9 @@ mod hits_tests {
         graph
     }
 
-    fn test_hits(n_shards: usize) {
+    #[test]
+    fn test_hits() {
         let graph = load_graph(
-            n_shards,
             vec![
                 (1, 4),
                 (2, 3),
@@ -245,8 +245,4 @@ mod hits_tests {
         );
     }
 
-    #[test]
-    fn test_hits_11() {
-        test_hits(1);
-    }
 }

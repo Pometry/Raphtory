@@ -387,7 +387,7 @@ mod motifs_test {
     use crate::db::graph::Graph;
     use crate::db::mutation_api::AdditionOps;
 
-    fn load_graph(n_shards: usize, edges: Vec<(i64, u64, u64)>) -> Graph {
+    fn load_graph(edges: Vec<(i64, u64, u64)>) -> Graph {
         let graph = Graph::new();
 
         for (t, src, dst) in edges {
@@ -400,7 +400,6 @@ mod motifs_test {
     #[ignore = "This is not correct, it needs a rethink of the algorithm to be parallel"]
     fn test_two_node_motif() {
         let g = load_graph(
-            1,
             vec![
                 (1, 1, 2),
                 (2, 1, 3),

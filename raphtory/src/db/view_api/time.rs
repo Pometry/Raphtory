@@ -1,6 +1,5 @@
 use crate::core::time::error::ParseTimeError;
 use crate::core::time::{Interval, IntoTime};
-use std::cmp::min;
 
 /// Trait defining time query operations
 pub trait TimeOps {

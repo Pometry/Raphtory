@@ -91,12 +91,6 @@ impl Props {
         self.temporal_props.filled_ids()
     }
 
-    pub(crate) fn temporal_iter(&self) -> impl Iterator<Item = &TProp> + '_ {
-        self.temporal_props
-            .filled_ids()
-            .into_iter()
-            .flat_map(|prop_id| self.temporal_props.get(prop_id))
-    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -189,13 +183,6 @@ pub(crate) struct DictMapper<T: Hash + Eq> {
 }
 
 impl<T: Hash + Eq + Clone> DictMapper<T> {
-    pub(crate) fn new(start_at: usize) -> Self {
-        Self {
-            map: FxDashMap::default(),
-            reverse_map: FxDashMap::default(),
-            counter: AtomicUsize::new(start_at),
-        }
-    }
 
     pub(crate) fn get_or_create_id(&self, name: T) -> usize {
         if let Some(existing_id) = self.map.get(&name) {

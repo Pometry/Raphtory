@@ -74,11 +74,6 @@ impl<const N: usize> NodeStore<N> {
         None
     }
 
-    pub(crate) fn find_edge_on_layer(&self, dst: VID, layer_id: usize) -> Option<super::EID> {
-        let layer_adj = self.layers.get(layer_id)?;
-        layer_adj.get_edge(dst, Direction::OUT)
-    }
-
     pub(crate) fn add_edge(
         &mut self,
         v_id: VID,
@@ -195,7 +190,7 @@ impl<const N: usize> NodeStore<N> {
                     .layers
                     .iter()
                     .enumerate()
-                    .map(|(layer_id, layer)| self.neighbours(Some(layer_id), d))
+                    .map(|(layer_id, _)| self.neighbours(Some(layer_id), d))
                     .kmerge()
                     .dedup();
                 Box::new(iter)

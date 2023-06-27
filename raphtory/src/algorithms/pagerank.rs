@@ -177,7 +177,7 @@ mod page_rank_tests {
 
     use super::*;
 
-    fn load_graph(n_shards: usize) -> Graph {
+    fn load_graph() -> Graph {
         let graph = Graph::new();
 
         let edges = vec![(1, 2), (1, 4), (2, 3), (3, 1), (4, 1)];
@@ -188,8 +188,9 @@ mod page_rank_tests {
         graph
     }
 
-    fn test_page_rank(n_shards: usize) {
-        let graph = load_graph(n_shards);
+    #[test]
+    fn test_page_rank() {
+        let graph = load_graph();
 
         let results: HashMap<String, f64> = unweighted_page_rank(&graph, 1000, Some(1), None, true)
             .into_iter()
@@ -199,26 +200,6 @@ mod page_rank_tests {
         assert_eq_f64(results.get("2"), Some(&0.20195), 5);
         assert_eq_f64(results.get("4"), Some(&0.20195), 5);
         assert_eq_f64(results.get("3"), Some(&0.20916), 5);
-    }
-
-    #[test]
-    fn test_page_rank_1() {
-        test_page_rank(1);
-    }
-
-    #[test]
-    fn test_page_rank_2() {
-        test_page_rank(2);
-    }
-
-    #[test]
-    fn test_page_rank_3() {
-        test_page_rank(3);
-    }
-
-    #[test]
-    fn test_page_rank_4() {
-        test_page_rank(4);
     }
 
     #[test]

@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     core::Direction,
-    storage::{self, iter::RefT, ArcEntry, Entry, EntryMut, PairEntryMut},
+    storage::{self, ArcEntry, Entry, EntryMut, PairEntryMut},
 };
 
 use super::{edge_store::EdgeStore, node_store::NodeStore};
@@ -97,9 +97,6 @@ impl<const N: usize> GraphStorage<N> {
         }
     }
 
-    pub(crate) fn nodes(&self) -> impl Iterator<Item = RefT<'_, NodeStore<N>, N>> {
-        self.nodes.iter()
-    }
 }
 
 pub(crate) struct LockedIter<const N: usize, T> {

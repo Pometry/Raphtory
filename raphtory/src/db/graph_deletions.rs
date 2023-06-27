@@ -60,7 +60,7 @@ impl GraphWithDeletions {
             || last_addition_before_start > last_deletion_before_start
     }
 
-    pub fn new(nr_shards: usize) -> Self {
+    pub fn new() -> Self {
         Self {
             graph: Arc::new(InternalGraph::default()),
         }
@@ -341,7 +341,7 @@ mod test_deletions {
 
     #[test]
     fn test_edge_deletions() {
-        let g = GraphWithDeletions::new(1);
+        let g = GraphWithDeletions::new();
 
         g.add_edge(0, 0, 1, [("added".to_string(), Prop::I64(0))], None)
             .unwrap();
@@ -380,7 +380,7 @@ mod test_deletions {
 
     #[test]
     fn test_materialize_only_deletion() {
-        let g = GraphWithDeletions::new(1);
+        let g = GraphWithDeletions::new();
         g.delete_edge(1, 1, 2, None).unwrap();
 
         assert_eq!(g.materialize().unwrap().into_persistent().unwrap(), g);
@@ -388,7 +388,7 @@ mod test_deletions {
 
     #[test]
     fn test_materialize_window() {
-        let g = GraphWithDeletions::new(1);
+        let g = GraphWithDeletions::new();
         g.add_edge(0, 1, 2, [], None).unwrap();
         g.delete_edge(10, 1, 2, None).unwrap();
 
@@ -403,7 +403,7 @@ mod test_deletions {
 
     #[test]
     fn test_exploded_latest_time() {
-        let g = GraphWithDeletions::new(1);
+        let g = GraphWithDeletions::new();
         g.add_edge(0, 1, 2, [], None).unwrap();
         g.delete_edge(10, 1, 2, None).unwrap();
         let e = g.edge(1, 2, None).unwrap();

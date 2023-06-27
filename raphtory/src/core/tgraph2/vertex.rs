@@ -10,7 +10,7 @@ use crate::{
         tprop::TProp,
         Direction, Prop,
     },
-    storage::{iter::RefT, ArcEntry, Entry},
+    storage::{ArcEntry, Entry},
 };
 
 use super::{
@@ -19,7 +19,6 @@ use super::{
     iter::{Paged, PagedIter},
     node_store::NodeStore,
     tgraph::TGraph,
-    tgraph_storage::GraphEntry,
     VRef, VID,
 };
 
@@ -37,16 +36,8 @@ impl<'a, const N: usize> Vertex<'a, N> {
         Vertex { node, graph }
     }
 
-    pub(crate) fn from_ref(node: RefT<'a, NodeStore<N>, N>, graph: &'a TGraph<N>) -> Self {
-        Self::new(VRef::RefT(node), graph)
-    }
-
     pub(crate) fn from_entry(node: Entry<'a, NodeStore<N>, N>, graph: &'a TGraph<N>) -> Self {
         Self::new(VRef::Entry(node), graph)
-    }
-
-    pub(crate) fn from_ge(ge: GraphEntry<NodeStore<N>, N>, graph: &'a TGraph<N>) -> Self {
-        Self::new(VRef::LockedEntry(ge), graph)
     }
 
     pub fn temporal_properties(

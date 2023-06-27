@@ -171,22 +171,6 @@ impl<'a, const N: usize> EdgeView<'a, N> {
         }
     }
 
-    pub(crate) fn new(
-        src: VID,
-        dst: VID,
-        edge_id: ERef<'a, N>,
-        dir: Direction,
-        graph: &'a TGraph<N>,
-    ) -> Self {
-        Self {
-            src,
-            dst,
-            edge_id,
-            graph,
-            dir,
-        }
-    }
-
     pub fn src_id(&self) -> VID {
         self.src
     }
@@ -248,7 +232,7 @@ impl<'a, const N: usize> EdgeView<'a, N> {
 
     pub(crate) fn active(&'a self, layer_id: usize, w: Range<i64>) -> bool {
         match &self.edge_id {
-            ERef::ELock { lock, eid } => {
+            ERef::ELock { lock, .. } => {
                 let e = lock.get_edge(self.edge_id().into());
                 e.unsafe_layer(layer_id).timestamps().active(w)
             }

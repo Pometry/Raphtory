@@ -2,7 +2,7 @@ use std::ops::Deref;
 
 use serde::{Deserialize, Serialize};
 
-use crate::storage::{iter::RefT, Entry};
+use crate::storage::Entry;
 
 use self::{edge::ERef, node_store::NodeStore, tgraph::TGraph, tgraph_storage::GraphEntry};
 
@@ -18,7 +18,7 @@ mod iter;
 mod node_store;
 pub mod ops;
 pub(crate) mod props;
-mod tadjset;
+pub mod tadjset;
 pub mod tgraph;
 mod tgraph_storage;
 pub(crate) mod timer;
@@ -59,15 +59,6 @@ impl From<VertexRef> for VID {
     }
 }
 
-impl VID {
-    #[inline(always)]
-    pub(crate) fn as_local<const N: usize>(&self) -> LocalID {
-        let bucket = self.0 % N;
-        let offset = self.0 / N;
-        LocalID { bucket, offset }
-    }
-}
-
 #[repr(transparent)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Deserialize, Serialize, Default)]
 pub struct EID(usize);
@@ -84,18 +75,8 @@ impl From<usize> for EID {
     }
 }
 
-impl EID {
-    #[inline(always)]
-    pub(crate) fn as_local<const N: usize>(&self) -> LocalID {
-        let bucket = self.0 % N;
-        let offset = self.0 / N;
-        LocalID { bucket, offset }
-    }
-}
-
 pub(crate) enum VRef<'a, const N: usize> {
     Entry(Entry<'a, NodeStore<N>, N>), // returned from graph.vertex
-    RefT(RefT<'a, NodeStore<N>, N>),   // returned from graph.vertices
     LockedEntry(GraphEntry<NodeStore<N>, N>), // returned from locked_vertices
 }
 
@@ -103,7 +84,6 @@ pub(crate) enum VRef<'a, const N: usize> {
 impl<'a, const N: usize> VRef<'a, N> {
     fn index(&'a self) -> usize {
         match self {
-            VRef::RefT(r) => r.index(),
             VRef::Entry(e) => e.index(),
             VRef::LockedEntry(ge) => ge.index(),
         }
@@ -111,7 +91,7 @@ impl<'a, const N: usize> VRef<'a, N> {
 
     fn edge_ref(&self, edge_id: EID, graph: &'a TGraph<N>) -> ERef<'a, N> {
         match self {
-            VRef::RefT(_) | VRef::Entry(_) => ERef::ERef(graph.edge_entry(edge_id)),
+            VRef::Entry(_) => ERef::ERef(graph.edge_entry(edge_id)),
             VRef::LockedEntry(ge) => ERef::ELock {
                 lock: ge.locked_gs().clone(),
                 eid: edge_id,
@@ -125,7 +105,6 @@ impl<'a, const N: usize> Deref for VRef<'a, N> {
 
     fn deref(&self) -> &Self::Target {
         match self {
-            VRef::RefT(r) => r,
             VRef::Entry(e) => e,
             VRef::LockedEntry(e) => e,
         }
