@@ -201,8 +201,6 @@ fn try_main_bm() -> Result<(), Box<dyn Error>> {
 
     println!("\n Immutable graph metrics:");
 
-    let graph = graph.freeze();
-
     let now = Instant::now();
     let num_edges: usize = graph
         .vertices()

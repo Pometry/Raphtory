@@ -33,7 +33,7 @@
 //! use raphtory::db::graph::Graph;
 //! use raphtory::db::view_api::*;
 //!
-//! let graph = reddit_graph(1, 120, false);
+//! let graph = reddit_graph(120, false);
 //!
 //! println!("The graph has {:?} vertices", graph.num_vertices());
 //! println!("The graph has {:?} edges", graph.num_edges());

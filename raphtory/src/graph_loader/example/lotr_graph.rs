@@ -17,7 +17,7 @@
 //! use raphtory::db::graph::Graph;
 //! use raphtory::db::view_api::*;
 //!
-//! let graph = lotr_graph(1);
+//! let graph = lotr_graph();
 //!
 //! println!("The graph has {:?} vertices", graph.num_vertices());
 //! println!("The graph has {:?} edges", graph.num_edges());

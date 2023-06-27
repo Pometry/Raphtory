@@ -13,7 +13,7 @@
 //! use raphtory::db::view_api::*;
 //! use raphtory::graph_loader::example::lotr_graph::lotr_graph;
 //!
-//! let graph = lotr_graph(3);
+//! let graph = lotr_graph();
 //!
 //! // Get the in-degree, out-degree of Gandalf
 //! // The graph.vertex option returns a result of an option,

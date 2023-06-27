@@ -44,7 +44,7 @@ mod state_test {
         }
     }
 
-    fn tiny_graph(n_shards: usize) -> Graph {
+    fn tiny_graph() -> Graph {
         let g = Graph::new();
 
         g.add_vertex(1, 1, []).unwrap();
@@ -55,7 +55,7 @@ mod state_test {
 
     #[test]
     fn min_aggregates_for_3_keys() {
-        let g = tiny_graph(1);
+        let g = tiny_graph();
 
         let min = accumulators::min(0);
 
@@ -91,7 +91,7 @@ mod state_test {
 
     #[test]
     fn avg_aggregates_for_3_keys() {
-        let g = tiny_graph(1);
+        let g = tiny_graph();
 
         let avg = accumulators::avg(0);
 
@@ -128,7 +128,7 @@ mod state_test {
 
     #[test]
     fn top3_aggregates_for_3_keys() {
-        let g = tiny_graph(1);
+        let g = tiny_graph();
 
         let top3 = accumulators::topk::<i32, 3>(0);
 
@@ -160,7 +160,7 @@ mod state_test {
 
     #[test]
     fn sum_aggregates_for_3_keys() {
-        let g = tiny_graph(2);
+        let g = tiny_graph();
 
         let sum = accumulators::sum(0);
 
@@ -196,7 +196,7 @@ mod state_test {
 
     #[test]
     fn sum_aggregates_for_3_keys_2_parts() {
-        let g = tiny_graph(2);
+        let g = tiny_graph();
 
         let sum = accumulators::sum(0);
 
@@ -287,7 +287,7 @@ mod state_test {
 
     #[test]
     fn min_sum_aggregates_for_3_keys_2_parts() {
-        let g = tiny_graph(2);
+        let g = tiny_graph();
 
         let sum = accumulators::sum(0);
         let min = accumulators::min(1);
