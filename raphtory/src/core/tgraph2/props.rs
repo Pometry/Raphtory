@@ -176,7 +176,7 @@ impl Meta {
 }
 
 #[derive(Serialize, Deserialize, Default, Debug)]
-pub(crate) struct DictMapper<T: Hash + Eq> {
+pub struct DictMapper<T: Hash + Eq> {
     map: FxDashMap<T, usize>,
     reverse_map: FxDashMap<usize, T>,
     counter: AtomicUsize,
@@ -184,7 +184,7 @@ pub(crate) struct DictMapper<T: Hash + Eq> {
 
 impl<T: Hash + Eq + Clone> DictMapper<T> {
 
-    pub(crate) fn get_or_create_id(&self, name: T) -> usize {
+    pub fn get_or_create_id(&self, name: T) -> usize {
         if let Some(existing_id) = self.map.get(&name) {
             return *existing_id;
         }

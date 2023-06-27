@@ -4,7 +4,8 @@ use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
 use crate::core::{
-    edge_ref::EdgeRef, errors::MutateGraphError, timeindex::TimeIndex, Direction, Prop, tprop::TProp,
+    edge_ref::EdgeRef, errors::MutateGraphError, timeindex::TimeIndex, tprop::TProp, Direction,
+    Prop,
 };
 
 use super::{adj::Adj, props::Props, EID, VID};
@@ -18,7 +19,7 @@ pub(crate) struct NodeStore<const N: usize> {
     // each layer represents a separate view of the graph
     layers: Vec<Adj>,
     // props for vertex
-    props: Props,
+    props: Option<Props>,
 }
 
 impl<const N: usize> NodeStore<N> {
@@ -28,7 +29,7 @@ impl<const N: usize> NodeStore<N> {
             vid: 0.into(),
             timestamps: TimeIndex::one(t),
             layers: vec![Adj::Solo],
-            props: Props::new(),
+            props: None,
         }
     }
 
@@ -45,7 +46,8 @@ impl<const N: usize> NodeStore<N> {
     }
 
     pub fn add_prop(&mut self, t: i64, prop_id: usize, prop: Prop) {
-        self.props.add_prop(t, prop_id, prop);
+        let props = self.props.get_or_insert_with(|| Props::new());
+        props.add_prop(t, prop_id, prop);
     }
 
     pub fn add_static_prop(
@@ -54,7 +56,9 @@ impl<const N: usize> NodeStore<N> {
         name: &str,
         prop: Prop,
     ) -> Result<(), MutateGraphError> {
-        self.props.add_static_prop(prop_id, name, prop)
+        let props = self.props.get_or_insert_with(|| Props::new());
+        props.add_static_prop(prop_id, name, prop);
+        Ok(())
     }
 
     pub(crate) fn find_edge(&self, dst: VID, layer_id: Option<usize>) -> Option<super::EID> {
@@ -98,14 +102,20 @@ impl<const N: usize> NodeStore<N> {
         window: Option<Range<i64>>,
     ) -> impl Iterator<Item = (i64, Prop)> + 'a {
         if let Some(window) = window {
-            self.props.temporal_props_window(prop_id, window.start, window.end)
+            self.props
+                .as_ref()
+                .map(|ps| ps.temporal_props_window(prop_id, window.start, window.end))
+                .unwrap_or_else(|| Box::new(std::iter::empty()))
         } else {
-            self.props.temporal_props(prop_id)
+            self.props
+                .as_ref()
+                .map(|ps| ps.temporal_props(prop_id))
+                .unwrap_or_else(|| Box::new(std::iter::empty()))
         }
     }
 
     pub(crate) fn static_property(&self, prop_id: usize) -> Option<&Prop> {
-        self.props.static_prop(prop_id)
+        self.props.as_ref().and_then(|ps| ps.static_prop(prop_id))
     }
 
     pub(crate) fn edge_tuples<'a>(
@@ -209,15 +219,20 @@ impl<const N: usize> NodeStore<N> {
     }
 
     pub(crate) fn static_prop_ids(&self) -> Vec<usize> {
-        self.props.static_prop_ids()
+        self.props
+            .as_ref()
+            .map(|ps| ps.static_prop_ids())
+            .unwrap_or_default()
     }
 
     pub(crate) fn temporal_property(&self, prop_id: usize) -> Option<&TProp> {
-        self.props.temporal_prop(prop_id)
+        self.props.as_ref().and_then(|ps| ps.temporal_prop(prop_id))
     }
 
     pub(crate) fn temp_prop_ids(&self) -> Vec<usize> {
-        self.props.temporal_prop_ids()
+        self.props
+            .as_ref()
+            .map(|ps| ps.temporal_prop_ids())
+            .unwrap_or_default()
     }
-
 }

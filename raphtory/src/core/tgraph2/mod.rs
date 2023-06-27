@@ -17,7 +17,7 @@ mod edge_store;
 mod iter;
 mod node_store;
 pub mod ops;
-pub(crate) mod props;
+pub mod props;
 pub mod tadjset;
 pub mod tgraph;
 mod tgraph_storage;

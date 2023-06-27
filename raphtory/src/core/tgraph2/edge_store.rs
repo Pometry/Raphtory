@@ -1,7 +1,6 @@
 use std::ops::{Deref, DerefMut, Range};
 
 use itertools::Itertools;
-use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 
 use crate::core::{
@@ -15,19 +14,19 @@ pub(crate) struct EdgeStore<const N: usize> {
     pub(crate) eid: EID,
     src: VID,
     dst: VID,
-    layers: FxHashMap<usize, EdgeLayer>, // each layer has its own set of properties
+    layers: Vec<EdgeLayer>, // each layer has its own set of properties
 }
 
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
 pub(crate) struct EdgeLayer {
     timestamps: TimeIndex,
     deletions: TimeIndex,
-    props: Props,
+    props: Option<Props>, // memory optimisation: only allocate props if needed
 }
 
 impl EdgeLayer {
-    pub fn props(&self) -> &Props {
-        &self.props
+    pub fn props(&self) -> Option<&Props> {
+        self.props.as_ref()
     }
 
     pub fn update_time(&mut self, t: i64) {
@@ -39,7 +38,8 @@ impl EdgeLayer {
     }
 
     pub fn add_prop(&mut self, t: i64, prop_id: usize, prop: Prop) {
-        self.props.add_prop(t, prop_id, prop);
+        let props = self.props.get_or_insert_with(|| Props::new());
+        props.add_prop(t, prop_id, prop);
     }
 
     pub fn add_static_prop(
@@ -48,11 +48,12 @@ impl EdgeLayer {
         prop_name: &str,
         prop: Prop,
     ) -> Result<(), MutateGraphError> {
-        self.props.add_static_prop(prop_id, prop_name, prop)
+        let props = self.props.get_or_insert_with(|| Props::new());
+        props.add_static_prop(prop_id, prop_name, prop)
     }
 
     pub(crate) fn static_prop_ids(&self) -> Vec<usize> {
-        self.props.static_prop_ids()
+        self.props.as_ref().map(|props| props.static_prop_ids()).unwrap_or_default()
     }
 
     pub fn timestamps(&self) -> &TimeIndex {
@@ -60,25 +61,30 @@ impl EdgeLayer {
     }
 
     pub(crate) fn static_property(&self, prop_id: usize) -> Option<&Prop> {
-        self.props.static_prop(prop_id)
+        self.props.as_ref().and_then(|ps|ps.static_prop(prop_id))
     }
 
     pub(crate) fn temporal_property(&self, prop_id: usize) -> Option<&TProp> {
-        self.props.temporal_prop(prop_id)
+        self.props.as_ref().and_then(|ps| ps.temporal_prop(prop_id))
     }
 
     pub(crate) fn temporal_properties<'a>(
         &'a self,
         prop_id: usize,
         window: Option<Range<i64>>,
-    ) -> impl Iterator<Item = (i64, Prop)> + 'a {
+    ) -> Box<dyn Iterator<Item = (i64, Prop)> + 'a> {
         if let Some(window) = window {
-            self.props.temporal_props_window(prop_id, window.start, window.end)
+            self.props.as_ref()
+                .map(|props| {
+                    props.temporal_props_window(prop_id, window.start, window.end)
+                })
+                .unwrap_or_else(|| Box::new(std::iter::empty()))
         } else {
-            self.props.temporal_props(prop_id)
+            self.props.as_ref()
+                .map(|props| props.temporal_props(prop_id))
+                .unwrap_or_else(|| Box::new(std::iter::empty()))
         }
     }
-
 }
 
 impl<const N: usize> Into<EdgeRef> for &EdgeStore<N> {
@@ -94,8 +100,15 @@ impl<const N: usize> Into<EdgeRef> for &EdgeStore<N> {
 }
 
 impl<const N: usize> EdgeStore<N> {
+    fn get_or_allocate_layer(&mut self, layer_id: usize) -> &mut EdgeLayer {
+        if self.layers.len() <= layer_id {
+            self.layers.resize_with(layer_id + 1, Default::default);
+        }
+        &mut self.layers[layer_id]
+    }
+
     pub fn has_layer(&self, layer_id: usize) -> bool {
-        self.layers.contains_key(&layer_id)
+        self.layers.get(layer_id).is_some()
     }
 
     pub fn new(src: VID, dst: VID) -> Self {
@@ -103,32 +116,32 @@ impl<const N: usize> EdgeStore<N> {
             eid: 0.into(),
             src,
             dst,
-            layers: FxHashMap::default(),
+            layers: Vec::with_capacity(1),
         }
     }
 
     pub fn layer(&self, layer_id: usize) -> Option<impl Deref<Target = EdgeLayer> + '_> {
-        self.layers.get(&layer_id)
+        self.layers.get(layer_id)
     }
 
     pub fn unsafe_layer(&self, layer_id: usize) -> impl Deref<Target = EdgeLayer> + '_ {
-        self.layers.get(&layer_id).unwrap()
+        self.layers.get(layer_id).unwrap()
     }
 
     pub fn layer_timestamps(&self, layer_id: usize) -> &TimeIndex {
-        &self.layers.get(&layer_id).unwrap().timestamps
+        &self.layers.get(layer_id).unwrap().timestamps
     }
     pub fn layer_deletions(&self, layer_id: usize) -> &TimeIndex {
-        &self.layers.get(&layer_id).unwrap().deletions
+        &self.layers.get(layer_id).unwrap().deletions
     }
     pub fn temporal_prop(&self, layer_id: usize, prop_id: usize) -> Option<&TProp> {
         self.layers
-            .get(&layer_id).and_then(|layer| layer.temporal_property(prop_id))
+            .get(layer_id)
+            .and_then(|layer| layer.temporal_property(prop_id))
     }
 
     pub fn layer_mut(&mut self, layer_id: usize) -> impl DerefMut<Target = EdgeLayer> + '_ {
-        self.layers.entry(layer_id).or_default();
-        self.layers.get_mut(&layer_id).unwrap()
+        self.get_or_allocate_layer(layer_id)
     }
 
     pub fn src(&self) -> VID {
@@ -147,25 +160,25 @@ impl<const N: usize> EdgeStore<N> {
         if let Some(layer_id) = layer_id {
             let iter = self
                 .layers
-                .get(&layer_id)
+                .get(layer_id)
                 .into_iter()
-                .map(|layer| layer.props());
+                .flat_map(|layer| layer.props());
             Box::new(iter)
         } else {
-            Box::new(self.layers.values().into_iter().map(|layer| layer.props()))
+            Box::new(self.layers.iter().flat_map(|layer| layer.props()))
         }
     }
 
     pub(crate) fn temp_prop_ids(&self, layer_id: Option<usize>) -> Vec<usize> {
         if let Some(layer_id) = layer_id {
             self.layers
-                .get(&layer_id)
-                .map(|layer| layer.props().temporal_prop_ids())
+                .get(layer_id)
+                .map(|layer| layer.props().map(|props| props.temporal_prop_ids()).unwrap_or_default())
                 .unwrap_or_default()
         } else {
             self.layers
-                .values()
-                .map(|layer| layer.props().temporal_prop_ids())
+                .iter()
+                .map(|layer| layer.props().map(|prop|prop.temporal_prop_ids()).unwrap_or_default())
                 .kmerge()
                 .dedup()
                 .collect()
