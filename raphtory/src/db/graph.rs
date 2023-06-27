@@ -18,6 +18,7 @@
 //!
 
 use crate::core::tgraph2::tgraph::InnerTemporalGraph;
+use crate::core::tgraph_shard::errors::GraphError;
 use crate::prelude::{GraphViewOps, EdgeViewOps, EdgeListOps, VertexViewOps};
 
 use serde::{Deserialize, Serialize};
@@ -31,7 +32,7 @@ const SEG: usize = 16;
 pub(crate) type InternalGraph = InnerTemporalGraph<SEG>;
 
 #[repr(transparent)]
-#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Graph(Arc<InternalGraph>);
 
 pub fn graph_equal<G1: GraphViewOps, G2: GraphViewOps>(g1: &G1, g2: &G2) -> bool {
@@ -58,6 +59,12 @@ impl Display for Graph {
 impl From<InternalGraph> for Graph {
     fn from(value: InternalGraph) -> Self {
         Self(Arc::new(value))
+    }
+}
+
+impl<G: GraphViewOps> PartialEq<G> for Graph {
+    fn eq(&self, other: &G) -> bool {
+        graph_equal(self, other)
     }
 }
 
@@ -114,13 +121,14 @@ impl Graph {
     /// use raphtory::db::graph::Graph;
     /// let g = Graph::load_from_file("path/to/graph");
     /// ```
-    pub fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self, Box<bincode::ErrorKind>> {
+    pub fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self, GraphError> {
         Ok(Self(Arc::new(InternalGraph::load_from_file(path)?)))
     }
 
     /// Save a graph to a directory
-    pub fn save_to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), Box<bincode::ErrorKind>> {
-        self.0.save_to_file(path)
+    pub fn save_to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), GraphError> {
+        self.0.save_to_file(path)?;
+        Ok(())
     }
 
     pub fn as_arc(&self) -> Arc<InternalGraph> {

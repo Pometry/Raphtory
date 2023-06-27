@@ -74,7 +74,7 @@ impl<G: GraphViewOps> GraphOps for VertexSubgraph<G> {
         self.local_vertex_ref(v).is_some()
     }
 
-    fn degree(&self, v: LocalVertexRef, d: Direction, layer: Option<usize>) -> usize {
+    fn degree(&self, v: VID, d: Direction, layer: Option<usize>) -> usize {
         self.vertex_edges(v, d, layer).count()
     }
 
@@ -141,6 +141,7 @@ mod subgraph_tests {
         g.add_vertex(1, 1, []).unwrap();
         g.add_vertex(2, 2, []).unwrap();
         let sg = g.subgraph([1, 2]);
-        assert_eq!(sg.materialize().unwrap().into_events().unwrap(), sg);
+        let actual = sg.materialize().unwrap().into_events().unwrap();
+        assert_eq!(actual, sg);
     }
 }

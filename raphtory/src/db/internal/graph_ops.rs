@@ -22,14 +22,11 @@ impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
     }
 
     fn get_unique_layers_internal(&self) -> Vec<usize> {
-        self.edge_props_meta.get_all_layers()
+        self.get_all_layers()
     }
 
     fn get_layer_id(&self, key: Option<&str>) -> Option<usize> {
-        match key {
-            Some(key) => self.edge_props_meta.get_layer_id(key),
-            None => Some(0),
-        }
+        self.layer_id(key)
     }
 
     fn vertices_len(&self) -> usize {

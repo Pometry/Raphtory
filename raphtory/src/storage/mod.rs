@@ -1,4 +1,3 @@
-mod items;
 pub(crate) mod iter;
 
 use std::{
@@ -10,11 +9,10 @@ use std::{
     },
 };
 
-use lock_api::MappedRwLockReadGuard;
 use parking_lot::{RwLock, RwLockReadGuard};
 use serde::{Deserialize, Serialize};
 
-use crate::core::{tgraph_shard::LockedView, timeindex::TimeIndex};
+use crate::core::tgraph_shard::LockedView;
 
 use self::iter::Iter;
 
@@ -190,11 +188,6 @@ pub struct ArcEntry<T: 'static, const N: usize> {
     guard: lock_api::ArcRwLockReadGuard<parking_lot::RawRwLock, Vec<Option<T>>>,
 }
 
-impl<T: 'static, const N: usize> ArcEntry<T, N> {
-    pub(crate) fn index(&self) -> usize {
-        self.i
-    }
-}
 impl<T: 'static, const N: usize> Deref for ArcEntry<T, N> {
     type Target = T;
 

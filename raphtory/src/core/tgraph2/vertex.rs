@@ -182,7 +182,4 @@ impl<const N: usize> ArcEdge<N> {
         self.e.layer_timestamps(layer).range_iter(w)
     }
 
-    pub(crate) fn time_index(&self, layer: usize) -> &TimeIndex {
-        self.e.layer_timestamps(layer)
-    }
 }

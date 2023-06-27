@@ -34,11 +34,11 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
     }
 
     fn earliest_time_global(&self) -> Option<i64> {
-        Some(self.earliest_time.get()).filter(|t| *t != i64::MAX)
+        self.graph_earliest_time()
     }
 
     fn latest_time_global(&self) -> Option<i64> {
-        Some(self.latest_time.get()).filter(|t| *t != i64::MIN)
+        self.graph_latest_time()
     }
 
     fn include_vertex_window(&self, v: VID, w: Range<i64>) -> bool {

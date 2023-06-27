@@ -1,4 +1,4 @@
-use std::{borrow::Borrow, fmt::Debug, hash::BuildHasherDefault, path::Path};
+use std::{borrow::Borrow, fmt::Debug, hash::BuildHasherDefault, path::Path, sync::Arc, ops::Deref};
 
 use dashmap::DashMap;
 use rustc_hash::FxHasher;
@@ -34,27 +34,38 @@ pub(crate) type FxDashMap<K, V> = DashMap<K, V, BuildHasherDefault<FxHasher>>;
 
 pub(crate) type TGraph<const N: usize> = InnerTemporalGraph<N>;
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct InnerTemporalGraph<const N: usize>(Arc<TemporalGraph<N>>);
+
+impl <const N:usize> Deref for InnerTemporalGraph<N>{
+    type Target = TemporalGraph<N>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug)]
-pub struct InnerTemporalGraph<const N: usize> {
+pub struct TemporalGraph<const N: usize> {
     // mapping between logical and physical ids
     logical_to_physical: FxDashMap<u64, usize>,
 
     storage: GraphStorage<N>,
 
     //earliest time seen in this graph
-    pub(crate) earliest_time: MinCounter,
+    pub(in crate::core) earliest_time: MinCounter,
 
     //latest time seen in this graph
-    pub(crate) latest_time: MaxCounter,
+    pub(in crate::core) latest_time: MaxCounter,
 
     // props meta data for vertices (mapping between strings and ids)
-    pub(crate) vertex_props_meta: Meta,
+    pub(in crate::core) vertex_props_meta: Meta,
 
     // props meta data for edges (mapping between strings and ids)
-    pub(crate) edge_props_meta: Meta,
+    pub(in crate::core) edge_props_meta: Meta,
 
     // graph properties
-    pub(crate) graph_props: GraphProps,
+    pub(in crate::core) graph_props: GraphProps,
 }
 
 impl<const N: usize> std::fmt::Display for InnerTemporalGraph<N> {
@@ -68,15 +79,9 @@ impl<const N: usize> std::fmt::Display for InnerTemporalGraph<N> {
     }
 }
 
-// impl<const N: usize> PartialEq for InnerTemporalGraph<N> {
-//     fn eq(&self, other: &Self) -> bool {
-//         self.storage == other.storage
-//     }
-// }
-
 impl<const N: usize> Default for InnerTemporalGraph<N> {
     fn default() -> Self {
-        Self {
+        let tg = TemporalGraph {
             logical_to_physical: FxDashMap::default(), // TODO: could use DictMapper here
             storage: GraphStorage::new(),
             earliest_time: MinCounter::new(),
@@ -84,18 +89,47 @@ impl<const N: usize> Default for InnerTemporalGraph<N> {
             vertex_props_meta: Meta::new(),
             edge_props_meta: Meta::new(),
             graph_props: GraphProps::new(),
-        }
+        };
+
+        Self(Arc::new(tg))
     }
 }
 
 impl<const N: usize> InnerTemporalGraph<N> {
-    pub fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self, Box<bincode::ErrorKind>> {
+
+    pub(crate) fn get_all_layers(&self) -> Vec<usize> {
+        self.edge_props_meta.get_all_layers()
+    }
+
+    pub(crate) fn layer_id(&self, key: Option<&str>) -> Option<usize> {
+        match key {
+            Some(key) => self.edge_props_meta.get_layer_id(key),
+            None => Some(0),
+        }
+    }
+
+    pub(crate) fn get_layer_name(&self, layer: usize) -> String {
+        self.edge_props_meta
+            .get_layer_name_by_id(layer)
+            .unwrap_or_else(|| panic!("layer id '{layer}' doesn't exist"))
+            .to_string()
+    }
+
+    pub(crate) fn graph_earliest_time(&self) -> Option<i64> {
+        Some(self.earliest_time.get()).filter(|t| *t != i64::MAX)
+    }
+
+    pub(crate) fn graph_latest_time(&self) -> Option<i64> {
+        Some(self.latest_time.get()).filter(|t| *t != i64::MIN)
+    }
+
+    pub(crate) fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self, Box<bincode::ErrorKind>> {
         let f = std::fs::File::open(path)?;
         let mut reader = std::io::BufReader::new(f);
         bincode::deserialize_from(&mut reader)
     }
 
-    pub fn save_to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), Box<bincode::ErrorKind>> {
+    pub(crate) fn save_to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), Box<bincode::ErrorKind>> {
         let f = std::fs::File::create(path)?;
         let mut writer = std::io::BufWriter::new(f);
         bincode::serialize_into(&mut writer, self)
@@ -156,28 +190,28 @@ impl<const N: usize> InnerTemporalGraph<N> {
 }
 
 impl<const N: usize> InnerTemporalGraph<N> {
-    pub fn get_layer_id<B: Borrow<str>>(&self, name: B) -> Option<usize> {
+    pub(crate) fn get_layer_id<B: Borrow<str>>(&self, name: B) -> Option<usize> {
         self.edge_props_meta.get_layer_id(name.borrow())
     }
 
-    pub fn internal_num_vertices(&self) -> usize {
+    pub(crate) fn internal_num_vertices(&self) -> usize {
         self.storage.nodes_len()
     }
 
-    pub fn internal_num_edges(&self, layer: Option<usize>) -> usize {
+    pub(crate) fn internal_num_edges(&self, layer: Option<usize>) -> usize {
         self.storage.edges_len(layer)
     }
 
-    pub fn has_edge_ref(&self, src: VID, dst: VID, layer_id: usize) -> bool {
+    pub(crate) fn has_edge_ref(&self, src: VID, dst: VID, layer_id: usize) -> bool {
         let node_store = self.storage.get_node(src.into());
         node_store.find_edge_on_layer(dst, layer_id).is_some()
     }
 
-    pub fn has_vertex_ref(&self, id: VID) -> bool {
+    pub(crate) fn has_vertex_ref(&self, id: VID) -> bool {
         self.storage.get_node(id.into()).value().is_some()
     }
 
-    pub fn degree(&self, v: VID, dir: Direction, layer: Option<usize>) -> usize {
+    pub(crate) fn degree(&self, v: VID, dir: Direction, layer: Option<usize>) -> usize {
         let node_store = self.storage.get_node(v.into());
         node_store.neighbours(layer, dir).count()
     }
@@ -251,7 +285,7 @@ impl<const N: usize> InnerTemporalGraph<N> {
         Ok(v_id.into())
     }
 
-    pub fn add_vertex_properties_internal(
+    pub(crate) fn add_vertex_properties_internal(
         &self,
         v: u64,
         data: Vec<(String, Prop)>,
@@ -267,7 +301,7 @@ impl<const N: usize> InnerTemporalGraph<N> {
         Ok(())
     }
 
-    pub fn add_edge_properties_internal(
+    pub(crate) fn add_edge_properties_internal(
         &self,
         src: u64,
         dst: u64,
@@ -326,37 +360,37 @@ impl<const N: usize> InnerTemporalGraph<N> {
         Ok(())
     }
 
-    pub fn add_static_property(&self, props: Vec<(String, Prop)>) -> Result<(), GraphError> {
+    pub(crate) fn add_static_property(&self, props: Vec<(String, Prop)>) -> Result<(), GraphError> {
         for (name, prop) in props {
             self.graph_props.add_static_prop(&name, prop.clone());
         }
         Ok(())
     }
 
-    pub fn add_property(&self, t: i64, props: Vec<(String, Prop)>) -> Result<(), GraphError> {
+    pub(crate) fn add_property(&self, t: i64, props: Vec<(String, Prop)>) -> Result<(), GraphError> {
         for (name, prop) in props {
             self.graph_props.add_prop(t, &name, prop.clone());
         }
         Ok(())
     }
 
-    pub fn get_static_prop(&self, name: &str) -> Option<Prop> {
+    pub(crate) fn get_static_prop(&self, name: &str) -> Option<Prop> {
         self.graph_props.get_static(name)
     }
 
-    pub fn get_temporal_prop(&self, name: &str) -> Option<LockedView<TProp>> {
+    pub(crate) fn get_temporal_prop(&self, name: &str) -> Option<LockedView<TProp>> {
         self.graph_props.get_temporal(name)
     }
 
-    pub fn static_property_names(&self) -> Vec<String> {
+    pub(crate) fn static_property_names(&self) -> Vec<String> {
         self.graph_props.static_prop_names()
     }
 
-    pub fn temporal_property_names(&self) -> Vec<String> {
+    pub(crate) fn temporal_property_names(&self) -> Vec<String> {
         self.graph_props.temporal_prop_names()
     }
 
-    pub fn delete_edge(
+    pub(crate) fn delete_edge(
         &self,
         t: i64,
         src: u64,
@@ -430,7 +464,7 @@ impl<const N: usize> InnerTemporalGraph<N> {
         }
     }
 
-    pub fn add_edge_internal(
+    pub(crate) fn add_edge_internal(
         &self,
         t: i64,
         src: u64,
@@ -467,25 +501,25 @@ impl<const N: usize> InnerTemporalGraph<N> {
         Ok(())
     }
 
-    pub fn has_vertex<V: InputVertex>(&self, v: V) -> bool {
+    pub(crate) fn has_vertex<V: InputVertex>(&self, v: V) -> bool {
         self.logical_to_physical.contains_key(&v.id())
     }
 
-    pub fn vertex_ids(&self) -> impl Iterator<Item = VID> {
+    pub(crate) fn vertex_ids(&self) -> impl Iterator<Item = VID> {
         (0..self.storage.nodes_len()).map(|i| i.into())
     }
 
-    pub fn edge_ids(&self, layer: Option<usize>) -> impl Iterator<Item = EID> {
+    pub(crate) fn edge_ids(&self, layer: Option<usize>) -> impl Iterator<Item = EID> {
         (0..self.storage.edges_len(layer)).map(|i| i.into())
     }
 
-    pub fn vertices<'a>(&'a self) -> impl Iterator<Item = Vertex<'a, N>> {
+    pub(crate) fn vertices<'a>(&'a self) -> impl Iterator<Item = Vertex<'a, N>> {
         self.storage
             .nodes()
             .map(move |node| Vertex::from_ref(node, self))
     }
 
-    pub fn locked_vertices<'a>(&'a self) -> impl Iterator<Item = Vertex<'a, N>> {
+    pub(crate) fn locked_vertices<'a>(&'a self) -> impl Iterator<Item = Vertex<'a, N>> {
         self.storage
             .locked_nodes()
             .map(move |node| Vertex::from_ge(node, self))
@@ -495,7 +529,7 @@ impl<const N: usize> InnerTemporalGraph<N> {
         self.storage.locked_edges()
     }
 
-    pub fn find_global_id(&self, v: VID) -> Option<u64> {
+    pub(crate) fn find_global_id(&self, v: VID) -> Option<u64> {
         let node = self.storage.get_node(v.into());
         node.value().map(|n| n.global_id())
     }
@@ -555,7 +589,7 @@ impl<const N: usize> InnerTemporalGraph<N> {
         }
     }
 
-    pub fn vertex_history(&self, v: VID) -> Vec<i64> {
+    pub(crate) fn vertex_history(&self, v: VID) -> Vec<i64> {
         println!("vertex_history");
         vec![]
     }

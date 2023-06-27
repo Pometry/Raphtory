@@ -1,11 +1,19 @@
-use crate::{db::view_api::internal::CoreGraphOps, core::{tgraph2::{tgraph::InnerTemporalGraph, VID}, edge_ref::EdgeRef, tgraph_shard::LockedView, timeindex::TimeIndex, vertex_ref::VertexRef, tprop::TProp}, prelude::Prop};
+use crate::{
+    core::{
+        edge_ref::EdgeRef,
+        tgraph2::{tgraph::InnerTemporalGraph, VID},
+        tgraph_shard::LockedView,
+        timeindex::TimeIndex,
+        tprop::TProp,
+        vertex_ref::VertexRef,
+    },
+    db::view_api::internal::CoreGraphOps,
+    prelude::Prop,
+};
 
 impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
     fn get_layer_name_by_id(&self, layer_id: usize) -> String {
-        self.edge_props_meta
-            .get_layer_name_by_id(layer_id)
-            .unwrap_or_else(|| panic!("layer id '{layer_id}' doesn't exist"))
-            .to_string()
+        self.get_layer_name(layer_id)
     }
 
     fn vertex_id(&self, v: VID) -> u64 {
@@ -25,7 +33,6 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
     fn vertex_additions(&self, v: VID) -> LockedView<TimeIndex> {
         let vertex = self.vertex(v);
         vertex.additions().unwrap()
-
     }
 
     fn localise_vertex_unchecked(&self, v: VertexRef) -> VID {
