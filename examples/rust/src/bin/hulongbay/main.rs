@@ -69,7 +69,7 @@ pub fn loader(data_dir: &Path) -> Result<Graph, Box<dyn Error>> {
 
         Ok(g)
     } else {
-        let g = Graph::new(16);
+        let g = Graph::new();
 
         let now = Instant::now();
 

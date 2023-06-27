@@ -164,7 +164,7 @@ mod hits_tests {
     use itertools::Itertools;
 
     fn load_graph(n_shards: usize, edges: Vec<(u64, u64)>) -> Graph {
-        let graph = Graph::new(n_shards);
+        let graph = Graph::new();
 
         for (src, dst) in edges {
             graph.add_edge(0, src, dst, [], None).unwrap();

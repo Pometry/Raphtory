@@ -47,7 +47,7 @@
 //!    time: i64,
 //! }
 //!
-//! let g = Graph::new(2);
+//! let g = Graph::new();
 //! let now = Instant::now();
 //!
 //! CsvLoader::new(data_dir)
@@ -209,7 +209,7 @@ mod graph_loader_test {
 
     #[test]
     fn db_lotr() {
-        let g = Graph::new(4);
+        let g = Graph::new();
 
         let data_dir = crate::graph_loader::example::lotr_graph::lotr_file()
             .expect("Failed to get lotr.csv file");

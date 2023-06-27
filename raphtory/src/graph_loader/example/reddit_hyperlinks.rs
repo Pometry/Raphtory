@@ -96,7 +96,7 @@ where
 /// * `Graph` - The graph containing the Reddit hyperlinks dataset
 pub fn reddit_graph(shards: usize, timeout: u64, test_file: bool) -> Graph {
     let graph = {
-        let g = Graph::new(shards);
+        let g = Graph::new();
 
         if let Ok(path) = reddit_file(timeout, Some(test_file)) {
             if let Ok(lines) = read_lines(path.as_path()) {

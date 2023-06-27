@@ -50,7 +50,7 @@
 //! use raphtory::prelude::*;
 //!
 //! // Create your GraphDB object and state the number of shards you would like, here we have 2
-//! let graph = Graph::new(2);
+//! let graph = Graph::new();
 //!
 //! // Add vertex and edges to your graph with the respective properties
 //! graph.add_vertex(

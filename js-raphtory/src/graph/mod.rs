@@ -62,7 +62,7 @@ impl Graph {
     #[wasm_bindgen(constructor)]
     pub fn new() -> Self {
         set_panic_hook();
-        Graph(UnderGraph::TGraph(Arc::new(TGraph::new(1))))
+        Graph(UnderGraph::TGraph(Arc::new(TGraph::new())))
     }
 
     #[wasm_bindgen(js_name = window)]

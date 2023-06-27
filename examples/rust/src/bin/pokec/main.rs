@@ -27,7 +27,7 @@ fn main() {
     let g = if std::path::Path::new("/tmp/pokec").exists() {
         Graph::load_from_file("/tmp/pokec").unwrap()
     } else {
-        let g = Graph::new(shards);
+        let g = Graph::new();
         CsvLoader::new(data_dir)
             .set_delimiter("\t")
             .set_header(false)

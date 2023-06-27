@@ -477,7 +477,7 @@ mod vertex_test {
 
     #[test]
     fn test_earliest_time() {
-        let g = Graph::new(4);
+        let g = Graph::new();
         g.add_vertex(0, 1, []).unwrap();
         g.add_vertex(1, 1, []).unwrap();
         g.add_vertex(2, 1, []).unwrap();

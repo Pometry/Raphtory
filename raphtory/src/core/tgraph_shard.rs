@@ -14,6 +14,8 @@ use std::{ops::Deref, hash::BuildHasherDefault};
 
 use dashmap::mapref::one::Ref;
 
+use super::tgraph::errors::MutateGraphError;
+
 pub enum LockedView<'a, T> {
     Locked(parking_lot::MappedRwLockReadGuard<'a, T>),
     DashMap(Ref<'a, usize, T, BuildHasherDefault<rustc_hash::FxHasher>>)
@@ -71,5 +73,11 @@ impl From<bincode::Error> for GraphError {
 impl From<std::io::Error> for GraphError {
     fn from(source: std::io::Error) -> Self {
         GraphError::IOError { source }
+    }
+}
+
+impl From<MutateGraphError> for GraphError {
+    fn from(source: MutateGraphError) -> Self {
+        GraphError::FailedToMutateGraph { source }
     }
 }

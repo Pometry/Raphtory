@@ -82,7 +82,7 @@ impl GraphWithDeletions {
     /// use raphtory::db::graph::Graph;
     /// use std::fs::File;
     /// use raphtory::db::mutation_api::AdditionOps;
-    /// let g = Graph::new(4);
+    /// let g = Graph::new();
     /// g.add_vertex(1, 1, []).unwrap();
     /// g.save_to_file("path_str");
     /// ```

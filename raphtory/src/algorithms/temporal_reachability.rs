@@ -187,7 +187,7 @@ mod generic_taint_tests {
     use crate::db::mutation_api::AdditionOps;
 
     fn load_graph(n_shards: usize, edges: Vec<(i64, u64, u64)>) -> Graph {
-        let graph = Graph::new(n_shards);
+        let graph = Graph::new();
 
         for (t, src, dst) in edges {
             graph.add_edge(t, src, dst, [], None).unwrap();

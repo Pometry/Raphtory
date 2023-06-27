@@ -19,7 +19,7 @@ fn make_time_gen() -> Box<dyn Iterator<Item = i64>> {
 }
 
 pub fn bootstrap_graph(num_shards: usize, num_vertices: usize) -> Graph {
-    let graph = Graph::new(num_shards);
+    let graph = Graph::new();
     let mut indexes = make_index_gen();
     let mut times = make_time_gen();
     let num_edges = num_vertices / 2;

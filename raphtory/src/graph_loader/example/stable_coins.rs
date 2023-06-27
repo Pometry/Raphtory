@@ -66,7 +66,7 @@ pub fn stable_coin_graph(path: Option<String>, subset: bool, num_shards: usize) 
 
     let encoded_data_dir = data_dir.join("graphdb.bincode");
     let g = restore_from_bincode(&encoded_data_dir).unwrap_or_else(|| {
-        let g = Graph::new(num_shards);
+        let g = Graph::new();
         let now = Instant::now();
 
         let contract_addr_labels = HashMap::from([

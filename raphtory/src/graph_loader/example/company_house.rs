@@ -57,7 +57,7 @@ pub fn company_house_graph(path: Option<String>, num_shards: usize) -> Graph {
     }
 
     let g = restore_from_bincode(&encoded_data_dir).unwrap_or_else(|| {
-        let g = Graph::new(num_shards);
+        let g = Graph::new();
         let now = Instant::now();
         let ts = 1;
 

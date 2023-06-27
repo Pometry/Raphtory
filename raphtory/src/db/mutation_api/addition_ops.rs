@@ -22,7 +22,7 @@ pub trait AdditionOps {
     ///
     /// ```
     /// use raphtory::prelude::*;
-    /// let g = Graph::new(1);
+    /// let g = Graph::new();
     /// let v = g.add_vertex(0, "Alice", []);
     /// let v = g.add_vertex(0, 5, []);
     /// ```
@@ -59,7 +59,7 @@ pub trait AdditionOps {
     /// ```
     /// use raphtory::prelude::*;
     ///
-    /// let graph = Graph::new(1);
+    /// let graph = Graph::new();
     /// graph.add_vertex(1, "Alice", []).unwrap();
     /// graph.add_vertex(2, "Bob", []).unwrap();
     /// graph.add_edge(3, "Alice", "Bob", [], None).unwrap();

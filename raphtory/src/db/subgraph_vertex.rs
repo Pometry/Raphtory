@@ -136,7 +136,7 @@ mod subgraph_tests {
 
     #[test]
     fn test_materialize_no_edges() {
-        let g = Graph::new(1);
+        let g = Graph::new();
 
         g.add_vertex(1, 1, []).unwrap();
         g.add_vertex(2, 2, []).unwrap();

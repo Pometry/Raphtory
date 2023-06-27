@@ -37,8 +37,8 @@ mod test {
         P: Into<PathBuf>,
     {
         let path: PathBuf = p.into();
-        let g1 = Graph::new(1);
-        let gn = Graph::new(n_parts);
+        let g1 = Graph::new();
+        let gn = Graph::new();
 
         load::<REC>(&g1, &gn, path);
 
@@ -172,8 +172,8 @@ mod test {
         let window = -100..100;
 
         for n_parts in 2..3 {
-            let g1 = Graph::new(1);
-            let gn = Graph::new(n_parts);
+            let g1 = Graph::new();
+            let gn = Graph::new();
             load::<PairNoTime>(&g1, &gn, csv_path.clone());
 
             let iter_count = 50;

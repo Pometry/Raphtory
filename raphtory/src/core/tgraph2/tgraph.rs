@@ -1,4 +1,4 @@
-use std::{borrow::Borrow, fmt::Debug, hash::BuildHasherDefault, path::Path, sync::Arc, ops::Deref};
+use std::{fmt::Debug, hash::BuildHasherDefault, path::Path, sync::Arc, ops::Deref};
 
 use dashmap::DashMap;
 use rustc_hash::FxHasher;
@@ -190,25 +190,12 @@ impl<const N: usize> InnerTemporalGraph<N> {
 }
 
 impl<const N: usize> InnerTemporalGraph<N> {
-    pub(crate) fn get_layer_id<B: Borrow<str>>(&self, name: B) -> Option<usize> {
-        self.edge_props_meta.get_layer_id(name.borrow())
-    }
-
     pub(crate) fn internal_num_vertices(&self) -> usize {
         self.storage.nodes_len()
     }
 
     pub(crate) fn internal_num_edges(&self, layer: Option<usize>) -> usize {
         self.storage.edges_len(layer)
-    }
-
-    pub(crate) fn has_edge_ref(&self, src: VID, dst: VID, layer_id: usize) -> bool {
-        let node_store = self.storage.get_node(src.into());
-        node_store.find_edge_on_layer(dst, layer_id).is_some()
-    }
-
-    pub(crate) fn has_vertex_ref(&self, id: VID) -> bool {
-        self.storage.get_node(id.into()).value().is_some()
     }
 
     pub(crate) fn degree(&self, v: VID, dir: Direction, layer: Option<usize>) -> usize {
@@ -237,8 +224,8 @@ impl<const N: usize> InnerTemporalGraph<N> {
             .vertex_props_meta
             .resolve_prop_ids(props, false)
             .collect::<Vec<_>>();
-        let node_prop = v
-            .id_str()
+
+        let name_prop = name.or_else(|| v.id_str())
             .map(|n| {
                 self.vertex_props_meta
                     .resolve_prop_ids(vec![("_id".to_string(), Prop::Str(n.to_owned()))], true)
@@ -262,8 +249,8 @@ impl<const N: usize> InnerTemporalGraph<N> {
         }
 
         // update node prop
-        for (prop_id, _, prop) in &node_prop {
-            node.add_prop(t, *prop_id, prop.clone());
+        for (prop_id, name, prop) in &name_prop {
+            node.add_static_prop(*prop_id, name, prop.clone())?;
         }
 
         Ok(())
@@ -501,37 +488,12 @@ impl<const N: usize> InnerTemporalGraph<N> {
         Ok(())
     }
 
-    pub(crate) fn has_vertex<V: InputVertex>(&self, v: V) -> bool {
-        self.logical_to_physical.contains_key(&v.id())
-    }
-
     pub(crate) fn vertex_ids(&self) -> impl Iterator<Item = VID> {
         (0..self.storage.nodes_len()).map(|i| i.into())
     }
 
-    pub(crate) fn edge_ids(&self, layer: Option<usize>) -> impl Iterator<Item = EID> {
-        (0..self.storage.edges_len(layer)).map(|i| i.into())
-    }
-
-    pub(crate) fn vertices<'a>(&'a self) -> impl Iterator<Item = Vertex<'a, N>> {
-        self.storage
-            .nodes()
-            .map(move |node| Vertex::from_ref(node, self))
-    }
-
-    pub(crate) fn locked_vertices<'a>(&'a self) -> impl Iterator<Item = Vertex<'a, N>> {
-        self.storage
-            .locked_nodes()
-            .map(move |node| Vertex::from_ge(node, self))
-    }
-
     pub(crate) fn locked_edges(&self) -> LockedIter<N, EdgeStore<N>> {
         self.storage.locked_edges()
-    }
-
-    pub(crate) fn find_global_id(&self, v: VID) -> Option<u64> {
-        let node = self.storage.get_node(v.into());
-        node.value().map(|n| n.global_id())
     }
 
     pub(crate) fn vertex<'a>(&'a self, v: VID) -> Vertex<'a, N> {
@@ -589,188 +551,4 @@ impl<const N: usize> InnerTemporalGraph<N> {
         }
     }
 
-    pub(crate) fn vertex_history(&self, v: VID) -> Vec<i64> {
-        println!("vertex_history");
-        vec![]
-    }
-}
-
-#[cfg(test)]
-mod test {
-
-    use itertools::Itertools;
-
-    use super::*;
-
-    #[test]
-    fn add_vertex_at_time_t1() {
-        let g: TGraph<4> = TGraph::default();
-
-        g.add_vertex_internal(1, 9, None, vec![]);
-
-        assert!(g.has_vertex(9u64));
-
-        assert_eq!(
-            g.vertex_ids()
-                .flat_map(|v| g.find_global_id(v))
-                .collect::<Vec<_>>(),
-            vec![9]
-        );
-    }
-
-    #[test]
-    fn add_vertices_with_1_property() {
-        let g: TGraph<4> = TGraph::default();
-
-        let v_id = 1;
-        let ts = 1;
-        g.add_vertex_internal(
-            ts,
-            v_id,
-            None,
-            vec![("type".into(), Prop::Str("wallet".into()))],
-        );
-
-        assert!(g.has_vertex(v_id));
-        // assert!(g.has_vertex_window(v_id, 1..15));
-        assert_eq!(
-            g.vertex_ids()
-                .flat_map(|v| g.find_global_id(v))
-                .collect::<Vec<_>>(),
-            vec![v_id]
-        );
-
-        let res = g
-            .vertices()
-            .flat_map(|v| v.temporal_properties("type", None).collect_vec())
-            .collect_vec();
-
-        assert_eq!(res, vec![(1i64, Prop::Str("wallet".into()))]);
-    }
-
-    #[test]
-    fn add_edge_at_t1() {
-        let g: TGraph<4> = TGraph::default();
-
-        let src = 1;
-        let dst = 2;
-        let ts = 1;
-        g.add_vertex_internal(ts, src, None, vec![]);
-        g.add_vertex_internal(ts, dst, None, vec![]);
-
-        g.add_edge_internal(ts, src, dst, vec![], Some("follows"));
-
-        let res = g
-            .vertices()
-            .flat_map(|v| {
-                v.edges(Some("follows"), Direction::OUT)
-                    .map(|e| (e.src_id(), e.dst_id()))
-            })
-            .collect_vec();
-
-        assert_eq!(res, vec![(0.into(), 1.into())]);
-    }
-
-    #[test]
-    fn triangle_counts_by_iterators() {
-        let g: TGraph<4> = TGraph::default();
-
-        let ts = 1;
-
-        g.add_edge_internal(ts, 1, 2, vec![], Some("follows"));
-        g.add_edge_internal(ts, 2, 3, vec![], Some("follows"));
-        g.add_edge_internal(ts, 3, 1, vec![], Some("follows"));
-
-        let res = g
-            .vertices()
-            .flat_map(|v| {
-                let v_id = v.id();
-                v.edges(Some("follows"), Direction::OUT)
-                    .flat_map(move |edge_1| {
-                        edge_1
-                            .dst()
-                            .edges(Some("follows"), Direction::OUT)
-                            .flat_map(move |edge_2| {
-                                edge_2
-                                    .dst()
-                                    .edges(Some("follows"), Direction::OUT)
-                                    .filter(move |e| e.dst_id() == v_id)
-                                    .map(move |edge_3| {
-                                        (v_id, edge_2.src_id(), edge_2.dst_id(), edge_3.dst_id())
-                                    })
-                            })
-                    })
-            })
-            .collect_vec();
-
-        assert_eq!(
-            res,
-            vec![
-                (0.into(), 1.into(), 2.into(), 0.into()),
-                (1.into(), 2.into(), 0.into(), 1.into()),
-                (2.into(), 0.into(), 1.into(), 2.into()),
-            ]
-        );
-    }
-
-    #[test]
-    fn triangle_counts_by_locked_iterators() {
-        let g: TGraph<4> = TGraph::default();
-
-        let ts = 1;
-
-        g.add_edge_internal(ts, 1, 2, vec![], Some("follows"));
-        g.add_edge_internal(ts, 2, 3, vec![], Some("follows"));
-        g.add_edge_internal(ts, 3, 1, vec![], Some("follows"));
-
-        let res = g
-            .locked_vertices()
-            .flat_map(|v| {
-                let v_id = v.id();
-                v.edges(Some("follows"), Direction::OUT)
-                    .flat_map(move |edge_1| {
-                        edge_1
-                            .dst()
-                            .edges(Some("follows"), Direction::OUT)
-                            .flat_map(move |edge_2| {
-                                edge_2
-                                    .dst()
-                                    .edges(Some("follows"), Direction::OUT)
-                                    .filter(move |e| e.dst_id() == v_id)
-                                    .map(move |edge_3| {
-                                        (v_id, edge_2.src_id(), edge_2.dst_id(), edge_3.dst_id())
-                                    })
-                            })
-                    })
-            })
-            .collect_vec();
-
-        assert_eq!(
-            res,
-            vec![
-                (0.into(), 1.into(), 2.into(), 0.into()),
-                (1.into(), 2.into(), 0.into(), 1.into()),
-                (2.into(), 0.into(), 1.into(), 2.into()),
-            ]
-        );
-    }
-
-    #[test]
-    fn test_chaining_vertex_ops() {
-        let g: TGraph<16> = TGraph::default();
-
-        g.add_edge_internal(1, 1, 2, vec![], None);
-        g.add_edge_internal(2, 1, 3, vec![], None);
-        g.add_edge_internal(3, 2, 1, vec![], None);
-        g.add_edge_internal(4, 3, 2, vec![], None);
-
-        for v_id in 0..3 {
-            let v = g.vertex(v_id.into());
-            let edges = v
-                .edges(None, Direction::BOTH)
-                .map(|e| (e.src_id(), e.dst_id()))
-                .collect_vec();
-            println!("v: {:?} edges: {:?}", v_id, edges);
-        }
-    }
 }

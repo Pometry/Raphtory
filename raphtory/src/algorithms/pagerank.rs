@@ -178,7 +178,7 @@ mod page_rank_tests {
     use super::*;
 
     fn load_graph(n_shards: usize) -> Graph {
-        let graph = Graph::new(n_shards);
+        let graph = Graph::new();
 
         let edges = vec![(1, 2), (1, 4), (2, 3), (3, 1), (4, 1)];
 
@@ -249,7 +249,7 @@ mod page_rank_tests {
             (11, 9, 23),
         ];
 
-        let graph = Graph::new(4);
+        let graph = Graph::new();
 
         for (src, dst, t) in edges {
             graph.add_edge(t, src, dst, [], None).unwrap();
@@ -276,7 +276,7 @@ mod page_rank_tests {
     fn two_nodes_page_rank() {
         let edges = vec![(1, 2), (2, 1)];
 
-        let graph = Graph::new(4);
+        let graph = Graph::new();
 
         for (t, (src, dst)) in edges.into_iter().enumerate() {
             graph.add_edge(t as i64, src, dst, [], None).unwrap();
@@ -295,7 +295,7 @@ mod page_rank_tests {
     fn three_nodes_page_rank_one_dangling() {
         let edges = vec![(1, 2), (2, 1), (2, 3)];
 
-        let graph = Graph::new(4);
+        let graph = Graph::new();
 
         for (t, (src, dst)) in edges.into_iter().enumerate() {
             graph.add_edge(t as i64, src, dst, [], None).unwrap();
@@ -333,7 +333,7 @@ mod page_rank_tests {
         .map(|(t, (src, dst))| (src, dst, t as i64))
         .collect_vec();
 
-        let graph = Graph::new(4);
+        let graph = Graph::new();
 
         for (src, dst, t) in edges {
             graph.add_edge(t, src, dst, [], None).unwrap();

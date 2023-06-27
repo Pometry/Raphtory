@@ -67,7 +67,7 @@ impl PyGraph {
     #[new]
     #[pyo3(signature = (nr_shards=1))]
     pub fn py_new(nr_shards: usize) -> (Self, PyGraphView) {
-        let graph = Graph::new(nr_shards);
+        let graph = Graph::new();
         (
             Self {
                 graph: graph.clone(),

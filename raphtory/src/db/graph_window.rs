@@ -29,7 +29,7 @@
 //! use raphtory::db::mutation_api::AdditionOps;
 //! use raphtory::db::view_api::*;
 //!
-//! let graph = Graph::new(2);
+//! let graph = Graph::new();
 //! graph.add_edge(0, 1, 2, [], None).unwrap();
 //! graph.add_edge(1, 1, 3, [], None).unwrap();
 //! graph.add_edge(2, 2, 3, [], None).unwrap();
@@ -417,7 +417,7 @@ impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
 /// use raphtory::db::mutation_api::AdditionOps;
 /// use raphtory::db::view_api::*;
 ///
-/// let graph = Graph::new(1);
+/// let graph = Graph::new();
 /// graph.add_edge(0, 1, 2, [], None).unwrap();
 /// graph.add_edge(1, 2, 3, [], None).unwrap();
 /// let windowed_graph = graph.window(0, 1);
@@ -477,7 +477,7 @@ mod views_test {
             (1, 1, 1),
         ];
 
-        let g = Graph::new(2);
+        let g = Graph::new();
 
         for (t, src, dst) in &vs {
             g.add_edge(*t, *src, *dst, [], None).unwrap();
@@ -507,7 +507,7 @@ mod views_test {
             (1, 1, 1),
         ];
 
-        let g = Graph::new(2);
+        let g = Graph::new();
 
         for (t, src, dst) in vs {
             g.add_edge(t, src, dst, [], None).unwrap();
@@ -529,7 +529,7 @@ mod views_test {
             (1, 1, 1),
         ];
 
-        let g = Graph::new(2);
+        let g = Graph::new();
 
         for (t, src, dst) in &vs {
             g.add_edge(*t, *src, *dst, [], None).unwrap();
@@ -550,7 +550,7 @@ mod views_test {
             // (0, 1),
             // (2, 2),
         ];
-        let g = Graph::new(2);
+        let g = Graph::new();
 
         for (t, v) in &vs {
             g.add_vertex(*t, *v, [])
@@ -575,7 +575,7 @@ mod views_test {
         let rand_start_index = thread_rng().gen_range(0..vs.len());
         let rand_end_index = thread_rng().gen_range(rand_start_index..vs.len());
 
-        let g = Graph::new(2);
+        let g = Graph::new();
 
         for (t, v) in &vs {
             g.add_vertex(*t, *v, [])
@@ -625,7 +625,7 @@ mod views_test {
         let rand_start_index = thread_rng().gen_range(0..edges.len());
         let rand_end_index = thread_rng().gen_range(rand_start_index..edges.len());
 
-        let g = Graph::new(2);
+        let g = Graph::new();
 
         for (t, e) in &edges {
             g.add_edge(*t, e.0, e.1, [], None).unwrap();
@@ -669,7 +669,7 @@ mod views_test {
 
         let true_edge_count = edges.iter().filter(|e| window.contains(&e.0)).count();
 
-        let g = Graph::new(2);
+        let g = Graph::new();
 
         for (t, e) in &edges {
             g.add_edge(*t, e.0, e.1, [("test".to_owned(), Prop::Bool(true))], None)
@@ -690,7 +690,7 @@ mod views_test {
 
     #[quickcheck]
     fn trivial_window_has_all_edges(edges: Vec<(i64, u64, u64)>) -> bool {
-        let g = Graph::new(0);
+        let g = Graph::new();
         edges
             .into_par_iter()
             .filter(|e| e.0 < i64::MAX)
@@ -707,7 +707,7 @@ mod views_test {
     fn large_vertex_in_window(dsts: Vec<u64>) -> bool {
         let dsts: Vec<u64> = dsts.into_iter().unique().collect();
         let n = dsts.len();
-        let g = Graph::new(1);
+        let g = Graph::new();
 
         for dst in dsts {
             let t = 1;
@@ -730,7 +730,7 @@ mod views_test {
             vec![3, 4, 5, 6],
         ];
 
-        let g = Graph::new(1);
+        let g = Graph::new();
 
         for (t, src, dst) in &vs {
             g.add_edge(*t, *src, *dst, [], None).unwrap();
@@ -747,7 +747,7 @@ mod views_test {
 
         assert_eq!(res, expected);
 
-        let g = Graph::new(3);
+        let g = Graph::new();
         for (src, dst, t) in &vs {
             g.add_edge(*src, *dst, *t, [], None).unwrap();
         }
@@ -773,7 +773,7 @@ mod views_test {
             (1, 1, 1),
         ];
 
-        let g = Graph::new(1);
+        let g = Graph::new();
 
         g.add_vertex(
             0,
@@ -828,7 +828,7 @@ mod views_test {
         assert_eq!(actual, expected);
 
         // Check results from multiple graphs with different number of shards
-        let g = Graph::new(10);
+        let g = Graph::new();
 
         g.add_vertex(
             0,

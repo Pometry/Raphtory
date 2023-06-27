@@ -6,7 +6,7 @@ use std::{
 use serde::{Deserialize, Serialize};
 
 use crate::core::{
-    lazy_vec::LazyVec, props::IllegalMutate, tgraph::errors::MutateGraphError, tprop::TProp, Prop,
+    lazy_vec::LazyVec, tgraph::errors::MutateGraphError, tprop::TProp, Prop, props::IllegalMutate,
 };
 
 use super::tgraph::FxDashMap;

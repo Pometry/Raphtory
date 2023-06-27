@@ -22,7 +22,7 @@
 //! use raphtory::db::mutation_api::AdditionOps;
 //! use raphtory::db::view_api::*;
 //!
-//! let g = Graph::new(1);
+//! let g = Graph::new();
 //! let vs = vec![(1, 1, 2), (2, 1, 3), (3, 2, 1), (4, 3, 2)];
 //!
 //! for (t, src, dst) in &vs {
@@ -82,7 +82,7 @@ mod triangle_count_tests {
 
     #[test]
     fn counts_triangles() {
-        let g = Graph::new(0);
+        let g = Graph::new();
         let vs = vec![(1, 1, 2), (2, 1, 3), (3, 2, 1), (4, 3, 2)];
 
         for (t, src, dst) in &vs {

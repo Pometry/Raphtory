@@ -45,7 +45,7 @@ pub fn local_clustering_coefficient_analysis(c: &mut Criterion) {
     let mut group = c.benchmark_group("local_clustering_coefficient");
 
     bench(&mut group, "local_clustering_coefficient", None, |b| {
-        let g: Graph = Graph::new(1);
+        let g: Graph = Graph::new();
         let windowed_graph = g.window(0, 5);
 
         let vs = vec![
