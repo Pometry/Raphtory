@@ -54,20 +54,10 @@ pub trait EdgeViewOps: EdgeViewInternalOps<Self::Graph, Self::Vertex> {
     }
 
     fn properties(&self, include_static: bool) -> HashMap<String, Prop> {
-        let mut props: HashMap<String, Prop> = self
-            .property_histories()
-            .iter()
-            .map(|(key, values)| (key.clone(), values.last().unwrap().1.clone()))
-            .collect();
-
-        if include_static {
-            for prop_name in self.graph().static_edge_prop_names(self.eref()) {
-                if let Some(prop) = self.graph().static_edge_prop(self.eref(), &prop_name) {
-                    props.insert(prop_name, prop);
-                }
-            }
-        }
-        props
+        self.property_names(include_static)
+            .into_iter()
+            .filter_map(|key| self.property(&key, include_static).map(|v| (key, v)))
+            .collect()
     }
 
     fn property_histories(&self) -> HashMap<String, Vec<(i64, Prop)>> {

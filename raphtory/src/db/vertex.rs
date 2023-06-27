@@ -93,20 +93,10 @@ impl<G: GraphViewOps> VertexViewOps for VertexView<G> {
     }
 
     fn properties(&self, include_static: bool) -> HashMap<String, Prop> {
-        let mut props: HashMap<String, Prop> = self
-            .property_histories()
+        self.property_names(include_static)
             .into_iter()
-            .filter_map(|(key, values)| values.last().map(|v| (key, v.1.clone())))
-            .collect();
-
-        if include_static {
-            for prop_name in self.graph.static_vertex_prop_names(self.vertex) {
-                if let Some(prop) = self.graph.static_vertex_prop(self.vertex, &prop_name) {
-                    props.insert(prop_name, prop);
-                }
-            }
-        }
-        props
+            .filter_map(|key| self.property(key.clone(), include_static).map(|v| (key, v)))
+            .collect()
     }
 
     fn property_histories(&self) -> HashMap<String, Vec<(i64, Prop)>> {
