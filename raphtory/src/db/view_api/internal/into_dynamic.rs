@@ -11,13 +11,13 @@ pub trait IntoDynamic {
 
 impl<G: GraphViewOps> IntoDynamic for WindowedGraph<G> {
     fn into_dynamic(self) -> DynamicGraph {
-        Arc::new(self)
+        DynamicGraph::new(self)
     }
 }
 
 impl<G: GraphViewOps> IntoDynamic for LayeredGraph<G> {
     fn into_dynamic(self) -> DynamicGraph {
-        Arc::new(self)
+        DynamicGraph::new(self)
     }
 }
 
@@ -29,7 +29,7 @@ impl IntoDynamic for DynamicGraph {
 
 impl<G: GraphViewOps> IntoDynamic for VertexSubgraph<G> {
     fn into_dynamic(self) -> DynamicGraph {
-        Arc::new(self)
+        DynamicGraph::new(self)
     }
 }
 

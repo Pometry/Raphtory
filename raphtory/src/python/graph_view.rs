@@ -29,6 +29,12 @@ impl IntoPy<PyObject> for MaterializedGraph {
     }
 }
 
+impl IntoPy<PyObject> for DynamicGraph {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        PyGraphView::from(self).into_py(py)
+    }
+}
+
 /// Graph view is a read-only version of a graph at a certain point in time.
 #[pyclass(name = "GraphView", frozen, subclass)]
 pub struct PyGraphView {

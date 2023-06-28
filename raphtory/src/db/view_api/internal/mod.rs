@@ -10,6 +10,7 @@ mod materialize;
 pub(crate) mod time_semantics;
 mod wrapped_graph;
 
+use crate::prelude::GraphViewOps;
 pub use core_deletion_ops::*;
 pub use core_ops::*;
 pub use exploded_edge_ops::ExplodedEdgeOps;
@@ -49,7 +50,28 @@ impl<G: InheritViewOps + CoreGraphOps + GraphOps> InheritTimeSemantics for G {}
 impl<G: InheritViewOps> InheritCoreOps for G {}
 impl<G: InheritViewOps> InheritMaterialize for G {}
 
-pub type DynamicGraph = Arc<dyn BoxableGraphView>;
+#[derive(Clone)]
+pub struct DynamicGraph(Arc<dyn BoxableGraphView>);
+
+impl DynamicGraph {
+    pub fn new<G: GraphViewOps>(graph: G) -> Self {
+        Self(Arc::new(graph))
+    }
+
+    pub fn new_from_arc<G: GraphViewOps>(graph_arc: Arc<G>) -> Self {
+        Self(graph_arc)
+    }
+}
+
+impl Base for DynamicGraph {
+    type Base = dyn BoxableGraphView;
+
+    fn base(&self) -> &Self::Base {
+        &self.0
+    }
+}
+
+impl InheritViewOps for DynamicGraph {}
 
 #[cfg(test)]
 mod test {
