@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use rayon::prelude::{IntoParallelIterator, ParallelIterator};
 
 use crate::core::{state::agg::Accumulator, utils::get_shard_id_from_global_vid};
@@ -78,7 +79,11 @@ impl<CS: ComputeState + Send + Sync> ShuffleComputeState<CS> {
         self.parts
             .iter_mut()
             .zip(other.parts.iter())
-            .for_each(|(s, o)| s.merge(o, agg_ref, ss));
+            .enumerate()
+            .for_each(|(i, (s, o))| {
+                println!("Merging part {}", i);
+                s.merge(o, agg_ref, ss)
+            });
     }
 
     pub fn merge_mut_2<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
@@ -147,14 +152,16 @@ impl<CS: ComputeState + Send + Sync> ShuffleComputeState<CS> {
         self.global.reset_states(ss, states);
     }
 
-    pub fn new(n_parts: usize, morcel_size: usize) -> Self {
+    pub fn new(total_len: usize, n_parts: usize, morcel_size: usize) -> Self {
+        let last_one_size = total_len % morcel_size;
         Self {
             morcel_size,
-            parts: (0..n_parts)
+            parts: (0..n_parts - 1)
                 .into_iter()
-                .map(|_| MorcelComputeState::new())
+                .map(|_| MorcelComputeState::new(morcel_size))
+                .chain(std::iter::once(MorcelComputeState::new(last_one_size)))
                 .collect(),
-            global: MorcelComputeState::new(),
+            global: MorcelComputeState::new(1),
         }
     }
 
@@ -181,8 +188,13 @@ impl<CS: ComputeState + Send + Sync> ShuffleComputeState<CS> {
     ) where
         A: StateType,
     {
+        // 0 / 2 -> 0
+        // 1 / 2 -> 0
+        // 2 / 2 -> 1
         let morcel_id = p_id / self.morcel_size;
-        self.parts[morcel_id].accumulate_into(ss, p_id, a, agg_ref)
+        let offset = p_id % self.morcel_size;
+        println!("acc {p_id} into morcel_id: {}", morcel_id);
+        self.parts[morcel_id].accumulate_into(ss, offset, a, agg_ref)
     }
 
     pub fn read_with_pid<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
@@ -268,9 +280,7 @@ impl<CS: ComputeState + Send + Sync> ShuffleComputeState<CS> {
             .flat_map(|(_, part)| part.read_vec(ss, agg_def, g))
             .collect()
     }
-}
 
-impl<CS: ComputeState + Send> ShuffleComputeState<CS> {
     pub fn finalize<A, B, F, IN, OUT, ACC: Accumulator<A, IN, OUT>, G: GraphViewOps>(
         self,
         agg_def: &AccId<A, IN, OUT, ACC>,
@@ -296,6 +306,50 @@ impl<CS: ComputeState + Send> ShuffleComputeState<CS> {
             .into_iter()
             .map(|(k, v)| (k, f(v)))
             .collect()
+    }
+
+    pub fn iter<'a, A: StateType, IN: 'a, OUT: 'a, ACC: Accumulator<A, IN, OUT>>(
+        &'a self,
+        ss: usize,
+        acc_id: AccId<A, IN, OUT, ACC>,
+    ) -> impl Iterator<Item = (usize, Option<&A>)> + 'a {
+        self.parts
+            .iter()
+            .flat_map(move |part| part.iter(ss, &acc_id))
+            .enumerate()
+    }
+
+    pub fn iter_vec<'a, A: StateType, IN: 'a, OUT: 'a, ACC: Accumulator<A, IN, OUT>>(
+        &'a self,
+        ss: usize,
+        acc_id: AccId<A, IN, OUT, ACC>,
+    ) -> impl Iterator<Item = Vec<OUT>> + 'a {
+        self.parts.iter().map(move |part| {
+            part.iter(ss, &acc_id)
+                .map(|a| {
+                    if let Some(a_ref) = a {
+                        ACC::finish(a_ref)
+                    } else {
+                        ACC::finish(&ACC::zero())
+                    }
+                })
+                .collect_vec()
+        })
+    }
+
+    pub fn iter_out<'a, A: StateType, IN: 'a, OUT: 'a, ACC: Accumulator<A, IN, OUT>>(
+        &'a self,
+        ss: usize,
+        acc_id: AccId<A, IN, OUT, ACC>,
+    ) -> impl Iterator<Item = (usize, OUT)> + 'a {
+        self.iter(ss, acc_id).map(|(id, a)| {
+            let out = if let Some(a_ref) = a {
+                ACC::finish(a_ref)
+            } else {
+                ACC::finish(&ACC::zero())
+            };
+            (id, out)
+        })
     }
 }
 

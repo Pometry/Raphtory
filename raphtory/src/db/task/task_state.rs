@@ -28,8 +28,8 @@ impl<'a, S: 'static> Local2<'a, S> {
 }
 
 impl<CS: ComputeState> Shard<CS> {
-    pub(crate) fn new(num_morcels: usize, morcel_size: usize) -> Self {
-        Self(Arc::new(ShuffleComputeState::new(num_morcels, morcel_size)))
+    pub(crate) fn new(total_len: usize, num_morcels: usize, morcel_size: usize) -> Self {
+        Self(Arc::new(ShuffleComputeState::new(total_len, num_morcels, morcel_size)))
     }
 
     pub(crate) fn as_cow(&self) -> Cow<'_, ShuffleComputeState<CS>> {
@@ -68,7 +68,7 @@ impl<CS: ComputeState> From<Arc<ShuffleComputeState<CS>>> for Shard<CS> {
 
 impl<CS: ComputeState> Global<CS> {
     pub(crate) fn new() -> Self {
-        Self(Arc::new(ShuffleComputeState::new(0, 0)))
+        Self(Arc::new(ShuffleComputeState::new(0, 0, 0)))
     }
 
     pub(crate) fn as_cow(&self) -> Cow<'_, ShuffleComputeState<CS>> {
