@@ -69,7 +69,7 @@ pub fn sx_superuser_file() -> Result<PathBuf, Box<dyn std::error::Error>> {
     fetch_file(
         "sx-superuser.txt.gz",
         true,
-        "https://snap.stanford.edu/data/sx-superuser.txt.gz",
+        "http://web.archive.org/web/20230309171639/https://snap.stanford.edu/data/sx-superuser.txt.gz",
         600,
     )
 }
