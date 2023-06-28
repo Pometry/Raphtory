@@ -34,7 +34,7 @@ impl From<InternalGraph> for GraphWithDeletions {
 
 impl IntoDynamic for GraphWithDeletions {
     fn into_dynamic(self) -> DynamicGraph {
-        Arc::new(self)
+        DynamicGraph::new(self)
     }
 }
 
