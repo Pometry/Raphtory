@@ -69,7 +69,7 @@ pub fn reddit_file(
         _ => fetch_file(
             "reddit-title.tsv",
             true,
-            "http://snap.stanford.edu/data/soc-redditHyperlinks-title.tsv",
+            "http://web.archive.org/web/20201107005944/http://snap.stanford.edu/data/soc-redditHyperlinks-title.tsv",
             timeout,
         ),
     }
