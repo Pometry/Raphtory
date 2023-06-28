@@ -158,6 +158,7 @@ impl<T, const N: usize> RawStorage<T, N> {
                         guard2: guard_j,
                     };
                 }
+                // TODO add a counter to avoid spinning for too long
             }
         } else {
             PairEntryMut::Same {
@@ -213,12 +214,12 @@ impl<'a, T: 'static, const N: usize> Entry<'a, T, N> {
 
     pub fn map<U, F: Fn(&T)->&U>(self, f: F) -> LockedView<'a, U> {
         let (_, offset) = resolve::<N>(self.i);
-        let x = RwLockReadGuard::map(self.guard, |guard| {
+        let mapped_guard = RwLockReadGuard::map(self.guard, |guard| {
             let what = &guard[offset].as_ref();
             f(what.unwrap())
         });
         
-        LockedView::Locked(x)
+        LockedView::Locked(mapped_guard)
     }
 }
 
@@ -282,34 +283,9 @@ impl<'a, T> DerefMut for EntryMut<'a, T> {
 
 #[cfg(test)]
 mod test {
-    use lock_api::RawRwLock;
     use rayon::prelude::{IntoParallelIterator, ParallelIterator};
 
     use super::RawStorage;
-
-    struct NoLock;
-
-    unsafe impl RawRwLock for NoLock {
-        const INIT: Self = Self;
-
-        type GuardMarker = lock_api::GuardNoSend;
-
-        fn lock_shared(&self) {}
-
-        fn try_lock_shared(&self) -> bool {
-            true
-        }
-
-        unsafe fn unlock_shared(&self) {}
-
-        fn lock_exclusive(&self) {}
-
-        fn try_lock_exclusive(&self) -> bool {
-            true
-        }
-
-        unsafe fn unlock_exclusive(&self) {}
-    }
 
     #[test]
     fn add_5_values_to_storage() {

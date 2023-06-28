@@ -3,8 +3,7 @@ use std::{ops::Deref, sync::Arc};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    core::Direction,
-    storage::{self, ArcEntry, Entry, EntryMut, PairEntryMut},
+    core::{Direction, storage::{self, EntryMut, Entry, ArcEntry, PairEntryMut}},
 };
 
 use super::{edge_store::EdgeStore, node_store::NodeStore};

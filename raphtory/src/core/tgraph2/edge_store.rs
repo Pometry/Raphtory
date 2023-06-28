@@ -19,7 +19,7 @@ pub(crate) struct EdgeStore<const N: usize> {
 
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
 pub(crate) struct EdgeLayer {
-    timestamps: TimeIndex,
+    additions: TimeIndex,
     deletions: TimeIndex,
     props: Option<Props>, // memory optimisation: only allocate props if needed
 }
@@ -30,7 +30,7 @@ impl EdgeLayer {
     }
 
     pub fn update_time(&mut self, t: i64) {
-        self.timestamps.insert(t);
+        self.additions.insert(t);
     }
 
     pub fn delete(&mut self, t: i64) {
@@ -56,8 +56,8 @@ impl EdgeLayer {
         self.props.as_ref().map(|props| props.static_prop_ids()).unwrap_or_default()
     }
 
-    pub fn timestamps(&self) -> &TimeIndex {
-        &self.timestamps
+    pub fn additions(&self) -> &TimeIndex {
+        &self.additions
     }
 
     pub(crate) fn static_property(&self, prop_id: usize) -> Option<&Prop> {
@@ -129,11 +129,13 @@ impl<const N: usize> EdgeStore<N> {
     }
 
     pub fn layer_timestamps(&self, layer_id: usize) -> &TimeIndex {
-        &self.layers.get(layer_id).unwrap().timestamps
+        &self.layers.get(layer_id).unwrap().additions
     }
+
     pub fn layer_deletions(&self, layer_id: usize) -> &TimeIndex {
         &self.layers.get(layer_id).unwrap().deletions
     }
+
     pub fn temporal_prop(&self, layer_id: usize, prop_id: usize) -> Option<&TProp> {
         self.layers
             .get(layer_id)

@@ -13,7 +13,7 @@ const SMALL_SET: usize = 1024;
  *
  *  */
 #[derive(Debug, Default, Serialize, Deserialize, PartialEq)]
-pub enum TAdjSet<K: Ord + Copy + Hash + Send + Sync, V: Into<usize>+ Copy + Send + Sync> {
+pub enum AdjSet<K: Ord + Copy + Hash + Send + Sync, V: Into<usize>+ Copy + Send + Sync> {
     #[default]
     Empty,
     One(K, V),
@@ -27,7 +27,7 @@ pub enum TAdjSet<K: Ord + Copy + Hash + Send + Sync, V: Into<usize>+ Copy + Send
     // TODO: if we use BTreeSet<(K, Option<V>)> we could implement intersections and support edge label queries such as a && b
 }
 
-impl<K: Ord + Copy + Hash + Send + Sync, V: Into<usize> + Copy + Send + Sync> TAdjSet<K, V> {
+impl<K: Ord + Copy + Hash + Send + Sync, V: Into<usize> + Copy + Send + Sync> AdjSet<K, V> {
     
     pub fn new(v: K, e: V) -> Self {
         Self::One(v, e)
@@ -35,10 +35,10 @@ impl<K: Ord + Copy + Hash + Send + Sync, V: Into<usize> + Copy + Send + Sync> TA
 
     pub fn push(&mut self, v: K, e: V) {
         match self {
-            TAdjSet::Empty => {
+            AdjSet::Empty => {
                 *self = Self::new(v, e);
             }
-            TAdjSet::One(vv, ee) => {
+            AdjSet::One(vv, ee) => {
                 if *vv < v {
                     *self = Self::Small {
                         vs: vec![*vv, v],
@@ -51,7 +51,7 @@ impl<K: Ord + Copy + Hash + Send + Sync, V: Into<usize> + Copy + Send + Sync> TA
                     }
                 }
             }
-            TAdjSet::Small { vs, edges } => match vs.binary_search(&v) {
+            AdjSet::Small { vs, edges } => match vs.binary_search(&v) {
                 Ok(_) => {}
                 Err(i) => {
                     if vs.len() < SMALL_SET {
@@ -65,7 +65,7 @@ impl<K: Ord + Copy + Hash + Send + Sync, V: Into<usize> + Copy + Send + Sync> TA
                     }
                 }
             },
-            TAdjSet::Large { vs } => {
+            AdjSet::Large { vs } => {
                 vs.insert(v, e);
             }
         }
@@ -73,35 +73,35 @@ impl<K: Ord + Copy + Hash + Send + Sync, V: Into<usize> + Copy + Send + Sync> TA
 
     pub fn iter(&self) -> Box<dyn Iterator<Item = (K, V)> + Send + '_> {
         match self {
-            TAdjSet::Empty => Box::new(std::iter::empty()),
-            TAdjSet::One(v, e) => Box::new(std::iter::once((*v, *e))),
-            TAdjSet::Small { vs, edges } => Box::new(vs.iter().copied().zip(edges.iter().copied())),
-            TAdjSet::Large { vs } => Box::new(vs.iter().map(|(k, v)| (*k, *v))),
+            AdjSet::Empty => Box::new(std::iter::empty()),
+            AdjSet::One(v, e) => Box::new(std::iter::once((*v, *e))),
+            AdjSet::Small { vs, edges } => Box::new(vs.iter().copied().zip(edges.iter().copied())),
+            AdjSet::Large { vs } => Box::new(vs.iter().map(|(k, v)| (*k, *v))),
         }
     }
 
     pub fn vertices(&self) -> Box<dyn Iterator<Item = K> + Send + '_> {
         match self {
-            TAdjSet::Empty => Box::new(std::iter::empty()),
-            TAdjSet::One(v, ..) => Box::new(std::iter::once(*v)),
-            TAdjSet::Small { vs, .. } => Box::new(vs.iter().copied()),
-            TAdjSet::Large { vs } => Box::new(vs.keys().copied()),
+            AdjSet::Empty => Box::new(std::iter::empty()),
+            AdjSet::One(v, ..) => Box::new(std::iter::once(*v)),
+            AdjSet::Small { vs, .. } => Box::new(vs.iter().copied()),
+            AdjSet::Large { vs } => Box::new(vs.keys().copied()),
         }
     }
 
     pub fn find(&self, v: K) -> Option<V> {
         match self {
-            TAdjSet::Empty => None,
-            TAdjSet::One(vv, e) => (*vv == v).then_some(*e),
-            TAdjSet::Small { vs, edges } => vs.binary_search(&v).ok().map(|i| edges[i]),
-            TAdjSet::Large { vs } => vs.get(&v).copied(),
+            AdjSet::Empty => None,
+            AdjSet::One(vv, e) => (*vv == v).then_some(*e),
+            AdjSet::Small { vs, edges } => vs.binary_search(&v).ok().map(|i| edges[i]),
+            AdjSet::Large { vs } => vs.get(&v).copied(),
         }
     }
 
     pub fn get_page_vec(&self, last: Option<K>, page_size: usize) -> Vec<(K, V)> {
         match self {
-            TAdjSet::Empty => vec![],
-            TAdjSet::One(v, i) => {
+            AdjSet::Empty => vec![],
+            AdjSet::One(v, i) => {
                 if let Some(l) = last {
                     if l < *v {
                         vec![(*v, *i)]
@@ -112,7 +112,7 @@ impl<K: Ord + Copy + Hash + Send + Sync, V: Into<usize> + Copy + Send + Sync> TA
                     vec![(*v, *i)]
                 }
             }
-            TAdjSet::Small { vs, edges } => {
+            AdjSet::Small { vs, edges } => {
                 if let Some(l) = last {
 
                     let i = match vs.binary_search(&l) {
@@ -138,7 +138,7 @@ impl<K: Ord + Copy + Hash + Send + Sync, V: Into<usize> + Copy + Send + Sync> TA
                         .collect()
                 }
             },
-            TAdjSet::Large { vs } => {
+            AdjSet::Large { vs } => {
                 if let Some(l) = last {
                     vs.range(l..)
                         .skip(1)
@@ -159,7 +159,7 @@ mod tadjset_tests {
 
     #[quickcheck]
     fn insert_fuzz(input: Vec<usize>) -> bool {
-        let mut ts: TAdjSet<usize, usize> = TAdjSet::default();
+        let mut ts: AdjSet<usize, usize> = AdjSet::default();
 
         for (e, i) in input.iter().enumerate() {
             ts.push(*i, e);
@@ -176,7 +176,7 @@ mod tadjset_tests {
 
     #[test]
     fn insert() {
-        let mut ts: TAdjSet<usize, usize> = TAdjSet::default();
+        let mut ts: AdjSet<usize, usize> = AdjSet::default();
 
         ts.push(7, 5);
         let actual = ts.iter().collect::<Vec<_>>();
@@ -186,7 +186,7 @@ mod tadjset_tests {
 
     #[test]
     fn insert_large() {
-        let mut ts: TAdjSet<usize, usize> = TAdjSet::default();
+        let mut ts: AdjSet<usize, usize> = AdjSet::default();
 
         for i in 0..SMALL_SET + 2 {
             ts.push(i, i);
@@ -199,7 +199,7 @@ mod tadjset_tests {
 
     #[test]
     fn insert_twice() {
-        let mut ts: TAdjSet<usize, usize> = TAdjSet::default();
+        let mut ts: AdjSet<usize, usize> = AdjSet::default();
 
         ts.push(7, 9);
         ts.push(7, 9);
@@ -211,7 +211,7 @@ mod tadjset_tests {
 
     #[test]
     fn insert_two_different() {
-        let mut ts: TAdjSet<usize, usize> = TAdjSet::default();
+        let mut ts: AdjSet<usize, usize> = AdjSet::default();
 
         ts.push(1, 0);
         ts.push(7, 1);

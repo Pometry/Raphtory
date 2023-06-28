@@ -16,7 +16,6 @@ struct Edge {
 }
 
 fn main() {
-
     let now = Instant::now();
 
     let args: Vec<String> = env::args().collect();
@@ -35,7 +34,7 @@ fn main() {
             })
             .expect("Failed to load graph from encoded data files");
 
-        // g.save_to_file("/tmp/pokec").expect("Failed to save graph to file");
+        g.save_to_file("/tmp/pokec").expect("Failed to save graph to file");
         g
     };
 
@@ -47,18 +46,18 @@ fn main() {
         now.elapsed().as_secs()
     );
 
-    // let now = Instant::now();
+    let now = Instant::now();
 
-    // unweighted_page_rank(&g, 100, None, Some(0.00000001), true);
+    unweighted_page_rank(&g, 100, None, Some(0.00000001), true);
 
-    // println!("PageRank took {} millis", now.elapsed().as_millis());
+    println!("PageRank took {} millis", now.elapsed().as_millis());
 
-    // let now = Instant::now();
+    let now = Instant::now();
 
-    // weakly_connected_components(&g, 100, None);
+    weakly_connected_components(&g, 100, None);
 
-    // println!(
-    //     "Connected Components took {} millis",
-    //     now.elapsed().as_millis()
-    // );
+    println!(
+        "Connected Components took {} millis",
+        now.elapsed().as_millis()
+    );
 }

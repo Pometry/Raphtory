@@ -10,7 +10,7 @@ use std::sync::Arc;
 use super::{
     accumulator_id::AccId,
     compute_state::ComputeState,
-    shard_state::{MorcelComputeState, GLOBAL_STATE_KEY},
+    morcel_state::{MorcelComputeState, GLOBAL_STATE_KEY},
     StateType,
 };
 

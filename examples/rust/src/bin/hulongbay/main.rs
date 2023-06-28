@@ -200,33 +200,6 @@ fn try_main_bm() -> Result<(), Box<dyn Error>> {
         now.elapsed().as_millis()
     );
 
-    println!("\n Immutable graph metrics:");
-
-    let now = Instant::now();
-    let num_edges: usize = graph
-        .vertices().into_iter()
-        .map(|v| v.out_degree())
-        .sum();
-
-    println!(
-        "Counting edges by summing degrees returned {} in {} milliseconds",
-        num_edges,
-        now.elapsed().as_millis()
-    );
-
-    let earliest_time = graph.earliest_time().ok_or(GraphEmptyError)?;
-    let latest_time = graph.latest_time().ok_or(GraphEmptyError)?;
-
-    println!("graph time range: {}-{}", earliest_time, latest_time);
-
-    let now = Instant::now();
-    let num_edges2 = graph.num_edges();
-    println!(
-        "num_edges returned {} in {} milliseconds",
-        num_edges2,
-        now.elapsed().as_millis()
-    );
-
     Ok(())
 }
 

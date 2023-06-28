@@ -1,5 +1,7 @@
 use crate::core::time::error::ParseTimeError;
 
+use super::{lazy_vec::IllegalSet, Prop};
+
 #[derive(thiserror::Error, Debug)]
 pub enum GraphError {
     #[error("Immutable graph reference already exists. You can access mutable graph apis only exclusively.")]
@@ -44,8 +46,6 @@ impl From<MutateGraphError> for GraphError {
     }
 }
 
-use crate::core::props::IllegalMutate;
-
 #[derive(thiserror::Error, Debug, PartialEq)]
 pub enum MutateGraphError {
     #[error("Create vertex '{vertex_id}' first before adding static properties to it")]
@@ -75,3 +75,19 @@ pub enum MutateGraphError {
 }
 
 pub type MutateGraphResult = Result<(), MutateGraphError>;
+
+#[derive(thiserror::Error, Debug, PartialEq)]
+#[error("cannot mutate static property '{name}'")]
+pub struct IllegalMutate {
+    pub name: String,
+    pub source: IllegalSet<Option<Prop>>,
+}
+
+impl IllegalMutate {
+    pub(crate) fn from_source(source: IllegalSet<Option<Prop>>, prop: &str) -> IllegalMutate {
+        IllegalMutate {
+            name: prop.to_string(),
+            source,
+        }
+    }
+}

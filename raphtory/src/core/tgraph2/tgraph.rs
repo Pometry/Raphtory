@@ -4,18 +4,16 @@ use dashmap::DashMap;
 use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    core::{
-        errors::{GraphError, MutateGraphError},
-        locked_view::LockedView,
-        time::TryIntoTime,
-        timeindex::TimeIndexOps,
-        tprop::TProp,
-        vertex::InputVertex,
-        vertex_ref::VertexRef,
-        Direction, Prop, PropUnwrap,
-    },
+use crate::core::{
+    errors::{GraphError, MutateGraphError},
+    locked_view::LockedView,
     storage::Entry,
+    time::TryIntoTime,
+    timeindex::TimeIndexOps,
+    tprop::TProp,
+    vertex::InputVertex,
+    vertex_ref::VertexRef,
+    Direction, Prop, PropUnwrap,
 };
 
 use super::{
@@ -59,10 +57,10 @@ pub struct TemporalGraph<const N: usize> {
     pub(in crate::core) latest_time: MaxCounter,
 
     // props meta data for vertices (mapping between strings and ids)
-    pub(in crate::core) vertex_props_meta: Meta,
+    pub(in crate::core) vertex_meta: Meta,
 
     // props meta data for edges (mapping between strings and ids)
-    pub(in crate::core) edge_props_meta: Meta,
+    pub(in crate::core) edge_meta: Meta,
 
     // graph properties
     pub(in crate::core) graph_props: GraphProps,
@@ -86,8 +84,8 @@ impl<const N: usize> Default for InnerTemporalGraph<N> {
             storage: GraphStorage::new(),
             earliest_time: MinCounter::new(),
             latest_time: MaxCounter::new(),
-            vertex_props_meta: Meta::new(),
-            edge_props_meta: Meta::new(),
+            vertex_meta: Meta::new(),
+            edge_meta: Meta::new(),
             graph_props: GraphProps::new(),
         };
 
@@ -97,18 +95,18 @@ impl<const N: usize> Default for InnerTemporalGraph<N> {
 
 impl<const N: usize> InnerTemporalGraph<N> {
     pub(crate) fn get_all_layers(&self) -> Vec<usize> {
-        self.edge_props_meta.get_all_layers()
+        self.edge_meta.get_all_layers()
     }
 
     pub(crate) fn layer_id(&self, key: Option<&str>) -> Option<usize> {
         match key {
-            Some(key) => self.edge_props_meta.get_layer_id(key),
+            Some(key) => self.edge_meta.get_layer_id(key),
             None => Some(0),
         }
     }
 
     pub(crate) fn get_layer_name(&self, layer: usize) -> String {
-        self.edge_props_meta
+        self.edge_meta
             .get_layer_name_by_id(layer)
             .unwrap_or_else(|| panic!("layer id '{layer}' doesn't exist"))
             .to_string()
@@ -144,7 +142,7 @@ impl<const N: usize> InnerTemporalGraph<N> {
 
     pub(crate) fn vertex_name(&self, v: VID) -> String {
         let node = self.storage.get_node(v.into());
-        let name_prop_id = self.vertex_props_meta.resolve_prop_id("_id", true);
+        let name_prop_id = self.vertex_meta.resolve_prop_id("_id", true);
         let prop = node.static_property(name_prop_id);
         prop.cloned()
             .into_str()
@@ -160,7 +158,7 @@ impl<const N: usize> InnerTemporalGraph<N> {
     }
 
     pub(crate) fn vertex_reverse_prop_id(&self, prop_id: usize, is_static: bool) -> Option<String> {
-        self.vertex_props_meta.reverse_prop_id(prop_id, is_static)
+        self.vertex_meta.reverse_prop_id(prop_id, is_static)
     }
 
     pub(crate) fn edge_temp_prop_ids(&self, e: EID) -> Vec<usize> {
@@ -174,17 +172,17 @@ impl<const N: usize> InnerTemporalGraph<N> {
     }
 
     pub(crate) fn edge_find_prop(&self, prop: &str, is_static: bool) -> Option<usize> {
-        self.edge_props_meta.find_prop_id(prop, is_static)
+        self.edge_meta.find_prop_id(prop, is_static)
     }
 
     pub(crate) fn vertex_find_prop(&self, prop: &str, is_static: bool) -> Option<usize> {
-        self.vertex_props_meta.find_prop_id(prop, is_static)
+        self.vertex_meta.find_prop_id(prop, is_static)
     }
 
     pub(crate) fn edge_reverse_prop_id(&self, prop_id: usize, is_static: bool) -> Option<String> {
-        let out = self.edge_props_meta.reverse_prop_id(prop_id, is_static);
+        let out = self.edge_meta.reverse_prop_id(prop_id, is_static);
         if out.is_none() {
-            println!("reverse_prop_id_map: {:?}", self.edge_props_meta);
+            println!("reverse_prop_id_map: {:?}", self.edge_meta);
             println!("reverse_prop_id: {} -> {:?}", prop_id, out);
         }
         out
@@ -223,14 +221,14 @@ impl<const N: usize> InnerTemporalGraph<N> {
 
         // resolve the props without holding any locks
         let props = self
-            .vertex_props_meta
+            .vertex_meta
             .resolve_prop_ids(props, false)
             .collect::<Vec<_>>();
 
         let name_prop = name
             .or_else(|| v.id_str())
             .map(|n| {
-                self.vertex_props_meta
+                self.vertex_meta
                     .resolve_prop_ids(vec![("_id".to_string(), Prop::Str(n.to_owned()))], true)
                     .collect::<Vec<_>>()
             })
@@ -283,7 +281,7 @@ impl<const N: usize> InnerTemporalGraph<N> {
         if let Some(vid) = self.logical_to_physical.get(&v).map(|entry| *entry) {
             let mut node = self.storage.get_node_mut(vid);
             for (prop_name, prop) in data {
-                let prop_id = self.vertex_props_meta.resolve_prop_id(&prop_name, true);
+                let prop_id = self.vertex_meta.resolve_prop_id(&prop_name, true);
                 node.add_static_prop(prop_id, &prop_name, prop.clone())
                     .map_err(|err| GraphError::FailedToMutateGraph { source: err })?;
             }
@@ -316,7 +314,7 @@ impl<const N: usize> InnerTemporalGraph<N> {
 
         let layer_id = layer
             .map(|name| {
-                self.edge_props_meta
+                self.edge_meta
                     .get_layer_id(name)
                     .ok_or(GraphError::FailedToMutateGraph {
                         source: MutateGraphError::LayerNotFoundError {
@@ -337,7 +335,7 @@ impl<const N: usize> InnerTemporalGraph<N> {
         let mut edge = self.storage.get_edge_mut(edge_id.into());
 
         let props = self
-            .edge_props_meta
+            .edge_meta
             .resolve_prop_ids(props.clone(), true)
             .collect::<Vec<_>>();
 
@@ -412,10 +410,7 @@ impl<const N: usize> InnerTemporalGraph<N> {
 
     fn get_or_allocate_layer(&self, layer: Option<&str>) -> usize {
         layer
-            .map(|layer| {
-                self.edge_props_meta
-                    .get_or_create_layer_id(layer.to_owned())
-            })
+            .map(|layer| self.edge_meta.get_or_create_layer_id(layer.to_owned()))
             .unwrap_or(0)
     }
 
@@ -473,7 +468,7 @@ impl<const N: usize> InnerTemporalGraph<N> {
         let layer = self.get_or_allocate_layer(layer);
 
         let props = self
-            .edge_props_meta
+            .edge_meta
             .resolve_prop_ids(props.clone(), false)
             .collect::<Vec<_>>();
 
@@ -547,10 +542,10 @@ impl<const N: usize> InnerTemporalGraph<N> {
         layer: usize,
     ) -> Vec<(i64, Prop)> {
         let edge = self.storage.get_edge(e.into());
-        if !edge.unsafe_layer(layer).timestamps().active(t_start..t_end) {
+        if !edge.unsafe_layer(layer).additions().active(t_start..t_end) {
             vec![]
         } else {
-            let prop_id = self.edge_props_meta.resolve_prop_id(name, false);
+            let prop_id = self.edge_meta.resolve_prop_id(name, false);
 
             edge.props(None)
                 .flat_map(|props| props.temporal_props_window(prop_id, t_start, t_end))

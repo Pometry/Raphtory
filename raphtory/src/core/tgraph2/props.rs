@@ -6,7 +6,7 @@ use std::{
 use serde::{Deserialize, Serialize};
 
 use crate::core::{
-    lazy_vec::LazyVec, errors::MutateGraphError, tprop::TProp, Prop, props::IllegalMutate,
+    lazy_vec::LazyVec, errors::{MutateGraphError, IllegalMutate}, tprop::TProp, Prop,
 };
 
 use super::tgraph::FxDashMap;
@@ -16,6 +16,12 @@ pub(crate) struct Props {
     // properties
     static_props: LazyVec<Option<Prop>>,
     temporal_props: LazyVec<TProp>,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash, Clone)]
+enum PropId {
+    Static(usize),
+    Temporal(usize),
 }
 
 impl Props {

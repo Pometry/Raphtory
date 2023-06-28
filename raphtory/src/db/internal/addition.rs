@@ -1,6 +1,6 @@
 use crate::{
     core::{tgraph2::tgraph::InnerTemporalGraph, errors::GraphError},
-    db::mutation_api::internal::InternalAdditionOps,
+    db::mutation_api::internal::InternalAdditionOps, prelude::Prop,
 };
 
 impl<const N: usize> InternalAdditionOps for InnerTemporalGraph<N> {
@@ -9,7 +9,7 @@ impl<const N: usize> InternalAdditionOps for InnerTemporalGraph<N> {
         t: i64,
         v: u64,
         name: Option<&str>,
-        props: Vec<(String, crate::prelude::Prop)>,
+        props: Vec<(String, Prop)>,
     ) -> Result<(), GraphError> {
         self.add_vertex_internal(t, v, name, props)
     }
@@ -19,7 +19,7 @@ impl<const N: usize> InternalAdditionOps for InnerTemporalGraph<N> {
         t: i64,
         src: u64,
         dst: u64,
-        props: Vec<(String, crate::prelude::Prop)>,
+        props: Vec<(String, Prop)>,
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
         self.add_edge_internal(t, src, dst, props, layer)    

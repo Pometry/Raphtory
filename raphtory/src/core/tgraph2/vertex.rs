@@ -2,15 +2,13 @@ use std::{ops::Range, sync::Arc};
 
 use itertools::Itertools;
 
-use crate::{
-    core::{
-        edge_ref::EdgeRef,
-        locked_view::LockedView,
-        timeindex::{TimeIndex, TimeIndexOps},
-        tprop::TProp,
-        Direction, Prop,
-    },
+use crate::core::{
+    edge_ref::EdgeRef,
+    locked_view::LockedView,
     storage::{ArcEntry, Entry},
+    timeindex::{TimeIndex, TimeIndexOps},
+    tprop::TProp,
+    Direction, Prop,
 };
 
 use super::{
@@ -45,7 +43,7 @@ impl<'a, const N: usize> Vertex<'a, N> {
         name: &str,
         window: Option<Range<i64>>,
     ) -> impl Iterator<Item = (i64, Prop)> + 'a {
-        let prop_id = self.graph.vertex_props_meta.resolve_prop_id(name, false);
+        let prop_id = self.graph.vertex_meta.resolve_prop_id(name, false);
         (&self.node).temporal_properties(prop_id, window)
     }
 
@@ -57,7 +55,7 @@ impl<'a, const N: usize> Vertex<'a, N> {
         let layer = layer
             .map(|layer| {
                 self.graph
-                    .vertex_props_meta
+                    .vertex_meta
                     .get_or_create_layer_id(layer.to_owned())
             })
             .unwrap_or_default();
@@ -84,7 +82,7 @@ impl<'a, const N: usize> Vertex<'a, N> {
     ) -> impl Iterator<Item = Vertex<'a, N>> + 'a {
         let layer = self
             .graph
-            .vertex_props_meta
+            .vertex_meta
             .get_or_create_layer_id(layer.to_owned());
 
         (*self.node)
@@ -172,5 +170,4 @@ impl<const N: usize> ArcEdge<N> {
     ) -> impl Iterator<Item = &i64> + '_ {
         self.e.layer_timestamps(layer).range_iter(w)
     }
-
 }

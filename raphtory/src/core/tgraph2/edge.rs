@@ -8,9 +8,8 @@ use crate::{
         locked_view::LockedView,
         timeindex::{TimeIndex, TimeIndexOps},
         tprop::TProp,
-        Direction, Prop,
+        Direction, Prop, storage::Entry,
     },
-    storage::Entry,
 };
 
 use super::{
@@ -103,7 +102,7 @@ impl<'a, const N: usize> EdgeView<'a, N> {
         layer: usize,
         window: Option<Range<i64>>,
     ) -> Vec<(i64, Prop)> {
-        let prop_id = self.graph.edge_props_meta.resolve_prop_id(name, false);
+        let prop_id = self.graph.edge_meta.resolve_prop_id(name, false);
         let store = &self.edge_id;
         let out = store
             .layer(layer)
@@ -234,9 +233,9 @@ impl<'a, const N: usize> EdgeView<'a, N> {
         match &self.edge_id {
             ERef::ELock { lock, .. } => {
                 let e = lock.get_edge(self.edge_id().into());
-                e.unsafe_layer(layer_id).timestamps().active(w)
+                e.unsafe_layer(layer_id).additions().active(w)
             }
-            ERef::ERef(entry) => (*entry).unsafe_layer(layer_id).timestamps().active(w),
+            ERef::ERef(entry) => (*entry).unsafe_layer(layer_id).additions().active(w),
         }
     }
 }

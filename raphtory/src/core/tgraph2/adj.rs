@@ -4,7 +4,7 @@ use crate::core::Direction;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
-use super::{EID, VID, tadjset::TAdjSet};
+use super::{EID, VID, adjset::AdjSet};
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Default)]
 pub(crate) enum Adj {
@@ -12,8 +12,8 @@ pub(crate) enum Adj {
     Solo,
     List {
         // local:
-        out: TAdjSet<VID, EID>,
-        into: TAdjSet<VID, EID>,
+        out: AdjSet<VID, EID>,
+        into: AdjSet<VID, EID>,
     },
 }
 
@@ -33,15 +33,15 @@ impl Adj {
 
     pub(crate) fn new_out(v: VID, e: EID) -> Self {
         Adj::List {
-            out: TAdjSet::new(v, e),
-            into: TAdjSet::default(),
+            out: AdjSet::new(v, e),
+            into: AdjSet::default(),
         }
     }
 
     pub(crate) fn new_into(v: VID, e: EID) -> Self {
         Adj::List {
-            into: TAdjSet::new(v, e),
-            out: TAdjSet::default(),
+            into: AdjSet::new(v, e),
+            out: AdjSet::default(),
         }
     }
 

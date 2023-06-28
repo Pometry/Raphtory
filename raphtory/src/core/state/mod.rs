@@ -1,7 +1,7 @@
 pub mod accumulator_id;
 pub mod compute_state;
 pub mod container;
-pub mod shard_state;
+pub mod morcel_state;
 pub mod shuffle_state;
 
 pub trait StateType: PartialEq + Clone + std::fmt::Debug + Send + Sync + 'static {}
@@ -19,7 +19,7 @@ mod state_test {
             accumulator_id::accumulators,
             compute_state::ComputeStateVec,
             container::merge_2_vecs,
-            shard_state::MorcelComputeState,
+            morcel_state::MorcelComputeState,
             shuffle_state::ShuffleComputeState,
         },
         db::graph::Graph,
@@ -200,8 +200,6 @@ mod state_test {
 
         let sum = accumulators::sum(0);
 
-        let n = 100;
-
         let mut part1_state: ShuffleComputeState<ComputeStateVec> = ShuffleComputeState::new(2, 2);
         let mut part2_state: ShuffleComputeState<ComputeStateVec> = ShuffleComputeState::new(2, 2);
 
@@ -211,7 +209,7 @@ mod state_test {
         let mut vec2 = vec![];
         let mut actual_sum_1 = 0;
         let mut actual_sum_2 = 0;
-        for _ in 0..n {
+        for _ in 0..100 {
             // data for first partition
             let i = rng.gen_range(0..100);
             actual_sum_1 += i;

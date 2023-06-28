@@ -2,13 +2,11 @@ use std::ops::Deref;
 
 use serde::{Deserialize, Serialize};
 
-use crate::storage::Entry;
-
 use self::{edge::ERef, node_store::NodeStore, tgraph::TGraph, tgraph_storage::GraphEntry};
 
 use super::{
     vertex_ref::VertexRef,
-    Direction,
+    Direction, storage::Entry,
 };
 
 mod adj;
@@ -17,7 +15,7 @@ mod edge_store;
 mod iter;
 mod node_store;
 pub mod props;
-pub mod tadjset;
+pub mod adjset;
 pub mod tgraph;
 mod tgraph_storage;
 pub(crate) mod timer;
