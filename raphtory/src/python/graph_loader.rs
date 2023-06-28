@@ -24,9 +24,8 @@ use tokio::runtime::Runtime;
 /// Returns:
 ///   A Graph containing the LOTR dataset
 #[pyfunction]
-#[pyo3(signature = (shards=1))]
-pub fn lotr_graph(shards: usize) -> PyResult<Py<PyGraph>> {
-    PyGraph::py_from_db_graph(crate::graph_loader::example::lotr_graph::lotr_graph(shards))
+pub fn lotr_graph() -> PyResult<Py<PyGraph>> {
+    PyGraph::py_from_db_graph(crate::graph_loader::example::lotr_graph::lotr_graph())
 }
 
 /// Load (a subset of) Reddit hyperlinks dataset into a graph.
@@ -65,11 +64,10 @@ pub fn lotr_graph(shards: usize) -> PyResult<Py<PyGraph>> {
 /// Returns:
 ///  A Graph containing the Reddit hyperlinks dataset
 #[pyfunction]
-#[pyo3(signature = (shards=1,timeout_seconds=600))]
-pub fn reddit_hyperlink_graph(shards: usize, timeout_seconds: u64) -> PyResult<Py<PyGraph>> {
+#[pyo3(signature = (timeout_seconds=600))]
+pub fn reddit_hyperlink_graph(timeout_seconds: u64) -> PyResult<Py<PyGraph>> {
     PyGraph::py_from_db_graph(
         crate::graph_loader::example::reddit_hyperlinks::reddit_graph(
-            shards,
             timeout_seconds,
             false,
         ),
@@ -93,17 +91,16 @@ pub fn stable_coin_graph(
 }
 
 #[pyfunction]
-#[pyo3(signature = (uri,username,password,database="neo4j".to_string(),shards=1))]
+#[pyo3(signature = (uri,username,password,database="neo4j".to_string()))]
 pub fn neo4j_movie_graph(
     uri: String,
     username: String,
     password: String,
     database: String,
-    shards: usize,
 ) -> PyResult<Py<PyGraph>> {
     let g = Runtime::new().unwrap().block_on(
         crate::graph_loader::example::neo4j_examples::neo4j_movie_graph(
-            uri, username, password, database, shards,
+            uri, username, password, database,
         ),
     );
     PyGraph::py_from_db_graph(g)

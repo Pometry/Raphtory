@@ -1,5 +1,5 @@
 use crate::core::edge_ref::EdgeRef;
-use crate::core::tgraph_shard::LockedView;
+use crate::core::locked_view::LockedView;
 use crate::core::timeindex::TimeIndex;
 use crate::db::view_api::internal::Base;
 

@@ -1,9 +1,8 @@
 use crate::core::edge_ref::EdgeRef;
-use crate::core::tgraph_shard::errors::GraphError;
+use crate::core::tgraph::VID;
+use crate::core::errors::GraphError;
 use crate::core::timeindex::TimeIndexOps;
-use crate::core::vertex_ref::LocalVertexRef;
 use crate::core::{Direction, Prop};
-use crate::db::graph::{graph_equal, InternalGraph};
 use crate::db::mutation_api::internal::InheritMutationOps;
 use crate::db::view_api::internal::{
     Base, CoreDeletionOps, CoreGraphOps, DynamicGraph, GraphOps, InheritCoreDeletionOps,
@@ -17,6 +16,8 @@ use std::iter;
 use std::ops::Range;
 use std::path::Path;
 use std::sync::Arc;
+
+use super::graph::{InternalGraph, graph_equal};
 
 #[derive(Clone, Debug)]
 pub struct GraphWithDeletions {
@@ -59,9 +60,9 @@ impl GraphWithDeletions {
             || last_addition_before_start > last_deletion_before_start
     }
 
-    pub fn new(nr_shards: usize) -> Self {
+    pub fn new() -> Self {
         Self {
-            graph: Arc::new(InternalGraph::new(nr_shards)),
+            graph: Arc::new(InternalGraph::default()),
         }
     }
 
@@ -77,16 +78,17 @@ impl GraphWithDeletions {
     ///
     /// # Example
     ///
-    /// ```
-    /// use raphtory::db::graph::InternalGraph;
+    /// ```no_run
+    /// use raphtory::db::graph::Graph;
     /// use std::fs::File;
     /// use raphtory::db::mutation_api::AdditionOps;
-    /// let g = InternalGraph::new(4);
+    /// let g = Graph::new();
     /// g.add_vertex(1, 1, []).unwrap();
-    /// // g.save_to_file("path_str");
+    /// g.save_to_file("path_str");
     /// ```
     pub fn save_to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), GraphError> {
-        self.graph.save_to_file(path)
+        self.graph.save_to_file(path)?;
+        Ok(())
     }
 
     /// Load a graph from a directory
@@ -101,9 +103,9 @@ impl GraphWithDeletions {
     ///
     /// # Example
     ///
-    /// ```
-    /// use raphtory::db::graph::InternalGraph;
-    /// // let g = Graph::load_from_file("path/to/graph");
+    /// ```no_run
+    /// use raphtory::db::graph::Graph;
+    /// let g = Graph::load_from_file("path/to/graph");
     /// ```
     pub fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self, GraphError> {
         Ok(Self {
@@ -147,7 +149,7 @@ impl InheritCoreDeletionOps for GraphWithDeletions {}
 impl InheritGraphOps for GraphWithDeletions {}
 
 impl TimeSemantics for GraphWithDeletions {
-    fn vertex_earliest_time(&self, v: LocalVertexRef) -> Option<i64> {
+    fn vertex_earliest_time(&self, v: VID) -> Option<i64> {
         self.graph.vertex_earliest_time(v)
     }
 
@@ -163,7 +165,7 @@ impl TimeSemantics for GraphWithDeletions {
         self.graph.earliest_time_global()
     }
 
-    fn include_vertex_window(&self, v: LocalVertexRef, w: Range<i64>) -> bool {
+    fn include_vertex_window(&self, v: VID, w: Range<i64>) -> bool {
         self.vertex_edges(v, Direction::BOTH, None)
             .any(move |e| self.include_edge_window(e, w.clone()))
     }
@@ -173,11 +175,11 @@ impl TimeSemantics for GraphWithDeletions {
         self.edge_alive_at(e, w.start) || self.edge_additions(e).active(w)
     }
 
-    fn vertex_history(&self, v: LocalVertexRef) -> Vec<i64> {
+    fn vertex_history(&self, v: VID) -> Vec<i64> {
         self.graph.vertex_history(v)
     }
 
-    fn vertex_history_window(&self, v: LocalVertexRef, w: Range<i64>) -> Vec<i64> {
+    fn vertex_history_window(&self, v: VID, w: Range<i64>) -> Vec<i64> {
         self.graph.vertex_history_window(v, w)
     }
 
@@ -285,13 +287,13 @@ impl TimeSemantics for GraphWithDeletions {
         self.graph.temporal_prop_vec_window(name, t_start, t_end)
     }
 
-    fn temporal_vertex_prop_vec(&self, v: LocalVertexRef, name: &str) -> Vec<(i64, Prop)> {
+    fn temporal_vertex_prop_vec(&self, v: VID, name: &str) -> Vec<(i64, Prop)> {
         self.graph.temporal_vertex_prop_vec(v, name)
     }
 
     fn temporal_vertex_prop_vec_window(
         &self,
-        v: LocalVertexRef,
+        v: VID,
         name: &str,
         t_start: i64,
         t_end: i64,
@@ -338,16 +340,8 @@ mod test_deletions {
     use itertools::Itertools;
 
     #[test]
-    fn option_partial_ord() {
-        // None is less than any value
-        assert!(Some(1) > None);
-        assert!(!(None::<i64> > None));
-        assert!(!(None::<i64> < None));
-    }
-
-    #[test]
     fn test_edge_deletions() {
-        let g = GraphWithDeletions::new(1);
+        let g = GraphWithDeletions::new();
 
         g.add_edge(0, 0, 1, [("added".to_string(), Prop::I64(0))], None)
             .unwrap();
@@ -386,7 +380,7 @@ mod test_deletions {
 
     #[test]
     fn test_materialize_only_deletion() {
-        let g = GraphWithDeletions::new(1);
+        let g = GraphWithDeletions::new();
         g.delete_edge(1, 1, 2, None).unwrap();
 
         assert_eq!(g.materialize().unwrap().into_persistent().unwrap(), g);
@@ -394,7 +388,7 @@ mod test_deletions {
 
     #[test]
     fn test_materialize_window() {
-        let g = GraphWithDeletions::new(1);
+        let g = GraphWithDeletions::new();
         g.add_edge(0, 1, 2, [], None).unwrap();
         g.delete_edge(10, 1, 2, None).unwrap();
 
@@ -409,7 +403,7 @@ mod test_deletions {
 
     #[test]
     fn test_exploded_latest_time() {
-        let g = GraphWithDeletions::new(1);
+        let g = GraphWithDeletions::new();
         g.add_edge(0, 1, 2, [], None).unwrap();
         g.delete_edge(10, 1, 2, None).unwrap();
         let e = g.edge(1, 2, None).unwrap();

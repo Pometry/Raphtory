@@ -11,7 +11,7 @@
 //! use raphtory::db::mutation_api::AdditionOps;
 //! use raphtory::graph_loader::example::lotr_graph::Lotr;
 //!
-//!  let g = Graph::new(2);
+//!  let g = Graph::new();
 //!  let csv_path: PathBuf = [env!("CARGO_MANIFEST_DIR"), "../../resource/"]
 //!         .iter()
 //!         .collect();
@@ -482,7 +482,7 @@ mod csv_loader_test {
 
     #[test]
     fn test_headers_flag_and_delimiter() {
-        let g = Graph::new(2);
+        let g = Graph::new();
         // todo: move file path to data module
         let csv_path: PathBuf = [env!("CARGO_MANIFEST_DIR"), "../resource/"]
             .iter()
@@ -499,7 +499,7 @@ mod csv_loader_test {
     #[test]
     #[should_panic]
     fn test_wrong_header_flag_file_with_header() {
-        let g = Graph::new(2);
+        let g = Graph::new();
         // todo: move file path to data module
         let csv_path: PathBuf = [env!("CARGO_MANIFEST_DIR"), "../../resource/"]
             .iter()
@@ -514,7 +514,7 @@ mod csv_loader_test {
     #[test]
     #[should_panic]
     fn test_flag_has_header_but_file_has_no_header() {
-        let g = Graph::new(2);
+        let g = Graph::new();
         // todo: move file path to data module
         let csv_path: PathBuf = [env!("CARGO_MANIFEST_DIR"), "../../resource/"]
             .iter()
@@ -529,7 +529,7 @@ mod csv_loader_test {
     #[test]
     #[should_panic]
     fn test_wrong_header_names() {
-        let g = Graph::new(2);
+        let g = Graph::new();
         // todo: move file path to data module
         let csv_path: PathBuf = [env!("CARGO_MANIFEST_DIR"), "../../resource/"]
             .iter()
@@ -544,7 +544,7 @@ mod csv_loader_test {
     #[test]
     #[should_panic]
     fn test_wrong_delimiter() {
-        let g = Graph::new(2);
+        let g = Graph::new();
         // todo: move file path to data module
         let csv_path: PathBuf = [env!("CARGO_MANIFEST_DIR"), "../../resource/"]
             .iter()

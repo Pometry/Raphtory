@@ -54,9 +54,8 @@ pub async fn neo4j_movie_graph(
     username: String,
     password: String,
     database: String,
-    shards: usize,
 ) -> rap::Graph {
-    let g = rap::Graph::new(shards);
+    let g = rap::Graph::new();
     let neo = Neo4JConnection::new(uri, username, password, database)
         .await
         .unwrap();

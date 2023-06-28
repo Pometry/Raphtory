@@ -186,8 +186,8 @@ mod generic_taint_tests {
     use crate::db::graph::Graph;
     use crate::db::mutation_api::AdditionOps;
 
-    fn load_graph(n_shards: usize, edges: Vec<(i64, u64, u64)>) -> Graph {
-        let graph = Graph::new(n_shards);
+    fn load_graph(edges: Vec<(i64, u64, u64)>) -> Graph {
+        let graph = Graph::new();
 
         for (t, src, dst) in edges {
             graph.add_edge(t, src, dst, [], None).unwrap();
@@ -224,7 +224,6 @@ mod generic_taint_tests {
     #[test]
     fn test_generic_taint_1() {
         let graph = load_graph(
-            1,
             vec![
                 (10, 1, 3),
                 (11, 1, 2),
@@ -264,7 +263,6 @@ mod generic_taint_tests {
     #[test]
     fn test_generic_taint_1_multiple_start() {
         let graph = load_graph(
-            1,
             vec![
                 (10, 1, 3),
                 (11, 1, 2),
@@ -307,7 +305,6 @@ mod generic_taint_tests {
     #[test]
     fn test_generic_taint_1_stop_nodes() {
         let graph = load_graph(
-            1,
             vec![
                 (10, 1, 3),
                 (11, 1, 2),
@@ -342,7 +339,6 @@ mod generic_taint_tests {
     #[test]
     fn test_generic_taint_1_multiple_history_points() {
         let graph = load_graph(
-            1,
             vec![
                 (10, 1, 3),
                 (11, 1, 2),

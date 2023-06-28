@@ -1,9 +1,10 @@
 use crate::core::edge_ref::EdgeRef;
-use crate::core::vertex_ref::{LocalVertexRef, VertexRef};
+use crate::core::tgraph::VID;
+use crate::core::vertex_ref::{VertexRef};
 use crate::core::Direction;
 use crate::db::view_api::internal::time_semantics::TimeSemantics;
 use crate::db::view_api::internal::{CoreGraphOps, GraphOps};
-use itertools::Itertools;
+use itertools::*;
 
 /// Methods for interacting with windowed data (automatically implemented based on `TimeSemantics` trait
 pub trait GraphWindowOps {
@@ -13,7 +14,7 @@ pub trait GraphWindowOps {
         v: VertexRef,
         t_start: i64,
         t_end: i64,
-    ) -> Option<LocalVertexRef>;
+    ) -> Option<VID>;
 
     /// Returns the number of vertices in the graph that were created between
     /// the start (t_start) and end (t_end) timestamps (inclusive).
@@ -63,19 +64,19 @@ pub trait GraphWindowOps {
     /// on the direction (d).
     /// # Arguments
     ///
-    /// * `v` - LocalVertexRef of the vertex to check.
+    /// * `v` - VID of the vertex to check.
     /// * `t_start` - The start time of the window (inclusive).
     /// * `t_end` - The end time of the window (exclusive).
     fn degree_window(
         &self,
-        v: LocalVertexRef,
+        v: VID,
         t_start: i64,
         t_end: i64,
         d: Direction,
         layer: Option<usize>,
     ) -> usize;
 
-    /// Returns the LocalVertexRef that corresponds to the specified vertex ID (v) created
+    /// Returns the VID that corresponds to the specified vertex ID (v) created
     /// between the start (t_start) and end (t_end) timestamps (inclusive).
     /// Returns None if the vertex ID is not present in the graph.
     /// # Arguments
@@ -85,8 +86,8 @@ pub trait GraphWindowOps {
     /// * `t_end` - The end time of the window (exclusive).
     ///
     /// # Returns
-    /// * `Option<LocalVertexRef>` - The LocalVertexRef of the vertex if it exists in the graph.
-    fn vertex_ref_window(&self, v: u64, t_start: i64, t_end: i64) -> Option<LocalVertexRef>;
+    /// * `Option<VID>` - The VID of the vertex if it exists in the graph.
+    fn vertex_ref_window(&self, v: u64, t_start: i64, t_end: i64) -> Option<VID>;
 
     /// Returns all the vertex references in the graph created between the start (t_start) and
     /// end (t_end) timestamps (inclusive).
@@ -96,29 +97,12 @@ pub trait GraphWindowOps {
     /// * `t_end` - The end time of the window (exclusive).
     ///
     /// # Returns
-    /// * `Box<dyn Iterator<Item = LocalVertexRef> + Send>` - An iterator over all the vertexes
+    /// * `Box<dyn Iterator<Item = VID> + Send>` - An iterator over all the vertexes
     fn vertex_refs_window(
         &self,
         t_start: i64,
         t_end: i64,
-    ) -> Box<dyn Iterator<Item = LocalVertexRef> + Send>;
-
-    /// Returns all the vertex references in the graph that are in the specified shard.
-    /// Between the start (t_start) and end (t_end)
-    ///
-    /// # Arguments
-    /// shard - The shard to return the vertex references for.
-    /// t_start - The start time of the window (inclusive).
-    /// t_end - The end time of the window (exclusive).
-    ///
-    /// # Returns
-    /// * `Box<dyn Iterator<Item = LocalVertexRef> + Send>` - An iterator over all the vertexes
-    fn vertex_refs_window_shard(
-        &self,
-        shard: usize,
-        t_start: i64,
-        t_end: i64,
-    ) -> Box<dyn Iterator<Item = LocalVertexRef> + Send>;
+    ) -> Box<dyn Iterator<Item = VID> + Send>;
 
     /// Returns the edge reference that corresponds to the specified src and dst vertex
     /// created between the start (t_start) and end (t_end) timestamps (exclusive).
@@ -175,7 +159,7 @@ pub trait GraphWindowOps {
     /// to the edges connected to the vertex within the specified time window.
     fn vertex_edges_window(
         &self,
-        v: LocalVertexRef,
+        v: VID,
         t_start: i64,
         t_end: i64,
         d: Direction,
@@ -196,7 +180,7 @@ pub trait GraphWindowOps {
     /// A boxed iterator that yields references to the neighboring vertices within the specified time window.
     fn neighbours_window(
         &self,
-        v: LocalVertexRef,
+        v: VID,
         t_start: i64,
         t_end: i64,
         d: Direction,
@@ -210,7 +194,7 @@ impl<G: TimeSemantics + CoreGraphOps + GraphOps + Clone + 'static> GraphWindowOp
         v: VertexRef,
         t_start: i64,
         t_end: i64,
-    ) -> Option<LocalVertexRef> {
+    ) -> Option<VID> {
         self.local_vertex_ref(v)
             .filter(|&v| self.include_vertex_window(v, t_start..t_end))
     }
@@ -241,7 +225,7 @@ impl<G: TimeSemantics + CoreGraphOps + GraphOps + Clone + 'static> GraphWindowOp
 
     fn degree_window(
         &self,
-        v: LocalVertexRef,
+        v: VID,
         t_start: i64,
         t_end: i64,
         d: Direction,
@@ -250,7 +234,7 @@ impl<G: TimeSemantics + CoreGraphOps + GraphOps + Clone + 'static> GraphWindowOp
         self.neighbours_window(v, t_start, t_end, d, layer).count()
     }
 
-    fn vertex_ref_window(&self, v: u64, t_start: i64, t_end: i64) -> Option<LocalVertexRef> {
+    fn vertex_ref_window(&self, v: u64, t_start: i64, t_end: i64) -> Option<VID> {
         self.local_vertex_ref_window(v.into(), t_start, t_end)
     }
 
@@ -258,23 +242,10 @@ impl<G: TimeSemantics + CoreGraphOps + GraphOps + Clone + 'static> GraphWindowOp
         &self,
         t_start: i64,
         t_end: i64,
-    ) -> Box<dyn Iterator<Item = LocalVertexRef> + Send> {
+    ) -> Box<dyn Iterator<Item = VID> + Send> {
         let g = self.clone();
         Box::new(
             self.vertex_refs()
-                .filter(move |&v| g.include_vertex_window(v, t_start..t_end)),
-        )
-    }
-
-    fn vertex_refs_window_shard(
-        &self,
-        shard: usize,
-        t_start: i64,
-        t_end: i64,
-    ) -> Box<dyn Iterator<Item = LocalVertexRef> + Send> {
-        let g = self.clone();
-        Box::new(
-            self.vertex_refs_shard(shard)
                 .filter(move |&v| g.include_vertex_window(v, t_start..t_end)),
         )
     }
@@ -306,7 +277,7 @@ impl<G: TimeSemantics + CoreGraphOps + GraphOps + Clone + 'static> GraphWindowOp
 
     fn vertex_edges_window(
         &self,
-        v: LocalVertexRef,
+        v: VID,
         t_start: i64,
         t_end: i64,
         d: Direction,
@@ -321,7 +292,7 @@ impl<G: TimeSemantics + CoreGraphOps + GraphOps + Clone + 'static> GraphWindowOp
 
     fn neighbours_window(
         &self,
-        v: LocalVertexRef,
+        v: VID,
         t_start: i64,
         t_end: i64,
         d: Direction,

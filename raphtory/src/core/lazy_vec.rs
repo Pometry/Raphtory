@@ -70,7 +70,9 @@ where
                         return Err(IllegalSet::new(id, only_value.clone(), value));
                     }
                 } else {
-                    let mut vector = vec![Default::default(); usize::max(id, *only_id) + 1];
+                    let len = usize::max(id, *only_id) + 1;
+                    let mut vector = Vec::with_capacity(len + 1);
+                    vector.resize(len, Default::default());
                     vector[id] = value;
                     vector[*only_id] = only_value.clone();
                     *self = LazyVec::LazyVecN(vector)

@@ -129,12 +129,10 @@ pub fn hits<G: GraphViewOps>(
         |_, _, els, local| {
             let mut hubs = HashMap::new();
             let mut auths = HashMap::new();
-            for line in local.iter() {
-                if let Some((v_ref, hit)) = line {
-                    let v_gid = g.vertex_name(v_ref.clone());
-                    hubs.insert(v_gid.clone(), hit.hub_score);
-                    auths.insert(v_gid, hit.auth_score);
-                }
+            for (v_ref, hit) in local.iter().enumerate() {
+                let v_gid = g.vertex_name(v_ref.into());
+                hubs.insert(v_gid.clone(), hit.hub_score);
+                auths.insert(v_gid, hit.auth_score);
             }
             (hubs, auths)
         },
@@ -165,8 +163,8 @@ mod hits_tests {
     use crate::db::mutation_api::AdditionOps;
     use itertools::Itertools;
 
-    fn load_graph(n_shards: usize, edges: Vec<(u64, u64)>) -> Graph {
-        let graph = Graph::new(n_shards);
+    fn load_graph(edges: Vec<(u64, u64)>) -> Graph {
+        let graph = Graph::new();
 
         for (src, dst) in edges {
             graph.add_edge(0, src, dst, [], None).unwrap();
@@ -174,9 +172,9 @@ mod hits_tests {
         graph
     }
 
-    fn test_hits(n_shards: usize) {
+    #[test]
+    fn test_hits() {
         let graph = load_graph(
-            n_shards,
             vec![
                 (1, 4),
                 (2, 3),
@@ -247,8 +245,4 @@ mod hits_tests {
         );
     }
 
-    #[test]
-    fn test_hits_11() {
-        test_hits(1);
-    }
 }

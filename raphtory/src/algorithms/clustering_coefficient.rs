@@ -18,7 +18,7 @@ use crate::db::view_api::GraphViewOps;
 /// ```rust
 /// use raphtory::prelude::*;
 /// use raphtory::algorithms::clustering_coefficient::clustering_coefficient;
-/// let graph = Graph::new(2);
+/// let graph = Graph::new();
 ///  let edges = vec![
 ///      (1, 2),
 ///      (1, 3),
@@ -56,7 +56,7 @@ mod cc_test {
     /// Test the global clustering coefficient
     #[test]
     fn test_global_cc() {
-        let graph = Graph::new(1);
+        let graph = Graph::new();
 
         // Graph has 2 triangles and 20 triplets
         let edges = vec![

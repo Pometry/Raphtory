@@ -84,7 +84,7 @@ pub fn sx_superuser_file() -> Result<PathBuf, Box<dyn std::error::Error>> {
 ///
 /// - A Result containing the graph or an error
 pub fn sx_superuser_graph(shards: usize) -> Result<Graph, Box<dyn std::error::Error>> {
-    let graph = Graph::new(shards);
+    let graph = Graph::new();
     CsvLoader::new(sx_superuser_file()?)
         .set_delimiter(" ")
         .load_into_graph(&graph, |edge: TEdge, g: &Graph| {

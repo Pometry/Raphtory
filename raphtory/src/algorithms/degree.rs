@@ -19,7 +19,7 @@
 //! use raphtory::algorithms::degree::{max_out_degree, max_in_degree, min_out_degree, min_in_degree, average_degree};
 //! use raphtory::prelude::*;
 //!
-//! let g = Graph::new(1);
+//! let g = Graph::new();
 //! let windowed_graph = g.window(0, 7);
 //! let vs = vec![
 //!     (1, 1, 2),
@@ -111,7 +111,7 @@ mod degree_test {
 
     #[test]
     fn degree_test() {
-        let g = Graph::new(1);
+        let g = Graph::new();
         let vs = vec![
             (1, 1, 2),
             (2, 1, 3),

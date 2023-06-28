@@ -13,7 +13,7 @@
 //! use raphtory::algorithms::directed_graph_density::directed_graph_density;
 //! use raphtory::prelude::*;
 //!
-//! let g = Graph::new(1);
+//! let g = Graph::new();
 //! let windowed_graph = g.window(0, 7);
 //! let vs = vec![
 //!     (1, 1, 2),
@@ -46,7 +46,7 @@ mod directed_graph_density_tests {
 
     #[test]
     fn low_graph_density() {
-        let g = Graph::new(1);
+        let g = Graph::new();
         let windowed_graph = g.window(0, 7);
         let vs = vec![
             (1, 1, 2),
@@ -69,7 +69,7 @@ mod directed_graph_density_tests {
 
     #[test]
     fn complete_graph_has_graph_density_of_one() {
-        let g = Graph::new(1);
+        let g = Graph::new();
         let windowed_graph = g.window(0, 3);
         let vs = vec![(1, 1, 2), (2, 2, 1)];
 

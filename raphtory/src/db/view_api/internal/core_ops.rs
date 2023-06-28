@@ -1,8 +1,9 @@
 use crate::core::edge_ref::EdgeRef;
-use crate::core::tgraph_shard::LockedView;
+use crate::core::tgraph::VID;
+use crate::core::locked_view::LockedView;
 use crate::core::timeindex::TimeIndex;
 use crate::core::tprop::TProp;
-use crate::core::vertex_ref::{LocalVertexRef, VertexRef};
+use crate::core::vertex_ref::VertexRef;
 use crate::core::Prop;
 use crate::db::view_api::internal::Base;
 
@@ -12,10 +13,10 @@ pub trait CoreGraphOps {
     fn get_layer_name_by_id(&self, layer_id: usize) -> String;
 
     /// Returns the global ID for a vertex
-    fn vertex_id(&self, v: LocalVertexRef) -> u64;
+    fn vertex_id(&self, v: VID) -> u64;
 
     /// Returns the string name for a vertex
-    fn vertex_name(&self, v: LocalVertexRef) -> String;
+    fn vertex_name(&self, v: VID) -> String;
 
     /// Get all the addition timestamps for an edge
     /// (this should always be global and not affected by windowing as deletion semantics may need information outside the current view!)
@@ -23,10 +24,10 @@ pub trait CoreGraphOps {
 
     /// Get all the addition timestamps for a vertex
     /// (this should always be global and not affected by windowing as deletion semantics may need information outside the current view!)
-    fn vertex_additions(&self, v: LocalVertexRef) -> LockedView<TimeIndex>;
+    fn vertex_additions(&self, v: VID) -> LockedView<TimeIndex>;
 
     /// Gets the local reference for a remote vertex and keeps local references unchanged. Assumes vertex exists!
-    fn localise_vertex_unchecked(&self, v: VertexRef) -> LocalVertexRef;
+    fn localise_vertex_unchecked(&self, v: VertexRef) -> VID;
 
     /// Lists the keys of all static properties of the graph
     ///
@@ -74,7 +75,7 @@ pub trait CoreGraphOps {
     /// # Returns
     ///
     /// Option<Prop> - The property value if it exists.
-    fn static_vertex_prop(&self, v: LocalVertexRef, name: &str) -> Option<Prop>;
+    fn static_vertex_prop(&self, v: VID, name: &str) -> Option<Prop>;
 
     /// Gets the keys of static properties of a given vertex
     ///
@@ -85,7 +86,7 @@ pub trait CoreGraphOps {
     /// # Returns
     ///
     /// Vec<String> - The keys of the static properties.
-    fn static_vertex_prop_names(&self, v: LocalVertexRef) -> Vec<String>;
+    fn static_vertex_prop_names(&self, v: VID) -> Vec<String>;
 
     /// Gets a temporal property of a given vertex given the name and vertex reference.
     ///
@@ -97,7 +98,7 @@ pub trait CoreGraphOps {
     /// # Returns
     ///
     /// Option<LockedView<TProp>> - The history of property values if it exists.
-    fn temporal_vertex_prop(&self, v: LocalVertexRef, name: &str) -> Option<LockedView<TProp>>;
+    fn temporal_vertex_prop(&self, v: VID, name: &str) -> Option<LockedView<TProp>>;
 
     /// Returns a vector of all names of temporal properties within the given vertex
     ///
@@ -108,7 +109,7 @@ pub trait CoreGraphOps {
     /// # Returns
     ///
     /// A vector of strings representing the names of the temporal properties
-    fn temporal_vertex_prop_names(&self, v: LocalVertexRef) -> Vec<String>;
+    fn temporal_vertex_prop_names(&self, v: VID) -> Vec<String>;
 
     /// Returns the static edge property with the given name for the
     /// given edge reference.
@@ -158,7 +159,6 @@ pub trait CoreGraphOps {
     /// * A `Vec` of `String` containing the keys for the temporal properties of the given edge.
     fn temporal_edge_prop_names(&self, e: EdgeRef) -> Vec<String>;
 
-    fn num_shards_internal(&self) -> usize;
 }
 
 pub trait InheritCoreOps: Base {}
@@ -185,23 +185,23 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
         self.graph().get_layer_name_by_id(layer_id)
     }
 
-    fn vertex_id(&self, v: LocalVertexRef) -> u64 {
+    fn vertex_id(&self, v: VID) -> u64 {
         self.graph().vertex_id(v)
     }
 
-    fn vertex_name(&self, v: LocalVertexRef) -> String {
+    fn vertex_name(&self, v: VID) -> String {
         self.graph().vertex_name(v)
     }
 
-    fn edge_additions(&self, eref: EdgeRef) -> LockedView<TimeIndex> {
+    fn edge_additions(&self, eref: EdgeRef) -> LockedView<TimeIndex>{
         self.graph().edge_additions(eref)
     }
 
-    fn vertex_additions(&self, v: LocalVertexRef) -> LockedView<TimeIndex> {
+    fn vertex_additions(&self, v: VID) -> LockedView<TimeIndex> {
         self.graph().vertex_additions(v)
     }
 
-    fn localise_vertex_unchecked(&self, v: VertexRef) -> LocalVertexRef {
+    fn localise_vertex_unchecked(&self, v: VertexRef) -> VID {
         self.graph().localise_vertex_unchecked(v)
     }
 
@@ -221,19 +221,19 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
         self.graph().temporal_prop(name)
     }
 
-    fn static_vertex_prop(&self, v: LocalVertexRef, name: &str) -> Option<Prop> {
+    fn static_vertex_prop(&self, v: VID, name: &str) -> Option<Prop> {
         self.graph().static_vertex_prop(v, name)
     }
 
-    fn static_vertex_prop_names(&self, v: LocalVertexRef) -> Vec<String> {
+    fn static_vertex_prop_names(&self, v: VID) -> Vec<String> {
         self.graph().static_vertex_prop_names(v)
     }
 
-    fn temporal_vertex_prop(&self, v: LocalVertexRef, name: &str) -> Option<LockedView<TProp>> {
+    fn temporal_vertex_prop(&self, v: VID, name: &str) -> Option<LockedView<TProp>> {
         self.graph().temporal_vertex_prop(v, name)
     }
 
-    fn temporal_vertex_prop_names(&self, v: LocalVertexRef) -> Vec<String> {
+    fn temporal_vertex_prop_names(&self, v: VID) -> Vec<String> {
         self.graph().temporal_vertex_prop_names(v)
     }
 
@@ -253,7 +253,4 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
         self.graph().temporal_edge_prop_names(e)
     }
 
-    fn num_shards_internal(&self) -> usize {
-        self.graph().num_shards_internal()
-    }
 }

@@ -16,7 +16,7 @@
 //! ```rust
 //! use raphtory::prelude::*;
 //! use raphtory::algorithms::triplet_count::triplet_count;
-//! let graph = Graph::new(2);
+//! let graph = Graph::new();
 //!  let edges = vec![
 //!      (1, 2),
 //!      (1, 3),
@@ -59,7 +59,7 @@ use crate::db::view_api::{GraphViewOps, VertexViewOps};
 /// use raphtory::algorithms::triplet_count::triplet_count;
 /// use raphtory::db::mutation_api::AdditionOps;
 /// use raphtory::db::view_api::*;
-/// let graph = Graph::new(2);
+/// let graph = Graph::new();
 ///  let edges = vec![
 ///      (1, 2),
 ///      (1, 3),
@@ -119,7 +119,7 @@ mod triplet_test {
     /// Test the global clustering coefficient
     #[test]
     fn test_triplet_count() {
-        let graph = Graph::new(1);
+        let graph = Graph::new();
 
         // Graph has 2 triangles and 20 triplets
         let edges = vec![

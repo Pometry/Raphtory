@@ -59,7 +59,7 @@ mod task_tests {
     // count all the vertices with a global state
     #[test]
     fn count_all_vertices_with_global_state() {
-        let graph = Graph::new(2);
+        let graph = Graph::new();
 
         let edges = vec![
             (1, 2, 1),

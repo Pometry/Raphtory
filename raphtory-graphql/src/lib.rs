@@ -21,7 +21,7 @@ mod graphql_test {
 
     #[tokio::test]
     async fn basic_query() {
-        let graph = Graph::new(1);
+        let graph = Graph::new();
         if let Err(err) = graph.add_vertex(0, 11, []) {
             panic!("Could not add vertex! {:?}", err);
         }
@@ -64,7 +64,7 @@ mod graphql_test {
 
     #[tokio::test]
     async fn query_nodefilter() {
-        let graph = Graph::new(1);
+        let graph = Graph::new();
         if let Err(err) = graph.add_vertex(0, "gandalf", []) {
             panic!("Could not add vertex! {:?}", err);
         }
@@ -144,7 +144,7 @@ mod graphql_test {
 
     #[tokio::test]
     async fn query_properties() {
-        let graph = Graph::new(1);
+        let graph = Graph::new();
         if let Err(err) = graph.add_vertex(0, "gandalf", []) {
             panic!("Could not add vertex! {:?}", err);
         }

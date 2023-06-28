@@ -1,4 +1,4 @@
-use crate::core::tgraph_shard::errors::GraphError;
+use crate::core::errors::GraphError;
 use crate::core::Prop;
 use crate::db::view_api::internal::Base;
 

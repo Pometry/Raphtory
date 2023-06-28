@@ -28,7 +28,7 @@
 //! use raphtory::db::mutation_api::AdditionOps;
 //! use raphtory::db::view_api::*;
 //!
-//! let g = Graph::new(1);
+//! let g = Graph::new();
 //! let windowed_graph = g.window(0, 7);
 //! let vs = vec![
 //!     (1, 1, 2),
@@ -86,7 +86,7 @@ mod clustering_coefficient_tests {
 
     #[test]
     fn clusters_of_triangles() {
-        let g = Graph::new(1);
+        let g = Graph::new();
         let windowed_graph = g.window(0, 7);
         let vs = vec![
             (1, 1, 2),

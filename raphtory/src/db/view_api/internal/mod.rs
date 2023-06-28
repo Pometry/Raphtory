@@ -63,7 +63,7 @@ mod test {
     #[test]
     fn test_boxing() {
         // this tests that a boxed graph actually compiles
-        let g = Graph::new(1);
+        let g = Graph::new();
         g.add_vertex(0, 1, []).unwrap();
         let boxed: Arc<dyn BoxableGraphView> = Arc::new(g);
         assert_eq!(boxed.vertices().id().collect_vec(), vec![1])

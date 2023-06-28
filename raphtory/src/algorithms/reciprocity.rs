@@ -26,7 +26,7 @@
 //! use raphtory::db::graph::Graph;
 //! use raphtory::db::mutation_api::AdditionOps;
 //! use raphtory::db::view_api::*;
-//! let g = Graph::new(1);
+//! let g = Graph::new();
 //! let vs = vec![
 //!     (1, 1, 2),
 //!     (1, 1, 4),
@@ -148,7 +148,7 @@ mod reciprocity_test {
 
     #[test]
     fn test_global_recip() {
-        let graph = Graph::new(2);
+        let graph = Graph::new();
 
         let vs = vec![
             (1, 2),
@@ -177,8 +177,7 @@ mod reciprocity_test {
         ];
 
         let map_names_by_id: HashMap<String, f64> = expected_vec
-            .iter()
-            .map(|x| (x.0.to_string(), x.1))
+            .into_iter()
             .collect();
 
         let actual = all_local_reciprocity(&graph, None);

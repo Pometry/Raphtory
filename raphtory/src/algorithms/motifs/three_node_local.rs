@@ -244,7 +244,7 @@ mod local_motif_test {
 
     #[test]
     fn test_init() {
-        let graph = Graph::new(1);
+        let graph = Graph::new();
 
         let vs = vec![
             (1, 2, 1),

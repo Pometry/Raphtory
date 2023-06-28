@@ -29,7 +29,7 @@
 //! use raphtory::db::mutation_api::AdditionOps;
 //! use raphtory::db::view_api::*;
 //!
-//! let graph = Graph::new(2);
+//! let graph = Graph::new();
 //! graph.add_edge(0, 1, 2, [], None).unwrap();
 //! graph.add_edge(1, 1, 3, [], None).unwrap();
 //! graph.add_edge(2, 2, 3, [], None).unwrap();
@@ -39,8 +39,9 @@
 //! ```
 
 use crate::core::edge_ref::EdgeRef;
+use crate::core::tgraph::VID;
 use crate::core::time::IntoTime;
-use crate::core::vertex_ref::{LocalVertexRef, VertexRef};
+use crate::core::vertex_ref::VertexRef;
 use crate::core::{Direction, Prop};
 use crate::db::view_api::internal::time_semantics::TimeSemantics;
 use crate::db::view_api::internal::{
@@ -74,12 +75,12 @@ impl<G: GraphViewOps> InheritCoreOps for WindowedGraph<G> {}
 impl<G: GraphViewOps> InheritMaterialize for WindowedGraph<G> {}
 
 impl<G: GraphViewOps> TimeSemantics for WindowedGraph<G> {
-    fn vertex_earliest_time(&self, v: LocalVertexRef) -> Option<i64> {
+    fn vertex_earliest_time(&self, v: VID) -> Option<i64> {
         self.graph
             .vertex_earliest_time_window(v, self.t_start, self.t_end)
     }
 
-    fn vertex_latest_time(&self, v: LocalVertexRef) -> Option<i64> {
+    fn vertex_latest_time(&self, v: VID) -> Option<i64> {
         self.graph
             .vertex_latest_time_window(v, self.t_start, self.t_end)
     }
@@ -110,12 +111,7 @@ impl<G: GraphViewOps> TimeSemantics for WindowedGraph<G> {
             .latest_time_window(self.actual_start(t_start), self.actual_end(t_end))
     }
 
-    fn vertex_earliest_time_window(
-        &self,
-        v: LocalVertexRef,
-        t_start: i64,
-        t_end: i64,
-    ) -> Option<i64> {
+    fn vertex_earliest_time_window(&self, v: VID, t_start: i64, t_end: i64) -> Option<i64> {
         self.graph.vertex_earliest_time_window(
             v,
             self.actual_start(t_start),
@@ -123,17 +119,12 @@ impl<G: GraphViewOps> TimeSemantics for WindowedGraph<G> {
         )
     }
 
-    fn vertex_latest_time_window(
-        &self,
-        v: LocalVertexRef,
-        t_start: i64,
-        t_end: i64,
-    ) -> Option<i64> {
+    fn vertex_latest_time_window(&self, v: VID, t_start: i64, t_end: i64) -> Option<i64> {
         self.graph
             .vertex_latest_time_window(v, self.actual_start(t_start), self.actual_end(t_end))
     }
 
-    fn include_vertex_window(&self, v: LocalVertexRef, w: Range<i64>) -> bool {
+    fn include_vertex_window(&self, v: VID, w: Range<i64>) -> bool {
         self.graph
             .include_vertex_window(v, self.actual_start(w.start)..self.actual_end(w.end))
     }
@@ -143,12 +134,12 @@ impl<G: GraphViewOps> TimeSemantics for WindowedGraph<G> {
             .include_edge_window(e, self.actual_start(w.start)..self.actual_end(w.end))
     }
 
-    fn vertex_history(&self, v: LocalVertexRef) -> Vec<i64> {
+    fn vertex_history(&self, v: VID) -> Vec<i64> {
         self.graph
             .vertex_history_window(v, self.t_start..self.t_end)
     }
 
-    fn vertex_history_window(&self, v: LocalVertexRef, w: Range<i64>) -> Vec<i64> {
+    fn vertex_history_window(&self, v: VID, w: Range<i64>) -> Vec<i64> {
         self.graph
             .vertex_history_window(v, self.actual_start(w.start)..self.actual_end(w.end))
     }
@@ -205,14 +196,14 @@ impl<G: GraphViewOps> TimeSemantics for WindowedGraph<G> {
         )
     }
 
-    fn temporal_vertex_prop_vec(&self, v: LocalVertexRef, name: &str) -> Vec<(i64, Prop)> {
+    fn temporal_vertex_prop_vec(&self, v: VID, name: &str) -> Vec<(i64, Prop)> {
         self.graph
             .temporal_vertex_prop_vec_window(v, name, self.t_start, self.t_end)
     }
 
     fn temporal_vertex_prop_vec_window(
         &self,
-        v: LocalVertexRef,
+        v: VID,
         name: &str,
         t_start: i64,
         t_end: i64,
@@ -250,7 +241,7 @@ impl<G: GraphViewOps> TimeSemantics for WindowedGraph<G> {
 /// This trait provides operations to a `WindowedGraph` used internally by the `GraphWindowSet`.
 /// *Note: All functions in this are bound by the time set in the windowed graph.
 impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
-    fn local_vertex_ref(&self, v: VertexRef) -> Option<LocalVertexRef> {
+    fn local_vertex_ref(&self, v: VertexRef) -> Option<VID> {
         self.graph
             .local_vertex_ref_window(v, self.t_start, self.t_end)
     }
@@ -324,7 +315,7 @@ impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
     /// # Errors
     ///
     /// Returns an error if `v` is not a valid vertex.
-    fn degree(&self, v: LocalVertexRef, d: Direction, layer: Option<usize>) -> usize {
+    fn degree(&self, v: VID, d: Direction, layer: Option<usize>) -> usize {
         self.graph
             .degree_window(v, self.t_start, self.t_end, d, layer)
     }
@@ -342,7 +333,7 @@ impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
     /// # Errors
     ///
     /// Returns an error if `v` is not a valid vertex.
-    fn vertex_ref(&self, v: u64) -> Option<LocalVertexRef> {
+    fn vertex_ref(&self, v: u64) -> Option<VID> {
         self.graph.vertex_ref_window(v, self.t_start, self.t_end)
     }
 
@@ -351,13 +342,8 @@ impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
     /// # Returns
     ///
     /// An iterator over the references of all vertices
-    fn vertex_refs(&self) -> Box<dyn Iterator<Item = LocalVertexRef> + Send> {
+    fn vertex_refs(&self) -> Box<dyn Iterator<Item = VID> + Send> {
         self.graph.vertex_refs_window(self.t_start, self.t_end)
-    }
-
-    fn vertex_refs_shard(&self, shard: usize) -> Box<dyn Iterator<Item = LocalVertexRef> + Send> {
-        self.graph
-            .vertex_refs_window_shard(shard, self.t_start, self.t_end)
     }
 
     /// Get an iterator over the references of an edges as a reference
@@ -390,7 +376,7 @@ impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
 
     fn vertex_edges(
         &self,
-        v: LocalVertexRef,
+        v: VID,
         d: Direction,
         layer: Option<usize>,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
@@ -410,7 +396,7 @@ impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
     /// An iterator over all neighbours in that vertex direction as references
     fn neighbours(
         &self,
-        v: LocalVertexRef,
+        v: VID,
         d: Direction,
         layer: Option<usize>,
     ) -> Box<dyn Iterator<Item = VertexRef> + Send> {
@@ -431,7 +417,7 @@ impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
 /// use raphtory::db::mutation_api::AdditionOps;
 /// use raphtory::db::view_api::*;
 ///
-/// let graph = Graph::new(1);
+/// let graph = Graph::new();
 /// graph.add_edge(0, 1, 2, [], None).unwrap();
 /// graph.add_edge(1, 2, 3, [], None).unwrap();
 /// let windowed_graph = graph.window(0, 1);
@@ -478,7 +464,7 @@ mod views_test {
     use itertools::Itertools;
     use quickcheck::TestResult;
     use rand::prelude::*;
-    use rayon::prelude::*;
+    use rayon::{prelude::*, vec};
 
     #[test]
     fn windowed_graph_vertices_degree() {
@@ -491,7 +477,7 @@ mod views_test {
             (1, 1, 1),
         ];
 
-        let g = Graph::new(2);
+        let g = Graph::new();
 
         for (t, src, dst) in &vs {
             g.add_edge(*t, *src, *dst, [], None).unwrap();
@@ -505,7 +491,7 @@ mod views_test {
             .map(|v| (v.id(), v.degree()))
             .collect::<Vec<_>>();
 
-        let expected = vec![(2, 1), (1, 2)];
+        let expected = vec![(1, 2), (2, 1)];
 
         assert_eq!(actual, expected);
     }
@@ -521,7 +507,7 @@ mod views_test {
             (1, 1, 1),
         ];
 
-        let g = Graph::new(2);
+        let g = Graph::new();
 
         for (t, src, dst) in vs {
             g.add_edge(t, src, dst, [], None).unwrap();
@@ -543,7 +529,7 @@ mod views_test {
             (1, 1, 1),
         ];
 
-        let g = Graph::new(2);
+        let g = Graph::new();
 
         for (t, src, dst) in &vs {
             g.add_edge(*t, *src, *dst, [], None).unwrap();
@@ -564,7 +550,7 @@ mod views_test {
             // (0, 1),
             // (2, 2),
         ];
-        let g = Graph::new(2);
+        let g = Graph::new();
 
         for (t, v) in &vs {
             g.add_vertex(*t, *v, [])
@@ -589,7 +575,7 @@ mod views_test {
         let rand_start_index = thread_rng().gen_range(0..vs.len());
         let rand_end_index = thread_rng().gen_range(rand_start_index..vs.len());
 
-        let g = Graph::new(2);
+        let g = Graph::new();
 
         for (t, v) in &vs {
             g.add_vertex(*t, *v, [])
@@ -639,7 +625,7 @@ mod views_test {
         let rand_start_index = thread_rng().gen_range(0..edges.len());
         let rand_end_index = thread_rng().gen_range(rand_start_index..edges.len());
 
-        let g = Graph::new(2);
+        let g = Graph::new();
 
         for (t, e) in &edges {
             g.add_edge(*t, e.0, e.1, [], None).unwrap();
@@ -683,7 +669,7 @@ mod views_test {
 
         let true_edge_count = edges.iter().filter(|e| window.contains(&e.0)).count();
 
-        let g = Graph::new(2);
+        let g = Graph::new();
 
         for (t, e) in &edges {
             g.add_edge(*t, e.0, e.1, [("test".to_owned(), Prop::Bool(true))], None)
@@ -704,7 +690,7 @@ mod views_test {
 
     #[quickcheck]
     fn trivial_window_has_all_edges(edges: Vec<(i64, u64, u64)>) -> bool {
-        let g = Graph::new(10);
+        let g = Graph::new();
         edges
             .into_par_iter()
             .filter(|e| e.0 < i64::MAX)
@@ -721,7 +707,7 @@ mod views_test {
     fn large_vertex_in_window(dsts: Vec<u64>) -> bool {
         let dsts: Vec<u64> = dsts.into_iter().unique().collect();
         let n = dsts.len();
-        let g = Graph::new(1);
+        let g = Graph::new();
 
         for dst in dsts {
             let t = 1;
@@ -744,7 +730,7 @@ mod views_test {
             vec![3, 4, 5, 6],
         ];
 
-        let g = Graph::new(1);
+        let g = Graph::new();
 
         for (t, src, dst) in &vs {
             g.add_edge(*t, *src, *dst, [], None).unwrap();
@@ -761,7 +747,7 @@ mod views_test {
 
         assert_eq!(res, expected);
 
-        let g = Graph::new(3);
+        let g = Graph::new();
         for (src, dst, t) in &vs {
             g.add_edge(*src, *dst, *t, [], None).unwrap();
         }
@@ -787,7 +773,7 @@ mod views_test {
             (1, 1, 1),
         ];
 
-        let g = Graph::new(1);
+        let g = Graph::new();
 
         g.add_vertex(
             0,
@@ -842,7 +828,7 @@ mod views_test {
         assert_eq!(actual, expected);
 
         // Check results from multiple graphs with different number of shards
-        let g = Graph::new(10);
+        let g = Graph::new();
 
         g.add_vertex(
             0,

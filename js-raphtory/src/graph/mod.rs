@@ -6,7 +6,7 @@ use std::convert::TryFrom;
 use std::sync::Arc;
 
 use js_sys::Object;
-use raphtory::core::tgraph_shard::errors::GraphError;
+use raphtory::core::errors::GraphError;
 use raphtory::core::Prop;
 use raphtory::db::graph::Graph as TGraph;
 use raphtory::db::graph_window::WindowedGraph;
@@ -62,7 +62,7 @@ impl Graph {
     #[wasm_bindgen(constructor)]
     pub fn new() -> Self {
         set_panic_hook();
-        Graph(UnderGraph::TGraph(Arc::new(TGraph::new(1))))
+        Graph(UnderGraph::TGraph(Arc::new(TGraph::new())))
     }
 
     #[wasm_bindgen(js_name = window)]

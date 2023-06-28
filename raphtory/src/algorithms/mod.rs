@@ -10,7 +10,7 @@
 //! use raphtory::algorithms::degree::{average_degree};
 //! use raphtory::prelude::*;
 //!  
-//!  let g = Graph::new(1);
+//!  let g = Graph::new();
 //!  let vs = vec![
 //!      (1, 1, 2),
 //!      (2, 1, 3),

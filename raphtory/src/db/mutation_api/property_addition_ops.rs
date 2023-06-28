@@ -1,4 +1,4 @@
-use crate::core::tgraph_shard::errors::GraphError;
+use crate::core::errors::GraphError;
 use crate::core::time::TryIntoTime;
 use crate::core::vertex::InputVertex;
 use crate::db::mutation_api::internal::InternalPropertyAdditionOps;
@@ -16,7 +16,7 @@ pub trait PropertyAdditionOps {
     ///
     /// ```
     /// use raphtory::prelude::*;
-    /// let graph = Graph::new(1);
+    /// let graph = Graph::new();
     /// graph.add_vertex(0, "Alice", []);
     /// let properties = vec![("color".to_owned(), Prop::Str("blue".to_owned())), ("weight".to_owned(), Prop::I64(11))];
     /// let result = graph.add_vertex_properties("Alice", properties);
@@ -47,7 +47,7 @@ pub trait PropertyAdditionOps {
     ///
     /// ```
     /// use raphtory::prelude::*;
-    /// let graph = Graph::new(1);
+    /// let graph = Graph::new();
     /// graph.add_vertex(1, "Alice", []);
     /// graph.add_vertex(2, "Bob", []);
     /// graph.add_edge(3, "Alice", "Bob", [], None);

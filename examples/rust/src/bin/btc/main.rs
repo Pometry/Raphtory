@@ -6,7 +6,6 @@ use std::thread::JoinHandle;
 use std::{env, thread};
 
 use chrono::{DateTime, Utc};
-use raphtory::core::tgraph::TemporalGraph;
 use raphtory::core::utils;
 use raphtory::core::{Direction, Prop};
 use raphtory::graph_loader::source::csv_loader::CsvLoader;
@@ -78,7 +77,7 @@ fn main() {
 
         g
     } else {
-        let g = Graph::new(16);
+        let g = Graph::new();
 
         let now = Instant::now();
 

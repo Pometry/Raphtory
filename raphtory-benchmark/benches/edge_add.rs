@@ -31,7 +31,7 @@ pub fn graph(c: &mut Criterion) {
 
     id_group.finish();
     let mut graph_group = c.benchmark_group("edge_add");
-    let mut g = Graph::new(1);
+    let mut g = Graph::new();
     graph_group.bench_function("string  input", |bencher| {
         let src: String = random_string(16);
         let dst: String = random_string(16);

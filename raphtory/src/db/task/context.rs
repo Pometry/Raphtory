@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::{
     core::{
-        agg::Accumulator,
+        state::agg::Accumulator,
         state::{
             accumulator_id::AccId, compute_state::ComputeState, shuffle_state::ShuffleComputeState,
             StateType,

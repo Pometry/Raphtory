@@ -1,7 +1,7 @@
 use std::convert::TryFrom;
 
 use raphtory::{
-    core::tgraph_shard::errors::GraphError,
+    core::errors::GraphError,
     db::{vertex::VertexView, view_api::VertexViewOps},
 };
 use wasm_bindgen::prelude::*;
