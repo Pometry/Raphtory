@@ -1,6 +1,6 @@
 use num_traits::abs;
 
-use crate::core::tgraph2::VID;
+use crate::core::tgraph::VID;
 use crate::db::view_api::VertexViewOps;
 use crate::{
     core::state::{accumulator_id::accumulators, compute_state::ComputeStateVec},

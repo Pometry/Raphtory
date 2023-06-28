@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use crate::{
-    core::tgraph2::tgraph::InnerTemporalGraph, db::{view_api::internal::{InternalMaterialize, MaterializedGraph}, graph::InternalGraph},
+    core::tgraph::tgraph::InnerTemporalGraph, db::{view_api::internal::{InternalMaterialize, MaterializedGraph}, graph::InternalGraph},
     db::graph::Graph,
 };
 

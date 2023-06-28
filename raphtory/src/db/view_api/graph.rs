@@ -1,5 +1,5 @@
-use crate::core::tgraph2::VID;
-use crate::core::tgraph2::tgraph::InnerTemporalGraph;
+use crate::core::tgraph::VID;
+use crate::core::tgraph::tgraph::InnerTemporalGraph;
 use crate::core::errors::GraphError;
 use crate::core::Prop;
 use itertools::Itertools;

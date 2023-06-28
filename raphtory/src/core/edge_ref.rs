@@ -1,6 +1,6 @@
 use crate::core::vertex_ref::VertexRef;
 
-use super::tgraph2::{EID, VID};
+use super::tgraph::{EID, VID};
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum EdgeRef {

@@ -18,7 +18,7 @@
 //! ```
 //!
 
-use crate::core::tgraph2::tgraph::InnerTemporalGraph;
+use crate::core::tgraph::tgraph::InnerTemporalGraph;
 use crate::core::errors::GraphError;
 use crate::prelude::{EdgeListOps, EdgeViewOps, GraphViewOps, VertexViewOps};
 

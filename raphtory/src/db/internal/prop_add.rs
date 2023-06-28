@@ -1,5 +1,5 @@
 use crate::{
-    core::{tgraph2::tgraph::InnerTemporalGraph, errors::GraphError},
+    core::{tgraph::tgraph::InnerTemporalGraph, errors::GraphError},
     db::mutation_api::internal::InternalPropertyAdditionOps,
     prelude::Prop,
 };

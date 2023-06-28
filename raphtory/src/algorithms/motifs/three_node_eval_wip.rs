@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::slice::Iter;
 
-use crate::core::agg::ValDef;
+use crate::core::state::agg::ValDef;
 use crate::core::state::accumulator_id::AccId;
 use crate::db::view_api::*;
 

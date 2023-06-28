@@ -1,5 +1,5 @@
 use crate::core::edge_ref::EdgeRef;
-use crate::core::tgraph2::VID;
+use crate::core::tgraph::VID;
 use crate::core::vertex_ref::VertexRef;
 use crate::core::Direction;
 use crate::db::view_api::internal::{

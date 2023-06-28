@@ -1,4 +1,5 @@
 pub mod accumulator_id;
+pub mod agg;
 pub mod compute_state;
 pub mod container;
 pub mod morcel_state;

@@ -1,4 +1,4 @@
-use crate::core::tgraph2::VID;
+use crate::core::tgraph::VID;
 use crate::core::time::IntoTime;
 use crate::core::{Direction, Prop};
 use crate::db::edge::EdgeView;
@@ -10,8 +10,7 @@ use crate::db::view_api::{
 };
 use crate::{
     core::{
-        agg::Accumulator,
-        state::{accumulator_id::AccId, compute_state::ComputeState, StateType},
+        state::{accumulator_id::AccId, compute_state::ComputeState, StateType, agg::Accumulator},
     },
     db::view_api::GraphViewOps,
 };

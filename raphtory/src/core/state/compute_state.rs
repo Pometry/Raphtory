@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::core::agg::Accumulator;
+use crate::core::state::agg::Accumulator;
 use crate::db::view_api::GraphViewOps;
 
 use super::{

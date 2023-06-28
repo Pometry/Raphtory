@@ -4,7 +4,7 @@ use genawaiter::sync::GenBoxed;
 
 use crate::{
     core::{
-        tgraph2::{tgraph::InnerTemporalGraph, VID},
+        tgraph::{tgraph::InnerTemporalGraph, VID},
         vertex_ref::VertexRef, Direction, edge_ref::EdgeRef,
     },
     db::view_api::internal::GraphOps,

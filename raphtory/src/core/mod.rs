@@ -33,13 +33,12 @@ use std::fmt;
 #[cfg(test)]
 extern crate core;
 
-pub mod agg;
 pub mod edge_ref;
 pub mod errors;
 mod lazy_vec;
 mod sorted_vec_map;
 pub mod state;
-pub mod tgraph2;
+pub mod tgraph;
 mod tcell;
 pub mod locked_view;
 pub mod time;

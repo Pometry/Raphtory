@@ -1,6 +1,6 @@
 use crate::core::vertex::InputVertex;
 
-use super::tgraph2::VID;
+use super::tgraph::VID;
 
 #[derive(Copy, Clone, PartialOrd, PartialEq, Debug)]
 pub enum VertexRef {

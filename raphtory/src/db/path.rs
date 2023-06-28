@@ -1,4 +1,4 @@
-use crate::core::tgraph2::VID;
+use crate::core::tgraph::VID;
 use crate::core::time::IntoTime;
 use crate::core::vertex_ref::VertexRef;
 use crate::core::{Direction, Prop};

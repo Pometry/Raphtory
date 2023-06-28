@@ -1,7 +1,7 @@
 use crate::{
     core::{
         edge_ref::EdgeRef,
-        tgraph2::{tgraph::InnerTemporalGraph, VID},
+        tgraph::{tgraph::InnerTemporalGraph, VID},
         locked_view::LockedView,
         timeindex::TimeIndex,
         tprop::TProp,

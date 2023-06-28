@@ -1,6 +1,6 @@
 use rayon::prelude::{IntoParallelIterator, ParallelIterator};
 
-use crate::core::{agg::Accumulator, utils::get_shard_id_from_global_vid};
+use crate::core::{state::agg::Accumulator, utils::get_shard_id_from_global_vid};
 use crate::db::task::task_state::{Global, Shard};
 use crate::db::view_api::GraphViewOps;
 use std::borrow::Borrow;
