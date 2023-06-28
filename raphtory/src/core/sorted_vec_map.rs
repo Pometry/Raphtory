@@ -31,7 +31,6 @@ impl<K: Ord, V> SVM<K, V> {
     pub(crate) fn from_iter<I: IntoIterator<Item = (K, V)>>(iter: I) -> Self {
         Self(SortedVectorMap::from_iter(iter))
     }
-
 }
 
 impl<K, V> IntoIterator for SVM<K, V>

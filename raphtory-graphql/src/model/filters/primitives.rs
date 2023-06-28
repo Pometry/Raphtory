@@ -1,4 +1,4 @@
-use dynamic_graphql::{InputObject};
+use dynamic_graphql::InputObject;
 
 #[derive(InputObject)]
 pub(crate) struct StringFilter {

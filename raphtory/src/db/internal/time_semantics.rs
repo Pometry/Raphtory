@@ -8,7 +8,10 @@ use crate::{
         tgraph::{tgraph::InnerTemporalGraph, VID},
         timeindex::TimeIndexOps,
     },
-    db::view_api::{internal::{TimeSemantics, CoreGraphOps, CoreDeletionOps}, BoxedIter},
+    db::view_api::{
+        internal::{CoreDeletionOps, CoreGraphOps, TimeSemantics},
+        BoxedIter,
+    },
     prelude::Prop,
 };
 

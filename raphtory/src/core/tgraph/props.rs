@@ -6,7 +6,10 @@ use std::{
 use serde::{Deserialize, Serialize};
 
 use crate::core::{
-    lazy_vec::LazyVec, errors::{MutateGraphError, IllegalMutate}, tprop::TProp, Prop,
+    errors::{IllegalMutate, MutateGraphError},
+    lazy_vec::LazyVec,
+    tprop::TProp,
+    Prop,
 };
 
 use super::tgraph::FxDashMap;
@@ -96,7 +99,6 @@ impl Props {
     pub(crate) fn temporal_prop_ids(&self) -> Vec<usize> {
         self.temporal_props.filled_ids()
     }
-
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -189,7 +191,6 @@ pub struct DictMapper<T: Hash + Eq> {
 }
 
 impl<T: Hash + Eq + Clone> DictMapper<T> {
-
     pub fn get_or_create_id(&self, name: T) -> usize {
         if let Some(existing_id) = self.map.get(&name) {
             return *existing_id;

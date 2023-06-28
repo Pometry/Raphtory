@@ -53,7 +53,6 @@ impl<T> VecArray<T> {
             &mut self.even
         }
     }
-
 }
 
 #[inline]

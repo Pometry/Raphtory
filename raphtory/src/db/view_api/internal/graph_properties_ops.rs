@@ -1,6 +1,6 @@
 use crate::core::edge_ref::EdgeRef;
-use crate::core::Prop;
 use crate::core::tgraph::VID;
+use crate::core::Prop;
 use crate::db::view_api::internal::time_semantics::TimeSemantics;
 use crate::db::view_api::internal::CoreGraphOps;
 use std::collections::HashMap;

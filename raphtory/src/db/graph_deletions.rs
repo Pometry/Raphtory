@@ -1,6 +1,6 @@
 use crate::core::edge_ref::EdgeRef;
-use crate::core::tgraph::VID;
 use crate::core::errors::GraphError;
+use crate::core::tgraph::VID;
 use crate::core::timeindex::TimeIndexOps;
 use crate::core::{Direction, Prop};
 use crate::db::mutation_api::internal::InheritMutationOps;
@@ -17,7 +17,7 @@ use std::ops::Range;
 use std::path::Path;
 use std::sync::Arc;
 
-use super::graph::{InternalGraph, graph_equal};
+use super::graph::{graph_equal, InternalGraph};
 
 #[derive(Clone, Debug)]
 pub struct GraphWithDeletions {

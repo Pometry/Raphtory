@@ -146,7 +146,6 @@ impl<CS: ComputeState + Send + Clone> MorcelComputeState<CS> {
     ) where
         A: StateType,
     {
-
         let state = self
             .states
             .entry(agg_ref.id())

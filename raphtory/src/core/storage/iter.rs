@@ -11,7 +11,7 @@ pub struct Iter<'a, T, const N: usize> {
 
 // impl new for Iter
 impl<'a, T, const N: usize> Iter<'a, T, N> {
-    pub fn new(raw: &'a RawStorage<T,  N>) -> Self {
+    pub fn new(raw: &'a RawStorage<T, N>) -> Self {
         Iter {
             raw,
             segment: 0,
@@ -32,7 +32,7 @@ pub struct RefT<'a, T, const N: usize> {
     i: usize,
 }
 
-impl <'a, T, const N: usize> Clone for RefT<'_, T, N> {
+impl<'a, T, const N: usize> Clone for RefT<'_, T, N> {
     fn clone(&self) -> Self {
         RefT {
             _guard: self._guard.clone(),
@@ -69,9 +69,7 @@ pub unsafe fn change_lifetime_const<'a, 'b, T>(x: &'a T) -> &'b T {
     &*(x as *const T)
 }
 
-impl<'a, T: std::fmt::Debug + Default, const N: usize> Iterator
-    for Iter<'a, T, N>
-{
+impl<'a, T: std::fmt::Debug + Default, const N: usize> Iterator for Iter<'a, T, N> {
     type Item = RefT<'a, T, N>;
 
     fn next(&mut self) -> Option<Self::Item> {

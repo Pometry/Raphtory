@@ -102,15 +102,13 @@ impl<A: Clone + Default + Debug + PartialEq> TCell<A> {
             TCell::TCellN(btm) => Box::new(btm.range(r)),
         }
     }
-    
-    pub fn last_before(&self, t: i64)-> Option<&A> {
+
+    pub fn last_before(&self, t: i64) -> Option<&A> {
         match self {
-            TCell::Empty => {None}
-            TCell::TCell1(t2, v) => {
-                (*t2 < t).then_some(v)
-            }
-            TCell::TCellCap(map) => {map.range(i64::MIN..t).last().map(|(_, v)| v)}
-            TCell::TCellN(map) => {map.range(i64::MIN..t).last().map(|(_, v)| v)}
+            TCell::Empty => None,
+            TCell::TCell1(t2, v) => (*t2 < t).then_some(v),
+            TCell::TCellCap(map) => map.range(i64::MIN..t).last().map(|(_, v)| v),
+            TCell::TCellN(map) => map.range(i64::MIN..t).last().map(|(_, v)| v),
         }
     }
 }

@@ -1,6 +1,6 @@
 use crate::core::edge_ref::EdgeRef;
 use crate::core::tgraph::VID;
-use crate::core::vertex_ref::{VertexRef};
+use crate::core::vertex_ref::VertexRef;
 use crate::core::Direction;
 use crate::db::view_api::internal::time_semantics::TimeSemantics;
 use crate::db::view_api::internal::{CoreGraphOps, GraphOps};
@@ -9,12 +9,7 @@ use itertools::*;
 /// Methods for interacting with windowed data (automatically implemented based on `TimeSemantics` trait
 pub trait GraphWindowOps {
     /// Check if a vertex exists locally in a window and returns local reference.
-    fn local_vertex_ref_window(
-        &self,
-        v: VertexRef,
-        t_start: i64,
-        t_end: i64,
-    ) -> Option<VID>;
+    fn local_vertex_ref_window(&self, v: VertexRef, t_start: i64, t_end: i64) -> Option<VID>;
 
     /// Returns the number of vertices in the graph that were created between
     /// the start (t_start) and end (t_end) timestamps (inclusive).
@@ -98,11 +93,7 @@ pub trait GraphWindowOps {
     ///
     /// # Returns
     /// * `Box<dyn Iterator<Item = VID> + Send>` - An iterator over all the vertexes
-    fn vertex_refs_window(
-        &self,
-        t_start: i64,
-        t_end: i64,
-    ) -> Box<dyn Iterator<Item = VID> + Send>;
+    fn vertex_refs_window(&self, t_start: i64, t_end: i64) -> Box<dyn Iterator<Item = VID> + Send>;
 
     /// Returns the edge reference that corresponds to the specified src and dst vertex
     /// created between the start (t_start) and end (t_end) timestamps (exclusive).
@@ -189,12 +180,7 @@ pub trait GraphWindowOps {
 }
 
 impl<G: TimeSemantics + CoreGraphOps + GraphOps + Clone + 'static> GraphWindowOps for G {
-    fn local_vertex_ref_window(
-        &self,
-        v: VertexRef,
-        t_start: i64,
-        t_end: i64,
-    ) -> Option<VID> {
+    fn local_vertex_ref_window(&self, v: VertexRef, t_start: i64, t_end: i64) -> Option<VID> {
         self.local_vertex_ref(v)
             .filter(|&v| self.include_vertex_window(v, t_start..t_end))
     }
@@ -238,11 +224,7 @@ impl<G: TimeSemantics + CoreGraphOps + GraphOps + Clone + 'static> GraphWindowOp
         self.local_vertex_ref_window(v.into(), t_start, t_end)
     }
 
-    fn vertex_refs_window(
-        &self,
-        t_start: i64,
-        t_end: i64,
-    ) -> Box<dyn Iterator<Item = VID> + Send> {
+    fn vertex_refs_window(&self, t_start: i64, t_end: i64) -> Box<dyn Iterator<Item = VID> + Send> {
         let g = self.clone();
         Box::new(
             self.vertex_refs()

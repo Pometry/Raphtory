@@ -6,7 +6,7 @@ use std::{
 
 use rayon::{prelude::*, ThreadPool};
 
-use crate::core:: state::shuffle_state::{EvalLocalState, EvalShardState};
+use crate::core::state::shuffle_state::{EvalLocalState, EvalShardState};
 use crate::{core::state::compute_state::ComputeState, db::view_api::GraphViewOps};
 
 use super::{
@@ -190,19 +190,14 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
     fn make_cur_and_prev_states<S: Clone>(&self, init: S) -> (Vec<S>, Vec<S>) {
         let g = self.ctx.graph();
 
-        let states: Vec<S> = vec![init; g.num_vertices()]; 
+        let states: Vec<S> = vec![init; g.num_vertices()];
 
         (states.clone(), states)
     }
 
     pub fn run<
         B: std::fmt::Debug,
-        F: FnOnce(
-                GlobalState<CS>,
-                EvalShardState<G, CS>,
-                EvalLocalState<G, CS>,
-                &Vec<S>,
-            ) -> B
+        F: FnOnce(GlobalState<CS>, EvalShardState<G, CS>, EvalLocalState<G, CS>, &Vec<S>) -> B
             + std::marker::Copy,
         S: Send + Sync + Clone + 'static + std::fmt::Debug,
     >(
@@ -221,9 +216,10 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
             .unwrap_or_else(|| POOL.clone());
 
         let morcel_size = self.ctx.graph().num_vertices().min(16_000);
-        let num_chunks = self.ctx.graph().num_vertices() / morcel_size ;
+        let num_chunks = self.ctx.graph().num_vertices() / morcel_size;
 
-        let mut shard_state = shard_initial_state.unwrap_or_else(|| Shard::new(num_chunks, morcel_size));
+        let mut shard_state =
+            shard_initial_state.unwrap_or_else(|| Shard::new(num_chunks, morcel_size));
 
         let mut global_state = global_initial_state.unwrap_or_else(|| Global::new());
 

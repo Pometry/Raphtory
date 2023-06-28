@@ -1,8 +1,8 @@
 use crate::{
     core::{
         edge_ref::EdgeRef,
-        tgraph::{tgraph::InnerTemporalGraph, VID},
         locked_view::LockedView,
+        tgraph::{tgraph::InnerTemporalGraph, VID},
         timeindex::TimeIndex,
         tprop::TProp,
         vertex_ref::VertexRef,

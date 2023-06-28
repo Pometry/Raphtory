@@ -30,7 +30,7 @@ impl<const N: usize> NodeStore<N> {
             global_id,
             vid: 0.into(),
             timestamps: TimeIndex::one(t),
-            layers ,
+            layers,
             props: None,
         }
     }

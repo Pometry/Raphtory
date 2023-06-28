@@ -1,8 +1,12 @@
-use std::sync::Arc;
 use crate::{
-    core::tgraph::tgraph::InnerTemporalGraph, db::{view_api::internal::{InternalMaterialize, MaterializedGraph}, graph::InternalGraph},
+    core::tgraph::tgraph::InnerTemporalGraph,
     db::graph::Graph,
+    db::{
+        graph::InternalGraph,
+        view_api::internal::{InternalMaterialize, MaterializedGraph},
+    },
 };
+use std::sync::Arc;
 
 impl<const N: usize> InternalMaterialize for InnerTemporalGraph<N> {
     fn new_base_graph(&self, graph: InternalGraph) -> MaterializedGraph {

@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::core::{tprop::TProp, Prop, locked_view::LockedView};
+use crate::core::{locked_view::LockedView, tprop::TProp, Prop};
 
 use super::{props::DictMapper, tgraph::FxDashMap};
 
@@ -24,10 +24,7 @@ impl GraphProps {
 
     pub(crate) fn add_static_prop(&self, name: &str, prop: Prop) {
         let prop_id = self.static_mapper.get_or_create_id(name.to_owned());
-        let mut prop_entry = self
-            .static_props
-            .entry(prop_id)
-            .or_insert(None);
+        let mut prop_entry = self.static_props.entry(prop_id).or_insert(None);
         (*prop_entry) = Some(prop);
     }
 
@@ -46,9 +43,9 @@ impl GraphProps {
         entry.as_ref().cloned()
     }
 
-    pub(crate) fn get_temporal(&self, name: &str) -> Option<LockedView<'_, TProp>>{
+    pub(crate) fn get_temporal(&self, name: &str) -> Option<LockedView<'_, TProp>> {
         let prop_id = self.temporal_mapper.get(&(name.to_owned()))?;
-        let entry= self.temporal_props.get(&prop_id)?;
+        let entry = self.temporal_props.get(&prop_id)?;
         Some(LockedView::DashMap(entry))
     }
 
