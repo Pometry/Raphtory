@@ -3,13 +3,12 @@ use std::{
     sync::Arc,
 };
 
-use crate::{
-    core::{
-        locked_view::LockedView,
-        timeindex::{TimeIndex, TimeIndexOps},
-        tprop::TProp,
-        Direction, Prop, storage::Entry,
-    },
+use crate::core::{
+    locked_view::LockedView,
+    storage::Entry,
+    timeindex::{TimeIndex, TimeIndexOps},
+    tprop::TProp,
+    Direction, Prop,
 };
 
 use super::{

@@ -33,7 +33,10 @@ impl TimeIndex {
         }
     }
 
-    pub(crate) fn range_iter(&self, w: Range<i64>) -> Box<dyn DoubleEndedIterator<Item = &i64> + Send + '_> {
+    pub(crate) fn range_iter(
+        &self,
+        w: Range<i64>,
+    ) -> Box<dyn DoubleEndedIterator<Item = &i64> + Send + '_> {
         match self {
             TimeIndex::Empty => Box::new(std::iter::empty()),
             TimeIndex::One(t) => {
@@ -60,7 +63,7 @@ pub enum TimeIndexWindow<'a> {
 pub enum WindowIter<'a> {
     Empty,
     TimeIndexRange(Box<dyn DoubleEndedIterator<Item = &'a i64> + Send + 'a>),
-    All(Box<dyn DoubleEndedIterator<Item = &'a i64> + Send +'a>),
+    All(Box<dyn DoubleEndedIterator<Item = &'a i64> + Send + 'a>),
 }
 
 impl<'a> Iterator for WindowIter<'a> {
@@ -121,7 +124,7 @@ impl TimeIndexOps for TimeIndex {
         }
     }
 
-    fn iter(&self) -> Box<dyn DoubleEndedIterator<Item = &i64> + Send + '_>{
+    fn iter(&self) -> Box<dyn DoubleEndedIterator<Item = &i64> + Send + '_> {
         match self {
             TimeIndex::Empty => Box::new(std::iter::empty()),
             TimeIndex::One(t) => Box::new(std::iter::once(t)),

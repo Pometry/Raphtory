@@ -80,10 +80,8 @@ pub fn stable_coin_graph(path: Option<String>, subset: bool, num_shards: usize) 
 
         let re = if subset {
             Regex::new(r"token_transfers.csv").unwrap()
-        }
-        else{
+        } else {
             Regex::new(r"token_transfers(_V\d+\.\d+\.\d+)?\.csv").unwrap()
-
         };
         CsvLoader::new(data_dir)
             .with_filter(re)

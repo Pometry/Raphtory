@@ -17,11 +17,8 @@ mod state_test {
     use crate::db::mutation_api::AdditionOps;
     use crate::{
         core::state::{
-            accumulator_id::accumulators,
-            compute_state::ComputeStateVec,
-            container::merge_2_vecs,
-            morcel_state::MorcelComputeState,
-            shuffle_state::ShuffleComputeState,
+            accumulator_id::accumulators, compute_state::ComputeStateVec, container::merge_2_vecs,
+            morcel_state::MorcelComputeState, shuffle_state::ShuffleComputeState,
         },
         db::graph::Graph,
     };
@@ -142,10 +139,7 @@ mod state_test {
         }
         let expected = vec![99, 98, 97];
 
-        let mut actual = state_map
-            .finalize(0, &top3, &g)
-            .into_iter()
-            .collect_vec();
+        let mut actual = state_map.finalize(0, &top3, &g).into_iter().collect_vec();
 
         actual.sort();
 
@@ -235,7 +229,8 @@ mod state_test {
             part2_state.accumulate_into(0, 2, a, &sum);
         }
 
-        let mut actual: Vec<(String, i32)> = part1_state.clone()
+        let mut actual: Vec<(String, i32)> = part1_state
+            .clone()
             .finalize(&sum, 0, &g, |c| c)
             .into_iter()
             .collect_vec();
@@ -250,7 +245,8 @@ mod state_test {
             ]
         );
 
-        let mut actual = part2_state.clone()
+        let mut actual = part2_state
+            .clone()
             .finalize(&sum, 0, &g, |c| c)
             .into_iter()
             .collect_vec();
@@ -333,7 +329,8 @@ mod state_test {
             part2_state.accumulate_into(0, 2, a, &min);
         }
 
-        let mut actual = part1_state.clone()
+        let mut actual = part1_state
+            .clone()
             .finalize(&sum, 0, &g, |c| c)
             .into_iter()
             .collect_vec();
@@ -348,7 +345,8 @@ mod state_test {
             ]
         );
 
-        let mut actual = part1_state.clone()
+        let mut actual = part1_state
+            .clone()
             .finalize(&min, 0, &g, |c| c)
             .into_iter()
             .collect_vec();
@@ -363,7 +361,8 @@ mod state_test {
             ]
         );
 
-        let mut actual = part2_state.clone()
+        let mut actual = part2_state
+            .clone()
             .finalize(&sum, 0, &g, |c| c)
             .into_iter()
             .collect_vec();
@@ -379,7 +378,8 @@ mod state_test {
             ]
         );
 
-        let mut actual = part2_state.clone()
+        let mut actual = part2_state
+            .clone()
             .finalize(&min, 0, &g, |c| c)
             .into_iter()
             .collect_vec();
@@ -396,7 +396,8 @@ mod state_test {
         );
 
         ShuffleComputeState::merge_mut(&mut part1_state, &part2_state, &sum, 0);
-        let mut actual = part1_state.clone()
+        let mut actual = part1_state
+            .clone()
             .finalize(&sum, 0, &g, |c| c)
             .into_iter()
             .collect_vec();
@@ -413,7 +414,8 @@ mod state_test {
         );
 
         ShuffleComputeState::merge_mut(&mut part1_state, &part2_state, &min, 0);
-        let mut actual = part1_state.clone()
+        let mut actual = part1_state
+            .clone()
             .finalize(&min, 0, &g, |c| c)
             .into_iter()
             .collect_vec();

@@ -34,7 +34,8 @@ fn main() {
             })
             .expect("Failed to load graph from encoded data files");
 
-        g.save_to_file("/tmp/pokec").expect("Failed to save graph to file");
+        g.save_to_file("/tmp/pokec")
+            .expect("Failed to save graph to file");
         g
     };
 

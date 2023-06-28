@@ -4,11 +4,7 @@ use itertools::Merge;
 
 use crate::core::Direction;
 
-use super::{
-    edge::EdgeView,
-    tgraph::TGraph,
-    VRef, EID, VID,
-};
+use super::{edge::EdgeView, tgraph::TGraph, VRef, EID, VID};
 
 pub struct Paged<'a, const N: usize> {
     guard: Arc<VRef<'a, N>>,

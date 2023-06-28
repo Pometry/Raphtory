@@ -4,22 +4,19 @@ use serde::{Deserialize, Serialize};
 
 use self::{edge::ERef, node_store::NodeStore, tgraph::TGraph, tgraph_storage::GraphEntry};
 
-use super::{
-    vertex_ref::VertexRef,
-    Direction, storage::Entry,
-};
+use super::{storage::Entry, vertex_ref::VertexRef, Direction};
 
 mod adj;
+pub mod adjset;
 pub(crate) mod edge;
 mod edge_store;
+mod graph_props;
 mod iter;
 mod node_store;
 pub mod props;
-pub mod adjset;
 pub mod tgraph;
 mod tgraph_storage;
 pub(crate) mod timer;
-mod graph_props;
 mod vertex;
 
 // the only reason this is public is because the phisical ids of the vertices don't move
@@ -57,7 +54,9 @@ impl From<VertexRef> for VID {
 }
 
 #[repr(transparent)]
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Deserialize, Serialize, Default)]
+#[derive(
+    Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Deserialize, Serialize, Default,
+)]
 pub struct EID(usize);
 
 impl From<EID> for usize {

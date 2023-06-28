@@ -18,8 +18,8 @@
 //! ```
 //!
 
-use crate::core::tgraph::tgraph::InnerTemporalGraph;
 use crate::core::errors::GraphError;
+use crate::core::tgraph::tgraph::InnerTemporalGraph;
 use crate::prelude::{EdgeListOps, EdgeViewOps, GraphViewOps, VertexViewOps};
 
 use serde::{Deserialize, Serialize};
@@ -180,7 +180,7 @@ mod db_tests {
     }
 
     #[quickcheck]
-    fn add_vertex_gets_names(vs: Vec<String>) -> bool{
+    fn add_vertex_gets_names(vs: Vec<String>) -> bool {
         let g = Graph::new();
 
         let expected_len = vs.iter().sorted().dedup().count();

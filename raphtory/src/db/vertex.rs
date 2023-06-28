@@ -483,7 +483,7 @@ mod vertex_test {
 
     #[test]
     fn test_properties() {
-        let g = Graph::new(1);
+        let g = Graph::new();
         let props = [("test".to_string(), Prop::Str("test".to_string()))];
         g.add_vertex(0, 1, []).unwrap();
         g.add_vertex(2, 1, props.clone()).unwrap();

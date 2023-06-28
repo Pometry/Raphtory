@@ -20,9 +20,7 @@ pub(crate) struct Local2<'a, S> {
 }
 
 impl<'a, S: 'static> Local2<'a, S> {
-    pub(crate) fn new(
-        prev_local_state: &'a Vec<S>,
-    ) -> Self {
+    pub(crate) fn new(prev_local_state: &'a Vec<S>) -> Self {
         Self {
             state: prev_local_state,
         }

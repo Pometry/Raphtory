@@ -11,11 +11,11 @@ use raphtory::core::Prop;
 use raphtory::db::graph::Graph;
 use raphtory::db::mutation_api::AdditionOps;
 use raphtory::db::view_api::*;
+use raphtory::db::view_api::{GraphViewOps, VertexViewOps};
 use raphtory::graph_loader::source::csv_loader::CsvLoader;
 use regex::Regex;
 use serde::Deserialize;
 use std::time::Instant;
-use raphtory::db::view_api::{GraphViewOps, VertexViewOps};
 
 #[derive(Deserialize, Debug)]
 pub struct Edge {

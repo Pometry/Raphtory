@@ -1,7 +1,7 @@
 use crate::core::edge_ref::EdgeRef;
 use crate::core::tgraph::VID;
-use crate::core::Prop;
 use crate::core::timeindex::TimeIndexOps;
+use crate::core::Prop;
 use crate::db::view_api::internal::{Base, CoreGraphOps, GraphOps};
 use crate::db::view_api::BoxedIter;
 
@@ -57,22 +57,12 @@ pub trait TimeSemantics: GraphOps + CoreGraphOps {
     }
 
     /// Return the earliest time for a vertex in a window
-    fn vertex_earliest_time_window(
-        &self,
-        v: VID,
-        t_start: i64,
-        t_end: i64,
-    ) -> Option<i64> {
+    fn vertex_earliest_time_window(&self, v: VID, t_start: i64, t_end: i64) -> Option<i64> {
         self.vertex_additions(v).range(t_start..t_end).first()
     }
 
     /// Return the latest time for a vertex in a window
-    fn vertex_latest_time_window(
-        &self,
-        v: VID,
-        t_start: i64,
-        t_end: i64,
-    ) -> Option<i64> {
+    fn vertex_latest_time_window(&self, v: VID, t_start: i64, t_end: i64) -> Option<i64> {
         self.vertex_additions(v).range(t_start..t_end).last()
     }
     /// check if vertex `v` should be included in window `w`
@@ -271,21 +261,11 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
         self.graph().latest_time_window(t_start, t_end)
     }
 
-    fn vertex_earliest_time_window(
-        &self,
-        v: VID,
-        t_start: i64,
-        t_end: i64,
-    ) -> Option<i64> {
+    fn vertex_earliest_time_window(&self, v: VID, t_start: i64, t_end: i64) -> Option<i64> {
         self.graph().vertex_earliest_time_window(v, t_start, t_end)
     }
 
-    fn vertex_latest_time_window(
-        &self,
-        v: VID,
-        t_start: i64,
-        t_end: i64,
-    ) -> Option<i64> {
+    fn vertex_latest_time_window(&self, v: VID, t_start: i64, t_end: i64) -> Option<i64> {
         self.graph().vertex_latest_time_window(v, t_start, t_end)
     }
 

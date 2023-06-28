@@ -42,8 +42,8 @@ pub fn weakly_connected_components<G>(
     iter_count: usize,
     threads: Option<usize>,
 ) -> HashMap<String, u64>
-    where
-        G: GraphViewOps,
+where
+    G: GraphViewOps,
 {
     let ctx: Context<G, ComputeStateVec> = graph.into();
 
@@ -138,8 +138,8 @@ mod cc_test {
                 ("7".to_string(), 7),
                 ("8".to_string(), 7),
             ]
-                .into_iter()
-                .collect::<HashMap<String, u64>>()
+            .into_iter()
+            .collect::<HashMap<String, u64>>()
         );
     }
 
@@ -194,8 +194,8 @@ mod cc_test {
                 ("10".to_string(), 1),
                 ("11".to_string(), 1),
             ]
-                .into_iter()
-                .collect::<HashMap<String, u64>>()
+            .into_iter()
+            .collect::<HashMap<String, u64>>()
         );
     }
 
@@ -234,28 +234,20 @@ mod cc_test {
             ("2".to_string(), 1),
             ("3".to_string(), 3),
             ("4".to_string(), 3),
-        ].into_iter()
-            .collect::<HashMap<String, u64>>();
+        ]
+        .into_iter()
+        .collect::<HashMap<String, u64>>();
 
-        assert_eq!(
-            results,
-            expected
-        );
+        assert_eq!(results, expected);
 
         let wg = graph.window(0, 2);
         let results: HashMap<String, u64> = weakly_connected_components(&wg, usize::MAX, None);
 
-        let expected = vec![
-            ("1".to_string(), 1),
-            ("2".to_string(), 1),
-        ].into_iter()
+        let expected = vec![("1".to_string(), 1), ("2".to_string(), 1)]
+            .into_iter()
             .collect::<HashMap<String, u64>>();
 
-        assert_eq!(
-            results,
-            expected
-        );
-
+        assert_eq!(results, expected);
     }
 
     #[quickcheck]

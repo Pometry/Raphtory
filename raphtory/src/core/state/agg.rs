@@ -404,9 +404,7 @@ mod agg_test {
 
     #[test]
     fn avg_def() {
-        use super::{
-            topk::TopK, topk::TopKHeap, Accumulator, AvgDef, MaxDef, MinDef, SumDef,
-        };
+        use super::{topk::TopK, topk::TopKHeap, Accumulator, AvgDef, MaxDef, MinDef, SumDef};
 
         let mut avg = AvgDef::<i32>::zero();
         let mut sum = SumDef::<i32>::zero();

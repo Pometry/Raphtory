@@ -212,13 +212,13 @@ impl<'a, T: 'static, const N: usize> Entry<'a, T, N> {
         self.i
     }
 
-    pub fn map<U, F: Fn(&T)->&U>(self, f: F) -> LockedView<'a, U> {
+    pub fn map<U, F: Fn(&T) -> &U>(self, f: F) -> LockedView<'a, U> {
         let (_, offset) = resolve::<N>(self.i);
         let mapped_guard = RwLockReadGuard::map(self.guard, |guard| {
             let what = &guard[offset].as_ref();
             f(what.unwrap())
         });
-        
+
         LockedView::Locked(mapped_guard)
     }
 }

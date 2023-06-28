@@ -9,8 +9,8 @@ use crate::db::view_api::{
     BoxedIter, EdgeListOps, EdgeViewOps, TimeOps, VertexListOps, VertexViewOps,
 };
 use crate::{
-    core::{
-        state::{accumulator_id::AccId, compute_state::ComputeState, StateType, agg::Accumulator},
+    core::state::{
+        accumulator_id::AccId, agg::Accumulator, compute_state::ComputeState, StateType,
     },
     db::view_api::GraphViewOps,
 };
@@ -37,7 +37,7 @@ pub struct EvalVertexView<'a, G: GraphViewOps, CS: ComputeState, S: 'static> {
 
 impl<'a, G: GraphViewOps, CS: ComputeState, S> EvalVertexView<'a, G, CS, S> {
     pub fn prev(&self) -> &S {
-        let i:usize = self.vertex.into();
+        let i: usize = self.vertex.into();
         &self.local_state_prev.state[i]
     }
 

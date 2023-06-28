@@ -67,10 +67,7 @@ pub fn lotr_graph() -> PyResult<Py<PyGraph>> {
 #[pyo3(signature = (timeout_seconds=600))]
 pub fn reddit_hyperlink_graph(timeout_seconds: u64) -> PyResult<Py<PyGraph>> {
     PyGraph::py_from_db_graph(
-        crate::graph_loader::example::reddit_hyperlinks::reddit_graph(
-            timeout_seconds,
-            false,
-        ),
+        crate::graph_loader::example::reddit_hyperlinks::reddit_graph(timeout_seconds, false),
     )
 }
 

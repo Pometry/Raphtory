@@ -13,12 +13,12 @@ const SMALL_SET: usize = 1024;
  *
  *  */
 #[derive(Debug, Default, Serialize, Deserialize, PartialEq)]
-pub enum AdjSet<K: Ord + Copy + Hash + Send + Sync, V: Into<usize>+ Copy + Send + Sync> {
+pub enum AdjSet<K: Ord + Copy + Hash + Send + Sync, V: Into<usize> + Copy + Send + Sync> {
     #[default]
     Empty,
     One(K, V),
     Small {
-        vs: Vec<K>,        // the neighbours
+        vs: Vec<K>,    // the neighbours
         edges: Vec<V>, // edge metadata
     },
     Large {
@@ -28,7 +28,6 @@ pub enum AdjSet<K: Ord + Copy + Hash + Send + Sync, V: Into<usize>+ Copy + Send 
 }
 
 impl<K: Ord + Copy + Hash + Send + Sync, V: Into<usize> + Copy + Send + Sync> AdjSet<K, V> {
-    
     pub fn new(v: K, e: V) -> Self {
         Self::One(v, e)
     }
@@ -114,9 +113,8 @@ impl<K: Ord + Copy + Hash + Send + Sync, V: Into<usize> + Copy + Send + Sync> Ad
             }
             AdjSet::Small { vs, edges } => {
                 if let Some(l) = last {
-
                     let i = match vs.binary_search(&l) {
-                        Ok(i) => i+1,
+                        Ok(i) => i + 1,
                         Err(i) => i,
                     };
 
@@ -137,7 +135,7 @@ impl<K: Ord + Copy + Hash + Send + Sync, V: Into<usize> + Copy + Send + Sync> Ad
                         .map(|(a, b)| (*a, *b))
                         .collect()
                 }
-            },
+            }
             AdjSet::Large { vs } => {
                 if let Some(l) = last {
                     vs.range(l..)

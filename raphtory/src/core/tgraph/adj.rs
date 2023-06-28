@@ -4,7 +4,7 @@ use crate::core::Direction;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
-use super::{EID, VID, adjset::AdjSet};
+use super::{adjset::AdjSet, EID, VID};
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Default)]
 pub(crate) enum Adj {
@@ -65,10 +65,7 @@ impl Adj {
             Adj::List { out, into } => match dir {
                 Direction::OUT => Box::new(out.iter()),
                 Direction::IN => Box::new(into.iter()),
-                Direction::BOTH => Box::new(
-                    out.iter()
-                        .merge(into.iter())
-                ),
+                Direction::BOTH => Box::new(out.iter().merge(into.iter())),
             },
         }
     }
@@ -82,11 +79,11 @@ impl Adj {
         match self {
             Adj::Solo => Vec::new(),
             Adj::List { out, into } => match dir {
-                Direction::OUT => out
-                    .get_page_vec(last, page_size),
-                Direction::IN => into
-                    .get_page_vec(last, page_size),
-                _ => panic!("Cannot get page vec for both direction, need to be handled by the caller"),
+                Direction::OUT => out.get_page_vec(last, page_size),
+                Direction::IN => into.get_page_vec(last, page_size),
+                _ => panic!(
+                    "Cannot get page vec for both direction, need to be handled by the caller"
+                ),
             },
         }
     }

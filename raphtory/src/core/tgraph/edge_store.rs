@@ -53,7 +53,10 @@ impl EdgeLayer {
     }
 
     pub(crate) fn static_prop_ids(&self) -> Vec<usize> {
-        self.props.as_ref().map(|props| props.static_prop_ids()).unwrap_or_default()
+        self.props
+            .as_ref()
+            .map(|props| props.static_prop_ids())
+            .unwrap_or_default()
     }
 
     pub fn additions(&self) -> &TimeIndex {
@@ -61,7 +64,7 @@ impl EdgeLayer {
     }
 
     pub(crate) fn static_property(&self, prop_id: usize) -> Option<&Prop> {
-        self.props.as_ref().and_then(|ps|ps.static_prop(prop_id))
+        self.props.as_ref().and_then(|ps| ps.static_prop(prop_id))
     }
 
     pub(crate) fn temporal_property(&self, prop_id: usize) -> Option<&TProp> {
@@ -74,13 +77,13 @@ impl EdgeLayer {
         window: Option<Range<i64>>,
     ) -> Box<dyn Iterator<Item = (i64, Prop)> + 'a> {
         if let Some(window) = window {
-            self.props.as_ref()
-                .map(|props| {
-                    props.temporal_props_window(prop_id, window.start, window.end)
-                })
+            self.props
+                .as_ref()
+                .map(|props| props.temporal_props_window(prop_id, window.start, window.end))
                 .unwrap_or_else(|| Box::new(std::iter::empty()))
         } else {
-            self.props.as_ref()
+            self.props
+                .as_ref()
                 .map(|props| props.temporal_props(prop_id))
                 .unwrap_or_else(|| Box::new(std::iter::empty()))
         }
@@ -175,12 +178,22 @@ impl<const N: usize> EdgeStore<N> {
         if let Some(layer_id) = layer_id {
             self.layers
                 .get(layer_id)
-                .map(|layer| layer.props().map(|props| props.temporal_prop_ids()).unwrap_or_default())
+                .map(|layer| {
+                    layer
+                        .props()
+                        .map(|props| props.temporal_prop_ids())
+                        .unwrap_or_default()
+                })
                 .unwrap_or_default()
         } else {
             self.layers
                 .iter()
-                .map(|layer| layer.props().map(|prop|prop.temporal_prop_ids()).unwrap_or_default())
+                .map(|layer| {
+                    layer
+                        .props()
+                        .map(|prop| prop.temporal_prop_ids())
+                        .unwrap_or_default()
+                })
                 .kmerge()
                 .dedup()
                 .collect()
