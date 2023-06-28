@@ -48,8 +48,8 @@ impl<const N: usize> NodeStore<N> {
     }
 
     pub fn add_prop(&mut self, t: i64, prop_id: usize, prop: Prop) {
-        // let props = self.props.get_or_insert_with(|| Props::new());
-        // props.add_prop(t, prop_id, prop);
+        let props = self.props.get_or_insert_with(|| Props::new());
+        props.add_prop(t, prop_id, prop);
     }
 
     pub fn add_static_prop(
@@ -58,8 +58,8 @@ impl<const N: usize> NodeStore<N> {
         name: &str,
         prop: Prop,
     ) -> Result<(), MutateGraphError> {
-        // let props = self.props.get_or_insert_with(|| Props::new());
-        // props.add_static_prop(prop_id, name, prop)?;
+        let props = self.props.get_or_insert_with(|| Props::new());
+        props.add_static_prop(prop_id, name, prop)?;
         Ok(())
     }
 

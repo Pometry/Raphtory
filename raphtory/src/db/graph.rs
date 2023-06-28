@@ -29,7 +29,7 @@ use std::{path::Path, sync::Arc};
 use super::mutation_api::internal::{InheritAdditionOps, InheritPropertyAdditionOps};
 use super::view_api::internal::{Base, DynamicGraph, InheritViewOps, IntoDynamic};
 
-const SEG: usize = 8;
+const SEG: usize = 16;
 pub(crate) type InternalGraph = InnerTemporalGraph<SEG>;
 
 #[repr(transparent)]
