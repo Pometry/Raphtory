@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1687792512840,
+  "lastUpdate": 1687955942301,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -4099,6 +4099,60 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions with numeric string input",
             "value": 2024128,
             "range": "± 188769",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97447091+ljeub-pometry@users.noreply.github.com",
+            "name": "ljeub-pometry",
+            "username": "ljeub-pometry"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b17b4bd6fe085d64e6189a198875b66d229653dc",
+          "message": "Dynamic graph (#1076)\n\n* Bring back the DynamicGraph newtype struct such that it is possible to implement IntoPy for it\r\n\r\n* make CsvErr python friendly",
+          "timestamp": "2023-06-28T13:34:01+01:00",
+          "tree_id": "c8beafe300c6f36b9edcea4f3f2f3226f80e89c0",
+          "url": "https://github.com/Pometry/Raphtory/commit/b17b4bd6fe085d64e6189a198875b66d229653dc"
+        },
+        "date": 1687955940867,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 728355,
+            "range": "± 2797",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and numeric string input",
+            "value": 1298287,
+            "range": "± 11137",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and string input",
+            "value": 1341577,
+            "range": "± 6067",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 950827,
+            "range": "± 72138",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions with numeric string input",
+            "value": 1812987,
+            "range": "± 68313",
             "unit": "ns/iter"
           }
         ]
