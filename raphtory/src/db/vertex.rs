@@ -94,20 +94,10 @@ impl<G: GraphViewOps> VertexViewOps for VertexView<G> {
     }
 
     fn properties(&self, include_static: bool) -> HashMap<String, Prop> {
-        let mut props: HashMap<String, Prop> = self
-            .property_histories()
-            .iter()
-            .map(|(key, values)| (key.clone(), values.last().unwrap().1.clone()))
-            .collect();
-
-        if include_static {
-            for prop_name in self.graph.static_vertex_prop_names(self.vertex) {
-                if let Some(prop) = self.graph.static_vertex_prop(self.vertex, &prop_name) {
-                    props.insert(prop_name, prop);
-                }
-            }
-        }
-        props
+        self.property_names(include_static)
+            .into_iter()
+            .filter_map(|key| self.property(key.clone(), include_static).map(|v| (key, v)))
+            .collect()
     }
 
     fn property_histories(&self) -> HashMap<String, Vec<(i64, Prop)>> {
@@ -473,7 +463,8 @@ impl<G: GraphViewOps> VertexListOps for BoxedIter<BoxedIter<VertexView<G>>> {
 mod vertex_test {
     use crate::db::graph::Graph;
     use crate::db::mutation_api::AdditionOps;
-    use crate::db::view_api::*;
+    use crate::prelude::*;
+    use std::collections::HashMap;
 
     #[test]
     fn test_earliest_time() {
@@ -488,5 +479,18 @@ mod vertex_test {
         view = g.at(3);
         assert_eq!(view.vertex(1).expect("v").earliest_time().unwrap(), 0);
         assert_eq!(view.vertex(1).expect("v").latest_time().unwrap(), 2);
+    }
+
+    #[test]
+    fn test_properties() {
+        let g = Graph::new(1);
+        let props = [("test".to_string(), Prop::Str("test".to_string()))];
+        g.add_vertex(0, 1, []).unwrap();
+        g.add_vertex(2, 1, props.clone()).unwrap();
+
+        let v1 = g.vertex(1).unwrap();
+        let v1_w = g.window(0, 1).vertex(1).unwrap();
+        assert_eq!(v1.properties(false), props.into());
+        assert_eq!(v1_w.properties(false), HashMap::default())
     }
 }
