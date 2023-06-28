@@ -270,3 +270,22 @@ impl<G: GraphViewOps> EdgeListOps for BoxedIter<BoxedIter<EdgeView<G>>> {
 }
 
 pub type EdgeList<G> = Box<dyn Iterator<Item = EdgeView<G>> + Send>;
+
+#[cfg(test)]
+mod test_edge {
+    use crate::prelude::*;
+    use std::collections::HashMap;
+
+    #[test]
+    fn test_properties() {
+        let g = Graph::new(1);
+        let props = [("test".to_string(), Prop::Str("test".to_string()))];
+        g.add_edge(0, 1, 2, [], None).unwrap();
+        g.add_edge(2, 1, 2, props.clone(), None).unwrap();
+
+        let e1 = g.edge(1, 2, None).unwrap();
+        let e1_w = g.window(0, 1).edge(1, 2, None).unwrap();
+        assert_eq!(e1.properties(false), props.into());
+        assert_eq!(e1_w.properties(false), HashMap::default())
+    }
+}
