@@ -4,7 +4,7 @@
 //! create windows, and query the graph with a variety of algorithms.
 //! It is a wrapper around a set of shards, which are the actual graph data structures.
 //! In Python, this class wraps around the rust graph.
-use crate::core::tgraph_shard::errors::GraphError;
+use crate::core::errors::GraphError;
 use crate::core::Prop;
 use crate::db::graph::Graph;
 use crate::db::mutation_api::{AdditionOps, PropertyAdditionOps};
@@ -65,9 +65,8 @@ impl PyGraph {
 #[pymethods]
 impl PyGraph {
     #[new]
-    #[pyo3(signature = (nr_shards=1))]
-    pub fn py_new(nr_shards: usize) -> (Self, PyGraphView) {
-        let graph = Graph::new(nr_shards);
+    pub fn py_new() -> (Self, PyGraphView) {
+        let graph = Graph::new();
         (
             Self {
                 graph: graph.clone(),

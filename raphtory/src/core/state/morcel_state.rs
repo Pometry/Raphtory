@@ -1,5 +1,5 @@
 use super::{accumulator_id::AccId, compute_state::ComputeState, StateType};
-use crate::core::agg::Accumulator;
+use crate::core::state::agg::Accumulator;
 use crate::db::view_api::GraphViewOps;
 use rustc_hash::FxHashMap;
 use std::collections::HashMap;
@@ -7,11 +7,11 @@ use std::collections::HashMap;
 pub const GLOBAL_STATE_KEY: usize = 0;
 
 #[derive(Debug, Clone)]
-pub struct ShardComputeState<CS: ComputeState + Send> {
+pub struct MorcelComputeState<CS: ComputeState + Send> {
     pub(crate) states: FxHashMap<u32, CS>,
 }
 
-impl<CS: ComputeState + Send + Clone> ShardComputeState<CS> {
+impl<CS: ComputeState + Send + Clone> MorcelComputeState<CS> {
     pub(crate) fn copy_over_next_ss(&mut self, ss: usize) {
         for (_, state) in self.states.iter_mut() {
             state.clone_current_into_other(ss);
@@ -50,7 +50,6 @@ impl<CS: ComputeState + Send + Clone> ShardComputeState<CS> {
         &self,
         ss: usize,
         agg_ref: &AccId<A, IN, OUT, ACC>,
-        shard_id: usize,
         g: &G,
     ) -> Option<HashMap<String, OUT>>
     where
@@ -58,7 +57,7 @@ impl<CS: ComputeState + Send + Clone> ShardComputeState<CS> {
         A: 'static,
     {
         let cs = self.states.get(&agg_ref.id())?;
-        Some(cs.finalize::<A, IN, OUT, ACC, G>(ss, shard_id, g))
+        Some(cs.finalize::<A, IN, OUT, ACC, G>(ss, g))
     }
 
     pub(crate) fn set_from_other<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
@@ -133,7 +132,7 @@ impl<CS: ComputeState + Send + Clone> ShardComputeState<CS> {
     }
 
     pub(crate) fn new() -> Self {
-        ShardComputeState {
+        MorcelComputeState {
             states: FxHashMap::default(),
         }
     }
@@ -147,6 +146,7 @@ impl<CS: ComputeState + Send + Clone> ShardComputeState<CS> {
     ) where
         A: StateType,
     {
+
         let state = self
             .states
             .entry(agg_ref.id())
@@ -155,12 +155,11 @@ impl<CS: ComputeState + Send + Clone> ShardComputeState<CS> {
     }
 }
 
-impl<CS: ComputeState + Send> ShardComputeState<CS> {
+impl<CS: ComputeState + Send> MorcelComputeState<CS> {
     pub fn finalize<A, IN, OUT, ACC: Accumulator<A, IN, OUT>, G: GraphViewOps>(
         &self,
         ss: usize,
         agg_ref: &AccId<A, IN, OUT, ACC>,
-        shard_id: usize,
         g: &G,
     ) -> HashMap<String, OUT>
     where
@@ -169,7 +168,7 @@ impl<CS: ComputeState + Send> ShardComputeState<CS> {
     {
         self.states
             .get(&agg_ref.id())
-            .map(|s| s.finalize::<A, IN, OUT, ACC, G>(ss, shard_id, g))
+            .map(|s| s.finalize::<A, IN, OUT, ACC, G>(ss, g))
             .unwrap_or(HashMap::<String, OUT>::default())
     }
 }

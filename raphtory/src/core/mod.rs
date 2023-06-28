@@ -33,28 +33,24 @@ use std::fmt;
 #[cfg(test)]
 extern crate core;
 
-mod adj;
-pub mod agg;
-mod edge_layer;
 pub mod edge_ref;
+pub mod errors;
 mod lazy_vec;
-pub mod lsm;
-mod props;
 mod sorted_vec_map;
 pub mod state;
-pub mod tadjset;
-mod tcell;
 pub mod tgraph;
-pub mod tgraph_shard;
+mod tcell;
+pub mod locked_view;
 pub mod time;
 pub mod timeindex;
 pub mod tprop;
+mod storage;
 pub mod utils;
 pub mod vertex;
 pub mod vertex_ref;
 
 /// Denotes the direction of an edge. Can be incoming, outgoing or both.
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, PartialOrd, Debug)]
 pub enum Direction {
     OUT,
     IN,

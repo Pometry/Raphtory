@@ -1,25 +1,50 @@
 use serde::{Deserialize, Serialize};
 use std::cmp::{max, min};
-use std::collections::btree_set::Iter;
 use std::collections::BTreeSet;
 use std::ops::Range;
 
-#[repr(transparent)]
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct TimeIndex(BTreeSet<i64>);
+pub enum TimeIndex {
+    #[default]
+    Empty,
+    One(i64),
+    Set(BTreeSet<i64>),
+}
 
 impl TimeIndex {
     pub fn one(t: i64) -> Self {
-        let mut s = Self::default();
-        s.insert(t);
-        s
+        Self::One(t)
     }
     pub fn insert(&mut self, t: i64) -> bool {
-        self.0.insert(t)
+        match self {
+            TimeIndex::Empty => {
+                *self = TimeIndex::One(t);
+                true
+            }
+            TimeIndex::One(t0) => {
+                if *t0 == t {
+                    false
+                } else {
+                    *self = TimeIndex::Set([*t0, t].into_iter().collect());
+                    true
+                }
+            }
+            TimeIndex::Set(ts) => ts.insert(t),
+        }
     }
 
-    fn range_iter(&self, w: Range<i64>) -> std::collections::btree_set::Range<'_, i64> {
-        self.0.range(w)
+    pub(crate) fn range_iter(&self, w: Range<i64>) -> Box<dyn DoubleEndedIterator<Item = &i64> + Send + '_> {
+        match self {
+            TimeIndex::Empty => Box::new(std::iter::empty()),
+            TimeIndex::One(t) => {
+                if w.contains(t) {
+                    Box::new(std::iter::once(t))
+                } else {
+                    Box::new(std::iter::empty())
+                }
+            }
+            TimeIndex::Set(ts) => Box::new(ts.range(w)),
+        }
     }
 }
 
@@ -34,8 +59,8 @@ pub enum TimeIndexWindow<'a> {
 
 pub enum WindowIter<'a> {
     Empty,
-    TimeIndexRange(std::collections::btree_set::Range<'a, i64>),
-    All(Iter<'a, i64>),
+    TimeIndexRange(Box<dyn DoubleEndedIterator<Item = &'a i64> + Send + 'a>),
+    All(Box<dyn DoubleEndedIterator<Item = &'a i64> + Send +'a>),
 }
 
 impl<'a> Iterator for WindowIter<'a> {
@@ -67,10 +92,10 @@ pub trait TimeIndexOps {
 }
 
 impl TimeIndexOps for TimeIndex {
-    type IterType<'a> = Iter<'a, i64> where Self: 'a ;
+    type IterType<'a> = Box<dyn DoubleEndedIterator<Item = &'a i64> + Send + 'a>;
 
     fn active(&self, w: Range<i64>) -> bool {
-        self.0.range(w).next().is_some()
+        self.range_iter(w).next().is_some()
     }
 
     fn range(&self, w: Range<i64>) -> TimeIndexWindow<'_> {
@@ -81,15 +106,27 @@ impl TimeIndexOps for TimeIndex {
     }
 
     fn first(&self) -> Option<i64> {
-        self.0.first().copied()
+        match self {
+            TimeIndex::Empty => None,
+            TimeIndex::One(t) => Some(*t),
+            TimeIndex::Set(ts) => ts.first().copied(),
+        }
     }
 
     fn last(&self) -> Option<i64> {
-        self.0.last().copied()
+        match self {
+            TimeIndex::Empty => None,
+            TimeIndex::One(t) => Some(*t),
+            TimeIndex::Set(ts) => ts.last().copied(),
+        }
     }
 
-    fn iter(&self) -> Iter<'_, i64> {
-        self.0.iter()
+    fn iter(&self) -> Box<dyn DoubleEndedIterator<Item = &i64> + Send + '_>{
+        match self {
+            TimeIndex::Empty => Box::new(std::iter::empty()),
+            TimeIndex::One(t) => Box::new(std::iter::once(t)),
+            TimeIndex::Set(ts) => Box::new(ts.iter()),
+        }
     }
 }
 

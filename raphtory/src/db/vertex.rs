@@ -1,7 +1,8 @@
 //! Defines the `Vertex` struct, which represents a vertex in the graph.
 
+use crate::core::tgraph::VID;
 use crate::core::time::IntoTime;
-use crate::core::vertex_ref::{LocalVertexRef, VertexRef};
+use crate::core::vertex_ref::VertexRef;
 use crate::core::{Direction, Prop};
 use crate::db::edge::{EdgeList, EdgeView};
 use crate::db::graph_layer::LayeredGraph;
@@ -14,7 +15,7 @@ use std::collections::HashMap;
 #[derive(Debug, Clone)]
 pub struct VertexView<G: GraphViewOps> {
     pub graph: G,
-    pub vertex: LocalVertexRef,
+    pub vertex: VID,
 }
 
 impl<G: GraphViewOps> From<VertexView<G>> for VertexRef {
@@ -42,7 +43,7 @@ impl<G: GraphViewOps> VertexView<G> {
     }
 
     /// Creates a new `VertexView` wrapping a local vertex reference and a graph
-    pub(crate) fn new_local(graph: G, vertex: LocalVertexRef) -> VertexView<G> {
+    pub(crate) fn new_local(graph: G, vertex: VID) -> VertexView<G> {
         VertexView { graph, vertex }
     }
 }
@@ -476,7 +477,7 @@ mod vertex_test {
 
     #[test]
     fn test_earliest_time() {
-        let g = Graph::new(4);
+        let g = Graph::new();
         g.add_vertex(0, 1, []).unwrap();
         g.add_vertex(1, 1, []).unwrap();
         g.add_vertex(2, 1, []).unwrap();

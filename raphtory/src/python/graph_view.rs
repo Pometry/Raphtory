@@ -1,5 +1,5 @@
 //! The API for querying a view of the graph in a read-only state
-use crate::core::tgraph_shard::errors::GraphError;
+use crate::core::errors::GraphError;
 use crate::core::time::error::ParseTimeError;
 use crate::core::vertex_ref::VertexRef;
 use crate::core::Prop;

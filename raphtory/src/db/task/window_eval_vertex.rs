@@ -1,12 +1,12 @@
 use std::{cell::RefCell, collections::HashMap, marker::PhantomData, rc::Rc};
 
+use crate::core::tgraph::VID;
 use crate::db::view_api::internal::{GraphPropertiesOps, GraphWindowOps};
 use crate::{
     core::{
-        agg::Accumulator,
+        state::agg::Accumulator,
         state::{accumulator_id::AccId, compute_state::ComputeState, StateType},
         time::IntoTime,
-        vertex_ref::LocalVertexRef,
         Direction, Prop,
     },
     db::{
@@ -19,7 +19,7 @@ use super::{eval_vertex_state::EVState, task_state::Local2, window_eval_edge::Wi
 
 pub struct WindowEvalVertex<'a, G: GraphViewOps, CS: ComputeState, S: 'static> {
     ss: usize,
-    vertex: LocalVertexRef,
+    vertex: VID,
     pub(crate) graph: &'a G,
     _local_state: Option<&'a mut S>,
     local_state_prev: &'a Local2<'a, S>,
@@ -30,7 +30,7 @@ pub struct WindowEvalVertex<'a, G: GraphViewOps, CS: ComputeState, S: 'static> {
 
 impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> WindowEvalVertex<'a, G, CS, S> {
     fn pid(&self) -> usize {
-        self.vertex.pid
+        self.vertex.into()
     }
 
     pub fn update<A: StateType, IN: 'static, OUT: 'static, ACC: Accumulator<A, IN, OUT>>(
@@ -41,12 +41,12 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> WindowEvalVertex<'a, G, 
         self.vertex_state
             .borrow_mut()
             .shard_mut()
-            .accumulate_into_pid(self.ss, self.id(), self.pid(), a, id);
+            .accumulate_into(self.ss, self.pid(), a, id);
     }
 
     pub(crate) fn new(
         ss: usize,
-        vertex: LocalVertexRef,
+        vertex: VID,
         graph: &'a G,
         local_state: Option<&'a mut S>,
         local_state_prev: &'a Local2<'a, S>,

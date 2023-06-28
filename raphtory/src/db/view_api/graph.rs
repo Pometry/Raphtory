@@ -1,16 +1,17 @@
-use crate::core::tgraph_shard::errors::GraphError;
+use crate::core::tgraph::VID;
+use crate::core::tgraph::tgraph::InnerTemporalGraph;
+use crate::core::errors::GraphError;
 use crate::core::Prop;
 use itertools::Itertools;
 use rustc_hash::FxHashSet;
 use std::collections::HashMap;
 
 use crate::core::time::IntoTime;
-use crate::core::vertex_ref::{LocalVertexRef, VertexRef};
+use crate::core::vertex_ref::VertexRef;
 use crate::db::edge::EdgeView;
-use crate::db::graph::InternalGraph;
 use crate::db::graph_layer::LayeredGraph;
 use crate::db::graph_window::WindowedGraph;
-use crate::db::mutation_api::{AdditionOps, DeletionOps, PropertyAdditionOps};
+use crate::db::mutation_api::{AdditionOps, PropertyAdditionOps};
 use crate::db::subgraph_vertex::VertexSubgraph;
 use crate::db::vertex::VertexView;
 use crate::db::vertices::Vertices;
@@ -34,9 +35,6 @@ pub trait GraphViewOps: BoxableGraphView + Clone + Sized {
     fn latest_time(&self) -> Option<i64>;
     /// Return the number of vertices in the graph.
     fn num_vertices(&self) -> usize;
-
-    /// Return the number of shards
-    fn num_shards(&self) -> usize;
 
     /// Check if the graph is empty.
     fn is_empty(&self) -> bool {
@@ -172,7 +170,7 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
         &self,
         vertices: I,
     ) -> VertexSubgraph<G> {
-        let vertices: FxHashSet<LocalVertexRef> = vertices
+        let vertices: FxHashSet<VID> = vertices
             .into_iter()
             .flat_map(|v| self.local_vertex_ref(v.into()))
             .collect();
@@ -197,10 +195,6 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
 
     fn num_vertices(&self) -> usize {
         self.vertices_len()
-    }
-
-    fn num_shards(&self) -> usize {
-        self.num_shards_internal()
     }
 
     fn num_edges(&self) -> usize {
@@ -318,7 +312,7 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
     }
 
     fn materialize(&self) -> Result<MaterializedGraph, GraphError> {
-        let g = InternalGraph::new(self.num_shards());
+        let g = InnerTemporalGraph::default();
         // Add edges first so we definitely have all associated vertices (important in case of persistent edges)
         for e in self.edges() {
             let layer_name = &e.layer_name().to_string();

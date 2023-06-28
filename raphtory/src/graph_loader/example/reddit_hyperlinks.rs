@@ -33,7 +33,7 @@
 //! use raphtory::db::graph::Graph;
 //! use raphtory::db::view_api::*;
 //!
-//! let graph = reddit_graph(1, 120, false);
+//! let graph = reddit_graph(120, false);
 //!
 //! println!("The graph has {:?} vertices", graph.num_vertices());
 //! println!("The graph has {:?} edges", graph.num_edges());
@@ -88,15 +88,14 @@ where
 ///
 /// # Arguments
 ///
-/// * `shards` - The number of shards to use for the graph
 /// * `timeout` - The timeout in seconds for downloading the dataset
 ///
 /// # Returns
 ///
 /// * `Graph` - The graph containing the Reddit hyperlinks dataset
-pub fn reddit_graph(shards: usize, timeout: u64, test_file: bool) -> Graph {
+pub fn reddit_graph(timeout: u64, test_file: bool) -> Graph {
     let graph = {
-        let g = Graph::new(shards);
+        let g = Graph::new();
 
         if let Ok(path) = reddit_file(timeout, Some(test_file)) {
             if let Ok(lines) = read_lines(path.as_path()) {
@@ -170,7 +169,7 @@ mod reddit_test {
 
     #[test]
     fn check_graph() {
-        let graph = reddit_graph(1, 100, true);
+        let graph = reddit_graph(100, true);
         assert_eq!(graph.num_vertices(), 16);
         assert_eq!(graph.num_edges(), 9);
     }

@@ -17,7 +17,7 @@ pub struct CompanyHouse {
     illegal_hmo: Option<String>
 }
 
-pub fn company_house_graph(path: Option<String>, num_shards: usize) -> Graph {
+pub fn company_house_graph(path: Option<String>) -> Graph {
     let default_data_dir: PathBuf = PathBuf::from("/tmp/company-house");
 
     let data_dir = match path {
@@ -43,8 +43,7 @@ pub fn company_house_graph(path: Option<String>, num_shards: usize) -> Graph {
                 .ok()?;
 
             println!(
-                "Loaded graph with {} shards from encoded data files {} with {} vertices, {} edges which took {} seconds",
-                g.num_shards(),
+                "Loaded graph from encoded data files {} with {} vertices, {} edges which took {} seconds",
                 encoded_data_dir.to_str().unwrap(),
                 g.num_vertices(),
                 g.num_edges(),
@@ -58,7 +57,7 @@ pub fn company_house_graph(path: Option<String>, num_shards: usize) -> Graph {
     }
 
     let g = restore_from_bincode(&encoded_data_dir).unwrap_or_else(|| {
-        let g = Graph::new(num_shards);
+        let g = Graph::new();
         let now = Instant::now();
         let ts = 1;
 
@@ -152,8 +151,7 @@ pub fn company_house_graph(path: Option<String>, num_shards: usize) -> Graph {
             .expect("Failed to load graph from CSV data files");
 
         println!(
-            "Loaded graph with {} shards from CSV data files {} with {} vertices, {} edges which took {} seconds",
-            g.num_shards(),
+            "Loaded graph from CSV data files {} with {} vertices, {} edges which took {} seconds",
             encoded_data_dir.to_str().unwrap(),
             g.num_vertices(),
             g.num_edges(),
@@ -179,7 +177,6 @@ mod company_house_graph_test {
     fn test_ch_load() {
         let g = company_house_graph(
             None,
-            1,
         );
         assert_eq!(g.start().unwrap(), 1000);
         assert_eq!(g.end().unwrap(), 1001);

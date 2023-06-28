@@ -51,8 +51,7 @@ pub fn stable_coin_graph(path: Option<String>, subset: bool, num_shards: usize) 
                 .ok()?;
 
             println!(
-                "Loaded graph with {} shards from encoded data files {} with {} vertices, {} edges which took {} seconds",
-                g.num_shards(),
+                "Loaded graph from encoded data files {} with {} vertices, {} edges which took {} seconds",
                 encoded_data_dir.to_str().unwrap(),
                 g.num_vertices(),
                 g.num_edges(),
@@ -67,7 +66,7 @@ pub fn stable_coin_graph(path: Option<String>, subset: bool, num_shards: usize) 
 
     let encoded_data_dir = data_dir.join("graphdb.bincode");
     let g = restore_from_bincode(&encoded_data_dir).unwrap_or_else(|| {
-        let g = Graph::new(num_shards);
+        let g = Graph::new();
         let now = Instant::now();
 
         let contract_addr_labels = HashMap::from([
@@ -105,8 +104,7 @@ pub fn stable_coin_graph(path: Option<String>, subset: bool, num_shards: usize) 
             .expect("Failed to load graph from CSV data files");
 
         println!(
-            "Loaded graph with {} shards from CSV data files {} with {} vertices, {} edges which took {} seconds",
-            g.num_shards(),
+            "Loaded graph from CSV data files {} with {} vertices, {} edges which took {} seconds",
             encoded_data_dir.to_str().unwrap(),
             g.num_vertices(),
             g.num_edges(),

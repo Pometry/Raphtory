@@ -17,7 +17,7 @@
 //! use raphtory::db::graph::Graph;
 //! use raphtory::db::view_api::*;
 //!
-//! let graph = lotr_graph(1);
+//! let graph = lotr_graph();
 //!
 //! println!("The graph has {:?} vertices", graph.num_vertices());
 //! println!("The graph has {:?} edges", graph.num_edges());
@@ -61,9 +61,9 @@ pub fn lotr_file() -> Result<PathBuf, Box<dyn std::error::Error>> {
 ///
 /// # Returns
 /// - A Graph containing the LOTR dataset
-pub fn lotr_graph(shards: usize) -> Graph {
+pub fn lotr_graph() -> Graph {
     let graph = {
-        let g = Graph::new(shards);
+        let g = Graph::new();
 
         CsvLoader::new(lotr_file().unwrap())
             .load_into_graph(&g, |lotr: Lotr, g: &Graph| {

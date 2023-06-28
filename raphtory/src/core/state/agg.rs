@@ -7,7 +7,7 @@ use std::{
 
 use num_traits::{Bounded, Zero};
 
-use super::state::StateType;
+use super::StateType;
 
 pub trait Accumulator<A, IN, OUT>: Send + Sync + 'static {
     fn zero() -> A;
@@ -404,7 +404,7 @@ mod agg_test {
 
     #[test]
     fn avg_def() {
-        use crate::core::agg::{
+        use super::{
             topk::TopK, topk::TopKHeap, Accumulator, AvgDef, MaxDef, MinDef, SumDef,
         };
 

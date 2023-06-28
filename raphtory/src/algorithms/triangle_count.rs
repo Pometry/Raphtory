@@ -25,7 +25,7 @@ use rustc_hash::FxHashSet;
 /// use raphtory::algorithms::triangle_count::triangle_count;
 /// use raphtory::db::mutation_api::AdditionOps;
 ///
-/// let graph = Graph::new(2);
+/// let graph = Graph::new();
 ///
 /// let edges = vec![
 ///     // triangle 1
@@ -121,7 +121,7 @@ mod triangle_count_tests {
 
     #[test]
     fn triangle_count_1() {
-        let graph = Graph::new(2);
+        let graph = Graph::new();
 
         let edges = vec![
             // triangle 1
@@ -151,7 +151,7 @@ mod triangle_count_tests {
 
     #[test]
     fn triangle_count_3() {
-        let graph = Graph::new(2);
+        let graph = Graph::new();
 
         let edges = vec![
             (1, 2, 1),

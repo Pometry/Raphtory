@@ -111,7 +111,7 @@ mod neo_loader_test {
         )
         .await
         .unwrap();
-        let doc_graph = rap::Graph::new(1);
+        let doc_graph = rap::Graph::new();
 
         neo.load_query_into_graph(
             &doc_graph,
