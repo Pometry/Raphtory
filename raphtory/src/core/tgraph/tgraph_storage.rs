@@ -2,8 +2,9 @@ use std::{ops::Deref, sync::Arc};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    core::{Direction, storage::{self, EntryMut, Entry, ArcEntry, PairEntryMut}},
+use crate::core::{
+    storage::{self, ArcEntry, Entry, EntryMut, PairEntryMut},
+    Direction,
 };
 
 use super::{edge_store::EdgeStore, node_store::NodeStore};
@@ -78,7 +79,7 @@ impl<const N: usize> GraphStorage<N> {
         LockedGraphStorage::new(self)
     }
 
-    pub(crate) fn locked_nodes(&self) -> LockedIter<N, NodeStore<N>>{
+    pub(crate) fn locked_nodes(&self) -> LockedIter<N, NodeStore<N>> {
         LockedIter {
             from: 0,
             to: self.nodes.len(),
@@ -87,7 +88,7 @@ impl<const N: usize> GraphStorage<N> {
         }
     }
 
-    pub(crate) fn locked_edges(&self) -> LockedIter<N, EdgeStore<N>>{
+    pub(crate) fn locked_edges(&self) -> LockedIter<N, EdgeStore<N>> {
         LockedIter {
             from: 0,
             to: self.edges.len(),
@@ -95,7 +96,6 @@ impl<const N: usize> GraphStorage<N> {
             phantom: std::marker::PhantomData,
         }
     }
-
 }
 
 pub(crate) struct LockedIter<const N: usize, T> {
@@ -164,7 +164,6 @@ impl<'a, const N: usize, T> GraphEntry<T, N> {
     pub(crate) fn locked_gs(&self) -> &Arc<LockedGraphStorage<N>> {
         &self.locked_gs
     }
-
 }
 
 impl<'a, const N: usize> Deref for GraphEntry<NodeStore<N>, N> {

@@ -149,9 +149,7 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
             local
                 .iter()
                 .enumerate()
-                .map(|(v_ref, score)| {
-                    (v_ref.into(), score.score)
-                })
+                .map(|(v_ref, score)| (v_ref.into(), score.score))
                 .collect::<HashMap<_, _>>()
         },
         threads,

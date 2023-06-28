@@ -1,6 +1,6 @@
 use crate::core::edge_ref::EdgeRef;
-use crate::core::tgraph::VID;
 use crate::core::locked_view::LockedView;
+use crate::core::tgraph::VID;
 use crate::core::timeindex::TimeIndex;
 use crate::core::tprop::TProp;
 use crate::core::vertex_ref::VertexRef;
@@ -158,7 +158,6 @@ pub trait CoreGraphOps {
     ///
     /// * A `Vec` of `String` containing the keys for the temporal properties of the given edge.
     fn temporal_edge_prop_names(&self, e: EdgeRef) -> Vec<String>;
-
 }
 
 pub trait InheritCoreOps: Base {}
@@ -193,7 +192,7 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
         self.graph().vertex_name(v)
     }
 
-    fn edge_additions(&self, eref: EdgeRef) -> LockedView<TimeIndex>{
+    fn edge_additions(&self, eref: EdgeRef) -> LockedView<TimeIndex> {
         self.graph().edge_additions(eref)
     }
 
@@ -252,5 +251,4 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
     fn temporal_edge_prop_names(&self, e: EdgeRef) -> Vec<String> {
         self.graph().temporal_edge_prop_names(e)
     }
-
 }

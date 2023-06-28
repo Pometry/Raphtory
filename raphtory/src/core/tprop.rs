@@ -39,7 +39,8 @@ impl TProp {
         }
     }
 
-    pub(crate) fn set(&mut self, t: i64, prop: &Prop) { // TODO: we should bubble up the result if we change the type of the property
+    pub(crate) fn set(&mut self, t: i64, prop: &Prop) {
+        // TODO: we should bubble up the result if we change the type of the property
         match self {
             TProp::Empty => {
                 *self = TProp::from(t, prop);

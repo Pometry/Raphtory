@@ -30,7 +30,6 @@ impl VertexRef {
             _ => None,
         }
     }
-
 }
 
 impl<V: InputVertex> From<V> for VertexRef {

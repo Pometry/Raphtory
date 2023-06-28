@@ -223,20 +223,18 @@ mod generic_taint_tests {
 
     #[test]
     fn test_generic_taint_1() {
-        let graph = load_graph(
-            vec![
-                (10, 1, 3),
-                (11, 1, 2),
-                (12, 2, 4),
-                (13, 2, 5),
-                (14, 5, 5),
-                (14, 5, 4),
-                (5, 4, 6),
-                (15, 4, 7),
-                (10, 4, 7),
-                (10, 5, 8),
-            ],
-        );
+        let graph = load_graph(vec![
+            (10, 1, 3),
+            (11, 1, 2),
+            (12, 2, 4),
+            (13, 2, 5),
+            (14, 5, 5),
+            (14, 5, 4),
+            (5, 4, 6),
+            (15, 4, 7),
+            (10, 4, 7),
+            (10, 5, 8),
+        ]);
 
         let results = test_generic_taint(graph, 20, 11, vec![2], None);
 
@@ -262,20 +260,18 @@ mod generic_taint_tests {
 
     #[test]
     fn test_generic_taint_1_multiple_start() {
-        let graph = load_graph(
-            vec![
-                (10, 1, 3),
-                (11, 1, 2),
-                (12, 2, 4),
-                (13, 2, 5),
-                (14, 5, 5),
-                (14, 5, 4),
-                (5, 4, 6),
-                (15, 4, 7),
-                (10, 4, 7),
-                (10, 5, 8),
-            ],
-        );
+        let graph = load_graph(vec![
+            (10, 1, 3),
+            (11, 1, 2),
+            (12, 2, 4),
+            (13, 2, 5),
+            (14, 5, 5),
+            (14, 5, 4),
+            (5, 4, 6),
+            (15, 4, 7),
+            (10, 4, 7),
+            (10, 5, 8),
+        ]);
 
         let results = test_generic_taint(graph, 20, 11, vec![1, 2], None);
 
@@ -304,20 +300,18 @@ mod generic_taint_tests {
 
     #[test]
     fn test_generic_taint_1_stop_nodes() {
-        let graph = load_graph(
-            vec![
-                (10, 1, 3),
-                (11, 1, 2),
-                (12, 2, 4),
-                (13, 2, 5),
-                (14, 5, 5),
-                (14, 5, 4),
-                (5, 4, 6),
-                (15, 4, 7),
-                (10, 4, 7),
-                (10, 5, 8),
-            ],
-        );
+        let graph = load_graph(vec![
+            (10, 1, 3),
+            (11, 1, 2),
+            (12, 2, 4),
+            (13, 2, 5),
+            (14, 5, 5),
+            (14, 5, 4),
+            (5, 4, 6),
+            (15, 4, 7),
+            (10, 4, 7),
+            (10, 5, 8),
+        ]);
 
         let results = test_generic_taint(graph, 20, 11, vec![1, 2], Some(vec![4, 5]));
 
@@ -338,22 +332,20 @@ mod generic_taint_tests {
 
     #[test]
     fn test_generic_taint_1_multiple_history_points() {
-        let graph = load_graph(
-            vec![
-                (10, 1, 3),
-                (11, 1, 2),
-                (12, 1, 2),
-                (9, 1, 2),
-                (12, 2, 4),
-                (13, 2, 5),
-                (14, 5, 5),
-                (14, 5, 4),
-                (5, 4, 6),
-                (15, 4, 7),
-                (10, 4, 7),
-                (10, 5, 8),
-            ],
-        );
+        let graph = load_graph(vec![
+            (10, 1, 3),
+            (11, 1, 2),
+            (12, 1, 2),
+            (9, 1, 2),
+            (12, 2, 4),
+            (13, 2, 5),
+            (14, 5, 5),
+            (14, 5, 4),
+            (5, 4, 6),
+            (15, 4, 7),
+            (10, 4, 7),
+            (10, 5, 8),
+        ]);
 
         let results = test_generic_taint(graph, 20, 11, vec![1, 2], Some(vec![4, 5]));
 

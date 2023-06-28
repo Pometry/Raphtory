@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 use std::slice::Iter;
 
-use crate::core::state::agg::ValDef;
 use crate::core::state::accumulator_id::AccId;
+use crate::core::state::agg::ValDef;
 use crate::db::view_api::*;
 
 use crate::algorithms::motifs::three_node_motifs::*;
@@ -399,33 +399,31 @@ mod motifs_test {
     #[test]
     #[ignore = "This is not correct, it needs a rethink of the algorithm to be parallel"]
     fn test_two_node_motif() {
-        let g = load_graph(
-            vec![
-                (1, 1, 2),
-                (2, 1, 3),
-                (3, 1, 4),
-                (4, 3, 1),
-                (5, 3, 4),
-                (6, 3, 5),
-                (7, 4, 5),
-                (8, 5, 6),
-                (9, 5, 8),
-                (10, 7, 5),
-                (11, 8, 5),
-                (12, 1, 9),
-                (13, 9, 1),
-                (14, 6, 3),
-                (15, 4, 8),
-                (16, 8, 3),
-                (17, 5, 10),
-                (18, 10, 5),
-                (19, 10, 8),
-                (20, 1, 11),
-                (21, 11, 1),
-                (22, 9, 11),
-                (23, 11, 9),
-            ],
-        );
+        let g = load_graph(vec![
+            (1, 1, 2),
+            (2, 1, 3),
+            (3, 1, 4),
+            (4, 3, 1),
+            (5, 3, 4),
+            (6, 3, 5),
+            (7, 4, 5),
+            (8, 5, 6),
+            (9, 5, 8),
+            (10, 7, 5),
+            (11, 8, 5),
+            (12, 1, 9),
+            (13, 9, 1),
+            (14, 6, 3),
+            (15, 4, 8),
+            (16, 8, 3),
+            (17, 5, 10),
+            (18, 10, 5),
+            (19, 10, 8),
+            (20, 1, 11),
+            (21, 11, 1),
+            (22, 9, 11),
+            (23, 11, 9),
+        ]);
 
         let actual = temporal_three_node_motif(&g, None, 10);
 
