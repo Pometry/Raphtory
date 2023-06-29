@@ -254,6 +254,7 @@ mod generic_taint_tests {
                 ),
                 ("6".to_string(), vec![]),
                 ("7".to_string(), vec![(15, "4".to_string())]),
+                ("8".to_string(), vec![]),
             ])
         );
     }
@@ -294,6 +295,7 @@ mod generic_taint_tests {
                 ),
                 ("6".to_string(), vec![]),
                 ("7".to_string(), vec![(15, "4".to_string())]),
+                ("8".to_string(), vec![]),
             ])
         );
     }
@@ -326,6 +328,9 @@ mod generic_taint_tests {
                 ("3".to_string(), vec![]),
                 ("4".to_string(), vec![(12, "2".to_string())]),
                 ("5".to_string(), vec![(13, "2".to_string())]),
+                ("6".to_string(), vec![]),
+                ("7".to_string(), vec![]),
+                ("8".to_string(), vec![]),
             ])
         );
     }
@@ -364,6 +369,9 @@ mod generic_taint_tests {
                 ("3".to_string(), vec![]),
                 ("4".to_string(), vec![(12, "2".to_string())]),
                 ("5".to_string(), vec![(13, "2".to_string())]),
+                ("6".to_string(), vec![]),
+                ("7".to_string(), vec![]),
+                ("8".to_string(), vec![]),
             ])
         );
     }

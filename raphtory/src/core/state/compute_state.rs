@@ -29,7 +29,7 @@ pub trait ComputeState: std::fmt::Debug + Clone + Send + Sync {
         i: usize,
     ) -> Option<&A>;
 
-    fn iter<A: StateType>(&self, ss: usize) -> Box<dyn Iterator<Item = (usize, &A)> + '_>;
+    fn iter<A: StateType>(&self, ss: usize, extend_to: usize) -> Box<dyn Iterator<Item = &A> + '_>;
 
     fn iter_keys(&self) -> Box<dyn Iterator<Item = u64> + '_>;
     fn iter_keys_changed(&self, ss: usize) -> Box<dyn Iterator<Item = u64> + '_>;
@@ -124,13 +124,17 @@ impl ComputeState for ComputeStateVec {
         vec.current(ss).get(i)
     }
 
-    fn iter<A: StateType>(&self, ss: usize) -> Box<dyn Iterator<Item = (usize, &A)> + '_> {
+    fn iter<A: StateType>(&self, ss: usize, extend_to: usize) -> Box<dyn Iterator<Item = &A> + '_> {
         let vec = self
             .current()
             .as_any()
             .downcast_ref::<VecArray<A>>()
             .unwrap();
-        let iter = vec.current(ss).iter().enumerate();
+        let zero = vec.zero();
+        let inner_vec = vec.current(ss);
+        let vec_len = inner_vec.len();
+        let extend_iter = std::iter::repeat(zero).take(extend_to - vec_len);
+        let iter = inner_vec.iter().chain(extend_iter);
         Box::new(iter)
     }
 

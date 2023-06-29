@@ -8,6 +8,7 @@ pub const GLOBAL_STATE_KEY: usize = 0;
 
 #[derive(Debug, Clone)]
 pub struct MorcelComputeState<CS: ComputeState + Send> {
+    morcel_size: usize,
     pub(crate) states: FxHashMap<u32, CS>,
 }
 
@@ -23,26 +24,6 @@ impl<CS: ComputeState + Send + Clone> MorcelComputeState<CS> {
             if states.contains(id) {
                 state.reset_resetable_states(ss);
             }
-        }
-    }
-
-    pub(crate) fn fold<A, IN, OUT, ACC: Accumulator<A, IN, OUT>, F, B>(
-        &self,
-        ss: usize,
-        b: B,
-        agg_ref: &AccId<A, IN, OUT, ACC>,
-        f: F,
-    ) -> B
-    where
-        F: FnOnce(B, &u64, OUT) -> B + Copy,
-        A: 'static,
-        B: std::fmt::Debug,
-        OUT: StateType,
-    {
-        if let Some(state) = self.states.get(&agg_ref.id()) {
-            state.fold::<A, IN, OUT, ACC, F, B>(ss, b, f)
-        } else {
-            b
         }
     }
 
@@ -131,8 +112,9 @@ impl<CS: ComputeState + Send + Clone> MorcelComputeState<CS> {
         state.read_ref::<A, IN, OUT, ACC>(ss, i)
     }
 
-    pub(crate) fn new() -> Self {
+    pub(crate) fn new(morcel_size: usize) -> Self {
         MorcelComputeState {
+            morcel_size,
             states: FxHashMap::default(),
         }
     }
@@ -151,6 +133,21 @@ impl<CS: ComputeState + Send + Clone> MorcelComputeState<CS> {
             .entry(agg_ref.id())
             .or_insert_with(|| CS::new_mutable_primitive(ACC::zero()));
         state.agg::<A, IN, OUT, ACC>(ss, a, key);
+    }
+
+    pub(crate) fn iter<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
+        &self,
+        ss: usize,
+        agg_ref: &AccId<A, IN, OUT, ACC>,
+    ) -> Box<dyn Iterator<Item = Option<&A>> + '_>
+    where
+        A: StateType,
+    {
+        if let Some(state) = self.states.get(&agg_ref.id()) {
+            Box::new(state.iter(ss, self.morcel_size).map(|v| Some(v)))
+        } else {
+            Box::new(std::iter::repeat(None).take(self.morcel_size))
+        }
     }
 }
 
