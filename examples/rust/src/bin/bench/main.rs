@@ -1,7 +1,4 @@
-use itertools::Itertools;
 use raphtory::algorithms::pagerank::unweighted_page_rank;
-use raphtory::core::utils;
-use raphtory::core::Prop;
 use raphtory::db::graph::Graph;
 use raphtory::db::mutation_api::AdditionOps;
 use raphtory::db::view_api::*;
@@ -82,6 +79,6 @@ fn main() {
         g
     };
     println!("Data loaded\nPageRanking");
-    let r = unweighted_page_rank(&graph, 25, Some(8), None, true);
+    unweighted_page_rank(&graph, 25, Some(8), None, true);
     println!("Done PR");
 }
