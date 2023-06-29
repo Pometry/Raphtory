@@ -43,7 +43,7 @@ impl<'a, const N: usize> Vertex<'a, N> {
         window: Option<Range<i64>>,
     ) -> impl Iterator<Item = (i64, Prop)> + 'a {
         let prop_id = self.graph.vertex_meta.resolve_prop_id(name, false);
-        (&self.node).temporal_properties(prop_id, window)
+        self.node.temporal_properties(prop_id, window)
     }
 
     pub fn edges(
