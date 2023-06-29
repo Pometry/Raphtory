@@ -40,7 +40,7 @@
 //! use raphtory::db::graph::Graph;
 //! use raphtory::db::view_api::*;
 //!
-//! let graph = sx_superuser_graph(1).unwrap();
+//! let graph = sx_superuser_graph().unwrap();
 //!
 //! println!("The graph has {:?} vertices", graph.num_vertices());
 //! println!("The graph has {:?} edges", graph.num_edges());
