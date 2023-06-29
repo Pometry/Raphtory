@@ -1,22 +1,21 @@
 //! Defines the `Vertex` struct, which represents a vertex in the graph.
 
+use crate::core::tgraph::VID;
 use crate::core::time::IntoTime;
-use crate::core::vertex_ref::{LocalVertexRef, VertexRef};
+use crate::core::vertex_ref::VertexRef;
 use crate::core::{Direction, Prop};
 use crate::db::edge::{EdgeList, EdgeView};
 use crate::db::graph_layer::LayeredGraph;
 use crate::db::graph_window::WindowedGraph;
 use crate::db::path::{Operations, PathFromVertex};
 use crate::db::view_api::internal::GraphPropertiesOps;
-use crate::db::view_api::layer::LayerOps;
-use crate::db::view_api::vertex::VertexViewOps;
-use crate::db::view_api::{BoxedIter, GraphViewOps, TimeOps, VertexListOps};
+use crate::db::view_api::*;
 use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 pub struct VertexView<G: GraphViewOps> {
     pub graph: G,
-    pub vertex: LocalVertexRef,
+    pub vertex: VID,
 }
 
 impl<G: GraphViewOps> From<VertexView<G>> for VertexRef {
@@ -44,7 +43,7 @@ impl<G: GraphViewOps> VertexView<G> {
     }
 
     /// Creates a new `VertexView` wrapping a local vertex reference and a graph
-    pub(crate) fn new_local(graph: G, vertex: LocalVertexRef) -> VertexView<G> {
+    pub(crate) fn new_local(graph: G, vertex: VID) -> VertexView<G> {
         VertexView { graph, vertex }
     }
 }
@@ -95,20 +94,10 @@ impl<G: GraphViewOps> VertexViewOps for VertexView<G> {
     }
 
     fn properties(&self, include_static: bool) -> HashMap<String, Prop> {
-        let mut props: HashMap<String, Prop> = self
-            .property_histories()
-            .iter()
-            .map(|(key, values)| (key.clone(), values.last().unwrap().1.clone()))
-            .collect();
-
-        if include_static {
-            for prop_name in self.graph.static_vertex_prop_names(self.vertex) {
-                if let Some(prop) = self.graph.static_vertex_prop(self.vertex, &prop_name) {
-                    props.insert(prop_name, prop);
-                }
-            }
-        }
-        props
+        self.property_names(include_static)
+            .into_iter()
+            .filter_map(|key| self.property(key.clone(), include_static).map(|v| (key, v)))
+            .collect()
     }
 
     fn property_histories(&self) -> HashMap<String, Vec<(i64, Prop)>> {
@@ -473,14 +462,16 @@ impl<G: GraphViewOps> VertexListOps for BoxedIter<BoxedIter<VertexView<G>>> {
 #[cfg(test)]
 mod vertex_test {
     use crate::db::graph::Graph;
-    use crate::db::view_api::*;
+    use crate::db::mutation_api::AdditionOps;
+    use crate::prelude::*;
+    use std::collections::HashMap;
 
     #[test]
     fn test_earliest_time() {
-        let g = Graph::new(4);
-        g.add_vertex(0, 1, &vec![]).unwrap();
-        g.add_vertex(1, 1, &vec![]).unwrap();
-        g.add_vertex(2, 1, &vec![]).unwrap();
+        let g = Graph::new();
+        g.add_vertex(0, 1, []).unwrap();
+        g.add_vertex(1, 1, []).unwrap();
+        g.add_vertex(2, 1, []).unwrap();
         let mut view = g.at(1);
         assert_eq!(view.vertex(1).expect("v").earliest_time().unwrap(), 0);
         assert_eq!(view.vertex(1).expect("v").latest_time().unwrap(), 1);
@@ -488,5 +479,18 @@ mod vertex_test {
         view = g.at(3);
         assert_eq!(view.vertex(1).expect("v").earliest_time().unwrap(), 0);
         assert_eq!(view.vertex(1).expect("v").latest_time().unwrap(), 2);
+    }
+
+    #[test]
+    fn test_properties() {
+        let g = Graph::new();
+        let props = [("test".to_string(), Prop::Str("test".to_string()))];
+        g.add_vertex(0, 1, []).unwrap();
+        g.add_vertex(2, 1, props.clone()).unwrap();
+
+        let v1 = g.vertex(1).unwrap();
+        let v1_w = g.window(0, 1).vertex(1).unwrap();
+        assert_eq!(v1.properties(false), props.into());
+        assert_eq!(v1_w.properties(false), HashMap::default())
     }
 }

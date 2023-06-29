@@ -54,20 +54,10 @@ pub trait EdgeViewOps: EdgeViewInternalOps<Self::Graph, Self::Vertex> {
     }
 
     fn properties(&self, include_static: bool) -> HashMap<String, Prop> {
-        let mut props: HashMap<String, Prop> = self
-            .property_histories()
-            .iter()
-            .map(|(key, values)| (key.clone(), values.last().unwrap().1.clone()))
-            .collect();
-
-        if include_static {
-            for prop_name in self.graph().static_edge_prop_names(self.eref()) {
-                if let Some(prop) = self.graph().static_edge_prop(self.eref(), &prop_name) {
-                    props.insert(prop_name, prop);
-                }
-            }
-        }
-        props
+        self.property_names(include_static)
+            .into_iter()
+            .filter_map(|key| self.property(&key, include_static).map(|v| (key, v)))
+            .collect()
     }
 
     fn property_histories(&self) -> HashMap<String, Vec<(i64, Prop)>> {
@@ -129,7 +119,7 @@ pub trait EdgeViewOps: EdgeViewInternalOps<Self::Graph, Self::Vertex> {
     /// Check if edge is active at a given time point
     fn active(&self, t: i64) -> bool {
         match self.eref().time() {
-            Some(tt) => tt == t,
+            Some(tt) => tt <= t && t <= self.latest_time().unwrap_or(tt),
             None => self.graph().has_edge_ref_window(
                 self.eref().src(),
                 self.eref().dst(),
@@ -154,16 +144,12 @@ pub trait EdgeViewOps: EdgeViewInternalOps<Self::Graph, Self::Vertex> {
 
     /// Gets the first time an edge was seen
     fn earliest_time(&self) -> Option<i64> {
-        self.eref()
-            .time()
-            .or_else(|| self.graph().edge_earliest_time(self.eref()))
+        self.graph().edge_earliest_time(self.eref())
     }
 
     /// Gets the latest time an edge was updated
     fn latest_time(&self) -> Option<i64> {
-        self.eref()
-            .time()
-            .or_else(|| self.graph().edge_latest_time(self.eref()))
+        self.graph().edge_latest_time(self.eref())
     }
 
     /// Gets the time stamp of the edge if it is exploded

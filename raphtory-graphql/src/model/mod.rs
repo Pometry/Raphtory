@@ -1,15 +1,14 @@
 use crate::data::Data;
 use crate::model::graph::graph::{GqlGraph, GraphMeta};
-use crate::model::wrappers::dynamic::IntoDynamic;
 use async_graphql::Context;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
+use raphtory::db::view_api::internal::IntoDynamic;
 use raphtory::db::view_api::GraphViewOps;
 
 pub(crate) mod algorithm;
 pub(crate) mod filters;
 pub(crate) mod graph;
-pub(crate) mod wrappers;
 
 #[derive(ResolvedObject)]
 #[graphql(root)]
@@ -22,7 +21,11 @@ impl QueryRoot {
     }
 
     /// Returns a view including all events between `t_start` (inclusive) and `t_end` (exclusive)
-    async fn graph<'a>(ctx: &Context<'a>, name: &str, node_ids: &Option<Vec<i64>>) -> Option<GqlGraph> {
+    async fn graph<'a>(
+        ctx: &Context<'a>,
+        name: &str,
+        node_ids: &Option<Vec<i64>>,
+    ) -> Option<GqlGraph> {
         let data = ctx.data_unchecked::<Data>();
         let g = data.graphs.get(name)?;
         Some(g.clone().into())

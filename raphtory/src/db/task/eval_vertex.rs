@@ -1,3 +1,4 @@
+use crate::core::tgraph::VID;
 use crate::core::time::IntoTime;
 use crate::core::{Direction, Prop};
 use crate::db::edge::EdgeView;
@@ -8,10 +9,8 @@ use crate::db::view_api::{
     BoxedIter, EdgeListOps, EdgeViewOps, TimeOps, VertexListOps, VertexViewOps,
 };
 use crate::{
-    core::{
-        agg::Accumulator,
-        state::{accumulator_id::AccId, compute_state::ComputeState, StateType},
-        vertex_ref::LocalVertexRef,
+    core::state::{
+        accumulator_id::AccId, agg::Accumulator, compute_state::ComputeState, StateType,
     },
     db::view_api::GraphViewOps,
 };
@@ -29,7 +28,7 @@ use super::window_eval_vertex::{WindowEvalPathFromVertex, WindowEvalVertex};
 
 pub struct EvalVertexView<'a, G: GraphViewOps, CS: ComputeState, S: 'static> {
     ss: usize,
-    vertex: LocalVertexRef,
+    vertex: VID,
     pub(crate) graph: &'a G,
     local_state: Option<&'a mut S>,
     local_state_prev: &'a Local2<'a, S>,
@@ -38,13 +37,8 @@ pub struct EvalVertexView<'a, G: GraphViewOps, CS: ComputeState, S: 'static> {
 
 impl<'a, G: GraphViewOps, CS: ComputeState, S> EvalVertexView<'a, G, CS, S> {
     pub fn prev(&self) -> &S {
-        let LocalVertexRef { shard_id, pid } = self.vertex;
-        let shard_size = self.local_state_prev.shard_len;
-        let i = shard_size * shard_id + pid;
-        self.local_state_prev.state[i]
-            .as_ref()
-            .map(|(_, val)| val)
-            .unwrap()
+        let i: usize = self.vertex.into();
+        &self.local_state_prev.state[i]
     }
 
     pub fn get_mut(&mut self) -> &mut S {
@@ -63,7 +57,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S> EvalVertexView<'a, G, CS, S> {
 
     pub(crate) fn new_local(
         ss: usize,
-        v_ref: LocalVertexRef,
+        v_ref: VID,
         g: &'a G,
         local_state: Option<&'a mut S>,
         local_state_prev: &'a Local2<'a, S>,
@@ -80,7 +74,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S> EvalVertexView<'a, G, CS, S> {
     }
 
     fn pid(&self) -> usize {
-        self.vertex.pid
+        self.vertex.into()
     }
 
     pub fn update<A: StateType, IN: 'static, OUT: 'static, ACC: Accumulator<A, IN, OUT>>(
@@ -91,7 +85,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S> EvalVertexView<'a, G, CS, S> {
         self.vertex_state
             .borrow_mut()
             .shard_mut()
-            .accumulate_into_pid(self.ss, self.id(), self.pid(), a, id);
+            .accumulate_into(self.ss, self.pid(), a, id);
     }
 
     pub fn global_update<A: StateType, IN: 'static, OUT: 'static, ACC: Accumulator<A, IN, OUT>>(
@@ -624,7 +618,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
 pub struct Entry<'a, 'b, A: StateType, IN, OUT, ACC: Accumulator<A, IN, OUT>, CS: ComputeState> {
     state: Ref<'a, EVState<'b, CS>>,
     acc_id: AccId<A, IN, OUT, ACC>,
-    v_ref: &'a LocalVertexRef,
+    v_ref: &'a VID,
     gid: u64,
     ss: usize,
 }
@@ -644,7 +638,7 @@ impl<'a, 'b, A: StateType, IN, OUT, ACC: Accumulator<A, IN, OUT>, CS: ComputeSta
     pub(crate) fn new(
         state: Ref<'a, EVState<'b, CS>>,
         acc_id: AccId<A, IN, OUT, ACC>,
-        v_ref: &'a LocalVertexRef,
+        v_ref: &'a VID,
         gid: u64,
         ss: usize,
     ) -> Entry<'a, 'b, A, IN, OUT, ACC, CS> {
@@ -661,7 +655,7 @@ impl<'a, 'b, A: StateType, IN, OUT, ACC: Accumulator<A, IN, OUT>, CS: ComputeSta
     pub fn read_ref(&self) -> Option<&A> {
         self.state
             .shard()
-            .read_ref_with_pid(self.ss, self.gid, self.v_ref.pid, &self.acc_id)
+            .read_ref(self.ss, (*self.v_ref).into(), &self.acc_id)
     }
 }
 

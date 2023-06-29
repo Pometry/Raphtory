@@ -84,10 +84,8 @@ where
             |_, _, _, local| {
                 local
                     .iter()
-                    .filter_map(|line| {
-                        line.as_ref()
-                            .map(|(v_ref, state)| (v_ref.clone(), state.component))
-                    })
+                    .enumerate()
+                    .map(|(v_ref, state)| (v_ref.into(), state.component))
                     .collect::<HashMap<_, _>>()
             },
             threads,
@@ -102,15 +100,16 @@ where
 
 #[cfg(test)]
 mod cc_test {
-    use crate::db::graph::Graph;
+    use crate::{db::graph::Graph, prelude::TimeOps};
 
     use super::*;
+    use crate::db::mutation_api::AdditionOps;
     use itertools::*;
     use std::{cmp::Reverse, iter::once};
 
     #[test]
     fn run_loop_simple_connected_components() {
-        let graph = Graph::new(2);
+        let graph = Graph::new();
 
         let edges = vec![
             (1, 2, 1),
@@ -123,7 +122,7 @@ mod cc_test {
         ];
 
         for (src, dst, ts) in edges {
-            graph.add_edge(ts, src, dst, &vec![], None).unwrap();
+            graph.add_edge(ts, src, dst, [], None).unwrap();
         }
         let results: HashMap<String, u64> = weakly_connected_components(&graph, usize::MAX, None);
 
@@ -146,7 +145,7 @@ mod cc_test {
 
     #[test]
     fn simple_connected_components_2() {
-        let graph = Graph::new(2);
+        let graph = Graph::new();
 
         let edges = vec![
             (1, 2, 1),
@@ -175,7 +174,7 @@ mod cc_test {
         ];
 
         for (src, dst, ts) in edges {
-            graph.add_edge(ts, src, dst, &vec![], None).unwrap();
+            graph.add_edge(ts, src, dst, [], None).unwrap();
         }
 
         let results: HashMap<String, u64> = weakly_connected_components(&graph, usize::MAX, None);
@@ -203,22 +202,52 @@ mod cc_test {
     // connected components on a graph with 1 node and a self loop
     #[test]
     fn simple_connected_components_3() {
-        let graph = Graph::new(2);
+        let graph = Graph::new();
 
         let edges = vec![(1, 1, 1)];
 
         for (src, dst, ts) in edges {
-            graph.add_edge(ts, src, dst, &vec![], None).unwrap();
+            graph.add_edge(ts, src, dst, [], None).unwrap();
         }
 
         let results: HashMap<String, u64> = weakly_connected_components(&graph, usize::MAX, None);
 
         assert_eq!(
             results,
-            vec![("1".to_string(), 1),]
+            vec![("1".to_string(), 1)]
                 .into_iter()
                 .collect::<HashMap<String, u64>>()
         );
+    }
+
+    #[test]
+    fn windowed_connected_components() {
+        let graph = Graph::new();
+        graph.add_edge(0, 1, 2, [], None).expect("add edge");
+        graph.add_edge(0, 2, 1, [], None).expect("add edge");
+        graph.add_edge(9, 3, 4, [], None).expect("add edge");
+        graph.add_edge(9, 4, 3, [], None).expect("add edge");
+
+        let results: HashMap<String, u64> = weakly_connected_components(&graph, usize::MAX, None);
+        let expected = vec![
+            ("1".to_string(), 1),
+            ("2".to_string(), 1),
+            ("3".to_string(), 3),
+            ("4".to_string(), 3),
+        ]
+        .into_iter()
+        .collect::<HashMap<String, u64>>();
+
+        assert_eq!(results, expected);
+
+        let wg = graph.window(0, 2);
+        let results: HashMap<String, u64> = weakly_connected_components(&wg, usize::MAX, None);
+
+        let expected = vec![("1".to_string(), 1), ("2".to_string(), 1)]
+            .into_iter()
+            .collect::<HashMap<String, u64>>();
+
+        assert_eq!(results, expected);
     }
 
     #[quickcheck]
@@ -239,10 +268,10 @@ mod cc_test {
             assert_eq!(edges[0].0, first);
             assert_eq!(edges.last().unwrap().1, first);
 
-            let graph = Graph::new(2);
+            let graph = Graph::new();
 
             for (src, dst) in edges.iter() {
-                graph.add_edge(0, *src, *dst, &vec![], None).unwrap();
+                graph.add_edge(0, *src, *dst, [], None).unwrap();
             }
 
             // now we do connected components over window 0..1

@@ -1,4 +1,6 @@
-use crate::core::{agg::Accumulator, utils::get_shard_id_from_global_vid};
+use rayon::prelude::{IntoParallelIterator, ParallelIterator};
+
+use crate::core::{state::agg::Accumulator, utils::get_shard_id_from_global_vid};
 use crate::db::task::task_state::{Global, Shard};
 use crate::db::view_api::GraphViewOps;
 use std::borrow::Borrow;
@@ -8,14 +10,15 @@ use std::sync::Arc;
 use super::{
     accumulator_id::AccId,
     compute_state::ComputeState,
-    shard_state::{ShardComputeState, GLOBAL_STATE_KEY},
+    morcel_state::{MorcelComputeState, GLOBAL_STATE_KEY},
     StateType,
 };
 
 #[derive(Debug, Clone)]
 pub struct ShuffleComputeState<CS: ComputeState + Send> {
-    pub global: ShardComputeState<CS>,
-    pub parts: Vec<ShardComputeState<CS>>,
+    morcel_size: usize,
+    pub global: MorcelComputeState<CS>,
+    pub parts: Vec<MorcelComputeState<CS>>,
 }
 
 // every partition has a struct as such
@@ -144,13 +147,14 @@ impl<CS: ComputeState + Send + Sync> ShuffleComputeState<CS> {
         self.global.reset_states(ss, states);
     }
 
-    pub fn new(n_parts: usize) -> Self {
+    pub fn new(n_parts: usize, morcel_size: usize) -> Self {
         Self {
+            morcel_size,
             parts: (0..n_parts)
                 .into_iter()
-                .map(|_| ShardComputeState::new())
+                .map(|_| MorcelComputeState::new())
                 .collect(),
-            global: ShardComputeState::new(),
+            global: MorcelComputeState::new(),
         }
     }
 
@@ -171,28 +175,14 @@ impl<CS: ComputeState + Send + Sync> ShuffleComputeState<CS> {
     pub fn accumulate_into<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
         &mut self,
         ss: usize,
-        into: usize,
-        a: IN,
-        agg_ref: &AccId<A, IN, OUT, ACC>,
-    ) where
-        A: StateType,
-    {
-        let part = get_shard_id_from_global_vid(into as u64, self.parts.len());
-        self.parts[part].accumulate_into(ss, into, a, agg_ref)
-    }
-
-    pub fn accumulate_into_pid<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
-        &mut self,
-        ss: usize,
-        g_id: u64,
         p_id: usize,
         a: IN,
         agg_ref: &AccId<A, IN, OUT, ACC>,
     ) where
         A: StateType,
     {
-        let part = get_shard_id_from_global_vid(g_id, self.parts.len());
-        self.parts[part].accumulate_into(ss, p_id, a, agg_ref)
+        let morcel_id = p_id / self.morcel_size;
+        self.parts[morcel_id].accumulate_into(ss, p_id, a, agg_ref)
     }
 
     pub fn read_with_pid<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
@@ -239,28 +229,14 @@ impl<CS: ComputeState + Send + Sync> ShuffleComputeState<CS> {
     pub fn read_ref<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
         &self,
         ss: usize,
-        into: usize,
-        agg_ref: &AccId<A, IN, OUT, ACC>,
-    ) -> Option<&A>
-    where
-        A: StateType,
-    {
-        let part = get_shard_id_from_global_vid(into as u64, self.parts.len());
-        self.parts[part].read_ref::<A, IN, OUT, ACC>(into, agg_ref.id(), ss)
-    }
-
-    pub fn read_ref_with_pid<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
-        &self,
-        ss: usize,
-        g_id: u64,
         p_id: usize,
         agg_ref: &AccId<A, IN, OUT, ACC>,
     ) -> Option<&A>
     where
         A: StateType,
     {
-        let part = get_shard_id_from_global_vid(g_id, self.parts.len());
-        self.parts[part].read_ref::<A, IN, OUT, ACC>(p_id, agg_ref.id(), ss)
+        let morcel_id = p_id / self.morcel_size;
+        self.parts[morcel_id].read_ref::<A, IN, OUT, ACC>(p_id, agg_ref.id(), ss)
     }
 
     pub fn read_global<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
@@ -289,14 +265,14 @@ impl<CS: ComputeState + Send + Sync> ShuffleComputeState<CS> {
         self.parts
             .iter()
             .enumerate()
-            .flat_map(|(shard_id, part)| part.read_vec(ss, agg_def, shard_id, g))
+            .flat_map(|(_, part)| part.read_vec(ss, agg_def, g))
             .collect()
     }
 }
 
 impl<CS: ComputeState + Send> ShuffleComputeState<CS> {
     pub fn finalize<A, B, F, IN, OUT, ACC: Accumulator<A, IN, OUT>, G: GraphViewOps>(
-        &self,
+        self,
         agg_def: &AccId<A, IN, OUT, ACC>,
         ss: usize,
         g: &G,
@@ -304,17 +280,21 @@ impl<CS: ComputeState + Send> ShuffleComputeState<CS> {
     ) -> HashMap<String, B>
     where
         OUT: StateType,
-        A: 'static,
+        A: StateType,
         F: Fn(OUT) -> B + Copy,
     {
-        let r = self
+        let out = self
             .parts
-            .iter()
-            .enumerate()
-            .map(|(shard_id, part)| part.finalize(ss, &agg_def, shard_id, g));
-
-        r.into_iter()
-            .flat_map(|c| c.into_iter().map(|(k, v)| (k, f(v))))
+            .into_par_iter()
+            .reduce_with(|part1, part2| {
+                let mut part1 = part1;
+                part1.merge(&part2, agg_def, ss);
+                part1
+            })
+            .map(|part| part.finalize(ss, agg_def, g));
+        out.unwrap_or_default()
+            .into_iter()
+            .map(|(k, v)| (k, f(v)))
             .collect()
     }
 }
@@ -346,6 +326,7 @@ impl<CS: ComputeState + Send> EvalGlobalState<CS> {
     }
 }
 
+#[derive(Debug)]
 pub struct EvalShardState<G: GraphViewOps, CS: ComputeState + Send> {
     ss: usize,
     g: G,
@@ -362,22 +343,25 @@ impl<G: GraphViewOps, CS: ComputeState + Send> EvalShardState<G, CS> {
     }
 
     pub fn finalize<A, B, F, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
-        &self,
+        self,
         agg_def: &AccId<A, IN, OUT, ACC>,
         f: F,
     ) -> HashMap<String, B>
     where
         OUT: StateType,
-        A: 'static,
+        A: StateType,
         F: Fn(OUT) -> B + Copy,
     {
-        self.shard_states
-            .inner()
-            .finalize(agg_def, self.ss, &self.g, f)
+        let inner = self.shard_states.consume();
+        if let Ok(inner) = inner {
+            inner.finalize(agg_def, self.ss, &self.g, f)
+        } else {
+            HashMap::new()
+        }
     }
 
-    pub fn values(self) -> Shard<CS> {
-        self.shard_states
+    pub fn values(&self) -> &Shard<CS> {
+        &self.shard_states
     }
 }
 
@@ -401,19 +385,19 @@ impl<G: GraphViewOps, CS: ComputeState + Send> EvalLocalState<G, CS> {
     }
 
     pub fn finalize<A, B, F, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
-        &self,
+        self,
         agg_def: &AccId<A, IN, OUT, ACC>,
         f: F,
     ) -> HashMap<String, B>
     where
         OUT: StateType,
-        A: 'static,
+        A: StateType,
         F: Fn(OUT) -> B + Copy,
     {
         self.local_states
-            .iter()
+            .into_iter()
             .flat_map(|state| {
-                if let Some(state) = state.as_ref() {
+                if let Some(state) = Arc::try_unwrap(state).ok().flatten() {
                     state.finalize(agg_def, self.ss, &self.g, f)
                 } else {
                     HashMap::<String, B>::new()

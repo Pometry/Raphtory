@@ -2,15 +2,13 @@ use crate::model::filters::edgefilter::EdgeFilter;
 use crate::model::graph::edge::Edge;
 use crate::model::graph::property::Property;
 use crate::model::graph::property_update::PropertyUpdate;
-use crate::model::wrappers::dynamic::{DynamicGraph, IntoDynamic};
 use async_graphql::Context;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::core::Prop;
 use raphtory::db::vertex::VertexView;
-use raphtory::db::view_api::layer::LayerOps;
-use raphtory::db::view_api::EdgeListOps;
-use raphtory::db::view_api::{GraphViewOps, VertexViewOps};
+use raphtory::db::view_api::internal::{DynamicGraph, IntoDynamic};
+use raphtory::db::view_api::*;
 
 #[derive(ResolvedObject)]
 pub(crate) struct Node {
@@ -116,15 +114,16 @@ impl Node {
     async fn degree(&self, layers: Option<Vec<String>>) -> usize {
         match layers {
             None => self.vv.degree(),
-            Some(layers) =>
-                layers.into_iter().map( |layer| {
+            Some(layers) => layers
+                .into_iter()
+                .map(|layer| {
                     let degree = match self.vv.layer(layer.as_str()) {
                         None => 0,
                         Some(vvv) => vvv.degree(),
                     };
                     return degree;
-                }
-                ).sum()
+                })
+                .sum(),
         }
     }
 

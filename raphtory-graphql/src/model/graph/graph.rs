@@ -1,13 +1,13 @@
 use crate::model::algorithm::Algorithms;
+use crate::model::filters::edgefilter::EdgeFilter;
 use crate::model::filters::nodefilter::NodeFilter;
 use crate::model::graph::edge::Edge;
 use crate::model::graph::node::Node;
 use crate::model::graph::property::Property;
-use crate::model::wrappers::dynamic::{DynamicGraph, IntoDynamic};
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
+use raphtory::db::view_api::internal::{DynamicGraph, IntoDynamic};
 use raphtory::db::view_api::{EdgeViewOps, GraphViewOps, TimeOps, VertexViewOps};
-use crate::model::filters::edgefilter::EdgeFilter;
 
 #[derive(ResolvedObject)]
 pub(crate) struct GraphMeta {

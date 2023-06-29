@@ -8,11 +8,12 @@
 //! use raphtory::db::graph::Graph;
 //! use raphtory::graphgen::preferential_attachment::ba_preferential_attachment;
 //!
-//! let graph = Graph::new(2);
+//! let graph = Graph::new();
 //! ba_preferential_attachment(&graph, 1000, 10);
 //! ```
 
 use crate::db::graph::Graph;
+use crate::db::mutation_api::AdditionOps;
 use crate::db::view_api::*;
 use rand::prelude::*;
 use std::collections::HashSet;
@@ -40,7 +41,7 @@ use std::collections::HashSet;
 /// use raphtory::db::graph::Graph;
 /// use raphtory::graphgen::preferential_attachment::ba_preferential_attachment;
 ///
-/// let graph = Graph::new(2);
+/// let graph = Graph::new();
 /// ba_preferential_attachment(&graph, 1000, 10);
 /// ```
 pub fn ba_preferential_attachment(graph: &Graph, vertices_to_add: usize, edges_per_step: usize) {
@@ -60,7 +61,7 @@ pub fn ba_preferential_attachment(graph: &Graph, vertices_to_add: usize, edges_p
     while ids.len() < edges_per_step {
         max_id += 1;
         graph
-            .add_vertex(latest_time, max_id, &vec![])
+            .add_vertex(latest_time, max_id, [])
             .map_err(|err| println!("{:?}", err))
             .ok();
         degrees.push(0);
@@ -70,7 +71,7 @@ pub fn ba_preferential_attachment(graph: &Graph, vertices_to_add: usize, edges_p
     if graph.num_edges() < edges_per_step {
         for pos in 1..ids.len() {
             graph
-                .add_edge(latest_time, ids[pos], ids[pos - 1], &vec![], None)
+                .add_edge(latest_time, ids[pos], ids[pos - 1], [], None)
                 .expect("Not able to add edge");
             edge_count += 2;
             degrees[pos] += 1;
@@ -102,7 +103,7 @@ pub fn ba_preferential_attachment(graph: &Graph, vertices_to_add: usize, edges_p
             let dst = ids[pos];
             degrees[pos] += 1;
             graph
-                .add_edge(latest_time, max_id, dst, &vec![], None)
+                .add_edge(latest_time, max_id, dst, [], None)
                 .expect("Not able to add edge");
         }
         ids.push(max_id);
@@ -118,7 +119,7 @@ mod preferential_attachment_tests {
     use crate::graphgen::random_attachment::random_attachment;
     #[test]
     fn blank_graph() {
-        let graph = Graph::new(2);
+        let graph = Graph::new();
         ba_preferential_attachment(&graph, 1000, 10);
         assert_eq!(graph.num_edges(), 10009);
         assert_eq!(graph.num_vertices(), 1010);
@@ -126,10 +127,10 @@ mod preferential_attachment_tests {
 
     #[test]
     fn only_nodes() {
-        let graph = Graph::new(2);
+        let graph = Graph::new();
         for i in 0..10 {
             graph
-                .add_vertex(i, i as u64, &vec![])
+                .add_vertex(i, i as u64, [])
                 .map_err(|err| println!("{:?}", err))
                 .ok();
         }
@@ -141,7 +142,7 @@ mod preferential_attachment_tests {
 
     #[test]
     fn prior_graph() {
-        let graph = Graph::new(2);
+        let graph = Graph::new();
         random_attachment(&graph, 1000, 3);
         ba_preferential_attachment(&graph, 500, 4);
         assert_eq!(graph.num_edges(), 5000);

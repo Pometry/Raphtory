@@ -1,5 +1,5 @@
 use crate::core::edge_ref::EdgeRef;
-use crate::core::vertex_ref::LocalVertexRef;
+use crate::core::tgraph::VID;
 use crate::core::Prop;
 use crate::db::view_api::internal::time_semantics::TimeSemantics;
 use crate::db::view_api::internal::CoreGraphOps;
@@ -24,7 +24,7 @@ pub trait GraphPropertiesOps {
 
     fn static_edge_props(&self, e: EdgeRef) -> HashMap<String, Prop>;
 
-    fn static_vertex_props(&self, v: LocalVertexRef) -> HashMap<String, Prop>;
+    fn static_vertex_props(&self, v: VID) -> HashMap<String, Prop>;
 
     fn static_props(&self) -> HashMap<String, Prop>;
 
@@ -39,7 +39,7 @@ pub trait GraphPropertiesOps {
     ///
     /// # Returns
     /// - A map of all temporal values of the vertex properties for the given vertex.
-    fn temporal_vertex_props(&self, v: LocalVertexRef) -> HashMap<String, Vec<(i64, Prop)>>;
+    fn temporal_vertex_props(&self, v: VID) -> HashMap<String, Vec<(i64, Prop)>>;
 
     /// Returns a map of all temporal values of the vertex properties for the given vertex
     /// that fall within the specified time window.
@@ -54,7 +54,7 @@ pub trait GraphPropertiesOps {
     /// - A map of all temporal values of the vertex properties for the given vertex
     fn temporal_vertex_props_window(
         &self,
-        v: LocalVertexRef,
+        v: VID,
         t_start: i64,
         t_end: i64,
     ) -> HashMap<String, Vec<(i64, Prop)>>;
@@ -102,7 +102,7 @@ impl<G: TimeSemantics + CoreGraphOps> GraphPropertiesOps for G {
         map
     }
 
-    fn static_vertex_props(&self, v: LocalVertexRef) -> HashMap<String, Prop> {
+    fn static_vertex_props(&self, v: VID) -> HashMap<String, Prop> {
         let mut map = HashMap::default();
         for name in self.static_vertex_prop_names(v) {
             if let Some(p) = self.static_vertex_prop(v, &name) {
@@ -130,7 +130,7 @@ impl<G: TimeSemantics + CoreGraphOps> GraphPropertiesOps for G {
         map
     }
 
-    fn temporal_vertex_props(&self, v: LocalVertexRef) -> HashMap<String, Vec<(i64, Prop)>> {
+    fn temporal_vertex_props(&self, v: VID) -> HashMap<String, Vec<(i64, Prop)>> {
         let mut map = HashMap::default();
         for name in self.temporal_vertex_prop_names(v) {
             map.insert(name.clone(), self.temporal_vertex_prop_vec(v, &name));
@@ -140,7 +140,7 @@ impl<G: TimeSemantics + CoreGraphOps> GraphPropertiesOps for G {
 
     fn temporal_vertex_props_window(
         &self,
-        v: LocalVertexRef,
+        v: VID,
         t_start: i64,
         t_end: i64,
     ) -> HashMap<String, Vec<(i64, Prop)>> {

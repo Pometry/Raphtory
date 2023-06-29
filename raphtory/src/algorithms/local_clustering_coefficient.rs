@@ -25,9 +25,10 @@
 //! ```rust
 //! use raphtory::algorithms::local_clustering_coefficient::{local_clustering_coefficient};
 //! use raphtory::db::graph::Graph;
+//! use raphtory::db::mutation_api::AdditionOps;
 //! use raphtory::db::view_api::*;
 //!
-//! let g = Graph::new(1);
+//! let g = Graph::new();
 //! let windowed_graph = g.window(0, 7);
 //! let vs = vec![
 //!     (1, 1, 2),
@@ -39,7 +40,7 @@
 //! ];
 //!
 //! for (t, src, dst) in &vs {
-//!     g.add_edge(*t, *src, *dst, &vec![], None);
+//!     g.add_edge(*t, *src, *dst, [], None);
 //! }
 //!
 //! let actual = (1..=5)
@@ -80,11 +81,12 @@ pub fn local_clustering_coefficient<G: GraphViewOps, V: Into<VertexRef>>(
 mod clustering_coefficient_tests {
     use super::local_clustering_coefficient;
     use crate::db::graph::Graph;
+    use crate::db::mutation_api::AdditionOps;
     use crate::db::view_api::*;
 
     #[test]
     fn clusters_of_triangles() {
-        let g = Graph::new(1);
+        let g = Graph::new();
         let windowed_graph = g.window(0, 7);
         let vs = vec![
             (1, 1, 2),
@@ -96,7 +98,7 @@ mod clustering_coefficient_tests {
         ];
 
         for (t, src, dst) in &vs {
-            g.add_edge(*t, *src, *dst, &vec![], None).unwrap();
+            g.add_edge(*t, *src, *dst, [], None).unwrap();
         }
 
         let expected = vec![0.33333334, 1.0, 1.0, 0.0, 0.0];

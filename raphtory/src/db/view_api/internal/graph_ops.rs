@@ -1,12 +1,14 @@
 use crate::core::edge_ref::EdgeRef;
-use crate::core::vertex_ref::{LocalVertexRef, VertexRef};
+use crate::core::tgraph::VID;
+use crate::core::vertex_ref::VertexRef;
 use crate::core::Direction;
+use crate::db::view_api::internal::Base;
 
 /// The GraphViewInternalOps trait provides a set of methods to query a directed graph
 /// represented by the raphtory_core::tgraph::TGraph struct.
 pub trait GraphOps: Send + Sync {
     /// Check if a vertex exists locally and returns local reference.
-    fn local_vertex_ref(&self, v: VertexRef) -> Option<LocalVertexRef>;
+    fn local_vertex_ref(&self, v: VertexRef) -> Option<VID>;
 
     /// Get all layer ids
     fn get_unique_layers_internal(&self) -> Vec<usize>;
@@ -42,26 +44,24 @@ pub trait GraphOps: Send + Sync {
     /// (v) based on the direction (d).
     /// # Arguments
     ///
-    /// * `v` - LocalVertexRef of the vertex to check.
+    /// * `v` - VID of the vertex to check.
     /// * `d` - Direction of the edges to count.
-    fn degree(&self, v: LocalVertexRef, d: Direction, layer: Option<usize>) -> usize;
+    fn degree(&self, v: VID, d: Direction, layer: Option<usize>) -> usize;
 
-    /// Returns the LocalVertexRef that corresponds to the specified vertex ID (v).
+    /// Returns the VID that corresponds to the specified vertex ID (v).
     /// Returns None if the vertex ID is not present in the graph.
     /// # Arguments
     ///
     /// * `v` - The vertex ID to lookup.
-    fn vertex_ref(&self, v: u64) -> Option<LocalVertexRef> {
+    fn vertex_ref(&self, v: u64) -> Option<VID> {
         self.local_vertex_ref(v.into())
     }
 
     /// Returns all the vertex references in the graph.
     /// # Returns
-    /// * `Box<dyn Iterator<Item = LocalVertexRef> + Send>` - An iterator over all the vertex
+    /// * `Box<dyn Iterator<Item = VID> + Send>` - An iterator over all the vertex
     /// references in the graph.
-    fn vertex_refs(&self) -> Box<dyn Iterator<Item = LocalVertexRef> + Send>;
-
-    fn vertex_refs_shard(&self, shard: usize) -> Box<dyn Iterator<Item = LocalVertexRef> + Send>;
+    fn vertex_refs(&self) -> Box<dyn Iterator<Item = VID> + Send>;
 
     /// Returns the edge reference that corresponds to the specified src and dst vertex
     /// # Arguments
@@ -95,7 +95,7 @@ pub trait GraphOps: Send + Sync {
     /// the edges connected to the vertex.
     fn vertex_edges(
         &self,
-        v: LocalVertexRef,
+        v: VID,
         d: Direction,
         layer: Option<usize>,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send>;
@@ -112,20 +112,33 @@ pub trait GraphOps: Send + Sync {
     /// A boxed iterator that yields references to the neighboring vertices.
     fn neighbours(
         &self,
-        v: LocalVertexRef,
+        v: VID,
         d: Direction,
         layer: Option<usize>,
     ) -> Box<dyn Iterator<Item = VertexRef> + Send>;
 }
 
-pub trait InheritGraphOps {
+pub trait InheritGraphOps: Base {}
+
+impl<G: InheritGraphOps> DelegateGraphOps for G
+where
+    G::Base: GraphOps,
+{
+    type Internal = G::Base;
+
+    fn graph(&self) -> &Self::Internal {
+        self.base()
+    }
+}
+
+pub trait DelegateGraphOps {
     type Internal: GraphOps + ?Sized;
 
     fn graph(&self) -> &Self::Internal;
 }
 
-impl<G: InheritGraphOps + Send + Sync + ?Sized> GraphOps for G {
-    fn local_vertex_ref(&self, v: VertexRef) -> Option<LocalVertexRef> {
+impl<G: DelegateGraphOps + Send + Sync + ?Sized> GraphOps for G {
+    fn local_vertex_ref(&self, v: VertexRef) -> Option<VID> {
         self.graph().local_vertex_ref(v)
     }
 
@@ -145,15 +158,11 @@ impl<G: InheritGraphOps + Send + Sync + ?Sized> GraphOps for G {
         self.graph().edges_len(layer)
     }
 
-    fn degree(&self, v: LocalVertexRef, d: Direction, layer: Option<usize>) -> usize {
+    fn degree(&self, v: VID, d: Direction, layer: Option<usize>) -> usize {
         self.graph().degree(v, d, layer)
     }
-    fn vertex_refs(&self) -> Box<dyn Iterator<Item = LocalVertexRef> + Send> {
+    fn vertex_refs(&self) -> Box<dyn Iterator<Item = VID> + Send> {
         self.graph().vertex_refs()
-    }
-
-    fn vertex_refs_shard(&self, shard: usize) -> Box<dyn Iterator<Item = LocalVertexRef> + Send> {
-        self.graph().vertex_refs_shard(shard)
     }
 
     fn edge_ref(&self, src: VertexRef, dst: VertexRef, layer: usize) -> Option<EdgeRef> {
@@ -166,7 +175,7 @@ impl<G: InheritGraphOps + Send + Sync + ?Sized> GraphOps for G {
 
     fn vertex_edges(
         &self,
-        v: LocalVertexRef,
+        v: VID,
         d: Direction,
         layer: Option<usize>,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
@@ -175,7 +184,7 @@ impl<G: InheritGraphOps + Send + Sync + ?Sized> GraphOps for G {
 
     fn neighbours(
         &self,
-        v: LocalVertexRef,
+        v: VID,
         d: Direction,
         layer: Option<usize>,
     ) -> Box<dyn Iterator<Item = VertexRef> + Send> {

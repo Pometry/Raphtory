@@ -9,11 +9,12 @@
 //! ```
 //! use raphtory::db::graph::Graph;
 //! use raphtory::graphgen::random_attachment::random_attachment;
-//! let graph = Graph::new(2);
+//! let graph = Graph::new();
 //! random_attachment(&graph, 1000, 10);
 //! ```
 
 use crate::db::graph::Graph;
+use crate::db::mutation_api::AdditionOps;
 use crate::db::view_api::*;
 use rand::seq::SliceRandom;
 
@@ -36,7 +37,7 @@ use rand::seq::SliceRandom;
 /// ```
 /// use raphtory::db::graph::Graph;
 /// use raphtory::graphgen::random_attachment::random_attachment;
-/// let graph = Graph::new(2);
+/// let graph = Graph::new();
 /// random_attachment(&graph, 1000, 10);
 /// ```
 pub fn random_attachment(graph: &Graph, vertices_to_add: usize, edges_per_step: usize) {
@@ -49,7 +50,7 @@ pub fn random_attachment(graph: &Graph, vertices_to_add: usize, edges_per_step: 
         max_id += 1;
         latest_time += 1;
         graph
-            .add_vertex(latest_time, max_id, &vec![])
+            .add_vertex(latest_time, max_id, [])
             .map_err(|err| println!("{:?}", err))
             .ok();
         ids.push(max_id);
@@ -61,7 +62,7 @@ pub fn random_attachment(graph: &Graph, vertices_to_add: usize, edges_per_step: 
         latest_time += 1;
         edges.for_each(|neighbour| {
             graph
-                .add_edge(latest_time, max_id, *neighbour, &vec![], None)
+                .add_edge(latest_time, max_id, *neighbour, [], None)
                 .expect("Not able to add edge");
         });
         ids.push(max_id);
@@ -74,7 +75,7 @@ mod random_graph_test {
     use crate::graphgen::preferential_attachment::ba_preferential_attachment;
     #[test]
     fn blank_graph() {
-        let graph = Graph::new(2);
+        let graph = Graph::new();
         random_attachment(&graph, 100, 20);
         assert_eq!(graph.num_edges(), 2000);
         assert_eq!(graph.num_vertices(), 120);
@@ -82,10 +83,10 @@ mod random_graph_test {
 
     #[test]
     fn only_nodes() {
-        let graph = Graph::new(2);
+        let graph = Graph::new();
         for i in 0..10 {
             graph
-                .add_vertex(i, i as u64, &vec![])
+                .add_vertex(i, i as u64, [])
                 .map_err(|err| println!("{:?}", err))
                 .ok();
         }
@@ -97,7 +98,7 @@ mod random_graph_test {
 
     #[test]
     fn prior_graph() {
-        let graph = Graph::new(2);
+        let graph = Graph::new();
         ba_preferential_attachment(&graph, 300, 7);
         random_attachment(&graph, 4000, 12);
         assert_eq!(graph.num_edges(), 50106);

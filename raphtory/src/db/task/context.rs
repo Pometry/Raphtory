@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::{
     core::{
-        agg::Accumulator,
+        state::agg::Accumulator,
         state::{
             accumulator_id::AccId, compute_state::ComputeState, shuffle_state::ShuffleComputeState,
             StateType,
@@ -146,7 +146,6 @@ pub struct GlobalState<CS: ComputeState> {
 }
 
 impl<CS: ComputeState> GlobalState<CS> {
-
     pub fn finalize<A: StateType, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
         &self,
         agg_def: &AccId<A, IN, OUT, ACC>,
@@ -157,7 +156,8 @@ impl<CS: ComputeState> GlobalState<CS> {
     {
         // ss needs to be incremented because the loop ran once and at the end it incremented the state thus
         // the value is on the previous ss
-        self.state.inner()
+        self.state
+            .inner()
             .read_global(self.ss + 1, agg_def)
             .unwrap_or_default()
     }

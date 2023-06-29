@@ -6,10 +6,11 @@ use std::convert::TryFrom;
 use std::sync::Arc;
 
 use js_sys::Object;
-use raphtory::core::tgraph_shard::errors::GraphError;
+use raphtory::core::errors::GraphError;
 use raphtory::core::Prop;
 use raphtory::db::graph::Graph as TGraph;
 use raphtory::db::graph_window::WindowedGraph;
+use raphtory::db::mutation_api::AdditionOps;
 use raphtory::db::view_api::internal::BoxableGraphView;
 use raphtory::db::view_api::GraphViewOps;
 use raphtory::db::view_api::TimeOps;
@@ -61,7 +62,7 @@ impl Graph {
     #[wasm_bindgen(constructor)]
     pub fn new() -> Self {
         set_panic_hook();
-        Graph(UnderGraph::TGraph(Arc::new(TGraph::new(1))))
+        Graph(UnderGraph::TGraph(Arc::new(TGraph::new())))
     }
 
     #[wasm_bindgen(js_name = window)]
@@ -113,11 +114,11 @@ impl Graph {
         match JsVertex::try_from(id)? {
             JsVertex::Str(vertex) => self
                 .mutable_graph()
-                .add_vertex(t, vertex, &rust_props)
+                .add_vertex(t, vertex, rust_props)
                 .map_err(JSError),
             JsVertex::Number(vertex) => self
                 .mutable_graph()
-                .add_vertex(t, vertex, &rust_props)
+                .add_vertex(t, vertex, rust_props)
                 .map_err(JSError),
         }
     }
@@ -151,11 +152,11 @@ impl Graph {
         match (JsVertex::try_from(src)?, JsVertex::try_from(dst)?) {
             (JsVertex::Str(src), JsVertex::Str(dst)) => self
                 .mutable_graph()
-                .add_edge(t, src, dst, &props, None)
+                .add_edge(t, src, dst, props, None)
                 .map_err(JSError),
             (JsVertex::Number(src), JsVertex::Number(dst)) => self
                 .mutable_graph()
-                .add_edge(t, src, dst, &props, None)
+                .add_edge(t, src, dst, props, None)
                 .map_err(JSError),
             _ => Err(JSError(GraphError::VertexIdNotStringOrNumber)),
         }

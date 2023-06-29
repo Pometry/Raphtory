@@ -11,10 +11,9 @@
 //!
 //! ```rust
 //! use raphtory::algorithms::directed_graph_density::directed_graph_density;
-//! use raphtory::db::graph::Graph;
-//! use raphtory::db::view_api::*;
+//! use raphtory::prelude::*;
 //!
-//! let g = Graph::new(1);
+//! let g = Graph::new();
 //! let windowed_graph = g.window(0, 7);
 //! let vs = vec![
 //!     (1, 1, 2),
@@ -26,7 +25,7 @@
 //! ];
 //!
 //! for (t, src, dst) in &vs {
-//! g.add_edge(*t, *src, *dst, &vec![], None);
+//! g.add_edge(*t, *src, *dst, [], None);
 //! }
 //!
 //! println!("graph density: {:?}", directed_graph_density(&windowed_graph));
@@ -43,10 +42,11 @@ pub fn directed_graph_density<G: GraphViewOps>(graph: &G) -> f32 {
 mod directed_graph_density_tests {
     use super::*;
     use crate::db::graph::Graph;
+    use crate::db::mutation_api::AdditionOps;
 
     #[test]
     fn low_graph_density() {
-        let g = Graph::new(1);
+        let g = Graph::new();
         let windowed_graph = g.window(0, 7);
         let vs = vec![
             (1, 1, 2),
@@ -58,7 +58,7 @@ mod directed_graph_density_tests {
         ];
 
         for (t, src, dst) in &vs {
-            g.add_edge(*t, *src, *dst, &vec![], None).unwrap();
+            g.add_edge(*t, *src, *dst, [], None).unwrap();
         }
 
         let actual = directed_graph_density(&windowed_graph);
@@ -69,12 +69,12 @@ mod directed_graph_density_tests {
 
     #[test]
     fn complete_graph_has_graph_density_of_one() {
-        let g = Graph::new(1);
+        let g = Graph::new();
         let windowed_graph = g.window(0, 3);
         let vs = vec![(1, 1, 2), (2, 2, 1)];
 
         for (t, src, dst) in &vs {
-            g.add_edge(*t, *src, *dst, &vec![], None).unwrap();
+            g.add_edge(*t, *src, *dst, [], None).unwrap();
         }
 
         let actual = directed_graph_density(&windowed_graph);

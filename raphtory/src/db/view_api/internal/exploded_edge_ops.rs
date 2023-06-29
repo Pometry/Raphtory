@@ -1,5 +1,5 @@
 use crate::core::edge_ref::EdgeRef;
-use crate::core::vertex_ref::LocalVertexRef;
+use crate::core::tgraph::VID;
 use crate::core::Direction;
 use crate::db::view_api::internal::time_semantics::TimeSemantics;
 use crate::db::view_api::internal::GraphOps;
@@ -21,7 +21,7 @@ pub trait ExplodedEdgeOps {
     /// the edges connected to the vertex.
     fn vertex_edges_t(
         &self,
-        v: LocalVertexRef,
+        v: VID,
         d: Direction,
         layer: Option<usize>,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send>;
@@ -42,7 +42,7 @@ pub trait ExplodedEdgeOps {
     ///  within the specified time window but exploded.
     fn vertex_edges_window_t(
         &self,
-        v: LocalVertexRef,
+        v: VID,
         t_start: i64,
         t_end: i64,
         d: Direction,
@@ -59,7 +59,7 @@ pub trait ExplodedEdgeOps {
 impl<G: GraphOps + TimeSemantics + Clone + 'static> ExplodedEdgeOps for G {
     fn vertex_edges_t(
         &self,
-        v: LocalVertexRef,
+        v: VID,
         d: Direction,
         layer: Option<usize>,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
@@ -74,7 +74,7 @@ impl<G: GraphOps + TimeSemantics + Clone + 'static> ExplodedEdgeOps for G {
 
     fn vertex_edges_window_t(
         &self,
-        v: LocalVertexRef,
+        v: VID,
         t_start: i64,
         t_end: i64,
         d: Direction,

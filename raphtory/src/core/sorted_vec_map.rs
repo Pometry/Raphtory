@@ -1,7 +1,7 @@
 use std::ops::Range;
 
 use serde::{ser::SerializeSeq, Deserialize, Serialize};
-use sorted_vector_map::{map::Entry, SortedVectorMap};
+use sorted_vector_map::SortedVectorMap;
 
 // wrapper for SortedVectorMap
 #[derive(Debug, PartialEq, Default, Clone)]
@@ -30,10 +30,6 @@ impl<K: Ord, V> SVM<K, V> {
 
     pub(crate) fn from_iter<I: IntoIterator<Item = (K, V)>>(iter: I) -> Self {
         Self(SortedVectorMap::from_iter(iter))
-    }
-
-    pub(crate) fn entry(&mut self, k: K) -> Entry<K, V> {
-        self.0.entry(k)
     }
 }
 

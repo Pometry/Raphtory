@@ -14,10 +14,9 @@
 //! # Example
 //!
 //! ```rust
-//! use raphtory::db::graph::Graph;
+//! use raphtory::prelude::*;
 //! use raphtory::algorithms::triplet_count::triplet_count;
-//! use raphtory::db::view_api::*;
-//! let graph = Graph::new(2);
+//! let graph = Graph::new();
 //!  let edges = vec![
 //!      (1, 2),
 //!      (1, 3),
@@ -27,7 +26,7 @@
 //!      (2, 7),
 //!  ];
 //!  for (src, dst) in edges {
-//!      graph.add_edge(0, src, dst, &vec![], None);
+//!      graph.add_edge(0, src, dst, [], None);
 //!  }
 //!  let results = triplet_count(&graph.at(1), None);
 //!  println!("triplet count: {}", results);
@@ -58,8 +57,9 @@ use crate::db::view_api::{GraphViewOps, VertexViewOps};
 /// ```rust
 /// use raphtory::db::graph::Graph;
 /// use raphtory::algorithms::triplet_count::triplet_count;
+/// use raphtory::db::mutation_api::AdditionOps;
 /// use raphtory::db::view_api::*;
-/// let graph = Graph::new(2);
+/// let graph = Graph::new();
 ///  let edges = vec![
 ///      (1, 2),
 ///      (1, 3),
@@ -69,7 +69,7 @@ use crate::db::view_api::{GraphViewOps, VertexViewOps};
 ///      (2, 7),
 ///  ];
 ///  for (src, dst) in edges {
-///      graph.add_edge(0, src, dst, &vec![], None);
+///      graph.add_edge(0, src, dst, [], None);
 ///  }
 ///
 ///  let results = triplet_count(&graph.at(1), None);
@@ -112,13 +112,14 @@ pub fn triplet_count<G: GraphViewOps>(g: &G, threads: Option<usize>) -> usize {
 mod triplet_test {
     use super::*;
     use crate::db::graph::Graph;
+    use crate::db::mutation_api::AdditionOps;
     use crate::db::view_api::*;
     use pretty_assertions::assert_eq;
 
     /// Test the global clustering coefficient
     #[test]
     fn test_triplet_count() {
-        let graph = Graph::new(1);
+        let graph = Graph::new();
 
         // Graph has 2 triangles and 20 triplets
         let edges = vec![
@@ -145,7 +146,7 @@ mod triplet_test {
         ];
 
         for (src, dst) in edges {
-            graph.add_edge(0, src, dst, &vec![], None).unwrap();
+            graph.add_edge(0, src, dst, [], None).unwrap();
         }
         let exp_triplet_count = 20;
         let results = triplet_count(&graph.at(1), None);

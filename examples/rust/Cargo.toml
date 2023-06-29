@@ -7,8 +7,7 @@ keywords = ["graph", "temporal-graph", "temporal", "examples"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-raphtory = {path = "../../raphtory"}
-raphtory-io = {path = "../../raphtory-io"}
+raphtory = {path = "../../raphtory", features=["io"]}
 chrono = "0.4"
 regex = "1"
 serde = { version = "1", features = ["derive", "rc"] }
@@ -24,9 +23,6 @@ name = "bench"
 
 [[bin]]
 name = "lotr"
-
-[[bin]]
-name = "healthcheck"
 
 [[bin]]
 name = "hulongbay"
