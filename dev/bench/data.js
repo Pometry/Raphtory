@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1687959135588,
+  "lastUpdate": 1688048534473,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -4261,6 +4261,60 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions with numeric string input",
             "value": 1733938,
             "range": "± 50436",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "2404621+fabianmurariu@users.noreply.github.com",
+            "name": "Fabian Murariu",
+            "username": "fabianmurariu"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4fa687fc02abd90c887cf15bfc92a0c0cc164cd0",
+          "message": "Fix state post remove shards (#1080)\n\n* chunk the state correctly and iterate over it in the right way\r\n\r\n* fix state issues with the latest shard free approach\r\n\r\n* undo fn zero() for VecArray\r\n\r\n* remove shard from sx_superuser_graph\r\n\r\n* fix python test",
+          "timestamp": "2023-06-29T15:16:31+01:00",
+          "tree_id": "292ad517b28717b2f923c6fe1f2c3cc8a40e61ec",
+          "url": "https://github.com/Pometry/Raphtory/commit/4fa687fc02abd90c887cf15bfc92a0c0cc164cd0"
+        },
+        "date": 1688048533029,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 704813,
+            "range": "± 40454",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and numeric string input",
+            "value": 1416956,
+            "range": "± 75778",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and string input",
+            "value": 1521976,
+            "range": "± 98119",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 1166090,
+            "range": "± 178953",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions with numeric string input",
+            "value": 2231878,
+            "range": "± 167058",
             "unit": "ns/iter"
           }
         ]
