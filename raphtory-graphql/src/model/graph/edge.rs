@@ -8,7 +8,7 @@ use raphtory::db::view_api::GraphViewOps;
 
 #[derive(ResolvedObject)]
 pub(crate) struct Edge {
-    ee: EdgeView<DynamicGraph>,
+    pub(crate) ee: EdgeView<DynamicGraph>,
 }
 
 impl<G: GraphViewOps + IntoDynamic> From<EdgeView<G>> for Edge {
