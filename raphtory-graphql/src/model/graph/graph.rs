@@ -1,11 +1,48 @@
 use crate::model::algorithm::Algorithms;
+use crate::model::filters::edgefilter::EdgeFilter;
 use crate::model::filters::nodefilter::NodeFilter;
 use crate::model::graph::edge::Edge;
 use crate::model::graph::node::Node;
-
+use crate::model::graph::property::Property;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
+use itertools::Itertools;
 use raphtory::db::view_api::internal::{DynamicGraph, IntoDynamic};
-use raphtory::db::view_api::{GraphViewOps, TimeOps, VertexViewOps};
+use raphtory::db::view_api::{EdgeViewOps, GraphViewOps, TimeOps, VertexViewOps};
+
+#[derive(ResolvedObject)]
+pub(crate) struct GraphMeta {
+    name: String,
+    graph: DynamicGraph,
+}
+
+impl GraphMeta {
+    pub fn new(name: String, graph: DynamicGraph) -> Self {
+        Self { name, graph }
+    }
+}
+
+#[ResolvedObjectFields]
+impl GraphMeta {
+    async fn name(&self) -> String {
+        self.name.clone()
+    }
+
+    async fn static_properties(&self) -> Vec<Property> {
+        self.graph
+            .static_properties()
+            .into_iter()
+            .map(|(k, v)| Property::new(k, v))
+            .collect()
+    }
+
+    async fn node_names(&self) -> Vec<String> {
+        self.graph
+            .vertices()
+            .into_iter()
+            .map(|v| v.name())
+            .collect_vec()
+    }
+}
 
 #[derive(ResolvedObject)]
 pub(crate) struct GqlGraph {
@@ -27,6 +64,14 @@ impl GqlGraph {
         w.into()
     }
 
+    async fn static_properties(&self) -> Vec<Property> {
+        self.graph
+            .static_properties()
+            .into_iter()
+            .map(|(k, v)| Property::new(k, v))
+            .collect()
+    }
+
     async fn nodes(&self, filter: Option<NodeFilter>) -> Vec<Node> {
         match filter {
             Some(filter) => self
@@ -40,8 +85,17 @@ impl GqlGraph {
         }
     }
 
-    async fn edges<'a>(&self) -> Vec<Edge> {
-        self.graph.edges().into_iter().map(|ev| ev.into()).collect()
+    async fn edges<'a>(&self, filter: Option<EdgeFilter>) -> Vec<Edge> {
+        match filter {
+            Some(filter) => self
+                .graph
+                .edges()
+                .into_iter()
+                .map(|ev| ev.into())
+                .filter(|ev| filter.matches(ev))
+                .collect(),
+            None => self.graph.edges().into_iter().map(|ev| ev.into()).collect(),
+        }
     }
 
     async fn node(&self, name: String) -> Option<Node> {

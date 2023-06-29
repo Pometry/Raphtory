@@ -1,5 +1,7 @@
+use crate::model::filters::edgefilter::EdgeFilter;
 use crate::model::graph::edge::Edge;
 use crate::model::graph::property::Property;
+use crate::model::graph::property_update::PropertyUpdate;
 use async_graphql::Context;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
@@ -60,6 +62,14 @@ impl Node {
         Some(Property::new(name, prop))
     }
 
+    async fn property_history(&self, name: String) -> Vec<PropertyUpdate> {
+        self.vv
+            .property_history(name)
+            .into_iter()
+            .map(|(time, prop)| PropertyUpdate::new(time, prop.to_string()))
+            .collect_vec()
+    }
+
     async fn in_neighbours<'a>(&self, layer: Option<String>) -> Vec<Node> {
         match layer {
             None => self.vv.in_neighbours().iter().map(|vv| vv.into()).collect(),
@@ -101,13 +111,19 @@ impl Node {
         }
     }
 
-    async fn degree(&self, layer: Option<String>) -> usize {
-        match layer {
+    async fn degree(&self, layers: Option<Vec<String>>) -> usize {
+        match layers {
             None => self.vv.degree(),
-            Some(layer) => match self.vv.layer(layer.as_str()) {
-                None => 0,
-                Some(vvv) => vvv.degree(),
-            },
+            Some(layers) => layers
+                .into_iter()
+                .map(|layer| {
+                    let degree = match self.vv.layer(layer.as_str()) {
+                        None => 0,
+                        Some(vvv) => vvv.degree(),
+                    };
+                    return degree;
+                })
+                .sum(),
         }
     }
 
@@ -155,15 +171,16 @@ impl Node {
         }
     }
 
-    async fn edges(&self, layer: Option<String>) -> Vec<Edge> {
-        match layer {
+    async fn edges(&self, filter: Option<EdgeFilter>) -> Vec<Edge> {
+        match filter {
+            Some(filter) => self
+                .vv
+                .edges()
+                .into_iter()
+                .map(|ev| ev.into())
+                .filter(|ev| filter.matches(ev))
+                .collect(),
             None => self.vv.edges().map(|ee| ee.clone().into()).collect(),
-            Some(layer) => match self.vv.layer(layer.as_str()) {
-                None => {
-                    vec![]
-                }
-                Some(vvv) => vvv.edges().map(|ee| ee.clone().into()).collect(),
-            },
         }
     }
 

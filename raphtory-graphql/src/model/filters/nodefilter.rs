@@ -1,4 +1,4 @@
-use crate::model::filters::primitives::{NumberFilter, StringFilter};
+use crate::model::filters::primitives::{NumberFilter, StringFilter, StringVecFilter};
 use crate::model::filters::property::PropertyHasFilter;
 use crate::model::graph::node::Node;
 use dynamic_graphql::internal::{FromValue, InputTypeName, InputValueResult, Register, TypeName};
@@ -10,6 +10,7 @@ use std::borrow::Cow;
 
 #[derive(InputObject)]
 pub struct NodeFilter {
+    names: Option<StringVecFilter>,
     name: Option<StringFilter>,
     node_type: Option<StringFilter>,
     in_degree: Option<NumberFilter>,
@@ -19,6 +20,12 @@ pub struct NodeFilter {
 
 impl NodeFilter {
     pub(crate) fn matches(&self, node: &Node) -> bool {
+        if let Some(names_filter) = &self.names {
+            if !names_filter.contains(&node.vv.name()) {
+                return false;
+            }
+        }
+
         if let Some(name_filter) = &self.name {
             if !name_filter.matches(&node.vv.name()) {
                 return false;

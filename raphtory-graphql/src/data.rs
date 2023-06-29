@@ -17,9 +17,9 @@ impl Data {
             .into_iter()
             .filter_map(|e| e.ok())
         {
-            let p = entry.path().display().to_string();
-            if p.contains("graphdb_nr_shards") {
-                valid_paths.insert(p.strip_suffix("graphdb_nr_shards").unwrap().to_string());
+            let path = entry.path();
+            if path.is_file() {
+                valid_paths.insert(path.display().to_string());
             }
         }
 
@@ -35,6 +35,7 @@ impl Data {
         let graphs: HashMap<String, Graph> = valid_paths
             .into_iter()
             .map(|path| {
+                println!("loading graph from {path}");
                 let graph = Graph::load_from_file(&path).expect("Unable to load from graph");
                 let maybe_graph_name = graph.static_property("name");
 
