@@ -68,7 +68,7 @@ impl<CS: ComputeState> From<Arc<ShuffleComputeState<CS>>> for Shard<CS> {
 
 impl<CS: ComputeState> Global<CS> {
     pub(crate) fn new() -> Self {
-        Self(Arc::new(ShuffleComputeState::new(0, 0, 0)))
+        Self(Arc::new(ShuffleComputeState::global()))
     }
 
     pub(crate) fn as_cow(&self) -> Cow<'_, ShuffleComputeState<CS>> {

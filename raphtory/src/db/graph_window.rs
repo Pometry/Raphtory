@@ -464,7 +464,7 @@ mod views_test {
     use itertools::Itertools;
     use quickcheck::TestResult;
     use rand::prelude::*;
-    use rayon::{prelude::*, vec};
+    use rayon::prelude::*;
 
     #[test]
     fn windowed_graph_vertices_degree() {

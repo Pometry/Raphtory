@@ -27,26 +27,6 @@ impl<CS: ComputeState + Send + Clone> MorcelComputeState<CS> {
         }
     }
 
-    pub(crate) fn fold<A, IN, OUT, ACC: Accumulator<A, IN, OUT>, F, B>(
-        &self,
-        ss: usize,
-        b: B,
-        agg_ref: &AccId<A, IN, OUT, ACC>,
-        f: F,
-    ) -> B
-    where
-        F: FnOnce(B, &u64, OUT) -> B + Copy,
-        A: 'static,
-        B: std::fmt::Debug,
-        OUT: StateType,
-    {
-        if let Some(state) = self.states.get(&agg_ref.id()) {
-            state.fold::<A, IN, OUT, ACC, F, B>(ss, b, f)
-        } else {
-            b
-        }
-    }
-
     pub fn read_vec<A, IN, OUT, ACC: Accumulator<A, IN, OUT>, G: GraphViewOps>(
         &self,
         ss: usize,
@@ -96,15 +76,10 @@ impl<CS: ComputeState + Send + Clone> MorcelComputeState<CS> {
             other.states.get(&agg_ref.id()),
         ) {
             (Some(self_cs), Some(other_cs)) => {
-                println!("merging {:?} with {:?}", self_cs, other_cs);
                 self_cs.merge::<A, IN, OUT, ACC>(other_cs, ss);
-                println!("post merge {:?} ", self_cs);
             }
             (None, Some(other_cs)) => {
-                println!("merging None with {:?}", other_cs);
                 self.states.insert(agg_ref.id(), other_cs.clone());
-                let post_merge = self.states.get(&agg_ref.id());
-                println!("post merge {:?} ", post_merge.unwrap());
             }
             _ => {}
         }
@@ -168,7 +143,6 @@ impl<CS: ComputeState + Send + Clone> MorcelComputeState<CS> {
     where
         A: StateType,
     {
-        let zero = ACC::zero();
         if let Some(state) = self.states.get(&agg_ref.id()) {
             Box::new(state.iter(ss, self.morcel_size).map(|v| Some(v)))
         } else {

@@ -81,7 +81,7 @@ where
         &mut self,
         id: AccId<A, IN, OUT, ACC>,
     ) {
-        let fn_merge: MergeFn<CS> = Arc::new(move |a, b, ss| a.merge_mut_2(b, id, ss));
+        let fn_merge: MergeFn<CS> = Arc::new(move |a, b, ss| a.merge_mut(b, id, ss));
 
         self.merge_fns.push(fn_merge);
     }
@@ -90,7 +90,7 @@ where
         &mut self,
         id: AccId<A, IN, OUT, ACC>,
     ) {
-        let fn_merge: MergeFn<CS> = Arc::new(move |a, b, ss| a.merge_mut_2(b, id, ss));
+        let fn_merge: MergeFn<CS> = Arc::new(move |a, b, ss| a.merge_mut(b, id, ss));
 
         self.merge_fns.push(fn_merge);
         self.resetable_states.push(id.id());
