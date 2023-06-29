@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1688048534473,
+  "lastUpdate": 1688053952909,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -4315,6 +4315,60 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions with numeric string input",
             "value": 2231878,
             "range": "± 167058",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ricopinazo@gmail.com",
+            "name": "Pedro Rico Pinazo",
+            "username": "ricopinazo"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c968832add562e93167e90a8e6390da1d4c2e636",
+          "message": "Graph properties (#1079)\n\n* impl graph static properties graphql api\r\n\r\n* add more filters\r\n\r\n* add multiple layers filter to degree\r\n\r\n* add property_history to node\r\n\r\n* read files instead of directories from graphql server\r\n\r\n---------\r\n\r\nCo-authored-by: Shivam Kapoor <4599890+iamsmkr@users.noreply.github.com>",
+          "timestamp": "2023-06-29T16:47:45+01:00",
+          "tree_id": "e6e8663364b5fb8a7d1c708a79a27e6722e2afaf",
+          "url": "https://github.com/Pometry/Raphtory/commit/c968832add562e93167e90a8e6390da1d4c2e636"
+        },
+        "date": 1688053952198,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 745776,
+            "range": "± 1254",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and numeric string input",
+            "value": 1311994,
+            "range": "± 2452",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and string input",
+            "value": 1348945,
+            "range": "± 4798",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 994780,
+            "range": "± 75186",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions with numeric string input",
+            "value": 1848298,
+            "range": "± 76584",
             "unit": "ns/iter"
           }
         ]
