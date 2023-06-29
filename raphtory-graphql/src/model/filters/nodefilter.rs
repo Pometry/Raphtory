@@ -1,12 +1,9 @@
 use crate::model::filters::primitives::{NumberFilter, StringFilter, StringVecFilter};
 use crate::model::filters::property::PropertyHasFilter;
 use crate::model::graph::node::Node;
-use dynamic_graphql::internal::{FromValue, InputTypeName, InputValueResult, Register, TypeName};
 use dynamic_graphql::InputObject;
 use raphtory::core::Prop;
-use raphtory::db::vertex::VertexView;
 use raphtory::db::view_api::VertexViewOps;
-use std::borrow::Cow;
 
 #[derive(InputObject)]
 pub struct NodeFilter {

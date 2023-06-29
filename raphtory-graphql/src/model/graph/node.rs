@@ -184,7 +184,7 @@ impl Node {
         }
     }
 
-    async fn exploded_edges(&self, layer: Option<String>) -> Vec<Edge> {
+    async fn exploded_edges(&self) -> Vec<Edge> {
         self.vv.out_edges().explode().map(|ee| ee.into()).collect()
     }
 

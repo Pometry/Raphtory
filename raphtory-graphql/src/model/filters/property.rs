@@ -1,4 +1,4 @@
-use crate::model::filters::primitives::{NumberFilter, StringFilter};
+use crate::model::filters::primitives::{NumberFilter};
 use crate::model::graph::node::Node;
 use dynamic_graphql::InputObject;
 use raphtory::core::Prop;

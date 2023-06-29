@@ -7,7 +7,7 @@ use crate::model::graph::property::Property;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::db::view_api::internal::{DynamicGraph, IntoDynamic};
-use raphtory::db::view_api::{EdgeViewOps, GraphViewOps, TimeOps, VertexViewOps};
+use raphtory::db::view_api::{GraphViewOps, TimeOps, VertexViewOps};
 
 #[derive(ResolvedObject)]
 pub(crate) struct GraphMeta {

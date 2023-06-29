@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use crate::data::Data;
 use crate::model::algorithm::Algorithm;
 use crate::model::QueryRoot;

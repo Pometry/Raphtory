@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 pub(crate) mod iter;
 
 use std::{

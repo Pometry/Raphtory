@@ -229,9 +229,9 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
 
         let (mut cur_local_state, mut prev_local_state) = self.make_cur_and_prev_states::<S>(init);
 
-        let mut done = false;
+        let mut _done = false;
 
-        (done, shard_state, global_state, cur_local_state) = self.run_task_list(
+        (_done, shard_state, global_state, cur_local_state) = self.run_task_list(
             &init_tasks,
             &pool,
             morcel_size,
@@ -244,8 +244,8 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         // To allow the init step to cache stuff we will copy everything from cur_local_state to prev_local_state
         prev_local_state.clone_from_slice(&cur_local_state);
 
-        while !done && self.ctx.ss() < steps && tasks.len() > 0 {
-            (done, shard_state, global_state, cur_local_state) = self.run_task_list(
+        while !_done && self.ctx.ss() < steps && tasks.len() > 0 {
+            (_done, shard_state, global_state, cur_local_state) = self.run_task_list(
                 &tasks,
                 &pool,
                 morcel_size,

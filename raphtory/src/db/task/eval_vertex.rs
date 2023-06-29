@@ -161,7 +161,6 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S> EvalVertexView<'a, G, CS, S> {
             self.vertex_state.borrow(),
             *agg_r,
             &self.vertex,
-            self.id(),
             self.ss,
         )
     }
@@ -619,7 +618,6 @@ pub struct Entry<'a, 'b, A: StateType, IN, OUT, ACC: Accumulator<A, IN, OUT>, CS
     state: Ref<'a, EVState<'b, CS>>,
     acc_id: AccId<A, IN, OUT, ACC>,
     v_ref: &'a VID,
-    gid: u64,
     ss: usize,
 }
 
@@ -639,14 +637,12 @@ impl<'a, 'b, A: StateType, IN, OUT, ACC: Accumulator<A, IN, OUT>, CS: ComputeSta
         state: Ref<'a, EVState<'b, CS>>,
         acc_id: AccId<A, IN, OUT, ACC>,
         v_ref: &'a VID,
-        gid: u64,
         ss: usize,
     ) -> Entry<'a, 'b, A, IN, OUT, ACC, CS> {
         Entry {
             state,
             acc_id,
             v_ref,
-            gid,
             ss,
         }
     }
