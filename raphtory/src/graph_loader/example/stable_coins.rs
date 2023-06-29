@@ -23,7 +23,7 @@ pub struct StableCoin {
     value: f64,
 }
 
-pub fn stable_coin_graph(path: Option<String>, subset: bool, num_shards: usize) -> Graph {
+pub fn stable_coin_graph(path: Option<String>, subset: bool) -> Graph {
     let data_dir = match path {
         Some(path) => PathBuf::from(path),
         None => PathBuf::from("/tmp/stablecoin"),

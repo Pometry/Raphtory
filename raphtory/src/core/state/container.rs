@@ -53,6 +53,10 @@ impl<T> VecArray<T> {
             &mut self.even
         }
     }
+
+    pub(crate) fn zero(&self) -> &T {
+        &self.zero
+    }
 }
 
 #[inline]

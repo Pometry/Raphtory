@@ -3,20 +3,8 @@ use raphtory::algorithms::pagerank::unweighted_page_rank;
 use raphtory::algorithms::temporal_reachability::temporally_reachable_nodes;
 use raphtory::db::view_api::*;
 use raphtory::graph_loader::example::stable_coins::stable_coin_graph;
-use serde::Deserialize;
 use std::env;
 use std::time::Instant;
-
-#[derive(Deserialize, std::fmt::Debug)]
-pub struct StableCoin {
-    block_number: String,
-    transaction_index: u32,
-    from_address: String,
-    to_address: String,
-    time_stamp: i64,
-    contract_address: String,
-    value: f64,
-}
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -27,7 +15,7 @@ fn main() {
         Some(args.get(1).unwrap().to_string())
     };
 
-    let g = stable_coin_graph(data_dir, true, 1);
+    let g = stable_coin_graph(data_dir, true);
 
     assert_eq!(g.num_vertices(), 1523333);
     assert_eq!(g.num_edges(), 2814155);

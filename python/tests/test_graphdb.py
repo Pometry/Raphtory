@@ -1045,6 +1045,9 @@ def test_temporal_reachability():
         '3': [],
         '4': [(12, '2')],
         '5': [(13, '2')],
+        '6': [],
+        '7': [],
+        '8': [],
     }
 
     assert (actual == expected)

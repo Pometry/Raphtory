@@ -7,7 +7,7 @@ mod common;
 
 pub fn graph(c: &mut Criterion) {
     let mut graph_group = c.benchmark_group("analysis_graph");
-    let graph = sx_superuser_graph(2).unwrap();
+    let graph = sx_superuser_graph().unwrap();
     run_analysis_benchmarks(&mut graph_group, || graph.clone(), None);
     graph_group.finish();
     let mut graph_window_group_100 = c.benchmark_group("analysis_graph_window_100");

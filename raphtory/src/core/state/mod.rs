@@ -57,7 +57,7 @@ mod state_test {
 
         let min = accumulators::min(0);
 
-        let mut state_map: MorcelComputeState<ComputeStateVec> = MorcelComputeState::new();
+        let mut state_map: MorcelComputeState<ComputeStateVec> = MorcelComputeState::new(3);
 
         // create random vec of numbers
         let mut rng = rand::thread_rng();
@@ -93,7 +93,7 @@ mod state_test {
 
         let avg = accumulators::avg(0);
 
-        let mut state_map: MorcelComputeState<ComputeStateVec> = MorcelComputeState::new();
+        let mut state_map: MorcelComputeState<ComputeStateVec> = MorcelComputeState::new(3);
 
         // create random vec of numbers
         let mut rng = rand::thread_rng();
@@ -130,7 +130,7 @@ mod state_test {
 
         let top3 = accumulators::topk::<i32, 3>(0);
 
-        let mut state_map: MorcelComputeState<ComputeStateVec> = MorcelComputeState::new();
+        let mut state_map: MorcelComputeState<ComputeStateVec> = MorcelComputeState::new(3);
 
         for a in 0..100 {
             state_map.accumulate_into(0, 0, a, &top3);
@@ -159,7 +159,7 @@ mod state_test {
 
         let sum = accumulators::sum(0);
 
-        let mut state: MorcelComputeState<ComputeStateVec> = MorcelComputeState::new();
+        let mut state: MorcelComputeState<ComputeStateVec> = MorcelComputeState::new(3);
 
         // create random vec of numbers
         let mut rng = rand::thread_rng();
@@ -191,12 +191,13 @@ mod state_test {
 
     #[test]
     fn sum_aggregates_for_3_keys_2_parts() {
-        let g = tiny_graph();
 
         let sum = accumulators::sum(0);
 
-        let mut part1_state: ShuffleComputeState<ComputeStateVec> = ShuffleComputeState::new(2, 2);
-        let mut part2_state: ShuffleComputeState<ComputeStateVec> = ShuffleComputeState::new(2, 2);
+        let mut part1_state: ShuffleComputeState<ComputeStateVec> =
+            ShuffleComputeState::new(3, 2, 2);
+        let mut part2_state: ShuffleComputeState<ComputeStateVec> =
+            ShuffleComputeState::new(3, 2, 2);
 
         // create random vec of numbers
         let mut rng = rand::thread_rng();
@@ -204,7 +205,7 @@ mod state_test {
         let mut vec2 = vec![];
         let mut actual_sum_1 = 0;
         let mut actual_sum_2 = 0;
-        for _ in 0..100 {
+        for _ in 0..3 {
             // data for first partition
             let i = rng.gen_range(0..100);
             actual_sum_1 += i;
@@ -229,53 +230,24 @@ mod state_test {
             part2_state.accumulate_into(0, 2, a, &sum);
         }
 
-        let mut actual: Vec<(String, i32)> = part1_state
-            .clone()
-            .finalize(&sum, 0, &g, |c| c)
-            .into_iter()
-            .collect_vec();
+        let actual = part1_state.iter_out(0, sum).collect_vec();
 
-        actual.sort();
+        assert_eq!(actual, vec![(0, actual_sum_1), (1, actual_sum_1), (2, 0)]);
 
-        assert_eq!(
-            actual,
-            vec![
-                ("1".to_string(), actual_sum_1),
-                ("2".to_string(), actual_sum_1),
-            ]
-        );
+        let actual = part2_state.iter_out(0, sum).collect_vec();
 
-        let mut actual = part2_state
-            .clone()
-            .finalize(&sum, 0, &g, |c| c)
-            .into_iter()
-            .collect_vec();
+        assert_eq!(actual, vec![(0, actual_sum_2), (1, 0), (2, actual_sum_2)]);
 
-        actual.sort();
+        ShuffleComputeState::merge_mut(&mut part1_state, &part2_state, sum, 0);
+
+        let actual = part1_state.iter_out(0, sum).collect_vec();
 
         assert_eq!(
             actual,
             vec![
-                ("1".to_string(), actual_sum_2),
-                ("2".to_string(), 0),
-                ("3".to_string(), actual_sum_2),
-            ]
-        );
-
-        ShuffleComputeState::merge_mut(&mut part1_state, &part2_state, &sum, 0);
-        let mut actual = part1_state
-            .finalize(&sum, 0, &g, |c| c)
-            .into_iter()
-            .collect_vec();
-
-        actual.sort();
-
-        assert_eq!(
-            actual,
-            vec![
-                ("1".to_string(), (actual_sum_1 + actual_sum_2)),
-                ("2".to_string(), actual_sum_1),
-                ("3".to_string(), actual_sum_2),
+                (0, (actual_sum_1 + actual_sum_2)),
+                (1, actual_sum_1),
+                (2, actual_sum_2),
             ]
         );
     }
@@ -287,8 +259,10 @@ mod state_test {
         let sum = accumulators::sum(0);
         let min = accumulators::min(1);
 
-        let mut part1_state: ShuffleComputeState<ComputeStateVec> = ShuffleComputeState::new(2, 2);
-        let mut part2_state: ShuffleComputeState<ComputeStateVec> = ShuffleComputeState::new(2, 2);
+        let mut part1_state: ShuffleComputeState<ComputeStateVec> =
+            ShuffleComputeState::new(3, 2, 2);
+        let mut part2_state: ShuffleComputeState<ComputeStateVec> =
+            ShuffleComputeState::new(3, 2, 2);
 
         // create random vec of numbers
         let mut rng = rand::thread_rng();
@@ -342,6 +316,7 @@ mod state_test {
             vec![
                 ("1".to_string(), actual_sum_1),
                 ("2".to_string(), actual_sum_1),
+                ("3".to_string(), 0),
             ]
         );
 
@@ -358,6 +333,7 @@ mod state_test {
             vec![
                 ("1".to_string(), actual_min_1),
                 ("2".to_string(), actual_min_1),
+                ("3".to_string(), i32::MAX),
             ]
         );
 
@@ -395,7 +371,7 @@ mod state_test {
             ]
         );
 
-        ShuffleComputeState::merge_mut(&mut part1_state, &part2_state, &sum, 0);
+        ShuffleComputeState::merge_mut(&mut part1_state, &part2_state, sum, 0);
         let mut actual = part1_state
             .clone()
             .finalize(&sum, 0, &g, |c| c)
@@ -413,7 +389,7 @@ mod state_test {
             ]
         );
 
-        ShuffleComputeState::merge_mut(&mut part1_state, &part2_state, &min, 0);
+        ShuffleComputeState::merge_mut(&mut part1_state, &part2_state, min, 0);
         let mut actual = part1_state
             .clone()
             .finalize(&min, 0, &g, |c| c)

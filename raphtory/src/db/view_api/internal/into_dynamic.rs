@@ -3,7 +3,6 @@ use crate::db::graph_window::WindowedGraph;
 use crate::db::subgraph_vertex::VertexSubgraph;
 use crate::db::view_api::internal::DynamicGraph;
 use crate::db::view_api::GraphViewOps;
-use std::sync::Arc;
 
 pub trait IntoDynamic {
     fn into_dynamic(self) -> DynamicGraph;

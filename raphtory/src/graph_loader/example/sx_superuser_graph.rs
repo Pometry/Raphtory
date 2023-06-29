@@ -40,7 +40,7 @@
 //! use raphtory::db::graph::Graph;
 //! use raphtory::db::view_api::*;
 //!
-//! let graph = sx_superuser_graph(1).unwrap();
+//! let graph = sx_superuser_graph().unwrap();
 //!
 //! println!("The graph has {:?} vertices", graph.num_vertices());
 //! println!("The graph has {:?} edges", graph.num_edges());
@@ -83,7 +83,7 @@ pub fn sx_superuser_file() -> Result<PathBuf, Box<dyn std::error::Error>> {
 /// # Returns
 ///
 /// - A Result containing the graph or an error
-pub fn sx_superuser_graph(shards: usize) -> Result<Graph, Box<dyn std::error::Error>> {
+pub fn sx_superuser_graph() -> Result<Graph, Box<dyn std::error::Error>> {
     let graph = Graph::new();
     CsvLoader::new(sx_superuser_file()?)
         .set_delimiter(" ")
@@ -109,6 +109,6 @@ mod sx_superuser_test {
     #[test]
     #[ignore] // don't hit SNAP by default  FIXME: add a truncated test file for this one?
     fn test_graph_loading_works() {
-        sx_superuser_graph(2).unwrap();
+        sx_superuser_graph().unwrap();
     }
 }

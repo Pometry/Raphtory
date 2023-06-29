@@ -143,7 +143,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S> EvalVertexView<'a, G, CS, S> {
         self.vertex_state
             .borrow()
             .shard()
-            .read_with_pid(self.ss, self.id(), self.pid(), agg_r)
+            .read_with_pid(self.ss, self.pid(), agg_r)
             .unwrap_or(ACC::finish(&ACC::zero()))
     }
 
@@ -179,7 +179,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S> EvalVertexView<'a, G, CS, S> {
         self.vertex_state
             .borrow()
             .shard()
-            .read_with_pid(self.ss + 1, self.id(), self.pid(), agg_r)
+            .read_with_pid(self.ss + 1, self.pid(), agg_r)
             .unwrap_or(ACC::finish(&ACC::zero()))
     }
 
