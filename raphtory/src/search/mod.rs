@@ -204,11 +204,50 @@ mod test {
         let expected = vec!["Gandalf"];
         assert_eq!(actual, expected);
         // Find the Hobbit
-        let vertices = graph.search(r#"description:hobbit"#, 10).expect("search failed");
+        let vertices = graph.search(r#"description:'hobbit'"#, 10).expect("search failed");
         let actual = vertices.into_iter().map(|v| v.name()).collect::<Vec<_>>();
         let expected = vec!["Bilbo"];
         assert_eq!(actual, expected);
     }
+
+    #[test]
+    fn add_vertex_search_by_description_and_time() {
+        let graph = IndexedGraph::new(vec!["name", "description"]);
+
+        graph
+            .add_vertex(
+                1,
+                "Gandalf",
+                [("description".to_string(), Prop::str("The wizard"))],
+            )
+            .expect("add vertex failed");
+
+        graph
+            .add_vertex(
+                2,
+                "Saruman",
+                [("description".to_string(), Prop::str("Another wizard"))],
+            )
+            .expect("add vertex failed");
+
+        graph.reload().expect("reload failed");
+        // Find Saruman
+        let vertices = graph.search(r#"description:wizard AND time:[2 TO 5]"#, 10).expect("search failed");
+        let actual = vertices.into_iter().map(|v| v.name()).collect::<Vec<_>>();
+        let expected = vec!["Saruman"];
+        assert_eq!(actual, expected);
+        // Find Gandalf
+        let vertices = graph.search(r#"description:'wizard' AND time:[1 TO 2}"#, 10).expect("search failed");
+        let actual = vertices.into_iter().map(|v| v.name()).collect::<Vec<_>>();
+        let expected = vec!["Gandalf"];
+        assert_eq!(actual, expected);
+        // Find both wizards
+        let vertices = graph.search(r#"description:'wizard' AND time:[1 TO 100]"#, 10).expect("search failed");
+        let actual = vertices.into_iter().map(|v| v.name()).collect::<Vec<_>>();
+        let expected = vec!["Gandalf", "Saruman"];
+        assert_eq!(actual, expected);
+    }
+
 
     #[test]
     fn tantivy_101() {
@@ -247,8 +286,6 @@ mod test {
             writer.commit().expect("commit failed");
         }
 
-        // this should give enough time for the reader to refresh
-        // std::thread::sleep(std::time::Duration::from_millis(5000));
         reader.reload().unwrap();
 
         let searcher = reader.searcher();
