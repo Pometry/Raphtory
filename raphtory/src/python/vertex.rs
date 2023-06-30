@@ -4,12 +4,12 @@
 use crate::core::tgraph::vertices::vertex_ref::VertexRef;
 use crate::core::util::time::error::ParseTimeError;
 use crate::core::Prop;
+use crate::db::api::view::internal::{DynamicGraph, IntoDynamic};
+use crate::db::api::view::*;
 use crate::db::graph_window::WindowedGraph;
 use crate::db::path::{PathFromGraph, PathFromVertex};
 use crate::db::vertex::VertexView;
 use crate::db::vertices::Vertices;
-use crate::db::view_api::internal::{DynamicGraph, IntoDynamic};
-use crate::db::view_api::*;
 use crate::python;
 use crate::python::utils::{PyInterval, PyTime};
 use crate::*;

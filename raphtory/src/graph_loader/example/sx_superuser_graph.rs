@@ -38,7 +38,7 @@
 //! ```no_run
 //! use raphtory::graph_loader::example::sx_superuser_graph::sx_superuser_graph;
 //! use raphtory::db::graph::Graph;
-//! use raphtory::db::view_api::*;
+//! use raphtory::db::api::view::*;
 //!
 //! let graph = sx_superuser_graph().unwrap();
 //!
@@ -48,7 +48,7 @@
 
 use crate::db::graph::Graph;
 
-use crate::db::mutation_api::AdditionOps;
+use crate::db::api::mutation::AdditionOps;
 use crate::graph_loader::{fetch_file, source::csv_loader::CsvLoader};
 use serde::Deserialize;
 use std::path::PathBuf;

@@ -1,14 +1,12 @@
 use crate::core::state::accumulator_id::accumulators::{max, sum};
-use crate::db::task::eval_vertex::EvalVertexView;
+use crate::db::api::view::{GraphViewOps, VertexViewOps};
+use crate::db::task::vertex::eval_vertex::EvalVertexView;
 use crate::{
     core::state::compute_state::ComputeStateVec,
-    db::{
-        task::{
-            context::Context,
-            task::{ATask, Job, Step},
-            task_runner::TaskRunner,
-        },
-        view_api::{GraphViewOps, VertexViewOps},
+    db::task::{
+        context::Context,
+        task::{ATask, Job, Step},
+        task_runner::TaskRunner,
     },
 };
 use num_traits::abs;
@@ -159,8 +157,8 @@ pub fn hits<G: GraphViewOps>(
 #[cfg(test)]
 mod hits_tests {
     use super::*;
+    use crate::db::api::mutation::AdditionOps;
     use crate::db::graph::Graph;
-    use crate::db::mutation_api::AdditionOps;
     use itertools::Itertools;
 
     fn load_graph(edges: Vec<(u64, u64)>) -> Graph {

@@ -6,9 +6,9 @@ use async_graphql::Context;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::core::Prop;
-use raphtory::db::vertex::VertexView;
-use raphtory::db::view_api::internal::{DynamicGraph, IntoDynamic};
-use raphtory::db::view_api::*;
+use raphtory::db::api::view::internal::{DynamicGraph, IntoDynamic};
+use raphtory::db::api::view::*;
+use raphtory::db::graph::vertex::VertexView;
 
 #[derive(ResolvedObject)]
 pub(crate) struct Node {

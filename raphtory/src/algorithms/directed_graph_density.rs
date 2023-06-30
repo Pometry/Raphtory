@@ -31,7 +31,7 @@
 //! println!("graph density: {:?}", directed_graph_density(&windowed_graph));
 //! ```
 //!
-use crate::db::view_api::*;
+use crate::db::api::view::*;
 
 /// Measures how dense or sparse a graph is
 pub fn directed_graph_density<G: GraphViewOps>(graph: &G) -> f32 {
@@ -41,8 +41,8 @@ pub fn directed_graph_density<G: GraphViewOps>(graph: &G) -> f32 {
 #[cfg(test)]
 mod directed_graph_density_tests {
     use super::*;
+    use crate::db::api::mutation::AdditionOps;
     use crate::db::graph::Graph;
-    use crate::db::mutation_api::AdditionOps;
 
     #[test]
     fn low_graph_density() {

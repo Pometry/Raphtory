@@ -15,7 +15,7 @@
 //! ```rust
 //! use raphtory::graph_loader::example::lotr_graph::lotr_graph;
 //! use raphtory::db::graph::Graph;
-//! use raphtory::db::view_api::*;
+//! use raphtory::db::api::view::*;
 //!
 //! let graph = lotr_graph();
 //!
@@ -26,7 +26,7 @@ use crate::db::graph::Graph;
 
 use crate::graph_loader::fetch_file;
 
-use crate::db::mutation_api::AdditionOps;
+use crate::db::api::mutation::AdditionOps;
 use crate::graph_loader::source::csv_loader::CsvLoader;
 use serde::Deserialize;
 use std::path::PathBuf;

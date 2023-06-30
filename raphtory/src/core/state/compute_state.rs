@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::core::state::agg::Accumulator;
-use crate::db::view_api::GraphViewOps;
+use crate::db::api::view::GraphViewOps;
 
 use super::{
     container::{merge_2_vecs, DynArray, VecArray},

@@ -19,8 +19,8 @@
 //! ```rust
 //! use raphtory::algorithms::local_triangle_count::{local_triangle_count};
 //! use raphtory::db::graph::Graph;
-//! use raphtory::db::mutation_api::AdditionOps;
-//! use raphtory::db::view_api::*;
+//! use raphtory::db::api::mutation::AdditionOps;
+//! use raphtory::db::api::view::*;
 //!
 //! let g = Graph::new();
 //! let vs = vec![(1, 1, 2), (2, 1, 3), (3, 2, 1), (4, 3, 2)];
@@ -40,7 +40,7 @@
 //! ```
 //!
 use crate::core::tgraph::vertices::vertex_ref::VertexRef;
-use crate::db::view_api::*;
+use crate::db::api::view::*;
 use itertools::Itertools;
 
 /// calculates the number of triangles (a cycle of length 3) for a node.
@@ -73,9 +73,9 @@ pub fn local_triangle_count<G: GraphViewOps, V: Into<VertexRef>>(graph: &G, v: V
 mod triangle_count_tests {
 
     use super::local_triangle_count;
+    use crate::db::api::mutation::AdditionOps;
+    use crate::db::api::view::*;
     use crate::db::graph::Graph;
-    use crate::db::mutation_api::AdditionOps;
-    use crate::db::view_api::*;
 
     #[test]
     fn counts_triangles() {

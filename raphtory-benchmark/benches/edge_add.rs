@@ -5,7 +5,7 @@ use raphtory::db::graph::Graph;
 mod common;
 use rand::distributions::{Alphanumeric, DistString};
 use rand::{thread_rng, Rng};
-use raphtory::db::mutation_api::AdditionOps;
+use raphtory::db::api::mutation::AdditionOps;
 
 fn random_string(n: usize) -> String {
     Alphanumeric.sample_string(&mut rand::thread_rng(), n)

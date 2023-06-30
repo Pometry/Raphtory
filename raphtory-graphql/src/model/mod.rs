@@ -3,7 +3,7 @@ use crate::model::graph::graph::{GqlGraph, GraphMeta};
 use async_graphql::Context;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
-use raphtory::db::view_api::internal::IntoDynamic;
+use raphtory::db::api::view::internal::IntoDynamic;
 
 pub(crate) mod algorithm;
 pub(crate) mod filters;

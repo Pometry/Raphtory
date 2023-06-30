@@ -1,5 +1,5 @@
+use raphtory::db::api::view::*;
 use raphtory::db::edge::EdgeView;
-use raphtory::db::view_api::*;
 use wasm_bindgen::prelude::*;
 
 use super::Graph;

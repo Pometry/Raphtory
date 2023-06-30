@@ -4,14 +4,11 @@ use once_cell::sync::Lazy;
 use rayon::{ThreadPool, ThreadPoolBuilder};
 
 pub mod context;
-pub mod eval_edge;
-pub mod eval_vertex;
-pub mod eval_vertex_state;
+mod edge;
 pub mod task;
 pub mod task_runner;
 pub(crate) mod task_state;
-pub mod window_eval_edge;
-pub mod window_eval_vertex;
+pub(crate) mod vertex;
 
 pub static POOL: Lazy<Arc<ThreadPool>> = Lazy::new(|| {
     let num_threads = std::env::var("DOCBROWN_MAX_THREADS")
@@ -44,7 +41,7 @@ pub fn custom_pool(n_threads: usize) -> Arc<ThreadPool> {
 
 #[cfg(test)]
 mod task_tests {
-    use crate::db::mutation_api::AdditionOps;
+    use crate::db::api::mutation::AdditionOps;
     use crate::{
         core::state::{self, compute_state::ComputeStateVec},
         db::graph::Graph,

@@ -98,10 +98,9 @@ pub mod graph_loader;
 
 pub mod prelude {
     pub use crate::core::{Prop, PropUnwrap};
-    pub use crate::db::graph::Graph;
-    pub use crate::db::graph_deletions::GraphWithDeletions;
-    pub use crate::db::mutation_api::{AdditionOps, DeletionOps, PropertyAdditionOps};
-    pub use crate::db::view_api::{
+    pub use crate::db::api::mutation::{AdditionOps, DeletionOps, PropertyAdditionOps};
+    pub use crate::db::api::view::{
         EdgeListOps, EdgeViewOps, GraphViewOps, TimeOps, VertexListOps, VertexViewOps,
     };
+    pub use crate::db::graph::graph::Graph;
 }

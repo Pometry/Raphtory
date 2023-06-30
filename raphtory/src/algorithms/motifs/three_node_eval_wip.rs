@@ -3,16 +3,16 @@ use std::slice::Iter;
 
 use crate::core::state::accumulator_id::AccId;
 use crate::core::state::agg::ValDef;
-use crate::db::view_api::*;
+use crate::db::api::view::*;
 
 use crate::algorithms::motifs::three_node_motifs::*;
 use crate::core::state::accumulator_id::accumulators::val;
 use crate::core::state::compute_state::ComputeStateVec;
+use crate::db::api::view::{GraphViewOps, VertexViewOps};
 use crate::db::task::context::Context;
-use crate::db::task::eval_vertex::EvalVertexView;
 use crate::db::task::task::{ATask, Job, Step};
 use crate::db::task::task_runner::TaskRunner;
-use crate::db::view_api::{GraphViewOps, VertexViewOps};
+use crate::db::task::vertex::eval_vertex::EvalVertexView;
 use num_traits::Zero;
 use std::ops::Add;
 
@@ -384,8 +384,8 @@ pub fn temporal_three_node_motif<G: GraphViewOps>(
 #[cfg(test)]
 mod motifs_test {
     use super::*;
+    use crate::db::api::mutation::AdditionOps;
     use crate::db::graph::Graph;
-    use crate::db::mutation_api::AdditionOps;
 
     fn load_graph(edges: Vec<(i64, u64, u64)>) -> Graph {
         let graph = Graph::new();

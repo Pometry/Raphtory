@@ -1,6 +1,6 @@
 use common::run_analysis_benchmarks;
 use criterion::{criterion_group, criterion_main, Criterion};
-use raphtory::db::view_api::*;
+use raphtory::db::api::view::*;
 use raphtory::graph_loader::example::sx_superuser_graph::sx_superuser_graph;
 
 mod common;

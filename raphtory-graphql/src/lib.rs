@@ -14,8 +14,8 @@ mod graphql_test {
     use dynamic_graphql::dynamic::DynamicRequestExt;
     use dynamic_graphql::{App, FieldValue};
     use raphtory::core::Prop;
+    use raphtory::db::api::mutation::AdditionOps;
     use raphtory::db::graph::Graph;
-    use raphtory::db::mutation_api::AdditionOps;
     use std::collections::HashMap;
     use std::env;
 

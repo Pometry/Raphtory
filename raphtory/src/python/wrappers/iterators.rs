@@ -1,5 +1,5 @@
 use crate::core as db_c;
-use crate::db::view_api::BoxedIter;
+use crate::db::api::view::BoxedIter;
 use crate::python::types::repr::Repr;
 use crate::python::wrappers::prop::{PropHistories, PropHistory, PropValue, Props};
 use num::cast::AsPrimitive;

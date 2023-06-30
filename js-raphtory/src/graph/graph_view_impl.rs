@@ -1,4 +1,4 @@
-use raphtory::db::view_api::internal::{Base, BoxableGraphView, InheritViewOps};
+use raphtory::db::api::view::internal::{Base, BoxableGraphView, InheritViewOps};
 
 use super::{Graph, UnderGraph};
 

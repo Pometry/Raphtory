@@ -1,6 +1,5 @@
-use raphtory::db::graph::Graph;
-// use raphtory::db::view_api::internal::CoreGraphOps;
-use raphtory::prelude::GraphViewOps;
+// use raphtory::db::view::internal::CoreGraphOps;
+use raphtory::prelude::{Graph, GraphViewOps};
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use walkdir::WalkDir;

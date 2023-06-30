@@ -14,7 +14,7 @@ mod state_test {
     use itertools::Itertools;
     use rand::Rng;
 
-    use crate::db::mutation_api::AdditionOps;
+    use crate::db::api::mutation::AdditionOps;
     use crate::{
         core::state::{
             accumulator_id::accumulators, compute_state::ComputeStateVec, container::merge_2_vecs,

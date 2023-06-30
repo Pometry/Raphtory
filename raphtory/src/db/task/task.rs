@@ -1,10 +1,10 @@
 use std::marker::PhantomData;
 
 use crate::core::state::compute_state::ComputeState;
-use crate::db::view_api::GraphViewOps;
+use crate::db::api::view::GraphViewOps;
 
 use super::context::GlobalState;
-use super::eval_vertex::EvalVertexView;
+use crate::db::task::vertex::eval_vertex::EvalVertexView;
 
 pub trait Task<G, CS, S>
 where

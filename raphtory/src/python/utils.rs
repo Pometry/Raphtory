@@ -6,7 +6,7 @@ use crate::core::tgraph::vertices::input_vertex::InputVertex;
 use crate::core::tgraph::vertices::vertex_ref::VertexRef;
 use crate::core::util::time::error::ParseTimeError;
 use crate::core::util::time::{Interval, IntoTime, TryIntoTime};
-use crate::db::view_api::*;
+use crate::db::api::view::*;
 use crate::python::vertex::PyVertex;
 use chrono::NaiveDateTime;
 use pyo3::exceptions::PyTypeError;

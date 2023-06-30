@@ -31,7 +31,7 @@
 //! ```no_run
 //! use raphtory::graph_loader::example::reddit_hyperlinks::reddit_graph;
 //! use raphtory::db::graph::Graph;
-//! use raphtory::db::view_api::*;
+//! use raphtory::db::api::view::*;
 //!
 //! let graph = reddit_graph(120, false);
 //!
@@ -40,8 +40,8 @@
 //! ```
 
 use crate::core::Prop;
+use crate::db::api::mutation::AdditionOps;
 use crate::db::graph::Graph;
-use crate::db::mutation_api::AdditionOps;
 use crate::graph_loader::fetch_file;
 use chrono::*;
 use itertools::Itertools;
@@ -158,7 +158,7 @@ pub fn reddit_graph(timeout: u64, test_file: bool) -> Graph {
 
 #[cfg(test)]
 mod reddit_test {
-    use crate::db::view_api::*;
+    use crate::db::api::view::*;
     use crate::graph_loader::example::reddit_hyperlinks::{reddit_file, reddit_graph};
 
     #[test]

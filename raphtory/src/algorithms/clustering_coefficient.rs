@@ -1,6 +1,6 @@
 use crate::algorithms::triangle_count::triangle_count;
 use crate::algorithms::triplet_count::triplet_count;
-use crate::db::view_api::GraphViewOps;
+use crate::db::api::view::GraphViewOps;
 
 /// Computes the global clustering coefficient of a graph. The global clustering coefficient is
 /// defined as the number of triangles in the graph divided by the number of triplets in the graph.
@@ -48,9 +48,9 @@ pub fn clustering_coefficient<G: GraphViewOps>(g: &G) -> f64 {
 #[cfg(test)]
 mod cc_test {
     use super::*;
+    use crate::db::api::mutation::AdditionOps;
+    use crate::db::api::view::*;
     use crate::db::graph::Graph;
-    use crate::db::mutation_api::AdditionOps;
-    use crate::db::view_api::*;
     use pretty_assertions::assert_eq;
 
     /// Test the global clustering coefficient

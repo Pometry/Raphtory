@@ -7,7 +7,7 @@
 //! In Python, this class wraps around the rust graph.
 use crate::core::util::errors::GraphError;
 use crate::core::Prop;
-use crate::db::mutation_api::{AdditionOps, PropertyAdditionOps};
+use crate::db::api::mutation::{AdditionOps, PropertyAdditionOps};
 use crate::prelude::{DeletionOps, GraphWithDeletions};
 use crate::python;
 use crate::python::utils::PyTime;

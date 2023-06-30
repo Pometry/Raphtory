@@ -1,4 +1,4 @@
-use crate::db::view_api::BoxedIter;
+use crate::db::api::view::BoxedIter;
 use crate::python::types::repr::{iterator_repr, Repr};
 use pyo3::{IntoPy, PyObject};
 use std::marker::PhantomData;

@@ -1,9 +1,9 @@
 use criterion::{measurement::WallTime, BatchSize, Bencher, BenchmarkGroup, BenchmarkId};
 use rand::seq::*;
 use rand::{distributions::Uniform, Rng};
+use raphtory::db::api::mutation::AdditionOps;
+use raphtory::db::api::view::*;
 use raphtory::db::graph::Graph;
-use raphtory::db::mutation_api::AdditionOps;
-use raphtory::db::view_api::*;
 use std::collections::HashSet;
 
 fn make_index_gen() -> Box<dyn Iterator<Item = u64>> {

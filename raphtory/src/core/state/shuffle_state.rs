@@ -1,6 +1,6 @@
 use crate::core::state::agg::Accumulator;
+use crate::db::api::view::GraphViewOps;
 use crate::db::task::task_state::{Global, Shard};
-use crate::db::view_api::GraphViewOps;
 use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::sync::Arc;

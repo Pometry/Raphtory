@@ -1,14 +1,11 @@
-use crate::db::task::eval_vertex::EvalVertexView;
-use crate::db::view_api::VertexViewOps;
+use crate::db::api::view::{GraphViewOps, VertexViewOps};
+use crate::db::task::vertex::eval_vertex::EvalVertexView;
 use crate::{
     core::state::compute_state::ComputeStateVec,
-    db::{
-        task::{
-            context::Context,
-            task::{ATask, Job, Step},
-            task_runner::TaskRunner,
-        },
-        view_api::GraphViewOps,
+    db::task::{
+        context::Context,
+        task::{ATask, Job, Step},
+        task_runner::TaskRunner,
     },
 };
 use std::cmp;
@@ -103,7 +100,7 @@ mod cc_test {
     use crate::{db::graph::Graph, prelude::TimeOps};
 
     use super::*;
-    use crate::db::mutation_api::AdditionOps;
+    use crate::db::api::mutation::AdditionOps;
     use itertools::*;
     use std::{cmp::Reverse, iter::once};
 

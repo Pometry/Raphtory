@@ -8,12 +8,12 @@ use std::sync::Arc;
 use js_sys::Object;
 use raphtory::core::util::errors::GraphError;
 use raphtory::core::Prop;
+use raphtory::db::api::mutation::AdditionOps;
+use raphtory::db::api::view::internal::BoxableGraphView;
+use raphtory::db::api::view::GraphViewOps;
+use raphtory::db::api::view::TimeOps;
 use raphtory::db::graph::Graph as TGraph;
 use raphtory::db::graph_window::WindowedGraph;
-use raphtory::db::mutation_api::AdditionOps;
-use raphtory::db::view_api::internal::BoxableGraphView;
-use raphtory::db::view_api::GraphViewOps;
-use raphtory::db::view_api::TimeOps;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 

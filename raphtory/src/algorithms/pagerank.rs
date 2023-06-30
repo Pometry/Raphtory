@@ -1,16 +1,13 @@
 use num_traits::abs;
 
 use crate::core::tgraph::VID;
-use crate::db::view_api::VertexViewOps;
+use crate::db::api::view::{GraphViewOps, VertexViewOps};
 use crate::{
     core::state::{accumulator_id::accumulators, compute_state::ComputeStateVec},
-    db::{
-        task::{
-            context::Context,
-            task::{ATask, Job, Step},
-            task_runner::TaskRunner,
-        },
-        view_api::GraphViewOps,
+    db::task::{
+        context::Context,
+        task::{ATask, Job, Step},
+        task_runner::TaskRunner,
     },
 };
 use std::collections::HashMap;
@@ -170,8 +167,8 @@ mod page_rank_tests {
     use itertools::Itertools;
     use pretty_assertions::assert_eq;
 
+    use crate::db::api::mutation::AdditionOps;
     use crate::db::graph::Graph;
-    use crate::db::mutation_api::AdditionOps;
 
     use super::*;
 

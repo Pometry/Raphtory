@@ -1,7 +1,7 @@
 use raphtory::algorithms::pagerank::unweighted_page_rank;
+use raphtory::db::api::mutation::AdditionOps;
+use raphtory::db::api::view::*;
 use raphtory::db::graph::Graph;
-use raphtory::db::mutation_api::AdditionOps;
-use raphtory::db::view_api::*;
 use raphtory::graph_loader::source::csv_loader::CsvLoader;
 use serde::Deserialize;
 use std::path::PathBuf;

@@ -1,7 +1,7 @@
 use crate::model::filters::primitives::{StringFilter, StringVecFilter};
 use crate::model::graph::edge::Edge;
 use dynamic_graphql::InputObject;
-use raphtory::db::view_api::{EdgeViewOps, VertexViewOps};
+use raphtory::db::api::view::{EdgeViewOps, VertexViewOps};
 
 #[derive(InputObject)]
 pub struct EdgeFilter {

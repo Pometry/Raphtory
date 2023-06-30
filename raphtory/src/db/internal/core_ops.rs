@@ -4,7 +4,8 @@ use crate::core::tgraph::edges::edge_ref::EdgeRef;
 use crate::core::tgraph::graph::tgraph::InnerTemporalGraph;
 use crate::core::tgraph::properties::tprop::TProp;
 use crate::core::tgraph::vertices::vertex_ref::VertexRef;
-use crate::{core::tgraph::VID, db::view_api::internal::CoreGraphOps, prelude::Prop};
+use crate::db::api::view::internal::CoreGraphOps;
+use crate::{core::tgraph::VID, prelude::Prop};
 
 impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
     fn get_layer_name_by_id(&self, layer_id: usize) -> String {

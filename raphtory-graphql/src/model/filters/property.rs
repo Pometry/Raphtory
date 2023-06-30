@@ -2,7 +2,7 @@ use crate::model::filters::primitives::NumberFilter;
 use crate::model::graph::node::Node;
 use dynamic_graphql::InputObject;
 use raphtory::core::Prop;
-use raphtory::db::view_api::VertexViewOps;
+use raphtory::db::api::view::VertexViewOps;
 
 #[derive(InputObject)]
 pub(crate) struct PropertyHasFilter {

@@ -1,15 +1,13 @@
 use std::sync::Arc;
 
-use crate::{
-    core::{
-        state::agg::Accumulator,
-        state::{
-            accumulator_id::AccId, compute_state::ComputeState, shuffle_state::ShuffleComputeState,
-            StateType,
-        },
+use crate::core::{
+    state::agg::Accumulator,
+    state::{
+        accumulator_id::AccId, compute_state::ComputeState, shuffle_state::ShuffleComputeState,
+        StateType,
     },
-    db::view_api::GraphViewOps,
 };
+use crate::db::api::view::GraphViewOps;
 
 use super::task_state::{Global, Shard};
 

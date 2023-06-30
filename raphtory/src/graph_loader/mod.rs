@@ -10,7 +10,7 @@
 //! ```rust
 //! use raphtory::algorithms::degree::average_degree;
 //! use raphtory::db::graph::Graph;
-//! use raphtory::db::view_api::*;
+//! use raphtory::db::api::view::*;
 //! use raphtory::graph_loader::example::lotr_graph::lotr_graph;
 //!
 //! let graph = lotr_graph();
@@ -35,7 +35,7 @@
 //! use raphtory::core::Prop;
 //! use std::time::Instant;
 //! use serde::Deserialize;
-//! use raphtory::db::mutation_api::AdditionOps;
+//! use raphtory::db::api::mutation::AdditionOps;
 //! use raphtory::graph_loader::source::csv_loader::CsvLoader;
 //!
 //! let data_dir = "/tmp/lotr.csv";
@@ -162,14 +162,9 @@ fn unzip_file(zip_file_path: &str, destination_path: &str) -> std::io::Result<()
 #[cfg(test)]
 mod graph_loader_test {
     use crate::core::util::hashing;
-    use crate::db::mutation_api::AdditionOps;
-    use crate::{
-        core::Prop,
-        db::{
-            graph::Graph,
-            view_api::{GraphViewOps, TimeOps, VertexViewOps},
-        },
-    };
+    use crate::db::api::mutation::AdditionOps;
+    use crate::db::api::view::{GraphViewOps, TimeOps, VertexViewOps};
+    use crate::{core::Prop, db::graph::Graph};
     use csv::StringRecord;
 
     use crate::graph_loader::fetch_file;

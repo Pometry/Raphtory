@@ -6,10 +6,10 @@
 //!
 use crate::core::util::time::error::ParseTimeError;
 use crate::core::Prop;
+use crate::db::api::view::internal::{DynamicGraph, IntoDynamic};
+use crate::db::api::view::*;
 use crate::db::edge::EdgeView;
 use crate::db::graph_window::WindowedGraph;
-use crate::db::view_api::internal::{DynamicGraph, IntoDynamic};
-use crate::db::view_api::*;
 use crate::python;
 use chrono::NaiveDateTime;
 use itertools::Itertools;

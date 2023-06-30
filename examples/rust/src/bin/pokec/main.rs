@@ -1,12 +1,10 @@
 use std::{env, path::Path, time::Instant};
 
 use raphtory::algorithms::connected_components::weakly_connected_components;
-use raphtory::db::mutation_api::AdditionOps;
+use raphtory::db::api::mutation::AdditionOps;
+use raphtory::db::api::view::GraphViewOps;
 use raphtory::graph_loader::source::csv_loader::CsvLoader;
-use raphtory::{
-    algorithms::pagerank::unweighted_page_rank,
-    db::{graph::Graph, view_api::GraphViewOps},
-};
+use raphtory::{algorithms::pagerank::unweighted_page_rank, db::graph::Graph};
 use serde::Deserialize;
 
 #[derive(Deserialize, std::fmt::Debug)]

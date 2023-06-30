@@ -1,7 +1,7 @@
 use itertools::Itertools;
 use raphtory::algorithms::pagerank::unweighted_page_rank;
 use raphtory::algorithms::temporal_reachability::temporally_reachable_nodes;
-use raphtory::db::view_api::*;
+use raphtory::db::api::view::*;
 use raphtory::graph_loader::example::stable_coins::stable_coin_graph;
 use std::env;
 use std::time::Instant;

@@ -8,7 +8,7 @@
 //! use raphtory::core::util::hashing::calculate_hash;
 //! use raphtory::graph_loader::source::csv_loader::CsvLoader;
 //! use raphtory::db::graph::Graph;
-//! use raphtory::db::mutation_api::AdditionOps;
+//! use raphtory::db::api::mutation::AdditionOps;
 //! use raphtory::graph_loader::example::lotr_graph::Lotr;
 //!
 //!  let g = Graph::new();
@@ -405,8 +405,8 @@ impl CsvLoader {
 mod csv_loader_test {
     use crate::core::util::hashing::calculate_hash;
     use crate::core::Prop;
+    use crate::db::api::mutation::AdditionOps;
     use crate::db::graph::Graph;
-    use crate::db::mutation_api::AdditionOps;
     use crate::graph_loader::source::csv_loader::CsvLoader;
     use regex::Regex;
     use serde::Deserialize;

@@ -1,6 +1,7 @@
 use crate::core::tgraph::graph::tgraph::InnerTemporalGraph;
 use crate::core::utils::errors::GraphError;
-use crate::{db::mutation_api::internal::InternalPropertyAdditionOps, prelude::Prop};
+use crate::db::api::mutation::internal::InternalPropertyAdditionOps;
+use crate::prelude::Prop;
 
 impl<const N: usize> InternalPropertyAdditionOps for InnerTemporalGraph<N> {
     fn internal_add_vertex_properties(
