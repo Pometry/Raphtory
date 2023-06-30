@@ -1,9 +1,9 @@
-use crate::core::edge_ref::EdgeRef;
-use crate::core::locked_view::LockedView;
+use crate::core::storage::locked_view::LockedView;
+use crate::core::storage::timeindex::TimeIndex;
+use crate::core::tgraph::edges::edge_ref::EdgeRef;
+use crate::core::tgraph::properties::tprop::TProp;
+use crate::core::tgraph::vertices::vertex_ref::VertexRef;
 use crate::core::tgraph::VID;
-use crate::core::timeindex::TimeIndex;
-use crate::core::tprop::TProp;
-use crate::core::vertex_ref::VertexRef;
 use crate::core::Prop;
 use crate::db::view_api::internal::Base;
 

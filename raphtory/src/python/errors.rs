@@ -1,5 +1,5 @@
-use crate::core::errors::GraphError;
-use crate::core::time::error::ParseTimeError;
+use crate::core::util::errors::GraphError;
+use crate::core::util::time::error::ParseTimeError;
 use crate::graph_loader::source::csv_loader::CsvErr;
 use pyo3::exceptions::PyException;
 use pyo3::PyErr;

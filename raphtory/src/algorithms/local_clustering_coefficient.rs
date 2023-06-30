@@ -51,7 +51,7 @@
 //! ```
 
 use crate::algorithms::local_triangle_count::local_triangle_count;
-use crate::core::vertex_ref::VertexRef;
+use crate::core::tgraph::vertices::vertex_ref::VertexRef;
 use crate::db::view_api::*;
 
 /// measures the degree to which nodes in a graph tend to cluster together

@@ -1,4 +1,4 @@
-use crate::core::tcell::TCell;
+use crate::core::tgraph::properties::tcell::TCell;
 use crate::core::Prop;
 use crate::db::graph::Graph;
 use chrono::NaiveDateTime;

@@ -1,6 +1,6 @@
-use crate::core::errors::GraphError;
-use crate::core::time::TryIntoTime;
-use crate::core::vertex::InputVertex;
+use crate::core::tgraph::vertices::input_vertex::InputVertex;
+use crate::core::utils::errors::GraphError;
+use crate::core::utils::time::TryIntoTime;
 use crate::db::mutation_api::internal::InternalPropertyAdditionOps;
 use crate::db::mutation_api::Properties;
 

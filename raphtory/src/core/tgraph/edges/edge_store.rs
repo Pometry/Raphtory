@@ -3,11 +3,14 @@ use std::ops::{Deref, DerefMut, Range};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
-use crate::core::{
-    edge_ref::EdgeRef, errors::MutateGraphError, timeindex::TimeIndex, tprop::TProp, Prop,
-};
+use crate::core::storage::timeindex::TimeIndex;
+use crate::core::tgraph::properties::tprop::TProp;
+use crate::core::Prop;
 
-use super::{props::Props, EID, VID};
+use crate::core::tgraph::edges::edge_ref::EdgeRef;
+use crate::core::tgraph::properties::props::Props;
+use crate::core::tgraph::{EID, VID};
+use crate::core::utils::errors::MutateGraphError;
 
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
 pub(crate) struct EdgeStore<const N: usize> {

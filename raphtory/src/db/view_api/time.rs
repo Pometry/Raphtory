@@ -1,5 +1,5 @@
-use crate::core::time::error::ParseTimeError;
-use crate::core::time::{Interval, IntoTime};
+use crate::core::utils::time::error::ParseTimeError;
+use crate::core::utils::time::{Interval, IntoTime};
 
 /// Trait defining time query operations
 pub trait TimeOps {
@@ -159,7 +159,7 @@ impl<T: TimeOps + Clone> Iterator for WindowSet<T> {
 
 #[cfg(test)]
 mod time_tests {
-    use crate::core::time::TryIntoTime;
+    use crate::core::util::time::TryIntoTime;
     use crate::db::graph::Graph;
     use crate::db::mutation_api::AdditionOps;
     use crate::db::view_api::time::WindowSet;

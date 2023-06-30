@@ -73,10 +73,7 @@ pub fn reddit_hyperlink_graph(timeout_seconds: u64) -> PyResult<Py<PyGraph>> {
 
 #[pyfunction]
 #[pyo3(signature = (path=None,subset=None))]
-pub fn stable_coin_graph(
-    path: Option<String>,
-    subset: Option<bool>,
-) -> PyResult<Py<PyGraph>> {
+pub fn stable_coin_graph(path: Option<String>, subset: Option<bool>) -> PyResult<Py<PyGraph>> {
     PyGraph::py_from_db_graph(
         crate::graph_loader::example::stable_coins::stable_coin_graph(
             path,

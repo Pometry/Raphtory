@@ -2,13 +2,11 @@ use std::ops::Deref;
 
 use genawaiter::sync::GenBoxed;
 
+use crate::core::tgraph::edges::edge_ref::EdgeRef;
+use crate::core::tgraph::graph::tgraph::InnerTemporalGraph;
+use crate::core::tgraph::vertices::vertex_ref::VertexRef;
 use crate::{
-    core::{
-        edge_ref::EdgeRef,
-        tgraph::{tgraph::InnerTemporalGraph, VID},
-        vertex_ref::VertexRef,
-        Direction,
-    },
+    core::{tgraph::VID, Direction},
     db::view_api::internal::GraphOps,
 };
 

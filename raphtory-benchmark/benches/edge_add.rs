@@ -1,5 +1,5 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-use raphtory::core::vertex::InputVertex;
+use raphtory::core::tgraph::vertices::input_vertex::InputVertex;
 use raphtory::db::graph::Graph;
 
 mod common;

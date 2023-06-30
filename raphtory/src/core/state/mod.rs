@@ -191,7 +191,6 @@ mod state_test {
 
     #[test]
     fn sum_aggregates_for_3_keys_2_parts() {
-
         let sum = accumulators::sum(0);
 
         let mut part1_state: ShuffleComputeState<ComputeStateVec> =

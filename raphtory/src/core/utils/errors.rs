@@ -1,6 +1,7 @@
-use crate::core::time::error::ParseTimeError;
+use crate::core::storage::lazy_vec::IllegalSet;
+use crate::core::utils::time::error::ParseTimeError;
 
-use super::{lazy_vec::IllegalSet, Prop};
+use crate::core::Prop;
 
 #[derive(thiserror::Error, Debug)]
 pub enum GraphError {
@@ -73,8 +74,6 @@ pub enum MutateGraphError {
         second_type: &'static str,
     },
 }
-
-pub type MutateGraphResult = Result<(), MutateGraphError>;
 
 #[derive(thiserror::Error, Debug, PartialEq)]
 #[error("cannot mutate static property '{name}'")]

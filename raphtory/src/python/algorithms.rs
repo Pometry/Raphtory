@@ -21,7 +21,7 @@ use crate::algorithms::reciprocity::{
     all_local_reciprocity as all_local_reciprocity_rs, global_reciprocity as global_reciprocity_rs,
 };
 use crate::algorithms::temporal_reachability::temporally_reachable_nodes as temporal_reachability_rs;
-use crate::core::vertex_ref::VertexRef;
+use crate::core::tgraph::vertices::vertex_ref::VertexRef;
 use crate::python::utils::PyInputVertex;
 use pyo3::prelude::*;
 

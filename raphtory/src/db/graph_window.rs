@@ -38,10 +38,10 @@
 //!  assert_eq!(wg.edge(1, 2, None).unwrap().src().id(), 1);
 //! ```
 
-use crate::core::edge_ref::EdgeRef;
+use crate::core::tgraph::edges::edge_ref::EdgeRef;
+use crate::core::tgraph::vertices::vertex_ref::VertexRef;
 use crate::core::tgraph::VID;
-use crate::core::time::IntoTime;
-use crate::core::vertex_ref::VertexRef;
+use crate::core::utils::time::IntoTime;
 use crate::core::{Direction, Prop};
 use crate::db::view_api::internal::time_semantics::TimeSemantics;
 use crate::db::view_api::internal::{

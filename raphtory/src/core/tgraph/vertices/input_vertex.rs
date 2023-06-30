@@ -4,7 +4,7 @@
 //! This trait allows you to use a variety of types as input vertices, including
 //! `u64`, `&str`, and `String`.
 
-use crate::core::utils;
+use crate::core::utils::hashing;
 
 pub trait InputVertex: Clone {
     fn id(&self) -> u64;
@@ -23,7 +23,7 @@ impl InputVertex for u64 {
 
 impl<'a> InputVertex for &'a str {
     fn id(&self) -> u64 {
-        self.parse().unwrap_or(utils::calculate_hash(self))
+        self.parse().unwrap_or(hashing::calculate_hash(self))
     }
 
     fn id_str(&self) -> Option<&str> {

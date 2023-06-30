@@ -5,7 +5,7 @@
 //! use std::path::{Path, PathBuf};
 //! use regex::Regex;
 //! use raphtory::core::Prop;
-//! use raphtory::core::utils::calculate_hash;
+//! use raphtory::core::util::hashing::calculate_hash;
 //! use raphtory::graph_loader::source::csv_loader::CsvLoader;
 //! use raphtory::db::graph::Graph;
 //! use raphtory::db::mutation_api::AdditionOps;
@@ -403,7 +403,7 @@ impl CsvLoader {
 
 #[cfg(test)]
 mod csv_loader_test {
-    use crate::core::utils::calculate_hash;
+    use crate::core::util::hashing::calculate_hash;
     use crate::core::Prop;
     use crate::db::graph::Graph;
     use crate::db::mutation_api::AdditionOps;

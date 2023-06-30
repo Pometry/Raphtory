@@ -2,24 +2,19 @@
 
 use std::ops::Deref;
 
+use edges::edge::ERef;
+use graph::tgraph::TGraph;
+use graph::tgraph_storage::GraphEntry;
 use serde::{Deserialize, Serialize};
+use vertices::vertex_ref::VertexRef;
+use vertices::vertex_store::VertexStore;
 
-use self::{edge::ERef, node_store::NodeStore, tgraph::TGraph, tgraph_storage::GraphEntry};
+use super::{storage::Entry, Direction};
 
-use super::{storage::Entry, vertex_ref::VertexRef, Direction};
-
-mod adj;
-pub mod adjset;
-pub(crate) mod edge;
-mod edge_store;
-mod graph_props;
-mod iter;
-mod node_store;
-pub mod props;
-pub mod tgraph;
-mod tgraph_storage;
-pub(crate) mod timer;
-mod vertex;
+pub(crate) mod edges;
+pub(crate) mod graph;
+pub(crate) mod properties;
+pub(crate) mod vertices;
 
 // the only reason this is public is because the phisical ids of the vertices don't move
 #[repr(transparent)]
@@ -74,8 +69,8 @@ impl From<usize> for EID {
 }
 
 pub(crate) enum VRef<'a, const N: usize> {
-    Entry(Entry<'a, NodeStore<N>, N>), // returned from graph.vertex
-    LockedEntry(GraphEntry<NodeStore<N>, N>), // returned from locked_vertices
+    Entry(Entry<'a, VertexStore<N>, N>), // returned from graph.vertex
+    LockedEntry(GraphEntry<VertexStore<N>, N>), // returned from locked_vertices
 }
 
 // return index -> usize for VRef
@@ -99,7 +94,7 @@ impl<'a, const N: usize> VRef<'a, N> {
 }
 
 impl<'a, const N: usize> Deref for VRef<'a, N> {
-    type Target = NodeStore<N>;
+    type Target = VertexStore<N>;
 
     fn deref(&self) -> &Self::Target {
         match self {

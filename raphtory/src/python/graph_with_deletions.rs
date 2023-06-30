@@ -5,7 +5,7 @@
 //! create windows, and query the graph with a variety of algorithms.
 //! It is a wrapper around a set of shards, which are the actual graph data structures.
 //! In Python, this class wraps around the rust graph.
-use crate::core::errors::GraphError;
+use crate::core::util::errors::GraphError;
 use crate::core::Prop;
 use crate::db::mutation_api::{AdditionOps, PropertyAdditionOps};
 use crate::prelude::{DeletionOps, GraphWithDeletions};

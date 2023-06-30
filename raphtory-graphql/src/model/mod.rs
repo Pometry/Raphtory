@@ -20,10 +20,7 @@ impl QueryRoot {
     }
 
     /// Returns a view including all events between `t_start` (inclusive) and `t_end` (exclusive)
-    async fn graph<'a>(
-        ctx: &Context<'a>,
-        name: &str,
-    ) -> Option<GqlGraph> {
+    async fn graph<'a>(ctx: &Context<'a>, name: &str) -> Option<GqlGraph> {
         let data = ctx.data_unchecked::<Data>();
         let g = data.graphs.get(name)?;
         Some(g.clone().into())

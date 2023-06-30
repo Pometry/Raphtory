@@ -161,9 +161,10 @@ fn unzip_file(zip_file_path: &str, destination_path: &str) -> std::io::Result<()
 
 #[cfg(test)]
 mod graph_loader_test {
+    use crate::core::util::hashing;
     use crate::db::mutation_api::AdditionOps;
     use crate::{
-        core::{utils, Prop},
+        core::Prop,
         db::{
             graph::Graph,
             view_api::{GraphViewOps, TimeOps, VertexViewOps},
@@ -224,8 +225,8 @@ mod graph_loader_test {
         if let Ok(mut reader) = csv::Reader::from_path(data_dir) {
             for rec in reader.records().flatten() {
                 if let Some((src, dst, t)) = parse_record(&rec) {
-                    let src_id = utils::calculate_hash(&src);
-                    let dst_id = utils::calculate_hash(&dst);
+                    let src_id = hashing::calculate_hash(&src);
+                    let dst_id = hashing::calculate_hash(&dst);
 
                     g.add_vertex(
                         t,
@@ -254,7 +255,7 @@ mod graph_loader_test {
             }
         }
 
-        let gandalf = utils::calculate_hash(&"Gandalf");
+        let gandalf = hashing::calculate_hash(&"Gandalf");
         assert!(g.has_vertex(gandalf));
         assert!(g.has_vertex("Gandalf"))
     }

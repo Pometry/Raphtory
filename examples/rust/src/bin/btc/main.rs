@@ -6,7 +6,7 @@ use std::thread::JoinHandle;
 use std::{env, thread};
 
 use chrono::{DateTime, Utc};
-use raphtory::core::utils;
+use raphtory::core::util::hashing;
 use raphtory::core::{Direction, Prop};
 use raphtory::graph_loader::source::csv_loader::CsvLoader;
 use regex::Regex;
@@ -56,7 +56,7 @@ fn main() {
         panic!("Missing data dir = {}", data_dir.to_str().unwrap())
     }
 
-    let test_v = utils::calculate_hash(&"139eeGkMGR6F9EuJQ3qYoXebfkBbNAsLtV:btc");
+    let test_v = hashing::calculate_hash(&"139eeGkMGR6F9EuJQ3qYoXebfkBbNAsLtV:btc");
 
     // If data_dir/graphdb.bincode exists, use bincode to load the graph from binary encoded data files
     // otherwise load the graph from csv data files
@@ -84,8 +84,8 @@ fn main() {
         CsvLoader::new(data_dir)
             .with_filter(Regex::new(r".+(sent|received)").unwrap())
             .load_into_graph(&g, |sent: Sent, g: &Graph| {
-                let src = utils::calculate_hash(&sent.addr);
-                let dst = utils::calculate_hash(&sent.txn);
+                let src = hashing::calculate_hash(&sent.addr);
+                let dst = hashing::calculate_hash(&sent.txn);
                 let time = sent.time.timestamp();
 
                 if src == test_v || dst == test_v {

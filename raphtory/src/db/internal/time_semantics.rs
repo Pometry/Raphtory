@@ -2,12 +2,11 @@ use std::ops::Range;
 
 use genawaiter::sync::GenBoxed;
 
+use crate::core::storage::timeindex::TimeIndexOps;
+use crate::core::tgraph::edges::edge_ref::EdgeRef;
+use crate::core::tgraph::graph::tgraph::InnerTemporalGraph;
 use crate::{
-    core::{
-        edge_ref::EdgeRef,
-        tgraph::{tgraph::InnerTemporalGraph, VID},
-        timeindex::TimeIndexOps,
-    },
+    core::tgraph::VID,
     db::view_api::{
         internal::{CoreDeletionOps, CoreGraphOps, TimeSemantics},
         BoxedIter,

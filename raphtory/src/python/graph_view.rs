@@ -1,7 +1,7 @@
 //! The API for querying a view of the graph in a read-only state
-use crate::core::errors::GraphError;
-use crate::core::time::error::ParseTimeError;
-use crate::core::vertex_ref::VertexRef;
+use crate::core::tgraph::vertices::vertex_ref::VertexRef;
+use crate::core::util::errors::GraphError;
+use crate::core::util::time::error::ParseTimeError;
 use crate::core::Prop;
 use crate::db::edge::EdgeView;
 use crate::db::graph_layer::LayeredGraph;

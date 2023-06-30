@@ -1,12 +1,12 @@
 use std::{cell::RefCell, collections::HashMap, marker::PhantomData, rc::Rc};
 
 use crate::core::tgraph::VID;
+use crate::core::utils::time::IntoTime;
 use crate::db::view_api::internal::{GraphPropertiesOps, GraphWindowOps};
 use crate::{
     core::{
         state::agg::Accumulator,
         state::{accumulator_id::AccId, compute_state::ComputeState, StateType},
-        time::IntoTime,
         Direction, Prop,
     },
     db::{

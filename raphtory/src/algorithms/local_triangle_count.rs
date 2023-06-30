@@ -39,7 +39,7 @@
 //! println!("local_triangle_count: {:?}", result);
 //! ```
 //!
-use crate::core::vertex_ref::VertexRef;
+use crate::core::tgraph::vertices::vertex_ref::VertexRef;
 use crate::db::view_api::*;
 use itertools::Itertools;
 

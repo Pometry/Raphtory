@@ -18,8 +18,8 @@
 //! ```
 //!
 
-use crate::core::errors::GraphError;
-use crate::core::tgraph::tgraph::InnerTemporalGraph;
+use crate::core::tgraph::graph::tgraph::InnerTemporalGraph;
+use crate::core::utils::errors::GraphError;
 use crate::prelude::{EdgeListOps, EdgeViewOps, GraphViewOps, VertexViewOps};
 
 use serde::{Deserialize, Serialize};
@@ -146,11 +146,11 @@ impl IntoDynamic for Graph {
 #[cfg(test)]
 mod db_tests {
     use super::*;
-    use crate::core::edge_ref::EdgeRef;
-    use crate::core::errors::GraphError;
-    use crate::core::time::error::ParseTimeError;
-    use crate::core::time::TryIntoTime;
-    use crate::core::vertex_ref::VertexRef;
+    use crate::core::tgraph::edges::edge_ref::EdgeRef;
+    use crate::core::tgraph::vertices::vertex_ref::VertexRef;
+    use crate::core::util::errors::GraphError;
+    use crate::core::util::time::error::ParseTimeError;
+    use crate::core::util::time::TryIntoTime;
     use crate::core::{Direction, Prop};
     use crate::db::edge::EdgeView;
     use crate::db::path::PathFromVertex;

@@ -1,6 +1,6 @@
-use crate::core::edge_ref::EdgeRef;
 use crate::core::state::compute_state::ComputeState;
-use crate::core::vertex_ref::VertexRef;
+use crate::core::tgraph::edges::edge_ref::EdgeRef;
+use crate::core::tgraph::vertices::vertex_ref::VertexRef;
 use crate::core::Prop;
 use crate::db::task::eval_vertex::EvalVertexView;
 use crate::db::view_api::*;

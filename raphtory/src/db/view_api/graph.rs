@@ -1,13 +1,13 @@
-use crate::core::errors::GraphError;
-use crate::core::tgraph::tgraph::InnerTemporalGraph;
+use crate::core::tgraph::graph::tgraph::InnerTemporalGraph;
 use crate::core::tgraph::VID;
+use crate::core::utils::errors::GraphError;
 use crate::core::Prop;
 use itertools::Itertools;
 use rustc_hash::FxHashSet;
 use std::collections::HashMap;
 
-use crate::core::time::IntoTime;
-use crate::core::vertex_ref::VertexRef;
+use crate::core::tgraph::vertices::vertex_ref::VertexRef;
+use crate::core::utils::time::IntoTime;
 use crate::db::edge::EdgeView;
 use crate::db::graph_layer::LayeredGraph;
 use crate::db::graph_window::WindowedGraph;

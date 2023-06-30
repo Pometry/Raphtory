@@ -1,4 +1,4 @@
-use crate::core::edge_ref::EdgeRef;
+use crate::core::tgraph::edges::edge_ref::EdgeRef;
 use crate::core::tgraph::VID;
 use crate::core::Prop;
 use crate::db::view_api::internal::time_semantics::TimeSemantics;

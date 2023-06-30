@@ -2,10 +2,10 @@
 //!
 //! This module contains helper functions for the Python bindings.
 //! These functions are not part of the public API and are not exported to the Python module.
-use crate::core::time::error::ParseTimeError;
-use crate::core::time::{Interval, IntoTime, TryIntoTime};
-use crate::core::vertex::InputVertex;
-use crate::core::vertex_ref::VertexRef;
+use crate::core::tgraph::vertices::input_vertex::InputVertex;
+use crate::core::tgraph::vertices::vertex_ref::VertexRef;
+use crate::core::util::time::error::ParseTimeError;
+use crate::core::util::time::{Interval, IntoTime, TryIntoTime};
 use crate::db::view_api::*;
 use crate::python::vertex::PyVertex;
 use chrono::NaiveDateTime;

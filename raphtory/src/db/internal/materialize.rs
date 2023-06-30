@@ -1,5 +1,5 @@
+use crate::core::tgraph::graph::tgraph::InnerTemporalGraph;
 use crate::{
-    core::tgraph::tgraph::InnerTemporalGraph,
     db::graph::Graph,
     db::{
         graph::InternalGraph,

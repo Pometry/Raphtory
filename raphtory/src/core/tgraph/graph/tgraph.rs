@@ -4,29 +4,24 @@ use dashmap::DashMap;
 use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
 
-use crate::core::{
-    errors::{GraphError, MutateGraphError},
-    locked_view::LockedView,
-    storage::Entry,
-    time::TryIntoTime,
-    timeindex::TimeIndexOps,
-    tprop::TProp,
-    vertex::InputVertex,
-    vertex_ref::VertexRef,
-    Direction, Prop, PropUnwrap,
-};
+use crate::core::storage::locked_view::LockedView;
+use crate::core::storage::timeindex::TimeIndexOps;
+use crate::core::tgraph::edges::edge::EdgeView;
+use crate::core::tgraph::edges::edge_store::{EdgeLayer, EdgeStore};
+use crate::core::tgraph::properties::graph_props::GraphProps;
+use crate::core::tgraph::properties::tprop::TProp;
+use crate::core::tgraph::vertices::input_vertex::InputVertex;
+use crate::core::tgraph::vertices::vertex::{ArcEdge, ArcVertex, Vertex};
+use crate::core::tgraph::vertices::vertex_ref::VertexRef;
+use crate::core::tgraph::vertices::vertex_store::VertexStore;
+use crate::core::{storage::Entry, Direction, Prop, PropUnwrap};
 
-use super::{
-    edge::EdgeView,
-    edge_store::{EdgeLayer, EdgeStore},
-    graph_props::GraphProps,
-    node_store::NodeStore,
-    props::Meta,
-    tgraph_storage::{GraphStorage, LockedIter},
-    timer::{MaxCounter, MinCounter, TimeCounterTrait},
-    vertex::{ArcEdge, ArcVertex, Vertex},
-    EID, VID,
-};
+use crate::core::tgraph::graph::tgraph_storage::{GraphStorage, LockedIter};
+use crate::core::tgraph::graph::timer::{MaxCounter, MinCounter, TimeCounterTrait};
+use crate::core::tgraph::properties::props::Meta;
+use crate::core::tgraph::{EID, VID};
+use crate::core::utils::errors::{GraphError, MutateGraphError};
+use crate::core::utils::time::TryIntoTime;
 
 pub(crate) type FxDashMap<K, V> = DashMap<K, V, BuildHasherDefault<FxHasher>>;
 
@@ -149,7 +144,7 @@ impl<const N: usize> InnerTemporalGraph<N> {
             .unwrap_or_else(|| node.global_id().to_string())
     }
 
-    pub(crate) fn node_entry(&self, v: VID) -> Entry<'_, NodeStore<N>, N> {
+    pub(crate) fn node_entry(&self, v: VID) -> Entry<'_, VertexStore<N>, N> {
         self.storage.get_node(v.into())
     }
 
@@ -236,7 +231,7 @@ impl<const N: usize> InnerTemporalGraph<N> {
 
         // update the logical to physical mapping if needed
         let v_id = *(self.logical_to_physical.entry(v.id()).or_insert_with(|| {
-            let node_store = NodeStore::new(v.id(), t);
+            let node_store = VertexStore::new(v.id(), t);
             self.storage.push_node(node_store)
         }));
 
@@ -262,7 +257,7 @@ impl<const N: usize> InnerTemporalGraph<N> {
 
         // update the logical to physical mapping if needed
         let v_id = *(self.logical_to_physical.entry(v.id()).or_insert_with(|| {
-            let node_store = NodeStore::new(v.id(), t);
+            let node_store = VertexStore::new(v.id(), t);
             self.storage.push_node(node_store)
         }));
 

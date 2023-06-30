@@ -1,4 +1,4 @@
-use crate::core::time::error::*;
+use crate::core::utils::time::error::*;
 use chrono::NaiveDate;
 use chrono::{DateTime, Duration, Months, NaiveDateTime, TimeZone};
 use itertools::{Either, Itertools};
@@ -283,7 +283,7 @@ impl Add<Interval> for i64 {
 
 #[cfg(test)]
 mod time_tests {
-    use crate::core::time::{Interval, ParseTimeError, TryIntoTime};
+    use crate::core::util::time::{Interval, ParseTimeError, TryIntoTime};
 
     #[test]
     fn interval_parsing() {

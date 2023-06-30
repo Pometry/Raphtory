@@ -6,7 +6,7 @@ use std::convert::TryFrom;
 use std::sync::Arc;
 
 use js_sys::Object;
-use raphtory::core::errors::GraphError;
+use raphtory::core::util::errors::GraphError;
 use raphtory::core::Prop;
 use raphtory::db::graph::Graph as TGraph;
 use raphtory::db::graph_window::WindowedGraph;

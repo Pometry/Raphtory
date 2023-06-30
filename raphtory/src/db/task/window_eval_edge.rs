@@ -1,8 +1,9 @@
 use std::{cell::RefCell, collections::HashMap, iter, marker::PhantomData, rc::Rc};
 
+use crate::core::tgraph::edges::edge_ref::EdgeRef;
 use crate::db::view_api::internal::*;
 use crate::{
-    core::{edge_ref::EdgeRef, state::compute_state::ComputeState, Prop},
+    core::{state::compute_state::ComputeState, Prop},
     db::view_api::*,
 };
 
@@ -59,7 +60,10 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static>
         self.ev.clone()
     }
 
-    fn new_vertex(&self, v: crate::core::vertex_ref::VertexRef) -> WindowEvalVertex<'a, G, CS, S> {
+    fn new_vertex(
+        &self,
+        v: crate::core::tgraph::vertices::vertex_ref::VertexRef,
+    ) -> WindowEvalVertex<'a, G, CS, S> {
         WindowEvalVertex::new(
             self.ss,
             self.g.localise_vertex_unchecked(v),

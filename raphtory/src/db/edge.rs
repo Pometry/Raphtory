@@ -5,9 +5,9 @@
 //! and can have properties associated with them.
 //!
 
-use crate::core::edge_ref::EdgeRef;
-use crate::core::time::IntoTime;
-use crate::core::vertex_ref::VertexRef;
+use crate::core::tgraph::edges::edge_ref::EdgeRef;
+use crate::core::tgraph::vertices::vertex_ref::VertexRef;
+use crate::core::utils::time::IntoTime;
 use crate::core::Prop;
 use crate::db::graph_window::WindowedGraph;
 use crate::db::vertex::VertexView;

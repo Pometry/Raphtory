@@ -5,17 +5,15 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 
-use crate::core::{
-    errors::{IllegalMutate, MutateGraphError},
-    lazy_vec::LazyVec,
-    tprop::TProp,
-    Prop,
-};
+use crate::core::storage::lazy_vec::LazyVec;
 
-use super::tgraph::FxDashMap;
+use crate::core::tgraph::graph::tgraph::FxDashMap;
+use crate::core::tgraph::properties::tprop::TProp;
+use crate::core::utils::errors::{IllegalMutate, MutateGraphError};
+use crate::core::Prop;
 
 #[derive(Serialize, Deserialize, Default, Debug, PartialEq)]
-pub(crate) struct Props {
+pub struct Props {
     // properties
     static_props: LazyVec<Option<Prop>>,
     temporal_props: LazyVec<TProp>,
@@ -35,12 +33,12 @@ impl Props {
         }
     }
 
-    pub(crate) fn add_prop(&mut self, t: i64, prop_id: usize, prop: Prop) {
+    pub fn add_prop(&mut self, t: i64, prop_id: usize, prop: Prop) {
         self.temporal_props
             .update_or_set(prop_id, |p| p.set(t, &prop), TProp::from(t, &prop))
     }
 
-    pub(crate) fn add_static_prop(
+    pub fn add_static_prop(
         &mut self,
         prop_id: usize,
         prop_name: &str,
@@ -53,10 +51,7 @@ impl Props {
         })
     }
 
-    pub(crate) fn temporal_props(
-        &self,
-        prop_id: usize,
-    ) -> Box<dyn Iterator<Item = (i64, Prop)> + '_> {
+    pub fn temporal_props(&self, prop_id: usize) -> Box<dyn Iterator<Item = (i64, Prop)> + '_> {
         let o = self.temporal_props.get(prop_id);
         if let Some(t_prop) = o {
             Box::new(t_prop.iter().map(|(t, p)| (t, p.clone())))
@@ -65,7 +60,7 @@ impl Props {
         }
     }
 
-    pub(crate) fn temporal_props_window(
+    pub fn temporal_props_window(
         &self,
         prop_id: usize,
         t_start: i64,
@@ -83,33 +78,33 @@ impl Props {
         }
     }
 
-    pub(crate) fn static_prop(&self, prop_id: usize) -> Option<&Prop> {
+    pub fn static_prop(&self, prop_id: usize) -> Option<&Prop> {
         let prop = self.static_props.get(prop_id)?;
         prop.as_ref()
     }
 
-    pub(crate) fn temporal_prop(&self, prop_id: usize) -> Option<&TProp> {
+    pub fn temporal_prop(&self, prop_id: usize) -> Option<&TProp> {
         self.temporal_props.get(prop_id)
     }
 
-    pub(crate) fn static_prop_ids(&self) -> Vec<usize> {
+    pub fn static_prop_ids(&self) -> Vec<usize> {
         self.static_props.filled_ids()
     }
 
-    pub(crate) fn temporal_prop_ids(&self) -> Vec<usize> {
+    pub fn temporal_prop_ids(&self) -> Vec<usize> {
         self.temporal_props.filled_ids()
     }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub(crate) struct Meta {
+pub struct Meta {
     meta_prop_temporal: DictMapper<String>,
     meta_prop_static: DictMapper<String>,
     meta_layer: DictMapper<String>,
 }
 
 impl Meta {
-    pub(crate) fn new() -> Self {
+    pub fn new() -> Self {
         let meta_layer = DictMapper::default();
         meta_layer.get_or_create_id("_default".to_owned());
         Self {
@@ -119,7 +114,7 @@ impl Meta {
         }
     }
 
-    pub(crate) fn resolve_prop_ids(
+    pub fn resolve_prop_ids(
         &self,
         props: Vec<(String, Prop)>,
         is_static: bool,
@@ -134,7 +129,7 @@ impl Meta {
         })
     }
 
-    pub(crate) fn resolve_prop_id(&self, name: &str, is_static: bool) -> usize {
+    pub fn resolve_prop_id(&self, name: &str, is_static: bool) -> usize {
         if is_static {
             self.meta_prop_static.get_or_create_id(name.to_string())
         } else {
@@ -142,7 +137,7 @@ impl Meta {
         }
     }
 
-    pub(crate) fn find_prop_id(&self, name: &str, is_static: bool) -> Option<usize> {
+    pub fn find_prop_id(&self, name: &str, is_static: bool) -> Option<usize> {
         if is_static {
             self.meta_prop_static.get(&name.to_owned())
         } else {
@@ -150,15 +145,15 @@ impl Meta {
         }
     }
 
-    pub(crate) fn get_or_create_layer_id(&self, name: String) -> usize {
+    pub fn get_or_create_layer_id(&self, name: String) -> usize {
         self.meta_layer.get_or_create_id(name)
     }
 
-    pub(crate) fn get_layer_id(&self, name: &str) -> Option<usize> {
+    pub fn get_layer_id(&self, name: &str) -> Option<usize> {
         self.meta_layer.map.get(name).as_deref().copied()
     }
 
-    pub(crate) fn get_layer_name_by_id(&self, id: usize) -> Option<String> {
+    pub fn get_layer_name_by_id(&self, id: usize) -> Option<String> {
         self.meta_layer
             .map
             .iter()
@@ -166,7 +161,7 @@ impl Meta {
             .map(|entry| entry.key().clone())
     }
 
-    pub(crate) fn get_all_layers(&self) -> Vec<usize> {
+    pub fn get_all_layers(&self) -> Vec<usize> {
         self.meta_layer
             .map
             .iter()
@@ -174,7 +169,7 @@ impl Meta {
             .collect()
     }
 
-    pub(crate) fn reverse_prop_id(&self, prop_id: usize, is_static: bool) -> Option<String> {
+    pub fn reverse_prop_id(&self, prop_id: usize, is_static: bool) -> Option<String> {
         if is_static {
             self.meta_prop_static.reverse_lookup(&prop_id)
         } else {
@@ -204,7 +199,7 @@ impl<T: Hash + Eq + Clone> DictMapper<T> {
         *new_id
     }
 
-    pub(crate) fn get(&self, name: &T) -> Option<usize> {
+    pub fn get(&self, name: &T) -> Option<usize> {
         self.map.get(name).map(|id| *id)
     }
 
@@ -212,7 +207,7 @@ impl<T: Hash + Eq + Clone> DictMapper<T> {
         self.reverse_map.get(id).map(|name| name.clone())
     }
 
-    pub(crate) fn get_keys(&self) -> Vec<T> {
+    pub fn get_keys(&self) -> Vec<T> {
         self.map.iter().map(|entry| entry.key().clone()).collect()
     }
 }

@@ -3,15 +3,19 @@ use std::ops::Range;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
-use crate::core::{
-    edge_ref::EdgeRef, errors::MutateGraphError, timeindex::TimeIndex, tprop::TProp, Direction,
-    Prop,
-};
+use crate::core::storage::timeindex::TimeIndex;
+use crate::core::tgraph::properties::tprop::TProp;
+use crate::core::tgraph::vertices::structure::adj;
+use crate::core::{Direction, Prop};
 
-use super::{adj::Adj, props::Props, EID, VID};
+use crate::core::tgraph::edges::edge_ref::EdgeRef;
+use crate::core::tgraph::properties::props::Props;
+use crate::core::tgraph::vertices::structure::adj::Adj;
+use crate::core::tgraph::{EID, VID};
+use crate::core::utils::errors::MutateGraphError;
 
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
-pub(crate) struct NodeStore<const N: usize> {
+pub(crate) struct VertexStore<const N: usize> {
     global_id: u64,
     pub(crate) vid: VID,
     // all the timestamps that have been seen by this vertex
@@ -22,7 +26,7 @@ pub(crate) struct NodeStore<const N: usize> {
     props: Option<Props>,
 }
 
-impl<const N: usize> NodeStore<N> {
+impl<const N: usize> VertexStore<N> {
     pub fn new(global_id: u64, t: i64) -> Self {
         let mut layers = Vec::with_capacity(1);
         layers.push(Adj::Solo);
@@ -63,7 +67,7 @@ impl<const N: usize> NodeStore<N> {
         Ok(())
     }
 
-    pub(crate) fn find_edge(&self, dst: VID, layer_id: Option<usize>) -> Option<super::EID> {
+    pub(crate) fn find_edge(&self, dst: VID, layer_id: Option<usize>) -> Option<EID> {
         match layer_id {
             Some(layer_id) => {
                 let layer_adj = self.layers.get(layer_id)?;
@@ -80,13 +84,7 @@ impl<const N: usize> NodeStore<N> {
         None
     }
 
-    pub(crate) fn add_edge(
-        &mut self,
-        v_id: VID,
-        dir: Direction,
-        layer: usize,
-        edge_id: super::EID,
-    ) {
+    pub(crate) fn add_edge(&mut self, v_id: VID, dir: Direction, layer: usize, edge_id: EID) {
         if layer >= self.layers.len() {
             self.layers.resize_with(layer + 1, || Adj::Solo);
         }

@@ -1,8 +1,8 @@
 //! Defines the `Vertex`, which represents a vertex in the graph.
 //! A vertex is a node in the graph, and can have properties and edges.
 //! It can also be used to navigate the graph.
-use crate::core::time::error::ParseTimeError;
-use crate::core::vertex_ref::VertexRef;
+use crate::core::tgraph::vertices::vertex_ref::VertexRef;
+use crate::core::util::time::error::ParseTimeError;
 use crate::core::Prop;
 use crate::db::graph_window::WindowedGraph;
 use crate::db::path::{PathFromGraph, PathFromVertex};

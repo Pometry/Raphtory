@@ -2,23 +2,21 @@ use std::{ops::Range, sync::Arc};
 
 use itertools::Itertools;
 
+use crate::core::storage::locked_view::LockedView;
+use crate::core::storage::timeindex::{TimeIndex, TimeIndexOps};
+use crate::core::tgraph::properties::tprop::TProp;
 use crate::core::{
-    edge_ref::EdgeRef,
-    locked_view::LockedView,
     storage::{ArcEntry, Entry},
-    timeindex::{TimeIndex, TimeIndexOps},
-    tprop::TProp,
     Direction, Prop,
 };
 
-use super::{
-    edge::EdgeView,
-    edge_store::EdgeStore,
-    iter::{Paged, PagedIter},
-    node_store::NodeStore,
-    tgraph::TGraph,
-    VRef, VID,
-};
+use crate::core::tgraph::edges::edge::EdgeView;
+use crate::core::tgraph::edges::edge_ref::EdgeRef;
+use crate::core::tgraph::edges::edge_store::EdgeStore;
+use crate::core::tgraph::graph::tgraph::TGraph;
+use crate::core::tgraph::vertices::structure::iter::{Paged, PagedIter};
+use crate::core::tgraph::vertices::vertex_store::VertexStore;
+use crate::core::tgraph::{VRef, VID};
 
 pub struct Vertex<'a, const N: usize> {
     node: VRef<'a, N>,
@@ -34,7 +32,7 @@ impl<'a, const N: usize> Vertex<'a, N> {
         Vertex { node, graph }
     }
 
-    pub(crate) fn from_entry(node: Entry<'a, NodeStore<N>, N>, graph: &'a TGraph<N>) -> Self {
+    pub(crate) fn from_entry(node: Entry<'a, VertexStore<N>, N>, graph: &'a TGraph<N>) -> Self {
         Self::new(VRef::Entry(node), graph)
     }
 
@@ -125,11 +123,11 @@ impl<'a, const N: usize> IntoIterator for Vertex<'a, N> {
 }
 
 pub struct ArcVertex<const N: usize> {
-    e: ArcEntry<NodeStore<N>, N>,
+    e: ArcEntry<VertexStore<N>, N>,
 }
 
 impl<const N: usize> ArcVertex<N> {
-    pub(crate) fn from_entry(e: ArcEntry<NodeStore<N>, N>) -> Self {
+    pub(crate) fn from_entry(e: ArcEntry<VertexStore<N>, N>) -> Self {
         ArcVertex { e }
     }
 

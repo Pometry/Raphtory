@@ -3,7 +3,7 @@
 //! When a raphtory graph is created, the code will automatically shard the graph depending
 //! on how many shards you set the graph to originally have when initializing it.
 //!
-//! For example, Graph::new(4) will create a graph with 4 shards.
+//! For example, Graph::new() will create a graph with 4 shards.
 //!
 //! Each of these shards will be stored in a separate file, and will be loaded into memory when needed.
 //!

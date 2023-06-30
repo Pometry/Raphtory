@@ -3,21 +3,16 @@ use std::{
     sync::Arc,
 };
 
-use crate::core::{
-    locked_view::LockedView,
-    storage::Entry,
-    timeindex::{TimeIndex, TimeIndexOps},
-    tprop::TProp,
-    Direction, Prop,
-};
+use crate::core::storage::locked_view::LockedView;
+use crate::core::storage::timeindex::{TimeIndex, TimeIndexOps};
+use crate::core::tgraph::properties::tprop::TProp;
+use crate::core::tgraph::vertices::vertex::Vertex;
+use crate::core::{storage::Entry, Direction, Prop};
 
-use super::{
-    edge_store::EdgeStore,
-    tgraph::TGraph,
-    tgraph_storage::{GraphEntry, LockedGraphStorage},
-    vertex::Vertex,
-    GraphItem, VRef, EID, VID,
-};
+use crate::core::tgraph::edges::edge_store::EdgeStore;
+use crate::core::tgraph::graph::tgraph::TGraph;
+use crate::core::tgraph::graph::tgraph_storage::{GraphEntry, LockedGraphStorage};
+use crate::core::tgraph::{GraphItem, VRef, EID, VID};
 
 #[derive(Debug)]
 pub(crate) enum ERef<'a, const N: usize> {

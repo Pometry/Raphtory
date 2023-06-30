@@ -1,6 +1,6 @@
 use crate::core::state::accumulator_id::accumulators::{hash_set, min, or};
 use crate::core::state::compute_state::ComputeStateVec;
-use crate::core::vertex::InputVertex;
+use crate::core::tgraph::vertices::input_vertex::InputVertex;
 use crate::db::task::context::Context;
 use crate::db::task::task::{ATask, Job, Step};
 use crate::db::task::task_runner::TaskRunner;

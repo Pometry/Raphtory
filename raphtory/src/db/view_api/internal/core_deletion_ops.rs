@@ -1,6 +1,6 @@
-use crate::core::edge_ref::EdgeRef;
-use crate::core::locked_view::LockedView;
-use crate::core::timeindex::TimeIndex;
+use crate::core::storage::locked_view::LockedView;
+use crate::core::storage::timeindex::TimeIndex;
+use crate::core::tgraph::edges::edge_ref::EdgeRef;
 use crate::db::view_api::internal::Base;
 
 pub trait CoreDeletionOps {

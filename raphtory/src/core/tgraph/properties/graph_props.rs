@@ -1,8 +1,11 @@
 use serde::{Deserialize, Serialize};
 
-use crate::core::{locked_view::LockedView, tprop::TProp, Prop};
+use crate::core::storage::locked_view::LockedView;
+use crate::core::tgraph::properties::tprop::TProp;
+use crate::core::Prop;
 
-use super::{props::DictMapper, tgraph::FxDashMap};
+use crate::core::tgraph::graph::tgraph::FxDashMap;
+use crate::core::tgraph::properties::props::DictMapper;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub(crate) struct GraphProps {

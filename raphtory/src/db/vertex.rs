@@ -1,8 +1,8 @@
 //! Defines the `Vertex` struct, which represents a vertex in the graph.
 
+use crate::core::tgraph::vertices::vertex_ref::VertexRef;
 use crate::core::tgraph::VID;
-use crate::core::time::IntoTime;
-use crate::core::vertex_ref::VertexRef;
+use crate::core::utils::time::IntoTime;
 use crate::core::{Direction, Prop};
 use crate::db::edge::{EdgeList, EdgeView};
 use crate::db::graph_layer::LayeredGraph;

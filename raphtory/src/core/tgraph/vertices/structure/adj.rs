@@ -4,7 +4,8 @@ use crate::core::Direction;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
-use super::{adjset::AdjSet, EID, VID};
+use crate::core::tgraph::vertices::structure::adjset::AdjSet;
+use crate::core::tgraph::{EID, VID};
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Default)]
 pub(crate) enum Adj {

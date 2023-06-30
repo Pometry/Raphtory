@@ -1,9 +1,7 @@
 use std::convert::TryFrom;
 
-use raphtory::{
-    core::errors::GraphError,
-    db::{vertex::VertexView, view_api::VertexViewOps},
-};
+use raphtory::core::util::errors::GraphError;
+use raphtory::db::{vertex::VertexView, view_api::VertexViewOps};
 use wasm_bindgen::prelude::*;
 
 use crate::graph::{edge::Edge, misc::JsProp};

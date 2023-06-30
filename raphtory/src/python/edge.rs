@@ -4,7 +4,7 @@
 //! The PyEdge class also provides access to the perspective APIs, which allow the user to view the
 //! edge as it existed at a particular point in time, or as it existed over a particular time range.
 //!
-use crate::core::time::error::ParseTimeError;
+use crate::core::util::time::error::ParseTimeError;
 use crate::core::Prop;
 use crate::db::edge::EdgeView;
 use crate::db::graph_window::WindowedGraph;

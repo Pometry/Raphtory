@@ -1,6 +1,6 @@
-use crate::core::errors::GraphError;
-use crate::core::time::{IntoTimeWithFormat, TryIntoTime};
-use crate::core::vertex::InputVertex;
+use crate::core::tgraph::vertices::input_vertex::InputVertex;
+use crate::core::utils::errors::GraphError;
+use crate::core::utils::time::{IntoTimeWithFormat, TryIntoTime};
 use crate::db::mutation_api::internal::InternalDeletionOps;
 
 pub trait DeletionOps {

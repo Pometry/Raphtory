@@ -1,5 +1,5 @@
 use crate::core::tgraph::VID;
-use crate::core::time::IntoTime;
+use crate::core::utils::time::IntoTime;
 use crate::core::{Direction, Prop};
 use crate::db::edge::EdgeView;
 use crate::db::path::{Operations, PathFromVertex};
@@ -157,12 +157,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S> EvalVertexView<'a, G, CS, S> {
         A: StateType,
         OUT: std::fmt::Debug,
     {
-        Entry::new(
-            self.vertex_state.borrow(),
-            *agg_r,
-            &self.vertex,
-            self.ss,
-        )
+        Entry::new(self.vertex_state.borrow(), *agg_r, &self.vertex, self.ss)
     }
 
     /// Read the prev value of the vertex state using the given accumulator.
