@@ -216,7 +216,7 @@ impl<const N: usize> InnerTemporalGraph<N> {
         v: u64,
         name: Option<&str>,
         props: Vec<(String, Prop)>,
-    ) -> Result<(), GraphError> {
+    ) -> Result<VID, GraphError> {
         let t = time.try_into_time()?;
         self.update_time(t);
 
@@ -255,7 +255,7 @@ impl<const N: usize> InnerTemporalGraph<N> {
             node.add_static_prop(*prop_id, name, prop.clone())?;
         }
 
-        Ok(())
+        Ok(v_id.into())
     }
 
     pub(crate) fn add_vertex_no_props(&self, t: i64, v: u64) -> Result<VID, GraphError> {

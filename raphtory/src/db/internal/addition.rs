@@ -11,8 +11,10 @@ impl<const N: usize> InternalAdditionOps for InnerTemporalGraph<N> {
         v: u64,
         name: Option<&str>,
         props: Vec<(String, Prop)>,
-    ) -> Result<(), GraphError> {
-        self.add_vertex_internal(t, v, name, props)
+    ) -> Result<VertexRef, GraphError> {
+        let v_id = self.add_vertex_internal(t, v, name, props)?;
+
+        Ok(VertexRef::Local(v_id))
     }
 
     fn internal_add_edge(

@@ -1,5 +1,9 @@
 use crate::core::{storage::lazy_vec::IllegalSet, utils::time::error::ParseTimeError, Prop};
 
+#[cfg(feature = "search")]
+use tantivy;
+use tantivy::query::QueryParserError;
+
 #[derive(thiserror::Error, Debug)]
 pub enum GraphError {
     #[error("Immutable graph reference already exists. You can access mutable graph apis only exclusively.")]
@@ -24,6 +28,13 @@ pub enum GraphError {
     BinCodeError { source: Box<bincode::ErrorKind> },
     #[error("IO operation failed")]
     IOError { source: std::io::Error },
+    #[cfg(feature = "search")]
+    #[error("Index operation failed")]
+    IndexError { source: tantivy::TantivyError },
+
+    #[cfg(feature = "search")]
+    #[error("Index operation failed")]
+    QueryError { source: QueryParserError },
 }
 
 impl From<bincode::Error> for GraphError {
@@ -41,6 +52,19 @@ impl From<std::io::Error> for GraphError {
 impl From<MutateGraphError> for GraphError {
     fn from(source: MutateGraphError) -> Self {
         GraphError::FailedToMutateGraph { source }
+    }
+}
+
+#[cfg(feature = "search")]
+impl From<tantivy::TantivyError> for GraphError {
+    fn from(source: tantivy::TantivyError) -> Self {
+        GraphError::IndexError { source }
+    }
+}
+#[cfg(feature = "search")]
+impl From<QueryParserError> for GraphError {
+    fn from(source: QueryParserError) -> Self {
+        GraphError::QueryError { source }
     }
 }
 
