@@ -18,8 +18,12 @@ impl Data {
             .filter_map(|e| e.ok())
         {
             let path = entry.path();
-            if path.is_file() {
-                valid_paths.insert(path.display().to_string());
+            let path_string = path.display().to_string();
+            let filename = path.file_name().and_then(|name| name.to_str());
+            if let Some(filename) = filename {
+                if path.is_file() && !filename.starts_with('.') {
+                    valid_paths.insert(path_string);
+                }
             }
         }
 
