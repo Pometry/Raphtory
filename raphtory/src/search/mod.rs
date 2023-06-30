@@ -1,6 +1,6 @@
 // search goes here
 
-use std::sync::Arc;
+use std::{collections::HashSet, ops::Deref, sync::Arc};
 
 use tantivy::{
     collector::TopDocs,
@@ -24,7 +24,73 @@ pub struct IndexedGraph {
     reader: tantivy::IndexReader,
 }
 
+impl Deref for IndexedGraph {
+    type Target = Graph;
+
+    fn deref(&self) -> &Self::Target {
+        &self.graph
+    }
+}
+
+pub(in crate::search) mod fields {
+    pub const VERTEX_GID: &str = "vertex_gid";
+    pub const TIME: &str = "time";
+    pub const VERTEX_ID: &str = "vertex_id";
+    pub const NAME: &str = "name";
+}
+
 impl IndexedGraph {
+    pub fn from_graph<S: AsRef<str>, I: IntoIterator<Item = S>>(
+        vertex_index_props: I,
+        g: &Graph,
+    ) -> tantivy::Result<Self> {
+        let mut vec_props = vec![];
+        let mut set_props = HashSet::new();
+        for prop in vertex_index_props {
+            if set_props.contains(prop.as_ref()) {
+                continue;
+            }
+            set_props.insert(prop.as_ref().to_string());
+            vec_props.push(prop.as_ref().to_string());
+        }
+
+        let mut index_graph = Self::new(vec_props);
+
+        let time_field = index_graph.index.schema().get_field(fields::TIME)?;
+        let vertex_id_field = index_graph.index.schema().get_field(fields::VERTEX_ID)?;
+        let vertex_gid_field = index_graph.index.schema().get_field(fields::VERTEX_GID)?;
+
+        for vertex in g.vertices() {
+            let vertex_gid = vertex.id();
+            let vertex_id: u64 = Into::<usize>::into(vertex.vertex) as u64;
+            let temp_prop_names = vertex.property_names(false);
+
+            for temp_prop_name in temp_prop_names {
+                let prop_field = index_graph.index.schema().get_field(&temp_prop_name)?;
+                if set_props.contains(&temp_prop_name) {
+                    for (time, prop_value) in vertex.property_history(temp_prop_name) {
+                        if let Prop::Str(prop_text) = prop_value {
+                            // what now?
+                            let mut document = Document::new();
+                            // add time to the document
+                            document.add_i64(time_field, time);
+                            // add the property to the document
+                            document.add_text(prop_field, prop_text);
+                            // add the vertex_id
+                            document.add_u64(vertex_id_field, vertex_id);
+                            // add the vertex_gid
+                            document.add_text(vertex_gid_field, vertex_gid);
+                        }
+                    }
+                }
+            }
+        }
+
+        index_graph.graph = g.clone();
+
+        Ok(index_graph)
+    }
+
     pub fn new<S: AsRef<str>, I>(vertex_index_props: I) -> IndexedGraph
     where
         I: IntoIterator<Item = S>,
@@ -36,9 +102,10 @@ impl IndexedGraph {
         }
 
         // ensure time is part of the index
-        schema.add_i64_field("time", INDEXED | STORED);
+        schema.add_i64_field(fields::TIME, INDEXED | STORED);
         // ensure we add vertex_id as stored to get back the vertex id after the search
-        schema.add_text_field("vertex_id", STORED);
+        schema.add_text_field(fields::VERTEX_ID, STORED);
+        schema.add_text_field(fields::VERTEX_GID, STORED);
 
         let index = Index::create_in_ram(schema.build());
 
@@ -102,7 +169,6 @@ impl InternalAdditionOps for IndexedGraph {
         name: Option<&str>,
         props: Vec<(String, Prop)>,
     ) -> Result<VertexRef, GraphError> {
-
         let t: i64 = t.try_into_time()?;
         let mut document = Document::new();
         // add time to the document
@@ -116,7 +182,6 @@ impl InternalAdditionOps for IndexedGraph {
         }
 
         // index all props that are declared in the schema
-
         for (prop_name, prop) in props.iter() {
             if let Ok(field) = self.index.schema().get_field(prop_name) {
                 match prop {
@@ -160,6 +225,16 @@ mod test {
     use super::*;
 
     #[test]
+
+    fn create_indexed_graph_from_existing_graph() {
+        let graph = Graph::new();
+
+        let indexed_graph = IndexedGraph::from_graph(["description"], &graph);
+
+        assert_eq!(indexed_graph.graph.vertex_count(), 0);
+    }
+
+    #[test]
     fn add_vertex_search_by_name() {
         let graph = IndexedGraph::new(vec!["name"]);
 
@@ -199,12 +274,16 @@ mod test {
 
         graph.reload().expect("reload failed");
         // Find the Wizard
-        let vertices = graph.search(r#"description:wizard"#, 10).expect("search failed");
+        let vertices = graph
+            .search(r#"description:wizard"#, 10)
+            .expect("search failed");
         let actual = vertices.into_iter().map(|v| v.name()).collect::<Vec<_>>();
         let expected = vec!["Gandalf"];
         assert_eq!(actual, expected);
         // Find the Hobbit
-        let vertices = graph.search(r#"description:'hobbit'"#, 10).expect("search failed");
+        let vertices = graph
+            .search(r#"description:'hobbit'"#, 10)
+            .expect("search failed");
         let actual = vertices.into_iter().map(|v| v.name()).collect::<Vec<_>>();
         let expected = vec!["Bilbo"];
         assert_eq!(actual, expected);
@@ -232,22 +311,27 @@ mod test {
 
         graph.reload().expect("reload failed");
         // Find Saruman
-        let vertices = graph.search(r#"description:wizard AND time:[2 TO 5]"#, 10).expect("search failed");
+        let vertices = graph
+            .search(r#"description:wizard AND time:[2 TO 5]"#, 10)
+            .expect("search failed");
         let actual = vertices.into_iter().map(|v| v.name()).collect::<Vec<_>>();
         let expected = vec!["Saruman"];
         assert_eq!(actual, expected);
         // Find Gandalf
-        let vertices = graph.search(r#"description:'wizard' AND time:[1 TO 2}"#, 10).expect("search failed");
+        let vertices = graph
+            .search(r#"description:'wizard' AND time:[1 TO 2}"#, 10)
+            .expect("search failed");
         let actual = vertices.into_iter().map(|v| v.name()).collect::<Vec<_>>();
         let expected = vec!["Gandalf"];
         assert_eq!(actual, expected);
         // Find both wizards
-        let vertices = graph.search(r#"description:'wizard' AND time:[1 TO 100]"#, 10).expect("search failed");
+        let vertices = graph
+            .search(r#"description:'wizard' AND time:[1 TO 100]"#, 10)
+            .expect("search failed");
         let actual = vertices.into_iter().map(|v| v.name()).collect::<Vec<_>>();
         let expected = vec!["Gandalf", "Saruman"];
         assert_eq!(actual, expected);
     }
-
 
     #[test]
     fn tantivy_101() {
