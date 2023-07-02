@@ -4,11 +4,11 @@ use crate::core::tgraph::vertices::input_vertex::InputVertex;
 use crate::db::task::context::Context;
 use crate::db::task::task::{ATask, Job, Step};
 use crate::db::task::task_runner::TaskRunner;
+use crate::prelude::*;
 use itertools::Itertools;
 use num_traits::Zero;
 use std::collections::HashMap;
 use std::ops::Add;
-use crate::prelude::*;
 
 #[derive(Eq, Hash, PartialEq, Clone, Debug, Default)]
 pub struct TaintMessage {

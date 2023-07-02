@@ -6,7 +6,10 @@ use crate::core::utils::time::error::ParseTimeError;
 use crate::core::Prop;
 use crate::db::api::view::internal::{DynamicGraph, IntoDynamic};
 use crate::db::api::view::*;
+use crate::db::graph::path::{PathFromGraph, PathFromVertex};
 use crate::db::graph::vertex::VertexView;
+use crate::db::graph::vertices::Vertices;
+use crate::db::graph::views::graph_window::WindowedGraph;
 use crate::python;
 use crate::python::utils::{PyInterval, PyTime};
 use crate::*;
@@ -20,9 +23,6 @@ use python::edge::{PyEdges, PyNestedEdges};
 use python::types::repr::{iterator_repr, Repr};
 use python::wrappers::iterators::*;
 use std::collections::HashMap;
-use crate::db::graph::path::{PathFromGraph, PathFromVertex};
-use crate::db::graph::vertices::Vertices;
-use crate::db::graph::views::graph_window::WindowedGraph;
 
 /// A vertex (or node) in the graph.
 #[pyclass(name = "Vertex")]

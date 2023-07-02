@@ -458,10 +458,10 @@ impl<G: GraphViewOps> WindowedGraph<G> {
 mod views_test {
 
     use super::*;
+    use crate::prelude::*;
     use itertools::Itertools;
     use quickcheck::TestResult;
     use rand::prelude::*;
-    use crate::prelude::*;
     use rayon::prelude::*;
 
     #[test]

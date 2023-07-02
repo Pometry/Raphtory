@@ -46,9 +46,9 @@
 //! println!("The graph has {:?} edges", graph.num_edges());
 //! ```
 
-use crate::prelude::*;
 use crate::db::api::mutation::AdditionOps;
 use crate::graph_loader::{fetch_file, source::csv_loader::CsvLoader};
+use crate::prelude::*;
 use serde::Deserialize;
 use std::path::PathBuf;
 

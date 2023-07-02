@@ -154,6 +154,8 @@ mod db_tests {
     use crate::db::api::view::{
         internal::*, EdgeListOps, EdgeViewOps, GraphViewOps, LayerOps, TimeOps, VertexViewOps,
     };
+    use crate::db::graph::edge::EdgeView;
+    use crate::db::graph::path::PathFromVertex;
     use crate::graphgen::random_attachment::random_attachment;
     use crate::prelude::{AdditionOps, PropertyAdditionOps};
     use chrono::NaiveDateTime;
@@ -161,8 +163,6 @@ mod db_tests {
     use quickcheck::Arbitrary;
     use std::collections::{HashMap, HashSet};
     use tempdir::TempDir;
-    use crate::db::graph::edge::EdgeView;
-    use crate::db::graph::path::PathFromVertex;
 
     #[quickcheck]
     fn add_vertex_grows_graph_len(vs: Vec<(i64, u64)>) {

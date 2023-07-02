@@ -18,7 +18,7 @@ pub fn base(c: &mut Criterion) {
     large_group.throughput(Throughput::Elements(1_000));
     large_group.measurement_time(std::time::Duration::from_secs(3));
     // Make an option of None
-    run_large_ingestion_benchmarks(&mut large_group, || bootstrap_graph( 10000), None);
+    run_large_ingestion_benchmarks(&mut large_group, || bootstrap_graph(10000), None);
     large_group.finish();
 }
 

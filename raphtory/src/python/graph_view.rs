@@ -4,6 +4,12 @@ use crate::core::utils::errors::GraphError;
 use crate::core::utils::time::error::ParseTimeError;
 use crate::core::Prop;
 use crate::db::api::view::internal::{DynamicGraph, IntoDynamic, MaterializedGraph};
+use crate::db::api::view::{LayerOps, WindowSet};
+use crate::db::graph::edge::EdgeView;
+use crate::db::graph::vertex::VertexView;
+use crate::db::graph::views::graph_window::WindowedGraph;
+use crate::db::graph::views::layer_graph::LayeredGraph;
+use crate::db::graph::views::subgraph_vertex::VertexSubgraph;
 use crate::prelude::*;
 use crate::python;
 use crate::python::utils::{PyInterval, PyTime};
@@ -14,12 +20,6 @@ use python::edge::PyEdges;
 use python::types::repr::Repr;
 use python::vertex::{PyVertex, PyVertices};
 use std::collections::HashMap;
-use crate::db::api::view::{LayerOps, WindowSet};
-use crate::db::graph::edge::EdgeView;
-use crate::db::graph::vertex::VertexView;
-use crate::db::graph::views::graph_window::WindowedGraph;
-use crate::db::graph::views::layer_graph::LayeredGraph;
-use crate::db::graph::views::subgraph_vertex::VertexSubgraph;
 
 impl IntoPy<PyObject> for MaterializedGraph {
     fn into_py(self, py: Python<'_>) -> PyObject {

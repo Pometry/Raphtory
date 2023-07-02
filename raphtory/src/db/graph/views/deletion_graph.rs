@@ -334,9 +334,9 @@ impl TimeSemantics for GraphWithDeletions {
 
 #[cfg(test)]
 mod test_deletions {
-    use itertools::Itertools;
     use crate::db::graph::views::deletion_graph::GraphWithDeletions;
     use crate::prelude::*;
+    use itertools::Itertools;
 
     #[test]
     fn test_edge_deletions() {

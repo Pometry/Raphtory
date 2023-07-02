@@ -8,7 +8,8 @@
 use crate::core::utils::errors::GraphError;
 use crate::core::Prop;
 use crate::db::api::mutation::{AdditionOps, PropertyAdditionOps};
-use crate::prelude::{DeletionOps};
+use crate::db::graph::views::deletion_graph::GraphWithDeletions;
+use crate::prelude::DeletionOps;
 use crate::python;
 use crate::python::utils::PyTime;
 use pyo3::prelude::*;
@@ -17,7 +18,6 @@ use python::utils::PyInputVertex;
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 use std::path::{Path, PathBuf};
-use crate::db::graph::views::deletion_graph::GraphWithDeletions;
 
 /// A temporal graph.
 #[derive(Clone)]

@@ -8,10 +8,10 @@ use std::thread::JoinHandle;
 use std::{env, thread};
 
 use chrono::{DateTime, Utc};
-use raphtory::prelude::*;
+use raphtory::core::utils::hashing;
 use raphtory::core::{Direction, Prop};
 use raphtory::graph_loader::source::csv_loader::CsvLoader;
-use raphtory::core::utils::hashing as hashing;
+use raphtory::prelude::*;
 use regex::Regex;
 use serde::Deserialize;
 use std::fs::File;

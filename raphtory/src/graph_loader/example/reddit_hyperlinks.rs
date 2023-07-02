@@ -41,8 +41,8 @@
 
 use crate::core::Prop;
 use crate::db::api::mutation::AdditionOps;
-use crate::prelude::*;
 use crate::graph_loader::fetch_file;
+use crate::prelude::*;
 use chrono::*;
 use itertools::Itertools;
 use std::fs::File;
