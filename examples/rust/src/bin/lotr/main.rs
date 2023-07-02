@@ -1,11 +1,11 @@
 use itertools::Itertools;
 use raphtory::algorithms::temporal_reachability::temporally_reachable_nodes;
-use raphtory::core::util::hashing;
+use raphtory::prelude::*;
 use raphtory::core::Prop;
 use raphtory::db::api::mutation::AdditionOps;
-use raphtory::db::api::view::*;
-use raphtory::db::graph::Graph;
+use raphtory::db::graph::graph::Graph;
 use raphtory::graph_loader::source::csv_loader::CsvLoader;
+use raphtory::core::utils::hashing as hashing;
 use serde::Deserialize;
 use std::path::PathBuf;
 use std::{env, path::Path, time::Instant};

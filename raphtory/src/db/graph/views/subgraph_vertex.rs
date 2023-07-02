@@ -130,9 +130,7 @@ impl<G: GraphViewOps> GraphOps for VertexSubgraph<G> {
 
 #[cfg(test)]
 mod subgraph_tests {
-    use crate::db::graph::Graph;
-    use raphtory::db::mutation::addition_ops::AdditionOps;
-    use raphtory::db::view::*;
+    use crate::prelude::*;
 
     #[test]
     fn test_materialize_no_edges() {

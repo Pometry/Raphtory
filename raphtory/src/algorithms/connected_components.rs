@@ -97,7 +97,7 @@ where
 
 #[cfg(test)]
 mod cc_test {
-    use crate::{db::graph::Graph, prelude::TimeOps};
+    use crate::{prelude::*};
 
     use super::*;
     use crate::db::api::mutation::AdditionOps;

@@ -11,10 +11,10 @@ use vertices::vertex_store::VertexStore;
 
 use super::{storage::Entry, Direction};
 
-pub(crate) mod edges;
-pub(crate) mod graph;
-pub(crate) mod properties;
-pub(crate) mod vertices;
+pub mod edges;
+pub mod graph;
+pub mod properties;
+pub mod vertices;
 
 // the only reason this is public is because the phisical ids of the vertices don't move
 #[repr(transparent)]

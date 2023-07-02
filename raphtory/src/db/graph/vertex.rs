@@ -462,9 +462,7 @@ impl<G: GraphViewOps> VertexListOps for BoxedIter<BoxedIter<VertexView<G>>> {
 
 #[cfg(test)]
 mod vertex_test {
-    use crate::db::graph::Graph;
-    use raphtory::db::mutation::addition_ops::AdditionOps;
-    use raphtory::prelude::*;
+    use crate::prelude::*;
     use std::collections::HashMap;
 
     #[test]

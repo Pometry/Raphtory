@@ -5,7 +5,7 @@
 //! # Examples
 //!
 //! ```
-//! use raphtory::db::graph::Graph;
+//! use raphtory::prelude::*;
 //! use raphtory::graphgen::preferential_attachment::ba_preferential_attachment;
 //!
 //! let graph = Graph::new();
@@ -38,7 +38,7 @@ use std::collections::HashSet;
 /// # Examples
 ///
 /// ```
-/// use raphtory::db::graph::Graph;
+/// use raphtory::prelude::*;
 /// use raphtory::graphgen::preferential_attachment::ba_preferential_attachment;
 ///
 /// let graph = Graph::new();

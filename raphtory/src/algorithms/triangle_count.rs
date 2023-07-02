@@ -21,9 +21,9 @@ use rustc_hash::FxHashSet;
 /// # Example
 /// ```rust
 /// use std::{cmp::Reverse, iter::once};
-/// use raphtory::db::graph::Graph;
 /// use raphtory::algorithms::triangle_count::triangle_count;
 /// use raphtory::db::api::mutation::AdditionOps;
+/// use raphtory::prelude::*;
 ///
 /// let graph = Graph::new();
 ///
@@ -117,7 +117,7 @@ pub fn triangle_count<G: GraphViewOps>(g: &G, threads: Option<usize>) -> usize {
 mod triangle_count_tests {
     use super::*;
     use crate::db::api::mutation::AdditionOps;
-    use crate::db::graph::Graph;
+    use crate::db::graph::graph::Graph;
 
     #[test]
     fn triangle_count_1() {

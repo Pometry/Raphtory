@@ -273,7 +273,7 @@ pub type EdgeList<G> = Box<dyn Iterator<Item = EdgeView<G>> + Send>;
 
 #[cfg(test)]
 mod test_edge {
-    use raphtory::prelude::*;
+    use crate::prelude::*;
     use std::collections::HashMap;
 
     #[test]

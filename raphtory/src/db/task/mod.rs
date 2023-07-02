@@ -44,7 +44,7 @@ mod task_tests {
     use crate::db::api::mutation::AdditionOps;
     use crate::{
         core::state::{self, compute_state::ComputeStateVec},
-        db::graph::Graph,
+        prelude::*,
     };
 
     use super::{

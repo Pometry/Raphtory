@@ -42,7 +42,7 @@ pub fn directed_graph_density<G: GraphViewOps>(graph: &G) -> f32 {
 mod directed_graph_density_tests {
     use super::*;
     use crate::db::api::mutation::AdditionOps;
-    use crate::db::graph::Graph;
+    use crate::db::graph::graph::Graph;
 
     #[test]
     fn low_graph_density() {

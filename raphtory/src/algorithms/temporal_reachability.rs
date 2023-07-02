@@ -1,7 +1,6 @@
 use crate::core::state::accumulator_id::accumulators::{hash_set, min, or};
 use crate::core::state::compute_state::ComputeStateVec;
 use crate::core::tgraph::vertices::input_vertex::InputVertex;
-use crate::db::api::view::*;
 use crate::db::task::context::Context;
 use crate::db::task::task::{ATask, Job, Step};
 use crate::db::task::task_runner::TaskRunner;
@@ -9,6 +8,7 @@ use itertools::Itertools;
 use num_traits::Zero;
 use std::collections::HashMap;
 use std::ops::Add;
+use crate::prelude::*;
 
 #[derive(Eq, Hash, PartialEq, Clone, Debug, Default)]
 pub struct TaintMessage {
@@ -184,7 +184,7 @@ pub fn temporally_reachable_nodes<G: GraphViewOps, T: InputVertex>(
 mod generic_taint_tests {
     use super::*;
     use crate::db::api::mutation::AdditionOps;
-    use crate::db::graph::Graph;
+    use crate::db::graph::graph::Graph;
 
     fn load_graph(edges: Vec<(i64, u64, u64)>) -> Graph {
         let graph = Graph::new();

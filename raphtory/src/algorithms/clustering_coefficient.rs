@@ -50,7 +50,7 @@ mod cc_test {
     use super::*;
     use crate::db::api::mutation::AdditionOps;
     use crate::db::api::view::*;
-    use crate::db::graph::Graph;
+    use crate::db::graph::graph::Graph;
     use pretty_assertions::assert_eq;
 
     /// Test the global clustering coefficient

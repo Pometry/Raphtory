@@ -104,7 +104,7 @@ mod degree_test {
     use crate::db::api::mutation::AdditionOps;
     use crate::{
         algorithms::degree::{average_degree, max_in_degree, min_in_degree, min_out_degree},
-        db::graph::Graph,
+        db::graph::graph::Graph,
     };
 
     use super::max_out_degree;

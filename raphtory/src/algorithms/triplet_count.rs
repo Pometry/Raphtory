@@ -55,10 +55,10 @@ use crate::db::task::task_runner::TaskRunner;
 /// # Example
 ///
 /// ```rust
-/// use raphtory::db::graph::Graph;
 /// use raphtory::algorithms::triplet_count::triplet_count;
 /// use raphtory::db::api::mutation::AdditionOps;
 /// use raphtory::db::api::view::*;
+/// use raphtory::prelude::*;
 /// let graph = Graph::new();
 ///  let edges = vec![
 ///      (1, 2),
@@ -113,7 +113,7 @@ mod triplet_test {
     use super::*;
     use crate::db::api::mutation::AdditionOps;
     use crate::db::api::view::*;
-    use crate::db::graph::Graph;
+    use crate::db::graph::graph::Graph;
     use pretty_assertions::assert_eq;
 
     /// Test the global clustering coefficient

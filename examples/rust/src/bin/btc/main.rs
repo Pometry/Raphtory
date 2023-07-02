@@ -1,4 +1,6 @@
 #![allow(unused_imports)]
+#![allow(dead_code)]
+
 use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::path::{Path, PathBuf};
@@ -6,9 +8,10 @@ use std::thread::JoinHandle;
 use std::{env, thread};
 
 use chrono::{DateTime, Utc};
-use raphtory::core::util::hashing;
+use raphtory::prelude::*;
 use raphtory::core::{Direction, Prop};
 use raphtory::graph_loader::source::csv_loader::CsvLoader;
+use raphtory::core::utils::hashing as hashing;
 use regex::Regex;
 use serde::Deserialize;
 use std::fs::File;
@@ -17,7 +20,7 @@ use std::time::Instant;
 
 use raphtory::db::api::mutation::AdditionOps;
 use raphtory::db::api::view::*;
-use raphtory::db::graph::Graph;
+use raphtory::prelude::*;
 
 #[derive(Deserialize, std::fmt::Debug)]
 pub struct Sent {

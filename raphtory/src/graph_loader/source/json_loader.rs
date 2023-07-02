@@ -6,7 +6,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::core::util::errors::GraphError;
+use crate::core::utils::errors::GraphError;
 use rayon::prelude::*;
 use regex::Regex;
 use serde::de::DeserializeOwned;

@@ -8,8 +8,8 @@
 //!
 //! ```rust
 //! use raphtory::db::api::view::*;
-//! use raphtory::db::graph::Graph;
 //! use raphtory::db::api::mutation::AdditionOps;
+//! use raphtory::prelude::Graph;
 //! let graph = Graph::new();
 //! graph.add_vertex(0, "Alice", vec![]).unwrap();
 //! graph.add_vertex(1, "Bob", vec![]).unwrap();
@@ -95,7 +95,7 @@ impl Graph {
     /// # Example
     ///
     /// ```
-    /// use raphtory::db::graph::Graph;
+    /// use raphtory::prelude::Graph;
     /// let g = Graph::new();
     /// ```
     pub fn new() -> Self {
@@ -119,7 +119,7 @@ impl Graph {
     /// # Example
     ///
     /// ```no_run
-    /// use raphtory::db::graph::Graph;
+    /// use raphtory::prelude::Graph;
     /// let g = Graph::load_from_file("path/to/graph");
     /// ```
     pub fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self, GraphError> {
@@ -148,15 +148,12 @@ mod db_tests {
     use super::*;
     use crate::core::tgraph::edges::edge_ref::EdgeRef;
     use crate::core::tgraph::vertices::vertex_ref::VertexRef;
-    use crate::core::util::errors::GraphError;
-    use crate::core::util::time::error::ParseTimeError;
-    use crate::core::util::time::TryIntoTime;
+    use crate::core::utils::time::error::ParseTimeError;
+    use crate::core::utils::time::TryIntoTime;
     use crate::core::{Direction, Prop};
     use crate::db::api::view::{
         internal::*, EdgeListOps, EdgeViewOps, GraphViewOps, LayerOps, TimeOps, VertexViewOps,
     };
-    use crate::db::edge::EdgeView;
-    use crate::db::path::PathFromVertex;
     use crate::graphgen::random_attachment::random_attachment;
     use crate::prelude::{AdditionOps, PropertyAdditionOps};
     use chrono::NaiveDateTime;
@@ -164,6 +161,8 @@ mod db_tests {
     use quickcheck::Arbitrary;
     use std::collections::{HashMap, HashSet};
     use tempdir::TempDir;
+    use crate::db::graph::edge::EdgeView;
+    use crate::db::graph::path::PathFromVertex;
 
     #[quickcheck]
     fn add_vertex_grows_graph_len(vs: Vec<(i64, u64)>) {

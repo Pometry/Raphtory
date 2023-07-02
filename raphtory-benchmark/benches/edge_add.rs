@@ -1,10 +1,10 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-use raphtory::core::tgraph::vertices::input_vertex::InputVertex;
-use raphtory::db::graph::Graph;
+use raphtory::prelude::*;
 
 mod common;
 use rand::distributions::{Alphanumeric, DistString};
 use rand::{thread_rng, Rng};
+use raphtory::core::tgraph::vertices::input_vertex::InputVertex;
 use raphtory::db::api::mutation::AdditionOps;
 
 fn random_string(n: usize) -> String {
@@ -31,7 +31,7 @@ pub fn graph(c: &mut Criterion) {
 
     id_group.finish();
     let mut graph_group = c.benchmark_group("edge_add");
-    let mut g = Graph::new();
+    let g = Graph::new();
     graph_group.bench_function("string  input", |bencher| {
         let src: String = random_string(16);
         let dst: String = random_string(16);

@@ -7,7 +7,7 @@
 //! # Examples
 //!
 //! ```
-//! use raphtory::db::graph::Graph;
+//! use raphtory::prelude::*;
 //! use raphtory::graphgen::random_attachment::random_attachment;
 //! let graph = Graph::new();
 //! random_attachment(&graph, 1000, 10);
@@ -35,7 +35,7 @@ use rand::seq::SliceRandom;
 /// # Examples
 ///
 /// ```
-/// use raphtory::db::graph::Graph;
+/// use raphtory::prelude::*;
 /// use raphtory::graphgen::random_attachment::random_attachment;
 /// let graph = Graph::new();
 /// random_attachment(&graph, 1000, 10);

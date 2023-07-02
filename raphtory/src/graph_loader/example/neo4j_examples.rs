@@ -1,6 +1,6 @@
 use crate::core::Prop;
 use crate::db::api::mutation::{AdditionOps, PropertyAdditionOps};
-use crate::db::graph as rap;
+use crate::db::graph::graph as rap;
 use crate::graph_loader::source::neo4j_loader::Neo4JConnection;
 use neo4rs::*;
 

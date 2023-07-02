@@ -4,12 +4,10 @@
 //! The PyEdge class also provides access to the perspective APIs, which allow the user to view the
 //! edge as it existed at a particular point in time, or as it existed over a particular time range.
 //!
-use crate::core::util::time::error::ParseTimeError;
+use crate::core::utils::time::error::ParseTimeError;
 use crate::core::Prop;
 use crate::db::api::view::internal::{DynamicGraph, IntoDynamic};
-use crate::db::api::view::*;
-use crate::db::edge::EdgeView;
-use crate::db::graph_window::WindowedGraph;
+use crate::prelude::*;
 use crate::python;
 use chrono::NaiveDateTime;
 use itertools::Itertools;
@@ -23,6 +21,9 @@ use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
+use crate::db::api::view::{BoxedIter, WindowSet};
+use crate::db::graph::edge::EdgeView;
+use crate::db::graph::views::graph_window::WindowedGraph;
 
 /// PyEdge is a Python class that represents an edge in the graph.
 /// An edge is a directed connection between two vertices.

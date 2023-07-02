@@ -159,11 +159,11 @@ impl<T: TimeOps + Clone> Iterator for WindowSet<T> {
 
 #[cfg(test)]
 mod time_tests {
-    use crate::core::util::time::TryIntoTime;
+    use crate::core::utils::time::TryIntoTime;
     use crate::db::api::mutation::AdditionOps;
     use crate::db::api::view::time::WindowSet;
     use crate::db::api::view::{GraphViewOps, TimeOps};
-    use crate::db::graph::Graph;
+    use crate::db::graph::graph::Graph;
     use itertools::Itertools;
 
     // start inclusive, end exclusive

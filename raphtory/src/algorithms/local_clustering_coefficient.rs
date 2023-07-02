@@ -24,9 +24,9 @@
 //!
 //! ```rust
 //! use raphtory::algorithms::local_clustering_coefficient::{local_clustering_coefficient};
-//! use raphtory::db::graph::Graph;
 //! use raphtory::db::api::mutation::AdditionOps;
 //! use raphtory::db::api::view::*;
+//! use raphtory::prelude::*;
 //!
 //! let g = Graph::new();
 //! let windowed_graph = g.window(0, 7);
@@ -82,7 +82,7 @@ mod clustering_coefficient_tests {
     use super::local_clustering_coefficient;
     use crate::db::api::mutation::AdditionOps;
     use crate::db::api::view::*;
-    use crate::db::graph::Graph;
+    use crate::db::graph::graph::Graph;
 
     #[test]
     fn clusters_of_triangles() {

@@ -41,7 +41,7 @@
 
 use crate::core::Prop;
 use crate::db::api::mutation::AdditionOps;
-use crate::db::graph::Graph;
+use crate::prelude::*;
 use crate::graph_loader::fetch_file;
 use chrono::*;
 use itertools::Itertools;

@@ -15,9 +15,8 @@ mod graphql_test {
     use dynamic_graphql::{App, FieldValue};
     use raphtory::core::Prop;
     use raphtory::db::api::mutation::AdditionOps;
-    use raphtory::db::graph::Graph;
     use std::collections::HashMap;
-    use std::env;
+    use raphtory::prelude::*;
 
     #[tokio::test]
     async fn basic_query() {

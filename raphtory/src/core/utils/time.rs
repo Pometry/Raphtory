@@ -283,7 +283,7 @@ impl Add<Interval> for i64 {
 
 #[cfg(test)]
 mod time_tests {
-    use crate::core::util::time::{Interval, ParseTimeError, TryIntoTime};
+    use crate::core::utils::time::{Interval, ParseTimeError, TryIntoTime};
 
     #[test]
     fn interval_parsing() {

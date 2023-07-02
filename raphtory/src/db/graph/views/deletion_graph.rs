@@ -80,9 +80,9 @@ impl GraphWithDeletions {
     /// # Example
     ///
     /// ```no_run
-    /// use raphtory::db::graph::Graph;
     /// use std::fs::File;
     /// use raphtory::db::api::mutation::AdditionOps;
+    /// use raphtory::prelude::*;
     /// let g = Graph::new();
     /// g.add_vertex(1, 1, []).unwrap();
     /// g.save_to_file("path_str");
@@ -105,7 +105,7 @@ impl GraphWithDeletions {
     /// # Example
     ///
     /// ```no_run
-    /// use raphtory::db::graph::Graph;
+    /// use raphtory::prelude::*;
     /// let g = Graph::load_from_file("path/to/graph");
     /// ```
     pub fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self, GraphError> {
@@ -334,11 +334,9 @@ impl TimeSemantics for GraphWithDeletions {
 
 #[cfg(test)]
 mod test_deletions {
-    use crate::db::graph_deletions::GraphWithDeletions;
     use itertools::Itertools;
-    use raphtory::core::{Prop, PropUnwrap};
-    use raphtory::db::mutation::{AdditionOps, DeletionOps};
-    use raphtory::db::view::*;
+    use crate::db::graph::views::deletion_graph::GraphWithDeletions;
+    use crate::prelude::*;
 
     #[test]
     fn test_edge_deletions() {

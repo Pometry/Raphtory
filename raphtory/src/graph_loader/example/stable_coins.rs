@@ -1,7 +1,7 @@
 use crate::core::Prop;
 use crate::db::api::mutation::AdditionOps;
 use crate::db::api::view::GraphViewOps;
-use crate::db::graph::Graph;
+use crate::prelude::*;
 use crate::graph_loader::source::csv_loader::CsvLoader;
 use crate::graph_loader::{fetch_file, unzip_file};
 use chrono::NaiveDateTime;

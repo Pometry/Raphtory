@@ -1,4 +1,4 @@
-use crate::db::graph as rap;
+use crate::db::graph::graph as rap;
 use neo4rs::*;
 /// A struct that defines the Neo4J loader with configurable options.
 pub struct Neo4JConnection {

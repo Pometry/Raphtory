@@ -23,9 +23,9 @@
 //!
 //! ```rust
 //! use raphtory::algorithms::reciprocity::{all_local_reciprocity, global_reciprocity};
-//! use raphtory::db::graph::Graph;
 //! use raphtory::db::api::mutation::AdditionOps;
 //! use raphtory::db::api::view::*;
+//! use raphtory::prelude::Graph;
 //! let g = Graph::new();
 //! let vs = vec![
 //!     (1, 1, 2),
@@ -142,7 +142,7 @@ pub fn all_local_reciprocity<G: GraphViewOps>(
 mod reciprocity_test {
     use crate::algorithms::reciprocity::{all_local_reciprocity, global_reciprocity};
     use crate::db::api::mutation::AdditionOps;
-    use crate::db::graph::Graph;
+    use crate::db::graph::graph::Graph;
     use pretty_assertions::assert_eq;
     use std::collections::HashMap;
 

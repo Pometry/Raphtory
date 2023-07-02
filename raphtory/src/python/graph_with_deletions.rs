@@ -5,10 +5,10 @@
 //! create windows, and query the graph with a variety of algorithms.
 //! It is a wrapper around a set of shards, which are the actual graph data structures.
 //! In Python, this class wraps around the rust graph.
-use crate::core::util::errors::GraphError;
+use crate::core::utils::errors::GraphError;
 use crate::core::Prop;
 use crate::db::api::mutation::{AdditionOps, PropertyAdditionOps};
-use crate::prelude::{DeletionOps, GraphWithDeletions};
+use crate::prelude::{DeletionOps};
 use crate::python;
 use crate::python::utils::PyTime;
 use pyo3::prelude::*;
@@ -17,6 +17,7 @@ use python::utils::PyInputVertex;
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 use std::path::{Path, PathBuf};
+use crate::db::graph::views::deletion_graph::GraphWithDeletions;
 
 /// A temporal graph.
 #[derive(Clone)]

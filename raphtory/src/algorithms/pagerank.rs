@@ -168,7 +168,7 @@ mod page_rank_tests {
     use pretty_assertions::assert_eq;
 
     use crate::db::api::mutation::AdditionOps;
-    use crate::db::graph::Graph;
+    use crate::db::graph::graph::Graph;
 
     use super::*;
 

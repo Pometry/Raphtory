@@ -1,4 +1,5 @@
 // #![allow(unused_imports)]
+#![allow(dead_code)]
 use std::env;
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
@@ -11,7 +12,7 @@ use raphtory::core::Prop;
 use raphtory::db::api::mutation::AdditionOps;
 use raphtory::db::api::view::*;
 use raphtory::db::api::view::{GraphViewOps, VertexViewOps};
-use raphtory::db::graph::Graph;
+use raphtory::db::graph::graph::Graph;
 use raphtory::graph_loader::source::csv_loader::CsvLoader;
 use regex::Regex;
 use serde::Deserialize;
@@ -109,10 +110,6 @@ fn try_main() -> Result<(), Box<dyn Error>> {
     let data_dir = Path::new(args.get(1).ok_or(MissingArgumentError)?);
 
     let graph = loader(data_dir)?;
-
-    let min_time = graph.start().ok_or(GraphEmptyError)?;
-    let max_time = graph.end().ok_or(GraphEmptyError)?;
-    let mid_time = (min_time + max_time) / 2;
     let now = Instant::now();
     let actual_tri_count = triangle_count(&graph, None);
 

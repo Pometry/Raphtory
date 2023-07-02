@@ -4,8 +4,8 @@
 //! These functions are not part of the public API and are not exported to the Python module.
 use crate::core::tgraph::vertices::input_vertex::InputVertex;
 use crate::core::tgraph::vertices::vertex_ref::VertexRef;
-use crate::core::util::time::error::ParseTimeError;
-use crate::core::util::time::{Interval, IntoTime, TryIntoTime};
+use crate::core::utils::time::error::ParseTimeError;
+use crate::core::utils::time::{Interval, IntoTime, TryIntoTime};
 use crate::db::api::view::*;
 use crate::python::vertex::PyVertex;
 use chrono::NaiveDateTime;

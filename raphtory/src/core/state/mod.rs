@@ -20,7 +20,7 @@ mod state_test {
             accumulator_id::accumulators, compute_state::ComputeStateVec, container::merge_2_vecs,
             morcel_state::MorcelComputeState, shuffle_state::ShuffleComputeState,
         },
-        db::graph::Graph,
+        db::graph::graph::Graph,
     };
 
     #[quickcheck]

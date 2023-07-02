@@ -22,7 +22,7 @@
 //! println!("The graph has {:?} vertices", graph.num_vertices());
 //! println!("The graph has {:?} edges", graph.num_edges());
 //! ```
-use crate::db::graph::Graph;
+use crate::prelude::*;
 
 use crate::graph_loader::fetch_file;
 

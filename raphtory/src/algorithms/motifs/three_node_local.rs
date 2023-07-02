@@ -240,7 +240,7 @@ pub fn global_temporal_three_node_motifs<G: GraphViewOps>(graph: &G, delta: i64)
 mod local_motif_test {
     use crate::algorithms::motifs::three_node_local::*;
     use crate::db::api::mutation::AdditionOps;
-    use crate::db::graph::Graph;
+    use crate::db::graph::graph::Graph;
 
     #[test]
     fn test_init() {

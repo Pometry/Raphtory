@@ -25,7 +25,7 @@
 //!
 //! ```rust
 //!
-//! use raphtory::db::graph::Graph;
+//! use raphtory::prelude::*;
 //! use raphtory::db::api::mutation::AdditionOps;
 //! use raphtory::db::api::view::*;
 //!
@@ -414,9 +414,9 @@ impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
 /// # Examples
 ///
 /// ```rust
-/// use raphtory::db::graph::Graph;
 /// use raphtory::db::api::mutation::AdditionOps;
 /// use raphtory::db::api::view::*;
+/// use raphtory::prelude::*;
 ///
 /// let graph = Graph::new();
 /// graph.add_edge(0, 1, 2, [], None).unwrap();
@@ -458,13 +458,10 @@ impl<G: GraphViewOps> WindowedGraph<G> {
 mod views_test {
 
     use super::*;
-    use crate::db::graph::Graph;
     use itertools::Itertools;
     use quickcheck::TestResult;
     use rand::prelude::*;
-    use raphtory::core::Prop;
-    use raphtory::db::mutation::addition_ops::AdditionOps;
-    use raphtory::db::view::*;
+    use crate::prelude::*;
     use rayon::prelude::*;
 
     #[test]

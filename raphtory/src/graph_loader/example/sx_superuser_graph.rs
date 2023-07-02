@@ -46,8 +46,7 @@
 //! println!("The graph has {:?} edges", graph.num_edges());
 //! ```
 
-use crate::db::graph::Graph;
-
+use crate::prelude::*;
 use crate::db::api::mutation::AdditionOps;
 use crate::graph_loader::{fetch_file, source::csv_loader::CsvLoader};
 use serde::Deserialize;
