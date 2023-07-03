@@ -167,6 +167,16 @@ impl Meta {
             .collect()
     }
 
+    pub fn get_all_property_names(&self, is_static: bool) -> Vec<String> {
+        if is_static {
+            self.meta_prop_static.map.iter().map(|entry| entry.key().clone()).collect()
+        } else {
+            println!("temporal meta: {:?}", self.meta_prop_temporal);
+            println!("static meta: {:?}", self.meta_prop_static);
+            self.meta_prop_temporal.map.iter().map(|entry| entry.key().clone()).collect()
+        }
+    }
+
     pub fn reverse_prop_id(&self, prop_id: usize, is_static: bool) -> Option<String> {
         if is_static {
             self.meta_prop_static.reverse_lookup(&prop_id)
@@ -174,6 +184,7 @@ impl Meta {
             self.meta_prop_temporal.reverse_lookup(&prop_id)
         }
     }
+
 }
 
 #[derive(Serialize, Deserialize, Default, Debug)]

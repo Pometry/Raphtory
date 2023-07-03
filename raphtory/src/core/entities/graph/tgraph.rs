@@ -95,6 +95,10 @@ impl<const N: usize> Default for InnerTemporalGraph<N> {
 }
 
 impl<const N: usize> InnerTemporalGraph<N> {
+    pub(crate) fn get_all_vertex_property_names(&self, is_static: bool) -> Vec<String> {
+        self.vertex_meta.get_all_property_names(is_static)
+    }
+
     pub(crate) fn get_all_layers(&self) -> Vec<usize> {
         self.edge_meta.get_all_layers()
     }
