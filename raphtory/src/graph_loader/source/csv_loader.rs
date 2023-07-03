@@ -5,11 +5,11 @@
 //! use std::path::{Path, PathBuf};
 //! use regex::Regex;
 //! use raphtory::core::Prop;
-//! use raphtory::core::util::hashing::calculate_hash;
+//! use raphtory::core::utils::hashing::calculate_hash;
 //! use raphtory::graph_loader::source::csv_loader::CsvLoader;
-//! use raphtory::db::graph::Graph;
 //! use raphtory::db::api::mutation::AdditionOps;
 //! use raphtory::graph_loader::example::lotr_graph::Lotr;
+//! use raphtory::prelude::*;
 //!
 //!  let g = Graph::new();
 //!  let csv_path: PathBuf = [env!("CARGO_MANIFEST_DIR"), "../../resource/"]
@@ -403,10 +403,10 @@ impl CsvLoader {
 
 #[cfg(test)]
 mod csv_loader_test {
-    use crate::core::util::hashing::calculate_hash;
+    use crate::core::utils::hashing::calculate_hash;
     use crate::core::Prop;
     use crate::db::api::mutation::AdditionOps;
-    use crate::db::graph::Graph;
+    use crate::prelude::*;
     use crate::graph_loader::source::csv_loader::CsvLoader;
     use regex::Regex;
     use serde::Deserialize;
