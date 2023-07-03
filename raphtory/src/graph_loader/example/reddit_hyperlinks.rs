@@ -30,7 +30,7 @@
 //! Example:
 //! ```no_run
 //! use raphtory::graph_loader::example::reddit_hyperlinks::reddit_graph;
-//! use raphtory::db::graph::Graph;
+//! use raphtory::prelude::*;
 //! use raphtory::db::api::view::*;
 //!
 //! let graph = reddit_graph(120, false);

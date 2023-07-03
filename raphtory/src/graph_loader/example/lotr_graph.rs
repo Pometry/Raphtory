@@ -14,7 +14,7 @@
 //! Example:
 //! ```rust
 //! use raphtory::graph_loader::example::lotr_graph::lotr_graph;
-//! use raphtory::db::graph::Graph;
+//! use raphtory::prelude::*;
 //! use raphtory::db::api::view::*;
 //!
 //! let graph = lotr_graph();

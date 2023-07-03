@@ -37,7 +37,7 @@
 //! Example:
 //! ```no_run
 //! use raphtory::graph_loader::example::sx_superuser_graph::sx_superuser_graph;
-//! use raphtory::db::graph::Graph;
+//! use raphtory::prelude::*;
 //! use raphtory::db::api::view::*;
 //!
 //! let graph = sx_superuser_graph().unwrap();
