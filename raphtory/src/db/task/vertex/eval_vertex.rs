@@ -1,7 +1,7 @@
 use crate::{
     core::{
-        state::{accumulator_id::AccId, agg::Accumulator, compute_state::ComputeState, StateType},
         entities::VID,
+        state::{accumulator_id::AccId, agg::Accumulator, compute_state::ComputeState, StateType},
         utils::time::IntoTime,
         Direction, Prop,
     },

@@ -150,7 +150,7 @@ mod db_tests {
     use super::*;
     use crate::{
         core::{
-            tgraph::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef},
+            entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef},
             utils::time::{error::ParseTimeError, TryIntoTime},
             Direction, Prop,
         },

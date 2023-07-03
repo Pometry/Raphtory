@@ -1,13 +1,13 @@
 extern crate core;
 use pyo3::prelude::*;
 use raphtory_core::python::{
-    algorithms::*,
-    edge::{PyEdge, PyEdges},
-    graph::PyGraph,
-    graph_gen::*,
-    graph_loader::*,
-    graph_with_deletions::PyGraphWithDeletions,
-    vertex::{PyVertex, PyVertices},
+    graph::{
+        edge::{PyEdge, PyEdges},
+        graph::PyGraph,
+        graph_with_deletions::PyGraphWithDeletions,
+        vertex::{PyVertex, PyVertices},
+    },
+    packages::{algorithms::*, graph_gen::*, graph_loader::*},
 };
 
 /// Raphtory graph analytics library

@@ -6,7 +6,7 @@ use crate::{
         preferential_attachment::ba_preferential_attachment as pa,
         random_attachment::random_attachment as ra,
     },
-    python::graph::PyGraph,
+    python::graph::graph::PyGraph,
 };
 use pyo3::prelude::*;
 

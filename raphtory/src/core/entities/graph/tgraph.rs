@@ -1,5 +1,4 @@
 use crate::core::{
-    storage::{locked_view::LockedView, timeindex::TimeIndexOps, Entry},
     entities::{
         edges::{
             edge::EdgeView,
@@ -18,6 +17,7 @@ use crate::core::{
         },
         EID, VID,
     },
+    storage::{locked_view::LockedView, timeindex::TimeIndexOps, Entry},
     utils::{
         errors::{GraphError, MutateGraphError},
         time::TryIntoTime,

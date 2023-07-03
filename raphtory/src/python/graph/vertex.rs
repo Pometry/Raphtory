@@ -1,8 +1,9 @@
 //! Defines the `Vertex`, which represents a vertex in the graph.
 //! A vertex is a node in the graph, and can have properties and edges.
 //! It can also be used to navigate the graph.
+
 use crate::{
-    core::{tgraph::vertices::vertex_ref::VertexRef, utils::time::error::ParseTimeError, Prop},
+    core::{entities::vertices::vertex_ref::VertexRef, utils::time::error::ParseTimeError, Prop},
     db::{
         api::view::{
             internal::{DynamicGraph, IntoDynamic},
@@ -15,8 +16,11 @@ use crate::{
             views::window_graph::WindowedGraph,
         },
     },
-    python,
-    python::utils::{PyInterval, PyTime},
+    python::{
+        graph::edge::{PyEdges, PyNestedEdges},
+        types::wrappers::iterators::*,
+        utils::{PyInterval, PyTime},
+    },
     *,
 };
 use chrono::NaiveDateTime;
@@ -25,11 +29,7 @@ use pyo3::{
     exceptions::PyIndexError, prelude::*, pyclass, pyclass::CompareOp, pymethods, PyAny, PyObject,
     PyRef, PyRefMut, PyResult, Python,
 };
-use python::{
-    edge::{PyEdges, PyNestedEdges},
-    types::repr::{iterator_repr, Repr},
-    wrappers::iterators::*,
-};
+use python::types::repr::{iterator_repr, Repr};
 use std::collections::HashMap;
 
 /// A vertex (or node) in the graph.

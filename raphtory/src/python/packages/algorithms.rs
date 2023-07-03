@@ -2,7 +2,6 @@
 ///
 /// To run an algorithm simply import the module and call the function with the graph as the argument
 ///
-use crate::python::graph_view::PyGraphView;
 use std::collections::HashMap;
 
 use crate::{
@@ -27,8 +26,8 @@ use crate::{
         },
         temporal_reachability::temporally_reachable_nodes as temporal_reachability_rs,
     },
-    core::tgraph::vertices::vertex_ref::VertexRef,
-    python::utils::PyInputVertex,
+    core::entities::vertices::vertex_ref::VertexRef,
+    python::{graph::views::graph_view::PyGraphView, utils::PyInputVertex},
 };
 use pyo3::prelude::*;
 

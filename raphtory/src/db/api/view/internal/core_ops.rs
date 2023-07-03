@@ -1,10 +1,10 @@
 use crate::{
     core::{
-        storage::{locked_view::LockedView, timeindex::TimeIndex},
         entities::{
             edges::edge_ref::EdgeRef, properties::tprop::TProp, vertices::vertex_ref::VertexRef,
             VID,
         },
+        storage::{locked_view::LockedView, timeindex::TimeIndex},
         Prop,
     },
     db::api::view::internal::Base,

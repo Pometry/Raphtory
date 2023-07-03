@@ -1,6 +1,6 @@
 use crate::core::{
-    storage::lazy_vec::LazyVec,
     entities::{graph::tgraph::FxDashMap, properties::tprop::TProp},
+    storage::lazy_vec::LazyVec,
     utils::errors::{IllegalMutate, MutateGraphError},
     Prop,
 };

@@ -1,7 +1,7 @@
 //! The API for querying a view of the graph in a read-only state
 use crate::{
     core::{
-        tgraph::vertices::vertex_ref::VertexRef,
+        entities::vertices::vertex_ref::VertexRef,
         utils::{errors::GraphError, time::error::ParseTimeError},
         Prop,
     },
@@ -20,17 +20,18 @@ use crate::{
         },
     },
     prelude::*,
-    python,
-    python::utils::{PyInterval, PyTime},
+    python::{
+        graph::{
+            edge::PyEdges,
+            vertex::{PyVertex, PyVertices},
+        },
+        types::repr::Repr,
+        utils::{PyInterval, PyTime},
+    },
     *,
 };
 use chrono::prelude::*;
 use pyo3::prelude::*;
-use python::{
-    edge::PyEdges,
-    types::repr::Repr,
-    vertex::{PyVertex, PyVertices},
-};
 use std::collections::HashMap;
 
 impl IntoPy<PyObject> for MaterializedGraph {

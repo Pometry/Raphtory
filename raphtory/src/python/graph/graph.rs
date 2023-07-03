@@ -1,22 +1,18 @@
-//! Defines the `GraphWithDeletions` class, which represents a raphtory graph in memory.
-//! Unlike in the `Graph` which has event semantics, `GraphWithDeletions` has edges that persist until explicitly deleted.
+//! Defines the `Graph` struct, which represents a raphtory graph in memory.
 //!
 //! This is the base class used to create a temporal graph, add vertices and edges,
 //! create windows, and query the graph with a variety of algorithms.
 //! It is a wrapper around a set of shards, which are the actual graph data structures.
 //! In Python, this class wraps around the rust graph.
 use crate::{
-    core::{utils::errors::GraphError, Prop},
-    db::{
-        api::mutation::{AdditionOps, PropertyAdditionOps},
-        graph::views::deletion_graph::GraphWithDeletions,
+    core::utils::errors::GraphError,
+    prelude::*,
+    python::{
+        graph::views::graph_view::PyGraphView,
+        utils::{PyInputVertex, PyTime},
     },
-    prelude::DeletionOps,
-    python,
-    python::utils::PyTime,
 };
 use pyo3::prelude::*;
-use python::{graph_view::PyGraphView, utils::PyInputVertex};
 use std::{
     collections::HashMap,
     fmt::{Debug, Formatter},
@@ -25,46 +21,43 @@ use std::{
 
 /// A temporal graph.
 #[derive(Clone)]
-#[pyclass(name="GraphWithDeletions", extends=PyGraphView)]
-pub struct PyGraphWithDeletions {
-    pub(crate) graph: GraphWithDeletions,
+#[pyclass(name="Graph", extends=PyGraphView)]
+pub struct PyGraph {
+    pub(crate) graph: Graph,
 }
 
-impl Debug for PyGraphWithDeletions {
+impl Debug for PyGraph {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.graph)
     }
 }
 
-impl From<GraphWithDeletions> for PyGraphWithDeletions {
-    fn from(value: GraphWithDeletions) -> Self {
+impl From<Graph> for PyGraph {
+    fn from(value: Graph) -> Self {
         Self { graph: value }
     }
 }
 
-impl IntoPy<PyObject> for GraphWithDeletions {
+impl IntoPy<PyObject> for Graph {
     fn into_py(self, py: Python<'_>) -> PyObject {
-        Py::new(
-            py,
-            (
-                PyGraphWithDeletions::from(self.clone()),
-                PyGraphView::from(self),
-            ),
-        )
-        .unwrap() // I think this only fails if we are out of memory? Seems to be unavoidable if we want to create an actual graph.
-        .into_py(py)
+        Py::new(py, (PyGraph::from(self.clone()), PyGraphView::from(self)))
+            .unwrap() // I think this only fails if we are out of memory? Seems to be unavoidable if we want to create an actual graph.
+            .into_py(py)
     }
 }
 
-impl PyGraphWithDeletions {
-    pub fn py_from_db_graph(db_graph: GraphWithDeletions) -> PyResult<Py<PyGraphWithDeletions>> {
+impl<'source> FromPyObject<'source> for Graph {
+    fn extract(ob: &'source PyAny) -> PyResult<Self> {
+        ob.extract()
+    }
+}
+
+impl PyGraph {
+    pub fn py_from_db_graph(db_graph: Graph) -> PyResult<Py<PyGraph>> {
         Python::with_gil(|py| {
             Py::new(
                 py,
-                (
-                    PyGraphWithDeletions::from(db_graph.clone()),
-                    PyGraphView::from(db_graph),
-                ),
+                (PyGraph::from(db_graph.clone()), PyGraphView::from(db_graph)),
             )
         })
     }
@@ -72,10 +65,10 @@ impl PyGraphWithDeletions {
 
 /// A temporal graph.
 #[pymethods]
-impl PyGraphWithDeletions {
+impl PyGraph {
     #[new]
     pub fn py_new() -> (Self, PyGraphView) {
-        let graph = GraphWithDeletions::new();
+        let graph = Graph::new();
         (
             Self {
                 graph: graph.clone(),
@@ -171,16 +164,6 @@ impl PyGraphWithDeletions {
             .add_edge(timestamp, src, dst, properties.unwrap_or_default(), layer)
     }
 
-    pub fn delete_edge(
-        &self,
-        timestamp: PyTime,
-        src: PyInputVertex,
-        dst: PyInputVertex,
-        layer: Option<&str>,
-    ) -> Result<(), GraphError> {
-        self.graph.delete_edge(timestamp, src, dst, layer)
-    }
-
     /// Adds properties to an existing edge.
     ///
     /// Arguments:
@@ -214,9 +197,9 @@ impl PyGraphWithDeletions {
     /// Returns:
     ///  Graph: The loaded graph.
     #[staticmethod]
-    pub fn load_from_file(path: &str) -> Result<GraphWithDeletions, GraphError> {
+    pub fn load_from_file(path: &str) -> Result<Graph, GraphError> {
         let file_path: PathBuf = [env!("CARGO_MANIFEST_DIR"), path].iter().collect();
-        GraphWithDeletions::load_from_file(file_path)
+        Graph::load_from_file(file_path)
     }
 
     /// Saves the graph to the given path.

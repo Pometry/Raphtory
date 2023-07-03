@@ -1,7 +1,7 @@
 use crate::{
     core::{
-        storage::timeindex::TimeIndexOps,
         entities::{edges::edge_ref::EdgeRef, VID},
+        storage::timeindex::TimeIndexOps,
         utils::errors::GraphError,
         Direction, Prop,
     },

@@ -1,9 +1,11 @@
 use crate::{
     core as db_c,
     db::api::view::BoxedIter,
-    python::{
-        types::repr::Repr,
-        wrappers::prop::{PropHistories, PropHistory, PropValue, Props},
+    python::types::{
+        repr::Repr,
+        wrappers::{
+            prop::{PropHistories, PropHistory, PropValue, Props},
+        },
     },
 };
 use num::cast::AsPrimitive;

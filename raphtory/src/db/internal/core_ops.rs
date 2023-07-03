@@ -1,10 +1,10 @@
 use crate::{
     core::{
-        storage::{locked_view::LockedView, timeindex::TimeIndex},
         entities::{
             edges::edge_ref::EdgeRef, graph::tgraph::InnerTemporalGraph, properties::tprop::TProp,
             vertices::vertex_ref::VertexRef, VID,
         },
+        storage::{locked_view::LockedView, timeindex::TimeIndex},
     },
     db::api::view::internal::CoreGraphOps,
     prelude::Prop,

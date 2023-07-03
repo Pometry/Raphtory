@@ -1,17 +1,7 @@
 extern crate core;
 
 #[macro_use]
-mod macros;
-
-pub mod algorithms;
-pub mod edge;
-pub mod errors;
-pub mod graph;
-pub mod graph_gen;
-pub mod graph_loader;
-pub mod graph_view;
-pub mod graph_with_deletions;
 pub mod types;
+pub mod graph;
+pub mod packages;
 pub mod utils;
-pub mod vertex;
-pub mod wrappers;

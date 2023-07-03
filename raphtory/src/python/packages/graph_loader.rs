@@ -1,6 +1,6 @@
 //! `GraphLoader` provides some default implementations for loading a pre-built graph.
 //! This base class is used to load in-built graphs such as the LOTR, reddit and StackOverflow.
-use crate::python::graph::PyGraph;
+use crate::python::graph::graph::PyGraph;
 use pyo3::prelude::*;
 use tokio::runtime::Runtime;
 

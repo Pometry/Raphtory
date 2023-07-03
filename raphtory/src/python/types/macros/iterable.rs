@@ -9,7 +9,7 @@ macro_rules! _py_numeric_methods {
             }
 
             pub fn mean(&self) -> f64 {
-                use $crate::python::wrappers::iterators::MeanExt;
+                use $crate::python::types::wrappers::iterators::MeanExt;
                 self.iter().mean()
             }
         }

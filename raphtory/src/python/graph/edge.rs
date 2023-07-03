@@ -14,22 +14,27 @@ use crate::{
         graph::{edge::EdgeView, views::window_graph::WindowedGraph},
     },
     prelude::*,
-    python,
+    python::{
+        graph::vertex::PyVertex,
+        types::{
+            repr::{iterator_repr, Repr},
+            wrappers::{
+                iterators::{OptionI64Iterable, OptionPropIterable, PropsIterable},
+                *,
+            },
+        },
+        utils::{PyGenericIterable, PyInterval, PyTime},
+    },
 };
 use chrono::NaiveDateTime;
 use itertools::Itertools;
 use pyo3::{prelude::*, pyclass::CompareOp};
-use python::{
-    types::repr::{iterator_repr, Repr},
-    utils::*,
-    vertex::{PyVertex, PyVertexIterable},
-    wrappers::iterators::{OptionI64Iterable, OptionPropIterable, PropsIterable},
-};
 use std::{
     collections::{hash_map::DefaultHasher, HashMap},
     hash::{Hash, Hasher},
     sync::Arc,
 };
+use crate::python::graph::vertex::PyVertexIterable;
 
 /// PyEdge is a Python class that represents an edge in the graph.
 /// An edge is a directed connection between two vertices.

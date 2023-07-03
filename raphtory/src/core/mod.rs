@@ -32,9 +32,9 @@ use std::fmt;
 #[cfg(test)]
 extern crate core;
 
+pub mod entities;
 pub mod state;
 pub(crate) mod storage;
-pub mod entities;
 pub mod utils;
 
 /// Denotes the direction of an edge. Can be incoming, outgoing or both.

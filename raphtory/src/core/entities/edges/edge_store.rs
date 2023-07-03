@@ -1,10 +1,10 @@
 use crate::core::{
-    storage::timeindex::TimeIndex,
     entities::{
         edges::edge_ref::EdgeRef,
         properties::{props::Props, tprop::TProp},
         EID, VID,
     },
+    storage::timeindex::TimeIndex,
     utils::errors::MutateGraphError,
     Prop,
 };

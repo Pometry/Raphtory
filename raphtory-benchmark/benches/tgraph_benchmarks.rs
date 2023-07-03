@@ -1,6 +1,6 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use rand::{distributions::Uniform, Rng};
-use raphtory::core::tgraph::vertices::structure::adjset::AdjSet;
+use raphtory::core::entities::vertices::structure::adjset::AdjSet;
 use sorted_vector_map::SortedVectorSet;
 use std::collections::BTreeSet;
 

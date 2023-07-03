@@ -1,10 +1,10 @@
 use crate::{
     core::{
+        entities::vertices::input_vertex::InputVertex,
         state::{
             accumulator_id::accumulators::{hash_set, min, or},
             compute_state::ComputeStateVec,
         },
-        entities::vertices::input_vertex::InputVertex,
     },
     db::task::{
         context::Context,

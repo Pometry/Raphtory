@@ -1,7 +1,7 @@
 use crate::{
     core::{
-        storage::timeindex::TimeIndexOps,
         entities::{edges::edge_ref::EdgeRef, graph::tgraph::InnerTemporalGraph, VID},
+        storage::timeindex::TimeIndexOps,
     },
     db::api::view::{
         internal::{CoreDeletionOps, CoreGraphOps, TimeSemantics},

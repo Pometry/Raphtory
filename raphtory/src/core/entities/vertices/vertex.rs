@@ -1,9 +1,4 @@
 use crate::core::{
-    storage::{
-        locked_view::LockedView,
-        timeindex::{TimeIndex, TimeIndexOps},
-        ArcEntry, Entry,
-    },
     entities::{
         edges::{edge::EdgeView, edge_ref::EdgeRef, edge_store::EdgeStore},
         graph::tgraph::TGraph,
@@ -13,6 +8,11 @@ use crate::core::{
             vertex_store::VertexStore,
         },
         VRef, VID,
+    },
+    storage::{
+        locked_view::LockedView,
+        timeindex::{TimeIndex, TimeIndexOps},
+        ArcEntry, Entry,
     },
     Direction, Prop,
 };

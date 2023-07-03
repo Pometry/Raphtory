@@ -1,6 +1,6 @@
 use crate::{
     core::Prop,
-    python::{graph_view::PyGraphView, types::repr::Repr},
+    python::{graph::views::graph_view::PyGraphView, types::repr::Repr},
 };
 use pyo3::{exceptions::PyTypeError, FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python};
 use std::collections::HashMap;

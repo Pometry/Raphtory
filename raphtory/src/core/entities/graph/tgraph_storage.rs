@@ -1,6 +1,6 @@
 use crate::core::{
-    storage::{self, ArcEntry, Entry, EntryMut, PairEntryMut},
     entities::{edges::edge_store::EdgeStore, vertices::vertex_store::VertexStore},
+    storage::{self, ArcEntry, Entry, EntryMut, PairEntryMut},
     Direction,
 };
 use serde::{Deserialize, Serialize};

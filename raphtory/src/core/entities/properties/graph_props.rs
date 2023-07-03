@@ -1,9 +1,9 @@
 use crate::core::{
-    storage::locked_view::LockedView,
     entities::{
         graph::tgraph::FxDashMap,
         properties::{props::DictMapper, tprop::TProp},
     },
+    storage::locked_view::LockedView,
     Prop,
 };
 use serde::{Deserialize, Serialize};

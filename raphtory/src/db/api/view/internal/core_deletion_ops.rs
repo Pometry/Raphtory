@@ -1,7 +1,7 @@
 use crate::{
     core::{
-        storage::{locked_view::LockedView, timeindex::TimeIndex},
         entities::edges::edge_ref::EdgeRef,
+        storage::{locked_view::LockedView, timeindex::TimeIndex},
     },
     db::api::view::internal::Base,
 };

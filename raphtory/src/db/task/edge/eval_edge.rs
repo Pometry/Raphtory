@@ -1,7 +1,7 @@
 use crate::{
     core::{
-        state::compute_state::ComputeState,
         entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef},
+        state::compute_state::ComputeState,
         Prop,
     },
     db::{
