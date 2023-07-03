@@ -1,6 +1,6 @@
 use crate::core::{
     storage::timeindex::TimeIndex,
-    tgraph::{
+    entities::{
         edges::edge_ref::EdgeRef,
         properties::{props::Props, tprop::TProp},
         EID, VID,

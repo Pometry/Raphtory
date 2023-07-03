@@ -1,5 +1,5 @@
 use crate::{
-    core::{tgraph::vertices::vertex_ref::VertexRef, utils::time::IntoTime, Direction},
+    core::{entities::vertices::vertex_ref::VertexRef, utils::time::IntoTime, Direction},
     db::{
         api::view::{BoxedIter, LayerOps},
         graph::{

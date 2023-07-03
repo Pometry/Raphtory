@@ -1,6 +1,6 @@
 use crate::{
     core::{
-        tgraph::{graph::tgraph::InnerTemporalGraph, vertices::vertex_ref::VertexRef, VID},
+        entities::{graph::tgraph::InnerTemporalGraph, vertices::vertex_ref::VertexRef, VID},
         utils::{errors::GraphError, time::IntoTime},
         Prop,
     },

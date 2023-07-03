@@ -1,6 +1,6 @@
 use crate::{
     core::{
-        tgraph::vertices::input_vertex::InputVertex,
+        entities::vertices::input_vertex::InputVertex,
         utils::{
             errors::GraphError,
             time::{IntoTimeWithFormat, TryIntoTime},

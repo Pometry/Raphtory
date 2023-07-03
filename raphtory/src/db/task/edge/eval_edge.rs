@@ -1,7 +1,7 @@
 use crate::{
     core::{
         state::compute_state::ComputeState,
-        tgraph::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef},
+        entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef},
         Prop,
     },
     db::{

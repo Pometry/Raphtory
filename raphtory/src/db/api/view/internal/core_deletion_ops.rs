@@ -1,7 +1,7 @@
 use crate::{
     core::{
         storage::{locked_view::LockedView, timeindex::TimeIndex},
-        tgraph::edges::edge_ref::EdgeRef,
+        entities::edges::edge_ref::EdgeRef,
     },
     db::api::view::internal::Base,
 };

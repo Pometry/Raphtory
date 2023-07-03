@@ -4,7 +4,7 @@ use crate::core::{
         timeindex::{TimeIndex, TimeIndexOps},
         ArcEntry, Entry,
     },
-    tgraph::{
+    entities::{
         edges::{edge::EdgeView, edge_ref::EdgeRef, edge_store::EdgeStore},
         graph::tgraph::TGraph,
         properties::tprop::TProp,

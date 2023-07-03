@@ -1,5 +1,5 @@
 use crate::core::{
-    tgraph::{edges::edge::EdgeView, graph::tgraph::TGraph, VRef, EID, VID},
+    entities::{edges::edge::EdgeView, graph::tgraph::TGraph, VRef, EID, VID},
     Direction,
 };
 use itertools::Merge;

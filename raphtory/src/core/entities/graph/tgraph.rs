@@ -1,6 +1,6 @@
 use crate::core::{
     storage::{locked_view::LockedView, timeindex::TimeIndexOps, Entry},
-    tgraph::{
+    entities::{
         edges::{
             edge::EdgeView,
             edge_store::{EdgeLayer, EdgeStore},

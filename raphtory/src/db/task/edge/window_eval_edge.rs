@@ -1,5 +1,5 @@
 use crate::{
-    core::{state::compute_state::ComputeState, tgraph::edges::edge_ref::EdgeRef, Prop},
+    core::{state::compute_state::ComputeState, entities::edges::edge_ref::EdgeRef, Prop},
     db::{
         api::view::{internal::*, *},
         task::{
@@ -9,6 +9,7 @@ use crate::{
     },
 };
 use std::{cell::RefCell, collections::HashMap, iter, marker::PhantomData, rc::Rc};
+use crate::core::entities::vertices::vertex_ref::VertexRef;
 
 pub struct WindowEvalEdgeView<'a, G: GraphViewOps, CS: ComputeState, S: 'static> {
     ss: usize,
@@ -63,7 +64,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static>
 
     fn new_vertex(
         &self,
-        v: crate::core::tgraph::vertices::vertex_ref::VertexRef,
+        v: VertexRef,
     ) -> WindowEvalVertex<'a, G, CS, S> {
         WindowEvalVertex::new(
             self.ss,

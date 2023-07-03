@@ -1,7 +1,7 @@
 use crate::{
     core::{
         state::{accumulator_id::accumulators, compute_state::ComputeStateVec},
-        tgraph::VID,
+        entities::VID,
     },
     db::{
         api::view::{GraphViewOps, VertexViewOps},

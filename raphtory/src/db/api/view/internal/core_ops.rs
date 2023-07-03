@@ -1,7 +1,7 @@
 use crate::{
     core::{
         storage::{locked_view::LockedView, timeindex::TimeIndex},
-        tgraph::{
+        entities::{
             edges::edge_ref::EdgeRef, properties::tprop::TProp, vertices::vertex_ref::VertexRef,
             VID,
         },

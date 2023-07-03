@@ -1,4 +1,4 @@
-use crate::core::tgraph::{vertices::vertex_ref::VertexRef, EID, VID};
+use crate::core::entities::{vertices::vertex_ref::VertexRef, EID, VID};
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum EdgeRef {

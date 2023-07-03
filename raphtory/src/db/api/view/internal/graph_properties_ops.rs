@@ -1,6 +1,6 @@
 use crate::{
     core::{
-        tgraph::{edges::edge_ref::EdgeRef, VID},
+        entities::{edges::edge_ref::EdgeRef, VID},
         Prop,
     },
     db::api::view::internal::{time_semantics::TimeSemantics, CoreGraphOps},

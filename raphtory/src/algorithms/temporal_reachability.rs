@@ -4,7 +4,7 @@ use crate::{
             accumulator_id::accumulators::{hash_set, min, or},
             compute_state::ComputeStateVec,
         },
-        tgraph::vertices::input_vertex::InputVertex,
+        entities::vertices::input_vertex::InputVertex,
     },
     db::task::{
         context::Context,

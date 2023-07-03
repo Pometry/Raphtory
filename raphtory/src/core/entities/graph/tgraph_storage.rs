@@ -1,6 +1,6 @@
 use crate::core::{
     storage::{self, ArcEntry, Entry, EntryMut, PairEntryMut},
-    tgraph::{edges::edge_store::EdgeStore, vertices::vertex_store::VertexStore},
+    entities::{edges::edge_store::EdgeStore, vertices::vertex_store::VertexStore},
     Direction,
 };
 use serde::{Deserialize, Serialize};

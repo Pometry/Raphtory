@@ -1,5 +1,5 @@
 use crate::{
-    core::tgraph::graph::tgraph::InnerTemporalGraph,
+    core::entities::graph::tgraph::InnerTemporalGraph,
     db::{
         api::view::internal::{InternalMaterialize, MaterializedGraph},
         graph::graph::{Graph, InternalGraph},

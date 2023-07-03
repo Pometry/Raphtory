@@ -1,5 +1,5 @@
 use crate::{
-    core::{tgraph::properties::tcell::TCell, Prop},
+    core::{entities::properties::tcell::TCell, Prop},
     db::graph::graph::Graph,
 };
 use chrono::NaiveDateTime;

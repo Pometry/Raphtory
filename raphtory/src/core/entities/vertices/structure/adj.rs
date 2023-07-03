@@ -1,5 +1,5 @@
 use crate::core::{
-    tgraph::{vertices::structure::adjset::AdjSet, EID, VID},
+    entities::{vertices::structure::adjset::AdjSet, EID, VID},
     Direction,
 };
 use core::panic;

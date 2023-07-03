@@ -1,6 +1,6 @@
 use crate::{
     core::{
-        tgraph::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef, VID},
+        entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef, VID},
         Direction,
     },
     db::api::view::internal::Base,

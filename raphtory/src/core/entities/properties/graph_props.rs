@@ -1,6 +1,6 @@
 use crate::core::{
     storage::locked_view::LockedView,
-    tgraph::{
+    entities::{
         graph::tgraph::FxDashMap,
         properties::{props::DictMapper, tprop::TProp},
     },

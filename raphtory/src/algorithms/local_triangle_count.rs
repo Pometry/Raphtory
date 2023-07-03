@@ -37,7 +37,7 @@
 //! println!("local_triangle_count: {:?}", result);
 //! ```
 //!
-use crate::{core::tgraph::vertices::vertex_ref::VertexRef, db::api::view::*};
+use crate::{core::entities::vertices::vertex_ref::VertexRef, db::api::view::*};
 use itertools::Itertools;
 
 /// calculates the number of triangles (a cycle of length 3) for a node.

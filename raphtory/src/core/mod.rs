@@ -34,7 +34,7 @@ extern crate core;
 
 pub mod state;
 pub(crate) mod storage;
-pub mod tgraph;
+pub mod entities;
 pub mod utils;
 
 /// Denotes the direction of an edge. Can be incoming, outgoing or both.
