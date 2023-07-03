@@ -9,7 +9,7 @@
 //! Load a pre-built graph
 //! ```rust
 //! use raphtory::algorithms::degree::average_degree;
-//! use raphtory::db::graph::Graph;
+//! use raphtory::prelude::*;
 //! use raphtory::db::api::view::*;
 //! use raphtory::graph_loader::example::lotr_graph::lotr_graph;
 //!
@@ -31,12 +31,12 @@
 //! Load a graph from csv
 //!
 //! ```no_run
-//! use raphtory::db::graph::Graph;
 //! use raphtory::core::Prop;
 //! use std::time::Instant;
 //! use serde::Deserialize;
 //! use raphtory::db::api::mutation::AdditionOps;
 //! use raphtory::graph_loader::source::csv_loader::CsvLoader;
+//! use raphtory::prelude::*;
 //!
 //! let data_dir = "/tmp/lotr.csv";
 //!
@@ -161,13 +161,13 @@ fn unzip_file(zip_file_path: &str, destination_path: &str) -> std::io::Result<()
 
 #[cfg(test)]
 mod graph_loader_test {
-    use crate::core::util::hashing;
     use crate::db::api::mutation::AdditionOps;
     use crate::db::api::view::{GraphViewOps, TimeOps, VertexViewOps};
-    use crate::{core::Prop, db::graph::Graph};
     use csv::StringRecord;
+    use crate::core::utils::hashing;
 
     use crate::graph_loader::fetch_file;
+    use crate::prelude::*;
 
     #[test]
     fn test_fetch_file() {
