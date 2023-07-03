@@ -4,30 +4,26 @@ use std::{collections::HashSet, ops::Deref, sync::Arc};
 
 use tantivy::{
     collector::TopDocs,
-    doc,
-    schema::{Field, Schema, INDEXED, STORED, TEXT, FAST},
-    Document, Index, IndexSortByField, DocAddress,
+    schema::{Field, Schema, FAST, INDEXED, STORED, TEXT},
+    DocAddress, Document, Index, IndexSortByField,
 };
 
 use crate::{
     core::{errors::GraphError, time::TryIntoTime, vertex_ref::VertexRef},
-    db::{
-        mutation_api::internal::InternalAdditionOps, vertex::VertexView,
-        view_api::internal::GraphOps,
-    },
+    db::{mutation_api::internal::InternalAdditionOps, vertex::VertexView},
     prelude::*,
 };
 
 use self::fields::{VERTEX_ID, VERTEX_ID_REV};
 
-pub struct IndexedGraph {
-    graph: Graph,
+pub struct IndexedGraph<G> {
+    graph: G,
     index: Arc<Index>,
     reader: tantivy::IndexReader,
 }
 
-impl Deref for IndexedGraph {
-    type Target = Graph;
+impl<G> Deref for IndexedGraph<G> {
+    type Target = G;
 
     fn deref(&self) -> &Self::Target {
         &self.graph
@@ -41,10 +37,10 @@ pub(in crate::search) mod fields {
     pub const VERTEX_ID_REV: &str = "vertex_id_rev";
 }
 
-impl IndexedGraph {
+impl<G: GraphViewOps> IndexedGraph<G> {
     pub fn from_graph<S: AsRef<str>, I: IntoIterator<Item = S>>(
         vertex_index_props: I,
-        g: &Graph,
+        g: &G,
     ) -> tantivy::Result<Self> {
         let mut vec_props = vec![];
         let mut set_props = HashSet::new();
@@ -56,11 +52,14 @@ impl IndexedGraph {
             vec_props.push(prop.as_ref().to_string());
         }
 
-        let mut index_graph = Self::new(vec_props);
+        let mut index_graph = Self::from_empty_graph(g.clone(), vec_props);
 
         let time_field = index_graph.index.schema().get_field(fields::TIME)?;
         let vertex_id_field = index_graph.index.schema().get_field(fields::VERTEX_ID)?;
-        let vertex_id_rev_field = index_graph.index.schema().get_field(fields::VERTEX_ID_REV)?;
+        let vertex_id_rev_field = index_graph
+            .index
+            .schema()
+            .get_field(fields::VERTEX_ID_REV)?;
         let vertex_gid_field = index_graph.index.schema().get_field(fields::VERTEX_GID)?;
 
         let schema = index_graph.index.schema();
@@ -96,13 +95,12 @@ impl IndexedGraph {
             writer.commit()?;
         }
 
-
         index_graph.graph = g.clone();
 
         Ok(index_graph)
     }
 
-    pub fn new<S: AsRef<str>, I>(vertex_index_props: I) -> IndexedGraph
+    pub fn from_empty_graph<S: AsRef<str>, I>(graph: G, vertex_index_props: I) -> Self
     where
         I: IntoIterator<Item = S>,
     {
@@ -142,7 +140,7 @@ impl IndexedGraph {
             .unwrap();
 
         IndexedGraph {
-            graph: Graph::new(),
+            graph,
             index: Arc::new(index),
             reader,
         }
@@ -157,7 +155,7 @@ impl IndexedGraph {
         &self,
         vertex_id: Field,
         doc: Document,
-    ) -> Option<VertexView<Graph>> {
+    ) -> Option<VertexView<G>> {
         let vertex_id: usize = doc
             .get_first(vertex_id)
             .and_then(|value| value.as_u64())?
@@ -167,14 +165,21 @@ impl IndexedGraph {
         self.graph.vertex(vertex_id)
     }
 
-    pub fn search(&self, q: &str, limit: usize, offset: usize) -> Result<Vec<VertexView<Graph>>, GraphError> {
+    pub fn search(
+        &self,
+        q: &str,
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<VertexView<G>>, GraphError> {
         let searcher = self.reader.searcher();
         let query_parser = tantivy::query::QueryParser::for_index(&self.index, vec![]);
         let query = query_parser.parse_query(q)?;
 
-        let ranking = TopDocs::with_limit(limit).and_offset(offset).order_by_u64_field(VERTEX_ID_REV.to_string());
+        let ranking = TopDocs::with_limit(limit)
+            .and_offset(offset)
+            .order_by_u64_field(VERTEX_ID_REV.to_string());
 
-        let top_docs:Vec<(u64, DocAddress)> = searcher.search(&query, &ranking)?;
+        let top_docs: Vec<(u64, DocAddress)> = searcher.search(&query, &ranking)?;
         // let top_docs = searcher.search(&query, &ranking)?;
 
         let vertex_id = self.index.schema().get_field("vertex_id")?;
@@ -190,7 +195,7 @@ impl IndexedGraph {
     }
 }
 
-impl InternalAdditionOps for IndexedGraph {
+impl<G: GraphViewOps + InternalAdditionOps> InternalAdditionOps for IndexedGraph<G> {
     fn internal_add_vertex(
         &self,
         t: i64,
@@ -253,7 +258,7 @@ impl InternalAdditionOps for IndexedGraph {
 
 #[cfg(test)]
 mod test {
-    use tantivy::DocAddress;
+    use tantivy::{DocAddress, doc};
 
     use super::*;
 
@@ -277,13 +282,7 @@ mod test {
             .expect("add vertex failed");
 
         graph
-            .add_vertex(
-                2,
-                "Merry",
-                [
-                    ("kind".to_string(), Prop::str("Hobbit")),
-                ],
-            )
+            .add_vertex(2, "Merry", [("kind".to_string(), Prop::str("Hobbit"))])
             .expect("add vertex failed");
 
         graph
@@ -306,20 +305,28 @@ mod test {
             .add_vertex(10, "Gollum", [("has_ring".to_string(), Prop::str("no"))])
             .expect("add vertex failed");
 
-        let indexed_graph = IndexedGraph::from_graph(["kind", "has_ring"], &graph).expect("failed to generate index from graph");
+        let indexed_graph: IndexedGraph<Graph> =
+            IndexedGraph::from_graph(["kind", "has_ring"], &graph)
+                .expect("failed to generate index from graph");
         indexed_graph.reload().expect("failed to reload index");
 
-        let results = indexed_graph.search("kind:hobbit", 10, 0).expect("search failed");
+        let results = indexed_graph
+            .search("kind:hobbit", 10, 0)
+            .expect("search failed");
         let actual = results.into_iter().map(|v| v.name()).collect::<Vec<_>>();
         let expected = vec!["Frodo", "Merry"];
         assert_eq!(actual, expected);
 
-        let results = indexed_graph.search("kind:wizard", 10, 0).expect("search failed");
+        let results = indexed_graph
+            .search("kind:wizard", 10, 0)
+            .expect("search failed");
         let actual = results.into_iter().map(|v| v.name()).collect::<Vec<_>>();
         let expected = vec!["Gandalf"];
         assert_eq!(actual, expected);
 
-        let results = indexed_graph.search("kind:creature", 10, 0).expect("search failed");
+        let results = indexed_graph
+            .search("kind:creature", 10, 0)
+            .expect("search failed");
         let actual = results.into_iter().map(|v| v.name()).collect::<Vec<_>>();
         let expected = vec!["Gollum"];
         assert_eq!(actual, expected);
@@ -327,7 +334,8 @@ mod test {
 
     #[test]
     fn add_vertex_search_by_name() {
-        let graph = IndexedGraph::new(vec!["name"]);
+
+        let graph = IndexedGraph::from_empty_graph(Graph::new(), vec!["name"]);
 
         graph
             .add_vertex(1, "Gandalf", [])
@@ -335,7 +343,9 @@ mod test {
 
         graph.reload().expect("reload failed");
 
-        let vertices = graph.search(r#"name:gandalf"#, 10, 0).expect("search failed");
+        let vertices = graph
+            .search(r#"name:gandalf"#, 10, 0)
+            .expect("search failed");
 
         let actual = vertices.into_iter().map(|v| v.name()).collect::<Vec<_>>();
         let expected = vec!["Gandalf"];
@@ -345,7 +355,7 @@ mod test {
 
     #[test]
     fn add_vertex_search_by_description() {
-        let graph = IndexedGraph::new(vec!["name", "description"]);
+        let graph = IndexedGraph::from_empty_graph(Graph::new(), vec!["name", "description"]);
 
         graph
             .add_vertex(
@@ -382,7 +392,7 @@ mod test {
 
     #[test]
     fn add_vertex_search_by_description_and_time() {
-        let graph = IndexedGraph::new(vec!["name", "description"]);
+        let graph = IndexedGraph::from_empty_graph(Graph::new(), ["name", "description"]);
 
         graph
             .add_vertex(
@@ -469,7 +479,7 @@ mod test {
         let query = query_parser.parse_query(r#"name:"gandalf""#).unwrap();
 
         let ranking = TopDocs::with_limit(10).order_by_u64_field(VERTEX_ID.to_string());
-        let top_docs:Vec<(u64, DocAddress)> = searcher.search(&query, &ranking).unwrap();
+        let top_docs: Vec<(u64, DocAddress)> = searcher.search(&query, &ranking).unwrap();
 
         assert!(top_docs.len() > 0);
     }
