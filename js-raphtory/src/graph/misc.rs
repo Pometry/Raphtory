@@ -4,7 +4,7 @@ use std::sync::Arc;
 use crate::graph::{Graph, UnderGraph};
 use chrono::{Datelike, Timelike};
 use js_sys::Array;
-use raphtory::core::util::errors::GraphError;
+use raphtory::core::utils::errors::GraphError;
 use raphtory::core::Prop;
 use wasm_bindgen::{prelude::wasm_bindgen, JsValue};
 

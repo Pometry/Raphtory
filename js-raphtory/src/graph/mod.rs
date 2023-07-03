@@ -1,4 +1,6 @@
+#![allow(dead_code)]
 #[cfg(feature = "console_error_panic_hook")]
+
 extern crate console_error_panic_hook;
 
 use core::panic;
@@ -6,16 +8,16 @@ use std::convert::TryFrom;
 use std::sync::Arc;
 
 use js_sys::Object;
-use raphtory::core::util::errors::GraphError;
+use raphtory::core::utils::errors::GraphError;
 use raphtory::core::Prop;
 use raphtory::db::api::mutation::AdditionOps;
 use raphtory::db::api::view::internal::BoxableGraphView;
 use raphtory::db::api::view::GraphViewOps;
 use raphtory::db::api::view::TimeOps;
-use raphtory::db::graph::Graph as TGraph;
-use raphtory::db::graph_window::WindowedGraph;
+use raphtory::db::graph::graph::Graph as TGraph;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
+use raphtory::db::graph::views::window_graph::WindowedGraph;
 
 use crate::graph::misc::JSError;
 use crate::graph::misc::JsObjectEntry;

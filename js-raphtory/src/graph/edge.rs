@@ -1,6 +1,6 @@
 use raphtory::db::api::view::*;
-use raphtory::db::edge::EdgeView;
 use wasm_bindgen::prelude::*;
+use raphtory::db::graph::edge::EdgeView;
 
 use super::Graph;
 use crate::graph::{misc::JsProp, vertex::Vertex};
