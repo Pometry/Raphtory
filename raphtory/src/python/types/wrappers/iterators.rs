@@ -3,9 +3,7 @@ use crate::{
     db::api::view::BoxedIter,
     python::types::{
         repr::Repr,
-        wrappers::{
-            prop::{PropHistories, PropHistory, PropValue, Props},
-        },
+        wrappers::prop::{PropHistories, PropHistory, PropValue, Props},
     },
 };
 use num::cast::AsPrimitive;

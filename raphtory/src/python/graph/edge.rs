@@ -15,7 +15,7 @@ use crate::{
     },
     prelude::*,
     python::{
-        graph::vertex::PyVertex,
+        graph::vertex::{PyVertex, PyVertexIterable},
         types::{
             repr::{iterator_repr, Repr},
             wrappers::{
@@ -34,7 +34,6 @@ use std::{
     hash::{Hash, Hasher},
     sync::Arc,
 };
-use crate::python::graph::vertex::PyVertexIterable;
 
 /// PyEdge is a Python class that represents an edge in the graph.
 /// An edge is a directed connection between two vertices.
