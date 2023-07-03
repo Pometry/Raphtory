@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1688134743124,
+  "lastUpdate": 1688412392703,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -4423,6 +4423,60 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions with numeric string input",
             "value": 2182526,
             "range": "± 98132",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "b.a.steer@qmul.ac.uk",
+            "name": "Ben Steer",
+            "username": "miratepuffin"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "44354eae7a97c8ddf4c6041e9ee946ffce2748ec",
+          "message": "Fixed all warnings and refactor module structure (#1081)\n\n* Fixed all warnings\r\n\r\n* first attempt at core refactor\r\n\r\n* Refactored db\r\n\r\n* Fixed all tests in benchmark graphql python and core\r\n\r\n* Added rustfmt file\r\n\r\n* fix neo tests\r\n\r\n* Renamed views\r\n\r\n* more tests\r\n\r\n* more tests\r\n\r\n* Fix JS\r\n\r\n* more tests\r\n\r\n* Fix all imports\r\n\r\n* Moved comparison benchmarks\r\n\r\n* Changed outer tgraph to entities\r\n\r\n* refactored python\r\n\r\n* Removed Perspectives as not being used\r\n\r\n* remove perspective ref\r\n\r\n* Final fmt",
+          "timestamp": "2023-07-03T20:21:10+01:00",
+          "tree_id": "77897c90092c3b96beef70c8ed52aa906bf245fe",
+          "url": "https://github.com/Pometry/Raphtory/commit/44354eae7a97c8ddf4c6041e9ee946ffce2748ec"
+        },
+        "date": 1688412392012,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 783370,
+            "range": "± 10492",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and numeric string input",
+            "value": 1433754,
+            "range": "± 4174",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and string input",
+            "value": 1466612,
+            "range": "± 3457",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 1158618,
+            "range": "± 87277",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions with numeric string input",
+            "value": 2220975,
+            "range": "± 99255",
             "unit": "ns/iter"
           }
         ]
