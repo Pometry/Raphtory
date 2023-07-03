@@ -1,9 +1,8 @@
+#![allow(dead_code)]
+
 use criterion::{measurement::WallTime, BatchSize, Bencher, BenchmarkGroup, BenchmarkId};
-use rand::seq::*;
-use rand::{distributions::Uniform, Rng};
-use raphtory::db::graph::Graph;
-use raphtory::db::mutation_api::AdditionOps;
-use raphtory::db::view_api::*;
+use rand::{distributions::Uniform, seq::*, Rng};
+use raphtory::prelude::*;
 use std::collections::HashSet;
 
 fn make_index_gen() -> Box<dyn Iterator<Item = u64>> {
@@ -18,7 +17,7 @@ fn make_time_gen() -> Box<dyn Iterator<Item = i64>> {
     Box::new(rng.sample_iter(range))
 }
 
-pub fn bootstrap_graph(num_shards: usize, num_vertices: usize) -> Graph {
+pub fn bootstrap_graph(num_vertices: usize) -> Graph {
     let graph = Graph::new();
     let mut indexes = make_index_gen();
     let mut times = make_time_gen();
@@ -123,9 +122,6 @@ pub fn run_large_ingestion_benchmarks<F>(
 ) where
     F: FnMut() -> Graph,
 {
-    let mut times_gen = make_time_gen();
-    let mut time_sample = || times_gen.next().unwrap();
-
     let updates = 1000;
 
     bench(

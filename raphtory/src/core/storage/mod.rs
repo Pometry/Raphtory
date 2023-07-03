@@ -1,5 +1,15 @@
-pub(crate) mod iter;
+#![allow(unused)]
 
+pub(crate) mod iter;
+pub mod lazy_vec;
+pub mod locked_view;
+pub mod sorted_vec_map;
+pub mod timeindex;
+
+use self::iter::Iter;
+use locked_view::LockedView;
+use parking_lot::{RwLock, RwLockReadGuard};
+use serde::{Deserialize, Serialize};
 use std::{
     fmt::Debug,
     ops::{Deref, DerefMut},
@@ -8,13 +18,6 @@ use std::{
         Arc,
     },
 };
-
-use parking_lot::{RwLock, RwLockReadGuard};
-use serde::{Deserialize, Serialize};
-
-use crate::core::locked_view::LockedView;
-
-use self::iter::Iter;
 
 fn resolve<const N: usize>(index: usize) -> (usize, usize) {
     let bucket = index % N;

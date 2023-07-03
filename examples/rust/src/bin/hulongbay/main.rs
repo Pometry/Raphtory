@@ -1,21 +1,22 @@
 // #![allow(unused_imports)]
-use std::env;
-use std::error::Error;
-use std::fmt::{Debug, Display, Formatter};
-use std::path::Path;
-
+#![allow(dead_code)]
 use itertools::Itertools;
-use raphtory::algorithms::connected_components::weakly_connected_components;
-use raphtory::algorithms::triangle_count::triangle_count;
-use raphtory::core::Prop;
-use raphtory::db::graph::Graph;
-use raphtory::db::mutation_api::AdditionOps;
-use raphtory::db::view_api::*;
-use raphtory::db::view_api::{GraphViewOps, VertexViewOps};
-use raphtory::graph_loader::source::csv_loader::CsvLoader;
+use raphtory::{
+    algorithms::{
+        connected_components::weakly_connected_components, triangle_count::triangle_count,
+    },
+    graph_loader::source::csv_loader::CsvLoader,
+    prelude::*,
+};
 use regex::Regex;
 use serde::Deserialize;
-use std::time::Instant;
+use std::{
+    env,
+    error::Error,
+    fmt::{Debug, Display, Formatter},
+    path::Path,
+    time::Instant,
+};
 
 #[derive(Deserialize, Debug)]
 pub struct Edge {
@@ -109,10 +110,6 @@ fn try_main() -> Result<(), Box<dyn Error>> {
     let data_dir = Path::new(args.get(1).ok_or(MissingArgumentError)?);
 
     let graph = loader(data_dir)?;
-
-    let min_time = graph.start().ok_or(GraphEmptyError)?;
-    let max_time = graph.end().ok_or(GraphEmptyError)?;
-    let mid_time = (min_time + max_time) / 2;
     let now = Instant::now();
     let actual_tri_count = triangle_count(&graph, None);
 

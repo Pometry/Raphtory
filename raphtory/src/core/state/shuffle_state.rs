@@ -1,16 +1,17 @@
-use crate::core::state::agg::Accumulator;
-use crate::db::task::task_state::{Global, Shard};
-use crate::db::view_api::GraphViewOps;
-use std::borrow::Borrow;
-use std::collections::HashMap;
-use std::sync::Arc;
-
 use super::{
     accumulator_id::AccId,
     compute_state::ComputeState,
     morcel_state::{MorcelComputeState, GLOBAL_STATE_KEY},
     StateType,
 };
+use crate::{
+    core::state::agg::Accumulator,
+    db::{
+        api::view::GraphViewOps,
+        task::task_state::{Global, Shard},
+    },
+};
+use std::{borrow::Borrow, collections::HashMap, sync::Arc};
 
 #[derive(Debug, Clone)]
 pub struct ShuffleComputeState<CS: ComputeState + Send> {

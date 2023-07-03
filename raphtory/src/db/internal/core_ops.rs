@@ -1,13 +1,12 @@
 use crate::{
     core::{
-        edge_ref::EdgeRef,
-        locked_view::LockedView,
-        tgraph::{tgraph::InnerTemporalGraph, VID},
-        timeindex::TimeIndex,
-        tprop::TProp,
-        vertex_ref::VertexRef,
+        entities::{
+            edges::edge_ref::EdgeRef, graph::tgraph::InnerTemporalGraph, properties::tprop::TProp,
+            vertices::vertex_ref::VertexRef, VID,
+        },
+        storage::{locked_view::LockedView, timeindex::TimeIndex},
     },
-    db::view_api::internal::CoreGraphOps,
+    db::api::view::internal::CoreGraphOps,
     prelude::Prop,
 };
 

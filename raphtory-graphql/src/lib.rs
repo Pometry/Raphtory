@@ -1,5 +1,4 @@
-pub use crate::model::algorithm::Algorithm;
-pub use crate::server::RaphtoryServer;
+pub use crate::{model::algorithm::Algorithm, server::RaphtoryServer};
 
 mod model;
 mod observability;
@@ -11,13 +10,9 @@ mod data;
 #[cfg(test)]
 mod graphql_test {
     use super::*;
-    use dynamic_graphql::dynamic::DynamicRequestExt;
-    use dynamic_graphql::{App, FieldValue};
-    use raphtory::core::Prop;
-    use raphtory::db::graph::Graph;
-    use raphtory::db::mutation_api::AdditionOps;
+    use dynamic_graphql::{dynamic::DynamicRequestExt, App, FieldValue};
+    use raphtory::prelude::*;
     use std::collections::HashMap;
-    use std::env;
 
     #[tokio::test]
     async fn basic_query() {

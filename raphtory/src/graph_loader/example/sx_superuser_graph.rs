@@ -37,8 +37,7 @@
 //! Example:
 //! ```no_run
 //! use raphtory::graph_loader::example::sx_superuser_graph::sx_superuser_graph;
-//! use raphtory::db::graph::Graph;
-//! use raphtory::db::view_api::*;
+//! use raphtory::prelude::*;
 //!
 //! let graph = sx_superuser_graph().unwrap();
 //!
@@ -46,10 +45,10 @@
 //! println!("The graph has {:?} edges", graph.num_edges());
 //! ```
 
-use crate::db::graph::Graph;
-
-use crate::db::mutation_api::AdditionOps;
-use crate::graph_loader::{fetch_file, source::csv_loader::CsvLoader};
+use crate::{
+    graph_loader::{fetch_file, source::csv_loader::CsvLoader},
+    prelude::*,
+};
 use serde::Deserialize;
 use std::path::PathBuf;
 

@@ -1,12 +1,7 @@
-use crate::core::Prop;
-use crate::db::graph::Graph;
-use crate::db::mutation_api::{AdditionOps, PropertyAdditionOps};
-use crate::db::view_api::*;
-use crate::graph_loader::source::csv_loader::CsvLoader;
+use crate::{core::Prop, graph_loader::source::csv_loader::CsvLoader, prelude::*};
 use chrono::NaiveDateTime;
 use serde::Deserialize;
-use std::path::PathBuf;
-use std::{fs, time::Instant};
+use std::{fs, path::PathBuf, time::Instant};
 
 #[derive(Deserialize, std::fmt::Debug)]
 pub struct CompanyHouse {
@@ -185,7 +180,7 @@ pub fn company_house_graph(path: Option<String>) -> Graph {
 #[cfg(test)]
 mod company_house_graph_test {
     use super::*;
-    use crate::db::view_api::{TimeOps, VertexViewOps};
+    use crate::db::api::view::{TimeOps, VertexViewOps};
 
     #[test]
     #[ignore]

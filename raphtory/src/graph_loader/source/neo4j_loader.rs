@@ -1,4 +1,4 @@
-use crate::db::graph as rap;
+use crate::db::graph::graph as rap;
 use neo4rs::*;
 /// A struct that defines the Neo4J loader with configurable options.
 pub struct Neo4JConnection {
@@ -48,11 +48,17 @@ impl Neo4JConnection {
 
 #[cfg(test)]
 mod neo_loader_test {
-    use crate::core::Prop;
-    use crate::db::graph as rap;
-    use crate::db::mutation_api::{AdditionOps, PropertyAdditionOps};
-    use crate::db::view_api::GraphViewOps;
-    use crate::graph_loader::source::neo4j_loader::Neo4JConnection;
+    use crate::{
+        core::Prop,
+        db::{
+            api::{
+                mutation::{AdditionOps, PropertyAdditionOps},
+                view::GraphViewOps,
+            },
+            graph::graph as rap,
+        },
+        graph_loader::source::neo4j_loader::Neo4JConnection,
+    };
     use neo4rs::*;
 
     fn load_movies(row: Row, graph: &rap::Graph) {

@@ -23,9 +23,7 @@
 //!
 //! ```rust
 //! use raphtory::algorithms::reciprocity::{all_local_reciprocity, global_reciprocity};
-//! use raphtory::db::graph::Graph;
-//! use raphtory::db::mutation_api::AdditionOps;
-//! use raphtory::db::view_api::*;
+//! use raphtory::prelude::*;
 //! let g = Graph::new();
 //! let vs = vec![
 //!     (1, 1, 2),
@@ -45,13 +43,21 @@
 //! println!("all_local_reciprocity: {:?}", all_local_reciprocity(&g, None));
 //! println!("global_reciprocity: {:?}", global_reciprocity(&g, None));
 //! ```
-use crate::core::state::accumulator_id::accumulators::sum;
-use crate::core::state::compute_state::{ComputeState, ComputeStateVec};
-use crate::db::task::context::Context;
-use crate::db::task::eval_vertex::EvalVertexView;
-use crate::db::task::task::{ATask, Job, Step};
-use crate::db::task::task_runner::TaskRunner;
-use crate::db::view_api::{GraphViewOps, VertexViewOps};
+use crate::{
+    core::state::{
+        accumulator_id::accumulators::sum,
+        compute_state::{ComputeState, ComputeStateVec},
+    },
+    db::{
+        api::view::{GraphViewOps, VertexViewOps},
+        task::{
+            context::Context,
+            task::{ATask, Job, Step},
+            task_runner::TaskRunner,
+            vertex::eval_vertex::EvalVertexView,
+        },
+    },
+};
 use std::collections::{HashMap, HashSet};
 
 /// Gets the unique edge counts excluding cycles for a vertex. Returns a tuple of usize
@@ -140,9 +146,10 @@ pub fn all_local_reciprocity<G: GraphViewOps>(
 
 #[cfg(test)]
 mod reciprocity_test {
-    use crate::algorithms::reciprocity::{all_local_reciprocity, global_reciprocity};
-    use crate::db::graph::Graph;
-    use crate::db::mutation_api::AdditionOps;
+    use crate::{
+        algorithms::reciprocity::{all_local_reciprocity, global_reciprocity},
+        db::{api::mutation::AdditionOps, graph::graph::Graph},
+    };
     use pretty_assertions::assert_eq;
     use std::collections::HashMap;
 

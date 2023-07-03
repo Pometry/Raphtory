@@ -1,9 +1,7 @@
-use raphtory::db::edge::EdgeView;
-use raphtory::db::view_api::*;
-use wasm_bindgen::prelude::*;
-
 use super::Graph;
 use crate::graph::{misc::JsProp, vertex::Vertex};
+use raphtory::db::{api::view::*, graph::edge::EdgeView};
+use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
 pub struct Edge(pub(crate) EdgeView<Graph>);

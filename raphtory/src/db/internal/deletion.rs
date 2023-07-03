@@ -1,9 +1,10 @@
 use crate::{
     core::{
-        edge_ref::EdgeRef, errors::GraphError, locked_view::LockedView,
-        tgraph::tgraph::InnerTemporalGraph, timeindex::TimeIndex,
+        entities::{edges::edge_ref::EdgeRef, graph::tgraph::InnerTemporalGraph},
+        storage::{locked_view::LockedView, timeindex::TimeIndex},
+        utils::errors::GraphError,
     },
-    db::{mutation_api::internal::InternalDeletionOps, view_api::internal::CoreDeletionOps},
+    db::api::{mutation::internal::InternalDeletionOps, view::internal::CoreDeletionOps},
 };
 
 impl<const N: usize> InternalDeletionOps for InnerTemporalGraph<N> {

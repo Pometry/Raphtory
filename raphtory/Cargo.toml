@@ -12,7 +12,6 @@ license.workspace = true
 readme.workspace = true
 homepage.workspace = true
 
-
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
@@ -74,3 +73,4 @@ quickcheck_macros = "1"
 io = ["dep:zip","dep:neo4rs", "dep:bzip2", "dep:flate2", "dep:csv", "dep:serde_json", "dep:reqwest", "dep:tokio"]
 # Enables generating the pyo3 python bindings
 python = ["io", "dep:pyo3", "dep:num", "dep:display-error-chain"]
+

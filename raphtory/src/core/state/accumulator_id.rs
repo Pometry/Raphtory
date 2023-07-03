@@ -39,13 +39,13 @@ unsafe impl<A, IN, OUT, ACC: Accumulator<A, IN, OUT>> Sync for AccId<A, IN, OUT,
 
 pub mod accumulators {
     use super::AccId;
-    use crate::core::{
-        state::agg::{
+    use crate::core::state::{
+        agg::{
             set::{BitSet, Set},
             topk::{TopK, TopKHeap},
             AndDef, AvgDef, MaxDef, MinDef, OrDef, SumDef, ValDef,
         },
-        state::StateType,
+        StateType,
     };
     use num_traits::{Bounded, Zero};
     use roaring::{RoaringBitmap, RoaringTreemap};

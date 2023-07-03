@@ -1,17 +1,12 @@
-use std::sync::Arc;
-
-use crate::{
-    core::{
-        state::agg::Accumulator,
-        state::{
-            accumulator_id::AccId, compute_state::ComputeState, shuffle_state::ShuffleComputeState,
-            StateType,
-        },
-    },
-    db::view_api::GraphViewOps,
-};
-
 use super::task_state::{Global, Shard};
+use crate::{
+    core::state::{
+        accumulator_id::AccId, agg::Accumulator, compute_state::ComputeState,
+        shuffle_state::ShuffleComputeState, StateType,
+    },
+    db::api::view::GraphViewOps,
+};
+use std::sync::Arc;
 
 type MergeFn<CS> =
     Arc<dyn Fn(&mut ShuffleComputeState<CS>, &ShuffleComputeState<CS>, usize) + Send + Sync>;

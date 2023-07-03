@@ -1,6 +1,6 @@
 use crate::{
-    core::{errors::GraphError, tgraph::tgraph::InnerTemporalGraph},
-    db::mutation_api::internal::InternalPropertyAdditionOps,
+    core::{entities::graph::tgraph::InnerTemporalGraph, utils::errors::GraphError},
+    db::api::mutation::internal::InternalPropertyAdditionOps,
     prelude::Prop,
 };
 

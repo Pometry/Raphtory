@@ -24,9 +24,7 @@
 //!
 //! ```rust
 //! use raphtory::algorithms::local_clustering_coefficient::{local_clustering_coefficient};
-//! use raphtory::db::graph::Graph;
-//! use raphtory::db::mutation_api::AdditionOps;
-//! use raphtory::db::view_api::*;
+//! use raphtory::prelude::*;
 //!
 //! let g = Graph::new();
 //! let windowed_graph = g.window(0, 7);
@@ -50,9 +48,10 @@
 //! println!("local clustering coefficient of all nodes: {:?}", actual);
 //! ```
 
-use crate::algorithms::local_triangle_count::local_triangle_count;
-use crate::core::vertex_ref::VertexRef;
-use crate::db::view_api::*;
+use crate::{
+    algorithms::local_triangle_count::local_triangle_count,
+    core::entities::vertices::vertex_ref::VertexRef, db::api::view::*,
+};
 
 /// measures the degree to which nodes in a graph tend to cluster together
 pub fn local_clustering_coefficient<G: GraphViewOps, V: Into<VertexRef>>(
@@ -80,9 +79,10 @@ pub fn local_clustering_coefficient<G: GraphViewOps, V: Into<VertexRef>>(
 #[cfg(test)]
 mod clustering_coefficient_tests {
     use super::local_clustering_coefficient;
-    use crate::db::graph::Graph;
-    use crate::db::mutation_api::AdditionOps;
-    use crate::db::view_api::*;
+    use crate::db::{
+        api::{mutation::AdditionOps, view::*},
+        graph::graph::Graph,
+    };
 
     #[test]
     fn clusters_of_triangles() {

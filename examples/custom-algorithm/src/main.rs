@@ -2,7 +2,7 @@ use async_graphql::dynamic::{FieldValue, ResolverContext, TypeRef};
 use async_graphql::FieldResult;
 use dynamic_graphql::internal::TypeName;
 use dynamic_graphql::SimpleObject;
-use raphtory::db::view_api::GraphViewOps;
+use raphtory::db::view::GraphViewOps;
 use raphtory_graphql::{Algorithm, RaphtoryServer};
 
 #[derive(SimpleObject)]
