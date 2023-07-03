@@ -1,16 +1,17 @@
-use async_graphql::dynamic::{
-    Field, FieldFuture, FieldValue, InputValue, Object, ResolverContext, TypeRef,
+use async_graphql::{
+    dynamic::{Field, FieldFuture, FieldValue, InputValue, Object, ResolverContext, TypeRef},
+    Context, FieldResult,
 };
-use async_graphql::{Context, FieldResult};
-use dynamic_graphql::internal::{OutputTypeName, Register, Registry, ResolveOwned, TypeName};
-use dynamic_graphql::SimpleObject;
+use dynamic_graphql::{
+    internal::{OutputTypeName, Register, Registry, ResolveOwned, TypeName},
+    SimpleObject,
+};
 use once_cell::sync::Lazy;
-use raphtory::algorithms::pagerank::unweighted_page_rank;
-use raphtory::db::api::view::internal::DynamicGraph;
-use raphtory::db::api::view::GraphViewOps;
-use std::borrow::Cow;
-use std::collections::HashMap;
-use std::sync::Mutex;
+use raphtory::{
+    algorithms::pagerank::unweighted_page_rank,
+    db::api::view::{internal::DynamicGraph, GraphViewOps},
+};
+use std::{borrow::Cow, collections::HashMap, sync::Mutex};
 
 type RegisterFunction = fn(&str, Registry, Object) -> (Registry, Object);
 

@@ -2,10 +2,10 @@ use criterion::{criterion_group, criterion_main, Criterion};
 use raphtory::prelude::*;
 
 mod common;
-use rand::distributions::{Alphanumeric, DistString};
-use rand::{thread_rng, Rng};
-use raphtory::core::tgraph::vertices::input_vertex::InputVertex;
-use raphtory::db::api::mutation::AdditionOps;
+use rand::{
+    distributions::{Alphanumeric, DistString},
+    thread_rng, Rng,
+};
 
 fn random_string(n: usize) -> String {
     Alphanumeric.sample_string(&mut rand::thread_rng(), n)

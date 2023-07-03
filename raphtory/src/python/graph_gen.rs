@@ -1,9 +1,13 @@
 //! Provides functionality for generating graphs for testing and benchmarking.
 //! Allows us to generate graphs using the preferential attachment model and
 //! the random attachment model.
-use crate::graphgen::preferential_attachment::ba_preferential_attachment as pa;
-use crate::graphgen::random_attachment::random_attachment as ra;
-use crate::python::graph::PyGraph;
+use crate::{
+    graphgen::{
+        preferential_attachment::ba_preferential_attachment as pa,
+        random_attachment::random_attachment as ra,
+    },
+    python::graph::PyGraph,
+};
 use pyo3::prelude::*;
 
 /// Generates a graph using the random attachment model

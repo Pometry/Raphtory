@@ -1,17 +1,5 @@
-//! A data structure for sharding a temporal graph.
-//!
-//! When a raphtory graph is created, the code will automatically shard the graph depending
-//! on how many shards you set the graph to originally have when initializing it.
-//!
-//! For example, Graph::new() will create a graph with 4 shards.
-//!
-//! Each of these shards will be stored in a separate file, and will be loaded into memory when needed.
-//!
-//! Each shard will have its own set of vertex and edge data, and will be able to be queried independently.
-
-use std::{hash::BuildHasherDefault, ops::Deref};
-
 use dashmap::mapref::one::Ref;
+use std::{hash::BuildHasherDefault, ops::Deref};
 
 pub enum LockedView<'a, T> {
     Locked(parking_lot::MappedRwLockReadGuard<'a, T>),

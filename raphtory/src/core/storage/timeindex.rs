@@ -1,7 +1,9 @@
 use serde::{Deserialize, Serialize};
-use std::cmp::{max, min};
-use std::collections::BTreeSet;
-use std::ops::Range;
+use std::{
+    cmp::{max, min},
+    collections::BTreeSet,
+    ops::Range,
+};
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum TimeIndex {

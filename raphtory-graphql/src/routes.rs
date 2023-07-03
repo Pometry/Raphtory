@@ -1,7 +1,10 @@
 use async_graphql::http::{playground_source, GraphQLPlaygroundConfig};
-use poem::http::StatusCode;
-use poem::web::{Html, Json};
-use poem::{handler, IntoResponse};
+use poem::{
+    handler,
+    http::StatusCode,
+    web::{Html, Json},
+    IntoResponse,
+};
 use serde::Serialize;
 
 #[derive(Serialize)]

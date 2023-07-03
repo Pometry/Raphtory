@@ -1,8 +1,8 @@
-use crate::core::utils::errors::GraphError;
-use crate::core::utils::time::error::ParseTimeError;
-use crate::graph_loader::source::csv_loader::CsvErr;
-use pyo3::exceptions::PyException;
-use pyo3::PyErr;
+use crate::{
+    core::utils::{errors::GraphError, time::error::ParseTimeError},
+    graph_loader::source::csv_loader::CsvErr,
+};
+use pyo3::{exceptions::PyException, PyErr};
 use std::error::Error;
 
 impl From<ParseTimeError> for PyErr {

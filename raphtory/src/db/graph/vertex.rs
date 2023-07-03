@@ -1,16 +1,21 @@
 //! Defines the `Vertex` struct, which represents a vertex in the graph.
 
-use crate::core::tgraph::vertices::vertex_ref::VertexRef;
-use crate::core::tgraph::VID;
-use crate::core::utils::time::IntoTime;
-use crate::core::Direction;
-use crate::db::api::view::internal::GraphPropertiesOps;
-use crate::db::api::view::{BoxedIter, LayerOps};
-use crate::db::graph::edge::{EdgeList, EdgeView};
-use crate::db::graph::path::{Operations, PathFromVertex};
-use crate::db::graph::views::window_graph::WindowedGraph;
-use crate::db::graph::views::layer_graph::LayeredGraph;
-use crate::prelude::{GraphViewOps, Prop, TimeOps, VertexListOps, VertexViewOps};
+use crate::{
+    core::{
+        tgraph::{vertices::vertex_ref::VertexRef, VID},
+        utils::time::IntoTime,
+        Direction,
+    },
+    db::{
+        api::view::{internal::GraphPropertiesOps, BoxedIter, LayerOps},
+        graph::{
+            edge::{EdgeList, EdgeView},
+            path::{Operations, PathFromVertex},
+            views::{layer_graph::LayeredGraph, window_graph::WindowedGraph},
+        },
+    },
+    prelude::*,
+};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone)]

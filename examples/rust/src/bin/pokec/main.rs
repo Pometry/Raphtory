@@ -1,11 +1,15 @@
-use std::{env, path::Path, time::Instant};
-
-use raphtory::algorithms::connected_components::weakly_connected_components;
-use raphtory::db::api::mutation::AdditionOps;
-use raphtory::db::api::view::GraphViewOps;
-use raphtory::graph_loader::source::csv_loader::CsvLoader;
-use raphtory::{algorithms::pagerank::unweighted_page_rank, db::graph::graph::Graph};
+use raphtory::{
+    algorithms::{
+        connected_components::weakly_connected_components, pagerank::unweighted_page_rank,
+    },
+    db::{
+        api::{mutation::AdditionOps, view::GraphViewOps},
+        graph::graph::Graph,
+    },
+    graph_loader::source::csv_loader::CsvLoader,
+};
 use serde::Deserialize;
+use std::{env, path::Path, time::Instant};
 
 #[derive(Deserialize, std::fmt::Debug)]
 struct Edge {

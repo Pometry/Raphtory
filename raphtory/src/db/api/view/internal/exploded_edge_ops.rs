@@ -1,9 +1,13 @@
-use crate::core::tgraph::edges::edge_ref::EdgeRef;
-use crate::core::tgraph::VID;
-use crate::core::Direction;
-use crate::db::api::view::internal::time_semantics::TimeSemantics;
-use crate::db::api::view::internal::GraphOps;
-use crate::db::api::view::BoxedIter;
+use crate::{
+    core::{
+        tgraph::{edges::edge_ref::EdgeRef, VID},
+        Direction,
+    },
+    db::api::view::{
+        internal::{time_semantics::TimeSemantics, GraphOps},
+        BoxedIter,
+    },
+};
 use std::ops::Range;
 
 /// Additional methods for returning exploded edge data that are automatically implemented

@@ -1,6 +1,10 @@
-use crate::db::api::view::internal::Base;
-use crate::db::graph::graph::{Graph, InternalGraph};
-use crate::db::graph::views::deletion_graph::GraphWithDeletions;
+use crate::db::{
+    api::view::internal::Base,
+    graph::{
+        graph::{Graph, InternalGraph},
+        views::deletion_graph::GraphWithDeletions,
+    },
+};
 
 pub enum MaterializedGraph {
     EventGraph(Graph),

@@ -26,7 +26,6 @@
 //! ```rust
 //!
 //! use raphtory::prelude::*;
-//! use raphtory::db::api::mutation::AdditionOps;
 //! use raphtory::db::api::view::*;
 //!
 //! let graph = Graph::new();
@@ -38,19 +37,24 @@
 //!  assert_eq!(wg.edge(1, 2, None).unwrap().src().id(), 1);
 //! ```
 
-use crate::core::tgraph::edges::edge_ref::EdgeRef;
-use crate::core::tgraph::vertices::vertex_ref::VertexRef;
-use crate::core::tgraph::VID;
-use crate::core::utils::time::IntoTime;
-use crate::core::{Direction, Prop};
-
-use crate::db::api::view::internal::{
-    Base, GraphOps, GraphWindowOps, InheritCoreOps, InheritMaterialize, TimeSemantics,
+use crate::{
+    core::{
+        tgraph::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef, VID},
+        utils::time::IntoTime,
+        Direction, Prop,
+    },
+    db::api::view::{
+        internal::{
+            Base, GraphOps, GraphWindowOps, InheritCoreOps, InheritMaterialize, TimeSemantics,
+        },
+        BoxedIter,
+    },
+    prelude::GraphViewOps,
 };
-use crate::db::api::view::BoxedIter;
-use crate::prelude::GraphViewOps;
-use std::cmp::{max, min};
-use std::ops::Range;
+use std::{
+    cmp::{max, min},
+    ops::Range,
+};
 
 /// A struct that represents a windowed view of a `Graph`.
 #[derive(Debug, Clone)]
@@ -414,7 +418,6 @@ impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
 /// # Examples
 ///
 /// ```rust
-/// use raphtory::db::api::mutation::AdditionOps;
 /// use raphtory::db::api::view::*;
 /// use raphtory::prelude::*;
 ///

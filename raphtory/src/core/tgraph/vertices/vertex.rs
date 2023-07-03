@@ -1,22 +1,23 @@
-use std::{ops::Range, sync::Arc};
-
-use itertools::Itertools;
-
-use crate::core::storage::locked_view::LockedView;
-use crate::core::storage::timeindex::{TimeIndex, TimeIndexOps};
-use crate::core::tgraph::properties::tprop::TProp;
 use crate::core::{
-    storage::{ArcEntry, Entry},
+    storage::{
+        locked_view::LockedView,
+        timeindex::{TimeIndex, TimeIndexOps},
+        ArcEntry, Entry,
+    },
+    tgraph::{
+        edges::{edge::EdgeView, edge_ref::EdgeRef, edge_store::EdgeStore},
+        graph::tgraph::TGraph,
+        properties::tprop::TProp,
+        vertices::{
+            structure::iter::{Paged, PagedIter},
+            vertex_store::VertexStore,
+        },
+        VRef, VID,
+    },
     Direction, Prop,
 };
-
-use crate::core::tgraph::edges::edge::EdgeView;
-use crate::core::tgraph::edges::edge_ref::EdgeRef;
-use crate::core::tgraph::edges::edge_store::EdgeStore;
-use crate::core::tgraph::graph::tgraph::TGraph;
-use crate::core::tgraph::vertices::structure::iter::{Paged, PagedIter};
-use crate::core::tgraph::vertices::vertex_store::VertexStore;
-use crate::core::tgraph::{VRef, VID};
+use itertools::Itertools;
+use std::{ops::Range, sync::Arc};
 
 pub struct Vertex<'a, const N: usize> {
     node: VRef<'a, N>,

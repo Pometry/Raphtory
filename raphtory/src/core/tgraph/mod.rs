@@ -3,11 +3,9 @@
 use std::ops::Deref;
 
 use edges::edge::ERef;
-use graph::tgraph::TGraph;
-use graph::tgraph_storage::GraphEntry;
+use graph::{tgraph::TGraph, tgraph_storage::GraphEntry};
 use serde::{Deserialize, Serialize};
-use vertices::vertex_ref::VertexRef;
-use vertices::vertex_store::VertexStore;
+use vertices::{vertex_ref::VertexRef, vertex_store::VertexStore};
 
 use super::{storage::Entry, Direction};
 

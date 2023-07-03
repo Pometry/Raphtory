@@ -3,7 +3,6 @@
 //! Utility functions used throughout the modules.
 
 use std::hash::{Hash, Hasher};
-
 use twox_hash::XxHash64;
 
 pub fn calculate_hash<T: Hash>(t: &T) -> u64 {

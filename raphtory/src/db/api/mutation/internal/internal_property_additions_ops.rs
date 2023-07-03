@@ -1,6 +1,7 @@
-use crate::core::utils::errors::GraphError;
-use crate::core::Prop;
-use crate::db::api::view::internal::Base;
+use crate::{
+    core::{utils::errors::GraphError, Prop},
+    db::api::view::internal::Base,
+};
 
 /// internal (dyn friendly) methods for adding properties
 pub trait InternalPropertyAdditionOps {

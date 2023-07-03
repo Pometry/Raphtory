@@ -1,14 +1,20 @@
-use crate::model::filters::edgefilter::EdgeFilter;
-use crate::model::graph::edge::Edge;
-use crate::model::graph::property::Property;
-use crate::model::graph::property_update::PropertyUpdate;
+use crate::model::{
+    filters::edgefilter::EdgeFilter,
+    graph::{edge::Edge, property::Property, property_update::PropertyUpdate},
+};
 use async_graphql::Context;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
-use raphtory::core::Prop;
-use raphtory::db::api::view::internal::{DynamicGraph, IntoDynamic};
-use raphtory::db::api::view::*;
-use raphtory::db::graph::vertex::VertexView;
+use raphtory::{
+    core::Prop,
+    db::{
+        api::view::{
+            internal::{DynamicGraph, IntoDynamic},
+            *,
+        },
+        graph::vertex::VertexView,
+    },
+};
 
 #[derive(ResolvedObject)]
 pub(crate) struct Node {

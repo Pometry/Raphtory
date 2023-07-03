@@ -1,11 +1,14 @@
-use crate::core::storage::locked_view::LockedView;
-use crate::core::storage::timeindex::TimeIndex;
-use crate::core::tgraph::edges::edge_ref::EdgeRef;
-use crate::core::tgraph::graph::tgraph::InnerTemporalGraph;
-use crate::core::tgraph::properties::tprop::TProp;
-use crate::core::tgraph::vertices::vertex_ref::VertexRef;
-use crate::db::api::view::internal::CoreGraphOps;
-use crate::{core::tgraph::VID, prelude::Prop};
+use crate::{
+    core::{
+        storage::{locked_view::LockedView, timeindex::TimeIndex},
+        tgraph::{
+            edges::edge_ref::EdgeRef, graph::tgraph::InnerTemporalGraph, properties::tprop::TProp,
+            vertices::vertex_ref::VertexRef, VID,
+        },
+    },
+    db::api::view::internal::CoreGraphOps,
+    prelude::Prop,
+};
 
 impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
     fn get_layer_name_by_id(&self, layer_id: usize) -> String {

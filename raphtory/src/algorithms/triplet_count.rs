@@ -32,12 +32,17 @@
 //!  println!("triplet count: {}", results);
 //! ```
 //!
-use crate::core::state::accumulator_id::accumulators::sum;
-use crate::core::state::compute_state::ComputeStateVec;
-use crate::db::api::view::{GraphViewOps, VertexViewOps};
-use crate::db::task::context::Context;
-use crate::db::task::task::{ATask, Job, Step};
-use crate::db::task::task_runner::TaskRunner;
+use crate::{
+    core::state::{accumulator_id::accumulators::sum, compute_state::ComputeStateVec},
+    db::{
+        api::view::{GraphViewOps, VertexViewOps},
+        task::{
+            context::Context,
+            task::{ATask, Job, Step},
+            task_runner::TaskRunner,
+        },
+    },
+};
 
 /// Computes the number of both open and closed triplets within a graph
 ///
@@ -56,8 +61,6 @@ use crate::db::task::task_runner::TaskRunner;
 ///
 /// ```rust
 /// use raphtory::algorithms::triplet_count::triplet_count;
-/// use raphtory::db::api::mutation::AdditionOps;
-/// use raphtory::db::api::view::*;
 /// use raphtory::prelude::*;
 /// let graph = Graph::new();
 ///  let edges = vec![
@@ -111,9 +114,10 @@ pub fn triplet_count<G: GraphViewOps>(g: &G, threads: Option<usize>) -> usize {
 #[cfg(test)]
 mod triplet_test {
     use super::*;
-    use crate::db::api::mutation::AdditionOps;
-    use crate::db::api::view::*;
-    use crate::db::graph::graph::Graph;
+    use crate::db::{
+        api::{mutation::AdditionOps, view::*},
+        graph::graph::Graph,
+    };
     use pretty_assertions::assert_eq;
 
     /// Test the global clustering coefficient

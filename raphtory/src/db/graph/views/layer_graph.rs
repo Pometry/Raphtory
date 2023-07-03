@@ -1,11 +1,13 @@
-use crate::core::tgraph::edges::edge_ref::EdgeRef;
-use crate::core::tgraph::vertices::vertex_ref::VertexRef;
-use crate::core::tgraph::VID;
-use crate::core::Direction;
-use crate::db::api::view::internal::{
-    Base, GraphOps, InheritCoreOps, InheritMaterialize, InheritTimeSemantics,
+use crate::{
+    core::{
+        tgraph::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef, VID},
+        Direction,
+    },
+    db::api::view::internal::{
+        Base, GraphOps, InheritCoreOps, InheritMaterialize, InheritTimeSemantics,
+    },
+    prelude::GraphViewOps,
 };
-use crate::prelude::GraphViewOps;
 use itertools::Itertools;
 
 #[derive(Debug, Clone)]

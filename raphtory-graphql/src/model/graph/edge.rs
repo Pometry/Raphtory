@@ -1,10 +1,12 @@
-use crate::model::graph::node::Node;
-use crate::model::graph::property::Property;
+use crate::model::graph::{node::Node, property::Property};
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
-use raphtory::db::api::view::internal::{DynamicGraph, IntoDynamic};
-use raphtory::db::api::view::EdgeViewOps;
-use raphtory::db::api::view::GraphViewOps;
-use raphtory::db::graph::edge::EdgeView;
+use raphtory::db::{
+    api::view::{
+        internal::{DynamicGraph, IntoDynamic},
+        EdgeViewOps, GraphViewOps,
+    },
+    graph::edge::EdgeView,
+};
 
 #[derive(ResolvedObject)]
 pub(crate) struct Edge {

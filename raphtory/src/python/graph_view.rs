@@ -1,24 +1,36 @@
 //! The API for querying a view of the graph in a read-only state
-use crate::core::tgraph::vertices::vertex_ref::VertexRef;
-use crate::core::utils::errors::GraphError;
-use crate::core::utils::time::error::ParseTimeError;
-use crate::core::Prop;
-use crate::db::api::view::internal::{DynamicGraph, IntoDynamic, MaterializedGraph};
-use crate::db::api::view::{LayerOps, WindowSet};
-use crate::db::graph::edge::EdgeView;
-use crate::db::graph::vertex::VertexView;
-use crate::db::graph::views::window_graph::WindowedGraph;
-use crate::db::graph::views::layer_graph::LayeredGraph;
-use crate::db::graph::views::vertex_subgraph::VertexSubgraph;
-use crate::prelude::*;
-use crate::python;
-use crate::python::utils::{PyInterval, PyTime};
-use crate::*;
+use crate::{
+    core::{
+        tgraph::vertices::vertex_ref::VertexRef,
+        utils::{errors::GraphError, time::error::ParseTimeError},
+        Prop,
+    },
+    db::{
+        api::view::{
+            internal::{DynamicGraph, IntoDynamic, MaterializedGraph},
+            LayerOps, WindowSet,
+        },
+        graph::{
+            edge::EdgeView,
+            vertex::VertexView,
+            views::{
+                layer_graph::LayeredGraph, vertex_subgraph::VertexSubgraph,
+                window_graph::WindowedGraph,
+            },
+        },
+    },
+    prelude::*,
+    python,
+    python::utils::{PyInterval, PyTime},
+    *,
+};
 use chrono::prelude::*;
 use pyo3::prelude::*;
-use python::edge::PyEdges;
-use python::types::repr::Repr;
-use python::vertex::{PyVertex, PyVertices};
+use python::{
+    edge::PyEdges,
+    types::repr::Repr,
+    vertex::{PyVertex, PyVertices},
+};
 use std::collections::HashMap;
 
 impl IntoPy<PyObject> for MaterializedGraph {

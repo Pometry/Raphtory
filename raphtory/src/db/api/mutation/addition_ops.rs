@@ -1,8 +1,13 @@
-use crate::core::tgraph::vertices::input_vertex::InputVertex;
-use crate::core::utils::errors::GraphError;
-use crate::core::utils::time::{IntoTimeWithFormat, TryIntoTime};
-use crate::db::api::mutation::internal::InternalAdditionOps;
-use crate::db::api::mutation::Properties;
+use crate::{
+    core::{
+        tgraph::vertices::input_vertex::InputVertex,
+        utils::{
+            errors::GraphError,
+            time::{IntoTimeWithFormat, TryIntoTime},
+        },
+    },
+    db::api::mutation::{internal::InternalAdditionOps, Properties},
+};
 
 pub trait AdditionOps {
     // TODO: Probably add vector reference here like add

@@ -2,15 +2,16 @@
 //!
 //! This module contains helper functions for the Python bindings.
 //! These functions are not part of the public API and are not exported to the Python module.
-use crate::core::tgraph::vertices::input_vertex::InputVertex;
-use crate::core::tgraph::vertices::vertex_ref::VertexRef;
-use crate::core::utils::time::error::ParseTimeError;
-use crate::core::utils::time::{Interval, IntoTime, TryIntoTime};
-use crate::db::api::view::*;
-use crate::python::vertex::PyVertex;
+use crate::{
+    core::{
+        tgraph::vertices::{input_vertex::InputVertex, vertex_ref::VertexRef},
+        utils::time::{error::ParseTimeError, Interval, IntoTime, TryIntoTime},
+    },
+    db::api::view::*,
+    python::vertex::PyVertex,
+};
 use chrono::NaiveDateTime;
-use pyo3::exceptions::PyTypeError;
-use pyo3::prelude::*;
+use pyo3::{exceptions::PyTypeError, prelude::*};
 
 /// Extract a `VertexRef` from a Python object.
 /// The object can be a `str`, `u64` or `PyVertex`.

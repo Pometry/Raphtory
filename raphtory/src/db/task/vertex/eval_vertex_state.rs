@@ -1,6 +1,5 @@
-use std::{borrow::Cow, cell::RefCell, rc::Rc};
-
 use crate::core::state::{compute_state::ComputeState, shuffle_state::ShuffleComputeState};
+use std::{borrow::Cow, cell::RefCell, rc::Rc};
 
 #[derive(Debug)]
 pub(crate) struct EVState<'a, CS: ComputeState> {

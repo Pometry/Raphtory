@@ -1,6 +1,7 @@
-use crate::core::Prop;
-use crate::db::api::view::edge::EdgeListOps;
-use crate::db::api::view::{GraphViewOps, TimeOps};
+use crate::{
+    core::Prop,
+    db::api::view::{edge::EdgeListOps, GraphViewOps, TimeOps},
+};
 use std::collections::HashMap;
 
 /// Operations defined for a vertex

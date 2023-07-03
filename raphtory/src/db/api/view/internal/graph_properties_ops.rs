@@ -1,8 +1,10 @@
-use crate::core::tgraph::edges::edge_ref::EdgeRef;
-use crate::core::tgraph::VID;
-use crate::core::Prop;
-use crate::db::api::view::internal::time_semantics::TimeSemantics;
-use crate::db::api::view::internal::CoreGraphOps;
+use crate::{
+    core::{
+        tgraph::{edges::edge_ref::EdgeRef, VID},
+        Prop,
+    },
+    db::api::view::internal::{time_semantics::TimeSemantics, CoreGraphOps},
+};
 use std::collections::HashMap;
 
 /// Additional methods for retrieving properties that are automatically implemented

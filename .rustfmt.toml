@@ -1,1 +1,2 @@
-#will enable imports_granularity = "Crate" when it is stable
+#will enable when it is stable
+imports_granularity = "Crate"

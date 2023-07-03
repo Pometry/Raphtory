@@ -14,13 +14,12 @@ mod state_test {
     use itertools::Itertools;
     use rand::Rng;
 
-    use crate::db::api::mutation::AdditionOps;
     use crate::{
         core::state::{
             accumulator_id::accumulators, compute_state::ComputeStateVec, container::merge_2_vecs,
             morcel_state::MorcelComputeState, shuffle_state::ShuffleComputeState,
         },
-        db::graph::graph::Graph,
+        db::{api::mutation::AdditionOps, graph::graph::Graph},
     };
 
     #[quickcheck]

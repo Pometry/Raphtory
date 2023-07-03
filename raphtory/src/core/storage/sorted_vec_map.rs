@@ -1,7 +1,6 @@
-use std::ops::Range;
-
 use serde::{ser::SerializeSeq, Deserialize, Serialize};
 use sorted_vector_map::SortedVectorMap;
+use std::ops::Range;
 
 // wrapper for SortedVectorMap
 #[derive(Debug, PartialEq, Default, Clone)]

@@ -15,19 +15,16 @@
 //! ```rust
 //! use raphtory::graph_loader::example::lotr_graph::lotr_graph;
 //! use raphtory::prelude::*;
-//! use raphtory::db::api::view::*;
 //!
 //! let graph = lotr_graph();
 //!
 //! println!("The graph has {:?} vertices", graph.num_vertices());
 //! println!("The graph has {:?} edges", graph.num_edges());
 //! ```
-use crate::prelude::*;
-
-use crate::graph_loader::fetch_file;
-
-use crate::db::api::mutation::AdditionOps;
-use crate::graph_loader::source::csv_loader::CsvLoader;
+use crate::{
+    graph_loader::{fetch_file, source::csv_loader::CsvLoader},
+    prelude::*,
+};
 use serde::Deserialize;
 use std::path::PathBuf;
 

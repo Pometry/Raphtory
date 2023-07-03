@@ -1,12 +1,7 @@
-use crate::core::Prop;
-use crate::db::api::mutation::{AdditionOps, PropertyAdditionOps};
-use crate::db::api::view::*;
-use crate::graph_loader::source::csv_loader::CsvLoader;
-use crate::prelude::*;
+use crate::{core::Prop, graph_loader::source::csv_loader::CsvLoader, prelude::*};
 use chrono::NaiveDateTime;
 use serde::Deserialize;
-use std::path::PathBuf;
-use std::{fs, time::Instant};
+use std::{fs, path::PathBuf, time::Instant};
 
 #[derive(Deserialize, std::fmt::Debug)]
 pub struct CompanyHouse {

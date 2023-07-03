@@ -4,10 +4,8 @@
 //! ```no_run
 //! use std::path::{Path, PathBuf};
 //! use regex::Regex;
-//! use raphtory::core::Prop;
 //! use raphtory::core::utils::hashing::calculate_hash;
 //! use raphtory::graph_loader::source::csv_loader::CsvLoader;
-//! use raphtory::db::api::mutation::AdditionOps;
 //! use raphtory::graph_loader::example::lotr_graph::Lotr;
 //! use raphtory::prelude::*;
 //!
@@ -67,13 +65,16 @@ use flate2::read::GzDecoder;
 use rayon::prelude::*;
 use regex::Regex;
 use serde::de::DeserializeOwned;
-use std::collections::VecDeque;
-use std::error::Error;
-use std::fmt::{Debug, Display, Formatter};
-use std::fs::File;
-use std::io::BufReader;
-use std::path::{Path, PathBuf};
-use std::{fs, io};
+use std::{
+    collections::VecDeque,
+    error::Error,
+    fmt::{Debug, Display, Formatter},
+    fs,
+    fs::File,
+    io,
+    io::BufReader,
+    path::{Path, PathBuf},
+};
 
 #[derive(Debug)]
 pub enum CsvErr {
@@ -403,11 +404,10 @@ impl CsvLoader {
 
 #[cfg(test)]
 mod csv_loader_test {
-    use crate::core::utils::hashing::calculate_hash;
-    use crate::core::Prop;
-    use crate::db::api::mutation::AdditionOps;
-    use crate::prelude::*;
-    use crate::graph_loader::source::csv_loader::CsvLoader;
+    use crate::{
+        core::utils::hashing::calculate_hash, graph_loader::source::csv_loader::CsvLoader,
+        prelude::*,
+    };
     use regex::Regex;
     use serde::Deserialize;
     use std::path::{Path, PathBuf};

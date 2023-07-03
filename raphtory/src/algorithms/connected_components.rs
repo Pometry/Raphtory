@@ -1,15 +1,16 @@
-use crate::db::api::view::{GraphViewOps, VertexViewOps};
-use crate::db::task::vertex::eval_vertex::EvalVertexView;
 use crate::{
     core::state::compute_state::ComputeStateVec,
-    db::task::{
-        context::Context,
-        task::{ATask, Job, Step},
-        task_runner::TaskRunner,
+    db::{
+        api::view::{GraphViewOps, VertexViewOps},
+        task::{
+            context::Context,
+            task::{ATask, Job, Step},
+            task_runner::TaskRunner,
+            vertex::eval_vertex::EvalVertexView,
+        },
     },
 };
-use std::cmp;
-use std::collections::HashMap;
+use std::{cmp, collections::HashMap};
 
 #[derive(Clone, Debug)]
 struct WccState {

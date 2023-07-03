@@ -1,13 +1,14 @@
+use crate::{
+    core::{state::compute_state::ComputeState, tgraph::edges::edge_ref::EdgeRef, Prop},
+    db::{
+        api::view::{internal::*, *},
+        task::{
+            task_state::Local2,
+            vertex::{eval_vertex_state::EVState, window_eval_vertex::WindowEvalVertex},
+        },
+    },
+};
 use std::{cell::RefCell, collections::HashMap, iter, marker::PhantomData, rc::Rc};
-
-use crate::core::tgraph::edges::edge_ref::EdgeRef;
-use crate::core::{state::compute_state::ComputeState, Prop};
-use crate::db::api::view::internal::*;
-use crate::db::api::view::*;
-use crate::db::task::vertex::eval_vertex_state::EVState;
-use crate::db::task::vertex::window_eval_vertex::WindowEvalVertex;
-
-use crate::db::task::task_state::Local2;
 
 pub struct WindowEvalEdgeView<'a, G: GraphViewOps, CS: ComputeState, S: 'static> {
     ss: usize,

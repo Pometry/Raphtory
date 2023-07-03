@@ -1,16 +1,14 @@
+use crate::core::{
+    storage::lazy_vec::LazyVec,
+    tgraph::{graph::tgraph::FxDashMap, properties::tprop::TProp},
+    utils::errors::{IllegalMutate, MutateGraphError},
+    Prop,
+};
+use serde::{Deserialize, Serialize};
 use std::{
     hash::Hash,
     sync::atomic::{AtomicUsize, Ordering},
 };
-
-use serde::{Deserialize, Serialize};
-
-use crate::core::storage::lazy_vec::LazyVec;
-
-use crate::core::tgraph::graph::tgraph::FxDashMap;
-use crate::core::tgraph::properties::tprop::TProp;
-use crate::core::utils::errors::{IllegalMutate, MutateGraphError};
-use crate::core::Prop;
 
 #[derive(Serialize, Deserialize, Default, Debug, PartialEq)]
 pub struct Props {
@@ -229,8 +227,7 @@ mod test {
     // map 5 strings to 5 ids from 4 threads concurrently 1000 times
     #[test]
     fn test_dict_mapper_concurrent() {
-        use std::sync::Arc;
-        use std::thread;
+        use std::{sync::Arc, thread};
 
         let mapper = Arc::new(DictMapper::default());
         let mut threads = Vec::new();

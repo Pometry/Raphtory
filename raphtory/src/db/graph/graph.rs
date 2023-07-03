@@ -7,9 +7,7 @@
 //! # Examples
 //!
 //! ```rust
-//! use raphtory::db::api::view::*;
-//! use raphtory::db::api::mutation::AdditionOps;
-//! use raphtory::prelude::Graph;
+//! use raphtory::prelude::*;
 //! let graph = Graph::new();
 //! graph.add_vertex(0, "Alice", vec![]).unwrap();
 //! graph.add_vertex(1, "Bob", vec![]).unwrap();
@@ -18,16 +16,20 @@
 //! ```
 //!
 
-use crate::core::tgraph::graph::tgraph::InnerTemporalGraph;
-use crate::core::utils::errors::GraphError;
-use crate::prelude::{EdgeListOps, EdgeViewOps, GraphViewOps, VertexViewOps};
-
+use crate::{
+    core::{tgraph::graph::tgraph::InnerTemporalGraph, utils::errors::GraphError},
+    db::api::{
+        mutation::internal::{InheritAdditionOps, InheritPropertyAdditionOps},
+        view::internal::{Base, DynamicGraph, InheritViewOps, IntoDynamic},
+    },
+    prelude::*,
+};
 use serde::{Deserialize, Serialize};
-use std::fmt::{Display, Formatter};
-use std::{path::Path, sync::Arc};
-
-use crate::db::api::mutation::internal::{InheritAdditionOps, InheritPropertyAdditionOps};
-use crate::db::api::view::internal::{Base, DynamicGraph, InheritViewOps, IntoDynamic};
+use std::{
+    fmt::{Display, Formatter},
+    path::Path,
+    sync::Arc,
+};
 
 const SEG: usize = 16;
 pub(crate) type InternalGraph = InnerTemporalGraph<SEG>;
@@ -146,18 +148,22 @@ impl IntoDynamic for Graph {
 #[cfg(test)]
 mod db_tests {
     use super::*;
-    use crate::core::tgraph::edges::edge_ref::EdgeRef;
-    use crate::core::tgraph::vertices::vertex_ref::VertexRef;
-    use crate::core::utils::time::error::ParseTimeError;
-    use crate::core::utils::time::TryIntoTime;
-    use crate::core::{Direction, Prop};
-    use crate::db::api::view::{
-        internal::*, EdgeListOps, EdgeViewOps, GraphViewOps, LayerOps, TimeOps, VertexViewOps,
+    use crate::{
+        core::{
+            tgraph::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef},
+            utils::time::{error::ParseTimeError, TryIntoTime},
+            Direction, Prop,
+        },
+        db::{
+            api::view::{
+                internal::*, EdgeListOps, EdgeViewOps, GraphViewOps, LayerOps, TimeOps,
+                VertexViewOps,
+            },
+            graph::{edge::EdgeView, path::PathFromVertex},
+        },
+        graphgen::random_attachment::random_attachment,
+        prelude::{AdditionOps, PropertyAdditionOps},
     };
-    use crate::db::graph::edge::EdgeView;
-    use crate::db::graph::path::PathFromVertex;
-    use crate::graphgen::random_attachment::random_attachment;
-    use crate::prelude::{AdditionOps, PropertyAdditionOps};
     use chrono::NaiveDateTime;
     use itertools::Itertools;
     use quickcheck::Arbitrary;

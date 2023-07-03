@@ -1,9 +1,14 @@
-use crate::core::state::accumulator_id::accumulators;
-use crate::core::state::compute_state::ComputeStateVec;
-use crate::db::api::view::*;
-use crate::db::task::context::Context;
-use crate::db::task::task::{ATask, Job, Step};
-use crate::db::task::task_runner::TaskRunner;
+use crate::{
+    core::state::{accumulator_id::accumulators, compute_state::ComputeStateVec},
+    db::{
+        api::view::*,
+        task::{
+            context::Context,
+            task::{ATask, Job, Step},
+            task_runner::TaskRunner,
+        },
+    },
+};
 use rustc_hash::FxHashSet;
 
 /// Computes the number of triangles in a graph using a fast algorithm
@@ -22,7 +27,6 @@ use rustc_hash::FxHashSet;
 /// ```rust
 /// use std::{cmp::Reverse, iter::once};
 /// use raphtory::algorithms::triangle_count::triangle_count;
-/// use raphtory::db::api::mutation::AdditionOps;
 /// use raphtory::prelude::*;
 ///
 /// let graph = Graph::new();
@@ -116,8 +120,7 @@ pub fn triangle_count<G: GraphViewOps>(g: &G, threads: Option<usize>) -> usize {
 #[cfg(test)]
 mod triangle_count_tests {
     use super::*;
-    use crate::db::api::mutation::AdditionOps;
-    use crate::db::graph::graph::Graph;
+    use crate::db::{api::mutation::AdditionOps, graph::graph::Graph};
 
     #[test]
     fn triangle_count_1() {

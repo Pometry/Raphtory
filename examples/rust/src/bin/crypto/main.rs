@@ -1,10 +1,12 @@
 use itertools::Itertools;
-use raphtory::algorithms::pagerank::unweighted_page_rank;
-use raphtory::algorithms::temporal_reachability::temporally_reachable_nodes;
-use raphtory::db::api::view::*;
-use raphtory::graph_loader::example::stable_coins::stable_coin_graph;
-use std::env;
-use std::time::Instant;
+use raphtory::{
+    algorithms::{
+        pagerank::unweighted_page_rank, temporal_reachability::temporally_reachable_nodes,
+    },
+    db::api::view::*,
+    graph_loader::example::stable_coins::stable_coin_graph,
+};
+use std::{env, time::Instant};
 
 fn main() {
     let args: Vec<String> = env::args().collect();

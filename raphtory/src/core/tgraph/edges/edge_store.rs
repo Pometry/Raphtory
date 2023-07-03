@@ -1,16 +1,16 @@
-use std::ops::{Deref, DerefMut, Range};
-
+use crate::core::{
+    storage::timeindex::TimeIndex,
+    tgraph::{
+        edges::edge_ref::EdgeRef,
+        properties::{props::Props, tprop::TProp},
+        EID, VID,
+    },
+    utils::errors::MutateGraphError,
+    Prop,
+};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-
-use crate::core::storage::timeindex::TimeIndex;
-use crate::core::tgraph::properties::tprop::TProp;
-use crate::core::Prop;
-
-use crate::core::tgraph::edges::edge_ref::EdgeRef;
-use crate::core::tgraph::properties::props::Props;
-use crate::core::tgraph::{EID, VID};
-use crate::core::utils::errors::MutateGraphError;
+use std::ops::{Deref, DerefMut, Range};
 
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
 pub(crate) struct EdgeStore<const N: usize> {

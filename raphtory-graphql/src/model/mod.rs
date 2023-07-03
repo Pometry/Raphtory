@@ -1,5 +1,7 @@
-use crate::data::Data;
-use crate::model::graph::graph::{GqlGraph, GraphMeta};
+use crate::{
+    data::Data,
+    model::graph::graph::{GqlGraph, GraphMeta},
+};
 use async_graphql::Context;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;

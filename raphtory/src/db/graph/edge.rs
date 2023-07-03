@@ -5,16 +5,22 @@
 //! and can have properties associated with them.
 //!
 
-use crate::core::tgraph::edges::edge_ref::EdgeRef;
-use crate::core::tgraph::vertices::vertex_ref::VertexRef;
-use crate::core::utils::time::IntoTime;
-use crate::db::api::view::{BoxedIter, EdgeViewInternalOps};
-use crate::db::graph::vertex::VertexView;
-use crate::db::graph::views::window_graph::WindowedGraph;
-use crate::prelude::{EdgeListOps, EdgeViewOps, GraphViewOps, Prop, TimeOps, VertexViewOps};
-use std::collections::HashMap;
-use std::fmt::{Debug, Formatter};
-use std::iter;
+use crate::{
+    core::{
+        tgraph::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef},
+        utils::time::IntoTime,
+    },
+    db::{
+        api::view::{BoxedIter, EdgeViewInternalOps},
+        graph::{vertex::VertexView, views::window_graph::WindowedGraph},
+    },
+    prelude::*,
+};
+use std::{
+    collections::HashMap,
+    fmt::{Debug, Formatter},
+    iter,
+};
 
 /// A view of an edge in the graph.
 #[derive(Clone)]

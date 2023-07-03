@@ -1,8 +1,6 @@
-use crate::model::filters::primitives::NumberFilter;
-use crate::model::graph::node::Node;
+use crate::model::{filters::primitives::NumberFilter, graph::node::Node};
 use dynamic_graphql::InputObject;
-use raphtory::core::Prop;
-use raphtory::db::api::view::VertexViewOps;
+use raphtory::{core::Prop, db::api::view::VertexViewOps};
 
 #[derive(InputObject)]
 pub(crate) struct PropertyHasFilter {

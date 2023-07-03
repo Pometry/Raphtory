@@ -1,8 +1,10 @@
-use crate::core::tgraph::vertices::input_vertex::InputVertex;
-use crate::core::utils::errors::GraphError;
-use crate::core::utils::time::TryIntoTime;
-use crate::db::api::mutation::internal::InternalPropertyAdditionOps;
-use crate::db::api::mutation::Properties;
+use crate::{
+    core::{
+        tgraph::vertices::input_vertex::InputVertex,
+        utils::{errors::GraphError, time::TryIntoTime},
+    },
+    db::api::mutation::{internal::InternalPropertyAdditionOps, Properties},
+};
 
 pub trait PropertyAdditionOps {
     /// Adds properties to the given input vertex.

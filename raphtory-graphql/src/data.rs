@@ -1,7 +1,8 @@
-// use raphtory::db::view::internal::CoreGraphOps;
 use raphtory::prelude::{Graph, GraphViewOps};
-use std::collections::{HashMap, HashSet};
-use std::path::Path;
+use std::{
+    collections::{HashMap, HashSet},
+    path::Path,
+};
 use walkdir::WalkDir;
 
 pub(crate) struct Data {

@@ -1,14 +1,21 @@
-use crate::core::state::accumulator_id::accumulators::{hash_set, min, or};
-use crate::core::state::compute_state::ComputeStateVec;
-use crate::core::tgraph::vertices::input_vertex::InputVertex;
-use crate::db::task::context::Context;
-use crate::db::task::task::{ATask, Job, Step};
-use crate::db::task::task_runner::TaskRunner;
-use crate::prelude::*;
+use crate::{
+    core::{
+        state::{
+            accumulator_id::accumulators::{hash_set, min, or},
+            compute_state::ComputeStateVec,
+        },
+        tgraph::vertices::input_vertex::InputVertex,
+    },
+    db::task::{
+        context::Context,
+        task::{ATask, Job, Step},
+        task_runner::TaskRunner,
+    },
+    prelude::*,
+};
 use itertools::Itertools;
 use num_traits::Zero;
-use std::collections::HashMap;
-use std::ops::Add;
+use std::{collections::HashMap, ops::Add};
 
 #[derive(Eq, Hash, PartialEq, Clone, Debug, Default)]
 pub struct TaintMessage {
@@ -183,8 +190,7 @@ pub fn temporally_reachable_nodes<G: GraphViewOps, T: InputVertex>(
 #[cfg(test)]
 mod generic_taint_tests {
     use super::*;
-    use crate::db::api::mutation::AdditionOps;
-    use crate::db::graph::graph::Graph;
+    use crate::db::{api::mutation::AdditionOps, graph::graph::Graph};
 
     fn load_graph(edges: Vec<(i64, u64, u64)>) -> Graph {
         let graph = Graph::new();

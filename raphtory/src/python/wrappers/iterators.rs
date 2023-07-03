@@ -1,13 +1,14 @@
-use crate::core as db_c;
-use crate::db::api::view::BoxedIter;
-use crate::python::types::repr::Repr;
-use crate::python::wrappers::prop::{PropHistories, PropHistory, PropValue, Props};
+use crate::{
+    core as db_c,
+    db::api::view::BoxedIter,
+    python::{
+        types::repr::Repr,
+        wrappers::prop::{PropHistories, PropHistory, PropValue, Props},
+    },
+};
 use num::cast::AsPrimitive;
 use pyo3::prelude::*;
-use std::collections::HashMap;
-use std::i64;
-use std::iter::Sum;
-use std::ops::Deref;
+use std::{collections::HashMap, i64, iter::Sum, ops::Deref};
 
 pub(crate) trait MeanExt<V>: Iterator<Item = V>
 where

@@ -1,10 +1,7 @@
 #![allow(dead_code)]
 
 use criterion::{measurement::WallTime, BatchSize, Bencher, BenchmarkGroup, BenchmarkId};
-use rand::seq::*;
-use rand::{distributions::Uniform, Rng};
-use raphtory::db::api::mutation::AdditionOps;
-use raphtory::db::api::view::*;
+use rand::{distributions::Uniform, seq::*, Rng};
 use raphtory::prelude::*;
 use std::collections::HashSet;
 

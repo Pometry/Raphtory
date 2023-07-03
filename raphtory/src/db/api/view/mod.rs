@@ -12,6 +12,5 @@ pub use graph::*;
 pub use layer::*;
 pub use time::*;
 pub use vertex::*;
-pub use vertex::*;
 
 pub type BoxedIter<T> = Box<dyn Iterator<Item = T> + Send>;

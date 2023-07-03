@@ -1,23 +1,25 @@
-use std::{
-    borrow::Cow,
-    rc::Rc,
-    sync::atomic::{AtomicBool, Ordering},
-};
-
-use rayon::{prelude::*, ThreadPool};
-
-use crate::core::state::compute_state::ComputeState;
-use crate::core::state::shuffle_state::{EvalLocalState, EvalShardState};
-use crate::db::api::view::GraphViewOps;
-use crate::db::task::vertex::eval_vertex::EvalVertexView;
-use crate::db::task::vertex::eval_vertex_state::EVState;
-
 use super::{
     context::{Context, GlobalState},
     custom_pool,
     task::{Job, Step, Task},
     task_state::{Global, Local2, Shard},
     POOL,
+};
+use crate::{
+    core::state::{
+        compute_state::ComputeState,
+        shuffle_state::{EvalLocalState, EvalShardState},
+    },
+    db::{
+        api::view::GraphViewOps,
+        task::vertex::{eval_vertex::EvalVertexView, eval_vertex_state::EVState},
+    },
+};
+use rayon::{prelude::*, ThreadPool};
+use std::{
+    borrow::Cow,
+    rc::Rc,
+    sync::atomic::{AtomicBool, Ordering},
 };
 
 pub struct TaskRunner<G: GraphViewOps, CS: ComputeState> {

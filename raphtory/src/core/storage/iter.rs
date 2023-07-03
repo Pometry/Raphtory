@@ -1,6 +1,5 @@
-use std::{ops::Deref, sync::Arc};
-
 use super::RawStorage;
+use std::{ops::Deref, sync::Arc};
 
 pub struct Iter<'a, T, const N: usize> {
     raw: &'a RawStorage<T, N>,

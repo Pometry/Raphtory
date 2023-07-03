@@ -1,11 +1,10 @@
+use crate::core::{
+    tgraph::{vertices::structure::adjset::AdjSet, EID, VID},
+    Direction,
+};
 use core::panic;
-
-use crate::core::Direction;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-
-use crate::core::tgraph::vertices::structure::adjset::AdjSet;
-use crate::core::tgraph::{EID, VID};
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Default)]
 pub(crate) enum Adj {

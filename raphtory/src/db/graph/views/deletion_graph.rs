@@ -1,24 +1,27 @@
-use crate::core::storage::timeindex::TimeIndexOps;
-use crate::core::tgraph::edges::edge_ref::EdgeRef;
-use crate::core::tgraph::VID;
-use crate::core::utils::errors::GraphError;
-use crate::core::{Direction, Prop};
-
-use crate::db::api::mutation::internal::InheritMutationOps;
-use crate::db::api::view::internal::{
-    Base, CoreDeletionOps, CoreGraphOps, DynamicGraph, GraphOps, InheritCoreDeletionOps,
-    InheritCoreOps, InheritGraphOps, InternalMaterialize, IntoDynamic, MaterializedGraph,
-    TimeSemantics,
+use crate::{
+    core::{
+        storage::timeindex::TimeIndexOps,
+        tgraph::{edges::edge_ref::EdgeRef, VID},
+        utils::errors::GraphError,
+        Direction, Prop,
+    },
+    db::{
+        api::{
+            mutation::internal::InheritMutationOps,
+            view::{internal::*, BoxedIter},
+        },
+        graph::graph::{graph_equal, InternalGraph},
+    },
+    prelude::*,
 };
-use crate::db::api::view::BoxedIter;
-use crate::db::graph::graph::{graph_equal, InternalGraph};
-use crate::prelude::GraphViewOps;
-use std::cmp::min;
-use std::fmt::{Display, Formatter};
-use std::iter;
-use std::ops::Range;
-use std::path::Path;
-use std::sync::Arc;
+use std::{
+    cmp::min,
+    fmt::{Display, Formatter},
+    iter,
+    ops::Range,
+    path::Path,
+    sync::Arc,
+};
 
 #[derive(Clone, Debug)]
 pub struct GraphWithDeletions {
@@ -81,7 +84,6 @@ impl GraphWithDeletions {
     ///
     /// ```no_run
     /// use std::fs::File;
-    /// use raphtory::db::api::mutation::AdditionOps;
     /// use raphtory::prelude::*;
     /// let g = Graph::new();
     /// g.add_vertex(1, 1, []).unwrap();
@@ -334,8 +336,7 @@ impl TimeSemantics for GraphWithDeletions {
 
 #[cfg(test)]
 mod test_deletions {
-    use crate::db::graph::views::deletion_graph::GraphWithDeletions;
-    use crate::prelude::*;
+    use crate::{db::graph::views::deletion_graph::GraphWithDeletions, prelude::*};
     use itertools::Itertools;
 
     #[test]

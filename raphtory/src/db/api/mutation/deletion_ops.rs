@@ -1,7 +1,13 @@
-use crate::core::tgraph::vertices::input_vertex::InputVertex;
-use crate::core::utils::errors::GraphError;
-use crate::core::utils::time::{IntoTimeWithFormat, TryIntoTime};
-use crate::db::api::mutation::internal::InternalDeletionOps;
+use crate::{
+    core::{
+        tgraph::vertices::input_vertex::InputVertex,
+        utils::{
+            errors::GraphError,
+            time::{IntoTimeWithFormat, TryIntoTime},
+        },
+    },
+    db::api::mutation::internal::InternalDeletionOps,
+};
 
 pub trait DeletionOps {
     fn delete_edge<V: InputVertex, T: TryIntoTime>(

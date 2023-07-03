@@ -5,24 +5,31 @@
 use crate::python::graph_view::PyGraphView;
 use std::collections::HashMap;
 
-use crate::algorithms::connected_components;
-use crate::algorithms::degree::{
-    average_degree as average_degree_rs, max_in_degree as max_in_degree_rs,
-    max_out_degree as max_out_degree_rs, min_in_degree as min_in_degree_rs,
-    min_out_degree as min_out_degree_rs,
+use crate::{
+    algorithms::{
+        connected_components,
+        degree::{
+            average_degree as average_degree_rs, max_in_degree as max_in_degree_rs,
+            max_out_degree as max_out_degree_rs, min_in_degree as min_in_degree_rs,
+            min_out_degree as min_out_degree_rs,
+        },
+        directed_graph_density::directed_graph_density as directed_graph_density_rs,
+        local_clustering_coefficient::local_clustering_coefficient as local_clustering_coefficient_rs,
+        local_triangle_count::local_triangle_count as local_triangle_count_rs,
+        motifs::three_node_local::{
+            global_temporal_three_node_motifs as global_temporal_three_node_motif_rs,
+            local_temporal_three_node_motifs as local_three_node_rs,
+        },
+        pagerank::unweighted_page_rank,
+        reciprocity::{
+            all_local_reciprocity as all_local_reciprocity_rs,
+            global_reciprocity as global_reciprocity_rs,
+        },
+        temporal_reachability::temporally_reachable_nodes as temporal_reachability_rs,
+    },
+    core::tgraph::vertices::vertex_ref::VertexRef,
+    python::utils::PyInputVertex,
 };
-use crate::algorithms::directed_graph_density::directed_graph_density as directed_graph_density_rs;
-use crate::algorithms::local_clustering_coefficient::local_clustering_coefficient as local_clustering_coefficient_rs;
-use crate::algorithms::local_triangle_count::local_triangle_count as local_triangle_count_rs;
-use crate::algorithms::motifs::three_node_local::global_temporal_three_node_motifs as global_temporal_three_node_motif_rs;
-use crate::algorithms::motifs::three_node_local::local_temporal_three_node_motifs as local_three_node_rs;
-use crate::algorithms::pagerank::unweighted_page_rank;
-use crate::algorithms::reciprocity::{
-    all_local_reciprocity as all_local_reciprocity_rs, global_reciprocity as global_reciprocity_rs,
-};
-use crate::algorithms::temporal_reachability::temporally_reachable_nodes as temporal_reachability_rs;
-use crate::core::tgraph::vertices::vertex_ref::VertexRef;
-use crate::python::utils::PyInputVertex;
 use pyo3::prelude::*;
 
 /// Local triangle count - calculates the number of triangles (a cycle of length 3) a vertex participates in.

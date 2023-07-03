@@ -1,7 +1,4 @@
-use crate::core::storage::lazy_vec::IllegalSet;
-use crate::core::utils::time::error::ParseTimeError;
-
-use crate::core::Prop;
+use crate::core::{storage::lazy_vec::IllegalSet, utils::time::error::ParseTimeError, Prop};
 
 #[derive(thiserror::Error, Debug)]
 pub enum GraphError {

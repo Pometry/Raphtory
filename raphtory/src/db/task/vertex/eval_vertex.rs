@@ -1,27 +1,36 @@
-use crate::core::state::{
-    accumulator_id::AccId, agg::Accumulator, compute_state::ComputeState, StateType,
+use crate::{
+    core::{
+        state::{accumulator_id::AccId, agg::Accumulator, compute_state::ComputeState, StateType},
+        tgraph::VID,
+        utils::time::IntoTime,
+        Direction, Prop,
+    },
+    db::{
+        api::view::{
+            internal::GraphPropertiesOps, BoxedIter, EdgeListOps, EdgeViewOps, GraphViewOps,
+            TimeOps, VertexListOps, VertexViewOps,
+        },
+        graph::{
+            edge::EdgeView,
+            path::{Operations, PathFromVertex},
+        },
+        task::{
+            edge::eval_edge::EvalEdgeView,
+            task_state::Local2,
+            vertex::{
+                eval_vertex_state::EVState,
+                window_eval_vertex::{WindowEvalPathFromVertex, WindowEvalVertex},
+            },
+        },
+    },
 };
-use crate::core::tgraph::VID;
-use crate::core::utils::time::IntoTime;
-use crate::core::{Direction, Prop};
-use crate::db::api::view::internal::GraphPropertiesOps;
-use crate::db::api::view::{
-    BoxedIter, EdgeListOps, EdgeViewOps, GraphViewOps, TimeOps, VertexListOps, VertexViewOps,
-};
-use crate::db::graph::edge::EdgeView;
-use crate::db::graph::path::{Operations, PathFromVertex};
-use crate::db::task::edge::eval_edge::EvalEdgeView;
 use itertools::Itertools;
-use std::collections::HashMap;
-use std::marker::PhantomData;
 use std::{
     cell::{Ref, RefCell},
+    collections::HashMap,
+    marker::PhantomData,
     rc::Rc,
 };
-
-use crate::db::task::task_state::Local2;
-use crate::db::task::vertex::eval_vertex_state::EVState;
-use crate::db::task::vertex::window_eval_vertex::{WindowEvalPathFromVertex, WindowEvalVertex};
 
 pub struct EvalVertexView<'a, G: GraphViewOps, CS: ComputeState, S: 'static> {
     ss: usize,

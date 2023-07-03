@@ -1,8 +1,10 @@
-use crate::core::tgraph::edges::edge_ref::EdgeRef;
-use crate::core::tgraph::vertices::vertex_ref::VertexRef;
-use crate::core::tgraph::VID;
-use crate::core::Direction;
-use crate::db::api::view::internal::Base;
+use crate::{
+    core::{
+        tgraph::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef, VID},
+        Direction,
+    },
+    db::api::view::internal::Base,
+};
 
 /// The GraphViewInternalOps trait provides a set of methods to query a directed graph
 /// represented by the raphtory_core::tgraph::TGraph struct.

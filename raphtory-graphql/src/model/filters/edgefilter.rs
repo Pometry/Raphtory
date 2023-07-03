@@ -1,5 +1,7 @@
-use crate::model::filters::primitives::{StringFilter, StringVecFilter};
-use crate::model::graph::edge::Edge;
+use crate::model::{
+    filters::primitives::{StringFilter, StringVecFilter},
+    graph::edge::Edge,
+};
 use dynamic_graphql::InputObject;
 use raphtory::db::api::view::{EdgeViewOps, VertexViewOps};
 

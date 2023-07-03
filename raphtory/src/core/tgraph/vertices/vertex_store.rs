@@ -1,18 +1,17 @@
-use std::ops::Range;
-
+use crate::core::{
+    storage::timeindex::TimeIndex,
+    tgraph::{
+        edges::edge_ref::EdgeRef,
+        properties::{props::Props, tprop::TProp},
+        vertices::structure::{adj, adj::Adj},
+        EID, VID,
+    },
+    utils::errors::MutateGraphError,
+    Direction, Prop,
+};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-
-use crate::core::storage::timeindex::TimeIndex;
-use crate::core::tgraph::properties::tprop::TProp;
-use crate::core::tgraph::vertices::structure::adj;
-use crate::core::{Direction, Prop};
-
-use crate::core::tgraph::edges::edge_ref::EdgeRef;
-use crate::core::tgraph::properties::props::Props;
-use crate::core::tgraph::vertices::structure::adj::Adj;
-use crate::core::tgraph::{EID, VID};
-use crate::core::utils::errors::MutateGraphError;
+use std::ops::Range;
 
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
 pub(crate) struct VertexStore<const N: usize> {

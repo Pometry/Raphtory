@@ -1,7 +1,5 @@
+use crate::{algorithms::motifs::three_node_motifs::*, db::api::view::*};
 use std::collections::HashMap;
-
-use crate::algorithms::motifs::three_node_motifs::*;
-use crate::db::api::view::*;
 
 pub fn star_motif_count<G: GraphViewOps>(graph: &G, v: u64, delta: i64) -> [usize; 24] {
     if let Some(vertex) = graph.vertex(v) {
@@ -238,9 +236,10 @@ pub fn global_temporal_three_node_motifs<G: GraphViewOps>(graph: &G, delta: i64)
 
 #[cfg(test)]
 mod local_motif_test {
-    use crate::algorithms::motifs::three_node_local::*;
-    use crate::db::api::mutation::AdditionOps;
-    use crate::db::graph::graph::Graph;
+    use crate::{
+        algorithms::motifs::three_node_local::*,
+        db::{api::mutation::AdditionOps, graph::graph::Graph},
+    };
 
     #[test]
     fn test_init() {

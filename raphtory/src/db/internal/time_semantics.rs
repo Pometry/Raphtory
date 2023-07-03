@@ -1,15 +1,16 @@
-use std::ops::Range;
-
-use genawaiter::sync::GenBoxed;
-
-use crate::core::storage::timeindex::TimeIndexOps;
-use crate::core::tgraph::edges::edge_ref::EdgeRef;
-use crate::core::tgraph::graph::tgraph::InnerTemporalGraph;
-use crate::db::api::view::{
-    internal::{CoreDeletionOps, CoreGraphOps, TimeSemantics},
-    BoxedIter,
+use crate::{
+    core::{
+        storage::timeindex::TimeIndexOps,
+        tgraph::{edges::edge_ref::EdgeRef, graph::tgraph::InnerTemporalGraph, VID},
+    },
+    db::api::view::{
+        internal::{CoreDeletionOps, CoreGraphOps, TimeSemantics},
+        BoxedIter,
+    },
+    prelude::Prop,
 };
-use crate::{core::tgraph::VID, prelude::Prop};
+use genawaiter::sync::GenBoxed;
+use std::ops::Range;
 
 impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
     fn vertex_earliest_time(&self, v: VID) -> Option<i64> {

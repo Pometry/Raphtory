@@ -1,19 +1,23 @@
-use std::{cell::RefCell, collections::HashMap, marker::PhantomData, rc::Rc};
-
-use crate::core::tgraph::VID;
-use crate::core::utils::time::IntoTime;
-use crate::core::{
-    state::agg::Accumulator,
-    state::{accumulator_id::AccId, compute_state::ComputeState, StateType},
-    Direction, Prop,
+use crate::{
+    core::{
+        state::{accumulator_id::AccId, agg::Accumulator, compute_state::ComputeState, StateType},
+        tgraph::VID,
+        utils::time::IntoTime,
+        Direction, Prop,
+    },
+    db::{
+        api::view::{
+            internal::{GraphPropertiesOps, GraphWindowOps},
+            GraphViewOps, TimeOps, VertexListOps, VertexViewOps,
+        },
+        graph::path::{Operations, PathFromVertex},
+        task::{
+            edge::window_eval_edge::WindowEvalEdgeView, task_state::Local2,
+            vertex::eval_vertex_state::EVState,
+        },
+    },
 };
-use crate::db::api::view::internal::{GraphPropertiesOps, GraphWindowOps};
-use crate::db::api::view::{GraphViewOps, TimeOps, VertexListOps, VertexViewOps};
-use crate::db::graph::path::{Operations, PathFromVertex};
-
-use crate::db::task::edge::window_eval_edge::WindowEvalEdgeView;
-use crate::db::task::task_state::Local2;
-use crate::db::task::vertex::eval_vertex_state::EVState;
+use std::{cell::RefCell, collections::HashMap, marker::PhantomData, rc::Rc};
 
 pub struct WindowEvalVertex<'a, G: GraphViewOps, CS: ComputeState, S: 'static> {
     ss: usize,

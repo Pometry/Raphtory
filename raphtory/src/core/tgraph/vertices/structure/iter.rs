@@ -1,12 +1,9 @@
-use std::sync::Arc;
-
+use crate::core::{
+    tgraph::{edges::edge::EdgeView, graph::tgraph::TGraph, VRef, EID, VID},
+    Direction,
+};
 use itertools::Merge;
-
-use crate::core::tgraph::edges::edge::EdgeView;
-use crate::core::Direction;
-
-use crate::core::tgraph::graph::tgraph::TGraph;
-use crate::core::tgraph::{VRef, EID, VID};
+use std::sync::Arc;
 
 pub struct Paged<'a, const N: usize> {
     guard: Arc<VRef<'a, N>>,

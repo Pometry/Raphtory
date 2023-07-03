@@ -1,14 +1,10 @@
-use std::{ops::Deref, sync::Arc};
-
-use serde::{Deserialize, Serialize};
-
-use crate::core::tgraph::vertices::vertex_store::VertexStore;
 use crate::core::{
     storage::{self, ArcEntry, Entry, EntryMut, PairEntryMut},
+    tgraph::{edges::edge_store::EdgeStore, vertices::vertex_store::VertexStore},
     Direction,
 };
-
-use crate::core::tgraph::edges::edge_store::EdgeStore;
+use serde::{Deserialize, Serialize};
+use std::{ops::Deref, sync::Arc};
 
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
 pub(crate) struct GraphStorage<const N: usize> {

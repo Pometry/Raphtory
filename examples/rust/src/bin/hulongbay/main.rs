@@ -1,22 +1,22 @@
 // #![allow(unused_imports)]
 #![allow(dead_code)]
-use std::env;
-use std::error::Error;
-use std::fmt::{Debug, Display, Formatter};
-use std::path::Path;
-
 use itertools::Itertools;
-use raphtory::algorithms::connected_components::weakly_connected_components;
-use raphtory::algorithms::triangle_count::triangle_count;
-use raphtory::core::Prop;
-use raphtory::db::api::mutation::AdditionOps;
-use raphtory::db::api::view::*;
-use raphtory::db::api::view::{GraphViewOps, VertexViewOps};
-use raphtory::db::graph::graph::Graph;
-use raphtory::graph_loader::source::csv_loader::CsvLoader;
+use raphtory::{
+    algorithms::{
+        connected_components::weakly_connected_components, triangle_count::triangle_count,
+    },
+    graph_loader::source::csv_loader::CsvLoader,
+    prelude::*,
+};
 use regex::Regex;
 use serde::Deserialize;
-use std::time::Instant;
+use std::{
+    env,
+    error::Error,
+    fmt::{Debug, Display, Formatter},
+    path::Path,
+    time::Instant,
+};
 
 #[derive(Deserialize, Debug)]
 pub struct Edge {

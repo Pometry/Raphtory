@@ -1,17 +1,18 @@
-use crate::core::state::compute_state::ComputeState;
-use crate::core::tgraph::edges::edge_ref::EdgeRef;
-use crate::core::tgraph::vertices::vertex_ref::VertexRef;
-use crate::core::Prop;
-use crate::db::api::view::*;
-use crate::db::task::vertex::eval_vertex::EvalVertexView;
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::iter;
-use std::marker::PhantomData;
-use std::rc::Rc;
-
-use crate::db::task::task_state::Local2;
-use crate::db::task::vertex::eval_vertex_state::EVState;
+use crate::{
+    core::{
+        state::compute_state::ComputeState,
+        tgraph::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef},
+        Prop,
+    },
+    db::{
+        api::view::*,
+        task::{
+            task_state::Local2,
+            vertex::{eval_vertex::EvalVertexView, eval_vertex_state::EVState},
+        },
+    },
+};
+use std::{cell::RefCell, collections::HashMap, iter, marker::PhantomData, rc::Rc};
 
 pub struct EvalEdgeView<'a, G: GraphViewOps, CS: ComputeState, S> {
     ss: usize,

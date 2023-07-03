@@ -1,7 +1,6 @@
-use std::sync::Arc;
-
 use once_cell::sync::Lazy;
 use rayon::{ThreadPool, ThreadPoolBuilder};
+use std::sync::Arc;
 
 pub mod context;
 mod edge;
@@ -41,9 +40,9 @@ pub fn custom_pool(n_threads: usize) -> Arc<ThreadPool> {
 
 #[cfg(test)]
 mod task_tests {
-    use crate::db::api::mutation::AdditionOps;
     use crate::{
         core::state::{self, compute_state::ComputeStateVec},
+        db::api::mutation::AdditionOps,
         prelude::*,
     };
 

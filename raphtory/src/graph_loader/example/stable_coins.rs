@@ -1,15 +1,11 @@
-use crate::core::Prop;
-use crate::db::api::mutation::AdditionOps;
-use crate::db::api::view::GraphViewOps;
-use crate::graph_loader::source::csv_loader::CsvLoader;
-use crate::graph_loader::{fetch_file, unzip_file};
-use crate::prelude::*;
+use crate::{
+    graph_loader::{fetch_file, source::csv_loader::CsvLoader, unzip_file},
+    prelude::*,
+};
 use chrono::NaiveDateTime;
 use regex::Regex;
 use serde::Deserialize;
-use std::collections::HashMap;
-use std::path::PathBuf;
-use std::{fs, time::Instant};
+use std::{collections::HashMap, fs, path::PathBuf, time::Instant};
 
 #[allow(dead_code)]
 #[derive(Deserialize, std::fmt::Debug)]

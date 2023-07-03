@@ -1,10 +1,14 @@
-use crate::core::storage::timeindex::TimeIndexOps;
-use crate::core::tgraph::edges::edge_ref::EdgeRef;
-use crate::core::tgraph::VID;
-use crate::core::Prop;
-use crate::db::api::view::internal::{Base, CoreGraphOps, GraphOps};
-use crate::db::api::view::BoxedIter;
-
+use crate::{
+    core::{
+        storage::timeindex::TimeIndexOps,
+        tgraph::{edges::edge_ref::EdgeRef, VID},
+        Prop,
+    },
+    db::api::view::{
+        internal::{Base, CoreGraphOps, GraphOps},
+        BoxedIter,
+    },
+};
 use std::ops::Range;
 
 /// Methods for defining time windowing semantics for a graph

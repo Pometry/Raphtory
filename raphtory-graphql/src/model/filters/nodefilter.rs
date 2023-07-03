@@ -1,9 +1,12 @@
-use crate::model::filters::primitives::{NumberFilter, StringFilter, StringVecFilter};
-use crate::model::filters::property::PropertyHasFilter;
-use crate::model::graph::node::Node;
+use crate::model::{
+    filters::{
+        primitives::{NumberFilter, StringFilter, StringVecFilter},
+        property::PropertyHasFilter,
+    },
+    graph::node::Node,
+};
 use dynamic_graphql::InputObject;
-use raphtory::core::Prop;
-use raphtory::db::api::view::VertexViewOps;
+use raphtory::{core::Prop, db::api::view::VertexViewOps};
 
 #[derive(InputObject)]
 pub struct NodeFilter {

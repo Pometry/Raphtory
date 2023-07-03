@@ -1,5 +1,4 @@
-use crate::core::utils::errors::GraphError;
-use crate::db::api::view::internal::Base;
+use crate::{core::utils::errors::GraphError, db::api::view::internal::Base};
 
 pub trait InternalDeletionOps {
     fn internal_delete_edge(

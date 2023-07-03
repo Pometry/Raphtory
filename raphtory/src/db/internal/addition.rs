@@ -1,7 +1,8 @@
-use crate::core::tgraph::graph::tgraph::InnerTemporalGraph;
-use crate::core::utils::errors::GraphError;
-use crate::db::api::mutation::internal::InternalAdditionOps;
-use crate::prelude::Prop;
+use crate::{
+    core::{tgraph::graph::tgraph::InnerTemporalGraph, utils::errors::GraphError},
+    db::api::mutation::internal::InternalAdditionOps,
+    prelude::Prop,
+};
 
 impl<const N: usize> InternalAdditionOps for InnerTemporalGraph<N> {
     fn internal_add_vertex(

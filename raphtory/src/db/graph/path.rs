@@ -1,17 +1,20 @@
-use crate::core::tgraph::vertices::vertex_ref::VertexRef;
-use crate::core::tgraph::VID;
-use crate::core::utils::time::IntoTime;
-use crate::core::Direction;
-use crate::db::api::view::internal::GraphWindowOps;
-use crate::db::api::view::{BoxedIter, LayerOps};
-use crate::db::graph::edge::EdgeView;
-use crate::db::graph::vertex::VertexView;
-use crate::db::graph::views::window_graph::WindowedGraph;
-use crate::db::graph::views::layer_graph::LayeredGraph;
-use crate::prelude::{GraphViewOps, Prop, TimeOps, VertexListOps, VertexViewOps};
-use std::collections::HashMap;
-use std::iter;
-use std::sync::Arc;
+use crate::{
+    core::{
+        tgraph::{vertices::vertex_ref::VertexRef, VID},
+        utils::time::IntoTime,
+        Direction,
+    },
+    db::{
+        api::view::{internal::GraphWindowOps, BoxedIter, LayerOps},
+        graph::{
+            edge::EdgeView,
+            vertex::VertexView,
+            views::{layer_graph::LayeredGraph, window_graph::WindowedGraph},
+        },
+    },
+    prelude::*,
+};
+use std::{collections::HashMap, iter, sync::Arc};
 
 #[derive(Copy, Clone)]
 pub enum Operations {

@@ -1,27 +1,35 @@
 //! Defines the `Vertex`, which represents a vertex in the graph.
 //! A vertex is a node in the graph, and can have properties and edges.
 //! It can also be used to navigate the graph.
-use crate::core::tgraph::vertices::vertex_ref::VertexRef;
-use crate::core::utils::time::error::ParseTimeError;
-use crate::core::Prop;
-use crate::db::api::view::internal::{DynamicGraph, IntoDynamic};
-use crate::db::api::view::*;
-use crate::db::graph::path::{PathFromGraph, PathFromVertex};
-use crate::db::graph::vertex::VertexView;
-use crate::db::graph::vertices::Vertices;
-use crate::db::graph::views::window_graph::WindowedGraph;
-use crate::python;
-use crate::python::utils::{PyInterval, PyTime};
-use crate::*;
+use crate::{
+    core::{tgraph::vertices::vertex_ref::VertexRef, utils::time::error::ParseTimeError, Prop},
+    db::{
+        api::view::{
+            internal::{DynamicGraph, IntoDynamic},
+            *,
+        },
+        graph::{
+            path::{PathFromGraph, PathFromVertex},
+            vertex::VertexView,
+            vertices::Vertices,
+            views::window_graph::WindowedGraph,
+        },
+    },
+    python,
+    python::utils::{PyInterval, PyTime},
+    *,
+};
 use chrono::NaiveDateTime;
 use itertools::Itertools;
-use pyo3::exceptions::PyIndexError;
-use pyo3::prelude::*;
-use pyo3::pyclass::CompareOp;
-use pyo3::{pyclass, pymethods, PyAny, PyObject, PyRef, PyRefMut, PyResult, Python};
-use python::edge::{PyEdges, PyNestedEdges};
-use python::types::repr::{iterator_repr, Repr};
-use python::wrappers::iterators::*;
+use pyo3::{
+    exceptions::PyIndexError, prelude::*, pyclass, pyclass::CompareOp, pymethods, PyAny, PyObject,
+    PyRef, PyRefMut, PyResult, Python,
+};
+use python::{
+    edge::{PyEdges, PyNestedEdges},
+    types::repr::{iterator_repr, Repr},
+    wrappers::iterators::*,
+};
 use std::collections::HashMap;
 
 /// A vertex (or node) in the graph.

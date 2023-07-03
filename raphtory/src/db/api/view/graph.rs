@@ -1,23 +1,28 @@
-use crate::core::tgraph::graph::tgraph::InnerTemporalGraph;
-use crate::core::tgraph::VID;
-use crate::core::utils::errors::GraphError;
-use crate::core::Prop;
+use crate::{
+    core::{
+        tgraph::{graph::tgraph::InnerTemporalGraph, vertices::vertex_ref::VertexRef, VID},
+        utils::{errors::GraphError, time::IntoTime},
+        Prop,
+    },
+    db::{
+        api::{
+            mutation::{AdditionOps, PropertyAdditionOps},
+            view::{internal::*, layer::LayerOps, *},
+        },
+        graph::{
+            edge::EdgeView,
+            vertex::VertexView,
+            vertices::Vertices,
+            views::{
+                layer_graph::LayeredGraph, vertex_subgraph::VertexSubgraph,
+                window_graph::WindowedGraph,
+            },
+        },
+    },
+};
 use itertools::Itertools;
 use rustc_hash::FxHashSet;
 use std::collections::HashMap;
-
-use crate::core::tgraph::vertices::vertex_ref::VertexRef;
-use crate::core::utils::time::IntoTime;
-use crate::db::api::mutation::{AdditionOps, PropertyAdditionOps};
-use crate::db::api::view::internal::*;
-use crate::db::api::view::layer::LayerOps;
-use crate::db::api::view::*;
-use crate::db::graph::edge::EdgeView;
-use crate::db::graph::vertex::VertexView;
-use crate::db::graph::vertices::Vertices;
-use crate::db::graph::views::window_graph::WindowedGraph;
-use crate::db::graph::views::layer_graph::LayeredGraph;
-use crate::db::graph::views::vertex_subgraph::VertexSubgraph;
 
 /// This trait GraphViewOps defines operations for accessing
 /// information about a graph. The trait has associated types

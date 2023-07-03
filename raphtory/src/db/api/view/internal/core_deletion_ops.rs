@@ -1,7 +1,10 @@
-use crate::core::storage::locked_view::LockedView;
-use crate::core::storage::timeindex::TimeIndex;
-use crate::core::tgraph::edges::edge_ref::EdgeRef;
-use crate::db::api::view::internal::Base;
+use crate::{
+    core::{
+        storage::{locked_view::LockedView, timeindex::TimeIndex},
+        tgraph::edges::edge_ref::EdgeRef,
+    },
+    db::api::view::internal::Base,
+};
 
 pub trait CoreDeletionOps {
     /// Get all the deletion timestamps for an edge

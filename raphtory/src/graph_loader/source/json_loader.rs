@@ -1,3 +1,7 @@
+use crate::core::utils::errors::GraphError;
+use rayon::prelude::*;
+use regex::Regex;
+use serde::de::DeserializeOwned;
 use std::{
     collections::VecDeque,
     error::Error,
@@ -5,11 +9,6 @@ use std::{
     fs, io,
     path::{Path, PathBuf},
 };
-
-use crate::core::utils::errors::GraphError;
-use rayon::prelude::*;
-use regex::Regex;
-use serde::de::DeserializeOwned;
 
 #[derive(Debug)]
 pub enum JsonErr {

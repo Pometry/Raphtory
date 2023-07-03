@@ -4,26 +4,32 @@
 //! The PyEdge class also provides access to the perspective APIs, which allow the user to view the
 //! edge as it existed at a particular point in time, or as it existed over a particular time range.
 //!
-use crate::core::utils::time::error::ParseTimeError;
-use crate::core::Prop;
-use crate::db::api::view::internal::{DynamicGraph, IntoDynamic};
-use crate::db::api::view::{BoxedIter, WindowSet};
-use crate::db::graph::edge::EdgeView;
-use crate::db::graph::views::window_graph::WindowedGraph;
-use crate::prelude::*;
-use crate::python;
+use crate::{
+    core::{utils::time::error::ParseTimeError, Prop},
+    db::{
+        api::view::{
+            internal::{DynamicGraph, IntoDynamic},
+            BoxedIter, WindowSet,
+        },
+        graph::{edge::EdgeView, views::window_graph::WindowedGraph},
+    },
+    prelude::*,
+    python,
+};
 use chrono::NaiveDateTime;
 use itertools::Itertools;
-use pyo3::prelude::*;
-use pyo3::pyclass::CompareOp;
-use python::types::repr::{iterator_repr, Repr};
-use python::utils::*;
-use python::vertex::{PyVertex, PyVertexIterable};
-use python::wrappers::iterators::{OptionI64Iterable, OptionPropIterable, PropsIterable};
-use std::collections::hash_map::DefaultHasher;
-use std::collections::HashMap;
-use std::hash::{Hash, Hasher};
-use std::sync::Arc;
+use pyo3::{prelude::*, pyclass::CompareOp};
+use python::{
+    types::repr::{iterator_repr, Repr},
+    utils::*,
+    vertex::{PyVertex, PyVertexIterable},
+    wrappers::iterators::{OptionI64Iterable, OptionPropIterable, PropsIterable},
+};
+use std::{
+    collections::{hash_map::DefaultHasher, HashMap},
+    hash::{Hash, Hasher},
+    sync::Arc,
+};
 
 /// PyEdge is a Python class that represents an edge in the graph.
 /// An edge is a directed connection between two vertices.

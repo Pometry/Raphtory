@@ -1,9 +1,10 @@
-use crate::core::tgraph::edges::edge_ref::EdgeRef;
-use crate::core::tgraph::vertices::vertex_ref::VertexRef;
-use crate::core::tgraph::VID;
-use crate::core::Direction;
-use crate::db::api::view::internal::time_semantics::TimeSemantics;
-use crate::db::api::view::internal::{CoreGraphOps, GraphOps};
+use crate::{
+    core::{
+        tgraph::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef, VID},
+        Direction,
+    },
+    db::api::view::internal::{time_semantics::TimeSemantics, CoreGraphOps, GraphOps},
+};
 use itertools::*;
 
 /// Methods for interacting with windowed data (automatically implemented based on `TimeSemantics` trait

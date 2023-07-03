@@ -101,10 +101,9 @@ pub fn average_degree<G: GraphViewOps>(graph: &G) -> f64 {
 
 #[cfg(test)]
 mod degree_test {
-    use crate::db::api::mutation::AdditionOps;
     use crate::{
         algorithms::degree::{average_degree, max_in_degree, min_in_degree, min_out_degree},
-        db::graph::graph::Graph,
+        db::{api::mutation::AdditionOps, graph::graph::Graph},
     };
 
     use super::max_out_degree;
