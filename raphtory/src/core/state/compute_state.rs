@@ -1,12 +1,9 @@
-use std::collections::HashMap;
-
-use crate::core::state::agg::Accumulator;
-use crate::db::view_api::GraphViewOps;
-
 use super::{
     container::{merge_2_vecs, DynArray, VecArray},
     StateType,
 };
+use crate::{core::state::agg::Accumulator, db::api::view::GraphViewOps};
+use std::collections::HashMap;
 
 pub trait ComputeState: std::fmt::Debug + Clone + Send + Sync {
     fn clone_current_into_other(&mut self, ss: usize);

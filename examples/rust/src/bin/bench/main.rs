@@ -1,11 +1,13 @@
-use raphtory::algorithms::pagerank::unweighted_page_rank;
-use raphtory::db::graph::Graph;
-use raphtory::db::mutation_api::AdditionOps;
-use raphtory::db::view_api::*;
-use raphtory::graph_loader::source::csv_loader::CsvLoader;
+use raphtory::{
+    algorithms::pagerank::unweighted_page_rank, graph_loader::source::csv_loader::CsvLoader,
+    prelude::*,
+};
 use serde::Deserialize;
-use std::path::PathBuf;
-use std::{env, path::Path, time::Instant};
+use std::{
+    env,
+    path::{Path, PathBuf},
+    time::Instant,
+};
 
 #[derive(Deserialize, std::fmt::Debug)]
 pub struct Benchr {

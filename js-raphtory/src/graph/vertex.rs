@@ -1,14 +1,11 @@
-use std::convert::TryFrom;
-
-use raphtory::{
-    core::errors::GraphError,
-    db::{vertex::VertexView, view_api::VertexViewOps},
-};
-use wasm_bindgen::prelude::*;
-
-use crate::graph::{edge::Edge, misc::JsProp};
-
 use super::{misc::JSError, Graph};
+use crate::graph::{edge::Edge, misc::JsProp};
+use raphtory::{
+    core::utils::errors::GraphError,
+    db::{api::view::VertexViewOps, graph::vertex::VertexView},
+};
+use std::convert::TryFrom;
+use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
 pub struct Vertex(pub(crate) VertexView<Graph>);

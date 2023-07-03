@@ -1,20 +1,21 @@
-use crate::core::state::accumulator_id::accumulators::{max, sum};
-use crate::db::task::eval_vertex::EvalVertexView;
 use crate::{
-    core::state::compute_state::ComputeStateVec,
+    core::state::{
+        accumulator_id::accumulators::{max, sum},
+        compute_state::ComputeStateVec,
+    },
     db::{
+        api::view::{GraphViewOps, VertexViewOps},
         task::{
             context::Context,
             task::{ATask, Job, Step},
             task_runner::TaskRunner,
+            vertex::eval_vertex::EvalVertexView,
         },
-        view_api::{GraphViewOps, VertexViewOps},
     },
 };
 use num_traits::abs;
 use rustc_hash::FxHashMap;
-use std::collections::HashMap;
-use std::ops::Range;
+use std::{collections::HashMap, ops::Range};
 
 #[derive(Debug, Clone)]
 struct Hits {
@@ -159,8 +160,7 @@ pub fn hits<G: GraphViewOps>(
 #[cfg(test)]
 mod hits_tests {
     use super::*;
-    use crate::db::graph::Graph;
-    use crate::db::mutation_api::AdditionOps;
+    use crate::db::{api::mutation::AdditionOps, graph::graph::Graph};
     use itertools::Itertools;
 
     fn load_graph(edges: Vec<(u64, u64)>) -> Graph {

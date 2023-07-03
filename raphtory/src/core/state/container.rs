@@ -1,6 +1,5 @@
-use std::any::Any;
-
 use super::StateType;
+use std::any::Any;
 
 pub trait DynArray: std::fmt::Debug + Send + Sync {
     fn as_any(&self) -> &dyn Any;

@@ -1,6 +1,5 @@
-use std::{borrow::Cow, sync::Arc};
-
 use crate::core::state::{compute_state::ComputeState, shuffle_state::ShuffleComputeState};
+use std::{borrow::Cow, sync::Arc};
 
 // this only contains the global state and it is synchronized after each task run
 #[derive(Clone, Debug)]
@@ -29,7 +28,11 @@ impl<'a, S: 'static> Local2<'a, S> {
 
 impl<CS: ComputeState> Shard<CS> {
     pub(crate) fn new(total_len: usize, num_morcels: usize, morcel_size: usize) -> Self {
-        Self(Arc::new(ShuffleComputeState::new(total_len, num_morcels, morcel_size)))
+        Self(Arc::new(ShuffleComputeState::new(
+            total_len,
+            num_morcels,
+            morcel_size,
+        )))
     }
 
     pub(crate) fn as_cow(&self) -> Cow<'_, ShuffleComputeState<CS>> {

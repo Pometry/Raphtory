@@ -1,8 +1,12 @@
 use crate::common::bench;
 use criterion::{criterion_group, criterion_main, Criterion};
-use raphtory::algorithms::local_clustering_coefficient::local_clustering_coefficient;
-use raphtory::algorithms::local_triangle_count::local_triangle_count;
-use raphtory::prelude::*;
+use raphtory::{
+    algorithms::{
+        local_clustering_coefficient::local_clustering_coefficient,
+        local_triangle_count::local_triangle_count,
+    },
+    prelude::*,
+};
 use rayon::prelude::*;
 
 mod common;

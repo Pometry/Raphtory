@@ -1,18 +1,16 @@
-use crate::db::task::eval_vertex::EvalVertexView;
-use crate::db::view_api::VertexViewOps;
 use crate::{
     core::state::compute_state::ComputeStateVec,
     db::{
+        api::view::{GraphViewOps, VertexViewOps},
         task::{
             context::Context,
             task::{ATask, Job, Step},
             task_runner::TaskRunner,
+            vertex::eval_vertex::EvalVertexView,
         },
-        view_api::GraphViewOps,
     },
 };
-use std::cmp;
-use std::collections::HashMap;
+use std::{cmp, collections::HashMap};
 
 #[derive(Clone, Debug)]
 struct WccState {
@@ -100,10 +98,10 @@ where
 
 #[cfg(test)]
 mod cc_test {
-    use crate::{db::graph::Graph, prelude::TimeOps};
+    use crate::prelude::*;
 
     use super::*;
-    use crate::db::mutation_api::AdditionOps;
+    use crate::db::api::mutation::AdditionOps;
     use itertools::*;
     use std::{cmp::Reverse, iter::once};
 

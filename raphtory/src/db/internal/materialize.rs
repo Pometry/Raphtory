@@ -1,9 +1,8 @@
 use crate::{
-    core::tgraph::tgraph::InnerTemporalGraph,
-    db::graph::Graph,
+    core::entities::graph::tgraph::InnerTemporalGraph,
     db::{
-        graph::InternalGraph,
-        view_api::internal::{InternalMaterialize, MaterializedGraph},
+        api::view::internal::{InternalMaterialize, MaterializedGraph},
+        graph::graph::{Graph, InternalGraph},
     },
 };
 use std::sync::Arc;

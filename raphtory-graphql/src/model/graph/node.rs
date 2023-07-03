@@ -1,14 +1,20 @@
-use crate::model::filters::edgefilter::EdgeFilter;
-use crate::model::graph::edge::Edge;
-use crate::model::graph::property::Property;
-use crate::model::graph::property_update::PropertyUpdate;
+use crate::model::{
+    filters::edgefilter::EdgeFilter,
+    graph::{edge::Edge, property::Property, property_update::PropertyUpdate},
+};
 use async_graphql::Context;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
-use raphtory::core::Prop;
-use raphtory::db::vertex::VertexView;
-use raphtory::db::view_api::internal::{DynamicGraph, IntoDynamic};
-use raphtory::db::view_api::*;
+use raphtory::{
+    core::Prop,
+    db::{
+        api::view::{
+            internal::{DynamicGraph, IntoDynamic},
+            *,
+        },
+        graph::vertex::VertexView,
+    },
+};
 
 #[derive(ResolvedObject)]
 pub(crate) struct Node {
@@ -184,7 +190,7 @@ impl Node {
         }
     }
 
-    async fn exploded_edges(&self, layer: Option<String>) -> Vec<Edge> {
+    async fn exploded_edges(&self) -> Vec<Edge> {
         self.vv.out_edges().explode().map(|ee| ee.into()).collect()
     }
 

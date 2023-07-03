@@ -1,22 +1,25 @@
+use super::{
+    context::{Context, GlobalState},
+    custom_pool,
+    task::{Job, Step, Task},
+    task_state::{Global, Local2, Shard},
+    POOL,
+};
+use crate::{
+    core::state::{
+        compute_state::ComputeState,
+        shuffle_state::{EvalLocalState, EvalShardState},
+    },
+    db::{
+        api::view::GraphViewOps,
+        task::vertex::{eval_vertex::EvalVertexView, eval_vertex_state::EVState},
+    },
+};
+use rayon::{prelude::*, ThreadPool};
 use std::{
     borrow::Cow,
     rc::Rc,
     sync::atomic::{AtomicBool, Ordering},
-};
-
-use rayon::{prelude::*, ThreadPool};
-
-use crate::core:: state::shuffle_state::{EvalLocalState, EvalShardState};
-use crate::{core::state::compute_state::ComputeState, db::view_api::GraphViewOps};
-
-use super::{
-    context::{Context, GlobalState},
-    custom_pool,
-    eval_vertex::EvalVertexView,
-    eval_vertex_state::EVState,
-    task::{Job, Step, Task},
-    task_state::{Global, Local2, Shard},
-    POOL,
 };
 
 pub struct TaskRunner<G: GraphViewOps, CS: ComputeState> {
@@ -190,19 +193,14 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
     fn make_cur_and_prev_states<S: Clone>(&self, init: S) -> (Vec<S>, Vec<S>) {
         let g = self.ctx.graph();
 
-        let states: Vec<S> = vec![init; g.num_vertices()]; 
+        let states: Vec<S> = vec![init; g.num_vertices()];
 
         (states.clone(), states)
     }
 
     pub fn run<
         B: std::fmt::Debug,
-        F: FnOnce(
-                GlobalState<CS>,
-                EvalShardState<G, CS>,
-                EvalLocalState<G, CS>,
-                &Vec<S>,
-            ) -> B
+        F: FnOnce(GlobalState<CS>, EvalShardState<G, CS>, EvalLocalState<G, CS>, &Vec<S>) -> B
             + std::marker::Copy,
         S: Send + Sync + Clone + 'static + std::fmt::Debug,
     >(
@@ -221,17 +219,19 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
             .unwrap_or_else(|| POOL.clone());
 
         let morcel_size = self.ctx.graph().num_vertices().min(16_000);
-        let num_chunks = self.ctx.graph().num_vertices() / morcel_size ;
+        let num_chunks = self.ctx.graph().num_vertices() / morcel_size;
 
-        let mut shard_state = shard_initial_state.unwrap_or_else(|| Shard::new(self.ctx.graph().num_vertices(), num_chunks, morcel_size));
+        let mut shard_state = shard_initial_state.unwrap_or_else(|| {
+            Shard::new(self.ctx.graph().num_vertices(), num_chunks, morcel_size)
+        });
 
         let mut global_state = global_initial_state.unwrap_or_else(|| Global::new());
 
         let (mut cur_local_state, mut prev_local_state) = self.make_cur_and_prev_states::<S>(init);
 
-        let mut done = false;
+        let mut _done = false;
 
-        (done, shard_state, global_state, cur_local_state) = self.run_task_list(
+        (_done, shard_state, global_state, cur_local_state) = self.run_task_list(
             &init_tasks,
             &pool,
             morcel_size,
@@ -244,8 +244,8 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         // To allow the init step to cache stuff we will copy everything from cur_local_state to prev_local_state
         prev_local_state.clone_from_slice(&cur_local_state);
 
-        while !done && self.ctx.ss() < steps && tasks.len() > 0 {
-            (done, shard_state, global_state, cur_local_state) = self.run_task_list(
+        while !_done && self.ctx.ss() < steps && tasks.len() > 0 {
+            (_done, shard_state, global_state, cur_local_state) = self.run_task_list(
                 &tasks,
                 &pool,
                 morcel_size,

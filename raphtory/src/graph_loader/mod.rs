@@ -9,8 +9,7 @@
 //! Load a pre-built graph
 //! ```rust
 //! use raphtory::algorithms::degree::average_degree;
-//! use raphtory::db::graph::Graph;
-//! use raphtory::db::view_api::*;
+//! use raphtory::prelude::*;
 //! use raphtory::graph_loader::example::lotr_graph::lotr_graph;
 //!
 //! let graph = lotr_graph();
@@ -31,12 +30,10 @@
 //! Load a graph from csv
 //!
 //! ```no_run
-//! use raphtory::db::graph::Graph;
-//! use raphtory::core::Prop;
 //! use std::time::Instant;
 //! use serde::Deserialize;
-//! use raphtory::db::mutation_api::AdditionOps;
 //! use raphtory::graph_loader::source::csv_loader::CsvLoader;
+//! use raphtory::prelude::*;
 //!
 //! let data_dir = "/tmp/lotr.csv";
 //!
@@ -97,12 +94,13 @@
 //! assert!(path.is_ok());
 //! ```
 
-use std::env;
-use std::fs::File;
-use std::fs::*;
-use std::io::{copy, Cursor};
-use std::path::{Path, PathBuf};
-use std::time::Duration;
+use std::{
+    env,
+    fs::{File, *},
+    io::{copy, Cursor},
+    path::{Path, PathBuf},
+    time::Duration,
+};
 use zip::read::ZipArchive;
 
 pub mod example;
@@ -161,17 +159,10 @@ fn unzip_file(zip_file_path: &str, destination_path: &str) -> std::io::Result<()
 
 #[cfg(test)]
 mod graph_loader_test {
-    use crate::db::mutation_api::AdditionOps;
-    use crate::{
-        core::{utils, Prop},
-        db::{
-            graph::Graph,
-            view_api::{GraphViewOps, TimeOps, VertexViewOps},
-        },
-    };
+    use crate::{core::utils::hashing, prelude::*};
     use csv::StringRecord;
 
-    use crate::graph_loader::fetch_file;
+    use crate::{graph_loader::fetch_file, prelude::*};
 
     #[test]
     fn test_fetch_file() {
@@ -224,8 +215,8 @@ mod graph_loader_test {
         if let Ok(mut reader) = csv::Reader::from_path(data_dir) {
             for rec in reader.records().flatten() {
                 if let Some((src, dst, t)) = parse_record(&rec) {
-                    let src_id = utils::calculate_hash(&src);
-                    let dst_id = utils::calculate_hash(&dst);
+                    let src_id = hashing::calculate_hash(&src);
+                    let dst_id = hashing::calculate_hash(&dst);
 
                     g.add_vertex(
                         t,
@@ -254,7 +245,7 @@ mod graph_loader_test {
             }
         }
 
-        let gandalf = utils::calculate_hash(&"Gandalf");
+        let gandalf = hashing::calculate_hash(&"Gandalf");
         assert!(g.has_vertex(gandalf));
         assert!(g.has_vertex("Gandalf"))
     }

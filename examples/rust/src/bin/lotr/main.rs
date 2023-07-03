@@ -1,14 +1,14 @@
 use itertools::Itertools;
-use raphtory::algorithms::temporal_reachability::temporally_reachable_nodes;
-use raphtory::core::utils;
-use raphtory::core::Prop;
-use raphtory::db::graph::Graph;
-use raphtory::db::mutation_api::AdditionOps;
-use raphtory::db::view_api::*;
-use raphtory::graph_loader::source::csv_loader::CsvLoader;
+use raphtory::{
+    algorithms::temporal_reachability::temporally_reachable_nodes, core::utils::hashing,
+    graph_loader::source::csv_loader::CsvLoader, prelude::*,
+};
 use serde::Deserialize;
-use std::path::PathBuf;
-use std::{env, path::Path, time::Instant};
+use std::{
+    env,
+    path::{Path, PathBuf},
+    time::Instant,
+};
 
 #[derive(Deserialize, std::fmt::Debug)]
 pub struct Lotr {
@@ -101,7 +101,7 @@ fn main() {
     assert_eq!(graph.num_vertices(), 139);
     assert_eq!(graph.num_edges(), 701);
 
-    let gandalf = utils::calculate_hash(&"Gandalf");
+    let gandalf = hashing::calculate_hash(&"Gandalf");
 
     assert_eq!(gandalf, 2760374808085341115);
     assert!(graph.has_vertex(gandalf));

@@ -1,6 +1,10 @@
-use opentelemetry::sdk::trace::{self, Sampler};
 use opentelemetry::{
-    global, runtime::Tokio, sdk::propagation::TraceContextPropagator, sdk::trace::Tracer,
+    global,
+    runtime::Tokio,
+    sdk::{
+        propagation::TraceContextPropagator,
+        trace::{self, Sampler, Tracer},
+    },
 };
 use std::env;
 

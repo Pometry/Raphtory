@@ -30,8 +30,7 @@
 //! Example:
 //! ```no_run
 //! use raphtory::graph_loader::example::reddit_hyperlinks::reddit_graph;
-//! use raphtory::db::graph::Graph;
-//! use raphtory::db::view_api::*;
+//! use raphtory::prelude::*;
 //!
 //! let graph = reddit_graph(120, false);
 //!
@@ -39,16 +38,14 @@
 //! println!("The graph has {:?} edges", graph.num_edges());
 //! ```
 
-use crate::core::Prop;
-use crate::db::graph::Graph;
-use crate::db::mutation_api::AdditionOps;
-use crate::graph_loader::fetch_file;
+use crate::{core::Prop, db::api::mutation::AdditionOps, graph_loader::fetch_file, prelude::*};
 use chrono::*;
 use itertools::Itertools;
-use std::fs::File;
-use std::io::{self, BufRead};
-use std::path::Path;
-use std::path::PathBuf;
+use std::{
+    fs::File,
+    io::{self, BufRead},
+    path::{Path, PathBuf},
+};
 
 /// Download the dataset and return the path to the file
 /// # Arguments
@@ -158,8 +155,10 @@ pub fn reddit_graph(timeout: u64, test_file: bool) -> Graph {
 
 #[cfg(test)]
 mod reddit_test {
-    use crate::db::view_api::*;
-    use crate::graph_loader::example::reddit_hyperlinks::{reddit_file, reddit_graph};
+    use crate::{
+        db::api::view::*,
+        graph_loader::example::reddit_hyperlinks::{reddit_file, reddit_graph},
+    };
 
     #[test]
     fn check_data() {

@@ -5,16 +5,17 @@
 //! # Examples
 //!
 //! ```
-//! use raphtory::db::graph::Graph;
+//! use raphtory::prelude::*;
 //! use raphtory::graphgen::preferential_attachment::ba_preferential_attachment;
 //!
 //! let graph = Graph::new();
 //! ba_preferential_attachment(&graph, 1000, 10);
 //! ```
 
-use crate::db::graph::Graph;
-use crate::db::mutation_api::AdditionOps;
-use crate::db::view_api::*;
+use crate::db::{
+    api::{mutation::AdditionOps, view::*},
+    graph::graph::Graph,
+};
 use rand::prelude::*;
 use std::collections::HashSet;
 
@@ -38,7 +39,7 @@ use std::collections::HashSet;
 /// # Examples
 ///
 /// ```
-/// use raphtory::db::graph::Graph;
+/// use raphtory::prelude::*;
 /// use raphtory::graphgen::preferential_attachment::ba_preferential_attachment;
 ///
 /// let graph = Graph::new();

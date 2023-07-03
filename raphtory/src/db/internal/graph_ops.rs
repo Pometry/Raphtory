@@ -1,16 +1,15 @@
-use std::ops::Deref;
-
-use genawaiter::sync::GenBoxed;
-
 use crate::{
     core::{
-        edge_ref::EdgeRef,
-        tgraph::{tgraph::InnerTemporalGraph, VID},
-        vertex_ref::VertexRef,
+        entities::{
+            edges::edge_ref::EdgeRef, graph::tgraph::InnerTemporalGraph,
+            vertices::vertex_ref::VertexRef, VID,
+        },
         Direction,
     },
-    db::view_api::internal::GraphOps,
+    db::api::view::internal::GraphOps,
 };
+use genawaiter::sync::GenBoxed;
+use std::ops::Deref;
 
 impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
     fn local_vertex_ref(&self, v: VertexRef) -> Option<VID> {

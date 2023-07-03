@@ -12,7 +12,7 @@ pub fn parameterized(c: &mut Criterion) {
     let mut ingestion_group = c.benchmark_group("ingestion-num_vertices");
     ingestion_group.plot_config(PlotConfiguration::default().summary_scale(AxisScale::Logarithmic));
     for num_vertices in vertices {
-        let make_graph = || bootstrap_graph(4, num_vertices);
+        let make_graph = || bootstrap_graph(num_vertices);
         ingestion_group.throughput(Throughput::Elements(num_vertices as u64));
         ingestion_group.sample_size(10);
         ingestion_group.warm_up_time(std::time::Duration::from_secs(1));

@@ -41,7 +41,7 @@
 //! print!("Average degree: {:?}", average_degree(&windowed_graph));
 //! ```
 //!
-use crate::db::view_api::*;
+use crate::db::api::view::*;
 
 /// The maximum out degree of any vertex in the graph.
 pub fn max_out_degree<G: GraphViewOps>(graph: &G) -> usize {
@@ -101,10 +101,9 @@ pub fn average_degree<G: GraphViewOps>(graph: &G) -> f64 {
 
 #[cfg(test)]
 mod degree_test {
-    use crate::db::mutation_api::AdditionOps;
     use crate::{
         algorithms::degree::{average_degree, max_in_degree, min_in_degree, min_out_degree},
-        db::graph::Graph,
+        db::{api::mutation::AdditionOps, graph::graph::Graph},
     };
 
     use super::max_out_degree;
