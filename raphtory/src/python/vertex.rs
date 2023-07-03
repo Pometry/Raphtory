@@ -9,7 +9,7 @@ use crate::db::api::view::*;
 use crate::db::graph::path::{PathFromGraph, PathFromVertex};
 use crate::db::graph::vertex::VertexView;
 use crate::db::graph::vertices::Vertices;
-use crate::db::graph::views::graph_window::WindowedGraph;
+use crate::db::graph::views::window_graph::WindowedGraph;
 use crate::python;
 use crate::python::utils::{PyInterval, PyTime};
 use crate::*;

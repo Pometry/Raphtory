@@ -1,8 +1,8 @@
 use crate::db::api::view::internal::DynamicGraph;
 use crate::db::api::view::GraphViewOps;
-use crate::db::graph::views::graph_window::WindowedGraph;
+use crate::db::graph::views::window_graph::WindowedGraph;
 use crate::db::graph::views::layer_graph::LayeredGraph;
-use crate::db::graph::views::subgraph_vertex::VertexSubgraph;
+use crate::db::graph::views::vertex_subgraph::VertexSubgraph;
 
 pub trait IntoDynamic {
     fn into_dynamic(self) -> DynamicGraph;

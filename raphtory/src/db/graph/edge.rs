@@ -10,7 +10,7 @@ use crate::core::tgraph::vertices::vertex_ref::VertexRef;
 use crate::core::utils::time::IntoTime;
 use crate::db::api::view::{BoxedIter, EdgeViewInternalOps};
 use crate::db::graph::vertex::VertexView;
-use crate::db::graph::views::graph_window::WindowedGraph;
+use crate::db::graph::views::window_graph::WindowedGraph;
 use crate::prelude::{EdgeListOps, EdgeViewOps, GraphViewOps, Prop, TimeOps, VertexViewOps};
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};

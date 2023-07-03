@@ -15,9 +15,9 @@ use crate::db::api::view::*;
 use crate::db::graph::edge::EdgeView;
 use crate::db::graph::vertex::VertexView;
 use crate::db::graph::vertices::Vertices;
-use crate::db::graph::views::graph_window::WindowedGraph;
+use crate::db::graph::views::window_graph::WindowedGraph;
 use crate::db::graph::views::layer_graph::LayeredGraph;
-use crate::db::graph::views::subgraph_vertex::VertexSubgraph;
+use crate::db::graph::views::vertex_subgraph::VertexSubgraph;
 
 /// This trait GraphViewOps defines operations for accessing
 /// information about a graph. The trait has associated types

@@ -9,7 +9,7 @@ use crate::core::Prop;
 use crate::db::api::view::internal::{DynamicGraph, IntoDynamic};
 use crate::db::api::view::{BoxedIter, WindowSet};
 use crate::db::graph::edge::EdgeView;
-use crate::db::graph::views::graph_window::WindowedGraph;
+use crate::db::graph::views::window_graph::WindowedGraph;
 use crate::prelude::*;
 use crate::python;
 use chrono::NaiveDateTime;
