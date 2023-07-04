@@ -5,12 +5,15 @@ use std::{collections::HashSet, ops::Deref, sync::Arc};
 use tantivy::{
     collector::TopDocs,
     schema::{Field, Schema, SchemaBuilder, FAST, INDEXED, STORED, TEXT},
-    DocAddress, Document, Index, IndexSortByField, IndexReader,
+    DocAddress, Document, Index, IndexReader, IndexSortByField,
 };
 
 use crate::{
-    core::{errors::GraphError, time::TryIntoTime, vertex_ref::VertexRef},
-    db::{mutation_api::internal::InternalAdditionOps, vertex::VertexView},
+    core::{
+        entities::vertices::vertex_ref::VertexRef,
+        utils::{errors::GraphError, time::TryIntoTime},
+    },
+    db::{api::mutation::internal::InternalAdditionOps, graph::vertex::VertexView},
     prelude::*,
 };
 
@@ -40,7 +43,7 @@ pub(in crate::search) mod fields {
 
 const EMPTY: [(&str, Prop); 0] = [];
 
-impl <G:GraphViewOps> From<G> for IndexedGraph<G> {
+impl<G: GraphViewOps> From<G> for IndexedGraph<G> {
     fn from(graph: G) -> Self {
         Self::from_graph(&graph).expect("failed to generate index from graph")
     }
@@ -66,7 +69,9 @@ impl<G: GraphViewOps> IndexedGraph<G> {
 
         for (prop_name, prop) in props.into_iter() {
             match prop {
-                Prop::Str(_) => { schema.add_text_field(prop_name.as_ref(), TEXT); },
+                Prop::Str(_) => {
+                    schema.add_text_field(prop_name.as_ref(), TEXT);
+                }
                 _ => todo!(),
             }
         }
@@ -192,8 +197,11 @@ impl<G: GraphViewOps> IndexedGraph<G> {
         }
 
         reader.reload()?;
-        Ok(IndexedGraph { graph: g.clone(), index: Arc::new(index) , reader  })
-
+        Ok(IndexedGraph {
+            graph: g.clone(),
+            index: Arc::new(index),
+            reader,
+        })
     }
 
     fn new_index(schema: Schema) -> (Index, IndexReader) {
@@ -331,11 +339,11 @@ impl<G: GraphViewOps + InternalAdditionOps> InternalAdditionOps for IndexedGraph
 
     fn internal_add_edge(
         &self,
-        t: i64,
-        src: u64,
-        dst: u64,
-        props: Vec<(String, Prop)>,
-        layer: Option<&str>,
+        _t: i64,
+        _src: u64,
+        _dst: u64,
+        _props: Vec<(String, Prop)>,
+        _layer: Option<&str>,
     ) -> Result<(), GraphError> {
         todo!()
     }
