@@ -21,7 +21,25 @@ use std::{ops::Range, sync::Arc};
 
 pub struct Vertex<'a, const N: usize> {
     node: VRef<'a, N>,
-    graph: &'a TGraph<N>,
+    pub graph: &'a TGraph<N>,
+}
+
+impl<'b, const N: usize> CorePropertiesOps for Vertex<'b, N> {
+    fn static_prop_meta(&self) -> &DictMapper<String> {
+        self.graph.vertex_meta.static_prop_meta()
+    }
+
+    fn temporal_prop_meta(&self) -> &DictMapper<String> {
+        self.graph.vertex_meta.temporal_prop_meta()
+    }
+
+    fn temporal_prop(&self, id: usize) -> Option<&TProp> {
+        self.node.props.as_ref().and_then(|p| p.temporal_prop(id))
+    }
+
+    fn static_prop(&self, id: usize) -> Option<&Prop> {
+        self.node.props.as_ref().and_then(|p| p.static_prop(id))
+    }
 }
 
 impl<'a, const N: usize> Vertex<'a, N> {
@@ -125,6 +143,24 @@ impl<'a, const N: usize> IntoIterator for Vertex<'a, N> {
 
 pub struct ArcVertex<const N: usize> {
     e: ArcEntry<VertexStore<N>, N>,
+}
+
+impl<const N: usize> CorePropertiesOps for ArcVertex<N> {
+    fn static_prop_meta(&self) -> &DictMapper<String> {
+        todo!()
+    }
+
+    fn temporal_prop_meta(&self) -> &DictMapper<String> {
+        todo!()
+    }
+
+    fn temporal_prop(&self, id: usize) -> Option<&TProp> {
+        todo!()
+    }
+
+    fn static_prop(&self, id: usize) -> Option<&Prop> {
+        todo!()
+    }
 }
 
 impl<const N: usize> ArcVertex<N> {

@@ -102,6 +102,14 @@ pub struct Meta {
 }
 
 impl Meta {
+    pub fn static_prop_meta(&self) -> &DictMapper<String> {
+        &self.meta_prop_static
+    }
+
+    pub fn temporal_prop_meta(&self) -> &DictMapper<String> {
+        &self.meta_prop_temporal
+    }
+
     pub fn new() -> Self {
         let meta_layer = DictMapper::default();
         meta_layer.get_or_create_id("_default".to_owned());
@@ -167,11 +175,15 @@ impl Meta {
             .collect()
     }
 
-    pub fn reverse_prop_id(&self, prop_id: usize, is_static: bool) -> Option<String> {
+    pub fn reverse_prop_id(
+        &self,
+        prop_id: usize,
+        is_static: bool,
+    ) -> Option<impl Deref<Target = String> + Debug + '_> {
         if is_static {
-            self.meta_prop_static.reverse_lookup(&prop_id)
+            self.meta_prop_static.reverse_lookup(prop_id)
         } else {
-            self.meta_prop_temporal.reverse_lookup(&prop_id)
+            self.meta_prop_temporal.reverse_lookup(prop_id)
         }
     }
 }
@@ -179,19 +191,19 @@ impl Meta {
 #[derive(Serialize, Deserialize, Default, Debug)]
 pub struct DictMapper<T: Hash + Eq> {
     map: FxDashMap<T, usize>,
-    reverse_map: FxDashMap<usize, T>,
-    counter: AtomicUsize,
+    reverse_map: RwLock<Vec<T>>, //FIXME: a boxcar vector would be a great fit if it was serializable...
 }
 
-impl<T: Hash + Eq + Clone> DictMapper<T> {
+impl<T: Hash + Eq + Clone + Debug> DictMapper<T> {
     pub fn get_or_create_id(&self, name: T) -> usize {
         if let Some(existing_id) = self.map.get(&name) {
             return *existing_id;
         }
 
         let new_id = self.map.entry(name.clone()).or_insert_with(|| {
-            let id = self.counter.fetch_add(1, Ordering::Relaxed);
-            self.reverse_map.insert(id, name);
+            let mut reverse = self.reverse_map.write();
+            let id = reverse.len();
+            reverse.push(name);
             id
         });
         *new_id
@@ -201,18 +213,22 @@ impl<T: Hash + Eq + Clone> DictMapper<T> {
         self.map.get(name).map(|id| *id)
     }
 
-    fn reverse_lookup(&self, id: &usize) -> Option<T> {
-        self.reverse_map.get(id).map(|name| name.clone())
+    fn reverse_lookup(&self, id: usize) -> Option<impl Deref<Target = T> + Debug + '_> {
+        let guard = self.reverse_map.read();
+        (id < guard.len()).then_some(RwLockReadGuard::map(guard, |v| &v[id]))
     }
 
-    pub fn get_keys(&self) -> Vec<T> {
-        self.map.iter().map(|entry| entry.key().clone()).collect()
+    pub fn get_keys(&self) -> impl Deref<Target = Vec<T>> + '_ {
+        self.reverse_map.read()
     }
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
+    use rand::seq::SliceRandom;
+    use rayon::prelude::*;
+    use std::collections::HashMap;
 
     #[test]
     fn test_dict_mapper() {
@@ -222,6 +238,29 @@ mod test {
         assert_eq!(mapper.get_or_create_id("test2"), 1);
         assert_eq!(mapper.get_or_create_id("test2"), 1);
         assert_eq!(mapper.get_or_create_id("test"), 0);
+    }
+
+    #[quickcheck]
+    fn check_dict_mapper_concurrent_write(write: Vec<String>) -> bool {
+        let n = 100;
+        let mapper: DictMapper<String> = DictMapper::default();
+
+        let res: Vec<HashMap<String, usize>> = (0..n)
+            .into_par_iter()
+            .map(|_| {
+                let mut ids: HashMap<String, usize> = Default::default();
+                let mut rng = rand::thread_rng();
+                let mut write_s = write.clone();
+                write_s.shuffle(&mut rng);
+                for s in write_s {
+                    let id = mapper.get_or_create_id(s.clone());
+                    ids.insert(s, id);
+                }
+                ids
+            })
+            .collect();
+        let res_0 = &res[0];
+        res[1..n].iter().all(|v| res_0 == v) && write.iter().all(|v| mapper.get(v).is_some())
     }
 
     // map 5 strings to 5 ids from 4 threads concurrently 1000 times
