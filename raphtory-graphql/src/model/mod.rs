@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 use crate::{
     data::Data,
     model::graph::graph::{GqlGraph, GraphMeta},
@@ -33,7 +35,7 @@ impl QueryRoot {
         let data = ctx.data_unchecked::<Data>();
         data.graphs
             .iter()
-            .map(|(name, g)| GraphMeta::new(name.clone(), g.clone().into_dynamic()))
+            .map(|(name, g)| GraphMeta::new(name.clone(), g.deref().clone().into_dynamic()))
             .collect_vec()
     }
 }
