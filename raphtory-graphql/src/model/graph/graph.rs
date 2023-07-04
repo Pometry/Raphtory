@@ -47,13 +47,13 @@ impl GraphMeta {
 
 #[derive(ResolvedObject)]
 pub(crate) struct GqlGraph {
-    graph: DynamicGraph,
+    graph: IndexedGraph<DynamicGraph>,
 }
 
 impl<G: GraphViewOps + IntoDynamic> From<G> for GqlGraph {
     fn from(value: G) -> Self {
         Self {
-            graph: value.into_dynamic(),
+            graph: value.into_dynamic().into(),
         }
     }
 }
@@ -86,6 +86,15 @@ impl GqlGraph {
         }
     }
 
+    async fn search(&self, query: String, limit: usize, offset: usize) -> Vec<Node> {
+        self.graph
+            .search(&query, limit, offset)
+            .into_iter()
+            .flat_map(|vv| vv)
+            .map(|vv| vv.into())
+            .collect()
+    }
+
     async fn edges<'a>(&self, filter: Option<EdgeFilter>) -> Vec<Edge> {
         match filter {
             Some(filter) => self
@@ -116,6 +125,6 @@ impl GqlGraph {
     }
 
     async fn algorithms(&self) -> Algorithms {
-        self.graph.clone().into()
+        self.graph.deref().clone().into()
     }
 }

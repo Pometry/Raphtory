@@ -171,8 +171,6 @@ impl Meta {
         if is_static {
             self.meta_prop_static.map.iter().map(|entry| entry.key().clone()).collect()
         } else {
-            println!("temporal meta: {:?}", self.meta_prop_temporal);
-            println!("static meta: {:?}", self.meta_prop_static);
             self.meta_prop_temporal.map.iter().map(|entry| entry.key().clone()).collect()
         }
     }

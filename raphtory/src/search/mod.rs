@@ -40,6 +40,12 @@ pub(in crate::search) mod fields {
 
 const EMPTY: [(&str, Prop); 0] = [];
 
+impl <G:GraphViewOps> From<G> for IndexedGraph<G> {
+    fn from(graph: G) -> Self {
+        Self::from_graph(&graph).expect("failed to generate index from graph")
+    }
+}
+
 impl<G: GraphViewOps> IndexedGraph<G> {
     fn new_schema_builder() -> SchemaBuilder {
         let mut schema = Schema::builder();
@@ -136,7 +142,6 @@ impl<G: GraphViewOps> IndexedGraph<G> {
                 let prop_field = schema.get_field(&temp_prop_name)?;
                 for (time, prop_value) in vertex.property_history(temp_prop_name) {
                     if let Prop::Str(prop_text) = prop_value {
-                        // what now?
                         let mut document = Document::new();
                         // add time to the document
                         document.add_i64(time_field, time);
@@ -178,6 +183,7 @@ impl<G: GraphViewOps> IndexedGraph<G> {
             writer.commit()?;
         }
 
+        reader.reload()?;
         Ok(IndexedGraph { graph: g.clone(), index: Arc::new(index) , reader  })
 
     }

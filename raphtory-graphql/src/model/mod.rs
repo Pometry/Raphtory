@@ -25,7 +25,8 @@ impl QueryRoot {
     async fn graph<'a>(ctx: &Context<'a>, name: &str) -> Option<GqlGraph> {
         let data = ctx.data_unchecked::<Data>();
         let g = data.graphs.get(name)?;
-        Some(g.clone().into())
+        let graph = g.deref();
+        Some(graph.clone().into())
     }
 
     async fn graphs<'a>(ctx: &Context<'a>) -> Vec<GraphMeta> {
