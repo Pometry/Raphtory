@@ -45,4 +45,4 @@ The list of the Core Team members and more detailed information can be found on 
 License
 -------
 
-.. literalinclude:: ../../../LICENSE
+The License can be found on Github `here <https://github.com/Pometry/Raphtory/blob/master/LICENSE>`__.

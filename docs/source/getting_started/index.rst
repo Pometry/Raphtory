@@ -7,7 +7,7 @@ Getting started
 ===============
 
 
-Installation (python)
+Installation
 ----------------------
 
 .. grid:: 1 2 2 2
@@ -84,70 +84,6 @@ Building / Source
 
 .. _gentle_intro:
 
-Intro to Raphtory
-------------------
-
-.. raw:: html
-
-    <div class="container">
-    <div id="accordion" class="shadow tutorial-accordion">
-
-        <div class="card tutorial-card">
-            <div class="card-header collapsed card-link" data-bs-toggle="collapse" data-bs-target="#collapseOne">
-                <div class="d-flex flex-row tutorial-card-header-1">
-                    <div class="d-flex flex-row tutorial-card-header-2">
-                        <button class="btn btn-dark btn-sm"></button>
-                        What kind of data does raphtory handle?
-                    </div>
-
-.. raw:: html
-
-                </div>
-            </div>
-            <div id="collapseOne" class="collapse" data-parent="#accordion">
-                <div class="card-body">
-
-Blah Blah Blah Blah.
-
-.. raw:: html
-
-                </div>
-            </div>
-        </div>
-
-        <div class="card tutorial-card">
-            <div class="card-header collapsed card-link" data-bs-toggle="collapse" data-bs-target="#collapseTwo">
-                <div class="d-flex flex-row tutorial-card-header-1">
-                    <div class="d-flex flex-row tutorial-card-header-2">
-                        <button class="btn btn-dark btn-sm"></button>
-                        How many algorithms does Raphtory support?
-                    </div>
-
-.. raw:: html
-
-                </div>
-            </div>
-            <div id="collapseTwo" class="collapse" data-parent="#accordion">
-                <div class="card-body">
-
-Nlah Nlah Nlah Nlah.
-
-.. raw:: html
-
-                    <div class="d-flex flex-row">
-                    </div>
-                </div>
-            </div>
-        </div>
-
-    </div>
-    </div>
-
-Tutorials
----------
-
-.. If you update this toctree, also update the manual toctree in the
-   main index.rst.template
 
 .. toctree::
     :maxdepth: 2

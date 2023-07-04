@@ -73,12 +73,12 @@ html_context = {
 html_theme = "pydata_sphinx_theme"
 
 
-html_logo = "_static/logo.svg"
 html_static_path = ['_static', 'images']
 html_css_files = [
     "css/getting_started.css",
     "css/raphtory.css",
 ]
+html_logo = "_static/logo.svg"
 
 html_use_modindex = True
 htmlhelp_basename = "raphtory"
