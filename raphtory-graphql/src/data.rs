@@ -1,4 +1,4 @@
-use raphtory::prelude::{Graph, GraphViewOps};
+use raphtory::{prelude::{Graph, GraphViewOps}, search::IndexedGraph};
 use std::{
     collections::{HashMap, HashSet},
     path::Path,
