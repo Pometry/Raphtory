@@ -5,7 +5,7 @@ use std::{collections::HashSet, ops::Deref, sync::Arc};
 use tantivy::{
     collector::TopDocs,
     schema::{Field, Schema, SchemaBuilder, FAST, INDEXED, STORED, TEXT},
-    DocAddress, Document, Index, IndexReader, IndexSortByField,
+    DateOptions, DocAddress, Document, Index, IndexReader, IndexSortByField,
 };
 
 use crate::{
@@ -101,16 +101,20 @@ impl<G: GraphViewOps> IndexedGraph<G> {
             for prop in prop_names_set.iter() {
                 // load temporal props
                 for (_, prop_value) in vertex.property_history(prop.to_string()) {
+                    if found_props.contains(prop) {
+                        continue;
+                    }
                     match prop_value {
                         Prop::Str(_) => {
-                            if found_props.contains(prop) {
-                                continue;
-                            }
                             schema.add_text_field(prop, TEXT);
-                            found_props.insert(prop.to_string());
                         }
-                        _ => todo!(),
+                        Prop::DTime(_) => {
+                            schema.add_date_field(prop, INDEXED);
+                        }
+                        x => todo!("prop value {:?} not supported yet", x),
                     }
+
+                    found_props.insert(prop.to_string());
                 }
                 // load static props
                 if let Some(prop_value) = vertex.static_property(prop.to_string()) {
@@ -354,6 +358,23 @@ mod test {
     use tantivy::{doc, DocAddress};
 
     use super::*;
+
+    #[test]
+    #[ignore = "this test is slow"]
+    fn load_jira_graph() -> Result<(), GraphError> {
+        let graph = Graph::load_from_file("/tmp/graphs/jira").expect("failed to load graph");
+        assert!(graph.num_vertices() > 0);
+
+        let index_graph: IndexedGraph<Graph> = graph.into();
+
+        let issues = index_graph.search("name:'DEV-1690'", 5, 0)?;
+
+        assert!(issues.len() >= 1);
+
+        println!("issues: {:?}", issues);
+
+        Ok(())
+    }
 
     #[test]
     fn create_indexed_graph_from_existing_graph() {
