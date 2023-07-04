@@ -63,6 +63,14 @@ impl<G: GraphViewOps> IndexedGraph<G> {
 
     fn schema_from_props<S: AsRef<str>, I: IntoIterator<Item = (S, Prop)>>(props: I) -> Schema {
         let mut schema = Self::new_schema_builder();
+
+        for (prop_name, prop) in props.into_iter() {
+            match prop {
+                Prop::Str(_) => { schema.add_text_field(prop_name.as_ref(), TEXT); },
+                _ => todo!(),
+            }
+        }
+
         schema.build()
     }
 
