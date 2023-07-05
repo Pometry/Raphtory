@@ -1,4 +1,4 @@
-use raphtory::prelude::{Graph, GraphViewOps};
+use raphtory::{prelude::{Graph, GraphViewOps}, search::IndexedGraph};
 use std::{
     collections::{HashMap, HashSet},
     path::Path,
@@ -6,7 +6,7 @@ use std::{
 use walkdir::WalkDir;
 
 pub(crate) struct Data {
-    pub(crate) graphs: HashMap<String, Graph>,
+    pub(crate) graphs: HashMap<String, IndexedGraph<Graph>>,
 }
 
 impl Data {
@@ -36,7 +36,7 @@ impl Data {
             }
         };
 
-        let graphs: HashMap<String, Graph> = valid_paths
+        let graphs: HashMap<String, IndexedGraph<Graph>> = valid_paths
             .into_iter()
             .map(|path| {
                 println!("loading graph from {path}");
@@ -54,7 +54,7 @@ impl Data {
                         (graph_name.to_string(), graph)
                     }
                 };
-            })
+            }).map(|(name, g)| (name, IndexedGraph::from_graph(&g).expect("Unable to index graph")))
             .collect();
 
         Self { graphs }
