@@ -1,8 +1,9 @@
 use std::collections::HashMap;
+use std::fmt::Error;
 use pyo3::prelude::*;
 use raphtory_core::prelude::*;
+use raphtory_core::python::utils::errors::adapt_err_value;
 use raphtory_graphql::RaphtoryServer;
-
 /// The Raphtory GraphQL server
 #[pyclass(name = "RaphtoryServer")]
 pub struct PyServer {
@@ -21,10 +22,15 @@ impl PyServer {
         Self { server }
     }
 
-    pub async fn run(self, port: Option<u16>) -> std::io::Result<()> {
-        match port {
-            Some(port) => self.server.run_with_port(port).await,
-            None => self.server.run().await
-        }
+    pub fn run(&self, py: Python, port: Option<u16>) -> PyResult<&PyAny> {
+        pyo3_asyncio::tokio::future_into_py(py, async move {
+            match port {
+                Some(port) => self.server.run_with_port(port).await.map_err(|&e| adapt_err_value(e)),
+                None => self.server.run().await.map_err(&|e|adapt_err_value(e))
+            }
+        })
+
+
+
     }
 }

@@ -12,6 +12,10 @@ pub(crate) struct Data {
 impl Data {
 
     pub fn new(graphs: HashMap<String, Graph>) -> Self {
+        let graphs: HashMap<String, IndexedGraph<Graph>> = graphs
+            .into_iter()
+            .map(|(name, g)| (name, IndexedGraph::from_graph(&g).expect("Unable to index graph")))
+            .collect();
         Self { graphs }
     }
 
