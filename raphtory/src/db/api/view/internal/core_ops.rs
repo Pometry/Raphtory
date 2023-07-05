@@ -121,6 +121,12 @@ pub trait CoreGraphOps {
     /// A vector of strings representing the names of the temporal properties
     fn all_vertex_prop_names(&self, is_static: bool) -> Vec<String>;
 
+    /// Returns a vector of all names of temporal properties that exist on at least one vertex
+    ///
+    /// # Returns
+    ///
+    /// A vector of strings representing the names of the temporal properties
+    fn all_edge_prop_names(&self, is_static:bool)-> Vec<String>;
     /// Returns the static edge property with the given name for the
     /// given edge reference.
     ///
@@ -248,6 +254,10 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
 
     fn all_vertex_prop_names(&self, is_static: bool) -> Vec<String> {
         self.graph().all_vertex_prop_names(is_static)
+    }
+
+    fn all_edge_prop_names(&self, is_static: bool) -> Vec<String> {
+        self.graph().all_edge_prop_names(is_static)
     }
 
     fn static_edge_prop(&self, e: EdgeRef, name: &str) -> Option<Prop> {
