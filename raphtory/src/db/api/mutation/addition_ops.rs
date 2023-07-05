@@ -104,7 +104,8 @@ impl<G: InternalAdditionOps> AdditionOps for G {
             v.id(),
             v.id_str(),
             props.collect_properties(),
-        )
+        )?;
+        Ok(())
     }
 
     fn add_edge<V: InputVertex, T: TryIntoTime, P: Properties>(

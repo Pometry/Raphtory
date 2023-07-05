@@ -89,6 +89,10 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
             .collect()
     }
 
+    fn all_vertex_prop_names(&self, is_static: bool) -> Vec<String> {
+        self.get_all_vertex_property_names(is_static)
+    }
+
     fn static_edge_prop(&self, e: EdgeRef, name: &str) -> Option<Prop> {
         let entry = self.edge_entry(e.pid());
         let edge = entry.value()?;

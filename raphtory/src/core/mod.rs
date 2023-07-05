@@ -60,6 +60,12 @@ pub enum Prop {
     Graph(Graph),
 }
 
+impl Prop{
+    pub fn str(s: &str) -> Prop {
+        Prop::Str(s.to_string())
+    }
+}
+
 pub trait PropUnwrap: Sized {
     fn into_str(self) -> Option<String>;
     fn unwrap_str(self) -> String {

@@ -96,6 +96,9 @@ pub mod python;
 #[cfg(feature = "io")]
 pub mod graph_loader;
 
+#[cfg(feature = "search")]
+pub mod search;
+
 pub mod prelude {
     pub use crate::{
         core::{Prop, PropUnwrap},
