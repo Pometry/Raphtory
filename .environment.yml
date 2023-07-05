@@ -4,26 +4,26 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - ca-certificates=2021.10.8
-  - certifi=2021.10.8
+  - ca-certificates>=2021.10.8
+  - certifi>=2021.10.8
   - ipykernel
-  - libcxx=12.0.0
+  - libcxx>=12.0.0
   - libffi>=3.3
   - ncurses>=6.4
   - make=4.3
-  - openssl=1.1.1q
-  - pip=21.2.4
+  - openssl>=1.1.1q
+  - pip>=21.2.4
   - python=3.10.12
   - python_abi=3.10
-  - readline=8.1.2
-  - libzlib=1.2.13
+  - readline>=8.1.2
+  - libzlib>=1.2.13
   - rust=1.67.1
   - setuptools=61.2.0
   - sqlite>=3.38.3
   - tk>=8.6.11
-  - tzdata=2022a
-  - wheel=0.37.1
-  - xz=5.2.5
+  - tzdata>=2022a
+  - wheel>=0.37.1
+  - xz>=5.2.5
   - zlib>=1.2.12
   - pip:
       - accessible-pygments==0.0.4
