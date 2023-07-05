@@ -24,8 +24,7 @@
 //!    * `macOS`
 //!
 
-use crate::db::graph::Graph;
-use crate::db::view_api::GraphViewOps;
+use crate::db::{api::view::GraphViewOps, graph::graph::Graph};
 use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -33,28 +32,13 @@ use std::fmt;
 #[cfg(test)]
 extern crate core;
 
-mod adj;
-pub mod agg;
-mod edge_layer;
-pub mod edge_ref;
-mod lazy_vec;
-pub mod lsm;
-mod props;
-mod sorted_vec_map;
+pub mod entities;
 pub mod state;
-pub mod tadjset;
-mod tcell;
-pub mod tgraph;
-pub mod tgraph_shard;
-pub mod time;
-pub mod timeindex;
-pub mod tprop;
+pub(crate) mod storage;
 pub mod utils;
-pub mod vertex;
-pub mod vertex_ref;
 
 /// Denotes the direction of an edge. Can be incoming, outgoing or both.
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, PartialOrd, Debug)]
 pub enum Direction {
     OUT,
     IN,
@@ -74,6 +58,12 @@ pub enum Prop {
     Bool(bool),
     DTime(NaiveDateTime),
     Graph(Graph),
+}
+
+impl Prop{
+    pub fn str(s: &str) -> Prop {
+        Prop::Str(s.to_string())
+    }
 }
 
 pub trait PropUnwrap: Sized {

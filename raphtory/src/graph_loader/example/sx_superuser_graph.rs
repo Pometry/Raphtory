@@ -37,19 +37,18 @@
 //! Example:
 //! ```no_run
 //! use raphtory::graph_loader::example::sx_superuser_graph::sx_superuser_graph;
-//! use raphtory::db::graph::Graph;
-//! use raphtory::db::view_api::*;
+//! use raphtory::prelude::*;
 //!
-//! let graph = sx_superuser_graph(1).unwrap();
+//! let graph = sx_superuser_graph().unwrap();
 //!
 //! println!("The graph has {:?} vertices", graph.num_vertices());
 //! println!("The graph has {:?} edges", graph.num_edges());
 //! ```
 
-use crate::db::graph::Graph;
-
-use crate::db::mutation_api::AdditionOps;
-use crate::graph_loader::{fetch_file, source::csv_loader::CsvLoader};
+use crate::{
+    graph_loader::{fetch_file, source::csv_loader::CsvLoader},
+    prelude::*,
+};
 use serde::Deserialize;
 use std::path::PathBuf;
 
@@ -69,7 +68,7 @@ pub fn sx_superuser_file() -> Result<PathBuf, Box<dyn std::error::Error>> {
     fetch_file(
         "sx-superuser.txt.gz",
         true,
-        "https://snap.stanford.edu/data/sx-superuser.txt.gz",
+        "http://web.archive.org/web/20230309171639/https://snap.stanford.edu/data/sx-superuser.txt.gz",
         600,
     )
 }
@@ -83,8 +82,8 @@ pub fn sx_superuser_file() -> Result<PathBuf, Box<dyn std::error::Error>> {
 /// # Returns
 ///
 /// - A Result containing the graph or an error
-pub fn sx_superuser_graph(shards: usize) -> Result<Graph, Box<dyn std::error::Error>> {
-    let graph = Graph::new(shards);
+pub fn sx_superuser_graph() -> Result<Graph, Box<dyn std::error::Error>> {
+    let graph = Graph::new();
     CsvLoader::new(sx_superuser_file()?)
         .set_delimiter(" ")
         .load_into_graph(&graph, |edge: TEdge, g: &Graph| {
@@ -109,6 +108,6 @@ mod sx_superuser_test {
     #[test]
     #[ignore] // don't hit SNAP by default  FIXME: add a truncated test file for this one?
     fn test_graph_loading_works() {
-        sx_superuser_graph(2).unwrap();
+        sx_superuser_graph().unwrap();
     }
 }

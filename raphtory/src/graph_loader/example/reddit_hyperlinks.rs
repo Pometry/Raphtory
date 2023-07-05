@@ -30,25 +30,22 @@
 //! Example:
 //! ```no_run
 //! use raphtory::graph_loader::example::reddit_hyperlinks::reddit_graph;
-//! use raphtory::db::graph::Graph;
-//! use raphtory::db::view_api::*;
+//! use raphtory::prelude::*;
 //!
-//! let graph = reddit_graph(1, 120, false);
+//! let graph = reddit_graph(120, false);
 //!
 //! println!("The graph has {:?} vertices", graph.num_vertices());
 //! println!("The graph has {:?} edges", graph.num_edges());
 //! ```
 
-use crate::core::Prop;
-use crate::db::graph::Graph;
-use crate::db::mutation_api::AdditionOps;
-use crate::graph_loader::fetch_file;
+use crate::{core::Prop, db::api::mutation::AdditionOps, graph_loader::fetch_file, prelude::*};
 use chrono::*;
 use itertools::Itertools;
-use std::fs::File;
-use std::io::{self, BufRead};
-use std::path::Path;
-use std::path::PathBuf;
+use std::{
+    fs::File,
+    io::{self, BufRead},
+    path::{Path, PathBuf},
+};
 
 /// Download the dataset and return the path to the file
 /// # Arguments
@@ -69,7 +66,7 @@ pub fn reddit_file(
         _ => fetch_file(
             "reddit-title.tsv",
             true,
-            "http://snap.stanford.edu/data/soc-redditHyperlinks-title.tsv",
+            "http://web.archive.org/web/20201107005944/http://snap.stanford.edu/data/soc-redditHyperlinks-title.tsv",
             timeout,
         ),
     }
@@ -88,15 +85,14 @@ where
 ///
 /// # Arguments
 ///
-/// * `shards` - The number of shards to use for the graph
 /// * `timeout` - The timeout in seconds for downloading the dataset
 ///
 /// # Returns
 ///
 /// * `Graph` - The graph containing the Reddit hyperlinks dataset
-pub fn reddit_graph(shards: usize, timeout: u64, test_file: bool) -> Graph {
+pub fn reddit_graph(timeout: u64, test_file: bool) -> Graph {
     let graph = {
-        let g = Graph::new(shards);
+        let g = Graph::new();
 
         if let Ok(path) = reddit_file(timeout, Some(test_file)) {
             if let Ok(lines) = read_lines(path.as_path()) {
@@ -159,8 +155,10 @@ pub fn reddit_graph(shards: usize, timeout: u64, test_file: bool) -> Graph {
 
 #[cfg(test)]
 mod reddit_test {
-    use crate::db::view_api::*;
-    use crate::graph_loader::example::reddit_hyperlinks::{reddit_file, reddit_graph};
+    use crate::{
+        db::api::view::*,
+        graph_loader::example::reddit_hyperlinks::{reddit_file, reddit_graph},
+    };
 
     #[test]
     fn check_data() {
@@ -170,7 +168,7 @@ mod reddit_test {
 
     #[test]
     fn check_graph() {
-        let graph = reddit_graph(1, 100, true);
+        let graph = reddit_graph(100, true);
         assert_eq!(graph.num_vertices(), 16);
         assert_eq!(graph.num_edges(), 9);
     }

@@ -1,18 +1,15 @@
-use crate::data::Data;
-use crate::model::algorithm::Algorithm;
-use crate::model::QueryRoot;
-use crate::observability::tracing::create_tracer_from_env;
-use crate::routes::{graphql_playground, health};
+#![allow(dead_code)]
+use crate::{
+    data::Data,
+    model::{algorithm::Algorithm, QueryRoot},
+    observability::tracing::create_tracer_from_env,
+    routes::{graphql_playground, health},
+};
 use async_graphql_poem::GraphQL;
 use dynamic_graphql::App;
-use poem::listener::TcpListener;
-use poem::middleware::Cors;
-use poem::{get, EndpointExt, Route, Server};
-use tokio::io::Result as IoResult;
-use tokio::signal;
-use tracing_subscriber::layer::SubscriberExt;
-use tracing_subscriber::util::SubscriberInitExt;
-use tracing_subscriber::Registry;
+use poem::{get, listener::TcpListener, middleware::Cors, EndpointExt, Route, Server};
+use tokio::{io::Result as IoResult, signal};
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, Registry};
 
 pub struct RaphtoryServer {
     data: Data,

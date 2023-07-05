@@ -7,15 +7,16 @@
 //! # Examples
 //!
 //! ```
-//! use raphtory::db::graph::Graph;
+//! use raphtory::prelude::*;
 //! use raphtory::graphgen::random_attachment::random_attachment;
-//! let graph = Graph::new(2);
+//! let graph = Graph::new();
 //! random_attachment(&graph, 1000, 10);
 //! ```
 
-use crate::db::graph::Graph;
-use crate::db::mutation_api::AdditionOps;
-use crate::db::view_api::*;
+use crate::db::{
+    api::{mutation::AdditionOps, view::*},
+    graph::graph::Graph,
+};
 use rand::seq::SliceRandom;
 
 /// Given a graph this function will add a user defined number of vertices, each with a
@@ -35,9 +36,9 @@ use rand::seq::SliceRandom;
 /// # Examples
 ///
 /// ```
-/// use raphtory::db::graph::Graph;
+/// use raphtory::prelude::*;
 /// use raphtory::graphgen::random_attachment::random_attachment;
-/// let graph = Graph::new(2);
+/// let graph = Graph::new();
 /// random_attachment(&graph, 1000, 10);
 /// ```
 pub fn random_attachment(graph: &Graph, vertices_to_add: usize, edges_per_step: usize) {
@@ -75,7 +76,7 @@ mod random_graph_test {
     use crate::graphgen::preferential_attachment::ba_preferential_attachment;
     #[test]
     fn blank_graph() {
-        let graph = Graph::new(2);
+        let graph = Graph::new();
         random_attachment(&graph, 100, 20);
         assert_eq!(graph.num_edges(), 2000);
         assert_eq!(graph.num_vertices(), 120);
@@ -83,7 +84,7 @@ mod random_graph_test {
 
     #[test]
     fn only_nodes() {
-        let graph = Graph::new(2);
+        let graph = Graph::new();
         for i in 0..10 {
             graph
                 .add_vertex(i, i as u64, [])
@@ -98,7 +99,7 @@ mod random_graph_test {
 
     #[test]
     fn prior_graph() {
-        let graph = Graph::new(2);
+        let graph = Graph::new();
         ba_preferential_attachment(&graph, 300, 7);
         random_attachment(&graph, 4000, 12);
         assert_eq!(graph.num_edges(), 50106);

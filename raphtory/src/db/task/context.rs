@@ -1,17 +1,12 @@
-use std::sync::Arc;
-
-use crate::{
-    core::{
-        agg::Accumulator,
-        state::{
-            accumulator_id::AccId, compute_state::ComputeState, shuffle_state::ShuffleComputeState,
-            StateType,
-        },
-    },
-    db::view_api::GraphViewOps,
-};
-
 use super::task_state::{Global, Shard};
+use crate::{
+    core::state::{
+        accumulator_id::AccId, agg::Accumulator, compute_state::ComputeState,
+        shuffle_state::ShuffleComputeState, StateType,
+    },
+    db::api::view::GraphViewOps,
+};
+use std::sync::Arc;
 
 type MergeFn<CS> =
     Arc<dyn Fn(&mut ShuffleComputeState<CS>, &ShuffleComputeState<CS>, usize) + Send + Sync>;
@@ -61,7 +56,6 @@ where
         mut a: Arc<ShuffleComputeState<CS>>,
         mut b: Arc<ShuffleComputeState<CS>>,
     ) -> Arc<ShuffleComputeState<CS>> {
-        // println!("Running merge \na: {:?} \nb: {:?}", a,b);
         if let Some(left) = Arc::get_mut(&mut a) {
             for merge_fn in self.merge_fns.iter() {
                 merge_fn(left, &b, self.ss);
@@ -82,7 +76,7 @@ where
         &mut self,
         id: AccId<A, IN, OUT, ACC>,
     ) {
-        let fn_merge: MergeFn<CS> = Arc::new(move |a, b, ss| a.merge_mut_2(b, id, ss));
+        let fn_merge: MergeFn<CS> = Arc::new(move |a, b, ss| a.merge_mut(b, id, ss));
 
         self.merge_fns.push(fn_merge);
     }
@@ -91,7 +85,7 @@ where
         &mut self,
         id: AccId<A, IN, OUT, ACC>,
     ) {
-        let fn_merge: MergeFn<CS> = Arc::new(move |a, b, ss| a.merge_mut_2(b, id, ss));
+        let fn_merge: MergeFn<CS> = Arc::new(move |a, b, ss| a.merge_mut(b, id, ss));
 
         self.merge_fns.push(fn_merge);
         self.resetable_states.push(id.id());
@@ -146,7 +140,6 @@ pub struct GlobalState<CS: ComputeState> {
 }
 
 impl<CS: ComputeState> GlobalState<CS> {
-
     pub fn finalize<A: StateType, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
         &self,
         agg_def: &AccId<A, IN, OUT, ACC>,
@@ -157,7 +150,8 @@ impl<CS: ComputeState> GlobalState<CS> {
     {
         // ss needs to be incremented because the loop ran once and at the end it incremented the state thus
         // the value is on the previous ss
-        self.state.inner()
+        self.state
+            .inner()
             .read_global(self.ss + 1, agg_def)
             .unwrap_or_default()
     }

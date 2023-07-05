@@ -1,20 +1,22 @@
-use std::collections::HashMap;
-use std::slice::Iter;
-
-use crate::core::agg::ValDef;
-use crate::core::state::accumulator_id::AccId;
-use crate::db::view_api::*;
-
-use crate::algorithms::motifs::three_node_motifs::*;
-use crate::core::state::accumulator_id::accumulators::val;
-use crate::core::state::compute_state::ComputeStateVec;
-use crate::db::task::context::Context;
-use crate::db::task::eval_vertex::EvalVertexView;
-use crate::db::task::task::{ATask, Job, Step};
-use crate::db::task::task_runner::TaskRunner;
-use crate::db::view_api::{GraphViewOps, VertexViewOps};
+use crate::{
+    algorithms::motifs::three_node_motifs::*,
+    core::state::{
+        accumulator_id::{accumulators::val, AccId},
+        agg::ValDef,
+        compute_state::ComputeStateVec,
+    },
+    db::{
+        api::view::{GraphViewOps, VertexViewOps, *},
+        task::{
+            context::Context,
+            task::{ATask, Job, Step},
+            task_runner::TaskRunner,
+            vertex::eval_vertex::EvalVertexView,
+        },
+    },
+};
 use num_traits::Zero;
-use std::ops::Add;
+use std::{collections::HashMap, ops::Add, slice::Iter};
 
 pub fn star_motif_count<G: GraphViewOps>(
     evv: &EvalVertexView<G, ComputeStateVec, MotifCounter>,
@@ -384,11 +386,10 @@ pub fn temporal_three_node_motif<G: GraphViewOps>(
 #[cfg(test)]
 mod motifs_test {
     use super::*;
-    use crate::db::graph::Graph;
-    use crate::db::mutation_api::AdditionOps;
+    use crate::db::{api::mutation::AdditionOps, graph::graph::Graph};
 
-    fn load_graph(n_shards: usize, edges: Vec<(i64, u64, u64)>) -> Graph {
-        let graph = Graph::new(n_shards);
+    fn load_graph(edges: Vec<(i64, u64, u64)>) -> Graph {
+        let graph = Graph::new();
 
         for (t, src, dst) in edges {
             graph.add_edge(t, src, dst, [], None).unwrap();
@@ -399,34 +400,31 @@ mod motifs_test {
     #[test]
     #[ignore = "This is not correct, it needs a rethink of the algorithm to be parallel"]
     fn test_two_node_motif() {
-        let g = load_graph(
-            1,
-            vec![
-                (1, 1, 2),
-                (2, 1, 3),
-                (3, 1, 4),
-                (4, 3, 1),
-                (5, 3, 4),
-                (6, 3, 5),
-                (7, 4, 5),
-                (8, 5, 6),
-                (9, 5, 8),
-                (10, 7, 5),
-                (11, 8, 5),
-                (12, 1, 9),
-                (13, 9, 1),
-                (14, 6, 3),
-                (15, 4, 8),
-                (16, 8, 3),
-                (17, 5, 10),
-                (18, 10, 5),
-                (19, 10, 8),
-                (20, 1, 11),
-                (21, 11, 1),
-                (22, 9, 11),
-                (23, 11, 9),
-            ],
-        );
+        let g = load_graph(vec![
+            (1, 1, 2),
+            (2, 1, 3),
+            (3, 1, 4),
+            (4, 3, 1),
+            (5, 3, 4),
+            (6, 3, 5),
+            (7, 4, 5),
+            (8, 5, 6),
+            (9, 5, 8),
+            (10, 7, 5),
+            (11, 8, 5),
+            (12, 1, 9),
+            (13, 9, 1),
+            (14, 6, 3),
+            (15, 4, 8),
+            (16, 8, 3),
+            (17, 5, 10),
+            (18, 10, 5),
+            (19, 10, 8),
+            (20, 1, 11),
+            (21, 11, 1),
+            (22, 9, 11),
+            (23, 11, 9),
+        ]);
 
         let actual = temporal_three_node_motif(&g, None, 10);
 

@@ -13,7 +13,7 @@
 //! use raphtory::algorithms::directed_graph_density::directed_graph_density;
 //! use raphtory::prelude::*;
 //!
-//! let g = Graph::new(1);
+//! let g = Graph::new();
 //! let windowed_graph = g.window(0, 7);
 //! let vs = vec![
 //!     (1, 1, 2),
@@ -31,7 +31,7 @@
 //! println!("graph density: {:?}", directed_graph_density(&windowed_graph));
 //! ```
 //!
-use crate::db::view_api::*;
+use crate::db::api::view::*;
 
 /// Measures how dense or sparse a graph is
 pub fn directed_graph_density<G: GraphViewOps>(graph: &G) -> f32 {
@@ -41,12 +41,11 @@ pub fn directed_graph_density<G: GraphViewOps>(graph: &G) -> f32 {
 #[cfg(test)]
 mod directed_graph_density_tests {
     use super::*;
-    use crate::db::graph::Graph;
-    use crate::db::mutation_api::AdditionOps;
+    use crate::db::{api::mutation::AdditionOps, graph::graph::Graph};
 
     #[test]
     fn low_graph_density() {
-        let g = Graph::new(1);
+        let g = Graph::new();
         let windowed_graph = g.window(0, 7);
         let vs = vec![
             (1, 1, 2),
@@ -69,7 +68,7 @@ mod directed_graph_density_tests {
 
     #[test]
     fn complete_graph_has_graph_density_of_one() {
-        let g = Graph::new(1);
+        let g = Graph::new();
         let windowed_graph = g.window(0, 3);
         let vs = vec![(1, 1, 2), (2, 2, 1)];
 

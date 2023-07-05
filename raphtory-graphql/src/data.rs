@@ -1,12 +1,12 @@
-use raphtory::db::graph::Graph;
-// use raphtory::db::view_api::internal::CoreGraphOps;
-use raphtory::prelude::GraphViewOps;
-use std::collections::{HashMap, HashSet};
-use std::path::Path;
+use raphtory::{prelude::{Graph, GraphViewOps}, search::IndexedGraph};
+use std::{
+    collections::{HashMap, HashSet},
+    path::Path,
+};
 use walkdir::WalkDir;
 
 pub(crate) struct Data {
-    pub(crate) graphs: HashMap<String, Graph>,
+    pub(crate) graphs: HashMap<String, IndexedGraph<Graph>>,
 }
 
 impl Data {
@@ -17,9 +17,13 @@ impl Data {
             .into_iter()
             .filter_map(|e| e.ok())
         {
-            let p = entry.path().display().to_string();
-            if p.contains("graphdb_nr_shards") {
-                valid_paths.insert(p.strip_suffix("graphdb_nr_shards").unwrap().to_string());
+            let path = entry.path();
+            let path_string = path.display().to_string();
+            let filename = path.file_name().and_then(|name| name.to_str());
+            if let Some(filename) = filename {
+                if path.is_file() && !filename.starts_with('.') {
+                    valid_paths.insert(path_string);
+                }
             }
         }
 
@@ -32,9 +36,10 @@ impl Data {
             }
         };
 
-        let graphs: HashMap<String, Graph> = valid_paths
+        let graphs: HashMap<String, IndexedGraph<Graph>> = valid_paths
             .into_iter()
             .map(|path| {
+                println!("loading graph from {path}");
                 let graph = Graph::load_from_file(&path).expect("Unable to load from graph");
                 let maybe_graph_name = graph.static_property("name");
 
@@ -49,7 +54,7 @@ impl Data {
                         (graph_name.to_string(), graph)
                     }
                 };
-            })
+            }).map(|(name, g)| (name, IndexedGraph::from_graph(&g).expect("Unable to index graph")))
             .collect();
 
         Self { graphs }

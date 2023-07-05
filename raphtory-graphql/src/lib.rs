@@ -1,5 +1,4 @@
-pub use crate::model::algorithm::Algorithm;
-pub use crate::server::RaphtoryServer;
+pub use crate::{model::algorithm::Algorithm, server::RaphtoryServer};
 
 mod model;
 mod observability;
@@ -11,21 +10,63 @@ mod data;
 #[cfg(test)]
 mod graphql_test {
     use super::*;
-    use dynamic_graphql::dynamic::DynamicRequestExt;
-    use dynamic_graphql::{App, FieldValue};
-    use raphtory::core::Prop;
-    use raphtory::db::graph::Graph;
-    use raphtory::db::mutation_api::AdditionOps;
+    use dynamic_graphql::{dynamic::DynamicRequestExt, App, FieldValue};
+    use raphtory::prelude::*;
     use std::collections::HashMap;
-    use std::env;
+
+    #[tokio::test]
+    async fn search_for_gandalf_query() {
+        let graph = Graph::new();
+        graph
+            .add_vertex(0, "Gandalf", [("kind".to_string(), Prop::str("wizard"))])
+            .expect("Could not add vertex!");
+        graph
+            .add_vertex(0, "Frodo", [("kind".to_string(), Prop::str("Hobbit"))])
+            .expect("Could not add vertex!");
+
+        let graphs = HashMap::from([("lotr".to_string(), graph.into())]);
+        let data = data::Data { graphs };
+
+        #[derive(App)]
+        struct App(model::QueryRoot);
+        let schema = App::create_schema().data(data).finish().unwrap();
+
+        let query = r#"
+        {
+          graph(name: "lotr") {
+            search(query: "kind:wizard", limit: 10, offset: 0) {
+              name
+            }
+          }
+        }
+        "#;
+
+        let root = model::QueryRoot;
+        let req = dynamic_graphql::Request::new(query).root_value(FieldValue::owned_any(root));
+
+        let res = schema.execute(req).await;
+        let data = res.data.into_json().unwrap();
+
+        assert_eq!(
+            data,
+            serde_json::json!({
+                "graph": {
+                    "search": [
+                        {
+                            "name": "Gandalf"
+                        }
+                    ]
+                }
+            }),
+        );
+    }
 
     #[tokio::test]
     async fn basic_query() {
-        let graph = Graph::new(1);
-        if let Err(err) = graph.add_vertex(0, 11, []) {
-            panic!("Could not add vertex! {:?}", err);
-        }
-        let graphs = HashMap::from([("lotr".to_string(), graph)]);
+        let graph = Graph::new();
+        graph.add_vertex(0, 11, []).expect("Could not add vertex!");
+
+        let graphs = HashMap::from([("lotr".to_string(), graph.into())]);
         let data = data::Data { graphs };
 
         #[derive(App)]
@@ -64,7 +105,7 @@ mod graphql_test {
 
     #[tokio::test]
     async fn query_nodefilter() {
-        let graph = Graph::new(1);
+        let graph = Graph::new();
         if let Err(err) = graph.add_vertex(0, "gandalf", []) {
             panic!("Could not add vertex! {:?}", err);
         }
@@ -75,7 +116,7 @@ mod graphql_test {
             panic!("Could not add vertex! {:?}", err);
         }
 
-        let graphs = HashMap::from([("lotr".to_string(), graph)]);
+        let graphs = HashMap::from([("lotr".to_string(), graph.into())]);
         let data = data::Data { graphs };
 
         #[derive(App)]
@@ -144,7 +185,7 @@ mod graphql_test {
 
     #[tokio::test]
     async fn query_properties() {
-        let graph = Graph::new(1);
+        let graph = Graph::new();
         if let Err(err) = graph.add_vertex(0, "gandalf", []) {
             panic!("Could not add vertex! {:?}", err);
         }
@@ -163,7 +204,7 @@ mod graphql_test {
             panic!("Could not add vertex! {:?}", err);
         }
 
-        let graphs = HashMap::from([("lotr".to_string(), graph)]);
+        let graphs = HashMap::from([("lotr".to_string(), graph.into())]);
         let data = data::Data { graphs };
 
         #[derive(App)]

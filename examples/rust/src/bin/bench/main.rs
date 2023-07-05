@@ -1,14 +1,13 @@
-use itertools::Itertools;
-use raphtory::algorithms::pagerank::unweighted_page_rank;
-use raphtory::core::utils;
-use raphtory::core::Prop;
-use raphtory::db::graph::Graph;
-use raphtory::db::mutation_api::AdditionOps;
-use raphtory::db::view_api::*;
-use raphtory::graph_loader::source::csv_loader::CsvLoader;
+use raphtory::{
+    algorithms::pagerank::unweighted_page_rank, graph_loader::source::csv_loader::CsvLoader,
+    prelude::*,
+};
 use serde::Deserialize;
-use std::path::PathBuf;
-use std::{env, path::Path, time::Instant};
+use std::{
+    env,
+    path::{Path, PathBuf},
+    time::Instant,
+};
 
 #[derive(Deserialize, std::fmt::Debug)]
 pub struct Benchr {
@@ -51,7 +50,7 @@ fn main() {
 
         g
     } else {
-        let g = Graph::new(8);
+        let g = Graph::new();
         let now = Instant::now();
 
         CsvLoader::new(data_dir)
@@ -82,6 +81,6 @@ fn main() {
         g
     };
     println!("Data loaded\nPageRanking");
-    let r = unweighted_page_rank(&graph, 25, Some(8), None, true);
+    unweighted_page_rank(&graph, 25, Some(8), None, true);
     println!("Done PR");
 }

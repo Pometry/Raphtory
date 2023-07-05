@@ -9,11 +9,10 @@
 //! Load a pre-built graph
 //! ```rust
 //! use raphtory::algorithms::degree::average_degree;
-//! use raphtory::db::graph::Graph;
-//! use raphtory::db::view_api::*;
+//! use raphtory::prelude::*;
 //! use raphtory::graph_loader::example::lotr_graph::lotr_graph;
 //!
-//! let graph = lotr_graph(3);
+//! let graph = lotr_graph();
 //!
 //! // Get the in-degree, out-degree of Gandalf
 //! // The graph.vertex option returns a result of an option,
@@ -31,12 +30,10 @@
 //! Load a graph from csv
 //!
 //! ```no_run
-//! use raphtory::db::graph::Graph;
-//! use raphtory::core::Prop;
 //! use std::time::Instant;
 //! use serde::Deserialize;
-//! use raphtory::db::mutation_api::AdditionOps;
 //! use raphtory::graph_loader::source::csv_loader::CsvLoader;
+//! use raphtory::prelude::*;
 //!
 //! let data_dir = "/tmp/lotr.csv";
 //!
@@ -47,7 +44,7 @@
 //!    time: i64,
 //! }
 //!
-//! let g = Graph::new(2);
+//! let g = Graph::new();
 //! let now = Instant::now();
 //!
 //! CsvLoader::new(data_dir)
@@ -97,12 +94,13 @@
 //! assert!(path.is_ok());
 //! ```
 
-use std::env;
-use std::fs::File;
-use std::fs::*;
-use std::io::{copy, Cursor};
-use std::path::{Path, PathBuf};
-use std::time::Duration;
+use std::{
+    env,
+    fs::{File, *},
+    io::{copy, Cursor},
+    path::{Path, PathBuf},
+    time::Duration,
+};
 use zip::read::ZipArchive;
 
 pub mod example;
@@ -124,7 +122,7 @@ pub fn fetch_file(
         let client = reqwest::blocking::Client::builder()
             .timeout(Duration::from_secs(timeout))
             .build()?;
-        let response = client.get(url).send()?;
+        let response = client.get(url).send()?.error_for_status()?;
         let mut content = Cursor::new(response.bytes()?);
         if !filepath.exists() {
             let mut file = File::create(&filepath)?;
@@ -161,17 +159,10 @@ fn unzip_file(zip_file_path: &str, destination_path: &str) -> std::io::Result<()
 
 #[cfg(test)]
 mod graph_loader_test {
-    use crate::db::mutation_api::AdditionOps;
-    use crate::{
-        core::{utils, Prop},
-        db::{
-            graph::Graph,
-            view_api::{GraphViewOps, TimeOps, VertexViewOps},
-        },
-    };
+    use crate::{core::utils::hashing, prelude::*};
     use csv::StringRecord;
 
-    use crate::graph_loader::fetch_file;
+    use crate::{graph_loader::fetch_file, prelude::*};
 
     #[test]
     fn test_fetch_file() {
@@ -186,13 +177,13 @@ mod graph_loader_test {
 
     #[test]
     fn test_lotr_load_graph() {
-        let g = crate::graph_loader::example::lotr_graph::lotr_graph(4);
+        let g = crate::graph_loader::example::lotr_graph::lotr_graph();
         assert_eq!(g.num_edges(), 701);
     }
 
     #[test]
     fn test_graph_at() {
-        let g = crate::graph_loader::example::lotr_graph::lotr_graph(1);
+        let g = crate::graph_loader::example::lotr_graph::lotr_graph();
 
         let g_at_empty = g.at(1);
         let g_at_start = g.at(7059);
@@ -209,7 +200,7 @@ mod graph_loader_test {
 
     #[test]
     fn db_lotr() {
-        let g = Graph::new(4);
+        let g = Graph::new();
 
         let data_dir = crate::graph_loader::example::lotr_graph::lotr_file()
             .expect("Failed to get lotr.csv file");
@@ -224,8 +215,8 @@ mod graph_loader_test {
         if let Ok(mut reader) = csv::Reader::from_path(data_dir) {
             for rec in reader.records().flatten() {
                 if let Some((src, dst, t)) = parse_record(&rec) {
-                    let src_id = utils::calculate_hash(&src);
-                    let dst_id = utils::calculate_hash(&dst);
+                    let src_id = hashing::calculate_hash(&src);
+                    let dst_id = hashing::calculate_hash(&dst);
 
                     g.add_vertex(
                         t,
@@ -254,14 +245,14 @@ mod graph_loader_test {
             }
         }
 
-        let gandalf = utils::calculate_hash(&"Gandalf");
+        let gandalf = hashing::calculate_hash(&"Gandalf");
         assert!(g.has_vertex(gandalf));
         assert!(g.has_vertex("Gandalf"))
     }
 
     #[test]
     fn test_all_degrees_window() {
-        let g = crate::graph_loader::example::lotr_graph::lotr_graph(4);
+        let g = crate::graph_loader::example::lotr_graph::lotr_graph();
 
         assert_eq!(g.num_edges(), 701);
         assert_eq!(g.vertex("Gandalf").unwrap().degree(), 49);
@@ -286,7 +277,7 @@ mod graph_loader_test {
 
     #[test]
     fn test_all_neighbours_window() {
-        let g = crate::graph_loader::example::lotr_graph::lotr_graph(4);
+        let g = crate::graph_loader::example::lotr_graph::lotr_graph();
 
         assert_eq!(g.num_edges(), 701);
         assert_eq!(g.vertex("Gandalf").unwrap().neighbours().iter().count(), 49);
@@ -339,7 +330,7 @@ mod graph_loader_test {
 
     #[test]
     fn test_all_edges_window() {
-        let g = crate::graph_loader::example::lotr_graph::lotr_graph(4);
+        let g = crate::graph_loader::example::lotr_graph::lotr_graph();
 
         assert_eq!(g.num_edges(), 701);
         assert_eq!(g.vertex("Gandalf").unwrap().edges().count(), 59);

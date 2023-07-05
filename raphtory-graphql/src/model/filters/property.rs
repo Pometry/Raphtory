@@ -1,8 +1,6 @@
-use dynamic_graphql::{InputObject};
-use raphtory::core::Prop;
-use raphtory::db::view_api::VertexViewOps;
-use crate::model::graph::node::Node;
-use crate::model::filters::primitives::{NumberFilter, StringFilter};
+use crate::model::{filters::primitives::NumberFilter, graph::node::Node};
+use dynamic_graphql::InputObject;
+use raphtory::{core::Prop, db::api::view::VertexViewOps};
 
 #[derive(InputObject)]
 pub(crate) struct PropertyHasFilter {
@@ -21,14 +19,20 @@ impl PropertyHasFilter {
 
         if let Some(value_str) = &self.value_str {
             let properties = node.vv.properties(true);
-            if properties.iter().all(|(_, prop)| value_neq_str_prop(value_str, prop)) {
+            if properties
+                .iter()
+                .all(|(_, prop)| value_neq_str_prop(value_str, prop))
+            {
                 return false;
             }
         }
 
         if let Some(value_num) = &self.value_num {
             let properties = node.vv.properties(true);
-            if properties.iter().all(|(_, prop)| value_neq_num_prop(value_num, prop)) {
+            if properties
+                .iter()
+                .all(|(_, prop)| value_neq_num_prop(value_num, prop))
+            {
                 return false;
             }
         }

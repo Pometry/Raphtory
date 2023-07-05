@@ -1,4 +1,15 @@
-use dynamic_graphql::{InputObject};
+use dynamic_graphql::InputObject;
+
+#[derive(InputObject)]
+pub(crate) struct StringVecFilter {
+    pub(crate) contains: Vec<String>,
+}
+
+impl StringVecFilter {
+    pub(crate) fn contains(&self, value: &str) -> bool {
+        self.contains.contains(&value.to_string())
+    }
+}
 
 #[derive(InputObject)]
 pub(crate) struct StringFilter {

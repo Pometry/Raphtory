@@ -1,20 +1,21 @@
-use crate::core::state::accumulator_id::accumulators::{max, sum};
-use crate::db::task::eval_vertex::EvalVertexView;
 use crate::{
-    core::state::compute_state::ComputeStateVec,
+    core::state::{
+        accumulator_id::accumulators::{max, sum},
+        compute_state::ComputeStateVec,
+    },
     db::{
+        api::view::{GraphViewOps, VertexViewOps},
         task::{
             context::Context,
             task::{ATask, Job, Step},
             task_runner::TaskRunner,
+            vertex::eval_vertex::EvalVertexView,
         },
-        view_api::{GraphViewOps, VertexViewOps},
     },
 };
 use num_traits::abs;
 use rustc_hash::FxHashMap;
-use std::collections::HashMap;
-use std::ops::Range;
+use std::{collections::HashMap, ops::Range};
 
 #[derive(Debug, Clone)]
 struct Hits {
@@ -129,12 +130,10 @@ pub fn hits<G: GraphViewOps>(
         |_, _, els, local| {
             let mut hubs = HashMap::new();
             let mut auths = HashMap::new();
-            for line in local.iter() {
-                if let Some((v_ref, hit)) = line {
-                    let v_gid = g.vertex_name(v_ref.clone());
-                    hubs.insert(v_gid.clone(), hit.hub_score);
-                    auths.insert(v_gid, hit.auth_score);
-                }
+            for (v_ref, hit) in local.iter().enumerate() {
+                let v_gid = g.vertex_name(v_ref.into());
+                hubs.insert(v_gid.clone(), hit.hub_score);
+                auths.insert(v_gid, hit.auth_score);
             }
             (hubs, auths)
         },
@@ -161,12 +160,11 @@ pub fn hits<G: GraphViewOps>(
 #[cfg(test)]
 mod hits_tests {
     use super::*;
-    use crate::db::graph::Graph;
-    use crate::db::mutation_api::AdditionOps;
+    use crate::db::{api::mutation::AdditionOps, graph::graph::Graph};
     use itertools::Itertools;
 
-    fn load_graph(n_shards: usize, edges: Vec<(u64, u64)>) -> Graph {
-        let graph = Graph::new(n_shards);
+    fn load_graph(edges: Vec<(u64, u64)>) -> Graph {
+        let graph = Graph::new();
 
         for (src, dst) in edges {
             graph.add_edge(0, src, dst, [], None).unwrap();
@@ -174,27 +172,25 @@ mod hits_tests {
         graph
     }
 
-    fn test_hits(n_shards: usize) {
-        let graph = load_graph(
-            n_shards,
-            vec![
-                (1, 4),
-                (2, 3),
-                (2, 5),
-                (3, 1),
-                (4, 2),
-                (4, 3),
-                (5, 2),
-                (5, 3),
-                (5, 4),
-                (5, 6),
-                (6, 3),
-                (6, 8),
-                (7, 1),
-                (7, 3),
-                (8, 1),
-            ],
-        );
+    #[test]
+    fn test_hits() {
+        let graph = load_graph(vec![
+            (1, 4),
+            (2, 3),
+            (2, 5),
+            (3, 1),
+            (4, 2),
+            (4, 3),
+            (5, 2),
+            (5, 3),
+            (5, 4),
+            (5, 6),
+            (6, 3),
+            (6, 8),
+            (7, 1),
+            (7, 3),
+            (8, 1),
+        ]);
 
         let window = 0..10;
 
@@ -245,10 +241,5 @@ mod hits_tests {
                 ("8".to_string(), (0.030866561, 0.05943252))
             ]
         );
-    }
-
-    #[test]
-    fn test_hits_11() {
-        test_hits(1);
     }
 }

@@ -1,20 +1,22 @@
 // #![allow(unused_imports)]
-use std::env;
-use std::error::Error;
-use std::fmt::{Debug, Display, Formatter};
-use std::path::Path;
-
+#![allow(dead_code)]
 use itertools::Itertools;
-use raphtory::algorithms::connected_components::weakly_connected_components;
-use raphtory::algorithms::triangle_count::triangle_count;
-use raphtory::core::{Direction, Prop};
-use raphtory::db::graph::Graph;
-use raphtory::db::mutation_api::AdditionOps;
-use raphtory::db::view_api::*;
-use raphtory::graph_loader::source::csv_loader::CsvLoader;
+use raphtory::{
+    algorithms::{
+        connected_components::weakly_connected_components, triangle_count::triangle_count,
+    },
+    graph_loader::source::csv_loader::CsvLoader,
+    prelude::*,
+};
 use regex::Regex;
 use serde::Deserialize;
-use std::time::Instant;
+use std::{
+    env,
+    error::Error,
+    fmt::{Debug, Display, Formatter},
+    path::Path,
+    time::Instant,
+};
 
 #[derive(Deserialize, Debug)]
 pub struct Edge {
@@ -69,7 +71,7 @@ pub fn loader(data_dir: &Path) -> Result<Graph, Box<dyn Error>> {
 
         Ok(g)
     } else {
-        let g = Graph::new(16);
+        let g = Graph::new();
 
         let now = Instant::now();
 
@@ -108,10 +110,6 @@ fn try_main() -> Result<(), Box<dyn Error>> {
     let data_dir = Path::new(args.get(1).ok_or(MissingArgumentError)?);
 
     let graph = loader(data_dir)?;
-
-    let min_time = graph.start().ok_or(GraphEmptyError)?;
-    let max_time = graph.end().ok_or(GraphEmptyError)?;
-    let mid_time = (min_time + max_time) / 2;
     let now = Instant::now();
     let actual_tri_count = triangle_count(&graph, None);
 
@@ -189,35 +187,6 @@ fn try_main_bm() -> Result<(), Box<dyn Error>> {
     );
     let earliest_time = graph.start().ok_or(GraphEmptyError)?;
     let latest_time = graph.end().ok_or(GraphEmptyError)?;
-    println!("graph time range: {}-{}", earliest_time, latest_time);
-
-    let now = Instant::now();
-    let num_edges2 = graph.num_edges();
-    println!(
-        "num_edges returned {} in {} milliseconds",
-        num_edges2,
-        now.elapsed().as_millis()
-    );
-
-    println!("\n Immutable graph metrics:");
-
-    let graph = graph.freeze();
-
-    let now = Instant::now();
-    let num_edges: usize = graph
-        .vertices()
-        .map(|v| graph.degree(v, Direction::OUT))
-        .sum();
-
-    println!(
-        "Counting edges by summing degrees returned {} in {} milliseconds",
-        num_edges,
-        now.elapsed().as_millis()
-    );
-
-    let earliest_time = graph.earliest_time().ok_or(GraphEmptyError)?;
-    let latest_time = graph.latest_time().ok_or(GraphEmptyError)?;
-
     println!("graph time range: {}-{}", earliest_time, latest_time);
 
     let now = Instant::now();

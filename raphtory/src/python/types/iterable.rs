@@ -1,8 +1,9 @@
-use crate::db::view_api::BoxedIter;
-use crate::python::types::repr::{iterator_repr, Repr};
+use crate::{
+    db::api::view::BoxedIter,
+    python::types::repr::{iterator_repr, Repr},
+};
 use pyo3::{IntoPy, PyObject};
-use std::marker::PhantomData;
-use std::sync::Arc;
+use std::{marker::PhantomData, sync::Arc};
 
 pub struct Iterable<I: Send, PyI: IntoPy<PyObject> + From<I> + Repr> {
     pub name: String,

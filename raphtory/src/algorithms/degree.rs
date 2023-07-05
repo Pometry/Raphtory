@@ -19,7 +19,7 @@
 //! use raphtory::algorithms::degree::{max_out_degree, max_in_degree, min_out_degree, min_in_degree, average_degree};
 //! use raphtory::prelude::*;
 //!
-//! let g = Graph::new(1);
+//! let g = Graph::new();
 //! let windowed_graph = g.window(0, 7);
 //! let vs = vec![
 //!     (1, 1, 2),
@@ -41,7 +41,7 @@
 //! print!("Average degree: {:?}", average_degree(&windowed_graph));
 //! ```
 //!
-use crate::db::view_api::*;
+use crate::db::api::view::*;
 
 /// The maximum out degree of any vertex in the graph.
 pub fn max_out_degree<G: GraphViewOps>(graph: &G) -> usize {
@@ -101,17 +101,16 @@ pub fn average_degree<G: GraphViewOps>(graph: &G) -> f64 {
 
 #[cfg(test)]
 mod degree_test {
-    use crate::db::mutation_api::AdditionOps;
     use crate::{
         algorithms::degree::{average_degree, max_in_degree, min_in_degree, min_out_degree},
-        db::graph::Graph,
+        db::{api::mutation::AdditionOps, graph::graph::Graph},
     };
 
     use super::max_out_degree;
 
     #[test]
     fn degree_test() {
-        let g = Graph::new(1);
+        let g = Graph::new();
         let vs = vec![
             (1, 1, 2),
             (2, 1, 3),

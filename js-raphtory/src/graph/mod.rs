@@ -1,28 +1,28 @@
+#![allow(dead_code)]
 #[cfg(feature = "console_error_panic_hook")]
 extern crate console_error_panic_hook;
 
 use core::panic;
-use std::convert::TryFrom;
-use std::sync::Arc;
-
 use js_sys::Object;
-use raphtory::core::tgraph_shard::errors::GraphError;
-use raphtory::core::Prop;
-use raphtory::db::graph::Graph as TGraph;
-use raphtory::db::graph_window::WindowedGraph;
-use raphtory::db::mutation_api::AdditionOps;
-use raphtory::db::view_api::internal::BoxableGraphView;
-use raphtory::db::view_api::GraphViewOps;
-use raphtory::db::view_api::TimeOps;
-use wasm_bindgen::prelude::*;
-use wasm_bindgen::JsCast;
+use raphtory::{
+    core::utils::errors::GraphError,
+    db::{
+        api::view::{internal::BoxableGraphView, GraphViewOps, TimeOps},
+        graph::{graph::Graph as TGraph, views::window_graph::WindowedGraph},
+    },
+    prelude::*,
+};
+use std::{convert::TryFrom, sync::Arc};
+use wasm_bindgen::{prelude::*, JsCast};
 
-use crate::graph::misc::JSError;
-use crate::graph::misc::JsObjectEntry;
-use crate::graph::vertex::JsVertex;
-use crate::graph::vertex::Vertex;
-use crate::log;
-use crate::utils::set_panic_hook;
+use crate::{
+    graph::{
+        misc::{JSError, JsObjectEntry},
+        vertex::{JsVertex, Vertex},
+    },
+    log,
+    utils::set_panic_hook,
+};
 
 mod edge;
 mod graph_view_impl;
@@ -62,7 +62,7 @@ impl Graph {
     #[wasm_bindgen(constructor)]
     pub fn new() -> Self {
         set_panic_hook();
-        Graph(UnderGraph::TGraph(Arc::new(TGraph::new(1))))
+        Graph(UnderGraph::TGraph(Arc::new(TGraph::new())))
     }
 
     #[wasm_bindgen(js_name = window)]

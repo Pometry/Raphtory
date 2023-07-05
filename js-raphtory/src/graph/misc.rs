@@ -1,10 +1,8 @@
-use std::ops::Deref;
-use std::sync::Arc;
-
 use crate::graph::{Graph, UnderGraph};
 use chrono::{Datelike, Timelike};
 use js_sys::Array;
-use raphtory::core::{tgraph_shard::errors::GraphError, Prop};
+use raphtory::core::{utils::errors::GraphError, Prop};
+use std::{ops::Deref, sync::Arc};
 use wasm_bindgen::{prelude::wasm_bindgen, JsValue};
 
 #[wasm_bindgen]

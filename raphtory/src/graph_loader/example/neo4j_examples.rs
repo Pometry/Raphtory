@@ -1,7 +1,11 @@
-use crate::core::Prop;
-use crate::db::graph as rap;
-use crate::db::mutation_api::{AdditionOps, PropertyAdditionOps};
-use crate::graph_loader::source::neo4j_loader::Neo4JConnection;
+use crate::{
+    core::Prop,
+    db::{
+        api::mutation::{AdditionOps, PropertyAdditionOps},
+        graph::graph as rap,
+    },
+    graph_loader::source::neo4j_loader::Neo4JConnection,
+};
 use neo4rs::*;
 
 fn load_movies(row: Row, graph: &rap::Graph) {
@@ -54,9 +58,8 @@ pub async fn neo4j_movie_graph(
     username: String,
     password: String,
     database: String,
-    shards: usize,
 ) -> rap::Graph {
-    let g = rap::Graph::new(shards);
+    let g = rap::Graph::new();
     let neo = Neo4JConnection::new(uri, username, password, database)
         .await
         .unwrap();

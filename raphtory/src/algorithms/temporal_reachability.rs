@@ -1,14 +1,21 @@
-use crate::core::state::accumulator_id::accumulators::{hash_set, min, or};
-use crate::core::state::compute_state::ComputeStateVec;
-use crate::core::vertex::InputVertex;
-use crate::db::task::context::Context;
-use crate::db::task::task::{ATask, Job, Step};
-use crate::db::task::task_runner::TaskRunner;
-use crate::db::view_api::*;
+use crate::{
+    core::{
+        entities::vertices::input_vertex::InputVertex,
+        state::{
+            accumulator_id::accumulators::{hash_set, min, or},
+            compute_state::ComputeStateVec,
+        },
+    },
+    db::task::{
+        context::Context,
+        task::{ATask, Job, Step},
+        task_runner::TaskRunner,
+    },
+    prelude::*,
+};
 use itertools::Itertools;
 use num_traits::Zero;
-use std::collections::HashMap;
-use std::ops::Add;
+use std::{collections::HashMap, ops::Add};
 
 #[derive(Eq, Hash, PartialEq, Clone, Debug, Default)]
 pub struct TaintMessage {
@@ -183,11 +190,10 @@ pub fn temporally_reachable_nodes<G: GraphViewOps, T: InputVertex>(
 #[cfg(test)]
 mod generic_taint_tests {
     use super::*;
-    use crate::db::graph::Graph;
-    use crate::db::mutation_api::AdditionOps;
+    use crate::db::{api::mutation::AdditionOps, graph::graph::Graph};
 
-    fn load_graph(n_shards: usize, edges: Vec<(i64, u64, u64)>) -> Graph {
-        let graph = Graph::new(n_shards);
+    fn load_graph(edges: Vec<(i64, u64, u64)>) -> Graph {
+        let graph = Graph::new();
 
         for (t, src, dst) in edges {
             graph.add_edge(t, src, dst, [], None).unwrap();
@@ -223,21 +229,18 @@ mod generic_taint_tests {
 
     #[test]
     fn test_generic_taint_1() {
-        let graph = load_graph(
-            1,
-            vec![
-                (10, 1, 3),
-                (11, 1, 2),
-                (12, 2, 4),
-                (13, 2, 5),
-                (14, 5, 5),
-                (14, 5, 4),
-                (5, 4, 6),
-                (15, 4, 7),
-                (10, 4, 7),
-                (10, 5, 8),
-            ],
-        );
+        let graph = load_graph(vec![
+            (10, 1, 3),
+            (11, 1, 2),
+            (12, 2, 4),
+            (13, 2, 5),
+            (14, 5, 5),
+            (14, 5, 4),
+            (5, 4, 6),
+            (15, 4, 7),
+            (10, 4, 7),
+            (10, 5, 8),
+        ]);
 
         let results = test_generic_taint(graph, 20, 11, vec![2], None);
 
@@ -257,27 +260,25 @@ mod generic_taint_tests {
                 ),
                 ("6".to_string(), vec![]),
                 ("7".to_string(), vec![(15, "4".to_string())]),
+                ("8".to_string(), vec![]),
             ])
         );
     }
 
     #[test]
     fn test_generic_taint_1_multiple_start() {
-        let graph = load_graph(
-            1,
-            vec![
-                (10, 1, 3),
-                (11, 1, 2),
-                (12, 2, 4),
-                (13, 2, 5),
-                (14, 5, 5),
-                (14, 5, 4),
-                (5, 4, 6),
-                (15, 4, 7),
-                (10, 4, 7),
-                (10, 5, 8),
-            ],
-        );
+        let graph = load_graph(vec![
+            (10, 1, 3),
+            (11, 1, 2),
+            (12, 2, 4),
+            (13, 2, 5),
+            (14, 5, 5),
+            (14, 5, 4),
+            (5, 4, 6),
+            (15, 4, 7),
+            (10, 4, 7),
+            (10, 5, 8),
+        ]);
 
         let results = test_generic_taint(graph, 20, 11, vec![1, 2], None);
 
@@ -300,27 +301,25 @@ mod generic_taint_tests {
                 ),
                 ("6".to_string(), vec![]),
                 ("7".to_string(), vec![(15, "4".to_string())]),
+                ("8".to_string(), vec![]),
             ])
         );
     }
 
     #[test]
     fn test_generic_taint_1_stop_nodes() {
-        let graph = load_graph(
-            1,
-            vec![
-                (10, 1, 3),
-                (11, 1, 2),
-                (12, 2, 4),
-                (13, 2, 5),
-                (14, 5, 5),
-                (14, 5, 4),
-                (5, 4, 6),
-                (15, 4, 7),
-                (10, 4, 7),
-                (10, 5, 8),
-            ],
-        );
+        let graph = load_graph(vec![
+            (10, 1, 3),
+            (11, 1, 2),
+            (12, 2, 4),
+            (13, 2, 5),
+            (14, 5, 5),
+            (14, 5, 4),
+            (5, 4, 6),
+            (15, 4, 7),
+            (10, 4, 7),
+            (10, 5, 8),
+        ]);
 
         let results = test_generic_taint(graph, 20, 11, vec![1, 2], Some(vec![4, 5]));
 
@@ -335,29 +334,29 @@ mod generic_taint_tests {
                 ("3".to_string(), vec![]),
                 ("4".to_string(), vec![(12, "2".to_string())]),
                 ("5".to_string(), vec![(13, "2".to_string())]),
+                ("6".to_string(), vec![]),
+                ("7".to_string(), vec![]),
+                ("8".to_string(), vec![]),
             ])
         );
     }
 
     #[test]
     fn test_generic_taint_1_multiple_history_points() {
-        let graph = load_graph(
-            1,
-            vec![
-                (10, 1, 3),
-                (11, 1, 2),
-                (12, 1, 2),
-                (9, 1, 2),
-                (12, 2, 4),
-                (13, 2, 5),
-                (14, 5, 5),
-                (14, 5, 4),
-                (5, 4, 6),
-                (15, 4, 7),
-                (10, 4, 7),
-                (10, 5, 8),
-            ],
-        );
+        let graph = load_graph(vec![
+            (10, 1, 3),
+            (11, 1, 2),
+            (12, 1, 2),
+            (9, 1, 2),
+            (12, 2, 4),
+            (13, 2, 5),
+            (14, 5, 5),
+            (14, 5, 4),
+            (5, 4, 6),
+            (15, 4, 7),
+            (10, 4, 7),
+            (10, 5, 8),
+        ]);
 
         let results = test_generic_taint(graph, 20, 11, vec![1, 2], Some(vec![4, 5]));
 
@@ -376,6 +375,9 @@ mod generic_taint_tests {
                 ("3".to_string(), vec![]),
                 ("4".to_string(), vec![(12, "2".to_string())]),
                 ("5".to_string(), vec![(13, "2".to_string())]),
+                ("6".to_string(), vec![]),
+                ("7".to_string(), vec![]),
+                ("8".to_string(), vec![]),
             ])
         );
     }

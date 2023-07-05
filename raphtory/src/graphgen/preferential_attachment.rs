@@ -5,16 +5,17 @@
 //! # Examples
 //!
 //! ```
-//! use raphtory::db::graph::Graph;
+//! use raphtory::prelude::*;
 //! use raphtory::graphgen::preferential_attachment::ba_preferential_attachment;
 //!
-//! let graph = Graph::new(2);
+//! let graph = Graph::new();
 //! ba_preferential_attachment(&graph, 1000, 10);
 //! ```
 
-use crate::db::graph::Graph;
-use crate::db::mutation_api::AdditionOps;
-use crate::db::view_api::*;
+use crate::db::{
+    api::{mutation::AdditionOps, view::*},
+    graph::graph::Graph,
+};
 use rand::prelude::*;
 use std::collections::HashSet;
 
@@ -38,10 +39,10 @@ use std::collections::HashSet;
 /// # Examples
 ///
 /// ```
-/// use raphtory::db::graph::Graph;
+/// use raphtory::prelude::*;
 /// use raphtory::graphgen::preferential_attachment::ba_preferential_attachment;
 ///
-/// let graph = Graph::new(2);
+/// let graph = Graph::new();
 /// ba_preferential_attachment(&graph, 1000, 10);
 /// ```
 pub fn ba_preferential_attachment(graph: &Graph, vertices_to_add: usize, edges_per_step: usize) {
@@ -119,7 +120,7 @@ mod preferential_attachment_tests {
     use crate::graphgen::random_attachment::random_attachment;
     #[test]
     fn blank_graph() {
-        let graph = Graph::new(2);
+        let graph = Graph::new();
         ba_preferential_attachment(&graph, 1000, 10);
         assert_eq!(graph.num_edges(), 10009);
         assert_eq!(graph.num_vertices(), 1010);
@@ -127,7 +128,7 @@ mod preferential_attachment_tests {
 
     #[test]
     fn only_nodes() {
-        let graph = Graph::new(2);
+        let graph = Graph::new();
         for i in 0..10 {
             graph
                 .add_vertex(i, i as u64, [])
@@ -142,7 +143,7 @@ mod preferential_attachment_tests {
 
     #[test]
     fn prior_graph() {
-        let graph = Graph::new(2);
+        let graph = Graph::new();
         random_attachment(&graph, 1000, 3);
         ba_preferential_attachment(&graph, 500, 4);
         assert_eq!(graph.num_edges(), 5000);

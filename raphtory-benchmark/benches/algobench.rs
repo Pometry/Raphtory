@@ -1,8 +1,12 @@
 use crate::common::bench;
 use criterion::{criterion_group, criterion_main, Criterion};
-use raphtory::algorithms::local_clustering_coefficient::local_clustering_coefficient;
-use raphtory::algorithms::local_triangle_count::local_triangle_count;
-use raphtory::prelude::*;
+use raphtory::{
+    algorithms::{
+        local_clustering_coefficient::local_clustering_coefficient,
+        local_triangle_count::local_triangle_count,
+    },
+    prelude::*,
+};
 use rayon::prelude::*;
 
 mod common;
@@ -26,7 +30,7 @@ pub fn local_triangle_count_analysis(c: &mut Criterion) {
     let mut group = c.benchmark_group("local_triangle_count");
     group.sample_size(10);
     bench(&mut group, "local_triangle_count", None, |b| {
-        let g = raphtory::graph_loader::example::lotr_graph::lotr_graph(1);
+        let g = raphtory::graph_loader::example::lotr_graph::lotr_graph();
         let windowed_graph = g.window(i64::MIN, i64::MAX);
 
         b.iter(|| {
@@ -45,7 +49,7 @@ pub fn local_clustering_coefficient_analysis(c: &mut Criterion) {
     let mut group = c.benchmark_group("local_clustering_coefficient");
 
     bench(&mut group, "local_clustering_coefficient", None, |b| {
-        let g: Graph = Graph::new(1);
+        let g: Graph = Graph::new();
         let windowed_graph = g.window(0, 5);
 
         let vs = vec![

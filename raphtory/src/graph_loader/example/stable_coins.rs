@@ -1,15 +1,11 @@
-use crate::core::Prop;
-use crate::db::graph::Graph;
-use crate::db::mutation_api::AdditionOps;
-use crate::db::view_api::GraphViewOps;
-use crate::graph_loader::source::csv_loader::CsvLoader;
-use crate::graph_loader::{fetch_file, unzip_file};
+use crate::{
+    graph_loader::{fetch_file, source::csv_loader::CsvLoader, unzip_file},
+    prelude::*,
+};
 use chrono::NaiveDateTime;
 use regex::Regex;
 use serde::Deserialize;
-use std::collections::HashMap;
-use std::path::PathBuf;
-use std::{fs, time::Instant};
+use std::{collections::HashMap, fs, path::PathBuf, time::Instant};
 
 #[allow(dead_code)]
 #[derive(Deserialize, std::fmt::Debug)]
@@ -23,7 +19,7 @@ pub struct StableCoin {
     value: f64,
 }
 
-pub fn stable_coin_graph(path: Option<String>, subset: bool, num_shards: usize) -> Graph {
+pub fn stable_coin_graph(path: Option<String>, subset: bool) -> Graph {
     let data_dir = match path {
         Some(path) => PathBuf::from(path),
         None => PathBuf::from("/tmp/stablecoin"),
@@ -51,8 +47,7 @@ pub fn stable_coin_graph(path: Option<String>, subset: bool, num_shards: usize) 
                 .ok()?;
 
             println!(
-                "Loaded graph with {} shards from encoded data files {} with {} vertices, {} edges which took {} seconds",
-                g.num_shards(),
+                "Loaded graph from encoded data files {} with {} vertices, {} edges which took {} seconds",
                 encoded_data_dir.to_str().unwrap(),
                 g.num_vertices(),
                 g.num_edges(),
@@ -67,7 +62,7 @@ pub fn stable_coin_graph(path: Option<String>, subset: bool, num_shards: usize) 
 
     let encoded_data_dir = data_dir.join("graphdb.bincode");
     let g = restore_from_bincode(&encoded_data_dir).unwrap_or_else(|| {
-        let g = Graph::new(num_shards);
+        let g = Graph::new();
         let now = Instant::now();
 
         let contract_addr_labels = HashMap::from([
@@ -81,10 +76,8 @@ pub fn stable_coin_graph(path: Option<String>, subset: bool, num_shards: usize) 
 
         let re = if subset {
             Regex::new(r"token_transfers.csv").unwrap()
-        }
-        else{
+        } else {
             Regex::new(r"token_transfers(_V\d+\.\d+\.\d+)?\.csv").unwrap()
-
         };
         CsvLoader::new(data_dir)
             .with_filter(re)
@@ -105,8 +98,7 @@ pub fn stable_coin_graph(path: Option<String>, subset: bool, num_shards: usize) 
             .expect("Failed to load graph from CSV data files");
 
         println!(
-            "Loaded graph with {} shards from CSV data files {} with {} vertices, {} edges which took {} seconds",
-            g.num_shards(),
+            "Loaded graph from CSV data files {} with {} vertices, {} edges which took {} seconds",
             encoded_data_dir.to_str().unwrap(),
             g.num_vertices(),
             g.num_edges(),

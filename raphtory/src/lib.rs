@@ -23,26 +23,6 @@
 //! - **Fast** - raphtory is fast, and can process large amounts of data in a short amount of time.
 //! - **Open Source** - raphtory is open source, and is available on Github under a GPL-3.0 license.
 //!
-//! ### Shards
-//!
-//! The sub module `Core` contains the underlying implementation of the graph.
-//! Users interact with the graph via the `DB` submodule.
-//!
-//! The sub module `DB` is the overarching manager for the graph. A GraphDB instance can have N number of shards.
-//! These shards (also called TemporalGraphParts) store fragments of a graph.
-//! Each shard contains a part of a graph, similar to how data is partitioned.
-//!
-//! When an edge or node is added to the graph, GraphDB will search for an appropriate
-//! place inside a shard to place these.
-//!
-//! For example, if your graph has 4 shards, altogether they make up the entire temporal graph.
-//! Vertices and Edges will be spread across the varying shards.
-//!
-//! Shards are used for performance and distribution reasons. Having multiple shards running in
-//! parallel increases the overall speed. In a matter of seconds, you are able to see your
-//! results from your temporal graph analysis. Furthermore, you can run your analysis across
-//! multiple machines (e.g. one shard per machine).
-//!
 //! ## Example
 //!
 //! Create your own graph below
@@ -50,7 +30,7 @@
 //! use raphtory::prelude::*;
 //!
 //! // Create your GraphDB object and state the number of shards you would like, here we have 2
-//! let graph = Graph::new(2);
+//! let graph = Graph::new();
 //!
 //! // Add vertex and edges to your graph with the respective properties
 //! graph.add_vertex(
@@ -116,12 +96,20 @@ pub mod python;
 #[cfg(feature = "io")]
 pub mod graph_loader;
 
+#[cfg(feature = "search")]
+pub mod search;
+
 pub mod prelude {
-    pub use crate::core::Prop;
-    pub use crate::db::graph::Graph;
-    pub use crate::db::graph_deletions::GraphWithDeletions;
-    pub use crate::db::mutation_api::{AdditionOps, DeletionOps, PropertyAdditionOps};
-    pub use crate::db::view_api::{
-        EdgeListOps, EdgeViewOps, GraphViewOps, TimeOps, VertexListOps, VertexViewOps,
+    pub use crate::{
+        core::{Prop, PropUnwrap},
+        db::{
+            api::{
+                mutation::{AdditionOps, DeletionOps, PropertyAdditionOps},
+                view::{
+                    EdgeListOps, EdgeViewOps, GraphViewOps, TimeOps, VertexListOps, VertexViewOps,
+                },
+            },
+            graph::graph::Graph,
+        },
     };
 }

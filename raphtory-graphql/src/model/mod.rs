@@ -1,8 +1,13 @@
-use crate::data::Data;
-use crate::model::graph::graph::GqlGraph;
+use std::ops::Deref;
+
+use crate::{
+    data::Data,
+    model::graph::graph::{GqlGraph, GraphMeta},
+};
 use async_graphql::Context;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
+use raphtory::db::api::view::internal::IntoDynamic;
 
 pub(crate) mod algorithm;
 pub(crate) mod filters;
@@ -22,15 +27,15 @@ impl QueryRoot {
     async fn graph<'a>(ctx: &Context<'a>, name: &str) -> Option<GqlGraph> {
         let data = ctx.data_unchecked::<Data>();
         let g = data.graphs.get(name)?;
-        Some(g.clone().into())
+        let graph = g.deref();
+        Some(graph.clone().into())
     }
 
-    async fn loaded_graphs<'a>(ctx: &Context<'a>) -> Vec<String> {
+    async fn graphs<'a>(ctx: &Context<'a>) -> Vec<GraphMeta> {
         let data = ctx.data_unchecked::<Data>();
         data.graphs
-            .keys()
-            .into_iter()
-            .map(|s| s.clone())
+            .iter()
+            .map(|(name, g)| GraphMeta::new(name.clone(), g.deref().clone().into_dynamic()))
             .collect_vec()
     }
 }
