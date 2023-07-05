@@ -1,5 +1,5 @@
 use crate::{
-    core::{utils::errors::GraphError, Prop},
+    core::{utils::errors::GraphError, Prop, entities::vertices::vertex_ref::VertexRef},
     db::api::view::internal::Base,
 };
 
@@ -10,7 +10,7 @@ pub trait InternalAdditionOps {
         v: u64,
         name: Option<&str>,
         props: Vec<(String, Prop)>,
-    ) -> Result<(), GraphError>;
+    ) -> Result<VertexRef, GraphError>;
 
     fn internal_add_edge(
         &self,
@@ -48,7 +48,7 @@ impl<G: DelegateAdditionOps> InternalAdditionOps for G {
         v: u64,
         name: Option<&str>,
         props: Vec<(String, Prop)>,
-    ) -> Result<(), GraphError> {
+    ) -> Result<VertexRef, GraphError> {
         self.graph().internal_add_vertex(t, v, name, props)
     }
 
