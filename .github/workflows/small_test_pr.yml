@@ -1,6 +1,6 @@
-name: Run all tests
+name: Run all tests upon PR
 on:
-  push:
+  pull_request:
     branches:
       - master
 

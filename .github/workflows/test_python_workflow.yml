@@ -6,6 +6,8 @@ on:
         type: boolean
         default: false
         required: false
+      test_pythoon_39:
+        typ
 # DO NOT CHANGE NAME OF WORKFLOW, USED IN OTHER WORKFLOWS KEEP "Rust Tests"
 jobs:
   python-test:
