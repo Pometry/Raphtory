@@ -511,7 +511,7 @@ impl<const N: usize> InnerTemporalGraph<N> {
         self.storage.locked_edges()
     }
 
-    pub(crate) fn vertex<'a>(&'a self, v: VID) -> Vertex<'a, N> {
+    pub(crate) fn vertex(&self, v: VID) -> Vertex<N> {
         let node = self.storage.get_node(v.into());
         Vertex::from_entry(node, self)
     }

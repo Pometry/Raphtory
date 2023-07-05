@@ -1,3 +1,4 @@
+use crate::db::api::properties::internal::TemporalProperties;
 use crate::{
     core::{
         entities::{vertices::vertex_ref::VertexRef, VID},
@@ -128,10 +129,11 @@ impl<G: GraphViewOps> VertexViewOps for PathFromGraph<G> {
 
     fn properties(
         &self,
-        include_static: bool,
-    ) -> Box<dyn Iterator<Item = Box<dyn Iterator<Item = HashMap<String, Prop>> + Send>> + Send>
-    {
-        Box::new(self.iter().map(move |it| it.properties(include_static)))
+    ) -> Box<
+        dyn Iterator<Item = Box<dyn Iterator<Item = TemporalProperties<VertexView<G>>> + Send>>
+            + Send,
+    > {
+        Box::new(self.iter().map(move |it| it.properties()))
     }
 
     fn property_histories(
@@ -370,8 +372,8 @@ impl<G: GraphViewOps> VertexViewOps for PathFromVertex<G> {
         self.iter().history()
     }
 
-    fn properties(&self, include_static: bool) -> Self::ValueType<HashMap<String, Prop>> {
-        self.iter().properties(include_static)
+    fn properties(&self) -> Self::ValueType<TemporalProperties<VertexView<G>>> {
+        self.iter().properties()
     }
 
     fn property_histories(&self) -> Self::ValueType<HashMap<String, Vec<(i64, Prop)>>> {

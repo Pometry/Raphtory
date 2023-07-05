@@ -2,6 +2,7 @@
 //! A vertex is a node in the graph, and can have properties and edges.
 //! It can also be used to navigate the graph.
 
+use crate::db::api::properties::internal::TemporalProperties;
 use crate::{
     core::{entities::vertices::vertex_ref::VertexRef, utils::time::error::ParseTimeError, Prop},
     db::{
@@ -189,9 +190,9 @@ impl PyVertex {
     ///
     /// Returns:
     ///   A dictionary of the form {name: value} where name is a string and value is a `Prop` object.
-    pub fn properties(&self, include_static: Option<bool>) -> HashMap<String, Prop> {
-        let include_static = include_static.unwrap_or(true);
-        self.vertex.properties(include_static)
+    #[getter]
+    pub fn properties(&self) -> TemporalProperties<VertexView<DynamicGraph>> {
+        self.vertex.properties()
     }
 
     /// Returns all the properties of the vertex as a dictionary including the history of each property.
@@ -480,12 +481,12 @@ impl PyVertex {
 
 impl Repr for PyVertex {
     fn repr(&self) -> String {
-        let properties: String = self
-            .properties(Some(true))
-            .iter()
-            .map(|(k, v)| k.to_string() + " : " + &v.to_string())
-            .join(", ");
-
+        // let properties: String = self
+        //     .properties(Some(true))
+        //     .iter()
+        //     .map(|(k, v)| k.to_string() + " : " + &v.to_string())
+        //     .join(", ");
+        let properties = "";
         if properties.is_empty() {
             format!("Vertex(name={})", self.name().trim_matches('"'))
         } else {
@@ -569,10 +570,10 @@ impl PyVertices {
         (move || vertices.property_history(name.clone())).into()
     }
 
-    fn properties(&self, include_static: Option<bool>) -> PropsIterable {
-        let vertices = self.vertices.clone();
-        (move || vertices.properties(include_static.unwrap_or(true))).into()
-    }
+    // fn properties(&self, include_static: Option<bool>) -> PropsIterable {
+    //     let vertices = self.vertices.clone();
+    //     (move || vertices.properties(include_static.unwrap_or(true))).into()
+    // }
 
     fn property_histories(&self) -> PropHistoriesIterable {
         let vertices = self.vertices.clone();
@@ -790,10 +791,10 @@ impl PyPathFromGraph {
         (move || path.property_history(name.clone())).into()
     }
 
-    fn properties(&self, include_static: Option<bool>) -> NestedPropsIterable {
-        let path = self.path.clone();
-        (move || path.properties(include_static.unwrap_or(true))).into()
-    }
+    // fn properties(&self, include_static: Option<bool>) -> NestedPropsIterable {
+    //     let path = self.path.clone();
+    //     (move || path.properties(include_static.unwrap_or(true))).into()
+    // }
 
     fn property_histories(&self) -> NestedPropHistoriesIterable {
         let path = self.path.clone();
@@ -1018,10 +1019,10 @@ impl PyPathFromVertex {
         (move || path.property_history(name.clone())).into()
     }
 
-    fn properties(&self, include_static: Option<bool>) -> PropsIterable {
-        let path = self.path.clone();
-        (move || path.properties(include_static.unwrap_or(true))).into()
-    }
+    // fn properties(&self, include_static: Option<bool>) -> PropsIterable {
+    //     let path = self.path.clone();
+    //     (move || path.properties(include_static.unwrap_or(true))).into()
+    // }
 
     fn property_histories(&self) -> PropHistoriesIterable {
         let path = self.path.clone();
@@ -1274,10 +1275,10 @@ impl PyVertexIterable {
         (move || vertices().property_history(name.clone())).into()
     }
 
-    fn properties(&self, include_static: Option<bool>) -> PropsIterable {
-        let vertices = self.builder.clone();
-        (move || vertices().properties(include_static.unwrap_or(true))).into()
-    }
+    // fn properties(&self, include_static: Option<bool>) -> PropsIterable {
+    //     let vertices = self.builder.clone();
+    //     (move || vertices().properties(include_static.unwrap_or(true))).into()
+    // }
 
     fn property_histories(&self) -> PropHistoriesIterable {
         let vertices = self.builder.clone();

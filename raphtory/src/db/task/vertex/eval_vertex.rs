@@ -1,3 +1,5 @@
+use crate::db::api::properties::internal::TemporalProperties;
+use crate::db::graph::vertex::VertexView;
 use crate::{
     core::{
         entities::VID,
@@ -335,8 +337,8 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
         self.path.property_history(name)
     }
 
-    fn properties(&self, include_static: bool) -> Self::ValueType<HashMap<String, Prop>> {
-        self.path.properties(include_static)
+    fn properties(&self) -> Self::ValueType<TemporalProperties<VertexView<G>>> {
+        self.path.properties()
     }
 
     fn property_histories(&self) -> Self::ValueType<HashMap<String, Vec<(i64, Prop)>>> {
@@ -475,21 +477,9 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
         self.graph.temporal_vertex_prop_vec(self.vertex, &name)
     }
 
-    fn properties(&self, include_static: bool) -> Self::ValueType<HashMap<String, Prop>> {
-        let mut props: HashMap<String, Prop> = self
-            .property_histories()
-            .iter()
-            .map(|(key, values)| (key.clone(), values.last().unwrap().1.clone()))
-            .collect();
-
-        if include_static {
-            for prop_name in self.graph.static_vertex_prop_names(self.vertex) {
-                if let Some(prop) = self.graph.static_vertex_prop(self.vertex, &prop_name) {
-                    props.insert(prop_name, prop);
-                }
-            }
-        }
-        props
+    fn properties(&self) -> Self::ValueType<TemporalProperties<VertexView<G>>> {
+        //FIXME: need to implement this properly without cloning the graph...
+        TemporalProperties::new(VertexView::new_local(self.graph.clone(), self.vertex))
     }
 
     fn property_histories(&self) -> Self::ValueType<HashMap<String, Vec<(i64, Prop)>>> {
@@ -697,8 +687,8 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexListOps
         Box::new(self.map(move |v| v.property_history(name.clone())))
     }
 
-    fn properties(self, include_static: bool) -> Self::IterType<HashMap<String, Prop>> {
-        Box::new(self.map(move |v| v.properties(include_static)))
+    fn properties(self) -> Self::IterType<TemporalProperties<VertexView<G>>> {
+        Box::new(self.map(move |v| v.properties()))
     }
 
     fn history(self) -> Self::IterType<Vec<i64>> {

@@ -97,6 +97,7 @@ impl PyGraph {
             .add_vertex(timestamp, id, properties.unwrap_or_default())
     }
 
+    /// add_vertex_properties(self, id: str | int, properties: dict) -> None
     /// Adds properties to an existing vertex.
     ///
     /// Arguments:

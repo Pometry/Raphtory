@@ -1,3 +1,5 @@
+use crate::db::api::properties::internal::TemporalProperties;
+use crate::db::graph::vertex::VertexView;
 use crate::{
     core::Prop,
     db::api::view::{edge::EdgeListOps, GraphViewOps, TimeOps},
@@ -47,16 +49,12 @@ pub trait VertexViewOps: TimeOps {
     /// property value and `Prop` is the value itself.
     fn property_history(&self, name: String) -> Self::ValueType<Vec<(i64, Prop)>>;
 
-    /// Get all property values of this vertex.
-    ///
-    /// # Arguments
-    ///
-    /// * `include_static` - If `true` then static properties are included in the result.
+    /// Get a view of the properties of this vertex.
     ///
     /// # Returns
     ///
-    /// A HashMap with the names of the properties as keys and the property values as values.
-    fn properties(&self, include_static: bool) -> Self::ValueType<HashMap<String, Prop>>;
+    /// A view with the names of the properties as keys and the property values as values.
+    fn properties(&self) -> Self::ValueType<TemporalProperties<VertexView<Self::Graph>>>;
 
     /// Get all temporal property values of this vertex.
     ///
@@ -235,7 +233,7 @@ pub trait VertexListOps:
     /// An iterator of the values of the given property name including the times when it changed
     /// as a vector of tuples of the form (time, property).
     fn property_history(self, name: String) -> Self::IterType<Vec<(i64, Prop)>>;
-    fn properties(self, include_static: bool) -> Self::IterType<HashMap<String, Prop>>;
+    fn properties(self) -> Self::IterType<TemporalProperties<VertexView<Self::Graph>>>;
     fn history(self) -> Self::IterType<Vec<i64>>;
     /// Returns an iterator over all vertex properties.
     ///

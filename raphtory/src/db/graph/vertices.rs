@@ -1,3 +1,4 @@
+use crate::db::api::properties::internal::TemporalProperties;
 use crate::{
     core::{entities::vertices::vertex_ref::VertexRef, utils::time::IntoTime, Direction},
     db::{
@@ -78,8 +79,8 @@ impl<G: GraphViewOps> VertexViewOps for Vertices<G> {
         self.iter().history()
     }
 
-    fn properties(&self, include_static: bool) -> Self::ValueType<HashMap<String, Prop>> {
-        self.iter().properties(include_static)
+    fn properties(&self) -> Self::ValueType<TemporalProperties<VertexView<G>>> {
+        self.iter().properties()
     }
 
     fn property_histories(&self) -> Self::ValueType<HashMap<String, Vec<(i64, Prop)>>> {

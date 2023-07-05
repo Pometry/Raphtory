@@ -1,3 +1,7 @@
+use crate::core::entities::vertices::vertex::Vertex;
+use crate::db::api::properties::internal::TemporalProperties;
+use crate::db::graph::vertex::VertexView;
+use crate::db::graph::views::window_graph::WindowedGraph;
 use crate::{
     core::{
         entities::VID,
@@ -97,7 +101,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> TimeOps for WindowEvalVe
 impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
     for WindowEvalVertex<'a, G, CS, S>
 {
-    type Graph = G;
+    type Graph = WindowedGraph<G>;
     type ValueType<T> = T;
     type PathType<'b> = WindowEvalPathFromVertex<'a, G, CS, S> where Self: 'b;
     type EList = Box<dyn Iterator<Item = WindowEvalEdgeView<'a, G, CS, S>> + 'a>;
@@ -148,24 +152,12 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
             .temporal_vertex_prop_vec_window(self.vertex, &name, self.t_start, self.t_end)
     }
 
-    fn properties(
-        &self,
-        include_static: bool,
-    ) -> Self::ValueType<std::collections::HashMap<String, crate::core::Prop>> {
-        let mut props: HashMap<String, Prop> = self
-            .property_histories()
-            .iter()
-            .map(|(key, values)| (key.clone(), values.last().unwrap().1.clone()))
-            .collect();
-
-        if include_static {
-            for prop_name in self.graph.static_vertex_prop_names(self.vertex) {
-                if let Some(prop) = self.graph.static_vertex_prop(self.vertex, &prop_name) {
-                    props.insert(prop_name, prop);
-                }
-            }
-        }
-        props
+    fn properties(&self) -> Self::ValueType<TemporalProperties<VertexView<WindowedGraph<G>>>> {
+        //FIXME: Need to implement this properly without cloning the graph
+        TemporalProperties::new(VertexView::new_local(
+            WindowedGraph::new(self.graph.clone(), self.t_start, self.t_end),
+            self.vertex,
+        ))
     }
 
     fn property_histories(
@@ -476,7 +468,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> TimeOps
 impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
     for WindowEvalPathFromVertex<'a, G, CS, S>
 {
-    type Graph = G;
+    type Graph = WindowedGraph<G>;
 
     type ValueType<T> = Box<dyn Iterator<Item = T> + 'a>;
 
@@ -552,11 +544,8 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
         Box::new(iter)
     }
 
-    fn properties(
-        &self,
-        include_static: bool,
-    ) -> Self::ValueType<std::collections::HashMap<String, crate::core::Prop>> {
-        self.path.properties(include_static)
+    fn properties(&self) -> Self::ValueType<TemporalProperties<VertexView<Self::Graph>>> {
+        self.path.window(self.t_start, self.t_end).properties()
     }
 
     fn property_histories(
@@ -656,7 +645,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
 impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexListOps
     for Box<dyn Iterator<Item = WindowEvalVertex<'a, G, CS, S>> + 'a>
 {
-    type Graph = G;
+    type Graph = WindowedGraph<G>;
     type Vertex = WindowEvalVertex<'a, G, CS, S>;
     type IterType<T> = Box<dyn Iterator<Item = T> + 'a>;
     type EList = Box<dyn Iterator<Item = WindowEvalEdgeView<'a, G, CS, S>> + 'a>;
@@ -694,8 +683,8 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexListOps
         Box::new(self.map(move |v| v.property_history(name.clone())))
     }
 
-    fn properties(self, include_static: bool) -> Self::IterType<HashMap<String, Prop>> {
-        Box::new(self.map(move |v| v.properties(include_static)))
+    fn properties(self) -> Self::IterType<TemporalProperties<VertexView<Self::Graph>>> {
+        Box::new(self.map(move |v| v.properties()))
     }
 
     fn history(self) -> Self::IterType<Vec<i64>> {

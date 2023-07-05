@@ -1,3 +1,4 @@
+use crate::db::graph::views::window_graph::WindowedGraph;
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef},
@@ -55,10 +56,11 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> WindowEvalEdgeView<'a, G
     }
 }
 impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static>
-    EdgeViewInternalOps<G, WindowEvalVertex<'a, G, CS, S>> for WindowEvalEdgeView<'a, G, CS, S>
+    EdgeViewInternalOps<WindowedGraph<G>, WindowEvalVertex<'a, G, CS, S>>
+    for WindowEvalEdgeView<'a, G, CS, S>
 {
-    fn graph(&self) -> G {
-        self.g.clone()
+    fn graph(&self) -> WindowedGraph<G> {
+        WindowedGraph::new(self.g.clone(), self.t_start, self.t_end)
     }
 
     fn eref(&self) -> EdgeRef {
@@ -94,7 +96,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static>
 impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeViewOps
     for WindowEvalEdgeView<'a, G, CS, S>
 {
-    type Graph = G;
+    type Graph = WindowedGraph<G>;
 
     type Vertex = WindowEvalVertex<'a, G, CS, S>;
 
@@ -201,7 +203,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeViewOps
 impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeListOps
     for Box<dyn Iterator<Item = WindowEvalEdgeView<'a, G, CS, S>> + 'a>
 {
-    type Graph = G;
+    type Graph = WindowedGraph<G>;
     type Vertex = WindowEvalVertex<'a, G, CS, S>;
     type Edge = WindowEvalEdgeView<'a, G, CS, S>;
     type ValueType<T> = T;

@@ -1,5 +1,11 @@
 //! Defines the `Vertex` struct, which represents a vertex in the graph.
 
+use crate::core::entities::properties::props::DictMapper;
+use crate::core::entities::properties::tprop::TProp;
+use crate::db::api::properties::internal::{
+    CorePropertiesOps, TemporalProperties, TemporalPropertiesOps, TemporalPropertyView,
+    TemporalPropertyViewOps,
+};
 use crate::{
     core::{
         entities::{vertices::vertex_ref::VertexRef, VID},
@@ -54,6 +60,57 @@ impl<G: GraphViewOps> VertexView<G> {
     }
 }
 
+impl<G: GraphViewOps> TemporalPropertiesOps for VertexView<G> {
+    fn temporal_property_keys(&self) -> Vec<String> {
+        self.graph.temporal_vertex_prop_names(self.vertex)
+    }
+
+    fn temporal_properties(&self) -> Box<dyn Iterator<Item = String> + '_> {
+        Box::new(self.temporal_property_keys().into_iter())
+    }
+
+    fn temporal_property(&self, key: &str) -> Option<String> {
+        (!self
+            .graph
+            .temporal_vertex_prop_vec(self.vertex, key)
+            .is_empty())
+        .then(|| key.to_owned())
+    }
+}
+
+impl<G: GraphViewOps> TemporalPropertyViewOps for VertexView<G> {
+    fn temporal_value(&self, id: &String) -> Option<Prop> {
+        self.graph
+            .temporal_vertex_prop_vec(self.vertex, id)
+            .last()
+            .map(|(_, v)| v.to_owned())
+    }
+
+    fn temporal_history(&self, id: &String) -> Vec<i64> {
+        self.graph
+            .temporal_vertex_prop_vec(self.vertex, id)
+            .into_iter()
+            .map(|(t, _)| t)
+            .collect()
+    }
+
+    fn temporal_values(&self, id: &String) -> Vec<Prop> {
+        self.graph
+            .temporal_vertex_prop_vec(self.vertex, id)
+            .into_iter()
+            .map(|(_, v)| v)
+            .collect()
+    }
+
+    fn temporal_value_at(&self, id: &String, t: i64) -> Option<Prop> {
+        let history = self.temporal_history(id);
+        match history.binary_search(&t) {
+            Ok(index) => Some(self.temporal_values(id)[index].clone()),
+            Err(index) => (index > 0).then(|| self.temporal_values(id)[index - 1].clone()),
+        }
+    }
+}
+
 /// View of a Vertex in a Graph
 impl<G: GraphViewOps> VertexViewOps for VertexView<G> {
     type Graph = G;
@@ -99,11 +156,8 @@ impl<G: GraphViewOps> VertexViewOps for VertexView<G> {
         self.graph.temporal_vertex_prop_vec(self.vertex, &name)
     }
 
-    fn properties(&self, include_static: bool) -> HashMap<String, Prop> {
-        self.property_names(include_static)
-            .into_iter()
-            .filter_map(|key| self.property(key.clone(), include_static).map(|v| (key, v)))
-            .collect()
+    fn properties(&self) -> TemporalProperties<Self> {
+        TemporalProperties::new(self.clone())
     }
 
     fn property_histories(&self) -> HashMap<String, Vec<(i64, Prop)>> {
@@ -284,8 +338,8 @@ impl<G: GraphViewOps> VertexListOps for Box<dyn Iterator<Item = VertexView<G>> +
         Box::new(self.map(move |v| v.property_history(name.clone())))
     }
 
-    fn properties(self, include_static: bool) -> BoxedIter<HashMap<String, Prop>> {
-        Box::new(self.map(move |v| v.properties(include_static)))
+    fn properties(self) -> BoxedIter<TemporalProperties<VertexView<G>>> {
+        Box::new(self.map(move |v| v.properties()))
     }
 
     fn history(self) -> BoxedIter<Vec<i64>> {
@@ -396,8 +450,8 @@ impl<G: GraphViewOps> VertexListOps for BoxedIter<BoxedIter<VertexView<G>>> {
         Box::new(self.map(move |it| it.property_history(name.clone())))
     }
 
-    fn properties(self, include_static: bool) -> BoxedIter<Self::ValueType<HashMap<String, Prop>>> {
-        Box::new(self.map(move |it| it.properties(include_static)))
+    fn properties(self) -> BoxedIter<Self::ValueType<TemporalProperties<VertexView<G>>>> {
+        Box::new(self.map(move |it| it.properties()))
     }
 
     fn history(self) -> BoxedIter<Self::ValueType<Vec<i64>>> {
@@ -494,7 +548,19 @@ mod vertex_test {
 
         let v1 = g.vertex(1).unwrap();
         let v1_w = g.window(0, 1).vertex(1).unwrap();
-        assert_eq!(v1.properties(false), props.into());
-        assert_eq!(v1_w.properties(false), HashMap::default())
+        assert_eq!(
+            v1.properties()
+                .pairs()
+                .map(|(k, v)| (k, v.value().unwrap()))
+                .collect::<HashMap<_, _>>(),
+            props.into()
+        );
+        assert_eq!(
+            v1_w.properties()
+                .pairs()
+                .map(|(k, v)| (k, v.value().unwrap()))
+                .collect::<HashMap<_, _>>(),
+            HashMap::default()
+        )
     }
 }
