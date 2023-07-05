@@ -10,6 +10,11 @@ pub(crate) struct Data {
 }
 
 impl Data {
+
+    pub fn new(graphs: HashMap<String, Graph>) -> Self {
+        Self { graphs }
+    }
+
     pub fn load(directory_path: &str) -> Self {
         let mut valid_paths = HashSet::<String>::new();
 
