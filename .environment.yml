@@ -9,7 +9,7 @@ dependencies:
   - ipykernel
   - libcxx=12.0.0
   - libffi>=3.3
-  - ncurses=6.3
+  - ncurses>=6.4
   - make=4.3
   - openssl=1.1.1q
   - pip=21.2.4
