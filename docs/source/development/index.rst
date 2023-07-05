@@ -8,10 +8,13 @@ Development
 
 
 .. toctree::
-    :maxdepth: 2
+    :maxdepth: 3
 
     contributing
     policies
     community
+    bounty_board
+    team
+    license
 
 
