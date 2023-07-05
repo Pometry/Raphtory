@@ -23,6 +23,9 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_class::<PyEdge>()?;
     m.add_class::<PyEdges>()?;
 
+    //GRAPHQL
+    m.add_class::<graphql::PyServer>()?;
+
     //ALGORITHMS
     let algorithm_module = PyModule::new(py, "algorithms")?;
     algorithm_module.add_function(wrap_pyfunction!(global_reciprocity, algorithm_module)?)?;

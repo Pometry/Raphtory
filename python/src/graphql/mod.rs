@@ -5,11 +5,11 @@ use raphtory_graphql::RaphtoryServer;
 
 /// The Raphtory GraphQL server
 #[pyclass(name = "RaphtoryServer")]
-#[derive(Clone)]
 pub struct PyServer {
     server: RaphtoryServer,
 }
 
+#[pymethods]
 impl PyServer {
     pub fn new(graphs: HashMap<String,Graph>) -> Self {
         let server = RaphtoryServer::from_map(graphs);
@@ -21,13 +21,10 @@ impl PyServer {
         Self { server }
     }
 
-    pub fn run(&self, port: Option<u16>) {
+    pub async fn run(self, port: Option<u16>) -> std::io::Result<()> {
         match port {
-            Some(port) => self.server.run_with_port(port),
-            None => self.server.run()
+            Some(port) => self.server.run_with_port(port).await,
+            None => self.server.run().await
         }
     }
-
-    pub fn
-
 }
