@@ -4,7 +4,10 @@ use crate::core::{
     utils::errors::{IllegalMutate, MutateGraphError},
     Prop,
 };
+use parking_lot::{RwLock, RwLockReadGuard};
 use serde::{Deserialize, Serialize};
+use std::fmt::Debug;
+use std::ops::Deref;
 use std::{
     hash::Hash,
     sync::atomic::{AtomicUsize, Ordering},
@@ -160,11 +163,7 @@ impl Meta {
     }
 
     pub fn get_layer_name_by_id(&self, id: usize) -> Option<String> {
-        self.meta_layer
-            .map
-            .iter()
-            .find(|entry| entry.value() == &id)
-            .map(|entry| entry.key().clone())
+        self.meta_layer.reverse_lookup(id).map(|v| v.to_string())
     }
 
     pub fn get_all_layers(&self) -> Vec<usize> {

@@ -16,7 +16,7 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
     }
 
     fn vertex_id(&self, v: VID) -> u64 {
-        self.global_vertex_id(v.into())
+        self.global_vertex_id(v)
             .unwrap_or_else(|| panic!("vertex id '{v:?}' doesn't exist"))
     }
 
@@ -42,15 +42,15 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
     }
 
     fn static_prop_names(&self) -> Vec<String> {
-        self.static_property_names()
+        self.static_property_names().iter().cloned().collect()
     }
 
     fn static_prop(&self, name: &str) -> Option<Prop> {
-        self.get_static_prop(name).map(|p| p.clone())
+        self.get_static_prop(name)
     }
 
     fn temporal_prop_names(&self) -> Vec<String> {
-        self.temporal_property_names()
+        self.temporal_property_names().iter().cloned().collect()
     }
 
     fn temporal_prop(&self, name: &str) -> Option<LockedView<TProp>> {
@@ -61,7 +61,7 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
         let entry = self.node_entry(v);
         let node = entry.value()?;
         let prop_id = self.vertex_find_prop(name, true)?;
-        node.static_property(prop_id).map(|p| p.clone())
+        node.static_property(prop_id).cloned()
     }
 
     fn static_vertex_prop_names(&self, v: VID) -> Vec<String> {
@@ -69,7 +69,10 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
             return node
                 .static_prop_ids()
                 .into_iter()
-                .flat_map(|prop_id| self.vertex_reverse_prop_id(prop_id, true))
+                .flat_map(|prop_id| {
+                    self.vertex_reverse_prop_id(prop_id, true)
+                        .map(|v| v.clone())
+                })
                 .collect();
         }
         vec![]
@@ -85,7 +88,7 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
     fn temporal_vertex_prop_names(&self, v: VID) -> Vec<String> {
         self.vertex_temp_prop_ids(v)
             .into_iter()
-            .flat_map(|id| self.vertex_reverse_prop_id(id, false))
+            .flat_map(|id| self.vertex_reverse_prop_id(id, false).map(|v| v.clone()))
             .collect()
     }
 
@@ -96,7 +99,7 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
         let x = edge
             .unsafe_layer(e.layer())
             .static_property(prop_id)
-            .map(|p| p.clone());
+            .cloned();
         x
     }
 
@@ -106,7 +109,7 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
                 .unsafe_layer(e.layer())
                 .static_prop_ids()
                 .into_iter()
-                .flat_map(|prop_id| self.edge_reverse_prop_id(prop_id, true))
+                .flat_map(|prop_id| self.edge_reverse_prop_id(prop_id, true).map(|v| v.clone()))
                 .collect();
         }
         vec![]
@@ -122,7 +125,7 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
     fn temporal_edge_prop_names(&self, e: EdgeRef) -> Vec<String> {
         self.edge_temp_prop_ids(e.pid())
             .into_iter()
-            .flat_map(|id| self.edge_reverse_prop_id(id, false))
+            .flat_map(|id| self.edge_reverse_prop_id(id, false).map(|v| v.clone()))
             .collect()
     }
 }

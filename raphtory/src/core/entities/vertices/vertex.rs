@@ -1,3 +1,4 @@
+use crate::core::entities::properties::props::{DictMapper, Meta};
 use crate::core::{
     entities::{
         edges::{edge::EdgeView, edge_ref::EdgeRef, edge_store::EdgeStore},
@@ -16,6 +17,7 @@ use crate::core::{
     },
     Direction, Prop,
 };
+use crate::db::api::properties::internal::CorePropertiesOps;
 use itertools::Itertools;
 use std::{ops::Range, sync::Arc};
 
@@ -120,9 +122,7 @@ impl<'a, const N: usize> Vertex<'a, N> {
     pub(crate) fn temporal_property(self, prop_id: usize) -> Option<LockedView<'a, TProp>> {
         match self.node {
             VRef::Entry(entry) => {
-                if entry.temporal_property(prop_id).is_none() {
-                    return None;
-                }
+                entry.temporal_property(prop_id)?;
 
                 let t_index = entry.map(|entry| entry.temporal_property(prop_id).unwrap());
                 Some(t_index)
@@ -143,29 +143,30 @@ impl<'a, const N: usize> IntoIterator for Vertex<'a, N> {
 
 pub struct ArcVertex<const N: usize> {
     e: ArcEntry<VertexStore<N>, N>,
+    meta: Arc<Meta>,
 }
 
 impl<const N: usize> CorePropertiesOps for ArcVertex<N> {
     fn static_prop_meta(&self) -> &DictMapper<String> {
-        todo!()
+        self.meta.static_prop_meta()
     }
 
     fn temporal_prop_meta(&self) -> &DictMapper<String> {
-        todo!()
+        self.meta.temporal_prop_meta()
     }
 
     fn temporal_prop(&self, id: usize) -> Option<&TProp> {
-        todo!()
+        self.e.temporal_property(id)
     }
 
     fn static_prop(&self, id: usize) -> Option<&Prop> {
-        todo!()
+        self.e.static_property(id)
     }
 }
 
 impl<const N: usize> ArcVertex<N> {
-    pub(crate) fn from_entry(e: ArcEntry<VertexStore<N>, N>) -> Self {
-        ArcVertex { e }
+    pub(crate) fn from_entry(e: ArcEntry<VertexStore<N>, N>, meta: Arc<Meta>) -> Self {
+        ArcVertex { e, meta }
     }
 
     pub fn edge_tuples(
@@ -187,11 +188,30 @@ impl<const N: usize> ArcVertex<N> {
 
 pub(crate) struct ArcEdge<const N: usize> {
     e: ArcEntry<EdgeStore<N>, N>,
+    meta: Arc<Meta>,
+}
+
+impl<const N: usize> CorePropertiesOps for ArcEdge<N> {
+    fn static_prop_meta(&self) -> &DictMapper<String> {
+        self.meta.static_prop_meta()
+    }
+
+    fn temporal_prop_meta(&self) -> &DictMapper<String> {
+        self.meta.temporal_prop_meta()
+    }
+
+    fn temporal_prop(&self, id: usize) -> Option<&TProp> {
+        todo!()
+    }
+
+    fn static_prop(&self, id: usize) -> Option<&Prop> {
+        todo!()
+    }
 }
 
 impl<const N: usize> ArcEdge<N> {
-    pub(crate) fn from_entry(e: ArcEntry<EdgeStore<N>, N>) -> Self {
-        ArcEdge { e }
+    pub(crate) fn from_entry(e: ArcEntry<EdgeStore<N>, N>, meta: Arc<Meta>) -> Self {
+        ArcEdge { e, meta }
     }
 
     pub(crate) fn timestamps(&self, layer: usize) -> impl Iterator<Item = &i64> + '_ {

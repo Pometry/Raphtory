@@ -58,10 +58,10 @@ pub struct TemporalGraph<const N: usize> {
     pub(in crate::core) latest_time: MaxCounter,
 
     // props meta data for vertices (mapping between strings and ids)
-    pub(in crate::core) vertex_meta: Meta,
+    pub(in crate::core) vertex_meta: Arc<Meta>,
 
     // props meta data for edges (mapping between strings and ids)
-    pub(in crate::core) edge_meta: Meta,
+    pub(in crate::core) edge_meta: Arc<Meta>,
 
     // graph properties
     pub(in crate::core) graph_props: GraphProps,
@@ -85,8 +85,8 @@ impl<const N: usize> Default for InnerTemporalGraph<N> {
             storage: GraphStorage::new(),
             earliest_time: MinCounter::new(),
             latest_time: MaxCounter::new(),
-            vertex_meta: Meta::new(),
-            edge_meta: Meta::new(),
+            vertex_meta: Arc::new(Meta::new()),
+            edge_meta: Arc::new(Meta::new()),
             graph_props: GraphProps::new(),
         };
 
@@ -158,7 +158,11 @@ impl<const N: usize> InnerTemporalGraph<N> {
         self.storage.get_edge(e.into())
     }
 
-    pub(crate) fn vertex_reverse_prop_id(&self, prop_id: usize, is_static: bool) -> Option<String> {
+    pub(crate) fn vertex_reverse_prop_id(
+        &self,
+        prop_id: usize,
+        is_static: bool,
+    ) -> Option<impl Deref<Target = std::string::String> + Debug + '_> {
         self.vertex_meta.reverse_prop_id(prop_id, is_static)
     }
 
@@ -180,7 +184,11 @@ impl<const N: usize> InnerTemporalGraph<N> {
         self.vertex_meta.find_prop_id(prop, is_static)
     }
 
-    pub(crate) fn edge_reverse_prop_id(&self, prop_id: usize, is_static: bool) -> Option<String> {
+    pub(crate) fn edge_reverse_prop_id(
+        &self,
+        prop_id: usize,
+        is_static: bool,
+    ) -> Option<impl Deref<Target = std::string::String> + Debug + '_> {
         let out = self.edge_meta.reverse_prop_id(prop_id, is_static);
         if out.is_none() {
             println!("reverse_prop_id_map: {:?}", self.edge_meta);
@@ -375,11 +383,15 @@ impl<const N: usize> InnerTemporalGraph<N> {
         self.graph_props.get_temporal(name)
     }
 
-    pub(crate) fn static_property_names(&self) -> Vec<String> {
+    pub(crate) fn static_property_names(
+        &self,
+    ) -> impl Deref<Target = Vec<std::string::String>> + '_ {
         self.graph_props.static_prop_names()
     }
 
-    pub(crate) fn temporal_property_names(&self) -> Vec<String> {
+    pub(crate) fn temporal_property_names(
+        &self,
+    ) -> impl Deref<Target = Vec<std::string::String>> + '_ {
         self.graph_props.temporal_prop_names()
     }
 
@@ -506,12 +518,12 @@ impl<const N: usize> InnerTemporalGraph<N> {
 
     pub(crate) fn vertex_arc(&self, v: VID) -> ArcVertex<N> {
         let node = self.storage.get_node_arc(v.into());
-        ArcVertex::from_entry(node)
+        ArcVertex::from_entry(node, self.vertex_meta.clone())
     }
 
     pub(crate) fn edge_arc(&self, e: EID) -> ArcEdge<N> {
         let edge = self.storage.get_edge_arc(e.into());
-        ArcEdge::from_entry(edge)
+        ArcEdge::from_entry(edge, self.edge_meta.clone())
     }
 
     pub(crate) fn edge<'a>(&'a self, e: EID) -> EdgeView<'a, N> {

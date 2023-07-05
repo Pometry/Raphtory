@@ -6,6 +6,7 @@ use rand::{
     distributions::{Alphanumeric, DistString},
     thread_rng, Rng,
 };
+use raphtory::core::entities::vertices::input_vertex::InputVertex;
 
 fn random_string(n: usize) -> String {
     Alphanumeric.sample_string(&mut rand::thread_rng(), n)
