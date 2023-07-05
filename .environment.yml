@@ -14,7 +14,7 @@ dependencies:
   - openssl=1.1.1q
   - pip=21.2.4
   - python=3.10.12
-  - python_abi=3.9
+  - python_abi=3.10
   - readline=8.1.2
   - libzlib=1.2.13
   - rust=1.67.1
