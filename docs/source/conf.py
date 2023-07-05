@@ -76,6 +76,7 @@ html_theme = "pydata_sphinx_theme"
 
 html_static_path = ['_static', 'images']
 html_css_files = [
+    "css/custom.css",
     "css/getting_started.css",
     "css/raphtory.css",
 ]
