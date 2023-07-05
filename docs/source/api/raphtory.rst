@@ -7,6 +7,7 @@ Raphtory
 ****************
 
 .. automodule:: raphtory
+   :autosummary:
    :members:
    :undoc-members:
    :show-inheritance:
@@ -17,6 +18,7 @@ Algorithms
 -------------------
 
 .. automodule:: raphtory.algorithms
+   :autosummary:
    :members:
    :undoc-members:
    :show-inheritance:
@@ -28,6 +30,7 @@ Visualisation
 -------------------
 
 .. automodule:: raphtory.vis
+   :autosummary:
    :members:
    :undoc-members:
    :show-inheritance:
@@ -39,6 +42,7 @@ Null Models
 --------------------------
 
 .. automodule:: raphtory.nullmodels
+   :autosummary:
    :members:
    :undoc-members:
    :show-inheritance:
@@ -49,6 +53,7 @@ Graph Generation
 --------------------------
 
 .. automodule:: raphtory.graph_gen
+   :autosummary:
    :members:
    :undoc-members:
    :show-inheritance:

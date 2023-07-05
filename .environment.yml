@@ -26,6 +26,7 @@ dependencies:
   - xz=5.2.5
   - zlib>=1.2.12
   - pip:
+      - autodocsumm==0.2.11
       - alabaster==0.7.12
       - babel==2.10.1
       - charset-normalizer==2.0.12
