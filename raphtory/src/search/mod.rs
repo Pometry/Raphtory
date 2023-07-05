@@ -2,10 +2,11 @@
 
 use std::{collections::HashSet, ops::Deref, sync::Arc};
 
+use rayon::{prelude::ParallelIterator, slice::ParallelSlice};
 use tantivy::{
     collector::TopDocs,
     schema::{Field, Schema, SchemaBuilder, FAST, INDEXED, STORED, TEXT},
-    DateOptions, DocAddress, Document, Index, IndexReader, IndexSortByField,
+    DateOptions, DocAddress, Document, Index, IndexReader, IndexSortByField, TantivyError,
 };
 
 use crate::{
@@ -71,6 +72,9 @@ impl<G: GraphViewOps> IndexedGraph<G> {
             match prop {
                 Prop::Str(_) => {
                     schema.add_text_field(prop_name.as_ref(), TEXT);
+                }
+                Prop::DTime(_) => {
+                    schema.add_date_field(prop_name.as_ref(), INDEXED);
                 }
                 _ => todo!(),
             }
@@ -149,56 +153,69 @@ impl<G: GraphViewOps> IndexedGraph<G> {
         let vertex_id_field = schema.get_field(fields::VERTEX_ID)?;
         let vertex_id_rev_field = schema.get_field(fields::VERTEX_ID_REV)?;
 
-        let mut writer = index.writer(100_000_000)?;
+        let writer = Arc::new(parking_lot::RwLock::new(index.writer(100_000_000)?));
 
-        for vertex in g.vertices() {
-            let vertex_id: u64 = Into::<usize>::into(vertex.vertex) as u64;
-            let temp_prop_names = vertex.property_names(false);
+        let v_ids = (0..g.num_vertices()).collect::<Vec<_>>();
 
-            for temp_prop_name in temp_prop_names {
-                let prop_field = schema.get_field(&temp_prop_name)?;
-                for (time, prop_value) in vertex.property_history(temp_prop_name) {
-                    if let Prop::Str(prop_text) = prop_value {
-                        let mut document = Document::new();
-                        // add time to the document
-                        document.add_i64(time_field, time);
-                        // add the property to the document
-                        document.add_text(prop_field, prop_text);
-                        // add the vertex_id
-                        document.add_u64(vertex_id_field, vertex_id);
-                        document.add_u64(vertex_id_rev_field, u64::MAX - vertex_id);
+        v_ids.par_chunks(128).try_for_each(|v_ids| {
+            let writer_lock = writer.clone();
+            {
+                let writer_guard = writer_lock.read();
+                for v_id in v_ids {
+                    if let Some(vertex) = g.vertex(VertexRef::new_local((*v_id).into())) {
+                        let vertex_id: u64 = Into::<usize>::into(vertex.vertex) as u64;
+                        let temp_prop_names = vertex.property_names(false);
 
-                        writer.add_document(document)?;
+                        for temp_prop_name in temp_prop_names {
+                            let prop_field = schema.get_field(&temp_prop_name)?;
+                            for (time, prop_value) in vertex.property_history(temp_prop_name) {
+                                if let Prop::Str(prop_text) = prop_value {
+                                    let mut document = Document::new();
+                                    // add time to the document
+                                    document.add_i64(time_field, time);
+                                    // add the property to the document
+                                    document.add_text(prop_field, prop_text);
+                                    // add the vertex_id
+                                    document.add_u64(vertex_id_field, vertex_id);
+                                    document.add_u64(vertex_id_rev_field, u64::MAX - vertex_id);
+
+                                    writer_guard.add_document(document)?;
+                                }
+                            }
+                        }
+
+                        let prop_names = vertex.property_names(true);
+                        for prop_name in prop_names {
+                            let field_name = if prop_name == "_id" {
+                                "name"
+                            } else {
+                                &prop_name
+                            };
+
+                            let prop_field = schema.get_field(field_name)?;
+                            if let Some(prop_value) = vertex.static_property(prop_name.to_string()) {
+                                if let Prop::Str(prop_text) = prop_value {
+                                    // what now?
+                                    let mut document = Document::new();
+                                    // add the property to the document
+                                    document.add_text(prop_field, prop_text);
+                                    // add the vertex_id
+                                    document.add_u64(vertex_id_field, vertex_id);
+                                    document.add_u64(vertex_id_rev_field, u64::MAX - vertex_id);
+
+                                    document.add_i64(time_field, i64::MAX);
+                                    writer_guard.add_document(document)?;
+                                }
+                            }
+                        }
                     }
                 }
             }
 
-            let prop_names = vertex.property_names(true);
-            for prop_name in prop_names {
-                let field_name = if prop_name == "_id" {
-                    "name"
-                } else {
-                    &prop_name
-                };
-
-                let prop_field = schema.get_field(field_name)?;
-                if let Some(prop_value) = vertex.static_property(prop_name.to_string()) {
-                    if let Prop::Str(prop_text) = prop_value {
-                        // what now?
-                        let mut document = Document::new();
-                        // add the property to the document
-                        document.add_text(prop_field, prop_text);
-                        // add the vertex_id
-                        document.add_u64(vertex_id_field, vertex_id);
-                        document.add_u64(vertex_id_rev_field, u64::MAX - vertex_id);
-
-                        document.add_i64(time_field, i64::MAX);
-                        writer.add_document(document)?;
-                    }
-                }
-            }
-            writer.commit()?;
-        }
+            let mut writer_guard = writer_lock.write();
+            writer_guard.commit()?;
+            Ok::<(), TantivyError>(())
+        })?;
 
         reader.reload()?;
         Ok(IndexedGraph {
@@ -355,23 +372,29 @@ impl<G: GraphViewOps + InternalAdditionOps> InternalAdditionOps for IndexedGraph
 
 #[cfg(test)]
 mod test {
+    use std::time::SystemTime;
+
     use tantivy::{doc, DocAddress};
 
     use super::*;
 
     #[test]
-    #[ignore = "this test is slow"]
+    #[ignore = "this test is for experiments with the jira graph"]
     fn load_jira_graph() -> Result<(), GraphError> {
         let graph = Graph::load_from_file("/tmp/graphs/jira").expect("failed to load graph");
         assert!(graph.num_vertices() > 0);
 
+        let now = SystemTime::now();
+
         let index_graph: IndexedGraph<Graph> = graph.into();
+        let elapsed = now.elapsed().unwrap().as_secs();
+        println!("indexing took: {:?}", elapsed);
 
         let issues = index_graph.search("name:'DEV-1690'", 5, 0)?;
 
         assert!(issues.len() >= 1);
 
-        println!("issues: {:?}", issues);
+        println!("issues len: {:?}", issues.len());
 
         Ok(())
     }
