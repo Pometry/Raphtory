@@ -6,7 +6,7 @@ use rayon::{prelude::ParallelIterator, slice::ParallelSlice};
 use tantivy::{
     collector::TopDocs,
     schema::{Field, Schema, SchemaBuilder, FAST, INDEXED, STORED, TEXT},
-    DocAddress, Document, Index, IndexReader, IndexSettings, IndexSortByField, IndexWriter,
+    Document, Index, IndexReader, IndexSettings, IndexWriter,
     TantivyError,
 };
 
@@ -330,19 +330,18 @@ impl<G: GraphViewOps> IndexedGraph<G> {
         let vertex_id: u64 = Into::<usize>::into(vertex.vertex) as u64;
         let temp_prop_names = vertex.property_names(false);
 
+        let mut document = Document::new();
+        // add the vertex_id
+        document.add_u64(vertex_id_field, vertex_id);
+        document.add_u64(vertex_id_rev_field, u64::MAX - vertex_id);
+
         for temp_prop_name in temp_prop_names {
             let prop_field = schema.get_field(&temp_prop_name)?;
             for (time, prop_value) in vertex.property_history(temp_prop_name) {
-                let mut document = Document::new();
                 // add time to the document
                 document.add_i64(time_field, time);
-                // add the vertex_id
-                document.add_u64(vertex_id_field, vertex_id);
-                document.add_u64(vertex_id_rev_field, u64::MAX - vertex_id);
 
                 Self::index_prop_value(&mut document, prop_field, prop_value);
-
-                writer.add_document(document)?;
             }
         }
 
@@ -356,14 +355,10 @@ impl<G: GraphViewOps> IndexedGraph<G> {
 
             let prop_field = schema.get_field(field_name)?;
             if let Some(prop_value) = vertex.static_property(prop_name.to_string()) {
-                let mut document = Document::new();
-                document.add_u64(vertex_id_field, vertex_id);
-                document.add_u64(vertex_id_rev_field, u64::MAX - vertex_id);
                 Self::index_prop_value(&mut document, prop_field, prop_value);
-
-                writer.add_document(document)?;
             }
         }
+        writer.add_document(document)?;
         Ok(())
     }
 
@@ -382,35 +377,25 @@ impl<G: GraphViewOps> IndexedGraph<G> {
         let src = e_ref.src();
         let dst = e_ref.dst();
 
-        // add all time events
-        for e in e_ref.explode() {
-            if let Some(t) = e.time() {
                 let mut document = Document::new();
                 let edge_id: u64 = Into::<usize>::into(edge_ref.pid()) as u64;
                 document.add_u64(edge_id_field, edge_id);
                 document.add_text(source_field, src.name());
                 document.add_text(destination_field, dst.name());
+
+        // add all time events
+        for e in e_ref.explode() {
+            if let Some(t) = e.time() {
                 document.add_i64(time_field, t);
-                writer.add_document(document)?; // add the edge itself
             }
         }
 
         for temp_prop_name in temp_prop_names {
             let prop_field = schema.get_field(&temp_prop_name)?;
             for (time, prop_value) in e_ref.property_history(&temp_prop_name) {
-                let mut document = Document::new();
                 // add time to the document
                 document.add_i64(time_field, time);
-
-                // we index a lot for every property, we might want to revise this after we build a better collector
-                let edge_id: u64 = Into::<usize>::into(edge_ref.pid()) as u64;
-                document.add_u64(edge_id_field, edge_id);
-                document.add_text(source_field, src.name());
-                document.add_text(destination_field, dst.name());
-
                 Self::index_prop_value(&mut document, prop_field, prop_value);
-
-                writer.add_document(document)?;
             }
         }
 
@@ -418,19 +403,11 @@ impl<G: GraphViewOps> IndexedGraph<G> {
         for prop_name in prop_names {
             let prop_field = schema.get_field(&prop_name)?;
             if let Some(prop_value) = e_ref.static_property(&prop_name) {
-                let mut document = Document::new();
-
-                // we index a lot for every property
-                let edge_id: u64 = Into::<usize>::into(edge_ref.pid()) as u64;
-                document.add_u64(edge_id_field, edge_id);
-                document.add_text(source_field, src.name());
-                document.add_text(destination_field, dst.name());
-
                 Self::index_prop_value(&mut document, prop_field, prop_value);
-
-                writer.add_document(document)?;
             }
         }
+
+        writer.add_document(document)?; // add the edge itself
         Ok(())
     }
 
@@ -477,13 +454,7 @@ impl<G: GraphViewOps> IndexedGraph<G> {
     }
 
     fn default_vertex_index_settings() -> IndexSettings {
-        tantivy::IndexSettings {
-            sort_by_field: Some(IndexSortByField {
-                field: VERTEX_ID.to_string(),
-                order: tantivy::Order::Asc,
-            }),
-            ..tantivy::IndexSettings::default()
-        }
+        IndexSettings::default()
     }
 
     fn default_edge_index_settings() -> IndexSettings {
@@ -574,17 +545,15 @@ impl<G: GraphViewOps> IndexedGraph<G> {
         let query = query_parser.parse_query(q)?;
 
         let ranking = TopDocs::with_limit(limit)
-            .and_offset(offset)
-            .order_by_u64_field(VERTEX_ID_REV.to_string());
+            .and_offset(offset);
 
-        let top_docs: Vec<(u64, DocAddress)> = searcher.search(&query, &ranking)?;
-        // let top_docs = searcher.search(&query, &ranking)?;
+        let top_docs = searcher.search(&query, &ranking)?;
 
-        let vertex_id = self.vertex_index.schema().get_field("vertex_id")?;
+        let vertex_id = self.vertex_index.schema().get_field(VERTEX_ID)?;
 
         let results = top_docs
             .into_iter()
-            .map(|(_, doc_address)| searcher.doc(doc_address))
+            .map(|(_, doc_address)|  searcher.doc(doc_address))
             .filter_map(Result::ok)
             .filter_map(|doc| self.resolve_vertex_from_search_result(vertex_id, doc))
             .collect::<Vec<_>>();
@@ -790,8 +759,12 @@ mod test {
         let results = indexed_graph
             .search("kind:hobbit", 10, 0)
             .expect("search failed");
-        let actual = results.into_iter().map(|v| v.name()).collect::<Vec<_>>();
-        let expected = vec!["Frodo", "Merry"];
+        let mut actual = results.into_iter().map(|v| v.name()).collect::<Vec<_>>();
+        let mut expected = vec!["Frodo", "Merry"];
+        // FIXME: this is not deterministic
+        actual.sort();
+        expected.sort();
+
         assert_eq!(actual, expected);
 
         let results = indexed_graph
@@ -913,8 +886,13 @@ mod test {
         let vertices = graph
             .search(r#"description:'wizard' AND time:[1 TO 100]"#, 10, 0)
             .expect("search failed");
-        let actual = vertices.into_iter().map(|v| v.name()).collect::<Vec<_>>();
-        let expected = vec!["Gandalf", "Saruman"];
+        let mut actual = vertices.into_iter().map(|v| v.name()).collect::<Vec<_>>();
+        let mut expected = vec!["Gandalf", "Saruman"];
+
+        // FIXME: this is not deterministic
+        actual.sort();
+        expected.sort();
+
         assert_eq!(actual, expected);
     }
 
@@ -968,22 +946,10 @@ mod test {
     fn search_by_edge_src_dst() {
         let g = Graph::new();
 
-        g.add_edge(
-            1,
-            "Frodo",
-            "Gandalf",
-            [],
-            None,
-        )
-        .expect("add edge failed");
-        g.add_edge(
-            1,
-            "Frodo",
-            "Gollum",
-            [],
-            None,
-        )
-        .expect("add edge failed");
+        g.add_edge(1, "Frodo", "Gandalf", [], None)
+            .expect("add edge failed");
+        g.add_edge(1, "Frodo", "Gollum", [], None)
+            .expect("add edge failed");
 
         let ig: IndexedGraph<Graph> = g.into();
 
