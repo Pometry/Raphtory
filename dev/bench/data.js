@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1688655901919,
+  "lastUpdate": 1688660451684,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -4639,6 +4639,60 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions with numeric string input",
             "value": 1780012,
             "range": "± 79682",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "2404621+fabianmurariu@users.noreply.github.com",
+            "name": "Fabian Murariu",
+            "username": "fabianmurariu"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3832ebf498dfce595e497293590c91cd92e23d57",
+          "message": "Search edges (#1091)\n\nFix issue that was reloading the graph on every graphql query\r\nResolve the duplication issue by changing way we index vertices and adding multiple values to the same document\r\nAdd indexing for edges",
+          "timestamp": "2023-07-06T17:14:52+01:00",
+          "tree_id": "233eca9e068978bcf97e7c277d45a1d100c00893",
+          "url": "https://github.com/Pometry/Raphtory/commit/3832ebf498dfce595e497293590c91cd92e23d57"
+        },
+        "date": 1688660450937,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 756353,
+            "range": "± 3468",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and numeric string input",
+            "value": 1327023,
+            "range": "± 3212",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and string input",
+            "value": 1363711,
+            "range": "± 3230",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 908748,
+            "range": "± 60453",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions with numeric string input",
+            "value": 1754449,
+            "range": "± 55789",
             "unit": "ns/iter"
           }
         ]
