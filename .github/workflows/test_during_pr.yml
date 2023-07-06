@@ -18,7 +18,7 @@ jobs:
     name: Run Python tests
     uses: ./.github/workflows/test_python_workflow.yml
     with:
-      test_python_39: false
+      test_python_lower: false
     secrets: inherit
   call-benchmark-workflow-in-local-repo:
     name: Run benchmarks
