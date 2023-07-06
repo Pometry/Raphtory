@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1688633159746,
+  "lastUpdate": 1688655901919,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -4585,6 +4585,60 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions with numeric string input",
             "value": 2388082,
             "range": "± 96022",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "Haaroon@users.noreply.github.com",
+            "name": "Haaroon Y",
+            "username": "Haaroon"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "431b2cc86e6a733a3db0cba5bd3e433fb91d9fc1",
+          "message": "Reduce tests that run on python workflows during PRs (#1090)\n\n* checkin\r\n\r\n* restrict python versions in github workflows during PR to only test version 3.11, but allow both 3.9 and 3.11 to be tested upon push to master\r\n\r\n* should fix my if else\r\n\r\n* small test script\r\n\r\n* no amd64 for windows\r\n\r\n* setup all versions inside setup, and allow it to find them all\r\n\r\n* without qemu?\r\n\r\n* without qemu?\r\n\r\n* test 3.7 and 3.11\r\n\r\n* test 3.7 and 3.11\r\n\r\n* fix workflow\r\n\r\n* delete test workflow",
+          "timestamp": "2023-07-06T15:58:58+01:00",
+          "tree_id": "72ae2d2b01c4d9db79d93ba8bb992758d705d7b9",
+          "url": "https://github.com/Pometry/Raphtory/commit/431b2cc86e6a733a3db0cba5bd3e433fb91d9fc1"
+        },
+        "date": 1688655900520,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 741361,
+            "range": "± 2162",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and numeric string input",
+            "value": 1319239,
+            "range": "± 2972",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and string input",
+            "value": 1357142,
+            "range": "± 1885",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 854051,
+            "range": "± 49645",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions with numeric string input",
+            "value": 1780012,
+            "range": "± 79682",
             "unit": "ns/iter"
           }
         ]
