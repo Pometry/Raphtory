@@ -69,10 +69,3 @@ Community Guidelines
 
 This project follows `Google's Open Source Community Guidelines <https://opensource.google.com/conduct/>`__.
 
-
-License
-========
-
-Raphtory it licensed under  `GNU General Public License v3.0`.
-
-This docs page is licensed under `BSD 3-Clause License`.

@@ -3,12 +3,12 @@
 .. _gettingstarted:
 
 =========================
-Getting started tutorials
+Tutorials
 =========================
 
 .. toctree::
     :maxdepth: 1
 
-    01_quickstart
     lotr.ipynb
+    graphql
 

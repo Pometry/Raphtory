@@ -278,6 +278,7 @@ pub fn global_clustering_coefficient(g: &PyGraphView) -> f64 {
     crate::algorithms::clustering_coefficient::clustering_coefficient(&g.graph)
 }
 
+///
 #[pyfunction]
 pub fn global_temporal_three_node_motif(g: &PyGraphView, delta: i64) -> Vec<usize> {
     global_temporal_three_node_motif_rs(&g.graph, delta)

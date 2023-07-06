@@ -41,6 +41,7 @@ extensions = [
     "sphinx.ext.mathjax",
     "sphinx.ext.todo",
     "nbsphinx",
+    "autodocsumm",
 ]
 
 templates_path = ['_templates']
@@ -73,12 +74,13 @@ html_context = {
 html_theme = "pydata_sphinx_theme"
 
 
-html_logo = "_static/logo.svg"
 html_static_path = ['_static', 'images']
 html_css_files = [
+    "css/custom.css",
     "css/getting_started.css",
     "css/raphtory.css",
 ]
+html_logo = "_static/logo.svg"
 
 html_use_modindex = True
 htmlhelp_basename = "raphtory"

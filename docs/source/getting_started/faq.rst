@@ -2,8 +2,14 @@
 
 {{ header }}
 
-How do I create a graph, add nodes/edges, add properties, run algorithms?
-==========================================================================
+=========
+FAQ
+=========
+
+
+
+How do I create a graph?
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. raw:: html
 
@@ -27,7 +33,7 @@ package. We recommend to import the package under the alias ``raphtory``.
     </ul>
 
 How do I add nodes and edges?
-=====================================
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. raw:: html
 
@@ -57,7 +63,7 @@ Next we added an edge between "Ben" and "Hamza" at time 2.
 
 
 How do I add nodes and edges with properties?
-==============================================
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. raw:: html
 
@@ -85,7 +91,7 @@ Next we added an edge between "Rachel" and "Shivam" at time 5 with the property 
 
 
 How do I run an algorithm?
-=====================================
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. raw:: html
 
@@ -110,21 +116,25 @@ Here we have imported the algorithms package, and then run the max out degree al
 
 
 How do I view / visualise my graph?
-=====================================
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. raw:: html
 
     <ul class="task-bullet">
         <li>
 
-I'd like to view my graph.
+You can draw a graph using the `vis` library.
+This will render a raphtory graph using either `pyvis` or `matplotlib`.
+
+To use matplotlib, you can do the following:
 
 .. ipython:: python
 
     from raphtory import vis
     vis.to_networkx(g)
 
-or you can show it with pyvis vis
+
+To use pyvis, you can do the following:
 
 
 .. ipython:: python

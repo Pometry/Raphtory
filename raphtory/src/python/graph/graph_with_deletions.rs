@@ -172,6 +172,16 @@ impl PyGraphWithDeletions {
             .add_edge(timestamp, src, dst, properties.unwrap_or_default(), layer)
     }
 
+    /// Deletes an edge given the timestamp, src and dst vertices and layer (optional)
+    ///
+    /// Arguments:
+    ///   timestamp (int): The timestamp of the edge.
+    ///   src (str or int): The id of the source vertex.
+    ///   dst (str or int): The id of the destination vertex.
+    ///   layer (str): The layer of the edge. (optional)
+    ///
+    /// Returns:
+    ///  None or a GraphError if the edge could not be deleted
     pub fn delete_edge(
         &self,
         timestamp: PyTime,

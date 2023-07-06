@@ -1,5 +1,7 @@
+.. _advanced-installation:
+
 =========================
-Installation
+Advanced Installation
 =========================
 
 .. toctree::
