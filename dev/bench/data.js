@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1688555468848,
+  "lastUpdate": 1688633159746,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -4531,6 +4531,60 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions with numeric string input",
             "value": 2020965,
             "range": "± 108334",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "Haaroon@users.noreply.github.com",
+            "name": "Haaroon Y",
+            "username": "Haaroon"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "03d68d2a66c3910df685c38174a931c80ed012f1",
+          "message": "Clean docs (#1088)\n\n* - [x] Added a straight redirect if anyone clicks on the rust docs link it goes into cargo right away\r\n- [x] Add a screenshot of the crate page into the rust\r\n- [x] Removed the roadmap section and add an issue so we can add it back in\r\n- [x] Removed the user guide section\r\n- [x] Removed intro to raphtory and tutorials\r\n- [x] Used the summary from the paper in the first page of the docs and linked to the paper\r\n- [x] reduced font size of tutoiral questions\r\n    - [x] Expand description in visualising the graph\r\n- [x] Moved license to a link\r\n- [x] fixed getting started typos\r\n- [x] Slack link does now works\r\n\r\n* - [x] Rewrite the text to be more developer friendly\r\n- [x] Use the overview from the paper into the getting started questions and its a summary of raphtory is used for, with he overview + projects that use raphtory and the 3 functionalities\r\n- [x] Package overview is a summary of raphtory\r\n- [x] In overview replace the text with the sumarry from the paper\r\n- [x] Move project overview into getting started\r\n- [x] \t\tLink the getting started tutorials in tutorials\r\n- [x] Moved far to separate section and reduced header sizes\r\n- [x] Fixed the broken text copied in source\r\n\r\n* add autosummary toc to raphtory python docs\r\n\r\n* update sphinx version, add missing rst files\r\n\r\n* deps?\r\n\r\n* filled in all the missing docs for all the missing public functions\r\n\r\n* fix environment for rtd\r\n\r\n* update python version\r\n\r\n* bad abi\r\n\r\n* bad ncurses\r\n\r\n* all more than\r\n\r\n* shivam did not like the color, so we added a darker one",
+          "timestamp": "2023-07-06T09:38:43+01:00",
+          "tree_id": "f9e49ccb1e9d742a98ff119376a99af316e15b53",
+          "url": "https://github.com/Pometry/Raphtory/commit/03d68d2a66c3910df685c38174a931c80ed012f1"
+        },
+        "date": 1688633158318,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 807829,
+            "range": "± 9318",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and numeric string input",
+            "value": 1487324,
+            "range": "± 37773",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and string input",
+            "value": 1515573,
+            "range": "± 10020",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 1216980,
+            "range": "± 78633",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions with numeric string input",
+            "value": 2388082,
+            "range": "± 96022",
             "unit": "ns/iter"
           }
         ]
