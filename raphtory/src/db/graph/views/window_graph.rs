@@ -39,7 +39,7 @@
 
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef, VID},
+        entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef, VID, EID},
         utils::time::IntoTime,
         Direction, Prop,
     },
@@ -246,6 +246,16 @@ impl<G: GraphViewOps> TimeSemantics for WindowedGraph<G> {
 /// This trait provides operations to a `WindowedGraph` used internally by the `GraphWindowSet`.
 /// *Note: All functions in this are bound by the time set in the windowed graph.
 impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
+
+    fn find_edge_id(&self, e_id: EID) -> Option<EdgeRef> {
+        let e_ref = self.graph.find_edge_id(e_id)?;
+        if self.graph.include_edge_window(e_ref, self.t_start .. self.t_end) {
+            Some(e_ref)
+        } else {
+            None
+        }
+    }
+
     fn local_vertex_ref(&self, v: VertexRef) -> Option<VID> {
         self.graph
             .local_vertex_ref_window(v, self.t_start, self.t_end)
