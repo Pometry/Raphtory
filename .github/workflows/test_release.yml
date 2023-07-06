@@ -79,7 +79,7 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
-        target: [x64, amd64]
+        target: [x64]
         python: ['3.9', '3.10', '3.11']
     steps:
       - uses: actions/checkout@v3
