@@ -64,6 +64,7 @@ impl<G: GraphViewOps> From<G> for IndexedGraph<G> {
 impl<G: GraphViewOps> IndexedGraph<G> {
     fn new_vertex_schema_builder() -> SchemaBuilder {
         let mut schema = Schema::builder();
+
         // we first add GID time, ID and ID_REV
         // ensure time is part of the index
         schema.add_i64_field(fields::TIME, INDEXED | STORED);
@@ -989,27 +990,27 @@ mod test {
         let results = ig
             .search_edges(r#"from:Frodo"#, 10, 0)
             .expect("search failed");
-        let actual = results
+        let mut actual = results
             .into_iter()
             .map(|e| (e.src().name(), e.dst().name()))
             .collect::<Vec<_>>();
-        let expected = vec![
+        let mut expected = vec![
             ("Frodo".to_string(), "Gandalf".to_string()),
             ("Frodo".to_string(), "Gollum".to_string()),
         ];
+
+        actual.sort();
+        expected.sort();
 
         assert_eq!(actual, expected);
 
         // search by destination
         let results = ig.search_edges("to:gollum", 10, 0).expect("search failed");
-        let mut actual = results
+        let actual = results
             .into_iter()
             .map(|e| (e.src().name(), e.dst().name()))
             .collect::<Vec<_>>();
-        let mut expected = vec![("Frodo".to_string(), "Gollum".to_string())];
-
-        actual.sort();
-        expected.sort();
+        let expected = vec![("Frodo".to_string(), "Gollum".to_string())];
 
         assert_eq!(actual, expected);
     }
