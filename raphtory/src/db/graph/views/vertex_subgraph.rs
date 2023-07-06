@@ -1,6 +1,6 @@
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef, VID},
+        entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef, VID, EID},
         Direction,
     },
     db::api::view::internal::{
@@ -41,6 +41,19 @@ impl<G: GraphViewOps> VertexSubgraph<G> {
 }
 
 impl<G: GraphViewOps> GraphOps for VertexSubgraph<G> {
+
+    fn find_edge_id(&self, e_id: EID) -> Option<EdgeRef> {
+        let edge_ref = self.graph.find_edge_id(e_id)?;
+        let vid_src = self.local_vertex_ref(edge_ref.src())?;
+        let vid_dst = self.local_vertex_ref(edge_ref.dst())?;
+
+        if self.vertices.contains(&vid_src) && self.vertices.contains(&vid_dst) {
+            Some(edge_ref)
+        } else {
+            None
+        }
+    }
+
     fn local_vertex_ref(&self, v: VertexRef) -> Option<VID> {
         self.graph
             .local_vertex_ref(v)

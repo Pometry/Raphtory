@@ -11,7 +11,7 @@ mod data;
 mod graphql_test {
     use super::*;
     use dynamic_graphql::{dynamic::DynamicRequestExt, App, FieldValue};
-    use raphtory::prelude::*;
+    use raphtory::{prelude::*, db::api::view::internal::IntoDynamic};
     use std::collections::HashMap;
 
     #[tokio::test]
@@ -24,7 +24,7 @@ mod graphql_test {
             .add_vertex(0, "Frodo", [("kind".to_string(), Prop::str("Hobbit"))])
             .expect("Could not add vertex!");
 
-        let graphs = HashMap::from([("lotr".to_string(), graph.into())]);
+        let graphs = HashMap::from([("lotr".to_string(), graph.into_dynamic().into())]);
         let data = data::Data { graphs };
 
         #[derive(App)]
@@ -66,7 +66,7 @@ mod graphql_test {
         let graph = Graph::new();
         graph.add_vertex(0, 11, []).expect("Could not add vertex!");
 
-        let graphs = HashMap::from([("lotr".to_string(), graph.into())]);
+        let graphs = HashMap::from([("lotr".to_string(), graph.into_dynamic().into())]);
         let data = data::Data { graphs };
 
         #[derive(App)]
@@ -116,7 +116,7 @@ mod graphql_test {
             panic!("Could not add vertex! {:?}", err);
         }
 
-        let graphs = HashMap::from([("lotr".to_string(), graph.into())]);
+        let graphs = HashMap::from([("lotr".to_string(), graph.into_dynamic().into())]);
         let data = data::Data { graphs };
 
         #[derive(App)]
@@ -204,7 +204,7 @@ mod graphql_test {
             panic!("Could not add vertex! {:?}", err);
         }
 
-        let graphs = HashMap::from([("lotr".to_string(), graph.into())]);
+        let graphs = HashMap::from([("lotr".to_string(), graph.into_dynamic().into())]);
         let data = data::Data { graphs };
 
         #[derive(App)]

@@ -1,6 +1,6 @@
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef, VID},
+        entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef, VID, EID},
         Direction,
     },
     db::api::view::internal::Base,
@@ -11,6 +11,8 @@ use crate::{
 pub trait GraphOps: Send + Sync {
     /// Check if a vertex exists locally and returns local reference.
     fn local_vertex_ref(&self, v: VertexRef) -> Option<VID>;
+
+    fn find_edge_id(&self, e_id: EID) -> Option<EdgeRef>;
 
     /// Get all layer ids
     fn get_unique_layers_internal(&self) -> Vec<usize>;
@@ -142,6 +144,10 @@ pub trait DelegateGraphOps {
 impl<G: DelegateGraphOps + Send + Sync + ?Sized> GraphOps for G {
     fn local_vertex_ref(&self, v: VertexRef) -> Option<VID> {
         self.graph().local_vertex_ref(v)
+    }
+
+    fn find_edge_id(&self, e_id: EID) -> Option<EdgeRef> {
+        self.graph().find_edge_id(e_id)
     }
 
     fn get_unique_layers_internal(&self) -> Vec<usize> {

@@ -2,16 +2,32 @@ use crate::{
     core::{
         entities::{
             edges::edge_ref::EdgeRef, graph::tgraph::InnerTemporalGraph,
-            vertices::vertex_ref::VertexRef, VID,
+            vertices::vertex_ref::VertexRef, EID, VID,
         },
         Direction,
     },
     db::api::view::internal::GraphOps,
+    prelude::GraphViewOps,
 };
 use genawaiter::sync::GenBoxed;
 use std::ops::Deref;
 
 impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
+    fn find_edge_id(&self, e_id: EID) -> Option<EdgeRef> {
+        let e_id_usize: usize = e_id.into();
+        if e_id_usize >= self.num_edges() {
+            return None;
+        }
+        let edge_view = self.edge(e_id);
+        Some(EdgeRef::LocalOut {
+            e_pid: e_id,
+            layer_id: 0,
+            src_pid: edge_view.src_id(),
+            dst_pid: edge_view.dst_id(),
+            time: None,
+        })
+    }
+
     fn local_vertex_ref(&self, v: VertexRef) -> Option<VID> {
         match v {
             VertexRef::Local(l) => Some(l),

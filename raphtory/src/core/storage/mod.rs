@@ -9,6 +9,7 @@ pub mod timeindex;
 use self::iter::Iter;
 use locked_view::LockedView;
 use parking_lot::{RwLock, RwLockReadGuard};
+use rayon::prelude::{IndexedParallelIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 use std::{
     fmt::Debug,
