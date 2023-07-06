@@ -1002,11 +1002,14 @@ mod test {
 
         // search by destination
         let results = ig.search_edges("to:gollum", 10, 0).expect("search failed");
-        let actual = results
+        let mut actual = results
             .into_iter()
             .map(|e| (e.src().name(), e.dst().name()))
             .collect::<Vec<_>>();
-        let expected = vec![("Frodo".to_string(), "Gollum".to_string())];
+        let mut expected = vec![("Frodo".to_string(), "Gollum".to_string())];
+
+        actual.sort();
+        expected.sort();
 
         assert_eq!(actual, expected);
     }
