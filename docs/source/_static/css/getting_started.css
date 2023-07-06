@@ -146,13 +146,13 @@ ul.task-bullet > li > p:first-child {
 }
 
 .comparison-card .sd-btn-secondary {
-  background-color: #6c757d !important;
-  border-color: #6c757d !important;
+  background-color: #AE0D22 !important;
+  border-color: #AE0D22 !important;
 }
 
 .comparison-card .sd-btn-secondary:hover {
-  background-color: #5a6268 !important;
-  border-color: #545b62 !important;
+  background-color: #AE0D22 !important;
+  border-color: #AE0D22 !important;
 }
 
 .comparison-card .card-footer {

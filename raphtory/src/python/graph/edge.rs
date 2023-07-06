@@ -84,6 +84,7 @@ impl PyEdge {
         s.finish()
     }
 
+    /// The id of the edge.
     pub fn id(&self) -> (u64, u64) {
         self.edge.id()
     }
@@ -467,11 +468,16 @@ impl PyEdges {
         self.iter().count()
     }
 
+    /// Returns all source vertices of the Edges as an iterable.
+    ///
+    /// Returns:
+    ///   The source vertices of the Edges as an iterable.
     fn src(&self) -> PyVertexIterable {
         let builder = self.builder.clone();
         (move || builder().src()).into()
     }
 
+    /// Returns all destination vertices as an iterable
     fn dst(&self) -> PyVertexIterable {
         let builder = self.builder.clone();
         (move || builder().dst()).into()
@@ -521,6 +527,16 @@ impl PyEdges {
         (move || edges().latest_time()).into()
     }
 
+    /// Returns the value of the properties with the given name.
+    /// If the property is not found, None is returned.
+    /// If the property is found, the value of the property is returned.
+    ///
+    /// Arguments:
+    ///    name (str): The name of the property to retrieve.
+    ///    include_static (bool): Whether to include static properties in the result.
+    ///
+    /// Returns:
+    ///   The values of the property with the given name as an iterable.
     fn property(&self, name: String, include_static: Option<bool>) -> OptionPropIterable {
         let edges: Arc<
             dyn Fn() -> Box<dyn Iterator<Item = EdgeView<DynamicGraph>> + Send> + Send + Sync,
@@ -536,6 +552,7 @@ impl PyEdges {
         (move || edges().static_properties()).into()
     }
 
+    /// Returns all ids of the edges.
     fn id(&self) -> PyGenericIterable {
         let edges = self.builder.clone();
         (move || edges().id()).into()

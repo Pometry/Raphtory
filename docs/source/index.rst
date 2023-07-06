@@ -13,24 +13,32 @@ Raphtory documentation
 **Useful links**:
 `Source Repository <https://github.com/Pometry/Raphtory>`__ |
 `Issues & Ideas <https://github.com/Pometry/Raphtory/issues>`__ |
-`Slack Support <https://slack.com/raphtory>`__
+`Slack Support <https://join.slack.com/t/raphtory/shared_invite/zt-1b7nhupph-yOG0zlkHspU3tfz2EqcbsA>`__
 
-:mod:`Raphtory` is an in-memory graph tool written in Rust with friendly Python APIs on top.
-It is blazingly fast, scales to hundreds of millions of edges on your laptop, and can be
-dropped into your existing pipelines with a simple `pip install raphtory`.
+:mod:`Raphtory` is a platform for building and analysing temporal networks.
+The library includes:
+
+* Methods for creating networks from a variety of data sources
+* Algorithms to explore their structure and evolution
+* Extensible GraphQL server for deployment of applications built on top
+
+Raphtory’s core engine is built in Rust, for efficiency, with Python interfaces, for ease of use.
+
+It is developed by network scientists, with a background in Physics, Applied Mathematics, Engineering and Computer
+Science, for use across academia and industry. Read more on our `white paper <https://arxiv.org/abs/2306.16309>`__
+and get started below.
 
 .. grid:: 1 2 2 2
     :gutter: 4
     :padding: 2 2 0 0
     :class-container: sd-text-center
 
-    .. grid-item-card:: Getting started
+    .. grid-item-card::
         :img-top: images/index_getting_started.svg
         :class-card: intro-card
         :shadow: md
 
-        New to *Raphtory*? Check out the getting started guides. They contain an
-        introduction to *Raphtory'* main concepts and links to additional tutorials.
+        New to *Raphtory*? Learn how to install and follow a tutorial to analyse a graph.
 
         +++
 
@@ -40,34 +48,15 @@ dropped into your existing pipelines with a simple `pip install raphtory`.
             :color: secondary
             :expand:
 
-            To the getting started guides
+            Getting Started
 
-    .. grid-item-card::  User guide
-        :img-top: images/index_user_guide.svg
-        :class-card: intro-card
-        :shadow: md
 
-        The user guide provides in-depth information on the
-        key concepts of Raphtory with useful background information and explanation.
-
-        +++
-
-        .. button-ref:: user_guide
-            :ref-type: ref
-            :click-parent:
-            :color: secondary
-            :expand:
-
-            To the user guide
-
-    .. grid-item-card::  API reference
+    .. grid-item-card::
         :img-top: images/index_api.svg
         :class-card: intro-card
         :shadow: md
 
-        The reference guide contains a detailed description of
-        the Raphtory API. The reference describes how the methods work and which parameters can
-        be used. It assumes that you have an understanding of the key concepts.
+        Learn about the API and the available methods and parameters.
 
         +++
 
@@ -77,16 +66,16 @@ dropped into your existing pipelines with a simple `pip install raphtory`.
             :color: secondary
             :expand:
 
-            To the reference guide
+            API Reference
 
-    .. grid-item-card::  Developer guide
+    .. grid-item-card::
         :img-top: images/index_contribute.svg
         :class-card: intro-card
         :shadow: md
 
-        Saw a typo in the documentation? Want to improve
-        existing functionalities? The contributing guidelines will guide
-        you through the process of improving Raphtory.
+        Saw a typo? Want to add or improve?
+
+        Learn how to contribute here.
 
         +++
 
@@ -96,7 +85,7 @@ dropped into your existing pipelines with a simple `pip install raphtory`.
             :color: secondary
             :expand:
 
-            To the development guide
+            Developer Guide
 
 
 .. toctree::
@@ -108,5 +97,4 @@ dropped into your existing pipelines with a simple `pip install raphtory`.
     getting_started/index
     development/index
     api/index
-    userguide/index
 
