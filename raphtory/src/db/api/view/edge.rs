@@ -132,6 +132,7 @@ pub trait EdgeViewOps: EdgeViewInternalOps<Self::Graph, Self::Vertex> {
         }
     }
 
+    /// Returns the id of the edge.
     fn id(
         &self,
     ) -> (

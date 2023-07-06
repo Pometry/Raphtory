@@ -38,13 +38,13 @@ table {
 }
 
 .intro-card .sd-btn-secondary {
-  background-color: #CC0808 !important;
-  border-color: #CC0808 !important;
+  background-color: #AE0D22 !important;
+  border-color: #AE0D22 !important;
 }
 
 .intro-card .sd-btn-secondary:hover {
-  background-color: #E0311D !important;
-  border-color: #E0311D !important;
+  background-color: #AE0D22 !important;
+  border-color: #AE0D22 !important;
 }
 
 .card, .card img {
@@ -56,19 +56,19 @@ table {
 }
 
 h1, h2 {
-     color: #f04040;
+     color: #AE0D22;
 }
 
 html[data-theme="light"] {
-    --pst-color-primary: #f04040;
+    --pst-color-primary: #AE0D22;
 }
 
 html[data-theme="dark"] {
-    --pst-color-primary: #f04040;
+    --pst-color-primary: #AE0D22;
 }
 
 :root {
-    --pst-color-primary: #f04040;
+    --pst-color-primary: #AE0D22;
     --pst-color-link: #eb6060;
-    --pst-color-primary-light: #f04040;
+    --pst-color-primary-light: #AE0D22;
 }
