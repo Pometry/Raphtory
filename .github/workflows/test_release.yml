@@ -1,0 +1,125 @@
+name: _Release 3 - Publish python to pypi
+
+on:
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  python-linux:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target: [x86_64, aarch64, armv7]
+        python: ['3.9', '3.10', '3.11']
+    steps:
+      - name: Set up cargo cache
+        uses: actions/cache@v3
+        continue-on-error: false
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Setup QEMU
+        uses: docker/setup-qemu-action@v1
+      - name: Build wheels
+        uses: PyO3/maturin-action@v1
+        with:
+          working-directory: ./python
+          command: build
+          target: ${{ matrix.target }}
+          args: --release --out dist --interpreter python
+          manylinux: 2014
+          before-script-linux: |
+            if [[ -f /etc/os-release ]]; then
+              . /etc/os-release
+              case $ID in
+                ubuntu)
+                  echo "Installing openssl-dev on Ubuntu..."
+                  apt update -y
+                  apt install -y pkg-config libssl-dev libc6 build-essential
+                  ;;
+                arch)
+                  echo "Installing openssl-dev on Arch Linux..."
+                  pacman -Syu --noconfirm pkg-config openssl
+                  ;;
+                fedora)
+                  echo "Installing openssl-dev on Fedora..."
+                  dnf update -y
+                  dnf install -y pkg-config openssl-devel
+                  ;;
+                alpine)
+                  echo "Installing openssl-dev on Alpine Linux..."
+                  apk update -y
+                  apk add pkgconfig openssl-dev
+                  ;;
+                centos)
+                    echo "Installing openssl-dev on CentOS..."
+                    yum update -y
+                    yum install -y pkgconfig openssl-devel
+                    ;;  
+                *)
+                    echo "Unsupported distribution: $ID"
+                    exit 1
+                    ;;
+              esac    
+            else
+              echo "Could not determine distribution."
+              exit 1
+            fi
+  python-windows:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        target: [x64, amd64]
+        python: ['3.9', '3.10', '3.11']
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python }}
+          architecture: ${{ matrix.target }}
+      - name: Build wheels
+        uses: PyO3/maturin-action@v1
+        with:
+          working-directory: ./python
+          command: build
+          target: ${{ matrix.target }}
+          args: --release --out dist --interpreter python
+  python-macos:
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        target: [x86_64, aarch64]
+        python: ['3.9', '3.10', '3.11']
+    steps:
+      - name: Set up cargo cache
+        uses: actions/cache@v3
+        continue-on-error: false
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Build wheels
+        uses: PyO3/maturin-action@v1
+        with:
+          working-directory: ./python
+          command: build
+          target: ${{ matrix.target }}
+          args: --release --out dist --interpreter python
