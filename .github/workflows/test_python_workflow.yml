@@ -22,7 +22,7 @@ jobs:
           if [ ${{ inputs.test_python_39 }} == true ]; then
             echo "python-versions=[\"3.9\",\"3.11\"]" >> $GITHUB_OUTPUT
           else
-            echo "python-versions=[\"3.7\",\"3.12\"]" >> $GITHUB_OUTPUT
+            echo "python-versions=[\"3.7\",\"3.11\"]" >> $GITHUB_OUTPUT
           fi
   python-test:
     if: ${{ !inputs.skip_tests }}
