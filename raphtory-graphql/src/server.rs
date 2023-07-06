@@ -15,13 +15,13 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, Registry
 use raphtory::prelude::Graph;
 
 pub struct RaphtoryServer {
-    data: Data,
+    data:Data,
 }
 
 impl RaphtoryServer {
 
     pub fn from_map(graphs: HashMap<String,Graph>) -> Self {
-        let data = Data::new(graphs);
+        let data = Data::new(graphs) ;
         Self { data }
     }
 

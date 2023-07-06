@@ -11,6 +11,7 @@ use raphtory_core::python::{
     },
     packages::{algorithms::*, graph_gen::*, graph_loader::*},
 };
+use graphql::*;
 
 /// Raphtory graph analytics library
 #[pymodule]
@@ -24,7 +25,10 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_class::<PyEdges>()?;
 
     //GRAPHQL
-    m.add_class::<graphql::PyServer>()?;
+    let graphql_module = PyModule::new(py, "graphql")?;
+    graphql_module.add_function(wrap_pyfunction!(run_from_dict, graphql_module)?)?;
+    graphql_module.add_function(wrap_pyfunction!(run_from_file, graphql_module)?)?;
+    m.add_submodule(graphql_module)?;
 
     //ALGORITHMS
     let algorithm_module = PyModule::new(py, "algorithms")?;
@@ -65,7 +69,6 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         algorithm_module
     )?)?;
     m.add_submodule(algorithm_module)?;
-
 
     //GRAPH LOADER
     let graph_loader_module = PyModule::new(py, "graph_loader")?;
