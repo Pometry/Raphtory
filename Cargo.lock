@@ -855,7 +855,7 @@ dependencies = [
 
 [[package]]
 name = "examples"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "chrono",
  "itertools",
@@ -1488,7 +1488,7 @@ dependencies = [
 
 [[package]]
 name = "js-raphtory"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "chrono",
  "console_error_panic_hook",
@@ -2522,7 +2522,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "bincode",
  "bzip2",
@@ -2569,7 +2569,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-benchmark"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "criterion",
  "rand 0.8.5",
@@ -2580,7 +2580,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-graphql"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "async-graphql",
  "async-graphql-poem",
@@ -2605,7 +2605,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-pymodule"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "openssl",
  "pyo3",
