@@ -6,16 +6,31 @@ on:
         type: boolean
         default: false
         required: false
-      test_pythoon_39:
-        typ
+      test_python_39:
+        type: boolean
+        default: false
+        required: false
 # DO NOT CHANGE NAME OF WORKFLOW, USED IN OTHER WORKFLOWS KEEP "Rust Tests"
 jobs:
+  select-strategy:
+    runs-on: ubuntu-latest
+    outputs:
+      python-versions: ${{ steps.set-matrix.outputs.python-versions }}
+    steps:
+      - id: set-matrix
+        run: |
+          if [ ${{ inputs.test_python_39 }} ]; then
+            echo "python-versions=[\"3.9\",\"3.11\"]" >> $GITHUB_OUTPUT
+          else
+            echo "python-versions=[\"3.11\"]" >> $GITHUB_OUTPUT
+          fi
   python-test:
     if: ${{ !inputs.skip_tests }}
     name: Python Tests
+    needs: select-strategy
     strategy:
       matrix:
-        python: ['3.9', '3.10']
+        python: ${{ fromJson(needs.select-strategy.outputs.python-versions) }}
         os: [macos-latest, ubuntu-latest, windows-latest]
     runs-on: '${{ matrix.os }}'
     steps:

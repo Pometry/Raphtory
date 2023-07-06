@@ -1,4 +1,4 @@
-name: Run all tests upon PR
+name: Run tests during PR
 on:
   pull_request:
     branches:
@@ -17,6 +17,8 @@ jobs:
   call-test-python-workflow-in-local-repo:
     name: Run Python tests
     uses: ./.github/workflows/test_python_workflow.yml
+    with:
+      test_python_39: false
     secrets: inherit
   call-benchmark-workflow-in-local-repo:
     name: Run benchmarks
