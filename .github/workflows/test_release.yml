@@ -97,7 +97,7 @@ jobs:
           working-directory: ./python
           command: build
           target: ${{ matrix.target }}
-          args: --release --out dist --find-interpreter
+          args: --release --out dist -i python3.9 -i python3.10 -i python3.11
   python-macos:
     runs-on: macos-latest
     strategy:
@@ -128,4 +128,4 @@ jobs:
           working-directory: ./python
           command: build
           target: ${{ matrix.target }}
-          args: --release --out dist --find-interpreter
+          args: --release --out dist -i python3.9 -i python3.10 -i python3.11
