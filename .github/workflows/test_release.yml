@@ -30,16 +30,16 @@ jobs:
             3.9
             3.10
             3.11
-      - name: Setup QEMU
-        uses: docker/setup-qemu-action@v1
+#      - name: Setup QEMU
+#        uses: docker/setup-qemu-action@v1
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
           working-directory: ./python
           command: build
           target: ${{ matrix.target }}
-          args: --release --out dist --find-interpreter
-          manylinux: 2014
+          args: --release --out dist -i python3.9 -i python3.10 -i python3.11
+          manylinux: auto
           before-script-linux: |
             if [[ -f /etc/os-release ]]; then
               . /etc/os-release
