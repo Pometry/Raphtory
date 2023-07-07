@@ -57,7 +57,7 @@ mod neo_loader_test {
             },
             graph::graph as rap,
         },
-        graph_loader::source::neo4j_loader::Neo4JConnection,
+        graph_loader::source::neo4j_loader::Neo4JConnection, prelude::EMPTY,
     };
     use neo4rs::*;
 
@@ -75,7 +75,7 @@ mod neo_loader_test {
         let relation_type = relation.typ();
 
         graph
-            .add_vertex(actor_born, actor_name.clone(), [])
+            .add_vertex(actor_born, actor_name.clone(), EMPTY)
             .unwrap();
         graph
             .add_vertex_properties(
@@ -84,7 +84,7 @@ mod neo_loader_test {
             )
             .unwrap();
         graph
-            .add_vertex(film_release, film_title.clone(), [])
+            .add_vertex(film_release, film_title.clone(), EMPTY)
             .unwrap();
         graph
             .add_vertex_properties(

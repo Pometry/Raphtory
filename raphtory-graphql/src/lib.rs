@@ -64,7 +64,7 @@ mod graphql_test {
     #[tokio::test]
     async fn basic_query() {
         let graph = Graph::new();
-        graph.add_vertex(0, 11, []).expect("Could not add vertex!");
+        graph.add_vertex(0, 11, EMPTY).expect("Could not add vertex!");
 
         let graphs = HashMap::from([("lotr".to_string(), graph.into_dynamic().into())]);
         let data = data::Data { graphs };
@@ -106,13 +106,13 @@ mod graphql_test {
     #[tokio::test]
     async fn query_nodefilter() {
         let graph = Graph::new();
-        if let Err(err) = graph.add_vertex(0, "gandalf", []) {
+        if let Err(err) = graph.add_vertex(0, "gandalf", EMPTY) {
             panic!("Could not add vertex! {:?}", err);
         }
-        if let Err(err) = graph.add_vertex(0, "bilbo", []) {
+        if let Err(err) = graph.add_vertex(0, "bilbo", EMPTY) {
             panic!("Could not add vertex! {:?}", err);
         }
-        if let Err(err) = graph.add_vertex(0, "frodo", []) {
+        if let Err(err) = graph.add_vertex(0, "frodo", EMPTY) {
             panic!("Could not add vertex! {:?}", err);
         }
 
@@ -186,7 +186,7 @@ mod graphql_test {
     #[tokio::test]
     async fn query_properties() {
         let graph = Graph::new();
-        if let Err(err) = graph.add_vertex(0, "gandalf", []) {
+        if let Err(err) = graph.add_vertex(0, "gandalf", EMPTY) {
             panic!("Could not add vertex! {:?}", err);
         }
         if let Err(err) = graph.add_vertex(

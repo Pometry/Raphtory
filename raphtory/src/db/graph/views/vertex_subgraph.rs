@@ -151,8 +151,8 @@ mod subgraph_tests {
     fn test_materialize_no_edges() {
         let g = Graph::new();
 
-        g.add_vertex(1, 1, []).unwrap();
-        g.add_vertex(2, 2, []).unwrap();
+        g.add_vertex(1, 1, EMPTY).unwrap();
+        g.add_vertex(2, 2, EMPTY).unwrap();
         let sg = g.subgraph([1, 2]);
         let actual = sg.materialize().unwrap().into_events().unwrap();
         assert_eq!(actual, sg);

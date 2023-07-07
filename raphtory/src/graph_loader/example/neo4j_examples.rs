@@ -4,7 +4,7 @@ use crate::{
         api::mutation::{AdditionOps, PropertyAdditionOps},
         graph::graph as rap,
     },
-    graph_loader::source::neo4j_loader::Neo4JConnection,
+    graph_loader::source::neo4j_loader::Neo4JConnection, prelude::EMPTY,
 };
 use neo4rs::*;
 
@@ -22,7 +22,7 @@ fn load_movies(row: Row, graph: &rap::Graph) {
     let relation_type = relation.typ();
 
     graph
-        .add_vertex(actor_born, actor_name.clone(), [])
+        .add_vertex(actor_born, actor_name.clone(), EMPTY)
         .unwrap();
     graph
         .add_vertex_properties(
@@ -31,7 +31,7 @@ fn load_movies(row: Row, graph: &rap::Graph) {
         )
         .unwrap();
     graph
-        .add_vertex(film_release, film_title.clone(), [])
+        .add_vertex(film_release, film_title.clone(), EMPTY)
         .unwrap();
     graph
         .add_vertex_properties(

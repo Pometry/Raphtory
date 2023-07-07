@@ -9,8 +9,8 @@
 //! ```rust
 //! use raphtory::prelude::*;
 //! let graph = Graph::new();
-//! graph.add_vertex(0, "Alice", vec![]).unwrap();
-//! graph.add_vertex(1, "Bob", vec![]).unwrap();
+//! graph.add_vertex(0, "Alice", EMPTY).unwrap();
+//! graph.add_vertex(1, "Bob", EMPTY).unwrap();
 //! graph.add_edge(2, "Alice", "Bob", vec![], None).unwrap();
 //! graph.num_edges();
 //! ```
@@ -84,21 +84,6 @@ impl InheritPropertyAdditionOps for Graph {}
 impl InheritViewOps for Graph {}
 
 impl Graph {
-
-    pub fn add_vertex2<V: InputVertex, T: TryIntoTime, P: Into<Prop>, S:AsRef<str>, PI: IntoIterator<Item = (S, P)>>(
-        &self,
-        t: T,
-        v: V,
-        props: PI,
-    ) -> Result<(), GraphError> {
-        self.internal_add_vertex(
-            t.try_into_time()?,
-            v.id(),
-            v.id_str(),
-            props.into_iter().map(|(k, p)| (k.as_ref().to_owned(), p.into())).collect(),
-        )?;
-        Ok(())
-    }
 
     /// Create a new graph with the specified number of shards
     ///
@@ -192,7 +177,7 @@ mod db_tests {
 
         let expected_len = vs.iter().map(|(_, v)| v).sorted().dedup().count();
         for (t, v) in vs {
-            g.add_vertex(t, v, vec![])
+            g.add_vertex(t, v, EMPTY)
                 .map_err(|err| println!("{:?}", err))
                 .ok();
         }
@@ -206,7 +191,7 @@ mod db_tests {
 
         let expected_len = vs.iter().sorted().dedup().count();
         for (t, name) in vs.iter().enumerate() {
-            g.add_vertex(t as i64, name.clone(), vec![])
+            g.add_vertex(t as i64, name.clone(), EMPTY)
                 .map_err(|err| println!("{:?}", err))
                 .ok();
         }
@@ -462,7 +447,7 @@ mod db_tests {
         assert_eq!(g.latest_time(), None);
         assert_eq!(g.earliest_time(), None);
 
-        g.add_vertex(5, 1, vec![])
+        g.add_vertex(5, 1, EMPTY)
             .map_err(|err| println!("{:?}", err))
             .ok();
 
@@ -475,7 +460,7 @@ mod db_tests {
         assert_eq!(g.latest_time(), Some(10));
         assert_eq!(g.earliest_time(), Some(10));
 
-        g.add_vertex(5, 1, vec![])
+        g.add_vertex(5, 1, EMPTY)
             .map_err(|err| println!("{:?}", err))
             .ok();
         assert_eq!(g.latest_time(), Some(10));
@@ -654,9 +639,9 @@ mod db_tests {
     fn test_add_vertex_with_strings() {
         let g = Graph::new();
 
-        g.add_vertex(0, "haaroon", vec![]).unwrap();
-        g.add_vertex(1, "hamza", vec![]).unwrap();
-        g.add_vertex(1, 831, vec![]).unwrap();
+        g.add_vertex(0, "haaroon", EMPTY).unwrap();
+        g.add_vertex(1, "hamza", EMPTY).unwrap();
+        g.add_vertex(1, 831, EMPTY).unwrap();
 
         assert!(g.has_vertex(831));
         assert!(g.has_vertex("haaroon"));
@@ -867,16 +852,16 @@ mod db_tests {
     fn check_vertex_history() {
         let g = Graph::new();
 
-        g.add_vertex(1, 1, vec![]).unwrap();
-        g.add_vertex(2, 1, vec![]).unwrap();
-        g.add_vertex(3, 1, vec![]).unwrap();
-        g.add_vertex(4, 1, vec![]).unwrap();
-        g.add_vertex(8, 1, vec![]).unwrap();
+        g.add_vertex(1, 1, EMPTY).unwrap();
+        g.add_vertex(2, 1, EMPTY).unwrap();
+        g.add_vertex(3, 1, EMPTY).unwrap();
+        g.add_vertex(4, 1, EMPTY).unwrap();
+        g.add_vertex(8, 1, EMPTY).unwrap();
 
-        g.add_vertex(4, "Lord Farquaad", vec![]).unwrap();
-        g.add_vertex(6, "Lord Farquaad", vec![]).unwrap();
-        g.add_vertex(7, "Lord Farquaad", vec![]).unwrap();
-        g.add_vertex(8, "Lord Farquaad", vec![]).unwrap();
+        g.add_vertex(4, "Lord Farquaad", EMPTY).unwrap();
+        g.add_vertex(6, "Lord Farquaad", EMPTY).unwrap();
+        g.add_vertex(7, "Lord Farquaad", EMPTY).unwrap();
+        g.add_vertex(8, "Lord Farquaad", EMPTY).unwrap();
 
         let times_of_one = g.vertex(1).unwrap().history();
         let times_of_farquaad = g.vertex("Lord Farquaad").unwrap().history();
@@ -947,21 +932,21 @@ mod db_tests {
     fn check_vertex_history_multiple_shards() {
         let g = Graph::new();
 
-        g.add_vertex(1, 1, vec![]).unwrap();
-        g.add_vertex(2, 1, vec![]).unwrap();
-        g.add_vertex(3, 1, vec![]).unwrap();
-        g.add_vertex(4, 1, vec![]).unwrap();
-        g.add_vertex(5, 2, vec![]).unwrap();
-        g.add_vertex(6, 2, vec![]).unwrap();
-        g.add_vertex(7, 2, vec![]).unwrap();
-        g.add_vertex(8, 1, vec![]).unwrap();
-        g.add_vertex(9, 2, vec![]).unwrap();
-        g.add_vertex(10, 2, vec![]).unwrap();
+        g.add_vertex(1, 1, EMPTY).unwrap();
+        g.add_vertex(2, 1, EMPTY).unwrap();
+        g.add_vertex(3, 1, EMPTY).unwrap();
+        g.add_vertex(4, 1, EMPTY).unwrap();
+        g.add_vertex(5, 2, EMPTY).unwrap();
+        g.add_vertex(6, 2, EMPTY).unwrap();
+        g.add_vertex(7, 2, EMPTY).unwrap();
+        g.add_vertex(8, 1, EMPTY).unwrap();
+        g.add_vertex(9, 2, EMPTY).unwrap();
+        g.add_vertex(10, 2, EMPTY).unwrap();
 
-        g.add_vertex(4, "Lord Farquaad", vec![]).unwrap();
-        g.add_vertex(6, "Lord Farquaad", vec![]).unwrap();
-        g.add_vertex(7, "Lord Farquaad", vec![]).unwrap();
-        g.add_vertex(8, "Lord Farquaad", vec![]).unwrap();
+        g.add_vertex(4, "Lord Farquaad", EMPTY).unwrap();
+        g.add_vertex(6, "Lord Farquaad", EMPTY).unwrap();
+        g.add_vertex(7, "Lord Farquaad", EMPTY).unwrap();
+        g.add_vertex(8, "Lord Farquaad", EMPTY).unwrap();
 
         let times_of_one = g.vertex(1).unwrap().history();
         let times_of_farquaad = g.vertex("Lord Farquaad").unwrap().history();
@@ -999,7 +984,7 @@ mod db_tests {
         let latest_time = "2022-06-07 12:34:00".try_into_time().unwrap();
 
         let g = Graph::new();
-        g.add_vertex("2022-06-06T12:34:00.000", 0, vec![]).unwrap();
+        g.add_vertex("2022-06-06T12:34:00.000", 0, EMPTY).unwrap();
         g.add_edge("2022-06-07T12:34:00", 1, 2, vec![], None)
             .unwrap();
         assert_eq!(g.earliest_time().unwrap(), earliest_time);
@@ -1008,7 +993,7 @@ mod db_tests {
         let g = Graph::new();
         let fmt = "%Y-%m-%d %H:%M";
 
-        g.add_vertex(CustomTime("2022-06-06 12:34", fmt), 0, vec![])
+        g.add_vertex(CustomTime("2022-06-06 12:34", fmt), 0, EMPTY)
             .unwrap();
         g.add_edge(CustomTime("2022-06-07 12:34", fmt), 1, 2, vec![], None)
             .unwrap();
@@ -1141,9 +1126,9 @@ mod db_tests {
     #[test]
     fn test_vertex_early_late_times() {
         let g = Graph::new();
-        g.add_vertex(1, 1, vec![]).unwrap();
-        g.add_vertex(2, 1, vec![]).unwrap();
-        g.add_vertex(3, 1, vec![]).unwrap();
+        g.add_vertex(1, 1, EMPTY).unwrap();
+        g.add_vertex(2, 1, EMPTY).unwrap();
+        g.add_vertex(3, 1, EMPTY).unwrap();
 
         assert_eq!(g.vertex(1).unwrap().earliest_time(), Some(1));
         assert_eq!(g.vertex(1).unwrap().latest_time(), Some(3));
@@ -1155,9 +1140,9 @@ mod db_tests {
     #[test]
     fn test_vertex_ids() {
         let g = Graph::new();
-        g.add_vertex(1, 1, vec![]).unwrap();
-        g.add_vertex(1, 2, vec![]).unwrap();
-        g.add_vertex(2, 3, vec![]).unwrap();
+        g.add_vertex(1, 1, EMPTY).unwrap();
+        g.add_vertex(1, 2, EMPTY).unwrap();
+        g.add_vertex(2, 3, EMPTY).unwrap();
 
         assert_eq!(g.vertices().id().collect::<Vec<u64>>(), vec![1, 2, 3]);
 
@@ -1200,7 +1185,7 @@ mod db_tests {
     fn vertex_from_id_is_consistent(vertices: Vec<u64>) -> bool {
         let g = Graph::new();
         for v in vertices.iter() {
-            g.add_vertex(0, *v, vec![]).unwrap();
+            g.add_vertex(0, *v, EMPTY).unwrap();
         }
         g.vertices()
             .name()

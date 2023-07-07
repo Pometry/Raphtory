@@ -12,10 +12,10 @@
 //! ba_preferential_attachment(&graph, 1000, 10);
 //! ```
 
-use crate::db::{
+use crate::{db::{
     api::{mutation::AdditionOps, view::*},
     graph::graph::Graph,
-};
+}, prelude::EMPTY};
 use rand::prelude::*;
 use std::collections::HashSet;
 
@@ -62,7 +62,7 @@ pub fn ba_preferential_attachment(graph: &Graph, vertices_to_add: usize, edges_p
     while ids.len() < edges_per_step {
         max_id += 1;
         graph
-            .add_vertex(latest_time, max_id, [])
+            .add_vertex(latest_time, max_id, EMPTY)
             .map_err(|err| println!("{:?}", err))
             .ok();
         degrees.push(0);
@@ -131,7 +131,7 @@ mod preferential_attachment_tests {
         let graph = Graph::new();
         for i in 0..10 {
             graph
-                .add_vertex(i, i as u64, [])
+                .add_vertex(i, i as u64, EMPTY)
                 .map_err(|err| println!("{:?}", err))
                 .ok();
         }

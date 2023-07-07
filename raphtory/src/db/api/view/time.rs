@@ -166,15 +166,15 @@ mod time_tests {
                 view::{time::WindowSet, GraphViewOps, TimeOps},
             },
             graph::graph::Graph,
-        },
+        }, prelude::EMPTY,
     };
     use itertools::Itertools;
 
     // start inclusive, end exclusive
     fn graph_with_timeline(start: i64, end: i64) -> Graph {
         let g = Graph::new();
-        g.add_vertex(start, 0, []).unwrap();
-        g.add_vertex(end - 1, 0, []).unwrap();
+        g.add_vertex(start, 0, EMPTY).unwrap();
+        g.add_vertex(end - 1, 0, EMPTY).unwrap();
         assert_eq!(g.start().unwrap(), start);
         assert_eq!(g.end().unwrap(), end);
         g

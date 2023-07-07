@@ -795,7 +795,7 @@ mod test {
         let graph = IndexedGraph::new(Graph::new(), EMPTY, EMPTY);
 
         graph
-            .add_vertex(1, "Gandalf", [])
+            .add_vertex(1, "Gandalf", EMPTY)
             .expect("add vertex failed");
 
         graph.reload().expect("reload failed");
