@@ -6,7 +6,7 @@ use crate::{
             time::{IntoTimeWithFormat, TryIntoTime},
         },
     },
-    db::api::mutation::{internal::InternalAdditionOps, Properties},
+    db::api::mutation::{internal::InternalAdditionOps, Properties}, prelude::Prop,
 };
 
 pub trait AdditionOps {
@@ -31,11 +31,11 @@ pub trait AdditionOps {
     /// let v = g.add_vertex(0, "Alice", []);
     /// let v = g.add_vertex(0, 5, []);
     /// ```
-    fn add_vertex<V: InputVertex, T: TryIntoTime, P: Properties>(
+    fn add_vertex<V: InputVertex, T: TryIntoTime, P: Into<Prop>, S:AsRef<str>, PI: IntoIterator<Item = (S, P)>>(
         &self,
         t: T,
         v: V,
-        props: P,
+        props: PI,
     ) -> Result<(), GraphError>;
 
     fn add_vertex_with_custom_time_format<V: InputVertex, P: Properties>(
@@ -46,7 +46,7 @@ pub trait AdditionOps {
         props: P,
     ) -> Result<(), GraphError> {
         let time: i64 = t.parse_time(fmt)?;
-        self.add_vertex(time, v, props)
+        self.add_vertex(time, v, props.collect_properties())
     }
 
     // TODO: Vertex.name which gets ._id property else numba as string
@@ -93,20 +93,23 @@ pub trait AdditionOps {
 }
 
 impl<G: InternalAdditionOps> AdditionOps for G {
-    fn add_vertex<V: InputVertex, T: TryIntoTime, P: Properties>(
+
+    fn add_vertex<V: InputVertex, T: TryIntoTime, P: Into<Prop>, S:AsRef<str>, PI: IntoIterator<Item = (S, P)>>(
         &self,
         t: T,
         v: V,
-        props: P,
+        props: PI,
     ) -> Result<(), GraphError> {
         self.internal_add_vertex(
             t.try_into_time()?,
             v.id(),
             v.id_str(),
-            props.collect_properties(),
+            props.into_iter().map(|(k, p)| (k.as_ref().to_string(), p.into())).collect(),
         )?;
         Ok(())
     }
+
+
 
     fn add_edge<V: InputVertex, T: TryIntoTime, P: Properties>(
         &self,
