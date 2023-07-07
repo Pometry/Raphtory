@@ -40,7 +40,7 @@ struct Args {
     #[arg(long, default_value = "1")]
     to_column: usize,
 
-    /// Position of the time column in the csv, default will ignore time
+    /// Position of the time column in the csv, Expected time is in unix ms, default will ignore time and set it to 1
     #[arg(long, default_value = "-1")]
     time_column: i32,
 
@@ -54,11 +54,25 @@ struct Args {
 }
 
 fn main() {
-    println!("Raphtory Quick Benchmark");
+    println!("
+██████╗ ███████╗███╗   ██╗ ██████╗██╗  ██╗███╗   ███╗ █████╗ ██████╗ ██╗  ██╗
+██╔══██╗██╔════╝████╗  ██║██╔════╝██║  ██║████╗ ████║██╔══██╗██╔══██╗██║ ██╔╝
+██████╔╝█████╗  ██╔██╗ ██║██║     ███████║██╔████╔██║███████║██████╔╝█████╔╝
+██╔══██╗██╔══╝  ██║╚██╗██║██║     ██╔══██║██║╚██╔╝██║██╔══██║██╔══██╗██╔═██╗
+██████╔╝███████╗██║ ╚████║╚██████╗██║  ██║██║ ╚═╝ ██║██║  ██║██║  ██║██║  ██╗
+╚═════╝ ╚══════╝╚═╝  ╚═══╝ ╚═════╝╚═╝  ╚═╝╚═╝     ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝
+");
     let args = Args::parse();
     // Set default values
     let debug = args.debug;
     if debug {
+        println!("
+  .___   .____  ____   .     .   ___        __   __   ___   .___   .____
+ /   `  /      /   \\  /     / .'   \\       |    |  .'   `. /   `  /
+ |    | |__.   |,_-<  |     | |            |\\  /|  |     | |    | |__.
+ |    | |      |    ` |     | |    _       | \\/ |  |     | |    | |
+ /---/  /----/ `----'  `._.'   `.___|      /    /   `.__.' /---/  /----/
+            ");
         println!("Debug mode enabled.\nArguments: {:?}", args);
     }
     let header = args.header;
