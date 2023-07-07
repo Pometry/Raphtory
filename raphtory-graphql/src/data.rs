@@ -2,7 +2,7 @@ use raphtory::{
     prelude::{Graph, GraphViewOps},
     search::IndexedGraph,
 };
-use raphtory::{prelude::{db::api::view::internal::{IntoDynamic, DynamicGraph}};
+use raphtory::{db::api::view::internal::{IntoDynamic, DynamicGraph}};
 use std::{
     collections::{HashMap, HashSet},
     path::Path,
@@ -14,8 +14,8 @@ pub(crate) struct Data {
 }
 
 impl Data {
-    pub fn new(graphs: HashMap<String, Graph>) -> Self {
-        let graphs: HashMap<String, IndexedGraph<Graph>> = graphs
+    pub fn new(graphs: HashMap<String, DynamicGraph>) -> Self {
+        let graphs: HashMap<String, IndexedGraph<DynamicGraph>> = graphs
             .into_iter()
             .map(|(name, g)| {
                 (

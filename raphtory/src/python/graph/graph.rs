@@ -18,6 +18,7 @@ use std::{
     fmt::{Debug, Formatter},
     path::{Path, PathBuf},
 };
+use crate::db::api::view::internal::{DynamicGraph, IntoDynamic};
 
 /// A temporal graph.
 #[derive(Clone)]
@@ -41,6 +42,12 @@ impl From<Graph> for PyGraph {
 impl From<PyGraph> for Graph {
     fn from(value: PyGraph) -> Self {
         value.graph
+    }
+}
+
+impl From<PyGraph> for DynamicGraph {
+    fn from(value: PyGraph) -> Self {
+        value.graph.into_dynamic()
     }
 }
 

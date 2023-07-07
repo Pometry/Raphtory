@@ -1,14 +1,14 @@
 use pyo3::prelude::*;
 use raphtory_core::{
-    prelude::*,
     python::{graph::graph::PyGraph, utils::errors::adapt_err_value},
 };
 use raphtory_graphql::RaphtoryServer;
 use std::collections::HashMap;
+use raphtory_core::db::api::view::internal::DynamicGraph;
 
 #[pyfunction]
 pub fn run_from_dict(py: Python, graphs: HashMap<String, PyGraph>) -> PyResult<&PyAny> {
-    let graphs: HashMap<String, Graph> = graphs
+    let graphs: HashMap<String, DynamicGraph> = graphs
         .into_iter()
         .map(|(key, value)| (key, value.into()))
         .collect();
