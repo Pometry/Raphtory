@@ -40,7 +40,7 @@ class RaphtoryBench(BenchmarkBase):
 
     def setup(self):
         # Load edges
-        self.graph = raphtory.Graph(multiprocessing.cpu_count())
+        self.graph = raphtory.Graph()
         with open(simple_relationship_file, 'r') as f:
             reader = csv.reader(f, delimiter='\t')
             for row in reader:
