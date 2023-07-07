@@ -4,7 +4,7 @@ This is the raphtory benchmarking suite.
 It is designed to test the performance of raphtory against other graph processing systems.
 
 There are two benchmarks suites, one for python with support for multiple systems, and one for rust with support for 
-only in python.
+ raphtory only.
 
 
 ## Rust Suite
