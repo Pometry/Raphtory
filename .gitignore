@@ -5,7 +5,7 @@ massif.*
 *.svg
 # this is for raphtory
 **/.env/
-**/data/*
+comparison-benchmark/python/data/*
 .vscode
 docs/source/_rustdoc/*
 docs/nx.html

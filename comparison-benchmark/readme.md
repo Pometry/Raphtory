@@ -3,6 +3,63 @@
 This is the raphtory benchmarking suite. 
 It is designed to test the performance of raphtory against other graph processing systems.
 
+There are two benchmarks suites, one for python with support for multiple systems, and one for rust with support for 
+only in python.
+
+
+## Rust Suite
+
+This only does a light benchmark of raphtory, as it is designed to be used standalone. 
+
+    Raphtory Quick Benchmark
+    
+    Usage: raphtory-rust-benchmark [OPTIONS]
+    
+    Options:
+    --header                     Set if the file has a header, default is False
+    --delimiter <DELIMITER>      Delimiter of the csv file [default: "\t"]
+    --file-path <FILE_PATH>      Path to a csv file [default: ]
+    --from-column <FROM_COLUMN>  Position of the from column in the csv [default: 0]
+    --to-column <TO_COLUMN>      Position of the to column in the csv [default: 1]
+    --time-column <TIME_COLUMN>  Position of the time column in the csv, default will ignore time [default: -1]
+    --download                   Download default files
+    --debug                      Debug to print more info to the screen
+    -h, --help                       Print help
+    -V, --version                    Print version
+
+
+First download the example file by cd'ing into the `raphtory-rust-benchmark` folder and running
+
+    cargo run -- --download
+
+This will download the example file into tmp folder on your system, it will give you the file path.
+
+You can then run the benchmark by running, with the file path it has given you
+
+    cargo run -- --file-path <file_path>
+
+You can also provide your own file path, but please ensure you have set the correct arguments. 
+I.e Whether it has a header, what the delimiter is, and what columns are what.
+
+e.g.
+
+    cargo run -- --file-path="/Users/1337/Documents/dev/Data/lotr.csv" --delimiter="," --from-column=0 --to-column=1
+
+The results for a 1000 edge file are below
+
+    Raphtory Quick Benchmark
+    Running setup...
+    Setup took 0.015264357 seconds
+    Graph has 864 vertices and 1000 edges
+    Degree: 0.001719875 seconds
+    Out neighbours: 0.000247832 seconds
+    Page rank: 0.012001127 seconds
+    Connected components: 0.025755603 seconds
+
+
+
+## Python Suite
+
 This benchmarks the python version of raphtory.
 Please ensure your python environment has raphtory installed. 
 
