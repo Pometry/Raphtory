@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1688731498659,
+  "lastUpdate": 1688738138545,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -4801,6 +4801,60 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions with numeric string input",
             "value": 2547854,
             "range": "± 266321",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "Haaroon@users.noreply.github.com",
+            "name": "Haaroon Y",
+            "username": "Haaroon"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7692a8497f1624e646fc31ce980595f365668426",
+          "message": "bug with not installed docker via pip causing drivers to not instatiate  (#1097)\n\n* fix benchmark download to point to osf instead of stinky git lfs\r\n\r\n* fix broken docker",
+          "timestamp": "2023-07-07T14:49:43+01:00",
+          "tree_id": "ef99e4b35a2c7d435b80d103154017c6eb78b951",
+          "url": "https://github.com/Pometry/Raphtory/commit/7692a8497f1624e646fc31ce980595f365668426"
+        },
+        "date": 1688738137873,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 675361,
+            "range": "± 2583",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and numeric string input",
+            "value": 1222725,
+            "range": "± 2473",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and string input",
+            "value": 1255578,
+            "range": "± 6196",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 1010147,
+            "range": "± 91485",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions with numeric string input",
+            "value": 1943343,
+            "range": "± 100027",
             "unit": "ns/iter"
           }
         ]
