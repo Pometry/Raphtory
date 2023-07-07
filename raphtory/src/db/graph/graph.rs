@@ -17,9 +17,9 @@
 //!
 
 use crate::{
-    core::{entities::graph::tgraph::InnerTemporalGraph, utils::errors::GraphError},
+    core::{entities::{graph::tgraph::InnerTemporalGraph, vertices::input_vertex::InputVertex}, utils::{errors::GraphError, time::TryIntoTime}},
     db::api::{
-        mutation::internal::{InheritAdditionOps, InheritPropertyAdditionOps},
+        mutation::internal::{InheritAdditionOps, InheritPropertyAdditionOps, InternalAdditionOps},
         view::internal::{Base, DynamicGraph, InheritViewOps, IntoDynamic},
     },
     prelude::*,
@@ -84,6 +84,22 @@ impl InheritPropertyAdditionOps for Graph {}
 impl InheritViewOps for Graph {}
 
 impl Graph {
+
+    pub fn add_vertex2<V: InputVertex, T: TryIntoTime, P: Into<Prop>, S:AsRef<str>, PI: IntoIterator<Item = (S, P)>>(
+        &self,
+        t: T,
+        v: V,
+        props: PI,
+    ) -> Result<(), GraphError> {
+        self.internal_add_vertex(
+            t.try_into_time()?,
+            v.id(),
+            v.id_str(),
+            props.into_iter().map(|(k, p)| (k.as_ref().to_owned(), p.into())).collect(),
+        )?;
+        Ok(())
+    }
+
     /// Create a new graph with the specified number of shards
     ///
     /// # Arguments
