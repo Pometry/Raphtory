@@ -37,6 +37,9 @@ You can then run the benchmark by running, with the file path it has given you
 
     cargo run -- --file-path <file_path>
 
+You can also provide your own file path, but please ensure you have set the correct arguments. 
+I.e Whether it has a header, what the delimiter is, and what columns are what.
+
 The results for a 1000 edge file are below
 
     Raphtory Quick Benchmark
