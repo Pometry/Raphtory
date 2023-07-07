@@ -3,6 +3,9 @@
 This is the raphtory benchmarking suite. 
 It is designed to test the performance of raphtory against other graph processing systems.
 
+This benchmarks the python version of raphtory.
+Please ensure your python environment has raphtory installed. 
+
 Systems currently supported are:
 - [raphtory](https://github.com/Pometry/Raphtory)
 - [neo4j](https://neo4j.com/)
@@ -29,7 +32,6 @@ More information available [here](https://snap.stanford.edu/data/soc-pokec.html)
       - pandas
       - raphtory
       - neo4j
-      - 
 
 # How to run
 
