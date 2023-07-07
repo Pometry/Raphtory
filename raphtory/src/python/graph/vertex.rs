@@ -539,122 +539,221 @@ impl PyVertices {
         true
     }
 
+    /// Returns an iterator over the vertices ids
     fn id(&self) -> U64Iterable {
         let vertices = self.vertices.clone();
         (move || vertices.id()).into()
     }
 
+    /// Returns an iterator over the vertices name
     fn name(&self) -> StringIterable {
         let vertices = self.vertices.clone();
         (move || vertices.name()).into()
     }
 
+    /// Returns an iterator over the vertices earliest time
     fn earliest_time(&self) -> OptionI64Iterable {
         let vertices = self.vertices.clone();
         (move || vertices.earliest_time()).into()
     }
 
+    /// Returns an iterator over the vertices latest time
     fn latest_time(&self) -> OptionI64Iterable {
         let vertices = self.vertices.clone();
         (move || vertices.latest_time()).into()
     }
 
+    /// Returns an iterator over the vertices properties
+    /// If include_static is true, static properties are included
+    ///
+    /// Arguments:
+    ///     `name` - The name of the property
+    ///     `include_static` - If true, static properties are included
+    ///
+    /// Returns:
+    ///     An iterator over the vertices properties
     fn property(&self, name: String, include_static: Option<bool>) -> OptionPropIterable {
         let vertices = self.vertices.clone();
         (move || vertices.property(name.clone(), include_static.unwrap_or(true))).into()
     }
 
+    /// Returns an iterator over the vertices property with the complete history
+    /// If include_static is true, static properties are included
+    ///
+    /// Arguments:
+    ///     `name` - The name of the property
+    ///
+    /// Returns:
+    ///     An iterator over the vertices property with the complete history as a
+    ///     vector of tuples of the time and the property
     fn property_history(&self, name: String) -> PropHistoryIterable {
         let vertices = self.vertices.clone();
         (move || vertices.property_history(name.clone())).into()
     }
 
+    /// Returns an iterator over the vertices and all their properties
+    ///
+    /// Arguments:
+    ///     `include_static` - If true, static properties are included
+    ///
+    /// Returns:
+    ///     An iterator over the vertices and all their properties
     fn properties(&self, include_static: Option<bool>) -> PropsIterable {
         let vertices = self.vertices.clone();
         (move || vertices.properties(include_static.unwrap_or(true))).into()
     }
 
+    /// Returns an iterator over the vertices and all their properties at all times
     fn property_histories(&self) -> PropHistoriesIterable {
         let vertices = self.vertices.clone();
         (move || vertices.property_histories()).into()
     }
 
+    /// Returns the names of all the properties of the vertices.
+    ///
+    /// Arguments:
+    ///     `include_static` - If true, static properties are included
     fn property_names(&self, include_static: Option<bool>) -> StringVecIterable {
         let vertices = self.vertices.clone();
         (move || vertices.property_names(include_static.unwrap_or(true))).into()
     }
 
+    /// Checks if a property exists on this vertices
+    ///
+    /// Arguments:
+    ///     `name` - The name of the property
+    ///     `include_static` - If true, static properties are included
+    ///
+    /// Returns:
+    ///     A vector of booleans indicating if the property exists in each vertex
     fn has_property(&self, name: String, include_static: Option<bool>) -> BoolIterable {
         let vertices = self.vertices.clone();
         (move || vertices.has_property(name.clone(), include_static.unwrap_or(true))).into()
     }
 
+    /// Checks if a static property exists on the vertices
+    ///
+    /// Arguments:
+    ///     `name` - The name of the property
+    ///
+    /// Returns:
+    ///     A vector of booleans indicating if the property exists in each vertex
     fn has_static_property(&self, name: String) -> BoolIterable {
         let vertices = self.vertices.clone();
         (move || vertices.has_static_property(name.clone())).into()
     }
 
+    /// Returns the static property value of the vertices given the name of the property.
+    ///
+    /// Arguments:
+    ///      `name` - The name of the property
+    ///
+    /// Returns:
+    ///     An iterator of the static property of the vertices
     fn static_property(&self, name: String) -> OptionPropIterable {
         let vertices = self.vertices.clone();
         (move || vertices.static_property(name.clone())).into()
     }
 
+    /// Returns static properties of the vertices
+    ///
+    /// Returns:
+    ///     An iterator of the static properties of the vertices
     fn static_properties(&self) -> PropsIterable {
         let vertices = self.vertices.clone();
         (move || vertices.static_properties()).into()
     }
 
+    /// Returns the number of edges of the vertices
+    ///
+    /// Returns:
+    ///     An iterator of the number of edges of the vertices
     fn degree(&self) -> UsizeIterable {
         let vertices = self.vertices.clone();
         (move || vertices.degree()).into()
     }
 
+    /// Returns the number of in edges of the vertices
+    ///
+    /// Returns:
+    ///     An iterator of the number of in edges of the vertices
     fn in_degree(&self) -> UsizeIterable {
         let vertices = self.vertices.clone();
         (move || vertices.in_degree()).into()
     }
 
+    /// Returns the number of out edges of the vertices
+    ///
+    /// Returns:
+    ///     An iterator of the number of out edges of the vertices
     fn out_degree(&self) -> UsizeIterable {
         let vertices = self.vertices.clone();
         (move || vertices.out_degree()).into()
     }
 
+    /// Returns the edges of the vertices
+    ///
+    /// Returns:
+    ///     An iterator of edges of the vertices
     fn edges(&self) -> PyNestedEdges {
         let clone = self.vertices.clone();
         (move || clone.edges()).into()
     }
 
+    /// Returns the in edges of the vertices
+    ///
+    /// Returns:
+    ///     An iterator of in edges of the vertices
     fn in_edges(&self) -> PyNestedEdges {
         let clone = self.vertices.clone();
         (move || clone.in_edges()).into()
     }
 
+    /// Returns the out edges of the vertices
+    ///
+    /// Returns:
+    ///     An iterator of out edges of the vertices
     fn out_edges(&self) -> PyNestedEdges {
         let clone = self.vertices.clone();
         (move || clone.out_edges()).into()
     }
 
-    fn out_neighbours(&self) -> PyPathFromGraph {
-        self.vertices.out_neighbours().into()
-    }
-
-    fn in_neighbours(&self) -> PyPathFromGraph {
-        self.vertices.in_neighbours().into()
-    }
-
+    /// Get the neighbours of the vertices
+    ///
+    /// Returns:
+    ///     An iterator of the neighbours of the vertices
     fn neighbours(&self) -> PyPathFromGraph {
         self.vertices.neighbours().into()
     }
 
+    /// Get the in neighbours of the vertices
+    ///
+    /// Returns:
+    ///     An iterator of the in neighbours of the vertices
+    fn in_neighbours(&self) -> PyPathFromGraph {
+        self.vertices.in_neighbours().into()
+    }
+
+    /// Get the out neighbours of the vertices
+    ///
+    /// Returns:
+    ///     An iterator of the out neighbours of the vertices
+    fn out_neighbours(&self) -> PyPathFromGraph {
+        self.vertices.out_neighbours().into()
+    }
+
+    /// Collects all vertices into a list
     fn collect(&self) -> Vec<PyVertex> {
         self.__iter__().into_iter().collect()
     }
 
-    //******  Perspective APIS  ******//
+    //*****     Perspective APIS  ******//
+    /// Returns the start time of the vertices
     pub fn start(&self) -> Option<i64> {
         self.vertices.start()
     }
 
+    /// Returns the end time of the vertices
     pub fn end(&self) -> Option<i64> {
         self.vertices.end()
     }
@@ -664,6 +763,17 @@ impl PyVertices {
         self.vertices.window_size()
     }
 
+    /// Creates a PyVertexWindowSet with the given step size using an expanding window.
+    ///
+    /// An expanding window is a window that grows by step size at each iteration.
+    /// This will tell you whether a vertex exists at different points in the window
+    /// and what its properties are at those points.
+    ///
+    /// Arguments:
+    ///     `step` - The step size of the window
+    ///
+    /// Returns:
+    ///     A PyVertexWindowSet with the given step size and optional start and end times or an error
     fn expanding(
         &self,
         step: PyInterval,
@@ -671,6 +781,19 @@ impl PyVertices {
         self.vertices.expanding(step)
     }
 
+
+    /// Creates a PyVertexWindowSet with the given window size and optional step using a rolling window.
+    ///
+    /// A rolling window is a window that moves forward by step size at each iteration.
+    /// This will tell you whether a vertex exists at different points in the window and
+    /// what its properties are at those points.
+    ///
+    /// Arguments:
+    ///     `window` - The window size of the window
+    ///     `step` - The step size of the window
+    ///
+    /// Returns:
+    ///     A PyVertexWindowSet with the given window size and optional step size or an error
     fn rolling(
         &self,
         window: PyInterval,
@@ -679,6 +802,15 @@ impl PyVertices {
         self.vertices.rolling(window, step)
     }
 
+    /// Create a view of the vertices including all events between t_start (inclusive) and
+    /// t_end (exclusive)
+    ///
+    /// Arguments:
+    ///     `t_start` - The start time of the window
+    ///     `t_end` - The end time of the window
+    ///
+    /// Returns:
+    ///     A `PyVertices` object.
     #[pyo3(signature = (t_start = None, t_end = None))]
     pub fn window(
         &self,

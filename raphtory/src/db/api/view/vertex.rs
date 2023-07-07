@@ -235,6 +235,16 @@ pub trait VertexListOps:
     /// An iterator of the values of the given property name including the times when it changed
     /// as a vector of tuples of the form (time, property).
     fn property_history(self, name: String) -> Self::IterType<Vec<(i64, Prop)>>;
+
+    /// Returns an iterator over all vertex properties.
+    ///
+    /// # Arguments
+    ///
+    /// * `include_static` - Whether to include static properties.
+    ///
+    /// # Returns
+    ///
+    /// An iterator over all vertex properties.
     fn properties(self, include_static: bool) -> Self::IterType<HashMap<String, Prop>>;
     fn history(self) -> Self::IterType<Vec<i64>>;
     /// Returns an iterator over all vertex properties.

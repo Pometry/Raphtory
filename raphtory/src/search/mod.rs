@@ -6,7 +6,8 @@ use rayon::{prelude::ParallelIterator, slice::ParallelSlice};
 use tantivy::{
     collector::TopDocs,
     schema::{Field, Schema, SchemaBuilder, FAST, INDEXED, STORED, TEXT},
-    DocAddress, Document, Index, IndexReader, IndexSortByField, TantivyError,
+    Document, Index, IndexReader, IndexSettings, IndexWriter,
+    TantivyError,
 };
 
 use crate::{
@@ -14,17 +15,22 @@ use crate::{
         entities::vertices::vertex_ref::VertexRef,
         utils::{errors::GraphError, time::TryIntoTime},
     },
-    db::{api::mutation::internal::InternalAdditionOps, graph::vertex::VertexView},
+    db::{
+        api::{mutation::internal::InternalAdditionOps, view::EdgeViewInternalOps},
+        graph::{edge::EdgeView, vertex::VertexView},
+    },
     prelude::*,
 };
 
-use self::fields::{NAME, TIME, VERTEX_ID, VERTEX_ID_REV};
+use self::fields::{EDGE_ID, NAME, TIME, VERTEX_ID, VERTEX_ID_REV};
 
 #[derive(Clone)]
 pub struct IndexedGraph<G> {
     graph: G,
-    index: Arc<Index>,
+    vertex_index: Arc<Index>,
+    edge_index: Arc<Index>,
     reader: tantivy::IndexReader,
+    edge_reader: tantivy::IndexReader,
 }
 
 impl<G> Deref for IndexedGraph<G> {
@@ -40,9 +46,14 @@ pub(in crate::search) mod fields {
     pub const VERTEX_ID: &str = "vertex_id";
     pub const VERTEX_ID_REV: &str = "vertex_id_rev";
     pub const NAME: &str = "name";
-}
 
-const _EMPTY: [(&str, Prop); 0] = [];
+    // edges
+    // pub const SRC_ID: &str = "src_id";
+    pub const SOURCE: &str = "from";
+    // pub const DEST_ID: &str = "dest_id";
+    pub const DESTINATION: &str = "to";
+    pub const EDGE_ID: &str = "edge_id";
+}
 
 impl<G: GraphViewOps> From<G> for IndexedGraph<G> {
     fn from(graph: G) -> Self {
@@ -51,8 +62,9 @@ impl<G: GraphViewOps> From<G> for IndexedGraph<G> {
 }
 
 impl<G: GraphViewOps> IndexedGraph<G> {
-    fn new_schema_builder() -> SchemaBuilder {
+    fn new_vertex_schema_builder() -> SchemaBuilder {
         let mut schema = Schema::builder();
+
         // we first add GID time, ID and ID_REV
         // ensure time is part of the index
         schema.add_i64_field(fields::TIME, INDEXED | STORED);
@@ -65,8 +77,21 @@ impl<G: GraphViewOps> IndexedGraph<G> {
         schema
     }
 
+    fn new_edge_schema_builder() -> SchemaBuilder {
+        let mut schema = Schema::builder();
+        // we first add GID time, ID and ID_REV
+        // ensure time is part of the index
+        schema.add_i64_field(fields::TIME, INDEXED | STORED);
+        // ensure we add vertex_id as stored to get back the vertex id after the search
+        schema.add_text_field(fields::SOURCE, TEXT);
+        schema.add_text_field(fields::DESTINATION, TEXT);
+        schema.add_u64_field(fields::EDGE_ID, FAST | STORED);
+
+        schema
+    }
+
     fn schema_from_props<S: AsRef<str>, I: IntoIterator<Item = (S, Prop)>>(props: I) -> Schema {
-        let mut schema = Self::new_schema_builder();
+        let mut schema = Self::new_vertex_schema_builder();
 
         for (prop_name, prop) in props.into_iter() {
             match prop {
@@ -83,11 +108,41 @@ impl<G: GraphViewOps> IndexedGraph<G> {
         schema.build()
     }
 
+    fn set_schema_field_from_prop(schema: &mut SchemaBuilder, prop: &str, prop_value: Prop) {
+        match prop_value {
+            Prop::Str(_) => {
+                schema.add_text_field(prop, TEXT);
+            }
+            Prop::DTime(_) => {
+                schema.add_date_field(prop, INDEXED);
+            }
+            Prop::U64(_) => {
+                schema.add_u64_field(prop, INDEXED);
+            }
+            Prop::I64(_) => {
+                schema.add_i64_field(prop, INDEXED);
+            }
+            Prop::I32(_) => {
+                schema.add_i64_field(prop, INDEXED);
+            }
+            Prop::F64(_) => {
+                schema.add_f64_field(prop, INDEXED);
+            }
+            Prop::F32(_) => {
+                schema.add_f64_field(prop, INDEXED);
+            }
+            Prop::Bool(_) => {
+                schema.add_u64_field(prop, INDEXED);
+            }
+            x => todo!("prop value {:?} not supported yet", x),
+        }
+    }
+
     // we need to check every vertex for the properties and add them
     // to the schem depending on the type of the property
     //
-    fn schema(g: &G) -> Schema {
-        let mut schema = Self::new_schema_builder();
+    fn schema_for_vertex(g: &G) -> Schema {
+        let mut schema = Self::new_vertex_schema_builder();
 
         // TODO: load all these from the graph at some point in the future
         let mut prop_names_set = g
@@ -108,31 +163,17 @@ impl<G: GraphViewOps> IndexedGraph<G> {
                     if found_props.contains(prop) {
                         continue;
                     }
-                    match prop_value {
-                        Prop::Str(_) => {
-                            schema.add_text_field(prop, TEXT);
-                        }
-                        Prop::DTime(_) => {
-                            schema.add_date_field(prop, INDEXED);
-                        }
-                        x => todo!("prop value {:?} not supported yet", x),
-                    }
+
+                    Self::set_schema_field_from_prop(&mut schema, prop, prop_value);
 
                     found_props.insert(prop.to_string());
                 }
                 // load static props
                 if let Some(prop_value) = vertex.static_property(prop.to_string()) {
-                    match prop_value {
-                        Prop::Str(_) => {
-                            let name = if prop == "_id" { NAME } else { prop };
-                            if !found_props.contains(name) {
-                                println!("found_props {:?}", found_props);
-                                println!("adding text field {:?}", name);
-                                schema.add_text_field(name, TEXT);
-                                found_props.insert(prop.to_string());
-                            }
-                        }
-                        _ => todo!(),
+                    let name = if prop == "_id" { NAME } else { prop };
+                    if !found_props.contains(name) {
+                        Self::set_schema_field_from_prop(&mut schema, name, prop_value);
+                        found_props.insert(prop.to_string());
                     }
                 }
             }
@@ -145,9 +186,90 @@ impl<G: GraphViewOps> IndexedGraph<G> {
         schema.build()
     }
 
-    pub fn from_graph(g: &G) -> tantivy::Result<Self> {
-        let schema = Self::schema(g);
-        let (index, reader) = Self::new_index(schema.clone());
+    // we need to check every vertex for the properties and add them
+    // to the schem depending on the type of the property
+    //
+    fn schema_for_edge(g: &G) -> Schema {
+        let mut schema = Self::new_edge_schema_builder();
+
+        // TODO: load all these from the graph at some point in the future
+        let mut prop_names_set = g
+            .all_edge_prop_names(false)
+            .into_iter()
+            .chain(g.all_edge_prop_names(true).into_iter())
+            .collect::<HashSet<_>>();
+
+        for edge in g.edges() {
+            if prop_names_set.is_empty() {
+                break;
+            }
+            let mut found_props = HashSet::new();
+
+            for prop in prop_names_set.iter() {
+                // load temporal props
+                for (_, prop_value) in edge.property_history(prop) {
+                    if found_props.contains(prop) {
+                        continue;
+                    }
+
+                    Self::set_schema_field_from_prop(&mut schema, prop, prop_value);
+
+                    found_props.insert(prop.to_string());
+                }
+                // load static props
+                if let Some(prop_value) = edge.static_property(prop) {
+                    if !found_props.contains(prop) {
+                        Self::set_schema_field_from_prop(&mut schema, prop, prop_value);
+                        found_props.insert(prop.to_string());
+                    }
+                }
+            }
+
+            for found_prop in found_props {
+                prop_names_set.remove(&found_prop);
+            }
+        }
+
+        schema.build()
+    }
+
+    fn index_prop_value(document: &mut Document, prop_field: Field, prop_value: Prop) {
+        match prop_value {
+            Prop::Str(prop_text) => {
+                // add the property to the document
+                document.add_text(prop_field, prop_text);
+            }
+            Prop::DTime(prop_time) => {
+                let time =
+                    tantivy::DateTime::from_timestamp_nanos(prop_time.and_utc().timestamp_nanos());
+                document.add_date(prop_field, time);
+            }
+            Prop::U64(prop_u64) => {
+                document.add_u64(prop_field, prop_u64);
+            }
+            Prop::I64(prop_i64) => {
+                document.add_i64(prop_field, prop_i64);
+            }
+            Prop::I32(prop_i32) => {
+                document.add_i64(prop_field, i64::from(prop_i32));
+            }
+            Prop::F64(prop_f64) => {
+                document.add_f64(prop_field, prop_f64);
+            }
+            Prop::F32(prop_f32) => {
+                document.add_f64(prop_field, f64::from(prop_f32));
+            }
+            Prop::Bool(prop_bool) => {
+                document.add_bool(prop_field, prop_bool);
+            }
+            prop => todo!("prop value {:?} not supported yet", prop),
+        }
+    }
+
+    fn index_vertices(g: &G) -> tantivy::Result<(Index, IndexReader)> {
+        let schema = Self::schema_for_vertex(g);
+        let (index, reader) =
+            Self::new_index(schema.clone(), Self::default_vertex_index_settings());
 
         let time_field = schema.get_field(fields::TIME)?;
         let vertex_id_field = schema.get_field(fields::VERTEX_ID)?;
@@ -163,52 +285,161 @@ impl<G: GraphViewOps> IndexedGraph<G> {
                 let writer_guard = writer_lock.read();
                 for v_id in v_ids {
                     if let Some(vertex) = g.vertex(VertexRef::new_local((*v_id).into())) {
-                        let vertex_id: u64 = Into::<usize>::into(vertex.vertex) as u64;
-                        let temp_prop_names = vertex.property_names(false);
+                        Self::index_vertex_view(
+                            vertex,
+                            &schema,
+                            &writer_guard,
+                            time_field,
+                            vertex_id_field,
+                            vertex_id_rev_field,
+                        )?;
+                    }
+                }
+            }
 
-                        for temp_prop_name in temp_prop_names {
-                            let prop_field = schema.get_field(&temp_prop_name)?;
-                            for (time, prop_value) in vertex.property_history(temp_prop_name) {
-                                if let Prop::Str(prop_text) = prop_value {
-                                    let mut document = Document::new();
-                                    // add time to the document
-                                    document.add_i64(time_field, time);
-                                    // add the property to the document
-                                    document.add_text(prop_field, prop_text);
-                                    // add the vertex_id
-                                    document.add_u64(vertex_id_field, vertex_id);
-                                    document.add_u64(vertex_id_rev_field, u64::MAX - vertex_id);
+            let mut writer_guard = writer_lock.write();
+            writer_guard.commit()?;
+            Ok::<(), tantivy::TantivyError>(())
+        })?;
 
-                                    writer_guard.add_document(document)?;
-                                }
-                            }
-                        }
+        reader.reload()?;
+        Ok((index, reader))
+    }
 
-                        let prop_names = vertex.property_names(true);
-                        for prop_name in prop_names {
-                            let field_name = if prop_name == "_id" {
-                                "name"
-                            } else {
-                                &prop_name
-                            };
+    pub fn from_graph(g: &G) -> tantivy::Result<Self> {
+        let (vertex_index, vertex_reader) = Self::index_vertices(g)?;
+        let (edge_index, edge_reader) = Self::index_edges(g)?;
 
-                            let prop_field = schema.get_field(field_name)?;
-                            if let Some(prop_value) = vertex.static_property(prop_name.to_string())
-                            {
-                                if let Prop::Str(prop_text) = prop_value {
-                                    // what now?
-                                    let mut document = Document::new();
-                                    // add the property to the document
-                                    document.add_text(prop_field, prop_text);
-                                    // add the vertex_id
-                                    document.add_u64(vertex_id_field, vertex_id);
-                                    document.add_u64(vertex_id_rev_field, u64::MAX - vertex_id);
+        Ok(IndexedGraph {
+            graph: g.clone(),
+            vertex_index: Arc::new(vertex_index),
+            edge_index: Arc::new(edge_index),
+            reader: vertex_reader,
+            edge_reader,
+        })
+    }
 
-                                    document.add_i64(time_field, i64::MAX);
-                                    writer_guard.add_document(document)?;
-                                }
-                            }
-                        }
+    fn index_vertex_view<W: Deref<Target = IndexWriter>>(
+        vertex: VertexView<G>,
+        schema: &Schema,
+        writer: &W,
+        time_field: Field,
+        vertex_id_field: Field,
+        vertex_id_rev_field: Field,
+    ) -> tantivy::Result<()> {
+        let vertex_id: u64 = Into::<usize>::into(vertex.vertex) as u64;
+        let temp_prop_names = vertex.property_names(false);
+
+        let mut document = Document::new();
+        // add the vertex_id
+        document.add_u64(vertex_id_field, vertex_id);
+        document.add_u64(vertex_id_rev_field, u64::MAX - vertex_id);
+
+        for temp_prop_name in temp_prop_names {
+            let prop_field = schema.get_field(&temp_prop_name)?;
+            for (time, prop_value) in vertex.property_history(temp_prop_name) {
+                // add time to the document
+                document.add_i64(time_field, time);
+
+                Self::index_prop_value(&mut document, prop_field, prop_value);
+            }
+        }
+
+        let prop_names = vertex.property_names(true);
+        for prop_name in prop_names {
+            let field_name = if prop_name == "_id" {
+                "name"
+            } else {
+                &prop_name
+            };
+
+            let prop_field = schema.get_field(field_name)?;
+            if let Some(prop_value) = vertex.static_property(prop_name.to_string()) {
+                Self::index_prop_value(&mut document, prop_field, prop_value);
+            }
+        }
+        writer.add_document(document)?;
+        Ok(())
+    }
+
+    fn index_edge_view<W: Deref<Target = IndexWriter>>(
+        e_ref: EdgeView<G>,
+        schema: &Schema,
+        writer: &W,
+        time_field: Field,
+        source_field: Field,
+        destination_field: Field,
+        edge_id_field: Field,
+    ) -> tantivy::Result<()> {
+        let temp_prop_names = e_ref.property_names(false);
+        let edge_ref = e_ref.eref();
+
+        let src = e_ref.src();
+        let dst = e_ref.dst();
+
+                let mut document = Document::new();
+                let edge_id: u64 = Into::<usize>::into(edge_ref.pid()) as u64;
+                document.add_u64(edge_id_field, edge_id);
+                document.add_text(source_field, src.name());
+                document.add_text(destination_field, dst.name());
+
+        // add all time events
+        for e in e_ref.explode() {
+            if let Some(t) = e.time() {
+                document.add_i64(time_field, t);
+            }
+        }
+
+        for temp_prop_name in temp_prop_names {
+            let prop_field = schema.get_field(&temp_prop_name)?;
+            for (time, prop_value) in e_ref.property_history(&temp_prop_name) {
+                // add time to the document
+                document.add_i64(time_field, time);
+                Self::index_prop_value(&mut document, prop_field, prop_value);
+            }
+        }
+
+        let prop_names = e_ref.property_names(true);
+        for prop_name in prop_names {
+            let prop_field = schema.get_field(&prop_name)?;
+            if let Some(prop_value) = e_ref.static_property(&prop_name) {
+                Self::index_prop_value(&mut document, prop_field, prop_value);
+            }
+        }
+
+        writer.add_document(document)?; // add the edge itself
+        Ok(())
+    }
+
+    pub fn index_edges(g: &G) -> tantivy::Result<(Index, IndexReader)> {
+        let schema = Self::schema_for_edge(g);
+        let (index, reader) = Self::new_index(schema.clone(), Self::default_edge_index_settings());
+
+        let time_field = schema.get_field(fields::TIME)?;
+        let source_field = schema.get_field(fields::SOURCE)?;
+        let destination_field = schema.get_field(fields::DESTINATION)?;
+        let edge_id_field = schema.get_field(fields::EDGE_ID)?;
+
+        let writer = Arc::new(parking_lot::RwLock::new(index.writer(100_000_000)?));
+
+        let e_ids = (0..g.num_edges()).collect::<Vec<_>>();
+
+        e_ids.par_chunks(128).try_for_each(|e_ids| {
+            let writer_lock = writer.clone();
+            {
+                let writer_guard = writer_lock.read();
+                for e_id in e_ids {
+                    if let Some(e_ref) = g.find_edge_id((*e_id).into()) {
+                        let e_view = EdgeView::new(g.clone(), e_ref);
+                        Self::index_edge_view(
+                            e_view,
+                            &schema,
+                            &writer_guard,
+                            time_field,
+                            source_field,
+                            destination_field,
+                            edge_id_field,
+                        )?;
                     }
                 }
             }
@@ -219,22 +450,18 @@ impl<G: GraphViewOps> IndexedGraph<G> {
         })?;
 
         reader.reload()?;
-        Ok(IndexedGraph {
-            graph: g.clone(),
-            index: Arc::new(index),
-            reader,
-        })
+        Ok((index, reader))
     }
 
-    fn new_index(schema: Schema) -> (Index, IndexReader) {
-        let index_settings = tantivy::IndexSettings {
-            sort_by_field: Some(IndexSortByField {
-                field: VERTEX_ID.to_string(),
-                order: tantivy::Order::Asc,
-            }),
-            ..tantivy::IndexSettings::default()
-        };
+    fn default_vertex_index_settings() -> IndexSettings {
+        IndexSettings::default()
+    }
 
+    fn default_edge_index_settings() -> IndexSettings {
+        IndexSettings::default()
+    }
+
+    fn new_index(schema: Schema, index_settings: IndexSettings) -> (Index, IndexReader) {
         let index = Index::builder()
             .settings(index_settings)
             .schema(schema)
@@ -243,21 +470,33 @@ impl<G: GraphViewOps> IndexedGraph<G> {
 
         let reader = index
             .reader_builder()
-            .reload_policy(tantivy::ReloadPolicy::OnCommit)
+            .reload_policy(tantivy::ReloadPolicy::Manual)
             .try_into()
             .unwrap();
         (index, reader)
     }
 
-    pub fn new<S: AsRef<str>, I: IntoIterator<Item = (S, Prop)>>(graph: G, props: I) -> Self {
-        let schema = Self::schema_from_props(props);
+    pub fn new<S, I, I2>(graph: G, vertex_props: I, edge_props: I2) -> Self
+    where
+        S: AsRef<str>,
+        I: IntoIterator<Item = (S, Prop)>,
+        I2: IntoIterator<Item = (S, Prop)>,
+    {
+        let schema = Self::schema_from_props(vertex_props);
 
-        let (index, reader) = Self::new_index(schema);
+        let (index, reader) = Self::new_index(schema, Self::default_vertex_index_settings());
+
+        let schema = Self::schema_from_props(edge_props);
+
+        let (edge_index, edge_reader) =
+            Self::new_index(schema, Self::default_edge_index_settings());
 
         IndexedGraph {
             graph,
-            index: Arc::new(index),
+            vertex_index: Arc::new(index),
+            edge_index: Arc::new(edge_index),
             reader,
+            edge_reader,
         }
     }
 
@@ -280,6 +519,21 @@ impl<G: GraphViewOps> IndexedGraph<G> {
         self.graph.vertex(vertex_id)
     }
 
+    fn resolve_edge_from_search_result(
+        &self,
+        edge_id: Field,
+        doc: Document,
+    ) -> Option<EdgeView<G>> {
+        let edge_id: usize = doc
+            .get_first(edge_id)
+            .and_then(|value| value.as_u64())?
+            .try_into()
+            .ok()?;
+        let e_ref = self.graph.find_edge_id(edge_id.into())?;
+        let e_view = EdgeView::new(self.graph.clone(), e_ref);
+        Some(e_view)
+    }
+
     pub fn search(
         &self,
         q: &str,
@@ -287,23 +541,47 @@ impl<G: GraphViewOps> IndexedGraph<G> {
         offset: usize,
     ) -> Result<Vec<VertexView<G>>, GraphError> {
         let searcher = self.reader.searcher();
-        let query_parser = tantivy::query::QueryParser::for_index(&self.index, vec![]);
+        let query_parser = tantivy::query::QueryParser::for_index(&self.vertex_index, vec![]);
         let query = query_parser.parse_query(q)?;
 
         let ranking = TopDocs::with_limit(limit)
-            .and_offset(offset)
-            .order_by_u64_field(VERTEX_ID_REV.to_string());
+            .and_offset(offset);
 
-        let top_docs: Vec<(u64, DocAddress)> = searcher.search(&query, &ranking)?;
-        // let top_docs = searcher.search(&query, &ranking)?;
+        let top_docs = searcher.search(&query, &ranking)?;
 
-        let vertex_id = self.index.schema().get_field("vertex_id")?;
+        let vertex_id = self.vertex_index.schema().get_field(VERTEX_ID)?;
+
+        let results = top_docs
+            .into_iter()
+            .map(|(_, doc_address)|  searcher.doc(doc_address))
+            .filter_map(Result::ok)
+            .filter_map(|doc| self.resolve_vertex_from_search_result(vertex_id, doc))
+            .collect::<Vec<_>>();
+
+        Ok(results)
+    }
+
+    pub fn search_edges(
+        &self,
+        q: &str,
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<EdgeView<G>>, GraphError> {
+        let searcher = self.edge_reader.searcher();
+        let query_parser = tantivy::query::QueryParser::for_index(&self.edge_index, vec![]);
+        let query = query_parser.parse_query(q)?;
+
+        let ranking = TopDocs::with_limit(limit).and_offset(offset);
+
+        let top_docs = searcher.search(&query, &ranking)?;
+
+        let edge_id = self.edge_index.schema().get_field(EDGE_ID)?;
 
         let results = top_docs
             .into_iter()
             .map(|(_, doc_address)| searcher.doc(doc_address))
             .filter_map(Result::ok)
-            .filter_map(|doc| self.resolve_vertex_from_search_result(vertex_id, doc))
+            .filter_map(|doc| self.resolve_edge_from_search_result(edge_id, doc))
             .collect::<Vec<_>>();
 
         Ok(results)
@@ -321,18 +599,18 @@ impl<G: GraphViewOps + InternalAdditionOps> InternalAdditionOps for IndexedGraph
         let t: i64 = t.try_into_time()?;
         let mut document = Document::new();
         // add time to the document
-        let time = self.index.schema().get_field(TIME)?;
+        let time = self.vertex_index.schema().get_field(TIME)?;
         document.add_i64(time, t);
         // add name to the document
 
         if let Some(vertex_name) = name {
-            let name = self.index.schema().get_field(NAME)?;
+            let name = self.vertex_index.schema().get_field(NAME)?;
             document.add_text(name, vertex_name);
         }
 
         // index all props that are declared in the schema
         for (prop_name, prop) in props.iter() {
-            if let Ok(field) = self.index.schema().get_field(prop_name) {
+            if let Ok(field) = self.vertex_index.schema().get_field(prop_name) {
                 match prop {
                     Prop::Str(s) => document.add_text(field, s),
                     _ => {}
@@ -343,14 +621,14 @@ impl<G: GraphViewOps + InternalAdditionOps> InternalAdditionOps for IndexedGraph
         let v_ref = self.graph.internal_add_vertex(t, v, name, props)?;
         let v_id = self.graph.local_vertex_ref(v_ref).unwrap();
         // get the field from the index
-        let vertex_id = self.index.schema().get_field(VERTEX_ID)?;
-        let vertex_id_rev = self.index.schema().get_field(VERTEX_ID_REV)?;
+        let vertex_id = self.vertex_index.schema().get_field(VERTEX_ID)?;
+        let vertex_id_rev = self.vertex_index.schema().get_field(VERTEX_ID_REV)?;
         let index_v_id: u64 = Into::<usize>::into(v_id) as u64;
 
         document.add_u64(vertex_id, index_v_id);
         document.add_u64(vertex_id_rev, u64::MAX - index_v_id);
 
-        let mut writer = self.index.writer(50_000_000)?;
+        let mut writer = self.vertex_index.writer(50_000_000)?;
 
         writer.add_document(document)?;
 
@@ -373,11 +651,41 @@ impl<G: GraphViewOps + InternalAdditionOps> InternalAdditionOps for IndexedGraph
 
 #[cfg(test)]
 mod test {
+
+    const EMPTY: [(&str, Prop); 0] = [];
+
     use std::time::SystemTime;
 
     use tantivy::{doc, DocAddress};
 
     use super::*;
+
+    #[test]
+    fn index_numeric_props() {
+        let graph = Graph::new();
+
+        graph
+            .add_vertex(
+                1,
+                "Blerg",
+                [
+                    ("age".to_string(), Prop::U64(42)),
+                    ("balance".to_string(), Prop::I64(-1234)),
+                ],
+            )
+            .expect("failed to add vertex");
+
+        let ig: IndexedGraph<Graph> = graph.into();
+
+        let results = ig
+            .search("age:42", 5, 0)
+            .expect("failed to search for vertex")
+            .into_iter()
+            .map(|v| v.name())
+            .collect::<Vec<_>>();
+
+        assert_eq!(results, vec!["Blerg"]);
+    }
 
     #[test]
     #[ignore = "this test is for experiments with the jira graph"]
@@ -395,7 +703,8 @@ mod test {
 
         assert!(issues.len() >= 1);
 
-        println!("issues len: {:?}", issues.len());
+        let names = issues.into_iter().map(|v| v.name()).collect::<Vec<_>>();
+        println!("names: {:?}", names);
 
         Ok(())
     }
@@ -450,8 +759,12 @@ mod test {
         let results = indexed_graph
             .search("kind:hobbit", 10, 0)
             .expect("search failed");
-        let actual = results.into_iter().map(|v| v.name()).collect::<Vec<_>>();
-        let expected = vec!["Frodo", "Merry"];
+        let mut actual = results.into_iter().map(|v| v.name()).collect::<Vec<_>>();
+        let mut expected = vec!["Frodo", "Merry"];
+        // FIXME: this is not deterministic
+        actual.sort();
+        expected.sort();
+
         assert_eq!(actual, expected);
 
         let results = indexed_graph
@@ -479,7 +792,7 @@ mod test {
 
     #[test]
     fn add_vertex_search_by_name() {
-        let graph = IndexedGraph::new(Graph::new(), _EMPTY);
+        let graph = IndexedGraph::new(Graph::new(), EMPTY, EMPTY);
 
         graph
             .add_vertex(1, "Gandalf", [])
@@ -499,7 +812,7 @@ mod test {
 
     #[test]
     fn add_vertex_search_by_description() {
-        let graph = IndexedGraph::new(Graph::new(), [("description", Prop::str(""))]);
+        let graph = IndexedGraph::new(Graph::new(), [("description", Prop::str(""))], EMPTY);
 
         graph
             .add_vertex(
@@ -536,7 +849,7 @@ mod test {
 
     #[test]
     fn add_vertex_search_by_description_and_time() {
-        let graph = IndexedGraph::new(Graph::new(), [("description", Prop::str(""))]);
+        let graph = IndexedGraph::new(Graph::new(), [("description", Prop::str(""))], EMPTY);
 
         graph
             .add_vertex(
@@ -573,8 +886,98 @@ mod test {
         let vertices = graph
             .search(r#"description:'wizard' AND time:[1 TO 100]"#, 10, 0)
             .expect("search failed");
-        let actual = vertices.into_iter().map(|v| v.name()).collect::<Vec<_>>();
-        let expected = vec!["Gandalf", "Saruman"];
+        let mut actual = vertices.into_iter().map(|v| v.name()).collect::<Vec<_>>();
+        let mut expected = vec!["Gandalf", "Saruman"];
+
+        // FIXME: this is not deterministic
+        actual.sort();
+        expected.sort();
+
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn search_by_edge_props() {
+        let g = Graph::new();
+
+        g.add_edge(
+            1,
+            "Frodo",
+            "Gandalf",
+            [("type".to_string(), Prop::str("friends"))],
+            None,
+        )
+        .expect("add edge failed");
+        g.add_edge(
+            1,
+            "Frodo",
+            "Gollum",
+            [("type".to_string(), Prop::str("enemies"))],
+            None,
+        )
+        .expect("add edge failed");
+
+        let ig: IndexedGraph<Graph> = g.into();
+
+        let results = ig
+            .search_edges(r#"type:friends"#, 10, 0)
+            .expect("search failed");
+        let actual = results
+            .into_iter()
+            .map(|e| (e.src().name(), e.dst().name()))
+            .collect::<Vec<_>>();
+        let expected = vec![("Frodo".to_string(), "Gandalf".to_string())];
+
+        assert_eq!(actual, expected);
+
+        let results = ig
+            .search_edges(r#"type:enemies"#, 10, 0)
+            .expect("search failed");
+        let actual = results
+            .into_iter()
+            .map(|e| (e.src().name(), e.dst().name()))
+            .collect::<Vec<_>>();
+        let expected = vec![("Frodo".to_string(), "Gollum".to_string())];
+
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn search_by_edge_src_dst() {
+        let g = Graph::new();
+
+        g.add_edge(1, "Frodo", "Gandalf", [], None)
+            .expect("add edge failed");
+        g.add_edge(1, "Frodo", "Gollum", [], None)
+            .expect("add edge failed");
+
+        let ig: IndexedGraph<Graph> = g.into();
+
+        let results = ig
+            .search_edges(r#"from:Frodo"#, 10, 0)
+            .expect("search failed");
+        let mut actual = results
+            .into_iter()
+            .map(|e| (e.src().name(), e.dst().name()))
+            .collect::<Vec<_>>();
+        let mut expected = vec![
+            ("Frodo".to_string(), "Gandalf".to_string()),
+            ("Frodo".to_string(), "Gollum".to_string()),
+        ];
+
+        actual.sort();
+        expected.sort();
+
+        assert_eq!(actual, expected);
+
+        // search by destination
+        let results = ig.search_edges("to:gollum", 10, 0).expect("search failed");
+        let actual = results
+            .into_iter()
+            .map(|e| (e.src().name(), e.dst().name()))
+            .collect::<Vec<_>>();
+        let expected = vec![("Frodo".to_string(), "Gollum".to_string())];
+
         assert_eq!(actual, expected);
     }
 

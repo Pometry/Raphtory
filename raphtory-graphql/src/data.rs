@@ -2,6 +2,7 @@ use raphtory::{
     prelude::{Graph, GraphViewOps},
     search::IndexedGraph,
 };
+use raphtory::{prelude::{db::api::view::internal::{IntoDynamic, DynamicGraph}};
 use std::{
     collections::{HashMap, HashSet},
     path::Path,
@@ -9,7 +10,7 @@ use std::{
 use walkdir::WalkDir;
 
 pub(crate) struct Data {
-    pub(crate) graphs: HashMap<String, IndexedGraph<Graph>>,
+    pub(crate) graphs: HashMap<String, IndexedGraph<DynamicGraph>>,
 }
 
 impl Data {
@@ -52,7 +53,7 @@ impl Data {
             }
         };
 
-        let graphs: HashMap<String, IndexedGraph<Graph>> = valid_paths
+        let graphs: HashMap<String, IndexedGraph<DynamicGraph>> = valid_paths
             .into_iter()
             .map(|path| {
                 println!("loading graph from {path}");
@@ -70,13 +71,7 @@ impl Data {
                         (graph_name.to_string(), graph)
                     }
                 };
-            })
-            .map(|(name, g)| {
-                (
-                    name,
-                    IndexedGraph::from_graph(&g).expect("Unable to index graph"),
-                )
-            })
+            }).map(|(name, g)| (name, IndexedGraph::from_graph(&g.into_dynamic()).expect("Unable to index graph")))
             .collect();
 
         Self { graphs }
