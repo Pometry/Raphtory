@@ -1,6 +1,6 @@
 [package]
 name = "raphtory-rust-benchmark"
-description = "Raphtory GraphQL server"
+description = "Raphtory Quick Rust Benchmark"
 edition.workspace = true
 rust-version.workspace = true
 version.workspace = true
@@ -20,3 +20,5 @@ chrono = { version = "0.4", features = ["serde"] }
 serde = { version = "1", features = ["derive","rc"] }
 clap = { version = "4.3.11", features = ["derive"] }
 csv = "1.2.2"
+tar = "0.4.38"
+flate2 = "1.0.26"
