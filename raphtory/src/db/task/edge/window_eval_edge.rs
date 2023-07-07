@@ -1,3 +1,4 @@
+use crate::db::api::properties::internal::{StaticProperties, StaticPropertiesOps};
 use crate::db::graph::views::window_graph::WindowedGraph;
 use crate::{
     core::{
@@ -90,6 +91,33 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static>
             self.t_start,
             self.t_end,
         )
+    }
+}
+
+impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> StaticPropertiesOps
+    for WindowEvalEdgeView<'a, G, CS, S>
+{
+    fn static_property_keys(&self) -> Vec<String> {
+        self.graph().static_edge_prop_names(self.ev)
+    }
+
+    fn get_static_property(&self, key: &str) -> Option<Prop> {
+        self.graph().static_edge_prop(self.ev, key)
+    }
+}
+
+impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> Clone for WindowEvalEdgeView<'a, G, CS, S> {
+    fn clone(&self) -> Self {
+        Self {
+            ss: self.ss,
+            ev: self.ev,
+            g: self.g,
+            vertex_state: self.vertex_state.clone(),
+            local_state_prev: self.local_state_prev,
+            t_start: self.t_start,
+            t_end: self.t_end,
+            _s: Default::default(),
+        }
     }
 }
 
@@ -241,7 +269,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeListOps
         Box::new(self.map(move |it| it.static_property(&name)))
     }
 
-    fn static_properties(self) -> Self::IterType<HashMap<String, Prop>> {
+    fn static_properties(self) -> Self::IterType<StaticProperties<Self::Edge>> {
         Box::new(self.map(move |it| it.static_properties()))
     }
 

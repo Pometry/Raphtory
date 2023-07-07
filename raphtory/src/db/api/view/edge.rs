@@ -1,3 +1,4 @@
+use crate::db::api::properties::internal::{StaticProperties, StaticPropertiesOps};
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef},
@@ -17,7 +18,9 @@ pub trait EdgeViewInternalOps<G: GraphViewOps, V: VertexViewOps<Graph = G>> {
     fn new_edge(&self, e: EdgeRef) -> Self;
 }
 
-pub trait EdgeViewOps: EdgeViewInternalOps<Self::Graph, Self::Vertex> {
+pub trait EdgeViewOps:
+    EdgeViewInternalOps<Self::Graph, Self::Vertex> + StaticPropertiesOps + Sized + Clone
+{
     type Graph: GraphViewOps;
     type Vertex: VertexViewOps<Graph = Self::Graph>;
     type EList: EdgeListOps<Graph = Self::Graph, Vertex = Self::Vertex>;
@@ -102,8 +105,8 @@ pub trait EdgeViewOps: EdgeViewInternalOps<Self::Graph, Self::Vertex> {
     }
 
     /// Returns all static properties of an edge
-    fn static_properties(&self) -> HashMap<String, Prop> {
-        self.graph().static_edge_props(self.eref())
+    fn static_properties(&self) -> StaticProperties<Self> {
+        StaticProperties::new(self.clone())
     }
 
     /// Returns the source vertex of the edge.
@@ -193,7 +196,7 @@ pub trait EdgeListOps:
 
     fn has_static_property(self, name: String) -> Self::IterType<bool>;
     fn static_property(self, name: String) -> Self::IterType<Option<Prop>>;
-    fn static_properties(self) -> Self::IterType<HashMap<String, Prop>>;
+    fn static_properties(self) -> Self::IterType<StaticProperties<Self::Edge>>;
 
     /// gets a property of an edge with the given name
     /// includes the timestamp of the property

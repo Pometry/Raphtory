@@ -4,6 +4,8 @@
 //! The PyEdge class also provides access to the perspective APIs, which allow the user to view the
 //! edge as it existed at a particular point in time, or as it existed over a particular time range.
 //!
+use crate::db::api::properties::internal::StaticProperties;
+use crate::python::types::wrappers::iterators::StaticPropsIterable;
 use crate::{
     core::{utils::time::error::ParseTimeError, Prop},
     db::{
@@ -204,7 +206,7 @@ impl PyEdge {
     ///
     /// Returns:
     ///   HashMap<String, Prop>: Returns all static properties identified by their name
-    pub fn static_properties(&self) -> HashMap<String, Prop> {
+    pub fn static_properties(&self) -> StaticProperties<EdgeView<DynamicGraph>> {
         self.edge.static_properties()
     }
 
@@ -518,15 +520,8 @@ impl PyEdges {
         (move || edges().latest_time()).into()
     }
 
-    fn property(&self, name: String, include_static: Option<bool>) -> OptionPropIterable {
-        let edges: Arc<
-            dyn Fn() -> Box<dyn Iterator<Item = EdgeView<DynamicGraph>> + Send> + Send + Sync,
-        > = self.builder.clone();
-        (move || edges().property(name.clone(), include_static.unwrap_or(true))).into()
-    }
-
     /// Returns all static properties of the edges
-    fn static_properties(&self) -> PropsIterable {
+    fn static_properties(&self) -> StaticPropsIterable {
         let edges: Arc<
             dyn Fn() -> Box<dyn Iterator<Item = EdgeView<DynamicGraph>> + Send> + Send + Sync,
         > = self.builder.clone();

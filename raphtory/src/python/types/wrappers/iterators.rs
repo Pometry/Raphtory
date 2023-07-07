@@ -1,3 +1,8 @@
+use crate::db::api::properties::internal::TemporalProperties;
+use crate::python::graph::properties::{
+    DynStaticProperties, DynTemporalProperties, PyStaticProperties, PyTemporalProperties,
+    PyTemporalPropertyView,
+};
 use crate::{
     core as db_c,
     db::api::view::BoxedIter,
@@ -145,20 +150,36 @@ py_nested_iterable!(
     NestedPropHistoryIter
 );
 
-py_iterator!(PropsIter, HashMap<String, db_c::Prop>, Props);
-py_iterable!(PropsIterable, HashMap<String, db_c::Prop>, Props, PropsIter);
-py_iterator!(
-    NestedPropsIter,
-    BoxedIter<HashMap<String, db_c::Prop>>,
+py_iterator!(PropsIter, DynTemporalProperties, PyTemporalProperties);
+py_iterable!(
+    PropsIterable,
+    DynTemporalProperties,
+    PyTemporalProperties,
     PropsIter
 );
-py_nested_iterable!(NestedPropsIterable, HashMap<String, db_c::Prop>, Props, NestedPropsIter);
-
-py_iterator!(PropHistoriesIter, HashMap<String, Vec<(i64, db_c::Prop)>>, PropHistories);
-py_iterable!(PropHistoriesIterable, HashMap<String, Vec<(i64, db_c::Prop)>>, PropHistories, PropHistoriesIter);
-py_iterator!(
-    NestedPropHistoriesIter,
-    BoxedIter<HashMap<String, Vec<(i64, db_c::Prop)>>>,
-    PropHistoriesIter
+py_iterator!(NestedPropsIter, BoxedIter<DynTemporalProperties>, PropsIter);
+py_nested_iterable!(
+    NestedPropsIterable,
+    DynTemporalProperties,
+    PyTemporalProperties,
+    NestedPropsIter
 );
-py_nested_iterable!(NestedPropHistoriesIterable, HashMap<String, Vec<(i64, db_c::Prop)>>, PropHistories, NestedPropHistoriesIter);
+
+py_iterator!(StaticPropsIter, DynStaticProperties, PyStaticProperties);
+py_iterable!(
+    StaticPropsIterable,
+    DynStaticProperties,
+    PyStaticProperties,
+    StaticPropsIter
+);
+py_iterator!(
+    NestedStaticPropsIter,
+    BoxedIter<DynStaticProperties>,
+    StaticPropsIter
+);
+py_nested_iterable!(
+    NestedStaticPropsIterable,
+    DynStaticProperties,
+    PyStaticProperties,
+    NestedStaticPropsIter
+);

@@ -1,4 +1,4 @@
-use crate::db::api::properties::internal::TemporalProperties;
+use crate::db::api::properties::internal::{StaticProperties, TemporalProperties};
 use crate::db::graph::vertex::VertexView;
 use crate::{
     core::Prop,
@@ -31,94 +31,25 @@ pub trait VertexViewOps: TimeOps {
     /// Get the timestamp for the latest activity of the vertex
     fn latest_time(&self) -> Self::ValueType<Option<i64>>;
 
-    /// Gets the property value of this vertex given the name of the property.
-    fn property(&self, name: String, include_static: bool) -> Self::ValueType<Option<Prop>>;
-
     /// Gets the history of the vertex (time that the vertex was added and times when changes were made to the vertex)
     fn history(&self) -> Self::ValueType<Vec<i64>>;
 
-    /// Get the temporal property value of this vertex.
-    ///
-    /// # Arguments
-    ///
-    /// * `name` - The name of the property to retrieve.
-    ///
-    /// # Returns
-    ///
-    /// A vector of `(i64, Prop)` tuples where the `i64` value is the timestamp of the
-    /// property value and `Prop` is the value itself.
-    fn property_history(&self, name: String) -> Self::ValueType<Vec<(i64, Prop)>>;
-
-    /// Get a view of the properties of this vertex.
+    /// Get a view of the temporal properties of this vertex.
     ///
     /// # Returns
     ///
     /// A view with the names of the properties as keys and the property values as values.
     fn properties(&self) -> Self::ValueType<TemporalProperties<VertexView<Self::Graph>>>;
 
-    /// Get all temporal property values of this vertex.
-    ///
-    /// # Returns
-    ///
-    /// A HashMap with the names of the properties as keys and a vector of `(i64, Prop)` tuples
-    /// as values. The `i64` value is the timestamp of the property value and `Prop`
-    /// is the value itself.
-    fn property_histories(&self) -> Self::ValueType<HashMap<String, Vec<(i64, Prop)>>>;
-
-    /// Get the names of all properties of this vertex.
-    ///
-    /// # Arguments
-    ///
-    /// * `include_static` - If `true` then static properties are included in the result.
-    ///
-    /// # Returns
-    ///
-    /// A vector of the names of the properties of this vertex.
-    fn property_names(&self, include_static: bool) -> Self::ValueType<Vec<String>>;
-
-    /// Checks if a property exists on this vertex.
-    ///
-    /// # Arguments
-    ///
-    /// * `name` - The name of the property to check for.
-    /// * `include_static` - If `true` then static properties are included in the result.
-    ///
-    /// # Returns
-    ///
-    /// `true` if the property exists, otherwise `false`.
-    fn has_property(&self, name: String, include_static: bool) -> Self::ValueType<bool>;
-
-    /// Checks if a static property exists on this vertex.
-    ///
-    /// # Arguments
-    ///
-    /// * `name` - The name of the property to check for.
-    ///
-    /// # Returns
-    ///
-    /// `true` if the property exists, otherwise `false`.
-    fn has_static_property(&self, name: String) -> Self::ValueType<bool>;
-
-    /// Get the static property value of this vertex.
-    ///
-    /// # Arguments
-    ///
-    /// * `name` - The name of the property to retrieve.
-    ///
-    /// # Returns
-    ///
-    /// The value of the property if it exists, otherwise `None`.
-    fn static_property(&self, name: String) -> Self::ValueType<Option<Prop>>;
-
-    /// Get the static properties value of this vertex.
+    /// Get the static properties of this vertex.
     ///
     /// # Arguments
     ///
     ///
     /// # Returns
     ///
-    /// HashMap<String, Prop> - Static properties identified by their name
-    fn static_properties(&self) -> Self::ValueType<HashMap<String, Prop>>;
+    /// View of the static properties
+    fn static_properties(&self) -> Self::ValueType<StaticProperties<VertexView<Self::Graph>>>;
 
     /// Get the degree of this vertex (i.e., the number of edges that are incident to it).
     ///
@@ -221,46 +152,18 @@ pub trait VertexListOps:
     fn id(self) -> Self::IterType<u64>;
     fn name(self) -> Self::IterType<String>;
 
-    fn property(self, name: String, include_static: bool) -> Self::IterType<Option<Prop>>;
-
-    /// Returns an iterator of the values of the given property name
-    /// including the times when it changed
-    ///
-    /// # Arguments
-    /// * `name` - The name of the property.
-    ///
-    /// # Returns
-    /// An iterator of the values of the given property name including the times when it changed
-    /// as a vector of tuples of the form (time, property).
-    fn property_history(self, name: String) -> Self::IterType<Vec<(i64, Prop)>>;
+    /// Returns an iterator over properties of the vertices
     fn properties(self) -> Self::IterType<TemporalProperties<VertexView<Self::Graph>>>;
+
     fn history(self) -> Self::IterType<Vec<i64>>;
-    /// Returns an iterator over all vertex properties.
-    ///
-    /// # Returns
-    /// An iterator over all vertex properties.
-    fn property_histories(self) -> Self::IterType<HashMap<String, Vec<(i64, Prop)>>>;
-    fn property_names(self, include_static: bool) -> Self::IterType<Vec<String>>;
-    fn has_property(self, name: String, include_static: bool) -> Self::IterType<bool>;
 
-    fn has_static_property(self, name: String) -> Self::IterType<bool>;
-
-    /// Get static property of a vertex by name
-    ///
-    /// # Arguments
-    /// - name - Name of the static property
-    ///
-    /// # Returns
-    /// - Option<Prop> - Static property if found
-    fn static_property(self, name: String) -> Self::IterType<Option<Prop>>;
-
-    /// Get all static properties of a vertex
+    /// Get iterator over static vertex properties
     ///
     /// # Arguments
     ///
     /// # Returns
-    /// - HashMap<String, Prop> - All static properties of a vertex
-    fn static_properties(self) -> Self::IterType<HashMap<String, Prop>>;
+    /// All static properties of a vertex
+    fn static_properties(self) -> Self::IterType<StaticProperties<VertexView<Self::Graph>>>;
 
     /// Returns an iterator over the degree of the vertices.
     ///

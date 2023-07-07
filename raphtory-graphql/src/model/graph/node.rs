@@ -6,7 +6,7 @@ use async_graphql::Context;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::{
-    core::Prop,
+    core::{Prop, PropUnwrap},
     db::{
         api::view::{
             internal::{DynamicGraph, IntoDynamic},
@@ -43,36 +43,64 @@ impl Node {
     }
 
     pub async fn node_type(&self) -> String {
-        self.vv
-            .property("type".to_string(), true)
-            .unwrap_or(Prop::Str("NONE".to_string()))
-            .to_string()
+        if let Some(t) = self.vv.properties().get("type") {
+            t.value().unwrap().to_string()
+        } else if let Some(s) = self.vv.static_properties().get("type") {
+            s.to_string()
+        } else {
+            "NONE".to_string()
+        }
     }
 
     async fn property_names<'a>(&self, _ctx: &Context<'a>) -> Vec<String> {
-        self.vv.property_names(true)
+        let t_props = self.vv.properties();
+        t_props
+            .keys()
+            .into_iter()
+            .chain(
+                self.vv
+                    .static_properties()
+                    .keys()
+                    .into_iter()
+                    .filter(|k| t_props.get(k).is_none()),
+            )
+            .collect()
     }
 
     async fn properties(&self) -> Option<Vec<Property>> {
+        let t_props = self.vv.properties();
         Some(
-            self.vv
-                .properties(true)
-                .into_iter()
-                .map(|(k, v)| Property::new(k, v))
-                .collect_vec(),
+            t_props
+                .pairs()
+                .map(|(k, v)| Property::new(k, v.value().unwrap()))
+                .chain(
+                    self.vv.static_properties().pairs().filter_map(|(k, v)| {
+                        t_props.get(&k).is_none().then_some(Property::new(k, v))
+                    }),
+                )
+                .collect(),
         )
     }
 
     async fn property(&self, name: String) -> Option<Property> {
-        let prop = self.vv.property(name.clone(), true)?;
-        Some(Property::new(name, prop))
+        if let Some(p) = self.vv.properties().get(&name) {
+            p.value().map(|v| Property::new(name, v))
+        } else if let Some(p) = self.vv.static_properties().get(&name) {
+            Some(Property::new(name, p))
+        } else {
+            None
+        }
     }
 
     async fn property_history(&self, name: String) -> Vec<PropertyUpdate> {
         self.vv
-            .property_history(name)
+            .properties()
+            .get(&name)
             .into_iter()
-            .map(|(time, prop)| PropertyUpdate::new(time, prop.to_string()))
+            .flat_map(|p| {
+                p.pairs()
+                    .map(|(time, prop)| PropertyUpdate::new(time, prop.to_string()))
+            })
             .collect_vec()
     }
 

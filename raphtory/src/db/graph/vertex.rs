@@ -3,9 +3,10 @@
 use crate::core::entities::properties::props::DictMapper;
 use crate::core::entities::properties::tprop::TProp;
 use crate::db::api::properties::internal::{
-    CorePropertiesOps, TemporalProperties, TemporalPropertiesOps, TemporalPropertyView,
-    TemporalPropertyViewOps,
+    CorePropertiesOps, StaticProperties, StaticPropertiesOps, TemporalProperties,
+    TemporalPropertiesOps, TemporalPropertyView, TemporalPropertyViewOps,
 };
+use crate::db::api::view::internal::Static;
 use crate::{
     core::{
         entities::{vertices::vertex_ref::VertexRef, VID},
@@ -65,11 +66,11 @@ impl<G: GraphViewOps> TemporalPropertiesOps for VertexView<G> {
         self.graph.temporal_vertex_prop_names(self.vertex)
     }
 
-    fn temporal_properties(&self) -> Box<dyn Iterator<Item = String> + '_> {
+    fn temporal_property_values(&self) -> Box<dyn Iterator<Item = String> + '_> {
         Box::new(self.temporal_property_keys().into_iter())
     }
 
-    fn temporal_property(&self, key: &str) -> Option<String> {
+    fn get_temporal_property(&self, key: &str) -> Option<String> {
         (!self
             .graph
             .temporal_vertex_prop_vec(self.vertex, key)
@@ -111,6 +112,25 @@ impl<G: GraphViewOps> TemporalPropertyViewOps for VertexView<G> {
     }
 }
 
+impl<G: GraphViewOps> StaticPropertiesOps for VertexView<G> {
+    fn static_property_keys(&self) -> Vec<String> {
+        self.graph.static_vertex_prop_names(self.vertex)
+    }
+
+    fn static_property_values(&self) -> Vec<Prop> {
+        self.static_property_keys()
+            .iter()
+            .flat_map(|prop_name| self.graph.static_vertex_prop(self.vertex, prop_name))
+            .collect()
+    }
+
+    fn get_static_property(&self, key: &str) -> Option<Prop> {
+        self.graph.static_vertex_prop(self.vertex, key)
+    }
+}
+
+impl<G: GraphViewOps> Static for VertexView<G> {}
+
 /// View of a Vertex in a Graph
 impl<G: GraphViewOps> VertexViewOps for VertexView<G> {
     type Graph = G;
@@ -134,73 +154,16 @@ impl<G: GraphViewOps> VertexViewOps for VertexView<G> {
         self.graph.vertex_latest_time(self.vertex)
     }
 
-    fn property(&self, name: String, include_static: bool) -> Option<Prop> {
-        let props = self.property_history(name.clone());
-        match props.last() {
-            None => {
-                if include_static {
-                    self.graph.static_vertex_prop(self.vertex, &name)
-                } else {
-                    None
-                }
-            }
-            Some((_, prop)) => Some(prop.clone()),
-        }
-    }
-
     fn history(&self) -> Vec<i64> {
         self.graph.vertex_history(self.vertex)
-    }
-
-    fn property_history(&self, name: String) -> Vec<(i64, Prop)> {
-        self.graph.temporal_vertex_prop_vec(self.vertex, &name)
     }
 
     fn properties(&self) -> TemporalProperties<Self> {
         TemporalProperties::new(self.clone())
     }
 
-    fn property_histories(&self) -> HashMap<String, Vec<(i64, Prop)>> {
-        self.graph.temporal_vertex_props(self.vertex)
-    }
-
-    fn property_names(&self, include_static: bool) -> Vec<String> {
-        let mut names: Vec<String> = self.graph.temporal_vertex_prop_names(self.vertex);
-        if include_static {
-            names.extend(self.graph.static_vertex_prop_names(self.vertex))
-        }
-        names
-    }
-
-    fn has_property(&self, name: String, include_static: bool) -> bool {
-        (!self.property_history(name.clone()).is_empty())
-            || (include_static
-                && self
-                    .graph
-                    .static_vertex_prop_names(self.vertex)
-                    .contains(&name))
-    }
-
-    fn has_static_property(&self, name: String) -> bool {
-        self.graph
-            .static_vertex_prop_names(self.vertex)
-            .contains(&name.to_owned())
-    }
-
-    fn static_property(&self, name: String) -> Option<Prop> {
-        self.graph.static_vertex_prop(self.vertex, &name)
-    }
-
-    fn static_properties(&self) -> Self::ValueType<HashMap<String, Prop>> {
-        let mut props: HashMap<String, Prop> = HashMap::new();
-
-        for prop_name in self.graph.static_vertex_prop_names(self.vertex) {
-            if let Some(prop) = self.graph.static_vertex_prop(self.vertex, &prop_name) {
-                props.insert(prop_name, prop);
-            }
-        }
-
-        props
+    fn static_properties(&self) -> StaticProperties<Self> {
+        StaticProperties::new(self.clone())
     }
 
     fn degree(&self) -> usize {
@@ -330,14 +293,6 @@ impl<G: GraphViewOps> VertexListOps for Box<dyn Iterator<Item = VertexView<G>> +
         Box::new(self.map(|v| v.name()))
     }
 
-    fn property(self, name: String, include_static: bool) -> BoxedIter<Option<Prop>> {
-        Box::new(self.map(move |v| v.property(name.clone(), include_static)))
-    }
-
-    fn property_history(self, name: String) -> BoxedIter<Vec<(i64, Prop)>> {
-        Box::new(self.map(move |v| v.property_history(name.clone())))
-    }
-
     fn properties(self) -> BoxedIter<TemporalProperties<VertexView<G>>> {
         Box::new(self.map(move |v| v.properties()))
     }
@@ -346,27 +301,7 @@ impl<G: GraphViewOps> VertexListOps for Box<dyn Iterator<Item = VertexView<G>> +
         Box::new(self.map(|v| v.history()))
     }
 
-    fn property_histories(self) -> BoxedIter<HashMap<String, Vec<(i64, Prop)>>> {
-        Box::new(self.map(|v| v.property_histories()))
-    }
-
-    fn property_names(self, include_static: bool) -> BoxedIter<Vec<String>> {
-        Box::new(self.map(move |v| v.property_names(include_static)))
-    }
-
-    fn has_property(self, name: String, include_static: bool) -> BoxedIter<bool> {
-        Box::new(self.map(move |v| v.has_property(name.clone(), include_static)))
-    }
-
-    fn has_static_property(self, name: String) -> BoxedIter<bool> {
-        Box::new(self.map(move |v| v.has_static_property(name.clone())))
-    }
-
-    fn static_property(self, name: String) -> BoxedIter<Option<Prop>> {
-        Box::new(self.map(move |v| v.static_property(name.clone())))
-    }
-
-    fn static_properties(self) -> BoxedIter<HashMap<String, Prop>> {
+    fn static_properties(self) -> BoxedIter<StaticProperties<VertexView<G>>> {
         Box::new(self.map(move |v| v.static_properties()))
     }
 
@@ -438,18 +373,6 @@ impl<G: GraphViewOps> VertexListOps for BoxedIter<BoxedIter<VertexView<G>>> {
         Box::new(self.map(|it| it.name()))
     }
 
-    fn property(
-        self,
-        name: String,
-        include_static: bool,
-    ) -> BoxedIter<Self::ValueType<Option<Prop>>> {
-        Box::new(self.map(move |it| it.property(name.clone(), include_static)))
-    }
-
-    fn property_history(self, name: String) -> BoxedIter<Self::ValueType<Vec<(i64, Prop)>>> {
-        Box::new(self.map(move |it| it.property_history(name.clone())))
-    }
-
     fn properties(self) -> BoxedIter<Self::ValueType<TemporalProperties<VertexView<G>>>> {
         Box::new(self.map(move |it| it.properties()))
     }
@@ -458,27 +381,7 @@ impl<G: GraphViewOps> VertexListOps for BoxedIter<BoxedIter<VertexView<G>>> {
         Box::new(self.map(move |it| it.history()))
     }
 
-    fn property_histories(self) -> BoxedIter<Self::ValueType<HashMap<String, Vec<(i64, Prop)>>>> {
-        Box::new(self.map(|it| it.property_histories()))
-    }
-
-    fn property_names(self, include_static: bool) -> BoxedIter<Self::ValueType<Vec<String>>> {
-        Box::new(self.map(move |it| it.property_names(include_static)))
-    }
-
-    fn has_property(self, name: String, include_static: bool) -> BoxedIter<Self::ValueType<bool>> {
-        Box::new(self.map(move |it| it.has_property(name.clone(), include_static)))
-    }
-
-    fn has_static_property(self, name: String) -> BoxedIter<Self::ValueType<bool>> {
-        Box::new(self.map(move |it| it.has_static_property(name.clone())))
-    }
-
-    fn static_property(self, name: String) -> BoxedIter<Self::ValueType<Option<Prop>>> {
-        Box::new(self.map(move |it| it.static_property(name.clone())))
-    }
-
-    fn static_properties(self) -> BoxedIter<Self::ValueType<HashMap<String, Prop>>> {
+    fn static_properties(self) -> BoxedIter<Self::ValueType<StaticProperties<VertexView<G>>>> {
         Box::new(self.map(move |it| it.static_properties()))
     }
 

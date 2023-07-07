@@ -11,6 +11,18 @@ pub fn iterator_repr<I: Iterator<Item = V>, V: Repr>(iter: I) -> String {
     }
 }
 
+pub fn iterator_dict_repr<I: Iterator<Item = (K, V)>, K: Repr, V: Repr>(iter: I) -> String {
+    let values: Vec<String> = iter
+        .take(11)
+        .map(|(k, v)| format!("{}: {}", k.repr(), v.repr()))
+        .collect();
+    if values.len() < 11 {
+        values.join(", ")
+    } else {
+        values[0..10].join(", ") + ", ..."
+    }
+}
+
 pub trait Repr {
     fn repr(&self) -> String;
 }

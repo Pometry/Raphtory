@@ -1,4 +1,4 @@
-use crate::db::api::properties::internal::TemporalProperties;
+use crate::db::api::properties::internal::{StaticProperties, TemporalProperties};
 use crate::{
     core::{entities::vertices::vertex_ref::VertexRef, utils::time::IntoTime, Direction},
     db::{
@@ -67,14 +67,6 @@ impl<G: GraphViewOps> VertexViewOps for Vertices<G> {
         self.iter().latest_time()
     }
 
-    fn property(&self, name: String, include_static: bool) -> Self::ValueType<Option<Prop>> {
-        self.iter().property(name, include_static)
-    }
-
-    fn property_history(&self, name: String) -> Self::ValueType<Vec<(i64, Prop)>> {
-        self.iter().property_history(name)
-    }
-
     fn history(&self) -> Self::ValueType<Vec<i64>> {
         self.iter().history()
     }
@@ -83,27 +75,7 @@ impl<G: GraphViewOps> VertexViewOps for Vertices<G> {
         self.iter().properties()
     }
 
-    fn property_histories(&self) -> Self::ValueType<HashMap<String, Vec<(i64, Prop)>>> {
-        self.iter().property_histories()
-    }
-
-    fn property_names(&self, include_static: bool) -> Self::ValueType<Vec<String>> {
-        self.iter().property_names(include_static)
-    }
-
-    fn has_property(&self, name: String, include_static: bool) -> Self::ValueType<bool> {
-        self.iter().has_property(name, include_static)
-    }
-
-    fn has_static_property(&self, name: String) -> Self::ValueType<bool> {
-        self.iter().has_static_property(name)
-    }
-
-    fn static_property(&self, name: String) -> Self::ValueType<Option<Prop>> {
-        self.iter().static_property(name)
-    }
-
-    fn static_properties(&self) -> Self::ValueType<HashMap<String, Prop>> {
+    fn static_properties(&self) -> Self::ValueType<StaticProperties<VertexView<G>>> {
         self.iter().static_properties()
     }
 

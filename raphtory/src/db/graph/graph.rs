@@ -535,31 +535,31 @@ mod db_tests {
     fn temporal_props_vertex() {
         let g = Graph::new();
 
-        g.add_vertex(0, 1, vec![("cool".to_string(), Prop::Bool(true))])
+        g.add_vertex(0, 1, [("cool".to_string(), Prop::Bool(true))])
             .unwrap();
 
         let v = g.vertex(1).unwrap();
 
-        let actual = v.property("cool".to_owned(), false);
+        let actual = v.properties().get("cool").and_then(|v| v.value());
         assert_eq!(actual, Some(Prop::Bool(true)));
 
         // we flip cool from true to false after t 3
         let _ = g
-            .add_vertex(3, 1, vec![("cool".to_string(), Prop::Bool(false))])
+            .add_vertex(3, 1, [("cool".to_string(), Prop::Bool(false))])
             .unwrap();
 
         let wg = g.window(3, 15);
         let v = wg.vertex(1).unwrap();
 
-        let actual = v.property("cool".to_owned(), false);
+        let actual = v.properties().get("cool").and_then(|v| v.value());
         assert_eq!(actual, Some(Prop::Bool(false)));
 
-        let hist = v.property_history("cool".to_owned());
+        let hist: Vec<_> = v.properties().get("cool").unwrap().pairs().collect();
         assert_eq!(hist, vec![(3, Prop::Bool(false))]);
 
         let v = g.vertex(1).unwrap();
 
-        let hist = v.property_history("cool".to_owned());
+        let hist: Vec<_> = v.properties().get("cool").unwrap().pairs().collect();
         assert_eq!(hist, vec![(0, Prop::Bool(true)), (3, Prop::Bool(false))]);
     }
 

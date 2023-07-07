@@ -2,7 +2,11 @@
 //! A vertex is a node in the graph, and can have properties and edges.
 //! It can also be used to navigate the graph.
 
-use crate::db::api::properties::internal::TemporalProperties;
+use crate::db::api::properties::internal::{
+    StaticProperties, TemporalProperties, TemporalPropertyView,
+};
+use crate::python::graph::properties::PyStaticProperties;
+use crate::python::utils::PyGenericIterable;
 use crate::{
     core::{entities::vertices::vertex_ref::VertexRef, utils::time::error::ParseTimeError, Prop},
     db::{
@@ -26,6 +30,7 @@ use crate::{
 };
 use chrono::NaiveDateTime;
 use itertools::Itertools;
+use pyo3::exceptions::PyKeyError;
 use pyo3::{
     exceptions::PyIndexError, prelude::*, pyclass, pyclass::CompareOp, pymethods, PyAny, PyObject,
     PyRef, PyRefMut, PyResult, Python,
@@ -159,30 +164,6 @@ impl PyVertex {
         Some(NaiveDateTime::from_timestamp_millis(latest_time).unwrap())
     }
 
-    /// Gets the property value of this vertex given the name of the property.
-    ///
-    /// Arguments:
-    ///     name: The name of the property.
-    ///     include_static: Whether to include static properties. Defaults to true.
-    ///
-    /// Returns:
-    ///    The property value as a `Prop` object.
-    pub fn property(&self, name: String, include_static: Option<bool>) -> Option<Prop> {
-        let include_static = include_static.unwrap_or(true);
-        self.vertex.property(name, include_static)
-    }
-
-    /// Returns the history of a property value of a vertex at all times
-    ///
-    /// Arguments:
-    ///    name: The name of the property.
-    ///
-    /// Returns:
-    ///   A list of tuples of the form (time, value) where time is an integer and value is a `Prop` object.
-    pub fn property_history(&self, name: String) -> Vec<(i64, Prop)> {
-        self.vertex.property_history(name)
-    }
-
     /// Returns all the properties of the vertex as a dictionary.
     ///
     /// Arguments:
@@ -195,71 +176,13 @@ impl PyVertex {
         self.vertex.properties()
     }
 
-    /// Returns all the properties of the vertex as a dictionary including the history of each property.
-    ///
-    /// Arguments:
-    ///   include_static: Whether to include static properties. Defaults to true.
-    ///
-    /// Returns:
-    ///  A dictionary of the form {name: [(time, value)]} where name is a string, time is an integer, and value is a `Prop` object.
-    pub fn property_histories(&self) -> HashMap<String, Vec<(i64, Prop)>> {
-        self.vertex.property_histories()
-    }
-
-    /// Returns the names of all the properties of the vertex.
-    ///
-    /// Arguments:
-    ///   include_static: Whether to include static properties. Defaults to true.
-    ///
-    /// Returns:
-    ///  A list of strings of propert names.
-    pub fn property_names(&self, include_static: Option<bool>) -> Vec<String> {
-        let include_static = include_static.unwrap_or(true);
-        self.vertex.property_names(include_static)
-    }
-
-    /// Checks if a property exists on this vertex.
-    ///
-    /// Arguments:
-    ///  name: The name of the property.
-    ///  include_static: Whether to include static properties. Defaults to true.
-    ///
-    /// Returns:
-    ///     True if the property exists, false otherwise.
-    pub fn has_property(&self, name: String, include_static: Option<bool>) -> bool {
-        let include_static = include_static.unwrap_or(true);
-        self.vertex.has_property(name, include_static)
-    }
-
-    /// Checks if a static property exists on this vertex.
-    ///
-    /// Arguments:
-    ///   name: The name of the property.
-    ///   
-    /// Returns:
-    ///   True if the property exists, false otherwise.
-    pub fn has_static_property(&self, name: String) -> bool {
-        self.vertex.has_static_property(name)
-    }
-
-    /// Returns the static property value of this vertex given the name of the property.
-    ///
-    /// Arguments:
-    ///     name: The name of the property.
-    ///
-    /// Returns:
-    ///     The property value as a `Prop` object or None if the property does not exist.
-    pub fn static_property(&self, name: String) -> Option<Prop> {
-        self.vertex.static_property(name)
-    }
-
     /// Returns static properties of a vertex
     ///
     /// Arguments:
     ///
     /// Returns:
     ///     HashMap<String, Prop> - Returns static properties of a vertex identified by their names
-    pub fn static_properties(&self) -> HashMap<String, Prop> {
+    pub fn static_properties(&self) -> StaticProperties<VertexView<DynamicGraph>> {
         self.vertex.static_properties()
     }
 
@@ -469,8 +392,14 @@ impl PyVertex {
     }
 
     //******  Python  ******//
-    pub fn __getitem__(&self, name: String) -> Option<Prop> {
-        self.property(name, Some(true))
+    pub fn __getitem__(
+        &self,
+        name: &str,
+    ) -> PyResult<TemporalPropertyView<VertexView<DynamicGraph>>> {
+        self.vertex
+            .properties()
+            .get(name)
+            .ok_or(PyKeyError::new_err(format!("Unknown property {}", name)))
     }
 
     /// Display the vertex as a string.
@@ -560,47 +489,12 @@ impl PyVertices {
         (move || vertices.latest_time()).into()
     }
 
-    fn property(&self, name: String, include_static: Option<bool>) -> OptionPropIterable {
+    fn properties(&self, include_static: Option<bool>) -> PyGenericIterable {
         let vertices = self.vertices.clone();
-        (move || vertices.property(name.clone(), include_static.unwrap_or(true))).into()
+        (move || vertices.properties()).into()
     }
 
-    fn property_history(&self, name: String) -> PropHistoryIterable {
-        let vertices = self.vertices.clone();
-        (move || vertices.property_history(name.clone())).into()
-    }
-
-    // fn properties(&self, include_static: Option<bool>) -> PropsIterable {
-    //     let vertices = self.vertices.clone();
-    //     (move || vertices.properties(include_static.unwrap_or(true))).into()
-    // }
-
-    fn property_histories(&self) -> PropHistoriesIterable {
-        let vertices = self.vertices.clone();
-        (move || vertices.property_histories()).into()
-    }
-
-    fn property_names(&self, include_static: Option<bool>) -> StringVecIterable {
-        let vertices = self.vertices.clone();
-        (move || vertices.property_names(include_static.unwrap_or(true))).into()
-    }
-
-    fn has_property(&self, name: String, include_static: Option<bool>) -> BoolIterable {
-        let vertices = self.vertices.clone();
-        (move || vertices.has_property(name.clone(), include_static.unwrap_or(true))).into()
-    }
-
-    fn has_static_property(&self, name: String) -> BoolIterable {
-        let vertices = self.vertices.clone();
-        (move || vertices.has_static_property(name.clone())).into()
-    }
-
-    fn static_property(&self, name: String) -> OptionPropIterable {
-        let vertices = self.vertices.clone();
-        (move || vertices.static_property(name.clone())).into()
-    }
-
-    fn static_properties(&self) -> PropsIterable {
+    fn static_properties(&self) -> PyGenericIterable {
         let vertices = self.vertices.clone();
         (move || vertices.static_properties()).into()
     }
@@ -781,44 +675,14 @@ impl PyPathFromGraph {
         (move || path.latest_time()).into()
     }
 
-    fn property(&self, name: String, include_static: Option<bool>) -> NestedOptionPropIterable {
+    fn properties(&self) -> NestedPropsIterable {
         let path = self.path.clone();
-        (move || path.property(name.clone(), include_static.unwrap_or(true))).into()
+        (move || path.properties()).into()
     }
 
-    fn property_history(&self, name: String) -> NestedPropHistoryIterable {
+    fn static_properties(&self) -> NestedStaticPropsIterable {
         let path = self.path.clone();
-        (move || path.property_history(name.clone())).into()
-    }
-
-    // fn properties(&self, include_static: Option<bool>) -> NestedPropsIterable {
-    //     let path = self.path.clone();
-    //     (move || path.properties(include_static.unwrap_or(true))).into()
-    // }
-
-    fn property_histories(&self) -> NestedPropHistoriesIterable {
-        let path = self.path.clone();
-        (move || path.property_histories()).into()
-    }
-
-    fn property_names(&self, include_static: Option<bool>) -> NestedStringVecIterable {
-        let path = self.path.clone();
-        (move || path.property_names(include_static.unwrap_or(true))).into()
-    }
-
-    fn has_property(&self, name: String, include_static: Option<bool>) -> NestedBoolIterable {
-        let path = self.path.clone();
-        (move || path.has_property(name.clone(), include_static.unwrap_or(true))).into()
-    }
-
-    fn has_static_property(&self, name: String) -> NestedBoolIterable {
-        let path = self.path.clone();
-        (move || path.has_static_property(name.clone())).into()
-    }
-
-    fn static_property(&self, name: String) -> NestedOptionPropIterable {
-        let path = self.path.clone();
-        (move || path.static_property(name.clone())).into()
+        (move || path.static_properties()).into()
     }
 
     fn degree(&self) -> NestedUsizeIterable {
@@ -1009,44 +873,9 @@ impl PyPathFromVertex {
         (move || path.latest_time()).into()
     }
 
-    fn property(&self, name: String, include_static: Option<bool>) -> OptionPropIterable {
+    fn properties(&self) -> PropsIterable {
         let path = self.path.clone();
-        (move || path.property(name.clone(), include_static.unwrap_or(true))).into()
-    }
-
-    fn property_history(&self, name: String) -> PropHistoryIterable {
-        let path = self.path.clone();
-        (move || path.property_history(name.clone())).into()
-    }
-
-    // fn properties(&self, include_static: Option<bool>) -> PropsIterable {
-    //     let path = self.path.clone();
-    //     (move || path.properties(include_static.unwrap_or(true))).into()
-    // }
-
-    fn property_histories(&self) -> PropHistoriesIterable {
-        let path = self.path.clone();
-        (move || path.property_histories()).into()
-    }
-
-    fn property_names(&self, include_static: Option<bool>) -> StringVecIterable {
-        let path = self.path.clone();
-        (move || path.property_names(include_static.unwrap_or(true))).into()
-    }
-
-    fn has_property(&self, name: String, include_static: Option<bool>) -> BoolIterable {
-        let path = self.path.clone();
-        (move || path.has_property(name.clone(), include_static.unwrap_or(true))).into()
-    }
-
-    fn has_static_property(&self, name: String) -> BoolIterable {
-        let path = self.path.clone();
-        (move || path.has_static_property(name.clone())).into()
-    }
-
-    fn static_property(&self, name: String) -> OptionPropIterable {
-        let path = self.path.clone();
-        (move || path.static_property(name.clone())).into()
+        (move || path.properties()).into()
     }
 
     fn in_degree(&self) -> UsizeIterable {
@@ -1265,44 +1094,9 @@ impl PyVertexIterable {
         (move || vertices().latest_time()).into()
     }
 
-    fn property(&self, name: String, include_static: Option<bool>) -> OptionPropIterable {
+    fn properties(&self) -> PropsIterable {
         let vertices = self.builder.clone();
-        (move || vertices().property(name.clone(), include_static.unwrap_or(true))).into()
-    }
-
-    fn property_history(&self, name: String) -> PropHistoryIterable {
-        let vertices = self.builder.clone();
-        (move || vertices().property_history(name.clone())).into()
-    }
-
-    // fn properties(&self, include_static: Option<bool>) -> PropsIterable {
-    //     let vertices = self.builder.clone();
-    //     (move || vertices().properties(include_static.unwrap_or(true))).into()
-    // }
-
-    fn property_histories(&self) -> PropHistoriesIterable {
-        let vertices = self.builder.clone();
-        (move || vertices().property_histories()).into()
-    }
-
-    fn property_names(&self, include_static: Option<bool>) -> StringVecIterable {
-        let vertices = self.builder.clone();
-        (move || vertices().property_names(include_static.unwrap_or(true))).into()
-    }
-
-    fn has_property(&self, name: String, include_static: Option<bool>) -> BoolIterable {
-        let vertices = self.builder.clone();
-        (move || vertices().has_property(name.clone(), include_static.unwrap_or(true))).into()
-    }
-
-    fn has_static_property(&self, name: String) -> BoolIterable {
-        let vertices = self.builder.clone();
-        (move || vertices().has_static_property(name.clone())).into()
-    }
-
-    fn static_property(&self, name: String) -> OptionPropIterable {
-        let vertices = self.builder.clone();
-        (move || vertices().static_property(name.clone())).into()
+        (move || vertices().properties()).into()
     }
 
     fn degree(&self) -> UsizeIterable {

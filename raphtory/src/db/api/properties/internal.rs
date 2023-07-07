@@ -18,20 +18,25 @@ pub trait TemporalPropertyViewOps<Key = String> {
 }
 
 pub trait StaticPropertiesOps {
-    fn static_property_keys(&self) -> Box<dyn Iterator<Item = &str> + Send + '_>;
-    fn static_properties(&self) -> Box<dyn Iterator<Item = Prop> + '_>;
-    fn static_property(&self, key: &str) -> Option<Prop>;
+    fn static_property_keys(&self) -> Vec<String>;
+    fn static_property_values(&self) -> Vec<Prop> {
+        self.static_property_keys()
+            .into_iter()
+            .map(|k| self.get_static_property(&k).expect("should exist"))
+            .collect()
+    }
+    fn get_static_property(&self, key: &str) -> Option<Prop>;
 }
 
 pub trait TemporalPropertiesOps<Key = String>: TemporalPropertyViewOps<Key> {
     fn temporal_property_keys(&self) -> Vec<String>;
-    fn temporal_properties(&self) -> Box<dyn Iterator<Item = Key> + '_>;
-    fn temporal_property(&self, key: &str) -> Option<Key>;
+    fn temporal_property_values(&self) -> Box<dyn Iterator<Item = Key> + '_>;
+    fn get_temporal_property(&self, key: &str) -> Option<Key>;
 }
 
 pub struct TemporalPropertyView<P: TemporalPropertyViewOps<K>, K = String> {
-    id: K,
-    props: P,
+    pub(crate) id: K,
+    pub(crate) props: P,
 }
 
 impl<P: TemporalPropertyViewOps<K>, K> TemporalPropertyView<P, K> {
@@ -56,28 +61,32 @@ impl<P: TemporalPropertyViewOps<K>, K> TemporalPropertyView<P, K> {
 }
 
 pub struct StaticProperties<P: StaticPropertiesOps> {
-    props: P,
+    pub(crate) props: P,
 }
 
 impl<P: StaticPropertiesOps> StaticProperties<P> {
-    pub fn keys(&self) -> Box<dyn Iterator<Item = &str> + Send + '_> {
+    pub(crate) fn new(props: P) -> Self {
+        Self { props }
+    }
+    pub fn keys(&self) -> Vec<String> {
         self.props.static_property_keys()
     }
 
-    pub fn values(&self) -> Box<dyn Iterator<Item = Prop> + '_> {
-        self.props.static_properties()
+    pub fn values(&self) -> Vec<Prop> {
+        self.props.static_property_values()
     }
 
-    pub fn pairs(&self) -> Box<dyn Iterator<Item = (&str, Prop)> + '_> {
+    pub fn pairs(&self) -> Box<dyn Iterator<Item = (String, Prop)> + '_> {
         Box::new(
             self.props
                 .static_property_keys()
-                .zip(self.props.static_properties()),
+                .into_iter()
+                .zip(self.props.static_property_values()),
         )
     }
 
     pub fn get<Q: AsRef<str>>(&self, key: Q) -> Option<Prop> {
-        self.props.static_property(key.as_ref())
+        self.props.get_static_property(key.as_ref())
     }
 }
 
@@ -99,7 +108,7 @@ impl<P: TemporalPropertiesOps<K> + Clone, K> TemporalProperties<P, K> {
 
     pub fn values(&self) -> Vec<TemporalPropertyView<P, K>> {
         self.props
-            .temporal_properties()
+            .temporal_property_values()
             .map(|k| TemporalPropertyView::new(self.props.clone(), k))
             .collect()
     }
@@ -115,7 +124,7 @@ impl<P: TemporalPropertiesOps<K> + Clone, K> TemporalProperties<P, K> {
 
     pub fn get<Q: AsRef<str>>(&self, key: Q) -> Option<TemporalPropertyView<P, K>> {
         self.props
-            .temporal_property(key.as_ref())
+            .get_temporal_property(key.as_ref())
             .map(|k| TemporalPropertyView::new(self.props.clone(), k))
     }
 }

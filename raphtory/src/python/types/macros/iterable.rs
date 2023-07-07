@@ -105,7 +105,10 @@ macro_rules! py_iterable {
             }
         }
 
-        impl<F: Fn() -> BoxedIter<$item> + Send + Sync + 'static> From<F> for $name {
+        impl<F: Fn() -> It + Send + Sync + 'static, It: Iterator + Send + 'static> From<F> for $name
+        where
+            It::Item: Into<$item>,
+        {
             fn from(value: F) -> Self {
                 Self($crate::python::types::iterable::Iterable::new(
                     stringify!($name).to_string(),

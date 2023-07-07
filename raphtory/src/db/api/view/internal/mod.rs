@@ -50,6 +50,22 @@ impl<G: InheritViewOps + CoreGraphOps + GraphOps> InheritTimeSemantics for G {}
 impl<G: InheritViewOps> InheritCoreOps for G {}
 impl<G: InheritViewOps> InheritMaterialize for G {}
 
+/// Trait for marking a struct as not dynamically dispatched.
+/// Used to avoid conflicts when implementing `From` for dynamic wrappers.
+pub trait Static {}
+
+impl<G: BoxableGraphView + Static> From<G> for DynamicGraph {
+    fn from(value: G) -> Self {
+        DynamicGraph(Arc::new(value))
+    }
+}
+
+impl From<Arc<dyn BoxableGraphView>> for DynamicGraph {
+    fn from(value: Arc<dyn BoxableGraphView>) -> Self {
+        DynamicGraph(value)
+    }
+}
+
 #[derive(Clone)]
 pub struct DynamicGraph(Arc<dyn BoxableGraphView>);
 

@@ -12,7 +12,11 @@ macro_rules! _py_nested_iterable_base {
             }
         }
 
-        impl<F: Fn() -> BoxedIter<BoxedIter<$item>> + Sync + Send + 'static> From<F> for $name {
+        impl<F: Fn() -> It + Send + Sync + 'static, It: Iterator + Send + 'static> From<F> for $name
+        where
+            It::Item: Iterator + Send,
+            <It::Item as Iterator>::Item: Into<$item> + Send,
+        {
             fn from(value: F) -> Self {
                 Self($crate::python::types::iterable::NestedIterable::new(
                     stringify!($name).to_string(),

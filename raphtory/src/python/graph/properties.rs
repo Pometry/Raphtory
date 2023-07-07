@@ -1,12 +1,15 @@
 use crate::core::Prop;
 use crate::db::api::properties::internal::{
-    TemporalProperties, TemporalPropertiesOps, TemporalPropertyView, TemporalPropertyViewOps,
+    StaticProperties, StaticPropertiesOps, TemporalProperties, TemporalPropertiesOps,
+    TemporalPropertyView, TemporalPropertyViewOps,
 };
-use crate::db::api::view::internal::{DynamicGraph, IntoDynamic};
+use crate::db::api::view::internal::{DynamicGraph, IntoDynamic, Static};
 use crate::db::graph::vertex::VertexView;
 use crate::prelude::GraphViewOps;
+use crate::python::types::repr::{iterator_dict_repr, iterator_repr, Repr};
 use pyo3::exceptions::PyKeyError;
 use pyo3::prelude::*;
+use std::borrow::Borrow;
 use std::ops::Deref;
 use std::sync::Arc;
 
@@ -39,22 +42,57 @@ where
         self.deref().temporal_property_keys()
     }
 
-    fn temporal_properties(&self) -> Box<dyn Iterator<Item = String> + '_> {
-        self.deref().temporal_properties()
+    fn temporal_property_values(&self) -> Box<dyn Iterator<Item = String> + '_> {
+        self.deref().temporal_property_values()
     }
 
-    fn temporal_property(&self, key: &str) -> Option<String> {
-        self.deref().temporal_property(key)
+    fn get_temporal_property(&self, key: &str) -> Option<String> {
+        self.deref().get_temporal_property(key)
+    }
+}
+
+impl<T: Deref> StaticPropertiesOps for T
+where
+    T::Target: StaticPropertiesOps,
+{
+    fn static_property_keys(&self) -> Vec<String> {
+        self.deref().static_property_keys()
+    }
+
+    fn static_property_values(&self) -> Vec<Prop> {
+        self.deref().static_property_values()
+    }
+
+    fn get_static_property(&self, key: &str) -> Option<Prop> {
+        self.deref().get_static_property(key)
+    }
+}
+
+pub type DynTemporalProperties = TemporalProperties<Arc<dyn TemporalPropertiesOps + Send + Sync>>;
+
+impl<P: TemporalPropertiesOps + Clone + Send + Sync + Static + 'static> From<TemporalProperties<P>>
+    for DynTemporalProperties
+{
+    fn from(value: TemporalProperties<P>) -> Self {
+        TemporalProperties::new(Arc::new(value.props))
+    }
+}
+
+impl<P: Into<DynTemporalProperties>> From<P> for PyTemporalProperties {
+    fn from(value: P) -> Self {
+        Self {
+            props: value.into(),
+        }
     }
 }
 
 #[pyclass(name = "Properties")]
-pub struct PyProperties {
-    props: TemporalProperties<Arc<dyn TemporalPropertiesOps + Send + Sync>>,
+pub struct PyTemporalProperties {
+    props: DynTemporalProperties,
 }
 
 #[pymethods]
-impl PyProperties {
+impl PyTemporalProperties {
     fn keys(&self) -> Vec<String> {
         self.props.keys()
     }
@@ -67,14 +105,101 @@ impl PyProperties {
     }
 }
 
-impl<P: TemporalPropertiesOps + Clone + Send + Sync + 'static> IntoPy<PyObject>
+#[pyclass(name = "Property")]
+pub struct PyTemporalPropertyView {
+    prop: TemporalPropertyView<Arc<dyn TemporalPropertyViewOps + Send + Sync>>,
+}
+
+pub type DynStaticProperties = StaticProperties<Arc<dyn StaticPropertiesOps + Send + Sync>>;
+
+impl<P: StaticPropertiesOps + Send + Sync + Static + 'static> From<StaticProperties<P>>
+    for DynStaticProperties
+{
+    fn from(value: StaticProperties<P>) -> Self {
+        StaticProperties {
+            props: Arc::new(value.props),
+        }
+    }
+}
+
+#[pyclass(name = "MetaData")]
+pub struct PyStaticProperties {
+    props: DynStaticProperties,
+}
+
+impl<P: TemporalPropertiesOps + Clone + Send + Sync + 'static + Static> IntoPy<PyObject>
     for TemporalProperties<P>
 {
     fn into_py(self, py: Python<'_>) -> PyObject {
-        let v = self.props;
-        PyProperties {
-            props: TemporalProperties::new(Arc::new(v)),
+        PyTemporalProperties::from(self).into_py(py)
+    }
+}
+
+impl IntoPy<PyObject> for DynTemporalProperties {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        PyTemporalProperties::from(self).into_py(py)
+    }
+}
+
+impl<P: TemporalPropertiesOps + Clone> Repr for TemporalProperties<P> {
+    fn repr(&self) -> String {
+        format!("Properties({{{}}})", iterator_dict_repr(self.pairs()))
+    }
+}
+
+impl<P: TemporalPropertyViewOps> Repr for TemporalPropertyView<P> {
+    fn repr(&self) -> String {
+        format!("Property({})", iterator_repr(self.pairs()))
+    }
+}
+
+impl Repr for PyTemporalPropertyView {
+    fn repr(&self) -> String {
+        self.prop.repr()
+    }
+}
+
+impl Repr for PyTemporalProperties {
+    fn repr(&self) -> String {
+        self.props.repr()
+    }
+}
+
+impl<P: TemporalPropertyViewOps + Send + Sync + 'static> IntoPy<PyObject>
+    for TemporalPropertyView<P>
+{
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        PyTemporalPropertyView {
+            prop: TemporalPropertyView::new(Arc::new(self.props), self.id),
         }
         .into_py(py)
+    }
+}
+
+impl<P: StaticPropertiesOps + Send + Sync + 'static> From<StaticProperties<P>>
+    for PyStaticProperties
+{
+    fn from(value: StaticProperties<P>) -> Self {
+        PyStaticProperties {
+            props: StaticProperties::new(Arc::new(value.props)),
+        }
+    }
+}
+
+impl<P: StaticPropertiesOps + Send + Sync + 'static> IntoPy<PyObject> for StaticProperties<P> {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        PyStaticProperties::from(self).into_py(py)
+    }
+}
+
+impl<P: StaticPropertiesOps> Repr for StaticProperties<P> {
+    fn repr(&self) -> String {
+        format!("StaticProperties({{{}}})", iterator_dict_repr(self.pairs()))
+    }
+}
+
+impl Repr for PyStaticProperties {
+    fn repr(&self) -> String {
+        self.props.repr()
     }
 }

@@ -1,5 +1,5 @@
 use crate::core::entities::vertices::vertex::Vertex;
-use crate::db::api::properties::internal::TemporalProperties;
+use crate::db::api::properties::internal::{StaticProperties, TemporalProperties};
 use crate::db::graph::vertex::VertexView;
 use crate::db::graph::views::window_graph::WindowedGraph;
 use crate::{
@@ -124,32 +124,9 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
             .vertex_latest_time_window(self.vertex, self.t_start, self.t_end)
     }
 
-    fn property(
-        &self,
-        name: String,
-        include_static: bool,
-    ) -> Self::ValueType<Option<crate::core::Prop>> {
-        let props = self.property_history(name.clone());
-        match props.last() {
-            None => {
-                if include_static {
-                    self.graph.static_vertex_prop(self.vertex, &name)
-                } else {
-                    None
-                }
-            }
-            Some((_, prop)) => Some(prop.clone()),
-        }
-    }
-
     fn history(&self) -> Self::ValueType<Vec<i64>> {
         self.graph
             .vertex_history_window(self.vertex, self.t_start..self.t_end)
-    }
-
-    fn property_history(&self, name: String) -> Self::ValueType<Vec<(i64, crate::core::Prop)>> {
-        self.graph
-            .temporal_vertex_prop_vec_window(self.vertex, &name, self.t_start, self.t_end)
     }
 
     fn properties(&self) -> Self::ValueType<TemporalProperties<VertexView<WindowedGraph<G>>>> {
@@ -160,42 +137,12 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
         ))
     }
 
-    fn property_histories(
-        &self,
-    ) -> Self::ValueType<std::collections::HashMap<String, Vec<(i64, crate::core::Prop)>>> {
-        self.graph
-            .temporal_vertex_props_window(self.vertex, self.t_start, self.t_end)
-    }
-
-    fn property_names(&self, include_static: bool) -> Self::ValueType<Vec<String>> {
-        let mut names: Vec<String> = self.graph.temporal_vertex_prop_names(self.vertex);
-        if include_static {
-            names.extend(self.graph.static_vertex_prop_names(self.vertex))
-        }
-        names
-    }
-
-    fn has_property(&self, name: String, include_static: bool) -> Self::ValueType<bool> {
-        (!self.property_history(name.clone()).is_empty())
-            || (include_static
-                && self
-                    .graph
-                    .static_vertex_prop_names(self.vertex)
-                    .contains(&name))
-    }
-
-    fn has_static_property(&self, name: String) -> Self::ValueType<bool> {
-        self.graph
-            .static_vertex_prop_names(self.vertex)
-            .contains(&name.to_owned())
-    }
-
-    fn static_property(&self, name: String) -> Self::ValueType<Option<crate::core::Prop>> {
-        self.graph.static_vertex_prop(self.vertex, &name)
-    }
-
-    fn static_properties(&self) -> Self::ValueType<HashMap<String, Prop>> {
-        self.graph.static_vertex_props(self.vertex)
+    fn static_properties(&self) -> Self::ValueType<StaticProperties<VertexView<WindowedGraph<G>>>> {
+        //FIXME: Need to implement this properly without cloning the graph
+        StaticProperties::new(VertexView::new_local(
+            WindowedGraph::new(self.graph.clone(), self.t_start, self.t_end),
+            self.vertex,
+        ))
     }
 
     fn degree(&self) -> Self::ValueType<usize> {
@@ -492,32 +439,6 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
         self.path.latest_time()
     }
 
-    fn property(
-        &self,
-        name: String,
-        include_static: bool,
-    ) -> Self::ValueType<Option<crate::core::Prop>> {
-        let g = self.g;
-        let t_start = self.t_start;
-        let t_end = self.t_end;
-
-        let iter = self.path.iter_refs().map(move |v_ref| {
-            let local_ref = g.localise_vertex_unchecked(v_ref);
-            let props = g.temporal_vertex_prop_vec_window(local_ref, &name, t_start, t_end);
-            match props.last() {
-                None => {
-                    if include_static {
-                        g.static_vertex_prop(local_ref, &name)
-                    } else {
-                        None
-                    }
-                }
-                Some((_, prop)) => Some(prop.clone()),
-            }
-        });
-        Box::new(iter)
-    }
-
     fn history(&self) -> Self::ValueType<Vec<i64>> {
         let g = self.g;
         let t_start = self.t_start;
@@ -531,69 +452,14 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
         Box::new(iter)
     }
 
-    fn property_history(&self, name: String) -> Self::ValueType<Vec<(i64, crate::core::Prop)>> {
-        let g = self.g;
-        let t_start = self.t_start;
-        let t_end = self.t_end;
-
-        let iter = self.path.iter_refs().map(move |v_ref| {
-            let local_ref = g.localise_vertex_unchecked(v_ref);
-            g.temporal_vertex_prop_vec_window(local_ref, &name, t_start, t_end)
-        });
-
-        Box::new(iter)
-    }
-
     fn properties(&self) -> Self::ValueType<TemporalProperties<VertexView<Self::Graph>>> {
         self.path.window(self.t_start, self.t_end).properties()
     }
 
-    fn property_histories(
-        &self,
-    ) -> Self::ValueType<std::collections::HashMap<String, Vec<(i64, Prop)>>> {
-        let g = self.g;
-        let t_start = self.t_start;
-        let t_end = self.t_end;
-
-        let iter = self.path.iter_refs().map(move |v_ref| {
-            let local_ref = g.localise_vertex_unchecked(v_ref);
-            g.temporal_vertex_props_window(local_ref, t_start, t_end)
-        });
-
-        Box::new(iter)
-    }
-
-    fn property_names(&self, include_static: bool) -> Self::ValueType<Vec<String>> {
-        self.path.property_names(include_static)
-    }
-
-    fn has_property(&self, name: String, include_static: bool) -> Self::ValueType<bool> {
-        let g = self.g;
-        let t_start = self.t_start;
-        let t_end = self.t_end;
-        let iter = self.path.iter_refs().map(move |v_ref| {
-            let local_ref = g.localise_vertex_unchecked(v_ref);
-            let props = g.temporal_vertex_prop_vec_window(local_ref, &name, t_start, t_end);
-
-            !props.is_empty()
-                || (include_static
-                    && g.static_vertex_prop_names(local_ref)
-                        .contains(&name.to_owned()))
-        });
-
-        Box::new(iter)
-    }
-
-    fn has_static_property(&self, name: String) -> Self::ValueType<bool> {
-        self.path.has_static_property(name)
-    }
-
-    fn static_property(&self, name: String) -> Self::ValueType<Option<crate::core::Prop>> {
-        self.path.static_property(name)
-    }
-
-    fn static_properties(&self) -> Self::ValueType<HashMap<String, Prop>> {
-        self.path.static_properties()
+    fn static_properties(&self) -> Self::ValueType<StaticProperties<VertexView<WindowedGraph<G>>>> {
+        self.path
+            .window(self.t_start, self.t_end)
+            .static_properties()
     }
 
     fn degree(&self) -> Self::ValueType<usize> {
@@ -675,14 +541,6 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexListOps
         Box::new(self.map(|v| v.name()))
     }
 
-    fn property(self, name: String, include_static: bool) -> Self::IterType<Option<Prop>> {
-        Box::new(self.map(move |v| v.property(name.clone(), include_static)))
-    }
-
-    fn property_history(self, name: String) -> Self::IterType<Vec<(i64, Prop)>> {
-        Box::new(self.map(move |v| v.property_history(name.clone())))
-    }
-
     fn properties(self) -> Self::IterType<TemporalProperties<VertexView<Self::Graph>>> {
         Box::new(self.map(move |v| v.properties()))
     }
@@ -691,27 +549,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexListOps
         Box::new(self.map(|v| v.history()))
     }
 
-    fn property_histories(self) -> Self::IterType<HashMap<String, Vec<(i64, Prop)>>> {
-        Box::new(self.map(|v| v.property_histories()))
-    }
-
-    fn property_names(self, include_static: bool) -> Self::IterType<Vec<String>> {
-        Box::new(self.map(move |v| v.property_names(include_static)))
-    }
-
-    fn has_property(self, name: String, include_static: bool) -> Self::IterType<bool> {
-        Box::new(self.map(move |v| v.has_property(name.clone(), include_static)))
-    }
-
-    fn has_static_property(self, name: String) -> Self::IterType<bool> {
-        Box::new(self.map(move |v| v.has_static_property(name.clone())))
-    }
-
-    fn static_property(self, name: String) -> Self::IterType<Option<Prop>> {
-        Box::new(self.map(move |v| v.static_property(name.clone())))
-    }
-
-    fn static_properties(self) -> Self::IterType<HashMap<String, Prop>> {
+    fn static_properties(self) -> Self::IterType<StaticProperties<VertexView<Self::Graph>>> {
         Box::new(self.map(move |v| v.static_properties()))
     }
 
