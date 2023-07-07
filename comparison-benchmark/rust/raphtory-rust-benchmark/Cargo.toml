@@ -1,0 +1,20 @@
+[package]
+name = "raphtory-rust-benchmark"
+description = "Raphtory GraphQL server"
+edition.workspace = true
+rust-version.workspace = true
+version.workspace = true
+keywords.workspace = true
+authors.workspace = true
+documentation.workspace = true
+repository.workspace = true
+license.workspace = true
+readme.workspace = true
+homepage.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+raphtory = { path = "../../../raphtory", version = "0.4.3", package = "raphtory", features = ["io"] }
+chrono = { version = "0.4", features = ["serde"] }
+serde = { version = "1", features = ["derive","rc"] }
