@@ -6,42 +6,72 @@ use raphtory::prelude::{AdditionOps, Graph, GraphViewOps, VertexViewOps};
 use serde::Deserialize;
 use raphtory::algorithms::pagerank::unweighted_page_rank;
 use raphtory::algorithms::connected_components::weakly_connected_components;
-use clap::{Arg};
+use clap::Parser;
+use clap::ArgAction;
 use std::error::Error;
 use std::fs::File;
 use std::path::Path;
 use csv::StringRecord;
 use raphtory::core::utils::hashing::calculate_hash;
 
-#[derive(Deserialize, std::fmt::Debug)]
-pub struct GenericLoader {
-    from: String,
-    to: String,
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+struct Args {
+    /// Set if the file has a header, default is False
+    #[arg(long, action=ArgAction::SetTrue)]
+    header: bool,
+
+    /// Delimiter of the csv file
+    #[arg(long, default_value = "\t")]
+    delimiter: String,
+
+    /// Path to the csv file
+    #[arg(long, default_value = "../../python/data/simple-relationships.csv")]
+    file_path: String,
+
+    /// Position of the from column in the csv
+    #[arg(long, default_value = "0")]
+    from_column: usize,
+
+    /// Position of the to column in the csv
+    #[arg(long, default_value = "1")]
+    to_column: usize,
+
+    /// Position of the time column in the csv, default will ignore time
+    #[arg(long, default_value = "-1")]
+    time_column: i32,
 }
 
 fn main() {
     println!("Raphtory Quick Benchmark");
-
+    let args = Args::parse();
     // Set default values
-    let mut header = false;
-    let mut delimiter = "\t";
-    let ts = 1;
-    let mut data_dir = "../../python/data/simple-relationships.csv".to_string();
+    println!("Arguments: {:?}", args);
+    let header = args.header;
+    let delimiter = args.delimiter;
+    let file_path = args.file_path;
+    let from_column = args.from_column;
+    let to_column = args.to_column;
+    let time_column = args.time_column;
+
 
     println!("Running setup...");
     let mut now = Instant::now();
     // Iterate over the CSV records
     let g = {
         let g = Graph::new();
-        CsvLoader::new(data_dir)
+        CsvLoader::new(file_path)
             .set_header(header)
-            .set_delimiter(delimiter)
+            .set_delimiter(&delimiter)
             .load_rec_into_graph(&g, |generic_loader: StringRecord, g: &Graph| {
-                let src_id = generic_loader.get(0).map(|s| s.to_owned()).unwrap();
-                let dst_id = generic_loader.get(1).map(|s| s.to_owned()).unwrap();
-
+                let src_id = generic_loader.get(from_column).map(|s| s.to_owned()).unwrap();
+                let dst_id = generic_loader.get(to_column).map(|s| s.to_owned()).unwrap();
+                let mut edge_time = NaiveDateTime::from_timestamp_opt(1, 0).unwrap();
+                if time_column != -1 {
+                    edge_time = NaiveDateTime::from_timestamp_millis(generic_loader.get(time_column as usize).unwrap().parse().unwrap()).unwrap();
+                }
                 g.add_edge(
-                    NaiveDateTime::from_timestamp_opt(ts, 0).unwrap(),
+                    edge_time,
                     src_id,
                     dst_id,
                     [],
