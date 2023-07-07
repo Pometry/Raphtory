@@ -530,6 +530,7 @@ mod csv_loader_test {
             .expect("Csv did not parse.");
     }
 
+    #[test]
     fn lotr_test_rec(g: Graph, csv_loader: CsvLoader, has_header: bool, delimiter: &str, r: Regex) {
         csv_loader
             .set_header(has_header)

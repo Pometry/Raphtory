@@ -1,11 +1,17 @@
 use chrono::NaiveDateTime;
-use std::{time::Instant};
+use std::{env, time::Instant};
 use std::collections::HashMap;
 use raphtory::graph_loader::source::csv_loader::CsvLoader;
 use raphtory::prelude::{AdditionOps, Graph, GraphViewOps, VertexViewOps};
 use serde::Deserialize;
 use raphtory::algorithms::pagerank::unweighted_page_rank;
 use raphtory::algorithms::connected_components::weakly_connected_components;
+use clap::{Arg};
+use std::error::Error;
+use std::fs::File;
+use std::path::Path;
+use csv::StringRecord;
+use raphtory::core::utils::hashing::calculate_hash;
 
 #[derive(Deserialize, std::fmt::Debug)]
 pub struct GenericLoader {
@@ -16,22 +22,28 @@ pub struct GenericLoader {
 fn main() {
     println!("Raphtory Quick Benchmark");
 
-    let mut now = Instant::now();
-    let header = false;
-    let delimiter = "\t";
+    // Set default values
+    let mut header = false;
+    let mut delimiter = "\t";
     let ts = 1;
-    let data_dir = "../../python/data/simple-relationships.csv";
+    let mut data_dir = "../../python/data/simple-relationships.csv".to_string();
 
+    println!("Running setup...");
+    let mut now = Instant::now();
+    // Iterate over the CSV records
     let g = {
         let g = Graph::new();
         CsvLoader::new(data_dir)
             .set_header(header)
             .set_delimiter(delimiter)
-            .load_into_graph(&g, |generic_loader: GenericLoader, g: &Graph| {
+            .load_rec_into_graph(&g, |generic_loader: StringRecord, g: &Graph| {
+                let src_id = generic_loader.get(0).map(|s| s.to_owned()).unwrap();
+                let dst_id = generic_loader.get(1).map(|s| s.to_owned()).unwrap();
+
                 g.add_edge(
                     NaiveDateTime::from_timestamp_opt(ts, 0).unwrap(),
-                    generic_loader.from,
-                    generic_loader.to,
+                    src_id,
+                    dst_id,
                     [],
                     None
                 )
@@ -42,6 +54,11 @@ fn main() {
     println!(
         "Setup took {} seconds",
         now.elapsed().as_secs_f64()
+    );
+
+    println!("Graph has {} vertices and {} edges",
+             g.num_vertices(),
+             g.num_edges()
     );
 
     // Degree of all nodes
