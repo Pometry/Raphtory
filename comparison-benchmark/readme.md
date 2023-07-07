@@ -11,23 +11,24 @@ only in python.
 
 This only does a light benchmark of raphtory, as it is designed to be used standalone. 
 
-        Raphtory Quick Benchmark
-        Raphtory Quick Rust Benchmark
-        
-        Usage: raphtory-rust-benchmark [OPTIONS]
-        
-        Options:
-        --header                     Set if the file has a header, default is False
-        --delimiter <DELIMITER>      Delimiter of the csv file [default: "\t"]
-        --file-path <FILE_PATH>      Path to a csv file [default: ]
-        --from-column <FROM_COLUMN>  Position of the from column in the csv [default: 0]
-        --to-column <TO_COLUMN>      Position of the to column in the csv [default: 1]
-        --time-column <TIME_COLUMN>  Position of the time column in the csv, default will ignore time [default: -1]
-        --download                   Download default files
-        -h, --help                       Print help
-        -V, --version                    Print version
+    Raphtory Quick Benchmark
+    
+    Usage: raphtory-rust-benchmark [OPTIONS]
+    
+    Options:
+    --header                     Set if the file has a header, default is False
+    --delimiter <DELIMITER>      Delimiter of the csv file [default: "\t"]
+    --file-path <FILE_PATH>      Path to a csv file [default: ]
+    --from-column <FROM_COLUMN>  Position of the from column in the csv [default: 0]
+    --to-column <TO_COLUMN>      Position of the to column in the csv [default: 1]
+    --time-column <TIME_COLUMN>  Position of the time column in the csv, default will ignore time [default: -1]
+    --download                   Download default files
+    --debug                      Debug to print more info to the screen
+    -h, --help                       Print help
+    -V, --version                    Print version
 
-First download the example file by cd intoing `raphtory-rust-benchmark` folder and running
+
+First download the example file by cd'ing into the `raphtory-rust-benchmark` folder and running
 
     cargo run -- --download
 
@@ -40,10 +41,13 @@ You can then run the benchmark by running, with the file path it has given you
 You can also provide your own file path, but please ensure you have set the correct arguments. 
 I.e Whether it has a header, what the delimiter is, and what columns are what.
 
+e.g.
+
+    cargo run -- --file-path="/Users/1337/Documents/dev/Data/lotr.csv" --delimiter="," --from-column=0 --to-column=1
+
 The results for a 1000 edge file are below
 
     Raphtory Quick Benchmark
-    Arguments: Args { header: false, delimiter: "\t", file_path: "/Users/haaroony/Documents/dev/RaphtoryAlgo/comparison-benchmark/python/data/simple-relationships.csv", from_column: 0, to_column: 1, time_column: -1, download: false }
     Running setup...
     Setup took 0.015264357 seconds
     Graph has 864 vertices and 1000 edges

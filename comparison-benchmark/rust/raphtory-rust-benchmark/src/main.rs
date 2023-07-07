@@ -18,7 +18,7 @@ use std::fs::File;
 use std::io::{self, BufRead, BufReader, BufWriter, Read, Write};
 
 #[derive(Parser, Debug)]
-#[command(author, version, about, long_about = None)]
+#[command(author, version, about, long_about = None )]
 struct Args {
     /// Set if the file has a header, default is False
     #[arg(long, action=ArgAction::SetTrue)]
@@ -47,13 +47,20 @@ struct Args {
     /// Download default files
     #[arg(long, action=ArgAction::SetTrue)]
     download: bool,
+
+    /// Debug to print more info to the screen
+    #[arg(long, action=ArgAction::SetTrue)]
+    debug: bool,
 }
 
 fn main() {
     println!("Raphtory Quick Benchmark");
     let args = Args::parse();
     // Set default values
-    println!("Arguments: {:?}", args);
+    let debug = args.debug;
+    if debug {
+        println!("Debug mode enabled.\nArguments: {:?}", args);
+    }
     let header = args.header;
     let delimiter = args.delimiter;
     let file_path = args.file_path;
@@ -61,6 +68,7 @@ fn main() {
     let to_column = args.to_column;
     let time_column = args.time_column;
     let download = args.download;
+
 
     if download == true {
         let url = "https://osf.io/download/nbq6h/";
@@ -112,6 +120,10 @@ fn main() {
         return;
     }
 
+    if debug {
+        println!("Reading file {}", &file_path);
+    }
+
     println!("Running setup...");
     let mut now = Instant::now();
     // Iterate over the CSV records
@@ -126,6 +138,9 @@ fn main() {
                 let mut edge_time = NaiveDateTime::from_timestamp_opt(1, 0).unwrap();
                 if time_column != -1 {
                     edge_time = NaiveDateTime::from_timestamp_millis(generic_loader.get(time_column as usize).unwrap().parse().unwrap()).unwrap();
+                }
+                if debug {
+                    println!("Adding edge {} -> {} at time {}", src_id, dst_id, edge_time);
                 }
                 g.add_edge(
                     edge_time,
@@ -143,10 +158,12 @@ fn main() {
         now.elapsed().as_secs_f64()
     );
 
-    println!("Graph has {} vertices and {} edges",
-             g.num_vertices(),
-             g.num_edges()
-    );
+    if debug {
+        println!("Graph has {} vertices and {} edges",
+                 g.num_vertices(),
+                 g.num_edges()
+        )
+    }
 
     // Degree of all nodes
     now = Instant::now();
