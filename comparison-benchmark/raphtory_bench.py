@@ -7,8 +7,12 @@ try:
     import raphtory
     from tqdm import tqdm
     from raphtory.algorithms import pagerank, weakly_connected_components
-except ImportError:
-    pass
+except ImportError as e:
+    print("IMPORT ERROR")
+    print(e)
+    print("Cannot continue. Exiting")
+    import sys
+    sys.exit(1)
 
 simple_relationship_file = "data/simple-relationships.csv"
 
