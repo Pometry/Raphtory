@@ -60,7 +60,7 @@ pub enum Prop {
     Graph(Graph),
 }
 
-impl Prop{
+impl Prop {
     pub fn str(s: &str) -> Prop {
         Prop::Str(s.to_string())
     }

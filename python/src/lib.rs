@@ -1,6 +1,7 @@
 mod graphql;
 
 extern crate core;
+use graphql::*;
 use pyo3::prelude::*;
 use raphtory_core::python::{
     graph::{
@@ -11,7 +12,6 @@ use raphtory_core::python::{
     },
     packages::{algorithms::*, graph_gen::*, graph_loader::*},
 };
-use graphql::*;
 
 /// Raphtory graph analytics library
 #[pymodule]

@@ -18,10 +18,7 @@ use crate::{
         graph::vertex::{PyVertex, PyVertexIterable},
         types::{
             repr::{iterator_repr, Repr},
-            wrappers::{
-                iterators::{OptionI64Iterable, OptionPropIterable, PropsIterable},
-                *,
-            },
+            wrappers::iterators::{OptionI64Iterable, OptionPropIterable, PropsIterable},
         },
         utils::{PyGenericIterable, PyInterval, PyTime},
     },

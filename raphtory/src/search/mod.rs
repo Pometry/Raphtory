@@ -6,7 +6,7 @@ use rayon::{prelude::ParallelIterator, slice::ParallelSlice};
 use tantivy::{
     collector::TopDocs,
     schema::{Field, Schema, SchemaBuilder, FAST, INDEXED, STORED, TEXT},
-    DateOptions, DocAddress, Document, Index, IndexReader, IndexSortByField, TantivyError,
+    DocAddress, Document, Index, IndexReader, IndexSortByField, TantivyError,
 };
 
 use crate::{
@@ -42,7 +42,7 @@ pub(in crate::search) mod fields {
     pub const NAME: &str = "name";
 }
 
-const EMPTY: [(&str, Prop); 0] = [];
+const _EMPTY: [(&str, Prop); 0] = [];
 
 impl<G: GraphViewOps> From<G> for IndexedGraph<G> {
     fn from(graph: G) -> Self {
@@ -193,7 +193,8 @@ impl<G: GraphViewOps> IndexedGraph<G> {
                             };
 
                             let prop_field = schema.get_field(field_name)?;
-                            if let Some(prop_value) = vertex.static_property(prop_name.to_string()) {
+                            if let Some(prop_value) = vertex.static_property(prop_name.to_string())
+                            {
                                 if let Prop::Str(prop_text) = prop_value {
                                     // what now?
                                     let mut document = Document::new();
@@ -478,7 +479,7 @@ mod test {
 
     #[test]
     fn add_vertex_search_by_name() {
-        let graph = IndexedGraph::new(Graph::new(), EMPTY);
+        let graph = IndexedGraph::new(Graph::new(), _EMPTY);
 
         graph
             .add_vertex(1, "Gandalf", [])

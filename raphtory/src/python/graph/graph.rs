@@ -38,6 +38,12 @@ impl From<Graph> for PyGraph {
     }
 }
 
+impl From<PyGraph> for Graph {
+    fn from(value: PyGraph) -> Self {
+        value.graph
+    }
+}
+
 impl IntoPy<PyObject> for Graph {
     fn into_py(self, py: Python<'_>) -> PyObject {
         Py::new(py, (PyGraph::from(self.clone()), PyGraphView::from(self)))

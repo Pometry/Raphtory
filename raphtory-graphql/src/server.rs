@@ -1,6 +1,5 @@
 #![allow(dead_code)]
 
-use std::collections::HashMap;
 use crate::{
     data::Data,
     model::{algorithm::Algorithm, QueryRoot},
@@ -10,18 +9,18 @@ use crate::{
 use async_graphql_poem::GraphQL;
 use dynamic_graphql::App;
 use poem::{get, listener::TcpListener, middleware::Cors, EndpointExt, Route, Server};
+use raphtory::prelude::Graph;
+use std::collections::HashMap;
 use tokio::{io::Result as IoResult, signal};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, Registry};
-use raphtory::prelude::Graph;
 
 pub struct RaphtoryServer {
-    data:Data,
+    data: Data,
 }
 
 impl RaphtoryServer {
-
-    pub fn from_map(graphs: HashMap<String,Graph>) -> Self {
-        let data = Data::new(graphs) ;
+    pub fn from_map(graphs: HashMap<String, Graph>) -> Self {
+        let data = Data::new(graphs);
         Self { data }
     }
 
