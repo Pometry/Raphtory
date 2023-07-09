@@ -20,12 +20,17 @@ pub struct RaphtoryServer {
 
 impl RaphtoryServer {
     pub fn from_map(graphs: HashMap<String, DynamicGraph>) -> Self {
-        let data = Data::new(graphs);
+        let data = Data::from_map(graphs);
         Self { data }
     }
 
-    pub fn new(graph_directory: &str) -> Self {
-        let data = Data::load(graph_directory);
+    pub fn from_directory(graph_directory: &str) -> Self {
+        let data = Data::from_directory(graph_directory);
+        Self { data }
+    }
+
+    pub fn from_map_and_directory(graphs: HashMap<String, DynamicGraph>,graph_directory: &str) -> Self {
+        let data = Data::from_map_and_directory(graphs,graph_directory);
         Self { data }
     }
 

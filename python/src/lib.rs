@@ -25,9 +25,10 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_class::<PyEdges>()?;
 
     //GRAPHQL
-    let graphql_module = PyModule::new(py, "graphql")?;
-    graphql_module.add_function(wrap_pyfunction!(run_from_dict, graphql_module)?)?;
-    graphql_module.add_function(wrap_pyfunction!(run_from_file, graphql_module)?)?;
+    let graphql_module = PyModule::new(py, "internal_graphql")?;
+    graphql_module.add_function(wrap_pyfunction!(from_map, graphql_module)?)?;
+    graphql_module.add_function(wrap_pyfunction!(from_directory, graphql_module)?)?;
+    graphql_module.add_function(wrap_pyfunction!(from_map_and_directory, graphql_module)?)?;
     m.add_submodule(graphql_module)?;
 
     //ALGORITHMS
