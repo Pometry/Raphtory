@@ -49,7 +49,6 @@ impl Neo4JConnection {
 #[cfg(test)]
 mod neo_loader_test {
     use crate::{
-        core::Prop,
         db::{
             api::{
                 mutation::{AdditionOps, PropertyAdditionOps},
@@ -57,7 +56,8 @@ mod neo_loader_test {
             },
             graph::graph as rap,
         },
-        graph_loader::source::neo4j_loader::Neo4JConnection, prelude::EMPTY,
+        graph_loader::source::neo4j_loader::Neo4JConnection,
+        prelude::{AsProp, EMPTY},
     };
     use neo4rs::*;
 
@@ -78,10 +78,7 @@ mod neo_loader_test {
             .add_vertex(actor_born, actor_name.clone(), EMPTY)
             .unwrap();
         graph
-            .add_vertex_properties(
-                actor_name.clone(),
-                [("type".into(), Prop::Str("actor".into()))],
-            )
+            .add_vertex_properties(actor_name.clone(), [("type", "actor")])
             .unwrap();
         graph
             .add_vertex(film_release, film_title.clone(), EMPTY)
@@ -90,8 +87,8 @@ mod neo_loader_test {
             .add_vertex_properties(
                 film_title.clone(),
                 [
-                    ("type".into(), Prop::Str("film".into())),
-                    ("tagline".into(), Prop::Str(film_tagline)),
+                    ("type", "film".as_prop()),
+                    ("tagline", film_tagline.as_prop()),
                 ],
             )
             .unwrap();

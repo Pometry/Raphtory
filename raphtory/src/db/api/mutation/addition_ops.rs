@@ -6,7 +6,7 @@ use crate::{
             time::{IntoTimeWithFormat, TryIntoTime},
         },
     },
-    db::api::mutation::{internal::InternalAdditionOps, Properties}, prelude::{Prop, EMPTY},
+    db::api::mutation::internal::InternalAdditionOps, prelude::{Prop, EMPTY},
 };
 
 pub trait AdditionOps {
@@ -38,15 +38,15 @@ pub trait AdditionOps {
         props: PI,
     ) -> Result<(), GraphError>;
 
-    fn add_vertex_with_custom_time_format<V: InputVertex, P: Properties>(
+    fn add_vertex_with_custom_time_format<V: InputVertex, P: Into<Prop>, S:AsRef<str>, PI: IntoIterator<Item = (S, P)>>(
         &self,
         t: &str,
         fmt: &str,
         v: V,
-        props: P,
+        props: PI,
     ) -> Result<(), GraphError> {
         let time: i64 = t.parse_time(fmt)?;
-        self.add_vertex(time, v, props.collect_properties())
+        self.add_vertex(time, v, props)
     }
 
     // TODO: Vertex.name which gets ._id property else numba as string

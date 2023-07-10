@@ -3,7 +3,7 @@ use crate::{
         entities::vertices::input_vertex::InputVertex,
         utils::{errors::GraphError, time::TryIntoTime},
     },
-    db::api::mutation::{internal::InternalPropertyAdditionOps, Properties},
+    db::api::mutation::internal::InternalPropertyAdditionOps, prelude::Prop,
 };
 
 pub trait PropertyAdditionOps {
@@ -23,19 +23,19 @@ pub trait PropertyAdditionOps {
     /// let properties = vec![("color".to_owned(), Prop::Str("blue".to_owned())), ("weight".to_owned(), Prop::I64(11))];
     /// let result = graph.add_vertex_properties("Alice", properties);
     /// ```
-    fn add_vertex_properties<V: InputVertex, P: Properties>(
+    fn add_vertex_properties<V: InputVertex, P: Into<Prop>, S:AsRef<str>, PI: IntoIterator<Item = (S, P)>>(
         &self,
         v: V,
-        data: P,
+        data: PI,
     ) -> Result<(), GraphError>;
 
-    fn add_properties<T: TryIntoTime, P: Properties>(
+    fn add_properties<T: TryIntoTime, P: Into<Prop>, S:AsRef<str>, PI: IntoIterator<Item = (S, P)>>(
         &self,
         t: T,
-        props: P,
+        props: PI,
     ) -> Result<(), GraphError>;
 
-    fn add_static_properties<P: Properties>(&self, props: P) -> Result<(), GraphError>;
+    fn add_static_properties<P: Into<Prop>, S:AsRef<str>, PI: IntoIterator<Item = (S, P)>>(&self, props: PI) -> Result<(), GraphError>;
 
     /// Adds properties to an existing edge between a source and destination vertices
     ///
@@ -53,46 +53,48 @@ pub trait PropertyAdditionOps {
     /// graph.add_vertex(1, "Alice", EMPTY);
     /// graph.add_vertex(2, "Bob", EMPTY);
     /// graph.add_edge(3, "Alice", "Bob", EMPTY, None);
-    /// let properties = vec![("price".to_owned(), Prop::I64(100))];
+    /// let properties = vec![("price", 100)];
     /// let result = graph.add_edge_properties("Alice", "Bob", properties, None);
     /// ```
-    fn add_edge_properties<V: InputVertex, P: Properties>(
+    fn add_edge_properties<V: InputVertex, P: Into<Prop>, S:AsRef<str>, PI: IntoIterator<Item = (S, P)>>(
         &self,
         src: V,
         dst: V,
-        props: P,
+        props: PI,
         layer: Option<&str>,
     ) -> Result<(), GraphError>;
 }
 
 impl<G: InternalPropertyAdditionOps> PropertyAdditionOps for G {
-    fn add_vertex_properties<V: InputVertex, P: Properties>(
+
+    fn add_vertex_properties<V: InputVertex, P: Into<Prop>, S:AsRef<str>, PI: IntoIterator<Item = (S, P)>>(
         &self,
         v: V,
-        data: P,
+        data: PI,
     ) -> Result<(), GraphError> {
-        self.internal_add_vertex_properties(v.id(), data.collect_properties())
+        self.internal_add_vertex_properties(v.id(), data.into_iter().map(|(k, p)| (k.as_ref().to_string(), p.into())).collect())
     }
 
-    fn add_properties<T: TryIntoTime, P: Properties>(
+    fn add_properties<T: TryIntoTime, P: Into<Prop>, S:AsRef<str>, PI: IntoIterator<Item = (S, P)>>(
         &self,
         t: T,
-        props: P,
+        props: PI,
     ) -> Result<(), GraphError> {
-        self.internal_add_properties(t.try_into_time()?, props.collect_properties())
+        self.internal_add_properties(t.try_into_time()?, props.into_iter().map(|(k, p)| (k.as_ref().to_string(), p.into())).collect())
     }
 
-    fn add_static_properties<P: Properties>(&self, props: P) -> Result<(), GraphError> {
-        self.internal_add_static_properties(props.collect_properties())
+    fn add_static_properties<P: Into<Prop>, S:AsRef<str>, PI: IntoIterator<Item = (S, P)>>(&self, props: PI) -> Result<(), GraphError> {
+        self.internal_add_static_properties(props.into_iter().map(|(k, p)| (k.as_ref().to_string(), p.into())).collect())
     }
 
-    fn add_edge_properties<V: InputVertex, P: Properties>(
+    fn add_edge_properties<V: InputVertex, P: Into<Prop>, S:AsRef<str>, PI: IntoIterator<Item = (S, P)>>(
         &self,
         src: V,
         dst: V,
-        props: P,
+        props: PI,
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
-        self.internal_add_edge_properties(src.id(), dst.id(), props.collect_properties(), layer)
+        self.internal_add_edge_properties(src.id(), dst.id(), props.into_iter().map(|(k, p)| (k.as_ref().to_string(), p.into())).collect(), layer)
     }
+
 }

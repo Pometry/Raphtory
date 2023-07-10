@@ -1,4 +1,4 @@
-use crate::{core::Prop, graph_loader::source::csv_loader::CsvLoader, prelude::*};
+use crate::{graph_loader::source::csv_loader::CsvLoader, prelude::*};
 use chrono::NaiveDateTime;
 use serde::Deserialize;
 use std::{fs, path::PathBuf, time::Instant};
@@ -80,11 +80,8 @@ pub fn company_house_graph(path: Option<String>) -> Graph {
                 )
                 .expect("Failed to add vertex");
 
-                g.add_vertex_properties(
-                    owner.clone(),
-                    [("type".into(), Prop::Str("owner".into()))],
-                )
-                .expect("Failed to add vertex static property");
+                g.add_vertex_properties(owner.clone(), [("type", "owner")])
+                    .expect("Failed to add vertex static property");
 
                 g.add_vertex(
                     NaiveDateTime::from_timestamp_opt(ts, 0).unwrap(),
@@ -96,10 +93,10 @@ pub fn company_house_graph(path: Option<String>) -> Graph {
                 g.add_vertex_properties(
                     company.clone(),
                     [
-                        ("type".into(), Prop::Str("company".into())),
+                        ("type", "company".as_prop()),
                         (
-                            "flag".into(),
-                            Prop::Str(company_house.illegal_hmo.clone().unwrap_or("None".into())),
+                            "flag",
+                            (company_house.illegal_hmo.clone().unwrap_or("None".into())).as_prop(),
                         ),
                     ],
                 )
@@ -115,10 +112,10 @@ pub fn company_house_graph(path: Option<String>) -> Graph {
                 g.add_vertex_properties(
                     address.clone(),
                     [
-                        ("type".into(), Prop::Str("address".into())),
+                        ("type", "address".as_prop()),
                         (
-                            "flag".into(),
-                            Prop::Str(company_house.illegal_hmo.clone().unwrap_or("None".into())),
+                            "flag",
+                            (company_house.illegal_hmo.clone().unwrap_or("None".into())).as_prop(),
                         ),
                     ],
                 )
@@ -136,7 +133,7 @@ pub fn company_house_graph(path: Option<String>) -> Graph {
                 g.add_edge_properties(
                     owner,
                     company.clone(),
-                    [("rel".into(), Prop::Str("owns".into()))],
+                    [("rel", "owns")],
                     Some(pincode),
                 )
                 .expect("Failed to add edge static property");
@@ -153,7 +150,7 @@ pub fn company_house_graph(path: Option<String>) -> Graph {
                 g.add_edge_properties(
                     company,
                     address,
-                    [("rel".into(), Prop::Str("owns".into()))],
+                    [("rel", "owns")],
                     None,
                 )
                 .expect("Failed to add edge static property");
