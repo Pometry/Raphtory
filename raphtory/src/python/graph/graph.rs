@@ -13,12 +13,13 @@ use crate::{
         utils::{PyInputVertex, PyTime},
     },
 };
+use csv::StringRecord;
 use pyo3::prelude::*;
 use regex::Regex;
 use std::{
     collections::HashMap,
     fmt::{Debug, Formatter},
-    path::{Path, PathBuf},
+    path::{Path, PathBuf}, str::FromStr,
 };
 
 /// A temporal graph.
@@ -214,6 +215,9 @@ impl PyGraph {
     #[staticmethod]
     pub fn load_from_csv(
         path: &str,
+        src_col: usize,
+        dst_col: usize,
+        time_col: usize,
         delimiter: Option<&str>,
         has_header: Option<bool>,
         file_regex: Option<&str>,
@@ -231,7 +235,15 @@ impl PyGraph {
         }
 
         let graph = Graph::new();
-        loader.load_rec_into_graph(&graph, |rec, g| Ok(()))?;
+        loader.load_rec_into_graph(&graph, |rec, g| {
+            let src = parse_col_to_val_or_string::<u64>(&rec, src_col)
+                .ok_or(GraphError::VertexIdNotStringOrNumber)?;
+            let dst = parse_col_to_val_or_string::<u64>(&rec, src_col)
+                .ok_or(GraphError::VertexIdNotStringOrNumber)?;
+            let time = parse_col_to_val_or_string::<i64>(&rec, src_col)
+                .ok_or(GraphError::VertexIdNotStringOrNumber)?;
+            Ok(())
+        })?;
         Ok(graph)
     }
 
@@ -245,4 +257,16 @@ impl PyGraph {
     pub fn save_to_file(&self, path: &str) -> Result<(), GraphError> {
         self.graph.save_to_file(Path::new(path))
     }
+}
+
+fn parse_col_to_val_or_string<'a, T: FromStr>(
+    rec: &'a StringRecord,
+    col: usize,
+) -> Option<Result<T, String>> {
+    rec.get(col).and_then(|s| {
+        s.parse::<T>()
+            .ok()
+            .map(|res| Ok::<T, String>(res))
+            .or_else(|| Some(Err(s.to_string())))
+    })
 }
