@@ -6,6 +6,7 @@
 //! In Python, this class wraps around the rust graph.
 use crate::{
     core::utils::errors::GraphError,
+    graph_loader::source::csv_loader::CsvLoader,
     prelude::*,
     python::{
         graph::views::graph_view::PyGraphView,
@@ -13,6 +14,7 @@ use crate::{
     },
 };
 use pyo3::prelude::*;
+use regex::Regex;
 use std::{
     collections::HashMap,
     fmt::{Debug, Formatter},
@@ -200,6 +202,36 @@ impl PyGraph {
     pub fn load_from_file(path: &str) -> Result<Graph, GraphError> {
         let file_path: PathBuf = [env!("CARGO_MANIFEST_DIR"), path].iter().collect();
         Graph::load_from_file(file_path)
+    }
+
+    /// Loads a graph from the given csv file path.
+    ///
+    /// Arguments:
+    ///   path (str): The path to the edge list csv file.
+    ///
+    /// Returns:
+    ///  Graph: The loaded graph.
+    #[staticmethod]
+    pub fn load_from_csv(
+        path: &str,
+        delimiter: Option<&str>,
+        has_header: Option<bool>,
+        file_regex: Option<&str>,
+    ) -> Result<Graph, GraphError> {
+        let mut loader = CsvLoader::new(path);
+        if let Some(del) = delimiter {
+            loader = loader.set_delimiter(del);
+        }
+        if let Some(header) = has_header {
+            loader = loader.set_header(header);
+        }
+        if let Some(reg) = file_regex {
+            loader = loader.with_filter(Regex::new(reg)?);
+        }
+
+        let graph = Graph::new();
+        loader.load_rec_into_graph(g, loader)?;
+        Ok(graph)
     }
 
     /// Saves the graph to the given path.
