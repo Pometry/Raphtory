@@ -1,3 +1,5 @@
+use std::io;
+
 use crate::core::{storage::lazy_vec::IllegalSet, utils::time::error::ParseTimeError, Prop};
 
 #[cfg(feature = "search")]
@@ -28,6 +30,10 @@ pub enum GraphError {
     BinCodeError { source: Box<bincode::ErrorKind> },
     #[error("IO operation failed")]
     IOError { source: std::io::Error },
+
+    #[error("Loading Graph from CSV failed")]
+    CsvLoadError(CsvErr),
+
     #[cfg(feature = "search")]
     #[error("Index operation failed")]
     IndexError { source: tantivy::TantivyError },
@@ -35,6 +41,12 @@ pub enum GraphError {
     #[cfg(feature = "search")]
     #[error("Index operation failed")]
     QueryError { source: QueryParserError },
+}
+
+impl From<CsvErr> for GraphError {
+    fn from(source: CsvErr) -> Self {
+        GraphError::CsvLoadError(source)
+    }
 }
 
 impl From<bincode::Error> for GraphError {
@@ -110,4 +122,16 @@ impl IllegalMutate {
             source,
         }
     }
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum CsvErr {
+    /// An IO error that occurred during file read.
+    #[error("Unable to read file")]
+    IoError(#[from] io::Error),
+    /// A CSV parsing error that occurred while parsing the CSV data.
+    #[error("Unable to parse CSV")]
+    CsvError(#[from] csv::Error),
+    #[error("Failure to parse regex filter for files")]
+    RegexError(#[from] regex::Error),
 }

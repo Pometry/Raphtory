@@ -60,7 +60,7 @@
 
 /// Module for loading CSV files into a graph.
 use bzip2::read::BzDecoder;
-use csv::{ByteRecord, StringRecord};
+use csv::StringRecord;
 use flate2; // 1.0
 use flate2::read::GzDecoder;
 use rayon::prelude::*;
@@ -68,8 +68,7 @@ use regex::Regex;
 use serde::de::DeserializeOwned;
 use std::{
     collections::VecDeque,
-    error::Error,
-    fmt::{Debug, Display, Formatter},
+    fmt::Debug,
     fs,
     fs::File,
     io,
@@ -77,43 +76,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-#[derive(Debug)]
-pub enum CsvErr {
-    /// An IO error that occurred during file read.
-    IoError(io::Error),
-    /// A CSV parsing error that occurred while parsing the CSV data.
-    CsvError(csv::Error),
-}
-
-impl From<io::Error> for CsvErr {
-    fn from(value: io::Error) -> Self {
-        Self::IoError(value)
-    }
-}
-
-impl From<csv::Error> for CsvErr {
-    fn from(value: csv::Error) -> Self {
-        Self::CsvError(value)
-    }
-}
-
-impl Display for CsvErr {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self.source() {
-            Some(error) => write!(f, "CSV loader failed with error: {}", error),
-            None => write!(f, "CSV loader failed with unknown error"),
-        }
-    }
-}
-
-impl Error for CsvErr {
-    fn source(&self) -> Option<&(dyn Error + 'static)> {
-        match self {
-            CsvErr::IoError(error) => Some(error),
-            CsvErr::CsvError(error) => Some(error),
-        }
-    }
-}
+use crate::core::utils::errors::{GraphError, CsvErr};
 
 /// A struct that defines the CSV loader with configurable options.
 #[derive(Debug)]
@@ -339,9 +302,9 @@ impl CsvLoader {
     ///
     /// An error of type CsvErr is returned if an I/O error occurs while reading the files or parsing the CSV data.
     ///
-    pub fn load_rec_into_graph<F, G>(&self, g: &G, loader: F) -> Result<(), CsvErr>
+    pub fn load_rec_into_graph<F, G>(&self, g: &G, loader: F) -> Result<(), GraphError>
     where
-        F: Fn(StringRecord, &G) + Send + Sync,
+        F: Fn(StringRecord, &G) -> Result<(), GraphError> + Send + Sync,
         G: Sync,
     {
         //FIXME: loader function should return a result for reporting parsing errors
@@ -393,16 +356,16 @@ impl CsvLoader {
         path: P,
         g: &G,
         loader: &F,
-    ) -> Result<(), CsvErr>
+    ) -> Result<(), GraphError>
     where
-        F: Fn(StringRecord, &G),
+        F: Fn(StringRecord, &G) -> Result<(), GraphError>,
     {
         let file_path: PathBuf = path.into();
 
         let mut csv_reader = self.csv_reader(file_path)?;
         for rec in csv_reader.records() {
-            let record = rec?;
-            loader(record, g)
+            let record = rec.map_err(CsvErr::CsvError)?;
+            loader(record, g)?
         }
 
         Ok(())
@@ -454,7 +417,8 @@ impl CsvLoader {
 #[cfg(test)]
 mod csv_loader_test {
     use crate::{
-        core::utils::hashing::calculate_hash, graph_loader::source::csv_loader::CsvLoader,
+        core::utils::{errors::GraphError, hashing::calculate_hash, time::error::ParseTimeError},
+        graph_loader::source::csv_loader::CsvLoader,
         prelude::*,
     };
     use csv::StringRecord;
@@ -536,24 +500,29 @@ mod csv_loader_test {
             .set_delimiter(delimiter)
             .with_filter(r)
             .load_rec_into_graph(&g, |lotr: StringRecord, g: &Graph| {
-                let src_id = lotr.get(0).map(|s| calculate_hash(&(s.to_owned()))).unwrap();
-                let dst_id = lotr.get(1).map(|s| calculate_hash(&(s.to_owned()))).unwrap();
-                let time = lotr.get(2).map(|s| s.parse::<i64>().unwrap()).unwrap();
+                let src_id = lotr
+                    .get(0)
+                    .map(|s| calculate_hash(&(s.to_owned())))
+                    .ok_or(GraphError::VertexIdNotStringOrNumber)?;
+                let dst_id = lotr
+                    .get(1)
+                    .map(|s| calculate_hash(&(s.to_owned())))
+                    .ok_or(GraphError::VertexIdNotStringOrNumber)?;
+                let time = lotr.get(2).map(|s| {
+                    s.parse::<i64>()
+                        .map_err(|source| ParseTimeError::ParseInt { source })
+                }).unwrap()?;
 
                 g.add_vertex(
                     time,
                     src_id,
                     [("name".to_string(), Prop::Str("Character".to_string()))],
-                )
-                .map_err(|err| println!("{:?}", err))
-                .ok();
+                )?;
                 g.add_vertex(
                     time,
                     dst_id,
                     [("name".to_string(), Prop::Str("Character".to_string()))],
-                )
-                .map_err(|err| println!("{:?}", err))
-                .ok();
+                )?;
                 g.add_edge(
                     time,
                     src_id,
@@ -563,8 +532,8 @@ mod csv_loader_test {
                         Prop::Str("Character Co-occurrence".to_string()),
                     )],
                     None,
-                )
-                .unwrap();
+                )?;
+                Ok(())
             })
             .expect("Csv did not parse.");
     }

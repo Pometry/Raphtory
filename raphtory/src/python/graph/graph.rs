@@ -5,7 +5,7 @@
 //! It is a wrapper around a set of shards, which are the actual graph data structures.
 //! In Python, this class wraps around the rust graph.
 use crate::{
-    core::utils::errors::GraphError,
+    core::utils::errors::{CsvErr, GraphError},
     graph_loader::source::csv_loader::CsvLoader,
     prelude::*,
     python::{
@@ -226,11 +226,12 @@ impl PyGraph {
             loader = loader.set_header(header);
         }
         if let Some(reg) = file_regex {
-            loader = loader.with_filter(Regex::new(reg)?);
+            let regex = Regex::new(reg).map_err(|e| CsvErr::RegexError(e))?;
+            loader = loader.with_filter(regex);
         }
 
         let graph = Graph::new();
-        loader.load_rec_into_graph(g, loader)?;
+        loader.load_rec_into_graph(&graph, |rec, g| Ok(()))?;
         Ok(graph)
     }
 
