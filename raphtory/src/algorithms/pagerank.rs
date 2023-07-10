@@ -170,7 +170,7 @@ mod page_rank_tests {
     use itertools::Itertools;
     use pretty_assertions::assert_eq;
 
-    use crate::db::{api::mutation::AdditionOps, graph::graph::Graph};
+    use crate::{db::{api::mutation::AdditionOps, graph::graph::Graph}, prelude::NO_PROPS};
 
     use super::*;
 
@@ -180,7 +180,7 @@ mod page_rank_tests {
         let edges = vec![(1, 2), (1, 4), (2, 3), (3, 1), (4, 1)];
 
         for (src, dst) in edges {
-            graph.add_edge(0, src, dst, [], None).unwrap();
+            graph.add_edge(0, src, dst, NO_PROPS, None).unwrap();
         }
         graph
     }
@@ -230,7 +230,7 @@ mod page_rank_tests {
         let graph = Graph::new();
 
         for (src, dst, t) in edges {
-            graph.add_edge(t, src, dst, [], None).unwrap();
+            graph.add_edge(t, src, dst, NO_PROPS, None).unwrap();
         }
 
         let results: HashMap<String, f64> = unweighted_page_rank(&graph, 1000, Some(4), None, true)
@@ -257,7 +257,7 @@ mod page_rank_tests {
         let graph = Graph::new();
 
         for (t, (src, dst)) in edges.into_iter().enumerate() {
-            graph.add_edge(t as i64, src, dst, [], None).unwrap();
+            graph.add_edge(t as i64, src, dst, NO_PROPS, None).unwrap();
         }
 
         let results: HashMap<String, f64> =
@@ -276,7 +276,7 @@ mod page_rank_tests {
         let graph = Graph::new();
 
         for (t, (src, dst)) in edges.into_iter().enumerate() {
-            graph.add_edge(t as i64, src, dst, [], None).unwrap();
+            graph.add_edge(t as i64, src, dst, NO_PROPS, None).unwrap();
         }
 
         let results: HashMap<String, f64> = unweighted_page_rank(&graph, 10, Some(4), None, false)
@@ -314,7 +314,7 @@ mod page_rank_tests {
         let graph = Graph::new();
 
         for (src, dst, t) in edges {
-            graph.add_edge(t, src, dst, [], None).unwrap();
+            graph.add_edge(t, src, dst, NO_PROPS, None).unwrap();
         }
 
         let results: HashMap<String, f64> = unweighted_page_rank(&graph, 1000, Some(4), None, true)

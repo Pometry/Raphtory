@@ -87,7 +87,7 @@ pub fn sx_superuser_graph() -> Result<Graph, Box<dyn std::error::Error>> {
     CsvLoader::new(sx_superuser_file()?)
         .set_delimiter(" ")
         .load_into_graph(&graph, |edge: TEdge, g: &Graph| {
-            g.add_edge(edge.time, edge.src_id, edge.dst_id, [], None)
+            g.add_edge(edge.time, edge.src_id, edge.dst_id, NO_PROPS, None)
                 .expect("Error: Unable to add edge");
         })?;
 

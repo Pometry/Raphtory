@@ -90,7 +90,7 @@ pub fn stable_coin_graph(path: Option<String>, subset: bool) -> Graph {
                     NaiveDateTime::from_timestamp_opt(stablecoin.time_stamp, 0).unwrap(),
                     stablecoin.from_address,
                     stablecoin.to_address,
-                    [("value".into(), Prop::F64(stablecoin.value.into()))],
+                    [("value", stablecoin.value)],
                     Some(label),
                 )
                 .expect("Failed to add edge");

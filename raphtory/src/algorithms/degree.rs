@@ -31,7 +31,7 @@
 //! ];
 //!
 //! for (t, src, dst) in &vs {
-//!     g.add_edge(*t, *src, *dst, [], None);
+//!     g.add_edge(*t, *src, *dst, NO_PROPS, None);
 //! }
 //!
 //! print!("Max out degree: {:?}", max_out_degree(&windowed_graph));
@@ -103,7 +103,7 @@ pub fn average_degree<G: GraphViewOps>(graph: &G) -> f64 {
 mod degree_test {
     use crate::{
         algorithms::degree::{average_degree, max_in_degree, min_in_degree, min_out_degree},
-        db::{api::mutation::AdditionOps, graph::graph::Graph},
+        db::{api::mutation::AdditionOps, graph::graph::Graph}, prelude::NO_PROPS,
     };
 
     use super::max_out_degree;
@@ -121,7 +121,7 @@ mod degree_test {
         ];
 
         for (t, src, dst) in &vs {
-            g.add_edge(*t, *src, *dst, [], None).unwrap();
+            g.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
         }
 
         let expected_max_out_degree = 3;

@@ -19,7 +19,7 @@ mod state_test {
             accumulator_id::accumulators, compute_state::ComputeStateVec, container::merge_2_vecs,
             morcel_state::MorcelComputeState, shuffle_state::ShuffleComputeState,
         },
-        db::{api::mutation::AdditionOps, graph::graph::Graph},
+        db::{api::mutation::AdditionOps, graph::graph::Graph}, prelude::NO_PROPS,
     };
 
     #[quickcheck]
@@ -44,9 +44,9 @@ mod state_test {
     fn tiny_graph() -> Graph {
         let g = Graph::new();
 
-        g.add_vertex(1, 1, []).unwrap();
-        g.add_vertex(1, 2, []).unwrap();
-        g.add_vertex(1, 3, []).unwrap();
+        g.add_vertex(1, 1, NO_PROPS).unwrap();
+        g.add_vertex(1, 2, NO_PROPS).unwrap();
+        g.add_vertex(1, 3, NO_PROPS).unwrap();
         g
     }
 

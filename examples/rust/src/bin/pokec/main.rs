@@ -6,7 +6,7 @@ use raphtory::{
         api::{mutation::AdditionOps, view::GraphViewOps},
         graph::graph::Graph,
     },
-    graph_loader::source::csv_loader::CsvLoader,
+    graph_loader::source::csv_loader::CsvLoader, prelude::NO_PROPS,
 };
 use serde::Deserialize;
 use std::{env, path::Path, time::Instant};
@@ -31,7 +31,7 @@ fn main() {
             .set_delimiter("\t")
             .set_header(false)
             .load_into_graph(&g, |e: Edge, g| {
-                g.add_edge(0, e.src, e.dst, [], None)
+                g.add_edge(0, e.src, e.dst, NO_PROPS, None)
                     .expect("Failed to add edge");
             })
             .expect("Failed to load graph from encoded data files");

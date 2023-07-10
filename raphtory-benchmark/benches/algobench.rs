@@ -79,7 +79,7 @@ pub fn local_clustering_coefficient_analysis(c: &mut Criterion) {
         ];
 
         for (src, dst, t) in &vs {
-            g.add_edge(*t, *src, *dst, [], None).unwrap();
+            g.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
         }
 
         b.iter(|| local_clustering_coefficient(&windowed_graph, 1))
