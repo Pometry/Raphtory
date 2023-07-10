@@ -483,13 +483,13 @@ impl Repr for PyVertex {
         let properties: String = self
             .properties(Some(true))
             .iter()
-            .map(|(k, v)| k.to_string() + " : " + &v.to_string())
+            .map(|(k, v)| format!("{}={}", k.to_string(), v.to_string()))
             .join(", ");
 
         if properties.is_empty() {
             format!("Vertex(name={})", self.name().trim_matches('"'))
         } else {
-            let property_string: String = "{".to_owned() + &properties + "}";
+            let property_string: String = format!("{{{}}}", properties);
             format!(
                 "Vertex(name={}, properties={})",
                 self.name().trim_matches('"'),

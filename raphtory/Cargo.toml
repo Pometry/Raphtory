@@ -62,7 +62,8 @@ tantivy = {version="0.20", optional=true}
 pyo3 =  {version= "0.19.0", features=["multiple-pymethods", "chrono"], optional=true}
 num = {version="0.4.0", optional=true}
 display-error-chain = {version="0.1.1", optional=true}
-
+polars = {version = "0.30.0", optional=true }
+pyo3-polars = {version = "0.4.1", optional=true }
 
 [dev-dependencies]
 csv = "1"
@@ -76,6 +77,6 @@ default = ["search"]
 # Enables the graph loader io module
 io = ["dep:zip","dep:neo4rs", "dep:bzip2", "dep:flate2", "dep:csv", "dep:serde_json", "dep:reqwest", "dep:tokio"]
 # Enables generating the pyo3 python bindings
-python = ["io", "dep:pyo3", "dep:num", "dep:display-error-chain"]
+python = ["io", "dep:pyo3", "dep:num", "dep:display-error-chain", "dep:polars", "dep:pyo3-polars"]
 # search
 search = ["dep:tantivy"]

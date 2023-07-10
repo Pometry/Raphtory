@@ -3,6 +3,7 @@
 /// To run an algorithm simply import the module and call the function with the graph as the argument
 ///
 use std::collections::HashMap;
+use polars::frame::DataFrame;
 
 use crate::{
     algorithms::{
@@ -30,6 +31,23 @@ use crate::{
     python::{graph::views::graph_view::PyGraphView, utils::PyInputVertex},
 };
 use pyo3::prelude::*;
+
+use polars::prelude::*;
+use pyo3_polars::PyDataFrame;
+
+fn hashmap_to_dataframe(hashmap_to_convert: HashMap<String, f64>) -> PyDataFrame {
+    let ids = Series::new("id", hashmap_to_convert.keys().map(|x| x.to_string()).collect::<Vec<String>>() );
+    let values = Series::new("value", hashmap_to_convert.values().copied().collect::<Vec<f64>>());
+    let df = DataFrame::new(vec![ids, values]).unwrap();
+    PyDataFrame(df)
+}
+
+#[pyfunction]
+pub fn all_local_reciprocity_df(g: &PyGraphView) -> PyDataFrame {
+    let hm = all_local_reciprocity_rs(&g.graph, None);
+    hashmap_to_dataframe(hm)
+}
+
 
 /// Local triangle count - calculates the number of triangles (a cycle of length 3) a vertex participates in.
 ///
