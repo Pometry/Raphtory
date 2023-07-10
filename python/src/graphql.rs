@@ -7,33 +7,36 @@ use raphtory_graphql::RaphtoryServer;
 use std::collections::HashMap;
 
 #[pyfunction]
-pub fn from_map(py: Python, graphs: HashMap<String, PyGraph>) -> PyResult<&PyAny> {
+pub fn from_map(py: Python, graphs: HashMap<String, PyGraph>,port:Option<u16>) -> PyResult<&PyAny> {
     let graphs: HashMap<String, DynamicGraph> = graphs
         .into_iter()
         .map(|(key, value)| (key, value.into()))
         .collect();
     let server = RaphtoryServer::from_map(graphs);
-    pyo3_asyncio::tokio::future_into_py(py, async {
-        server.run().await.map_err(|e| adapt_err_value(&e))
+    let port = port.unwrap_or(1736);
+    pyo3_asyncio::tokio::future_into_py(py, async move {
+        server.run_with_port(port).await.map_err(|e| adapt_err_value(&e))
     })
 }
 
 #[pyfunction]
-pub fn from_directory(py: Python, path: String) -> PyResult<&PyAny> {
+pub fn from_directory(py: Python, path: String,port:Option<u16>) -> PyResult<&PyAny> {
     let server = RaphtoryServer::from_directory(path.as_str());
-    pyo3_asyncio::tokio::future_into_py(py, async {
-        server.run().await.map_err(|e| adapt_err_value(&e))
+    let port = port.unwrap_or(1736);
+    pyo3_asyncio::tokio::future_into_py(py, async move {
+        server.run_with_port(port).await.map_err(|e| adapt_err_value(&e))
     })
 }
 
 #[pyfunction]
-pub fn from_map_and_directory(py: Python,graphs: HashMap<String, PyGraph>, path: String) -> PyResult<&PyAny> {
+pub fn from_map_and_directory(py: Python,graphs: HashMap<String, PyGraph>, path: String,port:Option<u16>) -> PyResult<&PyAny> {
     let graphs: HashMap<String, DynamicGraph> = graphs
         .into_iter()
         .map(|(key, value)| (key, value.into()))
         .collect();
+    let port = port.unwrap_or(1736);
     let server = RaphtoryServer::from_map_and_directory(graphs,path.as_str());
-    pyo3_asyncio::tokio::future_into_py(py, async {
-        server.run().await.map_err(|e| adapt_err_value(&e))
+    pyo3_asyncio::tokio::future_into_py(py, async move {
+        server.run_with_port(port).await.map_err(|e| adapt_err_value(&e))
     })
 }

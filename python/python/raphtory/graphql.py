@@ -1,16 +1,16 @@
 from raphtory import internal_graphql
 import asyncio
 
-async def __from_map_and_directory(graphs,graph_dir):
-    await internal_graphql.from_map_and_directory(graphs,graph_dir)
+async def __from_map_and_directory(graphs,graph_dir,port):
+    await internal_graphql.from_map_and_directory(graphs,graph_dir,port)
 
-async def __from_directory(graph_dir):
-    await internal_graphql.from_directory(graph_dir)
+async def __from_directory(graph_dir,port):
+    await internal_graphql.from_directory(graph_dir,port)
 
-async def __from_map(graphs):
-    await internal_graphql.from_map(graphs)
+async def __from_map(graphs,port):
+    await internal_graphql.from_map(graphs,port)
 
-def run_server(graphs=None,graph_dir=None):
+def run_server(graphs=None,graph_dir=None,port=1736):
     """
     Runs the Raphtory GraphQL server.
 
@@ -20,8 +20,11 @@ def run_server(graphs=None,graph_dir=None):
     """
     loop = asyncio.get_event_loop()
     if graph_dir is not None and graphs is not None:
-        loop.create_task(__from_map_and_directory(graphs,graph_dir))
+        loop.run_until_complete(__from_map_and_directory(graphs,graph_dir,port))
+        loop.close()
     elif graph_dir is not None:
-        loop.create_task(__from_directory(graph_dir))
+        loop.run_until_complete(__from_directory(graph_dir,port))
+        loop.close()
     elif graphs is not None:
-        loop.create_task(__from_map(graphs))
+        loop.run_until_complete(__from_map(graphs,port))
+        loop.close()
