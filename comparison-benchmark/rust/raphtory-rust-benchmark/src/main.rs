@@ -2,7 +2,7 @@ use chrono::NaiveDateTime;
 use std::{env, time::Instant};
 use std::collections::HashMap;
 use raphtory::graph_loader::source::csv_loader::CsvLoader;
-use raphtory::prelude::{AdditionOps, Graph, GraphViewOps, VertexViewOps};
+use raphtory::prelude::{AdditionOps, EMPTY, Graph, GraphViewOps, VertexViewOps};
 use serde::Deserialize;
 use raphtory::algorithms::pagerank::unweighted_page_rank;
 use raphtory::algorithms::connected_components::weakly_connected_components;
@@ -160,7 +160,7 @@ fn main() {
                     edge_time,
                     src_id,
                     dst_id,
-                    [],
+                    EMPTY,
                     None
                 )
                     .expect("Failed to add edge");
