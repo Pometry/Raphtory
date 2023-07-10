@@ -792,10 +792,10 @@ mod test {
 
     #[test]
     fn add_vertex_search_by_name() {
-        let graph = IndexedGraph::new(Graph::new(), EMPTY, EMPTY);
+        let graph = IndexedGraph::new(Graph::new(), NO_PROPS, NO_PROPS);
 
         graph
-            .add_vertex(1, "Gandalf", EMPTY)
+            .add_vertex(1, "Gandalf", NO_PROPS)
             .expect("add vertex failed");
 
         graph.reload().expect("reload failed");
@@ -812,7 +812,7 @@ mod test {
 
     #[test]
     fn add_vertex_search_by_description() {
-        let graph = IndexedGraph::new(Graph::new(), [("description", Prop::str(""))], EMPTY);
+        let graph = IndexedGraph::new(Graph::new(), [("description", Prop::str(""))], NO_PROPS);
 
         graph
             .add_vertex(
@@ -849,7 +849,7 @@ mod test {
 
     #[test]
     fn add_vertex_search_by_description_and_time() {
-        let graph = IndexedGraph::new(Graph::new(), [("description", Prop::str(""))], EMPTY);
+        let graph = IndexedGraph::new(Graph::new(), [("description", Prop::str(""))], NO_PROPS);
 
         graph
             .add_vertex(
@@ -946,9 +946,9 @@ mod test {
     fn search_by_edge_src_dst() {
         let g = Graph::new();
 
-        g.add_edge(1, "Frodo", "Gandalf", EMPTY, None)
+        g.add_edge(1, "Frodo", "Gandalf", NO_PROPS, None)
             .expect("add edge failed");
-        g.add_edge(1, "Frodo", "Gollum", EMPTY, None)
+        g.add_edge(1, "Frodo", "Gollum", NO_PROPS, None)
             .expect("add edge failed");
 
         let ig: IndexedGraph<Graph> = g.into();

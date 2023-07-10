@@ -29,7 +29,7 @@ use crate::{
 ///      (2, 7),
 ///  ];
 ///  for (src, dst) in edges {
-///      graph.add_edge(0, src, dst, EMPTY, None).expect("Unable to add edge");
+///      graph.add_edge(0, src, dst, NO_PROPS, None).expect("Unable to add edge");
 ///  }
 ///  let results = clustering_coefficient(&graph.at(1));
 ///  println!("global_clustering_coefficient: {}", results);
@@ -52,7 +52,7 @@ mod cc_test {
     use crate::{db::{
         api::{mutation::AdditionOps, view::*},
         graph::graph::Graph,
-    }, prelude::EMPTY};
+    }, prelude::NO_PROPS};
     use pretty_assertions::assert_eq;
 
     /// Test the global clustering coefficient
@@ -85,7 +85,7 @@ mod cc_test {
         ];
 
         for (src, dst) in edges {
-            graph.add_edge(0, src, dst, EMPTY, None).unwrap();
+            graph.add_edge(0, src, dst, NO_PROPS, None).unwrap();
         }
 
         let graph_at = graph.at(1);

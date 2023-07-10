@@ -16,7 +16,7 @@
 use crate::{db::{
     api::{mutation::AdditionOps, view::*},
     graph::graph::Graph,
-}, prelude::EMPTY};
+}, prelude::NO_PROPS};
 use rand::seq::SliceRandom;
 
 /// Given a graph this function will add a user defined number of vertices, each with a
@@ -51,7 +51,7 @@ pub fn random_attachment(graph: &Graph, vertices_to_add: usize, edges_per_step: 
         max_id += 1;
         latest_time += 1;
         graph
-            .add_vertex(latest_time, max_id, EMPTY)
+            .add_vertex(latest_time, max_id, NO_PROPS)
             .map_err(|err| println!("{:?}", err))
             .ok();
         ids.push(max_id);
@@ -63,7 +63,7 @@ pub fn random_attachment(graph: &Graph, vertices_to_add: usize, edges_per_step: 
         latest_time += 1;
         edges.for_each(|neighbour| {
             graph
-                .add_edge(latest_time, max_id, *neighbour, EMPTY, None)
+                .add_edge(latest_time, max_id, *neighbour, NO_PROPS, None)
                 .expect("Not able to add edge");
         });
         ids.push(max_id);
@@ -87,7 +87,7 @@ mod random_graph_test {
         let graph = Graph::new();
         for i in 0..10 {
             graph
-                .add_vertex(i, i as u64, EMPTY)
+                .add_vertex(i, i as u64, NO_PROPS)
                 .map_err(|err| println!("{:?}", err))
                 .ok();
         }

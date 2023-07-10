@@ -38,7 +38,7 @@
 //! ];
 //!
 //! for (t, src, dst) in &vs {
-//!     g.add_edge(*t, *src, *dst, EMPTY, None);
+//!     g.add_edge(*t, *src, *dst, NO_PROPS, None);
 //! }
 //!
 //! let actual = (1..=5)
@@ -82,7 +82,7 @@ mod clustering_coefficient_tests {
     use crate::{db::{
         api::{mutation::AdditionOps, view::*},
         graph::graph::Graph,
-    }, prelude::EMPTY};
+    }, prelude::NO_PROPS};
 
     #[test]
     fn clusters_of_triangles() {
@@ -98,7 +98,7 @@ mod clustering_coefficient_tests {
         ];
 
         for (t, src, dst) in &vs {
-            g.add_edge(*t, *src, *dst, EMPTY, None).unwrap();
+            g.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
         }
 
         let expected = vec![0.33333334, 1.0, 1.0, 0.0, 0.0];

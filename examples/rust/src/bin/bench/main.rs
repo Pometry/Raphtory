@@ -56,13 +56,13 @@ fn main() {
         CsvLoader::new(data_dir)
             .set_delimiter("\t")
             .load_into_graph(&g, |lotr: Benchr, g: &Graph| {
-                g.add_vertex(1, lotr.src_id.clone(), EMPTY)
+                g.add_vertex(1, lotr.src_id.clone(), NO_PROPS)
                     .expect("Failed to add vertex");
 
-                g.add_vertex(1, lotr.dst_id.clone(), EMPTY)
+                g.add_vertex(1, lotr.dst_id.clone(), NO_PROPS)
                     .expect("Failed to add vertex");
 
-                g.add_edge(1, lotr.src_id.clone(), lotr.dst_id.clone(), EMPTY, None)
+                g.add_edge(1, lotr.src_id.clone(), lotr.dst_id.clone(), NO_PROPS, None)
                     .expect("Failed to add edge");
             })
             .expect("Failed to load graph from CSV data files");

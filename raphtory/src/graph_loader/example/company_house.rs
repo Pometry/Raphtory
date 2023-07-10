@@ -76,7 +76,7 @@ pub fn company_house_graph(path: Option<String>) -> Graph {
                 g.add_vertex(
                     NaiveDateTime::from_timestamp_opt(ts, 0).unwrap(),
                     owner.clone(),
-                    EMPTY,
+                    NO_PROPS,
                 )
                 .expect("Failed to add vertex");
 
@@ -86,7 +86,7 @@ pub fn company_house_graph(path: Option<String>) -> Graph {
                 g.add_vertex(
                     NaiveDateTime::from_timestamp_opt(ts, 0).unwrap(),
                     company.clone(),
-                    EMPTY,
+                    NO_PROPS,
                 )
                 .expect("Failed to add vertex");
 
@@ -105,7 +105,7 @@ pub fn company_house_graph(path: Option<String>) -> Graph {
                 g.add_vertex(
                     NaiveDateTime::from_timestamp_opt(ts, 0).unwrap(),
                     address.clone(),
-                    EMPTY,
+                    NO_PROPS,
                 )
                 .expect("Failed to add vertex");
 
@@ -125,7 +125,7 @@ pub fn company_house_graph(path: Option<String>) -> Graph {
                     NaiveDateTime::from_timestamp_opt(ts, 0).unwrap(),
                     owner.clone(),
                     company.clone(),
-                    EMPTY,
+                    NO_PROPS,
                     Some(pincode),
                 )
                 .expect("Failed to add edge");
@@ -142,7 +142,7 @@ pub fn company_house_graph(path: Option<String>) -> Graph {
                     NaiveDateTime::from_timestamp_opt(ts, 0).unwrap(),
                     company.clone(),
                     address.clone(),
-                    EMPTY,
+                    NO_PROPS,
                     None,
                 )
                 .expect("Failed to add edge");

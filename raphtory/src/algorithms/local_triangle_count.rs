@@ -24,7 +24,7 @@
 //! let vs = vec![(1, 1, 2), (2, 1, 3), (3, 2, 1), (4, 3, 2)];
 //!
 //! for (t, src, dst) in &vs {
-//!     g.add_edge(*t, *src, *dst, EMPTY, None);
+//!     g.add_edge(*t, *src, *dst, NO_PROPS, None);
 //! }
 //!
 //! let windowed_graph = g.window(0, 5);
@@ -73,7 +73,7 @@ mod triangle_count_tests {
     use crate::{db::{
         api::{mutation::AdditionOps, view::*},
         graph::graph::Graph,
-    }, prelude::EMPTY};
+    }, prelude::NO_PROPS};
 
     #[test]
     fn counts_triangles() {
@@ -81,7 +81,7 @@ mod triangle_count_tests {
         let vs = vec![(1, 1, 2), (2, 1, 3), (3, 2, 1), (4, 3, 2)];
 
         for (t, src, dst) in &vs {
-            g.add_edge(*t, *src, *dst, EMPTY, None).unwrap();
+            g.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
         }
 
         let windowed_graph = g.window(0, 5);

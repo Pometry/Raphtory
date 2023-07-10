@@ -36,7 +36,7 @@ pub fn graph(c: &mut Criterion) {
         let src: String = random_string(16);
         let dst: String = random_string(16);
         let t: i64 = thread_rng().gen();
-        bencher.iter(|| g.add_edge(t, src.clone(), dst.clone(), EMPTY, None))
+        bencher.iter(|| g.add_edge(t, src.clone(), dst.clone(), NO_PROPS, None))
     });
     graph_group.finish();
 }

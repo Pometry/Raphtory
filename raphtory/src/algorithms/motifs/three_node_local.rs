@@ -238,7 +238,7 @@ pub fn global_temporal_three_node_motifs<G: GraphViewOps>(graph: &G, delta: i64)
 mod local_motif_test {
     use crate::{
         algorithms::motifs::three_node_local::*,
-        db::{api::mutation::AdditionOps, graph::graph::Graph}, prelude::EMPTY,
+        db::{api::mutation::AdditionOps, graph::graph::Graph}, prelude::NO_PROPS,
     };
 
     #[test]
@@ -272,7 +272,7 @@ mod local_motif_test {
         ];
 
         for (src, dst, time) in &vs {
-            graph.add_edge(*time, *src, *dst, EMPTY, None).unwrap();
+            graph.add_edge(*time, *src, *dst, NO_PROPS, None).unwrap();
         }
 
         // let counts = star_motif_count(&graph, 1, 100);

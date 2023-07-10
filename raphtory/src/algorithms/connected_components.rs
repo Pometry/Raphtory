@@ -120,7 +120,7 @@ mod cc_test {
         ];
 
         for (src, dst, ts) in edges {
-            graph.add_edge(ts, src, dst, EMPTY, None).unwrap();
+            graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
         }
         let results: HashMap<String, u64> = weakly_connected_components(&graph, usize::MAX, None);
 
@@ -172,7 +172,7 @@ mod cc_test {
         ];
 
         for (src, dst, ts) in edges {
-            graph.add_edge(ts, src, dst, EMPTY, None).unwrap();
+            graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
         }
 
         let results: HashMap<String, u64> = weakly_connected_components(&graph, usize::MAX, None);
@@ -205,7 +205,7 @@ mod cc_test {
         let edges = vec![(1, 1, 1)];
 
         for (src, dst, ts) in edges {
-            graph.add_edge(ts, src, dst, EMPTY, None).unwrap();
+            graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
         }
 
         let results: HashMap<String, u64> = weakly_connected_components(&graph, usize::MAX, None);
@@ -221,10 +221,10 @@ mod cc_test {
     #[test]
     fn windowed_connected_components() {
         let graph = Graph::new();
-        graph.add_edge(0, 1, 2, EMPTY, None).expect("add edge");
-        graph.add_edge(0, 2, 1, EMPTY, None).expect("add edge");
-        graph.add_edge(9, 3, 4, EMPTY, None).expect("add edge");
-        graph.add_edge(9, 4, 3, EMPTY, None).expect("add edge");
+        graph.add_edge(0, 1, 2, NO_PROPS, None).expect("add edge");
+        graph.add_edge(0, 2, 1, NO_PROPS, None).expect("add edge");
+        graph.add_edge(9, 3, 4, NO_PROPS, None).expect("add edge");
+        graph.add_edge(9, 4, 3, NO_PROPS, None).expect("add edge");
 
         let results: HashMap<String, u64> = weakly_connected_components(&graph, usize::MAX, None);
         let expected = vec![
@@ -269,7 +269,7 @@ mod cc_test {
             let graph = Graph::new();
 
             for (src, dst) in edges.iter() {
-                graph.add_edge(0, *src, *dst, EMPTY, None).unwrap();
+                graph.add_edge(0, *src, *dst, NO_PROPS, None).unwrap();
             }
 
             // now we do connected components over window 0..1

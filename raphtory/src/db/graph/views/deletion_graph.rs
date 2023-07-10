@@ -86,7 +86,7 @@ impl GraphWithDeletions {
     /// use std::fs::File;
     /// use raphtory::prelude::*;
     /// let g = Graph::new();
-    /// g.add_vertex(1, 1, EMPTY).unwrap();
+    /// g.add_vertex(1, 1, NO_PROPS).unwrap();
     /// g.save_to_file("path_str");
     /// ```
     pub fn save_to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), GraphError> {
@@ -389,7 +389,7 @@ mod test_deletions {
     #[test]
     fn test_materialize_window() {
         let g = GraphWithDeletions::new();
-        g.add_edge(0, 1, 2, EMPTY, None).unwrap();
+        g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
         g.delete_edge(10, 1, 2, None).unwrap();
 
         let gm = g
@@ -404,7 +404,7 @@ mod test_deletions {
     #[test]
     fn test_exploded_latest_time() {
         let g = GraphWithDeletions::new();
-        g.add_edge(0, 1, 2, EMPTY, None).unwrap();
+        g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
         g.delete_edge(10, 1, 2, None).unwrap();
         let e = g.edge(1, 2, None).unwrap();
         assert_eq!(e.latest_time(), Some(10));

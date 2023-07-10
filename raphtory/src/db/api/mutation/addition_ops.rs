@@ -6,8 +6,10 @@ use crate::{
             time::{IntoTimeWithFormat, TryIntoTime},
         },
     },
-    db::api::mutation::internal::InternalAdditionOps, prelude::{Prop, EMPTY},
+    db::api::mutation::internal::InternalAdditionOps, prelude::NO_PROPS,
 };
+
+use super::Properties;
 
 pub trait AdditionOps {
     // TODO: Probably add vector reference here like add
@@ -28,17 +30,17 @@ pub trait AdditionOps {
     /// ```
     /// use raphtory::prelude::*;
     /// let g = Graph::new();
-    /// let v = g.add_vertex(0, "Alice", EMPTY);
-    /// let v = g.add_vertex(0, 5, EMPTY);
+    /// let v = g.add_vertex(0, "Alice", NO_PROPS);
+    /// let v = g.add_vertex(0, 5, NO_PROPS);
     /// ```
-    fn add_vertex<V: InputVertex, T: TryIntoTime, P: Into<Prop>, S:AsRef<str>, PI: IntoIterator<Item = (S, P)>>(
+    fn add_vertex<V: InputVertex, T: TryIntoTime, PI: Properties>(
         &self,
         t: T,
         v: V,
         props: PI,
     ) -> Result<(), GraphError>;
 
-    fn add_vertex_with_custom_time_format<V: InputVertex, P: Into<Prop>, S:AsRef<str>, PI: IntoIterator<Item = (S, P)>>(
+    fn add_vertex_with_custom_time_format<V: InputVertex, PI: Properties>(
         &self,
         t: &str,
         fmt: &str,
@@ -65,11 +67,11 @@ pub trait AdditionOps {
     /// use raphtory::prelude::*;
     ///
     /// let graph = Graph::new();
-    /// graph.add_vertex(1, "Alice", EMPTY).unwrap();
-    /// graph.add_vertex(2, "Bob", EMPTY).unwrap();
-    /// graph.add_edge(3, "Alice", "Bob", EMPTY, None).unwrap();
+    /// graph.add_vertex(1, "Alice", NO_PROPS).unwrap();
+    /// graph.add_vertex(2, "Bob", NO_PROPS).unwrap();
+    /// graph.add_edge(3, "Alice", "Bob", NO_PROPS, None).unwrap();
     /// ```    
-    fn add_edge<V: InputVertex, T: TryIntoTime, P: Into<Prop>, S:AsRef<str>, PI: IntoIterator<Item = (S, P)>>(
+    fn add_edge<V: InputVertex, T: TryIntoTime, PI: Properties>(
         &self,
         t: T,
         src: V,
@@ -78,7 +80,7 @@ pub trait AdditionOps {
         layer: Option<&str>,
     ) -> Result<(), GraphError>;
 
-    fn add_edge_with_custom_time_format<V: InputVertex, P: Into<Prop>, S:AsRef<str>, PI: IntoIterator<Item = (S, P)>>(
+    fn add_edge_with_custom_time_format<V: InputVertex, PI: Properties>(
         &self,
         t: &str,
         fmt: &str,
@@ -94,13 +96,13 @@ pub trait AdditionOps {
 
 impl<G: InternalAdditionOps> AdditionOps for G {
 
-    fn add_vertex<V: InputVertex, T: TryIntoTime, P: Into<Prop>, S:AsRef<str>, PI: IntoIterator<Item = (S, P)>>(
+    fn add_vertex<V: InputVertex, T: TryIntoTime, PI: Properties>(
         &self,
         t: T,
         v: V,
         props: PI,
     ) -> Result<(), GraphError> {
-        let properties = props.into_iter().map(|(k, p)| (k.as_ref().to_string(), p.into())).collect();
+        let properties = props.collect_properties();
         self.internal_add_vertex(
             t.try_into_time()?,
             v.id(),
@@ -110,7 +112,7 @@ impl<G: InternalAdditionOps> AdditionOps for G {
         Ok(())
     }
 
-    fn add_edge<V: InputVertex, T: TryIntoTime, P: Into<Prop>, S:AsRef<str>, PI: IntoIterator<Item = (S, P)>>(
+    fn add_edge<V: InputVertex, T: TryIntoTime, PI: Properties>(
         &self,
         t: T,
         src: V,
@@ -121,10 +123,10 @@ impl<G: InternalAdditionOps> AdditionOps for G {
         let t = t.try_into_time()?;
         let src_id = src.id();
         let dst_id = dst.id();
-        self.add_vertex(t, src, EMPTY)?;
-        self.add_vertex(t, dst, EMPTY)?;
+        self.add_vertex(t, src, NO_PROPS)?;
+        self.add_vertex(t, dst, NO_PROPS)?;
 
-        let properties = props.into_iter().map(|(k, p)| (k.as_ref().to_string(), p.into())).collect();
+        let properties = props.collect_properties();
         self.internal_add_edge(t, src_id, dst_id, properties, layer)
     }
 }

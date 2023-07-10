@@ -68,7 +68,7 @@ mod task_tests {
         ];
 
         for (src, dst, ts) in edges {
-            graph.add_edge(ts, src, dst, EMPTY, None).unwrap();
+            graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
         }
 
         let mut ctx: Context<Graph, ComputeStateVec> = (&graph).into();
