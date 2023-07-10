@@ -360,7 +360,8 @@ mod test_deletions {
             g.window(1, 2)
                 .edge(0, 1, None)
                 .unwrap()
-                .property("added", true)
+                .properties()
+                .get("added")
                 .unwrap_i64(),
             0
         );
@@ -371,7 +372,11 @@ mod test_deletions {
             g.window(1, 2)
                 .edge(0, 1, None)
                 .unwrap()
-                .property_history("added"),
+                .properties()
+                .get("added")
+                .unwrap()
+                .iter()
+                .collect_vec(),
             vec![(1, Prop::I64(0))]
         );
 

@@ -143,13 +143,13 @@ impl IntoPy<PyObject> for DynTemporalProperties {
 
 impl<P: TemporalPropertiesOps + Clone> Repr for TemporalProperties<P> {
     fn repr(&self) -> String {
-        format!("Properties({{{}}})", iterator_dict_repr(self.pairs()))
+        format!("Properties({{{}}})", iterator_dict_repr(self.iter()))
     }
 }
 
 impl<P: TemporalPropertyViewOps> Repr for TemporalPropertyView<P> {
     fn repr(&self) -> String {
-        format!("Property({})", iterator_repr(self.pairs()))
+        format!("Property({})", iterator_repr(self.iter()))
     }
 }
 
@@ -194,7 +194,7 @@ impl<P: StaticPropertiesOps + Send + Sync + 'static> IntoPy<PyObject> for Static
 
 impl<P: StaticPropertiesOps> Repr for StaticProperties<P> {
     fn repr(&self) -> String {
-        format!("StaticProperties({{{}}})", iterator_dict_repr(self.pairs()))
+        format!("StaticProperties({{{}}})", iterator_dict_repr(self.iter()))
     }
 }
 

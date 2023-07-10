@@ -148,6 +148,7 @@ impl IntoDynamic for Graph {
 #[cfg(test)]
 mod db_tests {
     use super::*;
+    use crate::db::api::mutation::Properties;
     use crate::{
         core::{
             entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef},
@@ -554,12 +555,12 @@ mod db_tests {
         let actual = v.properties().get("cool").and_then(|v| v.value());
         assert_eq!(actual, Some(Prop::Bool(false)));
 
-        let hist: Vec<_> = v.properties().get("cool").unwrap().pairs().collect();
+        let hist: Vec<_> = v.properties().get("cool").unwrap().iter().collect();
         assert_eq!(hist, vec![(3, Prop::Bool(false))]);
 
         let v = g.vertex(1).unwrap();
 
-        let hist: Vec<_> = v.properties().get("cool").unwrap().pairs().collect();
+        let hist: Vec<_> = v.properties().get("cool").unwrap().iter().collect();
         assert_eq!(hist, vec![(0, Prop::Bool(true)), (3, Prop::Bool(false))]);
     }
 
@@ -572,7 +573,7 @@ mod db_tests {
 
         let e = g.edge(0, 1, None).unwrap();
 
-        let prop = e.property("distance", false).unwrap();
+        let prop = e.properties().get("distance").unwrap().value().unwrap();
         assert_eq!(prop, Prop::U32(5));
     }
 
@@ -765,12 +766,14 @@ mod db_tests {
 
         let exploded = g.edge(1, 2, None).unwrap().explode();
 
-        let res = exploded.map(|e| e.properties(false)).collect_vec();
+        let res = exploded
+            .map(|e| e.properties().collect_properties())
+            .collect_vec();
 
         let mut expected = Vec::new();
         for i in 1..4 {
-            let mut map = HashMap::new();
-            map.insert("weight".to_string(), Prop::I64(i));
+            let mut map = Vec::new();
+            map.push(("weight".to_string(), Prop::I64(i)));
             expected.push(map);
         }
 
@@ -781,7 +784,7 @@ mod db_tests {
             .unwrap()
             .edges()
             .explode()
-            .map(|e| e.properties(false))
+            .map(|e| e.properties().collect_properties())
             .collect_vec();
         assert_eq!(e, expected);
     }

@@ -453,14 +453,14 @@ mod vertex_test {
         let v1_w = g.window(0, 1).vertex(1).unwrap();
         assert_eq!(
             v1.properties()
-                .pairs()
+                .iter()
                 .map(|(k, v)| (k, v.value().unwrap()))
                 .collect::<HashMap<_, _>>(),
             props.into()
         );
         assert_eq!(
             v1_w.properties()
-                .pairs()
+                .iter()
                 .map(|(k, v)| (k, v.value().unwrap()))
                 .collect::<HashMap<_, _>>(),
             HashMap::default()

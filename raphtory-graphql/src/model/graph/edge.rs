@@ -43,7 +43,12 @@ impl Edge {
     }
 
     async fn property(&self, name: String) -> Option<Property> {
-        let prop = self.ee.property(&name, true)?;
+        let prop = if let Some(prop) = self.ee.properties().get(&name) {
+            prop.value()
+                .or_else(|| self.ee.static_properties().get(&name))?
+        } else {
+            self.ee.static_properties().get(&name)?
+        };
         Some(Property::new(name, prop))
     }
 

@@ -330,7 +330,7 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
                     ee.time().unwrap(),
                     ee.src().id(),
                     ee.dst().id(),
-                    ee.properties(false),
+                    ee.properties(),
                     layer,
                 )?;
             }
@@ -340,24 +340,19 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
                 }
             }
 
-            g.add_edge_properties(
-                e.src().id(),
-                e.dst().id(),
-                e.static_properties().pairs(),
-                layer,
-            )?;
+            g.add_edge_properties(e.src().id(), e.dst().id(), e.static_properties(), layer)?;
         }
 
         for v in self.vertices().iter() {
             for h in v.history() {
                 g.add_vertex(h, v.id(), [])?;
             }
-            for (name, prop_view) in v.properties().pairs() {
-                for (t, prop) in prop_view.pairs() {
+            for (name, prop_view) in v.properties().iter() {
+                for (t, prop) in prop_view.iter() {
                     g.add_vertex(t, v.id(), [(name.clone(), prop)])?;
                 }
             }
-            g.add_vertex_properties(v.id(), v.static_properties().pairs())?;
+            g.add_vertex_properties(v.id(), v.static_properties())?;
         }
 
         g.add_static_properties(self.static_properties())?;

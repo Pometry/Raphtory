@@ -71,10 +71,10 @@ impl Node {
         let t_props = self.vv.properties();
         Some(
             t_props
-                .pairs()
+                .iter()
                 .map(|(k, v)| Property::new(k, v.value().unwrap()))
                 .chain(
-                    self.vv.static_properties().pairs().filter_map(|(k, v)| {
+                    self.vv.static_properties().iter().filter_map(|(k, v)| {
                         t_props.get(&k).is_none().then_some(Property::new(k, v))
                     }),
                 )
@@ -98,7 +98,7 @@ impl Node {
             .get(&name)
             .into_iter()
             .flat_map(|p| {
-                p.pairs()
+                p.iter()
                     .map(|(time, prop)| PropertyUpdate::new(time, prop.to_string()))
             })
             .collect_vec()

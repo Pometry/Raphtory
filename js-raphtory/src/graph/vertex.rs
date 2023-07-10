@@ -89,9 +89,9 @@ impl Vertex {
         let t_prop = self.0.properties();
         let s_props = self.0.static_properties();
         let iter = t_prop
-            .pairs()
+            .iter()
             .map(|(k, v)| (k, v.value().unwrap()))
-            .chain(s_props.pairs().filter(|(k, _)| t_prop.get(k).is_none()));
+            .chain(s_props.iter().filter(|(k, _)| t_prop.get(k).is_none()));
         let obj = js_sys::Map::new();
         for (k, v) in iter {
             obj.set(&k.into(), &JsProp(v).into());

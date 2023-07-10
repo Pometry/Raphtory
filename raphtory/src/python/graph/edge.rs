@@ -4,7 +4,9 @@
 //! The PyEdge class also provides access to the perspective APIs, which allow the user to view the
 //! edge as it existed at a particular point in time, or as it existed over a particular time range.
 //!
-use crate::db::api::properties::internal::StaticProperties;
+use crate::db::api::properties::internal::{
+    StaticProperties, TemporalProperties, TemporalPropertyView,
+};
 use crate::python::types::wrappers::iterators::StaticPropsIterable;
 use crate::{
     core::{utils::time::error::ParseTimeError, Prop},
@@ -87,37 +89,8 @@ impl PyEdge {
         self.edge.id()
     }
 
-    pub fn __getitem__(&self, name: &str) -> Option<Prop> {
-        self.property(name, Some(true))
-    }
-
-    /// Returns the value of the property with the given name.
-    /// If the property is not found, None is returned.
-    /// If the property is found, the value of the property is returned.
-    ///
-    /// Arguments:
-    ///    name (str): The name of the property to retrieve.
-    ///
-    /// Returns:
-    ///   The value of the property with the given name.
-    #[pyo3(signature = (name, include_static = true))]
-    pub fn property(&self, name: &str, include_static: Option<bool>) -> Option<Prop> {
-        let include_static = include_static.unwrap_or(true);
-        self.edge.property(name, include_static)
-    }
-
-    /// Returns the value of the property with the given name all times.
-    /// If the property is not found, None is returned.
-    /// If the property is found, the value of the property is returned.
-    ///
-    /// Arguments:
-    ///   name (str): The name of the property to retrieve.
-    ///
-    /// Returns:
-    ///  The value of the property with the given name.
-    #[pyo3(signature = (name))]
-    pub fn property_history(&self, name: &str) -> Vec<(i64, Prop)> {
-        self.edge.property_history(name)
+    pub fn __getitem__(&self, name: &str) -> Option<TemporalPropertyView<EdgeView<DynamicGraph>>> {
+        self.properties().get(name)
     }
 
     /// Returns a list of timestamps of when an edge is added or change to an edge is made.
@@ -130,74 +103,9 @@ impl PyEdge {
         self.edge.history()
     }
 
-    /// Returns a dictionary of all properties on the edge.
-    ///
-    /// Arguments:
-    ///  include_static (bool): Whether to include static properties in the result.
-    ///
-    /// Returns:
-    ///   A dictionary of all properties on the edge.
-    #[pyo3(signature = (include_static = true))]
-    pub fn properties(&self, include_static: Option<bool>) -> HashMap<String, Prop> {
-        let include_static = include_static.unwrap_or(true);
-        self.edge.properties(include_static)
-    }
-
-    /// Returns a dictionary of all properties on the edge at all times.
-    ///
-    /// Returns:
-    ///   A dictionary of all properties on the edge at all times.
-    pub fn property_histories(&self) -> HashMap<String, Vec<(i64, Prop)>> {
-        self.edge.property_histories()
-    }
-
-    /// Returns a list of all property names on the edge.
-    ///
-    /// Arguments:
-    ///   include_static (bool): Whether to include static properties in the result.
-    ///
-    /// Returns:
-    ///   A list of all property names on the edge.
-    #[pyo3(signature = (include_static = true))]
-    pub fn property_names(&self, include_static: Option<bool>) -> Vec<String> {
-        let include_static = include_static.unwrap_or(true);
-        self.edge.property_names(include_static)
-    }
-
-    /// Check if a property exists with the given name.
-    ///
-    /// Arguments:
-    ///  name (str): The name of the property to check.
-    ///  include_static (bool): Whether to include static properties in the result.
-    ///
-    /// Returns:
-    /// True if a property exists with the given name, False otherwise.
-    #[pyo3(signature = (name, include_static = true))]
-    pub fn has_property(&self, name: &str, include_static: Option<bool>) -> bool {
-        let include_static = include_static.unwrap_or(true);
-        self.edge.has_property(name, include_static)
-    }
-
-    /// Check if a static property exists with the given name.
-    ///
-    /// Arguments:
-    ///   name (str): The name of the property to check.
-    ///
-    /// Returns:
-    ///   True if a static property exists with the given name, False otherwise.
-    pub fn has_static_property(&self, name: &str) -> bool {
-        self.edge.has_static_property(name)
-    }
-
-    /// Get static property of an edge by name
-    ///
-    /// Arguments:
-    ///   name (String): Name of the static property
-    ///
-    /// Returns:
-    ///   Option<Prop>: Returns static property if found by name
-    pub fn static_property(&self, name: &str) -> Option<Prop> {
-        self.edge.static_property(name)
+    /// Returns the temporal properties the edge.
+    pub fn properties(&self) -> TemporalProperties<EdgeView<DynamicGraph>> {
+        self.edge.properties()
     }
 
     /// Get all static properties of an edge
@@ -402,11 +310,7 @@ impl PyEdge {
 
 impl Repr for PyEdge {
     fn repr(&self) -> String {
-        let properties = &self
-            .properties(Some(true))
-            .iter()
-            .map(|(k, v)| k.to_string() + " : " + &v.to_string())
-            .join(", ");
+        let properties = &self.properties().repr();
 
         let source = self.edge.src().name();
         let target = self.edge.dst().name();
