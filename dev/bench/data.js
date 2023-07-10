@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1688758622091,
+  "lastUpdate": 1689005653176,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -4963,6 +4963,60 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions with numeric string input",
             "value": 1931178,
             "range": "± 162543",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "2404621+fabianmurariu@users.noreply.github.com",
+            "name": "Fabian Murariu",
+            "username": "fabianmurariu"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "32cec73c84bbfa7f5773d76d139bd4f7212be7a5",
+          "message": "Rusty apis (#1101)\n\n* improve slightly the rust prop api\r\n\r\n* add the slight improvement to add_edge\r\n\r\n* remove trait Properties\r\n\r\n* fix issue in benchmarks\r\n\r\n* refactor the trait by bringing Properties back",
+          "timestamp": "2023-07-10T17:06:31+01:00",
+          "tree_id": "8842af9492dc1563d8288088ede215cf9951c9ec",
+          "url": "https://github.com/Pometry/Raphtory/commit/32cec73c84bbfa7f5773d76d139bd4f7212be7a5"
+        },
+        "date": 1689005651645,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 809494,
+            "range": "± 4164",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and numeric string input",
+            "value": 1467470,
+            "range": "± 5674",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and string input",
+            "value": 1506675,
+            "range": "± 3490",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 1291409,
+            "range": "± 78287",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions with numeric string input",
+            "value": 2359444,
+            "range": "± 73216",
             "unit": "ns/iter"
           }
         ]
