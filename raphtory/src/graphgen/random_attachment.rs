@@ -63,7 +63,7 @@ pub fn random_attachment(graph: &Graph, vertices_to_add: usize, edges_per_step: 
         latest_time += 1;
         edges.for_each(|neighbour| {
             graph
-                .add_edge(latest_time, max_id, *neighbour, [], None)
+                .add_edge(latest_time, max_id, *neighbour, EMPTY, None)
                 .expect("Not able to add edge");
         });
         ids.push(max_id);

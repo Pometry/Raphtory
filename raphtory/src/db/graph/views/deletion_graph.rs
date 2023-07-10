@@ -86,7 +86,7 @@ impl GraphWithDeletions {
     /// use std::fs::File;
     /// use raphtory::prelude::*;
     /// let g = Graph::new();
-    /// g.add_vertex(1, 1, []).unwrap();
+    /// g.add_vertex(1, 1, EMPTY).unwrap();
     /// g.save_to_file("path_str");
     /// ```
     pub fn save_to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), GraphError> {
@@ -343,7 +343,7 @@ mod test_deletions {
     fn test_edge_deletions() {
         let g = GraphWithDeletions::new();
 
-        g.add_edge(0, 0, 1, [("added".to_string(), Prop::I64(0))], None)
+        g.add_edge(0, 0, 1, [("added", Prop::I64(0))], None)
             .unwrap();
         g.delete_edge(10, 0, 1, None).unwrap();
 
@@ -389,7 +389,7 @@ mod test_deletions {
     #[test]
     fn test_materialize_window() {
         let g = GraphWithDeletions::new();
-        g.add_edge(0, 1, 2, [], None).unwrap();
+        g.add_edge(0, 1, 2, EMPTY, None).unwrap();
         g.delete_edge(10, 1, 2, None).unwrap();
 
         let gm = g
@@ -404,7 +404,7 @@ mod test_deletions {
     #[test]
     fn test_exploded_latest_time() {
         let g = GraphWithDeletions::new();
-        g.add_edge(0, 1, 2, [], None).unwrap();
+        g.add_edge(0, 1, 2, EMPTY, None).unwrap();
         g.delete_edge(10, 1, 2, None).unwrap();
         let e = g.edge(1, 2, None).unwrap();
         assert_eq!(e.latest_time(), Some(10));

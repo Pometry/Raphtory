@@ -196,7 +196,7 @@ mod generic_taint_tests {
         let graph = Graph::new();
 
         for (t, src, dst) in edges {
-            graph.add_edge(t, src, dst, [], None).unwrap();
+            graph.add_edge(t, src, dst, EMPTY, None).unwrap();
         }
         graph
     }

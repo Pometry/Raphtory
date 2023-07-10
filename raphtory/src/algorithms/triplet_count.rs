@@ -26,7 +26,7 @@
 //!      (2, 7),
 //!  ];
 //!  for (src, dst) in edges {
-//!      graph.add_edge(0, src, dst, [], None);
+//!      graph.add_edge(0, src, dst, EMPTY, None);
 //!  }
 //!  let results = triplet_count(&graph.at(1), None);
 //!  println!("triplet count: {}", results);
@@ -72,7 +72,7 @@ use crate::{
 ///      (2, 7),
 ///  ];
 ///  for (src, dst) in edges {
-///      graph.add_edge(0, src, dst, [], None);
+///      graph.add_edge(0, src, dst, EMPTY, None);
 ///  }
 ///
 ///  let results = triplet_count(&graph.at(1), None);
@@ -114,10 +114,10 @@ pub fn triplet_count<G: GraphViewOps>(g: &G, threads: Option<usize>) -> usize {
 #[cfg(test)]
 mod triplet_test {
     use super::*;
-    use crate::db::{
+    use crate::{db::{
         api::{mutation::AdditionOps, view::*},
         graph::graph::Graph,
-    };
+    }, prelude::EMPTY};
     use pretty_assertions::assert_eq;
 
     /// Test the global clustering coefficient
@@ -150,7 +150,7 @@ mod triplet_test {
         ];
 
         for (src, dst) in edges {
-            graph.add_edge(0, src, dst, [], None).unwrap();
+            graph.add_edge(0, src, dst, EMPTY, None).unwrap();
         }
         let exp_triplet_count = 20;
         let results = triplet_count(&graph.at(1), None);

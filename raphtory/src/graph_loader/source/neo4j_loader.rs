@@ -100,7 +100,7 @@ mod neo_loader_test {
                 film_release,
                 actor_name,
                 film_title,
-                [],
+                EMPTY,
                 Some(relation_type.as_str()),
             )
             .unwrap();

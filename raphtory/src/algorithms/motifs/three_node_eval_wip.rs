@@ -386,13 +386,13 @@ pub fn temporal_three_node_motif<G: GraphViewOps>(
 #[cfg(test)]
 mod motifs_test {
     use super::*;
-    use crate::db::{api::mutation::AdditionOps, graph::graph::Graph};
+    use crate::{db::{api::mutation::AdditionOps, graph::graph::Graph}, prelude::EMPTY};
 
     fn load_graph(edges: Vec<(i64, u64, u64)>) -> Graph {
         let graph = Graph::new();
 
         for (t, src, dst) in edges {
-            graph.add_edge(t, src, dst, [], None).unwrap();
+            graph.add_edge(t, src, dst, EMPTY, None).unwrap();
         }
         graph
     }

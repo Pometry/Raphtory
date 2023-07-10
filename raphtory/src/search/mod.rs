@@ -946,9 +946,9 @@ mod test {
     fn search_by_edge_src_dst() {
         let g = Graph::new();
 
-        g.add_edge(1, "Frodo", "Gandalf", [], None)
+        g.add_edge(1, "Frodo", "Gandalf", EMPTY, None)
             .expect("add edge failed");
-        g.add_edge(1, "Frodo", "Gollum", [], None)
+        g.add_edge(1, "Frodo", "Gollum", EMPTY, None)
             .expect("add edge failed");
 
         let ig: IndexedGraph<Graph> = g.into();

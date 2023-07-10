@@ -24,7 +24,7 @@
 //! let vs = vec![(1, 1, 2), (2, 1, 3), (3, 2, 1), (4, 3, 2)];
 //!
 //! for (t, src, dst) in &vs {
-//!     g.add_edge(*t, *src, *dst, [], None);
+//!     g.add_edge(*t, *src, *dst, EMPTY, None);
 //! }
 //!
 //! let windowed_graph = g.window(0, 5);
@@ -70,10 +70,10 @@ pub fn local_triangle_count<G: GraphViewOps, V: Into<VertexRef>>(graph: &G, v: V
 mod triangle_count_tests {
 
     use super::local_triangle_count;
-    use crate::db::{
+    use crate::{db::{
         api::{mutation::AdditionOps, view::*},
         graph::graph::Graph,
-    };
+    }, prelude::EMPTY};
 
     #[test]
     fn counts_triangles() {
@@ -81,7 +81,7 @@ mod triangle_count_tests {
         let vs = vec![(1, 1, 2), (2, 1, 3), (3, 2, 1), (4, 3, 2)];
 
         for (t, src, dst) in &vs {
-            g.add_edge(*t, *src, *dst, [], None).unwrap();
+            g.add_edge(*t, *src, *dst, EMPTY, None).unwrap();
         }
 
         let windowed_graph = g.window(0, 5);

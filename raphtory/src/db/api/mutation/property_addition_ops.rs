@@ -19,7 +19,7 @@ pub trait PropertyAdditionOps {
     /// ```
     /// use raphtory::prelude::*;
     /// let graph = Graph::new();
-    /// graph.add_vertex(0, "Alice", []);
+    /// graph.add_vertex(0, "Alice", EMPTY);
     /// let properties = vec![("color".to_owned(), Prop::Str("blue".to_owned())), ("weight".to_owned(), Prop::I64(11))];
     /// let result = graph.add_vertex_properties("Alice", properties);
     /// ```
@@ -50,9 +50,9 @@ pub trait PropertyAdditionOps {
     /// ```
     /// use raphtory::prelude::*;
     /// let graph = Graph::new();
-    /// graph.add_vertex(1, "Alice", []);
-    /// graph.add_vertex(2, "Bob", []);
-    /// graph.add_edge(3, "Alice", "Bob", [], None);
+    /// graph.add_vertex(1, "Alice", EMPTY);
+    /// graph.add_vertex(2, "Bob", EMPTY);
+    /// graph.add_edge(3, "Alice", "Bob", EMPTY, None);
     /// let properties = vec![("price".to_owned(), Prop::I64(100))];
     /// let result = graph.add_edge_properties("Alice", "Bob", properties, None);
     /// ```

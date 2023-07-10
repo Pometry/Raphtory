@@ -128,7 +128,7 @@ pub fn company_house_graph(path: Option<String>) -> Graph {
                     NaiveDateTime::from_timestamp_opt(ts, 0).unwrap(),
                     owner.clone(),
                     company.clone(),
-                    [],
+                    EMPTY,
                     Some(pincode),
                 )
                 .expect("Failed to add edge");
@@ -145,7 +145,7 @@ pub fn company_house_graph(path: Option<String>) -> Graph {
                     NaiveDateTime::from_timestamp_opt(ts, 0).unwrap(),
                     company.clone(),
                     address.clone(),
-                    [],
+                    EMPTY,
                     None,
                 )
                 .expect("Failed to add edge");

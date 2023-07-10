@@ -72,7 +72,7 @@ pub fn ba_preferential_attachment(graph: &Graph, vertices_to_add: usize, edges_p
     if graph.num_edges() < edges_per_step {
         for pos in 1..ids.len() {
             graph
-                .add_edge(latest_time, ids[pos], ids[pos - 1], [], None)
+                .add_edge(latest_time, ids[pos], ids[pos - 1], EMPTY, None)
                 .expect("Not able to add edge");
             edge_count += 2;
             degrees[pos] += 1;
@@ -104,7 +104,7 @@ pub fn ba_preferential_attachment(graph: &Graph, vertices_to_add: usize, edges_p
             let dst = ids[pos];
             degrees[pos] += 1;
             graph
-                .add_edge(latest_time, max_id, dst, [], None)
+                .add_edge(latest_time, max_id, dst, EMPTY, None)
                 .expect("Not able to add edge");
         }
         ids.push(max_id);

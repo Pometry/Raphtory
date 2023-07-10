@@ -29,9 +29,9 @@
 //! use raphtory::db::api::view::*;
 //!
 //! let graph = Graph::new();
-//! graph.add_edge(0, 1, 2, [], None).unwrap();
-//! graph.add_edge(1, 1, 3, [], None).unwrap();
-//! graph.add_edge(2, 2, 3, [], None).unwrap();
+//! graph.add_edge(0, 1, 2, EMPTY, None).unwrap();
+//! graph.add_edge(1, 1, 3, EMPTY, None).unwrap();
+//! graph.add_edge(2, 2, 3, EMPTY, None).unwrap();
 //!
 //!  let wg = graph.window(0, 1);
 //!  assert_eq!(wg.edge(1, 2, None).unwrap().src().id(), 1);
@@ -434,8 +434,8 @@ impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
 /// use raphtory::prelude::*;
 ///
 /// let graph = Graph::new();
-/// graph.add_edge(0, 1, 2, [], None).unwrap();
-/// graph.add_edge(1, 2, 3, [], None).unwrap();
+/// graph.add_edge(0, 1, 2, EMPTY, None).unwrap();
+/// graph.add_edge(1, 2, 3, EMPTY, None).unwrap();
 /// let windowed_graph = graph.window(0, 1);
 /// ```
 impl<G: GraphViewOps> WindowedGraph<G> {
@@ -493,7 +493,7 @@ mod views_test {
         let g = Graph::new();
 
         for (t, src, dst) in &vs {
-            g.add_edge(*t, *src, *dst, [], None).unwrap();
+            g.add_edge(*t, *src, *dst, EMPTY, None).unwrap();
         }
 
         let wg = WindowedGraph::new(g, -1, 1);
@@ -523,7 +523,7 @@ mod views_test {
         let g = Graph::new();
 
         for (t, src, dst) in vs {
-            g.add_edge(t, src, dst, [], None).unwrap();
+            g.add_edge(t, src, dst, EMPTY, None).unwrap();
         }
 
         let wg = g.window(i64::MIN, i64::MAX);
@@ -545,7 +545,7 @@ mod views_test {
         let g = Graph::new();
 
         for (t, src, dst) in &vs {
-            g.add_edge(*t, *src, *dst, [], None).unwrap();
+            g.add_edge(*t, *src, *dst, EMPTY, None).unwrap();
         }
 
         let wg = WindowedGraph::new(g, -1, 1);
@@ -641,7 +641,7 @@ mod views_test {
         let g = Graph::new();
 
         for (t, e) in &edges {
-            g.add_edge(*t, e.0, e.1, [], None).unwrap();
+            g.add_edge(*t, e.0, e.1, EMPTY, None).unwrap();
         }
 
         let start = edges.get(rand_start_index).expect("start index in range").0;
@@ -724,7 +724,7 @@ mod views_test {
 
         for dst in dsts {
             let t = 1;
-            g.add_edge(t, 0, dst, [], None).unwrap();
+            g.add_edge(t, 0, dst, EMPTY, None).unwrap();
         }
         let w = g.window(i64::MIN, i64::MAX);
         w.num_edges() == n
@@ -746,7 +746,7 @@ mod views_test {
         let g = Graph::new();
 
         for (t, src, dst) in &vs {
-            g.add_edge(*t, *src, *dst, [], None).unwrap();
+            g.add_edge(*t, *src, *dst, EMPTY, None).unwrap();
         }
 
         let res: Vec<_> = (0..=3)
@@ -762,7 +762,7 @@ mod views_test {
 
         let g = Graph::new();
         for (src, dst, t) in &vs {
-            g.add_edge(*src, *dst, *t, [], None).unwrap();
+            g.add_edge(*src, *dst, *t, EMPTY, None).unwrap();
         }
         let res: Vec<_> = (0..=3)
             .map(|i| {
@@ -817,7 +817,7 @@ mod views_test {
                 *t,
                 *src,
                 *dst,
-                [("eprop".into(), Prop::Str("commons".into()))],
+                [("eprop", "commons")],
                 None,
             )
             .unwrap();
@@ -859,7 +859,7 @@ mod views_test {
         .ok();
 
         for (t, src, dst) in &vs {
-            g.add_edge(*t, *src, *dst, [], None).unwrap();
+            g.add_edge(*t, *src, *dst, EMPTY, None).unwrap();
         }
 
         let expected = wg.vertices().id().collect::<Vec<_>>();

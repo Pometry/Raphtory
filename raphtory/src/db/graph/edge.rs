@@ -285,8 +285,8 @@ mod test_edge {
     #[test]
     fn test_properties() {
         let g = Graph::new();
-        let props = [("test".to_string(), Prop::Str("test".to_string()))];
-        g.add_edge(0, 1, 2, [], None).unwrap();
+        let props = [("test".to_string(), "test".as_prop())];
+        g.add_edge(0, 1, 2, EMPTY, None).unwrap();
         g.add_edge(2, 1, 2, props.clone(), None).unwrap();
 
         let e1 = g.edge(1, 2, None).unwrap();

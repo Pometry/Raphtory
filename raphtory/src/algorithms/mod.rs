@@ -21,7 +21,7 @@
 //!   ];
 //!
 //!  for (t, src, dst) in &vs {
-//!    g.add_edge(*t, *src, *dst, [], None);
+//!    g.add_edge(*t, *src, *dst, EMPTY, None);
 //!  };
 //! println!("average_degree: {:?}", average_degree(&g));
 //! ```
