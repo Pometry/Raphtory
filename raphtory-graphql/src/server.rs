@@ -11,8 +11,9 @@ use dynamic_graphql::App;
 use poem::{get, listener::TcpListener, middleware::Cors, EndpointExt, Route, Server};
 use std::collections::HashMap;
 use tokio::{io::Result as IoResult, signal};
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, Registry};
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, Registry, EnvFilter};
 use raphtory::db::api::view::internal::DynamicGraph;
+
 
 pub struct RaphtoryServer {
     data: Data,
@@ -48,13 +49,16 @@ impl RaphtoryServer {
 
     pub async fn run_with_port(self, port: u16) -> IoResult<()> {
         let registry = Registry::default().with(tracing_subscriber::fmt::layer().pretty());
+        let env_filter = EnvFilter::try_from_default_env().unwrap_or(EnvFilter::new("INFO"));
 
         match create_tracer_from_env() {
             Some(tracer) => registry
                 .with(tracing_opentelemetry::layer().with_tracer(tracer))
+                .with(env_filter)
                 .try_init()
                 .expect("Failed to register tracer with registry"),
             None => registry
+                .with(env_filter)
                 .try_init()
                 .expect("Failed to register tracer with registry"),
         }

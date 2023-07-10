@@ -25,7 +25,7 @@ impl Data {
     }
 
     pub fn from_map_and_directory(graphs: HashMap<String, DynamicGraph>, directory_path: &str) -> Self {
-        let mut graphs = Self::convert_graphs(graphs);
+        let graphs = Self::convert_graphs(graphs);
         let mut graphs_from_files = Self::load_from_file(directory_path);
         graphs_from_files.extend(graphs);
         Self { graphs: graphs_from_files }
