@@ -1,10 +1,9 @@
 use crate::{
-    core::Prop,
     db::{
         api::mutation::{AdditionOps, PropertyAdditionOps},
         graph::graph as rap,
     },
-    graph_loader::source::neo4j_loader::Neo4JConnection,
+    graph_loader::source::neo4j_loader::Neo4JConnection, prelude::{NO_PROPS, AsProp},
 };
 use neo4rs::*;
 
@@ -22,23 +21,23 @@ fn load_movies(row: Row, graph: &rap::Graph) {
     let relation_type = relation.typ();
 
     graph
-        .add_vertex(actor_born, actor_name.clone(), [])
+        .add_vertex(actor_born, actor_name.clone(), NO_PROPS)
         .unwrap();
     graph
         .add_vertex_properties(
             actor_name.clone(),
-            [("type".into(), Prop::Str("actor".into()))],
+            [("type", "actor")],
         )
         .unwrap();
     graph
-        .add_vertex(film_release, film_title.clone(), [])
+        .add_vertex(film_release, film_title.clone(), NO_PROPS)
         .unwrap();
     graph
         .add_vertex_properties(
             film_title.clone(),
             [
-                ("type".into(), Prop::Str("film".into())),
-                ("tagline".into(), Prop::Str(film_tagline)),
+                ("type", "film".as_prop()),
+                ("tagline", film_tagline.as_prop()),
             ],
         )
         .unwrap();
@@ -47,7 +46,7 @@ fn load_movies(row: Row, graph: &rap::Graph) {
             film_release,
             actor_name,
             film_title,
-            [],
+            NO_PROPS,
             Some(relation_type.as_str()),
         )
         .unwrap();

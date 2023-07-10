@@ -100,7 +100,7 @@ pub mod graph_loader;
 pub mod search;
 
 pub mod prelude {
-    pub const EMPTY: [(&str, Prop);0] = [];
+    pub const NO_PROPS: [(&str, Prop);0] = [];
     pub use crate::{
         core::{Prop, PropUnwrap, AsProp},
         db::{

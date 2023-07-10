@@ -26,7 +26,7 @@ pub fn bootstrap_graph(num_vertices: usize) -> Graph {
         let source = indexes.next().unwrap();
         let target = indexes.next().unwrap();
         let time = times.next().unwrap();
-        graph.add_edge(time, source, target, [], None).unwrap();
+        graph.add_edge(time, source, target, NO_PROPS, None).unwrap();
     }
     graph
 }
@@ -68,7 +68,7 @@ pub fn run_ingestion_benchmarks<F>(
         |b: &mut Bencher| {
             b.iter_batched_ref(
                 || (make_graph(), time_sample()),
-                |(g, t): &mut (Graph, i64)| g.add_vertex(*t, 0, []),
+                |(g, t): &mut (Graph, i64)| g.add_vertex(*t, 0, NO_PROPS),
                 BatchSize::SmallInput,
             )
         },
@@ -80,7 +80,7 @@ pub fn run_ingestion_benchmarks<F>(
         |b: &mut Bencher| {
             b.iter_batched_ref(
                 || (make_graph(), index_sample()),
-                |(g, v): &mut (Graph, u64)| g.add_vertex(0, *v, []),
+                |(g, v): &mut (Graph, u64)| g.add_vertex(0, *v, NO_PROPS),
                 BatchSize::SmallInput,
             )
         },
@@ -92,7 +92,7 @@ pub fn run_ingestion_benchmarks<F>(
         |b: &mut Bencher| {
             b.iter_batched_ref(
                 || (make_graph(), time_sample()),
-                |(g, t)| g.add_edge(*t, 0, 0, [], None),
+                |(g, t)| g.add_edge(*t, 0, 0, NO_PROPS, None),
                 BatchSize::SmallInput,
             )
         },
@@ -104,7 +104,7 @@ pub fn run_ingestion_benchmarks<F>(
         |b: &mut Bencher| {
             b.iter_batched_ref(
                 || (make_graph(), index_sample(), index_sample()),
-                |(g, s, d)| g.add_edge(0, *s, *d, [], None),
+                |(g, s, d)| g.add_edge(0, *s, *d, NO_PROPS, None),
                 BatchSize::SmallInput,
             )
         },
@@ -138,7 +138,7 @@ pub fn run_large_ingestion_benchmarks<F>(
                 },
                 |(g, times)| {
                     for t in times.iter() {
-                        g.add_edge(*t, 0, 0, [], None).unwrap()
+                        g.add_edge(*t, 0, 0, NO_PROPS, None).unwrap()
                     }
                 },
                 BatchSize::SmallInput,
@@ -160,7 +160,7 @@ pub fn run_large_ingestion_benchmarks<F>(
                 },
                 |(g, times)| {
                     for t in times.iter() {
-                        g.add_edge(*t, "0", "0", [], None).unwrap()
+                        g.add_edge(*t, "0", "0", NO_PROPS, None).unwrap()
                     }
                 },
                 BatchSize::SmallInput,
@@ -182,7 +182,7 @@ pub fn run_large_ingestion_benchmarks<F>(
                 },
                 |(g, times)| {
                     for t in times.iter() {
-                        g.add_edge(*t, "test", "other", [], None).unwrap()
+                        g.add_edge(*t, "test", "other", NO_PROPS, None).unwrap()
                     }
                 },
                 BatchSize::SmallInput,
@@ -210,7 +210,7 @@ pub fn run_large_ingestion_benchmarks<F>(
                             *t,
                             src_gen.next().unwrap(),
                             dst_gen.next().unwrap(),
-                            [],
+                            NO_PROPS,
                             None,
                         )
                         .unwrap()
@@ -241,7 +241,7 @@ pub fn run_large_ingestion_benchmarks<F>(
                             *t,
                             src_gen.next().unwrap(),
                             dst_gen.next().unwrap(),
-                            [],
+                            NO_PROPS,
                             None,
                         )
                         .unwrap()
