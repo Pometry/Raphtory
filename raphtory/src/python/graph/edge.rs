@@ -85,6 +85,7 @@ impl PyEdge {
         s.finish()
     }
 
+    /// The id of the edge.
     pub fn id(&self) -> (u64, u64) {
         self.edge.id()
     }
@@ -370,11 +371,16 @@ impl PyEdges {
         self.iter().count()
     }
 
+    /// Returns all source vertices of the Edges as an iterable.
+    ///
+    /// Returns:
+    ///   The source vertices of the Edges as an iterable.
     fn src(&self) -> PyVertexIterable {
         let builder = self.builder.clone();
         (move || builder().src()).into()
     }
 
+    /// Returns all destination vertices as an iterable
     fn dst(&self) -> PyVertexIterable {
         let builder = self.builder.clone();
         (move || builder().dst()).into()
@@ -432,6 +438,7 @@ impl PyEdges {
         (move || edges().static_properties()).into()
     }
 
+    /// Returns all ids of the edges.
     fn id(&self) -> PyGenericIterable {
         let edges = self.builder.clone();
         (move || edges().id()).into()

@@ -25,7 +25,7 @@
 //! ];
 //!
 //! for (t, src, dst) in &vs {
-//! g.add_edge(*t, *src, *dst, [], None);
+//! g.add_edge(*t, *src, *dst, NO_PROPS, None);
 //! }
 //!
 //! println!("graph density: {:?}", directed_graph_density(&windowed_graph));
@@ -41,7 +41,7 @@ pub fn directed_graph_density<G: GraphViewOps>(graph: &G) -> f32 {
 #[cfg(test)]
 mod directed_graph_density_tests {
     use super::*;
-    use crate::db::{api::mutation::AdditionOps, graph::graph::Graph};
+    use crate::{db::{api::mutation::AdditionOps, graph::graph::Graph}, prelude::NO_PROPS};
 
     #[test]
     fn low_graph_density() {
@@ -57,7 +57,7 @@ mod directed_graph_density_tests {
         ];
 
         for (t, src, dst) in &vs {
-            g.add_edge(*t, *src, *dst, [], None).unwrap();
+            g.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
         }
 
         let actual = directed_graph_density(&windowed_graph);
@@ -73,7 +73,7 @@ mod directed_graph_density_tests {
         let vs = vec![(1, 1, 2), (2, 2, 1)];
 
         for (t, src, dst) in &vs {
-            g.add_edge(*t, *src, *dst, [], None).unwrap();
+            g.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
         }
 
         let actual = directed_graph_density(&windowed_graph);

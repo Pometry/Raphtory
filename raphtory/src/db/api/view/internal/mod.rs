@@ -106,13 +106,13 @@ impl InheritViewOps for DynamicGraph {}
 
 #[cfg(test)]
 mod test {
-    use crate::db::{
+    use crate::{db::{
         api::{
             mutation::AdditionOps,
             view::{internal::BoxableGraphView, *},
         },
         graph::graph::Graph,
-    };
+    }, prelude::NO_PROPS};
     use itertools::Itertools;
     use std::sync::Arc;
 
@@ -120,7 +120,7 @@ mod test {
     fn test_boxing() {
         // this tests that a boxed graph actually compiles
         let g = Graph::new();
-        g.add_vertex(0, 1, []).unwrap();
+        g.add_vertex(0, 1, NO_PROPS).unwrap();
         let boxed: Arc<dyn BoxableGraphView> = Arc::new(g);
         assert_eq!(boxed.vertices().id().collect_vec(), vec![1])
     }

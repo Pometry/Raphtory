@@ -95,6 +95,14 @@ impl<const N: usize> Default for InnerTemporalGraph<N> {
 }
 
 impl<const N: usize> InnerTemporalGraph<N> {
+    pub(crate) fn get_all_vertex_property_names(&self, is_static: bool) -> Vec<String> {
+        self.vertex_meta.get_all_property_names(is_static)
+    }
+
+    pub(crate) fn get_all_edge_property_names(&self, is_static: bool) -> Vec<String> {
+        self.edge_meta.get_all_property_names(is_static)
+    }
+
     pub(crate) fn get_all_layers(&self) -> Vec<usize> {
         self.edge_meta.get_all_layers()
     }
@@ -224,7 +232,7 @@ impl<const N: usize> InnerTemporalGraph<N> {
         v: u64,
         name: Option<&str>,
         props: Vec<(String, Prop)>,
-    ) -> Result<(), GraphError> {
+    ) -> Result<VID, GraphError> {
         let t = time.try_into_time()?;
         self.update_time(t);
 
@@ -263,7 +271,7 @@ impl<const N: usize> InnerTemporalGraph<N> {
             node.add_static_prop(*prop_id, name, prop.clone())?;
         }
 
-        Ok(())
+        Ok(v_id.into())
     }
 
     pub(crate) fn add_vertex_no_props(&self, t: i64, v: u64) -> Result<VID, GraphError> {

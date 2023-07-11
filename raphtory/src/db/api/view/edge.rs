@@ -75,6 +75,7 @@ pub trait EdgeViewOps:
         }
     }
 
+    /// Returns the id of the edge.
     fn id(
         &self,
     ) -> (

@@ -19,7 +19,7 @@ use crate::{
                 window_graph::WindowedGraph,
             },
         },
-    },
+    }, prelude::NO_PROPS,
 };
 use itertools::Itertools;
 use rustc_hash::FxHashSet;
@@ -34,6 +34,7 @@ pub trait GraphViewOps: BoxableGraphView + Clone + Sized {
         &self,
         vertices: I,
     ) -> VertexSubgraph<Self>;
+    /// Return all the layer ids in the graph
     fn get_unique_layers(&self) -> Vec<String>;
     /// Timestamp of earliest activity in the graph
     fn earliest_time(&self) -> Option<i64>;
@@ -110,6 +111,7 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
         VertexSubgraph::new(self.clone(), vertices)
     }
 
+    /// Return all the layer ids in the graph
     fn get_unique_layers(&self) -> Vec<String> {
         self.get_unique_layers_internal()
             .into_iter()
@@ -217,7 +219,7 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
 
         for v in self.vertices().iter() {
             for h in v.history() {
-                g.add_vertex(h, v.id(), [])?;
+                g.add_vertex(h, v.id(), NO_PROPS)?;
             }
             for (name, prop_view) in v.properties().iter() {
                 for (t, prop) in prop_view.iter() {

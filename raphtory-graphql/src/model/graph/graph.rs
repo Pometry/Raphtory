@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 use crate::model::{
     algorithm::Algorithms,
     filters::{edgefilter::EdgeFilter, nodefilter::NodeFilter},
@@ -5,10 +7,10 @@ use crate::model::{
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
-use raphtory::db::api::view::{
+use raphtory::{db::api::view::{
     internal::{DynamicGraph, IntoDynamic},
     GraphViewOps, TimeOps, VertexViewOps,
-};
+}, search::IndexedGraph};
 
 #[derive(ResolvedObject)]
 pub(crate) struct GraphMeta {
@@ -47,19 +49,27 @@ impl GraphMeta {
 
 #[derive(ResolvedObject)]
 pub(crate) struct GqlGraph {
-    graph: DynamicGraph,
+    graph: IndexedGraph<DynamicGraph>,
 }
 
 impl<G: GraphViewOps + IntoDynamic> From<G> for GqlGraph {
     fn from(value: G) -> Self {
         Self {
-            graph: value.into_dynamic(),
+            graph: value.into_dynamic().into(),
         }
+    }
+}
+
+impl GqlGraph {
+
+    pub(crate) fn new(graph: IndexedGraph<DynamicGraph>) -> Self {
+        Self { graph }
     }
 }
 
 #[ResolvedObjectFields]
 impl GqlGraph {
+
     async fn window(&self, t_start: i64, t_end: i64) -> GqlGraph {
         let w = self.graph.window(t_start, t_end);
         w.into()
@@ -84,6 +94,25 @@ impl GqlGraph {
                 .collect(),
             None => self.graph.vertices().iter().map(|vv| vv.into()).collect(),
         }
+    }
+
+    async fn search(&self, query: String, limit: usize, offset: usize) -> Vec<Node> {
+        self.graph
+            .search(&query, limit, offset)
+            .into_iter()
+            .flat_map(|vv| vv)
+            .map(|vv| vv.into())
+            .collect()
+    }
+
+
+    async fn search_edges(&self, query: String, limit: usize, offset: usize) -> Vec<Edge> {
+        self.graph
+            .search_edges(&query, limit, offset)
+            .into_iter()
+            .flat_map(|vv| vv)
+            .map(|vv| vv.into())
+            .collect()
     }
 
     async fn edges<'a>(&self, filter: Option<EdgeFilter>) -> Vec<Edge> {
@@ -116,6 +145,6 @@ impl GqlGraph {
     }
 
     async fn algorithms(&self) -> Algorithms {
-        self.graph.clone().into()
+        self.graph.deref().clone().into()
     }
 }

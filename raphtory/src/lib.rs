@@ -96,9 +96,13 @@ pub mod python;
 #[cfg(feature = "io")]
 pub mod graph_loader;
 
+#[cfg(feature = "search")]
+pub mod search;
+
 pub mod prelude {
+    pub const NO_PROPS: [(&str, Prop);0] = [];
     pub use crate::{
-        core::{Prop, PropUnwrap},
+        core::{Prop, PropUnwrap, AsProp},
         db::{
             api::{
                 mutation::{AdditionOps, DeletionOps, PropertyAdditionOps},

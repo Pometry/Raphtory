@@ -174,6 +174,22 @@ impl Meta {
             .collect()
     }
 
+    pub fn get_all_property_names(&self, is_static: bool) -> Vec<String> {
+        if is_static {
+            self.meta_prop_static
+                .map
+                .iter()
+                .map(|entry| entry.key().clone())
+                .collect()
+        } else {
+            self.meta_prop_temporal
+                .map
+                .iter()
+                .map(|entry| entry.key().clone())
+                .collect()
+        }
+    }
+
     pub fn reverse_prop_id(
         &self,
         prop_id: usize,

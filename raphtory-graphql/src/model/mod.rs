@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 use crate::{
     data::Data,
     model::graph::graph::{GqlGraph, GraphMeta},
@@ -25,14 +27,14 @@ impl QueryRoot {
     async fn graph<'a>(ctx: &Context<'a>, name: &str) -> Option<GqlGraph> {
         let data = ctx.data_unchecked::<Data>();
         let g = data.graphs.get(name)?;
-        Some(g.clone().into())
+        Some(GqlGraph::new(g.clone()))
     }
 
     async fn graphs<'a>(ctx: &Context<'a>) -> Vec<GraphMeta> {
         let data = ctx.data_unchecked::<Data>();
         data.graphs
             .iter()
-            .map(|(name, g)| GraphMeta::new(name.clone(), g.clone().into_dynamic()))
+            .map(|(name, g)| GraphMeta::new(name.clone(), g.deref().clone().into_dynamic()))
             .collect_vec()
     }
 }
