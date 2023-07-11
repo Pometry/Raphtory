@@ -13,6 +13,7 @@ use crate::{
     },
 };
 use pyo3::prelude::*;
+use pyo3_polars::PyDataFrame;
 use std::{
     collections::HashMap,
     fmt::{Debug, Formatter},
@@ -212,4 +213,77 @@ impl PyGraph {
     pub fn save_to_file(&self, path: &str) -> Result<(), GraphError> {
         self.graph.save_to_file(Path::new(path))
     }
+
+    // Loads a graph from Polars DataFrame.
+    // pub fn load_from_polars(df: PyDataFrame) -> Result<Graph, GraphError> {
+    //     let graph = Graph::new();
+    //     let rs_df = df.0;
+    //     Ok(graph)
+    // }
+
+    #[staticmethod]
+    #[pyo3(signature = (df, src = "source", dst = "target", time = "time"))]
+    fn load_from_polars(
+        df: PyDataFrame,
+        src: &str,
+        dst: &str,
+        time: &str,
+    ) -> Result<Graph, GraphError> {
+        let graph = Graph::new();
+        let rs_df = df.0;
+        let src = rs_df
+            .column(src)
+            .map_err(|_| GraphError::LoadFailure(format!("column: [{src}] not found")))?;
+
+        let dst = rs_df
+            .column(dst)
+            .map_err(|_| GraphError::LoadFailure(format!("column: [{dst}] not found")))?;
+
+        let time = rs_df
+            .column(time)
+            .map_err(|_| GraphError::LoadFailure(format!("column: [{time}] not found")))?;
+
+        if let (Ok(src), Ok(dst), Ok(time)) = (src.u64(), dst.u64(), time.i64()) {
+            let triplets = src.into_iter().zip(dst.into_iter()).zip(time.into_iter());
+            load_from_num_iter(&graph, triplets)?;
+        } else if let (Ok(src), Ok(dst), Ok(time)) = (src.i64(), dst.i64(), time.i64()) {
+            let triplets = src.into_iter().zip(dst.into_iter()).zip(time.into_iter());
+            load_from_num_iter(&graph, triplets)?;
+        } else if let (Ok(src), Ok(dst), Ok(time)) = (src.utf8(), dst.utf8(), time.i64()) {
+            let triplets = src.into_iter().zip(dst.into_iter()).zip(time.into_iter());
+            for ((src, dst), time) in triplets {
+                if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
+                    graph.add_edge(time, src, dst, NO_PROPS, None)?;
+                }
+            }
+        } else {
+            return Err(GraphError::LoadFailure(
+                "source and target columns must be either u64 or text, time column must be i64"
+                    .to_string(),
+            ));
+        }
+        Ok(graph)
+    }
+}
+
+fn load_from_num_iter<
+    T: TryInto<u64>,
+    I: Iterator<Item = ((Option<T>, Option<T>), Option<i64>)>,
+>(
+    graph: &Graph,
+    edges: I,
+) -> Result<(), GraphError> {
+    for ((src, dst), time) in edges {
+        if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
+            let src: u64 = src.try_into().map_err(|_| {
+                GraphError::LoadFailure("source column must be convertible to long".to_string())
+            })?;
+            let dst: u64 = dst.try_into().map_err(|_| {
+                GraphError::LoadFailure("target column must be convertible to long".to_string())
+            })?;
+
+            graph.add_edge(time, src, dst, NO_PROPS, None)?;
+        }
+    }
+    Ok(())
 }
