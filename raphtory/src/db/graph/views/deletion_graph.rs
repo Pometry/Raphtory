@@ -1,3 +1,4 @@
+use crate::db::api::properties::internal::InheritPropertiesOps;
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, VID},
@@ -150,6 +151,8 @@ impl InheritCoreOps for GraphWithDeletions {}
 impl InheritCoreDeletionOps for GraphWithDeletions {}
 
 impl InheritGraphOps for GraphWithDeletions {}
+
+impl InheritPropertiesOps for GraphWithDeletions {}
 
 impl TimeSemantics for GraphWithDeletions {
     fn vertex_earliest_time(&self, v: VID) -> Option<i64> {

@@ -10,6 +10,10 @@ mod materialize;
 pub(crate) mod time_semantics;
 mod wrapped_graph;
 
+use crate::db::api::properties::internal::{
+    BoxableTemporalProperties, InheritPropertiesOps, StaticPropertiesOps, TemporalPropertiesOps,
+    TemporalPropertyViewOps,
+};
 use crate::prelude::GraphViewOps;
 pub use core_deletion_ops::*;
 pub use core_ops::*;
@@ -25,7 +29,15 @@ pub use time_semantics::*;
 
 /// Marker trait to indicate that an object is a valid graph view
 pub trait BoxableGraphView:
-    CoreGraphOps + GraphOps + TimeSemantics + InternalMaterialize + Send + Sync + 'static
+    CoreGraphOps
+    + GraphOps
+    + TimeSemantics
+    + InternalMaterialize
+    + BoxableTemporalProperties
+    + StaticPropertiesOps
+    + Send
+    + Sync
+    + 'static
 {
 }
 
@@ -34,6 +46,8 @@ impl<
             + GraphOps
             + TimeSemantics
             + InternalMaterialize
+            + BoxableTemporalProperties
+            + StaticPropertiesOps
             + Send
             + Sync
             + 'static
@@ -49,6 +63,7 @@ impl<G: InheritViewOps> InheritGraphOps for G {}
 impl<G: InheritViewOps + CoreGraphOps + GraphOps> InheritTimeSemantics for G {}
 impl<G: InheritViewOps> InheritCoreOps for G {}
 impl<G: InheritViewOps> InheritMaterialize for G {}
+impl<G: InheritViewOps> InheritPropertiesOps for G {}
 
 /// Trait for marking a struct as not dynamically dispatched.
 /// Used to avoid conflicts when implementing `From` for dynamic wrappers.
@@ -67,7 +82,7 @@ impl From<Arc<dyn BoxableGraphView>> for DynamicGraph {
 }
 
 #[derive(Clone)]
-pub struct DynamicGraph(Arc<dyn BoxableGraphView>);
+pub struct DynamicGraph(pub(crate) Arc<dyn BoxableGraphView>);
 
 impl DynamicGraph {
     pub fn new<G: GraphViewOps>(graph: G) -> Self {

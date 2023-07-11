@@ -37,6 +37,9 @@
 //!  assert_eq!(wg.edge(1, 2, None).unwrap().src().id(), 1);
 //! ```
 
+use crate::db::api::properties::internal::{
+    InheritStaticPropertiesOps, Key, TemporalPropertiesOps, TemporalPropertyViewOps,
+};
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef, VID},
@@ -78,6 +81,38 @@ impl<G: GraphViewOps> Base for WindowedGraph<G> {
 impl<G: GraphViewOps> InheritCoreOps for WindowedGraph<G> {}
 
 impl<G: GraphViewOps> InheritMaterialize for WindowedGraph<G> {}
+
+impl<G: GraphViewOps> InheritStaticPropertiesOps for WindowedGraph<G> {}
+
+impl<G: GraphViewOps> TemporalPropertyViewOps for WindowedGraph<G> {
+    fn temporal_history(&self, id: &Key) -> Vec<i64> {
+        self.temporal_prop_vec(id)
+            .into_iter()
+            .map(|(t, _)| t)
+            .collect()
+    }
+
+    fn temporal_values(&self, id: &Key) -> Vec<Prop> {
+        self.temporal_prop_vec(id)
+            .into_iter()
+            .map(|(_, v)| v)
+            .collect()
+    }
+}
+
+impl<G: GraphViewOps> TemporalPropertiesOps for WindowedGraph<G> {
+    fn temporal_property_keys(&self) -> Vec<String> {
+        self.graph
+            .temporal_property_keys()
+            .into_iter()
+            .filter(|k| self.get_temporal_property(k).is_some())
+            .collect()
+    }
+
+    fn get_temporal_property(&self, key: &str) -> Option<Key> {
+        (!self.temporal_prop_vec(key).is_empty()).then(|| key.to_owned())
+    }
+}
 
 impl<G: GraphViewOps> TimeSemantics for WindowedGraph<G> {
     fn vertex_earliest_time(&self, v: VID) -> Option<i64> {

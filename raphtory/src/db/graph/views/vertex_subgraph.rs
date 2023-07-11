@@ -1,3 +1,4 @@
+use crate::db::api::properties::internal::InheritPropertiesOps;
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef, VID},
@@ -28,6 +29,7 @@ impl<G: GraphViewOps> Base for VertexSubgraph<G> {
 impl<G: GraphViewOps> InheritCoreOps for VertexSubgraph<G> {}
 
 impl<G: GraphViewOps> InheritTimeSemantics for VertexSubgraph<G> {}
+impl<G: GraphViewOps> InheritPropertiesOps for VertexSubgraph<G> {}
 
 impl<G: GraphViewOps> InheritMaterialize for VertexSubgraph<G> {}
 

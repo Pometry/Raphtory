@@ -41,7 +41,7 @@ impl Data {
             .map(|path| {
                 println!("loading graph from {path}");
                 let graph = Graph::load_from_file(&path).expect("Unable to load from graph");
-                let maybe_graph_name = graph.static_property("name");
+                let maybe_graph_name = graph.static_properties().get("name");
 
                 return match maybe_graph_name {
                     None => {

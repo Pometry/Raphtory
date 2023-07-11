@@ -2,6 +2,7 @@ use crate::core::entities::properties::props::DictMapper;
 use crate::core::entities::properties::tprop::TProp;
 use crate::core::{Prop, PropUnwrap};
 use crate::db::api::mutation::Properties;
+use crate::db::api::view::internal::Base;
 use crate::prelude::Graph;
 use chrono::NaiveDateTime;
 use std::iter::Zip;
@@ -14,7 +15,9 @@ pub trait CorePropertiesOps {
     fn static_prop(&self, id: usize) -> Option<&Prop>;
 }
 
-pub trait TemporalPropertyViewOps<Key = String> {
+pub type Key = String; //Fixme: This should really be the internal usize index but that means more reworking of the low-level api
+
+pub trait TemporalPropertyViewOps {
     fn temporal_value(&self, id: &Key) -> Option<Prop> {
         self.temporal_values(id).last().cloned()
     }
@@ -40,7 +43,7 @@ pub trait StaticPropertiesOps {
     fn get_static_property(&self, key: &str) -> Option<Prop>;
 }
 
-pub trait TemporalPropertiesOps<Key: 'static = String>: TemporalPropertyViewOps<Key> {
+pub trait TemporalPropertiesOps {
     fn temporal_property_keys(&self) -> Vec<String>;
     fn temporal_property_values(&self) -> Box<dyn Iterator<Item = Key> + '_> {
         Box::new(
@@ -52,13 +55,78 @@ pub trait TemporalPropertiesOps<Key: 'static = String>: TemporalPropertyViewOps<
     fn get_temporal_property(&self, key: &str) -> Option<Key>;
 }
 
-pub struct TemporalPropertyView<P: TemporalPropertyViewOps<K>, K = String> {
-    pub(crate) id: K,
+pub trait InheritTempralPropertyViewOps: Base {}
+pub trait InheritTemporalPropertiesOps: Base {}
+pub trait InheritStaticPropertiesOps: Base {}
+pub trait InheritPropertiesOps: Base {}
+
+impl<P: InheritPropertiesOps> InheritStaticPropertiesOps for P {}
+impl<P: InheritPropertiesOps> InheritTemporalPropertiesOps for P {}
+
+impl<P: InheritTempralPropertyViewOps> TemporalPropertyViewOps for P
+where
+    P::Base: TemporalPropertyViewOps,
+{
+    fn temporal_value(&self, id: &Key) -> Option<Prop> {
+        self.base().temporal_value(id)
+    }
+
+    fn temporal_history(&self, id: &Key) -> Vec<i64> {
+        self.base().temporal_history(id)
+    }
+
+    fn temporal_values(&self, id: &Key) -> Vec<Prop> {
+        self.base().temporal_values(id)
+    }
+
+    fn temporal_value_at(&self, id: &Key, t: i64) -> Option<Prop> {
+        self.base().temporal_value_at(id, t)
+    }
+}
+
+impl<P: InheritTemporalPropertiesOps> InheritTempralPropertyViewOps for P {}
+
+impl<P: InheritTemporalPropertiesOps> TemporalPropertiesOps for P
+where
+    P::Base: TemporalPropertiesOps,
+{
+    fn temporal_property_keys(&self) -> Vec<String> {
+        self.base().temporal_property_keys()
+    }
+
+    fn temporal_property_values(&self) -> Box<dyn Iterator<Item = Key> + '_> {
+        self.base().temporal_property_values()
+    }
+
+    fn get_temporal_property(&self, key: &str) -> Option<Key> {
+        self.base().get_temporal_property(key)
+    }
+}
+
+impl<P: InheritStaticPropertiesOps> StaticPropertiesOps for P
+where
+    P::Base: StaticPropertiesOps,
+{
+    fn static_property_keys(&self) -> Vec<String> {
+        self.base().static_property_keys()
+    }
+
+    fn static_property_values(&self) -> Vec<Prop> {
+        self.base().static_property_values()
+    }
+
+    fn get_static_property(&self, key: &str) -> Option<Prop> {
+        self.base().get_static_property(key)
+    }
+}
+
+pub struct TemporalPropertyView<P: TemporalPropertyViewOps> {
+    pub(crate) id: Key,
     pub(crate) props: P,
 }
 
-impl<P: TemporalPropertyViewOps<K>, K> TemporalPropertyView<P, K> {
-    pub(crate) fn new(props: P, key: K) -> Self {
+impl<P: TemporalPropertyViewOps> TemporalPropertyView<P> {
+    pub(crate) fn new(props: P, key: Key) -> Self {
         TemporalPropertyView { props, id: key }
     }
     pub fn history(&self) -> Vec<i64> {
@@ -78,7 +146,7 @@ impl<P: TemporalPropertyViewOps<K>, K> TemporalPropertyView<P, K> {
     }
 }
 
-impl<P: TemporalPropertyViewOps<K>, K> IntoIterator for TemporalPropertyView<P, K> {
+impl<P: TemporalPropertyViewOps> IntoIterator for TemporalPropertyView<P> {
     type Item = (i64, Prop);
     type IntoIter = Zip<std::vec::IntoIter<i64>, std::vec::IntoIter<Prop>>;
 
@@ -89,7 +157,7 @@ impl<P: TemporalPropertyViewOps<K>, K> IntoIterator for TemporalPropertyView<P, 
     }
 }
 
-impl<P: TemporalPropertyViewOps<K>, K> IntoIterator for &TemporalPropertyView<P, K> {
+impl<P: TemporalPropertyViewOps> IntoIterator for &TemporalPropertyView<P> {
     type Item = (i64, Prop);
     type IntoIter = Zip<std::vec::IntoIter<i64>, std::vec::IntoIter<Prop>>;
 
@@ -147,12 +215,11 @@ impl<P: StaticPropertiesOps> IntoIterator for &StaticProperties<P> {
     }
 }
 
-pub struct TemporalProperties<P: TemporalPropertiesOps<K> + Clone, K: 'static = String> {
+pub struct TemporalProperties<P: BoxableTemporalProperties + Clone> {
     pub(crate) props: P,
-    key_marker: PhantomData<K>,
 }
 
-impl<P: TemporalPropertiesOps<K> + Clone, K: 'static> Properties for TemporalProperties<P, K> {
+impl<P: BoxableTemporalProperties + Clone> Properties for TemporalProperties<P> {
     fn collect_properties(self) -> Vec<(String, Prop)> {
         self.iter()
             .flat_map(|(k, v)| v.value().map(|v| (k, v)))
@@ -160,9 +227,9 @@ impl<P: TemporalPropertiesOps<K> + Clone, K: 'static> Properties for TemporalPro
     }
 }
 
-impl<P: TemporalPropertiesOps<K> + Clone, K: 'static> IntoIterator for TemporalProperties<P, K> {
-    type Item = (String, TemporalPropertyView<P, K>);
-    type IntoIter = Zip<std::vec::IntoIter<String>, std::vec::IntoIter<TemporalPropertyView<P, K>>>;
+impl<P: BoxableTemporalProperties + Clone> IntoIterator for TemporalProperties<P> {
+    type Item = (String, TemporalPropertyView<P>);
+    type IntoIter = Zip<std::vec::IntoIter<String>, std::vec::IntoIter<TemporalPropertyView<P>>>;
 
     fn into_iter(self) -> Self::IntoIter {
         let keys = self.keys();
@@ -171,9 +238,9 @@ impl<P: TemporalPropertiesOps<K> + Clone, K: 'static> IntoIterator for TemporalP
     }
 }
 
-impl<P: TemporalPropertiesOps<K> + Clone, K: 'static> IntoIterator for &TemporalProperties<P, K> {
-    type Item = (String, TemporalPropertyView<P, K>);
-    type IntoIter = Zip<std::vec::IntoIter<String>, std::vec::IntoIter<TemporalPropertyView<P, K>>>;
+impl<P: BoxableTemporalProperties + Clone> IntoIterator for &TemporalProperties<P> {
+    type Item = (String, TemporalPropertyView<P>);
+    type IntoIter = Zip<std::vec::IntoIter<String>, std::vec::IntoIter<TemporalPropertyView<P>>>;
 
     fn into_iter(self) -> Self::IntoIter {
         let keys = self.keys();
@@ -182,36 +249,33 @@ impl<P: TemporalPropertiesOps<K> + Clone, K: 'static> IntoIterator for &Temporal
     }
 }
 
-impl<P: TemporalPropertiesOps<K> + Clone, K: 'static> TemporalProperties<P, K> {
+impl<P: BoxableTemporalProperties + Clone> TemporalProperties<P> {
     pub(crate) fn new(props: P) -> Self {
-        Self {
-            props,
-            key_marker: PhantomData,
-        }
+        Self { props }
     }
     pub fn keys(&self) -> Vec<String> {
         self.props.temporal_property_keys()
     }
 
-    pub fn values(&self) -> Vec<TemporalPropertyView<P, K>> {
+    pub fn values(&self) -> Vec<TemporalPropertyView<P>> {
         self.props
             .temporal_property_values()
             .map(|k| TemporalPropertyView::new(self.props.clone(), k))
             .collect()
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = (String, TemporalPropertyView<P, K>)> + '_ {
+    pub fn iter(&self) -> impl Iterator<Item = (String, TemporalPropertyView<P>)> + '_ {
         self.into_iter()
     }
 
-    pub fn get<Q: AsRef<str>>(&self, key: Q) -> Option<TemporalPropertyView<P, K>> {
+    pub fn get<Q: AsRef<str>>(&self, key: Q) -> Option<TemporalPropertyView<P>> {
         self.props
             .get_temporal_property(key.as_ref())
             .map(|k| TemporalPropertyView::new(self.props.clone(), k))
     }
 }
 
-impl<P: TemporalPropertyViewOps<K>, K> PropUnwrap for TemporalPropertyView<P, K> {
+impl<P: TemporalPropertyViewOps> PropUnwrap for TemporalPropertyView<P> {
     fn into_str(self) -> Option<String> {
         self.value().into_str()
     }
@@ -252,3 +316,7 @@ impl<P: TemporalPropertyViewOps<K>, K> PropUnwrap for TemporalPropertyView<P, K>
         self.value().into_graph()
     }
 }
+
+pub trait BoxableTemporalProperties: TemporalPropertiesOps + TemporalPropertyViewOps {}
+
+impl<P: TemporalPropertiesOps + TemporalPropertyViewOps> BoxableTemporalProperties for P {}

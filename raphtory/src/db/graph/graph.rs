@@ -16,6 +16,7 @@
 //! ```
 //!
 
+use crate::db::api::properties::internal::InheritPropertiesOps;
 use crate::{
     core::{entities::graph::tgraph::InnerTemporalGraph, utils::errors::GraphError},
     db::api::{
@@ -1045,7 +1046,7 @@ mod db_tests {
 
         props_map
             .into_iter()
-            .all(|(name, value)| g.static_property(&name).unwrap() == value)
+            .all(|(name, value)| g.static_properties().get(&name).unwrap() == value)
     }
 
     #[quickcheck]

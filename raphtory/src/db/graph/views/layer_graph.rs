@@ -1,3 +1,4 @@
+use crate::db::api::properties::internal::InheritPropertiesOps;
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef, VID},
@@ -31,6 +32,8 @@ impl<G: GraphViewOps> InheritTimeSemantics for LayeredGraph<G> {}
 impl<G: GraphViewOps> InheritCoreOps for LayeredGraph<G> {}
 
 impl<G: GraphViewOps> InheritMaterialize for LayeredGraph<G> {}
+
+impl<G: GraphViewOps> InheritPropertiesOps for LayeredGraph<G> {}
 
 impl<G: GraphViewOps> LayeredGraph<G> {
     pub fn new(graph: G, layer: usize) -> Self {

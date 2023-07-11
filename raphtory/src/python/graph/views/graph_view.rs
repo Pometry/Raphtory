@@ -1,4 +1,5 @@
 //! The API for querying a view of the graph in a read-only state
+use crate::db::api::properties::internal::{StaticProperties, TemporalProperties};
 use crate::{
     core::{
         entities::vertices::vertex_ref::VertexRef,
@@ -336,30 +337,6 @@ impl PyGraphView {
         self.graph.layer(name).map(|layer| layer.into())
     }
 
-    /// Get graph property against the provided property name
-    ///
-    /// Arguments:
-    ///   *  `name` : property name
-    ///   *  `include_static`: optional boolean to include static property in the result set
-    ///
-    /// Returns:
-    ///    Option<Prop> - The property value
-    fn property(&self, name: &str, include_static: Option<bool>) -> Option<Prop> {
-        self.graph.property(name, include_static.unwrap_or(true))
-    }
-
-    /// Get graph property against the provided property name
-    ///
-    /// Arguments:
-    ///   *  `name` : property name
-    ///   *  `include_static`: optional boolean to include static property in the result set
-    ///
-    /// Returns:
-    ///    Option<Prop> - The property value
-    fn property_history(&self, name: &str) -> Vec<(i64, Prop)> {
-        self.graph.property_history(name)
-    }
-
     /// Get all graph properties
     ///
     /// Arguments:
@@ -367,65 +344,8 @@ impl PyGraphView {
     ///
     /// Returns:
     ///    HashMap<String, Prop> - Properties paired with their names
-    fn properties(&self, include_static: Option<bool>) -> HashMap<String, Prop> {
-        self.graph.properties(include_static.unwrap_or(true))
-    }
-
-    /// Get all graph properties histories
-    ///
-    /// Arguments:
-    ///   *  `include_static`: optional boolean to include static property in the result set
-    ///
-    /// Returns:
-    ///    HashMap<String, Vec<(i64, Prop)>> - Properties paired with their names and timestamps
-    fn property_histories(&self) -> HashMap<String, Vec<(i64, Prop)>> {
-        self.graph.property_histories()
-    }
-
-    /// Get all graph property names
-    ///
-    /// Arguments:
-    ///   *  `include_static`: optional boolean to include static property in the result set
-    ///
-    /// Returns:
-    ///    Vec<String> - List of all property names
-    fn property_names(&self, include_static: Option<bool>) -> Vec<String> {
-        self.graph.property_names(include_static.unwrap_or(true))
-    }
-
-    /// Returns whether a property is found by name
-    ///
-    /// Arguments:
-    ///   * `name`: name of a property
-    ///   *  `include_static`: optional boolean to include static property in the result set
-    ///
-    /// Returns:
-    ///    bool - Indicates whether a property is found by name
-    fn has_property(&self, name: &str, include_static: Option<bool>) -> bool {
-        self.graph
-            .has_property(name, include_static.unwrap_or(true))
-    }
-
-    /// Returns whether a static property is found by name
-    ///
-    /// Arguments:
-    ///   * `name`: name of a property
-    ///
-    /// Returns:
-    ///    bool - Indicates whether a static property is found by name
-    fn has_static_property(&self, name: &str) -> bool {
-        self.graph.has_static_property(name)
-    }
-
-    /// Returns whether a static property is found by name
-    ///
-    /// Arguments:
-    ///   * `name`: name of a static property
-    ///
-    /// Returns:
-    ///    Option<Prop> - Returns the static property
-    fn static_property(&self, name: &str) -> Option<Prop> {
-        self.graph.static_property(name)
+    fn properties(&self) -> TemporalProperties<DynamicGraph> {
+        self.graph.properties()
     }
 
     /// Returns static properties of a graph
@@ -434,7 +354,7 @@ impl PyGraphView {
     ///
     /// Returns:
     ///    HashMap<String, Prop> - Returns static properties identified by their names
-    fn static_properties(&self) -> HashMap<String, Prop> {
+    fn static_properties(&self) -> StaticProperties<DynamicGraph> {
         self.graph.static_properties()
     }
 

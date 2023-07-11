@@ -9,6 +9,7 @@ use crate::{
     db::api::view::internal::CoreGraphOps,
     prelude::Prop,
 };
+use crate::db::api::properties::internal::{Key, TemporalPropertyViewOps};
 
 impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
     fn get_layer_name_by_id(&self, layer_id: usize) -> String {
