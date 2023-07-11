@@ -15,6 +15,16 @@ class GraphQLServer:
         else:
             raise Exception(f"Query failed to run with a {r.status_code}.")
 
+    def wait_for_online(self):
+           while True:
+                try:
+                    r = requests.get("http://localhost:"+str(self.port))
+                    if r.status_code == 200:
+                        return True
+                except:
+                    pass
+                time.sleep(1)
+
 async def __from_map_and_directory(graphs,graph_dir,port):
     await internal_graphql.from_map_and_directory(graphs,graph_dir,port)
 
@@ -30,8 +40,9 @@ def __run(func,daemon,port):
         def __run_in_background():
             asyncio.run(func)
         threading.Thread(target=__run_in_background, daemon=True).start()
-        time.sleep(5) #TODO this is obviously a hack
-        return GraphQLServer(port)
+        server = GraphQLServer(port)
+        server.wait_for_online()
+        return server
     else:
         loop = asyncio.get_event_loop()
         loop.run_until_complete(func)
