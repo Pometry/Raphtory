@@ -1,12 +1,10 @@
 use crate::core::entities::properties::props::DictMapper;
 use crate::core::entities::properties::tprop::TProp;
 use crate::core::{Prop, PropUnwrap};
-use crate::db::api::mutation::Properties;
 use crate::db::api::view::internal::Base;
 use crate::prelude::Graph;
 use chrono::NaiveDateTime;
 use std::iter::Zip;
-use std::marker::PhantomData;
 
 pub trait CorePropertiesOps {
     fn static_prop_meta(&self) -> &DictMapper<String>;
@@ -219,14 +217,6 @@ pub struct TemporalProperties<P: BoxableTemporalProperties + Clone> {
     pub(crate) props: P,
 }
 
-impl<P: BoxableTemporalProperties + Clone> Properties for TemporalProperties<P> {
-    fn collect_properties(self) -> Vec<(String, Prop)> {
-        self.iter()
-            .flat_map(|(k, v)| v.value().map(|v| (k, v)))
-            .collect()
-    }
-}
-
 impl<P: BoxableTemporalProperties + Clone> IntoIterator for TemporalProperties<P> {
     type Item = (String, TemporalPropertyView<P>);
     type IntoIter = Zip<std::vec::IntoIter<String>, std::vec::IntoIter<TemporalPropertyView<P>>>;
@@ -272,6 +262,12 @@ impl<P: BoxableTemporalProperties + Clone> TemporalProperties<P> {
         self.props
             .get_temporal_property(key.as_ref())
             .map(|k| TemporalPropertyView::new(self.props.clone(), k))
+    }
+
+    pub fn collect_properties(self) -> Vec<(String, Prop)> {
+        self.iter()
+            .flat_map(|(k, v)| v.value().map(|v| (k, v)))
+            .collect()
     }
 }
 

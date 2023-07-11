@@ -5,12 +5,12 @@ use crate::{
         entities::VID,
         state::{accumulator_id::AccId, agg::Accumulator, compute_state::ComputeState, StateType},
         utils::time::IntoTime,
-        Direction, Prop,
+        Direction,
     },
     db::{
         api::view::{
-            internal::GraphPropertiesOps, BoxedIter, EdgeListOps, EdgeViewOps, GraphViewOps,
-            TimeOps, VertexListOps, VertexViewOps,
+            BoxedIter, EdgeListOps, EdgeViewOps, GraphViewOps, TimeOps, VertexListOps,
+            VertexViewOps,
         },
         graph::{
             edge::EdgeView,
@@ -29,7 +29,6 @@ use crate::{
 use itertools::Itertools;
 use std::{
     cell::{Ref, RefCell},
-    collections::HashMap,
     marker::PhantomData,
     rc::Rc,
 };

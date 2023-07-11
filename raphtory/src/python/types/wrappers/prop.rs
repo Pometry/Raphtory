@@ -4,7 +4,6 @@ use crate::{
 };
 use pyo3::types::PyBool;
 use pyo3::{exceptions::PyTypeError, FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python};
-use std::collections::HashMap;
 
 impl IntoPy<PyObject> for Prop {
     fn into_py(self, py: Python<'_>) -> PyObject {
@@ -66,6 +65,4 @@ impl Repr for Prop {
 }
 
 pub type PropValue = Option<Prop>;
-pub type Props = HashMap<String, Prop>;
 pub type PropHistory = Vec<(i64, Prop)>;
-pub type PropHistories = HashMap<String, PropHistory>;

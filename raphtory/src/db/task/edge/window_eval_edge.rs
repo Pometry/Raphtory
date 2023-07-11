@@ -17,7 +17,7 @@ use crate::{
         },
     },
 };
-use std::{cell::RefCell, collections::HashMap, iter, marker::PhantomData, rc::Rc};
+use std::{cell::RefCell, iter, marker::PhantomData, rc::Rc};
 
 pub struct WindowEvalEdgeView<'a, G: GraphViewOps, CS: ComputeState, S: 'static> {
     ss: usize,
@@ -185,6 +185,29 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeViewOps
 
     type EList = Box<dyn Iterator<Item = Self> + 'a>;
 
+    fn history(&self) -> Vec<i64> {
+        self.graph()
+            .edge_history_window(self.ev, self.t_start..self.t_end)
+            .collect()
+    }
+
+    /// Check if edge is active at a given time point
+    fn active(&self, t: i64) -> bool {
+        match self.eref().time() {
+            Some(tt) => tt == t,
+            None => {
+                (self.t_start..self.t_end).contains(&t)
+                    && self.graph().has_edge_ref_window(
+                        self.eref().src(),
+                        self.eref().dst(),
+                        t,
+                        t.saturating_add(1),
+                        self.eref().layer(),
+                    )
+            }
+        }
+    }
+
     fn explode(&self) -> Self::EList {
         let e = self.ev.clone();
         let t_start = self.t_start;
@@ -209,29 +232,6 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeViewOps
                         t_end,
                     )
                 }))
-            }
-        }
-    }
-
-    fn history(&self) -> Vec<i64> {
-        self.graph()
-            .edge_history_window(self.ev, self.t_start..self.t_end)
-            .collect()
-    }
-
-    /// Check if edge is active at a given time point
-    fn active(&self, t: i64) -> bool {
-        match self.eref().time() {
-            Some(tt) => tt == t,
-            None => {
-                (self.t_start..self.t_end).contains(&t)
-                    && self.graph().has_edge_ref_window(
-                        self.eref().src(),
-                        self.eref().dst(),
-                        t,
-                        t.saturating_add(1),
-                        self.eref().layer(),
-                    )
             }
         }
     }

@@ -5,10 +5,10 @@
 use crate::db::api::properties::internal::{
     StaticProperties, TemporalProperties, TemporalPropertyView,
 };
-use crate::python::graph::properties::PyStaticProperties;
+
 use crate::python::utils::PyGenericIterable;
 use crate::{
-    core::{entities::vertices::vertex_ref::VertexRef, utils::time::error::ParseTimeError, Prop},
+    core::{entities::vertices::vertex_ref::VertexRef, utils::time::error::ParseTimeError},
     db::{
         api::view::{
             internal::{DynamicGraph, IntoDynamic},
@@ -29,14 +29,13 @@ use crate::{
     *,
 };
 use chrono::NaiveDateTime;
-use itertools::Itertools;
+
 use pyo3::exceptions::PyKeyError;
 use pyo3::{
     exceptions::PyIndexError, prelude::*, pyclass, pyclass::CompareOp, pymethods, PyAny, PyObject,
     PyRef, PyRefMut, PyResult, Python,
 };
 use python::types::repr::{iterator_repr, Repr};
-use std::collections::HashMap;
 
 /// A vertex (or node) in the graph.
 #[pyclass(name = "Vertex")]
@@ -419,7 +418,7 @@ impl Repr for PyVertex {
         if properties.is_empty() {
             format!("Vertex(name={})", self.name().trim_matches('"'))
         } else {
-            let property_string: String = "{".to_owned() + &properties + "}";
+            let property_string: String = "{".to_owned() + properties + "}";
             format!(
                 "Vertex(name={}, properties={})",
                 self.name().trim_matches('"'),
@@ -493,7 +492,7 @@ impl PyVertices {
         (move || vertices.latest_time()).into()
     }
 
-    fn properties(&self, include_static: Option<bool>) -> PyGenericIterable {
+    fn properties(&self) -> PyGenericIterable {
         let vertices = self.vertices.clone();
         (move || vertices.properties()).into()
     }

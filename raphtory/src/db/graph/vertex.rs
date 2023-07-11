@@ -1,10 +1,8 @@
 //! Defines the `Vertex` struct, which represents a vertex in the graph.
 
-use crate::core::entities::properties::props::DictMapper;
-use crate::core::entities::properties::tprop::TProp;
 use crate::db::api::properties::internal::{
-    CorePropertiesOps, StaticProperties, StaticPropertiesOps, TemporalProperties,
-    TemporalPropertiesOps, TemporalPropertyView, TemporalPropertyViewOps,
+    StaticProperties, StaticPropertiesOps, TemporalProperties, TemporalPropertiesOps,
+    TemporalPropertyViewOps,
 };
 use crate::db::api::view::internal::Static;
 use crate::{
@@ -14,7 +12,7 @@ use crate::{
         Direction,
     },
     db::{
-        api::view::{internal::GraphPropertiesOps, BoxedIter, LayerOps},
+        api::view::{BoxedIter, LayerOps},
         graph::{
             edge::{EdgeList, EdgeView},
             path::{Operations, PathFromVertex},
@@ -23,7 +21,6 @@ use crate::{
     },
     prelude::*,
 };
-use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 pub struct VertexView<G: GraphViewOps> {
@@ -447,7 +444,7 @@ mod vertex_test {
         let g = Graph::new();
         let props = [("test", "test")];
         g.add_vertex(0, 1, NO_PROPS).unwrap();
-        g.add_vertex(2, 1, props.clone()).unwrap();
+        g.add_vertex(2, 1, props).unwrap();
 
         let v1 = g.vertex(1).unwrap();
         let v1_w = g.window(0, 1).vertex(1).unwrap();

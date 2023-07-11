@@ -6,8 +6,7 @@ use rayon::{prelude::ParallelIterator, slice::ParallelSlice};
 use tantivy::{
     collector::TopDocs,
     schema::{Field, Schema, SchemaBuilder, FAST, INDEXED, STORED, TEXT},
-    Document, Index, IndexReader, IndexSettings, IndexWriter,
-    TantivyError,
+    Document, Index, IndexReader, IndexSettings, IndexWriter, TantivyError,
 };
 
 use crate::{
@@ -22,15 +21,13 @@ use crate::{
     prelude::*,
 };
 
-use self::fields::{EDGE_ID, NAME, TIME, VERTEX_ID, VERTEX_ID_REV};
-
 #[derive(Clone)]
 pub struct IndexedGraph<G> {
     graph: G,
     vertex_index: Arc<Index>,
     edge_index: Arc<Index>,
-    reader: tantivy::IndexReader,
-    edge_reader: tantivy::IndexReader,
+    reader: IndexReader,
+    edge_reader: IndexReader,
 }
 
 impl<G> Deref for IndexedGraph<G> {
@@ -159,18 +156,16 @@ impl<G: GraphViewOps> IndexedGraph<G> {
 
             for prop in prop_names_set.iter() {
                 // load temporal props
-                for (_, prop_value) in vertex.property_history(prop.to_string()) {
+                if let Some(prop_value) = vertex.properties().get(prop).and_then(|p| p.value()) {
                     if found_props.contains(prop) {
                         continue;
                     }
-
                     Self::set_schema_field_from_prop(&mut schema, prop, prop_value);
-
                     found_props.insert(prop.to_string());
                 }
                 // load static props
-                if let Some(prop_value) = vertex.static_property(prop.to_string()) {
-                    let name = if prop == "_id" { NAME } else { prop };
+                if let Some(prop_value) = vertex.static_properties().get(prop) {
+                    let name = if prop == "_id" { fields::NAME } else { prop };
                     if !found_props.contains(name) {
                         Self::set_schema_field_from_prop(&mut schema, name, prop_value);
                         found_props.insert(prop.to_string());
@@ -207,19 +202,18 @@ impl<G: GraphViewOps> IndexedGraph<G> {
 
             for prop in prop_names_set.iter() {
                 // load temporal props
-                for (_, prop_value) in edge.property_history(prop) {
+                if let Some(prop_value) = edge.properties().get(prop).and_then(|p| p.value()) {
                     if found_props.contains(prop) {
                         continue;
                     }
-
                     Self::set_schema_field_from_prop(&mut schema, prop, prop_value);
-
                     found_props.insert(prop.to_string());
                 }
                 // load static props
-                if let Some(prop_value) = edge.static_property(prop) {
-                    if !found_props.contains(prop) {
-                        Self::set_schema_field_from_prop(&mut schema, prop, prop_value);
+                if let Some(prop_value) = edge.static_properties().get(prop) {
+                    let name = if prop == "_id" { fields::NAME } else { prop };
+                    if !found_props.contains(name) {
+                        Self::set_schema_field_from_prop(&mut schema, name, prop_value);
                         found_props.insert(prop.to_string());
                     }
                 }
@@ -299,7 +293,7 @@ impl<G: GraphViewOps> IndexedGraph<G> {
 
             let mut writer_guard = writer_lock.write();
             writer_guard.commit()?;
-            Ok::<(), tantivy::TantivyError>(())
+            Ok::<(), TantivyError>(())
         })?;
 
         reader.reload()?;
@@ -327,17 +321,16 @@ impl<G: GraphViewOps> IndexedGraph<G> {
         vertex_id_field: Field,
         vertex_id_rev_field: Field,
     ) -> tantivy::Result<()> {
-        let vertex_id: u64 = Into::<usize>::into(vertex.vertex) as u64;
-        let temp_prop_names = vertex.property_names(false);
+        let vertex_id: u64 = usize::from(vertex.vertex) as u64;
 
         let mut document = Document::new();
         // add the vertex_id
         document.add_u64(vertex_id_field, vertex_id);
         document.add_u64(vertex_id_rev_field, u64::MAX - vertex_id);
 
-        for temp_prop_name in temp_prop_names {
+        for (temp_prop_name, temp_prop_value) in vertex.properties() {
             let prop_field = schema.get_field(&temp_prop_name)?;
-            for (time, prop_value) in vertex.property_history(temp_prop_name) {
+            for (time, prop_value) in temp_prop_value {
                 // add time to the document
                 document.add_i64(time_field, time);
 
@@ -345,8 +338,7 @@ impl<G: GraphViewOps> IndexedGraph<G> {
             }
         }
 
-        let prop_names = vertex.property_names(true);
-        for prop_name in prop_names {
+        for (prop_name, prop_value) in vertex.static_properties() {
             let field_name = if prop_name == "_id" {
                 "name"
             } else {
@@ -354,9 +346,7 @@ impl<G: GraphViewOps> IndexedGraph<G> {
             };
 
             let prop_field = schema.get_field(field_name)?;
-            if let Some(prop_value) = vertex.static_property(prop_name.to_string()) {
-                Self::index_prop_value(&mut document, prop_field, prop_value);
-            }
+            Self::index_prop_value(&mut document, prop_field, prop_value);
         }
         writer.add_document(document)?;
         Ok(())
@@ -371,17 +361,16 @@ impl<G: GraphViewOps> IndexedGraph<G> {
         destination_field: Field,
         edge_id_field: Field,
     ) -> tantivy::Result<()> {
-        let temp_prop_names = e_ref.property_names(false);
         let edge_ref = e_ref.eref();
 
         let src = e_ref.src();
         let dst = e_ref.dst();
 
-                let mut document = Document::new();
-                let edge_id: u64 = Into::<usize>::into(edge_ref.pid()) as u64;
-                document.add_u64(edge_id_field, edge_id);
-                document.add_text(source_field, src.name());
-                document.add_text(destination_field, dst.name());
+        let mut document = Document::new();
+        let edge_id: u64 = Into::<usize>::into(edge_ref.pid()) as u64;
+        document.add_u64(edge_id_field, edge_id);
+        document.add_text(source_field, src.name());
+        document.add_text(destination_field, dst.name());
 
         // add all time events
         for e in e_ref.explode() {
@@ -390,21 +379,18 @@ impl<G: GraphViewOps> IndexedGraph<G> {
             }
         }
 
-        for temp_prop_name in temp_prop_names {
+        for (temp_prop_name, temp_prop_value) in e_ref.properties() {
             let prop_field = schema.get_field(&temp_prop_name)?;
-            for (time, prop_value) in e_ref.property_history(&temp_prop_name) {
+            for (time, prop_value) in temp_prop_value {
                 // add time to the document
                 document.add_i64(time_field, time);
                 Self::index_prop_value(&mut document, prop_field, prop_value);
             }
         }
 
-        let prop_names = e_ref.property_names(true);
-        for prop_name in prop_names {
+        for (prop_name, prop_value) in e_ref.static_properties() {
             let prop_field = schema.get_field(&prop_name)?;
-            if let Some(prop_value) = e_ref.static_property(&prop_name) {
-                Self::index_prop_value(&mut document, prop_field, prop_value);
-            }
+            Self::index_prop_value(&mut document, prop_field, prop_value);
         }
 
         writer.add_document(document)?; // add the edge itself
@@ -544,16 +530,15 @@ impl<G: GraphViewOps> IndexedGraph<G> {
         let query_parser = tantivy::query::QueryParser::for_index(&self.vertex_index, vec![]);
         let query = query_parser.parse_query(q)?;
 
-        let ranking = TopDocs::with_limit(limit)
-            .and_offset(offset);
+        let ranking = TopDocs::with_limit(limit).and_offset(offset);
 
         let top_docs = searcher.search(&query, &ranking)?;
 
-        let vertex_id = self.vertex_index.schema().get_field(VERTEX_ID)?;
+        let vertex_id = self.vertex_index.schema().get_field(fields::VERTEX_ID)?;
 
         let results = top_docs
             .into_iter()
-            .map(|(_, doc_address)|  searcher.doc(doc_address))
+            .map(|(_, doc_address)| searcher.doc(doc_address))
             .filter_map(Result::ok)
             .filter_map(|doc| self.resolve_vertex_from_search_result(vertex_id, doc))
             .collect::<Vec<_>>();
@@ -575,7 +560,7 @@ impl<G: GraphViewOps> IndexedGraph<G> {
 
         let top_docs = searcher.search(&query, &ranking)?;
 
-        let edge_id = self.edge_index.schema().get_field(EDGE_ID)?;
+        let edge_id = self.edge_index.schema().get_field(fields::EDGE_ID)?;
 
         let results = top_docs
             .into_iter()
@@ -599,21 +584,20 @@ impl<G: GraphViewOps + InternalAdditionOps> InternalAdditionOps for IndexedGraph
         let t: i64 = t.try_into_time()?;
         let mut document = Document::new();
         // add time to the document
-        let time = self.vertex_index.schema().get_field(TIME)?;
+        let time = self.vertex_index.schema().get_field(fields::TIME)?;
         document.add_i64(time, t);
         // add name to the document
 
         if let Some(vertex_name) = name {
-            let name = self.vertex_index.schema().get_field(NAME)?;
+            let name = self.vertex_index.schema().get_field(fields::NAME)?;
             document.add_text(name, vertex_name);
         }
 
         // index all props that are declared in the schema
         for (prop_name, prop) in props.iter() {
             if let Ok(field) = self.vertex_index.schema().get_field(prop_name) {
-                match prop {
-                    Prop::Str(s) => document.add_text(field, s),
-                    _ => {}
+                if let Prop::Str(s) = prop {
+                    document.add_text(field, s)
                 }
             }
         }
@@ -621,8 +605,11 @@ impl<G: GraphViewOps + InternalAdditionOps> InternalAdditionOps for IndexedGraph
         let v_ref = self.graph.internal_add_vertex(t, v, name, props)?;
         let v_id = self.graph.local_vertex_ref(v_ref).unwrap();
         // get the field from the index
-        let vertex_id = self.vertex_index.schema().get_field(VERTEX_ID)?;
-        let vertex_id_rev = self.vertex_index.schema().get_field(VERTEX_ID_REV)?;
+        let vertex_id = self.vertex_index.schema().get_field(fields::VERTEX_ID)?;
+        let vertex_id_rev = self
+            .vertex_index
+            .schema()
+            .get_field(fields::VERTEX_ID_REV)?;
         let index_v_id: u64 = Into::<usize>::into(v_id) as u64;
 
         document.add_u64(vertex_id, index_v_id);
@@ -651,9 +638,6 @@ impl<G: GraphViewOps + InternalAdditionOps> InternalAdditionOps for IndexedGraph
 
 #[cfg(test)]
 mod test {
-
-    const EMPTY: [(&str, Prop); 0] = [];
-
     use std::time::SystemTime;
 
     use tantivy::{doc, DocAddress};
@@ -701,7 +685,7 @@ mod test {
 
         let issues = index_graph.search("name:'DEV-1690'", 5, 0)?;
 
-        assert!(issues.len() >= 1);
+        assert!(!issues.is_empty());
 
         let names = issues.into_iter().map(|v| v.name()).collect::<Vec<_>>();
         println!("names: {:?}", names);
@@ -1025,9 +1009,9 @@ mod test {
         let query_parser = tantivy::query::QueryParser::for_index(&index, vec![]);
         let query = query_parser.parse_query(r#"name:"gandalf""#).unwrap();
 
-        let ranking = TopDocs::with_limit(10).order_by_u64_field(VERTEX_ID.to_string());
+        let ranking = TopDocs::with_limit(10).order_by_u64_field(fields::VERTEX_ID.to_string());
         let top_docs: Vec<(u64, DocAddress)> = searcher.search(&query, &ranking).unwrap();
 
-        assert!(top_docs.len() > 0);
+        assert!(!top_docs.is_empty());
     }
 }

@@ -4,7 +4,6 @@ use crate::{
     core::{
         entities::vertices::vertex_ref::VertexRef,
         utils::{errors::GraphError, time::error::ParseTimeError},
-        Prop,
     },
     db::{
         api::view::{
@@ -33,7 +32,6 @@ use crate::{
 };
 use chrono::prelude::*;
 use pyo3::prelude::*;
-use std::collections::HashMap;
 
 impl IntoPy<PyObject> for MaterializedGraph {
     fn into_py(self, py: Python<'_>) -> PyObject {
@@ -86,7 +84,6 @@ impl<G: GraphViewOps + IntoDynamic> IntoPy<PyObject> for VertexSubgraph<G> {
 /// The API for querying a view of the graph in a read-only state
 #[pymethods]
 impl PyGraphView {
-
     /// Return all the layer ids in the graph
     pub fn get_unique_layers(&self) -> Vec<String> {
         self.graph.get_unique_layers()

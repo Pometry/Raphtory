@@ -1,12 +1,10 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-use raphtory::{prelude::*, core::entities::vertices::input_vertex::InputVertex};
-
+use raphtory::{core::entities::vertices::input_vertex::InputVertex, prelude::*};
 mod common;
 use rand::{
     distributions::{Alphanumeric, DistString},
     thread_rng, Rng,
 };
-use raphtory::core::entities::vertices::input_vertex::InputVertex;
 
 fn random_string(n: usize) -> String {
     Alphanumeric.sample_string(&mut rand::thread_rng(), n)

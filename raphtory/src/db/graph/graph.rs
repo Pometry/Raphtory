@@ -16,7 +16,6 @@
 //! ```
 //!
 
-use crate::db::api::properties::internal::InheritPropertiesOps;
 use crate::{
     core::{entities::graph::tgraph::InnerTemporalGraph, utils::errors::GraphError},
     db::api::{
@@ -85,7 +84,6 @@ impl InheritPropertyAdditionOps for Graph {}
 impl InheritViewOps for Graph {}
 
 impl Graph {
-
     /// Create a new graph with the specified number of shards
     ///
     /// # Arguments
@@ -150,7 +148,6 @@ impl IntoDynamic for Graph {
 #[cfg(test)]
 mod db_tests {
     use super::*;
-    use crate::db::api::mutation::Properties;
     use crate::{
         core::{
             entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef},
@@ -547,8 +544,7 @@ mod db_tests {
         assert_eq!(actual, Some(Prop::Bool(true)));
 
         // we flip cool from true to false after t 3
-        let _ = g
-            .add_vertex(3, 1, [("cool".to_string(), Prop::Bool(false))])
+        g.add_vertex(3, 1, [("cool".to_string(), Prop::Bool(false))])
             .unwrap();
 
         let wg = g.window(3, 15);
@@ -988,7 +984,8 @@ mod db_tests {
         let latest_time = "2022-06-07 12:34:00".try_into_time().unwrap();
 
         let g = Graph::new();
-        g.add_vertex("2022-06-06T12:34:00.000", 0, NO_PROPS).unwrap();
+        g.add_vertex("2022-06-06T12:34:00.000", 0, NO_PROPS)
+            .unwrap();
         g.add_edge("2022-06-07T12:34:00", 1, 2, NO_PROPS, None)
             .unwrap();
         assert_eq!(g.earliest_time().unwrap(), earliest_time);
@@ -1047,7 +1044,7 @@ mod db_tests {
 
         props_map
             .into_iter()
-            .all(|(name, value)| g.static_properties().get(&name).unwrap() == value)
+            .all(|(name, value)| g.static_properties().get(name).unwrap() == value)
     }
 
     #[quickcheck]

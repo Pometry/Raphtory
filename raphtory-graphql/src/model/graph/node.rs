@@ -5,15 +5,12 @@ use crate::model::{
 use async_graphql::Context;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
-use raphtory::{
-    core::{Prop, PropUnwrap},
-    db::{
-        api::view::{
-            internal::{DynamicGraph, IntoDynamic},
-            *,
-        },
-        graph::vertex::VertexView,
+use raphtory::db::{
+    api::view::{
+        internal::{DynamicGraph, IntoDynamic},
+        *,
     },
+    graph::vertex::VertexView,
 };
 
 #[derive(ResolvedObject)]
@@ -85,17 +82,18 @@ impl Node {
     async fn property(&self, name: String) -> Option<Property> {
         if let Some(p) = self.vv.properties().get(&name) {
             p.value().map(|v| Property::new(name, v))
-        } else if let Some(p) = self.vv.static_properties().get(&name) {
-            Some(Property::new(name, p))
         } else {
-            None
+            self.vv
+                .static_properties()
+                .get(&name)
+                .map(|p| Property::new(name, p))
         }
     }
 
     async fn property_history(&self, name: String) -> Vec<PropertyUpdate> {
         self.vv
             .properties()
-            .get(&name)
+            .get(name)
             .into_iter()
             .flat_map(|p| {
                 p.iter()
@@ -155,7 +153,7 @@ impl Node {
                         None => 0,
                         Some(vvv) => vvv.degree(),
                     };
-                    return degree;
+                    degree
                 })
                 .sum(),
         }
@@ -183,24 +181,24 @@ impl Node {
 
     async fn out_edges(&self, layer: Option<String>) -> Vec<Edge> {
         match layer {
-            None => self.vv.out_edges().map(|ee| ee.clone().into()).collect(),
+            None => self.vv.out_edges().map(|ee| ee.into()).collect(),
             Some(layer) => match self.vv.layer(layer.as_str()) {
                 None => {
                     vec![]
                 }
-                Some(vvv) => vvv.out_edges().map(|ee| ee.clone().into()).collect(),
+                Some(vvv) => vvv.out_edges().map(|ee| ee.into()).collect(),
             },
         }
     }
 
     async fn in_edges(&self, layer: Option<String>) -> Vec<Edge> {
         match layer {
-            None => self.vv.in_edges().map(|ee| ee.clone().into()).collect(),
+            None => self.vv.in_edges().map(|ee| ee.into()).collect(),
             Some(layer) => match self.vv.layer(layer.as_str()) {
                 None => {
                     vec![]
                 }
-                Some(vvv) => vvv.in_edges().map(|ee| ee.clone().into()).collect(),
+                Some(vvv) => vvv.in_edges().map(|ee| ee.into()).collect(),
             },
         }
     }
@@ -210,11 +208,10 @@ impl Node {
             Some(filter) => self
                 .vv
                 .edges()
-                .into_iter()
                 .map(|ev| ev.into())
                 .filter(|ev| filter.matches(ev))
                 .collect(),
-            None => self.vv.edges().map(|ee| ee.clone().into()).collect(),
+            None => self.vv.edges().map(|ee| ee.into()).collect(),
         }
     }
 

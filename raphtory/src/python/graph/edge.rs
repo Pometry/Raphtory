@@ -9,7 +9,7 @@ use crate::db::api::properties::internal::{
 };
 use crate::python::types::wrappers::iterators::StaticPropsIterable;
 use crate::{
-    core::{utils::time::error::ParseTimeError, Prop},
+    core::utils::time::error::ParseTimeError,
     db::{
         api::view::{
             internal::{DynamicGraph, IntoDynamic},
@@ -22,16 +22,15 @@ use crate::{
         graph::vertex::{PyVertex, PyVertexIterable},
         types::{
             repr::{iterator_repr, Repr},
-            wrappers::iterators::{OptionI64Iterable, OptionPropIterable, PropsIterable},
+            wrappers::iterators::OptionI64Iterable,
         },
         utils::{PyGenericIterable, PyInterval, PyTime},
     },
 };
 use chrono::NaiveDateTime;
-use itertools::Itertools;
 use pyo3::{prelude::*, pyclass::CompareOp};
 use std::{
-    collections::{hash_map::DefaultHasher, HashMap},
+    collections::hash_map::DefaultHasher,
     hash::{Hash, Hasher},
     sync::Arc,
 };

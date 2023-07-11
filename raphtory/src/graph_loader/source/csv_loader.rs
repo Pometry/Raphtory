@@ -60,7 +60,7 @@
 
 /// Module for loading CSV files into a graph.
 use bzip2::read::BzDecoder;
-use csv::{ByteRecord, StringRecord};
+use csv::StringRecord;
 use flate2; // 1.0
 use flate2::read::GzDecoder;
 use rayon::prelude::*;
@@ -271,14 +271,12 @@ impl CsvLoader {
         while let Some(ref path) = queue.pop_back() {
             match fs::read_dir(path) {
                 Ok(entries) => {
-                    for entry in entries {
-                        if let Ok(f_path) = entry {
-                            let p = f_path.path();
-                            if Self::is_dir(&p)? {
-                                queue.push_back(p.clone())
-                            } else {
-                                self.accept_file(f_path.path(), &mut paths);
-                            }
+                    for f_path in entries.flatten() {
+                        let p = f_path.path();
+                        if Self::is_dir(&p)? {
+                            queue.push_back(p.clone())
+                        } else {
+                            self.accept_file(f_path.path(), &mut paths);
                         }
                     }
                 }
@@ -536,8 +534,14 @@ mod csv_loader_test {
             .set_delimiter(delimiter)
             .with_filter(r)
             .load_rec_into_graph(&g, |lotr: StringRecord, g: &Graph| {
-                let src_id = lotr.get(0).map(|s| calculate_hash(&(s.to_owned()))).unwrap();
-                let dst_id = lotr.get(1).map(|s| calculate_hash(&(s.to_owned()))).unwrap();
+                let src_id = lotr
+                    .get(0)
+                    .map(|s| calculate_hash(&(s.to_owned())))
+                    .unwrap();
+                let dst_id = lotr
+                    .get(1)
+                    .map(|s| calculate_hash(&(s.to_owned())))
+                    .unwrap();
                 let time = lotr.get(2).map(|s| s.parse::<i64>().unwrap()).unwrap();
 
                 g.add_vertex(

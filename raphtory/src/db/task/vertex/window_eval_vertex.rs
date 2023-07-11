@@ -1,4 +1,3 @@
-use crate::core::entities::vertices::vertex::Vertex;
 use crate::db::api::properties::internal::{StaticProperties, TemporalProperties};
 use crate::db::graph::vertex::VertexView;
 use crate::db::graph::views::window_graph::WindowedGraph;
@@ -7,12 +6,11 @@ use crate::{
         entities::VID,
         state::{accumulator_id::AccId, agg::Accumulator, compute_state::ComputeState, StateType},
         utils::time::IntoTime,
-        Direction, Prop,
+        Direction,
     },
     db::{
         api::view::{
-            internal::{GraphPropertiesOps, GraphWindowOps},
-            GraphViewOps, TimeOps, VertexListOps, VertexViewOps,
+            internal::GraphWindowOps, GraphViewOps, TimeOps, VertexListOps, VertexViewOps,
         },
         graph::path::{Operations, PathFromVertex},
         task::{
@@ -21,7 +19,7 @@ use crate::{
         },
     },
 };
-use std::{cell::RefCell, collections::HashMap, marker::PhantomData, rc::Rc};
+use std::{cell::RefCell, marker::PhantomData, rc::Rc};
 
 pub struct WindowEvalVertex<'a, G: GraphViewOps, CS: ComputeState, S: 'static> {
     ss: usize,
@@ -87,7 +85,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> TimeOps for WindowEvalVe
     fn window<T: IntoTime>(&self, t_start: T, t_end: T) -> Self::WindowedViewType {
         WindowEvalVertex {
             ss: self.ss,
-            vertex: self.vertex.clone(),
+            vertex: self.vertex,
             graph: self.graph,
             _local_state: None,
             local_state_prev: self.local_state_prev,
@@ -574,10 +572,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexListOps
     }
 
     fn out_edges(self) -> Self::EList {
-        Box::new(
-            self.flat_map(|v| v.out_edges())
-                .map(|ev| WindowEvalEdgeView::from(ev)),
-        )
+        Box::new(self.flat_map(|v| v.out_edges()))
     }
 
     fn neighbours(self) -> Self {

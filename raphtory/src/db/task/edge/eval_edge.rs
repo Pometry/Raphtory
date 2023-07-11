@@ -16,7 +16,7 @@ use crate::{
         },
     },
 };
-use std::{cell::RefCell, collections::HashMap, iter, marker::PhantomData, rc::Rc};
+use std::{cell::RefCell, iter, marker::PhantomData, rc::Rc};
 
 pub struct EvalEdgeView<'a, G: GraphViewOps, CS: ComputeState, S> {
     ss: usize,
@@ -54,7 +54,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static>
     }
 
     fn eref(&self) -> EdgeRef {
-        self.ev.clone()
+        self.ev
     }
 
     fn new_vertex(&self, v: VertexRef) -> EvalVertexView<'a, G, CS, S> {
@@ -111,7 +111,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> TemporalPropertyViewOps
         self.graph
             .temporal_edge_prop_vec(self.ev, id)
             .into_iter()
-            .map(|(t, v)| t)
+            .map(|(t, _)| t)
             .collect()
     }
 
@@ -119,7 +119,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> TemporalPropertyViewOps
         self.graph
             .temporal_edge_prop_vec(self.ev, id)
             .into_iter()
-            .map(|(t, v)| v)
+            .map(|(_, v)| v)
             .collect()
     }
 }

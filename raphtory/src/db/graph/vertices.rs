@@ -12,7 +12,6 @@ use crate::{
     },
     prelude::*,
 };
-use std::collections::HashMap;
 
 #[derive(Clone)]
 pub struct Vertices<G: GraphViewOps> {

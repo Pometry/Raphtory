@@ -2,16 +2,12 @@ use crate::core::Prop;
 use crate::db::api::properties::internal::{
     BoxableTemporalProperties, InheritStaticPropertiesOps, InheritTemporalPropertiesOps,
     InheritTempralPropertyViewOps, StaticProperties, StaticPropertiesOps, TemporalProperties,
-    TemporalPropertiesOps, TemporalPropertyView, TemporalPropertyViewOps,
+    TemporalPropertyView, TemporalPropertyViewOps,
 };
-use crate::db::api::view::internal::{DynamicGraph, IntoDynamic, Static};
-use crate::db::graph::vertex::VertexView;
-use crate::prelude::GraphViewOps;
+use crate::db::api::view::internal::{DynamicGraph, Static};
 use crate::python::types::repr::{iterator_dict_repr, iterator_repr, Repr};
 use pyo3::exceptions::PyKeyError;
 use pyo3::prelude::*;
-use std::borrow::Borrow;
-use std::ops::Deref;
 use std::sync::Arc;
 
 pub type DynTemporalProperties =

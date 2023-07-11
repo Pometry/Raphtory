@@ -1,19 +1,17 @@
-use crate::db::api::properties::internal::TemporalProperties;
 use crate::python::graph::properties::{
     DynStaticProperties, DynTemporalProperties, PyStaticProperties, PyTemporalProperties,
-    PyTemporalPropertyView,
 };
 use crate::{
     core as db_c,
     db::api::view::BoxedIter,
     python::types::{
         repr::Repr,
-        wrappers::prop::{PropHistories, PropHistory, PropValue, Props},
+        wrappers::prop::{PropHistory, PropValue},
     },
 };
 use num::cast::AsPrimitive;
 use pyo3::prelude::*;
-use std::{collections::HashMap, i64, iter::Sum, ops::Deref};
+use std::{i64, iter::Sum, ops::Deref};
 
 pub(crate) trait MeanExt<V>: Iterator<Item = V>
 where

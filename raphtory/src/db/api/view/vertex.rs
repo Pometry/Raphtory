@@ -1,10 +1,6 @@
 use crate::db::api::properties::internal::{StaticProperties, TemporalProperties};
+use crate::db::api::view::{edge::EdgeListOps, GraphViewOps, TimeOps};
 use crate::db::graph::vertex::VertexView;
-use crate::{
-    core::Prop,
-    db::api::view::{edge::EdgeListOps, GraphViewOps, TimeOps},
-};
-use std::collections::HashMap;
 
 /// Operations defined for a vertex
 pub trait VertexViewOps: TimeOps {

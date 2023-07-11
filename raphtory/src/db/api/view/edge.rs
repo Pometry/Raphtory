@@ -3,13 +3,9 @@ use crate::db::api::properties::internal::{
     TemporalPropertyViewOps,
 };
 use crate::{
-    core::{
-        entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef},
-        Prop,
-    },
+    core::entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef},
     db::api::view::{internal::*, *},
 };
-use std::collections::HashMap;
 
 pub trait EdgeViewInternalOps<G: GraphViewOps, V: VertexViewOps<Graph = G>> {
     fn graph(&self) -> G;

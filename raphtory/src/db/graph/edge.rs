@@ -9,7 +9,7 @@ use crate::db::api::properties::internal::{
     StaticProperties, StaticPropertiesOps, TemporalProperties, TemporalPropertiesOps,
     TemporalPropertyViewOps,
 };
-use crate::db::api::view::internal::{GraphPropertiesOps, Static};
+use crate::db::api::view::internal::Static;
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef},
@@ -22,7 +22,6 @@ use crate::{
     prelude::*,
 };
 use std::{
-    collections::HashMap,
     fmt::{Debug, Formatter},
     iter,
 };
@@ -259,7 +258,6 @@ pub type EdgeList<G> = Box<dyn Iterator<Item = EdgeView<G>> + Send>;
 
 #[cfg(test)]
 mod test_edge {
-    use crate::db::api::mutation::Properties;
     use crate::prelude::*;
     use std::collections::HashMap;
 

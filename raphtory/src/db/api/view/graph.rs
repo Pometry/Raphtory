@@ -3,7 +3,6 @@ use crate::{
     core::{
         entities::{graph::tgraph::InnerTemporalGraph, vertices::vertex_ref::VertexRef, VID},
         utils::{errors::GraphError, time::IntoTime},
-        Prop,
     },
     db::{
         api::{
@@ -19,11 +18,11 @@ use crate::{
                 window_graph::WindowedGraph,
             },
         },
-    }, prelude::NO_PROPS,
+    },
+    prelude::NO_PROPS,
 };
 use itertools::Itertools;
 use rustc_hash::FxHashSet;
-use std::collections::HashMap;
 
 /// This trait GraphViewOps defines operations for accessing
 /// information about a graph. The trait has associated types
@@ -204,7 +203,7 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
                     ee.time().unwrap(),
                     ee.src().id(),
                     ee.dst().id(),
-                    ee.properties(),
+                    ee.properties().collect_properties(),
                     layer,
                 )?;
             }
