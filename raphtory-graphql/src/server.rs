@@ -55,13 +55,11 @@ impl RaphtoryServer {
             Some(tracer) => registry
                 .with(tracing_opentelemetry::layer().with_tracer(tracer))
                 .with(env_filter)
-                .try_init()
-                .expect("Failed to register tracer with registry"),
+                .try_init(),
             None => registry
                 .with(env_filter)
-                .try_init()
-                .expect("Failed to register tracer with registry"),
-        }
+                .try_init(),
+        }.unwrap_or(());
 
         #[derive(App)]
         struct App(QueryRoot);

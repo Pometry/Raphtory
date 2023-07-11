@@ -1346,3 +1346,58 @@ def test_deletions():
         assert g.window(start=11).has_edge(e[1], e[2])
 
     assert list(g.edge(edges[0][1], edges[0][2]).explode().latest_time()) == [10]
+
+
+def test_graphQL():
+    from raphtory import Graph
+    from raphtory import graphql
+    import random
+    import string
+    import os
+
+    g1 = Graph()
+    g1.add_edge(1,"ben","hamza")
+    g1.add_edge(2,"haaroon","hamza")
+    g1.add_edge(3,"ben","haaroon")
+    g2 = Graph()
+
+    g2.add_edge(1,"Naomi","Shivam")
+    g2.add_edge(2,"Shivam","Pedro")
+    g2.add_edge(3,"Pedro","Rachel")
+    graphs = {"g1":g1,"g2":g2}
+
+    g3 = Graph()
+    g3.add_edge(1,"ben_saved","hamza_saved")
+    g3.add_edge(2,"haaroon_saved","hamza_saved")
+    g3.add_edge(3,"ben_saved","haaroon_saved")
+
+    g4 = Graph()
+    g4.add_edge(1,"Naomi_saved","Shivam_saved")
+    g4.add_edge(2,"Shivam_saved","Pedro_saved")
+    g4.add_edge(3,"Pedro_saved","Rachel_saved")
+
+    path = "".join(random.choice(string.ascii_lowercase) for i in range(10))
+    path = "/tmp/"+path
+    os.mkdir(path)
+
+    g3.save_to_file(path+"/g3")
+    g4.save_to_file(path+"/g4")
+
+    map_server = graphql.run_server(graphs=graphs,port=1736,daemon=True)
+    dir_server = graphql.run_server(graph_dir=path,port=1737,daemon=True)
+    map_dir_server = graphql.run_server(graphs=graphs,graph_dir=path,port=1738,daemon=True)
+
+    query_g1 = """{graph(name: "g1") {nodes {name}}}"""
+    query_g2 = """{graph(name: "g2") {nodes {name}}}"""
+    query_g3 = """{graph(name: "g3") {nodes {name}}}"""
+    query_g4 = """{graph(name: "g4") {nodes {name}}}"""
+
+    assert str(map_server.query(query_g1)).replace(" ", "") == "{'data': {'graph': {'nodes': [{'name': 'ben'}, {'name': 'hamza'}, {'name': 'haaroon'}]}}}".replace(" ", "")
+    assert str(map_server.query(query_g2)).replace(" ", "") == "{'data': {'graph': {'nodes': [{'name': 'Naomi'}, {'name': 'Shivam'}, {'name': 'Pedro'}, {'name': 'Rachel'}]}}}".replace(" ", "")
+    assert str(dir_server.query(query_g3)).replace(" ", "") == "{'data': {'graph': {'nodes': [{'name': 'ben_saved'}, {'name': 'hamza_saved'}, {'name': 'haaroon_saved'}]}}}".replace(" ", "")
+    assert str(dir_server.query(query_g4)).replace(" ", "") == "{'data': {'graph': {'nodes': [{'name': 'Naomi_saved'}, {'name': 'Shivam_saved'}, {'name': 'Pedro_saved'}, {'name': 'Rachel_saved'}]}}}".replace(" ", "")
+
+    assert str(map_dir_server.query(query_g1)).replace(" ", "") == "{'data': {'graph': {'nodes': [{'name': 'ben'}, {'name': 'hamza'}, {'name': 'haaroon'}]}}}".replace(" ", "")
+    assert str(map_dir_server.query(query_g2)).replace(" ", "") == "{'data': {'graph': {'nodes': [{'name': 'Naomi'}, {'name': 'Shivam'}, {'name': 'Pedro'}, {'name': 'Rachel'}]}}}".replace(" ", "")
+    assert str(map_dir_server.query(query_g4)).replace(" ", "") == "{'data': {'graph': {'nodes': [{'name': 'Naomi_saved'}, {'name': 'Shivam_saved'}, {'name': 'Pedro_saved'}, {'name': 'Rachel_saved'}]}}}".replace(" ", "")
+    assert str(map_dir_server.query(query_g3)).replace(" ", "") == "{'data': {'graph': {'nodes': [{'name': 'ben_saved'}, {'name': 'hamza_saved'}, {'name': 'haaroon_saved'}]}}}".replace(" ", "")

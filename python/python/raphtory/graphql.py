@@ -35,11 +35,10 @@ class GraphQLServer:
         else:
             raise Exception(f"Query failed to run with a {r.status_code}.")
 
-    def __wait_for_online(self):
+    def wait_for_online(self):
         """
         Waits for the server to be online. This is called automatically when run_server is called.
         """
-
         while True:
              try:
                 r = requests.get("http://localhost:"+str(self.port))
@@ -65,7 +64,7 @@ def __run(func,daemon,port):
             asyncio.run(func)
         threading.Thread(target=__run_in_background, daemon=True).start()
         server = GraphQLServer(port)
-        server.__wait_for_online()
+        server.wait_for_online()
         return server
     else:
         loop = asyncio.get_event_loop()
