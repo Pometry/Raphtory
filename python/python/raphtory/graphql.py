@@ -21,9 +21,13 @@ class GraphQLServer:
     def query(self, query):
         """
         Runs a GraphQL query on the server.
+
         :param query(str): The GraphQL query to run.
+
         :raises Exception: If the query fails to run.
-        :return: The result of the query as a json object.
+
+        :return: Returns the json-encoded content of a response, if any.
+
         """
         r = requests.post("http://localhost:"+str(self.port), json={"query": query})
         if r.status_code == 200:
@@ -31,9 +35,9 @@ class GraphQLServer:
         else:
             raise Exception(f"Query failed to run with a {r.status_code}.")
 
-    def wait_for_online(self):
+    def __wait_for_online(self):
         """
-        Waits for the server to be online. This is done automatically when run_server is called.
+        Waits for the server to be online. This is called automatically when run_server is called.
         """
 
         while True:
@@ -61,7 +65,7 @@ def __run(func,daemon,port):
             asyncio.run(func)
         threading.Thread(target=__run_in_background, daemon=True).start()
         server = GraphQLServer(port)
-        server.wait_for_online()
+        server.__wait_for_online()
         return server
     else:
         loop = asyncio.get_event_loop()

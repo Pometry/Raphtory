@@ -68,7 +68,6 @@ GraphQL Server
    :members:
    :undoc-members:
    :show-inheritance:
-   :private-members:
    :inherited-members:
 
 
