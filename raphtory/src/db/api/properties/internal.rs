@@ -118,12 +118,12 @@ where
     }
 }
 
-pub struct TemporalPropertyView<P: TemporalPropertyViewOps> {
+pub struct TemporalPropertyView<P: BoxableTemporalProperties> {
     pub(crate) id: Key,
     pub(crate) props: P,
 }
 
-impl<P: TemporalPropertyViewOps> TemporalPropertyView<P> {
+impl<P: BoxableTemporalProperties> TemporalPropertyView<P> {
     pub(crate) fn new(props: P, key: Key) -> Self {
         TemporalPropertyView { props, id: key }
     }
@@ -144,7 +144,7 @@ impl<P: TemporalPropertyViewOps> TemporalPropertyView<P> {
     }
 }
 
-impl<P: TemporalPropertyViewOps> IntoIterator for TemporalPropertyView<P> {
+impl<P: BoxableTemporalProperties> IntoIterator for TemporalPropertyView<P> {
     type Item = (i64, Prop);
     type IntoIter = Zip<std::vec::IntoIter<i64>, std::vec::IntoIter<Prop>>;
 
@@ -155,7 +155,7 @@ impl<P: TemporalPropertyViewOps> IntoIterator for TemporalPropertyView<P> {
     }
 }
 
-impl<P: TemporalPropertyViewOps> IntoIterator for &TemporalPropertyView<P> {
+impl<P: BoxableTemporalProperties> IntoIterator for &TemporalPropertyView<P> {
     type Item = (i64, Prop);
     type IntoIter = Zip<std::vec::IntoIter<i64>, std::vec::IntoIter<Prop>>;
 
@@ -271,7 +271,7 @@ impl<P: BoxableTemporalProperties + Clone> TemporalProperties<P> {
     }
 }
 
-impl<P: TemporalPropertyViewOps> PropUnwrap for TemporalPropertyView<P> {
+impl<P: BoxableTemporalProperties> PropUnwrap for TemporalPropertyView<P> {
     fn into_str(self) -> Option<String> {
         self.value().into_str()
     }

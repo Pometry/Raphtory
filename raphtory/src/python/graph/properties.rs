@@ -12,6 +12,8 @@ use std::sync::Arc;
 
 pub type DynTemporalProperties =
     TemporalProperties<Arc<dyn BoxableTemporalProperties + Send + Sync>>;
+pub type DynTemporalProperty =
+    TemporalPropertyView<Arc<dyn BoxableTemporalProperties + Send + Sync>>;
 
 impl InheritTemporalPropertiesOps for Arc<dyn BoxableTemporalProperties + Send + Sync> {}
 
@@ -50,6 +52,11 @@ impl PyTemporalProperties {
     fn keys(&self) -> Vec<String> {
         self.props.keys()
     }
+    fn values(
+        &self,
+    ) -> Vec<TemporalPropertyView<Arc<dyn BoxableTemporalProperties + Send + Sync>>> {
+        self.props.values()
+    }
     fn __getitem__(&self, key: &str) -> PyResult<Prop> {
         let v = self
             .props
@@ -61,10 +68,10 @@ impl PyTemporalProperties {
 
 #[pyclass(name = "Property")]
 pub struct PyTemporalPropertyView {
-    prop: TemporalPropertyView<Arc<dyn TemporalPropertyViewOps + Send + Sync>>,
+    prop: DynTemporalProperty,
 }
 
-impl<P: TemporalPropertyViewOps + Send + Sync + 'static> From<TemporalPropertyView<P>>
+impl<P: BoxableTemporalProperties + Send + Sync + 'static> From<TemporalPropertyView<P>>
     for PyTemporalPropertyView
 {
     fn from(value: TemporalPropertyView<P>) -> Self {
@@ -122,7 +129,7 @@ impl<P: BoxableTemporalProperties + Clone> Repr for TemporalProperties<P> {
     }
 }
 
-impl<P: TemporalPropertyViewOps> Repr for TemporalPropertyView<P> {
+impl<P: BoxableTemporalProperties> Repr for TemporalPropertyView<P> {
     fn repr(&self) -> String {
         format!("Property({})", iterator_repr(self.iter()))
     }
@@ -140,7 +147,7 @@ impl Repr for PyTemporalProperties {
     }
 }
 
-impl<P: TemporalPropertyViewOps + Send + Sync + 'static> IntoPy<PyObject>
+impl<P: BoxableTemporalProperties + Send + Sync + 'static> IntoPy<PyObject>
     for TemporalPropertyView<P>
 {
     fn into_py(self, py: Python<'_>) -> PyObject {
