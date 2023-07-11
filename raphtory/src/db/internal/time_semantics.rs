@@ -10,6 +10,7 @@ use crate::{
     prelude::Prop,
 };
 use genawaiter::sync::GenBoxed;
+use num_traits::Saturating;
 use std::ops::Range;
 
 impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
@@ -148,11 +149,26 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
         t_start: i64,
         t_end: i64,
     ) -> Vec<(i64, Prop)> {
-        self.prop_vec_window(e.pid(), name, t_start, t_end, e.layer())
+        self.temporal_edge_prop(e, name)
+            .map(|p| match e.time() {
+                Some(t) => {
+                    if t >= t_start && t < t_end {
+                        p.iter_window(t..t.saturating_add(1)).collect()
+                    } else {
+                        vec![]
+                    }
+                }
+                None => p.iter_window(t_start..t_end).collect(),
+            })
+            .unwrap_or_default()
     }
 
     fn temporal_edge_prop_vec(&self, e: EdgeRef, name: &str) -> Vec<(i64, Prop)> {
-        self.edge(e.pid())
-            .temporal_properties(name, e.layer(), None)
+        self.temporal_edge_prop(e, name)
+            .map(|p| match e.time() {
+                Some(t) => p.iter_window(t..t.saturating_add(1)).collect(),
+                None => p.iter().collect(),
+            })
+            .unwrap_or_default()
     }
 }

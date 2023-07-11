@@ -755,11 +755,11 @@ mod db_tests {
     #[test]
     fn test_exploded_edge() {
         let g = Graph::new();
-        g.add_edge(0, 1, 2, vec![("weight".to_string(), Prop::I64(1))], None)
+        g.add_edge(0, 1, 2, [("weight", Prop::I64(1))], None)
             .unwrap();
-        g.add_edge(1, 1, 2, vec![("weight".to_string(), Prop::I64(2))], None)
+        g.add_edge(1, 1, 2, [("weight", Prop::I64(2))], None)
             .unwrap();
-        g.add_edge(2, 1, 2, vec![("weight".to_string(), Prop::I64(3))], None)
+        g.add_edge(2, 1, 2, [("weight", Prop::I64(3))], None)
             .unwrap();
 
         let exploded = g.edge(1, 2, None).unwrap().explode();
@@ -770,9 +770,7 @@ mod db_tests {
 
         let mut expected = Vec::new();
         for i in 1..4 {
-            let mut map = Vec::new();
-            map.push(("weight".to_string(), Prop::I64(i)));
-            expected.push(map);
+            expected.push(vec![("weight".to_string(), Prop::I64(i))]);
         }
 
         assert_eq!(res, expected);

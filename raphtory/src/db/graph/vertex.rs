@@ -1,7 +1,7 @@
 //! Defines the `Vertex` struct, which represents a vertex in the graph.
 
 use crate::db::api::properties::internal::{
-    StaticProperties, StaticPropertiesOps, TemporalProperties, TemporalPropertiesOps,
+    Key, StaticProperties, StaticPropertiesOps, TemporalProperties, TemporalPropertiesOps,
     TemporalPropertyViewOps,
 };
 use crate::db::api::view::internal::Static;
@@ -60,14 +60,18 @@ impl<G: GraphViewOps> VertexView<G> {
 
 impl<G: GraphViewOps> TemporalPropertiesOps for VertexView<G> {
     fn temporal_property_keys(&self) -> Vec<String> {
-        self.graph.temporal_vertex_prop_names(self.vertex)
+        self.graph
+            .temporal_vertex_prop_names(self.vertex)
+            .into_iter()
+            .filter(|k| self.get_temporal_property(k).is_some())
+            .collect()
     }
 
-    fn temporal_property_values(&self) -> Box<dyn Iterator<Item = String> + '_> {
+    fn temporal_property_values(&self) -> Box<dyn Iterator<Item = Key> + '_> {
         Box::new(self.temporal_property_keys().into_iter())
     }
 
-    fn get_temporal_property(&self, key: &str) -> Option<String> {
+    fn get_temporal_property(&self, key: &str) -> Option<Key> {
         (!self
             .graph
             .temporal_vertex_prop_vec(self.vertex, key)
