@@ -4,6 +4,7 @@ use crate::core::{Prop, PropUnwrap};
 use crate::db::api::view::internal::Base;
 use crate::prelude::Graph;
 use chrono::NaiveDateTime;
+use std::borrow::Borrow;
 use std::iter::Zip;
 
 pub trait CorePropertiesOps {
@@ -245,6 +246,10 @@ impl<P: BoxableTemporalProperties + Clone> TemporalProperties<P> {
     }
     pub fn keys(&self) -> Vec<String> {
         self.props.temporal_property_keys()
+    }
+
+    pub fn contains<Q: AsRef<str>>(&self, key: Q) -> bool {
+        self.get(key).is_some()
     }
 
     pub fn values(&self) -> Vec<TemporalPropertyView<P>> {

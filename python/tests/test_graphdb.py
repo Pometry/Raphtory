@@ -287,7 +287,7 @@ def test_graph_properties():
     g.add_property(2, props)
 
     def history_test(key, value):
-        assert g.property_history(key) == value
+        assert g.properties.get(key).items() == value
 
     history_test("prop 1", [])
     history_test("prop 2", [])

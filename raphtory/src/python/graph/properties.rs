@@ -6,6 +6,7 @@ use crate::db::api::properties::internal::{
 };
 use crate::db::api::view::internal::{DynamicGraph, Static};
 use crate::python::types::repr::{iterator_dict_repr, iterator_repr, Repr};
+use crate::python::utils::PyGenericIterator;
 use pyo3::exceptions::PyKeyError;
 use pyo3::prelude::*;
 use std::sync::Arc;
@@ -52,11 +53,13 @@ impl PyTemporalProperties {
     fn keys(&self) -> Vec<String> {
         self.props.keys()
     }
-    fn values(
-        &self,
-    ) -> Vec<TemporalPropertyView<Arc<dyn BoxableTemporalProperties + Send + Sync>>> {
+    fn values(&self) -> Vec<DynTemporalProperty> {
         self.props.values()
     }
+    fn items(&self) -> Vec<(String, DynTemporalProperty)> {
+        self.props.iter().collect()
+    }
+
     fn __getitem__(&self, key: &str) -> PyResult<Prop> {
         let v = self
             .props
@@ -64,11 +67,47 @@ impl PyTemporalProperties {
             .ok_or(PyKeyError::new_err("No such property"))?;
         Ok(v.value().unwrap())
     }
+
+    fn get(&self, key: &str) -> Option<DynTemporalProperty> {
+        /// Fixme: Add option to specify default?
+        self.props.get(key)
+    }
+
+    fn __iter__(&self) -> PyGenericIterator {
+        self.keys().into_iter().into()
+    }
+
+    fn __contains__(&self, key: &str) -> bool {
+        self.props.contains(key)
+    }
+
+    fn __len__(&self) -> usize {
+        self.keys().len()
+    }
 }
 
 #[pyclass(name = "Property")]
 pub struct PyTemporalPropertyView {
     prop: DynTemporalProperty,
+}
+
+#[pymethods]
+impl PyTemporalPropertyView {
+    pub fn history(&self) -> Vec<i64> {
+        self.prop.history()
+    }
+    pub fn values(&self) -> Vec<Prop> {
+        self.prop.values()
+    }
+    pub fn __iter__(&self) -> PyGenericIterator {
+        self.prop.iter().into()
+    }
+    pub fn at(&self, t: i64) -> Option<Prop> {
+        self.prop.at(t)
+    }
+    pub fn value(&self) -> Option<Prop> {
+        self.prop.value()
+    }
 }
 
 impl<P: BoxableTemporalProperties + Send + Sync + 'static> From<TemporalPropertyView<P>>
