@@ -60,6 +60,7 @@
 
 /// Module for loading CSV files into a graph.
 use bzip2::read::BzDecoder;
+use csv::{ByteRecord, StringRecord};
 use flate2; // 1.0
 use flate2::read::GzDecoder;
 use rayon::prelude::*;
@@ -323,6 +324,34 @@ impl CsvLoader {
         Ok(())
     }
 
+    /// Load data from all CSV files in the directory into a graph.
+    ///
+    /// # Arguments
+    ///
+    /// * `g` - A reference to the graph object where the data should be loaded.
+    /// * `loader` - A closure that takes a deserialized record and the graph object as arguments and adds the record to the graph.
+    ///
+    /// # Returns
+    ///
+    /// A Result containing an empty Ok value if the data is loaded successfully.
+    ///
+    /// # Errors
+    ///
+    /// An error of type CsvErr is returned if an I/O error occurs while reading the files or parsing the CSV data.
+    ///
+    pub fn load_rec_into_graph<F, G>(&self, g: &G, loader: F) -> Result<(), CsvErr>
+    where
+        F: Fn(StringRecord, &G) + Send + Sync,
+        G: Sync,
+    {
+        //FIXME: loader function should return a result for reporting parsing errors
+        let paths = self.files_vec()?;
+        paths
+            .par_iter()
+            .try_for_each(move |path| self.load_file_into_graph_record(path, g, &loader))?;
+        Ok(())
+    }
+
     /// Loads a CSV file into a graph using the specified loader function.
     ///
     /// # Arguments
@@ -353,6 +382,26 @@ impl CsvLoader {
         //TODO this needs better error handling for files without perfect data
         for rec in records_iter {
             let record = rec.expect("Failed to deserialize");
+            loader(record, g)
+        }
+
+        Ok(())
+    }
+
+    fn load_file_into_graph_record<F, P: Into<PathBuf> + Debug, G>(
+        &self,
+        path: P,
+        g: &G,
+        loader: &F,
+    ) -> Result<(), CsvErr>
+    where
+        F: Fn(StringRecord, &G),
+    {
+        let file_path: PathBuf = path.into();
+
+        let mut csv_reader = self.csv_reader(file_path)?;
+        for rec in csv_reader.records() {
+            let record = rec?;
             loader(record, g)
         }
 
@@ -408,6 +457,7 @@ mod csv_loader_test {
         core::utils::hashing::calculate_hash, graph_loader::source::csv_loader::CsvLoader,
         prelude::*,
     };
+    use csv::StringRecord;
     use regex::Regex;
     use serde::Deserialize;
     use std::path::{Path, PathBuf};
@@ -480,6 +530,45 @@ mod csv_loader_test {
             .expect("Csv did not parse.");
     }
 
+    fn lotr_test_rec(g: Graph, csv_loader: CsvLoader, has_header: bool, delimiter: &str, r: Regex) {
+        csv_loader
+            .set_header(has_header)
+            .set_delimiter(delimiter)
+            .with_filter(r)
+            .load_rec_into_graph(&g, |lotr: StringRecord, g: &Graph| {
+                let src_id = lotr.get(0).map(|s| calculate_hash(&(s.to_owned()))).unwrap();
+                let dst_id = lotr.get(1).map(|s| calculate_hash(&(s.to_owned()))).unwrap();
+                let time = lotr.get(2).map(|s| s.parse::<i64>().unwrap()).unwrap();
+
+                g.add_vertex(
+                    time,
+                    src_id,
+                    [("name".to_string(), Prop::Str("Character".to_string()))],
+                )
+                .map_err(|err| println!("{:?}", err))
+                .ok();
+                g.add_vertex(
+                    time,
+                    dst_id,
+                    [("name".to_string(), Prop::Str("Character".to_string()))],
+                )
+                .map_err(|err| println!("{:?}", err))
+                .ok();
+                g.add_edge(
+                    time,
+                    src_id,
+                    dst_id,
+                    [(
+                        "name".to_string(),
+                        Prop::Str("Character Co-occurrence".to_string()),
+                    )],
+                    None,
+                )
+                .unwrap();
+            })
+            .expect("Csv did not parse.");
+    }
+
     #[test]
     fn test_headers_flag_and_delimiter() {
         let g = Graph::new();
@@ -494,6 +583,10 @@ mod csv_loader_test {
         let r = Regex::new(r".+(lotr.csv)").unwrap();
         let delimiter = ",";
         lotr_test(g, csv_loader, has_header, delimiter, r);
+        let g = Graph::new();
+        let csv_loader = CsvLoader::new(Path::new(&csv_path));
+        let r = Regex::new(r".+(lotr.csv)").unwrap();
+        lotr_test_rec(g, csv_loader, has_header, delimiter, r);
     }
 
     #[test]

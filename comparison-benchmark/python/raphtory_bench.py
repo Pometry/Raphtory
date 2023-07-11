@@ -7,8 +7,12 @@ try:
     import raphtory
     from tqdm import tqdm
     from raphtory.algorithms import pagerank, weakly_connected_components
-except ImportError:
-    pass
+except ImportError as e:
+    print("IMPORT ERROR")
+    print(e)
+    print("Cannot continue. Exiting")
+    import sys
+    sys.exit(1)
 
 simple_relationship_file = "data/simple-relationships.csv"
 
@@ -36,7 +40,7 @@ class RaphtoryBench(BenchmarkBase):
 
     def setup(self):
         # Load edges
-        self.graph = raphtory.Graph(multiprocessing.cpu_count())
+        self.graph = raphtory.Graph()
         with open(simple_relationship_file, 'r') as f:
             reader = csv.reader(f, delimiter='\t')
             for row in reader:

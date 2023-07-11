@@ -263,3 +263,69 @@ impl fmt::Display for Prop {
         }
     }
 }
+
+// From impl for Prop
+
+impl From<String> for Prop {
+    fn from(s: String) -> Self {
+        Prop::Str(s)
+    }
+}
+
+impl From<&str> for Prop {
+    fn from(s: &str) -> Self {
+        Prop::Str(s.to_string())
+    }
+}
+
+impl From<i32> for Prop {
+    fn from(i: i32) -> Self {
+        Prop::I32(i)
+    }
+}
+
+impl From<i64> for Prop {
+    fn from(i: i64) -> Self {
+        Prop::I64(i)
+    }
+}
+
+impl From<u32> for Prop {
+    fn from(u: u32) -> Self {
+        Prop::U32(u)
+    }
+}
+
+impl From<u64> for Prop {
+    fn from(u: u64) -> Self {
+        Prop::U64(u)
+    }
+}
+
+impl From<f32> for Prop {
+    fn from(f: f32) -> Self {
+        Prop::F32(f)
+    }
+}
+
+impl From<f64> for Prop {
+    fn from(f: f64) -> Self {
+        Prop::F64(f)
+    }
+}
+
+impl From<bool> for Prop {
+    fn from(b: bool) -> Self {
+        Prop::Bool(b)
+    }
+}
+
+pub trait AsProp {
+    fn as_prop(self) -> Prop;
+}
+
+impl <T: Into<Prop>> AsProp for T {
+    fn as_prop(self) -> Prop {
+        self.into()
+    }
+}
