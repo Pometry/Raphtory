@@ -259,9 +259,9 @@ impl PyGraph {
             load_from_num_iter(&graph, triplets, prop_iter)?;
         } else if let (Ok(src), Ok(dst), Ok(time)) = (src.utf8(), dst.utf8(), time.i64()) {
             let triplets = src.into_iter().zip(dst.into_iter()).zip(time.into_iter());
-            for ((src, dst), time) in triplets {
+            for ( ((src, dst), time), props) in triplets.zip(prop_iter) {
                 if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
-                    graph.add_edge(time, src, dst, NO_PROPS, None)?;
+                    graph.add_edge(time, src, dst, props, None)?;
                 }
             }
         } else {
