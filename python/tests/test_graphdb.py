@@ -1354,15 +1354,15 @@ def test_load_from_polars():
         "src": [1, 2, 3, 4, 5],
         "dst": [2, 3, 4, 5, 6],
         "time": [1, 2, 3, 4, 5],
+        "weight": [1.0, 2.0, 3.0, 4.0, 5.0]
     });
 
-    g = Graph.load_from_polars(df, "src", "dst")
+    g = Graph.load_from_polars(df, "src", "dst", "time", ["weight"])
 
     assert g.vertices().id().collect() == [1, 2, 3, 4, 5, 6]
-    tedges = [v.edges() for v in g.vertices()]
     edges = []
-    for e_iter in tedges:
-        for e in e_iter:
-            edges.append((e.src().id(), e.dst().id()))
+    for e in g.edges():
+        weight = e["weight"]
+        edges.append((e.src().id(), e.dst().id(), weight))
 
-    assert set(edges) == {(1, 2), (2, 3), (3, 4), (4, 5), (5, 6)}
+    assert edges == [(1, 2, 1.0), (2, 3, 2.0), (3, 4, 3.0), (4, 5, 4.0), (5, 6, 5.0)]
