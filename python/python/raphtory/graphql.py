@@ -1,14 +1,30 @@
+"""
+This module contains helper functions and classes for working with the GraphQL server for Raphtory.
+Calling the run_server function will start the GraphQL server. If run in the background, this will return a
+GraphQLServer object that can be used to run queries.
+"""
+
 from raphtory import internal_graphql
 import asyncio
 import threading
 import requests
 import time
 
+
 class GraphQLServer:
+    """
+    A helper class that can be used to query the Raphtory GraphQL server.
+    """
     def __init__(self, port):
         self.port = port
 
     def query(self, query):
+        """
+        Runs a GraphQL query on the server.
+        :param query(str): The GraphQL query to run.
+        :raises Exception: If the query fails to run.
+        :return: The result of the query as a json object.
+        """
         r = requests.post("http://localhost:"+str(self.port), json={"query": query})
         if r.status_code == 200:
             return r.json()
@@ -16,14 +32,18 @@ class GraphQLServer:
             raise Exception(f"Query failed to run with a {r.status_code}.")
 
     def wait_for_online(self):
-           while True:
-                try:
-                    r = requests.get("http://localhost:"+str(self.port))
-                    if r.status_code == 200:
-                        return True
-                except:
-                    pass
-                time.sleep(1)
+        """
+        Waits for the server to be online. This is done automatically when run_server is called.
+        """
+
+        while True:
+             try:
+                r = requests.get("http://localhost:"+str(self.port))
+                if r.status_code == 200:
+                    return True
+             except:
+                pass
+             time.sleep(1)
 
 async def __from_map_and_directory(graphs,graph_dir,port):
     await internal_graphql.from_map_and_directory(graphs,graph_dir,port)
