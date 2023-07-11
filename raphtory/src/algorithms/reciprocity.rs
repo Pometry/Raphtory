@@ -59,6 +59,7 @@ use crate::{
     },
 };
 use std::collections::{HashMap, HashSet};
+use crate::algorithms::algorithm_result::AlgorithmResult;
 
 /// Gets the unique edge counts excluding cycles for a vertex. Returns a tuple of usize
 /// (out neighbours, in neighbours, the intersection of the out and in neighbours)
@@ -113,7 +114,7 @@ pub fn global_reciprocity<G: GraphViewOps>(g: &G, threads: Option<usize>) -> f64
 pub fn all_local_reciprocity<G: GraphViewOps>(
     g: &G,
     threads: Option<usize>,
-) -> HashMap<String, f64> {
+) -> AlgorithmResult<f64> {
     let mut ctx: Context<G, ComputeStateVec> = g.into();
 
     let min = sum(0);
@@ -132,7 +133,9 @@ pub fn all_local_reciprocity<G: GraphViewOps>(
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
 
-    runner.run(
+
+    AlgorithmResult::new(
+        runner.run(
         vec![],
         vec![Job::new(step1)],
         (),
@@ -141,7 +144,7 @@ pub fn all_local_reciprocity<G: GraphViewOps>(
         1,
         None,
         None,
-    )
+    ))
 }
 
 #[cfg(test)]

@@ -14,6 +14,7 @@ dependencies = [
     "pandas >= 1.3.3",
     "pyvis >= 0.3.2",
     "networkx >= 2.6.3",
+    "polars[pyarrow] >= 0.16.0",
 ]
 
 

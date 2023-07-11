@@ -80,10 +80,10 @@ pub fn local_triangle_count(g: &PyGraphView, v: VertexRef) -> Option<usize> {
 pub fn weakly_connected_components(
     g: &PyGraphView,
     iter_count: usize,
-) -> PyResult<HashMap<String, u64>> {
-    Ok(connected_components::weakly_connected_components(
+) -> HashMap<String, u64> {
+    connected_components::weakly_connected_components(
         &g.graph, iter_count, None,
-    ))
+    )
 }
 
 /// Pagerank -- pagerank centrality value of the vertices in a graph
@@ -110,6 +110,18 @@ pub fn pagerank(
         &g.graph, iter_count, None, max_diff, true,
     ))
 }
+
+#[pyfunction]
+pub fn pagerank_df(
+    g: &PyGraphView,
+    iter_count: usize,
+    max_diff: Option<f64>,
+) -> HashMap<String, f64> {
+    unweighted_page_rank(
+        &g.graph, iter_count, None, max_diff, true,
+    )
+}
+
 
 /// Temporally reachable nodes -- the nodes that are reachable by a time respecting path followed out from a set of seed nodes at a starting time.
 ///

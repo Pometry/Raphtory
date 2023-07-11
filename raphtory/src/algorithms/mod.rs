@@ -39,3 +39,4 @@ pub mod reciprocity;
 pub mod temporal_reachability;
 pub mod triangle_count;
 pub mod triplet_count;
+mod algorithm_result;
