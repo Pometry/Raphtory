@@ -222,7 +222,7 @@ impl PyGraph {
     // }
 
     #[staticmethod]
-    #[pyo3(signature = (df, src = "source", dst = "target", time = "time"))]
+    #[pyo3(signature = (df, src = "source", dst = "destination", time = "time"))]
     fn load_from_polars(
         df: PyDataFrame,
         src: &str,

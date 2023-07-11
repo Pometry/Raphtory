@@ -1346,3 +1346,23 @@ def test_deletions():
         assert g.window(start=11).has_edge(e[1], e[2])
 
     assert list(g.edge(edges[0][1], edges[0][2]).explode().latest_time()) == [10]
+
+
+def test_load_from_polars():
+    import polars as pl
+    df = pl.DataFrame({
+        "src": [1, 2, 3, 4, 5],
+        "dst": [2, 3, 4, 5, 6],
+        "time": [1, 2, 3, 4, 5],
+    });
+
+    g = Graph.load_from_polars(df, "src", "dst")
+
+    assert g.vertices().id().collect() == [1, 2, 3, 4, 5, 6]
+    tedges = [v.edges() for v in g.vertices()]
+    edges = []
+    for e_iter in tedges:
+        for e in e_iter:
+            edges.append((e.src().id(), e.dst().id()))
+
+    assert set(edges) == {(1, 2), (2, 3), (3, 4), (4, 5), (5, 6)}
