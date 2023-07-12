@@ -5,14 +5,21 @@
 //! It is a wrapper around a set of shards, which are the actual graph data structures.
 //! In Python, this class wraps around the rust graph.
 use crate::{
-    core::utils::errors::GraphError,
+    core::{entities::vertices::input_vertex::InputVertex, utils::errors::GraphError},
     prelude::*,
     python::{
         graph::views::graph_view::PyGraphView,
         utils::{PyInputVertex, PyTime},
     },
 };
-use pyo3::prelude::*;
+use arrow2::{
+    array::{Array, BooleanArray, PrimitiveArray, Utf8Array},
+    ffi,
+    types::NativeType,
+};
+use pyo3::{
+    create_exception, exceptions::PyException, ffi::Py_uintptr_t, prelude::*, types::PyDict,
+};
 // use pyo3_polars::PyDataFrame;
 use std::{
     collections::HashMap,
@@ -20,6 +27,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
+pub type ArrayRef = Box<dyn Array>;
 /// A temporal graph.
 #[derive(Clone)]
 #[pyclass(name="Graph", extends=PyGraphView)]
@@ -214,7 +222,6 @@ impl PyGraph {
         self.graph.save_to_file(Path::new(path))
     }
 
-
     #[staticmethod]
     #[pyo3(signature = (df, src = "source", dst = "destination", time = "time", props = None))]
     fn load_from_pandas(
@@ -225,97 +232,130 @@ impl PyGraph {
         props: Option<Vec<&str>>,
     ) -> Result<Graph, GraphError> {
         let graph = Graph::new();
+        Python::with_gil(|py| {
+            // let pyarrow = py.import("pyarrow")?;
+            let globals = PyDict::new(py);
+
+            globals.set_item("df", df)?;
+            let locals = PyDict::new(py);
+            py.run(
+                r#"import pyarrow as pa; pa_table = pa.Table.from_pandas(df)"#,
+                Some(globals),
+                Some(locals),
+            )?;
+
+            if let Some(table) = locals.get_item("pa_table") {
+                let rb = table.call_method0("to_batches")?.extract::<Vec<&PyAny>>()?;
+                let names = if let Some(batch0) = rb.get(0) {
+                    let schema = batch0.getattr("schema")?;
+                    schema.getattr("names")?.extract::<Vec<String>>()?
+                } else {
+                    vec![]
+                };
+
+                let arrays = rb
+                    .iter()
+                    .map(|rb| {
+                        (0..names.len())
+                            .map(|i| {
+                                let array = rb.call_method1("column", (i,))?;
+                                let arr = array_to_rust(array)?;
+                                Ok::<Box<dyn Array>, PyErr>(arr)
+                            })
+                            .collect::<Result<Vec<_>, PyErr>>()
+                    })
+                    .collect::<Result<Vec<_>, PyErr>>()?;
+
+                let df = PretendDF { names, arrays };
+                load_from_df(&df, src, dst, time, props, &graph).expect("Failed to load graph!"); // FIXME: handle this correctly
+            }
+
+            Ok::<(), PyErr>(())
+        })
+        .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
         Ok(graph)
     }
-
-    // #[staticmethod]
-    // #[pyo3(signature = (df, src = "source", dst = "destination", time = "time", props = None))]
-    // fn load_from_polars(
-    //     df: PyDataFrame,
-    //     src: &str,
-    //     dst: &str,
-    //     time: &str,
-    //     props: Option<Vec<&str>>,
-    // ) -> Result<Graph, GraphError> {
-    //     let graph = Graph::new();
-    //     let rs_df = df.0.clone();
-    //     let src = rs_df
-    //         .column(src)
-    //         .map_err(|_| GraphError::LoadFailure(format!("column: [{src}] not found")))?;
-
-    //     let dst = rs_df
-    //         .column(dst)
-    //         .map_err(|_| GraphError::LoadFailure(format!("column: [{dst}] not found")))?;
-
-    //     let time = rs_df
-    //         .column(time)
-    //         .map_err(|_| GraphError::LoadFailure(format!("column: [{time}] not found")))?;
-
-    //     let prop_iter = props
-    //         .unwrap_or_default()
-    //         .into_iter()
-    //         .map(|name| lift_property(name, &df))
-    //         .reduce(combine_prop_iters)
-    //         .unwrap_or_else(|| Box::new(std::iter::repeat(vec![])));
-
-    //     if let (Ok(src), Ok(dst), Ok(time)) = (src.u64(), dst.u64(), time.i64()) {
-    //         let triplets = src.into_iter().zip(dst.into_iter()).zip(time.into_iter());
-    //         load_from_num_iter(&graph, triplets, prop_iter)?;
-    //     } else if let (Ok(src), Ok(dst), Ok(time)) = (src.i64(), dst.i64(), time.i64()) {
-    //         let triplets = src.into_iter().zip(dst.into_iter()).zip(time.into_iter());
-    //         load_from_num_iter(&graph, triplets, prop_iter)?;
-    //     } else if let (Ok(src), Ok(dst), Ok(time)) = (src.utf8(), dst.utf8(), time.i64()) {
-    //         let triplets = src.into_iter().zip(dst.into_iter()).zip(time.into_iter());
-    //         for ( ((src, dst), time), props) in triplets.zip(prop_iter) {
-    //             if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
-    //                 graph.add_edge(time, src, dst, props, None)?;
-    //             }
-    //         }
-    //     } else {
-    //         return Err(GraphError::LoadFailure(
-    //             "source and target columns must be either u64 or text, time column must be i64"
-    //                 .to_string(),
-    //         ));
-    //     }
-    //     Ok(graph)
-    // }
 }
 
-// fn lift_property<'a, 'b>(
-//     name: &'a str,
-//     df: &'b PyDataFrame,
-// ) -> Box<dyn Iterator<Item = Vec<(&'b str, Prop)>> + 'b> {
-//     let df = &df.0;
-//     let col = df.column(name).unwrap();
-//     let name = col.name();
-//     if let Ok(col) = col.f64() {
-//         Box::new(col.into_iter().map(move |val| {
-//             val.into_iter()
-//                 .map(|v| (name, Prop::F64(v)))
-//                 .collect::<Vec<_>>()
-//         }))
-//     } else if let Ok(col) = col.i64() {
-//         Box::new(col.into_iter().map(move |val| {
-//             val.into_iter()
-//                 .map(|v| (name, Prop::I64(v)))
-//                 .collect::<Vec<_>>()
-//         }))
-//     } else if let Ok(col) = col.bool() {
-//         Box::new(col.into_iter().map(move |val| {
-//             val.into_iter()
-//                 .map(|v| (name, Prop::Bool(v)))
-//                 .collect::<Vec<_>>()
-//         }))
-//     } else if let Ok(col) = col.utf8() {
-//         Box::new(col.into_iter().map(move |val| {
-//             val.into_iter()
-//                 .map(|v| (name, Prop::str(v)))
-//                 .collect::<Vec<_>>()
-//         }))
-//     } else {
-//         Box::new(std::iter::repeat(Vec::with_capacity(0)))
-//     }
-// }
+fn load_from_df<'a>(
+    df: &'a PretendDF,
+    src: &str,
+    dst: &str,
+    time: &str,
+    props: Option<Vec<&str>>,
+    graph: &Graph,
+) -> Result<(), GraphError> {
+    let prop_iter = props
+        .unwrap_or_default()
+        .into_iter()
+        .map(|name| lift_property(name, &df))
+        .reduce(combine_prop_iters)
+        .unwrap_or_else(|| Box::new(std::iter::repeat(vec![])));
+
+    if let (Some(src), Some(dst), Some(time)) = (
+        df.iter_col::<u64>(src),
+        df.iter_col::<u64>(dst),
+        df.iter_col::<i64>(time),
+    ) {
+        let triplets = src.zip(dst).zip(time);
+        load_from_num_iter(&graph, triplets, prop_iter)?;
+    } else if let (Some(src), Some(dst), Some(time)) = (
+        df.iter_col::<i64>(src),
+        df.iter_col::<i64>(dst),
+        df.iter_col::<i64>(time),
+    ) {
+        let triplets = src.zip(dst).zip(time);
+        load_from_num_iter(&graph, triplets, prop_iter)?;
+    } else if let (Some(src), Some(dst), Some(time)) =
+        (df.utf8(src), df.utf8(dst), df.iter_col::<i64>(time))
+    {
+        let triplets = src.into_iter().zip(dst.into_iter()).zip(time.into_iter());
+        for (((src, dst), time), props) in triplets.zip(prop_iter) {
+            if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
+                graph.add_edge(*time, src, dst, props, None)?;
+            }
+        }
+    } else {
+        return Err(GraphError::LoadFailure(
+            "source and target columns must be either u64 or text, time column must be i64"
+                .to_string(),
+        ));
+    }
+    Ok(())
+}
+
+fn lift_property<'a: 'b, 'b>(
+    name: &'a str,
+    df: &'b PretendDF,
+) -> Box<dyn Iterator<Item = Vec<(&'b str, Prop)>> + 'b> {
+    if let Some(col) = df.iter_col::<f64>(name) {
+        Box::new(col.map(move |val| {
+            val.into_iter()
+                .map(|v| (name, Prop::F64(*v)))
+                .collect::<Vec<_>>()
+        }))
+    } else if let Some(col) = df.iter_col::<i64>(name) {
+        Box::new(col.map(move |val| {
+            val.into_iter()
+                .map(|v| (name, Prop::I64(*v)))
+                .collect::<Vec<_>>()
+        }))
+    } else if let Some(col) = df.bool(name) {
+        Box::new(col.map(move |val| {
+            val.into_iter()
+                .map(|v| (name, Prop::Bool(v)))
+                .collect::<Vec<_>>()
+        }))
+    } else if let Some(col) = df.utf8(name) {
+        Box::new(col.map(move |val| {
+            val.into_iter()
+                .map(|v| (name, Prop::str(v)))
+                .collect::<Vec<_>>()
+        }))
+    } else {
+        Box::new(std::iter::repeat(Vec::with_capacity(0)))
+    }
+}
 
 fn combine_prop_iters<
     'a,
@@ -333,8 +373,8 @@ fn combine_prop_iters<
 
 fn load_from_num_iter<
     'a,
-    T: TryInto<u64>,
-    I: Iterator<Item = ((Option<T>, Option<T>), Option<i64>)>,
+    T: InputVertex + 'a,
+    I: Iterator<Item = ((Option<&'a T>, Option<&'a T>), Option<&'a i64>)>,
     PI: Iterator<Item = Vec<(&'a str, Prop)>>,
 >(
     graph: &Graph,
@@ -343,15 +383,112 @@ fn load_from_num_iter<
 ) -> Result<(), GraphError> {
     for (((src, dst), time), edge_props) in edges.zip(props) {
         if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
-            let src: u64 = src.try_into().map_err(|_| {
-                GraphError::LoadFailure("source column must be convertible to long".to_string())
-            })?;
-            let dst: u64 = dst.try_into().map_err(|_| {
-                GraphError::LoadFailure("target column must be convertible to long".to_string())
-            })?;
-
-            graph.add_edge(time, src, dst, edge_props, None)?;
+            graph.add_edge(*time, src.clone(), dst.clone(), edge_props, None)?;
         }
     }
     Ok(())
+}
+
+impl InputVertex for i64 {
+    fn id(&self) -> u64 {
+        let x = *self;
+        x.try_into().unwrap()
+    }
+
+    fn id_str(&self) -> Option<&str> {
+        None
+    }
+}
+
+struct PretendDF {
+    names: Vec<String>,
+    arrays: Vec<Vec<Box<dyn Array>>>,
+}
+
+impl PretendDF {
+    fn iter_col<T: NativeType>(&self, name: &str) -> Option<impl Iterator<Item = Option<&T>> + '_> {
+        let idx = self.names.iter().position(|n| n == name)?;
+
+        let _ = (&self.arrays[0])[idx]
+            .as_any()
+            .downcast_ref::<PrimitiveArray<T>>()?;
+
+        let iter = self
+            .arrays
+            .iter()
+            .map(move |arr| {
+                let arr = &arr[idx];
+                let arr = arr.as_any().downcast_ref::<PrimitiveArray<T>>().unwrap();
+                arr.iter()
+            })
+            .flatten();
+
+        Some(iter)
+    }
+
+    fn utf8(&self, name: &str) -> Option<impl Iterator<Item = Option<&str>> + '_> {
+        let idx = self.names.iter().position(|n| n == name)?;
+        // test that it's actually a utf8 array
+        let _ = (&self.arrays[0])[idx]
+            .as_any()
+            .downcast_ref::<Utf8Array<i32>>()?;
+
+        let iter = self
+            .arrays
+            .iter()
+            .map(move |arr| {
+                let arr = &arr[idx];
+                let arr = arr.as_any().downcast_ref::<Utf8Array<i32>>().unwrap();
+                arr.iter()
+            })
+            .flatten();
+
+        Some(iter)
+    }
+
+    fn bool(&self, name: &str) -> Option<impl Iterator<Item = Option<bool>> + '_> {
+        let idx = self.names.iter().position(|n| n == name)?;
+        // test that it's actually a utf8 array
+        let _ = (&self.arrays[0])[idx]
+            .as_any()
+            .downcast_ref::<BooleanArray>()?;
+
+        let iter = self
+            .arrays
+            .iter()
+            .map(move |arr| {
+                let arr = &arr[idx];
+                let arr = arr.as_any().downcast_ref::<BooleanArray>().unwrap();
+                arr.iter()
+            })
+            .flatten();
+
+        Some(iter)
+    }
+}
+
+create_exception!(exceptions, ArrowErrorException, PyException);
+
+pub fn array_to_rust(obj: &PyAny) -> PyResult<ArrayRef> {
+    // prepare a pointer to receive the Array struct
+    let array = Box::new(ffi::ArrowArray::empty());
+    let schema = Box::new(ffi::ArrowSchema::empty());
+
+    let array_ptr = &*array as *const ffi::ArrowArray;
+    let schema_ptr = &*schema as *const ffi::ArrowSchema;
+
+    // make the conversion through PyArrow's private API
+    // this changes the pointer's memory and is thus unsafe. In particular, `_export_to_c` can go out of bounds
+    obj.call_method1(
+        "_export_to_c",
+        (array_ptr as Py_uintptr_t, schema_ptr as Py_uintptr_t),
+    )?;
+
+    unsafe {
+        let field = ffi::import_field_from_c(schema.as_ref())
+            .map_err(|e| ArrowErrorException::new_err(format!("{:?}", e)))?;
+        let array = ffi::import_array_from_c(*array, field.data_type)
+            .map_err(|e| ArrowErrorException::new_err(format!("{:?}", e)))?;
+        Ok(array)
+    }
 }
