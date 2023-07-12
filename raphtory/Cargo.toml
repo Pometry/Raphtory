@@ -64,6 +64,7 @@ pyo3 =  {version= "0.19.0", features=["multiple-pymethods", "chrono"], optional=
 num = {version="0.4.0", optional=true}
 display-error-chain = {version="0.1.1", optional=true}
 pyo3-polars = {version = "0.4.1", optional=true }
+ordered-float = "3.7.0"
 
 [dev-dependencies]
 csv = "1"
