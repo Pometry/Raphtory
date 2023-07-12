@@ -72,14 +72,17 @@ jobs:
           toolchain: stable
           override: true
           components: rustfmt, clippy
-      - name: Run Tests
-        uses: actions-rs/cargo@v1
-        env:
-          RUSTFLAGS: -Awarnings
-        with:
-          cwd: C:\raphtory
-          command: test
-          args: --all --no-default-features --features "raphtory/io raphtory/python"
+      - name: manual rust test
+        run: |
+          cd /d "c:\raphtory" && C:\Users\runneradmin\.cargo\bin\cargo.exe test --all --no-default-features --features "raphtory/io raphtory/python"
+#      - name: Run Tests
+#        uses: actions-rs/cargo@v1
+#        env:
+#          RUSTFLAGS: -Awarnings
+#        with:
+#          cwd: C:\raphtory
+#          command: test
+#          args: --all --no-default-features --features "raphtory/io raphtory/python"
   doc-test:
     if: ${{ !inputs.skip_tests }}
     name: "Doc tests"
