@@ -129,3 +129,4 @@ jobs:
           sudo apt update && sudo apt install -y pandoc make python3-sphinx
           pip install -e python
           cd docs && python -m pip install -q -r requirements.txt && make html
+
