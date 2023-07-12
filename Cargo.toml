@@ -6,7 +6,7 @@ members = [
 	"python",
 	"js-raphtory",
 	"raphtory-graphql",
-	# "comparison-benchmark/rust/raphtory-rust-benchmark"
+	"comparison-benchmark/rust/raphtory-rust-benchmark"
 ]
 default-members = ["raphtory"]
 

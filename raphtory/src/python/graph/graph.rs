@@ -13,7 +13,7 @@ use crate::{
     },
 };
 use pyo3::prelude::*;
-use pyo3_polars::PyDataFrame;
+// use pyo3_polars::PyDataFrame;
 use std::{
     collections::HashMap,
     fmt::{Debug, Formatter},
@@ -214,101 +214,108 @@ impl PyGraph {
         self.graph.save_to_file(Path::new(path))
     }
 
-    // Loads a graph from Polars DataFrame.
-    // pub fn load_from_polars(df: PyDataFrame) -> Result<Graph, GraphError> {
-    //     let graph = Graph::new();
-    //     let rs_df = df.0;
-    //     Ok(graph)
-    // }
 
     #[staticmethod]
     #[pyo3(signature = (df, src = "source", dst = "destination", time = "time", props = None))]
-    fn load_from_polars(
-        df: PyDataFrame,
+    fn load_from_pandas(
+        df: &PyAny,
         src: &str,
         dst: &str,
         time: &str,
         props: Option<Vec<&str>>,
     ) -> Result<Graph, GraphError> {
         let graph = Graph::new();
-        let rs_df = df.0.clone();
-        let src = rs_df
-            .column(src)
-            .map_err(|_| GraphError::LoadFailure(format!("column: [{src}] not found")))?;
-
-        let dst = rs_df
-            .column(dst)
-            .map_err(|_| GraphError::LoadFailure(format!("column: [{dst}] not found")))?;
-
-        let time = rs_df
-            .column(time)
-            .map_err(|_| GraphError::LoadFailure(format!("column: [{time}] not found")))?;
-
-        let prop_iter = props
-            .unwrap_or_default()
-            .into_iter()
-            .map(|name| lift_property(name, &df))
-            .reduce(combine_prop_iters)
-            .unwrap_or_else(|| Box::new(std::iter::repeat(vec![])));
-
-        if let (Ok(src), Ok(dst), Ok(time)) = (src.u64(), dst.u64(), time.i64()) {
-            let triplets = src.into_iter().zip(dst.into_iter()).zip(time.into_iter());
-            load_from_num_iter(&graph, triplets, prop_iter)?;
-        } else if let (Ok(src), Ok(dst), Ok(time)) = (src.i64(), dst.i64(), time.i64()) {
-            let triplets = src.into_iter().zip(dst.into_iter()).zip(time.into_iter());
-            load_from_num_iter(&graph, triplets, prop_iter)?;
-        } else if let (Ok(src), Ok(dst), Ok(time)) = (src.utf8(), dst.utf8(), time.i64()) {
-            let triplets = src.into_iter().zip(dst.into_iter()).zip(time.into_iter());
-            for ( ((src, dst), time), props) in triplets.zip(prop_iter) {
-                if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
-                    graph.add_edge(time, src, dst, props, None)?;
-                }
-            }
-        } else {
-            return Err(GraphError::LoadFailure(
-                "source and target columns must be either u64 or text, time column must be i64"
-                    .to_string(),
-            ));
-        }
         Ok(graph)
     }
+
+    // #[staticmethod]
+    // #[pyo3(signature = (df, src = "source", dst = "destination", time = "time", props = None))]
+    // fn load_from_polars(
+    //     df: PyDataFrame,
+    //     src: &str,
+    //     dst: &str,
+    //     time: &str,
+    //     props: Option<Vec<&str>>,
+    // ) -> Result<Graph, GraphError> {
+    //     let graph = Graph::new();
+    //     let rs_df = df.0.clone();
+    //     let src = rs_df
+    //         .column(src)
+    //         .map_err(|_| GraphError::LoadFailure(format!("column: [{src}] not found")))?;
+
+    //     let dst = rs_df
+    //         .column(dst)
+    //         .map_err(|_| GraphError::LoadFailure(format!("column: [{dst}] not found")))?;
+
+    //     let time = rs_df
+    //         .column(time)
+    //         .map_err(|_| GraphError::LoadFailure(format!("column: [{time}] not found")))?;
+
+    //     let prop_iter = props
+    //         .unwrap_or_default()
+    //         .into_iter()
+    //         .map(|name| lift_property(name, &df))
+    //         .reduce(combine_prop_iters)
+    //         .unwrap_or_else(|| Box::new(std::iter::repeat(vec![])));
+
+    //     if let (Ok(src), Ok(dst), Ok(time)) = (src.u64(), dst.u64(), time.i64()) {
+    //         let triplets = src.into_iter().zip(dst.into_iter()).zip(time.into_iter());
+    //         load_from_num_iter(&graph, triplets, prop_iter)?;
+    //     } else if let (Ok(src), Ok(dst), Ok(time)) = (src.i64(), dst.i64(), time.i64()) {
+    //         let triplets = src.into_iter().zip(dst.into_iter()).zip(time.into_iter());
+    //         load_from_num_iter(&graph, triplets, prop_iter)?;
+    //     } else if let (Ok(src), Ok(dst), Ok(time)) = (src.utf8(), dst.utf8(), time.i64()) {
+    //         let triplets = src.into_iter().zip(dst.into_iter()).zip(time.into_iter());
+    //         for ( ((src, dst), time), props) in triplets.zip(prop_iter) {
+    //             if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
+    //                 graph.add_edge(time, src, dst, props, None)?;
+    //             }
+    //         }
+    //     } else {
+    //         return Err(GraphError::LoadFailure(
+    //             "source and target columns must be either u64 or text, time column must be i64"
+    //                 .to_string(),
+    //         ));
+    //     }
+    //     Ok(graph)
+    // }
 }
 
-fn lift_property<'a, 'b>(
-    name: &'a str,
-    df: &'b PyDataFrame,
-) -> Box<dyn Iterator<Item = Vec<(&'b str, Prop)>> + 'b> {
-    let df = &df.0;
-    let col = df.column(name).unwrap();
-    let name = col.name();
-    if let Ok(col) = col.f64() {
-        Box::new(col.into_iter().map(move |val| {
-            val.into_iter()
-                .map(|v| (name, Prop::F64(v)))
-                .collect::<Vec<_>>()
-        }))
-    } else if let Ok(col) = col.i64() {
-        Box::new(col.into_iter().map(move |val| {
-            val.into_iter()
-                .map(|v| (name, Prop::I64(v)))
-                .collect::<Vec<_>>()
-        }))
-    } else if let Ok(col) = col.bool() {
-        Box::new(col.into_iter().map(move |val| {
-            val.into_iter()
-                .map(|v| (name, Prop::Bool(v)))
-                .collect::<Vec<_>>()
-        }))
-    } else if let Ok(col) = col.utf8() {
-        Box::new(col.into_iter().map(move |val| {
-            val.into_iter()
-                .map(|v| (name, Prop::str(v)))
-                .collect::<Vec<_>>()
-        }))
-    } else {
-        Box::new(std::iter::repeat(Vec::with_capacity(0)))
-    }
-}
+// fn lift_property<'a, 'b>(
+//     name: &'a str,
+//     df: &'b PyDataFrame,
+// ) -> Box<dyn Iterator<Item = Vec<(&'b str, Prop)>> + 'b> {
+//     let df = &df.0;
+//     let col = df.column(name).unwrap();
+//     let name = col.name();
+//     if let Ok(col) = col.f64() {
+//         Box::new(col.into_iter().map(move |val| {
+//             val.into_iter()
+//                 .map(|v| (name, Prop::F64(v)))
+//                 .collect::<Vec<_>>()
+//         }))
+//     } else if let Ok(col) = col.i64() {
+//         Box::new(col.into_iter().map(move |val| {
+//             val.into_iter()
+//                 .map(|v| (name, Prop::I64(v)))
+//                 .collect::<Vec<_>>()
+//         }))
+//     } else if let Ok(col) = col.bool() {
+//         Box::new(col.into_iter().map(move |val| {
+//             val.into_iter()
+//                 .map(|v| (name, Prop::Bool(v)))
+//                 .collect::<Vec<_>>()
+//         }))
+//     } else if let Ok(col) = col.utf8() {
+//         Box::new(col.into_iter().map(move |val| {
+//             val.into_iter()
+//                 .map(|v| (name, Prop::str(v)))
+//                 .collect::<Vec<_>>()
+//         }))
+//     } else {
+//         Box::new(std::iter::repeat(Vec::with_capacity(0)))
+//     }
+// }
 
 fn combine_prop_iters<
     'a,

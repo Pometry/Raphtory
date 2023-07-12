@@ -1348,21 +1348,21 @@ def test_deletions():
     assert list(g.edge(edges[0][1], edges[0][2]).explode().latest_time()) == [10]
 
 
-def test_load_from_polars():
-    import polars as pl
-    df = pl.DataFrame({
-        "src": [1, 2, 3, 4, 5],
-        "dst": [2, 3, 4, 5, 6],
-        "time": [1, 2, 3, 4, 5],
-        "weight": [1.0, 2.0, 3.0, 4.0, 5.0]
-    });
+# def test_load_from_polars():
+#     import polars as pl
+#     df = pl.DataFrame({
+#         "src": [1, 2, 3, 4, 5],
+#         "dst": [2, 3, 4, 5, 6],
+#         "time": [1, 2, 3, 4, 5],
+#         "weight": [1.0, 2.0, 3.0, 4.0, 5.0]
+#     });
 
-    g = Graph.load_from_polars(df, "src", "dst", "time", ["weight"])
+#     g = Graph.load_from_polars(df, "src", "dst", "time", ["weight"])
 
-    assert g.vertices().id().collect() == [1, 2, 3, 4, 5, 6]
-    edges = []
-    for e in g.edges():
-        weight = e["weight"]
-        edges.append((e.src().id(), e.dst().id(), weight))
+#     assert g.vertices().id().collect() == [1, 2, 3, 4, 5, 6]
+#     edges = []
+#     for e in g.edges():
+#         weight = e["weight"]
+#         edges.append((e.src().id(), e.dst().id(), weight))
 
-    assert edges == [(1, 2, 1.0), (2, 3, 2.0), (3, 4, 3.0), (4, 5, 4.0), (5, 6, 5.0)]
+#     assert edges == [(1, 2, 1.0), (2, 3, 2.0), (3, 4, 3.0), (4, 5, 4.0), (5, 6, 5.0)]
