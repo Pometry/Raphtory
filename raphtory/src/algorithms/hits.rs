@@ -36,7 +36,7 @@ pub fn hits<G: GraphViewOps>(
     window: Range<i64>,
     iter_count: usize,
     threads: Option<usize>,
-) -> FxHashMap<String, (f32, f32)> {
+) -> HashMap<String, (f32, f32)> {
     let mut ctx: Context<G, ComputeStateVec> = g.into();
 
     let recv_hub_score = sum::<f32>(2);
@@ -143,7 +143,7 @@ pub fn hits<G: GraphViewOps>(
         None,
     );
 
-    let mut results: FxHashMap<String, (f32, f32)> = FxHashMap::default();
+    let mut results: HashMap<String, (f32, f32)> = HashMap::new();
 
     hub_scores.into_iter().for_each(|(k, v)| {
         results.insert(k, (v, 0.0));
