@@ -50,12 +50,10 @@ jobs:
     name: Windows Rust Tests
     runs-on: windows-latest
     steps:
+      - run : mkdir C:\raphtory
       - name: Checkout code
-        run: |
-          mkdir C:\raphtory
-          git clone https://github.com/${{ github.repository }} --branch ${{ github.ref_name }} C:\raphtory
-          cd C:\raphtory
-          git checkout ${{ github.sha }}
+        uses: actions/checkout@v3
+      - run : move "D:\a\Raphtory\Raphtory" "C:\raphtory"
       - name: Set up cargo cache
         uses: actions/cache@v3
         continue-on-error: false
