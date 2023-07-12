@@ -17,7 +17,6 @@ jobs:
         include:
           - os: macos-latest
           - os: ubuntu-latest
-          - os: windows-latest
     steps:
       - uses: actions/checkout@v3
         name: Checkout
@@ -46,6 +45,44 @@ jobs:
         with:
           command: test
           args: --all --no-default-features --features "raphtory/io raphtory/python"
+  windows-rust-test:
+    if: ${{ !inputs.skip_tests }}
+    name: Windows Rust Tests
+    runs-on: windows-latest
+    steps:
+      - name: Create Directory
+        run: mkdir C:\raphtory
+      - uses: actions/checkout@v3
+        name: Checkout
+        with:
+          ref: ${{ github.sha }}
+          path: C:\raphtory
+      - name: Set up cargo cache
+        uses: actions/cache@v3
+        continue-on-error: false
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - uses: actions-rs/toolchain@v1
+        name: Setup Rust
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+          components: rustfmt, clippy
+      - name: Run Tests
+        uses: actions-rs/cargo@v1
+        env:
+          RUSTFLAGS: -Awarnings
+        with:
+          command: test
+          args: --all --no-default-features --features "raphtory/io raphtory/python"
+        working-directory: C:\raphtory
   doc-test:
     if: ${{ !inputs.skip_tests }}
     name: "Doc tests"
@@ -66,8 +103,6 @@ jobs:
             ~/.cargo/registry/index/
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
-            target/debug
-            target/release
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-
       - uses: actions-rs/toolchain@v1
