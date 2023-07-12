@@ -5,7 +5,7 @@
 //! It is a wrapper around a set of shards, which are the actual graph data structures.
 //! In Python, this class wraps around the rust graph.
 use crate::{
-    core::{entities::vertices::input_vertex::InputVertex, utils::errors::GraphError},
+    core::utils::errors::GraphError,
     prelude::*,
     python::{
         graph::views::graph_view::PyGraphView,
@@ -20,15 +20,13 @@ use arrow2::{
 use pyo3::{
     create_exception, exceptions::PyException, ffi::Py_uintptr_t, prelude::*, types::PyDict,
 };
-// use pyo3_polars::PyDataFrame;
+
 use std::{
-    borrow::Borrow,
     collections::HashMap,
     fmt::{Debug, Formatter},
     path::{Path, PathBuf},
 };
 
-pub type ArrayRef = Box<dyn Array>;
 /// A temporal graph.
 #[derive(Clone)]
 #[pyclass(name="Graph", extends=PyGraphView)]
@@ -224,66 +222,157 @@ impl PyGraph {
     }
 
     #[staticmethod]
-    #[pyo3(signature = (df, src = "source", dst = "destination", time = "time", props = None))]
+    #[pyo3(signature = (edges_df, src = "source", dst = "destination", time = "time", props = None, vertex_df = None, vertex_col = None, vertex_time_col = None, vertex_props = None))]
     fn load_from_pandas(
-        df: &PyAny,
+        edges_df: &PyAny,
         src: &str,
         dst: &str,
         time: &str,
         props: Option<Vec<&str>>,
+        vertex_df: Option<&PyAny>,
+        vertex_col: Option<&str>,
+        vertex_time_col: Option<&str>,
+        vertex_props: Option<Vec<&str>>,
     ) -> Result<Graph, GraphError> {
-        let graph = Graph::new();
-        Python::with_gil(|py| {
-            // let pyarrow = py.import("pyarrow")?;
-            let globals = PyDict::new(py);
-
-            globals.set_item("df", df)?;
-            let locals = PyDict::new(py);
-            py.run(
-                r#"import pyarrow as pa; pa_table = pa.Table.from_pandas(df)"#,
-                Some(globals),
-                Some(locals),
+        let graph = PyGraph{graph: Graph::new()};
+        graph.load_edges_from_pandas(edges_df, src, dst, time, props)?;
+        if let (Some(vertex_df), Some(vertex_col), Some(vertex_time_col)) =
+            (vertex_df, vertex_col, vertex_time_col)
+        {
+            graph.load_vertices_from_pandas(
+                vertex_df,
+                vertex_col,
+                vertex_time_col,
+                vertex_props,
             )?;
+        }
+        Ok(graph.graph)
+    }
 
-            if let Some(table) = locals.get_item("pa_table") {
-                let rb = table.call_method0("to_batches")?.extract::<Vec<&PyAny>>()?;
-                let names = if let Some(batch0) = rb.get(0) {
-                    let schema = batch0.getattr("schema")?;
-                    schema.getattr("names")?.extract::<Vec<String>>()?
-                } else {
-                    vec![]
-                };
 
-                let arrays = rb
-                    .iter()
-                    .map(|rb| {
-                        (0..names.len())
-                            .map(|i| {
-                                let array = rb.call_method1("column", (i,))?;
-                                let arr = array_to_rust(array)?;
-                                Ok::<Box<dyn Array>, PyErr>(arr)
-                            })
-                            .collect::<Result<Vec<_>, PyErr>>()
-                    })
-                    .collect::<Result<Vec<_>, PyErr>>()?;
-
-                let df = PretendDF { names, arrays };
-                load_from_df(&df, src, dst, time, props, &graph).expect("Failed to load graph!");
-                // FIXME: handle this correctly
-            }
+    #[pyo3(signature = (vertices_df, vertex_col = "id", time_col = "time", props = None))]
+    fn load_vertices_from_pandas(&self, vertices_df: &PyAny, vertex_col: &str, time_col: &str, props: Option<Vec<&str>>) -> Result<(), GraphError> {
+        let graph = &self.graph;
+        Python::with_gil(|py| {
+            let df = process_pandas_py_df(vertices_df, py)?;
+            load_vertices_from_df(&df, vertex_col, time_col, props, graph)
+                .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
 
             Ok::<(), PyErr>(())
         })
         .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
-        Ok(graph)
+        Ok(())
     }
+
+    #[pyo3(signature = (edge_df, src_col = "source", dst_col = "destination", time_col = "time", props = None))]
+    fn load_edges_from_pandas(
+        &self,
+        edge_df: &PyAny,
+        src_col: &str,
+        dst_col: &str,
+        time_col: &str,
+        props: Option<Vec<&str>>,
+    ) -> Result<(), GraphError> {
+        let graph = &self.graph;
+        Python::with_gil(|py| {
+            let df = process_pandas_py_df(edge_df, py)?;
+            load_edges_from_df(&df, src_col, dst_col, time_col, props, graph)
+                .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
+
+            Ok::<(), PyErr>(())
+        })
+        .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
+        Ok(())
+    }
+
 }
 
 fn i64_opt_into_u64_opt(x: Option<&i64>) -> Option<u64> {
     x.map(|x| (*x).try_into().unwrap())
 }
 
-fn load_from_df<'a>(
+fn process_pandas_py_df<'a>(df: &PyAny, py: Python<'a>) -> PyResult<PretendDF> {
+    let globals = PyDict::new(py);
+
+    globals.set_item("df", df)?;
+    let locals = PyDict::new(py);
+    py.run(
+        r#"import pyarrow as pa; pa_table = pa.Table.from_pandas(df)"#,
+        Some(globals),
+        Some(locals),
+    )?;
+
+    if let Some(table) = locals.get_item("pa_table") {
+        let rb = table.call_method0("to_batches")?.extract::<Vec<&PyAny>>()?;
+        let names = if let Some(batch0) = rb.get(0) {
+            let schema = batch0.getattr("schema")?;
+            schema.getattr("names")?.extract::<Vec<String>>()?
+        } else {
+            vec![]
+        };
+
+        let arrays = rb
+            .iter()
+            .map(|rb| {
+                (0..names.len())
+                    .map(|i| {
+                        let array = rb.call_method1("column", (i,))?;
+                        let arr = array_to_rust(array)?;
+                        Ok::<Box<dyn Array>, PyErr>(arr)
+                    })
+                    .collect::<Result<Vec<_>, PyErr>>()
+            })
+            .collect::<Result<Vec<_>, PyErr>>()?;
+
+        let df = PretendDF { names, arrays };
+        Ok(df)
+    } else {
+        return Err(GraphLoadException::new_err(
+            "Failed to load graph, could not convert pandas dataframe to arrow table".to_string(),
+        ));
+    }
+}
+
+fn load_vertices_from_df<'a>(
+    df: &'a PretendDF,
+    vertex_id: &str,
+    time: &str,
+    props: Option<Vec<&str>>,
+    graph: &Graph,
+) -> Result<(), GraphError> {
+    let prop_iter = props
+        .unwrap_or_default()
+        .into_iter()
+        .map(|name| lift_property(name, &df))
+        .reduce(combine_prop_iters)
+        .unwrap_or_else(|| Box::new(std::iter::repeat(vec![])));
+
+    if let (Some(vertex_id), Some(time)) = (df.iter_col::<u64>(vertex_id), df.iter_col::<i64>(time))
+    {
+        let iter = vertex_id.map(|i| i.copied()).zip(time);
+        load_vertices_from_num_iter(graph, iter, prop_iter)?;
+    } else if let (Some(vertex_id), Some(time)) =
+        (df.iter_col::<i64>(vertex_id), df.iter_col::<i64>(time))
+    {
+        let iter = vertex_id.map(i64_opt_into_u64_opt).zip(time);
+        load_vertices_from_num_iter(graph, iter, prop_iter)?;
+    } else if let (Some(vertex_id), Some(time)) = (df.utf8(vertex_id), df.iter_col::<i64>(time)) {
+        let iter = vertex_id.into_iter().zip(time);
+        for ((vertex_id, time), props) in iter.zip(prop_iter) {
+            if let (Some(vertex_id), Some(time)) = (vertex_id, time) {
+                graph.add_vertex(*time, vertex_id, props)?;
+            }
+        }
+    } else {
+        return Err(GraphError::LoadFailure(
+            "vertex id column must be either u64 or text, time column must be i64".to_string(),
+        ));
+    }
+
+    Ok(())
+}
+
+fn load_edges_from_df<'a>(
     df: &'a PretendDF,
     src: &str,
     dst: &str,
@@ -307,7 +396,7 @@ fn load_from_df<'a>(
             .map(|i| i.copied())
             .zip(dst.map(|i| i.copied()))
             .zip(time);
-        load_from_num_iter(&graph, triplets, prop_iter)?;
+        load_edges_from_num_iter(&graph, triplets, prop_iter)?;
     } else if let (Some(src), Some(dst), Some(time)) = (
         df.iter_col::<i64>(src),
         df.iter_col::<i64>(dst),
@@ -317,7 +406,7 @@ fn load_from_df<'a>(
             .map(i64_opt_into_u64_opt)
             .zip(dst.map(i64_opt_into_u64_opt))
             .zip(time);
-        load_from_num_iter(&graph, triplets, prop_iter)?;
+        load_edges_from_num_iter(&graph, triplets, prop_iter)?;
     } else if let (Some(src), Some(dst), Some(time)) =
         (df.utf8(src), df.utf8(dst), df.iter_col::<i64>(time))
     {
@@ -383,12 +472,10 @@ fn combine_prop_iters<
     }))
 }
 
-fn load_from_num_iter<
+fn load_edges_from_num_iter<
     'a,
-    T: InputVertex,
-    TR: Borrow<T>,
     S: AsRef<str>,
-    I: Iterator<Item = ((Option<TR>, Option<TR>), Option<&'a i64>)>,
+    I: Iterator<Item = ((Option<u64>, Option<u64>), Option<&'a i64>)>,
     PI: Iterator<Item = Vec<(S, Prop)>>,
 >(
     graph: &Graph,
@@ -397,13 +484,25 @@ fn load_from_num_iter<
 ) -> Result<(), GraphError> {
     for (((src, dst), time), edge_props) in edges.zip(props) {
         if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
-            graph.add_edge(
-                *time,
-                src.borrow().clone(),
-                dst.borrow().clone(),
-                edge_props,
-                None,
-            )?;
+            graph.add_edge(*time, src, dst, edge_props, None)?;
+        }
+    }
+    Ok(())
+}
+
+fn load_vertices_from_num_iter<
+    'a,
+    S: AsRef<str>,
+    I: Iterator<Item = (Option<u64>, Option<&'a i64>)>,
+    PI: Iterator<Item = Vec<(S, Prop)>>,
+>(
+    graph: &Graph,
+    vertices: I,
+    props: PI,
+) -> Result<(), GraphError> {
+    for ((vertex, time), edge_props) in vertices.zip(props) {
+        if let (Some(v), Some(t), props) = (vertex, time, edge_props) {
+            graph.add_vertex(*t, v, props)?;
         }
     }
     Ok(())
@@ -476,8 +575,6 @@ impl PretendDF {
     }
 }
 
-create_exception!(exceptions, ArrowErrorException, PyException);
-
 pub fn array_to_rust(obj: &PyAny) -> PyResult<ArrayRef> {
     // prepare a pointer to receive the Array struct
     let array = Box::new(ffi::ArrowArray::empty());
@@ -501,3 +598,8 @@ pub fn array_to_rust(obj: &PyAny) -> PyResult<ArrayRef> {
         Ok(array)
     }
 }
+
+pub type ArrayRef = Box<dyn Array>;
+
+create_exception!(exceptions, ArrowErrorException, PyException);
+create_exception!(exceptions, GraphLoadException, PyException);
