@@ -49,7 +49,7 @@ use rustc_hash::FxHashSet;
 /// ];
 ///
 /// for (src, dst, ts) in edges {
-///     graph.add_edge(ts, src, dst, [], None);
+///     graph.add_edge(ts, src, dst, NO_PROPS, None);
 /// }
 ///
 /// let actual_tri_count = triangle_count(&graph, None);
@@ -120,7 +120,7 @@ pub fn triangle_count<G: GraphViewOps>(g: &G, threads: Option<usize>) -> usize {
 #[cfg(test)]
 mod triangle_count_tests {
     use super::*;
-    use crate::db::{api::mutation::AdditionOps, graph::graph::Graph};
+    use crate::{db::{api::mutation::AdditionOps, graph::graph::Graph}, prelude::NO_PROPS};
 
     #[test]
     fn triangle_count_1() {
@@ -144,7 +144,7 @@ mod triangle_count_tests {
         ];
 
         for (src, dst, ts) in edges {
-            graph.add_edge(ts, src, dst, [], None).unwrap();
+            graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
         }
 
         let actual_tri_count = triangle_count(&graph, Some(2));
@@ -183,7 +183,7 @@ mod triangle_count_tests {
         ];
 
         for (src, dst, ts) in edges {
-            graph.add_edge(ts, src, dst, [], None).unwrap();
+            graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
         }
 
         let actual_tri_count = triangle_count(&graph, None);

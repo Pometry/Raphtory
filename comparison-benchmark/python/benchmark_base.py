@@ -2,7 +2,10 @@
 ### This class is used by the benchmarking scripts to benchmark the graph tools
 import time
 from abc import ABC, abstractmethod
-import docker
+try:
+    import docker
+except ImportError as e:
+    print("IMPORT ERROR, docker not found...")
 import os
 import multiprocessing
 

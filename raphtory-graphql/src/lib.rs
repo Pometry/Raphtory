@@ -11,7 +11,7 @@ mod data;
 mod graphql_test {
     use super::*;
     use dynamic_graphql::{dynamic::DynamicRequestExt, App, FieldValue};
-    use raphtory::prelude::*;
+    use raphtory::{prelude::*, db::api::view::internal::IntoDynamic};
     use std::collections::HashMap;
 
     #[tokio::test]
@@ -24,7 +24,7 @@ mod graphql_test {
             .add_vertex(0, "Frodo", [("kind".to_string(), Prop::str("Hobbit"))])
             .expect("Could not add vertex!");
 
-        let graphs = HashMap::from([("lotr".to_string(), graph.into())]);
+        let graphs = HashMap::from([("lotr".to_string(), graph.into_dynamic().into())]);
         let data = data::Data { graphs };
 
         #[derive(App)]
@@ -64,9 +64,9 @@ mod graphql_test {
     #[tokio::test]
     async fn basic_query() {
         let graph = Graph::new();
-        graph.add_vertex(0, 11, []).expect("Could not add vertex!");
+        graph.add_vertex(0, 11, NO_PROPS).expect("Could not add vertex!");
 
-        let graphs = HashMap::from([("lotr".to_string(), graph.into())]);
+        let graphs = HashMap::from([("lotr".to_string(), graph.into_dynamic().into())]);
         let data = data::Data { graphs };
 
         #[derive(App)]
@@ -106,17 +106,17 @@ mod graphql_test {
     #[tokio::test]
     async fn query_nodefilter() {
         let graph = Graph::new();
-        if let Err(err) = graph.add_vertex(0, "gandalf", []) {
+        if let Err(err) = graph.add_vertex(0, "gandalf", NO_PROPS) {
             panic!("Could not add vertex! {:?}", err);
         }
-        if let Err(err) = graph.add_vertex(0, "bilbo", []) {
+        if let Err(err) = graph.add_vertex(0, "bilbo", NO_PROPS) {
             panic!("Could not add vertex! {:?}", err);
         }
-        if let Err(err) = graph.add_vertex(0, "frodo", []) {
+        if let Err(err) = graph.add_vertex(0, "frodo", NO_PROPS) {
             panic!("Could not add vertex! {:?}", err);
         }
 
-        let graphs = HashMap::from([("lotr".to_string(), graph.into())]);
+        let graphs = HashMap::from([("lotr".to_string(), graph.into_dynamic().into())]);
         let data = data::Data { graphs };
 
         #[derive(App)]
@@ -186,7 +186,7 @@ mod graphql_test {
     #[tokio::test]
     async fn query_properties() {
         let graph = Graph::new();
-        if let Err(err) = graph.add_vertex(0, "gandalf", []) {
+        if let Err(err) = graph.add_vertex(0, "gandalf", NO_PROPS) {
             panic!("Could not add vertex! {:?}", err);
         }
         if let Err(err) = graph.add_vertex(
@@ -204,7 +204,7 @@ mod graphql_test {
             panic!("Could not add vertex! {:?}", err);
         }
 
-        let graphs = HashMap::from([("lotr".to_string(), graph.into())]);
+        let graphs = HashMap::from([("lotr".to_string(), graph.into_dynamic().into())]);
         let data = data::Data { graphs };
 
         #[derive(App)]

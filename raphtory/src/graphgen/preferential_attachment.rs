@@ -12,10 +12,10 @@
 //! ba_preferential_attachment(&graph, 1000, 10);
 //! ```
 
-use crate::db::{
+use crate::{db::{
     api::{mutation::AdditionOps, view::*},
     graph::graph::Graph,
-};
+}, prelude::NO_PROPS};
 use rand::prelude::*;
 use std::collections::HashSet;
 
@@ -62,7 +62,7 @@ pub fn ba_preferential_attachment(graph: &Graph, vertices_to_add: usize, edges_p
     while ids.len() < edges_per_step {
         max_id += 1;
         graph
-            .add_vertex(latest_time, max_id, [])
+            .add_vertex(latest_time, max_id, NO_PROPS)
             .map_err(|err| println!("{:?}", err))
             .ok();
         degrees.push(0);
@@ -72,7 +72,7 @@ pub fn ba_preferential_attachment(graph: &Graph, vertices_to_add: usize, edges_p
     if graph.num_edges() < edges_per_step {
         for pos in 1..ids.len() {
             graph
-                .add_edge(latest_time, ids[pos], ids[pos - 1], [], None)
+                .add_edge(latest_time, ids[pos], ids[pos - 1], NO_PROPS, None)
                 .expect("Not able to add edge");
             edge_count += 2;
             degrees[pos] += 1;
@@ -104,7 +104,7 @@ pub fn ba_preferential_attachment(graph: &Graph, vertices_to_add: usize, edges_p
             let dst = ids[pos];
             degrees[pos] += 1;
             graph
-                .add_edge(latest_time, max_id, dst, [], None)
+                .add_edge(latest_time, max_id, dst, NO_PROPS, None)
                 .expect("Not able to add edge");
         }
         ids.push(max_id);
@@ -131,7 +131,7 @@ mod preferential_attachment_tests {
         let graph = Graph::new();
         for i in 0..10 {
             graph
-                .add_vertex(i, i as u64, [])
+                .add_vertex(i, i as u64, NO_PROPS)
                 .map_err(|err| println!("{:?}", err))
                 .ok();
         }

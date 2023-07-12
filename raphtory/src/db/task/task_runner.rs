@@ -218,11 +218,12 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
             .map(|nt| custom_pool(nt))
             .unwrap_or_else(|| POOL.clone());
 
-        let morcel_size = self.ctx.graph().num_vertices().min(16_000);
-        let num_chunks = self.ctx.graph().num_vertices() / morcel_size;
+        let num_vertices = self.ctx.graph().num_vertices();
+        let morcel_size = num_vertices.min(16_000);
+        let num_chunks = (num_vertices + morcel_size - 1) / morcel_size;
 
         let mut shard_state = shard_initial_state.unwrap_or_else(|| {
-            Shard::new(self.ctx.graph().num_vertices(), num_chunks, morcel_size)
+            Shard::new(num_vertices, num_chunks, morcel_size)
         });
 
         let mut global_state = global_initial_state.unwrap_or_else(|| Global::new());

@@ -79,6 +79,8 @@ def run_benchmark(choice, docker=False):
     print("Running benchmarks: " + str(benchmarks_to_run))
     for key in benchmarks_to_run:
         driver = setup()[key]
+        print(key)
+        print(setup())
         if docker:
             print("** Running dockerized benchmark " + str(key) + "...")
             print("Starting docker container...")
@@ -146,8 +148,8 @@ def download_data():
     # Download the data
     print("Downloading data...")
     urls = {
-        'simple-profiles.csv.gz': 'https://raw.githubusercontent.com/Raphtory/Data/main/simple-profiles.csv.gz',
-        'simple-relationships.csv.gz': 'https://media.githubusercontent.com/media/Raphtory/Data/main/simple-relationships.csv.gz'
+        'simple-profiles.csv.gz': 'https://osf.io/download/w2xns/',
+        'simple-relationships.csv.gz': 'https://osf.io/download/nbq6h/'
     }
 
     # make the data directory
