@@ -111,7 +111,7 @@ mod algorithm_result_test {
 
     use std::collections::HashMap;
     use ordered_float::OrderedFloat;
-    use crate::AlgorithmResult;
+    use crate::algorithms::algorithm_result::AlgorithmResult;
 
     fn create_algo_result_u64() -> AlgorithmResult<u64> {
         let mut map: HashMap<String, u64> = HashMap::new();

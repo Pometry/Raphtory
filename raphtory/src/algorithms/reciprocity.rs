@@ -59,7 +59,7 @@ use crate::{
     },
 };
 use std::collections::{HashMap, HashSet};
-use crate::algorithms::algorithm_result::AlgorithmResult;
+// use crate::algorithms::algorithm_result::AlgorithmResult;
 
 /// Gets the unique edge counts excluding cycles for a vertex. Returns a tuple of usize
 /// (out neighbours, in neighbours, the intersection of the out and in neighbours)
