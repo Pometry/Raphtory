@@ -51,11 +51,9 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
-        with:
-          ref: ${{ github.ref }}
-          commit: ${{ github.sha }}
-          path: C:\raphtory
+        run: |
+          mkdir C:\raphtory
+          git checkout ${{ github.sha }} C:\raphtory
       - name: Set up cargo cache
         uses: actions/cache@v3
         continue-on-error: false
