@@ -80,9 +80,9 @@ jobs:
         env:
           RUSTFLAGS: -Awarnings
         with:
+          cwd: C:\raphtory
           command: test
           args: --all --no-default-features --features "raphtory/io raphtory/python"
-        working-directory: C:\raphtory
   doc-test:
     if: ${{ !inputs.skip_tests }}
     name: "Doc tests"
