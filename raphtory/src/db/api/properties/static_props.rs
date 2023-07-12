@@ -1,6 +1,6 @@
-use std::iter::Zip;
 use crate::core::Prop;
 use crate::db::api::properties::internal::StaticPropertiesOps;
+use std::iter::Zip;
 
 pub struct StaticProperties<P: StaticPropertiesOps> {
     pub(crate) props: P,
@@ -11,7 +11,10 @@ impl<P: StaticPropertiesOps> StaticProperties<P> {
         Self { props }
     }
     pub fn keys(&self) -> Vec<String> {
-        self.props.static_property_keys()
+        self.props
+            .static_property_keys()
+            .map(|v| v.clone())
+            .collect()
     }
 
     pub fn values(&self) -> Vec<Prop> {

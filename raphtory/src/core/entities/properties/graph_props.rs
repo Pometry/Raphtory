@@ -6,9 +6,9 @@ use crate::core::{
     storage::locked_view::LockedView,
     Prop,
 };
+use parking_lot::RwLockReadGuard;
 use serde::{Deserialize, Serialize};
 use std::ops::Deref;
-use parking_lot::RwLockReadGuard;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub(crate) struct GraphProps {
@@ -55,7 +55,7 @@ impl GraphProps {
         Some(LockedView::DashMap(entry))
     }
 
-    pub(crate) fn static_prop_names(&self) -> impl Deref<Target = Vec<std::string::String>> + '_ {
+    pub(crate) fn static_prop_names(&self) -> RwLockReadGuard<Vec<std::string::String>> {
         self.static_mapper.get_keys()
     }
 

@@ -2,8 +2,8 @@ use crate::core::storage::locked_view::LockedView;
 use crate::db::api::properties::internal::{
     StaticPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
 };
-use crate::db::api::properties::StaticProperties;
 use crate::db::api::properties::TemporalProperties;
+use crate::db::api::properties::{Properties, StaticProperties};
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef},
@@ -84,7 +84,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static>
 impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> StaticPropertiesOps
     for EvalEdgeView<'a, G, CS, S>
 {
-    fn static_property_keys(&self) -> Vec<String> {
+    fn static_property_keys<'b>(&'b self) -> Box<dyn Iterator<Item = LockedView<'b, String>> + 'b> {
         self.graph.static_edge_prop_names(self.ev)
     }
 
@@ -173,12 +173,8 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeListOps
     type VList = Box<dyn Iterator<Item = Self::Vertex> + 'a>;
     type IterType<T> = Box<dyn Iterator<Item = T> + 'a>;
 
-    fn properties(self) -> Self::IterType<TemporalProperties<Self::Edge>> {
+    fn properties(self) -> Self::IterType<Properties<Self::Edge>> {
         Box::new(self.map(move |e| e.properties()))
-    }
-
-    fn static_properties(self) -> Self::IterType<StaticProperties<Self::Edge>> {
-        Box::new(self.map(move |e| e.static_properties()))
     }
 
     fn src(self) -> Self::VList {

@@ -115,14 +115,13 @@ impl<G: GraphViewOps> TemporalPropertyViewOps for VertexView<G> {
 }
 
 impl<G: GraphViewOps> StaticPropertiesOps for VertexView<G> {
-    fn static_property_keys(&self) -> Vec<String> {
+    fn static_property_keys<'a>(&'a self) -> Box<dyn Iterator<Item = LockedView<'a, String>> + 'a> {
         self.graph.static_vertex_prop_names(self.vertex)
     }
 
     fn static_property_values(&self) -> Vec<Prop> {
         self.static_property_keys()
-            .iter()
-            .flat_map(|prop_name| self.graph.static_vertex_prop(self.vertex, prop_name))
+            .flat_map(|prop_name| self.graph.static_vertex_prop(self.vertex, &prop_name))
             .collect()
     }
 

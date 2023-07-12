@@ -490,7 +490,7 @@ mod db_tests {
         g.add_edge(0, 33, 11, NO_PROPS, None).unwrap();
         g.add_vertex(0, 11, vec![("temp".to_string(), Prop::Bool(true))])
             .unwrap();
-        let v11 = g.vertex_ref(11).unwrap();
+        let v11 = g.vertex(11).unwrap();
         let v22 = g.vertex_ref(22).unwrap();
         let v33 = g.vertex_ref(33).unwrap();
         let edge1111 = g.edge_ref(v11.into(), v11.into(), 0).unwrap();
@@ -514,7 +514,7 @@ mod db_tests {
         g.add_edge_properties(33, 11, vec![("a".to_string(), Prop::U64(3311))], None)
             .unwrap();
 
-        assert_eq!(g.static_vertex_prop_names(v11), vec!["a", "b", "c"]);
+        assert_eq!(v11.properties(), vec!["a", "b", "c"]);
         assert_eq!(g.static_vertex_prop_names(v22), vec!["b"]);
         assert!(g.static_vertex_prop_names(v33).is_empty());
         assert_eq!(g.static_edge_prop_names(edge1111), vec!["d"]);
@@ -764,9 +764,7 @@ mod db_tests {
 
         let exploded = g.edge(1, 2, None).unwrap().explode();
 
-        let res = exploded
-            .map(|e| e.properties().collect_properties())
-            .collect_vec();
+        let res = exploded.map(|e| e.properties().as_vec()).collect_vec();
 
         let mut expected = Vec::new();
         for i in 1..4 {
@@ -780,7 +778,7 @@ mod db_tests {
             .unwrap()
             .edges()
             .explode()
-            .map(|e| e.properties().collect_properties())
+            .map(|e| e.properties().as_vec())
             .collect_vec();
         assert_eq!(e, expected);
     }

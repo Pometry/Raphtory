@@ -1,5 +1,5 @@
-use crate::db::api::properties::StaticProperties;
 use crate::db::api::properties::TemporalProperties;
+use crate::db::api::properties::{Properties, StaticProperties};
 use crate::{
     core::{
         entities::{graph::tgraph::InnerTemporalGraph, vertices::vertex_ref::VertexRef, VID},
@@ -78,17 +78,8 @@ pub trait GraphViewOps: BoxableGraphView + Clone + Sized {
     ///
     /// # Returns
     ///
-    /// A HashMap with the names of the properties as keys and the property values as values.
-    fn properties(&self) -> TemporalProperties<Self>;
-
-    /// Get the static properties value of this graph.
-    ///
-    /// # Arguments
-    ///
-    /// # Returns
-    ///
-    /// HashMap<String, Prop> - Return all static properties identified by their names
-    fn static_properties(&self) -> StaticProperties<Self>;
+    /// A view of the properties of the graph
+    fn properties(&self) -> Properties<Self>;
 
     /// Get a graph clone
     ///
@@ -182,12 +173,8 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
         Box::new(self.vertices().iter().flat_map(|v| v.out_edges()))
     }
 
-    fn properties(&self) -> TemporalProperties<Self> {
-        TemporalProperties::new(self.clone())
-    }
-
-    fn static_properties(&self) -> StaticProperties<Self> {
-        StaticProperties::new(self.clone())
+    fn properties(&self) -> Properties<Self> {
+        Properties::new(self.clone())
     }
 
     fn materialize(&self) -> Result<MaterializedGraph, GraphError> {
@@ -204,7 +191,7 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
                     ee.time().unwrap(),
                     ee.src().id(),
                     ee.dst().id(),
-                    ee.properties().collect_properties(),
+                    ee.properties().temporal().collect_properties(),
                     layer,
                 )?;
             }
@@ -214,7 +201,7 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
                 }
             }
 
-            g.add_edge_properties(e.src().id(), e.dst().id(), e.static_properties(), layer)?;
+            g.add_edge_properties(e.src().id(), e.dst().id(), e.properties().meta(), layer)?;
         }
 
         for v in self.vertices().iter() {
@@ -229,7 +216,7 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
             g.add_vertex_properties(v.id(), v.static_properties())?;
         }
 
-        g.add_static_properties(self.static_properties())?;
+        g.add_static_properties(self.properties().meta())?;
 
         Ok(self.new_base_graph(g))
     }

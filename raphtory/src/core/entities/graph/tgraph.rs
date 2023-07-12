@@ -25,10 +25,10 @@ use crate::core::{
     Direction, Prop, PropUnwrap,
 };
 use dashmap::DashMap;
+use parking_lot::RwLockReadGuard;
 use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, hash::BuildHasherDefault, ops::Deref, path::Path, sync::Arc};
-use parking_lot::RwLockReadGuard;
 
 pub(crate) type FxDashMap<K, V> = DashMap<K, V, BuildHasherDefault<FxHasher>>;
 
@@ -50,7 +50,7 @@ pub struct TemporalGraph<const N: usize> {
     // mapping between logical and physical ids
     logical_to_physical: FxDashMap<u64, usize>,
 
-    storage: GraphStorage<N>,
+    pub(crate) storage: GraphStorage<N>,
 
     //earliest time seen in this graph
     pub(in crate::core) earliest_time: MinCounter,
@@ -392,9 +392,7 @@ impl<const N: usize> InnerTemporalGraph<N> {
         self.graph_props.get_temporal(name)
     }
 
-    pub(crate) fn static_property_names(
-        &self,
-    ) -> impl Deref<Target = Vec<std::string::String>> + '_ {
+    pub(crate) fn static_property_names(&self) -> RwLockReadGuard<Vec<std::string::String>> {
         self.graph_props.static_prop_names()
     }
 

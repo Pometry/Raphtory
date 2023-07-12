@@ -88,7 +88,7 @@ impl PyEdge {
         self.edge.id()
     }
 
-    pub fn __getitem__(&self, name: &str) -> Option<TemporalPropertyView<EdgeView<DynamicGraph>>> {
+    pub fn __getitem__(&self, name: &str) -> Option<Prop> {
         self.edge.properties().get(name)
     }
 

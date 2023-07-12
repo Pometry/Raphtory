@@ -33,7 +33,7 @@ pub trait TemporalPropertyViewOps {
 }
 
 pub trait StaticPropertiesOps {
-    fn static_property_keys(&self) -> Vec<String>;
+    fn static_property_keys<'a>(&'a self) -> Box<dyn Iterator<Item = LockedView<'a, String>> + 'a>;
     fn static_property_values(&self) -> Vec<Prop> {
         self.static_property_keys()
             .into_iter()
@@ -118,7 +118,7 @@ impl<P: InheritStaticPropertiesOps> StaticPropertiesOps for P
 where
     P::Base: StaticPropertiesOps,
 {
-    fn static_property_keys(&self) -> Vec<String> {
+    fn static_property_keys<'a>(&'a self) -> Box<dyn Iterator<Item = LockedView<'a, String>> + 'a> {
         self.base().static_property_keys()
     }
 

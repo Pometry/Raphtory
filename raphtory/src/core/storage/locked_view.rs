@@ -10,6 +10,16 @@ pub enum LockedView<'a, T> {
     DashMap(Ref<'a, usize, T, BuildHasherDefault<rustc_hash::FxHasher>>),
 }
 
+impl<'a, T> AsRef<T> for LockedView<'a, T> {
+    fn as_ref(&self) -> &T {
+        match self {
+            LockedView::LockMapped(guard) => guard.deref(),
+            LockedView::Locked(guard) => guard.deref(),
+            LockedView::DashMap(r) => r.deref(),
+        }
+    }
+}
+
 impl<'a, T> From<parking_lot::MappedRwLockReadGuard<'a, T>> for LockedView<'a, T> {
     fn from(value: MappedRwLockReadGuard<'a, T>) -> Self {
         Self::LockMapped(value)

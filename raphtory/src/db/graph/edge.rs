@@ -9,8 +9,8 @@ use crate::core::storage::locked_view::LockedView;
 use crate::db::api::properties::internal::{
     Key, StaticPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
 };
-use crate::db::api::properties::StaticProperties;
 use crate::db::api::properties::TemporalProperties;
+use crate::db::api::properties::{Properties, StaticProperties};
 use crate::db::api::view::internal::Static;
 use crate::{
     core::{
@@ -67,7 +67,7 @@ impl<G: GraphViewOps> EdgeViewInternalOps<G, VertexView<G>> for EdgeView<G> {
 }
 
 impl<G: GraphViewOps> StaticPropertiesOps for EdgeView<G> {
-    fn static_property_keys(&self) -> Vec<String> {
+    fn static_property_keys<'a>(&'a self) -> Box<dyn Iterator<Item = LockedView<'a, String>> + 'a> {
         self.graph.static_edge_prop_names(self.edge)
     }
 
@@ -177,12 +177,8 @@ impl<G: GraphViewOps> EdgeListOps for BoxedIter<EdgeView<G>> {
     /// Specifies the associated type for the iterator over edges.
     type IterType<T> = Box<dyn Iterator<Item = T> + Send>;
 
-    fn properties(self) -> Self::IterType<TemporalProperties<Self::Edge>> {
+    fn properties(self) -> Self::IterType<Properties<Self::Edge>> {
         Box::new(self.map(move |e| e.properties()))
-    }
-
-    fn static_properties(self) -> Self::IterType<StaticProperties<EdgeView<G>>> {
-        Box::new(self.map(move |e| e.static_properties()))
     }
 
     /// Returns an iterator over the source vertices of the edges in the iterator.
@@ -223,12 +219,8 @@ impl<G: GraphViewOps> EdgeListOps for BoxedIter<BoxedIter<EdgeView<G>>> {
     type VList = Box<dyn Iterator<Item = Box<dyn Iterator<Item = VertexView<G>> + Send>> + Send>;
     type IterType<T> = Box<dyn Iterator<Item = Box<dyn Iterator<Item = T> + Send>> + Send>;
 
-    fn properties(self) -> Self::IterType<TemporalProperties<Self::Edge>> {
+    fn properties(self) -> Self::IterType<Properties<Self::Edge>> {
         Box::new(self.map(move |it| it.properties()))
-    }
-
-    fn static_properties(self) -> Self::IterType<StaticProperties<EdgeView<G>>> {
-        Box::new(self.map(move |it| it.static_properties()))
     }
 
     fn src(self) -> Self::VList {
@@ -274,10 +266,7 @@ mod test_edge {
 
         let e1 = g.edge(1, 2, None).unwrap();
         let e1_w = g.window(0, 1).edge(1, 2, None).unwrap();
-        assert_eq!(
-            HashMap::from_iter(e1.properties().collect_properties()),
-            props.into()
-        );
-        assert!(e1_w.properties().collect_properties().is_empty())
+        assert_eq!(HashMap::from_iter(e1.properties().as_vec()), props.into());
+        assert!(e1_w.properties().as_vec().is_empty())
     }
 }

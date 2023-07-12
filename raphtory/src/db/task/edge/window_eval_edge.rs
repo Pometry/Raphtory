@@ -2,8 +2,8 @@ use crate::core::storage::locked_view::LockedView;
 use crate::db::api::properties::internal::{
     StaticPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
 };
-use crate::db::api::properties::StaticProperties;
 use crate::db::api::properties::TemporalProperties;
+use crate::db::api::properties::{Properties, StaticProperties};
 use crate::db::graph::views::window_graph::WindowedGraph;
 use crate::{
     core::{
@@ -102,8 +102,13 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static>
 impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> StaticPropertiesOps
     for WindowEvalEdgeView<'a, G, CS, S>
 {
-    fn static_property_keys(&self) -> Vec<String> {
-        self.graph().static_edge_prop_names(self.ev)
+    fn static_property_keys<'b>(&'b self) -> Box<dyn Iterator<Item = LockedView<'b, String>> + 'b> {
+        Box::new(self.g.static_edge_prop_names(self.ev).filter(|k| {
+            !self
+                .g
+                .temporal_edge_prop_vec_window(self.ev, k, self.t_start, self.t_end)
+                .is_empty()
+        }))
     }
 
     fn get_static_property(&self, key: &str) -> Option<Prop> {
@@ -263,12 +268,8 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeListOps
     type VList = Box<dyn Iterator<Item = Self::Vertex> + 'a>;
     type IterType<T> = Box<dyn Iterator<Item = T> + 'a>;
 
-    fn properties(self) -> Self::IterType<TemporalProperties<Self::Edge>> {
+    fn properties(self) -> Self::IterType<Properties<Self::Edge>> {
         Box::new(self.map(move |e| e.properties()))
-    }
-
-    fn static_properties(self) -> Self::IterType<StaticProperties<Self::Edge>> {
-        Box::new(self.map(move |it| it.static_properties()))
     }
 
     fn src(self) -> Self::VList {

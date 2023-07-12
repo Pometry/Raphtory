@@ -11,6 +11,10 @@ pub struct Properties<P: PropertiesOps + Clone> {
 }
 
 impl<P: PropertiesOps + Clone> Properties<P> {
+    pub fn new(props: P) -> Properties<P> {
+        Self { props }
+    }
+
     /// Get property value.
     ///
     /// First searches temporal properties and returns latest value if it exists.
@@ -28,7 +32,20 @@ impl<P: PropertiesOps + Clone> Properties<P> {
     }
 
     pub fn keys<'a>(&'a self) -> impl Iterator<Item = LockedView<'a, String>> + 'a {
-        self.props.temporal_property_keys()
+        self.props.temporal_property_keys().chain(
+            self.props
+                .static_property_keys()
+                .into_iter()
+                .filter(|k| self.props.get_temporal_property(k).is_none()),
+        )
+    }
+
+    pub fn values(&self) -> impl Iterator<Item = Prop> + '_ {
+        self.keys().map(|k| self.get(&*k).unwrap())
+    }
+
+    pub fn iter<'a>(&'a self) -> impl Iterator<Item = (LockedView<'a, String>, Prop)> + 'a {
+        self.keys().zip(self.values())
     }
 
     /// Get a view of the temporal properties only.
@@ -39,5 +56,9 @@ impl<P: PropertiesOps + Clone> Properties<P> {
     /// Get a view of the static properties (meta-data) only.
     pub fn meta(&self) -> StaticProperties<P> {
         StaticProperties::new(self.props.clone())
+    }
+
+    pub fn as_vec(&self) -> Vec<(String, Prop)> {
+        self.iter().map(|(k, v)| (k.clone(), v)).collect()
     }
 }

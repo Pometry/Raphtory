@@ -2,6 +2,7 @@ use crate::core::{storage::lazy_vec::IllegalSet, utils::time::error::ParseTimeEr
 
 #[cfg(feature = "search")]
 use tantivy;
+#[cfg(feature = "search")]
 use tantivy::query::QueryParserError;
 
 #[derive(thiserror::Error, Debug)]

@@ -64,18 +64,15 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
         node.static_property(prop_id).cloned()
     }
 
-    fn static_vertex_prop_names(&self, v: VID) -> Vec<String> {
-        if let Some(node) = self.node_entry(v).value() {
-            return node
-                .static_prop_ids()
-                .into_iter()
-                .flat_map(|prop_id| {
-                    self.vertex_reverse_prop_id(prop_id, true)
-                        .map(|v| v.clone())
-                })
-                .collect();
-        }
-        vec![]
+    fn static_vertex_prop_names<'a>(
+        &'a self,
+        v: VID,
+    ) -> Box<dyn Iterator<Item = LockedView<'a, String>> + 'a> {
+        let ids = self.node_entry(v).static_prop_ids();
+        Box::new(
+            ids.into_iter()
+                .flat_map(|prop_id| self.vertex_reverse_prop_id(prop_id, true)),
+        )
     }
 
     fn temporal_vertex_prop(&self, v: VID, name: &str) -> Option<LockedView<TProp>> {
@@ -115,16 +112,18 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
         x
     }
 
-    fn static_edge_prop_names(&self, e: EdgeRef) -> Vec<String> {
-        if let Some(edge) = self.edge_entry(e.pid()).value() {
-            return edge
-                .unsafe_layer(e.layer())
-                .static_prop_ids()
-                .into_iter()
-                .flat_map(|prop_id| self.edge_reverse_prop_id(prop_id, true).map(|v| v.clone()))
-                .collect();
-        }
-        vec![]
+    fn static_edge_prop_names<'a>(
+        &'a self,
+        e: EdgeRef,
+    ) -> Box<dyn Iterator<Item = LockedView<'a, String>> + 'a> {
+        let ids = self
+            .edge_entry(e.pid())
+            .unsafe_layer(e.layer())
+            .static_prop_ids();
+        Box::new(
+            ids.into_iter()
+                .flat_map(|prop_id| self.edge_reverse_prop_id(prop_id, true)),
+        )
     }
 
     fn temporal_edge_prop(&self, e: EdgeRef, name: &str) -> Option<LockedView<TProp>> {

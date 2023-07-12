@@ -1,8 +1,8 @@
 use crate::db::api::properties::internal::{
     StaticPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
 };
-use crate::db::api::properties::StaticProperties;
 use crate::db::api::properties::TemporalProperties;
+use crate::db::api::properties::{Properties, StaticProperties};
 use crate::{
     core::entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef},
     db::api::view::{internal::*, *},
@@ -30,6 +30,7 @@ pub trait EdgeViewOps:
     type Vertex: VertexViewOps<Graph = Self::Graph>;
     type EList: EdgeListOps<Graph = Self::Graph, Vertex = Self::Vertex>;
 
+    /// list the activation timestamps for the edge
     fn history(&self) -> Vec<i64> {
         self.graph()
             .edge_t(self.eref())
@@ -37,13 +38,9 @@ pub trait EdgeViewOps:
             .collect()
     }
 
-    fn properties(&self) -> TemporalProperties<Self> {
-        TemporalProperties::new(self.clone())
-    }
-
-    /// Returns all static properties of an edge
-    fn static_properties(&self) -> StaticProperties<Self> {
-        StaticProperties::new(self.clone())
+    /// Return a view of the properties of the edge
+    fn properties(&self) -> Properties<Self> {
+        Properties::new(self.clone())
     }
 
     /// Returns the source vertex of the edge.
@@ -125,8 +122,7 @@ pub trait EdgeListOps:
 
     /// the type of iterator
     type IterType<T>: Iterator<Item = Self::ValueType<T>>;
-    fn properties(self) -> Self::IterType<TemporalProperties<Self::Edge>>;
-    fn static_properties(self) -> Self::IterType<StaticProperties<Self::Edge>>;
+    fn properties(self) -> Self::IterType<Properties<Self::Edge>>;
 
     /// gets the source vertices of the edges in the list
     fn src(self) -> Self::VList;
