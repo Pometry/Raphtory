@@ -72,6 +72,9 @@ jobs:
           toolchain: stable
           override: true
           components: rustfmt, clippy
+      - name: list files
+        run: |
+          cd c:\raphtory && dir
       - name: manual rust test
         run: |
           cd c:\raphtory && C:\Users\runneradmin\.cargo\bin\cargo.exe test --all --no-default-features --features 'raphtory/io raphtory/python'
