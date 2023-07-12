@@ -74,7 +74,7 @@ jobs:
           components: rustfmt, clippy
       - name: manual rust test
         run: |
-          cd /d c:\raphtory && C:\Users\runneradmin\.cargo\bin\cargo.exe test --all --no-default-features --features "raphtory/io raphtory/python"
+          cd c:\raphtory && C:\Users\runneradmin\.cargo\bin\cargo.exe test --all --no-default-features --features 'raphtory/io raphtory/python'
 #      - name: Run Tests
 #        uses: actions-rs/cargo@v1
 #        env:
