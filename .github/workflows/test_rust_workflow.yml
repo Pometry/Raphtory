@@ -50,12 +50,11 @@ jobs:
     name: Windows Rust Tests
     runs-on: windows-latest
     steps:
-      - name: Create Directory
-        run: mkdir C:\raphtory
-      - uses: actions/checkout@v3
-        name: Checkout
+      - name: Checkout code
+        uses: actions/checkout@v2
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ github.ref }}
+          commit: ${{ github.sha }}
           path: C:\raphtory
       - name: Set up cargo cache
         uses: actions/cache@v3
