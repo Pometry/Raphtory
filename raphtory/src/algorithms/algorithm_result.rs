@@ -1,5 +1,6 @@
 use polars::prelude::*;
 use std::collections::HashMap;
+use std::hash::Hash;
 use polars::export::num::ToPrimitive;
 
 pub struct AlgorithmResult<T> {
@@ -53,7 +54,7 @@ impl AsValueSeries<bool> for bool {
     }
 }
 
-impl<T> AlgorithmResult<T> where T: AsValueSeries<T> + Clone + Ord + Eq + std::hash::Hash + Clone {
+impl<T> AlgorithmResult<T> where T: AsValueSeries<T> + Clone + PartialOrd + PartialEq + Hash + Clone {
     pub fn new(result: HashMap<String, T>, is_categorical: bool) -> Self {
         AlgorithmResult {
             result,
@@ -83,9 +84,9 @@ impl<T> AlgorithmResult<T> where T: AsValueSeries<T> + Clone + Ord + Eq + std::h
         let mut sorted: Vec<(String, T)> = self.result.clone().into_iter().collect();
         sorted.sort_by(|(_, a), (_, b)| {
             if reverse {
-                b.cmp(a)
+                b.partial_cmp(a).unwrap()
             } else {
-                a.cmp(b)
+                a.partial_cmp(b).unwrap()
             }
         });
         sorted
