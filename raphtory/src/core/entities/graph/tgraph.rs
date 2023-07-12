@@ -28,6 +28,7 @@ use dashmap::DashMap;
 use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, hash::BuildHasherDefault, ops::Deref, path::Path, sync::Arc};
+use parking_lot::RwLockReadGuard;
 
 pub(crate) type FxDashMap<K, V> = DashMap<K, V, BuildHasherDefault<FxHasher>>;
 
@@ -64,7 +65,7 @@ pub struct TemporalGraph<const N: usize> {
     pub(in crate::core) edge_meta: Arc<Meta>,
 
     // graph properties
-    pub(in crate::core) graph_props: GraphProps,
+    pub(crate) graph_props: GraphProps,
 }
 
 impl<const N: usize> std::fmt::Display for InnerTemporalGraph<N> {
@@ -170,7 +171,7 @@ impl<const N: usize> InnerTemporalGraph<N> {
         &self,
         prop_id: usize,
         is_static: bool,
-    ) -> Option<impl Deref<Target = std::string::String> + Debug + '_> {
+    ) -> Option<LockedView<String>> {
         self.vertex_meta.reverse_prop_id(prop_id, is_static)
     }
 
@@ -196,7 +197,7 @@ impl<const N: usize> InnerTemporalGraph<N> {
         &self,
         prop_id: usize,
         is_static: bool,
-    ) -> Option<impl Deref<Target = std::string::String> + Debug + '_> {
+    ) -> Option<LockedView<String>> {
         let out = self.edge_meta.reverse_prop_id(prop_id, is_static);
         if out.is_none() {
             println!("reverse_prop_id_map: {:?}", self.edge_meta);
@@ -397,9 +398,7 @@ impl<const N: usize> InnerTemporalGraph<N> {
         self.graph_props.static_prop_names()
     }
 
-    pub(crate) fn temporal_property_names(
-        &self,
-    ) -> impl Deref<Target = Vec<std::string::String>> + '_ {
+    pub(crate) fn temporal_property_names(&self) -> RwLockReadGuard<Vec<std::string::String>> {
         self.graph_props.temporal_prop_names()
     }
 

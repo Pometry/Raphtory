@@ -11,7 +11,7 @@ pub(crate) mod time_semantics;
 mod wrapped_graph;
 
 use crate::db::api::properties::internal::{
-    BoxableTemporalProperties, InheritPropertiesOps, StaticPropertiesOps,
+    PropertiesOps, InheritPropertiesOps, StaticPropertiesOps,
 };
 use crate::prelude::GraphViewOps;
 pub use core_deletion_ops::*;
@@ -32,7 +32,7 @@ pub trait BoxableGraphView:
     + GraphOps
     + TimeSemantics
     + InternalMaterialize
-    + BoxableTemporalProperties
+    + PropertiesOps
     + StaticPropertiesOps
     + Send
     + Sync
@@ -45,7 +45,7 @@ impl<
             + GraphOps
             + TimeSemantics
             + InternalMaterialize
-            + BoxableTemporalProperties
+            + PropertiesOps
             + StaticPropertiesOps
             + Send
             + Sync

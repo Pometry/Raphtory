@@ -275,10 +275,10 @@ def test_graph_properties():
     props = {"prop 1": 1, "prop 2": "hi", "prop 3": True}
     g.add_static_property(props)
 
-    sp = g.property_names(True)
+    sp = g.static_properties.keys()
     sp.sort()
     assert sp == ["prop 1", "prop 2", "prop 3"]
-    assert g.property("prop 1") == 1
+    assert g.static_properties["prop 1"] == 1
 
     props = {"prop 4": 11, "prop 5": "world", "prop 6": False}
     g.add_property(1, props)
@@ -287,27 +287,33 @@ def test_graph_properties():
     g.add_property(2, props)
 
     def history_test(key, value):
-        assert g.properties.get(key).items() == value
+        if value is None:
+            assert g.properties.get(key) is None
+        else:
+            assert g.properties.get(key).items() == value
 
-    history_test("prop 1", [])
-    history_test("prop 2", [])
-    history_test("prop 3", [])
+    history_test("prop 1", None)
+    history_test("prop 2", None)
+    history_test("prop 3", None)
     history_test("prop 4", [(1, 11)])
     history_test("prop 5", [(1, "world")])
     history_test("prop 6", [(1, False), (2, True)])
-    history_test("undefined", [])
+    history_test("undefined", None)
 
     def time_history_test(time, key, value):
-        assert g.at(time).property_history(key) == value
+        if value is None:
+            assert g.at(time).properties.get(key) is None
+        else:
+            assert g.at(time).properties.get(key).items() == value
 
     time_history_test(2, "prop 6", [(1, False), (2, True)])
-    time_history_test(1, "static prop", [])
+    time_history_test(1, "static prop", None)
 
     def time_static_property_test(time, key, value):
-        assert g.at(time).static_property(key) == value
+        assert g.at(time).static_properties.get(key) == value
 
     def static_property_test(key, value):
-        assert g.static_property(key) == value
+        assert g.static_properties.get(key) == value
 
     time_static_property_test(1, "prop 1", 1)
     time_static_property_test(100, "prop 1", 1)
@@ -316,20 +322,16 @@ def test_graph_properties():
 
     # testing property
     def time_property_test(time, key, value):
-        assert g.at(time).property(key) == value
+        assert g.at(time).properties.get(key).value() == value
 
     def property_test(key, value):
-        assert g.property(key) == value
+        assert g.properties.get(key).value() == value
 
-    def no_static_property_test(key, value):
-        assert g.property(key, include_static=False) == value
-
-    property_test("prop 2", "hi")
-    no_static_property_test("prop 1", None)
-    time_property_test(2, "prop 3", True)
+    static_property_test("prop 2", "hi")
+    time_static_property_test(2, "prop 3", True)
 
     # testing properties
-    assert g.properties() == {"prop 1": 1, "prop 2": "hi", "prop 3": True, "prop 4": 11, "prop 5": "world",
+    assert g.properties == {"prop 1": 1, "prop 2": "hi", "prop 3": True, "prop 4": 11, "prop 5": "world",
                               "prop 6": True}
 
     assert g.properties(include_static=False) == {"prop 4": 11, "prop 5": "world",

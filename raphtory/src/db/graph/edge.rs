@@ -5,10 +5,12 @@
 //! and can have properties associated with them.
 //!
 
+use crate::core::storage::locked_view::LockedView;
 use crate::db::api::properties::internal::{
-    StaticProperties, StaticPropertiesOps, TemporalProperties, TemporalPropertiesOps,
-    TemporalPropertyViewOps,
+    Key, StaticPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
 };
+use crate::db::api::properties::StaticProperties;
+use crate::db::api::properties::TemporalProperties;
 use crate::db::api::view::internal::Static;
 use crate::{
     core::{
@@ -75,7 +77,7 @@ impl<G: GraphViewOps> StaticPropertiesOps for EdgeView<G> {
 }
 
 impl<G: GraphViewOps> TemporalPropertyViewOps for EdgeView<G> {
-    fn temporal_history(&self, id: &String) -> Vec<i64> {
+    fn temporal_history(&self, id: &Key) -> Vec<i64> {
         self.graph
             .temporal_edge_prop_vec(self.edge, id)
             .into_iter()
@@ -93,7 +95,9 @@ impl<G: GraphViewOps> TemporalPropertyViewOps for EdgeView<G> {
 }
 
 impl<G: GraphViewOps> TemporalPropertiesOps for EdgeView<G> {
-    fn temporal_property_keys(&self) -> Vec<String> {
+    fn temporal_property_keys<'a>(
+        &'a self,
+    ) -> Box<(dyn Iterator<Item = LockedView<'a, String>> + 'a)> {
         self.graph.temporal_edge_prop_names(self.edge)
     }
 

@@ -2,10 +2,6 @@
 //! A vertex is a node in the graph, and can have properties and edges.
 //! It can also be used to navigate the graph.
 
-use crate::db::api::properties::internal::{
-    StaticProperties, TemporalProperties, TemporalPropertyView,
-};
-
 use crate::python::utils::PyGenericIterable;
 use crate::{
     core::{entities::vertices::vertex_ref::VertexRef, utils::time::error::ParseTimeError},
@@ -30,6 +26,8 @@ use crate::{
 };
 use chrono::NaiveDateTime;
 
+use crate::db::api::properties::StaticProperties;
+use crate::db::api::properties::{TemporalProperties, TemporalPropertyView};
 use pyo3::exceptions::PyKeyError;
 use pyo3::{
     exceptions::PyIndexError, prelude::*, pyclass, pyclass::CompareOp, pymethods, PyAny, PyObject,
@@ -163,24 +161,14 @@ impl PyVertex {
         Some(NaiveDateTime::from_timestamp_millis(latest_time).unwrap())
     }
 
-    /// Returns all the properties of the vertex as a dictionary.
-    ///
-    /// Arguments:
-    ///    include_static: Whether to include static properties. Defaults to true.
-    ///
-    /// Returns:
-    ///   A dictionary of the form {name: value} where name is a string and value is a `Prop` object.
+    /// The properties of the vertex
     #[getter]
     pub fn properties(&self) -> TemporalProperties<VertexView<DynamicGraph>> {
         self.vertex.properties()
     }
 
-    /// Returns static properties of a vertex
-    ///
-    /// Arguments:
-    ///
-    /// Returns:
-    ///     HashMap<String, Prop> - Returns static properties of a vertex identified by their names
+    /// The static properties of the vertex
+    #[getter]
     pub fn static_properties(&self) -> StaticProperties<VertexView<DynamicGraph>> {
         self.vertex.static_properties()
     }
@@ -492,11 +480,13 @@ impl PyVertices {
         (move || vertices.latest_time()).into()
     }
 
+    //Fixme: needs a view that allows indexing
     fn properties(&self) -> PyGenericIterable {
         let vertices = self.vertices.clone();
         (move || vertices.properties()).into()
     }
 
+    //Fixme: needs a view that allows indexing
     fn static_properties(&self) -> PyGenericIterable {
         let vertices = self.vertices.clone();
         (move || vertices.static_properties()).into()

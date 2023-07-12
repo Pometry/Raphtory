@@ -1,4 +1,5 @@
-use crate::db::api::properties::internal::{StaticProperties, TemporalProperties};
+use crate::db::api::properties::StaticProperties;
+use crate::db::api::properties::TemporalProperties;
 use crate::{
     core::{
         entities::{graph::tgraph::InnerTemporalGraph, vertices::vertex_ref::VertexRef, VID},

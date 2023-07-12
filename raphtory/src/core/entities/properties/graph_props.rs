@@ -8,6 +8,7 @@ use crate::core::{
 };
 use serde::{Deserialize, Serialize};
 use std::ops::Deref;
+use parking_lot::RwLockReadGuard;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub(crate) struct GraphProps {
@@ -58,7 +59,7 @@ impl GraphProps {
         self.static_mapper.get_keys()
     }
 
-    pub(crate) fn temporal_prop_names(&self) -> impl Deref<Target = Vec<std::string::String>> + '_ {
+    pub(crate) fn temporal_prop_names(&self) -> RwLockReadGuard<Vec<std::string::String>> {
         self.temporal_mapper.get_keys()
     }
 }

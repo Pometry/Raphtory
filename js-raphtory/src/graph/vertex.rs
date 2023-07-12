@@ -90,7 +90,7 @@ impl Vertex {
         let s_props = self.0.static_properties();
         let iter = t_prop
             .iter()
-            .map(|(k, v)| (k, v.value().unwrap()))
+            .map(|(k, v)| (k, v.latest().unwrap()))
             .chain(s_props.iter().filter(|(k, _)| t_prop.get(k).is_none()));
         let obj = js_sys::Map::new();
         for (k, v) in iter {
@@ -105,7 +105,7 @@ impl Vertex {
             .0
             .properties()
             .get(&name)
-            .map(|v| JsProp(v.value().unwrap()))
+            .map(|v| JsProp(v.latest().unwrap()))
         {
             prop.into()
         } else if let Some(prop) = self.0.static_properties().get(&name).map(JsProp) {

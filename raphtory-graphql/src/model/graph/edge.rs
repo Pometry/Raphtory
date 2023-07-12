@@ -44,7 +44,7 @@ impl Edge {
 
     async fn property(&self, name: String) -> Option<Property> {
         let prop = if let Some(prop) = self.ee.properties().get(&name) {
-            prop.value()
+            prop.latest()
                 .or_else(|| self.ee.static_properties().get(&name))?
         } else {
             self.ee.static_properties().get(&name)?

@@ -1,7 +1,8 @@
 use crate::db::api::properties::internal::{
-    StaticProperties, StaticPropertiesOps, TemporalProperties, TemporalPropertiesOps,
-    TemporalPropertyViewOps,
+    StaticPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
 };
+use crate::db::api::properties::StaticProperties;
+use crate::db::api::properties::TemporalProperties;
 use crate::{
     core::entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef},
     db::api::view::{internal::*, *},

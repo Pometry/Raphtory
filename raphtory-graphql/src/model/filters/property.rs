@@ -25,7 +25,7 @@ impl PropertyHasFilter {
             if properties
                 .values()
                 .into_iter()
-                .flat_map(|v| v.value())
+                .flat_map(|v| v.latest())
                 .all(|prop| value_neq_str_prop(value_str, &prop))
                 && static_properties
                     .values()
@@ -42,7 +42,7 @@ impl PropertyHasFilter {
             if properties
                 .values()
                 .into_iter()
-                .flat_map(|v| v.value())
+                .flat_map(|v| v.latest())
                 .all(|prop| value_neq_num_prop(value_num, &prop))
                 && static_properties
                     .values()

@@ -156,7 +156,7 @@ impl<G: GraphViewOps> IndexedGraph<G> {
 
             for prop in prop_names_set.iter() {
                 // load temporal props
-                if let Some(prop_value) = vertex.properties().get(prop).and_then(|p| p.value()) {
+                if let Some(prop_value) = vertex.properties().get(prop).and_then(|p| p.latest()) {
                     if found_props.contains(prop) {
                         continue;
                     }
@@ -202,7 +202,7 @@ impl<G: GraphViewOps> IndexedGraph<G> {
 
             for prop in prop_names_set.iter() {
                 // load temporal props
-                if let Some(prop_value) = edge.properties().get(prop).and_then(|p| p.value()) {
+                if let Some(prop_value) = edge.properties().get(prop).and_then(|p| p.latest()) {
                     if found_props.contains(prop) {
                         continue;
                     }

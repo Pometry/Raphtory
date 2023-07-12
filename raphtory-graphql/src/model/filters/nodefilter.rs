@@ -37,7 +37,7 @@ impl NodeFilter {
                 .vv
                 .properties()
                 .get("type")
-                .and_then(|v| v.value().map(|v| v.to_string()))
+                .and_then(|v| v.latest().map(|v| v.to_string()))
                 .unwrap_or(
                     node.vv
                         .static_properties()

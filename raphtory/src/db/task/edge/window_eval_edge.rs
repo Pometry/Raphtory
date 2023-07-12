@@ -1,7 +1,9 @@
+use crate::core::storage::locked_view::LockedView;
 use crate::db::api::properties::internal::{
-    StaticProperties, StaticPropertiesOps, TemporalProperties, TemporalPropertiesOps,
-    TemporalPropertyViewOps,
+    StaticPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
 };
+use crate::db::api::properties::StaticProperties;
+use crate::db::api::properties::TemporalProperties;
 use crate::db::graph::views::window_graph::WindowedGraph;
 use crate::{
     core::{
@@ -154,17 +156,15 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> TemporalPropertyViewOps
 impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> TemporalPropertiesOps
     for WindowEvalEdgeView<'a, G, CS, S>
 {
-    fn temporal_property_keys(&self) -> Vec<String> {
-        self.g
-            .temporal_edge_prop_names(self.ev)
-            .into_iter()
-            .filter(|k| {
-                !self
-                    .g
-                    .temporal_edge_prop_vec_window(self.ev, k, self.t_start, self.t_end)
-                    .is_empty()
-            })
-            .collect()
+    fn temporal_property_keys<'b>(
+        &'b self,
+    ) -> Box<dyn Iterator<Item = LockedView<'b, String>> + 'b> {
+        Box::new(self.g.temporal_edge_prop_names(self.ev).filter(|k| {
+            !self
+                .g
+                .temporal_edge_prop_vec_window(self.ev, k, self.t_start, self.t_end)
+                .is_empty()
+        }))
     }
 
     fn get_temporal_property(&self, key: &str) -> Option<String> {

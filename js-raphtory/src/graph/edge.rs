@@ -24,7 +24,7 @@ impl Edge {
         let s_props = self.0.static_properties();
         let iter = t_props
             .iter()
-            .flat_map(|(k, v)| v.value().or_else(|| s_props.get(&k)).map(|v| (k, v)))
+            .flat_map(|(k, v)| v.latest().or_else(|| s_props.get(&k)).map(|v| (k, v)))
             .chain(s_props.iter().filter(|(k, _)| t_props.get(k).is_none()));
         let obj = js_sys::Map::new();
         for (k, v) in iter {
@@ -39,7 +39,7 @@ impl Edge {
             .0
             .properties()
             .get(&name)
-            .and_then(|v| v.value())
+            .and_then(|v| v.latest())
             .or_else(|| self.0.static_properties().get(name))
             .map(JsProp)
         {

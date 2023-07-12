@@ -540,7 +540,7 @@ mod db_tests {
 
         let v = g.vertex(1).unwrap();
 
-        let actual = v.properties().get("cool").and_then(|v| v.value());
+        let actual = v.properties().get("cool").and_then(|v| v.latest());
         assert_eq!(actual, Some(Prop::Bool(true)));
 
         // we flip cool from true to false after t 3
@@ -550,7 +550,7 @@ mod db_tests {
         let wg = g.window(3, 15);
         let v = wg.vertex(1).unwrap();
 
-        let actual = v.properties().get("cool").and_then(|v| v.value());
+        let actual = v.properties().get("cool").and_then(|v| v.latest());
         assert_eq!(actual, Some(Prop::Bool(false)));
 
         let hist: Vec<_> = v.properties().get("cool").unwrap().iter().collect();
@@ -571,7 +571,7 @@ mod db_tests {
 
         let e = g.edge(0, 1, None).unwrap();
 
-        let prop = e.properties().get("distance").unwrap().value().unwrap();
+        let prop = e.properties().get("distance").unwrap().latest().unwrap();
         assert_eq!(prop, Prop::U32(5));
     }
 

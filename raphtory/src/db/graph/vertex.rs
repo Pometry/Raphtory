@@ -1,9 +1,11 @@
 //! Defines the `Vertex` struct, which represents a vertex in the graph.
 
+use crate::core::storage::locked_view::LockedView;
 use crate::db::api::properties::internal::{
-    Key, StaticProperties, StaticPropertiesOps, TemporalProperties, TemporalPropertiesOps,
-    TemporalPropertyViewOps,
+    Key, StaticPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
 };
+use crate::db::api::properties::StaticProperties;
+use crate::db::api::properties::TemporalProperties;
 use crate::db::api::view::internal::Static;
 use crate::{
     core::{
@@ -59,16 +61,15 @@ impl<G: GraphViewOps> VertexView<G> {
 }
 
 impl<G: GraphViewOps> TemporalPropertiesOps for VertexView<G> {
-    fn temporal_property_keys(&self) -> Vec<String> {
-        self.graph
-            .temporal_vertex_prop_names(self.vertex)
-            .into_iter()
-            .filter(|k| self.get_temporal_property(k).is_some())
-            .collect()
-    }
-
-    fn temporal_property_values(&self) -> Box<dyn Iterator<Item = Key> + '_> {
-        Box::new(self.temporal_property_keys().into_iter())
+    fn temporal_property_keys<'a>(
+        &'a self,
+    ) -> Box<dyn Iterator<Item = LockedView<'a, String>> + 'a> {
+        Box::new(
+            self.graph
+                .temporal_vertex_prop_names(self.vertex)
+                .into_iter()
+                .filter(|k| self.get_temporal_property(k).is_some()),
+        )
     }
 
     fn get_temporal_property(&self, key: &str) -> Option<Key> {
@@ -455,7 +456,7 @@ mod vertex_test {
         assert_eq!(
             v1.properties()
                 .iter()
-                .map(|(k, v)| (k, v.value().unwrap()))
+                .map(|(k, v)| (k, v.latest().unwrap()))
                 .collect::<HashMap<_, _>>(),
             props
                 .into_iter()
@@ -465,7 +466,7 @@ mod vertex_test {
         assert_eq!(
             v1_w.properties()
                 .iter()
-                .map(|(k, v)| (k, v.value().unwrap()))
+                .map(|(k, v)| (k, v.latest().unwrap()))
                 .collect::<HashMap<_, _>>(),
             HashMap::default()
         )

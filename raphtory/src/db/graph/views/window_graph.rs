@@ -37,6 +37,7 @@
 //!  assert_eq!(wg.edge(1, 2, None).unwrap().src().id(), 1);
 //! ```
 
+use crate::core::storage::locked_view::LockedView;
 use crate::db::api::properties::internal::{
     InheritStaticPropertiesOps, Key, TemporalPropertiesOps, TemporalPropertyViewOps,
 };
@@ -101,12 +102,14 @@ impl<G: GraphViewOps> TemporalPropertyViewOps for WindowedGraph<G> {
 }
 
 impl<G: GraphViewOps> TemporalPropertiesOps for WindowedGraph<G> {
-    fn temporal_property_keys(&self) -> Vec<String> {
-        self.graph
-            .temporal_property_keys()
-            .into_iter()
-            .filter(|k| self.get_temporal_property(k).is_some())
-            .collect()
+    fn temporal_property_keys<'a>(
+        &'a self,
+    ) -> Box<dyn Iterator<Item = LockedView<'a, String>> + 'a> {
+        Box::new(
+            self.graph
+                .temporal_property_keys()
+                .filter(|k| self.get_temporal_property(k).is_some()),
+        )
     }
 
     fn get_temporal_property(&self, key: &str) -> Option<Key> {
@@ -848,14 +851,8 @@ mod views_test {
         .ok();
 
         for (t, src, dst) in &vs {
-            g.add_edge(
-                *t,
-                *src,
-                *dst,
-                [("eprop", "commons")],
-                None,
-            )
-            .unwrap();
+            g.add_edge(*t, *src, *dst, [("eprop", "commons")], None)
+                .unwrap();
         }
 
         let wg = g.window(-2, 0);

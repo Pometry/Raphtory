@@ -1,6 +1,8 @@
 use crate::core::entities::graph::tgraph::InnerTemporalGraph;
+use crate::core::storage::locked_view::LockedView;
 use crate::core::Prop;
 use crate::db::api::properties::internal::{Key, TemporalPropertiesOps, TemporalPropertyViewOps};
+use parking_lot::RwLockReadGuard;
 
 impl<const N: usize> TemporalPropertyViewOps for InnerTemporalGraph<N> {
     fn temporal_value(&self, id: &Key) -> Option<Prop> {
@@ -27,12 +29,14 @@ impl<const N: usize> TemporalPropertyViewOps for InnerTemporalGraph<N> {
 }
 
 impl<const N: usize> TemporalPropertiesOps for InnerTemporalGraph<N> {
-    fn temporal_property_keys(&self) -> Vec<String> {
-        (*self.temporal_property_names()).clone()
-    }
-
-    fn temporal_property_values(&self) -> Box<dyn Iterator<Item = Key> + '_> {
-        Box::new(self.temporal_property_keys().into_iter()) // Fixme: rework to use internal ids
+    fn temporal_property_keys<'a>(
+        &'a self,
+    ) -> Box<dyn Iterator<Item = LockedView<'a, String>> + 'a> {
+        // TODO: Is this actually worth doing? the advantage is that there is definitely no writes during the iteration as we keep the guard alive...
+        let guarded = self.temporal_property_names();
+        Box::new((0..guarded.len()).map(move |i| {
+            RwLockReadGuard::map(RwLockReadGuard::rwlock(&guarded).read(), |v| &v[i]).into()
+        }))
     }
 
     fn get_temporal_property(&self, key: &str) -> Option<Key> {

@@ -1,7 +1,9 @@
+use crate::core::storage::locked_view::LockedView;
 use crate::db::api::properties::internal::{
-    StaticProperties, StaticPropertiesOps, TemporalProperties, TemporalPropertiesOps,
-    TemporalPropertyViewOps,
+    StaticPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
 };
+use crate::db::api::properties::StaticProperties;
+use crate::db::api::properties::TemporalProperties;
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef},
@@ -127,7 +129,9 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> TemporalPropertyViewOps
 impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> TemporalPropertiesOps
     for EvalEdgeView<'a, G, CS, S>
 {
-    fn temporal_property_keys(&self) -> Vec<String> {
+    fn temporal_property_keys<'b>(
+        &'b self,
+    ) -> Box<dyn Iterator<Item = LockedView<'b, String>> + 'b> {
         self.graph.temporal_edge_prop_names(self.ev)
     }
 

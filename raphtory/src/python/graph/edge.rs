@@ -4,10 +4,9 @@
 //! The PyEdge class also provides access to the perspective APIs, which allow the user to view the
 //! edge as it existed at a particular point in time, or as it existed over a particular time range.
 //!
-use crate::db::api::properties::internal::{
-    StaticProperties, TemporalProperties, TemporalPropertyView,
-};
-use crate::python::types::wrappers::iterators::StaticPropsIterable;
+use crate::db::api::properties::StaticProperties;
+use crate::db::api::properties::{TemporalProperties, TemporalPropertyView};
+use crate::python::types::wrappers::iterators::{PropsIterable, StaticPropsIterable};
 use crate::{
     core::utils::time::error::ParseTimeError,
     db::{
@@ -90,7 +89,7 @@ impl PyEdge {
     }
 
     pub fn __getitem__(&self, name: &str) -> Option<TemporalPropertyView<EdgeView<DynamicGraph>>> {
-        self.properties().get(name)
+        self.edge.properties().get(name)
     }
 
     /// Returns a list of timestamps of when an edge is added or change to an edge is made.
@@ -104,6 +103,7 @@ impl PyEdge {
     }
 
     /// Returns the temporal properties the edge.
+    #[getter]
     pub fn properties(&self) -> TemporalProperties<EdgeView<DynamicGraph>> {
         self.edge.properties()
     }
@@ -114,6 +114,7 @@ impl PyEdge {
     ///
     /// Returns:
     ///   HashMap<String, Prop>: Returns all static properties identified by their name
+    #[getter]
     pub fn static_properties(&self) -> StaticProperties<EdgeView<DynamicGraph>> {
         self.edge.static_properties()
     }
@@ -429,6 +430,14 @@ impl PyEdges {
         (move || edges().latest_time()).into()
     }
 
+    // FIXME: needs a view that allows indexing into the properties
+    /// Returns all properties of the edges
+    fn properties(&self) -> PropsIterable {
+        let builder = self.builder.clone();
+        (move || builder().properties()).into()
+    }
+
+    // FIXME: needs a view that allows indexing into the properties
     /// Returns all static properties of the edges
     fn static_properties(&self) -> StaticPropsIterable {
         let edges: Arc<

@@ -1,3 +1,4 @@
+use crate::core::storage::locked_view::LockedView;
 use crate::core::{
     entities::{graph::tgraph::FxDashMap, properties::tprop::TProp},
     storage::lazy_vec::LazyVec,
@@ -190,11 +191,7 @@ impl Meta {
         }
     }
 
-    pub fn reverse_prop_id(
-        &self,
-        prop_id: usize,
-        is_static: bool,
-    ) -> Option<impl Deref<Target = String> + Debug + '_> {
+    pub fn reverse_prop_id(&self, prop_id: usize, is_static: bool) -> Option<LockedView<String>> {
         if is_static {
             self.meta_prop_static.reverse_lookup(prop_id)
         } else {
@@ -228,12 +225,12 @@ impl<T: Hash + Eq + Clone + Debug> DictMapper<T> {
         self.map.get(name).map(|id| *id)
     }
 
-    fn reverse_lookup(&self, id: usize) -> Option<impl Deref<Target = T> + Debug + '_> {
+    fn reverse_lookup(&self, id: usize) -> Option<LockedView<T>> {
         let guard = self.reverse_map.read();
-        (id < guard.len()).then_some(RwLockReadGuard::map(guard, |v| &v[id]))
+        (id < guard.len()).then_some(RwLockReadGuard::map(guard, |v| &v[id]).into())
     }
 
-    pub fn get_keys(&self) -> impl Deref<Target = Vec<T>> + '_ {
+    pub fn get_keys(&self) -> RwLockReadGuard<Vec<T>> {
         self.reverse_map.read()
     }
 }

@@ -41,7 +41,7 @@ impl Node {
 
     pub async fn node_type(&self) -> String {
         if let Some(t) = self.vv.properties().get("type") {
-            t.value().unwrap().to_string()
+            t.latest().unwrap().to_string()
         } else if let Some(s) = self.vv.static_properties().get("type") {
             s.to_string()
         } else {
@@ -69,7 +69,7 @@ impl Node {
         Some(
             t_props
                 .iter()
-                .map(|(k, v)| Property::new(k, v.value().unwrap()))
+                .map(|(k, v)| Property::new(k, v.latest().unwrap()))
                 .chain(
                     self.vv.static_properties().iter().filter_map(|(k, v)| {
                         t_props.get(&k).is_none().then_some(Property::new(k, v))
@@ -81,7 +81,7 @@ impl Node {
 
     async fn property(&self, name: String) -> Option<Property> {
         if let Some(p) = self.vv.properties().get(&name) {
-            p.value().map(|v| Property::new(name, v))
+            p.latest().map(|v| Property::new(name, v))
         } else {
             self.vv
                 .static_properties()
