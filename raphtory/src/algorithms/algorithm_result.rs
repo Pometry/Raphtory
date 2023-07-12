@@ -8,17 +8,30 @@ struct AlgorithmResult<T> where T: Clone   {
 
 impl<T> AlgorithmResult<T>
     where
-        T: Clone + PartialOrd  {
+        T: Clone {
     pub fn new(result: HashMap<String, T>) -> Self {
         Self {
             result,
         }
     }
 
+    pub fn get_all(&self) -> &HashMap<String, T> {
+        &self.result
+    }
+
     pub fn get(&self, key: &str) -> Option<&T> {
         self.result.get(key)
     }
 
+    // TODO implement to pandas dataframe
+
+    // TODO python bindings
+}
+
+
+impl<T> AlgorithmResult<T>
+    where
+        T: Clone + PartialOrd {
     pub fn sort(&self, reverse: bool) -> Vec<(String, T)> {
         let mut sorted: Vec<(String, T)> = self.result.clone().into_iter().collect();
         sorted.sort_by(|(_, a), (_, b)| {
@@ -56,6 +69,18 @@ impl AlgorithmResult<f64> {
         }
     }
 }
+
+// impl AlgorithmResult<(f32, f32)> {
+//     pub fn new_with_float(hashmap: HashMap<String, (f32, f32)>) -> AlgorithmResult<(f32, f32)> {
+//         let converted_hashmap: HashMap<String, (f32, f32)> = hashmap
+//             .into_iter()
+//             .map(|(key, value)| (key, (value.0), (value.1)))
+//             .collect();
+//         AlgorithmResult {
+//             result: converted_hashmap,
+//         }
+//     }
+// }
 
 impl<T> AlgorithmResult<T> where T: Clone + Ord + Hash + Eq {
     pub fn group_by(
@@ -113,6 +138,22 @@ mod algorithm_result_test {
         AlgorithmResult::new_with_float(map.clone())
     }
 
+    fn create_algo_result_tuple() -> AlgorithmResult<(f32, f32)> {
+        let mut map: HashMap<String, (f32, f32)> = HashMap::new();
+        map.insert("A".to_string(), (10.0, 20.0));
+        map.insert("B".to_string(), (20.0, 30.0));
+        map.insert("C".to_string(), (30.0, 40.0));
+        AlgorithmResult::new(map.clone())
+    }
+
+    fn create_algo_result_hashmap_vec() -> AlgorithmResult<Vec<(i64, String)>> {
+        let mut map: HashMap<String, Vec<(i64, String)>> = HashMap::new();
+        map.insert("A".to_string(), vec![(11, "H".to_string())]);
+        map.insert("B".to_string(), vec![]);
+        map.insert("C".to_string(), vec![(22, "E".to_string()), (33, "F".to_string())]);
+        AlgorithmResult::new(map.clone())
+    }
+
     #[test]
     fn test_get() {
         let algo_result = create_algo_result_u64();
@@ -120,6 +161,10 @@ mod algorithm_result_test {
         assert_eq!(algo_result.get("D"), None);
         let algo_result = create_algo_result_f64();
         assert_eq!(algo_result.get("C").unwrap().0, 30.0);
+        let algo_result = create_algo_result_tuple();
+        assert_eq!(algo_result.get("C").unwrap().0, 30.0);
+        let algo_result = create_algo_result_hashmap_vec();
+        assert_eq!(algo_result.get("C").unwrap()[0].0, 22);
     }
 
     #[test]
@@ -136,6 +181,11 @@ mod algorithm_result_test {
         let sorted = algo_result.sort(false);
         assert_eq!(sorted[0].0, "A");
 
+        let algo_result = create_algo_result_tuple();
+        assert_eq!(algo_result.sort(true)[0].0, "C");
+
+        let algo_result = create_algo_result_hashmap_vec();
+        assert_eq!(algo_result.sort(true)[0].0, "C");
     }
 
     #[test]
@@ -151,6 +201,12 @@ mod algorithm_result_test {
         assert_eq!(top_k.unwrap()[0].0, "A");
         let top_k = algo_result.top_k(2, false, true);
         assert_eq!(top_k.unwrap()[0].0, "C");
+
+        let algo_result = create_algo_result_tuple();
+        assert_eq!(algo_result.top_k(2, false, false).unwrap()[0].0, "A");
+
+        let algo_result = create_algo_result_hashmap_vec();
+        assert_eq!(algo_result.top_k(2, false, false).unwrap()[0].0, "B");
     }
 
     #[test]
@@ -165,10 +221,30 @@ mod algorithm_result_test {
         let grouped = algo_result.group_by();
         assert_eq!(grouped.get(&OrderedFloat::from(10.0)).unwrap().len(), 1);
         assert_eq!(grouped.get(&OrderedFloat::from(10.0)).unwrap().contains(&"A".to_string()), true);
-    }
-}
 
-// tests
-// String, (f32, f32) HITS : what is a Hashmap
-// HashMap String, Vec(i64, String)
-//
+        let algo_result = create_algo_result_hashmap_vec();
+        assert_eq!(algo_result.group_by().get(&vec![(11, "H".to_string())]).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn test_get_all() {
+        let algo_result = create_algo_result_u64();
+        let all = algo_result.get_all();
+        assert_eq!(all.len(), 3);
+        assert_eq!(all.contains_key(&"A".to_string()), true);
+
+        let algo_result = create_algo_result_f64();
+        let all = algo_result.get_all();
+        assert_eq!(all.len(), 3);
+        assert_eq!(all.contains_key(&"A".to_string()), true);
+
+        let algo_result = create_algo_result_tuple();
+        assert_eq!(algo_result.get_all().get("A").unwrap().0, 10.0);
+        assert_eq!(algo_result.get_all().len(), 3);
+
+        let algo_result = create_algo_result_hashmap_vec();
+        assert_eq!(algo_result.get_all().get("A").unwrap()[0].0, 11);
+        assert_eq!(algo_result.get_all().len(), 3);
+    }
+
+}
