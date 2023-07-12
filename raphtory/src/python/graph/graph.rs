@@ -22,6 +22,7 @@ use pyo3::{
 };
 // use pyo3_polars::PyDataFrame;
 use std::{
+    borrow::Borrow,
     collections::HashMap,
     fmt::{Debug, Formatter},
     path::{Path, PathBuf},
@@ -267,7 +268,8 @@ impl PyGraph {
                     .collect::<Result<Vec<_>, PyErr>>()?;
 
                 let df = PretendDF { names, arrays };
-                load_from_df(&df, src, dst, time, props, &graph).expect("Failed to load graph!"); // FIXME: handle this correctly
+                load_from_df(&df, src, dst, time, props, &graph).expect("Failed to load graph!");
+                // FIXME: handle this correctly
             }
 
             Ok::<(), PyErr>(())
@@ -275,6 +277,10 @@ impl PyGraph {
         .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
         Ok(graph)
     }
+}
+
+fn i64_opt_into_u64_opt(x: Option<&i64>) -> Option<u64> {
+    x.map(|x| (*x).try_into().unwrap())
 }
 
 fn load_from_df<'a>(
@@ -297,14 +303,20 @@ fn load_from_df<'a>(
         df.iter_col::<u64>(dst),
         df.iter_col::<i64>(time),
     ) {
-        let triplets = src.zip(dst).zip(time);
+        let triplets = src
+            .map(|i| i.copied())
+            .zip(dst.map(|i| i.copied()))
+            .zip(time);
         load_from_num_iter(&graph, triplets, prop_iter)?;
     } else if let (Some(src), Some(dst), Some(time)) = (
         df.iter_col::<i64>(src),
         df.iter_col::<i64>(dst),
         df.iter_col::<i64>(time),
     ) {
-        let triplets = src.zip(dst).zip(time);
+        let triplets = src
+            .map(i64_opt_into_u64_opt)
+            .zip(dst.map(i64_opt_into_u64_opt))
+            .zip(time);
         load_from_num_iter(&graph, triplets, prop_iter)?;
     } else if let (Some(src), Some(dst), Some(time)) =
         (df.utf8(src), df.utf8(dst), df.iter_col::<i64>(time))
@@ -373,9 +385,11 @@ fn combine_prop_iters<
 
 fn load_from_num_iter<
     'a,
-    T: InputVertex + 'a,
-    I: Iterator<Item = ((Option<&'a T>, Option<&'a T>), Option<&'a i64>)>,
-    PI: Iterator<Item = Vec<(&'a str, Prop)>>,
+    T: InputVertex,
+    TR: Borrow<T>,
+    S: AsRef<str>,
+    I: Iterator<Item = ((Option<TR>, Option<TR>), Option<&'a i64>)>,
+    PI: Iterator<Item = Vec<(S, Prop)>>,
 >(
     graph: &Graph,
     edges: I,
@@ -383,21 +397,16 @@ fn load_from_num_iter<
 ) -> Result<(), GraphError> {
     for (((src, dst), time), edge_props) in edges.zip(props) {
         if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
-            graph.add_edge(*time, src.clone(), dst.clone(), edge_props, None)?;
+            graph.add_edge(
+                *time,
+                src.borrow().clone(),
+                dst.borrow().clone(),
+                edge_props,
+                None,
+            )?;
         }
     }
     Ok(())
-}
-
-impl InputVertex for i64 {
-    fn id(&self) -> u64 {
-        let x = *self;
-        x.try_into().unwrap()
-    }
-
-    fn id_str(&self) -> Option<&str> {
-        None
-    }
 }
 
 struct PretendDF {
