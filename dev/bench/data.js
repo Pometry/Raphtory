@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1689250993603,
+  "lastUpdate": 1689257230033,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -5125,6 +5125,60 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions with numeric string input",
             "value": 1882610,
             "range": "± 81695",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "2404621+fabianmurariu@users.noreply.github.com",
+            "name": "Fabian Murariu",
+            "username": "fabianmurariu"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "45623dd628975cecbc62be537e133876a6ab31e1",
+          "message": "update the python loader to include polars dataframe (#1104)\n\n* update the python loader to include polars dataframe\r\n\r\n* add test to load from polars\r\n\r\n* load property works\r\n\r\n* add props for string vertex type too\r\n\r\n* remove target from cache\r\n\r\n* temporary remove comparison benchmark\r\n\r\n* remove polars\r\n\r\n* remove polars and read edge list from pandas\r\n\r\n* fix CI build\r\n\r\n* add vertex load from pandas and 2 ways of loading\r\n\r\n* added tests for all loading functions\r\n\r\n* pulled the pandas loaders int pandas.rs\r\n\r\n* add rust test for loading from arrow arrays\r\n\r\n* improve testing",
+          "timestamp": "2023-07-13T14:59:57+01:00",
+          "tree_id": "e0378aaa08e38b5cd0ea15e47a5d657488a1262f",
+          "url": "https://github.com/Pometry/Raphtory/commit/45623dd628975cecbc62be537e133876a6ab31e1"
+        },
+        "date": 1689257228387,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 802690,
+            "range": "± 3627",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and numeric string input",
+            "value": 1443747,
+            "range": "± 3025",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and string input",
+            "value": 1473151,
+            "range": "± 3552",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 1188406,
+            "range": "± 92639",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions with numeric string input",
+            "value": 2138950,
+            "range": "± 97729",
             "unit": "ns/iter"
           }
         ]
