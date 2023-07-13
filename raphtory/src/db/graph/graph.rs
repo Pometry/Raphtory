@@ -514,7 +514,7 @@ mod db_tests {
         g.add_edge_properties(33, 11, vec![("a".to_string(), Prop::U64(3311))], None)
             .unwrap();
 
-        assert_eq!(v11.properties(), vec!["a", "b", "c"]);
+        assert_eq!(v11.properties().meta().keys(), vec!["a", "b", "c"]);
         assert_eq!(g.static_vertex_prop_names(v22), vec!["b"]);
         assert!(g.static_vertex_prop_names(v33).is_empty());
         assert_eq!(g.static_edge_prop_names(edge1111), vec!["d"]);

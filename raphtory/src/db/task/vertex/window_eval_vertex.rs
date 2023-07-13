@@ -1,5 +1,5 @@
-use crate::db::api::properties::StaticProperties;
 use crate::db::api::properties::TemporalProperties;
+use crate::db::api::properties::{Properties, StaticProperties};
 use crate::db::graph::vertex::VertexView;
 use crate::db::graph::views::window_graph::WindowedGraph;
 use crate::{
@@ -128,17 +128,9 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
             .vertex_history_window(self.vertex, self.t_start..self.t_end)
     }
 
-    fn properties(&self) -> Self::ValueType<TemporalProperties<VertexView<WindowedGraph<G>>>> {
+    fn properties(&self) -> Self::ValueType<Properties<VertexView<WindowedGraph<G>>>> {
         //FIXME: Need to implement this properly without cloning the graph
-        TemporalProperties::new(VertexView::new_local(
-            WindowedGraph::new(self.graph.clone(), self.t_start, self.t_end),
-            self.vertex,
-        ))
-    }
-
-    fn static_properties(&self) -> Self::ValueType<StaticProperties<VertexView<WindowedGraph<G>>>> {
-        //FIXME: Need to implement this properly without cloning the graph
-        StaticProperties::new(VertexView::new_local(
+        Properties::new(VertexView::new_local(
             WindowedGraph::new(self.graph.clone(), self.t_start, self.t_end),
             self.vertex,
         ))
@@ -451,14 +443,8 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
         Box::new(iter)
     }
 
-    fn properties(&self) -> Self::ValueType<TemporalProperties<VertexView<Self::Graph>>> {
+    fn properties(&self) -> Self::ValueType<Properties<VertexView<Self::Graph>>> {
         self.path.window(self.t_start, self.t_end).properties()
-    }
-
-    fn static_properties(&self) -> Self::ValueType<StaticProperties<VertexView<WindowedGraph<G>>>> {
-        self.path
-            .window(self.t_start, self.t_end)
-            .static_properties()
     }
 
     fn degree(&self) -> Self::ValueType<usize> {
@@ -540,16 +526,12 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexListOps
         Box::new(self.map(|v| v.name()))
     }
 
-    fn properties(self) -> Self::IterType<TemporalProperties<VertexView<Self::Graph>>> {
+    fn properties(self) -> Self::IterType<Properties<VertexView<Self::Graph>>> {
         Box::new(self.map(move |v| v.properties()))
     }
 
     fn history(self) -> Self::IterType<Vec<i64>> {
         Box::new(self.map(|v| v.history()))
-    }
-
-    fn static_properties(self) -> Self::IterType<StaticProperties<VertexView<Self::Graph>>> {
-        Box::new(self.map(move |v| v.static_properties()))
     }
 
     fn degree(self) -> Self::IterType<usize> {

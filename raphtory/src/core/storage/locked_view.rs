@@ -1,6 +1,8 @@
 use dashmap::mapref::one::Ref;
 use parking_lot::{MappedRwLockReadGuard, RwLockReadGuard};
 use rustc_hash::FxHasher;
+use std::borrow::Borrow;
+use std::cmp::Ordering;
 use std::fmt::{Debug, Formatter};
 use std::{hash::BuildHasherDefault, ops::Deref};
 
@@ -12,11 +14,35 @@ pub enum LockedView<'a, T> {
 
 impl<'a, T> AsRef<T> for LockedView<'a, T> {
     fn as_ref(&self) -> &T {
-        match self {
-            LockedView::LockMapped(guard) => guard.deref(),
-            LockedView::Locked(guard) => guard.deref(),
-            LockedView::DashMap(r) => r.deref(),
-        }
+        self.deref()
+    }
+}
+
+impl<'a, T> Borrow<T> for LockedView<'a, T> {
+    fn borrow(&self) -> &T {
+        self.deref()
+    }
+}
+
+impl<'a, T: PartialEq<Rhs>, Rhs, LRhs: Deref<Target = Rhs>> PartialEq<LRhs> for LockedView<'a, T> {
+    fn eq(&self, other: &LRhs) -> bool {
+        self.deref() == other.deref()
+    }
+}
+
+impl<'a, T: Eq> Eq for LockedView<'a, T> {}
+
+impl<'a, T: PartialOrd<Rhs>, Rhs, LRhs: Deref<Target = Rhs>> PartialOrd<LRhs>
+    for LockedView<'a, T>
+{
+    fn partial_cmp(&self, other: &LRhs) -> Option<Ordering> {
+        self.deref().partial_cmp(other.deref())
+    }
+}
+
+impl<'a, T: Ord> Ord for LockedView<'a, T> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.deref().cmp(other.deref())
     }
 }
 

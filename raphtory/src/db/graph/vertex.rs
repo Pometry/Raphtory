@@ -4,8 +4,8 @@ use crate::core::storage::locked_view::LockedView;
 use crate::db::api::properties::internal::{
     Key, StaticPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
 };
-use crate::db::api::properties::StaticProperties;
 use crate::db::api::properties::TemporalProperties;
+use crate::db::api::properties::{Properties, StaticProperties};
 use crate::db::api::view::internal::Static;
 use crate::{
     core::{
@@ -159,12 +159,8 @@ impl<G: GraphViewOps> VertexViewOps for VertexView<G> {
         self.graph.vertex_history(self.vertex)
     }
 
-    fn properties(&self) -> TemporalProperties<Self> {
-        TemporalProperties::new(self.clone())
-    }
-
-    fn static_properties(&self) -> StaticProperties<Self> {
-        StaticProperties::new(self.clone())
+    fn properties(&self) -> Properties<Self> {
+        Properties::new(self.clone())
     }
 
     fn degree(&self) -> usize {
@@ -294,16 +290,12 @@ impl<G: GraphViewOps> VertexListOps for Box<dyn Iterator<Item = VertexView<G>> +
         Box::new(self.map(|v| v.name()))
     }
 
-    fn properties(self) -> BoxedIter<TemporalProperties<VertexView<G>>> {
+    fn properties(self) -> BoxedIter<Properties<VertexView<G>>> {
         Box::new(self.map(move |v| v.properties()))
     }
 
     fn history(self) -> BoxedIter<Vec<i64>> {
         Box::new(self.map(|v| v.history()))
-    }
-
-    fn static_properties(self) -> BoxedIter<StaticProperties<VertexView<G>>> {
-        Box::new(self.map(move |v| v.static_properties()))
     }
 
     fn degree(self) -> BoxedIter<usize> {
@@ -374,16 +366,12 @@ impl<G: GraphViewOps> VertexListOps for BoxedIter<BoxedIter<VertexView<G>>> {
         Box::new(self.map(|it| it.name()))
     }
 
-    fn properties(self) -> BoxedIter<Self::ValueType<TemporalProperties<VertexView<G>>>> {
+    fn properties(self) -> BoxedIter<Self::ValueType<Properties<VertexView<G>>>> {
         Box::new(self.map(move |it| it.properties()))
     }
 
     fn history(self) -> BoxedIter<Self::ValueType<Vec<i64>>> {
         Box::new(self.map(move |it| it.history()))
-    }
-
-    fn static_properties(self) -> BoxedIter<Self::ValueType<StaticProperties<VertexView<G>>>> {
-        Box::new(self.map(move |it| it.static_properties()))
     }
 
     fn degree(self) -> BoxedIter<Self::ValueType<usize>> {
@@ -453,10 +441,7 @@ mod vertex_test {
         let v1 = g.vertex(1).unwrap();
         let v1_w = g.window(0, 1).vertex(1).unwrap();
         assert_eq!(
-            v1.properties()
-                .iter()
-                .map(|(k, v)| (k, v.latest().unwrap()))
-                .collect::<HashMap<_, _>>(),
+            v1.properties().iter().collect::<HashMap<_, _>>(),
             props
                 .into_iter()
                 .map(|(k, v)| (k.to_string(), v.as_prop()))

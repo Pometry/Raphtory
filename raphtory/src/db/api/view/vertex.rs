@@ -1,5 +1,5 @@
-use crate::db::api::properties::StaticProperties;
 use crate::db::api::properties::TemporalProperties;
+use crate::db::api::properties::{Properties, StaticProperties};
 use crate::db::api::view::{edge::EdgeListOps, GraphViewOps, TimeOps};
 use crate::db::graph::vertex::VertexView;
 
@@ -36,17 +36,7 @@ pub trait VertexViewOps: TimeOps {
     /// # Returns
     ///
     /// A view with the names of the properties as keys and the property values as values.
-    fn properties(&self) -> Self::ValueType<TemporalProperties<VertexView<Self::Graph>>>;
-
-    /// Get the static properties of this vertex.
-    ///
-    /// # Arguments
-    ///
-    ///
-    /// # Returns
-    ///
-    /// View of the static properties
-    fn static_properties(&self) -> Self::ValueType<StaticProperties<VertexView<Self::Graph>>>;
+    fn properties(&self) -> Self::ValueType<Properties<VertexView<Self::Graph>>>;
 
     /// Get the degree of this vertex (i.e., the number of edges that are incident to it).
     ///
@@ -150,17 +140,9 @@ pub trait VertexListOps:
     fn name(self) -> Self::IterType<String>;
 
     /// Returns an iterator over properties of the vertices
-    fn properties(self) -> Self::IterType<TemporalProperties<VertexView<Self::Graph>>>;
+    fn properties(self) -> Self::IterType<Properties<VertexView<Self::Graph>>>;
 
     fn history(self) -> Self::IterType<Vec<i64>>;
-
-    /// Get iterator over static vertex properties
-    ///
-    /// # Arguments
-    ///
-    /// # Returns
-    /// All static properties of a vertex
-    fn static_properties(self) -> Self::IterType<StaticProperties<VertexView<Self::Graph>>>;
 
     /// Returns an iterator over the degree of the vertices.
     ///

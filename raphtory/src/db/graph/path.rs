@@ -1,5 +1,5 @@
-use crate::db::api::properties::StaticProperties;
 use crate::db::api::properties::TemporalProperties;
+use crate::db::api::properties::{Properties, StaticProperties};
 use crate::{
     core::{
         entities::{vertices::vertex_ref::VertexRef, VID},
@@ -112,20 +112,9 @@ impl<G: GraphViewOps> VertexViewOps for PathFromGraph<G> {
 
     fn properties(
         &self,
-    ) -> Box<
-        dyn Iterator<Item = Box<dyn Iterator<Item = TemporalProperties<VertexView<G>>> + Send>>
-            + Send,
-    > {
+    ) -> Box<dyn Iterator<Item = Box<dyn Iterator<Item = Properties<VertexView<G>>> + Send>> + Send>
+    {
         Box::new(self.iter().map(move |it| it.properties()))
-    }
-
-    fn static_properties(
-        &self,
-    ) -> Box<
-        dyn Iterator<Item = Box<dyn Iterator<Item = StaticProperties<VertexView<G>>> + Send>>
-            + Send,
-    > {
-        Box::new(self.iter().map(move |it| it.static_properties()))
     }
 
     fn degree(&self) -> Box<dyn Iterator<Item = Box<dyn Iterator<Item = usize> + Send>> + Send> {
@@ -305,12 +294,8 @@ impl<G: GraphViewOps> VertexViewOps for PathFromVertex<G> {
         self.iter().history()
     }
 
-    fn properties(&self) -> Self::ValueType<TemporalProperties<VertexView<G>>> {
+    fn properties(&self) -> Self::ValueType<Properties<VertexView<G>>> {
         self.iter().properties()
-    }
-
-    fn static_properties(&self) -> Self::ValueType<StaticProperties<VertexView<G>>> {
-        self.iter().static_properties()
     }
 
     fn degree(&self) -> Self::ValueType<usize> {

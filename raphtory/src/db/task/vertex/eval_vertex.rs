@@ -1,5 +1,5 @@
-use crate::db::api::properties::StaticProperties;
 use crate::db::api::properties::TemporalProperties;
+use crate::db::api::properties::{Properties, StaticProperties};
 use crate::db::graph::vertex::VertexView;
 use crate::{
     core::{
@@ -329,12 +329,8 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
         self.path.history()
     }
 
-    fn properties(&self) -> Self::ValueType<TemporalProperties<VertexView<G>>> {
+    fn properties(&self) -> Self::ValueType<Properties<VertexView<G>>> {
         self.path.properties()
-    }
-
-    fn static_properties(&self) -> Self::ValueType<StaticProperties<VertexView<G>>> {
-        self.path.static_properties()
     }
 
     fn degree(&self) -> Self::ValueType<usize> {
@@ -431,14 +427,9 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
             .collect()
     }
 
-    fn properties(&self) -> Self::ValueType<TemporalProperties<VertexView<G>>> {
+    fn properties(&self) -> Self::ValueType<Properties<VertexView<G>>> {
         //FIXME: need to implement this properly without cloning the graph...
-        TemporalProperties::new(VertexView::new_local(self.graph.clone(), self.vertex))
-    }
-
-    fn static_properties(&self) -> Self::ValueType<StaticProperties<VertexView<G>>> {
-        //FIXME: need to implement this properly without cloning the graph...
-        StaticProperties::new(VertexView::new_local(self.graph.clone(), self.vertex))
+        Properties::new(VertexView::new_local(self.graph.clone(), self.vertex))
     }
 
     fn degree(&self) -> Self::ValueType<usize> {
@@ -603,16 +594,12 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexListOps
         Box::new(self.map(|v| v.name()))
     }
 
-    fn properties(self) -> Self::IterType<TemporalProperties<VertexView<G>>> {
+    fn properties(self) -> Self::IterType<Properties<VertexView<G>>> {
         Box::new(self.map(move |v| v.properties()))
     }
 
     fn history(self) -> Self::IterType<Vec<i64>> {
         Box::new(self.map(|v| v.history()))
-    }
-
-    fn static_properties(self) -> Self::IterType<StaticProperties<VertexView<Self::Graph>>> {
-        Box::new(self.map(|v| v.static_properties()))
     }
 
     fn degree(self) -> Self::IterType<usize> {

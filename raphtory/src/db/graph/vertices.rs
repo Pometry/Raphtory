@@ -1,5 +1,5 @@
-use crate::db::api::properties::StaticProperties;
 use crate::db::api::properties::TemporalProperties;
+use crate::db::api::properties::{Properties, StaticProperties};
 use crate::{
     core::{entities::vertices::vertex_ref::VertexRef, utils::time::IntoTime, Direction},
     db::{
@@ -77,12 +77,8 @@ impl<G: GraphViewOps> VertexViewOps for Vertices<G> {
         self.iter().history()
     }
 
-    fn properties(&self) -> Self::ValueType<TemporalProperties<VertexView<G>>> {
+    fn properties(&self) -> Self::ValueType<Properties<VertexView<G>>> {
         self.iter().properties()
-    }
-
-    fn static_properties(&self) -> Self::ValueType<StaticProperties<VertexView<G>>> {
-        self.iter().static_properties()
     }
 
     /// Returns the number of edges of the vertices
