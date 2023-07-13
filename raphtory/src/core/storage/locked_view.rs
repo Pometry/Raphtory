@@ -4,7 +4,9 @@ use rustc_hash::FxHasher;
 use std::borrow::Borrow;
 use std::cmp::Ordering;
 use std::fmt::{Debug, Formatter};
+use std::hash::{Hash, Hasher};
 use std::{hash::BuildHasherDefault, ops::Deref};
+use tantivy::directory::Lock;
 
 pub enum LockedView<'a, T> {
     LockMapped(parking_lot::MappedRwLockReadGuard<'a, T>),
@@ -12,9 +14,13 @@ pub enum LockedView<'a, T> {
     DashMap(Ref<'a, usize, T, BuildHasherDefault<rustc_hash::FxHasher>>),
 }
 
-impl<'a, T> AsRef<T> for LockedView<'a, T> {
+impl<'a, T, O> AsRef<T> for LockedView<'a, O>
+where
+    T: ?Sized,
+    <LockedView<'a, O> as Deref>::Target: AsRef<T>,
+{
     fn as_ref(&self) -> &T {
-        self.deref()
+        self.deref().as_ref()
     }
 }
 
@@ -43,6 +49,12 @@ impl<'a, T: PartialOrd<Rhs>, Rhs, LRhs: Deref<Target = Rhs>> PartialOrd<LRhs>
 impl<'a, T: Ord> Ord for LockedView<'a, T> {
     fn cmp(&self, other: &Self) -> Ordering {
         self.deref().cmp(other.deref())
+    }
+}
+
+impl<'a, T: Hash> Hash for LockedView<'a, T> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.deref().hash(state)
     }
 }
 

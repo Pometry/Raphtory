@@ -441,18 +441,12 @@ mod vertex_test {
         let v1 = g.vertex(1).unwrap();
         let v1_w = g.window(0, 1).vertex(1).unwrap();
         assert_eq!(
-            v1.properties().iter().collect::<HashMap<_, _>>(),
+            v1.properties().as_map(),
             props
                 .into_iter()
                 .map(|(k, v)| (k.to_string(), v.as_prop()))
                 .collect()
         );
-        assert_eq!(
-            v1_w.properties()
-                .iter()
-                .map(|(k, v)| (k, v.latest().unwrap()))
-                .collect::<HashMap<_, _>>(),
-            HashMap::default()
-        )
+        assert_eq!(v1_w.properties().as_map(), HashMap::default())
     }
 }

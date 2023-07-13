@@ -376,6 +376,7 @@ mod test_deletions {
                 .edge(0, 1, None)
                 .unwrap()
                 .properties()
+                .temporal()
                 .get("added")
                 .unwrap()
                 .iter()

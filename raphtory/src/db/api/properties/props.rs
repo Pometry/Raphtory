@@ -4,6 +4,7 @@ use crate::db::api::properties::internal::*;
 use crate::db::api::properties::static_props::StaticProperties;
 use crate::db::api::properties::temporal_props::TemporalProperties;
 use std::borrow::Borrow;
+use std::collections::HashMap;
 
 /// View of the properties of an entity (graph|vertex|edge)
 pub struct Properties<P: PropertiesOps + Clone> {
@@ -41,7 +42,7 @@ impl<P: PropertiesOps + Clone> Properties<P> {
     }
 
     pub fn values(&self) -> impl Iterator<Item = Prop> + '_ {
-        self.keys().map(|k| self.get(&*k).unwrap())
+        self.keys().map(|k| self.get(&k).unwrap())
     }
 
     pub fn iter<'a>(&'a self) -> impl Iterator<Item = (LockedView<'a, String>, Prop)> + 'a {
@@ -59,6 +60,10 @@ impl<P: PropertiesOps + Clone> Properties<P> {
     }
 
     pub fn as_vec(&self) -> Vec<(String, Prop)> {
+        self.iter().map(|(k, v)| (k.clone(), v)).collect()
+    }
+
+    pub fn as_map(&self) -> HashMap<String, Prop> {
         self.iter().map(|(k, v)| (k.clone(), v)).collect()
     }
 }
