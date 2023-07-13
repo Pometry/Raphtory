@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1689005653176,
+  "lastUpdate": 1689243065233,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -5017,6 +5017,60 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions with numeric string input",
             "value": 2359444,
             "range": "± 73216",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "33124479+narnolddd@users.noreply.github.com",
+            "name": "Naomi Arnold",
+            "username": "narnolddd"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "592e22535b3e4dc8b51eb20b1235ece7ede33b09",
+          "message": "3nm docs (#1108)\n\n* privatise some functions and initial docstring for three node motifs\r\n\r\n* adding rust docs for temporal motifs\r\n\r\n* added python docs",
+          "timestamp": "2023-07-13T11:03:46+01:00",
+          "tree_id": "9529476f7d6057395bc575447051fdf39d9ddfeb",
+          "url": "https://github.com/Pometry/Raphtory/commit/592e22535b3e4dc8b51eb20b1235ece7ede33b09"
+        },
+        "date": 1689243063756,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 713036,
+            "range": "± 46957",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and numeric string input",
+            "value": 1289072,
+            "range": "± 71304",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and string input",
+            "value": 1346977,
+            "range": "± 39371",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 1120095,
+            "range": "± 157711",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions with numeric string input",
+            "value": 2293571,
+            "range": "± 375392",
             "unit": "ns/iter"
           }
         ]
