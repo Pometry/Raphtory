@@ -86,14 +86,8 @@ impl Vertex {
 
     #[wasm_bindgen(js_name = properties)]
     pub fn properties(&self) -> js_sys::Map {
-        let t_prop = self.0.properties();
-        let s_props = self.0.static_properties();
-        let iter = t_prop
-            .iter()
-            .map(|(k, v)| (k, v.latest().unwrap()))
-            .chain(s_props.iter().filter(|(k, _)| t_prop.get(k).is_none()));
         let obj = js_sys::Map::new();
-        for (k, v) in iter {
+        for (k, v) in self.0.properties() {
             obj.set(&k.into(), &JsProp(v).into());
         }
         obj
@@ -101,18 +95,11 @@ impl Vertex {
 
     #[wasm_bindgen(js_name = getProperty)]
     pub fn get_property(&self, name: String) -> JsValue {
-        if let Some(prop) = self
-            .0
+        self.0
             .properties()
             .get(&name)
-            .map(|v| JsProp(v.latest().unwrap()))
-        {
-            prop.into()
-        } else if let Some(prop) = self.0.static_properties().get(&name).map(JsProp) {
-            prop.into()
-        } else {
-            JsValue::NULL
-        }
+            .map(|v| JsProp(v).into())
+            .unwrap_or(JsValue::NULL)
     }
 }
 

@@ -30,6 +30,12 @@ impl<'a, T> Borrow<T> for LockedView<'a, T> {
     }
 }
 
+impl<'a> From<LockedView<'a, String>> for String {
+    fn from(value: LockedView<'a, String>) -> Self {
+        value.deref().clone()
+    }
+}
+
 impl<'a, T: PartialEq<Rhs>, Rhs, LRhs: Deref<Target = Rhs>> PartialEq<LRhs> for LockedView<'a, T> {
     fn eq(&self, other: &LRhs) -> bool {
         self.deref() == other.deref()

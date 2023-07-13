@@ -26,7 +26,8 @@ use crate::{
 };
 use chrono::NaiveDateTime;
 
-use crate::db::api::properties::StaticProperties;
+use crate::core::Prop;
+use crate::db::api::properties::{Properties, StaticProperties};
 use crate::db::api::properties::{TemporalProperties, TemporalPropertyView};
 use pyo3::exceptions::PyKeyError;
 use pyo3::{
@@ -163,14 +164,8 @@ impl PyVertex {
 
     /// The properties of the vertex
     #[getter]
-    pub fn properties(&self) -> TemporalProperties<VertexView<DynamicGraph>> {
+    pub fn properties(&self) -> Properties<VertexView<DynamicGraph>> {
         self.vertex.properties()
-    }
-
-    /// The static properties of the vertex
-    #[getter]
-    pub fn static_properties(&self) -> StaticProperties<VertexView<DynamicGraph>> {
-        self.vertex.static_properties()
     }
 
     /// Get the degree of this vertex (i.e., the number of edges that are incident to it).
@@ -379,10 +374,7 @@ impl PyVertex {
     }
 
     //******  Python  ******//
-    pub fn __getitem__(
-        &self,
-        name: &str,
-    ) -> PyResult<TemporalPropertyView<VertexView<DynamicGraph>>> {
+    pub fn __getitem__(&self, name: &str) -> PyResult<Prop> {
         self.vertex
             .properties()
             .get(name)
@@ -484,12 +476,6 @@ impl PyVertices {
     fn properties(&self) -> PyGenericIterable {
         let vertices = self.vertices.clone();
         (move || vertices.properties()).into()
-    }
-
-    //Fixme: needs a view that allows indexing
-    fn static_properties(&self) -> PyGenericIterable {
-        let vertices = self.vertices.clone();
-        (move || vertices.static_properties()).into()
     }
 
     /// Returns the number of edges of the vertices
@@ -742,11 +728,6 @@ impl PyPathFromGraph {
     fn properties(&self) -> NestedPropsIterable {
         let path = self.path.clone();
         (move || path.properties()).into()
-    }
-
-    fn static_properties(&self) -> NestedStaticPropsIterable {
-        let path = self.path.clone();
-        (move || path.static_properties()).into()
     }
 
     fn degree(&self) -> NestedUsizeIterable {

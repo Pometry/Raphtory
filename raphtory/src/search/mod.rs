@@ -156,7 +156,12 @@ impl<G: GraphViewOps> IndexedGraph<G> {
 
             for prop in prop_names_set.iter() {
                 // load temporal props
-                if let Some(prop_value) = vertex.properties().get(prop).and_then(|p| p.latest()) {
+                if let Some(prop_value) = vertex
+                    .properties()
+                    .temporal()
+                    .get(prop)
+                    .and_then(|p| p.latest())
+                {
                     if found_props.contains(prop) {
                         continue;
                     }
@@ -164,7 +169,7 @@ impl<G: GraphViewOps> IndexedGraph<G> {
                     found_props.insert(prop.to_string());
                 }
                 // load static props
-                if let Some(prop_value) = vertex.static_properties().get(prop) {
+                if let Some(prop_value) = vertex.properties().meta().get(prop) {
                     let name = if prop == "_id" { fields::NAME } else { prop };
                     if !found_props.contains(name) {
                         Self::set_schema_field_from_prop(&mut schema, name, prop_value);
@@ -202,7 +207,12 @@ impl<G: GraphViewOps> IndexedGraph<G> {
 
             for prop in prop_names_set.iter() {
                 // load temporal props
-                if let Some(prop_value) = edge.properties().get(prop).and_then(|p| p.latest()) {
+                if let Some(prop_value) = edge
+                    .properties()
+                    .temporal()
+                    .get(prop)
+                    .and_then(|p| p.latest())
+                {
                     if found_props.contains(prop) {
                         continue;
                     }
@@ -210,7 +220,7 @@ impl<G: GraphViewOps> IndexedGraph<G> {
                     found_props.insert(prop.to_string());
                 }
                 // load static props
-                if let Some(prop_value) = edge.static_properties().get(prop) {
+                if let Some(prop_value) = edge.properties().meta().get(prop) {
                     let name = if prop == "_id" { fields::NAME } else { prop };
                     if !found_props.contains(name) {
                         Self::set_schema_field_from_prop(&mut schema, name, prop_value);
@@ -328,7 +338,7 @@ impl<G: GraphViewOps> IndexedGraph<G> {
         document.add_u64(vertex_id_field, vertex_id);
         document.add_u64(vertex_id_rev_field, u64::MAX - vertex_id);
 
-        for (temp_prop_name, temp_prop_value) in vertex.properties() {
+        for (temp_prop_name, temp_prop_value) in vertex.properties().temporal() {
             let prop_field = schema.get_field(&temp_prop_name)?;
             for (time, prop_value) in temp_prop_value {
                 // add time to the document
@@ -338,7 +348,7 @@ impl<G: GraphViewOps> IndexedGraph<G> {
             }
         }
 
-        for (prop_name, prop_value) in vertex.static_properties() {
+        for (prop_name, prop_value) in vertex.properties().meta() {
             let field_name = if prop_name == "_id" {
                 "name"
             } else {
@@ -379,7 +389,7 @@ impl<G: GraphViewOps> IndexedGraph<G> {
             }
         }
 
-        for (temp_prop_name, temp_prop_value) in e_ref.properties() {
+        for (temp_prop_name, temp_prop_value) in e_ref.properties().temporal() {
             let prop_field = schema.get_field(&temp_prop_name)?;
             for (time, prop_value) in temp_prop_value {
                 // add time to the document
@@ -388,7 +398,7 @@ impl<G: GraphViewOps> IndexedGraph<G> {
             }
         }
 
-        for (prop_name, prop_value) in e_ref.static_properties() {
+        for (prop_name, prop_value) in e_ref.properties().meta() {
             let prop_field = schema.get_field(&prop_name)?;
             Self::index_prop_value(&mut document, prop_field, prop_value);
         }

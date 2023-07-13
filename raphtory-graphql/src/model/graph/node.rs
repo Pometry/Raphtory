@@ -40,66 +40,45 @@ impl Node {
     }
 
     pub async fn node_type(&self) -> String {
-        if let Some(t) = self.vv.properties().get("type") {
-            t.latest().unwrap().to_string()
-        } else if let Some(s) = self.vv.static_properties().get("type") {
-            s.to_string()
-        } else {
-            "NONE".to_string()
-        }
+        self.vv
+            .properties()
+            .get("type")
+            .map(|p| p.to_string())
+            .unwrap_or("NONE".to_string())
     }
 
     async fn property_names<'a>(&self, _ctx: &Context<'a>) -> Vec<String> {
-        let t_props = self.vv.properties();
-        t_props
-            .keys()
-            .into_iter()
-            .chain(
-                self.vv
-                    .static_properties()
-                    .keys()
-                    .into_iter()
-                    .filter(|k| t_props.get(k).is_none()),
-            )
-            .collect()
+        self.vv.properties().keys().map_into().collect()
     }
 
     async fn properties(&self) -> Option<Vec<Property>> {
-        let t_props = self.vv.properties();
         Some(
-            t_props
+            self.vv
+                .properties()
                 .iter()
-                .map(|(k, v)| Property::new(k, v.latest().unwrap()))
-                .chain(
-                    self.vv.static_properties().iter().filter_map(|(k, v)| {
-                        t_props.get(&k).is_none().then_some(Property::new(k, v))
-                    }),
-                )
+                .map(|(k, v)| Property::new(k.clone(), v))
                 .collect(),
         )
     }
 
     async fn property(&self, name: String) -> Option<Property> {
-        if let Some(p) = self.vv.properties().get(&name) {
-            p.latest().map(|v| Property::new(name, v))
-        } else {
-            self.vv
-                .static_properties()
-                .get(&name)
-                .map(|p| Property::new(name, p))
-        }
+        self.vv
+            .properties()
+            .get(&name)
+            .map(|v| Property::new(name, v))
     }
 
     async fn property_history(&self, name: String) -> Vec<PropertyUpdate> {
         self.vv
             .properties()
+            .temporal()
             .get(name)
             .into_iter()
             .flat_map(|p| {
                 p.iter()
                     .map(|(time, prop)| PropertyUpdate::new(time, prop.to_string()))
             })
-            .collect_vec()
+            .collect()
     }
 
     async fn in_neighbours<'a>(&self, layer: Option<String>) -> Vec<Node> {

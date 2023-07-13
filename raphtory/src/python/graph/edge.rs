@@ -6,7 +6,9 @@
 //!
 use crate::db::api::properties::{Properties, StaticProperties};
 use crate::db::api::properties::{TemporalProperties, TemporalPropertyView};
-use crate::python::types::wrappers::iterators::{PropsIterable, StaticPropsIterable};
+use crate::python::types::wrappers::iterators::{
+    PropsIterable, StaticPropsIterable, TemporalPropsIterable,
+};
 use crate::{
     core::utils::time::error::ParseTimeError,
     db::{

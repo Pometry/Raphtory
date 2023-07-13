@@ -1,6 +1,6 @@
 //! The API for querying a view of the graph in a read-only state
-use crate::db::api::properties::StaticProperties;
 use crate::db::api::properties::TemporalProperties;
+use crate::db::api::properties::{Properties, StaticProperties};
 use crate::{
     core::{
         entities::vertices::vertex_ref::VertexRef,
@@ -343,19 +343,8 @@ impl PyGraphView {
     /// Returns:
     ///    HashMap<String, Prop> - Properties paired with their names
     #[getter]
-    fn properties(&self) -> TemporalProperties<DynamicGraph> {
+    fn properties(&self) -> Properties<DynamicGraph> {
         self.graph.properties()
-    }
-
-    /// Returns static properties of a graph
-    ///
-    /// Arguments:
-    ///
-    /// Returns:
-    ///    HashMap<String, Prop> - Returns static properties identified by their names
-    #[getter]
-    fn static_properties(&self) -> StaticProperties<DynamicGraph> {
-        self.graph.static_properties()
     }
 
     /// Returns a subgraph given a set of vertices

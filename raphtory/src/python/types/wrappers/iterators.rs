@@ -1,5 +1,6 @@
 use crate::python::graph::properties::{
-    DynStaticProperties, DynTemporalProperties, PyStaticProperties, PyTemporalProperties,
+    DynProperties, DynStaticProperties, DynTemporalProperties, PyProperties, PyStaticProperties,
+    PyTemporalProperties,
 };
 use crate::{
     core as db_c,
@@ -148,19 +149,37 @@ py_nested_iterable!(
     NestedPropHistoryIter
 );
 
-py_iterator!(PropsIter, DynTemporalProperties, PyTemporalProperties);
-py_iterable!(
-    PropsIterable,
-    DynTemporalProperties,
-    PyTemporalProperties,
-    PropsIter
-);
-py_iterator!(NestedPropsIter, BoxedIter<DynTemporalProperties>, PropsIter);
+py_iterator!(PropsIter, DynProperties, PyProperties);
+py_iterable!(PropsIterable, DynProperties, PyProperties, PropsIter);
+py_iterator!(NestedPropsIter, BoxedIter<DynProperties>, PropsIter);
 py_nested_iterable!(
     NestedPropsIterable,
+    DynProperties,
+    PyProperties,
+    NestedPropsIter
+);
+
+py_iterator!(
+    TemporalPropsIter,
+    DynTemporalProperties,
+    PyTemporalProperties
+);
+py_iterable!(
+    TemporalPropsIterable,
     DynTemporalProperties,
     PyTemporalProperties,
-    NestedPropsIter
+    TemporalPropsIter
+);
+py_iterator!(
+    NestedTemporalPropsIter,
+    BoxedIter<DynTemporalProperties>,
+    TemporalPropsIter
+);
+py_nested_iterable!(
+    NestedTemporalPropsIterable,
+    DynTemporalProperties,
+    PyTemporalProperties,
+    NestedTemporalPropsIter
 );
 
 py_iterator!(StaticPropsIter, DynStaticProperties, PyStaticProperties);

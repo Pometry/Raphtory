@@ -8,7 +8,7 @@ use std::collections::HashMap;
 
 /// View of the properties of an entity (graph|vertex|edge)
 pub struct Properties<P: PropertiesOps + Clone> {
-    props: P,
+    pub(crate) props: P,
 }
 
 impl<P: PropertiesOps + Clone> Properties<P> {
@@ -65,5 +65,16 @@ impl<P: PropertiesOps + Clone> Properties<P> {
 
     pub fn as_map(&self) -> HashMap<String, Prop> {
         self.iter().map(|(k, v)| (k.clone(), v)).collect()
+    }
+}
+
+impl<P: PropertiesOps + Clone> IntoIterator for Properties<P> {
+    type Item = (String, Prop);
+    type IntoIter = Box<dyn Iterator<Item = Self::Item>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        let keys: Vec<_> = self.keys().map(|k| k.clone()).collect();
+        let vals: Vec<_> = self.values().collect();
+        Box::new(keys.into_iter().zip(vals))
     }
 }

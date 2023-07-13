@@ -37,14 +37,8 @@ impl NodeFilter {
                 .vv
                 .properties()
                 .get("type")
-                .and_then(|v| v.latest().map(|v| v.to_string()))
-                .unwrap_or(
-                    node.vv
-                        .static_properties()
-                        .get("type")
-                        .map(|v| v.to_string())
-                        .unwrap_or("NONE".to_string()),
-                );
+                .map(|v| v.to_string())
+                .unwrap_or("NONE".to_string());
             if !type_filter.matches(&node_type) {
                 return false;
             }
