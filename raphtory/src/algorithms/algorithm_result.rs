@@ -4,25 +4,31 @@ use std::fmt::{Debug, Display};
 use ordered_float::OrderedFloat;
 use std::hash::Hash;
 
-pub struct AlgorithmResult<T> where T: Clone  {
-    result: HashMap<String, T>,
+pub struct AlgorithmResult<H, Y>
+    where
+        H: Clone + Hash + Eq + Ord,
+        Y: Clone
+{
+    result: HashMap<H, Y>,
 }
 
-impl<T> AlgorithmResult<T>
+impl<H, Y> AlgorithmResult<H, Y>
     where
-        T: Clone {
-    pub fn new(result: HashMap<String, T>) -> Self {
+        H: Clone + Hash + Eq + Ord,
+        Y: Clone,
+{
+    pub fn new(result: HashMap<H, Y>) -> Self {
         Self {
             result,
         }
     }
 
-    pub fn get_all(&self) -> &HashMap<String, T> {
+    pub fn get_all(&self) -> &HashMap<H, Y> {
         &self.result
     }
 
-    pub fn get(&self, key: &str) -> Option<&T> {
-        self.result.get(key)
+    pub fn get(&self, key: &H) -> Option<&Y> {
+        self.result.get(&key)
     }
 
     // TODO implement to pandas dataframe
@@ -31,11 +37,13 @@ impl<T> AlgorithmResult<T>
 }
 
 
-impl<T> AlgorithmResult<T>
+impl<H, Y> AlgorithmResult<H, Y>
     where
-        T: Clone + PartialOrd {
-    pub fn sort_by_value(&self, reverse: bool) -> Vec<(String, T)> {
-        let mut sorted: Vec<(String, T)> = self.result.clone().into_iter().collect();
+        H: Clone + Hash + Eq + Ord,
+        Y: Clone + PartialOrd
+{
+    pub fn sort_by_value(&self, reverse: bool) -> Vec<(H, Y)> {
+        let mut sorted: Vec<(H, Y)> = self.result.clone().into_iter().collect();
         sorted.sort_by(|(_, a), (_, b)| {
             if reverse {
                 b.partial_cmp(a).unwrap()
@@ -46,20 +54,20 @@ impl<T> AlgorithmResult<T>
         sorted
     }
 
-    pub fn sort_by_key(&self, reverse: bool) -> Vec<(String, T)> {
-        let mut sorted: Vec<(String, T)> = self.result.clone().into_iter().collect();
+    pub fn sort_by_key(&self, reverse: bool) -> Vec<(H, Y)> {
+        let mut sorted: Vec<(H, Y)> = self.result.clone().into_iter().collect();
         sorted.sort_by(|(a, _), (b, _)| {
             if reverse {
-                b.partial_cmp(a).unwrap()
+                b.cmp(a)
             } else {
-                a.partial_cmp(b).unwrap()
+                a.cmp(b)
             }
         });
         sorted
     }
 
 
-    pub fn top_k(&self, k: usize, percentage: bool, reverse: bool) -> Option<Vec<(String, T)>> {
+    pub fn top_k(&self, k: usize, percentage: bool, reverse: bool) -> Option<Vec<(H, Y)>> {
         if percentage {
             let total_count = self.result.len();
             let k = (total_count as f64 * (k as f64 / 100.0)) as usize;
@@ -73,9 +81,9 @@ impl<T> AlgorithmResult<T>
 
 }
 
-impl AlgorithmResult<f64> {
-    pub fn new_with_float(hashmap: HashMap<String, f64>) -> AlgorithmResult<OrderedFloat<f64>> {
-        let converted_hashmap: HashMap<String, OrderedFloat<f64>> = hashmap
+impl<H: Clone + Hash + Eq + Ord> AlgorithmResult<H, f64> {
+    pub fn new_with_float(hashmap: HashMap<H, f64>) -> AlgorithmResult<H, OrderedFloat<f64>> {
+        let converted_hashmap: HashMap<H, OrderedFloat<f64>> = hashmap
             .into_iter()
             .map(|(key, value)| (key, OrderedFloat::from(value)))
             .collect();
@@ -85,11 +93,15 @@ impl AlgorithmResult<f64> {
     }
 }
 
-impl<T> AlgorithmResult<T> where T: Clone + Ord + Hash + Eq {
+impl<H, Y> AlgorithmResult<H, Y>
+    where
+        H: Clone + Hash + Eq + Ord,
+        Y: Clone + Ord + Hash + Eq
+{
     pub fn group_by(
         &self
-    ) -> HashMap<T, Vec<String>> {
-        let mut grouped: HashMap<T, Vec<String>> = HashMap::new();
+    ) -> HashMap<Y, Vec<H>> {
+        let mut grouped: HashMap<Y, Vec<H>> = HashMap::new();
         for (key, value) in &self.result {
             grouped.entry(value.clone()).or_default().push(key.clone());
         }
@@ -97,7 +109,7 @@ impl<T> AlgorithmResult<T> where T: Clone + Ord + Hash + Eq {
     }
 }
 
-impl<T: Debug + Clone> Debug for AlgorithmResult<T> {
+impl<Y: Debug + Clone, H: Debug + Clone + Hash + Eq + Ord> Debug for AlgorithmResult<H, Y> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut map_string = "{".to_string();
         for (key, value) in &self.result {
@@ -111,15 +123,6 @@ impl<T: Debug + Clone> Debug for AlgorithmResult<T> {
 }
 
 
-// fn main() {
-//     let mut map = HashMap::new();
-//     map.insert("A".to_string(), 10);
-//     map.insert("B".to_string(), 20);
-//     map.insert("C".to_string(), 30);
-//     let algorithm_result = AlgorithmResult::new(map.clone());
-//     println!("{:?}", algorithm_result.result);
-// }
-
 /// Add tests for all functions
 #[cfg(test)]
 mod algorithm_result_test {
@@ -127,7 +130,7 @@ mod algorithm_result_test {
     use ordered_float::OrderedFloat;
     use crate::algorithms::algorithm_result::AlgorithmResult;
 
-    fn create_algo_result_u64() -> AlgorithmResult<u64> {
+    fn create_algo_result_u64() -> AlgorithmResult<String, u64> {
         let mut map: HashMap<String, u64> = HashMap::new();
         map.insert("A".to_string(), 10);
         map.insert("B".to_string(), 20);
@@ -135,7 +138,7 @@ mod algorithm_result_test {
         AlgorithmResult::new(map.clone())
     }
 
-    fn group_by_test() -> AlgorithmResult<u64> {
+    fn group_by_test() -> AlgorithmResult<String, u64> {
         let mut map: HashMap<String, u64> = HashMap::new();
         map.insert("A".to_string(), 10);
         map.insert("B".to_string(), 20);
@@ -144,7 +147,7 @@ mod algorithm_result_test {
         AlgorithmResult::new(map.clone())
     }
 
-    fn create_algo_result_f64() -> AlgorithmResult<OrderedFloat<f64>> {
+    fn create_algo_result_f64() -> AlgorithmResult<String, OrderedFloat<f64>> {
         let mut map: HashMap<String, f64> = HashMap::new();
         map.insert("A".to_string(), 10.0);
         map.insert("B".to_string(), 20.0);
@@ -152,7 +155,7 @@ mod algorithm_result_test {
         AlgorithmResult::new_with_float(map.clone())
     }
 
-    fn create_algo_result_tuple() -> AlgorithmResult<(f32, f32)> {
+    fn create_algo_result_tuple() -> AlgorithmResult<String, (f32, f32)> {
         let mut map: HashMap<String, (f32, f32)> = HashMap::new();
         map.insert("A".to_string(), (10.0, 20.0));
         map.insert("B".to_string(), (20.0, 30.0));
@@ -160,7 +163,7 @@ mod algorithm_result_test {
         AlgorithmResult::new(map.clone())
     }
 
-    fn create_algo_result_hashmap_vec() -> AlgorithmResult<Vec<(i64, String)>> {
+    fn create_algo_result_hashmap_vec() -> AlgorithmResult<String, Vec<(i64, String)>> {
         let mut map: HashMap<String, Vec<(i64, String)>> = HashMap::new();
         map.insert("A".to_string(), vec![(11, "H".to_string())]);
         map.insert("B".to_string(), vec![]);
@@ -171,14 +174,14 @@ mod algorithm_result_test {
     #[test]
     fn test_get() {
         let algo_result = create_algo_result_u64();
-        assert_eq!(algo_result.get("C"), Some(&30));
-        assert_eq!(algo_result.get("D"), None);
+        assert_eq!(algo_result.get(&"C".to_string()), Some(&30));
+        assert_eq!(algo_result.get(&"D".to_string()), None);
         let algo_result = create_algo_result_f64();
-        assert_eq!(algo_result.get("C").unwrap().0, 30.0);
+        assert_eq!(algo_result.get(&"C".to_string()).unwrap().0, 30.0);
         let algo_result = create_algo_result_tuple();
-        assert_eq!(algo_result.get("C").unwrap().0, 30.0);
+        assert_eq!(algo_result.get(&"C".to_string()).unwrap().0, 30.0);
         let algo_result = create_algo_result_hashmap_vec();
-        assert_eq!(algo_result.get("C").unwrap()[0].0, 22);
+        assert_eq!(algo_result.get(&"C".to_string()).unwrap()[0].0, 22);
     }
 
     #[test]

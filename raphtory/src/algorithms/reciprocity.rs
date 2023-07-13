@@ -117,7 +117,7 @@ pub fn global_reciprocity<G: GraphViewOps>(g: &G, threads: Option<usize>) -> f64
 pub fn all_local_reciprocity<G: GraphViewOps>(
     g: &G,
     threads: Option<usize>,
-) -> AlgorithmResult<OrderedFloat<f64>> {
+) -> AlgorithmResult<String, OrderedFloat<f64>> {
     let mut ctx: Context<G, ComputeStateVec> = g.into();
 
     let min = sum(0);
@@ -198,6 +198,6 @@ mod reciprocity_test {
         hash_map_result.insert("5".to_string(), 0.0);
 
         let res = all_local_reciprocity(&graph, None);
-        assert_eq!(res.get("1").unwrap().0, *hash_map_result.get("1").unwrap());
+        assert_eq!(res.get(&"1".to_string()).unwrap().0, *hash_map_result.get("1").unwrap());
     }
 }
