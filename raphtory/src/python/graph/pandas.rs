@@ -1,9 +1,13 @@
-use arrow2::{array::{Array, PrimitiveArray, Utf8Array, BooleanArray}, types::NativeType, ffi};
+use arrow2::{
+    array::{Array, BooleanArray, PrimitiveArray, Utf8Array},
+    ffi,
+    types::{NativeType, Offset},
+};
 use pyo3::{
     create_exception, exceptions::PyException, ffi::Py_uintptr_t, prelude::*, types::PyDict,
 };
 
-use crate::{prelude::*, core::utils::errors::GraphError};
+use crate::{core::utils::errors::GraphError, prelude::*};
 
 fn i64_opt_into_u64_opt(x: Option<&i64>) -> Option<u64> {
     x.map(|x| (*x).try_into().unwrap())
@@ -74,7 +78,18 @@ pub(crate) fn load_vertices_from_df<'a>(
     {
         let iter = vertex_id.map(i64_opt_into_u64_opt).zip(time);
         load_vertices_from_num_iter(graph, iter, prop_iter)?;
-    } else if let (Some(vertex_id), Some(time)) = (df.utf8(vertex_id), df.iter_col::<i64>(time)) {
+    } else if let (Some(vertex_id), Some(time)) =
+        (df.utf8::<i32>(vertex_id), df.iter_col::<i64>(time))
+    {
+        let iter = vertex_id.into_iter().zip(time);
+        for ((vertex_id, time), props) in iter.zip(prop_iter) {
+            if let (Some(vertex_id), Some(time)) = (vertex_id, time) {
+                graph.add_vertex(*time, vertex_id, props)?;
+            }
+        }
+    } else if let (Some(vertex_id), Some(time)) =
+        (df.utf8::<i64>(vertex_id), df.iter_col::<i64>(time))
+    {
         let iter = vertex_id.into_iter().zip(time);
         for ((vertex_id, time), props) in iter.zip(prop_iter) {
             if let (Some(vertex_id), Some(time)) = (vertex_id, time) {
@@ -125,9 +140,22 @@ pub(crate) fn load_edges_from_df<'a>(
             .zip(dst.map(i64_opt_into_u64_opt))
             .zip(time);
         load_edges_from_num_iter(&graph, triplets, prop_iter)?;
-    } else if let (Some(src), Some(dst), Some(time)) =
-        (df.utf8(src), df.utf8(dst), df.iter_col::<i64>(time))
-    {
+    } else if let (Some(src), Some(dst), Some(time)) = (
+        df.utf8::<i32>(src),
+        df.utf8::<i32>(dst),
+        df.iter_col::<i64>(time),
+    ) {
+        let triplets = src.into_iter().zip(dst.into_iter()).zip(time.into_iter());
+        for (((src, dst), time), props) in triplets.zip(prop_iter) {
+            if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
+                graph.add_edge(*time, src, dst, props, None)?;
+            }
+        }
+    } else if let (Some(src), Some(dst), Some(time)) = (
+        df.utf8::<i64>(src),
+        df.utf8::<i64>(dst),
+        df.iter_col::<i64>(time),
+    ) {
         let triplets = src.into_iter().zip(dst.into_iter()).zip(time.into_iter());
         for (((src, dst), time), props) in triplets.zip(prop_iter) {
             if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
@@ -148,24 +176,30 @@ fn lift_property<'a: 'b, 'b>(
     df: &'b PretendDF,
 ) -> Box<dyn Iterator<Item = Vec<(&'b str, Prop)>> + 'b> {
     if let Some(col) = df.iter_col::<f64>(name) {
-        Box::new(col.map(move |val| {
-            val.into_iter()
-                .map(|v| (name, Prop::F64(*v)))
-                .collect::<Vec<_>>()
-        }))
+        iter_as_prop(name, col)
+    } else if let Some(col) = df.iter_col::<f32>(name) {
+        iter_as_prop(name, col)
     } else if let Some(col) = df.iter_col::<i64>(name) {
-        Box::new(col.map(move |val| {
-            val.into_iter()
-                .map(|v| (name, Prop::I64(*v)))
-                .collect::<Vec<_>>()
-        }))
+        iter_as_prop(name, col)
+    } else if let Some(col) = df.iter_col::<u64>(name) {
+        iter_as_prop(name, col)
+    } else if let Some(col) = df.iter_col::<u32>(name) {
+        iter_as_prop(name, col)
+    } else if let Some(col) = df.iter_col::<i32>(name) {
+        iter_as_prop(name, col)
     } else if let Some(col) = df.bool(name) {
         Box::new(col.map(move |val| {
             val.into_iter()
                 .map(|v| (name, Prop::Bool(v)))
                 .collect::<Vec<_>>()
         }))
-    } else if let Some(col) = df.utf8(name) {
+    } else if let Some(col) = df.utf8::<i32>(name) {
+        Box::new(col.map(move |val| {
+            val.into_iter()
+                .map(|v| (name, Prop::str(v)))
+                .collect::<Vec<_>>()
+        }))
+    } else if let Some(col) = df.utf8::<i64>(name) {
         Box::new(col.map(move |val| {
             val.into_iter()
                 .map(|v| (name, Prop::str(v)))
@@ -174,6 +208,22 @@ fn lift_property<'a: 'b, 'b>(
     } else {
         Box::new(std::iter::repeat(Vec::with_capacity(0)))
     }
+}
+
+fn iter_as_prop<
+    'a: 'b,
+    'b,
+    T: Into<Prop> + Copy + 'static,
+    I: Iterator<Item = Option<&'b T>> + 'a,
+>(
+    name: &'a str,
+    is: I,
+) -> Box<dyn Iterator<Item = Vec<(&str, Prop)>> + '_> {
+    Box::new(is.map(move |val| {
+        val.into_iter()
+            .map(|v| (name, (*v).into()))
+            .collect::<Vec<_>>()
+    }))
 }
 
 fn combine_prop_iters<
@@ -252,19 +302,19 @@ impl PretendDF {
         Some(iter)
     }
 
-    fn utf8(&self, name: &str) -> Option<impl Iterator<Item = Option<&str>> + '_> {
+    fn utf8<O: Offset>(&self, name: &str) -> Option<impl Iterator<Item = Option<&str>> + '_> {
         let idx = self.names.iter().position(|n| n == name)?;
         // test that it's actually a utf8 array
         let _ = (&self.arrays[0])[idx]
             .as_any()
-            .downcast_ref::<Utf8Array<i32>>()?;
+            .downcast_ref::<Utf8Array<O>>()?;
 
         let iter = self
             .arrays
             .iter()
             .map(move |arr| {
                 let arr = &arr[idx];
-                let arr = arr.as_any().downcast_ref::<Utf8Array<i32>>().unwrap();
+                let arr = arr.as_any().downcast_ref::<Utf8Array<O>>().unwrap();
                 arr.iter()
             })
             .flatten();
@@ -274,7 +324,7 @@ impl PretendDF {
 
     fn bool(&self, name: &str) -> Option<impl Iterator<Item = Option<bool>> + '_> {
         let idx = self.names.iter().position(|n| n == name)?;
-        // test that it's actually a utf8 array
+
         let _ = (&self.arrays[0])[idx]
             .as_any()
             .downcast_ref::<BooleanArray>()?;
@@ -321,3 +371,77 @@ pub type ArrayRef = Box<dyn Array>;
 
 create_exception!(exceptions, ArrowErrorException, PyException);
 create_exception!(exceptions, GraphLoadException, PyException);
+
+#[cfg(test)]
+mod test {
+    use crate::prelude::*;
+
+    use super::{load_edges_from_df, PretendDF};
+    use arrow2::array::{PrimitiveArray, Utf8Array};
+
+    #[test]
+    fn load_from_pretend_df() {
+        let df = PretendDF {
+            names: vec!["src", "dst", "time", "prop1", "prop2"]
+                .iter()
+                .map(|s| s.to_string())
+                .collect(),
+            arrays: vec![
+                vec![Box::new(PrimitiveArray::<u64>::from(vec![
+                    Some(1),
+                    Some(2),
+                    Some(3),
+                ]))],
+                vec![Box::new(PrimitiveArray::<u64>::from(vec![
+                    Some(2),
+                    Some(3),
+                    Some(4),
+                ]))],
+                vec![Box::new(PrimitiveArray::<i64>::from(vec![
+                    Some(1),
+                    Some(2),
+                    Some(3),
+                ]))],
+                vec![Box::new(PrimitiveArray::<f64>::from(vec![
+                    Some(1.0),
+                    Some(2.0),
+                    Some(3.0),
+                ]))],
+                vec![Box::new(Utf8Array::<i32>::from(vec![
+                    Some("a"),
+                    Some("b"),
+                    Some("c"),
+                ]))],
+            ],
+        };
+        let graph = Graph::new();
+
+        load_edges_from_df(
+            &df,
+            "src",
+            "dst",
+            "time",
+            Some(vec!["prop1", "prop2"]),
+            &graph,
+        )
+        .expect("failed to load edges from pretend df");
+
+        let actual = graph.edges().map(|e| {
+            (
+                e.src().id(),
+                e.dst().id(),
+                e.latest_time(),
+                e.property("prop1", false),
+                e.property("prop2", false),
+            )
+        }).collect::<Vec<_>>();
+
+        assert_eq!(
+            actual,
+            vec![
+                (1, 2, Some(1), Some(Prop::F64(1.0)), Some(Prop::str("a"))),
+                (2, 3, Some(2), Some(Prop::F64(2.0)), Some(Prop::str("b"))),
+                (3, 4, Some(3), Some(Prop::F64(3.0)), Some(Prop::str("c"))),
+            ]);
+    }
+}
