@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use ordered_float::OrderedFloat;
 use std::hash::Hash;
 
-struct AlgorithmResult<T> where T: Clone   {
+pub struct AlgorithmResult<T> where T: Clone   {
     result: HashMap<String, T>,
 }
 
@@ -32,7 +32,7 @@ impl<T> AlgorithmResult<T>
 impl<T> AlgorithmResult<T>
     where
         T: Clone + PartialOrd {
-    pub fn sort(&self, reverse: bool) -> Vec<(String, T)> {
+    pub fn sort_by_value(&self, reverse: bool) -> Vec<(String, T)> {
         let mut sorted: Vec<(String, T)> = self.result.clone().into_iter().collect();
         sorted.sort_by(|(_, a), (_, b)| {
             if reverse {
@@ -44,14 +44,27 @@ impl<T> AlgorithmResult<T>
         sorted
     }
 
+    pub fn sort_by_key(&self, reverse: bool) -> Vec<(String, T)> {
+        let mut sorted: Vec<(String, T)> = self.result.clone().into_iter().collect();
+        sorted.sort_by(|(a, _), (b, _)| {
+            if reverse {
+                b.partial_cmp(a).unwrap()
+            } else {
+                a.partial_cmp(b).unwrap()
+            }
+        });
+        sorted
+    }
+
+
     pub fn top_k(&self, k: usize, percentage: bool, reverse: bool) -> Option<Vec<(String, T)>> {
         if percentage {
             let total_count = self.result.len();
             let k = (total_count as f64 * (k as f64 / 100.0)) as usize;
-            let sorted_result = self.sort(reverse);
+            let sorted_result = self.sort_by_value(reverse);
             Some(sorted_result.iter().cloned().take(k).collect())
         } else {
-            let sorted_result = self.sort(reverse);
+            let sorted_result = self.sort_by_value(reverse);
             Some(sorted_result.iter().cloned().take(k).collect())
         }
     }
@@ -70,18 +83,6 @@ impl AlgorithmResult<f64> {
     }
 }
 
-// impl AlgorithmResult<(f32, f32)> {
-//     pub fn new_with_float(hashmap: HashMap<String, (f32, f32)>) -> AlgorithmResult<(f32, f32)> {
-//         let converted_hashmap: HashMap<String, (f32, f32)> = hashmap
-//             .into_iter()
-//             .map(|(key, value)| (key, (value.0), (value.1)))
-//             .collect();
-//         AlgorithmResult {
-//             result: converted_hashmap,
-//         }
-//     }
-// }
-
 impl<T> AlgorithmResult<T> where T: Clone + Ord + Hash + Eq {
     pub fn group_by(
         &self
@@ -95,20 +96,18 @@ impl<T> AlgorithmResult<T> where T: Clone + Ord + Hash + Eq {
 }
 
 
-
-fn main() {
-    let mut map = HashMap::new();
-    map.insert("A".to_string(), 10);
-    map.insert("B".to_string(), 20);
-    map.insert("C".to_string(), 30);
-    let algorithm_result = AlgorithmResult::new(map.clone());
-    println!("{:?}", algorithm_result.result);
-}
+// fn main() {
+//     let mut map = HashMap::new();
+//     map.insert("A".to_string(), 10);
+//     map.insert("B".to_string(), 20);
+//     map.insert("C".to_string(), 30);
+//     let algorithm_result = AlgorithmResult::new(map.clone());
+//     println!("{:?}", algorithm_result.result);
+// }
 
 /// Add tests for all functions
 #[cfg(test)]
 mod algorithm_result_test {
-
     use std::collections::HashMap;
     use ordered_float::OrderedFloat;
     use crate::algorithms::algorithm_result::AlgorithmResult;
@@ -170,22 +169,22 @@ mod algorithm_result_test {
     #[test]
     fn test_sort() {
         let algo_result = create_algo_result_u64();
-        let sorted = algo_result.sort(true);
+        let sorted = algo_result.sort_by_value(true);
         assert_eq!(sorted[0].0, "C");
-        let sorted = algo_result.sort(false);
+        let sorted = algo_result.sort_by_value(false);
         assert_eq!(sorted[0].0, "A");
 
         let algo_result = create_algo_result_f64();
-        let sorted = algo_result.sort(true);
+        let sorted = algo_result.sort_by_value(true);
         assert_eq!(sorted[0].0, "C");
-        let sorted = algo_result.sort(false);
+        let sorted = algo_result.sort_by_value(false);
         assert_eq!(sorted[0].0, "A");
 
         let algo_result = create_algo_result_tuple();
-        assert_eq!(algo_result.sort(true)[0].0, "C");
+        assert_eq!(algo_result.sort_by_value(true)[0].0, "C");
 
         let algo_result = create_algo_result_hashmap_vec();
-        assert_eq!(algo_result.sort(true)[0].0, "C");
+        assert_eq!(algo_result.sort_by_value(true)[0].0, "C");
     }
 
     #[test]
@@ -247,4 +246,10 @@ mod algorithm_result_test {
         assert_eq!(algo_result.get_all().len(), 3);
     }
 
+    #[test]
+    fn test_sort_by_key() {
+        let algo_result = create_algo_result_u64();
+        let sorted = algo_result.sort_by_key(true);
+        println!("{:?}", sorted);
+    }
 }

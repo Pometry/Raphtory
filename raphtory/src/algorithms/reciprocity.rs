@@ -59,6 +59,8 @@ use crate::{
     },
 };
 use std::collections::{HashMap, HashSet};
+use ordered_float::OrderedFloat;
+use crate::algorithms::algorithm_result::AlgorithmResult;
 // use crate::algorithms::algorithm_result::AlgorithmResult;
 
 /// Gets the unique edge counts excluding cycles for a vertex. Returns a tuple of usize
@@ -111,46 +113,11 @@ pub fn global_reciprocity<G: GraphViewOps>(g: &G, threads: Option<usize>) -> f64
 }
 
 /// returns the reciprocity of every vertex in the graph as a tuple of
-// pub fn all_local_reciprocity_ar<G: GraphViewOps>(
-//     g: &G,
-//     threads: Option<usize>,
-// ) -> AlgorithmResult<f64> {
-//     let mut ctx: Context<G, ComputeStateVec> = g.into();
-//
-//     let min = sum(0);
-//     ctx.agg(min);
-//
-//     let step1 = ATask::new(move |evv| {
-//         let edge_counts = get_reciprocal_edge_count(&evv);
-//         let res = (2.0 * edge_counts.2 as f64) / (edge_counts.1 as f64 + edge_counts.0 as f64);
-//         if res.is_nan() {
-//             evv.global_update(&min, 0.0);
-//         } else {
-//             evv.update(&min, res);
-//         }
-//         Step::Continue
-//     });
-//
-//     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
-//
-//
-//     AlgorithmResult::new(
-//         runner.run(
-//         vec![],
-//         vec![Job::new(step1)],
-//         (),
-//         |_, ess, _, _| ess.finalize(&min, |min| min),
-//         threads,
-//         1,
-//         None,
-//         None,
-//     ), false)
-// }
-
+/// vector id and the reciprocity
 pub fn all_local_reciprocity<G: GraphViewOps>(
     g: &G,
     threads: Option<usize>,
-) -> HashMap<String, f64> {
+) -> AlgorithmResult<OrderedFloat<f64>> {
     let mut ctx: Context<G, ComputeStateVec> = g.into();
 
     let min = sum(0);
@@ -170,7 +137,7 @@ pub fn all_local_reciprocity<G: GraphViewOps>(
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
 
 
-    runner.run(
+    AlgorithmResult::new_with_float(runner.run(
             vec![],
             vec![Job::new(step1)],
             (),
@@ -179,7 +146,7 @@ pub fn all_local_reciprocity<G: GraphViewOps>(
             1,
             None,
             None,
-        )
+        ))
 }
 
 #[cfg(test)]
@@ -190,7 +157,6 @@ mod reciprocity_test {
     };
     use pretty_assertions::assert_eq;
     use std::collections::HashMap;
-    // use crate::algorithms::reciprocity::all_local_reciprocity_ar;
 
     #[test]
     fn test_global_recip() {
@@ -231,7 +197,7 @@ mod reciprocity_test {
         hash_map_result.insert("4".to_string(), 2.0 / 3.0);
         hash_map_result.insert("5".to_string(), 0.0);
 
-        // let actual = all_local_reciprocity_ar(&graph, None);
-        // assert_eq!(actual, hash_map_result);
+        let res = all_local_reciprocity(&graph, None);
+        assert_eq!(res.get("1").unwrap().0, *hash_map_result.get("1").unwrap());
     }
 }

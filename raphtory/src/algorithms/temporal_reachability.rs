@@ -16,6 +16,7 @@ use crate::{
 use itertools::Itertools;
 use num_traits::Zero;
 use std::{collections::HashMap, ops::Add};
+use crate::algorithms::algorithm_result::AlgorithmResult;
 
 #[derive(Eq, Hash, PartialEq, Clone, Debug, Default)]
 pub struct TaintMessage {
@@ -59,7 +60,7 @@ pub fn temporally_reachable_nodes<G: GraphViewOps, T: InputVertex>(
     start_time: i64,
     seed_nodes: Vec<T>,
     stop_nodes: Option<Vec<T>>,
-) -> HashMap<String, Vec<(i64, String)>> {
+) -> AlgorithmResult<Vec<(i64, String)>> {
     let mut ctx: Context<G, ComputeStateVec> = g.into();
 
     let infected_nodes = seed_nodes.into_iter().map(|n| n.id()).collect_vec();
@@ -168,7 +169,7 @@ pub fn temporally_reachable_nodes<G: GraphViewOps, T: InputVertex>(
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
 
-    runner.run(
+    AlgorithmResult::new(runner.run(
         vec![Job::new(step1)],
         vec![Job::new(step2), step3],
         (),
@@ -184,7 +185,7 @@ pub fn temporally_reachable_nodes<G: GraphViewOps, T: InputVertex>(
         max_hops,
         None,
         None,
-    )
+    ))
 }
 
 #[cfg(test)]
@@ -215,7 +216,7 @@ mod generic_taint_tests {
             start_time,
             infected_nodes,
             stop_nodes,
-        )
+        ).sort_by_key(false)
         .into_iter()
         .map(|(k, mut v)| {
             v.sort();
@@ -223,7 +224,6 @@ mod generic_taint_tests {
         })
         .collect_vec();
 
-        results.sort();
         results
     }
 

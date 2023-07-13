@@ -16,6 +16,7 @@ use crate::{
 use num_traits::abs;
 use rustc_hash::FxHashMap;
 use std::{collections::HashMap, ops::Range};
+use crate::algorithms::algorithm_result::AlgorithmResult;
 
 #[derive(Debug, Clone)]
 struct Hits {
@@ -36,7 +37,7 @@ pub fn hits<G: GraphViewOps>(
     window: Range<i64>,
     iter_count: usize,
     threads: Option<usize>,
-) -> HashMap<String, (f32, f32)> {
+) -> AlgorithmResult<(f32, f32)> {
     let mut ctx: Context<G, ComputeStateVec> = g.into();
 
     let recv_hub_score = sum::<f32>(2);
@@ -154,7 +155,7 @@ pub fn hits<G: GraphViewOps>(
         results.insert(k, (*a, v));
     });
 
-    results
+    AlgorithmResult::new(results)
 }
 
 #[cfg(test)]
@@ -194,10 +195,8 @@ mod hits_tests {
 
         let window = 0..10;
 
-        let mut results: Vec<(String, (f32, f32))> =
-            hits(&graph, window, 20, None).into_iter().collect_vec();
-
-        results.sort_by_key(|k| (*k).0.clone());
+        let results: AlgorithmResult<(f32, f32)> =
+            hits(&graph, window, 20, None);
 
         // NetworkX results
         // >>> G = nx.DiGraph()
@@ -229,7 +228,7 @@ mod hits_tests {
         // )
 
         assert_eq!(
-            results,
+            results.sort_by_key(false),
             vec![
                 ("1".to_string(), (0.0431365, 0.096625775)),
                 ("2".to_string(), (0.14359662, 0.18366566)),
