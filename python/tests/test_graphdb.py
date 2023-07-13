@@ -1346,3 +1346,97 @@ def test_deletions():
         assert g.window(start=11).has_edge(e[1], e[2])
 
     assert list(g.edge(edges[0][1], edges[0][2]).explode().latest_time()) == [10]
+
+
+def test_load_from_pandas():
+    import pandas as pd
+    df = pd.DataFrame({
+        "src": [1, 2, 3, 4, 5],
+        "dst": [2, 3, 4, 5, 6],
+        "time": [1, 2, 3, 4, 5],
+        "weight": [1.0, 2.0, 3.0, 4.0, 5.0],
+        "marbles": ["red", "blue", "green", "yellow", "purple"]
+    });
+
+    g = Graph.load_from_pandas(df, "src", "dst", "time", ["weight", "marbles"])
+
+    assert g.vertices().id().collect() == [1, 2, 3, 4, 5, 6]
+    edges = []
+    for e in g.edges():
+        weight = e["weight"]
+        marbles = e["marbles"]
+        edges.append((e.src().id(), e.dst().id(), weight, marbles))
+
+    assert edges == [(1, 2, 1.0, "red"), (2, 3, 2.0, "blue"), (3, 4, 3.0, "green"), (4, 5, 4.0, "yellow"), (5, 6, 5.0, "purple")]
+
+def test_load_from_pandas_vertices():
+    import pandas as pd
+    edges_df = pd.DataFrame({
+        "src": [1, 2, 3, 4, 5],
+        "dst": [2, 3, 4, 5, 6],
+        "time": [1, 2, 3, 4, 5],
+        "weight": [1.0, 2.0, 3.0, 4.0, 5.0],
+        "marbles": ["red", "blue", "green", "yellow", "purple"]
+    });
+
+    vertices_df = pd.DataFrame({
+        "id": [1, 2, 3, 4, 5, 6],
+        "name": ["Alice", "Bob", "Carol", "Dave", "Eve", "Frank"],
+        "time": [1, 2, 3, 4, 5, 6],
+    })
+
+    g = Graph.load_from_pandas(edges_df, "src", "dst", "time", ["weight", "marbles"], vertices_df, "id", "time", ["name"])
+
+    assert g.vertices().id().collect() == [1, 2, 3, 4, 5, 6]
+    edges = []
+    for e in g.edges():
+        weight = e["weight"]
+        marbles = e["marbles"]
+        edges.append((e.src().id(), e.dst().id(), weight, marbles))
+
+    assert edges == [(1, 2, 1.0, "red"), (2, 3, 2.0, "blue"), (3, 4, 3.0, "green"), (4, 5, 4.0, "yellow"), (5, 6, 5.0, "purple")]
+
+    vertices = []
+    for v in g.vertices():
+        name = v["name"]
+        vertices.append((v.id(), name))
+
+    assert vertices == [(1, "Alice"), (2, "Bob"), (3, "Carol"), (4, "Dave"), (5, "Eve"), (6, "Frank")]
+
+def load_from_pandas_into_existing_graph():
+    import pandas as pd
+    edges_df = pd.DataFrame({
+        "src": [1, 2, 3, 4, 5],
+        "dst": [2, 3, 4, 5, 6],
+        "time": [1, 2, 3, 4, 5],
+        "weight": [1.0, 2.0, 3.0, 4.0, 5.0],
+        "marbles": ["red", "blue", "green", "yellow", "purple"]
+    });
+
+    vertices_df = pd.DataFrame({
+        "id": [1, 2, 3, 4, 5, 6],
+        "name": ["Alice", "Bob", "Carol", "Dave", "Eve", "Frank"],
+        "time": [1, 2, 3, 4, 5, 6],
+    })
+
+    g = Graph()
+    
+    g.load_vertices_from_pandas(vertices_df, "id", "time", ["name"])
+
+    g.load_edges_frompandas(edges_df, "src", "dst", "time", ["weight", "marbles"])
+
+    assert g.vertices().id().collect() == [1, 2, 3, 4, 5, 6]
+    edges = []
+    for e in g.edges():
+        weight = e["weight"]
+        marbles = e["marbles"]
+        edges.append((e.src().id(), e.dst().id(), weight, marbles))
+
+    assert edges == [(1, 2, 1.0, "red"), (2, 3, 2.0, "blue"), (3, 4, 3.0, "green"), (4, 5, 4.0, "yellow"), (5, 6, 5.0, "purple")]
+
+    vertices = []
+    for v in g.vertices():
+        name = v["name"]
+        vertices.append((v.id(), name))
+
+    assert vertices == [(1, "Alice"), (2, "Bob"), (3, "Carol"), (4, "Dave"), (5, "Eve"), (6, "Frank")]
