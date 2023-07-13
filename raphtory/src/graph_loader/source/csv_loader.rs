@@ -60,7 +60,7 @@
 
 /// Module for loading CSV files into a graph.
 use bzip2::read::BzDecoder;
-use csv::{ByteRecord, StringRecord};
+use csv::StringRecord;
 use flate2; // 1.0
 use flate2::read::GzDecoder;
 use rayon::prelude::*;

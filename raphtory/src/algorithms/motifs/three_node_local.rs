@@ -1,7 +1,42 @@
+/// This class regards the counting of the number of three edge, up-to-three node delta-temporal motifs in the graph, using the algorithm of Paranjape et al, Motifs in Temporal Networks (2017).
+/// We point the reader to this reference for more information on the algorithm and background, but provide a short summary below.
+/// 
+///  ## Motifs included
+/// 
+///  ### Stars
+///
+///  There are three classes (in the order they are outputted) of star motif on three nodes based on the switching behaviour of the edges between the two leaf nodes.
+///
+///   - PRE: Stars of the form i<->j, i<->j, i<->k (ie two interactions with leaf j followed by one with leaf k)
+///   - MID: Stars of the form i<->j, i<->k, i<->j (ie switching interactions from leaf j to leaf k, back to j again)
+///   - POST: Stars of the form i<->j, i<->k, i<->k (ie one interaction with leaf j followed by two with leaf k)
+///
+///  Within each of these classes is 8 motifs depending on the direction of the first to the last edge -- incoming "I" or outgoing "O".
+///  These are enumerated in the order III, IIO, IOI, IOO, OII, OIO, OOI, OOO (like binary with "I"-0 and "O"-1).
+///
+///  ### Two node motifs
+///
+///  Also included are two node motifs, of which there are 8 when counted from the perspective of each vertex. These are characterised by the direction of each edge, enumerated
+///  in the above order. Note that for the global graph counts, each motif is counted in both directions (a single III motif for one vertex is an OOO motif for the other vertex).
+///
+///  ### Triangles
+///
+///  There are 8 triangle motifs:
+///
+///   1. i --> j, k --> j, i --> k
+///   2. i --> j, k --> i, j --> k
+///   3. i --> j, j --> k, i --> k
+///   4. i --> j, i --> k, j --> k
+///   5. i --> j, k --> j, k --> i
+///   6. i --> j, k --> i, k --> j
+///   7. i --> j, j --> k, k --> i
+///   8. i --> j, i --> k, k --> j
+///
+
 use crate::{algorithms::motifs::three_node_motifs::*, db::api::view::*};
 use std::collections::HashMap;
 
-pub fn star_motif_count<G: GraphViewOps>(graph: &G, v: u64, delta: i64) -> [usize; 24] {
+fn star_motif_count<G: GraphViewOps>(graph: &G, v: u64, delta: i64) -> [usize; 24] {
     if let Some(vertex) = graph.vertex(v) {
         let neigh_map: HashMap<u64, usize> = vertex
             .neighbours()
@@ -30,7 +65,7 @@ pub fn star_motif_count<G: GraphViewOps>(graph: &G, v: u64, delta: i64) -> [usiz
     }
 }
 
-pub fn twonode_motif_count<G: GraphViewOps>(graph: &G, v: u64, delta: i64) -> [usize; 8] {
+fn twonode_motif_count<G: GraphViewOps>(graph: &G, v: u64, delta: i64) -> [usize; 8] {
     let mut counts = [0; 8];
     if let Some(vertex) = graph.vertex(v) {
         for nb in vertex.neighbours().iter() {
@@ -67,7 +102,7 @@ pub fn twonode_motif_count<G: GraphViewOps>(graph: &G, v: u64, delta: i64) -> [u
     counts
 }
 
-pub fn triangle_motif_count<G: GraphViewOps>(graph: &G, delta: i64) -> HashMap<u64, Vec<usize>> {
+fn triangle_motif_count<G: GraphViewOps>(graph: &G, delta: i64) -> HashMap<u64, Vec<usize>> {
     let mut counts: HashMap<u64, Vec<usize>> = HashMap::new();
     for u in graph.vertices() {
         counts.insert(u.id(), vec![0; 8]);
@@ -200,6 +235,27 @@ pub fn triangle_motif_count<G: GraphViewOps>(graph: &G, delta: i64) -> HashMap<u
     counts
 }
 
+
+/// Computes the number of each type of motif that each node participates in.
+///
+/// # Arguments
+///
+/// * `g` - A reference to the graph
+/// * `delta` - Maximum time difference between the first and last edge of the 
+/// motif. NB if time for edges was given as a UNIX epoch, this should be given in seconds, otherwise
+/// milliseconds should be used (if edge times were given as string)
+///
+/// # Returns
+///
+/// A dictionary with vertex ids (u64) as keys and a 40 dimensional array of motif counts as a value. The first 24 elements are star counts,
+///   the next 8 are two-node motif counts and the final 8 are triangle counts. 
+/// 
+/// # Notes
+///  
+/// For this local count, a node is counted as participating in a motif in the following way. For star motifs, only the centre node counts 
+///    the motif. For two node motifs, both constituent nodes count the motif. For triangles, all three constituent nodes count the motif.
+///
+///
 pub fn local_temporal_three_node_motifs<G: GraphViewOps>(
     graph: &G,
     delta: i64,
@@ -223,6 +279,24 @@ pub fn local_temporal_three_node_motifs<G: GraphViewOps>(
     counts
 }
 
+/// Computes the number of each type of motif there is in the graph.
+///
+/// # Arguments
+///
+/// * `g` - A reference to the graph
+/// * `delta` - Maximum time difference between the first and last edge of the 
+/// motif. NB if time for edges was given as a UNIX epoch, this should be given in seconds, otherwise
+/// milliseconds should be used (if edge times were given as string)
+///
+/// # Returns
+///
+/// A 40 dimensional array with the counts of each motif, given in the same order as described in the class summary. Note that the two-node motif counts are symmetrical so it may be more useful just to consider the first four elements.
+/// 
+/// # Notes
+///  
+/// This is achieved by calling the local motif counting algorithm, summing the resulting arrays and dealing with overcounted motifs: the triangles (by dividing each motif count by three) and two-node motifs (dividing by two).
+///
+///
 pub fn global_temporal_three_node_motifs<G: GraphViewOps>(graph: &G, delta: i64) -> Vec<usize> {
     let counts = local_temporal_three_node_motifs(graph, delta);
     let mut tmp_counts = counts.values().fold(vec![0; 40], |acc, x| {
