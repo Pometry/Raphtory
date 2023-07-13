@@ -16,11 +16,11 @@ impl Property {
 
 #[ResolvedObjectFields]
 impl Property {
-    async fn key(&self, _ctx: &Context<'_>) -> String {
+    async fn key(&self) -> String {
         self.key.to_string()
     }
 
-    async fn value(&self, _ctx: &Context<'_>) -> String {
+    async fn value(&self) -> String {
         self.value.to_string()
     }
 }

@@ -42,9 +42,8 @@ impl Edge {
         self.ee.dst().into()
     }
 
-    async fn property(&self, name: String) -> Option<Property> {
-        let prop = self.ee.property(&name, true)?;
-        Some(Property::new(name, prop))
+    async fn property(&self, name: &str) -> Option<String> {
+        Some(self.ee.property(name, true)?.to_string())
     }
 
     async fn layer(&self) -> String {

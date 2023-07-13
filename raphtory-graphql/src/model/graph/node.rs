@@ -63,9 +63,8 @@ impl Node {
         )
     }
 
-    async fn property(&self, name: String) -> Option<Property> {
-        let prop = self.vv.property(name.clone(), true)?;
-        Some(Property::new(name, prop))
+    async fn property(&self, name: &str) -> Option<String> {
+        Some(self.vv.property(name.to_string(), true)?.to_string())
     }
 
     async fn property_history(&self, name: String) -> Vec<PropertyUpdate> {
