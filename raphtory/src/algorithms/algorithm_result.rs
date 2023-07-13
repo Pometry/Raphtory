@@ -1,8 +1,10 @@
 use std::collections::HashMap;
+use std::fmt;
+use std::fmt::{Debug, Display};
 use ordered_float::OrderedFloat;
 use std::hash::Hash;
 
-pub struct AlgorithmResult<T> where T: Clone   {
+pub struct AlgorithmResult<T> where T: Clone  {
     result: HashMap<String, T>,
 }
 
@@ -92,6 +94,19 @@ impl<T> AlgorithmResult<T> where T: Clone + Ord + Hash + Eq {
             grouped.entry(value.clone()).or_default().push(key.clone());
         }
         grouped
+    }
+}
+
+impl<T: Debug + Clone> Debug for AlgorithmResult<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut map_string = "{".to_string();
+        for (key, value) in &self.result {
+            map_string.push_str(&format!("{:?}: {:?}, ", key, value));
+        }
+        map_string.pop(); // Remove the trailing comma
+        map_string.pop(); // Remove the space
+        map_string.push('}');
+        write!(f, "{}", map_string)
     }
 }
 
