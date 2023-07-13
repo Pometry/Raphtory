@@ -1,5 +1,6 @@
 use crate::{algorithms::motifs::three_node_motifs::*, db::api::view::*};
 use std::collections::HashMap;
+use crate::algorithms::algorithm_result::AlgorithmResult;
 
 pub fn star_motif_count<G: GraphViewOps>(graph: &G, v: u64, delta: i64) -> [usize; 24] {
     if let Some(vertex) = graph.vertex(v) {
@@ -67,7 +68,7 @@ pub fn twonode_motif_count<G: GraphViewOps>(graph: &G, v: u64, delta: i64) -> [u
     counts
 }
 
-pub fn triangle_motif_count<G: GraphViewOps>(graph: &G, delta: i64) -> HashMap<u64, Vec<usize>> {
+pub fn triangle_motif_count<G: GraphViewOps>(graph: &G, delta: i64) -> AlgorithmResult<u64, Vec<usize>> {
     let mut counts: HashMap<u64, Vec<usize>> = HashMap::new();
     for u in graph.vertices() {
         counts.insert(u.id(), vec![0; 8]);
@@ -197,14 +198,14 @@ pub fn triangle_motif_count<G: GraphViewOps>(graph: &G, delta: i64) -> HashMap<u
             }
         }
     }
-    counts
+    AlgorithmResult::new(counts)
 }
 
 pub fn local_temporal_three_node_motifs<G: GraphViewOps>(
     graph: &G,
     delta: i64,
-) -> HashMap<u64, Vec<usize>> {
-    let mut counts = triangle_motif_count(graph, delta);
+) -> AlgorithmResult<u64, Vec<usize>> {
+    let mut counts = triangle_motif_count(graph, delta).get_all().to_owned();
     for v in graph.vertices() {
         let vid = v.id();
         let two_nodes = twonode_motif_count(graph, vid, delta).to_vec();
@@ -220,11 +221,11 @@ pub fn local_temporal_three_node_motifs<G: GraphViewOps>(
         final_cts.extend(counts.get(&vid).unwrap().into_iter());
         counts.insert(vid, final_cts);
     }
-    counts
+    AlgorithmResult::new(counts)
 }
 
 pub fn global_temporal_three_node_motifs<G: GraphViewOps>(graph: &G, delta: i64) -> Vec<usize> {
-    let counts = local_temporal_three_node_motifs(graph, delta);
+    let counts = local_temporal_three_node_motifs(graph, delta).get_all().to_owned();
     let mut tmp_counts = counts.values().fold(vec![0; 40], |acc, x| {
         acc.iter().zip(x.iter()).map(|(x1, x2)| x1 + x2).collect()
     });
