@@ -46,7 +46,7 @@ impl PyStaticProperties {
     }
 
     fn get(&self, key: &str) -> Option<Prop> {
-        /// Fixme: Add option to specify default?
+        // Fixme: Add option to specify default?
         self.props.get(key)
     }
 

@@ -4,8 +4,7 @@ use crate::core::storage::locked_view::LockedView;
 use crate::db::api::properties::internal::{
     Key, StaticPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
 };
-use crate::db::api::properties::TemporalProperties;
-use crate::db::api::properties::{Properties, StaticProperties};
+use crate::db::api::properties::Properties;
 use crate::db::api::view::internal::Static;
 use crate::{
     core::{

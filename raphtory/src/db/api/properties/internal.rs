@@ -1,12 +1,8 @@
 use crate::core::entities::properties::props::DictMapper;
 use crate::core::entities::properties::tprop::TProp;
 use crate::core::storage::locked_view::LockedView;
-use crate::core::{Prop, PropUnwrap};
+use crate::core::Prop;
 use crate::db::api::view::internal::Base;
-use crate::prelude::Graph;
-use chrono::NaiveDateTime;
-use std::borrow::Borrow;
-use std::iter::Zip;
 
 pub trait CorePropertiesOps {
     fn static_prop_meta(&self) -> &DictMapper<String>;
@@ -50,7 +46,6 @@ pub trait TemporalPropertiesOps {
     fn temporal_property_values(&self) -> Box<dyn Iterator<Item = Key> + '_> {
         Box::new(
             self.temporal_property_keys()
-                .into_iter()
                 .flat_map(|k| self.get_temporal_property(&k)),
         )
     }

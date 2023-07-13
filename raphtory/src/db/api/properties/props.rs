@@ -3,7 +3,6 @@ use crate::core::Prop;
 use crate::db::api::properties::internal::*;
 use crate::db::api::properties::static_props::StaticProperties;
 use crate::db::api::properties::temporal_props::TemporalProperties;
-use std::borrow::Borrow;
 use std::collections::HashMap;
 
 /// View of the properties of an entity (graph|vertex|edge)
@@ -36,7 +35,6 @@ impl<P: PropertiesOps + Clone> Properties<P> {
         self.props.temporal_property_keys().chain(
             self.props
                 .static_property_keys()
-                .into_iter()
                 .filter(|k| self.props.get_temporal_property(k).is_none()),
         )
     }

@@ -1,7 +1,5 @@
 use crate::core::{Prop, PropUnwrap};
-use crate::db::api::properties::internal::{
-    Key, PropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
-};
+use crate::db::api::properties::internal::{Key, PropertiesOps};
 use crate::prelude::Graph;
 use chrono::NaiveDateTime;
 use std::iter::Zip;

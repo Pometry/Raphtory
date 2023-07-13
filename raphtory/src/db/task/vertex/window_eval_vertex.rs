@@ -1,5 +1,4 @@
-use crate::db::api::properties::TemporalProperties;
-use crate::db::api::properties::{Properties, StaticProperties};
+use crate::db::api::properties::Properties;
 use crate::db::graph::vertex::VertexView;
 use crate::db::graph::views::window_graph::WindowedGraph;
 use crate::{

@@ -1,5 +1,4 @@
-use crate::db::api::properties::TemporalProperties;
-use crate::db::api::properties::{Properties, StaticProperties};
+use crate::db::api::properties::Properties;
 use crate::{
     core::{entities::vertices::vertex_ref::VertexRef, utils::time::IntoTime, Direction},
     db::{

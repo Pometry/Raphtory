@@ -4,11 +4,8 @@
 //! The PyEdge class also provides access to the perspective APIs, which allow the user to view the
 //! edge as it existed at a particular point in time, or as it existed over a particular time range.
 //!
-use crate::db::api::properties::{Properties, StaticProperties};
-use crate::db::api::properties::{TemporalProperties, TemporalPropertyView};
-use crate::python::types::wrappers::iterators::{
-    PropsIterable, StaticPropsIterable, TemporalPropsIterable,
-};
+use crate::db::api::properties::Properties;
+use crate::python::types::wrappers::iterators::PropsIterable;
 use crate::{
     core::utils::time::error::ParseTimeError,
     db::{

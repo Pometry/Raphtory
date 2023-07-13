@@ -1,10 +1,7 @@
 use crate::core::utils::time::IntoTime;
 use crate::core::Prop;
-use crate::db::api::properties::internal::{
-    InheritPropertiesOps, InheritStaticPropertiesOps, InheritTemporalPropertiesOps,
-    InheritTempralPropertyViewOps, PropertiesOps, StaticPropertiesOps, TemporalPropertyViewOps,
-};
-use crate::db::api::properties::{Properties, StaticProperties};
+use crate::db::api::properties::internal::{PropertiesOps, StaticPropertiesOps};
+use crate::db::api::properties::StaticProperties;
 use crate::db::api::properties::{TemporalProperties, TemporalPropertyView};
 use crate::db::api::view::internal::{DynamicGraph, Static};
 use crate::python::graph::properties::static_props::PyStaticProperties;
@@ -72,7 +69,7 @@ impl PyTemporalProperties {
     }
 
     fn get(&self, key: &str) -> Option<DynTemporalProperty> {
-        /// Fixme: Add option to specify default?
+        // Fixme: Add option to specify default?
         self.props.get(key)
     }
 

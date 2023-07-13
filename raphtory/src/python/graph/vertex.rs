@@ -27,8 +27,7 @@ use crate::{
 use chrono::NaiveDateTime;
 
 use crate::core::Prop;
-use crate::db::api::properties::{Properties, StaticProperties};
-use crate::db::api::properties::{TemporalProperties, TemporalPropertyView};
+use crate::db::api::properties::Properties;
 use pyo3::exceptions::PyKeyError;
 use pyo3::{
     exceptions::PyIndexError, prelude::*, pyclass, pyclass::CompareOp, pymethods, PyAny, PyObject,

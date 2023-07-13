@@ -150,7 +150,7 @@ mod db_tests {
     use super::*;
     use crate::{
         core::{
-            entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef},
+            entities::vertices::vertex_ref::VertexRef,
             utils::time::{error::ParseTimeError, TryIntoTime},
             Direction, Prop,
         },
@@ -1103,9 +1103,9 @@ mod db_tests {
         g.add_properties(t1, t1_props.clone()).unwrap();
 
         let mut check = t0_props.iter().all(|(name, value)| {
-            g.properties().temporal().get(&name).unwrap().at(t0) == Some(value.clone())
+            g.properties().temporal().get(name).unwrap().at(t0) == Some(value.clone())
         }) && t1_props.iter().all(|(name, value)| {
-            g.properties().temporal().get(&name).unwrap().at(t1) == Some(value.clone())
+            g.properties().temporal().get(name).unwrap().at(t1) == Some(value.clone())
         });
         check = check
             && g.at(t0)
