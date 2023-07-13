@@ -4,7 +4,7 @@
 //! The PyEdge class also provides access to the perspective APIs, which allow the user to view the
 //! edge as it existed at a particular point in time, or as it existed over a particular time range.
 //!
-use crate::db::api::properties::StaticProperties;
+use crate::db::api::properties::{Properties, StaticProperties};
 use crate::db::api::properties::{TemporalProperties, TemporalPropertyView};
 use crate::python::types::wrappers::iterators::{PropsIterable, StaticPropsIterable};
 use crate::{
@@ -102,21 +102,10 @@ impl PyEdge {
         self.edge.history()
     }
 
-    /// Returns the temporal properties the edge.
+    /// Returns a view of the properties of the edge.
     #[getter]
-    pub fn properties(&self) -> TemporalProperties<EdgeView<DynamicGraph>> {
+    pub fn properties(&self) -> Properties<EdgeView<DynamicGraph>> {
         self.edge.properties()
-    }
-
-    /// Get all static properties of an edge
-    ///
-    /// Arguments:
-    ///
-    /// Returns:
-    ///   HashMap<String, Prop>: Returns all static properties identified by their name
-    #[getter]
-    pub fn static_properties(&self) -> StaticProperties<EdgeView<DynamicGraph>> {
-        self.edge.static_properties()
     }
 
     /// Get the source vertex of the Edge.
@@ -435,15 +424,6 @@ impl PyEdges {
     fn properties(&self) -> PropsIterable {
         let builder = self.builder.clone();
         (move || builder().properties()).into()
-    }
-
-    // FIXME: needs a view that allows indexing into the properties
-    /// Returns all static properties of the edges
-    fn static_properties(&self) -> StaticPropsIterable {
-        let edges: Arc<
-            dyn Fn() -> Box<dyn Iterator<Item = EdgeView<DynamicGraph>> + Send> + Send + Sync,
-        > = self.builder.clone();
-        (move || edges().static_properties()).into()
     }
 
     /// Returns all ids of the edges.
