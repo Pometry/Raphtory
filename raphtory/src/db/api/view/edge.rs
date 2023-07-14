@@ -127,7 +127,7 @@ pub trait EdgeViewOps: EdgeViewInternalOps<Self::Graph, Self::Vertex> {
                 self.eref().dst(),
                 t,
                 t.saturating_add(1),
-                self.eref().layer(),
+                0// FIXME: find a better sollution than 0 self.eref().layer(),
             ),
         }
     }

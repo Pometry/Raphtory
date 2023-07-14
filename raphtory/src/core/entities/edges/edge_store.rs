@@ -93,15 +93,9 @@ impl EdgeLayer {
     }
 }
 
-impl<const N: usize> Into<EdgeRef> for &EdgeStore<N> {
-    fn into(self) -> EdgeRef {
-        EdgeRef::LocalOut {
-            e_pid: self.e_id(),
-            layer_id: 0,
-            src_pid: self.src(),
-            dst_pid: self.dst(),
-            time: None,
-        }
+impl<const N: usize> From<&EdgeStore<N>> for EdgeRef {
+    fn from(val: &EdgeStore<N>) -> Self {
+        EdgeRef::new_outgoing(val.e_id(), val.src(), val.dst())
     }
 }
 

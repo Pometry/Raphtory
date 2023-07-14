@@ -127,28 +127,12 @@ impl<const N: usize> VertexStore<N> {
             Some(layer_id) => {
                 if let Some(layer) = self.layers.get(layer_id) {
                     match d {
-                        Direction::IN => {
-                            Box::new(
-                                layer
-                                    .iter(d)
-                                    .map(move |(src_pid, e_id)| EdgeRef::LocalInto {
-                                        e_pid: e_id,
-                                        src_pid,
-                                        dst_pid: self_id,
-                                        layer_id: layer_id,
-                                        time: None,
-                                    }),
-                            )
-                        }
-                        Direction::OUT => {
-                            Box::new(layer.iter(d).map(move |(dst_pid, e_id)| EdgeRef::LocalOut {
-                                e_pid: e_id,
-                                layer_id: layer_id,
-                                src_pid: self_id,
-                                dst_pid,
-                                time: None,
-                            }))
-                        }
+                        Direction::IN => Box::new(layer.iter(d).map(move |(src_pid, e_id)| {
+                            EdgeRef::new_incoming(e_id, src_pid, self_id)
+                        })),
+                        Direction::OUT => Box::new(layer.iter(d).map(move |(dst_pid, e_id)| {
+                            EdgeRef::new_outgoing(e_id, self_id, dst_pid)
+                        })),
                         Direction::BOTH => {
                             Box::new(self.edge_tuples(Some(layer_id), Direction::OUT).merge_by(
                                 self.edge_tuples(Some(layer_id), Direction::IN),
