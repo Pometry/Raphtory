@@ -15,44 +15,35 @@ fn i64_opt_into_u64_opt(x: Option<&i64>) -> Option<u64> {
 
 pub(crate) fn process_pandas_py_df<'a>(df: &PyAny, py: Python<'a>) -> PyResult<PretendDF> {
     let globals = PyDict::new(py);
-
     globals.set_item("df", df)?;
-    let locals = PyDict::new(py);
-    py.run(
-        r#"import pyarrow as pa; pa_table = pa.Table.from_pandas(df)"#,
-        Some(globals),
-        Some(locals),
-    )?;
+    let module = py.import("pyarrow")?;
+    let pa_table = module.getattr("Table")?;
 
-    if let Some(table) = locals.get_item("pa_table") {
-        let rb = table.call_method0("to_batches")?.extract::<Vec<&PyAny>>()?;
-        let names = if let Some(batch0) = rb.get(0) {
-            let schema = batch0.getattr("schema")?;
-            schema.getattr("names")?.extract::<Vec<String>>()?
-        } else {
-            vec![]
-        };
+    let table = pa_table.call_method("from_pandas", (df,), None)?;
 
-        let arrays = rb
-            .iter()
-            .map(|rb| {
-                (0..names.len())
-                    .map(|i| {
-                        let array = rb.call_method1("column", (i,))?;
-                        let arr = array_to_rust(array)?;
-                        Ok::<Box<dyn Array>, PyErr>(arr)
-                    })
-                    .collect::<Result<Vec<_>, PyErr>>()
-            })
-            .collect::<Result<Vec<_>, PyErr>>()?;
-
-        let df = PretendDF { names, arrays };
-        Ok(df)
+    let rb = table.call_method0("to_batches")?.extract::<Vec<&PyAny>>()?;
+    let names = if let Some(batch0) = rb.get(0) {
+        let schema = batch0.getattr("schema")?;
+        schema.getattr("names")?.extract::<Vec<String>>()?
     } else {
-        return Err(GraphLoadException::new_err(
-            "Failed to load graph, could not convert pandas dataframe to arrow table".to_string(),
-        ));
-    }
+        vec![]
+    };
+
+    let arrays = rb
+        .iter()
+        .map(|rb| {
+            (0..names.len())
+                .map(|i| {
+                    let array = rb.call_method1("column", (i,))?;
+                    let arr = array_to_rust(array)?;
+                    Ok::<Box<dyn Array>, PyErr>(arr)
+                })
+                .collect::<Result<Vec<_>, PyErr>>()
+        })
+        .collect::<Result<Vec<_>, PyErr>>()?;
+
+    let df = PretendDF { names, arrays };
+    Ok(df)
 }
 
 pub(crate) fn load_vertices_from_df<'a>(
@@ -438,7 +429,6 @@ mod test {
         );
     }
 
-
     #[test]
     fn load_vertices_from_pretend_df() {
         let df = PretendDF {
@@ -461,10 +451,12 @@ mod test {
         };
         let graph = Graph::new();
 
-        load_vertices_from_df(&df, "id", "time", Some(vec!["name"]), &graph).expect("failed to load vertices from pretend df");
+        load_vertices_from_df(&df, "id", "time", Some(vec!["name"]), &graph)
+            .expect("failed to load vertices from pretend df");
 
         let actual = graph
-            .vertices().iter()
+            .vertices()
+            .iter()
             .map(|v| {
                 (
                     v.id(),
