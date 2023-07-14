@@ -134,7 +134,7 @@ impl<const N: usize> ArcVertex<N> {
 
     pub fn edge_tuples(
         &self,
-        layer: Option<usize>,
+        layers: &[usize],
         dir: Direction,
     ) -> impl Iterator<Item = EdgeRef> + '_ {
         self.e.edge_tuples(layer, dir)

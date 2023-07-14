@@ -119,39 +119,42 @@ impl<const N: usize> VertexStore<N> {
 
     pub(crate) fn edge_tuples<'a>(
         &'a self,
-        layer_id: Option<usize>,
+        layers: &[usize],
         d: Direction,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send + 'a> {
         let self_id = self.vid;
-        match layer_id {
-            Some(layer_id) => {
-                if let Some(layer) = self.layers.get(layer_id) {
-                    match d {
-                        Direction::IN => Box::new(layer.iter(d).map(move |(src_pid, e_id)| {
-                            EdgeRef::new_incoming(e_id, src_pid, self_id)
-                        })),
-                        Direction::OUT => Box::new(layer.iter(d).map(move |(dst_pid, e_id)| {
-                            EdgeRef::new_outgoing(e_id, self_id, dst_pid)
-                        })),
-                        Direction::BOTH => {
-                            Box::new(self.edge_tuples(Some(layer_id), Direction::OUT).merge_by(
-                                self.edge_tuples(Some(layer_id), Direction::IN),
-                                |e1, e2| e1.remote() < e2.remote(),
-                            ))
-                        }
-                    }
-                } else {
-                    Box::new(std::iter::empty())
-                }
-            }
-            None => {
-                let iter = self
-                    .layers
+        if layers.len() > 0 {
+            Box::new(
+                layers
                     .iter()
-                    .enumerate()
-                    .flat_map(move |(layer_id, _)| self.edge_tuples(Some(layer_id), d));
-                Box::new(iter)
-            }
+                    .filter_map(|i| self.layers.get(*i))
+                    .flat_map(|layer| {
+                        let iter: Box<dyn Iterator<Item = EdgeRef> + Send> = match d {
+                            Direction::IN => Box::new(layer.iter(d).map(move |(src_pid, e_id)| {
+                                EdgeRef::new_incoming(e_id, src_pid, self_id)
+                            })),
+                            Direction::OUT => {
+                                Box::new(layer.iter(d).map(move |(dst_pid, e_id)| {
+                                    EdgeRef::new_outgoing(e_id, self_id, dst_pid)
+                                }))
+                            }
+                            Direction::BOTH => Box::new(
+                                self.edge_tuples(layers, Direction::OUT)
+                                    .merge_by(self.edge_tuples(layers, Direction::IN), |e1, e2| {
+                                        e1.remote() < e2.remote()
+                                    }),
+                            ),
+                        };
+                        iter
+                    }),
+            )
+        } else {
+            let iter = self
+                .layers
+                .iter()
+                .enumerate()
+                .flat_map(move |(layer_id, _)| self.edge_tuples(&[layer_id], d));
+            Box::new(iter)
         }
     }
 
@@ -159,7 +162,7 @@ impl<const N: usize> VertexStore<N> {
     // this is important because it calculates degree
     pub(crate) fn neighbours<'a>(
         &'a self,
-        layer_id: Option<usize>,
+        layer_id: &[usize],
         d: Direction,
     ) -> Box<dyn Iterator<Item = VID> + Send + 'a> {
         match layer_id {

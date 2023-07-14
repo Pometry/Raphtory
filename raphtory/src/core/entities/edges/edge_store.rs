@@ -107,8 +107,11 @@ impl<const N: usize> EdgeStore<N> {
         &mut self.layers[layer_id]
     }
 
-    pub fn has_layer(&self, layer_id: usize) -> bool {
-        self.layers.get(layer_id).is_some()
+    pub fn has_layer(&self, layer_ids: &[usize]) -> bool {
+        self.layers
+            .iter()
+            .enumerate()
+            .any(|(i, _)| layer_ids.binary_search(&i).is_ok())
     }
 
     pub fn new(src: VID, dst: VID) -> Self {
