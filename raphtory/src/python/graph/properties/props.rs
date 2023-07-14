@@ -1,9 +1,11 @@
+use crate::core::Prop;
 use crate::db::api::properties::internal::PropertiesOps;
 use crate::db::api::properties::Properties;
 use crate::db::api::view::internal::{DynamicGraph, Static};
-use crate::python::graph::properties::DynProps;
+use crate::python::graph::properties::{DynProps, DynStaticProperties, DynTemporalProperties};
 use crate::python::types::repr::{iterator_dict_repr, Repr};
 use pyo3::prelude::*;
+use std::collections::HashMap;
 use std::sync::Arc;
 
 pub type DynProperties = Properties<Arc<dyn PropertiesOps + Send + Sync>>;
@@ -11,6 +13,57 @@ pub type DynProperties = Properties<Arc<dyn PropertiesOps + Send + Sync>>;
 #[pyclass(name = "Properties")]
 pub struct PyProperties {
     props: DynProperties,
+}
+
+#[pymethods]
+impl PyProperties {
+    /// Get property value.
+    ///
+    /// First searches temporal properties and returns latest value if it exists.
+    /// If not, it falls back to static properties.
+    pub fn get(&self, key: &str) -> Option<Prop> {
+        self.props.get(key)
+    }
+
+    /// Check if property `key` exists.
+    pub fn __contains__(&self, key: &str) -> bool {
+        self.props.contains(key)
+    }
+
+    /// Get the names for all properties (includes temporal and static properties)
+    pub fn keys(&self) -> Vec<String> {
+        self.props.keys().map(|k| k.clone()).collect()
+    }
+
+    /// Get the values of the properties
+    ///
+    /// If a property exists as both temporal and static, temporal properties take priority with
+    /// fallback to the static property if the temporal value does not exist.
+    pub fn values(&self) -> Vec<Prop> {
+        self.props.values().collect()
+    }
+
+    /// Get a list of key-value pairs
+    pub fn items(&self) -> Vec<(String, Prop)> {
+        self.props.as_vec()
+    }
+
+    /// Get a view of the temporal properties only.
+    #[getter]
+    pub fn temporal(&self) -> DynTemporalProperties {
+        self.props.temporal()
+    }
+
+    /// Get a view of the static properties (meta-data) only.
+    #[getter]
+    pub fn meta(&self) -> DynStaticProperties {
+        self.props.meta()
+    }
+
+    /// Convert properties view to a dict
+    pub fn as_dict(&self) -> HashMap<String, Prop> {
+        self.props.as_map()
+    }
 }
 
 impl<P: PropertiesOps + Clone + Send + Sync + Static + 'static> From<Properties<P>>

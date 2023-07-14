@@ -1,6 +1,6 @@
 use crate::core::utils::time::IntoTime;
 use crate::core::Prop;
-use crate::db::api::properties::internal::{PropertiesOps, StaticPropertiesOps};
+use crate::db::api::properties::internal::PropertiesOps;
 use crate::db::api::properties::StaticProperties;
 use crate::db::api::properties::{TemporalProperties, TemporalPropertyView};
 use crate::db::api::view::internal::{DynamicGraph, Static};
@@ -177,13 +177,13 @@ impl<P: PropertiesOps + Send + Sync + 'static> IntoPy<PyObject> for TemporalProp
     }
 }
 
-impl<P: StaticPropertiesOps + Send + Sync + 'static> IntoPy<PyObject> for StaticProperties<P> {
+impl<P: PropertiesOps + Send + Sync + 'static> IntoPy<PyObject> for StaticProperties<P> {
     fn into_py(self, py: Python<'_>) -> PyObject {
         PyStaticProperties::from(self).into_py(py)
     }
 }
 
-impl<P: StaticPropertiesOps> Repr for StaticProperties<P> {
+impl<P: PropertiesOps> Repr for StaticProperties<P> {
     fn repr(&self) -> String {
         format!("StaticProperties({{{}}})", iterator_dict_repr(self.iter()))
     }

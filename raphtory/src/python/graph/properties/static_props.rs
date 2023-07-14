@@ -1,18 +1,17 @@
 use crate::core::Prop;
-use crate::db::api::properties::internal::{InheritStaticPropertiesOps, StaticPropertiesOps};
+use crate::db::api::properties::internal::PropertiesOps;
 use crate::db::api::properties::StaticProperties;
 use crate::db::api::view::internal::Static;
+use crate::python::graph::properties::DynProps;
 use crate::python::types::repr::Repr;
 use crate::python::utils::PyGenericIterator;
 use pyo3::exceptions::PyKeyError;
 use pyo3::{pyclass, pymethods, PyResult};
 use std::sync::Arc;
 
-pub type DynStaticProperties = StaticProperties<Arc<dyn StaticPropertiesOps + Send + Sync>>;
+pub type DynStaticProperties = StaticProperties<DynProps>;
 
-impl InheritStaticPropertiesOps for Arc<dyn StaticPropertiesOps + Send + Sync> {}
-
-impl<P: StaticPropertiesOps + Send + Sync + Static + 'static> From<StaticProperties<P>>
+impl<P: PropertiesOps + Send + Sync + Static + 'static> From<StaticProperties<P>>
     for DynStaticProperties
 {
     fn from(value: StaticProperties<P>) -> Self {
@@ -63,9 +62,7 @@ impl PyStaticProperties {
     }
 }
 
-impl<P: StaticPropertiesOps + Send + Sync + 'static> From<StaticProperties<P>>
-    for PyStaticProperties
-{
+impl<P: PropertiesOps + Send + Sync + 'static> From<StaticProperties<P>> for PyStaticProperties {
     fn from(value: StaticProperties<P>) -> Self {
         PyStaticProperties {
             props: StaticProperties::new(Arc::new(value.props)),

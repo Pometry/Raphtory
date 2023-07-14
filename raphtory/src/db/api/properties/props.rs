@@ -6,6 +6,7 @@ use crate::db::api::properties::temporal_props::TemporalProperties;
 use std::collections::HashMap;
 
 /// View of the properties of an entity (graph|vertex|edge)
+#[derive(Clone)]
 pub struct Properties<P: PropertiesOps + Clone> {
     pub(crate) props: P,
 }
