@@ -4,7 +4,7 @@ macro_rules! _py_nested_iterable_base {
         #[pyclass]
         pub struct $name($crate::python::types::iterable::NestedIterable<$item, $pyitem>);
 
-        impl Deref for $name {
+        impl std::ops::Deref for $name {
             type Target = $crate::python::types::iterable::NestedIterable<$item, $pyitem>;
 
             fn deref(&self) -> &Self::Target {

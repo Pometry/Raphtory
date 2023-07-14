@@ -275,10 +275,10 @@ def test_graph_properties():
     props = {"prop 1": 1, "prop 2": "hi", "prop 3": True}
     g.add_static_property(props)
 
-    sp = g.static_properties.keys()
+    sp = g.properties.meta.keys()
     sp.sort()
     assert sp == ["prop 1", "prop 2", "prop 3"]
-    assert g.static_properties["prop 1"] == 1
+    assert g.properties["prop 1"] == 1
 
     props = {"prop 4": 11, "prop 5": "world", "prop 6": False}
     g.add_property(1, props)
@@ -288,9 +288,9 @@ def test_graph_properties():
 
     def history_test(key, value):
         if value is None:
-            assert g.properties.get(key) is None
+            assert g.properties.temporal.get(key) is None
         else:
-            assert g.properties.get(key).items() == value
+            assert g.properties.temporal.get(key).items() == value
 
     history_test("prop 1", None)
     history_test("prop 2", None)
@@ -302,18 +302,18 @@ def test_graph_properties():
 
     def time_history_test(time, key, value):
         if value is None:
-            assert g.at(time).properties.get(key) is None
+            assert g.at(time).properties.temporal.get(key) is None
         else:
-            assert g.at(time).properties.get(key).items() == value
+            assert g.at(time).properties.temporal.get(key).items() == value
 
     time_history_test(2, "prop 6", [(1, False), (2, True)])
     time_history_test(1, "static prop", None)
 
     def time_static_property_test(time, key, value):
-        assert g.at(time).static_properties.get(key) == value
+        assert g.at(time).properties.meta.get(key) == value
 
     def static_property_test(key, value):
-        assert g.static_properties.get(key) == value
+        assert g.properties.meta.get(key) == value
 
     time_static_property_test(1, "prop 1", 1)
     time_static_property_test(100, "prop 1", 1)
@@ -322,46 +322,48 @@ def test_graph_properties():
 
     # testing property
     def time_property_test(time, key, value):
-        assert g.at(time).properties.get(key).value() == value
+        assert g.at(time).properties.get(key) == value
 
     def property_test(key, value):
-        assert g.properties.get(key).value() == value
+        assert g.properties.get(key) == value
 
     static_property_test("prop 2", "hi")
+    property_test("prop 2", "hi")
     time_static_property_test(2, "prop 3", True)
+    time_property_test(2, "prop 3", True)
 
     # testing properties
-    assert g.properties == {"prop 1": 1, "prop 2": "hi", "prop 3": True, "prop 4": 11, "prop 5": "world",
+    assert g.properties.as_dict() == {"prop 1": 1, "prop 2": "hi", "prop 3": True, "prop 4": 11, "prop 5": "world",
                               "prop 6": True}
 
-    assert g.properties(include_static=False) == {"prop 4": 11, "prop 5": "world",
+    assert g.properties.temporal.latest() == {"prop 4": 11, "prop 5": "world",
                                                   "prop 6": True}
-    assert g.at(2).properties() == {"prop 1": 1, "prop 2": "hi", "prop 3": True, "prop 4": 11, "prop 5": "world",
+    assert g.at(2).properties.as_dict() == {"prop 1": 1, "prop 2": "hi", "prop 3": True, "prop 4": 11, "prop 5": "world",
                                     "prop 6": True}
 
     # testing property histories
-    assert g.property_histories() == {"prop 4": [(1, 11)], "prop 5": [(1, "world")],
+    assert g.properties.temporal.histories() == {"prop 4": [(1, 11)], "prop 5": [(1, "world")],
                                       "prop 6": [(1, False), (2, True)]}
 
-    assert g.at(2).property_histories() == {"prop 4": [(1, 11)], "prop 5": [(1, "world")],
+    assert g.at(2).properties.temporal.histories() == {"prop 4": [(1, 11)], "prop 5": [(1, "world")],
                                             "prop 6": [(1, False), (2, True)]}
 
     # testing property names
     expected_names = sorted(['prop 1', 'prop 2', 'prop 3', 'prop 4', 'prop 5', 'prop 6'])
-    assert sorted(g.property_names()) == expected_names
+    assert sorted(g.properties.keys()) == expected_names
 
     expected_names_no_static = sorted(['prop 4', 'prop 5', 'prop 6'])
-    assert sorted(g.property_names(include_static=False)) == expected_names_no_static
+    assert sorted(g.properties.temporal.keys()) == expected_names_no_static
 
-    assert sorted(g.at(1).property_names(include_static=False)) == expected_names_no_static
+    assert sorted(g.at(1).properties.temporal.keys()) == expected_names_no_static
 
     # testing has_property
-    assert g.has_property("prop 4")
-    assert not g.has_property("prop 7")
-    assert not g.at(1).has_property("prop 7")
-    assert g.has_property("prop 1")
-    assert g.at(1).has_property("prop 2")
-    assert not g.has_static_property("static prop")
+    assert "prop 4" in g.properties
+    assert "prop 7" not in g.properties
+    assert "prop 7" not in g.at(1).properties
+    assert "prop 1" in g.properties
+    assert "prop 2" in g.at(1).properties
+    assert "static prop" not in g.properties.meta
 
 
 def test_vertex_properties():

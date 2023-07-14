@@ -2,7 +2,7 @@
 //! A vertex is a node in the graph, and can have properties and edges.
 //! It can also be used to navigate the graph.
 
-use crate::python::utils::PyGenericIterable;
+use crate::python::utils::{PyGenericIterable, PyNestedGenericIterator};
 use crate::{
     core::{entities::vertices::vertex_ref::VertexRef, utils::time::error::ParseTimeError},
     db::{
@@ -28,6 +28,7 @@ use chrono::NaiveDateTime;
 
 use crate::core::Prop;
 use crate::db::api::properties::Properties;
+use crate::python::graph::properties::{NestedPropsIterable, PropsIterable};
 use pyo3::exceptions::PyKeyError;
 use pyo3::{
     exceptions::PyIndexError, prelude::*, pyclass, pyclass::CompareOp, pymethods, PyAny, PyObject,
@@ -385,8 +386,13 @@ impl PyVertex {
         self.repr()
     }
 }
-
 impl Repr for PyVertex {
+    fn repr(&self) -> String {
+        self.vertex.repr()
+    }
+}
+
+impl Repr for VertexView<DynamicGraph> {
     fn repr(&self) -> String {
         // let properties: String = self
         //     .properties(Some(true))
@@ -1169,6 +1175,85 @@ impl PyVertexIterable {
     }
 
     fn out_edges(&self) -> PyEdges {
+        let clone = self.builder.clone();
+        (move || clone().out_edges()).into()
+    }
+
+    fn out_neighbours(&self) -> Self {
+        let builder = self.builder.clone();
+        (move || builder().out_neighbours()).into()
+    }
+
+    fn in_neighbours(&self) -> Self {
+        let builder = self.builder.clone();
+        (move || builder().in_neighbours()).into()
+    }
+
+    fn neighbours(&self) -> Self {
+        let builder = self.builder.clone();
+        (move || builder().neighbours()).into()
+    }
+}
+
+py_nested_iterable!(
+    PyNestedVertexIterable,
+    VertexView<DynamicGraph>,
+    PyNestedGenericIterator
+);
+
+#[pymethods]
+impl PyNestedVertexIterable {
+    fn id(&self) -> NestedU64Iterable {
+        let builder = self.builder.clone();
+        (move || builder().id()).into()
+    }
+
+    fn name(&self) -> NestedStringIterable {
+        let vertices = self.builder.clone();
+        (move || vertices().name()).into()
+    }
+
+    fn earliest_time(&self) -> NestedOptionI64Iterable {
+        let vertices = self.builder.clone();
+        (move || vertices().earliest_time()).into()
+    }
+
+    fn latest_time(&self) -> NestedOptionI64Iterable {
+        let vertices = self.builder.clone();
+        (move || vertices().latest_time()).into()
+    }
+
+    fn properties(&self) -> NestedPropsIterable {
+        let vertices = self.builder.clone();
+        (move || vertices().properties()).into()
+    }
+
+    fn degree(&self) -> NestedUsizeIterable {
+        let vertices = self.builder.clone();
+        (move || vertices().degree()).into()
+    }
+
+    fn in_degree(&self) -> NestedUsizeIterable {
+        let vertices = self.builder.clone();
+        (move || vertices().in_degree()).into()
+    }
+
+    fn out_degree(&self) -> NestedUsizeIterable {
+        let vertices = self.builder.clone();
+        (move || vertices().out_degree()).into()
+    }
+
+    fn edges(&self) -> PyNestedEdges {
+        let clone = self.builder.clone();
+        (move || clone().edges()).into()
+    }
+
+    fn in_edges(&self) -> PyNestedEdges {
+        let clone = self.builder.clone();
+        (move || clone().in_edges()).into()
+    }
+
+    fn out_edges(&self) -> PyNestedEdges {
         let clone = self.builder.clone();
         (move || clone().out_edges()).into()
     }

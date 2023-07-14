@@ -59,6 +59,12 @@ impl PyTemporalProperties {
     fn latest(&self) -> HashMap<String, Prop> {
         self.props.iter_latest().collect()
     }
+    fn histories(&self) -> HashMap<String, Vec<(i64, Prop)>> {
+        self.props
+            .iter()
+            .map(|(k, v)| (k, v.iter().collect()))
+            .collect()
+    }
 
     fn __getitem__(&self, key: &str) -> PyResult<Prop> {
         let v = self

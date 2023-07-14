@@ -2,8 +2,11 @@ use crate::core::Prop;
 use crate::db::api::properties::internal::PropertiesOps;
 use crate::db::api::properties::Properties;
 use crate::db::api::view::internal::{DynamicGraph, Static};
+use crate::db::api::view::BoxedIter;
 use crate::python::graph::properties::{DynProps, DynStaticProperties, DynTemporalProperties};
 use crate::python::types::repr::{iterator_dict_repr, Repr};
+use crate::python::utils::PyGenericIterator;
+use pyo3::exceptions::PyKeyError;
 use pyo3::prelude::*;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -28,6 +31,20 @@ impl PyProperties {
     /// Check if property `key` exists.
     pub fn __contains__(&self, key: &str) -> bool {
         self.props.contains(key)
+    }
+
+    fn __getitem__(&self, key: &str) -> PyResult<Prop> {
+        self.props
+            .get(key)
+            .ok_or(PyKeyError::new_err("No such property"))
+    }
+
+    fn __iter__(&self) -> PyGenericIterator {
+        self.keys().into_iter().into()
+    }
+
+    fn __len__(&self) -> usize {
+        self.keys().len()
     }
 
     /// Get the names for all properties (includes temporal and static properties)
@@ -118,3 +135,13 @@ impl Repr for PyProperties {
         self.props.repr()
     }
 }
+
+py_iterator!(PropsIter, DynProperties, PyProperties);
+py_iterable!(PropsIterable, DynProperties, PyProperties, PropsIter);
+py_iterator!(NestedPropsIter, BoxedIter<DynProperties>, PropsIter);
+py_nested_iterable!(
+    NestedPropsIterable,
+    DynProperties,
+    PyProperties,
+    NestedPropsIter
+);

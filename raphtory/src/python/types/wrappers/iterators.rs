@@ -1,7 +1,7 @@
 use crate::python::graph::properties::{
-    DynProperties, DynStaticProperties, DynTemporalProperties, PyProperties, PyStaticProperties,
-    PyTemporalProperties,
+    DynStaticProperties, DynTemporalProperties, PyStaticProperties, PyTemporalProperties,
 };
+use crate::python::utils::{PyGenericIterator, PyNestedGenericIterator};
 use crate::{
     core as db_c,
     db::api::view::BoxedIter,
@@ -12,7 +12,7 @@ use crate::{
 };
 use num::cast::AsPrimitive;
 use pyo3::prelude::*;
-use std::{i64, iter::Sum, ops::Deref};
+use std::{i64, iter::Sum};
 
 pub(crate) trait MeanExt<V>: Iterator<Item = V>
 where
@@ -47,6 +47,15 @@ py_nested_numeric_iterable!(
     NestedU64Iter,
     U64Iterable,
     OptionU64Iterable
+);
+
+py_iterable!(OptionU64U64Iterable, Option<(u64, u64)>, PyGenericIterator);
+py_ordered_iterable!(U64U64Iterable, (u64, u64), PyGenericIterator);
+py_nested_ordered_iterable!(
+    NestedU64U64Iterable,
+    (u64, u64),
+    PyNestedGenericIterator,
+    OptionU64U64Iterable
 );
 
 py_iterator!(OptionU64Iter, Option<u64>);
@@ -147,16 +156,6 @@ py_nested_iterable!(
     Vec<(i64, db_c::Prop)>,
     PropHistory,
     NestedPropHistoryIter
-);
-
-py_iterator!(PropsIter, DynProperties, PyProperties);
-py_iterable!(PropsIterable, DynProperties, PyProperties, PropsIter);
-py_iterator!(NestedPropsIter, BoxedIter<DynProperties>, PropsIter);
-py_nested_iterable!(
-    NestedPropsIterable,
-    DynProperties,
-    PyProperties,
-    NestedPropsIter
 );
 
 py_iterator!(

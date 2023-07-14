@@ -5,7 +5,9 @@
 //! edge as it existed at a particular point in time, or as it existed over a particular time range.
 //!
 use crate::db::api::properties::Properties;
-use crate::python::types::wrappers::iterators::PropsIterable;
+use crate::python::graph::properties::{NestedPropsIterable, PropsIterable};
+use crate::python::graph::vertex::PyNestedVertexIterable;
+use crate::python::types::wrappers::iterators::{NestedOptionI64Iterable, NestedU64U64Iterable};
 use crate::{
     core::utils::time::error::ParseTimeError,
     db::{
@@ -299,12 +301,18 @@ impl PyEdge {
 
 impl Repr for PyEdge {
     fn repr(&self) -> String {
+        self.edge.repr()
+    }
+}
+
+impl Repr for EdgeView<DynamicGraph> {
+    fn repr(&self) -> String {
         let properties = &self.properties().repr();
 
-        let source = self.edge.src().name();
-        let target = self.edge.dst().name();
-        let earliest_time = self.edge.earliest_time();
-        let latest_time = self.edge.latest_time();
+        let source = self.src().name();
+        let target = self.dst().name();
+        let earliest_time = self.earliest_time();
+        let latest_time = self.latest_time();
         if properties.is_empty() {
             format!(
                 "Edge(source={}, target={}, earliest_time={}, latest_time={})",
@@ -457,27 +465,48 @@ py_iterator!(
     "NestedEdgeIter"
 );
 
-#[pyclass(name = "NestedEdges")]
-pub struct PyNestedEdges {
-    builder: Arc<dyn Fn() -> BoxedIter<BoxedIter<EdgeView<DynamicGraph>>> + Send + Sync + 'static>,
-}
-
-impl PyNestedEdges {
-    fn iter(&self) -> BoxedIter<BoxedIter<EdgeView<DynamicGraph>>> {
-        (self.builder)()
-    }
-}
+py_nested_iterable!(PyNestedEdges, EdgeView<DynamicGraph>, PyNestedEdgeIter);
 
 #[pymethods]
 impl PyNestedEdges {
-    fn __iter__(&self) -> PyNestedEdgeIter {
-        self.iter().into()
+    /// Returns all source vertices of the Edges as an iterable.
+    ///
+    /// Returns:
+    ///   The source vertices of the Edges as an iterable.
+    fn src(&self) -> PyNestedVertexIterable {
+        let builder = self.builder.clone();
+        (move || builder().src()).into()
     }
 
-    fn collect(&self) -> Vec<Vec<PyEdge>> {
-        self.iter()
-            .map(|e| e.map(|ee| ee.into()).collect())
-            .collect()
+    /// Returns all destination vertices as an iterable
+    fn dst(&self) -> PyNestedVertexIterable {
+        let builder = self.builder.clone();
+        (move || builder().dst()).into()
+    }
+
+    /// Returns the earliest time of the edges.
+    fn earliest_time(&self) -> NestedOptionI64Iterable {
+        let edges = self.builder.clone();
+        (move || edges().earliest_time()).into()
+    }
+
+    /// Returns the latest time of the edges.
+    fn latest_time(&self) -> NestedOptionI64Iterable {
+        let edges = self.builder.clone();
+        (move || edges().latest_time()).into()
+    }
+
+    // FIXME: needs a view that allows indexing into the properties
+    /// Returns all properties of the edges
+    fn properties(&self) -> NestedPropsIterable {
+        let builder = self.builder.clone();
+        (move || builder().properties()).into()
+    }
+
+    /// Returns all ids of the edges.
+    fn id(&self) -> NestedU64U64Iterable {
+        let edges = self.builder.clone();
+        (move || edges().id()).into()
     }
 
     fn explode(&self) -> PyNestedEdges {
@@ -491,15 +520,5 @@ impl PyNestedEdges {
             iter
         })
         .into()
-    }
-}
-
-impl<F: Fn() -> BoxedIter<BoxedIter<EdgeView<DynamicGraph>>> + Send + Sync + 'static> From<F>
-    for PyNestedEdges
-{
-    fn from(value: F) -> Self {
-        Self {
-            builder: Arc::new(value),
-        }
     }
 }
