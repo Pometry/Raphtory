@@ -35,14 +35,17 @@ macro_rules! py_algorithm_result_partial_ord {
     ($name:ident, $rustKey:ty, $rustValue:ty) => {
         #[pymethods]
         impl $name {
+            #[pyo3(signature = (reverse=true))]
             fn sort_by_value(&self, reverse: bool) -> Vec<($rustKey, $rustValue)> {
                 self.0.sort_by_value(reverse)
             }
 
+            #[pyo3(signature = (reverse=true))]
             fn sort_by_key(&self, reverse: bool) -> Vec<($rustKey, $rustValue)> {
                 self.0.sort_by_key(reverse)
             }
 
+            #[pyo3(signature = (k, percentage=false, reverse=true))]
             fn top_k(&self, k: usize, percentage: bool, reverse: bool) -> Option<Vec<($rustKey, $rustValue)>> {
                 self.0.top_k(k, percentage, reverse)
             }
@@ -89,6 +92,7 @@ impl AlgorithmResultStrF64 {
         Some(self.0.get(&key).unwrap().0)
     }
 
+    #[pyo3(signature = (reverse=true))]
     fn sort_by_value(&self, reverse: bool) -> Vec<(String, f64)> {
         self.0.sort_by_value(reverse)
             .into_iter()
@@ -96,12 +100,14 @@ impl AlgorithmResultStrF64 {
             .collect()
     }
 
+    #[pyo3(signature = (reverse=true))]
     fn sort_by_key(&self, reverse: bool) -> Vec<(String, f64)> {
         self.0.sort_by_key(reverse).into_iter()
             .map(|(key, ordered_float)| (key, ordered_float.into_inner()))
             .collect()
     }
 
+    #[pyo3(signature = (k, percentage=false, reverse=true))]
     fn top_k(&self, k: usize, percentage: bool, reverse: bool) -> Option<Vec<(String, f64)>> {
         self.0.top_k(k, percentage, reverse)
             .map(|vec| {
