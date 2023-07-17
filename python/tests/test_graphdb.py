@@ -991,7 +991,7 @@ def test_connected_components():
 
     actual = algorithms.weakly_connected_components(g, 20)
     expected = {'1': 1, '2': 1, '3': 1, '4': 1, '5': 1, '6': 1, '7': 1, '8': 1}
-    assert (actual == expected)
+    assert (actual.get_all() == expected)
 
 
 def test_page_rank():
@@ -1020,7 +1020,7 @@ def test_page_rank():
         '7': 0.14074777909144864,
         '8': 0.11786468661230831,
     }
-    assert (actual == expected)
+    assert (actual.get_all() == expected)
 
 
 def test_temporal_reachability():
@@ -1050,7 +1050,7 @@ def test_temporal_reachability():
         '8': [],
     }
 
-    assert (actual == expected)
+    assert (actual.get_all() == expected)
 
 
 # def test_generic_taint_loader():
