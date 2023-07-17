@@ -191,6 +191,7 @@ mod triangle_count_tests {
         }
 
         let actual_tri_count = triangle_count(&graph, None);
+        print!("{:?}",actual_tri_count);
 
         assert_eq!(actual_tri_count, 8)
     }

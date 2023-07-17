@@ -138,10 +138,17 @@ mod k_core_test {
             graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
         }
 
-        let result = k_core_set(&graph, 0, usize::MAX, None);
-        let subgraph = graph.subgraph(graph.vertices());
+        let result = k_core_set(&graph, 2, usize::MAX, None);
+        let subgraph = graph.subgraph(result.clone());
 
-        print!("{:?}",triangle_count(&subgraph,None))
+        // Is correct -- every vertex apart from 2 and 7
+        println!("{:?}", subgraph.vertices().name().collect::<Vec<String>>());
+
+        // Should be 8 but is 6
+        println!("({:?})", triangle_count(&subgraph, None));
+
+        subgraph.edges().explode().for_each(|e| println!("{:?} {:?} {:?}", e.src().name(),e.dst().name(),e.time().unwrap()));
+        subgraph.vertices().into_iter().for_each(|v| println!("{:?} : {:?}", v.name(), v.neighbours().name().collect::<Vec<String>>()));
 
 
     }
