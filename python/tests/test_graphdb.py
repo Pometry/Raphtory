@@ -992,7 +992,13 @@ def test_connected_components():
     actual = algorithms.weakly_connected_components(g, 20)
     expected = {'1': 1, '2': 1, '3': 1, '4': 1, '5': 1, '6': 1, '7': 1, '8': 1}
     assert (actual.get_all() == expected)
-
+    assert (actual.get('1') == 1)
+    expected_array = [('1', 1), ('2', 1), ('3', 1), ('4', 1), ('5', 1), ('6', 1), ('7', 1), ('8', 1)]
+    assert (sorted(actual.sort_by_value()) == expected_array)
+    assert (actual.sort_by_key() == sorted(expected_array, reverse=True))
+    assert (actual.sort_by_key(reverse=False) == expected_array)
+    assert (sorted(actual.top_k(8)) == expected_array)
+    assert (len(actual.group_by()[1]) == 8)
 
 def test_page_rank():
     g = Graph()
