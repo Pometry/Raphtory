@@ -478,7 +478,7 @@ impl PyVertices {
     }
 
     //Fixme: needs a view that allows indexing
-    fn properties(&self) -> PyGenericIterable {
+    fn properties(&self) -> PropsIterable {
         let vertices = self.vertices.clone();
         (move || vertices.properties()).into()
     }

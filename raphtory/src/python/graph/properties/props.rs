@@ -188,16 +188,30 @@ impl PropsIterable {
     ///
     /// If a property exists as both temporal and static, temporal properties take priority with
     /// fallback to the static property if the temporal value does not exist.
-    pub fn values(&self) -> Vec<OptionPropIterable> {
-        self.keys()
-            .into_iter()
-            .map(|key| self.get(&key).unwrap())
-            .collect()
+    pub fn values(&self) -> NestedOptionPropIterable {
+        let builder = self.builder.clone();
+        let keys = Arc::new(self.keys());
+        (move || {
+            let builder = builder.clone();
+            let keys = keys.clone();
+            (0..keys.len()).map(move |index| {
+                let builder = builder.clone();
+                let keys = keys.clone();
+                builder().map(move |p| {
+                    let key = &keys[index];
+                    p.get(key)
+                })
+            })
+        })
+        .into()
     }
 
     /// Get a list of key-value pairs
     pub fn items(&self) -> Vec<(String, OptionPropIterable)> {
-        self.keys().into_iter().zip(self.values()).collect()
+        self.keys()
+            .into_iter()
+            .flat_map(|k| self.get(&k).map(|v| (k, v)))
+            .collect()
     }
 
     /// Get a view of the temporal properties only.
