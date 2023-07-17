@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1689597805979,
+  "lastUpdate": 1689614496281,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -5395,6 +5395,60 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions with numeric string input",
             "value": 1917154,
             "range": "± 93847",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "2404621+fabianmurariu@users.noreply.github.com",
+            "name": "Fabian Murariu",
+            "username": "fabianmurariu"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "496a7fd4908205b2655feb71cb8401ce10ed905a",
+          "message": "Bug/compute state (#1122)\n\n* add test for triangle count on subgraph\r\n\r\n* fix the issue with compute and subgraphs\r\n\r\n---------\r\n\r\nCo-authored-by: Lucas Jeub <lucas.jeub@pometry.com>",
+          "timestamp": "2023-07-17T18:14:59+01:00",
+          "tree_id": "48c5f4650e948a16a53e5686d0cdb250d12e0b94",
+          "url": "https://github.com/Pometry/Raphtory/commit/496a7fd4908205b2655feb71cb8401ce10ed905a"
+        },
+        "date": 1689614495063,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 712329,
+            "range": "± 40471",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and numeric string input",
+            "value": 1235800,
+            "range": "± 55340",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and string input",
+            "value": 1273265,
+            "range": "± 30971",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 876623,
+            "range": "± 80243",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions with numeric string input",
+            "value": 1750795,
+            "range": "± 85056",
             "unit": "ns/iter"
           }
         ]
