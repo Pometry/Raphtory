@@ -40,15 +40,3 @@ pub mod temporal_reachability;
 pub mod triangle_count;
 pub mod triplet_count;
 pub mod algorithm_result;
-
-
-// Wrap around all algorithms that return a hashmap
-// Fix all algorithm tests
-
-// Add pandas export support -> Hack in by exposing python in raphtory
-
-// Add python support
-// Add python tests
-
-// What about vertex names???? or vertex ids on get????
-// for this one, i may have to check all algorithms to ensure they all use ids?

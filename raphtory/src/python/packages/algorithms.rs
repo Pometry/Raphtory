@@ -3,7 +3,7 @@
 /// To run an algorithm simply import the module and call the function with the graph as the argument
 ///
 use std::collections::HashMap;
-use polars::frame::DataFrame;
+use ordered_float::OrderedFloat;
 
 use crate::{
     algorithms::{
@@ -31,22 +31,7 @@ use crate::{
     python::{graph::views::graph_view::PyGraphView, utils::PyInputVertex},
 };
 use pyo3::prelude::*;
-
-use polars::prelude::*;
-use pyo3_polars::PyDataFrame;
-
-fn hashmap_to_dataframe(hashmap_to_convert: HashMap<String, f64>) -> PyDataFrame {
-    let ids = Series::new("id", hashmap_to_convert.keys().map(|x| x.to_string()).collect::<Vec<String>>() );
-    let values = Series::new("value", hashmap_to_convert.values().copied().collect::<Vec<f64>>());
-    let df = DataFrame::new(vec![ids, values]).unwrap();
-    PyDataFrame(df)
-}
-
-#[pyfunction]
-pub fn all_local_reciprocity_df(g: &PyGraphView) -> PyDataFrame {
-    let hm = all_local_reciprocity_rs(&g.graph, None);
-    hashmap_to_dataframe(hm)
-}
+use crate::algorithms::algorithm_result::AlgorithmResult;
 
 
 /// Local triangle count - calculates the number of triangles (a cycle of length 3) a vertex participates in.
@@ -80,7 +65,7 @@ pub fn local_triangle_count(g: &PyGraphView, v: VertexRef) -> Option<usize> {
 pub fn weakly_connected_components(
     g: &PyGraphView,
     iter_count: usize,
-) -> HashMap<String, u64> {
+) -> AlgorithmResult<String, u64> {
     connected_components::weakly_connected_components(
         &g.graph, iter_count, None,
     )
@@ -105,10 +90,10 @@ pub fn pagerank(
     g: &PyGraphView,
     iter_count: usize,
     max_diff: Option<f64>,
-) -> PyResult<HashMap<String, f64>> {
-    Ok(unweighted_page_rank(
+) -> AlgorithmResult<String, OrderedFloat<f64>> {
+    unweighted_page_rank(
         &g.graph, iter_count, None, max_diff, true,
-    ))
+    )
 }
 
 #[pyfunction]
@@ -116,7 +101,7 @@ pub fn pagerank_df(
     g: &PyGraphView,
     iter_count: usize,
     max_diff: Option<f64>,
-) -> HashMap<String, f64> {
+) -> AlgorithmResult<String, OrderedFloat<f64>> {
     unweighted_page_rank(
         &g.graph, iter_count, None, max_diff, true,
     )
@@ -145,10 +130,10 @@ pub fn temporally_reachable_nodes(
     start_time: i64,
     seed_nodes: Vec<PyInputVertex>,
     stop_nodes: Option<Vec<PyInputVertex>>,
-) -> Result<HashMap<String, Vec<(i64, String)>>, PyErr> {
-    Ok(temporal_reachability_rs(
+) -> AlgorithmResult<String, Vec<(i64, String)>> {
+    temporal_reachability_rs(
         &g.graph, None, max_hops, start_time, seed_nodes, stop_nodes,
-    ))
+    )
 }
 
 /// Local clustering coefficient - measures the degree to which nodes in a graph tend to cluster together.
@@ -271,7 +256,7 @@ pub fn global_reciprocity(g: &PyGraphView) -> f64 {
 ///     dict : a dictionary with string keys and float values mapping each vertex name to its reciprocity value.
 ///
 #[pyfunction]
-pub fn all_local_reciprocity(g: &PyGraphView) -> HashMap<String, f64> {
+pub fn all_local_reciprocity(g: &PyGraphView) -> AlgorithmResult<String, OrderedFloat<f64>> {
     all_local_reciprocity_rs(&g.graph, None)
 }
 
@@ -315,6 +300,6 @@ pub fn global_temporal_three_node_motif(g: &PyGraphView, delta: i64) -> Vec<usiz
 }
 
 #[pyfunction]
-pub fn local_temporal_three_node_motifs(g: &PyGraphView, delta: i64) -> HashMap<u64, Vec<usize>> {
+pub fn local_temporal_three_node_motifs(g: &PyGraphView, delta: i64) -> AlgorithmResult<u64, Vec<usize>> {
     local_three_node_rs(&g.graph, delta)
 }

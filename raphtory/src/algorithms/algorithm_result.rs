@@ -32,10 +32,7 @@ impl<H, Y> AlgorithmResult<H, Y>
     }
 
     // TODO implement to pandas dataframe
-
-    // TODO python bindings
 }
-
 
 impl<H, Y> AlgorithmResult<H, Y>
     where
