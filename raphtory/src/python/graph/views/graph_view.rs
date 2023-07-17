@@ -23,6 +23,7 @@ use crate::{
     python::{
         graph::{
             edge::PyEdges,
+            index::GraphIndex,
             vertex::{PyVertex, PyVertices},
         },
         types::repr::Repr,
@@ -85,7 +86,6 @@ impl<G: GraphViewOps + IntoDynamic> IntoPy<PyObject> for VertexSubgraph<G> {
 /// The API for querying a view of the graph in a read-only state
 #[pymethods]
 impl PyGraphView {
-
     /// Return all the layer ids in the graph
     pub fn get_unique_layers(&self) -> Vec<String> {
         self.graph.get_unique_layers()
@@ -459,6 +459,10 @@ impl PyGraphView {
     ///    GraphView - Returns a graph clone
     fn materialize(&self) -> Result<MaterializedGraph, GraphError> {
         self.graph.materialize()
+    }
+
+    fn index(&self) -> GraphIndex {
+        GraphIndex::new(self.graph.clone())
     }
 
     /// Displays the graph

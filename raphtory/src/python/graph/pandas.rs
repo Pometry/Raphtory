@@ -438,7 +438,6 @@ mod test {
         );
     }
 
-
     #[test]
     fn load_vertices_from_pretend_df() {
         let df = PretendDF {
@@ -461,10 +460,12 @@ mod test {
         };
         let graph = Graph::new();
 
-        load_vertices_from_df(&df, "id", "time", Some(vec!["name"]), &graph).expect("failed to load vertices from pretend df");
+        load_vertices_from_df(&df, "id", "time", Some(vec!["name"]), &graph)
+            .expect("failed to load vertices from pretend df");
 
         let actual = graph
-            .vertices().iter()
+            .vertices()
+            .iter()
             .map(|v| {
                 (
                     v.id(),

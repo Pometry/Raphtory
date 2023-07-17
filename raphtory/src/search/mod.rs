@@ -6,8 +6,7 @@ use rayon::{prelude::ParallelIterator, slice::ParallelSlice};
 use tantivy::{
     collector::TopDocs,
     schema::{Field, Schema, SchemaBuilder, FAST, INDEXED, STORED, TEXT},
-    Document, Index, IndexReader, IndexSettings, IndexWriter,
-    TantivyError,
+    Document, Index, IndexReader, IndexSettings, IndexWriter, TantivyError,
 };
 
 use crate::{
@@ -377,11 +376,11 @@ impl<G: GraphViewOps> IndexedGraph<G> {
         let src = e_ref.src();
         let dst = e_ref.dst();
 
-                let mut document = Document::new();
-                let edge_id: u64 = Into::<usize>::into(edge_ref.pid()) as u64;
-                document.add_u64(edge_id_field, edge_id);
-                document.add_text(source_field, src.name());
-                document.add_text(destination_field, dst.name());
+        let mut document = Document::new();
+        let edge_id: u64 = Into::<usize>::into(edge_ref.pid()) as u64;
+        document.add_u64(edge_id_field, edge_id);
+        document.add_text(source_field, src.name());
+        document.add_text(destination_field, dst.name());
 
         // add all time events
         for e in e_ref.explode() {
@@ -534,18 +533,18 @@ impl<G: GraphViewOps> IndexedGraph<G> {
         Some(e_view)
     }
 
-    pub fn search(
+    pub fn search_vertices(
         &self,
         q: &str,
         limit: usize,
-        offset: usize,
+        offset: usize
     ) -> Result<Vec<VertexView<G>>, GraphError> {
         let searcher = self.reader.searcher();
-        let query_parser = tantivy::query::QueryParser::for_index(&self.vertex_index, vec![]);
+        let mut query_parser = tantivy::query::QueryParser::for_index(&self.vertex_index, vec![]);
+
         let query = query_parser.parse_query(q)?;
 
-        let ranking = TopDocs::with_limit(limit)
-            .and_offset(offset);
+        let ranking = TopDocs::with_limit(limit).and_offset(offset);
 
         let top_docs = searcher.search(&query, &ranking)?;
 
@@ -553,7 +552,7 @@ impl<G: GraphViewOps> IndexedGraph<G> {
 
         let results = top_docs
             .into_iter()
-            .map(|(_, doc_address)|  searcher.doc(doc_address))
+            .map(|(_, doc_address)| searcher.doc(doc_address))
             .filter_map(Result::ok)
             .filter_map(|doc| self.resolve_vertex_from_search_result(vertex_id, doc))
             .collect::<Vec<_>>();
@@ -565,10 +564,78 @@ impl<G: GraphViewOps> IndexedGraph<G> {
         &self,
         q: &str,
         limit: usize,
-        offset: usize,
+        offset: usize
     ) -> Result<Vec<EdgeView<G>>, GraphError> {
         let searcher = self.edge_reader.searcher();
-        let query_parser = tantivy::query::QueryParser::for_index(&self.edge_index, vec![]);
+        let mut query_parser = tantivy::query::QueryParser::for_index(&self.edge_index, vec![]);
+
+        let query = query_parser.parse_query(q)?;
+
+        let ranking = TopDocs::with_limit(limit).and_offset(offset);
+
+        let top_docs = searcher.search(&query, &ranking)?;
+
+        let edge_id = self.edge_index.schema().get_field(EDGE_ID)?;
+
+        let results = top_docs
+            .into_iter()
+            .map(|(_, doc_address)| searcher.doc(doc_address))
+            .filter_map(Result::ok)
+            .filter_map(|doc| self.resolve_edge_from_search_result(edge_id, doc))
+            .collect::<Vec<_>>();
+
+        Ok(results)
+    }
+
+    pub fn fuzzy_search_vertices(
+        &self,
+        q: &str,
+        limit: usize,
+        offset: usize,
+        prefix: bool,
+        levenshtein_distance: u8,
+    ) -> Result<Vec<VertexView<G>>, GraphError> {
+        let searcher = self.reader.searcher();
+        let mut query_parser = tantivy::query::QueryParser::for_index(&self.vertex_index, vec![]);
+
+        self.vertex_index
+            .schema()
+            .fields()
+            .for_each(|(f, _)| query_parser.set_field_fuzzy(f, prefix, levenshtein_distance, true));
+
+        let query = query_parser.parse_query(q)?;
+
+        let ranking = TopDocs::with_limit(limit).and_offset(offset);
+
+        let top_docs = searcher.search(&query, &ranking)?;
+
+        let vertex_id = self.vertex_index.schema().get_field(VERTEX_ID)?;
+
+        let results = top_docs
+            .into_iter()
+            .map(|(_, doc_address)| searcher.doc(doc_address))
+            .filter_map(Result::ok)
+            .filter_map(|doc| self.resolve_vertex_from_search_result(vertex_id, doc))
+            .collect::<Vec<_>>();
+
+        Ok(results)
+    }
+
+    pub fn fuzzy_search_edges(
+        &self,
+        q: &str,
+        limit: usize,
+        offset: usize,
+        prefix: bool,
+        levenshtein_distance: u8,
+    ) -> Result<Vec<EdgeView<G>>, GraphError> {
+        let searcher = self.edge_reader.searcher();
+        let mut query_parser = tantivy::query::QueryParser::for_index(&self.edge_index, vec![]);
+
+        self.vertex_index.schema().fields().for_each(|(f, _)| {
+            query_parser.set_field_fuzzy(f, prefix, levenshtein_distance, true)
+        });
+
         let query = query_parser.parse_query(q)?;
 
         let ranking = TopDocs::with_limit(limit).and_offset(offset);

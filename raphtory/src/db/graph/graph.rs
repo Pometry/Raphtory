@@ -84,7 +84,6 @@ impl InheritPropertyAdditionOps for Graph {}
 impl InheritViewOps for Graph {}
 
 impl Graph {
-
     /// Create a new graph with the specified number of shards
     ///
     /// # Arguments
@@ -984,7 +983,8 @@ mod db_tests {
         let latest_time = "2022-06-07 12:34:00".try_into_time().unwrap();
 
         let g = Graph::new();
-        g.add_vertex("2022-06-06T12:34:00.000", 0, NO_PROPS).unwrap();
+        g.add_vertex("2022-06-06T12:34:00.000", 0, NO_PROPS)
+            .unwrap();
         g.add_edge("2022-06-07T12:34:00", 1, 2, NO_PROPS, None)
             .unwrap();
         assert_eq!(g.earliest_time().unwrap(), earliest_time);
