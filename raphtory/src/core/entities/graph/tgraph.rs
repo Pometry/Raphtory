@@ -73,7 +73,7 @@ impl<const N: usize> std::fmt::Display for InnerTemporalGraph<N> {
             f,
             "Graph(num_vertices={}, num_edges={})",
             self.storage.nodes_len(),
-            self.storage.edges_len(None)
+            self.storage.edges_len(&[])
         )
     }
 }
@@ -203,13 +203,13 @@ impl<const N: usize> InnerTemporalGraph<N> {
         self.storage.nodes_len()
     }
 
-    pub(crate) fn internal_num_edges(&self, layer: Option<usize>) -> usize {
-        self.storage.edges_len(layer)
+    pub(crate) fn internal_num_edges(&self, layers: &[usize]) -> usize {
+        self.storage.edges_len(layers)
     }
 
-    pub(crate) fn degree(&self, v: VID, dir: Direction, layer: Option<usize>) -> usize {
+    pub(crate) fn degree(&self, v: VID, dir: Direction, layers: &[usize]) -> usize {
         let node_store = self.storage.get_node(v.into());
-        node_store.neighbours(layer, dir).count()
+        node_store.neighbours(layers, dir).count()
     }
 
     #[inline]
@@ -407,10 +407,10 @@ impl<const N: usize> InnerTemporalGraph<N> {
 
         if let Some(e_id) = self.find_edge(src_id, dst_id, None) {
             let mut edge = self.storage.get_edge_mut(e_id.into());
-            edge.layer_mut(layer).delete(t);
+            edge.deletions_mut(layer).insert(t);
         } else {
-            self.link_nodes(src_id, dst_id, t, layer, &vec![], |edge_layer| {
-                edge_layer.delete(t)
+            self.link_nodes(src_id, dst_id, t, layer, &vec![], |new_edge| {
+                new_edge.deletions_mut(layer).insert(t);
             });
         }
 
@@ -423,7 +423,7 @@ impl<const N: usize> InnerTemporalGraph<N> {
             .unwrap_or(0)
     }
 
-    fn link_nodes<F: Fn(&mut EdgeLayer)>(
+    fn link_nodes<F: Fn(&mut EdgeStore<N>)>(
         &self,
         src_id: VID,
         dst_id: VID,
@@ -446,8 +446,8 @@ impl<const N: usize> InnerTemporalGraph<N> {
         } else {
             let mut edge = EdgeStore::new(src_id, dst_id);
             {
+                new_edge_fn(&mut edge);
                 let mut edge_layer = edge.layer_mut(layer);
-                new_edge_fn(&mut edge_layer);
                 for (prop_id, _, prop) in props {
                     edge_layer.add_prop(t, *prop_id, prop.clone());
                 }
@@ -482,19 +482,21 @@ impl<const N: usize> InnerTemporalGraph<N> {
             .collect::<Vec<_>>();
 
         // get the entries for the src and dst nodes
-        let edge_id = self.link_nodes(src_id, dst_id, t, layer, &props, |edge_layer| {
-            edge_layer.update_time(t)
+        let edge_id = self.link_nodes(src_id, dst_id, t, layer, &props, |new_edge| {
+            new_edge.additions_mut(layer).insert(t);
         }); // this is to release the node locks as quick as possible
 
         if let Some(e_id) = edge_id {
             // update the edge with properties
             let mut edge = self.storage.get_edge_mut(e_id.into());
-            let mut edge_layer = edge.layer_mut(layer);
-            for (prop_id, _, prop) in &props {
-                edge_layer.add_prop(t, *prop_id, prop.clone());
+            {
+                let mut edge_layer = edge.layer_mut(layer);
+                for (prop_id, _, prop) in &props {
+                    edge_layer.add_prop(t, *prop_id, prop.clone());
+                }
             }
             // update the time event
-            edge_layer.update_time(t);
+            edge.additions_mut(layer).insert(t);
         }
         Ok(())
     }
@@ -551,7 +553,7 @@ impl<const N: usize> InnerTemporalGraph<N> {
         layer: usize,
     ) -> Vec<(i64, Prop)> {
         let edge = self.storage.get_edge(e.into());
-        if !edge.unsafe_layer(layer).additions().active(t_start..t_end) {
+        if !edge.additions()[layer].active(t_start..t_end) {
             vec![]
         } else {
             let prop_id = self.edge_meta.resolve_prop_id(name, false);

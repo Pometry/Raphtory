@@ -4,7 +4,7 @@ use crate::{
             edges::edge_ref::EdgeRef, graph::tgraph::InnerTemporalGraph, properties::tprop::TProp,
             vertices::vertex_ref::VertexRef, VID,
         },
-        storage::{locked_view::LockedView, timeindex::TimeIndex},
+        storage::{locked_view::LockedView, timeindex::{TimeIndex,LockedLayeredIndex}},
     },
     db::api::view::internal::CoreGraphOps,
     prelude::Prop,
@@ -24,9 +24,9 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
         self.vertex_name(v.into())
     }
 
-    fn edge_additions(&self, eref: EdgeRef) -> LockedView<TimeIndex> {
+    fn edge_additions(&self, eref: EdgeRef) -> LockedLayeredIndex<'_>{
         let edge = self.edge(eref.pid());
-        edge.additions(eref.layer()).unwrap()
+        edge.additions(&[]).unwrap() // FIXME: should be able to pass in an array of layers
     }
 
     fn vertex_additions(&self, v: VID) -> LockedView<TimeIndex> {
@@ -99,19 +99,17 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
 
     fn static_edge_prop(&self, e: EdgeRef, name: &str) -> Option<Prop> {
         let entry = self.edge_entry(e.pid());
-        let edge = entry.value()?;
         let prop_id = self.edge_find_prop(name, true)?;
-        let x = edge
-            .unsafe_layer(e.layer())
-            .static_property(prop_id)
+        let layer = entry.unsafe_layer(0); // FIXME: this should take an array of layer ids
+        let prop = layer.static_property(prop_id)
             .map(|p| p.clone());
-        x
+        prop
     }
 
     fn static_edge_prop_names(&self, e: EdgeRef) -> Vec<String> {
         if let Some(edge) = self.edge_entry(e.pid()).value() {
             return edge
-                .unsafe_layer(e.layer())
+                .unsafe_layer(0) // FIXME: very broken
                 .static_prop_ids()
                 .into_iter()
                 .flat_map(|prop_id| self.edge_reverse_prop_id(prop_id, true))
@@ -124,7 +122,7 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
         let edge = self.edge(e.pid());
         let prop_id = self.edge_find_prop(name, false)?;
 
-        edge.temporal_property(e.layer(), prop_id)
+        edge.temporal_property(0, prop_id) // FIXME: very broken
     }
 
     fn temporal_edge_prop_names(&self, e: EdgeRef) -> Vec<String> {

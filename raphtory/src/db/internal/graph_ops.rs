@@ -19,13 +19,7 @@ impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
             return None;
         }
         let edge_view = self.edge(e_id);
-        Some(EdgeRef::LocalOut {
-            e_pid: e_id,
-            layer_id: 0,
-            src_pid: edge_view.src_id(),
-            dst_pid: edge_view.dst_id(),
-            time: None,
-        })
+        Some(EdgeRef::new_outgoing(e_id, edge_view.src_id(), edge_view.dst_id()))
     }
 
     fn local_vertex_ref(&self, v: VertexRef) -> Option<VID> {
@@ -51,11 +45,13 @@ impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
     }
 
     fn edges_len(&self, layer: Option<usize>) -> usize {
-        self.internal_num_edges(layer)
+        let layers = layer.into_iter().collect::<Vec<_>>();
+        self.internal_num_edges(&layers)
     }
 
     fn degree(&self, v: VID, d: Direction, layer: Option<usize>) -> usize {
-        self.degree(v, d, layer)
+        let layers = layer.into_iter().collect::<Vec<_>>();
+        self.degree(v, d, &layers)
     }
 
     fn vertex_refs(&self) -> Box<dyn Iterator<Item = VID> + Send> {
@@ -67,35 +63,28 @@ impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
         let dst = self.resolve_vertex_ref(&dst)?;
 
         self.find_edge(src, dst, Some(layer))
-            .map(|e_id| EdgeRef::LocalOut {
-                e_pid: e_id,
-                layer_id: layer,
-                src_pid: src,
-                dst_pid: dst,
-                time: None,
-            })
+            .map(|e_id| EdgeRef::new_outgoing(e_id, src, dst) )
     }
 
     fn edge_refs(&self, layer: Option<usize>) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
+        let layers = layer.into_iter().collect::<Vec<_>>();
         if let Some(layer_id) = layer {
             let iter = self
                 .locked_edges()
                 .filter_map(move |edge| {
-                    if edge.has_layer(layer_id) {
+                    if edge.has_layer(&layers) {
                         Some((layer_id, edge))
                     } else {
                         None
                     }
                 })
                 .map(|(layer_id, edge)| {
-                    let e_ref: EdgeRef = edge.deref().into();
-                    e_ref.at_layer(layer_id)
+                    edge.deref().into()
                 });
             Box::new(iter)
         } else {
             let iter = self.locked_edges().map(|edge| {
-                let e_ref: EdgeRef = edge.deref().into();
-                e_ref.at_layer(0)
+                edge.deref().into()
             });
             Box::new(iter)
         }
@@ -111,7 +100,8 @@ impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
         let v = self.vertex_arc(vid);
 
         let iter: GenBoxed<EdgeRef> = GenBoxed::new_boxed(|co| async move {
-            for e_ref in v.edge_tuples(layer, d) {
+            let layers = layer.into_iter().collect::<Vec<_>>();
+            for e_ref in v.edge_tuples(&layers, d) {
                 co.yield_(e_ref).await;
             }
         });
@@ -129,7 +119,8 @@ impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
         let v = self.vertex_arc(vid);
 
         let iter: GenBoxed<VertexRef> = GenBoxed::new_boxed(|co| async move {
-            for v_id in v.neighbours(layer, d) {
+            let layers = layer.into_iter().collect::<Vec<_>>();
+            for v_id in v.neighbours(&layers, d) {
                 co.yield_(VertexRef::Local(v_id)).await;
             }
         });

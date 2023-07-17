@@ -4,7 +4,7 @@ use crate::{
             edges::edge_ref::EdgeRef, properties::tprop::TProp, vertices::vertex_ref::VertexRef,
             VID,
         },
-        storage::{locked_view::LockedView, timeindex::TimeIndex},
+        storage::{locked_view::LockedView, timeindex::{TimeIndex, LockedLayeredIndex}},
         Prop,
     },
     db::api::view::internal::Base,
@@ -26,7 +26,7 @@ pub trait CoreGraphOps {
 
     /// Get all the addition timestamps for an edge
     /// (this should always be global and not affected by windowing as deletion semantics may need information outside the current view!)
-    fn edge_additions(&self, eref: EdgeRef) -> LockedView<TimeIndex>;
+    fn edge_additions(&self, eref: EdgeRef) -> LockedLayeredIndex<'_>;
 
     /// Get all the addition timestamps for a vertex
     /// (this should always be global and not affected by windowing as deletion semantics may need information outside the current view!)
@@ -211,7 +211,7 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
         self.graph().vertex_name(v)
     }
 
-    fn edge_additions(&self, eref: EdgeRef) -> LockedView<TimeIndex> {
+    fn edge_additions(&self, eref: EdgeRef) -> LockedLayeredIndex<'_> {
         self.graph().edge_additions(eref)
     }
 

@@ -2,8 +2,6 @@ use bitvec::prelude::BitArray;
 
 use crate::core::entities::{vertices::vertex_ref::VertexRef, EID, VID};
 
-const LAYER_SIZE:usize = 4; // sizeof(usize) * 4
-
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct EdgeRef{
     e_pid: EID,
@@ -11,7 +9,6 @@ pub struct EdgeRef{
     dst_pid: VID,
     e_type: Dir,
     time: Option<i64>,
-    // layer_id: Option<BitArray<[usize; LAYER_SIZE]>>,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -80,23 +77,6 @@ impl EdgeRef {
     pub(crate) fn pid(&self) -> EID {
         self.e_pid
     }
-
-    // pub fn at_layer(mut self, layer: usize) -> Self {
-    //     match self {
-    //         e_ref @ EdgeRef::LocalInto {
-    //             ref mut layer_id, ..
-    //         } => {
-    //             *layer_id = layer;
-    //             e_ref
-    //         }
-    //         e_ref @ EdgeRef::LocalOut {
-    //             ref mut layer_id, ..
-    //         } => {
-    //             *layer_id = layer;
-    //             e_ref
-    //         }
-    //     }
-    // }
 
     pub fn at(&self, time: i64) -> Self {
         let mut e_ref = *self;

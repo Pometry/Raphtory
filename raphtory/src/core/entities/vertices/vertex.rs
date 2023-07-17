@@ -76,16 +76,16 @@ impl<'a, const N: usize> Vertex<'a, N> {
 
     pub fn neighbours<'b>(
         &'a self,
-        layer: &'b str,
+        layers: &'b [&'b str],
         dir: Direction,
     ) -> impl Iterator<Item = Vertex<'a, N>> + 'a {
-        let layer = self
-            .graph
-            .vertex_meta
-            .get_or_create_layer_id(layer.to_owned());
+        let layer_ids = layers
+            .iter()
+            .filter_map(|str| self.graph.vertex_meta.get_layer_id(str))
+            .collect_vec();
 
         (*self.node)
-            .neighbours(Some(layer), dir)
+            .neighbours(&layer_ids, dir)
             .map(move |dst| self.graph.vertex(dst))
     }
 
@@ -132,20 +132,16 @@ impl<const N: usize> ArcVertex<N> {
         ArcVertex { e }
     }
 
-    pub fn edge_tuples(
-        &self,
-        layers: &[usize],
+    pub fn edge_tuples<'a, 'b:'a>(
+        &'a self,
+        layers: &'b [usize],
         dir: Direction,
     ) -> impl Iterator<Item = EdgeRef> + '_ {
-        self.e.edge_tuples(layer, dir)
+        self.e.edge_tuples(layers, dir)
     }
 
-    pub fn neighbours(
-        &self,
-        layer: Option<usize>,
-        dir: Direction,
-    ) -> impl Iterator<Item = VID> + '_ {
-        self.e.neighbours(layer, dir)
+    pub fn neighbours(&self, layers: &[usize], dir: Direction) -> impl Iterator<Item = VID> + '_ {
+        self.e.neighbours(layers, dir)
     }
 }
 
@@ -158,15 +154,27 @@ impl<const N: usize> ArcEdge<N> {
         ArcEdge { e }
     }
 
-    pub(crate) fn timestamps(&self, layer: usize) -> impl Iterator<Item = &i64> + '_ {
-        self.e.layer_timestamps(layer).iter()
+    pub(crate) fn timestamps(&self, layer: &[usize]) -> impl Iterator<Item = &i64> + Send + '_ {
+        let adds = self.e.additions();
+        adds.iter()
+            .enumerate()
+            .filter(|(layer_id, t)| layer.contains(layer_id))
+            .map(|(_, t)| t.iter())
+            .kmerge()
+            .dedup()
     }
 
     pub(crate) fn timestamps_window(
         &self,
-        layer: usize,
+        layer: &[usize],
         w: Range<i64>,
     ) -> impl Iterator<Item = &i64> + '_ {
-        self.e.layer_timestamps(layer).range_iter(w)
+        let adds = self.e.additions();
+        adds.iter()
+            .enumerate()
+            .filter(|(layer_id, t)| layer.contains(layer_id))
+            .map(|(_, t)| t.range_iter(w.clone()))
+            .kmerge()
+            .dedup()
     }
 }

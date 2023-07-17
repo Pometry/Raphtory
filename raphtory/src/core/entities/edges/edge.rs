@@ -11,7 +11,7 @@ use crate::core::{
     },
     storage::{
         locked_view::LockedView,
-        timeindex::{TimeIndex, TimeIndexOps},
+        timeindex::{TimeIndex, TimeIndexOps, LockedLayeredIndex},
         Entry,
     },
     Direction, Prop,
@@ -113,21 +113,21 @@ impl<'a, const N: usize> EdgeView<'a, N> {
         out
     }
 
-    pub(crate) fn additions(self, layer_id: usize) -> Option<LockedView<'a, TimeIndex>> {
+    pub(crate) fn additions(self, layer_ids: &[usize]) -> Option<LockedLayeredIndex<'a>> {
         match self.edge_id {
             ERef::ERef(entry) => {
-                let t_index = entry.map(|entry| entry.layer_timestamps(layer_id));
-                Some(t_index)
+                let t_index = entry.map(|entry| entry.additions());
+                Some(LockedLayeredIndex::new(layer_ids.into(), t_index))
             }
             _ => None,
         }
     }
 
-    pub(crate) fn deletions(self, layer_id: usize) -> Option<LockedView<'a, TimeIndex>> {
+    pub(crate) fn deletions(self, layer_ids: &[usize]) -> Option<LockedLayeredIndex<'a>> {
         match self.edge_id {
             ERef::ERef(entry) => {
-                let t_index = entry.map(|entry| entry.layer_deletions(layer_id));
-                Some(t_index)
+                let t_index = entry.map(|entry| entry.deletions());
+                Some(LockedLayeredIndex::new(layer_ids.into(), t_index))
             }
             _ => None,
         }
@@ -234,9 +234,9 @@ impl<'a, const N: usize> EdgeView<'a, N> {
         match &self.edge_id {
             ERef::ELock { lock, .. } => {
                 let e = lock.get_edge(self.edge_id().into());
-                e.unsafe_layer(layer_id).additions().active(w)
+                e.additions()[layer_id].active(w)
             }
-            ERef::ERef(entry) => (*entry).unsafe_layer(layer_id).additions().active(w),
+            ERef::ERef(entry) => (*entry).additions()[layer_id].active(w),
         }
     }
 }

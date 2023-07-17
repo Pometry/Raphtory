@@ -175,7 +175,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeViewOps
                         self.eref().dst(),
                         t,
                         t.saturating_add(1),
-                        self.eref().layer(),
+                        0, // FIXME should be able to pass in an array of layers
                     )
             }
         }

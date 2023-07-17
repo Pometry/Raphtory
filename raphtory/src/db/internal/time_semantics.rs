@@ -46,13 +46,13 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
     }
 
     fn include_edge_window(&self, e: EdgeRef, w: Range<i64>) -> bool {
-        self.edge(e.pid()).active(e.layer(), w)
+        self.edge(e.pid()).active(0, w) // FIXME: should be able to pass in an array of layers
     }
 
     fn edge_t(&self, e: EdgeRef) -> BoxedIter<EdgeRef> {
         let arc = self.edge_arc(e.pid());
         let iter: GenBoxed<EdgeRef> = GenBoxed::new_boxed(|co| async move {
-            for t in arc.timestamps(e.layer()) {
+            for t in arc.timestamps(&[]) { // FIXME: should be able to pass in an array of layers
                 co.yield_(e.at(*t)).await;
             }
         });
@@ -62,7 +62,7 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
     fn edge_window_t(&self, e: EdgeRef, w: Range<i64>) -> BoxedIter<EdgeRef> {
         let arc = self.edge_arc(e.pid());
         let iter: GenBoxed<EdgeRef> = GenBoxed::new_boxed(|co| async move {
-            for t in arc.timestamps_window(e.layer(), w) {
+            for t in arc.timestamps_window(&[], w) { // FIXME should be able to pass in an array of layers
                 co.yield_(e.at(*t)).await;
             }
         });
@@ -148,11 +148,11 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
         t_start: i64,
         t_end: i64,
     ) -> Vec<(i64, Prop)> {
-        self.prop_vec_window(e.pid(), name, t_start, t_end, e.layer())
+        self.prop_vec_window(e.pid(), name, t_start, t_end, 0) // FIXME should be able to pass in an array of layers
     }
 
     fn temporal_edge_prop_vec(&self, e: EdgeRef, name: &str) -> Vec<(i64, Prop)> {
         self.edge(e.pid())
-            .temporal_properties(name, e.layer(), None)
+            .temporal_properties(name, 0, None) // FIXME should be able to pass in an array of layers
     }
 }

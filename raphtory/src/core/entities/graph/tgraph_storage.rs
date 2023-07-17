@@ -63,12 +63,11 @@ impl<const N: usize> GraphStorage<N> {
         self.nodes.len()
     }
 
-    pub(crate) fn edges_len(&self, layer: Option<usize>) -> usize {
-        match layer {
-            None => self.edges.len(),
-            Some(layer_id) => self.nodes.iter().fold(0, |len, node| {
-                len + node.edge_tuples(Some(layer_id), Direction::OUT).count()
-            }),
+    pub(crate) fn edges_len(&self, layers: &[usize]) -> usize {
+        if layers.len() == 0 {
+            self.edges.len()
+        } else {
+            self.edges.iter().filter(|e| e.has_layer(layers)).count()
         }
     }
 

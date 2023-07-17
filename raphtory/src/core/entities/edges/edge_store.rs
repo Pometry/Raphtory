@@ -4,7 +4,7 @@ use crate::core::{
         properties::{props::Props, tprop::TProp},
         EID, VID,
     },
-    storage::timeindex::TimeIndex,
+    storage::{timeindex::TimeIndex, locked_view::LockedView},
     utils::errors::MutateGraphError,
     Prop,
 };
@@ -18,26 +18,18 @@ pub(crate) struct EdgeStore<const N: usize> {
     src: VID,
     dst: VID,
     layers: Vec<EdgeLayer>, // each layer has its own set of properties
+    additions: Vec<TimeIndex>,
+    deletions: Vec<TimeIndex>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
 pub(crate) struct EdgeLayer {
-    additions: TimeIndex,
-    deletions: TimeIndex,
     props: Option<Props>, // memory optimisation: only allocate props if needed
 }
 
 impl EdgeLayer {
     pub fn props(&self) -> Option<&Props> {
         self.props.as_ref()
-    }
-
-    pub fn update_time(&mut self, t: i64) {
-        self.additions.insert(t);
-    }
-
-    pub fn delete(&mut self, t: i64) {
-        self.deletions.insert(t);
     }
 
     pub fn add_prop(&mut self, t: i64, prop_id: usize, prop: Prop) {
@@ -60,10 +52,6 @@ impl EdgeLayer {
             .as_ref()
             .map(|props| props.static_prop_ids())
             .unwrap_or_default()
-    }
-
-    pub fn additions(&self) -> &TimeIndex {
-        &self.additions
     }
 
     pub(crate) fn static_property(&self, prop_id: usize) -> Option<&Prop> {
@@ -91,6 +79,7 @@ impl EdgeLayer {
                 .unwrap_or_else(|| Box::new(std::iter::empty()))
         }
     }
+
 }
 
 impl<const N: usize> From<&EdgeStore<N>> for EdgeRef {
@@ -120,6 +109,8 @@ impl<const N: usize> EdgeStore<N> {
             src,
             dst,
             layers: Vec::with_capacity(1),
+            additions: Vec::with_capacity(1),
+            deletions: Vec::with_capacity(1),
         }
     }
 
@@ -131,12 +122,12 @@ impl<const N: usize> EdgeStore<N> {
         self.layers.get(layer_id).unwrap()
     }
 
-    pub fn layer_timestamps(&self, layer_id: usize) -> &TimeIndex {
-        &self.layers.get(layer_id).unwrap().additions
+    pub fn additions(&self) -> &Vec<TimeIndex> {
+        &self.additions
     }
 
-    pub fn layer_deletions(&self, layer_id: usize) -> &TimeIndex {
-        &self.layers.get(layer_id).unwrap().deletions
+    pub fn deletions(&self) -> &Vec<TimeIndex> {
+        &self.deletions
     }
 
     pub fn temporal_prop(&self, layer_id: usize, prop_id: usize) -> Option<&TProp> {
@@ -147,6 +138,20 @@ impl<const N: usize> EdgeStore<N> {
 
     pub fn layer_mut(&mut self, layer_id: usize) -> impl DerefMut<Target = EdgeLayer> + '_ {
         self.get_or_allocate_layer(layer_id)
+    }
+
+    pub fn deletions_mut(&mut self, layer_id: usize) -> &mut TimeIndex {
+        if self.deletions.len() <= layer_id {
+            self.deletions.resize_with(layer_id + 1, Default::default);
+        }
+        &mut self.deletions[layer_id]
+    }
+
+    pub fn additions_mut(&mut self, layer_id: usize) -> &mut TimeIndex {
+        if self.additions.len() <= layer_id {
+            self.additions.resize_with(layer_id + 1, Default::default);
+        }
+        &mut self.additions[layer_id]
     }
 
     pub fn src(&self) -> VID {

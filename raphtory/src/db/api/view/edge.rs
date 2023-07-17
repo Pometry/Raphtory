@@ -162,11 +162,12 @@ pub trait EdgeViewOps: EdgeViewInternalOps<Self::Graph, Self::Vertex> {
 
     /// Gets the name of the layer this edge belongs to
     fn layer_name(&self) -> String {
-        if self.eref().layer() == 0 {
-            "default layer".to_string()
-        } else {
-            self.graph().get_layer_name_by_id(self.eref().layer())
-        }
+        // if self.eref().layer() == 0 {
+        //     "default layer".to_string()
+        // } else {
+        //     self.graph().get_layer_name_by_id(self.eref().layer())
+        // }
+        "FIXME".to_string()
     }
 }
 

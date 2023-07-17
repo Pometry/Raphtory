@@ -11,7 +11,7 @@ use crate::core::{
 };
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-use std::ops::Range;
+use std::{ops::Range, sync::Arc};
 
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
 pub(crate) struct VertexStore<const N: usize> {
@@ -117,9 +117,9 @@ impl<const N: usize> VertexStore<N> {
         self.props.as_ref().and_then(|ps| ps.static_prop(prop_id))
     }
 
-    pub(crate) fn edge_tuples<'a>(
+    pub(crate) fn edge_tuples<'a, 'b: 'a>(
         &'a self,
-        layers: &[usize],
+        layers: &'b [usize],
         d: Direction,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send + 'a> {
         let self_id = self.vid;
@@ -128,69 +128,76 @@ impl<const N: usize> VertexStore<N> {
                 layers
                     .iter()
                     .filter_map(|i| self.layers.get(*i))
-                    .flat_map(|layer| {
-                        let iter: Box<dyn Iterator<Item = EdgeRef> + Send> = match d {
-                            Direction::IN => Box::new(layer.iter(d).map(move |(src_pid, e_id)| {
-                                EdgeRef::new_incoming(e_id, src_pid, self_id)
-                            })),
-                            Direction::OUT => {
-                                Box::new(layer.iter(d).map(move |(dst_pid, e_id)| {
-                                    EdgeRef::new_outgoing(e_id, self_id, dst_pid)
-                                }))
-                            }
-                            Direction::BOTH => Box::new(
-                                self.edge_tuples(layers, Direction::OUT)
-                                    .merge_by(self.edge_tuples(layers, Direction::IN), |e1, e2| {
-                                        e1.remote() < e2.remote()
-                                    }),
-                            ),
-                        };
-                        iter
+                    .flat_map(move |layer| {
+                        self.iter_adj(layer, d, self_id, layers)
                     }),
             )
         } else {
             let iter = self
                 .layers
                 .iter()
-                .enumerate()
-                .flat_map(move |(layer_id, _)| self.edge_tuples(&[layer_id], d));
+                .flat_map(move |layer| self.iter_adj(layer, d, self_id, layers));
             Box::new(iter)
         }
+    }
+
+    fn iter_adj<'a, 'b: 'a>(&'a self, layer: &'a Adj, d: Direction, self_id: VID, layers: &'b [usize]) -> impl Iterator<Item = EdgeRef> + Send + 'a {
+        let iter: Box<dyn Iterator<Item = EdgeRef> + Send> = match d {
+            Direction::IN => Box::new(
+                layer
+                    .iter(d)
+                    .map(move |(src_pid, e_id)| EdgeRef::new_incoming(e_id, src_pid, self_id)),
+            ),
+            Direction::OUT => Box::new(
+                layer
+                    .iter(d)
+                    .map(move |(dst_pid, e_id)| EdgeRef::new_outgoing(e_id, self_id, dst_pid)),
+            ),
+            Direction::BOTH => Box::new(
+                self.edge_tuples(layers, Direction::OUT)
+                    .merge_by(self.edge_tuples(layers, Direction::IN), |e1, e2| {
+                        e1.remote() < e2.remote()
+                    }),
+            ),
+        };
+        iter
     }
 
     // every neighbour apears once in the iterator
     // this is important because it calculates degree
     pub(crate) fn neighbours<'a>(
         &'a self,
-        layer_id: &[usize],
+        layers: &[usize],
         d: Direction,
     ) -> Box<dyn Iterator<Item = VID> + Send + 'a> {
-        match layer_id {
-            Some(layer_id) => {
-                if let Some(layer) = self.layers.get(layer_id) {
-                    match d {
+        if layers.len() > 0 {
+            let iter = layers
+                .iter()
+                .filter_map(|l| self.layers.get(*l))
+                .map(|layer| {
+                    let iter: Box<dyn Iterator<Item = VID> + Send> = match d {
                         Direction::IN => Box::new(layer.iter(d).map(|(from_v, _)| from_v)),
                         Direction::OUT => Box::new(layer.iter(d).map(|(to_v, _)| to_v)),
                         Direction::BOTH => Box::new(
-                            self.neighbours(Some(layer_id), Direction::OUT)
-                                .merge(self.neighbours(Some(layer_id), Direction::IN))
+                            self.neighbours(layers, Direction::OUT)
+                                .merge(self.neighbours(layers, Direction::IN))
                                 .dedup(),
                         ),
-                    }
-                } else {
-                    Box::new(std::iter::empty())
-                }
-            }
-            None => {
-                let iter = self
-                    .layers
-                    .iter()
-                    .enumerate()
-                    .map(|(layer_id, _)| self.neighbours(Some(layer_id), d))
-                    .kmerge()
-                    .dedup();
-                Box::new(iter)
-            }
+                    };
+                    iter
+                })
+                .kmerge()
+                .dedup();
+            Box::new(iter)
+        } else {
+            let iter = self
+                .layers
+                .iter()
+                .enumerate()
+                .map(|(layer_id, _)| self.neighbours(&[layer_id], d))
+                .kmerge()
+                .dedup();
+            Box::new(iter)
         }
     }
 
