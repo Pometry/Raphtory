@@ -35,7 +35,10 @@ impl<const N: usize> TemporalPropertiesOps for InnerTemporalGraph<N> {
         // TODO: Is this actually worth doing? the advantage is that there is definitely no writes during the iteration as we keep the guard alive...
         let guarded = self.temporal_property_names();
         Box::new((0..guarded.len()).map(move |i| {
-            RwLockReadGuard::map(RwLockReadGuard::rwlock(&guarded).read(), |v| &v[i]).into()
+            RwLockReadGuard::map(RwLockReadGuard::rwlock(&guarded).read_recursive(), |v| {
+                &v[i]
+            })
+            .into()
         }))
     }
 

@@ -59,7 +59,7 @@ pub trait PropertiesOps:
 
 impl<P: TemporalPropertiesOps + TemporalPropertyViewOps + StaticPropertiesOps> PropertiesOps for P {}
 
-pub trait InheritTempralPropertyViewOps: Base {}
+pub trait InheritTemporalPropertyViewOps: Base {}
 pub trait InheritTemporalPropertiesOps: Base {}
 pub trait InheritStaticPropertiesOps: Base {}
 pub trait InheritPropertiesOps: Base {}
@@ -67,7 +67,7 @@ pub trait InheritPropertiesOps: Base {}
 impl<P: InheritPropertiesOps> InheritStaticPropertiesOps for P {}
 impl<P: InheritPropertiesOps> InheritTemporalPropertiesOps for P {}
 
-impl<P: InheritTempralPropertyViewOps> TemporalPropertyViewOps for P
+impl<P: InheritTemporalPropertyViewOps> TemporalPropertyViewOps for P
 where
     P::Base: TemporalPropertyViewOps,
 {
@@ -88,7 +88,7 @@ where
     }
 }
 
-impl<P: InheritTemporalPropertiesOps> InheritTempralPropertyViewOps for P {}
+impl<P: InheritTemporalPropertiesOps> InheritTemporalPropertyViewOps for P {}
 
 impl<P: InheritTemporalPropertiesOps> TemporalPropertiesOps for P
 where

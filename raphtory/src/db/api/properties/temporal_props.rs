@@ -1,5 +1,7 @@
+use crate::core::storage::locked_view::LockedView;
 use crate::core::{Prop, PropUnwrap};
 use crate::db::api::properties::internal::{Key, PropertiesOps};
+use crate::db::api::view::BoxedIter;
 use crate::prelude::Graph;
 use chrono::NaiveDateTime;
 use std::iter::Zip;
@@ -61,19 +63,8 @@ impl<P: PropertiesOps + Clone> IntoIterator for TemporalProperties<P> {
     type IntoIter = Zip<std::vec::IntoIter<String>, std::vec::IntoIter<TemporalPropertyView<P>>>;
 
     fn into_iter(self) -> Self::IntoIter {
-        let keys = self.keys();
-        let values = self.values();
-        keys.into_iter().zip(values)
-    }
-}
-
-impl<P: PropertiesOps + Clone> IntoIterator for &TemporalProperties<P> {
-    type Item = (String, TemporalPropertyView<P>);
-    type IntoIter = Zip<std::vec::IntoIter<String>, std::vec::IntoIter<TemporalPropertyView<P>>>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        let keys = self.keys();
-        let values = self.values();
+        let keys: Vec<_> = self.keys().map(|k| k.clone()).collect();
+        let values: Vec<_> = self.values().collect();
         keys.into_iter().zip(values)
     }
 }
@@ -82,30 +73,28 @@ impl<P: PropertiesOps + Clone> TemporalProperties<P> {
     pub(crate) fn new(props: P) -> Self {
         Self { props }
     }
-    pub fn keys(&self) -> Vec<String> {
-        self.props
-            .temporal_property_keys()
-            .map(|v| v.clone())
-            .collect()
+    pub fn keys<'a>(&'a self) -> impl Iterator<Item = LockedView<'a, String>> + 'a {
+        self.props.temporal_property_keys()
     }
 
     pub fn contains<Q: AsRef<str>>(&self, key: Q) -> bool {
         self.get(key).is_some()
     }
 
-    pub fn values(&self) -> Vec<TemporalPropertyView<P>> {
+    pub fn values(&self) -> impl Iterator<Item = TemporalPropertyView<P>> + '_ {
         self.props
             .temporal_property_values()
             .map(|k| TemporalPropertyView::new(self.props.clone(), k))
-            .collect()
     }
 
-    pub fn iter_latest(&self) -> impl Iterator<Item = (String, Prop)> + '_ {
+    pub fn iter_latest<'a>(&'a self) -> impl Iterator<Item = (LockedView<'a, String>, Prop)> + '_ {
         self.iter().flat_map(|(k, v)| v.latest().map(|v| (k, v)))
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = (String, TemporalPropertyView<P>)> + '_ {
-        self.into_iter()
+    pub fn iter<'a>(
+        &'a self,
+    ) -> impl Iterator<Item = (LockedView<'a, String>, TemporalPropertyView<P>)> + 'a {
+        self.keys().zip(self.values())
     }
 
     pub fn get<Q: AsRef<str>>(&self, key: Q) -> Option<TemporalPropertyView<P>> {
@@ -116,7 +105,7 @@ impl<P: PropertiesOps + Clone> TemporalProperties<P> {
 
     pub fn collect_properties(self) -> Vec<(String, Prop)> {
         self.iter()
-            .flat_map(|(k, v)| v.latest().map(|v| (k, v)))
+            .flat_map(|(k, v)| v.latest().map(|v| (k.clone(), v)))
             .collect()
     }
 }

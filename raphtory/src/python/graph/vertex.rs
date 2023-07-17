@@ -478,6 +478,7 @@ impl PyVertices {
     }
 
     //Fixme: needs a view that allows indexing
+    #[getter]
     fn properties(&self) -> PropsIterable {
         let vertices = self.vertices.clone();
         (move || vertices.properties()).into()
@@ -923,6 +924,7 @@ impl PyPathFromVertex {
         (move || path.latest_time()).into()
     }
 
+    #[getter]
     fn properties(&self) -> PropsIterable {
         let path = self.path.clone();
         (move || path.properties()).into()
@@ -1144,6 +1146,7 @@ impl PyVertexIterable {
         (move || vertices().latest_time()).into()
     }
 
+    #[getter]
     fn properties(&self) -> PropsIterable {
         let vertices = self.builder.clone();
         (move || vertices().properties()).into()
@@ -1223,6 +1226,7 @@ impl PyNestedVertexIterable {
         (move || vertices().latest_time()).into()
     }
 
+    #[getter]
     fn properties(&self) -> NestedPropsIterable {
         let vertices = self.builder.clone();
         (move || vertices().properties()).into()

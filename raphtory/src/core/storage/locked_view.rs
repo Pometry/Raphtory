@@ -36,6 +36,7 @@ impl<'a> From<LockedView<'a, String>> for String {
     }
 }
 
+
 impl<'a, T: PartialEq<Rhs>, Rhs, LRhs: Deref<Target = Rhs>> PartialEq<LRhs> for LockedView<'a, T> {
     fn eq(&self, other: &LRhs) -> bool {
         self.deref() == other.deref()

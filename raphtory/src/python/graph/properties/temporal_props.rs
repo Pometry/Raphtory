@@ -7,10 +7,12 @@ use crate::db::api::view::internal::{DynamicGraph, Static};
 use crate::python::graph::properties::static_props::PyStaticProperties;
 use crate::python::graph::properties::DynProps;
 use crate::python::types::repr::{iterator_dict_repr, iterator_repr, Repr};
-use crate::python::utils::{PyGenericIterator, PyTime};
+use crate::python::types::wrappers::iterators::OptionPropIterable;
+use crate::python::utils::{PyGenericIterator, PyNestedGenericIterator, PyTime};
+use itertools::Itertools;
 use pyo3::exceptions::PyKeyError;
 use pyo3::prelude::*;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 pub type DynTemporalProperties = TemporalProperties<DynProps>;
@@ -47,22 +49,25 @@ pub struct PyTemporalProperties {
 #[pymethods]
 impl PyTemporalProperties {
     fn keys(&self) -> Vec<String> {
-        self.props.keys()
+        self.props.keys().map(|k| k.clone()).collect()
     }
     fn values(&self) -> Vec<DynTemporalProperty> {
-        self.props.values()
+        self.props.values().collect()
     }
     fn items(&self) -> Vec<(String, DynTemporalProperty)> {
-        self.props.iter().collect()
+        self.props.iter().map(|(k, v)| (k.clone(), v)).collect()
     }
 
     fn latest(&self) -> HashMap<String, Prop> {
-        self.props.iter_latest().collect()
+        self.props
+            .iter_latest()
+            .map(|(k, v)| (k.clone(), v))
+            .collect()
     }
     fn histories(&self) -> HashMap<String, Vec<(i64, Prop)>> {
         self.props
             .iter()
-            .map(|(k, v)| (k, v.iter().collect()))
+            .map(|(k, v)| (k.clone(), v.iter().collect()))
             .collect()
     }
 
@@ -194,3 +199,116 @@ impl<P: PropertiesOps> Repr for StaticProperties<P> {
         format!("StaticProperties({{{}}})", iterator_dict_repr(self.iter()))
     }
 }
+
+py_iterable!(
+    TemporalPropsIterable,
+    DynTemporalProperties,
+    PyTemporalProperties,
+    PyGenericIterator
+);
+
+#[pymethods]
+impl TemporalPropsIterable {
+    fn keys(&self) -> Vec<String> {
+        self.iter()
+            // FIXME: Still have to clone all those strings which sucks
+            .map(|p| p.keys().map(|k| k.clone()).collect_vec())
+            .kmerge()
+            .dedup()
+            .collect()
+    }
+    fn values(&self) -> Vec<TemporalPropertyIterable> {
+        self.keys().into_iter().map(|k| self.get(k)).collect()
+    }
+    fn items(&self) -> Vec<(String, TemporalPropertyIterable)> {
+        self.keys().into_iter().zip(self.values()).collect()
+    }
+
+    fn latest(&self) -> HashMap<String, OptionPropIterable> {
+        let builder = self.builder.clone();
+        self.keys()
+            .into_iter()
+            .map(move |k| {
+                let builder = builder.clone();
+                let nk = Arc::new(k.clone());
+                (
+                    k,
+                    (move || {
+                        let nk = nk.clone();
+                        builder().map(move |p| p.get(nk.as_ref()).and_then(|v| v.latest()))
+                    })
+                    .into(),
+                )
+            })
+            .collect()
+    }
+
+    fn histories(&self) -> HashMap<String, Vec<Vec<(i64, Prop)>>> {
+        self.keys()
+            .into_iter()
+            .map(|k| {
+                let v = self
+                    .iter()
+                    .map(|p| p.get(&k).map(|v| v.iter().collect()).unwrap_or_default())
+                    .collect();
+                (k, v)
+            })
+            .collect()
+    }
+
+    fn __getitem__(&self, key: String) -> PyResult<TemporalPropertyIterable> {
+        if self.__contains__(&key) {
+            Ok(self.get(key))
+        } else {
+            Err(PyKeyError::new_err("unknown property"))
+        }
+    }
+
+    fn __contains__(&self, key: &str) -> bool {
+        self.iter().any(|p| p.contains(key))
+    }
+
+    fn get(&self, key: String) -> TemporalPropertyIterable {
+        let builder = self.builder.clone();
+        let key = Arc::new(key);
+        (move || {
+            let key = key.clone();
+            builder().map(move |p| p.get(key.as_ref()))
+        })
+        .into()
+    }
+}
+
+pub struct OptionPyTemporalPropertyView(Option<PyTemporalPropertyView>);
+
+impl Repr for OptionPyTemporalPropertyView {
+    fn repr(&self) -> String {
+        self.0.repr()
+    }
+}
+
+impl IntoPy<PyObject> for OptionPyTemporalPropertyView {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        self.0.into_py(py)
+    }
+}
+
+impl From<Option<DynTemporalProperty>> for OptionPyTemporalPropertyView {
+    fn from(value: Option<DynTemporalProperty>) -> Self {
+        Self(value.map(|v| v.into()))
+    }
+}
+
+py_iterable!(
+    TemporalPropertyIterable,
+    Option<DynTemporalProperty>,
+    OptionPyTemporalPropertyView,
+    PyGenericIterator
+);
+
+py_nested_iterable!(
+    NestedTemporalPropsIterable,
+    DynTemporalProperties,
+    PyTemporalProperties,
+    PyNestedGenericIterator
+);

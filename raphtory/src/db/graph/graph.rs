@@ -1112,6 +1112,7 @@ mod db_tests {
                 .properties()
                 .temporal()
                 .iter_latest()
+                .map(|(k, v)| (k.clone(), v))
                 .collect::<HashMap<_, _, _>>()
                 == t0_props;
         check = check
@@ -1119,6 +1120,7 @@ mod db_tests {
                 .properties()
                 .temporal()
                 .iter_latest()
+                .map(|(k, v)| (k.clone(), v))
                 .collect::<HashMap<_, _, _>>()
                 == t1_props;
         check
@@ -1140,7 +1142,7 @@ mod db_tests {
             .properties()
             .temporal()
             .iter()
-            .map(|(k, v)| (k, v.iter().collect()))
+            .map(|(k, v)| (k.clone(), v.iter().collect()))
             .collect();
 
         let mut exp = HashMap::new();

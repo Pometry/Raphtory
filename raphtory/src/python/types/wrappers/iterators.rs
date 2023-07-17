@@ -158,29 +158,6 @@ py_nested_iterable!(
     NestedPropHistoryIter
 );
 
-py_iterator!(
-    TemporalPropsIter,
-    DynTemporalProperties,
-    PyTemporalProperties
-);
-py_iterable!(
-    TemporalPropsIterable,
-    DynTemporalProperties,
-    PyTemporalProperties,
-    TemporalPropsIter
-);
-py_iterator!(
-    NestedTemporalPropsIter,
-    BoxedIter<DynTemporalProperties>,
-    TemporalPropsIter
-);
-py_nested_iterable!(
-    NestedTemporalPropsIterable,
-    DynTemporalProperties,
-    PyTemporalProperties,
-    NestedTemporalPropsIter
-);
-
 py_iterator!(StaticPropsIter, DynStaticProperties, PyStaticProperties);
 py_iterable!(
     StaticPropsIterable,
