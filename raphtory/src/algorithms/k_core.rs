@@ -100,6 +100,8 @@ where
 }
 
 mod k_core_test {
+    use std::collections::HashSet;
+
     use crate::algorithms::triangle_count::triangle_count;
     use crate::prelude::*;
     use crate::algorithms::k_core::k_core_set;
@@ -140,15 +142,12 @@ mod k_core_test {
 
         let result = k_core_set(&graph, 2, usize::MAX, None);
         let subgraph = graph.subgraph(result.clone());
+        let actual = vec!["1", "3", "4", "5", "6", "8", "9", "10", "11"]
+        .into_iter()
+        .map(|k| k.to_string())
+        .collect::<HashSet<String>>();
 
-        // Is correct -- every vertex apart from 2 and 7
-        println!("{:?}", subgraph.vertices().name().collect::<Vec<String>>());
-
-        // Should be 8 but is 6
-        println!("({:?})", triangle_count(&subgraph, None));
-
-        subgraph.edges().explode().for_each(|e| println!("{:?} {:?} {:?}", e.src().name(),e.dst().name(),e.time().unwrap()));
-        subgraph.vertices().into_iter().for_each(|v| println!("{:?} : {:?}", v.name(), v.neighbours().name().collect::<Vec<String>>()));
+        assert_eq!(actual,subgraph.vertices().name().collect::<HashSet<String>>());
 
 
     }
