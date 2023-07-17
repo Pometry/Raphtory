@@ -12,7 +12,6 @@ use crate::{
 
 /// Core functions that should (almost-)always be implemented by pointing at the underlying graph.
 pub trait CoreGraphOps {
-
     /// get the number of vertices in the main graph
     fn unfiltered_num_vertices(&self) -> usize;
 
