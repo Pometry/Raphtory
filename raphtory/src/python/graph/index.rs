@@ -26,7 +26,6 @@ impl GraphIndex {
 
 #[pymethods]
 impl GraphIndex {
-
     /// Searches for vertices which match the given query. This uses Tantivy's fuzzy search.
     /// If you would like to better understand the query syntax, please visit our documentation at https://docs.raphtory.com
     ///
@@ -107,11 +106,7 @@ impl GraphIndex {
         offset: Option<usize>,
     ) -> Result<Vec<VertexView<DynamicGraph>>, PyErr> {
         self.graph
-            .search_vertices(
-                query,
-                limit.unwrap_or(25),
-                offset.unwrap_or(0)
-            )
+            .search_vertices(query, limit.unwrap_or(25), offset.unwrap_or(0))
             .map_err(|e| adapt_err_value(&e))
     }
 
@@ -129,14 +124,10 @@ impl GraphIndex {
         &self,
         query: &str,
         limit: Option<usize>,
-        offset: Option<usize>
+        offset: Option<usize>,
     ) -> Result<Vec<EdgeView<DynamicGraph>>, PyErr> {
         self.graph
-            .search_edges(
-                query,
-                limit.unwrap_or(25),
-                offset.unwrap_or(0)
-            )
+            .search_edges(query, limit.unwrap_or(25), offset.unwrap_or(0))
             .map_err(|e| adapt_err_value(&e))
     }
 }
