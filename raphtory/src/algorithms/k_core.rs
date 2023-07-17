@@ -100,6 +100,7 @@ where
 }
 
 mod k_core_test {
+    use crate::algorithms::triangle_count::triangle_count;
     use crate::prelude::*;
     use crate::algorithms::k_core::k_core_set;
 
@@ -137,8 +138,10 @@ mod k_core_test {
             graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
         }
 
-        let result = k_core_set(&graph, 3, usize::MAX, None);
-        print!("{:?}",result);
+        let result = k_core_set(&graph, 0, usize::MAX, None);
+        let subgraph = graph.subgraph(graph.vertices());
+
+        print!("{:?}",triangle_count(&subgraph,None))
 
 
     }
