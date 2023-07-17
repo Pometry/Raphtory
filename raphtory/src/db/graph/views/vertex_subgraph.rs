@@ -167,7 +167,7 @@ mod subgraph_tests {
     }
 
     #[test]
-    fn test_triangle_count() {
+    fn test_remove_degree1_triangle_count() {
         let graph = Graph::new();
         let edges = vec![
             (1, 2, 1),
@@ -197,7 +197,7 @@ mod subgraph_tests {
         for (src, dst, ts) in edges {
             graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
         }
-        let subgraph = graph.subgraph(graph.vertices());
+        let subgraph = graph.subgraph(graph.vertices().into_iter().filter(|v| v.degree() > 1));
         let ts = triangle_count(&subgraph, None);
         let tg = triangle_count(&graph, None);
         assert_eq!(ts, tg)

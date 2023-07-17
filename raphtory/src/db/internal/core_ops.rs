@@ -133,4 +133,8 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
             .flat_map(|id| self.edge_reverse_prop_id(id, false))
             .collect()
     }
+
+    fn unfiltered_num_vertices(&self) -> usize {
+        self.internal_num_vertices()
+    }
 }
