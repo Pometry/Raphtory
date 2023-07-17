@@ -128,9 +128,10 @@ impl<const N: usize> VertexStore<N> {
                 layers
                     .iter()
                     .filter_map(|i| self.layers.get(*i))
-                    .flat_map(move |layer| {
+                    .map(move |layer| {
                         self.iter_adj(layer, d, self_id, layers)
-                    }),
+                    }).kmerge_by(|e1, e2| e1.remote() < e2.remote())
+                    .dedup(),
             )
         } else {
             let iter = self

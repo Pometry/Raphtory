@@ -76,7 +76,7 @@ impl<'a, const N: usize> Vertex<'a, N> {
 
     pub fn neighbours<'b>(
         &'a self,
-        layers: &'b [&'b str],
+        layers: Vec<&'b str>,
         dir: Direction,
     ) -> impl Iterator<Item = Vertex<'a, N>> + 'a {
         let layer_ids = layers
