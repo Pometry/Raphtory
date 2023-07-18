@@ -33,7 +33,6 @@ use crate::{
 use pyo3::prelude::*;
 use crate::algorithms::algorithm_result::AlgorithmResult;
 
-
 /// Local triangle count - calculates the number of triangles (a cycle of length 3) a vertex participates in.
 ///
 /// This function returns the number of pairs of neighbours of a given node which are themselves connected.
@@ -62,6 +61,7 @@ pub fn local_triangle_count(g: &PyGraphView, v: VertexRef) -> Option<usize> {
 /// Returns:
 ///     dict : Dictionary with string keys and integer values mapping vertex names to their component ids.
 #[pyfunction]
+#[pyo3(signature = (g, iter_count=9223372036854775807))]
 pub fn weakly_connected_components(
     g: &PyGraphView,
     iter_count: usize,
@@ -86,18 +86,8 @@ pub fn weakly_connected_components(
 /// Returns:
 ///     dict : Dictionary with string keys and float values mapping vertex names to their pagerank value.
 #[pyfunction]
+#[pyo3(signature = (g, iter_count=20, max_diff=None))]
 pub fn pagerank(
-    g: &PyGraphView,
-    iter_count: usize,
-    max_diff: Option<f64>,
-) -> AlgorithmResult<String, OrderedFloat<f64>> {
-    unweighted_page_rank(
-        &g.graph, iter_count, None, max_diff, true,
-    )
-}
-
-#[pyfunction]
-pub fn pagerank_df(
     g: &PyGraphView,
     iter_count: usize,
     max_diff: Option<f64>,

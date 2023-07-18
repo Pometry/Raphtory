@@ -1,15 +1,17 @@
 use std::collections::HashMap;
 use std::fmt;
-use std::fmt::{Debug, Display};
+use std::fmt::Debug;
 use ordered_float::OrderedFloat;
 use std::hash::Hash;
+// use pyo3::prelude::*;
+// use pyo3::types::{IntoPyDict, PyDict, PyList};
 
 pub struct AlgorithmResult<H, Y>
     where
         H: Clone + Hash + Eq + Ord,
         Y: Clone
 {
-    result: HashMap<H, Y>,
+    pub result: HashMap<H, Y>,
 }
 
 impl<H, Y> AlgorithmResult<H, Y>
@@ -31,7 +33,28 @@ impl<H, Y> AlgorithmResult<H, Y>
         self.result.get(&key)
     }
 
-    // TODO implement to pandas dataframe
+    // pub fn to_df<'a>(
+    //     &self,
+    //     py: Python<'a>
+    // ) -> PyResult<PyObject>
+    // where
+    //     H: Clone + ToPyObject,
+    //     Y: Clone + ToPyObject,
+    // {
+    //     let hashmap = &self.result;
+    //     let mut keys = Vec::new();
+    //     let mut values = Vec::new();
+    //     for (key, value) in hashmap.iter() {
+    //         keys.push(key.to_object(py));
+    //         values.push(value.to_object(py));
+    //     }
+    //     let dict = PyDict::new(py);
+    //     dict.set_item("Key", PyList::new(py, keys.as_slice()))?;
+    //     dict.set_item("Value", PyList::new(py, values.as_slice()))?;
+    //     let pandas = pyo3::types::PyModule::import(py, "pandas")?;
+    //     let df: &PyAny = pandas.getattr("DataFrame")?.call1((dict,))?;
+    //     Ok(df.to_object(py))
+    // }
 }
 
 impl<H, Y> AlgorithmResult<H, Y>
@@ -265,6 +288,34 @@ mod algorithm_result_test {
     fn test_sort_by_key() {
         let algo_result = create_algo_result_u64();
         let sorted = algo_result.sort_by_key(true);
-        println!("{:?}", sorted);
+        let my_array: Vec<(String, u64)> = vec![
+            ("C".to_string(), 30 as u64),
+            ("B".to_string(), 20 as u64),
+            ("A".to_string(), 10 as u64)];
+        assert_eq!(my_array, sorted);
+        //
+        let algo_result = create_algo_result_f64();
+        let sorted = algo_result.sort_by_key(true);
+        let my_array: Vec<(String, OrderedFloat<f64>)> = vec![
+            ("C".to_string(), OrderedFloat(30.0)),
+            ("B".to_string(), OrderedFloat(20.0)),
+            ("A".to_string(), OrderedFloat(10.0))];
+        assert_eq!(my_array, sorted);
+        //
+        let algo_result = create_algo_result_tuple();
+        let sorted = algo_result.sort_by_key(true);
+        let my_array: Vec<(String, (f32, f32))> = vec![
+            ("C".to_string(), (30.0, 40.0)),
+            ("B".to_string(), (20.0, 30.0)),
+            ("A".to_string(), (10.0, 20.0))];
+        assert_eq!(my_array, sorted);
+        //
+        let algo_result = create_algo_result_hashmap_vec();
+        let sorted = algo_result.sort_by_key(true);
+        let my_array: Vec<(String, Vec<(i64, String)>)> = vec![
+            ("C".to_string(), vec![(22, "E".to_string()), (33, "F".to_string())]),
+            ("B".to_string(), vec![]),
+            ("A".to_string(), vec![(11, "H".to_string())])];
+        assert_eq!(my_array, sorted);
     }
 }
