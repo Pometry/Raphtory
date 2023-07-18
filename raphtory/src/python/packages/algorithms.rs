@@ -285,9 +285,9 @@ pub fn global_clustering_coefficient(g: &PyGraphView) -> f64 {
 
 /// Computes the number of three edge, up-to-three node delta-temporal motifs in the graph, using the algorithm of Paranjape et al, Motifs in Temporal Networks (2017).
 /// We point the reader to this reference for more information on the algorithm and background, but provide a short summary below.
-/// 
+///
 ///  Motifs included:
-/// 
+///
 ///  Stars
 ///
 ///  There are three classes (in the order they are outputted) of star motif on three nodes based on the switching behaviour of the edges between the two leaf nodes.
@@ -316,16 +316,16 @@ pub fn global_clustering_coefficient(g: &PyGraphView) -> f64 {
 ///   6. i --> j, k --> i, k --> j
 ///   7. i --> j, j --> k, k --> i
 ///   8. i --> j, i --> k, k --> j
-/// 
+///
 /// Arguments:
 ///     g (raphtory graph) : A directed raphtory graph
-///     delta (int) - Maximum time difference between the first and last edge of the 
+///     delta (int) - Maximum time difference between the first and last edge of the
 /// motif. NB if time for edges was given as a UNIX epoch, this should be given in seconds, otherwise
 /// milliseconds should be used (if edge times were given as string)
 ///
-/// Returns: 
+/// Returns:
 ///     list : A 40 dimensional array with the counts of each motif, given in the same order as described above. Note that the two-node motif counts are symmetrical so it may be more useful just to consider the first four elements.
-/// 
+///
 /// Notes:
 ///     This is achieved by calling the local motif counting algorithm, summing the resulting arrays and dealing with overcounted motifs: the triangles (by dividing each motif count by three) and two-node motifs (dividing by two).
 ///
@@ -335,19 +335,19 @@ pub fn global_temporal_three_node_motif(g: &PyGraphView, delta: i64) -> Vec<usiz
 }
 
 /// Computes the number of each type of motif that each node participates in. See global_temporal_three_node_motifs for a summary of the motifs involved.
-/// 
+///
 /// Arguments:
 ///     g (raphtory graph) : A directed raphtory graph
-///     delta (int) - Maximum time difference between the first and last edge of the 
+///     delta (int) - Maximum time difference between the first and last edge of the
 /// motif. NB if time for edges was given as a UNIX epoch, this should be given in seconds, otherwise
 /// milliseconds should be used (if edge times were given as string)
-/// 
+///
 /// Returns:
 ///     dict(list) : A dictionary with node ids as keys and a 40d array of motif counts (in the same order as the global motif counts) with the number of each
 /// motif that node participates in.
-/// 
+///
 /// Notes:
-///     For this local count, a node is counted as participating in a motif in the following way. For star motifs, only the centre node counts 
+///     For this local count, a node is counted as participating in a motif in the following way. For star motifs, only the centre node counts
 ///    the motif. For two node motifs, both constituent nodes count the motif. For triangles, all three constituent nodes count the motif.
 #[pyfunction]
 pub fn local_temporal_three_node_motifs(g: &PyGraphView, delta: i64) -> AlgorithmResult<u64, Vec<usize>> {

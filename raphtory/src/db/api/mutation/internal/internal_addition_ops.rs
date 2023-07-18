@@ -1,5 +1,5 @@
 use crate::{
-    core::{utils::errors::GraphError, Prop, entities::vertices::vertex_ref::VertexRef},
+    core::{entities::vertices::vertex_ref::VertexRef, utils::errors::GraphError, Prop},
     db::api::view::internal::Base,
 };
 

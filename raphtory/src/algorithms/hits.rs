@@ -161,7 +161,10 @@ pub fn hits<G: GraphViewOps>(
 #[cfg(test)]
 mod hits_tests {
     use super::*;
-    use crate::{db::{api::mutation::AdditionOps, graph::graph::Graph}, prelude::NO_PROPS};
+    use crate::{
+        db::{api::mutation::AdditionOps, graph::graph::Graph},
+        prelude::NO_PROPS,
+    };
     use itertools::Itertools;
 
     fn load_graph(edges: Vec<(u64, u64)>) -> Graph {

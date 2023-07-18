@@ -781,7 +781,6 @@ impl PyVertices {
         self.vertices.expanding(step)
     }
 
-
     /// Creates a PyVertexWindowSet with the given window size and optional step using a rolling window.
     ///
     /// A rolling window is a window that moves forward by step size at each iteration.
