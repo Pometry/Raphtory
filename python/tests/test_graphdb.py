@@ -1397,7 +1397,7 @@ def test_load_from_pandas_vertices():
         "time": [1, 2, 3, 4, 5],
         "weight": [1.0, 2.0, 3.0, 4.0, 5.0],
         "marbles": ["red", "blue", "green", "yellow", "purple"]
-    });
+    })
 
     vertices_df = pd.DataFrame({
         "id": [1, 2, 3, 4, 5, 6],
@@ -1405,8 +1405,7 @@ def test_load_from_pandas_vertices():
         "time": [1, 2, 3, 4, 5, 6],
     })
 
-    g = Graph.load_from_pandas(edges_df, "src", "dst", "time", ["weight", "marbles"], vertices_df, "id", "time",
-                               ["name"])
+    g = Graph.load_from_pandas(edges_df, src="src", dst="dst", time="time", props=["weight", "marbles"], vertex_df=vertices_df, vertex_col="id", vertex_time_col="time", vertex_props=["name"])
 
     assert g.vertices().id().collect() == [1, 2, 3, 4, 5, 6]
     edges = []
