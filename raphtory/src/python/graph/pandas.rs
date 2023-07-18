@@ -96,12 +96,13 @@ pub(crate) fn load_vertices_from_df<'a>(
     Ok(())
 }
 
-pub(crate) fn load_edges_from_df<'a>(
+pub(crate) fn load_edges_from_df<'a,S:AsRef<str>>(
     df: &'a PretendDF,
     src: &str,
     dst: &str,
     time: &str,
     props: Option<Vec<&str>>,
+    layer: Option<S>,
     graph: &Graph,
 ) -> Result<(), GraphError> {
     let prop_iter = props
@@ -110,6 +111,9 @@ pub(crate) fn load_edges_from_df<'a>(
         .map(|name| lift_property(name, &df))
         .reduce(combine_prop_iters)
         .unwrap_or_else(|| Box::new(std::iter::repeat(vec![])));
+
+    let layer = lift_layer(layer,df);
+
 
     if let (Some(src), Some(dst), Some(time)) = (
         df.iter_col::<u64>(src),
@@ -120,7 +124,7 @@ pub(crate) fn load_edges_from_df<'a>(
             .map(|i| i.copied())
             .zip(dst.map(|i| i.copied()))
             .zip(time);
-        load_edges_from_num_iter(&graph, triplets, prop_iter)?;
+        load_edges_from_num_iter(&graph, triplets, prop_iter,layer)?;
     } else if let (Some(src), Some(dst), Some(time)) = (
         df.iter_col::<i64>(src),
         df.iter_col::<i64>(dst),
@@ -130,16 +134,16 @@ pub(crate) fn load_edges_from_df<'a>(
             .map(i64_opt_into_u64_opt)
             .zip(dst.map(i64_opt_into_u64_opt))
             .zip(time);
-        load_edges_from_num_iter(&graph, triplets, prop_iter)?;
+        load_edges_from_num_iter(&graph, triplets, prop_iter,layer)?;
     } else if let (Some(src), Some(dst), Some(time)) = (
         df.utf8::<i32>(src),
         df.utf8::<i32>(dst),
         df.iter_col::<i64>(time),
     ) {
         let triplets = src.into_iter().zip(dst.into_iter()).zip(time.into_iter());
-        for (((src, dst), time), props) in triplets.zip(prop_iter) {
+        for ((((src, dst), time), props),layer) in triplets.zip(prop_iter).zip(layer) {
             if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
-                graph.add_edge(*time, src, dst, props, None)?;
+                graph.add_edge(*time, src, dst, props, layer.as_deref())?;
             }
         }
     } else if let (Some(src), Some(dst), Some(time)) = (
@@ -148,9 +152,9 @@ pub(crate) fn load_edges_from_df<'a>(
         df.iter_col::<i64>(time),
     ) {
         let triplets = src.into_iter().zip(dst.into_iter()).zip(time.into_iter());
-        for (((src, dst), time), props) in triplets.zip(prop_iter) {
+        for ((((src, dst), time), props),layer) in triplets.zip(prop_iter).zip(layer) {
             if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
-                graph.add_edge(*time, src, dst, props, None)?;
+                graph.add_edge(*time, src, dst, props, layer.as_deref())?;
             }
         }
     } else {
@@ -201,6 +205,26 @@ fn lift_property<'a: 'b, 'b>(
     }
 }
 
+fn lift_layer<'a,S:AsRef<str>>(
+    name: Option<S>,
+    df: &'a PretendDF,
+) -> Box<dyn Iterator<Item = Option<String>> + 'a> {
+    if let Some(name) = name {
+        if let Some(col) = df.utf8::<i32>(name.as_ref()) {
+            Box::new(col.map(|v| v.map(|v| v.to_string())))
+        } else if let Some(col) = df.utf8::<i64>(name.as_ref()) {
+            Box::new(col.map(|v| v.map(|v| v.to_string())))
+        }
+        else {
+            Box::new(std::iter::repeat(None))
+        }
+    }
+    else {
+        Box::new(std::iter::repeat(None))
+    }
+
+}
+
 fn iter_as_prop<
     'a: 'b,
     'b,
@@ -236,14 +260,17 @@ fn load_edges_from_num_iter<
     S: AsRef<str>,
     I: Iterator<Item = ((Option<u64>, Option<u64>), Option<&'a i64>)>,
     PI: Iterator<Item = Vec<(S, Prop)>>,
+    IL: Iterator<Item = Option<String>>,
 >(
     graph: &Graph,
     edges: I,
     props: PI,
+    layer: IL,
+
 ) -> Result<(), GraphError> {
-    for (((src, dst), time), edge_props) in edges.zip(props) {
+    for ((((src, dst), time), edge_props),layer ) in edges.zip(props).zip(layer) {
         if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
-            graph.add_edge(*time, src, dst, edge_props, None)?;
+            graph.add_edge(*time, src, dst, edge_props, layer.as_deref())?;
         }
     }
     Ok(())
