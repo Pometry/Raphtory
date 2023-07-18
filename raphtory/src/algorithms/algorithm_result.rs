@@ -3,14 +3,21 @@ use std::fmt;
 use std::fmt::Debug;
 use ordered_float::OrderedFloat;
 use std::hash::Hash;
-// use pyo3::prelude::*;
-// use pyo3::types::{IntoPyDict, PyDict, PyList};
 
+/// A generic `AlgorithmResult` struct that represents the result of an algorithm computation.
+///
+/// The `AlgorithmResult` contains a hashmap, where keys (`H`) are cloneable, hashable, and comparable,
+/// and values (`Y`) are cloneable. The keys and values can be of any type that satisfies the specified
+/// trait bounds.
+///
+/// This `AlgorithmResult` is returned for all algorithms that return a HashMap
+///
 pub struct AlgorithmResult<H, Y>
     where
         H: Clone + Hash + Eq + Ord,
         Y: Clone
 {
+    /// The result hashmap that stores keys of type `H` and values of type `Y`.
     pub result: HashMap<H, Y>,
 }
 
@@ -19,42 +26,30 @@ impl<H, Y> AlgorithmResult<H, Y>
         H: Clone + Hash + Eq + Ord,
         Y: Clone,
 {
+    /// Creates a new instance of `AlgorithmResult` with the provided hashmap.
+    ///
+    /// # Arguments
+    ///
+    /// * `result`: A `HashMap` with keys of type `H` and values of type `Y`.
     pub fn new(result: HashMap<H, Y>) -> Self {
         Self {
             result,
         }
     }
 
+    /// Returns a reference to the entire `result` hashmap.
     pub fn get_all(&self) -> &HashMap<H, Y> {
         &self.result
     }
 
+    /// Returns the value corresponding to the provided key in the `result` hashmap.
+    ///
+    /// # Arguments
+    ///
+    /// * `key`: The key of type `H` for which the value is to be retrieved.
     pub fn get(&self, key: &H) -> Option<&Y> {
         self.result.get(&key)
     }
-
-    // pub fn to_df<'a>(
-    //     &self,
-    //     py: Python<'a>
-    // ) -> PyResult<PyObject>
-    // where
-    //     H: Clone + ToPyObject,
-    //     Y: Clone + ToPyObject,
-    // {
-    //     let hashmap = &self.result;
-    //     let mut keys = Vec::new();
-    //     let mut values = Vec::new();
-    //     for (key, value) in hashmap.iter() {
-    //         keys.push(key.to_object(py));
-    //         values.push(value.to_object(py));
-    //     }
-    //     let dict = PyDict::new(py);
-    //     dict.set_item("Key", PyList::new(py, keys.as_slice()))?;
-    //     dict.set_item("Value", PyList::new(py, values.as_slice()))?;
-    //     let pandas = pyo3::types::PyModule::import(py, "pandas")?;
-    //     let df: &PyAny = pandas.getattr("DataFrame")?.call1((dict,))?;
-    //     Ok(df.to_object(py))
-    // }
 }
 
 impl<H, Y> AlgorithmResult<H, Y>
@@ -62,6 +57,15 @@ impl<H, Y> AlgorithmResult<H, Y>
         H: Clone + Hash + Eq + Ord,
         Y: Clone + PartialOrd
 {
+    /// Sorts the `AlgorithmResult` by its values in ascending or descending order.
+    ///
+    /// # Arguments
+    ///
+    /// * `reverse`: If `true`, sorts the result in descending order; otherwise, sorts in ascending order.
+    ///
+    /// # Returns
+    ///
+    /// A sorted vector of tuples containing keys of type `H` and values of type `Y`.
     pub fn sort_by_value(&self, reverse: bool) -> Vec<(H, Y)> {
         let mut sorted: Vec<(H, Y)> = self.result.clone().into_iter().collect();
         sorted.sort_by(|(_, a), (_, b)| {
@@ -74,6 +78,15 @@ impl<H, Y> AlgorithmResult<H, Y>
         sorted
     }
 
+    /// Sorts the `AlgorithmResult` by its keys in ascending or descending order.
+    ///
+    /// # Arguments
+    ///
+    /// * `reverse`: If `true`, sorts the result in descending order; otherwise, sorts in ascending order.
+    ///
+    /// # Returns
+    ///
+    /// A sorted vector of tuples containing keys of type `H` and values of type `Y`.
     pub fn sort_by_key(&self, reverse: bool) -> Vec<(H, Y)> {
         let mut sorted: Vec<(H, Y)> = self.result.clone().into_iter().collect();
         sorted.sort_by(|(a, _), (b, _)| {
@@ -86,7 +99,20 @@ impl<H, Y> AlgorithmResult<H, Y>
         sorted
     }
 
-
+    /// Retrieves the top-k elements from the `AlgorithmResult` based on its values.
+    ///
+    /// # Arguments
+    ///
+    /// * `k`: The number of elements to retrieve.
+    /// * `percentage`: If `true`, the `k` parameter is treated as a percentage of total elements.
+    /// * `reverse`: If `true`, retrieves the elements in descending order; otherwise, in ascending order.
+    ///
+    /// # Returns
+    ///
+    /// An `Option` containing a vector of tuples with keys of type `H` and values of type `Y`.
+    /// If `percentage` is `true`, the returned vector contains the top `k` percentage of elements.
+    /// If `percentage` is `false`, the returned vector contains the top `k` elements.
+    /// Returns `None` if the result is empty or if `k` is 0.
     pub fn top_k(&self, k: usize, percentage: bool, reverse: bool) -> Option<Vec<(H, Y)>> {
         if percentage {
             let total_count = self.result.len();
@@ -102,6 +128,15 @@ impl<H, Y> AlgorithmResult<H, Y>
 }
 
 impl<H: Clone + Hash + Eq + Ord> AlgorithmResult<H, f64> {
+    /// Creates a new `AlgorithmResult` with floating-point values converted to `OrderedFloat`.
+    ///
+    /// # Arguments
+    ///
+    /// * `hashmap`: A `HashMap` with keys of type `H` and values of type `f64`.
+    ///
+    /// # Returns
+    ///
+    /// An `AlgorithmResult` with the `f64` values converted to `OrderedFloat<f64>`.
     pub fn new_with_float(hashmap: HashMap<H, f64>) -> AlgorithmResult<H, OrderedFloat<f64>> {
         let converted_hashmap: HashMap<H, OrderedFloat<f64>> = hashmap
             .into_iter()
@@ -118,6 +153,12 @@ impl<H, Y> AlgorithmResult<H, Y>
         H: Clone + Hash + Eq + Ord,
         Y: Clone + Ord + Hash + Eq
 {
+    /// Groups the `AlgorithmResult` by its values.
+    ///
+    /// # Returns
+    ///
+    /// A `HashMap` where keys are unique values from the `AlgorithmResult` and values are vectors
+    /// containing keys of type `H` that share the same value.
     pub fn group_by(
         &self
     ) -> HashMap<Y, Vec<H>> {
