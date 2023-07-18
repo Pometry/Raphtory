@@ -731,6 +731,7 @@ impl PyPathFromGraph {
         (move || path.latest_time()).into()
     }
 
+    #[getter]
     fn properties(&self) -> NestedPropsIterable {
         let path = self.path.clone();
         (move || path.properties()).into()

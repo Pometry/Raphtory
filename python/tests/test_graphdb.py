@@ -381,8 +381,8 @@ def test_vertex_properties():
     # testing property_history
     def history_test(key, value):
         assert g.vertex(1).properties.temporal.get(key).items() == value
-        assert g.vertices.properties.temporal.get(key).items().collect() == [value]
-        assert g.vertices.out_neighbours().properties.temporal.get(key).items().collect() == [[value]]
+        assert g.vertices.properties.temporal.get(key).items() == [value]
+        assert g.vertices.out_neighbours().properties.temporal.get(key).items() == [[value]]
 
     history_test("prop 1", [(1, 1), (2, 2)])
     history_test("prop 2", [(2, 0.6), (3, 0.9)])
