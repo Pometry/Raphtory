@@ -148,7 +148,8 @@ pub fn all_local_reciprocity<G: GraphViewOps>(
 mod reciprocity_test {
     use crate::{
         algorithms::reciprocity::{all_local_reciprocity, global_reciprocity},
-        db::{api::mutation::AdditionOps, graph::graph::Graph}, prelude::NO_PROPS,
+        db::{api::mutation::AdditionOps, graph::graph::Graph},
+        prelude::NO_PROPS,
     };
     use pretty_assertions::assert_eq;
     use std::collections::HashMap;

@@ -1,6 +1,6 @@
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef, VID, EID},
+        entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef, EID, VID},
         Direction,
     },
     db::api::view::internal::{
@@ -45,10 +45,11 @@ impl<G: GraphViewOps> LayeredGraph<G> {
 }
 
 impl<G: GraphViewOps> GraphOps for LayeredGraph<G> {
-
     fn find_edge_id(&self, e_id: EID) -> Option<EdgeRef> {
         let edge_ref = self.graph.find_edge_id(e_id)?;
-        let edge_ref_in_layer = self.graph.has_edge_ref(edge_ref.src(), edge_ref.dst(), self.layer);
+        let edge_ref_in_layer = self
+            .graph
+            .has_edge_ref(edge_ref.src(), edge_ref.dst(), self.layer);
 
         if edge_ref_in_layer {
             Some(edge_ref)
