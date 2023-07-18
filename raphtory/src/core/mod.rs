@@ -324,7 +324,7 @@ pub trait AsProp {
     fn as_prop(self) -> Prop;
 }
 
-impl <T: Into<Prop>> AsProp for T {
+impl<T: Into<Prop>> AsProp for T {
     fn as_prop(self) -> Prop {
         self.into()
     }

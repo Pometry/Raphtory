@@ -6,9 +6,12 @@ use super::{
     POOL,
 };
 use crate::{
-    core::state::{
-        compute_state::ComputeState,
-        shuffle_state::{EvalLocalState, EvalShardState},
+    core::{
+        entities::vertices::vertex_ref::VertexRef,
+        state::{
+            compute_state::ComputeState,
+            shuffle_state::{EvalLocalState, EvalShardState},
+        },
     },
     db::{
         api::view::GraphViewOps,
@@ -65,22 +68,24 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         let local = Local2::new(prev_local_state);
         let mut v_ref = morcel_id * morcel_size;
         for local_state in morcel {
-            let mut vv = EvalVertexView::new_local(
-                self.ctx.ss(),
-                v_ref.into(),
-                &g,
-                Some(local_state),
-                &local,
-                vertex_state.clone(),
-            );
-            v_ref += 1;
+            if g.has_vertex_ref(VertexRef::Local(v_ref.into())) {
+                let mut vv = EvalVertexView::new_local(
+                    self.ctx.ss(),
+                    v_ref.into(),
+                    &g,
+                    Some(local_state),
+                    &local,
+                    vertex_state.clone(),
+                );
 
-            match task.run(&mut vv) {
-                Step::Continue => {
-                    done = false;
+                match task.run(&mut vv) {
+                    Step::Continue => {
+                        done = false;
+                    }
+                    Step::Done => {}
                 }
-                Step::Done => {}
             }
+            v_ref += 1;
         }
 
         if !done {
@@ -193,7 +198,7 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
     fn make_cur_and_prev_states<S: Clone>(&self, init: S) -> (Vec<S>, Vec<S>) {
         let g = self.ctx.graph();
 
-        let states: Vec<S> = vec![init; g.num_vertices()];
+        let states: Vec<S> = vec![init; g.unfiltered_num_vertices()];
 
         (states.clone(), states)
     }
@@ -218,13 +223,12 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
             .map(|nt| custom_pool(nt))
             .unwrap_or_else(|| POOL.clone());
 
-        let num_vertices = self.ctx.graph().num_vertices();
+        let num_vertices = self.ctx.graph().unfiltered_num_vertices();
         let morcel_size = num_vertices.min(16_000);
         let num_chunks = (num_vertices + morcel_size - 1) / morcel_size;
 
-        let mut shard_state = shard_initial_state.unwrap_or_else(|| {
-            Shard::new(num_vertices, num_chunks, morcel_size)
-        });
+        let mut shard_state = shard_initial_state
+            .unwrap_or_else(|| Shard::new(num_vertices, num_chunks, morcel_size));
 
         let mut global_state = global_initial_state.unwrap_or_else(|| Global::new());
 

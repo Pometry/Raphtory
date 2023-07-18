@@ -6,7 +6,8 @@ use crate::{
             time::{IntoTimeWithFormat, TryIntoTime},
         },
     },
-    db::api::mutation::internal::InternalAdditionOps, prelude::NO_PROPS,
+    db::api::mutation::internal::InternalAdditionOps,
+    prelude::NO_PROPS,
 };
 
 use super::Properties;
@@ -95,7 +96,6 @@ pub trait AdditionOps {
 }
 
 impl<G: InternalAdditionOps> AdditionOps for G {
-
     fn add_vertex<V: InputVertex, T: TryIntoTime, PI: Properties>(
         &self,
         t: T,
@@ -103,12 +103,7 @@ impl<G: InternalAdditionOps> AdditionOps for G {
         props: PI,
     ) -> Result<(), GraphError> {
         let properties = props.collect_properties();
-        self.internal_add_vertex(
-            t.try_into_time()?,
-            v.id(),
-            v.id_str(),
-            properties,
-        )?;
+        self.internal_add_vertex(t.try_into_time()?, v.id(), v.id_str(), properties)?;
         Ok(())
     }
 

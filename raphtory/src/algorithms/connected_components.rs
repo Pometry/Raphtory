@@ -241,8 +241,9 @@ mod cc_test {
         let wg = graph.window(0, 2);
         let results: HashMap<String, u64> = weakly_connected_components(&wg, usize::MAX, None);
 
-        let expected = vec![("1".to_string(), 1), ("2".to_string(), 1)]
+        let expected = vec![("1", 1), ("2", 1), ("3", 0), ("4", 0)]
             .into_iter()
+            .map(|(k, v)| (k.to_string(), v))
             .collect::<HashMap<String, u64>>();
 
         assert_eq!(results, expected);

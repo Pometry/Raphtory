@@ -11,7 +11,7 @@ mod data;
 mod graphql_test {
     use super::*;
     use dynamic_graphql::{dynamic::DynamicRequestExt, App, FieldValue};
-    use raphtory::{prelude::*, db::api::view::internal::IntoDynamic};
+    use raphtory::{db::api::view::internal::IntoDynamic, prelude::*};
     use std::collections::HashMap;
 
     #[tokio::test]
@@ -64,7 +64,9 @@ mod graphql_test {
     #[tokio::test]
     async fn basic_query() {
         let graph = Graph::new();
-        graph.add_vertex(0, 11, NO_PROPS).expect("Could not add vertex!");
+        graph
+            .add_vertex(0, 11, NO_PROPS)
+            .expect("Could not add vertex!");
 
         let graphs = HashMap::from([("lotr".to_string(), graph.into_dynamic().into())]);
         let data = data::Data { graphs };

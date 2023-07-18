@@ -536,8 +536,14 @@ mod csv_loader_test {
             .set_delimiter(delimiter)
             .with_filter(r)
             .load_rec_into_graph(&g, |lotr: StringRecord, g: &Graph| {
-                let src_id = lotr.get(0).map(|s| calculate_hash(&(s.to_owned()))).unwrap();
-                let dst_id = lotr.get(1).map(|s| calculate_hash(&(s.to_owned()))).unwrap();
+                let src_id = lotr
+                    .get(0)
+                    .map(|s| calculate_hash(&(s.to_owned())))
+                    .unwrap();
+                let dst_id = lotr
+                    .get(1)
+                    .map(|s| calculate_hash(&(s.to_owned())))
+                    .unwrap();
                 let time = lotr.get(2).map(|s| s.parse::<i64>().unwrap()).unwrap();
 
                 g.add_vertex(

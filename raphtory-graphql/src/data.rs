@@ -87,7 +87,13 @@ impl Data {
                         (graph_name.to_string(), graph)
                     }
                 };
-            }).map(|(name, g)| (name, IndexedGraph::from_graph(&g.into_dynamic()).expect("Unable to index graph")))
+            })
+            .map(|(name, g)| {
+                (
+                    name,
+                    IndexedGraph::from_graph(&g.into_dynamic()).expect("Unable to index graph"),
+                )
+            })
             .collect();
         graphs
     }

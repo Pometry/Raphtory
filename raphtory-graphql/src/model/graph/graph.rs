@@ -64,7 +64,6 @@ impl<G: GraphViewOps + IntoDynamic> From<G> for GqlGraph {
 }
 
 impl GqlGraph {
-
     pub(crate) fn new(graph: IndexedGraph<DynamicGraph>) -> Self {
         Self { graph }
     }
@@ -72,7 +71,6 @@ impl GqlGraph {
 
 #[ResolvedObjectFields]
 impl GqlGraph {
-
     async fn window(&self, t_start: i64, t_end: i64) -> GqlGraph {
         let w = self.graph.window(t_start, t_end);
         w.into()
@@ -107,7 +105,6 @@ impl GqlGraph {
             .map(|vv| vv.into())
             .collect()
     }
-
 
     async fn search_edges(&self, query: String, limit: usize, offset: usize) -> Vec<Edge> {
         self.graph
