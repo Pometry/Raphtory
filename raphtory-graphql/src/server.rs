@@ -9,11 +9,10 @@ use crate::{
 use async_graphql_poem::GraphQL;
 use dynamic_graphql::App;
 use poem::{get, listener::TcpListener, middleware::Cors, EndpointExt, Route, Server};
+use raphtory::db::api::view::internal::DynamicGraph;
 use std::collections::HashMap;
 use tokio::{io::Result as IoResult, signal};
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, Registry, EnvFilter};
-use raphtory::db::api::view::internal::DynamicGraph;
-
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry};
 
 pub struct RaphtoryServer {
     data: Data,
@@ -30,8 +29,11 @@ impl RaphtoryServer {
         Self { data }
     }
 
-    pub fn from_map_and_directory(graphs: HashMap<String, DynamicGraph>,graph_directory: &str) -> Self {
-        let data = Data::from_map_and_directory(graphs,graph_directory);
+    pub fn from_map_and_directory(
+        graphs: HashMap<String, DynamicGraph>,
+        graph_directory: &str,
+    ) -> Self {
+        let data = Data::from_map_and_directory(graphs, graph_directory);
         Self { data }
     }
 
@@ -56,10 +58,9 @@ impl RaphtoryServer {
                 .with(tracing_opentelemetry::layer().with_tracer(tracer))
                 .with(env_filter)
                 .try_init(),
-            None => registry
-                .with(env_filter)
-                .try_init(),
-        }.unwrap_or(());
+            None => registry.with(env_filter).try_init(),
+        }
+        .unwrap_or(());
 
         #[derive(App)]
         struct App(QueryRoot);

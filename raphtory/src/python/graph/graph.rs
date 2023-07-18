@@ -14,12 +14,12 @@ use crate::{
 };
 use pyo3::prelude::*;
 
+use crate::db::api::view::internal::{DynamicGraph, IntoDynamic};
 use std::{
     collections::HashMap,
     fmt::{Debug, Formatter},
     path::{Path, PathBuf},
 };
-use crate::db::api::view::internal::{DynamicGraph, IntoDynamic};
 
 use super::pandas::{
     load_edges_from_df, load_vertices_from_df, process_pandas_py_df, GraphLoadException,
