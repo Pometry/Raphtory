@@ -166,7 +166,8 @@ mod time_tests {
                 view::{time::WindowSet, GraphViewOps, TimeOps},
             },
             graph::graph::Graph,
-        }, prelude::NO_PROPS,
+        },
+        prelude::NO_PROPS,
     };
     use itertools::Itertools;
 

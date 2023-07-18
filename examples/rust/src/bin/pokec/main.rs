@@ -6,7 +6,8 @@ use raphtory::{
         api::{mutation::AdditionOps, view::GraphViewOps},
         graph::graph::Graph,
     },
-    graph_loader::source::csv_loader::CsvLoader, prelude::NO_PROPS,
+    graph_loader::source::csv_loader::CsvLoader,
+    prelude::NO_PROPS,
 };
 use serde::Deserialize;
 use std::{env, path::Path, time::Instant};

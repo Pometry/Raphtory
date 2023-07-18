@@ -75,13 +75,16 @@ impl InheritViewOps for DynamicGraph {}
 
 #[cfg(test)]
 mod test {
-    use crate::{db::{
-        api::{
-            mutation::AdditionOps,
-            view::{internal::BoxableGraphView, *},
+    use crate::{
+        db::{
+            api::{
+                mutation::AdditionOps,
+                view::{internal::BoxableGraphView, *},
+            },
+            graph::graph::Graph,
         },
-        graph::graph::Graph,
-    }, prelude::NO_PROPS};
+        prelude::NO_PROPS,
+    };
     use itertools::Itertools;
     use std::sync::Arc;
 

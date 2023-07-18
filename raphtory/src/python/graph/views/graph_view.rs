@@ -85,7 +85,6 @@ impl<G: GraphViewOps + IntoDynamic> IntoPy<PyObject> for VertexSubgraph<G> {
 /// The API for querying a view of the graph in a read-only state
 #[pymethods]
 impl PyGraphView {
-
     /// Return all the layer ids in the graph
     pub fn get_unique_layers(&self) -> Vec<String> {
         self.graph.get_unique_layers()

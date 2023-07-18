@@ -404,7 +404,7 @@ impl Repr for PyEdge {
         let properties = &self
             .properties(Some(true))
             .iter()
-            .map(|(k, v)|  format!("{k} : {:?}", v.to_string()))
+            .map(|(k, v)| format!("{k} : {:?}", v.to_string()))
             .join(", ");
 
         let source = self.edge.src().name();

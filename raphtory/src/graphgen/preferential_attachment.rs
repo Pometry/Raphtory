@@ -12,10 +12,13 @@
 //! ba_preferential_attachment(&graph, 1000, 10);
 //! ```
 
-use crate::{db::{
-    api::{mutation::AdditionOps, view::*},
-    graph::graph::Graph,
-}, prelude::NO_PROPS};
+use crate::{
+    db::{
+        api::{mutation::AdditionOps, view::*},
+        graph::graph::Graph,
+    },
+    prelude::NO_PROPS,
+};
 use rand::prelude::*;
 use std::collections::HashSet;
 

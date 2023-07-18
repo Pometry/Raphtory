@@ -84,7 +84,7 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
                     }
                     Step::Done => {}
                 }
-            } 
+            }
             v_ref += 1;
         }
 

@@ -170,7 +170,10 @@ mod page_rank_tests {
     use itertools::Itertools;
     use pretty_assertions::assert_eq;
 
-    use crate::{db::{api::mutation::AdditionOps, graph::graph::Graph}, prelude::NO_PROPS};
+    use crate::{
+        db::{api::mutation::AdditionOps, graph::graph::Graph},
+        prelude::NO_PROPS,
+    };
 
     use super::*;
 

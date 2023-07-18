@@ -1,21 +1,25 @@
 use chrono::NaiveDateTime;
-use std::{env, time::Instant};
-use std::collections::HashMap;
-use raphtory::graph_loader::source::csv_loader::CsvLoader;
-use raphtory::prelude::{AdditionOps, NO_PROPS, Graph, GraphViewOps, VertexViewOps};
-use serde::Deserialize;
-use raphtory::algorithms::pagerank::unweighted_page_rank;
-use raphtory::algorithms::connected_components::weakly_connected_components;
-use clap::Parser;
-use clap::ArgAction;
-use std::error::Error;
-use std::path::Path;
+use clap::{ArgAction, Parser};
 use csv::StringRecord;
 use flate2::read::GzDecoder;
-use raphtory::core::utils::hashing::calculate_hash;
-use raphtory::graph_loader::fetch_file;
-use std::fs::File;
-use std::io::{self, BufRead, BufReader, BufWriter, Read, Write};
+use raphtory::{
+    algorithms::{
+        connected_components::weakly_connected_components, pagerank::unweighted_page_rank,
+    },
+    core::utils::hashing::calculate_hash,
+    graph_loader::{fetch_file, source::csv_loader::CsvLoader},
+    prelude::{AdditionOps, Graph, GraphViewOps, VertexViewOps, NO_PROPS},
+};
+use serde::Deserialize;
+use std::{
+    collections::HashMap,
+    env,
+    error::Error,
+    fs::File,
+    io::{self, BufRead, BufReader, BufWriter, Read, Write},
+    path::Path,
+    time::Instant,
+};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None )]
@@ -54,25 +58,29 @@ struct Args {
 }
 
 fn main() {
-    println!("
+    println!(
+        "
 ██████╗ ███████╗███╗   ██╗ ██████╗██╗  ██╗███╗   ███╗ █████╗ ██████╗ ██╗  ██╗
 ██╔══██╗██╔════╝████╗  ██║██╔════╝██║  ██║████╗ ████║██╔══██╗██╔══██╗██║ ██╔╝
 ██████╔╝█████╗  ██╔██╗ ██║██║     ███████║██╔████╔██║███████║██████╔╝█████╔╝
 ██╔══██╗██╔══╝  ██║╚██╗██║██║     ██╔══██║██║╚██╔╝██║██╔══██║██╔══██╗██╔═██╗
 ██████╔╝███████╗██║ ╚████║╚██████╗██║  ██║██║ ╚═╝ ██║██║  ██║██║  ██║██║  ██╗
 ╚═════╝ ╚══════╝╚═╝  ╚═══╝ ╚═════╝╚═╝  ╚═╝╚═╝     ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝
-");
+"
+    );
     let args = Args::parse();
     // Set default values
     let debug = args.debug;
     if debug {
-        println!("
+        println!(
+            "
   .___   .____  ____   .     .   ___        __   __   ___   .___   .____
  /   `  /      /   \\  /     / .'   \\       |    |  .'   `. /   `  /
  |    | |__.   |,_-<  |     | |            |\\  /|  |     | |    | |__.
  |    | |      |    ` |     | |    _       | \\/ |  |     | |    | |
  /---/  /----/ `----'  `._.'   `.___|      /    /   `.__.' /---/  /----/
-            ");
+            "
+        );
         println!("Debug mode enabled.\nArguments: {:?}", args);
     }
     let header = args.header;
@@ -83,18 +91,12 @@ fn main() {
     let time_column = args.time_column;
     let download = args.download;
 
-
     if download == true {
         let url = "https://osf.io/download/nbq6h/";
         println!("Downloading default file from url {}...", url);
         // make err msg from url and custom string
         let err_msg = format!("Failed to download file from {}", url);
-        let path = fetch_file(
-            "simple-relationships.csv.gz",
-            true,
-            url,
-            1200,
-        ).expect(&err_msg);
+        let path = fetch_file("simple-relationships.csv.gz", true, url, 1200).expect(&err_msg);
         println!("Downloaded file to {}", path.to_str().unwrap());
         println!("Unpacking file...");
         // extract a file from a gz archive
@@ -108,7 +110,8 @@ fn main() {
         } else {
             path_str.to_owned()
         };
-        let mut output_file = File::create(&dst_file).expect("Failed to create new file to decompress downloaded data");
+        let mut output_file = File::create(&dst_file)
+            .expect("Failed to create new file to decompress downloaded data");
         // Decompress and write the content to the output file
         let mut buffer = vec![0; 4096];
         let mut gz_reader = io::BufReader::new(gz_decoder);
@@ -147,64 +150,61 @@ fn main() {
             .set_header(header)
             .set_delimiter(&delimiter)
             .load_rec_into_graph(&g, |generic_loader: StringRecord, g: &Graph| {
-                let src_id = generic_loader.get(from_column).map(|s| s.to_owned()).unwrap();
+                let src_id = generic_loader
+                    .get(from_column)
+                    .map(|s| s.to_owned())
+                    .unwrap();
                 let dst_id = generic_loader.get(to_column).map(|s| s.to_owned()).unwrap();
                 let mut edge_time = NaiveDateTime::from_timestamp_opt(1, 0).unwrap();
                 if time_column != -1 {
-                    edge_time = NaiveDateTime::from_timestamp_millis(generic_loader.get(time_column as usize).unwrap().parse().unwrap()).unwrap();
+                    edge_time = NaiveDateTime::from_timestamp_millis(
+                        generic_loader
+                            .get(time_column as usize)
+                            .unwrap()
+                            .parse()
+                            .unwrap(),
+                    )
+                    .unwrap();
                 }
                 if debug {
                     println!("Adding edge {} -> {} at time {}", src_id, dst_id, edge_time);
                 }
-                g.add_edge(
-                    edge_time,
-                    src_id,
-                    dst_id,
-                    NO_PROPS,
-                    None
-                )
+                g.add_edge(edge_time, src_id, dst_id, NO_PROPS, None)
                     .expect("Failed to add edge");
-            }).expect("Failed to load graph from CSV data files");
+            })
+            .expect("Failed to load graph from CSV data files");
         g
     };
-    println!(
-        "Setup took {} seconds",
-        now.elapsed().as_secs_f64()
-    );
+    println!("Setup took {} seconds", now.elapsed().as_secs_f64());
 
     if debug {
-        println!("Graph has {} vertices and {} edges",
-                 g.num_vertices(),
-                 g.num_edges()
+        println!(
+            "Graph has {} vertices and {} edges",
+            g.num_vertices(),
+            g.num_edges()
         )
     }
 
     // Degree of all nodes
     now = Instant::now();
     let _degree = g.vertices().iter().map(|v| v.degree()).collect::<Vec<_>>();
-    println!(
-        "Degree: {} seconds",
-        now.elapsed().as_secs_f64()
-    );
+    println!("Degree: {} seconds", now.elapsed().as_secs_f64());
 
     // Out neighbours of all nodes with time
     now = Instant::now();
-    let _out_neighbours = g.vertices().iter().map(|v| v.out_neighbours()).collect::<Vec<_>>();
-    println!(
-        "Out neighbours: {} seconds",
-        now.elapsed().as_secs_f64()
-    );
+    let _out_neighbours = g
+        .vertices()
+        .iter()
+        .map(|v| v.out_neighbours())
+        .collect::<Vec<_>>();
+    println!("Out neighbours: {} seconds", now.elapsed().as_secs_f64());
 
     // page rank with time
     now = Instant::now();
-    let _page_rank: HashMap<String, f64>= unweighted_page_rank(&g, 1000, None, None, true)
+    let _page_rank: HashMap<String, f64> = unweighted_page_rank(&g, 1000, None, None, true)
         .into_iter()
         .collect();
-    println!(
-        "Page rank: {} seconds",
-        now.elapsed().as_secs_f64()
-    );
-
+    println!("Page rank: {} seconds", now.elapsed().as_secs_f64());
 
     // connected components with time
     now = Instant::now();
@@ -213,6 +213,4 @@ fn main() {
         "Connected components: {} seconds",
         now.elapsed().as_secs_f64()
     );
-
-
 }

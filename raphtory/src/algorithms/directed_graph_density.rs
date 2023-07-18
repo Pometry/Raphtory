@@ -41,7 +41,10 @@ pub fn directed_graph_density<G: GraphViewOps>(graph: &G) -> f32 {
 #[cfg(test)]
 mod directed_graph_density_tests {
     use super::*;
-    use crate::{db::{api::mutation::AdditionOps, graph::graph::Graph}, prelude::NO_PROPS};
+    use crate::{
+        db::{api::mutation::AdditionOps, graph::graph::Graph},
+        prelude::NO_PROPS,
+    };
 
     #[test]
     fn low_graph_density() {

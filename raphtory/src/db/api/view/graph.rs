@@ -18,7 +18,8 @@ use crate::{
                 window_graph::WindowedGraph,
             },
         },
-    }, prelude::NO_PROPS,
+    },
+    prelude::NO_PROPS,
 };
 use itertools::Itertools;
 use rustc_hash::FxHashSet;

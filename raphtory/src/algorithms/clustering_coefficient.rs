@@ -49,10 +49,13 @@ pub fn clustering_coefficient<G: GraphViewOps>(g: &G) -> f64 {
 #[cfg(test)]
 mod cc_test {
     use super::*;
-    use crate::{db::{
-        api::{mutation::AdditionOps, view::*},
-        graph::graph::Graph,
-    }, prelude::NO_PROPS};
+    use crate::{
+        db::{
+            api::{mutation::AdditionOps, view::*},
+            graph::graph::Graph,
+        },
+        prelude::NO_PROPS,
+    };
     use pretty_assertions::assert_eq;
 
     /// Test the global clustering coefficient

@@ -20,7 +20,9 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use super::pandas::{process_pandas_py_df, load_vertices_from_df, GraphLoadException, load_edges_from_df};
+use super::pandas::{
+    load_edges_from_df, load_vertices_from_df, process_pandas_py_df, GraphLoadException,
+};
 
 /// A temporal graph.
 #[derive(Clone)]
@@ -229,7 +231,9 @@ impl PyGraph {
         vertex_time_col: Option<&str>,
         vertex_props: Option<Vec<&str>>,
     ) -> Result<Graph, GraphError> {
-        let graph = PyGraph{graph: Graph::new()};
+        let graph = PyGraph {
+            graph: Graph::new(),
+        };
         graph.load_edges_from_pandas(edges_df, src, dst, time, props)?;
         if let (Some(vertex_df), Some(vertex_col), Some(vertex_time_col)) =
             (vertex_df, vertex_col, vertex_time_col)
@@ -244,9 +248,14 @@ impl PyGraph {
         Ok(graph.graph)
     }
 
-
     #[pyo3(signature = (vertices_df, vertex_col = "id", time_col = "time", props = None))]
-    fn load_vertices_from_pandas(&self, vertices_df: &PyAny, vertex_col: &str, time_col: &str, props: Option<Vec<&str>>) -> Result<(), GraphError> {
+    fn load_vertices_from_pandas(
+        &self,
+        vertices_df: &PyAny,
+        vertex_col: &str,
+        time_col: &str,
+        props: Option<Vec<&str>>,
+    ) -> Result<(), GraphError> {
         let graph = &self.graph;
         Python::with_gil(|py| {
             let df = process_pandas_py_df(vertices_df, py)?;
@@ -279,5 +288,4 @@ impl PyGraph {
         .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
         Ok(())
     }
-
 }

@@ -813,14 +813,8 @@ mod views_test {
         .ok();
 
         for (t, src, dst) in &vs {
-            g.add_edge(
-                *t,
-                *src,
-                *dst,
-                [("eprop", "commons")],
-                None,
-            )
-            .unwrap();
+            g.add_edge(*t, *src, *dst, [("eprop", "commons")], None)
+                .unwrap();
         }
 
         let wg = g.window(-2, 0);

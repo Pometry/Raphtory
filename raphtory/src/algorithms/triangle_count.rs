@@ -120,7 +120,10 @@ pub fn triangle_count<G: GraphViewOps>(g: &G, threads: Option<usize>) -> usize {
 #[cfg(test)]
 mod triangle_count_tests {
     use super::*;
-    use crate::{db::{api::mutation::AdditionOps, graph::graph::Graph}, prelude::NO_PROPS};
+    use crate::{
+        db::{api::mutation::AdditionOps, graph::graph::Graph},
+        prelude::NO_PROPS,
+    };
 
     #[test]
     fn triangle_count_1() {

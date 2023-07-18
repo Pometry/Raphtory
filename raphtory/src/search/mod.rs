@@ -6,8 +6,7 @@ use rayon::{prelude::ParallelIterator, slice::ParallelSlice};
 use tantivy::{
     collector::TopDocs,
     schema::{Field, Schema, SchemaBuilder, FAST, INDEXED, STORED, TEXT},
-    Document, Index, IndexReader, IndexSettings, IndexWriter,
-    TantivyError,
+    Document, Index, IndexReader, IndexSettings, IndexWriter, TantivyError,
 };
 
 use crate::{
@@ -377,11 +376,11 @@ impl<G: GraphViewOps> IndexedGraph<G> {
         let src = e_ref.src();
         let dst = e_ref.dst();
 
-                let mut document = Document::new();
-                let edge_id: u64 = Into::<usize>::into(edge_ref.pid()) as u64;
-                document.add_u64(edge_id_field, edge_id);
-                document.add_text(source_field, src.name());
-                document.add_text(destination_field, dst.name());
+        let mut document = Document::new();
+        let edge_id: u64 = Into::<usize>::into(edge_ref.pid()) as u64;
+        document.add_u64(edge_id_field, edge_id);
+        document.add_text(source_field, src.name());
+        document.add_text(destination_field, dst.name());
 
         // add all time events
         for e in e_ref.explode() {
@@ -544,8 +543,7 @@ impl<G: GraphViewOps> IndexedGraph<G> {
         let query_parser = tantivy::query::QueryParser::for_index(&self.vertex_index, vec![]);
         let query = query_parser.parse_query(q)?;
 
-        let ranking = TopDocs::with_limit(limit)
-            .and_offset(offset);
+        let ranking = TopDocs::with_limit(limit).and_offset(offset);
 
         let top_docs = searcher.search(&query, &ranking)?;
 
@@ -553,7 +551,7 @@ impl<G: GraphViewOps> IndexedGraph<G> {
 
         let results = top_docs
             .into_iter()
-            .map(|(_, doc_address)|  searcher.doc(doc_address))
+            .map(|(_, doc_address)| searcher.doc(doc_address))
             .filter_map(Result::ok)
             .filter_map(|doc| self.resolve_vertex_from_search_result(vertex_id, doc))
             .collect::<Vec<_>>();

@@ -130,13 +130,8 @@ pub fn company_house_graph(path: Option<String>) -> Graph {
                 )
                 .expect("Failed to add edge");
 
-                g.add_edge_properties(
-                    owner,
-                    company.clone(),
-                    [("rel", "owns")],
-                    Some(pincode),
-                )
-                .expect("Failed to add edge static property");
+                g.add_edge_properties(owner, company.clone(), [("rel", "owns")], Some(pincode))
+                    .expect("Failed to add edge static property");
 
                 g.add_edge(
                     NaiveDateTime::from_timestamp_opt(ts, 0).unwrap(),
@@ -147,13 +142,8 @@ pub fn company_house_graph(path: Option<String>) -> Graph {
                 )
                 .expect("Failed to add edge");
 
-                g.add_edge_properties(
-                    company,
-                    address,
-                    [("rel", "owns")],
-                    None,
-                )
-                .expect("Failed to add edge static property");
+                g.add_edge_properties(company, address, [("rel", "owns")], None)
+                    .expect("Failed to add edge static property");
             })
             .expect("Failed to load graph from CSV data files");
 

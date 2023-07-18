@@ -1,4 +1,8 @@
-use raphtory::{prelude::{Graph, GraphViewOps}, search::IndexedGraph, db::api::view::internal::{IntoDynamic, DynamicGraph}};
+use raphtory::{
+    db::api::view::internal::{DynamicGraph, IntoDynamic},
+    prelude::{Graph, GraphViewOps},
+    search::IndexedGraph,
+};
 use std::{
     collections::{HashMap, HashSet},
     path::Path,
@@ -54,7 +58,13 @@ impl Data {
                         (graph_name.to_string(), graph)
                     }
                 };
-            }).map(|(name, g)| (name, IndexedGraph::from_graph(&g.into_dynamic()).expect("Unable to index graph")))
+            })
+            .map(|(name, g)| {
+                (
+                    name,
+                    IndexedGraph::from_graph(&g.into_dynamic()).expect("Unable to index graph"),
+                )
+            })
             .collect();
 
         Self { graphs }

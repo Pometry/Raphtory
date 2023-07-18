@@ -70,10 +70,13 @@ pub fn local_triangle_count<G: GraphViewOps, V: Into<VertexRef>>(graph: &G, v: V
 mod triangle_count_tests {
 
     use super::local_triangle_count;
-    use crate::{db::{
-        api::{mutation::AdditionOps, view::*},
-        graph::graph::Graph,
-    }, prelude::NO_PROPS};
+    use crate::{
+        db::{
+            api::{mutation::AdditionOps, view::*},
+            graph::graph::Graph,
+        },
+        prelude::NO_PROPS,
+    };
 
     #[test]
     fn counts_triangles() {

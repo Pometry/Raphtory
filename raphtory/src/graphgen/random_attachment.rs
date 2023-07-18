@@ -13,10 +13,13 @@
 //! random_attachment(&graph, 1000, 10);
 //! ```
 
-use crate::{db::{
-    api::{mutation::AdditionOps, view::*},
-    graph::graph::Graph,
-}, prelude::NO_PROPS};
+use crate::{
+    db::{
+        api::{mutation::AdditionOps, view::*},
+        graph::graph::Graph,
+    },
+    prelude::NO_PROPS,
+};
 use rand::seq::SliceRandom;
 
 /// Given a graph this function will add a user defined number of vertices, each with a

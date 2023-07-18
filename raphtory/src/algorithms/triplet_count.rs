@@ -114,10 +114,13 @@ pub fn triplet_count<G: GraphViewOps>(g: &G, threads: Option<usize>) -> usize {
 #[cfg(test)]
 mod triplet_test {
     use super::*;
-    use crate::{db::{
-        api::{mutation::AdditionOps, view::*},
-        graph::graph::Graph,
-    }, prelude::NO_PROPS};
+    use crate::{
+        db::{
+            api::{mutation::AdditionOps, view::*},
+            graph::graph::Graph,
+        },
+        prelude::NO_PROPS,
+    };
     use pretty_assertions::assert_eq;
 
     /// Test the global clustering coefficient

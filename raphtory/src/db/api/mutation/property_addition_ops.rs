@@ -3,7 +3,7 @@ use crate::{
         entities::vertices::input_vertex::InputVertex,
         utils::{errors::GraphError, time::TryIntoTime},
     },
-    db::api::mutation::internal::InternalPropertyAdditionOps
+    db::api::mutation::internal::InternalPropertyAdditionOps,
 };
 
 use super::Properties;
@@ -25,13 +25,13 @@ pub trait PropertyAdditionOps {
     /// let properties = vec![("color".to_owned(), Prop::Str("blue".to_owned())), ("weight".to_owned(), Prop::I64(11))];
     /// let result = graph.add_vertex_properties("Alice", properties);
     /// ```
-    fn add_vertex_properties<V: InputVertex, PI:Properties>(
+    fn add_vertex_properties<V: InputVertex, PI: Properties>(
         &self,
         v: V,
         data: PI,
     ) -> Result<(), GraphError>;
 
-    fn add_properties<T: TryIntoTime, PI:Properties>(
+    fn add_properties<T: TryIntoTime, PI: Properties>(
         &self,
         t: T,
         props: PI,
@@ -68,7 +68,6 @@ pub trait PropertyAdditionOps {
 }
 
 impl<G: InternalPropertyAdditionOps> PropertyAdditionOps for G {
-
     fn add_vertex_properties<V: InputVertex, PI: Properties>(
         &self,
         v: V,
@@ -98,5 +97,4 @@ impl<G: InternalPropertyAdditionOps> PropertyAdditionOps for G {
     ) -> Result<(), GraphError> {
         self.internal_add_edge_properties(src.id(), dst.id(), props.collect_properties(), layer)
     }
-
 }
