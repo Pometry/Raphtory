@@ -103,6 +103,7 @@ pub(crate) fn load_edges_from_df<'a,S:AsRef<str>>(
     time: &str,
     props: Option<Vec<&str>>,
     layer: Option<S>,
+    layer_in_df: Option<S>,
     graph: &Graph,
 ) -> Result<(), GraphError> {
     let prop_iter = props
@@ -112,7 +113,7 @@ pub(crate) fn load_edges_from_df<'a,S:AsRef<str>>(
         .reduce(combine_prop_iters)
         .unwrap_or_else(|| Box::new(std::iter::repeat(vec![])));
 
-    let layer = lift_layer(layer,df);
+    let layer = lift_layer(layer,layer_in_df,df);
 
 
     if let (Some(src), Some(dst), Some(time)) = (
@@ -206,22 +207,31 @@ fn lift_property<'a: 'b, 'b>(
 }
 
 fn lift_layer<'a,S:AsRef<str>>(
-    name: Option<S>,
+    layer: Option<S>,
+    layer_in_df: Option<S>,
     df: &'a PretendDF,
 ) -> Box<dyn Iterator<Item = Option<String>> + 'a> {
-    if let Some(name) = name {
-        if let Some(col) = df.utf8::<i32>(name.as_ref()) {
-            Box::new(col.map(|v| v.map(|v| v.to_string())))
-        } else if let Some(col) = df.utf8::<i64>(name.as_ref()) {
-            Box::new(col.map(|v| v.map(|v| v.to_string())))
+
+    if let Some(layer) = layer { //Prioritise the explicit layer set by the user
+        Box::new(std::iter::repeat(Some(layer.as_ref().to_string())))
+    }
+    else{
+        if let Some(name) = layer_in_df {
+            if let Some(col) = df.utf8::<i32>(name.as_ref()) {
+                Box::new(col.map(|v| v.map(|v| v.to_string())))
+            } else if let Some(col) = df.utf8::<i64>(name.as_ref()) {
+                Box::new(col.map(|v| v.map(|v| v.to_string())))
+            }
+            else {
+                Box::new(std::iter::repeat(None))
+            }
         }
         else {
             Box::new(std::iter::repeat(None))
         }
     }
-    else {
-        Box::new(std::iter::repeat(None))
-    }
+
+
 
 }
 
