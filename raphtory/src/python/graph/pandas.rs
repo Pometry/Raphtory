@@ -439,6 +439,8 @@ mod test {
             "dst",
             "time",
             Some(vec!["prop1", "prop2"]),
+            None,
+            None,
             &graph,
         )
         .expect("failed to load edges from pretend df");
