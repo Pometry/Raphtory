@@ -1,5 +1,5 @@
 use crate::core::{
-    entities::{edges::edge_store::EdgeStore, vertices::vertex_store::VertexStore},
+    entities::{edges::edge_store::EdgeStore, vertices::vertex_store::VertexStore, LayerIds},
     storage::{self, ArcEntry, Entry, EntryMut, PairEntryMut},
     Direction,
 };
@@ -63,11 +63,10 @@ impl<const N: usize> GraphStorage<N> {
         self.nodes.len()
     }
 
-    pub(crate) fn edges_len(&self, layers: &[usize]) -> usize {
-        if layers.len() == 0 {
-            self.edges.len()
-        } else {
-            self.edges.iter().filter(|e| e.has_layer(layers)).count()
+    pub(crate) fn edges_len(&self, layers: LayerIds) -> usize {
+        match layers {
+            LayerIds::All => self.edges.len(),
+            _ => self.edges.iter().filter(|e| e.has_layer(&layers)).count(),
         }
     }
 

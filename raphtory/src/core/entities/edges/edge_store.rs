@@ -2,9 +2,9 @@ use crate::core::{
     entities::{
         edges::edge_ref::EdgeRef,
         properties::{props::Props, tprop::TProp},
-        EID, VID,
+        LayerIds, EID, VID,
     },
-    storage::{timeindex::TimeIndex, locked_view::LockedView},
+    storage::{locked_view::LockedView, timeindex::TimeIndex},
     utils::errors::MutateGraphError,
     Prop,
 };
@@ -79,7 +79,6 @@ impl EdgeLayer {
                 .unwrap_or_else(|| Box::new(std::iter::empty()))
         }
     }
-
 }
 
 impl<const N: usize> From<&EdgeStore<N>> for EdgeRef {
@@ -96,11 +95,16 @@ impl<const N: usize> EdgeStore<N> {
         &mut self.layers[layer_id]
     }
 
-    pub fn has_layer(&self, layer_ids: &[usize]) -> bool {
-        self.layers
-            .iter()
-            .enumerate()
-            .any(|(i, _)| layer_ids.binary_search(&i).is_ok())
+    pub fn has_layer(&self, layers: &LayerIds) -> bool {
+        match layers {
+            LayerIds::All => true,
+            LayerIds::One(layer_ids) => self
+                .additions
+                .get(*layer_ids)
+                .filter(|t_index| !t_index.is_empty())
+                .is_some(),
+            LayerIds::Multiple(layer_ids) => todo!(),
+        }
     }
 
     pub fn new(src: VID, dst: VID) -> Self {

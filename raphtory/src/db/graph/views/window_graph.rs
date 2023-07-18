@@ -39,7 +39,7 @@
 
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef, EID, VID},
+        entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef, EID, VID, LayerIds},
         utils::time::IntoTime,
         Direction, Prop,
     },
@@ -47,7 +47,7 @@ use crate::{
         internal::{
             Base, GraphOps, GraphWindowOps, InheritCoreOps, InheritMaterialize, TimeSemantics,
         },
-        BoxedIter,
+        BoxedIter, Layer,
     },
     prelude::GraphViewOps,
 };
@@ -267,7 +267,7 @@ impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
         self.graph.get_unique_layers_internal()
     }
 
-    fn get_layer_id(&self, key: Option<&str>) -> Option<usize> {
+    fn get_layer_id(&self, key: Layer) -> Option<LayerIds> {
         self.graph.get_layer_id(key)
     }
 
@@ -277,7 +277,7 @@ impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
     }
 
     /// Returns the number of edges in the windowed view.
-    fn edges_len(&self, layer: Option<usize>) -> usize {
+    fn edges_len(&self, layer: LayerIds) -> usize {
         self.graph.edges_len_window(self.t_start, self.t_end, layer)
     }
 
@@ -295,7 +295,7 @@ impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
     /// # Errors
     ///
     /// Returns an error if either `src` or `dst` is not a valid vertex.
-    fn has_edge_ref(&self, src: VertexRef, dst: VertexRef, layer: usize) -> bool {
+    fn has_edge_ref(&self, src: VertexRef, dst: VertexRef, layer: LayerIds) -> bool {
         self.graph
             .has_edge_ref_window(src, dst, self.t_start, self.t_end, layer)
     }
@@ -332,7 +332,7 @@ impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
     /// # Errors
     ///
     /// Returns an error if `v` is not a valid vertex.
-    fn degree(&self, v: VID, d: Direction, layer: Option<usize>) -> usize {
+    fn degree(&self, v: VID, d: Direction, layer: LayerIds) -> usize {
         self.graph
             .degree_window(v, self.t_start, self.t_end, d, layer)
     }
@@ -377,7 +377,7 @@ impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
     /// # Errors
     ///
     /// Returns an error if `src` or `dst` are not valid vertices.
-    fn edge_ref(&self, src: VertexRef, dst: VertexRef, layer: usize) -> Option<EdgeRef> {
+    fn edge_ref(&self, src: VertexRef, dst: VertexRef, layer: LayerIds) -> Option<EdgeRef> {
         self.graph
             .edge_ref_window(src, dst, self.t_start, self.t_end, layer)
     }
@@ -387,7 +387,7 @@ impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
     /// # Returns
     ///
     /// An iterator over all edges as references
-    fn edge_refs(&self, layer: Option<usize>) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
+    fn edge_refs(&self, layer: LayerIds) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
         self.graph.edge_refs_window(self.t_start, self.t_end, layer)
     }
 
@@ -395,7 +395,7 @@ impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
         &self,
         v: VID,
         d: Direction,
-        layer: Option<usize>,
+        layer: LayerIds,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
         self.graph
             .vertex_edges_window(v, self.t_start, self.t_end, d, layer)
@@ -415,7 +415,7 @@ impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
         &self,
         v: VID,
         d: Direction,
-        layer: Option<usize>,
+        layer: LayerIds,
     ) -> Box<dyn Iterator<Item = VertexRef> + Send> {
         self.graph
             .neighbours_window(v, self.t_start, self.t_end, d, layer)
@@ -473,7 +473,7 @@ impl<G: GraphViewOps> WindowedGraph<G> {
 mod views_test {
 
     use super::*;
-    use crate::prelude::*;
+    use crate::{prelude::*, db::api::view::Layer};
     use itertools::Itertools;
     use quickcheck::TestResult;
     use rand::prelude::*;
@@ -653,7 +653,7 @@ mod views_test {
 
         let (i, e) = edges.get(rand_test_index).expect("test index in range");
         if (start..end).contains(i) {
-            if wg.has_edge(e.0, e.1, None) {
+            if wg.has_edge(e.0, e.1, Layer::All) {
                 TestResult::passed()
             } else {
                 TestResult::error(format!(
@@ -662,7 +662,7 @@ mod views_test {
                     start..end
                 ))
             }
-        } else if !wg.has_edge(e.0, e.1, None) {
+        } else if !wg.has_edge(e.0, e.1, Layer::All) {
             TestResult::passed()
         } else {
             TestResult::error(format!("Edge {:?} was in window {:?}", (i, e), start..end))
@@ -713,7 +713,7 @@ mod views_test {
             });
         let w = g.window(i64::MIN, i64::MAX);
         g.edges()
-            .all(|e| w.has_edge(e.src().id(), e.dst().id(), None))
+            .all(|e| w.has_edge(e.src().id(), e.dst().id(), Layer::All))
     }
 
     #[quickcheck]

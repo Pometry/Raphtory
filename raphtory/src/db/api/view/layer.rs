@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 /// Trait defining layer operations
 pub trait LayerOps {
     type LayeredViewType;
@@ -7,4 +9,11 @@ pub trait LayerOps {
 
     /// Return a graph containing the layer `name`
     fn layer(&self, name: &str) -> Option<Self::LayeredViewType>;
+}
+
+
+pub enum Layer<'a>{
+    All,
+    One(&'a str),
+    Multiple(Arc<[&'a str]>),
 }

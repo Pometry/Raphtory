@@ -1,6 +1,6 @@
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, VID},
+        entities::{edges::edge_ref::EdgeRef, VID, LayerIds},
         Direction,
     },
     db::api::view::{
@@ -27,7 +27,7 @@ pub trait ExplodedEdgeOps {
         &self,
         v: VID,
         d: Direction,
-        layer: Option<usize>,
+        layer: LayerIds,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send>;
 
     /// Returns an iterator over the edges connected to a given vertex within
@@ -50,7 +50,7 @@ pub trait ExplodedEdgeOps {
         t_start: i64,
         t_end: i64,
         d: Direction,
-        layer: Option<usize>,
+        layers: LayerIds,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send>;
 
     /// Get the activation timestamps for an edge `e`
@@ -65,7 +65,7 @@ impl<G: GraphOps + TimeSemantics + Clone + 'static> ExplodedEdgeOps for G {
         &self,
         v: VID,
         d: Direction,
-        layer: Option<usize>,
+        layer: LayerIds,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
         {
             let g = self.clone();
@@ -82,7 +82,7 @@ impl<G: GraphOps + TimeSemantics + Clone + 'static> ExplodedEdgeOps for G {
         t_start: i64,
         t_end: i64,
         d: Direction,
-        layer: Option<usize>,
+        layer: LayerIds,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
         let g = self.clone();
         Box::new(

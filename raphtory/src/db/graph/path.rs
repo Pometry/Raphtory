@@ -1,6 +1,6 @@
 use crate::{
     core::{
-        entities::{vertices::vertex_ref::VertexRef, VID},
+        entities::{vertices::vertex_ref::VertexRef, VID, LayerIds},
         utils::time::IntoTime,
         Direction,
     },
@@ -36,7 +36,7 @@ impl Operations {
     ) -> Box<dyn Iterator<Item = VertexRef> + Send> {
         match self {
             Operations::Neighbours { dir } => Box::new(iter.flat_map(move |v| {
-                graph.neighbours(graph.localise_vertex_unchecked(v), dir, None)
+                graph.neighbours(graph.localise_vertex_unchecked(v), dir, LayerIds::All)
             })),
             Operations::NeighboursWindow {
                 dir,
@@ -48,7 +48,7 @@ impl Operations {
                     t_start,
                     t_end,
                     dir,
-                    None,
+                    LayerIds::All,
                 )
             })),
         }

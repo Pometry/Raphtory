@@ -2,7 +2,7 @@
 
 use crate::{
     core::{
-        entities::{vertices::vertex_ref::VertexRef, VID},
+        entities::{vertices::vertex_ref::VertexRef, VID, LayerIds},
         utils::time::IntoTime,
         Direction,
     },
@@ -151,24 +151,24 @@ impl<G: GraphViewOps> VertexViewOps for VertexView<G> {
 
     fn degree(&self) -> usize {
         let dir = Direction::BOTH;
-        self.graph.degree(self.vertex, dir, None)
+        self.graph.degree(self.vertex, dir, LayerIds::All)
     }
 
     fn in_degree(&self) -> usize {
         let dir = Direction::IN;
-        self.graph.degree(self.vertex, dir, None)
+        self.graph.degree(self.vertex, dir, LayerIds::All)
     }
 
     fn out_degree(&self) -> usize {
         let dir = Direction::OUT;
-        self.graph.degree(self.vertex, dir, None)
+        self.graph.degree(self.vertex, dir, LayerIds::All)
     }
 
     fn edges(&self) -> EdgeList<G> {
         let g = self.graph.clone();
         let dir = Direction::BOTH;
         Box::new(
-            g.vertex_edges(self.vertex, dir, None)
+            g.vertex_edges(self.vertex, dir, LayerIds::All)
                 .map(move |e| EdgeView::new(g.clone(), e)),
         )
     }
@@ -177,7 +177,7 @@ impl<G: GraphViewOps> VertexViewOps for VertexView<G> {
         let g = self.graph.clone();
         let dir = Direction::IN;
         Box::new(
-            g.vertex_edges(self.vertex, dir, None)
+            g.vertex_edges(self.vertex, dir, LayerIds::All)
                 .map(move |e| EdgeView::new(g.clone(), e)),
         )
     }
@@ -186,7 +186,7 @@ impl<G: GraphViewOps> VertexViewOps for VertexView<G> {
         let g = self.graph.clone();
         let dir = Direction::OUT;
         Box::new(
-            g.vertex_edges(self.vertex, dir, None)
+            g.vertex_edges(self.vertex, dir, LayerIds::All)
                 .map(move |e| EdgeView::new(g.clone(), e)),
         )
     }

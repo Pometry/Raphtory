@@ -1,6 +1,6 @@
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef},
+        entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef, LayerIds},
         Prop,
     },
     db::api::view::{internal::*, *},
@@ -127,7 +127,7 @@ pub trait EdgeViewOps: EdgeViewInternalOps<Self::Graph, Self::Vertex> {
                 self.eref().dst(),
                 t,
                 t.saturating_add(1),
-                0// FIXME: find a better sollution than 0 self.eref().layer(),
+                LayerIds::All,
             ),
         }
     }

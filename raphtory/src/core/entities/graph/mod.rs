@@ -48,7 +48,7 @@ mod test {
 
 
         let first =g.vertex_arc(0.into());
-        let edges = first.edge_tuples(&[0, 1, 2, 3, 4], Direction::OUT).collect::<Vec<_>>();
+        let edges = first.edge_tuples([0, 1, 2, 3, 4].into(), Direction::OUT).collect::<Vec<_>>();
 
         assert_eq!(edges.len(), 1, "should only have one edge {:?}", edges);
     }

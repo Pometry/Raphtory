@@ -1,6 +1,6 @@
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, VID},
+        entities::{edges::edge_ref::EdgeRef, VID, LayerIds},
         storage::timeindex::TimeIndexOps,
         utils::errors::GraphError,
         Direction, Prop,
@@ -169,7 +169,7 @@ impl TimeSemantics for GraphWithDeletions {
     }
 
     fn include_vertex_window(&self, v: VID, w: Range<i64>) -> bool {
-        self.vertex_edges(v, Direction::BOTH, None)
+        self.vertex_edges(v, Direction::BOTH, LayerIds::All)
             .any(move |e| self.include_edge_window(e, w.clone()))
     }
 

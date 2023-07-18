@@ -49,9 +49,9 @@ pub fn local_triangle_count<G: GraphViewOps, V: Into<VertexRef>>(graph: &G, v: V
                 .id()
                 .into_iter()
                 .combinations(2)
-                .filter_map(|nb| match graph.has_edge(nb[0], nb[1], None) {
+                .filter_map(|nb| match graph.has_edge(nb[0], nb[1], Layer::All) {
                     true => Some(1),
-                    false => match graph.has_edge(nb[1], nb[0], None) {
+                    false => match graph.has_edge(nb[1], nb[0], Layer::All) {
                         true => Some(1),
                         false => None,
                     },

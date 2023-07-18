@@ -1,6 +1,6 @@
 use crate::{
     core::{
-        entities::{graph::tgraph::InnerTemporalGraph, vertices::vertex_ref::VertexRef, VID},
+        entities::{graph::tgraph::InnerTemporalGraph, vertices::vertex_ref::VertexRef, VID, LayerIds},
         utils::{errors::GraphError, time::IntoTime},
         Prop,
     },
@@ -55,7 +55,7 @@ pub trait GraphViewOps: BoxableGraphView + Clone + Sized {
     fn has_vertex<T: Into<VertexRef>>(&self, v: T) -> bool;
 
     /// Check if the graph contains an edge given a pair of vertices `(src, dst)`.
-    fn has_edge<T: Into<VertexRef>>(&self, src: T, dst: T, layer: Option<&str>) -> bool;
+    fn has_edge<T: Into<VertexRef>>(&self, src: T, dst: T, layer: Layer) -> bool;
 
     /// Get a vertex `v`.
     fn vertex<T: Into<VertexRef>>(&self, v: T) -> Option<VertexView<Self>>;
@@ -206,14 +206,14 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
     }
 
     fn num_edges(&self) -> usize {
-        self.edges_len(None)
+        self.edges_len(LayerIds::All)
     }
 
     fn has_vertex<T: Into<VertexRef>>(&self, v: T) -> bool {
         self.has_vertex_ref(v.into())
     }
 
-    fn has_edge<T: Into<VertexRef>>(&self, src: T, dst: T, layer: Option<&str>) -> bool {
+    fn has_edge<T: Into<VertexRef>>(&self, src: T, dst: T, layer: Layer) -> bool {
         match self.get_layer_id(layer) {
             Some(layer_id) => self.has_edge_ref(src.into(), dst.into(), layer_id),
             None => false,

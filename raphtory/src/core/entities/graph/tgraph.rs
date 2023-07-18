@@ -1,4 +1,4 @@
-use crate::core::{
+use crate::{core::{
     entities::{
         edges::{
             edge::EdgeView,
@@ -15,7 +15,7 @@ use crate::core::{
             vertex_ref::VertexRef,
             vertex_store::VertexStore,
         },
-        EID, VID,
+        EID, VID, LayerIds,
     },
     storage::{locked_view::LockedView, timeindex::TimeIndexOps, Entry},
     utils::{
@@ -23,7 +23,7 @@ use crate::core::{
         time::TryIntoTime,
     },
     Direction, Prop, PropUnwrap,
-};
+}, db::api::view::Layer};
 use dashmap::DashMap;
 use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
@@ -73,7 +73,7 @@ impl<const N: usize> std::fmt::Display for InnerTemporalGraph<N> {
             f,
             "Graph(num_vertices={}, num_edges={})",
             self.storage.nodes_len(),
-            self.storage.edges_len(&[])
+            self.storage.edges_len(LayerIds::All)
         )
     }
 }
@@ -107,10 +107,21 @@ impl<const N: usize> InnerTemporalGraph<N> {
         self.edge_meta.get_all_layers()
     }
 
-    pub(crate) fn layer_id(&self, key: Option<&str>) -> Option<usize> {
+    pub(crate) fn layer_id(&self, key: Layer) -> Option<LayerIds> {
         match key {
-            Some(key) => self.edge_meta.get_layer_id(key),
-            None => Some(0),
+            Layer::All => Some(LayerIds::All),
+            Layer::One(id) => self.edge_meta.get_layer_id(id).map(|id| LayerIds::One(id)),
+            Layer::Multiple(ids) => {
+                let new_layers = ids
+                    .iter()
+                    .filter_map(|id| self.edge_meta.get_layer_id(*id))
+                    .collect::<Vec<_>>();
+                if new_layers.is_empty() {
+                    None
+                } else {
+                    Some(new_layers.into())
+                }
+            }
         }
     }
 
@@ -203,11 +214,11 @@ impl<const N: usize> InnerTemporalGraph<N> {
         self.storage.nodes_len()
     }
 
-    pub(crate) fn internal_num_edges(&self, layers: &[usize]) -> usize {
+    pub(crate) fn internal_num_edges(&self, layers: LayerIds) -> usize {
         self.storage.edges_len(layers)
     }
 
-    pub(crate) fn degree(&self, v: VID, dir: Direction, layers: &[usize]) -> usize {
+    pub(crate) fn degree(&self, v: VID, dir: Direction, layers: LayerIds) -> usize {
         let node_store = self.storage.get_node(v.into());
         node_store.neighbours(layers, dir).count()
     }
@@ -336,7 +347,7 @@ impl<const N: usize> InnerTemporalGraph<N> {
         let edge_id = self
             .storage
             .get_node(src_id)
-            .find_edge(dst_id.into(), Some(layer_id))
+            .find_edge(dst_id.into(), layer_id.into())
             .ok_or(GraphError::FailedToMutateGraph {
                 source: MutateGraphError::MissingEdge(src.id(), dst.id()),
             })?;
@@ -405,7 +416,7 @@ impl<const N: usize> InnerTemporalGraph<N> {
 
         let layer = self.get_or_allocate_layer(layer);
 
-        if let Some(e_id) = self.find_edge(src_id, dst_id, None) {
+        if let Some(e_id) = self.find_edge(src_id, dst_id, layer.into()) {
             let mut edge = self.storage.get_edge_mut(e_id.into());
             edge.deletions_mut(layer).insert(t);
         } else {
@@ -437,7 +448,7 @@ impl<const N: usize> InnerTemporalGraph<N> {
         let src = node_pair.get_mut_i();
 
         // find the edge_id if it exists and add the time event to the nodes
-        if let Some(edge_id) = src.find_edge(dst_id, None) {
+        if let Some(edge_id) = src.find_edge(dst_id, layer.into()) {
             src.add_edge(dst_id, Direction::OUT, layer, edge_id);
             // add inbound edge for dst
             let dst = node_pair.get_mut_j();
@@ -529,7 +540,7 @@ impl<const N: usize> InnerTemporalGraph<N> {
         EdgeView::from_entry(edge, self)
     }
 
-    pub(crate) fn find_edge(&self, src: VID, dst: VID, layer_id: Option<usize>) -> Option<EID> {
+    pub(crate) fn find_edge(&self, src: VID, dst: VID, layer_id: LayerIds) -> Option<EID> {
         let node = self.storage.get_node(src.into());
         node.find_edge(dst, layer_id)
     }

@@ -150,14 +150,14 @@ mod db_tests {
     use super::*;
     use crate::{
         core::{
-            entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef},
+            entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef, LayerIds},
             utils::time::{error::ParseTimeError, TryIntoTime},
             Direction, Prop,
         },
         db::{
             api::view::{
                 internal::*, EdgeListOps, EdgeViewOps, GraphViewOps, LayerOps, TimeOps,
-                VertexViewOps,
+                VertexViewOps, Layer,
             },
             graph::{edge::EdgeView, path::PathFromVertex},
         },
@@ -237,7 +237,7 @@ mod db_tests {
 
         edges
             .iter()
-            .all(|&(_, src, dst)| g.has_edge(src, dst, None))
+            .all(|&(_, src, dst)| g.has_edge(src, dst, Layer::All))
     }
 
     #[quickcheck]
@@ -288,17 +288,17 @@ mod db_tests {
         let g = Graph::new();
         g.add_edge(1, 7, 8, NO_PROPS, None).unwrap();
 
-        assert!(!g.has_edge(8, 7, None));
-        assert!(g.has_edge(7, 8, None));
+        assert!(!g.has_edge(8, 7, Layer::All));
+        assert!(g.has_edge(7, 8, Layer::All));
 
         g.add_edge(1, 7, 9, NO_PROPS, None).unwrap();
 
-        assert!(!g.has_edge(9, 7, None));
-        assert!(g.has_edge(7, 9, None));
+        assert!(!g.has_edge(9, 7, Layer::All));
+        assert!(g.has_edge(7, 9, Layer::All));
 
         g.add_edge(2, "haaroon", "northLondon", NO_PROPS, None)
             .unwrap();
-        assert!(g.has_edge("haaroon", "northLondon", None));
+        assert!(g.has_edge("haaroon", "northLondon", Layer::All));
     }
 
     #[test]
@@ -317,7 +317,7 @@ mod db_tests {
         }
 
         let e = g
-            .edge_ref_window(1.into(), 3.into(), i64::MIN, i64::MAX, 0)
+            .edge_ref_window(1.into(), 3.into(), i64::MIN, i64::MAX, 0.into())
             .unwrap();
         assert_eq!(g.vertex_id(g.localise_vertex_unchecked(e.src())), 1u64);
         assert_eq!(g.vertex_id(g.localise_vertex_unchecked(e.dst())), 3u64);
@@ -345,9 +345,9 @@ mod db_tests {
             .map(|i| {
                 let i = g.vertex_ref(i).unwrap();
                 (
-                    g.degree_window(i, -1, 7, Direction::IN, None),
-                    g.degree_window(i, 1, 7, Direction::OUT, None),
-                    g.degree_window(i, 0, 1, Direction::BOTH, None),
+                    g.degree_window(i, -1, 7, Direction::IN, LayerIds::All),
+                    g.degree_window(i, 1, 7, Direction::OUT, LayerIds::All),
+                    g.degree_window(i, 0, 1, Direction::BOTH, LayerIds::All),
                 )
             })
             .collect::<Vec<_>>();
@@ -365,9 +365,9 @@ mod db_tests {
             .map(|i| {
                 let i = g.vertex_ref(i).unwrap();
                 (
-                    g.degree_window(i, -1, 7, Direction::IN, None),
-                    g.degree_window(i, 1, 7, Direction::OUT, None),
-                    g.degree_window(i, 0, 1, Direction::BOTH, None),
+                    g.degree_window(i, -1, 7, Direction::IN, LayerIds::All),
+                    g.degree_window(i, 1, 7, Direction::OUT, LayerIds::All),
+                    g.degree_window(i, 0, 1, Direction::BOTH, LayerIds::All),
                 )
             })
             .collect::<Vec<_>>();
@@ -397,13 +397,13 @@ mod db_tests {
             .map(|i| {
                 let i = g.vertex_ref(i).unwrap();
                 (
-                    g.vertex_edges_window(i, -1, 7, Direction::IN, None)
+                    g.vertex_edges_window(i, -1, 7, Direction::IN, LayerIds::All)
                         .collect::<Vec<_>>()
                         .len(),
-                    g.vertex_edges_window(i, 1, 7, Direction::OUT, None)
+                    g.vertex_edges_window(i, 1, 7, Direction::OUT, LayerIds::All)
                         .collect::<Vec<_>>()
                         .len(),
-                    g.vertex_edges_window(i, 0, 1, Direction::BOTH, None)
+                    g.vertex_edges_window(i, 0, 1, Direction::BOTH, LayerIds::All)
                         .collect::<Vec<_>>()
                         .len(),
                 )
@@ -423,13 +423,13 @@ mod db_tests {
             .map(|i| {
                 let i = g.vertex_ref(i).unwrap();
                 (
-                    g.vertex_edges_window(i, -1, 7, Direction::IN, None)
+                    g.vertex_edges_window(i, -1, 7, Direction::IN, LayerIds::All)
                         .collect::<Vec<_>>()
                         .len(),
-                    g.vertex_edges_window(i, 1, 7, Direction::OUT, None)
+                    g.vertex_edges_window(i, 1, 7, Direction::OUT, LayerIds::All)
                         .collect::<Vec<_>>()
                         .len(),
-                    g.vertex_edges_window(i, 0, 1, Direction::BOTH, None)
+                    g.vertex_edges_window(i, 0, 1, Direction::BOTH, LayerIds::All)
                         .collect::<Vec<_>>()
                         .len(),
                 )
@@ -493,9 +493,9 @@ mod db_tests {
         let v11 = g.vertex_ref(11).unwrap();
         let v22 = g.vertex_ref(22).unwrap();
         let v33 = g.vertex_ref(33).unwrap();
-        let edge1111 = g.edge_ref(v11.into(), v11.into(), 0).unwrap();
-        let edge2233 = g.edge_ref(v22.into(), v33.into(), 0).unwrap();
-        let edge3311 = g.edge_ref(v33.into(), v11.into(), 0).unwrap();
+        let edge1111 = g.edge_ref(v11.into(), v11.into(), 0.into()).unwrap();
+        let edge2233 = g.edge_ref(v22.into(), v33.into(), 0.into()).unwrap();
+        let edge3311 = g.edge_ref(v33.into(), v11.into(), 0.into()).unwrap();
 
         g.add_vertex_properties(
             11,
@@ -610,11 +610,11 @@ mod db_tests {
             .map(|i| {
                 let i = g.vertex_ref(i).unwrap();
                 (
-                    g.neighbours_window(i, -1, 7, Direction::IN, None)
+                    g.neighbours_window(i, -1, 7, Direction::IN, LayerIds::All)
                         .collect::<Vec<_>>(),
-                    g.neighbours_window(i, 1, 7, Direction::OUT, None)
+                    g.neighbours_window(i, 1, 7, Direction::OUT, LayerIds::All)
                         .collect::<Vec<_>>(),
-                    g.neighbours_window(i, 0, 1, Direction::BOTH, None)
+                    g.neighbours_window(i, 0, 1, Direction::BOTH, LayerIds::All)
                         .collect::<Vec<_>>(),
                 )
             })
@@ -659,10 +659,10 @@ mod db_tests {
         g.add_edge(0, 11, 33, NO_PROPS, Some("layer2")).unwrap();
         g.add_edge(0, 11, 44, NO_PROPS, Some("layer2")).unwrap();
 
-        assert!(g.has_edge(11, 22, None));
-        assert!(!g.has_edge(11, 44, None));
-        assert!(!g.has_edge(11, 22, Some("layer2")));
-        assert!(g.has_edge(11, 44, Some("layer2")));
+        assert!(g.has_edge(11, 22, Layer::All));
+        assert!(!g.has_edge(11, 44, Layer::All));
+        assert!(!g.has_edge(11, 22, Layer::One("layer2")));
+        assert!(g.has_edge(11, 44, Layer::One("layer2")));
 
         assert!(g.edge(11, 22, None).is_some());
         assert!(g.edge(11, 44, None).is_none());

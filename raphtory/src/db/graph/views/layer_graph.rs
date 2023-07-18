@@ -1,6 +1,8 @@
+use std::sync::Arc;
+
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef, EID, VID},
+        entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef, LayerIds, EID, VID},
         Direction,
     },
     db::api::view::internal::{
@@ -15,7 +17,7 @@ pub struct LayeredGraph<G: GraphViewOps> {
     /// The underlying `Graph` object.
     pub graph: G,
     /// The layer this graphs points to.
-    pub layer: usize,
+    pub layers: LayerIds,
 }
 
 impl<G: GraphViewOps> Base for LayeredGraph<G> {
@@ -33,14 +35,30 @@ impl<G: GraphViewOps> InheritCoreOps for LayeredGraph<G> {}
 impl<G: GraphViewOps> InheritMaterialize for LayeredGraph<G> {}
 
 impl<G: GraphViewOps> LayeredGraph<G> {
-    pub fn new(graph: G, layer: usize) -> Self {
-        Self { graph, layer }
+    pub fn new<I: IntoIterator<Item = usize>>(graph: G, layers: I) -> Self {
+        let layers = layers.into_iter().collect_vec();
+        Self {
+            graph,
+            layers: layers.into(),
+        }
     }
 
     /// Return None if the intersection between the previously requested layers and the layer of
     /// this view is null
-    fn constrain(&self, layer: Option<usize>) -> Option<usize> {
-        Some(layer.unwrap_or(self.layer))
+    fn constrain(&self, layers: LayerIds) -> Option<LayerIds> {
+        match self.layers {
+            LayerIds::All => Some(layers),
+            LayerIds::One(id) => layers.find(id).map(|layer| LayerIds::One(layer)),
+            LayerIds::Multiple(ids) => {
+                // intersect the layers
+                let new_layers = ids.iter().filter_map(|id| layers.find(*id)).collect_vec();
+                if new_layers.is_empty() {
+                    None
+                } else {
+                    Some(LayerIds::Multiple(new_layers.into()))
+                }
+            }
+        }
     }
 }
 
@@ -49,7 +67,7 @@ impl<G: GraphViewOps> GraphOps for LayeredGraph<G> {
         let edge_ref = self.graph.find_edge_id(e_id)?;
         let edge_ref_in_layer = self
             .graph
-            .has_edge_ref(edge_ref.src(), edge_ref.dst(), self.layer);
+            .has_edge_ref(edge_ref.src(), edge_ref.dst(), self.layers);
 
         if edge_ref_in_layer {
             Some(edge_ref)
@@ -78,8 +96,8 @@ impl<G: GraphViewOps> GraphOps for LayeredGraph<G> {
         self.graph.vertices_len()
     }
 
-    fn edges_len(&self, layer: Option<usize>) -> usize {
-        self.constrain(layer)
+    fn edges_len(&self, layers: LayerIds) -> usize {
+        self.constrain(layers)
             .map(|layer| self.graph.edges_len(Some(layer)))
             .unwrap_or(0)
     }

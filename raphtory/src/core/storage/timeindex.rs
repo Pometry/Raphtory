@@ -18,6 +18,14 @@ pub enum TimeIndex {
 }
 
 impl TimeIndex {
+
+    pub fn is_empty(&self) -> bool {
+        match self {
+            TimeIndex::Empty => true,
+            _ => false,
+        }
+    }
+
     pub fn one(t: i64) -> Self {
         Self::One(t)
     }

@@ -7,7 +7,7 @@ use crate::core::{
             structure::iter::{Paged, PagedIter},
             vertex_store::VertexStore,
         },
-        VRef, VID,
+        VRef, VID, LayerIds,
     },
     storage::{
         locked_view::LockedView,
@@ -85,7 +85,7 @@ impl<'a, const N: usize> Vertex<'a, N> {
             .collect_vec();
 
         (*self.node)
-            .neighbours(&layer_ids, dir)
+            .neighbours(layer_ids.into(), dir)
             .map(move |dst| self.graph.vertex(dst))
     }
 
@@ -132,15 +132,15 @@ impl<const N: usize> ArcVertex<N> {
         ArcVertex { e }
     }
 
-    pub fn edge_tuples<'a, 'b:'a>(
-        &'a self,
-        layers: &'b [usize],
+    pub fn edge_tuples(
+        &self,
+        layers: LayerIds,
         dir: Direction,
     ) -> impl Iterator<Item = EdgeRef> + '_ {
         self.e.edge_tuples(layers, dir)
     }
 
-    pub fn neighbours(&self, layers: &[usize], dir: Direction) -> impl Iterator<Item = VID> + '_ {
+    pub fn neighbours(&self, layers: LayerIds, dir: Direction) -> impl Iterator<Item = VID> + '_ {
         self.e.neighbours(layers, dir)
     }
 }

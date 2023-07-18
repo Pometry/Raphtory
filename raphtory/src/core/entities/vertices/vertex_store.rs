@@ -3,7 +3,7 @@ use crate::core::{
         edges::edge_ref::EdgeRef,
         properties::{props::Props, tprop::TProp},
         vertices::structure::{adj, adj::Adj},
-        EID, VID,
+        LayerIds, EID, VID,
     },
     storage::timeindex::TimeIndex,
     utils::errors::MutateGraphError,
@@ -66,21 +66,26 @@ impl<const N: usize> VertexStore<N> {
         Ok(())
     }
 
-    pub(crate) fn find_edge(&self, dst: VID, layer_id: Option<usize>) -> Option<EID> {
+    pub(crate) fn find_edge(&self, dst: VID, layer_id: LayerIds) -> Option<EID> {
         match layer_id {
-            Some(layer_id) => {
-                let layer_adj = self.layers.get(layer_id)?;
-                return layer_adj.get_edge(dst, Direction::OUT);
-            }
-            None => {
-                for layer in self.layers.iter() {
-                    if let Some(eid) = layer.get_edge(dst, Direction::OUT) {
-                        return Some(eid);
-                    }
-                }
-            }
+            LayerIds::All => {
+                self.layers.iter().find_map(|layer| {
+                    layer.get_edge(dst, Direction::OUT)
+                })
+            },
+            LayerIds::One(layer_id) => {
+                self.layers.get(layer_id).and_then(|layer| {
+                    layer.get_edge(dst, Direction::OUT)
+                })
+            },
+            LayerIds::Multiple(layers) => {
+                layers.iter().find_map(|layer_id| {
+                    self.layers.get(*layer_id).and_then(|layer| {
+                        layer.get_edge(dst, Direction::OUT)
+                    })
+                })
+            },
         }
-        None
     }
 
     pub(crate) fn add_edge(&mut self, v_id: VID, dir: Direction, layer: usize, edge_id: EID) {
@@ -119,30 +124,45 @@ impl<const N: usize> VertexStore<N> {
 
     pub(crate) fn edge_tuples<'a, 'b: 'a>(
         &'a self,
-        layers: &'b [usize],
+        layers: LayerIds,
         d: Direction,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send + 'a> {
         let self_id = self.vid;
-        if layers.len() > 0 {
-            Box::new(
+        match layers {
+            LayerIds::All => {
+                let iter = self
+                    .layers
+                    .iter()
+                    .map(move |layer| self.iter_adj(layer, d, self_id, layers))
+                    .kmerge_by(|e1, e2| e1.remote() < e2.remote())
+                    .dedup();
+                Box::new(iter)
+            }
+            LayerIds::One(layer) => self
+                .layers
+                .get(layer)
+                .map(|layer| self.iter_adj(layer, d, self_id, layers))
+                .unwrap_or(Box::new(std::iter::empty())),
+            LayerIds::Multiple(layers) => Box::new(
                 layers
                     .iter()
-                    .filter_map(|i| self.layers.get(*i))
-                    .map(move |layer| {
-                        self.iter_adj(layer, d, self_id, layers)
-                    }).kmerge_by(|e1, e2| e1.remote() < e2.remote())
+                    .filter_map(|i| self.layers.get(*i).map(|adj| (i, adj)))
+                    .map(move |(layer_id, layer)| {
+                        self.iter_adj(layer, d, self_id, (*layer_id).into())
+                    })
+                    .kmerge_by(|e1, e2| e1.remote() < e2.remote())
                     .dedup(),
-            )
-        } else {
-            let iter = self
-                .layers
-                .iter()
-                .flat_map(move |layer| self.iter_adj(layer, d, self_id, layers));
-            Box::new(iter)
+            ),
         }
     }
 
-    fn iter_adj<'a, 'b: 'a>(&'a self, layer: &'a Adj, d: Direction, self_id: VID, layers: &'b [usize]) -> impl Iterator<Item = EdgeRef> + Send + 'a {
+    fn iter_adj<'a>(
+        &'a self,
+        layer: &'a Adj,
+        d: Direction,
+        self_id: VID,
+        layers: LayerIds,
+    ) -> Box<dyn Iterator<Item = EdgeRef> + Send + 'a> {
         let iter: Box<dyn Iterator<Item = EdgeRef> + Send> = match d {
             Direction::IN => Box::new(
                 layer
@@ -168,38 +188,56 @@ impl<const N: usize> VertexStore<N> {
     // this is important because it calculates degree
     pub(crate) fn neighbours<'a>(
         &'a self,
-        layers: &[usize],
+        layers: LayerIds,
         d: Direction,
     ) -> Box<dyn Iterator<Item = VID> + Send + 'a> {
-        if layers.len() > 0 {
-            let iter = layers
-                .iter()
-                .filter_map(|l| self.layers.get(*l))
-                .map(|layer| {
-                    let iter: Box<dyn Iterator<Item = VID> + Send> = match d {
-                        Direction::IN => Box::new(layer.iter(d).map(|(from_v, _)| from_v)),
-                        Direction::OUT => Box::new(layer.iter(d).map(|(to_v, _)| to_v)),
-                        Direction::BOTH => Box::new(
-                            self.neighbours(layers, Direction::OUT)
-                                .merge(self.neighbours(layers, Direction::IN))
-                                .dedup(),
-                        ),
-                    };
-                    iter
-                })
-                .kmerge()
-                .dedup();
-            Box::new(iter)
-        } else {
-            let iter = self
-                .layers
-                .iter()
-                .enumerate()
-                .map(|(layer_id, _)| self.neighbours(&[layer_id], d))
-                .kmerge()
-                .dedup();
-            Box::new(iter)
+        match layers {
+            LayerIds::All => {
+                let iter = self
+                    .layers
+                    .iter()
+                    .enumerate()
+                    .map(|(layer_id, _)| self.neighbours(layer_id.into(), d))
+                    .kmerge()
+                    .dedup();
+                Box::new(iter)
+            }
+            LayerIds::One(one) => {
+                let iter = self
+                    .layers
+                    .get(one)
+                    .map(|layer| self.neighbours_from_adj(layer, d, layers))
+                    .unwrap_or(Box::new(std::iter::empty()));
+                Box::new(iter)
+            }
+            LayerIds::Multiple(layers) => {
+                let iter = layers
+                    .iter()
+                    .filter_map(|l| self.layers.get(*l))
+                    .map(|layer| self.neighbours_from_adj(layer, d, layers.into()))
+                    .kmerge()
+                    .dedup();
+                Box::new(iter)
+            }
         }
+    }
+
+    fn neighbours_from_adj(
+        &self,
+        layer: &Adj,
+        d: Direction,
+        layers: LayerIds,
+    ) -> Box<dyn Iterator<Item = VID> + Send + '_> {
+        let iter: Box<dyn Iterator<Item = VID> + Send> = match d {
+            Direction::IN => Box::new(layer.iter(d).map(|(from_v, _)| from_v)),
+            Direction::OUT => Box::new(layer.iter(d).map(|(to_v, _)| to_v)),
+            Direction::BOTH => Box::new(
+                self.neighbours(layers.into(), Direction::OUT)
+                    .merge(self.neighbours(layers.into(), Direction::IN))
+                    .dedup(),
+            ),
+        };
+        iter
     }
 
     pub(crate) fn edges_from_last<'a>(
