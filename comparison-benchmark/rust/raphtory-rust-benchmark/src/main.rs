@@ -20,6 +20,8 @@ use std::{
     path::Path,
     time::Instant,
 };
+use raphtory::algorithms::algorithm_result::AlgorithmResult;
+use ordered_float::OrderedFloat;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None )]
@@ -201,14 +203,14 @@ fn main() {
 
     // page rank with time
     now = Instant::now();
-    let _page_rank: HashMap<String, f64> = unweighted_page_rank(&g, 1000, None, None, true)
+    let _page_rank : Vec<_>= unweighted_page_rank(&g, 1000, None, None, true)
         .into_iter()
         .collect();
     println!("Page rank: {} seconds", now.elapsed().as_secs_f64());
 
     // connected components with time
     now = Instant::now();
-    let _cc: HashMap<String, u64> = weakly_connected_components(&g, usize::MAX, None);
+    let _cc: AlgorithmResult<String, u64> = weakly_connected_components(&g, usize::MAX, None);
     println!(
         "Connected components: {} seconds",
         now.elapsed().as_secs_f64()

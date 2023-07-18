@@ -52,6 +52,34 @@ impl<H, Y> AlgorithmResult<H, Y>
     }
 }
 
+pub struct AlgorithmResultIterator<'a, H, Y>
+{
+    iter: std::collections::hash_map::Iter<'a, H, Y>,
+}
+
+impl<'a, H, Y> Iterator for AlgorithmResultIterator<'a, H, Y> {
+    type Item = (&'a H, &'a Y);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.iter.next()
+    }
+}
+
+impl<'a, H, Y> IntoIterator for &'a AlgorithmResult<H, Y>
+where
+    H: Clone + Hash + Ord,
+    Y: Clone
+{
+    type Item = (&'a H, &'a Y);
+    type IntoIter = AlgorithmResultIterator<'a, H, Y>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        AlgorithmResultIterator {
+            iter: self.result.iter(),
+        }
+    }
+}
+
 impl<H, Y> AlgorithmResult<H, Y>
     where
         H: Clone + Hash + Eq + Ord,
