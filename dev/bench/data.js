@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1689688851709,
+  "lastUpdate": 1689699662514,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -5503,6 +5503,60 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions with numeric string input",
             "value": 2360777,
             "range": "± 56840",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "b.a.steer@qmul.ac.uk",
+            "name": "Ben Steer",
+            "username": "miratepuffin"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ef8d5b107feeae0b0b332de2e6fa7d67edcfa01b",
+          "message": "Feature/layering in pandas (#1124)\n\n* Adding layers to load_edges_from_num_iter\r\n\r\n* Added explit layer setting\r\n\r\n* Fixed test\r\n\r\n* Fix test\r\n\r\n* fix tests",
+          "timestamp": "2023-07-18T17:54:56+01:00",
+          "tree_id": "e0aa53c12bc364aca4fb2459b319b242942af640",
+          "url": "https://github.com/Pometry/Raphtory/commit/ef8d5b107feeae0b0b332de2e6fa7d67edcfa01b"
+        },
+        "date": 1689699661632,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 757948,
+            "range": "± 2624",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and numeric string input",
+            "value": 1318471,
+            "range": "± 4129",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and string input",
+            "value": 1360941,
+            "range": "± 6759",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 966759,
+            "range": "± 72088",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions with numeric string input",
+            "value": 1851300,
+            "range": "± 66206",
             "unit": "ns/iter"
           }
         ]
