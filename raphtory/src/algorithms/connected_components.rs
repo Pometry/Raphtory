@@ -122,7 +122,7 @@ mod cc_test {
         ];
 
         for (src, dst, ts) in edges {
-            graph.add_edge(ts, src, dst, [], None).unwrap();
+            graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
         }
         let results: AlgorithmResult<String, u64> = weakly_connected_components(&graph, usize::MAX, None);
         assert_eq!(
@@ -173,7 +173,7 @@ mod cc_test {
         ];
 
         for (src, dst, ts) in edges {
-            graph.add_edge(ts, src, dst, [], None).unwrap();
+            graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
         }
 
         let results: AlgorithmResult<String, u64> = weakly_connected_components(&graph, usize::MAX, None);
@@ -206,7 +206,7 @@ mod cc_test {
         let edges = vec![(1, 1, 1)];
 
         for (src, dst, ts) in edges {
-            graph.add_edge(ts, src, dst, [], None).unwrap();
+            graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
         }
 
         let results: AlgorithmResult<String, u64> = weakly_connected_components(&graph, usize::MAX, None);
@@ -222,10 +222,10 @@ mod cc_test {
     #[test]
     fn windowed_connected_components() {
         let graph = Graph::new();
-        graph.add_edge(0, 1, 2, [], None).expect("add edge");
-        graph.add_edge(0, 2, 1, [], None).expect("add edge");
-        graph.add_edge(9, 3, 4, [], None).expect("add edge");
-        graph.add_edge(9, 4, 3, [], None).expect("add edge");
+        graph.add_edge(0, 1, 2, NO_PROPS, None).expect("add edge");
+        graph.add_edge(0, 2, 1, NO_PROPS, None).expect("add edge");
+        graph.add_edge(9, 3, 4, NO_PROPS, None).expect("add edge");
+        graph.add_edge(9, 4, 3, NO_PROPS, None).expect("add edge");
 
         let results: AlgorithmResult<String, u64> = weakly_connected_components(&graph, usize::MAX, None);
         let expected = vec![
@@ -242,8 +242,9 @@ mod cc_test {
         let wg = graph.window(0, 2);
         let results: AlgorithmResult<String, u64> = weakly_connected_components(&wg, usize::MAX, None);
 
-        let expected = vec![("1".to_string(), 1), ("2".to_string(), 1)]
+        let expected = vec![("1", 1), ("2", 1), ("3", 0), ("4", 0)]
             .into_iter()
+            .map(|(k, v)| (k.to_string(), v))
             .collect::<HashMap<String, u64>>();
 
         assert_eq!(*results.get_all(), expected);
@@ -270,7 +271,7 @@ mod cc_test {
             let graph = Graph::new();
 
             for (src, dst) in edges.iter() {
-                graph.add_edge(0, *src, *dst, [], None).unwrap();
+                graph.add_edge(0, *src, *dst, NO_PROPS, None).unwrap();
             }
 
             // now we do connected components over window 0..1

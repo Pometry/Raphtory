@@ -162,7 +162,7 @@ mod graph_loader_test {
     use crate::{core::utils::hashing, prelude::*};
     use csv::StringRecord;
 
-    use crate::{graph_loader::fetch_file, prelude::*};
+    use crate::graph_loader::fetch_file;
 
     #[test]
     fn test_fetch_file() {

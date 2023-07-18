@@ -37,7 +37,7 @@
 //! ];
 //!
 //! for (t, src, dst) in &vs {
-//!     g.add_edge(*t, *src, *dst, [], None);
+//!     g.add_edge(*t, *src, *dst, NO_PROPS, None);
 //! }
 //!
 //! println!("all_local_reciprocity: {:?}", all_local_reciprocity(&g, None));
@@ -153,7 +153,7 @@ pub fn all_local_reciprocity<G: GraphViewOps>(
 mod reciprocity_test {
     use crate::{
         algorithms::reciprocity::{all_local_reciprocity, global_reciprocity},
-        db::{api::mutation::AdditionOps, graph::graph::Graph},
+        db::{api::mutation::AdditionOps, graph::graph::Graph}, prelude::NO_PROPS,
     };
     use pretty_assertions::assert_eq;
     use std::collections::HashMap;
@@ -174,7 +174,7 @@ mod reciprocity_test {
         ];
 
         for (src, dst) in &vs {
-            graph.add_edge(0, *src, *dst, [], None).unwrap();
+            graph.add_edge(0, *src, *dst, NO_PROPS, None).unwrap();
         }
 
         let actual = global_reciprocity(&graph, None);

@@ -18,7 +18,7 @@ use crate::{
                 window_graph::WindowedGraph,
             },
         },
-    },
+    }, prelude::NO_PROPS,
 };
 use itertools::Itertools;
 use rustc_hash::FxHashSet;
@@ -347,7 +347,7 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
 
         for v in self.vertices().iter() {
             for h in v.history() {
-                g.add_vertex(h, v.id(), [])?;
+                g.add_vertex(h, v.id(), NO_PROPS)?;
             }
             for (name, props) in v.property_histories() {
                 for (t, prop) in props {

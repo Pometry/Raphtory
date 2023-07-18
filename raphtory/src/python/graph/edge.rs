@@ -18,10 +18,7 @@ use crate::{
         graph::vertex::{PyVertex, PyVertexIterable},
         types::{
             repr::{iterator_repr, Repr},
-            wrappers::{
-                iterators::{OptionI64Iterable, OptionPropIterable, PropsIterable},
-                *,
-            },
+            wrappers::iterators::{OptionI64Iterable, OptionPropIterable, PropsIterable},
         },
         utils::{PyGenericIterable, PyInterval, PyTime},
     },
@@ -407,8 +404,7 @@ impl Repr for PyEdge {
         let properties = &self
             .properties(Some(true))
             .iter()
-            .map(|(k, v)|
-                format!("{} : {}", k.to_string(), v.to_string()))
+            .map(|(k, v)|  format!("{k} : {:?}", v.to_string()))
             .join(", ");
 
         let source = self.edge.src().name();
@@ -424,7 +420,7 @@ impl Repr for PyEdge {
                 latest_time.unwrap_or(0),
             )
         } else {
-            let property_string: String = format!("{{{}}}", properties);
+            let property_string: String = format!("{{{properties}}}");
             format!(
                 "Edge(source={}, target={}, earliest_time={}, latest_time={}, properties={})",
                 source.trim_matches('"'),
