@@ -429,3 +429,43 @@ py_nested_iterable!(
     OptionPyTemporalPropertyView,
     PyNestedGenericIterator
 );
+
+#[pymethods]
+impl NestedTemporalPropertyIterable {
+    pub fn history(&self) -> Vec<Vec<Vec<i64>>> {
+        self.iter()
+            .map(|it| {
+                it.map(|p| p.map(|v| v.history()).unwrap_or_default())
+                    .collect()
+            })
+            .collect()
+    }
+    pub fn values(&self) -> Vec<Vec<Vec<Prop>>> {
+        self.iter()
+            .map(|it| {
+                it.map(|p| p.map(|v| v.values()).unwrap_or_default())
+                    .collect()
+            })
+            .collect()
+    }
+    pub fn items(&self) -> Vec<Vec<Vec<(i64, Prop)>>> {
+        self.iter()
+            .map(|it| {
+                it.map(|p| p.map(|v| v.iter().collect()).unwrap_or_default())
+                    .collect()
+            })
+            .collect()
+    }
+
+    pub fn at(&self, t: PyTime) -> Vec<Vec<Option<Prop>>> {
+        let t = t.into_time();
+        self.iter()
+            .map(|it| it.map(|p| p.and_then(|v| v.at(t))).collect())
+            .collect()
+    }
+    pub fn value(&self) -> Vec<Vec<Option<Prop>>> {
+        self.iter()
+            .map(|it| it.map(|p| p.and_then(|v| v.latest())).collect())
+            .collect()
+    }
+}
