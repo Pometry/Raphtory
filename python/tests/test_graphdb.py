@@ -380,34 +380,54 @@ def test_vertex_properties():
 
     # testing property_history
     def history_test(key, value):
-        assert g.vertex(1).properties.temporal.get(key).items() == value
-        assert g.vertices.properties.temporal.get(key).items() == [value]
-        assert g.vertices.out_neighbours().properties.temporal.get(key).items() == [[value]]
+        if value is None:
+            assert g.vertex(1).properties.temporal.get(key) is None
+            assert g.vertices.properties.temporal.get(key) is None
+            assert g.vertices.out_neighbours().properties.temporal.get(key) is None
+        else:
+            assert g.vertex(1).properties.temporal.get(key).items() == value
+            assert g.vertices.properties.temporal.get(key).items() == [value]
+            assert g.vertices.out_neighbours().properties.temporal.get(key).items() == [[value]]
 
     history_test("prop 1", [(1, 1), (2, 2)])
     history_test("prop 2", [(2, 0.6), (3, 0.9)])
     history_test("prop 3", [(1, "hi"), (3, 'hello')])
     history_test("prop 4", [(1, True), (2, False), (3, True)])
-    history_test("undefined", [])
+    history_test("undefined", None)
 
     def time_history_test(time, key, value):
-        assert g.at(time).vertex(1).property_history(key) == value
-        assert g.at(time).vertices.property_history(key).collect() == [value]
-        assert g.at(time).vertices.out_neighbours().property_history(key).collect() == [[value]]
+        if value is None:
+            assert g.at(time).vertex(1).properties.temporal.get(key) is None
+            assert g.at(time).vertices.properties.temporal.get(key) is None
+            assert g.at(time).vertices.out_neighbours().properties.temporal.get(key) is None
+        else:
+            assert g.at(time).vertex(1).properties.temporal.get(key).items() == value
+            assert g.at(time).vertices.properties.temporal.get(key).items() == [value]
+            assert g.at(time).vertices.out_neighbours().properties.temporal.get(key).items() == [[value]]
 
     time_history_test(1, "prop 4", [(1, True)])
-    time_history_test(1, "static prop", [])
+    time_history_test(1, "static prop", None)
 
     def time_static_property_test(time, key, value):
         gg = g.at(time)
-        assert gg.vertex(1).static_property(key) == value
-        assert gg.vertices.static_property(key).collect() == [value]
-        assert gg.vertices.out_neighbours().static_property(key).collect() == [[value]]
+        if value is None:
+            assert gg.vertex(1).properties.meta.get(key) is None
+            assert gg.vertices.properties.meta.get(key) is None
+            assert gg.vertices.out_neighbours().properties.meta.get(key) is None
+        else:
+            assert gg.vertex(1).properties.meta.get(key) == value
+            assert gg.vertices.properties.meta.get(key) == [value]
+            assert gg.vertices.out_neighbours().properties.meta.get(key) == [[value]]
 
     def static_property_test(key, value):
-        assert g.vertex(1).static_property(key) == value
-        assert g.vertices.static_property(key).collect() == [value]
-        assert g.vertices.out_neighbours().static_property(key).collect() == [[value]]
+        if value is None:
+            assert g.vertex(1).properties.meta.get(key) is None
+            assert g.vertices.properties.meta.get(key) is None
+            assert g.vertices.out_neighbours().properties.meta.get(key) is None
+        else:
+            assert g.vertex(1).properties.meta.get(key) == value
+            assert g.vertices.properties.meta.get(key) == [value]
+            assert g.vertices.out_neighbours().properties.meta.get(key) == [[value]]
 
     time_static_property_test(1, "static prop", 123)
     time_static_property_test(100, "static prop", 123)
@@ -417,19 +437,34 @@ def test_vertex_properties():
     # testing property
     def time_property_test(time, key, value):
         gg = g.at(time)
-        assert gg.vertex(1).property(key) == value
-        assert gg.vertices.property(key).collect() == [value]
-        assert gg.vertices.out_neighbours().property(key).collect() == [[value]]
+        if value is None:
+            assert gg.vertex(1).properties.get(key) is None
+            assert gg.vertices.properties.get(key) is None
+            assert gg.vertices.out_neighbours().properties.get(key) is None
+        else:
+            assert gg.vertex(1).properties.get(key) == value
+            assert gg.vertices.properties.get(key) == [value]
+            assert gg.vertices.out_neighbours().properties.get(key) == [[value]]
 
     def property_test(key, value):
-        assert g.vertex(1).property(key) == value
-        assert g.vertices.property(key).collect() == [value]
-        assert g.vertices.out_neighbours().property(key).collect() == [[value]]
+        if value is None:
+            assert g.vertex(1).properties.get(key) is None
+            assert g.vertices.properties.get(key) is None
+            assert g.vertices.out_neighbours().properties.get(key) is None
+        else:
+            assert g.vertex(1).properties.get(key) == value
+            assert g.vertices.properties.get(key) == [value]
+            assert g.vertices.out_neighbours().properties.get(key) == [[value]]
 
     def no_static_property_test(key, value):
-        assert g.vertex(1).property(key, include_static=False) == value
-        assert g.vertices.property(key, include_static=False).collect() == [value]
-        assert g.vertices.out_neighbours().property(key, include_static=False).collect() == [[value]]
+        if value is None:
+            assert g.vertex(1).properties.temporal.get(key).value() is None
+            assert g.vertices.properties.temporal.get(key).value() is None
+            assert g.vertices.out_neighbours().temporal.get(key).value() is None
+        else:
+            assert g.vertex(1).properties.temporal.get(key).value() == value
+            assert g.vertices.properties.temporal.get(key).value() == [value]
+            assert g.vertices.out_neighbours().temporal.get(key).value() == [[value]]
 
     property_test("static prop", 123)
     assert g.vertex(1)["static prop"] == 123

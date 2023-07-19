@@ -218,7 +218,10 @@ impl TemporalPropsIterable {
             .collect()
     }
     fn values(&self) -> Vec<TemporalPropertyIterable> {
-        self.keys().into_iter().map(|k| self.get(k)).collect()
+        self.keys()
+            .into_iter()
+            .map(|k| self.get(k).expect("key exists"))
+            .collect()
     }
     fn items(&self) -> Vec<(String, TemporalPropertyIterable)> {
         self.keys().into_iter().zip(self.values()).collect()
@@ -257,25 +260,23 @@ impl TemporalPropsIterable {
     }
 
     fn __getitem__(&self, key: String) -> PyResult<TemporalPropertyIterable> {
-        if self.__contains__(&key) {
-            Ok(self.get(key))
-        } else {
-            Err(PyKeyError::new_err("unknown property"))
-        }
+        self.get(key).ok_or(PyKeyError::new_err("unknown property"))
     }
 
     fn __contains__(&self, key: &str) -> bool {
         self.iter().any(|p| p.contains(key))
     }
 
-    fn get(&self, key: String) -> TemporalPropertyIterable {
-        let builder = self.builder.clone();
-        let key = Arc::new(key);
-        (move || {
-            let key = key.clone();
-            builder().map(move |p| p.get(key.as_ref()))
+    fn get(&self, key: String) -> Option<TemporalPropertyIterable> {
+        self.__contains__(&key).then(|| {
+            let builder = self.builder.clone();
+            let key = Arc::new(key);
+            (move || {
+                let key = key.clone();
+                builder().map(move |p| p.get(key.as_ref()))
+            })
+            .into()
         })
-        .into()
     }
 }
 
@@ -353,7 +354,10 @@ impl NestedTemporalPropsIterable {
             .collect()
     }
     fn values(&self) -> Vec<NestedTemporalPropertyIterable> {
-        self.keys().into_iter().map(|k| self.get(k)).collect()
+        self.keys()
+            .into_iter()
+            .map(|k| self.get(k).expect("key exists"))
+            .collect()
     }
     fn items(&self) -> Vec<(String, NestedTemporalPropertyIterable)> {
         self.keys().into_iter().zip(self.values()).collect()
@@ -398,28 +402,26 @@ impl NestedTemporalPropsIterable {
     }
 
     fn __getitem__(&self, key: String) -> PyResult<NestedTemporalPropertyIterable> {
-        if self.__contains__(&key) {
-            Ok(self.get(key))
-        } else {
-            Err(PyKeyError::new_err("unknown property"))
-        }
+        self.get(key).ok_or(PyKeyError::new_err("unknown property"))
     }
 
     fn __contains__(&self, key: &str) -> bool {
         self.iter().any(|mut it| it.any(|p| p.contains(key)))
     }
 
-    fn get(&self, key: String) -> NestedTemporalPropertyIterable {
-        let builder = self.builder.clone();
-        let key = Arc::new(key);
-        (move || {
-            let key = key.clone();
-            builder().map(move |it| {
+    fn get(&self, key: String) -> Option<NestedTemporalPropertyIterable> {
+        self.__contains__(&key).then(|| {
+            let builder = self.builder.clone();
+            let key = Arc::new(key);
+            (move || {
                 let key = key.clone();
-                it.map(move |p| p.get(key.as_ref()))
+                builder().map(move |it| {
+                    let key = key.clone();
+                    it.map(move |p| p.get(key.as_ref()))
+                })
             })
+            .into()
         })
-        .into()
     }
 }
 

@@ -179,3 +179,41 @@ macro_rules! py_float_iterable {
         _py_float_max_min_methods!($name, $pyitem);
     };
 }
+
+// macro_rules! py_iterable_comp {
+//     ($name:ident, $item:ty, $cmp_item:ty, $cmp_internal:ident) => {
+//         enum $cmp_internal {
+//             Vec(Vec<$cmp_item>),
+//             This(Py<$name>)
+//         }
+//         
+//         impl FromPyObject
+//         
+//         #[pymethods]
+//         impl $name {
+//             pub fn __richcmp__(
+//                 &self,
+//                 other: $cmp_item,
+//                 op: CompareOp,
+//                 py: Python<'_>,
+//             ) -> PyResult<bool> {
+//                 match op {
+//                     CompareOp::Lt => Err(PyNotImplementedError::new_err("not ordered")),
+//                     CompareOp::Le => Err(PyNotImplementedError::new_err("cannot compare")),
+//                     CompareOp::Eq => {
+//                         if let Ok(s) = other.extract::<PyRef<Self>>(py) {
+//                             Ok(self.iter().zip(s.iter()).all(|(s, o)| $cmp_item::from(s) == $cmp_item::from(o)))
+//                         } else if let Ok(s) = other.extract::<Vec<HashMap<String, Prop>>>(py) {
+//                             Ok(self.iter().zip(s).all(|(p1, p2)| p1.as_map() == p2))
+//                         } else {
+//                             Ok(false)
+//                         }
+//                     }
+//                     CompareOp::Ne => Ok(!self.__richcmp__(other, CompareOp::Eq, py)?),
+//                     CompareOp::Gt => Err(PyNotImplementedError::new_err("cannot compare")),
+//                     CompareOp::Ge => Err(PyNotImplementedError::new_err("cannot compare")),
+//                 }
+//             }
+//         }
+//     };
+// }

@@ -157,22 +157,3 @@ py_nested_iterable!(
     PropHistory,
     NestedPropHistoryIter
 );
-
-py_iterator!(StaticPropsIter, DynStaticProperties, PyStaticProperties);
-py_iterable!(
-    StaticPropsIterable,
-    DynStaticProperties,
-    PyStaticProperties,
-    StaticPropsIter
-);
-py_iterator!(
-    NestedStaticPropsIter,
-    BoxedIter<DynStaticProperties>,
-    StaticPropsIter
-);
-py_nested_iterable!(
-    NestedStaticPropsIterable,
-    DynStaticProperties,
-    PyStaticProperties,
-    NestedStaticPropsIter
-);

@@ -35,6 +35,22 @@ impl<I: Send + 'static, PyI: IntoPy<PyObject> + From<I> + Repr> Iterable<I, PyI>
             pytype: Default::default(),
         }
     }
+    pub fn iter_eq<J: IntoIterator<Item = I>>(&self, other: J) -> bool
+    where
+        I: PartialEq,
+    {
+        self.iter().zip(other).all(|(t, o)| t == o)
+    }
+}
+
+impl<I: Send + 'static + PartialEq, PyI: IntoPy<PyObject> + From<I> + Repr, J> PartialEq<J>
+    for Iterable<I, PyI>
+where
+    for<'a> &'a J: IntoIterator<Item = I>,
+{
+    fn eq(&self, other: &J) -> bool {
+        self.iter_eq(other)
+    }
 }
 
 impl<I: Send + 'static, PyI: IntoPy<PyObject> + From<I> + Repr> Repr for Iterable<I, PyI> {
@@ -73,6 +89,15 @@ impl<I: Send, PyI: IntoPy<PyObject> + From<I> + Repr> NestedIterable<I, PyI> {
             builder,
             pytype: Default::default(),
         }
+    }
+
+    pub fn iter_eq<JJ: IntoIterator<Item = J>, J: IntoIterator<Item = I>>(&self, other: JJ) -> bool
+    where
+        I: PartialEq,
+    {
+        self.iter()
+            .zip(other)
+            .all(|(t, o)| t.zip(o).all(|(tt, oo)| tt == oo))
     }
 }
 

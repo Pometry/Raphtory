@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use crate::core::Prop;
 use crate::db::api::properties::internal::StaticPropertiesOps;
 use std::iter::Zip;
@@ -32,6 +33,10 @@ impl<P: StaticPropertiesOps> StaticProperties<P> {
     pub fn contains<Q: AsRef<str>>(&self, key: Q) -> bool {
         self.get(key).is_some()
     }
+    
+    pub fn as_map(&self) -> HashMap<String, Prop> {
+        self.iter().collect()
+    }
 }
 
 impl<P: StaticPropertiesOps> IntoIterator for StaticProperties<P> {
@@ -53,5 +58,11 @@ impl<P: StaticPropertiesOps> IntoIterator for &StaticProperties<P> {
         let keys = self.keys();
         let vals = self.values();
         keys.into_iter().zip(vals)
+    }
+}
+
+impl<P: StaticPropertiesOps> PartialEq for StaticProperties<P> {
+    fn eq(&self, other: &Self) -> bool {
+        self.as_map() == other.as_map()
     }
 }

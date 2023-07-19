@@ -3,13 +3,11 @@ use crate::db::api::properties::internal::PropertiesOps;
 use crate::db::api::properties::Properties;
 use crate::db::api::view::internal::{DynamicGraph, Static};
 use crate::python::graph::properties::{
-    DynProps, DynStaticProperties, DynTemporalProperties, NestedTemporalPropsIterable,
-    TemporalPropsIterable,
+    DynProps, DynStaticProperties, DynTemporalProperties, NestedStaticPropsIterable,
+    NestedTemporalPropsIterable, StaticPropsIterable, TemporalPropsIterable,
 };
 use crate::python::types::repr::{iterator_dict_repr, Repr};
-use crate::python::types::wrappers::iterators::{
-    NestedOptionPropIterable, NestedStaticPropsIterable, OptionPropIterable, StaticPropsIterable,
-};
+use crate::python::types::wrappers::iterators::{NestedOptionPropIterable, OptionPropIterable};
 use crate::python::utils::{PyGenericIterator, PyNestedGenericIterator};
 use itertools::Itertools;
 use pyo3::exceptions::PyKeyError;
