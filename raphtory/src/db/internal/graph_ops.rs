@@ -118,4 +118,9 @@ impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
 
         Box::new(iter.into_iter())
     }
+
+    fn get_layer_ids(&self, e_id: EID) -> Option<LayerIds> {
+        let edge = self.edge(e_id);
+        Some( edge.layer_ids() )
+    }
 }

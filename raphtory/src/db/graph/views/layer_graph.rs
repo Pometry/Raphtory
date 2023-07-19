@@ -157,4 +157,9 @@ self.constrain(layer)
             .map(|layer| self.graph.neighbours(v, d, layer))
             .unwrap_or_else(|| Box::new(std::iter::empty()))
     }
+
+    fn get_layer_ids(&self, e_id: EID) -> Option<LayerIds> {
+        let layer_ids = self.graph.get_layer_ids(e_id)?;
+        self.constrain(layer_ids)
+    }
 }

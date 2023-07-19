@@ -107,6 +107,85 @@ impl<const N: usize> EdgeStore<N> {
         }
     }
 
+    // an edge is in a layer if it has either deletions or additions in that layer
+    pub fn layer_ids(&self) -> LayerIds {
+        let layer_ids = self.additions
+            .iter()
+            .enumerate()
+            .zip_longest(self.deletions.iter().enumerate())
+            .flat_map(|e| match e {
+                itertools::EitherOrBoth::Both((i, t1), (_, t2)) => {
+                    if !t1.is_empty() || !t2.is_empty() {
+                        Some(i)
+                    } else {
+                        None
+                    }
+                }
+                itertools::EitherOrBoth::Left((i, t)) => {
+                    if !t.is_empty() {
+                        Some(i)
+                    } else {
+                        None
+                    }
+                }
+                itertools::EitherOrBoth::Right((i, t)) => {
+                    if !t.is_empty() {
+                        Some(i)
+                    } else {
+                        None
+                    }
+                }
+            })
+            .collect::<Vec<_>>();
+
+        if layer_ids.len() == self.additions.len() {
+            LayerIds::All
+        } else if layer_ids.len() == 1 {
+            LayerIds::One(layer_ids[0])
+        } else {
+            LayerIds::Multiple(layer_ids.into())
+        }
+    }
+
+    pub fn layer_ids_window(&self, w: Range<i64>) -> LayerIds {
+        let layer_ids = self.additions
+            .iter()
+            .enumerate()
+            .zip_longest(self.deletions.iter().enumerate())
+            .flat_map(|e| match e {
+                itertools::EitherOrBoth::Both((i, t1), (_, t2)) => {
+                    if !t1.contains(w.clone()) || !t2.contains(w.clone()) {
+                        Some(i)
+                    } else {
+                        None
+                    }
+                }
+                itertools::EitherOrBoth::Left((i, t)) => {
+                    if !t.contains(w.clone()) {
+                        Some(i)
+                    } else {
+                        None
+                    }
+                }
+                itertools::EitherOrBoth::Right((i, t)) => {
+                    if !t.contains(w.clone()) {
+                        Some(i)
+                    } else {
+                        None
+                    }
+                }
+            })
+            .collect::<Vec<_>>();
+
+        if layer_ids.len() == self.additions.len() {
+            LayerIds::All
+        } else if layer_ids.len() == 1 {
+            LayerIds::One(layer_ids[0])
+        } else {
+            LayerIds::Multiple(layer_ids.into())
+        }
+    }
+
     pub fn new(src: VID, dst: VID) -> Self {
         Self {
             eid: 0.into(),

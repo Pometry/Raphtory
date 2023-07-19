@@ -239,4 +239,14 @@ impl<'a, const N: usize> EdgeView<'a, N> {
             ERef::ERef(entry) => (*entry).additions()[layer_id].active(w),
         }
     }
+
+    pub(crate) fn layer_ids(&self) -> LayerIds {
+        match &self.edge_id {
+            ERef::ELock { lock, .. } => {
+                let e = lock.get_edge(self.edge_id().into());
+                e.layer_ids()
+            }
+            ERef::ERef(entry) => (*entry).layer_ids(),
+        }
+    }
 }

@@ -68,23 +68,19 @@ impl<const N: usize> VertexStore<N> {
 
     pub(crate) fn find_edge(&self, dst: VID, layer_id: LayerIds) -> Option<EID> {
         match layer_id {
-            LayerIds::All => {
-                self.layers.iter().find_map(|layer| {
-                    layer.get_edge(dst, Direction::OUT)
-                })
-            },
-            LayerIds::One(layer_id) => {
-                self.layers.get(layer_id).and_then(|layer| {
-                    layer.get_edge(dst, Direction::OUT)
-                })
-            },
-            LayerIds::Multiple(layers) => {
-                layers.iter().find_map(|layer_id| {
-                    self.layers.get(*layer_id).and_then(|layer| {
-                        layer.get_edge(dst, Direction::OUT)
-                    })
-                })
-            },
+            LayerIds::All => self
+                .layers
+                .iter()
+                .find_map(|layer| layer.get_edge(dst, Direction::OUT)),
+            LayerIds::One(layer_id) => self
+                .layers
+                .get(layer_id)
+                .and_then(|layer| layer.get_edge(dst, Direction::OUT)),
+            LayerIds::Multiple(layers) => layers.iter().find_map(|layer_id| {
+                self.layers
+                    .get(*layer_id)
+                    .and_then(|layer| layer.get_edge(dst, Direction::OUT))
+            }),
         }
     }
 
@@ -134,7 +130,26 @@ impl<const N: usize> VertexStore<N> {
                     .layers
                     .iter()
                     .enumerate()
-                    .flat_map(move |(id, _)| self.edge_tuples(id.into(), d));
+                    .map(move |(id, _)| { 
+                        let wtf = self.edge_tuples(id.into(), d).map(|e| (e.src().pid().unwrap(), e.dst().pid().unwrap(), e.dir(), e.remote().pid().unwrap())).collect_vec();
+                        println!("layer: {id}, edges {:?}", wtf);
+                        self.edge_tuples(id.into(), d) 
+                    })
+                    .kmerge_by(|e1, e2| e1.remote() < e2.remote())
+                    .dedup().map(|e|(e.src().pid().unwrap(), e.dst().pid().unwrap(), e.dir(), e.remote().pid().unwrap())).collect_vec();
+                println!("all edges {:?}", iter);
+                
+                let iter = self
+                    .layers
+                    .iter()
+                    .enumerate()
+                    .map(move |(id, _)| { 
+                        let wtf = self.edge_tuples(id.into(), d).collect_vec();
+                        println!("layer: {id}, edges {:?}", wtf);
+                        self.edge_tuples(id.into(), d) 
+                    })
+                    .kmerge_by(|e1, e2| e1.remote() < e2.remote())
+                    .dedup();
                 Box::new(iter)
             }
             LayerIds::One(layer) => self

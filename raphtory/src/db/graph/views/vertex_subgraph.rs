@@ -148,6 +148,10 @@ impl<G: GraphViewOps> GraphOps for VertexSubgraph<G> {
             _ => Box::new(self.vertex_edges(v, d, layer).map(|e| e.remote())),
         }
     }
+
+    fn get_layer_ids(&self, e_id: EID) -> Option<LayerIds> {
+        self.graph.get_layer_ids(e_id)
+    }
 }
 
 #[cfg(test)]

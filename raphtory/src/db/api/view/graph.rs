@@ -1,6 +1,8 @@
 use crate::{
     core::{
-        entities::{graph::tgraph::InnerTemporalGraph, vertices::vertex_ref::VertexRef, VID, LayerIds},
+        entities::{
+            graph::tgraph::InnerTemporalGraph, vertices::vertex_ref::VertexRef, LayerIds, VID,
+        },
         utils::{errors::GraphError, time::IntoTime},
         Prop,
     },
@@ -64,12 +66,7 @@ pub trait GraphViewOps: BoxableGraphView + Clone + Sized {
     fn vertices(&self) -> Vertices<Self>;
 
     /// Get an edge `(src, dst)`.
-    fn edge<T: Into<VertexRef>>(
-        &self,
-        src: T,
-        dst: T,
-        layer: Layer,
-    ) -> Option<EdgeView<Self>>;
+    fn edge<T: Into<VertexRef>>(&self, src: T, dst: T, layer: Layer) -> Option<EdgeView<Self>>;
 
     /// Return an iterator over all edges in the graph.
     fn edges(&self) -> Box<dyn Iterator<Item = EdgeView<Self>> + Send>;
@@ -188,7 +185,6 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
     fn get_unique_layers(&self) -> Vec<String> {
         self.get_unique_layers_internal()
             .into_iter()
-            .filter(|id| *id != 0) // the default layer has no name
             .map(|id| self.get_layer_name_by_id(id))
             .collect_vec()
     }
@@ -231,14 +227,9 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
         Vertices::new(graph)
     }
 
-    fn edge<T: Into<VertexRef>>(
-        &self,
-        src: T,
-        dst: T,
-        layer: Layer,
-    ) -> Option<EdgeView<Self>> {
+    fn edge<T: Into<VertexRef>>(&self, src: T, dst: T, layer: Layer) -> Option<EdgeView<Self>> {
         let layer_id = self.get_layer_id(layer)?;
-        
+
         self.edge_ref(src.into(), dst.into(), layer_id)
             .map(|e| EdgeView::new(self.clone(), e))
     }
@@ -315,27 +306,29 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
         let g = InnerTemporalGraph::default();
         // Add edges first so we definitely have all associated vertices (important in case of persistent edges)
         for e in self.edges() {
-            let layer_name = &e.layer_name().to_string();
-            let mut layer: Option<&str> = None;
-            if layer_name != "default layer" {
-                layer = Some(layer_name)
-            }
+            let layer_names = e.layer_names();
+            // FIXME: this needs to be verified
             for ee in e.explode() {
-                g.add_edge(
-                    ee.time().unwrap(),
-                    ee.src().id(),
-                    ee.dst().id(),
-                    ee.properties(false),
-                    layer,
-                )?;
+                for layer in layer_names.iter() {
+                    g.add_edge(
+                        ee.time().unwrap(),
+                        ee.src().id(),
+                        ee.dst().id(),
+                        ee.properties(false),
+                        Some(layer),
+                    )?;
+                }
             }
             if self.include_deletions() {
                 for t in self.edge_deletion_history(e.edge) {
-                    g.delete_edge(t, e.src().id(), e.dst().id(), layer)?;
+                    for layer in layer_names.iter() {
+                        g.delete_edge(t, e.src().id(), e.dst().id(), Some(layer))?;
+                    }
                 }
             }
-
-            g.add_edge_properties(e.src().id(), e.dst().id(), e.static_properties(), layer)?;
+            for layer in layer_names.iter() {
+                g.add_edge_properties(e.src().id(), e.dst().id(), e.static_properties(), Some(layer))?;
+            }
         }
 
         for v in self.vertices().iter() {

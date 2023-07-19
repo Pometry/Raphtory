@@ -12,7 +12,7 @@ pub struct EdgeRef{
 }
 
 #[derive(Debug, Copy, Clone, PartialEq)]
-enum Dir {
+pub enum Dir {
     Into,
     Out,
 }
@@ -49,6 +49,10 @@ impl EdgeRef {
     #[inline(always)]
     pub fn time(&self) -> Option<i64> {
         self.time
+    }
+
+    pub fn dir(&self) -> Dir {
+        self.e_type
     }
 
     pub fn src(&self) -> VertexRef {

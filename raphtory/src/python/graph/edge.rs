@@ -380,8 +380,8 @@ impl PyEdge {
     ///
     /// Returns:
     ///     (str) The name of the layer
-    pub fn layer_name(&self) -> String {
-        self.edge.layer_name()
+    pub fn layer_names(&self) -> Vec<String> {
+        self.edge.layer_names()
     }
 
     /// Gets the datetime of an exploded edge.

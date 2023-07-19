@@ -420,6 +420,10 @@ impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
         self.graph
             .neighbours_window(v, self.t_start, self.t_end, d, layer)
     }
+
+    fn get_layer_ids(&self, e_id: EID) -> Option<LayerIds> {
+        self.graph.get_layer_ids(e_id)
+    }
 }
 
 /// A windowed graph is a graph that only allows access to vertices and edges within a time window.

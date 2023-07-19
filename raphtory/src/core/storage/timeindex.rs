@@ -20,7 +20,6 @@ pub enum TimeIndex {
 }
 
 impl TimeIndex {
-
     pub fn is_empty(&self) -> bool {
         match self {
             TimeIndex::Empty => true,
@@ -46,6 +45,14 @@ impl TimeIndex {
                 }
             }
             TimeIndex::Set(ts) => ts.insert(t),
+        }
+    }
+
+    pub(crate) fn contains(&self, w: Range<i64>) -> bool {
+        match self {
+            TimeIndex::Empty => false,
+            TimeIndex::One(t) => w.contains(t),
+            TimeIndex::Set(ts) => ts.range(w).next().is_some(),
         }
     }
 

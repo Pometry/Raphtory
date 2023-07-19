@@ -161,13 +161,19 @@ pub trait EdgeViewOps: EdgeViewInternalOps<Self::Graph, Self::Vertex> {
     }
 
     /// Gets the name of the layer this edge belongs to
-    fn layer_name(&self) -> String {
-        // if self.eref().layer() == 0 {
-        //     "default layer".to_string()
-        // } else {
-        //     self.graph().get_layer_name_by_id(self.eref().layer())
-        // }
-        "FIXME".to_string()
+    fn layer_names(&self) -> Vec<String> {
+        if let Some(layer_ids) = self.graph().get_layer_ids(self.eref().pid()) {
+            match layer_ids {
+                LayerIds::All => self.graph().get_unique_layers(),
+                LayerIds::One(id) => vec![self.graph().get_layer_name_by_id(id)],
+                LayerIds::Multiple(ids) => ids
+                    .iter()
+                    .map(|id| self.graph().get_layer_name_by_id(*id))
+                    .collect(),
+            }
+        } else {
+            vec![]
+        }
     }
 }
 

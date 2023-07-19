@@ -20,7 +20,10 @@ use crate::{
     core::{entities::graph::tgraph::InnerTemporalGraph, utils::errors::GraphError},
     db::api::{
         mutation::internal::{InheritAdditionOps, InheritPropertyAdditionOps},
-        view::{internal::{Base, DynamicGraph, InheritViewOps, IntoDynamic}, Layer},
+        view::{
+            internal::{Base, DynamicGraph, InheritViewOps, IntoDynamic},
+            Layer,
+        },
     },
     prelude::*,
 };
@@ -156,8 +159,8 @@ mod db_tests {
         },
         db::{
             api::view::{
-                internal::*, EdgeListOps, EdgeViewOps, GraphViewOps, LayerOps, TimeOps,
-                VertexViewOps, Layer,
+                internal::*, EdgeListOps, EdgeViewOps, GraphViewOps, Layer, LayerOps, TimeOps,
+                VertexViewOps,
             },
             graph::{edge::EdgeView, path::PathFromVertex},
         },
@@ -650,7 +653,7 @@ mod db_tests {
     }
 
     #[test]
-    fn layers() -> Result<(), GraphError>{
+    fn layers() -> Result<(), GraphError> {
         let g = Graph::new();
         g.add_edge(0, 11, 22, NO_PROPS, None)?;
         g.add_edge(0, 11, 33, NO_PROPS, None)?;
@@ -804,10 +807,20 @@ mod db_tests {
         res = g.edge(1, 2, Layer::All).unwrap().latest_time().unwrap();
         assert_eq!(res, 2);
 
-        res = g.at(1).edge(1, 2, Layer::All).unwrap().earliest_time().unwrap();
+        res = g
+            .at(1)
+            .edge(1, 2, Layer::All)
+            .unwrap()
+            .earliest_time()
+            .unwrap();
         assert_eq!(res, 0);
 
-        res = g.at(1).edge(1, 2, Layer::All).unwrap().latest_time().unwrap();
+        res = g
+            .at(1)
+            .edge(1, 2, Layer::All)
+            .unwrap()
+            .latest_time()
+            .unwrap();
         assert_eq!(res, 1);
 
         let res_list: Vec<i64> = g
@@ -919,7 +932,8 @@ mod db_tests {
 
         let view = g.window(1, 11);
         let windowed_times_of_four = view.edge(1, 4, Layer::All).unwrap().window(2, 5).history();
-        let windowed_times_of_four_higher = view.edge(1, 4, Layer::All).unwrap().window(8, 11).history();
+        let windowed_times_of_four_higher =
+            view.edge(1, 4, Layer::All).unwrap().window(8, 11).history();
 
         assert_eq!(times_of_onetwo, [1, 3]);
         assert_eq!(times_of_four, [4]);
@@ -1158,8 +1172,18 @@ mod db_tests {
         g.add_edge(0, 0, 1, NO_PROPS, None)?;
         g.add_edge(0, 0, 1, NO_PROPS, Some("awesome name"))?;
 
-        let layer_names = g.edges().map(|e| e.layer_name()).sorted().collect_vec();
-        assert_eq!(layer_names, vec!["awesome name", "default layer"]);
+        let what = g
+            .edges()
+            .map(|e| (e.src().id(), e.dst().id()))
+            .collect_vec();
+        assert_eq!(what, vec![(0, 1)]);
+
+        let layer_names = g
+            .edges()
+            .flat_map(|e| e.layer_names())
+            .sorted()
+            .collect_vec();
+        assert_eq!(layer_names, vec!["_default", "awesome name"]);
         Ok(())
     }
 
@@ -1169,7 +1193,11 @@ mod db_tests {
         g.add_edge(0, 1, 2, NO_PROPS, Some("layer")).unwrap();
 
         assert!(g.edge(1, 2, Layer::All).is_none());
-        assert!(g.layer("layer".into()).unwrap().edge(1, 2, Layer::All).is_some())
+        assert!(g
+            .layer("layer".into())
+            .unwrap()
+            .edge(1, 2, Layer::All)
+            .is_some())
     }
 
     #[test]

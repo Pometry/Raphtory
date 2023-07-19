@@ -20,6 +20,9 @@ pub trait GraphOps: Send + Sync {
     /// Get the layer id for the given layer name
     fn get_layer_id(&self, key: Layer) -> Option<LayerIds>;
 
+    /// get the layer ids for the given edge id
+    fn get_layer_ids(&self, e_id: EID) -> Option<LayerIds>;
+
     /// Returns the total number of vertices in the graph.
     fn vertices_len(&self) -> usize;
 
@@ -197,5 +200,9 @@ impl<G: DelegateGraphOps + Send + Sync + ?Sized> GraphOps for G {
         layer: LayerIds,
     ) -> Box<dyn Iterator<Item = VertexRef> + Send> {
         self.graph().neighbours(v, d, layer)
+    }
+
+    fn get_layer_ids(&self, e_id: EID) -> Option<LayerIds> {
+        self.graph().get_layer_ids(e_id)
     }
 }
