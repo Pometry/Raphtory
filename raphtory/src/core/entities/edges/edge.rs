@@ -7,7 +7,7 @@ use crate::core::{
         },
         properties::tprop::TProp,
         vertices::vertex::Vertex,
-        GraphItem, VRef, EID, VID,
+        GraphItem, VRef, EID, VID, LayerIds,
     },
     storage::{
         locked_view::LockedView,
@@ -113,21 +113,21 @@ impl<'a, const N: usize> EdgeView<'a, N> {
         out
     }
 
-    pub(crate) fn additions(self, layer_ids: &[usize]) -> Option<LockedLayeredIndex<'a>> {
+    pub(crate) fn additions(self, layer_ids: LayerIds) -> Option<LockedLayeredIndex<'a>> {
         match self.edge_id {
             ERef::ERef(entry) => {
                 let t_index = entry.map(|entry| entry.additions());
-                Some(LockedLayeredIndex::new(layer_ids.into(), t_index))
+                Some(LockedLayeredIndex::new(layer_ids, t_index))
             }
             _ => None,
         }
     }
 
-    pub(crate) fn deletions(self, layer_ids: &[usize]) -> Option<LockedLayeredIndex<'a>> {
+    pub(crate) fn deletions(self, layer_ids: LayerIds) -> Option<LockedLayeredIndex<'a>> {
         match self.edge_id {
             ERef::ERef(entry) => {
                 let t_index = entry.map(|entry| entry.deletions());
-                Some(LockedLayeredIndex::new(layer_ids.into(), t_index))
+                Some(LockedLayeredIndex::new(layer_ids, t_index))
             }
             _ => None,
         }

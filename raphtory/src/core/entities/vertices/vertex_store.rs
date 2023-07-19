@@ -133,9 +133,8 @@ impl<const N: usize> VertexStore<N> {
                 let iter = self
                     .layers
                     .iter()
-                    .map(move |layer| self.iter_adj(layer, d, self_id, layers.clone()))
-                    .kmerge_by(|e1, e2| e1.remote() < e2.remote())
-                    .dedup();
+                    .enumerate()
+                    .flat_map(move |(id, _)| self.edge_tuples(id.into(), d));
                 Box::new(iter)
             }
             LayerIds::One(layer) => self

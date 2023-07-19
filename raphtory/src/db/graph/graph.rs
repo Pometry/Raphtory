@@ -650,28 +650,29 @@ mod db_tests {
     }
 
     #[test]
-    fn layers() {
+    fn layers() -> Result<(), GraphError>{
         let g = Graph::new();
-        g.add_edge(0, 11, 22, NO_PROPS, None).unwrap();
-        g.add_edge(0, 11, 33, NO_PROPS, None).unwrap();
-        g.add_edge(0, 33, 11, NO_PROPS, None).unwrap();
-        g.add_edge(0, 11, 22, NO_PROPS, Some("layer1")).unwrap();
-        g.add_edge(0, 11, 33, NO_PROPS, Some("layer2")).unwrap();
-        g.add_edge(0, 11, 44, NO_PROPS, Some("layer2")).unwrap();
+        g.add_edge(0, 11, 22, NO_PROPS, None)?;
+        g.add_edge(0, 11, 33, NO_PROPS, None)?;
+        g.add_edge(0, 33, 11, NO_PROPS, None)?;
+        g.add_edge(0, 11, 22, NO_PROPS, Some("layer1"))?;
+        g.add_edge(0, 11, 33, NO_PROPS, Some("layer2"))?;
+        g.add_edge(0, 11, 44, NO_PROPS, Some("layer2"))?;
 
         assert!(g.has_edge(11, 22, Layer::All));
-        assert!(!g.has_edge(11, 44, Layer::All));
+        assert!(g.has_edge(11, 22, Layer::Default));
+        assert!(!g.has_edge(11, 44, Layer::Default));
         assert!(!g.has_edge(11, 22, Layer::One("layer2")));
         assert!(g.has_edge(11, 44, Layer::One("layer2")));
 
         assert!(g.edge(11, 22, Layer::All).is_some());
-        assert!(g.edge(11, 44, Layer::All).is_none());
+        assert!(g.edge(11, 44, Layer::Default).is_none());
         assert!(g.edge(11, 22, "layer2".into()).is_none());
         assert!(g.edge(11, 44, "layer2".into()).is_some());
 
         let dft_layer = g.default_layer();
-        let layer1 = g.layer("layer1".into()).unwrap();
-        let layer2 = g.layer("layer2".into()).unwrap();
+        let layer1 = g.layer("layer1".into()).expect("layer1");
+        let layer2 = g.layer("layer2".into()).expect("layer2");
         assert!(g.layer("missing layer".into()).is_none());
 
         assert_eq!(g.num_vertices(), 4);
@@ -751,6 +752,7 @@ mod db_tests {
         assert_eq!(to_ids(vertex_dft.in_neighbours()), vec![33]);
         assert!(to_ids(vertex1.in_neighbours()).is_empty());
         assert!(to_ids(vertex2.in_neighbours()).is_empty());
+        Ok(())
     }
 
     #[test]

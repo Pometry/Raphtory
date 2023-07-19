@@ -154,26 +154,26 @@ impl<const N: usize> ArcEdge<N> {
         ArcEdge { e }
     }
 
-    pub(crate) fn timestamps(&self, layer: &[usize]) -> impl Iterator<Item = &i64> + Send + '_ {
+    pub(crate) fn timestamps(&self, layer: LayerIds) -> impl Iterator<Item = &i64> + Send + '_ {
         let adds = self.e.additions();
         adds.iter()
             .enumerate()
-            .filter(|(layer_id, t)| layer.contains(layer_id))
-            .map(|(_, t)| t.iter())
+            .filter_map(|(layer_id, t)| layer.find(layer_id).map(|_| t))
+            .map(|t| t.iter())
             .kmerge()
             .dedup()
     }
 
     pub(crate) fn timestamps_window(
         &self,
-        layer: &[usize],
+        layer: LayerIds,
         w: Range<i64>,
     ) -> impl Iterator<Item = &i64> + '_ {
         let adds = self.e.additions();
         adds.iter()
             .enumerate()
-            .filter(|(layer_id, t)| layer.contains(layer_id))
-            .map(|(_, t)| t.range_iter(w.clone()))
+            .filter_map(|(layer_id, t)| layer.find(layer_id).map(|_| t))
+            .map(|t| t.range_iter(w.clone()))
             .kmerge()
             .dedup()
     }

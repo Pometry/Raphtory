@@ -2,7 +2,7 @@ use crate::{
     core::{
         entities::{
             edges::edge_ref::EdgeRef, graph::tgraph::InnerTemporalGraph, properties::tprop::TProp,
-            vertices::vertex_ref::VertexRef, VID,
+            vertices::vertex_ref::VertexRef, VID, LayerIds,
         },
         storage::{locked_view::LockedView, timeindex::{TimeIndex,LockedLayeredIndex}},
     },
@@ -26,7 +26,7 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
 
     fn edge_additions(&self, eref: EdgeRef) -> LockedLayeredIndex<'_>{
         let edge = self.edge(eref.pid());
-        edge.additions(&[]).unwrap() // FIXME: should be able to pass in an array of layers
+        edge.additions(LayerIds::All).unwrap() // FIXME: should be able to pass in an array of layers
     }
 
     fn vertex_additions(&self, v: VID) -> LockedView<TimeIndex> {

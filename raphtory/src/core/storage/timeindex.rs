@@ -7,6 +7,8 @@ use std::{
     sync::Arc,
 };
 
+use crate::core::entities::LayerIds;
+
 use super::locked_view::LockedView;
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -116,12 +118,12 @@ impl<'a> Iterator for WindowIter<'a> {
 }
 
 pub struct LockedLayeredIndex<'a> {
-    layers: Vec<usize>,
+    layers: LayerIds,
     view: LockedView<'a, Vec<TimeIndex>>,
 }
 
 impl<'a> LockedLayeredIndex<'a> {
-    pub fn new(layers: Vec<usize>, view: LockedView<'a, Vec<TimeIndex>>) -> Self {
+    pub fn new(layers: LayerIds, view: LockedView<'a, Vec<TimeIndex>>) -> Self {
         Self { layers, view }
     }
 

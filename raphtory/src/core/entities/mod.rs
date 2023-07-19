@@ -127,6 +127,10 @@ impl LayerIds{
             LayerIds::Multiple(ids) => ids.binary_search(&layer_id).ok().map(|_| layer_id),
         }
     }
+
+    pub fn contains(&self, layer_id: &usize) -> bool {
+        self.find(*layer_id).is_some()
+    }
 }
 
 impl From<Vec<usize>> for LayerIds {

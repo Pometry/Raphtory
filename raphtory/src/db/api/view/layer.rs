@@ -14,6 +14,7 @@ pub trait LayerOps {
 
 pub enum Layer<'a>{
     All,
+    Default,
     One(&'a str),
     Multiple(Arc<[&'a str]>),
 }

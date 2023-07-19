@@ -110,6 +110,7 @@ impl<const N: usize> InnerTemporalGraph<N> {
     pub(crate) fn layer_id(&self, key: Layer) -> Option<LayerIds> {
         match key {
             Layer::All => Some(LayerIds::All),
+            Layer::Default => Some(LayerIds::One(0)),
             Layer::One(id) => self.edge_meta.get_layer_id(id).map(|id| LayerIds::One(id)),
             Layer::Multiple(ids) => {
                 let new_layers = ids
@@ -448,7 +449,7 @@ impl<const N: usize> InnerTemporalGraph<N> {
         let src = node_pair.get_mut_i();
 
         // find the edge_id if it exists and add the time event to the nodes
-        if let Some(edge_id) = src.find_edge(dst_id, layer.into()) {
+        if let Some(edge_id) = src.find_edge(dst_id, LayerIds::All) {
             src.add_edge(dst_id, Direction::OUT, layer, edge_id);
             // add inbound edge for dst
             let dst = node_pair.get_mut_j();
