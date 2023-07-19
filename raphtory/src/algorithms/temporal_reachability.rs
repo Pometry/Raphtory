@@ -1,4 +1,5 @@
 use crate::{
+    algorithms::algorithm_result::AlgorithmResult,
     core::{
         entities::vertices::input_vertex::InputVertex,
         state::{
@@ -16,7 +17,6 @@ use crate::{
 use itertools::Itertools;
 use num_traits::Zero;
 use std::{collections::HashMap, ops::Add};
-use crate::algorithms::algorithm_result::AlgorithmResult;
 
 #[derive(Eq, Hash, PartialEq, Clone, Debug, Default)]
 pub struct TaintMessage {
@@ -225,7 +225,8 @@ mod generic_taint_tests {
             start_time,
             infected_nodes,
             stop_nodes,
-        ).sort_by_key(false)
+        )
+        .sort_by_key(false)
         .into_iter()
         .map(|(k, mut v)| {
             v.sort();

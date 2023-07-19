@@ -1,8 +1,9 @@
+use crate::algorithms::algorithm_result::AlgorithmResult;
 /// This class regards the counting of the number of three edge, up-to-three node delta-temporal motifs in the graph, using the algorithm of Paranjape et al, Motifs in Temporal Networks (2017).
 /// We point the reader to this reference for more information on the algorithm and background, but provide a short summary below.
-/// 
+///
 ///  ## Motifs included
-/// 
+///
 ///  ### Stars
 ///
 ///  There are three classes (in the order they are outputted) of star motif on three nodes based on the switching behaviour of the edges between the two leaf nodes.
@@ -34,7 +35,6 @@
 ///
 use crate::{algorithms::motifs::three_node_motifs::*, db::api::view::*};
 use std::collections::HashMap;
-use crate::algorithms::algorithm_result::AlgorithmResult;
 
 fn star_motif_count<G: GraphViewOps>(graph: &G, v: u64, delta: i64) -> [usize; 24] {
     if let Some(vertex) = graph.vertex(v) {
@@ -102,7 +102,10 @@ fn twonode_motif_count<G: GraphViewOps>(graph: &G, v: u64, delta: i64) -> [usize
     counts
 }
 
-fn triangle_motif_count<G: GraphViewOps>(graph: &G, delta: i64) -> AlgorithmResult<u64, Vec<usize>> {
+fn triangle_motif_count<G: GraphViewOps>(
+    graph: &G,
+    delta: i64,
+) -> AlgorithmResult<u64, Vec<usize>> {
     let mut counts: HashMap<u64, Vec<usize>> = HashMap::new();
     for u in graph.vertices() {
         counts.insert(u.id(), vec![0; 8]);
@@ -235,7 +238,6 @@ fn triangle_motif_count<G: GraphViewOps>(graph: &G, delta: i64) -> AlgorithmResu
     AlgorithmResult::new(counts)
 }
 
-
 /// Computes the number of each type of motif that each node participates in.
 ///
 /// # Arguments
@@ -298,7 +300,9 @@ pub fn local_temporal_three_node_motifs<G: GraphViewOps>(
 ///
 ///
 pub fn global_temporal_three_node_motifs<G: GraphViewOps>(graph: &G, delta: i64) -> Vec<usize> {
-    let counts = local_temporal_three_node_motifs(graph, delta).get_all().to_owned();
+    let counts = local_temporal_three_node_motifs(graph, delta)
+        .get_all()
+        .to_owned();
     let mut tmp_counts = counts.values().fold(vec![0; 40], |acc, x| {
         acc.iter().zip(x.iter()).map(|(x1, x2)| x1 + x2).collect()
     });

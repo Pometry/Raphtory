@@ -1,3 +1,4 @@
+use super::algorithm_result::AlgorithmResult;
 use crate::{
     core::state::compute_state::ComputeStateVec,
     db::{
@@ -11,7 +12,6 @@ use crate::{
     },
 };
 use std::{cmp, collections::HashMap};
-use super::algorithm_result::AlgorithmResult;
 
 #[derive(Clone, Debug)]
 struct WccState {
@@ -124,7 +124,8 @@ mod cc_test {
         for (src, dst, ts) in edges {
             graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
         }
-        let results: AlgorithmResult<String, u64> = weakly_connected_components(&graph, usize::MAX, None);
+        let results: AlgorithmResult<String, u64> =
+            weakly_connected_components(&graph, usize::MAX, None);
         assert_eq!(
             *results.get_all(),
             vec![
@@ -176,7 +177,8 @@ mod cc_test {
             graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
         }
 
-        let results: AlgorithmResult<String, u64> = weakly_connected_components(&graph, usize::MAX, None);
+        let results: AlgorithmResult<String, u64> =
+            weakly_connected_components(&graph, usize::MAX, None);
 
         assert_eq!(
             *results.get_all(),
@@ -209,7 +211,8 @@ mod cc_test {
             graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
         }
 
-        let results: AlgorithmResult<String, u64> = weakly_connected_components(&graph, usize::MAX, None);
+        let results: AlgorithmResult<String, u64> =
+            weakly_connected_components(&graph, usize::MAX, None);
 
         assert_eq!(
             *results.get_all(),
@@ -227,7 +230,8 @@ mod cc_test {
         graph.add_edge(9, 3, 4, NO_PROPS, None).expect("add edge");
         graph.add_edge(9, 4, 3, NO_PROPS, None).expect("add edge");
 
-        let results: AlgorithmResult<String, u64> = weakly_connected_components(&graph, usize::MAX, None);
+        let results: AlgorithmResult<String, u64> =
+            weakly_connected_components(&graph, usize::MAX, None);
         let expected = vec![
             ("1".to_string(), 1),
             ("2".to_string(), 1),
@@ -240,7 +244,8 @@ mod cc_test {
         assert_eq!(*results.get_all(), expected);
 
         let wg = graph.window(0, 2);
-        let results: AlgorithmResult<String, u64> = weakly_connected_components(&wg, usize::MAX, None);
+        let results: AlgorithmResult<String, u64> =
+            weakly_connected_components(&wg, usize::MAX, None);
 
         let expected = vec![("1", 1), ("2", 1), ("3", 0), ("4", 0)]
             .into_iter()
@@ -279,7 +284,8 @@ mod cc_test {
             let res: AlgorithmResult<String, u64> =
                 weakly_connected_components(&graph, usize::MAX, None);
 
-            let actual = res.get_all()
+            let actual = res
+                .get_all()
                 .iter()
                 .group_by(|(_, cc)| *cc)
                 .into_iter()

@@ -2,9 +2,11 @@ use chrono::NaiveDateTime;
 use clap::{ArgAction, Parser};
 use csv::StringRecord;
 use flate2::read::GzDecoder;
+use ordered_float::OrderedFloat;
 use raphtory::{
     algorithms::{
-        connected_components::weakly_connected_components, pagerank::unweighted_page_rank,
+        algorithm_result::AlgorithmResult, connected_components::weakly_connected_components,
+        pagerank::unweighted_page_rank,
     },
     core::utils::hashing::calculate_hash,
     graph_loader::{fetch_file, source::csv_loader::CsvLoader},
@@ -20,8 +22,6 @@ use std::{
     path::Path,
     time::Instant,
 };
-use raphtory::algorithms::algorithm_result::AlgorithmResult;
-use ordered_float::OrderedFloat;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None )]
@@ -203,7 +203,7 @@ fn main() {
 
     // page rank with time
     now = Instant::now();
-    let _page_rank : Vec<_>= unweighted_page_rank(&g, 1000, None, None, true)
+    let _page_rank: Vec<_> = unweighted_page_rank(&g, 1000, None, None, true)
         .into_iter()
         .collect();
     println!("Page rank: {} seconds", now.elapsed().as_secs_f64());

@@ -44,6 +44,7 @@
 //! println!("global_reciprocity: {:?}", global_reciprocity(&g, None));
 //! ```
 use crate::{
+    algorithms::algorithm_result::AlgorithmResult,
     core::state::{
         accumulator_id::accumulators::sum,
         compute_state::{ComputeState, ComputeStateVec},
@@ -58,10 +59,8 @@ use crate::{
         },
     },
 };
-use std::collections::{HashMap, HashSet};
 use ordered_float::OrderedFloat;
-use crate::algorithms::algorithm_result::AlgorithmResult;
-// use crate::algorithms::algorithm_result::AlgorithmResult;
+use std::collections::{HashSet};
 
 /// Gets the unique edge counts excluding cycles for a vertex. Returns a tuple of usize
 /// (out neighbours, in neighbours, the intersection of the out and in neighbours)
@@ -136,17 +135,16 @@ pub fn all_local_reciprocity<G: GraphViewOps>(
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
 
-
     AlgorithmResult::new_with_float(runner.run(
-            vec![],
-            vec![Job::new(step1)],
-            (),
-            |_, ess, _, _| ess.finalize(&min, |min| min),
-            threads,
-            1,
-            None,
-            None,
-        ))
+        vec![],
+        vec![Job::new(step1)],
+        (),
+        |_, ess, _, _| ess.finalize(&min, |min| min),
+        threads,
+        1,
+        None,
+        None,
+    ))
 }
 
 #[cfg(test)]
@@ -199,6 +197,9 @@ mod reciprocity_test {
         hash_map_result.insert("5".to_string(), 0.0);
 
         let res = all_local_reciprocity(&graph, None);
-        assert_eq!(res.get(&"1".to_string()).unwrap().0, *hash_map_result.get("1").unwrap());
+        assert_eq!(
+            res.get(&"1".to_string()).unwrap().0,
+            *hash_map_result.get("1").unwrap()
+        );
     }
 }

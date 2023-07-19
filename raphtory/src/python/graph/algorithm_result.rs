@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use ordered_float::OrderedFloat;
 use pyo3::prelude::*;
 
@@ -5,9 +6,13 @@ use pyo3::prelude::*;
 macro_rules! py_algorithm_result {
     ($name:ident, $rustKey:ty, $rustValue:ty) => {
         #[pyclass]
-        pub struct $name($crate::algorithms::algorithm_result::AlgorithmResult<$rustKey, $rustValue>);
+        pub struct $name(
+            $crate::algorithms::algorithm_result::AlgorithmResult<$rustKey, $rustValue>,
+        );
 
-        impl pyo3::IntoPy<pyo3::PyObject> for $crate::algorithms::algorithm_result::AlgorithmResult<$rustKey, $rustValue> {
+        impl pyo3::IntoPy<pyo3::PyObject>
+            for $crate::algorithms::algorithm_result::AlgorithmResult<$rustKey, $rustValue>
+        {
             fn into_py(self, py: Python<'_>) -> pyo3::PyObject {
                 $name(self).into_py(py)
             }
@@ -38,11 +43,7 @@ macro_rules! py_algorithm_result_base {
             /// # Returns
             ///
             /// A `pandas.DataFrame` containing the result
-            #[pyo3(signature = ())]
-            pub fn to_df(
-                &self,
-            ) -> PyResult<PyObject>
-            {
+            pub fn to_df(&self) -> PyResult<PyObject> {
                 let hashmap = &self.0.result;
                 let mut keys = Vec::new();
                 let mut values = Vec::new();
@@ -60,14 +61,13 @@ macro_rules! py_algorithm_result_base {
                 })
             }
         }
-    }
+    };
 }
 
 macro_rules! py_algorithm_result_partial_ord {
     ($name:ident, $rustKey:ty, $rustValue:ty) => {
         #[pymethods]
         impl $name {
-
             /// Sorts the `AlgorithmResult` by its values in ascending or descending order.
             ///
             /// # Arguments
@@ -111,7 +111,12 @@ macro_rules! py_algorithm_result_partial_ord {
             /// If `percentage` is `false`, the returned vector contains the top `k` elements.
             /// Returns `None` if the result is empty or if `k` is 0.
             #[pyo3(signature = (k, percentage=false, reverse=true))]
-            fn top_k(&self, k: usize, percentage: bool, reverse: bool) -> Option<Vec<($rustKey, $rustValue)>> {
+            fn top_k(
+                &self,
+                k: usize,
+                percentage: bool,
+                reverse: bool,
+            ) -> Vec<($rustKey, $rustValue)> {
                 self.0.top_k(k, percentage, reverse)
             }
         }
@@ -156,7 +161,9 @@ impl AlgorithmResultStrF64 {
     /// Returns all results as a dict
     #[pyo3(signature = ())]
     fn get_all(&self) -> std::collections::HashMap<String, f64> {
-        self.0.get_all().into_iter()
+        self.0
+            .get_all()
+            .into_iter()
             .map(|(key, of)| (key.clone(), of.into_inner()))
             .collect()
     }
@@ -181,7 +188,8 @@ impl AlgorithmResultStrF64 {
     /// A sorted vector of tuples containing keys of type `H` and values of type `Y`.
     #[pyo3(signature = (reverse=true))]
     fn sort_by_value(&self, reverse: bool) -> Vec<(String, f64)> {
-        self.0.sort_by_value(reverse)
+        self.0
+            .sort_by_value(reverse)
             .into_iter()
             .map(|(key, ordered_float)| (key, ordered_float.into_inner()))
             .collect()
@@ -198,7 +206,9 @@ impl AlgorithmResultStrF64 {
     /// A sorted vector of tuples containing keys of type `H` and values of type `Y`.
     #[pyo3(signature = (reverse=true))]
     fn sort_by_key(&self, reverse: bool) -> Vec<(String, f64)> {
-        self.0.sort_by_key(reverse).into_iter()
+        self.0
+            .sort_by_key(reverse)
+            .into_iter()
             .map(|(key, ordered_float)| (key, ordered_float.into_inner()))
             .collect()
     }
@@ -218,13 +228,12 @@ impl AlgorithmResultStrF64 {
     /// If `percentage` is `false`, the returned vector contains the top `k` elements.
     /// Returns `None` if the result is empty or if `k` is 0.
     #[pyo3(signature = (k, percentage=false, reverse=true))]
-    fn top_k(&self, k: usize, percentage: bool, reverse: bool) -> Option<Vec<(String, f64)>> {
-        self.0.top_k(k, percentage, reverse)
-            .map(|vec| {
-                vec.into_iter()
-                    .map(|(key, ordered_float)| (key, ordered_float.into_inner()))
-                    .collect()
-            })
+    fn top_k(&self, k: usize, percentage: bool, reverse: bool) -> Vec<(String, f64)> {
+        self.0
+            .top_k(k, percentage, reverse)
+            .into_iter()
+            .map(|vec| (vec.0, vec.1.into_inner()))
+            .collect()
     }
 
     /// Creates a dataframe from the result
@@ -234,7 +243,11 @@ impl AlgorithmResultStrF64 {
     /// A `pandas.DataFrame` containing the result
     #[pyo3(signature = ())]
     fn to_df(&self) -> PyResult<PyObject> {
-        let hashmap: std::collections::HashMap<String, f64> = self.0.get_all().clone().into_iter()
+        let hashmap: std::collections::HashMap<String, f64> = self
+            .0
+            .get_all()
+            .clone()
+            .into_iter()
             .map(|(k, v)| (k, v.into()))
             .collect();
         let mut keys = Vec::new();
@@ -262,13 +275,12 @@ impl AlgorithmResultStrF64 {
     #[pyo3(signature = ())]
     fn group_by(&self) -> std::collections::HashMap<String, Vec<String>> {
         let ordered_map = self.0.group_by();
-        let mut f64_map: std::collections::HashMap<String, Vec<String>> = std::collections::HashMap::new();
+        let mut f64_map: std::collections::HashMap<String, Vec<String>> =
+            std::collections::HashMap::new();
         for (ordered_float, strings) in ordered_map {
             let f64_value = ordered_float.into_inner();
             f64_map.insert(f64_value.to_string().parse().unwrap(), strings);
         }
         f64_map
-     }
+    }
 }
-
-

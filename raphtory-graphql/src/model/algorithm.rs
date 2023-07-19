@@ -7,12 +7,12 @@ use dynamic_graphql::{
     SimpleObject,
 };
 use once_cell::sync::Lazy;
+use ordered_float::OrderedFloat;
 use raphtory::{
     algorithms::pagerank::unweighted_page_rank,
     db::api::view::{internal::DynamicGraph, GraphViewOps},
 };
 use std::{borrow::Cow, collections::HashMap, sync::Mutex};
-use ordered_float::OrderedFloat;
 
 type RegisterFunction = fn(&str, Registry, Object) -> (Registry, Object);
 
@@ -98,7 +98,10 @@ impl From<(String, f64)> for Pagerank {
 
 impl From<(&String, &OrderedFloat<f64>)> for Pagerank {
     fn from((name, rank): (&String, &OrderedFloat<f64>)) -> Self {
-        Self { name: name.to_string(), rank: rank.into_inner() }
+        Self {
+            name: name.to_string(),
+            rank: rank.into_inner(),
+        }
     }
 }
 

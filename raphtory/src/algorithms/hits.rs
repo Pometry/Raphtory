@@ -1,4 +1,5 @@
 use crate::{
+    algorithms::algorithm_result::AlgorithmResult,
     core::state::{
         accumulator_id::accumulators::{max, sum},
         compute_state::ComputeStateVec,
@@ -16,7 +17,6 @@ use crate::{
 use num_traits::abs;
 use rustc_hash::FxHashMap;
 use std::{collections::HashMap, ops::Range};
-use crate::algorithms::algorithm_result::AlgorithmResult;
 
 #[derive(Debug, Clone)]
 struct Hits {
@@ -201,8 +201,7 @@ mod hits_tests {
 
         let window = 0..10;
 
-        let results: AlgorithmResult<String, (f32, f32)> =
-            hits(&graph, window, 20, None);
+        let results: AlgorithmResult<String, (f32, f32)> = hits(&graph, window, 20, None);
 
         // NetworkX results
         // >>> G = nx.DiGraph()

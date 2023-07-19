@@ -26,6 +26,7 @@
 //! println!("average_degree: {:?}", average_degree(&g));
 //! ```
 
+pub mod algorithm_result;
 pub mod clustering_coefficient;
 pub mod connected_components;
 pub mod degree;
@@ -39,4 +40,3 @@ pub mod reciprocity;
 pub mod temporal_reachability;
 pub mod triangle_count;
 pub mod triplet_count;
-pub mod algorithm_result;

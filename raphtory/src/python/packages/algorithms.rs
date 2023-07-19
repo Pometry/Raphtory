@@ -1,12 +1,13 @@
+use ordered_float::OrderedFloat;
 /// Implementations of various graph algorithms that can be run on a graph.
 ///
 /// To run an algorithm simply import the module and call the function with the graph as the argument
 ///
 use std::collections::HashMap;
-use ordered_float::OrderedFloat;
 
 use crate::{
     algorithms::{
+        algorithm_result::AlgorithmResult,
         connected_components,
         degree::{
             average_degree as average_degree_rs, max_in_degree as max_in_degree_rs,
@@ -31,7 +32,6 @@ use crate::{
     python::{graph::views::graph_view::PyGraphView, utils::PyInputVertex},
 };
 use pyo3::prelude::*;
-use crate::algorithms::algorithm_result::AlgorithmResult;
 
 /// Local triangle count - calculates the number of triangles (a cycle of length 3) a vertex participates in.
 ///
@@ -66,9 +66,7 @@ pub fn weakly_connected_components(
     g: &PyGraphView,
     iter_count: usize,
 ) -> AlgorithmResult<String, u64> {
-    connected_components::weakly_connected_components(
-        &g.graph, iter_count, None,
-    )
+    connected_components::weakly_connected_components(&g.graph, iter_count, None)
 }
 
 /// Pagerank -- pagerank centrality value of the vertices in a graph
@@ -92,11 +90,8 @@ pub fn pagerank(
     iter_count: usize,
     max_diff: Option<f64>,
 ) -> AlgorithmResult<String, OrderedFloat<f64>> {
-    unweighted_page_rank(
-        &g.graph, iter_count, None, max_diff, true,
-    )
+    unweighted_page_rank(&g.graph, iter_count, None, max_diff, true)
 }
-
 
 /// Temporally reachable nodes -- the nodes that are reachable by a time respecting path followed out from a set of seed nodes at a starting time.
 ///
@@ -121,9 +116,7 @@ pub fn temporally_reachable_nodes(
     seed_nodes: Vec<PyInputVertex>,
     stop_nodes: Option<Vec<PyInputVertex>>,
 ) -> AlgorithmResult<String, Vec<(i64, String)>> {
-    temporal_reachability_rs(
-        &g.graph, None, max_hops, start_time, seed_nodes, stop_nodes,
-    )
+    temporal_reachability_rs(&g.graph, None, max_hops, start_time, seed_nodes, stop_nodes)
 }
 
 /// Local clustering coefficient - measures the degree to which nodes in a graph tend to cluster together.
@@ -350,6 +343,9 @@ pub fn global_temporal_three_node_motif(g: &PyGraphView, delta: i64) -> Vec<usiz
 ///     For this local count, a node is counted as participating in a motif in the following way. For star motifs, only the centre node counts
 ///    the motif. For two node motifs, both constituent nodes count the motif. For triangles, all three constituent nodes count the motif.
 #[pyfunction]
-pub fn local_temporal_three_node_motifs(g: &PyGraphView, delta: i64) -> AlgorithmResult<u64, Vec<usize>> {
+pub fn local_temporal_three_node_motifs(
+    g: &PyGraphView,
+    delta: i64,
+) -> AlgorithmResult<u64, Vec<usize>> {
     local_three_node_rs(&g.graph, delta)
 }

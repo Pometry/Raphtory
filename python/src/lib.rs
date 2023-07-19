@@ -9,12 +9,15 @@ use raphtory_core::python::{
     },
     packages::{algorithms::*, graph_gen::*, graph_loader::*},
 };
+use raphtory_core::python::graph::example_one;
 
 /// Raphtory graph analytics library
 #[pymodule]
 fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_class::<PyGraph>()?;
     m.add_class::<PyGraphWithDeletions>()?;
+
+    m.add_function(wrap_pyfunction!(example_one, m)?)?;
 
     let algorithm_module = PyModule::new(py, "algorithms")?;
     algorithm_module.add_function(wrap_pyfunction!(global_reciprocity, algorithm_module)?)?;
