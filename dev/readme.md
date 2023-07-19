@@ -9,6 +9,13 @@ In this case it will
 
 You need to run this only once, you will have to `chmod +x ./dev/bootstrap.sh` first.
 
+## how to run
+
+From the raphtory root folder
+
+    chmod +x ./dev/bootstrap.sh
+    ./dev/bootstrap.sh
+
 ## dev hooks
 
 ### pre-commit hook
