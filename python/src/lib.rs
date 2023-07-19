@@ -3,13 +3,13 @@ use pyo3::prelude::*;
 use raphtory_core::python::{
     graph::{
         edge::{PyEdge, PyEdges},
+        example_one,
         graph::PyGraph,
         graph_with_deletions::PyGraphWithDeletions,
         vertex::{PyVertex, PyVertices},
     },
     packages::{algorithms::*, graph_gen::*, graph_loader::*},
 };
-use raphtory_core::python::graph::example_one;
 
 /// Raphtory graph analytics library
 #[pymodule]
