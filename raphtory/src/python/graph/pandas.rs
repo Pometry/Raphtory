@@ -15,44 +15,35 @@ fn i64_opt_into_u64_opt(x: Option<&i64>) -> Option<u64> {
 
 pub(crate) fn process_pandas_py_df<'a>(df: &PyAny, py: Python<'a>) -> PyResult<PretendDF> {
     let globals = PyDict::new(py);
-
     globals.set_item("df", df)?;
-    let locals = PyDict::new(py);
-    py.run(
-        r#"import pyarrow as pa; pa_table = pa.Table.from_pandas(df)"#,
-        Some(globals),
-        Some(locals),
-    )?;
+    let module = py.import("pyarrow")?;
+    let pa_table = module.getattr("Table")?;
 
-    if let Some(table) = locals.get_item("pa_table") {
-        let rb = table.call_method0("to_batches")?.extract::<Vec<&PyAny>>()?;
-        let names = if let Some(batch0) = rb.get(0) {
-            let schema = batch0.getattr("schema")?;
-            schema.getattr("names")?.extract::<Vec<String>>()?
-        } else {
-            vec![]
-        };
+    let table = pa_table.call_method("from_pandas", (df,), None)?;
 
-        let arrays = rb
-            .iter()
-            .map(|rb| {
-                (0..names.len())
-                    .map(|i| {
-                        let array = rb.call_method1("column", (i,))?;
-                        let arr = array_to_rust(array)?;
-                        Ok::<Box<dyn Array>, PyErr>(arr)
-                    })
-                    .collect::<Result<Vec<_>, PyErr>>()
-            })
-            .collect::<Result<Vec<_>, PyErr>>()?;
-
-        let df = PretendDF { names, arrays };
-        Ok(df)
+    let rb = table.call_method0("to_batches")?.extract::<Vec<&PyAny>>()?;
+    let names = if let Some(batch0) = rb.get(0) {
+        let schema = batch0.getattr("schema")?;
+        schema.getattr("names")?.extract::<Vec<String>>()?
     } else {
-        return Err(GraphLoadException::new_err(
-            "Failed to load graph, could not convert pandas dataframe to arrow table".to_string(),
-        ));
-    }
+        vec![]
+    };
+
+    let arrays = rb
+        .iter()
+        .map(|rb| {
+            (0..names.len())
+                .map(|i| {
+                    let array = rb.call_method1("column", (i,))?;
+                    let arr = array_to_rust(array)?;
+                    Ok::<Box<dyn Array>, PyErr>(arr)
+                })
+                .collect::<Result<Vec<_>, PyErr>>()
+        })
+        .collect::<Result<Vec<_>, PyErr>>()?;
+
+    let df = PretendDF { names, arrays };
+    Ok(df)
 }
 
 pub(crate) fn load_vertices_from_df<'a>(
@@ -105,12 +96,14 @@ pub(crate) fn load_vertices_from_df<'a>(
     Ok(())
 }
 
-pub(crate) fn load_edges_from_df<'a>(
+pub(crate) fn load_edges_from_df<'a,S:AsRef<str>>(
     df: &'a PretendDF,
     src: &str,
     dst: &str,
     time: &str,
     props: Option<Vec<&str>>,
+    layer: Option<S>,
+    layer_in_df: Option<S>,
     graph: &Graph,
 ) -> Result<(), GraphError> {
     let prop_iter = props
@@ -119,6 +112,9 @@ pub(crate) fn load_edges_from_df<'a>(
         .map(|name| lift_property(name, &df))
         .reduce(combine_prop_iters)
         .unwrap_or_else(|| Box::new(std::iter::repeat(vec![])));
+
+    let layer = lift_layer(layer,layer_in_df,df);
+
 
     if let (Some(src), Some(dst), Some(time)) = (
         df.iter_col::<u64>(src),
@@ -129,7 +125,7 @@ pub(crate) fn load_edges_from_df<'a>(
             .map(|i| i.copied())
             .zip(dst.map(|i| i.copied()))
             .zip(time);
-        load_edges_from_num_iter(&graph, triplets, prop_iter)?;
+        load_edges_from_num_iter(&graph, triplets, prop_iter,layer)?;
     } else if let (Some(src), Some(dst), Some(time)) = (
         df.iter_col::<i64>(src),
         df.iter_col::<i64>(dst),
@@ -139,16 +135,16 @@ pub(crate) fn load_edges_from_df<'a>(
             .map(i64_opt_into_u64_opt)
             .zip(dst.map(i64_opt_into_u64_opt))
             .zip(time);
-        load_edges_from_num_iter(&graph, triplets, prop_iter)?;
+        load_edges_from_num_iter(&graph, triplets, prop_iter,layer)?;
     } else if let (Some(src), Some(dst), Some(time)) = (
         df.utf8::<i32>(src),
         df.utf8::<i32>(dst),
         df.iter_col::<i64>(time),
     ) {
         let triplets = src.into_iter().zip(dst.into_iter()).zip(time.into_iter());
-        for (((src, dst), time), props) in triplets.zip(prop_iter) {
+        for ((((src, dst), time), props),layer) in triplets.zip(prop_iter).zip(layer) {
             if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
-                graph.add_edge(*time, src, dst, props, None)?;
+                graph.add_edge(*time, src, dst, props, layer.as_deref())?;
             }
         }
     } else if let (Some(src), Some(dst), Some(time)) = (
@@ -157,9 +153,9 @@ pub(crate) fn load_edges_from_df<'a>(
         df.iter_col::<i64>(time),
     ) {
         let triplets = src.into_iter().zip(dst.into_iter()).zip(time.into_iter());
-        for (((src, dst), time), props) in triplets.zip(prop_iter) {
+        for ((((src, dst), time), props),layer) in triplets.zip(prop_iter).zip(layer) {
             if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
-                graph.add_edge(*time, src, dst, props, None)?;
+                graph.add_edge(*time, src, dst, props, layer.as_deref())?;
             }
         }
     } else {
@@ -210,6 +206,35 @@ fn lift_property<'a: 'b, 'b>(
     }
 }
 
+fn lift_layer<'a,S:AsRef<str>>(
+    layer: Option<S>,
+    layer_in_df: Option<S>,
+    df: &'a PretendDF,
+) -> Box<dyn Iterator<Item = Option<String>> + 'a> {
+
+    if let Some(layer) = layer { //Prioritise the explicit layer set by the user
+        Box::new(std::iter::repeat(Some(layer.as_ref().to_string())))
+    }
+    else{
+        if let Some(name) = layer_in_df {
+            if let Some(col) = df.utf8::<i32>(name.as_ref()) {
+                Box::new(col.map(|v| v.map(|v| v.to_string())))
+            } else if let Some(col) = df.utf8::<i64>(name.as_ref()) {
+                Box::new(col.map(|v| v.map(|v| v.to_string())))
+            }
+            else {
+                Box::new(std::iter::repeat(None))
+            }
+        }
+        else {
+            Box::new(std::iter::repeat(None))
+        }
+    }
+
+
+
+}
+
 fn iter_as_prop<
     'a: 'b,
     'b,
@@ -245,14 +270,17 @@ fn load_edges_from_num_iter<
     S: AsRef<str>,
     I: Iterator<Item = ((Option<u64>, Option<u64>), Option<&'a i64>)>,
     PI: Iterator<Item = Vec<(S, Prop)>>,
+    IL: Iterator<Item = Option<String>>,
 >(
     graph: &Graph,
     edges: I,
     props: PI,
+    layer: IL,
+
 ) -> Result<(), GraphError> {
-    for (((src, dst), time), edge_props) in edges.zip(props) {
+    for ((((src, dst), time), edge_props),layer ) in edges.zip(props).zip(layer) {
         if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
-            graph.add_edge(*time, src, dst, edge_props, None)?;
+            graph.add_edge(*time, src, dst, edge_props, layer.as_deref())?;
         }
     }
     Ok(())
@@ -404,13 +432,16 @@ mod test {
             ],
         };
         let graph = Graph::new();
-
+        let layer:Option<&str> = None;
+        let layer_in_df:Option<&str> = None;
         load_edges_from_df(
             &df,
             "src",
             "dst",
             "time",
             Some(vec!["prop1", "prop2"]),
+            layer,
+            layer_in_df,
             &graph,
         )
         .expect("failed to load edges from pretend df");

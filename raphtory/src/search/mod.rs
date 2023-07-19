@@ -720,8 +720,6 @@ impl<G: GraphViewOps + InternalAdditionOps> InternalAdditionOps for IndexedGraph
 #[cfg(test)]
 mod test {
 
-    const EMPTY: [(&str, Prop); 0] = [];
-
     use std::time::SystemTime;
 
     use tantivy::{doc, DocAddress};
