@@ -36,6 +36,21 @@ impl PageRankState {
     }
 }
 
+/// PageRank Algorithm:
+/// PageRank shows how important a vertex is in a graph.
+///
+/// Arguments:
+///
+/// * `g`: A GraphView object
+/// * `iter_count`: Number of iterations to run the algorithm for
+/// * `threads`: Number of threads to use for parallel execution
+/// * `tol`: The tolerance value for convergence
+/// * `use_l2_norm`: Whether to use L2 norm for convergence
+///
+/// Result:
+///
+/// * An AlgorithmResult object containing the mapping from vertex ID to the PageRank score of the vertex
+///
 #[allow(unused_variables)]
 pub fn unweighted_page_rank<G: GraphViewOps>(
     g: &G,

@@ -24,13 +24,16 @@ struct Hits {
     auth_score: f32,
 }
 
-// HITS (Hubs and Authority) Algorithm:
-// AuthScore of a vertex (A) = Sum of HubScore of all vertices pointing at vertex (A) from previous iteration /
-//     Sum of HubScore of all vertices in the current iteration
-//
-// HubScore of a vertex (A) = Sum of AuthScore of all vertices pointing away from vertex (A) from previous iteration /
-//     Sum of AuthScore of all vertices in the current iteration
-
+/// HITS (Hubs and Authority) Algorithm:
+/// AuthScore of a vertex (A) = Sum of HubScore of all vertices pointing at vertex (A) from previous iteration /
+///     Sum of HubScore of all vertices in the current iteration
+///
+/// HubScore of a vertex (A) = Sum of AuthScore of all vertices pointing away from vertex (A) from previous iteration /
+///     Sum of AuthScore of all vertices in the current iteration
+///
+/// Returns
+///
+/// * An AlgorithmResult object containing the mapping from vertex ID to the hub and authority score of the vertex
 #[allow(unused_variables)]
 pub fn hits<G: GraphViewOps>(
     g: &G,

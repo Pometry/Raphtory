@@ -53,6 +53,15 @@ impl Zero for TaintMessage {
     }
 }
 
+/// Temporal Reachability starts from a set of seed nodes and propagates the taint to all nodes that are reachable
+/// from the seed nodes within a given time window. The algorithm stops when all nodes that are reachable from the
+/// seed nodes have been tainted or when the taint has propagated to all nodes in the graph.
+///
+/// Returns
+///
+/// * An AlgorithmResult object containing the mapping from vertex ID to a vector of tuples containing the time at which
+/// the vertex was tainted and the ID of the vertex that tainted it
+///
 pub fn temporally_reachable_nodes<G: GraphViewOps, T: InputVertex>(
     g: &G,
     threads: Option<usize>,

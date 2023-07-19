@@ -34,7 +34,7 @@ impl WccState {
 ///
 /// # Returns
 ///
-/// A hash map containing the mapping from component ID to the number of vertices in the component
+/// An AlgorithmResult containing the mapping from component ID to the number of vertices in the component
 ///
 pub fn weakly_connected_components<G>(
     graph: &G,
