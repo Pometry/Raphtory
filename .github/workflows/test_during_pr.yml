@@ -34,3 +34,4 @@ jobs:
     name: Code Coverage
     uses: ./.github/workflows/code_coverage.yml
     needs: rust-format-check
+
