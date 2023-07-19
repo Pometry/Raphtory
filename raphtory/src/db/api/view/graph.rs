@@ -68,7 +68,7 @@ pub trait GraphViewOps: BoxableGraphView + Clone + Sized {
         &self,
         src: T,
         dst: T,
-        layer: Option<&str>,
+        layer: Layer,
     ) -> Option<EdgeView<Self>>;
 
     /// Return an iterator over all edges in the graph.
@@ -235,18 +235,10 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
         &self,
         src: T,
         dst: T,
-        layer: Option<&str>,
+        layer: Layer,
     ) -> Option<EdgeView<Self>> {
-        let layer_id = match layer {
-            Some(_) => self.get_layer_id(layer)?,
-            None => {
-                let layers = self.get_unique_layers_internal();
-                match layers[..] {
-                    [layer_id] => layer_id, // if only one layer we search the edge there
-                    _ => 0,                 // if more than one, we point to the default one
-                }
-            }
-        };
+        let layer_id = self.get_layer_id(layer)?;
+        
         self.edge_ref(src.into(), dst.into(), layer_id)
             .map(|e| EdgeView::new(self.clone(), e))
     }
@@ -384,11 +376,11 @@ impl<G: GraphViewOps> LayerOps for G {
     type LayeredViewType = LayeredGraph<G>;
 
     fn default_layer(&self) -> Self::LayeredViewType {
-        LayeredGraph::new(self.clone(), 0)
+        LayeredGraph::new(self.clone(), 0.into())
     }
 
-    fn layer(&self, name: &str) -> Option<Self::LayeredViewType> {
-        let id = self.get_layer_id(Some(name))?;
-        Some(LayeredGraph::new(self.clone(), id))
+    fn layer(&self, layers: Layer) -> Option<Self::LayeredViewType> {
+        let ids = self.get_layer_id(layers)?;
+        Some(LayeredGraph::new(self.clone(), ids))
     }
 }

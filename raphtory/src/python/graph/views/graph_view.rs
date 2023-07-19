@@ -164,7 +164,7 @@ impl PyGraphView {
     ///  true if the graph contains the specified edge, false otherwise
     #[pyo3(signature = (src, dst, layer=None))]
     pub fn has_edge(&self, src: VertexRef, dst: VertexRef, layer: Option<&str>) -> bool {
-        self.graph.has_edge(src, dst, layer)
+        self.graph.has_edge(src, dst, layer.into())
     }
 
     //******  Getter APIs ******//
@@ -205,7 +205,7 @@ impl PyGraphView {
         dst: VertexRef,
         layer: Option<&str>,
     ) -> Option<EdgeView<DynamicGraph>> {
-        self.graph.edge(src, dst, layer)
+        self.graph.edge(src, dst, layer.into())
     }
 
     /// Gets all edges in the graph
@@ -334,7 +334,7 @@ impl PyGraphView {
     #[doc = layer_doc_string!()]
     #[pyo3(signature = (name))]
     pub fn layer(&self, name: &str) -> Option<PyGraphView> {
-        self.graph.layer(name).map(|layer| layer.into())
+        self.graph.layer(name.into()).map(|layer| layer.into())
     }
 
     /// Get graph property against the provided property name

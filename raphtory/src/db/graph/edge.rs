@@ -279,7 +279,7 @@ pub type EdgeList<G> = Box<dyn Iterator<Item = EdgeView<G>> + Send>;
 
 #[cfg(test)]
 mod test_edge {
-    use crate::prelude::*;
+    use crate::{prelude::*, db::api::view::Layer};
     use std::collections::HashMap;
 
     #[test]
@@ -289,8 +289,8 @@ mod test_edge {
         g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
         g.add_edge(2, 1, 2, props.clone(), None).unwrap();
 
-        let e1 = g.edge(1, 2, None).unwrap();
-        let e1_w = g.window(0, 1).edge(1, 2, None).unwrap();
+        let e1 = g.edge(1, 2, Layer::All).unwrap();
+        let e1_w = g.window(0, 1).edge(1, 2, Layer::All).unwrap();
         assert_eq!(e1.properties(false), props.into());
         assert_eq!(e1_w.properties(false), HashMap::default())
     }

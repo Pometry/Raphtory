@@ -527,8 +527,8 @@ mod views_test {
         }
 
         let wg = g.window(i64::MIN, i64::MAX);
-        assert_eq!(wg.edge(1, 3, None).unwrap().src().id(), 1);
-        assert_eq!(wg.edge(1, 3, None).unwrap().dst().id(), 3);
+        assert_eq!(wg.edge(1, 3, Layer::All).unwrap().src().id(), 1);
+        assert_eq!(wg.edge(1, 3, Layer::All).unwrap().dst().id(), 3);
     }
 
     #[test]

@@ -336,7 +336,7 @@ impl TimeSemantics for GraphWithDeletions {
 
 #[cfg(test)]
 mod test_deletions {
-    use crate::{db::graph::views::deletion_graph::GraphWithDeletions, prelude::*};
+    use crate::{db::{graph::views::deletion_graph::GraphWithDeletions, api::view::Layer}, prelude::*};
     use itertools::Itertools;
 
     #[test]
@@ -358,18 +358,18 @@ mod test_deletions {
 
         assert_eq!(
             g.window(1, 2)
-                .edge(0, 1, None)
+                .edge(0, 1, Layer::All)
                 .unwrap()
                 .property("added", true)
                 .unwrap_i64(),
             0
         );
 
-        assert!(g.window(11, 12).edge(0, 1, None).is_none());
+        assert!(g.window(11, 12).edge(0, 1, Layer::All).is_none());
 
         assert_eq!(
             g.window(1, 2)
-                .edge(0, 1, None)
+                .edge(0, 1, Layer::All)
                 .unwrap()
                 .property_history("added"),
             vec![(1, Prop::I64(0))]
@@ -406,7 +406,7 @@ mod test_deletions {
         let g = GraphWithDeletions::new();
         g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
         g.delete_edge(10, 1, 2, None).unwrap();
-        let e = g.edge(1, 2, None).unwrap();
+        let e = g.edge(1, 2, Layer::All).unwrap();
         assert_eq!(e.latest_time(), Some(10));
         assert_eq!(e.explode().latest_time().collect_vec(), vec![Some(10)]);
     }

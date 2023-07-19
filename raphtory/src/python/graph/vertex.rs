@@ -456,7 +456,7 @@ impl PyVertex {
     #[doc = layer_doc_string!()]
     #[pyo3(signature = (name))]
     pub fn layer(&self, name: &str) -> Option<PyVertex> {
-        Some(self.vertex.layer(name)?.into())
+        Some(self.vertex.layer(name.into())?.into())
     }
 
     /// Returns the history of a vertex, including vertex additions and changes made to vertex.
@@ -840,7 +840,7 @@ impl PyVertices {
     #[doc = layer_doc_string!()]
     #[pyo3(signature = (name))]
     pub fn layer(&self, name: &str) -> Option<PyVertices> {
-        Some(self.vertices.layer(name)?.into())
+        Some(self.vertices.layer(name.into())?.into())
     }
 
     //****** Python *******
@@ -1052,7 +1052,7 @@ impl PyPathFromGraph {
     #[doc = layer_doc_string!()]
     #[pyo3(signature = (name))]
     pub fn layer(&self, name: &str) -> Option<Self> {
-        Some(self.path.layer(name)?.into())
+        Some(self.path.layer(name.into())?.into())
     }
 
     fn __repr__(&self) -> String {
@@ -1279,7 +1279,7 @@ impl PyPathFromVertex {
     #[doc = layer_doc_string!()]
     #[pyo3(signature = (name))]
     pub fn layer(&self, name: &str) -> Option<Self> {
-        Some(self.path.layer(name)?.into())
+        Some(self.path.layer(name.into())?.into())
     }
 
     fn __repr__(&self) -> String {

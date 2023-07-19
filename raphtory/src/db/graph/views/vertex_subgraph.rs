@@ -75,7 +75,7 @@ impl<G: GraphViewOps> GraphOps for VertexSubgraph<G> {
     fn edges_len(&self, layer: LayerIds) -> usize {
         self.vertices
             .iter()
-            .map(|v| self.degree(*v, Direction::OUT, layer))
+            .map( |v| self.degree(*v, Direction::OUT, layer.clone()))
             .sum()
     }
 
@@ -115,7 +115,7 @@ impl<G: GraphViewOps> GraphOps for VertexSubgraph<G> {
         let g1 = self.clone();
         Box::new(
             self.vertex_refs()
-                .flat_map(move |v| g1.vertex_edges(v, Direction::OUT, layer)),
+                .flat_map(move |v| g1.vertex_edges(v, Direction::OUT, layer.clone())),
         )
     }
 

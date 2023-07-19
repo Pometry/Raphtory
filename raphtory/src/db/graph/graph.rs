@@ -20,7 +20,7 @@ use crate::{
     core::{entities::graph::tgraph::InnerTemporalGraph, utils::errors::GraphError},
     db::api::{
         mutation::internal::{InheritAdditionOps, InheritPropertyAdditionOps},
-        view::internal::{Base, DynamicGraph, InheritViewOps, IntoDynamic},
+        view::{internal::{Base, DynamicGraph, InheritViewOps, IntoDynamic}, Layer},
     },
     prelude::*,
 };
@@ -44,7 +44,7 @@ pub fn graph_equal<G1: GraphViewOps, G2: GraphViewOps>(g1: &G1, g2: &G2) -> bool
             g1.edges().explode().count() == g2.edges().explode().count() && // same number of exploded edges
             g1.edges().explode().all(|e| { // all exploded edges exist in other
                 g2
-                    .edge(e.src().id(), e.dst().id(), None)
+                    .edge(e.src().id(), e.dst().id(), Layer::All)
                     .filter(|ee| ee.active(e.time().expect("exploded")))
                     .is_some()
             })
@@ -249,7 +249,7 @@ mod db_tests {
 
         edges
             .iter()
-            .all(|&(_, src, dst)| g.edge(src, dst, None).is_some())
+            .all(|&(_, src, dst)| g.edge(src, dst, Layer::All).is_some())
     }
 
     #[test]
@@ -570,7 +570,7 @@ mod db_tests {
         g.add_edge(1, 0, 1, vec![("distance".to_string(), Prop::U32(5))], None)
             .expect("add edge");
 
-        let e = g.edge(0, 1, None).unwrap();
+        let e = g.edge(0, 1, Layer::All).unwrap();
 
         let prop = e.property("distance", false).unwrap();
         assert_eq!(prop, Prop::U32(5));
@@ -664,15 +664,15 @@ mod db_tests {
         assert!(!g.has_edge(11, 22, Layer::One("layer2")));
         assert!(g.has_edge(11, 44, Layer::One("layer2")));
 
-        assert!(g.edge(11, 22, None).is_some());
-        assert!(g.edge(11, 44, None).is_none());
-        assert!(g.edge(11, 22, Some("layer2")).is_none());
-        assert!(g.edge(11, 44, Some("layer2")).is_some());
+        assert!(g.edge(11, 22, Layer::All).is_some());
+        assert!(g.edge(11, 44, Layer::All).is_none());
+        assert!(g.edge(11, 22, "layer2".into()).is_none());
+        assert!(g.edge(11, 44, "layer2".into()).is_some());
 
         let dft_layer = g.default_layer();
-        let layer1 = g.layer("layer1").unwrap();
-        let layer2 = g.layer("layer2").unwrap();
-        assert!(g.layer("missing layer").is_none());
+        let layer1 = g.layer("layer1".into()).unwrap();
+        let layer2 = g.layer("layer2".into()).unwrap();
+        assert!(g.layer("missing layer".into()).is_none());
 
         assert_eq!(g.num_vertices(), 4);
         assert_eq!(g.num_edges(), 4);
@@ -763,7 +763,7 @@ mod db_tests {
         g.add_edge(2, 1, 2, vec![("weight".to_string(), Prop::I64(3))], None)
             .unwrap();
 
-        let exploded = g.edge(1, 2, None).unwrap().explode();
+        let exploded = g.edge(1, 2, Layer::All).unwrap().explode();
 
         let res = exploded.map(|e| e.properties(false)).collect_vec();
 
@@ -796,16 +796,16 @@ mod db_tests {
         g.add_edge(1, 1, 3, NO_PROPS, None).unwrap();
         g.add_edge(2, 1, 3, NO_PROPS, None).unwrap();
 
-        let mut res = g.edge(1, 2, None).unwrap().earliest_time().unwrap();
+        let mut res = g.edge(1, 2, Layer::All).unwrap().earliest_time().unwrap();
         assert_eq!(res, 0);
 
-        res = g.edge(1, 2, None).unwrap().latest_time().unwrap();
+        res = g.edge(1, 2, Layer::All).unwrap().latest_time().unwrap();
         assert_eq!(res, 2);
 
-        res = g.at(1).edge(1, 2, None).unwrap().earliest_time().unwrap();
+        res = g.at(1).edge(1, 2, Layer::All).unwrap().earliest_time().unwrap();
         assert_eq!(res, 0);
 
-        res = g.at(1).edge(1, 2, None).unwrap().latest_time().unwrap();
+        res = g.at(1).edge(1, 2, Layer::All).unwrap().latest_time().unwrap();
         assert_eq!(res, 1);
 
         let res_list: Vec<i64> = g
@@ -885,10 +885,10 @@ mod db_tests {
         g.add_edge(3, 1, 2, NO_PROPS, None).unwrap();
         g.add_edge(4, 1, 4, NO_PROPS, None).unwrap();
 
-        let times_of_onetwo = g.edge(1, 2, None).unwrap().history();
-        let times_of_four = g.edge(1, 4, None).unwrap().window(1, 5).history();
+        let times_of_onetwo = g.edge(1, 2, Layer::All).unwrap().history();
+        let times_of_four = g.edge(1, 4, Layer::All).unwrap().window(1, 5).history();
         let view = g.window(2, 5);
-        let windowed_times_of_four = view.edge(1, 4, None).unwrap().window(2, 4).history();
+        let windowed_times_of_four = view.edge(1, 4, Layer::All).unwrap().window(2, 4).history();
 
         assert_eq!(times_of_onetwo, [1, 3]);
         assert_eq!(times_of_four, [4]);
@@ -910,14 +910,14 @@ mod db_tests {
         g.add_edge(9, 1, 4, NO_PROPS, None).unwrap();
         g.add_edge(10, 1, 4, NO_PROPS, None).unwrap();
 
-        let times_of_onetwo = g.edge(1, 2, None).unwrap().history();
-        let times_of_four = g.edge(1, 4, None).unwrap().window(1, 5).history();
-        let times_of_outside_window = g.edge(1, 4, None).unwrap().window(1, 4).history();
-        let times_of_four_higher = g.edge(1, 4, None).unwrap().window(6, 11).history();
+        let times_of_onetwo = g.edge(1, 2, Layer::All).unwrap().history();
+        let times_of_four = g.edge(1, 4, Layer::All).unwrap().window(1, 5).history();
+        let times_of_outside_window = g.edge(1, 4, Layer::All).unwrap().window(1, 4).history();
+        let times_of_four_higher = g.edge(1, 4, Layer::All).unwrap().window(6, 11).history();
 
         let view = g.window(1, 11);
-        let windowed_times_of_four = view.edge(1, 4, None).unwrap().window(2, 5).history();
-        let windowed_times_of_four_higher = view.edge(1, 4, None).unwrap().window(8, 11).history();
+        let windowed_times_of_four = view.edge(1, 4, Layer::All).unwrap().window(2, 5).history();
+        let windowed_times_of_four_higher = view.edge(1, 4, Layer::All).unwrap().window(8, 11).history();
 
         assert_eq!(times_of_onetwo, [1, 3]);
         assert_eq!(times_of_four, [4]);
@@ -1166,8 +1166,8 @@ mod db_tests {
         let g = Graph::new();
         g.add_edge(0, 1, 2, NO_PROPS, Some("layer")).unwrap();
 
-        assert!(g.edge(1, 2, None).is_none());
-        assert!(g.layer("layer").unwrap().edge(1, 2, None).is_some())
+        assert!(g.edge(1, 2, Layer::All).is_none());
+        assert!(g.layer("layer".into()).unwrap().edge(1, 2, Layer::All).is_some())
     }
 
     #[test]
@@ -1176,7 +1176,7 @@ mod db_tests {
         g.add_edge(0, 1, 2, NO_PROPS, Some("layer1")).unwrap();
         g.add_edge(0, 1, 2, NO_PROPS, Some("layer2")).unwrap();
         assert_eq!(
-            g.layer("layer2").unwrap().get_unique_layers(),
+            g.layer("layer2".into()).unwrap().get_unique_layers(),
             vec!["layer2"]
         )
     }

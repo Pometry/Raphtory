@@ -38,13 +38,13 @@ fn main() {
     println!("Time taken: {} secs", now.elapsed().as_secs());
 
     let now = Instant::now();
-    let _ = unweighted_page_rank(&g.layer("USDT").unwrap(), 20, None, None, true);
+    let _ = unweighted_page_rank(&g.layer("USDT".into()).unwrap(), 20, None, None, true);
     println!("Time taken: {} secs", now.elapsed().as_secs());
 
     println!("Generic taint");
     let now = Instant::now();
     let _ = temporally_reachable_nodes(
-        &g.layer("USDT").unwrap(),
+        &g.layer("USDT".into()).unwrap(),
         None,
         20,
         1651105815,

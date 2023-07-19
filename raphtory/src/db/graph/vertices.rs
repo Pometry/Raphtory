@@ -1,7 +1,7 @@
 use crate::{
     core::{entities::vertices::vertex_ref::VertexRef, utils::time::IntoTime, Direction},
     db::{
-        api::view::{BoxedIter, LayerOps},
+        api::view::{BoxedIter, LayerOps, Layer},
         graph::{
             edge::EdgeView,
             path::{Operations, PathFromGraph},
@@ -310,7 +310,7 @@ impl<G: GraphViewOps> LayerOps for Vertices<G> {
     /// # Returns
     ///
     /// A view including all the vertices in the given layer
-    fn layer(&self, name: &str) -> Option<Self::LayeredViewType> {
+    fn layer(&self, name: Layer) -> Option<Self::LayeredViewType> {
         Some(Vertices {
             graph: self.graph.layer(name)?,
         })

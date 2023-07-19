@@ -76,9 +76,9 @@ impl Node {
     }
 
     async fn in_neighbours<'a>(&self, layer: Option<String>) -> Vec<Node> {
-        match layer {
+        match layer.as_deref() {
             None => self.vv.in_neighbours().iter().map(|vv| vv.into()).collect(),
-            Some(layer) => match self.vv.layer(layer.as_str()) {
+            Some(layer) => match self.vv.layer(layer.into()) {
                 None => {
                     vec![]
                 }
@@ -88,14 +88,14 @@ impl Node {
     }
 
     async fn out_neighbours(&self, layer: Option<String>) -> Vec<Node> {
-        match layer {
+        match layer.as_deref() {
             None => self
                 .vv
                 .out_neighbours()
                 .iter()
                 .map(|vv| vv.into())
                 .collect(),
-            Some(layer) => match self.vv.layer(layer.as_str()) {
+            Some(layer) => match self.vv.layer(layer.into()) {
                 None => {
                     vec![]
                 }
@@ -105,9 +105,9 @@ impl Node {
     }
 
     async fn neighbours<'a>(&self, layer: Option<String>) -> Vec<Node> {
-        match layer {
+        match layer.as_deref() {
             None => self.vv.neighbours().iter().map(|vv| vv.into()).collect(),
-            Some(layer) => match self.vv.layer(layer.as_str()) {
+            Some(layer) => match self.vv.layer(layer.into()) {
                 None => {
                     vec![]
                 }
@@ -120,9 +120,9 @@ impl Node {
         match layers {
             None => self.vv.degree(),
             Some(layers) => layers
-                .into_iter()
+                .iter()
                 .map(|layer| {
-                    let degree = match self.vv.layer(layer.as_str()) {
+                    let degree = match self.vv.layer(layer.as_str().into()) {
                         None => 0,
                         Some(vvv) => vvv.degree(),
                     };
@@ -133,9 +133,9 @@ impl Node {
     }
 
     async fn out_degree(&self, layer: Option<String>) -> usize {
-        match layer {
+        match layer.as_deref() {
             None => self.vv.out_degree(),
-            Some(layer) => match self.vv.layer(layer.as_str()) {
+            Some(layer) => match self.vv.layer(layer.into()) {
                 None => 0,
                 Some(vvv) => vvv.out_degree(),
             },
@@ -143,9 +143,9 @@ impl Node {
     }
 
     async fn in_degree(&self, layer: Option<String>) -> usize {
-        match layer {
+        match layer.as_deref() {
             None => self.vv.in_degree(),
-            Some(layer) => match self.vv.layer(layer.as_str()) {
+            Some(layer) => match self.vv.layer(layer.into()) {
                 None => 0,
                 Some(vvv) => vvv.in_degree(),
             },
@@ -153,9 +153,9 @@ impl Node {
     }
 
     async fn out_edges(&self, layer: Option<String>) -> Vec<Edge> {
-        match layer {
+        match layer.as_deref() {
             None => self.vv.out_edges().map(|ee| ee.clone().into()).collect(),
-            Some(layer) => match self.vv.layer(layer.as_str()) {
+            Some(layer) => match self.vv.layer(layer.into()) {
                 None => {
                     vec![]
                 }
@@ -165,9 +165,9 @@ impl Node {
     }
 
     async fn in_edges(&self, layer: Option<String>) -> Vec<Edge> {
-        match layer {
+        match layer.as_deref() {
             None => self.vv.in_edges().map(|ee| ee.clone().into()).collect(),
-            Some(layer) => match self.vv.layer(layer.as_str()) {
+            Some(layer) => match self.vv.layer(layer.into()) {
                 None => {
                     vec![]
                 }

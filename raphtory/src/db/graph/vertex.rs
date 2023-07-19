@@ -7,7 +7,7 @@ use crate::{
         Direction,
     },
     db::{
-        api::view::{internal::GraphPropertiesOps, BoxedIter, LayerOps},
+        api::view::{internal::GraphPropertiesOps, BoxedIter, LayerOps, Layer},
         graph::{
             edge::{EdgeList, EdgeView},
             path::{Operations, PathFromVertex},
@@ -239,7 +239,7 @@ impl<G: GraphViewOps> LayerOps for VertexView<G> {
         }
     }
 
-    fn layer(&self, name: &str) -> Option<Self::LayeredViewType> {
+    fn layer(&self, name: Layer) -> Option<Self::LayeredViewType> {
         Some(VertexView {
             graph: self.graph.layer(name)?,
             vertex: self.vertex,

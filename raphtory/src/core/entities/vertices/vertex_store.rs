@@ -133,7 +133,7 @@ impl<const N: usize> VertexStore<N> {
                 let iter = self
                     .layers
                     .iter()
-                    .map(move |layer| self.iter_adj(layer, d, self_id, layers))
+                    .map(move |layer| self.iter_adj(layer, d, self_id, layers.clone()))
                     .kmerge_by(|e1, e2| e1.remote() < e2.remote())
                     .dedup();
                 Box::new(iter)
@@ -175,8 +175,8 @@ impl<const N: usize> VertexStore<N> {
                     .map(move |(dst_pid, e_id)| EdgeRef::new_outgoing(e_id, self_id, dst_pid)),
             ),
             Direction::BOTH => Box::new(
-                self.edge_tuples(layers, Direction::OUT)
-                    .merge_by(self.edge_tuples(layers, Direction::IN), |e1, e2| {
+                self.edge_tuples(layers.clone(), Direction::OUT)
+                    .merge_by(self.edge_tuples(layers.clone(), Direction::IN), |e1, e2| {
                         e1.remote() < e2.remote()
                     }),
             ),
@@ -214,7 +214,7 @@ impl<const N: usize> VertexStore<N> {
                 let iter = layers
                     .iter()
                     .filter_map(|l| self.layers.get(*l))
-                    .map(|layer| self.neighbours_from_adj(layer, d, layers.into()))
+                    .map(|layer| self.neighbours_from_adj(layer, d, layers.clone().into()))
                     .kmerge()
                     .dedup();
                 Box::new(iter)
@@ -222,9 +222,9 @@ impl<const N: usize> VertexStore<N> {
         }
     }
 
-    fn neighbours_from_adj(
-        &self,
-        layer: &Adj,
+    fn neighbours_from_adj<'a>(
+        &'a self,
+        layer: &'a Adj,
         d: Direction,
         layers: LayerIds,
     ) -> Box<dyn Iterator<Item = VID> + Send + '_> {
@@ -232,8 +232,8 @@ impl<const N: usize> VertexStore<N> {
             Direction::IN => Box::new(layer.iter(d).map(|(from_v, _)| from_v)),
             Direction::OUT => Box::new(layer.iter(d).map(|(to_v, _)| to_v)),
             Direction::BOTH => Box::new(
-                self.neighbours(layers.into(), Direction::OUT)
-                    .merge(self.neighbours(layers.into(), Direction::IN))
+                self.neighbours(layers.clone().into(), Direction::OUT)
+                    .merge(self.neighbours(layers.clone().into(), Direction::IN))
                     .dedup(),
             ),
         };

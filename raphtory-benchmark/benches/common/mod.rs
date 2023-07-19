@@ -2,7 +2,7 @@
 
 use criterion::{measurement::WallTime, BatchSize, Bencher, BenchmarkGroup, BenchmarkId};
 use rand::{distributions::Uniform, seq::*, Rng};
-use raphtory::prelude::*;
+use raphtory::{prelude::*, db::api::view::Layer};
 use std::collections::HashSet;
 
 fn make_index_gen() -> Box<dyn Iterator<Item = u64>> {
@@ -278,7 +278,7 @@ pub fn run_analysis_benchmarks<F, G>(
     bench(group, "has_edge_existing", parameter, |b: &mut Bencher| {
         let mut rng = rand::thread_rng();
         let edge = edges.iter().choose(&mut rng).expect("non-empty graph");
-        b.iter(|| graph.has_edge(edge.0, edge.1, None))
+        b.iter(|| graph.has_edge(edge.0, edge.1, Layer::All))
     });
 
     bench(
@@ -296,7 +296,7 @@ pub fn run_analysis_benchmarks<F, G>(
                     break edge;
                 }
             };
-            b.iter(|| graph.has_edge(edge.0, edge.1, None))
+            b.iter(|| graph.has_edge(edge.0, edge.1, Layer::All))
         },
     );
 
