@@ -3,7 +3,7 @@ pub use crate::{model::algorithm::Algorithm, server::RaphtoryServer};
 mod model;
 mod observability;
 mod routes;
-mod server;
+pub mod server;
 
 mod data;
 
