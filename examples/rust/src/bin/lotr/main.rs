@@ -109,7 +109,7 @@ fn main() {
 
     let r = temporally_reachable_nodes(&graph, None, 20, 31930, vec!["Gandalf"], None);
     assert_eq!(
-        r.keys().sorted().collect_vec(),
+        r.result.keys().sorted().collect_vec(),
         vec!["Gandalf", "Saruman", "Wormtongue"]
     )
 }

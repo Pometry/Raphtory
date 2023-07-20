@@ -44,6 +44,7 @@
 //! println!("global_reciprocity: {:?}", global_reciprocity(&g, None));
 //! ```
 use crate::{
+    algorithms::algorithm_result::AlgorithmResult,
     core::state::{
         accumulator_id::accumulators::sum,
         compute_state::{ComputeState, ComputeStateVec},
@@ -58,7 +59,8 @@ use crate::{
         },
     },
 };
-use std::collections::{HashMap, HashSet};
+use ordered_float::OrderedFloat;
+use std::collections::HashSet;
 
 /// Gets the unique edge counts excluding cycles for a vertex. Returns a tuple of usize
 /// (out neighbours, in neighbours, the intersection of the out and in neighbours)
@@ -110,10 +112,11 @@ pub fn global_reciprocity<G: GraphViewOps>(g: &G, threads: Option<usize>) -> f64
 }
 
 /// returns the reciprocity of every vertex in the graph as a tuple of
+/// vector id and the reciprocity
 pub fn all_local_reciprocity<G: GraphViewOps>(
     g: &G,
     threads: Option<usize>,
-) -> HashMap<String, f64> {
+) -> AlgorithmResult<String, OrderedFloat<f64>> {
     let mut ctx: Context<G, ComputeStateVec> = g.into();
 
     let min = sum(0);
@@ -132,7 +135,7 @@ pub fn all_local_reciprocity<G: GraphViewOps>(
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
 
-    runner.run(
+    AlgorithmResult::new_with_float(runner.run(
         vec![],
         vec![Job::new(step1)],
         (),
@@ -141,7 +144,7 @@ pub fn all_local_reciprocity<G: GraphViewOps>(
         1,
         None,
         None,
-    )
+    ))
 }
 
 #[cfg(test)]
@@ -186,7 +189,17 @@ mod reciprocity_test {
 
         let map_names_by_id: HashMap<String, f64> = expected_vec.into_iter().collect();
 
-        let actual = all_local_reciprocity(&graph, None);
-        assert_eq!(actual, map_names_by_id);
+        let mut hash_map_result: HashMap<String, f64> = HashMap::new();
+        hash_map_result.insert("1".to_string(), 0.4);
+        hash_map_result.insert("2".to_string(), 2.0 / 3.0);
+        hash_map_result.insert("3".to_string(), 0.5);
+        hash_map_result.insert("4".to_string(), 2.0 / 3.0);
+        hash_map_result.insert("5".to_string(), 0.0);
+
+        let res = all_local_reciprocity(&graph, None);
+        assert_eq!(
+            res.get(&"1".to_string()).unwrap().0,
+            *hash_map_result.get("1").unwrap()
+        );
     }
 }

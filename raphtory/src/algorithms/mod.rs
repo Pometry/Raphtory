@@ -26,6 +26,7 @@
 //! println!("average_degree: {:?}", average_degree(&g));
 //! ```
 
+pub mod algorithm_result;
 pub mod clustering_coefficient;
 pub mod connected_components;
 pub mod degree;

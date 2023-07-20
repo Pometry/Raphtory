@@ -1,3 +1,4 @@
+use crate::algorithms::algorithm_result::AlgorithmResult;
 /// This class regards the counting of the number of three edge, up-to-three node delta-temporal motifs in the graph, using the algorithm of Paranjape et al, Motifs in Temporal Networks (2017).
 /// We point the reader to this reference for more information on the algorithm and background, but provide a short summary below.
 ///
@@ -101,7 +102,10 @@ fn twonode_motif_count<G: GraphViewOps>(graph: &G, v: u64, delta: i64) -> [usize
     counts
 }
 
-fn triangle_motif_count<G: GraphViewOps>(graph: &G, delta: i64) -> HashMap<u64, Vec<usize>> {
+fn triangle_motif_count<G: GraphViewOps>(
+    graph: &G,
+    delta: i64,
+) -> AlgorithmResult<u64, Vec<usize>> {
     let mut counts: HashMap<u64, Vec<usize>> = HashMap::new();
     for u in graph.vertices() {
         counts.insert(u.id(), vec![0; 8]);
@@ -231,7 +235,7 @@ fn triangle_motif_count<G: GraphViewOps>(graph: &G, delta: i64) -> HashMap<u64, 
             }
         }
     }
-    counts
+    AlgorithmResult::new(counts)
 }
 
 /// Computes the number of each type of motif that each node participates in.
@@ -257,8 +261,8 @@ fn triangle_motif_count<G: GraphViewOps>(graph: &G, delta: i64) -> HashMap<u64, 
 pub fn local_temporal_three_node_motifs<G: GraphViewOps>(
     graph: &G,
     delta: i64,
-) -> HashMap<u64, Vec<usize>> {
-    let mut counts = triangle_motif_count(graph, delta);
+) -> AlgorithmResult<u64, Vec<usize>> {
+    let mut counts = triangle_motif_count(graph, delta).get_all().to_owned();
     for v in graph.vertices() {
         let vid = v.id();
         let two_nodes = twonode_motif_count(graph, vid, delta).to_vec();
@@ -274,7 +278,7 @@ pub fn local_temporal_three_node_motifs<G: GraphViewOps>(
         final_cts.extend(counts.get(&vid).unwrap().into_iter());
         counts.insert(vid, final_cts);
     }
-    counts
+    AlgorithmResult::new(counts)
 }
 
 /// Computes the number of each type of motif there is in the graph.
@@ -296,7 +300,9 @@ pub fn local_temporal_three_node_motifs<G: GraphViewOps>(
 ///
 ///
 pub fn global_temporal_three_node_motifs<G: GraphViewOps>(graph: &G, delta: i64) -> Vec<usize> {
-    let counts = local_temporal_three_node_motifs(graph, delta);
+    let counts = local_temporal_three_node_motifs(graph, delta)
+        .get_all()
+        .to_owned();
     let mut tmp_counts = counts.values().fold(vec![0; 40], |acc, x| {
         acc.iter().zip(x.iter()).map(|(x1, x2)| x1 + x2).collect()
     });

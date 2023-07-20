@@ -4,6 +4,8 @@ import sys
 import time
 import datetime
 
+import pandas as pd
+import pandas.core.frame
 import pytest
 from raphtory import Graph, GraphWithDeletions
 from raphtory import algorithms
@@ -11,7 +13,6 @@ from raphtory import graph_loader
 import tempfile
 from math import isclose
 import datetime
-
 
 edges = [
     (1, 1, 2),
@@ -667,7 +668,7 @@ def test_graph_time_api():
     earliest_time = g.earliest_time()
     latest_time = g.latest_time()
     assert len(list(g.rolling(1))) == latest_time - earliest_time + 1
-    assert len(list(g.expanding(2))) == math.ceil((latest_time+1 - earliest_time) / 2)
+    assert len(list(g.expanding(2))) == math.ceil((latest_time + 1 - earliest_time) / 2)
 
     w = g.window(2, 6)
     assert len(list(w.rolling(window=10, step=3))) == 2
@@ -974,7 +975,7 @@ def test_lotr_edge_history():
     assert (g.edge('Frodo', 'Gandalf').window(100, 1000).history() == [329, 555, 861])
 
 
-def test_connected_components():
+def gen_graph():
     g = Graph()
     g.add_edge(10, 1, 3, {})
     g.add_edge(11, 1, 2, {})
@@ -988,28 +989,57 @@ def test_connected_components():
     g.add_edge(15, 4, 7, {})
     g.add_edge(10, 4, 7, {})
     g.add_edge(10, 5, 8, {})
+    return g
+
+
+def test_connected_components():
+    g = gen_graph()
+    actual = algorithms.weakly_connected_components(g, 20)
+    expected = {'1': 1, '2': 1, '3': 1, '4': 1, '5': 1, '6': 1, '7': 1, '8': 1}
+    assert (actual.get_all() == expected)
+    assert (actual.get('1') == 1)
+
+
+def test_algo_result():
+    g = gen_graph()
 
     actual = algorithms.weakly_connected_components(g, 20)
     expected = {'1': 1, '2': 1, '3': 1, '4': 1, '5': 1, '6': 1, '7': 1, '8': 1}
-    assert (actual == expected)
+    assert (actual.get_all() == expected)
+    assert (actual.get('1') == 1)
+    expected_array = [('1', 1), ('2', 1), ('3', 1), ('4', 1), ('5', 1), ('6', 1), ('7', 1), ('8', 1)]
+    assert (sorted(actual.sort_by_value()) == expected_array)
+    assert (actual.sort_by_key() == sorted(expected_array, reverse=True))
+    assert (actual.sort_by_key(reverse=False) == expected_array)
+    assert (sorted(actual.top_k(8)) == expected_array)
+    assert (len(actual.group_by()[1]) == 8)
+    assert type(actual.to_df()) == pandas.core.frame.DataFrame
+    df = actual.to_df()
+    expected_result = pd.DataFrame({
+        'Key': ['1'],
+        'Value': [1]
+    })
+    row_with_one = df[df['Key'] == '1']
+    row_with_one.reset_index(inplace=True, drop=True)
+    assert row_with_one.equals(expected_result)
+    # Algo Str u64
+    actual = algorithms.weakly_connected_components(g)
+    all_res = actual.get_all()
+    sorted_res = {k: all_res[k] for k in sorted(all_res)}
+    assert sorted_res == {'1': 1, '2': 1, '3': 1, '4': 1, '5': 1, '6': 1, '7': 1, '8': 1}
+    # algo str f64
+    actual = algorithms.pagerank(g)
+    expected_result = {'3': 0.10274080842110422, '2': 0.10274080842110422, '4': 0.1615298183542792, '6': 0.14074777909144864, '1': 0.07209850165402759, '5': 0.1615298183542792, '7': 0.14074777909144864, '8': 0.11786468661230831}
+    assert actual.get_all() == expected_result
+    assert len(actual.to_df()) == 8
+    # algo str vector
+    actual = algorithms.temporally_reachable_nodes(g, 20, 11, [1, 2], [4, 5])
+    assert sorted(actual.get_all()) == ['1', '2', '3', '4', '5', '6', '7', '8']
 
 
 def test_page_rank():
-    g = Graph()
-    g.add_edge(10, 1, 3, {})
-    g.add_edge(11, 1, 2, {})
-    g.add_edge(12, 1, 2, {})
-    g.add_edge(9, 1, 2, {})
-    g.add_edge(12, 2, 4, {})
-    g.add_edge(13, 2, 5, {})
-    g.add_edge(14, 5, 5, {})
-    g.add_edge(14, 5, 4, {})
-    g.add_edge(5, 4, 6, {})
-    g.add_edge(15, 4, 7, {})
-    g.add_edge(10, 4, 7, {})
-    g.add_edge(10, 5, 8, {})
-
-    actual = algorithms.pagerank(g, 20)
+    g = gen_graph()
+    actual = algorithms.pagerank(g)
     expected = {
         '1': 0.07209850165402759,
         '2': 0.10274080842110422,
@@ -1020,23 +1050,11 @@ def test_page_rank():
         '7': 0.14074777909144864,
         '8': 0.11786468661230831,
     }
-    assert (actual == expected)
+    assert (actual.get_all() == expected)
 
 
 def test_temporal_reachability():
-    g = Graph()
-    g.add_edge(10, 1, 3, {})
-    g.add_edge(11, 1, 2, {})
-    g.add_edge(12, 1, 2, {})
-    g.add_edge(9, 1, 2, {})
-    g.add_edge(12, 2, 4, {})
-    g.add_edge(13, 2, 5, {})
-    g.add_edge(14, 5, 5, {})
-    g.add_edge(14, 5, 4, {})
-    g.add_edge(5, 4, 6, {})
-    g.add_edge(15, 4, 7, {})
-    g.add_edge(10, 4, 7, {})
-    g.add_edge(10, 5, 8, {})
+    g = gen_graph()
 
     actual = algorithms.temporally_reachable_nodes(g, 20, 11, [1, 2], [4, 5])
     expected = {
@@ -1050,7 +1068,7 @@ def test_temporal_reachability():
         '8': [],
     }
 
-    assert (actual == expected)
+    assert (actual.get_all() == expected)
 
 
 # def test_generic_taint_loader():
@@ -1367,7 +1385,9 @@ def test_load_from_pandas():
         marbles = e["marbles"]
         edges.append((e.src().id(), e.dst().id(), weight, marbles))
 
-    assert edges == [(1, 2, 1.0, "red"), (2, 3, 2.0, "blue"), (3, 4, 3.0, "green"), (4, 5, 4.0, "yellow"), (5, 6, 5.0, "purple")]
+    assert edges == [(1, 2, 1.0, "red"), (2, 3, 2.0, "blue"), (3, 4, 3.0, "green"), (4, 5, 4.0, "yellow"),
+                     (5, 6, 5.0, "purple")]
+
 
 def test_load_from_pandas_vertices():
     import pandas as pd
@@ -1394,7 +1414,8 @@ def test_load_from_pandas_vertices():
         marbles = e["marbles"]
         edges.append((e.src().id(), e.dst().id(), weight, marbles))
 
-    assert edges == [(1, 2, 1.0, "red"), (2, 3, 2.0, "blue"), (3, 4, 3.0, "green"), (4, 5, 4.0, "yellow"), (5, 6, 5.0, "purple")]
+    assert edges == [(1, 2, 1.0, "red"), (2, 3, 2.0, "blue"), (3, 4, 3.0, "green"), (4, 5, 4.0, "yellow"),
+                     (5, 6, 5.0, "purple")]
 
     vertices = []
     for v in g.vertices():
@@ -1402,6 +1423,7 @@ def test_load_from_pandas_vertices():
         vertices.append((v.id(), name))
 
     assert vertices == [(1, "Alice"), (2, "Bob"), (3, "Carol"), (4, "Dave"), (5, "Eve"), (6, "Frank")]
+
 
 def load_from_pandas_into_existing_graph():
     import pandas as pd
@@ -1420,7 +1442,7 @@ def load_from_pandas_into_existing_graph():
     })
 
     g = Graph()
-    
+
     g.load_vertices_from_pandas(vertices_df, "id", "time", ["name"])
 
     g.load_edges_frompandas(edges_df, "src", "dst", "time", ["weight", "marbles"])
@@ -1432,7 +1454,8 @@ def load_from_pandas_into_existing_graph():
         marbles = e["marbles"]
         edges.append((e.src().id(), e.dst().id(), weight, marbles))
 
-    assert edges == [(1, 2, 1.0, "red"), (2, 3, 2.0, "blue"), (3, 4, 3.0, "green"), (4, 5, 4.0, "yellow"), (5, 6, 5.0, "purple")]
+    assert edges == [(1, 2, 1.0, "red"), (2, 3, 2.0, "blue"), (3, 4, 3.0, "green"), (4, 5, 4.0, "yellow"),
+                     (5, 6, 5.0, "purple")]
 
     vertices = []
     for v in g.vertices():

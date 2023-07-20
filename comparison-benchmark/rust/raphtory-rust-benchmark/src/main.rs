@@ -2,9 +2,11 @@ use chrono::NaiveDateTime;
 use clap::{ArgAction, Parser};
 use csv::StringRecord;
 use flate2::read::GzDecoder;
+use ordered_float::OrderedFloat;
 use raphtory::{
     algorithms::{
-        connected_components::weakly_connected_components, pagerank::unweighted_page_rank,
+        algorithm_result::AlgorithmResult, connected_components::weakly_connected_components,
+        pagerank::unweighted_page_rank,
     },
     core::utils::hashing::calculate_hash,
     graph_loader::{fetch_file, source::csv_loader::CsvLoader},
@@ -201,14 +203,14 @@ fn main() {
 
     // page rank with time
     now = Instant::now();
-    let _page_rank: HashMap<String, f64> = unweighted_page_rank(&g, 1000, None, None, true)
+    let _page_rank: Vec<_> = unweighted_page_rank(&g, 1000, None, None, true)
         .into_iter()
         .collect();
     println!("Page rank: {} seconds", now.elapsed().as_secs_f64());
 
     // connected components with time
     now = Instant::now();
-    let _cc: HashMap<String, u64> = weakly_connected_components(&g, usize::MAX, None);
+    let _cc: AlgorithmResult<String, u64> = weakly_connected_components(&g, usize::MAX, None);
     println!(
         "Connected components: {} seconds",
         now.elapsed().as_secs_f64()

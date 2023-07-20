@@ -22,3 +22,4 @@ clap = { version = "4.3.11", features = ["derive"] }
 csv = "1.2.2"
 tar = "0.4.38"
 flate2 = "1.0.26"
+ordered-float = "3.7.0"
