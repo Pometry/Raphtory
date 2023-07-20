@@ -92,6 +92,21 @@ impl PyStaticProperties {
     fn __len__(&self) -> usize {
         self.keys().len()
     }
+
+    fn __repr__(&self) -> String {
+        self.repr()
+    }
+
+    fn __richcmp__(&self, other: StaticPropsComparable, op: CompareOp) -> PyResult<bool> {
+        match op {
+            CompareOp::Lt => Err(PyTypeError::new_err("not ordered")),
+            CompareOp::Le => Err(PyTypeError::new_err("not ordered")),
+            CompareOp::Eq => Ok(StaticPropsComparable::from(self) == other),
+            CompareOp::Ne => Ok(StaticPropsComparable::from(self) != other),
+            CompareOp::Gt => Err(PyTypeError::new_err("not ordered")),
+            CompareOp::Ge => Err(PyTypeError::new_err("not ordered")),
+        }
+    }
 }
 
 impl<P: PropertiesOps + Send + Sync + 'static> From<StaticProperties<P>> for PyStaticProperties {
@@ -115,22 +130,12 @@ py_iterable!(
     PyGenericIterator
 );
 
-pub enum StaticPropsIterComparable {
-    Vec(Vec<StaticPropsComparable>),
-    This(Py<StaticPropsIterable>),
-}
-
-impl<'source> FromPyObject<'source> for StaticPropsIterComparable {
-    fn extract(ob: &'source PyAny) -> PyResult<Self> {
-        if let Ok(s) = ob.extract::<Py<StaticPropsIterable>>() {
-            Ok(StaticPropsIterComparable::This(s))
-        } else if let Ok(v) = ob.extract::<Vec<StaticPropsComparable>>() {
-            Ok(StaticPropsIterComparable::Vec(v))
-        } else {
-            Err(PyTypeError::new_err("cannot compare"))
-        }
-    }
-}
+py_iterable_comp!(
+    StaticPropsIterable,
+    DynStaticProperties,
+    StaticPropsComparable,
+    StaticPropsIterComparable
+);
 
 #[pymethods]
 impl StaticPropsIterable {
@@ -166,32 +171,6 @@ impl StaticPropsIterable {
 
     fn __contains__(&self, key: &str) -> bool {
         self.iter().any(|p| p.contains(key))
-    }
-
-    pub fn __richcmp__(
-        &self,
-        other: StaticPropsIterComparable,
-        op: CompareOp,
-        py: Python<'_>,
-    ) -> PyResult<bool> {
-        match op {
-            CompareOp::Lt => Err(PyNotImplementedError::new_err("not ordered")),
-            CompareOp::Le => Err(PyNotImplementedError::new_err("cannot compare")),
-            CompareOp::Eq => match other {
-                StaticPropsIterComparable::Vec(v) => Ok(self
-                    .iter()
-                    .zip(v)
-                    .all(|(t, o)| StaticPropsComparable::from(t) == o)),
-                StaticPropsIterComparable::This(o) => {
-                    Ok(self.iter().zip(o.borrow(py).iter()).all(|(t, o)| {
-                        StaticPropsComparable::from(t) == StaticPropsComparable::from(o)
-                    }))
-                }
-            },
-            CompareOp::Ne => Ok(!self.__richcmp__(other, CompareOp::Eq, py)?),
-            CompareOp::Gt => Err(PyNotImplementedError::new_err("cannot compare")),
-            CompareOp::Ge => Err(PyNotImplementedError::new_err("cannot compare")),
-        }
     }
 }
 
