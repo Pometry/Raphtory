@@ -235,7 +235,7 @@ impl PyGraph {
         let graph = PyGraph {
             graph: Graph::new(),
         };
-        graph.load_edges_from_pandas(edges_df, src, dst, time, props,layer,layer_in_df)?;
+        graph.load_edges_from_pandas(edges_df, src, dst, time, props, layer, layer_in_df)?;
         if let (Some(vertex_df), Some(vertex_col), Some(vertex_time_col)) =
             (vertex_df, vertex_col, vertex_time_col)
         {
@@ -283,8 +283,17 @@ impl PyGraph {
         let graph = &self.graph;
         Python::with_gil(|py| {
             let df = process_pandas_py_df(edge_df, py)?;
-            load_edges_from_df(&df, src_col, dst_col, time_col, props, layer, layer_in_df, graph)
-                .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
+            load_edges_from_df(
+                &df,
+                src_col,
+                dst_col,
+                time_col,
+                props,
+                layer,
+                layer_in_df,
+                graph,
+            )
+            .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
 
             Ok::<(), PyErr>(())
         })
