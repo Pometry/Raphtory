@@ -96,7 +96,7 @@ pub(crate) fn load_vertices_from_df<'a>(
     Ok(())
 }
 
-pub(crate) fn load_edges_from_df<'a,S:AsRef<str>>(
+pub(crate) fn load_edges_from_df<'a, S: AsRef<str>>(
     df: &'a PretendDF,
     src: &str,
     dst: &str,
@@ -113,8 +113,7 @@ pub(crate) fn load_edges_from_df<'a,S:AsRef<str>>(
         .reduce(combine_prop_iters)
         .unwrap_or_else(|| Box::new(std::iter::repeat(vec![])));
 
-    let layer = lift_layer(layer,layer_in_df,df);
-
+    let layer = lift_layer(layer, layer_in_df, df);
 
     if let (Some(src), Some(dst), Some(time)) = (
         df.iter_col::<u64>(src),
@@ -125,7 +124,7 @@ pub(crate) fn load_edges_from_df<'a,S:AsRef<str>>(
             .map(|i| i.copied())
             .zip(dst.map(|i| i.copied()))
             .zip(time);
-        load_edges_from_num_iter(&graph, triplets, prop_iter,layer)?;
+        load_edges_from_num_iter(&graph, triplets, prop_iter, layer)?;
     } else if let (Some(src), Some(dst), Some(time)) = (
         df.iter_col::<i64>(src),
         df.iter_col::<i64>(dst),
@@ -135,14 +134,14 @@ pub(crate) fn load_edges_from_df<'a,S:AsRef<str>>(
             .map(i64_opt_into_u64_opt)
             .zip(dst.map(i64_opt_into_u64_opt))
             .zip(time);
-        load_edges_from_num_iter(&graph, triplets, prop_iter,layer)?;
+        load_edges_from_num_iter(&graph, triplets, prop_iter, layer)?;
     } else if let (Some(src), Some(dst), Some(time)) = (
         df.utf8::<i32>(src),
         df.utf8::<i32>(dst),
         df.iter_col::<i64>(time),
     ) {
         let triplets = src.into_iter().zip(dst.into_iter()).zip(time.into_iter());
-        for ((((src, dst), time), props),layer) in triplets.zip(prop_iter).zip(layer) {
+        for ((((src, dst), time), props), layer) in triplets.zip(prop_iter).zip(layer) {
             if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
                 graph.add_edge(*time, src, dst, props, layer.as_deref())?;
             }
@@ -153,7 +152,7 @@ pub(crate) fn load_edges_from_df<'a,S:AsRef<str>>(
         df.iter_col::<i64>(time),
     ) {
         let triplets = src.into_iter().zip(dst.into_iter()).zip(time.into_iter());
-        for ((((src, dst), time), props),layer) in triplets.zip(prop_iter).zip(layer) {
+        for ((((src, dst), time), props), layer) in triplets.zip(prop_iter).zip(layer) {
             if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
                 graph.add_edge(*time, src, dst, props, layer.as_deref())?;
             }
@@ -206,33 +205,27 @@ fn lift_property<'a: 'b, 'b>(
     }
 }
 
-fn lift_layer<'a,S:AsRef<str>>(
+fn lift_layer<'a, S: AsRef<str>>(
     layer: Option<S>,
     layer_in_df: Option<S>,
     df: &'a PretendDF,
 ) -> Box<dyn Iterator<Item = Option<String>> + 'a> {
-
-    if let Some(layer) = layer { //Prioritise the explicit layer set by the user
+    if let Some(layer) = layer {
+        //Prioritise the explicit layer set by the user
         Box::new(std::iter::repeat(Some(layer.as_ref().to_string())))
-    }
-    else{
+    } else {
         if let Some(name) = layer_in_df {
             if let Some(col) = df.utf8::<i32>(name.as_ref()) {
                 Box::new(col.map(|v| v.map(|v| v.to_string())))
             } else if let Some(col) = df.utf8::<i64>(name.as_ref()) {
                 Box::new(col.map(|v| v.map(|v| v.to_string())))
-            }
-            else {
+            } else {
                 Box::new(std::iter::repeat(None))
             }
-        }
-        else {
+        } else {
             Box::new(std::iter::repeat(None))
         }
     }
-
-
-
 }
 
 fn iter_as_prop<
@@ -276,9 +269,8 @@ fn load_edges_from_num_iter<
     edges: I,
     props: PI,
     layer: IL,
-
 ) -> Result<(), GraphError> {
-    for ((((src, dst), time), edge_props),layer ) in edges.zip(props).zip(layer) {
+    for ((((src, dst), time), edge_props), layer) in edges.zip(props).zip(layer) {
         if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
             graph.add_edge(*time, src, dst, edge_props, layer.as_deref())?;
         }
@@ -432,8 +424,8 @@ mod test {
             ],
         };
         let graph = Graph::new();
-        let layer:Option<&str> = None;
-        let layer_in_df:Option<&str> = None;
+        let layer: Option<&str> = None;
+        let layer_in_df: Option<&str> = None;
         load_edges_from_df(
             &df,
             "src",
