@@ -13,6 +13,7 @@ use crate::{
 };
 use pyo3::prelude::*;
 
+use crate::db::api::view::internal::{DynamicGraph, IntoDynamic};
 use std::{
     collections::HashMap,
     fmt::{Debug, Formatter},
@@ -39,6 +40,18 @@ impl Debug for PyGraph {
 impl From<Graph> for PyGraph {
     fn from(value: Graph) -> Self {
         Self { graph: value }
+    }
+}
+
+impl From<PyGraph> for Graph {
+    fn from(value: PyGraph) -> Self {
+        value.graph
+    }
+}
+
+impl From<PyGraph> for DynamicGraph {
+    fn from(value: PyGraph) -> Self {
+        value.graph.into_dynamic()
     }
 }
 
