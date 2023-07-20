@@ -2,11 +2,9 @@ extern crate core;
 use pyo3::prelude::*;
 use raphtory_core::python::{
     graph::{
+        algorithm_result::AlgorithmResultStrU64,
         edge::{PyEdge, PyEdges},
         graph::PyGraph,
-        algorithm_result::{
-            AlgorithmResultStrU64
-        },
         graph_with_deletions::PyGraphWithDeletions,
         vertex::{PyVertex, PyVertices},
     },

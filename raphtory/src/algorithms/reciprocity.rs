@@ -60,7 +60,7 @@ use crate::{
     },
 };
 use ordered_float::OrderedFloat;
-use std::collections::{HashSet};
+use std::collections::HashSet;
 
 /// Gets the unique edge counts excluding cycles for a vertex. Returns a tuple of usize
 /// (out neighbours, in neighbours, the intersection of the out and in neighbours)
