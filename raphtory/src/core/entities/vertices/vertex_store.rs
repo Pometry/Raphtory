@@ -129,7 +129,9 @@ impl<const N: usize> VertexStore<N> {
             Direction::IN => self.merge_layers(layers, Direction::IN, self_id),
             Direction::BOTH => Box::new(
                 self.edge_tuples(layers.clone(), Direction::OUT)
-                    .chain(self.edge_tuples(layers, Direction::IN)),
+                    .merge_by(self.edge_tuples(layers, Direction::IN), |e1, e2| {
+                        e1.remote() < e2.remote()
+                    }),
             ),
         };
         iter

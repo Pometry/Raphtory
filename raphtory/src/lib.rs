@@ -107,7 +107,7 @@ pub mod prelude {
             api::{
                 mutation::{AdditionOps, DeletionOps, PropertyAdditionOps},
                 view::{
-                    EdgeListOps, EdgeViewOps, GraphViewOps, TimeOps, VertexListOps, VertexViewOps,
+                    EdgeListOps, EdgeViewOps, GraphViewOps, TimeOps, VertexListOps, VertexViewOps, Layer
                 },
             },
             graph::graph::Graph,
