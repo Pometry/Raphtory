@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1689699662514,
+  "lastUpdate": 1689842568639,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -5557,6 +5557,60 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions with numeric string input",
             "value": 1851300,
             "range": "± 66206",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "Haaroon@users.noreply.github.com",
+            "name": "Haaroon Y",
+            "username": "Haaroon"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c43207a451a7c8e7b4d4d93f2e1f6c3e30428ac7",
+          "message": "Adds a format checker to the workflows, which fails if the code has not been formatted, adds a dev folder with instructions to setup a nightly env + point the git hooks to the local folder (#1126)\n\n* fixs docs\r\n\r\n* fixed spelling, be me, cant spell\r\n\r\n* :boom: add needs check to prevent premature startup\r\n\r\n* :zap: prevent failure\r\n\r\n* testing hook\r\n\r\n* add bootstrap file, hooks and instructions\r\n\r\n* testing hook",
+          "timestamp": "2023-07-20T09:36:42+01:00",
+          "tree_id": "5e04f8b360f76c00ba864522656aae5b41cd3e8b",
+          "url": "https://github.com/Pometry/Raphtory/commit/c43207a451a7c8e7b4d4d93f2e1f6c3e30428ac7"
+        },
+        "date": 1689842567772,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 694736,
+            "range": "± 1929",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and numeric string input",
+            "value": 1231764,
+            "range": "± 4020",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and string input",
+            "value": 1263134,
+            "range": "± 3602",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 1053762,
+            "range": "± 82568",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions with numeric string input",
+            "value": 1918835,
+            "range": "± 79779",
             "unit": "ns/iter"
           }
         ]
