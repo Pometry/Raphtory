@@ -241,8 +241,8 @@ impl<G: TimeSemantics + CoreGraphOps + GraphOps + Clone + 'static> GraphWindowOp
         t_end: i64,
         layer: LayerIds,
     ) -> Option<EdgeRef> {
-        self.edge_ref(src, dst, layer)
-            .filter(|&e| self.include_edge_window(e, t_start..t_end))
+        self.edge_ref(src, dst, layer.clone())
+            .filter(|&e| self.include_edge_window(e, t_start..t_end, layer))
     }
 
     fn edge_refs_window(
@@ -253,8 +253,8 @@ impl<G: TimeSemantics + CoreGraphOps + GraphOps + Clone + 'static> GraphWindowOp
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
         let g = self.clone();
         Box::new(
-            self.edge_refs(layer)
-                .filter(move |&e| g.include_edge_window(e, t_start..t_end)),
+            self.edge_refs(layer.clone())
+                .filter(move |&e| g.include_edge_window(e, t_start..t_end, layer.clone())),
         )
     }
 
@@ -268,8 +268,8 @@ impl<G: TimeSemantics + CoreGraphOps + GraphOps + Clone + 'static> GraphWindowOp
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
         let g = self.clone();
         Box::new(
-            self.vertex_edges(v, d, layers)
-                .filter(move |&e| g.include_edge_window(e, t_start..t_end)),
+            self.vertex_edges(v, d, layers.clone())
+                .filter(move |&e| g.include_edge_window(e, t_start..t_end, layers.clone())),
         )
     }
 

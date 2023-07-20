@@ -164,6 +164,14 @@ impl<const N: usize> ArcEdge<N> {
             .dedup()
     }
 
+    pub(crate) fn layers(&self) -> impl Iterator<Item = usize> + '_ {
+        self.e.layer_ids_iter()
+    }
+
+    pub(crate) fn layers_window(&self, w: Range<i64>) -> impl Iterator<Item = usize> + '_ {
+        self.e.layer_ids_window_iter(w)
+    }
+
     pub(crate) fn timestamps_window(
         &self,
         layer: LayerIds,

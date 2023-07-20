@@ -145,6 +145,8 @@ pub trait EdgeViewOps: EdgeViewInternalOps<Self::Graph, Self::Vertex> {
     /// Explodes an edge and returns all instances it had been updated as seperate edges
     fn explode(&self) -> Self::EList;
 
+    fn explode_layers(&self) -> Self::EList;
+
     /// Gets the first time an edge was seen
     fn earliest_time(&self) -> Option<i64> {
         self.graph().edge_earliest_time(self.eref())

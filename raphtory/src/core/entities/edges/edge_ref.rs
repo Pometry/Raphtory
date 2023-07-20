@@ -9,6 +9,7 @@ pub struct EdgeRef{
     dst_pid: VID,
     e_type: Dir,
     time: Option<i64>,
+    layer_id: Option<usize>,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -26,7 +27,7 @@ impl EdgeRef {
             dst_pid,
             e_type: Dir::Out,
             time: None,
-            // layer_id: None,
+            layer_id: None,
         }
     }
 
@@ -37,14 +38,14 @@ impl EdgeRef {
             dst_pid,
             e_type: Dir::Into,
             time: None,
-            // layer_id: None,
+            layer_id: None,
         }
     }
 
-    // #[inline(always)]
-    // pub fn layers(&self) -> Option<Vec<usize>> {
-    //     self.layer_id.clone()
-    // }
+    #[inline(always)]
+    pub fn layer(&self) -> Option<&usize> {
+        self.layer_id.as_ref()
+    }
 
     #[inline(always)]
     pub fn time(&self) -> Option<i64> {
@@ -85,6 +86,12 @@ impl EdgeRef {
     pub fn at(&self, time: i64) -> Self {
         let mut e_ref = *self;
         e_ref.time = Some(time);
+        e_ref
+    }
+
+    pub fn at_layer(&self, layer: usize) -> Self {
+        let mut e_ref = *self;
+        e_ref.layer_id = Some(layer);
         e_ref
     }
 }

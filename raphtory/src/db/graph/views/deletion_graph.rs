@@ -170,10 +170,10 @@ impl TimeSemantics for GraphWithDeletions {
 
     fn include_vertex_window(&self, v: VID, w: Range<i64>) -> bool {
         self.vertex_edges(v, Direction::BOTH, LayerIds::All)
-            .any(move |e| self.include_edge_window(e, w.clone()))
+            .any(move |e| self.include_edge_window(e, w.clone(), LayerIds::All))
     }
 
-    fn include_edge_window(&self, e: EdgeRef, w: Range<i64>) -> bool {
+    fn include_edge_window(&self, e: EdgeRef, w: Range<i64>, layer_ids: LayerIds) -> bool {
         // includes edge if it is alive at the start of the window or added during the window
         self.edge_alive_at(e, w.start) || self.edge_additions(e).active(w)
     }
@@ -331,6 +331,14 @@ impl TimeSemantics for GraphWithDeletions {
 
     fn temporal_edge_prop_vec(&self, e: EdgeRef, name: &str) -> Vec<(i64, Prop)> {
         self.graph.temporal_edge_prop_vec(e, name)
+    }
+
+    fn edge_layers(&self, e: EdgeRef) -> BoxedIter<EdgeRef> {
+        self.graph.edge_layers(e)
+    }
+
+    fn edge_window_layers(&self, e: EdgeRef, w: Range<i64>) -> BoxedIter<EdgeRef> {
+        self.graph.edge_window_layers(e, w)
     }
 }
 

@@ -96,6 +96,26 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeViewOps for EvalEdge
             }),
         )
     }
+
+    fn explode_layers(&self) -> Self::EList {
+        let iter: Box<dyn Iterator<Item = EdgeRef>> = match self.ev.time() {
+            Some(_) => Box::new(iter::once(self.ev)),
+            None => Box::new(self.graph.edge_layers(self.ev)),
+        };
+
+        let ss = self.ss;
+        let g = self.graph;
+        let vertex_state = self.vertex_state.clone();
+        let local_state_prev = self.local_state_prev;
+        Box::new(
+            iter.map(move |ev| {
+                EvalEdgeView::new(ss, ev, g, vertex_state.clone(), local_state_prev)
+            }),
+        )
+
+    }
+
+
 }
 
 impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeListOps

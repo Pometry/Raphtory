@@ -75,6 +75,19 @@ impl<G: GraphViewOps> EdgeViewOps for EdgeView<G> {
             }
         }
     }
+
+    fn explode_layers(&self) -> Self::EList {
+        let ev = self.clone();
+        match self.edge.time() {
+            Some(_) => Box::new(iter::once(ev)),
+            None => {
+                let e = self.edge;
+                let ex_iter = self.graph.edge_layers(e);
+                // FIXME: use duration
+                Box::new(ex_iter.map(move |ex| ev.new_edge(ex)))
+            }
+        }
+    }
 }
 
 impl<G: GraphViewOps> Debug for EdgeView<G> {
@@ -279,7 +292,7 @@ pub type EdgeList<G> = Box<dyn Iterator<Item = EdgeView<G>> + Send>;
 
 #[cfg(test)]
 mod test_edge {
-    use crate::{prelude::*, db::api::view::Layer};
+    use crate::{db::api::view::Layer, prelude::*};
     use std::collections::HashMap;
 
     #[test]

@@ -1258,7 +1258,111 @@ mod db_tests {
         let ns = one.neighbours().id().collect::<Vec<_>>();
         assert_eq!(ns, vec![2, 3]);
         assert_eq!(ns_win, ns);
+    }
 
+    #[test]
+    fn test_layer_explode() {
+        let g = Graph::new();
+        g.add_edge(0, 1, 2, NO_PROPS, Some("layer1")).unwrap();
+        g.add_edge(1, 1, 2, NO_PROPS, Some("layer2")).unwrap();
+        g.add_edge(2, 1, 2, NO_PROPS, Some("layer1")).unwrap();
+        g.add_edge(3, 1, 2, NO_PROPS, None).unwrap();
+
+        let e = g.edge(1, 2, Layer::All).expect("edge");
+
+        let layer_exploded = e
+            .explode_layers()
+            .filter_map(|e| {
+                e.edge
+                    .layer()
+                    .copied()
+                    .map(|layer| (e.src().id(), e.dst().id(), layer))
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(layer_exploded, vec![(1, 2, 0), (1, 2, 1), (1, 2, 2),]);
+    }
+
+    #[test]
+    fn test_layer_explode_window() {
+        let g = Graph::new();
+        g.add_edge(0, 1, 2, NO_PROPS, Some("layer1")).unwrap();
+        g.add_edge(1, 1, 2, NO_PROPS, Some("layer2")).unwrap();
+        g.add_edge(2, 1, 2, NO_PROPS, Some("layer1")).unwrap();
+        g.add_edge(3, 1, 2, NO_PROPS, None).unwrap();
+
+        let g = g.window(0, 3);
+        let e = g.edge(1, 2, Layer::All).expect("edge");
+
+        let layer_exploded = e
+            .explode_layers()
+            .filter_map(|e| {
+                e.edge
+                    .layer()
+                    .copied()
+                    .map(|layer| (e.src().id(), e.dst().id(), layer))
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(layer_exploded, vec![(1, 2, 1), (1, 2, 2),]);
+    }
+
+    #[test]
+    fn test_layer_explode_stacking() {
+        let g = Graph::new();
+        g.add_edge(0, 1, 2, NO_PROPS, Some("layer1")).unwrap();
+        g.add_edge(1, 1, 2, NO_PROPS, Some("layer2")).unwrap();
+        g.add_edge(2, 1, 2, NO_PROPS, Some("layer1")).unwrap();
+        g.add_edge(3, 1, 2, NO_PROPS, None).unwrap();
+
+        let e = g.edge(1, 2, Layer::All).expect("edge");
+
+        let layer_exploded = e
+            .explode_layers()
+            .flat_map(|e| {
+                e.explode().filter_map(|e| {
+                    e.edge
+                        .layer().zip(e.time())
+                        .map(|(layer, t)| (t, e.src().id(), e.dst().id(), *layer))
+                })
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(layer_exploded, vec![
+            (3, 1, 2, 0),
+            (0, 1, 2, 1),
+            (2, 1, 2, 1),
+            (1, 1, 2, 2),
+        ]);
+    }
+
+    #[test]
+    fn test_layer_explode_stacking_window() {
+        let g = Graph::new();
+        g.add_edge(0, 1, 2, NO_PROPS, Some("layer1")).unwrap();
+        g.add_edge(1, 1, 2, NO_PROPS, Some("layer2")).unwrap();
+        g.add_edge(2, 1, 2, NO_PROPS, Some("layer1")).unwrap();
+        g.add_edge(3, 1, 2, NO_PROPS, None).unwrap();
+
+        let g = g.window(0, 3);
+        let e = g.edge(1, 2, Layer::All).expect("edge");
+
+        let layer_exploded = e
+            .explode_layers()
+            .flat_map(|e| {
+                e.explode().filter_map(|e| {
+                    e.edge
+                        .layer().zip(e.time())
+                        .map(|(layer, t)| (t, e.src().id(), e.dst().id(), *layer))
+                })
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(layer_exploded, vec![
+            (0, 1, 2, 1),
+            (2, 1, 2, 1),
+            (1, 1, 2, 2),
+        ]);
     }
 
     #[test]

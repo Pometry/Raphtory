@@ -1,6 +1,6 @@
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, VID},
+        entities::{edges::edge_ref::EdgeRef, VID, LayerIds},
         storage::timeindex::TimeIndexOps,
         Prop,
     },
@@ -72,8 +72,8 @@ pub trait TimeSemantics: GraphOps + CoreGraphOps {
     /// check if vertex `v` should be included in window `w`
     fn include_vertex_window(&self, v: VID, w: Range<i64>) -> bool;
 
-    /// check if vertex `e` should be included in window `w`
-    fn include_edge_window(&self, e: EdgeRef, w: Range<i64>) -> bool;
+    /// check if edge `e` should be included in window `w`
+    fn include_edge_window(&self, e: EdgeRef, w: Range<i64>, layer_ids: LayerIds) -> bool;
 
     /// Get the timestamps at which a vertex `v` is active (i.e has an edge addition)
     fn vertex_history(&self, v: VID) -> Vec<i64> {
@@ -88,8 +88,14 @@ pub trait TimeSemantics: GraphOps + CoreGraphOps {
     /// Exploded edge iterator for edge `e`
     fn edge_t(&self, e: EdgeRef) -> BoxedIter<EdgeRef>;
 
+    /// Explode edge iterator for edge `e` for every layer
+    fn edge_layers(&self, e: EdgeRef) -> BoxedIter<EdgeRef>;
+
     /// Exploded edge iterator for edge`e` over window `w`
     fn edge_window_t(&self, e: EdgeRef, w: Range<i64>) -> BoxedIter<EdgeRef>;
+
+    /// Exploded edge iterator for edge `e` over window `w` for every layer
+    fn edge_window_layers(&self, e: EdgeRef, w: Range<i64>) -> BoxedIter<EdgeRef>;
 
     /// Get the time of the earliest activity of an edge
     fn edge_earliest_time(&self, e: EdgeRef) -> Option<i64>;
@@ -277,8 +283,8 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
         self.graph().include_vertex_window(v, w)
     }
 
-    fn include_edge_window(&self, e: EdgeRef, w: Range<i64>) -> bool {
-        self.graph().include_edge_window(e, w)
+    fn include_edge_window(&self, e: EdgeRef, w: Range<i64>, layer_ids: LayerIds) -> bool {
+        self.graph().include_edge_window(e, w, layer_ids)
     }
 
     fn vertex_history(&self, v: VID) -> Vec<i64> {
@@ -291,6 +297,14 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
 
     fn edge_t(&self, e: EdgeRef) -> BoxedIter<EdgeRef> {
         self.graph().edge_t(e)
+    }
+
+    fn edge_layers(&self, e: EdgeRef) -> BoxedIter<EdgeRef> {
+        self.graph().edge_layers(e)
+    }
+
+    fn edge_window_layers(&self, e: EdgeRef, w: Range<i64>) -> BoxedIter<EdgeRef> {
+        self.graph().edge_window_layers(e, w)
     }
 
     fn edge_window_t(&self, e: EdgeRef, w: Range<i64>) -> BoxedIter<EdgeRef> {

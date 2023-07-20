@@ -7,11 +7,11 @@ use crate::core::{
         },
         properties::tprop::TProp,
         vertices::vertex::Vertex,
-        GraphItem, VRef, EID, VID, LayerIds,
+        GraphItem, LayerIds, VRef, EID, VID,
     },
     storage::{
         locked_view::LockedView,
-        timeindex::{TimeIndex, TimeIndexOps, LockedLayeredIndex},
+        timeindex::{LockedLayeredIndex, TimeIndex, TimeIndexOps},
         Entry,
     },
     Direction, Prop,
@@ -230,13 +230,29 @@ impl<'a, const N: usize> EdgeView<'a, N> {
         }
     }
 
-    pub(crate) fn active(&'a self, layer_id: usize, w: Range<i64>) -> bool {
+    pub(crate) fn active(&'a self, layer_ids: LayerIds, w: Range<i64>) -> bool {
         match &self.edge_id {
             ERef::ELock { lock, .. } => {
                 let e = lock.get_edge(self.edge_id().into());
-                e.additions()[layer_id].active(w)
+                self.check_layers(layer_ids, e, |t| t.active(w.clone()))
             }
-            ERef::ERef(entry) => (*entry).additions()[layer_id].active(w),
+            ERef::ERef(entry) => {
+                let e = entry.deref();
+                self.check_layers(layer_ids, e, |t| t.active(w.clone()))
+            }
+        }
+    }
+
+    fn check_layers<E: Deref<Target = EdgeStore<N>>, F: Fn(&TimeIndex) -> bool>(
+        &self,
+        layer_ids: LayerIds,
+        e: E,
+        f: F,
+    ) -> bool {
+        match layer_ids {
+            LayerIds::All => e.additions().iter().any(f),
+            LayerIds::One(id) => f(&e.additions()[id]),
+            LayerIds::Multiple(ids) => ids.iter().any(|id| f(&e.additions()[*id])),
         }
     }
 

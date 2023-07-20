@@ -134,9 +134,9 @@ impl<G: GraphViewOps> TimeSemantics for WindowedGraph<G> {
             .include_vertex_window(v, self.actual_start(w.start)..self.actual_end(w.end))
     }
 
-    fn include_edge_window(&self, e: EdgeRef, w: Range<i64>) -> bool {
+    fn include_edge_window(&self, e: EdgeRef, w: Range<i64>, layer_ids: LayerIds) -> bool {
         self.graph
-            .include_edge_window(e, self.actual_start(w.start)..self.actual_end(w.end))
+            .include_edge_window(e, self.actual_start(w.start)..self.actual_end(w.end), layer_ids)
     }
 
     fn vertex_history(&self, v: VID) -> Vec<i64> {
@@ -240,6 +240,15 @@ impl<G: GraphViewOps> TimeSemantics for WindowedGraph<G> {
         self.graph
             .temporal_edge_prop_vec_window(e, name, self.t_start, self.t_end)
     }
+
+    fn edge_layers(&self, e: EdgeRef) -> BoxedIter<EdgeRef> {
+        self.graph.edge_window_layers(e, self.t_start..self.t_end)
+    }
+
+    fn edge_window_layers(&self, e: EdgeRef, w: Range<i64>) -> BoxedIter<EdgeRef> {
+        self.graph
+            .edge_window_layers(e, self.actual_start(w.start)..self.actual_end(w.end))
+    }
 }
 
 /// Implementation of the GraphViewInternalOps trait for WindowedGraph.
@@ -250,7 +259,7 @@ impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
         let e_ref = self.graph.find_edge_id(e_id)?;
         if self
             .graph
-            .include_edge_window(e_ref, self.t_start..self.t_end)
+            .include_edge_window(e_ref, self.t_start..self.t_end, LayerIds::All)
         {
             Some(e_ref)
         } else {

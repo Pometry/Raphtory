@@ -128,6 +128,35 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeViewOps
         }
     }
 
+
+    fn explode_layers(&self) -> Self::EList {
+        let e = self.ev.clone();
+        let t_start = self.t_start;
+        let t_end = self.t_end;
+        let ss = self.ss;
+        let g = self.g;
+        let vertex_state = self.vertex_state.clone();
+        let local_state_prev = self.local_state_prev;
+
+        match self.ev.time() {
+            Some(_) => Box::new(iter::once(self.new_edge(e))),
+            None => {
+                let ts = self.g.edge_window_layers(e, t_start..t_end);
+                Box::new(ts.map(move |ex| {
+                    WindowEvalEdgeView::new(
+                        ss,
+                        ex,
+                        g,
+                        local_state_prev,
+                        vertex_state.clone(),
+                        t_start,
+                        t_end,
+                    )
+                }))
+            }
+        }
+    }
+
     fn history(&self) -> Vec<i64> {
         self.graph()
             .edge_history_window(self.ev, self.t_start..self.t_end)
@@ -196,6 +225,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeViewOps
                 .edge_latest_time_window(self.eref(), self.t_start..self.t_end)
         })
     }
+
 }
 
 impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeListOps
