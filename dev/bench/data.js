@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1689848608128,
+  "lastUpdate": 1689867663586,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -5665,6 +5665,60 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions with numeric string input",
             "value": 2207889,
             "range": "± 88241",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "b.a.steer@qmul.ac.uk",
+            "name": "Ben Steer",
+            "username": "miratepuffin"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "dd0917ae4a69c73d9f5448224b932b38bfc5d358",
+          "message": "Feature/python graphql (#1095)\n\n* Commit for merging with search\r\n\r\n* Messing with async\r\n\r\n* temp\r\n\r\n* Running from files working - running from dict next\r\n\r\n* Fixed segfault with run_from_dict\r\n\r\n* Merged and fixed issues\r\n\r\n* Hiding async bits away\r\n\r\n* Added port\r\n\r\n* Running the server in the background\r\n\r\n* Added a proper health check\r\n\r\n* Basic documentation\r\n\r\n* Added docs\r\n\r\n* Added tests\r\n\r\n* fmt\r\n\r\n* revert file name change\r\n\r\n* Added dependencies\r\n\r\n* Fixed tests for windows",
+          "timestamp": "2023-07-20T16:33:24+01:00",
+          "tree_id": "e7a2be05cb9cff02719879066b9e364fad87da82",
+          "url": "https://github.com/Pometry/Raphtory/commit/dd0917ae4a69c73d9f5448224b932b38bfc5d358"
+        },
+        "date": 1689867662001,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 802105,
+            "range": "± 42163",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and numeric string input",
+            "value": 1492904,
+            "range": "± 75780",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and string input",
+            "value": 1560280,
+            "range": "± 105853",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 1482571,
+            "range": "± 256413",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions with numeric string input",
+            "value": 2341876,
+            "range": "± 333987",
             "unit": "ns/iter"
           }
         ]
