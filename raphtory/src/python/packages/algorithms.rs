@@ -59,7 +59,7 @@ pub fn local_triangle_count(g: &PyGraphView, v: VertexRef) -> Option<usize> {
 ///     iter_count (int) : Maximum number of iterations to run. Note that this will terminate early if the labels converge prior to the number of iterations being reached.
 ///
 /// Returns:
-///     dict : Dictionary with string keys and integer values mapping vertex names to their component ids.
+///     AlgorithmResult : AlgorithmResult object with string keys and integer values mapping vertex names to their component ids.
 #[pyfunction]
 #[pyo3(signature = (g, iter_count=9223372036854775807))]
 pub fn weakly_connected_components(
@@ -82,7 +82,7 @@ pub fn weakly_connected_components(
 /// is less than the max diff value given.
 ///
 /// Returns:
-///     dict : Dictionary with string keys and float values mapping vertex names to their pagerank value.
+///     AlgorithmResult : AlgorithmResult with string keys and float values mapping vertex names to their pagerank value.
 #[pyfunction]
 #[pyo3(signature = (g, iter_count=20, max_diff=None))]
 pub fn pagerank(
@@ -107,7 +107,7 @@ pub fn pagerank(
 ///     stop_nodes (list(str) or list(int)) : nodes at which a path shouldn't go any further
 ///
 /// Returns:
-///     dict : Dictionary with string keys and float values mapping vertex names to their pagerank value.
+///     AlgorithmResult : AlgorithmResult with string keys and float values mapping vertex names to their pagerank value.
 #[pyfunction]
 pub fn temporally_reachable_nodes(
     g: &PyGraphView,
@@ -236,7 +236,7 @@ pub fn global_reciprocity(g: &PyGraphView) -> f64 {
 ///     g (Raphtory graph) : a directed Raphtory graph
 ///
 /// Returns:
-///     dict : a dictionary with string keys and float values mapping each vertex name to its reciprocity value.
+///     AlgorithmResult : AlgorithmResult with string keys and float values mapping each vertex name to its reciprocity value.
 ///
 #[pyfunction]
 pub fn all_local_reciprocity(g: &PyGraphView) -> AlgorithmResult<String, OrderedFloat<f64>> {
@@ -336,7 +336,7 @@ pub fn global_temporal_three_node_motif(g: &PyGraphView, delta: i64) -> Vec<usiz
 /// milliseconds should be used (if edge times were given as string)
 ///
 /// Returns:
-///     dict(list) : A dictionary with node ids as keys and a 40d array of motif counts (in the same order as the global motif counts) with the number of each
+///     AlgorithmResult : An AlgorithmResult with node ids as keys and a 40d array of motif counts (in the same order as the global motif counts) with the number of each
 /// motif that node participates in.
 ///
 /// Notes:

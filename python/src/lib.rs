@@ -3,25 +3,25 @@ use pyo3::prelude::*;
 use raphtory_core::python::{
     graph::{
         edge::{PyEdge, PyEdges},
-        example_one,
         graph::PyGraph,
+        algorithm_result::{
+            AlgorithmResultStrU64
+        },
         graph_with_deletions::PyGraphWithDeletions,
         vertex::{PyVertex, PyVertices},
     },
     packages::{algorithms::*, graph_gen::*, graph_loader::*},
 };
-
 /// Raphtory graph analytics library
 #[pymodule]
 fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_class::<PyGraph>()?;
     m.add_class::<PyGraphWithDeletions>()?;
 
-    m.add_function(wrap_pyfunction!(example_one, m)?)?;
-
     let algorithm_module = PyModule::new(py, "algorithms")?;
     algorithm_module.add_function(wrap_pyfunction!(global_reciprocity, algorithm_module)?)?;
     algorithm_module.add_function(wrap_pyfunction!(all_local_reciprocity, algorithm_module)?)?;
+    m.add_class::<AlgorithmResultStrU64>()?;
 
     algorithm_module.add_function(wrap_pyfunction!(triplet_count, algorithm_module)?)?;
     algorithm_module.add_function(wrap_pyfunction!(

@@ -1,4 +1,3 @@
-use itertools::Itertools;
 use ordered_float::OrderedFloat;
 use pyo3::prelude::*;
 
@@ -159,7 +158,6 @@ py_algorithm_result!(AlgorithmResultStrF64, String, OrderedFloat<f64>);
 #[pymethods]
 impl AlgorithmResultStrF64 {
     /// Returns all results as a dict
-    #[pyo3(signature = ())]
     fn get_all(&self) -> std::collections::HashMap<String, f64> {
         self.0
             .get_all()
@@ -272,7 +270,6 @@ impl AlgorithmResultStrF64 {
     ///
     /// A `HashMap` where keys are unique values from the `AlgorithmResult` and values are vectors
     /// containing keys of type `H` that share the same value.
-    #[pyo3(signature = ())]
     fn group_by(&self) -> std::collections::HashMap<String, Vec<String>> {
         let ordered_map = self.0.group_by();
         let mut f64_map: std::collections::HashMap<String, Vec<String>> =
