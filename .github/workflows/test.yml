@@ -10,6 +10,9 @@ concurrency:
 
 
 jobs:
+  rust-format-check:
+    name: Rust format check
+    uses: ./.github/workflows/rust_format_check.yml
   call-test-rust-workflow-in-local-repo:
     name: Run Rust tests
     uses: ./.github/workflows/test_rust_workflow.yml
