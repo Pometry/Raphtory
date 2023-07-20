@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1689842568639,
+  "lastUpdate": 1689848608128,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -5611,6 +5611,60 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions with numeric string input",
             "value": 1918835,
             "range": "± 79779",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "Haaroon@users.noreply.github.com",
+            "name": "Haaroon Y",
+            "username": "Haaroon"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ba8daba4e23ae19c2f1d97537a4c2b9f633c6100",
+          "message": "Algorithms now have their own result object with many features (#1105)\n\n* initial version of creating a polaris df from polars and fixing all the str& their dodgy prelude breaks\r\n\r\n* hello algorithm result, how do you do you?\r\n\r\n* fix tests for pr\r\n\r\n* checkin\r\n\r\n* hits fxhashmap you will not be missed 🫡\r\n\r\n* checkin with my code :salute:\r\n\r\n* at this point only god knows how it works. added tests for all types we currently support in our algorithms\r\n\r\n* add cargo missing ordered float package\r\n\r\n* fix tests\r\n\r\n* all algos done except three node motifs\r\n\r\n* implement debug formatter for algorithm result object to pass last failed test\r\n\r\n* 😈Generic type the input as well, why not😈\r\n\r\n* convert the three node motifs\r\n\r\n* added python support for algorithm result object\r\n\r\n* add default args to py fns\r\n\r\n* fix all pytests\r\n\r\n* add tests for new pyalgo fns\r\n\r\n* add tests, add to_df fn\r\n\r\n* add docs\r\n\r\n* fix graph ql issues during compiling\r\n\r\n* add docstrings\r\n\r\n* fixs docs\r\n\r\n* :art: fixed most issues\r\n\r\n* fmt\r\n\r\n* add docs\r\n\r\n* cargo fmt",
+          "timestamp": "2023-07-20T11:16:25+01:00",
+          "tree_id": "3d30db35ae9bf1a02af99228bf3542580b1a96a5",
+          "url": "https://github.com/Pometry/Raphtory/commit/ba8daba4e23ae19c2f1d97537a4c2b9f633c6100"
+        },
+        "date": 1689848606824,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 804598,
+            "range": "± 2981",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and numeric string input",
+            "value": 1451816,
+            "range": "± 16983",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and string input",
+            "value": 1486463,
+            "range": "± 5533",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 1235235,
+            "range": "± 98614",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions with numeric string input",
+            "value": 2207889,
+            "range": "± 88241",
             "unit": "ns/iter"
           }
         ]
