@@ -715,7 +715,7 @@ mod db_tests {
 
         assert_eq!(
             to_tuples(vertex.edges()),
-            vec![(11, 22), (11, 22), (11, 33), (11, 33), (11, 44), (33, 11)]
+            vec![(11, 22), (11, 33), (11, 44), (33, 11)]
         );
         assert_eq!(
             to_tuples(vertex_dft.edges()),
@@ -731,7 +731,7 @@ mod db_tests {
 
         assert_eq!(
             to_tuples(vertex.out_edges()),
-            vec![(11, 22), (11, 22), (11, 33), (11, 33), (11, 44)]
+            vec![(11, 22), (11, 33), (11, 44)]
         );
         assert_eq!(to_tuples(vertex_dft.out_edges()), vec![(11, 22), (11, 33)]);
         assert_eq!(to_tuples(vertex1.out_edges()), vec![(11, 22)]);
@@ -1192,12 +1192,73 @@ mod db_tests {
         let g = Graph::new();
         g.add_edge(0, 1, 2, NO_PROPS, Some("layer")).unwrap();
 
-        assert!(g.edge(1, 2, Layer::All).is_none());
+        assert!(g.edge(1, 2, Layer::All).is_some());
         assert!(g
             .layer("layer".into())
             .unwrap()
             .edge(1, 2, Layer::All)
             .is_some())
+    }
+
+    #[test]
+    fn test_edge_layer_intersect_layer() {
+        let g = Graph::new();
+
+        g.add_edge(1, 1, 2, NO_PROPS, Some("layer1"))
+            .expect("add edge");
+        g.add_edge(1, 1, 3, NO_PROPS, Some("layer3"))
+            .expect("add edge");
+        g.add_edge(1, 1, 4, NO_PROPS, None).expect("add edge");
+
+        let g_layers = g.layer(vec!["layer1", "layer3"].into()).expect("layer");
+
+        assert!(g_layers.edge(1, 2, Layer::One("layer1")).is_some());
+        assert!(g_layers.edge(1, 3, Layer::One("layer3")).is_some());
+        assert!(g_layers.edge(1, 2, Layer::All).is_some());
+        assert!(g_layers.edge(1, 3, Layer::All).is_some());
+
+        assert!(g_layers.edge(1, 4, Layer::All).is_none());
+        assert!(g_layers.edge(1, 4, Layer::Default).is_none());
+
+        let one = g_layers.vertex(1).expect("vertex");
+        let ns = one.neighbours().iter().map(|v| v.id()).collect::<Vec<_>>();
+        assert_eq!(ns, vec![2, 3]);
+
+        let g_layers2 = g_layers.layer(vec!["layer1"].into()).expect("layer");
+
+        assert!(g_layers2.edge(1, 2, Layer::One("layer1")).is_some());
+        assert!(g_layers2.edge(1, 2, Layer::All).is_some());
+
+        assert!(g_layers2.edge(1, 3, Layer::One("layer3")).is_none());
+        assert!(g_layers2.edge(1, 3, Layer::All).is_none());
+
+        assert!(g_layers2.edge(1, 4, Layer::All).is_none());
+        assert!(g_layers2.edge(1, 4, Layer::Default).is_none());
+
+        let one = g_layers2.vertex(1).expect("vertex");
+        let ns = one.neighbours().iter().map(|v| v.id()).collect::<Vec<_>>();
+        assert_eq!(ns, vec![2]);
+    }
+
+    #[test]
+    fn simple_triangle() {
+        let g = Graph::new();
+
+        let vs = vec![(1, 1, 2), (2, 1, 3), (3, 2, 1), (4, 3, 2)];
+
+        for (t, src, dst) in &vs {
+            g.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
+        }
+
+        let windowed_graph = g.window(0, 5);
+        let one = windowed_graph.vertex(1).expect("vertex");
+        let ns_win = one.neighbours().id().collect::<Vec<_>>();
+
+        let one = g.vertex(1).expect("vertex");
+        let ns = one.neighbours().id().collect::<Vec<_>>();
+        assert_eq!(ns, vec![2, 3]);
+        assert_eq!(ns_win, ns);
+
     }
 
     #[test]

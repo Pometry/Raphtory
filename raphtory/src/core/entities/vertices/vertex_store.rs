@@ -118,52 +118,48 @@ impl<const N: usize> VertexStore<N> {
         self.props.as_ref().and_then(|ps| ps.static_prop(prop_id))
     }
 
-    pub(crate) fn edge_tuples<'a, 'b: 'a>(
+    pub(crate) fn edge_tuples<'a>(
         &'a self,
         layers: LayerIds,
         d: Direction,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send + 'a> {
         let self_id = self.vid;
+        let iter: Box<dyn Iterator<Item = EdgeRef> + Send> = match d {
+            Direction::OUT => self.merge_layers(layers, Direction::OUT, self_id),
+            Direction::IN => self.merge_layers(layers, Direction::IN, self_id),
+            Direction::BOTH => Box::new(
+                self.edge_tuples(layers.clone(), Direction::OUT)
+                    .chain(self.edge_tuples(layers, Direction::IN)),
+            ),
+        };
+        iter
+    }
+
+    fn merge_layers(
+        &self,
+        layers: LayerIds,
+        d: Direction,
+        self_id: VID,
+    ) -> Box<dyn Iterator<Item = EdgeRef> + Send + '_> {
         match layers {
-            LayerIds::All => {
-                let iter = self
-                    .layers
+            LayerIds::All => Box::new(
+                self.layers
                     .iter()
-                    .enumerate()
-                    .map(move |(id, _)| { 
-                        let wtf = self.edge_tuples(id.into(), d).map(|e| (e.src().pid().unwrap(), e.dst().pid().unwrap(), e.dir(), e.remote().pid().unwrap())).collect_vec();
-                        println!("layer: {id}, edges {:?}", wtf);
-                        self.edge_tuples(id.into(), d) 
-                    })
+                    .map(|adj| self.iter_adj(adj, d, self_id))
                     .kmerge_by(|e1, e2| e1.remote() < e2.remote())
-                    .dedup().map(|e|(e.src().pid().unwrap(), e.dst().pid().unwrap(), e.dir(), e.remote().pid().unwrap())).collect_vec();
-                println!("all edges {:?}", iter);
-                
-                let iter = self
-                    .layers
-                    .iter()
-                    .enumerate()
-                    .map(move |(id, _)| { 
-                        let wtf = self.edge_tuples(id.into(), d).collect_vec();
-                        println!("layer: {id}, edges {:?}", wtf);
-                        self.edge_tuples(id.into(), d) 
-                    })
-                    .kmerge_by(|e1, e2| e1.remote() < e2.remote())
-                    .dedup();
-                Box::new(iter)
+                    .dedup(),
+            ),
+            LayerIds::One(id) => {
+                if let Some(layer) = self.layers.get(id) {
+                    Box::new(self.iter_adj(layer, d, self_id))
+                } else {
+                    Box::new(std::iter::empty())
+                }
             }
-            LayerIds::One(layer) => self
-                .layers
-                .get(layer)
-                .map(|layer| self.iter_adj(layer, d, self_id, layers))
-                .unwrap_or(Box::new(std::iter::empty())),
-            LayerIds::Multiple(layers) => Box::new(
-                layers
-                    .iter()
-                    .filter_map(|i| self.layers.get(*i).map(|adj| (i, adj)))
-                    .map(move |(layer_id, layer)| {
-                        self.iter_adj(layer, d, self_id, (*layer_id).into())
-                    })
+            LayerIds::Multiple(ids) => Box::new(
+                ids.iter()
+                    .filter_map(|id| self.layers.get(*id))
+                    .map(|layer| self.iter_adj(layer, d, self_id))
                     .kmerge_by(|e1, e2| e1.remote() < e2.remote())
                     .dedup(),
             ),
@@ -175,8 +171,7 @@ impl<const N: usize> VertexStore<N> {
         layer: &'a Adj,
         d: Direction,
         self_id: VID,
-        layers: LayerIds,
-    ) -> Box<dyn Iterator<Item = EdgeRef> + Send + 'a> {
+    ) -> impl Iterator<Item = EdgeRef> + Send + '_ {
         let iter: Box<dyn Iterator<Item = EdgeRef> + Send> = match d {
             Direction::IN => Box::new(
                 layer
@@ -188,12 +183,7 @@ impl<const N: usize> VertexStore<N> {
                     .iter(d)
                     .map(move |(dst_pid, e_id)| EdgeRef::new_outgoing(e_id, self_id, dst_pid)),
             ),
-            Direction::BOTH => Box::new(
-                self.edge_tuples(layers.clone(), Direction::OUT)
-                    .merge_by(self.edge_tuples(layers.clone(), Direction::IN), |e1, e2| {
-                        e1.remote() < e2.remote()
-                    }),
-            ),
+            _ => Box::new(std::iter::empty()),
         };
         iter
     }
