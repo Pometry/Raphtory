@@ -1,5 +1,8 @@
 RUST_READTHEDOCS_DOCS_TARGET=docs/source/_rustdoc
 
+rust-fmt:
+	cargo +nightly fmt
+
 rust-build:
 	cargo build -q
 

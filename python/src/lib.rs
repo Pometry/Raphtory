@@ -55,6 +55,8 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         algorithm_module
     )?)?;
 
+    algorithm_module.add_function(wrap_pyfunction!(hits, algorithm_module)?)?;
+
     m.add_submodule(algorithm_module)?;
     let graph_loader_module = PyModule::new(py, "graph_loader")?;
     graph_loader_module.add_function(wrap_pyfunction!(lotr_graph, graph_loader_module)?)?;
