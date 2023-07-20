@@ -1394,16 +1394,14 @@ def test_graphQL():
     g4.add_edge(2,"Shivam_saved","Pedro_saved")
     g4.add_edge(3,"Pedro_saved","Rachel_saved")
 
-    path = "".join(random.choice(string.ascii_lowercase) for i in range(10))
-    path = "/tmp/"+path
-    os.mkdir(path)
+    temp_dir = tempfile.mkdtemp()
 
-    g3.save_to_file(path+"/g3")
-    g4.save_to_file(path+"/g4")
+    g3.save_to_file(temp_dir+"/g3")
+    g4.save_to_file(temp_dir+"/g4")
 
     map_server = graphql.run_server(graphs=graphs,port=1736,daemon=True)
-    dir_server = graphql.run_server(graph_dir=path,port=1737,daemon=True)
-    map_dir_server = graphql.run_server(graphs=graphs,graph_dir=path,port=1738,daemon=True)
+    dir_server = graphql.run_server(graph_dir=temp_dir,port=1737,daemon=True)
+    map_dir_server = graphql.run_server(graphs=graphs,graph_dir=temp_dir,port=1738,daemon=True)
 
     query_g1 = """{graph(name: "g1") {nodes {name}}}"""
     query_g2 = """{graph(name: "g2") {nodes {name}}}"""
