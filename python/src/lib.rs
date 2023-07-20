@@ -2,6 +2,7 @@ extern crate core;
 use pyo3::prelude::*;
 use raphtory_core::python::{
     graph::{
+        algorithm_result::AlgorithmResultStrU64,
         edge::{PyEdge, PyEdges},
         graph::PyGraph,
         graph_with_deletions::PyGraphWithDeletions,
@@ -9,7 +10,6 @@ use raphtory_core::python::{
     },
     packages::{algorithms::*, graph_gen::*, graph_loader::*},
 };
-
 /// Raphtory graph analytics library
 #[pymodule]
 fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
@@ -19,6 +19,8 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     let algorithm_module = PyModule::new(py, "algorithms")?;
     algorithm_module.add_function(wrap_pyfunction!(global_reciprocity, algorithm_module)?)?;
     algorithm_module.add_function(wrap_pyfunction!(all_local_reciprocity, algorithm_module)?)?;
+    m.add_class::<AlgorithmResultStrU64>()?;
+
     algorithm_module.add_function(wrap_pyfunction!(triplet_count, algorithm_module)?)?;
     algorithm_module.add_function(wrap_pyfunction!(
         global_clustering_coefficient,
