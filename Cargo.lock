@@ -2196,6 +2196,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "ordered-float"
+version = "3.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2fc2dbde8f8a79f2102cc474ceb0ad68e3b80b85289ea62389b60e66777e4213"
+dependencies = [
+ "num-traits",
+]
+
+[[package]]
 name = "os_str_bytes"
 version = "6.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2758,6 +2767,7 @@ dependencies = [
  "num",
  "num-traits",
  "once_cell",
+ "ordered-float 3.7.0",
  "parking_lot",
  "pretty_assertions",
  "pyo3",
@@ -2809,6 +2819,7 @@ dependencies = [
  "once_cell",
  "opentelemetry",
  "opentelemetry-jaeger",
+ "ordered-float 3.7.0",
  "poem",
  "raphtory",
  "serde",
@@ -2840,6 +2851,7 @@ dependencies = [
  "clap 4.3.11",
  "csv",
  "flate2",
+ "ordered-float 3.7.0",
  "raphtory",
  "serde",
  "tar",
@@ -3639,7 +3651,7 @@ dependencies = [
  "byteorder",
  "integer-encoding",
  "log",
- "ordered-float",
+ "ordered-float 1.1.1",
  "threadpool",
 ]
 

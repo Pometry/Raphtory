@@ -1,3 +1,4 @@
+use super::algorithm_result::AlgorithmResult;
 use crate::{
     core::state::compute_state::ComputeStateVec,
     db::{
@@ -33,13 +34,13 @@ impl WccState {
 ///
 /// # Returns
 ///
-/// A hash map containing the mapping from component ID to the number of vertices in the component
+/// An AlgorithmResult containing the mapping from component ID to the number of vertices in the component
 ///
 pub fn weakly_connected_components<G>(
     graph: &G,
     iter_count: usize,
     threads: Option<usize>,
-) -> HashMap<String, u64>
+) -> AlgorithmResult<String, u64>
 where
     G: GraphViewOps,
 {
@@ -74,7 +75,7 @@ where
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
 
-    runner
+    let res = runner
         .run(
             vec![Job::new(step1)],
             vec![Job::read_only(step2)],
@@ -93,7 +94,8 @@ where
         )
         .into_iter()
         .map(|(k, v)| (graph.vertex_name(k), v))
-        .collect()
+        .collect();
+    AlgorithmResult::new(res)
 }
 
 #[cfg(test)]
@@ -122,10 +124,10 @@ mod cc_test {
         for (src, dst, ts) in edges {
             graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
         }
-        let results: HashMap<String, u64> = weakly_connected_components(&graph, usize::MAX, None);
-
+        let results: AlgorithmResult<String, u64> =
+            weakly_connected_components(&graph, usize::MAX, None);
         assert_eq!(
-            results,
+            *results.get_all(),
             vec![
                 ("1".to_string(), 1),
                 ("2".to_string(), 1),
@@ -175,10 +177,11 @@ mod cc_test {
             graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
         }
 
-        let results: HashMap<String, u64> = weakly_connected_components(&graph, usize::MAX, None);
+        let results: AlgorithmResult<String, u64> =
+            weakly_connected_components(&graph, usize::MAX, None);
 
         assert_eq!(
-            results,
+            *results.get_all(),
             vec![
                 ("1".to_string(), 1),
                 ("2".to_string(), 1),
@@ -208,10 +211,11 @@ mod cc_test {
             graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
         }
 
-        let results: HashMap<String, u64> = weakly_connected_components(&graph, usize::MAX, None);
+        let results: AlgorithmResult<String, u64> =
+            weakly_connected_components(&graph, usize::MAX, None);
 
         assert_eq!(
-            results,
+            *results.get_all(),
             vec![("1".to_string(), 1)]
                 .into_iter()
                 .collect::<HashMap<String, u64>>()
@@ -226,7 +230,8 @@ mod cc_test {
         graph.add_edge(9, 3, 4, NO_PROPS, None).expect("add edge");
         graph.add_edge(9, 4, 3, NO_PROPS, None).expect("add edge");
 
-        let results: HashMap<String, u64> = weakly_connected_components(&graph, usize::MAX, None);
+        let results: AlgorithmResult<String, u64> =
+            weakly_connected_components(&graph, usize::MAX, None);
         let expected = vec![
             ("1".to_string(), 1),
             ("2".to_string(), 1),
@@ -236,17 +241,18 @@ mod cc_test {
         .into_iter()
         .collect::<HashMap<String, u64>>();
 
-        assert_eq!(results, expected);
+        assert_eq!(*results.get_all(), expected);
 
         let wg = graph.window(0, 2);
-        let results: HashMap<String, u64> = weakly_connected_components(&wg, usize::MAX, None);
+        let results: AlgorithmResult<String, u64> =
+            weakly_connected_components(&wg, usize::MAX, None);
 
         let expected = vec![("1", 1), ("2", 1), ("3", 0), ("4", 0)]
             .into_iter()
             .map(|(k, v)| (k.to_string(), v))
             .collect::<HashMap<String, u64>>();
 
-        assert_eq!(results, expected);
+        assert_eq!(*results.get_all(), expected);
     }
 
     #[quickcheck]
@@ -275,10 +281,11 @@ mod cc_test {
 
             // now we do connected components over window 0..1
 
-            let components: HashMap<String, u64> =
+            let res: AlgorithmResult<String, u64> =
                 weakly_connected_components(&graph, usize::MAX, None);
 
-            let actual = components
+            let actual = res
+                .get_all()
                 .iter()
                 .group_by(|(_, cc)| *cc)
                 .into_iter()

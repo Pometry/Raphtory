@@ -1,4 +1,5 @@
 use crate::{
+    algorithms::algorithm_result::AlgorithmResult,
     core::{
         entities::vertices::input_vertex::InputVertex,
         state::{
@@ -52,6 +53,15 @@ impl Zero for TaintMessage {
     }
 }
 
+/// Temporal Reachability starts from a set of seed nodes and propagates the taint to all nodes that are reachable
+/// from the seed nodes within a given time window. The algorithm stops when all nodes that are reachable from the
+/// seed nodes have been tainted or when the taint has propagated to all nodes in the graph.
+///
+/// Returns
+///
+/// * An AlgorithmResult object containing the mapping from vertex ID to a vector of tuples containing the time at which
+/// the vertex was tainted and the ID of the vertex that tainted it
+///
 pub fn temporally_reachable_nodes<G: GraphViewOps, T: InputVertex>(
     g: &G,
     threads: Option<usize>,
@@ -59,7 +69,7 @@ pub fn temporally_reachable_nodes<G: GraphViewOps, T: InputVertex>(
     start_time: i64,
     seed_nodes: Vec<T>,
     stop_nodes: Option<Vec<T>>,
-) -> HashMap<String, Vec<(i64, String)>> {
+) -> AlgorithmResult<String, Vec<(i64, String)>> {
     let mut ctx: Context<G, ComputeStateVec> = g.into();
 
     let infected_nodes = seed_nodes.into_iter().map(|n| n.id()).collect_vec();
@@ -168,7 +178,7 @@ pub fn temporally_reachable_nodes<G: GraphViewOps, T: InputVertex>(
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
 
-    runner.run(
+    AlgorithmResult::new(runner.run(
         vec![Job::new(step1)],
         vec![Job::new(step2), step3],
         (),
@@ -184,7 +194,7 @@ pub fn temporally_reachable_nodes<G: GraphViewOps, T: InputVertex>(
         max_hops,
         None,
         None,
-    )
+    ))
 }
 
 #[cfg(test)]
@@ -216,6 +226,7 @@ mod generic_taint_tests {
             infected_nodes,
             stop_nodes,
         )
+        .sort_by_key(false)
         .into_iter()
         .map(|(k, mut v)| {
             v.sort();
@@ -223,7 +234,6 @@ mod generic_taint_tests {
         })
         .collect_vec();
 
-        results.sort();
         results
     }
 

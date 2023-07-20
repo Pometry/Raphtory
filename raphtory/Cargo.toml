@@ -62,6 +62,7 @@ pyo3 =  {version= "0.18.3", features=["multiple-pymethods", "chrono"], optional=
 num = {version="0.4.0", optional=true}
 display-error-chain = {version="0.1.1", optional=true}
 arrow2 = {version="0.17", optional=true}
+ordered-float = "3.7.0"
 
 
 [dev-dependencies]
@@ -74,7 +75,7 @@ quickcheck_macros = "1"
 [features]
 default = ["search"]
 # Enables the graph loader io module
-io = ["dep:zip","dep:neo4rs", "dep:bzip2", "dep:flate2", "dep:csv", "dep:serde_json", "dep:reqwest", "dep:tokio"]
+io = ["dep:zip", "dep:neo4rs", "dep:bzip2", "dep:flate2", "dep:csv", "dep:serde_json", "dep:reqwest", "dep:tokio"]
 # Enables generating the pyo3 python bindings
 python = ["io", "dep:pyo3", "dep:num", "dep:display-error-chain", "dep:arrow2"]
 # search
