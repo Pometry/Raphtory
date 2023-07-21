@@ -8,7 +8,7 @@ use crate::python::graph::properties::{
     PyPropsIterableComparable,
 };
 use crate::python::types::iterable::{Iterable, NestedIterable};
-use crate::python::types::repr::Repr;
+use crate::python::types::repr::{iterator_dict_repr, Repr};
 use crate::python::utils::PyGenericIterator;
 use itertools::Itertools;
 use pyo3::exceptions::{PyKeyError, PyTypeError};
@@ -30,10 +30,24 @@ impl<P: PropertiesOps + Send + Sync + Static + 'static> From<StaticProperties<P>
     }
 }
 
+impl<P: PropertiesOps + Send + Sync + 'static> IntoPy<PyObject> for StaticProperties<P> {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        PyStaticProperties::from(self).into_py(py)
+    }
+}
+
+impl<P: PropertiesOps> Repr for StaticProperties<P> {
+    fn repr(&self) -> String {
+        format!("StaticProperties({{{}}})", iterator_dict_repr(self.iter()))
+    }
+}
+
 #[pyclass(name = "MetaData")]
 pub struct PyStaticProperties {
     props: DynStaticProperties,
 }
+
+py_eq!(PyStaticProperties, PropsComparable);
 
 #[pymethods]
 impl PyStaticProperties {
@@ -77,17 +91,6 @@ impl PyStaticProperties {
     pub fn __repr__(&self) -> String {
         self.repr()
     }
-
-    pub fn __richcmp__(&self, other: PropsComparable, op: CompareOp) -> PyResult<bool> {
-        match op {
-            CompareOp::Lt => Err(PyTypeError::new_err("not ordered")),
-            CompareOp::Le => Err(PyTypeError::new_err("not ordered")),
-            CompareOp::Eq => Ok(PropsComparable::from(self) == other),
-            CompareOp::Ne => Ok(PropsComparable::from(self) != other),
-            CompareOp::Gt => Err(PyTypeError::new_err("not ordered")),
-            CompareOp::Ge => Err(PyTypeError::new_err("not ordered")),
-        }
-    }
 }
 
 impl<P: PropertiesOps + Send + Sync + 'static> From<StaticProperties<P>> for PyStaticProperties {
@@ -125,13 +128,7 @@ where
     }
 }
 
-// py_iterable!(StaticPropsIterable, DynStaticProperties, PyStaticProperties);
-
-// py_iterable_comp!(
-//     StaticPropsIterable,
-//     PropsComparable,
-//     StaticPropsIterComparable
-// );
+py_eq!(PyStaticPropsIterable, PyPropsIterableComparable);
 
 #[pymethods]
 impl PyStaticPropsIterable {
@@ -171,17 +168,6 @@ impl PyStaticPropsIterable {
 
     pub fn __iter__(&self) -> PyGenericIterator {
         self.keys().into_iter().into()
-    }
-
-    pub fn __richcmp__(&self, other: PyPropsIterableComparable, op: CompareOp) -> PyResult<bool> {
-        match op {
-            CompareOp::Lt => Err(PyTypeError::new_err("not ordered")),
-            CompareOp::Le => Err(PyTypeError::new_err("not ordered")),
-            CompareOp::Eq => Ok(PyPropsIterableComparable::from(self) == other),
-            CompareOp::Ne => Ok(PyPropsIterableComparable::from(self) != other),
-            CompareOp::Gt => Err(PyTypeError::new_err("not ordered")),
-            CompareOp::Ge => Err(PyTypeError::new_err("not ordered")),
-        }
     }
 
     pub fn as_dict(&self) -> HashMap<String, Vec<Option<Prop>>> {
@@ -267,19 +253,6 @@ impl NestedStaticPropsIterable {
             .map(|(k, v)| (k, v.collect()))
             .collect()
     }
-
-    pub fn __richcmp__(
-        &self,
-        other: PyNestedPropsIterableComparable,
-        op: CompareOp,
-    ) -> PyResult<bool> {
-        match op {
-            CompareOp::Lt => Err(PyTypeError::new_err("not ordered")),
-            CompareOp::Le => Err(PyTypeError::new_err("not ordered")),
-            CompareOp::Eq => Ok(PyNestedPropsIterableComparable::from(self) == other),
-            CompareOp::Ne => Ok(PyNestedPropsIterableComparable::from(self) != other),
-            CompareOp::Gt => Err(PyTypeError::new_err("not ordered")),
-            CompareOp::Ge => Err(PyTypeError::new_err("not ordered")),
-        }
-    }
 }
+
+py_eq!(NestedStaticPropsIterable, PyNestedPropsIterableComparable);

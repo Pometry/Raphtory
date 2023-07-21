@@ -66,6 +66,8 @@ pub struct PyProperties {
     props: DynProperties,
 }
 
+py_eq!(PyProperties, PropsComparable);
+
 #[pymethods]
 impl PyProperties {
     /// Get property value.
@@ -128,17 +130,6 @@ impl PyProperties {
     /// Convert properties view to a dict
     pub fn as_dict(&self) -> HashMap<String, Prop> {
         self.props.as_map()
-    }
-
-    pub fn __richcmp__(&self, other: PropsComparable, op: CompareOp) -> PyResult<bool> {
-        match op {
-            CompareOp::Lt => Err(PyTypeError::new_err("not ordered")),
-            CompareOp::Le => Err(PyTypeError::new_err("not ordered")),
-            CompareOp::Eq => Ok(PropsComparable::from(self) == other),
-            CompareOp::Ne => Ok(PropsComparable::from(self) != other),
-            CompareOp::Gt => Err(PyTypeError::new_err("not ordered")),
-            CompareOp::Ge => Err(PyTypeError::new_err("not ordered")),
-        }
     }
 }
 
@@ -238,6 +229,8 @@ impl From<&PyPropsIterable> for PyPropsIterableComparable {
 
 #[pyclass(name = "PropertiesIterable")]
 pub struct PyPropsIterable(Iterable<DynProperties, PyProperties>);
+
+py_eq!(PyPropsIterable, PyPropsIterableComparable);
 
 impl Deref for PyPropsIterable {
     type Target = Iterable<DynProperties, PyProperties>;
@@ -350,17 +343,6 @@ impl PyPropsIterable {
             .collect()
     }
 
-    pub fn __richcmp__(&self, other: PyPropsIterableComparable, op: CompareOp) -> PyResult<bool> {
-        match op {
-            CompareOp::Lt => Err(PyTypeError::new_err("not ordered")),
-            CompareOp::Le => Err(PyTypeError::new_err("not ordered")),
-            CompareOp::Eq => Ok(PyPropsIterableComparable::from(self) == other),
-            CompareOp::Ne => Ok(PyPropsIterableComparable::from(self) != other),
-            CompareOp::Gt => Err(PyTypeError::new_err("not ordered")),
-            CompareOp::Ge => Err(PyTypeError::new_err("not ordered")),
-        }
-    }
-
     pub fn __repr__(&self) -> String {
         format!(
             "Properties({{{}}})",
@@ -371,6 +353,8 @@ impl PyPropsIterable {
 
 #[pyclass(name = "NestedPropertiesIterable")]
 pub struct PyNestedPropsIterable(NestedIterable<DynProperties, PyProperties>);
+
+py_eq!(PyNestedPropsIterable, PyNestedPropsIterableComparable);
 
 impl Deref for PyNestedPropsIterable {
     type Target = NestedIterable<DynProperties, PyProperties>;
@@ -472,7 +456,7 @@ impl PyNestedPropsIterable {
             .collect()
     }
 
-    pub fn __iter(&self) -> PyGenericIterator {
+    pub fn __iter__(&self) -> PyGenericIterator {
         self.keys().into_iter().into()
     }
 
@@ -512,21 +496,6 @@ impl PyNestedPropsIterable {
             .into_iter()
             .map(|(k, v)| (k, v.collect()))
             .collect()
-    }
-
-    pub fn __richcmp__(
-        &self,
-        other: PyNestedPropsIterableComparable,
-        op: CompareOp,
-    ) -> PyResult<bool> {
-        match op {
-            CompareOp::Lt => Err(PyTypeError::new_err("not ordered")),
-            CompareOp::Le => Err(PyTypeError::new_err("not ordered")),
-            CompareOp::Eq => Ok(PyNestedPropsIterableComparable::from(self) == other),
-            CompareOp::Ne => Ok(PyNestedPropsIterableComparable::from(self) != other),
-            CompareOp::Gt => Err(PyTypeError::new_err("not ordered")),
-            CompareOp::Ge => Err(PyTypeError::new_err("not ordered")),
-        }
     }
 }
 

@@ -9,9 +9,10 @@ use crate::python::graph::properties::{DynProps, NestedOptionPropIterable, Optio
 use crate::python::types::repr::{iterator_dict_repr, iterator_repr, Repr};
 use crate::python::utils::{PyGenericIterator, PyTime};
 use itertools::Itertools;
-use pyo3::exceptions::PyKeyError;
+use pyo3::exceptions::{PyKeyError, PyTypeError};
 use pyo3::prelude::*;
 use std::collections::HashMap;
+use std::ops::Deref;
 use std::sync::Arc;
 
 pub type DynTemporalProperties = TemporalProperties<DynProps>;
@@ -37,6 +38,27 @@ impl<P: Into<DynTemporalProperties>> From<P> for PyTemporalProperties {
         Self {
             props: value.into(),
         }
+    }
+}
+
+#[derive(PartialEq)]
+pub struct TemporalPropsCmp(HashMap<String, PyTemporalPropertyViewCmp>);
+
+impl From<&PyTemporalProperties> for TemporalPropsCmp {
+    fn from(value: &PyTemporalProperties) -> Self {
+        Self(
+            value
+                .histories()
+                .into_iter()
+                .map(|(k, v)| (k, v.into()))
+                .collect(),
+        )
+    }
+}
+
+impl FromPyObject for TemporalPropsCmp {
+    fn extract(ob: &'source PyAny) -> PyResult<Self> {
+        todo!()
     }
 }
 
@@ -100,6 +122,35 @@ impl PyTemporalProperties {
 pub struct PyTemporalPropertyView {
     prop: DynTemporalProperty,
 }
+
+#[derive(PartialEq, Clone)]
+pub struct PyTemporalPropertyViewCmp(Vec<(i64, Prop)>);
+
+impl<'source> FromPyObject<'source> for PyTemporalPropertyViewCmp {
+    fn extract(ob: &'source PyAny) -> PyResult<Self> {
+        if let Ok(sp) = ob.extract::<PyRef<PyTemporalPropertyView>>() {
+            Ok(sp.deref().into())
+        } else if let Ok(m) = ob.extract::<Vec<(i64, Prop)>>() {
+            Ok(Self(m))
+        } else {
+            Err(PyTypeError::new_err("not comparable"))
+        }
+    }
+}
+
+impl From<&PyTemporalPropertyView> for PyTemporalPropertyViewCmp {
+    fn from(value: &PyTemporalPropertyView) -> Self {
+        Self(value.items())
+    }
+}
+
+impl From<Vec<(i64, Prop)>> for PyTemporalPropertyViewCmp {
+    fn from(value: Vec<(i64, Prop)>) -> Self {
+        Self(value)
+    }
+}
+
+py_eq!(PyTemporalPropertyView, PyTemporalPropertyViewCmp);
 
 #[pymethods]
 impl PyTemporalPropertyView {
@@ -184,18 +235,6 @@ impl Repr for PyTemporalProperties {
 impl<P: PropertiesOps + Send + Sync + 'static> IntoPy<PyObject> for TemporalPropertyView<P> {
     fn into_py(self, py: Python<'_>) -> PyObject {
         PyTemporalPropertyView::from(self).into_py(py)
-    }
-}
-
-impl<P: PropertiesOps + Send + Sync + 'static> IntoPy<PyObject> for StaticProperties<P> {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        PyStaticProperties::from(self).into_py(py)
-    }
-}
-
-impl<P: PropertiesOps> Repr for StaticProperties<P> {
-    fn repr(&self) -> String {
-        format!("StaticProperties({{{}}})", iterator_dict_repr(self.iter()))
     }
 }
 
