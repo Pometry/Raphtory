@@ -12,7 +12,6 @@ import tempfile
 from math import isclose
 import datetime
 
-
 edges = [
     (1, 1, 2),
     (2, 1, 3),
@@ -334,19 +333,20 @@ def test_graph_properties():
 
     # testing properties
     assert g.properties.as_dict() == {"prop 1": 1, "prop 2": "hi", "prop 3": True, "prop 4": 11, "prop 5": "world",
-                              "prop 6": True}
+                                      "prop 6": True}
 
     assert g.properties.temporal.latest() == {"prop 4": 11, "prop 5": "world",
-                                                  "prop 6": True}
-    assert g.at(2).properties.as_dict() == {"prop 1": 1, "prop 2": "hi", "prop 3": True, "prop 4": 11, "prop 5": "world",
-                                    "prop 6": True}
+                                              "prop 6": True}
+    assert g.at(2).properties.as_dict() == {"prop 1": 1, "prop 2": "hi", "prop 3": True, "prop 4": 11,
+                                            "prop 5": "world",
+                                            "prop 6": True}
 
     # testing property histories
     assert g.properties.temporal.histories() == {"prop 4": [(1, 11)], "prop 5": [(1, "world")],
-                                      "prop 6": [(1, False), (2, True)]}
+                                                 "prop 6": [(1, False), (2, True)]}
 
     assert g.at(2).properties.temporal.histories() == {"prop 4": [(1, 11)], "prop 5": [(1, "world")],
-                                            "prop 6": [(1, False), (2, True)]}
+                                                       "prop 6": [(1, False), (2, True)]}
 
     # testing property names
     expected_names = sorted(['prop 1', 'prop 2', 'prop 3', 'prop 4', 'prop 5', 'prop 6'])
@@ -475,49 +475,46 @@ def test_vertex_properties():
 
     # testing properties
     assert g.vertex(1).properties == {'prop 2': 0.9, 'prop 3': 'hello', 'prop 1': 2, 'prop 4': True,
-                                        'static prop': 123}
-    assert g.vertices.properties == [{'prop 2': 0.9, 'prop 3': 'hello', 'prop 1': 2, 'prop 4': True,
-                                                  'static prop': 123}]
-    assert g.vertices.out_neighbours().properties == [[
-        {'prop 2': 0.9, 'prop 3': 'hello', 'prop 1': 2, 'prop 4': True,
-         'static prop': 123}]]
+                                      'static prop': 123}
+    assert g.vertices.properties == {'prop 2': [0.9], 'prop 3': ['hello'], 'prop 1': [2], 'prop 4': [True],
+                                     'static prop': [123]}
+    assert g.vertices.out_neighbours().properties == {'prop 2': [[0.9]], 'prop 3': [['hello']], 'prop 1': [[2]],
+                                                      'prop 4': [[True]], 'static prop': [[123]]}
 
     assert g.vertex(1).properties.temporal.latest() == {'prop 2': 0.9, 'prop 3': 'hello', 'prop 1': 2,
-                                                            'prop 4': True}
-    assert g.vertices.properties.temporal.latest() == [{'prop 2': 0.9, 'prop 3': 'hello', 'prop 1': 2,
-                                                                      'prop 4': True}]
-    assert g.vertices.out_neighbours().properties.temporal.latest() == [
-        [{'prop 2': 0.9, 'prop 3': 'hello', 'prop 1': 2,
-          'prop 4': True}]]
+                                                        'prop 4': True}
+    assert g.vertices.properties.temporal.latest() == {'prop 2': [0.9], 'prop 3': ['hello'], 'prop 1': [2],
+                                                       'prop 4': [True]}
+    assert g.vertices.out_neighbours().properties.temporal.latest() == {'prop 2': [[0.9]], 'prop 3': [['hello']],
+                                                                        'prop 1': [[2]], 'prop 4': [[True]]}
 
     assert g.at(2).vertex(1).properties == {'prop 1': 2, 'prop 4': False, 'prop 2': 0.6, 'static prop': 123,
-                                              'prop 3': 'hi'}
-    assert g.at(2).vertices.properties == [{'prop 1': 2, 'prop 4': False, 'prop 2': 0.6, 'static prop': 123,
-                                                        'prop 3': 'hi'}]
-    assert g.at(2).vertices.out_neighbours().properties == [
-        [{'prop 1': 2, 'prop 4': False, 'prop 2': 0.6, 'static prop': 123,
-          'prop 3': 'hi'}]]
+                                            'prop 3': 'hi'}
+    assert g.at(2).vertices.properties == {'prop 1': [2], 'prop 4': [False], 'prop 2': [0.6], 'static prop': [123],
+                                           'prop 3': ['hi']}
+    assert g.at(2).vertices.out_neighbours().properties == {'prop 1': [[2]], 'prop 4': [[False]], 'prop 2': [[0.6]],
+                                                            'static prop': [[123]], 'prop 3': [['hi']]}
 
     # testing property histories
     assert g.vertex(1).properties.temporal == {'prop 3': [(1, 'hi'), (3, 'hello')], 'prop 1': [(1, 1), (2, 2)],
-                                                'prop 4': [(1, True), (2, False), (3, True)],
-                                                'prop 2': [(2, 0.6), (3, 0.9)]}
-    assert g.vertices.properties.temporal == [
-        {'prop 3': [(1, 'hi'), (3, 'hello')], 'prop 1': [(1, 1), (2, 2)],
-         'prop 4': [(1, True), (2, False), (3, True)],
-         'prop 2': [(2, 0.6), (3, 0.9)]}]
-    assert g.vertices.out_neighbours().properties.temporal == [
-        [{'prop 3': [(1, 'hi'), (3, 'hello')], 'prop 1': [(1, 1), (2, 2)],
-          'prop 4': [(1, True), (2, False), (3, True)],
-          'prop 2': [(2, 0.6), (3, 0.9)]}]]
+                                               'prop 4': [(1, True), (2, False), (3, True)],
+                                               'prop 2': [(2, 0.6), (3, 0.9)]}
+    assert g.vertices.properties.temporal == {'prop 3': [[(1, 'hi'), (3, 'hello')]], 'prop 1': [[(1, 1), (2, 2)]],
+                                              'prop 4': [[(1, True), (2, False), (3, True)]],
+                                              'prop 2': [[(2, 0.6), (3, 0.9)]]}
+    assert g.vertices.out_neighbours().properties.temporal == {'prop 3': [[[(1, 'hi'), (3, 'hello')]]],
+                                                               'prop 1': [[[(1, 1), (2, 2)]]],
+                                                               'prop 4': [[[(1, True), (2, False), (3, True)]]],
+                                                               'prop 2': [[[(2, 0.6), (3, 0.9)]]]}
 
     assert g.at(2).vertex(1).properties.temporal == {'prop 2': [(2, 0.6)], 'prop 4': [(1, True), (2, False)],
-                                                      'prop 1': [(1, 1), (2, 2)], 'prop 3': [(1, 'hi')]}
-    assert g.at(2).vertices.properties.temporal == [{'prop 2': [(2, 0.6)], 'prop 4': [(1, True), (2, False)],
-                                                                'prop 1': [(1, 1), (2, 2)], 'prop 3': [(1, 'hi')]}]
-    assert g.at(2).vertices.out_neighbours().properties.temporal == [
-        [{'prop 2': [(2, 0.6)], 'prop 4': [(1, True), (2, False)],
-          'prop 1': [(1, 1), (2, 2)], 'prop 3': [(1, 'hi')]}]]
+                                                     'prop 1': [(1, 1), (2, 2)], 'prop 3': [(1, 'hi')]}
+    assert g.at(2).vertices.properties.temporal == {'prop 2': [[(2, 0.6)]], 'prop 4': [[(1, True), (2, False)]],
+                                                    'prop 1': [[(1, 1), (2, 2)]], 'prop 3': [[(1, 'hi')]]}
+    assert g.at(2).vertices.out_neighbours().properties.temporal == {'prop 2': [[[(2, 0.6)]]],
+                                                                     'prop 4': [[[(1, True), (2, False)]]],
+                                                                     'prop 1': [[[(1, 1), (2, 2)]]],
+                                                                     'prop 3': [[[(1, 'hi')]]]}
 
     # testing property names
     expected_names = sorted(['prop 4', 'prop 1', 'prop 2', 'prop 3', 'static prop'])
@@ -700,7 +697,7 @@ def test_graph_time_api():
     earliest_time = g.earliest_time()
     latest_time = g.latest_time()
     assert len(list(g.rolling(1))) == latest_time - earliest_time + 1
-    assert len(list(g.expanding(2))) == math.ceil((latest_time+1 - earliest_time) / 2)
+    assert len(list(g.expanding(2))) == math.ceil((latest_time + 1 - earliest_time) / 2)
 
     w = g.window(2, 6)
     assert len(list(w.rolling(window=10, step=3))) == 2
