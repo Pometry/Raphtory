@@ -148,14 +148,16 @@ impl PropsIterable {
     ///
     /// First searches temporal properties and returns latest value if it exists.
     /// If not, it falls back to static properties.
-    pub fn get(&self, key: &str) -> OptionPropIterable {
-        let builder = self.builder.clone();
-        let key = Arc::new(key.to_owned());
-        (move || {
-            let key = key.clone();
-            builder().map(move |p| p.get(key.as_ref()))
+    pub fn get(&self, key: &str) -> Option<OptionPropIterable> {
+        self.__contains__(key).then(|| {
+            let builder = self.builder.clone();
+            let key = Arc::new(key.to_owned());
+            (move || {
+                let key = key.clone();
+                builder().map(move |p| p.get(key.as_ref()))
+            })
+            .into()
         })
-        .into()
     }
 
     /// Check if property `key` exists.
@@ -164,11 +166,7 @@ impl PropsIterable {
     }
 
     fn __getitem__(&self, key: &str) -> PyResult<OptionPropIterable> {
-        if self.__contains__(key) {
-            Ok(self.get(key))
-        } else {
-            Err(PyKeyError::new_err("No such property"))
-        }
+        self.get(key).ok_or(PyKeyError::new_err("No such property"))
     }
 
     /// Get the names for all properties (includes temporal and static properties)
@@ -207,10 +205,7 @@ impl PropsIterable {
     pub fn items(&self) -> Vec<(String, OptionPropIterable)> {
         self.keys()
             .into_iter()
-            .map(|k| {
-                let v = self.get(&k);
-                (k, v)
-            })
+            .flat_map(|k| self.get(&k).map(|v| (k, v)))
             .collect()
     }
 
@@ -245,17 +240,19 @@ impl NestedPropsIterable {
     ///
     /// First searches temporal properties and returns latest value if it exists.
     /// If not, it falls back to static properties.
-    pub fn get(&self, key: &str) -> NestedOptionPropIterable {
-        let builder = self.builder.clone();
-        let key = Arc::new(key.to_owned());
-        (move || {
-            let key = key.clone();
-            builder().map(move |it| {
+    pub fn get(&self, key: &str) -> Option<NestedOptionPropIterable> {
+        self.__contains__(key).then(|| {
+            let builder = self.builder.clone();
+            let key = Arc::new(key.to_owned());
+            (move || {
                 let key = key.clone();
-                it.map(move |p| p.get(key.clone().as_ref()))
+                builder().map(move |it| {
+                    let key = key.clone();
+                    it.map(move |p| p.get(key.clone().as_ref()))
+                })
             })
+            .into()
         })
-        .into()
     }
 
     /// Check if property `key` exists.
@@ -264,11 +261,7 @@ impl NestedPropsIterable {
     }
 
     fn __getitem__(&self, key: &str) -> Result<NestedOptionPropIterable, PyErr> {
-        if self.iter().any(|mut it| it.any(|p| p.contains(key))) {
-            Ok(self.get(key))
-        } else {
-            Err(PyKeyError::new_err("No such property"))
-        }
+        self.get(key).ok_or(PyKeyError::new_err("No such property"))
     }
 
     /// Get the names for all properties (includes temporal and static properties)
@@ -286,7 +279,10 @@ impl NestedPropsIterable {
     /// If a property exists as both temporal and static, temporal properties take priority with
     /// fallback to the static property if the temporal value does not exist.
     pub fn values(&self) -> Vec<NestedOptionPropIterable> {
-        self.keys().into_iter().map(|key| self.get(&key)).collect()
+        self.keys()
+            .into_iter()
+            .flat_map(|key| self.get(&key))
+            .collect()
     }
 
     /// Get a list of key-value pairs

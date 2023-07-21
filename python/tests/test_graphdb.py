@@ -458,13 +458,13 @@ def test_vertex_properties():
 
     def no_static_property_test(key, value):
         if value is None:
-            assert g.vertex(1).properties.temporal.get(key).value() is None
-            assert g.vertices.properties.temporal.get(key).value() is None
-            assert g.vertices.out_neighbours().temporal.get(key).value() is None
+            assert g.vertex(1).properties.temporal.get(key) is None
+            assert g.vertices.properties.temporal.get(key) is None
+            assert g.vertices.out_neighbours().properties.temporal.get(key) is None
         else:
             assert g.vertex(1).properties.temporal.get(key).value() == value
             assert g.vertices.properties.temporal.get(key).value() == [value]
-            assert g.vertices.out_neighbours().temporal.get(key).value() == [[value]]
+            assert g.vertices.out_neighbours().properties.temporal.get(key).value() == [[value]]
 
     property_test("static prop", 123)
     assert g.vertex(1)["static prop"] == 123
