@@ -1,7 +1,6 @@
 use crate::core::storage::locked_view::LockedView;
 use crate::core::{Prop, PropUnwrap};
 use crate::db::api::properties::internal::{Key, PropertiesOps};
-use crate::db::api::view::BoxedIter;
 use crate::prelude::Graph;
 use chrono::NaiveDateTime;
 use std::iter::Zip;

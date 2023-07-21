@@ -90,10 +90,10 @@ macro_rules! _py_iterable_collect_method {
 /// * `pyitem` - The type of the python wrapper for `Item` (optional if `item` implements `IntoPy`, need Into<`pyitem`> to be implemented for `item`)
 /// * `pyiter` - The python iterator wrapper that should be returned when calling `__iter__` (needs to have the same `item` and `pyitem`)
 macro_rules! py_iterable {
-    ($name:ident, $item:ty, $pyiter:ty) => {
-        py_iterable!($name, $item, $item, $pyiter);
+    ($name:ident, $item:ty) => {
+        py_iterable!($name, $item, $item);
     };
-    ($name:ident, $item:ty, $pyitem:ty, $pyiter:ty) => {
+    ($name:ident, $item:ty, $pyitem:ty) => {
         #[pyclass]
         pub struct $name($crate::python::types::iterable::Iterable<$item, $pyitem>);
 
@@ -116,7 +116,7 @@ macro_rules! py_iterable {
                 ))
             }
         }
-        _py_iterable_base_methods!($name, $pyiter);
+        _py_iterable_base_methods!($name, $crate::python::utils::PyGenericIterator);
         _py_iterable_collect_method!($name, $pyitem);
     };
 }
@@ -131,11 +131,11 @@ macro_rules! py_iterable {
 /// * `pyitem` - The type of the python wrapper for `Item` (optional if `item` implements `IntoPy`, need Into<`pyitem`> to be implemented for `item`)
 /// * `pyiter` - The python iterator wrapper that should be returned when calling `__iter__` (needs to have the same `item` and `pyitem`)
 macro_rules! py_ordered_iterable {
-    ($name:ident, $item:ty, $iter:ty) => {
-        py_ordered_iterable!($name, $item, $item, $iter);
+    ($name:ident, $item:ty) => {
+        py_ordered_iterable!($name, $item, $item);
     };
-    ($name:ident, $item:ty, $pyitem:ty, $iter:ty) => {
-        py_iterable!($name, $item, $pyitem, $iter);
+    ($name:ident, $item:ty, $pyitem:ty) => {
+        py_iterable!($name, $item, $pyitem);
         _py_ord_max_min_methods!($name, $pyitem);
     };
 }
@@ -150,11 +150,11 @@ macro_rules! py_ordered_iterable {
 /// * `pyitem` - The type of the python wrapper for `Item` (optional if `item` implements `IntoPy`, need Into<`pyitem`> to be implemented for `item`)
 /// * `pyiter` - The python iterator wrapper that should be returned when calling `__iter__` (needs to have the same `item` and `pyitem`)
 macro_rules! py_numeric_iterable {
-    ($name:ident, $item:ty, $iter:ty) => {
-        py_numeric_iterable!($name, $item, $item, $iter);
+    ($name:ident, $item:ty) => {
+        py_numeric_iterable!($name, $item, $item);
     };
-    ($name:ident, $item:ty, $pyitem:ty, $iter:ty) => {
-        py_ordered_iterable!($name, $item, $pyitem, $iter);
+    ($name:ident, $item:ty, $pyitem:ty) => {
+        py_ordered_iterable!($name, $item, $pyitem);
         _py_numeric_methods!($name, $item, $pyitem);
     };
 }
@@ -170,11 +170,11 @@ macro_rules! py_numeric_iterable {
 /// * `pyitem` - The type of the python wrapper for `Item` (optional if `item` implements `IntoPy`, need Into<`pyitem`> to be implemented for `item`)
 /// * `pyiter` - The python iterator wrapper that should be returned when calling `__iter__` (needs to have the same `item` and `pyitem`)
 macro_rules! py_float_iterable {
-    ($name:ident, $item:ty, $iter:ty) => {
-        py_float_iterable!($name, $item, $item, $iter);
+    ($name:ident, $item:ty) => {
+        py_float_iterable!($name, $item, $item);
     };
-    ($name:ident, $item:ty, $pyitem:ty, $iter:ty) => {
-        py_iterable!($name, $item, $pyitem, $iter);
+    ($name:ident, $item:ty, $pyitem:ty) => {
+        py_iterable!($name, $item, $pyitem);
         _py_numeric_methods!($name, $item, $pyitem);
         _py_float_max_min_methods!($name, $pyitem);
     };
@@ -268,107 +268,4 @@ macro_rules! py_iterable_comp {
             }
         }
     };
-}
-
-/// Add equality support to a nested iterable
-///
-///
-/// # Arguments
-///
-/// * `name` - The identifier for the iterable struct
-/// * `item` - The type of `Item` for the wrapped iterator builder
-/// * `cmp_item` - Struct to use for comparisons, needs to support `cmp_item: From<item>`
-///                and `cmp_item: PartialEq` and FromPyObject for all the python types we
-///                want to compare with
-/// * `cmp_internal` - Name for the internal Enum that is created by the macro to implement
-///                    the conversion from python (only needed because we can't create our own
-///                    unique identifier without a proc macro)
-macro_rules! py_nested_iterable_comp {
-    ($name:ty, $item:ty, $cmp_item:ty, $nested_cmp:ty, $cmp_internal:ident) => {
-        enum $cmp_internal {
-            Vec(Vec<$nested_cmp_item>>),
-            This(Py<$name>),
-        }
-
-        impl<'source> FromPyObject<'source> for $cmp_internal {
-            fn extract(ob: &'source PyAny) -> PyResult<Self> {
-                if let Ok(s) = ob.extract::<Py<$name>>() {
-                    Ok($cmp_internal::This(s))
-                } else if let Ok(v) = ob.extract::<Vec<$cmp_item>>() {
-                    Ok($cmp_internal::Vec(v))
-                } else {
-                    Err(pyo3::exceptions::PyTypeError::new_err("cannot compare"))
-                }
-            }
-        }
-
-        impl PartialEq for $cmp_internal {
-            fn eq(&self, other: &Self) -> bool {
-                match self {
-                    $cmp_internal::Vec(v) => match other {
-                        $cmp_internal::Vec(vo) => v.iter().eq(vo.iter()),
-                        $cmp_internal::This(this) => Python::with_gil(|py| {
-                            this.borrow(py)
-                                .iter()
-                                .map(<$cmp_item>::from)
-                                .eq(v.iter().cloned())
-                        }),
-                    },
-                    $cmp_internal::This(this) => match other {
-                        $cmp_internal::Vec(_) => other == self,
-                        $cmp_internal::This(other) => Python::with_gil(|py| {
-                            this.borrow(py)
-                                .iter()
-                                .map(<$cmp_item>::from)
-                                .eq(other.borrow(py).iter().map(<$cmp_item>::from))
-                        }),
-                    },
-                }
-    }
-}
-
-        #[pymethods]
-        impl $name {
-            fn __richcmp__(
-                &self,
-                other: $cmp_internal,
-                op: pyo3::basic::CompareOp,
-                py: Python<'_>,
-            ) -> PyResult<bool> {
-                match op {
-                    pyo3::basic::CompareOp::Lt => {
-                        Err(pyo3::exceptions::PyTypeError::new_err("not ordered"))
-                    }
-                    pyo3::basic::CompareOp::Le => {
-                        Err(pyo3::exceptions::PyTypeError::new_err("not ordered"))
-                    }
-                    pyo3::basic::CompareOp::Eq => match other {
-                        $cmp_internal::Vec(v) => {
-                            Ok(self.iter().zip(v).all(|(t, o)| <$cmp_item>::from(t) == o))
-                        }
-                        $cmp_internal::This(o) => Ok(self
-                            .iter()
-                            .zip(o.borrow(py).iter())
-                            .all(|(t, o)| <$cmp_item>::from(t) == <$cmp_item>::from(o))),
-                    },
-                    pyo3::basic::CompareOp::Ne => {
-                        Ok(!self.__richcmp__(other, pyo3::basic::CompareOp::Eq, py)?)
-                    }
-                    pyo3::basic::CompareOp::Gt => {
-                        Err(pyo3::exceptions::PyTypeError::new_err("not ordered"))
-                    }
-                    pyo3::basic::CompareOp::Ge => {
-                        Err(pyo3::exceptions::PyTypeError::new_err("not ordered"))
-                    }
-                }
-            }
-        }
-    };
-}
-
-mod test {
-    use pyo3::basic::CompareOp;
-    use pyo3::exceptions::PyTypeError;
-
-    fn imports() {}
 }

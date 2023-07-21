@@ -7,11 +7,11 @@ use crate::db::api::view::internal::{DynamicGraph, Static};
 use crate::python::graph::properties::static_props::PyStaticProperties;
 use crate::python::graph::properties::{DynProps, NestedOptionPropIterable, OptionPropIterable};
 use crate::python::types::repr::{iterator_dict_repr, iterator_repr, Repr};
-use crate::python::utils::{PyGenericIterator, PyNestedGenericIterator, PyTime};
+use crate::python::utils::{PyGenericIterator, PyTime};
 use itertools::Itertools;
 use pyo3::exceptions::PyKeyError;
 use pyo3::prelude::*;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::sync::Arc;
 
 pub type DynTemporalProperties = TemporalProperties<DynProps>;
@@ -202,8 +202,7 @@ impl<P: PropertiesOps> Repr for StaticProperties<P> {
 py_iterable!(
     TemporalPropsIterable,
     DynTemporalProperties,
-    PyTemporalProperties,
-    PyGenericIterator
+    PyTemporalProperties
 );
 
 #[pymethods]
@@ -302,8 +301,7 @@ impl From<Option<DynTemporalProperty>> for OptionPyTemporalPropertyView {
 py_iterable!(
     TemporalPropertyIterable,
     Option<DynTemporalProperty>,
-    OptionPyTemporalPropertyView,
-    PyGenericIterator
+    OptionPyTemporalPropertyView
 );
 
 #[pymethods]
@@ -336,8 +334,7 @@ impl TemporalPropertyIterable {
 py_nested_iterable!(
     NestedTemporalPropsIterable,
     DynTemporalProperties,
-    PyTemporalProperties,
-    PyNestedGenericIterator
+    PyTemporalProperties
 );
 
 #[pymethods]
@@ -427,8 +424,7 @@ impl NestedTemporalPropsIterable {
 py_nested_iterable!(
     NestedTemporalPropertyIterable,
     Option<DynTemporalProperty>,
-    OptionPyTemporalPropertyView,
-    PyNestedGenericIterator
+    OptionPyTemporalPropertyView
 );
 
 #[pymethods]

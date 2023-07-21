@@ -4,9 +4,9 @@ use crate::db::api::properties::StaticProperties;
 use crate::db::api::view::internal::Static;
 use crate::python::graph::properties::{DynProps, NestedOptionPropIterable, OptionPropIterable};
 use crate::python::types::repr::Repr;
-use crate::python::utils::{PyGenericIterator, PyNestedGenericIterator};
+use crate::python::utils::PyGenericIterator;
 use itertools::Itertools;
-use pyo3::exceptions::{PyKeyError, PyNotImplementedError, PyTypeError};
+use pyo3::exceptions::{PyKeyError, PyTypeError};
 use pyo3::prelude::*;
 use pyo3::pyclass::CompareOp;
 use std::collections::HashMap;
@@ -122,12 +122,7 @@ impl Repr for PyStaticProperties {
     }
 }
 
-py_iterable!(
-    StaticPropsIterable,
-    DynStaticProperties,
-    PyStaticProperties,
-    PyGenericIterator
-);
+py_iterable!(StaticPropsIterable, DynStaticProperties, PyStaticProperties);
 
 py_iterable_comp!(
     StaticPropsIterable,
@@ -175,8 +170,13 @@ impl StaticPropsIterable {
 py_nested_iterable!(
     NestedStaticPropsIterable,
     DynStaticProperties,
-    PyStaticProperties,
-    PyNestedGenericIterator
+    PyStaticProperties
+);
+
+py_iterable_comp!(
+    NestedStaticPropsIterable,
+    StaticPropsIterComparable,
+    NestedStaticPropsIterComparable
 );
 
 #[pymethods]

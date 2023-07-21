@@ -8,7 +8,7 @@ use crate::python::graph::properties::{
 };
 use crate::python::types::repr::{iterator_dict_repr, Repr};
 use crate::python::types::wrappers::prop::PropValue;
-use crate::python::utils::{PyGenericIterator, PyNestedGenericIterator};
+use crate::python::utils::PyGenericIterator;
 use itertools::Itertools;
 use pyo3::exceptions::PyKeyError;
 use pyo3::prelude::*;
@@ -140,12 +140,7 @@ impl Repr for PyProperties {
     }
 }
 
-py_iterable!(
-    PropsIterable,
-    DynProperties,
-    PyProperties,
-    PyGenericIterator
-);
+py_iterable!(PropsIterable, DynProperties, PyProperties);
 
 #[pymethods]
 impl PropsIterable {
@@ -242,12 +237,7 @@ impl PropsIterable {
     }
 }
 
-py_nested_iterable!(
-    NestedPropsIterable,
-    DynProperties,
-    PyProperties,
-    PyNestedGenericIterator
-);
+py_nested_iterable!(NestedPropsIterable, DynProperties, PyProperties);
 
 #[pymethods]
 impl NestedPropsIterable {
@@ -327,15 +317,10 @@ impl NestedPropsIterable {
     }
 }
 
-py_iterable!(OptionPropIterable, PropValue, PropValue, PyGenericIterator);
+py_iterable!(OptionPropIterable, PropValue, PropValue);
 py_iterable_comp!(OptionPropIterable, PropValue, OptionPropIterCmp);
 
-py_nested_iterable!(
-    NestedOptionPropIterable,
-    PropValue,
-    PropValue,
-    PyNestedGenericIterator
-);
+py_nested_iterable!(NestedOptionPropIterable, PropValue, PropValue);
 
 py_iterable_comp!(
     NestedOptionPropIterable,

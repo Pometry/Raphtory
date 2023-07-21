@@ -8,6 +8,7 @@ use crate::db::api::properties::Properties;
 use crate::python::graph::properties::{NestedPropsIterable, PropsIterable};
 use crate::python::graph::vertex::PyNestedVertexIterable;
 use crate::python::types::wrappers::iterators::{NestedOptionI64Iterable, NestedU64U64Iterable};
+use crate::python::utils::PyGenericIterator;
 use crate::{
     core::utils::time::error::ParseTimeError,
     db::{
@@ -335,8 +336,6 @@ impl Repr for EdgeView<DynamicGraph> {
     }
 }
 
-py_iterator!(PyEdgeIter, EdgeView<DynamicGraph>, PyEdge, "EdgeIter");
-
 /// A list of edges that can be iterated over.
 #[pyclass(name = "Edges")]
 pub struct PyEdges {
@@ -357,10 +356,8 @@ impl PyEdges {
 
 #[pymethods]
 impl PyEdges {
-    fn __iter__(&self) -> PyEdgeIter {
-        PyEdgeIter {
-            iter: Box::new(self.py_iter()),
-        }
+    fn __iter__(&self) -> PyGenericIterator {
+        self.py_iter().into()
     }
 
     fn __len__(&self) -> usize {
@@ -446,7 +443,7 @@ impl PyEdges {
 
 impl Repr for PyEdges {
     fn repr(&self) -> String {
-        format!("Edges({})", iterator_repr(self.__iter__().into_iter()))
+        format!("Edges({})", iterator_repr(self.iter()))
     }
 }
 
@@ -458,14 +455,7 @@ impl<F: Fn() -> BoxedIter<EdgeView<DynamicGraph>> + Send + Sync + 'static> From<
     }
 }
 
-py_iterator!(
-    PyNestedEdgeIter,
-    BoxedIter<EdgeView<DynamicGraph>>,
-    PyEdgeIter,
-    "NestedEdgeIter"
-);
-
-py_nested_iterable!(PyNestedEdges, EdgeView<DynamicGraph>, PyNestedEdgeIter);
+py_nested_iterable!(PyNestedEdges, EdgeView<DynamicGraph>);
 
 #[pymethods]
 impl PyNestedEdges {

@@ -1,8 +1,6 @@
 //! Defines the `Vertex`, which represents a vertex in the graph.
 //! A vertex is a node in the graph, and can have properties and edges.
 //! It can also be used to navigate the graph.
-
-use crate::python::utils::{PyGenericIterable, PyNestedGenericIterator};
 use crate::{
     core::{entities::vertices::vertex_ref::VertexRef, utils::time::error::ParseTimeError},
     db::{
@@ -1118,12 +1116,7 @@ impl PathIterator {
     }
 }
 
-py_iterable!(
-    PyVertexIterable,
-    VertexView<DynamicGraph>,
-    PyVertex,
-    PyVertexIterator
-);
+py_iterable!(PyVertexIterable, VertexView<DynamicGraph>, PyVertex);
 
 #[pymethods]
 impl PyVertexIterable {
@@ -1199,11 +1192,7 @@ impl PyVertexIterable {
     }
 }
 
-py_nested_iterable!(
-    PyNestedVertexIterable,
-    VertexView<DynamicGraph>,
-    PyNestedGenericIterator
-);
+py_nested_iterable!(PyNestedVertexIterable, VertexView<DynamicGraph>);
 
 #[pymethods]
 impl PyNestedVertexIterable {
