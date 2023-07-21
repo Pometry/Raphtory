@@ -1,6 +1,6 @@
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef},
+        entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef, LayerIds},
         state::compute_state::ComputeState,
         Prop,
     },
@@ -49,7 +49,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> WindowEvalEdgeView<'a, G
 
     pub fn history(&self) -> Vec<i64> {
         self.graph()
-            .edge_window_t(self.eref(), self.t_start..self.t_end)
+            .edge_window_t(self.eref(), self.t_start..self.t_end, LayerIds::All)
             .map(|e| e.time().expect("exploded"))
             .collect()
     }
@@ -112,7 +112,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeViewOps
         match self.ev.time() {
             Some(_) => Box::new(iter::once(self.new_edge(e))),
             None => {
-                let ts = self.g.edge_window_t(e, t_start..t_end);
+                let ts = self.g.edge_window_t(e, t_start..t_end, LayerIds::All);
                 Box::new(ts.map(move |ex| {
                     WindowEvalEdgeView::new(
                         ss,
@@ -141,7 +141,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeViewOps
         match self.ev.time() {
             Some(_) => Box::new(iter::once(self.new_edge(e))),
             None => {
-                let ts = self.g.edge_window_layers(e, t_start..t_end);
+                let ts = self.g.edge_window_layers(e, t_start..t_end, LayerIds::All);
                 Box::new(ts.map(move |ex| {
                     WindowEvalEdgeView::new(
                         ss,
@@ -170,12 +170,14 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeViewOps
                 name,
                 self.t_start,
                 self.t_end,
+                LayerIds::All,
             ),
             Some(t) => self.graph().temporal_edge_prop_vec_window(
                 self.eref(),
                 name,
                 t,
                 t.saturating_add(1),
+                LayerIds::All,
             ),
         }
     }
@@ -214,7 +216,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeViewOps
     fn earliest_time(&self) -> Option<i64> {
         self.eref().time().or_else(|| {
             self.graph()
-                .edge_earliest_time_window(self.eref(), self.t_start..self.t_end)
+                .edge_earliest_time_window(self.eref(), self.t_start..self.t_end, LayerIds::All)
         })
     }
 
@@ -222,7 +224,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeViewOps
     fn latest_time(&self) -> Option<i64> {
         self.eref().time().or_else(|| {
             self.graph()
-                .edge_latest_time_window(self.eref(), self.t_start..self.t_end)
+                .edge_latest_time_window(self.eref(), self.t_start..self.t_end, LayerIds::All)
         })
     }
 

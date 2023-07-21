@@ -7,7 +7,7 @@
 
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef},
+        entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef, LayerIds},
         utils::time::IntoTime,
     },
     db::{
@@ -69,7 +69,7 @@ impl<G: GraphViewOps> EdgeViewOps for EdgeView<G> {
             Some(_) => Box::new(iter::once(ev)),
             None => {
                 let e = self.edge;
-                let ex_iter = self.graph.edge_t(e);
+                let ex_iter = self.graph.edge_t(e, LayerIds::All);
                 // FIXME: use duration
                 Box::new(ex_iter.map(move |ex| ev.new_edge(ex)))
             }
@@ -82,7 +82,7 @@ impl<G: GraphViewOps> EdgeViewOps for EdgeView<G> {
             Some(_) => Box::new(iter::once(ev)),
             None => {
                 let e = self.edge;
-                let ex_iter = self.graph.edge_layers(e);
+                let ex_iter = self.graph.edge_layers(e, LayerIds::All);
                 // FIXME: use duration
                 Box::new(ex_iter.map(move |ex| ev.new_edge(ex)))
             }

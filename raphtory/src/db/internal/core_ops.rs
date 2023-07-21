@@ -24,9 +24,9 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
         self.vertex_name(v.into())
     }
 
-    fn edge_additions(&self, eref: EdgeRef) -> LockedLayeredIndex<'_>{
+    fn edge_additions(&self, eref: EdgeRef, layer_ids: LayerIds) -> LockedLayeredIndex<'_>{
         let edge = self.edge(eref.pid());
-        edge.additions(LayerIds::All).unwrap() // FIXME: should be able to pass in an array of layers
+        edge.additions(layer_ids).unwrap() 
     }
 
     fn vertex_additions(&self, v: VID) -> LockedView<TimeIndex> {

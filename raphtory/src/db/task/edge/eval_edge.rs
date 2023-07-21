@@ -1,6 +1,6 @@
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef},
+        entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef, LayerIds},
         state::compute_state::ComputeState,
         Prop,
     },
@@ -83,7 +83,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeViewOps for EvalEdge
     fn explode(&self) -> Self::EList {
         let iter: Box<dyn Iterator<Item = EdgeRef>> = match self.ev.time() {
             Some(_) => Box::new(iter::once(self.ev)),
-            None => Box::new(self.graph.edge_t(self.ev)),
+            None => Box::new(self.graph.edge_t(self.ev, LayerIds::All)),
         };
 
         let ss = self.ss;
@@ -100,7 +100,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeViewOps for EvalEdge
     fn explode_layers(&self) -> Self::EList {
         let iter: Box<dyn Iterator<Item = EdgeRef>> = match self.ev.time() {
             Some(_) => Box::new(iter::once(self.ev)),
-            None => Box::new(self.graph.edge_layers(self.ev)),
+            None => Box::new(self.graph.edge_layers(self.ev, LayerIds::All)),
         };
 
         let ss = self.ss;

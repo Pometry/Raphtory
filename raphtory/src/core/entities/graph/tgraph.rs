@@ -1,29 +1,36 @@
-use crate::{core::{
-    entities::{
-        edges::{
-            edge::EdgeView,
-            edge_store::{EdgeLayer, EdgeStore},
+use crate::{
+    core::{
+        entities::{
+            edges::{
+                edge::EdgeView,
+                edge_store::{EdgeLayer, EdgeStore},
+            },
+            graph::{
+                tgraph_storage::{GraphStorage, LockedIter},
+                timer::{MaxCounter, MinCounter, TimeCounterTrait},
+            },
+            properties::{graph_props::GraphProps, props::Meta, tprop::TProp},
+            vertices::{
+                input_vertex::InputVertex,
+                vertex::{ArcEdge, ArcVertex, Vertex},
+                vertex_ref::VertexRef,
+                vertex_store::VertexStore,
+            },
+            LayerIds, EID, VID,
         },
-        graph::{
-            tgraph_storage::{GraphStorage, LockedIter},
-            timer::{MaxCounter, MinCounter, TimeCounterTrait},
+        storage::{
+            locked_view::LockedView,
+            timeindex::{LockedLayeredIndex, TimeIndexOps},
+            Entry,
         },
-        properties::{graph_props::GraphProps, props::Meta, tprop::TProp},
-        vertices::{
-            input_vertex::InputVertex,
-            vertex::{ArcEdge, ArcVertex, Vertex},
-            vertex_ref::VertexRef,
-            vertex_store::VertexStore,
+        utils::{
+            errors::{GraphError, MutateGraphError},
+            time::TryIntoTime,
         },
-        EID, VID, LayerIds,
+        Direction, Prop, PropUnwrap,
     },
-    storage::{locked_view::LockedView, timeindex::TimeIndexOps, Entry},
-    utils::{
-        errors::{GraphError, MutateGraphError},
-        time::TryIntoTime,
-    },
-    Direction, Prop, PropUnwrap,
-}, db::api::view::Layer};
+    db::api::view::Layer,
+};
 use dashmap::DashMap;
 use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
@@ -562,12 +569,19 @@ impl<const N: usize> InnerTemporalGraph<N> {
         name: &str,
         t_start: i64,
         t_end: i64,
-        layer: usize,
+        layer_ids: LayerIds,
     ) -> Vec<(i64, Prop)> {
+        // FIXME: this is not ideal as we get the edge twice just to check if it's active
         let edge = self.storage.get_edge(e.into());
-        if !edge.additions()[layer].active(t_start..t_end) {
+        let active = {
+            let t_index = edge.map(|entry| entry.additions());
+            LockedLayeredIndex::new(layer_ids, t_index).active(t_start..t_end)
+        };
+
+        if !active {
             vec![]
         } else {
+            let edge = self.storage.get_edge(e.into());
             let prop_id = self.edge_meta.resolve_prop_id(name, false);
 
             edge.props(None)

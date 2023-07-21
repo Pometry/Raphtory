@@ -49,14 +49,11 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
         self.edge(e.pid()).active(layer_ids, w)
     }
 
-    fn edge_t(&self, e: EdgeRef) -> BoxedIter<EdgeRef> {
+    fn edge_t(&self, e: EdgeRef, layer_ids: LayerIds) -> BoxedIter<EdgeRef> {
         let arc = self.edge_arc(e.pid());
         let iter: GenBoxed<EdgeRef> = GenBoxed::new_boxed(|co| async move {
             // this is for when we explode edges we want to select the layer we get the timestamps from
-            let layer_id = e
-                .layer()
-                .map(|l| (*l).into())
-                .unwrap_or_else(|| LayerIds::All);
+            let layer_id = e.layer().map(|l| (*l).into()).unwrap_or_else(|| layer_ids);
             for t in arc.timestamps(layer_id) {
                 co.yield_(e.at(*t)).await;
             }
@@ -64,14 +61,11 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
         Box::new(iter.into_iter())
     }
 
-    fn edge_window_t(&self, e: EdgeRef, w: Range<i64>) -> BoxedIter<EdgeRef> {
+    fn edge_window_t(&self, e: EdgeRef, w: Range<i64>, layer_ids: LayerIds) -> BoxedIter<EdgeRef> {
         let arc = self.edge_arc(e.pid());
         let iter: GenBoxed<EdgeRef> = GenBoxed::new_boxed(|co| async move {
             // this is for when we explode edges we want to select the layer we get the timestamps from
-            let layer_id = e
-                .layer()
-                .map(|l| (*l).into())
-                .unwrap_or_else(|| LayerIds::All);
+            let layer_id = e.layer().map(|l| (*l).into()).unwrap_or_else(|| layer_ids);
             for t in arc.timestamps_window(layer_id, w) {
                 co.yield_(e.at(*t)).await;
             }
@@ -79,20 +73,34 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
         Box::new(iter.into_iter())
     }
 
-    fn edge_earliest_time(&self, e: EdgeRef) -> Option<i64> {
-        e.time().or_else(|| self.edge_additions(e).first())
+    fn edge_earliest_time(&self, e: EdgeRef, layer_ids: LayerIds) -> Option<i64> {
+        e.time()
+            .or_else(|| self.edge_additions(e, layer_ids).first())
     }
 
-    fn edge_earliest_time_window(&self, e: EdgeRef, w: Range<i64>) -> Option<i64> {
-        e.time().or_else(|| self.edge_additions(e).range(w).first())
+    fn edge_earliest_time_window(
+        &self,
+        e: EdgeRef,
+        w: Range<i64>,
+        layer_ids: LayerIds,
+    ) -> Option<i64> {
+        e.time()
+            .or_else(|| self.edge_additions(e, layer_ids).range(w).first())
     }
 
-    fn edge_latest_time(&self, e: EdgeRef) -> Option<i64> {
-        e.time().or_else(|| self.edge_additions(e).last())
+    fn edge_latest_time(&self, e: EdgeRef, layer_ids: LayerIds) -> Option<i64> {
+        e.time()
+            .or_else(|| self.edge_additions(e, layer_ids).last())
     }
 
-    fn edge_latest_time_window(&self, e: EdgeRef, w: Range<i64>) -> Option<i64> {
-        e.time().or_else(|| self.edge_additions(e).range(w).last())
+    fn edge_latest_time_window(
+        &self,
+        e: EdgeRef,
+        w: Range<i64>,
+        layer_ids: LayerIds,
+    ) -> Option<i64> {
+        e.time()
+            .or_else(|| self.edge_additions(e, layer_ids).range(w).last())
     }
 
     fn vertex_earliest_time_window(&self, v: VID, t_start: i64, t_end: i64) -> Option<i64> {
@@ -115,12 +123,21 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
         self.vertex_additions(v).range(w).iter().copied().collect()
     }
 
-    fn edge_deletion_history(&self, e: EdgeRef) -> Vec<i64> {
-        self.edge_deletions(e).iter().copied().collect()
+    fn edge_deletion_history(&self, e: EdgeRef, layer_ids: LayerIds) -> Vec<i64> {
+        self.edge_deletions(e, layer_ids).iter().copied().collect()
     }
 
-    fn edge_deletion_history_window(&self, e: EdgeRef, w: Range<i64>) -> Vec<i64> {
-        self.edge_deletions(e).range(w).iter().copied().collect()
+    fn edge_deletion_history_window(
+        &self,
+        e: EdgeRef,
+        w: Range<i64>,
+        layer_ids: LayerIds,
+    ) -> Vec<i64> {
+        self.edge_deletions(e, layer_ids)
+            .range(w)
+            .iter()
+            .copied()
+            .collect()
     }
 
     fn temporal_prop_vec(&self, name: &str) -> Vec<(i64, Prop)> {
@@ -157,29 +174,45 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
         name: &str,
         t_start: i64,
         t_end: i64,
+        layer_ids: LayerIds,
     ) -> Vec<(i64, Prop)> {
-        self.prop_vec_window(e.pid(), name, t_start, t_end, 0) // FIXME should be able to pass in an array of layers
+        self.prop_vec_window(e.pid(), name, t_start, t_end, layer_ids) 
     }
 
-    fn temporal_edge_prop_vec(&self, e: EdgeRef, name: &str) -> Vec<(i64, Prop)> {
-        self.edge(e.pid()).temporal_properties(name, 0, None) // FIXME should be able to pass in an array of layers
+    fn temporal_edge_prop_vec(
+        &self,
+        e: EdgeRef,
+        name: &str,
+        layer_ids: LayerIds,
+    ) -> Vec<(i64, Prop)> {
+        self.edge(e.pid())
+            .temporal_properties(name, layer_ids, None)
     }
 
-    fn edge_layers(&self, e: EdgeRef) -> BoxedIter<EdgeRef> {
+    fn edge_layers(&self, e: EdgeRef, layer_ids: LayerIds) -> BoxedIter<EdgeRef> {
         let arc = self.edge_arc(e.pid());
         let iter: GenBoxed<EdgeRef> = GenBoxed::new_boxed(|co| async move {
             for l in arc.layers() {
-                co.yield_(e.at_layer(l)).await;
+                if layer_ids.contains(&l) {
+                    co.yield_(e.at_layer(l)).await;
+                }
             }
         });
         Box::new(iter.into_iter())
     }
 
-    fn edge_window_layers(&self, e: EdgeRef, w: Range<i64>) -> BoxedIter<EdgeRef> {
+    fn edge_window_layers(
+        &self,
+        e: EdgeRef,
+        w: Range<i64>,
+        layer_ids: LayerIds,
+    ) -> BoxedIter<EdgeRef> {
         let arc = self.edge_arc(e.pid());
         let iter: GenBoxed<EdgeRef> = GenBoxed::new_boxed(|co| async move {
             for l in arc.layers_window(w) {
-                co.yield_(e.at_layer(l)).await;
+                if layer_ids.contains(&l) {
+                    co.yield_(e.at_layer(l)).await;
+                }
             }
         });
         Box::new(iter.into_iter())

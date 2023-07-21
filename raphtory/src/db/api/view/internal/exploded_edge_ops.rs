@@ -71,7 +71,7 @@ impl<G: GraphOps + TimeSemantics + Clone + 'static> ExplodedEdgeOps for G {
             let g = self.clone();
             Box::new(
                 self.vertex_edges(v, d, layer)
-                    .flat_map(move |e| g.edge_t(e)),
+                    .flat_map(move |e| g.edge_t(e, LayerIds::All)),
             )
         }
     }
@@ -87,17 +87,17 @@ impl<G: GraphOps + TimeSemantics + Clone + 'static> ExplodedEdgeOps for G {
         let g = self.clone();
         Box::new(
             self.vertex_edges(v, d, layer)
-                .flat_map(move |e| g.edge_window_t(e, t_start..t_end)),
+                .flat_map(move |e| g.edge_window_t(e, t_start..t_end, LayerIds::All)),
         )
     }
 
     fn edge_history(&self, e: EdgeRef) -> BoxedIter<i64> {
-        Box::new(self.edge_t(e).map(|e| e.time().expect("exploded")))
+        Box::new(self.edge_t(e, LayerIds::All).map(|e| e.time().expect("exploded")))
     }
 
     fn edge_history_window(&self, e: EdgeRef, w: Range<i64>) -> BoxedIter<i64> {
         Box::new(
-            self.edge_window_t(e, w)
+            self.edge_window_t(e, w, LayerIds::All)
                 .map(|e| e.time().expect("exploded")),
         )
     }

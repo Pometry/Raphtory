@@ -20,8 +20,8 @@ impl<const N: usize> InternalDeletionOps for InnerTemporalGraph<N> {
 }
 
 impl<const N: usize> CoreDeletionOps for InnerTemporalGraph<N> {
-    fn edge_deletions(&self, eref: EdgeRef) -> LockedLayeredIndex<'_> {
+    fn edge_deletions(&self, eref: EdgeRef, layer_ids: LayerIds) -> LockedLayeredIndex<'_> {
         let edge = self.edge(eref.pid());
-        edge.deletions(LayerIds::All).unwrap()
+        edge.deletions(layer_ids).unwrap()
     }
 }

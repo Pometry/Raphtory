@@ -38,19 +38,20 @@ pub trait EdgeViewOps: EdgeViewInternalOps<Self::Graph, Self::Vertex> {
 
     fn property_history(&self, name: &str) -> Vec<(i64, Prop)> {
         match self.eref().time() {
-            None => self.graph().temporal_edge_prop_vec(self.eref(), name),
+            None => self.graph().temporal_edge_prop_vec(self.eref(), name, LayerIds::All),
             Some(t) => self.graph().temporal_edge_prop_vec_window(
                 self.eref(),
                 name,
                 t,
                 t.saturating_add(1),
+                LayerIds::All,
             ),
         }
     }
 
     fn history(&self) -> Vec<i64> {
         self.graph()
-            .edge_t(self.eref())
+            .edge_t(self.eref(), LayerIds::All)
             .map(|e| e.time().expect("exploded"))
             .collect()
     }
@@ -149,12 +150,12 @@ pub trait EdgeViewOps: EdgeViewInternalOps<Self::Graph, Self::Vertex> {
 
     /// Gets the first time an edge was seen
     fn earliest_time(&self) -> Option<i64> {
-        self.graph().edge_earliest_time(self.eref())
+        self.graph().edge_earliest_time(self.eref(), LayerIds::All)
     }
 
     /// Gets the latest time an edge was updated
     fn latest_time(&self) -> Option<i64> {
-        self.graph().edge_latest_time(self.eref())
+        self.graph().edge_latest_time(self.eref(), LayerIds::All)
     }
 
     /// Gets the time stamp of the edge if it is exploded

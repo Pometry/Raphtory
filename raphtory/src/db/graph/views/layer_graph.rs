@@ -1,12 +1,15 @@
+use std::ops::Range;
+
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef, LayerIds, EID, VID},
         Direction,
     },
-    db::api::view::{internal::{
-        Base, GraphOps, InheritCoreOps, InheritMaterialize, InheritTimeSemantics,
-    }, Layer},
-    prelude::GraphViewOps,
+    db::api::view::{
+        internal::{Base, GraphOps, InheritCoreOps, InheritMaterialize, TimeSemantics},
+        BoxedIter, Layer,
+    },
+    prelude::{GraphViewOps, Prop},
 };
 use itertools::Itertools;
 
@@ -26,7 +29,7 @@ impl<G: GraphViewOps> Base for LayeredGraph<G> {
     }
 }
 
-impl<G: GraphViewOps> InheritTimeSemantics for LayeredGraph<G> {}
+// impl<G: GraphViewOps> InheritTimeSemantics for LayeredGraph<G> {}
 
 impl<G: GraphViewOps> InheritCoreOps for LayeredGraph<G> {}
 
@@ -34,10 +37,7 @@ impl<G: GraphViewOps> InheritMaterialize for LayeredGraph<G> {}
 
 impl<G: GraphViewOps> LayeredGraph<G> {
     pub fn new(graph: G, layers: LayerIds) -> Self {
-        Self {
-            graph,
-            layers,
-        }
+        Self { graph, layers }
     }
 
     /// Return None if the intersection between the previously requested layers and the layer of
@@ -62,9 +62,9 @@ impl<G: GraphViewOps> LayeredGraph<G> {
 impl<G: GraphViewOps> GraphOps for LayeredGraph<G> {
     fn find_edge_id(&self, e_id: EID) -> Option<EdgeRef> {
         let edge_ref = self.graph.find_edge_id(e_id)?;
-        let edge_ref_in_layer = self
-            .graph
-            .has_edge_ref(edge_ref.src(), edge_ref.dst(), self.layers.clone());
+        let edge_ref_in_layer =
+            self.graph
+                .has_edge_ref(edge_ref.src(), edge_ref.dst(), self.layers.clone());
 
         if edge_ref_in_layer {
             Some(edge_ref)
@@ -99,7 +99,7 @@ impl<G: GraphViewOps> GraphOps for LayeredGraph<G> {
             .unwrap_or(0)
     }
 
-    fn has_edge_ref(&self, src: VertexRef, dst: VertexRef, layer: LayerIds ) -> bool {
+    fn has_edge_ref(&self, src: VertexRef, dst: VertexRef, layer: LayerIds) -> bool {
         // FIXME: there is something wrong here, the layer should be able to be None, which would mean, whatever layer this is
         self.constrain(layer)
             .map(|layer| self.graph.has_edge_ref(src, dst, layer))
@@ -142,7 +142,7 @@ impl<G: GraphViewOps> GraphOps for LayeredGraph<G> {
         d: Direction,
         layer: LayerIds,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
-self.constrain(layer)
+        self.constrain(layer)
             .map(|layer| self.graph.vertex_edges(v, d, layer))
             .unwrap_or_else(|| Box::new(std::iter::empty()))
     }
@@ -161,5 +161,122 @@ self.constrain(layer)
     fn get_layer_ids(&self, e_id: EID) -> Option<LayerIds> {
         let layer_ids = self.graph.get_layer_ids(e_id)?;
         self.constrain(layer_ids)
+    }
+}
+
+impl<G: GraphViewOps> TimeSemantics for LayeredGraph<G> {
+    fn include_vertex_window(&self, v: VID, w: Range<i64>) -> bool {
+        self.graph.include_vertex_window(v, w)
+    }
+
+    fn temporal_prop_vec(&self, name: &str) -> Vec<(i64, Prop)> {
+        self.graph.temporal_prop_vec(name)
+    }
+
+    fn temporal_prop_vec_window(&self, name: &str, t_start: i64, t_end: i64) -> Vec<(i64, Prop)> {
+        self.graph.temporal_prop_vec_window(name, t_start, t_end)
+    }
+
+    fn temporal_vertex_prop_vec(&self, v: VID, name: &str) -> Vec<(i64, Prop)> {
+        self.graph.temporal_vertex_prop_vec(v, name)
+    }
+
+    fn temporal_vertex_prop_vec_window(
+        &self,
+        v: VID,
+        name: &str,
+        t_start: i64,
+        t_end: i64,
+    ) -> Vec<(i64, Prop)> {
+        self.graph
+            .temporal_vertex_prop_vec_window(v, name, t_start, t_end)
+    }
+
+    fn temporal_edge_prop_vec_window(
+        &self,
+        e: EdgeRef,
+        name: &str,
+        t_start: i64,
+        t_end: i64,
+        layer_ids: LayerIds,
+    ) -> Vec<(i64, Prop)> {
+        todo!()
+    }
+
+    fn temporal_edge_prop_vec(
+        &self,
+        e: EdgeRef,
+        name: &str,
+        layer_ids: LayerIds,
+    ) -> Vec<(i64, Prop)> {
+        self.constrain(layer_ids)
+            .map(|layers| self.graph.temporal_edge_prop_vec(e, name, layers))
+            .unwrap_or_else(|| Vec::new())
+    }
+
+    fn include_edge_window(&self, e: EdgeRef, w: Range<i64>, layer_ids: LayerIds) -> bool {
+        self.constrain(layer_ids)
+            .map(|layers| self.graph.include_edge_window(e, w, layers))
+            .unwrap_or(false)
+    }
+
+    fn edge_t(&self, e: EdgeRef, layer_ids: LayerIds) -> BoxedIter<EdgeRef> {
+        todo!()
+    }
+
+    fn edge_layers(&self, e: EdgeRef, layer_ids: LayerIds) -> BoxedIter<EdgeRef> {
+        todo!()
+    }
+
+    fn edge_window_t(&self, e: EdgeRef, w: Range<i64>, layer_ids: LayerIds) -> BoxedIter<EdgeRef> {
+        todo!()
+    }
+
+    fn edge_window_layers(
+        &self,
+        e: EdgeRef,
+        w: Range<i64>,
+        layer_ids: LayerIds,
+    ) -> BoxedIter<EdgeRef> {
+        todo!()
+    }
+
+    fn edge_earliest_time(&self, e: EdgeRef, layer_ids: LayerIds) -> Option<i64> {
+        todo!()
+    }
+
+    fn edge_earliest_time_window(
+        &self,
+        e: EdgeRef,
+        w: Range<i64>,
+        layer_ids: LayerIds,
+    ) -> Option<i64> {
+        todo!()
+    }
+
+    fn edge_latest_time(&self, e: EdgeRef, layer_ids: LayerIds) -> Option<i64> {
+        todo!()
+    }
+
+    fn edge_latest_time_window(
+        &self,
+        e: EdgeRef,
+        w: Range<i64>,
+        layer_ids: LayerIds,
+    ) -> Option<i64> {
+        todo!()
+    }
+
+    fn edge_deletion_history(&self, e: EdgeRef, layer_ids: LayerIds) -> Vec<i64> {
+        todo!()
+    }
+
+    fn edge_deletion_history_window(
+        &self,
+        e: EdgeRef,
+        w: Range<i64>,
+        layer_ids: LayerIds,
+    ) -> Vec<i64> {
+        todo!()
     }
 }

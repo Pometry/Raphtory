@@ -1,6 +1,6 @@
 use crate::{
     core::{
-        entities::edges::edge_ref::EdgeRef,
+        entities::{edges::edge_ref::EdgeRef, LayerIds},
         storage::timeindex::LockedLayeredIndex,
     },
     db::api::view::internal::Base,
@@ -9,7 +9,7 @@ use crate::{
 pub trait CoreDeletionOps {
     /// Get all the deletion timestamps for an edge
     /// (this should always be global and not affected by windowing as deletion semantics may need information outside the current view!)
-    fn edge_deletions(&self, eref: EdgeRef) -> LockedLayeredIndex<'_>;
+    fn edge_deletions(&self, eref: EdgeRef, layer_ids: LayerIds) -> LockedLayeredIndex<'_>;
 }
 
 pub trait InheritCoreDeletionOps: Base {}
@@ -32,7 +32,7 @@ pub trait DelegateCoreDeletionOps {
 }
 
 impl<G: DelegateCoreDeletionOps> CoreDeletionOps for G {
-    fn edge_deletions(&self, eref: EdgeRef) ->  LockedLayeredIndex<'_> {
-        self.graph().edge_deletions(eref)
+    fn edge_deletions(&self, eref: EdgeRef, layer_ids: LayerIds) ->  LockedLayeredIndex<'_> {
+        self.graph().edge_deletions(eref, layer_ids)
     }
 }

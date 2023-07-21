@@ -149,43 +149,43 @@ impl<G: GraphViewOps> TimeSemantics for WindowedGraph<G> {
             .vertex_history_window(v, self.actual_start(w.start)..self.actual_end(w.end))
     }
 
-    fn edge_t(&self, e: EdgeRef) -> BoxedIter<EdgeRef> {
-        self.graph.edge_window_t(e, self.t_start..self.t_end)
+    fn edge_t(&self, e: EdgeRef, layer_ids: LayerIds) -> BoxedIter<EdgeRef> {
+        self.graph.edge_window_t(e, self.t_start..self.t_end, layer_ids)
     }
 
-    fn edge_window_t(&self, e: EdgeRef, w: Range<i64>) -> BoxedIter<EdgeRef> {
+    fn edge_window_t(&self, e: EdgeRef, w: Range<i64>, layer_ids: LayerIds) -> BoxedIter<EdgeRef> {
         self.graph
-            .edge_window_t(e, self.actual_start(w.start)..self.actual_end(w.end))
+            .edge_window_t(e, self.actual_start(w.start)..self.actual_end(w.end), layer_ids)
     }
 
-    fn edge_earliest_time(&self, e: EdgeRef) -> Option<i64> {
+    fn edge_earliest_time(&self, e: EdgeRef, layer_ids: LayerIds) -> Option<i64> {
         self.graph
-            .edge_earliest_time_window(e, self.t_start..self.t_end)
+            .edge_earliest_time_window(e, self.t_start..self.t_end, layer_ids)
     }
 
-    fn edge_earliest_time_window(&self, e: EdgeRef, w: Range<i64>) -> Option<i64> {
+    fn edge_earliest_time_window(&self, e: EdgeRef, w: Range<i64>, layer_ids: LayerIds) -> Option<i64> {
         self.graph
-            .edge_earliest_time_window(e, self.actual_start(w.start)..self.actual_end(w.end))
+            .edge_earliest_time_window(e, self.actual_start(w.start)..self.actual_end(w.end), layer_ids)
     }
 
-    fn edge_latest_time(&self, e: EdgeRef) -> Option<i64> {
+    fn edge_latest_time(&self, e: EdgeRef, layer_ids: LayerIds) -> Option<i64> {
         self.graph
-            .edge_latest_time_window(e, self.t_start..self.t_end)
+            .edge_latest_time_window(e, self.t_start..self.t_end, layer_ids)
     }
 
-    fn edge_latest_time_window(&self, e: EdgeRef, w: Range<i64>) -> Option<i64> {
+    fn edge_latest_time_window(&self, e: EdgeRef, w: Range<i64>, layer_ids: LayerIds) -> Option<i64> {
         self.graph
-            .edge_latest_time_window(e, self.actual_start(w.start)..self.actual_end(w.end))
+            .edge_latest_time_window(e, self.actual_start(w.start)..self.actual_end(w.end), layer_ids)
     }
 
-    fn edge_deletion_history(&self, e: EdgeRef) -> Vec<i64> {
+    fn edge_deletion_history(&self, e: EdgeRef, layer_ids: LayerIds) -> Vec<i64> {
         self.graph
-            .edge_deletion_history_window(e, self.t_start..self.t_end)
+            .edge_deletion_history_window(e, self.t_start..self.t_end, layer_ids)
     }
 
-    fn edge_deletion_history_window(&self, e: EdgeRef, w: Range<i64>) -> Vec<i64> {
+    fn edge_deletion_history_window(&self, e: EdgeRef, w: Range<i64>, layer_ids: LayerIds) -> Vec<i64> {
         self.graph
-            .edge_deletion_history_window(e, self.actual_start(w.start)..self.actual_end(w.end))
+            .edge_deletion_history_window(e, self.actual_start(w.start)..self.actual_end(w.end), layer_ids)
     }
 
     fn temporal_prop_vec(&self, name: &str) -> Vec<(i64, Prop)> {
@@ -227,27 +227,29 @@ impl<G: GraphViewOps> TimeSemantics for WindowedGraph<G> {
         name: &str,
         t_start: i64,
         t_end: i64,
+        layer_ids: LayerIds
     ) -> Vec<(i64, Prop)> {
         self.graph.temporal_edge_prop_vec_window(
             e,
             name,
             self.actual_start(t_start),
             self.actual_end(t_end),
+            layer_ids
         )
     }
 
-    fn temporal_edge_prop_vec(&self, e: EdgeRef, name: &str) -> Vec<(i64, Prop)> {
+    fn temporal_edge_prop_vec(&self, e: EdgeRef, name: &str, layer_ids: LayerIds) -> Vec<(i64, Prop)> {
         self.graph
-            .temporal_edge_prop_vec_window(e, name, self.t_start, self.t_end)
+            .temporal_edge_prop_vec_window(e, name, self.t_start, self.t_end, layer_ids)
     }
 
-    fn edge_layers(&self, e: EdgeRef) -> BoxedIter<EdgeRef> {
-        self.graph.edge_window_layers(e, self.t_start..self.t_end)
+    fn edge_layers(&self, e: EdgeRef, layer_ids: LayerIds) -> BoxedIter<EdgeRef> {
+        self.graph.edge_window_layers(e, self.t_start..self.t_end, layer_ids)
     }
 
-    fn edge_window_layers(&self, e: EdgeRef, w: Range<i64>) -> BoxedIter<EdgeRef> {
+    fn edge_window_layers(&self, e: EdgeRef, w: Range<i64>, layer_ids: LayerIds) -> BoxedIter<EdgeRef> {
         self.graph
-            .edge_window_layers(e, self.actual_start(w.start)..self.actual_end(w.end))
+            .edge_window_layers(e, self.actual_start(w.start)..self.actual_end(w.end), layer_ids)
     }
 }
 

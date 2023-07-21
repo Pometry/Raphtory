@@ -320,7 +320,7 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
                 }
             }
             if self.include_deletions() {
-                for t in self.edge_deletion_history(e.edge) {
+                for t in self.edge_deletion_history(e.edge, LayerIds::All) {
                     for layer in layer_names.iter() {
                         g.delete_edge(t, e.src().id(), e.dst().id(), Some(layer))?;
                     }
