@@ -1,6 +1,6 @@
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef, VID, LayerIds},
+        entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef, LayerIds, VID},
         Direction,
     },
     db::api::view::internal::{time_semantics::TimeSemantics, CoreGraphOps, GraphOps},

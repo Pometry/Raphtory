@@ -11,15 +11,14 @@ pub trait LayerOps {
     fn layer(&self, name: Layer) -> Option<Self::LayeredViewType>;
 }
 
-
-pub enum Layer<'a>{
+pub enum Layer<'a> {
     All,
     Default,
     One(&'a str),
     Multiple(Arc<[&'a str]>),
 }
 
-impl <'a> From<Option<&'a str>> for Layer<'a> {
+impl<'a> From<Option<&'a str>> for Layer<'a> {
     fn from(name: Option<&'a str>) -> Self {
         match name {
             Some(name) => Layer::One(name),
@@ -28,13 +27,13 @@ impl <'a> From<Option<&'a str>> for Layer<'a> {
     }
 }
 
-impl <'a> From<&'a str> for Layer<'a> {
+impl<'a> From<&'a str> for Layer<'a> {
     fn from(name: &'a str) -> Self {
         Layer::One(name)
     }
 }
 
-impl <'a> From<Vec<&'a str>> for Layer<'a> {
+impl<'a> From<Vec<&'a str>> for Layer<'a> {
     fn from(names: Vec<&'a str>) -> Self {
         match names.len() {
             0 => Layer::All,

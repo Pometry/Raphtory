@@ -74,12 +74,11 @@ impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
                 let iter = self.locked_edges().map(|edge| edge.deref().into());
                 Box::new(iter)
             }
-            _ => {
-                Box::new(self
-                    .locked_edges()
+            _ => Box::new(
+                self.locked_edges()
                     .filter(move |edge| edge.has_layer(&layers))
-                    .map(|edge| edge.deref().into()))
-            }
+                    .map(|edge| edge.deref().into()),
+            ),
         }
     }
 
@@ -121,6 +120,6 @@ impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
 
     fn get_layer_ids(&self, e_id: EID) -> Option<LayerIds> {
         let edge = self.edge(e_id);
-        Some( edge.layer_ids() )
+        Some(edge.layer_ids())
     }
 }

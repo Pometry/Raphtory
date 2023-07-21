@@ -32,7 +32,7 @@ pub trait DelegateCoreDeletionOps {
 }
 
 impl<G: DelegateCoreDeletionOps> CoreDeletionOps for G {
-    fn edge_deletions(&self, eref: EdgeRef, layer_ids: LayerIds) ->  LockedLayeredIndex<'_> {
+    fn edge_deletions(&self, eref: EdgeRef, layer_ids: LayerIds) -> LockedLayeredIndex<'_> {
         self.graph().edge_deletions(eref, layer_ids)
     }
 }

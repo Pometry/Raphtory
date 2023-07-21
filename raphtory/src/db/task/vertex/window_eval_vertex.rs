@@ -1,6 +1,6 @@
 use crate::{
     core::{
-        entities::{VID, LayerIds},
+        entities::{LayerIds, VID},
         state::{accumulator_id::AccId, agg::Accumulator, compute_state::ComputeState, StateType},
         utils::time::IntoTime,
         Direction, Prop,
@@ -233,7 +233,13 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
         let t_end = self.t_end;
         Box::new(
             self.graph
-                .vertex_edges_window(self.vertex, self.t_start, self.t_end, Direction::BOTH, LayerIds::All)
+                .vertex_edges_window(
+                    self.vertex,
+                    self.t_start,
+                    self.t_end,
+                    Direction::BOTH,
+                    LayerIds::All,
+                )
                 .map(move |e| {
                     WindowEvalEdgeView::new(
                         ss,
@@ -257,7 +263,13 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
         let t_end = self.t_end;
         Box::new(
             self.graph
-                .vertex_edges_window(self.vertex, self.t_start, self.t_end, Direction::IN, LayerIds::All)
+                .vertex_edges_window(
+                    self.vertex,
+                    self.t_start,
+                    self.t_end,
+                    Direction::IN,
+                    LayerIds::All,
+                )
                 .map(move |e| {
                     WindowEvalEdgeView::new(
                         ss,
@@ -281,7 +293,13 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
         let t_end = self.t_end;
         Box::new(
             self.graph
-                .vertex_edges_window(self.vertex, self.t_start, self.t_end, Direction::OUT, LayerIds::All)
+                .vertex_edges_window(
+                    self.vertex,
+                    self.t_start,
+                    self.t_end,
+                    Direction::OUT,
+                    LayerIds::All,
+                )
                 .map(move |e| {
                     WindowEvalEdgeView::new(
                         ss,

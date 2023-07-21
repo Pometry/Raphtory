@@ -114,5 +114,4 @@ impl<T: StateType> DynArray for VecArray<T> {
             *v = zero.clone();
         }
     }
-
 }

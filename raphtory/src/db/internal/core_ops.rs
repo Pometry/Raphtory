@@ -2,9 +2,12 @@ use crate::{
     core::{
         entities::{
             edges::edge_ref::EdgeRef, graph::tgraph::InnerTemporalGraph, properties::tprop::TProp,
-            vertices::vertex_ref::VertexRef, VID, LayerIds,
+            vertices::vertex_ref::VertexRef, LayerIds, VID,
         },
-        storage::{locked_view::LockedView, timeindex::{TimeIndex,LockedLayeredIndex}},
+        storage::{
+            locked_view::LockedView,
+            timeindex::{LockedLayeredIndex, TimeIndex},
+        },
     },
     db::api::view::internal::CoreGraphOps,
     prelude::Prop,
@@ -24,9 +27,9 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
         self.vertex_name(v.into())
     }
 
-    fn edge_additions(&self, eref: EdgeRef, layer_ids: LayerIds) -> LockedLayeredIndex<'_>{
+    fn edge_additions(&self, eref: EdgeRef, layer_ids: LayerIds) -> LockedLayeredIndex<'_> {
         let edge = self.edge(eref.pid());
-        edge.additions(layer_ids).unwrap() 
+        edge.additions(layer_ids).unwrap()
     }
 
     fn vertex_additions(&self, v: VID) -> LockedView<TimeIndex> {
@@ -101,8 +104,7 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
         let entry = self.edge_entry(e.pid());
         let prop_id = self.edge_find_prop(name, true)?;
         let layer = entry.unsafe_layer(0); // FIXME: this should take an array of layer ids
-        let prop = layer.static_property(prop_id)
-            .map(|p| p.clone());
+        let prop = layer.static_property(prop_id).map(|p| p.clone());
         prop
     }
 

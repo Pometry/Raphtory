@@ -176,7 +176,7 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
         t_end: i64,
         layer_ids: LayerIds,
     ) -> Vec<(i64, Prop)> {
-        self.prop_vec_window(e.pid(), name, t_start, t_end, layer_ids) 
+        self.prop_vec_window(e.pid(), name, t_start, t_end, layer_ids)
     }
 
     fn temporal_edge_prop_vec(

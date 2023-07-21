@@ -108,7 +108,7 @@ impl<'a, const N: usize> EdgeView<'a, N> {
         match layer {
             LayerIds::All => {
                 let mut props = vec![];
-                for layer in (0 ..) {
+                for layer in (0..) {
                     if let Some(layer) = store.layer(layer) {
                         let mut layer_props = layer.temporal_properties(prop_id, window.clone());
                         for (t, prop) in layer_props {
@@ -120,7 +120,7 @@ impl<'a, const N: usize> EdgeView<'a, N> {
                 }
                 props
             }
-            LayerIds::One(layer_id) =>  {
+            LayerIds::One(layer_id) => {
                 if let Some(layer) = store.layer(layer_id) {
                     return layer.temporal_properties(prop_id, window).collect();
                 } else {
@@ -135,7 +135,7 @@ impl<'a, const N: usize> EdgeView<'a, N> {
                         for (t, prop) in layer_props {
                             props.push((t, prop));
                         }
-                    } 
+                    }
                 }
                 props
             }

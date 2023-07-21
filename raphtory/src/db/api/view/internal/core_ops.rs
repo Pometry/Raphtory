@@ -2,9 +2,12 @@ use crate::{
     core::{
         entities::{
             edges::edge_ref::EdgeRef, properties::tprop::TProp, vertices::vertex_ref::VertexRef,
-            VID, LayerIds,
+            LayerIds, VID,
         },
-        storage::{locked_view::LockedView, timeindex::{TimeIndex, LockedLayeredIndex}},
+        storage::{
+            locked_view::LockedView,
+            timeindex::{LockedLayeredIndex, TimeIndex},
+        },
         Prop,
     },
     db::api::view::internal::Base,

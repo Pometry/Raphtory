@@ -1,11 +1,12 @@
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef, VID, EID, LayerIds},
+        entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef, LayerIds, EID, VID},
         Direction,
     },
-    db::api::view::{internal::{
-        Base, GraphOps, InheritCoreOps, InheritMaterialize, InheritTimeSemantics,
-    }, Layer},
+    db::api::view::{
+        internal::{Base, GraphOps, InheritCoreOps, InheritMaterialize, InheritTimeSemantics},
+        Layer,
+    },
     prelude::GraphViewOps,
 };
 use itertools::Itertools;
@@ -75,7 +76,7 @@ impl<G: GraphViewOps> GraphOps for VertexSubgraph<G> {
     fn edges_len(&self, layer: LayerIds) -> usize {
         self.vertices
             .iter()
-            .map( |v| self.degree(*v, Direction::OUT, layer.clone()))
+            .map(|v| self.degree(*v, Direction::OUT, layer.clone()))
             .sum()
     }
 

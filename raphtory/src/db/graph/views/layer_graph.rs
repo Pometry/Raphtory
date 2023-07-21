@@ -200,7 +200,12 @@ impl<G: GraphViewOps> TimeSemantics for LayeredGraph<G> {
         t_end: i64,
         layer_ids: LayerIds,
     ) -> Vec<(i64, Prop)> {
-        todo!()
+        self.constrain(layer_ids)
+            .map(|layers| {
+                self.graph
+                    .temporal_edge_prop_vec_window(e, name, t_start, t_end, layers)
+            })
+            .unwrap_or_else(|| Vec::new())
     }
 
     fn temporal_edge_prop_vec(
@@ -221,15 +226,21 @@ impl<G: GraphViewOps> TimeSemantics for LayeredGraph<G> {
     }
 
     fn edge_t(&self, e: EdgeRef, layer_ids: LayerIds) -> BoxedIter<EdgeRef> {
-        todo!()
+        self.constrain(layer_ids)
+            .map(|layers| self.graph.edge_t(e, layers))
+            .unwrap_or_else(|| Box::new(std::iter::empty()))
     }
 
     fn edge_layers(&self, e: EdgeRef, layer_ids: LayerIds) -> BoxedIter<EdgeRef> {
-        todo!()
+        self.constrain(layer_ids)
+            .map(|layers| self.graph.edge_layers(e, layers))
+            .unwrap_or_else(|| Box::new(std::iter::empty()))
     }
 
     fn edge_window_t(&self, e: EdgeRef, w: Range<i64>, layer_ids: LayerIds) -> BoxedIter<EdgeRef> {
-        todo!()
+        self.constrain(layer_ids)
+            .map(|layers| self.graph.edge_window_t(e, w, layers))
+            .unwrap_or_else(|| Box::new(std::iter::empty()))
     }
 
     fn edge_window_layers(
@@ -238,11 +249,14 @@ impl<G: GraphViewOps> TimeSemantics for LayeredGraph<G> {
         w: Range<i64>,
         layer_ids: LayerIds,
     ) -> BoxedIter<EdgeRef> {
-        todo!()
+        self.constrain(layer_ids)
+            .map(|layers| self.graph.edge_window_layers(e, w, layers))
+            .unwrap_or_else(|| Box::new(std::iter::empty()))
     }
 
     fn edge_earliest_time(&self, e: EdgeRef, layer_ids: LayerIds) -> Option<i64> {
-        todo!()
+        self.constrain(layer_ids)
+            .and_then(|layers| self.graph.edge_earliest_time(e, layers))
     }
 
     fn edge_earliest_time_window(
@@ -251,11 +265,13 @@ impl<G: GraphViewOps> TimeSemantics for LayeredGraph<G> {
         w: Range<i64>,
         layer_ids: LayerIds,
     ) -> Option<i64> {
-        todo!()
+        self.constrain(layer_ids)
+            .and_then(|layers| self.graph.edge_earliest_time_window(e, w, layers))
     }
 
     fn edge_latest_time(&self, e: EdgeRef, layer_ids: LayerIds) -> Option<i64> {
-        todo!()
+        self.constrain(layer_ids)
+            .and_then(|layers| self.graph.edge_latest_time(e, layers))
     }
 
     fn edge_latest_time_window(
@@ -264,11 +280,14 @@ impl<G: GraphViewOps> TimeSemantics for LayeredGraph<G> {
         w: Range<i64>,
         layer_ids: LayerIds,
     ) -> Option<i64> {
-        todo!()
+        self.constrain(layer_ids)
+            .and_then(|layers| self.graph.edge_latest_time_window(e, w, layers))
     }
 
     fn edge_deletion_history(&self, e: EdgeRef, layer_ids: LayerIds) -> Vec<i64> {
-        todo!()
+        self.constrain(layer_ids)
+            .map(|layers| self.graph.edge_deletion_history(e, layers))
+            .unwrap_or_else(|| Vec::new())
     }
 
     fn edge_deletion_history_window(
@@ -277,6 +296,8 @@ impl<G: GraphViewOps> TimeSemantics for LayeredGraph<G> {
         w: Range<i64>,
         layer_ids: LayerIds,
     ) -> Vec<i64> {
-        todo!()
+        self.constrain(layer_ids)
+            .map(|layers| self.graph.edge_deletion_history_window(e, w, layers))
+            .unwrap_or_else(|| Vec::new())
     }
 }

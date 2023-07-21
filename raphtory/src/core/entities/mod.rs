@@ -119,11 +119,17 @@ pub enum LayerIds {
     Multiple(Arc<[usize]>),
 }
 
-impl LayerIds{
+impl LayerIds {
     pub fn find(&self, layer_id: usize) -> Option<usize> {
         match self {
             LayerIds::All => Some(layer_id),
-            LayerIds::One(id) => if *id == layer_id { Some(layer_id) } else { None },
+            LayerIds::One(id) => {
+                if *id == layer_id {
+                    Some(layer_id)
+                } else {
+                    None
+                }
+            }
             LayerIds::Multiple(ids) => ids.binary_search(&layer_id).ok().map(|_| layer_id),
         }
     }
@@ -138,26 +144,26 @@ impl From<Vec<usize>> for LayerIds {
         match v.len() {
             0 => LayerIds::All,
             1 => LayerIds::One(v[0]),
-            _ => { 
+            _ => {
                 v.sort_unstable();
                 v.dedup();
                 LayerIds::Multiple(v.into())
-            },
+            }
         }
     }
 }
 
-impl <const N:usize> From<[usize; N]> for LayerIds {
+impl<const N: usize> From<[usize; N]> for LayerIds {
     fn from(v: [usize; N]) -> Self {
         match v.len() {
             0 => LayerIds::All,
             1 => LayerIds::One(v[0]),
-            _ => { 
+            _ => {
                 let mut v = v.to_vec();
                 v.sort_unstable();
                 v.dedup();
-                LayerIds::Multiple(v.into()) 
-            },
+                LayerIds::Multiple(v.into())
+            }
         }
     }
 }
@@ -169,7 +175,7 @@ impl From<usize> for LayerIds {
 }
 
 impl From<Arc<[usize]>> for LayerIds {
-    fn from(id: Arc<[ usize ]>) -> Self {
+    fn from(id: Arc<[usize]>) -> Self {
         LayerIds::Multiple(id)
     }
 }

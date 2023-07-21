@@ -1,6 +1,6 @@
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, VID, LayerIds},
+        entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
         Prop,
     },
     db::api::view::internal::{time_semantics::TimeSemantics, CoreGraphOps},
@@ -89,7 +89,10 @@ impl<G: TimeSemantics + CoreGraphOps> GraphPropertiesOps for G {
     fn temporal_edge_props(&self, e: EdgeRef) -> HashMap<String, Vec<(i64, Prop)>> {
         let mut map = HashMap::default();
         for name in self.temporal_edge_prop_names(e) {
-            map.insert(name.clone(), self.temporal_edge_prop_vec(e, &name, LayerIds::All));
+            map.insert(
+                name.clone(),
+                self.temporal_edge_prop_vec(e, &name, LayerIds::All),
+            );
         }
         map
     }

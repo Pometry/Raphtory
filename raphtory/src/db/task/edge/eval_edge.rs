@@ -112,10 +112,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeViewOps for EvalEdge
                 EvalEdgeView::new(ss, ev, g, vertex_state.clone(), local_state_prev)
             }),
         )
-
     }
-
-
 }
 
 impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeListOps

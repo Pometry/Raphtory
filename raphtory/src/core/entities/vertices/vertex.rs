@@ -7,7 +7,7 @@ use crate::core::{
             structure::iter::{Paged, PagedIter},
             vertex_store::VertexStore,
         },
-        VRef, VID, LayerIds,
+        LayerIds, VRef, VID,
     },
     storage::{
         locked_view::LockedView,

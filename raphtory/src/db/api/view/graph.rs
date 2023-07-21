@@ -327,7 +327,12 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
                 }
             }
             for layer in layer_names.iter() {
-                g.add_edge_properties(e.src().id(), e.dst().id(), e.static_properties(), Some(layer))?;
+                g.add_edge_properties(
+                    e.src().id(),
+                    e.dst().id(),
+                    e.static_properties(),
+                    Some(layer),
+                )?;
             }
         }
 

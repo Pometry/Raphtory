@@ -3,7 +3,7 @@ use bitvec::prelude::BitArray;
 use crate::core::entities::{vertices::vertex_ref::VertexRef, EID, VID};
 
 #[derive(Debug, Copy, Clone, PartialEq)]
-pub struct EdgeRef{
+pub struct EdgeRef {
     e_pid: EID,
     src_pid: VID,
     dst_pid: VID,
@@ -19,7 +19,6 @@ pub enum Dir {
 }
 
 impl EdgeRef {
-
     pub fn new_outgoing(e_pid: EID, src_pid: VID, dst_pid: VID) -> Self {
         EdgeRef {
             e_pid,

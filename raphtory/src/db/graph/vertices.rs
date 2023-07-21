@@ -1,7 +1,7 @@
 use crate::{
     core::{entities::vertices::vertex_ref::VertexRef, utils::time::IntoTime, Direction},
     db::{
-        api::view::{BoxedIter, LayerOps, Layer},
+        api::view::{BoxedIter, Layer, LayerOps},
         graph::{
             edge::EdgeView,
             path::{Operations, PathFromGraph},

@@ -128,7 +128,6 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeViewOps
         }
     }
 
-
     fn explode_layers(&self) -> Self::EList {
         let e = self.ev.clone();
         let t_start = self.t_start;
@@ -215,19 +214,24 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeViewOps
     /// Gets the first time an edge was seen
     fn earliest_time(&self) -> Option<i64> {
         self.eref().time().or_else(|| {
-            self.graph()
-                .edge_earliest_time_window(self.eref(), self.t_start..self.t_end, LayerIds::All)
+            self.graph().edge_earliest_time_window(
+                self.eref(),
+                self.t_start..self.t_end,
+                LayerIds::All,
+            )
         })
     }
 
     /// Gets the latest time an edge was updated
     fn latest_time(&self) -> Option<i64> {
         self.eref().time().or_else(|| {
-            self.graph()
-                .edge_latest_time_window(self.eref(), self.t_start..self.t_end, LayerIds::All)
+            self.graph().edge_latest_time_window(
+                self.eref(),
+                self.t_start..self.t_end,
+                LayerIds::All,
+            )
         })
     }
-
 }
 
 impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeListOps

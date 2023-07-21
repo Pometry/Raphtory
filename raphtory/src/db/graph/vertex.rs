@@ -2,12 +2,12 @@
 
 use crate::{
     core::{
-        entities::{vertices::vertex_ref::VertexRef, VID, LayerIds},
+        entities::{vertices::vertex_ref::VertexRef, LayerIds, VID},
         utils::time::IntoTime,
         Direction,
     },
     db::{
-        api::view::{internal::GraphPropertiesOps, BoxedIter, LayerOps, Layer},
+        api::view::{internal::GraphPropertiesOps, BoxedIter, Layer, LayerOps},
         graph::{
             edge::{EdgeList, EdgeView},
             path::{Operations, PathFromVertex},

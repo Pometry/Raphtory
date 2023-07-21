@@ -1322,18 +1322,17 @@ mod db_tests {
             .flat_map(|e| {
                 e.explode().filter_map(|e| {
                     e.edge
-                        .layer().zip(e.time())
+                        .layer()
+                        .zip(e.time())
                         .map(|(layer, t)| (t, e.src().id(), e.dst().id(), *layer))
                 })
             })
             .collect::<Vec<_>>();
 
-        assert_eq!(layer_exploded, vec![
-            (3, 1, 2, 0),
-            (0, 1, 2, 1),
-            (2, 1, 2, 1),
-            (1, 1, 2, 2),
-        ]);
+        assert_eq!(
+            layer_exploded,
+            vec![(3, 1, 2, 0), (0, 1, 2, 1), (2, 1, 2, 1), (1, 1, 2, 2),]
+        );
     }
 
     #[test]
@@ -1352,49 +1351,62 @@ mod db_tests {
             .flat_map(|e| {
                 e.explode().filter_map(|e| {
                     e.edge
-                        .layer().zip(e.time())
+                        .layer()
+                        .zip(e.time())
                         .map(|(layer, t)| (t, e.src().id(), e.dst().id(), *layer))
                 })
             })
             .collect::<Vec<_>>();
 
-        assert_eq!(layer_exploded, vec![
-            (0, 1, 2, 1),
-            (2, 1, 2, 1),
-            (1, 1, 2, 2),
-        ]);
+        assert_eq!(
+            layer_exploded,
+            vec![(0, 1, 2, 1), (2, 1, 2, 1), (1, 1, 2, 2),]
+        );
     }
 
     #[test]
     fn test_multiple_layers_fundamentals() {
         let g = Graph::new();
 
-        g.add_edge(1, 1, 2, [("tx_sent", 10u64)], "btc".into()).expect("failed");
-        g.add_edge(1, 1, 2, [("tx_sent", 20u64)], "eth".into()).expect("failed");
-        g.add_edge(1, 1, 2, [("tx_sent", 70u64)], "tether".into()).expect("failed");
+        g.add_edge(1, 1, 2, [("tx_sent", 10u64)], "btc".into())
+            .expect("failed");
+        g.add_edge(1, 1, 2, [("tx_sent", 20u64)], "eth".into())
+            .expect("failed");
+        g.add_edge(1, 1, 2, [("tx_sent", 70u64)], "tether".into())
+            .expect("failed");
 
         let e = g.edge(1, 2, Layer::All).expect("failed to get edge");
-        let sum:u64 = e.property_history("tx_sent").iter().filter_map(|(_, prop)|{
-            println!("{:?}", prop);
-            match prop{
-                Prop::U64(v) => Some(v),
-                _ => None
-            }
-        }).sum();
+        let sum: u64 = e
+            .property_history("tx_sent")
+            .iter()
+            .filter_map(|(_, prop)| {
+                println!("{:?}", prop);
+                match prop {
+                    Prop::U64(v) => Some(v),
+                    _ => None,
+                }
+            })
+            .sum();
 
         assert_eq!(sum, 100);
 
-        let g = g.layer(vec!["eth", "btc"].into()).expect("failed to layer graph");
+        let g = g
+            .layer(vec!["eth", "btc"].into())
+            .expect("failed to layer graph");
 
         let e = g.edge(1, 2, Layer::All).expect("failed to get edge");
 
-        let sum_eth_btc:u64 = e.property_history("tx_sent").iter().filter_map(|(_, prop)|{
-            println!("{:?}", prop);
-            match prop{
-                Prop::U64(v) => Some(v),
-                _ => None
-            }
-        }).sum();
+        let sum_eth_btc: u64 = e
+            .property_history("tx_sent")
+            .iter()
+            .filter_map(|(_, prop)| {
+                println!("{:?}", prop);
+                match prop {
+                    Prop::U64(v) => Some(v),
+                    _ => None,
+                }
+            })
+            .sum();
 
         assert_eq!(sum_eth_btc, 30);
     }

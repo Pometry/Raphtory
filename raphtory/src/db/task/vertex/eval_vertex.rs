@@ -1,6 +1,6 @@
 use crate::{
     core::{
-        entities::{VID, LayerIds},
+        entities::{LayerIds, VID},
         state::{accumulator_id::AccId, agg::Accumulator, compute_state::ComputeState, StateType},
         utils::time::IntoTime,
         Direction, Prop,
@@ -528,7 +528,8 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
     }
 
     fn degree(&self) -> Self::ValueType<usize> {
-        self.graph.degree(self.vertex, Direction::BOTH, LayerIds::All)
+        self.graph
+            .degree(self.vertex, Direction::BOTH, LayerIds::All)
     }
 
     fn in_degree(&self) -> Self::ValueType<usize> {
@@ -536,7 +537,8 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
     }
 
     fn out_degree(&self) -> Self::ValueType<usize> {
-        self.graph.degree(self.vertex, Direction::OUT, LayerIds::All)
+        self.graph
+            .degree(self.vertex, Direction::OUT, LayerIds::All)
     }
 
     fn edges(&self) -> Self::EList {

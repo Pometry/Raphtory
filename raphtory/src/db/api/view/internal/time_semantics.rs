@@ -1,6 +1,6 @@
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, VID, LayerIds},
+        entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
         storage::timeindex::TimeIndexOps,
         Prop,
     },
@@ -95,25 +95,45 @@ pub trait TimeSemantics: GraphOps + CoreGraphOps {
     fn edge_window_t(&self, e: EdgeRef, w: Range<i64>, layer_ids: LayerIds) -> BoxedIter<EdgeRef>;
 
     /// Exploded edge iterator for edge `e` over window `w` for every layer
-    fn edge_window_layers(&self, e: EdgeRef, w: Range<i64>, layer_ids: LayerIds) -> BoxedIter<EdgeRef>;
+    fn edge_window_layers(
+        &self,
+        e: EdgeRef,
+        w: Range<i64>,
+        layer_ids: LayerIds,
+    ) -> BoxedIter<EdgeRef>;
 
     /// Get the time of the earliest activity of an edge
     fn edge_earliest_time(&self, e: EdgeRef, layer_ids: LayerIds) -> Option<i64>;
 
     /// Get the time of the earliest activity of an edge `e` in window `w`
-    fn edge_earliest_time_window(&self, e: EdgeRef, w: Range<i64>, layer_ids: LayerIds) -> Option<i64>;
+    fn edge_earliest_time_window(
+        &self,
+        e: EdgeRef,
+        w: Range<i64>,
+        layer_ids: LayerIds,
+    ) -> Option<i64>;
 
     /// Get the time of the latest activity of an edge
     fn edge_latest_time(&self, e: EdgeRef, layer_ids: LayerIds) -> Option<i64>;
 
     /// Get the time of the latest activity of an edge `e` in window `w`
-    fn edge_latest_time_window(&self, e: EdgeRef, w: Range<i64>, layer_ids: LayerIds) -> Option<i64>;
+    fn edge_latest_time_window(
+        &self,
+        e: EdgeRef,
+        w: Range<i64>,
+        layer_ids: LayerIds,
+    ) -> Option<i64>;
 
     /// Get the edge deletions for use with materialize
     fn edge_deletion_history(&self, e: EdgeRef, layer_ids: LayerIds) -> Vec<i64>;
 
     /// Get the edge deletions for use with materialize restricted to window `w`
-    fn edge_deletion_history_window(&self, e: EdgeRef, w: Range<i64>, layer_ids: LayerIds) -> Vec<i64>;
+    fn edge_deletion_history_window(
+        &self,
+        e: EdgeRef,
+        w: Range<i64>,
+        layer_ids: LayerIds,
+    ) -> Vec<i64>;
 
     /// Returns a vector of all temporal values of the graph property with the given name
     ///
@@ -217,7 +237,12 @@ pub trait TimeSemantics: GraphOps + CoreGraphOps {
     /// # Returns
     ///
     /// * A `Vec` of tuples containing the values of the temporal property with the given name for the given edge.
-    fn temporal_edge_prop_vec(&self, e: EdgeRef, name: &str, layer_ids: LayerIds) -> Vec<(i64, Prop)>;
+    fn temporal_edge_prop_vec(
+        &self,
+        e: EdgeRef,
+        name: &str,
+        layer_ids: LayerIds,
+    ) -> Vec<(i64, Prop)>;
 }
 
 pub trait InheritTimeSemantics: Base + GraphOps + CoreGraphOps {}
@@ -304,7 +329,12 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
         self.graph().edge_layers(e, layer_ids)
     }
 
-    fn edge_window_layers(&self, e: EdgeRef, w: Range<i64>, layer_ids: LayerIds) -> BoxedIter<EdgeRef> {
+    fn edge_window_layers(
+        &self,
+        e: EdgeRef,
+        w: Range<i64>,
+        layer_ids: LayerIds,
+    ) -> BoxedIter<EdgeRef> {
         self.graph().edge_window_layers(e, w, layer_ids)
     }
 
@@ -316,7 +346,12 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
         self.graph().edge_earliest_time(e, layer_ids)
     }
 
-    fn edge_earliest_time_window(&self, e: EdgeRef, w: Range<i64>, layer_ids: LayerIds) -> Option<i64> {
+    fn edge_earliest_time_window(
+        &self,
+        e: EdgeRef,
+        w: Range<i64>,
+        layer_ids: LayerIds,
+    ) -> Option<i64> {
         self.graph().edge_earliest_time_window(e, w, layer_ids)
     }
 
@@ -324,7 +359,12 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
         self.graph().edge_latest_time(e, layer_ids)
     }
 
-    fn edge_latest_time_window(&self, e: EdgeRef, w: Range<i64>, layer_ids: LayerIds) -> Option<i64> {
+    fn edge_latest_time_window(
+        &self,
+        e: EdgeRef,
+        w: Range<i64>,
+        layer_ids: LayerIds,
+    ) -> Option<i64> {
         self.graph().edge_latest_time_window(e, w, layer_ids)
     }
 
@@ -332,7 +372,12 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
         self.graph().edge_deletion_history(e, layer_ids)
     }
 
-    fn edge_deletion_history_window(&self, e: EdgeRef, w: Range<i64>, layer_ids: LayerIds) -> Vec<i64> {
+    fn edge_deletion_history_window(
+        &self,
+        e: EdgeRef,
+        w: Range<i64>,
+        layer_ids: LayerIds,
+    ) -> Vec<i64> {
         self.graph().edge_deletion_history_window(e, w, layer_ids)
     }
 
@@ -371,7 +416,12 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
             .temporal_edge_prop_vec_window(e, name, t_start, t_end, layer_ids)
     }
 
-    fn temporal_edge_prop_vec(&self, e: EdgeRef, name: &str, layer_ids: LayerIds) -> Vec<(i64, Prop)> {
+    fn temporal_edge_prop_vec(
+        &self,
+        e: EdgeRef,
+        name: &str,
+        layer_ids: LayerIds,
+    ) -> Vec<(i64, Prop)> {
         self.graph().temporal_edge_prop_vec(e, name, layer_ids)
     }
 }
