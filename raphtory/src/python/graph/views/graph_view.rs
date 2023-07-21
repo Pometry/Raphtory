@@ -331,10 +331,10 @@ impl PyGraphView {
         self.graph.default_layer().into()
     }
 
-    #[doc = layer_doc_string!()]
-    #[pyo3(signature = (name))]
-    pub fn layer(&self, name: &str) -> Option<PyGraphView> {
-        self.graph.layer(name.into()).map(|layer| layer.into())
+    #[doc = layers_doc_string!()]
+    #[pyo3(signature = (names))]
+    pub fn layers(&self, names: Vec<String>) -> Option<PyGraphView> {
+        self.graph.layer(names.into()).map(|layer| layer.into())
     }
 
     /// Get graph property against the provided property name

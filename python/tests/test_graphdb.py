@@ -1098,8 +1098,8 @@ def test_layer():
     g.add_edge(0, 1, 4, layer='layer2')
 
     assert (g.default_layer().num_edges() == 1)
-    assert (g.layer('layer1').num_edges() == 1)
-    assert (g.layer('layer2').num_edges() == 1)
+    assert (g.layers(['layer1']).num_edges() == 1)
+    assert (g.layers(['layer2']).num_edges() == 1)
 
 
 def test_layer_vertex():
@@ -1108,12 +1108,12 @@ def test_layer_vertex():
     g.add_edge(0, 1, 2, layer="layer1")
     g.add_edge(0, 2, 3, layer="layer2")
     g.add_edge(3, 2, 4, layer="layer1")
-    neighbours = g.layer("layer1").vertex(1).neighbours().collect()
-    assert sorted(neighbours[0].layer("layer2").edges().id()) == [(2, 3)]
-    assert sorted(g.layer("layer2").vertex(neighbours[0].name()).edges().id()) == [(2, 3)]
-    assert sorted(g.layer("layer1").vertex(neighbours[0].name()).edges().id()) == [(1, 2), (2, 4)]
-    assert sorted(g.layer("layer1").edges().id()) == [(1, 2), (2, 4)]
-    assert sorted(g.layer("layer1").layer("layer2").edges().id()) == [(2, 3)]
+    neighbours = g.layers(["layer1", "layer2"]).vertex(1).neighbours().collect()
+    assert sorted(neighbours[0].layers(["layer2"]).edges().id()) == [(2, 3)]
+    assert sorted(g.layers(["layer2"]).vertex(neighbours[0].name()).edges().id()) == [(2, 3)]
+    assert sorted(g.layers(["layer1"]).vertex(neighbours[0].name()).edges().id()) == [(1, 2), (2, 4)]
+    assert sorted(g.layers(["layer1"]).edges().id()) == [(1, 2), (2, 4)]
+    assert sorted(g.layers(["layer1", "layer2"]).edges().id()) == [(1, 2), (2, 3), (2, 4)]
 
 
 def test_rolling_as_iterable():
@@ -1139,8 +1139,8 @@ def test_layer_name():
     g.add_edge(0, 0, 1)
     g.add_edge(0, 0, 2, layer="awesome layer")
 
-    assert g.edge(0, 1).layer_name() == "default layer"
-    assert g.edge(0, 2, "awesome layer").layer_name() == "awesome layer"
+    assert g.edge(0, 1).layer_names() == ["_default"]
+    assert g.edge(0, 2, "awesome layer").layer_names() == ["awesome layer"]
 
 
 def test_window_size():

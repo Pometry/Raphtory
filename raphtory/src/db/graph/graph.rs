@@ -1419,9 +1419,12 @@ mod db_tests {
 
         assert!(edge_btc_sum < edge_eth_sum);
 
-        let e_eth = e_eth.layer(vec!["eth", "btc"].into()).expect("failed to get eth,btc layers");
+        let e_eth = e_eth
+            .layer(vec!["eth", "btc"].into())
+            .expect("failed to get eth,btc layers");
 
-        let eth_sum = e_eth.property_history("tx_sent")
+        let eth_sum = e_eth
+            .property_history("tx_sent")
             .iter()
             .filter_map(|(_, prop)| prop.clone().into_u64())
             .sum::<u64>();

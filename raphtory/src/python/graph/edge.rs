@@ -319,16 +319,17 @@ impl PyEdge {
     ///
     /// Returns:
     ///   A new Edge with the properties of this Edge within the specified time window.
+    #[pyo3(signature = (layer_names))]
     pub fn layers(
         &self,
         layer_names: Vec<String>,
     ) -> PyResult<EdgeView<LayeredGraph<DynamicGraph>>> {
-        if let Some(edge) = self.edge.layer(layer_names.into()) {
+        if let Some(edge) = self.edge.layer(layer_names.clone().into()) {
             Ok(edge)
         } else {
             let available_layers = self.edge.layer_names();
             Err(PyErr::new::<pyo3::exceptions::PyAttributeError, _>(
-                "Layers {layers:?} not available for edge, available layers: {available_layers:?}",
+                format!("Layers {layer_names:?} not available for edge, available layers: {available_layers:?}"),
             ))
         }
     }

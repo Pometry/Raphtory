@@ -453,9 +453,9 @@ impl PyVertex {
         self.vertex.default_layer().into()
     }
 
-    #[doc = layer_doc_string!()]
+    #[doc = layers_doc_string!()]
     #[pyo3(signature = (name))]
-    pub fn layer(&self, name: &str) -> Option<PyVertex> {
+    pub fn layers(&self, name: Vec<String>) -> Option<PyVertex> {
         Some(self.vertex.layer(name.into())?.into())
     }
 
@@ -837,7 +837,7 @@ impl PyVertices {
         self.vertices.default_layer().into()
     }
 
-    #[doc = layer_doc_string!()]
+    #[doc = layers_doc_string!()]
     #[pyo3(signature = (name))]
     pub fn layer(&self, name: &str) -> Option<PyVertices> {
         Some(self.vertices.layer(name.into())?.into())
@@ -1049,7 +1049,7 @@ impl PyPathFromGraph {
         self.path.default_layer().into()
     }
 
-    #[doc = layer_doc_string!()]
+    #[doc = layers_doc_string!()]
     #[pyo3(signature = (name))]
     pub fn layer(&self, name: &str) -> Option<Self> {
         Some(self.path.layer(name.into())?.into())
@@ -1276,7 +1276,7 @@ impl PyPathFromVertex {
         self.path.default_layer().into()
     }
 
-    #[doc = layer_doc_string!()]
+    #[doc = layers_doc_string!()]
     #[pyo3(signature = (name))]
     pub fn layer(&self, name: &str) -> Option<Self> {
         Some(self.path.layer(name.into())?.into())

@@ -10,16 +10,16 @@ Returns:
 }
 
 #[macro_export]
-macro_rules! layer_doc_string {
+macro_rules! layers_doc_string {
     () => {
         "
-Create a view including all the edges in the layer `name`
+Create a view including all the edges in the layers `names`
 
 Arguments:
-    name (str) : the name of the layer
+    names (str) : the names of the layers to include
 
 Returns:
-    a view including all the edges in the layer `name`"
+    a view including all the edges in the layers `names`"
     };
 }
 
