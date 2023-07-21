@@ -2,6 +2,7 @@ use crate::core::Prop;
 use crate::db::api::properties::internal::PropertiesOps;
 use crate::db::api::properties::StaticProperties;
 use crate::db::api::view::internal::Static;
+use crate::python::graph::properties::props::PropsComparable;
 use crate::python::graph::properties::{DynProps, NestedOptionPropIterable, OptionPropIterable};
 use crate::python::types::repr::Repr;
 use crate::python::utils::PyGenericIterator;
@@ -10,7 +11,6 @@ use pyo3::exceptions::{PyKeyError, PyTypeError};
 use pyo3::prelude::*;
 use pyo3::pyclass::CompareOp;
 use std::collections::HashMap;
-use std::ops::Deref;
 use std::sync::Arc;
 
 pub type DynStaticProperties = StaticProperties<DynProps>;
@@ -25,33 +25,6 @@ impl<P: PropertiesOps + Send + Sync + Static + 'static> From<StaticProperties<P>
     }
 }
 
-#[derive(PartialEq, Clone)]
-pub struct StaticPropsComparable(HashMap<String, Prop>);
-
-impl<'source> FromPyObject<'source> for StaticPropsComparable {
-    fn extract(ob: &'source PyAny) -> PyResult<Self> {
-        if let Ok(sp) = ob.extract::<PyRef<PyStaticProperties>>() {
-            Ok(sp.deref().into())
-        } else if let Ok(m) = ob.extract::<HashMap<String, Prop>>() {
-            Ok(StaticPropsComparable(m))
-        } else {
-            Err(PyTypeError::new_err("not comparable with properties"))
-        }
-    }
-}
-
-impl From<&PyStaticProperties> for StaticPropsComparable {
-    fn from(value: &PyStaticProperties) -> Self {
-        Self(value.props.as_map())
-    }
-}
-
-impl From<DynStaticProperties> for StaticPropsComparable {
-    fn from(value: DynStaticProperties) -> Self {
-        Self(value.as_map())
-    }
-}
-
 #[pyclass(name = "MetaData")]
 pub struct PyStaticProperties {
     props: DynStaticProperties,
@@ -59,49 +32,53 @@ pub struct PyStaticProperties {
 
 #[pymethods]
 impl PyStaticProperties {
-    fn keys(&self) -> Vec<String> {
+    pub fn keys(&self) -> Vec<String> {
         self.props.keys()
     }
-    fn values(&self) -> Vec<Prop> {
+    pub fn values(&self) -> Vec<Prop> {
         self.props.values()
     }
-    fn items(&self) -> Vec<(String, Prop)> {
+    pub fn items(&self) -> Vec<(String, Prop)> {
         self.props.iter().collect()
     }
 
-    fn __getitem__(&self, key: &str) -> PyResult<Prop> {
+    pub fn __getitem__(&self, key: &str) -> PyResult<Prop> {
         self.props
             .get(key)
             .ok_or(PyKeyError::new_err("No such property"))
     }
 
-    fn get(&self, key: &str) -> Option<Prop> {
+    pub fn get(&self, key: &str) -> Option<Prop> {
         // Fixme: Add option to specify default?
         self.props.get(key)
     }
 
-    fn __iter__(&self) -> PyGenericIterator {
+    pub fn as_dict(&self) -> HashMap<String, Prop> {
+        self.props.as_map()
+    }
+
+    pub fn __iter__(&self) -> PyGenericIterator {
         self.keys().into_iter().into()
     }
 
-    fn __contains__(&self, key: &str) -> bool {
+    pub fn __contains__(&self, key: &str) -> bool {
         self.props.contains(key)
     }
 
-    fn __len__(&self) -> usize {
+    pub fn __len__(&self) -> usize {
         self.keys().len()
     }
 
-    fn __repr__(&self) -> String {
+    pub fn __repr__(&self) -> String {
         self.repr()
     }
 
-    fn __richcmp__(&self, other: StaticPropsComparable, op: CompareOp) -> PyResult<bool> {
+    pub fn __richcmp__(&self, other: PropsComparable, op: CompareOp) -> PyResult<bool> {
         match op {
             CompareOp::Lt => Err(PyTypeError::new_err("not ordered")),
             CompareOp::Le => Err(PyTypeError::new_err("not ordered")),
-            CompareOp::Eq => Ok(StaticPropsComparable::from(self) == other),
-            CompareOp::Ne => Ok(StaticPropsComparable::from(self) != other),
+            CompareOp::Eq => Ok(PropsComparable::from(self) == other),
+            CompareOp::Ne => Ok(PropsComparable::from(self) != other),
             CompareOp::Gt => Err(PyTypeError::new_err("not ordered")),
             CompareOp::Ge => Err(PyTypeError::new_err("not ordered")),
         }
@@ -126,7 +103,7 @@ py_iterable!(StaticPropsIterable, DynStaticProperties, PyStaticProperties);
 
 py_iterable_comp!(
     StaticPropsIterable,
-    StaticPropsComparable,
+    PropsComparable,
     StaticPropsIterComparable
 );
 

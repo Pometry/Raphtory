@@ -111,7 +111,7 @@ macro_rules! py_iterable {
         {
             fn from(value: F) -> Self {
                 Self($crate::python::types::iterable::Iterable::new(
-                    stringify!($name).to_string(),
+                    stringify!($name),
                     value,
                 ))
             }

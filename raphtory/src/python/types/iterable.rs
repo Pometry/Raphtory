@@ -6,7 +6,7 @@ use pyo3::{IntoPy, PyObject};
 use std::{marker::PhantomData, sync::Arc};
 
 pub struct Iterable<I: Send, PyI: IntoPy<PyObject> + From<I> + Repr> {
-    pub name: String,
+    pub name: &'static str,
     pub builder: Arc<dyn Fn() -> BoxedIter<I> + Send + Sync + 'static>,
     pytype: PhantomData<PyI>,
 }
@@ -19,7 +19,7 @@ impl<I: Send + 'static, PyI: IntoPy<PyObject> + From<I> + Repr> Iterable<I, PyI>
         Box::new(self.iter().map(|i| i.into()))
     }
     pub fn new<F: Fn() -> It + Send + Sync + 'static, It: Iterator + Send + 'static>(
-        name: String,
+        name: &'static str,
         builder: F,
     ) -> Self
     where
@@ -60,7 +60,7 @@ impl<I: Send + 'static, PyI: IntoPy<PyObject> + From<I> + Repr> Repr for Iterabl
 }
 
 pub struct NestedIterable<I: Send, PyI: IntoPy<PyObject> + From<I> + Repr> {
-    pub name: String,
+    pub name: &'static str,
     pub builder: Arc<dyn Fn() -> BoxedIter<BoxedIter<I>> + Send + Sync + 'static>,
     pytype: PhantomData<PyI>,
 }
@@ -70,7 +70,7 @@ impl<I: Send, PyI: IntoPy<PyObject> + From<I> + Repr> NestedIterable<I, PyI> {
         (self.builder)()
     }
     pub fn new<F: Fn() -> It + Send + Sync + 'static, It: Iterator + Send + 'static>(
-        name: String,
+        name: &'static str,
         builder: F,
     ) -> Self
     where

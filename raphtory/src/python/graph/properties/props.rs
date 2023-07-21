@@ -4,18 +4,61 @@ use crate::db::api::properties::Properties;
 use crate::db::api::view::internal::{DynamicGraph, Static};
 use crate::python::graph::properties::{
     DynProps, DynStaticProperties, DynTemporalProperties, NestedStaticPropsIterable,
-    NestedTemporalPropsIterable, StaticPropsIterable, TemporalPropsIterable,
+    NestedTemporalPropsIterable, PyStaticProperties, StaticPropsIterable, TemporalPropsIterable,
 };
 use crate::python::types::repr::{iterator_dict_repr, Repr};
 use crate::python::types::wrappers::prop::PropValue;
 use crate::python::utils::PyGenericIterator;
 use itertools::Itertools;
-use pyo3::exceptions::PyKeyError;
+use pyo3::basic::CompareOp;
+use pyo3::exceptions::{PyKeyError, PyTypeError};
 use pyo3::prelude::*;
 use std::collections::HashMap;
+use std::ops::Deref;
 use std::sync::Arc;
 
 pub type DynProperties = Properties<Arc<dyn PropertiesOps + Send + Sync>>;
+
+#[derive(PartialEq, Clone)]
+pub struct PropsComparable(HashMap<String, Prop>);
+
+impl<'source> FromPyObject<'source> for PropsComparable {
+    fn extract(ob: &'source PyAny) -> PyResult<Self> {
+        if let Ok(sp) = ob.extract::<PyRef<PyStaticProperties>>() {
+            Ok(sp.deref().into())
+        } else if let Ok(p) = ob.extract::<PyRef<PyProperties>>() {
+            Ok(p.deref().into())
+        } else if let Ok(m) = ob.extract::<HashMap<String, Prop>>() {
+            Ok(PropsComparable(m))
+        } else {
+            Err(PyTypeError::new_err("not comparable with properties"))
+        }
+    }
+}
+
+impl From<&PyStaticProperties> for PropsComparable {
+    fn from(value: &PyStaticProperties) -> Self {
+        Self(value.as_dict())
+    }
+}
+
+impl From<&PyProperties> for PropsComparable {
+    fn from(value: &PyProperties) -> Self {
+        Self(value.as_dict())
+    }
+}
+
+impl From<DynStaticProperties> for PropsComparable {
+    fn from(value: DynStaticProperties) -> Self {
+        Self(value.as_map())
+    }
+}
+
+impl From<DynProperties> for PropsComparable {
+    fn from(value: DynProperties) -> Self {
+        Self(value.as_map())
+    }
+}
 
 #[pyclass(name = "Properties")]
 pub struct PyProperties {
@@ -85,6 +128,17 @@ impl PyProperties {
     pub fn as_dict(&self) -> HashMap<String, Prop> {
         self.props.as_map()
     }
+
+    pub fn __richcmp__(&self, other: PropsComparable, op: CompareOp) -> PyResult<bool> {
+        match op {
+            CompareOp::Lt => Err(PyTypeError::new_err("not ordered")),
+            CompareOp::Le => Err(PyTypeError::new_err("not ordered")),
+            CompareOp::Eq => Ok(PropsComparable::from(self) == other),
+            CompareOp::Ne => Ok(PropsComparable::from(self) != other),
+            CompareOp::Gt => Err(PyTypeError::new_err("not ordered")),
+            CompareOp::Ge => Err(PyTypeError::new_err("not ordered")),
+        }
+    }
 }
 
 impl<P: PropertiesOps + Clone + Send + Sync + Static + 'static> From<Properties<P>>
@@ -141,6 +195,7 @@ impl Repr for PyProperties {
 }
 
 py_iterable!(PropsIterable, DynProperties, PyProperties);
+py_iterable_comp!(PropsIterable, PropsComparable, PropsIterableComparable);
 
 #[pymethods]
 impl PropsIterable {
@@ -233,6 +288,11 @@ impl PropsIterable {
 }
 
 py_nested_iterable!(NestedPropsIterable, DynProperties, PyProperties);
+py_iterable_comp!(
+    NestedPropsIterable,
+    PropsIterableComparable,
+    NestedPropsIterableComparable
+);
 
 #[pymethods]
 impl NestedPropsIterable {

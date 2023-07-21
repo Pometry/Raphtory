@@ -19,7 +19,7 @@ macro_rules! _py_nested_iterable_base {
         {
             fn from(value: F) -> Self {
                 Self($crate::python::types::iterable::NestedIterable::new(
-                    stringify!($name).to_string(),
+                    stringify!($name),
                     value,
                 ))
             }
