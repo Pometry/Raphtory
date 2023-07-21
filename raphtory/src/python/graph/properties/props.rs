@@ -6,7 +6,7 @@ use crate::python::graph::properties::{
     DynProps, DynStaticProperties, DynTemporalProperties, NestedStaticPropsIterable,
     NestedTemporalPropsIterable, PyStaticProperties, StaticPropsIterable, TemporalPropsIterable,
 };
-use crate::python::types::iterable::Iterable;
+use crate::python::types::iterable::{Iterable, NestedIterable};
 use crate::python::types::repr::{iterator_dict_repr, Repr};
 use crate::python::types::wrappers::prop::PropValue;
 use crate::python::utils::PyGenericIterator;
@@ -196,19 +196,43 @@ impl Repr for PyProperties {
 }
 
 #[derive(PartialEq, Clone)]
-pub struct PyPropsIterableComparable(HashMap<String, Vec<Option<Prop>>>);
+pub struct PyPropsIterableComparable(HashMap<String, OptionPropIterCmp>);
 
 impl<'source> FromPyObject<'source> for PyPropsIterableComparable {
     fn extract(ob: &'source PyAny) -> PyResult<Self> {
         if let Ok(sp) = ob.extract::<PyRef<StaticPropsIterable>>() {
-            Ok(Self(sp.deref().as_dict()))
+            Ok(sp.deref().into())
         } else if let Ok(p) = ob.extract::<PyRef<PyPropsIterable>>() {
-            Ok(Self(p.deref().as_dict()))
-        } else if let Ok(m) = ob.extract::<HashMap<String, Vec<Option<Prop>>>>() {
+            Ok(p.deref().into())
+        } else if let Ok(m) = ob.extract::<HashMap<String, OptionPropIterCmp>>() {
             Ok(Self(m))
         } else {
             Err(PyTypeError::new_err("not comparable with properties"))
         }
+    }
+}
+
+impl From<&StaticPropsIterable> for PyPropsIterableComparable {
+    fn from(value: &StaticPropsIterable) -> Self {
+        Self(
+            value
+                .items()
+                .into_iter()
+                .map(|(k, v)| (k, v.into()))
+                .collect(),
+        )
+    }
+}
+
+impl From<&PyPropsIterable> for PyPropsIterableComparable {
+    fn from(value: &PyPropsIterable) -> Self {
+        Self(
+            value
+                .items()
+                .into_iter()
+                .map(|(k, v)| (k, v.into()))
+                .collect(),
+        )
     }
 }
 
@@ -232,9 +256,6 @@ where
         Self(Iterable::new("PropsIterable", value))
     }
 }
-
-// py_iterable!(PropsIterable, DynProperties, PyProperties);
-// py_iterable_comp!(PropsIterable, PropsComparable, PropsIterableComparable);
 
 #[pymethods]
 impl PyPropsIterable {
@@ -333,8 +354,8 @@ impl PyPropsIterable {
         match op {
             CompareOp::Lt => Err(PyTypeError::new_err("not ordered")),
             CompareOp::Le => Err(PyTypeError::new_err("not ordered")),
-            CompareOp::Eq => Ok(PyPropsIterableComparable(self.as_dict()) == other),
-            CompareOp::Ne => Ok(PyPropsIterableComparable(self.as_dict()) != other),
+            CompareOp::Eq => Ok(PyPropsIterableComparable::from(self) == other),
+            CompareOp::Ne => Ok(PyPropsIterableComparable::from(self) != other),
             CompareOp::Gt => Err(PyTypeError::new_err("not ordered")),
             CompareOp::Ge => Err(PyTypeError::new_err("not ordered")),
         }
@@ -348,15 +369,47 @@ impl PyPropsIterable {
     }
 }
 
-py_nested_iterable!(NestedPropsIterable, DynProperties, PyProperties);
-// py_iterable_comp!(
-//     NestedPropsIterable,
-//     PropsIterableComparable,
-//     NestedPropsIterableComparable
-// );
+#[pyclass(name = "NestedPropertiesIterable")]
+pub struct PyNestedPropsIterable(NestedIterable<DynProperties, PyProperties>);
+
+impl Deref for PyNestedPropsIterable {
+    type Target = NestedIterable<DynProperties, PyProperties>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<F: Fn() -> It + Send + Sync + 'static, It: Iterator + Send + 'static> From<F>
+    for PyNestedPropsIterable
+where
+    It::Item: Iterator + Send,
+    <It::Item as Iterator>::Item: Into<DynProperties> + Send,
+{
+    fn from(value: F) -> Self {
+        Self(NestedIterable::new("NestedPropsIterable", value))
+    }
+}
+
+#[derive(PartialEq, Clone)]
+pub struct PyNestedPropsIterableComparable(HashMap<String, Vec<Vec<Option<Prop>>>>);
+
+impl<'source> FromPyObject<'source> for PyNestedPropsIterableComparable {
+    fn extract(ob: &'source PyAny) -> PyResult<Self> {
+        if let Ok(sp) = ob.extract::<PyRef<NestedStaticPropsIterable>>() {
+            Ok(Self(sp.deref().as_dict()))
+        } else if let Ok(p) = ob.extract::<PyRef<PyNestedPropsIterable>>() {
+            Ok(Self(p.deref().as_dict()))
+        } else if let Ok(m) = ob.extract::<HashMap<String, Vec<Vec<Option<Prop>>>>>() {
+            Ok(Self(m))
+        } else {
+            Err(PyTypeError::new_err("not comparable with properties"))
+        }
+    }
+}
 
 #[pymethods]
-impl NestedPropsIterable {
+impl PyNestedPropsIterable {
     /// Get property value.
     ///
     /// First searches temporal properties and returns latest value if it exists.
@@ -393,6 +446,10 @@ impl NestedPropsIterable {
             .kmerge()
             .dedup()
             .collect()
+    }
+
+    pub fn __iter(&self) -> PyGenericIterator {
+        self.keys().into_iter().into()
     }
 
     /// Get the values of the properties
@@ -432,13 +489,27 @@ impl NestedPropsIterable {
             .map(|(k, v)| (k, v.collect()))
             .collect()
     }
+
+    pub fn __richcmp__(
+        &self,
+        other: PyNestedPropsIterableComparable,
+        op: CompareOp,
+    ) -> PyResult<bool> {
+        match op {
+            CompareOp::Lt => Err(PyTypeError::new_err("not ordered")),
+            CompareOp::Le => Err(PyTypeError::new_err("not ordered")),
+            CompareOp::Eq => Ok(PyNestedPropsIterableComparable(self.as_dict()) == other),
+            CompareOp::Ne => Ok(PyNestedPropsIterableComparable(self.as_dict()) != other),
+            CompareOp::Gt => Err(PyTypeError::new_err("not ordered")),
+            CompareOp::Ge => Err(PyTypeError::new_err("not ordered")),
+        }
+    }
 }
 
 py_iterable!(OptionPropIterable, PropValue, PropValue);
 py_iterable_comp!(OptionPropIterable, PropValue, OptionPropIterCmp);
 
 py_nested_iterable!(NestedOptionPropIterable, PropValue, PropValue);
-
 py_iterable_comp!(
     NestedOptionPropIterable,
     OptionPropIterCmp,

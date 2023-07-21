@@ -26,7 +26,7 @@ use chrono::NaiveDateTime;
 
 use crate::core::Prop;
 use crate::db::api::properties::Properties;
-use crate::python::graph::properties::{NestedPropsIterable, PyPropsIterable};
+use crate::python::graph::properties::{PyNestedPropsIterable, PyPropsIterable};
 use pyo3::exceptions::PyKeyError;
 use pyo3::{
     exceptions::PyIndexError, prelude::*, pyclass, pyclass::CompareOp, pymethods, PyAny, PyObject,
@@ -730,7 +730,7 @@ impl PyPathFromGraph {
     }
 
     #[getter]
-    fn properties(&self) -> NestedPropsIterable {
+    fn properties(&self) -> PyNestedPropsIterable {
         let path = self.path.clone();
         (move || path.properties()).into()
     }
@@ -1217,7 +1217,7 @@ impl PyNestedVertexIterable {
     }
 
     #[getter]
-    fn properties(&self) -> NestedPropsIterable {
+    fn properties(&self) -> PyNestedPropsIterable {
         let vertices = self.builder.clone();
         (move || vertices().properties()).into()
     }

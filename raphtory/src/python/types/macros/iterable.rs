@@ -218,6 +218,13 @@ macro_rules! py_iterable_comp {
             }
         }
 
+        impl From<$name> for $cmp_internal {
+            fn from(value: $name) -> Self {
+                let py_value = Python::with_gil(|py| Py::new(py, value)).unwrap();
+                Self::This(py_value)
+            }
+        }
+
         impl $cmp_internal {
             fn iter_py<'py>(
                 &'py self,

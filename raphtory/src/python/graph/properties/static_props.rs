@@ -109,25 +109,25 @@ py_iterable_comp!(
 
 #[pymethods]
 impl StaticPropsIterable {
-    fn keys(&self) -> Vec<String> {
+    pub fn keys(&self) -> Vec<String> {
         self.iter().map(|p| p.keys()).kmerge().dedup().collect()
     }
 
-    fn values(&self) -> Vec<OptionPropIterable> {
+    pub fn values(&self) -> Vec<OptionPropIterable> {
         self.keys()
             .into_iter()
             .map(|k| self.get(k).expect("key exists"))
             .collect()
     }
-    fn items(&self) -> Vec<(String, OptionPropIterable)> {
+    pub fn items(&self) -> Vec<(String, OptionPropIterable)> {
         self.keys().into_iter().zip(self.values()).collect()
     }
 
-    fn __getitem__(&self, key: String) -> PyResult<OptionPropIterable> {
+    pub fn __getitem__(&self, key: String) -> PyResult<OptionPropIterable> {
         self.get(key).ok_or(PyKeyError::new_err("No such property"))
     }
 
-    fn get(&self, key: String) -> Option<OptionPropIterable> {
+    pub fn get(&self, key: String) -> Option<OptionPropIterable> {
         self.__contains__(&key).then(|| {
             let builder = self.builder.clone();
             let key = Arc::new(key);
@@ -139,12 +139,15 @@ impl StaticPropsIterable {
         })
     }
 
-    fn __contains__(&self, key: &str) -> bool {
+    pub fn __contains__(&self, key: &str) -> bool {
         self.iter().any(|p| p.contains(key))
     }
-    
+
     pub fn as_dict(&self) -> HashMap<String, Vec<Option<Prop>>> {
-        self.items().into_iter().map(|(k, v)| (k, v.collect())).collect()
+        self.items()
+            .into_iter()
+            .map(|(k, v)| (k, v.collect()))
+            .collect()
     }
 }
 
@@ -201,5 +204,12 @@ impl NestedStaticPropsIterable {
 
     fn __contains__(&self, key: &str) -> bool {
         self.iter().any(|mut it| it.any(|p| p.contains(key)))
+    }
+
+    pub fn as_dict(&self) -> HashMap<String, Vec<Vec<Option<Prop>>>> {
+        self.items()
+            .into_iter()
+            .map(|(k, v)| (k, v.collect()))
+            .collect()
     }
 }
