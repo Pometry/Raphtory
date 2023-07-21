@@ -138,15 +138,15 @@ impl<G: GraphViewOps> GraphOps for VertexSubgraph<G> {
         &self,
         v: VID,
         d: Direction,
-        layer: LayerIds,
+        layers: LayerIds,
     ) -> Box<dyn Iterator<Item = VertexRef> + Send> {
         match d {
             Direction::BOTH => Box::new(
-                self.neighbours(v, Direction::IN, layer)
-                    .merge(self.neighbours(v, Direction::OUT, layer))
+                self.neighbours(v, Direction::IN, layers.clone())
+                    .merge(self.neighbours(v, Direction::OUT, layers))
                     .dedup(),
             ),
-            _ => Box::new(self.vertex_edges(v, d, layer).map(|e| e.remote())),
+            _ => Box::new(self.vertex_edges(v, d, layers).map(|e| e.remote())),
         }
     }
 
