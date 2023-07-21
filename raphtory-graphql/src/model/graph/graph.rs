@@ -115,7 +115,14 @@ impl GqlGraph {
             .collect()
     }
 
-    async fn fuzzy_search_vertices(&self, query: String, limit: usize, offset: usize,prefix:bool,levenshtein_distance:u8) -> Vec<Node> {
+    async fn fuzzy_search_vertices(
+        &self,
+        query: String,
+        limit: usize,
+        offset: usize,
+        prefix: bool,
+        levenshtein_distance: u8,
+    ) -> Vec<Node> {
         self.graph
             .fuzzy_search_vertices(&query, limit, offset, prefix, levenshtein_distance)
             .into_iter()
@@ -124,7 +131,14 @@ impl GqlGraph {
             .collect()
     }
 
-    async fn fuzzy_search_edges(&self, query: String, limit: usize, offset: usize,prefix:bool,levenshtein_distance:u8) -> Vec<Edge> {
+    async fn fuzzy_search_edges(
+        &self,
+        query: String,
+        limit: usize,
+        offset: usize,
+        prefix: bool,
+        levenshtein_distance: u8,
+    ) -> Vec<Edge> {
         self.graph
             .fuzzy_search_edges(&query, limit, offset, prefix, levenshtein_distance)
             .into_iter()
