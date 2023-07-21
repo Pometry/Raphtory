@@ -16,7 +16,14 @@ use crate::{
     },
     prelude::*,
 };
-use std::collections::HashMap;
+use std::{
+    cmp::{
+        Ordering,
+        Ordering::{Equal, Greater, Less},
+    },
+    collections::HashMap,
+    hash::{Hash, Hasher},
+};
 
 #[derive(Debug, Clone)]
 pub struct VertexView<G: GraphViewOps> {
@@ -27,6 +34,48 @@ pub struct VertexView<G: GraphViewOps> {
 impl<G: GraphViewOps> From<VertexView<G>> for VertexRef {
     fn from(value: VertexView<G>) -> Self {
         VertexRef::Local(value.vertex)
+    }
+}
+
+impl<G: GraphViewOps> Hash for VertexView<G> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.id().hash(state)
+    }
+}
+
+impl<G: GraphViewOps> PartialEq<Self> for VertexView<G> {
+    fn eq(&self, other: &Self) -> bool {
+        self.id() == other.id()
+    }
+}
+
+impl<G: GraphViewOps> Eq for VertexView<G> {}
+
+impl<G: GraphViewOps> PartialOrd for VertexView<G> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.id().cmp(&other.id()))
+    }
+
+    fn lt(&self, other: &Self) -> bool {
+        self.id() < other.id()
+    }
+
+    fn le(&self, other: &Self) -> bool {
+        self.id() <= other.id()
+    }
+
+    fn gt(&self, other: &Self) -> bool {
+        self.id() > other.id()
+    }
+
+    fn ge(&self, other: &Self) -> bool {
+        self.id() >= other.id()
+    }
+}
+
+impl<G: GraphViewOps> Ord for VertexView<G> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.id().cmp(&other.id())
     }
 }
 

@@ -1,6 +1,6 @@
 use crate::core::entities::{vertices::input_vertex::InputVertex, VID};
 
-#[derive(Copy, Clone, PartialOrd, PartialEq, Debug)]
+#[derive(Copy, Clone, PartialOrd, PartialEq, Debug, Hash)]
 pub enum VertexRef {
     Local(VID),
     Remote(u64),

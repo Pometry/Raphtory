@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use crate::{
     algorithms::{
         algorithm_result::AlgorithmResult,
-        connected_components,
+        connected_components::weakly_connected_components as weakly_connected_components_rs,
         degree::{
             average_degree as average_degree_rs, max_in_degree as max_in_degree_rs,
             max_out_degree as max_out_degree_rs, min_in_degree as min_in_degree_rs,
@@ -29,6 +29,7 @@ use crate::{
         temporal_reachability::temporally_reachable_nodes as temporal_reachability_rs,
     },
     core::entities::vertices::vertex_ref::VertexRef,
+    db::{api::view::internal::DynamicGraph, graph::vertex::VertexView},
     python::{graph::views::graph_view::PyGraphView, utils::PyInputVertex},
 };
 use pyo3::prelude::*;
@@ -65,8 +66,8 @@ pub fn local_triangle_count(g: &PyGraphView, v: VertexRef) -> Option<usize> {
 pub fn weakly_connected_components(
     g: &PyGraphView,
     iter_count: usize,
-) -> AlgorithmResult<String, u64> {
-    connected_components::weakly_connected_components(&g.graph, iter_count, None)
+) -> AlgorithmResult<VertexView<DynamicGraph>, u64> {
+    weakly_connected_components_rs(&g.graph, iter_count, None)
 }
 
 /// Pagerank -- pagerank centrality value of the vertices in a graph

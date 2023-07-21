@@ -190,7 +190,7 @@ where
     // }
 }
 
-impl<V: Debug + Clone, K: Debug + Clone + Hash + Eq + Ord> Debug for AlgorithmResult<K, V> {
+impl<V: Debug + Clone, K: Debug + Clone + Hash + Ord + Eq> Debug for AlgorithmResult<K, V> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut map_string = "{".to_string();
         for (key, value) in &self.result {
