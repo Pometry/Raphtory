@@ -4,7 +4,7 @@ use crate::db::api::properties::Properties;
 use crate::db::api::view::internal::{DynamicGraph, Static};
 use crate::python::graph::properties::{
     DynProps, DynStaticProperties, DynTemporalProperties, NestedStaticPropsIterable,
-    NestedTemporalPropsIterable, PyStaticProperties, StaticPropsIterable, TemporalPropsIterable,
+    NestedTemporalPropsIterable, PyStaticProperties, PyStaticPropsIterable, TemporalPropsIterable,
 };
 use crate::python::types::iterable::{Iterable, NestedIterable};
 use crate::python::types::repr::{iterator_dict_repr, Repr};
@@ -200,7 +200,7 @@ pub struct PyPropsIterableComparable(HashMap<String, OptionPropIterCmp>);
 
 impl<'source> FromPyObject<'source> for PyPropsIterableComparable {
     fn extract(ob: &'source PyAny) -> PyResult<Self> {
-        if let Ok(sp) = ob.extract::<PyRef<StaticPropsIterable>>() {
+        if let Ok(sp) = ob.extract::<PyRef<PyStaticPropsIterable>>() {
             Ok(sp.deref().into())
         } else if let Ok(p) = ob.extract::<PyRef<PyPropsIterable>>() {
             Ok(p.deref().into())
@@ -212,8 +212,8 @@ impl<'source> FromPyObject<'source> for PyPropsIterableComparable {
     }
 }
 
-impl From<&StaticPropsIterable> for PyPropsIterableComparable {
-    fn from(value: &StaticPropsIterable) -> Self {
+impl From<&PyStaticPropsIterable> for PyPropsIterableComparable {
+    fn from(value: &PyStaticPropsIterable) -> Self {
         Self(
             value
                 .items()
@@ -337,7 +337,7 @@ impl PyPropsIterable {
 
     /// Get a view of the static properties (meta-data) only.
     #[getter]
-    pub fn meta(&self) -> StaticPropsIterable {
+    pub fn meta(&self) -> PyStaticPropsIterable {
         let builder = self.builder.clone();
         (move || builder().map(|p| p.meta())).into()
     }
@@ -392,19 +392,43 @@ where
 }
 
 #[derive(PartialEq, Clone)]
-pub struct PyNestedPropsIterableComparable(HashMap<String, Vec<Vec<Option<Prop>>>>);
+pub struct PyNestedPropsIterableComparable(HashMap<String, NestedOptionPropIterCmp>);
 
 impl<'source> FromPyObject<'source> for PyNestedPropsIterableComparable {
     fn extract(ob: &'source PyAny) -> PyResult<Self> {
         if let Ok(sp) = ob.extract::<PyRef<NestedStaticPropsIterable>>() {
-            Ok(Self(sp.deref().as_dict()))
+            Ok(sp.deref().into())
         } else if let Ok(p) = ob.extract::<PyRef<PyNestedPropsIterable>>() {
-            Ok(Self(p.deref().as_dict()))
-        } else if let Ok(m) = ob.extract::<HashMap<String, Vec<Vec<Option<Prop>>>>>() {
+            Ok(p.deref().into())
+        } else if let Ok(m) = ob.extract::<HashMap<String, NestedOptionPropIterCmp>>() {
             Ok(Self(m))
         } else {
             Err(PyTypeError::new_err("not comparable with properties"))
         }
+    }
+}
+
+impl From<&NestedStaticPropsIterable> for PyNestedPropsIterableComparable {
+    fn from(value: &NestedStaticPropsIterable) -> Self {
+        Self(
+            value
+                .items()
+                .into_iter()
+                .map(|(k, v)| (k, v.into()))
+                .collect(),
+        )
+    }
+}
+
+impl From<&PyNestedPropsIterable> for PyNestedPropsIterableComparable {
+    fn from(value: &PyNestedPropsIterable) -> Self {
+        Self(
+            value
+                .items()
+                .into_iter()
+                .map(|(k, v)| (k, v.into()))
+                .collect(),
+        )
     }
 }
 
@@ -498,8 +522,8 @@ impl PyNestedPropsIterable {
         match op {
             CompareOp::Lt => Err(PyTypeError::new_err("not ordered")),
             CompareOp::Le => Err(PyTypeError::new_err("not ordered")),
-            CompareOp::Eq => Ok(PyNestedPropsIterableComparable(self.as_dict()) == other),
-            CompareOp::Ne => Ok(PyNestedPropsIterableComparable(self.as_dict()) != other),
+            CompareOp::Eq => Ok(PyNestedPropsIterableComparable::from(self) == other),
+            CompareOp::Ne => Ok(PyNestedPropsIterableComparable::from(self) != other),
             CompareOp::Gt => Err(PyTypeError::new_err("not ordered")),
             CompareOp::Ge => Err(PyTypeError::new_err("not ordered")),
         }

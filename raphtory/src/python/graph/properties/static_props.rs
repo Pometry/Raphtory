@@ -3,7 +3,11 @@ use crate::db::api::properties::internal::PropertiesOps;
 use crate::db::api::properties::StaticProperties;
 use crate::db::api::view::internal::Static;
 use crate::python::graph::properties::props::PropsComparable;
-use crate::python::graph::properties::{DynProps, NestedOptionPropIterable, OptionPropIterable};
+use crate::python::graph::properties::{
+    DynProps, NestedOptionPropIterable, OptionPropIterable, PyNestedPropsIterableComparable,
+    PyPropsIterableComparable,
+};
+use crate::python::types::iterable::{Iterable, NestedIterable};
 use crate::python::types::repr::Repr;
 use crate::python::utils::PyGenericIterator;
 use itertools::Itertools;
@@ -11,6 +15,7 @@ use pyo3::exceptions::{PyKeyError, PyTypeError};
 use pyo3::prelude::*;
 use pyo3::pyclass::CompareOp;
 use std::collections::HashMap;
+use std::ops::Deref;
 use std::sync::Arc;
 
 pub type DynStaticProperties = StaticProperties<DynProps>;
@@ -99,16 +104,37 @@ impl Repr for PyStaticProperties {
     }
 }
 
-py_iterable!(StaticPropsIterable, DynStaticProperties, PyStaticProperties);
+#[pyclass(name = "StaticPropertiesIterable")]
+pub struct PyStaticPropsIterable(Iterable<DynStaticProperties, PyStaticProperties>);
 
-py_iterable_comp!(
-    StaticPropsIterable,
-    PropsComparable,
-    StaticPropsIterComparable
-);
+impl Deref for PyStaticPropsIterable {
+    type Target = Iterable<DynStaticProperties, PyStaticProperties>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<F: Fn() -> It + Send + Sync + 'static, It: Iterator + Send + 'static> From<F>
+    for PyStaticPropsIterable
+where
+    It::Item: Into<DynStaticProperties>,
+{
+    fn from(value: F) -> Self {
+        Self(Iterable::new("StaticPropsIterable", value))
+    }
+}
+
+// py_iterable!(StaticPropsIterable, DynStaticProperties, PyStaticProperties);
+
+// py_iterable_comp!(
+//     StaticPropsIterable,
+//     PropsComparable,
+//     StaticPropsIterComparable
+// );
 
 #[pymethods]
-impl StaticPropsIterable {
+impl PyStaticPropsIterable {
     pub fn keys(&self) -> Vec<String> {
         self.iter().map(|p| p.keys()).kmerge().dedup().collect()
     }
@@ -143,6 +169,21 @@ impl StaticPropsIterable {
         self.iter().any(|p| p.contains(key))
     }
 
+    pub fn __iter__(&self) -> PyGenericIterator {
+        self.keys().into_iter().into()
+    }
+
+    pub fn __richcmp__(&self, other: PyPropsIterableComparable, op: CompareOp) -> PyResult<bool> {
+        match op {
+            CompareOp::Lt => Err(PyTypeError::new_err("not ordered")),
+            CompareOp::Le => Err(PyTypeError::new_err("not ordered")),
+            CompareOp::Eq => Ok(PyPropsIterableComparable::from(self) == other),
+            CompareOp::Ne => Ok(PyPropsIterableComparable::from(self) != other),
+            CompareOp::Gt => Err(PyTypeError::new_err("not ordered")),
+            CompareOp::Ge => Err(PyTypeError::new_err("not ordered")),
+        }
+    }
+
     pub fn as_dict(&self) -> HashMap<String, Vec<Option<Prop>>> {
         self.items()
             .into_iter()
@@ -151,21 +192,31 @@ impl StaticPropsIterable {
     }
 }
 
-py_nested_iterable!(
-    NestedStaticPropsIterable,
-    DynStaticProperties,
-    PyStaticProperties
-);
+#[pyclass(name = "NestedStaticPropertiesIterable")]
+pub struct NestedStaticPropsIterable(NestedIterable<DynStaticProperties, PyStaticProperties>);
 
-py_iterable_comp!(
-    NestedStaticPropsIterable,
-    StaticPropsIterComparable,
-    NestedStaticPropsIterComparable
-);
+impl Deref for NestedStaticPropsIterable {
+    type Target = NestedIterable<DynStaticProperties, PyStaticProperties>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<F: Fn() -> It + Send + Sync + 'static, It: Iterator + Send + 'static> From<F>
+    for NestedStaticPropsIterable
+where
+    It::Item: Iterator + Send,
+    <It::Item as Iterator>::Item: Into<DynStaticProperties> + Send,
+{
+    fn from(value: F) -> Self {
+        Self(NestedIterable::new("NestedPropsIterable", value))
+    }
+}
 
 #[pymethods]
 impl NestedStaticPropsIterable {
-    fn keys(&self) -> Vec<String> {
+    pub fn keys(&self) -> Vec<String> {
         self.iter()
             .flat_map(|it| it.map(|p| p.keys()))
             .kmerge()
@@ -173,21 +224,25 @@ impl NestedStaticPropsIterable {
             .collect()
     }
 
-    fn values(&self) -> Vec<NestedOptionPropIterable> {
+    pub fn values(&self) -> Vec<NestedOptionPropIterable> {
         self.keys()
             .into_iter()
             .map(|k| self.get(k).expect("key exists"))
             .collect()
     }
-    fn items(&self) -> Vec<(String, NestedOptionPropIterable)> {
+    pub fn items(&self) -> Vec<(String, NestedOptionPropIterable)> {
         self.keys().into_iter().zip(self.values()).collect()
     }
 
-    fn __getitem__(&self, key: String) -> PyResult<NestedOptionPropIterable> {
+    pub fn __getitem__(&self, key: String) -> PyResult<NestedOptionPropIterable> {
         self.get(key).ok_or(PyKeyError::new_err("No such property"))
     }
 
-    fn get(&self, key: String) -> Option<NestedOptionPropIterable> {
+    pub fn __iter__(&self) -> PyGenericIterator {
+        self.keys().into_iter().into()
+    }
+
+    pub fn get(&self, key: String) -> Option<NestedOptionPropIterable> {
         self.__contains__(&key).then(|| {
             let builder = self.builder.clone();
             let key = Arc::new(key);
@@ -202,7 +257,7 @@ impl NestedStaticPropsIterable {
         })
     }
 
-    fn __contains__(&self, key: &str) -> bool {
+    pub fn __contains__(&self, key: &str) -> bool {
         self.iter().any(|mut it| it.any(|p| p.contains(key)))
     }
 
@@ -211,5 +266,20 @@ impl NestedStaticPropsIterable {
             .into_iter()
             .map(|(k, v)| (k, v.collect()))
             .collect()
+    }
+
+    pub fn __richcmp__(
+        &self,
+        other: PyNestedPropsIterableComparable,
+        op: CompareOp,
+    ) -> PyResult<bool> {
+        match op {
+            CompareOp::Lt => Err(PyTypeError::new_err("not ordered")),
+            CompareOp::Le => Err(PyTypeError::new_err("not ordered")),
+            CompareOp::Eq => Ok(PyNestedPropsIterableComparable::from(self) == other),
+            CompareOp::Ne => Ok(PyNestedPropsIterableComparable::from(self) != other),
+            CompareOp::Gt => Err(PyTypeError::new_err("not ordered")),
+            CompareOp::Ge => Err(PyTypeError::new_err("not ordered")),
+        }
     }
 }
