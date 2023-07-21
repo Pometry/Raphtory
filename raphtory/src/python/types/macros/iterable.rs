@@ -180,8 +180,21 @@ macro_rules! py_float_iterable {
     };
 }
 
+/// Add equality support to iterable
+///
+///
+/// # Arguments
+///
+/// * `name` - The identifier for the iterable struct
+/// * `cmp_item` - Struct to use for comparisons, needs to support `cmp_item: From<item>`
+///                and `cmp_item: PartialEq` and FromPyObject for all the python types we
+///                want to compare with
+/// * `cmp_internal` - Name for the internal Enum that is created by the macro to implement
+///                    the conversion from python (only needed because we can't create our own
+///                    unique identifier without a proc macro)
 macro_rules! py_iterable_comp {
-    ($name:ident, $item:ty, $cmp_item:ty, $cmp_internal:ident) => {
+    ($name:ty, $cmp_item:ty, $cmp_internal:ident) => {
+        #[derive(Clone)]
         enum $cmp_internal {
             Vec(Vec<$cmp_item>),
             This(Py<$name>),
@@ -194,8 +207,32 @@ macro_rules! py_iterable_comp {
                 } else if let Ok(v) = ob.extract::<Vec<$cmp_item>>() {
                     Ok($cmp_internal::Vec(v))
                 } else {
-                    Err(PyTypeError::new_err("cannot compare"))
+                    Err(pyo3::exceptions::PyTypeError::new_err("cannot compare"))
                 }
+            }
+        }
+
+        impl $cmp_internal {
+            fn iter_py<'py>(
+                &'py self,
+                py: Python<'py>,
+            ) -> Box<dyn Iterator<Item = $cmp_item> + 'py> {
+                match self {
+                    Self::Vec(v) => Box::new(v.iter().cloned()),
+                    Self::This(t) => Box::new(t.borrow(py).iter().map_into()),
+                }
+            }
+        }
+
+        impl PartialEq for $cmp_internal {
+            fn eq(&self, other: &Self) -> bool {
+                Python::with_gil(|py| self.iter_py(py).eq(other.iter_py(py)))
+            }
+        }
+
+        impl<I: Iterator<Item = J>, J: Into<$cmp_item>> From<I> for $cmp_internal {
+            fn from(value: I) -> Self {
+                Self::Vec(value.map_into().collect())
             }
         }
 
@@ -204,13 +241,108 @@ macro_rules! py_iterable_comp {
             fn __richcmp__(
                 &self,
                 other: $cmp_internal,
-                op: CompareOp,
+                op: pyo3::basic::CompareOp,
                 py: Python<'_>,
             ) -> PyResult<bool> {
                 match op {
-                    CompareOp::Lt => Err(PyNotImplementedError::new_err("not ordered")),
-                    CompareOp::Le => Err(PyNotImplementedError::new_err("cannot compare")),
-                    CompareOp::Eq => match other {
+                    pyo3::basic::CompareOp::Lt => {
+                        Err(pyo3::exceptions::PyTypeError::new_err("not ordered"))
+                    }
+                    pyo3::basic::CompareOp::Le => {
+                        Err(pyo3::exceptions::PyTypeError::new_err("not ordered"))
+                    }
+                    pyo3::basic::CompareOp::Eq => Ok(self
+                        .iter()
+                        .map(|t| <$cmp_item>::from(t))
+                        .eq(other.iter_py(py))),
+                    pyo3::basic::CompareOp::Ne => {
+                        Ok(!self.__richcmp__(other, pyo3::basic::CompareOp::Eq, py)?)
+                    }
+                    pyo3::basic::CompareOp::Gt => {
+                        Err(pyo3::exceptions::PyTypeError::new_err("not ordered"))
+                    }
+                    pyo3::basic::CompareOp::Ge => {
+                        Err(pyo3::exceptions::PyTypeError::new_err("not ordered"))
+                    }
+                }
+            }
+        }
+    };
+}
+
+/// Add equality support to a nested iterable
+///
+///
+/// # Arguments
+///
+/// * `name` - The identifier for the iterable struct
+/// * `item` - The type of `Item` for the wrapped iterator builder
+/// * `cmp_item` - Struct to use for comparisons, needs to support `cmp_item: From<item>`
+///                and `cmp_item: PartialEq` and FromPyObject for all the python types we
+///                want to compare with
+/// * `cmp_internal` - Name for the internal Enum that is created by the macro to implement
+///                    the conversion from python (only needed because we can't create our own
+///                    unique identifier without a proc macro)
+macro_rules! py_nested_iterable_comp {
+    ($name:ty, $item:ty, $cmp_item:ty, $nested_cmp:ty, $cmp_internal:ident) => {
+        enum $cmp_internal {
+            Vec(Vec<$nested_cmp_item>>),
+            This(Py<$name>),
+        }
+
+        impl<'source> FromPyObject<'source> for $cmp_internal {
+            fn extract(ob: &'source PyAny) -> PyResult<Self> {
+                if let Ok(s) = ob.extract::<Py<$name>>() {
+                    Ok($cmp_internal::This(s))
+                } else if let Ok(v) = ob.extract::<Vec<$cmp_item>>() {
+                    Ok($cmp_internal::Vec(v))
+                } else {
+                    Err(pyo3::exceptions::PyTypeError::new_err("cannot compare"))
+                }
+            }
+        }
+
+        impl PartialEq for $cmp_internal {
+            fn eq(&self, other: &Self) -> bool {
+                match self {
+                    $cmp_internal::Vec(v) => match other {
+                        $cmp_internal::Vec(vo) => v.iter().eq(vo.iter()),
+                        $cmp_internal::This(this) => Python::with_gil(|py| {
+                            this.borrow(py)
+                                .iter()
+                                .map(<$cmp_item>::from)
+                                .eq(v.iter().cloned())
+                        }),
+                    },
+                    $cmp_internal::This(this) => match other {
+                        $cmp_internal::Vec(_) => other == self,
+                        $cmp_internal::This(other) => Python::with_gil(|py| {
+                            this.borrow(py)
+                                .iter()
+                                .map(<$cmp_item>::from)
+                                .eq(other.borrow(py).iter().map(<$cmp_item>::from))
+                        }),
+                    },
+                }
+    }
+}
+
+        #[pymethods]
+        impl $name {
+            fn __richcmp__(
+                &self,
+                other: $cmp_internal,
+                op: pyo3::basic::CompareOp,
+                py: Python<'_>,
+            ) -> PyResult<bool> {
+                match op {
+                    pyo3::basic::CompareOp::Lt => {
+                        Err(pyo3::exceptions::PyTypeError::new_err("not ordered"))
+                    }
+                    pyo3::basic::CompareOp::Le => {
+                        Err(pyo3::exceptions::PyTypeError::new_err("not ordered"))
+                    }
+                    pyo3::basic::CompareOp::Eq => match other {
                         $cmp_internal::Vec(v) => {
                             Ok(self.iter().zip(v).all(|(t, o)| <$cmp_item>::from(t) == o))
                         }
@@ -219,11 +351,24 @@ macro_rules! py_iterable_comp {
                             .zip(o.borrow(py).iter())
                             .all(|(t, o)| <$cmp_item>::from(t) == <$cmp_item>::from(o))),
                     },
-                    CompareOp::Ne => Ok(!self.__richcmp__(other, CompareOp::Eq, py)?),
-                    CompareOp::Gt => Err(PyNotImplementedError::new_err("cannot compare")),
-                    CompareOp::Ge => Err(PyNotImplementedError::new_err("cannot compare")),
+                    pyo3::basic::CompareOp::Ne => {
+                        Ok(!self.__richcmp__(other, pyo3::basic::CompareOp::Eq, py)?)
+                    }
+                    pyo3::basic::CompareOp::Gt => {
+                        Err(pyo3::exceptions::PyTypeError::new_err("not ordered"))
+                    }
+                    pyo3::basic::CompareOp::Ge => {
+                        Err(pyo3::exceptions::PyTypeError::new_err("not ordered"))
+                    }
                 }
             }
         }
     };
+}
+
+mod test {
+    use pyo3::basic::CompareOp;
+    use pyo3::exceptions::PyTypeError;
+
+    fn imports() {}
 }

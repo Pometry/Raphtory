@@ -7,7 +7,7 @@ use crate::python::graph::properties::{
     NestedTemporalPropsIterable, StaticPropsIterable, TemporalPropsIterable,
 };
 use crate::python::types::repr::{iterator_dict_repr, Repr};
-use crate::python::types::wrappers::iterators::{NestedOptionPropIterable, OptionPropIterable};
+use crate::python::types::wrappers::prop::PropValue;
 use crate::python::utils::{PyGenericIterator, PyNestedGenericIterator};
 use itertools::Itertools;
 use pyo3::exceptions::PyKeyError;
@@ -326,3 +326,19 @@ impl NestedPropsIterable {
             .collect()
     }
 }
+
+py_iterable!(OptionPropIterable, PropValue, PropValue, PyGenericIterator);
+py_iterable_comp!(OptionPropIterable, PropValue, OptionPropIterCmp);
+
+py_nested_iterable!(
+    NestedOptionPropIterable,
+    PropValue,
+    PropValue,
+    PyNestedGenericIterator
+);
+
+py_iterable_comp!(
+    NestedOptionPropIterable,
+    OptionPropIterCmp,
+    NestedOptionPropIterCmp
+);

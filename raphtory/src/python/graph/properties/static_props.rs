@@ -2,9 +2,8 @@ use crate::core::Prop;
 use crate::db::api::properties::internal::PropertiesOps;
 use crate::db::api::properties::StaticProperties;
 use crate::db::api::view::internal::Static;
-use crate::python::graph::properties::DynProps;
+use crate::python::graph::properties::{DynProps, NestedOptionPropIterable, OptionPropIterable};
 use crate::python::types::repr::Repr;
-use crate::python::types::wrappers::iterators::{NestedOptionPropIterable, OptionPropIterable};
 use crate::python::utils::{PyGenericIterator, PyNestedGenericIterator};
 use itertools::Itertools;
 use pyo3::exceptions::{PyKeyError, PyNotImplementedError, PyTypeError};
@@ -26,7 +25,7 @@ impl<P: PropertiesOps + Send + Sync + Static + 'static> From<StaticProperties<P>
     }
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone)]
 pub struct StaticPropsComparable(HashMap<String, Prop>);
 
 impl<'source> FromPyObject<'source> for StaticPropsComparable {
@@ -132,7 +131,6 @@ py_iterable!(
 
 py_iterable_comp!(
     StaticPropsIterable,
-    DynStaticProperties,
     StaticPropsComparable,
     StaticPropsIterComparable
 );

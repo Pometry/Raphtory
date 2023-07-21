@@ -120,25 +120,6 @@ py_iterable!(StringVecIterable, Vec<String>, StringVecIter);
 py_iterator!(NestedStringVecIter, BoxedIter<Vec<String>>, StringVecIter);
 py_nested_iterable!(NestedStringVecIterable, Vec<String>, NestedStringVecIter);
 
-py_iterator!(OptionPropIter, Option<db_c::Prop>, PropValue);
-py_iterable!(
-    OptionPropIterable,
-    Option<db_c::Prop>,
-    PropValue,
-    OptionPropIter
-);
-py_iterator!(
-    NestedOptionPropIter,
-    BoxedIter<Option<db_c::Prop>>,
-    OptionPropIter
-);
-py_nested_iterable!(
-    NestedOptionPropIterable,
-    Option<db_c::Prop>,
-    PropValue,
-    NestedOptionPropIter
-);
-
 py_iterator!(PropHistoryIter, Vec<(i64, db_c::Prop)>, PropHistory);
 py_iterable!(
     PropHistoryIterable,
