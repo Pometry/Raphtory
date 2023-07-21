@@ -5,7 +5,7 @@
 //! edge as it existed at a particular point in time, or as it existed over a particular time range.
 //!
 use crate::db::api::properties::Properties;
-use crate::python::graph::properties::{NestedPropsIterable, PropsIterable};
+use crate::python::graph::properties::{NestedPropsIterable, PyPropsIterable};
 use crate::python::graph::vertex::PyNestedVertexIterable;
 use crate::python::types::wrappers::iterators::{NestedOptionI64Iterable, NestedU64U64Iterable};
 use crate::python::utils::PyGenericIterator;
@@ -425,7 +425,7 @@ impl PyEdges {
 
     // FIXME: needs a view that allows indexing into the properties
     /// Returns all properties of the edges
-    fn properties(&self) -> PropsIterable {
+    fn properties(&self) -> PyPropsIterable {
         let builder = self.builder.clone();
         (move || builder().properties()).into()
     }

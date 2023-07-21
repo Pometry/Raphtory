@@ -97,6 +97,12 @@ macro_rules! py_iterable {
         #[pyclass]
         pub struct $name($crate::python::types::iterable::Iterable<$item, $pyitem>);
 
+        impl Repr for $name {
+            fn repr(&self) -> String {
+                self.0.repr()
+            }
+        }
+
         impl std::ops::Deref for $name {
             type Target = $crate::python::types::iterable::Iterable<$item, $pyitem>;
 

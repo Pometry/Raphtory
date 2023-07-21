@@ -142,6 +142,10 @@ impl StaticPropsIterable {
     fn __contains__(&self, key: &str) -> bool {
         self.iter().any(|p| p.contains(key))
     }
+    
+    pub fn as_dict(&self) -> HashMap<String, Vec<Option<Prop>>> {
+        self.items().into_iter().map(|(k, v)| (k, v.collect())).collect()
+    }
 }
 
 py_nested_iterable!(

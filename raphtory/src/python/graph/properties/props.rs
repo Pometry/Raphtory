@@ -6,6 +6,7 @@ use crate::python::graph::properties::{
     DynProps, DynStaticProperties, DynTemporalProperties, NestedStaticPropsIterable,
     NestedTemporalPropsIterable, PyStaticProperties, StaticPropsIterable, TemporalPropsIterable,
 };
+use crate::python::types::iterable::Iterable;
 use crate::python::types::repr::{iterator_dict_repr, Repr};
 use crate::python::types::wrappers::prop::PropValue;
 use crate::python::utils::PyGenericIterator;
@@ -194,11 +195,49 @@ impl Repr for PyProperties {
     }
 }
 
-py_iterable!(PropsIterable, DynProperties, PyProperties);
-py_iterable_comp!(PropsIterable, PropsComparable, PropsIterableComparable);
+#[derive(PartialEq, Clone)]
+pub struct PyPropsIterableComparable(HashMap<String, Vec<Option<Prop>>>);
+
+impl<'source> FromPyObject<'source> for PyPropsIterableComparable {
+    fn extract(ob: &'source PyAny) -> PyResult<Self> {
+        if let Ok(sp) = ob.extract::<PyRef<StaticPropsIterable>>() {
+            Ok(Self(sp.deref().as_dict()))
+        } else if let Ok(p) = ob.extract::<PyRef<PyPropsIterable>>() {
+            Ok(Self(p.deref().as_dict()))
+        } else if let Ok(m) = ob.extract::<HashMap<String, Vec<Option<Prop>>>>() {
+            Ok(Self(m))
+        } else {
+            Err(PyTypeError::new_err("not comparable with properties"))
+        }
+    }
+}
+
+#[pyclass(name = "PropertiesIterable")]
+pub struct PyPropsIterable(Iterable<DynProperties, PyProperties>);
+
+impl Deref for PyPropsIterable {
+    type Target = Iterable<DynProperties, PyProperties>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<F: Fn() -> It + Send + Sync + 'static, It: Iterator + Send + 'static> From<F>
+    for PyPropsIterable
+where
+    It::Item: Into<DynProperties>,
+{
+    fn from(value: F) -> Self {
+        Self(Iterable::new("PropsIterable", value))
+    }
+}
+
+// py_iterable!(PropsIterable, DynProperties, PyProperties);
+// py_iterable_comp!(PropsIterable, PropsComparable, PropsIterableComparable);
 
 #[pymethods]
-impl PropsIterable {
+impl PyPropsIterable {
     /// Get property value.
     ///
     /// First searches temporal properties and returns latest value if it exists.
@@ -213,6 +252,10 @@ impl PropsIterable {
             })
             .into()
         })
+    }
+
+    pub fn __iter__(&self) -> PyGenericIterator {
+        self.keys().into_iter().into()
     }
 
     /// Check if property `key` exists.
@@ -285,14 +328,32 @@ impl PropsIterable {
             .map(|(k, v)| (k, v.collect()))
             .collect()
     }
+
+    pub fn __richcmp__(&self, other: PyPropsIterableComparable, op: CompareOp) -> PyResult<bool> {
+        match op {
+            CompareOp::Lt => Err(PyTypeError::new_err("not ordered")),
+            CompareOp::Le => Err(PyTypeError::new_err("not ordered")),
+            CompareOp::Eq => Ok(PyPropsIterableComparable(self.as_dict()) == other),
+            CompareOp::Ne => Ok(PyPropsIterableComparable(self.as_dict()) != other),
+            CompareOp::Gt => Err(PyTypeError::new_err("not ordered")),
+            CompareOp::Ge => Err(PyTypeError::new_err("not ordered")),
+        }
+    }
+
+    pub fn __repr__(&self) -> String {
+        format!(
+            "Properties({{{}}})",
+            iterator_dict_repr(self.items().into_iter())
+        )
+    }
 }
 
 py_nested_iterable!(NestedPropsIterable, DynProperties, PyProperties);
-py_iterable_comp!(
-    NestedPropsIterable,
-    PropsIterableComparable,
-    NestedPropsIterableComparable
-);
+// py_iterable_comp!(
+//     NestedPropsIterable,
+//     PropsIterableComparable,
+//     NestedPropsIterableComparable
+// );
 
 #[pymethods]
 impl NestedPropsIterable {

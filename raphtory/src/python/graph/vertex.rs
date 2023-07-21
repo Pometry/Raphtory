@@ -26,7 +26,7 @@ use chrono::NaiveDateTime;
 
 use crate::core::Prop;
 use crate::db::api::properties::Properties;
-use crate::python::graph::properties::{NestedPropsIterable, PropsIterable};
+use crate::python::graph::properties::{NestedPropsIterable, PyPropsIterable};
 use pyo3::exceptions::PyKeyError;
 use pyo3::{
     exceptions::PyIndexError, prelude::*, pyclass, pyclass::CompareOp, pymethods, PyAny, PyObject,
@@ -477,7 +477,7 @@ impl PyVertices {
 
     //Fixme: needs a view that allows indexing
     #[getter]
-    fn properties(&self) -> PropsIterable {
+    fn properties(&self) -> PyPropsIterable {
         let vertices = self.vertices.clone();
         (move || vertices.properties()).into()
     }
@@ -924,7 +924,7 @@ impl PyPathFromVertex {
     }
 
     #[getter]
-    fn properties(&self) -> PropsIterable {
+    fn properties(&self) -> PyPropsIterable {
         let path = self.path.clone();
         (move || path.properties()).into()
     }
@@ -1141,7 +1141,7 @@ impl PyVertexIterable {
     }
 
     #[getter]
-    fn properties(&self) -> PropsIterable {
+    fn properties(&self) -> PyPropsIterable {
         let vertices = self.builder.clone();
         (move || vertices().properties()).into()
     }

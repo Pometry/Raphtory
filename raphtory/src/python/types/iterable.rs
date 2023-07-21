@@ -39,7 +39,7 @@ impl<I: Send + 'static, PyI: IntoPy<PyObject> + From<I> + Repr> Iterable<I, PyI>
     where
         I: PartialEq,
     {
-        self.iter().zip(other).all(|(t, o)| t == o)
+        self.iter().eq(other)
     }
 }
 
