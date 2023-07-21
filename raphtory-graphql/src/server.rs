@@ -10,31 +10,45 @@ use async_graphql_poem::GraphQL;
 use dynamic_graphql::App;
 use poem::{get, listener::TcpListener, middleware::Cors, EndpointExt, Route, Server};
 use raphtory::db::api::view::internal::DynamicGraph;
-use std::collections::HashMap;
-use tokio::{io::Result as IoResult, signal};
+use std::{
+    collections::HashMap,
+    sync::{
+        mpsc::{self, Receiver, Sender},
+        Arc,
+    },
+};
+use tokio::{io::Result as IoResult, runtime::Runtime, signal};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry};
 
 pub struct RaphtoryServer {
     data: Data,
+    sender: Sender<()>,
 }
 
 impl RaphtoryServer {
-    pub fn from_map(graphs: HashMap<String, DynamicGraph>) -> Self {
-        let data = Data::from_map(graphs);
-        Self { data }
+    pub fn sender(&self) -> Sender<()> {
+        self.sender.clone()
     }
 
-    pub fn from_directory(graph_directory: &str) -> Self {
+    pub fn from_map(graphs: HashMap<String, DynamicGraph>) -> (Self, Receiver<()>) {
+        let data = Data::from_map(graphs);
+        let (sender, receiver) = mpsc::channel::<()>();
+        (Self { data, sender }, receiver)
+    }
+
+    pub fn from_directory(graph_directory: &str) -> (Self, Receiver<()>) {
         let data = Data::from_directory(graph_directory);
-        Self { data }
+        let (sender, receiver) = mpsc::channel::<()>();
+        (Self { data, sender }, receiver)
     }
 
     pub fn from_map_and_directory(
         graphs: HashMap<String, DynamicGraph>,
         graph_directory: &str,
-    ) -> Self {
+    ) -> (Self, Receiver<()>) {
         let data = Data::from_map_and_directory(graphs, graph_directory);
-        Self { data }
+        let (sender, receiver) = mpsc::channel::<()>();
+        (Self { data, sender }, receiver)
     }
 
     pub fn register_algorithm<T: Algorithm>(self, name: &str) -> Self {
@@ -46,10 +60,10 @@ impl RaphtoryServer {
     }
 
     pub async fn run(self) -> IoResult<()> {
-        self.run_with_port(1736).await
+        self.run_with_port(1736, None).await
     }
 
-    pub async fn run_with_port(self, port: u16) -> IoResult<()> {
+    pub async fn run_with_port(self, port: u16, recv: Option<Receiver<()>>) -> IoResult<()> {
         let registry = Registry::default().with(tracing_subscriber::fmt::layer().pretty());
         let env_filter = EnvFilter::try_from_default_env().unwrap_or(EnvFilter::new("INFO"));
 
@@ -75,13 +89,29 @@ impl RaphtoryServer {
             .with(Cors::new());
 
         println!("Playground: http://localhost:{port}");
+
         Server::new(TcpListener::bind(format!("0.0.0.0:{port}")))
-            .run_with_graceful_shutdown(app, shutdown_signal(), None)
+            .run_with_graceful_shutdown(app, shutdown_signal(recv), None)
             .await
+    }
+
+    pub fn run_and_forget(self, port: u16, recv: Option<Receiver<()>>) -> TokioRuntime {
+        let runtime = Arc::new(tokio::runtime::Runtime::new().unwrap());
+        let rt = runtime.clone();
+        println!("Starting server on port {}", port);
+        std::thread::spawn(move || {
+            runtime.clone().spawn(async move {
+                self.run_with_port(port, recv).await.unwrap();
+            });
+        });
+        println!("Server running on port {}", port);
+        TokioRuntime(rt)
     }
 }
 
-async fn shutdown_signal() {
+pub struct TokioRuntime(Arc<tokio::runtime::Runtime>);
+
+async fn shutdown_signal(recv: Option<Receiver<()>>) {
     let ctrl_c = async {
         signal::ctrl_c()
             .await
@@ -99,9 +129,28 @@ async fn shutdown_signal() {
     #[cfg(not(unix))]
     let terminate = std::future::pending::<()>();
 
-    tokio::select! {
-        _ = ctrl_c => {},
-        _ = terminate => {},
+    if let Some(recv) = recv {
+        let done = async move {
+            println!("Waiting for shutdown signal");
+            if let Ok(_) = recv.recv() {
+                println!("Received shutdown signal")
+            } else {
+                println!("Failed to receive shutdown signal")
+            }
+            println!("Done Waiting!")
+        };
+        tokio::select! {
+            _ = ctrl_c => {},
+            _ = terminate => {},
+            _ = done => {
+                println!("Received shutdown signal")
+            },
+        }
+    } else {
+        tokio::select! {
+            _ = ctrl_c => {},
+            _ = terminate => {},
+        }
     }
 
     opentelemetry::global::shutdown_tracer_provider();

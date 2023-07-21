@@ -15,8 +15,9 @@ class GraphQLServer:
     """
     A helper class that can be used to query the Raphtory GraphQL server.
     """
-    def __init__(self, port):
+    def __init__(self, port, handler):
         self.port = port
+        self.handler = handler
 
     def query(self, query):
         """
@@ -45,31 +46,24 @@ class GraphQLServer:
                 if r.status_code == 200:
                     return True
              except:
+                print("Waiting for server to come online...")
                 pass
              time.sleep(1)
 
-async def __from_map_and_directory(graphs,graph_dir,port):
-    await internal_graphql.from_map_and_directory(graphs,graph_dir,port)
+def __from_map_and_directory(graphs,graph_dir,port):
+    internal_graphql.from_map_and_directory(graphs,graph_dir,port)
 
-async def __from_directory(graph_dir,port):
-    await internal_graphql.from_directory(graph_dir,port)
+def __from_directory(graph_dir,port):
+    internal_graphql.from_directory(graph_dir,port)
 
-async def __from_map(graphs,port):
-    await internal_graphql.from_map(graphs,port)
+def __from_map(graphs,port):
+    internal_graphql.from_map(graphs,port)
 
 
-def __run(func,daemon,port):
-    if daemon:
-        def __run_in_background():
-            asyncio.run(func)
-        threading.Thread(target=__run_in_background, daemon=True).start()
-        server = GraphQLServer(port)
-        server.wait_for_online()
-        return server
-    else:
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(func)
-        loop.close()
+def __run(handler,daemon,port):
+    server = GraphQLServer(port, handler)
+    server.wait_for_online()
+    return server
 
 def run_server(graphs=None,graph_dir=None,port=1736,daemon=False):
     """
