@@ -58,7 +58,6 @@ impl<G: GraphViewOps> EdgeViewInternalOps<G, VertexView<G>> for EdgeView<G> {
             edge: e,
         }
     }
-
 }
 
 impl<G: GraphViewOps> EdgeViewOps for EdgeView<G> {
@@ -129,7 +128,7 @@ impl<G: GraphViewOps> TimeOps for EdgeView<G> {
     }
 }
 
-impl <G: GraphViewOps> LayerOps for EdgeView<G> {
+impl<G: GraphViewOps> LayerOps for EdgeView<G> {
     type LayeredViewType = EdgeView<LayeredGraph<G>>;
 
     fn default_layer(&self) -> Self::LayeredViewType {

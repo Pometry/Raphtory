@@ -18,7 +18,7 @@ pub enum Layer {
     Multiple(Arc<[String]>),
 }
 
-impl <'a> From<Option<&'a str>> for Layer {
+impl<'a> From<Option<&'a str>> for Layer {
     fn from(name: Option<&'a str>) -> Self {
         match name {
             Some(name) => Layer::One(name.to_string()),
@@ -38,7 +38,13 @@ impl<'a> From<Vec<&'a str>> for Layer {
         match names.len() {
             0 => Layer::All,
             1 => Layer::One(names[0].to_string()),
-            _ => Layer::Multiple(names.into_iter().map(|s| s.to_string()).collect::<Vec<_>>().into()),
+            _ => Layer::Multiple(
+                names
+                    .into_iter()
+                    .map(|s| s.to_string())
+                    .collect::<Vec<_>>()
+                    .into(),
+            ),
         }
     }
 }
@@ -52,4 +58,3 @@ impl From<Vec<String>> for Layer {
         }
     }
 }
-

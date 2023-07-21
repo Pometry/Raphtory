@@ -11,7 +11,10 @@ use crate::{
             internal::{DynamicGraph, IntoDynamic},
             BoxedIter, WindowSet,
         },
-        graph::{edge::EdgeView, views::{window_graph::WindowedGraph, layer_graph::LayeredGraph}},
+        graph::{
+            edge::EdgeView,
+            views::{layer_graph::LayeredGraph, window_graph::WindowedGraph},
+        },
     },
     prelude::*,
     python::{
