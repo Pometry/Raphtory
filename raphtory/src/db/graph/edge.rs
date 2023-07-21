@@ -11,7 +11,7 @@ use crate::{
         utils::time::IntoTime,
     },
     db::{
-        api::view::{BoxedIter, EdgeViewInternalOps},
+        api::view::{BoxedIter, EdgeViewInternalOps, LayerOps},
         graph::{vertex::VertexView, views::window_graph::WindowedGraph},
     },
     prelude::*,
@@ -21,6 +21,8 @@ use std::{
     fmt::{Debug, Formatter},
     iter,
 };
+
+use super::views::layer_graph::LayeredGraph;
 
 /// A view of an edge in the graph.
 #[derive(Clone)]
@@ -56,6 +58,7 @@ impl<G: GraphViewOps> EdgeViewInternalOps<G, VertexView<G>> for EdgeView<G> {
             edge: e,
         }
     }
+
 }
 
 impl<G: GraphViewOps> EdgeViewOps for EdgeView<G> {
@@ -123,6 +126,24 @@ impl<G: GraphViewOps> TimeOps for EdgeView<G> {
             graph: self.graph.window(t_start, t_end),
             edge: self.edge,
         }
+    }
+}
+
+impl <G: GraphViewOps> LayerOps for EdgeView<G> {
+    type LayeredViewType = EdgeView<LayeredGraph<G>>;
+
+    fn default_layer(&self) -> Self::LayeredViewType {
+        EdgeView {
+            graph: self.graph.default_layer(),
+            edge: self.edge,
+        }
+    }
+
+    fn layer(&self, name: Layer) -> Option<Self::LayeredViewType> {
+        self.graph.layer(name).map(|g| EdgeView {
+            graph: g,
+            edge: self.edge,
+        })
     }
 }
 

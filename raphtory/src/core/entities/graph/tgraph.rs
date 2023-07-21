@@ -118,11 +118,11 @@ impl<const N: usize> InnerTemporalGraph<N> {
         match key {
             Layer::All => Some(LayerIds::All),
             Layer::Default => Some(LayerIds::One(0)),
-            Layer::One(id) => self.edge_meta.get_layer_id(id).map(|id| LayerIds::One(id)),
+            Layer::One(id) => self.edge_meta.get_layer_id(&id).map(|id| LayerIds::One(id)),
             Layer::Multiple(ids) => {
                 let new_layers = ids
                     .iter()
-                    .filter_map(|id| self.edge_meta.get_layer_id(*id))
+                    .filter_map(|id| self.edge_meta.get_layer_id(id))
                     .collect::<Vec<_>>();
                 if new_layers.is_empty() {
                     None

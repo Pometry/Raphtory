@@ -11,7 +11,7 @@ use crate::{
             internal::{DynamicGraph, IntoDynamic},
             BoxedIter, WindowSet,
         },
-        graph::{edge::EdgeView, views::window_graph::WindowedGraph},
+        graph::{edge::EdgeView, views::{window_graph::WindowedGraph, layer_graph::LayeredGraph}},
     },
     prelude::*,
     python::{
@@ -310,6 +310,27 @@ impl PyEdge {
     ) -> EdgeView<WindowedGraph<DynamicGraph>> {
         self.edge
             .window(t_start.unwrap_or(PyTime::MIN), t_end.unwrap_or(PyTime::MAX))
+    }
+
+    /// Get a new Edge with the properties of this Edge within the specified layers.
+    ///
+    /// Arguments:
+    ///   layer_names ([str]): Layers to be included in the new edge.
+    ///
+    /// Returns:
+    ///   A new Edge with the properties of this Edge within the specified time window.
+    pub fn layers(
+        &self,
+        layer_names: Vec<String>,
+    ) -> PyResult<EdgeView<LayeredGraph<DynamicGraph>>> {
+        if let Some(edge) = self.edge.layer(layer_names.into()) {
+            Ok(edge)
+        } else {
+            let available_layers = self.edge.layer_names();
+            Err(PyErr::new::<pyo3::exceptions::PyAttributeError, _>(
+                "Layers {layers:?} not available for edge, available layers: {available_layers:?}",
+            ))
+        }
     }
 
     /// Get a new Edge with the properties of this Edge at a specified time.

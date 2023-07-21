@@ -11,34 +11,45 @@ pub trait LayerOps {
     fn layer(&self, name: Layer) -> Option<Self::LayeredViewType>;
 }
 
-pub enum Layer<'a> {
+pub enum Layer {
     All,
     Default,
-    One(&'a str),
-    Multiple(Arc<[&'a str]>),
+    One(String),
+    Multiple(Arc<[String]>),
 }
 
-impl<'a> From<Option<&'a str>> for Layer<'a> {
+impl <'a> From<Option<&'a str>> for Layer {
     fn from(name: Option<&'a str>) -> Self {
         match name {
-            Some(name) => Layer::One(name),
+            Some(name) => Layer::One(name.to_string()),
             None => Layer::All,
         }
     }
 }
 
-impl<'a> From<&'a str> for Layer<'a> {
+impl<'a> From<&'a str> for Layer {
     fn from(name: &'a str) -> Self {
-        Layer::One(name)
+        Layer::One(name.to_string())
     }
 }
 
-impl<'a> From<Vec<&'a str>> for Layer<'a> {
+impl<'a> From<Vec<&'a str>> for Layer {
     fn from(names: Vec<&'a str>) -> Self {
         match names.len() {
             0 => Layer::All,
-            1 => Layer::One(names[0]),
+            1 => Layer::One(names[0].to_string()),
+            _ => Layer::Multiple(names.into_iter().map(|s| s.to_string()).collect::<Vec<_>>().into()),
+        }
+    }
+}
+
+impl From<Vec<String>> for Layer {
+    fn from(names: Vec<String>) -> Self {
+        match names.len() {
+            0 => Layer::All,
+            1 => Layer::One(names[0].clone()),
             _ => Layer::Multiple(names.into()),
         }
     }
 }
+

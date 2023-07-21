@@ -665,8 +665,8 @@ mod db_tests {
         assert!(g.has_edge(11, 22, Layer::All));
         assert!(g.has_edge(11, 22, Layer::Default));
         assert!(!g.has_edge(11, 44, Layer::Default));
-        assert!(!g.has_edge(11, 22, Layer::One("layer2")));
-        assert!(g.has_edge(11, 44, Layer::One("layer2")));
+        assert!(!g.has_edge(11, 22, "layer2".into()));
+        assert!(g.has_edge(11, 44, "layer2".into()));
 
         assert!(g.edge(11, 22, Layer::All).is_some());
         assert!(g.edge(11, 44, Layer::Default).is_none());
@@ -1212,8 +1212,8 @@ mod db_tests {
 
         let g_layers = g.layer(vec!["layer1", "layer3"].into()).expect("layer");
 
-        assert!(g_layers.edge(1, 2, Layer::One("layer1")).is_some());
-        assert!(g_layers.edge(1, 3, Layer::One("layer3")).is_some());
+        assert!(g_layers.edge(1, 2, "layer1".into()).is_some());
+        assert!(g_layers.edge(1, 3, "layer3".into()).is_some());
         assert!(g_layers.edge(1, 2, Layer::All).is_some());
         assert!(g_layers.edge(1, 3, Layer::All).is_some());
 
@@ -1226,10 +1226,10 @@ mod db_tests {
 
         let g_layers2 = g_layers.layer(vec!["layer1"].into()).expect("layer");
 
-        assert!(g_layers2.edge(1, 2, Layer::One("layer1")).is_some());
+        assert!(g_layers2.edge(1, 2, "layer1".into()).is_some());
         assert!(g_layers2.edge(1, 2, Layer::All).is_some());
 
-        assert!(g_layers2.edge(1, 3, Layer::One("layer3")).is_none());
+        assert!(g_layers2.edge(1, 3, "layer3".into()).is_none());
         assert!(g_layers2.edge(1, 3, Layer::All).is_none());
 
         assert!(g_layers2.edge(1, 4, Layer::All).is_none());
@@ -1379,36 +1379,55 @@ mod db_tests {
         let sum: u64 = e
             .property_history("tx_sent")
             .iter()
-            .filter_map(|(_, prop)| {
-                println!("{:?}", prop);
-                match prop {
-                    Prop::U64(v) => Some(v),
-                    _ => None,
-                }
-            })
+            .filter_map(|(_, prop)| prop.clone().into_u64())
             .sum();
 
         assert_eq!(sum, 100);
 
-        let g = g
+        let lg = g
             .layer(vec!["eth", "btc"].into())
             .expect("failed to layer graph");
 
-        let e = g.edge(1, 2, Layer::All).expect("failed to get edge");
+        let e = lg.edge(1, 2, Layer::All).expect("failed to get edge");
 
         let sum_eth_btc: u64 = e
             .property_history("tx_sent")
             .iter()
-            .filter_map(|(_, prop)| {
-                println!("{:?}", prop);
-                match prop {
-                    Prop::U64(v) => Some(v),
-                    _ => None,
-                }
-            })
+            .filter_map(|(_, prop)| prop.clone().into_u64())
             .sum();
 
         assert_eq!(sum_eth_btc, 30);
+
+        assert_eq!(lg.num_edges(), 1);
+
+        let e = g.edge(1, 2, Layer::All).expect("failed to get edge");
+
+        let e_btc = e.layer("btc".into()).expect("failed to get btc layer");
+        let e_eth = e.layer("eth".into()).expect("failed to get eth layer");
+
+        let edge_btc_sum = e_btc
+            .property_history("tx_sent")
+            .iter()
+            .filter_map(|(_, prop)| prop.clone().into_u64())
+            .sum::<u64>();
+
+        let edge_eth_sum = e_eth
+            .property_history("tx_sent")
+            .iter()
+            .filter_map(|(_, prop)| prop.clone().into_u64())
+            .sum::<u64>();
+
+        assert!(edge_btc_sum < edge_eth_sum);
+
+        let e_eth = e_eth.layer(vec!["eth", "btc"].into()).expect("failed to get eth,btc layers");
+
+        let eth_sum = e_eth.property_history("tx_sent")
+            .iter()
+            .filter_map(|(_, prop)| prop.clone().into_u64())
+            .sum::<u64>();
+
+        // layer does not have a way to reset yet!
+        assert_eq!(eth_sum, 20);
     }
 
     #[test]
