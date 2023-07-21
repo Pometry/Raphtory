@@ -2,7 +2,7 @@
 
 use criterion::{measurement::WallTime, BatchSize, Bencher, BenchmarkGroup, BenchmarkId};
 use rand::{distributions::Uniform, seq::*, Rng};
-use raphtory::{db::api::view::Layer, prelude::*};
+use raphtory::prelude::*;
 use std::collections::HashSet;
 
 fn make_index_gen() -> Box<dyn Iterator<Item = u64>> {

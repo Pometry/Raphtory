@@ -1,5 +1,3 @@
-use bitvec::prelude::BitArray;
-
 use crate::core::entities::{vertices::vertex_ref::VertexRef, EID, VID};
 
 #[derive(Debug, Copy, Clone, PartialEq)]

@@ -44,9 +44,7 @@ use itertools::Itertools;
 pub fn local_triangle_count<G: GraphViewOps, V: Into<VertexRef>>(graph: &G, v: V) -> Option<usize> {
     if let Some(vertex) = graph.vertex(v) {
         if vertex.degree() >= 2 {
-            let wtf = vertex.neighbours().id().collect_vec();
-            println!("wtf: {:?}", wtf);
-            let x: Vec<usize> = vertex
+            let len = vertex
                 .neighbours()
                 .id()
                 .into_iter()
@@ -58,8 +56,8 @@ pub fn local_triangle_count<G: GraphViewOps, V: Into<VertexRef>>(graph: &G, v: V
                         false => None,
                     },
                 })
-                .collect();
-            Some(x.len())
+                .count();
+            Some(len)
         } else {
             Some(0)
         }
