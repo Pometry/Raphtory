@@ -631,8 +631,7 @@ impl<G: GraphViewOps> IndexedGraph<G> {
     ) -> Result<Vec<EdgeView<G>>, GraphError> {
         let searcher = self.edge_reader.searcher();
         let mut query_parser = tantivy::query::QueryParser::for_index(&self.edge_index, vec![]);
-
-        self.vertex_index
+        self.edge_index
             .schema()
             .fields()
             .for_each(|(f, _)| query_parser.set_field_fuzzy(f, prefix, levenshtein_distance, true));
