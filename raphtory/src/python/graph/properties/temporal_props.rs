@@ -42,9 +42,15 @@ impl<P: Into<DynTemporalProperties>> From<P> for PyTemporalProperties {
 }
 
 #[derive(PartialEq)]
-pub struct TemporalPropsCmp(HashMap<String, PyTemporalPropertyViewCmp>);
+pub struct PyTemporalPropsCmp(HashMap<String, PyTemporalPropertyViewCmp>);
 
-impl From<&PyTemporalProperties> for TemporalPropsCmp {
+impl From<HashMap<String, PyTemporalPropertyViewCmp>> for PyTemporalPropsCmp {
+    fn from(value: HashMap<String, PyTemporalPropertyViewCmp>) -> Self {
+        Self(value)
+    }
+}
+
+impl From<&PyTemporalProperties> for PyTemporalPropsCmp {
     fn from(value: &PyTemporalProperties) -> Self {
         Self(
             value
@@ -56,9 +62,15 @@ impl From<&PyTemporalProperties> for TemporalPropsCmp {
     }
 }
 
-impl FromPyObject for TemporalPropsCmp {
+impl<'source> FromPyObject<'source> for PyTemporalPropsCmp {
     fn extract(ob: &'source PyAny) -> PyResult<Self> {
-        todo!()
+        if let Ok(v) = ob.extract::<PyRef<PyTemporalProperties>>() {
+            Ok(PyTemporalPropsCmp::from(v.deref()))
+        } else if let Ok(v) = ob.extract::<HashMap<String, PyTemporalPropertyViewCmp>>() {
+            Ok(PyTemporalPropsCmp::from(v))
+        } else {
+            Err(PyTypeError::new_err("cannot compare"))
+        }
     }
 }
 
@@ -66,6 +78,8 @@ impl FromPyObject for TemporalPropsCmp {
 pub struct PyTemporalProperties {
     props: DynTemporalProperties,
 }
+
+py_eq!(PyTemporalProperties, PyTemporalPropsCmp);
 
 #[pymethods]
 impl PyTemporalProperties {
@@ -147,6 +161,12 @@ impl From<&PyTemporalPropertyView> for PyTemporalPropertyViewCmp {
 impl From<Vec<(i64, Prop)>> for PyTemporalPropertyViewCmp {
     fn from(value: Vec<(i64, Prop)>) -> Self {
         Self(value)
+    }
+}
+
+impl From<DynTemporalProperty> for PyTemporalPropertyViewCmp {
+    fn from(value: DynTemporalProperty) -> Self {
+        PyTemporalPropertyViewCmp(value.iter().collect())
     }
 }
 
@@ -238,11 +258,46 @@ impl<P: PropertiesOps + Send + Sync + 'static> IntoPy<PyObject> for TemporalProp
     }
 }
 
-py_iterable!(
+py_iterable_base!(
     TemporalPropsIterable,
     DynTemporalProperties,
     PyTemporalProperties
 );
+
+#[derive(PartialEq)]
+pub struct TemporalPropsIterableCmp(HashMap<String, TemporalPropertyIterableCmp>);
+
+impl From<&TemporalPropsIterable> for TemporalPropsIterableCmp {
+    fn from(value: &TemporalPropsIterable) -> Self {
+        Self(
+            value
+                .items()
+                .into_iter()
+                .map(|(k, v)| (k, v.into()))
+                .collect(),
+        )
+    }
+}
+
+impl From<HashMap<String, TemporalPropertyIterableCmp>> for TemporalPropsIterableCmp {
+    fn from(value: HashMap<String, TemporalPropertyIterableCmp>) -> Self {
+        Self(value)
+    }
+}
+
+impl<'source> FromPyObject<'source> for TemporalPropsIterableCmp {
+    fn extract(ob: &'source PyAny) -> PyResult<Self> {
+        if let Ok(v) = ob.extract::<PyRef<TemporalPropsIterable>>() {
+            Ok(TemporalPropsIterableCmp::from(v.deref()))
+        } else if let Ok(v) = ob.extract::<HashMap<String, TemporalPropertyIterableCmp>>() {
+            Ok(TemporalPropsIterableCmp::from(v))
+        } else {
+            Err(PyTypeError::new_err("cannot compare"))
+        }
+    }
+}
+
+py_eq!(TemporalPropsIterable, TemporalPropsIterableCmp);
 
 #[pymethods]
 impl TemporalPropsIterable {
@@ -304,6 +359,10 @@ impl TemporalPropsIterable {
         self.iter().any(|p| p.contains(key))
     }
 
+    fn __iter__(&self) -> PyGenericIterator {
+        self.keys().into_iter().into()
+    }
+
     fn get(&self, key: String) -> Option<TemporalPropertyIterable> {
         self.__contains__(&key).then(|| {
             let builder = self.builder.clone();
@@ -318,6 +377,15 @@ impl TemporalPropsIterable {
 }
 
 pub struct OptionPyTemporalPropertyView(Option<PyTemporalPropertyView>);
+
+#[derive(PartialEq, FromPyObject, Clone)]
+pub struct OptionPyTemporalPropertyViewCmp(Option<PyTemporalPropertyViewCmp>);
+
+impl From<Option<DynTemporalProperty>> for OptionPyTemporalPropertyViewCmp {
+    fn from(value: Option<DynTemporalProperty>) -> Self {
+        OptionPyTemporalPropertyViewCmp(value.map(|v| v.into()))
+    }
+}
 
 impl Repr for OptionPyTemporalPropertyView {
     fn repr(&self) -> String {
@@ -341,6 +409,12 @@ py_iterable!(
     TemporalPropertyIterable,
     Option<DynTemporalProperty>,
     OptionPyTemporalPropertyView
+);
+
+py_iterable_comp!(
+    TemporalPropertyIterable,
+    OptionPyTemporalPropertyViewCmp,
+    TemporalPropertyIterableCmp
 );
 
 #[pymethods]
@@ -370,11 +444,46 @@ impl TemporalPropertyIterable {
     }
 }
 
-py_nested_iterable!(
+py_nested_iterable_base!(
     NestedTemporalPropsIterable,
     DynTemporalProperties,
     PyTemporalProperties
 );
+
+#[derive(PartialEq)]
+pub struct NestedTemporalPropsIterableCmp(HashMap<String, NestedTemporalPropertyIterableCmp>);
+
+impl From<&NestedTemporalPropsIterable> for NestedTemporalPropsIterableCmp {
+    fn from(value: &NestedTemporalPropsIterable) -> Self {
+        Self(
+            value
+                .items()
+                .into_iter()
+                .map(|(k, v)| (k, v.into()))
+                .collect(),
+        )
+    }
+}
+
+impl From<HashMap<String, NestedTemporalPropertyIterableCmp>> for NestedTemporalPropsIterableCmp {
+    fn from(value: HashMap<String, NestedTemporalPropertyIterableCmp>) -> Self {
+        Self(value)
+    }
+}
+
+impl<'source> FromPyObject<'source> for NestedTemporalPropsIterableCmp {
+    fn extract(ob: &'source PyAny) -> PyResult<Self> {
+        if let Ok(v) = ob.extract::<PyRef<NestedTemporalPropsIterable>>() {
+            Ok(Self::from(v.deref()))
+        } else if let Ok(v) = ob.extract::<HashMap<String, NestedTemporalPropertyIterableCmp>>() {
+            Ok(Self::from(v))
+        } else {
+            Err(PyTypeError::new_err("cannot compare"))
+        }
+    }
+}
+
+py_eq!(NestedTemporalPropsIterable, NestedTemporalPropsIterableCmp);
 
 #[pymethods]
 impl NestedTemporalPropsIterable {
@@ -444,6 +553,10 @@ impl NestedTemporalPropsIterable {
         self.iter().any(|mut it| it.any(|p| p.contains(key)))
     }
 
+    fn __iter__(&self) -> PyGenericIterator {
+        self.keys().into_iter().into()
+    }
+
     fn get(&self, key: String) -> Option<NestedTemporalPropertyIterable> {
         self.__contains__(&key).then(|| {
             let builder = self.builder.clone();
@@ -464,6 +577,12 @@ py_nested_iterable!(
     NestedTemporalPropertyIterable,
     Option<DynTemporalProperty>,
     OptionPyTemporalPropertyView
+);
+
+py_iterable_comp!(
+    NestedTemporalPropertyIterable,
+    TemporalPropertyIterableCmp,
+    NestedTemporalPropertyIterableCmp
 );
 
 #[pymethods]

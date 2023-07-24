@@ -227,28 +227,8 @@ impl From<&PyPropsIterable> for PyPropsIterableComparable {
     }
 }
 
-#[pyclass(name = "PropertiesIterable")]
-pub struct PyPropsIterable(Iterable<DynProperties, PyProperties>);
-
+py_iterable_base!(PyPropsIterable, DynProperties, PyProperties);
 py_eq!(PyPropsIterable, PyPropsIterableComparable);
-
-impl Deref for PyPropsIterable {
-    type Target = Iterable<DynProperties, PyProperties>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl<F: Fn() -> It + Send + Sync + 'static, It: Iterator + Send + 'static> From<F>
-    for PyPropsIterable
-where
-    It::Item: Into<DynProperties>,
-{
-    fn from(value: F) -> Self {
-        Self(Iterable::new("PropsIterable", value))
-    }
-}
 
 #[pymethods]
 impl PyPropsIterable {
@@ -351,29 +331,8 @@ impl PyPropsIterable {
     }
 }
 
-#[pyclass(name = "NestedPropertiesIterable")]
-pub struct PyNestedPropsIterable(NestedIterable<DynProperties, PyProperties>);
-
+py_nested_iterable_base!(PyNestedPropsIterable, DynProperties, PyProperties);
 py_eq!(PyNestedPropsIterable, PyNestedPropsIterableComparable);
-
-impl Deref for PyNestedPropsIterable {
-    type Target = NestedIterable<DynProperties, PyProperties>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl<F: Fn() -> It + Send + Sync + 'static, It: Iterator + Send + 'static> From<F>
-    for PyNestedPropsIterable
-where
-    It::Item: Iterator + Send,
-    <It::Item as Iterator>::Item: Into<DynProperties> + Send,
-{
-    fn from(value: F) -> Self {
-        Self(NestedIterable::new("NestedPropsIterable", value))
-    }
-}
 
 #[derive(PartialEq, Clone)]
 pub struct PyNestedPropsIterableComparable(HashMap<String, NestedOptionPropIterCmp>);

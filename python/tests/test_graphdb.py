@@ -378,7 +378,7 @@ def test_vertex_properties():
 
     g.add_vertex_properties(1, {"static prop": 123})
 
-    # testing property_history
+    # testing property history
     def history_test(key, value):
         if value is None:
             assert g.vertex(1).properties.temporal.get(key) is None
@@ -527,9 +527,10 @@ def test_vertex_properties():
     assert sorted(g.vertices.properties.temporal.keys()) == expected_names_no_static
     assert sorted(g.vertices.out_neighbours().properties.temporal.keys()) == expected_names_no_static
 
-    assert sorted(g.at(1).vertex(1).properties.temporal.keys()) == expected_names_no_static
-    assert sorted(g.at(1).vertices.properties.temporal.keys()) == expected_names_no_static
-    assert sorted(g.at(1).vertices.out_neighbours().properties.temporal.keys()) == expected_names_no_static
+    expected_names_no_static_at_1 = sorted(['prop 4', 'prop 1', 'prop 3'])
+    assert sorted(g.at(1).vertex(1).properties.temporal.keys()) == expected_names_no_static_at_1
+    assert sorted(g.at(1).vertices.properties.temporal.keys()) == expected_names_no_static_at_1
+    assert sorted(g.at(1).vertices.out_neighbours().properties.temporal.keys()) == expected_names_no_static_at_1
 
     # testing has_property
     assert "prop 4" in g.vertex(1).properties
@@ -584,66 +585,66 @@ def test_edge_properties():
 
     g.add_edge_properties(1, 2, {"static prop": 123})
 
-    # testing property_history
-    assert g.edge(1, 2).property_history("prop 1") == [(1, 1), (2, 2)]
-    assert g.edge(1, 2).property_history("prop 2") == [(2, 0.6), (3, 0.9)]
-    assert g.edge(1, 2).property_history("prop 3") == [(1, "hi"), (3, 'hello')]
-    assert g.edge(1, 2).property_history("prop 4") == [(1, True), (2, False), (3, True)]
-    assert g.edge(1, 2).property_history("undefined") == []
-    assert g.at(1).edge(1, 2).property_history("prop 4") == [(1, True)]
-    assert g.at(1).edge(1, 2).property_history("static prop") == []
+    # testing property history
+    assert g.edge(1, 2).properties.temporal.get("prop 1") == [(1, 1), (2, 2)]
+    assert g.edge(1, 2).properties.temporal.get("prop 2") == [(2, 0.6), (3, 0.9)]
+    assert g.edge(1, 2).properties.temporal.get("prop 3") == [(1, "hi"), (3, 'hello')]
+    assert g.edge(1, 2).properties.temporal.get("prop 4") == [(1, True), (2, False), (3, True)]
+    assert g.edge(1, 2).properties.temporal.get("undefined") is None
+    assert g.at(1).edge(1, 2).properties.temporal.get("prop 4") == [(1, True)]
+    assert g.at(1).edge(1, 2).properties.temporal.get("static prop") is None
 
-    assert g.at(1).edge(1, 2).static_property("static prop") == 123
-    assert g.at(100).edge(1, 2).static_property("static prop") == 123
-    assert g.edge(1, 2).static_property("static prop") == 123
-    assert g.edge(1, 2).static_property("prop 4") is None
+    assert g.at(1).edge(1, 2).properties.meta.get("static prop") == 123
+    assert g.at(100).edge(1, 2).properties.meta.get("static prop") == 123
+    assert g.edge(1, 2).properties.meta.get("static prop") == 123
+    assert g.edge(1, 2).properties.meta.get("prop 4") is None
 
     # testing property
-    assert g.edge(1, 2).property("static prop") == 123
+    assert g.edge(1, 2).properties.get("static prop") == 123
     assert g.edge(1, 2)["static prop"] == 123
-    assert g.edge(1, 2).property("static prop", include_static=False) is None
-    assert g.edge(1, 2).property("prop 1", include_static=False) == 2
-    assert g.at(2).edge(1, 2).property("prop 2") == 0.6
-    assert g.at(1).edge(1, 2).property("prop 2") is None
+    assert g.edge(1, 2).properties.temporal.get("static prop") is None
+    assert g.edge(1, 2).properties.temporal.get("prop 1").value() == 2
+    assert g.at(2).edge(1, 2).properties.get("prop 2") == 0.6
+    assert g.at(1).edge(1, 2).properties.get("prop 2") is None
 
     # testing properties
-    assert g.edge(1, 2).properties() == {'prop 2': 0.9, 'prop 3': 'hello', 'prop 1': 2, 'prop 4': True,
-                                         'static prop': 123}
+    assert g.edge(1, 2).properties == {'prop 2': 0.9, 'prop 3': 'hello', 'prop 1': 2, 'prop 4': True,
+                                       'static prop': 123}
 
-    assert g.edge(1, 2).properties(include_static=False) == {'prop 2': 0.9, 'prop 3': 'hello', 'prop 1': 2,
-                                                             'prop 4': True}
+    assert g.edge(1, 2).properties.temporal.latest() == {'prop 2': 0.9, 'prop 3': 'hello', 'prop 1': 2,
+                                                         'prop 4': True}
 
-    assert g.at(2).edge(1, 2).properties() == {'prop 1': 2, 'prop 4': False, 'prop 2': 0.6, 'static prop': 123,
+    assert g.at(2).edge(1, 2).properties == {'prop 1': 2, 'prop 4': False, 'prop 2': 0.6, 'static prop': 123,
                                                'prop 3': 'hi'}
 
     # testing property histories
-    assert g.edge(1, 2).property_histories() == {'prop 3': [(1, 'hi'), (3, 'hello')], 'prop 1': [(1, 1), (2, 2)],
+    assert g.edge(1, 2).properties.temporal == {'prop 3': [(1, 'hi'), (3, 'hello')], 'prop 1': [(1, 1), (2, 2)],
                                                  'prop 4': [(1, True), (2, False), (3, True)],
                                                  'prop 2': [(2, 0.6), (3, 0.9)]}
 
-    assert g.at(2).edge(1, 2).property_histories() == {'prop 2': [(2, 0.6)], 'prop 4': [(1, True), (2, False)],
+    assert g.at(2).edge(1, 2).properties.temporal == {'prop 2': [(2, 0.6)], 'prop 4': [(1, True), (2, False)],
                                                        'prop 1': [(1, 1), (2, 2)], 'prop 3': [(1, 'hi')]}
 
     # testing property names
-    assert g.edge(1, 2).property_names().sort() == ['prop 4', 'prop 1', 'prop 2', 'prop 3', 'static prop'].sort()
+    assert sorted(g.edge(1, 2).properties.keys()) == sorted(['prop 4', 'prop 1', 'prop 2', 'prop 3', 'static prop'])
 
-    assert g.edge(1, 2).property_names(include_static=False).sort() == ['prop 4', 'prop 1', 'prop 2', 'prop 3'].sort()
+    assert sorted(g.edge(1, 2).properties.temporal.keys()) == sorted(['prop 4', 'prop 1', 'prop 2', 'prop 3'])
 
-    assert g.at(1).edge(1, 2).property_names(include_static=False).sort() == ['prop 4', 'prop 1', 'prop 2',
-                                                                              'prop 3'].sort()
+    assert sorted(g.at(1).edge(1, 2).properties.temporal.keys()) == sorted(['prop 4', 'prop 1',
+                                                                              'prop 3'])
 
     # testing has_property
-    assert g.edge(1, 2).has_property("prop 4")
-    assert g.edge(1, 2).has_property("prop 2")
-    assert not g.edge(1, 2).has_property("prop 5")
-    assert not g.at(1).edge(1, 2).has_property("prop 2")
-    assert g.edge(1, 2).has_property("static prop")
-    assert g.at(1).edge(1, 2).has_property("static prop")
-    assert not g.at(1).edge(1, 2).has_property("static prop", include_static=False)
+    assert "prop 4" in g.edge(1, 2).properties
+    assert "prop 2" in g.edge(1, 2).properties
+    assert "prop 5" not in g.edge(1, 2).properties
+    assert "prop 2" not in g.at(1).edge(1, 2).properties
+    assert "static prop" in g.edge(1, 2).properties
+    assert "static prop" in g.at(1).edge(1, 2).properties
+    assert "static prop" not in g.at(1).edge(1, 2).properties.temporal
 
-    assert g.edge(1, 2).has_static_property("static prop")
-    assert not g.edge(1, 2).has_static_property("prop 2")
-    assert g.at(1).edge(1, 2).has_static_property("static prop")
+    assert "static prop" in g.edge(1, 2).properties.meta
+    assert "prop 2" not in g.edge(1, 2).properties.meta
+    assert "static prop" in g.at(1).edge(1, 2).properties.meta
 
 
 def test_exploded_edge_time():
@@ -654,9 +655,6 @@ def test_exploded_edge_time():
     for ee in e.explode():
         exploded_his.append(ee.time())
     assert his == exploded_his
-
-
-# assert g.vertex(1).property_history("prop 3") == [(1, 3), (3, 'hello')]
 
 
 def test_algorithms():
@@ -730,7 +728,7 @@ def test_save_load_graph():
     assert triangles == 1
 
     v = view.vertex(11)
-    assert v.property_histories() == {'type': [(1, 'wallet')], 'balance': [(1, 99.5)]}
+    assert v.properties.temporal == {'type': [(1, 'wallet')], 'balance': [(1, 99.5)]}
 
     tmpdirname.cleanup()
 
@@ -1187,11 +1185,11 @@ def test_datetime_props():
     g = Graph()
     dt1 = datetime.datetime(2020, 1, 1, 23, 59, 59, 999000)
     g.add_vertex(0, 0, {"time": dt1})
-    assert g.vertex(0).property("time") == dt1
+    assert g.vertex(0).properties.get("time") == dt1
 
     dt2 = datetime.datetime(2020, 1, 1, 23, 59, 59, 999999)
     g.add_vertex(0, 1, {"time": dt2})
-    assert g.vertex(1).property("time") == dt2
+    assert g.vertex(1).properties.get("time") == dt2
 
 
 def test_date_time():
@@ -1299,7 +1297,7 @@ def test_subgraph():
     assert subgraph.vertices.collect() == [vertex1]
 
     mg = subgraph.materialize()
-    assert mg.vertices.collect()[0].properties()['type'] == 'wallet'
+    assert mg.vertices.collect()[0].properties['type'] == 'wallet'
     assert mg.vertices.collect()[0].name() == '1'
 
     props = {"prop 4": 11, "prop 5": "world", "prop 6": False}
@@ -1307,7 +1305,7 @@ def test_subgraph():
 
     props = {"prop 1": 1, "prop 2": "hi", "prop 3": True}
     mg.add_static_property(props)
-    x = mg.property_names(True)
+    x = mg.properties.keys()
     x.sort()
     assert x == ["prop 1", "prop 2", "prop 3", "prop 4", "prop 5", "prop 6"]
 
@@ -1338,32 +1336,32 @@ def test_materialize_graph():
 
     sprop = {"sprop 1": "kaggle", "sprop 2": True}
     g.add_static_property(sprop)
-    assert g.static_properties() == sprop
+    assert g.properties.meta == sprop
 
     mg = g.materialize()
 
-    assert mg.vertex(1).property('type') == 'wallet'
-    assert mg.vertex(4).properties() == {'abc': 'xyz'}
-    assert mg.vertex(4).static_property('abc') == 'xyz'
+    assert mg.vertex(1).properties.get('type') == 'wallet'
+    assert mg.vertex(4).properties == {'abc': 'xyz'}
+    assert mg.vertex(4).properties.meta.get('abc') == 'xyz'
     assert mg.vertex(1).history() == [-1, 0, 1, 2]
     assert mg.vertex(4).history() == [6, 8]
     assert mg.vertices().id().collect() == [1, 2, 3, 4]
     assert set(mg.edges().id()) == {(1, 1), (1, 2), (1, 3), (2, 1), (3, 2), (2, 4)}
     assert g.vertices.id().collect() == mg.vertices.id().collect()
     assert set(g.edges().id()) == set(mg.edges().id())
-    assert mg.vertex(1).static_properties() == {}
-    assert mg.vertex(4).static_properties() == {'abc': 'xyz'}
+    assert mg.vertex(1).properties.meta == {}
+    assert mg.vertex(4).properties.meta == {'abc': 'xyz'}
     assert g.edge(1, 2).id() == (1, 2)
     assert mg.edge(1, 2).id() == (1, 2)
-    assert mg.has_edge(1, 2) == True
-    assert g.has_edge(1, 2) == True
-    assert mg.has_edge(2, 1) == True
-    assert g.has_edge(2, 1) == True
+    assert mg.has_edge(1, 2)
+    assert g.has_edge(1, 2)
+    assert mg.has_edge(2, 1)
+    assert g.has_edge(2, 1)
 
     sprop2 = {"sprop 3": 11, "sprop 4": 10}
     mg.add_static_property(sprop2)
     sprop.update(sprop2)
-    assert mg.static_properties() == sprop
+    assert mg.properties.meta == sprop
 
 
 def test_deletions():

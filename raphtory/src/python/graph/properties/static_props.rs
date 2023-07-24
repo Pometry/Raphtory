@@ -107,27 +107,7 @@ impl Repr for PyStaticProperties {
     }
 }
 
-#[pyclass(name = "StaticPropertiesIterable")]
-pub struct PyStaticPropsIterable(Iterable<DynStaticProperties, PyStaticProperties>);
-
-impl Deref for PyStaticPropsIterable {
-    type Target = Iterable<DynStaticProperties, PyStaticProperties>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl<F: Fn() -> It + Send + Sync + 'static, It: Iterator + Send + 'static> From<F>
-    for PyStaticPropsIterable
-where
-    It::Item: Into<DynStaticProperties>,
-{
-    fn from(value: F) -> Self {
-        Self(Iterable::new("StaticPropsIterable", value))
-    }
-}
-
+py_iterable_base!(PyStaticPropsIterable, DynStaticProperties, PyStaticProperties);
 py_eq!(PyStaticPropsIterable, PyPropsIterableComparable);
 
 #[pymethods]
@@ -178,27 +158,8 @@ impl PyStaticPropsIterable {
     }
 }
 
-#[pyclass(name = "NestedStaticPropertiesIterable")]
-pub struct NestedStaticPropsIterable(NestedIterable<DynStaticProperties, PyStaticProperties>);
-
-impl Deref for NestedStaticPropsIterable {
-    type Target = NestedIterable<DynStaticProperties, PyStaticProperties>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl<F: Fn() -> It + Send + Sync + 'static, It: Iterator + Send + 'static> From<F>
-    for NestedStaticPropsIterable
-where
-    It::Item: Iterator + Send,
-    <It::Item as Iterator>::Item: Into<DynStaticProperties> + Send,
-{
-    fn from(value: F) -> Self {
-        Self(NestedIterable::new("NestedPropsIterable", value))
-    }
-}
+py_nested_iterable_base!(NestedStaticPropsIterable, DynStaticProperties, PyStaticProperties);
+py_eq!(NestedStaticPropsIterable, PyNestedPropsIterableComparable);
 
 #[pymethods]
 impl NestedStaticPropsIterable {
@@ -255,4 +216,4 @@ impl NestedStaticPropsIterable {
     }
 }
 
-py_eq!(NestedStaticPropsIterable, PyNestedPropsIterableComparable);
+

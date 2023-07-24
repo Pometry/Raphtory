@@ -3,7 +3,7 @@
 /// # Arguments
 ///
 /// * `name` - The identifier for the struct
-/// * `cmp_item` - Struct to use for comparisons, needs to support `cmp_item: From<name>`
+/// * `cmp_item` - Struct to use for comparisons, needs to support `cmp_item: From<&name>`
 ///                and `cmp_item: PartialEq` and `cmp_item: FromPyObject` with conversion for all
 ///                the python types we want to compare with
 macro_rules! py_eq {

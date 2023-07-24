@@ -81,15 +81,14 @@ macro_rules! _py_iterable_collect_method {
 
 /// Construct a python Iterable struct which wraps a closure that returns an iterator
 ///
-/// Has methods `__iter__`, `__len__`, `__repr__`, `collect`
+/// Does not implement any methods!
 ///
 /// # Arguments
 ///
 /// * `name` - The identifier for the new struct
 /// * `item` - The type of `Item` for the wrapped iterator builder
-/// * `pyitem` - The type of the python wrapper for `Item` (optional if `item` implements `IntoPy`, need Into<`pyitem`> to be implemented for `item`)
-/// * `pyiter` - The python iterator wrapper that should be returned when calling `__iter__` (needs to have the same `item` and `pyitem`)
-macro_rules! py_iterable {
+/// * `pyitem` - The type of the python wrapper for `Item` (optional if `item` implements `IntoPy`, need `item: Into<pyitem>`)
+macro_rules! py_iterable_base {
     ($name:ident, $item:ty) => {
         py_iterable!($name, $item, $item);
     };
@@ -122,6 +121,24 @@ macro_rules! py_iterable {
                 ))
             }
         }
+    };
+}
+
+/// Construct a python Iterable struct which wraps a closure that returns an iterator
+///
+/// Has methods `__iter__`, `__len__`, `__repr__`, `collect`
+///
+/// # Arguments
+///
+/// * `name` - The identifier for the new struct
+/// * `item` - The type of `Item` for the wrapped iterator builder
+/// * `pyitem` - The type of the python wrapper for `Item` (optional if `item` implements `IntoPy`, need Into<`pyitem`> to be implemented for `item`)
+macro_rules! py_iterable {
+    ($name:ident, $item:ty) => {
+        py_iterable!($name, $item, $item);
+    };
+    ($name:ident, $item:ty, $pyitem:ty) => {
+        py_iterable_base!($name, $item, $pyitem);
         _py_iterable_base_methods!($name, $crate::python::utils::PyGenericIterator);
         _py_iterable_collect_method!($name, $pyitem);
     };

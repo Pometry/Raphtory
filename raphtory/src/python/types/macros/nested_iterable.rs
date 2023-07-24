@@ -1,5 +1,8 @@
 // Internal macro to create the struct for a nested iterable
-macro_rules! _py_nested_iterable_base {
+macro_rules! py_nested_iterable_base {
+    ($name:ident, $item:ty) => {
+        py_nested_iterable_base!($name, $item, $item);
+    };
     ($name:ident, $item:ty, $pyitem:ty) => {
         #[pyclass]
         pub struct $name($crate::python::types::iterable::NestedIterable<$item, $pyitem>);
@@ -138,7 +141,7 @@ macro_rules! py_nested_iterable {
         py_nested_iterable!($name, $item, $item);
     };
     ($name:ident, $item:ty, $pyitem:ty) => {
-        _py_nested_iterable_base!($name, $item, $pyitem);
+        py_nested_iterable_base!($name, $item, $pyitem);
         _py_nested_iterable_methods!($name, $pyitem);
     };
 }
