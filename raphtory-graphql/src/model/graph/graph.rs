@@ -1,5 +1,7 @@
+use std::collections::{HashMap, HashSet};
 use std::ops::Deref;
 
+use crate::model::graph::get_expanded_edges;
 use crate::model::{
     algorithm::Algorithms,
     filters::{edgefilter::EdgeFilter, nodefilter::NodeFilter},
@@ -7,10 +9,15 @@ use crate::model::{
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
-use raphtory::{db::api::view::{
-    internal::{DynamicGraph, IntoDynamic},
-    GraphViewOps, TimeOps, VertexViewOps,
-}, search::IndexedGraph};
+use raphtory::db::graph::edge::EdgeView;
+use raphtory::prelude::EdgeViewOps;
+use raphtory::{
+    db::api::view::{
+        internal::{DynamicGraph, IntoDynamic},
+        GraphViewOps, TimeOps, VertexViewOps,
+    },
+    search::IndexedGraph,
+};
 
 #[derive(ResolvedObject)]
 pub(crate) struct GraphMeta {
@@ -61,7 +68,6 @@ impl<G: GraphViewOps + IntoDynamic> From<G> for GqlGraph {
 }
 
 impl GqlGraph {
-
     pub(crate) fn new(graph: IndexedGraph<DynamicGraph>) -> Self {
         Self { graph }
     }
@@ -69,7 +75,6 @@ impl GqlGraph {
 
 #[ResolvedObjectFields]
 impl GqlGraph {
-
     async fn window(&self, t_start: i64, t_end: i64) -> GqlGraph {
         let w = self.graph.window(t_start, t_end);
         w.into()
@@ -105,7 +110,6 @@ impl GqlGraph {
             .collect()
     }
 
-
     async fn search_edges(&self, query: String, limit: usize, offset: usize) -> Vec<Edge> {
         self.graph
             .search_edges(&query, limit, offset)
@@ -125,6 +129,52 @@ impl GqlGraph {
                 .filter(|ev| filter.matches(ev))
                 .collect(),
             None => self.graph.edges().into_iter().map(|ev| ev.into()).collect(),
+        }
+    }
+
+    async fn expanded_edges(
+        &self,
+        nodes_to_expand: Vec<String>,
+        graph_nodes: Vec<String>,
+        filter: Option<EdgeFilter>,
+    ) -> Vec<Edge> {
+        if nodes_to_expand.is_empty() {
+            return vec![];
+        }
+
+        let nodes: Vec<Node> = self
+            .graph
+            .vertices()
+            .iter()
+            .map(|vv| vv.into())
+            .filter(|n| NodeFilter::new(nodes_to_expand.clone()).matches(n))
+            .collect();
+
+        let mut all_graph_nodes: HashSet<String> = graph_nodes.into_iter().collect();
+        let mut all_expanded_edges: HashMap<String, EdgeView<DynamicGraph>> = HashMap::new();
+
+        for node in nodes {
+            let expanded_edges = get_expanded_edges(all_graph_nodes.clone(), node.vv);
+            expanded_edges.clone().into_iter().for_each(|e| {
+                let src = e.src().name();
+                let dst = e.dst().name();
+                all_expanded_edges.insert(src.to_owned() + &dst, e);
+                all_graph_nodes.insert(src);
+                all_graph_nodes.insert(dst);
+            });
+        }
+
+        let fetched_edges = all_expanded_edges
+            .values()
+            .map(|ee| ee.clone().into())
+            .collect_vec();
+
+        match filter {
+            Some(filter) => fetched_edges
+                .into_iter()
+                .filter(|ev| filter.matches(ev))
+                .collect(),
+            None => fetched_edges,
         }
     }
 
