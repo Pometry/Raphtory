@@ -341,7 +341,7 @@ impl PyTemporalPropsList {
             .collect()
     }
 
-    fn histories(&self) -> HashMap<String, PropHistItemsList> {
+    fn histories(&self) -> HashMap<String, PyPropHistItemsList> {
         self.keys()
             .into_iter()
             .map(|k| {
@@ -429,17 +429,17 @@ py_iterable_comp!(
 
 #[pymethods]
 impl PyTemporalPropList {
-    pub fn history(&self) -> PropHistList {
+    pub fn history(&self) -> PyPropHistList {
         let builder = self.builder.clone();
         (move || builder().map(|p| p.map(|v| v.history()).unwrap_or_default())).into()
     }
 
-    pub fn values(&self) -> PropHistValueList {
+    pub fn values(&self) -> PyPropHistValueList {
         let builder = self.builder.clone();
         (move || builder().map(|p| p.map(|v| v.values()).unwrap_or_default())).into()
     }
 
-    pub fn items(&self) -> PropHistItemsList {
+    pub fn items(&self) -> PyPropHistItemsList {
         let builder = self.builder.clone();
         (move || builder().map(|p| p.map(|v| v.iter().collect::<Vec<_>>()).unwrap_or_default()))
             .into()
@@ -608,12 +608,12 @@ py_iterable_comp!(
 
 #[pymethods]
 impl PyTemporalPropListList {
-    pub fn history(&self) -> PropHistListList {
+    pub fn history(&self) -> PyPropHistListList {
         let builder = self.builder.clone();
         (move || builder().map(|it| it.map(|p| p.map(|v| v.history()).unwrap_or_default()))).into()
     }
 
-    pub fn values(&self) -> PropHistValueListList {
+    pub fn values(&self) -> PyPropHistValueListList {
         let builder = self.builder.clone();
         (move || builder().map(|it| it.map(|p| p.map(|v| v.values()).unwrap_or_default()))).into()
     }
@@ -639,25 +639,25 @@ impl PyTemporalPropListList {
     }
 }
 
-py_iterable!(PropHistList, Vec<i64>);
-py_iterable_comp!(PropHistList, Vec<i64>, PropHistListCmp);
-py_nested_iterable!(PropHistListList, Vec<i64>);
-py_iterable_comp!(PropHistListList, PropHistListCmp, PropHistListListCmp);
+py_iterable!(PyPropHistList, Vec<i64>);
+py_iterable_comp!(PyPropHistList, Vec<i64>, PyPropHistListCmp);
+py_nested_iterable!(PyPropHistListList, Vec<i64>);
+py_iterable_comp!(PyPropHistListList, PyPropHistListCmp, PyPropHistListListCmp);
 
-py_iterable!(PropHistValueList, Vec<Prop>);
-py_iterable_comp!(PropHistValueList, Vec<Prop>, PropHistValueListCmp);
-py_nested_iterable!(PropHistValueListList, Vec<Prop>);
+py_iterable!(PyPropHistValueList, Vec<Prop>);
+py_iterable_comp!(PyPropHistValueList, Vec<Prop>, PyPropHistValueListCmp);
+py_nested_iterable!(PyPropHistValueListList, Vec<Prop>);
 py_iterable_comp!(
-    PropHistValueListList,
-    PropHistValueListCmp,
+    PyPropHistValueListList,
+    PyPropHistValueListCmp,
     PropHistValueListListCmp
 );
 
-py_iterable!(PropHistItemsList, PropHistItems);
-py_iterable_comp!(PropHistItemsList, PropHistItems, PropHistItemsListCmp);
+py_iterable!(PyPropHistItemsList, PropHistItems);
+py_iterable_comp!(PyPropHistItemsList, PropHistItems, PyPropHistItemsListCmp);
 py_nested_iterable!(PyPropHistItemsListList, PropHistItems);
 py_iterable_comp!(
     PyPropHistItemsListList,
-    PropHistItemsListCmp,
-    PropHistoryListListCmp
+    PyPropHistItemsListCmp,
+    PyPropHistItemsListListCmp
 );
