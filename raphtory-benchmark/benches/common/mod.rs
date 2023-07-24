@@ -26,7 +26,9 @@ pub fn bootstrap_graph(num_vertices: usize) -> Graph {
         let source = indexes.next().unwrap();
         let target = indexes.next().unwrap();
         let time = times.next().unwrap();
-        graph.add_edge(time, source, target, NO_PROPS, None).unwrap();
+        graph
+            .add_edge(time, source, target, NO_PROPS, None)
+            .unwrap();
     }
     graph
 }

@@ -1,4 +1,5 @@
 use crate::{
+    algorithms::algorithm_result::AlgorithmResult,
     core::state::{
         accumulator_id::accumulators::{max, sum},
         compute_state::ComputeStateVec,
@@ -23,20 +24,23 @@ struct Hits {
     auth_score: f32,
 }
 
-// HITS (Hubs and Authority) Algorithm:
-// AuthScore of a vertex (A) = Sum of HubScore of all vertices pointing at vertex (A) from previous iteration /
-//     Sum of HubScore of all vertices in the current iteration
-//
-// HubScore of a vertex (A) = Sum of AuthScore of all vertices pointing away from vertex (A) from previous iteration /
-//     Sum of AuthScore of all vertices in the current iteration
-
+/// HITS (Hubs and Authority) Algorithm:
+/// AuthScore of a vertex (A) = Sum of HubScore of all vertices pointing at vertex (A) from previous iteration /
+///     Sum of HubScore of all vertices in the current iteration
+///
+/// HubScore of a vertex (A) = Sum of AuthScore of all vertices pointing away from vertex (A) from previous iteration /
+///     Sum of AuthScore of all vertices in the current iteration
+///
+/// Returns
+///
+/// * An AlgorithmResult object containing the mapping from vertex ID to the hub and authority score of the vertex
 #[allow(unused_variables)]
 pub fn hits<G: GraphViewOps>(
     g: &G,
     window: Range<i64>,
     iter_count: usize,
     threads: Option<usize>,
-) -> FxHashMap<String, (f32, f32)> {
+) -> AlgorithmResult<String, (f32, f32)> {
     let mut ctx: Context<G, ComputeStateVec> = g.into();
 
     let recv_hub_score = sum::<f32>(2);
@@ -143,7 +147,7 @@ pub fn hits<G: GraphViewOps>(
         None,
     );
 
-    let mut results: FxHashMap<String, (f32, f32)> = FxHashMap::default();
+    let mut results: HashMap<String, (f32, f32)> = HashMap::new();
 
     hub_scores.into_iter().for_each(|(k, v)| {
         results.insert(k, (v, 0.0));
@@ -154,13 +158,16 @@ pub fn hits<G: GraphViewOps>(
         results.insert(k, (*a, v));
     });
 
-    results
+    AlgorithmResult::new(results)
 }
 
 #[cfg(test)]
 mod hits_tests {
     use super::*;
-    use crate::{db::{api::mutation::AdditionOps, graph::graph::Graph}, prelude::NO_PROPS};
+    use crate::{
+        db::{api::mutation::AdditionOps, graph::graph::Graph},
+        prelude::NO_PROPS,
+    };
     use itertools::Itertools;
 
     fn load_graph(edges: Vec<(u64, u64)>) -> Graph {
@@ -194,10 +201,7 @@ mod hits_tests {
 
         let window = 0..10;
 
-        let mut results: Vec<(String, (f32, f32))> =
-            hits(&graph, window, 20, None).into_iter().collect_vec();
-
-        results.sort_by_key(|k| (*k).0.clone());
+        let results: AlgorithmResult<String, (f32, f32)> = hits(&graph, window, 20, None);
 
         // NetworkX results
         // >>> G = nx.DiGraph()
@@ -229,7 +233,7 @@ mod hits_tests {
         // )
 
         assert_eq!(
-            results,
+            results.sort_by_key(false),
             vec![
                 ("1".to_string(), (0.0431365, 0.096625775)),
                 ("2".to_string(), (0.14359662, 0.18366566)),
