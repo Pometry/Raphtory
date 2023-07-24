@@ -31,7 +31,7 @@ pub struct Vertex<'a, const N: usize> {
 }
 
 impl<'b, const N: usize> CorePropertiesOps for Vertex<'b, N> {
-    fn static_prop_meta(&self) -> &DictMapper<String> {
+    fn const_prop_meta(&self) -> &DictMapper<String> {
         self.graph.vertex_meta.static_prop_meta()
     }
 
@@ -43,7 +43,7 @@ impl<'b, const N: usize> CorePropertiesOps for Vertex<'b, N> {
         self.node.props.as_ref().and_then(|p| p.temporal_prop(id))
     }
 
-    fn static_prop(&self, id: usize) -> Option<&Prop> {
+    fn const_prop(&self, id: usize) -> Option<&Prop> {
         self.node.props.as_ref().and_then(|p| p.static_prop(id))
     }
 }
@@ -151,7 +151,7 @@ pub struct ArcVertex<const N: usize> {
 }
 
 impl<const N: usize> CorePropertiesOps for ArcVertex<N> {
-    fn static_prop_meta(&self) -> &DictMapper<String> {
+    fn const_prop_meta(&self) -> &DictMapper<String> {
         self.meta.static_prop_meta()
     }
 
@@ -163,7 +163,7 @@ impl<const N: usize> CorePropertiesOps for ArcVertex<N> {
         self.e.temporal_property(id)
     }
 
-    fn static_prop(&self, id: usize) -> Option<&Prop> {
+    fn const_prop(&self, id: usize) -> Option<&Prop> {
         self.e.static_property(id)
     }
 }
@@ -196,7 +196,7 @@ pub(crate) struct ArcEdge<const N: usize> {
 }
 
 impl<const N: usize> CorePropertiesOps for ArcEdge<N> {
-    fn static_prop_meta(&self) -> &DictMapper<String> {
+    fn const_prop_meta(&self) -> &DictMapper<String> {
         self.meta.static_prop_meta()
     }
 
@@ -208,7 +208,7 @@ impl<const N: usize> CorePropertiesOps for ArcEdge<N> {
         todo!()
     }
 
-    fn static_prop(&self, id: usize) -> Option<&Prop> {
+    fn const_prop(&self, id: usize) -> Option<&Prop> {
         todo!()
     }
 }

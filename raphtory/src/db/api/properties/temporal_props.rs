@@ -73,7 +73,7 @@ impl<P: PropertiesOps + Clone> TemporalProperties<P> {
     pub(crate) fn new(props: P) -> Self {
         Self { props }
     }
-    pub fn keys<'a>(&'a self) -> impl Iterator<Item = LockedView<'a, String>> + 'a {
+    pub fn keys(&self) -> impl Iterator<Item = LockedView<String>> + '_ {
         self.props.temporal_property_keys()
     }
 
@@ -87,13 +87,11 @@ impl<P: PropertiesOps + Clone> TemporalProperties<P> {
             .map(|k| TemporalPropertyView::new(self.props.clone(), k))
     }
 
-    pub fn iter_latest<'a>(&'a self) -> impl Iterator<Item = (LockedView<'a, String>, Prop)> + '_ {
+    pub fn iter_latest(&self) -> impl Iterator<Item = (LockedView<String>, Prop)> + '_ {
         self.iter().flat_map(|(k, v)| v.latest().map(|v| (k, v)))
     }
 
-    pub fn iter<'a>(
-        &'a self,
-    ) -> impl Iterator<Item = (LockedView<'a, String>, TemporalPropertyView<P>)> + 'a {
+    pub fn iter(&self) -> impl Iterator<Item = (LockedView<String>, TemporalPropertyView<P>)> + '_ {
         self.keys().zip(self.values())
     }
 

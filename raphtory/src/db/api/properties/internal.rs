@@ -8,10 +8,10 @@ use crate::{
 };
 
 pub trait CorePropertiesOps {
-    fn static_prop_meta(&self) -> &DictMapper<String>;
+    fn const_prop_meta(&self) -> &DictMapper<String>;
     fn temporal_prop_meta(&self) -> &DictMapper<String>;
     fn temporal_prop(&self, id: usize) -> Option<&TProp>;
-    fn static_prop(&self, id: usize) -> Option<&Prop>;
+    fn const_prop(&self, id: usize) -> Option<&Prop>;
 }
 
 pub type Key = String; //Fixme: This should really be the internal usize index but that means more reworking of the low-level api
@@ -35,7 +35,6 @@ pub trait ConstPropertiesOps {
     fn const_property_keys<'a>(&'a self) -> Box<dyn Iterator<Item = LockedView<'a, String>> + 'a>;
     fn const_property_values(&self) -> Vec<Prop> {
         self.const_property_keys()
-            .into_iter()
             .map(|k| self.get_const_property(&k).expect("should exist"))
             .collect()
     }
