@@ -197,7 +197,7 @@ impl Node {
     ) -> Vec<Edge> {
         let mut res = vec![];
         let all_graph_nodes: HashSet<String> = graph_nodes.into_iter().collect();
-q
+
         match filter {
             Some(edgeFilter) => {
                 let maybe_layers = edgeFilter.clone().layer_names.map(|l| l.contains);
