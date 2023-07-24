@@ -12,6 +12,9 @@ use crate::{
 
 /// Core functions that should (almost-)always be implemented by pointing at the underlying graph.
 pub trait CoreGraphOps {
+    /// get the number of vertices in the main graph
+    fn unfiltered_num_vertices(&self) -> usize;
+
     /// Get the layer name for a given id
     fn get_layer_name_by_id(&self, layer_id: usize) -> String;
 
@@ -298,5 +301,9 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
         e: EdgeRef,
     ) -> Box<dyn Iterator<Item = LockedView<'a, String>> + 'a> {
         self.graph().temporal_edge_prop_names(e)
+    }
+
+    fn unfiltered_num_vertices(&self) -> usize {
+        self.graph().unfiltered_num_vertices()
     }
 }

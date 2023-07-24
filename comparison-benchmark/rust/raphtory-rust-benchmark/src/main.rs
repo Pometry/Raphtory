@@ -1,18 +1,27 @@
 use chrono::NaiveDateTime;
-use clap::ArgAction;
-use clap::Parser;
+use clap::{ArgAction, Parser};
 use csv::StringRecord;
 use flate2::read::GzDecoder;
-use raphtory::algorithms::connected_components::weakly_connected_components;
-use raphtory::algorithms::pagerank::unweighted_page_rank;
-use raphtory::graph_loader::fetch_file;
-use raphtory::graph_loader::source::csv_loader::CsvLoader;
-use raphtory::prelude::{AdditionOps, Graph, GraphViewOps, VertexViewOps, NO_PROPS};
-use std::collections::HashMap;
-use std::fs::File;
-use std::io::{self, Read, Write};
-use std::path::Path;
-use std::time::Instant;
+use ordered_float::OrderedFloat;
+use raphtory::{
+    algorithms::{
+        algorithm_result::AlgorithmResult, connected_components::weakly_connected_components,
+        pagerank::unweighted_page_rank,
+    },
+    core::utils::hashing::calculate_hash,
+    graph_loader::{fetch_file, source::csv_loader::CsvLoader},
+    prelude::{AdditionOps, Graph, GraphViewOps, VertexViewOps, NO_PROPS},
+};
+use serde::Deserialize;
+use std::{
+    collections::HashMap,
+    env,
+    error::Error,
+    fs::File,
+    io::{self, BufRead, BufReader, BufWriter, Read, Write},
+    path::Path,
+    time::Instant,
+};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None )]
@@ -194,14 +203,14 @@ fn main() {
 
     // page rank with time
     now = Instant::now();
-    let _page_rank: HashMap<String, f64> = unweighted_page_rank(&g, 1000, None, None, true)
+    let _page_rank: Vec<_> = unweighted_page_rank(&g, 1000, None, None, true)
         .into_iter()
         .collect();
     println!("Page rank: {} seconds", now.elapsed().as_secs_f64());
 
     // connected components with time
     now = Instant::now();
-    let _cc: HashMap<String, u64> = weakly_connected_components(&g, usize::MAX, None);
+    let _cc: AlgorithmResult<String, u64> = weakly_connected_components(&g, usize::MAX, None);
     println!(
         "Connected components: {} seconds",
         now.elapsed().as_secs_f64()

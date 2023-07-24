@@ -1,0 +1,31 @@
+# this workflow checks out the code, and installs nightly build of cargo and runs a cargo +nightly fmt --all -- --check and fails workflow if any code is not formatted
+#
+
+name: Rust format check
+on:
+  workflow_call:
+    inputs:
+      fail_if_not_formatted:
+        type: boolean
+        default: true
+        required: false
+        description: "Fail the workflow if any code is not formatted"
+
+jobs:
+    rust-format-check:
+      runs-on: ubuntu-latest
+      steps:
+        - uses: actions/checkout@v2
+        - name: Setup Rust
+          uses: actions-rs/toolchain@v1
+          with:
+            toolchain: nightly
+            override: true
+            components: rustfmt
+        - name: Run rust format check
+          run: |
+            if [ ${{ inputs.fail_if_not_formatted }} == true ]; then
+                cargo +nightly fmt --all -- --check
+            else
+                cargo +nightly fmt --all -- --check || true
+            fi

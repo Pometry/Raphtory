@@ -13,10 +13,16 @@ use crate::{
     },
 };
 use pyo3::prelude::*;
+
+use crate::db::api::view::internal::{DynamicGraph, IntoDynamic};
 use std::{
     collections::HashMap,
     fmt::{Debug, Formatter},
     path::{Path, PathBuf},
+};
+
+use super::pandas::{
+    load_edges_from_df, load_vertices_from_df, process_pandas_py_df, GraphLoadException,
 };
 
 /// A temporal graph.
@@ -35,6 +41,18 @@ impl Debug for PyGraph {
 impl From<Graph> for PyGraph {
     fn from(value: Graph) -> Self {
         Self { graph: value }
+    }
+}
+
+impl From<PyGraph> for Graph {
+    fn from(value: PyGraph) -> Self {
+        value.graph
+    }
+}
+
+impl From<PyGraph> for DynamicGraph {
+    fn from(value: PyGraph) -> Self {
+        value.graph.into_dynamic()
     }
 }
 
@@ -212,5 +230,89 @@ impl PyGraph {
     /// None
     pub fn save_to_file(&self, path: &str) -> Result<(), GraphError> {
         self.graph.save_to_file(Path::new(path))
+    }
+
+    #[staticmethod]
+    #[pyo3(signature = (edges_df, src = "source", dst = "destination", time = "time", props = None, layer = None, layer_in_df = None, vertex_df = None, vertex_col = None, vertex_time_col = None, vertex_props = None))]
+    fn load_from_pandas(
+        edges_df: &PyAny,
+        src: &str,
+        dst: &str,
+        time: &str,
+        props: Option<Vec<&str>>,
+        layer: Option<&str>,
+        layer_in_df: Option<&str>,
+        vertex_df: Option<&PyAny>,
+        vertex_col: Option<&str>,
+        vertex_time_col: Option<&str>,
+        vertex_props: Option<Vec<&str>>,
+    ) -> Result<Graph, GraphError> {
+        let graph = PyGraph {
+            graph: Graph::new(),
+        };
+        graph.load_edges_from_pandas(edges_df, src, dst, time, props, layer, layer_in_df)?;
+        if let (Some(vertex_df), Some(vertex_col), Some(vertex_time_col)) =
+            (vertex_df, vertex_col, vertex_time_col)
+        {
+            graph.load_vertices_from_pandas(
+                vertex_df,
+                vertex_col,
+                vertex_time_col,
+                vertex_props,
+            )?;
+        }
+        Ok(graph.graph)
+    }
+
+    #[pyo3(signature = (vertices_df, vertex_col = "id", time_col = "time", props = None))]
+    fn load_vertices_from_pandas(
+        &self,
+        vertices_df: &PyAny,
+        vertex_col: &str,
+        time_col: &str,
+        props: Option<Vec<&str>>,
+    ) -> Result<(), GraphError> {
+        let graph = &self.graph;
+        Python::with_gil(|py| {
+            let df = process_pandas_py_df(vertices_df, py)?;
+            load_vertices_from_df(&df, vertex_col, time_col, props, graph)
+                .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
+
+            Ok::<(), PyErr>(())
+        })
+        .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
+        Ok(())
+    }
+
+    #[pyo3(signature = (edge_df, src_col = "source", dst_col = "destination", time_col = "time", props = None, layer=None,layer_in_df=None))]
+    fn load_edges_from_pandas(
+        &self,
+        edge_df: &PyAny,
+        src_col: &str,
+        dst_col: &str,
+        time_col: &str,
+        props: Option<Vec<&str>>,
+        layer: Option<&str>,
+        layer_in_df: Option<&str>,
+    ) -> Result<(), GraphError> {
+        let graph = &self.graph;
+        Python::with_gil(|py| {
+            let df = process_pandas_py_df(edge_df, py)?;
+            load_edges_from_df(
+                &df,
+                src_col,
+                dst_col,
+                time_col,
+                props,
+                layer,
+                layer_in_df,
+                graph,
+            )
+            .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
+
+            Ok::<(), PyErr>(())
+        })
+        .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
+        Ok(())
     }
 }

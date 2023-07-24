@@ -1,6 +1,9 @@
 //! Defines the `Vertex`, which represents a vertex in the graph.
 //! A vertex is a node in the graph, and can have properties and edges.
 //! It can also be used to navigate the graph.
+use crate::core::Prop;
+use crate::db::api::properties::Properties;
+use crate::python::graph::properties::{PyNestedPropsIterable, PyPropsIterable};
 use crate::{
     core::{entities::vertices::vertex_ref::VertexRef, utils::time::error::ParseTimeError},
     db::{
@@ -23,10 +26,7 @@ use crate::{
     *,
 };
 use chrono::NaiveDateTime;
-
-use crate::core::Prop;
-use crate::db::api::properties::Properties;
-use crate::python::graph::properties::{PyNestedPropsIterable, PyPropsIterable};
+use itertools::Itertools;
 use pyo3::exceptions::PyKeyError;
 use pyo3::{
     exceptions::PyIndexError, prelude::*, pyclass, pyclass::CompareOp, pymethods, PyAny, PyObject,
@@ -392,16 +392,15 @@ impl Repr for PyVertex {
 
 impl Repr for VertexView<DynamicGraph> {
     fn repr(&self) -> String {
-        // let properties: String = self
-        //     .properties(Some(true))
-        //     .iter()
-        //     .map(|(k, v)| k.to_string() + " : " + &v.to_string())
-        //     .join(", ");
-        let properties = "";
+        let properties: String = self
+            .properties()
+            .iter()
+            .map(|(k, v)| format!("{}: {}", k, v.to_string()))
+            .join(", ");
         if properties.is_empty() {
             format!("Vertex(name={})", self.name().trim_matches('"'))
         } else {
-            let property_string: String = "{".to_owned() + properties + "}";
+            let property_string: String = format!("{{{properties}}}");
             format!(
                 "Vertex(name={}, properties={})",
                 self.name().trim_matches('"'),

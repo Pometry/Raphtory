@@ -29,6 +29,11 @@ pub enum GraphError {
     BinCodeError { source: Box<bincode::ErrorKind> },
     #[error("IO operation failed")]
     IOError { source: std::io::Error },
+
+    #[cfg(feature = "python")]
+    #[error("Failed to load graph: {0}")]
+    LoadFailure(String),
+
     #[cfg(feature = "search")]
     #[error("Index operation failed")]
     IndexError { source: tantivy::TantivyError },

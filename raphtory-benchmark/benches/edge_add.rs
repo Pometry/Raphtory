@@ -1,5 +1,6 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use raphtory::{core::entities::vertices::input_vertex::InputVertex, prelude::*};
+
 mod common;
 use rand::{
     distributions::{Alphanumeric, DistString},

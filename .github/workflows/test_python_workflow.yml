@@ -20,9 +20,9 @@ jobs:
       - id: set-matrix
         run: |
           if [ ${{ inputs.test_python_lower }} == true ]; then
-            echo "python-versions=[\"3.7\",\"3.11\"]" >> $GITHUB_OUTPUT
+            echo "python-versions=[\"3.8\",\"3.11\"]" >> $GITHUB_OUTPUT
           else
-            echo "python-versions=[\"3.11\"]" >> $GITHUB_OUTPUT
+            echo "python-versions=[\"3.8\"]" >> $GITHUB_OUTPUT
           fi
   python-test:
     if: ${{ !inputs.skip_tests }}
@@ -82,4 +82,4 @@ jobs:
           }
       - name: Run Python tests
         run: |
-          cd python/tests && pytest --nbmake --nbmake-timeout=1200 .
+          cd python/tests && pytest --nbmake --nbmake-timeout=1200 .    

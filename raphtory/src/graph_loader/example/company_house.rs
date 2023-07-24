@@ -61,7 +61,7 @@ pub fn company_house_graph(path: Option<String>) -> Graph {
             .set_delimiter(",")
             .load_into_graph(&g, |company_house: CompanyHouse, g: &Graph| {
                 let pincode = &company_house.pincode;
-                let address = company_house.address + ", " + pincode;
+                let address = format!("{}, {pincode}", company_house.address);
                 let company = company_house.company;
                 let owner = company_house.owner;
                 // let illegal_flag : Option<String> = match company_house.illegal_hmo {
@@ -130,13 +130,8 @@ pub fn company_house_graph(path: Option<String>) -> Graph {
                 )
                 .expect("Failed to add edge");
 
-                g.add_edge_properties(
-                    owner,
-                    company.clone(),
-                    [("rel", "owns")],
-                    Some(pincode),
-                )
-                .expect("Failed to add edge static property");
+                g.add_edge_properties(owner, company.clone(), [("rel", "owns")], Some(pincode))
+                    .expect("Failed to add edge static property");
 
                 g.add_edge(
                     NaiveDateTime::from_timestamp_opt(ts, 0).unwrap(),
@@ -147,13 +142,8 @@ pub fn company_house_graph(path: Option<String>) -> Graph {
                 )
                 .expect("Failed to add edge");
 
-                g.add_edge_properties(
-                    company,
-                    address,
-                    [("rel", "owns")],
-                    None,
-                )
-                .expect("Failed to add edge static property");
+                g.add_edge_properties(company, address, [("rel", "owns")], None)
+                    .expect("Failed to add edge static property");
             })
             .expect("Failed to load graph from CSV data files");
 

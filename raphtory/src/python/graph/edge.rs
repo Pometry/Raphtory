@@ -323,7 +323,7 @@ impl Repr for EdgeView<DynamicGraph> {
                 latest_time.unwrap_or(0),
             )
         } else {
-            let property_string: String = "{".to_string() + properties + "}";
+            let property_string: String = format!("{{{properties}}}");
             format!(
                 "Edge(source={}, target={}, earliest_time={}, latest_time={}, properties={})",
                 source.trim_matches('"'),

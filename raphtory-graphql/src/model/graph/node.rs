@@ -61,11 +61,8 @@ impl Node {
         )
     }
 
-    async fn property(&self, name: String) -> Option<Property> {
-        self.vv
-            .properties()
-            .get(&name)
-            .map(|v| Property::new(name, v))
+    async fn property(&self, name: &str) -> Option<String> {
+        self.vv.properties().get(name).map(|v| v.to_string())
     }
 
     async fn property_history(&self, name: String) -> Vec<PropertyUpdate> {
