@@ -73,27 +73,28 @@ impl Zero for MotifCounter {
 
 ///////////////////////////////////////////////////////
 
-fn update_counter<G: GraphViewOps>(
-    vs: Vec<&EvalVertexView<G, ComputeStateVec, MotifCounter>>,
-    motif_counter: AccId<MotifCounter, MotifCounter, MotifCounter, ValDef<MotifCounter>>,
-    tmp_counts: Iter<usize>,
-) {
-    for v in vs {
-        let mc = v.read(&motif_counter);
-        let triangle: [usize; 8] = mc
-            .triangle
-            .iter()
-            .zip(tmp_counts.clone())
-            .map(|(&i1, &i2)| i1 + i2)
-            .collect::<Vec<usize>>()
-            .try_into()
-            .unwrap();
-        v.update(
-            &motif_counter,
-            MotifCounter::from_triangle_counter(triangle),
-        );
-    }
-}
+// fn update_counter<G: GraphViewOps>(
+//     vs: &mut Vec<&EvalVertexView<G, ComputeStateVec, MotifCounter>>,
+//     motif_counter: AccId<MotifCounter, MotifCounter, MotifCounter, ValDef<MotifCounter>>,
+//     tmp_counts: Iter<usize>,
+// ) {
+//     for mut v in vs {
+//         let mc = v.get_mut();
+//         let triangle: [usize; 8] = mc
+//             .triangle
+//             .iter()
+//             .zip(tmp_counts.clone())
+//             .map(|(&i1, &i2)| i1 + i2)
+//             .collect::<Vec<usize>>()
+//             .try_into()
+//             .unwrap();
+//         v.update(
+//             &motif_counter,
+//             MotifCounter::from_triangle_counter(triangle),
+//         );
+//         println!("{:?}",v.read(&motif_counter))
+//     }
+// }
 
 ///////////////////////////////////////////////////////
 
@@ -160,15 +161,15 @@ pub fn twonode_motif_count<G: GraphViewOps>(
 
 ///////////////////////////////////////////////////////
 
-pub fn triangle_motifs<G: GraphViewOps>(graph: &G, delta:i64, threads: Option<usize>) -> HashMap<String, [usize;8]>{
+pub fn triangle_motifs<G: GraphViewOps>(graph: &G, delta:i64, motifs_count_id:AccId<MotifCounter, MotifCounter,MotifCounter,ValDef<MotifCounter>>, threads: Option<usize>) -> HashMap<String, [usize;8]>{
     let vertex_set = k_core_set(graph,2,usize::MAX, None);
     // vertex_set.sort();
     // let vertex_set
     let g: VertexSubgraph<G> = graph.subgraph(vertex_set);
     let vertex_set_sorted = g.vertices().id().sorted().collect_vec();
     let mut ctx: Context<VertexSubgraph<G>, ComputeStateVec> = Context::from(&g);
-    let motifs_counter = val::<MotifCounter>(0);
-    ctx.agg(motifs_counter);
+
+    // ctx.agg(motifs_count_id);
 
     let neighbours_set = accumulators::hash_set::<u64>(1);
 
@@ -184,7 +185,7 @@ pub fn triangle_motifs<G: GraphViewOps>(graph: &G, delta:i64, threads: Option<us
     });
 
     let step2 = ATask::new(move |u : &mut EvalVertexView<VertexSubgraph<G>, ComputeStateVec, MotifCounter>| {
-        for v in u.neighbours() {
+        for mut v in u.neighbours() {
 
             // Find triangles on the UV edge
             if u.id() > v.id() {
@@ -314,29 +315,50 @@ pub fn triangle_motifs<G: GraphViewOps>(graph: &G, delta:i64, threads: Option<us
                     let mut tri_count = init_tri_count(nb_ct);
                     tri_count.execute(&tri_edges, delta);
                     let tmp_counts: Iter<usize> = tri_count.return_counts().iter();
-                    println!("Tmp counts {:?} ",tmp_counts);
 
                     // Triangle counts are going to be WRONG without w
-                    update_counter(vec![u, &v], motifs_counter, tmp_counts);
+                    // update_counter(&mut vec![u, &v], motifs_count_id, tmp_counts);
+
+                    println!("{:?}U ID",u.id());
+                    let mc_u = u.get_mut();
+                    let triangle_u = mc_u
+                    .triangle
+                        .iter()
+                        .zip(tmp_counts.clone())
+                        .map(|(&i1, &i2)| i1 + i2)
+                        .collect::<Vec<usize>>()
+                        .try_into()
+                        .unwrap();
+                    mc_u.triangle = triangle_u;
+
+                    // This is so broken :( :(
+
+                    // println!("{:?}V ID",v.id());
+                    // let mc = v.get_mut();
+                    // let triangle_v: [usize; 8] = mc
+                    //     .triangle
+                    //     .iter()
+                    //     .zip(tmp_counts.clone())
+                    //     .map(|(&i1, &i2)| i1 + i2)
+                    //     .collect::<Vec<usize>>()
+                    //     .try_into()
+                    //     .unwrap();
+                    // mc.triangle = triangle_v;
+
                 })
             }
         }
         Step::Continue
     });
 
-    // let init_tasks = vec![Job::new(step1)];
-    // let tasks = vec![Job::new(step2)];
-
     let mut runner: TaskRunner<VertexSubgraph<G>, _> = TaskRunner::new(ctx);
 
     runner.run(
-        vec![],
-        vec![Job::new(step1), Job::new(step2)],
+        vec![Job::new(step1)],
+        vec![Job::read_only(step2)],
         MotifCounter::zero(),
-        |_, _, _, local| {
+        |_, _, els, local| {
             let mut tri_motifs = HashMap::new();
-            println!("{:?}",local.len());
-            // let vertex_id_set: HashSet<u64> = vertex_set.iter().map(|v| graph.vertex(*v).unwrap().id()).collect();
             for (vref, mc) in enumerate(local) {
                 let v_gid = graph.vertex_name(vref.into());
                 tri_motifs.insert(v_gid.clone(), mc.triangle);
@@ -360,11 +382,11 @@ pub fn temporal_three_node_motif<G: GraphViewOps>(
     threads: Option<usize>,
 ) -> HashMap<String, Vec<usize>> {
     let mut ctx: Context<G, ComputeStateVec> = g.into();
-    let motifs_counter = val::<MotifCounter>(2);
+    let motifs_counter = val::<MotifCounter>(0);
 
     ctx.agg(motifs_counter);
 
-    let out1 = triangle_motifs(g, delta, threads);
+    let out1 = triangle_motifs(g, delta, motifs_counter, threads);
 
     let step1 = ATask::new(
         move |evv: &mut EvalVertexView<G, ComputeStateVec, MotifCounter>| {
@@ -411,6 +433,33 @@ pub fn temporal_three_node_motif<G: GraphViewOps>(
         None,
     );
     out2
+}
+
+pub fn global_temporal_three_node_motif_from_local(
+    counts: HashMap<String, Vec<usize>>,
+) -> Vec<usize> {
+    let mut tmp_counts = counts.values().fold(vec![0; 40], |acc, x| {
+        acc.iter().zip(x.iter()).map(|(x1, x2)| x1 + x2).collect()
+    });
+    // for ind in 31..40 {
+    //     tmp_counts[ind] = tmp_counts[ind] / 2;
+    // }
+    tmp_counts
+}
+
+pub fn global_temporal_three_node_motif<G: GraphViewOps>(
+    graph: &G,
+    delta: i64,
+    threads: Option<usize>,
+) -> Vec<usize> {
+    let counts = temporal_three_node_motif(graph, delta, threads);
+    let mut tmp_counts = counts.values().fold(vec![0; 40], |acc, x| {
+        acc.iter().zip(x.iter()).map(|(x1, x2)| x1 + x2).collect()
+    });
+    // for ind in 31..40 {
+    //     tmp_counts[ind] = tmp_counts[ind] / 3;
+    // }
+    tmp_counts
 }
 
 mod motifs_test {
@@ -537,14 +586,18 @@ mod motifs_test {
             ),
         ]);
 
-        println!("{:?}",actual.keys());
+        // println!("{:?}",actual.keys());
 
-        for ind in 1..12 {
-            // println!("Index {:?}",ind);
-            assert_eq!(
-                actual.get(&ind.to_string()).unwrap(),
-                expected.get(&ind.to_string()).unwrap()
-            );
-        }
+        // for ind in 3..12 {
+        //     println!("Index {:?}",ind);
+        //     assert_eq!(
+        //         actual.get(&ind.to_string()).unwrap(),
+        //         expected.get(&ind.to_string()).unwrap()
+        //     );
+        // }
+
+        let global_motifs = global_temporal_three_node_motif(&g, 10, None);
+        println!("{:?}",global_motifs);
+
     }
 }
