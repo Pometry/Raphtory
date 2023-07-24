@@ -1,22 +1,28 @@
-use crate::core::Prop;
-use crate::db::api::properties::internal::PropertiesOps;
-use crate::db::api::properties::Properties;
-use crate::db::api::view::internal::{DynamicGraph, Static};
-use crate::python::graph::properties::{
-    DynProps, DynStaticProperties, DynTemporalProperties, NestedStaticPropsIterable,
-    NestedTemporalPropsIterable, PyStaticProperties, PyStaticPropsIterable, TemporalPropsIterable,
+use crate::{
+    core::Prop,
+    db::api::{
+        properties::{internal::PropertiesOps, Properties},
+        view::internal::{DynamicGraph, Static},
+    },
+    python::{
+        graph::properties::{
+            DynProps, DynStaticProperties, DynTemporalProperties, NestedStaticPropsIterable,
+            NestedTemporalPropsIterable, PyStaticProperties, PyStaticPropsIterable,
+            TemporalPropsIterable,
+        },
+        types::{
+            repr::{iterator_dict_repr, Repr},
+            wrappers::prop::PropValue,
+        },
+        utils::PyGenericIterator,
+    },
 };
-use crate::python::types::iterable::{Iterable, NestedIterable};
-use crate::python::types::repr::{iterator_dict_repr, Repr};
-use crate::python::types::wrappers::prop::PropValue;
-use crate::python::utils::PyGenericIterator;
 use itertools::Itertools;
-use pyo3::basic::CompareOp;
-use pyo3::exceptions::{PyKeyError, PyTypeError};
-use pyo3::prelude::*;
-use std::collections::HashMap;
-use std::ops::Deref;
-use std::sync::Arc;
+use pyo3::{
+    exceptions::{PyKeyError, PyTypeError},
+    prelude::*,
+};
+use std::{collections::HashMap, ops::Deref, sync::Arc};
 
 pub type DynProperties = Properties<Arc<dyn PropertiesOps + Send + Sync>>;
 

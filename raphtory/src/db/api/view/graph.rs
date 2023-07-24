@@ -1,4 +1,3 @@
-use crate::db::api::properties::Properties;
 use crate::{
     core::{
         entities::{graph::tgraph::InnerTemporalGraph, vertices::vertex_ref::VertexRef, VID},
@@ -7,6 +6,7 @@ use crate::{
     db::{
         api::{
             mutation::{AdditionOps, PropertyAdditionOps},
+            properties::Properties,
             view::{internal::*, layer::LayerOps, *},
         },
         graph::{

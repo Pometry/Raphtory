@@ -1,11 +1,13 @@
 use dashmap::mapref::one::Ref;
 use parking_lot::{MappedRwLockReadGuard, RwLockReadGuard};
 use rustc_hash::FxHasher;
-use std::borrow::Borrow;
-use std::cmp::Ordering;
-use std::fmt::{Debug, Formatter};
-use std::hash::{Hash, Hasher};
-use std::{hash::BuildHasherDefault, ops::Deref};
+use std::{
+    borrow::Borrow,
+    cmp::Ordering,
+    fmt::{Debug, Formatter},
+    hash::{BuildHasherDefault, Hash, Hasher},
+    ops::Deref,
+};
 use tantivy::directory::Lock;
 
 pub enum LockedView<'a, T> {
@@ -35,7 +37,6 @@ impl<'a> From<LockedView<'a, String>> for String {
         value.deref().clone()
     }
 }
-
 
 impl<'a, T: PartialEq<Rhs>, Rhs, LRhs: Deref<Target = Rhs>> PartialEq<LRhs> for LockedView<'a, T> {
     fn eq(&self, other: &LRhs) -> bool {

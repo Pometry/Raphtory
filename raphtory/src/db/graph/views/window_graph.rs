@@ -37,21 +37,23 @@
 //!  assert_eq!(wg.edge(1, 2, None).unwrap().src().id(), 1);
 //! ```
 
-use crate::core::storage::locked_view::LockedView;
-use crate::db::api::properties::internal::{
-    InheritStaticPropertiesOps, Key, TemporalPropertiesOps, TemporalPropertyViewOps,
-};
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef, EID, VID},
+        storage::locked_view::LockedView,
         utils::time::IntoTime,
         Direction, Prop,
     },
-    db::api::view::{
-        internal::{
-            Base, GraphOps, GraphWindowOps, InheritCoreOps, InheritMaterialize, TimeSemantics,
+    db::api::{
+        properties::internal::{
+            InheritStaticPropertiesOps, Key, TemporalPropertiesOps, TemporalPropertyViewOps,
         },
-        BoxedIter,
+        view::{
+            internal::{
+                Base, GraphOps, GraphWindowOps, InheritCoreOps, InheritMaterialize, TimeSemantics,
+            },
+            BoxedIter,
+        },
     },
     prelude::GraphViewOps,
 };

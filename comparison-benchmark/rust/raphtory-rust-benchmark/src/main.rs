@@ -2,23 +2,17 @@ use chrono::NaiveDateTime;
 use clap::{ArgAction, Parser};
 use csv::StringRecord;
 use flate2::read::GzDecoder;
-use ordered_float::OrderedFloat;
 use raphtory::{
     algorithms::{
         algorithm_result::AlgorithmResult, connected_components::weakly_connected_components,
         pagerank::unweighted_page_rank,
     },
-    core::utils::hashing::calculate_hash,
     graph_loader::{fetch_file, source::csv_loader::CsvLoader},
     prelude::{AdditionOps, Graph, GraphViewOps, VertexViewOps, NO_PROPS},
 };
-use serde::Deserialize;
 use std::{
-    collections::HashMap,
-    env,
-    error::Error,
     fs::File,
-    io::{self, BufRead, BufReader, BufWriter, Read, Write},
+    io::{self, Read, Write},
     path::Path,
     time::Instant,
 };

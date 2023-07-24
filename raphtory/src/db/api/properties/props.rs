@@ -1,8 +1,9 @@
-use crate::core::storage::locked_view::LockedView;
-use crate::core::Prop;
-use crate::db::api::properties::internal::*;
-use crate::db::api::properties::static_props::StaticProperties;
-use crate::db::api::properties::temporal_props::TemporalProperties;
+use crate::{
+    core::{storage::locked_view::LockedView, Prop},
+    db::api::properties::{
+        internal::*, static_props::StaticProperties, temporal_props::TemporalProperties,
+    },
+};
 use std::collections::HashMap;
 
 /// View of the properties of an entity (graph|vertex|edge)

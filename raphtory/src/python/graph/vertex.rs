@@ -1,15 +1,15 @@
 //! Defines the `Vertex`, which represents a vertex in the graph.
 //! A vertex is a node in the graph, and can have properties and edges.
 //! It can also be used to navigate the graph.
-use crate::core::Prop;
-use crate::db::api::properties::Properties;
-use crate::python::graph::properties::{PyNestedPropsIterable, PyPropsIterable};
 use crate::{
-    core::{entities::vertices::vertex_ref::VertexRef, utils::time::error::ParseTimeError},
+    core::{entities::vertices::vertex_ref::VertexRef, utils::time::error::ParseTimeError, Prop},
     db::{
-        api::view::{
-            internal::{DynamicGraph, IntoDynamic},
-            *,
+        api::{
+            properties::Properties,
+            view::{
+                internal::{DynamicGraph, IntoDynamic},
+                *,
+            },
         },
         graph::{
             path::{PathFromGraph, PathFromVertex},
@@ -19,7 +19,10 @@ use crate::{
         },
     },
     python::{
-        graph::edge::{PyEdges, PyNestedEdges},
+        graph::{
+            edge::{PyEdges, PyNestedEdges},
+            properties::{PyNestedPropsIterable, PyPropsIterable},
+        },
         types::wrappers::iterators::*,
         utils::{PyInterval, PyTime},
     },
@@ -27,12 +30,15 @@ use crate::{
 };
 use chrono::NaiveDateTime;
 use itertools::Itertools;
-use pyo3::exceptions::PyKeyError;
 use pyo3::{
-    exceptions::PyIndexError, prelude::*, pyclass, pyclass::CompareOp, pymethods, PyAny, PyObject,
-    PyRef, PyRefMut, PyResult, Python,
+    exceptions::{PyIndexError, PyKeyError},
+    prelude::*,
+    pyclass,
+    pyclass::CompareOp,
+    pymethods, PyAny, PyObject, PyRef, PyRefMut, PyResult, Python,
 };
 use python::types::repr::{iterator_repr, Repr};
+use std::ops::Deref;
 
 /// A vertex (or node) in the graph.
 #[pyclass(name = "Vertex")]
@@ -395,7 +401,7 @@ impl Repr for VertexView<DynamicGraph> {
         let properties: String = self
             .properties()
             .iter()
-            .map(|(k, v)| format!("{}: {}", k, v.to_string()))
+            .map(|(k, v)| format!("{}: {}", k.deref(), v))
             .join(", ");
         if properties.is_empty() {
             format!("Vertex(name={})", self.name().trim_matches('"'))

@@ -1,7 +1,8 @@
-use crate::core::storage::locked_view::LockedView;
-use crate::core::{Prop, PropUnwrap};
-use crate::db::api::properties::internal::{Key, PropertiesOps};
-use crate::prelude::Graph;
+use crate::{
+    core::{storage::locked_view::LockedView, Prop, PropUnwrap},
+    db::api::properties::internal::{Key, PropertiesOps},
+    prelude::Graph,
+};
 use chrono::NaiveDateTime;
 use std::iter::Zip;
 

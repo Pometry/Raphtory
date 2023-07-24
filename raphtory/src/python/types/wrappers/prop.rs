@@ -2,8 +2,9 @@ use crate::{
     core::Prop,
     python::{graph::views::graph_view::PyGraphView, types::repr::Repr},
 };
-use pyo3::types::PyBool;
-use pyo3::{exceptions::PyTypeError, FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python};
+use pyo3::{
+    exceptions::PyTypeError, types::PyBool, FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python,
+};
 
 impl IntoPy<PyObject> for Prop {
     fn into_py(self, py: Python<'_>) -> PyObject {
@@ -25,7 +26,8 @@ impl IntoPy<PyObject> for Prop {
 // Manually implemented to make sure we don't end up with f32/i32/u32 from python ints/floats
 impl<'source> FromPyObject<'source> for Prop {
     fn extract(ob: &'source PyAny) -> PyResult<Self> {
-        if ob.is_instance_of::<PyBool>() {
+        // TODO: This no longer returns result in newer pyo3
+        if ob.is_instance_of::<PyBool>()? {
             return Ok(Prop::Bool(ob.extract()?));
         }
         if let Ok(v) = ob.extract() {

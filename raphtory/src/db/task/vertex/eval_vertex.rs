@@ -1,5 +1,3 @@
-use crate::db::api::properties::Properties;
-use crate::db::graph::vertex::VertexView;
 use crate::{
     core::{
         entities::VID,
@@ -8,13 +6,17 @@ use crate::{
         Direction,
     },
     db::{
-        api::view::{
-            BoxedIter, EdgeListOps, EdgeViewOps, GraphViewOps, TimeOps, VertexListOps,
-            VertexViewOps,
+        api::{
+            properties::Properties,
+            view::{
+                BoxedIter, EdgeListOps, EdgeViewOps, GraphViewOps, TimeOps, VertexListOps,
+                VertexViewOps,
+            },
         },
         graph::{
             edge::EdgeView,
             path::{Operations, PathFromVertex},
+            vertex::VertexView,
         },
         task::{
             edge::eval_edge::EvalEdgeView,

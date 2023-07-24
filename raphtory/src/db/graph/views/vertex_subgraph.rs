@@ -1,11 +1,13 @@
-use crate::db::api::properties::internal::InheritPropertiesOps;
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef, EID, VID},
         Direction,
     },
-    db::api::view::internal::{
-        Base, GraphOps, InheritCoreOps, InheritMaterialize, InheritTimeSemantics,
+    db::api::{
+        properties::internal::InheritPropertiesOps,
+        view::internal::{
+            Base, GraphOps, InheritCoreOps, InheritMaterialize, InheritTimeSemantics,
+        },
     },
     prelude::GraphViewOps,
 };

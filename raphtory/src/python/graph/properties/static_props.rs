@@ -1,22 +1,24 @@
-use crate::core::Prop;
-use crate::db::api::properties::internal::PropertiesOps;
-use crate::db::api::properties::StaticProperties;
-use crate::db::api::view::internal::Static;
-use crate::python::graph::properties::props::PropsComparable;
-use crate::python::graph::properties::{
-    DynProps, NestedOptionPropIterable, OptionPropIterable, PyNestedPropsIterableComparable,
-    PyPropsIterableComparable,
+use crate::{
+    core::Prop,
+    db::api::{
+        properties::{internal::PropertiesOps, StaticProperties},
+        view::internal::Static,
+    },
+    python::{
+        graph::properties::{
+            props::PropsComparable, DynProps, NestedOptionPropIterable, OptionPropIterable,
+            PyNestedPropsIterableComparable, PyPropsIterableComparable,
+        },
+        types::repr::{iterator_dict_repr, Repr},
+        utils::PyGenericIterator,
+    },
 };
-use crate::python::types::iterable::{Iterable, NestedIterable};
-use crate::python::types::repr::{iterator_dict_repr, Repr};
-use crate::python::utils::PyGenericIterator;
 use itertools::Itertools;
-use pyo3::exceptions::{PyKeyError, PyTypeError};
-use pyo3::prelude::*;
-use pyo3::pyclass::CompareOp;
-use std::collections::HashMap;
-use std::ops::Deref;
-use std::sync::Arc;
+use pyo3::{
+    exceptions::{PyKeyError, PyTypeError},
+    prelude::*,
+};
+use std::{collections::HashMap, sync::Arc};
 
 pub type DynStaticProperties = StaticProperties<DynProps>;
 
@@ -107,7 +109,11 @@ impl Repr for PyStaticProperties {
     }
 }
 
-py_iterable_base!(PyStaticPropsIterable, DynStaticProperties, PyStaticProperties);
+py_iterable_base!(
+    PyStaticPropsIterable,
+    DynStaticProperties,
+    PyStaticProperties
+);
 py_eq!(PyStaticPropsIterable, PyPropsIterableComparable);
 
 #[pymethods]
@@ -158,7 +164,11 @@ impl PyStaticPropsIterable {
     }
 }
 
-py_nested_iterable_base!(NestedStaticPropsIterable, DynStaticProperties, PyStaticProperties);
+py_nested_iterable_base!(
+    NestedStaticPropsIterable,
+    DynStaticProperties,
+    PyStaticProperties
+);
 py_eq!(NestedStaticPropsIterable, PyNestedPropsIterableComparable);
 
 #[pymethods]
@@ -215,5 +225,3 @@ impl NestedStaticPropsIterable {
             .collect()
     }
 }
-
-

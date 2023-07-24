@@ -1,4 +1,4 @@
-use crate::model::graph::{node::Node, property::Property};
+use crate::model::graph::node::Node;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::db::{
     api::view::{

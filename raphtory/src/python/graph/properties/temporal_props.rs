@@ -1,19 +1,21 @@
-use crate::core::utils::time::IntoTime;
-use crate::core::Prop;
-use crate::db::api::properties::internal::PropertiesOps;
-use crate::db::api::properties::StaticProperties;
-use crate::db::api::properties::{TemporalProperties, TemporalPropertyView};
-use crate::db::api::view::internal::{DynamicGraph, Static};
-use crate::python::graph::properties::static_props::PyStaticProperties;
-use crate::python::graph::properties::{DynProps, NestedOptionPropIterable, OptionPropIterable};
-use crate::python::types::repr::{iterator_dict_repr, iterator_repr, Repr};
-use crate::python::utils::{PyGenericIterator, PyTime};
+use crate::{
+    core::{utils::time::IntoTime, Prop},
+    db::api::{
+        properties::{internal::PropertiesOps, TemporalProperties, TemporalPropertyView},
+        view::internal::{DynamicGraph, Static},
+    },
+    python::{
+        graph::properties::{DynProps, NestedOptionPropIterable, OptionPropIterable},
+        types::repr::{iterator_dict_repr, iterator_repr, Repr},
+        utils::{PyGenericIterator, PyTime},
+    },
+};
 use itertools::Itertools;
-use pyo3::exceptions::{PyKeyError, PyTypeError};
-use pyo3::prelude::*;
-use std::collections::HashMap;
-use std::ops::Deref;
-use std::sync::Arc;
+use pyo3::{
+    exceptions::{PyKeyError, PyTypeError},
+    prelude::*,
+};
+use std::{collections::HashMap, ops::Deref, sync::Arc};
 
 pub type DynTemporalProperties = TemporalProperties<DynProps>;
 pub type DynTemporalProperty = TemporalPropertyView<DynProps>;

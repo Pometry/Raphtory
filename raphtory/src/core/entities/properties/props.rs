@@ -1,16 +1,15 @@
-use crate::core::storage::locked_view::LockedView;
 use crate::core::{
     entities::{graph::tgraph::FxDashMap, properties::tprop::TProp},
-    storage::lazy_vec::LazyVec,
+    storage::{lazy_vec::LazyVec, locked_view::LockedView},
     utils::errors::{IllegalMutate, MutateGraphError},
     Prop,
 };
 use parking_lot::{RwLock, RwLockReadGuard};
 use serde::{Deserialize, Serialize};
-use std::fmt::Debug;
-use std::ops::Deref;
 use std::{
+    fmt::Debug,
     hash::Hash,
+    ops::Deref,
     sync::atomic::{AtomicUsize, Ordering},
 };
 

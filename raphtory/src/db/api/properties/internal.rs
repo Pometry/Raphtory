@@ -1,8 +1,11 @@
-use crate::core::entities::properties::props::DictMapper;
-use crate::core::entities::properties::tprop::TProp;
-use crate::core::storage::locked_view::LockedView;
-use crate::core::Prop;
-use crate::db::api::view::internal::Base;
+use crate::{
+    core::{
+        entities::properties::{props::DictMapper, tprop::TProp},
+        storage::locked_view::LockedView,
+        Prop,
+    },
+    db::api::view::internal::Base,
+};
 
 pub trait CorePropertiesOps {
     fn static_prop_meta(&self) -> &DictMapper<String>;

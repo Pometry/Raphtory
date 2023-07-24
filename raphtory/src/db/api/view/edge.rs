@@ -1,10 +1,12 @@
-use crate::db::api::properties::internal::{
-    StaticPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
-};
-use crate::db::api::properties::Properties;
 use crate::{
     core::entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef},
-    db::api::view::{internal::*, *},
+    db::api::{
+        properties::{
+            internal::{StaticPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps},
+            Properties,
+        },
+        view::{internal::*, *},
+    },
 };
 
 pub trait EdgeViewInternalOps<G: GraphViewOps, V: VertexViewOps<Graph = G>> {

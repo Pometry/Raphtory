@@ -1,6 +1,10 @@
-use crate::db::api::properties::Properties;
-use crate::db::api::view::{edge::EdgeListOps, GraphViewOps, TimeOps};
-use crate::db::graph::vertex::VertexView;
+use crate::db::{
+    api::{
+        properties::Properties,
+        view::{edge::EdgeListOps, GraphViewOps, TimeOps},
+    },
+    graph::vertex::VertexView,
+};
 
 /// Operations defined for a vertex
 pub trait VertexViewOps: TimeOps {

@@ -1,8 +1,7 @@
-use crate::core::entities::graph::tgraph::InnerTemporalGraph;
-use crate::core::storage::locked_view::LockedView;
-use crate::core::Prop;
-use crate::db::api::properties::internal::StaticPropertiesOps;
-use crate::db::api::view::internal::CoreGraphOps;
+use crate::{
+    core::{entities::graph::tgraph::InnerTemporalGraph, storage::locked_view::LockedView, Prop},
+    db::api::{properties::internal::StaticPropertiesOps, view::internal::CoreGraphOps},
+};
 use parking_lot::RwLockReadGuard;
 
 impl<const N: usize> StaticPropertiesOps for InnerTemporalGraph<N> {

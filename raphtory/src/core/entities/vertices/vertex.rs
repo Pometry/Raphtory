@@ -1,23 +1,27 @@
-use crate::core::entities::properties::props::{DictMapper, Meta};
-use crate::core::{
-    entities::{
-        edges::{edge::EdgeView, edge_ref::EdgeRef, edge_store::EdgeStore},
-        graph::tgraph::TGraph,
-        properties::tprop::TProp,
-        vertices::{
-            structure::iter::{Paged, PagedIter},
-            vertex_store::VertexStore,
+use crate::{
+    core::{
+        entities::{
+            edges::{edge::EdgeView, edge_ref::EdgeRef, edge_store::EdgeStore},
+            graph::tgraph::TGraph,
+            properties::{
+                props::{DictMapper, Meta},
+                tprop::TProp,
+            },
+            vertices::{
+                structure::iter::{Paged, PagedIter},
+                vertex_store::VertexStore,
+            },
+            VRef, VID,
         },
-        VRef, VID,
+        storage::{
+            locked_view::LockedView,
+            timeindex::{TimeIndex, TimeIndexOps},
+            ArcEntry, Entry,
+        },
+        Direction, Prop,
     },
-    storage::{
-        locked_view::LockedView,
-        timeindex::{TimeIndex, TimeIndexOps},
-        ArcEntry, Entry,
-    },
-    Direction, Prop,
+    db::api::properties::internal::CorePropertiesOps,
 };
-use crate::db::api::properties::internal::CorePropertiesOps;
 use itertools::Itertools;
 use std::{ops::Range, sync::Arc};
 

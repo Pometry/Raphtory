@@ -15,7 +15,6 @@ use crate::{
     },
 };
 use num_traits::abs;
-use rustc_hash::FxHashMap;
 use std::{collections::HashMap, ops::Range};
 
 #[derive(Debug, Clone)]
@@ -168,7 +167,6 @@ mod hits_tests {
         db::{api::mutation::AdditionOps, graph::graph::Graph},
         prelude::NO_PROPS,
     };
-    use itertools::Itertools;
 
     fn load_graph(edges: Vec<(u64, u64)>) -> Graph {
         let graph = Graph::new();

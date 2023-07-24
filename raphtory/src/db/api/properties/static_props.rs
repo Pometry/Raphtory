@@ -1,7 +1,5 @@
-use std::collections::HashMap;
-use crate::core::Prop;
-use crate::db::api::properties::internal::StaticPropertiesOps;
-use std::iter::Zip;
+use crate::{core::Prop, db::api::properties::internal::StaticPropertiesOps};
+use std::{collections::HashMap, iter::Zip};
 
 pub struct StaticProperties<P: StaticPropertiesOps> {
     pub(crate) props: P,
@@ -33,7 +31,7 @@ impl<P: StaticPropertiesOps> StaticProperties<P> {
     pub fn contains<Q: AsRef<str>>(&self, key: Q) -> bool {
         self.get(key).is_some()
     }
-    
+
     pub fn as_map(&self) -> HashMap<String, Prop> {
         self.iter().collect()
     }

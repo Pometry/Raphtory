@@ -1,19 +1,22 @@
 //! Defines the `Vertex` struct, which represents a vertex in the graph.
 
-use crate::core::storage::locked_view::LockedView;
-use crate::db::api::properties::internal::{
-    Key, StaticPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
-};
-use crate::db::api::properties::Properties;
-use crate::db::api::view::internal::Static;
 use crate::{
     core::{
         entities::{vertices::vertex_ref::VertexRef, VID},
+        storage::locked_view::LockedView,
         utils::time::IntoTime,
         Direction,
     },
     db::{
-        api::view::{BoxedIter, LayerOps},
+        api::{
+            properties::{
+                internal::{
+                    Key, StaticPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
+                },
+                Properties,
+            },
+            view::{internal::Static, BoxedIter, LayerOps},
+        },
         graph::{
             edge::{EdgeList, EdgeView},
             path::{Operations, PathFromVertex},

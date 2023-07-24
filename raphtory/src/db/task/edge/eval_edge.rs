@@ -1,16 +1,18 @@
-use crate::core::storage::locked_view::LockedView;
-use crate::db::api::properties::internal::{
-    StaticPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
-};
-use crate::db::api::properties::Properties;
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef},
         state::compute_state::ComputeState,
+        storage::locked_view::LockedView,
         Prop,
     },
     db::{
-        api::view::*,
+        api::{
+            properties::{
+                internal::{StaticPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps},
+                Properties,
+            },
+            view::*,
+        },
         task::{
             task_state::Local2,
             vertex::{eval_vertex::EvalVertexView, eval_vertex_state::EVState},

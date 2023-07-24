@@ -1,4 +1,3 @@
-use crate::db::api::properties::Properties;
 use crate::{
     core::{
         entities::{vertices::vertex_ref::VertexRef, VID},
@@ -6,7 +5,10 @@ use crate::{
         Direction,
     },
     db::{
-        api::view::{internal::GraphWindowOps, BoxedIter, LayerOps},
+        api::{
+            properties::Properties,
+            view::{internal::GraphWindowOps, BoxedIter, LayerOps},
+        },
         graph::{
             edge::EdgeView,
             vertex::VertexView,

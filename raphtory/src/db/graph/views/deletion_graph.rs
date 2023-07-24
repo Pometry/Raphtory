@@ -1,4 +1,3 @@
-use crate::db::api::properties::internal::InheritPropertiesOps;
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, VID},
@@ -9,6 +8,7 @@ use crate::{
     db::{
         api::{
             mutation::internal::InheritMutationOps,
+            properties::internal::InheritPropertiesOps,
             view::{internal::*, BoxedIter},
         },
         graph::graph::{graph_equal, InternalGraph},

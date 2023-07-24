@@ -1,15 +1,17 @@
 //! The API for querying a view of the graph in a read-only state
 
-use crate::db::api::properties::Properties;
 use crate::{
     core::{
         entities::vertices::vertex_ref::VertexRef,
         utils::{errors::GraphError, time::error::ParseTimeError},
     },
     db::{
-        api::view::{
-            internal::{DynamicGraph, IntoDynamic, MaterializedGraph},
-            LayerOps, WindowSet,
+        api::{
+            properties::Properties,
+            view::{
+                internal::{DynamicGraph, IntoDynamic, MaterializedGraph},
+                LayerOps, WindowSet,
+            },
         },
         graph::{
             edge::EdgeView,

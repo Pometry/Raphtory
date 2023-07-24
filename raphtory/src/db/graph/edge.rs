@@ -5,19 +5,22 @@
 //! and can have properties associated with them.
 //!
 
-use crate::core::storage::locked_view::LockedView;
-use crate::db::api::properties::internal::{
-    Key, StaticPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
-};
-use crate::db::api::properties::Properties;
-use crate::db::api::view::internal::Static;
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef},
+        storage::locked_view::LockedView,
         utils::time::IntoTime,
     },
     db::{
-        api::view::{BoxedIter, EdgeViewInternalOps},
+        api::{
+            properties::{
+                internal::{
+                    Key, StaticPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
+                },
+                Properties,
+            },
+            view::{internal::Static, BoxedIter, EdgeViewInternalOps},
+        },
         graph::{vertex::VertexView, views::window_graph::WindowedGraph},
     },
     prelude::*,

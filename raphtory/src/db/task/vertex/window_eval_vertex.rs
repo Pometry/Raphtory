@@ -1,6 +1,3 @@
-use crate::db::api::properties::Properties;
-use crate::db::graph::vertex::VertexView;
-use crate::db::graph::views::window_graph::WindowedGraph;
 use crate::{
     core::{
         entities::VID,
@@ -9,10 +6,15 @@ use crate::{
         Direction,
     },
     db::{
-        api::view::{
-            internal::GraphWindowOps, GraphViewOps, TimeOps, VertexListOps, VertexViewOps,
+        api::{
+            properties::Properties,
+            view::{internal::GraphWindowOps, GraphViewOps, TimeOps, VertexListOps, VertexViewOps},
         },
-        graph::path::{Operations, PathFromVertex},
+        graph::{
+            path::{Operations, PathFromVertex},
+            vertex::VertexView,
+            views::window_graph::WindowedGraph,
+        },
         task::{
             edge::window_eval_edge::WindowEvalEdgeView, task_state::Local2,
             vertex::eval_vertex_state::EVState,

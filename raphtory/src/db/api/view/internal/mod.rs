@@ -10,10 +10,10 @@ mod materialize;
 pub(crate) mod time_semantics;
 mod wrapped_graph;
 
-use crate::db::api::properties::internal::{
-    PropertiesOps, InheritPropertiesOps, StaticPropertiesOps,
+use crate::{
+    db::api::properties::internal::{InheritPropertiesOps, PropertiesOps, StaticPropertiesOps},
+    prelude::GraphViewOps,
 };
-use crate::prelude::GraphViewOps;
 pub use core_deletion_ops::*;
 pub use core_ops::*;
 pub use exploded_edge_ops::ExplodedEdgeOps;

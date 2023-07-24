@@ -4,28 +4,31 @@
 //! The PyEdge class also provides access to the perspective APIs, which allow the user to view the
 //! edge as it existed at a particular point in time, or as it existed over a particular time range.
 //!
-use crate::db::api::properties::Properties;
-use crate::python::graph::properties::{PyNestedPropsIterable, PyPropsIterable};
-use crate::python::graph::vertex::PyNestedVertexIterable;
-use crate::python::types::wrappers::iterators::{NestedOptionI64Iterable, NestedU64U64Iterable};
-use crate::python::utils::PyGenericIterator;
 use crate::{
     core::utils::time::error::ParseTimeError,
     db::{
-        api::view::{
-            internal::{DynamicGraph, IntoDynamic},
-            BoxedIter, WindowSet,
+        api::{
+            properties::Properties,
+            view::{
+                internal::{DynamicGraph, IntoDynamic},
+                BoxedIter, WindowSet,
+            },
         },
         graph::{edge::EdgeView, views::window_graph::WindowedGraph},
     },
     prelude::*,
     python::{
-        graph::vertex::{PyVertex, PyVertexIterable},
+        graph::{
+            properties::{PyNestedPropsIterable, PyPropsIterable},
+            vertex::{PyNestedVertexIterable, PyVertex, PyVertexIterable},
+        },
         types::{
             repr::{iterator_repr, Repr},
-            wrappers::iterators::OptionI64Iterable,
+            wrappers::iterators::{
+                NestedOptionI64Iterable, NestedU64U64Iterable, OptionI64Iterable,
+            },
         },
-        utils::{PyGenericIterable, PyInterval, PyTime},
+        utils::{PyGenericIterable, PyGenericIterator, PyInterval, PyTime},
     },
 };
 use chrono::NaiveDateTime;

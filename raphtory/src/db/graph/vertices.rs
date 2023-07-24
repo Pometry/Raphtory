@@ -1,8 +1,10 @@
-use crate::db::api::properties::Properties;
 use crate::{
     core::{entities::vertices::vertex_ref::VertexRef, utils::time::IntoTime, Direction},
     db::{
-        api::view::{BoxedIter, LayerOps},
+        api::{
+            properties::Properties,
+            view::{BoxedIter, LayerOps},
+        },
         graph::{
             edge::EdgeView,
             path::{Operations, PathFromGraph},
