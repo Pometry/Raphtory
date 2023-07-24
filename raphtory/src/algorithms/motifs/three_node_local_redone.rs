@@ -319,7 +319,6 @@ pub fn triangle_motifs<G: GraphViewOps>(graph: &G, delta:i64, motifs_count_id:Ac
                     // Triangle counts are going to be WRONG without w
                     // update_counter(&mut vec![u, &v], motifs_count_id, tmp_counts);
 
-                    println!("{:?}U ID",u.id());
                     let mc_u = u.get_mut();
                     let triangle_u = mc_u
                     .triangle
@@ -362,7 +361,6 @@ pub fn triangle_motifs<G: GraphViewOps>(graph: &G, delta:i64, motifs_count_id:Ac
             for (vref, mc) in enumerate(local) {
                 let v_gid = graph.vertex_name(vref.into());
                 tri_motifs.insert(v_gid.clone(), mc.triangle);
-                println!("{:?}",mc.triangle);
             }
             tri_motifs
         },
@@ -476,7 +474,7 @@ mod motifs_test {
     }
 
     #[test]
-    #[ignore = "This is not correct, it needs a rethink of the algorithm to be parallel"]
+    #[ignore = "This is not correct, local version does not work"]
     fn test_two_node_motif() {
         let g = load_graph(vec![
             (1, 1, 2),
@@ -586,18 +584,45 @@ mod motifs_test {
             ),
         ]);
 
-        // println!("{:?}",actual.keys());
+        for ind in 3..12 {
+            assert_eq!(
+                actual.get(&ind.to_string()).unwrap(),
+                expected.get(&ind.to_string()).unwrap()
+            );
+        }
 
-        // for ind in 3..12 {
-        //     println!("Index {:?}",ind);
-        //     assert_eq!(
-        //         actual.get(&ind.to_string()).unwrap(),
-        //         expected.get(&ind.to_string()).unwrap()
-        //     );
-        // }
+    }
+
+    #[test]
+    fn test_global() {
+        let g = load_graph(vec![
+            (1, 1, 2),
+            (2, 1, 3),
+            (3, 1, 4),
+            (4, 3, 1),
+            (5, 3, 4),
+            (6, 3, 5),
+            (7, 4, 5),
+            (8, 5, 6),
+            (9, 5, 8),
+            (10, 7, 5),
+            (11, 8, 5),
+            (12, 1, 9),
+            (13, 9, 1),
+            (14, 6, 3),
+            (15, 4, 8),
+            (16, 8, 3),
+            (17, 5, 10),
+            (18, 10, 5),
+            (19, 10, 8),
+            (20, 1, 11),
+            (21, 11, 1),
+            (22, 9, 11),
+            (23, 11, 9),
+        ]);
 
         let global_motifs = global_temporal_three_node_motif(&g, 10, None);
-        println!("{:?}",global_motifs);
+        assert_eq!(global_motifs,vec![0, 0, 3, 6, 2, 3, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1, 6, 0, 0, 1, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 3, 2, 4, 1, 2, 3, 1]);
 
     }
 }
