@@ -1080,12 +1080,12 @@ mod db_tests {
         let (t0, t1) = (1, 2);
 
         let (t0_props, t1_props): (Vec<_>, Vec<_>) = str_props
-            .into_iter()
+            .iter()
             .enumerate()
             .map(|(i, props)| {
                 let (name, value) = props;
-                let value = Prop::Str(value);
-                (name, value, i % 2)
+                let value = Prop::Str(value.clone());
+                (name.clone(), value, i % 2)
             })
             .partition(|(_, _, i)| *i == 0);
 
@@ -1102,12 +1102,16 @@ mod db_tests {
         g.add_properties(t0, t0_props.clone()).unwrap();
         g.add_properties(t1, t1_props.clone()).unwrap();
 
-        let mut check = t0_props.iter().all(|(name, value)| {
+        let check = t0_props.iter().all(|(name, value)| {
             g.properties().temporal().get(name).unwrap().at(t0) == Some(value.clone())
         }) && t1_props.iter().all(|(name, value)| {
             g.properties().temporal().get(name).unwrap().at(t1) == Some(value.clone())
         });
-        check = check
+        if !check {
+            println!("failed time-specific comparison for {:?}", str_props);
+            return false;
+        }
+        let check = check
             && g.at(t0)
                 .properties()
                 .temporal()
@@ -1115,14 +1119,23 @@ mod db_tests {
                 .map(|(k, v)| (k.clone(), v))
                 .collect::<HashMap<_, _, _>>()
                 == t0_props;
-        check = check
-            && g.at(t1)
-                .properties()
-                .temporal()
-                .iter_latest()
-                .map(|(k, v)| (k.clone(), v))
-                .collect::<HashMap<_, _, _>>()
-                == t1_props;
+        if !check {
+            println!("failed latest value comparison for {:?} at t0", str_props);
+            return false;
+        }
+        let check = check
+            && t1_props.iter().all(|(k, ve)| {
+                g.at(t1)
+                    .properties()
+                    .temporal()
+                    .get(k)
+                    .and_then(|v| v.latest())
+                    == Some(ve.clone())
+            });
+        if !check {
+            println!("failed latest value comparison for {:?} at t1", str_props);
+            return false;
+        }
         check
     }
 
