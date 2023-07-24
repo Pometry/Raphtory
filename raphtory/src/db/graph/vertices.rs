@@ -193,7 +193,6 @@ impl<G: GraphViewOps> VertexViewOps for Vertices<G> {
         self.iter().degree()
     }
 
-
     /// Returns the number of in edges of the vertices
     ///
     /// # Returns

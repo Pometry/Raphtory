@@ -1,3 +1,4 @@
+use ordered_float::OrderedFloat;
 /// Implementations of various graph algorithms that can be run on a graph.
 ///
 /// To run an algorithm simply import the module and call the function with the graph as the argument
@@ -6,6 +7,7 @@ use std::collections::HashMap;
 
 use crate::{
     algorithms::{
+        algorithm_result::AlgorithmResult,
         connected_components,
         degree::{
             average_degree as average_degree_rs, max_in_degree as max_in_degree_rs,
@@ -57,15 +59,14 @@ pub fn local_triangle_count(g: &PyGraphView, v: VertexRef) -> Option<usize> {
 ///     iter_count (int) : Maximum number of iterations to run. Note that this will terminate early if the labels converge prior to the number of iterations being reached.
 ///
 /// Returns:
-///     dict : Dictionary with string keys and integer values mapping vertex names to their component ids.
+///     AlgorithmResult : AlgorithmResult object with string keys and integer values mapping vertex names to their component ids.
 #[pyfunction]
+#[pyo3(signature = (g, iter_count=9223372036854775807))]
 pub fn weakly_connected_components(
     g: &PyGraphView,
     iter_count: usize,
-) -> PyResult<HashMap<String, u64>> {
-    Ok(connected_components::weakly_connected_components(
-        &g.graph, iter_count, None,
-    ))
+) -> AlgorithmResult<String, u64> {
+    connected_components::weakly_connected_components(&g.graph, iter_count, None)
 }
 
 /// Pagerank -- pagerank centrality value of the vertices in a graph
@@ -81,16 +82,15 @@ pub fn weakly_connected_components(
 /// is less than the max diff value given.
 ///
 /// Returns:
-///     dict : Dictionary with string keys and float values mapping vertex names to their pagerank value.
+///     AlgorithmResult : AlgorithmResult with string keys and float values mapping vertex names to their pagerank value.
 #[pyfunction]
+#[pyo3(signature = (g, iter_count=20, max_diff=None))]
 pub fn pagerank(
     g: &PyGraphView,
     iter_count: usize,
     max_diff: Option<f64>,
-) -> PyResult<HashMap<String, f64>> {
-    Ok(unweighted_page_rank(
-        &g.graph, iter_count, None, max_diff, true,
-    ))
+) -> AlgorithmResult<String, OrderedFloat<f64>> {
+    unweighted_page_rank(&g.graph, iter_count, None, max_diff, true)
 }
 
 /// Temporally reachable nodes -- the nodes that are reachable by a time respecting path followed out from a set of seed nodes at a starting time.
@@ -107,7 +107,7 @@ pub fn pagerank(
 ///     stop_nodes (list(str) or list(int)) : nodes at which a path shouldn't go any further
 ///
 /// Returns:
-///     dict : Dictionary with string keys and float values mapping vertex names to their pagerank value.
+///     AlgorithmResult : AlgorithmResult with string keys and float values mapping vertex names to their pagerank value.
 #[pyfunction]
 pub fn temporally_reachable_nodes(
     g: &PyGraphView,
@@ -115,10 +115,8 @@ pub fn temporally_reachable_nodes(
     start_time: i64,
     seed_nodes: Vec<PyInputVertex>,
     stop_nodes: Option<Vec<PyInputVertex>>,
-) -> Result<HashMap<String, Vec<(i64, String)>>, PyErr> {
-    Ok(temporal_reachability_rs(
-        &g.graph, None, max_hops, start_time, seed_nodes, stop_nodes,
-    ))
+) -> AlgorithmResult<String, Vec<(i64, String)>> {
+    temporal_reachability_rs(&g.graph, None, max_hops, start_time, seed_nodes, stop_nodes)
 }
 
 /// Local clustering coefficient - measures the degree to which nodes in a graph tend to cluster together.
@@ -238,10 +236,10 @@ pub fn global_reciprocity(g: &PyGraphView) -> f64 {
 ///     g (Raphtory graph) : a directed Raphtory graph
 ///
 /// Returns:
-///     dict : a dictionary with string keys and float values mapping each vertex name to its reciprocity value.
+///     AlgorithmResult : AlgorithmResult with string keys and float values mapping each vertex name to its reciprocity value.
 ///
 #[pyfunction]
-pub fn all_local_reciprocity(g: &PyGraphView) -> HashMap<String, f64> {
+pub fn all_local_reciprocity(g: &PyGraphView) -> AlgorithmResult<String, OrderedFloat<f64>> {
     all_local_reciprocity_rs(&g.graph, None)
 }
 
@@ -280,9 +278,9 @@ pub fn global_clustering_coefficient(g: &PyGraphView) -> f64 {
 
 /// Computes the number of three edge, up-to-three node delta-temporal motifs in the graph, using the algorithm of Paranjape et al, Motifs in Temporal Networks (2017).
 /// We point the reader to this reference for more information on the algorithm and background, but provide a short summary below.
-/// 
+///
 ///  Motifs included:
-/// 
+///
 ///  Stars
 ///
 ///  There are three classes (in the order they are outputted) of star motif on three nodes based on the switching behaviour of the edges between the two leaf nodes.
@@ -311,16 +309,16 @@ pub fn global_clustering_coefficient(g: &PyGraphView) -> f64 {
 ///   6. i --> j, k --> i, k --> j
 ///   7. i --> j, j --> k, k --> i
 ///   8. i --> j, i --> k, k --> j
-/// 
+///
 /// Arguments:
 ///     g (raphtory graph) : A directed raphtory graph
-///     delta (int) - Maximum time difference between the first and last edge of the 
+///     delta (int) - Maximum time difference between the first and last edge of the
 /// motif. NB if time for edges was given as a UNIX epoch, this should be given in seconds, otherwise
 /// milliseconds should be used (if edge times were given as string)
 ///
-/// Returns: 
+/// Returns:
 ///     list : A 40 dimensional array with the counts of each motif, given in the same order as described above. Note that the two-node motif counts are symmetrical so it may be more useful just to consider the first four elements.
-/// 
+///
 /// Notes:
 ///     This is achieved by calling the local motif counting algorithm, summing the resulting arrays and dealing with overcounted motifs: the triangles (by dividing each motif count by three) and two-node motifs (dividing by two).
 ///
@@ -330,21 +328,24 @@ pub fn global_temporal_three_node_motif(g: &PyGraphView, delta: i64) -> Vec<usiz
 }
 
 /// Computes the number of each type of motif that each node participates in. See global_temporal_three_node_motifs for a summary of the motifs involved.
-/// 
+///
 /// Arguments:
 ///     g (raphtory graph) : A directed raphtory graph
-///     delta (int) - Maximum time difference between the first and last edge of the 
+///     delta (int) - Maximum time difference between the first and last edge of the
 /// motif. NB if time for edges was given as a UNIX epoch, this should be given in seconds, otherwise
 /// milliseconds should be used (if edge times were given as string)
-/// 
+///
 /// Returns:
-///     dict(list) : A dictionary with node ids as keys and a 40d array of motif counts (in the same order as the global motif counts) with the number of each
+///     AlgorithmResult : An AlgorithmResult with node ids as keys and a 40d array of motif counts (in the same order as the global motif counts) with the number of each
 /// motif that node participates in.
-/// 
+///
 /// Notes:
-///     For this local count, a node is counted as participating in a motif in the following way. For star motifs, only the centre node counts 
+///     For this local count, a node is counted as participating in a motif in the following way. For star motifs, only the centre node counts
 ///    the motif. For two node motifs, both constituent nodes count the motif. For triangles, all three constituent nodes count the motif.
 #[pyfunction]
-pub fn local_temporal_three_node_motifs(g: &PyGraphView, delta: i64) -> HashMap<u64, Vec<usize>> {
+pub fn local_temporal_three_node_motifs(
+    g: &PyGraphView,
+    delta: i64,
+) -> AlgorithmResult<u64, Vec<usize>> {
     local_three_node_rs(&g.graph, delta)
 }

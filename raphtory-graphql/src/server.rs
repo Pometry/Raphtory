@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+
 use crate::{
     data::Data,
     model::{algorithm::Algorithm, QueryRoot},
@@ -8,16 +9,31 @@ use crate::{
 use async_graphql_poem::GraphQL;
 use dynamic_graphql::App;
 use poem::{get, listener::TcpListener, middleware::Cors, EndpointExt, Route, Server};
+use raphtory::db::api::view::internal::DynamicGraph;
+use std::collections::HashMap;
 use tokio::{io::Result as IoResult, signal};
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, Registry};
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry};
 
 pub struct RaphtoryServer {
     data: Data,
 }
 
 impl RaphtoryServer {
-    pub fn new(graph_directory: &str) -> Self {
-        let data = Data::load(graph_directory);
+    pub fn from_map(graphs: HashMap<String, DynamicGraph>) -> Self {
+        let data = Data::from_map(graphs);
+        Self { data }
+    }
+
+    pub fn from_directory(graph_directory: &str) -> Self {
+        let data = Data::from_directory(graph_directory);
+        Self { data }
+    }
+
+    pub fn from_map_and_directory(
+        graphs: HashMap<String, DynamicGraph>,
+        graph_directory: &str,
+    ) -> Self {
+        let data = Data::from_map_and_directory(graphs, graph_directory);
         Self { data }
     }
 
@@ -35,16 +51,16 @@ impl RaphtoryServer {
 
     pub async fn run_with_port(self, port: u16) -> IoResult<()> {
         let registry = Registry::default().with(tracing_subscriber::fmt::layer().pretty());
+        let env_filter = EnvFilter::try_from_default_env().unwrap_or(EnvFilter::new("INFO"));
 
         match create_tracer_from_env() {
             Some(tracer) => registry
                 .with(tracing_opentelemetry::layer().with_tracer(tracer))
-                .try_init()
-                .expect("Failed to register tracer with registry"),
-            None => registry
-                .try_init()
-                .expect("Failed to register tracer with registry"),
+                .with(env_filter)
+                .try_init(),
+            None => registry.with(env_filter).try_init(),
         }
+        .unwrap_or(());
 
         #[derive(App)]
         struct App(QueryRoot);

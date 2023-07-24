@@ -12,6 +12,9 @@ use crate::{
 
 /// Core functions that should (almost-)always be implemented by pointing at the underlying graph.
 pub trait CoreGraphOps {
+    /// get the number of vertices in the main graph
+    fn unfiltered_num_vertices(&self) -> usize;
+
     /// Get the layer name for a given id
     fn get_layer_name_by_id(&self, layer_id: usize) -> String;
 
@@ -126,7 +129,7 @@ pub trait CoreGraphOps {
     /// # Returns
     ///
     /// A vector of strings representing the names of the temporal properties
-    fn all_edge_prop_names(&self, is_static:bool)-> Vec<String>;
+    fn all_edge_prop_names(&self, is_static: bool) -> Vec<String>;
     /// Returns the static edge property with the given name for the
     /// given edge reference.
     ///
@@ -274,5 +277,9 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
 
     fn temporal_edge_prop_names(&self, e: EdgeRef) -> Vec<String> {
         self.graph().temporal_edge_prop_names(e)
+    }
+
+    fn unfiltered_num_vertices(&self) -> usize {
+        self.graph().unfiltered_num_vertices()
     }
 }

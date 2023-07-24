@@ -7,6 +7,7 @@ use dynamic_graphql::{
     SimpleObject,
 };
 use once_cell::sync::Lazy;
+use ordered_float::OrderedFloat;
 use raphtory::{
     algorithms::pagerank::unweighted_page_rank,
     db::api::view::{internal::DynamicGraph, GraphViewOps},
@@ -95,6 +96,15 @@ impl From<(String, f64)> for Pagerank {
     }
 }
 
+impl From<(&String, &OrderedFloat<f64>)> for Pagerank {
+    fn from((name, rank): (&String, &OrderedFloat<f64>)) -> Self {
+        Self {
+            name: name.to_string(),
+            rank: rank.into_inner(),
+        }
+    }
+}
+
 impl Algorithm for Pagerank {
     fn output_type() -> TypeRef {
         // first _nn means that the list is never null, second _nn means no element is null
@@ -115,7 +125,8 @@ impl Algorithm for Pagerank {
         let threads = ctx.args.get("threads").map(|v| v.u64()).transpose()?;
         let threads = threads.map(|v| v as usize);
         let tol = ctx.args.get("tol").map(|v| v.f64()).transpose()?;
-        let result = unweighted_page_rank(graph, iter_count, threads, tol, true)
+        let binding = unweighted_page_rank(graph, iter_count, threads, tol, true);
+        let result = binding
             .into_iter()
             .map(|pair| FieldValue::owned_any(Pagerank::from(pair)));
         Ok(Some(FieldValue::list(result)))
