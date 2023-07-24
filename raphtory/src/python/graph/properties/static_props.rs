@@ -6,8 +6,8 @@ use crate::{
     },
     python::{
         graph::properties::{
-            props::PropsComparable, DynProps, NestedOptionPropIterable, OptionPropIterable,
-            PyNestedPropsIterableComparable, PyPropsIterableComparable,
+            props::PropsComp, DynProps, PyMetaPropsListListCmp, PyPropValueList,
+            PyPropValueListList, PyPropsListCmp,
         },
         types::repr::{iterator_dict_repr, Repr},
         utils::PyGenericIterator,
@@ -34,7 +34,7 @@ impl<P: PropertiesOps + Send + Sync + Static + 'static> From<StaticProperties<P>
 
 impl<P: PropertiesOps + Send + Sync + 'static> IntoPy<PyObject> for StaticProperties<P> {
     fn into_py(self, py: Python<'_>) -> PyObject {
-        PyStaticProperties::from(self).into_py(py)
+        PyMetaProps::from(self).into_py(py)
     }
 }
 
@@ -45,14 +45,14 @@ impl<P: PropertiesOps> Repr for StaticProperties<P> {
 }
 
 #[pyclass(name = "MetaData")]
-pub struct PyStaticProperties {
+pub struct PyMetaProps {
     props: DynStaticProperties,
 }
 
-py_eq!(PyStaticProperties, PropsComparable);
+py_eq!(PyMetaProps, PropsComp);
 
 #[pymethods]
-impl PyStaticProperties {
+impl PyMetaProps {
     pub fn keys(&self) -> Vec<String> {
         self.props.keys()
     }
@@ -95,48 +95,44 @@ impl PyStaticProperties {
     }
 }
 
-impl<P: PropertiesOps + Send + Sync + 'static> From<StaticProperties<P>> for PyStaticProperties {
+impl<P: PropertiesOps + Send + Sync + 'static> From<StaticProperties<P>> for PyMetaProps {
     fn from(value: StaticProperties<P>) -> Self {
-        PyStaticProperties {
+        PyMetaProps {
             props: StaticProperties::new(Arc::new(value.props)),
         }
     }
 }
 
-impl Repr for PyStaticProperties {
+impl Repr for PyMetaProps {
     fn repr(&self) -> String {
         self.props.repr()
     }
 }
 
-py_iterable_base!(
-    PyStaticPropsIterable,
-    DynStaticProperties,
-    PyStaticProperties
-);
-py_eq!(PyStaticPropsIterable, PyPropsIterableComparable);
+py_iterable_base!(PyMetaPropsList, DynStaticProperties, PyMetaProps);
+py_eq!(PyMetaPropsList, PyPropsListCmp);
 
 #[pymethods]
-impl PyStaticPropsIterable {
+impl PyMetaPropsList {
     pub fn keys(&self) -> Vec<String> {
         self.iter().map(|p| p.keys()).kmerge().dedup().collect()
     }
 
-    pub fn values(&self) -> Vec<OptionPropIterable> {
+    pub fn values(&self) -> Vec<PyPropValueList> {
         self.keys()
             .into_iter()
             .map(|k| self.get(k).expect("key exists"))
             .collect()
     }
-    pub fn items(&self) -> Vec<(String, OptionPropIterable)> {
+    pub fn items(&self) -> Vec<(String, PyPropValueList)> {
         self.keys().into_iter().zip(self.values()).collect()
     }
 
-    pub fn __getitem__(&self, key: String) -> PyResult<OptionPropIterable> {
+    pub fn __getitem__(&self, key: String) -> PyResult<PyPropValueList> {
         self.get(key).ok_or(PyKeyError::new_err("No such property"))
     }
 
-    pub fn get(&self, key: String) -> Option<OptionPropIterable> {
+    pub fn get(&self, key: String) -> Option<PyPropValueList> {
         self.__contains__(&key).then(|| {
             let builder = self.builder.clone();
             let key = Arc::new(key);
@@ -164,15 +160,11 @@ impl PyStaticPropsIterable {
     }
 }
 
-py_nested_iterable_base!(
-    NestedStaticPropsIterable,
-    DynStaticProperties,
-    PyStaticProperties
-);
-py_eq!(NestedStaticPropsIterable, PyNestedPropsIterableComparable);
+py_nested_iterable_base!(PyMetaPropsListList, DynStaticProperties, PyMetaProps);
+py_eq!(PyMetaPropsListList, PyMetaPropsListListCmp);
 
 #[pymethods]
-impl NestedStaticPropsIterable {
+impl PyMetaPropsListList {
     pub fn keys(&self) -> Vec<String> {
         self.iter()
             .flat_map(|it| it.map(|p| p.keys()))
@@ -181,17 +173,17 @@ impl NestedStaticPropsIterable {
             .collect()
     }
 
-    pub fn values(&self) -> Vec<NestedOptionPropIterable> {
+    pub fn values(&self) -> Vec<PyPropValueListList> {
         self.keys()
             .into_iter()
             .map(|k| self.get(k).expect("key exists"))
             .collect()
     }
-    pub fn items(&self) -> Vec<(String, NestedOptionPropIterable)> {
+    pub fn items(&self) -> Vec<(String, PyPropValueListList)> {
         self.keys().into_iter().zip(self.values()).collect()
     }
 
-    pub fn __getitem__(&self, key: String) -> PyResult<NestedOptionPropIterable> {
+    pub fn __getitem__(&self, key: String) -> PyResult<PyPropValueListList> {
         self.get(key).ok_or(PyKeyError::new_err("No such property"))
     }
 
@@ -199,7 +191,7 @@ impl NestedStaticPropsIterable {
         self.keys().into_iter().into()
     }
 
-    pub fn get(&self, key: String) -> Option<NestedOptionPropIterable> {
+    pub fn get(&self, key: String) -> Option<PyPropValueListList> {
         self.__contains__(&key).then(|| {
             let builder = self.builder.clone();
             let key = Arc::new(key);

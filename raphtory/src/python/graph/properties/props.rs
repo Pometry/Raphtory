@@ -6,9 +6,8 @@ use crate::{
     },
     python::{
         graph::properties::{
-            DynProps, DynStaticProperties, DynTemporalProperties, NestedStaticPropsIterable,
-            NestedTemporalPropsIterable, PyStaticProperties, PyStaticPropsIterable,
-            TemporalPropsIterable,
+            DynProps, DynStaticProperties, DynTemporalProperties, PyMetaProps, PyMetaPropsList,
+            PyMetaPropsListList, PyTemporalPropsList, PyTemporalPropsListList,
         },
         types::{
             repr::{iterator_dict_repr, Repr},
@@ -27,41 +26,41 @@ use std::{collections::HashMap, ops::Deref, sync::Arc};
 pub type DynProperties = Properties<Arc<dyn PropertiesOps + Send + Sync>>;
 
 #[derive(PartialEq, Clone)]
-pub struct PropsComparable(HashMap<String, Prop>);
+pub struct PropsComp(HashMap<String, Prop>);
 
-impl<'source> FromPyObject<'source> for PropsComparable {
+impl<'source> FromPyObject<'source> for PropsComp {
     fn extract(ob: &'source PyAny) -> PyResult<Self> {
-        if let Ok(sp) = ob.extract::<PyRef<PyStaticProperties>>() {
+        if let Ok(sp) = ob.extract::<PyRef<PyMetaProps>>() {
             Ok(sp.deref().into())
         } else if let Ok(p) = ob.extract::<PyRef<PyProperties>>() {
             Ok(p.deref().into())
         } else if let Ok(m) = ob.extract::<HashMap<String, Prop>>() {
-            Ok(PropsComparable(m))
+            Ok(PropsComp(m))
         } else {
             Err(PyTypeError::new_err("not comparable with properties"))
         }
     }
 }
 
-impl From<&PyStaticProperties> for PropsComparable {
-    fn from(value: &PyStaticProperties) -> Self {
+impl From<&PyMetaProps> for PropsComp {
+    fn from(value: &PyMetaProps) -> Self {
         Self(value.as_dict())
     }
 }
 
-impl From<&PyProperties> for PropsComparable {
+impl From<&PyProperties> for PropsComp {
     fn from(value: &PyProperties) -> Self {
         Self(value.as_dict())
     }
 }
 
-impl From<DynStaticProperties> for PropsComparable {
+impl From<DynStaticProperties> for PropsComp {
     fn from(value: DynStaticProperties) -> Self {
         Self(value.as_map())
     }
 }
 
-impl From<DynProperties> for PropsComparable {
+impl From<DynProperties> for PropsComp {
     fn from(value: DynProperties) -> Self {
         Self(value.as_map())
     }
@@ -72,7 +71,7 @@ pub struct PyProperties {
     props: DynProperties,
 }
 
-py_eq!(PyProperties, PropsComparable);
+py_eq!(PyProperties, PropsComp);
 
 #[pymethods]
 impl PyProperties {
@@ -193,15 +192,15 @@ impl Repr for PyProperties {
 }
 
 #[derive(PartialEq, Clone)]
-pub struct PyPropsIterableComparable(HashMap<String, OptionPropIterCmp>);
+pub struct PyPropsListCmp(HashMap<String, PyPropValueListCmp>);
 
-impl<'source> FromPyObject<'source> for PyPropsIterableComparable {
+impl<'source> FromPyObject<'source> for PyPropsListCmp {
     fn extract(ob: &'source PyAny) -> PyResult<Self> {
-        if let Ok(sp) = ob.extract::<PyRef<PyStaticPropsIterable>>() {
+        if let Ok(sp) = ob.extract::<PyRef<PyMetaPropsList>>() {
             Ok(sp.deref().into())
-        } else if let Ok(p) = ob.extract::<PyRef<PyPropsIterable>>() {
+        } else if let Ok(p) = ob.extract::<PyRef<PyPropsList>>() {
             Ok(p.deref().into())
-        } else if let Ok(m) = ob.extract::<HashMap<String, OptionPropIterCmp>>() {
+        } else if let Ok(m) = ob.extract::<HashMap<String, PyPropValueListCmp>>() {
             Ok(Self(m))
         } else {
             Err(PyTypeError::new_err("not comparable with properties"))
@@ -209,8 +208,8 @@ impl<'source> FromPyObject<'source> for PyPropsIterableComparable {
     }
 }
 
-impl From<&PyStaticPropsIterable> for PyPropsIterableComparable {
-    fn from(value: &PyStaticPropsIterable) -> Self {
+impl From<&PyMetaPropsList> for PyPropsListCmp {
+    fn from(value: &PyMetaPropsList) -> Self {
         Self(
             value
                 .items()
@@ -221,8 +220,8 @@ impl From<&PyStaticPropsIterable> for PyPropsIterableComparable {
     }
 }
 
-impl From<&PyPropsIterable> for PyPropsIterableComparable {
-    fn from(value: &PyPropsIterable) -> Self {
+impl From<&PyPropsList> for PyPropsListCmp {
+    fn from(value: &PyPropsList) -> Self {
         Self(
             value
                 .items()
@@ -233,16 +232,16 @@ impl From<&PyPropsIterable> for PyPropsIterableComparable {
     }
 }
 
-py_iterable_base!(PyPropsIterable, DynProperties, PyProperties);
-py_eq!(PyPropsIterable, PyPropsIterableComparable);
+py_iterable_base!(PyPropsList, DynProperties, PyProperties);
+py_eq!(PyPropsList, PyPropsListCmp);
 
 #[pymethods]
-impl PyPropsIterable {
+impl PyPropsList {
     /// Get property value.
     ///
     /// First searches temporal properties and returns latest value if it exists.
     /// If not, it falls back to static properties.
-    pub fn get(&self, key: &str) -> Option<OptionPropIterable> {
+    pub fn get(&self, key: &str) -> Option<PyPropValueList> {
         self.__contains__(key).then(|| {
             let builder = self.builder.clone();
             let key = Arc::new(key.to_owned());
@@ -263,7 +262,7 @@ impl PyPropsIterable {
         self.iter().any(|p| p.contains(key))
     }
 
-    fn __getitem__(&self, key: &str) -> PyResult<OptionPropIterable> {
+    fn __getitem__(&self, key: &str) -> PyResult<PyPropValueList> {
         self.get(key).ok_or(PyKeyError::new_err("No such property"))
     }
 
@@ -281,7 +280,7 @@ impl PyPropsIterable {
     ///
     /// If a property exists as both temporal and static, temporal properties take priority with
     /// fallback to the static property if the temporal value does not exist.
-    pub fn values(&self) -> NestedOptionPropIterable {
+    pub fn values(&self) -> PyPropValueListList {
         let builder = self.builder.clone();
         let keys = Arc::new(self.keys());
         (move || {
@@ -300,7 +299,7 @@ impl PyPropsIterable {
     }
 
     /// Get a list of key-value pairs
-    pub fn items(&self) -> Vec<(String, OptionPropIterable)> {
+    pub fn items(&self) -> Vec<(String, PyPropValueList)> {
         self.keys()
             .into_iter()
             .flat_map(|k| self.get(&k).map(|v| (k, v)))
@@ -309,14 +308,14 @@ impl PyPropsIterable {
 
     /// Get a view of the temporal properties only.
     #[getter]
-    pub fn temporal(&self) -> TemporalPropsIterable {
+    pub fn temporal(&self) -> PyTemporalPropsList {
         let builder = self.builder.clone();
         (move || builder().map(|p| p.temporal())).into()
     }
 
     /// Get a view of the static properties (meta-data) only.
     #[getter]
-    pub fn meta(&self) -> PyStaticPropsIterable {
+    pub fn meta(&self) -> PyMetaPropsList {
         let builder = self.builder.clone();
         (move || builder().map(|p| p.meta())).into()
     }
@@ -338,18 +337,18 @@ impl PyPropsIterable {
 }
 
 py_nested_iterable_base!(PyNestedPropsIterable, DynProperties, PyProperties);
-py_eq!(PyNestedPropsIterable, PyNestedPropsIterableComparable);
+py_eq!(PyNestedPropsIterable, PyMetaPropsListListCmp);
 
 #[derive(PartialEq, Clone)]
-pub struct PyNestedPropsIterableComparable(HashMap<String, NestedOptionPropIterCmp>);
+pub struct PyMetaPropsListListCmp(HashMap<String, PyPropValueListListCmp>);
 
-impl<'source> FromPyObject<'source> for PyNestedPropsIterableComparable {
+impl<'source> FromPyObject<'source> for PyMetaPropsListListCmp {
     fn extract(ob: &'source PyAny) -> PyResult<Self> {
-        if let Ok(sp) = ob.extract::<PyRef<NestedStaticPropsIterable>>() {
+        if let Ok(sp) = ob.extract::<PyRef<PyMetaPropsListList>>() {
             Ok(sp.deref().into())
         } else if let Ok(p) = ob.extract::<PyRef<PyNestedPropsIterable>>() {
             Ok(p.deref().into())
-        } else if let Ok(m) = ob.extract::<HashMap<String, NestedOptionPropIterCmp>>() {
+        } else if let Ok(m) = ob.extract::<HashMap<String, PyPropValueListListCmp>>() {
             Ok(Self(m))
         } else {
             Err(PyTypeError::new_err("not comparable with properties"))
@@ -357,8 +356,8 @@ impl<'source> FromPyObject<'source> for PyNestedPropsIterableComparable {
     }
 }
 
-impl From<&NestedStaticPropsIterable> for PyNestedPropsIterableComparable {
-    fn from(value: &NestedStaticPropsIterable) -> Self {
+impl From<&PyMetaPropsListList> for PyMetaPropsListListCmp {
+    fn from(value: &PyMetaPropsListList) -> Self {
         Self(
             value
                 .items()
@@ -369,7 +368,7 @@ impl From<&NestedStaticPropsIterable> for PyNestedPropsIterableComparable {
     }
 }
 
-impl From<&PyNestedPropsIterable> for PyNestedPropsIterableComparable {
+impl From<&PyNestedPropsIterable> for PyMetaPropsListListCmp {
     fn from(value: &PyNestedPropsIterable) -> Self {
         Self(
             value
@@ -387,7 +386,7 @@ impl PyNestedPropsIterable {
     ///
     /// First searches temporal properties and returns latest value if it exists.
     /// If not, it falls back to static properties.
-    pub fn get(&self, key: &str) -> Option<NestedOptionPropIterable> {
+    pub fn get(&self, key: &str) -> Option<PyPropValueListList> {
         self.__contains__(key).then(|| {
             let builder = self.builder.clone();
             let key = Arc::new(key.to_owned());
@@ -407,7 +406,7 @@ impl PyNestedPropsIterable {
         self.iter().any(|mut it| it.any(|p| p.contains(key)))
     }
 
-    fn __getitem__(&self, key: &str) -> Result<NestedOptionPropIterable, PyErr> {
+    fn __getitem__(&self, key: &str) -> Result<PyPropValueListList, PyErr> {
         self.get(key).ok_or(PyKeyError::new_err("No such property"))
     }
 
@@ -429,7 +428,7 @@ impl PyNestedPropsIterable {
     ///
     /// If a property exists as both temporal and static, temporal properties take priority with
     /// fallback to the static property if the temporal value does not exist.
-    pub fn values(&self) -> Vec<NestedOptionPropIterable> {
+    pub fn values(&self) -> Vec<PyPropValueListList> {
         self.keys()
             .into_iter()
             .flat_map(|key| self.get(&key))
@@ -437,20 +436,20 @@ impl PyNestedPropsIterable {
     }
 
     /// Get a list of key-value pairs
-    pub fn items(&self) -> Vec<(String, NestedOptionPropIterable)> {
+    pub fn items(&self) -> Vec<(String, PyPropValueListList)> {
         self.keys().into_iter().zip(self.values()).collect()
     }
 
     /// Get a view of the temporal properties only.
     #[getter]
-    pub fn temporal(&self) -> NestedTemporalPropsIterable {
+    pub fn temporal(&self) -> PyTemporalPropsListList {
         let builder = self.builder.clone();
         (move || builder().map(|it| it.map(|p| p.temporal()))).into()
     }
 
     /// Get a view of the static properties (meta-data) only.
     #[getter]
-    pub fn meta(&self) -> NestedStaticPropsIterable {
+    pub fn meta(&self) -> PyMetaPropsListList {
         let builder = self.builder.clone();
         (move || builder().map(|it| it.map(|p| p.meta()))).into()
     }
@@ -464,12 +463,12 @@ impl PyNestedPropsIterable {
     }
 }
 
-py_iterable!(OptionPropIterable, PropValue, PropValue);
-py_iterable_comp!(OptionPropIterable, PropValue, OptionPropIterCmp);
+py_iterable!(PyPropValueList, PropValue, PropValue);
+py_iterable_comp!(PyPropValueList, PropValue, PyPropValueListCmp);
 
-py_nested_iterable!(NestedOptionPropIterable, PropValue, PropValue);
+py_nested_iterable!(PyPropValueListList, PropValue, PropValue);
 py_iterable_comp!(
-    NestedOptionPropIterable,
-    OptionPropIterCmp,
-    NestedOptionPropIterCmp
+    PyPropValueListList,
+    PyPropValueListCmp,
+    PyPropValueListListCmp
 );

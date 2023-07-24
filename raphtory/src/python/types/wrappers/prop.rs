@@ -67,4 +67,4 @@ impl Repr for Prop {
 }
 
 pub type PropValue = Option<Prop>;
-pub type PropHistory = Vec<(i64, Prop)>;
+pub type PropHistItems = Vec<(i64, Prop)>;

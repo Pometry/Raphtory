@@ -19,7 +19,7 @@ use crate::{
     prelude::*,
     python::{
         graph::{
-            properties::{PyNestedPropsIterable, PyPropsIterable},
+            properties::{PyNestedPropsIterable, PyPropsList},
             vertex::{PyNestedVertexIterable, PyVertex, PyVertexIterable},
         },
         types::{
@@ -428,7 +428,7 @@ impl PyEdges {
 
     // FIXME: needs a view that allows indexing into the properties
     /// Returns all properties of the edges
-    fn properties(&self) -> PyPropsIterable {
+    fn properties(&self) -> PyPropsList {
         let builder = self.builder.clone();
         (move || builder().properties()).into()
     }

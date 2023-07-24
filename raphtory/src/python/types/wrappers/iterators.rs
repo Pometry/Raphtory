@@ -1,8 +1,4 @@
-use crate::{
-    core as db_c,
-    db::api::view::BoxedIter,
-    python::types::{repr::Repr, wrappers::prop::PropHistory},
-};
+use crate::{db::api::view::BoxedIter, python::types::repr::Repr};
 use num::cast::AsPrimitive;
 use pyo3::prelude::*;
 use std::{i64, iter::Sum};
@@ -71,10 +67,3 @@ py_nested_iterable!(NestedStringIterable, String);
 
 py_iterable!(StringVecIterable, Vec<String>);
 py_nested_iterable!(NestedStringVecIterable, Vec<String>);
-
-py_iterable!(PropHistoryIterable, Vec<(i64, db_c::Prop)>, PropHistory);
-py_nested_iterable!(
-    NestedPropHistoryIterable,
-    Vec<(i64, db_c::Prop)>,
-    PropHistory
-);

@@ -5,8 +5,11 @@ use crate::{
         view::internal::{DynamicGraph, Static},
     },
     python::{
-        graph::properties::{DynProps, NestedOptionPropIterable, OptionPropIterable},
-        types::repr::{iterator_dict_repr, iterator_repr, Repr},
+        graph::properties::{DynProps, PyPropValueList, PyPropValueListList},
+        types::{
+            repr::{iterator_dict_repr, iterator_repr, Repr},
+            wrappers::prop::PropHistItems,
+        },
         utils::{PyGenericIterator, PyTime},
     },
 };
@@ -44,10 +47,10 @@ impl<P: Into<DynTemporalProperties>> From<P> for PyTemporalProperties {
 }
 
 #[derive(PartialEq)]
-pub struct PyTemporalPropsCmp(HashMap<String, PyTemporalPropertyViewCmp>);
+pub struct PyTemporalPropsCmp(HashMap<String, PyTemporalPropCmp>);
 
-impl From<HashMap<String, PyTemporalPropertyViewCmp>> for PyTemporalPropsCmp {
-    fn from(value: HashMap<String, PyTemporalPropertyViewCmp>) -> Self {
+impl From<HashMap<String, PyTemporalPropCmp>> for PyTemporalPropsCmp {
+    fn from(value: HashMap<String, PyTemporalPropCmp>) -> Self {
         Self(value)
     }
 }
@@ -68,7 +71,7 @@ impl<'source> FromPyObject<'source> for PyTemporalPropsCmp {
     fn extract(ob: &'source PyAny) -> PyResult<Self> {
         if let Ok(v) = ob.extract::<PyRef<PyTemporalProperties>>() {
             Ok(PyTemporalPropsCmp::from(v.deref()))
-        } else if let Ok(v) = ob.extract::<HashMap<String, PyTemporalPropertyViewCmp>>() {
+        } else if let Ok(v) = ob.extract::<HashMap<String, PyTemporalPropCmp>>() {
             Ok(PyTemporalPropsCmp::from(v))
         } else {
             Err(PyTypeError::new_err("cannot compare"))
@@ -135,16 +138,16 @@ impl PyTemporalProperties {
 }
 
 #[pyclass(name = "Property")]
-pub struct PyTemporalPropertyView {
+pub struct PyTemporalProp {
     prop: DynTemporalProperty,
 }
 
 #[derive(PartialEq, Clone)]
-pub struct PyTemporalPropertyViewCmp(Vec<(i64, Prop)>);
+pub struct PyTemporalPropCmp(Vec<(i64, Prop)>);
 
-impl<'source> FromPyObject<'source> for PyTemporalPropertyViewCmp {
+impl<'source> FromPyObject<'source> for PyTemporalPropCmp {
     fn extract(ob: &'source PyAny) -> PyResult<Self> {
-        if let Ok(sp) = ob.extract::<PyRef<PyTemporalPropertyView>>() {
+        if let Ok(sp) = ob.extract::<PyRef<PyTemporalProp>>() {
             Ok(sp.deref().into())
         } else if let Ok(m) = ob.extract::<Vec<(i64, Prop)>>() {
             Ok(Self(m))
@@ -154,28 +157,28 @@ impl<'source> FromPyObject<'source> for PyTemporalPropertyViewCmp {
     }
 }
 
-impl From<&PyTemporalPropertyView> for PyTemporalPropertyViewCmp {
-    fn from(value: &PyTemporalPropertyView) -> Self {
+impl From<&PyTemporalProp> for PyTemporalPropCmp {
+    fn from(value: &PyTemporalProp) -> Self {
         Self(value.items())
     }
 }
 
-impl From<Vec<(i64, Prop)>> for PyTemporalPropertyViewCmp {
+impl From<Vec<(i64, Prop)>> for PyTemporalPropCmp {
     fn from(value: Vec<(i64, Prop)>) -> Self {
         Self(value)
     }
 }
 
-impl From<DynTemporalProperty> for PyTemporalPropertyViewCmp {
+impl From<DynTemporalProperty> for PyTemporalPropCmp {
     fn from(value: DynTemporalProperty) -> Self {
-        PyTemporalPropertyViewCmp(value.iter().collect())
+        PyTemporalPropCmp(value.iter().collect())
     }
 }
 
-py_eq!(PyTemporalPropertyView, PyTemporalPropertyViewCmp);
+py_eq!(PyTemporalProp, PyTemporalPropCmp);
 
 #[pymethods]
-impl PyTemporalPropertyView {
+impl PyTemporalProp {
     pub fn history(&self) -> Vec<i64> {
         self.prop.history()
     }
@@ -197,9 +200,7 @@ impl PyTemporalPropertyView {
     }
 }
 
-impl<P: PropertiesOps + Send + Sync + 'static> From<TemporalPropertyView<P>>
-    for PyTemporalPropertyView
-{
+impl<P: PropertiesOps + Send + Sync + 'static> From<TemporalPropertyView<P>> for PyTemporalProp {
     fn from(value: TemporalPropertyView<P>) -> Self {
         Self {
             prop: TemporalPropertyView {
@@ -242,7 +243,7 @@ impl<P: PropertiesOps> Repr for TemporalPropertyView<P> {
     }
 }
 
-impl Repr for PyTemporalPropertyView {
+impl Repr for PyTemporalProp {
     fn repr(&self) -> String {
         self.prop.repr()
     }
@@ -256,21 +257,21 @@ impl Repr for PyTemporalProperties {
 
 impl<P: PropertiesOps + Send + Sync + 'static> IntoPy<PyObject> for TemporalPropertyView<P> {
     fn into_py(self, py: Python<'_>) -> PyObject {
-        PyTemporalPropertyView::from(self).into_py(py)
+        PyTemporalProp::from(self).into_py(py)
     }
 }
 
 py_iterable_base!(
-    TemporalPropsIterable,
+    PyTemporalPropsList,
     DynTemporalProperties,
     PyTemporalProperties
 );
 
 #[derive(PartialEq)]
-pub struct TemporalPropsIterableCmp(HashMap<String, TemporalPropertyIterableCmp>);
+pub struct PyTemporalPropsListCmp(HashMap<String, PyTemporalPropListCmp>);
 
-impl From<&TemporalPropsIterable> for TemporalPropsIterableCmp {
-    fn from(value: &TemporalPropsIterable) -> Self {
+impl From<&PyTemporalPropsList> for PyTemporalPropsListCmp {
+    fn from(value: &PyTemporalPropsList) -> Self {
         Self(
             value
                 .items()
@@ -281,28 +282,28 @@ impl From<&TemporalPropsIterable> for TemporalPropsIterableCmp {
     }
 }
 
-impl From<HashMap<String, TemporalPropertyIterableCmp>> for TemporalPropsIterableCmp {
-    fn from(value: HashMap<String, TemporalPropertyIterableCmp>) -> Self {
+impl From<HashMap<String, PyTemporalPropListCmp>> for PyTemporalPropsListCmp {
+    fn from(value: HashMap<String, PyTemporalPropListCmp>) -> Self {
         Self(value)
     }
 }
 
-impl<'source> FromPyObject<'source> for TemporalPropsIterableCmp {
+impl<'source> FromPyObject<'source> for PyTemporalPropsListCmp {
     fn extract(ob: &'source PyAny) -> PyResult<Self> {
-        if let Ok(v) = ob.extract::<PyRef<TemporalPropsIterable>>() {
-            Ok(TemporalPropsIterableCmp::from(v.deref()))
-        } else if let Ok(v) = ob.extract::<HashMap<String, TemporalPropertyIterableCmp>>() {
-            Ok(TemporalPropsIterableCmp::from(v))
+        if let Ok(v) = ob.extract::<PyRef<PyTemporalPropsList>>() {
+            Ok(PyTemporalPropsListCmp::from(v.deref()))
+        } else if let Ok(v) = ob.extract::<HashMap<String, PyTemporalPropListCmp>>() {
+            Ok(PyTemporalPropsListCmp::from(v))
         } else {
             Err(PyTypeError::new_err("cannot compare"))
         }
     }
 }
 
-py_eq!(TemporalPropsIterable, TemporalPropsIterableCmp);
+py_eq!(PyTemporalPropsList, PyTemporalPropsListCmp);
 
 #[pymethods]
-impl TemporalPropsIterable {
+impl PyTemporalPropsList {
     fn keys(&self) -> Vec<String> {
         self.iter()
             // FIXME: Still have to clone all those strings which sucks
@@ -311,17 +312,17 @@ impl TemporalPropsIterable {
             .dedup()
             .collect()
     }
-    fn values(&self) -> Vec<TemporalPropertyIterable> {
+    fn values(&self) -> Vec<PyTemporalPropList> {
         self.keys()
             .into_iter()
             .map(|k| self.get(k).expect("key exists"))
             .collect()
     }
-    fn items(&self) -> Vec<(String, TemporalPropertyIterable)> {
+    fn items(&self) -> Vec<(String, PyTemporalPropList)> {
         self.keys().into_iter().zip(self.values()).collect()
     }
 
-    fn latest(&self) -> HashMap<String, OptionPropIterable> {
+    fn latest(&self) -> HashMap<String, PyPropValueList> {
         let builder = self.builder.clone();
         self.keys()
             .into_iter()
@@ -340,20 +341,27 @@ impl TemporalPropsIterable {
             .collect()
     }
 
-    fn histories(&self) -> HashMap<String, Vec<Vec<(i64, Prop)>>> {
+    fn histories(&self) -> HashMap<String, PropHistItemsList> {
         self.keys()
             .into_iter()
             .map(|k| {
-                let v = self
-                    .iter()
-                    .map(|p| p.get(&k).map(|v| v.iter().collect()).unwrap_or_default())
-                    .collect();
+                let kk = Arc::new(k.clone());
+                let builder = self.builder.clone();
+                let v = (move || {
+                    let kk = kk.clone();
+                    builder().map(move |p| {
+                        p.get(kk.as_ref())
+                            .map(|v| v.iter().collect::<Vec<_>>())
+                            .unwrap_or_default()
+                    })
+                })
+                .into();
                 (k, v)
             })
             .collect()
     }
 
-    fn __getitem__(&self, key: String) -> PyResult<TemporalPropertyIterable> {
+    fn __getitem__(&self, key: String) -> PyResult<PyTemporalPropList> {
         self.get(key).ok_or(PyKeyError::new_err("unknown property"))
     }
 
@@ -365,7 +373,7 @@ impl TemporalPropsIterable {
         self.keys().into_iter().into()
     }
 
-    fn get(&self, key: String) -> Option<TemporalPropertyIterable> {
+    fn get(&self, key: String) -> Option<PyTemporalPropList> {
         self.__contains__(&key).then(|| {
             let builder = self.builder.clone();
             let key = Arc::new(key);
@@ -378,85 +386,88 @@ impl TemporalPropsIterable {
     }
 }
 
-pub struct OptionPyTemporalPropertyView(Option<PyTemporalPropertyView>);
+pub struct OptionPyTemporalProp(Option<PyTemporalProp>);
 
 #[derive(PartialEq, FromPyObject, Clone)]
-pub struct OptionPyTemporalPropertyViewCmp(Option<PyTemporalPropertyViewCmp>);
+pub struct OptionPyTemporalPropCmp(Option<PyTemporalPropCmp>);
 
-impl From<Option<DynTemporalProperty>> for OptionPyTemporalPropertyViewCmp {
+impl From<Option<DynTemporalProperty>> for OptionPyTemporalPropCmp {
     fn from(value: Option<DynTemporalProperty>) -> Self {
-        OptionPyTemporalPropertyViewCmp(value.map(|v| v.into()))
+        OptionPyTemporalPropCmp(value.map(|v| v.into()))
     }
 }
 
-impl Repr for OptionPyTemporalPropertyView {
+impl Repr for OptionPyTemporalProp {
     fn repr(&self) -> String {
         self.0.repr()
     }
 }
 
-impl IntoPy<PyObject> for OptionPyTemporalPropertyView {
+impl IntoPy<PyObject> for OptionPyTemporalProp {
     fn into_py(self, py: Python<'_>) -> PyObject {
         self.0.into_py(py)
     }
 }
 
-impl From<Option<DynTemporalProperty>> for OptionPyTemporalPropertyView {
+impl From<Option<DynTemporalProperty>> for OptionPyTemporalProp {
     fn from(value: Option<DynTemporalProperty>) -> Self {
         Self(value.map(|v| v.into()))
     }
 }
 
 py_iterable!(
-    TemporalPropertyIterable,
+    PyTemporalPropList,
     Option<DynTemporalProperty>,
-    OptionPyTemporalPropertyView
+    OptionPyTemporalProp
 );
 
 py_iterable_comp!(
-    TemporalPropertyIterable,
-    OptionPyTemporalPropertyViewCmp,
-    TemporalPropertyIterableCmp
+    PyTemporalPropList,
+    OptionPyTemporalPropCmp,
+    PyTemporalPropListCmp
 );
 
 #[pymethods]
-impl TemporalPropertyIterable {
-    pub fn history(&self) -> Vec<Vec<i64>> {
-        self.iter()
-            .map(|p| p.map(|v| v.history()).unwrap_or_default())
-            .collect()
-    }
-    pub fn values(&self) -> Vec<Vec<Prop>> {
-        self.iter()
-            .map(|p| p.map(|v| v.values()).unwrap_or_default())
-            .collect()
-    }
-    pub fn items(&self) -> Vec<Vec<(i64, Prop)>> {
-        self.iter()
-            .map(|p| p.map(|v| v.iter().collect()).unwrap_or_default())
-            .collect()
+impl PyTemporalPropList {
+    pub fn history(&self) -> PropHistList {
+        let builder = self.builder.clone();
+        (move || builder().map(|p| p.map(|v| v.history()).unwrap_or_default())).into()
     }
 
-    pub fn at(&self, t: PyTime) -> Vec<Option<Prop>> {
-        let t = t.into_time();
-        self.iter().map(|p| p.and_then(|v| v.at(t))).collect()
+    pub fn values(&self) -> PropHistValueList {
+        let builder = self.builder.clone();
+        (move || builder().map(|p| p.map(|v| v.values()).unwrap_or_default())).into()
     }
-    pub fn value(&self) -> Vec<Option<Prop>> {
-        self.iter().map(|p| p.and_then(|v| v.latest())).collect()
+
+    pub fn items(&self) -> PropHistItemsList {
+        let builder = self.builder.clone();
+        (move || builder().map(|p| p.map(|v| v.iter().collect::<Vec<_>>()).unwrap_or_default()))
+            .into()
+    }
+
+    pub fn at(&self, t: PyTime) -> PyPropValueList {
+        let t = t.into_time();
+        let builder = self.builder.clone();
+        (move || builder().map(move |p| p.and_then(|v| v.at(t)))).into()
+    }
+
+    pub fn value(&self) -> PyPropValueList {
+        let builder = self.builder.clone();
+        (move || builder().map(|p| p.and_then(|v| v.latest()))).into()
     }
 }
 
 py_nested_iterable_base!(
-    NestedTemporalPropsIterable,
+    PyTemporalPropsListList,
     DynTemporalProperties,
     PyTemporalProperties
 );
 
 #[derive(PartialEq)]
-pub struct NestedTemporalPropsIterableCmp(HashMap<String, NestedTemporalPropertyIterableCmp>);
+pub struct PyTemporalPropsListListCmp(HashMap<String, PyTemporalPropListListCmp>);
 
-impl From<&NestedTemporalPropsIterable> for NestedTemporalPropsIterableCmp {
-    fn from(value: &NestedTemporalPropsIterable) -> Self {
+impl From<&PyTemporalPropsListList> for PyTemporalPropsListListCmp {
+    fn from(value: &PyTemporalPropsListList) -> Self {
         Self(
             value
                 .items()
@@ -467,17 +478,17 @@ impl From<&NestedTemporalPropsIterable> for NestedTemporalPropsIterableCmp {
     }
 }
 
-impl From<HashMap<String, NestedTemporalPropertyIterableCmp>> for NestedTemporalPropsIterableCmp {
-    fn from(value: HashMap<String, NestedTemporalPropertyIterableCmp>) -> Self {
+impl From<HashMap<String, PyTemporalPropListListCmp>> for PyTemporalPropsListListCmp {
+    fn from(value: HashMap<String, PyTemporalPropListListCmp>) -> Self {
         Self(value)
     }
 }
 
-impl<'source> FromPyObject<'source> for NestedTemporalPropsIterableCmp {
+impl<'source> FromPyObject<'source> for PyTemporalPropsListListCmp {
     fn extract(ob: &'source PyAny) -> PyResult<Self> {
-        if let Ok(v) = ob.extract::<PyRef<NestedTemporalPropsIterable>>() {
+        if let Ok(v) = ob.extract::<PyRef<PyTemporalPropsListList>>() {
             Ok(Self::from(v.deref()))
-        } else if let Ok(v) = ob.extract::<HashMap<String, NestedTemporalPropertyIterableCmp>>() {
+        } else if let Ok(v) = ob.extract::<HashMap<String, PyTemporalPropListListCmp>>() {
             Ok(Self::from(v))
         } else {
             Err(PyTypeError::new_err("cannot compare"))
@@ -485,10 +496,10 @@ impl<'source> FromPyObject<'source> for NestedTemporalPropsIterableCmp {
     }
 }
 
-py_eq!(NestedTemporalPropsIterable, NestedTemporalPropsIterableCmp);
+py_eq!(PyTemporalPropsListList, PyTemporalPropsListListCmp);
 
 #[pymethods]
-impl NestedTemporalPropsIterable {
+impl PyTemporalPropsListList {
     fn keys(&self) -> Vec<String> {
         self.iter()
             .flat_map(
@@ -499,17 +510,17 @@ impl NestedTemporalPropsIterable {
             .dedup()
             .collect()
     }
-    fn values(&self) -> Vec<NestedTemporalPropertyIterable> {
+    fn values(&self) -> Vec<PyTemporalPropListList> {
         self.keys()
             .into_iter()
             .map(|k| self.get(k).expect("key exists"))
             .collect()
     }
-    fn items(&self) -> Vec<(String, NestedTemporalPropertyIterable)> {
+    fn items(&self) -> Vec<(String, PyTemporalPropListList)> {
         self.keys().into_iter().zip(self.values()).collect()
     }
 
-    fn latest(&self) -> HashMap<String, NestedOptionPropIterable> {
+    fn latest(&self) -> HashMap<String, PyPropValueListList> {
         let builder = self.builder.clone();
         self.keys()
             .into_iter()
@@ -531,23 +542,31 @@ impl NestedTemporalPropsIterable {
             .collect()
     }
 
-    fn histories(&self) -> HashMap<String, Vec<Vec<Vec<(i64, Prop)>>>> {
+    fn histories(&self) -> HashMap<String, PyPropHistItemsListList> {
+        let builder = self.builder.clone();
         self.keys()
             .into_iter()
-            .map(|k| {
-                let v = self
-                    .iter()
-                    .map(|it| {
-                        it.map(|p| p.get(&k).map(|v| v.iter().collect()).unwrap_or_default())
-                            .collect()
+            .map(move |k| {
+                let builder = builder.clone();
+                let kk = Arc::new(k.clone());
+                let v = (move || {
+                    let kk = kk.clone();
+                    builder().map(move |it| {
+                        let kk = kk.clone();
+                        it.map(move |p| {
+                            p.get(kk.as_ref())
+                                .map(|v| v.iter().collect::<Vec<_>>())
+                                .unwrap_or_default()
+                        })
                     })
-                    .collect();
+                })
+                .into();
                 (k, v)
             })
             .collect()
     }
 
-    fn __getitem__(&self, key: String) -> PyResult<NestedTemporalPropertyIterable> {
+    fn __getitem__(&self, key: String) -> PyResult<PyTemporalPropListList> {
         self.get(key).ok_or(PyKeyError::new_err("unknown property"))
     }
 
@@ -559,7 +578,7 @@ impl NestedTemporalPropsIterable {
         self.keys().into_iter().into()
     }
 
-    fn get(&self, key: String) -> Option<NestedTemporalPropertyIterable> {
+    fn get(&self, key: String) -> Option<PyTemporalPropListList> {
         self.__contains__(&key).then(|| {
             let builder = self.builder.clone();
             let key = Arc::new(key);
@@ -576,53 +595,69 @@ impl NestedTemporalPropsIterable {
 }
 
 py_nested_iterable!(
-    NestedTemporalPropertyIterable,
+    PyTemporalPropListList,
     Option<DynTemporalProperty>,
-    OptionPyTemporalPropertyView
+    OptionPyTemporalProp
 );
 
 py_iterable_comp!(
-    NestedTemporalPropertyIterable,
-    TemporalPropertyIterableCmp,
-    NestedTemporalPropertyIterableCmp
+    PyTemporalPropListList,
+    PyTemporalPropListCmp,
+    PyTemporalPropListListCmp
 );
 
 #[pymethods]
-impl NestedTemporalPropertyIterable {
-    pub fn history(&self) -> Vec<Vec<Vec<i64>>> {
-        self.iter()
-            .map(|it| {
-                it.map(|p| p.map(|v| v.history()).unwrap_or_default())
-                    .collect()
-            })
-            .collect()
-    }
-    pub fn values(&self) -> Vec<Vec<Vec<Prop>>> {
-        self.iter()
-            .map(|it| {
-                it.map(|p| p.map(|v| v.values()).unwrap_or_default())
-                    .collect()
-            })
-            .collect()
-    }
-    pub fn items(&self) -> Vec<Vec<Vec<(i64, Prop)>>> {
-        self.iter()
-            .map(|it| {
-                it.map(|p| p.map(|v| v.iter().collect()).unwrap_or_default())
-                    .collect()
-            })
-            .collect()
+impl PyTemporalPropListList {
+    pub fn history(&self) -> PropHistListList {
+        let builder = self.builder.clone();
+        (move || builder().map(|it| it.map(|p| p.map(|v| v.history()).unwrap_or_default()))).into()
     }
 
-    pub fn at(&self, t: PyTime) -> Vec<Vec<Option<Prop>>> {
-        let t = t.into_time();
-        self.iter()
-            .map(|it| it.map(|p| p.and_then(|v| v.at(t))).collect())
-            .collect()
+    pub fn values(&self) -> PropHistValueListList {
+        let builder = self.builder.clone();
+        (move || builder().map(|it| it.map(|p| p.map(|v| v.values()).unwrap_or_default()))).into()
     }
-    pub fn value(&self) -> Vec<Vec<Option<Prop>>> {
-        self.iter()
-            .map(|it| it.map(|p| p.and_then(|v| v.latest())).collect())
-            .collect()
+
+    pub fn items(&self) -> PyPropHistItemsListList {
+        let builder = self.builder.clone();
+        (move || {
+            builder()
+                .map(|it| it.map(|p| p.map(|v| v.iter().collect::<Vec<_>>()).unwrap_or_default()))
+        })
+        .into()
+    }
+
+    pub fn at(&self, t: PyTime) -> PyPropValueListList {
+        let t = t.into_time();
+        let builder = self.builder.clone();
+        (move || builder().map(move |it| it.map(move |p| p.and_then(|v| v.at(t))))).into()
+    }
+
+    pub fn value(&self) -> PyPropValueListList {
+        let builder = self.builder.clone();
+        (move || builder().map(|it| it.map(|p| p.and_then(|v| v.latest())))).into()
     }
 }
+
+py_iterable!(PropHistList, Vec<i64>);
+py_iterable_comp!(PropHistList, Vec<i64>, PropHistListCmp);
+py_nested_iterable!(PropHistListList, Vec<i64>);
+py_iterable_comp!(PropHistListList, PropHistListCmp, PropHistListListCmp);
+
+py_iterable!(PropHistValueList, Vec<Prop>);
+py_iterable_comp!(PropHistValueList, Vec<Prop>, PropHistValueListCmp);
+py_nested_iterable!(PropHistValueListList, Vec<Prop>);
+py_iterable_comp!(
+    PropHistValueListList,
+    PropHistValueListCmp,
+    PropHistValueListListCmp
+);
+
+py_iterable!(PropHistItemsList, PropHistItems);
+py_iterable_comp!(PropHistItemsList, PropHistItems, PropHistItemsListCmp);
+py_nested_iterable!(PyPropHistItemsListList, PropHistItems);
+py_iterable_comp!(
+    PyPropHistItemsListList,
+    PropHistItemsListCmp,
+    PropHistoryListListCmp
+);

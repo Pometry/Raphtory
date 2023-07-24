@@ -21,7 +21,7 @@ use crate::{
     python::{
         graph::{
             edge::{PyEdges, PyNestedEdges},
-            properties::{PyNestedPropsIterable, PyPropsIterable},
+            properties::{PyNestedPropsIterable, PyPropsList},
         },
         types::wrappers::iterators::*,
         utils::{PyInterval, PyTime},
@@ -482,7 +482,7 @@ impl PyVertices {
 
     //Fixme: needs a view that allows indexing
     #[getter]
-    fn properties(&self) -> PyPropsIterable {
+    fn properties(&self) -> PyPropsList {
         let vertices = self.vertices.clone();
         (move || vertices.properties()).into()
     }
@@ -929,7 +929,7 @@ impl PyPathFromVertex {
     }
 
     #[getter]
-    fn properties(&self) -> PyPropsIterable {
+    fn properties(&self) -> PyPropsList {
         let path = self.path.clone();
         (move || path.properties()).into()
     }
@@ -1146,7 +1146,7 @@ impl PyVertexIterable {
     }
 
     #[getter]
-    fn properties(&self) -> PyPropsIterable {
+    fn properties(&self) -> PyPropsList {
         let vertices = self.builder.clone();
         (move || vertices().properties()).into()
     }
