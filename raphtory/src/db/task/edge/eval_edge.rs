@@ -8,7 +8,7 @@ use crate::{
     db::{
         api::{
             properties::{
-                internal::{StaticPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps},
+                internal::{ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps},
                 Properties,
             },
             view::*,
@@ -82,14 +82,14 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static>
     }
 }
 
-impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> StaticPropertiesOps
+impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> ConstPropertiesOps
     for EvalEdgeView<'a, G, CS, S>
 {
-    fn static_property_keys<'b>(&'b self) -> Box<dyn Iterator<Item = LockedView<'b, String>> + 'b> {
+    fn const_property_keys<'b>(&'b self) -> Box<dyn Iterator<Item = LockedView<'b, String>> + 'b> {
         self.graph.static_edge_prop_names(self.ev)
     }
 
-    fn get_static_property(&self, key: &str) -> Option<Prop> {
+    fn get_const_property(&self, key: &str) -> Option<Prop> {
         self.graph.static_edge_prop(self.ev, key)
     }
 }

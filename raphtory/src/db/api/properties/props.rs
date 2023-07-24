@@ -1,7 +1,7 @@
 use crate::{
     core::{storage::locked_view::LockedView, Prop},
     db::api::properties::{
-        internal::*, static_props::StaticProperties, temporal_props::TemporalProperties,
+        constant_props::ConstProperties, internal::*, temporal_props::TemporalProperties,
     },
 };
 use std::collections::HashMap;
@@ -25,7 +25,7 @@ impl<P: PropertiesOps + Clone> Properties<P> {
         self.props
             .get_temporal_property(key.as_ref())
             .and_then(|k| self.props.temporal_value(&k))
-            .or_else(|| self.props.get_static_property(key.as_ref()))
+            .or_else(|| self.props.get_const_property(key.as_ref()))
     }
 
     /// Check if property `key` exists.
@@ -33,10 +33,10 @@ impl<P: PropertiesOps + Clone> Properties<P> {
         self.get(key).is_some()
     }
 
-    pub fn keys<'a>(&'a self) -> impl Iterator<Item = LockedView<'a, String>> + 'a {
+    pub fn keys(&self) -> impl Iterator<Item = LockedView<String>> + '_ {
         self.props.temporal_property_keys().chain(
             self.props
-                .static_property_keys()
+                .const_property_keys()
                 .filter(|k| self.props.get_temporal_property(k).is_none()),
         )
     }
@@ -45,7 +45,7 @@ impl<P: PropertiesOps + Clone> Properties<P> {
         self.keys().map(|k| self.get(&k).unwrap())
     }
 
-    pub fn iter<'a>(&'a self) -> impl Iterator<Item = (LockedView<'a, String>, Prop)> + 'a {
+    pub fn iter(&self) -> impl Iterator<Item = (LockedView<String>, Prop)> + '_ {
         self.keys().zip(self.values())
     }
 
@@ -55,8 +55,8 @@ impl<P: PropertiesOps + Clone> Properties<P> {
     }
 
     /// Get a view of the static properties (meta-data) only.
-    pub fn meta(&self) -> StaticProperties<P> {
-        StaticProperties::new(self.props.clone())
+    pub fn constant(&self) -> ConstProperties<P> {
+        ConstProperties::new(self.props.clone())
     }
 
     pub fn as_vec(&self) -> Vec<(String, Prop)> {

@@ -508,21 +508,27 @@ mod db_tests {
         g.add_edge_properties(33, 11, vec![("a", Prop::U64(3311))], None)
             .unwrap();
 
-        assert_eq!(v11.properties().meta().keys(), vec!["a", "b", "c"]);
-        assert_eq!(v22.properties().meta().keys(), vec!["b"]);
-        assert!(v33.properties().meta().keys().is_empty());
-        assert_eq!(edge1111.properties().meta().keys(), vec!["d"]);
-        assert_eq!(edge3311.properties().meta().keys(), vec!["a"]);
-        assert!(edge2233.properties().meta().keys().is_empty());
+        assert_eq!(v11.properties().constant().keys(), vec!["a", "b", "c"]);
+        assert_eq!(v22.properties().constant().keys(), vec!["b"]);
+        assert!(v33.properties().constant().keys().is_empty());
+        assert_eq!(edge1111.properties().constant().keys(), vec!["d"]);
+        assert_eq!(edge3311.properties().constant().keys(), vec!["a"]);
+        assert!(edge2233.properties().constant().keys().is_empty());
 
-        assert_eq!(v11.properties().meta().get("a"), Some(Prop::U64(11)));
-        assert_eq!(v11.properties().meta().get("b"), Some(Prop::I64(11)));
-        assert_eq!(v11.properties().meta().get("c"), Some(Prop::U32(11)));
-        assert_eq!(v22.properties().meta().get("b"), Some(Prop::U64(22)));
-        assert_eq!(v22.properties().meta().get("a"), None);
-        assert_eq!(edge1111.properties().meta().get("d"), Some(Prop::U64(1111)));
-        assert_eq!(edge3311.properties().meta().get("a"), Some(Prop::U64(3311)));
-        assert_eq!(edge2233.properties().meta().get("a"), None);
+        assert_eq!(v11.properties().constant().get("a"), Some(Prop::U64(11)));
+        assert_eq!(v11.properties().constant().get("b"), Some(Prop::I64(11)));
+        assert_eq!(v11.properties().constant().get("c"), Some(Prop::U32(11)));
+        assert_eq!(v22.properties().constant().get("b"), Some(Prop::U64(22)));
+        assert_eq!(v22.properties().constant().get("a"), None);
+        assert_eq!(
+            edge1111.properties().constant().get("d"),
+            Some(Prop::U64(1111))
+        );
+        assert_eq!(
+            edge3311.properties().constant().get("a"),
+            Some(Prop::U64(3311))
+        );
+        assert_eq!(edge2233.properties().constant().get("a"), None);
     }
 
     #[test]
@@ -1046,7 +1052,7 @@ mod db_tests {
 
         props_map
             .into_iter()
-            .all(|(name, value)| g.properties().meta().get(name).unwrap() == value)
+            .all(|(name, value)| g.properties().constant().get(name).unwrap() == value)
     }
 
     #[quickcheck]
@@ -1066,7 +1072,7 @@ mod db_tests {
             .collect::<HashSet<_>>();
 
         g.properties()
-            .meta()
+            .constant()
             .keys()
             .into_iter()
             .collect::<HashSet<_>>()

@@ -31,15 +31,15 @@ pub trait TemporalPropertyViewOps {
     }
 }
 
-pub trait StaticPropertiesOps {
-    fn static_property_keys<'a>(&'a self) -> Box<dyn Iterator<Item = LockedView<'a, String>> + 'a>;
-    fn static_property_values(&self) -> Vec<Prop> {
-        self.static_property_keys()
+pub trait ConstPropertiesOps {
+    fn const_property_keys<'a>(&'a self) -> Box<dyn Iterator<Item = LockedView<'a, String>> + 'a>;
+    fn const_property_values(&self) -> Vec<Prop> {
+        self.const_property_keys()
             .into_iter()
-            .map(|k| self.get_static_property(&k).expect("should exist"))
+            .map(|k| self.get_const_property(&k).expect("should exist"))
             .collect()
     }
-    fn get_static_property(&self, key: &str) -> Option<Prop>;
+    fn get_const_property(&self, key: &str) -> Option<Prop>;
 }
 
 pub trait TemporalPropertiesOps {
@@ -56,11 +56,11 @@ pub trait TemporalPropertiesOps {
 }
 
 pub trait PropertiesOps:
-    TemporalPropertiesOps + TemporalPropertyViewOps + StaticPropertiesOps
+    TemporalPropertiesOps + TemporalPropertyViewOps + ConstPropertiesOps
 {
 }
 
-impl<P: TemporalPropertiesOps + TemporalPropertyViewOps + StaticPropertiesOps> PropertiesOps for P {}
+impl<P: TemporalPropertiesOps + TemporalPropertyViewOps + ConstPropertiesOps> PropertiesOps for P {}
 
 pub trait InheritTemporalPropertyViewOps: Base {}
 pub trait InheritTemporalPropertiesOps: Base {}
@@ -112,19 +112,19 @@ where
     }
 }
 
-impl<P: InheritStaticPropertiesOps> StaticPropertiesOps for P
+impl<P: InheritStaticPropertiesOps> ConstPropertiesOps for P
 where
-    P::Base: StaticPropertiesOps,
+    P::Base: ConstPropertiesOps,
 {
-    fn static_property_keys<'a>(&'a self) -> Box<dyn Iterator<Item = LockedView<'a, String>> + 'a> {
-        self.base().static_property_keys()
+    fn const_property_keys<'a>(&'a self) -> Box<dyn Iterator<Item = LockedView<'a, String>> + 'a> {
+        self.base().const_property_keys()
     }
 
-    fn static_property_values(&self) -> Vec<Prop> {
-        self.base().static_property_values()
+    fn const_property_values(&self) -> Vec<Prop> {
+        self.base().const_property_values()
     }
 
-    fn get_static_property(&self, key: &str) -> Option<Prop> {
-        self.base().get_static_property(key)
+    fn get_const_property(&self, key: &str) -> Option<Prop> {
+        self.base().get_const_property(key)
     }
 }

@@ -1,23 +1,23 @@
-use crate::{core::Prop, db::api::properties::internal::StaticPropertiesOps};
+use crate::{core::Prop, db::api::properties::internal::ConstPropertiesOps};
 use std::{collections::HashMap, iter::Zip};
 
-pub struct StaticProperties<P: StaticPropertiesOps> {
+pub struct ConstProperties<P: ConstPropertiesOps> {
     pub(crate) props: P,
 }
 
-impl<P: StaticPropertiesOps> StaticProperties<P> {
+impl<P: ConstPropertiesOps> ConstProperties<P> {
     pub(crate) fn new(props: P) -> Self {
         Self { props }
     }
     pub fn keys(&self) -> Vec<String> {
         self.props
-            .static_property_keys()
+            .const_property_keys()
             .map(|v| v.clone())
             .collect()
     }
 
     pub fn values(&self) -> Vec<Prop> {
-        self.props.static_property_values()
+        self.props.const_property_values()
     }
 
     pub fn iter(&self) -> Box<dyn Iterator<Item = (String, Prop)> + '_> {
@@ -25,7 +25,7 @@ impl<P: StaticPropertiesOps> StaticProperties<P> {
     }
 
     pub fn get<Q: AsRef<str>>(&self, key: Q) -> Option<Prop> {
-        self.props.get_static_property(key.as_ref())
+        self.props.get_const_property(key.as_ref())
     }
 
     pub fn contains<Q: AsRef<str>>(&self, key: Q) -> bool {
@@ -37,7 +37,7 @@ impl<P: StaticPropertiesOps> StaticProperties<P> {
     }
 }
 
-impl<P: StaticPropertiesOps> IntoIterator for StaticProperties<P> {
+impl<P: ConstPropertiesOps> IntoIterator for ConstProperties<P> {
     type Item = (String, Prop);
     type IntoIter = Zip<std::vec::IntoIter<String>, std::vec::IntoIter<Prop>>;
 
@@ -48,7 +48,7 @@ impl<P: StaticPropertiesOps> IntoIterator for StaticProperties<P> {
     }
 }
 
-impl<P: StaticPropertiesOps> IntoIterator for &StaticProperties<P> {
+impl<P: ConstPropertiesOps> IntoIterator for &ConstProperties<P> {
     type Item = (String, Prop);
     type IntoIter = Zip<std::vec::IntoIter<String>, std::vec::IntoIter<Prop>>;
 
@@ -59,7 +59,7 @@ impl<P: StaticPropertiesOps> IntoIterator for &StaticProperties<P> {
     }
 }
 
-impl<P: StaticPropertiesOps> PartialEq for StaticProperties<P> {
+impl<P: ConstPropertiesOps> PartialEq for ConstProperties<P> {
     fn eq(&self, other: &Self) -> bool {
         self.as_map() == other.as_map()
     }

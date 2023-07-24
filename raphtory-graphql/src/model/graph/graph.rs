@@ -36,7 +36,7 @@ impl GraphMeta {
     async fn static_properties(&self) -> Vec<Property> {
         self.graph
             .properties()
-            .meta()
+            .constant()
             .into_iter()
             .map(|(k, v)| Property::new(k, v))
             .collect()
@@ -80,7 +80,7 @@ impl GqlGraph {
     async fn static_properties(&self) -> Vec<Property> {
         self.graph
             .properties()
-            .meta()
+            .constant()
             .into_iter()
             .map(|(k, v)| Property::new(k, v))
             .collect()

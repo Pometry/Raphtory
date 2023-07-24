@@ -15,7 +15,7 @@ use crate::{
         api::{
             properties::{
                 internal::{
-                    Key, StaticPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
+                    ConstPropertiesOps, Key, TemporalPropertiesOps, TemporalPropertyViewOps,
                 },
                 Properties,
             },
@@ -68,12 +68,12 @@ impl<G: GraphViewOps> EdgeViewInternalOps<G, VertexView<G>> for EdgeView<G> {
     }
 }
 
-impl<G: GraphViewOps> StaticPropertiesOps for EdgeView<G> {
-    fn static_property_keys<'a>(&'a self) -> Box<dyn Iterator<Item = LockedView<'a, String>> + 'a> {
+impl<G: GraphViewOps> ConstPropertiesOps for EdgeView<G> {
+    fn const_property_keys<'a>(&'a self) -> Box<dyn Iterator<Item = LockedView<'a, String>> + 'a> {
         self.graph.static_edge_prop_names(self.edge)
     }
 
-    fn get_static_property(&self, key: &str) -> Option<Prop> {
+    fn get_const_property(&self, key: &str) -> Option<Prop> {
         self.graph.static_edge_prop(self.edge, key)
     }
 }

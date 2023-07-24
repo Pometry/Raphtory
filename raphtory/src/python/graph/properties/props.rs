@@ -6,8 +6,8 @@ use crate::{
     },
     python::{
         graph::properties::{
-            DynProps, DynStaticProperties, DynTemporalProperties, PyMetaProps, PyMetaPropsList,
-            PyMetaPropsListList, PyTemporalPropsList, PyTemporalPropsListList,
+            DynConstProperties, DynProps, DynTemporalProperties, PyConstProperties,
+            PyConstPropsList, PyConstPropsListList, PyTemporalPropsList, PyTemporalPropsListList,
         },
         types::{
             repr::{iterator_dict_repr, Repr},
@@ -26,41 +26,41 @@ use std::{collections::HashMap, ops::Deref, sync::Arc};
 pub type DynProperties = Properties<Arc<dyn PropertiesOps + Send + Sync>>;
 
 #[derive(PartialEq, Clone)]
-pub struct PropsComp(HashMap<String, Prop>);
+pub struct PyPropsComp(HashMap<String, Prop>);
 
-impl<'source> FromPyObject<'source> for PropsComp {
+impl<'source> FromPyObject<'source> for PyPropsComp {
     fn extract(ob: &'source PyAny) -> PyResult<Self> {
-        if let Ok(sp) = ob.extract::<PyRef<PyMetaProps>>() {
+        if let Ok(sp) = ob.extract::<PyRef<PyConstProperties>>() {
             Ok(sp.deref().into())
         } else if let Ok(p) = ob.extract::<PyRef<PyProperties>>() {
             Ok(p.deref().into())
         } else if let Ok(m) = ob.extract::<HashMap<String, Prop>>() {
-            Ok(PropsComp(m))
+            Ok(PyPropsComp(m))
         } else {
             Err(PyTypeError::new_err("not comparable with properties"))
         }
     }
 }
 
-impl From<&PyMetaProps> for PropsComp {
-    fn from(value: &PyMetaProps) -> Self {
+impl From<&PyConstProperties> for PyPropsComp {
+    fn from(value: &PyConstProperties) -> Self {
         Self(value.as_dict())
     }
 }
 
-impl From<&PyProperties> for PropsComp {
+impl From<&PyProperties> for PyPropsComp {
     fn from(value: &PyProperties) -> Self {
         Self(value.as_dict())
     }
 }
 
-impl From<DynStaticProperties> for PropsComp {
-    fn from(value: DynStaticProperties) -> Self {
+impl From<DynConstProperties> for PyPropsComp {
+    fn from(value: DynConstProperties) -> Self {
         Self(value.as_map())
     }
 }
 
-impl From<DynProperties> for PropsComp {
+impl From<DynProperties> for PyPropsComp {
     fn from(value: DynProperties) -> Self {
         Self(value.as_map())
     }
@@ -71,7 +71,7 @@ pub struct PyProperties {
     props: DynProperties,
 }
 
-py_eq!(PyProperties, PropsComp);
+py_eq!(PyProperties, PyPropsComp);
 
 #[pymethods]
 impl PyProperties {
@@ -126,10 +126,10 @@ impl PyProperties {
         self.props.temporal()
     }
 
-    /// Get a view of the static properties (meta-data) only.
+    /// Get a view of the constant properties (meta-data) only.
     #[getter]
-    pub fn meta(&self) -> DynStaticProperties {
-        self.props.meta()
+    pub fn constant(&self) -> DynConstProperties {
+        self.props.constant()
     }
 
     /// Convert properties view to a dict
@@ -196,7 +196,7 @@ pub struct PyPropsListCmp(HashMap<String, PyPropValueListCmp>);
 
 impl<'source> FromPyObject<'source> for PyPropsListCmp {
     fn extract(ob: &'source PyAny) -> PyResult<Self> {
-        if let Ok(sp) = ob.extract::<PyRef<PyMetaPropsList>>() {
+        if let Ok(sp) = ob.extract::<PyRef<PyConstPropsList>>() {
             Ok(sp.deref().into())
         } else if let Ok(p) = ob.extract::<PyRef<PyPropsList>>() {
             Ok(p.deref().into())
@@ -208,8 +208,8 @@ impl<'source> FromPyObject<'source> for PyPropsListCmp {
     }
 }
 
-impl From<&PyMetaPropsList> for PyPropsListCmp {
-    fn from(value: &PyMetaPropsList) -> Self {
+impl From<&PyConstPropsList> for PyPropsListCmp {
+    fn from(value: &PyConstPropsList) -> Self {
         Self(
             value
                 .items()
@@ -240,7 +240,7 @@ impl PyPropsList {
     /// Get property value.
     ///
     /// First searches temporal properties and returns latest value if it exists.
-    /// If not, it falls back to static properties.
+    /// If not, it falls back to constant properties.
     pub fn get(&self, key: &str) -> Option<PyPropValueList> {
         self.__contains__(key).then(|| {
             let builder = self.builder.clone();
@@ -266,7 +266,7 @@ impl PyPropsList {
         self.get(key).ok_or(PyKeyError::new_err("No such property"))
     }
 
-    /// Get the names for all properties (includes temporal and static properties)
+    /// Get the names for all properties (includes temporal and constant properties)
     pub fn keys(&self) -> Vec<String> {
         self.iter()
             // FIXME: Still have to clone all those strings which sucks
@@ -278,8 +278,8 @@ impl PyPropsList {
 
     /// Get the values of the properties
     ///
-    /// If a property exists as both temporal and static, temporal properties take priority with
-    /// fallback to the static property if the temporal value does not exist.
+    /// If a property exists as both temporal and constant, temporal properties take priority with
+    /// fallback to the constant property if the temporal value does not exist.
     pub fn values(&self) -> PyPropValueListList {
         let builder = self.builder.clone();
         let keys = Arc::new(self.keys());
@@ -313,11 +313,11 @@ impl PyPropsList {
         (move || builder().map(|p| p.temporal())).into()
     }
 
-    /// Get a view of the static properties (meta-data) only.
+    /// Get a view of the constant properties (meta-data) only.
     #[getter]
-    pub fn meta(&self) -> PyMetaPropsList {
+    pub fn constant(&self) -> PyConstPropsList {
         let builder = self.builder.clone();
-        (move || builder().map(|p| p.meta())).into()
+        (move || builder().map(|p| p.constant())).into()
     }
 
     /// Convert properties view to a dict
@@ -337,14 +337,14 @@ impl PyPropsList {
 }
 
 py_nested_iterable_base!(PyNestedPropsIterable, DynProperties, PyProperties);
-py_eq!(PyNestedPropsIterable, PyMetaPropsListListCmp);
+py_eq!(PyNestedPropsIterable, PyConstPropsListListCmp);
 
 #[derive(PartialEq, Clone)]
-pub struct PyMetaPropsListListCmp(HashMap<String, PyPropValueListListCmp>);
+pub struct PyConstPropsListListCmp(HashMap<String, PyPropValueListListCmp>);
 
-impl<'source> FromPyObject<'source> for PyMetaPropsListListCmp {
+impl<'source> FromPyObject<'source> for PyConstPropsListListCmp {
     fn extract(ob: &'source PyAny) -> PyResult<Self> {
-        if let Ok(sp) = ob.extract::<PyRef<PyMetaPropsListList>>() {
+        if let Ok(sp) = ob.extract::<PyRef<PyConstPropsListList>>() {
             Ok(sp.deref().into())
         } else if let Ok(p) = ob.extract::<PyRef<PyNestedPropsIterable>>() {
             Ok(p.deref().into())
@@ -356,8 +356,8 @@ impl<'source> FromPyObject<'source> for PyMetaPropsListListCmp {
     }
 }
 
-impl From<&PyMetaPropsListList> for PyMetaPropsListListCmp {
-    fn from(value: &PyMetaPropsListList) -> Self {
+impl From<&PyConstPropsListList> for PyConstPropsListListCmp {
+    fn from(value: &PyConstPropsListList) -> Self {
         Self(
             value
                 .items()
@@ -368,7 +368,7 @@ impl From<&PyMetaPropsListList> for PyMetaPropsListListCmp {
     }
 }
 
-impl From<&PyNestedPropsIterable> for PyMetaPropsListListCmp {
+impl From<&PyNestedPropsIterable> for PyConstPropsListListCmp {
     fn from(value: &PyNestedPropsIterable) -> Self {
         Self(
             value
@@ -385,7 +385,7 @@ impl PyNestedPropsIterable {
     /// Get property value.
     ///
     /// First searches temporal properties and returns latest value if it exists.
-    /// If not, it falls back to static properties.
+    /// If not, it falls back to constant properties.
     pub fn get(&self, key: &str) -> Option<PyPropValueListList> {
         self.__contains__(key).then(|| {
             let builder = self.builder.clone();
@@ -410,7 +410,7 @@ impl PyNestedPropsIterable {
         self.get(key).ok_or(PyKeyError::new_err("No such property"))
     }
 
-    /// Get the names for all properties (includes temporal and static properties)
+    /// Get the names for all properties (includes temporal and constant properties)
     pub fn keys(&self) -> Vec<String> {
         self.iter()
             // FIXME: Still have to clone all those strings which sucks
@@ -426,8 +426,8 @@ impl PyNestedPropsIterable {
 
     /// Get the values of the properties
     ///
-    /// If a property exists as both temporal and static, temporal properties take priority with
-    /// fallback to the static property if the temporal value does not exist.
+    /// If a property exists as both temporal and constant, temporal properties take priority with
+    /// fallback to the constant property if the temporal value does not exist.
     pub fn values(&self) -> Vec<PyPropValueListList> {
         self.keys()
             .into_iter()
@@ -447,11 +447,11 @@ impl PyNestedPropsIterable {
         (move || builder().map(|it| it.map(|p| p.temporal()))).into()
     }
 
-    /// Get a view of the static properties (meta-data) only.
+    /// Get a view of the constant properties (meta-data) only.
     #[getter]
-    pub fn meta(&self) -> PyMetaPropsListList {
+    pub fn constant(&self) -> PyConstPropsListList {
         let builder = self.builder.clone();
-        (move || builder().map(|it| it.map(|p| p.meta()))).into()
+        (move || builder().map(|it| it.map(|p| p.constant()))).into()
     }
 
     /// Convert properties view to a dict

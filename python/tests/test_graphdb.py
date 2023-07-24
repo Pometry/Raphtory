@@ -276,7 +276,7 @@ def test_graph_properties():
     props = {"prop 1": 1, "prop 2": "hi", "prop 3": True}
     g.add_static_property(props)
 
-    sp = g.properties.meta.keys()
+    sp = g.properties.constant.keys()
     sp.sort()
     assert sp == ["prop 1", "prop 2", "prop 3"]
     assert g.properties["prop 1"] == 1
@@ -311,10 +311,10 @@ def test_graph_properties():
     time_history_test(1, "static prop", None)
 
     def time_static_property_test(time, key, value):
-        assert g.at(time).properties.meta.get(key) == value
+        assert g.at(time).properties.constant.get(key) == value
 
     def static_property_test(key, value):
-        assert g.properties.meta.get(key) == value
+        assert g.properties.constant.get(key) == value
 
     time_static_property_test(1, "prop 1", 1)
     time_static_property_test(100, "prop 1", 1)
@@ -365,7 +365,7 @@ def test_graph_properties():
     assert "prop 7" not in g.at(1).properties
     assert "prop 1" in g.properties
     assert "prop 2" in g.at(1).properties
-    assert "static prop" not in g.properties.meta
+    assert "static prop" not in g.properties.constant
 
 
 def test_vertex_properties():
@@ -413,23 +413,23 @@ def test_vertex_properties():
     def time_static_property_test(time, key, value):
         gg = g.at(time)
         if value is None:
-            assert gg.vertex(1).properties.meta.get(key) is None
-            assert gg.vertices.properties.meta.get(key) is None
-            assert gg.vertices.out_neighbours().properties.meta.get(key) is None
+            assert gg.vertex(1).properties.constant.get(key) is None
+            assert gg.vertices.properties.constant.get(key) is None
+            assert gg.vertices.out_neighbours().properties.constant.get(key) is None
         else:
-            assert gg.vertex(1).properties.meta.get(key) == value
-            assert gg.vertices.properties.meta.get(key) == [value]
-            assert gg.vertices.out_neighbours().properties.meta.get(key) == [[value]]
+            assert gg.vertex(1).properties.constant.get(key) == value
+            assert gg.vertices.properties.constant.get(key) == [value]
+            assert gg.vertices.out_neighbours().properties.constant.get(key) == [[value]]
 
     def static_property_test(key, value):
         if value is None:
-            assert g.vertex(1).properties.meta.get(key) is None
-            assert g.vertices.properties.meta.get(key) is None
-            assert g.vertices.out_neighbours().properties.meta.get(key) is None
+            assert g.vertex(1).properties.constant.get(key) is None
+            assert g.vertices.properties.constant.get(key) is None
+            assert g.vertices.out_neighbours().properties.constant.get(key) is None
         else:
-            assert g.vertex(1).properties.meta.get(key) == value
-            assert g.vertices.properties.meta.get(key) == [value]
-            assert g.vertices.out_neighbours().properties.meta.get(key) == [[value]]
+            assert g.vertex(1).properties.constant.get(key) == value
+            assert g.vertices.properties.constant.get(key) == [value]
+            assert g.vertices.out_neighbours().properties.constant.get(key) == [[value]]
 
     time_static_property_test(1, "static prop", 123)
     time_static_property_test(100, "static prop", 123)
@@ -563,17 +563,17 @@ def test_vertex_properties():
     assert "static prop" not in g.at(1).vertices.properties.temporal
     assert "static prop" not in g.at(1).vertices.out_neighbours().properties.temporal
 
-    assert "static prop" in g.vertex(1).properties.meta
-    assert "static prop" in g.vertices.properties.meta
-    assert "static prop" in g.vertices.out_neighbours().properties.meta
+    assert "static prop" in g.vertex(1).properties.constant
+    assert "static prop" in g.vertices.properties.constant
+    assert "static prop" in g.vertices.out_neighbours().properties.constant
 
-    assert "prop 2" not in g.vertex(1).properties.meta
-    assert "prop 2" not in g.vertices.properties.meta
-    assert "prop 2" not in g.vertices.out_neighbours().properties.meta
+    assert "prop 2" not in g.vertex(1).properties.constant
+    assert "prop 2" not in g.vertices.properties.constant
+    assert "prop 2" not in g.vertices.out_neighbours().properties.constant
 
-    assert "static prop" in g.at(1).vertex(1).properties.meta
-    assert "static prop" in g.at(1).vertices.properties.meta
-    assert "static prop" in g.at(1).vertices.out_neighbours().properties.meta
+    assert "static prop" in g.at(1).vertex(1).properties.constant
+    assert "static prop" in g.at(1).vertices.properties.constant
+    assert "static prop" in g.at(1).vertices.out_neighbours().properties.constant
 
 
 def test_edge_properties():
@@ -596,10 +596,10 @@ def test_edge_properties():
     assert g.at(1).edge(1, 2).properties.temporal.get("prop 4") == [(1, True)]
     assert g.at(1).edge(1, 2).properties.temporal.get("static prop") is None
 
-    assert g.at(1).edge(1, 2).properties.meta.get("static prop") == 123
-    assert g.at(100).edge(1, 2).properties.meta.get("static prop") == 123
-    assert g.edge(1, 2).properties.meta.get("static prop") == 123
-    assert g.edge(1, 2).properties.meta.get("prop 4") is None
+    assert g.at(1).edge(1, 2).properties.constant.get("static prop") == 123
+    assert g.at(100).edge(1, 2).properties.constant.get("static prop") == 123
+    assert g.edge(1, 2).properties.constant.get("static prop") == 123
+    assert g.edge(1, 2).properties.constant.get("prop 4") is None
 
     # testing property
     assert g.edge(1, 2).properties.get("static prop") == 123
@@ -644,9 +644,9 @@ def test_edge_properties():
     assert "static prop" in g.at(1).edge(1, 2).properties
     assert "static prop" not in g.at(1).edge(1, 2).properties.temporal
 
-    assert "static prop" in g.edge(1, 2).properties.meta
-    assert "prop 2" not in g.edge(1, 2).properties.meta
-    assert "static prop" in g.at(1).edge(1, 2).properties.meta
+    assert "static prop" in g.edge(1, 2).properties.constant
+    assert "prop 2" not in g.edge(1, 2).properties.constant
+    assert "static prop" in g.at(1).edge(1, 2).properties.constant
 
 
 def test_exploded_edge_time():
@@ -1355,21 +1355,21 @@ def test_materialize_graph():
 
     sprop = {"sprop 1": "kaggle", "sprop 2": True}
     g.add_static_property(sprop)
-    assert g.properties.meta == sprop
+    assert g.properties.constant == sprop
 
     mg = g.materialize()
 
     assert mg.vertex(1).properties.get('type') == 'wallet'
     assert mg.vertex(4).properties == {'abc': 'xyz'}
-    assert mg.vertex(4).properties.meta.get('abc') == 'xyz'
+    assert mg.vertex(4).properties.constant.get('abc') == 'xyz'
     assert mg.vertex(1).history() == [-1, 0, 1, 2]
     assert mg.vertex(4).history() == [6, 8]
     assert mg.vertices().id().collect() == [1, 2, 3, 4]
     assert set(mg.edges().id()) == {(1, 1), (1, 2), (1, 3), (2, 1), (3, 2), (2, 4)}
     assert g.vertices.id().collect() == mg.vertices.id().collect()
     assert set(g.edges().id()) == set(mg.edges().id())
-    assert mg.vertex(1).properties.meta == {}
-    assert mg.vertex(4).properties.meta == {'abc': 'xyz'}
+    assert mg.vertex(1).properties.constant == {}
+    assert mg.vertex(4).properties.constant == {'abc': 'xyz'}
     assert g.edge(1, 2).id() == (1, 2)
     assert mg.edge(1, 2).id() == (1, 2)
     assert mg.has_edge(1, 2)
@@ -1380,7 +1380,7 @@ def test_materialize_graph():
     sprop2 = {"sprop 3": 11, "sprop 4": 10}
     mg.add_static_property(sprop2)
     sprop.update(sprop2)
-    assert mg.properties.meta == sprop
+    assert mg.properties.constant == sprop
 
 
 def test_deletions():

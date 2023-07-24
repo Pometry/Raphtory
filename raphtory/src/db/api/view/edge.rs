@@ -2,7 +2,7 @@ use crate::{
     core::entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef},
     db::api::{
         properties::{
-            internal::{StaticPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps},
+            internal::{ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps},
             Properties,
         },
         view::{internal::*, *},
@@ -21,7 +21,7 @@ pub trait EdgeViewInternalOps<G: GraphViewOps, V: VertexViewOps<Graph = G>> {
 
 pub trait EdgeViewOps:
     EdgeViewInternalOps<Self::Graph, Self::Vertex>
-    + StaticPropertiesOps
+    + ConstPropertiesOps
     + TemporalPropertiesOps
     + TemporalPropertyViewOps
     + Sized

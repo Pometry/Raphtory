@@ -1,12 +1,12 @@
 use crate::{
     core::Prop,
     db::api::{
-        properties::{internal::PropertiesOps, StaticProperties},
+        properties::{internal::PropertiesOps, ConstProperties},
         view::internal::Static,
     },
     python::{
         graph::properties::{
-            props::PropsComp, DynProps, PyMetaPropsListListCmp, PyPropValueList,
+            props::PyPropsComp, DynProps, PyConstPropsListListCmp, PyPropValueList,
             PyPropValueListList, PyPropsListCmp,
         },
         types::repr::{iterator_dict_repr, Repr},
@@ -20,39 +20,39 @@ use pyo3::{
 };
 use std::{collections::HashMap, sync::Arc};
 
-pub type DynStaticProperties = StaticProperties<DynProps>;
+pub type DynConstProperties = ConstProperties<DynProps>;
 
-impl<P: PropertiesOps + Send + Sync + Static + 'static> From<StaticProperties<P>>
-    for DynStaticProperties
+impl<P: PropertiesOps + Send + Sync + Static + 'static> From<ConstProperties<P>>
+    for DynConstProperties
 {
-    fn from(value: StaticProperties<P>) -> Self {
-        StaticProperties {
+    fn from(value: ConstProperties<P>) -> Self {
+        ConstProperties {
             props: Arc::new(value.props),
         }
     }
 }
 
-impl<P: PropertiesOps + Send + Sync + 'static> IntoPy<PyObject> for StaticProperties<P> {
+impl<P: PropertiesOps + Send + Sync + 'static> IntoPy<PyObject> for ConstProperties<P> {
     fn into_py(self, py: Python<'_>) -> PyObject {
-        PyMetaProps::from(self).into_py(py)
+        PyConstProperties::from(self).into_py(py)
     }
 }
 
-impl<P: PropertiesOps> Repr for StaticProperties<P> {
+impl<P: PropertiesOps> Repr for ConstProperties<P> {
     fn repr(&self) -> String {
         format!("StaticProperties({{{}}})", iterator_dict_repr(self.iter()))
     }
 }
 
-#[pyclass(name = "MetaData")]
-pub struct PyMetaProps {
-    props: DynStaticProperties,
+#[pyclass(name = "ConstProperties")]
+pub struct PyConstProperties {
+    props: DynConstProperties,
 }
 
-py_eq!(PyMetaProps, PropsComp);
+py_eq!(PyConstProperties, PyPropsComp);
 
 #[pymethods]
-impl PyMetaProps {
+impl PyConstProperties {
     pub fn keys(&self) -> Vec<String> {
         self.props.keys()
     }
@@ -95,25 +95,25 @@ impl PyMetaProps {
     }
 }
 
-impl<P: PropertiesOps + Send + Sync + 'static> From<StaticProperties<P>> for PyMetaProps {
-    fn from(value: StaticProperties<P>) -> Self {
-        PyMetaProps {
-            props: StaticProperties::new(Arc::new(value.props)),
+impl<P: PropertiesOps + Send + Sync + 'static> From<ConstProperties<P>> for PyConstProperties {
+    fn from(value: ConstProperties<P>) -> Self {
+        PyConstProperties {
+            props: ConstProperties::new(Arc::new(value.props)),
         }
     }
 }
 
-impl Repr for PyMetaProps {
+impl Repr for PyConstProperties {
     fn repr(&self) -> String {
         self.props.repr()
     }
 }
 
-py_iterable_base!(PyMetaPropsList, DynStaticProperties, PyMetaProps);
-py_eq!(PyMetaPropsList, PyPropsListCmp);
+py_iterable_base!(PyConstPropsList, DynConstProperties, PyConstProperties);
+py_eq!(PyConstPropsList, PyPropsListCmp);
 
 #[pymethods]
-impl PyMetaPropsList {
+impl PyConstPropsList {
     pub fn keys(&self) -> Vec<String> {
         self.iter().map(|p| p.keys()).kmerge().dedup().collect()
     }
@@ -160,11 +160,11 @@ impl PyMetaPropsList {
     }
 }
 
-py_nested_iterable_base!(PyMetaPropsListList, DynStaticProperties, PyMetaProps);
-py_eq!(PyMetaPropsListList, PyMetaPropsListListCmp);
+py_nested_iterable_base!(PyConstPropsListList, DynConstProperties, PyConstProperties);
+py_eq!(PyConstPropsListList, PyConstPropsListListCmp);
 
 #[pymethods]
-impl PyMetaPropsListList {
+impl PyConstPropsListList {
     pub fn keys(&self) -> Vec<String> {
         self.iter()
             .flat_map(|it| it.map(|p| p.keys()))

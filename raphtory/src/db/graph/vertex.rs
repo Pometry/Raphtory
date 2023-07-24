@@ -11,7 +11,7 @@ use crate::{
         api::{
             properties::{
                 internal::{
-                    Key, StaticPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
+                    ConstPropertiesOps, Key, TemporalPropertiesOps, TemporalPropertyViewOps,
                 },
                 Properties,
             },
@@ -116,18 +116,18 @@ impl<G: GraphViewOps> TemporalPropertyViewOps for VertexView<G> {
     }
 }
 
-impl<G: GraphViewOps> StaticPropertiesOps for VertexView<G> {
-    fn static_property_keys<'a>(&'a self) -> Box<dyn Iterator<Item = LockedView<'a, String>> + 'a> {
+impl<G: GraphViewOps> ConstPropertiesOps for VertexView<G> {
+    fn const_property_keys<'a>(&'a self) -> Box<dyn Iterator<Item = LockedView<'a, String>> + 'a> {
         self.graph.static_vertex_prop_names(self.vertex)
     }
 
-    fn static_property_values(&self) -> Vec<Prop> {
-        self.static_property_keys()
+    fn const_property_values(&self) -> Vec<Prop> {
+        self.const_property_keys()
             .flat_map(|prop_name| self.graph.static_vertex_prop(self.vertex, &prop_name))
             .collect()
     }
 
-    fn get_static_property(&self, key: &str) -> Option<Prop> {
+    fn get_const_property(&self, key: &str) -> Option<Prop> {
         self.graph.static_vertex_prop(self.vertex, key)
     }
 }
