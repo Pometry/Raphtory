@@ -17,18 +17,26 @@ pub(crate) mod property_update;
 fn get_expanded_edges(
     graph_nodes: HashSet<String>,
     vv: VertexView<DynamicGraph>,
+    maybe_layers: Option<Vec<String>>,
 ) -> Vec<EdgeView<DynamicGraph>> {
     let node_found_in_graph_nodes =
         |node_name: String| -> bool { graph_nodes.iter().contains(&node_name) };
 
-    let mut fetched_edges: Vec<EdgeView<DynamicGraph>> = vv
-        .clone()
-        .edges()
-        .into_iter()
-        .map(|ee| ee.clone())
-        .collect_vec();
+    let fetched_edges = vv.clone().edges().into_iter().map(|ee| ee.clone());
 
-    let first_hop_edges = fetched_edges
+    let mut filtered_fetched_edges = vec![];
+    match maybe_layers {
+        Some(layers) => {
+            filtered_fetched_edges = fetched_edges
+                .filter(|e| return layers.iter().contains(&e.layer_name()))
+                .collect_vec();
+        }
+        None => {
+            filtered_fetched_edges = fetched_edges.collect_vec();
+        }
+    };
+
+    let first_hop_edges = filtered_fetched_edges
         .clone()
         .into_iter()
         .filter(|e| {
@@ -84,7 +92,7 @@ fn get_expanded_edges(
         }
     });
 
-    fetched_edges.append(&mut first_hop_node_edges);
+    filtered_fetched_edges.append(&mut first_hop_node_edges);
 
-    fetched_edges
+    filtered_fetched_edges
 }

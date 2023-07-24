@@ -156,8 +156,14 @@ impl GqlGraph {
         let mut all_graph_nodes: HashSet<String> = graph_nodes.into_iter().collect();
         let mut all_expanded_edges: HashMap<String, EdgeView<DynamicGraph>> = HashMap::new();
 
+        let mut maybe_layers: Option<Vec<String>> = None;
+        if filter.is_some() {
+            maybe_layers = filter.clone().unwrap().layer_names.map(|l| l.contains);
+        }
+
         for node in nodes {
-            let expanded_edges = get_expanded_edges(all_graph_nodes.clone(), node.vv);
+            let expanded_edges =
+                get_expanded_edges(all_graph_nodes.clone(), node.vv, maybe_layers.clone());
             expanded_edges.clone().into_iter().for_each(|e| {
                 let src = e.src().name();
                 let dst = e.dst().name();
