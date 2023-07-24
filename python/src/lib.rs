@@ -71,10 +71,7 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         local_temporal_three_node_motifs,
         algorithm_module
     )?)?;
-    algorithm_module.add_function(wrap_pyfunction!(
-        hits, 
-        algorithm_module
-    )?)?;
+    algorithm_module.add_function(wrap_pyfunction!(hits, algorithm_module)?)?;
     m.add_submodule(algorithm_module)?;
 
     //GRAPH LOADER
