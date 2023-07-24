@@ -1,8 +1,5 @@
 import math
-import re
 import sys
-import time
-import datetime
 
 import pandas as pd
 import pandas.core.frame
@@ -1427,7 +1424,7 @@ def test_load_from_pandas():
         "time": [1, 2, 3, 4, 5],
         "weight": [1.0, 2.0, 3.0, 4.0, 5.0],
         "marbles": ["red", "blue", "green", "yellow", "purple"]
-    });
+    })
 
     g = Graph.load_from_pandas(df, "src", "dst", "time", ["weight", "marbles"])
 
@@ -1478,6 +1475,11 @@ def test_load_from_pandas_vertices():
     assert vertices == [(1, "Alice"), (2, "Bob"), (3, "Carol"), (4, "Dave"), (5, "Eve"), (6, "Frank")]
 
 
+def test_hits_algorithm():
+    g = graph_loader.lotr_graph()
+    assert algorithms.hits(g).get('Aldor') == (0.0035840950440615416, 0.007476256228983402)
+
+
 def load_from_pandas_into_existing_graph():
     import pandas as pd
     edges_df = pd.DataFrame({
@@ -1486,7 +1488,7 @@ def load_from_pandas_into_existing_graph():
         "time": [1, 2, 3, 4, 5],
         "weight": [1.0, 2.0, 3.0, 4.0, 5.0],
         "marbles": ["red", "blue", "green", "yellow", "purple"]
-    });
+    })
 
     vertices_df = pd.DataFrame({
         "id": [1, 2, 3, 4, 5, 6],

@@ -16,7 +16,7 @@ use crate::{
 };
 use itertools::Itertools;
 use num_traits::Zero;
-use std::{collections::HashMap, ops::Add};
+use std::ops::Add;
 
 #[derive(Eq, Hash, PartialEq, Clone, Debug, Default)]
 pub struct TaintMessage {
