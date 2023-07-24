@@ -14,13 +14,46 @@ pub(crate) struct Data {
 }
 
 impl Data {
-    pub fn load(directory_path: &str) -> Self {
+    pub fn from_map(graphs: HashMap<String, DynamicGraph>) -> Self {
+        let graphs = Self::convert_graphs(graphs);
+        Self { graphs }
+    }
+
+    pub fn from_directory(directory_path: &str) -> Self {
+        let graphs = Self::load_from_file(directory_path);
+        Self { graphs }
+    }
+
+    pub fn from_map_and_directory(
+        graphs: HashMap<String, DynamicGraph>,
+        directory_path: &str,
+    ) -> Self {
+        let graphs = Self::convert_graphs(graphs);
+        let mut graphs_from_files = Self::load_from_file(directory_path);
+        graphs_from_files.extend(graphs);
+        Self {
+            graphs: graphs_from_files,
+        }
+    }
+
+    fn convert_graphs(
+        graphs: HashMap<String, DynamicGraph>,
+    ) -> HashMap<String, IndexedGraph<DynamicGraph>> {
+        graphs
+            .into_iter()
+            .map(|(name, g)| {
+                (
+                    name,
+                    IndexedGraph::from_graph(&g).expect("Unable to index graph"),
+                )
+            })
+            .collect()
+    }
+
+    fn load_from_file(path: &str) -> HashMap<String, IndexedGraph<DynamicGraph>> {
         let mut valid_paths = HashSet::<String>::new();
 
-        for entry in WalkDir::new(directory_path)
-            .into_iter()
-            .filter_map(|e| e.ok())
-        {
+        for entry in WalkDir::new(path).into_iter().filter_map(|e| e.ok()) {
             let path = entry.path();
             let path_string = path.display().to_string();
             let filename = path.file_name().and_then(|name| name.to_str());
@@ -66,7 +99,6 @@ impl Data {
                 )
             })
             .collect();
-
-        Self { graphs }
+        graphs
     }
 }

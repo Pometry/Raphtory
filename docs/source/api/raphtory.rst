@@ -68,6 +68,16 @@ Graph Generation
    :private-members:
    :inherited-members:
 
+GraphQL Server
+--------------------------
+
+.. automodule:: raphtory.graphql
+   :autosummary:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :inherited-members:
+
 
 
 
