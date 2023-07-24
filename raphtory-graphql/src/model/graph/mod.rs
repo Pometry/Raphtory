@@ -1,8 +1,11 @@
 use itertools::Itertools;
-use raphtory::db::api::view::internal::DynamicGraph;
-use raphtory::db::graph::edge::EdgeView;
-use raphtory::db::graph::vertex::VertexView;
-use raphtory::prelude::{EdgeViewOps, VertexViewOps};
+use raphtory::{
+    db::{
+        api::view::internal::DynamicGraph,
+        graph::{edge::EdgeView, vertex::VertexView},
+    },
+    prelude::{EdgeViewOps, VertexViewOps},
+};
 use std::collections::HashSet;
 
 pub(crate) mod edge;

@@ -1,7 +1,6 @@
-use crate::model::graph::get_expanded_edges;
 use crate::model::{
     filters::edgefilter::EdgeFilter,
-    graph::{edge::Edge, property::Property, property_update::PropertyUpdate},
+    graph::{edge::Edge, get_expanded_edges, property::Property, property_update::PropertyUpdate},
 };
 use async_graphql::Context;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};

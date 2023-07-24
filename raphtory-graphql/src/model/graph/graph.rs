@@ -1,21 +1,24 @@
-use std::collections::{HashMap, HashSet};
-use std::ops::Deref;
+use std::{
+    collections::{HashMap, HashSet},
+    ops::Deref,
+};
 
-use crate::model::graph::get_expanded_edges;
 use crate::model::{
     algorithm::Algorithms,
     filters::{edgefilter::EdgeFilter, nodefilter::NodeFilter},
-    graph::{edge::Edge, node::Node, property::Property},
+    graph::{edge::Edge, get_expanded_edges, node::Node, property::Property},
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
-use raphtory::db::graph::edge::EdgeView;
-use raphtory::prelude::EdgeViewOps;
 use raphtory::{
-    db::api::view::{
-        internal::{DynamicGraph, IntoDynamic},
-        GraphViewOps, TimeOps, VertexViewOps,
+    db::{
+        api::view::{
+            internal::{DynamicGraph, IntoDynamic},
+            GraphViewOps, TimeOps, VertexViewOps,
+        },
+        graph::edge::EdgeView,
     },
+    prelude::EdgeViewOps,
     search::IndexedGraph,
 };
 
