@@ -13,7 +13,7 @@ use crate::{
     },
 };
 
-use itertools::enumerate;
+use itertools::{enumerate, Itertools};
 use num_traits::Zero;
 use rustc_hash::FxHashSet;
 use std::{collections::{HashMap, HashSet}, ops::Add, slice::Iter};
@@ -162,7 +162,10 @@ pub fn twonode_motif_count<G: GraphViewOps>(
 
 pub fn triangle_motifs<G: GraphViewOps>(graph: &G, delta:i64, threads: Option<usize>) -> HashMap<String, [usize;8]>{
     let vertex_set = k_core_set(graph,2,usize::MAX, None);
-    let g = graph.subgraph(vertex_set);
+    // vertex_set.sort();
+    // let vertex_set
+    let g: VertexSubgraph<G> = graph.subgraph(vertex_set);
+    let vertex_set_sorted = g.vertices().id().sorted().collect_vec();
     let mut ctx: Context<VertexSubgraph<G>, ComputeStateVec> = Context::from(&g);
     let motifs_counter = val::<MotifCounter>(0);
     ctx.agg(motifs_counter);
@@ -208,7 +211,7 @@ pub fn triangle_motifs<G: GraphViewOps>(graph: &G, delta:i64, threads: Option<us
                     // For each triangle, run the triangle count.
                     let mut tri_edges: Vec<TriangleEdge> = Vec::new();
 
-                    let u_to_v = match &g.edge(u.id(), v.id(), None) {
+                    let u_to_v = match g.edge(u.id(), v.id(), None) {
                         Some(edge) => {
                             let r = edge
                                 .explode()
@@ -218,7 +221,7 @@ pub fn triangle_motifs<G: GraphViewOps>(graph: &G, delta:i64, threads: Option<us
                         }
                         None => vec![].into_iter(),
                     };
-                    let v_to_u = match &g.edge(v.id(), u.id(), None) {
+                    let v_to_u = match g.edge(v.id(), u.id(), None) {
                         Some(edge) => {
                             let r = edge
                                 .explode()
@@ -229,8 +232,8 @@ pub fn triangle_motifs<G: GraphViewOps>(graph: &G, delta:i64, threads: Option<us
                         None => vec![].into_iter(),
                     };
 
-                    let uout = &g.edge(u.id(), *w, None);
-                    let uin = &g.edge(*w, u.id(), None);
+                    let uout = g.edge(u.id(), *w, None);
+                    let uin = g.edge(*w, u.id(), None);
                     match (uout, uin) {
                         (Some(o), Some(i)) => {
                             tri_edges.append(
@@ -266,8 +269,8 @@ pub fn triangle_motifs<G: GraphViewOps>(graph: &G, delta:i64, threads: Option<us
                         }
                     }
 
-                    let vout = &g.edge(v.id(), *w, None);
-                    let vin = &g.edge(*w, v.id(), None);
+                    let vout = g.edge(v.id(), *w, None);
+                    let vin = g.edge(*w, v.id(), None);
                     // The following code checks for triangles
                     match (vout, vin) {
                         (Some(o), Some(i)) => {
@@ -311,6 +314,7 @@ pub fn triangle_motifs<G: GraphViewOps>(graph: &G, delta:i64, threads: Option<us
                     let mut tri_count = init_tri_count(nb_ct);
                     tri_count.execute(&tri_edges, delta);
                     let tmp_counts: Iter<usize> = tri_count.return_counts().iter();
+                    println!("Tmp counts {:?} ",tmp_counts);
 
                     // Triangle counts are going to be WRONG without w
                     update_counter(vec![u, &v], motifs_counter, tmp_counts);
@@ -329,12 +333,12 @@ pub fn triangle_motifs<G: GraphViewOps>(graph: &G, delta:i64, threads: Option<us
         vec![],
         vec![Job::new(step1), Job::new(step2)],
         MotifCounter::zero(),
-        |_, _, els, local| {
+        |_, _, _, local| {
             let mut tri_motifs = HashMap::new();
             println!("{:?}",local.len());
             // let vertex_id_set: HashSet<u64> = vertex_set.iter().map(|v| graph.vertex(*v).unwrap().id()).collect();
             for (vref, mc) in enumerate(local) {
-                let v_gid = g.vertex_name(vref.into());
+                let v_gid = graph.vertex_name(vref.into());
                 tri_motifs.insert(v_gid.clone(), mc.triangle);
                 println!("{:?}",mc.triangle);
             }
@@ -536,6 +540,7 @@ mod motifs_test {
         println!("{:?}",actual.keys());
 
         for ind in 1..12 {
+            // println!("Index {:?}",ind);
             assert_eq!(
                 actual.get(&ind.to_string()).unwrap(),
                 expected.get(&ind.to_string()).unwrap()
