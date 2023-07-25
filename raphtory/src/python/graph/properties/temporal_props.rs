@@ -79,6 +79,7 @@ impl<'source> FromPyObject<'source> for PyTemporalPropsCmp {
     }
 }
 
+/// A view of the temporal properties of an entity
 #[pyclass(name = "TemporalProperties")]
 pub struct PyTemporalProperties {
     props: DynTemporalProperties,
@@ -88,22 +89,39 @@ py_eq!(PyTemporalProperties, PyTemporalPropsCmp);
 
 #[pymethods]
 impl PyTemporalProperties {
+    /// List the available property keys
     fn keys(&self) -> Vec<String> {
         self.props.keys().map(|k| k.clone()).collect()
     }
+
+    /// List the values of the properties
+    ///
+    /// Returns:
+    ///     list[TemporalProp]: the list of property views
     fn values(&self) -> Vec<DynTemporalProperty> {
         self.props.values().collect()
     }
+
+    /// List the property keys together with the corresponding values
     fn items(&self) -> Vec<(String, DynTemporalProperty)> {
         self.props.iter().map(|(k, v)| (k.clone(), v)).collect()
     }
 
+    /// Get the latest value of all properties
+    ///
+    /// Returns:
+    ///     dict[str, Any]: the mapping of property keys to latest values
     fn latest(&self) -> HashMap<String, Prop> {
         self.props
             .iter_latest()
             .map(|(k, v)| (k.clone(), v))
             .collect()
     }
+
+    /// Get the histories of all properties
+    ///
+    /// Returns:
+    ///     dict[str, list[(int, Any)]]: the mapping of property keys to histories
     fn histories(&self) -> HashMap<String, Vec<(i64, Prop)>> {
         self.props
             .iter()
@@ -111,6 +129,13 @@ impl PyTemporalProperties {
             .collect()
     }
 
+    /// Get property value for `key`
+    ///
+    /// Returns:
+    ///     TemporalProp: the property view
+    ///
+    /// Raises:
+    ///     KeyError: if property `key` does not exist
     fn __getitem__(&self, key: &str) -> PyResult<Prop> {
         let v = self
             .props
@@ -119,25 +144,32 @@ impl PyTemporalProperties {
         Ok(v.latest().unwrap())
     }
 
+    /// Get property value for `key` if it exists
+    ///
+    /// Returns:
+    ///     Option[TemporalProp]: the property view
     fn get(&self, key: &str) -> Option<DynTemporalProperty> {
         // Fixme: Add option to specify default?
         self.props.get(key)
     }
 
+    /// Iterator over property keys
     fn __iter__(&self) -> PyGenericIterator {
         self.keys().into_iter().into()
     }
 
+    /// Check if property `key` exists
     fn __contains__(&self, key: &str) -> bool {
         self.props.contains(key)
     }
 
+    /// The number of properties
     fn __len__(&self) -> usize {
         self.keys().len()
     }
 }
 
-#[pyclass(name = "Property")]
+#[pyclass(name = "TemporalProp")]
 pub struct PyTemporalProp {
     prop: DynTemporalProperty,
 }

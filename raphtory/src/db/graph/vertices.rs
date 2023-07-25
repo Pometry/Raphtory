@@ -54,30 +54,32 @@ impl<G: GraphViewOps> VertexViewOps for Vertices<G> {
     type PathType<'a> = PathFromGraph<G>;
     type EList = BoxedIter<BoxedIter<EdgeView<G>>>;
 
-    /// Returns an iterator over the vertices id
+    /// Returns an iterator over the vertices' id
     fn id(&self) -> Self::ValueType<u64> {
         self.iter().id()
     }
 
-    /// Returns an iterator over the vertices name
+    /// Returns an iterator over the vertices' name
     fn name(&self) -> Self::ValueType<String> {
         self.iter().name()
     }
 
-    /// Returns an iterator over the vertices earliest time
+    /// Returns an iterator over the vertices' earliest time
     fn earliest_time(&self) -> Self::ValueType<Option<i64>> {
         self.iter().earliest_time()
     }
 
-    /// Returns an iterator over the vertices latest time
+    /// Returns an iterator over the vertices' latest time
     fn latest_time(&self) -> Self::ValueType<Option<i64>> {
         self.iter().latest_time()
     }
 
+    /// Returns an iterator over the vertices' histories
     fn history(&self) -> Self::ValueType<Vec<i64>> {
         self.iter().history()
     }
 
+    /// Returns an iterator over the vertices' properties
     fn properties(&self) -> Self::ValueType<Properties<VertexView<G>>> {
         self.iter().properties()
     }

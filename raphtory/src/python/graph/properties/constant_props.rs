@@ -44,6 +44,7 @@ impl<P: PropertiesOps> Repr for ConstProperties<P> {
     }
 }
 
+/// A view of constant properties of an entity
 #[pyclass(name = "ConstProperties")]
 pub struct PyConstProperties {
     props: DynConstProperties,
@@ -53,39 +54,50 @@ py_eq!(PyConstProperties, PyPropsComp);
 
 #[pymethods]
 impl PyConstProperties {
+    /// lists the available property keys
     pub fn keys(&self) -> Vec<String> {
         self.props.keys()
     }
+
+    /// lists the property values
     pub fn values(&self) -> Vec<Prop> {
         self.props.values()
     }
+
+    /// lists the property keys together with the corresponding value
     pub fn items(&self) -> Vec<(String, Prop)> {
         self.props.iter().collect()
     }
 
+    /// get property value by key (errors if key does not exist)
     pub fn __getitem__(&self, key: &str) -> PyResult<Prop> {
         self.props
             .get(key)
             .ok_or(PyKeyError::new_err("No such property"))
     }
 
+    /// get property value by key (returns `None` if key does not exist)
     pub fn get(&self, key: &str) -> Option<Prop> {
         // Fixme: Add option to specify default?
         self.props.get(key)
     }
 
+    /// convert the properties view to a python dict
     pub fn as_dict(&self) -> HashMap<String, Prop> {
         self.props.as_map()
     }
 
+    /// iterate over property keys
     pub fn __iter__(&self) -> PyGenericIterator {
         self.keys().into_iter().into()
     }
 
+    /// check if property `key` exists
     pub fn __contains__(&self, key: &str) -> bool {
         self.props.contains(key)
     }
 
+    /// the number of properties
     pub fn __len__(&self) -> usize {
         self.keys().len()
     }
