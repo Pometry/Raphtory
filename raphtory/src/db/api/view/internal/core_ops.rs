@@ -95,7 +95,10 @@ pub trait CoreGraphOps {
     /// # Returns
     ///
     /// Vec<String> - The keys of the static properties.
-    fn static_vertex_prop_names(&self, v: VID) -> Vec<String>;
+    fn static_vertex_prop_names<'a>(
+        &'a self,
+        v: VID,
+    ) -> Box<dyn Iterator<Item = LockedView<'a, String>> + 'a>;
 
     /// Gets a temporal property of a given vertex given the name and vertex reference.
     ///
@@ -118,7 +121,10 @@ pub trait CoreGraphOps {
     /// # Returns
     ///
     /// A vector of strings representing the names of the temporal properties
-    fn temporal_vertex_prop_names(&self, v: VID) -> Vec<String>;
+    fn temporal_vertex_prop_names<'a>(
+        &'a self,
+        v: VID,
+    ) -> Box<dyn Iterator<Item = LockedView<'a, String>> + 'a>;
 
     /// Returns a vector of all names of temporal properties that exist on at least one vertex
     ///
@@ -155,7 +161,10 @@ pub trait CoreGraphOps {
     /// # Returns
     ///
     /// * A `Vec` of `String` containing the keys for the static properties of the given edge.
-    fn static_edge_prop_names(&self, e: EdgeRef) -> Vec<String>;
+    fn static_edge_prop_names<'a>(
+        &'a self,
+        e: EdgeRef,
+    ) -> Box<dyn Iterator<Item = LockedView<'a, String>> + 'a>;
 
     /// Returns a vector of all temporal values of the edge property with the given name for the
     /// given edge reference.
@@ -179,7 +188,10 @@ pub trait CoreGraphOps {
     /// # Returns
     ///
     /// * A `Vec` of `String` containing the keys for the temporal properties of the given edge.
-    fn temporal_edge_prop_names(&self, e: EdgeRef) -> Vec<String>;
+    fn temporal_edge_prop_names<'a>(
+        &'a self,
+        e: EdgeRef,
+    ) -> Box<dyn Iterator<Item = LockedView<'a, String>> + 'a>;
 }
 
 pub trait InheritCoreOps: Base {}
@@ -246,7 +258,10 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
         self.graph().static_vertex_prop(v, name)
     }
 
-    fn static_vertex_prop_names(&self, v: VID) -> Vec<String> {
+    fn static_vertex_prop_names<'a>(
+        &'a self,
+        v: VID,
+    ) -> Box<dyn Iterator<Item = LockedView<'a, String>> + 'a> {
         self.graph().static_vertex_prop_names(v)
     }
 
@@ -254,7 +269,10 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
         self.graph().temporal_vertex_prop(v, name)
     }
 
-    fn temporal_vertex_prop_names(&self, v: VID) -> Vec<String> {
+    fn temporal_vertex_prop_names<'a>(
+        &'a self,
+        v: VID,
+    ) -> Box<dyn Iterator<Item = LockedView<'a, String>> + 'a> {
         self.graph().temporal_vertex_prop_names(v)
     }
 
@@ -270,7 +288,10 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
         self.graph().static_edge_prop(e, name)
     }
 
-    fn static_edge_prop_names(&self, e: EdgeRef) -> Vec<String> {
+    fn static_edge_prop_names<'a>(
+        &'a self,
+        e: EdgeRef,
+    ) -> Box<dyn Iterator<Item = LockedView<'a, String>> + 'a> {
         self.graph().static_edge_prop_names(e)
     }
 
@@ -278,7 +299,10 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
         self.graph().temporal_edge_prop(e, name)
     }
 
-    fn temporal_edge_prop_names(&self, e: EdgeRef) -> Vec<String> {
+    fn temporal_edge_prop_names<'a>(
+        &'a self,
+        e: EdgeRef,
+    ) -> Box<dyn Iterator<Item = LockedView<'a, String>> + 'a> {
         self.graph().temporal_edge_prop_names(e)
     }
 

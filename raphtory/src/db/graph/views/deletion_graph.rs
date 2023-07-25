@@ -8,6 +8,7 @@ use crate::{
     db::{
         api::{
             mutation::internal::InheritMutationOps,
+            properties::internal::InheritPropertiesOps,
             view::{internal::*, BoxedIter},
         },
         graph::graph::{graph_equal, InternalGraph},
@@ -150,6 +151,8 @@ impl InheritCoreOps for GraphWithDeletions {}
 impl InheritCoreDeletionOps for GraphWithDeletions {}
 
 impl InheritGraphOps for GraphWithDeletions {}
+
+impl InheritPropertiesOps for GraphWithDeletions {}
 
 impl TimeSemantics for GraphWithDeletions {
     fn vertex_earliest_time(&self, v: VID) -> Option<i64> {
@@ -402,7 +405,8 @@ mod test_deletions {
             g.window(1, 2)
                 .edge(0, 1, Layer::All)
                 .unwrap()
-                .property("added", true)
+                .properties()
+                .get("added")
                 .unwrap_i64(),
             0
         );
@@ -413,7 +417,12 @@ mod test_deletions {
             g.window(1, 2)
                 .edge(0, 1, Layer::All)
                 .unwrap()
-                .property_history("added"),
+                .properties()
+                .temporal()
+                .get("added")
+                .unwrap()
+                .iter()
+                .collect_vec(),
             vec![(1, Prop::I64(0))]
         );
 

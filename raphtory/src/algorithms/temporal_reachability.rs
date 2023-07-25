@@ -16,7 +16,7 @@ use crate::{
 };
 use itertools::Itertools;
 use num_traits::Zero;
-use std::{collections::HashMap, ops::Add};
+use std::ops::Add;
 
 #[derive(Eq, Hash, PartialEq, Clone, Debug, Default)]
 pub struct TaintMessage {
@@ -218,7 +218,7 @@ mod generic_taint_tests {
         infected_nodes: Vec<T>,
         stop_nodes: Option<Vec<T>>,
     ) -> Vec<(String, Vec<(i64, String)>)> {
-        let mut results: Vec<(String, Vec<(i64, String)>)> = temporally_reachable_nodes(
+        let results: Vec<(String, Vec<(i64, String)>)> = temporally_reachable_nodes(
             &graph,
             None,
             iter_count,

@@ -12,26 +12,28 @@ pub(crate) struct PropertyHasFilter {
 impl PropertyHasFilter {
     pub(crate) fn matches(&self, node: &Node) -> bool {
         if let Some(key) = &self.key {
-            if node.vv.property(key.to_string(), true).is_none() {
+            if !node.vv.properties().contains(key) {
                 return false;
             }
         }
 
         if let Some(value_str) = &self.value_str {
-            let properties = node.vv.properties(true);
-            if properties
-                .iter()
-                .all(|(_, prop)| value_neq_str_prop(value_str, prop))
+            if node
+                .vv
+                .properties()
+                .values()
+                .all(|prop| value_neq_str_prop(value_str, &prop))
             {
                 return false;
             }
         }
 
         if let Some(value_num) = &self.value_num {
-            let properties = node.vv.properties(true);
-            if properties
-                .iter()
-                .all(|(_, prop)| value_neq_num_prop(value_num, prop))
+            if node
+                .vv
+                .properties()
+                .values()
+                .all(|prop| value_neq_num_prop(value_num, &prop))
             {
                 return false;
             }

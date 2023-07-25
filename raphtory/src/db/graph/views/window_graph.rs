@@ -40,14 +40,20 @@
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef, LayerIds, EID, VID},
+        storage::locked_view::LockedView,
         utils::time::IntoTime,
         Direction, Prop,
     },
-    db::api::view::{
-        internal::{
-            Base, GraphOps, GraphWindowOps, InheritCoreOps, InheritMaterialize, TimeSemantics,
+    db::api::{
+        properties::internal::{
+            InheritStaticPropertiesOps, Key, TemporalPropertiesOps, TemporalPropertyViewOps,
         },
-        BoxedIter, Layer,
+        view::{
+            internal::{
+                Base, GraphOps, GraphWindowOps, InheritCoreOps, InheritMaterialize, TimeSemantics,
+            },
+            BoxedIter, Layer,
+        },
     },
     prelude::GraphViewOps,
 };
@@ -78,6 +84,40 @@ impl<G: GraphViewOps> Base for WindowedGraph<G> {
 impl<G: GraphViewOps> InheritCoreOps for WindowedGraph<G> {}
 
 impl<G: GraphViewOps> InheritMaterialize for WindowedGraph<G> {}
+
+impl<G: GraphViewOps> InheritStaticPropertiesOps for WindowedGraph<G> {}
+
+impl<G: GraphViewOps> TemporalPropertyViewOps for WindowedGraph<G> {
+    fn temporal_history(&self, id: &Key) -> Vec<i64> {
+        self.temporal_prop_vec(id)
+            .into_iter()
+            .map(|(t, _)| t)
+            .collect()
+    }
+
+    fn temporal_values(&self, id: &Key) -> Vec<Prop> {
+        self.temporal_prop_vec(id)
+            .into_iter()
+            .map(|(_, v)| v)
+            .collect()
+    }
+}
+
+impl<G: GraphViewOps> TemporalPropertiesOps for WindowedGraph<G> {
+    fn temporal_property_keys<'a>(
+        &'a self,
+    ) -> Box<dyn Iterator<Item = LockedView<'a, String>> + 'a> {
+        Box::new(
+            self.graph
+                .temporal_property_keys()
+                .filter(|k| self.get_temporal_property(k).is_some()),
+        )
+    }
+
+    fn get_temporal_property(&self, key: &str) -> Option<Key> {
+        (!self.temporal_prop_vec(key).is_empty()).then(|| key.to_owned())
+    }
+}
 
 impl<G: GraphViewOps> TimeSemantics for WindowedGraph<G> {
     fn vertex_earliest_time(&self, v: VID) -> Option<i64> {

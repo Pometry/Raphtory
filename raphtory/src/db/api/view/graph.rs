@@ -4,11 +4,11 @@ use crate::{
             graph::tgraph::InnerTemporalGraph, vertices::vertex_ref::VertexRef, LayerIds, VID,
         },
         utils::{errors::GraphError, time::IntoTime},
-        Prop,
     },
     db::{
         api::{
             mutation::{AdditionOps, PropertyAdditionOps},
+            properties::Properties,
             view::{internal::*, layer::LayerOps, *},
         },
         graph::{
@@ -25,7 +25,6 @@ use crate::{
 };
 use itertools::Itertools;
 use rustc_hash::FxHashSet;
-use std::collections::HashMap;
 
 /// This trait GraphViewOps defines operations for accessing
 /// information about a graph. The trait has associated types
@@ -76,94 +75,12 @@ pub trait GraphViewOps: BoxableGraphView + Clone + Sized {
     /// Return an iterator over all edges in the graph.
     fn edges(&self) -> Box<dyn Iterator<Item = EdgeView<Self>> + Send>;
 
-    /// Gets the property value of this graph given the name of the property.
-    fn property(&self, name: &str, include_static: bool) -> Option<Prop>;
-
-    /// Get the temporal property value of this graph.
-    ///
-    /// # Arguments
-    ///
-    /// * `name` - The name of the property to retrieve.
-    ///
-    /// # Returns
-    ///
-    /// A vector of `(i64, Prop)` tuples where the `i64` value is the timestamp of the
-    /// property value and `Prop` is the value itself.
-    fn property_history(&self, name: &str) -> Vec<(i64, Prop)>;
-
     /// Get all property values of this graph.
     ///
-    /// # Arguments
-    ///
-    /// * `include_static` - If `true` then static properties are included in the result.
-    ///
     /// # Returns
     ///
-    /// A HashMap with the names of the properties as keys and the property values as values.
-    fn properties(&self, include_static: bool) -> HashMap<String, Prop>;
-
-    /// Get all temporal property values of this graph.
-    ///
-    /// # Returns
-    ///
-    /// A HashMap with the names of the properties as keys and a vector of `(i64, Prop)` tuples
-    /// as values. The `i64` value is the timestamp of the property value and `Prop`
-    /// is the value itself.
-    fn property_histories(&self) -> HashMap<String, Vec<(i64, Prop)>>;
-
-    /// Get the names of all properties of this graph.
-    ///
-    /// # Arguments
-    ///
-    /// * `include_static` - If `true` then static properties are included in the result.
-    ///
-    /// # Returns
-    ///
-    /// A vector of the names of the properties of this vertex.
-    fn property_names(&self, include_static: bool) -> Vec<String>;
-
-    /// Checks if a property exists on this graph.
-    ///
-    /// # Arguments
-    ///
-    /// * `name` - The name of the property to check for.
-    /// * `include_static` - If `true` then static properties are included in the result.
-    ///
-    /// # Returns
-    ///
-    /// `true` if the property exists, otherwise `false`.
-    fn has_property(&self, name: &str, include_static: bool) -> bool;
-
-    /// Checks if a static property exists on this graph.
-    ///
-    /// # Arguments
-    ///
-    /// * `name` - The name of the property to check for.
-    ///
-    /// # Returns
-    ///
-    /// `true` if the property exists, otherwise `false`.
-    fn has_static_property(&self, name: &str) -> bool;
-
-    /// Get the static property value of this graph.
-    ///
-    /// # Arguments
-    ///
-    /// * `name` - The name of the property to retrieve.
-    ///
-    /// # Returns
-    ///
-    /// The value of the property if it exists, otherwise `None`.
-    fn static_property(&self, name: &str) -> Option<Prop>;
-
-    /// Get the static properties value of this graph.
-    ///
-    /// # Arguments
-    ///
-    /// # Returns
-    ///
-    /// HashMap<String, Prop> - Return all static properties identified by their names
-    fn static_properties(&self) -> HashMap<String, Prop>;
+    /// A view of the properties of the graph
+    fn properties(&self) -> Properties<Self>;
 
     /// Get a graph clone
     ///
@@ -248,68 +165,8 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
         Box::new(self.vertices().iter().flat_map(|v| v.out_edges()))
     }
 
-    fn property(&self, name: &str, include_static: bool) -> Option<Prop> {
-        let props = self.property_history(name);
-        match props.last() {
-            None => {
-                if include_static {
-                    self.static_prop(name)
-                } else {
-                    None
-                }
-            }
-            Some((_, prop)) => Some(prop.clone()),
-        }
-    }
-
-    fn property_history(&self, name: &str) -> Vec<(i64, Prop)> {
-        self.temporal_prop_vec(name)
-    }
-
-    fn properties(&self, include_static: bool) -> HashMap<String, Prop> {
-        let mut props: HashMap<String, Prop> = self
-            .property_histories()
-            .iter()
-            .map(|(key, values)| (key.clone(), values.last().unwrap().1.clone()))
-            .collect();
-
-        if include_static {
-            for prop_name in self.static_prop_names() {
-                if let Some(prop) = self.static_prop(&prop_name) {
-                    props.insert(prop_name, prop);
-                }
-            }
-        }
-        props
-    }
-
-    fn property_histories(&self) -> HashMap<String, Vec<(i64, Prop)>> {
-        self.temporal_props()
-    }
-
-    fn property_names(&self, include_static: bool) -> Vec<String> {
-        let mut names: Vec<String> = self.temporal_prop_names();
-        if include_static {
-            names.extend(self.static_prop_names())
-        }
-        names
-    }
-
-    fn has_property(&self, name: &str, include_static: bool) -> bool {
-        (!self.property_history(name).is_empty())
-            || (include_static && self.static_prop_names().contains(&name.to_owned()))
-    }
-
-    fn has_static_property(&self, name: &str) -> bool {
-        self.static_prop_names().contains(&name.to_owned())
-    }
-
-    fn static_property(&self, name: &str) -> Option<Prop> {
-        self.static_prop(name)
-    }
-
-    fn static_properties(&self) -> HashMap<String, Prop> {
-        self.static_props()
+    fn properties(&self) -> Properties<Self> {
+        Properties::new(self.clone())
     }
 
     fn materialize(&self) -> Result<MaterializedGraph, GraphError> {
@@ -319,15 +176,13 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
             let layer_names = e.layer_names();
             // FIXME: this needs to be verified
             for ee in e.explode() {
-                for layer in layer_names.iter() {
-                    g.add_edge(
-                        ee.time().unwrap(),
-                        ee.src().id(),
-                        ee.dst().id(),
-                        ee.properties(false),
-                        Some(layer),
-                    )?;
-                }
+                g.add_edge(
+                    ee.time().unwrap(),
+                    ee.src().id(),
+                    ee.dst().id(),
+                    ee.properties().temporal().collect_properties(),
+                    layer,
+                )?;
             }
             if self.include_deletions() {
                 for t in self.edge_deletion_history(e.edge, LayerIds::All) {
@@ -336,29 +191,23 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
                     }
                 }
             }
-            for layer in layer_names.iter() {
-                g.add_edge_properties(
-                    e.src().id(),
-                    e.dst().id(),
-                    e.static_properties(),
-                    Some(layer),
-                )?;
-            }
+
+            g.add_edge_properties(e.src().id(), e.dst().id(), e.properties().constant(), layer)?;
         }
 
         for v in self.vertices().iter() {
             for h in v.history() {
                 g.add_vertex(h, v.id(), NO_PROPS)?;
             }
-            for (name, props) in v.property_histories() {
-                for (t, prop) in props {
+            for (name, prop_view) in v.properties().temporal().iter() {
+                for (t, prop) in prop_view.iter() {
                     g.add_vertex(t, v.id(), [(name.clone(), prop)])?;
                 }
             }
-            g.add_vertex_properties(v.id(), v.static_properties())?;
+            g.add_vertex_properties(v.id(), v.properties().constant())?;
         }
 
-        g.add_static_properties(self.static_properties())?;
+        g.add_static_properties(self.properties().constant())?;
 
         Ok(self.new_base_graph(g))
     }

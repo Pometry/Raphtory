@@ -153,7 +153,8 @@ mod db_tests {
     use super::*;
     use crate::{
         core::{
-            entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef, LayerIds},
+            entities::vertices::vertex_ref::VertexRef,
+            entities::LayerIds,
             utils::time::{error::ParseTimeError, TryIntoTime},
             Direction, Prop,
         },
@@ -493,76 +494,87 @@ mod db_tests {
         g.add_edge(0, 33, 11, NO_PROPS, None).unwrap();
         g.add_vertex(0, 11, vec![("temp".to_string(), Prop::Bool(true))])
             .unwrap();
-        let v11 = g.vertex_ref(11).unwrap();
-        let v22 = g.vertex_ref(22).unwrap();
-        let v33 = g.vertex_ref(33).unwrap();
-        let edge1111 = g.edge_ref(v11.into(), v11.into(), 0.into()).unwrap();
-        let edge2233 = g.edge_ref(v22.into(), v33.into(), 0.into()).unwrap();
-        let edge3311 = g.edge_ref(v33.into(), v11.into(), 0.into()).unwrap();
+        let v11 = g.vertex(11).unwrap();
+        let v22 = g.vertex(22).unwrap();
+        let v33 = g.vertex(33).unwrap();
+        let edge1111 = g.edge(&v11, &v11, None).unwrap();
+        let edge2233 = g.edge(&v22, &v33, None).unwrap();
+        let edge3311 = g.edge(&v33, &v11, None).unwrap();
 
-        g.add_vertex_properties(
-            11,
-            vec![
-                ("a".to_string(), Prop::U64(11)),
-                ("b".to_string(), Prop::I64(11)),
-            ],
-        )
-        .unwrap();
-        g.add_vertex_properties(11, vec![("c".to_string(), Prop::U32(11))])
+        g.add_vertex_properties(11, vec![("a", Prop::U64(11)), ("b", Prop::I64(11))])
             .unwrap();
-        g.add_vertex_properties(22, vec![("b".to_string(), Prop::U64(22))])
+        g.add_vertex_properties(11, vec![("c", Prop::U32(11))])
             .unwrap();
-        g.add_edge_properties(11, 11, vec![("d".to_string(), Prop::U64(1111))], None)
+        g.add_vertex_properties(22, vec![("b", Prop::U64(22))])
             .unwrap();
-        g.add_edge_properties(33, 11, vec![("a".to_string(), Prop::U64(3311))], None)
+        g.add_edge_properties(11, 11, vec![("d", Prop::U64(1111))], None)
+            .unwrap();
+        g.add_edge_properties(33, 11, vec![("a", Prop::U64(3311))], None)
             .unwrap();
 
-        assert_eq!(g.static_vertex_prop_names(v11), vec!["a", "b", "c"]);
-        assert_eq!(g.static_vertex_prop_names(v22), vec!["b"]);
-        assert!(g.static_vertex_prop_names(v33).is_empty());
-        assert_eq!(g.static_edge_prop_names(edge1111), vec!["d"]);
-        assert_eq!(g.static_edge_prop_names(edge3311), vec!["a"]);
-        assert!(g.static_edge_prop_names(edge2233).is_empty());
+        assert_eq!(v11.properties().constant().keys(), vec!["a", "b", "c"]);
+        assert_eq!(v22.properties().constant().keys(), vec!["b"]);
+        assert!(v33.properties().constant().keys().is_empty());
+        assert_eq!(edge1111.properties().constant().keys(), vec!["d"]);
+        assert_eq!(edge3311.properties().constant().keys(), vec!["a"]);
+        assert!(edge2233.properties().constant().keys().is_empty());
 
-        assert_eq!(g.static_vertex_prop(v11, "a"), Some(Prop::U64(11)));
-        assert_eq!(g.static_vertex_prop(v11, "b"), Some(Prop::I64(11)));
-        assert_eq!(g.static_vertex_prop(v11, "c"), Some(Prop::U32(11)));
-        assert_eq!(g.static_vertex_prop(v22, "b"), Some(Prop::U64(22)));
-        assert_eq!(g.static_vertex_prop(v22, "a"), None);
-        assert_eq!(g.static_edge_prop(edge1111, "d"), Some(Prop::U64(1111)));
-        assert_eq!(g.static_edge_prop(edge3311, "a"), Some(Prop::U64(3311)));
-        assert_eq!(g.static_edge_prop(edge2233, "a"), None);
+        assert_eq!(v11.properties().constant().get("a"), Some(Prop::U64(11)));
+        assert_eq!(v11.properties().constant().get("b"), Some(Prop::I64(11)));
+        assert_eq!(v11.properties().constant().get("c"), Some(Prop::U32(11)));
+        assert_eq!(v22.properties().constant().get("b"), Some(Prop::U64(22)));
+        assert_eq!(v22.properties().constant().get("a"), None);
+        assert_eq!(
+            edge1111.properties().constant().get("d"),
+            Some(Prop::U64(1111))
+        );
+        assert_eq!(
+            edge3311.properties().constant().get("a"),
+            Some(Prop::U64(3311))
+        );
+        assert_eq!(edge2233.properties().constant().get("a"), None);
     }
 
     #[test]
     fn temporal_props_vertex() {
         let g = Graph::new();
 
-        g.add_vertex(0, 1, vec![("cool".to_string(), Prop::Bool(true))])
+        g.add_vertex(0, 1, [("cool".to_string(), Prop::Bool(true))])
             .unwrap();
 
         let v = g.vertex(1).unwrap();
 
-        let actual = v.property("cool".to_owned(), false);
+        let actual = v.properties().get("cool");
         assert_eq!(actual, Some(Prop::Bool(true)));
 
         // we flip cool from true to false after t 3
-        let _ = g
-            .add_vertex(3, 1, vec![("cool".to_string(), Prop::Bool(false))])
+        g.add_vertex(3, 1, [("cool".to_string(), Prop::Bool(false))])
             .unwrap();
 
         let wg = g.window(3, 15);
         let v = wg.vertex(1).unwrap();
 
-        let actual = v.property("cool".to_owned(), false);
+        let actual = v.properties().get("cool");
         assert_eq!(actual, Some(Prop::Bool(false)));
 
-        let hist = v.property_history("cool".to_owned());
+        let hist: Vec<_> = v
+            .properties()
+            .temporal()
+            .get("cool")
+            .unwrap()
+            .iter()
+            .collect();
         assert_eq!(hist, vec![(3, Prop::Bool(false))]);
 
         let v = g.vertex(1).unwrap();
 
-        let hist = v.property_history("cool".to_owned());
+        let hist: Vec<_> = v
+            .properties()
+            .temporal()
+            .get("cool")
+            .unwrap()
+            .iter()
+            .collect();
         assert_eq!(hist, vec![(0, Prop::Bool(true)), (3, Prop::Bool(false))]);
     }
 
@@ -575,7 +587,7 @@ mod db_tests {
 
         let e = g.edge(0, 1, Layer::All).unwrap();
 
-        let prop = e.property("distance", false).unwrap();
+        let prop = e.properties().get("distance").unwrap();
         assert_eq!(prop, Prop::U32(5));
     }
 
@@ -761,22 +773,20 @@ mod db_tests {
     #[test]
     fn test_exploded_edge() {
         let g = Graph::new();
-        g.add_edge(0, 1, 2, vec![("weight".to_string(), Prop::I64(1))], None)
+        g.add_edge(0, 1, 2, [("weight", Prop::I64(1))], None)
             .unwrap();
-        g.add_edge(1, 1, 2, vec![("weight".to_string(), Prop::I64(2))], None)
+        g.add_edge(1, 1, 2, [("weight", Prop::I64(2))], None)
             .unwrap();
-        g.add_edge(2, 1, 2, vec![("weight".to_string(), Prop::I64(3))], None)
+        g.add_edge(2, 1, 2, [("weight", Prop::I64(3))], None)
             .unwrap();
 
         let exploded = g.edge(1, 2, Layer::All).unwrap().explode();
 
-        let res = exploded.map(|e| e.properties(false)).collect_vec();
+        let res = exploded.map(|e| e.properties().as_vec()).collect_vec();
 
         let mut expected = Vec::new();
         for i in 1..4 {
-            let mut map = HashMap::new();
-            map.insert("weight".to_string(), Prop::I64(i));
-            expected.push(map);
+            expected.push(vec![("weight".to_string(), Prop::I64(i))]);
         }
 
         assert_eq!(res, expected);
@@ -786,7 +796,7 @@ mod db_tests {
             .unwrap()
             .edges()
             .explode()
-            .map(|e| e.properties(false))
+            .map(|e| e.properties().as_vec())
             .collect_vec();
         assert_eq!(e, expected);
     }
@@ -1059,7 +1069,7 @@ mod db_tests {
 
         props_map
             .into_iter()
-            .all(|(name, value)| g.static_property(&name).unwrap() == value)
+            .all(|(name, value)| g.properties().constant().get(name).unwrap() == value)
     }
 
     #[quickcheck]
@@ -1078,7 +1088,12 @@ mod db_tests {
             .map(|(name, _)| name)
             .collect::<HashSet<_>>();
 
-        g.static_prop_names().into_iter().collect::<HashSet<_>>() == props_names
+        g.properties()
+            .constant()
+            .keys()
+            .into_iter()
+            .collect::<HashSet<_>>()
+            == props_names
     }
 
     #[quickcheck]
@@ -1088,21 +1103,21 @@ mod db_tests {
         let (t0, t1) = (1, 2);
 
         let (t0_props, t1_props): (Vec<_>, Vec<_>) = str_props
-            .into_iter()
+            .iter()
             .enumerate()
             .map(|(i, props)| {
                 let (name, value) = props;
-                let value = Prop::Str(value);
-                (name, value, i % 2)
+                let value = Prop::Str(value.clone());
+                (name.clone(), value, i % 2)
             })
             .partition(|(_, _, i)| *i == 0);
 
-        let t0_props: Vec<(String, Prop)> = t0_props
+        let t0_props: HashMap<String, Prop> = t0_props
             .into_iter()
             .map(|(name, value, _)| (name, value))
             .collect();
 
-        let t1_props: Vec<(String, Prop)> = t1_props
+        let t1_props: HashMap<String, Prop> = t1_props
             .into_iter()
             .map(|(name, value, _)| (name, value))
             .collect();
@@ -1110,12 +1125,41 @@ mod db_tests {
         g.add_properties(t0, t0_props.clone()).unwrap();
         g.add_properties(t1, t1_props.clone()).unwrap();
 
-        t0_props
-            .into_iter()
-            .all(|(name, value)| g.temporal_prop_vec(&name).contains(&(t0, value)))
-            && t1_props
-                .into_iter()
-                .all(|(name, value)| g.temporal_prop_vec(&name).contains(&(t1, value)))
+        let check = t0_props.iter().all(|(name, value)| {
+            g.properties().temporal().get(name).unwrap().at(t0) == Some(value.clone())
+        }) && t1_props.iter().all(|(name, value)| {
+            g.properties().temporal().get(name).unwrap().at(t1) == Some(value.clone())
+        });
+        if !check {
+            println!("failed time-specific comparison for {:?}", str_props);
+            return false;
+        }
+        let check = check
+            && g.at(t0)
+                .properties()
+                .temporal()
+                .iter_latest()
+                .map(|(k, v)| (k.clone(), v))
+                .collect::<HashMap<_, _, _>>()
+                == t0_props;
+        if !check {
+            println!("failed latest value comparison for {:?} at t0", str_props);
+            return false;
+        }
+        let check = check
+            && t1_props.iter().all(|(k, ve)| {
+                g.at(t1)
+                    .properties()
+                    .temporal()
+                    .get(k)
+                    .and_then(|v| v.latest())
+                    == Some(ve.clone())
+            });
+        if !check {
+            println!("failed latest value comparison for {:?} at t1", str_props);
+            return false;
+        }
+        check
     }
 
     #[test]
@@ -1129,8 +1173,14 @@ mod db_tests {
             .unwrap();
 
         let e = g.vertex(1).unwrap().out_edges().next().unwrap();
+        let res: HashMap<String, Vec<(i64, Prop)>> = e
+            .window(1, 3)
+            .properties()
+            .temporal()
+            .iter()
+            .map(|(k, v)| (k.clone(), v.iter().collect()))
+            .collect();
 
-        let res = g.temporal_edge_props_window(EdgeRef::from(e), 1, 3);
         let mut exp = HashMap::new();
         exp.insert(
             "weight".to_string(),

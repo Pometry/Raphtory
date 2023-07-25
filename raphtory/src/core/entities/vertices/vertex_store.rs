@@ -22,7 +22,7 @@ pub(crate) struct VertexStore<const N: usize> {
     // each layer represents a separate view of the graph
     layers: Vec<Adj>,
     // props for vertex
-    props: Option<Props>,
+    pub(crate) props: Option<Props>,
 }
 
 impl<const N: usize> VertexStore<N> {

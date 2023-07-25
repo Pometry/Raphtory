@@ -5,7 +5,10 @@ use crate::{
         Direction,
     },
     db::{
-        api::view::{internal::GraphWindowOps, BoxedIter, Layer, LayerOps},
+        api::{
+            properties::Properties,
+            view::{internal::GraphWindowOps, BoxedIter, Layer, LayerOps},
+        },
         graph::{
             edge::EdgeView,
             vertex::VertexView,
@@ -14,7 +17,7 @@ use crate::{
     },
     prelude::*,
 };
-use std::{collections::HashMap, iter, sync::Arc};
+use std::{iter, sync::Arc};
 
 #[derive(Copy, Clone)]
 pub enum Operations {
@@ -102,24 +105,6 @@ impl<G: GraphViewOps> VertexViewOps for PathFromGraph<G> {
         Box::new(self.iter().map(|it| it.latest_time()))
     }
 
-    fn property(
-        &self,
-        name: String,
-        include_static: bool,
-    ) -> Box<dyn Iterator<Item = Box<dyn Iterator<Item = Option<Prop>> + Send>> + Send> {
-        Box::new(
-            self.iter()
-                .map(move |it| it.property(name.clone(), include_static.clone())),
-        )
-    }
-
-    fn property_history(
-        &self,
-        name: String,
-    ) -> Box<dyn Iterator<Item = Box<dyn Iterator<Item = Vec<(i64, Prop)>> + Send>> + Send> {
-        Box::new(self.iter().map(move |it| it.property_history(name.clone())))
-    }
-
     fn history(
         &self,
     ) -> Box<dyn Iterator<Item = Box<dyn Iterator<Item = Vec<i64>> + Send>> + Send> {
@@ -128,61 +113,9 @@ impl<G: GraphViewOps> VertexViewOps for PathFromGraph<G> {
 
     fn properties(
         &self,
-        include_static: bool,
-    ) -> Box<dyn Iterator<Item = Box<dyn Iterator<Item = HashMap<String, Prop>> + Send>> + Send>
+    ) -> Box<dyn Iterator<Item = Box<dyn Iterator<Item = Properties<VertexView<G>>> + Send>> + Send>
     {
-        Box::new(self.iter().map(move |it| it.properties(include_static)))
-    }
-
-    fn property_histories(
-        &self,
-    ) -> Box<
-        dyn Iterator<Item = Box<dyn Iterator<Item = HashMap<String, Vec<(i64, Prop)>>> + Send>>
-            + Send,
-    > {
-        Box::new(self.iter().map(|it| it.property_histories()))
-    }
-
-    fn property_names(
-        &self,
-        include_static: bool,
-    ) -> Box<dyn Iterator<Item = Box<dyn Iterator<Item = Vec<String>> + Send>> + Send> {
-        Box::new(self.iter().map(move |it| it.property_names(include_static)))
-    }
-
-    fn has_property(
-        &self,
-        name: String,
-        include_static: bool,
-    ) -> Box<dyn Iterator<Item = Box<dyn Iterator<Item = bool> + Send>> + Send> {
-        Box::new(
-            self.iter()
-                .map(move |it| it.has_property(name.clone(), include_static)),
-        )
-    }
-
-    fn has_static_property(
-        &self,
-        name: String,
-    ) -> Box<dyn Iterator<Item = Box<dyn Iterator<Item = bool> + Send>> + Send> {
-        Box::new(
-            self.iter()
-                .map(move |it| it.has_static_property(name.clone())),
-        )
-    }
-
-    fn static_property(
-        &self,
-        name: String,
-    ) -> Box<dyn Iterator<Item = Box<dyn Iterator<Item = Option<Prop>> + Send>> + Send> {
-        Box::new(self.iter().map(move |it| it.static_property(name.clone())))
-    }
-
-    fn static_properties(
-        &self,
-    ) -> Box<dyn Iterator<Item = Box<dyn Iterator<Item = HashMap<String, Prop>> + Send>> + Send>
-    {
-        Box::new(self.iter().map(move |it| it.static_properties()))
+        Box::new(self.iter().map(move |it| it.properties()))
     }
 
     fn degree(&self) -> Box<dyn Iterator<Item = Box<dyn Iterator<Item = usize> + Send>> + Send> {
@@ -358,44 +291,12 @@ impl<G: GraphViewOps> VertexViewOps for PathFromVertex<G> {
         self.iter().latest_time()
     }
 
-    fn property(&self, name: String, include_static: bool) -> Self::ValueType<Option<Prop>> {
-        self.iter().property(name, include_static)
-    }
-
-    fn property_history(&self, name: String) -> Self::ValueType<Vec<(i64, Prop)>> {
-        self.iter().property_history(name)
-    }
-
     fn history(&self) -> Self::ValueType<Vec<i64>> {
         self.iter().history()
     }
 
-    fn properties(&self, include_static: bool) -> Self::ValueType<HashMap<String, Prop>> {
-        self.iter().properties(include_static)
-    }
-
-    fn property_histories(&self) -> Self::ValueType<HashMap<String, Vec<(i64, Prop)>>> {
-        self.iter().property_histories()
-    }
-
-    fn property_names(&self, include_static: bool) -> Self::ValueType<Vec<String>> {
-        self.iter().property_names(include_static)
-    }
-
-    fn has_property(&self, name: String, include_static: bool) -> Self::ValueType<bool> {
-        self.iter().has_property(name, include_static)
-    }
-
-    fn has_static_property(&self, name: String) -> Self::ValueType<bool> {
-        self.iter().has_static_property(name)
-    }
-
-    fn static_property(&self, name: String) -> Self::ValueType<Option<Prop>> {
-        self.iter().static_property(name)
-    }
-
-    fn static_properties(&self) -> Self::ValueType<HashMap<String, Prop>> {
-        self.iter().static_properties()
+    fn properties(&self) -> Self::ValueType<Properties<VertexView<G>>> {
+        self.iter().properties()
     }
 
     fn degree(&self) -> Self::ValueType<usize> {

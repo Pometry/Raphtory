@@ -3,9 +3,12 @@ use crate::{
         entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef, LayerIds, EID, VID},
         Direction,
     },
-    db::api::view::{
-        internal::{Base, GraphOps, InheritCoreOps, InheritMaterialize, InheritTimeSemantics},
-        Layer,
+    db::api::{
+        properties::internal::InheritPropertiesOps,
+        view::internal::{
+            Base, GraphOps, InheritCoreOps, InheritMaterialize, InheritTimeSemantics,
+        },
+        view::Layer,
     },
     prelude::GraphViewOps,
 };
@@ -30,6 +33,7 @@ impl<G: GraphViewOps> Base for VertexSubgraph<G> {
 impl<G: GraphViewOps> InheritCoreOps for VertexSubgraph<G> {}
 
 impl<G: GraphViewOps> InheritTimeSemantics for VertexSubgraph<G> {}
+impl<G: GraphViewOps> InheritPropertiesOps for VertexSubgraph<G> {}
 
 impl<G: GraphViewOps> InheritMaterialize for VertexSubgraph<G> {}
 
@@ -166,6 +170,7 @@ mod subgraph_tests {
         g.add_vertex(1, 1, NO_PROPS).unwrap();
         g.add_vertex(2, 2, NO_PROPS).unwrap();
         let sg = g.subgraph([1, 2]);
+
         let actual = sg.materialize().unwrap().into_events().unwrap();
         assert_eq!(actual, sg);
     }

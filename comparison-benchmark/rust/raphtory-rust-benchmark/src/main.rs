@@ -2,23 +2,17 @@ use chrono::NaiveDateTime;
 use clap::{ArgAction, Parser};
 use csv::StringRecord;
 use flate2::read::GzDecoder;
-use ordered_float::OrderedFloat;
 use raphtory::{
     algorithms::{
         algorithm_result::AlgorithmResult, connected_components::weakly_connected_components,
         pagerank::unweighted_page_rank,
     },
-    core::utils::hashing::calculate_hash,
     graph_loader::{fetch_file, source::csv_loader::CsvLoader},
     prelude::{AdditionOps, Graph, GraphViewOps, VertexViewOps, NO_PROPS},
 };
-use serde::Deserialize;
 use std::{
-    collections::HashMap,
-    env,
-    error::Error,
     fs::File,
-    io::{self, BufRead, BufReader, BufWriter, Read, Write},
+    io::{self, Read, Write},
     path::Path,
     time::Instant,
 };
@@ -93,7 +87,7 @@ fn main() {
     let time_column = args.time_column;
     let download = args.download;
 
-    if download == true {
+    if download {
         let url = "https://osf.io/download/nbq6h/";
         println!("Downloading default file from url {}...", url);
         // make err msg from url and custom string
@@ -122,7 +116,7 @@ fn main() {
             if bytes_read == 0 {
                 break;
             }
-            output_file.write_all(&buffer[..bytes_read]);
+            output_file.write_all(&buffer[..bytes_read]).unwrap();
         }
 
         // exit program
@@ -130,7 +124,7 @@ fn main() {
         return;
     }
 
-    if file_path == "" {
+    if file_path.is_empty() {
         println!("You did not set a file path");
         return;
     }

@@ -43,7 +43,7 @@ impl Edge {
     }
 
     async fn property(&self, name: &str) -> Option<String> {
-        Some(self.ee.property(name, true)?.to_string())
+        self.ee.properties().get(name).map(|prop| prop.to_string())
     }
 
     async fn layers(&self) -> Vec<String> {

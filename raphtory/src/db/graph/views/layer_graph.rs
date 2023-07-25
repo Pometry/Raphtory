@@ -5,9 +5,12 @@ use crate::{
         entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef, LayerIds, EID, VID},
         Direction,
     },
-    db::api::view::{
-        internal::{Base, GraphOps, InheritCoreOps, InheritMaterialize, TimeSemantics},
-        BoxedIter, Layer,
+    db::api::{
+        properties::internal::InheritPropertiesOps,
+        view::internal::{
+            Base, GraphOps, InheritCoreOps, InheritMaterialize, InheritTimeSemantics, TimeSemantics,
+        },
+        view::{BoxedIter, Layer},
     },
     prelude::{GraphViewOps, Prop},
 };
@@ -34,6 +37,8 @@ impl<G: GraphViewOps> Base for LayeredGraph<G> {
 impl<G: GraphViewOps> InheritCoreOps for LayeredGraph<G> {}
 
 impl<G: GraphViewOps> InheritMaterialize for LayeredGraph<G> {}
+
+impl<G: GraphViewOps> InheritPropertiesOps for LayeredGraph<G> {}
 
 impl<G: GraphViewOps> LayeredGraph<G> {
     pub fn new(graph: G, layers: LayerIds) -> Self {
