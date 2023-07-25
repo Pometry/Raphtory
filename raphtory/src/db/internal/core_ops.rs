@@ -138,3 +138,19 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
         self.internal_num_vertices()
     }
 }
+
+#[cfg(test)]
+mod test_edges {
+    use crate::prelude::*;
+    #[test]
+    fn test_static_edge_property_for_layers() {
+        let g = Graph::new();
+
+        g.add_edge(0, 1, 2, NO_PROPS, Some("layer1")).unwrap();
+        g.add_edge_properties(1, 2, [("layer1", "1")], Some("layer1"))
+            .unwrap();
+
+        let e = g.edge(1, 2, "layer1").unwrap();
+        assert!(e.has_static_property("layer1"));
+    }
+}
