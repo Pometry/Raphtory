@@ -167,6 +167,10 @@ impl PyTemporalProperties {
     fn __len__(&self) -> usize {
         self.keys().len()
     }
+
+    fn __repr__(&self) -> String {
+        self.props.repr()
+    }
 }
 
 /// A view of a temporal property
@@ -238,6 +242,10 @@ impl PyTemporalProp {
     /// Get the latest value of the property
     pub fn value(&self) -> Option<Prop> {
         self.prop.latest()
+    }
+
+    pub fn __repr__(&self) -> String {
+        self.prop.repr()
     }
 }
 
