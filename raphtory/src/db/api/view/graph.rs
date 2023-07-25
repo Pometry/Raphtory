@@ -383,3 +383,31 @@ impl<G: GraphViewOps> LayerOps for G {
         Some(LayeredGraph::new(self.clone(), ids))
     }
 }
+
+#[cfg(test)]
+mod test_materialize {
+    use crate::prelude::*;
+
+    #[test]
+    fn test_materialize() {
+        let g = Graph::new();
+        g.add_edge(0, 1, 2, [("layer1", "1")], Some("1")).unwrap();
+        g.add_edge(0, 1, 2, [("layer2", "2")], Some("2")).unwrap();
+
+        let gm = g.materialize().unwrap();
+        assert!(!g
+            .layer("2")
+            .unwrap()
+            .edge(1, 2, Layer::All)
+            .unwrap()
+            .has_property("layer1", false));
+        assert!(!gm
+            .into_events()
+            .unwrap()
+            .layer("2")
+            .unwrap()
+            .edge(1, 2, Layer::All)
+            .unwrap()
+            .has_property("layer1", false));
+    }
+}
