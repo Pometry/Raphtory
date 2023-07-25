@@ -1,6 +1,6 @@
 use crate::model::{
     filters::edgefilter::EdgeFilter,
-    graph::{edge::Edge, property::Property, property_update::PropertyUpdate},
+    graph::{edge::Edge, get_expanded_edges, property::Property, property_update::PropertyUpdate},
 };
 use async_graphql::Context;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
@@ -15,6 +15,7 @@ use raphtory::{
         graph::vertex::VertexView,
     },
 };
+use std::collections::HashSet;
 
 #[derive(ResolvedObject)]
 pub(crate) struct Node {
@@ -189,7 +190,42 @@ impl Node {
         }
     }
 
-    async fn exploded_edges(&self) -> Vec<Edge> {
+    async fn expanded_edges(
+        &self,
+        graph_nodes: Vec<String>,
+        filter: Option<EdgeFilter>,
+    ) -> Vec<Edge> {
+        let mut res = vec![];
+        let all_graph_nodes: HashSet<String> = graph_nodes.into_iter().collect();
+
+        match filter {
+            Some(edgeFilter) => {
+                let maybe_layers = edgeFilter.clone().layer_names.map(|l| l.contains);
+                let fetched_edges =
+                    get_expanded_edges(all_graph_nodes, self.vv.clone(), maybe_layers)
+                        .iter()
+                        .map(|ee| ee.clone().into())
+                        .collect_vec();
+
+                res = fetched_edges
+                    .into_iter()
+                    .filter(|ev| edgeFilter.matches(ev))
+                    .collect();
+            }
+            None => {
+                let fetched_edges = get_expanded_edges(all_graph_nodes, self.vv.clone(), None)
+                    .iter()
+                    .map(|ee| ee.clone().into())
+                    .collect_vec();
+
+                res = fetched_edges;
+            }
+        }
+
+        return res;
+    }
+
+    async fn exploded_edges(&self, layer: Option<String>) -> Vec<Edge> {
         self.vv.out_edges().explode().map(|ee| ee.into()).collect()
     }
 
