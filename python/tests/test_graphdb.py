@@ -1644,8 +1644,6 @@ def test_fuzzy_search():
     #assert len(index.fuzzy_search_edges("value_str:\"I wanna nock right now\"",levenshtein_distance=2)) == 2
 
 
-
-
 #def test_search_with_layers(): #TODO: Fix layer seearching
     #g = Graph()
     #g.add_edge(3,"haaroon","hamza",properties={"value":70,"value_f":11.3,"value_str":"abdsda2c123"},layer="1")
