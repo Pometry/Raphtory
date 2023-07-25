@@ -310,7 +310,7 @@ impl<G: GraphViewOps> LayerOps for Vertices<G> {
     /// # Returns
     ///
     /// A view including all the vertices in the given layer
-    fn layer(&self, name: Layer) -> Option<Self::LayeredViewType> {
+    fn layer<L: Into<Layer>>(&self, name: L) -> Option<Self::LayeredViewType> {
         Some(Vertices {
             graph: self.graph.layer(name)?,
         })

@@ -674,9 +674,9 @@ mod db_tests {
         assert!(g.edge(11, 44, "layer2".into()).is_some());
 
         let dft_layer = g.default_layer();
-        let layer1 = g.layer("layer1".into()).expect("layer1");
-        let layer2 = g.layer("layer2".into()).expect("layer2");
-        assert!(g.layer("missing layer".into()).is_none());
+        let layer1 = g.layer("layer1").expect("layer1");
+        let layer2 = g.layer("layer2").expect("layer2");
+        assert!(g.layer("missing layer").is_none());
 
         assert_eq!(g.num_vertices(), 4);
         assert_eq!(g.num_edges(), 4);
@@ -1193,11 +1193,7 @@ mod db_tests {
         g.add_edge(0, 1, 2, NO_PROPS, Some("layer")).unwrap();
 
         assert!(g.edge(1, 2, Layer::All).is_some());
-        assert!(g
-            .layer("layer".into())
-            .unwrap()
-            .edge(1, 2, Layer::All)
-            .is_some())
+        assert!(g.layer("layer").unwrap().edge(1, 2, Layer::All).is_some())
     }
 
     #[test]
@@ -1210,7 +1206,7 @@ mod db_tests {
             .expect("add edge");
         g.add_edge(1, 1, 4, NO_PROPS, None).expect("add edge");
 
-        let g_layers = g.layer(vec!["layer1", "layer3"].into()).expect("layer");
+        let g_layers = g.layer(vec!["layer1", "layer3"]).expect("layer");
 
         assert!(g_layers.edge(1, 2, "layer1".into()).is_some());
         assert!(g_layers.edge(1, 3, "layer3".into()).is_some());
@@ -1224,7 +1220,7 @@ mod db_tests {
         let ns = one.neighbours().iter().map(|v| v.id()).collect::<Vec<_>>();
         assert_eq!(ns, vec![2, 3]);
 
-        let g_layers2 = g_layers.layer(vec!["layer1"].into()).expect("layer");
+        let g_layers2 = g_layers.layer(vec!["layer1"]).expect("layer");
 
         assert!(g_layers2.edge(1, 2, "layer1".into()).is_some());
         assert!(g_layers2.edge(1, 2, Layer::All).is_some());
@@ -1384,9 +1380,7 @@ mod db_tests {
 
         assert_eq!(sum, 100);
 
-        let lg = g
-            .layer(vec!["eth", "btc"].into())
-            .expect("failed to layer graph");
+        let lg = g.layer(vec!["eth", "btc"]).expect("failed to layer graph");
 
         let e = lg.edge(1, 2, Layer::All).expect("failed to get edge");
 
@@ -1402,8 +1396,8 @@ mod db_tests {
 
         let e = g.edge(1, 2, Layer::All).expect("failed to get edge");
 
-        let e_btc = e.layer("btc".into()).expect("failed to get btc layer");
-        let e_eth = e.layer("eth".into()).expect("failed to get eth layer");
+        let e_btc = e.layer("btc").expect("failed to get btc layer");
+        let e_eth = e.layer("eth").expect("failed to get eth layer");
 
         let edge_btc_sum = e_btc
             .property_history("tx_sent")
@@ -1420,7 +1414,7 @@ mod db_tests {
         assert!(edge_btc_sum < edge_eth_sum);
 
         let e_eth = e_eth
-            .layer(vec!["eth", "btc"].into())
+            .layer(vec!["eth", "btc"])
             .expect("failed to get eth,btc layers");
 
         let eth_sum = e_eth
@@ -1439,7 +1433,7 @@ mod db_tests {
         g.add_edge(0, 1, 2, NO_PROPS, Some("layer1")).unwrap();
         g.add_edge(0, 1, 2, NO_PROPS, Some("layer2")).unwrap();
         assert_eq!(
-            g.layer("layer2".into()).unwrap().get_unique_layers(),
+            g.layer("layer2").unwrap().get_unique_layers(),
             vec!["layer2"]
         )
     }

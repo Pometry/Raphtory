@@ -275,7 +275,7 @@ impl<G: GraphViewOps> LayerOps for PathFromGraph<G> {
         }
     }
 
-    fn layer(&self, name: Layer) -> Option<Self::LayeredViewType> {
+    fn layer<L: Into<Layer>>(&self, name: L) -> Option<Self::LayeredViewType> {
         Some(PathFromGraph {
             graph: self.graph.layer(name)?,
             operations: self.operations.clone(),
@@ -487,7 +487,7 @@ impl<G: GraphViewOps> LayerOps for PathFromVertex<G> {
         }
     }
 
-    fn layer(&self, name: Layer) -> Option<Self::LayeredViewType> {
+    fn layer<L: Into<Layer>>(&self, name: L) -> Option<Self::LayeredViewType> {
         Some(PathFromVertex {
             graph: self.graph.layer(name)?,
             vertex: self.vertex,

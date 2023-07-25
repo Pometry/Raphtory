@@ -8,7 +8,7 @@ pub trait LayerOps {
     fn default_layer(&self) -> Self::LayeredViewType;
 
     /// Return a graph containing the layer `name`
-    fn layer(&self, name: Layer) -> Option<Self::LayeredViewType>;
+    fn layer<L: Into<Layer>>(&self, name: L) -> Option<Self::LayeredViewType>;
 }
 
 pub enum Layer {

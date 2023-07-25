@@ -377,7 +377,8 @@ impl<G: GraphViewOps> LayerOps for G {
         LayeredGraph::new(self.clone(), 0.into())
     }
 
-    fn layer(&self, layers: Layer) -> Option<Self::LayeredViewType> {
+    fn layer<L: Into<Layer>>(&self, layers: L) -> Option<Self::LayeredViewType> {
+        let layers = layers.into();
         let ids = self.get_layer_id(layers)?;
         Some(LayeredGraph::new(self.clone(), ids))
     }

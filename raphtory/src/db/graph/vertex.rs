@@ -239,7 +239,7 @@ impl<G: GraphViewOps> LayerOps for VertexView<G> {
         }
     }
 
-    fn layer(&self, name: Layer) -> Option<Self::LayeredViewType> {
+    fn layer<L: Into<Layer>>(&self, name: L) -> Option<Self::LayeredViewType> {
         Some(VertexView {
             graph: self.graph.layer(name)?,
             vertex: self.vertex,

@@ -138,7 +138,7 @@ impl<G: GraphViewOps> LayerOps for EdgeView<G> {
         }
     }
 
-    fn layer(&self, name: Layer) -> Option<Self::LayeredViewType> {
+    fn layer<L: Into<Layer>>(&self, name: L) -> Option<Self::LayeredViewType> {
         self.graph.layer(name).map(|g| EdgeView {
             graph: g,
             edge: self.edge,
