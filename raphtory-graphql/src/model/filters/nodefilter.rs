@@ -19,6 +19,17 @@ pub struct NodeFilter {
 }
 
 impl NodeFilter {
+    pub(crate) fn new(names: Vec<String>) -> NodeFilter {
+        return NodeFilter {
+            names: Some(StringVecFilter { contains: names }),
+            name: None,
+            node_type: None,
+            in_degree: None,
+            out_degree: None,
+            property_has: None,
+        };
+    }
+
     pub(crate) fn matches(&self, node: &Node) -> bool {
         if let Some(names_filter) = &self.names {
             if !names_filter.contains(&node.vv.name()) {
