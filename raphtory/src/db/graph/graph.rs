@@ -665,8 +665,8 @@ mod db_tests {
         assert!(g.has_edge(11, 22, Layer::All));
         assert!(g.has_edge(11, 22, Layer::Default));
         assert!(!g.has_edge(11, 44, Layer::Default));
-        assert!(!g.has_edge(11, 22, "layer2".into()));
-        assert!(g.has_edge(11, 44, "layer2".into()));
+        assert!(!g.has_edge(11, 22, "layer2"));
+        assert!(g.has_edge(11, 44, "layer2"));
 
         assert!(g.edge(11, 22, Layer::All).is_some());
         assert!(g.edge(11, 44, Layer::Default).is_none());

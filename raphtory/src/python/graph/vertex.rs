@@ -13,7 +13,7 @@ use crate::{
             path::{PathFromGraph, PathFromVertex},
             vertex::VertexView,
             vertices::Vertices,
-            views::window_graph::WindowedGraph,
+            views::{layer_graph::LayeredGraph, window_graph::WindowedGraph},
         },
     },
     python::{
@@ -455,8 +455,8 @@ impl PyVertex {
 
     #[doc = layers_doc_string!()]
     #[pyo3(signature = (name))]
-    pub fn layers(&self, name: Vec<String>) -> Option<PyVertex> {
-        Some(self.vertex.layer(name.into())?.into())
+    pub fn layers(&self, name: Vec<String>) -> Option<VertexView<LayeredGraph<DynamicGraph>>> {
+        self.vertex.layer(name)
     }
 
     /// Returns the history of a vertex, including vertex additions and changes made to vertex.
@@ -839,8 +839,8 @@ impl PyVertices {
 
     #[doc = layers_doc_string!()]
     #[pyo3(signature = (name))]
-    pub fn layer(&self, name: &str) -> Option<PyVertices> {
-        Some(self.vertices.layer(name.into())?.into())
+    pub fn layer(&self, name: &str) -> Option<Vertices<LayeredGraph<DynamicGraph>>> {
+        self.vertices.layer(name)
     }
 
     //****** Python *******
@@ -1051,8 +1051,8 @@ impl PyPathFromGraph {
 
     #[doc = layers_doc_string!()]
     #[pyo3(signature = (name))]
-    pub fn layer(&self, name: &str) -> Option<Self> {
-        Some(self.path.layer(name.into())?.into())
+    pub fn layer(&self, name: &str) -> Option<PathFromGraph<LayeredGraph<DynamicGraph>>> {
+        self.path.layer(name)
     }
 
     fn __repr__(&self) -> String {
@@ -1278,8 +1278,8 @@ impl PyPathFromVertex {
 
     #[doc = layers_doc_string!()]
     #[pyo3(signature = (name))]
-    pub fn layer(&self, name: &str) -> Option<Self> {
-        Some(self.path.layer(name.into())?.into())
+    pub fn layer(&self, name: &str) -> Option<PathFromVertex<LayeredGraph<DynamicGraph>>> {
+        self.path.layer(name)
     }
 
     fn __repr__(&self) -> String {

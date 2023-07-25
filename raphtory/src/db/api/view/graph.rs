@@ -57,7 +57,7 @@ pub trait GraphViewOps: BoxableGraphView + Clone + Sized {
     fn has_vertex<T: Into<VertexRef>>(&self, v: T) -> bool;
 
     /// Check if the graph contains an edge given a pair of vertices `(src, dst)`.
-    fn has_edge<T: Into<VertexRef>>(&self, src: T, dst: T, layer: Layer) -> bool;
+    fn has_edge<T: Into<VertexRef>, L: Into<Layer>>(&self, src: T, dst: T, layer: L) -> bool;
 
     /// Get a vertex `v`.
     fn vertex<T: Into<VertexRef>>(&self, v: T) -> Option<VertexView<Self>>;
@@ -214,8 +214,8 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
         self.has_vertex_ref(v.into())
     }
 
-    fn has_edge<T: Into<VertexRef>>(&self, src: T, dst: T, layer: Layer) -> bool {
-        match self.get_layer_id(layer) {
+    fn has_edge<T: Into<VertexRef>, L: Into<Layer>>(&self, src: T, dst: T, layer: L) -> bool {
+        match self.get_layer_id(layer.into()) {
             Some(layer_id) => self.has_edge_ref(src.into(), dst.into(), layer_id),
             None => false,
         }

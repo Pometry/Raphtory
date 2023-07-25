@@ -327,7 +327,7 @@ impl PyEdge {
         &self,
         layer_names: Vec<String>,
     ) -> PyResult<EdgeView<LayeredGraph<DynamicGraph>>> {
-        if let Some(edge) = self.edge.layer(layer_names.clone().into()) {
+        if let Some(edge) = self.edge.layer(layer_names.clone()) {
             Ok(edge)
         } else {
             let available_layers = self.edge.layer_names();
