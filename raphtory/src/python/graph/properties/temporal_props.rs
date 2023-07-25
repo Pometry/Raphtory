@@ -274,13 +274,16 @@ impl IntoPy<PyObject> for DynTemporalProperties {
 
 impl<P: PropertiesOps + Clone> Repr for TemporalProperties<P> {
     fn repr(&self) -> String {
-        format!("Properties({{{}}})", iterator_dict_repr(self.iter()))
+        format!(
+            "TemporalProperties({{{}}})",
+            iterator_dict_repr(self.iter())
+        )
     }
 }
 
 impl<P: PropertiesOps> Repr for TemporalPropertyView<P> {
     fn repr(&self) -> String {
-        format!("Property({})", iterator_repr(self.iter()))
+        format!("TemporalProp({})", iterator_repr(self.iter()))
     }
 }
 
