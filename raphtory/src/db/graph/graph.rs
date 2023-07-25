@@ -670,8 +670,8 @@ mod db_tests {
 
         assert!(g.edge(11, 22, Layer::All).is_some());
         assert!(g.edge(11, 44, Layer::Default).is_none());
-        assert!(g.edge(11, 22, "layer2".into()).is_none());
-        assert!(g.edge(11, 44, "layer2".into()).is_some());
+        assert!(g.edge(11, 22, "layer2").is_none());
+        assert!(g.edge(11, 44, "layer2").is_some());
 
         let dft_layer = g.default_layer();
         let layer1 = g.layer("layer1").expect("layer1");
@@ -1208,8 +1208,8 @@ mod db_tests {
 
         let g_layers = g.layer(vec!["layer1", "layer3"]).expect("layer");
 
-        assert!(g_layers.edge(1, 2, "layer1".into()).is_some());
-        assert!(g_layers.edge(1, 3, "layer3".into()).is_some());
+        assert!(g_layers.edge(1, 2, "layer1").is_some());
+        assert!(g_layers.edge(1, 3, "layer3").is_some());
         assert!(g_layers.edge(1, 2, Layer::All).is_some());
         assert!(g_layers.edge(1, 3, Layer::All).is_some());
 
@@ -1222,10 +1222,10 @@ mod db_tests {
 
         let g_layers2 = g_layers.layer(vec!["layer1"]).expect("layer");
 
-        assert!(g_layers2.edge(1, 2, "layer1".into()).is_some());
+        assert!(g_layers2.edge(1, 2, "layer1").is_some());
         assert!(g_layers2.edge(1, 2, Layer::All).is_some());
 
-        assert!(g_layers2.edge(1, 3, "layer3".into()).is_none());
+        assert!(g_layers2.edge(1, 3, "layer3").is_none());
         assert!(g_layers2.edge(1, 3, Layer::All).is_none());
 
         assert!(g_layers2.edge(1, 4, Layer::All).is_none());

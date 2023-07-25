@@ -66,7 +66,12 @@ pub trait GraphViewOps: BoxableGraphView + Clone + Sized {
     fn vertices(&self) -> Vertices<Self>;
 
     /// Get an edge `(src, dst)`.
-    fn edge<T: Into<VertexRef>>(&self, src: T, dst: T, layer: Layer) -> Option<EdgeView<Self>>;
+    fn edge<T: Into<VertexRef>, L: Into<Layer>>(
+        &self,
+        src: T,
+        dst: T,
+        layer: L,
+    ) -> Option<EdgeView<Self>>;
 
     /// Return an iterator over all edges in the graph.
     fn edges(&self) -> Box<dyn Iterator<Item = EdgeView<Self>> + Send>;
@@ -227,8 +232,13 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
         Vertices::new(graph)
     }
 
-    fn edge<T: Into<VertexRef>>(&self, src: T, dst: T, layer: Layer) -> Option<EdgeView<Self>> {
-        let layer_id = self.get_layer_id(layer)?;
+    fn edge<T: Into<VertexRef>, L: Into<Layer>>(
+        &self,
+        src: T,
+        dst: T,
+        layer: L,
+    ) -> Option<EdgeView<Self>> {
+        let layer_id = self.get_layer_id(layer.into())?;
 
         self.edge_ref(src.into(), dst.into(), layer_id)
             .map(|e| EdgeView::new(self.clone(), e))
