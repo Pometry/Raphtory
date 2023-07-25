@@ -169,6 +169,7 @@ impl PyTemporalProperties {
     }
 }
 
+/// A view of a temporal property
 #[pyclass(name = "TemporalProp")]
 pub struct PyTemporalProp {
     prop: DynTemporalProperty,
@@ -211,22 +212,30 @@ py_eq!(PyTemporalProp, PyTemporalPropCmp);
 
 #[pymethods]
 impl PyTemporalProp {
+    /// Get the timestamps at which the property was updated
     pub fn history(&self) -> Vec<i64> {
         self.prop.history()
     }
+
+    /// Get the property values for each update
     pub fn values(&self) -> Vec<Prop> {
         self.prop.values()
     }
+
+    /// List update timestamps and corresponding property values
     pub fn items(&self) -> Vec<(i64, Prop)> {
         self.prop.iter().collect()
     }
 
+    /// Iterate over `items`
     pub fn __iter__(&self) -> PyGenericIterator {
         self.prop.iter().into()
     }
+    /// Get the value of the property at time `t`
     pub fn at(&self, t: PyTime) -> Option<Prop> {
         self.prop.at(t.into_time())
     }
+    /// Get the latest value of the property
     pub fn value(&self) -> Option<Prop> {
         self.prop.latest()
     }
