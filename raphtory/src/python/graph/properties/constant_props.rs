@@ -54,49 +54,70 @@ py_eq!(PyConstProperties, PyPropsComp);
 
 #[pymethods]
 impl PyConstProperties {
+    /// keys() -> list[str]
+    ///
     /// lists the available property keys
     pub fn keys(&self) -> Vec<String> {
         self.props.keys()
     }
 
+    /// values() -> list[Any]
+    ///
     /// lists the property values
     pub fn values(&self) -> Vec<Prop> {
         self.props.values()
     }
 
+    /// items() -> list[tuple[str, Any]]
+    ///
     /// lists the property keys together with the corresponding value
     pub fn items(&self) -> Vec<(String, Prop)> {
         self.props.iter().collect()
     }
 
-    /// get property value by key (errors if key does not exist)
+    /// __getitem__(key: str) -> Any
+    ///
+    /// get property value by key
+    ///
+    /// Raises:
+    ///     KeyError: if property `key` does not exist
     pub fn __getitem__(&self, key: &str) -> PyResult<Prop> {
         self.props
             .get(key)
             .ok_or(PyKeyError::new_err("No such property"))
     }
 
+    /// get(key: str) -> Any | None
+    ///
     /// get property value by key (returns `None` if key does not exist)
     pub fn get(&self, key: &str) -> Option<Prop> {
         // Fixme: Add option to specify default?
         self.props.get(key)
     }
 
+    /// as_dict() -> dict[str, Any]
+    ///
     /// convert the properties view to a python dict
     pub fn as_dict(&self) -> HashMap<String, Prop> {
         self.props.as_map()
     }
 
+    /// __iter__() -> Iterator[str]
+    ///
     /// iterate over property keys
     pub fn __iter__(&self) -> PyGenericIterator {
         self.keys().into_iter().into()
     }
 
+    /// __contains__(key: str) -> bool
+    ///
     /// check if property `key` exists
     pub fn __contains__(&self, key: &str) -> bool {
         self.props.contains(key)
     }
 
+    /// __len__() -> int
+    ///
     /// the number of properties
     pub fn __len__(&self) -> usize {
         self.keys().len()
