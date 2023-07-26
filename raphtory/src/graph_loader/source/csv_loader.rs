@@ -271,14 +271,12 @@ impl CsvLoader {
         while let Some(ref path) = queue.pop_back() {
             match fs::read_dir(path) {
                 Ok(entries) => {
-                    for entry in entries {
-                        if let Ok(f_path) = entry {
-                            let p = f_path.path();
-                            if Self::is_dir(&p)? {
-                                queue.push_back(p.clone())
-                            } else {
-                                self.accept_file(f_path.path(), &mut paths);
-                            }
+                    for f_path in entries.flatten() {
+                        let p = f_path.path();
+                        if Self::is_dir(&p)? {
+                            queue.push_back(p.clone())
+                        } else {
+                            self.accept_file(f_path.path(), &mut paths);
                         }
                     }
                 }

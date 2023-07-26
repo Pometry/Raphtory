@@ -159,10 +159,8 @@ fn unzip_file(zip_file_path: &str, destination_path: &str) -> std::io::Result<()
 
 #[cfg(test)]
 mod graph_loader_test {
-    use crate::{core::utils::hashing, prelude::*};
+    use crate::{core::utils::hashing, graph_loader::fetch_file, prelude::*};
     use csv::StringRecord;
-
-    use crate::graph_loader::fetch_file;
 
     #[test]
     fn test_fetch_file() {

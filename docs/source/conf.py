@@ -26,7 +26,6 @@ extensions = [
     "IPython.sphinxext.ipython_directive",
     "IPython.sphinxext.ipython_console_highlighting",
     "matplotlib.sphinxext.plot_directive",
-    "numpydoc",
     "sphinx_copybutton",
     "sphinx_design",
     "sphinx_toggleprompt",
@@ -93,8 +92,11 @@ extlinks = {
     "issue": ("https://github.com/pometry/raphtory/issues/%s", "GH %s"),
 }
 
+intersphinx_mapping = {'python': ('https://docs.python.org/3', None)}
+
 autosummary_generate = True
 autosummary_imported_members = True
+
 
 # numpydoc
 def rstjinja(app, docname, source):

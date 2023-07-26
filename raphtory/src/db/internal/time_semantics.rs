@@ -41,12 +41,32 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
         self.graph_latest_time()
     }
 
+    fn vertex_earliest_time_window(&self, v: VID, t_start: i64, t_end: i64) -> Option<i64> {
+        self.node_entry(v)
+            .value()
+            .and_then(|node| node.timestamps().range(t_start..t_end).first())
+    }
+
+    fn vertex_latest_time_window(&self, v: VID, t_start: i64, t_end: i64) -> Option<i64> {
+        self.node_entry(v)
+            .value()
+            .and_then(|node| node.timestamps().range(t_start..t_end).last())
+    }
+
     fn include_vertex_window(&self, v: VID, w: Range<i64>) -> bool {
         self.node_entry(v).timestamps().active(w)
     }
 
     fn include_edge_window(&self, e: EdgeRef, w: Range<i64>) -> bool {
         self.edge(e.pid()).active(e.layer(), w)
+    }
+
+    fn vertex_history(&self, v: VID) -> Vec<i64> {
+        self.vertex_additions(v).iter().copied().collect()
+    }
+
+    fn vertex_history_window(&self, v: VID, w: Range<i64>) -> Vec<i64> {
+        self.vertex_additions(v).range(w).iter().copied().collect()
     }
 
     fn edge_t(&self, e: EdgeRef) -> BoxedIter<EdgeRef> {
@@ -83,26 +103,6 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
 
     fn edge_latest_time_window(&self, e: EdgeRef, w: Range<i64>) -> Option<i64> {
         e.time().or_else(|| self.edge_additions(e).range(w).last())
-    }
-
-    fn vertex_earliest_time_window(&self, v: VID, t_start: i64, t_end: i64) -> Option<i64> {
-        self.node_entry(v)
-            .value()
-            .and_then(|node| node.timestamps().range(t_start..t_end).first())
-    }
-
-    fn vertex_latest_time_window(&self, v: VID, t_start: i64, t_end: i64) -> Option<i64> {
-        self.node_entry(v)
-            .value()
-            .and_then(|node| node.timestamps().range(t_start..t_end).last())
-    }
-
-    fn vertex_history(&self, v: VID) -> Vec<i64> {
-        self.vertex_additions(v).iter().copied().collect()
-    }
-
-    fn vertex_history_window(&self, v: VID, w: Range<i64>) -> Vec<i64> {
-        self.vertex_additions(v).range(w).iter().copied().collect()
     }
 
     fn edge_deletion_history(&self, e: EdgeRef) -> Vec<i64> {
@@ -148,11 +148,26 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
         t_start: i64,
         t_end: i64,
     ) -> Vec<(i64, Prop)> {
-        self.prop_vec_window(e.pid(), name, t_start, t_end, e.layer())
+        self.temporal_edge_prop(e, name)
+            .map(|p| match e.time() {
+                Some(t) => {
+                    if t >= t_start && t < t_end {
+                        p.iter_window(t..t.saturating_add(1)).collect()
+                    } else {
+                        vec![]
+                    }
+                }
+                None => p.iter_window(t_start..t_end).collect(),
+            })
+            .unwrap_or_default()
     }
 
     fn temporal_edge_prop_vec(&self, e: EdgeRef, name: &str) -> Vec<(i64, Prop)> {
-        self.edge(e.pid())
-            .temporal_properties(name, e.layer(), None)
+        self.temporal_edge_prop(e, name)
+            .map(|p| match e.time() {
+                Some(t) => p.iter_window(t..t.saturating_add(1)).collect(),
+                None => p.iter().collect(),
+            })
+            .unwrap_or_default()
     }
 }

@@ -10,7 +10,7 @@ use crate::{
     prelude::NO_PROPS,
 };
 
-use super::Properties;
+use super::CollectProperties;
 
 pub trait AdditionOps {
     // TODO: Probably add vector reference here like add
@@ -34,14 +34,14 @@ pub trait AdditionOps {
     /// let v = g.add_vertex(0, "Alice", NO_PROPS);
     /// let v = g.add_vertex(0, 5, NO_PROPS);
     /// ```
-    fn add_vertex<V: InputVertex, T: TryIntoTime, PI: Properties>(
+    fn add_vertex<V: InputVertex, T: TryIntoTime, PI: CollectProperties>(
         &self,
         t: T,
         v: V,
         props: PI,
     ) -> Result<(), GraphError>;
 
-    fn add_vertex_with_custom_time_format<V: InputVertex, PI: Properties>(
+    fn add_vertex_with_custom_time_format<V: InputVertex, PI: CollectProperties>(
         &self,
         t: &str,
         fmt: &str,
@@ -72,7 +72,7 @@ pub trait AdditionOps {
     /// graph.add_vertex(2, "Bob", NO_PROPS).unwrap();
     /// graph.add_edge(3, "Alice", "Bob", NO_PROPS, None).unwrap();
     /// ```    
-    fn add_edge<V: InputVertex, T: TryIntoTime, PI: Properties>(
+    fn add_edge<V: InputVertex, T: TryIntoTime, PI: CollectProperties>(
         &self,
         t: T,
         src: V,
@@ -81,7 +81,7 @@ pub trait AdditionOps {
         layer: Option<&str>,
     ) -> Result<(), GraphError>;
 
-    fn add_edge_with_custom_time_format<V: InputVertex, PI: Properties>(
+    fn add_edge_with_custom_time_format<V: InputVertex, PI: CollectProperties>(
         &self,
         t: &str,
         fmt: &str,
@@ -96,7 +96,7 @@ pub trait AdditionOps {
 }
 
 impl<G: InternalAdditionOps> AdditionOps for G {
-    fn add_vertex<V: InputVertex, T: TryIntoTime, PI: Properties>(
+    fn add_vertex<V: InputVertex, T: TryIntoTime, PI: CollectProperties>(
         &self,
         t: T,
         v: V,
@@ -107,7 +107,7 @@ impl<G: InternalAdditionOps> AdditionOps for G {
         Ok(())
     }
 
-    fn add_edge<V: InputVertex, T: TryIntoTime, PI: Properties>(
+    fn add_edge<V: InputVertex, T: TryIntoTime, PI: CollectProperties>(
         &self,
         t: T,
         src: V,

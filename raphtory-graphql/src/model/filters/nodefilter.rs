@@ -6,7 +6,7 @@ use crate::model::{
     graph::node::Node,
 };
 use dynamic_graphql::InputObject;
-use raphtory::{core::Prop, db::api::view::VertexViewOps};
+use raphtory::db::api::view::VertexViewOps;
 
 #[derive(InputObject)]
 pub struct NodeFilter {
@@ -46,9 +46,10 @@ impl NodeFilter {
         if let Some(type_filter) = &self.node_type {
             let node_type = node
                 .vv
-                .property("type".to_string(), true)
-                .unwrap_or(Prop::Str("NONE".to_string()))
-                .to_string();
+                .properties()
+                .get("type")
+                .map(|v| v.to_string())
+                .unwrap_or("NONE".to_string());
             if !type_filter.matches(&node_type) {
                 return false;
             }

@@ -1,10 +1,13 @@
 // Internal macro to create the struct for a nested iterable
-macro_rules! _py_nested_iterable_base {
+macro_rules! py_nested_iterable_base {
+    ($name:ident, $item:ty) => {
+        py_nested_iterable_base!($name, $item, $item);
+    };
     ($name:ident, $item:ty, $pyitem:ty) => {
         #[pyclass]
         pub struct $name($crate::python::types::iterable::NestedIterable<$item, $pyitem>);
 
-        impl Deref for $name {
+        impl std::ops::Deref for $name {
             type Target = $crate::python::types::iterable::NestedIterable<$item, $pyitem>;
 
             fn deref(&self) -> &Self::Target {
@@ -12,10 +15,14 @@ macro_rules! _py_nested_iterable_base {
             }
         }
 
-        impl<F: Fn() -> BoxedIter<BoxedIter<$item>> + Sync + Send + 'static> From<F> for $name {
+        impl<F: Fn() -> It + Send + Sync + 'static, It: Iterator + Send + 'static> From<F> for $name
+        where
+            It::Item: Iterator + Send,
+            <It::Item as Iterator>::Item: Into<$item> + Send,
+        {
             fn from(value: F) -> Self {
                 Self($crate::python::types::iterable::NestedIterable::new(
-                    stringify!($name).to_string(),
+                    stringify!($name),
                     value,
                 ))
             }
@@ -25,8 +32,8 @@ macro_rules! _py_nested_iterable_base {
 
 // Internal macro to create basic methods for a nested iterable
 macro_rules! _py_nested_iterable_methods {
-    ($name:ident, $pyitem:ty, $iter:ty) => {
-        _py_iterable_base_methods!($name, $iter);
+    ($name:ident, $pyitem:ty) => {
+        _py_iterable_base_methods!($name, $crate::python::utils::PyNestedGenericIterator);
 
         #[pymethods]
         impl $name {
@@ -130,12 +137,12 @@ macro_rules! _py_nested_float_max_min_methods {
 /// * `pyitem` - The type of the python wrapper for `Item` (optional if `item` implements `IntoPy`, need Into<`pyitem`> to be implemented for `item`)
 /// * `iter` - The python iterator wrapper that should be returned when calling `__iter__`
 macro_rules! py_nested_iterable {
-    ($name:ident, $item:ty, $iter:ty) => {
-        py_nested_iterable!($name, $item, $item, $iter);
+    ($name:ident, $item:ty) => {
+        py_nested_iterable!($name, $item, $item);
     };
-    ($name:ident, $item:ty, $pyitem:ty, $iter:ty) => {
-        _py_nested_iterable_base!($name, $item, $pyitem);
-        _py_nested_iterable_methods!($name, $pyitem, $iter);
+    ($name:ident, $item:ty, $pyitem:ty) => {
+        py_nested_iterable_base!($name, $item, $pyitem);
+        _py_nested_iterable_methods!($name, $pyitem);
     };
 }
 
@@ -147,11 +154,10 @@ macro_rules! py_nested_iterable {
 ///
 /// * `name` - The identifier for the new struct
 /// * `item` - The type of `Item` for the wrapped iterator builder
-/// * `iter` - The python iterator wrapper that should be returned when calling `__iter__`
 /// * `option_value_iterable` - The iterable to return for `max` and `min` (should have item type `Option<Item>`)
 macro_rules! py_nested_ordered_iterable {
-    ($name:ident, $item:ty, $iter:ty, $option_value_iterable:ty) => {
-        py_nested_iterable!($name, $item, $iter);
+    ($name:ident, $item:ty, $option_value_iterable:ty) => {
+        py_nested_iterable!($name, $item);
         _py_nested_ord_max_min_methods!($name, $item, $option_value_iterable);
     };
 }
@@ -169,8 +175,8 @@ macro_rules! py_nested_ordered_iterable {
 /// * `value_iterable` - The iterable to return for `sum` and `mean`
 /// * `option_value_iterable` - The iterable to return for `max` and `min` (should have item type `Option<Item>`)
 macro_rules! py_nested_numeric_iterable {
-    ($name:ident, $item:ty, $iter:ty, $value_iterable:ty, $option_value_iterable:ty) => {
-        py_nested_ordered_iterable!($name, $item, $iter, $option_value_iterable);
+    ($name:ident, $item:ty, $value_iterable:ty, $option_value_iterable:ty) => {
+        py_nested_ordered_iterable!($name, $item, $option_value_iterable);
         _py_nested_numeric_methods!($name, $item, $value_iterable);
     };
 }
@@ -189,7 +195,7 @@ macro_rules! py_nested_numeric_iterable {
 /// * `option_value_iterable` - The iterable to return for `max` and `min` (should have item type `Option<Item>`)
 #[allow(unused_macros)]
 macro_rules! py_nested_float_iterable {
-    ($name:ident, $item:ty, $iter:ty, $value_iterable:ty, $option_value_iterable:ty) => {
+    ($name:ident, $item:ty, $value_iterable:ty, $option_value_iterable:ty) => {
         py_nested_iterable!($name, $item);
         _py_nested_numeric_methods!($name, $item, $value_iterable);
         _py_nested_float_max_min_methods!($name, $item, $option_value_iterable);

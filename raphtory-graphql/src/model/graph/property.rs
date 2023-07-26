@@ -1,4 +1,3 @@
-use async_graphql::Context;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::core::Prop;
 

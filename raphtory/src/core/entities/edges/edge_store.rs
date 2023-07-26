@@ -126,11 +126,11 @@ impl<const N: usize> EdgeStore<N> {
         }
     }
 
-    pub fn layer(&self, layer_id: usize) -> Option<impl Deref<Target = EdgeLayer> + '_> {
+    pub fn layer(&self, layer_id: usize) -> Option<&EdgeLayer> {
         self.layers.get(layer_id)
     }
 
-    pub fn unsafe_layer(&self, layer_id: usize) -> impl Deref<Target = EdgeLayer> + '_ {
+    pub fn unsafe_layer(&self, layer_id: usize) -> &EdgeLayer {
         self.layers.get(layer_id).unwrap()
     }
 

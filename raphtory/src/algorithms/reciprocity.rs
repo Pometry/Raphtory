@@ -37,7 +37,7 @@
 //! ];
 //!
 //! for (t, src, dst) in &vs {
-//!     g.add_edge(*t, *src, *dst, NO_PROPS, None);
+//!     g.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
 //! }
 //!
 //! println!("all_local_reciprocity: {:?}", all_local_reciprocity(&g, None));
@@ -123,7 +123,7 @@ pub fn all_local_reciprocity<G: GraphViewOps>(
     ctx.agg(min);
 
     let step1 = ATask::new(move |evv| {
-        let edge_counts = get_reciprocal_edge_count(&evv);
+        let edge_counts = get_reciprocal_edge_count(evv);
         let res = (2.0 * edge_counts.2 as f64) / (edge_counts.1 as f64 + edge_counts.0 as f64);
         if res.is_nan() {
             evv.global_update(&min, 0.0);
@@ -178,16 +178,6 @@ mod reciprocity_test {
 
         let actual = global_reciprocity(&graph, None);
         assert_eq!(actual, 0.5);
-
-        let expected_vec: Vec<(String, f64)> = vec![
-            ("1".to_string(), 0.4),
-            ("2".to_string(), 2.0 / 3.0),
-            ("3".to_string(), 0.5),
-            ("4".to_string(), 2.0 / 3.0),
-            ("5".to_string(), 0.0),
-        ];
-
-        let map_names_by_id: HashMap<String, f64> = expected_vec.into_iter().collect();
 
         let mut hash_map_result: HashMap<String, f64> = HashMap::new();
         hash_map_result.insert("1".to_string(), 0.4);

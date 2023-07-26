@@ -2,17 +2,25 @@ use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef},
         state::compute_state::ComputeState,
+        storage::locked_view::LockedView,
         Prop,
     },
     db::{
-        api::view::{internal::*, *},
+        api::{
+            properties::{
+                internal::{ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps},
+                Properties,
+            },
+            view::{internal::*, *},
+        },
+        graph::views::window_graph::WindowedGraph,
         task::{
             task_state::Local2,
             vertex::{eval_vertex_state::EVState, window_eval_vertex::WindowEvalVertex},
         },
     },
 };
-use std::{cell::RefCell, collections::HashMap, iter, marker::PhantomData, rc::Rc};
+use std::{cell::RefCell, iter, marker::PhantomData, rc::Rc};
 
 pub struct WindowEvalEdgeView<'a, G: GraphViewOps, CS: ComputeState, S: 'static> {
     ss: usize,
@@ -55,10 +63,11 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> WindowEvalEdgeView<'a, G
     }
 }
 impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static>
-    EdgeViewInternalOps<G, WindowEvalVertex<'a, G, CS, S>> for WindowEvalEdgeView<'a, G, CS, S>
+    EdgeViewInternalOps<WindowedGraph<G>, WindowEvalVertex<'a, G, CS, S>>
+    for WindowEvalEdgeView<'a, G, CS, S>
 {
-    fn graph(&self) -> G {
-        self.g.clone()
+    fn graph(&self) -> WindowedGraph<G> {
+        WindowedGraph::new(self.g.clone(), self.t_start, self.t_end)
     }
 
     fn eref(&self) -> EdgeRef {
@@ -91,14 +100,119 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static>
     }
 }
 
+impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> ConstPropertiesOps
+    for WindowEvalEdgeView<'a, G, CS, S>
+{
+    fn const_property_keys<'b>(&'b self) -> Box<dyn Iterator<Item = LockedView<'b, String>> + 'b> {
+        Box::new(self.g.static_edge_prop_names(self.ev).filter(|k| {
+            !self
+                .g
+                .temporal_edge_prop_vec_window(self.ev, k, self.t_start, self.t_end)
+                .is_empty()
+        }))
+    }
+
+    fn get_const_property(&self, key: &str) -> Option<Prop> {
+        self.graph().static_edge_prop(self.ev, key)
+    }
+}
+
+impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> Clone for WindowEvalEdgeView<'a, G, CS, S> {
+    fn clone(&self) -> Self {
+        Self {
+            ss: self.ss,
+            ev: self.ev,
+            g: self.g,
+            vertex_state: self.vertex_state.clone(),
+            local_state_prev: self.local_state_prev,
+            t_start: self.t_start,
+            t_end: self.t_end,
+            _s: Default::default(),
+        }
+    }
+}
+
+impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> TemporalPropertyViewOps
+    for WindowEvalEdgeView<'a, G, CS, S>
+{
+    fn temporal_value(&self, id: &String) -> Option<Prop> {
+        self.g
+            .temporal_edge_prop_vec_window(self.ev, id, self.t_start, self.t_end)
+            .last()
+            .map(|(_, v)| v.to_owned())
+    }
+
+    fn temporal_history(&self, id: &String) -> Vec<i64> {
+        self.g
+            .temporal_edge_prop_vec_window(self.ev, id, self.t_start, self.t_end)
+            .into_iter()
+            .map(|(t, _)| t)
+            .collect()
+    }
+
+    fn temporal_values(&self, id: &String) -> Vec<Prop> {
+        self.g
+            .temporal_edge_prop_vec_window(self.ev, id, self.t_start, self.t_end)
+            .into_iter()
+            .map(|(_, v)| v)
+            .collect()
+    }
+}
+
+impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> TemporalPropertiesOps
+    for WindowEvalEdgeView<'a, G, CS, S>
+{
+    fn temporal_property_keys<'b>(
+        &'b self,
+    ) -> Box<dyn Iterator<Item = LockedView<'b, String>> + 'b> {
+        Box::new(self.g.temporal_edge_prop_names(self.ev).filter(|k| {
+            !self
+                .g
+                .temporal_edge_prop_vec_window(self.ev, k, self.t_start, self.t_end)
+                .is_empty()
+        }))
+    }
+
+    fn get_temporal_property(&self, key: &str) -> Option<String> {
+        (!self
+            .g
+            .temporal_edge_prop_vec_window(self.ev, key, self.t_start, self.t_end)
+            .is_empty())
+        .then_some(key.to_string())
+    }
+}
+
 impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeViewOps
     for WindowEvalEdgeView<'a, G, CS, S>
 {
-    type Graph = G;
+    type Graph = WindowedGraph<G>;
 
     type Vertex = WindowEvalVertex<'a, G, CS, S>;
 
     type EList = Box<dyn Iterator<Item = Self> + 'a>;
+
+    fn history(&self) -> Vec<i64> {
+        self.graph()
+            .edge_history_window(self.ev, self.t_start..self.t_end)
+            .collect()
+    }
+
+    /// Check if edge is active at a given time point
+    fn active(&self, t: i64) -> bool {
+        match self.eref().time() {
+            Some(tt) => tt == t,
+            None => {
+                (self.t_start..self.t_end).contains(&t)
+                    && self.graph().has_edge_ref_window(
+                        self.eref().src(),
+                        self.eref().dst(),
+                        t,
+                        t.saturating_add(1),
+                        self.eref().layer(),
+                    )
+            }
+        }
+    }
 
     fn explode(&self) -> Self::EList {
         let e = self.ev.clone();
@@ -128,59 +242,6 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeViewOps
         }
     }
 
-    fn history(&self) -> Vec<i64> {
-        self.graph()
-            .edge_history_window(self.ev, self.t_start..self.t_end)
-            .collect()
-    }
-
-    fn property_history(&self, name: &str) -> Vec<(i64, Prop)> {
-        match self.eref().time() {
-            None => self.graph().temporal_edge_prop_vec_window(
-                self.eref(),
-                name,
-                self.t_start,
-                self.t_end,
-            ),
-            Some(t) => self.graph().temporal_edge_prop_vec_window(
-                self.eref(),
-                name,
-                t,
-                t.saturating_add(1),
-            ),
-        }
-    }
-
-    fn property_histories(&self) -> HashMap<String, Vec<(i64, Prop)>> {
-        // match on the self.edge.time option property and run two function s
-        // one for static and one for temporal
-        match self.eref().time() {
-            None => self
-                .graph()
-                .temporal_edge_props_window(self.eref(), self.t_start, self.t_end),
-            Some(t) => self
-                .graph()
-                .temporal_edge_props_window(self.eref(), t, t.saturating_add(1)),
-        }
-    }
-
-    /// Check if edge is active at a given time point
-    fn active(&self, t: i64) -> bool {
-        match self.eref().time() {
-            Some(tt) => tt == t,
-            None => {
-                (self.t_start..self.t_end).contains(&t)
-                    && self.graph().has_edge_ref_window(
-                        self.eref().src(),
-                        self.eref().dst(),
-                        t,
-                        t.saturating_add(1),
-                        self.eref().layer(),
-                    )
-            }
-        }
-    }
-
     /// Gets the first time an edge was seen
     fn earliest_time(&self) -> Option<i64> {
         self.eref().time().or_else(|| {
@@ -201,56 +262,15 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeViewOps
 impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeListOps
     for Box<dyn Iterator<Item = WindowEvalEdgeView<'a, G, CS, S>> + 'a>
 {
-    type Graph = G;
+    type Graph = WindowedGraph<G>;
     type Vertex = WindowEvalVertex<'a, G, CS, S>;
     type Edge = WindowEvalEdgeView<'a, G, CS, S>;
     type ValueType<T> = T;
     type VList = Box<dyn Iterator<Item = Self::Vertex> + 'a>;
     type IterType<T> = Box<dyn Iterator<Item = T> + 'a>;
 
-    fn has_property(self, name: String, include_static: bool) -> Self::IterType<bool> {
-        Box::new(self.map(move |e| e.has_property(&name, include_static)))
-    }
-
-    fn property(
-        self,
-        name: String,
-        include_static: bool,
-    ) -> Self::IterType<Option<crate::core::Prop>> {
-        Box::new(self.map(move |e| e.property(&name, include_static)))
-    }
-
-    fn properties(
-        self,
-        include_static: bool,
-    ) -> Self::IterType<std::collections::HashMap<String, crate::core::Prop>> {
-        Box::new(self.map(move |e| e.properties(include_static)))
-    }
-
-    fn property_names(self, include_static: bool) -> Self::IterType<Vec<String>> {
-        Box::new(self.map(move |e| e.property_names(include_static)))
-    }
-
-    fn has_static_property(self, name: String) -> Self::IterType<bool> {
-        Box::new(self.map(move |e| e.has_static_property(&name)))
-    }
-
-    fn static_property(self, name: String) -> Self::IterType<Option<Prop>> {
-        Box::new(self.map(move |it| it.static_property(&name)))
-    }
-
-    fn static_properties(self) -> Self::IterType<HashMap<String, Prop>> {
-        Box::new(self.map(move |it| it.static_properties()))
-    }
-
-    fn property_history(self, name: String) -> Self::IterType<Vec<(i64, Prop)>> {
-        Box::new(self.map(move |it| it.property_history(&name)))
-    }
-
-    fn property_histories(
-        self,
-    ) -> Self::IterType<std::collections::HashMap<String, Vec<(i64, crate::core::Prop)>>> {
-        Box::new(self.map(|it| it.property_histories()))
+    fn properties(self) -> Self::IterType<Properties<Self::Edge>> {
+        Box::new(self.map(move |e| e.properties()))
     }
 
     fn src(self) -> Self::VList {
