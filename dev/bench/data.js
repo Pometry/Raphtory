@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1690274227192,
+  "lastUpdate": 1690370568014,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -5881,6 +5881,60 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions with numeric string input",
             "value": 1721212,
             "range": "± 53555",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97447091+ljeub-pometry@users.noreply.github.com",
+            "name": "ljeub-pometry",
+            "username": "ljeub-pometry"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "16bf23100dc30df7aba4f2806aab9d8d44b2b403",
+          "message": "Properties (#1103)\n\n* cleanup\r\n\r\n* changes to rebase\r\n\r\n* skeleton for properties objects\r\n\r\n* Change properties API to enable dynamic boxing and start implementing some python wrappers\r\n\r\n* compiles but still work to do\r\n\r\n* add properties object for edges and some other improvements\r\n\r\n* implement properties for Graph\r\n\r\n* Fix errors and warnings after merge\r\n\r\n* minor cleanup of properties\r\n\r\n* fix the tests\r\n\r\n* add some python interface methods\r\n\r\n* start changing the properties so that their is a top-level properties object with temporal and static as sub-parts\r\n\r\n* Mostly working but still need to fix all the tests and python\r\n\r\n* core compiles again after refactoring of static/temporal properties, still need to update python/tests\r\n\r\n* update tests\r\n\r\n* start updating python\r\n\r\n* fix all compile errors\r\n\r\n* fix windowed property keys\r\n\r\n* fix warnings\r\n\r\n* python properties api\r\n\r\n* support for vectorised property access\r\n\r\n* actually add some methods for vectorised props\r\n\r\n* sort of works but python api could be cleaner\r\n\r\n* more python vectorised apis\r\n\r\n* even more vectorised operations\r\n\r\n* vectorised NestedTemporalProperty\r\n\r\n* implement vectorised static properties and start experimenting with __eq__ support\r\n\r\n* macro for implementing == for iterables\r\n\r\n* equality support nests now\r\n\r\n* completely remove macro-based python iterators as they have no advantage over the generic ones\r\n\r\n* fix semantics for Properties iterables\r\n\r\n* more cleanup but PropertiesIterable behaviour is inconsistent\r\n\r\n* start fixing inconsistencies for PropsIterable\r\n\r\n* update vertex test to reflect expected semantics\r\n\r\n* improved __eq__ for properties\r\n\r\n* fix static properties\r\n\r\n* start implementing comparisons for temporal properties\r\n\r\n* finish implementation for temporal properties and update all python tests\r\n\r\n* fix quickcheck test (properties at t0 still have a latest value at t1)\r\n\r\n* Fix merge issues and warnings\r\n\r\n* use lazy iterables everywhere in temporal properties and start cleaning up internal names\r\n\r\n* more cleanup\r\n\r\n* rename static/meta to constant\r\n\r\n* minor fixes and renames\r\n\r\n* start adding some python docs\r\n\r\n* remove unused argument\r\n\r\n* add more python docs\r\n\r\n* clean up some names\r\n\r\n* add missing reprs\r\n\r\n* doc cleanup and make signatures work",
+          "timestamp": "2023-07-26T12:15:47+01:00",
+          "tree_id": "ef058e7796a0dd01cc33d6852707d17ab5b2a23c",
+          "url": "https://github.com/Pometry/Raphtory/commit/16bf23100dc30df7aba4f2806aab9d8d44b2b403"
+        },
+        "date": 1690370567169,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 822609,
+            "range": "± 7413",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and numeric string input",
+            "value": 1470970,
+            "range": "± 19531",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and string input",
+            "value": 1505044,
+            "range": "± 7008",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 1207166,
+            "range": "± 93825",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions with numeric string input",
+            "value": 2233304,
+            "range": "± 102159",
             "unit": "ns/iter"
           }
         ]
