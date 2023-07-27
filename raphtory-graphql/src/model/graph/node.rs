@@ -225,8 +225,16 @@ impl Node {
         return res;
     }
 
-    async fn exploded_edges(&self, layer: Option<String>) -> Vec<Edge> {
+    async fn exploded_in_edges(&self) -> Vec<Edge> {
+        self.vv.in_edges().explode().map(|ee| ee.into()).collect()
+    }
+
+    async fn exploded_out_edges(&self) -> Vec<Edge> {
         self.vv.out_edges().explode().map(|ee| ee.into()).collect()
+    }
+
+    async fn exploded_edges(&self, layer: Option<String>) -> Vec<Edge> {
+        self.vv.edges().explode().map(|ee| ee.into()).collect()
     }
 
     async fn start_date(&self) -> Option<i64> {
