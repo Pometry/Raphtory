@@ -358,9 +358,6 @@ mod local_motif_test {
         let counts = local_temporal_three_node_motifs(&graph, 10);
         // FIXME: Should test this
         let _global_counts = global_temporal_three_node_motifs(&graph, 10);
-
-        println!("{:?}",_global_counts);
-
         let expected: HashMap<u64, Vec<usize>> = HashMap::from([
             (
                 1,

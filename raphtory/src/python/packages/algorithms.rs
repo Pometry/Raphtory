@@ -17,9 +17,9 @@ use crate::{
         directed_graph_density::directed_graph_density as directed_graph_density_rs,
         local_clustering_coefficient::local_clustering_coefficient as local_clustering_coefficient_rs,
         local_triangle_count::local_triangle_count as local_triangle_count_rs,
-        motifs::three_node_local::{
-            global_temporal_three_node_motifs as global_temporal_three_node_motif_rs,
-            local_temporal_three_node_motifs as local_three_node_rs,
+        motifs::three_node_local_redone::{
+            global_temporal_three_node_motif as global_temporal_three_node_motif_rs,
+            temporal_three_node_motif as local_three_node_rs,
         },
         pagerank::unweighted_page_rank,
         reciprocity::{
@@ -324,7 +324,7 @@ pub fn global_clustering_coefficient(g: &PyGraphView) -> f64 {
 ///
 #[pyfunction]
 pub fn global_temporal_three_node_motif(g: &PyGraphView, delta: i64) -> Vec<usize> {
-    global_temporal_three_node_motif_rs(&g.graph, delta)
+    global_temporal_three_node_motif_rs(&g.graph, delta, None)
 }
 
 /// Computes the number of each type of motif that each node participates in. See global_temporal_three_node_motifs for a summary of the motifs involved.
@@ -346,6 +346,6 @@ pub fn global_temporal_three_node_motif(g: &PyGraphView, delta: i64) -> Vec<usiz
 pub fn local_temporal_three_node_motifs(
     g: &PyGraphView,
     delta: i64,
-) -> AlgorithmResult<u64, Vec<usize>> {
-    local_three_node_rs(&g.graph, delta)
+) -> HashMap<String, Vec<usize>> {
+    local_three_node_rs(&g.graph, delta, None)
 }
