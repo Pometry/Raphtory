@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1690370568014,
+  "lastUpdate": 1690460642008,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -5935,6 +5935,60 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions with numeric string input",
             "value": 2233304,
             "range": "± 102159",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97447091+ljeub-pometry@users.noreply.github.com",
+            "name": "ljeub-pometry",
+            "username": "ljeub-pometry"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "006d15051260df0e3b44149661e34f4052802908",
+          "message": "make docstring signatures work with type hints (#1137)\n\n* make docstring signatures work with type hints\r\n\r\n* add some comments to explain how this magic works",
+          "timestamp": "2023-07-27T14:17:49+02:00",
+          "tree_id": "84338746f063daaadb75c4ac84c252943a420c41",
+          "url": "https://github.com/Pometry/Raphtory/commit/006d15051260df0e3b44149661e34f4052802908"
+        },
+        "date": 1690460640775,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 671344,
+            "range": "± 3877",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and numeric string input",
+            "value": 1215708,
+            "range": "± 97750",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and string input",
+            "value": 1243746,
+            "range": "± 4786",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 1020130,
+            "range": "± 88801",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions with numeric string input",
+            "value": 1883669,
+            "range": "± 93949",
             "unit": "ns/iter"
           }
         ]
