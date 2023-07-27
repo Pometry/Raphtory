@@ -125,8 +125,15 @@ def rstjinja(app, docname, source):
 
 def add_typehints(app, objtype: str, name: str, obj,
                   options: dict, args: str, retann: str) -> tuple[str | Any, str | Any] | tuple[str, None]:
-    """Record type hints to env object."""
+    """Record type hints to env object.
+
+    This function does the same as the sphinx.ext.autodoc.typehints extension but for
+    signatures that are defined in the docstring.
+    """
     if not hasattr(obj, "__annotations__"):
+        # If an object has annotations, typehints extension will handle it, otherwise, we need to look at the signature for the type hints
+
+        # make sure we set the configuration option in the same way
         if app.config.autodoc_typehints_format == 'short':
             mode = 'smart'
         else:
@@ -134,6 +141,7 @@ def add_typehints(app, objtype: str, name: str, obj,
 
         try:
             if callable(obj):
+                # build a mock function from the signature to get the correct annotations
                 exec_parts = [f"def _annotations_moc"]
                 if args is not None:
                     exec_parts.append(args)
@@ -145,6 +153,8 @@ def add_typehints(app, objtype: str, name: str, obj,
                 res = globals()
                 exec("".join(exec_parts), res)
 
+                # extract type hints and store them in the appropriate temp data
+                # (this is the same as what the typehints extension does)
                 annotations = app.env.temp_data.setdefault('annotations', {})
                 annotation = annotations.setdefault(name, {})
                 sig = inspect.signature(res["_annotations_moc"], type_aliases=app.config.autodoc_type_aliases)
@@ -159,6 +169,9 @@ def add_typehints(app, objtype: str, name: str, obj,
                     kwargs.setdefault('show_annotation', False)
                 if app.config.autodoc_typehints_format == "short":
                     kwargs.setdefault('unqualified_typehints', True)
+
+                # we need to reparse the signature to get the correct formatting for links to work
+                # and to enable the 'description' option to strip the type hints from the signature
                 args = inspect.stringify_signature(sig, **kwargs)
                 if args:
                     matched = re.match(r'^(\(.*\))\s+->\s+(.*)$', args)
@@ -168,8 +181,7 @@ def add_typehints(app, objtype: str, name: str, obj,
                         return args, retann
                     else:
                         return args, None
-        except (TypeError, ValueError) as e:
-            e
+        except (TypeError, ValueError):
             pass
 
 
