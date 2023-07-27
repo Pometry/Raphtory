@@ -1,8 +1,10 @@
+# do not add from __future__ import annotations as it will break the typehints parsing
+# (I think this is a bug in autodoc and may be fixed at some point)
+
 # Configuration file for the Sphinx documentation builder.
 #
 # For the full list of built-in configuration values, see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
-from typing import Tuple, Any
 
 from sphinx.ext.autosummary import _import_by_name
 
@@ -13,8 +15,10 @@ import warnings
 import raphtory
 from sphinx.util.typing import stringify_annotation
 from sphinx.util import inspect
-import typing
+
+# for type annotations resolution (need to actually import everything that we want to use in a type hint in the docs)
 from typing import *
+from raphtory import *
 
 import jinja2
 
@@ -131,7 +135,8 @@ def add_typehints(app, objtype: str, name: str, obj,
     signatures that are defined in the docstring.
     """
     if not hasattr(obj, "__annotations__"):
-        # If an object has annotations, typehints extension will handle it, otherwise, we need to look at the signature for the type hints
+        # If an object has annotations, typehints extension will handle it, otherwise,
+        # we need to look at the signature for the type hints
 
         # make sure we set the configuration option in the same way
         if app.config.autodoc_typehints_format == 'short':
