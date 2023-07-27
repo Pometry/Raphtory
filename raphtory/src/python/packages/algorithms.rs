@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 /// Implementations of various graph algorithms that can be run on a graph.
 ///
 /// To run an algorithm simply import the module and call the function with the graph as the argument
