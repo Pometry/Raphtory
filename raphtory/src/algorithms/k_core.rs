@@ -1,5 +1,5 @@
 use crate::{
-    core::{state::compute_state::ComputeStateVec, entities::VID},
+    core::{entities::VID, state::compute_state::ComputeStateVec},
     db::{
         api::view::{GraphViewOps, VertexViewOps},
         task::{
@@ -10,8 +10,10 @@ use crate::{
         },
     },
 };
-use std::{cmp, collections::
-    {HashMap, HashSet}};
+use std::{
+    cmp,
+    collections::{HashMap, HashSet},
+};
 
 #[derive(Clone, Debug)]
 struct KCoreState {
@@ -20,7 +22,7 @@ struct KCoreState {
 
 impl KCoreState {
     fn new() -> Self {
-        Self { alive:true }
+        Self { alive: true }
     }
 }
 
@@ -37,12 +39,7 @@ impl KCoreState {
 ///
 /// A hash set of vertices in the k core
 ///
-pub fn k_core_set<G>(
-    graph: &G,
-    k: usize,
-    iter_count: usize,
-    threads: Option<usize>,
-) -> HashSet<VID>
+pub fn k_core_set<G>(graph: &G, k: usize, iter_count: usize, threads: Option<usize>) -> HashSet<VID>
 where
     G: GraphViewOps,
 {
@@ -51,7 +48,7 @@ where
     let step1 = ATask::new(move |vv| {
         let deg = vv.degree();
         let state: &mut KCoreState = vv.get_mut();
-        state.alive = if deg < k {false} else {true};
+        state.alive = if deg < k { false } else { true };
         Step::Continue
     });
 
@@ -63,7 +60,8 @@ where
                 .into_iter()
                 .map(|n| n.prev().alive)
                 .filter(|b| *b)
-                .count() >= k;
+                .count()
+                >= k;
             let state: &mut KCoreState = vv.get_mut();
             if current != prev {
                 state.alive = current;
@@ -95,16 +93,16 @@ where
         )
         .into_iter()
         .filter(|(k, v)| *v)
-        .map(|(k,v)| k)
+        .map(|(k, v)| k)
         .collect()
 }
 
 mod k_core_test {
     use std::collections::HashSet;
 
+    use crate::algorithms::k_core::k_core_set;
     use crate::algorithms::triangle_count::triangle_count;
     use crate::prelude::*;
-    use crate::algorithms::k_core::k_core_set;
 
     #[test]
     fn k_core_2() {
@@ -143,12 +141,13 @@ mod k_core_test {
         let result = k_core_set(&graph, 2, usize::MAX, None);
         let subgraph = graph.subgraph(result.clone());
         let actual = vec!["1", "3", "4", "5", "6", "8", "9", "10", "11"]
-        .into_iter()
-        .map(|k| k.to_string())
-        .collect::<HashSet<String>>();
+            .into_iter()
+            .map(|k| k.to_string())
+            .collect::<HashSet<String>>();
 
-        assert_eq!(actual,subgraph.vertices().name().collect::<HashSet<String>>());
-
-
+        assert_eq!(
+            actual,
+            subgraph.vertices().name().collect::<HashSet<String>>()
+        );
     }
 }

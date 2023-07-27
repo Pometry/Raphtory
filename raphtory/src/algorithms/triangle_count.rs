@@ -1,16 +1,17 @@
+use crate::algorithms::k_core::k_core_set;
 use crate::{
     core::state::{accumulator_id::accumulators, compute_state::ComputeStateVec},
     db::{
         api::view::*,
+        graph::views::vertex_subgraph::{self, VertexSubgraph},
         task::{
             context::Context,
             task::{ATask, Job, Step},
             task_runner::TaskRunner,
-        }, graph::views::vertex_subgraph::{self, VertexSubgraph},
+        },
     },
 };
 use rustc_hash::FxHashSet;
-use crate::algorithms::k_core::k_core_set;
 
 /// Computes the number of triangles in a graph using a fast algorithm
 ///
@@ -57,7 +58,7 @@ use crate::algorithms::k_core::k_core_set;
 /// ```
 ///
 pub fn triangle_count<G: GraphViewOps>(graph: &G, threads: Option<usize>) -> usize {
-    let vertex_set = k_core_set(graph,2,usize::MAX, None);
+    let vertex_set = k_core_set(graph, 2, usize::MAX, None);
     let g = graph.subgraph(vertex_set);
     let mut ctx: Context<VertexSubgraph<G>, ComputeStateVec> = Context::from(&g);
 
@@ -194,7 +195,6 @@ mod triangle_count_tests {
         }
 
         let actual_tri_count = triangle_count(&graph, None);
-        print!("{:?}",actual_tri_count);
 
         assert_eq!(actual_tri_count, 8)
     }
