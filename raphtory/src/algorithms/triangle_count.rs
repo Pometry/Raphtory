@@ -1,5 +1,5 @@
-use crate::algorithms::k_core::k_core_set;
 use crate::{
+    algorithms::k_core::k_core_set,
     core::state::{accumulator_id::accumulators, compute_state::ComputeStateVec},
     db::{
         api::view::*,
