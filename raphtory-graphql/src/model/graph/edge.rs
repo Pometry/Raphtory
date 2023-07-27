@@ -1,4 +1,4 @@
-use crate::model::graph::{node::Node, property::Property};
+use crate::model::graph::node::Node;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::db::{
     api::view::{
@@ -43,7 +43,7 @@ impl Edge {
     }
 
     async fn property(&self, name: &str) -> Option<String> {
-        Some(self.ee.property(name, true)?.to_string())
+        self.ee.properties().get(name).map(|prop| prop.to_string())
     }
 
     async fn layer(&self) -> String {

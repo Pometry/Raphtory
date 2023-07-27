@@ -13,7 +13,7 @@ fn i64_opt_into_u64_opt(x: Option<&i64>) -> Option<u64> {
     x.map(|x| (*x).try_into().unwrap())
 }
 
-pub(crate) fn process_pandas_py_df<'a>(df: &PyAny, py: Python<'a>) -> PyResult<PretendDF> {
+pub(crate) fn process_pandas_py_df(df: &PyAny, py: Python) -> PyResult<PretendDF> {
     let globals = PyDict::new(py);
     globals.set_item("df", df)?;
     let module = py.import("pyarrow")?;
@@ -213,18 +213,16 @@ fn lift_layer<'a, S: AsRef<str>>(
     if let Some(layer) = layer {
         //Prioritise the explicit layer set by the user
         Box::new(std::iter::repeat(Some(layer.as_ref().to_string())))
-    } else {
-        if let Some(name) = layer_in_df {
-            if let Some(col) = df.utf8::<i32>(name.as_ref()) {
-                Box::new(col.map(|v| v.map(|v| v.to_string())))
-            } else if let Some(col) = df.utf8::<i64>(name.as_ref()) {
-                Box::new(col.map(|v| v.map(|v| v.to_string())))
-            } else {
-                Box::new(std::iter::repeat(None))
-            }
+    } else if let Some(name) = layer_in_df {
+        if let Some(col) = df.utf8::<i32>(name.as_ref()) {
+            Box::new(col.map(|v| v.map(|v| v.to_string())))
+        } else if let Some(col) = df.utf8::<i64>(name.as_ref()) {
+            Box::new(col.map(|v| v.map(|v| v.to_string())))
         } else {
             Box::new(std::iter::repeat(None))
         }
+    } else {
+        Box::new(std::iter::repeat(None))
     }
 }
 
@@ -309,15 +307,11 @@ impl PretendDF {
             .as_any()
             .downcast_ref::<PrimitiveArray<T>>()?;
 
-        let iter = self
-            .arrays
-            .iter()
-            .map(move |arr| {
-                let arr = &arr[idx];
-                let arr = arr.as_any().downcast_ref::<PrimitiveArray<T>>().unwrap();
-                arr.iter()
-            })
-            .flatten();
+        let iter = self.arrays.iter().flat_map(move |arr| {
+            let arr = &arr[idx];
+            let arr = arr.as_any().downcast_ref::<PrimitiveArray<T>>().unwrap();
+            arr.iter()
+        });
 
         Some(iter)
     }
@@ -329,15 +323,11 @@ impl PretendDF {
             .as_any()
             .downcast_ref::<Utf8Array<O>>()?;
 
-        let iter = self
-            .arrays
-            .iter()
-            .map(move |arr| {
-                let arr = &arr[idx];
-                let arr = arr.as_any().downcast_ref::<Utf8Array<O>>().unwrap();
-                arr.iter()
-            })
-            .flatten();
+        let iter = self.arrays.iter().flat_map(move |arr| {
+            let arr = &arr[idx];
+            let arr = arr.as_any().downcast_ref::<Utf8Array<O>>().unwrap();
+            arr.iter()
+        });
 
         Some(iter)
     }
@@ -349,15 +339,11 @@ impl PretendDF {
             .as_any()
             .downcast_ref::<BooleanArray>()?;
 
-        let iter = self
-            .arrays
-            .iter()
-            .map(move |arr| {
-                let arr = &arr[idx];
-                let arr = arr.as_any().downcast_ref::<BooleanArray>().unwrap();
-                arr.iter()
-            })
-            .flatten();
+        let iter = self.arrays.iter().flat_map(move |arr| {
+            let arr = &arr[idx];
+            let arr = arr.as_any().downcast_ref::<BooleanArray>().unwrap();
+            arr.iter()
+        });
 
         Some(iter)
     }
@@ -445,8 +431,14 @@ mod test {
                     e.src().id(),
                     e.dst().id(),
                     e.latest_time(),
-                    e.property("prop1", false),
-                    e.property("prop2", false),
+                    e.properties()
+                        .temporal()
+                        .get("prop1")
+                        .and_then(|v| v.latest()),
+                    e.properties()
+                        .temporal()
+                        .get("prop2")
+                        .and_then(|v| v.latest()),
                 )
             })
             .collect::<Vec<_>>();
@@ -493,7 +485,10 @@ mod test {
                 (
                     v.id(),
                     v.latest_time(),
-                    v.property("name".to_owned(), false),
+                    v.properties()
+                        .temporal()
+                        .get("name")
+                        .and_then(|v| v.latest()),
                 )
             })
             .collect::<Vec<_>>();

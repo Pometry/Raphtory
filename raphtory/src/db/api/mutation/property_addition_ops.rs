@@ -6,7 +6,7 @@ use crate::{
     db::api::mutation::internal::InternalPropertyAdditionOps,
 };
 
-use super::Properties;
+use super::CollectProperties;
 
 pub trait PropertyAdditionOps {
     /// Adds properties to the given input vertex.
@@ -25,19 +25,19 @@ pub trait PropertyAdditionOps {
     /// let properties = vec![("color".to_owned(), Prop::Str("blue".to_owned())), ("weight".to_owned(), Prop::I64(11))];
     /// let result = graph.add_vertex_properties("Alice", properties);
     /// ```
-    fn add_vertex_properties<V: InputVertex, PI: Properties>(
+    fn add_vertex_properties<V: InputVertex, PI: CollectProperties>(
         &self,
         v: V,
         data: PI,
     ) -> Result<(), GraphError>;
 
-    fn add_properties<T: TryIntoTime, PI: Properties>(
+    fn add_properties<T: TryIntoTime, PI: CollectProperties>(
         &self,
         t: T,
         props: PI,
     ) -> Result<(), GraphError>;
 
-    fn add_static_properties<PI: Properties>(&self, props: PI) -> Result<(), GraphError>;
+    fn add_static_properties<PI: CollectProperties>(&self, props: PI) -> Result<(), GraphError>;
 
     /// Adds properties to an existing edge between a source and destination vertices
     ///
@@ -58,7 +58,7 @@ pub trait PropertyAdditionOps {
     /// let properties = vec![("price", 100)];
     /// let result = graph.add_edge_properties("Alice", "Bob", properties, None);
     /// ```
-    fn add_edge_properties<V: InputVertex, PI: Properties>(
+    fn add_edge_properties<V: InputVertex, PI: CollectProperties>(
         &self,
         src: V,
         dst: V,
@@ -68,7 +68,7 @@ pub trait PropertyAdditionOps {
 }
 
 impl<G: InternalPropertyAdditionOps> PropertyAdditionOps for G {
-    fn add_vertex_properties<V: InputVertex, PI: Properties>(
+    fn add_vertex_properties<V: InputVertex, PI: CollectProperties>(
         &self,
         v: V,
         data: PI,
@@ -76,7 +76,7 @@ impl<G: InternalPropertyAdditionOps> PropertyAdditionOps for G {
         self.internal_add_vertex_properties(v.id(), data.collect_properties())
     }
 
-    fn add_properties<T: TryIntoTime, PI: Properties>(
+    fn add_properties<T: TryIntoTime, PI: CollectProperties>(
         &self,
         t: T,
         props: PI,
@@ -84,11 +84,11 @@ impl<G: InternalPropertyAdditionOps> PropertyAdditionOps for G {
         self.internal_add_properties(t.try_into_time()?, props.collect_properties())
     }
 
-    fn add_static_properties<PI: Properties>(&self, props: PI) -> Result<(), GraphError> {
+    fn add_static_properties<PI: CollectProperties>(&self, props: PI) -> Result<(), GraphError> {
         self.internal_add_static_properties(props.collect_properties())
     }
 
-    fn add_edge_properties<V: InputVertex, PI: Properties>(
+    fn add_edge_properties<V: InputVertex, PI: CollectProperties>(
         &self,
         src: V,
         dst: V,
