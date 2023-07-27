@@ -79,6 +79,7 @@ impl<'source> FromPyObject<'source> for PyTemporalPropsCmp {
     }
 }
 
+/// A view of the temporal properties of an entity
 #[pyclass(name = "TemporalProperties")]
 pub struct PyTemporalProperties {
     props: DynTemporalProperties,
@@ -88,22 +89,39 @@ py_eq!(PyTemporalProperties, PyTemporalPropsCmp);
 
 #[pymethods]
 impl PyTemporalProperties {
+    /// List the available property keys
     fn keys(&self) -> Vec<String> {
         self.props.keys().map(|k| k.clone()).collect()
     }
+
+    /// List the values of the properties
+    ///
+    /// Returns:
+    ///     list[TemporalProp]: the list of property views
     fn values(&self) -> Vec<DynTemporalProperty> {
         self.props.values().collect()
     }
+
+    /// List the property keys together with the corresponding values
     fn items(&self) -> Vec<(String, DynTemporalProperty)> {
         self.props.iter().map(|(k, v)| (k.clone(), v)).collect()
     }
 
+    /// Get the latest value of all properties
+    ///
+    /// Returns:
+    ///     dict[str, Any]: the mapping of property keys to latest values
     fn latest(&self) -> HashMap<String, Prop> {
         self.props
             .iter_latest()
             .map(|(k, v)| (k.clone(), v))
             .collect()
     }
+
+    /// Get the histories of all properties
+    ///
+    /// Returns:
+    ///     dict[str, list[(int, Any)]]: the mapping of property keys to histories
     fn histories(&self) -> HashMap<String, Vec<(i64, Prop)>> {
         self.props
             .iter()
@@ -111,6 +129,13 @@ impl PyTemporalProperties {
             .collect()
     }
 
+    /// Get property value for `key`
+    ///
+    /// Returns:
+    ///     TemporalProp: the property view
+    ///
+    /// Raises:
+    ///     KeyError: if property `key` does not exist
     fn __getitem__(&self, key: &str) -> PyResult<Prop> {
         let v = self
             .props
@@ -119,25 +144,37 @@ impl PyTemporalProperties {
         Ok(v.latest().unwrap())
     }
 
+    /// Get property value for `key` if it exists
+    ///
+    /// Returns:
+    ///     Option[TemporalProp]: the property view
     fn get(&self, key: &str) -> Option<DynTemporalProperty> {
         // Fixme: Add option to specify default?
         self.props.get(key)
     }
 
+    /// Iterator over property keys
     fn __iter__(&self) -> PyGenericIterator {
         self.keys().into_iter().into()
     }
 
+    /// Check if property `key` exists
     fn __contains__(&self, key: &str) -> bool {
         self.props.contains(key)
     }
 
+    /// The number of properties
     fn __len__(&self) -> usize {
         self.keys().len()
     }
+
+    fn __repr__(&self) -> String {
+        self.props.repr()
+    }
 }
 
-#[pyclass(name = "Property")]
+/// A view of a temporal property
+#[pyclass(name = "TemporalProp")]
 pub struct PyTemporalProp {
     prop: DynTemporalProperty,
 }
@@ -179,24 +216,36 @@ py_eq!(PyTemporalProp, PyTemporalPropCmp);
 
 #[pymethods]
 impl PyTemporalProp {
+    /// Get the timestamps at which the property was updated
     pub fn history(&self) -> Vec<i64> {
         self.prop.history()
     }
+
+    /// Get the property values for each update
     pub fn values(&self) -> Vec<Prop> {
         self.prop.values()
     }
+
+    /// List update timestamps and corresponding property values
     pub fn items(&self) -> Vec<(i64, Prop)> {
         self.prop.iter().collect()
     }
 
+    /// Iterate over `items`
     pub fn __iter__(&self) -> PyGenericIterator {
         self.prop.iter().into()
     }
+    /// Get the value of the property at time `t`
     pub fn at(&self, t: PyTime) -> Option<Prop> {
         self.prop.at(t.into_time())
     }
+    /// Get the latest value of the property
     pub fn value(&self) -> Option<Prop> {
         self.prop.latest()
+    }
+
+    pub fn __repr__(&self) -> String {
+        self.prop.repr()
     }
 }
 
@@ -233,13 +282,16 @@ impl IntoPy<PyObject> for DynTemporalProperties {
 
 impl<P: PropertiesOps + Clone> Repr for TemporalProperties<P> {
     fn repr(&self) -> String {
-        format!("Properties({{{}}})", iterator_dict_repr(self.iter()))
+        format!(
+            "TemporalProperties({{{}}})",
+            iterator_dict_repr(self.iter())
+        )
     }
 }
 
 impl<P: PropertiesOps> Repr for TemporalPropertyView<P> {
     fn repr(&self) -> String {
-        format!("Property({})", iterator_repr(self.iter()))
+        format!("TemporalProp({})", iterator_repr(self.iter()))
     }
 }
 

@@ -66,6 +66,7 @@ impl From<DynProperties> for PyPropsComp {
     }
 }
 
+/// A view of the properties of an entity
 #[pyclass(name = "Properties")]
 pub struct PyProperties {
     props: DynProperties,
@@ -88,16 +89,19 @@ impl PyProperties {
         self.props.contains(key)
     }
 
+    /// gets property value if it exists, otherwise raises `KeyError`
     fn __getitem__(&self, key: &str) -> PyResult<Prop> {
         self.props
             .get(key)
             .ok_or(PyKeyError::new_err("No such property"))
     }
 
+    /// iterate over property keys
     fn __iter__(&self) -> PyGenericIterator {
         self.keys().into_iter().into()
     }
 
+    /// number of properties
     fn __len__(&self) -> usize {
         self.keys().len()
     }

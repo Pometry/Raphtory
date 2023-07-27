@@ -33,6 +33,7 @@ impl<P: PropertiesOps + Clone> Properties<P> {
         self.get(key).is_some()
     }
 
+    /// Iterate over all property keys
     pub fn keys(&self) -> impl Iterator<Item = LockedView<String>> + '_ {
         self.props.temporal_property_keys().chain(
             self.props
@@ -41,10 +42,12 @@ impl<P: PropertiesOps + Clone> Properties<P> {
         )
     }
 
+    /// Iterate over all property values
     pub fn values(&self) -> impl Iterator<Item = Prop> + '_ {
         self.keys().map(|k| self.get(&k).unwrap())
     }
 
+    /// Iterate over all property key-value pairs
     pub fn iter(&self) -> impl Iterator<Item = (LockedView<String>, Prop)> + '_ {
         self.keys().zip(self.values())
     }
@@ -54,15 +57,17 @@ impl<P: PropertiesOps + Clone> Properties<P> {
         TemporalProperties::new(self.props.clone())
     }
 
-    /// Get a view of the static properties (meta-data) only.
+    /// Get a view of the constant properties (meta-data) only.
     pub fn constant(&self) -> ConstProperties<P> {
         ConstProperties::new(self.props.clone())
     }
 
+    /// Collect properties into vector
     pub fn as_vec(&self) -> Vec<(String, Prop)> {
         self.iter().map(|(k, v)| (k.clone(), v)).collect()
     }
 
+    /// Collect properties into map
     pub fn as_map(&self) -> HashMap<String, Prop> {
         self.iter().map(|(k, v)| (k.clone(), v)).collect()
     }
@@ -76,5 +81,14 @@ impl<P: PropertiesOps + Clone> IntoIterator for Properties<P> {
         let keys: Vec<_> = self.keys().map(|k| k.clone()).collect();
         let vals: Vec<_> = self.values().collect();
         Box::new(keys.into_iter().zip(vals))
+    }
+}
+
+impl<'a, P: PropertiesOps + Clone + 'a> IntoIterator for &'a Properties<P> {
+    type Item = (LockedView<'a, String>, Prop);
+    type IntoIter = Box<dyn Iterator<Item = (LockedView<'a, String>, Prop)> + 'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        Box::new(self.iter())
     }
 }

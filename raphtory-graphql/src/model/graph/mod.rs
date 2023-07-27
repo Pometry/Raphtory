@@ -24,16 +24,11 @@ fn get_expanded_edges(
 
     let fetched_edges = vv.clone().edges().into_iter().map(|ee| ee.clone());
 
-    let mut filtered_fetched_edges = vec![];
-    match maybe_layers {
-        Some(layers) => {
-            filtered_fetched_edges = fetched_edges
-                .filter(|e| return layers.iter().contains(&e.layer_name()))
-                .collect_vec();
-        }
-        None => {
-            filtered_fetched_edges = fetched_edges.collect_vec();
-        }
+    let mut filtered_fetched_edges = match maybe_layers {
+        Some(layers) => fetched_edges
+            .filter(|e| return layers.iter().contains(&e.layer_name()))
+            .collect_vec(),
+        None => fetched_edges.collect_vec(),
     };
 
     let first_hop_edges = filtered_fetched_edges
@@ -53,7 +48,7 @@ fn get_expanded_edges(
 
     let first_hop_nodes = first_hop_nodes
         .into_iter()
-        .filter(|e| (*e).to_string() != *vv.name())
+        .filter(|e| e != &vv.name())
         .collect_vec();
 
     let node_found_in_first_hop_nodes =
