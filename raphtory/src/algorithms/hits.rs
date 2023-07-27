@@ -15,8 +15,7 @@ use crate::{
     },
 };
 use num_traits::abs;
-use rustc_hash::FxHashMap;
-use std::{collections::HashMap, ops::Range};
+use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 struct Hits {
@@ -37,7 +36,6 @@ struct Hits {
 #[allow(unused_variables)]
 pub fn hits<G: GraphViewOps>(
     g: &G,
-    window: Range<i64>,
     iter_count: usize,
     threads: Option<usize>,
 ) -> AlgorithmResult<String, (f32, f32)> {
@@ -168,7 +166,6 @@ mod hits_tests {
         db::{api::mutation::AdditionOps, graph::graph::Graph},
         prelude::NO_PROPS,
     };
-    use itertools::Itertools;
 
     fn load_graph(edges: Vec<(u64, u64)>) -> Graph {
         let graph = Graph::new();
@@ -199,9 +196,7 @@ mod hits_tests {
             (8, 1),
         ]);
 
-        let window = 0..10;
-
-        let results: AlgorithmResult<String, (f32, f32)> = hits(&graph, window, 20, None);
+        let results: AlgorithmResult<String, (f32, f32)> = hits(&graph, 20, None);
 
         // NetworkX results
         // >>> G = nx.DiGraph()

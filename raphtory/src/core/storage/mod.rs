@@ -223,7 +223,7 @@ impl<'a, T: 'static, const N: usize> Entry<'a, T, N> {
             f(what.unwrap())
         });
 
-        LockedView::Locked(mapped_guard)
+        LockedView::LockMapped(mapped_guard)
     }
 }
 

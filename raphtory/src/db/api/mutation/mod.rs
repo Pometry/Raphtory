@@ -9,11 +9,11 @@ pub use property_addition_ops::PropertyAdditionOps;
 
 use crate::prelude::Prop;
 
-pub trait Properties {
+pub trait CollectProperties {
     fn collect_properties(self) -> Vec<(String, Prop)>;
 }
 
-impl<S: AsRef<str>, P: Into<Prop>, PI> Properties for PI
+impl<S: AsRef<str>, P: Into<Prop>, PI> CollectProperties for PI
 where
     PI: IntoIterator<Item = (S, P)>,
 {

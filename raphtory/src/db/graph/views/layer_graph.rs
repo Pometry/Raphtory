@@ -3,8 +3,11 @@ use crate::{
         entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef, EID, VID},
         Direction,
     },
-    db::api::view::internal::{
-        Base, GraphOps, InheritCoreOps, InheritMaterialize, InheritTimeSemantics,
+    db::api::{
+        properties::internal::InheritPropertiesOps,
+        view::internal::{
+            Base, GraphOps, InheritCoreOps, InheritMaterialize, InheritTimeSemantics,
+        },
     },
     prelude::GraphViewOps,
 };
@@ -31,6 +34,8 @@ impl<G: GraphViewOps> InheritTimeSemantics for LayeredGraph<G> {}
 impl<G: GraphViewOps> InheritCoreOps for LayeredGraph<G> {}
 
 impl<G: GraphViewOps> InheritMaterialize for LayeredGraph<G> {}
+
+impl<G: GraphViewOps> InheritPropertiesOps for LayeredGraph<G> {}
 
 impl<G: GraphViewOps> LayeredGraph<G> {
     pub fn new(graph: G, layer: usize) -> Self {

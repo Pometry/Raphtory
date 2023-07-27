@@ -9,10 +9,12 @@ use raphtory_core::python::{
         edge::{PyEdge, PyEdges},
         graph::PyGraph,
         graph_with_deletions::PyGraphWithDeletions,
+        properties::{PyConstProperties, PyProperties, PyTemporalProp, PyTemporalProperties},
         vertex::{PyVertex, PyVertices},
     },
     packages::{algorithms::*, graph_gen::*, graph_loader::*},
 };
+
 /// Raphtory graph analytics library
 #[pymodule]
 fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
@@ -23,6 +25,10 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_class::<PyVertices>()?;
     m.add_class::<PyEdge>()?;
     m.add_class::<PyEdges>()?;
+    m.add_class::<PyProperties>()?;
+    m.add_class::<PyConstProperties>()?;
+    m.add_class::<PyTemporalProperties>()?;
+    m.add_class::<PyTemporalProp>()?;
 
     //GRAPHQL
     let graphql_module = PyModule::new(py, "internal_graphql")?;
@@ -71,6 +77,7 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         local_temporal_three_node_motifs,
         algorithm_module
     )?)?;
+    algorithm_module.add_function(wrap_pyfunction!(hits, algorithm_module)?)?;
     m.add_submodule(algorithm_module)?;
 
     //GRAPH LOADER

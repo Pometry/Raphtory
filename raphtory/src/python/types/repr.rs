@@ -1,9 +1,22 @@
+use crate::core::storage::locked_view::LockedView;
 use chrono::NaiveDateTime;
 use itertools::Itertools;
-use std::collections::HashMap;
+use std::{collections::HashMap, ops::Deref};
 
 pub fn iterator_repr<I: Iterator<Item = V>, V: Repr>(iter: I) -> String {
     let values: Vec<String> = iter.take(11).map(|v| v.repr()).collect();
+    if values.len() < 11 {
+        values.join(", ")
+    } else {
+        values[0..10].join(", ") + ", ..."
+    }
+}
+
+pub fn iterator_dict_repr<I: Iterator<Item = (K, V)>, K: Repr, V: Repr>(iter: I) -> String {
+    let values: Vec<String> = iter
+        .take(11)
+        .map(|(k, v)| format!("{}: {}", k.repr(), v.repr()))
+        .collect();
     if values.len() < 11 {
         values.join(", ")
     } else {
@@ -110,6 +123,12 @@ impl<K: Repr, V: Repr> Repr for HashMap<K, V> {
 impl<S: Repr, T: Repr> Repr for (S, T) {
     fn repr(&self) -> String {
         format!("({}, {})", self.0.repr(), self.1.repr())
+    }
+}
+
+impl<'a, T: Repr> Repr for LockedView<'a, T> {
+    fn repr(&self) -> String {
+        self.deref().repr()
     }
 }
 
