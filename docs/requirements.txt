@@ -64,7 +64,7 @@ requests==2.31.0
 six==1.16.0
 snowballstemmer==2.2.0
 soupsieve==2.4.1
-Sphinx==6.2.1
+sphinx==6.2.1
 sphinx-copybutton==0.5.2
 sphinx-toggleprompt==0.4.0
 sphinx_design==0.4.1

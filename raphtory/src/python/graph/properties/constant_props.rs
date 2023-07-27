@@ -89,6 +89,9 @@ impl PyConstProperties {
 
     /// get(key: str) -> Any | None
     ///
+    /// Arguments:
+    ///     key: the name of the property
+    ///
     /// get property value by key (returns `None` if key does not exist)
     pub fn get(&self, key: &str) -> Option<Prop> {
         // Fixme: Add option to specify default?
