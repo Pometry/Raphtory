@@ -236,12 +236,7 @@ pub trait TimeSemantics: GraphOps + CoreGraphOps {
     /// # Returns
     ///
     /// * A `Vec` of tuples containing the values of the temporal property with the given name for the given edge.
-    fn temporal_edge_prop_vec(
-        &self,
-        e: EdgeRef,
-        name: &str,
-        layer_ids: LayerIds,
-    ) -> Vec<(i64, Prop)>;
+    fn temporal_edge_prop_vec(&self, e: EdgeRef, name: &str) -> Vec<(i64, Prop)>;
 }
 
 pub trait InheritTimeSemantics: Base + GraphOps + CoreGraphOps {}
@@ -414,12 +409,7 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
             .temporal_edge_prop_vec_window(e, name, t_start, t_end)
     }
 
-    fn temporal_edge_prop_vec(
-        &self,
-        e: EdgeRef,
-        name: &str,
-        layer_ids: LayerIds,
-    ) -> Vec<(i64, Prop)> {
-        self.graph().temporal_edge_prop_vec(e, name, layer_ids)
+    fn temporal_edge_prop_vec(&self, e: EdgeRef, name: &str) -> Vec<(i64, Prop)> {
+        self.graph().temporal_edge_prop_vec(e, name)
     }
 }

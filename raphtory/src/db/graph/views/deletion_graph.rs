@@ -352,13 +352,8 @@ impl TimeSemantics for GraphWithDeletions {
         }
     }
 
-    fn temporal_edge_prop_vec(
-        &self,
-        e: EdgeRef,
-        name: &str,
-        layer_ids: LayerIds,
-    ) -> Vec<(i64, Prop)> {
-        self.graph.temporal_edge_prop_vec(e, name, layer_ids)
+    fn temporal_edge_prop_vec(&self, e: EdgeRef, name: &str) -> Vec<(i64, Prop)> {
+        self.graph.temporal_edge_prop_vec(e, name)
     }
 
     fn edge_layers(&self, e: EdgeRef, layer_ids: LayerIds) -> BoxedIter<EdgeRef> {
