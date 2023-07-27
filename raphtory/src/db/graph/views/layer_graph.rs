@@ -7,10 +7,13 @@ use crate::{
     },
     db::api::{
         properties::internal::InheritPropertiesOps,
-        view::internal::{
-            Base, GraphOps, InheritCoreOps, InheritMaterialize, InheritTimeSemantics, TimeSemantics,
+        view::{
+            internal::{
+                Base, GraphOps, InheritCoreOps, InheritMaterialize, InheritTimeSemantics,
+                TimeSemantics,
+            },
+            BoxedIter, Layer,
         },
-        view::{BoxedIter, Layer},
     },
     prelude::{GraphViewOps, Prop},
 };

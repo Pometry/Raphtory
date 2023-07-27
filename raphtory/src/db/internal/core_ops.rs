@@ -129,8 +129,11 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
     fn temporal_edge_prop(&self, e: EdgeRef, name: &str) -> Option<LockedView<TProp>> {
         let edge = self.edge(e.pid());
         let prop_id = self.edge_find_prop(name, false)?;
-
-        edge.temporal_property(0, prop_id) // FIXME: very broken
+        match e.layer() {
+            Some(layer) => edge.temporal_property(0, prop_id),
+            None => todo!(),
+        }
+        // FIXME: very broken
     }
 
     fn temporal_edge_prop_names<'a>(

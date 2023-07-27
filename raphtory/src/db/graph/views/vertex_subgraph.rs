@@ -5,10 +5,10 @@ use crate::{
     },
     db::api::{
         properties::internal::InheritPropertiesOps,
-        view::internal::{
-            Base, GraphOps, InheritCoreOps, InheritMaterialize, InheritTimeSemantics,
+        view::{
+            internal::{Base, GraphOps, InheritCoreOps, InheritMaterialize, InheritTimeSemantics},
+            Layer,
         },
-        view::Layer,
     },
     prelude::GraphViewOps,
 };

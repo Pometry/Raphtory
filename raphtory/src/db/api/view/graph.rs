@@ -173,9 +173,8 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
         let g = InnerTemporalGraph::default();
         // Add edges first so we definitely have all associated vertices (important in case of persistent edges)
         for e in self.edges() {
-            let layer_names = e.layer_names();
             // FIXME: this needs to be verified
-            for ee in e.explode() {
+            for ee in e.explode_layers().explode() {
                 g.add_edge(
                     ee.time().unwrap(),
                     ee.src().id(),

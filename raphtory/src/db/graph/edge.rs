@@ -109,7 +109,11 @@ impl<G: GraphViewOps> TemporalPropertiesOps for EdgeView<G> {
     }
 
     fn get_temporal_property(&self, key: &str) -> Option<String> {
-        (!self.graph.temporal_edge_prop_vec(self.edge, key).is_empty()).then_some(key.to_owned())
+        (!self
+            .graph
+            .temporal_edge_prop_vec(self.edge, key, LayerIds::All)
+            .is_empty())
+        .then_some(key.to_owned())
     }
 }
 
@@ -133,12 +137,11 @@ impl<G: GraphViewOps> EdgeViewOps for EdgeView<G> {
 
     fn explode_layers(&self) -> Self::EList {
         let ev = self.clone();
-        match self.edge.time() {
+        match self.edge.layer() {
             Some(_) => Box::new(iter::once(ev)),
             None => {
                 let e = self.edge;
                 let ex_iter = self.graph.edge_layers(e, LayerIds::All);
-                // FIXME: use duration
                 Box::new(ex_iter.map(move |ex| ev.new_edge(ex)))
             }
         }

@@ -153,8 +153,7 @@ mod db_tests {
     use super::*;
     use crate::{
         core::{
-            entities::vertices::vertex_ref::VertexRef,
-            entities::LayerIds,
+            entities::{vertices::vertex_ref::VertexRef, LayerIds},
             utils::time::{error::ParseTimeError, TryIntoTime},
             Direction, Prop,
         },
