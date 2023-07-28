@@ -11,6 +11,7 @@ pub trait LayerOps {
     fn layer<L: Into<Layer>>(&self, name: L) -> Option<Self::LayeredViewType>;
 }
 
+#[derive(Debug)]
 pub enum Layer {
     All,
     Default,

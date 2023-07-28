@@ -174,11 +174,15 @@ impl<const N: usize> TemporalGraph<N> {
                     .filter_map(|id| self.edge_meta.get_layer_id(id))
                     .collect::<Vec<_>>();
                 let num_layers = self.num_layers();
-                match new_layers.len() {
-                    0 => LayerIds::None,
-                    1 => LayerIds::One(new_layers[0]),
-                    num_layers => LayerIds::All,
-                    _ => LayerIds::Multiple(new_layers.into()),
+                let num_new_layers = new_layers.len();
+                if num_new_layers == 0 {
+                    LayerIds::None
+                } else if num_new_layers == 1 {
+                    LayerIds::One(new_layers[0])
+                } else if num_new_layers == num_layers {
+                    LayerIds::All
+                } else {
+                    LayerIds::Multiple(new_layers.into())
                 }
             }
         }
