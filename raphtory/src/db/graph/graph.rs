@@ -496,9 +496,9 @@ mod db_tests {
         let v11 = g.vertex(11).unwrap();
         let v22 = g.vertex(22).unwrap();
         let v33 = g.vertex(33).unwrap();
-        let edge1111 = g.edge(&v11, &v11, None).unwrap();
-        let edge2233 = g.edge(&v22, &v33, None).unwrap();
-        let edge3311 = g.edge(&v33, &v11, None).unwrap();
+        let edge1111 = g.edge(&v11, &v11, Layer::All).unwrap();
+        let edge2233 = g.edge(&v22, &v33, Layer::All).unwrap();
+        let edge3311 = g.edge(&v33, &v11, Layer::All).unwrap();
 
         g.add_vertex_properties(11, vec![("a", Prop::U64(11)), ("b", Prop::I64(11))])
             .unwrap();
@@ -1422,7 +1422,10 @@ mod db_tests {
 
         let e = g.edge(1, 2, Layer::All).expect("failed to get edge");
         let sum: u64 = e
-            .property_history("tx_sent")
+            .properties()
+            .temporal()
+            .get("tx_sent")
+            .unwrap()
             .iter()
             .filter_map(|(_, prop)| prop.clone().into_u64())
             .sum();
@@ -1434,7 +1437,10 @@ mod db_tests {
         let e = lg.edge(1, 2, Layer::All).expect("failed to get edge");
 
         let sum_eth_btc: u64 = e
-            .property_history("tx_sent")
+            .properties()
+            .temporal()
+            .get("tx_sent")
+            .unwrap()
             .iter()
             .filter_map(|(_, prop)| prop.clone().into_u64())
             .sum();
@@ -1449,13 +1455,19 @@ mod db_tests {
         let e_eth = e.layer("eth").expect("failed to get eth layer");
 
         let edge_btc_sum = e_btc
-            .property_history("tx_sent")
+            .properties()
+            .temporal()
+            .get("tx_sent")
+            .unwrap()
             .iter()
             .filter_map(|(_, prop)| prop.clone().into_u64())
             .sum::<u64>();
 
         let edge_eth_sum = e_eth
-            .property_history("tx_sent")
+            .properties()
+            .temporal()
+            .get("tx_sent")
+            .unwrap()
             .iter()
             .filter_map(|(_, prop)| prop.clone().into_u64())
             .sum::<u64>();
@@ -1467,7 +1479,10 @@ mod db_tests {
             .expect("failed to get eth,btc layers");
 
         let eth_sum = e_eth
-            .property_history("tx_sent")
+            .properties()
+            .temporal()
+            .get("tx_sent")
+            .unwrap()
             .iter()
             .filter_map(|(_, prop)| prop.clone().into_u64())
             .sum::<u64>();

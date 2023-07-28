@@ -176,7 +176,7 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
         t_end: i64,
         layer_ids: LayerIds,
     ) -> Vec<(i64, Prop)> {
-        self.temporal_edge_prop(e, name)
+        self.temporal_edge_prop(e, name, layer_ids)
             .map(|p| match e.time() {
                 Some(t) => {
                     if t >= t_start && t < t_end {
@@ -190,8 +190,13 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
             .unwrap_or_default()
     }
 
-    fn temporal_edge_prop_vec(&self, e: EdgeRef, name: &str) -> Vec<(i64, Prop)> {
-        self.temporal_edge_prop(e, name)
+    fn temporal_edge_prop_vec(
+        &self,
+        e: EdgeRef,
+        name: &str,
+        layer_ids: LayerIds,
+    ) -> Vec<(i64, Prop)> {
+        self.temporal_edge_prop(e, name, layer_ids)
             .map(|p| match e.time() {
                 Some(t) => p.iter_window(t..t.saturating_add(1)).collect(),
                 None => p.iter().collect(),

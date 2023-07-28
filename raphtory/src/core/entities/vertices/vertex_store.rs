@@ -11,7 +11,7 @@ use crate::core::{
 };
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-use std::{ops::Range, sync::Arc};
+use std::{iter, ops::Range, sync::Arc};
 
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
 pub(crate) struct VertexStore<const N: usize> {
@@ -81,6 +81,7 @@ impl<const N: usize> VertexStore<N> {
                     .get(*layer_id)
                     .and_then(|layer| layer.get_edge(dst, Direction::OUT))
             }),
+            LayerIds::None => None,
         }
     }
 
@@ -165,6 +166,7 @@ impl<const N: usize> VertexStore<N> {
                     .kmerge_by(|e1, e2| e1.remote() < e2.remote())
                     .dedup(),
             ),
+            LayerIds::None => Box::new(iter::empty()),
         }
     }
 
@@ -225,6 +227,7 @@ impl<const N: usize> VertexStore<N> {
                     .dedup();
                 Box::new(iter)
             }
+            LayerIds::None => Box::new(iter::empty()),
         }
     }
 

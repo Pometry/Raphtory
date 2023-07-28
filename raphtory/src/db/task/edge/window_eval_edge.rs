@@ -104,12 +104,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> ConstPropertiesOps
     for WindowEvalEdgeView<'a, G, CS, S>
 {
     fn const_property_keys<'b>(&'b self) -> Box<dyn Iterator<Item = LockedView<'b, String>> + 'b> {
-        Box::new(self.g.static_edge_prop_names(self.ev).filter(|k| {
-            !self
-                .g
-                .temporal_edge_prop_vec_window(self.ev, k, self.t_start, self.t_end)
-                .is_empty()
-        }))
+        Box::new(self.g.static_edge_prop_names(self.ev, self.g.layer_ids()))
     }
 
     fn get_const_property(&self, key: &str) -> Option<Prop> {
@@ -137,14 +132,26 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> TemporalPropertyViewOps
 {
     fn temporal_value(&self, id: &String) -> Option<Prop> {
         self.g
-            .temporal_edge_prop_vec_window(self.ev, id, self.t_start, self.t_end)
+            .temporal_edge_prop_vec_window(
+                self.ev,
+                id,
+                self.t_start,
+                self.t_end,
+                self.g.layer_ids(),
+            )
             .last()
             .map(|(_, v)| v.to_owned())
     }
 
     fn temporal_history(&self, id: &String) -> Vec<i64> {
         self.g
-            .temporal_edge_prop_vec_window(self.ev, id, self.t_start, self.t_end)
+            .temporal_edge_prop_vec_window(
+                self.ev,
+                id,
+                self.t_start,
+                self.t_end,
+                self.g.layer_ids(),
+            )
             .into_iter()
             .map(|(t, _)| t)
             .collect()
@@ -152,7 +159,13 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> TemporalPropertyViewOps
 
     fn temporal_values(&self, id: &String) -> Vec<Prop> {
         self.g
-            .temporal_edge_prop_vec_window(self.ev, id, self.t_start, self.t_end)
+            .temporal_edge_prop_vec_window(
+                self.ev,
+                id,
+                self.t_start,
+                self.t_end,
+                self.g.layer_ids(),
+            )
             .into_iter()
             .map(|(_, v)| v)
             .collect()
@@ -168,7 +181,13 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> TemporalPropertiesOps
         Box::new(self.g.temporal_edge_prop_names(self.ev).filter(|k| {
             !self
                 .g
-                .temporal_edge_prop_vec_window(self.ev, k, self.t_start, self.t_end)
+                .temporal_edge_prop_vec_window(
+                    self.ev,
+                    k,
+                    self.t_start,
+                    self.t_end,
+                    self.g.layer_ids(),
+                )
                 .is_empty()
         }))
     }
@@ -176,7 +195,13 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> TemporalPropertiesOps
     fn get_temporal_property(&self, key: &str) -> Option<String> {
         (!self
             .g
-            .temporal_edge_prop_vec_window(self.ev, key, self.t_start, self.t_end)
+            .temporal_edge_prop_vec_window(
+                self.ev,
+                key,
+                self.t_start,
+                self.t_end,
+                self.g.layer_ids(),
+            )
             .is_empty())
         .then_some(key.to_string())
     }
@@ -202,13 +227,14 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeViewOps
         match self.eref().time() {
             Some(tt) => tt == t,
             None => {
+                let layer_ids = self.graph().layer_ids().constrain_from_edge(self.eref());
                 (self.t_start..self.t_end).contains(&t)
                     && self.graph().has_edge_ref_window(
                         self.eref().src(),
                         self.eref().dst(),
                         t,
                         t.saturating_add(1),
-                        self.eref().layer(),
+                        layer_ids,
                     )
             }
         }

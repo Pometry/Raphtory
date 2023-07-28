@@ -110,6 +110,9 @@ pub trait EdgeViewOps:
                     .iter()
                     .map(|id| self.graph().get_layer_name_by_id(*id))
                     .collect(),
+                LayerIds::None => {
+                    vec![]
+                }
             }
         } else {
             vec![]

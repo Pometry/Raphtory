@@ -106,6 +106,7 @@ impl<const N: usize> EdgeStore<N> {
             LayerIds::Multiple(layer_ids) => layer_ids
                 .iter()
                 .any(|layer_id| self.has_layer(&LayerIds::One(*layer_id))),
+            LayerIds::None => false,
         }
     }
 

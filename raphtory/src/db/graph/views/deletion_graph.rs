@@ -50,10 +50,10 @@ impl Display for GraphWithDeletions {
 }
 
 impl GraphWithDeletions {
-    fn edge_alive_at(&self, e: EdgeRef, t: i64) -> bool {
+    fn edge_alive_at(&self, e: EdgeRef, t: i64, layer_ids: LayerIds) -> bool {
         // FIXME: assumes additions are before deletions if at the same timestamp (need to have strict ordering/secondary index)
-        let additions = self.edge_additions(e);
-        let deletions = self.edge_deletions(e);
+        let additions = self.edge_additions(e, layer_ids.clone());
+        let deletions = self.edge_deletions(e, layer_ids);
 
         let first_addition = additions.first();
         let first_deletion = deletions.first();
@@ -172,8 +172,8 @@ impl TimeSemantics for GraphWithDeletions {
     }
 
     fn include_vertex_window(&self, v: VID, w: Range<i64>) -> bool {
-        self.vertex_edges(v, Direction::BOTH, LayerIds::All)
-            .any(move |e| self.include_edge_window(e, w.clone(), LayerIds::All))
+        self.vertex_edges(v, Direction::BOTH, self.layer_ids())
+            .any(move |e| self.include_edge_window(e, w.clone(), self.layer_ids()))
     }
 
     fn include_edge_window(&self, e: EdgeRef, w: Range<i64>, layer_ids: LayerIds) -> bool {
@@ -334,14 +334,15 @@ impl TimeSemantics for GraphWithDeletions {
         name: &str,
         t_start: i64,
         t_end: i64,
+        layer_ids: LayerIds,
     ) -> Vec<(i64, Prop)> {
-        let prop = self.temporal_edge_prop(e, name);
+        let prop = self.temporal_edge_prop(e, name, layer_ids.clone());
         match prop {
             Some(p) => {
-                if self.edge_alive_at(e, t_start) {
+                if self.edge_alive_at(e, t_start, layer_ids) {
                     p.last_before(t_start.saturating_add(1))
                         .into_iter()
-                        .map(|v| (t_start, v))
+                        .map(|(_, v)| (t_start, v))
                         .chain(p.iter_window(t_start.saturating_add(1)..t_end))
                         .collect()
                 } else {

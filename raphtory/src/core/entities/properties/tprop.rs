@@ -45,6 +45,12 @@ impl TProp {
             Prop::Bool(value) => TProp::Bool(TCell::new(t, *value)),
             Prop::DTime(value) => TProp::DTime(TCell::new(t, *value)),
             Prop::Graph(value) => TProp::Graph(TCell::new(t, value.clone())),
+            Prop::List(value) => {
+                todo!()
+            }
+            Prop::Map(_) => {
+                todo!()
+            }
         }
     }
 
@@ -225,10 +231,10 @@ impl<'a> LockedLayeredTProp<'a> {
                 .flatten()
                 .flat_map(|p| p.last_before(t))
                 .max_by_key(|v| v.0),
-            LayerIds::One(id) => self.tprop[*id].and_then(|p| p.last_before(t)),
+            LayerIds::One(id) => self.tprop[*id].as_ref().and_then(|p| p.last_before(t)),
             LayerIds::Multiple(ids) => ids
                 .iter()
-                .flat_map(|i| self.tprop[*i].map(|p| p.last_before(t)))
+                .flat_map(|i| self.tprop[*i].as_ref().map(|p| p.last_before(t)))
                 .flatten()
                 .max_by_key(|v| v.0),
             LayerIds::None => None,
@@ -250,7 +256,7 @@ impl<'a> LockedLayeredTProp<'a> {
             },
             LayerIds::Multiple(ids) => Box::new(
                 ids.iter()
-                    .flat_map(|id| self.tprop[*id].map(|p| p.iter()))
+                    .flat_map(|id| self.tprop[*id].as_ref().map(|p| p.iter()))
                     .kmerge_by(|a, b| a.0 < b.0),
             ),
             LayerIds::None => Box::new(iter::empty()),
@@ -263,7 +269,7 @@ impl<'a> LockedLayeredTProp<'a> {
                 self.tprop
                     .iter()
                     .flatten()
-                    .map(|p| p.iter_window(r))
+                    .map(|p| p.iter_window(r.clone()))
                     .kmerge_by(|a, b| a.0 < b.0),
             ),
             LayerIds::One(id) => match &self.tprop[*id] {
@@ -272,7 +278,7 @@ impl<'a> LockedLayeredTProp<'a> {
             },
             LayerIds::Multiple(ids) => Box::new(
                 ids.iter()
-                    .flat_map(|id| self.tprop[*id].map(|p| p.iter_window(r)))
+                    .flat_map(|id| self.tprop[*id].as_ref().map(|p| p.iter_window(r.clone())))
                     .kmerge_by(|a, b| a.0 < b.0),
             ),
             LayerIds::None => Box::new(iter::empty()),

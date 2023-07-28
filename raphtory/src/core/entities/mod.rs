@@ -2,6 +2,7 @@
 
 use std::{ops::Deref, sync::Arc};
 
+use crate::core::entities::edges::edge_ref::EdgeRef;
 use edges::edge::ERef;
 use graph::{tgraph::TGraph, tgraph_storage::GraphEntry};
 use serde::{Deserialize, Serialize};
@@ -132,6 +133,17 @@ impl LayerIds {
                 }
             }
             LayerIds::Multiple(ids) => ids.binary_search(&layer_id).ok().map(|_| layer_id),
+            LayerIds::None => None,
+        }
+    }
+
+    pub fn constrain_from_edge(self, e: EdgeRef) -> LayerIds {
+        match e.layer() {
+            None => self,
+            Some(l) => self
+                .find(*l)
+                .map(|l| LayerIds::One(l))
+                .unwrap_or(LayerIds::None),
         }
     }
 

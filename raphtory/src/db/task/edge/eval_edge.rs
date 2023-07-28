@@ -86,7 +86,8 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> ConstPropertiesOps
     for EvalEdgeView<'a, G, CS, S>
 {
     fn const_property_keys<'b>(&'b self) -> Box<dyn Iterator<Item = LockedView<'b, String>> + 'b> {
-        self.graph.static_edge_prop_names(self.ev)
+        self.graph
+            .static_edge_prop_names(self.ev, self.graph.layer_ids())
     }
 
     fn get_const_property(&self, key: &str) -> Option<Prop> {
@@ -112,7 +113,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> TemporalPropertyViewOps
 {
     fn temporal_history(&self, id: &String) -> Vec<i64> {
         self.graph
-            .temporal_edge_prop_vec(self.ev, id)
+            .temporal_edge_prop_vec(self.ev, id, self.graph.layer_ids())
             .into_iter()
             .map(|(t, _)| t)
             .collect()
@@ -120,7 +121,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> TemporalPropertyViewOps
 
     fn temporal_values(&self, id: &String) -> Vec<Prop> {
         self.graph
-            .temporal_edge_prop_vec(self.ev, id)
+            .temporal_edge_prop_vec(self.ev, id, self.graph.layer_ids())
             .into_iter()
             .map(|(_, v)| v)
             .collect()
@@ -137,7 +138,11 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> TemporalPropertiesOps
     }
 
     fn get_temporal_property(&self, key: &str) -> Option<String> {
-        (!self.graph.temporal_edge_prop_vec(self.ev, key).is_empty()).then_some(key.to_owned())
+        (!self
+            .graph
+            .temporal_edge_prop_vec(self.ev, key, self.graph.layer_ids())
+            .is_empty())
+        .then_some(key.to_owned())
     }
 }
 

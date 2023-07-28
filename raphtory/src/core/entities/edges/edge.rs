@@ -16,7 +16,9 @@ use crate::core::{
     },
     Direction, Prop,
 };
+// use crate::prelude::Layer::Default;
 use std::{
+    default::Default,
     ops::{Deref, Range},
     sync::Arc,
 };
@@ -139,6 +141,7 @@ impl<'a, const N: usize> EdgeView<'a, N> {
                 }
                 props
             }
+            LayerIds::None => Vec::default(),
         }
     }
 
@@ -177,15 +180,17 @@ impl<'a, const N: usize> EdgeView<'a, N> {
                                 .layer_ids_iter()
                                 .map(|id| {
                                     entry.temporal_prop_layer(id, prop_id).is_some().then(|| {
-                                        entry.map(|e| e.temporal_prop_layer(id, prop_id).unwrap())
+                                        entry
+                                            .clone()
+                                            .map(|e| e.temporal_prop_layer(id, prop_id).unwrap())
                                     })
                                 })
                                 .collect();
-                            Some(LockedLayeredTProp {
-                                layers: layer_ids,
-                                layer_meta: self.graph.edge_meta.layer_meta(),
-                                tprop: props,
-                            })
+                            Some(LockedLayeredTProp::new(
+                                layer_ids,
+                                self.graph.edge_meta.layer_meta(),
+                                props,
+                            ))
                         }
                         LayerIds::One(_) => None,
                         LayerIds::Multiple(_) => None,
@@ -296,6 +301,7 @@ impl<'a, const N: usize> EdgeView<'a, N> {
             LayerIds::All => e.additions().iter().any(f),
             LayerIds::One(id) => f(&e.additions()[id]),
             LayerIds::Multiple(ids) => ids.iter().any(|id| f(&e.additions()[*id])),
+            LayerIds::None => false,
         }
     }
 

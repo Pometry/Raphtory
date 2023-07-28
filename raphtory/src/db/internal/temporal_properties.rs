@@ -7,7 +7,7 @@ use parking_lot::RwLockReadGuard;
 impl<const N: usize> TemporalPropertyViewOps for InnerTemporalGraph<N> {
     fn temporal_value(&self, id: &Key) -> Option<Prop> {
         self.get_temporal_prop(id)
-            .and_then(|prop| prop.last_before(i64::MAX))
+            .and_then(|prop| prop.last_before(i64::MAX).map(|(_, v)| v))
     }
 
     fn temporal_history(&self, id: &Key) -> Vec<i64> {
@@ -24,7 +24,7 @@ impl<const N: usize> TemporalPropertyViewOps for InnerTemporalGraph<N> {
 
     fn temporal_value_at(&self, id: &Key, t: i64) -> Option<Prop> {
         self.get_temporal_prop(id)
-            .and_then(|prop| prop.last_before(t.saturating_add(1)))
+            .and_then(|prop| prop.last_before(t.saturating_add(1)).map(|(_, v)| v))
     }
 }
 

@@ -15,6 +15,8 @@ use crate::{
     db::api::view::internal::CoreGraphOps,
     prelude::Prop,
 };
+use itertools::Itertools;
+use std::iter;
 
 impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
     fn get_layer_name_by_id(&self, layer_id: usize) -> String {
@@ -30,9 +32,18 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
         self.vertex_name(v.into())
     }
 
-    fn edge_additions(&self, eref: EdgeRef) -> LockedLayeredIndex<'_> {
+    fn edge_additions(&self, eref: EdgeRef, layer_ids: LayerIds) -> LockedLayeredIndex<'_> {
         let edge = self.edge(eref.pid());
-        let layer_ids = self.layer_ids();
+        let layer_ids = match eref.layer() {
+            None => layer_ids,
+            Some(l) => {
+                if layer_ids.contains(l) {
+                    LayerIds::One(*l)
+                } else {
+                    LayerIds::None
+                }
+            }
+        };
         edge.additions(layer_ids).unwrap()
     }
 
@@ -119,25 +130,52 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
     fn static_edge_prop_names<'a>(
         &'a self,
         e: EdgeRef,
+        layer_ids: LayerIds,
     ) -> Box<dyn Iterator<Item = LockedView<'a, String>> + 'a> {
-        let ids = self
-            .edge_entry(e.pid())
-            .unsafe_layer(e.layer())
-            .static_prop_ids();
-        Box::new(
-            ids.into_iter()
-                .flat_map(|prop_id| self.edge_reverse_prop_id(prop_id, true)),
-        )
+        let layer_ids = layer_ids.constrain_from_edge(e);
+        let entry = self.edge_entry(e.pid());
+        match layer_ids {
+            LayerIds::None => Box::new(iter::empty()),
+            LayerIds::All => Box::new(
+                entry
+                    .layer_ids_iter()
+                    .map(|id| entry.unsafe_layer(id).static_prop_ids())
+                    .kmerge()
+                    .dedup()
+                    .flat_map(|id| self.edge_reverse_prop_id(id, true)),
+            ),
+            LayerIds::One(id) => Box::new(
+                entry
+                    .unsafe_layer(id)
+                    .static_prop_ids()
+                    .into_iter()
+                    .flat_map(|id| self.edge_reverse_prop_id(id, true)),
+            ),
+            LayerIds::Multiple(ids) => Box::new(
+                ids.iter()
+                    .map(|id| entry.unsafe_layer(*id).static_prop_ids())
+                    .kmerge()
+                    .dedup()
+                    .flat_map(|id| self.edge_reverse_prop_id(id, true)),
+            ),
+        }
     }
 
-    fn temporal_edge_prop(&self, e: EdgeRef, name: &str) -> Option<LockedLayeredTProp> {
+    fn temporal_edge_prop(
+        &self,
+        e: EdgeRef,
+        name: &str,
+        layer_ids: LayerIds,
+    ) -> Option<LockedLayeredTProp> {
         let edge = self.edge(e.pid());
         let prop_id = self.edge_find_prop(name, false)?;
         match e.layer() {
-            Some(layer) => edge.temporal_property(0, prop_id),
-            None => todo!(),
+            Some(layer) => layer_ids
+                .contains(layer)
+                .then(|| edge.temporal_property(LayerIds::One(*layer), prop_id))
+                .flatten(),
+            None => edge.temporal_property(layer_ids, prop_id),
         }
-        // FIXME: very broken
     }
 
     fn temporal_edge_prop_names<'a>(
@@ -172,6 +210,6 @@ mod test_edges {
             .unwrap();
 
         let e = g.edge(1, 2, "layer1").unwrap();
-        assert!(e.has_static_property("layer1"));
+        assert!(e.properties().constant().contains("layer1"));
     }
 }

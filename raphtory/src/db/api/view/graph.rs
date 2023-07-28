@@ -259,7 +259,9 @@ mod test_materialize {
             .unwrap()
             .edge(1, 2, Layer::All)
             .unwrap()
-            .has_property("layer1", false));
+            .properties()
+            .temporal()
+            .contains("layer1"));
         assert!(!gm
             .into_events()
             .unwrap()
@@ -267,6 +269,8 @@ mod test_materialize {
             .unwrap()
             .edge(1, 2, Layer::All)
             .unwrap()
-            .has_property("layer1", false));
+            .properties()
+            .temporal()
+            .contains("layer1"));
     }
 }

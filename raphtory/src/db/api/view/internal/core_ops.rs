@@ -13,6 +13,7 @@ use crate::{
         Prop,
     },
     db::api::view::internal::Base,
+    prelude::Layer,
 };
 
 /// Core functions that should (almost-)always be implemented by pointing at the underlying graph.
@@ -33,7 +34,7 @@ pub trait CoreGraphOps {
 
     /// Get all the addition timestamps for an edge
     /// (this should always be global and not affected by windowing as deletion semantics may need information outside the current view!)
-    fn edge_additions(&self, eref: EdgeRef) -> LockedLayeredIndex<'_>;
+    fn edge_additions(&self, eref: EdgeRef, layer_ids: LayerIds) -> LockedLayeredIndex<'_>;
 
     /// Get all the addition timestamps for a vertex
     /// (this should always be global and not affected by windowing as deletion semantics may need information outside the current view!)
@@ -168,6 +169,7 @@ pub trait CoreGraphOps {
     fn static_edge_prop_names<'a>(
         &'a self,
         e: EdgeRef,
+        layer_ids: LayerIds,
     ) -> Box<dyn Iterator<Item = LockedView<'a, String>> + 'a>;
 
     /// Returns a vector of all temporal values of the edge property with the given name for the
@@ -181,7 +183,12 @@ pub trait CoreGraphOps {
     /// # Returns
     ///
     /// A property if it exists
-    fn temporal_edge_prop(&self, e: EdgeRef, name: &str) -> Option<LockedLayeredTProp>;
+    fn temporal_edge_prop(
+        &self,
+        e: EdgeRef,
+        name: &str,
+        layer_ids: LayerIds,
+    ) -> Option<LockedLayeredTProp>;
 
     /// Returns a vector of keys for the temporal properties of the given edge reference.
     ///
@@ -238,8 +245,8 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
         self.graph().vertex_name(v)
     }
 
-    fn edge_additions(&self, eref: EdgeRef) -> LockedLayeredIndex<'_> {
-        self.graph().edge_additions(eref)
+    fn edge_additions(&self, eref: EdgeRef, layer_ids: LayerIds) -> LockedLayeredIndex<'_> {
+        self.graph().edge_additions(eref, layer_ids)
     }
 
     fn vertex_additions(&self, v: VID) -> LockedView<TimeIndex> {
@@ -303,12 +310,18 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
     fn static_edge_prop_names<'a>(
         &'a self,
         e: EdgeRef,
+        layer_ids: LayerIds,
     ) -> Box<dyn Iterator<Item = LockedView<'a, String>> + 'a> {
-        self.graph().static_edge_prop_names(e)
+        self.graph().static_edge_prop_names(e, layer_ids)
     }
 
-    fn temporal_edge_prop(&self, e: EdgeRef, name: &str) -> Option<LockedLayeredTProp> {
-        self.graph().temporal_edge_prop(e, name)
+    fn temporal_edge_prop(
+        &self,
+        e: EdgeRef,
+        name: &str,
+        layer_ids: LayerIds,
+    ) -> Option<LockedLayeredTProp> {
+        self.graph().temporal_edge_prop(e, name, layer_ids)
     }
 
     fn temporal_edge_prop_names<'a>(
