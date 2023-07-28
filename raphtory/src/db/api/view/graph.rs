@@ -105,10 +105,7 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
 
     /// Return all the layer ids in the graph
     fn get_unique_layers(&self) -> Vec<String> {
-        self.get_unique_layers_internal()
-            .into_iter()
-            .map(|id| self.get_layer_name_by_id(id))
-            .collect_vec()
+        self.get_layer_names_from_ids(self.layer_ids())
     }
 
     fn earliest_time(&self) -> Option<i64> {
@@ -132,10 +129,11 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
     }
 
     fn has_edge<T: Into<VertexRef>, L: Into<Layer>>(&self, src: T, dst: T, layer: L) -> bool {
-        match self.get_layer_id(layer.into()) {
-            Some(layer_id) => self.has_edge_ref(src.into(), dst.into(), layer_id),
-            None => false,
-        }
+        self.has_edge_ref(
+            src.into(),
+            dst.into(),
+            self.layer_ids_from_names(layer.into()),
+        )
     }
 
     fn vertex<T: Into<VertexRef>>(&self, v: T) -> Option<VertexView<Self>> {
@@ -155,7 +153,7 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
         dst: T,
         layer: L,
     ) -> Option<EdgeView<Self>> {
-        let layer_id = self.get_layer_id(layer.into())?;
+        let layer_id = self.layer_ids_from_names(layer.into());
 
         self.edge_ref(src.into(), dst.into(), layer_id)
             .map(|e| EdgeView::new(self.clone(), e))
@@ -238,8 +236,11 @@ impl<G: GraphViewOps> LayerOps for G {
 
     fn layer<L: Into<Layer>>(&self, layers: L) -> Option<Self::LayeredViewType> {
         let layers = layers.into();
-        let ids = self.get_layer_id(layers)?;
-        Some(LayeredGraph::new(self.clone(), ids))
+        let ids = self.layer_ids_from_names(layers);
+        match ids {
+            LayerIds::None => None,
+            _ => Some(LayeredGraph::new(self.clone(), ids)),
+        }
     }
 }
 

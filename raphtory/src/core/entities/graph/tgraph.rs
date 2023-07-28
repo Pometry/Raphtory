@@ -36,19 +36,33 @@ use parking_lot::RwLockReadGuard;
 use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, hash::BuildHasherDefault, ops::Deref, path::Path, sync::Arc};
+use tantivy::HasLen;
 
 pub(crate) type FxDashMap<K, V> = DashMap<K, V, BuildHasherDefault<FxHasher>>;
 
-pub(crate) type TGraph<const N: usize> = InnerTemporalGraph<N>;
+pub(crate) type TGraph<const N: usize> = TemporalGraph<N>;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct InnerTemporalGraph<const N: usize>(Arc<TemporalGraph<N>>);
 
-impl<const N: usize> Deref for InnerTemporalGraph<N> {
-    type Target = TemporalGraph<N>;
-
-    fn deref(&self) -> &Self::Target {
+impl<const N: usize> InnerTemporalGraph<N> {
+    pub(crate) fn inner(&self) -> &TemporalGraph<N> {
         &self.0
+    }
+
+    pub(crate) fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self, Box<bincode::ErrorKind>> {
+        let f = std::fs::File::open(path)?;
+        let mut reader = std::io::BufReader::new(f);
+        bincode::deserialize_from(&mut reader)
+    }
+
+    pub(crate) fn save_to_file<P: AsRef<Path>>(
+        &self,
+        path: P,
+    ) -> Result<(), Box<bincode::ErrorKind>> {
+        let f = std::fs::File::create(path)?;
+        let mut writer = std::io::BufWriter::new(f);
+        bincode::serialize_into(&mut writer, self)
     }
 }
 
@@ -80,8 +94,8 @@ impl<const N: usize> std::fmt::Display for InnerTemporalGraph<N> {
         write!(
             f,
             "Graph(num_vertices={}, num_edges={})",
-            self.storage.nodes_len(),
-            self.storage.edges_len(LayerIds::All)
+            self.inner().storage.nodes_len(),
+            self.inner().storage.edges_len(LayerIds::All)
         )
     }
 }
@@ -102,7 +116,38 @@ impl<const N: usize> Default for InnerTemporalGraph<N> {
     }
 }
 
-impl<const N: usize> InnerTemporalGraph<N> {
+impl<const N: usize> TemporalGraph<N> {
+    pub(crate) fn num_layers(&self) -> usize {
+        self.edge_meta.layer_meta().len()
+    }
+
+    pub(crate) fn layer_names(&self, layer_ids: LayerIds) -> Vec<String> {
+        match layer_ids {
+            LayerIds::None => {
+                vec![]
+            }
+            LayerIds::All => self.edge_meta.layer_meta().get_keys().clone(),
+            LayerIds::One(id) => {
+                vec![self
+                    .edge_meta
+                    .layer_meta()
+                    .reverse_lookup(id)
+                    .unwrap()
+                    .clone()]
+            }
+            LayerIds::Multiple(ids) => ids
+                .iter()
+                .map(|id| {
+                    self.edge_meta
+                        .layer_meta()
+                        .reverse_lookup(*id)
+                        .unwrap()
+                        .clone()
+                })
+                .collect(),
+        }
+    }
+
     pub(crate) fn get_all_vertex_property_names(&self, is_static: bool) -> Vec<String> {
         self.vertex_meta.get_all_property_names(is_static)
     }
@@ -115,20 +160,25 @@ impl<const N: usize> InnerTemporalGraph<N> {
         self.edge_meta.get_all_layers()
     }
 
-    pub(crate) fn layer_id(&self, key: Layer) -> Option<LayerIds> {
+    pub(crate) fn layer_id(&self, key: Layer) -> LayerIds {
         match key {
-            Layer::All => Some(LayerIds::All),
-            Layer::Default => Some(LayerIds::One(0)),
-            Layer::One(id) => self.edge_meta.get_layer_id(&id).map(|id| LayerIds::One(id)),
+            Layer::All => LayerIds::All,
+            Layer::Default => LayerIds::One(0),
+            Layer::One(id) => match self.edge_meta.get_layer_id(&id) {
+                Some(id) => LayerIds::One(id),
+                None => LayerIds::None,
+            },
             Layer::Multiple(ids) => {
                 let new_layers = ids
                     .iter()
                     .filter_map(|id| self.edge_meta.get_layer_id(id))
                     .collect::<Vec<_>>();
-                if new_layers.is_empty() {
-                    None
-                } else {
-                    Some(new_layers.into())
+                let num_layers = self.num_layers();
+                match new_layers.len() {
+                    0 => LayerIds::None,
+                    1 => LayerIds::One(new_layers[0]),
+                    num_layers => LayerIds::All,
+                    _ => LayerIds::Multiple(new_layers.into()),
                 }
             }
         }
@@ -226,7 +276,7 @@ impl<const N: usize> InnerTemporalGraph<N> {
     }
 }
 
-impl<const N: usize> InnerTemporalGraph<N> {
+impl<const N: usize> TemporalGraph<N> {
     pub(crate) fn internal_num_vertices(&self) -> usize {
         self.storage.nodes_len()
     }
@@ -537,26 +587,6 @@ impl<const N: usize> InnerTemporalGraph<N> {
         self.storage.locked_edges()
     }
 
-    pub(crate) fn vertex(&self, v: VID) -> Vertex<N> {
-        let node = self.storage.get_node(v.into());
-        Vertex::from_entry(node, self)
-    }
-
-    pub(crate) fn vertex_arc(&self, v: VID) -> ArcVertex<N> {
-        let node = self.storage.get_node_arc(v.into());
-        ArcVertex::from_entry(node, self.vertex_meta.clone())
-    }
-
-    pub(crate) fn edge_arc(&self, e: EID) -> ArcEdge<N> {
-        let edge = self.storage.get_edge_arc(e.into());
-        ArcEdge::from_entry(edge, self.edge_meta.clone())
-    }
-
-    pub(crate) fn edge<'a>(&'a self, e: EID) -> EdgeView<'a, N> {
-        let edge = self.storage.get_edge(e.into());
-        EdgeView::from_entry(edge, self)
-    }
-
     pub(crate) fn find_edge(&self, src: VID, dst: VID, layer_id: LayerIds) -> Option<EID> {
         let node = self.storage.get_node(src.into());
         node.find_edge(dst, layer_id)
@@ -597,5 +627,25 @@ impl<const N: usize> InnerTemporalGraph<N> {
                 .flat_map(|props| props.temporal_props_window(prop_id, t_start, t_end))
                 .collect()
         }
+    }
+
+    pub(crate) fn vertex(&self, v: VID) -> Vertex<N> {
+        let node = self.storage.get_node(v.into());
+        Vertex::from_entry(node, self)
+    }
+
+    pub(crate) fn vertex_arc(&self, v: VID) -> ArcVertex<N> {
+        let node = self.storage.get_node_arc(v.into());
+        ArcVertex::from_entry(node, self.vertex_meta.clone())
+    }
+
+    pub(crate) fn edge_arc(&self, e: EID) -> ArcEdge<N> {
+        let edge = self.storage.get_edge_arc(e.into());
+        ArcEdge::from_entry(edge, self.edge_meta.clone())
+    }
+
+    pub(crate) fn edge(&self, e: EID) -> EdgeView<N> {
+        let edge = self.storage.get_edge(e.into());
+        EdgeView::from_entry(edge, self)
     }
 }

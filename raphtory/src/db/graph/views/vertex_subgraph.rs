@@ -47,6 +47,16 @@ impl<G: GraphViewOps> VertexSubgraph<G> {
 }
 
 impl<G: GraphViewOps> GraphOps for VertexSubgraph<G> {
+    fn layer_ids(&self) -> LayerIds {
+        self.graph.layer_ids()
+    }
+
+    fn local_vertex_ref(&self, v: VertexRef) -> Option<VID> {
+        self.graph
+            .local_vertex_ref(v)
+            .filter(|v| self.vertices.contains(v))
+    }
+
     fn find_edge_id(&self, e_id: EID) -> Option<EdgeRef> {
         let edge_ref = self.graph.find_edge_id(e_id)?;
         let vid_src = self.local_vertex_ref(edge_ref.src())?;
@@ -59,18 +69,12 @@ impl<G: GraphViewOps> GraphOps for VertexSubgraph<G> {
         }
     }
 
-    fn local_vertex_ref(&self, v: VertexRef) -> Option<VID> {
-        self.graph
-            .local_vertex_ref(v)
-            .filter(|v| self.vertices.contains(v))
+    fn layer_ids_from_names(&self, key: Layer) -> LayerIds {
+        self.graph.layer_ids_from_names(key)
     }
 
-    fn get_unique_layers_internal(&self) -> Vec<usize> {
-        self.graph.get_unique_layers_internal()
-    }
-
-    fn get_layer_id(&self, key: Layer) -> Option<LayerIds> {
-        self.graph.get_layer_id(key)
+    fn edge_layer_ids(&self, e_id: EID) -> LayerIds {
+        self.graph.edge_layer_ids(e_id)
     }
 
     fn vertices_len(&self) -> usize {
@@ -152,10 +156,6 @@ impl<G: GraphViewOps> GraphOps for VertexSubgraph<G> {
             ),
             _ => Box::new(self.vertex_edges(v, d, layers).map(|e| e.remote())),
         }
-    }
-
-    fn get_layer_ids(&self, e_id: EID) -> Option<LayerIds> {
-        self.graph.get_layer_ids(e_id)
     }
 }
 

@@ -12,6 +12,7 @@ use std::{
     ops::Deref,
     sync::atomic::{AtomicUsize, Ordering},
 };
+use tantivy::HasLen;
 
 #[derive(Serialize, Deserialize, Default, Debug, PartialEq)]
 pub struct Props {
@@ -235,6 +236,14 @@ impl<T: Hash + Eq + Clone + Debug> DictMapper<T> {
 
     pub fn get_keys(&self) -> RwLockReadGuard<Vec<T>> {
         self.reverse_map.read()
+    }
+
+    pub fn len(&self) -> usize {
+        self.reverse_map.read().len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.reverse_map.read().is_empty()
     }
 }
 

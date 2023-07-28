@@ -15,21 +15,21 @@ mod test {
     fn test_neighbours_multiple_layers() {
         let g: InnerTemporalGraph<2> = InnerTemporalGraph::default();
 
-        g.add_edge_internal(
+        g.inner().add_edge_internal(
             1,
             1,
             2,
             vec![("tx_sent".to_string(), 10.as_prop())],
             Some("btc"),
         );
-        g.add_edge_internal(
+        g.inner().add_edge_internal(
             1,
             1,
             2,
             vec![("tx_sent".to_string(), 20.as_prop())],
             Some("eth"),
         );
-        g.add_edge_internal(
+        g.inner().add_edge_internal(
             1,
             1,
             2,
@@ -37,7 +37,7 @@ mod test {
             Some("tether"),
         );
 
-        let first = g.vertex(0.into());
+        let first = g.inner().vertex(0.into());
 
         let ns = first
             .neighbours(vec!["btc", "eth"], Direction::OUT)
@@ -46,7 +46,7 @@ mod test {
 
         assert_eq!(ns, vec![1]);
 
-        let first = g.vertex_arc(0.into());
+        let first = g.inner().vertex_arc(0.into());
         let edges = first
             .edge_tuples([0, 1, 2, 3, 4].into(), Direction::OUT)
             .collect::<Vec<_>>();
@@ -61,10 +61,11 @@ mod test {
 
         let empty: Vec<(String, Prop)> = vec![];
         for (t, src, dst) in vs {
-            g.add_edge_internal(t, src, dst, empty.clone(), None);
+            g.inner()
+                .add_edge_internal(t, src, dst, empty.clone(), None);
         }
 
-        let v = g.vertex(0.into());
+        let v = g.inner().vertex(0.into());
 
         let ns = v
             .neighbours(vec![], Direction::BOTH)

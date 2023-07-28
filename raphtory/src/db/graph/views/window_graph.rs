@@ -342,6 +342,15 @@ impl<G: GraphViewOps> TimeSemantics for WindowedGraph<G> {
 /// This trait provides operations to a `WindowedGraph` used internally by the `GraphWindowSet`.
 /// *Note: All functions in this are bound by the time set in the windowed graph.
 impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
+    fn layer_ids(&self) -> LayerIds {
+        self.graph.layer_ids()
+    }
+
+    fn local_vertex_ref(&self, v: VertexRef) -> Option<VID> {
+        self.graph
+            .local_vertex_ref_window(v, self.t_start, self.t_end)
+    }
+
     fn find_edge_id(&self, e_id: EID) -> Option<EdgeRef> {
         let e_ref = self.graph.find_edge_id(e_id)?;
         if self
@@ -354,17 +363,12 @@ impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
         }
     }
 
-    fn local_vertex_ref(&self, v: VertexRef) -> Option<VID> {
-        self.graph
-            .local_vertex_ref_window(v, self.t_start, self.t_end)
+    fn layer_ids_from_names(&self, key: Layer) -> LayerIds {
+        self.graph.layer_ids_from_names(key)
     }
 
-    fn get_unique_layers_internal(&self) -> Vec<usize> {
-        self.graph.get_unique_layers_internal()
-    }
-
-    fn get_layer_id(&self, key: Layer) -> Option<LayerIds> {
-        self.graph.get_layer_id(key)
+    fn edge_layer_ids(&self, e_id: EID) -> LayerIds {
+        self.graph.edge_layer_ids(e_id)
     }
 
     /// Returns the number of vertices in the windowed view.
@@ -515,10 +519,6 @@ impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
     ) -> Box<dyn Iterator<Item = VertexRef> + Send> {
         self.graph
             .neighbours_window(v, self.t_start, self.t_end, d, layer)
-    }
-
-    fn get_layer_ids(&self, e_id: EID) -> Option<LayerIds> {
-        self.graph.get_layer_ids(e_id)
     }
 }
 

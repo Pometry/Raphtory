@@ -22,9 +22,7 @@ pub trait CoreGraphOps {
     fn unfiltered_num_vertices(&self) -> usize;
 
     /// Get the layer name for a given id
-    fn get_layer_name_by_id(&self, layer_id: usize) -> String;
-
-    fn layer_ids(&self) -> LayerIds;
+    fn get_layer_names_from_ids(&self, layer_ids: LayerIds) -> Vec<String>;
 
     /// Returns the global ID for a vertex
     fn vertex_id(&self, v: VID) -> u64;
@@ -229,12 +227,8 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
         self.graph().unfiltered_num_vertices()
     }
 
-    fn get_layer_name_by_id(&self, layer_id: usize) -> String {
-        self.graph().get_layer_name_by_id(layer_id)
-    }
-
-    fn layer_ids(&self) -> LayerIds {
-        self.graph().layer_ids()
+    fn get_layer_names_from_ids(&self, layer_ids: LayerIds) -> Vec<String> {
+        self.graph().get_layer_names_from_ids(layer_ids)
     }
 
     fn vertex_id(&self, v: VID) -> u64 {

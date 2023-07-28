@@ -102,21 +102,11 @@ pub trait EdgeViewOps:
 
     /// Gets the name of the layer this edge belongs to
     fn layer_names(&self) -> Vec<String> {
-        if let Some(layer_ids) = self.graph().get_layer_ids(self.eref().pid()) {
-            match layer_ids {
-                LayerIds::All => self.graph().get_unique_layers(),
-                LayerIds::One(id) => vec![self.graph().get_layer_name_by_id(id)],
-                LayerIds::Multiple(ids) => ids
-                    .iter()
-                    .map(|id| self.graph().get_layer_name_by_id(*id))
-                    .collect(),
-                LayerIds::None => {
-                    vec![]
-                }
-            }
-        } else {
-            vec![]
-        }
+        let layer_ids = self
+            .graph()
+            .edge_layer_ids(self.eref().pid())
+            .constrain_from_edge(self.eref());
+        self.graph().get_layer_names_from_ids(layer_ids)
     }
 }
 

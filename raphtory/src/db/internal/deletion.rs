@@ -15,13 +15,13 @@ impl<const N: usize> InternalDeletionOps for InnerTemporalGraph<N> {
         dst: u64,
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
-        self.delete_edge(t, src, dst, layer)
+        self.inner().delete_edge(t, src, dst, layer)
     }
 }
 
 impl<const N: usize> CoreDeletionOps for InnerTemporalGraph<N> {
     fn edge_deletions(&self, eref: EdgeRef, layer_ids: LayerIds) -> LockedLayeredIndex<'_> {
-        let edge = self.edge(eref.pid());
+        let edge = self.inner().edge(eref.pid());
         edge.deletions(layer_ids).unwrap()
     }
 }
