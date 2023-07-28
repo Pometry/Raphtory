@@ -169,7 +169,7 @@ impl<const N: usize> TemporalGraph<N> {
                 None => LayerIds::None,
             },
             Layer::Multiple(ids) => {
-                let new_layers = ids
+                let mut new_layers = ids
                     .iter()
                     .filter_map(|id| self.edge_meta.get_layer_id(id))
                     .collect::<Vec<_>>();
@@ -182,6 +182,8 @@ impl<const N: usize> TemporalGraph<N> {
                 } else if num_new_layers == num_layers {
                     LayerIds::All
                 } else {
+                    new_layers.sort_unstable();
+                    new_layers.dedup();
                     LayerIds::Multiple(new_layers.into())
                 }
             }

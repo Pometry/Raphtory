@@ -1442,7 +1442,7 @@ mod db_tests {
             .get("tx_sent")
             .unwrap()
             .iter()
-            .filter_map(|(_, prop)| prop.clone().into_u64())
+            .filter_map(|(_, prop)| prop.into_u64())
             .sum();
 
         assert_eq!(sum_eth_btc, 30);

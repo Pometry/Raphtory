@@ -204,85 +204,33 @@ impl TProp {
 }
 
 pub struct LockedLayeredTProp<'a> {
-    layers: LayerIds,
-    layer_meta: &'a DictMapper<String>,
-    tprop: Vec<Option<LockedView<'a, TProp>>>,
+    tprop: Vec<LockedView<'a, TProp>>,
 }
 
 impl<'a> LockedLayeredTProp<'a> {
-    pub(crate) fn new(
-        layers: LayerIds,
-        layer_meta: &'a DictMapper<String>,
-        tprop: Vec<Option<LockedView<'a, TProp>>>,
-    ) -> Self {
-        Self {
-            layers,
-            layer_meta,
-            tprop,
-        }
+    pub(crate) fn new(tprop: Vec<LockedView<'a, TProp>>) -> Self {
+        Self { tprop }
     }
 
     pub(crate) fn last_before(&self, t: i64) -> Option<(i64, Prop)> {
-        // FIXME: broken
-        match &self.layers {
-            LayerIds::All => self
-                .tprop
-                .iter()
-                .flatten()
-                .flat_map(|p| p.last_before(t))
-                .max_by_key(|v| v.0),
-            LayerIds::One(id) => self.tprop[*id].as_ref().and_then(|p| p.last_before(t)),
-            LayerIds::Multiple(ids) => ids
-                .iter()
-                .flat_map(|i| self.tprop[*i].as_ref().map(|p| p.last_before(t)))
-                .flatten()
-                .max_by_key(|v| v.0),
-            LayerIds::None => None,
-        }
+        self.tprop
+            .iter()
+            .flat_map(|p| p.last_before(t))
+            .max_by_key(|v| v.0)
     }
 
-    pub(crate) fn iter(&self) -> Box<dyn Iterator<Item = (i64, Prop)> + '_> {
-        match &self.layers {
-            LayerIds::All => Box::new(
-                self.tprop
-                    .iter()
-                    .flatten()
-                    .map(|p| p.iter())
-                    .kmerge_by(|a, b| a.0 < b.0),
-            ),
-            LayerIds::One(id) => match &self.tprop[*id] {
-                Some(p) => p.iter(),
-                None => Box::new(iter::empty()),
-            },
-            LayerIds::Multiple(ids) => Box::new(
-                ids.iter()
-                    .flat_map(|id| self.tprop[*id].as_ref().map(|p| p.iter()))
-                    .kmerge_by(|a, b| a.0 < b.0),
-            ),
-            LayerIds::None => Box::new(iter::empty()),
-        }
+    pub(crate) fn iter(&self) -> impl Iterator<Item = (i64, Prop)> + '_ {
+        self.tprop
+            .iter()
+            .map(|p| p.iter())
+            .kmerge_by(|a, b| a.0 < b.0)
     }
 
-    pub(crate) fn iter_window(&self, r: Range<i64>) -> Box<dyn Iterator<Item = (i64, Prop)> + '_> {
-        match &self.layers {
-            LayerIds::All => Box::new(
-                self.tprop
-                    .iter()
-                    .flatten()
-                    .map(|p| p.iter_window(r.clone()))
-                    .kmerge_by(|a, b| a.0 < b.0),
-            ),
-            LayerIds::One(id) => match &self.tprop[*id] {
-                Some(p) => p.iter_window(r),
-                None => Box::new(iter::empty()),
-            },
-            LayerIds::Multiple(ids) => Box::new(
-                ids.iter()
-                    .flat_map(|id| self.tprop[*id].as_ref().map(|p| p.iter_window(r.clone())))
-                    .kmerge_by(|a, b| a.0 < b.0),
-            ),
-            LayerIds::None => Box::new(iter::empty()),
-        }
+    pub(crate) fn iter_window(&self, r: Range<i64>) -> impl Iterator<Item = (i64, Prop)> + '_ {
+        self.tprop
+            .iter()
+            .map(|p| p.iter_window(r.clone()))
+            .kmerge_by(|a, b| a.0 < b.0)
     }
 }
 

@@ -178,7 +178,7 @@ impl<'a, const N: usize> EdgeView<'a, N> {
                         LayerIds::All => {
                             let props: Vec<_> = entry
                                 .layer_ids_iter()
-                                .map(|id| {
+                                .flat_map(|id| {
                                     entry.temporal_prop_layer(id, prop_id).is_some().then(|| {
                                         entry
                                             .clone()
@@ -186,14 +186,25 @@ impl<'a, const N: usize> EdgeView<'a, N> {
                                     })
                                 })
                                 .collect();
-                            Some(LockedLayeredTProp::new(
-                                layer_ids,
-                                self.graph.edge_meta.layer_meta(),
-                                props,
-                            ))
+                            Some(LockedLayeredTProp::new(props))
                         }
-                        LayerIds::One(_) => None,
-                        LayerIds::Multiple(_) => None,
+                        LayerIds::One(id) => Some(LockedLayeredTProp::new(vec![entry.map(|e| {
+                            e.temporal_prop_layer(id, prop_id)
+                                .expect("already checked in the beginning")
+                        })])),
+                        LayerIds::Multiple(ids) => {
+                            let props: Vec<_> = ids
+                                .iter()
+                                .flat_map(|&id| {
+                                    entry.temporal_prop_layer(id, prop_id).is_some().then(|| {
+                                        entry
+                                            .clone()
+                                            .map(|e| e.temporal_prop_layer(id, prop_id).unwrap())
+                                    })
+                                })
+                                .collect();
+                            Some(LockedLayeredTProp::new(props))
+                        }
                     }
                 } else {
                     None
