@@ -76,7 +76,8 @@ impl<G: GraphViewOps> ConstPropertiesOps for EdgeView<G> {
     }
 
     fn get_const_property(&self, key: &str) -> Option<Prop> {
-        self.graph.static_edge_prop(self.edge, key)
+        self.graph
+            .static_edge_prop(self.edge, key, self.graph.layer_ids())
     }
 }
 

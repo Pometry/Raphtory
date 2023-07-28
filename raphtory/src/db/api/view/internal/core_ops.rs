@@ -153,7 +153,7 @@ pub trait CoreGraphOps {
     /// # Returns
     ///
     /// A property if it exists
-    fn static_edge_prop(&self, e: EdgeRef, name: &str) -> Option<Prop>;
+    fn static_edge_prop(&self, e: EdgeRef, name: &str, layer_ids: LayerIds) -> Option<Prop>;
 
     /// Returns a vector of keys for the static properties of the given edge reference.
     ///
@@ -297,8 +297,8 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
         self.graph().all_edge_prop_names(is_static)
     }
 
-    fn static_edge_prop(&self, e: EdgeRef, name: &str) -> Option<Prop> {
-        self.graph().static_edge_prop(e, name)
+    fn static_edge_prop(&self, e: EdgeRef, name: &str, layer_ids: LayerIds) -> Option<Prop> {
+        self.graph().static_edge_prop(e, name, layer_ids)
     }
 
     fn static_edge_prop_names<'a>(

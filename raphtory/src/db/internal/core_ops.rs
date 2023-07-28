@@ -12,11 +12,11 @@ use crate::{
             timeindex::{LockedLayeredIndex, TimeIndex},
         },
     },
-    db::api::view::internal::CoreGraphOps,
+    db::api::{mutation::CollectProperties, view::internal::CoreGraphOps},
     prelude::Prop,
 };
 use itertools::Itertools;
-use std::iter;
+use std::{collections::HashMap, iter};
 
 impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
     fn unfiltered_num_vertices(&self) -> usize {
@@ -133,12 +133,58 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
         self.inner().get_all_edge_property_names(is_static)
     }
 
-    fn static_edge_prop(&self, e: EdgeRef, name: &str) -> Option<Prop> {
+    fn static_edge_prop(&self, e: EdgeRef, name: &str, layer_ids: LayerIds) -> Option<Prop> {
         let entry = self.inner().edge_entry(e.pid());
         let prop_id = self.inner().edge_find_prop(name, true)?;
-        let layer = entry.unsafe_layer(0); // FIXME: this should take an array of layer ids
-        let prop = layer.static_property(prop_id).map(|p| p.clone());
-        prop
+        match layer_ids {
+            LayerIds::None => None,
+            LayerIds::All => {
+                let layers_ids = self.inner().get_all_layers();
+                let num_layers = layers_ids.len();
+                if num_layers == 1 {
+                    let layer_id = layers_ids[0];
+                    let layer = entry.unsafe_layer(layer_id);
+                    layer.static_property(prop_id).cloned()
+                } else {
+                    let prop_map: HashMap<_, _> = self
+                        .inner()
+                        .get_all_layers()
+                        .into_iter()
+                        .flat_map(|id| {
+                            let layer = entry.unsafe_layer(id);
+                            layer
+                                .static_property(prop_id)
+                                .map(|p| (self.inner().get_layer_name(id), p.clone()))
+                        })
+                        .collect();
+                    if prop_map.is_empty() {
+                        None
+                    } else {
+                        Some(prop_map.into())
+                    }
+                }
+            }
+            LayerIds::One(id) => {
+                let layer = entry.unsafe_layer(id);
+                layer.static_property(prop_id).cloned()
+            }
+            LayerIds::Multiple(ids) => {
+                let prop_map: HashMap<_, _> = ids
+                    .iter()
+                    .flat_map(|&id| {
+                        let layer = entry.unsafe_layer(id);
+                        layer
+                            .static_property(prop_id)
+                            .map(|p| (self.inner().get_layer_name(id), p.clone()))
+                    })
+                    .collect();
+                if prop_map.is_empty() {
+                    None
+                } else {
+                    Some(prop_map.into())
+                }
+            }
+        }
     }
 
     fn static_edge_prop_names<'a>(
