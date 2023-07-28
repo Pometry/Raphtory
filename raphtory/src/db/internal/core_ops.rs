@@ -1,8 +1,11 @@
 use crate::{
     core::{
         entities::{
-            edges::edge_ref::EdgeRef, graph::tgraph::InnerTemporalGraph, properties::tprop::TProp,
-            vertices::vertex_ref::VertexRef, LayerIds, VID,
+            edges::edge_ref::EdgeRef,
+            graph::tgraph::InnerTemporalGraph,
+            properties::tprop::{LockedLayeredTProp, TProp},
+            vertices::vertex_ref::VertexRef,
+            LayerIds, VID,
         },
         storage::{
             locked_view::LockedView,
@@ -27,8 +30,9 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
         self.vertex_name(v.into())
     }
 
-    fn edge_additions(&self, eref: EdgeRef, layer_ids: LayerIds) -> LockedLayeredIndex<'_> {
+    fn edge_additions(&self, eref: EdgeRef) -> LockedLayeredIndex<'_> {
         let edge = self.edge(eref.pid());
+        let layer_ids = self.layer_ids();
         edge.additions(layer_ids).unwrap()
     }
 
@@ -126,7 +130,7 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
         )
     }
 
-    fn temporal_edge_prop(&self, e: EdgeRef, name: &str) -> Option<LockedView<TProp>> {
+    fn temporal_edge_prop(&self, e: EdgeRef, name: &str) -> Option<LockedLayeredTProp> {
         let edge = self.edge(e.pid());
         let prop_id = self.edge_find_prop(name, false)?;
         match e.layer() {
@@ -149,6 +153,10 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
 
     fn unfiltered_num_vertices(&self) -> usize {
         self.internal_num_vertices()
+    }
+
+    fn layer_ids(&self) -> LayerIds {
+        LayerIds::All
     }
 }
 

@@ -170,45 +170,46 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
     }
 
     fn materialize(&self) -> Result<MaterializedGraph, GraphError> {
-        let g = InnerTemporalGraph::default();
-        // Add edges first so we definitely have all associated vertices (important in case of persistent edges)
-        for e in self.edges() {
-            // FIXME: this needs to be verified
-            for ee in e.explode_layers().explode() {
-                g.add_edge(
-                    ee.time().unwrap(),
-                    ee.src().id(),
-                    ee.dst().id(),
-                    ee.properties().temporal().collect_properties(),
-                    layer,
-                )?;
-            }
-            if self.include_deletions() {
-                for t in self.edge_deletion_history(e.edge, LayerIds::All) {
-                    for layer in layer_names.iter() {
-                        g.delete_edge(t, e.src().id(), e.dst().id(), Some(layer))?;
-                    }
-                }
-            }
-
-            g.add_edge_properties(e.src().id(), e.dst().id(), e.properties().constant(), layer)?;
-        }
-
-        for v in self.vertices().iter() {
-            for h in v.history() {
-                g.add_vertex(h, v.id(), NO_PROPS)?;
-            }
-            for (name, prop_view) in v.properties().temporal().iter() {
-                for (t, prop) in prop_view.iter() {
-                    g.add_vertex(t, v.id(), [(name.clone(), prop)])?;
-                }
-            }
-            g.add_vertex_properties(v.id(), v.properties().constant())?;
-        }
-
-        g.add_static_properties(self.properties().constant())?;
-
-        Ok(self.new_base_graph(g))
+        todo!()
+        // let g = InnerTemporalGraph::default();
+        // // Add edges first so we definitely have all associated vertices (important in case of persistent edges)
+        // for e in self.edges() {
+        //     // FIXME: this needs to be verified
+        //     for ee in e.explode_layers().explode() {
+        //         g.add_edge(
+        //             ee.time().unwrap(),
+        //             ee.src().id(),
+        //             ee.dst().id(),
+        //             ee.properties().temporal().collect_properties(),
+        //             layer,
+        //         )?;
+        //     }
+        //     if self.include_deletions() {
+        //         for t in self.edge_deletion_history(e.edge, LayerIds::All) {
+        //             for layer in layer_names.iter() {
+        //                 g.delete_edge(t, e.src().id(), e.dst().id(), Some(layer))?;
+        //             }
+        //         }
+        //     }
+        //
+        //     g.add_edge_properties(e.src().id(), e.dst().id(), e.properties().constant(), layer)?;
+        // }
+        //
+        // for v in self.vertices().iter() {
+        //     for h in v.history() {
+        //         g.add_vertex(h, v.id(), NO_PROPS)?;
+        //     }
+        //     for (name, prop_view) in v.properties().temporal().iter() {
+        //         for (t, prop) in prop_view.iter() {
+        //             g.add_vertex(t, v.id(), [(name.clone(), prop)])?;
+        //         }
+        //     }
+        //     g.add_vertex_properties(v.id(), v.properties().constant())?;
+        // }
+        //
+        // g.add_static_properties(self.properties().constant())?;
+        //
+        // Ok(self.new_base_graph(g))
     }
 }
 

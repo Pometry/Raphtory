@@ -50,10 +50,10 @@ impl Display for GraphWithDeletions {
 }
 
 impl GraphWithDeletions {
-    fn edge_alive_at(&self, e: EdgeRef, t: i64, layer_ids: LayerIds) -> bool {
+    fn edge_alive_at(&self, e: EdgeRef, t: i64) -> bool {
         // FIXME: assumes additions are before deletions if at the same timestamp (need to have strict ordering/secondary index)
-        let additions = self.edge_additions(e, layer_ids.clone());
-        let deletions = self.edge_deletions(e, layer_ids);
+        let additions = self.edge_additions(e);
+        let deletions = self.edge_deletions(e);
 
         let first_addition = additions.first();
         let first_deletion = deletions.first();
@@ -334,12 +334,11 @@ impl TimeSemantics for GraphWithDeletions {
         name: &str,
         t_start: i64,
         t_end: i64,
-        layer_ids: LayerIds,
     ) -> Vec<(i64, Prop)> {
         let prop = self.temporal_edge_prop(e, name);
         match prop {
             Some(p) => {
-                if self.edge_alive_at(e, t_start, layer_ids) {
+                if self.edge_alive_at(e, t_start) {
                     p.last_before(t_start.saturating_add(1))
                         .into_iter()
                         .map(|v| (t_start, v))

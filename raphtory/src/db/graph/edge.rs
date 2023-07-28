@@ -109,11 +109,7 @@ impl<G: GraphViewOps> TemporalPropertiesOps for EdgeView<G> {
     }
 
     fn get_temporal_property(&self, key: &str) -> Option<String> {
-        (!self
-            .graph
-            .temporal_edge_prop_vec(self.edge, key, LayerIds::All)
-            .is_empty())
-        .then_some(key.to_owned())
+        (!self.graph.temporal_edge_prop_vec(self.edge, key).is_empty()).then_some(key.to_owned())
     }
 }
 

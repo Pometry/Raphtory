@@ -89,10 +89,7 @@ impl<G: TimeSemantics + CoreGraphOps> GraphPropertiesOps for G {
     fn temporal_edge_props(&self, e: EdgeRef) -> HashMap<String, Vec<(i64, Prop)>> {
         let mut map = HashMap::default();
         for name in self.temporal_edge_prop_names(e) {
-            map.insert(
-                name.clone(),
-                self.temporal_edge_prop_vec(e, &name, LayerIds::All),
-            );
+            map.insert(name.clone(), self.temporal_edge_prop_vec(e, &name));
         }
         map
     }

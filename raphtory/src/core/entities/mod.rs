@@ -114,6 +114,7 @@ pub(crate) trait GraphItem<'a, const N: usize> {
 
 #[derive(Clone, Debug)]
 pub enum LayerIds {
+    None,
     All,
     One(usize),
     Multiple(Arc<[usize]>),

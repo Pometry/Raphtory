@@ -5,7 +5,7 @@ use crate::core::{
             tgraph::TGraph,
             tgraph_storage::{GraphEntry, LockedGraphStorage},
         },
-        properties::tprop::TProp,
+        properties::tprop::{LockedLayeredTProp, TProp},
         vertices::vertex::Vertex,
         GraphItem, LayerIds, VRef, EID, VID,
     },
@@ -164,21 +164,35 @@ impl<'a, const N: usize> EdgeView<'a, N> {
 
     pub(crate) fn temporal_property(
         self,
-        layer_id: usize,
+        layer_ids: LayerIds,
         prop_id: usize,
-    ) -> Option<LockedView<'a, TProp>> {
+    ) -> Option<LockedLayeredTProp<'a>> {
         match self.edge_id {
             ERef::ERef(entry) => {
-                let prop_exists = entry
-                    .layer(layer_id)
-                    .map(|layer| layer.temporal_property(prop_id).is_some())
-                    .unwrap_or(false);
-                if !prop_exists {
-                    return None;
+                if entry.has_temporal_prop(layer_ids.clone(), prop_id) {
+                    match layer_ids {
+                        LayerIds::None => None,
+                        LayerIds::All => {
+                            let props: Vec<_> = entry
+                                .layer_ids_iter()
+                                .map(|id| {
+                                    entry.temporal_prop_layer(id, prop_id).is_some().then(|| {
+                                        entry.map(|e| e.temporal_prop_layer(id, prop_id).unwrap())
+                                    })
+                                })
+                                .collect();
+                            Some(LockedLayeredTProp {
+                                layers: layer_ids,
+                                layer_meta: self.graph.edge_meta.layer_meta(),
+                                tprop: props,
+                            })
+                        }
+                        LayerIds::One(_) => None,
+                        LayerIds::Multiple(_) => None,
+                    }
+                } else {
+                    None
                 }
-
-                let t_index = entry.map(|entry| entry.temporal_prop(layer_id, prop_id).unwrap());
-                Some(t_index)
             }
             _ => None,
         }

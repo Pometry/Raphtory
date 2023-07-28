@@ -223,7 +223,6 @@ pub trait TimeSemantics: GraphOps + CoreGraphOps {
         name: &str,
         t_start: i64,
         t_end: i64,
-        layer_ids: LayerIds,
     ) -> Vec<(i64, Prop)>;
 
     /// Returns a vector of tuples containing the values of the temporal property with the given name
@@ -410,10 +409,9 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
         name: &str,
         t_start: i64,
         t_end: i64,
-        layer_ids: LayerIds,
     ) -> Vec<(i64, Prop)> {
         self.graph()
-            .temporal_edge_prop_vec_window(e, name, t_start, t_end, layer_ids)
+            .temporal_edge_prop_vec_window(e, name, t_start, t_end)
     }
 
     fn temporal_edge_prop_vec(

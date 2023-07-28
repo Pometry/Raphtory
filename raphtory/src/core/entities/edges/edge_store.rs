@@ -211,7 +211,27 @@ impl<const N: usize> EdgeStore<N> {
         &self.deletions
     }
 
-    pub fn temporal_prop(&self, layer_id: usize, prop_id: usize) -> Option<&TProp> {
+    pub fn has_temporal_prop(&self, layer_ids: LayerIds, prop_id: usize) -> bool {
+        match layer_ids {
+            LayerIds::None => false,
+            LayerIds::All => self.layer_ids_iter().any(|id| {
+                self.layer(id)
+                    .and_then(|layer| layer.temporal_property(prop_id))
+                    .is_some()
+            }),
+            LayerIds::One(id) => self
+                .layer(id)
+                .and_then(|layer| layer.temporal_property(prop_id))
+                .is_some(),
+            LayerIds::Multiple(ids) => ids.iter().any(|id| {
+                self.layer(*id)
+                    .and_then(|layer| layer.temporal_property(prop_id))
+                    .is_some()
+            }),
+        }
+    }
+
+    pub fn temporal_prop_layer(&self, layer_id: usize, prop_id: usize) -> Option<&TProp> {
         self.layers
             .get(layer_id)
             .and_then(|layer| layer.temporal_property(prop_id))

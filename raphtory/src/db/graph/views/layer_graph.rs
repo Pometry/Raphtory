@@ -206,25 +206,13 @@ impl<G: GraphViewOps> TimeSemantics for LayeredGraph<G> {
         name: &str,
         t_start: i64,
         t_end: i64,
-        layer_ids: LayerIds,
     ) -> Vec<(i64, Prop)> {
-        self.constrain(layer_ids)
-            .map(|layers| {
-                self.graph
-                    .temporal_edge_prop_vec_window(e, name, t_start, t_end, layers)
-            })
-            .unwrap_or_else(|| Vec::new())
+        self.graph
+            .temporal_edge_prop_vec_window(e, name, t_start, t_end)
     }
 
-    fn temporal_edge_prop_vec(
-        &self,
-        e: EdgeRef,
-        name: &str,
-        layer_ids: LayerIds,
-    ) -> Vec<(i64, Prop)> {
-        self.constrain(layer_ids)
-            .map(|layers| self.graph.temporal_edge_prop_vec(e, name, layers))
-            .unwrap_or_else(|| Vec::new())
+    fn temporal_edge_prop_vec(&self, e: EdgeRef, name: &str) -> Vec<(i64, Prop)> {
+        self.graph.temporal_edge_prop_vec(e, name)
     }
 
     fn include_edge_window(&self, e: EdgeRef, w: Range<i64>, layer_ids: LayerIds) -> bool {
