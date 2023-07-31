@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1690539715399,
+  "lastUpdate": 1690798648296,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -6043,6 +6043,60 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions with numeric string input",
             "value": 2206041,
             "range": "± 82576",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e0f53e8ce1dfa06490f302fd0b05a24536e9f98f",
+          "message": "Bump certifi from 2023.5.7 to 2023.7.22 in /docs (#1136)\n\nBumps [certifi](https://github.com/certifi/python-certifi) from 2023.5.7 to 2023.7.22.\r\n- [Commits](https://github.com/certifi/python-certifi/compare/2023.05.07...2023.07.22)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: certifi\r\n  dependency-type: direct:production\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>\r\nCo-authored-by: Haaroon Y <Haaroon@users.noreply.github.com>",
+          "timestamp": "2023-07-31T11:11:13+01:00",
+          "tree_id": "8a613e5fabe37b513407d528b255b1608d26df9a",
+          "url": "https://github.com/Pometry/Raphtory/commit/e0f53e8ce1dfa06490f302fd0b05a24536e9f98f"
+        },
+        "date": 1690798647552,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 666066,
+            "range": "± 2887",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and numeric string input",
+            "value": 1219600,
+            "range": "± 3907",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and string input",
+            "value": 1248456,
+            "range": "± 3398",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 1012666,
+            "range": "± 85101",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions with numeric string input",
+            "value": 1847223,
+            "range": "± 82367",
             "unit": "ns/iter"
           }
         ]
