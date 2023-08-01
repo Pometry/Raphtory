@@ -23,7 +23,6 @@ use crate::{
     },
     prelude::{DeletionOps, NO_PROPS},
 };
-use itertools::Itertools;
 use rustc_hash::FxHashSet;
 
 /// This trait GraphViewOps defines operations for accessing

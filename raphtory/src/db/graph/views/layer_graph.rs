@@ -8,10 +8,7 @@ use crate::{
     db::api::{
         properties::internal::InheritPropertiesOps,
         view::{
-            internal::{
-                Base, GraphOps, InheritCoreOps, InheritMaterialize, InheritTimeSemantics,
-                TimeSemantics,
-            },
+            internal::{Base, GraphOps, InheritCoreOps, InheritMaterialize, TimeSemantics},
             BoxedIter, Layer,
         },
     },

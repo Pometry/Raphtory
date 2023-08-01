@@ -13,7 +13,6 @@ use crate::{
         Prop,
     },
     db::api::view::internal::Base,
-    prelude::Layer,
 };
 
 /// Core functions that should (almost-)always be implemented by pointing at the underlying graph.

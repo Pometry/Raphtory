@@ -1,5 +1,5 @@
 use crate::{
-    core::entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef, LayerIds},
+    core::entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef},
     db::api::{
         properties::{
             internal::{ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps},

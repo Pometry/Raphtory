@@ -3,7 +3,7 @@ use chrono::{Datelike, Timelike};
 use js_sys::Array;
 use raphtory::core::{utils::errors::GraphError, Prop};
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, ops::Deref, sync::Arc};
+use std::{ops::Deref, sync::Arc};
 use wasm_bindgen::{prelude::wasm_bindgen, JsValue};
 
 #[wasm_bindgen]

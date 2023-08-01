@@ -1,6 +1,6 @@
 use crate::{
     core::{entities::graph::tgraph::InnerTemporalGraph, storage::locked_view::LockedView, Prop},
-    db::api::{properties::internal::ConstPropertiesOps, view::internal::CoreGraphOps},
+    db::api::properties::internal::ConstPropertiesOps,
 };
 use parking_lot::RwLockReadGuard;
 

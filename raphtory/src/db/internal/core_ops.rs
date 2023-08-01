@@ -12,7 +12,7 @@ use crate::{
             timeindex::{LockedLayeredIndex, TimeIndex},
         },
     },
-    db::api::{mutation::CollectProperties, view::internal::CoreGraphOps},
+    db::api::view::internal::CoreGraphOps,
     prelude::Prop,
 };
 use itertools::Itertools;
@@ -34,7 +34,7 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
     }
 
     fn vertex_name(&self, v: VID) -> String {
-        self.inner().vertex_name(v.into())
+        self.inner().vertex_name(v)
     }
 
     fn edge_additions(&self, eref: EdgeRef, layer_ids: LayerIds) -> LockedLayeredIndex<'_> {
