@@ -255,16 +255,13 @@ def test_windowed_graph_neighbours():
 
 
 def test_name():
-    # Currently deadlocking
     g = Graph()
     g.add_vertex(1, "Ben")
     g.add_vertex(1, 10)
     g.add_edge(1, "Ben", "Hamza")
     assert g.vertex(10).name() == "10"
     assert g.vertex("Ben").name() == "Ben"
-
-
-# assert g.vertex("Hamza").name() == "Hamza" TODO need to fix
+    assert g.vertex("Hamza").name() == "Hamza"
 
 
 def test_graph_properties():

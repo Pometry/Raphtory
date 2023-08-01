@@ -451,7 +451,6 @@ impl PyEdges {
         (move || edges().latest_time()).into()
     }
 
-    // FIXME: needs a view that allows indexing into the properties
     /// Returns all properties of the edges
     fn properties(&self) -> PyPropsList {
         let builder = self.builder.clone();

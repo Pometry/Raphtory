@@ -480,7 +480,6 @@ impl PyVertices {
         (move || vertices.latest_time()).into()
     }
 
-    //Fixme: needs a view that allows indexing
     #[getter]
     fn properties(&self) -> PyPropsList {
         let vertices = self.vertices.clone();
