@@ -67,7 +67,6 @@ pub fn triangle_count<G: GraphViewOps>(g: &G, threads: Option<usize>) -> usize {
     let step1 = ATask::new(move |s| {
         for t in s.neighbours() {
             if s.id() > t.id() {
-                println!("adding {} to neighbours of {}", s.id(), t.id());
                 t.update(&neighbours_set, s.id());
             }
         }
