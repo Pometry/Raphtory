@@ -30,8 +30,8 @@ pub enum TProp {
     Bool(TCell<bool>),
     DTime(TCell<NaiveDateTime>),
     Graph(TCell<Graph>),
-    List(TCell<Arc<[Prop]>>),
-    Map(TCell<HashMap<String, Prop>>),
+    List(TCell<Arc<Vec<Prop>>>),
+    Map(TCell<Arc<HashMap<String, Prop>>>),
 }
 
 impl TProp {
@@ -47,12 +47,8 @@ impl TProp {
             Prop::Bool(value) => TProp::Bool(TCell::new(t, *value)),
             Prop::DTime(value) => TProp::DTime(TCell::new(t, *value)),
             Prop::Graph(value) => TProp::Graph(TCell::new(t, value.clone())),
-            Prop::List(value) => {
-                todo!()
-            }
-            Prop::Map(_) => {
-                todo!()
-            }
+            Prop::List(value) => TProp::List(TCell::new(t, value.clone())),
+            Prop::Map(value) => TProp::Map(TCell::new(t, value.clone())),
         }
     }
 
@@ -113,6 +109,16 @@ impl TProp {
                     cell.set(t, a.clone());
                 }
             }
+            TProp::List(cell) => {
+                if let Prop::List(a) = prop {
+                    cell.set(t, a.clone());
+                }
+            }
+            TProp::Map(cell) => {
+                if let Prop::Map(a) = prop {
+                    cell.set(t, a.clone());
+                }
+            }
         }
     }
 
@@ -131,6 +137,10 @@ impl TProp {
             TProp::Graph(cell) => cell
                 .last_before(t)
                 .map(|(t, v)| (*t, Prop::Graph(v.clone()))),
+            TProp::List(cell) => cell
+                .last_before(t)
+                .map(|(t, v)| (*t, Prop::List(v.clone()))),
+            TProp::Map(cell) => cell.last_before(t).map(|(t, v)| (*t, Prop::Map(v.clone()))),
         }
     }
 
@@ -154,6 +164,14 @@ impl TProp {
             TProp::Graph(cell) => Box::new(
                 cell.iter_t()
                     .map(|(t, value)| (*t, Prop::Graph(value.clone()))),
+            ),
+            TProp::List(cell) => Box::new(
+                cell.iter_t()
+                    .map(|(t, value)| (*t, Prop::List(value.clone()))),
+            ),
+            TProp::Map(cell) => Box::new(
+                cell.iter_t()
+                    .map(|(t, value)| (*t, Prop::Map(value.clone()))),
             ),
         }
     }
@@ -200,6 +218,14 @@ impl TProp {
             TProp::Graph(cell) => Box::new(
                 cell.iter_window_t(r)
                     .map(|(t, value)| (*t, Prop::Graph(value.clone()))),
+            ),
+            TProp::List(cell) => Box::new(
+                cell.iter_window_t(r)
+                    .map(|(t, value)| (*t, Prop::List(value.clone()))),
+            ),
+            TProp::Map(cell) => Box::new(
+                cell.iter_window_t(r)
+                    .map(|(t, value)| (*t, Prop::Map(value.clone()))),
             ),
         }
     }
