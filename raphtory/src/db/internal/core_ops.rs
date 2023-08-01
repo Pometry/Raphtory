@@ -259,14 +259,43 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
 
 #[cfg(test)]
 mod test_edges {
-    use crate::prelude::*;
+    use crate::{core::IntoPropMap, prelude::*};
+    use std::collections::HashMap;
+
     #[test]
-    fn test_static_edge_property_for_layers() {
+    fn test_edge_properties_for_layers() {
         let g = Graph::new();
 
-        g.add_edge(0, 1, 2, NO_PROPS, Some("layer1")).unwrap();
-        g.add_edge_properties(1, 2, [("layer1", "1")], Some("layer1"))
+        g.add_edge(0, 1, 2, [("t", 0)], Some("layer1")).unwrap();
+        g.add_edge(1, 1, 2, [("t", 1)], Some("layer2")).unwrap();
+        g.add_edge(2, 1, 2, [("t2", 2)], Some("layer3")).unwrap();
+        g.add_edge_properties(
+            1,
+            2,
+            [("layer1", "1".into_prop()), ("layer", 1.into_prop())],
+            Some("layer1"),
+        )
+        .unwrap();
+        g.add_edge_properties(1, 2, [("layer", 2)], Some("layer2"))
             .unwrap();
+        g.add_edge_properties(1, 2, [("layer", 3)], Some("layer3"))
+            .unwrap();
+
+        let e_all = g.edge(1, 2, Layer::All).unwrap();
+        assert_eq!(
+            e_all.properties().constant().as_map(),
+            HashMap::from([
+                (
+                    "layer".to_owned(),
+                    [("layer1", 1), ("layer2", 2), ("layer3", 3)].into_prop_map()
+                ),
+                ("layer1".to_owned(), [("layer1", "1")].into_prop_map())
+            ])
+        );
+        assert_eq!(
+            e_all.properties().temporal().get("t").unwrap().values(),
+            vec![0.into(), 1.into()]
+        );
 
         let e = g.edge(1, 2, "layer1").unwrap();
         assert!(e.properties().constant().contains("layer1"));
