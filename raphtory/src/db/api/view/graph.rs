@@ -21,7 +21,7 @@ use crate::{
             },
         },
     },
-    prelude::NO_PROPS,
+    prelude::{DeletionOps, NO_PROPS},
 };
 use itertools::Itertools;
 use rustc_hash::FxHashSet;
@@ -168,46 +168,60 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
     }
 
     fn materialize(&self) -> Result<MaterializedGraph, GraphError> {
-        todo!()
-        // let g = InnerTemporalGraph::default();
-        // // Add edges first so we definitely have all associated vertices (important in case of persistent edges)
-        // for e in self.edges() {
-        //     // FIXME: this needs to be verified
-        //     for ee in e.explode_layers().explode() {
-        //         g.add_edge(
-        //             ee.time().unwrap(),
-        //             ee.src().id(),
-        //             ee.dst().id(),
-        //             ee.properties().temporal().collect_properties(),
-        //             layer,
-        //         )?;
-        //     }
-        //     if self.include_deletions() {
-        //         for t in self.edge_deletion_history(e.edge, LayerIds::All) {
-        //             for layer in layer_names.iter() {
-        //                 g.delete_edge(t, e.src().id(), e.dst().id(), Some(layer))?;
-        //             }
-        //         }
-        //     }
-        //
-        //     g.add_edge_properties(e.src().id(), e.dst().id(), e.properties().constant(), layer)?;
-        // }
-        //
-        // for v in self.vertices().iter() {
-        //     for h in v.history() {
-        //         g.add_vertex(h, v.id(), NO_PROPS)?;
-        //     }
-        //     for (name, prop_view) in v.properties().temporal().iter() {
-        //         for (t, prop) in prop_view.iter() {
-        //             g.add_vertex(t, v.id(), [(name.clone(), prop)])?;
-        //         }
-        //     }
-        //     g.add_vertex_properties(v.id(), v.properties().constant())?;
-        // }
-        //
-        // g.add_static_properties(self.properties().constant())?;
-        //
-        // Ok(self.new_base_graph(g))
+        let g = InnerTemporalGraph::default();
+        // Add edges first so we definitely have all associated vertices (important in case of persistent edges)
+        for e in self.edges() {
+            // FIXME: this needs to be verified
+            for ee in e.explode_layers() {
+                let layer_id = *ee.edge.layer().unwrap();
+                let layer_ids = LayerIds::One(layer_id);
+                let layer_names = self.get_layer_names_from_ids(layer_ids.clone());
+                let layer_name: Option<&str> = if layer_id == 0 {
+                    None
+                } else {
+                    Some(&layer_names[0])
+                };
+
+                for ee in ee.explode() {
+                    g.add_edge(
+                        ee.time().unwrap(),
+                        ee.src().id(),
+                        ee.dst().id(),
+                        ee.properties().temporal().collect_properties(),
+                        layer_name,
+                    )?;
+                }
+
+                if self.include_deletions() {
+                    for t in self.edge_deletion_history(e.edge, layer_ids) {
+                        g.delete_edge(t, e.src().id(), e.dst().id(), layer_name)?;
+                    }
+                }
+
+                g.add_edge_properties(
+                    ee.src().id(),
+                    ee.dst().id(),
+                    ee.properties().constant(),
+                    layer_name,
+                )?;
+            }
+        }
+
+        for v in self.vertices().iter() {
+            for h in v.history() {
+                g.add_vertex(h, v.id(), NO_PROPS)?;
+            }
+            for (name, prop_view) in v.properties().temporal().iter() {
+                for (t, prop) in prop_view.iter() {
+                    g.add_vertex(t, v.id(), [(name.clone(), prop)])?;
+                }
+            }
+            g.add_vertex_properties(v.id(), v.properties().constant())?;
+        }
+
+        g.add_static_properties(self.properties().constant())?;
+
+        Ok(self.new_base_graph(g))
     }
 }
 

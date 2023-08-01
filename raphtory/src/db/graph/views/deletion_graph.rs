@@ -372,7 +372,14 @@ impl TimeSemantics for GraphWithDeletions {
         w: Range<i64>,
         layer_ids: LayerIds,
     ) -> BoxedIter<EdgeRef> {
-        self.graph.edge_window_layers(e, w, layer_ids)
+        let g = self.clone();
+        Box::new(
+            self.graph
+                .edge_layers(e, layer_ids.clone())
+                .filter(move |&e| {
+                    g.include_edge_window(e, w.clone(), layer_ids.clone().constrain_from_edge(e))
+                }),
+        )
     }
 }
 

@@ -71,28 +71,30 @@ impl<G: GraphViewOps> EdgeViewInternalOps<G, VertexView<G>> for EdgeView<G> {
 
 impl<G: GraphViewOps> ConstPropertiesOps for EdgeView<G> {
     fn const_property_keys<'a>(&'a self) -> Box<dyn Iterator<Item = LockedView<'a, String>> + 'a> {
-        self.graph
-            .static_edge_prop_names(self.edge, self.graph.layer_ids())
+        let layer_ids = self.graph.layer_ids().constrain_from_edge(self.edge);
+        self.graph.static_edge_prop_names(self.edge, layer_ids)
     }
 
     fn get_const_property(&self, key: &str) -> Option<Prop> {
-        self.graph
-            .static_edge_prop(self.edge, key, self.graph.layer_ids())
+        let layer_ids = self.graph.layer_ids().constrain_from_edge(self.edge);
+        self.graph.static_edge_prop(self.edge, key, layer_ids)
     }
 }
 
 impl<G: GraphViewOps> TemporalPropertyViewOps for EdgeView<G> {
     fn temporal_history(&self, id: &Key) -> Vec<i64> {
+        let layer_ids = self.graph.layer_ids().constrain_from_edge(self.edge);
         self.graph
-            .temporal_edge_prop_vec(self.edge, id, self.graph.layer_ids())
+            .temporal_edge_prop_vec(self.edge, id, layer_ids)
             .into_iter()
             .map(|(t, _)| t)
             .collect()
     }
 
     fn temporal_values(&self, id: &String) -> Vec<Prop> {
+        let layer_ids = self.graph.layer_ids().constrain_from_edge(self.edge);
         self.graph
-            .temporal_edge_prop_vec(self.edge, id, self.graph.layer_ids())
+            .temporal_edge_prop_vec(self.edge, id, layer_ids)
             .into_iter()
             .map(|(_, v)| v)
             .collect()
@@ -111,9 +113,10 @@ impl<G: GraphViewOps> TemporalPropertiesOps for EdgeView<G> {
     }
 
     fn get_temporal_property(&self, key: &str) -> Option<String> {
+        let layer_ids = self.graph.layer_ids().constrain_from_edge(self.edge);
         (!self
             .graph
-            .temporal_edge_prop_vec(self.edge, key, self.graph.layer_ids())
+            .temporal_edge_prop_vec(self.edge, key, layer_ids)
             .is_empty())
         .then_some(key.to_owned())
     }
@@ -129,8 +132,9 @@ impl<G: GraphViewOps> EdgeViewOps for EdgeView<G> {
         match self.edge.time() {
             Some(_) => Box::new(iter::once(ev)),
             None => {
+                let layer_ids = self.graph.layer_ids().constrain_from_edge(self.edge);
                 let e = self.edge;
-                let ex_iter = self.graph.edge_t(e, LayerIds::All);
+                let ex_iter = self.graph.edge_t(e, layer_ids);
                 // FIXME: use duration
                 Box::new(ex_iter.map(move |ex| ev.new_edge(ex)))
             }
@@ -143,7 +147,7 @@ impl<G: GraphViewOps> EdgeViewOps for EdgeView<G> {
             Some(_) => Box::new(iter::once(ev)),
             None => {
                 let e = self.edge;
-                let ex_iter = self.graph.edge_layers(e, LayerIds::All);
+                let ex_iter = self.graph.edge_layers(e, self.graph.layer_ids());
                 Box::new(ex_iter.map(move |ex| ev.new_edge(ex)))
             }
         }

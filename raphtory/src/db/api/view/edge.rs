@@ -33,8 +33,9 @@ pub trait EdgeViewOps:
 
     /// list the activation timestamps for the edge
     fn history(&self) -> Vec<i64> {
+        let layer_ids = self.graph().layer_ids().constrain_from_edge(self.eref());
         self.graph()
-            .edge_t(self.eref(), LayerIds::All)
+            .edge_t(self.eref(), layer_ids)
             .map(|e| e.time().expect("exploded"))
             .collect()
     }
@@ -58,6 +59,7 @@ pub trait EdgeViewOps:
 
     /// Check if edge is active at a given time point
     fn active(&self, t: i64) -> bool {
+        let layer_ids = self.graph().layer_ids().constrain_from_edge(self.eref());
         match self.eref().time() {
             Some(tt) => tt <= t && t <= self.latest_time().unwrap_or(tt),
             None => self.graph().has_edge_ref_window(
@@ -65,7 +67,7 @@ pub trait EdgeViewOps:
                 self.eref().dst(),
                 t,
                 t.saturating_add(1),
-                LayerIds::All,
+                layer_ids,
             ),
         }
     }
@@ -87,12 +89,14 @@ pub trait EdgeViewOps:
 
     /// Gets the first time an edge was seen
     fn earliest_time(&self) -> Option<i64> {
-        self.graph().edge_earliest_time(self.eref(), LayerIds::All)
+        let layer_ids = self.graph().layer_ids().constrain_from_edge(self.eref());
+        self.graph().edge_earliest_time(self.eref(), layer_ids)
     }
 
     /// Gets the latest time an edge was updated
     fn latest_time(&self) -> Option<i64> {
-        self.graph().edge_latest_time(self.eref(), LayerIds::All)
+        let layer_ids = self.graph().layer_ids().constrain_from_edge(self.eref());
+        self.graph().edge_latest_time(self.eref(), layer_ids)
     }
 
     /// Gets the time stamp of the edge if it is exploded
