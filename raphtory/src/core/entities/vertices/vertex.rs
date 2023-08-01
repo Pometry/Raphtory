@@ -191,24 +191,6 @@ pub(crate) struct ArcEdge<const N: usize> {
     meta: Arc<Meta>,
 }
 
-impl<const N: usize> CorePropertiesOps for ArcEdge<N> {
-    fn const_prop_meta(&self) -> &DictMapper<String> {
-        self.meta.static_prop_meta()
-    }
-
-    fn temporal_prop_meta(&self) -> &DictMapper<String> {
-        self.meta.temporal_prop_meta()
-    }
-
-    fn temporal_prop(&self, id: usize) -> Option<&TProp> {
-        todo!()
-    }
-
-    fn const_prop(&self, id: usize) -> Option<&Prop> {
-        todo!()
-    }
-}
-
 impl<const N: usize> ArcEdge<N> {
     pub(crate) fn from_entry(e: ArcEntry<EdgeStore<N>, N>, meta: Arc<Meta>) -> Self {
         ArcEdge { e, meta }
