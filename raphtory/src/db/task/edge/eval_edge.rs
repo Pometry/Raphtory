@@ -135,7 +135,8 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> TemporalPropertiesOps
     fn temporal_property_keys<'b>(
         &'b self,
     ) -> Box<dyn Iterator<Item = LockedView<'b, String>> + 'b> {
-        self.graph.temporal_edge_prop_names(self.ev)
+        self.graph
+            .temporal_edge_prop_names(self.ev, self.graph.layer_ids())
     }
 
     fn get_temporal_property(&self, key: &str) -> Option<String> {

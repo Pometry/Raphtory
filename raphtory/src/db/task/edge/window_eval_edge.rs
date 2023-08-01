@@ -179,18 +179,22 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> TemporalPropertiesOps
     fn temporal_property_keys<'b>(
         &'b self,
     ) -> Box<dyn Iterator<Item = LockedView<'b, String>> + 'b> {
-        Box::new(self.g.temporal_edge_prop_names(self.ev).filter(|k| {
-            !self
-                .g
-                .temporal_edge_prop_vec_window(
-                    self.ev,
-                    k,
-                    self.t_start,
-                    self.t_end,
-                    self.g.layer_ids(),
-                )
-                .is_empty()
-        }))
+        Box::new(
+            self.g
+                .temporal_edge_prop_names(self.ev, self.g.layer_ids())
+                .filter(|k| {
+                    !self
+                        .g
+                        .temporal_edge_prop_vec_window(
+                            self.ev,
+                            k,
+                            self.t_start,
+                            self.t_end,
+                            self.g.layer_ids(),
+                        )
+                        .is_empty()
+                }),
+        )
     }
 
     fn get_temporal_property(&self, key: &str) -> Option<String> {

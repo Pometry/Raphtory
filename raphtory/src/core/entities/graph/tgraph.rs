@@ -36,7 +36,6 @@ use parking_lot::RwLockReadGuard;
 use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, hash::BuildHasherDefault, ops::Deref, path::Path, sync::Arc};
-use tantivy::HasLen;
 
 pub(crate) type FxDashMap<K, V> = DashMap<K, V, BuildHasherDefault<FxHasher>>;
 

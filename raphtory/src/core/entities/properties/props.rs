@@ -12,7 +12,6 @@ use std::{
     ops::Deref,
     sync::atomic::{AtomicUsize, Ordering},
 };
-use tantivy::HasLen;
 
 #[derive(Serialize, Deserialize, Default, Debug, PartialEq)]
 pub struct Props {
@@ -231,7 +230,7 @@ impl<T: Hash + Eq + Clone + Debug> DictMapper<T> {
 
     pub fn reverse_lookup(&self, id: usize) -> Option<LockedView<T>> {
         let guard = self.reverse_map.read();
-        (id < guard.len()).then_some(RwLockReadGuard::map(guard, |v| &v[id]).into())
+        (id < guard.len()).then(|| RwLockReadGuard::map(guard, |v| &v[id]).into())
     }
 
     pub fn get_keys(&self) -> RwLockReadGuard<Vec<T>> {

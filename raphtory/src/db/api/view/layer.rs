@@ -28,6 +28,21 @@ impl<'a, T: ToOwned<Owned = String> + ?Sized> From<Option<&'a T>> for Layer {
     }
 }
 
+impl From<Option<String>> for Layer {
+    fn from(value: Option<String>) -> Self {
+        match value {
+            Some(name) => Layer::One(name),
+            None => Layer::All,
+        }
+    }
+}
+
+impl From<String> for Layer {
+    fn from(value: String) -> Self {
+        Layer::One(value)
+    }
+}
+
 impl<'a, T: ToOwned<Owned = String> + ?Sized> From<&'a T> for Layer {
     fn from(name: &'a T) -> Self {
         Layer::One(name.to_owned())

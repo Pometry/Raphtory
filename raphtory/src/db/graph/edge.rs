@@ -107,13 +107,13 @@ impl<G: GraphViewOps> TemporalPropertiesOps for EdgeView<G> {
     ) -> Box<(dyn Iterator<Item = LockedView<'a, String>> + 'a)> {
         Box::new(
             self.graph
-                .temporal_edge_prop_names(self.edge)
+                .temporal_edge_prop_names(self.edge, self.graph.layer_ids())
                 .filter(|k| self.get_temporal_property(k).is_some()),
         )
     }
 
     fn get_temporal_property(&self, key: &str) -> Option<String> {
-        let layer_ids = self.graph.layer_ids().constrain_from_edge(self.edge);
+        let layer_ids = self.graph.layer_ids();
         (!self
             .graph
             .temporal_edge_prop_vec(self.edge, key, layer_ids)

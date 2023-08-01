@@ -38,17 +38,8 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
     }
 
     fn edge_additions(&self, eref: EdgeRef, layer_ids: LayerIds) -> LockedLayeredIndex<'_> {
+        let layer_ids = layer_ids.constrain_from_edge(eref);
         let edge = self.inner().edge(eref.pid());
-        let layer_ids = match eref.layer() {
-            None => layer_ids,
-            Some(l) => {
-                if layer_ids.contains(l) {
-                    LayerIds::One(*l)
-                } else {
-                    LayerIds::None
-                }
-            }
-        };
         edge.additions(layer_ids).unwrap()
     }
 
@@ -134,6 +125,7 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
     }
 
     fn static_edge_prop(&self, e: EdgeRef, name: &str, layer_ids: LayerIds) -> Option<Prop> {
+        let layer_ids = layer_ids.constrain_from_edge(e);
         let entry = self.inner().edge_entry(e.pid());
         let prop_id = self.inner().edge_find_prop(name, true)?;
         match layer_ids {
@@ -227,27 +219,41 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
         name: &str,
         layer_ids: LayerIds,
     ) -> Option<LockedLayeredTProp> {
+        let layer_ids = layer_ids.constrain_from_edge(e);
         let edge = self.inner().edge(e.pid());
         let prop_id = self.inner().edge_find_prop(name, false)?;
-        match e.layer() {
-            Some(layer) => layer_ids
-                .contains(layer)
-                .then(|| edge.temporal_property(LayerIds::One(*layer), prop_id))
-                .flatten(),
-            None => edge.temporal_property(layer_ids, prop_id),
-        }
+        edge.temporal_property(layer_ids, prop_id)
     }
 
     fn temporal_edge_prop_names<'a>(
         &'a self,
         e: EdgeRef,
+        layer_ids: LayerIds,
     ) -> Box<dyn Iterator<Item = LockedView<'a, String>> + 'a> {
-        Box::new(
-            self.inner()
-                .edge_temp_prop_ids(e.pid())
-                .into_iter()
-                .flat_map(|id| self.inner().edge_reverse_prop_id(id, false)),
-        )
+        let layer_ids = layer_ids.constrain_from_edge(e);
+        let entry = self.inner().edge_entry(e.pid());
+        match layer_ids {
+            LayerIds::None => Box::new(iter::empty()),
+            LayerIds::All => Box::new(
+                entry
+                    .temp_prop_ids(None)
+                    .into_iter()
+                    .flat_map(|id| self.inner().edge_reverse_prop_id(id, false)),
+            ),
+            LayerIds::One(id) => Box::new(
+                entry
+                    .temp_prop_ids(Some(id))
+                    .into_iter()
+                    .flat_map(|id| self.inner().edge_reverse_prop_id(id, false)),
+            ),
+            LayerIds::Multiple(ids) => Box::new(
+                ids.iter()
+                    .map(|id| entry.temp_prop_ids(Some(*id)))
+                    .kmerge()
+                    .dedup()
+                    .flat_map(|id| self.inner().edge_reverse_prop_id(id, false)),
+            ),
+        }
     }
 }
 

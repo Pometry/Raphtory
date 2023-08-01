@@ -7,7 +7,6 @@ pub mod sorted_vec_map;
 pub mod timeindex;
 
 use self::iter::Iter;
-use futures::AsyncReadExt;
 use locked_view::LockedView;
 use parking_lot::{RwLock, RwLockReadGuard};
 use rayon::prelude::{IndexedParallelIterator, ParallelIterator};

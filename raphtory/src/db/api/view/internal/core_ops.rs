@@ -199,6 +199,7 @@ pub trait CoreGraphOps {
     fn temporal_edge_prop_names<'a>(
         &'a self,
         e: EdgeRef,
+        layer_ids: LayerIds,
     ) -> Box<dyn Iterator<Item = LockedView<'a, String>> + 'a>;
 }
 
@@ -320,7 +321,8 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
     fn temporal_edge_prop_names<'a>(
         &'a self,
         e: EdgeRef,
+        layer_ids: LayerIds,
     ) -> Box<dyn Iterator<Item = LockedView<'a, String>> + 'a> {
-        self.graph().temporal_edge_prop_names(e)
+        self.graph().temporal_edge_prop_names(e, layer_ids)
     }
 }
