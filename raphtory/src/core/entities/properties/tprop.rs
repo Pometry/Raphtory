@@ -12,7 +12,7 @@ use crate::{
 use chrono::NaiveDateTime;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, iter, ops::Range};
+use std::{collections::HashMap, iter, ops::Range, sync::Arc};
 
 // TODO TProp struct could be replaced with Option<TCell<Prop>>, with the only issue (or advantage) that then the type can change?
 
@@ -30,6 +30,8 @@ pub enum TProp {
     Bool(TCell<bool>),
     DTime(TCell<NaiveDateTime>),
     Graph(TCell<Graph>),
+    List(TCell<Arc<[Prop]>>),
+    Map(TCell<HashMap<String, Prop>>),
 }
 
 impl TProp {
