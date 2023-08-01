@@ -446,7 +446,7 @@ mod vertex_test {
             v1.properties().as_map(),
             props
                 .into_iter()
-                .map(|(k, v)| (k.to_string(), v.as_prop()))
+                .map(|(k, v)| (k.to_string(), v.into_prop()))
                 .collect()
         );
         assert_eq!(v1_w.properties().as_map(), HashMap::default())

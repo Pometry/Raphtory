@@ -6,7 +6,7 @@ pub(crate) mod timer;
 mod test {
     use crate::{
         core::Direction,
-        prelude::{AsProp, Prop, NO_PROPS},
+        prelude::{IntoProp, Prop, NO_PROPS},
     };
 
     use super::{tgraph::InnerTemporalGraph, *};
@@ -19,21 +19,21 @@ mod test {
             1,
             1,
             2,
-            vec![("tx_sent".to_string(), 10.as_prop())],
+            vec![("tx_sent".to_string(), 10.into_prop())],
             Some("btc"),
         );
         g.inner().add_edge_internal(
             1,
             1,
             2,
-            vec![("tx_sent".to_string(), 20.as_prop())],
+            vec![("tx_sent".to_string(), 20.into_prop())],
             Some("eth"),
         );
         g.inner().add_edge_internal(
             1,
             1,
             2,
-            vec![("tx_sent".to_string(), 70.as_prop())],
+            vec![("tx_sent".to_string(), 70.into_prop())],
             Some("tether"),
         );
 

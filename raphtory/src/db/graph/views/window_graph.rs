@@ -891,7 +891,7 @@ mod views_test {
         g.add_vertex(
             0,
             1,
-            [("type", "wallet".as_prop()), ("cost", 99.5.as_prop())],
+            [("type", "wallet".into_prop()), ("cost", 99.5.into_prop())],
         )
         .map_err(|err| println!("{:?}", err))
         .ok();
@@ -899,7 +899,7 @@ mod views_test {
         g.add_vertex(
             -1,
             2,
-            [("type", "wallet".as_prop()), ("cost", 10.0.as_prop())],
+            [("type", "wallet".into_prop()), ("cost", 10.0.into_prop())],
         )
         .map_err(|err| println!("{:?}", err))
         .ok();
@@ -907,7 +907,7 @@ mod views_test {
         g.add_vertex(
             6,
             3,
-            [("type", "wallet".as_prop()), ("cost", 76.2.as_prop())],
+            [("type", "wallet".into_prop()), ("cost", 76.2.into_prop())],
         )
         .map_err(|err| println!("{:?}", err))
         .ok();
@@ -931,7 +931,7 @@ mod views_test {
         g.add_vertex(
             0,
             1,
-            [("type", "wallet".as_prop()), ("cost", 99.5.as_prop())],
+            [("type", "wallet".into_prop()), ("cost", 99.5.into_prop())],
         )
         .map_err(|err| println!("{:?}", err))
         .ok();
@@ -939,7 +939,7 @@ mod views_test {
         g.add_vertex(
             -1,
             2,
-            [("type", "wallet".as_prop()), ("cost", 10.0.as_prop())],
+            [("type", "wallet".into_prop()), ("cost", 10.0.into_prop())],
         )
         .map_err(|err| println!("{:?}", err))
         .ok();
@@ -947,7 +947,7 @@ mod views_test {
         g.add_vertex(
             6,
             3,
-            [("type", "wallet".as_prop()), ("cost", 76.2.as_prop())],
+            [("type", "wallet".into_prop()), ("cost", 76.2.into_prop())],
         )
         .map_err(|err| println!("{:?}", err))
         .ok();

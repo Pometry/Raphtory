@@ -374,12 +374,36 @@ impl From<Vec<Prop>> for Prop {
     }
 }
 
-pub trait AsProp {
-    fn as_prop(self) -> Prop;
+pub trait IntoPropMap {
+    fn into_prop_map(self) -> Prop;
 }
 
-impl<T: Into<Prop>> AsProp for T {
-    fn as_prop(self) -> Prop {
+impl<I: IntoIterator<Item = (K, V)>, K: Into<String>, V: Into<Prop>> IntoPropMap for I {
+    fn into_prop_map(self) -> Prop {
+        Prop::Map(Arc::new(
+            self.into_iter()
+                .map(|(k, v)| (k.into(), v.into()))
+                .collect(),
+        ))
+    }
+}
+
+pub trait IntoPropList {
+    fn into_prop_list(self) -> Prop;
+}
+
+impl<I: IntoIterator<Item = K>, K: Into<Prop>> IntoPropList for I {
+    fn into_prop_list(self) -> Prop {
+        Prop::List(Arc::new(self.into_iter().map(|v| v.into()).collect()))
+    }
+}
+
+pub trait IntoProp {
+    fn into_prop(self) -> Prop;
+}
+
+impl<T: Into<Prop>> IntoProp for T {
+    fn into_prop(self) -> Prop {
         self.into()
     }
 }
