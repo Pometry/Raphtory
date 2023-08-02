@@ -49,7 +49,7 @@ impl TimeIndexEntry {
     }
 
     pub fn range(w: Range<i64>) -> Range<Self> {
-        Self::start(w.start)..Self::end(w.end)
+        Self::start(w.start)..Self::start(w.end)
     }
 
     pub fn t(&self) -> &i64 {
