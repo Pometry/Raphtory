@@ -129,25 +129,25 @@ impl PyTemporalProperties {
             .collect()
     }
 
+    /// __getitem__(key: str) -> TemporalProp
+    ///
     /// Get property value for `key`
     ///
     /// Returns:
-    ///     TemporalProp: the property view
+    ///     the property view
     ///
     /// Raises:
     ///     KeyError: if property `key` does not exist
-    fn __getitem__(&self, key: &str) -> PyResult<Prop> {
-        let v = self
-            .props
-            .get(key)
-            .ok_or(PyKeyError::new_err("No such property"))?;
-        Ok(v.latest().unwrap())
+    fn __getitem__(&self, key: &str) -> PyResult<DynTemporalProperty> {
+        self.get(key).ok_or(PyKeyError::new_err("No such property"))
     }
 
+    /// get(key: str) -> Optional[TemporalProp]
+    ///
     /// Get property value for `key` if it exists
     ///
     /// Returns:
-    ///     Option[TemporalProp]: the property view
+    ///     the property view if it exists, otherwise `None`
     fn get(&self, key: &str) -> Option<DynTemporalProperty> {
         // Fixme: Add option to specify default?
         self.props.get(key)
