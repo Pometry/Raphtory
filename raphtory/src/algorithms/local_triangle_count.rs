@@ -44,20 +44,20 @@ use itertools::Itertools;
 pub fn local_triangle_count<G: GraphViewOps, V: Into<VertexRef>>(graph: &G, v: V) -> Option<usize> {
     if let Some(vertex) = graph.vertex(v) {
         if vertex.degree() >= 2 {
-            let x: Vec<usize> = vertex
+            let len = vertex
                 .neighbours()
                 .id()
                 .into_iter()
                 .combinations(2)
-                .filter_map(|nb| match graph.has_edge(nb[0], nb[1], None) {
+                .filter_map(|nb| match graph.has_edge(nb[0], nb[1], Layer::All) {
                     true => Some(1),
-                    false => match graph.has_edge(nb[1], nb[0], None) {
+                    false => match graph.has_edge(nb[1], nb[0], Layer::All) {
                         true => Some(1),
                         false => None,
                     },
                 })
-                .collect();
-            Some(x.len())
+                .count();
+            Some(len)
         } else {
             Some(0)
         }

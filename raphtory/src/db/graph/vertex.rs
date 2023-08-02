@@ -2,7 +2,7 @@
 
 use crate::{
     core::{
-        entities::{vertices::vertex_ref::VertexRef, VID},
+        entities::{vertices::vertex_ref::VertexRef, LayerIds, VID},
         storage::locked_view::LockedView,
         utils::time::IntoTime,
         Direction,
@@ -15,7 +15,7 @@ use crate::{
                 },
                 Properties,
             },
-            view::{internal::Static, BoxedIter, LayerOps},
+            view::{internal::Static, BoxedIter, Layer, LayerOps},
         },
         graph::{
             edge::{EdgeList, EdgeView},
@@ -167,24 +167,24 @@ impl<G: GraphViewOps> VertexViewOps for VertexView<G> {
 
     fn degree(&self) -> usize {
         let dir = Direction::BOTH;
-        self.graph.degree(self.vertex, dir, None)
+        self.graph.degree(self.vertex, dir, LayerIds::All)
     }
 
     fn in_degree(&self) -> usize {
         let dir = Direction::IN;
-        self.graph.degree(self.vertex, dir, None)
+        self.graph.degree(self.vertex, dir, LayerIds::All)
     }
 
     fn out_degree(&self) -> usize {
         let dir = Direction::OUT;
-        self.graph.degree(self.vertex, dir, None)
+        self.graph.degree(self.vertex, dir, LayerIds::All)
     }
 
     fn edges(&self) -> EdgeList<G> {
         let g = self.graph.clone();
         let dir = Direction::BOTH;
         Box::new(
-            g.vertex_edges(self.vertex, dir, None)
+            g.vertex_edges(self.vertex, dir, LayerIds::All)
                 .map(move |e| EdgeView::new(g.clone(), e)),
         )
     }
@@ -193,7 +193,7 @@ impl<G: GraphViewOps> VertexViewOps for VertexView<G> {
         let g = self.graph.clone();
         let dir = Direction::IN;
         Box::new(
-            g.vertex_edges(self.vertex, dir, None)
+            g.vertex_edges(self.vertex, dir, LayerIds::All)
                 .map(move |e| EdgeView::new(g.clone(), e)),
         )
     }
@@ -202,7 +202,7 @@ impl<G: GraphViewOps> VertexViewOps for VertexView<G> {
         let g = self.graph.clone();
         let dir = Direction::OUT;
         Box::new(
-            g.vertex_edges(self.vertex, dir, None)
+            g.vertex_edges(self.vertex, dir, LayerIds::All)
                 .map(move |e| EdgeView::new(g.clone(), e)),
         )
     }
@@ -255,7 +255,7 @@ impl<G: GraphViewOps> LayerOps for VertexView<G> {
         }
     }
 
-    fn layer(&self, name: &str) -> Option<Self::LayeredViewType> {
+    fn layer<L: Into<Layer>>(&self, name: L) -> Option<Self::LayeredViewType> {
         Some(VertexView {
             graph: self.graph.layer(name)?,
             vertex: self.vertex,
@@ -446,7 +446,7 @@ mod vertex_test {
             v1.properties().as_map(),
             props
                 .into_iter()
-                .map(|(k, v)| (k.to_string(), v.as_prop()))
+                .map(|(k, v)| (k.to_string(), v.into_prop()))
                 .collect()
         );
         assert_eq!(v1_w.properties().as_map(), HashMap::default())

@@ -93,10 +93,11 @@ pub fn company_house_graph(path: Option<String>) -> Graph {
                 g.add_vertex_properties(
                     company.clone(),
                     [
-                        ("type", "company".as_prop()),
+                        ("type", "company".into_prop()),
                         (
                             "flag",
-                            (company_house.illegal_hmo.clone().unwrap_or("None".into())).as_prop(),
+                            (company_house.illegal_hmo.clone().unwrap_or("None".into()))
+                                .into_prop(),
                         ),
                     ],
                 )
@@ -112,10 +113,11 @@ pub fn company_house_graph(path: Option<String>) -> Graph {
                 g.add_vertex_properties(
                     address.clone(),
                     [
-                        ("type", "address".as_prop()),
+                        ("type", "address".into_prop()),
                         (
                             "flag",
-                            (company_house.illegal_hmo.clone().unwrap_or("None".into())).as_prop(),
+                            (company_house.illegal_hmo.clone().unwrap_or("None".into()))
+                                .into_prop(),
                         ),
                     ],
                 )

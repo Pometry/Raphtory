@@ -113,6 +113,10 @@ impl Meta {
         &self.meta_prop_temporal
     }
 
+    pub fn layer_meta(&self) -> &DictMapper<String> {
+        &self.meta_layer
+    }
+
     pub fn new() -> Self {
         let meta_layer = DictMapper::default();
         meta_layer.get_or_create_id("_default".to_owned());
@@ -224,13 +228,21 @@ impl<T: Hash + Eq + Clone + Debug> DictMapper<T> {
         self.map.get(name).map(|id| *id)
     }
 
-    fn reverse_lookup(&self, id: usize) -> Option<LockedView<T>> {
+    pub fn reverse_lookup(&self, id: usize) -> Option<LockedView<T>> {
         let guard = self.reverse_map.read();
-        (id < guard.len()).then_some(RwLockReadGuard::map(guard, |v| &v[id]).into())
+        (id < guard.len()).then(|| RwLockReadGuard::map(guard, |v| &v[id]).into())
     }
 
     pub fn get_keys(&self) -> RwLockReadGuard<Vec<T>> {
         self.reverse_map.read()
+    }
+
+    pub fn len(&self) -> usize {
+        self.reverse_map.read().len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.reverse_map.read().is_empty()
     }
 }
 

@@ -14,7 +14,10 @@ use crate::{
                 BoxedIter, WindowSet,
             },
         },
-        graph::{edge::EdgeView, views::window_graph::WindowedGraph},
+        graph::{
+            edge::EdgeView,
+            views::{layer_graph::LayeredGraph, window_graph::WindowedGraph},
+        },
     },
     prelude::*,
     python::{
@@ -216,6 +219,28 @@ impl PyEdge {
             .window(t_start.unwrap_or(PyTime::MIN), t_end.unwrap_or(PyTime::MAX))
     }
 
+    /// Get a new Edge with the properties of this Edge within the specified layers.
+    ///
+    /// Arguments:
+    ///   layer_names ([str]): Layers to be included in the new edge.
+    ///
+    /// Returns:
+    ///   A new Edge with the properties of this Edge within the specified time window.
+    #[pyo3(signature = (layer_names))]
+    pub fn layers(
+        &self,
+        layer_names: Vec<String>,
+    ) -> PyResult<EdgeView<LayeredGraph<DynamicGraph>>> {
+        if let Some(edge) = self.edge.layer(layer_names.clone()) {
+            Ok(edge)
+        } else {
+            let available_layers = self.edge.layer_names();
+            Err(PyErr::new::<pyo3::exceptions::PyAttributeError, _>(
+                format!("Layers {layer_names:?} not available for edge, available layers: {available_layers:?}"),
+            ))
+        }
+    }
+
     /// Get a new Edge with the properties of this Edge at a specified time.
     ///
     /// Arguments:
@@ -284,8 +309,8 @@ impl PyEdge {
     ///
     /// Returns:
     ///     (str) The name of the layer
-    pub fn layer_name(&self) -> String {
-        self.edge.layer_name()
+    pub fn layer_names(&self) -> Vec<String> {
+        self.edge.layer_names()
     }
 
     /// Gets the datetime of an exploded edge.
@@ -426,7 +451,6 @@ impl PyEdges {
         (move || edges().latest_time()).into()
     }
 
-    // FIXME: needs a view that allows indexing into the properties
     /// Returns all properties of the edges
     fn properties(&self) -> PyPropsList {
         let builder = self.builder.clone();

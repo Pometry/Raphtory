@@ -1,121 +1,94 @@
 use crate::core::entities::{vertices::vertex_ref::VertexRef, EID, VID};
 
 #[derive(Debug, Copy, Clone, PartialEq)]
-pub enum EdgeRef {
-    LocalInto {
-        e_pid: EID,
-        layer_id: usize,
-        src_pid: VID,
-        dst_pid: VID,
-        time: Option<i64>,
-    },
-    LocalOut {
-        e_pid: EID,
-        layer_id: usize,
-        src_pid: VID,
-        dst_pid: VID,
-        time: Option<i64>,
-    },
+pub struct EdgeRef {
+    e_pid: EID,
+    src_pid: VID,
+    dst_pid: VID,
+    e_type: Dir,
+    time: Option<i64>,
+    layer_id: Option<usize>,
+}
+
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum Dir {
+    Into,
+    Out,
 }
 
 impl EdgeRef {
-    #[inline(always)]
-    pub fn layer(&self) -> usize {
-        match &self {
-            EdgeRef::LocalInto { layer_id, .. } => *layer_id,
-            EdgeRef::LocalOut { layer_id, .. } => *layer_id,
+    pub fn new_outgoing(e_pid: EID, src_pid: VID, dst_pid: VID) -> Self {
+        EdgeRef {
+            e_pid,
+            src_pid,
+            dst_pid,
+            e_type: Dir::Out,
+            time: None,
+            layer_id: None,
         }
+    }
+
+    pub fn new_incoming(e_pid: EID, src_pid: VID, dst_pid: VID) -> Self {
+        EdgeRef {
+            e_pid,
+            src_pid,
+            dst_pid,
+            e_type: Dir::Into,
+            time: None,
+            layer_id: None,
+        }
+    }
+
+    #[inline(always)]
+    pub fn layer(&self) -> Option<&usize> {
+        self.layer_id.as_ref()
     }
 
     #[inline(always)]
     pub fn time(&self) -> Option<i64> {
-        match self {
-            EdgeRef::LocalInto { time, .. } => *time,
-            EdgeRef::LocalOut { time, .. } => *time,
-        }
+        self.time
+    }
+
+    pub fn dir(&self) -> Dir {
+        self.e_type
     }
 
     pub fn src(&self) -> VertexRef {
-        match self {
-            EdgeRef::LocalInto { src_pid, .. } => (*src_pid).into(),
-            EdgeRef::LocalOut { src_pid, .. } => (*src_pid).into(),
-        }
+        self.src_pid.into()
     }
 
     pub fn dst(&self) -> VertexRef {
-        match self {
-            EdgeRef::LocalInto { dst_pid, .. } => (*dst_pid).into(),
-            EdgeRef::LocalOut { dst_pid, .. } => (*dst_pid).into(),
-        }
+        self.dst_pid.into()
     }
 
     pub fn remote(&self) -> VertexRef {
-        match self {
-            EdgeRef::LocalInto { .. } => self.src(),
-            EdgeRef::LocalOut { .. } => self.dst(),
+        match self.e_type {
+            Dir::Into => self.src(),
+            Dir::Out => self.dst(),
         }
     }
 
     pub fn local(&self) -> VertexRef {
-        match self {
-            EdgeRef::LocalInto { .. } => self.dst(),
-            EdgeRef::LocalOut { .. } => self.src(),
+        match self.e_type {
+            Dir::Into => self.dst(),
+            Dir::Out => self.src(),
         }
     }
 
     #[inline(always)]
     pub(crate) fn pid(&self) -> EID {
-        match self {
-            EdgeRef::LocalOut { e_pid, .. } => *e_pid,
-            EdgeRef::LocalInto { e_pid, .. } => *e_pid,
-        }
-    }
-
-    pub fn at_layer(mut self, layer: usize) -> Self {
-        match self {
-            e_ref @ EdgeRef::LocalInto {
-                ref mut layer_id, ..
-            } => {
-                *layer_id = layer;
-                e_ref
-            }
-            e_ref @ EdgeRef::LocalOut {
-                ref mut layer_id, ..
-            } => {
-                *layer_id = layer;
-                e_ref
-            }
-        }
+        self.e_pid
     }
 
     pub fn at(&self, time: i64) -> Self {
-        match *self {
-            EdgeRef::LocalInto {
-                e_pid,
-                layer_id,
-                src_pid,
-                dst_pid,
-                ..
-            } => EdgeRef::LocalInto {
-                time: Some(time),
-                e_pid,
-                layer_id,
-                src_pid,
-                dst_pid,
-            },
-            EdgeRef::LocalOut {
-                e_pid,
-                layer_id,
-                src_pid,
-                dst_pid,
-                ..
-            } => EdgeRef::LocalOut {
-                time: Some(time),
-                e_pid,
-                layer_id,
-                src_pid,
-                dst_pid,
-            },
-        }
+        let mut e_ref = *self;
+        e_ref.time = Some(time);
+        e_ref
+    }
+
+    pub fn at_layer(&self, layer: usize) -> Self {
+        let mut e_ref = *self;
+        e_ref.layer_id = Some(layer);
+        e_ref
     }
 }

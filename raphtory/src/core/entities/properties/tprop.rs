@@ -1,10 +1,18 @@
 use crate::{
-    core::{entities::properties::tcell::TCell, Prop},
+    core::{
+        entities::{
+            properties::{props::DictMapper, tcell::TCell},
+            LayerIds,
+        },
+        storage::locked_view::LockedView,
+        Prop,
+    },
     db::graph::graph::Graph,
 };
 use chrono::NaiveDateTime;
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-use std::ops::Range;
+use std::{collections::HashMap, iter, ops::Range, sync::Arc};
 
 // TODO TProp struct could be replaced with Option<TCell<Prop>>, with the only issue (or advantage) that then the type can change?
 
@@ -22,6 +30,8 @@ pub enum TProp {
     Bool(TCell<bool>),
     DTime(TCell<NaiveDateTime>),
     Graph(TCell<Graph>),
+    List(TCell<Arc<Vec<Prop>>>),
+    Map(TCell<Arc<HashMap<String, Prop>>>),
 }
 
 impl TProp {
@@ -37,6 +47,8 @@ impl TProp {
             Prop::Bool(value) => TProp::Bool(TCell::new(t, *value)),
             Prop::DTime(value) => TProp::DTime(TCell::new(t, *value)),
             Prop::Graph(value) => TProp::Graph(TCell::new(t, value.clone())),
+            Prop::List(value) => TProp::List(TCell::new(t, value.clone())),
+            Prop::Map(value) => TProp::Map(TCell::new(t, value.clone())),
         }
     }
 
@@ -97,22 +109,38 @@ impl TProp {
                     cell.set(t, a.clone());
                 }
             }
+            TProp::List(cell) => {
+                if let Prop::List(a) = prop {
+                    cell.set(t, a.clone());
+                }
+            }
+            TProp::Map(cell) => {
+                if let Prop::Map(a) = prop {
+                    cell.set(t, a.clone());
+                }
+            }
         }
     }
 
-    pub(crate) fn last_before(&self, t: i64) -> Option<Prop> {
+    pub(crate) fn last_before(&self, t: i64) -> Option<(i64, Prop)> {
         match self {
             TProp::Empty => None,
-            TProp::Str(cell) => cell.last_before(t).map(|v| Prop::Str(v.clone())),
-            TProp::I32(cell) => cell.last_before(t).map(|v| Prop::I32(*v)),
-            TProp::I64(cell) => cell.last_before(t).map(|v| Prop::I64(*v)),
-            TProp::U32(cell) => cell.last_before(t).map(|v| Prop::U32(*v)),
-            TProp::U64(cell) => cell.last_before(t).map(|v| Prop::U64(*v)),
-            TProp::F32(cell) => cell.last_before(t).map(|v| Prop::F32(*v)),
-            TProp::F64(cell) => cell.last_before(t).map(|v| Prop::F64(*v)),
-            TProp::Bool(cell) => cell.last_before(t).map(|v| Prop::Bool(*v)),
-            TProp::DTime(cell) => cell.last_before(t).map(|v| Prop::DTime(*v)),
-            TProp::Graph(cell) => cell.last_before(t).map(|v| Prop::Graph(v.clone())),
+            TProp::Str(cell) => cell.last_before(t).map(|(t, v)| (*t, Prop::Str(v.clone()))),
+            TProp::I32(cell) => cell.last_before(t).map(|(t, v)| (*t, Prop::I32(*v))),
+            TProp::I64(cell) => cell.last_before(t).map(|(t, v)| (*t, Prop::I64(*v))),
+            TProp::U32(cell) => cell.last_before(t).map(|(t, v)| (*t, Prop::U32(*v))),
+            TProp::U64(cell) => cell.last_before(t).map(|(t, v)| (*t, Prop::U64(*v))),
+            TProp::F32(cell) => cell.last_before(t).map(|(t, v)| (*t, Prop::F32(*v))),
+            TProp::F64(cell) => cell.last_before(t).map(|(t, v)| (*t, Prop::F64(*v))),
+            TProp::Bool(cell) => cell.last_before(t).map(|(t, v)| (*t, Prop::Bool(*v))),
+            TProp::DTime(cell) => cell.last_before(t).map(|(t, v)| (*t, Prop::DTime(*v))),
+            TProp::Graph(cell) => cell
+                .last_before(t)
+                .map(|(t, v)| (*t, Prop::Graph(v.clone()))),
+            TProp::List(cell) => cell
+                .last_before(t)
+                .map(|(t, v)| (*t, Prop::List(v.clone()))),
+            TProp::Map(cell) => cell.last_before(t).map(|(t, v)| (*t, Prop::Map(v.clone()))),
         }
     }
 
@@ -136,6 +164,14 @@ impl TProp {
             TProp::Graph(cell) => Box::new(
                 cell.iter_t()
                     .map(|(t, value)| (*t, Prop::Graph(value.clone()))),
+            ),
+            TProp::List(cell) => Box::new(
+                cell.iter_t()
+                    .map(|(t, value)| (*t, Prop::List(value.clone()))),
+            ),
+            TProp::Map(cell) => Box::new(
+                cell.iter_t()
+                    .map(|(t, value)| (*t, Prop::Map(value.clone()))),
             ),
         }
     }
@@ -183,7 +219,46 @@ impl TProp {
                 cell.iter_window_t(r)
                     .map(|(t, value)| (*t, Prop::Graph(value.clone()))),
             ),
+            TProp::List(cell) => Box::new(
+                cell.iter_window_t(r)
+                    .map(|(t, value)| (*t, Prop::List(value.clone()))),
+            ),
+            TProp::Map(cell) => Box::new(
+                cell.iter_window_t(r)
+                    .map(|(t, value)| (*t, Prop::Map(value.clone()))),
+            ),
         }
+    }
+}
+
+pub struct LockedLayeredTProp<'a> {
+    tprop: Vec<LockedView<'a, TProp>>,
+}
+
+impl<'a> LockedLayeredTProp<'a> {
+    pub(crate) fn new(tprop: Vec<LockedView<'a, TProp>>) -> Self {
+        Self { tprop }
+    }
+
+    pub(crate) fn last_before(&self, t: i64) -> Option<(i64, Prop)> {
+        self.tprop
+            .iter()
+            .flat_map(|p| p.last_before(t))
+            .max_by_key(|v| v.0)
+    }
+
+    pub(crate) fn iter(&self) -> impl Iterator<Item = (i64, Prop)> + '_ {
+        self.tprop
+            .iter()
+            .map(|p| p.iter())
+            .kmerge_by(|a, b| a.0 < b.0)
+    }
+
+    pub(crate) fn iter_window(&self, r: Range<i64>) -> impl Iterator<Item = (i64, Prop)> + '_ {
+        self.tprop
+            .iter()
+            .map(|p| p.iter_window(r.clone()))
+            .kmerge_by(|a, b| a.0 < b.0)
     }
 }
 

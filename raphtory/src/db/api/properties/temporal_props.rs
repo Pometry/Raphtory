@@ -4,7 +4,7 @@ use crate::{
     prelude::Graph,
 };
 use chrono::NaiveDateTime;
-use std::iter::Zip;
+use std::{collections::HashMap, iter::Zip, sync::Arc};
 
 pub struct TemporalPropertyView<P: PropertiesOps> {
     pub(crate) id: Key,
@@ -139,6 +139,14 @@ impl<P: PropertiesOps> PropUnwrap for TemporalPropertyView<P> {
 
     fn into_bool(self) -> Option<bool> {
         self.latest().into_bool()
+    }
+
+    fn into_list(self) -> Option<Arc<Vec<Prop>>> {
+        self.latest().into_list()
+    }
+
+    fn into_map(self) -> Option<Arc<HashMap<String, Prop>>> {
+        self.latest().into_map()
     }
 
     fn into_dtime(self) -> Option<NaiveDateTime> {

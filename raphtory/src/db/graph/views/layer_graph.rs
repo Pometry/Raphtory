@@ -1,12 +1,13 @@
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef, EID, VID},
+        entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef, LayerIds, EID, VID},
         Direction,
     },
     db::api::{
         properties::internal::InheritPropertiesOps,
-        view::internal::{
-            Base, GraphOps, InheritCoreOps, InheritMaterialize, InheritTimeSemantics,
+        view::{
+            internal::{Base, GraphOps, InheritCoreOps, InheritMaterialize, InheritTimeSemantics},
+            Layer,
         },
     },
     prelude::GraphViewOps,
@@ -18,7 +19,7 @@ pub struct LayeredGraph<G: GraphViewOps> {
     /// The underlying `Graph` object.
     pub graph: G,
     /// The layer this graphs points to.
-    pub layer: usize,
+    pub layers: LayerIds,
 }
 
 impl<G: GraphViewOps> Base for LayeredGraph<G> {
@@ -38,23 +39,51 @@ impl<G: GraphViewOps> InheritMaterialize for LayeredGraph<G> {}
 impl<G: GraphViewOps> InheritPropertiesOps for LayeredGraph<G> {}
 
 impl<G: GraphViewOps> LayeredGraph<G> {
-    pub fn new(graph: G, layer: usize) -> Self {
-        Self { graph, layer }
+    pub fn new(graph: G, layers: LayerIds) -> Self {
+        Self { graph, layers }
     }
 
-    /// Return None if the intersection between the previously requested layers and the layer of
-    /// this view is null
-    fn constrain(&self, layer: Option<usize>) -> Option<usize> {
-        Some(layer.unwrap_or(self.layer))
+    /// Get the intersection between the previously requested layers and the layers of
+    /// this view
+    fn constrain(&self, layers: LayerIds) -> LayerIds {
+        match layers {
+            LayerIds::None => LayerIds::None,
+            LayerIds::All => self.layers.clone(),
+            _ => match &self.layers {
+                LayerIds::All => layers,
+                LayerIds::One(id) => match layers.find(*id) {
+                    Some(layer) => LayerIds::One(layer),
+                    None => LayerIds::None,
+                },
+                LayerIds::Multiple(ids) => {
+                    // intersect the layers
+                    let new_layers = ids.iter().filter_map(|id| layers.find(*id)).collect_vec();
+                    match new_layers.len() {
+                        0 => LayerIds::None,
+                        1 => LayerIds::One(new_layers[0]),
+                        _ => LayerIds::Multiple(new_layers.into()),
+                    }
+                }
+                LayerIds::None => LayerIds::None,
+            },
+        }
     }
 }
 
 impl<G: GraphViewOps> GraphOps for LayeredGraph<G> {
+    fn layer_ids(&self) -> LayerIds {
+        self.layers.clone()
+    }
+
+    fn local_vertex_ref(&self, v: VertexRef) -> Option<VID> {
+        self.graph.local_vertex_ref(v)
+    }
+
     fn find_edge_id(&self, e_id: EID) -> Option<EdgeRef> {
         let edge_ref = self.graph.find_edge_id(e_id)?;
-        let edge_ref_in_layer = self
-            .graph
-            .has_edge_ref(edge_ref.src(), edge_ref.dst(), self.layer);
+        let edge_ref_in_layer =
+            self.graph
+                .has_edge_ref(edge_ref.src(), edge_ref.dst(), self.layers.clone());
 
         if edge_ref_in_layer {
             Some(edge_ref)
@@ -63,45 +92,33 @@ impl<G: GraphViewOps> GraphOps for LayeredGraph<G> {
         }
     }
 
-    fn local_vertex_ref(&self, v: VertexRef) -> Option<VID> {
-        self.graph.local_vertex_ref(v)
+    fn layer_ids_from_names(&self, key: Layer) -> LayerIds {
+        self.constrain(self.graph.layer_ids_from_names(key))
     }
 
-    fn get_unique_layers_internal(&self) -> Vec<usize> {
-        let layers = self.graph.get_unique_layers_internal();
-        layers
-            .into_iter()
-            .filter(|id| *id == self.layer)
-            .collect_vec()
-    }
-
-    fn get_layer_id(&self, key: Option<&str>) -> Option<usize> {
-        self.graph.get_layer_id(key)
+    fn edge_layer_ids(&self, e_id: EID) -> LayerIds {
+        let layer_ids = self.graph.edge_layer_ids(e_id);
+        self.constrain(layer_ids)
     }
 
     fn vertices_len(&self) -> usize {
         self.graph.vertices_len()
     }
 
-    fn edges_len(&self, layer: Option<usize>) -> usize {
-        self.constrain(layer)
-            .map(|layer| self.graph.edges_len(Some(layer)))
-            .unwrap_or(0)
+    fn edges_len(&self, layers: LayerIds) -> usize {
+        self.graph.edges_len(self.constrain(layers))
     }
 
-    fn has_edge_ref(&self, src: VertexRef, dst: VertexRef, layer: usize) -> bool {
-        // FIXME: there is something wrong here, the layer should be able to be None, which would mean, whatever layer this is
-        layer == self.layer && self.graph.has_edge_ref(src, dst, layer)
+    fn has_edge_ref(&self, src: VertexRef, dst: VertexRef, layer: LayerIds) -> bool {
+        self.graph.has_edge_ref(src, dst, self.constrain(layer))
     }
 
     fn has_vertex_ref(&self, v: VertexRef) -> bool {
         self.graph.has_vertex_ref(v)
     }
 
-    fn degree(&self, v: VID, d: Direction, layer: Option<usize>) -> usize {
-        self.constrain(layer)
-            .map(|layer| self.graph.degree(v, d, Some(layer)))
-            .unwrap_or(0)
+    fn degree(&self, v: VID, d: Direction, layer: LayerIds) -> usize {
+        self.graph.degree(v, d, self.constrain(layer))
     }
 
     fn vertex_ref(&self, v: u64) -> Option<VID> {
@@ -112,24 +129,19 @@ impl<G: GraphViewOps> GraphOps for LayeredGraph<G> {
         self.graph.vertex_refs()
     }
 
-    fn edge_ref(&self, src: VertexRef, dst: VertexRef, layer: usize) -> Option<EdgeRef> {
-        (layer == self.layer)
-            .then(|| self.graph.edge_ref(src, dst, layer))
-            .flatten()
+    fn edge_ref(&self, src: VertexRef, dst: VertexRef, layer: LayerIds) -> Option<EdgeRef> {
+        self.graph.edge_ref(src, dst, self.constrain(layer))
     }
 
-    fn edge_refs(&self, layer: Option<usize>) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
-        // TODO: create a function empty_iter which returns a boxed empty iterator so we use it in all these functions
-        self.constrain(layer)
-            .map(|layer| self.graph.edge_refs(Some(layer)))
-            .unwrap_or_else(|| Box::new(std::iter::empty()))
+    fn edge_refs(&self, layer: LayerIds) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
+        self.graph.edge_refs(self.constrain(layer))
     }
 
     fn vertex_edges(
         &self,
         v: VID,
         d: Direction,
-        layer: Option<usize>,
+        layer: LayerIds,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
         self.graph.vertex_edges(v, d, self.constrain(layer))
     }
@@ -138,10 +150,8 @@ impl<G: GraphViewOps> GraphOps for LayeredGraph<G> {
         &self,
         v: VID,
         d: Direction,
-        layer: Option<usize>,
+        layer: LayerIds,
     ) -> Box<dyn Iterator<Item = VertexRef> + Send> {
-        self.constrain(layer)
-            .map(|layer| self.graph.neighbours(v, d, Some(layer)))
-            .unwrap_or_else(|| Box::new(std::iter::empty()))
+        self.graph.neighbours(v, d, self.constrain(layer))
     }
 }

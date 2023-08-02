@@ -4,7 +4,7 @@ use crate::{
         graph::graph as rap,
     },
     graph_loader::source::neo4j_loader::Neo4JConnection,
-    prelude::{AsProp, NO_PROPS},
+    prelude::{IntoProp, NO_PROPS},
 };
 use neo4rs::*;
 
@@ -34,8 +34,8 @@ fn load_movies(row: Row, graph: &rap::Graph) {
         .add_vertex_properties(
             film_title.clone(),
             [
-                ("type", "film".as_prop()),
-                ("tagline", film_tagline.as_prop()),
+                ("type", "film".into_prop()),
+                ("tagline", film_tagline.into_prop()),
             ],
         )
         .unwrap();

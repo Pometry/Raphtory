@@ -102,12 +102,13 @@ pub mod search;
 pub mod prelude {
     pub const NO_PROPS: [(&str, Prop); 0] = [];
     pub use crate::{
-        core::{AsProp, Prop, PropUnwrap},
+        core::{IntoProp, Prop, PropUnwrap},
         db::{
             api::{
                 mutation::{AdditionOps, DeletionOps, PropertyAdditionOps},
                 view::{
-                    EdgeListOps, EdgeViewOps, GraphViewOps, TimeOps, VertexListOps, VertexViewOps,
+                    EdgeListOps, EdgeViewOps, GraphViewOps, Layer, LayerOps, TimeOps,
+                    VertexListOps, VertexViewOps,
                 },
             },
             graph::graph::Graph,

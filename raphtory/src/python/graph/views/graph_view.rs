@@ -329,14 +329,14 @@ impl PyGraphView {
     }
 
     #[doc = default_layer_doc_string!()]
-    pub fn default_layer(&self) -> PyGraphView {
-        self.graph.default_layer().into()
+    pub fn default_layer(&self) -> LayeredGraph<DynamicGraph> {
+        self.graph.default_layer()
     }
 
-    #[doc = layer_doc_string!()]
-    #[pyo3(signature = (name))]
-    pub fn layer(&self, name: &str) -> Option<PyGraphView> {
-        self.graph.layer(name).map(|layer| layer.into())
+    #[doc = layers_doc_string!()]
+    #[pyo3(signature = (names))]
+    pub fn layers(&self, names: Vec<String>) -> Option<LayeredGraph<DynamicGraph>> {
+        self.graph.layer(names)
     }
 
     /// Get all graph properties

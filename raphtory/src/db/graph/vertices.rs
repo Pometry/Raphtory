@@ -3,7 +3,7 @@ use crate::{
     db::{
         api::{
             properties::Properties,
-            view::{BoxedIter, LayerOps},
+            view::{BoxedIter, Layer, LayerOps},
         },
         graph::{
             edge::EdgeView,
@@ -210,7 +210,7 @@ impl<G: GraphViewOps> LayerOps for Vertices<G> {
     /// # Returns
     ///
     /// A view including all the vertices in the given layer
-    fn layer(&self, name: &str) -> Option<Self::LayeredViewType> {
+    fn layer<L: Into<Layer>>(&self, name: L) -> Option<Self::LayeredViewType> {
         Some(Vertices {
             graph: self.graph.layer(name)?,
         })
