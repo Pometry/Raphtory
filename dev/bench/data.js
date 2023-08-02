@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1690798648296,
+  "lastUpdate": 1690969037392,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -6097,6 +6097,60 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions with numeric string input",
             "value": 1847223,
             "range": "± 82367",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "2404621+fabianmurariu@users.noreply.github.com",
+            "name": "Fabian Murariu",
+            "username": "fabianmurariu"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a01ee30e42314d4783479b813e02e436eeb743cd",
+          "message": "Multiple layers (#1120)\n\n* cleanup\r\n\r\n* changes to rebase\r\n\r\n* skeleton for properties objects\r\n\r\n* Change properties API to enable dynamic boxing and start implementing some python wrappers\r\n\r\n* compiles but still work to do\r\n\r\n* add properties object for edges and some other improvements\r\n\r\n* implement properties for Graph\r\n\r\n* Fix errors and warnings after merge\r\n\r\n* minor cleanup of properties\r\n\r\n* fix the tests\r\n\r\n* add some python interface methods\r\n\r\n* start changing the properties so that their is a top-level properties object with temporal and static as sub-parts\r\n\r\n* Mostly working but still need to fix all the tests and python\r\n\r\n* core compiles again after refactoring of static/temporal properties, still need to update python/tests\r\n\r\n* update tests\r\n\r\n* start updating python\r\n\r\n* fix all compile errors\r\n\r\n* fix windowed property keys\r\n\r\n* fix warnings\r\n\r\n* python properties api\r\n\r\n* support for vectorised property access\r\n\r\n* actually add some methods for vectorised props\r\n\r\n* sort of works but python api could be cleaner\r\n\r\n* more python vectorised apis\r\n\r\n* even more vectorised operations\r\n\r\n* vectorised NestedTemporalProperty\r\n\r\n* implement vectorised static properties and start experimenting with __eq__ support\r\n\r\n* macro for implementing == for iterables\r\n\r\n* equality support nests now\r\n\r\n* completely remove macro-based python iterators as they have no advantage over the generic ones\r\n\r\n* fix semantics for Properties iterables\r\n\r\n* more cleanup but PropertiesIterable behaviour is inconsistent\r\n\r\n* start fixing inconsistencies for PropsIterable\r\n\r\n* update vertex test to reflect expected semantics\r\n\r\n* attempt to figure out the implications\r\n\r\n* start adding multiple layers at the store level\r\n\r\n* implemented low level multiple layer support 15 tests failing\r\n\r\n* change multiple layers edge_tuples to avoid duplicate edges\r\n\r\n* surface the multi layer API changes to the graph traits\r\n\r\n* lift the multiple layers up one level\r\n\r\n* core rust 2 tests still failing\r\n\r\n* issues with edge_tuples\r\n\r\n* need to find a way to filter edges by time\r\n\r\n* all test pass, but materialize is known to be broken\r\n\r\n* all rust test pass\r\n\r\n* added layer_ids on all functions concerning edges\r\n\r\n* implemented TimeSemantics for LayeredGraph\r\n\r\n* rust tests pass and added edge.layers in python\r\n\r\n* python tests pass\r\n\r\n* fix vertex subgraph after rebase\r\n\r\n* cargo fmt\r\n\r\n* improved __eq__ for properties\r\n\r\n* fix static properties\r\n\r\n* remove some useless bits\r\n\r\n* start implementing comparisons for temporal properties\r\n\r\n* finish implementation for temporal properties and update all python tests\r\n\r\n* fix quickcheck test (properties at t0 still have a latest value at t1)\r\n\r\n* Fix merge issues and warnings\r\n\r\n* use lazy iterables everywhere in temporal properties and start cleaning up internal names\r\n\r\n* more cleanup\r\n\r\n* rename static/meta to constant\r\n\r\n* minor fixes and renames\r\n\r\n* Make getting a layer more friendly\r\n\r\n* add test to confirm materialize is broken\r\n\r\n* more improvements to api\r\n\r\n* add test to confirm static properties are broken\r\n\r\n* clean up the remaining `into`s in the layer api\r\n\r\n* start trying to fix properties\r\n\r\n* build infrastructure make temporal property merging possible\r\n\r\n* don't do this\r\n\r\n* Revert \"don't do this\"\r\n\r\nc2e298ee920beb99b45a749bb694b4ab4acaae57\r\n\r\n* everything compiles again\r\n\r\n* clean up layering\r\n\r\n* fix layer refining\r\n\r\n* fix multilayer property view\r\n\r\n* fix static properties\r\n\r\n* implement materialize again\r\n\r\n* fix warnings and clean up property list\r\n\r\n* start adding List and Map to TProp\r\n\r\n* this was fixed\r\n\r\n* this is not used\r\n\r\n* add List and Map to TProp\r\n\r\n* remove stray println that got reintroduced\r\n\r\n* clean up format\r\n\r\n* cleanup and fixes\r\n\r\n* Rename AsProp to IntoProp to fit rust conventions and add specialised converters for maps and lists to avoid ambiguous implementation errors due to rust ignoring associated types\r\n\r\n* add more tests for edge layer properties\r\n\r\n* fix merge issue\r\n\r\n* layered graph can inherit TimeSemantics again\r\n\r\n---------\r\n\r\nCo-authored-by: Lucas Jeub <lucas.jeub@pometry.com>",
+          "timestamp": "2023-08-02T11:29:33+02:00",
+          "tree_id": "707e39945a57ec8f2a4000eec1fbc0789a57595d",
+          "url": "https://github.com/Pometry/Raphtory/commit/a01ee30e42314d4783479b813e02e436eeb743cd"
+        },
+        "date": 1690969035772,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 719716,
+            "range": "± 36519",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and numeric string input",
+            "value": 1351095,
+            "range": "± 54061",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and string input",
+            "value": 1427490,
+            "range": "± 93290",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 1329400,
+            "range": "± 205652",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions with numeric string input",
+            "value": 2193428,
+            "range": "± 482355",
             "unit": "ns/iter"
           }
         ]
