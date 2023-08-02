@@ -4,7 +4,10 @@ use crate::core::{
         properties::{props::Props, tprop::TProp},
         LayerIds, EID, VID,
     },
-    storage::{locked_view::LockedView, timeindex::TimeIndex},
+    storage::{
+        locked_view::LockedView,
+        timeindex::{TimeIndex, TimeIndexEntry},
+    },
     utils::errors::MutateGraphError,
     Prop,
 };
@@ -32,7 +35,7 @@ impl EdgeLayer {
         self.props.as_ref()
     }
 
-    pub fn add_prop(&mut self, t: i64, prop_id: usize, prop: Prop) {
+    pub fn add_prop(&mut self, t: TimeIndexEntry, prop_id: usize, prop: Prop) {
         let props = self.props.get_or_insert_with(|| Props::new());
         props.add_prop(t, prop_id, prop);
     }

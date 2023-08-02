@@ -112,14 +112,18 @@ impl Graph {
         };
 
         match JsVertex::try_from(id)? {
-            JsVertex::Str(vertex) => self
-                .mutable_graph()
-                .add_vertex(t, vertex, rust_props)
-                .map_err(JSError),
-            JsVertex::Number(vertex) => self
-                .mutable_graph()
-                .add_vertex(t, vertex, rust_props)
-                .map_err(JSError),
+            JsVertex::Str(vertex) => {
+                self.mutable_graph()
+                    .add_vertex(t, vertex, rust_props)
+                    .map_err(JSError)?;
+                Ok(())
+            }
+            JsVertex::Number(vertex) => {
+                self.mutable_graph()
+                    .add_vertex(t, vertex, rust_props)
+                    .map_err(JSError)?;
+                Ok(())
+            }
         }
     }
 

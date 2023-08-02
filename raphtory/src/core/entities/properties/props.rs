@@ -1,6 +1,6 @@
 use crate::core::{
     entities::{graph::tgraph::FxDashMap, properties::tprop::TProp},
-    storage::{lazy_vec::LazyVec, locked_view::LockedView},
+    storage::{lazy_vec::LazyVec, locked_view::LockedView, timeindex::TimeIndexEntry},
     utils::errors::{IllegalMutate, MutateGraphError},
     Prop,
 };
@@ -34,9 +34,8 @@ impl Props {
         }
     }
 
-    pub fn add_prop(&mut self, t: i64, prop_id: usize, prop: Prop) {
-        self.temporal_props
-            .update_or_set(prop_id, |p| p.set(t, &prop), TProp::from(t, &prop))
+    pub fn add_prop(&mut self, t: TimeIndexEntry, prop_id: usize, prop: Prop) {
+        self.temporal_props.update(prop_id, |p| p.set(t, prop))
     }
 
     pub fn add_static_prop(

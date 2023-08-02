@@ -20,7 +20,7 @@ use crate::{
         },
         storage::{
             locked_view::LockedView,
-            timeindex::{LockedLayeredIndex, TimeIndexOps},
+            timeindex::{LockedLayeredIndex, TimeIndexEntry, TimeIndexOps},
             Entry,
         },
         utils::{
@@ -35,7 +35,13 @@ use dashmap::DashMap;
 use parking_lot::RwLockReadGuard;
 use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
-use std::{fmt::Debug, hash::BuildHasherDefault, ops::Deref, path::Path, sync::Arc};
+use std::{
+    fmt::Debug,
+    hash::BuildHasherDefault,
+    ops::Deref,
+    path::Path,
+    sync::{atomic::AtomicUsize, Arc},
+};
 
 pub(crate) type FxDashMap<K, V> = DashMap<K, V, BuildHasherDefault<FxHasher>>;
 
@@ -72,6 +78,8 @@ pub struct TemporalGraph<const N: usize> {
 
     pub(crate) storage: GraphStorage<N>,
 
+    pub(crate) event_counter: AtomicUsize,
+
     //earliest time seen in this graph
     pub(in crate::core) earliest_time: MinCounter,
 
@@ -104,6 +112,7 @@ impl<const N: usize> Default for InnerTemporalGraph<N> {
         let tg = TemporalGraph {
             logical_to_physical: FxDashMap::default(), // TODO: could use DictMapper here
             storage: GraphStorage::new(),
+            event_counter: AtomicUsize::new(0),
             earliest_time: MinCounter::new(),
             latest_time: MaxCounter::new(),
             vertex_meta: Arc::new(Meta::new()),
@@ -296,20 +305,20 @@ impl<const N: usize> TemporalGraph<N> {
     }
 
     #[inline]
-    fn update_time(&self, time: i64) {
-        self.earliest_time.update(time);
-        self.latest_time.update(time);
+    fn update_time(&self, time: TimeIndexEntry) {
+        let t = *time.t();
+        self.earliest_time.update(t);
+        self.latest_time.update(t);
     }
 
     pub(crate) fn add_vertex_internal(
         &self,
-        time: i64,
+        time: TimeIndexEntry,
         v: u64,
         name: Option<&str>,
         props: Vec<(String, Prop)>,
     ) -> Result<VID, GraphError> {
-        let t = time.try_into_time()?;
-        self.update_time(t);
+        self.update_time(time);
 
         // resolve the props without holding any locks
         let props = self
@@ -328,17 +337,17 @@ impl<const N: usize> TemporalGraph<N> {
 
         // update the logical to physical mapping if needed
         let v_id = *(self.logical_to_physical.entry(v.id()).or_insert_with(|| {
-            let node_store = VertexStore::new(v.id(), t);
+            let node_store = VertexStore::new(v.id(), time);
             self.storage.push_node(node_store)
         }));
 
         // get the node and update the time index
         let mut node = self.storage.get_node_mut(v_id);
-        node.update_time(t);
+        node.update_time(time);
 
         // update the properties;
         for (prop_id, _, prop) in &props {
-            node.add_prop(t, *prop_id, prop.clone());
+            node.add_prop(time, *prop_id, prop.clone());
         }
 
         // update node prop
@@ -349,7 +358,7 @@ impl<const N: usize> TemporalGraph<N> {
         Ok(v_id.into())
     }
 
-    pub(crate) fn add_vertex_no_props(&self, t: i64, v: u64) -> Result<VID, GraphError> {
+    pub(crate) fn add_vertex_no_props(&self, t: TimeIndexEntry, v: u64) -> Result<VID, GraphError> {
         self.update_time(t);
 
         // update the logical to physical mapping if needed
@@ -449,7 +458,7 @@ impl<const N: usize> TemporalGraph<N> {
 
     pub(crate) fn add_property(
         &self,
-        t: i64,
+        t: TimeIndexEntry,
         props: Vec<(String, Prop)>,
     ) -> Result<(), GraphError> {
         for (name, prop) in props {
@@ -476,7 +485,7 @@ impl<const N: usize> TemporalGraph<N> {
 
     pub(crate) fn delete_edge(
         &self,
-        t: i64,
+        t: TimeIndexEntry,
         src: u64,
         dst: u64,
         layer: Option<&str>,
@@ -510,7 +519,7 @@ impl<const N: usize> TemporalGraph<N> {
         &self,
         src_id: VID,
         dst_id: VID,
-        t: i64,
+        t: TimeIndexEntry,
         layer: usize,
         props: &Vec<(usize, String, Prop)>,
         new_edge_fn: F,
@@ -547,13 +556,12 @@ impl<const N: usize> TemporalGraph<N> {
 
     pub(crate) fn add_edge_internal(
         &self,
-        t: i64,
+        t: TimeIndexEntry,
         src: u64,
         dst: u64,
         props: Vec<(String, Prop)>,
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
-        let t = t.try_into_time()?;
         let src_id = self.add_vertex_no_props(t, src)?;
         let dst_id = self.add_vertex_no_props(t, dst)?;
 

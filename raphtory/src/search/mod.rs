@@ -11,8 +11,9 @@ use tantivy::{
 
 use crate::{
     core::{
-        entities::vertices::vertex_ref::VertexRef,
-        utils::{errors::GraphError, time::TryIntoTime},
+        entities::{vertices::vertex_ref::VertexRef, VID},
+        storage::timeindex::TimeIndexEntry,
+        utils::errors::GraphError,
     },
     db::{
         api::{mutation::internal::InternalAdditionOps, view::EdgeViewInternalOps},
@@ -584,18 +585,21 @@ impl<G: GraphViewOps> IndexedGraph<G> {
 }
 
 impl<G: GraphViewOps + InternalAdditionOps> InternalAdditionOps for IndexedGraph<G> {
+    fn next_event_id(&self) -> usize {
+        self.graph.next_event_id()
+    }
+
     fn internal_add_vertex(
         &self,
-        t: i64,
+        t: TimeIndexEntry,
         v: u64,
         name: Option<&str>,
         props: Vec<(String, Prop)>,
-    ) -> Result<VertexRef, GraphError> {
-        let t: i64 = t.try_into_time()?;
+    ) -> Result<VID, GraphError> {
         let mut document = Document::new();
         // add time to the document
         let time = self.vertex_index.schema().get_field(fields::TIME)?;
-        document.add_i64(time, t);
+        document.add_i64(time, *t.t());
         // add name to the document
 
         if let Some(vertex_name) = name {
@@ -612,8 +616,7 @@ impl<G: GraphViewOps + InternalAdditionOps> InternalAdditionOps for IndexedGraph
             }
         }
         // add the vertex id to the document
-        let v_ref = self.graph.internal_add_vertex(t, v, name, props)?;
-        let v_id = self.graph.local_vertex_ref(v_ref).unwrap();
+        let v_id = self.graph.internal_add_vertex(t, v, name, props)?;
         // get the field from the index
         let vertex_id = self.vertex_index.schema().get_field(fields::VERTEX_ID)?;
         let vertex_id_rev = self
@@ -631,12 +634,12 @@ impl<G: GraphViewOps + InternalAdditionOps> InternalAdditionOps for IndexedGraph
 
         writer.commit()?;
 
-        Ok(v_ref)
+        Ok(v_id)
     }
 
     fn internal_add_edge(
         &self,
-        _t: i64,
+        _t: TimeIndexEntry,
         _src: u64,
         _dst: u64,
         _props: Vec<(String, Prop)>,

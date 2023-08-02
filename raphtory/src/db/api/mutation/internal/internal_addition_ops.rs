@@ -1,20 +1,22 @@
 use crate::{
-    core::{entities::vertices::vertex_ref::VertexRef, utils::errors::GraphError, Prop},
+    core::{entities::VID, storage::timeindex::TimeIndexEntry, utils::errors::GraphError, Prop},
     db::api::view::internal::Base,
 };
 
 pub trait InternalAdditionOps {
+    fn next_event_id(&self) -> usize;
+
     fn internal_add_vertex(
         &self,
-        t: i64,
+        t: TimeIndexEntry,
         v: u64,
         name: Option<&str>,
         props: Vec<(String, Prop)>,
-    ) -> Result<VertexRef, GraphError>;
+    ) -> Result<VID, GraphError>;
 
     fn internal_add_edge(
         &self,
-        t: i64,
+        t: TimeIndexEntry,
         src: u64,
         dst: u64,
         props: Vec<(String, Prop)>,
@@ -42,20 +44,25 @@ pub trait DelegateAdditionOps {
 
 impl<G: DelegateAdditionOps> InternalAdditionOps for G {
     #[inline(always)]
+    fn next_event_id(&self) -> usize {
+        self.graph().next_event_id()
+    }
+
+    #[inline(always)]
     fn internal_add_vertex(
         &self,
-        t: i64,
+        t: TimeIndexEntry,
         v: u64,
         name: Option<&str>,
         props: Vec<(String, Prop)>,
-    ) -> Result<VertexRef, GraphError> {
+    ) -> Result<VID, GraphError> {
         self.graph().internal_add_vertex(t, v, name, props)
     }
 
     #[inline(always)]
     fn internal_add_edge(
         &self,
-        t: i64,
+        t: TimeIndexEntry,
         src: u64,
         dst: u64,
         props: Vec<(String, Prop)>,

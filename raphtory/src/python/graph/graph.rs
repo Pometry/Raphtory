@@ -14,7 +14,10 @@ use crate::{
 };
 use pyo3::prelude::*;
 
-use crate::db::api::view::internal::{DynamicGraph, IntoDynamic};
+use crate::db::{
+    api::view::internal::{DynamicGraph, IntoDynamic},
+    graph::vertex::VertexView,
+};
 use std::{
     collections::HashMap,
     fmt::{Debug, Formatter},
@@ -110,7 +113,7 @@ impl PyGraph {
         timestamp: PyTime,
         id: PyInputVertex,
         properties: Option<HashMap<String, Prop>>,
-    ) -> Result<(), GraphError> {
+    ) -> Result<VertexView<Graph>, GraphError> {
         self.graph
             .add_vertex(timestamp, id, properties.unwrap_or_default())
     }

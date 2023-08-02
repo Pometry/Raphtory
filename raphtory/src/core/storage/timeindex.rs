@@ -1,4 +1,5 @@
 use itertools::Itertools;
+use num_traits::Saturating;
 use serde::{Deserialize, Serialize};
 use std::{
     cmp::{max, min},
@@ -7,52 +8,94 @@ use std::{
     sync::Arc,
 };
 
-use crate::core::entities::LayerIds;
+use crate::{
+    core::{entities::LayerIds, utils::time::error::ParseTimeError},
+    db::api::mutation::{internal::InternalAdditionOps, InputTime, TryIntoInputTime},
+};
 
 use super::locked_view::LockedView;
+
+#[derive(Debug, Copy, Clone, Serialize, Deserialize, PartialEq, Ord, PartialOrd, Eq)]
+pub struct TimeIndexEntry(i64, usize);
+
+impl From<i64> for TimeIndexEntry {
+    fn from(value: i64) -> Self {
+        Self::start(value)
+    }
+}
+
+impl TimeIndexEntry {
+    pub fn new(t: i64, s: usize) -> Self {
+        Self(t, s)
+    }
+
+    pub fn from_input<G: InternalAdditionOps, T: TryIntoInputTime>(
+        g: &G,
+        t: T,
+    ) -> Result<Self, ParseTimeError> {
+        let t = t.try_into_input_time()?;
+        Ok(match t {
+            InputTime::Simple(t) => Self::new(t, g.next_event_id()),
+            InputTime::Indexed(t, s) => Self::new(t, s),
+        })
+    }
+
+    pub fn start(t: i64) -> Self {
+        Self(t, 0)
+    }
+
+    pub fn end(t: i64) -> Self {
+        Self(t.saturating_add(1), 0)
+    }
+
+    pub fn range(w: Range<i64>) -> Range<Self> {
+        Self::start(w.start)..Self::end(w.end)
+    }
+
+    pub fn t(&self) -> &i64 {
+        &self.0
+    }
+}
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum TimeIndex {
     #[default]
     Empty,
-    One(i64),
-    Set(BTreeSet<i64>),
+    One(TimeIndexEntry),
+    Set(BTreeSet<TimeIndexEntry>),
 }
 
 impl TimeIndex {
     pub fn is_empty(&self) -> bool {
-        match self {
-            TimeIndex::Empty => true,
-            _ => false,
-        }
+        matches!(self, TimeIndex::Empty)
     }
 
-    pub fn one(t: i64) -> Self {
-        Self::One(t)
+    pub fn one(ti: TimeIndexEntry) -> Self {
+        Self::One(ti)
     }
-    pub fn insert(&mut self, t: i64) -> bool {
+    pub fn insert(&mut self, ti: TimeIndexEntry) -> bool {
         match self {
             TimeIndex::Empty => {
-                *self = TimeIndex::One(t);
+                *self = TimeIndex::One(ti);
                 true
             }
             TimeIndex::One(t0) => {
-                if *t0 == t {
+                if t0 == &ti {
                     false
                 } else {
-                    *self = TimeIndex::Set([*t0, t].into_iter().collect());
+                    *self = TimeIndex::Set([*t0, ti].into_iter().collect());
                     true
                 }
             }
-            TimeIndex::Set(ts) => ts.insert(t),
+            TimeIndex::Set(ts) => ts.insert(ti),
         }
     }
 
     pub(crate) fn contains(&self, w: Range<i64>) -> bool {
         match self {
             TimeIndex::Empty => false,
-            TimeIndex::One(t) => w.contains(t),
-            TimeIndex::Set(ts) => ts.range(w).next().is_some(),
+            TimeIndex::One(t) => w.contains(t.t()),
+            TimeIndex::Set(ts) => ts.range(TimeIndexEntry::range(w)).next().is_some(),
         }
     }
 
@@ -63,13 +106,13 @@ impl TimeIndex {
         match self {
             TimeIndex::Empty => Box::new(std::iter::empty()),
             TimeIndex::One(t) => {
-                if w.contains(t) {
-                    Box::new(std::iter::once(t))
+                if w.contains(t.t()) {
+                    Box::new(std::iter::once(t.t()))
                 } else {
                     Box::new(std::iter::empty())
                 }
             }
-            TimeIndex::Set(ts) => Box::new(ts.range(w)),
+            TimeIndex::Set(ts) => Box::new(ts.range(TimeIndexEntry::range(w)).map(|ti| ti.t())),
         }
     }
 
@@ -79,17 +122,7 @@ impl TimeIndex {
         &self,
         w: Range<i64>,
     ) -> Box<dyn Iterator<Item = &i64> + Send + '_> {
-        match self {
-            TimeIndex::Empty => Box::new(std::iter::empty()),
-            TimeIndex::One(t) => {
-                if w.contains(t) {
-                    Box::new(std::iter::once(t))
-                } else {
-                    Box::new(std::iter::empty())
-                }
-            }
-            TimeIndex::Set(ts) => Box::new(ts.range(w)),
-        }
+        Box::new(self.range_iter(w))
     }
 }
 
@@ -236,24 +269,24 @@ impl TimeIndexOps for TimeIndex {
     fn first(&self) -> Option<i64> {
         match self {
             TimeIndex::Empty => None,
-            TimeIndex::One(t) => Some(*t),
-            TimeIndex::Set(ts) => ts.first().copied(),
+            TimeIndex::One(t) => Some(*t.t()),
+            TimeIndex::Set(ts) => ts.first().map(|ti| *ti.t()),
         }
     }
 
     fn last(&self) -> Option<i64> {
         match self {
             TimeIndex::Empty => None,
-            TimeIndex::One(t) => Some(*t),
-            TimeIndex::Set(ts) => ts.last().copied(),
+            TimeIndex::One(t) => Some(*t.t()),
+            TimeIndex::Set(ts) => ts.last().map(|ti| *ti.t()),
         }
     }
 
     fn iter(&self) -> Box<dyn Iterator<Item = &i64> + Send + '_> {
         match self {
             TimeIndex::Empty => Box::new(std::iter::empty()),
-            TimeIndex::One(t) => Box::new(std::iter::once(t)),
-            TimeIndex::Set(ts) => Box::new(ts.iter()),
+            TimeIndex::One(t) => Box::new(std::iter::once(t.t())),
+            TimeIndex::Set(ts) => Box::new(ts.iter().map(|ti| ti.t())),
         }
     }
 }

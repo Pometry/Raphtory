@@ -5,7 +5,7 @@ use crate::core::{
         vertices::structure::{adj, adj::Adj},
         LayerIds, EID, VID,
     },
-    storage::timeindex::TimeIndex,
+    storage::timeindex::{TimeIndex, TimeIndexEntry},
     utils::errors::MutateGraphError,
     Direction, Prop,
 };
@@ -26,7 +26,7 @@ pub(crate) struct VertexStore<const N: usize> {
 }
 
 impl<const N: usize> VertexStore<N> {
-    pub fn new(global_id: u64, t: i64) -> Self {
+    pub fn new(global_id: u64, t: TimeIndexEntry) -> Self {
         let mut layers = Vec::with_capacity(1);
         layers.push(Adj::Solo);
         Self {
@@ -46,11 +46,11 @@ impl<const N: usize> VertexStore<N> {
         &self.timestamps
     }
 
-    pub fn update_time(&mut self, t: i64) {
+    pub fn update_time(&mut self, t: TimeIndexEntry) {
         self.timestamps.insert(t);
     }
 
-    pub fn add_prop(&mut self, t: i64, prop_id: usize, prop: Prop) {
+    pub fn add_prop(&mut self, t: TimeIndexEntry, prop_id: usize, prop: Prop) {
         let props = self.props.get_or_insert_with(|| Props::new());
         props.add_prop(t, prop_id, prop);
     }
