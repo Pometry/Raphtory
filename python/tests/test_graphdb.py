@@ -255,16 +255,13 @@ def test_windowed_graph_neighbours():
 
 
 def test_name():
-    # Currently deadlocking
     g = Graph()
     g.add_vertex(1, "Ben")
     g.add_vertex(1, 10)
     g.add_edge(1, "Ben", "Hamza")
     assert g.vertex(10).name() == "10"
     assert g.vertex("Ben").name() == "Ben"
-
-
-# assert g.vertex("Hamza").name() == "Hamza" TODO need to fix
+    assert g.vertex("Hamza").name() == "Hamza"
 
 
 def test_graph_properties():
@@ -614,15 +611,15 @@ def test_edge_properties():
                                                          'prop 4': True}
 
     assert g.at(2).edge(1, 2).properties == {'prop 1': 2, 'prop 4': False, 'prop 2': 0.6, 'static prop': 123,
-                                               'prop 3': 'hi'}
+                                             'prop 3': 'hi'}
 
     # testing property histories
     assert g.edge(1, 2).properties.temporal == {'prop 3': [(1, 'hi'), (3, 'hello')], 'prop 1': [(1, 1), (2, 2)],
-                                                 'prop 4': [(1, True), (2, False), (3, True)],
-                                                 'prop 2': [(2, 0.6), (3, 0.9)]}
+                                                'prop 4': [(1, True), (2, False), (3, True)],
+                                                'prop 2': [(2, 0.6), (3, 0.9)]}
 
     assert g.at(2).edge(1, 2).properties.temporal == {'prop 2': [(2, 0.6)], 'prop 4': [(1, True), (2, False)],
-                                                       'prop 1': [(1, 1), (2, 2)], 'prop 3': [(1, 'hi')]}
+                                                      'prop 1': [(1, 1), (2, 2)], 'prop 3': [(1, 'hi')]}
 
     # testing property names
     assert sorted(g.edge(1, 2).properties.keys()) == sorted(['prop 4', 'prop 1', 'prop 2', 'prop 3', 'static prop'])
@@ -630,7 +627,7 @@ def test_edge_properties():
     assert sorted(g.edge(1, 2).properties.temporal.keys()) == sorted(['prop 4', 'prop 1', 'prop 2', 'prop 3'])
 
     assert sorted(g.at(1).edge(1, 2).properties.temporal.keys()) == sorted(['prop 4', 'prop 1',
-                                                                              'prop 3'])
+                                                                            'prop 3'])
 
     # testing has_property
     assert "prop 4" in g.edge(1, 2).properties
@@ -1055,7 +1052,9 @@ def test_algo_result():
     assert sorted_res == {'1': 1, '2': 1, '3': 1, '4': 1, '5': 1, '6': 1, '7': 1, '8': 1}
     # algo str f64
     actual = algorithms.pagerank(g)
-    expected_result = {'3': 0.10274080842110422, '2': 0.10274080842110422, '4': 0.1615298183542792, '6': 0.14074777909144864, '1': 0.07209850165402759, '5': 0.1615298183542792, '7': 0.14074777909144864, '8': 0.11786468661230831}
+    expected_result = {'3': 0.10274080842110422, '2': 0.10274080842110422, '4': 0.1615298183542792,
+                       '6': 0.14074777909144864, '1': 0.07209850165402759, '5': 0.1615298183542792,
+                       '7': 0.14074777909144864, '8': 0.11786468661230831}
     assert actual.get_all() == expected_result
     assert len(actual.to_df()) == 8
     # algo str vector
@@ -1124,8 +1123,8 @@ def test_layer():
     g.add_edge(0, 1, 4, layer='layer2')
 
     assert (g.default_layer().num_edges() == 1)
-    assert (g.layer('layer1').num_edges() == 1)
-    assert (g.layer('layer2').num_edges() == 1)
+    assert (g.layers(['layer1']).num_edges() == 1)
+    assert (g.layers(['layer2']).num_edges() == 1)
 
 
 def test_layer_vertex():
@@ -1134,12 +1133,12 @@ def test_layer_vertex():
     g.add_edge(0, 1, 2, layer="layer1")
     g.add_edge(0, 2, 3, layer="layer2")
     g.add_edge(3, 2, 4, layer="layer1")
-    neighbours = g.layer("layer1").vertex(1).neighbours().collect()
-    assert sorted(neighbours[0].layer("layer2").edges().id()) == [(2, 3)]
-    assert sorted(g.layer("layer2").vertex(neighbours[0].name()).edges().id()) == [(2, 3)]
-    assert sorted(g.layer("layer1").vertex(neighbours[0].name()).edges().id()) == [(1, 2), (2, 4)]
-    assert sorted(g.layer("layer1").edges().id()) == [(1, 2), (2, 4)]
-    assert sorted(g.layer("layer1").layer("layer2").edges().id()) == [(2, 3)]
+    neighbours = g.layers(["layer1", "layer2"]).vertex(1).neighbours().collect()
+    assert sorted(neighbours[0].layers(["layer2"]).edges().id()) == [(2, 3)]
+    assert sorted(g.layers(["layer2"]).vertex(neighbours[0].name()).edges().id()) == [(2, 3)]
+    assert sorted(g.layers(["layer1"]).vertex(neighbours[0].name()).edges().id()) == [(1, 2), (2, 4)]
+    assert sorted(g.layers(["layer1"]).edges().id()) == [(1, 2), (2, 4)]
+    assert sorted(g.layers(["layer1", "layer2"]).edges().id()) == [(1, 2), (2, 3), (2, 4)]
 
 
 def test_rolling_as_iterable():
@@ -1165,8 +1164,8 @@ def test_layer_name():
     g.add_edge(0, 0, 1)
     g.add_edge(0, 0, 2, layer="awesome layer")
 
-    assert g.edge(0, 1).layer_name() == "default layer"
-    assert g.edge(0, 2, "awesome layer").layer_name() == "awesome layer"
+    assert g.edge(0, 1).layer_names() == ["_default"]
+    assert g.edge(0, 2, "awesome layer").layer_names() == ["awesome layer"]
 
 
 def test_window_size():
@@ -1400,49 +1399,65 @@ def test_graphQL():
     import os
 
     g1 = Graph()
-    g1.add_edge(1,"ben","hamza")
-    g1.add_edge(2,"haaroon","hamza")
-    g1.add_edge(3,"ben","haaroon")
+    g1.add_edge(1, "ben", "hamza")
+    g1.add_edge(2, "haaroon", "hamza")
+    g1.add_edge(3, "ben", "haaroon")
     g2 = Graph()
 
-    g2.add_edge(1,"Naomi","Shivam")
-    g2.add_edge(2,"Shivam","Pedro")
-    g2.add_edge(3,"Pedro","Rachel")
-    graphs = {"g1":g1,"g2":g2}
+    g2.add_edge(1, "Naomi", "Shivam")
+    g2.add_edge(2, "Shivam", "Pedro")
+    g2.add_edge(3, "Pedro", "Rachel")
+    graphs = {"g1": g1, "g2": g2}
 
     g3 = Graph()
-    g3.add_edge(1,"ben_saved","hamza_saved")
-    g3.add_edge(2,"haaroon_saved","hamza_saved")
-    g3.add_edge(3,"ben_saved","haaroon_saved")
+    g3.add_edge(1, "ben_saved", "hamza_saved")
+    g3.add_edge(2, "haaroon_saved", "hamza_saved")
+    g3.add_edge(3, "ben_saved", "haaroon_saved")
 
     g4 = Graph()
-    g4.add_edge(1,"Naomi_saved","Shivam_saved")
-    g4.add_edge(2,"Shivam_saved","Pedro_saved")
-    g4.add_edge(3,"Pedro_saved","Rachel_saved")
+    g4.add_edge(1, "Naomi_saved", "Shivam_saved")
+    g4.add_edge(2, "Shivam_saved", "Pedro_saved")
+    g4.add_edge(3, "Pedro_saved", "Rachel_saved")
 
     temp_dir = tempfile.mkdtemp()
 
-    g3.save_to_file(temp_dir+"/g3")
-    g4.save_to_file(temp_dir+"/g4")
+    g3.save_to_file(temp_dir + "/g3")
+    g4.save_to_file(temp_dir + "/g4")
 
-    map_server = graphql.run_server(graphs=graphs,port=1736,daemon=True)
-    dir_server = graphql.run_server(graph_dir=temp_dir,port=1737,daemon=True)
-    map_dir_server = graphql.run_server(graphs=graphs,graph_dir=temp_dir,port=1738,daemon=True)
+    map_server = graphql.run_server(graphs=graphs, port=1736, daemon=True)
+    dir_server = graphql.run_server(graph_dir=temp_dir, port=1737, daemon=True)
+    map_dir_server = graphql.run_server(graphs=graphs, graph_dir=temp_dir, port=1738, daemon=True)
 
     query_g1 = """{graph(name: "g1") {nodes {name}}}"""
     query_g2 = """{graph(name: "g2") {nodes {name}}}"""
     query_g3 = """{graph(name: "g3") {nodes {name}}}"""
     query_g4 = """{graph(name: "g4") {nodes {name}}}"""
 
-    assert str(map_server.query(query_g1)).replace(" ", "") == "{'data': {'graph': {'nodes': [{'name': 'ben'}, {'name': 'hamza'}, {'name': 'haaroon'}]}}}".replace(" ", "")
-    assert str(map_server.query(query_g2)).replace(" ", "") == "{'data': {'graph': {'nodes': [{'name': 'Naomi'}, {'name': 'Shivam'}, {'name': 'Pedro'}, {'name': 'Rachel'}]}}}".replace(" ", "")
-    assert str(dir_server.query(query_g3)).replace(" ", "") == "{'data': {'graph': {'nodes': [{'name': 'ben_saved'}, {'name': 'hamza_saved'}, {'name': 'haaroon_saved'}]}}}".replace(" ", "")
-    assert str(dir_server.query(query_g4)).replace(" ", "") == "{'data': {'graph': {'nodes': [{'name': 'Naomi_saved'}, {'name': 'Shivam_saved'}, {'name': 'Pedro_saved'}, {'name': 'Rachel_saved'}]}}}".replace(" ", "")
+    assert str(map_server.query(query_g1)).replace(" ",
+                                                   "") == "{'data': {'graph': {'nodes': [{'name': 'ben'}, {'name': 'hamza'}, {'name': 'haaroon'}]}}}".replace(
+        " ", "")
+    assert str(map_server.query(query_g2)).replace(" ",
+                                                   "") == "{'data': {'graph': {'nodes': [{'name': 'Naomi'}, {'name': 'Shivam'}, {'name': 'Pedro'}, {'name': 'Rachel'}]}}}".replace(
+        " ", "")
+    assert str(dir_server.query(query_g3)).replace(" ",
+                                                   "") == "{'data': {'graph': {'nodes': [{'name': 'ben_saved'}, {'name': 'hamza_saved'}, {'name': 'haaroon_saved'}]}}}".replace(
+        " ", "")
+    assert str(dir_server.query(query_g4)).replace(" ",
+                                                   "") == "{'data': {'graph': {'nodes': [{'name': 'Naomi_saved'}, {'name': 'Shivam_saved'}, {'name': 'Pedro_saved'}, {'name': 'Rachel_saved'}]}}}".replace(
+        " ", "")
 
-    assert str(map_dir_server.query(query_g1)).replace(" ", "") == "{'data': {'graph': {'nodes': [{'name': 'ben'}, {'name': 'hamza'}, {'name': 'haaroon'}]}}}".replace(" ", "")
-    assert str(map_dir_server.query(query_g2)).replace(" ", "") == "{'data': {'graph': {'nodes': [{'name': 'Naomi'}, {'name': 'Shivam'}, {'name': 'Pedro'}, {'name': 'Rachel'}]}}}".replace(" ", "")
-    assert str(map_dir_server.query(query_g4)).replace(" ", "") == "{'data': {'graph': {'nodes': [{'name': 'Naomi_saved'}, {'name': 'Shivam_saved'}, {'name': 'Pedro_saved'}, {'name': 'Rachel_saved'}]}}}".replace(" ", "")
-    assert str(map_dir_server.query(query_g3)).replace(" ", "") == "{'data': {'graph': {'nodes': [{'name': 'ben_saved'}, {'name': 'hamza_saved'}, {'name': 'haaroon_saved'}]}}}".replace(" ", "")
+    assert str(map_dir_server.query(query_g1)).replace(" ",
+                                                       "") == "{'data': {'graph': {'nodes': [{'name': 'ben'}, {'name': 'hamza'}, {'name': 'haaroon'}]}}}".replace(
+        " ", "")
+    assert str(map_dir_server.query(query_g2)).replace(" ",
+                                                       "") == "{'data': {'graph': {'nodes': [{'name': 'Naomi'}, {'name': 'Shivam'}, {'name': 'Pedro'}, {'name': 'Rachel'}]}}}".replace(
+        " ", "")
+    assert str(map_dir_server.query(query_g4)).replace(" ",
+                                                       "") == "{'data': {'graph': {'nodes': [{'name': 'Naomi_saved'}, {'name': 'Shivam_saved'}, {'name': 'Pedro_saved'}, {'name': 'Rachel_saved'}]}}}".replace(
+        " ", "")
+    assert str(map_dir_server.query(query_g3)).replace(" ",
+                                                       "") == "{'data': {'graph': {'nodes': [{'name': 'ben_saved'}, {'name': 'hamza_saved'}, {'name': 'haaroon_saved'}]}}}".replace(
+        " ", "")
 
 
 def test_load_from_pandas():
@@ -1484,7 +1499,8 @@ def test_load_from_pandas_vertices():
         "time": [1, 2, 3, 4, 5, 6],
     })
 
-    g = Graph.load_from_pandas(edges_df, src="src", dst="dst", time="time", props=["weight", "marbles"], vertex_df=vertices_df, vertex_col="id", vertex_time_col="time", vertex_props=["name"])
+    g = Graph.load_from_pandas(edges_df, src="src", dst="dst", time="time", props=["weight", "marbles"],
+                               vertex_df=vertices_df, vertex_col="id", vertex_time_col="time", vertex_props=["name"])
 
     assert g.vertices().id().collect() == [1, 2, 3, 4, 5, 6]
     edges = []

@@ -1,13 +1,13 @@
 use crate::{
     core::{
-        entities::{vertices::vertex_ref::VertexRef, VID},
+        entities::{vertices::vertex_ref::VertexRef, LayerIds, VID},
         utils::time::IntoTime,
         Direction,
     },
     db::{
         api::{
             properties::Properties,
-            view::{internal::GraphWindowOps, BoxedIter, LayerOps},
+            view::{internal::GraphWindowOps, BoxedIter, Layer, LayerOps},
         },
         graph::{
             edge::EdgeView,
@@ -39,7 +39,7 @@ impl Operations {
     ) -> Box<dyn Iterator<Item = VertexRef> + Send> {
         match self {
             Operations::Neighbours { dir } => Box::new(iter.flat_map(move |v| {
-                graph.neighbours(graph.localise_vertex_unchecked(v), dir, None)
+                graph.neighbours(graph.localise_vertex_unchecked(v), dir, LayerIds::All)
             })),
             Operations::NeighboursWindow {
                 dir,
@@ -51,7 +51,7 @@ impl Operations {
                     t_start,
                     t_end,
                     dir,
-                    None,
+                    LayerIds::All,
                 )
             })),
         }
@@ -208,7 +208,7 @@ impl<G: GraphViewOps> LayerOps for PathFromGraph<G> {
         }
     }
 
-    fn layer(&self, name: &str) -> Option<Self::LayeredViewType> {
+    fn layer<L: Into<Layer>>(&self, name: L) -> Option<Self::LayeredViewType> {
         Some(PathFromGraph {
             graph: self.graph.layer(name)?,
             operations: self.operations.clone(),
@@ -388,7 +388,7 @@ impl<G: GraphViewOps> LayerOps for PathFromVertex<G> {
         }
     }
 
-    fn layer(&self, name: &str) -> Option<Self::LayeredViewType> {
+    fn layer<L: Into<Layer>>(&self, name: L) -> Option<Self::LayeredViewType> {
         Some(PathFromVertex {
             graph: self.graph.layer(name)?,
             vertex: self.vertex,

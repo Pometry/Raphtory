@@ -25,9 +25,16 @@ fn get_expanded_edges(
     let fetched_edges = vv.clone().edges().into_iter().map(|ee| ee.clone());
 
     let mut filtered_fetched_edges = match maybe_layers {
-        Some(layers) => fetched_edges
-            .filter(|e| return layers.iter().contains(&e.layer_name()))
-            .collect_vec(),
+        Some(layers) => {
+            let layer_set: HashSet<String> = layers.into_iter().collect();
+            fetched_edges
+                .filter(|e| {
+                    e.layer_names()
+                        .into_iter()
+                        .any(|name| layer_set.contains(&name))
+                })
+                .collect_vec()
+        }
         None => fetched_edges.collect_vec(),
     };
 

@@ -5,6 +5,7 @@
 //! and can have properties associated with them.
 //!
 
+use super::views::layer_graph::LayeredGraph;
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef},
@@ -19,7 +20,7 @@ use crate::{
                 },
                 Properties,
             },
-            view::{internal::Static, BoxedIter, EdgeViewInternalOps},
+            view::{internal::Static, BoxedIter, EdgeViewInternalOps, LayerOps},
         },
         graph::{vertex::VertexView, views::window_graph::WindowedGraph},
     },
@@ -70,26 +71,30 @@ impl<G: GraphViewOps> EdgeViewInternalOps<G, VertexView<G>> for EdgeView<G> {
 
 impl<G: GraphViewOps> ConstPropertiesOps for EdgeView<G> {
     fn const_property_keys<'a>(&'a self) -> Box<dyn Iterator<Item = LockedView<'a, String>> + 'a> {
-        self.graph.static_edge_prop_names(self.edge)
+        let layer_ids = self.graph.layer_ids().constrain_from_edge(self.edge);
+        self.graph.static_edge_prop_names(self.edge, layer_ids)
     }
 
     fn get_const_property(&self, key: &str) -> Option<Prop> {
-        self.graph.static_edge_prop(self.edge, key)
+        let layer_ids = self.graph.layer_ids().constrain_from_edge(self.edge);
+        self.graph.static_edge_prop(self.edge, key, layer_ids)
     }
 }
 
 impl<G: GraphViewOps> TemporalPropertyViewOps for EdgeView<G> {
     fn temporal_history(&self, id: &Key) -> Vec<i64> {
+        let layer_ids = self.graph.layer_ids().constrain_from_edge(self.edge);
         self.graph
-            .temporal_edge_prop_vec(self.edge, id)
+            .temporal_edge_prop_vec(self.edge, id, layer_ids)
             .into_iter()
             .map(|(t, _)| t)
             .collect()
     }
 
     fn temporal_values(&self, id: &String) -> Vec<Prop> {
+        let layer_ids = self.graph.layer_ids().constrain_from_edge(self.edge);
         self.graph
-            .temporal_edge_prop_vec(self.edge, id)
+            .temporal_edge_prop_vec(self.edge, id, layer_ids)
             .into_iter()
             .map(|(_, v)| v)
             .collect()
@@ -102,13 +107,18 @@ impl<G: GraphViewOps> TemporalPropertiesOps for EdgeView<G> {
     ) -> Box<(dyn Iterator<Item = LockedView<'a, String>> + 'a)> {
         Box::new(
             self.graph
-                .temporal_edge_prop_names(self.edge)
+                .temporal_edge_prop_names(self.edge, self.graph.layer_ids())
                 .filter(|k| self.get_temporal_property(k).is_some()),
         )
     }
 
     fn get_temporal_property(&self, key: &str) -> Option<String> {
-        (!self.graph.temporal_edge_prop_vec(self.edge, key).is_empty()).then_some(key.to_owned())
+        let layer_ids = self.graph.layer_ids();
+        (!self
+            .graph
+            .temporal_edge_prop_vec(self.edge, key, layer_ids)
+            .is_empty())
+        .then_some(key.to_owned())
     }
 }
 
@@ -122,9 +132,22 @@ impl<G: GraphViewOps> EdgeViewOps for EdgeView<G> {
         match self.edge.time() {
             Some(_) => Box::new(iter::once(ev)),
             None => {
+                let layer_ids = self.graph.layer_ids().constrain_from_edge(self.edge);
                 let e = self.edge;
-                let ex_iter = self.graph.edge_t(e);
+                let ex_iter = self.graph.edge_t(e, layer_ids);
                 // FIXME: use duration
+                Box::new(ex_iter.map(move |ex| ev.new_edge(ex)))
+            }
+        }
+    }
+
+    fn explode_layers(&self) -> Self::EList {
+        let ev = self.clone();
+        match self.edge.layer() {
+            Some(_) => Box::new(iter::once(ev)),
+            None => {
+                let e = self.edge;
+                let ex_iter = self.graph.edge_layers(e, self.graph.layer_ids());
                 Box::new(ex_iter.map(move |ex| ev.new_edge(ex)))
             }
         }
@@ -164,6 +187,24 @@ impl<G: GraphViewOps> TimeOps for EdgeView<G> {
             graph: self.graph.window(t_start, t_end),
             edge: self.edge,
         }
+    }
+}
+
+impl<G: GraphViewOps> LayerOps for EdgeView<G> {
+    type LayeredViewType = EdgeView<LayeredGraph<G>>;
+
+    fn default_layer(&self) -> Self::LayeredViewType {
+        EdgeView {
+            graph: self.graph.default_layer(),
+            edge: self.edge,
+        }
+    }
+
+    fn layer<L: Into<Layer>>(&self, name: L) -> Option<Self::LayeredViewType> {
+        self.graph.layer(name).map(|g| EdgeView {
+            graph: g,
+            edge: self.edge,
+        })
     }
 }
 
@@ -260,18 +301,18 @@ pub type EdgeList<G> = Box<dyn Iterator<Item = EdgeView<G>> + Send>;
 
 #[cfg(test)]
 mod test_edge {
-    use crate::prelude::*;
+    use crate::{db::api::view::Layer, prelude::*};
     use std::collections::HashMap;
 
     #[test]
     fn test_properties() {
         let g = Graph::new();
-        let props = [("test".to_string(), "test".as_prop())];
+        let props = [("test".to_string(), "test".into_prop())];
         g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
         g.add_edge(2, 1, 2, props.clone(), None).unwrap();
 
-        let e1 = g.edge(1, 2, None).unwrap();
-        let e1_w = g.window(0, 1).edge(1, 2, None).unwrap();
+        let e1 = g.edge(1, 2, Layer::All).unwrap();
+        let e1_w = g.window(0, 1).edge(1, 2, Layer::All).unwrap();
         assert_eq!(HashMap::from_iter(e1.properties().as_vec()), props.into());
         assert!(e1_w.properties().as_vec().is_empty())
     }

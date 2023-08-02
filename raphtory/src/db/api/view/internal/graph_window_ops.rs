@@ -1,6 +1,6 @@
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef, VID},
+        entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef, LayerIds, VID},
         Direction,
     },
     db::api::view::internal::{time_semantics::TimeSemantics, CoreGraphOps, GraphOps},
@@ -26,7 +26,7 @@ pub trait GraphWindowOps {
     ///
     /// * `t_start` - The start time of the window (inclusive).
     /// * `t_end` - The end time of the window (exclusive).
-    fn edges_len_window(&self, t_start: i64, t_end: i64, layer: Option<usize>) -> usize;
+    fn edges_len_window(&self, t_start: i64, t_end: i64, layers: LayerIds) -> usize;
 
     /// Returns true if the graph contains an edge between the source vertex (src) and the
     /// destination vertex (dst) created between the start (t_start) and end (t_end) timestamps
@@ -43,7 +43,7 @@ pub trait GraphWindowOps {
         dst: VertexRef,
         t_start: i64,
         t_end: i64,
-        layer: usize,
+        layer: LayerIds,
     ) -> bool;
 
     /// Returns true if the graph contains the specified vertex (v) created between the
@@ -69,7 +69,7 @@ pub trait GraphWindowOps {
         t_start: i64,
         t_end: i64,
         d: Direction,
-        layer: Option<usize>,
+        layers: LayerIds,
     ) -> usize;
 
     /// Returns the VID that corresponds to the specified vertex ID (v) created
@@ -115,7 +115,7 @@ pub trait GraphWindowOps {
         dst: VertexRef,
         t_start: i64,
         t_end: i64,
-        layer: usize,
+        layer: LayerIds,
     ) -> Option<EdgeRef>;
 
     /// Returns all the edge references in the graph created between the start (t_start) and
@@ -132,7 +132,7 @@ pub trait GraphWindowOps {
         &self,
         t_start: i64,
         t_end: i64,
-        layer: Option<usize>,
+        layers: LayerIds,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send>;
 
     /// Returns an iterator over the edges connected to a given vertex within a
@@ -155,7 +155,7 @@ pub trait GraphWindowOps {
         t_start: i64,
         t_end: i64,
         d: Direction,
-        layer: Option<usize>,
+        layers: LayerIds,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send>;
 
     /// Returns an iterator over the neighbors of a given vertex within a specified time window in a given direction.
@@ -176,7 +176,7 @@ pub trait GraphWindowOps {
         t_start: i64,
         t_end: i64,
         d: Direction,
-        layer: Option<usize>,
+        layers: LayerIds,
     ) -> Box<dyn Iterator<Item = VertexRef> + Send>;
 }
 
@@ -190,8 +190,8 @@ impl<G: TimeSemantics + CoreGraphOps + GraphOps + Clone + 'static> GraphWindowOp
         self.vertex_refs_window(t_start, t_end).count()
     }
 
-    fn edges_len_window(&self, t_start: i64, t_end: i64, layer: Option<usize>) -> usize {
-        self.edge_refs_window(t_start, t_end, layer).count()
+    fn edges_len_window(&self, t_start: i64, t_end: i64, layers: LayerIds) -> usize {
+        self.edge_refs_window(t_start, t_end, layers).count()
     }
 
     fn has_edge_ref_window(
@@ -200,7 +200,7 @@ impl<G: TimeSemantics + CoreGraphOps + GraphOps + Clone + 'static> GraphWindowOp
         dst: VertexRef,
         t_start: i64,
         t_end: i64,
-        layer: usize,
+        layer: LayerIds,
     ) -> bool {
         self.edge_ref_window(src, dst, t_start, t_end, layer)
             .is_some()
@@ -216,9 +216,9 @@ impl<G: TimeSemantics + CoreGraphOps + GraphOps + Clone + 'static> GraphWindowOp
         t_start: i64,
         t_end: i64,
         d: Direction,
-        layer: Option<usize>,
+        layers: LayerIds,
     ) -> usize {
-        self.neighbours_window(v, t_start, t_end, d, layer).count()
+        self.neighbours_window(v, t_start, t_end, d, layers).count()
     }
 
     fn vertex_ref_window(&self, v: u64, t_start: i64, t_end: i64) -> Option<VID> {
@@ -239,22 +239,22 @@ impl<G: TimeSemantics + CoreGraphOps + GraphOps + Clone + 'static> GraphWindowOp
         dst: VertexRef,
         t_start: i64,
         t_end: i64,
-        layer: usize,
+        layer: LayerIds,
     ) -> Option<EdgeRef> {
-        self.edge_ref(src, dst, layer)
-            .filter(|&e| self.include_edge_window(e, t_start..t_end))
+        self.edge_ref(src, dst, layer.clone())
+            .filter(|&e| self.include_edge_window(e, t_start..t_end, layer))
     }
 
     fn edge_refs_window(
         &self,
         t_start: i64,
         t_end: i64,
-        layer: Option<usize>,
+        layer: LayerIds,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
         let g = self.clone();
         Box::new(
-            self.edge_refs(layer)
-                .filter(move |&e| g.include_edge_window(e, t_start..t_end)),
+            self.edge_refs(layer.clone())
+                .filter(move |&e| g.include_edge_window(e, t_start..t_end, layer.clone())),
         )
     }
 
@@ -264,12 +264,12 @@ impl<G: TimeSemantics + CoreGraphOps + GraphOps + Clone + 'static> GraphWindowOp
         t_start: i64,
         t_end: i64,
         d: Direction,
-        layer: Option<usize>,
+        layers: LayerIds,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
         let g = self.clone();
         Box::new(
-            self.vertex_edges(v, d, layer)
-                .filter(move |&e| g.include_edge_window(e, t_start..t_end)),
+            self.vertex_edges(v, d, layers.clone())
+                .filter(move |&e| g.include_edge_window(e, t_start..t_end, layers.clone())),
         )
     }
 
@@ -279,10 +279,10 @@ impl<G: TimeSemantics + CoreGraphOps + GraphOps + Clone + 'static> GraphWindowOp
         t_start: i64,
         t_end: i64,
         d: Direction,
-        layer: Option<usize>,
+        layers: LayerIds,
     ) -> Box<dyn Iterator<Item = VertexRef> + Send> {
         Box::new(
-            self.vertex_edges_window(v, t_start, t_end, d, layer)
+            self.vertex_edges_window(v, t_start, t_end, d, layers)
                 .map(|e| e.remote())
                 .dedup(),
         )

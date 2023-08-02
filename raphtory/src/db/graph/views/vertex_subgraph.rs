@@ -1,12 +1,13 @@
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef, EID, VID},
+        entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef, LayerIds, EID, VID},
         Direction,
     },
     db::api::{
         properties::internal::InheritPropertiesOps,
-        view::internal::{
-            Base, GraphOps, InheritCoreOps, InheritMaterialize, InheritTimeSemantics,
+        view::{
+            internal::{Base, GraphOps, InheritCoreOps, InheritMaterialize, InheritTimeSemantics},
+            Layer,
         },
     },
     prelude::GraphViewOps,
@@ -46,6 +47,16 @@ impl<G: GraphViewOps> VertexSubgraph<G> {
 }
 
 impl<G: GraphViewOps> GraphOps for VertexSubgraph<G> {
+    fn layer_ids(&self) -> LayerIds {
+        self.graph.layer_ids()
+    }
+
+    fn local_vertex_ref(&self, v: VertexRef) -> Option<VID> {
+        self.graph
+            .local_vertex_ref(v)
+            .filter(|v| self.vertices.contains(v))
+    }
+
     fn find_edge_id(&self, e_id: EID) -> Option<EdgeRef> {
         let edge_ref = self.graph.find_edge_id(e_id)?;
         let vid_src = self.local_vertex_ref(edge_ref.src())?;
@@ -58,32 +69,26 @@ impl<G: GraphViewOps> GraphOps for VertexSubgraph<G> {
         }
     }
 
-    fn local_vertex_ref(&self, v: VertexRef) -> Option<VID> {
-        self.graph
-            .local_vertex_ref(v)
-            .filter(|v| self.vertices.contains(v))
+    fn layer_ids_from_names(&self, key: Layer) -> LayerIds {
+        self.graph.layer_ids_from_names(key)
     }
 
-    fn get_unique_layers_internal(&self) -> Vec<usize> {
-        self.graph.get_unique_layers_internal()
-    }
-
-    fn get_layer_id(&self, key: Option<&str>) -> Option<usize> {
-        self.graph.get_layer_id(key)
+    fn edge_layer_ids(&self, e_id: EID) -> LayerIds {
+        self.graph.edge_layer_ids(e_id)
     }
 
     fn vertices_len(&self) -> usize {
         self.vertices.len()
     }
 
-    fn edges_len(&self, layer: Option<usize>) -> usize {
+    fn edges_len(&self, layer: LayerIds) -> usize {
         self.vertices
             .iter()
-            .map(|v| self.degree(*v, Direction::OUT, layer))
+            .map(|v| self.degree(*v, Direction::OUT, layer.clone()))
             .sum()
     }
 
-    fn has_edge_ref(&self, src: VertexRef, dst: VertexRef, layer: usize) -> bool {
+    fn has_edge_ref(&self, src: VertexRef, dst: VertexRef, layer: LayerIds) -> bool {
         self.has_vertex_ref(src)
             && self.has_vertex_ref(dst)
             && self.graph.has_edge_ref(src, dst, layer)
@@ -93,7 +98,7 @@ impl<G: GraphViewOps> GraphOps for VertexSubgraph<G> {
         self.local_vertex_ref(v).is_some()
     }
 
-    fn degree(&self, v: VID, d: Direction, layer: Option<usize>) -> usize {
+    fn degree(&self, v: VID, d: Direction, layer: LayerIds) -> usize {
         self.vertex_edges(v, d, layer).count()
     }
 
@@ -107,7 +112,7 @@ impl<G: GraphViewOps> GraphOps for VertexSubgraph<G> {
         Box::new(verts.into_iter())
     }
 
-    fn edge_ref(&self, src: VertexRef, dst: VertexRef, layer: usize) -> Option<EdgeRef> {
+    fn edge_ref(&self, src: VertexRef, dst: VertexRef, layer: LayerIds) -> Option<EdgeRef> {
         if self.has_vertex_ref(src) && self.has_vertex_ref(dst) {
             self.graph.edge_ref(src, dst, layer)
         } else {
@@ -115,11 +120,11 @@ impl<G: GraphViewOps> GraphOps for VertexSubgraph<G> {
         }
     }
 
-    fn edge_refs(&self, layer: Option<usize>) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
+    fn edge_refs(&self, layer: LayerIds) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
         let g1 = self.clone();
         Box::new(
             self.vertex_refs()
-                .flat_map(move |v| g1.vertex_edges(v, Direction::OUT, layer)),
+                .flat_map(move |v| g1.vertex_edges(v, Direction::OUT, layer.clone())),
         )
     }
 
@@ -127,7 +132,7 @@ impl<G: GraphViewOps> GraphOps for VertexSubgraph<G> {
         &self,
         v: VID,
         d: Direction,
-        layer: Option<usize>,
+        layer: LayerIds,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
         let g = self.clone();
         Box::new(
@@ -141,15 +146,15 @@ impl<G: GraphViewOps> GraphOps for VertexSubgraph<G> {
         &self,
         v: VID,
         d: Direction,
-        layer: Option<usize>,
+        layers: LayerIds,
     ) -> Box<dyn Iterator<Item = VertexRef> + Send> {
         match d {
             Direction::BOTH => Box::new(
-                self.neighbours(v, Direction::IN, layer)
-                    .merge(self.neighbours(v, Direction::OUT, layer))
+                self.neighbours(v, Direction::IN, layers.clone())
+                    .merge(self.neighbours(v, Direction::OUT, layers))
                     .dedup(),
             ),
-            _ => Box::new(self.vertex_edges(v, d, layer).map(|e| e.remote())),
+            _ => Box::new(self.vertex_edges(v, d, layers).map(|e| e.remote())),
         }
     }
 }

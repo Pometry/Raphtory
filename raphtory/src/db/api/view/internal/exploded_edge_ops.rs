@@ -1,6 +1,6 @@
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, VID},
+        entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
         Direction,
     },
     db::api::view::{
@@ -27,7 +27,7 @@ pub trait ExplodedEdgeOps {
         &self,
         v: VID,
         d: Direction,
-        layer: Option<usize>,
+        layer: LayerIds,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send>;
 
     /// Returns an iterator over the edges connected to a given vertex within
@@ -50,7 +50,7 @@ pub trait ExplodedEdgeOps {
         t_start: i64,
         t_end: i64,
         d: Direction,
-        layer: Option<usize>,
+        layers: LayerIds,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send>;
 
     /// Get the activation timestamps for an edge `e`
@@ -65,13 +65,13 @@ impl<G: GraphOps + TimeSemantics + Clone + 'static> ExplodedEdgeOps for G {
         &self,
         v: VID,
         d: Direction,
-        layer: Option<usize>,
+        layer: LayerIds,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
         {
             let g = self.clone();
             Box::new(
                 self.vertex_edges(v, d, layer)
-                    .flat_map(move |e| g.edge_t(e)),
+                    .flat_map(move |e| g.edge_t(e, LayerIds::All)),
             )
         }
     }
@@ -82,22 +82,25 @@ impl<G: GraphOps + TimeSemantics + Clone + 'static> ExplodedEdgeOps for G {
         t_start: i64,
         t_end: i64,
         d: Direction,
-        layer: Option<usize>,
+        layer: LayerIds,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
         let g = self.clone();
         Box::new(
             self.vertex_edges(v, d, layer)
-                .flat_map(move |e| g.edge_window_t(e, t_start..t_end)),
+                .flat_map(move |e| g.edge_window_t(e, t_start..t_end, LayerIds::All)),
         )
     }
 
     fn edge_history(&self, e: EdgeRef) -> BoxedIter<i64> {
-        Box::new(self.edge_t(e).map(|e| e.time().expect("exploded")))
+        Box::new(
+            self.edge_t(e, LayerIds::All)
+                .map(|e| e.time().expect("exploded")),
+        )
     }
 
     fn edge_history_window(&self, e: EdgeRef, w: Range<i64>) -> BoxedIter<i64> {
         Box::new(
-            self.edge_window_t(e, w)
+            self.edge_window_t(e, w, LayerIds::All)
                 .map(|e| e.time().expect("exploded")),
         )
     }

@@ -177,7 +177,7 @@ impl<T, const N: usize> RawStorage<T, N> {
         self.len.load(Ordering::SeqCst)
     }
 
-    pub fn iter<'a>(&'a self) -> Iter<'a, T, N> {
+    pub fn iter(&self) -> Iter<T, N> {
         Iter::new(self)
     }
 }
@@ -186,6 +186,14 @@ impl<T, const N: usize> RawStorage<T, N> {
 pub struct Entry<'a, T: 'static, const N: usize> {
     i: usize,
     guard: parking_lot::RwLockReadGuard<'a, Vec<Option<T>>>,
+}
+
+impl<'a, T: 'static, const N: usize> Clone for Entry<'a, T, N> {
+    fn clone(&self) -> Self {
+        let guard = RwLockReadGuard::rwlock(&self.guard).read();
+        let i = self.i;
+        Self { i, guard }
+    }
 }
 
 pub struct ArcEntry<T: 'static, const N: usize> {

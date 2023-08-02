@@ -27,7 +27,7 @@
 use crate::db::{api::view::GraphViewOps, graph::graph::Graph};
 use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
-use std::fmt;
+use std::{collections::HashMap, fmt, sync::Arc};
 
 #[cfg(test)]
 extern crate core;
@@ -56,6 +56,8 @@ pub enum Prop {
     F32(f32),
     F64(f64),
     Bool(bool),
+    List(Arc<Vec<Prop>>),
+    Map(Arc<HashMap<String, Prop>>),
     DTime(NaiveDateTime),
     Graph(Graph),
 }
@@ -107,6 +109,16 @@ pub trait PropUnwrap: Sized {
         self.into_bool().unwrap()
     }
 
+    fn into_list(self) -> Option<Arc<Vec<Prop>>>;
+    fn unwrap_list(self) -> Arc<Vec<Prop>> {
+        self.into_list().unwrap()
+    }
+
+    fn into_map(self) -> Option<Arc<HashMap<String, Prop>>>;
+    fn unwrap_map(self) -> Arc<HashMap<String, Prop>> {
+        self.into_map().unwrap()
+    }
+
     fn into_dtime(self) -> Option<NaiveDateTime>;
     fn unwrap_dtime(self) -> NaiveDateTime {
         self.into_dtime().unwrap()
@@ -149,6 +161,14 @@ impl<P: PropUnwrap> PropUnwrap for Option<P> {
 
     fn into_bool(self) -> Option<bool> {
         self.and_then(|p| p.into_bool())
+    }
+
+    fn into_list(self) -> Option<Arc<Vec<Prop>>> {
+        self.and_then(|p| p.into_list())
+    }
+
+    fn into_map(self) -> Option<Arc<HashMap<String, Prop>>> {
+        self.and_then(|p| p.into_map())
     }
 
     fn into_dtime(self) -> Option<NaiveDateTime> {
@@ -225,6 +245,22 @@ impl PropUnwrap for Prop {
         }
     }
 
+    fn into_list(self) -> Option<Arc<Vec<Prop>>> {
+        if let Prop::List(v) = self {
+            Some(v)
+        } else {
+            None
+        }
+    }
+
+    fn into_map(self) -> Option<Arc<HashMap<String, Prop>>> {
+        if let Prop::Map(v) = self {
+            Some(v)
+        } else {
+            None
+        }
+    }
+
     fn into_dtime(self) -> Option<NaiveDateTime> {
         if let Prop::DTime(v) = self {
             Some(v)
@@ -260,6 +296,12 @@ impl fmt::Display for Prop {
                 value.num_vertices(),
                 value.num_edges()
             ),
+            Prop::List(value) => {
+                write!(f, "{:?}", value)
+            }
+            Prop::Map(value) => {
+                write!(f, "{:?}", value)
+            }
         }
     }
 }
@@ -320,12 +362,48 @@ impl From<bool> for Prop {
     }
 }
 
-pub trait AsProp {
-    fn as_prop(self) -> Prop;
+impl From<HashMap<String, Prop>> for Prop {
+    fn from(value: HashMap<String, Prop>) -> Self {
+        Prop::Map(Arc::new(value))
+    }
 }
 
-impl<T: Into<Prop>> AsProp for T {
-    fn as_prop(self) -> Prop {
+impl From<Vec<Prop>> for Prop {
+    fn from(value: Vec<Prop>) -> Self {
+        Prop::List(Arc::new(value))
+    }
+}
+
+pub trait IntoPropMap {
+    fn into_prop_map(self) -> Prop;
+}
+
+impl<I: IntoIterator<Item = (K, V)>, K: Into<String>, V: Into<Prop>> IntoPropMap for I {
+    fn into_prop_map(self) -> Prop {
+        Prop::Map(Arc::new(
+            self.into_iter()
+                .map(|(k, v)| (k.into(), v.into()))
+                .collect(),
+        ))
+    }
+}
+
+pub trait IntoPropList {
+    fn into_prop_list(self) -> Prop;
+}
+
+impl<I: IntoIterator<Item = K>, K: Into<Prop>> IntoPropList for I {
+    fn into_prop_list(self) -> Prop {
+        Prop::List(Arc::new(self.into_iter().map(|v| v.into()).collect()))
+    }
+}
+
+pub trait IntoProp {
+    fn into_prop(self) -> Prop;
+}
+
+impl<T: Into<Prop>> IntoProp for T {
+    fn into_prop(self) -> Prop {
         self.into()
     }
 }

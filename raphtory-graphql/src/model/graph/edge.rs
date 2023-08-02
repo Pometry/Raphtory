@@ -46,8 +46,8 @@ impl Edge {
         self.ee.properties().get(name).map(|prop| prop.to_string())
     }
 
-    async fn layer(&self) -> String {
-        self.ee.layer_name()
+    async fn layers(&self) -> Vec<String> {
+        self.ee.layer_names()
     }
 
     async fn history(&self) -> Vec<i64> {

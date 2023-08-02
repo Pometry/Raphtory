@@ -101,12 +101,12 @@ impl<A: Clone + Default + Debug + PartialEq> TCell<A> {
         }
     }
 
-    pub fn last_before(&self, t: i64) -> Option<&A> {
+    pub fn last_before(&self, t: i64) -> Option<(&i64, &A)> {
         match self {
             TCell::Empty => None,
-            TCell::TCell1(t2, v) => (*t2 < t).then_some(v),
-            TCell::TCellCap(map) => map.range(i64::MIN..t).last().map(|(_, v)| v),
-            TCell::TCellN(map) => map.range(i64::MIN..t).last().map(|(_, v)| v),
+            TCell::TCell1(t2, v) => (*t2 < t).then_some((t2, v)),
+            TCell::TCellCap(map) => map.range(i64::MIN..t).last(),
+            TCell::TCellN(map) => map.range(i64::MIN..t).last(),
         }
     }
 }

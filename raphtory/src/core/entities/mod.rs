@@ -1,7 +1,8 @@
 #![allow(unused)]
 
-use std::ops::Deref;
+use std::{ops::Deref, sync::Arc};
 
+use crate::core::entities::edges::edge_ref::EdgeRef;
 use edges::edge::ERef;
 use graph::{tgraph::TGraph, tgraph_storage::GraphEntry};
 use serde::{Deserialize, Serialize};
@@ -110,4 +111,84 @@ pub(crate) trait GraphItem<'a, const N: usize> {
         dir: Direction,
         graph: &'a TGraph<N>,
     ) -> Self;
+}
+
+#[derive(Clone, Debug)]
+pub enum LayerIds {
+    None,
+    All,
+    One(usize),
+    Multiple(Arc<[usize]>),
+}
+
+impl LayerIds {
+    pub fn find(&self, layer_id: usize) -> Option<usize> {
+        match self {
+            LayerIds::All => Some(layer_id),
+            LayerIds::One(id) => {
+                if *id == layer_id {
+                    Some(layer_id)
+                } else {
+                    None
+                }
+            }
+            LayerIds::Multiple(ids) => ids.binary_search(&layer_id).ok().map(|_| layer_id),
+            LayerIds::None => None,
+        }
+    }
+
+    pub fn constrain_from_edge(self, e: EdgeRef) -> LayerIds {
+        match e.layer() {
+            None => self,
+            Some(l) => self
+                .find(*l)
+                .map(|l| LayerIds::One(l))
+                .unwrap_or(LayerIds::None),
+        }
+    }
+
+    pub fn contains(&self, layer_id: &usize) -> bool {
+        self.find(*layer_id).is_some()
+    }
+}
+
+impl From<Vec<usize>> for LayerIds {
+    fn from(mut v: Vec<usize>) -> Self {
+        match v.len() {
+            0 => LayerIds::All,
+            1 => LayerIds::One(v[0]),
+            _ => {
+                v.sort_unstable();
+                v.dedup();
+                LayerIds::Multiple(v.into())
+            }
+        }
+    }
+}
+
+impl<const N: usize> From<[usize; N]> for LayerIds {
+    fn from(v: [usize; N]) -> Self {
+        match v.len() {
+            0 => LayerIds::All,
+            1 => LayerIds::One(v[0]),
+            _ => {
+                let mut v = v.to_vec();
+                v.sort_unstable();
+                v.dedup();
+                LayerIds::Multiple(v.into())
+            }
+        }
+    }
+}
+
+impl From<usize> for LayerIds {
+    fn from(id: usize) -> Self {
+        LayerIds::One(id)
+    }
+}
+
+impl From<Arc<[usize]>> for LayerIds {
+    fn from(id: Arc<[usize]>) -> Self {
+        LayerIds::Multiple(id)
+    }
 }
