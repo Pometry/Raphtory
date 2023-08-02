@@ -264,6 +264,13 @@ def test_name():
     assert g.vertex("Hamza").name() == "Hamza"
 
 
+def test_getitem():
+    g = Graph()
+    g.add_vertex(0, 1, {"cost": 0})
+    g.add_vertex(1, 1, {"cost": 1})
+
+    assert g.vertex(1).properties.temporal.get("cost") == g.vertex(1).properties.temporal["cost"]
+
 def test_graph_properties():
     g = create_graph()
 
