@@ -1,5 +1,3 @@
-use std::ops::Range;
-
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef, LayerIds, EID, VID},
@@ -8,11 +6,11 @@ use crate::{
     db::api::{
         properties::internal::InheritPropertiesOps,
         view::{
-            internal::{Base, GraphOps, InheritCoreOps, InheritMaterialize, TimeSemantics},
-            BoxedIter, Layer,
+            internal::{Base, GraphOps, InheritCoreOps, InheritMaterialize, InheritTimeSemantics},
+            Layer,
         },
     },
-    prelude::{GraphViewOps, Prop},
+    prelude::GraphViewOps,
 };
 use itertools::Itertools;
 
@@ -32,7 +30,7 @@ impl<G: GraphViewOps> Base for LayeredGraph<G> {
     }
 }
 
-// impl<G: GraphViewOps> InheritTimeSemantics for LayeredGraph<G> {}
+impl<G: GraphViewOps> InheritTimeSemantics for LayeredGraph<G> {}
 
 impl<G: GraphViewOps> InheritCoreOps for LayeredGraph<G> {}
 
@@ -155,126 +153,5 @@ impl<G: GraphViewOps> GraphOps for LayeredGraph<G> {
         layer: LayerIds,
     ) -> Box<dyn Iterator<Item = VertexRef> + Send> {
         self.graph.neighbours(v, d, self.constrain(layer))
-    }
-}
-
-impl<G: GraphViewOps> TimeSemantics for LayeredGraph<G> {
-    fn include_vertex_window(&self, v: VID, w: Range<i64>) -> bool {
-        self.graph.include_vertex_window(v, w)
-    }
-
-    fn include_edge_window(&self, e: EdgeRef, w: Range<i64>, layer_ids: LayerIds) -> bool {
-        self.graph
-            .include_edge_window(e, w, self.constrain(layer_ids))
-    }
-
-    fn edge_t(&self, e: EdgeRef, layer_ids: LayerIds) -> BoxedIter<EdgeRef> {
-        self.graph.edge_t(e, self.constrain(layer_ids))
-    }
-
-    fn edge_layers(&self, e: EdgeRef, layer_ids: LayerIds) -> BoxedIter<EdgeRef> {
-        self.graph.edge_layers(e, self.constrain(layer_ids))
-    }
-
-    fn edge_window_t(&self, e: EdgeRef, w: Range<i64>, layer_ids: LayerIds) -> BoxedIter<EdgeRef> {
-        self.graph.edge_window_t(e, w, self.constrain(layer_ids))
-    }
-
-    fn edge_window_layers(
-        &self,
-        e: EdgeRef,
-        w: Range<i64>,
-        layer_ids: LayerIds,
-    ) -> BoxedIter<EdgeRef> {
-        self.graph
-            .edge_window_layers(e, w, self.constrain(layer_ids))
-    }
-
-    fn edge_earliest_time(&self, e: EdgeRef, layer_ids: LayerIds) -> Option<i64> {
-        self.graph.edge_earliest_time(e, self.constrain(layer_ids))
-    }
-
-    fn edge_earliest_time_window(
-        &self,
-        e: EdgeRef,
-        w: Range<i64>,
-        layer_ids: LayerIds,
-    ) -> Option<i64> {
-        self.graph
-            .edge_earliest_time_window(e, w, self.constrain(layer_ids))
-    }
-
-    fn edge_latest_time(&self, e: EdgeRef, layer_ids: LayerIds) -> Option<i64> {
-        self.graph.edge_latest_time(e, self.constrain(layer_ids))
-    }
-
-    fn edge_latest_time_window(
-        &self,
-        e: EdgeRef,
-        w: Range<i64>,
-        layer_ids: LayerIds,
-    ) -> Option<i64> {
-        self.graph
-            .edge_latest_time_window(e, w, self.constrain(layer_ids))
-    }
-
-    fn edge_deletion_history(&self, e: EdgeRef, layer_ids: LayerIds) -> Vec<i64> {
-        self.graph
-            .edge_deletion_history(e, self.constrain(layer_ids))
-    }
-
-    fn edge_deletion_history_window(
-        &self,
-        e: EdgeRef,
-        w: Range<i64>,
-        layer_ids: LayerIds,
-    ) -> Vec<i64> {
-        self.graph
-            .edge_deletion_history_window(e, w, self.constrain(layer_ids))
-    }
-
-    fn temporal_prop_vec(&self, name: &str) -> Vec<(i64, Prop)> {
-        self.graph.temporal_prop_vec(name)
-    }
-
-    fn temporal_prop_vec_window(&self, name: &str, t_start: i64, t_end: i64) -> Vec<(i64, Prop)> {
-        self.graph.temporal_prop_vec_window(name, t_start, t_end)
-    }
-
-    fn temporal_vertex_prop_vec(&self, v: VID, name: &str) -> Vec<(i64, Prop)> {
-        self.graph.temporal_vertex_prop_vec(v, name)
-    }
-
-    fn temporal_vertex_prop_vec_window(
-        &self,
-        v: VID,
-        name: &str,
-        t_start: i64,
-        t_end: i64,
-    ) -> Vec<(i64, Prop)> {
-        self.graph
-            .temporal_vertex_prop_vec_window(v, name, t_start, t_end)
-    }
-
-    fn temporal_edge_prop_vec_window(
-        &self,
-        e: EdgeRef,
-        name: &str,
-        t_start: i64,
-        t_end: i64,
-        layer_ids: LayerIds,
-    ) -> Vec<(i64, Prop)> {
-        self.graph
-            .temporal_edge_prop_vec_window(e, name, t_start, t_end, self.constrain(layer_ids))
-    }
-
-    fn temporal_edge_prop_vec(
-        &self,
-        e: EdgeRef,
-        name: &str,
-        layer_ids: LayerIds,
-    ) -> Vec<(i64, Prop)> {
-        self.graph
-            .temporal_edge_prop_vec(e, name, self.constrain(layer_ids))
     }
 }
