@@ -320,7 +320,13 @@ mod db_tests {
         }
 
         let e = g
-            .edge_ref_window(1.into(), 3.into(), i64::MIN, i64::MAX, 0.into())
+            .edge_ref_window(
+                g.localise_vertex_unchecked(1.into()),
+                g.localise_vertex_unchecked(3.into()),
+                i64::MIN,
+                i64::MAX,
+                0.into(),
+            )
             .unwrap();
         assert_eq!(g.vertex_id(e.src()), 1u64);
         assert_eq!(g.vertex_id(e.dst()), 3u64);
