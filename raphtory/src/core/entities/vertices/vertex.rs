@@ -196,17 +196,19 @@ impl<const N: usize> ArcEdge<N> {
         ArcEdge { e, meta }
     }
 
-    pub(crate) fn timestamps(
+    pub(crate) fn timestamps_and_layers(
         &self,
         layer: LayerIds,
-    ) -> impl Iterator<Item = &TimeIndexEntry> + Send + '_ {
+    ) -> impl Iterator<Item = (usize, &TimeIndexEntry)> + Send + '_ {
         let adds = self.e.additions();
         adds.iter()
             .enumerate()
-            .filter_map(|(layer_id, t)| layer.find(layer_id).map(|_| t))
-            .map(|t| t.iter())
-            .kmerge()
-            .dedup()
+            .filter_map(|(layer_id, t)| {
+                layer
+                    .find(layer_id)
+                    .map(|l| t.iter().map(move |tt| (l, tt)))
+            })
+            .kmerge_by(|a, b| a.1 < b.1)
     }
 
     pub(crate) fn layers(&self) -> impl Iterator<Item = usize> + '_ {
@@ -217,17 +219,19 @@ impl<const N: usize> ArcEdge<N> {
         self.e.layer_ids_window_iter(w)
     }
 
-    pub(crate) fn timestamps_window(
+    pub(crate) fn timestamps_and_layers_window(
         &self,
         layer: LayerIds,
         w: Range<i64>,
-    ) -> impl Iterator<Item = &TimeIndexEntry> + '_ {
+    ) -> impl Iterator<Item = (usize, &TimeIndexEntry)> + '_ {
         let adds = self.e.additions();
         adds.iter()
             .enumerate()
-            .filter_map(|(layer_id, t)| layer.find(layer_id).map(|_| t))
-            .map(|t| t.range_iter(w.clone()))
-            .kmerge()
-            .dedup()
+            .filter_map(|(layer_id, t)| {
+                layer
+                    .find(layer_id)
+                    .map(|l| t.range_iter(w.clone()).map(move |tt| (l, tt)))
+            })
+            .kmerge_by(|a, b| a.1 < b.1)
     }
 }

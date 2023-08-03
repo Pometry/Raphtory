@@ -79,11 +79,11 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
 
     fn edge_t(&self, e: EdgeRef, layer_ids: LayerIds) -> BoxedIter<EdgeRef> {
         let arc = self.inner().edge_arc(e.pid());
+        let layer_id = layer_ids.constrain_from_edge(e);
         let iter: GenBoxed<EdgeRef> = GenBoxed::new_boxed(|co| async move {
             // this is for when we explode edges we want to select the layer we get the timestamps from
-            let layer_id = e.layer().map(|l| (*l).into()).unwrap_or_else(|| layer_ids);
-            for t in arc.timestamps(layer_id) {
-                co.yield_(e.at(*t)).await;
+            for (l, t) in arc.timestamps_and_layers(layer_id) {
+                co.yield_(e.at(*t).at_layer(l)).await;
             }
         });
         Box::new(iter.into_iter())
@@ -91,6 +91,7 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
 
     fn edge_layers(&self, e: EdgeRef, layer_ids: LayerIds) -> BoxedIter<EdgeRef> {
         let arc = self.inner().edge_arc(e.pid());
+        let layer_ids = layer_ids.constrain_from_edge(e);
         let iter: GenBoxed<EdgeRef> = GenBoxed::new_boxed(|co| async move {
             for l in arc.layers() {
                 if layer_ids.contains(&l) {
@@ -103,11 +104,11 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
 
     fn edge_window_t(&self, e: EdgeRef, w: Range<i64>, layer_ids: LayerIds) -> BoxedIter<EdgeRef> {
         let arc = self.inner().edge_arc(e.pid());
+        let layer_ids = layer_ids.constrain_from_edge(e);
         let iter: GenBoxed<EdgeRef> = GenBoxed::new_boxed(|co| async move {
             // this is for when we explode edges we want to select the layer we get the timestamps from
-            let layer_id = e.layer().map(|l| (*l).into()).unwrap_or_else(|| layer_ids);
-            for t in arc.timestamps_window(layer_id, w) {
-                co.yield_(e.at(*t)).await;
+            for (l, t) in arc.timestamps_and_layers_window(layer_ids, w) {
+                co.yield_(e.at(*t).at_layer(l)).await;
             }
         });
         Box::new(iter.into_iter())
