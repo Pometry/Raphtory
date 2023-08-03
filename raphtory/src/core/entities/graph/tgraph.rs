@@ -20,7 +20,7 @@ use crate::{
         },
         storage::{
             locked_view::LockedView,
-            timeindex::{LockedLayeredIndex, TimeIndexEntry, TimeIndexOps},
+            timeindex::{AsTime, LockedLayeredIndex, TimeIndexEntry, TimeIndexOps},
             Entry,
         },
         utils::{

@@ -5,7 +5,7 @@ use crate::core::{
         vertices::structure::{adj, adj::Adj},
         LayerIds, EID, VID,
     },
-    storage::timeindex::{TimeIndex, TimeIndexEntry},
+    storage::timeindex::{AsTime, TimeIndex, TimeIndexEntry},
     utils::errors::MutateGraphError,
     Direction, Prop,
 };
@@ -18,7 +18,7 @@ pub(crate) struct VertexStore<const N: usize> {
     global_id: u64,
     pub(crate) vid: VID,
     // all the timestamps that have been seen by this vertex
-    timestamps: TimeIndex,
+    timestamps: TimeIndex<i64>,
     // each layer represents a separate view of the graph
     layers: Vec<Adj>,
     // props for vertex
@@ -32,7 +32,7 @@ impl<const N: usize> VertexStore<N> {
         Self {
             global_id,
             vid: 0.into(),
-            timestamps: TimeIndex::one(t),
+            timestamps: TimeIndex::one(*t.t()),
             layers,
             props: None,
         }
@@ -42,12 +42,12 @@ impl<const N: usize> VertexStore<N> {
         self.global_id
     }
 
-    pub fn timestamps(&self) -> &TimeIndex {
+    pub fn timestamps(&self) -> &TimeIndex<i64> {
         &self.timestamps
     }
 
     pub fn update_time(&mut self, t: TimeIndexEntry) {
-        self.timestamps.insert(t);
+        self.timestamps.insert(*t.t());
     }
 
     pub fn add_prop(&mut self, t: TimeIndexEntry, prop_id: usize, prop: Prop) {

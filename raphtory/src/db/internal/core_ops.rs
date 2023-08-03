@@ -9,7 +9,7 @@ use crate::{
         },
         storage::{
             locked_view::LockedView,
-            timeindex::{LockedLayeredIndex, TimeIndex},
+            timeindex::{LockedLayeredIndex, TimeIndex, TimeIndexEntry},
         },
     },
     db::api::view::internal::CoreGraphOps,
@@ -37,13 +37,17 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
         self.inner().vertex_name(v)
     }
 
-    fn edge_additions(&self, eref: EdgeRef, layer_ids: LayerIds) -> LockedLayeredIndex<'_> {
+    fn edge_additions(
+        &self,
+        eref: EdgeRef,
+        layer_ids: LayerIds,
+    ) -> LockedLayeredIndex<'_, TimeIndexEntry> {
         let layer_ids = layer_ids.constrain_from_edge(eref);
         let edge = self.inner().edge(eref.pid());
         edge.additions(layer_ids).unwrap()
     }
 
-    fn vertex_additions(&self, v: VID) -> LockedView<TimeIndex> {
+    fn vertex_additions(&self, v: VID) -> LockedView<TimeIndex<i64>> {
         let vertex = self.inner().vertex(v);
         vertex.additions().unwrap()
     }

@@ -113,7 +113,7 @@ impl<'a, const N: usize> Vertex<'a, N> {
             .map(move |dst| self.graph.vertex(dst))
     }
 
-    pub(crate) fn additions(self) -> Option<LockedView<'a, TimeIndex>> {
+    pub(crate) fn additions(self) -> Option<LockedView<'a, TimeIndex<i64>>> {
         match self.node {
             VRef::Entry(entry) => {
                 let t_index = entry.map(|entry| entry.timestamps());

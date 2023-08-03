@@ -1,22 +1,27 @@
+use crate::{
+    core::{entities::LayerIds, utils::time::error::ParseTimeError},
+    db::api::mutation::{internal::InternalAdditionOps, InputTime, TryIntoInputTime},
+};
 use itertools::Itertools;
 use num_traits::Saturating;
 use serde::{Deserialize, Serialize};
 use std::{
     cmp::{max, min},
     collections::BTreeSet,
+    fmt::Debug,
     ops::Range,
     sync::Arc,
-};
-
-use crate::{
-    core::{entities::LayerIds, utils::time::error::ParseTimeError},
-    db::api::mutation::{internal::InternalAdditionOps, InputTime, TryIntoInputTime},
 };
 
 use super::locked_view::LockedView;
 
 #[derive(Debug, Copy, Clone, Serialize, Deserialize, PartialEq, Ord, PartialOrd, Eq)]
 pub struct TimeIndexEntry(i64, usize);
+
+pub trait AsTime: Debug + Copy + Ord + Eq + Send + Sync {
+    fn t(&self) -> &i64;
+    fn range(w: Range<i64>) -> Range<Self>;
+}
 
 impl From<i64> for TimeIndexEntry {
     fn from(value: i64) -> Self {
@@ -47,33 +52,44 @@ impl TimeIndexEntry {
     pub fn end(t: i64) -> Self {
         Self(t.saturating_add(1), 0)
     }
+}
 
-    pub fn range(w: Range<i64>) -> Range<Self> {
-        Self::start(w.start)..Self::start(w.end)
+impl AsTime for i64 {
+    fn t(&self) -> &i64 {
+        self
     }
 
-    pub fn t(&self) -> &i64 {
+    fn range(w: Range<i64>) -> Range<Self> {
+        w
+    }
+}
+
+impl AsTime for TimeIndexEntry {
+    fn t(&self) -> &i64 {
         &self.0
+    }
+    fn range(w: Range<i64>) -> Range<Self> {
+        Self::start(w.start)..Self::start(w.end)
     }
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub enum TimeIndex {
+pub enum TimeIndex<T: Ord + Eq + Copy + Debug> {
     #[default]
     Empty,
-    One(TimeIndexEntry),
-    Set(BTreeSet<TimeIndexEntry>),
+    One(T),
+    Set(BTreeSet<T>),
 }
 
-impl TimeIndex {
+impl<T: AsTime> TimeIndex<T> {
     pub fn is_empty(&self) -> bool {
         matches!(self, TimeIndex::Empty)
     }
 
-    pub fn one(ti: TimeIndexEntry) -> Self {
+    pub fn one(ti: T) -> Self {
         Self::One(ti)
     }
-    pub fn insert(&mut self, ti: TimeIndexEntry) -> bool {
+    pub fn insert(&mut self, ti: T) -> bool {
         match self {
             TimeIndex::Empty => {
                 *self = TimeIndex::One(ti);
@@ -95,7 +111,7 @@ impl TimeIndex {
         match self {
             TimeIndex::Empty => false,
             TimeIndex::One(t) => w.contains(t.t()),
-            TimeIndex::Set(ts) => ts.range(TimeIndexEntry::range(w)).next().is_some(),
+            TimeIndex::Set(ts) => ts.range(T::range(w)).next().is_some(),
         }
     }
 
@@ -112,7 +128,7 @@ impl TimeIndex {
                     Box::new(std::iter::empty())
                 }
             }
-            TimeIndex::Set(ts) => Box::new(ts.range(TimeIndexEntry::range(w)).map(|ti| ti.t())),
+            TimeIndex::Set(ts) => Box::new(ts.range(T::range(w)).map(|ti| ti.t())),
         }
     }
 
@@ -126,17 +142,17 @@ impl TimeIndex {
     }
 }
 
-pub enum TimeIndexWindow<'a> {
+pub enum TimeIndexWindow<'a, T: AsTime> {
     Empty,
     TimeIndexRange {
-        timeindex: &'a TimeIndex,
+        timeindex: &'a TimeIndex<T>,
         range: Range<i64>,
     },
     LayeredTimeIndex {
-        timeindex: &'a LockedLayeredIndex<'a>,
+        timeindex: &'a LockedLayeredIndex<'a, T>,
         range: Range<i64>,
     },
-    All(&'a TimeIndex),
+    All(&'a TimeIndex<T>),
 }
 
 pub enum WindowIter<'a> {
@@ -157,13 +173,13 @@ impl<'a> Iterator for WindowIter<'a> {
     }
 }
 
-pub struct LockedLayeredIndex<'a> {
+pub struct LockedLayeredIndex<'a, T: AsTime> {
     layers: LayerIds,
-    view: LockedView<'a, Vec<TimeIndex>>,
+    view: LockedView<'a, Vec<TimeIndex<T>>>,
 }
 
-impl<'a> LockedLayeredIndex<'a> {
-    pub fn new(layers: LayerIds, view: LockedView<'a, Vec<TimeIndex>>) -> Self {
+impl<'a, T: AsTime> LockedLayeredIndex<'a, T> {
+    pub fn new(layers: LayerIds, view: LockedView<'a, Vec<TimeIndex<T>>>) -> Self {
         Self { layers, view }
     }
 
@@ -208,14 +224,15 @@ impl<'a> LockedLayeredIndex<'a> {
     }
 }
 
-impl<'a> TimeIndexOps for LockedLayeredIndex<'a> {
+impl<'a, T: AsTime> TimeIndexOps for LockedLayeredIndex<'a, T> {
     type IterType<'b> = Box<dyn Iterator<Item = &'b i64> + Send + 'b> where Self: 'b;
+    type IndexType = T;
 
     fn active(&self, w: Range<i64>) -> bool {
         self.view.iter().any(|t| t.active(w.clone()))
     }
 
-    fn range(&self, w: Range<i64>) -> TimeIndexWindow {
+    fn range(&self, w: Range<i64>) -> TimeIndexWindow<T> {
         TimeIndexWindow::LayeredTimeIndex {
             timeindex: self,
             range: w,
@@ -240,10 +257,11 @@ pub trait TimeIndexOps {
     type IterType<'a>: Iterator<Item = &'a i64> + Send + 'a
     where
         Self: 'a;
+    type IndexType: AsTime;
 
     fn active(&self, w: Range<i64>) -> bool;
 
-    fn range(&self, w: Range<i64>) -> TimeIndexWindow;
+    fn range(&self, w: Range<i64>) -> TimeIndexWindow<Self::IndexType>;
 
     fn first(&self) -> Option<i64>;
 
@@ -252,14 +270,15 @@ pub trait TimeIndexOps {
     fn iter(&self) -> Self::IterType<'_>;
 }
 
-impl TimeIndexOps for TimeIndex {
-    type IterType<'a> = Box<dyn Iterator<Item = &'a i64> + Send + 'a>;
+impl<T: AsTime> TimeIndexOps for TimeIndex<T> {
+    type IterType<'a> = Box<dyn Iterator<Item = &'a i64> + Send + 'a> where T: 'a;
+    type IndexType = T;
 
     fn active(&self, w: Range<i64>) -> bool {
         self.range_iter(w).next().is_some()
     }
 
-    fn range(&self, w: Range<i64>) -> TimeIndexWindow<'_> {
+    fn range(&self, w: Range<i64>) -> TimeIndexWindow<'_, T> {
         TimeIndexWindow::TimeIndexRange {
             timeindex: self,
             range: w,
@@ -291,8 +310,9 @@ impl TimeIndexOps for TimeIndex {
     }
 }
 
-impl<'b> TimeIndexOps for TimeIndexWindow<'b> {
+impl<'b, T: AsTime> TimeIndexOps for TimeIndexWindow<'b, T> {
     type IterType<'a> = WindowIter<'a> where Self: 'a;
+    type IndexType = T;
 
     fn active(&self, w: Range<i64>) -> bool {
         match self {
@@ -311,7 +331,7 @@ impl<'b> TimeIndexOps for TimeIndexWindow<'b> {
         }
     }
 
-    fn range(&self, w: Range<i64>) -> TimeIndexWindow {
+    fn range(&self, w: Range<i64>) -> TimeIndexWindow<T> {
         match self {
             TimeIndexWindow::Empty => TimeIndexWindow::Empty,
             TimeIndexWindow::TimeIndexRange { timeindex, range } => {

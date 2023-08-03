@@ -12,7 +12,7 @@ use tantivy::{
 use crate::{
     core::{
         entities::{vertices::vertex_ref::VertexRef, VID},
-        storage::timeindex::TimeIndexEntry,
+        storage::timeindex::{AsTime, TimeIndexEntry},
         utils::errors::GraphError,
     },
     db::{

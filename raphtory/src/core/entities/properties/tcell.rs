@@ -1,4 +1,7 @@
-use crate::core::storage::{sorted_vec_map::SVM, timeindex::TimeIndexEntry};
+use crate::core::storage::{
+    sorted_vec_map::SVM,
+    timeindex::{AsTime, TimeIndexEntry},
+};
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, fmt::Debug, ops::Range};
 
