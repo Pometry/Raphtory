@@ -34,7 +34,7 @@
 //! graph.add_edge(2, 2, 3, NO_PROPS, None).unwrap();
 //!
 //!  let wg = graph.window(0, 1);
-//!  assert_eq!(wg.edge(1, 2, Layer::All).unwrap().src().id(), 1);
+//!  assert_eq!(wg.edge(1, 2).unwrap().src().id(), 1);
 //! ```
 
 use crate::{

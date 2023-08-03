@@ -1255,7 +1255,6 @@ mod db_tests {
         assert!(g_layers.edge(1, 3).is_some());
 
         assert!(g_layers.edge(1, 4).is_none());
-        assert!(g_layers.edge(1, 4).unwrap().layer(Layer::Default).is_none());
 
         let one = g_layers.vertex(1).expect("vertex");
         let ns = one.neighbours().iter().map(|v| v.id()).collect::<Vec<_>>();
@@ -1266,15 +1265,9 @@ mod db_tests {
         assert!(g_layers2.edge(1, 2).unwrap().layer("layer1").is_some());
         assert!(g_layers2.edge(1, 2).is_some());
 
-        assert!(g_layers2.edge(1, 3).unwrap().layer("layer3").is_none());
         assert!(g_layers2.edge(1, 3).is_none());
 
         assert!(g_layers2.edge(1, 4).is_none());
-        assert!(g_layers2
-            .edge(1, 4)
-            .unwrap()
-            .layer(Layer::Default)
-            .is_none());
 
         let one = g_layers2.vertex(1).expect("vertex");
         let ns = one.neighbours().iter().map(|v| v.id()).collect::<Vec<_>>();

@@ -201,10 +201,16 @@ impl<G: GraphViewOps> LayerOps for EdgeView<G> {
     }
 
     fn layer<L: Into<Layer>>(&self, name: L) -> Option<Self::LayeredViewType> {
-        self.graph.layer(name).map(|g| EdgeView {
-            graph: g,
-            edge: self.edge,
-        })
+        let layer_ids = self
+            .graph
+            .layer_ids_from_names(name.into())
+            .constrain_from_edge(self.edge);
+        self.graph
+            .has_edge_ref(self.edge.src(), self.edge.dst(), layer_ids.clone())
+            .then(|| EdgeView {
+                graph: LayeredGraph::new(self.graph.clone(), layer_ids),
+                edge: self.edge,
+            })
     }
 }
 
