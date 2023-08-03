@@ -16,7 +16,10 @@ use crate::{
         utils::errors::GraphError,
     },
     db::{
-        api::{mutation::internal::InternalAdditionOps, view::EdgeViewInternalOps},
+        api::{
+            mutation::internal::InternalAdditionOps,
+            view::{internal::InheritViewOps, EdgeViewInternalOps},
+        },
         graph::{edge::EdgeView, vertex::VertexView},
     },
     prelude::*,
@@ -38,6 +41,8 @@ impl<G> Deref for IndexedGraph<G> {
         &self.graph
     }
 }
+
+impl<G: GraphViewOps> InheritViewOps for IndexedGraph<G> {}
 
 pub(in crate::search) mod fields {
     pub const TIME: &str = "time";
