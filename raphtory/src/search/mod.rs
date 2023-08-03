@@ -18,7 +18,10 @@ use crate::{
     db::{
         api::{
             mutation::internal::InternalAdditionOps,
-            view::{internal::InheritViewOps, EdgeViewInternalOps},
+            view::{
+                internal::{DynamicGraph, InheritViewOps, IntoDynamic},
+                EdgeViewInternalOps,
+            },
         },
         graph::{edge::EdgeView, vertex::VertexView},
     },
@@ -39,6 +42,12 @@ impl<G> Deref for IndexedGraph<G> {
 
     fn deref(&self) -> &Self::Target {
         &self.graph
+    }
+}
+
+impl<G: GraphViewOps> IntoDynamic for IndexedGraph<G> {
+    fn into_dynamic(self) -> DynamicGraph {
+        DynamicGraph::new(self)
     }
 }
 
