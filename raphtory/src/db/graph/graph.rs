@@ -322,8 +322,8 @@ mod db_tests {
         let e = g
             .edge_ref_window(1.into(), 3.into(), i64::MIN, i64::MAX, 0.into())
             .unwrap();
-        assert_eq!(g.vertex_id(g.localise_vertex_unchecked(e.src())), 1u64);
-        assert_eq!(g.vertex_id(g.localise_vertex_unchecked(e.dst())), 3u64);
+        assert_eq!(g.vertex_id(e.src()), 1u64);
+        assert_eq!(g.vertex_id(e.dst()), 3u64);
     }
 
     #[test]
@@ -607,9 +607,9 @@ mod db_tests {
             g.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
         }
 
-        let local_1 = VertexRef::new_local(0.into());
-        let local_2 = VertexRef::new_local(1.into());
-        let local_3 = VertexRef::new_local(2.into());
+        let local_1 = g.vertex_ref(1).unwrap();
+        let local_2 = g.vertex_ref(2).unwrap();
+        let local_3 = g.vertex_ref(3).unwrap();
 
         let expected = [
             (

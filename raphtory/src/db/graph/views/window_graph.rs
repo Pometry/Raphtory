@@ -395,7 +395,7 @@ impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
     /// # Errors
     ///
     /// Returns an error if either `src` or `dst` is not a valid vertex.
-    fn has_edge_ref(&self, src: VertexRef, dst: VertexRef, layer: LayerIds) -> bool {
+    fn has_edge_ref(&self, src: VID, dst: VID, layer: LayerIds) -> bool {
         self.graph
             .has_edge_ref_window(src, dst, self.t_start, self.t_end, layer)
     }
@@ -477,7 +477,7 @@ impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
     /// # Errors
     ///
     /// Returns an error if `src` or `dst` are not valid vertices.
-    fn edge_ref(&self, src: VertexRef, dst: VertexRef, layer: LayerIds) -> Option<EdgeRef> {
+    fn edge_ref(&self, src: VID, dst: VID, layer: LayerIds) -> Option<EdgeRef> {
         self.graph
             .edge_ref_window(src, dst, self.t_start, self.t_end, layer)
     }
@@ -516,7 +516,7 @@ impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
         v: VID,
         d: Direction,
         layer: LayerIds,
-    ) -> Box<dyn Iterator<Item = VertexRef> + Send> {
+    ) -> Box<dyn Iterator<Item = VID> + Send> {
         self.graph
             .neighbours_window(v, self.t_start, self.t_end, d, layer)
     }

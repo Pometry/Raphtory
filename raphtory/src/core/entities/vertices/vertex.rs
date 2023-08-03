@@ -15,7 +15,7 @@ use crate::{
         },
         storage::{
             locked_view::LockedView,
-            timeindex::{TimeIndex, TimeIndexOps},
+            timeindex::{TimeIndex, TimeIndexEntry, TimeIndexOps},
             ArcEntry, Entry,
         },
         Direction, Prop,
@@ -196,7 +196,10 @@ impl<const N: usize> ArcEdge<N> {
         ArcEdge { e, meta }
     }
 
-    pub(crate) fn timestamps(&self, layer: LayerIds) -> impl Iterator<Item = &i64> + Send + '_ {
+    pub(crate) fn timestamps(
+        &self,
+        layer: LayerIds,
+    ) -> impl Iterator<Item = &TimeIndexEntry> + Send + '_ {
         let adds = self.e.additions();
         adds.iter()
             .enumerate()
@@ -218,7 +221,7 @@ impl<const N: usize> ArcEdge<N> {
         &self,
         layer: LayerIds,
         w: Range<i64>,
-    ) -> impl Iterator<Item = &i64> + '_ {
+    ) -> impl Iterator<Item = &TimeIndexEntry> + '_ {
         let adds = self.e.additions();
         adds.iter()
             .enumerate()

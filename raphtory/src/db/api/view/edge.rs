@@ -1,5 +1,8 @@
 use crate::{
-    core::entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef},
+    core::{
+        entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef, VID},
+        storage::timeindex::AsTime,
+    },
     db::api::{
         properties::{
             internal::{ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps},
@@ -14,7 +17,7 @@ pub trait EdgeViewInternalOps<G: GraphViewOps, V: VertexViewOps<Graph = G>> {
 
     fn eref(&self) -> EdgeRef;
 
-    fn new_vertex(&self, v: VertexRef) -> V;
+    fn new_vertex(&self, v: VID) -> V;
 
     fn new_edge(&self, e: EdgeRef) -> Self;
 }
@@ -36,7 +39,7 @@ pub trait EdgeViewOps:
         let layer_ids = self.graph().layer_ids().constrain_from_edge(self.eref());
         self.graph()
             .edge_t(self.eref(), layer_ids)
-            .map(|e| e.time().expect("exploded"))
+            .map(|e| *e.time().expect("exploded").t())
             .collect()
     }
 
@@ -61,7 +64,7 @@ pub trait EdgeViewOps:
     fn active(&self, t: i64) -> bool {
         let layer_ids = self.graph().layer_ids().constrain_from_edge(self.eref());
         match self.eref().time() {
-            Some(tt) => tt <= t && t <= self.latest_time().unwrap_or(tt),
+            Some(tt) => *tt.t() <= t && t <= self.latest_time().unwrap_or(*tt.t()),
             None => self.graph().has_edge_ref_window(
                 self.eref().src(),
                 self.eref().dst(),
@@ -101,7 +104,7 @@ pub trait EdgeViewOps:
 
     /// Gets the time stamp of the edge if it is exploded
     fn time(&self) -> Option<i64> {
-        self.eref().time()
+        self.eref().time().map(|ti| *ti.t())
     }
 
     /// Gets the name of the layer this edge belongs to

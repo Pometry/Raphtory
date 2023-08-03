@@ -1,7 +1,7 @@
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
-        storage::timeindex::TimeIndexOps,
+        storage::timeindex::{AsTime, TimeIndexEntry, TimeIndexOps},
         utils::errors::GraphError,
         Direction, Prop,
     },
@@ -57,8 +57,8 @@ impl GraphWithDeletions {
 
         let first_addition = additions.first();
         let first_deletion = deletions.first();
-        let last_addition_before_start = additions.range(i64::MIN..t.saturating_add(1)).last();
-        let last_deletion_before_start = deletions.range(i64::MIN..t).last();
+        let last_addition_before_start = additions.range(i64::MIN..t.saturating_add(1)).last_t();
+        let last_deletion_before_start = deletions.range(i64::MIN..t).last_t();
 
         // None is less than any value (see test below)
         (first_deletion < first_addition && first_deletion.filter(|v| *v >= t).is_some())
@@ -193,11 +193,13 @@ impl TimeSemantics for GraphWithDeletions {
     fn edge_t(&self, e: EdgeRef, layer_ids: LayerIds) -> BoxedIter<EdgeRef> {
         //Fixme: Need support for duration on exploded edges
         if self.edge_alive_at(e, i64::MIN, layer_ids.clone()) {
-            Box::new(iter::once(e.at(i64::MIN)).chain(self.graph.edge_window_t(
-                e,
-                (i64::MIN + 1)..i64::MAX,
-                layer_ids,
-            )))
+            Box::new(
+                iter::once(e.at(i64::MIN.into())).chain(self.graph.edge_window_t(
+                    e,
+                    (i64::MIN + 1)..i64::MAX,
+                    layer_ids,
+                )),
+            )
         } else {
             self.graph.edge_t(e, layer_ids)
         }
@@ -206,22 +208,24 @@ impl TimeSemantics for GraphWithDeletions {
     fn edge_window_t(&self, e: EdgeRef, w: Range<i64>, layer_ids: LayerIds) -> BoxedIter<EdgeRef> {
         // FIXME: Need better iterators on LockedView that capture the guard
         if self.edge_alive_at(e, w.start, layer_ids.clone()) {
-            Box::new(iter::once(e.at(w.start)).chain(self.graph.edge_window_t(
-                e,
-                w.start.saturating_add(1)..w.end,
-                layer_ids,
-            )))
+            Box::new(
+                iter::once(e.at(w.start.into())).chain(self.graph.edge_window_t(
+                    e,
+                    w.start.saturating_add(1)..w.end,
+                    layer_ids,
+                )),
+            )
         } else {
             self.graph.edge_window_t(e, w, layer_ids)
         }
     }
 
     fn edge_earliest_time(&self, e: EdgeRef, layer_ids: LayerIds) -> Option<i64> {
-        e.time().or_else(|| {
+        e.time().map(|ti| *ti.t()).or_else(|| {
             if self.edge_alive_at(e, i64::MIN, layer_ids.clone()) {
                 Some(i64::MIN)
             } else {
-                self.edge_additions(e, layer_ids).first()
+                self.edge_additions(e, layer_ids).first().map(|ti| *ti.t())
             }
         })
     }
@@ -235,27 +239,27 @@ impl TimeSemantics for GraphWithDeletions {
         if self.edge_alive_at(e, w.start, layer_ids.clone()) {
             Some(w.start)
         } else {
-            self.edge_additions(e, layer_ids).range(w).first()
+            self.edge_additions(e, layer_ids).range(w).first_t()
         }
     }
 
     fn edge_latest_time(&self, e: EdgeRef, layer_ids: LayerIds) -> Option<i64> {
-        match e.time() {
+        match e.time().map(|ti| *ti.t()) {
             Some(t) => Some(min(
                 self.edge_additions(e, layer_ids.clone())
                     .range(t.saturating_add(1)..i64::MAX)
-                    .first()
+                    .first_t()
                     .unwrap_or(i64::MAX),
                 self.edge_deletions(e, layer_ids)
                     .range(t.saturating_add(1)..i64::MAX)
-                    .first()
+                    .first_t()
                     .unwrap_or(i64::MAX),
             )),
             None => {
                 if self.edge_alive_at(e, i64::MAX, layer_ids.clone()) {
                     Some(i64::MAX)
                 } else {
-                    self.edge_deletions(e, layer_ids).last()
+                    self.edge_deletions(e, layer_ids).last_t()
                 }
             }
         }
@@ -267,29 +271,32 @@ impl TimeSemantics for GraphWithDeletions {
         w: Range<i64>,
         layer_ids: LayerIds,
     ) -> Option<i64> {
-        match e.time() {
+        match e.time().map(|ti| *ti.t()) {
             Some(t) => Some(min(
                 self.edge_additions(e, layer_ids.clone())
-                    .range(t + 1..w.end)
-                    .first()
+                    .range(t.saturating_add(1)..w.end)
+                    .first_t()
                     .unwrap_or(w.end - 1),
                 self.edge_deletions(e, layer_ids)
-                    .range(t + 1..w.end)
-                    .first()
+                    .range(t.saturating_add(1)..w.end)
+                    .first_t()
                     .unwrap_or(w.end - 1),
             )),
             None => {
                 if self.edge_alive_at(e, w.end - 1, layer_ids.clone()) {
                     Some(w.end - 1)
                 } else {
-                    self.edge_deletions(e, layer_ids).range(w).last()
+                    self.edge_deletions(e, layer_ids).range(w).last_t()
                 }
             }
         }
     }
 
     fn edge_deletion_history(&self, e: EdgeRef, layer_ids: LayerIds) -> Vec<i64> {
-        self.edge_deletions(e, layer_ids).iter().copied().collect()
+        self.edge_deletions(e, layer_ids)
+            .iter_t()
+            .copied()
+            .collect()
     }
 
     fn edge_deletion_history_window(
@@ -300,7 +307,7 @@ impl TimeSemantics for GraphWithDeletions {
     ) -> Vec<i64> {
         self.edge_deletions(e, layer_ids)
             .range(w)
-            .iter()
+            .iter_t()
             .copied()
             .collect()
     }

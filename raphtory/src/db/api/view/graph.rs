@@ -128,11 +128,12 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
     }
 
     fn has_edge<T: Into<VertexRef>, L: Into<Layer>>(&self, src: T, dst: T, layer: L) -> bool {
-        self.has_edge_ref(
-            src.into(),
-            dst.into(),
-            self.layer_ids_from_names(layer.into()),
-        )
+        if let Some(src) = self.local_vertex_ref(src.into()) {
+            if let Some(dst) = self.local_vertex_ref(dst.into()) {
+                return self.has_edge_ref(src, dst, self.layer_ids_from_names(layer.into()));
+            }
+        }
+        false
     }
 
     fn vertex<T: Into<VertexRef>>(&self, v: T) -> Option<VertexView<Self>> {
@@ -153,9 +154,14 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
         layer: L,
     ) -> Option<EdgeView<Self>> {
         let layer_id = self.layer_ids_from_names(layer.into());
-
-        self.edge_ref(src.into(), dst.into(), layer_id)
-            .map(|e| EdgeView::new(self.clone(), e))
+        if let Some(src) = self.local_vertex_ref(src.into()) {
+            if let Some(dst) = self.local_vertex_ref(dst.into()) {
+                return self
+                    .edge_ref(src, dst, layer_id)
+                    .map(|e| EdgeView::new(self.clone(), e));
+            }
+        }
+        None
     }
 
     fn edges(&self) -> Box<dyn Iterator<Item = EdgeView<Self>> + Send> {

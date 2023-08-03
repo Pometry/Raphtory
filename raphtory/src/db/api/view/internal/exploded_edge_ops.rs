@@ -1,6 +1,7 @@
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
+        storage::timeindex::AsTime,
         Direction,
     },
     db::api::view::{
@@ -94,14 +95,14 @@ impl<G: GraphOps + TimeSemantics + Clone + 'static> ExplodedEdgeOps for G {
     fn edge_history(&self, e: EdgeRef) -> BoxedIter<i64> {
         Box::new(
             self.edge_t(e, LayerIds::All)
-                .map(|e| e.time().expect("exploded")),
+                .map(|e| *e.time().expect("exploded").t()),
         )
     }
 
     fn edge_history_window(&self, e: EdgeRef, w: Range<i64>) -> BoxedIter<i64> {
         Box::new(
             self.edge_window_t(e, w, LayerIds::All)
-                .map(|e| e.time().expect("exploded")),
+                .map(|e| *e.time().expect("exploded").t()),
         )
     }
 }

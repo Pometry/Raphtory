@@ -8,7 +8,7 @@
 use super::views::layer_graph::LayeredGraph;
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef},
+        entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef, VID},
         storage::locked_view::LockedView,
         utils::time::IntoTime,
     },
@@ -57,8 +57,8 @@ impl<G: GraphViewOps> EdgeViewInternalOps<G, VertexView<G>> for EdgeView<G> {
         self.edge
     }
 
-    fn new_vertex(&self, v: VertexRef) -> VertexView<G> {
-        VertexView::new(self.graph(), v)
+    fn new_vertex(&self, v: VID) -> VertexView<G> {
+        VertexView::new_local(self.graph(), v)
     }
 
     fn new_edge(&self, e: EdgeRef) -> Self {
