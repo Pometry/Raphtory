@@ -197,6 +197,14 @@ fn try_main_bm() -> Result<(), Box<dyn Error>> {
         now.elapsed().as_millis()
     );
 
+    let now = Instant::now();
+    let num_exploded_edges = graph.edges().explode().count();
+    println!(
+        "counted {} exploded edges in {} milliseconds",
+        num_exploded_edges,
+        now.elapsed().as_millis()
+    );
+
     Ok(())
 }
 
