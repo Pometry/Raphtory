@@ -122,6 +122,24 @@ impl TProp {
         }
     }
 
+    pub(crate) fn at(&self, ti: &TimeIndexEntry) -> Option<Prop> {
+        match self {
+            TProp::Empty => None,
+            TProp::Str(cell) => cell.at(ti).map(|v| Prop::Str(v.clone())),
+            TProp::I32(cell) => cell.at(ti).map(|v| Prop::I32(*v)),
+            TProp::I64(cell) => cell.at(ti).map(|v| Prop::I64(*v)),
+            TProp::U32(cell) => cell.at(ti).map(|v| Prop::U32(*v)),
+            TProp::U64(cell) => cell.at(ti).map(|v| Prop::U64(*v)),
+            TProp::F32(cell) => cell.at(ti).map(|v| Prop::F32(*v)),
+            TProp::F64(cell) => cell.at(ti).map(|v| Prop::F64(*v)),
+            TProp::Bool(cell) => cell.at(ti).map(|v| Prop::Bool(*v)),
+            TProp::DTime(cell) => cell.at(ti).map(|v| Prop::DTime(*v)),
+            TProp::Graph(cell) => cell.at(ti).map(|v| Prop::Graph(v.clone())),
+            TProp::List(cell) => cell.at(ti).map(|v| Prop::List(v.clone())),
+            TProp::Map(cell) => cell.at(ti).map(|v| Prop::Map(v.clone())),
+        }
+    }
+
     pub(crate) fn last_before(&self, t: i64) -> Option<(i64, Prop)> {
         match self {
             TProp::Empty => None,
@@ -259,6 +277,10 @@ impl<'a> LockedLayeredTProp<'a> {
             .iter()
             .map(|p| p.iter_window(r.clone()))
             .kmerge_by(|a, b| a.0 < b.0)
+    }
+
+    pub(crate) fn at(&self, ti: &TimeIndexEntry) -> Option<Prop> {
+        self.tprop.iter().find_map(|p| p.at(ti))
     }
 }
 

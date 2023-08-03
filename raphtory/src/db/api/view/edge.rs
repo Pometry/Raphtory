@@ -151,3 +151,25 @@ pub trait EdgeListOps:
     /// Get the timestamp for the latest activity of the edge
     fn latest_time(self) -> Self::IterType<Option<i64>>;
 }
+
+#[cfg(test)]
+mod test_edge_view {
+    use crate::prelude::*;
+
+    #[test]
+    fn test_exploded_edge_properties() {
+        let g = Graph::new();
+        let actual_prop_values = vec![0, 1, 2, 3];
+        for v in actual_prop_values.iter() {
+            g.add_edge(0, 1, 2, [("test", *v)], None).unwrap();
+        }
+
+        let prop_values: Vec<_> = g
+            .edge(1, 2, Layer::All)
+            .unwrap()
+            .explode()
+            .flat_map(|e| e.properties().get("test").into_i32())
+            .collect();
+        assert_eq!(prop_values, actual_prop_values)
+    }
+}

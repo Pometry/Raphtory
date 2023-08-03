@@ -1,7 +1,7 @@
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, graph::tgraph::InnerTemporalGraph, LayerIds, VID},
-        storage::timeindex::TimeIndexOps,
+        storage::timeindex::{AsTime, TimeIndexOps},
     },
     db::api::view::{
         internal::{CoreDeletionOps, CoreGraphOps, TimeSemantics},
@@ -223,10 +223,10 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
         layer_ids: LayerIds,
     ) -> Vec<(i64, Prop)> {
         self.temporal_edge_prop(e, name, layer_ids)
-            .map(|p| match e.time_t() {
+            .map(|p| match e.time() {
                 Some(t) => {
-                    if t >= t_start && t < t_end {
-                        p.iter_window(t..t.saturating_add(1)).collect()
+                    if *t.t() >= t_start && *t.t() < t_end {
+                        p.at(&t).map(|v| vec![(*t.t(), v)]).unwrap_or_default()
                     } else {
                         vec![]
                     }
@@ -243,8 +243,8 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
         layer_ids: LayerIds,
     ) -> Vec<(i64, Prop)> {
         self.temporal_edge_prop(e, name, layer_ids)
-            .map(|p| match e.time_t() {
-                Some(t) => p.iter_window(t..t.saturating_add(1)).collect(),
+            .map(|p| match e.time() {
+                Some(t) => p.at(&t).map(|v| vec![(*t.t(), v)]).unwrap_or_default(),
                 None => p.iter().collect(),
             })
             .unwrap_or_default()

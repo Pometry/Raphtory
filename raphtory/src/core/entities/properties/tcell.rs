@@ -57,6 +57,15 @@ impl<A: Clone + Default + Debug + PartialEq> TCell<A> {
         }
     }
 
+    pub fn at(&self, ti: &TimeIndexEntry) -> Option<&A> {
+        match self {
+            TCell::Empty => None,
+            TCell::TCell1(t, v) => (t == ti).then_some(v),
+            TCell::TCellCap(svm) => svm.get(ti),
+            TCell::TCellN(btm) => btm.get(ti),
+        }
+    }
+
     #[allow(dead_code)]
     pub fn iter(&self) -> Box<dyn Iterator<Item = &A> + '_> {
         match self {
