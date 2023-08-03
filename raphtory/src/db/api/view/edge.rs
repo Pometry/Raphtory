@@ -172,4 +172,33 @@ mod test_edge_view {
             .collect();
         assert_eq!(prop_values, actual_prop_values)
     }
+
+    #[test]
+    fn test_exploded_edge_multilayer() {
+        let g = Graph::new();
+        let expected_prop_values = vec![0, 1, 2, 3];
+        for v in expected_prop_values.iter() {
+            g.add_edge(0, 1, 2, [("test", *v)], Some((v % 2).to_string().as_str()))
+                .unwrap();
+        }
+
+        let prop_values: Vec<_> = g
+            .edge(1, 2, Layer::All)
+            .unwrap()
+            .explode()
+            .flat_map(|e| e.properties().get("test").into_i32())
+            .collect();
+        let actual_layers: Vec<_> = g
+            .edge(1, 2, Layer::All)
+            .unwrap()
+            .explode()
+            .map(|e| e.layer_names().into_iter().next().unwrap())
+            .collect();
+        let expected_layers: Vec<_> = expected_prop_values
+            .iter()
+            .map(|v| (v % 2).to_string())
+            .collect();
+        assert_eq!(prop_values, expected_prop_values);
+        assert_eq!(actual_layers, expected_layers);
+    }
 }
