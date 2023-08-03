@@ -1,7 +1,7 @@
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
-        storage::timeindex::{AsTime, TimeIndexEntry, TimeIndexOps},
+        storage::timeindex::{AsTime, TimeIndexOps},
         utils::errors::GraphError,
         Direction, Prop,
     },
@@ -88,7 +88,7 @@ impl GraphWithDeletions {
     /// use raphtory::prelude::*;
     /// let g = Graph::new();
     /// g.add_vertex(1, 1, NO_PROPS).unwrap();
-    /// g.save_to_file("path_str");
+    /// g.save_to_file("path_str").expect("failed to save file");
     /// ```
     pub fn save_to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), GraphError> {
         self.graph.save_to_file(path)?;
@@ -205,6 +205,10 @@ impl TimeSemantics for GraphWithDeletions {
         }
     }
 
+    fn edge_layers(&self, e: EdgeRef, layer_ids: LayerIds) -> BoxedIter<EdgeRef> {
+        self.graph.edge_layers(e, layer_ids)
+    }
+
     fn edge_window_t(&self, e: EdgeRef, w: Range<i64>, layer_ids: LayerIds) -> BoxedIter<EdgeRef> {
         // FIXME: Need better iterators on LockedView that capture the guard
         if self.edge_alive_at(e, w.start, layer_ids.clone()) {
@@ -218,6 +222,22 @@ impl TimeSemantics for GraphWithDeletions {
         } else {
             self.graph.edge_window_t(e, w, layer_ids)
         }
+    }
+
+    fn edge_window_layers(
+        &self,
+        e: EdgeRef,
+        w: Range<i64>,
+        layer_ids: LayerIds,
+    ) -> BoxedIter<EdgeRef> {
+        let g = self.clone();
+        Box::new(
+            self.graph
+                .edge_layers(e, layer_ids.clone())
+                .filter(move |&e| {
+                    g.include_edge_window(e, w.clone(), layer_ids.clone().constrain_from_edge(e))
+                }),
+        )
     }
 
     fn edge_earliest_time(&self, e: EdgeRef, layer_ids: LayerIds) -> Option<i64> {
@@ -368,34 +388,11 @@ impl TimeSemantics for GraphWithDeletions {
     ) -> Vec<(i64, Prop)> {
         self.graph.temporal_edge_prop_vec(e, name, layer_ids)
     }
-
-    fn edge_layers(&self, e: EdgeRef, layer_ids: LayerIds) -> BoxedIter<EdgeRef> {
-        self.graph.edge_layers(e, layer_ids)
-    }
-
-    fn edge_window_layers(
-        &self,
-        e: EdgeRef,
-        w: Range<i64>,
-        layer_ids: LayerIds,
-    ) -> BoxedIter<EdgeRef> {
-        let g = self.clone();
-        Box::new(
-            self.graph
-                .edge_layers(e, layer_ids.clone())
-                .filter(move |&e| {
-                    g.include_edge_window(e, w.clone(), layer_ids.clone().constrain_from_edge(e))
-                }),
-        )
-    }
 }
 
 #[cfg(test)]
 mod test_deletions {
-    use crate::{
-        db::{api::view::Layer, graph::views::deletion_graph::GraphWithDeletions},
-        prelude::*,
-    };
+    use crate::{db::graph::views::deletion_graph::GraphWithDeletions, prelude::*};
     use itertools::Itertools;
 
     #[test]
@@ -417,7 +414,7 @@ mod test_deletions {
 
         assert_eq!(
             g.window(1, 2)
-                .edge(0, 1, Layer::All)
+                .edge(0, 1)
                 .unwrap()
                 .properties()
                 .get("added")
@@ -425,11 +422,11 @@ mod test_deletions {
             0
         );
 
-        assert!(g.window(11, 12).edge(0, 1, Layer::All).is_none());
+        assert!(g.window(11, 12).edge(0, 1).is_none());
 
         assert_eq!(
             g.window(1, 2)
-                .edge(0, 1, Layer::All)
+                .edge(0, 1)
                 .unwrap()
                 .properties()
                 .temporal()
@@ -471,7 +468,7 @@ mod test_deletions {
         let g = GraphWithDeletions::new();
         g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
         g.delete_edge(10, 1, 2, None).unwrap();
-        let e = g.edge(1, 2, Layer::All).unwrap();
+        let e = g.edge(1, 2).unwrap();
         assert_eq!(e.latest_time(), Some(10));
         assert_eq!(e.explode().latest_time().collect_vec(), vec![Some(10)]);
     }

@@ -200,14 +200,9 @@ impl PyGraphView {
     ///
     /// Returns:
     ///     the edge with the specified source and destination vertices, or None if the edge does not exist
-    #[pyo3(signature = (src, dst, layer=None))]
-    pub fn edge(
-        &self,
-        src: VertexRef,
-        dst: VertexRef,
-        layer: Option<&str>,
-    ) -> Option<EdgeView<DynamicGraph>> {
-        self.graph.edge(src, dst, layer)
+    #[pyo3(signature = (src, dst))]
+    pub fn edge(&self, src: VertexRef, dst: VertexRef) -> Option<EdgeView<DynamicGraph>> {
+        self.graph.edge(src, dst)
     }
 
     /// Gets all edges in the graph

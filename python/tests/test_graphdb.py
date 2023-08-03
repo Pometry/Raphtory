@@ -1172,7 +1172,7 @@ def test_layer_name():
     g.add_edge(0, 0, 2, layer="awesome layer")
 
     assert g.edge(0, 1).layer_names() == ["_default"]
-    assert g.edge(0, 2, "awesome layer").layer_names() == ["awesome layer"]
+    assert g.edge(0, 2).layer_names() == ["awesome layer"]
 
 
 def test_window_size():

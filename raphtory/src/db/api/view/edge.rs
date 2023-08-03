@@ -1,6 +1,6 @@
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef, VID},
+        entities::{edges::edge_ref::EdgeRef, VID},
         storage::timeindex::AsTime,
     },
     db::api::{
@@ -165,7 +165,7 @@ mod test_edge_view {
         }
 
         let prop_values: Vec<_> = g
-            .edge(1, 2, Layer::All)
+            .edge(1, 2)
             .unwrap()
             .explode()
             .flat_map(|e| e.properties().get("test").into_i32())
@@ -183,13 +183,13 @@ mod test_edge_view {
         }
 
         let prop_values: Vec<_> = g
-            .edge(1, 2, Layer::All)
+            .edge(1, 2)
             .unwrap()
             .explode()
             .flat_map(|e| e.properties().get("test").into_i32())
             .collect();
         let actual_layers: Vec<_> = g
-            .edge(1, 2, Layer::All)
+            .edge(1, 2)
             .unwrap()
             .explode()
             .map(|e| e.layer_names().into_iter().next().unwrap())

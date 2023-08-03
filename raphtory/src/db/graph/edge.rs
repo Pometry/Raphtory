@@ -8,7 +8,7 @@
 use super::views::layer_graph::LayeredGraph;
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef, VID},
+        entities::{edges::edge_ref::EdgeRef, VID},
         storage::locked_view::LockedView,
         utils::time::IntoTime,
     },
@@ -301,7 +301,7 @@ pub type EdgeList<G> = Box<dyn Iterator<Item = EdgeView<G>> + Send>;
 
 #[cfg(test)]
 mod test_edge {
-    use crate::{db::api::view::Layer, prelude::*};
+    use crate::prelude::*;
     use std::collections::HashMap;
 
     #[test]
@@ -311,8 +311,8 @@ mod test_edge {
         g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
         g.add_edge(2, 1, 2, props.clone(), None).unwrap();
 
-        let e1 = g.edge(1, 2, Layer::All).unwrap();
-        let e1_w = g.window(0, 1).edge(1, 2, Layer::All).unwrap();
+        let e1 = g.edge(1, 2).unwrap();
+        let e1_w = g.window(0, 1).edge(1, 2).unwrap();
         assert_eq!(HashMap::from_iter(e1.properties().as_vec()), props.into());
         assert!(e1_w.properties().as_vec().is_empty())
     }

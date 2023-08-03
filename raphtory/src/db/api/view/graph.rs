@@ -64,12 +64,7 @@ pub trait GraphViewOps: BoxableGraphView + Clone + Sized {
     fn vertices(&self) -> Vertices<Self>;
 
     /// Get an edge `(src, dst)`.
-    fn edge<T: Into<VertexRef>, L: Into<Layer>>(
-        &self,
-        src: T,
-        dst: T,
-        layer: L,
-    ) -> Option<EdgeView<Self>>;
+    fn edge<T: Into<VertexRef>>(&self, src: T, dst: T) -> Option<EdgeView<Self>>;
 
     /// Return an iterator over all edges in the graph.
     fn edges(&self) -> Box<dyn Iterator<Item = EdgeView<Self>> + Send>;
@@ -147,17 +142,11 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
         Vertices::new(graph)
     }
 
-    fn edge<T: Into<VertexRef>, L: Into<Layer>>(
-        &self,
-        src: T,
-        dst: T,
-        layer: L,
-    ) -> Option<EdgeView<Self>> {
-        let layer_id = self.layer_ids_from_names(layer.into());
+    fn edge<T: Into<VertexRef>>(&self, src: T, dst: T) -> Option<EdgeView<Self>> {
         if let Some(src) = self.local_vertex_ref(src.into()) {
             if let Some(dst) = self.local_vertex_ref(dst.into()) {
                 return self
-                    .edge_ref(src, dst, layer_id)
+                    .edge_ref(src, dst, self.layer_ids())
                     .map(|e| EdgeView::new(self.clone(), e));
             }
         }
@@ -277,7 +266,7 @@ mod test_materialize {
         assert!(!g
             .layer("2")
             .unwrap()
-            .edge(1, 2, Layer::All)
+            .edge(1, 2)
             .unwrap()
             .properties()
             .temporal()
@@ -287,7 +276,7 @@ mod test_materialize {
             .unwrap()
             .layer("2")
             .unwrap()
-            .edge(1, 2, Layer::All)
+            .edge(1, 2)
             .unwrap()
             .properties()
             .temporal()
