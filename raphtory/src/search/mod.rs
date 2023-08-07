@@ -146,7 +146,9 @@ impl<G: GraphViewOps> IndexedGraph<G> {
             Prop::Bool(_) => {
                 schema.add_u64_field(prop, INDEXED);
             }
-            x => todo!("prop value {:?} not supported yet", x),
+            x => {
+                schema.add_text_field(prop, TEXT);
+            }
         }
     }
 
@@ -281,7 +283,7 @@ impl<G: GraphViewOps> IndexedGraph<G> {
             Prop::Bool(prop_bool) => {
                 document.add_bool(prop_field, prop_bool);
             }
-            prop => todo!("prop value {:?} not supported yet", prop),
+            prop => document.add_text(prop_field, prop.to_string()),
         }
     }
 
