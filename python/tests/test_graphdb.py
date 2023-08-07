@@ -1000,8 +1000,6 @@ def test_edge_history():
     view = g.window(1, 5)
 
     assert (g.edge(1, 2).history() == [1, 3])
-
-    # also needs to be fixed in Pedros PR
     assert(view.edge(1, 4).history() == [4])
 
 
