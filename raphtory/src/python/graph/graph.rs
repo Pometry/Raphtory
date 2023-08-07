@@ -69,7 +69,8 @@ impl IntoPy<PyObject> for Graph {
 
 impl<'source> FromPyObject<'source> for Graph {
     fn extract(ob: &'source PyAny) -> PyResult<Self> {
-        ob.extract()
+        let g: PyRef<PyGraph> = ob.extract()?;
+        Ok(g.graph.clone())
     }
 }
 
