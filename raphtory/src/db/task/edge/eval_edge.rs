@@ -156,7 +156,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeViewOps for EvalEdge
     fn explode(&self) -> Self::EList {
         let iter: Box<dyn Iterator<Item = EdgeRef>> = match self.ev.time() {
             Some(_) => Box::new(iter::once(self.ev)),
-            None => Box::new(self.graph.edge_t(self.ev, LayerIds::All)),
+            None => Box::new(self.graph.edge_exploded(self.ev, LayerIds::All)),
         };
 
         let ss = self.ss;

@@ -90,13 +90,18 @@ pub trait TimeSemantics: GraphOps + CoreGraphOps {
     }
 
     /// Exploded edge iterator for edge `e`
-    fn edge_t(&self, e: EdgeRef, layer_ids: LayerIds) -> BoxedIter<EdgeRef>;
+    fn edge_exploded(&self, e: EdgeRef, layer_ids: LayerIds) -> BoxedIter<EdgeRef>;
 
     /// Explode edge iterator for edge `e` for every layer
     fn edge_layers(&self, e: EdgeRef, layer_ids: LayerIds) -> BoxedIter<EdgeRef>;
 
     /// Exploded edge iterator for edge`e` over window `w`
-    fn edge_window_t(&self, e: EdgeRef, w: Range<i64>, layer_ids: LayerIds) -> BoxedIter<EdgeRef>;
+    fn edge_window_exploded(
+        &self,
+        e: EdgeRef,
+        w: Range<i64>,
+        layer_ids: LayerIds,
+    ) -> BoxedIter<EdgeRef>;
 
     /// Exploded edge iterator for edge `e` over window `w` for every layer
     fn edge_window_layers(
@@ -325,8 +330,8 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
         self.graph().vertex_history_window(v, w)
     }
 
-    fn edge_t(&self, e: EdgeRef, layer_ids: LayerIds) -> BoxedIter<EdgeRef> {
-        self.graph().edge_t(e, layer_ids)
+    fn edge_exploded(&self, e: EdgeRef, layer_ids: LayerIds) -> BoxedIter<EdgeRef> {
+        self.graph().edge_exploded(e, layer_ids)
     }
 
     fn edge_layers(&self, e: EdgeRef, layer_ids: LayerIds) -> BoxedIter<EdgeRef> {
@@ -342,8 +347,13 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
         self.graph().edge_window_layers(e, w, layer_ids)
     }
 
-    fn edge_window_t(&self, e: EdgeRef, w: Range<i64>, layer_ids: LayerIds) -> BoxedIter<EdgeRef> {
-        self.graph().edge_window_t(e, w, layer_ids)
+    fn edge_window_exploded(
+        &self,
+        e: EdgeRef,
+        w: Range<i64>,
+        layer_ids: LayerIds,
+    ) -> BoxedIter<EdgeRef> {
+        self.graph().edge_window_exploded(e, w, layer_ids)
     }
 
     fn edge_earliest_time(&self, e: EdgeRef, layer_ids: LayerIds) -> Option<i64> {

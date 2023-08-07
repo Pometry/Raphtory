@@ -77,7 +77,7 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
             .collect()
     }
 
-    fn edge_t(&self, e: EdgeRef, layer_ids: LayerIds) -> BoxedIter<EdgeRef> {
+    fn edge_exploded(&self, e: EdgeRef, layer_ids: LayerIds) -> BoxedIter<EdgeRef> {
         let arc = self.inner().edge_arc(e.pid());
         let layer_id = layer_ids.constrain_from_edge(e);
         let iter: GenBoxed<EdgeRef> = GenBoxed::new_boxed(|co| async move {
@@ -102,7 +102,12 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
         Box::new(iter.into_iter())
     }
 
-    fn edge_window_t(&self, e: EdgeRef, w: Range<i64>, layer_ids: LayerIds) -> BoxedIter<EdgeRef> {
+    fn edge_window_exploded(
+        &self,
+        e: EdgeRef,
+        w: Range<i64>,
+        layer_ids: LayerIds,
+    ) -> BoxedIter<EdgeRef> {
         let arc = self.inner().edge_arc(e.pid());
         let layer_ids = layer_ids.constrain_from_edge(e);
         let iter: GenBoxed<EdgeRef> = GenBoxed::new_boxed(|co| async move {

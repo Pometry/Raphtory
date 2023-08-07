@@ -192,13 +192,18 @@ impl<G: GraphViewOps> TimeSemantics for WindowedGraph<G> {
             .vertex_history_window(v, self.actual_start(w.start)..self.actual_end(w.end))
     }
 
-    fn edge_t(&self, e: EdgeRef, layer_ids: LayerIds) -> BoxedIter<EdgeRef> {
+    fn edge_exploded(&self, e: EdgeRef, layer_ids: LayerIds) -> BoxedIter<EdgeRef> {
         self.graph
-            .edge_window_t(e, self.t_start..self.t_end, layer_ids)
+            .edge_window_exploded(e, self.t_start..self.t_end, layer_ids)
     }
 
-    fn edge_window_t(&self, e: EdgeRef, w: Range<i64>, layer_ids: LayerIds) -> BoxedIter<EdgeRef> {
-        self.graph.edge_window_t(
+    fn edge_window_exploded(
+        &self,
+        e: EdgeRef,
+        w: Range<i64>,
+        layer_ids: LayerIds,
+    ) -> BoxedIter<EdgeRef> {
+        self.graph.edge_window_exploded(
             e,
             self.actual_start(w.start)..self.actual_end(w.end),
             layer_ids,

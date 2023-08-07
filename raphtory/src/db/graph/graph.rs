@@ -1505,16 +1505,19 @@ mod db_tests {
 
     #[quickcheck]
     fn exploded_edge_times_is_consistent(edges: Vec<(u64, u64, Vec<i64>)>, offset: i64) -> bool {
-        exploded_edge_times_is_consistent_t(edges, offset)
+        check_exploded_edge_times_is_consistent(edges, offset)
     }
 
     #[test]
     fn exploded_edge_times_is_consistent_1() {
         let edges = vec![(0, 0, vec![0, 1])];
-        assert!(exploded_edge_times_is_consistent_t(edges, 0));
+        assert!(check_exploded_edge_times_is_consistent(edges, 0));
     }
 
-    fn exploded_edge_times_is_consistent_t(edges: Vec<(u64, u64, Vec<i64>)>, offset: i64) -> bool {
+    fn check_exploded_edge_times_is_consistent(
+        edges: Vec<(u64, u64, Vec<i64>)>,
+        offset: i64,
+    ) -> bool {
         let mut correct = true;
         let mut check = |condition: bool, message: String| {
             if !condition {

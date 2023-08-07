@@ -190,18 +190,18 @@ impl TimeSemantics for GraphWithDeletions {
         self.graph.vertex_history_window(v, w)
     }
 
-    fn edge_t(&self, e: EdgeRef, layer_ids: LayerIds) -> BoxedIter<EdgeRef> {
+    fn edge_exploded(&self, e: EdgeRef, layer_ids: LayerIds) -> BoxedIter<EdgeRef> {
         //Fixme: Need support for duration on exploded edges
         if self.edge_alive_at(e, i64::MIN, layer_ids.clone()) {
             Box::new(
-                iter::once(e.at(i64::MIN.into())).chain(self.graph.edge_window_t(
+                iter::once(e.at(i64::MIN.into())).chain(self.graph.edge_window_exploded(
                     e,
                     (i64::MIN + 1)..i64::MAX,
                     layer_ids,
                 )),
             )
         } else {
-            self.graph.edge_t(e, layer_ids)
+            self.graph.edge_exploded(e, layer_ids)
         }
     }
 
@@ -209,18 +209,23 @@ impl TimeSemantics for GraphWithDeletions {
         self.graph.edge_layers(e, layer_ids)
     }
 
-    fn edge_window_t(&self, e: EdgeRef, w: Range<i64>, layer_ids: LayerIds) -> BoxedIter<EdgeRef> {
+    fn edge_window_exploded(
+        &self,
+        e: EdgeRef,
+        w: Range<i64>,
+        layer_ids: LayerIds,
+    ) -> BoxedIter<EdgeRef> {
         // FIXME: Need better iterators on LockedView that capture the guard
         if self.edge_alive_at(e, w.start, layer_ids.clone()) {
             Box::new(
-                iter::once(e.at(w.start.into())).chain(self.graph.edge_window_t(
+                iter::once(e.at(w.start.into())).chain(self.graph.edge_window_exploded(
                     e,
                     w.start.saturating_add(1)..w.end,
                     layer_ids,
                 )),
             )
         } else {
-            self.graph.edge_window_t(e, w, layer_ids)
+            self.graph.edge_window_exploded(e, w, layer_ids)
         }
     }
 

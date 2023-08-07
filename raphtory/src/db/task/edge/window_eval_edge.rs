@@ -57,7 +57,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> WindowEvalEdgeView<'a, G
 
     pub fn history(&self) -> Vec<i64> {
         self.graph()
-            .edge_window_t(self.eref(), self.t_start..self.t_end, LayerIds::All)
+            .edge_window_exploded(self.eref(), self.t_start..self.t_end, LayerIds::All)
             .map(|e| e.time_t().expect("exploded"))
             .collect()
     }
@@ -257,7 +257,9 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeViewOps
         match self.ev.time() {
             Some(_) => Box::new(iter::once(self.new_edge(e))),
             None => {
-                let ts = self.g.edge_window_t(e, t_start..t_end, LayerIds::All);
+                let ts = self
+                    .g
+                    .edge_window_exploded(e, t_start..t_end, LayerIds::All);
                 Box::new(ts.map(move |ex| {
                     WindowEvalEdgeView::new(
                         ss,

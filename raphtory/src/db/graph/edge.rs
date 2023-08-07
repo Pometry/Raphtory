@@ -134,7 +134,7 @@ impl<G: GraphViewOps> EdgeViewOps for EdgeView<G> {
             None => {
                 let layer_ids = self.graph.layer_ids().constrain_from_edge(self.edge);
                 let e = self.edge;
-                let ex_iter = self.graph.edge_t(e, layer_ids);
+                let ex_iter = self.graph.edge_exploded(e, layer_ids);
                 // FIXME: use duration
                 Box::new(ex_iter.map(move |ex| ev.new_edge(ex)))
             }

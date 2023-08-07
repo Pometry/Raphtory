@@ -38,7 +38,7 @@ pub trait EdgeViewOps:
     fn history(&self) -> Vec<i64> {
         let layer_ids = self.graph().layer_ids().constrain_from_edge(self.eref());
         self.graph()
-            .edge_t(self.eref(), layer_ids)
+            .edge_exploded(self.eref(), layer_ids)
             .map(|e| *e.time().expect("exploded").t())
             .collect()
     }
