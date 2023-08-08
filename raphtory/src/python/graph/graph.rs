@@ -233,7 +233,7 @@ impl PyGraph {
     }
 
     #[staticmethod]
-    #[pyo3(signature = (edges_df, src = "source", dst = "destination", time = "time", props = None, layer = None, layer_in_df = None, vertex_df = None, vertex_col = None, vertex_time_col = None, vertex_props = None))]
+    #[pyo3(signature = (edges_df, src = "source", dst = "destination", time = "time", props = None, layer = None, layer_in_df = None, vertex_df = None, vertex_col = None, vertex_time_col = None, vertex_props = None, vertex_type = None, vertex_type_in_df = None))]
     fn load_from_pandas(
         edges_df: &PyAny,
         src: &str,
@@ -246,6 +246,8 @@ impl PyGraph {
         vertex_col: Option<&str>,
         vertex_time_col: Option<&str>,
         vertex_props: Option<Vec<&str>>,
+        vertex_type: Option<&str>,
+        vertex_type_in_df: Option<&str>,
     ) -> Result<Graph, GraphError> {
         let graph = PyGraph {
             graph: Graph::new(),
@@ -259,24 +261,36 @@ impl PyGraph {
                 vertex_col,
                 vertex_time_col,
                 vertex_props,
+                vertex_type,
+                vertex_type_in_df,
             )?;
         }
         Ok(graph.graph)
     }
 
-    #[pyo3(signature = (vertices_df, vertex_col = "id", time_col = "time", props = None))]
+    #[pyo3(signature = (vertices_df, vertex_col = "id", time_col = "time", props = None, vertex_type = None, type_in_df = None))]
     fn load_vertices_from_pandas(
         &self,
         vertices_df: &PyAny,
         vertex_col: &str,
         time_col: &str,
         props: Option<Vec<&str>>,
+        vertex_type: Option<&str>,
+        type_in_df: Option<&str>,
     ) -> Result<(), GraphError> {
         let graph = &self.graph;
         Python::with_gil(|py| {
             let df = process_pandas_py_df(vertices_df, py)?;
-            load_vertices_from_df(&df, vertex_col, time_col, props, graph)
-                .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
+            load_vertices_from_df(
+                &df,
+                vertex_col,
+                time_col,
+                props,
+                vertex_type,
+                type_in_df,
+                graph,
+            )
+            .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
 
             Ok::<(), PyErr>(())
         })

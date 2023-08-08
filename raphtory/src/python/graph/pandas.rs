@@ -46,11 +46,13 @@ pub(crate) fn process_pandas_py_df(df: &PyAny, py: Python) -> PyResult<PretendDF
     Ok(df)
 }
 
-pub(crate) fn load_vertices_from_df<'a>(
+pub(crate) fn load_vertices_from_df<'a, S: AsRef<str>>(
     df: &'a PretendDF,
     vertex_id: &str,
     time: &str,
     props: Option<Vec<&str>>,
+    vertex_type: Option<S>,
+    type_in_df: Option<S>,
     graph: &Graph,
 ) -> Result<(), GraphError> {
     let prop_iter = props
@@ -60,31 +62,40 @@ pub(crate) fn load_vertices_from_df<'a>(
         .reduce(combine_prop_iters)
         .unwrap_or_else(|| Box::new(std::iter::repeat(vec![])));
 
+    let v_type = lift_layer(vertex_type, type_in_df, &df)
+        .map(|op| op.map(|s| vec![("type", Prop::str(s.as_str()))]));
+
     if let (Some(vertex_id), Some(time)) = (df.iter_col::<u64>(vertex_id), df.iter_col::<i64>(time))
     {
         let iter = vertex_id.map(|i| i.copied()).zip(time);
-        load_vertices_from_num_iter(graph, iter, prop_iter)?;
+        load_vertices_from_num_iter(graph, iter, prop_iter, v_type)?;
     } else if let (Some(vertex_id), Some(time)) =
         (df.iter_col::<i64>(vertex_id), df.iter_col::<i64>(time))
     {
         let iter = vertex_id.map(i64_opt_into_u64_opt).zip(time);
-        load_vertices_from_num_iter(graph, iter, prop_iter)?;
+        load_vertices_from_num_iter(graph, iter, prop_iter, v_type)?;
     } else if let (Some(vertex_id), Some(time)) =
         (df.utf8::<i32>(vertex_id), df.iter_col::<i64>(time))
     {
         let iter = vertex_id.into_iter().zip(time);
-        for ((vertex_id, time), props) in iter.zip(prop_iter) {
+        for (((vertex_id, time), props), types) in iter.zip(prop_iter).zip(v_type) {
             if let (Some(vertex_id), Some(time)) = (vertex_id, time) {
                 graph.add_vertex(*time, vertex_id, props)?;
+                if let Some(types) = types {
+                    graph.add_vertex_properties(vertex_id, types)?;
+                }
             }
         }
     } else if let (Some(vertex_id), Some(time)) =
         (df.utf8::<i64>(vertex_id), df.iter_col::<i64>(time))
     {
         let iter = vertex_id.into_iter().zip(time);
-        for ((vertex_id, time), props) in iter.zip(prop_iter) {
+        for (((vertex_id, time), props), types) in iter.zip(prop_iter).zip(v_type) {
             if let (Some(vertex_id), Some(time)) = (vertex_id, time) {
                 graph.add_vertex(*time, vertex_id, props)?;
+                if let Some(types) = types {
+                    graph.add_vertex_properties(vertex_id, types)?;
+                }
             }
         }
     } else {
@@ -281,14 +292,19 @@ fn load_vertices_from_num_iter<
     S: AsRef<str>,
     I: Iterator<Item = (Option<u64>, Option<&'a i64>)>,
     PI: Iterator<Item = Vec<(S, Prop)>>,
+    IL: Iterator<Item = Option<Vec<(S, Prop)>>>,
 >(
     graph: &Graph,
     vertices: I,
     props: PI,
+    types: IL,
 ) -> Result<(), GraphError> {
-    for ((vertex, time), edge_props) in vertices.zip(props) {
-        if let (Some(v), Some(t), props) = (vertex, time, edge_props) {
+    for (((vertex, time), edge_props), types) in vertices.zip(props).zip(types) {
+        if let (Some(v), Some(t), props, types) = (vertex, time, edge_props, types) {
             graph.add_vertex(*t, v, props)?;
+            if let Some(types) = types {
+                graph.add_vertex_properties(v, types)?;
+            }
         }
     }
     Ok(())
