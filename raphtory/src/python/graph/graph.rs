@@ -20,7 +20,7 @@ use std::{
     fmt::{Debug, Formatter},
     path::{Path, PathBuf},
 };
-use crate::db::api::mutation::CollectProperties;
+use crate::python::graph::pandas::{load_edges_props_from_df, load_vertex_props_from_df};
 
 use super::pandas::{
     load_edges_from_df, load_vertices_from_df, process_pandas_py_df, GraphLoadException,
@@ -336,4 +336,63 @@ impl PyGraph {
         .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
         Ok(())
     }
+
+    #[pyo3(signature = (vertices_df, vertex_col = "id", const_props = None, shared_const_props = None))]
+    fn load_vertex_props_from_pandas(
+        &self,
+        vertices_df: &PyAny,
+        vertex_col: &str,
+        const_props: Option<Vec<&str>>,
+        shared_const_props: Option<HashMap<String,Prop>>,
+    ) -> Result<(), GraphError> {
+        let graph = &self.graph;
+        Python::with_gil(|py| {
+            let df = process_pandas_py_df(vertices_df, py)?;
+            load_vertex_props_from_df(
+                &df,
+                vertex_col,
+                const_props,
+                shared_const_props,
+                graph,
+            )
+                .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
+
+            Ok::<(), PyErr>(())
+        })
+            .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
+        Ok(())
+    }
+
+    #[pyo3(signature = (edge_df, src_col = "source", dst_col = "destination", const_props=None,shared_const_props=None,layer=None,layer_in_df=None))]
+    fn load_edge_props_from_pandas(
+        &self,
+        edge_df: &PyAny,
+        src_col: &str,
+        dst_col: &str,
+        const_props: Option<Vec<&str>>,
+        shared_const_props: Option<HashMap<String,Prop>>,
+        layer: Option<&str>,
+        layer_in_df: Option<&str>,
+    ) -> Result<(), GraphError> {
+        let graph = &self.graph;
+        Python::with_gil(|py| {
+            let df = process_pandas_py_df(edge_df, py)?;
+            load_edges_props_from_df(
+                &df,
+                src_col,
+                dst_col,
+                const_props,
+                shared_const_props,
+                layer,
+                layer_in_df,
+                graph,
+            )
+                .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
+
+            Ok::<(), PyErr>(())
+        })
+            .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
+        Ok(())
+    }
+
 }
