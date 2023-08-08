@@ -194,22 +194,23 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
             LayerIds::None => Box::new(iter::empty()),
             LayerIds::All => Box::new(
                 entry
-                    .layer_ids_iter()
-                    .map(|id| entry.unsafe_layer(id).static_prop_ids())
+                    .layer_iter()
+                    .map(|l| l.static_prop_ids())
                     .kmerge()
                     .dedup()
                     .flat_map(|id| self.inner().edge_reverse_prop_id(id, true)),
             ),
-            LayerIds::One(id) => Box::new(
-                entry
-                    .unsafe_layer(id)
-                    .static_prop_ids()
-                    .into_iter()
-                    .flat_map(|id| self.inner().edge_reverse_prop_id(id, true)),
-            ),
+            LayerIds::One(id) => match entry.layer(id) {
+                Some(l) => Box::new(
+                    l.static_prop_ids()
+                        .into_iter()
+                        .flat_map(|id| self.inner().edge_reverse_prop_id(id, true)),
+                ),
+                None => Box::new(iter::empty()),
+            },
             LayerIds::Multiple(ids) => Box::new(
                 ids.iter()
-                    .map(|id| entry.unsafe_layer(*id).static_prop_ids())
+                    .flat_map(|id| entry.layer(*id).map(|l| l.static_prop_ids()))
                     .kmerge()
                     .dedup()
                     .flat_map(|id| self.inner().edge_reverse_prop_id(id, true)),
