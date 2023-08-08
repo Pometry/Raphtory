@@ -313,7 +313,7 @@ mod db_tests {
             (1, 1, 1),
         ];
         for (t, src, dst) in es {
-            g.add_edge(t, src, dst, NO_PROPS, None).unwrap()
+            g.add_edge(t, src, dst, NO_PROPS, None).unwrap();
         }
 
         let e = g

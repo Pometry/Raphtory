@@ -16,7 +16,7 @@ use pyo3::prelude::*;
 
 use crate::db::{
     api::view::internal::{DynamicGraph, IntoDynamic},
-    graph::vertex::VertexView,
+    graph::{edge::EdgeView, vertex::VertexView},
 };
 use std::{
     collections::HashMap,
@@ -182,7 +182,7 @@ impl PyGraph {
         dst: PyInputVertex,
         properties: Option<HashMap<String, Prop>>,
         layer: Option<&str>,
-    ) -> Result<(), GraphError> {
+    ) -> Result<EdgeView<Graph>, GraphError> {
         self.graph
             .add_edge(timestamp, src, dst, properties.unwrap_or_default(), layer)
     }

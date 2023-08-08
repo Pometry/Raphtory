@@ -814,7 +814,7 @@ mod views_test {
             .filter(|e| e.0 < i64::MAX)
             .for_each(|(t, src, dst)| {
                 g.add_edge(t, src, dst, [("test".to_owned(), Prop::Bool(true))], None)
-                    .unwrap()
+                    .unwrap();
             });
         let w = g.window(i64::MIN, i64::MAX);
         g.edges()

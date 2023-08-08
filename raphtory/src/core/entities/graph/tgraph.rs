@@ -24,7 +24,7 @@ use crate::{
             Entry,
         },
         utils::{
-            errors::{GraphError, MutateGraphError},
+            errors::{GraphError, IllegalMutate, MutateGraphError},
             time::TryIntoTime,
         },
         Direction, Prop, PropUnwrap,
@@ -281,12 +281,7 @@ impl<const N: usize> TemporalGraph<N> {
         prop_id: usize,
         is_static: bool,
     ) -> Option<LockedView<String>> {
-        let out = self.edge_meta.reverse_prop_id(prop_id, is_static);
-        if out.is_none() {
-            println!("reverse_prop_id_map: {:?}", self.edge_meta);
-            println!("reverse_prop_id: {} -> {:?}", prop_id, out);
-        }
-        out
+        self.edge_meta.reverse_prop_id(prop_id, is_static)
     }
 }
 
@@ -346,13 +341,18 @@ impl<const N: usize> TemporalGraph<N> {
         node.update_time(time);
 
         // update the properties;
-        for (prop_id, _, prop) in &props {
-            node.add_prop(time, *prop_id, prop.clone());
+        for (prop_id, prop) in props {
+            node.add_prop(time, prop_id, prop);
         }
 
         // update node prop
-        for (prop_id, name, prop) in &name_prop {
-            node.add_static_prop(*prop_id, name, prop.clone())?;
+        for (prop_id, prop) in name_prop {
+            node.add_static_prop(prop_id, prop).map_err(|err| {
+                MutateGraphError::IllegalVertexPropertyChange {
+                    vertex_id: v,
+                    source: IllegalMutate::from_source(err, "_id"),
+                }
+            })?;
         }
 
         Ok(v_id.into())
@@ -383,11 +383,21 @@ impl<const N: usize> TemporalGraph<N> {
             let mut node = self.storage.get_node_mut(vid);
             for (prop_name, prop) in data {
                 let prop_id = self.vertex_meta.resolve_prop_id(&prop_name, true);
-                node.add_static_prop(prop_id, &prop_name, prop.clone())
-                    .map_err(|err| GraphError::FailedToMutateGraph { source: err })?;
+                node.add_static_prop(prop_id, prop).map_err(|err| {
+                    GraphError::FailedToMutateGraph {
+                        source: MutateGraphError::IllegalVertexPropertyChange {
+                            vertex_id: v,
+                            source: IllegalMutate::from_source(err, &prop_name),
+                        },
+                    }
+                })?;
             }
+            Ok(())
+        } else {
+            Err(GraphError::FailedToMutateGraph {
+                source: MutateGraphError::VertexNotFoundError { vertex_id: v },
+            })
         }
-        Ok(())
     }
 
     pub(crate) fn add_edge_properties_internal(
@@ -437,14 +447,27 @@ impl<const N: usize> TemporalGraph<N> {
 
         let props = self
             .edge_meta
-            .resolve_prop_ids(props.clone(), true)
+            .resolve_prop_ids(props, true)
             .collect::<Vec<_>>();
 
         let mut layer = edge.layer_mut(layer_id);
-        for (prop_id, prop_name, prop) in props {
-            layer
-                .add_static_prop(prop_id, &prop_name, prop)
-                .expect("you should not fail!");
+        for (prop_id, prop) in props {
+            layer.add_static_prop(prop_id, prop).map_err(|err| {
+                GraphError::FailedToMutateGraph {
+                    source: MutateGraphError::IllegalEdgePropertyChange {
+                        src_id: src,
+                        dst_id: dst,
+                        source: IllegalMutate {
+                            name: self
+                                .edge_meta
+                                .reverse_prop_id(prop_id, true)
+                                .expect("resolved prop ids exist")
+                                .clone(),
+                            source: err,
+                        },
+                    },
+                }
+            })?;
         }
         Ok(())
     }
@@ -501,7 +524,7 @@ impl<const N: usize> TemporalGraph<N> {
             let mut edge = self.storage.get_edge_mut(e_id.into());
             edge.deletions_mut(layer).insert(t);
         } else {
-            self.link_nodes(src_id, dst_id, t, layer, &vec![], |new_edge| {
+            self.link_nodes(src_id, dst_id, t, layer, |new_edge| {
                 new_edge.deletions_mut(layer).insert(t);
             });
         }
@@ -515,43 +538,34 @@ impl<const N: usize> TemporalGraph<N> {
             .unwrap_or(0)
     }
 
-    fn link_nodes<F: Fn(&mut EdgeStore<N>)>(
+    fn link_nodes<F: FnOnce(&mut EdgeStore<N>)>(
         &self,
         src_id: VID,
         dst_id: VID,
         t: TimeIndexEntry,
         layer: usize,
-        props: &Vec<(usize, String, Prop)>,
-        new_edge_fn: F,
-    ) -> Option<EID> {
+        edge_fn: F,
+    ) -> EID {
         let mut node_pair = self.storage.pair_node_mut(src_id.into(), dst_id.into());
-
         let src = node_pair.get_mut_i();
 
-        // find the edge_id if it exists and add the time event to the nodes
-        if let Some(edge_id) = src.find_edge(dst_id, LayerIds::All) {
-            src.add_edge(dst_id, Direction::OUT, layer, edge_id);
-            // add inbound edge for dst
-            let dst = node_pair.get_mut_j();
-            dst.add_edge(src_id, Direction::IN, layer, edge_id);
-            Some(edge_id)
-        } else {
-            let mut edge = EdgeStore::new(src_id, dst_id);
-            {
-                new_edge_fn(&mut edge);
-                let mut edge_layer = edge.layer_mut(layer);
-                for (prop_id, _, prop) in props {
-                    edge_layer.add_prop(t, *prop_id, prop.clone());
-                }
+        let edge_id = match src.find_edge(dst_id, LayerIds::All) {
+            Some(edge_id) => {
+                let mut edge = self.storage.get_edge_mut(edge_id);
+                edge_fn(&mut edge);
+                edge_id
             }
-            let edge_id = self.storage.push_edge(edge);
+            None => {
+                let mut edge = EdgeStore::new(src_id, dst_id);
+                edge_fn(&mut edge);
+                self.storage.push_edge(edge)
+            }
+        };
 
-            // add the edge to the nodes
-            src.add_edge(dst_id, Direction::OUT, layer, edge_id.into());
-            let dst = node_pair.get_mut_j(); // second
-            dst.add_edge(src_id, Direction::IN, layer, edge_id.into());
-            None
-        }
+        src.add_edge(dst_id, Direction::OUT, layer, edge_id);
+        let dst = node_pair.get_mut_j();
+        dst.add_edge(src_id, Direction::IN, layer, edge_id);
+        edge_id
     }
 
     pub(crate) fn add_edge_internal(
@@ -561,35 +575,24 @@ impl<const N: usize> TemporalGraph<N> {
         dst: u64,
         props: Vec<(String, Prop)>,
         layer: Option<&str>,
-    ) -> Result<(), GraphError> {
+    ) -> Result<EID, GraphError> {
         let src_id = self.add_vertex_no_props(t, src)?;
         let dst_id = self.add_vertex_no_props(t, dst)?;
 
         let layer = self.get_or_allocate_layer(layer);
 
-        let props = self
-            .edge_meta
-            .resolve_prop_ids(props.clone(), false)
-            .collect::<Vec<_>>();
+        // resolve all props ahead of time to minimise the time spent holding locks
+        let props: Vec<_> = self.edge_meta.resolve_prop_ids(props, false).collect();
 
         // get the entries for the src and dst nodes
-        let edge_id = self.link_nodes(src_id, dst_id, t, layer, &props, |new_edge| {
-            new_edge.additions_mut(layer).insert(t);
-        }); // this is to release the node locks as quick as possible
-
-        if let Some(e_id) = edge_id {
-            // update the edge with properties
-            let mut edge = self.storage.get_edge_mut(e_id.into());
-            {
-                let mut edge_layer = edge.layer_mut(layer);
-                for (prop_id, _, prop) in &props {
-                    edge_layer.add_prop(t, *prop_id, prop.clone());
-                }
-            }
-            // update the time event
+        let edge_id = self.link_nodes(src_id, dst_id, t, layer, move |edge| {
             edge.additions_mut(layer).insert(t);
-        }
-        Ok(())
+            let mut edge_layer = edge.layer_mut(layer);
+            for (prop_id, prop_value) in props {
+                edge_layer.add_prop(t, prop_id, prop_value);
+            }
+        }); // this is to release the node locks as quick as possible
+        Ok(edge_id)
     }
 
     pub(crate) fn vertex_ids(&self) -> impl Iterator<Item = VID> {
@@ -660,5 +663,26 @@ impl<const N: usize> TemporalGraph<N> {
     pub(crate) fn edge(&self, e: EID) -> EdgeView<N> {
         let edge = self.storage.get_edge(e.into());
         EdgeView::from_entry(edge, self)
+    }
+}
+
+#[cfg(test)]
+mod test_additions {
+    use crate::prelude::*;
+    use rayon::{join, prelude::*};
+    #[test]
+    fn add_edge_and_read_props_concurrent() {
+        let g = Graph::new();
+        for t in 0..1000 {
+            join(
+                || g.add_edge(t, 1, 2, [("test", true)], None),
+                || {
+                    // if the edge exists already, it should have the property set
+                    g.window(t, t + 1)
+                        .edge(1, 2)
+                        .map(|e| assert!(e.properties().get("test").is_some()))
+                },
+            );
+        }
     }
 }

@@ -1,12 +1,12 @@
 use crate::{
     core::{
-        entities::vertices::input_vertex::InputVertex,
+        entities::{edges::edge_ref::EdgeRef, vertices::input_vertex::InputVertex},
         storage::timeindex::TimeIndexEntry,
         utils::{errors::GraphError, time::IntoTimeWithFormat},
     },
     db::{
         api::mutation::{internal::InternalAdditionOps, TryIntoInputTime},
-        graph::vertex::VertexView,
+        graph::{edge::EdgeView, vertex::VertexView},
     },
     prelude::GraphViewOps,
 };
@@ -80,7 +80,7 @@ pub trait AdditionOps: GraphViewOps {
         dst: V,
         props: PI,
         layer: Option<&str>,
-    ) -> Result<(), GraphError>;
+    ) -> Result<EdgeView<Self>, GraphError>;
 
     fn add_edge_with_custom_time_format<V: InputVertex, PI: CollectProperties>(
         &self,
@@ -90,7 +90,7 @@ pub trait AdditionOps: GraphViewOps {
         dst: V,
         props: PI,
         layer: Option<&str>,
-    ) -> Result<(), GraphError> {
+    ) -> Result<EdgeView<Self>, GraphError> {
         let time: i64 = t.parse_time(fmt)?;
         self.add_edge(time, src, dst, props, layer)
     }
@@ -116,14 +116,18 @@ impl<G: InternalAdditionOps + GraphViewOps> AdditionOps for G {
         dst: V,
         props: PI,
         layer: Option<&str>,
-    ) -> Result<(), GraphError> {
+    ) -> Result<EdgeView<G>, GraphError> {
         let ti = TimeIndexEntry::from_input(self, t)?;
         let src_id = src.id();
         let dst_id = dst.id();
-        self.internal_add_vertex(ti, src_id, src.id_str(), vec![])?;
-        self.internal_add_vertex(ti, dst_id, dst.id_str(), vec![])?;
+        let src_vid = self.internal_add_vertex(ti, src_id, src.id_str(), vec![])?;
+        let dst_vid = self.internal_add_vertex(ti, dst_id, dst.id_str(), vec![])?;
 
         let properties = props.collect_properties();
-        self.internal_add_edge(ti, src_id, dst_id, properties, layer)
+        let eid = self.internal_add_edge(ti, src_id, dst_id, properties, layer)?;
+        Ok(EdgeView::new(
+            self.clone(),
+            EdgeRef::new_outgoing(eid, src_vid, dst_vid),
+        ))
     }
 }

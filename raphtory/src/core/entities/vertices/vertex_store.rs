@@ -5,7 +5,10 @@ use crate::core::{
         vertices::structure::{adj, adj::Adj},
         LayerIds, EID, VID,
     },
-    storage::timeindex::{AsTime, TimeIndex, TimeIndexEntry},
+    storage::{
+        lazy_vec::IllegalSet,
+        timeindex::{AsTime, TimeIndex, TimeIndexEntry},
+    },
     utils::errors::MutateGraphError,
     Direction, Prop,
 };
@@ -58,12 +61,10 @@ impl<const N: usize> VertexStore<N> {
     pub fn add_static_prop(
         &mut self,
         prop_id: usize,
-        name: &str,
         prop: Prop,
-    ) -> Result<(), MutateGraphError> {
+    ) -> Result<(), IllegalSet<Option<Prop>>> {
         let props = self.props.get_or_insert_with(|| Props::new());
-        props.add_static_prop(prop_id, name, prop)?;
-        Ok(())
+        props.add_static_prop(prop_id, prop)
     }
 
     pub(crate) fn find_edge(&self, dst: VID, layer_id: LayerIds) -> Option<EID> {

@@ -11,7 +11,7 @@ use tantivy::{
 
 use crate::{
     core::{
-        entities::{vertices::vertex_ref::VertexRef, VID},
+        entities::{vertices::vertex_ref::VertexRef, EID, VID},
         storage::timeindex::{AsTime, TimeIndexEntry},
         utils::errors::GraphError,
     },
@@ -146,7 +146,7 @@ impl<G: GraphViewOps> IndexedGraph<G> {
             Prop::Bool(_) => {
                 schema.add_u64_field(prop, INDEXED);
             }
-            x => {
+            _ => {
                 schema.add_text_field(prop, TEXT);
             }
         }
@@ -660,7 +660,7 @@ impl<G: GraphViewOps + InternalAdditionOps> InternalAdditionOps for IndexedGraph
         _dst: u64,
         _props: Vec<(String, Prop)>,
         _layer: Option<&str>,
-    ) -> Result<(), GraphError> {
+    ) -> Result<EID, GraphError> {
         todo!()
     }
 }

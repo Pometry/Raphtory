@@ -5,6 +5,7 @@ use crate::core::{
         LayerIds, EID, VID,
     },
     storage::{
+        lazy_vec::IllegalSet,
         locked_view::LockedView,
         timeindex::{TimeIndex, TimeIndexEntry},
     },
@@ -43,11 +44,10 @@ impl EdgeLayer {
     pub fn add_static_prop(
         &mut self,
         prop_id: usize,
-        prop_name: &str,
         prop: Prop,
-    ) -> Result<(), MutateGraphError> {
+    ) -> Result<(), IllegalSet<Option<Prop>>> {
         let props = self.props.get_or_insert_with(|| Props::new());
-        props.add_static_prop(prop_id, prop_name, prop)
+        props.add_static_prop(prop_id, prop)
     }
 
     pub(crate) fn static_prop_ids(&self) -> Vec<usize> {
@@ -123,6 +123,9 @@ impl<const N: usize> EdgeStore<N> {
         }
     }
 
+    pub fn layer_iter(&self) -> impl Iterator<Item = &EdgeLayer> + '_ {
+        self.layers.iter()
+    }
     pub fn layer_ids_iter(&self) -> impl Iterator<Item = usize> + '_ {
         let layer_ids = self
             .additions

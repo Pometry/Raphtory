@@ -1,6 +1,6 @@
 use crate::{
     core::{
-        entities::{graph::tgraph::InnerTemporalGraph, VID},
+        entities::{graph::tgraph::InnerTemporalGraph, EID, VID},
         storage::timeindex::TimeIndexEntry,
         utils::errors::GraphError,
     },
@@ -31,7 +31,7 @@ impl<const N: usize> InternalAdditionOps for InnerTemporalGraph<N> {
         dst: u64,
         props: Vec<(String, Prop)>,
         layer: Option<&str>,
-    ) -> Result<(), GraphError> {
+    ) -> Result<EID, GraphError> {
         self.inner().add_edge_internal(t, src, dst, props, layer)
     }
 }

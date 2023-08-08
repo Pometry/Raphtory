@@ -1,5 +1,10 @@
 use crate::{
-    core::{entities::VID, storage::timeindex::TimeIndexEntry, utils::errors::GraphError, Prop},
+    core::{
+        entities::{EID, VID},
+        storage::timeindex::TimeIndexEntry,
+        utils::errors::GraphError,
+        Prop,
+    },
     db::api::view::internal::Base,
 };
 
@@ -21,7 +26,7 @@ pub trait InternalAdditionOps {
         dst: u64,
         props: Vec<(String, Prop)>,
         layer: Option<&str>,
-    ) -> Result<(), GraphError>;
+    ) -> Result<EID, GraphError>;
 }
 
 pub trait InheritAdditionOps: Base {}
@@ -67,7 +72,7 @@ impl<G: DelegateAdditionOps> InternalAdditionOps for G {
         dst: u64,
         props: Vec<(String, Prop)>,
         layer: Option<&str>,
-    ) -> Result<(), GraphError> {
+    ) -> Result<EID, GraphError> {
         self.graph().internal_add_edge(t, src, dst, props, layer)
     }
 }

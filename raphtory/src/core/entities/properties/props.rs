@@ -1,6 +1,10 @@
 use crate::core::{
     entities::{graph::tgraph::FxDashMap, properties::tprop::TProp},
-    storage::{lazy_vec::LazyVec, locked_view::LockedView, timeindex::TimeIndexEntry},
+    storage::{
+        lazy_vec::{IllegalSet, LazyVec},
+        locked_view::LockedView,
+        timeindex::TimeIndexEntry,
+    },
     utils::errors::{IllegalMutate, MutateGraphError},
     Prop,
 };
@@ -41,14 +45,9 @@ impl Props {
     pub fn add_static_prop(
         &mut self,
         prop_id: usize,
-        prop_name: &str,
         prop: Prop,
-    ) -> Result<(), MutateGraphError> {
-        self.static_props.set(prop_id, Some(prop)).map_err(|err| {
-            MutateGraphError::IllegalGraphPropertyChange {
-                source: IllegalMutate::from_source(err, prop_name),
-            }
-        })
+    ) -> Result<(), IllegalSet<Option<Prop>>> {
+        self.static_props.set(prop_id, Some(prop))
     }
 
     pub fn temporal_props(&self, prop_id: usize) -> Box<dyn Iterator<Item = (i64, Prop)> + '_> {
@@ -126,26 +125,25 @@ impl Meta {
         }
     }
 
-    pub fn resolve_prop_ids(
-        &self,
-        props: Vec<(String, Prop)>,
+    pub fn resolve_prop_ids<'a, I: IntoIterator<Item = (String, Prop)> + 'a>(
+        &'a self,
+        prop_names: I,
         is_static: bool,
-    ) -> impl Iterator<Item = (usize, String, Prop)> + '_ {
-        props.into_iter().map(move |(name, prop)| {
-            let prop_id = if !is_static {
-                self.meta_prop_temporal.get_or_create_id(name.clone())
+    ) -> impl Iterator<Item = (usize, Prop)> + 'a {
+        prop_names.into_iter().map(move |(name, value)| {
+            if !is_static {
+                (self.meta_prop_temporal.get_or_create_id(name), value)
             } else {
-                self.meta_prop_static.get_or_create_id(name.clone())
-            };
-            (prop_id, name, prop)
+                (self.meta_prop_static.get_or_create_id(name), value)
+            }
         })
     }
 
-    pub fn resolve_prop_id(&self, name: &str, is_static: bool) -> usize {
+    pub fn resolve_prop_id<S: Into<String>>(&self, name: S, is_static: bool) -> usize {
         if is_static {
-            self.meta_prop_static.get_or_create_id(name.to_string())
+            self.meta_prop_static.get_or_create_id(name.into())
         } else {
-            self.meta_prop_temporal.get_or_create_id(name.to_string())
+            self.meta_prop_temporal.get_or_create_id(name.into())
         }
     }
 

@@ -89,7 +89,7 @@ pub fn loader(data_dir: &Path) -> Result<Graph, Box<dyn Error>> {
                     [("amount".to_owned(), Prop::U64(sent.amount_usd))],
                     None,
                 )
-                .unwrap()
+                .unwrap();
             })?;
 
         println!(

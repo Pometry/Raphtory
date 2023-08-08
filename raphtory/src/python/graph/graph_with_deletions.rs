@@ -9,7 +9,7 @@ use crate::{
     core::{utils::errors::GraphError, Prop},
     db::{
         api::mutation::{AdditionOps, PropertyAdditionOps},
-        graph::{vertex::VertexView, views::deletion_graph::GraphWithDeletions},
+        graph::{edge::EdgeView, vertex::VertexView, views::deletion_graph::GraphWithDeletions},
     },
     prelude::DeletionOps,
     python::{
@@ -167,7 +167,7 @@ impl PyGraphWithDeletions {
         dst: PyInputVertex,
         properties: Option<HashMap<String, Prop>>,
         layer: Option<&str>,
-    ) -> Result<(), GraphError> {
+    ) -> Result<EdgeView<GraphWithDeletions>, GraphError> {
         self.graph
             .add_edge(timestamp, src, dst, properties.unwrap_or_default(), layer)
     }
