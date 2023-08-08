@@ -14,13 +14,15 @@ use crate::{
 };
 use pyo3::prelude::*;
 
-use crate::db::api::view::internal::{DynamicGraph, IntoDynamic};
+use crate::{
+    db::api::view::internal::{DynamicGraph, IntoDynamic},
+    python::graph::pandas::{load_edges_props_from_df, load_vertex_props_from_df},
+};
 use std::{
     collections::HashMap,
     fmt::{Debug, Formatter},
     path::{Path, PathBuf},
 };
-use crate::python::graph::pandas::{load_edges_props_from_df, load_vertex_props_from_df};
 
 use super::pandas::{
     load_edges_from_df, load_vertices_from_df, process_pandas_py_df, GraphLoadException,
@@ -242,7 +244,7 @@ impl PyGraph {
         time: &str,
         props: Option<Vec<&str>>,
         const_props: Option<Vec<&str>>,
-        shared_const_props: Option<HashMap<String,Prop>>,
+        shared_const_props: Option<HashMap<String, Prop>>,
         layer: Option<&str>,
         layer_in_df: Option<&str>,
         vertex_df: Option<&PyAny>,
@@ -250,12 +252,22 @@ impl PyGraph {
         vertex_time_col: Option<&str>,
         vertex_props: Option<Vec<&str>>,
         vertex_const_props: Option<Vec<&str>>,
-        vertex_shared_const_props: Option<HashMap<String,Prop>>,
+        vertex_shared_const_props: Option<HashMap<String, Prop>>,
     ) -> Result<Graph, GraphError> {
         let graph = PyGraph {
             graph: Graph::new(),
         };
-        graph.load_edges_from_pandas(edges_df, src, dst, time, props, const_props,shared_const_props, layer, layer_in_df)?;
+        graph.load_edges_from_pandas(
+            edges_df,
+            src,
+            dst,
+            time,
+            props,
+            const_props,
+            shared_const_props,
+            layer,
+            layer_in_df,
+        )?;
         if let (Some(vertex_df), Some(vertex_col), Some(vertex_time_col)) =
             (vertex_df, vertex_col, vertex_time_col)
         {
@@ -279,7 +291,7 @@ impl PyGraph {
         time_col: &str,
         props: Option<Vec<&str>>,
         const_props: Option<Vec<&str>>,
-        shared_const_props: Option<HashMap<String,Prop>>,
+        shared_const_props: Option<HashMap<String, Prop>>,
     ) -> Result<(), GraphError> {
         let graph = &self.graph;
         Python::with_gil(|py| {
@@ -310,7 +322,7 @@ impl PyGraph {
         time_col: &str,
         props: Option<Vec<&str>>,
         const_props: Option<Vec<&str>>,
-        shared_const_props: Option<HashMap<String,Prop>>,
+        shared_const_props: Option<HashMap<String, Prop>>,
         layer: Option<&str>,
         layer_in_df: Option<&str>,
     ) -> Result<(), GraphError> {
@@ -343,23 +355,17 @@ impl PyGraph {
         vertices_df: &PyAny,
         vertex_col: &str,
         const_props: Option<Vec<&str>>,
-        shared_const_props: Option<HashMap<String,Prop>>,
+        shared_const_props: Option<HashMap<String, Prop>>,
     ) -> Result<(), GraphError> {
         let graph = &self.graph;
         Python::with_gil(|py| {
             let df = process_pandas_py_df(vertices_df, py)?;
-            load_vertex_props_from_df(
-                &df,
-                vertex_col,
-                const_props,
-                shared_const_props,
-                graph,
-            )
+            load_vertex_props_from_df(&df, vertex_col, const_props, shared_const_props, graph)
                 .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
 
             Ok::<(), PyErr>(())
         })
-            .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
+        .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
         Ok(())
     }
 
@@ -370,7 +376,7 @@ impl PyGraph {
         src_col: &str,
         dst_col: &str,
         const_props: Option<Vec<&str>>,
-        shared_const_props: Option<HashMap<String,Prop>>,
+        shared_const_props: Option<HashMap<String, Prop>>,
         layer: Option<&str>,
         layer_in_df: Option<&str>,
     ) -> Result<(), GraphError> {
@@ -387,12 +393,11 @@ impl PyGraph {
                 layer_in_df,
                 graph,
             )
-                .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
+            .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
 
             Ok::<(), PyErr>(())
         })
-            .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
+        .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
         Ok(())
     }
-
 }
