@@ -9,7 +9,7 @@ use crate::{
         },
         storage::{
             locked_view::LockedView,
-            timeindex::{LockedLayeredIndex, TimeIndex},
+            timeindex::{LockedLayeredIndex, TimeIndex, TimeIndexEntry},
         },
     },
     db::api::view::internal::CoreGraphOps,
@@ -37,13 +37,17 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
         self.inner().vertex_name(v)
     }
 
-    fn edge_additions(&self, eref: EdgeRef, layer_ids: LayerIds) -> LockedLayeredIndex<'_> {
+    fn edge_additions(
+        &self,
+        eref: EdgeRef,
+        layer_ids: LayerIds,
+    ) -> LockedLayeredIndex<'_, TimeIndexEntry> {
         let layer_ids = layer_ids.constrain_from_edge(eref);
         let edge = self.inner().edge(eref.pid());
         edge.additions(layer_ids).unwrap()
     }
 
-    fn vertex_additions(&self, v: VID) -> LockedView<TimeIndex> {
+    fn vertex_additions(&self, v: VID) -> LockedView<TimeIndex<i64>> {
         let vertex = self.inner().vertex(v);
         vertex.additions().unwrap()
     }
@@ -190,22 +194,23 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
             LayerIds::None => Box::new(iter::empty()),
             LayerIds::All => Box::new(
                 entry
-                    .layer_ids_iter()
-                    .map(|id| entry.unsafe_layer(id).static_prop_ids())
+                    .layer_iter()
+                    .map(|l| l.static_prop_ids())
                     .kmerge()
                     .dedup()
                     .flat_map(|id| self.inner().edge_reverse_prop_id(id, true)),
             ),
-            LayerIds::One(id) => Box::new(
-                entry
-                    .unsafe_layer(id)
-                    .static_prop_ids()
-                    .into_iter()
-                    .flat_map(|id| self.inner().edge_reverse_prop_id(id, true)),
-            ),
+            LayerIds::One(id) => match entry.layer(id) {
+                Some(l) => Box::new(
+                    l.static_prop_ids()
+                        .into_iter()
+                        .flat_map(|id| self.inner().edge_reverse_prop_id(id, true)),
+                ),
+                None => Box::new(iter::empty()),
+            },
             LayerIds::Multiple(ids) => Box::new(
                 ids.iter()
-                    .map(|id| entry.unsafe_layer(*id).static_prop_ids())
+                    .flat_map(|id| entry.layer(*id).map(|l| l.static_prop_ids()))
                     .kmerge()
                     .dedup()
                     .flat_map(|id| self.inner().edge_reverse_prop_id(id, true)),
@@ -281,7 +286,7 @@ mod test_edges {
         g.add_edge_properties(1, 2, [("layer", 3)], Some("layer3"))
             .unwrap();
 
-        let e_all = g.edge(1, 2, Layer::All).unwrap();
+        let e_all = g.edge(1, 2).unwrap();
         assert_eq!(
             e_all.properties().constant().as_map(),
             HashMap::from([
@@ -297,7 +302,7 @@ mod test_edges {
             vec![0.into(), 1.into()]
         );
 
-        let e = g.edge(1, 2, "layer1").unwrap();
+        let e = g.edge(1, 2).unwrap().layer("layer1").unwrap();
         assert!(e.properties().constant().contains("layer1"));
     }
 }

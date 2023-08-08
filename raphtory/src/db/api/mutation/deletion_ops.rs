@@ -1,16 +1,17 @@
 use crate::{
     core::{
         entities::vertices::input_vertex::InputVertex,
-        utils::{
-            errors::GraphError,
-            time::{IntoTimeWithFormat, TryIntoTime},
-        },
+        storage::timeindex::TimeIndexEntry,
+        utils::{errors::GraphError, time::IntoTimeWithFormat},
     },
-    db::api::mutation::internal::InternalDeletionOps,
+    db::api::mutation::{
+        internal::{InternalAdditionOps, InternalDeletionOps},
+        TryIntoInputTime,
+    },
 };
 
 pub trait DeletionOps {
-    fn delete_edge<V: InputVertex, T: TryIntoTime>(
+    fn delete_edge<V: InputVertex, T: TryIntoInputTime>(
         &self,
         t: T,
         src: V,
@@ -31,15 +32,15 @@ pub trait DeletionOps {
     }
 }
 
-impl<G: InternalDeletionOps> DeletionOps for G {
-    fn delete_edge<V: InputVertex, T: TryIntoTime>(
+impl<G: InternalDeletionOps + InternalAdditionOps> DeletionOps for G {
+    fn delete_edge<V: InputVertex, T: TryIntoInputTime>(
         &self,
         t: T,
         src: V,
         dst: V,
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
-        let t = t.try_into_time()?;
-        self.internal_delete_edge(t, src.id(), dst.id(), layer)
+        let ti = TimeIndexEntry::from_input(self, t)?;
+        self.internal_delete_edge(ti, src.id(), dst.id(), layer)
     }
 }

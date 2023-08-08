@@ -1,11 +1,26 @@
 use super::Graph;
-use crate::graph::{misc::JsProp, vertex::Vertex};
-use raphtory::db::{api::view::*, graph::edge::EdgeView};
-use std::ops::Deref;
+use crate::graph::{misc::JsProp, vertex::Vertex, UnderGraph};
+use raphtory::db::{
+    api::view::*,
+    graph::{edge::EdgeView, graph::Graph as TGraph},
+};
+use std::{ops::Deref, sync::Arc};
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
 pub struct Edge(pub(crate) EdgeView<Graph>);
+
+impl From<EdgeView<TGraph>> for Edge {
+    fn from(value: EdgeView<TGraph>) -> Self {
+        let graph = value.graph;
+        let eref = value.edge;
+        let js_graph = Graph(UnderGraph::TGraph(Arc::new(graph)));
+        Edge(EdgeView {
+            graph: js_graph,
+            edge: eref,
+        })
+    }
+}
 
 #[wasm_bindgen]
 impl Edge {

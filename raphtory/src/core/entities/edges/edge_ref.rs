@@ -1,4 +1,7 @@
-use crate::core::entities::{vertices::vertex_ref::VertexRef, EID, VID};
+use crate::core::{
+    entities::{vertices::vertex_ref::VertexRef, EID, VID},
+    storage::timeindex::{AsTime, TimeIndexEntry},
+};
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct EdgeRef {
@@ -6,7 +9,7 @@ pub struct EdgeRef {
     src_pid: VID,
     dst_pid: VID,
     e_type: Dir,
-    time: Option<i64>,
+    time: Option<TimeIndexEntry>,
     layer_id: Option<usize>,
 }
 
@@ -45,30 +48,35 @@ impl EdgeRef {
     }
 
     #[inline(always)]
-    pub fn time(&self) -> Option<i64> {
+    pub fn time(&self) -> Option<TimeIndexEntry> {
         self.time
+    }
+
+    #[inline(always)]
+    pub fn time_t(&self) -> Option<i64> {
+        self.time.map(|t| *t.t())
     }
 
     pub fn dir(&self) -> Dir {
         self.e_type
     }
 
-    pub fn src(&self) -> VertexRef {
-        self.src_pid.into()
+    pub fn src(&self) -> VID {
+        self.src_pid
     }
 
-    pub fn dst(&self) -> VertexRef {
-        self.dst_pid.into()
+    pub fn dst(&self) -> VID {
+        self.dst_pid
     }
 
-    pub fn remote(&self) -> VertexRef {
+    pub fn remote(&self) -> VID {
         match self.e_type {
             Dir::Into => self.src(),
             Dir::Out => self.dst(),
         }
     }
 
-    pub fn local(&self) -> VertexRef {
+    pub fn local(&self) -> VID {
         match self.e_type {
             Dir::Into => self.dst(),
             Dir::Out => self.src(),
@@ -80,7 +88,7 @@ impl EdgeRef {
         self.e_pid
     }
 
-    pub fn at(&self, time: i64) -> Self {
+    pub fn at(&self, time: TimeIndexEntry) -> Self {
         let mut e_ref = *self;
         e_ref.time = Some(time);
         e_ref

@@ -54,8 +54,8 @@ pub fn twonode_motif_count<G: GraphViewOps>(
     let mut counts = [0; 8];
     for nb in evv.neighbours().into_iter() {
         let nb_id = nb.id();
-        let out = graph.edge(evv.id(), nb_id, Layer::All);
-        let inc = graph.edge(nb_id, evv.id(), Layer::All);
+        let out = graph.edge(evv.id(), nb_id);
+        let inc = graph.edge(nb_id, evv.id());
         let mut all_exploded = match (out, inc) {
             (Some(o), Some(i)) => o
                 .explode()
@@ -98,7 +98,7 @@ pub fn triangle_motif_count<G: GraphViewOps>(
     for v in evv.neighbours().into_iter().filter(|x| x.id() > u) {
         let mut nb_ct = 0;
         for nb in evv.neighbours().into_iter().filter(|x| x.id() > v.id()) {
-            let u_to_v = match graph.edge(u, v.id(), Layer::All) {
+            let u_to_v = match graph.edge(u, v.id()) {
                 Some(edge) => {
                     let r = edge
                         .explode()
@@ -108,7 +108,7 @@ pub fn triangle_motif_count<G: GraphViewOps>(
                 }
                 None => vec![].into_iter(),
             };
-            let v_to_u = match graph.edge(v.id(), u, Layer::All) {
+            let v_to_u = match graph.edge(v.id(), u) {
                 Some(edge) => {
                     let r = edge
                         .explode()
@@ -119,8 +119,8 @@ pub fn triangle_motif_count<G: GraphViewOps>(
                 None => vec![].into_iter(),
             };
             let mut tri_edges: Vec<TriangleEdge> = Vec::new();
-            let out = graph.edge(v.id(), nb.id(), Layer::All);
-            let inc = graph.edge(nb.id(), v.id(), Layer::All);
+            let out = graph.edge(v.id(), nb.id());
+            let inc = graph.edge(nb.id(), v.id());
             // The following code checks for triangles
             match (out, inc) {
                 (Some(o), Some(i)) => {
@@ -158,8 +158,8 @@ pub fn triangle_motif_count<G: GraphViewOps>(
                 }
             }
             if !tri_edges.is_empty() {
-                let uout = graph.edge(u, nb.id(), Layer::All);
-                let uin = graph.edge(nb.id(), u, Layer::All);
+                let uout = graph.edge(u, nb.id());
+                let uin = graph.edge(nb.id(), u);
                 match (uout, uin) {
                     (Some(o), Some(i)) => {
                         tri_edges.append(

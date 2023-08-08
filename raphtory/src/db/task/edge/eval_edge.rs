@@ -1,6 +1,6 @@
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef, LayerIds},
+        entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
         state::compute_state::ComputeState,
         storage::locked_view::LockedView,
         Prop,
@@ -60,10 +60,10 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static>
         self.ev
     }
 
-    fn new_vertex(&self, v: VertexRef) -> EvalVertexView<'a, G, CS, S> {
+    fn new_vertex(&self, v: VID) -> EvalVertexView<'a, G, CS, S> {
         EvalVertexView::new_local(
             self.ss,
-            self.graph.localise_vertex_unchecked(v),
+            v,
             self.graph,
             None,
             self.local_state_prev,
@@ -156,7 +156,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeViewOps for EvalEdge
     fn explode(&self) -> Self::EList {
         let iter: Box<dyn Iterator<Item = EdgeRef>> = match self.ev.time() {
             Some(_) => Box::new(iter::once(self.ev)),
-            None => Box::new(self.graph.edge_t(self.ev, LayerIds::All)),
+            None => Box::new(self.graph.edge_exploded(self.ev, LayerIds::All)),
         };
 
         let ss = self.ss;

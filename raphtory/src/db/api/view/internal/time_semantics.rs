@@ -15,12 +15,12 @@ use std::ops::Range;
 pub trait TimeSemantics: GraphOps + CoreGraphOps {
     /// Return the earliest time for a vertex
     fn vertex_earliest_time(&self, v: VID) -> Option<i64> {
-        self.vertex_additions(v).first()
+        self.vertex_additions(v).first_t()
     }
 
     /// Return the latest time for a vertex
     fn vertex_latest_time(&self, v: VID) -> Option<i64> {
-        self.vertex_additions(v).last()
+        self.vertex_additions(v).last_t()
     }
 
     /// Returns the default start time for perspectives over the view
@@ -62,12 +62,12 @@ pub trait TimeSemantics: GraphOps + CoreGraphOps {
 
     /// Return the earliest time for a vertex in a window
     fn vertex_earliest_time_window(&self, v: VID, t_start: i64, t_end: i64) -> Option<i64> {
-        self.vertex_additions(v).range(t_start..t_end).first()
+        self.vertex_additions(v).range(t_start..t_end).first_t()
     }
 
     /// Return the latest time for a vertex in a window
     fn vertex_latest_time_window(&self, v: VID, t_start: i64, t_end: i64) -> Option<i64> {
-        self.vertex_additions(v).range(t_start..t_end).last()
+        self.vertex_additions(v).range(t_start..t_end).last_t()
     }
     /// check if vertex `v` should be included in window `w`
     fn include_vertex_window(&self, v: VID, w: Range<i64>) -> bool;
@@ -77,22 +77,31 @@ pub trait TimeSemantics: GraphOps + CoreGraphOps {
 
     /// Get the timestamps at which a vertex `v` is active (i.e has an edge addition)
     fn vertex_history(&self, v: VID) -> Vec<i64> {
-        self.vertex_additions(v).iter().copied().collect()
+        self.vertex_additions(v).iter_t().copied().collect()
     }
 
     /// Get the timestamps at which a vertex `v` is active in window `w` (i.e has an edge addition)
     fn vertex_history_window(&self, v: VID, w: Range<i64>) -> Vec<i64> {
-        self.vertex_additions(v).range(w).iter().copied().collect()
+        self.vertex_additions(v)
+            .range(w)
+            .iter_t()
+            .copied()
+            .collect()
     }
 
     /// Exploded edge iterator for edge `e`
-    fn edge_t(&self, e: EdgeRef, layer_ids: LayerIds) -> BoxedIter<EdgeRef>;
+    fn edge_exploded(&self, e: EdgeRef, layer_ids: LayerIds) -> BoxedIter<EdgeRef>;
 
     /// Explode edge iterator for edge `e` for every layer
     fn edge_layers(&self, e: EdgeRef, layer_ids: LayerIds) -> BoxedIter<EdgeRef>;
 
     /// Exploded edge iterator for edge`e` over window `w`
-    fn edge_window_t(&self, e: EdgeRef, w: Range<i64>, layer_ids: LayerIds) -> BoxedIter<EdgeRef>;
+    fn edge_window_exploded(
+        &self,
+        e: EdgeRef,
+        w: Range<i64>,
+        layer_ids: LayerIds,
+    ) -> BoxedIter<EdgeRef>;
 
     /// Exploded edge iterator for edge `e` over window `w` for every layer
     fn edge_window_layers(
@@ -321,8 +330,8 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
         self.graph().vertex_history_window(v, w)
     }
 
-    fn edge_t(&self, e: EdgeRef, layer_ids: LayerIds) -> BoxedIter<EdgeRef> {
-        self.graph().edge_t(e, layer_ids)
+    fn edge_exploded(&self, e: EdgeRef, layer_ids: LayerIds) -> BoxedIter<EdgeRef> {
+        self.graph().edge_exploded(e, layer_ids)
     }
 
     fn edge_layers(&self, e: EdgeRef, layer_ids: LayerIds) -> BoxedIter<EdgeRef> {
@@ -338,8 +347,13 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
         self.graph().edge_window_layers(e, w, layer_ids)
     }
 
-    fn edge_window_t(&self, e: EdgeRef, w: Range<i64>, layer_ids: LayerIds) -> BoxedIter<EdgeRef> {
-        self.graph().edge_window_t(e, w, layer_ids)
+    fn edge_window_exploded(
+        &self,
+        e: EdgeRef,
+        w: Range<i64>,
+        layer_ids: LayerIds,
+    ) -> BoxedIter<EdgeRef> {
+        self.graph().edge_window_exploded(e, w, layer_ids)
     }
 
     fn edge_earliest_time(&self, e: EdgeRef, layer_ids: LayerIds) -> Option<i64> {

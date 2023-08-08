@@ -1,7 +1,7 @@
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, graph::tgraph::InnerTemporalGraph, LayerIds},
-        storage::timeindex::LockedLayeredIndex,
+        storage::timeindex::{LockedLayeredIndex, TimeIndexEntry},
         utils::errors::GraphError,
     },
     db::api::{mutation::internal::InternalDeletionOps, view::internal::CoreDeletionOps},
@@ -10,7 +10,7 @@ use crate::{
 impl<const N: usize> InternalDeletionOps for InnerTemporalGraph<N> {
     fn internal_delete_edge(
         &self,
-        t: i64,
+        t: TimeIndexEntry,
         src: u64,
         dst: u64,
         layer: Option<&str>,
@@ -20,7 +20,11 @@ impl<const N: usize> InternalDeletionOps for InnerTemporalGraph<N> {
 }
 
 impl<const N: usize> CoreDeletionOps for InnerTemporalGraph<N> {
-    fn edge_deletions(&self, eref: EdgeRef, layer_ids: LayerIds) -> LockedLayeredIndex<'_> {
+    fn edge_deletions(
+        &self,
+        eref: EdgeRef,
+        layer_ids: LayerIds,
+    ) -> LockedLayeredIndex<'_, TimeIndexEntry> {
         let edge = self.inner().edge(eref.pid());
         edge.deletions(layer_ids).unwrap()
     }

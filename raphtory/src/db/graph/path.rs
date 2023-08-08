@@ -35,25 +35,21 @@ impl Operations {
     fn op<G: GraphViewOps>(
         self,
         graph: G,
-        iter: Box<dyn Iterator<Item = VertexRef> + Send>,
-    ) -> Box<dyn Iterator<Item = VertexRef> + Send> {
+        iter: Box<dyn Iterator<Item = VID> + Send>,
+    ) -> Box<dyn Iterator<Item = VID> + Send> {
         match self {
-            Operations::Neighbours { dir } => Box::new(iter.flat_map(move |v| {
-                graph.neighbours(graph.localise_vertex_unchecked(v), dir, LayerIds::All)
-            })),
+            Operations::Neighbours { dir } => {
+                Box::new(iter.flat_map(move |v| graph.neighbours(v, dir, LayerIds::All)))
+            }
             Operations::NeighboursWindow {
                 dir,
                 t_start,
                 t_end,
-            } => Box::new(iter.flat_map(move |v| {
-                graph.neighbours_window(
-                    graph.localise_vertex_unchecked(v),
-                    t_start,
-                    t_end,
-                    dir,
-                    LayerIds::All,
-                )
-            })),
+            } => {
+                Box::new(iter.flat_map(move |v| {
+                    graph.neighbours_window(v, t_start, t_end, dir, LayerIds::All)
+                }))
+            }
         }
     }
 }
@@ -224,9 +220,8 @@ pub struct PathFromVertex<G: GraphViewOps> {
 }
 
 impl<G: GraphViewOps> PathFromVertex<G> {
-    pub fn iter_refs(&self) -> Box<dyn Iterator<Item = VertexRef> + Send> {
-        let init: Box<dyn Iterator<Item = VertexRef> + Send> =
-            Box::new(iter::once(VertexRef::Local(self.vertex)));
+    pub fn iter_refs(&self) -> Box<dyn Iterator<Item = VID> + Send> {
+        let init: Box<dyn Iterator<Item = VID> + Send> = Box::new(iter::once(self.vertex));
         let g = self.graph.clone();
         let ops = self.operations.clone();
         let iter = ops
@@ -237,7 +232,9 @@ impl<G: GraphViewOps> PathFromVertex<G> {
 
     pub fn iter(&self) -> Box<dyn Iterator<Item = VertexView<G>> + Send> {
         let g = self.graph.clone();
-        let iter = self.iter_refs().map(move |v| VertexView::new(g.clone(), v));
+        let iter = self
+            .iter_refs()
+            .map(move |v| VertexView::new_local(g.clone(), v));
         Box::new(iter)
     }
 

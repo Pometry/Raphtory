@@ -35,7 +35,7 @@ pub trait GraphOps: Send + Sync {
     ///
     /// * `src` - The source vertex of the edge.
     /// * `dst` - The destination vertex of the edge.
-    fn has_edge_ref(&self, src: VertexRef, dst: VertexRef, layers: LayerIds) -> bool {
+    fn has_edge_ref(&self, src: VID, dst: VID, layers: LayerIds) -> bool {
         self.edge_ref(src, dst, layers).is_some()
     }
 
@@ -79,7 +79,7 @@ pub trait GraphOps: Send + Sync {
     /// # Returns
     ///
     /// * `Option<EdgeRef>` - The edge reference if it exists.
-    fn edge_ref(&self, src: VertexRef, dst: VertexRef, layer: LayerIds) -> Option<EdgeRef>;
+    fn edge_ref(&self, src: VID, dst: VID, layer: LayerIds) -> Option<EdgeRef>;
 
     /// Returns all the edge references in the graph.
     ///
@@ -122,7 +122,7 @@ pub trait GraphOps: Send + Sync {
         v: VID,
         d: Direction,
         layers: LayerIds,
-    ) -> Box<dyn Iterator<Item = VertexRef> + Send>;
+    ) -> Box<dyn Iterator<Item = VID> + Send>;
 }
 
 pub trait InheritGraphOps: Base {}
@@ -180,7 +180,7 @@ impl<G: DelegateGraphOps + Send + Sync + ?Sized> GraphOps for G {
         self.graph().vertex_refs()
     }
 
-    fn edge_ref(&self, src: VertexRef, dst: VertexRef, layers: LayerIds) -> Option<EdgeRef> {
+    fn edge_ref(&self, src: VID, dst: VID, layers: LayerIds) -> Option<EdgeRef> {
         self.graph().edge_ref(src, dst, layers)
     }
 
@@ -202,7 +202,7 @@ impl<G: DelegateGraphOps + Send + Sync + ?Sized> GraphOps for G {
         v: VID,
         d: Direction,
         layer: LayerIds,
-    ) -> Box<dyn Iterator<Item = VertexRef> + Send> {
+    ) -> Box<dyn Iterator<Item = VID> + Send> {
         self.graph().neighbours(v, d, layer)
     }
 }
