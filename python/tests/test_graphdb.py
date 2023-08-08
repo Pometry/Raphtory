@@ -1707,7 +1707,7 @@ def test_fuzzy_search():
     # g = Graph()
     # g.add_edge(2,"haaroon","hamza", properties={"value":60,"value_f":31.3,"value_str":"abc123"})
     # g.add_edge(1,"ben","hamza", properties={"value":59,"value_f":11.4,"value_str":"test test test"})
-    # g.add_edge(3,"ben","haaroon", properties={"value":199,"value_f":52.6,"value_str":"I wanna rock right now"})
+    # g.add_edge(3,"ben","haaroon", properties={"value":199,"value_f":52.6,"value_str":"I gitwanna rock right now"})
     # g.add_edge(4,"hamza","naomi", properties={"value_str":"I wanna rock right now"})
     #assert len(index.fuzzy_search_edges("value_str:\"I wanna nock right now\"",levenshtein_distance=2)) == 2
 
