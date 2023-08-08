@@ -26,8 +26,8 @@ use crate::{
         graph::{edge::EdgeView, vertex::VertexView},
     },
     prelude::*,
+    search::fields::{EDGE_ID, VERTEX_ID},
 };
-use crate::search::fields::{EDGE_ID, VERTEX_ID};
 
 #[derive(Clone)]
 pub struct IndexedGraph<G> {
