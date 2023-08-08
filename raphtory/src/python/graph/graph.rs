@@ -15,9 +15,11 @@ use crate::{
 use pyo3::prelude::*;
 
 use crate::{
-    db::api::view::internal::{DynamicGraph, IntoDynamic},
+    db::{
+        api::view::internal::{DynamicGraph, IntoDynamic},
+        graph::{edge::EdgeView, vertex::VertexView},
+    },
     python::graph::pandas::{load_edges_props_from_df, load_vertex_props_from_df},
-    graph::{edge::EdgeView, vertex::VertexView},
 };
 use std::{
     collections::HashMap,
