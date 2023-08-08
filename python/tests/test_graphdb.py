@@ -1572,26 +1572,32 @@ def test_load_from_pandas_with_types():
         "time": [1, 2, 3, 4, 5],
         "weight": [1.0, 2.0, 3.0, 4.0, 5.0],
         "marbles": ["red", "blue", "green", "yellow", "purple"],
+        "marbles_const": ["red", "blue", "green", "yellow", "purple"],
         "layers":  ["layer 1", "layer 2", "layer 3", "layer 4", "layer 5"]
     })
     vertices_df = pd.DataFrame({
         "id": [1, 2, 3, 4, 5, 6],
         "name": ["Alice", "Bob", "Carol", "Dave", "Eve", "Frank"],
         "time": [1, 2, 3, 4, 5, 6],
-        "types":  ["Person 1", "Person 2", "Person 3", "Person 4", "Person 5", "Person 6"]
+        "type":  ["Person 1", "Person 2", "Person 3", "Person 4", "Person 5", "Person 6"]
     })
     g = Graph()
-    g.load_vertices_from_pandas(vertices_df, "id", "time", ["name"],vertex_type="Person")
+    g.load_vertices_from_pandas(vertices_df, "id", "time", ["name"],shared_const_props={"type": "Person", "tag": "test_tag"})
     assert g.vertices().properties.constant.get("type").collect() == ["Person", "Person", "Person", "Person", "Person", "Person"]
+    assert g.vertices().properties.constant.get("tag").collect() == ["test_tag", "test_tag", "test_tag", "test_tag", "test_tag", "test_tag"]
 
     g = Graph()
-    g.load_vertices_from_pandas(vertices_df, "id", "time", ["name"],type_in_df="types")
+    g.load_vertices_from_pandas(vertices_df, "id", "time", ["name"],const_props=["type"])
     assert g.vertices().properties.constant.get("type").collect() == ["Person 1", "Person 2", "Person 3", "Person 4", "Person 5", "Person 6"]
 
     g = Graph()
-    g.load_edges_from_pandas(edges_df, "src", "dst", "time", ["weight", "marbles"],layer="test_layer")
+    g.load_edges_from_pandas(edges_df, "src", "dst", "time", ["weight", "marbles"], const_props=["marbles_const"], shared_const_props={"type": "Edge", "tag": "test_tag"}, layer="test_layer")
 
     assert g.layers(["test_layer"]).edges().src().id().collect() == [1, 2, 3, 4, 5]
+    assert g.edges().properties().constant.get("type").collect() == [{'test_layer': 'Edge'},{'test_layer': 'Edge'},{'test_layer': 'Edge'},{'test_layer': 'Edge'},{'test_layer': 'Edge'}]
+    assert g.edges().properties().constant.get("tag").collect() == [{'test_layer': 'test_tag'},{'test_layer': 'test_tag'},{'test_layer': 'test_tag'},{'test_layer': 'test_tag'},{'test_layer': 'test_tag'}]
+    assert g.edges().properties().constant.get("marbles_const").collect() == [{'test_layer': 'red'},{'test_layer': 'blue'},{'test_layer': 'green'},{'test_layer': 'yellow'},{'test_layer': 'purple'}]
+
 
     g = Graph()
     g.load_edges_from_pandas(edges_df, "src", "dst", "time", ["weight", "marbles"],layer_in_df="layers")
@@ -1600,11 +1606,11 @@ def test_load_from_pandas_with_types():
     assert g.layers(["layer 1","layer 2","layer 3"]).edges().src().id().collect() == [1,2,3]
     assert g.layers(["layer 1","layer 4","layer 5"]).edges().src().id().collect() == [1,4,5]
 
-    g = Graph.load_from_pandas(edges_df, "src", "dst", "time", layer = "test_layer",vertex_df=vertices_df, vertex_col="id", vertex_time_col="time", vertex_props=["name"],vertex_type="Person")
+    g = Graph.load_from_pandas(edges_df, "src", "dst", "time", layer = "test_layer",vertex_df=vertices_df, vertex_col="id", vertex_time_col="time", vertex_props=["name"],vertex_shared_const_props={"type":"Person"})
     assert g.vertices().properties.constant.get("type").collect() == ["Person", "Person", "Person", "Person", "Person", "Person"]
     assert g.layers(["test_layer"]).edges().src().id().collect() == [1, 2, 3, 4, 5]
 
-    g = Graph.load_from_pandas(edges_df, "src", "dst", "time", layer_in_df = "layers",vertex_df=vertices_df, vertex_col="id", vertex_time_col="time", vertex_props=["name"],vertex_type_in_df="types")
+    g = Graph.load_from_pandas(edges_df, "src", "dst", "time", layer_in_df = "layers",vertex_df=vertices_df, vertex_col="id", vertex_time_col="time", vertex_props=["name"],vertex_const_props=["type"])
     assert g.vertices().properties.constant.get("type").collect() == ["Person 1", "Person 2", "Person 3", "Person 4", "Person 5", "Person 6"]
     assert g.layers(["layer 1"]).edges().src().id().collect() == [1]
     assert g.layers(["layer 1","layer 2"]).edges().src().id().collect() == [1,2]

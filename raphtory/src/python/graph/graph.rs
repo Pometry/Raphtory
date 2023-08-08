@@ -20,6 +20,7 @@ use std::{
     fmt::{Debug, Formatter},
     path::{Path, PathBuf},
 };
+use crate::db::api::mutation::CollectProperties;
 
 use super::pandas::{
     load_edges_from_df, load_vertices_from_df, process_pandas_py_df, GraphLoadException,
@@ -233,26 +234,28 @@ impl PyGraph {
     }
 
     #[staticmethod]
-    #[pyo3(signature = (edges_df, src = "source", dst = "destination", time = "time", props = None, layer = None, layer_in_df = None, vertex_df = None, vertex_col = None, vertex_time_col = None, vertex_props = None, vertex_type = None, vertex_type_in_df = None))]
+    #[pyo3(signature = (edges_df, src = "source", dst = "destination", time = "time", props = None, const_props=None,shared_const_props=None,layer = None, layer_in_df = None, vertex_df = None, vertex_col = None, vertex_time_col = None, vertex_props = None, vertex_const_props = None, vertex_shared_const_props = None))]
     fn load_from_pandas(
         edges_df: &PyAny,
         src: &str,
         dst: &str,
         time: &str,
         props: Option<Vec<&str>>,
+        const_props: Option<Vec<&str>>,
+        shared_const_props: Option<HashMap<String,Prop>>,
         layer: Option<&str>,
         layer_in_df: Option<&str>,
         vertex_df: Option<&PyAny>,
         vertex_col: Option<&str>,
         vertex_time_col: Option<&str>,
         vertex_props: Option<Vec<&str>>,
-        vertex_type: Option<&str>,
-        vertex_type_in_df: Option<&str>,
+        vertex_const_props: Option<Vec<&str>>,
+        vertex_shared_const_props: Option<HashMap<String,Prop>>,
     ) -> Result<Graph, GraphError> {
         let graph = PyGraph {
             graph: Graph::new(),
         };
-        graph.load_edges_from_pandas(edges_df, src, dst, time, props, layer, layer_in_df)?;
+        graph.load_edges_from_pandas(edges_df, src, dst, time, props, const_props,shared_const_props, layer, layer_in_df)?;
         if let (Some(vertex_df), Some(vertex_col), Some(vertex_time_col)) =
             (vertex_df, vertex_col, vertex_time_col)
         {
@@ -261,22 +264,22 @@ impl PyGraph {
                 vertex_col,
                 vertex_time_col,
                 vertex_props,
-                vertex_type,
-                vertex_type_in_df,
+                vertex_const_props,
+                vertex_shared_const_props,
             )?;
         }
         Ok(graph.graph)
     }
 
-    #[pyo3(signature = (vertices_df, vertex_col = "id", time_col = "time", props = None, vertex_type = None, type_in_df = None))]
+    #[pyo3(signature = (vertices_df, vertex_col = "id", time_col = "time", props = None, const_props = None, shared_const_props = None))]
     fn load_vertices_from_pandas(
         &self,
         vertices_df: &PyAny,
         vertex_col: &str,
         time_col: &str,
         props: Option<Vec<&str>>,
-        vertex_type: Option<&str>,
-        type_in_df: Option<&str>,
+        const_props: Option<Vec<&str>>,
+        shared_const_props: Option<HashMap<String,Prop>>,
     ) -> Result<(), GraphError> {
         let graph = &self.graph;
         Python::with_gil(|py| {
@@ -286,8 +289,8 @@ impl PyGraph {
                 vertex_col,
                 time_col,
                 props,
-                vertex_type,
-                type_in_df,
+                const_props,
+                shared_const_props,
                 graph,
             )
             .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
@@ -298,7 +301,7 @@ impl PyGraph {
         Ok(())
     }
 
-    #[pyo3(signature = (edge_df, src_col = "source", dst_col = "destination", time_col = "time", props = None, layer=None,layer_in_df=None))]
+    #[pyo3(signature = (edge_df, src_col = "source", dst_col = "destination", time_col = "time", props = None, const_props=None,shared_const_props=None,layer=None,layer_in_df=None))]
     fn load_edges_from_pandas(
         &self,
         edge_df: &PyAny,
@@ -306,6 +309,8 @@ impl PyGraph {
         dst_col: &str,
         time_col: &str,
         props: Option<Vec<&str>>,
+        const_props: Option<Vec<&str>>,
+        shared_const_props: Option<HashMap<String,Prop>>,
         layer: Option<&str>,
         layer_in_df: Option<&str>,
     ) -> Result<(), GraphError> {
@@ -318,6 +323,8 @@ impl PyGraph {
                 dst_col,
                 time_col,
                 props,
+                const_props,
+                shared_const_props,
                 layer,
                 layer_in_df,
                 graph,
