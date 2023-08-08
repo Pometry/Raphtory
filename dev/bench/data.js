@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1690981487312,
+  "lastUpdate": 1691500355814,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -6205,6 +6205,60 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions with numeric string input",
             "value": 2308307,
             "range": "± 197878",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97447091+ljeub-pometry@users.noreply.github.com",
+            "name": "ljeub-pometry",
+            "username": "ljeub-pometry"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "747a943fb39b9167576204d98f5917fc96a1db14",
+          "message": "Feature/multi edge support (#1149)\n\n* add secondary index to support mutltiple edges with same time stamp\r\n\r\n* fix range bug for TimeIndexEntry\r\n\r\n* Vertex timestamps shouldn't have secondary indices\r\n\r\n* IndexedGraph needs to implement GraphViewOps\r\n\r\n* clean up uses of VertexRef\r\n\r\n* fix test due to api changes\r\n\r\n* IndexedGraph needs to support IntoDynamic\r\n\r\n* fix property values for exploded edges at same time point\r\n\r\n* make Edgelist properties api consistent with other places\r\n\r\n* add test for exploding multilayer edge\r\n\r\n* fix explode for edges\r\n\r\n* edge should not take layer name as input any more\r\n\r\n* fix edge.layers()\r\n\r\n* add exploded edge count to example\r\n\r\n* fix FromPyObject for Graph and add support for list and map properties in python\r\n\r\n* test graph, list, and map properties\r\n\r\n* rename _t methods on edge to _exploded\r\n\r\n* remove outdated comment\r\n\r\n* quick fix for indexing of list/map\r\n\r\n* Change add_edge such that it returns an edge view and fix deadlocks because of non-recursive reads\r\n\r\n* reduce test runtime",
+          "timestamp": "2023-08-08T14:04:28+01:00",
+          "tree_id": "3334ab5e6eb9ab94cd1537dcc3ffa498e7456ca4",
+          "url": "https://github.com/Pometry/Raphtory/commit/747a943fb39b9167576204d98f5917fc96a1db14"
+        },
+        "date": 1691500354188,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 874045,
+            "range": "± 155594",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and numeric string input",
+            "value": 1344948,
+            "range": "± 67968",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and string input",
+            "value": 1357803,
+            "range": "± 62596",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 1358490,
+            "range": "± 146415",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions with numeric string input",
+            "value": 2137319,
+            "range": "± 202088",
             "unit": "ns/iter"
           }
         ]
