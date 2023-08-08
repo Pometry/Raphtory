@@ -3,10 +3,12 @@ use crate::core::{
         graph::tgraph::FxDashMap,
         properties::{props::DictMapper, tprop::TProp},
     },
-    storage::locked_view::LockedView,
+    storage::{locked_view::LockedView, timeindex::TimeIndexEntry},
     Prop,
 };
+use parking_lot::RwLockReadGuard;
 use serde::{Deserialize, Serialize};
+use std::ops::Deref;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub(crate) struct GraphProps {
@@ -32,13 +34,13 @@ impl GraphProps {
         (*prop_entry) = Some(prop);
     }
 
-    pub(crate) fn add_prop(&self, t: i64, name: &str, prop: Prop) {
+    pub(crate) fn add_prop(&self, t: TimeIndexEntry, name: &str, prop: Prop) {
         let prop_id = self.temporal_mapper.get_or_create_id(name.to_owned());
         let mut prop_entry = self
             .temporal_props
             .entry(prop_id)
             .or_insert(TProp::default());
-        (*prop_entry).set(t, &prop);
+        (*prop_entry).set(t, prop);
     }
 
     pub(crate) fn get_static(&self, name: &str) -> Option<Prop> {
@@ -53,11 +55,11 @@ impl GraphProps {
         Some(LockedView::DashMap(entry))
     }
 
-    pub(crate) fn static_prop_names(&self) -> Vec<String> {
+    pub(crate) fn static_prop_names(&self) -> RwLockReadGuard<Vec<std::string::String>> {
         self.static_mapper.get_keys()
     }
 
-    pub(crate) fn temporal_prop_names(&self) -> Vec<String> {
+    pub(crate) fn temporal_prop_names(&self) -> RwLockReadGuard<Vec<std::string::String>> {
         self.temporal_mapper.get_keys()
     }
 }

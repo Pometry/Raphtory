@@ -2,8 +2,10 @@ use crate::{
     core::Prop,
     python::{graph::views::graph_view::PyGraphView, types::repr::Repr},
 };
-use pyo3::{exceptions::PyTypeError, FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python};
-use std::collections::HashMap;
+use pyo3::{
+    exceptions::PyTypeError, types::PyBool, FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python,
+};
+use std::{ops::Deref, sync::Arc};
 
 impl IntoPy<PyObject> for Prop {
     fn into_py(self, py: Python<'_>) -> PyObject {
@@ -18,6 +20,8 @@ impl IntoPy<PyObject> for Prop {
             Prop::I32(v) => v.into_py(py),
             Prop::U32(v) => v.into_py(py),
             Prop::F32(v) => v.into_py(py),
+            Prop::List(v) => v.deref().clone().into_py(py), // Fixme: optimise the clone here?
+            Prop::Map(v) => v.deref().clone().into_py(py),
         }
     }
 }
@@ -25,6 +29,10 @@ impl IntoPy<PyObject> for Prop {
 // Manually implemented to make sure we don't end up with f32/i32/u32 from python ints/floats
 impl<'source> FromPyObject<'source> for Prop {
     fn extract(ob: &'source PyAny) -> PyResult<Self> {
+        // TODO: This no longer returns result in newer pyo3
+        if ob.is_instance_of::<PyBool>()? {
+            return Ok(Prop::Bool(ob.extract()?));
+        }
         if let Ok(v) = ob.extract() {
             return Ok(Prop::I64(v));
         }
@@ -34,14 +42,17 @@ impl<'source> FromPyObject<'source> for Prop {
         if let Ok(d) = ob.extract() {
             return Ok(Prop::DTime(d));
         }
-        if let Ok(b) = ob.extract() {
-            return Ok(Prop::Bool(b));
-        }
         if let Ok(s) = ob.extract() {
             return Ok(Prop::Str(s));
         }
         if let Ok(g) = ob.extract() {
             return Ok(Prop::Graph(g));
+        }
+        if let Ok(list) = ob.extract() {
+            return Ok(Prop::List(Arc::new(list)));
+        }
+        if let Ok(map) = ob.extract() {
+            return Ok(Prop::Map(Arc::new(map)));
         }
         Err(PyTypeError::new_err("Not a valid property type"))
     }
@@ -60,11 +71,11 @@ impl Repr for Prop {
             Prop::I32(v) => v.repr(),
             Prop::U32(v) => v.repr(),
             Prop::F32(v) => v.repr(),
+            Prop::List(v) => v.repr(),
+            Prop::Map(v) => v.repr(),
         }
     }
 }
 
 pub type PropValue = Option<Prop>;
-pub type Props = HashMap<String, Prop>;
-pub type PropHistory = Vec<(i64, Prop)>;
-pub type PropHistories = HashMap<String, PropHistory>;
+pub type PropHistItems = Vec<(i64, Prop)>;

@@ -324,6 +324,29 @@ impl PyGenericIterator {
     }
 }
 
-pub(crate) trait IntoPyObject {
-    fn into_py_object(self) -> PyObject;
+#[pyclass(name = "NestedIterator")]
+pub struct PyNestedGenericIterator {
+    iter: BoxedIter<PyGenericIterator>,
+}
+
+impl<I, J, T> From<I> for PyNestedGenericIterator
+where
+    I: Iterator<Item = J> + Send + 'static,
+    J: Iterator<Item = T> + Send + 'static,
+    T: IntoPy<PyObject> + 'static,
+{
+    fn from(value: I) -> Self {
+        let py_iter = Box::new(value.map(|item| item.into()));
+        Self { iter: py_iter }
+    }
+}
+
+#[pymethods]
+impl PyNestedGenericIterator {
+    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        slf
+    }
+    fn __next__(&mut self) -> Option<PyGenericIterator> {
+        self.iter.next()
+    }
 }

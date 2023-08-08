@@ -5,19 +5,28 @@
 //! and can have properties associated with them.
 //!
 
+use super::views::layer_graph::LayeredGraph;
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef},
+        entities::{edges::edge_ref::EdgeRef, VID},
+        storage::locked_view::LockedView,
         utils::time::IntoTime,
     },
     db::{
-        api::view::{BoxedIter, EdgeViewInternalOps},
+        api::{
+            properties::{
+                internal::{
+                    ConstPropertiesOps, Key, TemporalPropertiesOps, TemporalPropertyViewOps,
+                },
+                Properties,
+            },
+            view::{internal::Static, BoxedIter, EdgeViewInternalOps, LayerOps},
+        },
         graph::{vertex::VertexView, views::window_graph::WindowedGraph},
     },
     prelude::*,
 };
 use std::{
-    collections::HashMap,
     fmt::{Debug, Formatter},
     iter,
 };
@@ -30,6 +39,8 @@ pub struct EdgeView<G: GraphViewOps> {
     /// A reference to the edge.
     pub edge: EdgeRef,
 }
+
+impl<G: GraphViewOps> Static for EdgeView<G> {}
 
 impl<G: GraphViewOps> EdgeView<G> {
     pub fn new(graph: G, edge: EdgeRef) -> Self {
@@ -46,8 +57,8 @@ impl<G: GraphViewOps> EdgeViewInternalOps<G, VertexView<G>> for EdgeView<G> {
         self.edge
     }
 
-    fn new_vertex(&self, v: VertexRef) -> VertexView<G> {
-        VertexView::new(self.graph(), v)
+    fn new_vertex(&self, v: VID) -> VertexView<G> {
+        VertexView::new_local(self.graph(), v)
     }
 
     fn new_edge(&self, e: EdgeRef) -> Self {
@@ -55,6 +66,59 @@ impl<G: GraphViewOps> EdgeViewInternalOps<G, VertexView<G>> for EdgeView<G> {
             graph: self.graph(),
             edge: e,
         }
+    }
+}
+
+impl<G: GraphViewOps> ConstPropertiesOps for EdgeView<G> {
+    fn const_property_keys<'a>(&'a self) -> Box<dyn Iterator<Item = LockedView<'a, String>> + 'a> {
+        let layer_ids = self.graph.layer_ids().constrain_from_edge(self.edge);
+        self.graph.static_edge_prop_names(self.edge, layer_ids)
+    }
+
+    fn get_const_property(&self, key: &str) -> Option<Prop> {
+        let layer_ids = self.graph.layer_ids().constrain_from_edge(self.edge);
+        self.graph.static_edge_prop(self.edge, key, layer_ids)
+    }
+}
+
+impl<G: GraphViewOps> TemporalPropertyViewOps for EdgeView<G> {
+    fn temporal_history(&self, id: &Key) -> Vec<i64> {
+        let layer_ids = self.graph.layer_ids().constrain_from_edge(self.edge);
+        self.graph
+            .temporal_edge_prop_vec(self.edge, id, layer_ids)
+            .into_iter()
+            .map(|(t, _)| t)
+            .collect()
+    }
+
+    fn temporal_values(&self, id: &String) -> Vec<Prop> {
+        let layer_ids = self.graph.layer_ids().constrain_from_edge(self.edge);
+        self.graph
+            .temporal_edge_prop_vec(self.edge, id, layer_ids)
+            .into_iter()
+            .map(|(_, v)| v)
+            .collect()
+    }
+}
+
+impl<G: GraphViewOps> TemporalPropertiesOps for EdgeView<G> {
+    fn temporal_property_keys<'a>(
+        &'a self,
+    ) -> Box<(dyn Iterator<Item = LockedView<'a, String>> + 'a)> {
+        Box::new(
+            self.graph
+                .temporal_edge_prop_names(self.edge, self.graph.layer_ids())
+                .filter(|k| self.get_temporal_property(k).is_some()),
+        )
+    }
+
+    fn get_temporal_property(&self, key: &str) -> Option<String> {
+        let layer_ids = self.graph.layer_ids();
+        (!self
+            .graph
+            .temporal_edge_prop_vec(self.edge, key, layer_ids)
+            .is_empty())
+        .then_some(key.to_owned())
     }
 }
 
@@ -68,9 +132,22 @@ impl<G: GraphViewOps> EdgeViewOps for EdgeView<G> {
         match self.edge.time() {
             Some(_) => Box::new(iter::once(ev)),
             None => {
+                let layer_ids = self.graph.layer_ids().constrain_from_edge(self.edge);
                 let e = self.edge;
-                let ex_iter = self.graph.edge_t(e);
+                let ex_iter = self.graph.edge_exploded(e, layer_ids);
                 // FIXME: use duration
+                Box::new(ex_iter.map(move |ex| ev.new_edge(ex)))
+            }
+        }
+    }
+
+    fn explode_layers(&self) -> Self::EList {
+        let ev = self.clone();
+        match self.edge.layer() {
+            Some(_) => Box::new(iter::once(ev)),
+            None => {
+                let e = self.edge;
+                let ex_iter = self.graph.edge_layers(e, self.graph.layer_ids());
                 Box::new(ex_iter.map(move |ex| ev.new_edge(ex)))
             }
         }
@@ -113,6 +190,30 @@ impl<G: GraphViewOps> TimeOps for EdgeView<G> {
     }
 }
 
+impl<G: GraphViewOps> LayerOps for EdgeView<G> {
+    type LayeredViewType = EdgeView<LayeredGraph<G>>;
+
+    fn default_layer(&self) -> Self::LayeredViewType {
+        EdgeView {
+            graph: self.graph.default_layer(),
+            edge: self.edge,
+        }
+    }
+
+    fn layer<L: Into<Layer>>(&self, name: L) -> Option<Self::LayeredViewType> {
+        let layer_ids = self
+            .graph
+            .layer_ids_from_names(name.into())
+            .constrain_from_edge(self.edge);
+        self.graph
+            .has_edge_ref(self.edge.src(), self.edge.dst(), layer_ids.clone())
+            .then(|| EdgeView {
+                graph: LayeredGraph::new(self.graph.clone(), layer_ids),
+                edge: self.edge,
+            })
+    }
+}
+
 /// Implement `EdgeListOps` trait for an iterator of `EdgeView` objects.
 ///
 /// This implementation enables the use of the `src` and `dst` methods to retrieve the vertices
@@ -129,40 +230,8 @@ impl<G: GraphViewOps> EdgeListOps for BoxedIter<EdgeView<G>> {
     /// Specifies the associated type for the iterator over edges.
     type IterType<T> = Box<dyn Iterator<Item = T> + Send>;
 
-    fn has_property(self, name: String, include_static: bool) -> BoxedIter<bool> {
-        Box::new(self.map(move |e| e.has_property(&name, include_static)))
-    }
-
-    fn property(self, name: String, include_static: bool) -> BoxedIter<Option<Prop>> {
-        Box::new(self.map(move |e| e.property(&name, include_static)))
-    }
-
-    fn properties(self, include_static: bool) -> BoxedIter<HashMap<String, Prop>> {
-        Box::new(self.map(move |e| e.properties(include_static)))
-    }
-
-    fn property_names(self, include_static: bool) -> BoxedIter<Vec<String>> {
-        Box::new(self.map(move |e| e.property_names(include_static)))
-    }
-
-    fn has_static_property(self, name: String) -> BoxedIter<bool> {
-        Box::new(self.map(move |e| e.has_static_property(&name)))
-    }
-
-    fn static_property(self, name: String) -> BoxedIter<Option<Prop>> {
-        Box::new(self.map(move |e| e.static_property(&name)))
-    }
-
-    fn static_properties(self) -> Self::IterType<HashMap<String, Prop>> {
-        Box::new(self.map(move |e| e.static_properties()))
-    }
-
-    fn property_history(self, name: String) -> BoxedIter<Vec<(i64, Prop)>> {
-        Box::new(self.map(move |e| e.property_history(&name)))
-    }
-
-    fn property_histories(self) -> BoxedIter<HashMap<String, Vec<(i64, Prop)>>> {
-        Box::new(self.map(|e| e.property_histories()))
+    fn properties(self) -> Self::IterType<Properties<Self::Edge>> {
+        Box::new(self.map(move |e| e.properties()))
     }
 
     /// Returns an iterator over the source vertices of the edges in the iterator.
@@ -203,49 +272,8 @@ impl<G: GraphViewOps> EdgeListOps for BoxedIter<BoxedIter<EdgeView<G>>> {
     type VList = Box<dyn Iterator<Item = Box<dyn Iterator<Item = VertexView<G>> + Send>> + Send>;
     type IterType<T> = Box<dyn Iterator<Item = Box<dyn Iterator<Item = T> + Send>> + Send>;
 
-    fn has_property(self, name: String, include_static: bool) -> BoxedIter<Self::ValueType<bool>> {
-        Box::new(self.map(move |it| {
-            let name = name.clone();
-            let iter: Self::ValueType<bool> =
-                Box::new(it.map(move |e| e.has_property(&name, include_static)));
-            iter
-        }))
-    }
-
-    fn property(
-        self,
-        name: String,
-        include_static: bool,
-    ) -> BoxedIter<Self::ValueType<Option<Prop>>> {
-        Box::new(self.map(move |it| it.property(name.clone(), include_static)))
-    }
-
-    fn properties(self, include_static: bool) -> BoxedIter<Self::ValueType<HashMap<String, Prop>>> {
-        Box::new(self.map(move |it| it.properties(include_static)))
-    }
-
-    fn property_names(self, include_static: bool) -> BoxedIter<Self::ValueType<Vec<String>>> {
-        Box::new(self.map(move |it| it.property_names(include_static)))
-    }
-
-    fn has_static_property(self, name: String) -> BoxedIter<Self::ValueType<bool>> {
-        Box::new(self.map(move |it| it.has_static_property(name.clone())))
-    }
-
-    fn static_property(self, name: String) -> BoxedIter<Self::ValueType<Option<Prop>>> {
-        Box::new(self.map(move |it| it.static_property(name.clone())))
-    }
-
-    fn static_properties(self) -> Self::IterType<HashMap<String, Prop>> {
-        Box::new(self.map(move |it| it.static_properties()))
-    }
-
-    fn property_history(self, name: String) -> BoxedIter<Self::ValueType<Vec<(i64, Prop)>>> {
-        Box::new(self.map(move |it| it.property_history(name.clone())))
-    }
-
-    fn property_histories(self) -> BoxedIter<Self::ValueType<HashMap<String, Vec<(i64, Prop)>>>> {
-        Box::new(self.map(|it| it.property_histories()))
+    fn properties(self) -> Self::IterType<Properties<Self::Edge>> {
+        Box::new(self.map(move |it| it.properties()))
     }
 
     fn src(self) -> Self::VList {
@@ -285,13 +313,13 @@ mod test_edge {
     #[test]
     fn test_properties() {
         let g = Graph::new();
-        let props = [("test".to_string(), "test".as_prop())];
+        let props = [("test".to_string(), "test".into_prop())];
         g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
         g.add_edge(2, 1, 2, props.clone(), None).unwrap();
 
-        let e1 = g.edge(1, 2, None).unwrap();
-        let e1_w = g.window(0, 1).edge(1, 2, None).unwrap();
-        assert_eq!(e1.properties(false), props.into());
-        assert_eq!(e1_w.properties(false), HashMap::default())
+        let e1 = g.edge(1, 2).unwrap();
+        let e1_w = g.window(0, 1).edge(1, 2).unwrap();
+        assert_eq!(HashMap::from_iter(e1.properties().as_vec()), props.into());
+        assert!(e1_w.properties().as_vec().is_empty())
     }
 }

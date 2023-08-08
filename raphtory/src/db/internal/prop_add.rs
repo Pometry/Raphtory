@@ -1,5 +1,8 @@
 use crate::{
-    core::{entities::graph::tgraph::InnerTemporalGraph, utils::errors::GraphError},
+    core::{
+        entities::graph::tgraph::InnerTemporalGraph, storage::timeindex::TimeIndexEntry,
+        utils::errors::GraphError,
+    },
     db::api::mutation::internal::InternalPropertyAdditionOps,
     prelude::Prop,
 };
@@ -10,19 +13,19 @@ impl<const N: usize> InternalPropertyAdditionOps for InnerTemporalGraph<N> {
         v: u64,
         data: Vec<(String, Prop)>,
     ) -> Result<(), GraphError> {
-        self.add_vertex_properties_internal(v, data)
+        self.inner().add_vertex_properties_internal(v, data)
     }
 
     fn internal_add_properties(
         &self,
-        t: i64,
+        t: TimeIndexEntry,
         props: Vec<(String, Prop)>,
     ) -> Result<(), GraphError> {
-        self.add_property(t, props)
+        self.inner().add_property(t, props)
     }
 
     fn internal_add_static_properties(&self, props: Vec<(String, Prop)>) -> Result<(), GraphError> {
-        self.add_static_property(props)
+        self.inner().add_static_property(props)
     }
 
     fn internal_add_edge_properties(
@@ -32,6 +35,7 @@ impl<const N: usize> InternalPropertyAdditionOps for InnerTemporalGraph<N> {
         props: Vec<(String, Prop)>,
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
-        self.add_edge_properties_internal(src, dst, props, layer)
+        self.inner()
+            .add_edge_properties_internal(src, dst, props, layer)
     }
 }

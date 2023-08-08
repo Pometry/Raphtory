@@ -2,7 +2,6 @@ mod core_deletion_ops;
 mod core_ops;
 mod exploded_edge_ops;
 mod graph_ops;
-mod graph_properties_ops;
 mod graph_window_ops;
 mod inherit;
 mod into_dynamic;
@@ -10,12 +9,14 @@ mod materialize;
 pub(crate) mod time_semantics;
 mod wrapped_graph;
 
-use crate::prelude::GraphViewOps;
+use crate::{
+    db::api::properties::internal::{ConstPropertiesOps, InheritPropertiesOps, PropertiesOps},
+    prelude::GraphViewOps,
+};
 pub use core_deletion_ops::*;
 pub use core_ops::*;
 pub use exploded_edge_ops::ExplodedEdgeOps;
 pub use graph_ops::*;
-pub use graph_properties_ops::GraphPropertiesOps;
 pub use graph_window_ops::GraphWindowOps;
 pub use inherit::Base;
 pub use into_dynamic::IntoDynamic;
@@ -25,7 +26,15 @@ pub use time_semantics::*;
 
 /// Marker trait to indicate that an object is a valid graph view
 pub trait BoxableGraphView:
-    CoreGraphOps + GraphOps + TimeSemantics + InternalMaterialize + Send + Sync + 'static
+    CoreGraphOps
+    + GraphOps
+    + TimeSemantics
+    + InternalMaterialize
+    + PropertiesOps
+    + ConstPropertiesOps
+    + Send
+    + Sync
+    + 'static
 {
 }
 
@@ -34,6 +43,8 @@ impl<
             + GraphOps
             + TimeSemantics
             + InternalMaterialize
+            + PropertiesOps
+            + ConstPropertiesOps
             + Send
             + Sync
             + 'static
@@ -49,9 +60,26 @@ impl<G: InheritViewOps> InheritGraphOps for G {}
 impl<G: InheritViewOps + CoreGraphOps + GraphOps> InheritTimeSemantics for G {}
 impl<G: InheritViewOps> InheritCoreOps for G {}
 impl<G: InheritViewOps> InheritMaterialize for G {}
+impl<G: InheritViewOps> InheritPropertiesOps for G {}
+
+/// Trait for marking a struct as not dynamically dispatched.
+/// Used to avoid conflicts when implementing `From` for dynamic wrappers.
+pub trait Static {}
+
+impl<G: BoxableGraphView + Static> From<G> for DynamicGraph {
+    fn from(value: G) -> Self {
+        DynamicGraph(Arc::new(value))
+    }
+}
+
+impl From<Arc<dyn BoxableGraphView>> for DynamicGraph {
+    fn from(value: Arc<dyn BoxableGraphView>) -> Self {
+        DynamicGraph(value)
+    }
+}
 
 #[derive(Clone)]
-pub struct DynamicGraph(Arc<dyn BoxableGraphView>);
+pub struct DynamicGraph(pub(crate) Arc<dyn BoxableGraphView>);
 
 impl DynamicGraph {
     pub fn new<G: GraphViewOps>(graph: G) -> Self {

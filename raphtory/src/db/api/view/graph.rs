@@ -1,12 +1,14 @@
 use crate::{
     core::{
-        entities::{graph::tgraph::InnerTemporalGraph, vertices::vertex_ref::VertexRef, VID},
+        entities::{
+            graph::tgraph::InnerTemporalGraph, vertices::vertex_ref::VertexRef, LayerIds, VID,
+        },
         utils::{errors::GraphError, time::IntoTime},
-        Prop,
     },
     db::{
         api::{
             mutation::{AdditionOps, PropertyAdditionOps},
+            properties::Properties,
             view::{internal::*, layer::LayerOps, *},
         },
         graph::{
@@ -19,11 +21,9 @@ use crate::{
             },
         },
     },
-    prelude::NO_PROPS,
+    prelude::{DeletionOps, NO_PROPS},
 };
-use itertools::Itertools;
 use rustc_hash::FxHashSet;
-use std::collections::HashMap;
 
 /// This trait GraphViewOps defines operations for accessing
 /// information about a graph. The trait has associated types
@@ -55,7 +55,7 @@ pub trait GraphViewOps: BoxableGraphView + Clone + Sized {
     fn has_vertex<T: Into<VertexRef>>(&self, v: T) -> bool;
 
     /// Check if the graph contains an edge given a pair of vertices `(src, dst)`.
-    fn has_edge<T: Into<VertexRef>>(&self, src: T, dst: T, layer: Option<&str>) -> bool;
+    fn has_edge<T: Into<VertexRef>, L: Into<Layer>>(&self, src: T, dst: T, layer: L) -> bool;
 
     /// Get a vertex `v`.
     fn vertex<T: Into<VertexRef>>(&self, v: T) -> Option<VertexView<Self>>;
@@ -64,104 +64,17 @@ pub trait GraphViewOps: BoxableGraphView + Clone + Sized {
     fn vertices(&self) -> Vertices<Self>;
 
     /// Get an edge `(src, dst)`.
-    fn edge<T: Into<VertexRef>>(
-        &self,
-        src: T,
-        dst: T,
-        layer: Option<&str>,
-    ) -> Option<EdgeView<Self>>;
+    fn edge<T: Into<VertexRef>>(&self, src: T, dst: T) -> Option<EdgeView<Self>>;
 
     /// Return an iterator over all edges in the graph.
     fn edges(&self) -> Box<dyn Iterator<Item = EdgeView<Self>> + Send>;
 
-    /// Gets the property value of this graph given the name of the property.
-    fn property(&self, name: &str, include_static: bool) -> Option<Prop>;
-
-    /// Get the temporal property value of this graph.
-    ///
-    /// # Arguments
-    ///
-    /// * `name` - The name of the property to retrieve.
-    ///
-    /// # Returns
-    ///
-    /// A vector of `(i64, Prop)` tuples where the `i64` value is the timestamp of the
-    /// property value and `Prop` is the value itself.
-    fn property_history(&self, name: &str) -> Vec<(i64, Prop)>;
-
     /// Get all property values of this graph.
     ///
-    /// # Arguments
-    ///
-    /// * `include_static` - If `true` then static properties are included in the result.
-    ///
     /// # Returns
     ///
-    /// A HashMap with the names of the properties as keys and the property values as values.
-    fn properties(&self, include_static: bool) -> HashMap<String, Prop>;
-
-    /// Get all temporal property values of this graph.
-    ///
-    /// # Returns
-    ///
-    /// A HashMap with the names of the properties as keys and a vector of `(i64, Prop)` tuples
-    /// as values. The `i64` value is the timestamp of the property value and `Prop`
-    /// is the value itself.
-    fn property_histories(&self) -> HashMap<String, Vec<(i64, Prop)>>;
-
-    /// Get the names of all properties of this graph.
-    ///
-    /// # Arguments
-    ///
-    /// * `include_static` - If `true` then static properties are included in the result.
-    ///
-    /// # Returns
-    ///
-    /// A vector of the names of the properties of this vertex.
-    fn property_names(&self, include_static: bool) -> Vec<String>;
-
-    /// Checks if a property exists on this graph.
-    ///
-    /// # Arguments
-    ///
-    /// * `name` - The name of the property to check for.
-    /// * `include_static` - If `true` then static properties are included in the result.
-    ///
-    /// # Returns
-    ///
-    /// `true` if the property exists, otherwise `false`.
-    fn has_property(&self, name: &str, include_static: bool) -> bool;
-
-    /// Checks if a static property exists on this graph.
-    ///
-    /// # Arguments
-    ///
-    /// * `name` - The name of the property to check for.
-    ///
-    /// # Returns
-    ///
-    /// `true` if the property exists, otherwise `false`.
-    fn has_static_property(&self, name: &str) -> bool;
-
-    /// Get the static property value of this graph.
-    ///
-    /// # Arguments
-    ///
-    /// * `name` - The name of the property to retrieve.
-    ///
-    /// # Returns
-    ///
-    /// The value of the property if it exists, otherwise `None`.
-    fn static_property(&self, name: &str) -> Option<Prop>;
-
-    /// Get the static properties value of this graph.
-    ///
-    /// # Arguments
-    ///
-    /// # Returns
-    ///
-    /// HashMap<String, Prop> - Return all static properties identified by their names
-    fn static_properties(&self) -> HashMap<String, Prop>;
+    /// A view of the properties of the graph
+    fn properties(&self) -> Properties<Self>;
 
     /// Get a graph clone
     ///
@@ -186,11 +99,7 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
 
     /// Return all the layer ids in the graph
     fn get_unique_layers(&self) -> Vec<String> {
-        self.get_unique_layers_internal()
-            .into_iter()
-            .filter(|id| *id != 0) // the default layer has no name
-            .map(|id| self.get_layer_name_by_id(id))
-            .collect_vec()
+        self.get_layer_names_from_ids(self.layer_ids())
     }
 
     fn earliest_time(&self) -> Option<i64> {
@@ -206,18 +115,20 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
     }
 
     fn num_edges(&self) -> usize {
-        self.edges_len(None)
+        self.edges_len(LayerIds::All)
     }
 
     fn has_vertex<T: Into<VertexRef>>(&self, v: T) -> bool {
         self.has_vertex_ref(v.into())
     }
 
-    fn has_edge<T: Into<VertexRef>>(&self, src: T, dst: T, layer: Option<&str>) -> bool {
-        match self.get_layer_id(layer) {
-            Some(layer_id) => self.has_edge_ref(src.into(), dst.into(), layer_id),
-            None => false,
+    fn has_edge<T: Into<VertexRef>, L: Into<Layer>>(&self, src: T, dst: T, layer: L) -> bool {
+        if let Some(src) = self.local_vertex_ref(src.into()) {
+            if let Some(dst) = self.local_vertex_ref(dst.into()) {
+                return self.has_edge_ref(src, dst, self.layer_ids_from_names(layer.into()));
+            }
         }
+        false
     }
 
     fn vertex<T: Into<VertexRef>>(&self, v: T) -> Option<VertexView<Self>> {
@@ -231,134 +142,78 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
         Vertices::new(graph)
     }
 
-    fn edge<T: Into<VertexRef>>(
-        &self,
-        src: T,
-        dst: T,
-        layer: Option<&str>,
-    ) -> Option<EdgeView<Self>> {
-        let layer_id = match layer {
-            Some(_) => self.get_layer_id(layer)?,
-            None => {
-                let layers = self.get_unique_layers_internal();
-                match layers[..] {
-                    [layer_id] => layer_id, // if only one layer we search the edge there
-                    _ => 0,                 // if more than one, we point to the default one
-                }
+    fn edge<T: Into<VertexRef>>(&self, src: T, dst: T) -> Option<EdgeView<Self>> {
+        if let Some(src) = self.local_vertex_ref(src.into()) {
+            if let Some(dst) = self.local_vertex_ref(dst.into()) {
+                return self
+                    .edge_ref(src, dst, self.layer_ids())
+                    .map(|e| EdgeView::new(self.clone(), e));
             }
-        };
-        self.edge_ref(src.into(), dst.into(), layer_id)
-            .map(|e| EdgeView::new(self.clone(), e))
+        }
+        None
     }
 
     fn edges(&self) -> Box<dyn Iterator<Item = EdgeView<Self>> + Send> {
         Box::new(self.vertices().iter().flat_map(|v| v.out_edges()))
     }
 
-    fn property(&self, name: &str, include_static: bool) -> Option<Prop> {
-        let props = self.property_history(name);
-        match props.last() {
-            None => {
-                if include_static {
-                    self.static_prop(name)
-                } else {
-                    None
-                }
-            }
-            Some((_, prop)) => Some(prop.clone()),
-        }
-    }
-
-    fn property_history(&self, name: &str) -> Vec<(i64, Prop)> {
-        self.temporal_prop_vec(name)
-    }
-
-    fn properties(&self, include_static: bool) -> HashMap<String, Prop> {
-        let mut props: HashMap<String, Prop> = self
-            .property_histories()
-            .iter()
-            .map(|(key, values)| (key.clone(), values.last().unwrap().1.clone()))
-            .collect();
-
-        if include_static {
-            for prop_name in self.static_prop_names() {
-                if let Some(prop) = self.static_prop(&prop_name) {
-                    props.insert(prop_name, prop);
-                }
-            }
-        }
-        props
-    }
-
-    fn property_histories(&self) -> HashMap<String, Vec<(i64, Prop)>> {
-        self.temporal_props()
-    }
-
-    fn property_names(&self, include_static: bool) -> Vec<String> {
-        let mut names: Vec<String> = self.temporal_prop_names();
-        if include_static {
-            names.extend(self.static_prop_names())
-        }
-        names
-    }
-
-    fn has_property(&self, name: &str, include_static: bool) -> bool {
-        (!self.property_history(name).is_empty())
-            || (include_static && self.static_prop_names().contains(&name.to_owned()))
-    }
-
-    fn has_static_property(&self, name: &str) -> bool {
-        self.static_prop_names().contains(&name.to_owned())
-    }
-
-    fn static_property(&self, name: &str) -> Option<Prop> {
-        self.static_prop(name)
-    }
-
-    fn static_properties(&self) -> HashMap<String, Prop> {
-        self.static_props()
+    fn properties(&self) -> Properties<Self> {
+        Properties::new(self.clone())
     }
 
     fn materialize(&self) -> Result<MaterializedGraph, GraphError> {
         let g = InnerTemporalGraph::default();
         // Add edges first so we definitely have all associated vertices (important in case of persistent edges)
         for e in self.edges() {
-            let layer_name = &e.layer_name().to_string();
-            let mut layer: Option<&str> = None;
-            if layer_name != "default layer" {
-                layer = Some(layer_name)
-            }
-            for ee in e.explode() {
-                g.add_edge(
-                    ee.time().unwrap(),
+            // FIXME: this needs to be verified
+            for ee in e.explode_layers() {
+                let layer_id = *ee.edge.layer().unwrap();
+                let layer_ids = LayerIds::One(layer_id);
+                let layer_names = self.get_layer_names_from_ids(layer_ids.clone());
+                let layer_name: Option<&str> = if layer_id == 0 {
+                    None
+                } else {
+                    Some(&layer_names[0])
+                };
+
+                for ee in ee.explode() {
+                    g.add_edge(
+                        ee.time().unwrap(),
+                        ee.src().id(),
+                        ee.dst().id(),
+                        ee.properties().temporal().collect_properties(),
+                        layer_name,
+                    )?;
+                }
+
+                if self.include_deletions() {
+                    for t in self.edge_deletion_history(e.edge, layer_ids) {
+                        g.delete_edge(t, e.src().id(), e.dst().id(), layer_name)?;
+                    }
+                }
+
+                g.add_edge_properties(
                     ee.src().id(),
                     ee.dst().id(),
-                    ee.properties(false),
-                    layer,
+                    ee.properties().constant(),
+                    layer_name,
                 )?;
             }
-            if self.include_deletions() {
-                for t in self.edge_deletion_history(e.edge) {
-                    g.delete_edge(t, e.src().id(), e.dst().id(), layer)?;
-                }
-            }
-
-            g.add_edge_properties(e.src().id(), e.dst().id(), e.static_properties(), layer)?;
         }
 
         for v in self.vertices().iter() {
             for h in v.history() {
                 g.add_vertex(h, v.id(), NO_PROPS)?;
             }
-            for (name, props) in v.property_histories() {
-                for (t, prop) in props {
+            for (name, prop_view) in v.properties().temporal().iter() {
+                for (t, prop) in prop_view.iter() {
                     g.add_vertex(t, v.id(), [(name.clone(), prop)])?;
                 }
             }
-            g.add_vertex_properties(v.id(), v.static_properties())?;
+            g.add_vertex_properties(v.id(), v.properties().constant())?;
         }
 
-        g.add_static_properties(self.static_properties())?;
+        g.add_static_properties(self.properties().constant())?;
 
         Ok(self.new_base_graph(g))
     }
@@ -384,11 +239,47 @@ impl<G: GraphViewOps> LayerOps for G {
     type LayeredViewType = LayeredGraph<G>;
 
     fn default_layer(&self) -> Self::LayeredViewType {
-        LayeredGraph::new(self.clone(), 0)
+        LayeredGraph::new(self.clone(), 0.into())
     }
 
-    fn layer(&self, name: &str) -> Option<Self::LayeredViewType> {
-        let id = self.get_layer_id(Some(name))?;
-        Some(LayeredGraph::new(self.clone(), id))
+    fn layer<L: Into<Layer>>(&self, layers: L) -> Option<Self::LayeredViewType> {
+        let layers = layers.into();
+        let ids = self.layer_ids_from_names(layers);
+        match ids {
+            LayerIds::None => None,
+            _ => Some(LayeredGraph::new(self.clone(), ids)),
+        }
+    }
+}
+
+#[cfg(test)]
+mod test_materialize {
+    use crate::prelude::*;
+
+    #[test]
+    fn test_materialize() {
+        let g = Graph::new();
+        g.add_edge(0, 1, 2, [("layer1", "1")], Some("1")).unwrap();
+        g.add_edge(0, 1, 2, [("layer2", "2")], Some("2")).unwrap();
+
+        let gm = g.materialize().unwrap();
+        assert!(!g
+            .layer("2")
+            .unwrap()
+            .edge(1, 2)
+            .unwrap()
+            .properties()
+            .temporal()
+            .contains("layer1"));
+        assert!(!gm
+            .into_events()
+            .unwrap()
+            .layer("2")
+            .unwrap()
+            .edge(1, 2)
+            .unwrap()
+            .properties()
+            .temporal()
+            .contains("layer1"));
     }
 }

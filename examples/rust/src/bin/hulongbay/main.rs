@@ -89,7 +89,7 @@ pub fn loader(data_dir: &Path) -> Result<Graph, Box<dyn Error>> {
                     [("amount".to_owned(), Prop::U64(sent.amount_usd))],
                     None,
                 )
-                .unwrap()
+                .unwrap();
             })?;
 
         println!(
@@ -194,6 +194,14 @@ fn try_main_bm() -> Result<(), Box<dyn Error>> {
     println!(
         "num_edges returned {} in {} milliseconds",
         num_edges2,
+        now.elapsed().as_millis()
+    );
+
+    let now = Instant::now();
+    let num_exploded_edges = graph.edges().explode().count();
+    println!(
+        "counted {} exploded edges in {} milliseconds",
+        num_exploded_edges,
         now.elapsed().as_millis()
     );
 

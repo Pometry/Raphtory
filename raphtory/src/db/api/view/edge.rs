@@ -1,109 +1,51 @@
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef},
-        Prop,
+        entities::{edges::edge_ref::EdgeRef, VID},
+        storage::timeindex::AsTime,
     },
-    db::api::view::{internal::*, *},
+    db::api::{
+        properties::{
+            internal::{ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps},
+            Properties,
+        },
+        view::{internal::*, *},
+    },
 };
-use std::collections::HashMap;
 
 pub trait EdgeViewInternalOps<G: GraphViewOps, V: VertexViewOps<Graph = G>> {
     fn graph(&self) -> G;
 
     fn eref(&self) -> EdgeRef;
 
-    fn new_vertex(&self, v: VertexRef) -> V;
+    fn new_vertex(&self, v: VID) -> V;
 
     fn new_edge(&self, e: EdgeRef) -> Self;
 }
 
-pub trait EdgeViewOps: EdgeViewInternalOps<Self::Graph, Self::Vertex> {
+pub trait EdgeViewOps:
+    EdgeViewInternalOps<Self::Graph, Self::Vertex>
+    + ConstPropertiesOps
+    + TemporalPropertiesOps
+    + TemporalPropertyViewOps
+    + Sized
+    + Clone
+{
     type Graph: GraphViewOps;
     type Vertex: VertexViewOps<Graph = Self::Graph>;
     type EList: EdgeListOps<Graph = Self::Graph, Vertex = Self::Vertex>;
 
-    fn property(&self, name: &str, include_static: bool) -> Option<Prop> {
-        let props = self.property_history(name);
-        match props.last() {
-            None => {
-                if include_static {
-                    self.graph().static_edge_prop(self.eref(), name)
-                } else {
-                    None
-                }
-            }
-            Some((_, prop)) => Some(prop.clone()),
-        }
-    }
-
-    fn property_history(&self, name: &str) -> Vec<(i64, Prop)> {
-        match self.eref().time() {
-            None => self.graph().temporal_edge_prop_vec(self.eref(), name),
-            Some(t) => self.graph().temporal_edge_prop_vec_window(
-                self.eref(),
-                name,
-                t,
-                t.saturating_add(1),
-            ),
-        }
-    }
-
+    /// list the activation timestamps for the edge
     fn history(&self) -> Vec<i64> {
+        let layer_ids = self.graph().layer_ids().constrain_from_edge(self.eref());
         self.graph()
-            .edge_t(self.eref())
-            .map(|e| e.time().expect("exploded"))
+            .edge_exploded(self.eref(), layer_ids)
+            .map(|e| *e.time().expect("exploded").t())
             .collect()
     }
 
-    fn properties(&self, include_static: bool) -> HashMap<String, Prop> {
-        self.property_names(include_static)
-            .into_iter()
-            .filter_map(|key| self.property(&key, include_static).map(|v| (key, v)))
-            .collect()
-    }
-
-    fn property_histories(&self) -> HashMap<String, Vec<(i64, Prop)>> {
-        // match on the self.edge.time option property and run two function s
-        // one for static and one for temporal
-        match self.eref().time() {
-            None => self.graph().temporal_edge_props(self.eref()),
-            Some(t) => self
-                .graph()
-                .temporal_edge_props_window(self.eref(), t, t.saturating_add(1)),
-        }
-    }
-
-    fn property_names(&self, include_static: bool) -> Vec<String> {
-        let mut names: Vec<String> = self.graph().temporal_edge_prop_names(self.eref());
-        if include_static {
-            names.extend(self.graph().static_edge_prop_names(self.eref()))
-        }
-        names
-    }
-
-    fn has_property(&self, name: &str, include_static: bool) -> bool {
-        (!self.property_history(name).is_empty())
-            || (include_static
-                && self
-                    .graph()
-                    .static_edge_prop_names(self.eref())
-                    .contains(&name.to_owned()))
-    }
-
-    fn has_static_property(&self, name: &str) -> bool {
-        self.graph()
-            .static_edge_prop_names(self.eref())
-            .contains(&name.to_owned())
-    }
-
-    /// Returns static property of an edge by name
-    fn static_property(&self, name: &str) -> Option<Prop> {
-        self.graph().static_edge_prop(self.eref(), name)
-    }
-
-    /// Returns all static properties of an edge
-    fn static_properties(&self) -> HashMap<String, Prop> {
-        self.graph().static_edge_props(self.eref())
+    /// Return a view of the properties of the edge
+    fn properties(&self) -> Properties<Self> {
+        Properties::new(self.clone())
     }
 
     /// Returns the source vertex of the edge.
@@ -120,14 +62,15 @@ pub trait EdgeViewOps: EdgeViewInternalOps<Self::Graph, Self::Vertex> {
 
     /// Check if edge is active at a given time point
     fn active(&self, t: i64) -> bool {
+        let layer_ids = self.graph().layer_ids().constrain_from_edge(self.eref());
         match self.eref().time() {
-            Some(tt) => tt <= t && t <= self.latest_time().unwrap_or(tt),
+            Some(tt) => *tt.t() <= t && t <= self.latest_time().unwrap_or(*tt.t()),
             None => self.graph().has_edge_ref_window(
                 self.eref().src(),
                 self.eref().dst(),
                 t,
                 t.saturating_add(1),
-                self.eref().layer(),
+                layer_ids,
             ),
         }
     }
@@ -145,28 +88,32 @@ pub trait EdgeViewOps: EdgeViewInternalOps<Self::Graph, Self::Vertex> {
     /// Explodes an edge and returns all instances it had been updated as seperate edges
     fn explode(&self) -> Self::EList;
 
+    fn explode_layers(&self) -> Self::EList;
+
     /// Gets the first time an edge was seen
     fn earliest_time(&self) -> Option<i64> {
-        self.graph().edge_earliest_time(self.eref())
+        let layer_ids = self.graph().layer_ids().constrain_from_edge(self.eref());
+        self.graph().edge_earliest_time(self.eref(), layer_ids)
     }
 
     /// Gets the latest time an edge was updated
     fn latest_time(&self) -> Option<i64> {
-        self.graph().edge_latest_time(self.eref())
+        let layer_ids = self.graph().layer_ids().constrain_from_edge(self.eref());
+        self.graph().edge_latest_time(self.eref(), layer_ids)
     }
 
     /// Gets the time stamp of the edge if it is exploded
     fn time(&self) -> Option<i64> {
-        self.eref().time()
+        self.eref().time().map(|ti| *ti.t())
     }
 
     /// Gets the name of the layer this edge belongs to
-    fn layer_name(&self) -> String {
-        if self.eref().layer() == 0 {
-            "default layer".to_string()
-        } else {
-            self.graph().get_layer_name_by_id(self.eref().layer())
-        }
+    fn layer_names(&self) -> Vec<String> {
+        let layer_ids = self
+            .graph()
+            .edge_layer_ids(self.eref().pid())
+            .constrain_from_edge(self.eref());
+        self.graph().get_layer_names_from_ids(layer_ids)
     }
 }
 
@@ -185,21 +132,7 @@ pub trait EdgeListOps:
 
     /// the type of iterator
     type IterType<T>: Iterator<Item = Self::ValueType<T>>;
-
-    fn has_property(self, name: String, include_static: bool) -> Self::IterType<bool>;
-
-    fn property(self, name: String, include_static: bool) -> Self::IterType<Option<Prop>>;
-    fn properties(self, include_static: bool) -> Self::IterType<HashMap<String, Prop>>;
-    fn property_names(self, include_static: bool) -> Self::IterType<Vec<String>>;
-
-    fn has_static_property(self, name: String) -> Self::IterType<bool>;
-    fn static_property(self, name: String) -> Self::IterType<Option<Prop>>;
-    fn static_properties(self) -> Self::IterType<HashMap<String, Prop>>;
-
-    /// gets a property of an edge with the given name
-    /// includes the timestamp of the property
-    fn property_history(self, name: String) -> Self::IterType<Vec<(i64, Prop)>>;
-    fn property_histories(self) -> Self::IterType<HashMap<String, Vec<(i64, Prop)>>>;
+    fn properties(self) -> Self::IterType<Properties<Self::Edge>>;
 
     /// gets the source vertices of the edges in the list
     fn src(self) -> Self::VList;
@@ -217,4 +150,55 @@ pub trait EdgeListOps:
 
     /// Get the timestamp for the latest activity of the edge
     fn latest_time(self) -> Self::IterType<Option<i64>>;
+}
+
+#[cfg(test)]
+mod test_edge_view {
+    use crate::prelude::*;
+
+    #[test]
+    fn test_exploded_edge_properties() {
+        let g = Graph::new();
+        let actual_prop_values = vec![0, 1, 2, 3];
+        for v in actual_prop_values.iter() {
+            g.add_edge(0, 1, 2, [("test", *v)], None).unwrap();
+        }
+
+        let prop_values: Vec<_> = g
+            .edge(1, 2)
+            .unwrap()
+            .explode()
+            .flat_map(|e| e.properties().get("test").into_i32())
+            .collect();
+        assert_eq!(prop_values, actual_prop_values)
+    }
+
+    #[test]
+    fn test_exploded_edge_multilayer() {
+        let g = Graph::new();
+        let expected_prop_values = vec![0, 1, 2, 3];
+        for v in expected_prop_values.iter() {
+            g.add_edge(0, 1, 2, [("test", *v)], Some((v % 2).to_string().as_str()))
+                .unwrap();
+        }
+
+        let prop_values: Vec<_> = g
+            .edge(1, 2)
+            .unwrap()
+            .explode()
+            .flat_map(|e| e.properties().get("test").into_i32())
+            .collect();
+        let actual_layers: Vec<_> = g
+            .edge(1, 2)
+            .unwrap()
+            .explode()
+            .map(|e| e.layer_names().into_iter().next().unwrap())
+            .collect();
+        let expected_layers: Vec<_> = expected_prop_values
+            .iter()
+            .map(|v| (v % 2).to_string())
+            .collect();
+        assert_eq!(prop_values, expected_prop_values);
+        assert_eq!(actual_layers, expected_layers);
+    }
 }
