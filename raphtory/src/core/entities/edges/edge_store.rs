@@ -4,7 +4,11 @@ use crate::core::{
         properties::{props::Props, tprop::TProp},
         LayerIds, EID, VID,
     },
-    storage::{locked_view::LockedView, timeindex::TimeIndex},
+    storage::{
+        lazy_vec::IllegalSet,
+        locked_view::LockedView,
+        timeindex::{TimeIndex, TimeIndexEntry},
+    },
     utils::errors::MutateGraphError,
     Prop,
 };
@@ -18,8 +22,8 @@ pub(crate) struct EdgeStore<const N: usize> {
     src: VID,
     dst: VID,
     layers: Vec<EdgeLayer>, // each layer has its own set of properties
-    additions: Vec<TimeIndex>,
-    deletions: Vec<TimeIndex>,
+    additions: Vec<TimeIndex<TimeIndexEntry>>,
+    deletions: Vec<TimeIndex<TimeIndexEntry>>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
@@ -32,7 +36,7 @@ impl EdgeLayer {
         self.props.as_ref()
     }
 
-    pub fn add_prop(&mut self, t: i64, prop_id: usize, prop: Prop) {
+    pub fn add_prop(&mut self, t: TimeIndexEntry, prop_id: usize, prop: Prop) {
         let props = self.props.get_or_insert_with(|| Props::new());
         props.add_prop(t, prop_id, prop);
     }
@@ -40,11 +44,10 @@ impl EdgeLayer {
     pub fn add_static_prop(
         &mut self,
         prop_id: usize,
-        prop_name: &str,
         prop: Prop,
-    ) -> Result<(), MutateGraphError> {
+    ) -> Result<(), IllegalSet<Option<Prop>>> {
         let props = self.props.get_or_insert_with(|| Props::new());
-        props.add_static_prop(prop_id, prop_name, prop)
+        props.add_static_prop(prop_id, prop)
     }
 
     pub(crate) fn static_prop_ids(&self) -> Vec<usize> {
@@ -120,6 +123,9 @@ impl<const N: usize> EdgeStore<N> {
         }
     }
 
+    pub fn layer_iter(&self) -> impl Iterator<Item = &EdgeLayer> + '_ {
+        self.layers.iter()
+    }
     pub fn layer_ids_iter(&self) -> impl Iterator<Item = usize> + '_ {
         let layer_ids = self
             .additions
@@ -204,11 +210,11 @@ impl<const N: usize> EdgeStore<N> {
         self.layers.get(layer_id).unwrap()
     }
 
-    pub fn additions(&self) -> &Vec<TimeIndex> {
+    pub fn additions(&self) -> &Vec<TimeIndex<TimeIndexEntry>> {
         &self.additions
     }
 
-    pub fn deletions(&self) -> &Vec<TimeIndex> {
+    pub fn deletions(&self) -> &Vec<TimeIndex<TimeIndexEntry>> {
         &self.deletions
     }
 
@@ -242,14 +248,14 @@ impl<const N: usize> EdgeStore<N> {
         self.get_or_allocate_layer(layer_id)
     }
 
-    pub fn deletions_mut(&mut self, layer_id: usize) -> &mut TimeIndex {
+    pub fn deletions_mut(&mut self, layer_id: usize) -> &mut TimeIndex<TimeIndexEntry> {
         if self.deletions.len() <= layer_id {
             self.deletions.resize_with(layer_id + 1, Default::default);
         }
         &mut self.deletions[layer_id]
     }
 
-    pub fn additions_mut(&mut self, layer_id: usize) -> &mut TimeIndex {
+    pub fn additions_mut(&mut self, layer_id: usize) -> &mut TimeIndex<TimeIndexEntry> {
         if self.additions.len() <= layer_id {
             self.additions.resize_with(layer_id + 1, Default::default);
         }

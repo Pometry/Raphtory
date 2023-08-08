@@ -8,7 +8,7 @@
 use super::views::layer_graph::LayeredGraph;
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef},
+        entities::{edges::edge_ref::EdgeRef, VID},
         storage::locked_view::LockedView,
         utils::time::IntoTime,
     },
@@ -57,8 +57,8 @@ impl<G: GraphViewOps> EdgeViewInternalOps<G, VertexView<G>> for EdgeView<G> {
         self.edge
     }
 
-    fn new_vertex(&self, v: VertexRef) -> VertexView<G> {
-        VertexView::new(self.graph(), v)
+    fn new_vertex(&self, v: VID) -> VertexView<G> {
+        VertexView::new_local(self.graph(), v)
     }
 
     fn new_edge(&self, e: EdgeRef) -> Self {
@@ -134,7 +134,7 @@ impl<G: GraphViewOps> EdgeViewOps for EdgeView<G> {
             None => {
                 let layer_ids = self.graph.layer_ids().constrain_from_edge(self.edge);
                 let e = self.edge;
-                let ex_iter = self.graph.edge_t(e, layer_ids);
+                let ex_iter = self.graph.edge_exploded(e, layer_ids);
                 // FIXME: use duration
                 Box::new(ex_iter.map(move |ex| ev.new_edge(ex)))
             }
@@ -201,10 +201,16 @@ impl<G: GraphViewOps> LayerOps for EdgeView<G> {
     }
 
     fn layer<L: Into<Layer>>(&self, name: L) -> Option<Self::LayeredViewType> {
-        self.graph.layer(name).map(|g| EdgeView {
-            graph: g,
-            edge: self.edge,
-        })
+        let layer_ids = self
+            .graph
+            .layer_ids_from_names(name.into())
+            .constrain_from_edge(self.edge);
+        self.graph
+            .has_edge_ref(self.edge.src(), self.edge.dst(), layer_ids.clone())
+            .then(|| EdgeView {
+                graph: LayeredGraph::new(self.graph.clone(), layer_ids),
+                edge: self.edge,
+            })
     }
 }
 
@@ -301,7 +307,7 @@ pub type EdgeList<G> = Box<dyn Iterator<Item = EdgeView<G>> + Send>;
 
 #[cfg(test)]
 mod test_edge {
-    use crate::{db::api::view::Layer, prelude::*};
+    use crate::prelude::*;
     use std::collections::HashMap;
 
     #[test]
@@ -311,8 +317,8 @@ mod test_edge {
         g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
         g.add_edge(2, 1, 2, props.clone(), None).unwrap();
 
-        let e1 = g.edge(1, 2, Layer::All).unwrap();
-        let e1_w = g.window(0, 1).edge(1, 2, Layer::All).unwrap();
+        let e1 = g.edge(1, 2).unwrap();
+        let e1_w = g.window(0, 1).edge(1, 2).unwrap();
         assert_eq!(HashMap::from_iter(e1.properties().as_vec()), props.into());
         assert!(e1_w.properties().as_vec().is_empty())
     }

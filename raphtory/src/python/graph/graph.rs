@@ -14,7 +14,10 @@ use crate::{
 };
 use pyo3::prelude::*;
 
-use crate::db::api::view::internal::{DynamicGraph, IntoDynamic};
+use crate::db::{
+    api::view::internal::{DynamicGraph, IntoDynamic},
+    graph::{edge::EdgeView, vertex::VertexView},
+};
 use std::{
     collections::HashMap,
     fmt::{Debug, Formatter},
@@ -66,7 +69,8 @@ impl IntoPy<PyObject> for Graph {
 
 impl<'source> FromPyObject<'source> for Graph {
     fn extract(ob: &'source PyAny) -> PyResult<Self> {
-        ob.extract()
+        let g: PyRef<PyGraph> = ob.extract()?;
+        Ok(g.graph.clone())
     }
 }
 
@@ -110,7 +114,7 @@ impl PyGraph {
         timestamp: PyTime,
         id: PyInputVertex,
         properties: Option<HashMap<String, Prop>>,
-    ) -> Result<(), GraphError> {
+    ) -> Result<VertexView<Graph>, GraphError> {
         self.graph
             .add_vertex(timestamp, id, properties.unwrap_or_default())
     }
@@ -178,7 +182,7 @@ impl PyGraph {
         dst: PyInputVertex,
         properties: Option<HashMap<String, Prop>>,
         layer: Option<&str>,
-    ) -> Result<(), GraphError> {
+    ) -> Result<EdgeView<Graph>, GraphError> {
         self.graph
             .add_edge(timestamp, src, dst, properties.unwrap_or_default(), layer)
     }
