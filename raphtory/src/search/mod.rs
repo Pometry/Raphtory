@@ -761,7 +761,7 @@ mod test {
         let ig: IndexedGraph<Graph> = graph.into();
 
         let results = ig
-            .search("age:42", 5, 0)
+            .search_vertices("age:42", 5, 0)
             .expect("failed to search for vertex")
             .into_iter()
             .map(|v| v.name())
@@ -782,7 +782,7 @@ mod test {
         let elapsed = now.elapsed().unwrap().as_secs();
         println!("indexing took: {:?}", elapsed);
 
-        let issues = index_graph.search("name:'DEV-1690'", 5, 0)?;
+        let issues = index_graph.search_vertices("name:'DEV-1690'", 5, 0)?;
 
         assert!(!issues.is_empty());
 
@@ -840,7 +840,7 @@ mod test {
         indexed_graph.reload().expect("failed to reload index");
 
         let results = indexed_graph
-            .search("kind:hobbit", 10, 0)
+            .search_vertices("kind:hobbit", 10, 0)
             .expect("search failed");
         let mut actual = results.into_iter().map(|v| v.name()).collect::<Vec<_>>();
         let mut expected = vec!["Frodo", "Merry"];
@@ -851,14 +851,14 @@ mod test {
         assert_eq!(actual, expected);
 
         let results = indexed_graph
-            .search("kind:wizard", 10, 0)
+            .search_vertices("kind:wizard", 10, 0)
             .expect("search failed");
         let actual = results.into_iter().map(|v| v.name()).collect::<Vec<_>>();
         let expected = vec!["Gandalf"];
         assert_eq!(actual, expected);
 
         let results = indexed_graph
-            .search("kind:creature", 10, 0)
+            .search_vertices("kind:creature", 10, 0)
             .expect("search failed");
         let actual = results.into_iter().map(|v| v.name()).collect::<Vec<_>>();
         let expected = vec!["Gollum"];
@@ -866,7 +866,7 @@ mod test {
 
         // search by name
         let results = indexed_graph
-            .search("name:gollum", 10, 0)
+            .search_vertices("name:gollum", 10, 0)
             .expect("search failed");
         let actual = results.into_iter().map(|v| v.name()).collect::<Vec<_>>();
         let expected = vec!["Gollum"];
@@ -884,7 +884,7 @@ mod test {
         graph.reload().expect("reload failed");
 
         let vertices = graph
-            .search(r#"name:gandalf"#, 10, 0)
+            .search_vertices(r#"name:gandalf"#, 10, 0)
             .expect("search failed");
 
         let actual = vertices.into_iter().map(|v| v.name()).collect::<Vec<_>>();
@@ -916,14 +916,14 @@ mod test {
         graph.reload().expect("reload failed");
         // Find the Wizard
         let vertices = graph
-            .search(r#"description:wizard"#, 10, 0)
+            .search_vertices(r#"description:wizard"#, 10, 0)
             .expect("search failed");
         let actual = vertices.into_iter().map(|v| v.name()).collect::<Vec<_>>();
         let expected = vec!["Gandalf"];
         assert_eq!(actual, expected);
         // Find the Hobbit
         let vertices = graph
-            .search(r#"description:'hobbit'"#, 10, 0)
+            .search_vertices(r#"description:'hobbit'"#, 10, 0)
             .expect("search failed");
         let actual = vertices.into_iter().map(|v| v.name()).collect::<Vec<_>>();
         let expected = vec!["Bilbo"];
@@ -953,21 +953,21 @@ mod test {
         graph.reload().expect("reload failed");
         // Find Saruman
         let vertices = graph
-            .search(r#"description:wizard AND time:[2 TO 5]"#, 10, 0)
+            .search_vertices(r#"description:wizard AND time:[2 TO 5]"#, 10, 0)
             .expect("search failed");
         let actual = vertices.into_iter().map(|v| v.name()).collect::<Vec<_>>();
         let expected = vec!["Saruman"];
         assert_eq!(actual, expected);
         // Find Gandalf
         let vertices = graph
-            .search(r#"description:'wizard' AND time:[1 TO 2}"#, 10, 0)
+            .search_vertices(r#"description:'wizard' AND time:[1 TO 2}"#, 10, 0)
             .expect("search failed");
         let actual = vertices.into_iter().map(|v| v.name()).collect::<Vec<_>>();
         let expected = vec!["Gandalf"];
         assert_eq!(actual, expected);
         // Find both wizards
         let vertices = graph
-            .search(r#"description:'wizard' AND time:[1 TO 100]"#, 10, 0)
+            .search_vertices(r#"description:'wizard' AND time:[1 TO 100]"#, 10, 0)
             .expect("search failed");
         let mut actual = vertices.into_iter().map(|v| v.name()).collect::<Vec<_>>();
         let mut expected = vec!["Gandalf", "Saruman"];
