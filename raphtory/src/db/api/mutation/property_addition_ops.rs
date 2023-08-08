@@ -1,9 +1,13 @@
 use crate::{
     core::{
         entities::vertices::input_vertex::InputVertex,
+        storage::timeindex::TimeIndexEntry,
         utils::{errors::GraphError, time::TryIntoTime},
     },
-    db::api::mutation::internal::InternalPropertyAdditionOps,
+    db::api::mutation::{
+        internal::{InternalAdditionOps, InternalPropertyAdditionOps},
+        TryIntoInputTime,
+    },
 };
 
 use super::CollectProperties;
@@ -67,7 +71,7 @@ pub trait PropertyAdditionOps {
     ) -> Result<(), GraphError>;
 }
 
-impl<G: InternalPropertyAdditionOps> PropertyAdditionOps for G {
+impl<G: InternalPropertyAdditionOps + InternalAdditionOps> PropertyAdditionOps for G {
     fn add_vertex_properties<V: InputVertex, PI: CollectProperties>(
         &self,
         v: V,
@@ -76,12 +80,13 @@ impl<G: InternalPropertyAdditionOps> PropertyAdditionOps for G {
         self.internal_add_vertex_properties(v.id(), data.collect_properties())
     }
 
-    fn add_properties<T: TryIntoTime, PI: CollectProperties>(
+    fn add_properties<T: TryIntoInputTime, PI: CollectProperties>(
         &self,
         t: T,
         props: PI,
     ) -> Result<(), GraphError> {
-        self.internal_add_properties(t.try_into_time()?, props.collect_properties())
+        let ti = TimeIndexEntry::from_input(self, t)?;
+        self.internal_add_properties(ti, props.collect_properties())
     }
 
     fn add_static_properties<PI: CollectProperties>(&self, props: PI) -> Result<(), GraphError> {

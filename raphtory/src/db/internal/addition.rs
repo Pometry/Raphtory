@@ -1,33 +1,37 @@
 use crate::{
     core::{
-        entities::{graph::tgraph::InnerTemporalGraph, vertices::vertex_ref::VertexRef},
+        entities::{graph::tgraph::InnerTemporalGraph, EID, VID},
+        storage::timeindex::TimeIndexEntry,
         utils::errors::GraphError,
     },
     db::api::mutation::internal::InternalAdditionOps,
     prelude::Prop,
 };
+use std::sync::atomic::Ordering;
 
 impl<const N: usize> InternalAdditionOps for InnerTemporalGraph<N> {
+    fn next_event_id(&self) -> usize {
+        self.inner().event_counter.fetch_add(1, Ordering::Relaxed)
+    }
+
     fn internal_add_vertex(
         &self,
-        t: i64,
+        t: TimeIndexEntry,
         v: u64,
         name: Option<&str>,
         props: Vec<(String, Prop)>,
-    ) -> Result<VertexRef, GraphError> {
-        let v_id = self.inner().add_vertex_internal(t, v, name, props)?;
-
-        Ok(VertexRef::Local(v_id))
+    ) -> Result<VID, GraphError> {
+        self.inner().add_vertex_internal(t, v, name, props)
     }
 
     fn internal_add_edge(
         &self,
-        t: i64,
+        t: TimeIndexEntry,
         src: u64,
         dst: u64,
         props: Vec<(String, Prop)>,
         layer: Option<&str>,
-    ) -> Result<(), GraphError> {
+    ) -> Result<EID, GraphError> {
         self.inner().add_edge_internal(t, src, dst, props, layer)
     }
 }

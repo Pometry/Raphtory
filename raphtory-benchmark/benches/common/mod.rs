@@ -140,7 +140,7 @@ pub fn run_large_ingestion_benchmarks<F>(
                 },
                 |(g, times)| {
                     for t in times.iter() {
-                        g.add_edge(*t, 0, 0, NO_PROPS, None).unwrap()
+                        g.add_edge(*t, 0, 0, NO_PROPS, None).unwrap();
                     }
                 },
                 BatchSize::SmallInput,
@@ -162,7 +162,7 @@ pub fn run_large_ingestion_benchmarks<F>(
                 },
                 |(g, times)| {
                     for t in times.iter() {
-                        g.add_edge(*t, "0", "0", NO_PROPS, None).unwrap()
+                        g.add_edge(*t, "0", "0", NO_PROPS, None).unwrap();
                     }
                 },
                 BatchSize::SmallInput,
@@ -184,7 +184,7 @@ pub fn run_large_ingestion_benchmarks<F>(
                 },
                 |(g, times)| {
                     for t in times.iter() {
-                        g.add_edge(*t, "test", "other", NO_PROPS, None).unwrap()
+                        g.add_edge(*t, "test", "other", NO_PROPS, None).unwrap();
                     }
                 },
                 BatchSize::SmallInput,
@@ -215,7 +215,7 @@ pub fn run_large_ingestion_benchmarks<F>(
                             NO_PROPS,
                             None,
                         )
-                        .unwrap()
+                        .unwrap();
                     }
                 },
                 BatchSize::SmallInput,
@@ -246,7 +246,7 @@ pub fn run_large_ingestion_benchmarks<F>(
                             NO_PROPS,
                             None,
                         )
-                        .unwrap()
+                        .unwrap();
                     }
                 },
                 BatchSize::SmallInput,

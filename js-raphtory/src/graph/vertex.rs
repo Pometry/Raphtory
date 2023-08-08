@@ -1,14 +1,26 @@
 use super::{misc::JSError, Graph};
-use crate::graph::{edge::Edge, misc::JsProp};
+use crate::graph::{edge::Edge, misc::JsProp, UnderGraph};
 use raphtory::{
     core::utils::errors::GraphError,
-    db::{api::view::VertexViewOps, graph::vertex::VertexView},
+    db::{
+        api::view::VertexViewOps,
+        graph::{graph::Graph as TGraph, vertex::VertexView},
+    },
 };
-use std::convert::TryFrom;
+use std::{convert::TryFrom, sync::Arc};
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
 pub struct Vertex(pub(crate) VertexView<Graph>);
+
+impl From<VertexView<TGraph>> for Vertex {
+    fn from(value: VertexView<TGraph>) -> Self {
+        let vid = value.vertex;
+        let graph = value.graph;
+        let js_graph = Graph(UnderGraph::TGraph(Arc::new(graph)));
+        Vertex(VertexView::new_local(js_graph, vid))
+    }
+}
 
 #[wasm_bindgen]
 impl Vertex {

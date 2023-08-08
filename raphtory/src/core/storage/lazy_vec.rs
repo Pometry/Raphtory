@@ -101,15 +101,18 @@ where
         }
     }
 
-    pub(crate) fn update_or_set<F>(&mut self, id: usize, updater: F, default: A)
+    pub(crate) fn update<F>(&mut self, id: usize, updater: F)
     where
         F: FnOnce(&mut A),
     {
         match self.get_mut(id) {
             Some(value) => updater(value),
-            None => self
-                .set(id, default)
-                .expect("Set failed over a non existing value"),
+            None => {
+                let mut value = A::default();
+                updater(&mut value);
+                self.set(id, value)
+                    .expect("Set failed over a non existing value")
+            }
         }
     }
 }
@@ -130,13 +133,10 @@ mod lazy_vec_tests {
         assert_eq!(vec.get(0), Some(&0));
         assert_eq!(vec.get(10), None); // FIXME: this should return the default, 0, as well, there is no need to return Option from get()
 
-        // FIXME: replace update_or_set() with update()
-        // the behavior should be the same for both cases, because we should be able to assume that
-        // any cell is prefilled with default values and can therefore be safely updated
-        vec.update_or_set(6, |n| *n += 1, 66);
+        vec.update(6, |n| *n += 1);
         assert_eq!(vec.get(6), Some(&1));
-        vec.update_or_set(9, |n| *n += 1, 99);
-        assert_eq!(vec.get(9), Some(&99));
+        vec.update(9, |n| *n += 1);
+        assert_eq!(vec.get(9), Some(&1));
 
         assert_eq!(vec.filled_ids(), vec![1, 5, 6, 8, 9]);
     }

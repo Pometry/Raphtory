@@ -1,5 +1,8 @@
 use crate::{
-    core::entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef},
+    core::{
+        entities::{edges::edge_ref::EdgeRef, VID},
+        storage::timeindex::AsTime,
+    },
     db::api::{
         properties::{
             internal::{ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps},
@@ -14,7 +17,7 @@ pub trait EdgeViewInternalOps<G: GraphViewOps, V: VertexViewOps<Graph = G>> {
 
     fn eref(&self) -> EdgeRef;
 
-    fn new_vertex(&self, v: VertexRef) -> V;
+    fn new_vertex(&self, v: VID) -> V;
 
     fn new_edge(&self, e: EdgeRef) -> Self;
 }
@@ -35,8 +38,8 @@ pub trait EdgeViewOps:
     fn history(&self) -> Vec<i64> {
         let layer_ids = self.graph().layer_ids().constrain_from_edge(self.eref());
         self.graph()
-            .edge_t(self.eref(), layer_ids)
-            .map(|e| e.time().expect("exploded"))
+            .edge_exploded(self.eref(), layer_ids)
+            .map(|e| *e.time().expect("exploded").t())
             .collect()
     }
 
@@ -61,7 +64,7 @@ pub trait EdgeViewOps:
     fn active(&self, t: i64) -> bool {
         let layer_ids = self.graph().layer_ids().constrain_from_edge(self.eref());
         match self.eref().time() {
-            Some(tt) => tt <= t && t <= self.latest_time().unwrap_or(tt),
+            Some(tt) => *tt.t() <= t && t <= self.latest_time().unwrap_or(*tt.t()),
             None => self.graph().has_edge_ref_window(
                 self.eref().src(),
                 self.eref().dst(),
@@ -101,7 +104,7 @@ pub trait EdgeViewOps:
 
     /// Gets the time stamp of the edge if it is exploded
     fn time(&self) -> Option<i64> {
-        self.eref().time()
+        self.eref().time().map(|ti| *ti.t())
     }
 
     /// Gets the name of the layer this edge belongs to
@@ -147,4 +150,55 @@ pub trait EdgeListOps:
 
     /// Get the timestamp for the latest activity of the edge
     fn latest_time(self) -> Self::IterType<Option<i64>>;
+}
+
+#[cfg(test)]
+mod test_edge_view {
+    use crate::prelude::*;
+
+    #[test]
+    fn test_exploded_edge_properties() {
+        let g = Graph::new();
+        let actual_prop_values = vec![0, 1, 2, 3];
+        for v in actual_prop_values.iter() {
+            g.add_edge(0, 1, 2, [("test", *v)], None).unwrap();
+        }
+
+        let prop_values: Vec<_> = g
+            .edge(1, 2)
+            .unwrap()
+            .explode()
+            .flat_map(|e| e.properties().get("test").into_i32())
+            .collect();
+        assert_eq!(prop_values, actual_prop_values)
+    }
+
+    #[test]
+    fn test_exploded_edge_multilayer() {
+        let g = Graph::new();
+        let expected_prop_values = vec![0, 1, 2, 3];
+        for v in expected_prop_values.iter() {
+            g.add_edge(0, 1, 2, [("test", *v)], Some((v % 2).to_string().as_str()))
+                .unwrap();
+        }
+
+        let prop_values: Vec<_> = g
+            .edge(1, 2)
+            .unwrap()
+            .explode()
+            .flat_map(|e| e.properties().get("test").into_i32())
+            .collect();
+        let actual_layers: Vec<_> = g
+            .edge(1, 2)
+            .unwrap()
+            .explode()
+            .map(|e| e.layer_names().into_iter().next().unwrap())
+            .collect();
+        let expected_layers: Vec<_> = expected_prop_values
+            .iter()
+            .map(|v| (v % 2).to_string())
+            .collect();
+        assert_eq!(prop_values, expected_prop_values);
+        assert_eq!(actual_layers, expected_layers);
+    }
 }

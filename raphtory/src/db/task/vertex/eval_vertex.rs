@@ -241,7 +241,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EvalPathFromVertex<'a, G
         Box::new(self.path.iter_refs().map(|v| {
             EvalVertexView::new_local(
                 self.ss,
-                self.g.localise_vertex_unchecked(v),
+                v,
                 self.g,
                 None,
                 self.local_state_prev,
@@ -264,14 +264,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> IntoIterator
         let ss = self.ss;
         let g: &G = self.g;
         Box::new(path.iter_refs().map(move |v| {
-            EvalVertexView::new_local(
-                ss,
-                self.g.localise_vertex_unchecked(v),
-                g,
-                None,
-                self.local_state_prev,
-                vertex_state.clone(),
-            )
+            EvalVertexView::new_local(ss, v, g, None, self.local_state_prev, vertex_state.clone())
         }))
     }
 }

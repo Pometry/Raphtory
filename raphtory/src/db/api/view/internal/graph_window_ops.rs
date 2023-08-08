@@ -39,8 +39,8 @@ pub trait GraphWindowOps {
     /// * `dst` - The destination vertex of the edge.
     fn has_edge_ref_window(
         &self,
-        src: VertexRef,
-        dst: VertexRef,
+        src: VID,
+        dst: VID,
         t_start: i64,
         t_end: i64,
         layer: LayerIds,
@@ -111,8 +111,8 @@ pub trait GraphWindowOps {
     /// * `Option<EdgeRef>` - The edge reference if it exists.
     fn edge_ref_window(
         &self,
-        src: VertexRef,
-        dst: VertexRef,
+        src: VID,
+        dst: VID,
         t_start: i64,
         t_end: i64,
         layer: LayerIds,
@@ -177,7 +177,7 @@ pub trait GraphWindowOps {
         t_end: i64,
         d: Direction,
         layers: LayerIds,
-    ) -> Box<dyn Iterator<Item = VertexRef> + Send>;
+    ) -> Box<dyn Iterator<Item = VID> + Send>;
 }
 
 impl<G: TimeSemantics + CoreGraphOps + GraphOps + Clone + 'static> GraphWindowOps for G {
@@ -196,8 +196,8 @@ impl<G: TimeSemantics + CoreGraphOps + GraphOps + Clone + 'static> GraphWindowOp
 
     fn has_edge_ref_window(
         &self,
-        src: VertexRef,
-        dst: VertexRef,
+        src: VID,
+        dst: VID,
         t_start: i64,
         t_end: i64,
         layer: LayerIds,
@@ -235,8 +235,8 @@ impl<G: TimeSemantics + CoreGraphOps + GraphOps + Clone + 'static> GraphWindowOp
 
     fn edge_ref_window(
         &self,
-        src: VertexRef,
-        dst: VertexRef,
+        src: VID,
+        dst: VID,
         t_start: i64,
         t_end: i64,
         layer: LayerIds,
@@ -280,7 +280,7 @@ impl<G: TimeSemantics + CoreGraphOps + GraphOps + Clone + 'static> GraphWindowOp
         t_end: i64,
         d: Direction,
         layers: LayerIds,
-    ) -> Box<dyn Iterator<Item = VertexRef> + Send> {
+    ) -> Box<dyn Iterator<Item = VID> + Send> {
         Box::new(
             self.vertex_edges_window(v, t_start, t_end, d, layers)
                 .map(|e| e.remote())

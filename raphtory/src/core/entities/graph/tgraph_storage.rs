@@ -1,5 +1,5 @@
 use crate::core::{
-    entities::{edges::edge_store::EdgeStore, vertices::vertex_store::VertexStore, LayerIds},
+    entities::{edges::edge_store::EdgeStore, vertices::vertex_store::VertexStore, LayerIds, EID},
     storage::{self, ArcEntry, Entry, EntryMut, PairEntryMut},
     Direction,
 };
@@ -27,16 +27,18 @@ impl<const N: usize> GraphStorage<N> {
         self.nodes.push(node, |vid, node| node.vid = vid.into())
     }
 
-    pub(crate) fn push_edge(&self, edge: EdgeStore<N>) -> usize {
-        self.edges.push(edge, |eid, edge| edge.eid = eid.into())
+    pub(crate) fn push_edge(&self, edge: EdgeStore<N>) -> EID {
+        self.edges
+            .push(edge, |eid, edge| edge.eid = eid.into())
+            .into()
     }
 
     pub(crate) fn get_node_mut(&self, id: usize) -> EntryMut<'_, VertexStore<N>> {
         self.nodes.entry_mut(id)
     }
 
-    pub(crate) fn get_edge_mut(&self, id: usize) -> EntryMut<'_, EdgeStore<N>> {
-        self.edges.entry_mut(id)
+    pub(crate) fn get_edge_mut(&self, id: EID) -> EntryMut<'_, EdgeStore<N>> {
+        self.edges.entry_mut(id.into())
     }
 
     pub(crate) fn get_node(&self, id: usize) -> Entry<'_, VertexStore<N>, N> {

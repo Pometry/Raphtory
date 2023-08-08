@@ -17,6 +17,7 @@ use crate::core::{
     Direction, Prop,
 };
 // use crate::prelude::Layer::Default;
+use crate::core::storage::timeindex::TimeIndexEntry;
 use std::{
     default::Default,
     ops::{Deref, Range},
@@ -145,7 +146,10 @@ impl<'a, const N: usize> EdgeView<'a, N> {
         }
     }
 
-    pub(crate) fn additions(self, layer_ids: LayerIds) -> Option<LockedLayeredIndex<'a>> {
+    pub(crate) fn additions(
+        self,
+        layer_ids: LayerIds,
+    ) -> Option<LockedLayeredIndex<'a, TimeIndexEntry>> {
         match self.edge_id {
             ERef::ERef(entry) => {
                 let t_index = entry.map(|entry| entry.additions());
@@ -155,7 +159,10 @@ impl<'a, const N: usize> EdgeView<'a, N> {
         }
     }
 
-    pub(crate) fn deletions(self, layer_ids: LayerIds) -> Option<LockedLayeredIndex<'a>> {
+    pub(crate) fn deletions(
+        self,
+        layer_ids: LayerIds,
+    ) -> Option<LockedLayeredIndex<'a, TimeIndexEntry>> {
         match self.edge_id {
             ERef::ERef(entry) => {
                 let t_index = entry.map(|entry| entry.deletions());
@@ -302,7 +309,7 @@ impl<'a, const N: usize> EdgeView<'a, N> {
         }
     }
 
-    fn check_layers<E: Deref<Target = EdgeStore<N>>, F: Fn(&TimeIndex) -> bool>(
+    fn check_layers<E: Deref<Target = EdgeStore<N>>, F: Fn(&TimeIndex<TimeIndexEntry>) -> bool>(
         &self,
         layer_ids: LayerIds,
         e: E,

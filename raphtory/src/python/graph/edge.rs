@@ -452,6 +452,7 @@ impl PyEdges {
     }
 
     /// Returns all properties of the edges
+    #[getter]
     fn properties(&self) -> PyPropsList {
         let builder = self.builder.clone();
         (move || builder().properties()).into()

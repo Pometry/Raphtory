@@ -1,6 +1,6 @@
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef, LayerIds},
+        entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
         state::compute_state::ComputeState,
         storage::locked_view::LockedView,
         Prop,
@@ -57,8 +57,8 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> WindowEvalEdgeView<'a, G
 
     pub fn history(&self) -> Vec<i64> {
         self.graph()
-            .edge_window_t(self.eref(), self.t_start..self.t_end, LayerIds::All)
-            .map(|e| e.time().expect("exploded"))
+            .edge_window_exploded(self.eref(), self.t_start..self.t_end, LayerIds::All)
+            .map(|e| e.time_t().expect("exploded"))
             .collect()
     }
 }
@@ -74,10 +74,10 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static>
         self.ev.clone()
     }
 
-    fn new_vertex(&self, v: VertexRef) -> WindowEvalVertex<'a, G, CS, S> {
+    fn new_vertex(&self, v: VID) -> WindowEvalVertex<'a, G, CS, S> {
         WindowEvalVertex::new(
             self.ss,
-            self.g.localise_vertex_unchecked(v),
+            v,
             self.g,
             None,
             self.local_state_prev,
@@ -229,7 +229,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeViewOps
 
     /// Check if edge is active at a given time point
     fn active(&self, t: i64) -> bool {
-        match self.eref().time() {
+        match self.eref().time_t() {
             Some(tt) => tt == t,
             None => {
                 let layer_ids = self.graph().layer_ids().constrain_from_edge(self.eref());
@@ -257,7 +257,9 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeViewOps
         match self.ev.time() {
             Some(_) => Box::new(iter::once(self.new_edge(e))),
             None => {
-                let ts = self.g.edge_window_t(e, t_start..t_end, LayerIds::All);
+                let ts = self
+                    .g
+                    .edge_window_exploded(e, t_start..t_end, LayerIds::All);
                 Box::new(ts.map(move |ex| {
                     WindowEvalEdgeView::new(
                         ss,
@@ -303,7 +305,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeViewOps
 
     /// Gets the first time an edge was seen
     fn earliest_time(&self) -> Option<i64> {
-        self.eref().time().or_else(|| {
+        self.eref().time_t().or_else(|| {
             self.graph().edge_earliest_time_window(
                 self.eref(),
                 self.t_start..self.t_end,
@@ -314,7 +316,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeViewOps
 
     /// Gets the latest time an edge was updated
     fn latest_time(&self) -> Option<i64> {
-        self.eref().time().or_else(|| {
+        self.eref().time_t().or_else(|| {
             self.graph().edge_latest_time_window(
                 self.eref(),
                 self.t_start..self.t_end,

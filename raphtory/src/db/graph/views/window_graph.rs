@@ -34,7 +34,7 @@
 //! graph.add_edge(2, 2, 3, NO_PROPS, None).unwrap();
 //!
 //!  let wg = graph.window(0, 1);
-//!  assert_eq!(wg.edge(1, 2, Layer::All).unwrap().src().id(), 1);
+//!  assert_eq!(wg.edge(1, 2).unwrap().src().id(), 1);
 //! ```
 
 use crate::{
@@ -192,13 +192,18 @@ impl<G: GraphViewOps> TimeSemantics for WindowedGraph<G> {
             .vertex_history_window(v, self.actual_start(w.start)..self.actual_end(w.end))
     }
 
-    fn edge_t(&self, e: EdgeRef, layer_ids: LayerIds) -> BoxedIter<EdgeRef> {
+    fn edge_exploded(&self, e: EdgeRef, layer_ids: LayerIds) -> BoxedIter<EdgeRef> {
         self.graph
-            .edge_window_t(e, self.t_start..self.t_end, layer_ids)
+            .edge_window_exploded(e, self.t_start..self.t_end, layer_ids)
     }
 
-    fn edge_window_t(&self, e: EdgeRef, w: Range<i64>, layer_ids: LayerIds) -> BoxedIter<EdgeRef> {
-        self.graph.edge_window_t(
+    fn edge_window_exploded(
+        &self,
+        e: EdgeRef,
+        w: Range<i64>,
+        layer_ids: LayerIds,
+    ) -> BoxedIter<EdgeRef> {
+        self.graph.edge_window_exploded(
             e,
             self.actual_start(w.start)..self.actual_end(w.end),
             layer_ids,
@@ -395,7 +400,7 @@ impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
     /// # Errors
     ///
     /// Returns an error if either `src` or `dst` is not a valid vertex.
-    fn has_edge_ref(&self, src: VertexRef, dst: VertexRef, layer: LayerIds) -> bool {
+    fn has_edge_ref(&self, src: VID, dst: VID, layer: LayerIds) -> bool {
         self.graph
             .has_edge_ref_window(src, dst, self.t_start, self.t_end, layer)
     }
@@ -477,7 +482,7 @@ impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
     /// # Errors
     ///
     /// Returns an error if `src` or `dst` are not valid vertices.
-    fn edge_ref(&self, src: VertexRef, dst: VertexRef, layer: LayerIds) -> Option<EdgeRef> {
+    fn edge_ref(&self, src: VID, dst: VID, layer: LayerIds) -> Option<EdgeRef> {
         self.graph
             .edge_ref_window(src, dst, self.t_start, self.t_end, layer)
     }
@@ -516,7 +521,7 @@ impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
         v: VID,
         d: Direction,
         layer: LayerIds,
-    ) -> Box<dyn Iterator<Item = VertexRef> + Send> {
+    ) -> Box<dyn Iterator<Item = VID> + Send> {
         self.graph
             .neighbours_window(v, self.t_start, self.t_end, d, layer)
     }
@@ -627,8 +632,8 @@ mod views_test {
         }
 
         let wg = g.window(i64::MIN, i64::MAX);
-        assert_eq!(wg.edge(1, 3, Layer::All).unwrap().src().id(), 1);
-        assert_eq!(wg.edge(1, 3, Layer::All).unwrap().dst().id(), 3);
+        assert_eq!(wg.edge(1, 3).unwrap().src().id(), 1);
+        assert_eq!(wg.edge(1, 3).unwrap().dst().id(), 3);
     }
 
     #[test]
@@ -809,7 +814,7 @@ mod views_test {
             .filter(|e| e.0 < i64::MAX)
             .for_each(|(t, src, dst)| {
                 g.add_edge(t, src, dst, [("test".to_owned(), Prop::Bool(true))], None)
-                    .unwrap()
+                    .unwrap();
             });
         let w = g.window(i64::MIN, i64::MAX);
         g.edges()

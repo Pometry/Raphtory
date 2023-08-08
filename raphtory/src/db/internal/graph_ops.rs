@@ -65,10 +65,7 @@ impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
         Box::new(self.inner().vertex_ids())
     }
 
-    fn edge_ref(&self, src: VertexRef, dst: VertexRef, layer: LayerIds) -> Option<EdgeRef> {
-        let src = self.inner().resolve_vertex_ref(&src)?;
-        let dst = self.inner().resolve_vertex_ref(&dst)?;
-
+    fn edge_ref(&self, src: VID, dst: VID, layer: LayerIds) -> Option<EdgeRef> {
         self.inner()
             .find_edge(src, dst, layer)
             .map(|e_id| EdgeRef::new_outgoing(e_id, src, dst))
@@ -115,16 +112,12 @@ impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
         v: VID,
         d: Direction,
         layers: LayerIds,
-    ) -> Box<dyn Iterator<Item = VertexRef> + Send> {
-        let vid = self
-            .inner()
-            .resolve_vertex_ref(&VertexRef::Local(v))
-            .unwrap();
-        let v = self.inner().vertex_arc(vid);
+    ) -> Box<dyn Iterator<Item = VID> + Send> {
+        let v = self.inner().vertex_arc(v);
 
-        let iter: GenBoxed<VertexRef> = GenBoxed::new_boxed(|co| async move {
+        let iter: GenBoxed<VID> = GenBoxed::new_boxed(|co| async move {
             for v_id in v.neighbours(layers, d) {
-                co.yield_(VertexRef::Local(v_id)).await;
+                co.yield_(v_id).await;
             }
         });
 

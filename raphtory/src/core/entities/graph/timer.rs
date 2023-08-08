@@ -36,16 +36,16 @@ impl MinCounter {
 }
 
 impl TimeCounterTrait for MinCounter {
-    fn get(&self) -> i64 {
-        self.counter.load(Ordering::Relaxed)
-    }
-
     fn cmp(new_value: i64, current_value: i64) -> bool {
         new_value < current_value
     }
 
     fn counter(&self) -> &AtomicI64 {
         &self.counter
+    }
+
+    fn get(&self) -> i64 {
+        self.counter.load(Ordering::Relaxed)
     }
 }
 

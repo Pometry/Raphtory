@@ -650,6 +650,22 @@ def test_edge_properties():
     assert "static prop" in g.at(1).edge(1, 2).properties.constant
 
 
+def test_graph_as_property():
+    g = Graph()
+    g.add_edge(0, 1, 2, {"graph": g})
+    assert "graph" in g.edge(1, 2).properties
+    assert g.edge(1, 2).properties["graph"].has_edge(1, 2)
+
+
+def test_map_and_list_property():
+    g = Graph()
+    g.add_edge(0, 1, 2, {"map": {"test": 1, "list": [1, 2, 3]}})
+    e_props = g.edge(1, 2).properties
+    assert "map" in e_props
+    assert e_props["map"]["test"] == 1
+    assert e_props["map"]["list"] == [1, 2, 3]
+
+
 def test_exploded_edge_time():
     g = graph_loader.lotr_graph()
     e = g.edge("Frodo", "Gandalf")
@@ -984,9 +1000,7 @@ def test_edge_history():
     view = g.window(1, 5)
 
     assert (g.edge(1, 2).history() == [1, 3])
-
-    # also needs to be fixed in Pedros PR
-    # assert(view.edge(1, 4).history() == [4])
+    assert(view.edge(1, 4).history() == [4])
 
 
 def test_lotr_edge_history():
@@ -1172,7 +1186,7 @@ def test_layer_name():
     g.add_edge(0, 0, 2, layer="awesome layer")
 
     assert g.edge(0, 1).layer_names() == ["_default"]
-    assert g.edge(0, 2, "awesome layer").layer_names() == ["awesome layer"]
+    assert g.edge(0, 2).layer_names() == ["awesome layer"]
 
 
 def test_window_size():

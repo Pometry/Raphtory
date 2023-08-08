@@ -3,7 +3,7 @@ use crate::core::{
         graph::tgraph::FxDashMap,
         properties::{props::DictMapper, tprop::TProp},
     },
-    storage::locked_view::LockedView,
+    storage::{locked_view::LockedView, timeindex::TimeIndexEntry},
     Prop,
 };
 use parking_lot::RwLockReadGuard;
@@ -34,13 +34,13 @@ impl GraphProps {
         (*prop_entry) = Some(prop);
     }
 
-    pub(crate) fn add_prop(&self, t: i64, name: &str, prop: Prop) {
+    pub(crate) fn add_prop(&self, t: TimeIndexEntry, name: &str, prop: Prop) {
         let prop_id = self.temporal_mapper.get_or_create_id(name.to_owned());
         let mut prop_entry = self
             .temporal_props
             .entry(prop_id)
             .or_insert(TProp::default());
-        (*prop_entry).set(t, &prop);
+        (*prop_entry).set(t, prop);
     }
 
     pub(crate) fn get_static(&self, name: &str) -> Option<Prop> {

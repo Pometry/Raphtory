@@ -59,8 +59,8 @@ impl<G: GraphViewOps> GraphOps for VertexSubgraph<G> {
 
     fn find_edge_id(&self, e_id: EID) -> Option<EdgeRef> {
         let edge_ref = self.graph.find_edge_id(e_id)?;
-        let vid_src = self.local_vertex_ref(edge_ref.src())?;
-        let vid_dst = self.local_vertex_ref(edge_ref.dst())?;
+        let vid_src = edge_ref.src();
+        let vid_dst = edge_ref.dst();
 
         if self.vertices.contains(&vid_src) && self.vertices.contains(&vid_dst) {
             Some(edge_ref)
@@ -88,10 +88,8 @@ impl<G: GraphViewOps> GraphOps for VertexSubgraph<G> {
             .sum()
     }
 
-    fn has_edge_ref(&self, src: VertexRef, dst: VertexRef, layer: LayerIds) -> bool {
-        self.has_vertex_ref(src)
-            && self.has_vertex_ref(dst)
-            && self.graph.has_edge_ref(src, dst, layer)
+    fn has_edge_ref(&self, src: VID, dst: VID, layer: LayerIds) -> bool {
+        self.graph.has_edge_ref(src, dst, layer)
     }
 
     fn has_vertex_ref(&self, v: VertexRef) -> bool {
@@ -112,12 +110,8 @@ impl<G: GraphViewOps> GraphOps for VertexSubgraph<G> {
         Box::new(verts.into_iter())
     }
 
-    fn edge_ref(&self, src: VertexRef, dst: VertexRef, layer: LayerIds) -> Option<EdgeRef> {
-        if self.has_vertex_ref(src) && self.has_vertex_ref(dst) {
-            self.graph.edge_ref(src, dst, layer)
-        } else {
-            None
-        }
+    fn edge_ref(&self, src: VID, dst: VID, layer: LayerIds) -> Option<EdgeRef> {
+        self.graph.edge_ref(src, dst, layer)
     }
 
     fn edge_refs(&self, layer: LayerIds) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
@@ -138,7 +132,7 @@ impl<G: GraphViewOps> GraphOps for VertexSubgraph<G> {
         Box::new(
             self.graph
                 .vertex_edges(v, d, layer)
-                .filter(move |&e| g.has_vertex_ref(e.remote())),
+                .filter(move |&e| g.has_vertex_ref(VertexRef::Local(e.remote()))),
         )
     }
 
@@ -147,7 +141,7 @@ impl<G: GraphViewOps> GraphOps for VertexSubgraph<G> {
         v: VID,
         d: Direction,
         layers: LayerIds,
-    ) -> Box<dyn Iterator<Item = VertexRef> + Send> {
+    ) -> Box<dyn Iterator<Item = VID> + Send> {
         match d {
             Direction::BOTH => Box::new(
                 self.neighbours(v, Direction::IN, layers.clone())

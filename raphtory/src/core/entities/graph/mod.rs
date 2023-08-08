@@ -16,21 +16,21 @@ mod test {
         let g: InnerTemporalGraph<2> = InnerTemporalGraph::default();
 
         g.inner().add_edge_internal(
-            1,
+            1.into(),
             1,
             2,
             vec![("tx_sent".to_string(), 10.into_prop())],
             Some("btc"),
         );
         g.inner().add_edge_internal(
-            1,
+            1.into(),
             1,
             2,
             vec![("tx_sent".to_string(), 20.into_prop())],
             Some("eth"),
         );
         g.inner().add_edge_internal(
-            1,
+            1.into(),
             1,
             2,
             vec![("tx_sent".to_string(), 70.into_prop())],
@@ -62,7 +62,7 @@ mod test {
         let empty: Vec<(String, Prop)> = vec![];
         for (t, src, dst) in vs {
             g.inner()
-                .add_edge_internal(t, src, dst, empty.clone(), None);
+                .add_edge_internal(t.into(), src, dst, empty.clone(), None);
         }
 
         let v = g.inner().vertex(0.into());

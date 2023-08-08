@@ -1,5 +1,5 @@
 use crate::{
-    core::{utils::errors::GraphError, Prop},
+    core::{storage::timeindex::TimeIndexEntry, utils::errors::GraphError, Prop},
     db::api::view::internal::Base,
 };
 
@@ -12,8 +12,11 @@ pub trait InternalPropertyAdditionOps {
         data: Vec<(String, Prop)>,
     ) -> Result<(), GraphError>;
 
-    fn internal_add_properties(&self, t: i64, props: Vec<(String, Prop)>)
-        -> Result<(), GraphError>;
+    fn internal_add_properties(
+        &self,
+        t: TimeIndexEntry,
+        props: Vec<(String, Prop)>,
+    ) -> Result<(), GraphError>;
 
     fn internal_add_static_properties(&self, props: Vec<(String, Prop)>) -> Result<(), GraphError>;
 
@@ -58,7 +61,7 @@ impl<G: DelegatePropertyAdditionOps> InternalPropertyAdditionOps for G {
     #[inline(always)]
     fn internal_add_properties(
         &self,
-        t: i64,
+        t: TimeIndexEntry,
         props: Vec<(String, Prop)>,
     ) -> Result<(), GraphError> {
         self.graph().internal_add_properties(t, props)

@@ -5,7 +5,7 @@ use crate::{
 use pyo3::{
     exceptions::PyTypeError, types::PyBool, FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python,
 };
-use std::ops::Deref;
+use std::{ops::Deref, sync::Arc};
 
 impl IntoPy<PyObject> for Prop {
     fn into_py(self, py: Python<'_>) -> PyObject {
@@ -47,6 +47,12 @@ impl<'source> FromPyObject<'source> for Prop {
         }
         if let Ok(g) = ob.extract() {
             return Ok(Prop::Graph(g));
+        }
+        if let Ok(list) = ob.extract() {
+            return Ok(Prop::List(Arc::new(list)));
+        }
+        if let Ok(map) = ob.extract() {
+            return Ok(Prop::Map(Arc::new(map)));
         }
         Err(PyTypeError::new_err("Not a valid property type"))
     }

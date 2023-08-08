@@ -109,7 +109,7 @@ impl<G: GraphViewOps> GraphOps for LayeredGraph<G> {
         self.graph.edges_len(self.constrain(layers))
     }
 
-    fn has_edge_ref(&self, src: VertexRef, dst: VertexRef, layer: LayerIds) -> bool {
+    fn has_edge_ref(&self, src: VID, dst: VID, layer: LayerIds) -> bool {
         self.graph.has_edge_ref(src, dst, self.constrain(layer))
     }
 
@@ -129,7 +129,7 @@ impl<G: GraphViewOps> GraphOps for LayeredGraph<G> {
         self.graph.vertex_refs()
     }
 
-    fn edge_ref(&self, src: VertexRef, dst: VertexRef, layer: LayerIds) -> Option<EdgeRef> {
+    fn edge_ref(&self, src: VID, dst: VID, layer: LayerIds) -> Option<EdgeRef> {
         self.graph.edge_ref(src, dst, self.constrain(layer))
     }
 
@@ -151,7 +151,7 @@ impl<G: GraphViewOps> GraphOps for LayeredGraph<G> {
         v: VID,
         d: Direction,
         layer: LayerIds,
-    ) -> Box<dyn Iterator<Item = VertexRef> + Send> {
+    ) -> Box<dyn Iterator<Item = VID> + Send> {
         self.graph.neighbours(v, d, self.constrain(layer))
     }
 }

@@ -1,9 +1,12 @@
-use crate::{core::utils::errors::GraphError, db::api::view::internal::Base};
+use crate::{
+    core::{storage::timeindex::TimeIndexEntry, utils::errors::GraphError},
+    db::api::view::internal::Base,
+};
 
 pub trait InternalDeletionOps {
     fn internal_delete_edge(
         &self,
-        t: i64,
+        t: TimeIndexEntry,
         src: u64,
         dst: u64,
         layer: Option<&str>,
@@ -33,7 +36,7 @@ impl<G: DelegateDeletionOps> InternalDeletionOps for G {
     #[inline(always)]
     fn internal_delete_edge(
         &self,
-        t: i64,
+        t: TimeIndexEntry,
         src: u64,
         dst: u64,
         layer: Option<&str>,
