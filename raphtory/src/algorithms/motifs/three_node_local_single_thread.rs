@@ -315,7 +315,7 @@ pub fn global_temporal_three_node_motifs<G: GraphViewOps>(graph: &G, delta: i64)
 #[cfg(test)]
 mod local_motif_test {
     use crate::{
-        algorithms::motifs::three_node_local::*,
+        algorithms::motifs::three_node_local_single_thread::*,
         db::{api::mutation::AdditionOps, graph::graph::Graph},
         prelude::NO_PROPS,
     };

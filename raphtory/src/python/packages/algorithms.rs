@@ -17,7 +17,7 @@ use crate::{
         hits::hits as hits_rs,
         local_clustering_coefficient::local_clustering_coefficient as local_clustering_coefficient_rs,
         local_triangle_count::local_triangle_count as local_triangle_count_rs,
-        motifs::three_node_local_redone::{
+        motifs::three_node_temporal_motifs::{
             global_temporal_three_node_motif as global_temporal_three_node_motif_rs,
             temporal_three_node_motif as local_three_node_rs,
         },
