@@ -555,7 +555,7 @@ impl<G: GraphViewOps> IndexedGraph<G> {
         offset: usize,
     ) -> Result<Vec<VertexView<G>>, GraphError> {
         let searcher = self.reader.searcher();
-        let mut query_parser = tantivy::query::QueryParser::for_index(&self.vertex_index, vec![]);
+        let query_parser = tantivy::query::QueryParser::for_index(&self.vertex_index, vec![]);
 
         let query = query_parser.parse_query(q)?;
 
@@ -582,7 +582,7 @@ impl<G: GraphViewOps> IndexedGraph<G> {
         offset: usize,
     ) -> Result<Vec<EdgeView<G>>, GraphError> {
         let searcher = self.edge_reader.searcher();
-        let mut query_parser = tantivy::query::QueryParser::for_index(&self.edge_index, vec![]);
+        let query_parser = tantivy::query::QueryParser::for_index(&self.edge_index, vec![]);
 
         let query = query_parser.parse_query(q)?;
 
@@ -737,7 +737,6 @@ impl<G: GraphViewOps + InternalAdditionOps> InternalAdditionOps for IndexedGraph
 
 #[cfg(test)]
 mod test {
-    use std::time::SystemTime;
 
     use tantivy::{doc, DocAddress};
 
@@ -770,29 +769,7 @@ mod test {
         assert_eq!(results, vec!["Blerg"]);
     }
 
-    #[test]
-    #[ignore = "this test is for experiments with the jira graph"]
-    fn load_jira_graph() -> Result<(), GraphError> {
-        let graph = Graph::load_from_file("/tmp/graphs/jira").expect("failed to load graph");
-        assert!(graph.num_vertices() > 0);
-
-        let now = SystemTime::now();
-
-        let index_graph: IndexedGraph<Graph> = graph.into();
-        let elapsed = now.elapsed().unwrap().as_secs();
-        println!("indexing took: {:?}", elapsed);
-
-        let issues = index_graph.search_vertices("name:'DEV-1690'", 5, 0)?;
-
-        assert!(!issues.is_empty());
-
-        let names = issues.into_iter().map(|v| v.name()).collect::<Vec<_>>();
-        println!("names: {:?}", names);
-
-        Ok(())
-    }
-
-    #[test]
+      #[test]
     fn create_indexed_graph_from_existing_graph() {
         let graph = Graph::new();
 
