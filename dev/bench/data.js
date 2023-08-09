@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1691500355814,
+  "lastUpdate": 1691583617623,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -6259,6 +6259,60 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions with numeric string input",
             "value": 2137319,
             "range": "± 202088",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97447091+ljeub-pometry@users.noreply.github.com",
+            "name": "ljeub-pometry",
+            "username": "ljeub-pometry"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "47283e2db552e913566a082ca3b6d2d1177f72ce",
+          "message": "Bug/unsafe layer panic (#1166)\n\n* add reproducing python test\r\n\r\n* add reproducing rust test\r\n\r\n* remove unsafe_layer completely and fix constant property retrieval for edges",
+          "timestamp": "2023-08-09T13:13:48+01:00",
+          "tree_id": "56c93357353e36856192eadc7caa3726e4c9e95b",
+          "url": "https://github.com/Pometry/Raphtory/commit/47283e2db552e913566a082ca3b6d2d1177f72ce"
+        },
+        "date": 1691583616776,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 721067,
+            "range": "± 10727",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and numeric string input",
+            "value": 1068091,
+            "range": "± 4809",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and string input",
+            "value": 1102477,
+            "range": "± 13917",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 1245624,
+            "range": "± 98103",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions with numeric string input",
+            "value": 1887537,
+            "range": "± 83945",
             "unit": "ns/iter"
           }
         ]
