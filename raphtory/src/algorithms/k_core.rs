@@ -48,24 +48,28 @@ where
     let step1 = ATask::new(move |vv| {
         let deg = vv.degree();
         let state: &mut KCoreState = vv.get_mut();
-        state.alive = if deg < k { false } else { true };
+        state.alive = deg >= k;
         Step::Continue
     });
 
     let step2 = ATask::new(
         move |vv: &mut EvalVertexView<'_, G, ComputeStateVec, KCoreState>| {
             let prev: bool = vv.prev().alive;
-            let current = vv
-                .neighbours()
-                .into_iter()
-                .map(|n| n.prev().alive)
-                .filter(|b| *b)
-                .count()
-                >= k;
-            let state: &mut KCoreState = vv.get_mut();
-            if current != prev {
-                state.alive = current;
-                Step::Continue
+            if prev == true {
+                let current = vv
+                    .neighbours()
+                    .into_iter()
+                    .map(|n| n.prev().alive)
+                    .filter(|b| *b)
+                    .count()
+                    >= k;
+                let state: &mut KCoreState = vv.get_mut();
+                if current != prev {
+                    state.alive = current;
+                    Step::Continue
+                } else {
+                    Step::Done
+                }
             } else {
                 Step::Done
             }
