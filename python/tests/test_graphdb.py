@@ -1584,3 +1584,12 @@ def load_from_pandas_into_existing_graph():
         vertices.append((v.id(), name))
 
     assert vertices == [(1, "Alice"), (2, "Bob"), (3, "Carol"), (4, "Dave"), (5, "Eve"), (6, "Frank")]
+
+
+def test_edge_layer():
+    g = Graph()
+    g.add_edge(1, 1, 2, layer="layer 1")
+    g.add_edge(1, 2, 3, layer="layer 2")
+    g.add_edge_properties(1, 2, {"test_prop": "test_val"}, layer="layer 1")
+    g.add_edge_properties(2, 3, {"test_prop": "test_val 2"}, layer="layer 2")
+    assert g.edges().properties.constant.get("test_prop") == [{'layer 1': 'test_val'}, {'layer 2': 'test_val 2'}]
