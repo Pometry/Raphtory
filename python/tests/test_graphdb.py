@@ -1658,3 +1658,11 @@ def test_load_from_pandas_with_types():
 def test_hits_algorithm():
     g = graph_loader.lotr_graph()
     assert algorithms.hits(g).get('Aldor') == (0.0035840950440615416, 0.007476256228983402)
+
+def test_edge_layer():
+    g = Graph()
+    g.add_edge(1, 1, 2, layer="layer 1")
+    g.add_edge(1, 2, 3, layer="layer 2")
+    g.add_edge_properties(1, 2, {"test_prop": "test_val"}, layer="layer 1")
+    g.add_edge_properties(2, 3, {"test_prop": "test_val 2"}, layer="layer 2")
+    assert g.edges().properties.constant.get("test_prop") == [{'layer 1': 'test_val'}, {'layer 2': 'test_val 2'}]

@@ -307,7 +307,7 @@ pub type EdgeList<G> = Box<dyn Iterator<Item = EdgeView<G>> + Send>;
 
 #[cfg(test)]
 mod test_edge {
-    use crate::prelude::*;
+    use crate::{core::IntoPropMap, prelude::*};
     use std::collections::HashMap;
 
     #[test]
@@ -321,5 +321,41 @@ mod test_edge {
         let e1_w = g.window(0, 1).edge(1, 2).unwrap();
         assert_eq!(HashMap::from_iter(e1.properties().as_vec()), props.into());
         assert!(e1_w.properties().as_vec().is_empty())
+    }
+
+    #[test]
+    fn test_constant_properties() {
+        let g = Graph::new();
+        g.add_edge(1, 1, 2, NO_PROPS, Some("layer 1")).unwrap();
+        g.add_edge(1, 2, 3, NO_PROPS, Some("layer 2")).unwrap();
+        g.add_edge_properties(1, 2, [("test_prop", "test_val")], Some("layer 1"))
+            .unwrap();
+        g.add_edge_properties(2, 3, [("test_prop", "test_val")], Some("layer 2"))
+            .unwrap();
+
+        assert_eq!(
+            g.edge(1, 2)
+                .unwrap()
+                .properties()
+                .constant()
+                .get("test_prop"),
+            Some([("layer 1", "test_val")].into_prop_map())
+        );
+        assert_eq!(
+            g.edge(2, 3)
+                .unwrap()
+                .properties()
+                .constant()
+                .get("test_prop"),
+            Some([("layer 2", "test_val")].into_prop_map())
+        );
+        for e in g.edges() {
+            for ee in e.explode() {
+                assert_eq!(
+                    ee.properties().constant().get("test_prop"),
+                    Some("test_val".into())
+                )
+            }
+        }
     }
 }
