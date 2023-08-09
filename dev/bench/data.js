@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1691583617623,
+  "lastUpdate": 1691588987717,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -6313,6 +6313,60 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions with numeric string input",
             "value": 1887537,
             "range": "± 83945",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "b.a.steer@qmul.ac.uk",
+            "name": "Ben Steer",
+            "username": "miratepuffin"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a105bafe3f600b45546932d5d625411b3a89e2c5",
+          "message": "Added constant props to pandas loaders (#1165)\n\n* Added vertex type arguments to the pandas loader and tests for layers/types in pandas loader\r\n\r\n* Changed to static props\r\n\r\n* Added functions for adding constant props only\r\n\r\n* fmt\r\n\r\n* added tests for static props\r\n\r\n* Finalised tests",
+          "timestamp": "2023-08-09T14:43:37+01:00",
+          "tree_id": "b3aade65e1baa3045dc2775bd26ab4c22f800b64",
+          "url": "https://github.com/Pometry/Raphtory/commit/a105bafe3f600b45546932d5d625411b3a89e2c5"
+        },
+        "date": 1691588986843,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 768664,
+            "range": "± 2357",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and numeric string input",
+            "value": 1134517,
+            "range": "± 2833",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and string input",
+            "value": 1187745,
+            "range": "± 5918",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 1041142,
+            "range": "± 64482",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions with numeric string input",
+            "value": 1685236,
+            "range": "± 68788",
             "unit": "ns/iter"
           }
         ]
