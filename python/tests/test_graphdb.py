@@ -1638,26 +1638,10 @@ def test_load_from_pandas_with_types():
     assert g.vertices().properties.constant.get("type").collect() == ["Person 1", "Person 2", "Person 3", "Person 4", "Person 5", "Person 6"]
     assert g.vertices().properties.constant.get("tag").collect() == ["test_tag", "test_tag", "test_tag", "test_tag", "test_tag", "test_tag"]
 
-    # TODO Currently can't be tested because of the below issue
-    #g.load_edge_props_from_pandas(edges_df, "src", "dst", const_props=["marbles_const"], shared_const_props={"tag": "test_tag"},layer_in_df="layers")
-    #assert g.layers(['layer 1']).edges().properties.constant.get("marbles_const").collect() == ["red"]
-    #assert g.edges()#.properties.constant.get("tag").collect() == ["red"]
+    g.load_edge_props_from_pandas(edges_df, "src", "dst", const_props=["marbles_const"], shared_const_props={"tag": "test_tag"},layer_in_df="layers")
+    assert g.layers(["layer 1", "layer 2", "layer 3"]).edges().properties.constant.get("marbles_const").collect() == [{'layer 1': 'red'}, {'layer 2': 'blue'}, {'layer 3': 'green'}]
+    assert g.edges().properties.constant.get("tag").collect() == [{'layer 1': 'test_tag'}, {'layer 2': 'test_tag'}, {'layer 3': 'test_tag'}, {'layer 4': 'test_tag'}, {'layer 5': 'test_tag'}]
 
-#TODO this test is failing
-# def test_edge_layer():
-#     g = Graph()
-#     g.add_edge(1,1,2,layer="layer 1")
-#     g.add_edge(1,2,3,layer="layer 2")
-#     g.add_edge_properties(1,2, {"test_prop": "test_val"},layer="layer 1")
-#     g.add_edge_properties(2,3, {"test_prop": "test_val 2"},layer="layer 2")
-#     assert g.edges().properties.constant.get("test_prop").collect() == ["test_val"]
-
-
-
-
-def test_hits_algorithm():
-    g = graph_loader.lotr_graph()
-    assert algorithms.hits(g).get('Aldor') == (0.0035840950440615416, 0.007476256228983402)
 
 def test_edge_layer():
     g = Graph()
@@ -1666,3 +1650,9 @@ def test_edge_layer():
     g.add_edge_properties(1, 2, {"test_prop": "test_val"}, layer="layer 1")
     g.add_edge_properties(2, 3, {"test_prop": "test_val 2"}, layer="layer 2")
     assert g.edges().properties.constant.get("test_prop") == [{'layer 1': 'test_val'}, {'layer 2': 'test_val 2'}]
+
+
+def test_hits_algorithm():
+    g = graph_loader.lotr_graph()
+    assert algorithms.hits(g).get('Aldor') == (0.0035840950440615416, 0.007476256228983402)
+
