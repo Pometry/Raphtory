@@ -2,6 +2,7 @@ use crate::{
     core::{entities::VID, state::compute_state::ComputeStateVec},
     db::{
         api::view::{GraphViewOps, VertexViewOps},
+        graph::views::vertex_subgraph::VertexSubgraph,
         task::{
             context::Context,
             task::{ATask, Job, Step},
@@ -78,27 +79,36 @@ where
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
 
-    runner
-        .run(
-            vec![Job::new(step1)],
-            vec![Job::read_only(step2)],
-            KCoreState::new(),
-            |_, _, _, local| {
-                local
-                    .iter()
-                    .enumerate()
-                    .map(|(v_ref, state)| (v_ref.into(), state.alive))
-                    .collect::<HashMap<_, _>>()
-            },
-            threads,
-            iter_count,
-            None,
-            None,
-        )
-        .into_iter()
-        .filter(|(k, v)| *v)
-        .map(|(k, v)| k)
-        .collect()
+    runner.run(
+        vec![Job::new(step1)],
+        vec![Job::read_only(step2)],
+        KCoreState::new(),
+        |_, _, _, local| {
+            local
+                .iter()
+                .enumerate()
+                .filter(|(_, state)| state.alive)
+                .map(|(v_ref, _)| v_ref.into())
+                .collect::<HashSet<VID>>()
+        },
+        threads,
+        iter_count,
+        None,
+        None,
+    )
+}
+
+pub fn k_core<G>(
+    graph: &G,
+    k: usize,
+    iter_count: usize,
+    threads: Option<usize>,
+) -> VertexSubgraph<G>
+where
+    G: GraphViewOps,
+{
+    let v_set = k_core_set(graph, k, iter_count, threads);
+    graph.subgraph(v_set)
 }
 
 mod k_core_test {
