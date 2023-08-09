@@ -206,10 +206,6 @@ impl<const N: usize> EdgeStore<N> {
         self.layers.get(layer_id)
     }
 
-    pub fn unsafe_layer(&self, layer_id: usize) -> &EdgeLayer {
-        self.layers.get(layer_id).unwrap()
-    }
-
     pub fn additions(&self) -> &Vec<TimeIndex<TimeIndexEntry>> {
         &self.additions
     }
