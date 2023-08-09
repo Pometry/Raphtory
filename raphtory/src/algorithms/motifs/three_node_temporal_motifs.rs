@@ -148,8 +148,8 @@ pub fn twonode_motif_count<G: GraphViewOps>(
     let mut counts = [0; 8];
     for nb in evv.neighbours().into_iter() {
         let nb_id = nb.id();
-        let out = graph.edge(evv.id(), nb_id, None);
-        let inc = graph.edge(nb_id, evv.id(), None);
+        let out = graph.edge(evv.id(), nb_id);
+        let inc = graph.edge(nb_id, evv.id());
         let mut all_exploded: Vec<TwoNodeEvent> = out
             .iter()
             .flat_map(|e| e.explode())
@@ -230,7 +230,7 @@ pub fn triangle_motifs<G: GraphViewOps>(
                         // For each triangle, run the triangle count.
                         let mut tri_edges: Vec<TriangleEdge> = Vec::new();
 
-                        let u_to_v = match g.edge(u.id(), v.id(), None) {
+                        let u_to_v = match g.edge(u.id(), v.id()) {
                             Some(edge) => {
                                 let r = edge
                                     .explode()
@@ -240,7 +240,7 @@ pub fn triangle_motifs<G: GraphViewOps>(
                             }
                             None => vec![].into_iter(),
                         };
-                        let v_to_u = match g.edge(v.id(), u.id(), None) {
+                        let v_to_u = match g.edge(v.id(), u.id()) {
                             Some(edge) => {
                                 let r = edge
                                     .explode()
@@ -251,8 +251,8 @@ pub fn triangle_motifs<G: GraphViewOps>(
                             None => vec![].into_iter(),
                         };
 
-                        let uout = g.edge(u.id(), *w, None);
-                        let uin = g.edge(*w, u.id(), None);
+                        let uout = g.edge(u.id(), *w);
+                        let uin = g.edge(*w, u.id());
                         match (uout, uin) {
                             (Some(o), Some(i)) => {
                                 tri_edges.append(
@@ -295,8 +295,8 @@ pub fn triangle_motifs<G: GraphViewOps>(
                             (None, None) => {}
                         }
 
-                        let vout = g.edge(v.id(), *w, None);
-                        let vin = g.edge(*w, v.id(), None);
+                        let vout = g.edge(v.id(), *w);
+                        let vin = g.edge(*w, v.id());
                         // The following code checks for triangles
                         match (vout, vin) {
                             (Some(o), Some(i)) => {
