@@ -1,6 +1,6 @@
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef},
+        entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
         state::compute_state::ComputeState,
         storage::locked_view::LockedView,
         Prop,
@@ -60,10 +60,10 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static>
         self.ev
     }
 
-    fn new_vertex(&self, v: VertexRef) -> EvalVertexView<'a, G, CS, S> {
+    fn new_vertex(&self, v: VID) -> EvalVertexView<'a, G, CS, S> {
         EvalVertexView::new_local(
             self.ss,
-            self.graph.localise_vertex_unchecked(v),
+            v,
             self.graph,
             None,
             self.local_state_prev,
@@ -86,11 +86,13 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> ConstPropertiesOps
     for EvalEdgeView<'a, G, CS, S>
 {
     fn const_property_keys<'b>(&'b self) -> Box<dyn Iterator<Item = LockedView<'b, String>> + 'b> {
-        self.graph.static_edge_prop_names(self.ev)
+        self.graph
+            .static_edge_prop_names(self.ev, self.graph.layer_ids())
     }
 
     fn get_const_property(&self, key: &str) -> Option<Prop> {
-        self.graph.static_edge_prop(self.ev, key)
+        self.graph
+            .static_edge_prop(self.ev, key, self.graph.layer_ids())
     }
 }
 
@@ -112,7 +114,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> TemporalPropertyViewOps
 {
     fn temporal_history(&self, id: &String) -> Vec<i64> {
         self.graph
-            .temporal_edge_prop_vec(self.ev, id)
+            .temporal_edge_prop_vec(self.ev, id, self.graph.layer_ids())
             .into_iter()
             .map(|(t, _)| t)
             .collect()
@@ -120,7 +122,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> TemporalPropertyViewOps
 
     fn temporal_values(&self, id: &String) -> Vec<Prop> {
         self.graph
-            .temporal_edge_prop_vec(self.ev, id)
+            .temporal_edge_prop_vec(self.ev, id, self.graph.layer_ids())
             .into_iter()
             .map(|(_, v)| v)
             .collect()
@@ -133,11 +135,16 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> TemporalPropertiesOps
     fn temporal_property_keys<'b>(
         &'b self,
     ) -> Box<dyn Iterator<Item = LockedView<'b, String>> + 'b> {
-        self.graph.temporal_edge_prop_names(self.ev)
+        self.graph
+            .temporal_edge_prop_names(self.ev, self.graph.layer_ids())
     }
 
     fn get_temporal_property(&self, key: &str) -> Option<String> {
-        (!self.graph.temporal_edge_prop_vec(self.ev, key).is_empty()).then_some(key.to_owned())
+        (!self
+            .graph
+            .temporal_edge_prop_vec(self.ev, key, self.graph.layer_ids())
+            .is_empty())
+        .then_some(key.to_owned())
     }
 }
 
@@ -149,7 +156,24 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeViewOps for EvalEdge
     fn explode(&self) -> Self::EList {
         let iter: Box<dyn Iterator<Item = EdgeRef>> = match self.ev.time() {
             Some(_) => Box::new(iter::once(self.ev)),
-            None => Box::new(self.graph.edge_t(self.ev)),
+            None => Box::new(self.graph.edge_exploded(self.ev, LayerIds::All)),
+        };
+
+        let ss = self.ss;
+        let g = self.graph;
+        let vertex_state = self.vertex_state.clone();
+        let local_state_prev = self.local_state_prev;
+        Box::new(
+            iter.map(move |ev| {
+                EvalEdgeView::new(ss, ev, g, vertex_state.clone(), local_state_prev)
+            }),
+        )
+    }
+
+    fn explode_layers(&self) -> Self::EList {
+        let iter: Box<dyn Iterator<Item = EdgeRef>> = match self.ev.time() {
+            Some(_) => Box::new(iter::once(self.ev)),
+            None => Box::new(self.graph.edge_layers(self.ev, LayerIds::All)),
         };
 
         let ss = self.ss;

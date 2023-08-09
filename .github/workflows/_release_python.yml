@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        target: [x86_64, aarch64, armv7]
+        target: [x86_64, aarch64]
     steps:
       - name: "Check if user has write access"
         uses: "lannonbr/repo-permission-check-action@2.0.0"

@@ -1,14 +1,28 @@
 use serde::{ser::SerializeSeq, Deserialize, Serialize};
 use sorted_vector_map::SortedVectorMap;
-use std::ops::Range;
+use std::{borrow::Borrow, ops::Range};
 
 // wrapper for SortedVectorMap
-#[derive(Debug, PartialEq, Default, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct SVM<K: Ord, V>(SortedVectorMap<K, V>);
+
+impl<K: Ord, V> Default for SVM<K, V> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl<K: Ord, V> SVM<K, V> {
     pub(crate) fn new() -> Self {
         Self(SortedVectorMap::new())
+    }
+
+    pub(crate) fn get<Q>(&self, k: &Q) -> Option<&V>
+    where
+        K: Borrow<Q>,
+        Q: Ord + ?Sized,
+    {
+        self.0.get(k)
     }
 
     pub(crate) fn insert(&mut self, k: K, v: V) -> Option<V> {

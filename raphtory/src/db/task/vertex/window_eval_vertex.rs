@@ -1,6 +1,6 @@
 use crate::{
     core::{
-        entities::VID,
+        entities::{LayerIds, VID},
         state::{accumulator_id::AccId, agg::Accumulator, compute_state::ComputeState, StateType},
         utils::time::IntoTime,
         Direction,
@@ -140,19 +140,19 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
     fn degree(&self) -> Self::ValueType<usize> {
         let dir = Direction::BOTH;
         self.graph
-            .degree_window(self.vertex, self.t_start, self.t_end, dir, None)
+            .degree_window(self.vertex, self.t_start, self.t_end, dir, LayerIds::All)
     }
 
     fn in_degree(&self) -> Self::ValueType<usize> {
         let dir = Direction::IN;
         self.graph
-            .degree_window(self.vertex, self.t_start, self.t_end, dir, None)
+            .degree_window(self.vertex, self.t_start, self.t_end, dir, LayerIds::All)
     }
 
     fn out_degree(&self) -> Self::ValueType<usize> {
         let dir = Direction::OUT;
         self.graph
-            .degree_window(self.vertex, self.t_start, self.t_end, dir, None)
+            .degree_window(self.vertex, self.t_start, self.t_end, dir, LayerIds::All)
     }
 
     fn edges(&self) -> Self::EList {
@@ -164,7 +164,13 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
         let t_end = self.t_end;
         Box::new(
             self.graph
-                .vertex_edges_window(self.vertex, self.t_start, self.t_end, Direction::BOTH, None)
+                .vertex_edges_window(
+                    self.vertex,
+                    self.t_start,
+                    self.t_end,
+                    Direction::BOTH,
+                    LayerIds::All,
+                )
                 .map(move |e| {
                     WindowEvalEdgeView::new(
                         ss,
@@ -188,7 +194,13 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
         let t_end = self.t_end;
         Box::new(
             self.graph
-                .vertex_edges_window(self.vertex, self.t_start, self.t_end, Direction::IN, None)
+                .vertex_edges_window(
+                    self.vertex,
+                    self.t_start,
+                    self.t_end,
+                    Direction::IN,
+                    LayerIds::All,
+                )
                 .map(move |e| {
                     WindowEvalEdgeView::new(
                         ss,
@@ -212,7 +224,13 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
         let t_end = self.t_end;
         Box::new(
             self.graph
-                .vertex_edges_window(self.vertex, self.t_start, self.t_end, Direction::OUT, None)
+                .vertex_edges_window(
+                    self.vertex,
+                    self.t_start,
+                    self.t_end,
+                    Direction::OUT,
+                    LayerIds::All,
+                )
                 .map(move |e| {
                     WindowEvalEdgeView::new(
                         ss,
@@ -345,10 +363,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> WindowEvalPathFromVertex
         let iter = self
             .path
             .iter_refs()
-            .flat_map(move |v_ref| {
-                let local_ref = g.localise_vertex_unchecked(v_ref);
-                g.vertex_edges_window(local_ref, t_start, t_end, dir, None)
-            })
+            .flat_map(move |v_ref| g.vertex_edges_window(v_ref, t_start, t_end, dir, LayerIds::All))
             .map(move |e_ref| {
                 WindowEvalEdgeView::new(
                     ss,
@@ -369,10 +384,10 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> WindowEvalPathFromVertex
         let t_start = self.t_start;
         let t_end = self.t_end;
 
-        let iter = self.path.iter_refs().map(move |v_ref| {
-            let local_ref = g.localise_vertex_unchecked(v_ref);
-            g.degree_window(local_ref, t_start, t_end, dir, None)
-        });
+        let iter = self
+            .path
+            .iter_refs()
+            .map(move |v_ref| g.degree_window(v_ref, t_start, t_end, dir, LayerIds::All));
 
         Box::new(iter)
     }
@@ -436,10 +451,10 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
         let t_start = self.t_start;
         let t_end = self.t_end;
 
-        let iter = self.path.iter_refs().map(move |v_ref| {
-            let local_ref = g.localise_vertex_unchecked(v_ref);
-            g.vertex_history_window(local_ref, t_start..t_end)
-        });
+        let iter = self
+            .path
+            .iter_refs()
+            .map(move |v_ref| g.vertex_history_window(v_ref, t_start..t_end));
 
         Box::new(iter)
     }
@@ -589,7 +604,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> IntoIterator
         Box::new(path.iter_refs().map(move |v| {
             WindowEvalVertex::new(
                 ss,
-                self.g.localise_vertex_unchecked(v),
+                v,
                 g,
                 None,
                 self.local_state_prev,

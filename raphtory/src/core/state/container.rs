@@ -9,8 +9,6 @@ pub trait DynArray: std::fmt::Debug + Send + Sync {
     // used for map array
     fn copy_over(&mut self, ss: usize);
     fn reset(&mut self, ss: usize);
-    fn iter_keys(&self) -> Box<dyn Iterator<Item = u64> + '_>;
-    fn iter_keys_changed(&self, ss: usize) -> Box<dyn Iterator<Item = u64> + '_>;
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -115,13 +113,5 @@ impl<T: StateType> DynArray for VecArray<T> {
         for v in self.previous_mut(ss).iter_mut() {
             *v = zero.clone();
         }
-    }
-
-    fn iter_keys(&self) -> Box<dyn Iterator<Item = u64> + '_> {
-        todo!()
-    }
-
-    fn iter_keys_changed(&self, _ss: usize) -> Box<dyn Iterator<Item = u64> + '_> {
-        todo!()
     }
 }

@@ -1,6 +1,6 @@
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef},
+        entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
         state::compute_state::ComputeState,
         storage::locked_view::LockedView,
         Prop,
@@ -57,8 +57,8 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> WindowEvalEdgeView<'a, G
 
     pub fn history(&self) -> Vec<i64> {
         self.graph()
-            .edge_window_t(self.eref(), self.t_start..self.t_end)
-            .map(|e| e.time().expect("exploded"))
+            .edge_window_exploded(self.eref(), self.t_start..self.t_end, LayerIds::All)
+            .map(|e| e.time_t().expect("exploded"))
             .collect()
     }
 }
@@ -74,10 +74,10 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static>
         self.ev.clone()
     }
 
-    fn new_vertex(&self, v: VertexRef) -> WindowEvalVertex<'a, G, CS, S> {
+    fn new_vertex(&self, v: VID) -> WindowEvalVertex<'a, G, CS, S> {
         WindowEvalVertex::new(
             self.ss,
-            self.g.localise_vertex_unchecked(v),
+            v,
             self.g,
             None,
             self.local_state_prev,
@@ -104,16 +104,12 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> ConstPropertiesOps
     for WindowEvalEdgeView<'a, G, CS, S>
 {
     fn const_property_keys<'b>(&'b self) -> Box<dyn Iterator<Item = LockedView<'b, String>> + 'b> {
-        Box::new(self.g.static_edge_prop_names(self.ev).filter(|k| {
-            !self
-                .g
-                .temporal_edge_prop_vec_window(self.ev, k, self.t_start, self.t_end)
-                .is_empty()
-        }))
+        Box::new(self.g.static_edge_prop_names(self.ev, self.g.layer_ids()))
     }
 
     fn get_const_property(&self, key: &str) -> Option<Prop> {
-        self.graph().static_edge_prop(self.ev, key)
+        self.graph()
+            .static_edge_prop(self.ev, key, self.g.layer_ids())
     }
 }
 
@@ -137,14 +133,26 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> TemporalPropertyViewOps
 {
     fn temporal_value(&self, id: &String) -> Option<Prop> {
         self.g
-            .temporal_edge_prop_vec_window(self.ev, id, self.t_start, self.t_end)
+            .temporal_edge_prop_vec_window(
+                self.ev,
+                id,
+                self.t_start,
+                self.t_end,
+                self.g.layer_ids(),
+            )
             .last()
             .map(|(_, v)| v.to_owned())
     }
 
     fn temporal_history(&self, id: &String) -> Vec<i64> {
         self.g
-            .temporal_edge_prop_vec_window(self.ev, id, self.t_start, self.t_end)
+            .temporal_edge_prop_vec_window(
+                self.ev,
+                id,
+                self.t_start,
+                self.t_end,
+                self.g.layer_ids(),
+            )
             .into_iter()
             .map(|(t, _)| t)
             .collect()
@@ -152,7 +160,13 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> TemporalPropertyViewOps
 
     fn temporal_values(&self, id: &String) -> Vec<Prop> {
         self.g
-            .temporal_edge_prop_vec_window(self.ev, id, self.t_start, self.t_end)
+            .temporal_edge_prop_vec_window(
+                self.ev,
+                id,
+                self.t_start,
+                self.t_end,
+                self.g.layer_ids(),
+            )
             .into_iter()
             .map(|(_, v)| v)
             .collect()
@@ -165,18 +179,34 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> TemporalPropertiesOps
     fn temporal_property_keys<'b>(
         &'b self,
     ) -> Box<dyn Iterator<Item = LockedView<'b, String>> + 'b> {
-        Box::new(self.g.temporal_edge_prop_names(self.ev).filter(|k| {
-            !self
-                .g
-                .temporal_edge_prop_vec_window(self.ev, k, self.t_start, self.t_end)
-                .is_empty()
-        }))
+        Box::new(
+            self.g
+                .temporal_edge_prop_names(self.ev, self.g.layer_ids())
+                .filter(|k| {
+                    !self
+                        .g
+                        .temporal_edge_prop_vec_window(
+                            self.ev,
+                            k,
+                            self.t_start,
+                            self.t_end,
+                            self.g.layer_ids(),
+                        )
+                        .is_empty()
+                }),
+        )
     }
 
     fn get_temporal_property(&self, key: &str) -> Option<String> {
         (!self
             .g
-            .temporal_edge_prop_vec_window(self.ev, key, self.t_start, self.t_end)
+            .temporal_edge_prop_vec_window(
+                self.ev,
+                key,
+                self.t_start,
+                self.t_end,
+                self.g.layer_ids(),
+            )
             .is_empty())
         .then_some(key.to_string())
     }
@@ -199,16 +229,17 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeViewOps
 
     /// Check if edge is active at a given time point
     fn active(&self, t: i64) -> bool {
-        match self.eref().time() {
+        match self.eref().time_t() {
             Some(tt) => tt == t,
             None => {
+                let layer_ids = self.graph().layer_ids().constrain_from_edge(self.eref());
                 (self.t_start..self.t_end).contains(&t)
                     && self.graph().has_edge_ref_window(
                         self.eref().src(),
                         self.eref().dst(),
                         t,
                         t.saturating_add(1),
-                        self.eref().layer(),
+                        layer_ids,
                     )
             }
         }
@@ -226,7 +257,37 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeViewOps
         match self.ev.time() {
             Some(_) => Box::new(iter::once(self.new_edge(e))),
             None => {
-                let ts = self.g.edge_window_t(e, t_start..t_end);
+                let ts = self
+                    .g
+                    .edge_window_exploded(e, t_start..t_end, LayerIds::All);
+                Box::new(ts.map(move |ex| {
+                    WindowEvalEdgeView::new(
+                        ss,
+                        ex,
+                        g,
+                        local_state_prev,
+                        vertex_state.clone(),
+                        t_start,
+                        t_end,
+                    )
+                }))
+            }
+        }
+    }
+
+    fn explode_layers(&self) -> Self::EList {
+        let e = self.ev.clone();
+        let t_start = self.t_start;
+        let t_end = self.t_end;
+        let ss = self.ss;
+        let g = self.g;
+        let vertex_state = self.vertex_state.clone();
+        let local_state_prev = self.local_state_prev;
+
+        match self.ev.time() {
+            Some(_) => Box::new(iter::once(self.new_edge(e))),
+            None => {
+                let ts = self.g.edge_window_layers(e, t_start..t_end, LayerIds::All);
                 Box::new(ts.map(move |ex| {
                     WindowEvalEdgeView::new(
                         ss,
@@ -244,17 +305,23 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeViewOps
 
     /// Gets the first time an edge was seen
     fn earliest_time(&self) -> Option<i64> {
-        self.eref().time().or_else(|| {
-            self.graph()
-                .edge_earliest_time_window(self.eref(), self.t_start..self.t_end)
+        self.eref().time_t().or_else(|| {
+            self.graph().edge_earliest_time_window(
+                self.eref(),
+                self.t_start..self.t_end,
+                LayerIds::All,
+            )
         })
     }
 
     /// Gets the latest time an edge was updated
     fn latest_time(&self) -> Option<i64> {
-        self.eref().time().or_else(|| {
-            self.graph()
-                .edge_latest_time_window(self.eref(), self.t_start..self.t_end)
+        self.eref().time_t().or_else(|| {
+            self.graph().edge_latest_time_window(
+                self.eref(),
+                self.t_start..self.t_end,
+                LayerIds::All,
+            )
         })
     }
 }

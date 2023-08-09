@@ -54,6 +54,7 @@ If you wish to contribute, check out the open [list of issues](https://github.co
 
 ```python
 from raphtory import Graph
+from raphtory import algorithms as algo
 import pandas as pd
 
 # Create a new graph
@@ -82,12 +83,16 @@ print(pd.DataFrame(results[1:], columns=results[0]))
 
 # Grab an edge, explore the history of its 'weight' 
 cb_edge = graph.edge("Bob","Charlie")
-weight_history = cb_edge.property_history("weight")
+weight_history = cb_edge.properties.temporal.get("weight").items()
 print("The edge between Bob and Charlie has the following weight history:", weight_history)
 
 # Compare this weight between time 2 and time 3
 weight_change = cb_edge.at(2)["weight"] - cb_edge.at(3)["weight"]
 print("The weight of the edge between Bob and Charlie has changed by",weight_change,"pts")
+
+# Run pagerank and ask for the top ranked node
+top_node = algo.pagerank(graph).top_k(1)
+print("The most important node in the graph is",top_node[0][0],"with a score of",top_node[0][1])
 ```
 
 ```a
@@ -107,6 +112,8 @@ Graph(number_of_edges=2, number_of_vertices=3, earliest_time=1, latest_time=3)
 The edge between Bob and Charlie has the following weight history: [(2, 5.0), (3, -15.0)]
 
 The weight of the edge between Bob and Charlie has changed by 20.0 pts
+
+The top node in the graph is Charlie with a score of 0.4744116163405977
 ```
 
 

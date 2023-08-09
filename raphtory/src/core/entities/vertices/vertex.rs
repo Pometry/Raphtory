@@ -11,11 +11,11 @@ use crate::{
                 structure::iter::{Paged, PagedIter},
                 vertex_store::VertexStore,
             },
-            VRef, VID,
+            LayerIds, VRef, VID,
         },
         storage::{
             locked_view::LockedView,
-            timeindex::{TimeIndex, TimeIndexOps},
+            timeindex::{TimeIndex, TimeIndexEntry, TimeIndexOps},
             ArcEntry, Entry,
         },
         Direction, Prop,
@@ -100,20 +100,20 @@ impl<'a, const N: usize> Vertex<'a, N> {
 
     pub fn neighbours<'b>(
         &'a self,
-        layer: &'b str,
+        layers: Vec<&'b str>,
         dir: Direction,
     ) -> impl Iterator<Item = Vertex<'a, N>> + 'a {
-        let layer = self
-            .graph
-            .vertex_meta
-            .get_or_create_layer_id(layer.to_owned());
+        let layer_ids = layers
+            .iter()
+            .filter_map(|str| self.graph.vertex_meta.get_layer_id(str))
+            .collect_vec();
 
         (*self.node)
-            .neighbours(Some(layer), dir)
+            .neighbours(layer_ids.into(), dir)
             .map(move |dst| self.graph.vertex(dst))
     }
 
-    pub(crate) fn additions(self) -> Option<LockedView<'a, TimeIndex>> {
+    pub(crate) fn additions(self) -> Option<LockedView<'a, TimeIndex<i64>>> {
         match self.node {
             VRef::Entry(entry) => {
                 let t_index = entry.map(|entry| entry.timestamps());
@@ -175,18 +175,14 @@ impl<const N: usize> ArcVertex<N> {
 
     pub fn edge_tuples(
         &self,
-        layer: Option<usize>,
+        layers: LayerIds,
         dir: Direction,
     ) -> impl Iterator<Item = EdgeRef> + '_ {
-        self.e.edge_tuples(layer, dir)
+        self.e.edge_tuples(layers, dir)
     }
 
-    pub fn neighbours(
-        &self,
-        layer: Option<usize>,
-        dir: Direction,
-    ) -> impl Iterator<Item = VID> + '_ {
-        self.e.neighbours(layer, dir)
+    pub fn neighbours(&self, layers: LayerIds, dir: Direction) -> impl Iterator<Item = VID> + '_ {
+        self.e.neighbours(layers, dir)
     }
 }
 
@@ -195,38 +191,47 @@ pub(crate) struct ArcEdge<const N: usize> {
     meta: Arc<Meta>,
 }
 
-impl<const N: usize> CorePropertiesOps for ArcEdge<N> {
-    fn const_prop_meta(&self) -> &DictMapper<String> {
-        self.meta.static_prop_meta()
-    }
-
-    fn temporal_prop_meta(&self) -> &DictMapper<String> {
-        self.meta.temporal_prop_meta()
-    }
-
-    fn temporal_prop(&self, id: usize) -> Option<&TProp> {
-        todo!()
-    }
-
-    fn const_prop(&self, id: usize) -> Option<&Prop> {
-        todo!()
-    }
-}
-
 impl<const N: usize> ArcEdge<N> {
     pub(crate) fn from_entry(e: ArcEntry<EdgeStore<N>, N>, meta: Arc<Meta>) -> Self {
         ArcEdge { e, meta }
     }
 
-    pub(crate) fn timestamps(&self, layer: usize) -> impl Iterator<Item = &i64> + '_ {
-        self.e.layer_timestamps(layer).iter()
+    pub(crate) fn timestamps_and_layers(
+        &self,
+        layer: LayerIds,
+    ) -> impl Iterator<Item = (usize, &TimeIndexEntry)> + Send + '_ {
+        let adds = self.e.additions();
+        adds.iter()
+            .enumerate()
+            .filter_map(|(layer_id, t)| {
+                layer
+                    .find(layer_id)
+                    .map(|l| t.iter().map(move |tt| (l, tt)))
+            })
+            .kmerge_by(|a, b| a.1 < b.1)
     }
 
-    pub(crate) fn timestamps_window(
+    pub(crate) fn layers(&self) -> impl Iterator<Item = usize> + '_ {
+        self.e.layer_ids_iter()
+    }
+
+    pub(crate) fn layers_window(&self, w: Range<i64>) -> impl Iterator<Item = usize> + '_ {
+        self.e.layer_ids_window_iter(w)
+    }
+
+    pub(crate) fn timestamps_and_layers_window(
         &self,
-        layer: usize,
+        layer: LayerIds,
         w: Range<i64>,
-    ) -> impl Iterator<Item = &i64> + '_ {
-        self.e.layer_timestamps(layer).range_iter(w)
+    ) -> impl Iterator<Item = (usize, &TimeIndexEntry)> + '_ {
+        let adds = self.e.additions();
+        adds.iter()
+            .enumerate()
+            .filter_map(|(layer_id, t)| {
+                layer
+                    .find(layer_id)
+                    .map(|l| t.range_iter(w.clone()).map(move |tt| (l, tt)))
+            })
+            .kmerge_by(|a, b| a.1 < b.1)
     }
 }

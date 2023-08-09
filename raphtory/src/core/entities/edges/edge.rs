@@ -5,18 +5,21 @@ use crate::core::{
             tgraph::TGraph,
             tgraph_storage::{GraphEntry, LockedGraphStorage},
         },
-        properties::tprop::TProp,
+        properties::tprop::{LockedLayeredTProp, TProp},
         vertices::vertex::Vertex,
-        GraphItem, VRef, EID, VID,
+        GraphItem, LayerIds, VRef, EID, VID,
     },
     storage::{
         locked_view::LockedView,
-        timeindex::{TimeIndex, TimeIndexOps},
+        timeindex::{LockedLayeredIndex, TimeIndex, TimeIndexOps},
         Entry,
     },
     Direction, Prop,
 };
+// use crate::prelude::Layer::Default;
+use crate::core::storage::timeindex::TimeIndexEntry;
 use std::{
+    default::Default,
     ops::{Deref, Range},
     sync::Arc,
 };
@@ -100,34 +103,70 @@ impl<'a, const N: usize> EdgeView<'a, N> {
     pub fn temporal_properties(
         &'a self,
         name: &str,
-        layer: usize,
+        layer: LayerIds,
         window: Option<Range<i64>>,
     ) -> Vec<(i64, Prop)> {
         let prop_id = self.graph.edge_meta.resolve_prop_id(name, false);
         let store = &self.edge_id;
-        let out = store
-            .layer(layer)
-            .unwrap()
-            .temporal_properties(prop_id, window)
-            .collect();
-        out
+        match layer {
+            LayerIds::All => {
+                let mut props = vec![];
+                for layer in (0..) {
+                    if let Some(layer) = store.layer(layer) {
+                        let mut layer_props = layer.temporal_properties(prop_id, window.clone());
+                        for (t, prop) in layer_props {
+                            props.push((t, prop));
+                        }
+                    } else {
+                        break;
+                    }
+                }
+                props
+            }
+            LayerIds::One(layer_id) => {
+                if let Some(layer) = store.layer(layer_id) {
+                    return layer.temporal_properties(prop_id, window).collect();
+                } else {
+                    return vec![];
+                }
+            }
+            LayerIds::Multiple(layer_ids) => {
+                let mut props = vec![];
+                for layer in layer_ids.iter() {
+                    if let Some(layer) = store.layer(*layer) {
+                        let mut layer_props = layer.temporal_properties(prop_id, window.clone());
+                        for (t, prop) in layer_props {
+                            props.push((t, prop));
+                        }
+                    }
+                }
+                props
+            }
+            LayerIds::None => Vec::default(),
+        }
     }
 
-    pub(crate) fn additions(self, layer_id: usize) -> Option<LockedView<'a, TimeIndex>> {
+    pub(crate) fn additions(
+        self,
+        layer_ids: LayerIds,
+    ) -> Option<LockedLayeredIndex<'a, TimeIndexEntry>> {
         match self.edge_id {
             ERef::ERef(entry) => {
-                let t_index = entry.map(|entry| entry.layer_timestamps(layer_id));
-                Some(t_index)
+                let t_index = entry.map(|entry| entry.additions());
+                Some(LockedLayeredIndex::new(layer_ids, t_index))
             }
             _ => None,
         }
     }
 
-    pub(crate) fn deletions(self, layer_id: usize) -> Option<LockedView<'a, TimeIndex>> {
+    pub(crate) fn deletions(
+        self,
+        layer_ids: LayerIds,
+    ) -> Option<LockedLayeredIndex<'a, TimeIndexEntry>> {
         match self.edge_id {
             ERef::ERef(entry) => {
-                let t_index = entry.map(|entry| entry.layer_deletions(layer_id));
-                Some(t_index)
+                let t_index = entry.map(|entry| entry.deletions());
+                Some(LockedLayeredIndex::new(layer_ids, t_index))
             }
             _ => None,
         }
@@ -135,21 +174,48 @@ impl<'a, const N: usize> EdgeView<'a, N> {
 
     pub(crate) fn temporal_property(
         self,
-        layer_id: usize,
+        layer_ids: LayerIds,
         prop_id: usize,
-    ) -> Option<LockedView<'a, TProp>> {
+    ) -> Option<LockedLayeredTProp<'a>> {
         match self.edge_id {
             ERef::ERef(entry) => {
-                let prop_exists = entry
-                    .layer(layer_id)
-                    .map(|layer| layer.temporal_property(prop_id).is_some())
-                    .unwrap_or(false);
-                if !prop_exists {
-                    return None;
+                if entry.has_temporal_prop(layer_ids.clone(), prop_id) {
+                    match layer_ids {
+                        LayerIds::None => None,
+                        LayerIds::All => {
+                            let props: Vec<_> = entry
+                                .layer_ids_iter()
+                                .flat_map(|id| {
+                                    entry.temporal_prop_layer(id, prop_id).is_some().then(|| {
+                                        entry
+                                            .clone()
+                                            .map(|e| e.temporal_prop_layer(id, prop_id).unwrap())
+                                    })
+                                })
+                                .collect();
+                            Some(LockedLayeredTProp::new(props))
+                        }
+                        LayerIds::One(id) => Some(LockedLayeredTProp::new(vec![entry.map(|e| {
+                            e.temporal_prop_layer(id, prop_id)
+                                .expect("already checked in the beginning")
+                        })])),
+                        LayerIds::Multiple(ids) => {
+                            let props: Vec<_> = ids
+                                .iter()
+                                .flat_map(|&id| {
+                                    entry.temporal_prop_layer(id, prop_id).is_some().then(|| {
+                                        entry
+                                            .clone()
+                                            .map(|e| e.temporal_prop_layer(id, prop_id).unwrap())
+                                    })
+                                })
+                                .collect();
+                            Some(LockedLayeredTProp::new(props))
+                        }
+                    }
+                } else {
+                    None
                 }
-
-                let t_index = entry.map(|entry| entry.temporal_prop(layer_id, prop_id).unwrap());
-                Some(t_index)
             }
             _ => None,
         }
@@ -230,13 +296,40 @@ impl<'a, const N: usize> EdgeView<'a, N> {
         }
     }
 
-    pub(crate) fn active(&'a self, layer_id: usize, w: Range<i64>) -> bool {
+    pub(crate) fn active(&'a self, layer_ids: LayerIds, w: Range<i64>) -> bool {
         match &self.edge_id {
             ERef::ELock { lock, .. } => {
                 let e = lock.get_edge(self.edge_id().into());
-                e.unsafe_layer(layer_id).additions().active(w)
+                self.check_layers(layer_ids, e, |t| t.active(w.clone()))
             }
-            ERef::ERef(entry) => (*entry).unsafe_layer(layer_id).additions().active(w),
+            ERef::ERef(entry) => {
+                let e = entry.deref();
+                self.check_layers(layer_ids, e, |t| t.active(w.clone()))
+            }
+        }
+    }
+
+    fn check_layers<E: Deref<Target = EdgeStore<N>>, F: Fn(&TimeIndex<TimeIndexEntry>) -> bool>(
+        &self,
+        layer_ids: LayerIds,
+        e: E,
+        f: F,
+    ) -> bool {
+        match layer_ids {
+            LayerIds::All => e.additions().iter().any(f),
+            LayerIds::One(id) => f(&e.additions()[id]),
+            LayerIds::Multiple(ids) => ids.iter().any(|id| f(&e.additions()[*id])),
+            LayerIds::None => false,
+        }
+    }
+
+    pub(crate) fn layer_ids(&self) -> LayerIds {
+        match &self.edge_id {
+            ERef::ELock { lock, .. } => {
+                let e = lock.get_edge(self.edge_id().into());
+                e.layer_ids()
+            }
+            ERef::ERef(entry) => (*entry).layer_ids(),
         }
     }
 }

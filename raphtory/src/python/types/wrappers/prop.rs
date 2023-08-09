@@ -5,6 +5,7 @@ use crate::{
 use pyo3::{
     exceptions::PyTypeError, types::PyBool, FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python,
 };
+use std::{ops::Deref, sync::Arc};
 
 impl IntoPy<PyObject> for Prop {
     fn into_py(self, py: Python<'_>) -> PyObject {
@@ -19,6 +20,8 @@ impl IntoPy<PyObject> for Prop {
             Prop::I32(v) => v.into_py(py),
             Prop::U32(v) => v.into_py(py),
             Prop::F32(v) => v.into_py(py),
+            Prop::List(v) => v.deref().clone().into_py(py), // Fixme: optimise the clone here?
+            Prop::Map(v) => v.deref().clone().into_py(py),
         }
     }
 }
@@ -45,6 +48,12 @@ impl<'source> FromPyObject<'source> for Prop {
         if let Ok(g) = ob.extract() {
             return Ok(Prop::Graph(g));
         }
+        if let Ok(list) = ob.extract() {
+            return Ok(Prop::List(Arc::new(list)));
+        }
+        if let Ok(map) = ob.extract() {
+            return Ok(Prop::Map(Arc::new(map)));
+        }
         Err(PyTypeError::new_err("Not a valid property type"))
     }
 }
@@ -62,6 +71,8 @@ impl Repr for Prop {
             Prop::I32(v) => v.repr(),
             Prop::U32(v) => v.repr(),
             Prop::F32(v) => v.repr(),
+            Prop::List(v) => v.repr(),
+            Prop::Map(v) => v.repr(),
         }
     }
 }

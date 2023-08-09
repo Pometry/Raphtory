@@ -36,9 +36,11 @@ impl EdgeFilter {
         }
 
         if let Some(name_filter) = &self.layer_names {
-            if !name_filter.contains(&edge.ee.layer_name()) {
-                return false;
-            }
+            return edge
+                .ee
+                .layer_names()
+                .iter()
+                .any(|name| name_filter.contains(name));
         }
 
         true

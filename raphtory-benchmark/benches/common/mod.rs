@@ -140,7 +140,7 @@ pub fn run_large_ingestion_benchmarks<F>(
                 },
                 |(g, times)| {
                     for t in times.iter() {
-                        g.add_edge(*t, 0, 0, NO_PROPS, None).unwrap()
+                        g.add_edge(*t, 0, 0, NO_PROPS, None).unwrap();
                     }
                 },
                 BatchSize::SmallInput,
@@ -162,7 +162,7 @@ pub fn run_large_ingestion_benchmarks<F>(
                 },
                 |(g, times)| {
                     for t in times.iter() {
-                        g.add_edge(*t, "0", "0", NO_PROPS, None).unwrap()
+                        g.add_edge(*t, "0", "0", NO_PROPS, None).unwrap();
                     }
                 },
                 BatchSize::SmallInput,
@@ -184,7 +184,7 @@ pub fn run_large_ingestion_benchmarks<F>(
                 },
                 |(g, times)| {
                     for t in times.iter() {
-                        g.add_edge(*t, "test", "other", NO_PROPS, None).unwrap()
+                        g.add_edge(*t, "test", "other", NO_PROPS, None).unwrap();
                     }
                 },
                 BatchSize::SmallInput,
@@ -215,7 +215,7 @@ pub fn run_large_ingestion_benchmarks<F>(
                             NO_PROPS,
                             None,
                         )
-                        .unwrap()
+                        .unwrap();
                     }
                 },
                 BatchSize::SmallInput,
@@ -246,7 +246,7 @@ pub fn run_large_ingestion_benchmarks<F>(
                             NO_PROPS,
                             None,
                         )
-                        .unwrap()
+                        .unwrap();
                     }
                 },
                 BatchSize::SmallInput,
@@ -278,7 +278,7 @@ pub fn run_analysis_benchmarks<F, G>(
     bench(group, "has_edge_existing", parameter, |b: &mut Bencher| {
         let mut rng = rand::thread_rng();
         let edge = edges.iter().choose(&mut rng).expect("non-empty graph");
-        b.iter(|| graph.has_edge(edge.0, edge.1, None))
+        b.iter(|| graph.has_edge(edge.0, edge.1, Layer::All))
     });
 
     bench(
@@ -296,7 +296,7 @@ pub fn run_analysis_benchmarks<F, G>(
                     break edge;
                 }
             };
-            b.iter(|| graph.has_edge(edge.0, edge.1, None))
+            b.iter(|| graph.has_edge(edge.0, edge.1, Layer::All))
         },
     );
 

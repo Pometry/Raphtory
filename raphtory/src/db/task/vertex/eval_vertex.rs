@@ -1,6 +1,6 @@
 use crate::{
     core::{
-        entities::VID,
+        entities::{LayerIds, VID},
         state::{accumulator_id::AccId, agg::Accumulator, compute_state::ComputeState, StateType},
         utils::time::IntoTime,
         Direction,
@@ -241,7 +241,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EvalPathFromVertex<'a, G
         Box::new(self.path.iter_refs().map(|v| {
             EvalVertexView::new_local(
                 self.ss,
-                self.g.localise_vertex_unchecked(v),
+                v,
                 self.g,
                 None,
                 self.local_state_prev,
@@ -264,14 +264,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> IntoIterator
         let ss = self.ss;
         let g: &G = self.g;
         Box::new(path.iter_refs().map(move |v| {
-            EvalVertexView::new_local(
-                ss,
-                self.g.localise_vertex_unchecked(v),
-                g,
-                None,
-                self.local_state_prev,
-                vertex_state.clone(),
-            )
+            EvalVertexView::new_local(ss, v, g, None, self.local_state_prev, vertex_state.clone())
         }))
     }
 }
@@ -434,15 +427,17 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
     }
 
     fn degree(&self) -> Self::ValueType<usize> {
-        self.graph.degree(self.vertex, Direction::BOTH, None)
+        self.graph
+            .degree(self.vertex, Direction::BOTH, LayerIds::All)
     }
 
     fn in_degree(&self) -> Self::ValueType<usize> {
-        self.graph.degree(self.vertex, Direction::IN, None)
+        self.graph.degree(self.vertex, Direction::IN, LayerIds::All)
     }
 
     fn out_degree(&self) -> Self::ValueType<usize> {
-        self.graph.degree(self.vertex, Direction::OUT, None)
+        self.graph
+            .degree(self.vertex, Direction::OUT, LayerIds::All)
     }
 
     fn edges(&self) -> Self::EList {
@@ -452,7 +447,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
         let graph = self.graph;
         Box::new(
             self.graph
-                .vertex_edges(self.vertex, Direction::BOTH, None)
+                .vertex_edges(self.vertex, Direction::BOTH, LayerIds::All)
                 .map(move |e| EvalEdgeView::new_(ss, e, graph, local, vertex_state.clone())),
         )
     }
@@ -464,7 +459,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
         let graph = self.graph;
         Box::new(
             self.graph
-                .vertex_edges(self.vertex, Direction::IN, None)
+                .vertex_edges(self.vertex, Direction::IN, LayerIds::All)
                 .map(move |e| EvalEdgeView::new_(ss, e, graph, local, vertex_state.clone())),
         )
     }
@@ -476,7 +471,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
         let graph = self.graph;
         Box::new(
             self.graph
-                .vertex_edges(self.vertex, Direction::OUT, None)
+                .vertex_edges(self.vertex, Direction::OUT, LayerIds::All)
                 .map(move |e| EvalEdgeView::new_(ss, e, graph, local, vertex_state.clone())),
         )
     }

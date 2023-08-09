@@ -1,6 +1,8 @@
 use crate::{
     core::{
-        entities::{graph::tgraph::InnerTemporalGraph, vertices::vertex_ref::VertexRef, VID},
+        entities::{
+            graph::tgraph::InnerTemporalGraph, vertices::vertex_ref::VertexRef, LayerIds, VID,
+        },
         utils::{errors::GraphError, time::IntoTime},
     },
     db::{
@@ -19,9 +21,8 @@ use crate::{
             },
         },
     },
-    prelude::NO_PROPS,
+    prelude::{DeletionOps, NO_PROPS},
 };
-use itertools::Itertools;
 use rustc_hash::FxHashSet;
 
 /// This trait GraphViewOps defines operations for accessing
@@ -54,7 +55,7 @@ pub trait GraphViewOps: BoxableGraphView + Clone + Sized {
     fn has_vertex<T: Into<VertexRef>>(&self, v: T) -> bool;
 
     /// Check if the graph contains an edge given a pair of vertices `(src, dst)`.
-    fn has_edge<T: Into<VertexRef>>(&self, src: T, dst: T, layer: Option<&str>) -> bool;
+    fn has_edge<T: Into<VertexRef>, L: Into<Layer>>(&self, src: T, dst: T, layer: L) -> bool;
 
     /// Get a vertex `v`.
     fn vertex<T: Into<VertexRef>>(&self, v: T) -> Option<VertexView<Self>>;
@@ -63,12 +64,7 @@ pub trait GraphViewOps: BoxableGraphView + Clone + Sized {
     fn vertices(&self) -> Vertices<Self>;
 
     /// Get an edge `(src, dst)`.
-    fn edge<T: Into<VertexRef>>(
-        &self,
-        src: T,
-        dst: T,
-        layer: Option<&str>,
-    ) -> Option<EdgeView<Self>>;
+    fn edge<T: Into<VertexRef>>(&self, src: T, dst: T) -> Option<EdgeView<Self>>;
 
     /// Return an iterator over all edges in the graph.
     fn edges(&self) -> Box<dyn Iterator<Item = EdgeView<Self>> + Send>;
@@ -103,11 +99,7 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
 
     /// Return all the layer ids in the graph
     fn get_unique_layers(&self) -> Vec<String> {
-        self.get_unique_layers_internal()
-            .into_iter()
-            .filter(|id| *id != 0) // the default layer has no name
-            .map(|id| self.get_layer_name_by_id(id))
-            .collect_vec()
+        self.get_layer_names_from_ids(self.layer_ids())
     }
 
     fn earliest_time(&self) -> Option<i64> {
@@ -123,18 +115,20 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
     }
 
     fn num_edges(&self) -> usize {
-        self.edges_len(None)
+        self.edges_len(LayerIds::All)
     }
 
     fn has_vertex<T: Into<VertexRef>>(&self, v: T) -> bool {
         self.has_vertex_ref(v.into())
     }
 
-    fn has_edge<T: Into<VertexRef>>(&self, src: T, dst: T, layer: Option<&str>) -> bool {
-        match self.get_layer_id(layer) {
-            Some(layer_id) => self.has_edge_ref(src.into(), dst.into(), layer_id),
-            None => false,
+    fn has_edge<T: Into<VertexRef>, L: Into<Layer>>(&self, src: T, dst: T, layer: L) -> bool {
+        if let Some(src) = self.local_vertex_ref(src.into()) {
+            if let Some(dst) = self.local_vertex_ref(dst.into()) {
+                return self.has_edge_ref(src, dst, self.layer_ids_from_names(layer.into()));
+            }
         }
+        false
     }
 
     fn vertex<T: Into<VertexRef>>(&self, v: T) -> Option<VertexView<Self>> {
@@ -148,24 +142,15 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
         Vertices::new(graph)
     }
 
-    fn edge<T: Into<VertexRef>>(
-        &self,
-        src: T,
-        dst: T,
-        layer: Option<&str>,
-    ) -> Option<EdgeView<Self>> {
-        let layer_id = match layer {
-            Some(_) => self.get_layer_id(layer)?,
-            None => {
-                let layers = self.get_unique_layers_internal();
-                match layers[..] {
-                    [layer_id] => layer_id, // if only one layer we search the edge there
-                    _ => 0,                 // if more than one, we point to the default one
-                }
+    fn edge<T: Into<VertexRef>>(&self, src: T, dst: T) -> Option<EdgeView<Self>> {
+        if let Some(src) = self.local_vertex_ref(src.into()) {
+            if let Some(dst) = self.local_vertex_ref(dst.into()) {
+                return self
+                    .edge_ref(src, dst, self.layer_ids())
+                    .map(|e| EdgeView::new(self.clone(), e));
             }
-        };
-        self.edge_ref(src.into(), dst.into(), layer_id)
-            .map(|e| EdgeView::new(self.clone(), e))
+        }
+        None
     }
 
     fn edges(&self) -> Box<dyn Iterator<Item = EdgeView<Self>> + Send> {
@@ -180,27 +165,40 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
         let g = InnerTemporalGraph::default();
         // Add edges first so we definitely have all associated vertices (important in case of persistent edges)
         for e in self.edges() {
-            let layer_name = &e.layer_name().to_string();
-            let mut layer: Option<&str> = None;
-            if layer_name != "default layer" {
-                layer = Some(layer_name)
-            }
-            for ee in e.explode() {
-                g.add_edge(
-                    ee.time().unwrap(),
+            // FIXME: this needs to be verified
+            for ee in e.explode_layers() {
+                let layer_id = *ee.edge.layer().unwrap();
+                let layer_ids = LayerIds::One(layer_id);
+                let layer_names = self.get_layer_names_from_ids(layer_ids.clone());
+                let layer_name: Option<&str> = if layer_id == 0 {
+                    None
+                } else {
+                    Some(&layer_names[0])
+                };
+
+                for ee in ee.explode() {
+                    g.add_edge(
+                        ee.time().unwrap(),
+                        ee.src().id(),
+                        ee.dst().id(),
+                        ee.properties().temporal().collect_properties(),
+                        layer_name,
+                    )?;
+                }
+
+                if self.include_deletions() {
+                    for t in self.edge_deletion_history(e.edge, layer_ids) {
+                        g.delete_edge(t, e.src().id(), e.dst().id(), layer_name)?;
+                    }
+                }
+
+                g.add_edge_properties(
                     ee.src().id(),
                     ee.dst().id(),
-                    ee.properties().temporal().collect_properties(),
-                    layer,
+                    ee.properties().constant(),
+                    layer_name,
                 )?;
             }
-            if self.include_deletions() {
-                for t in self.edge_deletion_history(e.edge) {
-                    g.delete_edge(t, e.src().id(), e.dst().id(), layer)?;
-                }
-            }
-
-            g.add_edge_properties(e.src().id(), e.dst().id(), e.properties().constant(), layer)?;
         }
 
         for v in self.vertices().iter() {
@@ -241,11 +239,47 @@ impl<G: GraphViewOps> LayerOps for G {
     type LayeredViewType = LayeredGraph<G>;
 
     fn default_layer(&self) -> Self::LayeredViewType {
-        LayeredGraph::new(self.clone(), 0)
+        LayeredGraph::new(self.clone(), 0.into())
     }
 
-    fn layer(&self, name: &str) -> Option<Self::LayeredViewType> {
-        let id = self.get_layer_id(Some(name))?;
-        Some(LayeredGraph::new(self.clone(), id))
+    fn layer<L: Into<Layer>>(&self, layers: L) -> Option<Self::LayeredViewType> {
+        let layers = layers.into();
+        let ids = self.layer_ids_from_names(layers);
+        match ids {
+            LayerIds::None => None,
+            _ => Some(LayeredGraph::new(self.clone(), ids)),
+        }
+    }
+}
+
+#[cfg(test)]
+mod test_materialize {
+    use crate::prelude::*;
+
+    #[test]
+    fn test_materialize() {
+        let g = Graph::new();
+        g.add_edge(0, 1, 2, [("layer1", "1")], Some("1")).unwrap();
+        g.add_edge(0, 1, 2, [("layer2", "2")], Some("2")).unwrap();
+
+        let gm = g.materialize().unwrap();
+        assert!(!g
+            .layer("2")
+            .unwrap()
+            .edge(1, 2)
+            .unwrap()
+            .properties()
+            .temporal()
+            .contains("layer1"));
+        assert!(!gm
+            .into_events()
+            .unwrap()
+            .layer("2")
+            .unwrap()
+            .edge(1, 2)
+            .unwrap()
+            .properties()
+            .temporal()
+            .contains("layer1"));
     }
 }
