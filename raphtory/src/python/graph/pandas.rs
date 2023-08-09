@@ -6,6 +6,7 @@ use arrow2::{
 use pyo3::{
     create_exception, exceptions::PyException, ffi::Py_uintptr_t, prelude::*, types::PyDict,
 };
+use std::collections::HashMap;
 
 use crate::{core::utils::errors::GraphError, prelude::*};
 
@@ -51,6 +52,8 @@ pub(crate) fn load_vertices_from_df<'a>(
     vertex_id: &str,
     time: &str,
     props: Option<Vec<&str>>,
+    const_props: Option<Vec<&str>>,
+    shared_const_props: Option<HashMap<String, Prop>>,
     graph: &Graph,
 ) -> Result<(), GraphError> {
     let prop_iter = props
@@ -60,31 +63,46 @@ pub(crate) fn load_vertices_from_df<'a>(
         .reduce(combine_prop_iters)
         .unwrap_or_else(|| Box::new(std::iter::repeat(vec![])));
 
+    let const_prop_iter = const_props
+        .unwrap_or_default()
+        .into_iter()
+        .map(|name| lift_property(name, &df))
+        .reduce(combine_prop_iters)
+        .unwrap_or_else(|| Box::new(std::iter::repeat(vec![])));
+
     if let (Some(vertex_id), Some(time)) = (df.iter_col::<u64>(vertex_id), df.iter_col::<i64>(time))
     {
         let iter = vertex_id.map(|i| i.copied()).zip(time);
-        load_vertices_from_num_iter(graph, iter, prop_iter)?;
+        load_vertices_from_num_iter(graph, iter, prop_iter, const_prop_iter, shared_const_props)?;
     } else if let (Some(vertex_id), Some(time)) =
         (df.iter_col::<i64>(vertex_id), df.iter_col::<i64>(time))
     {
         let iter = vertex_id.map(i64_opt_into_u64_opt).zip(time);
-        load_vertices_from_num_iter(graph, iter, prop_iter)?;
+        load_vertices_from_num_iter(graph, iter, prop_iter, const_prop_iter, shared_const_props)?;
     } else if let (Some(vertex_id), Some(time)) =
         (df.utf8::<i32>(vertex_id), df.iter_col::<i64>(time))
     {
         let iter = vertex_id.into_iter().zip(time);
-        for ((vertex_id, time), props) in iter.zip(prop_iter) {
+        for (((vertex_id, time), props), const_props) in iter.zip(prop_iter).zip(const_prop_iter) {
             if let (Some(vertex_id), Some(time)) = (vertex_id, time) {
                 graph.add_vertex(*time, vertex_id, props)?;
+                graph.add_vertex_properties(vertex_id, const_props)?;
+                if let Some(shared_const_props) = &shared_const_props {
+                    graph.add_vertex_properties(vertex_id, shared_const_props.iter())?;
+                }
             }
         }
     } else if let (Some(vertex_id), Some(time)) =
         (df.utf8::<i64>(vertex_id), df.iter_col::<i64>(time))
     {
         let iter = vertex_id.into_iter().zip(time);
-        for ((vertex_id, time), props) in iter.zip(prop_iter) {
+        for (((vertex_id, time), props), const_props) in iter.zip(prop_iter).zip(const_prop_iter) {
             if let (Some(vertex_id), Some(time)) = (vertex_id, time) {
                 graph.add_vertex(*time, vertex_id, props)?;
+                graph.add_vertex_properties(vertex_id, const_props)?;
+                if let Some(shared_const_props) = &shared_const_props {
+                    graph.add_vertex_properties(vertex_id, shared_const_props)?;
+                }
             }
         }
     } else {
@@ -102,11 +120,20 @@ pub(crate) fn load_edges_from_df<'a, S: AsRef<str>>(
     dst: &str,
     time: &str,
     props: Option<Vec<&str>>,
+    const_props: Option<Vec<&str>>,
+    shared_const_props: Option<HashMap<String, Prop>>,
     layer: Option<S>,
     layer_in_df: Option<S>,
     graph: &Graph,
 ) -> Result<(), GraphError> {
     let prop_iter = props
+        .unwrap_or_default()
+        .into_iter()
+        .map(|name| lift_property(name, &df))
+        .reduce(combine_prop_iters)
+        .unwrap_or_else(|| Box::new(std::iter::repeat(vec![])));
+
+    let const_prop_iter = const_props
         .unwrap_or_default()
         .into_iter()
         .map(|name| lift_property(name, &df))
@@ -124,7 +151,14 @@ pub(crate) fn load_edges_from_df<'a, S: AsRef<str>>(
             .map(|i| i.copied())
             .zip(dst.map(|i| i.copied()))
             .zip(time);
-        load_edges_from_num_iter(&graph, triplets, prop_iter, layer)?;
+        load_edges_from_num_iter(
+            &graph,
+            triplets,
+            prop_iter,
+            const_prop_iter,
+            shared_const_props,
+            layer,
+        )?;
     } else if let (Some(src), Some(dst), Some(time)) = (
         df.iter_col::<i64>(src),
         df.iter_col::<i64>(dst),
@@ -134,16 +168,34 @@ pub(crate) fn load_edges_from_df<'a, S: AsRef<str>>(
             .map(i64_opt_into_u64_opt)
             .zip(dst.map(i64_opt_into_u64_opt))
             .zip(time);
-        load_edges_from_num_iter(&graph, triplets, prop_iter, layer)?;
+        load_edges_from_num_iter(
+            &graph,
+            triplets,
+            prop_iter,
+            const_prop_iter,
+            shared_const_props,
+            layer,
+        )?;
     } else if let (Some(src), Some(dst), Some(time)) = (
         df.utf8::<i32>(src),
         df.utf8::<i32>(dst),
         df.iter_col::<i64>(time),
     ) {
         let triplets = src.into_iter().zip(dst.into_iter()).zip(time.into_iter());
-        for ((((src, dst), time), props), layer) in triplets.zip(prop_iter).zip(layer) {
+        for (((((src, dst), time), props), const_props), layer) in
+            triplets.zip(prop_iter).zip(const_prop_iter).zip(layer)
+        {
             if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
                 graph.add_edge(*time, src, dst, props, layer.as_deref())?;
+                graph.add_edge_properties(src, dst, const_props, layer.as_deref())?;
+                if let Some(shared_const_props) = &shared_const_props {
+                    graph.add_edge_properties(
+                        src,
+                        dst,
+                        shared_const_props.iter(),
+                        layer.as_deref(),
+                    )?;
+                }
             }
         }
     } else if let (Some(src), Some(dst), Some(time)) = (
@@ -152,9 +204,173 @@ pub(crate) fn load_edges_from_df<'a, S: AsRef<str>>(
         df.iter_col::<i64>(time),
     ) {
         let triplets = src.into_iter().zip(dst.into_iter()).zip(time.into_iter());
-        for ((((src, dst), time), props), layer) in triplets.zip(prop_iter).zip(layer) {
+        for (((((src, dst), time), props), const_props), layer) in
+            triplets.zip(prop_iter).zip(const_prop_iter).zip(layer)
+        {
             if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
                 graph.add_edge(*time, src, dst, props, layer.as_deref())?;
+                graph.add_edge_properties(src, dst, const_props, layer.as_deref())?;
+                if let Some(shared_const_props) = &shared_const_props {
+                    graph.add_edge_properties(
+                        src,
+                        dst,
+                        shared_const_props.iter(),
+                        layer.as_deref(),
+                    )?;
+                }
+            }
+        }
+    } else {
+        return Err(GraphError::LoadFailure(
+            "source and target columns must be either u64 or text, time column must be i64"
+                .to_string(),
+        ));
+    }
+    Ok(())
+}
+
+pub(crate) fn load_vertex_props_from_df<'a>(
+    df: &'a PretendDF,
+    vertex_id: &str,
+    const_props: Option<Vec<&str>>,
+    shared_const_props: Option<HashMap<String, Prop>>,
+    graph: &Graph,
+) -> Result<(), GraphError> {
+    let const_prop_iter = const_props
+        .unwrap_or_default()
+        .into_iter()
+        .map(|name| lift_property(name, &df))
+        .reduce(combine_prop_iters)
+        .unwrap_or_else(|| Box::new(std::iter::repeat(vec![])));
+
+    if let Some(vertex_id) = df.iter_col::<u64>(vertex_id) {
+        let iter = vertex_id.map(|i| i.copied());
+        for (vertex_id, const_props) in iter.zip(const_prop_iter) {
+            if let Some(vertex_id) = vertex_id {
+                graph.add_vertex_properties(vertex_id, const_props)?;
+                if let Some(shared_const_props) = &shared_const_props {
+                    graph.add_vertex_properties(vertex_id, shared_const_props.iter())?;
+                }
+            }
+        }
+    } else if let Some(vertex_id) = df.iter_col::<i64>(vertex_id) {
+        let iter = vertex_id.map(i64_opt_into_u64_opt);
+        for (vertex_id, const_props) in iter.zip(const_prop_iter) {
+            if let Some(vertex_id) = vertex_id {
+                graph.add_vertex_properties(vertex_id, const_props)?;
+                if let Some(shared_const_props) = &shared_const_props {
+                    graph.add_vertex_properties(vertex_id, shared_const_props.iter())?;
+                }
+            }
+        }
+    } else if let Some(vertex_id) = df.utf8::<i32>(vertex_id) {
+        let iter = vertex_id.into_iter();
+        for (vertex_id, const_props) in iter.zip(const_prop_iter) {
+            if let Some(vertex_id) = vertex_id {
+                graph.add_vertex_properties(vertex_id, const_props)?;
+                if let Some(shared_const_props) = &shared_const_props {
+                    graph.add_vertex_properties(vertex_id, shared_const_props.iter())?;
+                }
+            }
+        }
+    } else if let Some(vertex_id) = df.utf8::<i64>(vertex_id) {
+        let iter = vertex_id.into_iter();
+        for (vertex_id, const_props) in iter.zip(const_prop_iter) {
+            if let Some(vertex_id) = vertex_id {
+                graph.add_vertex_properties(vertex_id, const_props)?;
+                if let Some(shared_const_props) = &shared_const_props {
+                    graph.add_vertex_properties(vertex_id, shared_const_props.iter())?;
+                }
+            }
+        }
+    } else {
+        return Err(GraphError::LoadFailure(
+            "vertex id column must be either u64 or text, time column must be i64".to_string(),
+        ));
+    }
+    Ok(())
+}
+
+pub(crate) fn load_edges_props_from_df<'a, S: AsRef<str>>(
+    df: &'a PretendDF,
+    src: &str,
+    dst: &str,
+    const_props: Option<Vec<&str>>,
+    shared_const_props: Option<HashMap<String, Prop>>,
+    layer: Option<S>,
+    layer_in_df: Option<S>,
+    graph: &Graph,
+) -> Result<(), GraphError> {
+    let const_prop_iter = const_props
+        .unwrap_or_default()
+        .into_iter()
+        .map(|name| lift_property(name, &df))
+        .reduce(combine_prop_iters)
+        .unwrap_or_else(|| Box::new(std::iter::repeat(vec![])));
+
+    let layer = lift_layer(layer, layer_in_df, df);
+
+    if let (Some(src), Some(dst)) = (df.iter_col::<u64>(src), df.iter_col::<u64>(dst)) {
+        let triplets = src.map(|i| i.copied()).zip(dst.map(|i| i.copied()));
+
+        for (((src, dst), const_props), layer) in triplets.zip(const_prop_iter).zip(layer) {
+            if let (Some(src), Some(dst)) = (src, dst) {
+                graph.add_edge_properties(src, dst, const_props, layer.as_deref())?;
+                if let Some(shared_const_props) = &shared_const_props {
+                    graph.add_edge_properties(
+                        src,
+                        dst,
+                        shared_const_props.iter(),
+                        layer.as_deref(),
+                    )?;
+                }
+            }
+        }
+    } else if let (Some(src), Some(dst)) = (df.iter_col::<i64>(src), df.iter_col::<i64>(dst)) {
+        let triplets = src
+            .map(i64_opt_into_u64_opt)
+            .zip(dst.map(i64_opt_into_u64_opt));
+        for (((src, dst), const_props), layer) in triplets.zip(const_prop_iter).zip(layer) {
+            if let (Some(src), Some(dst)) = (src, dst) {
+                graph.add_edge_properties(src, dst, const_props, layer.as_deref())?;
+                if let Some(shared_const_props) = &shared_const_props {
+                    graph.add_edge_properties(
+                        src,
+                        dst,
+                        shared_const_props.iter(),
+                        layer.as_deref(),
+                    )?;
+                }
+            }
+        }
+    } else if let (Some(src), Some(dst)) = (df.utf8::<i32>(src), df.utf8::<i32>(dst)) {
+        let triplets = src.into_iter().zip(dst.into_iter());
+        for (((src, dst), const_props), layer) in triplets.zip(const_prop_iter).zip(layer) {
+            if let (Some(src), Some(dst)) = (src, dst) {
+                graph.add_edge_properties(src, dst, const_props, layer.as_deref())?;
+                if let Some(shared_const_props) = &shared_const_props {
+                    graph.add_edge_properties(
+                        src,
+                        dst,
+                        shared_const_props.iter(),
+                        layer.as_deref(),
+                    )?;
+                }
+            }
+        }
+    } else if let (Some(src), Some(dst)) = (df.utf8::<i64>(src), df.utf8::<i64>(dst)) {
+        let triplets = src.into_iter().zip(dst.into_iter());
+        for (((src, dst), const_props), layer) in triplets.zip(const_prop_iter).zip(layer) {
+            if let (Some(src), Some(dst)) = (src, dst) {
+                graph.add_edge_properties(src, dst, const_props, layer.as_deref())?;
+                if let Some(shared_const_props) = &shared_const_props {
+                    graph.add_edge_properties(
+                        src,
+                        dst,
+                        shared_const_props.iter(),
+                        layer.as_deref(),
+                    )?;
+                }
             }
         }
     } else {
@@ -266,11 +482,19 @@ fn load_edges_from_num_iter<
     graph: &Graph,
     edges: I,
     props: PI,
+    const_props: PI,
+    shared_const_props: Option<HashMap<String, Prop>>,
     layer: IL,
 ) -> Result<(), GraphError> {
-    for ((((src, dst), time), edge_props), layer) in edges.zip(props).zip(layer) {
+    for (((((src, dst), time), edge_props), const_props), layer) in
+        edges.zip(props).zip(const_props).zip(layer)
+    {
         if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
             graph.add_edge(*time, src, dst, edge_props, layer.as_deref())?;
+            graph.add_edge_properties(src, dst, const_props, layer.as_deref())?;
+            if let Some(shared_const_props) = &shared_const_props {
+                graph.add_edge_properties(src, dst, shared_const_props.iter(), layer.as_deref())?;
+            }
         }
     }
     Ok(())
@@ -285,10 +509,17 @@ fn load_vertices_from_num_iter<
     graph: &Graph,
     vertices: I,
     props: PI,
+    const_props: PI,
+    shared_const_props: Option<HashMap<String, Prop>>,
 ) -> Result<(), GraphError> {
-    for ((vertex, time), edge_props) in vertices.zip(props) {
-        if let (Some(v), Some(t), props) = (vertex, time, edge_props) {
+    for (((vertex, time), props), const_props) in vertices.zip(props).zip(const_props) {
+        if let (Some(v), Some(t), props, const_props) = (vertex, time, props, const_props) {
             graph.add_vertex(*t, v, props)?;
+            graph.add_vertex_properties(v, const_props)?;
+
+            if let Some(shared_const_props) = &shared_const_props {
+                graph.add_vertex_properties(v, shared_const_props.iter())?;
+            }
         }
     }
     Ok(())
@@ -418,6 +649,8 @@ mod test {
             "dst",
             "time",
             Some(vec!["prop1", "prop2"]),
+            None,
+            None,
             layer,
             layer_in_df,
             &graph,
@@ -475,7 +708,7 @@ mod test {
         };
         let graph = Graph::new();
 
-        load_vertices_from_df(&df, "id", "time", Some(vec!["name"]), &graph)
+        load_vertices_from_df(&df, "id", "time", Some(vec!["name"]), None, None, &graph)
             .expect("failed to load vertices from pretend df");
 
         let actual = graph
