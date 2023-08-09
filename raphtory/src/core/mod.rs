@@ -374,6 +374,12 @@ impl From<Vec<Prop>> for Prop {
     }
 }
 
+impl From<&Prop> for Prop {
+    fn from(value: &Prop) -> Self {
+        value.clone()
+    }
+}
+
 pub trait IntoPropMap {
     fn into_prop_map(self) -> Prop;
 }
