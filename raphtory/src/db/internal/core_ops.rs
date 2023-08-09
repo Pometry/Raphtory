@@ -135,19 +135,17 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
         match layer_ids {
             LayerIds::None => None,
             LayerIds::All => {
-                let layers_ids = self.inner().get_all_layers();
-                let num_layers = layers_ids.len();
-                if num_layers == 1 {
-                    let layer_id = layers_ids[0];
-                    let layer = entry.unsafe_layer(layer_id);
-                    layer.static_property(prop_id).cloned()
+                if self.inner().num_layers() == 1 {
+                    // iterator has at most 1 element
+                    entry
+                        .layer_iter()
+                        .next()
+                        .and_then(|layer| layer.static_property(prop_id).cloned())
                 } else {
-                    let prop_map: HashMap<_, _> = self
-                        .inner()
-                        .get_all_layers()
-                        .into_iter()
-                        .flat_map(|id| {
-                            let layer = entry.unsafe_layer(id);
+                    let prop_map: HashMap<_, _> = entry
+                        .layer_iter()
+                        .enumerate()
+                        .flat_map(|(id, layer)| {
                             layer
                                 .static_property(prop_id)
                                 .map(|p| (self.inner().get_layer_name(id), p.clone()))
@@ -160,18 +158,18 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
                     }
                 }
             }
-            LayerIds::One(id) => {
-                let layer = entry.unsafe_layer(id);
-                layer.static_property(prop_id).cloned()
-            }
+            LayerIds::One(id) => entry
+                .layer(id)
+                .and_then(|l| l.static_property(prop_id).cloned()),
             LayerIds::Multiple(ids) => {
                 let prop_map: HashMap<_, _> = ids
                     .iter()
                     .flat_map(|&id| {
-                        let layer = entry.unsafe_layer(id);
-                        layer
-                            .static_property(prop_id)
-                            .map(|p| (self.inner().get_layer_name(id), p.clone()))
+                        entry.layer(id).and_then(|layer| {
+                            layer
+                                .static_property(prop_id)
+                                .map(|p| (self.inner().get_layer_name(id), p.clone()))
+                        })
                     })
                     .collect();
                 if prop_map.is_empty() {
