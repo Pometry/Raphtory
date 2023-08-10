@@ -2,7 +2,7 @@
 
 use crate::{
     data::Data,
-    model::{algorithm::Algorithm, QueryRoot},
+    model::{algorithm::Algorithm, Mut, MutRoot, QueryRoot},
     observability::tracing::create_tracer_from_env,
     routes::{graphql_playground, health},
 };
@@ -63,7 +63,7 @@ impl RaphtoryServer {
         .unwrap_or(());
 
         #[derive(App)]
-        struct App(QueryRoot);
+        struct App(QueryRoot, MutRoot, Mut);
 
         // it is important that this runs after algorithms have been pushed to PLUGIN_ALGOS static variable
         let schema_builder = App::create_schema();

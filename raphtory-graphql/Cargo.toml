@@ -26,7 +26,7 @@ tokio = {version = "1.18.2", features = ["full"]}
 async-graphql = {version = "5.0.5", features = ["dynamic-schema"]}
 dynamic-graphql = "0.7.3"
 async-graphql-poem = "5.0.5"
-
+parking_lot = { version = "0.12" , features = ["serde", "arc_lock", "send_guard"] }
 futures-util = "0.3.0"
 async-stream = "0.3.0"
 
