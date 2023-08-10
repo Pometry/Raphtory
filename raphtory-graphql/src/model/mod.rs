@@ -6,7 +6,7 @@ use crate::{
 };
 use async_graphql::Context;
 use dynamic_graphql::{
-    Mutation, MutationFields, MutationRoot, ResolvedObject, ResolvedObjectFields,
+    App, Mutation, MutationFields, MutationRoot, ResolvedObject, ResolvedObjectFields,
 };
 use itertools::Itertools;
 use raphtory::db::api::view::internal::IntoDynamic;
@@ -71,3 +71,6 @@ impl Mut {
         keys
     }
 }
+
+#[derive(App)]
+pub(crate) struct App(QueryRoot, MutRoot, Mut);

@@ -2,12 +2,11 @@
 
 use crate::{
     data::Data,
-    model::{algorithm::Algorithm, Mut, MutRoot, QueryRoot},
+    model::{algorithm::Algorithm, App},
     observability::tracing::create_tracer_from_env,
     routes::{graphql_playground, health},
 };
 use async_graphql_poem::GraphQL;
-use dynamic_graphql::App;
 use poem::{get, listener::TcpListener, middleware::Cors, EndpointExt, Route, Server};
 use raphtory::db::api::view::internal::DynamicGraph;
 use std::collections::HashMap;
@@ -61,9 +60,6 @@ impl RaphtoryServer {
             None => registry.with(env_filter).try_init(),
         }
         .unwrap_or(());
-
-        #[derive(App)]
-        struct App(QueryRoot, MutRoot, Mut);
 
         // it is important that this runs after algorithms have been pushed to PLUGIN_ALGOS static variable
         let schema_builder = App::create_schema();

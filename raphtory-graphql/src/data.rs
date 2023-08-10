@@ -10,6 +10,7 @@ use std::{
 };
 use walkdir::WalkDir;
 
+#[derive(Default)]
 pub(crate) struct Data {
     pub(crate) graphs: RwLock<HashMap<String, IndexedGraph<DynamicGraph>>>,
 }
