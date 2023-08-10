@@ -50,6 +50,7 @@ pub(crate) struct Mut(MutRoot);
 
 #[MutationFields]
 impl Mut {
+    /// Load new graphs from a directory of bincode files (existing graphs with the same name are overwritten)
     async fn load_graphs_from_path<'a>(ctx: &Context<'a>, path: String) -> Vec<String> {
         let new_graphs = Data::load_from_file(&path);
         let keys: Vec<_> = new_graphs.keys().cloned().collect();
