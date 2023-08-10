@@ -1,4 +1,4 @@
-use std::ops::Deref;
+use std::{collections::HashMap, ops::Deref};
 
 use crate::{
     data::Data,
@@ -50,11 +50,23 @@ pub(crate) struct Mut(MutRoot);
 
 #[MutationFields]
 impl Mut {
-    /// Load new graphs from a directory of bincode files (existing graphs with the same name are overwritten)
+    /// Load graphs from a directory of bincode files (existing graphs with the same name are overwritten)
     async fn load_graphs_from_path<'a>(ctx: &Context<'a>, path: String) -> Vec<String> {
         let new_graphs = Data::load_from_file(&path);
         let keys: Vec<_> = new_graphs.keys().cloned().collect();
         let mut data = ctx.data_unchecked::<Data>().graphs.write();
+        data.extend(new_graphs);
+        keys
+    }
+
+    /// Load new graphs from a directory of bincode files (existing graphs will not been overwritten)
+    async fn load_new_graphs_from_path<'a>(ctx: &Context<'a>, path: String) -> Vec<String> {
+        let mut data = ctx.data_unchecked::<Data>().graphs.write();
+        let new_graphs: HashMap<_, _> = Data::load_from_file(&path)
+            .into_iter()
+            .filter(|(key, _)| !data.contains_key(key))
+            .collect();
+        let keys: Vec<_> = new_graphs.keys().cloned().collect();
         data.extend(new_graphs);
         keys
     }
