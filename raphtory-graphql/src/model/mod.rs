@@ -12,6 +12,7 @@ use raphtory::db::api::view::internal::IntoDynamic;
 pub(crate) mod algorithm;
 pub(crate) mod filters;
 pub(crate) mod graph;
+pub(crate) mod schema;
 
 #[derive(ResolvedObject)]
 #[graphql(root)]
@@ -23,7 +24,7 @@ impl QueryRoot {
         "Hello world from raphtory-graphql"
     }
 
-    /// Returns a view including all events between `t_start` (inclusive) and `t_end` (exclusive)
+    /// Returns a graph
     async fn graph<'a>(ctx: &Context<'a>, name: &str) -> Option<GqlGraph> {
         let data = ctx.data_unchecked::<Data>();
         let g = data.graphs.get(name)?;
