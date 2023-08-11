@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1691590806333,
+  "lastUpdate": 1691751371238,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -6529,6 +6529,60 @@ window.BENCHMARK_DATA = {
             "name": "large/1k random edge additions with numeric string input",
             "value": 1615776,
             "range": "± 95358",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "33124479+narnolddd@users.noreply.github.com",
+            "name": "Naomi Arnold",
+            "username": "narnolddd"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "057df89c4682356d8ccfbe33cbbe84a40949d1dd",
+          "message": "Feature kcore (#1123)\n\n* add k core algorithm ahead of triangle optimisations\r\n\r\n* optimisations to triangle_count\r\n\r\n* something not right\r\n\r\n* add test for triangle count on subgraph\r\n\r\n* fix the issue with compute and subgraphs\r\n\r\n* add k core algorithm ahead of triangle optimisations\r\n\r\n* optimisations to triangle_count\r\n\r\n* something not right\r\n\r\n* add test\r\n\r\n* triangle motifs first run\r\n\r\n* almost working just got a borrow issue\r\n\r\n* fixed borrow prob\r\n\r\n* global works, local is mega busted\r\n\r\n* test 4 global\r\n\r\n* working version up to events happening at same time\r\n\r\n* try fix fmt issue\r\n\r\n* formatting changes\r\n\r\n* fix unresolved ref\r\n\r\n* expose to python and rename classes\r\n\r\n* update 2 new edge api\r\n\r\n* add mini optimisation\r\n\r\n* fn for returning vertex subgraph as well as the set\r\n\r\n* simplification of map filter\r\n\r\n---------\r\n\r\nCo-authored-by: Lucas Jeub <lucas.jeub@pometry.com>\r\nCo-authored-by: Fabian Murariu <murariu.fabian@gmail.com>",
+          "timestamp": "2023-08-11T11:48:43+01:00",
+          "tree_id": "ea2bc1349692379b110473c9522cf08aadf9383e",
+          "url": "https://github.com/Pometry/Raphtory/commit/057df89c4682356d8ccfbe33cbbe84a40949d1dd"
+        },
+        "date": 1691751369644,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 782482,
+            "range": "± 18752",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and numeric string input",
+            "value": 1232917,
+            "range": "± 58677",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and string input",
+            "value": 1356256,
+            "range": "± 69289",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 1357766,
+            "range": "± 191967",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions with numeric string input",
+            "value": 1889255,
+            "range": "± 126184",
             "unit": "ns/iter"
           }
         ]
