@@ -1,4 +1,4 @@
-<br>
+git co<br>
 <p align="center">
   <img src="https://user-images.githubusercontent.com/6665739/130641943-fa7fcdb8-a0e7-4aa4-863f-3df61b5de775.png" alt="Raphtory" height="100"/>
 </p>
@@ -120,7 +120,7 @@ The top node in the graph is Charlie with a score of 0.4744116163405977
 
 ### Create/Load a graph
 
-Save a raphtory graph and set the `GRAPH_DIRECTORY` to point to the directory containing the graph.
+Save a raphtory graph and set the `GRAPH_DIRECTORY` environment variable to point to the directory containing the graph.
 
 <details>
 
@@ -217,14 +217,6 @@ Expected Result:
         ...
 ```
 
-Screenshot
-
-<details>
-  <summary>GraphQL Server Screenshot</summary>
-  
-  ![GraphQL Query](resources/graphql-demo.jpg)
-  
-</details>
 
 
 
