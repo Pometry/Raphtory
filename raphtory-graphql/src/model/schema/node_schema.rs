@@ -34,6 +34,7 @@ impl NodeSchema {
         self.type_name.clone()
     }
 
+    /// Returns the list of property schemas for this node
     async fn properties(&self) -> Vec<PropertySchema> {
         let filter_type = |vertex: &VertexView<DynamicGraph>| match vertex.properties().get("type")
         {

@@ -111,6 +111,7 @@ impl GqlGraph {
         }
     }
 
+    /// Returns the schema of this graph
     async fn schema(&self) -> GraphSchema {
         GraphSchema::new(&self.graph)
     }
