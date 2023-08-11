@@ -256,6 +256,7 @@ mod graphql_test {
         let test_dir = tempdir().unwrap();
         let g0 = Graph::new();
         let test_dir_path = test_dir.path().display();
+        println!("test path: {}", test_dir_path);
         let f0 = &test_dir.path().join("g0");
         let f1 = &test_dir.path().join("g1");
         g0.save_to_file(f0).unwrap();
