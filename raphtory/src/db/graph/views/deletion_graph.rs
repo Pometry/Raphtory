@@ -15,6 +15,7 @@ use crate::{
     },
     prelude::*,
 };
+use serde::{Deserialize, Serialize};
 use std::{
     cmp::min,
     fmt::{Display, Formatter},
@@ -24,7 +25,7 @@ use std::{
     sync::Arc,
 };
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct GraphWithDeletions {
     graph: Arc<InternalGraph>,
 }

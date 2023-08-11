@@ -1,14 +1,37 @@
 use crate::db::{
-    api::view::internal::Base,
+    api::view::internal::{Base, DynamicGraph, IntoDynamic},
     graph::{
         graph::{Graph, InternalGraph},
         views::deletion_graph::GraphWithDeletions,
     },
 };
+use serde::{Deserialize, Serialize};
 
+#[derive(Serialize, Deserialize)]
 pub enum MaterializedGraph {
     EventGraph(Graph),
     PersistentGraph(GraphWithDeletions),
+}
+
+impl From<Graph> for MaterializedGraph {
+    fn from(value: Graph) -> Self {
+        MaterializedGraph::EventGraph(value)
+    }
+}
+
+impl From<GraphWithDeletions> for MaterializedGraph {
+    fn from(value: GraphWithDeletions) -> Self {
+        MaterializedGraph::PersistentGraph(value)
+    }
+}
+
+impl IntoDynamic for MaterializedGraph {
+    fn into_dynamic(self) -> DynamicGraph {
+        match self {
+            MaterializedGraph::EventGraph(g) => g.into_dynamic(),
+            MaterializedGraph::PersistentGraph(g) => g.into_dynamic(),
+        }
+    }
 }
 
 impl MaterializedGraph {

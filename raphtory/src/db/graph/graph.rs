@@ -86,10 +86,6 @@ impl InheritViewOps for Graph {}
 impl Graph {
     /// Create a new graph with the specified number of shards
     ///
-    /// # Arguments
-    ///
-    /// * `nr_shards` - The number of shards
-    ///
     /// # Returns
     ///
     /// A raphtory graph

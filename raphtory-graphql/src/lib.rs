@@ -12,7 +12,10 @@ mod graphql_test {
     use super::*;
     use crate::{data::Data, model::App};
     use dynamic_graphql::Request;
-    use raphtory::{db::api::view::internal::IntoDynamic, prelude::*};
+    use raphtory::{
+        db::api::view::internal::{IntoDynamic, MaterializedGraph},
+        prelude::*,
+    };
     use serde_json::json;
     use std::collections::HashMap;
     use tempfile::tempdir;
@@ -341,7 +344,7 @@ mod graphql_test {
 
         // reload all graphs from folder
         let req = Request::new(load_all);
-        let res = schema.execute(req).await;
+        schema.execute(req).await;
 
         // g0 now has node 2
         let req = Request::new(list_nodes("g0"));
@@ -354,5 +357,42 @@ mod graphql_test {
         let res = schema.execute(req).await;
         let res_json = res.data.into_json().unwrap();
         assert_eq!(res_json, json!({"graph": {"nodes": [{"id": 1}]}}));
+    }
+
+    #[tokio::test]
+    async fn test_graph_injection() {
+        let g: MaterializedGraph = Graph::new().into();
+        let gb = serde_json::to_string(&g).unwrap();
+
+        let data = Data::default();
+        let schema = App::create_schema().data(data).finish().unwrap();
+
+        let req = Request::new(format!(
+            r#"
+        mutation {{
+          newGraphFromJson(
+            name: "test",
+            graph: "{}"
+          )
+        }}"#,
+            gb
+        ));
+        let res = schema.execute(req).await;
+        let res_json = res.data.into_json().unwrap();
+        println!("{:?}", res_json);
+
+        let req = Request::new(
+            r#"{
+          graph(name: "test") {
+            nodes {
+              id
+            }
+          }
+        "#,
+        );
+        let res = schema.execute(req).await;
+        println!("{:?}", res.errors);
+        let res_json = res.data.into_json().unwrap();
+        println!("{:?}", res_json)
     }
 }

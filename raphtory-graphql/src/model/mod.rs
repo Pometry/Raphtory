@@ -6,10 +6,14 @@ use crate::{
 };
 use async_graphql::Context;
 use dynamic_graphql::{
-    App, Mutation, MutationFields, MutationRoot, ResolvedObject, ResolvedObjectFields,
+    App, Mutation, MutationFields, MutationRoot, ResolvedObject, ResolvedObjectFields, Result,
 };
 use itertools::Itertools;
-use raphtory::db::api::view::internal::IntoDynamic;
+use raphtory::{
+    db::api::view::internal::{DynamicGraph, IntoDynamic, MaterializedGraph},
+    prelude::Graph,
+    search::IndexedGraph,
+};
 
 pub(crate) mod algorithm;
 pub(crate) mod filters;
@@ -69,6 +73,18 @@ impl Mut {
         let keys: Vec<_> = new_graphs.keys().cloned().collect();
         data.extend(new_graphs);
         keys
+    }
+
+    async fn new_graph_from_json<'a>(
+        ctx: &Context<'a>,
+        name: String,
+        graph_data: String,
+    ) -> Result<GqlGraph> {
+        let g: MaterializedGraph = serde_json::from_str(&graph_data)?;
+        let gi: IndexedGraph<DynamicGraph> = g.into_dynamic().into();
+        let mut data = ctx.data_unchecked::<Data>().graphs.write();
+        data.insert(name, gi.clone());
+        Ok(GqlGraph::from(gi))
     }
 }
 
