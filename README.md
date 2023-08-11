@@ -162,7 +162,7 @@ The GraphQL server must be running in the same environment (i.e. debug or releas
 ```bash
 warning: `raphtory` (lib) generated 17 warnings (run `cargo fix --lib -p raphtory` to apply 13 suggestions)
     Finished release [optimized] target(s) in 0.91s
-     Running `/Users/haaroony/Documents/dev/UI/Raphtory/target/release/raphtory-graphql`
+     Running `Raphtory/target/release/raphtory-graphql`
 loading graph from /tmp/graphs/lotr.bincode
 Playground: http://localhost:1736
   2023-08-11T14:36:52.444203Z  INFO poem::server: listening, addr: socket://0.0.0.0:1736
