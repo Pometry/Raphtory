@@ -60,8 +60,7 @@ where
                 let current = vv
                     .neighbours()
                     .into_iter()
-                    .map(|n| n.prev().alive)
-                    .filter(|b| *b)
+                    .filter(|n| n.prev().alive)
                     .count()
                     >= k;
                 let state: &mut KCoreState = vv.get_mut();
