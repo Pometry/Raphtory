@@ -122,9 +122,11 @@ The top node in the graph is Charlie with a score of 0.4744116163405977
 
 Save a raphtory graph and set the `GRAPH_DIRECTORY` to point to the directory containing the graph.
 
-Alternatively you can run the example below to generate a graph.
-
 <details>
+
+<summary> 
+Alternatively you can run the code below to generate a graph.
+</summary>
 
 ```bash
 mkdir -p /tmp/graphs
@@ -141,7 +143,7 @@ cp examples/rust/src/bin/lotr/data/graphdb.bincode /tmp/graphs/lotr.bincode
 
 ### Run the GraphQL server
 
-The code below will run graphql with a UI at port `1736` 
+The code below will run GraphQL with a UI at `localhost:1736` 
 
 GraphlQL will look for graph files in `/tmp/graphs` or in the path set in the `GRAPH_DIRECTORY` Environment variable. 
 
@@ -150,7 +152,12 @@ cd raphtory-graphql && cargo run -r
 ```
 
 <details>
-<summary>Following output upon a successful launch</summary>
+<summary>ℹ️Warning: Server must have the same version + environment</summary>
+The GraphQL server must be running in the same environment (i.e. debug or release) and same Raphtory version as the generated graph, otherwise it will throw errors due to incompatible graph metadata across versions. 
+</details>
+
+<details>
+<summary>Following will be output upon a successful launch</summary>
 
 ```bash
 warning: `raphtory` (lib) generated 17 warnings (run `cargo fix --lib -p raphtory` to apply 13 suggestions)
