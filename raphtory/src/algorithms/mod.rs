@@ -32,6 +32,7 @@ pub mod connected_components;
 pub mod degree;
 pub mod directed_graph_density;
 pub mod hits;
+pub mod k_core;
 pub mod local_clustering_coefficient;
 pub mod local_triangle_count;
 pub mod motifs;

@@ -1,7 +1,9 @@
 use crate::{
+    algorithms::k_core::k_core_set,
     core::state::{accumulator_id::accumulators, compute_state::ComputeStateVec},
     db::{
         api::view::*,
+        graph::views::vertex_subgraph::{self, VertexSubgraph},
         task::{
             context::Context,
             task::{ATask, Job, Step},
@@ -55,9 +57,12 @@ use rustc_hash::FxHashSet;
 /// let actual_tri_count = triangle_count(&graph, None);
 /// ```
 ///
-pub fn triangle_count<G: GraphViewOps>(g: &G, threads: Option<usize>) -> usize {
-    let mut ctx: Context<G, ComputeStateVec> = g.into();
+pub fn triangle_count<G: GraphViewOps>(graph: &G, threads: Option<usize>) -> usize {
+    let vertex_set = k_core_set(graph, 2, usize::MAX, None);
+    let g = graph.subgraph(vertex_set);
+    let mut ctx: Context<VertexSubgraph<G>, ComputeStateVec> = Context::from(&g);
 
+    // let mut ctx: Context<G, ComputeStateVec> = graph.into();
     let neighbours_set = accumulators::hash_set::<u64>(0);
     let count = accumulators::sum::<usize>(1);
 
@@ -103,7 +108,7 @@ pub fn triangle_count<G: GraphViewOps>(g: &G, threads: Option<usize>) -> usize {
     let init_tasks = vec![Job::new(step1)];
     let tasks = vec![Job::new(step2)];
 
-    let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
+    let mut runner: TaskRunner<VertexSubgraph<G>, _> = TaskRunner::new(ctx);
 
     runner.run(
         init_tasks,

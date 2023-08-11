@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 /// Implementations of various graph algorithms that can be run on a graph.
 ///
 /// To run an algorithm simply import the module and call the function with the graph as the argument
@@ -15,9 +17,9 @@ use crate::{
         hits::hits as hits_rs,
         local_clustering_coefficient::local_clustering_coefficient as local_clustering_coefficient_rs,
         local_triangle_count::local_triangle_count as local_triangle_count_rs,
-        motifs::three_node_local::{
-            global_temporal_three_node_motifs as global_temporal_three_node_motif_rs,
-            local_temporal_three_node_motifs as local_three_node_rs,
+        motifs::three_node_temporal_motifs::{
+            global_temporal_three_node_motif as global_temporal_three_node_motif_rs,
+            temporal_three_node_motif as local_three_node_rs,
         },
         pagerank::unweighted_page_rank,
         reciprocity::{
@@ -323,7 +325,7 @@ pub fn global_clustering_coefficient(g: &PyGraphView) -> f64 {
 ///
 #[pyfunction]
 pub fn global_temporal_three_node_motif(g: &PyGraphView, delta: i64) -> Vec<usize> {
-    global_temporal_three_node_motif_rs(&g.graph, delta)
+    global_temporal_three_node_motif_rs(&g.graph, delta, None)
 }
 
 /// Computes the number of each type of motif that each node participates in. See global_temporal_three_node_motifs for a summary of the motifs involved.
@@ -345,8 +347,8 @@ pub fn global_temporal_three_node_motif(g: &PyGraphView, delta: i64) -> Vec<usiz
 pub fn local_temporal_three_node_motifs(
     g: &PyGraphView,
     delta: i64,
-) -> AlgorithmResult<u64, Vec<usize>> {
-    local_three_node_rs(&g.graph, delta)
+) -> HashMap<String, Vec<usize>> {
+    local_three_node_rs(&g.graph, delta, None)
 }
 
 /// HITS (Hubs and Authority) Algorithm:

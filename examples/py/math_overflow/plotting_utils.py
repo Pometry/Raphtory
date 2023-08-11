@@ -49,8 +49,11 @@ mapper = {0:(5,5),
 
 def to_3d_heatmap(motif_flat, data_type=int):
     motif_3d = np.zeros((6,6),dtype=data_type)
-    for i in range(40):
+    for i in list(range(24))+list(range(31,40)):
         motif_3d[mapper[i]]=motif_flat[i]
+    for i in range(4):
+        motif_3d[mapper[24+i]] = (motif_flat[24+i] + motif_flat[31-i])/2
+
     return motif_3d
 
 def human_format(num):

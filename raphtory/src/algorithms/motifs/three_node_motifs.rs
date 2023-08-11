@@ -72,7 +72,7 @@ pub fn init_two_node_count() -> TwoNodeCounter {
 // Star Motifs
 pub struct StarEvent {
     nb: usize,
-    dir: usize,
+    pub dir: usize,
     pub time: i64,
 }
 
