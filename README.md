@@ -1,4 +1,4 @@
-<br>
+git co<br>
 <p align="center">
   <img src="https://user-images.githubusercontent.com/6665739/130641943-fa7fcdb8-a0e7-4aa4-863f-3df61b5de775.png" alt="Raphtory" height="100"/>
 </p>
@@ -115,6 +115,109 @@ The weight of the edge between Bob and Charlie has changed by 20.0 pts
 
 The top node in the graph is Charlie with a score of 0.4744116163405977
 ```
+
+## GraphQL
+
+### Create/Load a graph
+
+Save a raphtory graph and set the `GRAPH_DIRECTORY` environment variable to point to the directory containing the graph.
+
+<details>
+
+<summary> 
+Alternatively you can run the code below to generate a graph.
+</summary>
+
+```bash
+mkdir -p /tmp/graphs
+mkdir -p examples/rust/src/bin/lotr/data/
+tail -n +2 resource/lotr.csv > examples/rust/src/bin/lotr/data/lotr.csv
+
+cd examples/rust && cargo run --bin lotr -r
+
+cp examples/rust/src/bin/lotr/data/graphdb.bincode /tmp/graphs/lotr.bincode
+```
+
+</details>
+
+
+### Run the GraphQL server
+
+The code below will run GraphQL with a UI at `localhost:1736` 
+
+GraphlQL will look for graph files in `/tmp/graphs` or in the path set in the `GRAPH_DIRECTORY` Environment variable. 
+
+```bash
+cd raphtory-graphql && cargo run -r 
+```
+
+<details>
+<summary>ℹ️Warning: Server must have the same version + environment</summary>
+The GraphQL server must be running in the same environment (i.e. debug or release) and same Raphtory version as the generated graph, otherwise it will throw errors due to incompatible graph metadata across versions. 
+</details>
+
+<details>
+<summary>Following will be output upon a successful launch</summary>
+
+```bash
+warning: `raphtory` (lib) generated 17 warnings (run `cargo fix --lib -p raphtory` to apply 13 suggestions)
+    Finished release [optimized] target(s) in 0.91s
+     Running `Raphtory/target/release/raphtory-graphql`
+loading graph from /tmp/graphs/lotr.bincode
+Playground: http://localhost:1736
+  2023-08-11T14:36:52.444203Z  INFO poem::server: listening, addr: socket://0.0.0.0:1736
+    at /Users/pometry/.cargo/registry/src/github.com-1ecc6299db9ec823/poem-1.3.56/src/server.rs:109
+
+  2023-08-11T14:36:52.444257Z  INFO poem::server: server started
+    at /Users/pometry/.cargo/registry/src/github.com-1ecc6299db9ec823/poem-1.3.56/src/server.rs:111
+```
+</details>
+
+
+### Execute a query
+
+Go to the Playground at `http://localhost:1736` and execute the following commands:
+
+Query:
+```bash
+    query GetNodes($graphName: String!) {
+        graph(name: $graphName) {
+            nodes {
+              name
+            }
+      }
+    }
+```
+
+Query Variables:
+```bash
+{
+  "graphName": "lotr.bincode"
+}
+```
+
+Expected Result:
+```bash
+{
+  "data": {
+    "graph": {
+      "nodes": [
+        {
+          "name": "Gandalf"
+        },
+        {
+          "name": "Elrond"
+        },
+        {
+          "name": "Frodo"
+        },
+        {
+          "name": "Bilbo"
+        },
+        ...
+```
+
+
 
 
 ## Installing Raphtory 
