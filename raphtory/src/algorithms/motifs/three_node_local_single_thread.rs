@@ -315,7 +315,7 @@ pub fn global_temporal_three_node_motifs<G: GraphViewOps>(graph: &G, delta: i64)
 #[cfg(test)]
 mod local_motif_test {
     use crate::{
-        algorithms::motifs::three_node_local::*,
+        algorithms::motifs::three_node_local_single_thread::*,
         db::{api::mutation::AdditionOps, graph::graph::Graph},
         prelude::NO_PROPS,
     };
@@ -358,7 +358,6 @@ mod local_motif_test {
         let counts = local_temporal_three_node_motifs(&graph, 10);
         // FIXME: Should test this
         let _global_counts = global_temporal_three_node_motifs(&graph, 10);
-
         let expected: HashMap<u64, Vec<usize>> = HashMap::from([
             (
                 1,
