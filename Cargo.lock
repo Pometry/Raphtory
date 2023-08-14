@@ -998,7 +998,7 @@ checksum = "0198b9d0078e0f30dedc7acbb21c974e838fc8fae3ee170128658a98cb2c1c04"
 
 [[package]]
 name = "examples"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "chrono",
  "itertools",
@@ -1672,7 +1672,7 @@ dependencies = [
 
 [[package]]
 name = "js-raphtory"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "chrono",
  "console_error_panic_hook",
@@ -2749,7 +2749,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "arrow2",
  "bincode",
@@ -2798,7 +2798,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-benchmark"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "criterion",
  "rand 0.8.5",
@@ -2809,7 +2809,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-graphql"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "async-graphql",
  "async-graphql-poem",
@@ -2835,7 +2835,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-pymodule"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "openssl",
  "pyo3",
@@ -2847,7 +2847,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-rust-benchmark"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "chrono",
  "clap 4.3.11",
