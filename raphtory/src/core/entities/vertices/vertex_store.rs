@@ -188,9 +188,33 @@ impl<const N: usize> VertexStore<N> {
                     .iter(d)
                     .map(move |(dst_pid, e_id)| EdgeRef::new_outgoing(e_id, self_id, dst_pid)),
             ),
-            _ => Box::new(std::iter::empty()),
+            _ => Box::new(iter::empty()),
         };
         iter
+    }
+
+    pub(crate) fn degree(&self, layers: LayerIds, d: Direction) -> usize {
+        match layers {
+            LayerIds::All => match self.layers.len() {
+                0 => 0,
+                1 => self.layers[0].degree(d),
+                _ => self
+                    .layers
+                    .iter()
+                    .map(|l| l.vertex_iter(d))
+                    .kmerge()
+                    .dedup()
+                    .count(),
+            },
+            LayerIds::One(l) => self.layers.get(l).map(|layer| layer.degree(d)).unwrap_or(0),
+            LayerIds::None => 0,
+            LayerIds::Multiple(ids) => ids
+                .iter()
+                .flat_map(|l_id| self.layers.get(*l_id).map(|layer| layer.vertex_iter(d)))
+                .kmerge()
+                .dedup()
+                .count(),
+        }
     }
 
     // every neighbour apears once in the iterator

@@ -70,6 +70,21 @@ impl Adj {
         }
     }
 
+    pub(crate) fn vertex_iter(&self, dir: Direction) -> impl Iterator<Item = VID> + Send + '_ {
+        self.iter(dir).map(|(v, _)| v)
+    }
+
+    pub(crate) fn degree(&self, dir: Direction) -> usize {
+        match self {
+            Adj::Solo => 0,
+            Adj::List { out, into } => match dir {
+                Direction::OUT => out.len(),
+                Direction::IN => into.len(),
+                Direction::BOTH => out.iter().merge(into.iter()).count(),
+            },
+        }
+    }
+
     pub(crate) fn get_page_vec(
         &self,
         last: Option<VID>,

@@ -281,7 +281,7 @@ impl<const N: usize> TemporalGraph<N> {
 
     pub(crate) fn degree(&self, v: VID, dir: Direction, layers: LayerIds) -> usize {
         let node_store = self.storage.get_node(v.into());
-        node_store.neighbours(layers, dir).count()
+        node_store.degree(layers, dir)
     }
 
     #[inline]

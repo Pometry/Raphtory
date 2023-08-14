@@ -28,6 +28,23 @@ pub enum AdjSet<K: Ord + Copy + Hash + Send + Sync, V: Into<usize> + Copy + Send
 }
 
 impl<K: Ord + Copy + Hash + Send + Sync, V: Into<usize> + Copy + Send + Sync> AdjSet<K, V> {
+    pub fn len(&self) -> usize {
+        match self {
+            AdjSet::Empty => 0,
+            AdjSet::One(_, _) => 1,
+            AdjSet::Small { vs, .. } => vs.len(),
+            AdjSet::Large { vs } => vs.len(),
+        }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        match self {
+            AdjSet::Empty => true,
+            AdjSet::One(_, _) => false,
+            AdjSet::Small { vs, .. } => vs.is_empty(),
+            AdjSet::Large { vs } => vs.is_empty(),
+        }
+    }
     pub fn new(v: K, e: V) -> Self {
         Self::One(v, e)
     }
