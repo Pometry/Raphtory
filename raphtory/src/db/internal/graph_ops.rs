@@ -10,7 +10,7 @@ use crate::{
     prelude::GraphViewOps,
 };
 use genawaiter::sync::GenBoxed;
-use std::ops::Deref;
+use std::{iter, ops::Deref};
 
 impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
     fn layer_ids(&self) -> LayerIds {
@@ -73,6 +73,7 @@ impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
 
     fn edge_refs(&self, layers: LayerIds) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
         match layers {
+            LayerIds::None => Box::new(iter::empty()),
             LayerIds::All => {
                 let iter = self.inner().locked_edges().map(|edge| edge.deref().into());
                 Box::new(iter)
