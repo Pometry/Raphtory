@@ -67,12 +67,17 @@ impl<const N: usize> VertexStore<N> {
         props.add_static_prop(prop_id, prop)
     }
 
+    #[inline(always)]
     pub(crate) fn find_edge(&self, dst: VID, layer_id: LayerIds) -> Option<EID> {
         match layer_id {
-            LayerIds::All => self
-                .layers
-                .iter()
-                .find_map(|layer| layer.get_edge(dst, Direction::OUT)),
+            LayerIds::All => match self.layers.len() {
+                0 => None,
+                1 => self.layers[0].get_edge(dst, Direction::OUT),
+                _ => self
+                    .layers
+                    .iter()
+                    .find_map(|layer| layer.get_edge(dst, Direction::OUT)),
+            },
             LayerIds::One(layer_id) => self
                 .layers
                 .get(layer_id)
