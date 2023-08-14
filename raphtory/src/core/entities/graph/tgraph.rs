@@ -51,6 +51,7 @@ pub(crate) type TGraph<const N: usize> = TemporalGraph<N>;
 pub struct InnerTemporalGraph<const N: usize>(Arc<TemporalGraph<N>>);
 
 impl<const N: usize> InnerTemporalGraph<N> {
+    #[inline]
     pub(crate) fn inner(&self) -> &TemporalGraph<N> {
         &self.0
     }

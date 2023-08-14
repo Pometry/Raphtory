@@ -20,6 +20,7 @@ use std::{
     },
 };
 
+#[inline]
 fn resolve<const N: usize>(index: usize) -> (usize, usize) {
     let bucket = index % N;
     let offset = index / N;
