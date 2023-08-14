@@ -74,6 +74,7 @@ impl<G: GraphViewOps> PartialEq<G> for Graph {
 impl Base for Graph {
     type Base = InternalGraph;
 
+    #[inline(always)]
     fn base(&self) -> &InternalGraph {
         &self.0
     }

@@ -75,7 +75,7 @@ pub struct WindowedGraph<G: GraphViewOps> {
 
 impl<G: GraphViewOps> Base for WindowedGraph<G> {
     type Base = G;
-
+    #[inline(always)]
     fn base(&self) -> &Self::Base {
         &self.graph
     }

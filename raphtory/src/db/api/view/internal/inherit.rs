@@ -11,6 +11,7 @@ pub trait Base {
 impl<T: Deref> Base for T {
     type Base = T::Target;
 
+    #[inline(always)]
     fn base(&self) -> &Self::Base {
         self.deref()
     }

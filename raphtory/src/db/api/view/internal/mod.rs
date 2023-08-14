@@ -108,6 +108,7 @@ impl DynamicGraph {
 impl Base for DynamicGraph {
     type Base = dyn BoxableGraphView;
 
+    #[inline(always)]
     fn base(&self) -> &Self::Base {
         &self.0
     }

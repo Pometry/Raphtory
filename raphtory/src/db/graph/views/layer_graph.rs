@@ -24,7 +24,7 @@ pub struct LayeredGraph<G: GraphViewOps> {
 
 impl<G: GraphViewOps> Base for LayeredGraph<G> {
     type Base = G;
-
+    #[inline(always)]
     fn base(&self) -> &Self::Base {
         &self.graph
     }

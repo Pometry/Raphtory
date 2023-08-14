@@ -125,7 +125,7 @@ impl<G: GraphViewOps> PartialEq<G> for GraphWithDeletions {
 
 impl Base for GraphWithDeletions {
     type Base = InternalGraph;
-
+    #[inline(always)]
     fn base(&self) -> &Self::Base {
         &self.graph
     }

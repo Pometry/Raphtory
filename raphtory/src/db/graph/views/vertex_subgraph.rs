@@ -24,7 +24,7 @@ pub struct VertexSubgraph<G: GraphViewOps> {
 
 impl<G: GraphViewOps> Base for VertexSubgraph<G> {
     type Base = G;
-
+    #[inline(always)]
     fn base(&self) -> &Self::Base {
         &self.graph
     }
