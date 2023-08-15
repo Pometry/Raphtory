@@ -256,7 +256,6 @@ mod graphql_test {
         let test_dir = tempdir().unwrap();
         let g0 = Graph::new();
         let test_dir_path = test_dir.path().to_str().unwrap().replace(r#"\"#, r#"\\"#);
-        println!("test path: {}", test_dir_path);
         let f0 = &test_dir.path().join("g0");
         let f1 = &test_dir.path().join("g1");
         g0.save_to_file(f0).unwrap();
@@ -304,11 +303,9 @@ mod graphql_test {
             test_dir_path
         );
 
-        println!("{}", load_all);
         // only g0 which is empty
         let req = Request::new(load_all);
         let res = schema.execute(req).await;
-        println!("response: {:?}", res);
         let res_json = res.data.into_json().unwrap();
         assert_eq!(res_json, json!({"loadGraphsFromPath": ["g0"]}));
 
