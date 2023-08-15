@@ -255,7 +255,7 @@ mod graphql_test {
     async fn test_mutation() {
         let test_dir = tempdir().unwrap();
         let g0 = Graph::new();
-        let test_dir_path = test_dir.path().to_str().unwrap();
+        let test_dir_path = test_dir.path().to_str().unwrap().replace(r#"\"#, r#"\\"#);
         println!("test path: {}", test_dir_path);
         let f0 = &test_dir.path().join("g0");
         let f1 = &test_dir.path().join("g1");
