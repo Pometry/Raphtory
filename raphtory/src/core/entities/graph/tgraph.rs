@@ -217,7 +217,7 @@ impl<const N: usize> TemporalGraph<N> {
 
     pub(crate) fn global_vertex_id(&self, v: VID) -> Option<u64> {
         let node = self.storage.get_node(v.into());
-        node.value().map(|n| n.global_id())
+        Some(node.value().global_id())
     }
 
     pub(crate) fn vertex_name(&self, v: VID) -> String {

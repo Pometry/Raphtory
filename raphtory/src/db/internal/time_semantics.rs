@@ -14,17 +14,11 @@ use std::ops::Range;
 
 impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
     fn vertex_earliest_time(&self, v: VID) -> Option<i64> {
-        self.inner()
-            .node_entry(v)
-            .value()
-            .and_then(|node| node.timestamps().first_t())
+        self.inner().node_entry(v).value().timestamps().first_t()
     }
 
     fn vertex_latest_time(&self, v: VID) -> Option<i64> {
-        self.inner()
-            .node_entry(v)
-            .value()
-            .and_then(|node| node.timestamps().last_t())
+        self.inner().node_entry(v).value().timestamps().last_t()
     }
 
     fn view_start(&self) -> Option<i64> {
@@ -47,14 +41,18 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
         self.inner()
             .node_entry(v)
             .value()
-            .and_then(|node| node.timestamps().range(t_start..t_end).first_t())
+            .timestamps()
+            .range(t_start..t_end)
+            .first_t()
     }
 
     fn vertex_latest_time_window(&self, v: VID, t_start: i64, t_end: i64) -> Option<i64> {
         self.inner()
             .node_entry(v)
             .value()
-            .and_then(|node| node.timestamps().range(t_start..t_end).last_t())
+            .timestamps()
+            .range(t_start..t_end)
+            .last_t()
     }
 
     fn include_vertex_window(&self, v: VID, w: Range<i64>) -> bool {

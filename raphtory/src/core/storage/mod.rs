@@ -29,11 +29,11 @@ fn resolve<const N: usize>(index: usize) -> (usize, usize) {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct LockVec<T> {
-    data: Arc<parking_lot::RwLock<Vec<Option<T>>>>,
+pub struct LockVec<T: Default> {
+    data: Arc<parking_lot::RwLock<Vec<T>>>,
 }
 
-impl<T: PartialEq> PartialEq for LockVec<T> {
+impl<T: PartialEq + Default> PartialEq for LockVec<T> {
     fn eq(&self, other: &Self) -> bool {
         let a = self.data.read();
         let b = other.data.read();
@@ -41,27 +41,25 @@ impl<T: PartialEq> PartialEq for LockVec<T> {
     }
 }
 
-impl<T> LockVec<T> {
+impl<T: Default> LockVec<T> {
     pub fn new() -> Self {
         Self {
             data: Arc::new(parking_lot::RwLock::new(Vec::new())),
         }
     }
 
-    pub fn read_arc_lock(
-        &self,
-    ) -> lock_api::ArcRwLockReadGuard<parking_lot::RawRwLock, Vec<Option<T>>> {
+    pub fn read_arc_lock(&self) -> lock_api::ArcRwLockReadGuard<parking_lot::RawRwLock, Vec<T>> {
         RwLock::read_arc(&self.data)
     }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct RawStorage<T, const N: usize> {
+pub struct RawStorage<T: Default, const N: usize> {
     pub(crate) data: Box<[LockVec<T>]>,
     len: AtomicUsize,
 }
 
-impl<T: PartialEq, const N: usize> PartialEq for RawStorage<T, N> {
+impl<T: PartialEq + Default, const N: usize> PartialEq for RawStorage<T, N> {
     fn eq(&self, other: &Self) -> bool {
         self.data.eq(&other.data)
     }
@@ -69,7 +67,7 @@ impl<T: PartialEq, const N: usize> PartialEq for RawStorage<T, N> {
 
 #[derive(Debug)]
 pub struct ReadLockedStorage<T, const N: usize> {
-    locks: Box<[lock_api::ArcRwLockReadGuard<parking_lot::RawRwLock, Vec<Option<T>>>; N]>,
+    locks: Box<[lock_api::ArcRwLockReadGuard<parking_lot::RawRwLock, Vec<T>>; N]>,
     len: usize,
 }
 
@@ -77,19 +75,17 @@ impl<T, const N: usize> ReadLockedStorage<T, N> {
     pub(crate) fn get(&self, index: usize) -> &T {
         let (bucket, offset) = resolve::<N>(index);
         let bucket = &self.locks[bucket];
-        bucket[offset].as_ref().unwrap()
+        &bucket[offset]
     }
 
     pub(crate) fn iter(&self) -> impl Iterator<Item = &T> + '_ {
-        self.locks
-            .iter()
-            .flat_map(|v| v.iter().map(|v| v.as_ref().unwrap()))
+        self.locks.iter().flat_map(|v| v.iter())
     }
 }
 
-impl<T, const N: usize> RawStorage<T, N> {
+impl<T: Default, const N: usize> RawStorage<T, N> {
     pub fn read_lock(&self) -> ReadLockedStorage<T, N> {
-        let guards: [lock_api::ArcRwLockReadGuard<parking_lot::RawRwLock, Vec<Option<T>>>; N] =
+        let guards: [lock_api::ArcRwLockReadGuard<parking_lot::RawRwLock, Vec<T>>; N] =
             std::array::from_fn(|i| self.data[i].read_arc_lock());
         ReadLockedStorage {
             locks: guards.into(),
@@ -122,17 +118,27 @@ impl<T, const N: usize> RawStorage<T, N> {
         let (bucket, offset) = resolve::<N>(index);
         let mut vec = self.data[bucket].data.write();
         if offset >= vec.len() {
-            vec.resize_with(offset + 1, || None);
+            vec.resize_with(offset + 1, || Default::default());
         }
         f(index, &mut value);
-        vec[offset] = Some(value);
+        vec[offset] = value;
         index
     }
 
+    #[inline]
     pub fn entry(&self, index: usize) -> Entry<'_, T, N> {
         let (bucket, _) = resolve::<N>(index);
         let guard = self.data[bucket].data.read_recursive();
-        Entry { i: index, guard }
+        Entry {
+            offset: index,
+            guard,
+        }
+    }
+
+    pub fn get(&self, index: usize) -> impl Deref<Target = T> + '_ {
+        let (bucket, offset) = resolve::<N>(index);
+        let guard = self.data[bucket].data.read_recursive();
+        RwLockReadGuard::map(guard, |guard| &guard[offset])
     }
 
     pub fn entry_arc(&self, index: usize) -> ArcEntry<T, N> {
@@ -198,51 +204,46 @@ impl<T, const N: usize> RawStorage<T, N> {
 
 #[derive(Debug)]
 pub struct Entry<'a, T: 'static, const N: usize> {
-    i: usize,
-    guard: parking_lot::RwLockReadGuard<'a, Vec<Option<T>>>,
+    offset: usize,
+    guard: parking_lot::RwLockReadGuard<'a, Vec<T>>,
 }
 
 impl<'a, T: 'static, const N: usize> Clone for Entry<'a, T, N> {
     fn clone(&self) -> Self {
         let guard = RwLockReadGuard::rwlock(&self.guard).read_recursive();
-        let i = self.i;
-        Self { i, guard }
+        let i = self.offset;
+        Self { offset: i, guard }
     }
 }
 
 pub struct ArcEntry<T: 'static, const N: usize> {
     i: usize,
-    guard: lock_api::ArcRwLockReadGuard<parking_lot::RawRwLock, Vec<Option<T>>>,
+    guard: lock_api::ArcRwLockReadGuard<parking_lot::RawRwLock, Vec<T>>,
 }
 
 impl<T: 'static, const N: usize> Deref for ArcEntry<T, N> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        self.guard[self.i].as_ref().unwrap()
+        &self.guard[self.i]
     }
 }
 
 impl<'a, T: 'static, const N: usize> Entry<'a, T, N> {
-    pub fn value(&self) -> Option<&T> {
-        let (_, offset) = resolve::<N>(self.i);
-        let t: &Option<T> = self.guard.get(offset)?;
-        t.as_ref()
-    }
-
-    pub fn is_vacant(&self) -> bool {
-        self.value().is_none()
+    pub fn value(&self) -> &T {
+        let (_, offset) = resolve::<N>(self.offset);
+        &self.guard[offset]
     }
 
     pub fn index(&self) -> usize {
-        self.i
+        self.offset
     }
 
     pub fn map<U, F: Fn(&T) -> &U>(self, f: F) -> LockedView<'a, U> {
-        let (_, offset) = resolve::<N>(self.i);
+        let (_, offset) = resolve::<N>(self.offset);
         let mapped_guard = RwLockReadGuard::map(self.guard, |guard| {
-            let what = &guard[offset].as_ref();
-            f(what.unwrap())
+            let what = &guard[offset];
+            f(what)
         });
 
         LockedView::LockMapped(mapped_guard)
@@ -253,8 +254,8 @@ impl<'a, T, const N: usize> Deref for Entry<'a, T, N> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        let (_, offset) = resolve::<N>(self.i);
-        self.guard[offset].as_ref().unwrap()
+        let (_, offset) = resolve::<N>(self.offset);
+        &self.guard[offset]
     }
 }
 
@@ -262,48 +263,48 @@ pub enum PairEntryMut<'a, T: 'static> {
     Same {
         i: usize,
         j: usize,
-        guard: parking_lot::RwLockWriteGuard<'a, Vec<Option<T>>>,
+        guard: parking_lot::RwLockWriteGuard<'a, Vec<T>>,
     },
     Different {
         i: usize,
         j: usize,
-        guard1: parking_lot::RwLockWriteGuard<'a, Vec<Option<T>>>,
-        guard2: parking_lot::RwLockWriteGuard<'a, Vec<Option<T>>>,
+        guard1: parking_lot::RwLockWriteGuard<'a, Vec<T>>,
+        guard2: parking_lot::RwLockWriteGuard<'a, Vec<T>>,
     },
 }
 
 impl<'a, T: 'static> PairEntryMut<'a, T> {
     pub(crate) fn get_mut_i(&mut self) -> &mut T {
         match self {
-            PairEntryMut::Same { i, guard, .. } => guard[*i].as_mut().unwrap(),
-            PairEntryMut::Different { i, guard1, .. } => guard1[*i].as_mut().unwrap(),
+            PairEntryMut::Same { i, guard, .. } => &mut guard[*i],
+            PairEntryMut::Different { i, guard1, .. } => &mut guard1[*i],
         }
     }
 
     pub(crate) fn get_mut_j(&mut self) -> &mut T {
         match self {
-            PairEntryMut::Same { j, guard, .. } => guard[*j].as_mut().unwrap(),
-            PairEntryMut::Different { j, guard2, .. } => guard2[*j].as_mut().unwrap(),
+            PairEntryMut::Same { j, guard, .. } => &mut guard[*j],
+            PairEntryMut::Different { j, guard2, .. } => &mut guard2[*j],
         }
     }
 }
 
 pub struct EntryMut<'a, T: 'static> {
     i: usize,
-    guard: parking_lot::RwLockWriteGuard<'a, Vec<Option<T>>>,
+    guard: parking_lot::RwLockWriteGuard<'a, Vec<T>>,
 }
 
 impl<'a, T> Deref for EntryMut<'a, T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        self.guard[self.i].as_ref().unwrap()
+        &self.guard[self.i]
     }
 }
 
 impl<'a, T> DerefMut for EntryMut<'a, T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        self.guard[self.i].as_mut().unwrap()
+        &mut self.guard[self.i]
     }
 }
 
