@@ -9,7 +9,7 @@ pub mod timeindex;
 use self::iter::Iter;
 use locked_view::LockedView;
 use parking_lot::{RwLock, RwLockReadGuard};
-use rayon::prelude::{IndexedParallelIterator, ParallelIterator};
+use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{
     fmt::Debug,
@@ -46,9 +46,7 @@ impl<T: Default> LockVec<T> {
         }
     }
 
-    pub fn read_arc_lock(
-        &self,
-    ) -> lock_api::ArcRwLockReadGuard<parking_lot::RawRwLock, Vec<T>> {
+    pub fn read_arc_lock(&self) -> lock_api::ArcRwLockReadGuard<parking_lot::RawRwLock, Vec<T>> {
         RwLock::read_arc(&self.data)
     }
 }
@@ -75,6 +73,15 @@ impl<T, const N: usize> ReadLockedStorage<T, N> {
         let (bucket, offset) = resolve::<N>(index);
         let bucket = &self.locks[bucket];
         &bucket[offset]
+    }
+}
+
+impl<T: Default + Send + Sync, const N: usize> RawStorage<T, N> {
+    pub fn count_with_filter<F: Fn(&T) -> bool + Send + Sync>(&self, f: F) -> usize {
+        self.data
+            .par_iter()
+            .map(|lock_vec| lock_vec.data.read().par_iter().filter(|x| f(x)).count())
+            .sum()
     }
 }
 
@@ -130,7 +137,6 @@ impl<T: Default, const N: usize> RawStorage<T, N> {
         let guard = self.data[bucket].data.read_recursive();
         RwLockReadGuard::map(guard, |guard| &guard[offset])
     }
-
 
     pub fn entry_arc(&self, index: usize) -> ArcEntry<T, N> {
         let (bucket, offset) = resolve::<N>(index);
