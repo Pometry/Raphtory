@@ -3,8 +3,12 @@ use crate::core::{
     storage::{self, ArcEntry, Entry, EntryMut, PairEntryMut},
     Direction,
 };
+use rayon::prelude::{ParallelBridge, ParallelIterator};
 use serde::{Deserialize, Serialize};
-use std::{ops::Deref, sync::Arc};
+use std::{
+    ops::{Deref, Range},
+    sync::Arc,
+};
 
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
 pub(crate) struct GraphStorage<const N: usize> {
@@ -12,7 +16,7 @@ pub(crate) struct GraphStorage<const N: usize> {
     nodes: storage::RawStorage<VertexStore<N>, N>,
 
     // edge storage with having (src, dst, time_index, properties) for each layer
-    edges: storage::RawStorage<EdgeStore<N>, N>,
+    pub(crate) edges: storage::RawStorage<EdgeStore<N>, N>,
 }
 
 impl<const N: usize> GraphStorage<N> {
@@ -53,6 +57,7 @@ impl<const N: usize> GraphStorage<N> {
         self.edges.entry_arc(id)
     }
 
+    #[inline]
     pub(crate) fn get_edge(&self, id: usize) -> Entry<'_, EdgeStore<N>, N> {
         self.edges.entry(id)
     }
@@ -70,6 +75,14 @@ impl<const N: usize> GraphStorage<N> {
             LayerIds::All => self.edges.len(),
             _ => self.edges.iter().filter(|e| e.has_layer(&layers)).count(),
         }
+    }
+
+    pub(crate) fn edges_window_len(&self, layers: LayerIds, w: Range<i64>) -> usize {
+        self.edges
+            .iter()
+            .par_bridge()
+            .filter(|e| e.active(&layers, w.clone()))
+            .count()
     }
 
     fn lock(&self) -> LockedGraphStorage<N> {

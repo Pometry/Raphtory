@@ -85,7 +85,7 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
 
     fn static_vertex_prop(&self, v: VID, name: &str) -> Option<Prop> {
         let entry = self.inner().node_entry(v);
-        let node = entry.value()?;
+        let node = entry.value();
         let prop_id = self.inner().vertex_find_prop(name, true)?;
         node.static_property(prop_id).cloned()
     }

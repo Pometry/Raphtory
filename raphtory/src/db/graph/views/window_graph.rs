@@ -525,6 +525,10 @@ impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
         self.graph
             .neighbours_window(v, self.t_start, self.t_end, d, layer)
     }
+
+    fn edges_len_window(&self, t_start: i64, t_end: i64, layers: LayerIds) -> usize {
+        self.graph.edges_len_window(self.actual_start(t_start),self.actual_end(t_end), layers)
+    }
 }
 
 /// A windowed graph is a graph that only allows access to vertices and edges within a time window.

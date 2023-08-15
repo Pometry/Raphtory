@@ -154,4 +154,8 @@ impl<G: GraphViewOps> GraphOps for LayeredGraph<G> {
     ) -> Box<dyn Iterator<Item = VID> + Send> {
         self.graph.neighbours(v, d, self.constrain(layer))
     }
+
+    fn edges_len_window(&self, t_start: i64, t_end: i64, layers: LayerIds) -> usize {
+        self.graph.edges_len_window(t_start, t_end, self.constrain(layers))
+    }
 }

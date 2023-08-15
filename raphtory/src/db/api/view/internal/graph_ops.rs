@@ -29,6 +29,8 @@ pub trait GraphOps: Send + Sync {
     /// Returns the total number of edges in the graph.
     fn edges_len(&self, layers: LayerIds) -> usize;
 
+    fn edges_len_window(&self, t_start: i64, t_end: i64, layers: LayerIds) -> usize;
+
     /// Returns true if the graph contains an edge between the source vertex
     /// (src) and the destination vertex (dst).
     /// # Arguments
@@ -204,5 +206,9 @@ impl<G: DelegateGraphOps + Send + Sync + ?Sized> GraphOps for G {
         layer: LayerIds,
     ) -> Box<dyn Iterator<Item = VID> + Send> {
         self.graph().neighbours(v, d, layer)
+    }
+
+    fn edges_len_window(&self, t_start: i64, t_end: i64, layers: LayerIds) -> usize {
+        self.graph().edges_len_window(t_start, t_end, layers)
     }
 }

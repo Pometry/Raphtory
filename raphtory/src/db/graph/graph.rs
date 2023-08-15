@@ -36,7 +36,7 @@ pub(crate) type InternalGraph = InnerTemporalGraph<SEG>;
 
 #[repr(transparent)]
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct Graph(Arc<InternalGraph>);
+pub struct Graph(pub Arc<InternalGraph>);
 
 pub fn graph_equal<G1: GraphViewOps, G2: GraphViewOps>(g1: &G1, g2: &G2) -> bool {
     if g1.num_vertices() == g2.num_vertices() && g1.num_edges() == g2.num_edges() {

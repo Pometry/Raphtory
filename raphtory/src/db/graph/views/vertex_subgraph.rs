@@ -151,6 +151,10 @@ impl<G: GraphViewOps> GraphOps for VertexSubgraph<G> {
             _ => Box::new(self.vertex_edges(v, d, layers).map(|e| e.remote())),
         }
     }
+
+    fn edges_len_window(&self, t_start: i64, t_end: i64, layers: LayerIds) -> usize {
+        todo!()
+    }
 }
 
 #[cfg(test)]
