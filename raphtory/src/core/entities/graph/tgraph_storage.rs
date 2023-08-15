@@ -1,5 +1,9 @@
 use crate::core::{
-    entities::{edges::edge_store::EdgeStore, vertices::vertex_store::VertexStore, LayerIds, EID},
+    entities::{
+        edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
+        vertices::vertex_store::VertexStore,
+        LayerIds, EID,
+    },
     storage::{self, ArcEntry, Entry, EntryMut, PairEntryMut},
     Direction,
 };
@@ -12,7 +16,7 @@ pub(crate) struct GraphStorage<const N: usize> {
     nodes: storage::RawStorage<VertexStore<N>, N>,
 
     // edge storage with having (src, dst, time_index, properties) for each layer
-    edges: storage::RawStorage<EdgeStore<N>, N>,
+    pub(crate) edges: storage::RawStorage<EdgeStore<N>, N>,
 }
 
 impl<const N: usize> GraphStorage<N> {
@@ -92,6 +96,11 @@ impl<const N: usize> GraphStorage<N> {
             locked_gs: Arc::new(self.lock()),
             phantom: std::marker::PhantomData,
         }
+    }
+
+    pub(crate) fn edge_refs(&self) -> impl Iterator<Item = EdgeRef> + Send {
+        let locked = self.edges.read_lock();
+        (0..self.edges.len()).map(move |id| EdgeRef::from(locked.get(id)))
     }
 }
 

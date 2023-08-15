@@ -3,6 +3,7 @@ use crate::{
         entities::{
             edges::{
                 edge::EdgeView,
+                edge_ref::EdgeRef,
                 edge_store::{EdgeLayer, EdgeStore},
             },
             graph::{
@@ -230,6 +231,10 @@ impl<const N: usize> TemporalGraph<N> {
 
     pub(crate) fn node_entry(&self, v: VID) -> Entry<'_, VertexStore<N>, N> {
         self.storage.get_node(v.into())
+    }
+
+    pub(crate) fn edge_refs(&self) -> impl Iterator<Item = EdgeRef> + Send {
+        self.storage.edge_refs()
     }
 
     pub(crate) fn edge_entry(&self, e: EID) -> Entry<'_, EdgeStore<N>, N> {

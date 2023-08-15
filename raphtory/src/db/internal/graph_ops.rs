@@ -75,7 +75,7 @@ impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
         match layers {
             LayerIds::None => Box::new(iter::empty()),
             LayerIds::All => {
-                let iter = self.inner().locked_edges().map(|edge| edge.deref().into());
+                let iter = self.inner().edge_refs();
                 Box::new(iter)
             }
             _ => Box::new(

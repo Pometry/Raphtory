@@ -10,6 +10,7 @@ use self::iter::Iter;
 use locked_view::LockedView;
 use parking_lot::{RwLock, RwLockReadGuard};
 use rayon::prelude::{IndexedParallelIterator, ParallelIterator};
+use roaring::MultiOps;
 use serde::{Deserialize, Serialize};
 use std::{
     fmt::Debug,
@@ -69,6 +70,7 @@ impl<T: PartialEq, const N: usize> PartialEq for RawStorage<T, N> {
 #[derive(Debug)]
 pub struct ReadLockedStorage<T, const N: usize> {
     locks: Box<[lock_api::ArcRwLockReadGuard<parking_lot::RawRwLock, Vec<Option<T>>>; N]>,
+    len: usize,
 }
 
 impl<T, const N: usize> ReadLockedStorage<T, N> {
@@ -76,6 +78,12 @@ impl<T, const N: usize> ReadLockedStorage<T, N> {
         let (bucket, offset) = resolve::<N>(index);
         let bucket = &self.locks[bucket];
         bucket[offset].as_ref().unwrap()
+    }
+
+    pub(crate) fn iter(&self) -> impl Iterator<Item = &T> + '_ {
+        self.locks
+            .iter()
+            .flat_map(|v| v.iter().map(|v| v.as_ref().unwrap()))
     }
 }
 
@@ -85,7 +93,12 @@ impl<T, const N: usize> RawStorage<T, N> {
             std::array::from_fn(|i| self.data[i].read_arc_lock());
         ReadLockedStorage {
             locks: guards.into(),
+            len: self.len(),
         }
+    }
+
+    pub fn indices(&self) -> impl Iterator<Item = usize> + Send + '_ {
+        0..self.len()
     }
 
     pub fn new() -> Self {

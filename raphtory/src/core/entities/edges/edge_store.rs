@@ -15,6 +15,7 @@ use crate::core::{
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::ops::{Deref, DerefMut, Range};
+use tantivy::HasLen;
 
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
 pub(crate) struct EdgeStore<const N: usize> {
@@ -101,11 +102,17 @@ impl<const N: usize> EdgeStore<N> {
     pub fn has_layer(&self, layers: &LayerIds) -> bool {
         match layers {
             LayerIds::All => true,
-            LayerIds::One(layer_ids) => self
-                .additions
-                .get(*layer_ids)
-                .filter(|t_index| !t_index.is_empty())
-                .is_some(),
+            LayerIds::One(layer_ids) => {
+                self.additions
+                    .get(*layer_ids)
+                    .filter(|t_index| !t_index.is_empty())
+                    .is_some()
+                    || self
+                        .deletions
+                        .get(*layer_ids)
+                        .filter(|t_index| !t_index.is_empty())
+                        .is_some()
+            }
             LayerIds::Multiple(layer_ids) => layer_ids
                 .iter()
                 .any(|layer_id| self.has_layer(&LayerIds::One(*layer_id))),
