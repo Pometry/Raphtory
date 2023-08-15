@@ -9,8 +9,7 @@ pub mod timeindex;
 use self::iter::Iter;
 use locked_view::LockedView;
 use parking_lot::{RwLock, RwLockReadGuard};
-use rayon::prelude::{IndexedParallelIterator, ParallelIterator};
-use roaring::MultiOps;
+use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{
     fmt::Debug,
@@ -80,6 +79,15 @@ impl<T, const N: usize> ReadLockedStorage<T, N> {
 
     pub(crate) fn iter(&self) -> impl Iterator<Item = &T> + '_ {
         self.locks.iter().flat_map(|v| v.iter())
+    }
+}
+
+impl<T: Default + Send + Sync, const N: usize> RawStorage<T, N> {
+    pub fn count_with_filter<F: Fn(&T) -> bool + Send + Sync>(&self, f: F) -> usize {
+        self.data
+            .par_iter()
+            .map(|lock_vec| lock_vec.data.read().par_iter().filter(|x| f(x)).count())
+            .sum()
     }
 }
 
