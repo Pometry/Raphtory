@@ -1,4 +1,4 @@
-use std::{collections::HashMap, ops::Deref};
+use std::{collections::HashMap, io::BufReader, ops::Deref};
 
 use crate::{
     data::Data,
@@ -7,11 +7,11 @@ use crate::{
 use async_graphql::Context;
 use dynamic_graphql::{
     App, Mutation, MutationFields, MutationRoot, ResolvedObject, ResolvedObjectFields, Result,
+    Upload,
 };
 use itertools::Itertools;
 use raphtory::{
     db::api::view::internal::{DynamicGraph, IntoDynamic, MaterializedGraph},
-    prelude::Graph,
     search::IndexedGraph,
 };
 
@@ -75,12 +75,10 @@ impl Mut {
         keys
     }
 
-    async fn new_graph_from_json<'a>(
-        ctx: &Context<'a>,
-        name: String,
-        graph_data: String,
-    ) -> Result<GqlGraph> {
-        let g: MaterializedGraph = serde_json::from_str(&graph_data)?;
+    /// Use GQL multipart upload to send new graphs to server (Graphs should be of type MaterializedGraph)
+    async fn upload_graph<'a>(ctx: &Context<'a>, name: String, graph: Upload) -> Result<GqlGraph> {
+        let g: MaterializedGraph =
+            bincode::deserialize_from(BufReader::new(graph.value(ctx)?.content))?;
         let gi: IndexedGraph<DynamicGraph> = g.into_dynamic().into();
         let mut data = ctx.data_unchecked::<Data>().graphs.write();
         data.insert(name, gi.clone());

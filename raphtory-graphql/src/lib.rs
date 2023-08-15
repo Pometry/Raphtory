@@ -11,13 +11,14 @@ mod data;
 mod graphql_test {
     use super::*;
     use crate::{data::Data, model::App};
+    use async_graphql::UploadValue;
     use dynamic_graphql::Request;
     use raphtory::{
         db::api::view::internal::{IntoDynamic, MaterializedGraph},
         prelude::*,
     };
     use serde_json::json;
-    use std::collections::HashMap;
+    use std::{collections::HashMap, io::BufWriter};
     use tempfile::tempdir;
 
     #[tokio::test]
@@ -362,7 +363,13 @@ mod graphql_test {
     #[tokio::test]
     async fn test_graph_injection() {
         let g: MaterializedGraph = Graph::new().into();
-        let gb = serde_json::to_string(&g).unwrap();
+        let tmp_file = tempfile::NamedTempFile::new().unwrap();
+        bincode::serialize_into(BufWriter::new(tmp_file), &g).unwrap();
+        let upload_val = UploadValue {
+            filename: "test".into(),
+            content_type: Some("application/octet-stream".into()),
+            content: tmp_file.into_file(),
+        };
 
         let data = Data::default();
         let schema = App::create_schema().data(data).finish().unwrap();
