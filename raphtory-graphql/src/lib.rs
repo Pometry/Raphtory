@@ -12,13 +12,13 @@ mod graphql_test {
     use super::*;
     use crate::{data::Data, model::App};
     use async_graphql::UploadValue;
-    use dynamic_graphql::Request;
+    use dynamic_graphql::{Request, Variables};
     use raphtory::{
         db::api::view::internal::{IntoDynamic, MaterializedGraph},
         prelude::*,
     };
     use serde_json::json;
-    use std::{collections::HashMap, io::BufWriter};
+    use std::{collections::HashMap, io::Write};
     use tempfile::tempdir;
 
     #[tokio::test]
@@ -362,44 +362,43 @@ mod graphql_test {
 
     #[tokio::test]
     async fn test_graph_injection() {
-        let g: MaterializedGraph = Graph::new().into();
-        let tmp_file = tempfile::NamedTempFile::new().unwrap();
-        bincode::serialize_into(BufWriter::new(tmp_file), &g).unwrap();
+        let g = Graph::new();
+        g.add_vertex(0, 1, NO_PROPS).unwrap();
+        let g: MaterializedGraph = g.into();
+        let mut tmp_file = tempfile::NamedTempFile::new().unwrap();
+        tmp_file
+            .write_all(&bincode::serialize(&g).unwrap())
+            .unwrap();
+        let path = tmp_file.path();
+        let file = std::fs::File::open(path).unwrap();
         let upload_val = UploadValue {
             filename: "test".into(),
             content_type: Some("application/octet-stream".into()),
-            content: tmp_file.into_file(),
+            content: file,
         };
 
         let data = Data::default();
         let schema = App::create_schema().data(data).finish().unwrap();
 
-        let req = Request::new(format!(
-            r#"
-        mutation {{
-          newGraphFromJson(
-            name: "test",
-            graph: "{}"
-          )
-        }}"#,
-            gb
-        ));
-        let res = schema.execute(req).await;
-        let res_json = res.data.into_json().unwrap();
-        println!("{:?}", res_json);
-
-        let req = Request::new(
-            r#"{
-          graph(name: "test") {
+        let query = r##"
+        mutation($file: Upload!) {
+            uploadGraph(name: "test", graph: $file) {
             nodes {
               id
             }
           }
-        "#,
-        );
+        }
+        "##;
+
+        let variables = serde_json::json!({ "file": null });
+        let mut req =
+            dynamic_graphql::Request::new(query).variables(Variables::from_json(variables));
+        req.set_upload("variables.file", upload_val);
         let res = schema.execute(req).await;
-        println!("{:?}", res.errors);
+        println!("{:?}", res);
+        assert_eq!(res.errors.len(), 0);
         let res_json = res.data.into_json().unwrap();
-        println!("{:?}", res_json)
+        println!("{:?}", res_json);
+        assert_eq!(res_json, json!({"uploadGraph": {"nodes": [{"id": 1}]}}))
     }
 }
