@@ -1,3 +1,4 @@
+use parking_lot::RwLock;
 use raphtory::{
     db::api::view::internal::{DynamicGraph, IntoDynamic},
     prelude::{Graph, GraphViewOps},
@@ -9,18 +10,19 @@ use std::{
 };
 use walkdir::WalkDir;
 
+#[derive(Default)]
 pub(crate) struct Data {
-    pub(crate) graphs: HashMap<String, IndexedGraph<DynamicGraph>>,
+    pub(crate) graphs: RwLock<HashMap<String, IndexedGraph<DynamicGraph>>>,
 }
 
 impl Data {
     pub fn from_map(graphs: HashMap<String, DynamicGraph>) -> Self {
-        let graphs = Self::convert_graphs(graphs);
+        let graphs = RwLock::new(Self::convert_graphs(graphs));
         Self { graphs }
     }
 
     pub fn from_directory(directory_path: &str) -> Self {
-        let graphs = Self::load_from_file(directory_path);
+        let graphs = RwLock::new(Self::load_from_file(directory_path));
         Self { graphs }
     }
 
@@ -28,12 +30,10 @@ impl Data {
         graphs: HashMap<String, DynamicGraph>,
         directory_path: &str,
     ) -> Self {
-        let graphs = Self::convert_graphs(graphs);
-        let mut graphs_from_files = Self::load_from_file(directory_path);
-        graphs_from_files.extend(graphs);
-        Self {
-            graphs: graphs_from_files,
-        }
+        let mut graphs = Self::convert_graphs(graphs);
+        graphs.extend(Self::load_from_file(directory_path));
+        let graphs = RwLock::new(graphs);
+        Self { graphs }
     }
 
     fn convert_graphs(
@@ -50,7 +50,7 @@ impl Data {
             .collect()
     }
 
-    fn load_from_file(path: &str) -> HashMap<String, IndexedGraph<DynamicGraph>> {
+    pub fn load_from_file(path: &str) -> HashMap<String, IndexedGraph<DynamicGraph>> {
         let mut valid_paths = HashSet::<String>::new();
 
         for entry in WalkDir::new(path).into_iter().filter_map(|e| e.ok()) {
