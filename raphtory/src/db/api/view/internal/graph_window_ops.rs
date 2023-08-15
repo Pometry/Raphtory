@@ -26,7 +26,7 @@ pub trait GraphWindowOps {
     ///
     /// * `t_start` - The start time of the window (inclusive).
     /// * `t_end` - The end time of the window (exclusive).
-    fn edges_len_window(&self, t_start: i64, t_end: i64, layers: LayerIds) -> usize;
+    // fn edges_len_window(&self, t_start: i64, t_end: i64, layers: LayerIds) -> usize;
 
     /// Returns true if the graph contains an edge between the source vertex (src) and the
     /// destination vertex (dst) created between the start (t_start) and end (t_end) timestamps
@@ -190,9 +190,9 @@ impl<G: TimeSemantics + CoreGraphOps + GraphOps + Clone + 'static> GraphWindowOp
         self.vertex_refs_window(t_start, t_end).count()
     }
 
-    fn edges_len_window(&self, t_start: i64, t_end: i64, layers: LayerIds) -> usize {
-        self.edge_refs_window(t_start, t_end, layers).count()
-    }
+    // fn edges_len_window(&self, t_start: i64, t_end: i64, layers: LayerIds) -> usize {
+    //     self.edges_len_window(t_start, t_end, layers)
+    // }
 
     fn has_edge_ref_window(
         &self,

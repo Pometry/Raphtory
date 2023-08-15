@@ -221,6 +221,24 @@ impl<const N: usize> EdgeStore<N> {
         &self.deletions
     }
 
+    pub fn active(&self, layer_ids: &LayerIds, w: Range<i64>) -> bool {
+        match layer_ids {
+            LayerIds::None => false,
+            LayerIds::All => self
+                .additions()
+                .iter()
+                .any(|t_index| t_index.contains(w.clone())),
+            LayerIds::One(l_id) => self
+                .additions()
+                .get(*l_id)
+                .map(|t_index| t_index.contains(w))
+                .unwrap_or(false),
+            LayerIds::Multiple(layers) => layers
+                .iter()
+                .any(|l_id| self.active(&LayerIds::One(*l_id), w.clone())),
+        }
+    }
+
     pub fn has_temporal_prop(&self, layer_ids: LayerIds, prop_id: usize) -> bool {
         match layer_ids {
             LayerIds::None => false,

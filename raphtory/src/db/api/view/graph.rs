@@ -123,8 +123,15 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
     }
 
     fn has_edge<T: Into<VertexRef>, L: Into<Layer>>(&self, src: T, dst: T, layer: L) -> bool {
-        if let Some(src) = self.local_vertex_ref(src.into()) {
-            if let Some(dst) = self.local_vertex_ref(dst.into()) {
+        // FIXME: need a core_vertex_ref function to resolve the vertex ref via the underlying graph
+        let src_ref = src.into();
+        let dst_ref = dst.into();
+        if let VertexRef::Local(src) = src_ref {
+            if let VertexRef::Local(dst) = dst_ref {
+                return self.has_edge_ref(src, dst, self.layer_ids_from_names(layer.into()));
+            }
+        } else if let Some(src) = self.local_vertex_ref(src_ref) {
+            if let Some(dst) = self.local_vertex_ref(dst_ref) {
                 return self.has_edge_ref(src, dst, self.layer_ids_from_names(layer.into()));
             }
         }

@@ -39,7 +39,7 @@ use serde::{Deserialize, Serialize};
 use std::{
     fmt::Debug,
     hash::BuildHasherDefault,
-    ops::Deref,
+    ops::{Deref, Range},
     path::Path,
     sync::{atomic::AtomicUsize, Arc},
 };
@@ -283,6 +283,10 @@ impl<const N: usize> TemporalGraph<N> {
 
     pub(crate) fn internal_num_edges(&self, layers: LayerIds) -> usize {
         self.storage.edges_len(layers)
+    }
+
+    pub(crate) fn internal_num_edges_window(&self, layers:LayerIds, w: Range<i64>) -> usize{
+        self.storage.edges_window_len(layers, w)
     }
 
     pub(crate) fn degree(&self, v: VID, dir: Direction, layers: LayerIds) -> usize {
@@ -651,6 +655,7 @@ impl<const N: usize> TemporalGraph<N> {
         ArcEdge::from_entry(edge, self.edge_meta.clone())
     }
 
+    #[inline]
     pub(crate) fn edge(&self, e: EID) -> EdgeView<N> {
         let edge = self.storage.get_edge(e.into());
         EdgeView::from_entry(edge, self)
