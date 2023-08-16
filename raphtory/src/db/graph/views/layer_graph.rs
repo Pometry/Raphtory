@@ -156,6 +156,7 @@ impl<G: GraphViewOps> GraphOps for LayeredGraph<G> {
     }
 
     fn edges_len_window(&self, t_start: i64, t_end: i64, layers: LayerIds) -> usize {
-        self.graph.edges_len_window(t_start, t_end, self.constrain(layers))
+        self.graph
+            .edges_len_window(t_start, t_end, self.constrain(layers))
     }
 }

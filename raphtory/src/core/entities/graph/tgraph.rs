@@ -285,7 +285,7 @@ impl<const N: usize> TemporalGraph<N> {
         self.storage.edges_len(layers)
     }
 
-    pub(crate) fn internal_num_edges_window(&self, layers:LayerIds, w: Range<i64>) -> usize{
+    pub(crate) fn internal_num_edges_window(&self, layers: LayerIds, w: Range<i64>) -> usize {
         self.storage.edges_window_len(layers, w)
     }
 
@@ -603,11 +603,11 @@ impl<const N: usize> TemporalGraph<N> {
         node.find_edge(dst, layer_id)
     }
 
-    pub(crate) fn resolve_vertex_ref(&self, v: &VertexRef) -> Option<VID> {
+    pub(crate) fn resolve_vertex_ref(&self, v: VertexRef) -> Option<VID> {
         match v {
-            VertexRef::Local(vid) => Some(*vid),
+            VertexRef::Local(vid) => Some(vid),
             VertexRef::Remote(gid) => {
-                let v_id = self.logical_to_physical.get(gid)?;
+                let v_id = self.logical_to_physical.get(&gid)?;
                 Some((*v_id).into())
             }
         }

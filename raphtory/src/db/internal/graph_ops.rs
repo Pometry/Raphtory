@@ -21,7 +21,7 @@ impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
         match v {
             VertexRef::Local(l) => Some(l),
             VertexRef::Remote(_) => {
-                let vid = self.inner().resolve_vertex_ref(&v)?;
+                let vid = self.inner().resolve_vertex_ref(v)?;
                 Some(vid)
             }
         }
@@ -55,6 +55,11 @@ impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
 
     fn edges_len(&self, layers: LayerIds) -> usize {
         self.inner().internal_num_edges(layers)
+    }
+
+    fn edges_len_window(&self, t_start: i64, t_end: i64, layers: LayerIds) -> usize {
+        self.inner()
+            .internal_num_edges_window(layers, t_start..t_end)
     }
 
     fn degree(&self, v: VID, d: Direction, layers: LayerIds) -> usize {
@@ -117,9 +122,5 @@ impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
         });
 
         Box::new(iter.into_iter())
-    }
-
-    fn edges_len_window(&self, t_start: i64, t_end: i64, layers: LayerIds) -> usize {
-        self.inner().internal_num_edges_window(layers, t_start .. t_end)
     }
 }

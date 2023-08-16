@@ -29,7 +29,7 @@ fn resolve<const N: usize>(index: usize) -> (usize, usize) {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct LockVec<T: Default> {
-    data: Arc<parking_lot::RwLock<Vec<T>>>,
+    data: Arc<RwLock<Vec<T>>>,
 }
 
 impl<T: PartialEq + Default> PartialEq for LockVec<T> {
@@ -43,7 +43,7 @@ impl<T: PartialEq + Default> PartialEq for LockVec<T> {
 impl<T: Default> LockVec<T> {
     pub fn new() -> Self {
         Self {
-            data: Arc::new(parking_lot::RwLock::new(Vec::new())),
+            data: Arc::new(RwLock::new(Vec::new())),
         }
     }
 
@@ -213,7 +213,7 @@ impl<T: Default, const N: usize> RawStorage<T, N> {
 #[derive(Debug)]
 pub struct Entry<'a, T: 'static, const N: usize> {
     offset: usize,
-    guard: parking_lot::RwLockReadGuard<'a, Vec<T>>,
+    guard: RwLockReadGuard<'a, Vec<T>>,
 }
 
 impl<'a, T: 'static, const N: usize> Clone for Entry<'a, T, N> {

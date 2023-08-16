@@ -527,7 +527,8 @@ impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
     }
 
     fn edges_len_window(&self, t_start: i64, t_end: i64, layers: LayerIds) -> usize {
-        self.graph.edges_len_window(self.actual_start(t_start),self.actual_end(t_end), layers)
+        self.graph
+            .edges_len_window(self.actual_start(t_start), self.actual_end(t_end), layers)
     }
 }
 

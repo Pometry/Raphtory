@@ -41,6 +41,9 @@ pub trait CoreGraphOps {
     /// (this should always be global and not affected by windowing as deletion semantics may need information outside the current view!)
     fn vertex_additions(&self, v: VID) -> LockedView<TimeIndex<i64>>;
 
+    /// Gets the local reference for a remote vertex and keeps local references unchanged.
+    fn localise_vertex(&self, v: VertexRef) -> Option<VID>;
+
     /// Gets the local reference for a remote vertex and keeps local references unchanged. Assumes vertex exists!
     fn localise_vertex_unchecked(&self, v: VertexRef) -> VID;
 
@@ -253,6 +256,10 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
 
     fn vertex_additions(&self, v: VID) -> LockedView<TimeIndex<i64>> {
         self.graph().vertex_additions(v)
+    }
+
+    fn localise_vertex(&self, v: VertexRef) -> Option<VID> {
+        self.graph().localise_vertex(v)
     }
 
     fn localise_vertex_unchecked(&self, v: VertexRef) -> VID {

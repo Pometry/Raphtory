@@ -82,9 +82,8 @@ impl<const N: usize> GraphStorage<N> {
     }
 
     pub(crate) fn edges_window_len(&self, layers: LayerIds, w: Range<i64>) -> usize {
-        self.edges.count_with_filter(|e|{
-            e.active(&layers, w.clone())
-        })
+        self.edges
+            .count_with_filter(|e| e.active(&layers, w.clone()))
         // self.edges
         //     .iter()
         //     .par_bridge()
