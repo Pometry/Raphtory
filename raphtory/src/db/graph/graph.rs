@@ -20,7 +20,7 @@ use crate::{
     core::{entities::graph::tgraph::InnerTemporalGraph, utils::errors::GraphError},
     db::api::{
         mutation::internal::{InheritAdditionOps, InheritPropertyAdditionOps},
-        view::internal::{Base, DynamicGraph, InheritViewOps, IntoDynamic},
+        view::internal::{Base, DynamicGraph, InheritViewOps, IntoDynamic, MaterializedGraph},
     },
     prelude::*,
 };
@@ -86,10 +86,6 @@ impl InheritViewOps for Graph {}
 impl Graph {
     /// Create a new graph with the specified number of shards
     ///
-    /// # Arguments
-    ///
-    /// * `nr_shards` - The number of shards
-    ///
     /// # Returns
     ///
     /// A raphtory graph
@@ -125,13 +121,13 @@ impl Graph {
     /// let g = Graph::load_from_file("path/to/graph");
     /// ```
     pub fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self, GraphError> {
-        Ok(Self(Arc::new(InternalGraph::load_from_file(path)?)))
+        let g = MaterializedGraph::load_from_file(path)?;
+        g.into_events().ok_or(GraphError::GraphLoadError)
     }
 
     /// Save a graph to a directory
     pub fn save_to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), GraphError> {
-        self.0.save_to_file(path)?;
-        Ok(())
+        MaterializedGraph::from(self.clone()).save_to_file(path)
     }
 
     pub fn as_arc(&self) -> Arc<InternalGraph> {

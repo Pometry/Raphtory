@@ -2814,6 +2814,7 @@ dependencies = [
  "async-graphql",
  "async-graphql-poem",
  "async-stream",
+ "bincode",
  "dotenv",
  "dynamic-graphql",
  "futures-util",

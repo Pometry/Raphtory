@@ -15,6 +15,7 @@ use crate::{
     },
     prelude::*,
 };
+use serde::{Deserialize, Serialize};
 use std::{
     cmp::min,
     fmt::{Display, Formatter},
@@ -24,7 +25,7 @@ use std::{
     sync::Arc,
 };
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct GraphWithDeletions {
     graph: Arc<InternalGraph>,
 }
@@ -91,8 +92,7 @@ impl GraphWithDeletions {
     /// g.save_to_file("path_str").expect("failed to save file");
     /// ```
     pub fn save_to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), GraphError> {
-        self.graph.save_to_file(path)?;
-        Ok(())
+        MaterializedGraph::from(self.clone()).save_to_file(path)
     }
 
     /// Load a graph from a directory
@@ -112,9 +112,8 @@ impl GraphWithDeletions {
     /// let g = Graph::load_from_file("path/to/graph");
     /// ```
     pub fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self, GraphError> {
-        Ok(Self {
-            graph: Arc::new(InternalGraph::load_from_file(path)?),
-        })
+        let g = MaterializedGraph::load_from_file(path)?;
+        g.into_persistent().ok_or(GraphError::GraphLoadError)
     }
 }
 
