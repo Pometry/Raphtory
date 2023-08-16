@@ -13,7 +13,7 @@ readme.workspace = true
 homepage.workspace = true
 
 [dependencies]
-raphtory = { path = "../raphtory", version = "0.5.1" }
+raphtory = { path = "../raphtory", version = "0.5.2" }
 bincode = "1"
 dotenv = "0.15.0"
 itertools = "0.10"
