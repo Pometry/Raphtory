@@ -11,7 +11,8 @@ mod data;
 mod graphql_test {
     use super::*;
     use crate::{data::Data, model::App};
-    use dynamic_graphql::Request;
+    use async_graphql::UploadValue;
+    use dynamic_graphql::{Request, Variables};
     use raphtory::{db::api::view::internal::IntoDynamic, prelude::*};
     use serde_json::json;
     use std::collections::HashMap;
@@ -341,7 +342,7 @@ mod graphql_test {
 
         // reload all graphs from folder
         let req = Request::new(load_all);
-        let res = schema.execute(req).await;
+        schema.execute(req).await;
 
         // g0 now has node 2
         let req = Request::new(list_nodes("g0"));
@@ -354,5 +355,42 @@ mod graphql_test {
         let res = schema.execute(req).await;
         let res_json = res.data.into_json().unwrap();
         assert_eq!(res_json, json!({"graph": {"nodes": [{"id": 1}]}}));
+    }
+
+    #[tokio::test]
+    async fn test_graph_injection() {
+        let g = Graph::new();
+        g.add_vertex(0, 1, NO_PROPS).unwrap();
+        let mut tmp_file = tempfile::NamedTempFile::new().unwrap();
+        let path = tmp_file.path();
+        g.save_to_file(path).unwrap();
+        let file = std::fs::File::open(path).unwrap();
+        let upload_val = UploadValue {
+            filename: "test".into(),
+            content_type: Some("application/octet-stream".into()),
+            content: file,
+        };
+
+        let data = Data::default();
+        let schema = App::create_schema().data(data).finish().unwrap();
+
+        let query = r##"
+        mutation($file: Upload!) {
+            uploadGraph(name: "test", graph: $file) {
+            nodes {
+              id
+            }
+          }
+        }
+        "##;
+
+        let variables = serde_json::json!({ "file": null });
+        let mut req =
+            dynamic_graphql::Request::new(query).variables(Variables::from_json(variables));
+        req.set_upload("variables.file", upload_val);
+        let res = schema.execute(req).await;
+        assert_eq!(res.errors.len(), 0);
+        let res_json = res.data.into_json().unwrap();
+        assert_eq!(res_json, json!({"uploadGraph": {"nodes": [{"id": 1}]}}))
     }
 }

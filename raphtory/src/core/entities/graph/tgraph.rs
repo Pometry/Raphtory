@@ -54,21 +54,6 @@ impl<const N: usize> InnerTemporalGraph<N> {
     pub(crate) fn inner(&self) -> &TemporalGraph<N> {
         &self.0
     }
-
-    pub(crate) fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self, Box<bincode::ErrorKind>> {
-        let f = std::fs::File::open(path)?;
-        let mut reader = std::io::BufReader::new(f);
-        bincode::deserialize_from(&mut reader)
-    }
-
-    pub(crate) fn save_to_file<P: AsRef<Path>>(
-        &self,
-        path: P,
-    ) -> Result<(), Box<bincode::ErrorKind>> {
-        let f = std::fs::File::create(path)?;
-        let mut writer = std::io::BufWriter::new(f);
-        bincode::serialize_into(&mut writer, self)
-    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
