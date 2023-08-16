@@ -11,36 +11,35 @@ pub(crate) struct PropertyHasFilter {
 
 impl PropertyHasFilter {
     pub(crate) fn matches(&self, node: &Node) -> bool {
-        if let Some(key) = &self.key {
-            if !node.vv.properties().contains(key) {
-                return false;
-            }
-        }
+        let valid_prop = |prop| valid_prop(prop, &self.value_str, &self.value_num);
 
-        if let Some(value_str) = &self.value_str {
-            if node
-                .vv
-                .properties()
-                .values()
-                .all(|prop| value_neq_str_prop(value_str, &prop))
-            {
-                return false;
+        return match &self.key {
+            Some(key) => {
+                if let Some(prop) = node.vv.properties().get(key) {
+                    valid_prop(prop)
+                } else {
+                    false
+                }
             }
-        }
-
-        if let Some(value_num) = &self.value_num {
-            if node
-                .vv
-                .properties()
-                .values()
-                .all(|prop| value_neq_num_prop(value_num, &prop))
-            {
-                return false;
-            }
-        }
-
-        true
+            None => node.vv.properties().values().any(valid_prop),
+        };
     }
+}
+
+fn valid_prop(prop: Prop, value_str: &Option<String>, num_filter: &Option<NumberFilter>) -> bool {
+    if let Some(value_str) = value_str {
+        if value_neq_str_prop(value_str, &prop) {
+            return false;
+        }
+    }
+
+    if let Some(num_filter) = num_filter {
+        if value_neq_num_prop(num_filter, &prop) {
+            return false;
+        }
+    }
+
+    true
 }
 
 fn value_neq_str_prop(value: &str, prop: &Prop) -> bool {
