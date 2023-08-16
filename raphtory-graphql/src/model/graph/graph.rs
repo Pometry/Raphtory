@@ -3,11 +3,11 @@ use std::{
     ops::Deref,
 };
 
-use crate::model::schema::graph_schema::GraphSchema;
 use crate::model::{
     algorithm::Algorithms,
     filters::{edgefilter::EdgeFilter, nodefilter::NodeFilter},
     graph::{edge::Edge, get_expanded_edges, node::Node, property::Property},
+    schema::graph_schema::GraphSchema,
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;

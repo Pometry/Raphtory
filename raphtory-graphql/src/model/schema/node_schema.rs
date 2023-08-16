@@ -1,13 +1,21 @@
 use crate::model::schema::property_schema::PropertySchema;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
-use raphtory::core::Prop;
-use raphtory::db::api::properties::Properties;
-use raphtory::db::api::view::internal::{BoxableGraphView, DynamicGraph};
-use raphtory::db::graph::vertex::VertexView;
-use raphtory::prelude::{GraphViewOps, VertexViewOps};
-use std::collections::{HashMap, HashSet};
-use std::ops::Deref;
+use raphtory::{
+    core::Prop,
+    db::{
+        api::{
+            properties::Properties,
+            view::internal::{BoxableGraphView, DynamicGraph},
+        },
+        graph::vertex::VertexView,
+    },
+    prelude::{GraphViewOps, VertexViewOps},
+};
+use std::{
+    collections::{HashMap, HashSet},
+    ops::Deref,
+};
 
 type SchemaAggregate = HashMap<String, HashSet<String>>;
 

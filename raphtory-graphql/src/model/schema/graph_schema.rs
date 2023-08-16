@@ -1,9 +1,13 @@
 use crate::model::schema::node_schema::NodeSchema;
 use dynamic_graphql::SimpleObject;
 use itertools::Itertools;
-use raphtory::db::api::properties::Properties;
-use raphtory::db::api::view::internal::{BoxableGraphView, DynamicGraph};
-use raphtory::prelude::{GraphViewOps, VertexViewOps};
+use raphtory::{
+    db::api::{
+        properties::Properties,
+        view::internal::{BoxableGraphView, DynamicGraph},
+    },
+    prelude::{GraphViewOps, VertexViewOps},
+};
 use std::collections::HashSet;
 
 #[derive(SimpleObject)]
