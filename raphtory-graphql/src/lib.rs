@@ -13,12 +13,9 @@ mod graphql_test {
     use crate::{data::Data, model::App};
     use async_graphql::UploadValue;
     use dynamic_graphql::{Request, Variables};
-    use raphtory::{
-        db::api::view::internal::{IntoDynamic, MaterializedGraph},
-        prelude::*,
-    };
+    use raphtory::{db::api::view::internal::IntoDynamic, prelude::*};
     use serde_json::json;
-    use std::{collections::HashMap, io::Write};
+    use std::collections::HashMap;
     use tempfile::tempdir;
 
     #[tokio::test]
@@ -364,12 +361,9 @@ mod graphql_test {
     async fn test_graph_injection() {
         let g = Graph::new();
         g.add_vertex(0, 1, NO_PROPS).unwrap();
-        let g: MaterializedGraph = g.into();
         let mut tmp_file = tempfile::NamedTempFile::new().unwrap();
-        tmp_file
-            .write_all(&bincode::serialize(&g).unwrap())
-            .unwrap();
         let path = tmp_file.path();
+        g.save_to_file(path).unwrap();
         let file = std::fs::File::open(path).unwrap();
         let upload_val = UploadValue {
             filename: "test".into(),
@@ -395,10 +389,8 @@ mod graphql_test {
             dynamic_graphql::Request::new(query).variables(Variables::from_json(variables));
         req.set_upload("variables.file", upload_val);
         let res = schema.execute(req).await;
-        println!("{:?}", res);
         assert_eq!(res.errors.len(), 0);
         let res_json = res.data.into_json().unwrap();
-        println!("{:?}", res_json);
         assert_eq!(res_json, json!({"uploadGraph": {"nodes": [{"id": 1}]}}))
     }
 }
