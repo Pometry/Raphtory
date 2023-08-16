@@ -27,6 +27,10 @@ pub enum GraphError {
     InvalidLayer,
     #[error("Bincode operation failed")]
     BinCodeError { source: Box<bincode::ErrorKind> },
+
+    #[error("The loaded graph is of the wrong kind")]
+    GraphLoadError,
+
     #[error("IO operation failed")]
     IOError { source: std::io::Error },
 
