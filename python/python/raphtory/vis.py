@@ -49,37 +49,45 @@ For Example:
 """
 
 def to_pyvis(
-            graph,
-            height="800px",
-            width="800px",
-            bg_color="#white",
-            font_color="black",
-            edge_color="#000000",
-            shape=None,
-            node_image=None,
-            edge_weight=None,
-            edge_label=None,
-            notebook=True,
-        ):
+        graph,
+        height="800px",
+        width="800px",
+        bg_color="#white",
+        font_color="black",
+        edge_color="#000000",
+        shape=None,
+        node_image=None,
+        edge_weight=None,
+        edge_label=None,
+        notebook=True,
+        colour_nodes_by_type=False,
+        type_property="type",
+):
     """
     Returns a dynamic visualisation in static HTML format from a Raphtory graph.
     """
     visGraph = Network(height=height, width=width, bgcolor=bg_color, font_color=font_color, notebook=notebook)
-   
+    if colour_nodes_by_type:
+        groups = {value: index + 1 for index, value in enumerate(set(graph.vertices.properties.get(type_property)))}
+
+
     for v in graph.vertices():
         image = v.property(node_image) if node_image != None else "https://cdn-icons-png.flaticon.com/512/7584/7584620.png"
         shape = shape if shape != None else "dot"
-        visGraph.add_node(v.id(), label= v.name(), shape=shape, image=image)
+        if colour_nodes_by_type:
+            visGraph.add_node(v.id(), label= v.name(), shape=shape, image=image, group=groups[v.properties.get(type_property)])
+        else:
+            visGraph.add_node(v.id(), label= v.name(), shape=shape, image=image)
 
     for e in graph.edges():
         weight = e.property(edge_weight) if edge_weight != None else 1
         label = e.property(edge_label) if edge_label != None else ""
         visGraph.add_edge(e.src().id(), e.dst().id(), value=weight, color=edge_color, title=label)
-       
+
     visGraph.show_buttons(filter_=['physics'])
     visGraph.show('nx.html')
     return visGraph
-    
+
 r"""Draw a graph with NetworkX.
 
 .. note::
@@ -122,19 +130,19 @@ For Example:
 
 """
 def to_networkx(
-                graph,
-                k=None,
-                iterations=50,
-                node_size=300,
-                node_color='#1f78b4',
-                edge_color='k',
-                arrows=None,
-                arrow_style= "-|>"
-                ):
+        graph,
+        k=None,
+        iterations=50,
+        node_size=300,
+        node_color='#1f78b4',
+        edge_color='k',
+        arrows=None,
+        arrow_style= "-|>"
+):
     """
     Returns a Network X graph visualiation from a Raphtory graph.
     """
-    
+
     networkXGraph = nx.MultiDiGraph()
 
     networkXGraph.add_nodes_from(list(graph.vertices().id()))
@@ -142,7 +150,7 @@ def to_networkx(
     edges = []
     for e in graph.edges():
         edges.append((e.src().id(), e.dst().id()))
-    
+
     networkXGraph.add_edges_from(edges)
     pos = nx.spring_layout(networkXGraph, k=k, iterations=iterations)
 
