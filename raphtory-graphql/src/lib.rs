@@ -415,6 +415,7 @@ mod graphql_test {
             dynamic_graphql::Request::new(query).variables(Variables::from_json(variables));
         req.set_upload("variables.file", upload_val);
         let res = schema.execute(req).await;
+        println!("{:?}", res);
         assert_eq!(res.errors.len(), 0);
         let res_json = res.data.into_json().unwrap();
         assert_eq!(res_json, json!({"uploadGraph": {"nodes": [{"id": 1}]}}))
