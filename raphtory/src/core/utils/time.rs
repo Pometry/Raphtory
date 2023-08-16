@@ -23,6 +23,8 @@ pub mod error {
         InvalidUnit(String),
         #[error(transparent)]
         ParseError(#[from] ParseError),
+        #[error("negative interval is not supported")]
+        NegativeInt,
     }
 }
 
@@ -214,6 +216,45 @@ impl TryFrom<u64> for Interval {
             epoch_alignment: false,
             size: IntervalSize::Discrete(value),
         })
+    }
+}
+
+impl TryFrom<u32> for Interval {
+    type Error = ParseTimeError;
+    fn try_from(value: u32) -> Result<Self, Self::Error> {
+        Ok(Self {
+            epoch_alignment: false,
+            size: IntervalSize::Discrete(value as u64),
+        })
+    }
+}
+
+impl TryFrom<i32> for Interval {
+    type Error = ParseTimeError;
+    fn try_from(value: i32) -> Result<Self, Self::Error> {
+        if value >= 0 {
+            Ok(Self {
+                epoch_alignment: false,
+                size: IntervalSize::Discrete(value as u64),
+            })
+        } else {
+            Err(ParseTimeError::NegativeInt)
+        }
+    }
+}
+
+impl TryFrom<i64> for Interval {
+    type Error = ParseTimeError;
+
+    fn try_from(value: i64) -> Result<Self, Self::Error> {
+        if value >= 0 {
+            Ok(Self {
+                epoch_alignment: false,
+                size: IntervalSize::Discrete(value as u64),
+            })
+        } else {
+            Err(ParseTimeError::NegativeInt)
+        }
     }
 }
 

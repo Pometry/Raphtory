@@ -282,8 +282,13 @@ impl<T: AsTime> TimeIndexOps for TimeIndex<T> {
     type IterType<'a> = Box<dyn Iterator<Item = &'a i64> + Send + 'a> where T: 'a;
     type IndexType = T;
 
+    #[inline(always)]
     fn active(&self, w: Range<i64>) -> bool {
-        self.range_iter(w).next().is_some()
+        match &self {
+            TimeIndex::Empty => false,
+            TimeIndex::One(t) => w.contains(t.t()),
+            TimeIndex::Set(ts) => ts.range(T::range(w)).next().is_some(),
+        }
     }
 
     fn range(&self, w: Range<i64>) -> TimeIndexWindow<'_, T> {
