@@ -402,11 +402,7 @@ mod graphql_test {
 
         let query = r##"
         mutation($file: Upload!) {
-            uploadGraph(name: "test", graph: $file) {
-            nodes {
-              id
-            }
-          }
+            uploadGraph(name: "test", graph: $file)
         }
         "##;
 
@@ -418,7 +414,23 @@ mod graphql_test {
         println!("{:?}", res);
         assert_eq!(res.errors.len(), 0);
         let res_json = res.data.into_json().unwrap();
-        assert_eq!(res_json, json!({"uploadGraph": {"nodes": [{"id": 1}]}}))
+        assert_eq!(res_json, json!({"uploadGraph": "test"}));
+
+        let list_nodes = r#"
+        query {
+            graph(name: "test") {
+                nodes {
+                    id
+                }
+            }
+        }
+        "#;
+
+        let req = Request::new(list_nodes);
+        let res = schema.execute(req).await;
+        assert_eq!(res.errors.len(), 0);
+        let res_json = res.data.into_json().unwrap();
+        assert_eq!(res_json, json!({"graph": {"nodes": [{"id": 1}]}}));
     }
 
     #[tokio::test]
