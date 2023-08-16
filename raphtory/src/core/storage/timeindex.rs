@@ -5,6 +5,7 @@ use crate::{
 use itertools::Itertools;
 use num_traits::Saturating;
 use serde::{Deserialize, Serialize};
+use sorted_vector_map::SortedVectorSet;
 use std::{
     cmp::{max, min},
     collections::BTreeSet,
@@ -13,7 +14,7 @@ use std::{
     sync::Arc,
 };
 
-use super::locked_view::LockedView;
+use super::{locked_view::LockedView, sorted_vec_map::SVS};
 
 #[derive(Debug, Copy, Clone, Serialize, Deserialize, PartialEq, Ord, PartialOrd, Eq)]
 pub struct TimeIndexEntry(i64, usize);
@@ -78,8 +79,11 @@ pub enum TimeIndex<T: Ord + Eq + Copy + Debug> {
     #[default]
     Empty,
     One(T),
+    Few(SVS<T>),
     Set(BTreeSet<T>),
 }
+
+const SMALL_SET: usize = 32;
 
 impl<T: AsTime> TimeIndex<T> {
     pub fn is_empty(&self) -> bool {
@@ -99,10 +103,19 @@ impl<T: AsTime> TimeIndex<T> {
                 if t0 == &ti {
                     false
                 } else {
-                    *self = TimeIndex::Set([*t0, ti].into_iter().collect());
+                    *self = TimeIndex::Few([*t0, ti].into_iter().into());
                     true
                 }
             }
+            TimeIndex::Few(ts) => {
+                if ts.len() < SMALL_SET {
+                    ts.insert(ti)
+                } else {
+                    let mut set = ts.iter().copied().collect::<BTreeSet<_>>();
+                    *self = TimeIndex::Set(set);
+                    self.insert(ti)
+                }
+            },
             TimeIndex::Set(ts) => ts.insert(ti),
         }
     }
@@ -111,6 +124,7 @@ impl<T: AsTime> TimeIndex<T> {
         match self {
             TimeIndex::Empty => false,
             TimeIndex::One(t) => w.contains(t.t()),
+            TimeIndex::Few(ts) => ts.range(T::range(w)).next().is_some(),
             TimeIndex::Set(ts) => ts.range(T::range(w)).next().is_some(),
         }
     }
@@ -119,6 +133,7 @@ impl<T: AsTime> TimeIndex<T> {
         match self {
             TimeIndex::Empty => Box::new(std::iter::empty()),
             TimeIndex::One(t) => Box::new(std::iter::once(t)),
+            TimeIndex::Few(ts) => Box::new(ts.iter()),
             TimeIndex::Set(ts) => Box::new(ts.iter()),
         }
     }
@@ -136,6 +151,7 @@ impl<T: AsTime> TimeIndex<T> {
                     Box::new(std::iter::empty())
                 }
             }
+            TimeIndex::Few(ts) => Box::new(ts.range(T::range(w))),
             TimeIndex::Set(ts) => Box::new(ts.range(T::range(w))),
         }
     }
@@ -288,6 +304,7 @@ impl<T: AsTime> TimeIndexOps for TimeIndex<T> {
             TimeIndex::Empty => false,
             TimeIndex::One(t) => w.contains(t.t()),
             TimeIndex::Set(ts) => ts.range(T::range(w)).next().is_some(),
+            TimeIndex::Few(ts) => ts.range(T::range(w)).next().is_some(),
         }
     }
 
@@ -302,6 +319,7 @@ impl<T: AsTime> TimeIndexOps for TimeIndex<T> {
         match self {
             TimeIndex::Empty => None,
             TimeIndex::One(t) => Some(*t.t()),
+            TimeIndex::Few(ts) => ts.iter().next().map(|ti| *ti.t()),
             TimeIndex::Set(ts) => ts.first().map(|ti| *ti.t()),
         }
     }
@@ -310,6 +328,7 @@ impl<T: AsTime> TimeIndexOps for TimeIndex<T> {
         match self {
             TimeIndex::Empty => None,
             TimeIndex::One(t) => Some(*t.t()),
+            TimeIndex::Few(ts) => ts.iter().map(|ti| *ti.t()).last(),
             TimeIndex::Set(ts) => ts.last().map(|ti| *ti.t()),
         }
     }
@@ -318,6 +337,7 @@ impl<T: AsTime> TimeIndexOps for TimeIndex<T> {
         match self {
             TimeIndex::Empty => Box::new(std::iter::empty()),
             TimeIndex::One(t) => Box::new(std::iter::once(t.t())),
+            TimeIndex::Few(ts) => Box::new(ts.iter().map(|ti| ti.t())),
             TimeIndex::Set(ts) => Box::new(ts.iter().map(|ti| ti.t())),
         }
     }

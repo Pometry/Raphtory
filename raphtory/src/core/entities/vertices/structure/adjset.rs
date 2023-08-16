@@ -153,6 +153,8 @@ impl<K: Ord + Copy + Hash + Send + Sync, V: Into<usize> + Copy + Send + Sync> Ad
 
 #[cfg(test)]
 mod tadjset_tests {
+    use rand::Rng;
+
     use super::*;
 
     #[quickcheck]
@@ -180,6 +182,30 @@ mod tadjset_tests {
         let actual = ts.iter().collect::<Vec<_>>();
         let expected: Vec<(usize, usize)> = vec![(7, 5)];
         assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn generate_windows() {
+        let mut rng = rand::thread_rng();
+        let sorted_vals = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+
+        let windows = sorted_vals
+            .iter()
+            .enumerate()
+            .map(|(i, _)| {
+                let window_size = rng.gen_range(0..sorted_vals.len());
+                let half = window_size / 2;
+                
+                let (left, over) = i.overflowing_sub(half);
+                let i_start = if over {0} else {0.max(left)};
+                
+                let (right, over) = i.overflowing_add(half);
+                let i_end = if over{sorted_vals.len()-1} else {(sorted_vals.len()-1).min(right)};
+
+                sorted_vals[i_start]..sorted_vals[i_end]
+            })
+            .collect::<Vec<_>>();
+        println!("{:?}", windows);
     }
 
     #[test]

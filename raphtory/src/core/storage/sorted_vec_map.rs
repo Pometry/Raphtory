@@ -1,6 +1,9 @@
 use serde::{ser::SerializeSeq, Deserialize, Serialize};
-use sorted_vector_map::SortedVectorMap;
-use std::{borrow::Borrow, ops::Range};
+use sorted_vector_map::{SortedVectorMap, SortedVectorSet};
+use std::{
+    borrow::Borrow,
+    ops::{Deref, Range, DerefMut},
+};
 
 // wrapper for SortedVectorMap
 #[derive(Debug, PartialEq, Clone)]
@@ -75,5 +78,48 @@ impl<'de, K: Ord + Deserialize<'de>, V: Deserialize<'de>> Deserialize<'de> for S
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let vec = Vec::<(K, V)>::deserialize(deserializer)?;
         Ok(SVM::from_iter(vec))
+    }
+}
+
+// wrapper for SortedVectorMap
+#[derive(Debug, PartialEq, Clone)]
+pub struct SVS<T: Ord>(SortedVectorSet<T>);
+
+impl<T: Ord> Deref for SVS<T> {
+    type Target = SortedVectorSet<T>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl <T: Ord> DerefMut for SVS<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl <T: Ord, I: IntoIterator<Item = T>> From<I> for SVS<T> {
+    fn from(iter: I) -> Self {
+        Self(SortedVectorSet::from_iter(iter))
+    }
+}
+
+// this implements Serialize for SortedVectorSet
+impl<K: Ord + Serialize> Serialize for SVS<K> {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let mut seq = serializer.serialize_seq(Some(self.len()))?;
+        for k in self.iter() {
+            seq.serialize_element(k)?;
+        }
+        seq.end()
+    }
+}
+
+// this implements Serialize for SortedVectorSet
+impl<'de, K: Ord + Deserialize<'de>> Deserialize<'de> for SVS<K> {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let vec = Vec::<K>::deserialize(deserializer)?;
+        Ok(SVS(SortedVectorSet::from_iter(vec)))
     }
 }
