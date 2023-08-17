@@ -473,7 +473,7 @@ mod graphql_test {
 
         let receive_graph = r#"
         query {
-            graphAsBase64(name: "test")
+            receiveGraph(name: "test")
         }
         "#;
 
@@ -481,7 +481,7 @@ mod graphql_test {
         let res = schema.execute(req).await;
         assert_eq!(res.errors.len(), 0);
         let res_json = res.data.into_json().unwrap();
-        let graph_encoded = res_json.get("graphAsBase64").unwrap().as_str().unwrap();
+        let graph_encoded = res_json.get("receiveGraph").unwrap().as_str().unwrap();
         let graph_roundtrip = url_decode_graph(graph_encoded).unwrap().into_dynamic();
         assert_eq!(g, graph_roundtrip);
     }

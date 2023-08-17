@@ -65,7 +65,7 @@ impl QueryRoot {
             .collect_vec()
     }
 
-    async fn graph_as_base64<'a>(ctx: &Context<'a>, name: &str) -> Result<String> {
+    async fn receive_graph<'a>(ctx: &Context<'a>, name: &str) -> Result<String> {
         let data = ctx.data_unchecked::<Data>();
         let g = data
             .graphs
