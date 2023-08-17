@@ -118,7 +118,8 @@ def test_graphqlclient():
     g3.add_edge(2, "lucas", "shivam")
     g3.save_to_file(multi_graph_temp_dir + "/g3.bincode")
     res = raphtory_client.load_new_graphs_from_path(multi_graph_temp_dir)
-    assert res == {'loadNewGraphsFromPath': ['g2.bincode', 'g3.bincode']}
+    result_sorted = {'loadNewGraphsFromPath': sorted(res['loadNewGraphsFromPath']) }
+    assert result_sorted == {'loadNewGraphsFromPath': ['g2.bincode', 'g3.bincode']}
 
     # upload a graph
     # !TODO
