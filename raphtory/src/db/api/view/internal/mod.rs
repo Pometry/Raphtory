@@ -21,7 +21,10 @@ pub use graph_window_ops::GraphWindowOps;
 pub use inherit::Base;
 pub use into_dynamic::IntoDynamic;
 pub use materialize::*;
-use std::sync::Arc;
+use std::{
+    fmt::{Debug, Formatter},
+    sync::Arc,
+};
 pub use time_semantics::*;
 
 /// Marker trait to indicate that an object is a valid graph view
@@ -80,6 +83,17 @@ impl From<Arc<dyn BoxableGraphView>> for DynamicGraph {
 
 #[derive(Clone)]
 pub struct DynamicGraph(pub(crate) Arc<dyn BoxableGraphView>);
+
+impl Debug for DynamicGraph {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "DynamicGraph(num_vertices={}, num_edges={})",
+            self.num_vertices(),
+            self.num_edges()
+        )
+    }
+}
 
 impl DynamicGraph {
     pub fn new<G: GraphViewOps>(graph: G) -> Self {
