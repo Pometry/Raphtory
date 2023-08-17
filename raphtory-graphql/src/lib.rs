@@ -1,4 +1,6 @@
 pub use crate::{model::algorithm::Algorithm, server::RaphtoryServer};
+use base64::{prelude::BASE64_URL_SAFE_NO_PAD, DecodeError, Engine};
+use raphtory::{core::utils::errors::GraphError, db::api::view::internal::MaterializedGraph};
 
 mod model;
 mod observability;
@@ -6,6 +8,30 @@ mod routes;
 pub mod server;
 
 mod data;
+#[derive(thiserror::Error, Debug)]
+pub enum UrlDecodeError {
+    #[error("Bincode operation failed")]
+    BincodeError {
+        #[from]
+        source: Box<bincode::ErrorKind>,
+    },
+    #[error("Base64 decoding failed")]
+    DecodeError {
+        #[from]
+        source: DecodeError,
+    },
+}
+
+pub fn url_encode_graph<G: Into<MaterializedGraph>>(graph: G) -> Result<String, GraphError> {
+    let g: MaterializedGraph = graph.into();
+    Ok(BASE64_URL_SAFE_NO_PAD.encode(bincode::serialize(&g)?))
+}
+
+pub fn url_decode_graph<T: AsRef<[u8]>>(graph: T) -> Result<MaterializedGraph, UrlDecodeError> {
+    Ok(bincode::deserialize(
+        &BASE64_URL_SAFE_NO_PAD.decode(graph)?,
+    )?)
+}
 
 #[cfg(test)]
 mod graphql_test {
@@ -376,11 +402,7 @@ mod graphql_test {
 
         let query = r##"
         mutation($file: Upload!) {
-            uploadGraph(name: "test", graph: $file) {
-            nodes {
-              id
-            }
-          }
+            uploadGraph(name: "test", graph: $file)
         }
         "##;
 
@@ -389,8 +411,78 @@ mod graphql_test {
             dynamic_graphql::Request::new(query).variables(Variables::from_json(variables));
         req.set_upload("variables.file", upload_val);
         let res = schema.execute(req).await;
+        println!("{:?}", res);
         assert_eq!(res.errors.len(), 0);
         let res_json = res.data.into_json().unwrap();
-        assert_eq!(res_json, json!({"uploadGraph": {"nodes": [{"id": 1}]}}))
+        assert_eq!(res_json, json!({"uploadGraph": "test"}));
+
+        let list_nodes = r#"
+        query {
+            graph(name: "test") {
+                nodes {
+                    id
+                }
+            }
+        }
+        "#;
+
+        let req = Request::new(list_nodes);
+        let res = schema.execute(req).await;
+        assert_eq!(res.errors.len(), 0);
+        let res_json = res.data.into_json().unwrap();
+        assert_eq!(res_json, json!({"graph": {"nodes": [{"id": 1}]}}));
+    }
+
+    #[tokio::test]
+    async fn test_graph_send_receive_base64() {
+        let g = Graph::new();
+        g.add_vertex(0, 1, NO_PROPS).unwrap();
+
+        let graph_str = url_encode_graph(g.clone()).unwrap();
+
+        let data = Data::default();
+        let schema = App::create_schema().data(data).finish().unwrap();
+
+        let query = r#"
+        mutation($graph: String!) {
+            sendGraph(name: "test", graph: $graph) 
+        }
+        "#;
+        let req = Request::new(query).variables(Variables::from_json(json!({"graph": graph_str})));
+
+        let res = schema.execute(req).await;
+        assert_eq!(res.errors.len(), 0);
+        let res_json = res.data.into_json().unwrap();
+        assert_eq!(res_json, json!({"sendGraph": "test"}));
+
+        let list_nodes = r#"
+        query {
+            graph(name: "test") {
+                nodes {
+                    id
+                }
+            }
+        }
+        "#;
+
+        let req = Request::new(list_nodes);
+        let res = schema.execute(req).await;
+        assert_eq!(res.errors.len(), 0);
+        let res_json = res.data.into_json().unwrap();
+        assert_eq!(res_json, json!({"graph": {"nodes": [{"id": 1}]}}));
+
+        let receive_graph = r#"
+        query {
+            receiveGraph(name: "test")
+        }
+        "#;
+
+        let req = Request::new(receive_graph);
+        let res = schema.execute(req).await;
+        assert_eq!(res.errors.len(), 0);
+        let res_json = res.data.into_json().unwrap();
+        let graph_encoded = res_json.get("receiveGraph").unwrap().as_str().unwrap();
+        let graph_roundtrip = url_decode_graph(graph_encoded).unwrap().into_dynamic();
+        assert_eq!(g, graph_roundtrip);
     }
 }
