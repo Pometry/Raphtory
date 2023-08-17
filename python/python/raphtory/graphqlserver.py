@@ -9,6 +9,7 @@ import asyncio
 import threading
 import requests
 import time
+from raphtory import graphqlclient
 
 
 class GraphQLServer:
@@ -65,7 +66,7 @@ def __run(func,daemon,port):
         threading.Thread(target=__run_in_background, daemon=True).start()
         server = GraphQLServer(port)
         server.wait_for_online()
-        return server
+        return graphqlclient.RaphtoryGraphQLClient("http://localhost:"+str(port))
     else:
         loop = asyncio.get_event_loop()
         loop.run_until_complete(func)

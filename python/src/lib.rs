@@ -35,6 +35,8 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     graphql_module.add_function(wrap_pyfunction!(from_map, graphql_module)?)?;
     graphql_module.add_function(wrap_pyfunction!(from_directory, graphql_module)?)?;
     graphql_module.add_function(wrap_pyfunction!(from_map_and_directory, graphql_module)?)?;
+    graphql_module.add_function(wrap_pyfunction!(encode_graph, graphql_module)?)?;
+    graphql_module.add_function(wrap_pyfunction!(decode_graph, graphql_module)?)?;
     m.add_submodule(graphql_module)?;
 
     //ALGORITHMS

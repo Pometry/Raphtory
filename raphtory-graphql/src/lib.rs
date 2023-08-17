@@ -448,7 +448,8 @@ mod graphql_test {
             sendGraph(name: "test", graph: $graph) 
         }
         "#;
-        let req = Request::new(query).variables(Variables::from_json(json!({"graph": graph_str})));
+        let req =
+            Request::new(query).variables(Variables::from_json(json!({ "graph": graph_str })));
 
         let res = schema.execute(req).await;
         assert_eq!(res.errors.len(), 0);
