@@ -12,8 +12,9 @@ def test_graphQL():
     g1.add_edge(1, "ben", "hamza")
     g1.add_edge(2, "haaroon", "hamza")
     g1.add_edge(3, "ben", "haaroon")
-    g2 = Graph()
 
+    g2 = Graph()
+    g2 = Graph()
     g2.add_edge(1, "Naomi", "Shivam")
     g2.add_edge(2, "Shivam", "Pedro")
     g2.add_edge(3, "Pedro", "Rachel")
@@ -122,4 +123,20 @@ def test_graphqlclient():
     assert result_sorted == {'loadNewGraphsFromPath': ['g2.bincode', 'g3.bincode']}
 
     # upload a graph
-    # !TODO
+    g4 = Graph()
+    g4.add_vertex(0, 1)
+    res = raphtory_client.send_graph("hello", g4)
+    assert res == { "sendGraph": "hello" }
+    # Ensure the sent graph can be queried 
+    query = """query GetNodes($graphname: String!) {
+        graph(name: $graphname) {
+            nodes {
+                name
+            }
+        }
+    }"""
+    variables = {
+        "graphname": "hello"
+    }
+    res = raphtory_client.query(query, variables)
+    assert res == {'graph': {'nodes': [{'name': '1'}]}}

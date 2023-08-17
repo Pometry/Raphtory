@@ -1,6 +1,7 @@
 from gql import Client, gql
 from gql.transport.requests import RequestsHTTPTransport
 import raphtory
+from raphtory import internal_graphql
 
 class RaphtoryGraphQLClient:
     def __init__(self, url: str):
@@ -51,26 +52,20 @@ class RaphtoryGraphQLClient:
             return result
         
 
-    def upload_graph(self, name: str, graph: raphtory.Graph): 
+    def send_graph(self, name: str, graph: raphtory.Graph): 
         """
-        Use GQL multipart upload to send new graphs to server (Graphs should be of type MaterializedGraph)
+        Uploads a graph to the GraphlQL Server
         """
-        material_graph = graph.materialize()
+        encoded_graph = internal_graphql.encode_graph(graph)
 
         mutation_q = gql("""
-                mutation UploadGraph($name: String!, $graph: Upload!) {
-                    uploadGraph(name: $name, graph: $graph) {
-                        nodes {
-                            id
-                        }
-                    }
+                mutation SendGraph($name: String!, $graph: String!) {
+                    sendGraph(name: $name, graph: $graph)
                 }
         """)
-        result = self.client.execute(mutation_q, variable_values={ "name": name, "graph":  material_graph})
-
-if __name__ == "__main__":
-    # Example usage
-    raphtory_client = RaphtoryGraphQLClient(url="http://localhost:1736/")
-    gg = raphtory.Graph()
-    gg.add_vertex(0, "hi")
-    print(raphtory_client.upload_graph("tt", gg))
+        result = self.client.execute(mutation_q, variable_values={ "name": name, "graph":  encoded_graph})
+        if 'sendGraph' in result:
+            print("Sent graph %s to GraphlQL Server" % len(result['sendGraph']))
+            return result
+        else:
+            raise Exception("Error Sending Graph %s" % result)
