@@ -6,9 +6,10 @@
 //! In Python, this class wraps around the rust graph.
 use crate::{
     core::utils::errors::GraphError,
+    db::api::view::internal::MaterializedGraph,
     prelude::*,
     python::{
-        graph::views::graph_view::PyGraphView,
+        graph::{graph_with_deletions::PyGraphWithDeletions, views::graph_view::PyGraphView},
         utils::{PyInputVertex, PyTime},
     },
 };
@@ -59,6 +60,20 @@ impl From<PyGraph> for Graph {
 impl From<PyGraph> for DynamicGraph {
     fn from(value: PyGraph) -> Self {
         value.graph.into_dynamic()
+    }
+}
+
+impl<'source> FromPyObject<'source> for MaterializedGraph {
+    fn extract(graph: &'source PyAny) -> PyResult<Self> {
+        if let Ok(graph) = graph.extract::<PyRef<PyGraph>>() {
+            Ok(graph.graph.clone().into())
+        } else if let Ok(graph) = graph.extract::<PyRef<PyGraphWithDeletions>>() {
+            Ok(graph.graph.clone().into())
+        } else {
+            Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
+                "Incorrect type, object is not a PyGraph or PyGraphWithDeletions"
+            )))
+        }
     }
 }
 
