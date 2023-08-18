@@ -364,8 +364,14 @@ impl PyVertex {
     }
 
     #[doc = layers_doc_string!()]
+    #[pyo3(signature = (names))]
+    pub fn layers(&self, names: Vec<String>) -> Option<VertexView<LayeredGraph<DynamicGraph>>> {
+        self.vertex.layer(names)
+    }
+
+    #[doc = layers_doc_string!()]
     #[pyo3(signature = (name))]
-    pub fn layers(&self, name: Vec<String>) -> Option<VertexView<LayeredGraph<DynamicGraph>>> {
+    pub fn layer(&self, name: String) -> Option<VertexView<LayeredGraph<DynamicGraph>>> {
         self.vertex.layer(name)
     }
 
