@@ -7,11 +7,13 @@ pub mod sorted_vec_map;
 pub mod timeindex;
 
 use self::iter::Iter;
+use lock_api;
 use locked_view::LockedView;
 use parking_lot::{RwLock, RwLockReadGuard};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{
+    array,
     fmt::Debug,
     ops::{Deref, DerefMut},
     sync::{
@@ -19,6 +21,9 @@ use std::{
         Arc,
     },
 };
+use tantivy::directory::Lock;
+
+type ArcRwLockReadGuard<T> = lock_api::ArcRwLockReadGuard<parking_lot::RawRwLock, T>;
 
 #[inline]
 fn resolve<const N: usize>(index: usize) -> (usize, usize) {
@@ -47,7 +52,7 @@ impl<T: Default> LockVec<T> {
         }
     }
 
-    pub fn read_arc_lock(&self) -> lock_api::ArcRwLockReadGuard<parking_lot::RawRwLock, Vec<T>> {
+    pub fn read_arc_lock(&self) -> ArcRwLockReadGuard<Vec<T>> {
         RwLock::read_arc(&self.data)
     }
 }
@@ -66,7 +71,7 @@ impl<T: PartialEq + Default, const N: usize> PartialEq for RawStorage<T, N> {
 
 #[derive(Debug)]
 pub struct ReadLockedStorage<T, const N: usize> {
-    locks: Box<[lock_api::ArcRwLockReadGuard<parking_lot::RawRwLock, Vec<T>>; N]>,
+    locks: [ArcRwLockReadGuard<Vec<T>>; N],
     len: usize,
 }
 
@@ -80,20 +85,60 @@ impl<T, const N: usize> ReadLockedStorage<T, N> {
     pub(crate) fn iter(&self) -> impl Iterator<Item = &T> + '_ {
         self.locks.iter().flat_map(|v| v.iter())
     }
+
+    pub(crate) fn par_iter(&self) -> impl ParallelIterator<Item = &T> + '_
+    where
+        T: Send + Sync,
+    {
+        self.locks.par_iter().flat_map(|v| v.par_iter())
+    }
+
+    pub(crate) fn into_iter(self) -> impl Iterator<Item = LockedEntry<T, N>> + Send
+    where
+        T: Send + Sync + 'static,
+    {
+        self.locks
+            .into_iter()
+            .enumerate()
+            .flat_map(|(bucket, data)| {
+                let arc_data = Arc::new(data);
+                (0..arc_data.len()).map(move |offset| LockedEntry {
+                    guard: arc_data.clone(),
+                    offset,
+                    bucket,
+                })
+            })
+    }
+
+    pub(crate) fn into_par_iter(self) -> impl ParallelIterator<Item = LockedEntry<T, N>>
+    where
+        T: Send + Sync + 'static,
+    {
+        self.locks
+            .into_par_iter()
+            .enumerate()
+            .flat_map(|(bucket, data)| {
+                let arc_data = Arc::new(data);
+                (0..arc_data.len())
+                    .into_par_iter()
+                    .map(move |offset| LockedEntry {
+                        guard: arc_data.clone(),
+                        offset,
+                        bucket,
+                    })
+            })
+    }
 }
 
 impl<T: Default + Send + Sync, const N: usize> RawStorage<T, N> {
     pub fn count_with_filter<F: Fn(&T) -> bool + Send + Sync>(&self, f: F) -> usize {
-        self.data
-            .par_iter()
-            .map(|lock_vec| lock_vec.data.read().par_iter().filter(|x| f(x)).count())
-            .sum()
+        self.read_lock().par_iter().filter(|x| f(x)).count()
     }
 }
 
 impl<T: Default, const N: usize> RawStorage<T, N> {
     pub fn read_lock(&self) -> ReadLockedStorage<T, N> {
-        let guards: [lock_api::ArcRwLockReadGuard<parking_lot::RawRwLock, Vec<T>>; N] =
+        let guards: [ArcRwLockReadGuard<Vec<T>>; N] =
             std::array::from_fn(|i| self.data[i].read_arc_lock());
         ReadLockedStorage {
             locks: guards.into(),
@@ -106,18 +151,11 @@ impl<T: Default, const N: usize> RawStorage<T, N> {
     }
 
     pub fn new() -> Self {
-        let mut data = Vec::with_capacity(N);
-        for _ in 0..N {
-            data.push(LockVec::new());
-        }
-
-        if let Ok(data) = data.try_into() {
-            Self {
-                data,
-                len: AtomicUsize::new(0),
-            }
-        } else {
-            panic!("failed to convert to array");
+        let data: [LockVec<T>; N] = array::from_fn(|_| LockVec::new());
+        let data = Box::new(data);
+        Self {
+            data,
+            len: AtomicUsize::new(0),
         }
     }
 
@@ -155,7 +193,7 @@ impl<T: Default, const N: usize> RawStorage<T, N> {
         let arc_guard = RwLock::read_arc_recursive(guard);
         ArcEntry {
             i: offset,
-            guard: arc_guard,
+            guard: Arc::new(arc_guard),
         }
     }
 
@@ -210,6 +248,27 @@ impl<T: Default, const N: usize> RawStorage<T, N> {
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct LockedEntry<T, const N: usize> {
+    guard: Arc<ArcRwLockReadGuard<Vec<T>>>,
+    offset: usize,
+    bucket: usize,
+}
+
+impl<T, const N: usize> Deref for LockedEntry<T, N> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.guard[self.offset]
+    }
+}
+
+impl<T, const N: usize> LockedEntry<T, N> {
+    pub fn index(&self) -> usize {
+        N * self.offset + self.bucket
+    }
+}
+
 #[derive(Debug)]
 pub struct Entry<'a, T: 'static, const N: usize> {
     offset: usize,
@@ -224,12 +283,22 @@ impl<'a, T: 'static, const N: usize> Clone for Entry<'a, T, N> {
     }
 }
 
-pub struct ArcEntry<T: 'static, const N: usize> {
+#[derive(Debug)]
+pub struct ArcEntry<T, const N: usize> {
+    guard: Arc<ArcRwLockReadGuard<Vec<T>>>,
     i: usize,
-    guard: lock_api::ArcRwLockReadGuard<parking_lot::RawRwLock, Vec<T>>,
 }
 
-impl<T: 'static, const N: usize> Deref for ArcEntry<T, N> {
+impl<T, const N: usize> Clone for ArcEntry<T, N> {
+    fn clone(&self) -> Self {
+        Self {
+            guard: self.guard.clone(),
+            i: self.i,
+        }
+    }
+}
+
+impl<T, const N: usize> Deref for ArcEntry<T, N> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
@@ -237,7 +306,7 @@ impl<T: 'static, const N: usize> Deref for ArcEntry<T, N> {
     }
 }
 
-impl<'a, T: 'static, const N: usize> Entry<'a, T, N> {
+impl<'a, T, const N: usize> Entry<'a, T, N> {
     pub fn value(&self) -> &T {
         let (_, offset) = resolve::<N>(self.offset);
         &self.guard[offset]

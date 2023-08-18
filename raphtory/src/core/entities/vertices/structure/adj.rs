@@ -1,5 +1,9 @@
 use crate::core::{
-    entities::{vertices::structure::adjset::AdjSet, EID, VID},
+    entities::{
+        edges::edge_ref::{Dir, EdgeRef},
+        vertices::structure::adjset::AdjSet,
+        EID, VID,
+    },
     Direction,
 };
 use core::panic;
@@ -70,6 +74,34 @@ impl Adj {
         }
     }
 
+    pub(crate) fn iter_eref(
+        &self,
+        dir: Direction,
+        local: VID,
+    ) -> Box<dyn Iterator<Item = EdgeRef> + Send + '_> {
+        match self {
+            Adj::Solo => Box::new(std::iter::empty()),
+            Adj::List { out, into } => match dir {
+                Direction::OUT => Box::new(
+                    out.iter()
+                        .map(move |(remote, e)| EdgeRef::new(e, local, remote, Dir::Out)),
+                ),
+                Direction::IN => Box::new(
+                    into.iter()
+                        .map(move |(remote, e)| EdgeRef::new(e, local, remote, Dir::Into)),
+                ),
+                Direction::BOTH => Box::new(
+                    out.iter()
+                        .map(move |(remote, e)| EdgeRef::new(e, local, remote, Dir::Out))
+                        .merge(
+                            into.iter()
+                                .map(move |(remote, e)| EdgeRef::new(e, local, remote, Dir::Into)),
+                        ),
+                ),
+            },
+        }
+    }
+
     pub(crate) fn vertex_iter(&self, dir: Direction) -> impl Iterator<Item = VID> + Send + '_ {
         self.iter(dir).map(|(v, _)| v)
     }
@@ -85,6 +117,20 @@ impl Adj {
         }
     }
 
+    pub fn fill_page<const P: usize>(
+        &self,
+        last: Option<VID>,
+        page: &mut [(VID, EID); P],
+        dir: Dir,
+    ) -> usize {
+        match self {
+            Adj::Solo => 0,
+            Adj::List { out, into } => match dir {
+                Dir::Out => out.fill_page(last, page),
+                Dir::Into => into.fill_page(last, page),
+            },
+        }
+    }
     pub(crate) fn get_page_vec(
         &self,
         last: Option<VID>,

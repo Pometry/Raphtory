@@ -2,6 +2,7 @@ use crate::core::{
     entities::{vertices::vertex_ref::VertexRef, EID, VID},
     storage::timeindex::{AsTime, TimeIndexEntry},
 };
+use std::cmp::Ordering;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct EdgeRef {
@@ -11,6 +12,14 @@ pub struct EdgeRef {
     e_type: Dir,
     time: Option<TimeIndexEntry>,
     layer_id: Option<usize>,
+}
+
+// This is used for merging iterators of EdgeRefs and only makes sense if the local vertex for both
+// sides is the same
+impl PartialOrd for EdgeRef {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.remote().partial_cmp(&other.remote())
+    }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -39,6 +48,27 @@ impl EdgeRef {
             e_type: Dir::Into,
             time: None,
             layer_id: None,
+        }
+    }
+
+    pub fn new(e_pid: EID, local_pid: VID, remote_pid: VID, dir: Dir) -> Self {
+        match dir {
+            Dir::Out => EdgeRef {
+                e_pid,
+                src_pid: local_pid,
+                dst_pid: remote_pid,
+                e_type: dir,
+                time: None,
+                layer_id: None,
+            },
+            Dir::Into => EdgeRef {
+                e_pid,
+                src_pid: remote_pid,
+                dst_pid: local_pid,
+                e_type: dir,
+                time: None,
+                layer_id: None,
+            },
         }
     }
 

@@ -4,7 +4,7 @@ use crate::core::{
         vertices::vertex_store::VertexStore,
         LayerIds, EID,
     },
-    storage::{self, ArcEntry, Entry, EntryMut, PairEntryMut},
+    storage::{self, ArcEntry, Entry, EntryMut, LockedEntry, PairEntryMut},
     Direction,
 };
 use rayon::prelude::{ParallelBridge, ParallelIterator};
@@ -17,7 +17,7 @@ use std::{
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
 pub(crate) struct GraphStorage<const N: usize> {
     // node storage with having (id, time_index, properties, adj list for each layer)
-    nodes: storage::RawStorage<VertexStore<N>, N>,
+    pub(crate) nodes: storage::RawStorage<VertexStore<N>, N>,
 
     // edge storage with having (src, dst, time_index, properties) for each layer
     pub(crate) edges: storage::RawStorage<EdgeStore<N>, N>,
@@ -104,18 +104,15 @@ impl<const N: usize> GraphStorage<N> {
         }
     }
 
-    pub(crate) fn locked_edges(&self) -> LockedIter<N, EdgeStore<N>> {
-        LockedIter {
-            from: 0,
-            to: self.edges.len(),
-            locked_gs: Arc::new(self.lock()),
-            phantom: std::marker::PhantomData,
-        }
+    pub(crate) fn locked_edges(&self) -> impl Iterator<Item = LockedEntry<EdgeStore<N>, N>> {
+        self.edges.read_lock().into_iter()
     }
 
     pub(crate) fn edge_refs(&self) -> impl Iterator<Item = EdgeRef> + Send {
-        let locked = self.edges.read_lock();
-        (0..self.edges.len()).map(move |id| EdgeRef::from(locked.get(id)))
+        self.edges
+            .read_lock()
+            .into_iter()
+            .map(|entry| EdgeRef::from(entry))
     }
 }
 

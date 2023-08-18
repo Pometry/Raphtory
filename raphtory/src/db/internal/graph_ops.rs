@@ -1,8 +1,10 @@
 use crate::{
     core::{
         entities::{
-            edges::edge_ref::EdgeRef, graph::tgraph::InnerTemporalGraph,
-            vertices::vertex_ref::VertexRef, LayerIds, EID, VID,
+            edges::edge_ref::{Dir, EdgeRef},
+            graph::tgraph::InnerTemporalGraph,
+            vertices::vertex_ref::VertexRef,
+            LayerIds, EID, VID,
         },
         Direction,
     },
@@ -10,6 +12,7 @@ use crate::{
     prelude::GraphViewOps,
 };
 use genawaiter::sync::GenBoxed;
+use itertools::Itertools;
 use std::{iter, ops::Deref};
 
 impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
@@ -80,14 +83,23 @@ impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
         match layers {
             LayerIds::None => Box::new(iter::empty()),
             LayerIds::All => {
-                let iter = self.inner().edge_refs();
+                let iter = self
+                    .inner()
+                    .storage
+                    .edges
+                    .read_lock()
+                    .into_iter()
+                    .map_into();
                 Box::new(iter)
             }
             _ => Box::new(
                 self.inner()
-                    .locked_edges()
+                    .storage
+                    .edges
+                    .read_lock()
+                    .into_iter()
                     .filter(move |edge| edge.has_layer(&layers))
-                    .map(|edge| edge.deref().into()),
+                    .map(|edge| edge.into()),
             ),
         }
     }
@@ -98,14 +110,77 @@ impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
         d: Direction,
         layers: LayerIds,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
-        let v = self.inner().vertex_arc(v);
-        let iter: GenBoxed<EdgeRef> = GenBoxed::new_boxed(|co| async move {
-            for e_ref in v.edge_tuples(layers, d) {
-                co.yield_(e_ref).await;
-            }
-        });
-
-        Box::new(iter.into_iter())
+        let entry = self.inner().storage.nodes.entry_arc(v.into());
+        match d {
+            Direction::OUT => match layers {
+                LayerIds::None => Box::new(iter::empty()),
+                LayerIds::All => Box::new(
+                    entry
+                        .into_layers()
+                        .map(move |layer| {
+                            layer
+                                .into_tuples(Dir::Out)
+                                .map(move |(n, e)| EdgeRef::new_outgoing(e, v, n))
+                        })
+                        .kmerge()
+                        .dedup(),
+                ),
+                LayerIds::One(layer) => Box::new(
+                    entry
+                        .into_layer(layer)
+                        .into_tuples(Dir::Out)
+                        .map(move |(n, e)| EdgeRef::new_outgoing(e, v, n)),
+                ),
+                LayerIds::Multiple(ids) => Box::new(
+                    ids.iter()
+                        .map(move |&layer| {
+                            entry
+                                .clone()
+                                .into_layer(layer)
+                                .into_tuples(Dir::Out)
+                                .map(move |(n, e)| EdgeRef::new_outgoing(e, v, n))
+                        })
+                        .kmerge()
+                        .dedup(),
+                ),
+            },
+            Direction::IN => match layers {
+                LayerIds::None => Box::new(iter::empty()),
+                LayerIds::All => Box::new(
+                    entry
+                        .into_layers()
+                        .map(move |layer| {
+                            layer
+                                .into_tuples(Dir::Into)
+                                .map(move |(n, e)| EdgeRef::new_incoming(e, n, v))
+                        })
+                        .kmerge()
+                        .dedup(),
+                ),
+                LayerIds::One(layer) => Box::new(
+                    entry
+                        .into_layer(layer)
+                        .into_tuples(Dir::Into)
+                        .map(move |(n, e)| EdgeRef::new_incoming(e, n, v)),
+                ),
+                LayerIds::Multiple(ids) => Box::new(
+                    ids.iter()
+                        .map(move |&layer| {
+                            entry
+                                .clone()
+                                .into_layer(layer)
+                                .into_tuples(Dir::Into)
+                                .map(move |(n, e)| EdgeRef::new_incoming(e, n, v))
+                        })
+                        .kmerge()
+                        .dedup(),
+                ),
+            },
+            Direction::BOTH => Box::new(
+                self.vertex_edges(v, Direction::IN, layers.clone())
+                    .merge(self.vertex_edges(v, Direction::OUT, layers)),
+            ),
+        }
     }
 
     fn neighbours(
@@ -114,13 +189,11 @@ impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
         d: Direction,
         layers: LayerIds,
     ) -> Box<dyn Iterator<Item = VID> + Send> {
-        let v = self.inner().vertex_arc(v);
-        let iter: GenBoxed<VID> = GenBoxed::new_boxed(|co| async move {
-            for v_id in v.neighbours(layers, d) {
-                co.yield_(v_id).await;
-            }
-        });
-
-        Box::new(iter.into_iter())
+        let iter = self.vertex_edges(v, d, layers).map(|e| e.remote());
+        if matches!(d, Direction::BOTH) {
+            Box::new(iter.dedup())
+        } else {
+            Box::new(iter)
+        }
     }
 }

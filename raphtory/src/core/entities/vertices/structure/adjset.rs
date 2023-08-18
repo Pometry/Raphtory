@@ -1,5 +1,6 @@
 //! A data structure for efficiently storing and querying the temporal adjacency set of a node in a temporal graph.
 
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, hash::Hash};
 
@@ -114,6 +115,72 @@ impl<K: Ord + Copy + Hash + Send + Sync, V: Into<usize> + Copy + Send + Sync> Ad
         }
     }
 
+    /// puts elements into page and returns number of returned elements
+    pub fn fill_page<const P: usize>(&self, last: Option<K>, page: &mut [(K, V); P]) -> usize {
+        match self {
+            AdjSet::Empty => 0,
+            AdjSet::One(v, i) => {
+                if let Some(l) = last {
+                    if l < *v {
+                        page[0] = (*v, *i);
+                        1
+                    } else {
+                        0
+                    }
+                } else {
+                    page[0] = (*v, *i);
+                    1
+                }
+            }
+            AdjSet::Small { vs, edges } => {
+                if let Some(l) = last {
+                    let i = match vs.binary_search(&l) {
+                        Ok(i) => i + 1,
+                        Err(i) => i,
+                    };
+
+                    if i >= vs.len() {
+                        return 0;
+                    }
+
+                    let mut index = 0;
+                    vs[i..]
+                        .iter()
+                        .zip(edges[i..].iter())
+                        .take(P)
+                        .for_each(|(a, b)| {
+                            page[index] = (*a, *b);
+                            index += 1;
+                        });
+                    index
+                } else {
+                    let mut index = 0;
+                    vs.iter().zip(edges.iter()).take(P).for_each(|(a, b)| {
+                        page[index] = (*a, *b);
+                        index += 1;
+                    });
+                    index
+                }
+            }
+            AdjSet::Large { vs } => {
+                if let Some(l) = last {
+                    let mut index = 0;
+                    vs.range(l..).skip(1).take(P).for_each(|(a, b)| {
+                        page[index] = (*a, *b);
+                        index += 1;
+                    });
+                    index
+                } else {
+                    let mut index = 0;
+                    vs.iter().take(P).for_each(|(a, b)| {
+                        page[index] = (*a, *b);
+                        index += 1
+                    });
+                    index
+                }
+            }
+        }
+    }
     pub fn get_page_vec(&self, last: Option<K>, page_size: usize) -> Vec<(K, V)> {
         match self {
             AdjSet::Empty => vec![],

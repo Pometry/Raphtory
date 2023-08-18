@@ -22,7 +22,7 @@ use crate::{
         storage::{
             locked_view::LockedView,
             timeindex::{AsTime, LockedLayeredIndex, TimeIndexEntry, TimeIndexOps},
-            Entry,
+            Entry, LockedEntry,
         },
         utils::{
             errors::{GraphError, IllegalMutate, MutateGraphError},
@@ -594,7 +594,7 @@ impl<const N: usize> TemporalGraph<N> {
         (0..self.storage.nodes_len()).map(|i| i.into())
     }
 
-    pub(crate) fn locked_edges(&self) -> LockedIter<N, EdgeStore<N>> {
+    pub(crate) fn locked_edges(&self) -> impl Iterator<Item = LockedEntry<EdgeStore<N>, N>> {
         self.storage.locked_edges()
     }
 

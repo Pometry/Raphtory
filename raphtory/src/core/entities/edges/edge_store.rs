@@ -85,8 +85,8 @@ impl EdgeLayer {
     }
 }
 
-impl<const N: usize> From<&EdgeStore<N>> for EdgeRef {
-    fn from(val: &EdgeStore<N>) -> Self {
+impl<const N: usize, E: Deref<Target = EdgeStore<N>>> From<E> for EdgeRef {
+    fn from(val: E) -> Self {
         EdgeRef::new_outgoing(val.e_id(), val.src(), val.dst())
     }
 }

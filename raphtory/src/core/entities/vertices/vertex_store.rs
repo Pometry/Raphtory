@@ -1,20 +1,26 @@
 use crate::core::{
     entities::{
-        edges::edge_ref::EdgeRef,
+        edges::edge_ref::{Dir, EdgeRef},
         properties::{props::Props, tprop::TProp},
         vertices::structure::{adj, adj::Adj},
         LayerIds, EID, VID,
     },
     storage::{
+        iter::Iter,
         lazy_vec::IllegalSet,
         timeindex::{AsTime, TimeIndex, TimeIndexEntry},
+        ArcEntry,
     },
     utils::errors::MutateGraphError,
     Direction, Prop,
 };
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-use std::{iter, ops::Range, sync::Arc};
+use std::{
+    iter,
+    ops::{Deref, Range},
+    sync::Arc,
+};
 
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
 pub(crate) struct VertexStore<const N: usize> {
@@ -23,7 +29,7 @@ pub(crate) struct VertexStore<const N: usize> {
     // all the timestamps that have been seen by this vertex
     timestamps: TimeIndex<i64>,
     // each layer represents a separate view of the graph
-    layers: Vec<Adj>,
+    pub(crate) layers: Vec<Adj>,
     // props for vertex
     pub(crate) props: Option<Props>,
 }
@@ -305,5 +311,106 @@ impl<const N: usize> VertexStore<N> {
             .as_ref()
             .map(|ps| ps.temporal_prop_ids())
             .unwrap_or_default()
+    }
+}
+
+impl<const N: usize> ArcEntry<VertexStore<N>, N> {
+    pub fn into_layers(self) -> LockedLayers<N> {
+        let len = self.layers.len();
+        LockedLayers {
+            entry: self,
+            pos: 0,
+            len,
+        }
+    }
+
+    pub fn into_layer(self, offset: usize) -> LockedLayer<N> {
+        LockedLayer {
+            entry: self,
+            offset,
+        }
+    }
+}
+
+pub(crate) struct LockedLayers<const N: usize> {
+    entry: ArcEntry<VertexStore<N>, N>,
+    pos: usize,
+    len: usize,
+}
+
+impl<const N: usize> Iterator for LockedLayers<N> {
+    type Item = LockedLayer<N>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.pos < self.len {
+            let layer = LockedLayer {
+                entry: self.entry.clone(),
+                offset: self.pos,
+            };
+            self.pos += 1;
+            Some(layer)
+        } else {
+            None
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (self.len, Some(self.len))
+    }
+}
+
+pub(crate) struct LockedLayer<const N: usize> {
+    entry: ArcEntry<VertexStore<N>, N>,
+    offset: usize,
+}
+
+impl<const N: usize> Deref for LockedLayer<N> {
+    type Target = Adj;
+
+    fn deref(&self) -> &Self::Target {
+        &self.entry.layers[self.offset]
+    }
+}
+
+impl<const N: usize> LockedLayer<N> {
+    pub fn into_tuples(self, dir: Dir) -> PagedAdjIter<N, 256> {
+        let mut page = [(VID(0), EID(0)); 256];
+        let page_size = self.fill_page(None, &mut page, dir);
+        PagedAdjIter {
+            layer: self,
+            page,
+            page_offset: 0,
+            page_size,
+            dir,
+        }
+    }
+}
+
+pub struct PagedAdjIter<const N: usize, const P: usize> {
+    layer: LockedLayer<N>,
+    page: [(VID, EID); P],
+    page_offset: usize,
+    page_size: usize,
+    dir: Dir,
+}
+
+impl<const N: usize, const P: usize> Iterator for PagedAdjIter<N, P> {
+    type Item = (VID, EID);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.page_offset < self.page_size {
+            let item = self.page[self.page_offset];
+            self.page_offset += 1;
+            Some(item)
+        } else if self.page_size == P {
+            // Was a full page, there may be more items
+            let last = self.page[P - 1].0;
+            self.page_offset = 0;
+            self.page_size = self.layer.fill_page(Some(last), &mut self.page, self.dir);
+            self.next()
+        } else {
+            // Was a partial page, no more items
+            None
+        }
     }
 }
