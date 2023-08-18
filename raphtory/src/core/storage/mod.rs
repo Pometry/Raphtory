@@ -117,14 +117,14 @@ impl<T, const N: usize> RawStorage<T, N> {
 
     pub fn entry(&self, index: usize) -> Entry<'_, T, N> {
         let (bucket, _) = resolve::<N>(index);
-        let guard = self.data[bucket].data.read();
+        let guard = self.data[bucket].data.read_recursive();
         Entry { i: index, guard }
     }
 
     pub fn entry_arc(&self, index: usize) -> ArcEntry<T, N> {
         let (bucket, offset) = resolve::<N>(index);
         let guard = &self.data[bucket].data;
-        let arc_guard = RwLock::read_arc(guard);
+        let arc_guard = RwLock::read_arc_recursive(guard);
         ArcEntry {
             i: offset,
             guard: arc_guard,
@@ -177,7 +177,7 @@ impl<T, const N: usize> RawStorage<T, N> {
         self.len.load(Ordering::SeqCst)
     }
 
-    pub fn iter<'a>(&'a self) -> Iter<'a, T, N> {
+    pub fn iter(&self) -> Iter<T, N> {
         Iter::new(self)
     }
 }
@@ -186,6 +186,14 @@ impl<T, const N: usize> RawStorage<T, N> {
 pub struct Entry<'a, T: 'static, const N: usize> {
     i: usize,
     guard: parking_lot::RwLockReadGuard<'a, Vec<Option<T>>>,
+}
+
+impl<'a, T: 'static, const N: usize> Clone for Entry<'a, T, N> {
+    fn clone(&self) -> Self {
+        let guard = RwLockReadGuard::rwlock(&self.guard).read_recursive();
+        let i = self.i;
+        Self { i, guard }
+    }
 }
 
 pub struct ArcEntry<T: 'static, const N: usize> {
@@ -223,7 +231,7 @@ impl<'a, T: 'static, const N: usize> Entry<'a, T, N> {
             f(what.unwrap())
         });
 
-        LockedView::Locked(mapped_guard)
+        LockedView::LockMapped(mapped_guard)
     }
 }
 

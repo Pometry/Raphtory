@@ -2,12 +2,21 @@
 
 use crate::{
     core::{
-        entities::{vertices::vertex_ref::VertexRef, VID},
+        entities::{vertices::vertex_ref::VertexRef, LayerIds, VID},
+        storage::locked_view::LockedView,
         utils::time::IntoTime,
         Direction,
     },
     db::{
-        api::view::{internal::GraphPropertiesOps, BoxedIter, LayerOps},
+        api::{
+            properties::{
+                internal::{
+                    ConstPropertiesOps, Key, TemporalPropertiesOps, TemporalPropertyViewOps,
+                },
+                Properties,
+            },
+            view::{internal::Static, BoxedIter, Layer, LayerOps},
+        },
         graph::{
             edge::{EdgeList, EdgeView},
             path::{Operations, PathFromVertex},
@@ -103,6 +112,78 @@ impl<G: GraphViewOps> VertexView<G> {
     }
 }
 
+impl<G: GraphViewOps> TemporalPropertiesOps for VertexView<G> {
+    fn temporal_property_keys<'a>(
+        &'a self,
+    ) -> Box<dyn Iterator<Item = LockedView<'a, String>> + 'a> {
+        Box::new(
+            self.graph
+                .temporal_vertex_prop_names(self.vertex)
+                .into_iter()
+                .filter(|k| self.get_temporal_property(k).is_some()),
+        )
+    }
+
+    fn get_temporal_property(&self, key: &str) -> Option<Key> {
+        (!self
+            .graph
+            .temporal_vertex_prop_vec(self.vertex, key)
+            .is_empty())
+        .then(|| key.to_owned())
+    }
+}
+
+impl<G: GraphViewOps> TemporalPropertyViewOps for VertexView<G> {
+    fn temporal_value(&self, id: &String) -> Option<Prop> {
+        self.graph
+            .temporal_vertex_prop_vec(self.vertex, id)
+            .last()
+            .map(|(_, v)| v.to_owned())
+    }
+
+    fn temporal_history(&self, id: &String) -> Vec<i64> {
+        self.graph
+            .temporal_vertex_prop_vec(self.vertex, id)
+            .into_iter()
+            .map(|(t, _)| t)
+            .collect()
+    }
+
+    fn temporal_values(&self, id: &String) -> Vec<Prop> {
+        self.graph
+            .temporal_vertex_prop_vec(self.vertex, id)
+            .into_iter()
+            .map(|(_, v)| v)
+            .collect()
+    }
+
+    fn temporal_value_at(&self, id: &String, t: i64) -> Option<Prop> {
+        let history = self.temporal_history(id);
+        match history.binary_search(&t) {
+            Ok(index) => Some(self.temporal_values(id)[index].clone()),
+            Err(index) => (index > 0).then(|| self.temporal_values(id)[index - 1].clone()),
+        }
+    }
+}
+
+impl<G: GraphViewOps> ConstPropertiesOps for VertexView<G> {
+    fn const_property_keys<'a>(&'a self) -> Box<dyn Iterator<Item = LockedView<'a, String>> + 'a> {
+        self.graph.static_vertex_prop_names(self.vertex)
+    }
+
+    fn const_property_values(&self) -> Vec<Prop> {
+        self.const_property_keys()
+            .flat_map(|prop_name| self.graph.static_vertex_prop(self.vertex, &prop_name))
+            .collect()
+    }
+
+    fn get_const_property(&self, key: &str) -> Option<Prop> {
+        self.graph.static_vertex_prop(self.vertex, key)
+    }
+}
+
+impl<G: GraphViewOps> Static for VertexView<G> {}
+
 /// View of a Vertex in a Graph
 impl<G: GraphViewOps> VertexViewOps for VertexView<G> {
     type Graph = G;
@@ -126,98 +207,34 @@ impl<G: GraphViewOps> VertexViewOps for VertexView<G> {
         self.graph.vertex_latest_time(self.vertex)
     }
 
-    fn property(&self, name: String, include_static: bool) -> Option<Prop> {
-        let props = self.property_history(name.clone());
-        match props.last() {
-            None => {
-                if include_static {
-                    self.graph.static_vertex_prop(self.vertex, &name)
-                } else {
-                    None
-                }
-            }
-            Some((_, prop)) => Some(prop.clone()),
-        }
-    }
-
     fn history(&self) -> Vec<i64> {
         self.graph.vertex_history(self.vertex)
     }
 
-    fn property_history(&self, name: String) -> Vec<(i64, Prop)> {
-        self.graph.temporal_vertex_prop_vec(self.vertex, &name)
-    }
-
-    fn properties(&self, include_static: bool) -> HashMap<String, Prop> {
-        self.property_names(include_static)
-            .into_iter()
-            .filter_map(|key| self.property(key.clone(), include_static).map(|v| (key, v)))
-            .collect()
-    }
-
-    fn property_histories(&self) -> HashMap<String, Vec<(i64, Prop)>> {
-        self.graph.temporal_vertex_props(self.vertex)
-    }
-
-    fn property_names(&self, include_static: bool) -> Vec<String> {
-        let mut names: Vec<String> = self.graph.temporal_vertex_prop_names(self.vertex);
-        if include_static {
-            names.extend(self.graph.static_vertex_prop_names(self.vertex))
-        }
-        names
-    }
-
-    fn has_property(&self, name: String, include_static: bool) -> bool {
-        (!self.property_history(name.clone()).is_empty())
-            || (include_static
-                && self
-                    .graph
-                    .static_vertex_prop_names(self.vertex)
-                    .contains(&name))
-    }
-
-    fn has_static_property(&self, name: String) -> bool {
-        self.graph
-            .static_vertex_prop_names(self.vertex)
-            .contains(&name.to_owned())
-    }
-
-    fn static_property(&self, name: String) -> Option<Prop> {
-        self.graph.static_vertex_prop(self.vertex, &name)
-    }
-
-    fn static_properties(&self) -> Self::ValueType<HashMap<String, Prop>> {
-        let mut props: HashMap<String, Prop> = HashMap::new();
-
-        for prop_name in self.graph.static_vertex_prop_names(self.vertex) {
-            if let Some(prop) = self.graph.static_vertex_prop(self.vertex, &prop_name) {
-                props.insert(prop_name, prop);
-            }
-        }
-
-        props
+    fn properties(&self) -> Properties<Self> {
+        Properties::new(self.clone())
     }
 
     fn degree(&self) -> usize {
         let dir = Direction::BOTH;
-        self.graph.degree(self.vertex, dir, None)
+        self.graph.degree(self.vertex, dir, LayerIds::All)
     }
 
     fn in_degree(&self) -> usize {
         let dir = Direction::IN;
-        self.graph.degree(self.vertex, dir, None)
+        self.graph.degree(self.vertex, dir, LayerIds::All)
     }
 
     fn out_degree(&self) -> usize {
         let dir = Direction::OUT;
-        self.graph.degree(self.vertex, dir, None)
+        self.graph.degree(self.vertex, dir, LayerIds::All)
     }
 
     fn edges(&self) -> EdgeList<G> {
         let g = self.graph.clone();
         let dir = Direction::BOTH;
         Box::new(
-            g.vertex_edges(self.vertex, dir, None)
+            g.vertex_edges(self.vertex, dir, LayerIds::All)
                 .map(move |e| EdgeView::new(g.clone(), e)),
         )
     }
@@ -226,7 +243,7 @@ impl<G: GraphViewOps> VertexViewOps for VertexView<G> {
         let g = self.graph.clone();
         let dir = Direction::IN;
         Box::new(
-            g.vertex_edges(self.vertex, dir, None)
+            g.vertex_edges(self.vertex, dir, LayerIds::All)
                 .map(move |e| EdgeView::new(g.clone(), e)),
         )
     }
@@ -235,7 +252,7 @@ impl<G: GraphViewOps> VertexViewOps for VertexView<G> {
         let g = self.graph.clone();
         let dir = Direction::OUT;
         Box::new(
-            g.vertex_edges(self.vertex, dir, None)
+            g.vertex_edges(self.vertex, dir, LayerIds::All)
                 .map(move |e| EdgeView::new(g.clone(), e)),
         )
     }
@@ -288,7 +305,7 @@ impl<G: GraphViewOps> LayerOps for VertexView<G> {
         }
     }
 
-    fn layer(&self, name: &str) -> Option<Self::LayeredViewType> {
+    fn layer<L: Into<Layer>>(&self, name: L) -> Option<Self::LayeredViewType> {
         Some(VertexView {
             graph: self.graph.layer(name)?,
             vertex: self.vertex,
@@ -325,44 +342,12 @@ impl<G: GraphViewOps> VertexListOps for Box<dyn Iterator<Item = VertexView<G>> +
         Box::new(self.map(|v| v.name()))
     }
 
-    fn property(self, name: String, include_static: bool) -> BoxedIter<Option<Prop>> {
-        Box::new(self.map(move |v| v.property(name.clone(), include_static)))
-    }
-
-    fn property_history(self, name: String) -> BoxedIter<Vec<(i64, Prop)>> {
-        Box::new(self.map(move |v| v.property_history(name.clone())))
-    }
-
-    fn properties(self, include_static: bool) -> BoxedIter<HashMap<String, Prop>> {
-        Box::new(self.map(move |v| v.properties(include_static)))
+    fn properties(self) -> BoxedIter<Properties<VertexView<G>>> {
+        Box::new(self.map(move |v| v.properties()))
     }
 
     fn history(self) -> BoxedIter<Vec<i64>> {
         Box::new(self.map(|v| v.history()))
-    }
-
-    fn property_histories(self) -> BoxedIter<HashMap<String, Vec<(i64, Prop)>>> {
-        Box::new(self.map(|v| v.property_histories()))
-    }
-
-    fn property_names(self, include_static: bool) -> BoxedIter<Vec<String>> {
-        Box::new(self.map(move |v| v.property_names(include_static)))
-    }
-
-    fn has_property(self, name: String, include_static: bool) -> BoxedIter<bool> {
-        Box::new(self.map(move |v| v.has_property(name.clone(), include_static)))
-    }
-
-    fn has_static_property(self, name: String) -> BoxedIter<bool> {
-        Box::new(self.map(move |v| v.has_static_property(name.clone())))
-    }
-
-    fn static_property(self, name: String) -> BoxedIter<Option<Prop>> {
-        Box::new(self.map(move |v| v.static_property(name.clone())))
-    }
-
-    fn static_properties(self) -> BoxedIter<HashMap<String, Prop>> {
-        Box::new(self.map(move |v| v.static_properties()))
     }
 
     fn degree(self) -> BoxedIter<usize> {
@@ -433,48 +418,12 @@ impl<G: GraphViewOps> VertexListOps for BoxedIter<BoxedIter<VertexView<G>>> {
         Box::new(self.map(|it| it.name()))
     }
 
-    fn property(
-        self,
-        name: String,
-        include_static: bool,
-    ) -> BoxedIter<Self::ValueType<Option<Prop>>> {
-        Box::new(self.map(move |it| it.property(name.clone(), include_static)))
-    }
-
-    fn property_history(self, name: String) -> BoxedIter<Self::ValueType<Vec<(i64, Prop)>>> {
-        Box::new(self.map(move |it| it.property_history(name.clone())))
-    }
-
-    fn properties(self, include_static: bool) -> BoxedIter<Self::ValueType<HashMap<String, Prop>>> {
-        Box::new(self.map(move |it| it.properties(include_static)))
+    fn properties(self) -> BoxedIter<Self::ValueType<Properties<VertexView<G>>>> {
+        Box::new(self.map(move |it| it.properties()))
     }
 
     fn history(self) -> BoxedIter<Self::ValueType<Vec<i64>>> {
         Box::new(self.map(move |it| it.history()))
-    }
-
-    fn property_histories(self) -> BoxedIter<Self::ValueType<HashMap<String, Vec<(i64, Prop)>>>> {
-        Box::new(self.map(|it| it.property_histories()))
-    }
-
-    fn property_names(self, include_static: bool) -> BoxedIter<Self::ValueType<Vec<String>>> {
-        Box::new(self.map(move |it| it.property_names(include_static)))
-    }
-
-    fn has_property(self, name: String, include_static: bool) -> BoxedIter<Self::ValueType<bool>> {
-        Box::new(self.map(move |it| it.has_property(name.clone(), include_static)))
-    }
-
-    fn has_static_property(self, name: String) -> BoxedIter<Self::ValueType<bool>> {
-        Box::new(self.map(move |it| it.has_static_property(name.clone())))
-    }
-
-    fn static_property(self, name: String) -> BoxedIter<Self::ValueType<Option<Prop>>> {
-        Box::new(self.map(move |it| it.static_property(name.clone())))
-    }
-
-    fn static_properties(self) -> BoxedIter<Self::ValueType<HashMap<String, Prop>>> {
-        Box::new(self.map(move |it| it.static_properties()))
     }
 
     fn degree(self) -> BoxedIter<Self::ValueType<usize>> {
@@ -539,17 +488,17 @@ mod vertex_test {
         let g = Graph::new();
         let props = [("test", "test")];
         g.add_vertex(0, 1, NO_PROPS).unwrap();
-        g.add_vertex(2, 1, props.clone()).unwrap();
+        g.add_vertex(2, 1, props).unwrap();
 
         let v1 = g.vertex(1).unwrap();
         let v1_w = g.window(0, 1).vertex(1).unwrap();
         assert_eq!(
-            v1.properties(false),
+            v1.properties().as_map(),
             props
                 .into_iter()
-                .map(|(k, v)| (k.to_string(), v.as_prop()))
+                .map(|(k, v)| (k.to_string(), v.into_prop()))
                 .collect()
         );
-        assert_eq!(v1_w.properties(false), HashMap::default())
+        assert_eq!(v1_w.properties().as_map(), HashMap::default())
     }
 }

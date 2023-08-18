@@ -17,6 +17,7 @@ use wasm_bindgen::{prelude::*, JsCast};
 
 use crate::{
     graph::{
+        edge::Edge,
         misc::{JSError, JsObjectEntry},
         vertex::{JsVertex, Vertex},
     },
@@ -96,7 +97,7 @@ impl Graph {
     }
 
     #[wasm_bindgen(js_name = addVertex)]
-    pub fn add_vertex_js(&self, t: i64, id: JsValue, js_props: Object) -> Result<(), JSError> {
+    pub fn add_vertex_js(&self, t: i64, id: JsValue, js_props: Object) -> Result<Vertex, JSError> {
         let rust_props = if js_props.is_string() {
             vec![("name".to_string(), Prop::Str(js_props.as_string().unwrap()))]
         } else if js_props.is_object() {
@@ -115,10 +116,12 @@ impl Graph {
             JsVertex::Str(vertex) => self
                 .mutable_graph()
                 .add_vertex(t, vertex, rust_props)
+                .map(|v| v.into())
                 .map_err(JSError),
             JsVertex::Number(vertex) => self
                 .mutable_graph()
                 .add_vertex(t, vertex, rust_props)
+                .map(|v| v.into())
                 .map_err(JSError),
         }
     }
@@ -130,7 +133,7 @@ impl Graph {
         src: JsValue,
         dst: JsValue,
         js_props: Object,
-    ) -> Result<(), JSError> {
+    ) -> Result<Edge, JSError> {
         js_props.dyn_ref::<js_sys::BigInt>().map(|bigint| {
             log(&format!("bigint: {:?}", bigint));
         });
@@ -153,11 +156,13 @@ impl Graph {
             (JsVertex::Str(src), JsVertex::Str(dst)) => self
                 .mutable_graph()
                 .add_edge(t, src, dst, props, None)
-                .map_err(JSError),
+                .map_err(JSError)
+                .map(|e| e.into()),
             (JsVertex::Number(src), JsVertex::Number(dst)) => self
                 .mutable_graph()
                 .add_edge(t, src, dst, props, None)
-                .map_err(JSError),
+                .map_err(JSError)
+                .map(|e| e.into()),
             _ => Err(JSError(GraphError::VertexIdNotStringOrNumber)),
         }
     }

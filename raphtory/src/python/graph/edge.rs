@@ -5,29 +5,39 @@
 //! edge as it existed at a particular point in time, or as it existed over a particular time range.
 //!
 use crate::{
-    core::{utils::time::error::ParseTimeError, Prop},
+    core::utils::time::error::ParseTimeError,
     db::{
-        api::view::{
-            internal::{DynamicGraph, IntoDynamic},
-            BoxedIter, WindowSet,
+        api::{
+            properties::Properties,
+            view::{
+                internal::{DynamicGraph, IntoDynamic},
+                BoxedIter, WindowSet,
+            },
         },
-        graph::{edge::EdgeView, views::window_graph::WindowedGraph},
+        graph::{
+            edge::EdgeView,
+            views::{layer_graph::LayeredGraph, window_graph::WindowedGraph},
+        },
     },
     prelude::*,
     python::{
-        graph::vertex::{PyVertex, PyVertexIterable},
+        graph::{
+            properties::{PyNestedPropsIterable, PyPropsList},
+            vertex::{PyNestedVertexIterable, PyVertex, PyVertexIterable},
+        },
         types::{
             repr::{iterator_repr, Repr},
-            wrappers::iterators::{OptionI64Iterable, OptionPropIterable, PropsIterable},
+            wrappers::iterators::{
+                NestedOptionI64Iterable, NestedU64U64Iterable, OptionI64Iterable,
+            },
         },
-        utils::{PyGenericIterable, PyInterval, PyTime},
+        utils::{PyGenericIterable, PyGenericIterator, PyInterval, PyTime},
     },
 };
 use chrono::NaiveDateTime;
-use itertools::Itertools;
 use pyo3::{prelude::*, pyclass::CompareOp};
 use std::{
-    collections::{hash_map::DefaultHasher, HashMap},
+    collections::hash_map::DefaultHasher,
     hash::{Hash, Hasher},
     sync::Arc,
 };
@@ -87,36 +97,7 @@ impl PyEdge {
     }
 
     pub fn __getitem__(&self, name: &str) -> Option<Prop> {
-        self.property(name, Some(true))
-    }
-
-    /// Returns the value of the property with the given name.
-    /// If the property is not found, None is returned.
-    /// If the property is found, the value of the property is returned.
-    ///
-    /// Arguments:
-    ///    name (str): The name of the property to retrieve.
-    ///
-    /// Returns:
-    ///   The value of the property with the given name.
-    #[pyo3(signature = (name, include_static = true))]
-    pub fn property(&self, name: &str, include_static: Option<bool>) -> Option<Prop> {
-        let include_static = include_static.unwrap_or(true);
-        self.edge.property(name, include_static)
-    }
-
-    /// Returns the value of the property with the given name all times.
-    /// If the property is not found, None is returned.
-    /// If the property is found, the value of the property is returned.
-    ///
-    /// Arguments:
-    ///   name (str): The name of the property to retrieve.
-    ///
-    /// Returns:
-    ///  The value of the property with the given name.
-    #[pyo3(signature = (name))]
-    pub fn property_history(&self, name: &str) -> Vec<(i64, Prop)> {
-        self.edge.property_history(name)
+        self.edge.properties().get(name)
     }
 
     /// Returns a list of timestamps of when an edge is added or change to an edge is made.
@@ -129,84 +110,10 @@ impl PyEdge {
         self.edge.history()
     }
 
-    /// Returns a dictionary of all properties on the edge.
-    ///
-    /// Arguments:
-    ///  include_static (bool): Whether to include static properties in the result.
-    ///
-    /// Returns:
-    ///   A dictionary of all properties on the edge.
-    #[pyo3(signature = (include_static = true))]
-    pub fn properties(&self, include_static: Option<bool>) -> HashMap<String, Prop> {
-        let include_static = include_static.unwrap_or(true);
-        self.edge.properties(include_static)
-    }
-
-    /// Returns a dictionary of all properties on the edge at all times.
-    ///
-    /// Returns:
-    ///   A dictionary of all properties on the edge at all times.
-    pub fn property_histories(&self) -> HashMap<String, Vec<(i64, Prop)>> {
-        self.edge.property_histories()
-    }
-
-    /// Returns a list of all property names on the edge.
-    ///
-    /// Arguments:
-    ///   include_static (bool): Whether to include static properties in the result.
-    ///
-    /// Returns:
-    ///   A list of all property names on the edge.
-    #[pyo3(signature = (include_static = true))]
-    pub fn property_names(&self, include_static: Option<bool>) -> Vec<String> {
-        let include_static = include_static.unwrap_or(true);
-        self.edge.property_names(include_static)
-    }
-
-    /// Check if a property exists with the given name.
-    ///
-    /// Arguments:
-    ///  name (str): The name of the property to check.
-    ///  include_static (bool): Whether to include static properties in the result.
-    ///
-    /// Returns:
-    /// True if a property exists with the given name, False otherwise.
-    #[pyo3(signature = (name, include_static = true))]
-    pub fn has_property(&self, name: &str, include_static: Option<bool>) -> bool {
-        let include_static = include_static.unwrap_or(true);
-        self.edge.has_property(name, include_static)
-    }
-
-    /// Check if a static property exists with the given name.
-    ///
-    /// Arguments:
-    ///   name (str): The name of the property to check.
-    ///
-    /// Returns:
-    ///   True if a static property exists with the given name, False otherwise.
-    pub fn has_static_property(&self, name: &str) -> bool {
-        self.edge.has_static_property(name)
-    }
-
-    /// Get static property of an edge by name
-    ///
-    /// Arguments:
-    ///   name (String): Name of the static property
-    ///
-    /// Returns:
-    ///   Option<Prop>: Returns static property if found by name
-    pub fn static_property(&self, name: &str) -> Option<Prop> {
-        self.edge.static_property(name)
-    }
-
-    /// Get all static properties of an edge
-    ///
-    /// Arguments:
-    ///
-    /// Returns:
-    ///   HashMap<String, Prop>: Returns all static properties identified by their name
-    pub fn static_properties(&self) -> HashMap<String, Prop> {
-        self.edge.static_properties()
+    /// Returns a view of the properties of the edge.
+    #[getter]
+    pub fn properties(&self) -> Properties<EdgeView<DynamicGraph>> {
+        self.edge.properties()
     }
 
     /// Get the source vertex of the Edge.
@@ -312,6 +219,28 @@ impl PyEdge {
             .window(t_start.unwrap_or(PyTime::MIN), t_end.unwrap_or(PyTime::MAX))
     }
 
+    /// Get a new Edge with the properties of this Edge within the specified layers.
+    ///
+    /// Arguments:
+    ///   layer_names ([str]): Layers to be included in the new edge.
+    ///
+    /// Returns:
+    ///   A new Edge with the properties of this Edge within the specified time window.
+    #[pyo3(signature = (layer_names))]
+    pub fn layers(
+        &self,
+        layer_names: Vec<String>,
+    ) -> PyResult<EdgeView<LayeredGraph<DynamicGraph>>> {
+        if let Some(edge) = self.edge.layer(layer_names.clone()) {
+            Ok(edge)
+        } else {
+            let available_layers = self.edge.layer_names();
+            Err(PyErr::new::<pyo3::exceptions::PyAttributeError, _>(
+                format!("Layers {layer_names:?} not available for edge, available layers: {available_layers:?}"),
+            ))
+        }
+    }
+
     /// Get a new Edge with the properties of this Edge at a specified time.
     ///
     /// Arguments:
@@ -380,8 +309,8 @@ impl PyEdge {
     ///
     /// Returns:
     ///     (str) The name of the layer
-    pub fn layer_name(&self) -> String {
-        self.edge.layer_name()
+    pub fn layer_names(&self) -> Vec<String> {
+        self.edge.layer_names()
     }
 
     /// Gets the datetime of an exploded edge.
@@ -401,16 +330,18 @@ impl PyEdge {
 
 impl Repr for PyEdge {
     fn repr(&self) -> String {
-        let properties = &self
-            .properties(Some(true))
-            .iter()
-            .map(|(k, v)| format!("{k} : {:?}", v.to_string()))
-            .join(", ");
+        self.edge.repr()
+    }
+}
 
-        let source = self.edge.src().name();
-        let target = self.edge.dst().name();
-        let earliest_time = self.edge.earliest_time();
-        let latest_time = self.edge.latest_time();
+impl Repr for EdgeView<DynamicGraph> {
+    fn repr(&self) -> String {
+        let properties = &self.properties().repr();
+
+        let source = self.src().name();
+        let target = self.dst().name();
+        let earliest_time = self.earliest_time();
+        let latest_time = self.latest_time();
         if properties.is_empty() {
             format!(
                 "Edge(source={}, target={}, earliest_time={}, latest_time={})",
@@ -433,8 +364,6 @@ impl Repr for PyEdge {
     }
 }
 
-py_iterator!(PyEdgeIter, EdgeView<DynamicGraph>, PyEdge, "EdgeIter");
-
 /// A list of edges that can be iterated over.
 #[pyclass(name = "Edges")]
 pub struct PyEdges {
@@ -455,10 +384,8 @@ impl PyEdges {
 
 #[pymethods]
 impl PyEdges {
-    fn __iter__(&self) -> PyEdgeIter {
-        PyEdgeIter {
-            iter: Box::new(self.py_iter()),
-        }
+    fn __iter__(&self) -> PyGenericIterator {
+        self.py_iter().into()
     }
 
     fn __len__(&self) -> usize {
@@ -524,29 +451,11 @@ impl PyEdges {
         (move || edges().latest_time()).into()
     }
 
-    /// Returns the value of the properties with the given name.
-    /// If the property is not found, None is returned.
-    /// If the property is found, the value of the property is returned.
-    ///
-    /// Arguments:
-    ///    name (str): The name of the property to retrieve.
-    ///    include_static (bool): Whether to include static properties in the result.
-    ///
-    /// Returns:
-    ///   The values of the property with the given name as an iterable.
-    fn property(&self, name: String, include_static: Option<bool>) -> OptionPropIterable {
-        let edges: Arc<
-            dyn Fn() -> Box<dyn Iterator<Item = EdgeView<DynamicGraph>> + Send> + Send + Sync,
-        > = self.builder.clone();
-        (move || edges().property(name.clone(), include_static.unwrap_or(true))).into()
-    }
-
-    /// Returns all static properties of the edges
-    fn static_properties(&self) -> PropsIterable {
-        let edges: Arc<
-            dyn Fn() -> Box<dyn Iterator<Item = EdgeView<DynamicGraph>> + Send> + Send + Sync,
-        > = self.builder.clone();
-        (move || edges().static_properties()).into()
+    /// Returns all properties of the edges
+    #[getter]
+    fn properties(&self) -> PyPropsList {
+        let builder = self.builder.clone();
+        (move || builder().properties()).into()
     }
 
     /// Returns all ids of the edges.
@@ -562,7 +471,7 @@ impl PyEdges {
 
 impl Repr for PyEdges {
     fn repr(&self) -> String {
-        format!("Edges({})", iterator_repr(self.__iter__().into_iter()))
+        format!("Edges({})", iterator_repr(self.iter()))
     }
 }
 
@@ -574,34 +483,48 @@ impl<F: Fn() -> BoxedIter<EdgeView<DynamicGraph>> + Send + Sync + 'static> From<
     }
 }
 
-py_iterator!(
-    PyNestedEdgeIter,
-    BoxedIter<EdgeView<DynamicGraph>>,
-    PyEdgeIter,
-    "NestedEdgeIter"
-);
-
-#[pyclass(name = "NestedEdges")]
-pub struct PyNestedEdges {
-    builder: Arc<dyn Fn() -> BoxedIter<BoxedIter<EdgeView<DynamicGraph>>> + Send + Sync + 'static>,
-}
-
-impl PyNestedEdges {
-    fn iter(&self) -> BoxedIter<BoxedIter<EdgeView<DynamicGraph>>> {
-        (self.builder)()
-    }
-}
+py_nested_iterable!(PyNestedEdges, EdgeView<DynamicGraph>);
 
 #[pymethods]
 impl PyNestedEdges {
-    fn __iter__(&self) -> PyNestedEdgeIter {
-        self.iter().into()
+    /// Returns all source vertices of the Edges as an iterable.
+    ///
+    /// Returns:
+    ///   The source vertices of the Edges as an iterable.
+    fn src(&self) -> PyNestedVertexIterable {
+        let builder = self.builder.clone();
+        (move || builder().src()).into()
     }
 
-    fn collect(&self) -> Vec<Vec<PyEdge>> {
-        self.iter()
-            .map(|e| e.map(|ee| ee.into()).collect())
-            .collect()
+    /// Returns all destination vertices as an iterable
+    fn dst(&self) -> PyNestedVertexIterable {
+        let builder = self.builder.clone();
+        (move || builder().dst()).into()
+    }
+
+    /// Returns the earliest time of the edges.
+    fn earliest_time(&self) -> NestedOptionI64Iterable {
+        let edges = self.builder.clone();
+        (move || edges().earliest_time()).into()
+    }
+
+    /// Returns the latest time of the edges.
+    fn latest_time(&self) -> NestedOptionI64Iterable {
+        let edges = self.builder.clone();
+        (move || edges().latest_time()).into()
+    }
+
+    // FIXME: needs a view that allows indexing into the properties
+    /// Returns all properties of the edges
+    fn properties(&self) -> PyNestedPropsIterable {
+        let builder = self.builder.clone();
+        (move || builder().properties()).into()
+    }
+
+    /// Returns all ids of the edges.
+    fn id(&self) -> NestedU64U64Iterable {
+        let edges = self.builder.clone();
+        (move || edges().id()).into()
     }
 
     fn explode(&self) -> PyNestedEdges {
@@ -615,15 +538,5 @@ impl PyNestedEdges {
             iter
         })
         .into()
-    }
-}
-
-impl<F: Fn() -> BoxedIter<BoxedIter<EdgeView<DynamicGraph>>> + Send + Sync + 'static> From<F>
-    for PyNestedEdges
-{
-    fn from(value: F) -> Self {
-        Self {
-            builder: Arc::new(value),
-        }
     }
 }

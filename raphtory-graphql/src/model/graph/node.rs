@@ -1,20 +1,18 @@
 use crate::model::{
     filters::edgefilter::EdgeFilter,
-    graph::{edge::Edge, property::Property, property_update::PropertyUpdate},
+    graph::{edge::Edge, get_expanded_edges, property::Property, property_update::PropertyUpdate},
 };
 use async_graphql::Context;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
-use raphtory::{
-    core::Prop,
-    db::{
-        api::view::{
-            internal::{DynamicGraph, IntoDynamic},
-            *,
-        },
-        graph::vertex::VertexView,
+use raphtory::db::{
+    api::view::{
+        internal::{DynamicGraph, IntoDynamic},
+        *,
     },
+    graph::vertex::VertexView,
 };
+use std::collections::HashSet;
 
 #[derive(ResolvedObject)]
 pub(crate) struct Node {
@@ -44,41 +42,51 @@ impl Node {
 
     pub async fn node_type(&self) -> String {
         self.vv
-            .property("type".to_string(), true)
-            .unwrap_or(Prop::Str("NONE".to_string()))
-            .to_string()
+            .properties()
+            .get("type")
+            .map(|p| p.to_string())
+            .unwrap_or("NONE".to_string())
     }
 
-    async fn property_names<'a>(&self, _ctx: &Context<'a>) -> Vec<String> {
-        self.vv.property_names(true)
+    /// Returns all the property names this node has a value for
+    async fn property_names(&self) -> Vec<String> {
+        self.vv.properties().keys().map_into().collect()
     }
 
+    /// Returns all the properties of the node
     async fn properties(&self) -> Option<Vec<Property>> {
         Some(
             self.vv
-                .properties(true)
-                .into_iter()
-                .map(|(k, v)| Property::new(k, v))
-                .collect_vec(),
+                .properties()
+                .iter()
+                .map(|(k, v)| Property::new(k.clone(), v))
+                .collect(),
         )
     }
 
+    /// Returns the value for the property with name `name`
     async fn property(&self, name: &str) -> Option<String> {
-        Some(self.vv.property(name.to_string(), true)?.to_string())
+        self.vv.properties().get(name).map(|v| v.to_string())
     }
 
+    /// Returns the history as a vector of updates for the property with name `name`
     async fn property_history(&self, name: String) -> Vec<PropertyUpdate> {
         self.vv
-            .property_history(name)
+            .properties()
+            .temporal()
+            .get(name)
             .into_iter()
-            .map(|(time, prop)| PropertyUpdate::new(time, prop.to_string()))
-            .collect_vec()
+            .flat_map(|p| {
+                p.iter()
+                    .map(|(time, prop)| PropertyUpdate::new(time, prop.to_string()))
+            })
+            .collect()
     }
 
     async fn in_neighbours<'a>(&self, layer: Option<String>) -> Vec<Node> {
-        match layer {
+        match layer.as_deref() {
             None => self.vv.in_neighbours().iter().map(|vv| vv.into()).collect(),
-            Some(layer) => match self.vv.layer(layer.as_str()) {
+            Some(layer) => match self.vv.layer(layer) {
                 None => {
                     vec![]
                 }
@@ -88,14 +96,14 @@ impl Node {
     }
 
     async fn out_neighbours(&self, layer: Option<String>) -> Vec<Node> {
-        match layer {
+        match layer.as_deref() {
             None => self
                 .vv
                 .out_neighbours()
                 .iter()
                 .map(|vv| vv.into())
                 .collect(),
-            Some(layer) => match self.vv.layer(layer.as_str()) {
+            Some(layer) => match self.vv.layer(layer) {
                 None => {
                     vec![]
                 }
@@ -105,9 +113,9 @@ impl Node {
     }
 
     async fn neighbours<'a>(&self, layer: Option<String>) -> Vec<Node> {
-        match layer {
+        match layer.as_deref() {
             None => self.vv.neighbours().iter().map(|vv| vv.into()).collect(),
-            Some(layer) => match self.vv.layer(layer.as_str()) {
+            Some(layer) => match self.vv.layer(layer) {
                 None => {
                     vec![]
                 }
@@ -116,36 +124,39 @@ impl Node {
         }
     }
 
+    /// Returns the number of edges connected to the node
     async fn degree(&self, layers: Option<Vec<String>>) -> usize {
         match layers {
             None => self.vv.degree(),
             Some(layers) => layers
-                .into_iter()
+                .iter()
                 .map(|layer| {
-                    let degree = match self.vv.layer(layer.as_str()) {
+                    let degree = match self.vv.layer(layer) {
                         None => 0,
                         Some(vvv) => vvv.degree(),
                     };
-                    return degree;
+                    degree
                 })
                 .sum(),
         }
     }
 
+    /// Returns the number of outgoing edges connected to the node
     async fn out_degree(&self, layer: Option<String>) -> usize {
-        match layer {
+        match layer.as_deref() {
             None => self.vv.out_degree(),
-            Some(layer) => match self.vv.layer(layer.as_str()) {
+            Some(layer) => match self.vv.layer(layer) {
                 None => 0,
                 Some(vvv) => vvv.out_degree(),
             },
         }
     }
 
+    /// Returns the number of incoming edges connected to the node
     async fn in_degree(&self, layer: Option<String>) -> usize {
-        match layer {
+        match layer.as_deref() {
             None => self.vv.in_degree(),
-            Some(layer) => match self.vv.layer(layer.as_str()) {
+            Some(layer) => match self.vv.layer(layer) {
                 None => 0,
                 Some(vvv) => vvv.in_degree(),
             },
@@ -153,25 +164,25 @@ impl Node {
     }
 
     async fn out_edges(&self, layer: Option<String>) -> Vec<Edge> {
-        match layer {
-            None => self.vv.out_edges().map(|ee| ee.clone().into()).collect(),
-            Some(layer) => match self.vv.layer(layer.as_str()) {
+        match layer.as_deref() {
+            None => self.vv.out_edges().map(|ee| ee.into()).collect(),
+            Some(layer) => match self.vv.layer(layer) {
                 None => {
                     vec![]
                 }
-                Some(vvv) => vvv.out_edges().map(|ee| ee.clone().into()).collect(),
+                Some(vvv) => vvv.out_edges().map(|ee| ee.into()).collect(),
             },
         }
     }
 
     async fn in_edges(&self, layer: Option<String>) -> Vec<Edge> {
-        match layer {
-            None => self.vv.in_edges().map(|ee| ee.clone().into()).collect(),
-            Some(layer) => match self.vv.layer(layer.as_str()) {
+        match layer.as_deref() {
+            None => self.vv.in_edges().map(|ee| ee.into()).collect(),
+            Some(layer) => match self.vv.layer(layer) {
                 None => {
                     vec![]
                 }
-                Some(vvv) => vvv.in_edges().map(|ee| ee.clone().into()).collect(),
+                Some(vvv) => vvv.in_edges().map(|ee| ee.into()).collect(),
             },
         }
     }
@@ -181,16 +192,50 @@ impl Node {
             Some(filter) => self
                 .vv
                 .edges()
-                .into_iter()
                 .map(|ev| ev.into())
                 .filter(|ev| filter.matches(ev))
                 .collect(),
-            None => self.vv.edges().map(|ee| ee.clone().into()).collect(),
+            None => self.vv.edges().map(|ee| ee.into()).collect(),
         }
     }
 
-    async fn exploded_edges(&self) -> Vec<Edge> {
+    async fn expanded_edges(
+        &self,
+        graph_nodes: Vec<String>,
+        filter: Option<EdgeFilter>,
+    ) -> Vec<Edge> {
+        let all_graph_nodes: HashSet<String> = graph_nodes.into_iter().collect();
+
+        match filter {
+            Some(edge_filter) => {
+                let maybe_layers = edge_filter.clone().layer_names.map(|l| l.contains);
+                let fetched_edges =
+                    get_expanded_edges(all_graph_nodes, self.vv.clone(), maybe_layers)
+                        .iter()
+                        .map(|ee| ee.clone().into())
+                        .collect_vec();
+                fetched_edges
+                    .into_iter()
+                    .filter(|ev| edge_filter.matches(ev))
+                    .collect()
+            }
+            None => get_expanded_edges(all_graph_nodes, self.vv.clone(), None)
+                .iter()
+                .map(|ee| ee.clone().into())
+                .collect_vec(),
+        }
+    }
+
+    async fn exploded_in_edges(&self) -> Vec<Edge> {
+        self.vv.in_edges().explode().map(|ee| ee.into()).collect()
+    }
+
+    async fn exploded_out_edges(&self) -> Vec<Edge> {
         self.vv.out_edges().explode().map(|ee| ee.into()).collect()
+    }
+
+    async fn exploded_edges(&self) -> Vec<Edge> {
+        self.vv.edges().explode().map(|ee| ee.into()).collect()
     }
 
     async fn start_date(&self) -> Option<i64> {

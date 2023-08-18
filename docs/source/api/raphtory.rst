@@ -25,15 +25,6 @@ Algorithms
    :private-members:
    :inherited-members:
 
-.. :: raphtory.AlgorithmResultStrU64
-   :autosummary:
-   :members:
-   :undoc-members:
-   :show-inheritance:
-   :private-members:
-   :inherited-members:
-
-
 Visualisation
 -------------------
 
@@ -66,6 +57,16 @@ Graph Generation
    :undoc-members:
    :show-inheritance:
    :private-members:
+   :inherited-members:
+
+GraphQL Server
+--------------------------
+
+.. automodule:: raphtory.graphql
+   :autosummary:
+   :members:
+   :undoc-members:
+   :show-inheritance:
    :inherited-members:
 
 

@@ -6,14 +6,22 @@
 //! In Python, this class wraps around the rust graph.
 use crate::{
     core::utils::errors::GraphError,
+    db::api::view::internal::MaterializedGraph,
     prelude::*,
     python::{
-        graph::views::graph_view::PyGraphView,
+        graph::{graph_with_deletions::PyGraphWithDeletions, views::graph_view::PyGraphView},
         utils::{PyInputVertex, PyTime},
     },
 };
 use pyo3::prelude::*;
 
+use crate::{
+    db::{
+        api::view::internal::{DynamicGraph, IntoDynamic},
+        graph::{edge::EdgeView, vertex::VertexView},
+    },
+    python::graph::pandas::{load_edges_props_from_df, load_vertex_props_from_df},
+};
 use std::{
     collections::HashMap,
     fmt::{Debug, Formatter},
@@ -43,6 +51,32 @@ impl From<Graph> for PyGraph {
     }
 }
 
+impl From<PyGraph> for Graph {
+    fn from(value: PyGraph) -> Self {
+        value.graph
+    }
+}
+
+impl From<PyGraph> for DynamicGraph {
+    fn from(value: PyGraph) -> Self {
+        value.graph.into_dynamic()
+    }
+}
+
+impl<'source> FromPyObject<'source> for MaterializedGraph {
+    fn extract(graph: &'source PyAny) -> PyResult<Self> {
+        if let Ok(graph) = graph.extract::<PyRef<PyGraph>>() {
+            Ok(graph.graph.clone().into())
+        } else if let Ok(graph) = graph.extract::<PyRef<PyGraphWithDeletions>>() {
+            Ok(graph.graph.clone().into())
+        } else {
+            Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
+                "Incorrect type, object is not a PyGraph or PyGraphWithDeletions"
+            )))
+        }
+    }
+}
+
 impl IntoPy<PyObject> for Graph {
     fn into_py(self, py: Python<'_>) -> PyObject {
         Py::new(py, (PyGraph::from(self.clone()), PyGraphView::from(self)))
@@ -53,7 +87,8 @@ impl IntoPy<PyObject> for Graph {
 
 impl<'source> FromPyObject<'source> for Graph {
     fn extract(ob: &'source PyAny) -> PyResult<Self> {
-        ob.extract()
+        let g: PyRef<PyGraph> = ob.extract()?;
+        Ok(g.graph.clone())
     }
 }
 
@@ -97,11 +132,12 @@ impl PyGraph {
         timestamp: PyTime,
         id: PyInputVertex,
         properties: Option<HashMap<String, Prop>>,
-    ) -> Result<(), GraphError> {
+    ) -> Result<VertexView<Graph>, GraphError> {
         self.graph
             .add_vertex(timestamp, id, properties.unwrap_or_default())
     }
 
+    /// add_vertex_properties(self, id: str | int, properties: dict) -> None
     /// Adds properties to an existing vertex.
     ///
     /// Arguments:
@@ -164,7 +200,7 @@ impl PyGraph {
         dst: PyInputVertex,
         properties: Option<HashMap<String, Prop>>,
         layer: Option<&str>,
-    ) -> Result<(), GraphError> {
+    ) -> Result<EdgeView<Graph>, GraphError> {
         self.graph
             .add_edge(timestamp, src, dst, properties.unwrap_or_default(), layer)
     }
@@ -219,24 +255,38 @@ impl PyGraph {
     }
 
     #[staticmethod]
-    #[pyo3(signature = (edges_df, src = "source", dst = "destination", time = "time", props = None, layer = None, layer_in_df = None, vertex_df = None, vertex_col = None, vertex_time_col = None, vertex_props = None))]
+    #[pyo3(signature = (edges_df, src = "source", dst = "destination", time = "time", props = None, const_props=None,shared_const_props=None,layer = None, layer_in_df = None, vertex_df = None, vertex_col = None, vertex_time_col = None, vertex_props = None, vertex_const_props = None, vertex_shared_const_props = None))]
     fn load_from_pandas(
         edges_df: &PyAny,
         src: &str,
         dst: &str,
         time: &str,
         props: Option<Vec<&str>>,
+        const_props: Option<Vec<&str>>,
+        shared_const_props: Option<HashMap<String, Prop>>,
         layer: Option<&str>,
         layer_in_df: Option<&str>,
         vertex_df: Option<&PyAny>,
         vertex_col: Option<&str>,
         vertex_time_col: Option<&str>,
         vertex_props: Option<Vec<&str>>,
+        vertex_const_props: Option<Vec<&str>>,
+        vertex_shared_const_props: Option<HashMap<String, Prop>>,
     ) -> Result<Graph, GraphError> {
         let graph = PyGraph {
             graph: Graph::new(),
         };
-        graph.load_edges_from_pandas(edges_df, src, dst, time, props, layer, layer_in_df)?;
+        graph.load_edges_from_pandas(
+            edges_df,
+            src,
+            dst,
+            time,
+            props,
+            const_props,
+            shared_const_props,
+            layer,
+            layer_in_df,
+        )?;
         if let (Some(vertex_df), Some(vertex_col), Some(vertex_time_col)) =
             (vertex_df, vertex_col, vertex_time_col)
         {
@@ -245,24 +295,36 @@ impl PyGraph {
                 vertex_col,
                 vertex_time_col,
                 vertex_props,
+                vertex_const_props,
+                vertex_shared_const_props,
             )?;
         }
         Ok(graph.graph)
     }
 
-    #[pyo3(signature = (vertices_df, vertex_col = "id", time_col = "time", props = None))]
+    #[pyo3(signature = (vertices_df, vertex_col = "id", time_col = "time", props = None, const_props = None, shared_const_props = None))]
     fn load_vertices_from_pandas(
         &self,
         vertices_df: &PyAny,
         vertex_col: &str,
         time_col: &str,
         props: Option<Vec<&str>>,
+        const_props: Option<Vec<&str>>,
+        shared_const_props: Option<HashMap<String, Prop>>,
     ) -> Result<(), GraphError> {
         let graph = &self.graph;
         Python::with_gil(|py| {
             let df = process_pandas_py_df(vertices_df, py)?;
-            load_vertices_from_df(&df, vertex_col, time_col, props, graph)
-                .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
+            load_vertices_from_df(
+                &df,
+                vertex_col,
+                time_col,
+                props,
+                const_props,
+                shared_const_props,
+                graph,
+            )
+            .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
 
             Ok::<(), PyErr>(())
         })
@@ -270,7 +332,7 @@ impl PyGraph {
         Ok(())
     }
 
-    #[pyo3(signature = (edge_df, src_col = "source", dst_col = "destination", time_col = "time", props = None, layer=None,layer_in_df=None))]
+    #[pyo3(signature = (edge_df, src_col = "source", dst_col = "destination", time_col = "time", props = None, const_props=None,shared_const_props=None,layer=None,layer_in_df=None))]
     fn load_edges_from_pandas(
         &self,
         edge_df: &PyAny,
@@ -278,6 +340,8 @@ impl PyGraph {
         dst_col: &str,
         time_col: &str,
         props: Option<Vec<&str>>,
+        const_props: Option<Vec<&str>>,
+        shared_const_props: Option<HashMap<String, Prop>>,
         layer: Option<&str>,
         layer_in_df: Option<&str>,
     ) -> Result<(), GraphError> {
@@ -290,6 +354,60 @@ impl PyGraph {
                 dst_col,
                 time_col,
                 props,
+                const_props,
+                shared_const_props,
+                layer,
+                layer_in_df,
+                graph,
+            )
+            .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
+
+            Ok::<(), PyErr>(())
+        })
+        .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
+        Ok(())
+    }
+
+    #[pyo3(signature = (vertices_df, vertex_col = "id", const_props = None, shared_const_props = None))]
+    fn load_vertex_props_from_pandas(
+        &self,
+        vertices_df: &PyAny,
+        vertex_col: &str,
+        const_props: Option<Vec<&str>>,
+        shared_const_props: Option<HashMap<String, Prop>>,
+    ) -> Result<(), GraphError> {
+        let graph = &self.graph;
+        Python::with_gil(|py| {
+            let df = process_pandas_py_df(vertices_df, py)?;
+            load_vertex_props_from_df(&df, vertex_col, const_props, shared_const_props, graph)
+                .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
+
+            Ok::<(), PyErr>(())
+        })
+        .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
+        Ok(())
+    }
+
+    #[pyo3(signature = (edge_df, src_col = "source", dst_col = "destination", const_props=None,shared_const_props=None,layer=None,layer_in_df=None))]
+    fn load_edge_props_from_pandas(
+        &self,
+        edge_df: &PyAny,
+        src_col: &str,
+        dst_col: &str,
+        const_props: Option<Vec<&str>>,
+        shared_const_props: Option<HashMap<String, Prop>>,
+        layer: Option<&str>,
+        layer_in_df: Option<&str>,
+    ) -> Result<(), GraphError> {
+        let graph = &self.graph;
+        Python::with_gil(|py| {
+            let df = process_pandas_py_df(edge_df, py)?;
+            load_edges_props_from_df(
+                &df,
+                src_col,
+                dst_col,
+                const_props,
+                shared_const_props,
                 layer,
                 layer_in_df,
                 graph,

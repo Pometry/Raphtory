@@ -1,3 +1,4 @@
+use parking_lot::RwLock;
 use raphtory::{
     db::api::view::internal::{DynamicGraph, IntoDynamic},
     prelude::{Graph, GraphViewOps},
@@ -9,18 +10,50 @@ use std::{
 };
 use walkdir::WalkDir;
 
+#[derive(Default)]
 pub(crate) struct Data {
-    pub(crate) graphs: HashMap<String, IndexedGraph<DynamicGraph>>,
+    pub(crate) graphs: RwLock<HashMap<String, IndexedGraph<DynamicGraph>>>,
 }
 
 impl Data {
-    pub fn load(directory_path: &str) -> Self {
+    pub fn from_map(graphs: HashMap<String, DynamicGraph>) -> Self {
+        let graphs = RwLock::new(Self::convert_graphs(graphs));
+        Self { graphs }
+    }
+
+    pub fn from_directory(directory_path: &str) -> Self {
+        let graphs = RwLock::new(Self::load_from_file(directory_path));
+        Self { graphs }
+    }
+
+    pub fn from_map_and_directory(
+        graphs: HashMap<String, DynamicGraph>,
+        directory_path: &str,
+    ) -> Self {
+        let mut graphs = Self::convert_graphs(graphs);
+        graphs.extend(Self::load_from_file(directory_path));
+        let graphs = RwLock::new(graphs);
+        Self { graphs }
+    }
+
+    fn convert_graphs(
+        graphs: HashMap<String, DynamicGraph>,
+    ) -> HashMap<String, IndexedGraph<DynamicGraph>> {
+        graphs
+            .into_iter()
+            .map(|(name, g)| {
+                (
+                    name,
+                    IndexedGraph::from_graph(&g).expect("Unable to index graph"),
+                )
+            })
+            .collect()
+    }
+
+    pub fn load_from_file(path: &str) -> HashMap<String, IndexedGraph<DynamicGraph>> {
         let mut valid_paths = HashSet::<String>::new();
 
-        for entry in WalkDir::new(directory_path)
-            .into_iter()
-            .filter_map(|e| e.ok())
-        {
+        for entry in WalkDir::new(path).into_iter().filter_map(|e| e.ok()) {
             let path = entry.path();
             let path_string = path.display().to_string();
             let filename = path.file_name().and_then(|name| name.to_str());
@@ -45,7 +78,7 @@ impl Data {
             .map(|path| {
                 println!("loading graph from {path}");
                 let graph = Graph::load_from_file(&path).expect("Unable to load from graph");
-                let maybe_graph_name = graph.static_property("name");
+                let maybe_graph_name = graph.properties().get("name");
 
                 return match maybe_graph_name {
                     None => {
@@ -66,7 +99,6 @@ impl Data {
                 )
             })
             .collect();
-
-        Self { graphs }
+        graphs
     }
 }

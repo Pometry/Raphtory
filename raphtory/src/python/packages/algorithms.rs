@@ -1,10 +1,9 @@
-use ordered_float::OrderedFloat;
+use std::collections::HashMap;
+
 /// Implementations of various graph algorithms that can be run on a graph.
 ///
 /// To run an algorithm simply import the module and call the function with the graph as the argument
 ///
-use std::collections::HashMap;
-
 use crate::{
     algorithms::{
         algorithm_result::AlgorithmResult,
@@ -15,11 +14,12 @@ use crate::{
             min_out_degree as min_out_degree_rs,
         },
         directed_graph_density::directed_graph_density as directed_graph_density_rs,
+        hits::hits as hits_rs,
         local_clustering_coefficient::local_clustering_coefficient as local_clustering_coefficient_rs,
         local_triangle_count::local_triangle_count as local_triangle_count_rs,
-        motifs::three_node_local::{
-            global_temporal_three_node_motifs as global_temporal_three_node_motif_rs,
-            local_temporal_three_node_motifs as local_three_node_rs,
+        motifs::three_node_temporal_motifs::{
+            global_temporal_three_node_motif as global_temporal_three_node_motif_rs,
+            temporal_three_node_motif as local_three_node_rs,
         },
         pagerank::unweighted_page_rank,
         reciprocity::{
@@ -32,6 +32,7 @@ use crate::{
     db::{api::view::internal::DynamicGraph, graph::vertex::VertexView},
     python::{graph::views::graph_view::PyGraphView, utils::PyInputVertex},
 };
+use ordered_float::OrderedFloat;
 use pyo3::prelude::*;
 
 /// Local triangle count - calculates the number of triangles (a cycle of length 3) a vertex participates in.
@@ -325,7 +326,7 @@ pub fn global_clustering_coefficient(g: &PyGraphView) -> f64 {
 ///
 #[pyfunction]
 pub fn global_temporal_three_node_motif(g: &PyGraphView, delta: i64) -> Vec<usize> {
-    global_temporal_three_node_motif_rs(&g.graph, delta)
+    global_temporal_three_node_motif_rs(&g.graph, delta, None)
 }
 
 /// Computes the number of each type of motif that each node participates in. See global_temporal_three_node_motifs for a summary of the motifs involved.
@@ -347,6 +348,26 @@ pub fn global_temporal_three_node_motif(g: &PyGraphView, delta: i64) -> Vec<usiz
 pub fn local_temporal_three_node_motifs(
     g: &PyGraphView,
     delta: i64,
-) -> AlgorithmResult<u64, Vec<usize>> {
-    local_three_node_rs(&g.graph, delta)
+) -> HashMap<String, Vec<usize>> {
+    local_three_node_rs(&g.graph, delta, None)
+}
+
+/// HITS (Hubs and Authority) Algorithm:
+/// AuthScore of a vertex (A) = Sum of HubScore of all vertices pointing at vertex (A) from previous iteration /
+///     Sum of HubScore of all vertices in the current iteration
+///
+/// HubScore of a vertex (A) = Sum of AuthScore of all vertices pointing away from vertex (A) from previous iteration /
+///     Sum of AuthScore of all vertices in the current iteration
+///
+/// Returns
+///
+/// * An AlgorithmResult object containing the mapping from vertex ID to the hub and authority score of the vertex
+#[pyfunction]
+#[pyo3(signature = (g, iter_count=20, threads=None))]
+pub fn hits(
+    g: &PyGraphView,
+    iter_count: usize,
+    threads: Option<usize>,
+) -> AlgorithmResult<String, (f32, f32)> {
+    hits_rs(&g.graph, iter_count, threads)
 }

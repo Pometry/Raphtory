@@ -1,6 +1,6 @@
 use dynamic_graphql::InputObject;
 
-#[derive(InputObject)]
+#[derive(InputObject, Clone)]
 pub(crate) struct StringVecFilter {
     pub(crate) contains: Vec<String>,
 }
@@ -11,7 +11,7 @@ impl StringVecFilter {
     }
 }
 
-#[derive(InputObject)]
+#[derive(InputObject, Clone)]
 pub(crate) struct StringFilter {
     pub(crate) eq: Option<String>,
     pub(crate) ne: Option<String>,

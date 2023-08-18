@@ -70,8 +70,8 @@ fn twonode_motif_count<G: GraphViewOps>(graph: &G, v: u64, delta: i64) -> [usize
     if let Some(vertex) = graph.vertex(v) {
         for nb in vertex.neighbours().iter() {
             let nb_id = nb.id();
-            let out = graph.edge(vertex.id(), nb_id, None);
-            let inc = graph.edge(nb_id, vertex.id(), None);
+            let out = graph.edge(vertex.id(), nb_id);
+            let inc = graph.edge(nb_id, vertex.id());
             let mut all_exploded = match (out, inc) {
                 (Some(o), Some(i)) => o
                     .explode()
@@ -115,8 +115,8 @@ fn triangle_motif_count<G: GraphViewOps>(
         for v in u.neighbours().iter().filter(|x| x.id() > uid) {
             for nb in u.neighbours().iter().filter(|x| x.id() > v.id()) {
                 let mut tri_edges: Vec<TriangleEdge> = Vec::new();
-                let out = graph.edge(v.id(), nb.id(), None);
-                let inc = graph.edge(nb.id(), v.id(), None);
+                let out = graph.edge(v.id(), nb.id());
+                let inc = graph.edge(nb.id(), v.id());
                 // The following code checks for triangles
                 match (out, inc) {
                     (Some(o), Some(i)) => {
@@ -154,8 +154,8 @@ fn triangle_motif_count<G: GraphViewOps>(
                     }
                 }
                 if !tri_edges.is_empty() {
-                    let uout = graph.edge(uid, nb.id(), None);
-                    let uin = graph.edge(nb.id(), uid, None);
+                    let uout = graph.edge(uid, nb.id());
+                    let uin = graph.edge(nb.id(), uid);
                     match (uout, uin) {
                         (Some(o), Some(i)) => {
                             tri_edges.append(
@@ -192,7 +192,7 @@ fn triangle_motif_count<G: GraphViewOps>(
                         }
                     }
                     // found triangle at this point!!
-                    let u_to_v = match graph.edge(uid, v.id(), None) {
+                    let u_to_v = match graph.edge(uid, v.id()) {
                         Some(edge) => {
                             let r = edge
                                 .explode()
@@ -202,7 +202,7 @@ fn triangle_motif_count<G: GraphViewOps>(
                         }
                         None => vec![].into_iter(),
                     };
-                    let v_to_u = match graph.edge(v.id(), uid, None) {
+                    let v_to_u = match graph.edge(v.id(), uid) {
                         Some(edge) => {
                             let r = edge
                                 .explode()
@@ -315,7 +315,7 @@ pub fn global_temporal_three_node_motifs<G: GraphViewOps>(graph: &G, delta: i64)
 #[cfg(test)]
 mod local_motif_test {
     use crate::{
-        algorithms::motifs::three_node_local::*,
+        algorithms::motifs::three_node_local_single_thread::*,
         db::{api::mutation::AdditionOps, graph::graph::Graph},
         prelude::NO_PROPS,
     };
@@ -358,7 +358,6 @@ mod local_motif_test {
         let counts = local_temporal_three_node_motifs(&graph, 10);
         // FIXME: Should test this
         let _global_counts = global_temporal_three_node_motifs(&graph, 10);
-
         let expected: HashMap<u64, Vec<usize>> = HashMap::from([
             (
                 1,

@@ -1,7 +1,10 @@
 use crate::{
     core::{entities::vertices::vertex_ref::VertexRef, utils::time::IntoTime, Direction},
     db::{
-        api::view::{BoxedIter, LayerOps},
+        api::{
+            properties::Properties,
+            view::{BoxedIter, Layer, LayerOps},
+        },
         graph::{
             edge::EdgeView,
             path::{Operations, PathFromGraph},
@@ -11,7 +14,6 @@ use crate::{
     },
     prelude::*,
 };
-use std::collections::HashMap;
 
 #[derive(Clone)]
 pub struct Vertices<G: GraphViewOps> {
@@ -52,136 +54,34 @@ impl<G: GraphViewOps> VertexViewOps for Vertices<G> {
     type PathType<'a> = PathFromGraph<G>;
     type EList = BoxedIter<BoxedIter<EdgeView<G>>>;
 
-    /// Returns an iterator over the vertices id
+    /// Returns an iterator over the vertices' id
     fn id(&self) -> Self::ValueType<u64> {
         self.iter().id()
     }
 
-    /// Returns an iterator over the vertices name
+    /// Returns an iterator over the vertices' name
     fn name(&self) -> Self::ValueType<String> {
         self.iter().name()
     }
 
-    /// Returns an iterator over the vertices earliest time
+    /// Returns an iterator over the vertices' earliest time
     fn earliest_time(&self) -> Self::ValueType<Option<i64>> {
         self.iter().earliest_time()
     }
 
-    /// Returns an iterator over the vertices latest time
+    /// Returns an iterator over the vertices' latest time
     fn latest_time(&self) -> Self::ValueType<Option<i64>> {
         self.iter().latest_time()
     }
 
-    /// Returns an iterator over the vertices properties
-    /// If include_static is true, static properties are included
-    ///
-    /// # Arguments
-    ///
-    /// * `name` - The name of the property
-    /// * `include_static` - If true, static properties are included
-    ///
-    /// # Returns
-    ///
-    /// An iterator over the vertices properties
-    fn property(&self, name: String, include_static: bool) -> Self::ValueType<Option<Prop>> {
-        self.iter().property(name, include_static)
-    }
-
-    /// Returns an iterator over the vertices property with the complete history
-    /// If include_static is true, static properties are included
-    ///
-    /// # Arguments
-    ///
-    /// * `name` - The name of the property
-    ///
-    /// # Returns
-    ///
-    /// An iterator over the vertices property with the complete history as a
-    /// vector of tuples of the time and the property
-    fn property_history(&self, name: String) -> Self::ValueType<Vec<(i64, Prop)>> {
-        self.iter().property_history(name)
-    }
-
-    /// Returns the history of the vertices which is a vector of the times
-    /// the vertex was updated.
+    /// Returns an iterator over the vertices' histories
     fn history(&self) -> Self::ValueType<Vec<i64>> {
         self.iter().history()
     }
 
-    /// Returns an iterator over the vertices and all their properties
-    ///
-    /// # Arguments
-    ///
-    /// * `include_static` - If true, static properties are included
-    ///
-    /// # Returns
-    ///
-    /// An iterator over the vertices and all their properties
-    fn properties(&self, include_static: bool) -> Self::ValueType<HashMap<String, Prop>> {
-        self.iter().properties(include_static)
-    }
-
-    /// Returns an iterator over the vertices and all their properties at all times
-    fn property_histories(&self) -> Self::ValueType<HashMap<String, Vec<(i64, Prop)>>> {
-        self.iter().property_histories()
-    }
-
-    /// Returns the names of all the properties of the vertices.
-    ///
-    /// # Arguments
-    ///
-    /// * `include_static` - If true, static properties are included
-    fn property_names(&self, include_static: bool) -> Self::ValueType<Vec<String>> {
-        self.iter().property_names(include_static)
-    }
-
-    /// Checks if a property exists on this vertices
-    ///
-    /// # Arguments
-    ///
-    /// * `name` - The name of the property
-    /// * `include_static` - If true, static properties are included
-    ///
-    /// # Returns
-    ///
-    /// A vector of booleans indicating if the property exists in each vertex
-    fn has_property(&self, name: String, include_static: bool) -> Self::ValueType<bool> {
-        self.iter().has_property(name, include_static)
-    }
-
-    /// Checks if a static property exists on the vertices
-    ///
-    /// # Arguments
-    ///
-    /// * `name` - The name of the property
-    ///
-    /// # Returns
-    ///
-    /// A vector of booleans indicating if the property exists in each vertex
-    fn has_static_property(&self, name: String) -> Self::ValueType<bool> {
-        self.iter().has_static_property(name)
-    }
-
-    /// Returns the static property value of the vertices given the name of the property.
-    ///
-    /// # Arguments
-    ///
-    /// * `name` - The name of the property
-    ///
-    /// # Returns
-    ///
-    /// An iterator of the static property of the vertices
-    fn static_property(&self, name: String) -> Self::ValueType<Option<Prop>> {
-        self.iter().static_property(name)
-    }
-
-    /// Returns static properties of the vertices
-    ///
-    /// # Returns
-    ///
-    /// An iterator of the static properties of the vertices
-    fn static_properties(&self) -> Self::ValueType<HashMap<String, Prop>> {
-        self.iter().static_properties()
+    /// Returns an iterator over the vertices' properties
+    fn properties(&self) -> Self::ValueType<Properties<VertexView<G>>> {
+        self.iter().properties()
     }
 
     /// Returns the number of edges of the vertices
@@ -310,7 +210,7 @@ impl<G: GraphViewOps> LayerOps for Vertices<G> {
     /// # Returns
     ///
     /// A view including all the vertices in the given layer
-    fn layer(&self, name: &str) -> Option<Self::LayeredViewType> {
+    fn layer<L: Into<Layer>>(&self, name: L) -> Option<Self::LayeredViewType> {
         Some(Vertices {
             graph: self.graph.layer(name)?,
         })

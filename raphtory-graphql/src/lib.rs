@@ -1,18 +1,48 @@
 pub use crate::{model::algorithm::Algorithm, server::RaphtoryServer};
+use base64::{prelude::BASE64_URL_SAFE_NO_PAD, DecodeError, Engine};
+use raphtory::{core::utils::errors::GraphError, db::api::view::internal::MaterializedGraph};
 
 mod model;
 mod observability;
 mod routes;
-mod server;
+pub mod server;
 
 mod data;
+#[derive(thiserror::Error, Debug)]
+pub enum UrlDecodeError {
+    #[error("Bincode operation failed")]
+    BincodeError {
+        #[from]
+        source: Box<bincode::ErrorKind>,
+    },
+    #[error("Base64 decoding failed")]
+    DecodeError {
+        #[from]
+        source: DecodeError,
+    },
+}
+
+pub fn url_encode_graph<G: Into<MaterializedGraph>>(graph: G) -> Result<String, GraphError> {
+    let g: MaterializedGraph = graph.into();
+    Ok(BASE64_URL_SAFE_NO_PAD.encode(bincode::serialize(&g)?))
+}
+
+pub fn url_decode_graph<T: AsRef<[u8]>>(graph: T) -> Result<MaterializedGraph, UrlDecodeError> {
+    Ok(bincode::deserialize(
+        &BASE64_URL_SAFE_NO_PAD.decode(graph)?,
+    )?)
+}
 
 #[cfg(test)]
 mod graphql_test {
     use super::*;
-    use dynamic_graphql::{dynamic::DynamicRequestExt, App, FieldValue};
+    use crate::{data::Data, model::App};
+    use async_graphql::UploadValue;
+    use dynamic_graphql::{Request, Variables};
     use raphtory::{db::api::view::internal::IntoDynamic, prelude::*};
+    use serde_json::json;
     use std::collections::HashMap;
+    use tempfile::tempdir;
 
     #[tokio::test]
     async fn search_for_gandalf_query() {
@@ -24,11 +54,8 @@ mod graphql_test {
             .add_vertex(0, "Frodo", [("kind".to_string(), Prop::str("Hobbit"))])
             .expect("Could not add vertex!");
 
-        let graphs = HashMap::from([("lotr".to_string(), graph.into_dynamic().into())]);
-        let data = data::Data { graphs };
-
-        #[derive(App)]
-        struct App(model::QueryRoot);
+        let graphs = HashMap::from([("lotr".to_string(), graph.into_dynamic())]);
+        let data = data::Data::from_map(graphs);
         let schema = App::create_schema().data(data).finish().unwrap();
 
         let query = r#"
@@ -40,16 +67,13 @@ mod graphql_test {
           }
         }
         "#;
-
-        let root = model::QueryRoot;
-        let req = dynamic_graphql::Request::new(query).root_value(FieldValue::owned_any(root));
-
+        let req = Request::new(query);
         let res = schema.execute(req).await;
         let data = res.data.into_json().unwrap();
 
         assert_eq!(
             data,
-            serde_json::json!({
+            json!({
                 "graph": {
                     "search": [
                         {
@@ -68,11 +92,9 @@ mod graphql_test {
             .add_vertex(0, 11, NO_PROPS)
             .expect("Could not add vertex!");
 
-        let graphs = HashMap::from([("lotr".to_string(), graph.into_dynamic().into())]);
-        let data = data::Data { graphs };
+        let graphs = HashMap::from([("lotr".to_string(), graph.into_dynamic())]);
+        let data = data::Data::from_map(graphs);
 
-        #[derive(App)]
-        struct App(model::QueryRoot);
         let schema = App::create_schema().data(data).finish().unwrap();
 
         let query = r#"
@@ -84,10 +106,7 @@ mod graphql_test {
           }
         }
         "#;
-
-        let root = model::QueryRoot;
-        let req = dynamic_graphql::Request::new(query).root_value(FieldValue::owned_any(root));
-
+        let req = Request::new(query);
         let res = schema.execute(req).await;
         let data = res.data.into_json().unwrap();
 
@@ -118,11 +137,9 @@ mod graphql_test {
             panic!("Could not add vertex! {:?}", err);
         }
 
-        let graphs = HashMap::from([("lotr".to_string(), graph.into_dynamic().into())]);
-        let data = data::Data { graphs };
+        let graphs = HashMap::from([("lotr".to_string(), graph.into_dynamic())]);
+        let data = Data::from_map(graphs);
 
-        #[derive(App)]
-        struct App(model::QueryRoot);
         let schema = App::create_schema().data(data).finish().unwrap();
 
         let gandalf_query = r#"
@@ -135,16 +152,13 @@ mod graphql_test {
         }
         "#;
 
-        let root = model::QueryRoot;
-        let req =
-            dynamic_graphql::Request::new(gandalf_query).root_value(FieldValue::owned_any(root));
-
+        let req = Request::new(gandalf_query);
         let res = schema.execute(req).await;
         let data = res.data.into_json().unwrap();
 
         assert_eq!(
             data,
-            serde_json::json!({
+            json!({
                 "graph": {
                     "nodes": [
                         {
@@ -165,16 +179,13 @@ mod graphql_test {
         }
         "#;
 
-        let root = model::QueryRoot;
-        let req = dynamic_graphql::Request::new(not_gandalf_query)
-            .root_value(FieldValue::owned_any(root));
-
+        let req = Request::new(not_gandalf_query);
         let res = schema.execute(req).await;
         let data = res.data.into_json().unwrap();
 
         assert_eq!(
             data,
-            serde_json::json!({
+            json!({
                 "graph": {
                     "nodes": [
                         { "name": "bilbo" },
@@ -206,11 +217,9 @@ mod graphql_test {
             panic!("Could not add vertex! {:?}", err);
         }
 
-        let graphs = HashMap::from([("lotr".to_string(), graph.into_dynamic().into())]);
-        let data = data::Data { graphs };
+        let graphs = HashMap::from([("lotr".to_string(), graph.into_dynamic())]);
+        let data = data::Data::from_map(graphs);
 
-        #[derive(App)]
-        struct App(model::QueryRoot);
         let schema = App::create_schema().data(data).finish().unwrap();
 
         let prop_has_key_filter = r#"
@@ -225,16 +234,13 @@ mod graphql_test {
         }
         "#;
 
-        let root = model::QueryRoot;
-        let req = dynamic_graphql::Request::new(prop_has_key_filter)
-            .root_value(FieldValue::owned_any(root));
-
+        let req = Request::new(prop_has_key_filter);
         let res = schema.execute(req).await;
         let data = res.data.into_json().unwrap();
 
         assert_eq!(
             data,
-            serde_json::json!({
+            json!({
                 "graph": {
                     "nodes": [
                         { "name": "bilbo" },
@@ -256,16 +262,13 @@ mod graphql_test {
         }
         "#;
 
-        let root = model::QueryRoot;
-        let req = dynamic_graphql::Request::new(prop_has_value_filter)
-            .root_value(FieldValue::owned_any(root));
-
+        let req = Request::new(prop_has_value_filter);
         let res = schema.execute(req).await;
         let data = res.data.into_json().unwrap();
 
         assert_eq!(
             data,
-            serde_json::json!({
+            json!({
                 "graph": {
                     "nodes": [
                         { "name": "bilbo" },
@@ -273,5 +276,214 @@ mod graphql_test {
                 }
             }),
         );
+    }
+
+    #[tokio::test]
+    async fn test_mutation() {
+        let test_dir = tempdir().unwrap();
+        let g0 = Graph::new();
+        let test_dir_path = test_dir.path().to_str().unwrap().replace(r#"\"#, r#"\\"#);
+        let f0 = &test_dir.path().join("g0");
+        let f1 = &test_dir.path().join("g1");
+        g0.save_to_file(f0).unwrap();
+
+        let g1 = Graph::new();
+        g1.add_vertex(0, 1, NO_PROPS).unwrap();
+
+        let g2 = Graph::new();
+        g2.add_vertex(0, 2, NO_PROPS).unwrap();
+
+        let data = Data::default();
+        let schema = App::create_schema().data(data).finish().unwrap();
+
+        let list_graphs = r#"
+        {
+          graphs {
+            name
+          }
+        }"#;
+
+        let list_nodes = |name: &str| {
+            format!(
+                r#"{{
+                  graph(name: "{}") {{
+                    nodes {{
+                      id
+                    }}
+                  }}
+                }}"#,
+                name
+            )
+        };
+
+        let load_all = &format!(
+            r#"mutation {{
+              loadGraphsFromPath(path: "{}")
+            }}"#,
+            test_dir_path
+        );
+
+        let load_new = &format!(
+            r#"mutation {{
+              loadNewGraphsFromPath(path: "{}")
+            }}"#,
+            test_dir_path
+        );
+
+        // only g0 which is empty
+        let req = Request::new(load_all);
+        let res = schema.execute(req).await;
+        let res_json = res.data.into_json().unwrap();
+        assert_eq!(res_json, json!({"loadGraphsFromPath": ["g0"]}));
+
+        let req = Request::new(list_graphs);
+        let res = schema.execute(req).await;
+        let res_json = res.data.into_json().unwrap();
+        assert_eq!(res_json, json!({"graphs": [{"name": "g0"}]}));
+
+        let req = Request::new(list_nodes("g0"));
+        let res = schema.execute(req).await;
+        let res_json = res.data.into_json().unwrap();
+        assert_eq!(res_json, json!({"graph": {"nodes": []}}));
+
+        // add g1 to folder and replace g0 with g2 and load new graphs
+        g1.save_to_file(f1).unwrap();
+        g2.save_to_file(f0).unwrap();
+        let req = Request::new(load_new);
+        let res = schema.execute(req).await;
+        let res_json = res.data.into_json().unwrap();
+        assert_eq!(res_json, json!({"loadNewGraphsFromPath": ["g1"]}));
+
+        // g0 is still empty
+        let req = Request::new(list_nodes("g0"));
+        let res = schema.execute(req).await;
+        let res_json = res.data.into_json().unwrap();
+        assert_eq!(res_json, json!({"graph": {"nodes": []}}));
+
+        // g1 has node 1
+        let req = Request::new(list_nodes("g1"));
+        let res = schema.execute(req).await;
+        let res_json = res.data.into_json().unwrap();
+        assert_eq!(res_json, json!({"graph": {"nodes": [{"id": 1}]}}));
+
+        // reload all graphs from folder
+        let req = Request::new(load_all);
+        schema.execute(req).await;
+
+        // g0 now has node 2
+        let req = Request::new(list_nodes("g0"));
+        let res = schema.execute(req).await;
+        let res_json = res.data.into_json().unwrap();
+        assert_eq!(res_json, json!({"graph": {"nodes": [{"id": 2}]}}));
+
+        // g1 still has node 1
+        let req = Request::new(list_nodes("g1"));
+        let res = schema.execute(req).await;
+        let res_json = res.data.into_json().unwrap();
+        assert_eq!(res_json, json!({"graph": {"nodes": [{"id": 1}]}}));
+    }
+
+    #[tokio::test]
+    async fn test_graph_injection() {
+        let g = Graph::new();
+        g.add_vertex(0, 1, NO_PROPS).unwrap();
+        let mut tmp_file = tempfile::NamedTempFile::new().unwrap();
+        let path = tmp_file.path();
+        g.save_to_file(path).unwrap();
+        let file = std::fs::File::open(path).unwrap();
+        let upload_val = UploadValue {
+            filename: "test".into(),
+            content_type: Some("application/octet-stream".into()),
+            content: file,
+        };
+
+        let data = Data::default();
+        let schema = App::create_schema().data(data).finish().unwrap();
+
+        let query = r##"
+        mutation($file: Upload!) {
+            uploadGraph(name: "test", graph: $file)
+        }
+        "##;
+
+        let variables = serde_json::json!({ "file": null });
+        let mut req =
+            dynamic_graphql::Request::new(query).variables(Variables::from_json(variables));
+        req.set_upload("variables.file", upload_val);
+        let res = schema.execute(req).await;
+        println!("{:?}", res);
+        assert_eq!(res.errors.len(), 0);
+        let res_json = res.data.into_json().unwrap();
+        assert_eq!(res_json, json!({"uploadGraph": "test"}));
+
+        let list_nodes = r#"
+        query {
+            graph(name: "test") {
+                nodes {
+                    id
+                }
+            }
+        }
+        "#;
+
+        let req = Request::new(list_nodes);
+        let res = schema.execute(req).await;
+        assert_eq!(res.errors.len(), 0);
+        let res_json = res.data.into_json().unwrap();
+        assert_eq!(res_json, json!({"graph": {"nodes": [{"id": 1}]}}));
+    }
+
+    #[tokio::test]
+    async fn test_graph_send_receive_base64() {
+        let g = Graph::new();
+        g.add_vertex(0, 1, NO_PROPS).unwrap();
+
+        let graph_str = url_encode_graph(g.clone()).unwrap();
+
+        let data = Data::default();
+        let schema = App::create_schema().data(data).finish().unwrap();
+
+        let query = r#"
+        mutation($graph: String!) {
+            sendGraph(name: "test", graph: $graph) 
+        }
+        "#;
+        let req =
+            Request::new(query).variables(Variables::from_json(json!({ "graph": graph_str })));
+
+        let res = schema.execute(req).await;
+        assert_eq!(res.errors.len(), 0);
+        let res_json = res.data.into_json().unwrap();
+        assert_eq!(res_json, json!({"sendGraph": "test"}));
+
+        let list_nodes = r#"
+        query {
+            graph(name: "test") {
+                nodes {
+                    id
+                }
+            }
+        }
+        "#;
+
+        let req = Request::new(list_nodes);
+        let res = schema.execute(req).await;
+        assert_eq!(res.errors.len(), 0);
+        let res_json = res.data.into_json().unwrap();
+        assert_eq!(res_json, json!({"graph": {"nodes": [{"id": 1}]}}));
+
+        let receive_graph = r#"
+        query {
+            receiveGraph(name: "test")
+        }
+        "#;
+
+        let req = Request::new(receive_graph);
+        let res = schema.execute(req).await;
+        assert_eq!(res.errors.len(), 0);
+        let res_json = res.data.into_json().unwrap();
+        let graph_encoded = res_json.get("receiveGraph").unwrap().as_str().unwrap();
+        let graph_roundtrip = url_decode_graph(graph_encoded).unwrap().into_dynamic();
+        assert_eq!(g, graph_roundtrip);
     }
 }

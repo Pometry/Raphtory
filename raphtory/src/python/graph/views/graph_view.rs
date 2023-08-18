@@ -1,14 +1,17 @@
 //! The API for querying a view of the graph in a read-only state
+
 use crate::{
     core::{
         entities::vertices::vertex_ref::VertexRef,
         utils::{errors::GraphError, time::error::ParseTimeError},
-        Prop,
     },
     db::{
-        api::view::{
-            internal::{DynamicGraph, IntoDynamic, MaterializedGraph},
-            LayerOps, WindowSet,
+        api::{
+            properties::Properties,
+            view::{
+                internal::{DynamicGraph, IntoDynamic, MaterializedGraph},
+                LayerOps, WindowSet,
+            },
         },
         graph::{
             edge::EdgeView,
@@ -32,7 +35,6 @@ use crate::{
 };
 use chrono::prelude::*;
 use pyo3::prelude::*;
-use std::collections::HashMap;
 
 impl IntoPy<PyObject> for MaterializedGraph {
     fn into_py(self, py: Python<'_>) -> PyObject {
@@ -198,14 +200,9 @@ impl PyGraphView {
     ///
     /// Returns:
     ///     the edge with the specified source and destination vertices, or None if the edge does not exist
-    #[pyo3(signature = (src, dst, layer=None))]
-    pub fn edge(
-        &self,
-        src: VertexRef,
-        dst: VertexRef,
-        layer: Option<&str>,
-    ) -> Option<EdgeView<DynamicGraph>> {
-        self.graph.edge(src, dst, layer)
+    #[pyo3(signature = (src, dst))]
+    pub fn edge(&self, src: VertexRef, dst: VertexRef) -> Option<EdgeView<DynamicGraph>> {
+        self.graph.edge(src, dst)
     }
 
     /// Gets all edges in the graph
@@ -327,116 +324,30 @@ impl PyGraphView {
     }
 
     #[doc = default_layer_doc_string!()]
-    pub fn default_layer(&self) -> PyGraphView {
-        self.graph.default_layer().into()
+    pub fn default_layer(&self) -> LayeredGraph<DynamicGraph> {
+        self.graph.default_layer()
     }
 
-    #[doc = layer_doc_string!()]
+    #[doc = layers_doc_string!()]
+    #[pyo3(signature = (names))]
+    pub fn layers(&self, names: Vec<String>) -> Option<LayeredGraph<DynamicGraph>> {
+        self.graph.layer(names)
+    }
+
+    #[doc = layers_doc_string!()]
     #[pyo3(signature = (name))]
-    pub fn layer(&self, name: &str) -> Option<PyGraphView> {
-        self.graph.layer(name).map(|layer| layer.into())
-    }
-
-    /// Get graph property against the provided property name
-    ///
-    /// Arguments:
-    ///   *  `name` : property name
-    ///   *  `include_static`: optional boolean to include static property in the result set
-    ///
-    /// Returns:
-    ///    Option<Prop> - The property value
-    fn property(&self, name: &str, include_static: Option<bool>) -> Option<Prop> {
-        self.graph.property(name, include_static.unwrap_or(true))
-    }
-
-    /// Get graph property against the provided property name
-    ///
-    /// Arguments:
-    ///   *  `name` : property name
-    ///   *  `include_static`: optional boolean to include static property in the result set
-    ///
-    /// Returns:
-    ///    Option<Prop> - The property value
-    fn property_history(&self, name: &str) -> Vec<(i64, Prop)> {
-        self.graph.property_history(name)
+    pub fn layer(&self, name: String) -> Option<LayeredGraph<DynamicGraph>> {
+        self.graph.layer(name)
     }
 
     /// Get all graph properties
     ///
-    /// Arguments:
-    ///   *  `include_static`: optional boolean to include static property in the result set
     ///
     /// Returns:
     ///    HashMap<String, Prop> - Properties paired with their names
-    fn properties(&self, include_static: Option<bool>) -> HashMap<String, Prop> {
-        self.graph.properties(include_static.unwrap_or(true))
-    }
-
-    /// Get all graph properties histories
-    ///
-    /// Arguments:
-    ///   *  `include_static`: optional boolean to include static property in the result set
-    ///
-    /// Returns:
-    ///    HashMap<String, Vec<(i64, Prop)>> - Properties paired with their names and timestamps
-    fn property_histories(&self) -> HashMap<String, Vec<(i64, Prop)>> {
-        self.graph.property_histories()
-    }
-
-    /// Get all graph property names
-    ///
-    /// Arguments:
-    ///   *  `include_static`: optional boolean to include static property in the result set
-    ///
-    /// Returns:
-    ///    Vec<String> - List of all property names
-    fn property_names(&self, include_static: Option<bool>) -> Vec<String> {
-        self.graph.property_names(include_static.unwrap_or(true))
-    }
-
-    /// Returns whether a property is found by name
-    ///
-    /// Arguments:
-    ///   * `name`: name of a property
-    ///   *  `include_static`: optional boolean to include static property in the result set
-    ///
-    /// Returns:
-    ///    bool - Indicates whether a property is found by name
-    fn has_property(&self, name: &str, include_static: Option<bool>) -> bool {
-        self.graph
-            .has_property(name, include_static.unwrap_or(true))
-    }
-
-    /// Returns whether a static property is found by name
-    ///
-    /// Arguments:
-    ///   * `name`: name of a property
-    ///
-    /// Returns:
-    ///    bool - Indicates whether a static property is found by name
-    fn has_static_property(&self, name: &str) -> bool {
-        self.graph.has_static_property(name)
-    }
-
-    /// Returns whether a static property is found by name
-    ///
-    /// Arguments:
-    ///   * `name`: name of a static property
-    ///
-    /// Returns:
-    ///    Option<Prop> - Returns the static property
-    fn static_property(&self, name: &str) -> Option<Prop> {
-        self.graph.static_property(name)
-    }
-
-    /// Returns static properties of a graph
-    ///
-    /// Arguments:
-    ///
-    /// Returns:
-    ///    HashMap<String, Prop> - Returns static properties identified by their names
-    fn static_properties(&self) -> HashMap<String, Prop> {
-        self.graph.static_properties()
+    #[getter]
+    fn properties(&self) -> Properties<DynamicGraph> {
+        self.graph.properties()
     }
 
     /// Returns a subgraph given a set of vertices

@@ -2,6 +2,7 @@ use crate::core::{storage::lazy_vec::IllegalSet, utils::time::error::ParseTimeEr
 
 #[cfg(feature = "search")]
 use tantivy;
+#[cfg(feature = "search")]
 use tantivy::query::QueryParserError;
 
 #[derive(thiserror::Error, Debug)]
@@ -26,6 +27,10 @@ pub enum GraphError {
     InvalidLayer,
     #[error("Bincode operation failed")]
     BinCodeError { source: Box<bincode::ErrorKind> },
+
+    #[error("The loaded graph is of the wrong kind")]
+    GraphLoadError,
+
     #[error("IO operation failed")]
     IOError { source: std::io::Error },
 
