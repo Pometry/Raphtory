@@ -112,7 +112,11 @@ impl Adj {
             Adj::List { out, into } => match dir {
                 Direction::OUT => out.len(),
                 Direction::IN => into.len(),
-                Direction::BOTH => out.iter().merge(into.iter()).count(),
+                Direction::BOTH => out
+                    .iter()
+                    .merge(into.iter())
+                    .dedup_by(|v1, v2| v1.0 == v2.0)
+                    .count(),
             },
         }
     }
