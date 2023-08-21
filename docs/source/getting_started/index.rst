@@ -11,7 +11,6 @@ Getting started
 .. toctree::
     :maxdepth: 2
 
-    overview
     simple_installation
     intro_tutorials/index
     faq
