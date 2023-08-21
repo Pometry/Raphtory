@@ -1,18 +1,17 @@
+use crate::model::schema::layer_schema::LayerSchema;
 use crate::model::schema::node_schema::NodeSchema;
 use dynamic_graphql::SimpleObject;
 use itertools::Itertools;
+use raphtory::prelude::LayerOps;
 use raphtory::{
-    db::api::{
-        properties::Properties,
-        view::internal::{BoxableGraphView, DynamicGraph},
-    },
+    db::api::view::internal::DynamicGraph,
     prelude::{GraphViewOps, VertexViewOps},
 };
-use std::collections::HashSet;
 
 #[derive(SimpleObject)]
 pub(crate) struct GraphSchema {
     nodes: Vec<NodeSchema>,
+    layers: Vec<LayerSchema<DynamicGraph>>,
 }
 
 impl GraphSchema {
@@ -24,6 +23,13 @@ impl GraphSchema {
             .unique()
             .map(|node_type| NodeSchema::new(node_type, graph.clone()))
             .collect_vec();
-        GraphSchema { nodes }
+
+        let layers = graph
+            .get_unique_layers()
+            .iter()
+            .map(|layer_name| graph.layer(layer_name).unwrap().into())
+            .collect_vec();
+
+        GraphSchema { nodes, layers }
     }
 }
