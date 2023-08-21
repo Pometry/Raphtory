@@ -18,6 +18,7 @@ impl<G: GraphViewOps> From<LayeredGraph<G>> for LayerSchema<G> {
 
 #[ResolvedObjectFields]
 impl<G: GraphViewOps> LayerSchema<G> {
+    /// Returns the name of the layer with this schema
     async fn name(&self) -> String {
         match &self.graph.get_unique_layers()[..] {
             [layer] => layer.clone(),
