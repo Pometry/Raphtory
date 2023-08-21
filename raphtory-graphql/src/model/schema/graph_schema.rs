@@ -1,11 +1,9 @@
-use crate::model::schema::layer_schema::LayerSchema;
-use crate::model::schema::node_schema::NodeSchema;
+use crate::model::schema::{layer_schema::LayerSchema, node_schema::NodeSchema};
 use dynamic_graphql::SimpleObject;
 use itertools::Itertools;
-use raphtory::prelude::LayerOps;
 use raphtory::{
     db::api::view::internal::DynamicGraph,
-    prelude::{GraphViewOps, VertexViewOps},
+    prelude::{GraphViewOps, LayerOps, VertexViewOps},
 };
 
 #[derive(SimpleObject)]

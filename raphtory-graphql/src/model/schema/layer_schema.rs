@@ -1,9 +1,10 @@
-use crate::model::schema::edge_echema::EdgeSchema;
-use crate::model::schema::get_vertex_type;
+use crate::model::schema::{edge_echema::EdgeSchema, get_vertex_type};
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
-use raphtory::db::graph::views::layer_graph::LayeredGraph;
-use raphtory::prelude::{EdgeViewOps, GraphViewOps};
+use raphtory::{
+    db::graph::views::layer_graph::LayeredGraph,
+    prelude::{EdgeViewOps, GraphViewOps},
+};
 
 #[derive(ResolvedObject)]
 pub(crate) struct LayerSchema<G: GraphViewOps> {

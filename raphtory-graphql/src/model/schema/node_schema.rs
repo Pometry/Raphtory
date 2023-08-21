@@ -1,5 +1,4 @@
-use crate::model::schema::property_schema::PropertySchema;
-use crate::model::schema::{merge_schemas, SchemaAggregate};
+use crate::model::schema::{merge_schemas, property_schema::PropertySchema, SchemaAggregate};
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::{

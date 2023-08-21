@@ -1,5 +1,7 @@
-use raphtory::db::graph::vertex::VertexView;
-use raphtory::prelude::{GraphViewOps, VertexViewOps};
+use raphtory::{
+    db::graph::vertex::VertexView,
+    prelude::{GraphViewOps, VertexViewOps},
+};
 use std::collections::{HashMap, HashSet};
 
 pub(crate) mod edge_echema;

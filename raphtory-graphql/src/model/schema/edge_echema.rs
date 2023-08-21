@@ -1,9 +1,12 @@
-use crate::model::schema::property_schema::PropertySchema;
-use crate::model::schema::{get_vertex_type, merge_schemas, SchemaAggregate};
+use crate::model::schema::{
+    get_vertex_type, merge_schemas, property_schema::PropertySchema, SchemaAggregate,
+};
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
-use raphtory::db::graph::edge::EdgeView;
-use raphtory::prelude::{EdgeViewOps, GraphViewOps};
+use raphtory::{
+    db::graph::edge::EdgeView,
+    prelude::{EdgeViewOps, GraphViewOps},
+};
 use std::collections::{HashMap, HashSet};
 
 #[derive(ResolvedObject)]

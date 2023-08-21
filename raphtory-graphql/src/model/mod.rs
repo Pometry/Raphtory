@@ -10,15 +10,11 @@ use crate::{
     data::Data,
     model::graph::graph::{GqlGraph, GraphMeta},
 };
-// use async_graphql::dynamic::Schema;
-use async_graphql::Context;
-use async_graphql::EmptyMutation;
-use async_graphql::EmptySubscription;
+use async_graphql::{Context, EmptyMutation, EmptySubscription};
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
-use dynamic_graphql::dynamic::Schema;
 use dynamic_graphql::{
-    App, Mutation, MutationFields, MutationRoot, ResolvedObject, ResolvedObjectFields, Result,
-    Upload,
+    dynamic::Schema, App, Mutation, MutationFields, MutationRoot, ResolvedObject,
+    ResolvedObjectFields, Result, Upload,
 };
 use itertools::Itertools;
 use raphtory::{
