@@ -3,11 +3,12 @@
 .. _FQA_index:
 
 
-===============
-FAQ - Quick look at Raphtory functionality
-===============
+===========================================
+FAQ - Raphtory at a glance
+===========================================
 
 
 .. toctree::
     :maxdepth: 1
+
     faq_ingestion.rst
