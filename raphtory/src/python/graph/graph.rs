@@ -22,12 +22,12 @@ use crate::{
     },
     python::graph::pandas::{load_edges_props_from_df, load_vertex_props_from_df},
 };
+use pyo3::types::IntoPyDict;
 use std::{
     collections::HashMap,
     fmt::{Debug, Formatter},
     path::{Path, PathBuf},
 };
-use pyo3::types::IntoPyDict;
 
 use super::pandas::{
     load_edges_from_df, load_vertices_from_df, process_pandas_py_df, GraphLoadException,
@@ -322,7 +322,7 @@ impl PyGraph {
                     None,
                 )?
                 .extract()?;
-            let df = process_pandas_py_df(vertices_df, py,size)?;
+            let df = process_pandas_py_df(vertices_df, py, size)?;
             load_vertices_from_df(
                 &df,
                 size,
@@ -363,7 +363,7 @@ impl PyGraph {
                     None,
                 )?
                 .extract()?;
-            let df = process_pandas_py_df(edge_df, py,size)?;
+            let df = process_pandas_py_df(edge_df, py, size)?;
             load_edges_from_df(
                 &df,
                 size,
@@ -402,9 +402,16 @@ impl PyGraph {
                     None,
                 )?
                 .extract()?;
-            let df = process_pandas_py_df(vertices_df, py,size)?;
-            load_vertex_props_from_df(&df,size,vertex_col, const_props, shared_const_props, graph)
-                .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
+            let df = process_pandas_py_df(vertices_df, py, size)?;
+            load_vertex_props_from_df(
+                &df,
+                size,
+                vertex_col,
+                const_props,
+                shared_const_props,
+                graph,
+            )
+            .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
 
             Ok::<(), PyErr>(())
         })
@@ -432,7 +439,7 @@ impl PyGraph {
                     None,
                 )?
                 .extract()?;
-            let df = process_pandas_py_df(edge_df, py,size)?;
+            let df = process_pandas_py_df(edge_df, py, size)?;
             load_edges_props_from_df(
                 &df,
                 size,
