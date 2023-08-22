@@ -347,6 +347,7 @@ impl PyGraph {
     ) -> Result<(), GraphError> {
         let graph = &self.graph;
         Python::with_gil(|py| {
+            let size = py.eval("len(edge_df.index)", Some(), None)?.extract::<usize>()?;
             let df = process_pandas_py_df(edge_df, py)?;
             load_edges_from_df(
                 &df,

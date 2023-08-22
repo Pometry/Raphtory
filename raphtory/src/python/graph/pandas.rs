@@ -7,8 +7,8 @@ use pyo3::{
     create_exception, exceptions::PyException, ffi::Py_uintptr_t, prelude::*, types::PyDict,
 };
 use std::collections::HashMap;
-
 use crate::{core::utils::errors::GraphError, prelude::*};
+use kdam::tqdm;
 
 fn i64_opt_into_u64_opt(x: Option<&i64>) -> Option<u64> {
     x.map(|x| (*x).try_into().unwrap())
@@ -30,7 +30,7 @@ pub(crate) fn process_pandas_py_df(df: &PyAny, py: Python) -> PyResult<PretendDF
         vec![]
     };
 
-    let arrays = rb
+    let arrays = tqdm!(rb
         .iter()
         .map(|rb| {
             (0..names.len())
@@ -40,7 +40,7 @@ pub(crate) fn process_pandas_py_df(df: &PyAny, py: Python) -> PyResult<PretendDF
                     Ok::<Box<dyn Array>, PyErr>(arr)
                 })
                 .collect::<Result<Vec<_>, PyErr>>()
-        })
+        }),desc="Converting dataframe to Arrow",total=size,animation= kdam::Animation::FillUp,unit_scale=true)
         .collect::<Result<Vec<_>, PyErr>>()?;
 
     let df = PretendDF { names, arrays };
@@ -182,8 +182,10 @@ pub(crate) fn load_edges_from_df<'a, S: AsRef<str>>(
         df.iter_col::<i64>(time),
     ) {
         let triplets = src.into_iter().zip(dst.into_iter()).zip(time.into_iter());
+        let size = df.arrays[0][0].len();
+
         for (((((src, dst), time), props), const_props), layer) in
-            triplets.zip(prop_iter).zip(const_prop_iter).zip(layer)
+            tqdm!(triplets.zip(prop_iter).zip(const_prop_iter).zip(layer),desc="Loading edges",total=size,animation= kdam::Animation::FillUp,unit_scale=true)
         {
             if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
                 graph.add_edge(*time, src, dst, props, layer.as_deref())?;
@@ -205,7 +207,7 @@ pub(crate) fn load_edges_from_df<'a, S: AsRef<str>>(
     ) {
         let triplets = src.into_iter().zip(dst.into_iter()).zip(time.into_iter());
         for (((((src, dst), time), props), const_props), layer) in
-            triplets.zip(prop_iter).zip(const_prop_iter).zip(layer)
+            tqdm!(triplets.zip(prop_iter).zip(const_prop_iter).zip(layer))
         {
             if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
                 graph.add_edge(*time, src, dst, props, layer.as_deref())?;
@@ -487,7 +489,7 @@ fn load_edges_from_num_iter<
     layer: IL,
 ) -> Result<(), GraphError> {
     for (((((src, dst), time), edge_props), const_props), layer) in
-        edges.zip(props).zip(const_props).zip(layer)
+        tqdm!(edges.zip(props).zip(const_props).zip(layer))
     {
         if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
             graph.add_edge(*time, src, dst, edge_props, layer.as_deref())?;
