@@ -27,6 +27,7 @@ use std::{
     fmt::{Debug, Formatter},
     path::{Path, PathBuf},
 };
+use pyo3::types::IntoPyDict;
 
 use super::pandas::{
     load_edges_from_df, load_vertices_from_df, process_pandas_py_df, GraphLoadException,
@@ -314,9 +315,17 @@ impl PyGraph {
     ) -> Result<(), GraphError> {
         let graph = &self.graph;
         Python::with_gil(|py| {
-            let df = process_pandas_py_df(vertices_df, py)?;
+            let size: usize = py
+                .eval(
+                    "len(index)",
+                    Some([("index", vertices_df.getattr("index")?)].into_py_dict(py)),
+                    None,
+                )?
+                .extract()?;
+            let df = process_pandas_py_df(vertices_df, py,size)?;
             load_vertices_from_df(
                 &df,
+                size,
                 vertex_col,
                 time_col,
                 props,
@@ -347,10 +356,17 @@ impl PyGraph {
     ) -> Result<(), GraphError> {
         let graph = &self.graph;
         Python::with_gil(|py| {
-            let size = py.eval("len(edge_df.index)", Some(), None)?.extract::<usize>()?;
-            let df = process_pandas_py_df(edge_df, py)?;
+            let size: usize = py
+                .eval(
+                    "len(index)",
+                    Some([("index", edge_df.getattr("index")?)].into_py_dict(py)),
+                    None,
+                )?
+                .extract()?;
+            let df = process_pandas_py_df(edge_df, py,size)?;
             load_edges_from_df(
                 &df,
+                size,
                 src_col,
                 dst_col,
                 time_col,
@@ -379,8 +395,15 @@ impl PyGraph {
     ) -> Result<(), GraphError> {
         let graph = &self.graph;
         Python::with_gil(|py| {
-            let df = process_pandas_py_df(vertices_df, py)?;
-            load_vertex_props_from_df(&df, vertex_col, const_props, shared_const_props, graph)
+            let size: usize = py
+                .eval(
+                    "len(index)",
+                    Some([("index", vertices_df.getattr("index")?)].into_py_dict(py)),
+                    None,
+                )?
+                .extract()?;
+            let df = process_pandas_py_df(vertices_df, py,size)?;
+            load_vertex_props_from_df(&df,size,vertex_col, const_props, shared_const_props, graph)
                 .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
 
             Ok::<(), PyErr>(())
@@ -402,9 +425,17 @@ impl PyGraph {
     ) -> Result<(), GraphError> {
         let graph = &self.graph;
         Python::with_gil(|py| {
-            let df = process_pandas_py_df(edge_df, py)?;
+            let size: usize = py
+                .eval(
+                    "len(index)",
+                    Some([("index", edge_df.getattr("index")?)].into_py_dict(py)),
+                    None,
+                )?
+                .extract()?;
+            let df = process_pandas_py_df(edge_df, py,size)?;
             load_edges_props_from_df(
                 &df,
+                size,
                 src_col,
                 dst_col,
                 const_props,
