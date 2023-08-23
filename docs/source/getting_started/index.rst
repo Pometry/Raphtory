@@ -11,6 +11,6 @@ Getting started
     :maxdepth: 2
     
     simple_installation
-    intro_tutorials/index
-    faqs/index
+    intro_tutorials/lotr.ipynb
+    faqs/faq_ingestion.rst
     installation/index

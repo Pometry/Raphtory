@@ -3,7 +3,7 @@
 {{ header }}
 
 =============================================
-Ingestion - Getting data into Raphtory
+FAQ - Getting data into Raphtory
 =============================================
 
 
