@@ -8,24 +8,25 @@
 Raphtory documentation
 ****************************************
 
-**Date**: |today| **Version**: |version|
+**Date**: |today|
 
 **Useful links**:
 `Source Repository <https://github.com/Pometry/Raphtory>`__ |
 `Issues & Ideas <https://github.com/Pometry/Raphtory/issues>`__ |
 `Slack Support <https://join.slack.com/t/raphtory/shared_invite/zt-1b7nhupph-yOG0zlkHspU3tfz2EqcbsA>`__
 
-:mod:`Raphtory` is a platform for building and analysing temporal networks.
+**Raphtory** is a platform for building and analysing temporal networks.
+
 The library includes:
 
-* Methods for creating networks from a variety of data sources
-* Algorithms to explore their structure and evolution
-* Extensible GraphQL server for deployment of applications built on top
+* Simple methods for creating networks from a variety of data sources.
+* Algorithms to explore their structure and evolution.
+* An extensible GraphQL server for deployment of applications built on top.
 
 Raphtory’s core engine is built in Rust, for efficiency, with Python interfaces, for ease of use.
 
 It is developed by network scientists, with a background in Physics, Applied Mathematics, Engineering and Computer
-Science, for use across academia and industry. Read more on our `white paper <https://arxiv.org/abs/2306.16309>`__
+Science, for use across academia and industry. Read more in our `white paper <https://arxiv.org/abs/2306.16309>`__
 and get started below.
 
 .. grid:: 1 2 2 2
@@ -38,7 +39,7 @@ and get started below.
         :class-card: intro-card
         :shadow: md
 
-        New to *Raphtory*? Learn how to install and follow a tutorial to analyse a graph.
+        New to *Raphtory*? Learn how to get it installed and start analysing your first graphs.
 
         +++
 

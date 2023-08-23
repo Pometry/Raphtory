@@ -6,8 +6,7 @@ Community
 
 .. _community.version:
 
-Raphtory is actively supported today by a community of software engineering experts and world-class researchers around
-the world. Thanks to `pometry <https://www.pometry.com>`__ and `all of our contributors <https://github.com/pometry/raphtory/graphs/contributors>`__.
+Raphtory is actively supported today by a community of software engineering experts and world-class researchers. Thanks to `pometry <https://www.pometry.com>`__ and `all of our contributors <https://github.com/pometry/raphtory/graphs/contributors>`__.
 
 Join the growing community of open-source enthusiasts using Raphtory to power their graph analysis projects!
 

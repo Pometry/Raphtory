@@ -1,11 +1,11 @@
 .. _advanced-installation:
 
 =========================
-Advanced Installation
+Installing from Source
 =========================
 
 .. toctree::
-    :maxdepth: 1
+    :maxdepth: 2
 
     install_python
     install_rust
