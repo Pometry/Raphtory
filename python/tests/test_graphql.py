@@ -85,10 +85,10 @@ def test_graphqlclient():
     g1.add_edge(3, "ben", "haaroon")
     g1.save_to_file(temp_dir + "/g1.bincode")
 
-    dir_server = graphqlserver.run_server(graph_dir=temp_dir, port=1737, daemon=True)
+    dir_server = graphqlserver.run_server(graph_dir=temp_dir, port=1739, daemon=True)
 
     # create a client 
-    raphtory_client = graphqlclient.RaphtoryGraphQLClient(url="http://localhost:1737/")
+    raphtory_client = graphqlclient.RaphtoryGraphQLClient(url="http://localhost:1739/")
 
     # load a graph into the client from a path
     res = raphtory_client.load_graphs_from_path(temp_dir)
