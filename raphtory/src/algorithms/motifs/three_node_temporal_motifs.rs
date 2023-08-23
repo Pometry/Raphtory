@@ -10,8 +10,8 @@ use crate::{
         compute_state::ComputeStateVec,
     },
     db::{
-        api::view::{internal::CoreGraphOps, GraphViewOps, VertexViewOps, *},
-        graph::views::vertex_subgraph::{self, VertexSubgraph},
+        api::view::{GraphViewOps, VertexViewOps, *},
+        graph::views::vertex_subgraph::VertexSubgraph,
         task::{
             context::Context,
             task::{ATask, Job, Step},
@@ -21,14 +21,10 @@ use crate::{
     },
 };
 
-use itertools::{enumerate, Itertools};
+use itertools::enumerate;
 use num_traits::Zero;
 use rustc_hash::FxHashSet;
-use std::{
-    collections::{HashMap, HashSet},
-    ops::Add,
-    slice::Iter,
-};
+use std::{collections::HashMap, ops::Add, slice::Iter};
 ///////////////////////////////////////////////////////
 
 // State objects for three node motifs
@@ -177,7 +173,7 @@ pub fn twonode_motif_count<G: GraphViewOps>(
 pub fn triangle_motifs<G: GraphViewOps>(
     graph: &G,
     delta: i64,
-    motifs_count_id: AccId<MotifCounter, MotifCounter, MotifCounter, ValDef<MotifCounter>>,
+    _motifs_count_id: AccId<MotifCounter, MotifCounter, MotifCounter, ValDef<MotifCounter>>,
     threads: Option<usize>,
 ) -> HashMap<String, [usize; 8]> {
     let vertex_set = k_core_set(graph, 2, usize::MAX, None);
@@ -388,7 +384,7 @@ pub fn triangle_motifs<G: GraphViewOps>(
         vec![Job::new(step1)],
         vec![Job::read_only(step2)],
         MotifCounter::zero(),
-        |_, _, els, local| {
+        |_, _, _els, local| {
             let mut tri_motifs = HashMap::new();
             for (vref, mc) in enumerate(local) {
                 let v_gid = graph.vertex_name(vref.into());
@@ -432,11 +428,11 @@ pub fn temporal_three_node_motif<G: GraphViewOps>(
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
 
-    let mut out2 = runner.run(
+    let out2 = runner.run(
         vec![Job::new(step1)],
         vec![],
         MotifCounter::zero(),
-        |_, _, els, local| {
+        |_, _, _els, local| {
             let mut motifs = HashMap::new();
             for (vref, mc) in enumerate(local) {
                 let v_gid = g.vertex_name(vref.into());
@@ -467,7 +463,7 @@ pub fn temporal_three_node_motif<G: GraphViewOps>(
 pub fn global_temporal_three_node_motif_from_local(
     counts: HashMap<String, Vec<usize>>,
 ) -> Vec<usize> {
-    let mut tmp_counts = counts.values().fold(vec![0; 40], |acc, x| {
+    let tmp_counts = counts.values().fold(vec![0; 40], |acc, x| {
         acc.iter().zip(x.iter()).map(|(x1, x2)| x1 + x2).collect()
     });
     // for ind in 31..40 {
@@ -482,7 +478,7 @@ pub fn global_temporal_three_node_motif<G: GraphViewOps>(
     threads: Option<usize>,
 ) -> Vec<usize> {
     let counts = temporal_three_node_motif(graph, delta, threads);
-    let mut tmp_counts = counts.values().fold(vec![0; 40], |acc, x| {
+    let tmp_counts = counts.values().fold(vec![0; 40], |acc, x| {
         acc.iter().zip(x.iter()).map(|(x1, x2)| x1 + x2).collect()
     });
     // for ind in 31..40 {

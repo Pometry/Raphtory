@@ -11,10 +11,7 @@ use crate::{
         },
     },
 };
-use std::{
-    cmp,
-    collections::{HashMap, HashSet},
-};
+use std::collections::HashSet;
 
 #[derive(Clone, Debug)]
 struct KCoreState {
@@ -113,10 +110,7 @@ where
 mod k_core_test {
     use std::collections::HashSet;
 
-    use crate::{
-        algorithms::{k_core::k_core_set, triangle_count::triangle_count},
-        prelude::*,
-    };
+    use crate::{algorithms::k_core::k_core_set, prelude::*};
 
     #[test]
     fn k_core_2() {
