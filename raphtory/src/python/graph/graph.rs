@@ -317,7 +317,7 @@ impl PyGraph {
         Python::with_gil(|py| {
             let size: usize = py
                 .eval(
-                    "len(index)",
+                    "index.__len__()",
                     Some([("index", vertices_df.getattr("index")?)].into_py_dict(py)),
                     None,
                 )?
@@ -358,7 +358,7 @@ impl PyGraph {
         Python::with_gil(|py| {
             let size: usize = py
                 .eval(
-                    "len(index)",
+                    "index.__len__()",
                     Some([("index", edge_df.getattr("index")?)].into_py_dict(py)),
                     None,
                 )?
@@ -397,7 +397,7 @@ impl PyGraph {
         Python::with_gil(|py| {
             let size: usize = py
                 .eval(
-                    "len(index)",
+                    "index.__len__()",
                     Some([("index", vertices_df.getattr("index")?)].into_py_dict(py)),
                     None,
                 )?
@@ -434,7 +434,7 @@ impl PyGraph {
         Python::with_gil(|py| {
             let size: usize = py
                 .eval(
-                    "len(index)",
+                    "index.__len__()",
                     Some([("index", edge_df.getattr("index")?)].into_py_dict(py)),
                     None,
                 )?
