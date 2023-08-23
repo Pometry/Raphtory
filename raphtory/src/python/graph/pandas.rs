@@ -814,7 +814,7 @@ mod test {
         };
         let graph = Graph::new();
 
-        load_vertices_from_df(&df, 3,"id", "time", Some(vec!["name"]), None, None, &graph)
+        load_vertices_from_df(&df, 3, "id", "time", Some(vec!["name"]), None, None, &graph)
             .expect("failed to load vertices from pretend df");
 
         let actual = graph

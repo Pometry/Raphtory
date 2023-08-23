@@ -11,7 +11,7 @@ use crate::{
     },
     db::{
         api::view::{GraphViewOps, VertexViewOps, *},
-        graph::views::vertex_subgraph::{VertexSubgraph},
+        graph::views::vertex_subgraph::VertexSubgraph,
         task::{
             context::Context,
             task::{ATask, Job, Step},
@@ -21,14 +21,10 @@ use crate::{
     },
 };
 
-use itertools::{enumerate};
+use itertools::enumerate;
 use num_traits::Zero;
 use rustc_hash::FxHashSet;
-use std::{
-    collections::{HashMap},
-    ops::Add,
-    slice::Iter,
-};
+use std::{collections::HashMap, ops::Add, slice::Iter};
 ///////////////////////////////////////////////////////
 
 // State objects for three node motifs
