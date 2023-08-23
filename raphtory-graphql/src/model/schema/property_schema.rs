@@ -1,5 +1,4 @@
 use dynamic_graphql::SimpleObject;
-use raphtory::db::api::{properties::Properties, view::internal::BoxableGraphView};
 use std::collections::HashSet;
 
 #[derive(SimpleObject)]

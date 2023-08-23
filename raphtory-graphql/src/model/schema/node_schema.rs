@@ -1,25 +1,11 @@
-use crate::model::schema::property_schema::PropertySchema;
+use crate::model::schema::{merge_schemas, property_schema::PropertySchema, SchemaAggregate};
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::{
-    core::Prop,
-    db::{
-        api::{
-            properties::Properties,
-            view::internal::{BoxableGraphView, DynamicGraph},
-        },
-        graph::vertex::VertexView,
-    },
+    db::{api::view::internal::DynamicGraph, graph::vertex::VertexView},
     prelude::{GraphViewOps, VertexViewOps},
 };
-use std::{
-    collections::{HashMap, HashSet},
-    ops::Deref,
-};
-
-type SchemaAggregate = HashMap<String, HashSet<String>>;
-
-const ENUM_BOUNDARY: usize = 20;
+use std::collections::{HashMap, HashSet};
 
 #[derive(ResolvedObject)]
 pub(crate) struct NodeSchema {
@@ -68,24 +54,4 @@ fn collect_vertex_schema(vertex: VertexView<DynamicGraph>) -> SchemaAggregate {
         .map(|(key, value)| (key.to_owned(), HashSet::from([value.to_string()])))
         .collect_vec();
     HashMap::from_iter(pairs)
-}
-
-fn merge_schemas(s1: SchemaAggregate, s2: SchemaAggregate) -> SchemaAggregate {
-    let mut merged_map = s1.clone();
-
-    for (key, set2) in s2 {
-        if let Some(set1) = merged_map.get_mut(&key) {
-            // Here, an empty set means: too many values to be interpreted as an enumerated type
-            if set1.len() > 0 && set2.len() > 0 {
-                set1.extend(set2);
-            }
-            if set1.len() > ENUM_BOUNDARY {
-                set1.clear();
-            }
-        } else {
-            merged_map.insert(key, set2);
-        }
-    }
-
-    merged_map
 }

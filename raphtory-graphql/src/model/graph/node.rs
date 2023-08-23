@@ -2,7 +2,6 @@ use crate::model::{
     filters::edgefilter::EdgeFilter,
     graph::{edge::Edge, get_expanded_edges, property::Property, property_update::PropertyUpdate},
 };
-use async_graphql::Context;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::db::{
@@ -124,7 +123,7 @@ impl Node {
         }
     }
 
-    /// Returns the number of edges connected to the node
+    /// Returns the number of edges connected to this node
     async fn degree(&self, layers: Option<Vec<String>>) -> usize {
         match layers {
             None => self.vv.degree(),
@@ -141,7 +140,7 @@ impl Node {
         }
     }
 
-    /// Returns the number of outgoing edges connected to the node
+    /// Returns the number edges with this node as the source
     async fn out_degree(&self, layer: Option<String>) -> usize {
         match layer.as_deref() {
             None => self.vv.out_degree(),
@@ -152,7 +151,7 @@ impl Node {
         }
     }
 
-    /// Returns the number of incoming edges connected to the node
+    /// Returns the number edges with this node as the destination
     async fn in_degree(&self, layer: Option<String>) -> usize {
         match layer.as_deref() {
             None => self.vv.in_degree(),
