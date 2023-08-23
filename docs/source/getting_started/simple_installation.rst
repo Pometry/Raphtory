@@ -36,6 +36,8 @@ Installation
 
             cargo add raphtory
 
+Now that you have Raphtory installed, let's move onto the first tutorial and test that everything is working correctly.
+
 .. grid:: 1 2 2 2
     :gutter: 2
 
