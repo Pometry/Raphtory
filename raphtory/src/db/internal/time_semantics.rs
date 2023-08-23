@@ -31,7 +31,7 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
     }
 
     fn view_end(&self) -> Option<i64> {
-        self.latest_time_global().map(|t| t + 1) // so it is exclusive
+        self.latest_time_global().map(|t| t.saturating_add(1)) // so it is exclusive
     }
 
     fn earliest_time_global(&self) -> Option<i64> {
