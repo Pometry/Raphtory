@@ -1,26 +1,34 @@
 use crate::{
     core::{
         entities::{
-            edges::edge_ref::{Dir, EdgeRef},
+            edges::{
+                edge_ref::{Dir, EdgeRef},
+                edge_store::EdgeStore,
+            },
             graph::tgraph::InnerTemporalGraph,
             vertices::vertex_ref::VertexRef,
             LayerIds, EID, VID,
         },
         Direction,
     },
-    db::api::view::{internal::GraphOps, Layer},
+    db::api::view::{
+        internal::{EdgeFilter, GraphOps, TimeSemantics},
+        Layer,
+    },
     prelude::GraphViewOps,
 };
 use genawaiter::sync::GenBoxed;
 use itertools::Itertools;
+use rayon::prelude::*;
 use std::{iter, ops::Deref};
 
 impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
-    fn layer_ids(&self) -> LayerIds {
-        LayerIds::All
-    }
-
-    fn local_vertex_ref(&self, v: VertexRef) -> Option<VID> {
+    fn local_vertex_ref(
+        &self,
+        v: VertexRef,
+        _layer_ids: &LayerIds,
+        _filter: Option<EdgeFilter>,
+    ) -> Option<VID> {
         match v {
             VertexRef::Local(l) => Some(l),
             VertexRef::Remote(_) => {
@@ -30,56 +38,65 @@ impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
         }
     }
 
-    fn find_edge_id(&self, e_id: EID) -> Option<EdgeRef> {
+    fn find_edge_id(
+        &self,
+        e_id: EID,
+        layer_ids: &LayerIds,
+        filter: Option<EdgeFilter>,
+    ) -> Option<EdgeRef> {
         let e_id_usize: usize = e_id.into();
-        if e_id_usize >= self.num_edges() {
+        if e_id_usize >= self.inner().storage.edges.len() {
             return None;
         }
-        let edge_view = self.inner().edge(e_id);
-        Some(EdgeRef::new_outgoing(
-            e_id,
-            edge_view.src_id(),
-            edge_view.dst_id(),
-        ))
+        let e = self.inner().storage.edges.get(e_id_usize);
+        filter
+            .map(|f| f(&e, &LayerIds::All))
+            .unwrap_or(true)
+            .then(|| EdgeRef::new_outgoing(e_id, e.src(), e.dst()))
     }
 
-    fn layer_ids_from_names(&self, key: Layer) -> LayerIds {
-        self.inner().layer_id(key)
-    }
-
-    fn edge_layer_ids(&self, e_id: EID) -> LayerIds {
-        let edge = self.inner().edge(e_id);
-        edge.layer_ids()
-    }
-
-    fn vertices_len(&self) -> usize {
+    fn vertices_len(&self, _layer_ids: LayerIds, _filter: Option<EdgeFilter>) -> usize {
         self.inner().internal_num_vertices()
     }
 
-    fn edges_len(&self, layers: LayerIds) -> usize {
-        self.inner().internal_num_edges(layers)
+    fn edges_len(&self, layers: LayerIds, filter: Option<EdgeFilter>) -> usize {
+        self.inner().num_edges(&layers, filter)
     }
 
-    fn edges_len_window(&self, t_start: i64, t_end: i64, layers: LayerIds) -> usize {
-        self.inner()
-            .internal_num_edges_window(layers, t_start..t_end)
+    fn degree(&self, v: VID, d: Direction, layers: &LayerIds, filter: Option<EdgeFilter>) -> usize {
+        self.inner().degree(v, d, layers, filter)
     }
 
-    fn degree(&self, v: VID, d: Direction, layers: LayerIds) -> usize {
-        self.inner().degree(v, d, layers)
-    }
-
-    fn vertex_refs(&self) -> Box<dyn Iterator<Item = VID> + Send> {
+    fn vertex_refs(
+        &self,
+        _layers: LayerIds,
+        _filter: Option<EdgeFilter>,
+    ) -> Box<dyn Iterator<Item = VID> + Send> {
         Box::new(self.inner().vertex_ids())
     }
 
-    fn edge_ref(&self, src: VID, dst: VID, layer: LayerIds) -> Option<EdgeRef> {
+    fn edge_ref(
+        &self,
+        src: VID,
+        dst: VID,
+        layer: &LayerIds,
+        filter: Option<EdgeFilter>,
+    ) -> Option<EdgeRef> {
         self.inner()
             .find_edge(src, dst, layer)
+            .filter(|eid| {
+                filter
+                    .map(|f| f(&self.inner().storage.edges.get((*eid).into()), layer))
+                    .unwrap_or(true)
+            })
             .map(|e_id| EdgeRef::new_outgoing(e_id, src, dst))
     }
 
-    fn edge_refs(&self, layers: LayerIds) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
+    fn edge_refs(
+        &self,
+        layers: LayerIds,
+        filter: Option<EdgeFilter>,
+    ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
         match layers {
             LayerIds::None => Box::new(iter::empty()),
             LayerIds::All => {
@@ -89,6 +106,7 @@ impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
                     .edges
                     .read_lock()
                     .into_iter()
+                    .filter(move |e| filter.as_deref().map(|f| f(e, &layers)).unwrap_or(true))
                     .map_into();
                 Box::new(iter)
             }
@@ -98,7 +116,12 @@ impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
                     .edges
                     .read_lock()
                     .into_iter()
-                    .filter(move |edge| edge.has_layer(&layers))
+                    .filter(move |edge| {
+                        filter
+                            .as_deref()
+                            .map(|f| f(edge, &layers))
+                            .unwrap_or_else(|| edge.has_layer(&layers))
+                    })
                     .map(|edge| edge.into()),
             ),
         }
@@ -109,76 +132,99 @@ impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
         v: VID,
         d: Direction,
         layers: LayerIds,
+        filter: Option<EdgeFilter>,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
         let entry = self.inner().storage.nodes.entry_arc(v.into());
         match d {
-            Direction::OUT => match layers {
-                LayerIds::None => Box::new(iter::empty()),
-                LayerIds::All => Box::new(
-                    entry
-                        .into_layers()
-                        .map(move |layer| {
-                            layer
-                                .into_tuples(Dir::Out)
-                                .map(move |(n, e)| EdgeRef::new_outgoing(e, v, n))
-                        })
-                        .kmerge()
-                        .dedup(),
-                ),
-                LayerIds::One(layer) => Box::new(
-                    entry
-                        .into_layer(layer)
-                        .into_tuples(Dir::Out)
-                        .map(move |(n, e)| EdgeRef::new_outgoing(e, v, n)),
-                ),
-                LayerIds::Multiple(ids) => Box::new(
-                    ids.iter()
-                        .map(move |&layer| {
-                            entry
-                                .clone()
-                                .into_layer(layer)
-                                .into_tuples(Dir::Out)
-                                .map(move |(n, e)| EdgeRef::new_outgoing(e, v, n))
-                        })
-                        .kmerge()
-                        .dedup(),
-                ),
-            },
-            Direction::IN => match layers {
-                LayerIds::None => Box::new(iter::empty()),
-                LayerIds::All => Box::new(
-                    entry
-                        .into_layers()
-                        .map(move |layer| {
-                            layer
-                                .into_tuples(Dir::Into)
-                                .map(move |(n, e)| EdgeRef::new_incoming(e, n, v))
-                        })
-                        .kmerge()
-                        .dedup(),
-                ),
-                LayerIds::One(layer) => Box::new(
-                    entry
-                        .into_layer(layer)
-                        .into_tuples(Dir::Into)
-                        .map(move |(n, e)| EdgeRef::new_incoming(e, n, v)),
-                ),
-                LayerIds::Multiple(ids) => Box::new(
-                    ids.iter()
-                        .map(move |&layer| {
-                            entry
-                                .clone()
-                                .into_layer(layer)
-                                .into_tuples(Dir::Into)
-                                .map(move |(n, e)| EdgeRef::new_incoming(e, n, v))
-                        })
-                        .kmerge()
-                        .dedup(),
-                ),
-            },
+            Direction::OUT => {
+                let iter: Box<dyn Iterator<Item = EdgeRef> + Send> = match &layers {
+                    LayerIds::None => Box::new(iter::empty()),
+                    LayerIds::All => Box::new(
+                        entry
+                            .into_layers()
+                            .map(move |layer| {
+                                layer
+                                    .into_tuples(Dir::Out)
+                                    .map(move |(n, e)| EdgeRef::new_outgoing(e, v, n))
+                            })
+                            .kmerge()
+                            .dedup(),
+                    ),
+                    LayerIds::One(layer) => Box::new(
+                        entry
+                            .into_layer(*layer)
+                            .into_tuples(Dir::Out)
+                            .map(move |(n, e)| EdgeRef::new_outgoing(e, v, n)),
+                    ),
+                    LayerIds::Multiple(ids) => Box::new(
+                        ids.iter()
+                            .map(move |&layer| {
+                                entry
+                                    .clone()
+                                    .into_layer(layer)
+                                    .into_tuples(Dir::Out)
+                                    .map(move |(n, e)| EdgeRef::new_outgoing(e, v, n))
+                            })
+                            .kmerge()
+                            .dedup(),
+                    ),
+                };
+                match filter {
+                    None => iter,
+                    Some(filter) => {
+                        let edge_store = self.inner().storage.edges.read_lock();
+                        Box::new(iter.filter(move |eref| {
+                            filter(&edge_store.get(eref.pid().into()), &layers)
+                        }))
+                    }
+                }
+            }
+            Direction::IN => {
+                let iter: Box<dyn Iterator<Item = EdgeRef> + Send> = match &layers {
+                    LayerIds::None => Box::new(iter::empty()),
+                    LayerIds::All => Box::new(
+                        entry
+                            .into_layers()
+                            .map(move |layer| {
+                                layer
+                                    .into_tuples(Dir::Into)
+                                    .map(move |(n, e)| EdgeRef::new_incoming(e, n, v))
+                            })
+                            .kmerge()
+                            .dedup(),
+                    ),
+                    LayerIds::One(layer) => Box::new(
+                        entry
+                            .into_layer(*layer)
+                            .into_tuples(Dir::Into)
+                            .map(move |(n, e)| EdgeRef::new_incoming(e, n, v)),
+                    ),
+                    LayerIds::Multiple(ids) => Box::new(
+                        ids.iter()
+                            .map(move |&layer| {
+                                entry
+                                    .clone()
+                                    .into_layer(layer)
+                                    .into_tuples(Dir::Into)
+                                    .map(move |(n, e)| EdgeRef::new_incoming(e, n, v))
+                            })
+                            .kmerge()
+                            .dedup(),
+                    ),
+                };
+                match filter {
+                    None => iter,
+                    Some(filter) => {
+                        let edge_store = self.inner().storage.edges.read_lock();
+                        Box::new(iter.filter(move |eref| {
+                            filter(&edge_store.get(eref.pid().into()), &layers)
+                        }))
+                    }
+                }
+            }
             Direction::BOTH => Box::new(
-                self.vertex_edges(v, Direction::IN, layers.clone())
-                    .merge(self.vertex_edges(v, Direction::OUT, layers)),
+                self.vertex_edges(v, Direction::IN, layers.clone(), filter.clone())
+                    .merge(self.vertex_edges(v, Direction::OUT, layers, filter)),
             ),
         }
     }
@@ -188,8 +234,9 @@ impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
         v: VID,
         d: Direction,
         layers: LayerIds,
+        filter: Option<EdgeFilter>,
     ) -> Box<dyn Iterator<Item = VID> + Send> {
-        let iter = self.vertex_edges(v, d, layers).map(|e| e.remote());
+        let iter = self.vertex_edges(v, d, layers, filter).map(|e| e.remote());
         if matches!(d, Direction::BOTH) {
             Box::new(iter.dedup())
         } else {

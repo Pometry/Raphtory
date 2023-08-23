@@ -427,17 +427,30 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
     }
 
     fn degree(&self) -> Self::ValueType<usize> {
-        self.graph
-            .degree(self.vertex, Direction::BOTH, LayerIds::All)
+        self.graph.degree(
+            self.vertex,
+            Direction::BOTH,
+            &self.graph.layer_ids(),
+            self.graph.edge_filter(),
+        )
     }
 
     fn in_degree(&self) -> Self::ValueType<usize> {
-        self.graph.degree(self.vertex, Direction::IN, LayerIds::All)
+        self.graph.degree(
+            self.vertex,
+            Direction::IN,
+            &self.graph.layer_ids(),
+            self.graph.edge_filter(),
+        )
     }
 
     fn out_degree(&self) -> Self::ValueType<usize> {
-        self.graph
-            .degree(self.vertex, Direction::OUT, LayerIds::All)
+        self.graph.degree(
+            self.vertex,
+            Direction::OUT,
+            &self.graph.layer_ids(),
+            self.graph.edge_filter(),
+        )
     }
 
     fn edges(&self) -> Self::EList {
@@ -447,7 +460,12 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
         let graph = self.graph;
         Box::new(
             self.graph
-                .vertex_edges(self.vertex, Direction::BOTH, LayerIds::All)
+                .vertex_edges(
+                    self.vertex,
+                    Direction::BOTH,
+                    self.graph.layer_ids(),
+                    self.graph.edge_filter(),
+                )
                 .map(move |e| EvalEdgeView::new_(ss, e, graph, local, vertex_state.clone())),
         )
     }
@@ -459,7 +477,12 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
         let graph = self.graph;
         Box::new(
             self.graph
-                .vertex_edges(self.vertex, Direction::IN, LayerIds::All)
+                .vertex_edges(
+                    self.vertex,
+                    Direction::IN,
+                    self.graph.layer_ids(),
+                    self.graph.edge_filter(),
+                )
                 .map(move |e| EvalEdgeView::new_(ss, e, graph, local, vertex_state.clone())),
         )
     }
@@ -471,7 +494,12 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
         let graph = self.graph;
         Box::new(
             self.graph
-                .vertex_edges(self.vertex, Direction::OUT, LayerIds::All)
+                .vertex_edges(
+                    self.vertex,
+                    Direction::OUT,
+                    self.graph.layer_ids(),
+                    self.graph.edge_filter(),
+                )
                 .map(move |e| EvalEdgeView::new_(ss, e, graph, local, vertex_state.clone())),
         )
     }

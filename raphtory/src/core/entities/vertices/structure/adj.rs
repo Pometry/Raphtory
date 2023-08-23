@@ -11,7 +11,7 @@ use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Default)]
-pub(crate) enum Adj {
+pub enum Adj {
     #[default]
     Solo,
     List {

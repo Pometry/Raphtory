@@ -2,9 +2,9 @@ use crate::core::{
     entities::{
         edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
         vertices::vertex_store::VertexStore,
-        LayerIds, EID,
+        LayerIds, EID, VID,
     },
-    storage::{self, ArcEntry, Entry, EntryMut, LockedEntry, PairEntryMut},
+    storage::{self, ArcEntry, Entry, EntryMut, PairEntryMut},
     Direction,
 };
 use rayon::prelude::{ParallelBridge, ParallelIterator};
@@ -17,10 +17,10 @@ use std::{
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
 pub(crate) struct GraphStorage<const N: usize> {
     // node storage with having (id, time_index, properties, adj list for each layer)
-    pub(crate) nodes: storage::RawStorage<VertexStore<N>, N>,
+    pub(crate) nodes: storage::RawStorage<VertexStore, N>,
 
     // edge storage with having (src, dst, time_index, properties) for each layer
-    pub(crate) edges: storage::RawStorage<EdgeStore<N>, N>,
+    pub(crate) edges: storage::RawStorage<EdgeStore, N>,
 }
 
 impl<const N: usize> GraphStorage<N> {
@@ -31,43 +31,45 @@ impl<const N: usize> GraphStorage<N> {
         }
     }
 
-    pub(crate) fn push_node(&self, node: VertexStore<N>) -> usize {
-        self.nodes.push(node, |vid, node| node.vid = vid.into())
+    pub(crate) fn push_node(&self, node: VertexStore) -> VID {
+        self.nodes
+            .push(node, |vid, node| node.vid = vid.into())
+            .into()
     }
 
-    pub(crate) fn push_edge(&self, edge: EdgeStore<N>) -> EID {
+    pub(crate) fn push_edge(&self, edge: EdgeStore) -> EID {
         self.edges
             .push(edge, |eid, edge| edge.eid = eid.into())
             .into()
     }
 
-    pub(crate) fn get_node_mut(&self, id: usize) -> EntryMut<'_, VertexStore<N>> {
-        self.nodes.entry_mut(id)
+    pub(crate) fn get_node_mut(&self, id: VID) -> EntryMut<'_, VertexStore> {
+        self.nodes.entry_mut(id.into())
     }
 
-    pub(crate) fn get_edge_mut(&self, id: EID) -> EntryMut<'_, EdgeStore<N>> {
+    pub(crate) fn get_edge_mut(&self, id: EID) -> EntryMut<'_, EdgeStore> {
         self.edges.entry_mut(id.into())
     }
 
-    pub(crate) fn get_node(&self, id: usize) -> Entry<'_, VertexStore<N>, N> {
-        self.nodes.entry(id)
+    pub(crate) fn get_node(&self, id: VID) -> Entry<'_, VertexStore, N> {
+        self.nodes.entry(id.into())
     }
 
-    pub(crate) fn get_node_arc(&self, id: usize) -> ArcEntry<VertexStore<N>, N> {
-        self.nodes.entry_arc(id)
+    pub(crate) fn get_node_arc(&self, id: VID) -> ArcEntry<VertexStore> {
+        self.nodes.entry_arc(id.into())
     }
 
-    pub(crate) fn get_edge_arc(&self, id: usize) -> ArcEntry<EdgeStore<N>, N> {
-        self.edges.entry_arc(id)
+    pub(crate) fn get_edge_arc(&self, id: EID) -> ArcEntry<EdgeStore> {
+        self.edges.entry_arc(id.into())
     }
 
     #[inline]
-    pub(crate) fn get_edge(&self, id: usize) -> Entry<'_, EdgeStore<N>, N> {
-        self.edges.entry(id)
+    pub(crate) fn get_edge(&self, id: EID) -> Entry<'_, EdgeStore, N> {
+        self.edges.entry(id.into())
     }
 
-    pub(crate) fn pair_node_mut(&self, i: usize, j: usize) -> PairEntryMut<'_, VertexStore<N>> {
-        self.nodes.pair_entry_mut(i, j)
+    pub(crate) fn pair_node_mut(&self, i: VID, j: VID) -> PairEntryMut<'_, VertexStore> {
+        self.nodes.pair_entry_mut(i.into(), j.into())
     }
 
     pub(crate) fn nodes_len(&self) -> usize {
@@ -95,7 +97,7 @@ impl<const N: usize> GraphStorage<N> {
         LockedGraphStorage::new(self)
     }
 
-    pub(crate) fn locked_nodes(&self) -> LockedIter<N, VertexStore<N>> {
+    pub(crate) fn locked_nodes(&self) -> LockedIter<N, VertexStore> {
         LockedIter {
             from: 0,
             to: self.nodes.len(),
@@ -104,7 +106,7 @@ impl<const N: usize> GraphStorage<N> {
         }
     }
 
-    pub(crate) fn locked_edges(&self) -> impl Iterator<Item = LockedEntry<EdgeStore<N>, N>> {
+    pub(crate) fn locked_edges(&self) -> impl Iterator<Item = ArcEntry<EdgeStore>> {
         self.edges.read_lock().into_iter()
     }
 
@@ -123,8 +125,8 @@ pub(crate) struct LockedIter<const N: usize, T> {
     phantom: std::marker::PhantomData<T>,
 }
 
-impl<const N: usize> Iterator for LockedIter<N, VertexStore<N>> {
-    type Item = GraphEntry<VertexStore<N>, N>;
+impl<const N: usize> Iterator for LockedIter<N, VertexStore> {
+    type Item = GraphEntry<VertexStore, N>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.from < self.to {
@@ -141,8 +143,8 @@ impl<const N: usize> Iterator for LockedIter<N, VertexStore<N>> {
     }
 }
 
-impl<'a, const N: usize> Iterator for LockedIter<N, EdgeStore<N>> {
-    type Item = GraphEntry<EdgeStore<N>, N>;
+impl<'a, const N: usize> Iterator for LockedIter<N, EdgeStore> {
+    type Item = GraphEntry<EdgeStore, N>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.from < self.to {
@@ -184,16 +186,16 @@ impl<'a, const N: usize, T> GraphEntry<T, N> {
     }
 }
 
-impl<'a, const N: usize> Deref for GraphEntry<VertexStore<N>, N> {
-    type Target = VertexStore<N>;
+impl<'a, const N: usize> Deref for GraphEntry<VertexStore, N> {
+    type Target = VertexStore;
 
     fn deref(&self) -> &Self::Target {
         self.locked_gs.get_node(self.i)
     }
 }
 
-impl<'a, const N: usize> Deref for GraphEntry<EdgeStore<N>, N> {
-    type Target = EdgeStore<N>;
+impl<'a, const N: usize> Deref for GraphEntry<EdgeStore, N> {
+    type Target = EdgeStore;
 
     fn deref(&self) -> &Self::Target {
         self.locked_gs.get_edge(self.i)
@@ -202,8 +204,8 @@ impl<'a, const N: usize> Deref for GraphEntry<EdgeStore<N>, N> {
 
 #[derive(Debug)]
 pub(crate) struct LockedGraphStorage<const N: usize> {
-    nodes: storage::ReadLockedStorage<VertexStore<N>, N>,
-    edges: storage::ReadLockedStorage<EdgeStore<N>, N>,
+    nodes: storage::ReadLockedStorage<VertexStore, N>,
+    edges: storage::ReadLockedStorage<EdgeStore, N>,
 }
 
 impl<const N: usize> LockedGraphStorage<N> {
@@ -214,11 +216,11 @@ impl<const N: usize> LockedGraphStorage<N> {
         }
     }
 
-    pub(crate) fn get_node(&self, id: usize) -> &VertexStore<N> {
+    pub(crate) fn get_node(&self, id: usize) -> &VertexStore {
         self.nodes.get(id)
     }
 
-    pub(crate) fn get_edge(&self, id: usize) -> &EdgeStore<N> {
+    pub(crate) fn get_edge(&self, id: usize) -> &EdgeStore {
         self.edges.get(id)
     }
 }

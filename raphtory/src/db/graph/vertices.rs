@@ -28,7 +28,7 @@ impl<G: GraphViewOps> Vertices<G> {
     pub fn iter(&self) -> Box<dyn Iterator<Item = VertexView<G>> + Send> {
         let g = self.graph.clone();
         Box::new(
-            g.vertex_refs()
+            g.vertex_refs(g.layer_ids(), g.edge_filter())
                 .map(move |v| VertexView::new_local(g.clone(), v)),
         )
     }

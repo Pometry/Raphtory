@@ -442,7 +442,9 @@ impl<G: GraphViewOps> IndexedGraph<G> {
             {
                 let writer_guard = writer_lock.read();
                 for e_id in e_ids {
-                    if let Some(e_ref) = g.find_edge_id((*e_id).into()) {
+                    if let Some(e_ref) =
+                        g.find_edge_id((*e_id).into(), &g.layer_ids(), g.edge_filter())
+                    {
                         let e_view = EdgeView::new(g.clone(), e_ref);
                         Self::index_edge_view(
                             e_view,
@@ -542,7 +544,11 @@ impl<G: GraphViewOps> IndexedGraph<G> {
             .and_then(|value| value.as_u64())?
             .try_into()
             .ok()?;
-        let e_ref = self.graph.find_edge_id(edge_id.into())?;
+        let e_ref = self.graph.find_edge_id(
+            edge_id.into(),
+            &self.graph.layer_ids(),
+            self.graph.edge_filter(),
+        )?;
         let e_view = EdgeView::new(self.graph.clone(), e_ref);
         Some(e_view)
     }

@@ -18,7 +18,7 @@ use std::ops::{Deref, DerefMut, Range};
 use tantivy::HasLen;
 
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
-pub(crate) struct EdgeStore<const N: usize> {
+pub struct EdgeStore {
     pub(crate) eid: EID,
     src: VID,
     dst: VID,
@@ -28,7 +28,7 @@ pub(crate) struct EdgeStore<const N: usize> {
 }
 
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
-pub(crate) struct EdgeLayer {
+pub struct EdgeLayer {
     props: Option<Props>, // memory optimisation: only allocate props if needed
 }
 
@@ -85,13 +85,13 @@ impl EdgeLayer {
     }
 }
 
-impl<const N: usize, E: Deref<Target = EdgeStore<N>>> From<E> for EdgeRef {
+impl<E: Deref<Target = EdgeStore>> From<E> for EdgeRef {
     fn from(val: E) -> Self {
         EdgeRef::new_outgoing(val.e_id(), val.src(), val.dst())
     }
 }
 
-impl<const N: usize> EdgeStore<N> {
+impl EdgeStore {
     fn get_or_allocate_layer(&mut self, layer_id: usize) -> &mut EdgeLayer {
         if self.layers.len() <= layer_id {
             self.layers.resize_with(layer_id + 1, Default::default);
@@ -221,6 +221,7 @@ impl<const N: usize> EdgeStore<N> {
         &self.deletions
     }
 
+    /// an edge is active in a window if it has an addition event in any of the layers
     pub fn active(&self, layer_ids: &LayerIds, w: Range<i64>) -> bool {
         match layer_ids {
             LayerIds::None => false,

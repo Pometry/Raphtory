@@ -1,15 +1,18 @@
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
+        entities::{
+            edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
+            LayerIds, VID,
+        },
         storage::timeindex::AsTime,
         Direction,
     },
     db::api::view::{
-        internal::{time_semantics::TimeSemantics, GraphOps},
+        internal::{time_semantics::TimeSemantics, EdgeFilter, GraphOps},
         BoxedIter,
     },
 };
-use std::ops::Range;
+use std::{ops::Range, sync::Arc};
 
 /// Additional methods for returning exploded edge data that are automatically implemented
 pub trait ExplodedEdgeOps {
@@ -29,6 +32,7 @@ pub trait ExplodedEdgeOps {
         v: VID,
         d: Direction,
         layer: LayerIds,
+        filter: Option<EdgeFilter>,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send>;
 
     /// Returns an iterator over the edges connected to a given vertex within
@@ -52,6 +56,7 @@ pub trait ExplodedEdgeOps {
         t_end: i64,
         d: Direction,
         layers: LayerIds,
+        filter: Option<EdgeFilter>,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send>;
 
     /// Get the activation timestamps for an edge `e`
@@ -67,11 +72,12 @@ impl<G: GraphOps + TimeSemantics + Clone + 'static> ExplodedEdgeOps for G {
         v: VID,
         d: Direction,
         layer: LayerIds,
+        filter: Option<EdgeFilter>,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
         {
             let g = self.clone();
             Box::new(
-                self.vertex_edges(v, d, layer)
+                self.vertex_edges(v, d, layer, filter)
                     .flat_map(move |e| g.edge_exploded(e, LayerIds::All)),
             )
         }
@@ -84,10 +90,11 @@ impl<G: GraphOps + TimeSemantics + Clone + 'static> ExplodedEdgeOps for G {
         t_end: i64,
         d: Direction,
         layer: LayerIds,
+        filter: Option<EdgeFilter>,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
         let g = self.clone();
         Box::new(
-            self.vertex_edges(v, d, layer)
+            self.vertex_edges(v, d, layer, filter)
                 .flat_map(move |e| g.edge_window_exploded(e, t_start..t_end, LayerIds::All)),
         )
     }

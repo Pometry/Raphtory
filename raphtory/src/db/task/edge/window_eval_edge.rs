@@ -230,17 +230,14 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeViewOps
     /// Check if edge is active at a given time point
     fn active(&self, t: i64) -> bool {
         match self.eref().time_t() {
-            Some(tt) => tt == t,
+            Some(tt) => tt <= t && t <= self.latest_time().unwrap_or(tt),
             None => {
                 let layer_ids = self.graph().layer_ids().constrain_from_edge(self.eref());
+                let entry = self.graph().core_edge(self.eref().pid());
                 (self.t_start..self.t_end).contains(&t)
-                    && self.graph().has_edge_ref_window(
-                        self.eref().src(),
-                        self.eref().dst(),
-                        t,
-                        t.saturating_add(1),
-                        layer_ids,
-                    )
+                    && self
+                        .graph()
+                        .include_edge_window(&entry, t..t.saturating_add(1), &layer_ids)
             }
         }
     }

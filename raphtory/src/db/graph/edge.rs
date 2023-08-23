@@ -20,7 +20,10 @@ use crate::{
                 },
                 Properties,
             },
-            view::{internal::Static, BoxedIter, EdgeViewInternalOps, LayerOps},
+            view::{
+                internal::{EdgeFilterOps, Static},
+                BoxedIter, EdgeViewInternalOps, LayerOps,
+            },
         },
         graph::{vertex::VertexView, views::window_graph::WindowedGraph},
     },
@@ -45,6 +48,12 @@ impl<G: GraphViewOps> Static for EdgeView<G> {}
 impl<G: GraphViewOps> EdgeView<G> {
     pub fn new(graph: G, edge: EdgeRef) -> Self {
         Self { graph, edge }
+    }
+}
+
+impl<G: GraphViewOps> PartialEq for EdgeView<G> {
+    fn eq(&self, other: &Self) -> bool {
+        self.id() == other.id()
     }
 }
 
@@ -206,7 +215,12 @@ impl<G: GraphViewOps> LayerOps for EdgeView<G> {
             .layer_ids_from_names(name.into())
             .constrain_from_edge(self.edge);
         self.graph
-            .has_edge_ref(self.edge.src(), self.edge.dst(), layer_ids.clone())
+            .has_edge_ref(
+                self.edge.src(),
+                self.edge.dst(),
+                &layer_ids,
+                self.graph.edge_filter(),
+            )
             .then(|| EdgeView {
                 graph: LayeredGraph::new(self.graph.clone(), layer_ids),
                 edge: self.edge,

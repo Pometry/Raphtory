@@ -57,7 +57,7 @@ impl<'a, const N: usize> Vertex<'a, N> {
         Vertex { node, graph }
     }
 
-    pub(crate) fn from_entry(node: Entry<'a, VertexStore<N>, N>, graph: &'a TGraph<N>) -> Self {
+    pub(crate) fn from_entry(node: Entry<'a, VertexStore, N>, graph: &'a TGraph<N>) -> Self {
         Self::new(VRef::Entry(node), graph)
     }
 
@@ -145,12 +145,12 @@ impl<'a, const N: usize> IntoIterator for Vertex<'a, N> {
     }
 }
 
-pub struct ArcVertex<const N: usize> {
-    e: ArcEntry<VertexStore<N>, N>,
+pub struct ArcVertex {
+    e: ArcEntry<VertexStore>,
     meta: Arc<Meta>,
 }
 
-impl<const N: usize> CorePropertiesOps for ArcVertex<N> {
+impl CorePropertiesOps for ArcVertex {
     fn const_prop_meta(&self) -> &DictMapper<String> {
         self.meta.static_prop_meta()
     }
@@ -168,8 +168,8 @@ impl<const N: usize> CorePropertiesOps for ArcVertex<N> {
     }
 }
 
-impl<const N: usize> ArcVertex<N> {
-    pub(crate) fn from_entry(e: ArcEntry<VertexStore<N>, N>, meta: Arc<Meta>) -> Self {
+impl ArcVertex {
+    pub(crate) fn from_entry(e: ArcEntry<VertexStore>, meta: Arc<Meta>) -> Self {
         ArcVertex { e, meta }
     }
 
@@ -178,7 +178,7 @@ impl<const N: usize> ArcVertex<N> {
         layers: LayerIds,
         dir: Direction,
     ) -> impl Iterator<Item = EdgeRef> + '_ {
-        self.e.edge_tuples(layers, dir)
+        self.e.edge_tuples(&layers, dir)
     }
 
     pub fn neighbours(&self, layers: LayerIds, dir: Direction) -> impl Iterator<Item = VID> + '_ {
@@ -186,13 +186,13 @@ impl<const N: usize> ArcVertex<N> {
     }
 }
 
-pub(crate) struct ArcEdge<const N: usize> {
-    e: ArcEntry<EdgeStore<N>, N>,
+pub(crate) struct ArcEdge {
+    e: ArcEntry<EdgeStore>,
     meta: Arc<Meta>,
 }
 
-impl<const N: usize> ArcEdge<N> {
-    pub(crate) fn from_entry(e: ArcEntry<EdgeStore<N>, N>, meta: Arc<Meta>) -> Self {
+impl ArcEdge {
+    pub(crate) fn from_entry(e: ArcEntry<EdgeStore>, meta: Arc<Meta>) -> Self {
         ArcEdge { e, meta }
     }
 

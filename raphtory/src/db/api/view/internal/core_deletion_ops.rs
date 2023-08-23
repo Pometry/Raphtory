@@ -1,7 +1,7 @@
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, LayerIds},
-        storage::timeindex::{LockedLayeredIndex, TimeIndexEntry},
+        storage::timeindex::{LayeredIndex, LockedLayeredIndex, TimeIndexEntry},
     },
     db::api::view::internal::Base,
 };

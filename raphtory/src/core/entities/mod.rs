@@ -68,8 +68,8 @@ impl From<usize> for EID {
 }
 
 pub(crate) enum VRef<'a, const N: usize> {
-    Entry(Entry<'a, VertexStore<N>, N>), // returned from graph.vertex
-    LockedEntry(GraphEntry<VertexStore<N>, N>), // returned from locked_vertices
+    Entry(Entry<'a, VertexStore, N>), // returned from graph.vertex
+    LockedEntry(GraphEntry<VertexStore, N>), // returned from locked_vertices
 }
 
 // return index -> usize for VRef
@@ -93,7 +93,7 @@ impl<'a, const N: usize> VRef<'a, N> {
 }
 
 impl<'a, const N: usize> Deref for VRef<'a, N> {
-    type Target = VertexStore<N>;
+    type Target = VertexStore;
 
     fn deref(&self) -> &Self::Target {
         match self {

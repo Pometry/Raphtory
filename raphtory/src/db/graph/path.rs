@@ -1,13 +1,13 @@
 use crate::{
     core::{
-        entities::{vertices::vertex_ref::VertexRef, LayerIds, VID},
+        entities::{edges::edge_store::EdgeStore, vertices::vertex_ref::VertexRef, LayerIds, VID},
         utils::time::IntoTime,
         Direction,
     },
     db::{
         api::{
             properties::Properties,
-            view::{internal::GraphWindowOps, BoxedIter, Layer, LayerOps},
+            view::{internal::extend_filter, BoxedIter, Layer, LayerOps},
         },
         graph::{
             edge::EdgeView,
@@ -37,18 +37,26 @@ impl Operations {
         graph: G,
         iter: Box<dyn Iterator<Item = VID> + Send>,
     ) -> Box<dyn Iterator<Item = VID> + Send> {
+        let layer_ids = graph.layer_ids();
+        let edge_filter = graph.edge_filter();
         match self {
-            Operations::Neighbours { dir } => {
-                Box::new(iter.flat_map(move |v| graph.neighbours(v, dir, LayerIds::All)))
-            }
+            Operations::Neighbours { dir } => Box::new(iter.flat_map(move |v| {
+                graph.neighbours(v, dir, layer_ids.clone(), edge_filter.clone())
+            })),
             Operations::NeighboursWindow {
                 dir,
                 t_start,
                 t_end,
             } => {
-                Box::new(iter.flat_map(move |v| {
-                    graph.neighbours_window(v, t_start, t_end, dir, LayerIds::All)
-                }))
+                let graph1 = graph.clone();
+                let filter = Some(extend_filter(edge_filter, move |e, l| {
+                    graph1.include_edge_window(e, t_start..t_end, l)
+                }));
+                Box::new(
+                    iter.flat_map(move |v| {
+                        graph.neighbours(v, dir, layer_ids.clone(), filter.clone())
+                    }),
+                )
             }
         }
     }
@@ -71,11 +79,14 @@ impl<G: GraphViewOps> PathFromGraph<G> {
     pub fn iter(&self) -> Box<dyn Iterator<Item = PathFromVertex<G>> + Send> {
         let g = self.graph.clone();
         let ops = self.operations.clone();
-        Box::new(g.vertex_refs().map(move |v| PathFromVertex {
-            graph: g.clone(),
-            vertex: v,
-            operations: ops.clone(),
-        }))
+        Box::new(
+            g.vertex_refs(g.layer_ids(), g.edge_filter())
+                .map(move |v| PathFromVertex {
+                    graph: g.clone(),
+                    vertex: v,
+                    operations: ops.clone(),
+                }),
+        )
     }
 }
 

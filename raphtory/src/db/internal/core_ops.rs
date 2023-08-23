@@ -1,18 +1,23 @@
 use crate::{
     core::{
         entities::{
-            edges::edge_ref::EdgeRef,
+            edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
             graph::tgraph::InnerTemporalGraph,
             properties::tprop::{LockedLayeredTProp, TProp},
-            vertices::vertex_ref::VertexRef,
-            LayerIds, VID,
+            vertices::{
+                vertex::{ArcEdge, ArcVertex},
+                vertex_ref::VertexRef,
+                vertex_store::VertexStore,
+            },
+            LayerIds, EID, VID,
         },
         storage::{
             locked_view::LockedView,
-            timeindex::{LockedLayeredIndex, TimeIndex, TimeIndexEntry},
+            timeindex::{LayeredIndex, LockedLayeredIndex, TimeIndex, TimeIndexEntry},
+            ArcEntry,
         },
     },
-    db::api::view::internal::CoreGraphOps,
+    db::{api::view::internal::CoreGraphOps, graph::views::vertex_subgraph::VertexSubgraph},
     prelude::Prop,
 };
 use itertools::Itertools;
@@ -261,6 +266,22 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
                     .flat_map(|id| self.inner().edge_reverse_prop_id(id, false)),
             ),
         }
+    }
+
+    fn core_edges(&self) -> Box<dyn Iterator<Item = ArcEntry<EdgeStore>>> {
+        Box::new(self.inner().storage.edges.read_lock().into_iter())
+    }
+
+    fn core_edge(&self, eid: EID) -> ArcEntry<EdgeStore> {
+        self.inner().storage.edges.entry_arc(eid.into())
+    }
+
+    fn core_vertices(&self) -> Box<dyn Iterator<Item = ArcEntry<VertexStore>>> {
+        Box::new(self.inner().storage.nodes.read_lock().into_iter())
+    }
+
+    fn core_vertex(&self, vid: VID) -> ArcEntry<VertexStore> {
+        self.inner().storage.nodes.entry_arc(vid.into())
     }
 }
 

@@ -32,6 +32,12 @@ pub struct VertexView<G: GraphViewOps> {
     pub vertex: VID,
 }
 
+impl<G1: GraphViewOps, G2: GraphViewOps> PartialEq<VertexView<G2>> for VertexView<G1> {
+    fn eq(&self, other: &VertexView<G2>) -> bool {
+        self.id() == other.id()
+    }
+}
+
 impl<G: GraphViewOps> From<VertexView<G>> for VertexRef {
     fn from(value: VertexView<G>) -> Self {
         VertexRef::Local(value.vertex)
@@ -167,25 +173,45 @@ impl<G: GraphViewOps> VertexViewOps for VertexView<G> {
 
     fn degree(&self) -> usize {
         let dir = Direction::BOTH;
-        self.graph.degree(self.vertex, dir, LayerIds::All)
+        self.graph.degree(
+            self.vertex,
+            dir,
+            &self.graph.layer_ids(),
+            self.graph.edge_filter(),
+        )
     }
 
     fn in_degree(&self) -> usize {
         let dir = Direction::IN;
-        self.graph.degree(self.vertex, dir, LayerIds::All)
+        self.graph.degree(
+            self.vertex,
+            dir,
+            &self.graph.layer_ids(),
+            self.graph.edge_filter(),
+        )
     }
 
     fn out_degree(&self) -> usize {
         let dir = Direction::OUT;
-        self.graph.degree(self.vertex, dir, LayerIds::All)
+        self.graph.degree(
+            self.vertex,
+            dir,
+            &self.graph.layer_ids(),
+            self.graph.edge_filter(),
+        )
     }
 
     fn edges(&self) -> EdgeList<G> {
         let g = self.graph.clone();
         let dir = Direction::BOTH;
         Box::new(
-            g.vertex_edges(self.vertex, dir, LayerIds::All)
-                .map(move |e| EdgeView::new(g.clone(), e)),
+            g.vertex_edges(
+                self.vertex,
+                dir,
+                self.graph.layer_ids(),
+                self.graph.edge_filter(),
+            )
+            .map(move |e| EdgeView::new(g.clone(), e)),
         )
     }
 
@@ -193,8 +219,13 @@ impl<G: GraphViewOps> VertexViewOps for VertexView<G> {
         let g = self.graph.clone();
         let dir = Direction::IN;
         Box::new(
-            g.vertex_edges(self.vertex, dir, LayerIds::All)
-                .map(move |e| EdgeView::new(g.clone(), e)),
+            g.vertex_edges(
+                self.vertex,
+                dir,
+                self.graph.layer_ids(),
+                self.graph.edge_filter(),
+            )
+            .map(move |e| EdgeView::new(g.clone(), e)),
         )
     }
 
@@ -202,8 +233,13 @@ impl<G: GraphViewOps> VertexViewOps for VertexView<G> {
         let g = self.graph.clone();
         let dir = Direction::OUT;
         Box::new(
-            g.vertex_edges(self.vertex, dir, LayerIds::All)
-                .map(move |e| EdgeView::new(g.clone(), e)),
+            g.vertex_edges(
+                self.vertex,
+                dir,
+                self.graph.layer_ids(),
+                self.graph.edge_filter(),
+            )
+            .map(move |e| EdgeView::new(g.clone(), e)),
         )
     }
 

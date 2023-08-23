@@ -90,9 +90,11 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
         &self,
         vertices: I,
     ) -> VertexSubgraph<G> {
+        let filter = self.edge_filter();
+        let layer_ids = self.layer_ids();
         let vertices: FxHashSet<VID> = vertices
             .into_iter()
-            .flat_map(|v| self.local_vertex_ref(v.into()))
+            .flat_map(|v| self.local_vertex_ref(v.into(), &layer_ids, filter.clone()))
             .collect();
         VertexSubgraph::new(self.clone(), vertices)
     }
@@ -111,15 +113,15 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
     }
 
     fn num_vertices(&self) -> usize {
-        self.vertices_len()
+        self.vertices_len(self.layer_ids(), self.edge_filter())
     }
 
     fn num_edges(&self) -> usize {
-        self.edges_len(LayerIds::All)
+        self.edges_len(self.layer_ids(), self.edge_filter())
     }
 
     fn has_vertex<T: Into<VertexRef>>(&self, v: T) -> bool {
-        self.has_vertex_ref(v.into())
+        self.has_vertex_ref(v.into(), &self.layer_ids(), self.edge_filter())
     }
 
     fn has_edge<T: Into<VertexRef>, L: Into<Layer>>(&self, src: T, dst: T, layer: L) -> bool {
@@ -128,7 +130,7 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
         let layers = self.layer_ids_from_names(layer.into());
         if let Some(src) = self.localise_vertex(src_ref) {
             if let Some(dst) = self.localise_vertex(dst_ref) {
-                return self.has_edge_ref(src, dst, layers);
+                return self.has_edge_ref(src, dst, &layers, self.edge_filter());
             }
         }
         false
@@ -136,7 +138,7 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
 
     fn vertex<T: Into<VertexRef>>(&self, v: T) -> Option<VertexView<Self>> {
         let v = v.into();
-        self.local_vertex_ref(v)
+        self.local_vertex_ref(v, &self.layer_ids(), self.edge_filter())
             .map(|v| VertexView::new_local(self.clone(), v))
     }
 
@@ -146,10 +148,12 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
     }
 
     fn edge<T: Into<VertexRef>>(&self, src: T, dst: T) -> Option<EdgeView<Self>> {
-        if let Some(src) = self.local_vertex_ref(src.into()) {
-            if let Some(dst) = self.local_vertex_ref(dst.into()) {
+        let layer_ids = self.layer_ids();
+        let edge_filter = self.edge_filter();
+        if let Some(src) = self.local_vertex_ref(src.into(), &layer_ids, edge_filter.clone()) {
+            if let Some(dst) = self.local_vertex_ref(dst.into(), &layer_ids, edge_filter.clone()) {
                 return self
-                    .edge_ref(src, dst, self.layer_ids())
+                    .edge_ref(src, dst, &layer_ids, edge_filter)
                     .map(|e| EdgeView::new(self.clone(), e));
             }
         }

@@ -1,18 +1,23 @@
 use crate::{
     core::{
         entities::{
-            edges::edge_ref::EdgeRef,
+            edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
             properties::tprop::{LockedLayeredTProp, TProp},
-            vertices::vertex_ref::VertexRef,
-            LayerIds, VID,
+            vertices::{
+                vertex::{ArcEdge, ArcVertex},
+                vertex_ref::VertexRef,
+                vertex_store::VertexStore,
+            },
+            LayerIds, EID, VID,
         },
         storage::{
             locked_view::LockedView,
-            timeindex::{LockedLayeredIndex, TimeIndex, TimeIndexEntry},
+            timeindex::{LayeredIndex, LockedLayeredIndex, TimeIndex, TimeIndexEntry},
+            ArcEntry,
         },
         Prop,
     },
-    db::api::view::internal::Base,
+    db::{api::view::internal::Base, graph::views::vertex_subgraph::VertexSubgraph},
 };
 
 /// Core functions that should (almost-)always be implemented by pointing at the underlying graph.
@@ -208,6 +213,13 @@ pub trait CoreGraphOps {
         e: EdgeRef,
         layer_ids: LayerIds,
     ) -> Box<dyn Iterator<Item = LockedView<'a, String>> + 'a>;
+
+    fn core_edges(&self) -> Box<dyn Iterator<Item = ArcEntry<EdgeStore>>>;
+
+    fn core_edge(&self, eid: EID) -> ArcEntry<EdgeStore>;
+    fn core_vertices(&self) -> Box<dyn Iterator<Item = ArcEntry<VertexStore>>>;
+
+    fn core_vertex(&self, vid: VID) -> ArcEntry<VertexStore>;
 }
 
 pub trait InheritCoreOps: Base {}
@@ -339,5 +351,21 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
         layer_ids: LayerIds,
     ) -> Box<dyn Iterator<Item = LockedView<'a, String>> + 'a> {
         self.graph().temporal_edge_prop_names(e, layer_ids)
+    }
+
+    fn core_edges(&self) -> Box<dyn Iterator<Item = ArcEntry<EdgeStore>>> {
+        self.graph().core_edges()
+    }
+
+    fn core_edge(&self, eid: EID) -> ArcEntry<EdgeStore> {
+        self.graph().core_edge(eid)
+    }
+
+    fn core_vertices(&self) -> Box<dyn Iterator<Item = ArcEntry<VertexStore>>> {
+        self.graph().core_vertices()
+    }
+
+    fn core_vertex(&self, vid: VID) -> ArcEntry<VertexStore> {
+        self.graph().core_vertex(vid)
     }
 }

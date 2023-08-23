@@ -8,7 +8,7 @@ use crate::core::{
     storage::{
         iter::Iter,
         lazy_vec::IllegalSet,
-        timeindex::{AsTime, TimeIndex, TimeIndexEntry},
+        timeindex::{AsTime, TimeIndex, TimeIndexEntry, TimeIndexOps},
         ArcEntry,
     },
     utils::errors::MutateGraphError,
@@ -23,7 +23,7 @@ use std::{
 };
 
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
-pub(crate) struct VertexStore<const N: usize> {
+pub struct VertexStore {
     global_id: u64,
     pub(crate) vid: VID,
     // all the timestamps that have been seen by this vertex
@@ -34,7 +34,7 @@ pub(crate) struct VertexStore<const N: usize> {
     pub(crate) props: Option<Props>,
 }
 
-impl<const N: usize> VertexStore<N> {
+impl VertexStore {
     pub fn new(global_id: u64, t: TimeIndexEntry) -> Self {
         let mut layers = Vec::with_capacity(1);
         layers.push(Adj::Solo);
@@ -74,7 +74,7 @@ impl<const N: usize> VertexStore<N> {
     }
 
     #[inline(always)]
-    pub(crate) fn find_edge(&self, dst: VID, layer_id: LayerIds) -> Option<EID> {
+    pub(crate) fn find_edge(&self, dst: VID, layer_id: &LayerIds) -> Option<EID> {
         match layer_id {
             LayerIds::All => match self.layers.len() {
                 0 => None,
@@ -86,7 +86,7 @@ impl<const N: usize> VertexStore<N> {
             },
             LayerIds::One(layer_id) => self
                 .layers
-                .get(layer_id)
+                .get(*layer_id)
                 .and_then(|layer| layer.get_edge(dst, Direction::OUT)),
             LayerIds::Multiple(layers) => layers.iter().find_map(|layer_id| {
                 self.layers
@@ -133,7 +133,7 @@ impl<const N: usize> VertexStore<N> {
 
     pub(crate) fn edge_tuples<'a>(
         &'a self,
-        layers: LayerIds,
+        layers: &LayerIds,
         d: Direction,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send + 'a> {
         let self_id = self.vid;
@@ -141,7 +141,7 @@ impl<const N: usize> VertexStore<N> {
             Direction::OUT => self.merge_layers(layers, Direction::OUT, self_id),
             Direction::IN => self.merge_layers(layers, Direction::IN, self_id),
             Direction::BOTH => Box::new(
-                self.edge_tuples(layers.clone(), Direction::OUT)
+                self.edge_tuples(layers, Direction::OUT)
                     .merge_by(self.edge_tuples(layers, Direction::IN), |e1, e2| {
                         e1.remote() < e2.remote()
                     }),
@@ -152,7 +152,7 @@ impl<const N: usize> VertexStore<N> {
 
     fn merge_layers(
         &self,
-        layers: LayerIds,
+        layers: &LayerIds,
         d: Direction,
         self_id: VID,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send + '_> {
@@ -165,7 +165,7 @@ impl<const N: usize> VertexStore<N> {
                     .dedup(),
             ),
             LayerIds::One(id) => {
-                if let Some(layer) = self.layers.get(id) {
+                if let Some(layer) = self.layers.get(*id) {
                     Box::new(self.iter_adj(layer, d, self_id))
                 } else {
                     Box::new(std::iter::empty())
@@ -204,7 +204,7 @@ impl<const N: usize> VertexStore<N> {
         iter
     }
 
-    pub(crate) fn degree(&self, layers: LayerIds, d: Direction) -> usize {
+    pub(crate) fn degree(&self, layers: &LayerIds, d: Direction) -> usize {
         match layers {
             LayerIds::All => match self.layers.len() {
                 0 => 0,
@@ -217,7 +217,11 @@ impl<const N: usize> VertexStore<N> {
                     .dedup()
                     .count(),
             },
-            LayerIds::One(l) => self.layers.get(l).map(|layer| layer.degree(d)).unwrap_or(0),
+            LayerIds::One(l) => self
+                .layers
+                .get(*l)
+                .map(|layer| layer.degree(d))
+                .unwrap_or(0),
             LayerIds::None => 0,
             LayerIds::Multiple(ids) => ids
                 .iter()
@@ -312,10 +316,14 @@ impl<const N: usize> VertexStore<N> {
             .map(|ps| ps.temporal_prop_ids())
             .unwrap_or_default()
     }
+
+    pub(crate) fn active(&self, w: Range<i64>) -> bool {
+        self.timestamps.active(w)
+    }
 }
 
-impl<const N: usize> ArcEntry<VertexStore<N>, N> {
-    pub fn into_layers(self) -> LockedLayers<N> {
+impl ArcEntry<VertexStore> {
+    pub fn into_layers(self) -> LockedLayers {
         let len = self.layers.len();
         LockedLayers {
             entry: self,
@@ -324,7 +332,7 @@ impl<const N: usize> ArcEntry<VertexStore<N>, N> {
         }
     }
 
-    pub fn into_layer(self, offset: usize) -> LockedLayer<N> {
+    pub fn into_layer(self, offset: usize) -> LockedLayer {
         LockedLayer {
             entry: self,
             offset,
@@ -332,14 +340,14 @@ impl<const N: usize> ArcEntry<VertexStore<N>, N> {
     }
 }
 
-pub(crate) struct LockedLayers<const N: usize> {
-    entry: ArcEntry<VertexStore<N>, N>,
+pub struct LockedLayers {
+    entry: ArcEntry<VertexStore>,
     pos: usize,
     len: usize,
 }
 
-impl<const N: usize> Iterator for LockedLayers<N> {
-    type Item = LockedLayer<N>;
+impl Iterator for LockedLayers {
+    type Item = LockedLayer;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.pos < self.len {
@@ -359,12 +367,12 @@ impl<const N: usize> Iterator for LockedLayers<N> {
     }
 }
 
-pub(crate) struct LockedLayer<const N: usize> {
-    entry: ArcEntry<VertexStore<N>, N>,
+pub struct LockedLayer {
+    entry: ArcEntry<VertexStore>,
     offset: usize,
 }
 
-impl<const N: usize> Deref for LockedLayer<N> {
+impl Deref for LockedLayer {
     type Target = Adj;
 
     fn deref(&self) -> &Self::Target {
@@ -372,8 +380,8 @@ impl<const N: usize> Deref for LockedLayer<N> {
     }
 }
 
-impl<const N: usize> LockedLayer<N> {
-    pub fn into_tuples(self, dir: Dir) -> PagedAdjIter<N, 256> {
+impl LockedLayer {
+    pub fn into_tuples(self, dir: Dir) -> PagedAdjIter<256> {
         let mut page = [(VID(0), EID(0)); 256];
         let page_size = self.fill_page(None, &mut page, dir);
         PagedAdjIter {
@@ -386,15 +394,15 @@ impl<const N: usize> LockedLayer<N> {
     }
 }
 
-pub struct PagedAdjIter<const N: usize, const P: usize> {
-    layer: LockedLayer<N>,
+pub struct PagedAdjIter<const P: usize> {
+    layer: LockedLayer,
     page: [(VID, EID); P],
     page_offset: usize,
     page_size: usize,
     dir: Dir,
 }
 
-impl<const N: usize, const P: usize> Iterator for PagedAdjIter<N, P> {
+impl<const P: usize> Iterator for PagedAdjIter<P> {
     type Item = (VID, EID);
 
     fn next(&mut self) -> Option<Self::Item> {

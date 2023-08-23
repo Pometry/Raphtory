@@ -1,11 +1,14 @@
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
+        entities::{
+            edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
+            LayerIds, VID,
+        },
         storage::timeindex::TimeIndexOps,
         Prop,
     },
     db::api::view::{
-        internal::{Base, CoreGraphOps, GraphOps},
+        internal::{Base, CoreGraphOps, EdgeFilter, GraphOps},
         BoxedIter,
     },
 };
@@ -34,31 +37,14 @@ pub trait TimeSemantics: GraphOps + CoreGraphOps {
     }
 
     /// Returns the timestamp for the earliest activity
-    fn earliest_time_global(&self) -> Option<i64> {
-        self.vertex_refs()
-            .flat_map(|v| self.vertex_earliest_time(v))
-            .min()
-    }
-
+    fn earliest_time_global(&self) -> Option<i64>;
     /// Returns the timestamp for the latest activity
-    fn latest_time_global(&self) -> Option<i64> {
-        self.vertex_refs()
-            .flat_map(|v| self.vertex_latest_time(v))
-            .max()
-    }
+    fn latest_time_global(&self) -> Option<i64>;
     /// Returns the timestamp for the earliest activity in the window
-    fn earliest_time_window(&self, t_start: i64, t_end: i64) -> Option<i64> {
-        self.vertex_refs()
-            .flat_map(|v| self.vertex_earliest_time_window(v, t_start, t_end))
-            .min()
-    }
+    fn earliest_time_window(&self, t_start: i64, t_end: i64) -> Option<i64>;
 
     /// Returns the timestamp for the latest activity in the window
-    fn latest_time_window(&self, t_start: i64, t_end: i64) -> Option<i64> {
-        self.vertex_refs()
-            .flat_map(|v| self.vertex_latest_time_window(v, t_start, t_end))
-            .max()
-    }
+    fn latest_time_window(&self, t_start: i64, t_end: i64) -> Option<i64>;
 
     /// Return the earliest time for a vertex in a window
     fn vertex_earliest_time_window(&self, v: VID, t_start: i64, t_end: i64) -> Option<i64> {
@@ -70,10 +56,16 @@ pub trait TimeSemantics: GraphOps + CoreGraphOps {
         self.vertex_additions(v).range(t_start..t_end).last_t()
     }
     /// check if vertex `v` should be included in window `w`
-    fn include_vertex_window(&self, v: VID, w: Range<i64>) -> bool;
+    fn include_vertex_window(
+        &self,
+        v: VID,
+        w: Range<i64>,
+        layer_ids: &LayerIds,
+        edge_filter: Option<EdgeFilter>,
+    ) -> bool;
 
     /// check if edge `e` should be included in window `w`
-    fn include_edge_window(&self, e: EdgeRef, w: Range<i64>, layer_ids: LayerIds) -> bool;
+    fn include_edge_window(&self, e: &EdgeStore, w: Range<i64>, layer_ids: &LayerIds) -> bool;
 
     /// Get the timestamps at which a vertex `v` is active (i.e has an edge addition)
     fn vertex_history(&self, v: VID) -> Vec<i64> {
@@ -314,11 +306,18 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
         self.graph().vertex_latest_time_window(v, t_start, t_end)
     }
 
-    fn include_vertex_window(&self, v: VID, w: Range<i64>) -> bool {
-        self.graph().include_vertex_window(v, w)
+    fn include_vertex_window(
+        &self,
+        v: VID,
+        w: Range<i64>,
+        layer_ids: &LayerIds,
+        edge_filter: Option<EdgeFilter>,
+    ) -> bool {
+        self.graph()
+            .include_vertex_window(v, w, layer_ids, edge_filter)
     }
 
-    fn include_edge_window(&self, e: EdgeRef, w: Range<i64>, layer_ids: LayerIds) -> bool {
+    fn include_edge_window(&self, e: &EdgeStore, w: Range<i64>, layer_ids: &LayerIds) -> bool {
         self.graph().include_edge_window(e, w, layer_ids)
     }
 
