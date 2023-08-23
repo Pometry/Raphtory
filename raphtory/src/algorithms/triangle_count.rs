@@ -3,7 +3,7 @@ use crate::{
     core::state::{accumulator_id::accumulators, compute_state::ComputeStateVec},
     db::{
         api::view::*,
-        graph::views::vertex_subgraph::{self, VertexSubgraph},
+        graph::views::vertex_subgraph::VertexSubgraph,
         task::{
             context::Context,
             task::{ATask, Job, Step},
