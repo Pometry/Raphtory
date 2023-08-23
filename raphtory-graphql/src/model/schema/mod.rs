@@ -20,11 +20,9 @@ fn get_vertex_type<G: GraphViewOps>(vertex: VertexView<G>) -> String {
 
 type SchemaAggregate = HashMap<String, HashSet<String>>;
 
-fn merge_schemas(s1: SchemaAggregate, s2: SchemaAggregate) -> SchemaAggregate {
-    let mut merged_map = s1.clone();
-
+fn merge_schemas(mut s1: SchemaAggregate, s2: SchemaAggregate) -> SchemaAggregate {
     for (key, set2) in s2 {
-        if let Some(set1) = merged_map.get_mut(&key) {
+        if let Some(set1) = s1.get_mut(&key) {
             // Here, an empty set means: too many values to be interpreted as an enumerated type
             if set1.len() > 0 && set2.len() > 0 {
                 set1.extend(set2);
@@ -33,9 +31,9 @@ fn merge_schemas(s1: SchemaAggregate, s2: SchemaAggregate) -> SchemaAggregate {
                 set1.clear();
             }
         } else {
-            merged_map.insert(key, set2);
+            s1.insert(key, set2);
         }
     }
 
-    merged_map
+    s1
 }
