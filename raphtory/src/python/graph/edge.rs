@@ -5,7 +5,7 @@
 //! edge as it existed at a particular point in time, or as it existed over a particular time range.
 //!
 use crate::{
-    core::utils::time::error::ParseTimeError,
+    core::{utils::time::error::ParseTimeError, Direction},
     db::{
         api::{
             properties::Properties,
@@ -35,7 +35,8 @@ use crate::{
     },
 };
 use chrono::NaiveDateTime;
-use pyo3::{prelude::*, pyclass::CompareOp};
+use pyo3::{prelude::*, pyclass::CompareOp, types::PyString};
+use serde_json::to_string;
 use std::{
     collections::hash_map::DefaultHasher,
     hash::{Hash, Hasher},
@@ -538,5 +539,61 @@ impl PyNestedEdges {
             iter
         })
         .into()
+    }
+}
+
+#[pyclass]
+#[derive(Clone)]
+pub struct PyDirection {
+    inner: Direction,
+}
+
+#[pymethods]
+impl PyDirection {
+    #[new]
+    pub fn new(direction: &str) -> Self {
+        match direction {
+            "OUT" => PyDirection {
+                inner: Direction::OUT,
+            },
+            "IN" => PyDirection {
+                inner: Direction::IN,
+            },
+            "BOTH" => PyDirection {
+                inner: Direction::BOTH,
+            },
+            _ => panic!("Invalid direction"),
+        }
+    }
+
+    fn as_str(&self) -> &str {
+        match self.inner {
+            Direction::OUT => "OUT",
+            Direction::IN => "IN",
+            Direction::BOTH => "BOTH",
+        }
+    }
+}
+
+impl Into<Direction> for PyDirection {
+    fn into(self) -> Direction {
+        self.inner
+    }
+}
+
+impl From<String> for PyDirection {
+    fn from(s: String) -> Self {
+        match s.to_uppercase().as_str() {
+            "OUT" => PyDirection {
+                inner: Direction::OUT,
+            },
+            "IN" => PyDirection {
+                inner: Direction::IN,
+            },
+            "BOTH" => PyDirection {
+                inner: Direction::BOTH,
+            },
+            _ => panic!("Invalid direction string"),
+        }
     }
 }

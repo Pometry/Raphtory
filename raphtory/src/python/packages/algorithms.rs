@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use crate::python::graph::edge::PyDirection;
 /// Implementations of various graph algorithms that can be run on a graph.
 ///
 /// To run an algorithm simply import the module and call the function with the graph as the argument
@@ -27,6 +28,7 @@ use crate::{
             global_reciprocity as global_reciprocity_rs,
         },
         temporal_reachability::temporally_reachable_nodes as temporal_reachability_rs,
+        weight_accum::sum_weights_edges as sum_weights_edges_rs,
     },
     core::entities::vertices::vertex_ref::VertexRef,
     python::{graph::views::graph_view::PyGraphView, utils::PyInputVertex},
@@ -369,4 +371,15 @@ pub fn hits(
     threads: Option<usize>,
 ) -> AlgorithmResult<String, (f32, f32)> {
     hits_rs(&g.graph, iter_count, threads)
+}
+
+#[pyfunction]
+#[pyo3[signature = (g, name="weight".to_string(), direction=PyDirection::new("BOTH"),  threads=None)]]
+pub fn sum_weights_edges(
+    g: &PyGraphView,
+    name: String,
+    direction: PyDirection,
+    threads: Option<usize>,
+) -> AlgorithmResult<String, OrderedFloat<f64>> {
+    sum_weights_edges_rs(&g.graph, name.clone(), direction.into(), threads)
 }
