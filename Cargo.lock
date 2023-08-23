@@ -1695,6 +1695,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "kdam"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eec124c5ef865373afd03f7900161495339c59cef395a6dc45d025bcd6499b0b"
+dependencies = [
+ "terminal_size",
+ "windows-sys 0.48.0",
+]
+
+[[package]]
 name = "lazy_static"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2764,6 +2774,7 @@ dependencies = [
  "futures",
  "genawaiter",
  "itertools",
+ "kdam",
  "lock_api",
  "neo4rs",
  "num",
@@ -3611,6 +3622,16 @@ dependencies = [
  "cfg-if 1.0.0",
  "fastrand",
  "redox_syscall 0.3.5",
+ "rustix 0.37.20",
+ "windows-sys 0.48.0",
+]
+
+[[package]]
+name = "terminal_size"
+version = "0.2.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8e6bf6f19e9f8ed8d4048dc22981458ebcf406d67e94cd422e5ecd73d63b3237"
+dependencies = [
  "rustix 0.37.20",
  "windows-sys 0.48.0",
 ]

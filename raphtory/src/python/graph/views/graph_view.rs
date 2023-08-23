@@ -334,6 +334,12 @@ impl PyGraphView {
         self.graph.layer(names)
     }
 
+    #[doc = layers_doc_string!()]
+    #[pyo3(signature = (name))]
+    pub fn layer(&self, name: String) -> Option<LayeredGraph<DynamicGraph>> {
+        self.graph.layer(name)
+    }
+
     /// Get all graph properties
     ///
     ///

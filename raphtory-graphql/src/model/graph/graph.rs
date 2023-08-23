@@ -80,8 +80,9 @@ impl GqlGraph {
 
 #[ResolvedObjectFields]
 impl GqlGraph {
-    async fn window(&self, t_start: i64, t_end: i64) -> GqlGraph {
-        let w = self.graph.window(t_start, t_end);
+    /// Return a graph containing only the activity between `start` and `end` measured as milliseconds from epoch
+    async fn window(&self, start: i64, end: i64) -> GqlGraph {
+        let w = self.graph.window(start, end);
         w.into()
     }
 
