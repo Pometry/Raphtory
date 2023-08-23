@@ -37,11 +37,11 @@ impl WccState {
 ///
 /// An AlgorithmResult containing the mapping with the Vector and component ID
 ///
-pub fn weakly_connected_components<G>(
+pub fn weakly_connected_components<G: GraphViewOps>(
     graph: &G,
     iter_count: usize,
     threads: Option<usize>,
-) -> AlgorithmResult<VertexView<G>, u64>
+) -> AlgorithmResult<u64, G>
 where
     G: GraphViewOps,
 {
@@ -76,35 +76,27 @@ where
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
 
-    let res = runner
-        .run(
-            vec![Job::new(step1)],
-            vec![Job::read_only(step2)],
-            WccState::new(),
-            |_, _, _, local| {
-                local
-                    .iter()
-                    .enumerate()
-                    .map(|(v_ref, state)| (v_ref.into(), state.component))
-                    .collect::<HashMap<_, _>>()
-            },
-            threads,
-            iter_count,
-            None,
-            None,
-        )
-        .into_iter()
-        .map(|(node, value)| {
-            (
-                VertexView {
-                    graph: graph.clone(),
-                    vertex: node,
-                },
-                value,
-            )
-        })
-        .collect();
-    AlgorithmResult::new(res)
+    let res: HashMap<usize, u64> = runner.run(
+        vec![Job::new(step1)],
+        vec![Job::read_only(step2)],
+        WccState::new(),
+        |_, _, _, local| {
+            local
+                .iter()
+                .enumerate()
+                .map(|(v_ref, state)| (v_ref.into(), state.component))
+                .collect::<HashMap<_, _>>()
+        },
+        threads,
+        iter_count,
+        None,
+        None,
+    );
+    let mut new_res: Vec<u64> = vec![];
+    for (node, value) in res.into_iter() {
+        new_res.insert(node, value)
+    }
+    AlgorithmResult::new(new_res, graph.clone())
 }
 
 #[cfg(test)]
@@ -306,8 +298,8 @@ mod cc_test {
             }
 
             // now we do connected components over window 0..1
-
-            let res: AlgorithmResult<VertexView<Graph>, u64> =
+            // let res: AlgorithmResult<VertexView<Graph>, u64> =
+            let res: AlgorithmResult<u64, Graph> =
                 weakly_connected_components(&graph, usize::MAX, None);
 
             let actual = res
@@ -317,7 +309,7 @@ mod cc_test {
                 .into_iter()
                 .map(|(cc, group)| (cc, Reverse(group.count())))
                 .sorted_by(|l, r| l.1.cmp(&r.1))
-                .map(|(cc, count)| (*cc, count.0))
+                .map(|(cc, count)| (cc, count.0))
                 .take(1)
                 .next();
 

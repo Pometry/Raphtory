@@ -102,10 +102,7 @@ fn twonode_motif_count<G: GraphViewOps>(graph: &G, v: u64, delta: i64) -> [usize
     counts
 }
 
-fn triangle_motif_count<G: GraphViewOps>(
-    graph: &G,
-    delta: i64,
-) -> AlgorithmResult<u64, Vec<usize>> {
+fn triangle_motif_count<G: GraphViewOps>(graph: &G, delta: i64) -> AlgorithmResult<Vec<usize>, G> {
     let mut counts: HashMap<u64, Vec<usize>> = HashMap::new();
     for u in graph.vertices() {
         counts.insert(u.id(), vec![0; 8]);
@@ -235,7 +232,12 @@ fn triangle_motif_count<G: GraphViewOps>(
             }
         }
     }
-    AlgorithmResult::new(counts)
+
+    let mut final_results: Vec<Vec<usize>> = vec![];
+    counts
+        .into_iter()
+        .for_each(|(k, v)| final_results.insert(k as usize, v));
+    AlgorithmResult::new(final_results, graph.clone())
 }
 
 /// Computes the number of each type of motif that each node participates in.
@@ -261,7 +263,7 @@ fn triangle_motif_count<G: GraphViewOps>(
 pub fn local_temporal_three_node_motifs<G: GraphViewOps>(
     graph: &G,
     delta: i64,
-) -> AlgorithmResult<u64, Vec<usize>> {
+) -> AlgorithmResult<Vec<usize>, G> {
     let mut counts = triangle_motif_count(graph, delta).get_all().to_owned();
     for v in graph.vertices() {
         let vid = v.id();
@@ -275,10 +277,10 @@ pub fn local_temporal_three_node_motifs<G: GraphViewOps>(
         let mut final_cts = Vec::new();
         final_cts.extend(stars.into_iter());
         final_cts.extend(two_nodes.into_iter());
-        final_cts.extend(counts.get(&vid).unwrap().into_iter());
-        counts.insert(vid, final_cts);
+        final_cts.extend(counts.get(vid as usize).unwrap().into_iter());
+        counts.insert(vid as usize, final_cts);
     }
-    AlgorithmResult::new(counts)
+    AlgorithmResult::new(counts, graph.clone())
 }
 
 /// Computes the number of each type of motif there is in the graph.

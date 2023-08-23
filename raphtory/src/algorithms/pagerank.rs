@@ -6,6 +6,7 @@ use crate::{
     },
     db::{
         api::view::{GraphViewOps, VertexViewOps},
+        graph::vertex::VertexView,
         task::{
             context::Context,
             task::{ATask, Job, Step},
@@ -58,7 +59,7 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
     threads: Option<usize>,
     tol: Option<f64>,
     use_l2_norm: bool,
-) -> AlgorithmResult<String, OrderedFloat<f64>> {
+) -> AlgorithmResult<OrderedFloat<f64>, G> {
     let n = g.num_vertices();
     let total_edges = g.num_edges();
 
@@ -177,7 +178,15 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
 
     let res = out
         .into_iter()
-        .map(|(k, v)| (g.vertex_name(k), v))
+        .map(|(node, value)| {
+            (
+                VertexView {
+                    graph: g.clone(),
+                    vertex: node,
+                },
+                value,
+            )
+        })
         .collect();
 
     AlgorithmResult::new_with_float(res)
@@ -212,7 +221,7 @@ mod page_rank_tests {
     fn test_page_rank() {
         let graph = load_graph();
 
-        let results: AlgorithmResult<String, OrderedFloat<f64>> =
+        let results: AlgorithmResult<VertexView<Graph>, OrderedFloat<f64>> =
             unweighted_page_rank(&graph, 1000, Some(1), None, true);
 
         assert_eq_f64(

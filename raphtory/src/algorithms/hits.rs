@@ -38,7 +38,7 @@ pub fn hits<G: GraphViewOps>(
     g: &G,
     iter_count: usize,
     threads: Option<usize>,
-) -> AlgorithmResult<String, (f32, f32)> {
+) -> AlgorithmResult<(f32, f32), G> {
     let mut ctx: Context<G, ComputeStateVec> = g.into();
 
     let recv_hub_score = sum::<f32>(2);
@@ -133,9 +133,8 @@ pub fn hits<G: GraphViewOps>(
             let mut hubs = HashMap::new();
             let mut auths = HashMap::new();
             for (v_ref, hit) in local.iter().enumerate() {
-                let v_gid = g.vertex_name(v_ref.into());
-                hubs.insert(v_gid.clone(), hit.hub_score);
-                auths.insert(v_gid, hit.auth_score);
+                hubs.insert(v_ref, hit.hub_score);
+                auths.insert(v_ref, hit.auth_score);
             }
             (hubs, auths)
         },
@@ -145,25 +144,28 @@ pub fn hits<G: GraphViewOps>(
         None,
     );
 
-    let mut results: HashMap<String, (f32, f32)> = HashMap::new();
+    let mut results: Vec<(f32, f32)> = vec![];
 
     hub_scores.into_iter().for_each(|(k, v)| {
         results.insert(k, (v, 0.0));
     });
 
     auth_scores.into_iter().for_each(|(k, v)| {
-        let (a, _) = results.get(&k).unwrap();
+        let (a, _) = results.get(k).unwrap();
         results.insert(k, (*a, v));
     });
 
-    AlgorithmResult::new(results)
+    AlgorithmResult::new(results, g.clone())
 }
 
 #[cfg(test)]
 mod hits_tests {
     use super::*;
     use crate::{
-        db::{api::mutation::AdditionOps, graph::graph::Graph},
+        db::{
+            api::{mutation::AdditionOps, view::internal::CoreGraphOps},
+            graph::graph::Graph,
+        },
         prelude::NO_PROPS,
     };
 
@@ -196,7 +198,7 @@ mod hits_tests {
             (8, 1),
         ]);
 
-        let results: AlgorithmResult<String, (f32, f32)> = hits(&graph, 20, None);
+        let results = hits(&graph, 20, None);
 
         // NetworkX results
         // >>> G = nx.DiGraph()
@@ -226,9 +228,14 @@ mod hits_tests {
         //     (7, (0.15393432485580819, 5.645162243895331e-17))
         //     (8, (0.02950848945012511, 0.05936290157587556)),
         // )
+        let result_as_vec: Vec<(String, (f32, f32))> = results
+            .sort_by_key(false)
+            .into_iter()
+            .map(|k| (k.0.graph.vertex_name(k.0.vertex), k.1))
+            .collect();
 
         assert_eq!(
-            results.sort_by_key(false),
+            result_as_vec,
             vec![
                 ("1".to_string(), (0.0431365, 0.096625775)),
                 ("2".to_string(), (0.14359662, 0.18366566)),

@@ -116,7 +116,7 @@ pub fn global_reciprocity<G: GraphViewOps>(g: &G, threads: Option<usize>) -> f64
 pub fn all_local_reciprocity<G: GraphViewOps>(
     g: &G,
     threads: Option<usize>,
-) -> AlgorithmResult<String, OrderedFloat<f64>> {
+) -> AlgorithmResult<OrderedFloat<f64>, G> {
     let mut ctx: Context<G, ComputeStateVec> = g.into();
 
     let min = sum(0);
