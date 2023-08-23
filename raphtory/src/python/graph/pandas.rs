@@ -750,6 +750,7 @@ mod test {
         let layer_in_df: Option<&str> = None;
         load_edges_from_df(
             &df,
+            5,
             "src",
             "dst",
             "time",
@@ -813,7 +814,7 @@ mod test {
         };
         let graph = Graph::new();
 
-        load_vertices_from_df(&df, "id", "time", Some(vec!["name"]), None, None, &graph)
+        load_vertices_from_df(&df, 3,"id", "time", Some(vec!["name"]), None, None, &graph)
             .expect("failed to load vertices from pretend df");
 
         let actual = graph

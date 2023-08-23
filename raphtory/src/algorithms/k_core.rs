@@ -12,8 +12,7 @@ use crate::{
     },
 };
 use std::{
-    cmp,
-    collections::{HashMap, HashSet},
+    collections::{HashSet},
 };
 
 #[derive(Clone, Debug)]
@@ -114,7 +113,7 @@ mod k_core_test {
     use std::collections::HashSet;
 
     use crate::{
-        algorithms::{k_core::k_core_set, triangle_count::triangle_count},
+        algorithms::{k_core::k_core_set},
         prelude::*,
     };
 
