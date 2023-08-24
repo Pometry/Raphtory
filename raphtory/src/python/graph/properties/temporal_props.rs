@@ -711,6 +711,28 @@ impl PyPropHistValueListList {
         (move || builder().map(|it| it.map(|itit| itit.len()))).into()
     }
 
+    pub fn median(&self) -> PyPropValueListList {
+        let builder = self.builder.clone();
+        (move || {
+            builder().map(|it| {
+                it.map(|itit| {
+                    let mut sorted: Vec<Prop> = itit.into_iter().collect();
+                    sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+                    let len = sorted.len();
+                    match len {
+                        0 => None,
+                        1 => Some(sorted[0].clone()),
+                        _ => {
+                            let a = &sorted[len / 2];
+                            Some(a.clone())
+                        }
+                    }
+                })
+            })
+        })
+        .into()
+    }
+
     pub fn sum(&self) -> PyPropValueListList {
         let builder = self.builder.clone();
         (move || {
@@ -718,7 +740,7 @@ impl PyPropHistValueListList {
                 it.map(|itit| {
                     let mut itit_iter = itit.into_iter();
                     let first = itit_iter.next();
-                    itit_iter.fold(first, |acc, elem| match (acc) {
+                    itit_iter.fold(first, |acc, elem| match acc {
                         Some(a) => a.add(elem),
                         _ => None,
                     })
@@ -736,6 +758,20 @@ impl PropIterable {
         let first = it_iter.next();
         it_iter.fold(first, |acc, elem| acc.and_then(|val| val.add(elem)))
     }
+
+    pub fn median(&self) -> PropValue {
+        let mut sorted: Vec<Prop> = self.iter().collect();
+        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+        let len = sorted.len();
+        match len {
+            0 => None,
+            1 => Some(sorted[0].clone()),
+            _ => {
+                let a = &sorted[len / 2];
+                Some(a.clone())
+            }
+        }
+    }
 }
 
 #[pymethods]
@@ -750,6 +786,20 @@ impl PyPropHistValueList {
             })
         })
         .into()
+    }
+
+    pub fn median(&self) -> PropValue {
+        let mut sorted: Vec<Prop> = self.iter().flat_map(|v| v.into_iter()).collect();
+        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+        let len = sorted.len();
+        match len {
+            0 => None,
+            1 => Some(sorted[0].clone()),
+            _ => {
+                let a = &sorted[len / 2];
+                Some(a.clone())
+            }
+        }
     }
 
     pub fn count(&self) -> UsizeIterable {
@@ -780,6 +830,20 @@ impl PyPropValueList {
         let builder = self.builder.clone();
         (move || builder().filter(|x| x.is_some())).into()
     }
+
+    pub fn median(&self) -> PropValue {
+        let mut sorted: Vec<PropValue> = self.iter().collect();
+        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+        let len = sorted.len();
+        match len {
+            0 => None,
+            1 => sorted[0].clone(),
+            _ => {
+                let a = &sorted[len / 2];
+                a.clone()
+            }
+        }
+    }
 }
 
 #[pymethods]
@@ -796,6 +860,26 @@ impl PyPropValueListList {
                     (None, Some(b)) => Some(b),
                     _ => None,
                 })
+            })
+        })
+        .into()
+    }
+
+    pub fn median(&self) -> PyPropValueList {
+        let builder = self.builder.clone();
+        (move || {
+            builder().map(|it| {
+                let mut sorted: Vec<PropValue> = it.into_iter().collect();
+                sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+                let len = sorted.len();
+                match len {
+                    0 => None,
+                    1 => sorted[0].clone(),
+                    _ => {
+                        let a = &sorted[len / 2];
+                        a.clone()
+                    }
+                }
             })
         })
         .into()

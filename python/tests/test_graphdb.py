@@ -1660,54 +1660,22 @@ def test_pyprophistvaluelist_sum():
     res = sorted(v.out_edges().properties.temporal.get("value_dec").values().sum())
     assert res == [2, 10, 20]
 
+    res = sorted(v.out_edges().properties.temporal.get("value_dec").values().count())
+    assert res == [1, 1, 1]
 
-def test_pyprophistvalue_sum():
-    g = Graph()
-    edges_str = [
-        ("1", "2", 10, 1),
-        ("1", "4", 20, 2),
-        ("2", "3", 5, 3),
-        ("3", "2", 2, 4),
-        ("3", "1", 1, 5),
-        ("4", "3", 10, 6),
-        ("4", "1", 5, 7),
-        ("1", "5", 2, 8)
-    ]
-    for (src, dst, val, time) in edges_str:
-        g.add_edge(time, src, dst, {'value_dec': val})
-
-    v = g.vertex("1")
     res = v.out_edges().properties.temporal.get("value_dec").values().sum().sum()
     assert res == 32
 
-
-def test_pyprophistvaluelist_count():
-    g = Graph()
-    edges_str = [
-        ("1", "2", 10, 1),
-        ("1", "2", 10, 1),
-        ("1", "2", 10, 1),
-        ("1", "4", 20, 2),
-        ("2", "3", 5, 3),
-        ("3", "2", 2, 4),
-        ("3", "1", 1, 5),
-        ("4", "3", 10, 6),
-        ("4", "1", 5, 7),
-        ("1", "5", 2, 8)
-    ]
-    for (src, dst, val, time) in edges_str:
-        g.add_edge(time, src, dst, {'value_dec': val})
-
-    v = g.vertex("1")
-    res = sorted(v.out_edges().properties.temporal.get("value_dec").values().count())
-    assert res == [1, 1, 3]
-
     res = v.out_edges().properties.temporal.get("value_dec").values().count().sum()
-    assert res == 5
+    assert res == 3
+
+    res = v.out_edges().properties.temporal.get("value_dec").values().median()
+    assert res == 10
 
 
 def test_propiterable():
-    g = Graph()
+    import raphtory
+    g = raphtory.Graph()
     edges_str = [
         ("1", "2", 10, 1),
         ("1", "2", 10, 1),
@@ -1728,23 +1696,7 @@ def test_propiterable():
     assert sorted(result) == [2, 10, 10, 10, 20]
     assert result.sum() == 52
     assert v.out_edges().properties.get("value_dec").sum() == 32
-
-def test_pypropvaluelistlist():
-    g = Graph()
-    edges_str = [
-        ("1", "2", 10, 1),
-        ("1", "2", 10, 1),
-        ("1", "2", 10, 1),
-        ("1", "4", 20, 2),
-        ("2", "3", 5, 3),
-        ("3", "2", 2, 4),
-        ("3", "1", 1, 5),
-        ("4", "3", 10, 6),
-        ("4", "1", 5, 7),
-        ("1", "5", 2, 8),
-    ]
-    for (src, dst, val, time) in edges_str:
-        g.add_edge(time, src, dst, {'value_dec': val})
+    assert v.out_edges().properties.get("value_dec").median() == 10
 
     total = g.vertices.in_edges().properties.get("value_dec").sum()
     assert sorted(total) == [2, 6, 12, 15, 20]
@@ -1758,5 +1710,19 @@ def test_pypropvaluelistlist():
     total = g.vertices.out_edges().properties.get("value_dec").sum().sum()
     assert total == 55
 
+    total = g.vertices.out_edges().properties.get("value_dec").sum().median()
+    assert total == 5
+
+    total = g.vertices.out_edges().properties.get("value_dec").sum().drop_none()
+    assert sorted(total) == [3, 5, 15, 32]
+
+    total = g.vertices.out_edges().properties.get("value_dec").median()
+    assert list(total) == [10, 5, 10, 2, None]
+
+    total = g.vertex("1").in_edges().properties.get("value_dec").sum()
+    assert total == 6
+
+    total = g.vertex("1").in_edges().properties.get("value_dec").median()
+    assert total == 5
 
 
