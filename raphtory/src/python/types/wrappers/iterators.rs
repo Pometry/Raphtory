@@ -1,4 +1,5 @@
-use crate::{db::api::view::BoxedIter, python::types::repr::Repr};
+use crate::{db::api::view::BoxedIter, prelude::Prop, python::types::repr::Repr};
+use itertools::Itertools;
 use num::cast::AsPrimitive;
 use pyo3::prelude::*;
 use std::{i64, iter::Sum};
@@ -35,6 +36,9 @@ py_nested_ordered_iterable!(NestedU64U64Iterable, (u64, u64), OptionU64U64Iterab
 
 py_iterable!(OptionU64Iterable, Option<u64>, Option<u64>);
 _py_ord_max_min_methods!(OptionU64Iterable, Option<u64>);
+
+py_iterable!(PropIterable, Prop, Prop);
+py_iterable_comp!(PropIterable, Prop, PropIterableCmp);
 
 py_numeric_iterable!(I64Iterable, i64);
 py_nested_numeric_iterable!(NestedI64Iterable, i64, I64Iterable, OptionI64Iterable);

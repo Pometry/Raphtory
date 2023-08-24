@@ -8,7 +8,10 @@ use crate::{
         graph::properties::{DynProps, PyPropValueList, PyPropValueListList},
         types::{
             repr::{iterator_dict_repr, iterator_repr, Repr},
-            wrappers::prop::PropHistItems,
+            wrappers::{
+                iterators::{PropIterable, UsizeIterable},
+                prop::{PropHistItems, PropValue},
+            },
         },
         utils::{PyGenericIterator, PyTime},
     },
@@ -688,6 +691,52 @@ impl PyTemporalPropListList {
     pub fn value(&self) -> PyPropValueListList {
         let builder = self.builder.clone();
         (move || builder().map(|it| it.map(|p| p.and_then(|v| v.latest())))).into()
+    }
+}
+
+#[pymethods]
+impl PropIterable {
+    pub fn sum(&self) -> PropValue {
+        let mut it_iter = self.iter();
+        let first = it_iter.next();
+        it_iter.fold(first, |acc, elem| acc.and_then(|val| val.add(elem)))
+    }
+}
+
+#[pymethods]
+impl PyPropHistValueList {
+    pub fn sum(&self) -> PyPropValueList {
+        let builder = self.builder.clone();
+        (move || {
+            builder().map(|it| {
+                let mut it_iter = it.into_iter();
+                let first = it_iter.next();
+                it_iter.fold(first, |acc, elem| acc.and_then(|val| val.add(elem)))
+            })
+        })
+        .into()
+    }
+
+    pub fn count(&self) -> UsizeIterable {
+        let builder = self.builder.clone();
+        (move || builder().map(|it| it.len())).into()
+    }
+
+    pub fn flatten(&self) -> PropIterable {
+        let builder = self.builder.clone();
+        (move || builder().flatten()).into()
+    }
+}
+
+#[pymethods]
+impl PyPropValueList {
+    pub fn sum(&self) -> Option<Prop> {
+        self.iter()
+            .reduce(|acc, elem| match (acc, elem) {
+                (Some(a), Some(b)) => a.add(b),
+                _ => None,
+            })
+            .flatten()
     }
 }
 

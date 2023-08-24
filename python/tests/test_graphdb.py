@@ -271,6 +271,7 @@ def test_getitem():
 
     assert g.vertex(1).properties.temporal.get("cost") == g.vertex(1).properties.temporal["cost"]
 
+
 def test_graph_properties():
     g = create_graph()
 
@@ -1000,7 +1001,7 @@ def test_edge_history():
     view = g.window(1, 5)
 
     assert (g.edge(1, 2).history() == [1, 3])
-    assert(view.edge(1, 4).history() == [4])
+    assert (view.edge(1, 4).history() == [4])
 
 
 def test_lotr_edge_history():
@@ -1412,7 +1413,6 @@ def test_deletions():
     assert list(g.edge(edges[0][1], edges[0][2]).explode().latest_time()) == [10]
 
 
-
 def test_load_from_pandas():
     import pandas as pd
     df = pd.DataFrame({
@@ -1519,60 +1519,87 @@ def test_load_from_pandas_with_types():
         "weight": [1.0, 2.0, 3.0, 4.0, 5.0],
         "marbles": ["red", "blue", "green", "yellow", "purple"],
         "marbles_const": ["red", "blue", "green", "yellow", "purple"],
-        "layers":  ["layer 1", "layer 2", "layer 3", "layer 4", "layer 5"]
+        "layers": ["layer 1", "layer 2", "layer 3", "layer 4", "layer 5"]
     })
     vertices_df = pd.DataFrame({
         "id": [1, 2, 3, 4, 5, 6],
         "name": ["Alice", "Bob", "Carol", "Dave", "Eve", "Frank"],
         "time": [1, 2, 3, 4, 5, 6],
-        "type":  ["Person 1", "Person 2", "Person 3", "Person 4", "Person 5", "Person 6"]
+        "type": ["Person 1", "Person 2", "Person 3", "Person 4", "Person 5", "Person 6"]
     })
     g = Graph()
-    g.load_vertices_from_pandas(vertices_df, "id", "time", ["name"],shared_const_props={"type": "Person", "tag": "test_tag"})
-    assert g.vertices().properties.constant.get("type").collect() == ["Person", "Person", "Person", "Person", "Person", "Person"]
-    assert g.vertices().properties.constant.get("tag").collect() == ["test_tag", "test_tag", "test_tag", "test_tag", "test_tag", "test_tag"]
+    g.load_vertices_from_pandas(vertices_df, "id", "time", ["name"],
+                                shared_const_props={"type": "Person", "tag": "test_tag"})
+    assert g.vertices().properties.constant.get("type").collect() == ["Person", "Person", "Person", "Person", "Person",
+                                                                      "Person"]
+    assert g.vertices().properties.constant.get("tag").collect() == ["test_tag", "test_tag", "test_tag", "test_tag",
+                                                                     "test_tag", "test_tag"]
 
     g = Graph()
-    g.load_vertices_from_pandas(vertices_df, "id", "time", ["name"],const_props=["type"])
-    assert g.vertices().properties.constant.get("type").collect() == ["Person 1", "Person 2", "Person 3", "Person 4", "Person 5", "Person 6"]
+    g.load_vertices_from_pandas(vertices_df, "id", "time", ["name"], const_props=["type"])
+    assert g.vertices().properties.constant.get("type").collect() == ["Person 1", "Person 2", "Person 3", "Person 4",
+                                                                      "Person 5", "Person 6"]
 
     g = Graph()
-    g.load_edges_from_pandas(edges_df, "src", "dst", "time", ["weight", "marbles"], const_props=["marbles_const"], shared_const_props={"type": "Edge", "tag": "test_tag"}, layer="test_layer")
+    g.load_edges_from_pandas(edges_df, "src", "dst", "time", ["weight", "marbles"], const_props=["marbles_const"],
+                             shared_const_props={"type": "Edge", "tag": "test_tag"}, layer="test_layer")
 
     assert g.layers(["test_layer"]).edges().src().id().collect() == [1, 2, 3, 4, 5]
-    assert g.edges().properties.constant.get("type").collect() == [{'test_layer': 'Edge'},{'test_layer': 'Edge'},{'test_layer': 'Edge'},{'test_layer': 'Edge'},{'test_layer': 'Edge'}]
-    assert g.edges().properties.constant.get("tag").collect() == [{'test_layer': 'test_tag'},{'test_layer': 'test_tag'},{'test_layer': 'test_tag'},{'test_layer': 'test_tag'},{'test_layer': 'test_tag'}]
-    assert g.edges().properties.constant.get("marbles_const").collect() == [{'test_layer': 'red'},{'test_layer': 'blue'},{'test_layer': 'green'},{'test_layer': 'yellow'},{'test_layer': 'purple'}]
-
+    assert g.edges().properties.constant.get("type").collect() == [{'test_layer': 'Edge'}, {'test_layer': 'Edge'},
+                                                                   {'test_layer': 'Edge'}, {'test_layer': 'Edge'},
+                                                                   {'test_layer': 'Edge'}]
+    assert g.edges().properties.constant.get("tag").collect() == [{'test_layer': 'test_tag'},
+                                                                  {'test_layer': 'test_tag'},
+                                                                  {'test_layer': 'test_tag'},
+                                                                  {'test_layer': 'test_tag'},
+                                                                  {'test_layer': 'test_tag'}]
+    assert g.edges().properties.constant.get("marbles_const").collect() == [{'test_layer': 'red'},
+                                                                            {'test_layer': 'blue'},
+                                                                            {'test_layer': 'green'},
+                                                                            {'test_layer': 'yellow'},
+                                                                            {'test_layer': 'purple'}]
 
     g = Graph()
-    g.load_edges_from_pandas(edges_df, "src", "dst", "time", ["weight", "marbles"],layer_in_df="layers")
+    g.load_edges_from_pandas(edges_df, "src", "dst", "time", ["weight", "marbles"], layer_in_df="layers")
     assert g.layers(["layer 1"]).edges().src().id().collect() == [1]
-    assert g.layers(["layer 1","layer 2"]).edges().src().id().collect() == [1,2]
-    assert g.layers(["layer 1","layer 2","layer 3"]).edges().src().id().collect() == [1,2,3]
-    assert g.layers(["layer 1","layer 4","layer 5"]).edges().src().id().collect() == [1,4,5]
+    assert g.layers(["layer 1", "layer 2"]).edges().src().id().collect() == [1, 2]
+    assert g.layers(["layer 1", "layer 2", "layer 3"]).edges().src().id().collect() == [1, 2, 3]
+    assert g.layers(["layer 1", "layer 4", "layer 5"]).edges().src().id().collect() == [1, 4, 5]
 
-    g = Graph.load_from_pandas(edges_df, "src", "dst", "time", layer = "test_layer",vertex_df=vertices_df, vertex_col="id", vertex_time_col="time", vertex_props=["name"],vertex_shared_const_props={"type":"Person"})
-    assert g.vertices().properties.constant.get("type").collect() == ["Person", "Person", "Person", "Person", "Person", "Person"]
+    g = Graph.load_from_pandas(edges_df, "src", "dst", "time", layer="test_layer", vertex_df=vertices_df,
+                               vertex_col="id", vertex_time_col="time", vertex_props=["name"],
+                               vertex_shared_const_props={"type": "Person"})
+    assert g.vertices().properties.constant.get("type").collect() == ["Person", "Person", "Person", "Person", "Person",
+                                                                      "Person"]
     assert g.layers(["test_layer"]).edges().src().id().collect() == [1, 2, 3, 4, 5]
 
-    g = Graph.load_from_pandas(edges_df, "src", "dst", "time", layer_in_df = "layers",vertex_df=vertices_df, vertex_col="id", vertex_time_col="time", vertex_props=["name"],vertex_const_props=["type"])
-    assert g.vertices().properties.constant.get("type").collect() == ["Person 1", "Person 2", "Person 3", "Person 4", "Person 5", "Person 6"]
+    g = Graph.load_from_pandas(edges_df, "src", "dst", "time", layer_in_df="layers", vertex_df=vertices_df,
+                               vertex_col="id", vertex_time_col="time", vertex_props=["name"],
+                               vertex_const_props=["type"])
+    assert g.vertices().properties.constant.get("type").collect() == ["Person 1", "Person 2", "Person 3", "Person 4",
+                                                                      "Person 5", "Person 6"]
     assert g.layers(["layer 1"]).edges().src().id().collect() == [1]
-    assert g.layers(["layer 1","layer 2"]).edges().src().id().collect() == [1,2]
-    assert g.layers(["layer 1","layer 2","layer 3"]).edges().src().id().collect() == [1,2,3]
-    assert g.layers(["layer 1","layer 4","layer 5"]).edges().src().id().collect() == [1,4,5]
+    assert g.layers(["layer 1", "layer 2"]).edges().src().id().collect() == [1, 2]
+    assert g.layers(["layer 1", "layer 2", "layer 3"]).edges().src().id().collect() == [1, 2, 3]
+    assert g.layers(["layer 1", "layer 4", "layer 5"]).edges().src().id().collect() == [1, 4, 5]
 
     g = Graph.load_from_pandas(edges_df, src="src", dst="dst", time="time", props=["weight", "marbles"],
-                               vertex_df=vertices_df, vertex_col="id", vertex_time_col="time", vertex_props=["name"],layer_in_df="layers")
+                               vertex_df=vertices_df, vertex_col="id", vertex_time_col="time", vertex_props=["name"],
+                               layer_in_df="layers")
 
     g.load_vertex_props_from_pandas(vertices_df, "id", const_props=["type"], shared_const_props={"tag": "test_tag"})
-    assert g.vertices().properties.constant.get("type").collect() == ["Person 1", "Person 2", "Person 3", "Person 4", "Person 5", "Person 6"]
-    assert g.vertices().properties.constant.get("tag").collect() == ["test_tag", "test_tag", "test_tag", "test_tag", "test_tag", "test_tag"]
+    assert g.vertices().properties.constant.get("type").collect() == ["Person 1", "Person 2", "Person 3", "Person 4",
+                                                                      "Person 5", "Person 6"]
+    assert g.vertices().properties.constant.get("tag").collect() == ["test_tag", "test_tag", "test_tag", "test_tag",
+                                                                     "test_tag", "test_tag"]
 
-    g.load_edge_props_from_pandas(edges_df, "src", "dst", const_props=["marbles_const"], shared_const_props={"tag": "test_tag"},layer_in_df="layers")
-    assert g.layers(["layer 1", "layer 2", "layer 3"]).edges().properties.constant.get("marbles_const").collect() == [{'layer 1': 'red'}, {'layer 2': 'blue'}, {'layer 3': 'green'}]
-    assert g.edges().properties.constant.get("tag").collect() == [{'layer 1': 'test_tag'}, {'layer 2': 'test_tag'}, {'layer 3': 'test_tag'}, {'layer 4': 'test_tag'}, {'layer 5': 'test_tag'}]
+    g.load_edge_props_from_pandas(edges_df, "src", "dst", const_props=["marbles_const"],
+                                  shared_const_props={"tag": "test_tag"}, layer_in_df="layers")
+    assert g.layers(["layer 1", "layer 2", "layer 3"]).edges().properties.constant.get("marbles_const").collect() == [
+        {'layer 1': 'red'}, {'layer 2': 'blue'}, {'layer 3': 'green'}]
+    assert g.edges().properties.constant.get("tag").collect() == [{'layer 1': 'test_tag'}, {'layer 2': 'test_tag'},
+                                                                  {'layer 3': 'test_tag'}, {'layer 4': 'test_tag'},
+                                                                  {'layer 5': 'test_tag'}]
 
 
 def test_edge_layer():
@@ -1588,7 +1615,9 @@ def test_hits_algorithm():
     g = graph_loader.lotr_graph()
     assert algorithms.hits(g).get('Aldor') == (0.0035840950440615416, 0.007476256228983402)
 
+
 def test_sum_weights_algorithm():
+    import raphtory
     g = Graph()
     edges_str = [
         ("1", "2", 10.0, 1),
@@ -1612,3 +1641,90 @@ def test_sum_weights_algorithm():
     assert result == {'1': -32.0, '2': -5.0, '3': -3.0, '4': -15.0, '5': 0.0}
 
 
+def test_pyprophistvaluelist_sum():
+    g = Graph()
+    edges_str = [
+        ("1", "2", 10, 1),
+        ("1", "4", 20, 2),
+        ("2", "3", 5, 3),
+        ("3", "2", 2, 4),
+        ("3", "1", 1, 5),
+        ("4", "3", 10, 6),
+        ("4", "1", 5, 7),
+        ("1", "5", 2, 8)
+    ]
+    for (src, dst, val, time) in edges_str:
+        g.add_edge(time, src, dst, {'value_dec': val})
+
+    v = g.vertex("1")
+    res = sorted(v.out_edges().properties.temporal.get("value_dec").values().sum())
+    assert res == [2, 10, 20]
+
+
+def test_pyprophistvalue_sum():
+    g = Graph()
+    edges_str = [
+        ("1", "2", 10, 1),
+        ("1", "4", 20, 2),
+        ("2", "3", 5, 3),
+        ("3", "2", 2, 4),
+        ("3", "1", 1, 5),
+        ("4", "3", 10, 6),
+        ("4", "1", 5, 7),
+        ("1", "5", 2, 8)
+    ]
+    for (src, dst, val, time) in edges_str:
+        g.add_edge(time, src, dst, {'value_dec': val})
+
+    v = g.vertex("1")
+    res = v.out_edges().properties.temporal.get("value_dec").values().sum().sum()
+    assert res == 32
+
+
+def test_pyprophistvaluelist_count():
+    g = Graph()
+    edges_str = [
+        ("1", "2", 10, 1),
+        ("1", "2", 10, 1),
+        ("1", "2", 10, 1),
+        ("1", "4", 20, 2),
+        ("2", "3", 5, 3),
+        ("3", "2", 2, 4),
+        ("3", "1", 1, 5),
+        ("4", "3", 10, 6),
+        ("4", "1", 5, 7),
+        ("1", "5", 2, 8)
+    ]
+    for (src, dst, val, time) in edges_str:
+        g.add_edge(time, src, dst, {'value_dec': val})
+
+    v = g.vertex("1")
+    res = sorted(v.out_edges().properties.temporal.get("value_dec").values().count())
+    assert res == [1, 1, 3]
+
+    res = v.out_edges().properties.temporal.get("value_dec").values().count().sum()
+    assert res == 5
+
+
+def test_propiterable():
+    g = Graph()
+    edges_str = [
+        ("1", "2", 10, 1),
+        ("1", "2", 10, 1),
+        ("1", "2", 10, 1),
+        ("1", "4", 20, 2),
+        ("2", "3", 5, 3),
+        ("3", "2", 2, 4),
+        ("3", "1", 1, 5),
+        ("4", "3", 10, 6),
+        ("4", "1", 5, 7),
+        ("1", "5", 2, 8)
+    ]
+    for (src, dst, val, time) in edges_str:
+        g.add_edge(time, src, dst, {'value_dec': val})
+
+    v = g.vertex("1")
+    result = v.out_edges().properties.temporal.get("value_dec").values().flatten()
+    assert sorted(result) == [2, 10, 10, 10, 20]
+    assert result.sum() == 52
+    assert v.out_edges().properties.get("value_dec").sum() == 32
