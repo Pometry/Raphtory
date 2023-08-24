@@ -33,7 +33,7 @@
 &nbsp 
 <a href="https://www.pometry.com"><img src="https://user-images.githubusercontent.com/6665739/202438989-2859f8b8-30fb-4402-820a-563049e1fdb3.png" height="20" align="center"/> Pometry</a> 
 &nbsp
-<a href="https://docs.raphtory.com/en/master/Introduction/ingestion.html">🧙🏻‍ Tutorial</a> 
+<a href="https://docs.raphtory.com/en/v0.5.2/getting_started/simple_installation.html#getting-started">🧙🏻‍ Tutorial</a> 
 &nbsp
 <a href="https://github.com/Raphtory/Raphtory/issues">🐛 Report a Bug</a> 
 &nbsp
