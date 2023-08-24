@@ -11,7 +11,7 @@ use crate::{
         properties::internal::InheritPropertiesOps,
         view::{
             internal::{
-                Base, EdgeFilter, EdgeFilterOps, GraphOps, InheritCoreOps, InheritGraphOps,
+                ArcEdgeFilter, Base, EdgeFilterOps, GraphOps, InheritCoreOps, InheritGraphOps,
                 InheritMaterialize, InheritTimeSemantics, LayerOps,
             },
             Layer,
@@ -49,7 +49,7 @@ impl<G: GraphViewOps> InheritPropertiesOps for LayeredGraph<G> {}
 impl<G: GraphViewOps> InheritGraphOps for LayeredGraph<G> {}
 
 impl<G: GraphViewOps> EdgeFilterOps for LayeredGraph<G> {
-    fn edge_filter(&self) -> Option<EdgeFilter> {
+    fn edge_filter(&self) -> Option<ArcEdgeFilter> {
         match self.graph.edge_filter() {
             None => Some(Arc::new(|e, l| e.has_layer(l))),
             Some(f) => Some(Arc::new(move |e, l| e.has_layer(l) && f(e, l))),

@@ -94,7 +94,7 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
         let layer_ids = self.layer_ids();
         let vertices: FxHashSet<VID> = vertices
             .into_iter()
-            .flat_map(|v| self.local_vertex_ref(v.into(), &layer_ids, filter.clone()))
+            .flat_map(|v| self.local_vertex_ref(v.into(), &layer_ids, filter.as_deref()))
             .collect();
         VertexSubgraph::new(self.clone(), vertices)
     }
@@ -121,7 +121,7 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
     }
 
     fn has_vertex<T: Into<VertexRef>>(&self, v: T) -> bool {
-        self.has_vertex_ref(v.into(), &self.layer_ids(), self.edge_filter())
+        self.has_vertex_ref(v.into(), &self.layer_ids(), self.edge_filter().as_deref())
     }
 
     fn has_edge<T: Into<VertexRef>, L: Into<Layer>>(&self, src: T, dst: T, layer: L) -> bool {
@@ -130,7 +130,7 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
         let layers = self.layer_ids_from_names(layer.into());
         if let Some(src) = self.localise_vertex(src_ref) {
             if let Some(dst) = self.localise_vertex(dst_ref) {
-                return self.has_edge_ref(src, dst, &layers, self.edge_filter());
+                return self.has_edge_ref(src, dst, &layers, self.edge_filter().as_deref());
             }
         }
         false
@@ -138,7 +138,7 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
 
     fn vertex<T: Into<VertexRef>>(&self, v: T) -> Option<VertexView<Self>> {
         let v = v.into();
-        self.local_vertex_ref(v, &self.layer_ids(), self.edge_filter())
+        self.local_vertex_ref(v, &self.layer_ids(), self.edge_filter().as_deref())
             .map(|v| VertexView::new_local(self.clone(), v))
     }
 
@@ -150,10 +150,11 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
     fn edge<T: Into<VertexRef>>(&self, src: T, dst: T) -> Option<EdgeView<Self>> {
         let layer_ids = self.layer_ids();
         let edge_filter = self.edge_filter();
-        if let Some(src) = self.local_vertex_ref(src.into(), &layer_ids, edge_filter.clone()) {
-            if let Some(dst) = self.local_vertex_ref(dst.into(), &layer_ids, edge_filter.clone()) {
+        if let Some(src) = self.local_vertex_ref(src.into(), &layer_ids, edge_filter.as_deref()) {
+            if let Some(dst) = self.local_vertex_ref(dst.into(), &layer_ids, edge_filter.as_deref())
+            {
                 return self
-                    .edge_ref(src, dst, &layer_ids, edge_filter)
+                    .edge_ref(src, dst, &layer_ids, edge_filter.as_deref())
                     .map(|e| EdgeView::new(self.clone(), e));
             }
         }

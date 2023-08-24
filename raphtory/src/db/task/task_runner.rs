@@ -71,7 +71,7 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
             if g.has_vertex_ref(
                 VertexRef::Local(v_ref.into()),
                 &g.layer_ids(),
-                g.edge_filter(),
+                g.edge_filter().as_deref(),
             ) {
                 let mut vv = EvalVertexView::new_local(
                     self.ctx.ss(),

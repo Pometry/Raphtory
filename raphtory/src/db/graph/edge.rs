@@ -219,7 +219,7 @@ impl<G: GraphViewOps> LayerOps for EdgeView<G> {
                 self.edge.src(),
                 self.edge.dst(),
                 &layer_ids,
-                self.graph.edge_filter(),
+                self.graph.edge_filter().as_deref(),
             )
             .then(|| EdgeView {
                 graph: LayeredGraph::new(self.graph.clone(), layer_ids),

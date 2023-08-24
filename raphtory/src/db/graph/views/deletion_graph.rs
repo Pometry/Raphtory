@@ -2,6 +2,7 @@ use crate::{
     core::{
         entities::{
             edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
+            vertices::vertex_store::VertexStore,
             LayerIds, VID,
         },
         storage::timeindex::{AsTime, TimeIndexOps},
@@ -112,6 +113,24 @@ impl GraphWithDeletions {
         // None is less than any value (see test below)
         (first_deletion < first_addition && first_deletion.filter(|v| *v >= t).is_some())
             || last_addition_before_start > last_deletion_before_start
+    }
+
+    fn vertex_alive_at(
+        &self,
+        v: &VertexStore,
+        t: i64,
+        layers: &LayerIds,
+        edge_filter: Option<RefEdgeFilter>,
+    ) -> bool {
+        let edges = self.graph.inner().storage.edges.read_lock();
+        v.edge_tuples(layers, Direction::BOTH)
+            .map(|eref| edges.get(eref.pid().into()))
+            .filter(|e| {
+                edge_filter.map(|f| f(e, layers)).unwrap_or(true)
+                    && self.edge_alive_at(e, t, layers)
+            })
+            .next()
+            .is_some()
     }
 
     pub fn new() -> Self {
@@ -239,14 +258,10 @@ impl TimeSemantics for GraphWithDeletions {
         v: VID,
         w: Range<i64>,
         layer_ids: &LayerIds,
-        edge_filter: Option<EdgeFilter>,
+        edge_filter: Option<RefEdgeFilter>,
     ) -> bool {
-        self.core_vertex(v).active(w.clone())
-            || self
-                .vertex_edges(v, Direction::BOTH, layer_ids.clone(), edge_filter)
-                .any(move |e| {
-                    self.include_edge_window(&self.core_edge(e.pid()), w.clone(), layer_ids)
-                })
+        let v = self.graph.inner().storage.get_node(v);
+        v.active(w.clone()) || self.vertex_alive_at(&v, w.start, layer_ids, edge_filter)
     }
 
     fn include_edge_window(&self, e: &EdgeStore, w: Range<i64>, layer_ids: &LayerIds) -> bool {

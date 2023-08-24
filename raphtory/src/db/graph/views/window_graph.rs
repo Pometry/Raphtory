@@ -55,8 +55,8 @@ use crate::{
             },
             view::{
                 internal::{
-                    Base, EdgeFilter, EdgeFilterOps, GraphOps, InheritCoreOps, InheritLayerOps,
-                    InheritMaterialize, TimeSemantics,
+                    ArcEdgeFilter, Base, EdgeFilterOps, GraphOps, InheritCoreOps, InheritLayerOps,
+                    InheritMaterialize, RefEdgeFilter, TimeSemantics,
                 },
                 BoxedIter, Layer,
             },
@@ -185,7 +185,7 @@ impl<G: GraphViewOps> TimeSemantics for WindowedGraph<G> {
         v: VID,
         w: Range<i64>,
         layer_ids: &LayerIds,
-        edge_filter: Option<EdgeFilter>,
+        edge_filter: Option<RefEdgeFilter>,
     ) -> bool {
         self.graph.include_vertex_window(
             v,
@@ -365,7 +365,7 @@ impl<G: GraphViewOps> TimeSemantics for WindowedGraph<G> {
 }
 
 impl<G: GraphViewOps> EdgeFilterOps for WindowedGraph<G> {
-    fn edge_filter(&self) -> Option<EdgeFilter> {
+    fn edge_filter(&self) -> Option<ArcEdgeFilter> {
         let earliest_time = self.graph.view_start().unwrap_or(i64::MAX);
         let latest_time = self.graph.view_end().unwrap_or(i64::MIN);
         let g = self.clone();
@@ -400,10 +400,10 @@ impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
         &self,
         v: VertexRef,
         layers: &LayerIds,
-        filter: Option<EdgeFilter>,
+        filter: Option<RefEdgeFilter>,
     ) -> Option<VID> {
         self.graph
-            .local_vertex_ref(v, layers, filter.clone())
+            .local_vertex_ref(v, layers, filter)
             .filter(|v| self.include_vertex_window(*v, self.t_start..self.t_end, layers, filter))
     }
 
@@ -411,18 +411,18 @@ impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
         &self,
         e_id: EID,
         layer_ids: &LayerIds,
-        filter: Option<EdgeFilter>,
+        filter: Option<RefEdgeFilter>,
     ) -> Option<EdgeRef> {
         self.graph.find_edge_id(e_id, layer_ids, filter)
     }
 
     /// Returns the number of vertices in the windowed view.
-    fn vertices_len(&self, layer_ids: LayerIds, filter: Option<EdgeFilter>) -> usize {
+    fn vertices_len(&self, layer_ids: LayerIds, filter: Option<ArcEdgeFilter>) -> usize {
         self.vertex_refs(layer_ids, filter).count()
     }
 
     /// Returns the number of edges in the windowed view.
-    fn edges_len(&self, layer: LayerIds, filter: Option<EdgeFilter>) -> usize {
+    fn edges_len(&self, layer: LayerIds, filter: Option<ArcEdgeFilter>) -> usize {
         // filter takes care of checking the window
         self.graph.edges_len(layer, filter)
     }
@@ -446,7 +446,7 @@ impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
         src: VID,
         dst: VID,
         layer: &LayerIds,
-        filter: Option<EdgeFilter>,
+        filter: Option<RefEdgeFilter>,
     ) -> bool {
         // filter takes care of checking the window
         self.graph.has_edge_ref(src, dst, layer, filter)
@@ -465,7 +465,12 @@ impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
     /// # Errors
     ///
     /// Returns an error if `v` is not a valid vertex.
-    fn has_vertex_ref(&self, v: VertexRef, layers: &LayerIds, filter: Option<EdgeFilter>) -> bool {
+    fn has_vertex_ref(
+        &self,
+        v: VertexRef,
+        layers: &LayerIds,
+        filter: Option<RefEdgeFilter>,
+    ) -> bool {
         self.local_vertex_ref(v, layers, filter).is_some()
     }
 
@@ -483,7 +488,13 @@ impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
     /// # Errors
     ///
     /// Returns an error if `v` is not a valid vertex.
-    fn degree(&self, v: VID, d: Direction, layer: &LayerIds, filter: Option<EdgeFilter>) -> usize {
+    fn degree(
+        &self,
+        v: VID,
+        d: Direction,
+        layer: &LayerIds,
+        filter: Option<ArcEdgeFilter>,
+    ) -> usize {
         self.graph.degree(v, d, layer, filter)
     }
 
@@ -500,7 +511,7 @@ impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
     /// # Errors
     ///
     /// Returns an error if `v` is not a valid vertex.
-    fn vertex_ref(&self, v: u64, layers: &LayerIds, filter: Option<EdgeFilter>) -> Option<VID> {
+    fn vertex_ref(&self, v: u64, layers: &LayerIds, filter: Option<RefEdgeFilter>) -> Option<VID> {
         self.local_vertex_ref(v.into(), layers, filter)
     }
 
@@ -512,14 +523,14 @@ impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
     fn vertex_refs(
         &self,
         layers: LayerIds,
-        filter: Option<EdgeFilter>,
+        filter: Option<ArcEdgeFilter>,
     ) -> Box<dyn Iterator<Item = VID> + Send> {
         let g = self.clone();
         Box::new(
             self.graph
                 .vertex_refs(layers.clone(), filter.clone())
                 .filter(move |v| {
-                    g.include_vertex_window(*v, g.t_start..g.t_end, &layers, filter.clone())
+                    g.include_vertex_window(*v, g.t_start..g.t_end, &layers, filter.as_deref())
                 }),
         )
     }
@@ -543,7 +554,7 @@ impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
         src: VID,
         dst: VID,
         layer: &LayerIds,
-        filter: Option<EdgeFilter>,
+        filter: Option<RefEdgeFilter>,
     ) -> Option<EdgeRef> {
         self.graph.edge_ref(src, dst, layer, filter)
     }
@@ -556,7 +567,7 @@ impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
     fn edge_refs(
         &self,
         layer: LayerIds,
-        filter: Option<EdgeFilter>,
+        filter: Option<ArcEdgeFilter>,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
         self.graph.edge_refs(layer, filter)
     }
@@ -566,7 +577,7 @@ impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
         v: VID,
         d: Direction,
         layer: LayerIds,
-        filter: Option<EdgeFilter>,
+        filter: Option<ArcEdgeFilter>,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
         self.graph.vertex_edges(v, d, layer, filter)
     }
@@ -586,7 +597,7 @@ impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
         v: VID,
         d: Direction,
         layer: LayerIds,
-        filter: Option<EdgeFilter>,
+        filter: Option<ArcEdgeFilter>,
     ) -> Box<dyn Iterator<Item = VID> + Send> {
         self.graph.neighbours(v, d, layer, filter)
     }

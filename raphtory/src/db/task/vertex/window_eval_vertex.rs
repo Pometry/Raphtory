@@ -8,7 +8,7 @@ use crate::{
     db::{
         api::{
             properties::Properties,
-            view::{internal::EdgeFilter, GraphViewOps, TimeOps, VertexListOps, VertexViewOps},
+            view::{internal::ArcEdgeFilter, GraphViewOps, TimeOps, VertexListOps, VertexViewOps},
         },
         graph::{
             path::{Operations, PathFromVertex},
@@ -72,7 +72,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> WindowEvalVertex<'a, G, 
         }
     }
 
-    fn edge_filter(&self) -> Option<EdgeFilter> {
+    fn edge_filter(&self) -> Option<ArcEdgeFilter> {
         let earliest_time = self.graph.view_start().unwrap_or(i64::MAX);
         let latest_time = self.graph.view_end().unwrap_or(i64::MIN);
         let t_start = self.t_start;
@@ -386,7 +386,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> WindowEvalPathFromVertex
         }
     }
 
-    fn edge_filter(&self) -> Option<EdgeFilter> {
+    fn edge_filter(&self) -> Option<ArcEdgeFilter> {
         let earliest_time = self.g.view_start().unwrap_or(i64::MAX);
         let latest_time = self.g.view_end().unwrap_or(i64::MIN);
         let t_start = self.t_start;

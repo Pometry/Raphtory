@@ -5,20 +5,21 @@ use crate::{
 use std::sync::Arc;
 
 pub fn extend_filter(
-    old: Option<EdgeFilter>,
+    old: Option<ArcEdgeFilter>,
     filter: impl Fn(&EdgeStore, &LayerIds) -> bool + Send + Sync + 'static,
-) -> EdgeFilter {
+) -> ArcEdgeFilter {
     match old {
         Some(f) => Arc::new(move |e, l| f(e, l) && filter(e, l)),
         None => Arc::new(filter),
     }
 }
 
-pub type EdgeFilter = Arc<dyn Fn(&EdgeStore, &LayerIds) -> bool + Send + Sync>;
+pub type ArcEdgeFilter = Arc<dyn Fn(&EdgeStore, &LayerIds) -> bool + Send + Sync>;
+pub type RefEdgeFilter<'a> = &'a (dyn Fn(&EdgeStore, &LayerIds) -> bool + Send + Sync);
 
 pub trait EdgeFilterOps {
     /// Return the optional edge filter for the graph
-    fn edge_filter(&self) -> Option<EdgeFilter>;
+    fn edge_filter(&self) -> Option<ArcEdgeFilter>;
 }
 
 pub trait InheritEdgeFilterOps: Base {}
@@ -41,7 +42,7 @@ pub trait DelegateEdgeFilterOps {
 }
 
 impl<G: DelegateEdgeFilterOps> EdgeFilterOps for G {
-    fn edge_filter(&self) -> Option<EdgeFilter> {
+    fn edge_filter(&self) -> Option<ArcEdgeFilter> {
         self.graph().edge_filter()
     }
 }

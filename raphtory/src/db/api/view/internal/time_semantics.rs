@@ -8,7 +8,7 @@ use crate::{
         Prop,
     },
     db::api::view::{
-        internal::{Base, CoreGraphOps, EdgeFilter, GraphOps},
+        internal::{ArcEdgeFilter, Base, CoreGraphOps, GraphOps, RefEdgeFilter},
         BoxedIter,
     },
 };
@@ -61,7 +61,7 @@ pub trait TimeSemantics: GraphOps + CoreGraphOps {
         v: VID,
         w: Range<i64>,
         layer_ids: &LayerIds,
-        edge_filter: Option<EdgeFilter>,
+        edge_filter: Option<RefEdgeFilter>,
     ) -> bool;
 
     /// check if edge `e` should be included in window `w`
@@ -311,7 +311,7 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
         v: VID,
         w: Range<i64>,
         layer_ids: &LayerIds,
-        edge_filter: Option<EdgeFilter>,
+        edge_filter: Option<RefEdgeFilter>,
     ) -> bool {
         self.graph()
             .include_vertex_window(v, w, layer_ids, edge_filter)

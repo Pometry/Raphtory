@@ -30,7 +30,7 @@ use crate::{
         },
         Direction, Prop, PropUnwrap,
     },
-    db::api::view::{internal::EdgeFilter, Layer},
+    db::api::view::{internal::ArcEdgeFilter, Layer},
 };
 use dashmap::DashMap;
 use itertools::Itertools;
@@ -283,7 +283,7 @@ impl<const N: usize> TemporalGraph<N> {
         self.storage.nodes_len()
     }
 
-    pub(crate) fn num_edges(&self, layers: &LayerIds, filter: Option<EdgeFilter>) -> usize {
+    pub(crate) fn num_edges(&self, layers: &LayerIds, filter: Option<ArcEdgeFilter>) -> usize {
         match filter {
             None => match layers {
                 LayerIds::All => self.storage.edges.len(),
@@ -310,7 +310,7 @@ impl<const N: usize> TemporalGraph<N> {
         v: VID,
         dir: Direction,
         layers: &LayerIds,
-        filter: Option<EdgeFilter>,
+        filter: Option<ArcEdgeFilter>,
     ) -> usize {
         let node_store = self.storage.get_node(v);
         match filter {

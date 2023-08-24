@@ -436,14 +436,14 @@ impl<G: GraphViewOps> IndexedGraph<G> {
         let writer = Arc::new(parking_lot::RwLock::new(index.writer(100_000_000)?));
 
         let e_ids = (0..g.num_edges()).collect::<Vec<_>>();
-
+        let edge_filter = g.edge_filter();
         e_ids.par_chunks(128).try_for_each(|e_ids| {
             let writer_lock = writer.clone();
             {
                 let writer_guard = writer_lock.read();
                 for e_id in e_ids {
                     if let Some(e_ref) =
-                        g.find_edge_id((*e_id).into(), &g.layer_ids(), g.edge_filter())
+                        g.find_edge_id((*e_id).into(), &g.layer_ids(), edge_filter.as_deref())
                     {
                         let e_view = EdgeView::new(g.clone(), e_ref);
                         Self::index_edge_view(
@@ -547,7 +547,7 @@ impl<G: GraphViewOps> IndexedGraph<G> {
         let e_ref = self.graph.find_edge_id(
             edge_id.into(),
             &self.graph.layer_ids(),
-            self.graph.edge_filter(),
+            self.graph.edge_filter().as_deref(),
         )?;
         let e_view = EdgeView::new(self.graph.clone(), e_ref);
         Some(e_view)

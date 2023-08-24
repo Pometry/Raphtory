@@ -12,7 +12,7 @@ use crate::{
         Direction,
     },
     db::api::view::{
-        internal::{EdgeFilter, GraphOps, TimeSemantics},
+        internal::{ArcEdgeFilter, GraphOps, RefEdgeFilter, TimeSemantics},
         Layer,
     },
     prelude::GraphViewOps,
@@ -27,7 +27,7 @@ impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
         &self,
         v: VertexRef,
         _layer_ids: &LayerIds,
-        _filter: Option<EdgeFilter>,
+        _filter: Option<RefEdgeFilter>,
     ) -> Option<VID> {
         match v {
             VertexRef::Local(l) => Some(l),
@@ -42,7 +42,7 @@ impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
         &self,
         e_id: EID,
         layer_ids: &LayerIds,
-        filter: Option<EdgeFilter>,
+        filter: Option<RefEdgeFilter>,
     ) -> Option<EdgeRef> {
         let e_id_usize: usize = e_id.into();
         if e_id_usize >= self.inner().storage.edges.len() {
@@ -55,22 +55,28 @@ impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
             .then(|| EdgeRef::new_outgoing(e_id, e.src(), e.dst()))
     }
 
-    fn vertices_len(&self, _layer_ids: LayerIds, _filter: Option<EdgeFilter>) -> usize {
+    fn vertices_len(&self, _layer_ids: LayerIds, _filter: Option<ArcEdgeFilter>) -> usize {
         self.inner().internal_num_vertices()
     }
 
-    fn edges_len(&self, layers: LayerIds, filter: Option<EdgeFilter>) -> usize {
+    fn edges_len(&self, layers: LayerIds, filter: Option<ArcEdgeFilter>) -> usize {
         self.inner().num_edges(&layers, filter)
     }
 
-    fn degree(&self, v: VID, d: Direction, layers: &LayerIds, filter: Option<EdgeFilter>) -> usize {
+    fn degree(
+        &self,
+        v: VID,
+        d: Direction,
+        layers: &LayerIds,
+        filter: Option<ArcEdgeFilter>,
+    ) -> usize {
         self.inner().degree(v, d, layers, filter)
     }
 
     fn vertex_refs(
         &self,
         _layers: LayerIds,
-        _filter: Option<EdgeFilter>,
+        _filter: Option<ArcEdgeFilter>,
     ) -> Box<dyn Iterator<Item = VID> + Send> {
         Box::new(self.inner().vertex_ids())
     }
@@ -80,7 +86,7 @@ impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
         src: VID,
         dst: VID,
         layer: &LayerIds,
-        filter: Option<EdgeFilter>,
+        filter: Option<RefEdgeFilter>,
     ) -> Option<EdgeRef> {
         self.inner()
             .find_edge(src, dst, layer)
@@ -95,7 +101,7 @@ impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
     fn edge_refs(
         &self,
         layers: LayerIds,
-        filter: Option<EdgeFilter>,
+        filter: Option<ArcEdgeFilter>,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
         match layers {
             LayerIds::None => Box::new(iter::empty()),
@@ -132,7 +138,7 @@ impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
         v: VID,
         d: Direction,
         layers: LayerIds,
-        filter: Option<EdgeFilter>,
+        filter: Option<ArcEdgeFilter>,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
         let entry = self.inner().storage.nodes.entry_arc(v.into());
         match d {
@@ -234,7 +240,7 @@ impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
         v: VID,
         d: Direction,
         layers: LayerIds,
-        filter: Option<EdgeFilter>,
+        filter: Option<ArcEdgeFilter>,
     ) -> Box<dyn Iterator<Item = VID> + Send> {
         let iter = self.vertex_edges(v, d, layers, filter).map(|e| e.remote());
         if matches!(d, Direction::BOTH) {
