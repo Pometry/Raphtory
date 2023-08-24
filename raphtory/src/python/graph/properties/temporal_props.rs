@@ -9,7 +9,7 @@ use crate::{
         types::{
             repr::{iterator_dict_repr, iterator_repr, Repr},
             wrappers::{
-                iterators::{PropIterable, UsizeIterable},
+                iterators::{NestedUsizeIterable, PropIterable, UsizeIterable},
                 prop::{PropHistItems, PropValue},
             },
         },
@@ -692,6 +692,41 @@ impl PyTemporalPropListList {
         let builder = self.builder.clone();
         (move || builder().map(|it| it.map(|p| p.and_then(|v| v.latest())))).into()
     }
+
+    pub fn flatten(&self) -> PyTemporalPropList {
+        let builder = self.builder.clone();
+        (move || builder().flatten()).into()
+    }
+}
+
+#[pymethods]
+impl PyPropHistValueListList {
+    pub fn flatten(&self) -> PyPropHistValueList {
+        let builder = self.builder.clone();
+        (move || builder().flatten()).into()
+    }
+
+    pub fn count(&self) -> NestedUsizeIterable {
+        let builder = self.builder.clone();
+        (move || builder().map(|it| it.map(|itit| itit.len()))).into()
+    }
+
+    pub fn sum(&self) -> PyPropValueListList {
+        let builder = self.builder.clone();
+        (move || {
+            builder().map(|it| {
+                it.map(|itit| {
+                    let mut itit_iter = itit.into_iter();
+                    let first = itit_iter.next();
+                    itit_iter.fold(first, |acc, elem| match (acc) {
+                        Some(a) => a.add(elem),
+                        _ => None,
+                    })
+                })
+            })
+        })
+        .into()
+    }
 }
 
 #[pymethods]
@@ -740,6 +775,11 @@ impl PyPropValueList {
             })
             .flatten()
     }
+
+    pub fn drop_none(&self) -> PyPropValueList {
+        let builder = self.builder.clone();
+        (move || builder().filter(|x| x.is_some())).into()
+    }
 }
 
 #[pymethods]
@@ -761,7 +801,20 @@ impl PyPropValueListList {
         .into()
     }
 
-    // TODO flatten and count
+    pub fn flatten(&self) -> PyPropValueList {
+        let builder = self.builder.clone();
+        (move || builder().flatten()).into()
+    }
+
+    pub fn count(&self) -> UsizeIterable {
+        let builder = self.builder.clone();
+        (move || builder().map(|it| it.count())).into()
+    }
+
+    pub fn drop_none(&self) -> PyPropValueListList {
+        let builder = self.builder.clone();
+        (move || builder().map(|it| it.filter(|x| x.is_some()))).into()
+    }
 }
 
 py_iterable!(PyPropHistList, Vec<i64>);
