@@ -734,10 +734,34 @@ impl PyPropValueList {
         self.iter()
             .reduce(|acc, elem| match (acc, elem) {
                 (Some(a), Some(b)) => a.add(b),
+                (Some(a), None) => Some(a),
+                (None, Some(b)) => Some(b),
                 _ => None,
             })
             .flatten()
     }
+}
+
+#[pymethods]
+impl PyPropValueListList {
+    pub fn sum(&self) -> PyPropValueList {
+        let builder = self.builder.clone();
+        (move || {
+            builder().map(|it| {
+                let mut it_iter = it.into_iter();
+                let first = it_iter.next().flatten();
+                it_iter.fold(first, |acc, elem| match (acc, elem) {
+                    (Some(a), Some(b)) => a.add(b),
+                    (Some(a), None) => Some(a),
+                    (None, Some(b)) => Some(b),
+                    _ => None,
+                })
+            })
+        })
+        .into()
+    }
+
+    // TODO flatten and count
 }
 
 py_iterable!(PyPropHistList, Vec<i64>);

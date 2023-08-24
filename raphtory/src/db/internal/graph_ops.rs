@@ -10,7 +10,7 @@ use crate::{
     prelude::GraphViewOps,
 };
 use genawaiter::sync::GenBoxed;
-use std::ops::Deref;
+use std::{iter, ops::Deref};
 
 impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
     fn layer_ids(&self) -> LayerIds {
@@ -97,14 +97,18 @@ impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
             .resolve_vertex_ref(&VertexRef::Local(v))
             .unwrap();
         let v = self.inner().vertex_arc(vid);
-
-        let iter: GenBoxed<EdgeRef> = GenBoxed::new_boxed(|co| async move {
-            for e_ref in v.edge_tuples(layers, d) {
-                co.yield_(e_ref).await;
+        let option_edge = v.edge_tuples(layers.clone(), d).next();
+        match option_edge {
+            None => Box::new(iter::empty()),
+            Some(_) => {
+                let iter: GenBoxed<EdgeRef> = GenBoxed::new_boxed(|co| async move {
+                    for e_ref in v.edge_tuples(layers, d) {
+                        co.yield_(e_ref).await;
+                    }
+                });
+                Box::new(iter.into_iter())
             }
-        });
-
-        Box::new(iter.into_iter())
+        }
     }
 
     fn neighbours(

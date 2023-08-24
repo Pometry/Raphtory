@@ -517,6 +517,7 @@ impl PyNestedEdges {
 
     // FIXME: needs a view that allows indexing into the properties
     /// Returns all properties of the edges
+    #[getter]
     fn properties(&self) -> PyNestedPropsIterable {
         let builder = self.builder.clone();
         (move || builder().properties()).into()

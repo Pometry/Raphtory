@@ -1728,3 +1728,35 @@ def test_propiterable():
     assert sorted(result) == [2, 10, 10, 10, 20]
     assert result.sum() == 52
     assert v.out_edges().properties.get("value_dec").sum() == 32
+
+def test_pypropvaluelistlist():
+    g = Graph()
+    edges_str = [
+        ("1", "2", 10, 1),
+        ("1", "2", 10, 1),
+        ("1", "2", 10, 1),
+        ("1", "4", 20, 2),
+        ("2", "3", 5, 3),
+        ("3", "2", 2, 4),
+        ("3", "1", 1, 5),
+        ("4", "3", 10, 6),
+        ("4", "1", 5, 7),
+        ("1", "5", 2, 8),
+    ]
+    for (src, dst, val, time) in edges_str:
+        g.add_edge(time, src, dst, {'value_dec': val})
+
+    total = g.vertices.in_edges().properties.get("value_dec").sum()
+    assert sorted(total) == [2, 6, 12, 15, 20]
+
+    total = g.vertices.edges().properties.get("value_dec").sum()
+    assert sorted(total) == [2, 17, 18, 35, 38]
+
+    total = dict(zip(g.vertices().id(), g.vertices.out_edges().properties.get("value_dec").sum()))
+    assert total == {1: 32, 2: 5, 3: 3, 4: 15, 5: None}
+
+    total = g.vertices.out_edges().properties.get("value_dec").sum().sum()
+    assert total == 55
+
+
+
