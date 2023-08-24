@@ -67,12 +67,13 @@ use crate::{
 };
 use std::{
     cmp::{max, min},
+    fmt::{Debug, Formatter},
     ops::Range,
     sync::Arc,
 };
 
 /// A struct that represents a windowed view of a `Graph`.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct WindowedGraph<G: GraphViewOps> {
     /// The underlying `Graph` object.
     pub graph: G,
@@ -80,6 +81,17 @@ pub struct WindowedGraph<G: GraphViewOps> {
     pub t_start: i64,
     /// The exclusive end time of the window.
     pub t_end: i64,
+    filter: ArcEdgeFilter,
+}
+
+impl<G: GraphViewOps + Debug> Debug for WindowedGraph<G> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "WindowedGraph({:?}, {}..{})",
+            self.graph, self.t_start, self.t_end
+        )
+    }
 }
 
 impl<G: GraphViewOps> Base for WindowedGraph<G> {
@@ -368,26 +380,10 @@ impl<G: GraphViewOps> EdgeFilterOps for WindowedGraph<G> {
     fn edge_filter(&self) -> Option<ArcEdgeFilter> {
         let earliest_time = self.graph.view_start().unwrap_or(i64::MAX);
         let latest_time = self.graph.view_end().unwrap_or(i64::MIN);
-        let g = self.clone();
-        match self.graph.edge_filter() {
-            None => {
-                if self.t_start <= earliest_time && self.t_end > latest_time {
-                    None
-                } else {
-                    Some(Arc::new(move |e, l| {
-                        g.include_edge_window(e, g.t_start..g.t_end, l)
-                    }))
-                }
-            }
-            Some(filter) => {
-                if self.t_start <= earliest_time && self.t_end > latest_time {
-                    Some(filter)
-                } else {
-                    Some(Arc::new(move |e, l| {
-                        g.include_edge_window(e, g.t_start..g.t_end, l) && filter(e, l)
-                    }))
-                }
-            }
+        if self.t_start <= earliest_time && self.t_end > latest_time {
+            self.graph.edge_filter().clone()
+        } else {
+            Some(self.filter.clone())
         }
     }
 }
@@ -632,10 +628,23 @@ impl<G: GraphViewOps> WindowedGraph<G> {
     ///
     /// A new windowed graph
     pub fn new<T: IntoTime>(graph: G, t_start: T, t_end: T) -> Self {
+        let filter_graph = graph.clone();
+        let t_start = t_start.into_time();
+        let t_end = t_end.into_time();
+        let base_filter = filter_graph.edge_filter();
+        let filter: ArcEdgeFilter = match base_filter {
+            Some(f) => Arc::new(move |e, layers| {
+                f(e, layers) && filter_graph.include_edge_window(e, t_start..t_end, layers)
+            }),
+            None => Arc::new(move |e, layers| {
+                filter_graph.include_edge_window(e, t_start..t_end, layers)
+            }),
+        };
         WindowedGraph {
             graph,
-            t_start: t_start.into_time(),
-            t_end: t_end.into_time(),
+            t_start,
+            t_end,
+            filter,
         }
     }
 
