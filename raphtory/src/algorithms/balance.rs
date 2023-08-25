@@ -58,7 +58,7 @@ fn balance_per_vertex<G: GraphViewOps, CS: ComputeState>(
                 prop.temporal().get(name).map(|val| {
                     val.values()
                         .into_iter()
-                        .map(|valval| valval.unwrap_f64())
+                        .map(|valval| valval.into_f64().unwrap_or(0.0f64))
                         .sum::<f64>()
                 })
             })
@@ -70,7 +70,7 @@ fn balance_per_vertex<G: GraphViewOps, CS: ComputeState>(
                 prop.temporal().get(name).map(|val| {
                     val.values()
                         .into_iter()
-                        .map(|valval| valval.unwrap_f64())
+                        .map(|valval| valval.into_f64().unwrap_or(0.0f64))
                         .sum::<f64>()
                 })
             })
