@@ -124,6 +124,7 @@ pub fn star_motif_count<G: GraphViewOps>(
     let mut exploded_edges = evv
         .edges()
         .explode()
+        .sorted_by_key(|e| (e.time(), e.src().id(), e.dst().id()))
         .map(|edge| {
             if edge.src().id() == evv.id() {
                 star_event(neigh_map[&edge.dst().id()], 1, edge.time().unwrap())
@@ -154,6 +155,7 @@ pub fn twonode_motif_count<G: GraphViewOps>(
             .iter()
             .flat_map(|e| e.explode())
             .chain(inc.iter().flat_map(|e| e.explode()))
+            .sorted_by_key(|e| (e.time(), e.src().id(), e.dst().id()))
             .map(|e| {
                 two_node_event(
                     if e.src().id() == evv.id() { 1 } else { 0 },
@@ -161,7 +163,6 @@ pub fn twonode_motif_count<G: GraphViewOps>(
                 )
             })
             .collect();
-        all_exploded.sort_by_key(|e| (e.time, e.dir));
         let mut two_node_counter = init_two_node_count();
         two_node_counter.execute(&all_exploded, delta);
         let two_node_result = two_node_counter.return_counts();
