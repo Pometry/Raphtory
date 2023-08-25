@@ -10,5 +10,3 @@ Tutorials
     :maxdepth: 1
 
     lotr.ipynb
-    graphql
-

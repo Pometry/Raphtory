@@ -7,6 +7,7 @@ use crate::model::{
     algorithm::Algorithms,
     filters::{edgefilter::EdgeFilter, nodefilter::NodeFilter},
     graph::{edge::Edge, get_expanded_edges, node::Node, property::Property},
+    schema::graph_schema::GraphSchema,
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
@@ -79,9 +80,14 @@ impl GqlGraph {
 
 #[ResolvedObjectFields]
 impl GqlGraph {
-    async fn window(&self, t_start: i64, t_end: i64) -> GqlGraph {
-        let w = self.graph.window(t_start, t_end);
+    /// Return a graph containing only the activity between `start` and `end` measured as milliseconds from epoch
+    async fn window(&self, start: i64, end: i64) -> GqlGraph {
+        let w = self.graph.window(start, end);
         w.into()
+    }
+
+    async fn layer_names(&self) -> Vec<String> {
+        self.graph.get_unique_layers()
     }
 
     async fn static_properties(&self) -> Vec<Property> {
@@ -104,6 +110,11 @@ impl GqlGraph {
                 .collect(),
             None => self.graph.vertices().iter().map(|vv| vv.into()).collect(),
         }
+    }
+
+    /// Returns the schema of this graph
+    async fn schema(&self) -> GraphSchema {
+        GraphSchema::new(&self.graph)
     }
 
     async fn search(&self, query: String, limit: usize, offset: usize) -> Vec<Node> {

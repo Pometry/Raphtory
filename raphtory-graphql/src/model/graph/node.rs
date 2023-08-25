@@ -2,7 +2,6 @@ use crate::model::{
     filters::edgefilter::EdgeFilter,
     graph::{edge::Edge, get_expanded_edges, property::Property, property_update::PropertyUpdate},
 };
-use async_graphql::Context;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::db::{
@@ -48,10 +47,12 @@ impl Node {
             .unwrap_or("NONE".to_string())
     }
 
-    async fn property_names<'a>(&self, _ctx: &Context<'a>) -> Vec<String> {
+    /// Returns all the property names this node has a value for
+    async fn property_names(&self) -> Vec<String> {
         self.vv.properties().keys().map_into().collect()
     }
 
+    /// Returns all the properties of the node
     async fn properties(&self) -> Option<Vec<Property>> {
         Some(
             self.vv
@@ -62,10 +63,12 @@ impl Node {
         )
     }
 
+    /// Returns the value for the property with name `name`
     async fn property(&self, name: &str) -> Option<String> {
         self.vv.properties().get(name).map(|v| v.to_string())
     }
 
+    /// Returns the history as a vector of updates for the property with name `name`
     async fn property_history(&self, name: String) -> Vec<PropertyUpdate> {
         self.vv
             .properties()
@@ -120,6 +123,7 @@ impl Node {
         }
     }
 
+    /// Returns the number of edges connected to this node
     async fn degree(&self, layers: Option<Vec<String>>) -> usize {
         match layers {
             None => self.vv.degree(),
@@ -136,6 +140,7 @@ impl Node {
         }
     }
 
+    /// Returns the number edges with this node as the source
     async fn out_degree(&self, layer: Option<String>) -> usize {
         match layer.as_deref() {
             None => self.vv.out_degree(),
@@ -146,6 +151,7 @@ impl Node {
         }
     }
 
+    /// Returns the number edges with this node as the destination
     async fn in_degree(&self, layer: Option<String>) -> usize {
         match layer.as_deref() {
             None => self.vv.in_degree(),

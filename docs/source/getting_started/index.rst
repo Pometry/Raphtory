@@ -7,12 +7,10 @@
 Getting started
 ===============
 
-
 .. toctree::
     :maxdepth: 2
-
-    overview
+    
     simple_installation
-    intro_tutorials/index
-    faq
+    intro_tutorials/lotr.ipynb
+    faqs/faq_ingestion.rst
     installation/index

@@ -6,9 +6,10 @@
 //! In Python, this class wraps around the rust graph.
 use crate::{
     core::utils::errors::GraphError,
+    db::api::view::internal::MaterializedGraph,
     prelude::*,
     python::{
-        graph::views::graph_view::PyGraphView,
+        graph::{graph_with_deletions::PyGraphWithDeletions, views::graph_view::PyGraphView},
         utils::{PyInputVertex, PyTime},
     },
 };
@@ -21,6 +22,7 @@ use crate::{
     },
     python::graph::pandas::{load_edges_props_from_df, load_vertex_props_from_df},
 };
+use pyo3::types::IntoPyDict;
 use std::{
     collections::HashMap,
     fmt::{Debug, Formatter},
@@ -59,6 +61,20 @@ impl From<PyGraph> for Graph {
 impl From<PyGraph> for DynamicGraph {
     fn from(value: PyGraph) -> Self {
         value.graph.into_dynamic()
+    }
+}
+
+impl<'source> FromPyObject<'source> for MaterializedGraph {
+    fn extract(graph: &'source PyAny) -> PyResult<Self> {
+        if let Ok(graph) = graph.extract::<PyRef<PyGraph>>() {
+            Ok(graph.graph.clone().into())
+        } else if let Ok(graph) = graph.extract::<PyRef<PyGraphWithDeletions>>() {
+            Ok(graph.graph.clone().into())
+        } else {
+            Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
+                "Incorrect type, object is not a PyGraph or PyGraphWithDeletions"
+            )))
+        }
     }
 }
 
@@ -299,9 +315,17 @@ impl PyGraph {
     ) -> Result<(), GraphError> {
         let graph = &self.graph;
         Python::with_gil(|py| {
-            let df = process_pandas_py_df(vertices_df, py)?;
+            let size: usize = py
+                .eval(
+                    "index.__len__()",
+                    Some([("index", vertices_df.getattr("index")?)].into_py_dict(py)),
+                    None,
+                )?
+                .extract()?;
+            let df = process_pandas_py_df(vertices_df, py, size)?;
             load_vertices_from_df(
                 &df,
+                size,
                 vertex_col,
                 time_col,
                 props,
@@ -332,9 +356,17 @@ impl PyGraph {
     ) -> Result<(), GraphError> {
         let graph = &self.graph;
         Python::with_gil(|py| {
-            let df = process_pandas_py_df(edge_df, py)?;
+            let size: usize = py
+                .eval(
+                    "index.__len__()",
+                    Some([("index", edge_df.getattr("index")?)].into_py_dict(py)),
+                    None,
+                )?
+                .extract()?;
+            let df = process_pandas_py_df(edge_df, py, size)?;
             load_edges_from_df(
                 &df,
+                size,
                 src_col,
                 dst_col,
                 time_col,
@@ -363,9 +395,23 @@ impl PyGraph {
     ) -> Result<(), GraphError> {
         let graph = &self.graph;
         Python::with_gil(|py| {
-            let df = process_pandas_py_df(vertices_df, py)?;
-            load_vertex_props_from_df(&df, vertex_col, const_props, shared_const_props, graph)
-                .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
+            let size: usize = py
+                .eval(
+                    "index.__len__()",
+                    Some([("index", vertices_df.getattr("index")?)].into_py_dict(py)),
+                    None,
+                )?
+                .extract()?;
+            let df = process_pandas_py_df(vertices_df, py, size)?;
+            load_vertex_props_from_df(
+                &df,
+                size,
+                vertex_col,
+                const_props,
+                shared_const_props,
+                graph,
+            )
+            .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
 
             Ok::<(), PyErr>(())
         })
@@ -386,9 +432,17 @@ impl PyGraph {
     ) -> Result<(), GraphError> {
         let graph = &self.graph;
         Python::with_gil(|py| {
-            let df = process_pandas_py_df(edge_df, py)?;
+            let size: usize = py
+                .eval(
+                    "index.__len__()",
+                    Some([("index", edge_df.getattr("index")?)].into_py_dict(py)),
+                    None,
+                )?
+                .extract()?;
+            let df = process_pandas_py_df(edge_df, py, size)?;
             load_edges_props_from_df(
                 &df,
+                size,
                 src_col,
                 dst_col,
                 const_props,
