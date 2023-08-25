@@ -96,6 +96,18 @@ impl Prop {
             _ => None,
         }
     }
+
+    pub fn divide(self, other: Prop) -> Option<Prop> {
+        match (self, other) {
+            (Prop::I32(a), Prop::I32(b)) if b != 0 => Some(Prop::I32(a / b)),
+            (Prop::I64(a), Prop::I64(b)) if b != 0 => Some(Prop::I64(a / b)),
+            (Prop::U32(a), Prop::U32(b)) if b != 0 => Some(Prop::U32(a / b)),
+            (Prop::U64(a), Prop::U64(b)) if b != 0 => Some(Prop::U64(a / b)),
+            (Prop::F32(a), Prop::F32(b)) if b != 0.0 => Some(Prop::F32(a / b)),
+            (Prop::F64(a), Prop::F64(b)) if b != 0.0 => Some(Prop::F64(a / b)),
+            _ => None,
+        }
+    }
 }
 
 pub trait PropUnwrap: Sized {

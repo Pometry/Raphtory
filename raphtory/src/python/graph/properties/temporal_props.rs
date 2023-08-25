@@ -22,6 +22,7 @@ use pyo3::{
     prelude::*,
 };
 use std::{collections::HashMap, ops::Deref, sync::Arc};
+use tantivy::HasLen;
 
 pub type DynTemporalProperties = TemporalProperties<DynProps>;
 pub type DynTemporalProperty = TemporalPropertyView<DynProps>;
@@ -740,10 +741,38 @@ impl PyPropHistValueListList {
                 it.map(|itit| {
                     let mut itit_iter = itit.into_iter();
                     let first = itit_iter.next();
-                    itit_iter.fold(first, |acc, elem| match acc {
+                    itit_iter.clone().fold(first, |acc, elem| match acc {
                         Some(a) => a.add(elem),
                         _ => None,
                     })
+                })
+            })
+        })
+        .into()
+    }
+
+    pub fn mean(&self) -> PyPropValueListList {
+        let builder = self.builder.clone();
+        (move || {
+            builder().map(|it| {
+                it.map(|itit| {
+                    let mut itit_iter = itit.into_iter();
+                    let first = itit_iter.next();
+                    let sum = itit_iter.clone().fold(first, |acc, elem| match acc {
+                        Some(a) => a.add(elem),
+                        _ => Some(elem),
+                    });
+                    let count = itit_iter.count();
+
+                    match sum {
+                        Some(Prop::I32(s)) => Some(Prop::I32(s / count as i32)),
+                        Some(Prop::I64(s)) => Some(Prop::I64(s / count as i64)),
+                        Some(Prop::U32(s)) => Some(Prop::U32(s / count as u32)),
+                        Some(Prop::U64(s)) => Some(Prop::U64(s / count as u64)),
+                        Some(Prop::F32(s)) => Some(Prop::F32(s / count as f32)),
+                        Some(Prop::F64(s)) => Some(Prop::F64(s / count as f64)),
+                        _ => None,
+                    }
                 })
             })
         })
@@ -772,6 +801,20 @@ impl PropIterable {
             }
         }
     }
+
+    pub fn mean(&self) -> PropValue {
+        let sum: PropValue = self.sum();
+        let count: usize = self.iter().collect::<Vec<Prop>>().len();
+        match sum {
+            Some(Prop::I32(s)) => Some(Prop::I32(s / count as i32)),
+            Some(Prop::I64(s)) => Some(Prop::I64(s / count as i64)),
+            Some(Prop::U32(s)) => Some(Prop::U32(s / count as u32)),
+            Some(Prop::U64(s)) => Some(Prop::U64(s / count as u64)),
+            Some(Prop::F32(s)) => Some(Prop::F32(s / count as f32)),
+            Some(Prop::F64(s)) => Some(Prop::F64(s / count as f64)),
+            _ => None,
+        }
+    }
 }
 
 #[pymethods]
@@ -788,19 +831,32 @@ impl PyPropHistValueList {
         .into()
     }
 
-    pub fn median(&self) -> PropValue {
-        let mut sorted: Vec<Prop> = self.iter().flat_map(|v| v.into_iter()).collect();
-        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-        let len = sorted.len();
-        match len {
-            0 => None,
-            1 => Some(sorted[0].clone()),
-            _ => {
-                let a = &sorted[len / 2];
-                Some(a.clone())
-            }
-        }
-    }
+    // pub fn median(&self) -> PyPropValueList {
+    //     let builder = self.builder.clone();
+    //     (move || {
+    //         builder().map(|it| {
+    //             let mut it_iter = it.into_iter();
+    //             let first = it_iter.next();
+    //             let result = it_iter.fold(first, |acc, elem| acc.and_then(|val| val.add(elem)));
+    //             let len = it.len();
+    //             result / len
+    //         })
+    //     })
+    // }
+
+    // pub fn mean(&self) -> PropValue {
+    //     let sum: PyPropValueList = self.sum();
+    //     let count: UsizeIterable = self.count();
+    //     match sum {
+    //         Some(Prop::I32(s)) => Some(Prop::I32(s / count as i32)),
+    //         Some(Prop::I64(s)) => Some(Prop::I64(s / count as i64)),
+    //         Some(Prop::U32(s)) => Some(Prop::U32(s / count as u32)),
+    //         Some(Prop::U64(s)) => Some(Prop::U64(s / count as u64)),
+    //         Some(Prop::F32(s)) => Some(Prop::F32(s / count as f32)),
+    //         Some(Prop::F64(s)) => Some(Prop::F64(s / count as f64)),
+    //         _ => None,
+    //     }
+    // }
 
     pub fn count(&self) -> UsizeIterable {
         let builder = self.builder.clone();
