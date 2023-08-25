@@ -51,6 +51,7 @@ impl<const N: usize> GraphStorage<N> {
         self.edges.entry_mut(id.into())
     }
 
+    #[inline]
     pub(crate) fn get_node(&self, id: VID) -> Entry<'_, VertexStore, N> {
         self.nodes.entry(id.into())
     }

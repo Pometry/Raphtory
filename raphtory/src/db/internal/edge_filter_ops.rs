@@ -7,6 +7,7 @@ use crate::{
 };
 
 impl EdgeFilterOps for InternalGraph {
+    #[inline]
     fn edge_filter(&self) -> Option<ArcEdgeFilter> {
         None
     }

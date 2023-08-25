@@ -116,6 +116,7 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
         self.vertices_len(self.layer_ids(), self.edge_filter())
     }
 
+    #[inline]
     fn num_edges(&self) -> usize {
         self.edges_len(self.layer_ids(), self.edge_filter())
     }

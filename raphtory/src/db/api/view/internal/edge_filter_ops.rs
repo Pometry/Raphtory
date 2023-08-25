@@ -42,6 +42,7 @@ pub trait DelegateEdgeFilterOps {
 }
 
 impl<G: DelegateEdgeFilterOps> EdgeFilterOps for G {
+    #[inline]
     fn edge_filter(&self) -> Option<ArcEdgeFilter> {
         self.graph().edge_filter()
     }

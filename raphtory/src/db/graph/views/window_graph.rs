@@ -161,24 +161,29 @@ impl<G: GraphViewOps> TimeSemantics for WindowedGraph<G> {
         Some(self.t_end)
     }
 
+    #[inline]
     fn earliest_time_global(&self) -> Option<i64> {
         self.graph.earliest_time_window(self.t_start, self.t_end)
     }
 
+    #[inline]
     fn latest_time_global(&self) -> Option<i64> {
         self.graph.latest_time_window(self.t_start, self.t_end)
     }
 
+    #[inline]
     fn earliest_time_window(&self, t_start: i64, t_end: i64) -> Option<i64> {
         self.graph
             .earliest_time_window(self.actual_start(t_start), self.actual_end(t_end))
     }
 
+    #[inline]
     fn latest_time_window(&self, t_start: i64, t_end: i64) -> Option<i64> {
         self.graph
             .latest_time_window(self.actual_start(t_start), self.actual_end(t_end))
     }
 
+    #[inline]
     fn vertex_earliest_time_window(&self, v: VID, t_start: i64, t_end: i64) -> Option<i64> {
         self.graph.vertex_earliest_time_window(
             v,
@@ -187,11 +192,13 @@ impl<G: GraphViewOps> TimeSemantics for WindowedGraph<G> {
         )
     }
 
+    #[inline]
     fn vertex_latest_time_window(&self, v: VID, t_start: i64, t_end: i64) -> Option<i64> {
         self.graph
             .vertex_latest_time_window(v, self.actual_start(t_start), self.actual_end(t_end))
     }
 
+    #[inline]
     fn include_vertex_window(
         &self,
         v: VID,
@@ -207,6 +214,7 @@ impl<G: GraphViewOps> TimeSemantics for WindowedGraph<G> {
         )
     }
 
+    #[inline]
     fn include_edge_window(&self, e: &EdgeStore, w: Range<i64>, layer_ids: &LayerIds) -> bool {
         self.graph.include_edge_window(
             e,
@@ -377,6 +385,7 @@ impl<G: GraphViewOps> TimeSemantics for WindowedGraph<G> {
 }
 
 impl<G: GraphViewOps> EdgeFilterOps for WindowedGraph<G> {
+    #[inline]
     fn edge_filter(&self) -> Option<ArcEdgeFilter> {
         let earliest_time = self.graph.view_start().unwrap_or(i64::MAX);
         let latest_time = self.graph.view_end().unwrap_or(i64::MIN);
@@ -649,11 +658,13 @@ impl<G: GraphViewOps> WindowedGraph<G> {
     }
 
     /// the larger of `t_start` and `self.start()` (useful for creating nested windows)
+    #[inline]
     fn actual_start(&self, t_start: i64) -> i64 {
         max(t_start, self.t_start)
     }
 
     /// the smaller of `t_end` and `self.end()` (useful for creating nested windows)
+    #[inline]
     fn actual_end(&self, t_end: i64) -> i64 {
         min(t_end, self.t_end)
     }

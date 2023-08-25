@@ -80,6 +80,7 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
             .last_t()
     }
 
+    #[inline]
     fn include_vertex_window(
         &self,
         v: VID,
@@ -90,6 +91,7 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
         self.inner().node_entry(v).timestamps().active(w)
     }
 
+    #[inline]
     fn include_edge_window(&self, e: &EdgeStore, w: Range<i64>, layer_ids: &LayerIds) -> bool {
         e.active(layer_ids, w)
     }

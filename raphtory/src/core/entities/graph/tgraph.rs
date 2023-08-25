@@ -231,6 +231,7 @@ impl<const N: usize> TemporalGraph<N> {
             .unwrap_or_else(|| node.global_id().to_string())
     }
 
+    #[inline]
     pub(crate) fn node_entry(&self, v: VID) -> Entry<'_, VertexStore, N> {
         self.storage.get_node(v.into())
     }
@@ -239,6 +240,7 @@ impl<const N: usize> TemporalGraph<N> {
         self.storage.edge_refs()
     }
 
+    #[inline]
     pub(crate) fn edge_entry(&self, e: EID) -> Entry<'_, EdgeStore, N> {
         self.storage.get_edge(e.into())
     }

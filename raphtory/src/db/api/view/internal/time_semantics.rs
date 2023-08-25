@@ -27,11 +27,13 @@ pub trait TimeSemantics: GraphOps + CoreGraphOps {
     }
 
     /// Returns the default start time for perspectives over the view
+    #[inline]
     fn view_start(&self) -> Option<i64> {
         self.earliest_time_global()
     }
 
     /// Returns the default end time for perspectives over the view
+    #[inline]
     fn view_end(&self) -> Option<i64> {
         self.latest_time_global().map(|v| v.saturating_add(1))
     }
