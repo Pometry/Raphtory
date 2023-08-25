@@ -109,7 +109,7 @@ pub fn balance<G: GraphViewOps>(
     let step1 = ATask::new(move |evv| {
         let res = balance_per_vertex(evv, &name, direction);
         evv.update(&min, res);
-        Step::Continue
+        Step::Done
     });
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
     AlgorithmResult::new_with_float(runner.run(
