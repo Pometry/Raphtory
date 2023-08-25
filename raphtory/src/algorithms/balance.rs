@@ -54,12 +54,26 @@ fn balance_per_vertex<G: GraphViewOps, CS: ComputeState>(
         Direction::IN => v
             .in_edges()
             .properties()
-            .map(|prop| prop.get(name).unwrap_f64())
+            .flat_map(|prop| {
+                prop.temporal().get(name).map(|val| {
+                    val.values()
+                        .into_iter()
+                        .map(|valval| valval.unwrap_f64())
+                        .sum::<f64>()
+                })
+            })
             .sum::<f64>(),
         Direction::OUT => -v
             .out_edges()
             .properties()
-            .map(|prop| prop.get(name).unwrap_f64())
+            .flat_map(|prop| {
+                prop.temporal().get(name).map(|val| {
+                    val.values()
+                        .into_iter()
+                        .map(|valval| valval.unwrap_f64())
+                        .sum::<f64>()
+                })
+            })
             .sum::<f64>(),
         Direction::BOTH => {
             let in_res = balance_per_vertex(v, name, Direction::IN);
