@@ -20,7 +20,7 @@ use crate::{
             vertex::eval_vertex::EvalVertexView,
         },
     },
-    prelude::{EdgeViewOps, PropUnwrap, VertexViewOps},
+    prelude::{EdgeListOps, EdgeViewOps, PropUnwrap, VertexViewOps},
 };
 use ordered_float::OrderedFloat;
 
@@ -43,26 +43,30 @@ use ordered_float::OrderedFloat;
 ///
 /// # Returns
 /// Returns a `f64` which is the net sum of weights for the vertex considering the specified direction.
-fn sum_weight_for_vertex<G: GraphViewOps, CS: ComputeState>(
+fn balance_per_vertex<G: GraphViewOps, CS: ComputeState>(
     v: &EvalVertexView<G, CS, ()>,
-    name: String,
+    name: &str,
     direction: Direction,
 ) -> f64 {
-    v.edges()
-        .map(|edge| {
-            if edge.src().name() == v.name()
-                && ((direction == Direction::OUT) | (direction == Direction::BOTH))
-            {
-                -edge.properties().get(name.clone()).unwrap_f64()
-            } else if edge.src().name() != v.name()
-                && ((direction == Direction::IN) | (direction == Direction::BOTH))
-            {
-                edge.properties().get(name.clone()).unwrap_f64()
-            } else {
-                0.0
-            }
-        })
-        .sum()
+    // let in_result = v.in_edges().properties().get(name.clone()).sum();
+    // in_result - out_result
+    match direction {
+        Direction::IN => v
+            .in_edges()
+            .properties()
+            .map(|prop| prop.get(name).unwrap_f64())
+            .sum::<f64>(),
+        Direction::OUT => -v
+            .out_edges()
+            .properties()
+            .map(|prop| prop.get(name).unwrap_f64())
+            .sum::<f64>(),
+        Direction::BOTH => {
+            let in_res = balance_per_vertex(v, name, Direction::IN);
+            let out_res = balance_per_vertex(v, name, Direction::OUT);
+            in_res + out_res
+        }
+    }
 }
 
 /// Computes the sum of weights for all vertices in the graph.
@@ -79,7 +83,7 @@ fn sum_weight_for_vertex<G: GraphViewOps, CS: ComputeState>(
 ///
 /// # Returns
 /// Returns an `AlgorithmResult` which maps each vertex to its corresponding net weight sum.
-pub fn sum_weights_edges<G: GraphViewOps>(
+pub fn balance<G: GraphViewOps>(
     graph: &G,
     name: String,
     direction: Direction,
@@ -89,7 +93,7 @@ pub fn sum_weights_edges<G: GraphViewOps>(
     let min = sum(0);
     ctx.agg(min);
     let step1 = ATask::new(move |evv| {
-        let res = sum_weight_for_vertex(evv, name.clone(), direction);
+        let res = balance_per_vertex(evv, &name, direction);
         evv.update(&min, res);
         Step::Continue
     });
@@ -109,7 +113,7 @@ pub fn sum_weights_edges<G: GraphViewOps>(
 #[cfg(test)]
 mod sum_weight_test {
     use crate::{
-        algorithms::weight_accum::sum_weights_edges,
+        algorithms::balance::balance,
         core::{Direction, Prop},
         db::{api::mutation::AdditionOps, graph::graph::Graph},
     };
@@ -143,7 +147,7 @@ mod sum_weight_test {
                 .expect("Couldnt add edge");
         }
 
-        let res = sum_weights_edges(&graph, "value_dec".to_string(), Direction::BOTH, None);
+        let res = balance(&graph, "value_dec".to_string(), Direction::BOTH, None);
         let expected = vec![
             ("1".to_string(), OrderedFloat(-26.0)),
             ("2".to_string(), OrderedFloat(7.0)),
@@ -153,7 +157,7 @@ mod sum_weight_test {
         ];
         assert_eq!(res.sort_by_key(false), expected);
 
-        let res = sum_weights_edges(&graph, "value_dec".to_string(), Direction::IN, None);
+        let res = balance(&graph, "value_dec".to_string(), Direction::IN, None);
         let expected = vec![
             ("1".to_string(), OrderedFloat(6.0)),
             ("2".to_string(), OrderedFloat(12.0)),
@@ -163,7 +167,7 @@ mod sum_weight_test {
         ];
         assert_eq!(res.sort_by_key(false), expected);
 
-        let res = sum_weights_edges(&graph, "value_dec".to_string(), Direction::OUT, None);
+        let res = balance(&graph, "value_dec".to_string(), Direction::OUT, None);
         let expected = vec![
             ("1".to_string(), OrderedFloat(-32.0)),
             ("2".to_string(), OrderedFloat(-5.0)),

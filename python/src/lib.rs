@@ -81,7 +81,7 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         algorithm_module
     )?)?;
     algorithm_module.add_function(wrap_pyfunction!(hits, algorithm_module)?)?;
-    algorithm_module.add_function(wrap_pyfunction!(sum_weights_edges, algorithm_module)?)?;
+    algorithm_module.add_function(wrap_pyfunction!(balance, algorithm_module)?)?;
 
     m.add_submodule(algorithm_module)?;
 

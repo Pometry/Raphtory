@@ -8,6 +8,7 @@ use crate::python::graph::edge::PyDirection;
 use crate::{
     algorithms::{
         algorithm_result::AlgorithmResult,
+        balance::balance as balance_rs,
         connected_components,
         degree::{
             average_degree as average_degree_rs, max_in_degree as max_in_degree_rs,
@@ -28,7 +29,6 @@ use crate::{
             global_reciprocity as global_reciprocity_rs,
         },
         temporal_reachability::temporally_reachable_nodes as temporal_reachability_rs,
-        weight_accum::sum_weights_edges as sum_weights_edges_rs,
     },
     core::entities::vertices::vertex_ref::VertexRef,
     python::{graph::views::graph_view::PyGraphView, utils::PyInputVertex},
@@ -391,11 +391,11 @@ pub fn hits(
 ///
 #[pyfunction]
 #[pyo3[signature = (g, name="weight".to_string(), direction=PyDirection::new("BOTH"),  threads=None)]]
-pub fn sum_weights_edges(
+pub fn balance(
     g: &PyGraphView,
     name: String,
     direction: PyDirection,
     threads: Option<usize>,
 ) -> AlgorithmResult<String, OrderedFloat<f64>> {
-    sum_weights_edges_rs(&g.graph, name.clone(), direction.into(), threads)
+    balance_rs(&g.graph, name.clone(), direction.into(), threads)
 }

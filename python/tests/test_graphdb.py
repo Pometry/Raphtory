@@ -1616,8 +1616,7 @@ def test_hits_algorithm():
     assert algorithms.hits(g).get('Aldor') == (0.0035840950440615416, 0.007476256228983402)
 
 
-def test_sum_weights_algorithm():
-    import raphtory
+def test_balance_algorithm():
     g = Graph()
     edges_str = [
         ("1", "2", 10.0, 1),
@@ -1631,13 +1630,13 @@ def test_sum_weights_algorithm():
     ]
     for (src, dst, val, time) in edges_str:
         g.add_edge(time, src, dst, {'value_dec': val})
-    result = algorithms.sum_weights_edges(g, "value_dec", PyDirection("BOTH"), None).get_all()
+    result = algorithms.balance(g, "value_dec", PyDirection("BOTH"), None).get_all()
     assert result == {'1': -26.0, '2': 7.0, '3': 12.0, '4': 5.0, '5': 2.0}
 
-    result = algorithms.sum_weights_edges(g, "value_dec", PyDirection("IN"), None).get_all()
+    result = algorithms.balance(g, "value_dec", PyDirection("IN"), None).get_all()
     assert result == {'1': 6.0, '2': 12.0, '3': 15.0, '4': 20.0, '5': 2.0}
 
-    result = algorithms.sum_weights_edges(g, "value_dec", PyDirection("OUT"), None).get_all()
+    result = algorithms.balance(g, "value_dec", PyDirection("OUT"), None).get_all()
     assert result == {'1': -32.0, '2': -5.0, '3': -3.0, '4': -15.0, '5': 0.0}
 
 
