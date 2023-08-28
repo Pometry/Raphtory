@@ -1,4 +1,4 @@
-use crate::model::{filters::primitives::NumberFilter, graph::node::Node};
+use crate::model::{filters::primitive_filter::NumberFilter, graph::node::Node};
 use dynamic_graphql::InputObject;
 use raphtory::{core::Prop, db::api::view::VertexViewOps};
 
