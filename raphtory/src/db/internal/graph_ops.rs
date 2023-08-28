@@ -63,6 +63,7 @@ impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
         self.inner().num_edges(&layers, filter)
     }
 
+    #[inline]
     fn degree(
         &self,
         v: VID,

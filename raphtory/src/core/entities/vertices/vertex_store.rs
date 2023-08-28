@@ -131,6 +131,7 @@ impl VertexStore {
         self.props.as_ref().and_then(|ps| ps.static_prop(prop_id))
     }
 
+    #[inline]
     pub(crate) fn edge_tuples<'a>(
         &'a self,
         layers: &LayerIds,

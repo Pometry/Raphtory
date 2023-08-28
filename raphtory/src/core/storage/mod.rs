@@ -52,6 +52,7 @@ impl<T: Default> LockVec<T> {
         }
     }
 
+    #[inline]
     pub fn read_arc_lock(&self) -> ArcRwLockReadGuard<Vec<T>> {
         RwLock::read_arc(&self.data)
     }
@@ -135,11 +136,12 @@ impl<T: Default + Send + Sync, const N: usize> RawStorage<T, N> {
 }
 
 impl<T: Default, const N: usize> RawStorage<T, N> {
+    #[inline]
     pub fn read_lock(&self) -> ReadLockedStorage<T, N> {
         let guards: [ArcRwLockReadGuard<Vec<T>>; N] =
-            std::array::from_fn(|i| self.data[i].read_arc_lock());
+            array::from_fn(|i| self.data[i].read_arc_lock());
         ReadLockedStorage {
-            locks: guards.into(),
+            locks: guards,
             len: self.len(),
         }
     }
@@ -237,6 +239,7 @@ impl<T: Default, const N: usize> RawStorage<T, N> {
         }
     }
 
+    #[inline]
     pub fn len(&self) -> usize {
         self.len.load(Ordering::SeqCst)
     }

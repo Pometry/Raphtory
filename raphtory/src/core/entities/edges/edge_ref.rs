@@ -29,6 +29,7 @@ pub enum Dir {
 }
 
 impl EdgeRef {
+    #[inline]
     pub fn new_outgoing(e_pid: EID, src_pid: VID, dst_pid: VID) -> Self {
         EdgeRef {
             e_pid,
@@ -40,6 +41,7 @@ impl EdgeRef {
         }
     }
 
+    #[inline]
     pub fn new_incoming(e_pid: EID, src_pid: VID, dst_pid: VID) -> Self {
         EdgeRef {
             e_pid,
@@ -51,6 +53,7 @@ impl EdgeRef {
         }
     }
 
+    #[inline]
     pub fn new(e_pid: EID, local_pid: VID, remote_pid: VID, dir: Dir) -> Self {
         match dir {
             Dir::Out => EdgeRef {
@@ -87,18 +90,22 @@ impl EdgeRef {
         self.time.map(|t| *t.t())
     }
 
+    #[inline]
     pub fn dir(&self) -> Dir {
         self.e_type
     }
 
+    #[inline]
     pub fn src(&self) -> VID {
         self.src_pid
     }
 
+    #[inline]
     pub fn dst(&self) -> VID {
         self.dst_pid
     }
 
+    #[inline]
     pub fn remote(&self) -> VID {
         match self.e_type {
             Dir::Into => self.src(),
@@ -106,6 +113,7 @@ impl EdgeRef {
         }
     }
 
+    #[inline]
     pub fn local(&self) -> VID {
         match self.e_type {
             Dir::Into => self.dst(),
@@ -118,12 +126,14 @@ impl EdgeRef {
         self.e_pid
     }
 
+    #[inline]
     pub fn at(&self, time: TimeIndexEntry) -> Self {
         let mut e_ref = *self;
         e_ref.time = Some(time);
         e_ref
     }
 
+    #[inline]
     pub fn at_layer(&self, layer: usize) -> Self {
         let mut e_ref = *self;
         e_ref.layer_id = Some(layer);
