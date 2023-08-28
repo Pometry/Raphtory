@@ -1,8 +1,11 @@
-use crate::model::{filters::primitives::NumberFilter, graph::node::Node};
+use crate::model::{
+    filters::primitives::NumberFilter,
+    graph::{edge::Edge, node::Node},
+};
 use dynamic_graphql::InputObject;
 use raphtory::{core::Prop, db::api::view::VertexViewOps};
 
-#[derive(InputObject)]
+#[derive(InputObject, Clone)]
 pub(crate) struct PropertyHasFilter {
     key: Option<String>,
     value_str: Option<String>,
@@ -10,7 +13,7 @@ pub(crate) struct PropertyHasFilter {
 }
 
 impl PropertyHasFilter {
-    pub(crate) fn matches(&self, node: &Node) -> bool {
+    pub(crate) fn matches_node_properties(&self, node: &Node) -> bool {
         let valid_prop = |prop| valid_prop(prop, &self.value_str, &self.value_num);
 
         return match &self.key {
@@ -22,6 +25,23 @@ impl PropertyHasFilter {
                 }
             }
             None => node.vv.properties().values().any(valid_prop),
+        };
+    }
+
+    pub(crate) fn matches_edge_properties(&self, edge: &Edge) -> bool {
+        let valid_prop = |prop| valid_prop(prop, &self.value_str, &self.value_num);
+
+        return match &self.key {
+            Some(key) => {
+                if let Some(prop) = raphtory::prelude::EdgeViewOps::properties(&edge.ee).get(key) {
+                    valid_prop(prop)
+                } else {
+                    false
+                }
+            }
+            None => raphtory::prelude::EdgeViewOps::properties(&edge.ee)
+                .values()
+                .any(valid_prop),
         };
     }
 }

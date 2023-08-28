@@ -5,11 +5,14 @@ use crate::model::{
 use dynamic_graphql::InputObject;
 use raphtory::db::api::view::{EdgeViewOps, VertexViewOps};
 
+use super::property::PropertyHasFilter;
+
 #[derive(InputObject, Clone)]
 pub struct EdgeFilter {
     node_names: Option<StringVecFilter>,
     src: Option<StringFilter>,
     dst: Option<StringFilter>,
+    property_has: Option<PropertyHasFilter>,
     pub(crate) layer_names: Option<StringVecFilter>,
 }
 
@@ -41,6 +44,12 @@ impl EdgeFilter {
                 .layer_names()
                 .iter()
                 .any(|name| name_filter.contains(name));
+        }
+
+        if let Some(property_has_filter) = &self.property_has {
+            if !property_has_filter.matches_edge_properties(&edge) {
+                return false;
+            }
         }
 
         true
