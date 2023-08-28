@@ -33,7 +33,7 @@
 &nbsp 
 <a href="https://www.pometry.com"><img src="https://user-images.githubusercontent.com/6665739/202438989-2859f8b8-30fb-4402-820a-563049e1fdb3.png" height="20" align="center"/> Pometry</a> 
 &nbsp
-<a href="https://docs.raphtory.com/en/master/Introduction/ingestion.html">🧙🏻‍ Tutorial</a> 
+<a href="https://docs.raphtory.com/en/v0.5.2/getting_started/simple_installation.html#getting-started">🧙🏻‍ Tutorial</a> 
 &nbsp
 <a href="https://github.com/Raphtory/Raphtory/issues">🐛 Report a Bug</a> 
 &nbsp
@@ -42,10 +42,10 @@
 
 <br>
 
-Raphtory is an in-memory graph tool written in Rust with friendly Python APIs on top. It is blazingly fast, scales to hundreds of millions of edges 
+Raphtory is an in-memory vectorised graph database written in Rust with friendly Python APIs on top. It is blazingly fast, scales to hundreds of millions of edges 
 on your laptop, and can be dropped into your existing pipelines with a simple `pip install raphtory`.  
 
-It supports time traveling, multilayer modelling, and advanced analytics beyond simple querying like community evolution, dynamic scoring, and mining temporal motifs.
+It supports time traveling, full-text search, multilayer modelling, and advanced analytics beyond simple querying like automatic risk detection, dynamic scoring, and temporal motifs.
 
 If you wish to contribute, check out the open [list of issues](https://github.com/Pometry/Raphtory/issues), [bounty board](https://github.com/Raphtory/Raphtory/discussions/categories/bounty-board) or hit us up directly on [slack](https://join.slack.com/t/raphtory/shared_invite/zt-xbebws9j-VgPIFRleJFJBwmpf81tvxA). Successful contributions will be reward with swizzling swag!
 
