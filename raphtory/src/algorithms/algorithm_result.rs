@@ -140,6 +140,14 @@ where
             sorted_result.iter().cloned().take(k).collect()
         }
     }
+
+    pub fn min_key(&self) -> Option<&K> {
+        self.result.keys().min()
+    }
+
+    pub fn max_key(&self) -> Option<&K> {
+        self.result.keys().max()
+    }
 }
 
 impl<K: Clone + Hash + Eq + Ord> AlgorithmResult<K, f64> {
@@ -181,6 +189,15 @@ where
         }
         grouped
     }
+
+    pub fn min_value(&self) -> Option<&V> {
+        self.result.values().min()
+    }
+
+    pub fn max_value(&self) -> Option<&V> {
+        self.result.values().max()
+    }
+
     // pub fn group_by(&self) -> AlgorithmResult<V, Vec<K>> {
     //     let mut grouped: HashMap<V, Vec<K>> = HashMap::new();
     //     for (key, value) in &self.result {
