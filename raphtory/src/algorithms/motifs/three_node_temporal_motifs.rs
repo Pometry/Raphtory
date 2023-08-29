@@ -11,7 +11,7 @@ use crate::{
     },
     db::{
         api::view::{GraphViewOps, VertexViewOps, *},
-        graph::views::vertex_subgraph::VertexSubgraph,
+        graph::{views::vertex_subgraph::VertexSubgraph, edge::EdgeView},
         task::{
             context::Context,
             task::{ATask, Job, Step},
@@ -22,7 +22,8 @@ use crate::{
 };
 
 use crate::core::entities::vertices::vertex_ref::VertexRef;
-use itertools::enumerate;
+use futures::io::empty;
+use itertools::{enumerate, Combinations, Itertools};
 use num_traits::Zero;
 use rustc_hash::FxHashSet;
 use std::{collections::HashMap, ops::Add, slice::Iter};
@@ -118,7 +119,7 @@ pub fn star_motif_count<G: GraphViewOps>(
         .map(|(num, nb)| (nb.id(), num))
         .into_iter()
         .collect();
-    let mut exploded_edges = evv
+    let exploded_edges = evv
         .edges()
         .explode()
         .sorted_by_key(|e| (e.time(), e.src().id(), e.dst().id()))
@@ -147,7 +148,7 @@ pub fn twonode_motif_count<G: GraphViewOps>(
         let nb_id = nb.id();
         let out = graph.edge(evv.id(), nb_id);
         let inc = graph.edge(nb_id, evv.id());
-        let mut all_exploded: Vec<TwoNodeEvent> = out
+        let all_exploded: Vec<TwoNodeEvent> = out
             .iter()
             .flat_map(|e| e.explode())
             .chain(inc.iter().flat_map(|e| e.explode()))
@@ -213,7 +214,6 @@ pub fn triangle_motifs<G: GraphViewOps>(
                             (u_set, v_set) => {
                                 let intersection =
                                     u_set.intersection(v_set).cloned().collect::<Vec<_>>();
-                                // println!("{:?}",intersection.len());
                                 intersection
                             }
                         }
@@ -225,124 +225,33 @@ pub fn triangle_motifs<G: GraphViewOps>(
                     // let mut nb_ct = 0;
                     intersection_nbs.iter().for_each(|w| {
                         // For each triangle, run the triangle count.
-                        let mut tri_edges: Vec<TriangleEdge> = Vec::new();
 
-                        let u_to_v = match g.edge(u.id(), v.id()) {
-                            Some(edge) => {
-                                let r = edge
-                                    .explode()
-                                    .map(|e| new_triangle_edge(true, 1, 0, 1, e.time().unwrap()))
-                                    .collect::<Vec<TriangleEdge>>();
-                                r.into_iter()
-                            }
-                            None => vec![].into_iter(),
-                        };
-                        let v_to_u = match g.edge(v.id(), u.id()) {
-                            Some(edge) => {
-                                let r = edge
-                                    .explode()
-                                    .map(|e| new_triangle_edge(true, 0, 0, 0, e.time().unwrap()))
-                                    .collect::<Vec<TriangleEdge>>();
-                                r.into_iter()
-                            }
-                            None => vec![].into_iter(),
-                        };
-
-                        let uout = g.edge(u.id(), *w);
-                        let uin = g.edge(*w, u.id());
-                        match (uout, uin) {
-                            (Some(o), Some(i)) => {
-                                tri_edges.append(
-                                    &mut o
-                                        .explode()
-                                        .map(|e| {
-                                            new_triangle_edge(false, 0, 0, 1, e.time().unwrap())
-                                        })
-                                        .collect::<Vec<TriangleEdge>>(),
-                                );
-                                tri_edges.append(
-                                    &mut i
-                                        .explode()
-                                        .map(|e| {
-                                            new_triangle_edge(false, 0, 0, 0, e.time().unwrap())
-                                        })
-                                        .collect::<Vec<TriangleEdge>>(),
-                                );
-                            }
-                            (Some(o), None) => {
-                                tri_edges.append(
-                                    &mut o
-                                        .explode()
-                                        .map(|e| {
-                                            new_triangle_edge(false, 0, 0, 1, e.time().unwrap())
-                                        })
-                                        .collect::<Vec<TriangleEdge>>(),
-                                );
-                            }
-                            (None, Some(i)) => {
-                                tri_edges.append(
-                                    &mut i
-                                        .explode()
-                                        .map(|e| {
-                                            new_triangle_edge(false, 0, 0, 0, e.time().unwrap())
-                                        })
-                                        .collect::<Vec<TriangleEdge>>(),
-                                );
-                            }
-                            (None, None) => {}
-                        }
-
-                        let vout = g.edge(v.id(), *w);
-                        let vin = g.edge(*w, v.id());
-                        // The following code checks for triangles
-                        match (vout, vin) {
-                            (Some(o), Some(i)) => {
-                                tri_edges.append(
-                                    &mut o
-                                        .explode()
-                                        .map(|e| {
-                                            new_triangle_edge(false, 1, 0, 1, e.time().unwrap())
-                                        })
-                                        .collect::<Vec<TriangleEdge>>(),
-                                );
-                                tri_edges.append(
-                                    &mut i
-                                        .explode()
-                                        .map(|e| {
-                                            new_triangle_edge(false, 1, 0, 0, e.time().unwrap())
-                                        })
-                                        .collect::<Vec<TriangleEdge>>(),
-                                );
-                            }
-                            (Some(o), None) => {
-                                tri_edges.append(
-                                    &mut o
-                                        .explode()
-                                        .map(|e| {
-                                            new_triangle_edge(false, 1, 0, 1, e.time().unwrap())
-                                        })
-                                        .collect::<Vec<TriangleEdge>>(),
-                                );
-                            }
-                            (None, Some(i)) => {
-                                tri_edges.append(
-                                    &mut i
-                                        .explode()
-                                        .map(|e| {
-                                            new_triangle_edge(false, 1, 0, 0, e.time().unwrap())
-                                        })
-                                        .collect::<Vec<TriangleEdge>>(),
-                                );
-                            }
-                            (None, None) => {}
-                        }
-
-                        tri_edges.append(&mut u_to_v.collect::<Vec<TriangleEdge>>());
-                        tri_edges.append(&mut v_to_u.collect::<Vec<TriangleEdge>>());
-                        tri_edges.sort_by_key(|e| e.time);
+                        let all_exploded = vec![u.id(), v.id(), *w]
+                            .into_iter()
+                            .permutations(2)
+                            .flat_map(|e| {
+                                g
+                                    .edge(e.get(0).unwrap().clone(), e.get(1).unwrap().clone())
+                                    .iter()
+                                    .flat_map(|edge| edge.explode())
+                                    .collect::<Vec<_>>()
+                            })
+                            .sorted_by_key(|e| (e.time(), e.src().id(), e.dst().id()))
+                            .map(|e| {
+                                let uv_edge = (e.src().id()==u.id() && e.dst().id()==v.id()) || (e.src().id() == v.id() && e.dst().id() == u.id());
+                                if uv_edge {
+                                    if e.src().id()==u.id() {
+                                    new_triangle_edge(true, 1, 0, 1, e.time().unwrap())
+                                } else {new_triangle_edge(true, 0, 0, 0, e.time().unwrap())}
+                                } else {
+                                    if e.src().id() == u.id() || e.dst().id() == u.id() {
+                                        new_triangle_edge(false, 0, 0, if e.src().id() == u.id() {1} else {0}, e.time().unwrap())
+                                    } else {new_triangle_edge(false, 1, 0, if e.src().id() == v.id() {1} else {0}, e.time().unwrap())}
+                                }
+                            }).collect::<Vec<TriangleEdge>>();
 
                         let mut tri_count = init_tri_count(2);
-                        tri_count.execute(&tri_edges, delta);
+                        tri_count.execute(&all_exploded, delta);
                         let tmp_counts: Iter<usize> = tri_count.return_counts().iter();
 
                         // Triangle counts are going to be WRONG without w
@@ -359,19 +268,6 @@ pub fn triangle_motifs<G: GraphViewOps>(
                             .unwrap();
                         mc_u.triangle = triangle_u;
 
-                        // This is so broken :( :(
-
-                        // println!("{:?}V ID",v.id());
-                        // let mc = v.get_mut();
-                        // let triangle_v: [usize; 8] = mc
-                        //     .triangle
-                        //     .iter()
-                        //     .zip(tmp_counts.clone())
-                        //     .map(|(&i1, &i2)| i1 + i2)
-                        //     .collect::<Vec<usize>>()
-                        //     .try_into()
-                        //     .unwrap();
-                        // mc.triangle = triangle_v;
                     })
                 }
             }
