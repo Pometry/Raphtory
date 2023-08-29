@@ -1,7 +1,7 @@
 use crate::{
     algorithms::algorithm_result::AlgorithmResult,
     core::{
-        entities::VID,
+        entities::{vertices::vertex_ref::VertexRef, VID},
         state::{accumulator_id::accumulators, compute_state::ComputeStateVec},
     },
     db::{
@@ -162,11 +162,14 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
         vec![Job::new(step1)],
         vec![Job::new(step2), Job::new(step3), Job::new(step4), step5],
         PageRankState::new(num_vertices),
-        |g, _, _, local| {
+        |_, _, _, local| {
             local
                 .iter()
                 .enumerate()
-                .map(|(v_ref, score)| (v_ref.into(), score.score))
+                .filter_map(|(v_ref, score)| {
+                    g.has_vertex_ref(VertexRef::Local(v_ref.into()))
+                        .then_some((v_ref.into(), score.score))
+                })
                 .collect::<HashMap<_, _>>()
         },
         threads,
