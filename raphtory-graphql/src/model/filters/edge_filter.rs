@@ -1,5 +1,5 @@
 use crate::model::{
-    filters::primitives::{StringFilter, StringVecFilter},
+    filters::primitive_filter::{StringFilter, StringVecFilter},
     graph::edge::Edge,
 };
 use dynamic_graphql::InputObject;

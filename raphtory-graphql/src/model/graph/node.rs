@@ -1,5 +1,5 @@
 use crate::model::{
-    filters::edgefilter::EdgeFilter,
+    filters::edge_filter::EdgeFilter,
     graph::{edge::Edge, get_expanded_edges, property::Property, property_update::PropertyUpdate},
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
