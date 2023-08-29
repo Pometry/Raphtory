@@ -86,17 +86,16 @@ impl Node {
 
     /// Returns the history as a vectory of updates for any properties which are included in param names
     async fn properties_history(&self, names: Vec<String>) -> Vec<PropertyUpdateGroup> {
-        self.vv
-            .properties()
-            .temporal()
-            .into_iter()
-            .filter(|p| names.contains(&p.0))
-            .map(|p| {
-                let updates =
-                    p.1.iter()
+        names
+            .iter()
+            .filter_map(|name| match self.vv.properties().temporal().get(name) {
+                Some(prop) => Option::Some(PropertyUpdateGroup::new(
+                    name.to_string(),
+                    prop.iter()
                         .map(|(time, prop)| PropertyUpdate::new(time, prop.to_string()))
-                        .collect_vec();
-                return PropertyUpdateGroup::new(p.0, updates);
+                        .collect_vec(),
+                )),
+                None => None,
             })
             .collect_vec()
     }
