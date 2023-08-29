@@ -57,12 +57,13 @@ def to_pyvis(
         edge_label=None,
         colour_nodes_by_type=False,
         type_property="type",
+        notebook=True,
         **kwargs
 ):
     """
     Returns a dynamic visualisation in static HTML format from a Raphtory graph.
     """
-    visGraph = Network(**kwargs)
+    visGraph = Network(notebook=notebook, **kwargs)
     if colour_nodes_by_type:
         groups = {value: index + 1 for index, value in enumerate(set(graph.vertices.properties.get(type_property)))}
 
