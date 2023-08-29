@@ -1,11 +1,12 @@
 use crate::model::{
-    filters::primitive_filter::{StringFilter, StringVecFilter},
+    filters::{
+        primitive_filter::{StringFilter, StringVecFilter},
+        property_filter::PropertyHasFilter,
+    },
     graph::edge::Edge,
 };
 use dynamic_graphql::InputObject;
 use raphtory::db::api::view::{EdgeViewOps, VertexViewOps};
-
-use super::property::PropertyHasFilter;
 
 #[derive(InputObject, Clone)]
 pub struct EdgeFilter {
