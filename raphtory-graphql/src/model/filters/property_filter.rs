@@ -1,9 +1,9 @@
 use crate::model::{
-    filters::primitives::NumberFilter,
+    filters::primitive_filter::NumberFilter,
     graph::{edge::Edge, node::Node},
 };
 use dynamic_graphql::InputObject;
-use raphtory::{core::Prop, db::api::view::VertexViewOps};
+use raphtory::{core::Prop, db::api::view::VertexViewOps, prelude::EdgeViewOps};
 
 #[derive(InputObject, Clone)]
 pub(crate) struct PropertyHasFilter {
@@ -33,15 +33,13 @@ impl PropertyHasFilter {
 
         return match &self.key {
             Some(key) => {
-                if let Some(prop) = raphtory::prelude::EdgeViewOps::properties(&edge.ee).get(key) {
+                if let Some(prop) = EdgeViewOps::properties(&edge.ee).get(key) {
                     valid_prop(prop)
                 } else {
                     false
                 }
             }
-            None => raphtory::prelude::EdgeViewOps::properties(&edge.ee)
-                .values()
-                .any(valid_prop),
+            None => EdgeViewOps::properties(&edge.ee).values().any(valid_prop),
         };
     }
 }
