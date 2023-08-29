@@ -1,5 +1,8 @@
 use crate::{
-    core::{entities::VID, state::compute_state::ComputeStateVec},
+    core::{
+        entities::{vertices::vertex_ref::VertexRef, VID},
+        state::compute_state::ComputeStateVec,
+    },
     db::{
         api::view::{GraphViewOps, VertexViewOps},
         graph::views::vertex_subgraph::VertexSubgraph,
@@ -83,7 +86,9 @@ where
             local
                 .iter()
                 .enumerate()
-                .filter(|(_, state)| state.alive)
+                .filter(|(v_ref, state)| {
+                    state.alive && graph.has_vertex_ref(VertexRef::Local((*v_ref).into()))
+                })
                 .map(|(v_ref, _)| v_ref.into())
                 .collect::<HashSet<VID>>()
         },
