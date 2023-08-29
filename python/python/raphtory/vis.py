@@ -50,6 +50,7 @@ For Example:
 
 def to_pyvis(
         graph,
+        directed=True,
         height="800px",
         width="800px",
         bg_color="#white",
@@ -66,7 +67,7 @@ def to_pyvis(
     """
     Returns a dynamic visualisation in static HTML format from a Raphtory graph.
     """
-    visGraph = Network(height=height, width=width, bgcolor=bg_color, font_color=font_color, notebook=notebook)
+    visGraph = Network(height=height, width=width, bgcolor=bg_color, font_color=font_color, notebook=notebook, directed=directed)
     if colour_nodes_by_type:
         groups = {value: index + 1 for index, value in enumerate(set(graph.vertices.properties.get(type_property)))}
 
@@ -80,9 +81,13 @@ def to_pyvis(
             visGraph.add_node(v.id(), label= v.name(), shape=shape, image=image)
 
     for e in graph.edges():
-        weight = e.property(edge_weight) if edge_weight != None else 1
-        label = e.property(edge_label) if edge_label != None else ""
-        visGraph.add_edge(e.src().id(), e.dst().id(), value=weight, color=edge_color, title=label)
+        weight = e.properties.get(edge_weight) if edge_weight is not None else 1
+        if weight is None:
+            weight = 1
+        label = e.properties.get(edge_label) if edge_label is not None else ""
+        if label is None:
+            label = ""
+        visGraph.add_edge(e.src().id(), e.dst().id(), value=weight, color=edge_color, title=label, arrowStrikethrough=False)
 
     visGraph.show_buttons(filter_=['physics'])
     visGraph.show('nx.html')
