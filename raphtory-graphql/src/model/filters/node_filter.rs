@@ -1,7 +1,7 @@
 use crate::model::{
     filters::{
-        primitives::{NumberFilter, StringFilter, StringVecFilter},
-        property::PropertyHasFilter,
+        primitive_filter::{NumberFilter, StringFilter, StringVecFilter},
+        property_filter::PropertyHasFilter,
     },
     graph::node::Node,
 };

@@ -5,7 +5,7 @@ use std::{
 
 use crate::model::{
     algorithm::Algorithms,
-    filters::{edgefilter::EdgeFilter, nodefilter::NodeFilter},
+    filters::{edge_filter::EdgeFilter, node_filter::NodeFilter},
     graph::{edge::Edge, get_expanded_edges, node::Node, property::Property},
     schema::graph_schema::GraphSchema,
 };
