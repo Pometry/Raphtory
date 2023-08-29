@@ -26,7 +26,7 @@ impl StringFilter {
     }
 }
 
-#[derive(InputObject)]
+#[derive(InputObject, Clone)]
 pub(crate) struct NumberFilter {
     gt: Option<usize>,
     lt: Option<usize>,
