@@ -21,6 +21,7 @@ use crate::{
     },
 };
 
+use crate::core::entities::vertices::vertex_ref::VertexRef;
 use itertools::enumerate;
 use num_traits::Zero;
 use rustc_hash::FxHashSet;
@@ -387,8 +388,10 @@ pub fn triangle_motifs<G: GraphViewOps>(
         |_, _, _els, local| {
             let mut tri_motifs = HashMap::new();
             for (vref, mc) in enumerate(local) {
-                let v_gid = graph.vertex_name(vref.into());
-                tri_motifs.insert(v_gid.clone(), mc.triangle);
+                if graph.has_vertex_ref(VertexRef::Local(vref.into())) {
+                    let v_gid = graph.vertex_name(vref.into());
+                    tri_motifs.insert(v_gid.clone(), mc.triangle);
+                }
             }
             tri_motifs
         },
@@ -487,6 +490,7 @@ pub fn global_temporal_three_node_motif<G: GraphViewOps>(
     tmp_counts
 }
 
+#[cfg(test)]
 mod motifs_test {
     use super::*;
     use crate::{
