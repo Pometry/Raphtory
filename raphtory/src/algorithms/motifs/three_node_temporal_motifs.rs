@@ -129,7 +129,6 @@ pub fn star_motif_count<G: GraphViewOps>(
             }
         })
         .collect::<Vec<StarEvent>>();
-    exploded_edges.sort_by_key(|e| (e.time, e.dir));
     let mut star_count = init_star_count(neigh_map.len());
     star_count.execute(&exploded_edges, delta);
     star_count.return_counts()
