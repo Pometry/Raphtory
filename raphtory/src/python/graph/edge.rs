@@ -41,6 +41,8 @@ use std::{
     hash::{Hash, Hasher},
     sync::Arc,
 };
+use std::ops::Deref;
+use itertools::Itertools;
 
 /// PyEdge is a Python class that represents an edge in the graph.
 /// An edge is a directed connection between two vertices.
@@ -336,7 +338,11 @@ impl Repr for PyEdge {
 
 impl Repr for EdgeView<DynamicGraph> {
     fn repr(&self) -> String {
-        let properties = &self.properties().repr();
+        let properties: String = self
+            .properties()
+            .iter()
+            .map(|(k, v)| format!("{}: {}", k.deref(), v))
+            .join(", ");
 
         let source = self.src().name();
         let target = self.dst().name();
@@ -351,14 +357,13 @@ impl Repr for EdgeView<DynamicGraph> {
                 latest_time.unwrap_or(0),
             )
         } else {
-            let property_string: String = format!("{{{properties}}}");
             format!(
                 "Edge(source={}, target={}, earliest_time={}, latest_time={}, properties={})",
                 source.trim_matches('"'),
                 target.trim_matches('"'),
                 earliest_time.unwrap_or(0),
                 latest_time.unwrap_or(0),
-                property_string
+                format!("{{{properties}}}")
             )
         }
     }

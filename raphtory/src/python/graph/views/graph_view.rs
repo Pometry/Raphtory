@@ -1,5 +1,6 @@
 //! The API for querying a view of the graph in a read-only state
 
+use std::ops::Deref;
 use crate::{
     core::{
         entities::vertices::vertex_ref::VertexRef,
@@ -34,6 +35,7 @@ use crate::{
     *,
 };
 use chrono::prelude::*;
+use itertools::Itertools;
 use pyo3::prelude::*;
 
 impl IntoPy<PyObject> for MaterializedGraph {
@@ -383,10 +385,24 @@ impl Repr for PyGraphView {
         let num_vertices = self.graph.num_vertices();
         let earliest_time = self.graph.earliest_time().unwrap_or_default();
         let latest_time = self.graph.latest_time().unwrap_or_default();
+        let properties: String = self.graph
+            .properties()
+            .iter()
+            .map(|(k, v)| format!("{}: {}", k.deref(), v))
+            .join(", ");
+        if(properties.is_empty()) {
+            return format!(
+                "Graph(number_of_edges={:?}, number_of_vertices={:?}, earliest_time={:?}, latest_time={:?})",
+                num_edges, num_vertices, earliest_time, latest_time
+            )
+        }
+        else{
+            let property_string: String = format!("{{{properties}}}");
+            return format!(
+                "Graph(number_of_edges={:?}, number_of_vertices={:?}, earliest_time={:?}, latest_time={:?}, properties={})",
+                num_edges, num_vertices, earliest_time, latest_time, property_string
+            )
+        }
 
-        format!(
-            "Graph(number_of_edges={:?}, number_of_vertices={:?}, earliest_time={:?}, latest_time={:?})",
-            num_edges, num_vertices, earliest_time, latest_time
-        )
     }
 }
