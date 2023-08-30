@@ -384,13 +384,7 @@ impl<G: GraphViewOps> TimeSemantics for WindowedGraph<G> {
 impl<G: GraphViewOps> EdgeFilterOps for WindowedGraph<G> {
     #[inline]
     fn edge_filter(&self) -> Option<ArcEdgeFilter> {
-        let earliest_time = self.graph.view_start().unwrap_or(i64::MAX);
-        let latest_time = self.graph.view_end().unwrap_or(i64::MIN);
-        if self.t_start <= earliest_time && self.t_end > latest_time {
-            self.graph.edge_filter().clone()
-        } else {
-            Some(self.filter.clone())
-        }
+        Some(self.filter.clone())
     }
 }
 
