@@ -3,10 +3,7 @@ use crate::{
         entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef, LayerIds, EID, VID},
         Direction,
     },
-    db::api::view::{
-        internal::{ArcEdgeFilter, Base, RefEdgeFilter},
-        Layer,
-    },
+    db::api::view::internal::{ArcEdgeFilter, Base, RefEdgeFilter},
 };
 
 /// The GraphViewInternalOps trait provides a set of methods to query a directed graph
