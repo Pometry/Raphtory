@@ -20,8 +20,8 @@ crate-type = ["cdylib"]
 [dependencies]
 pyo3 =  {version= "0.18.3", features=["multiple-pymethods", "chrono"]}
 pyo3-asyncio = { version = "0.18", features = ["tokio-runtime"] }
-raphtory_core = {path = "../raphtory", version = "0.5.2", features=["python"], package="raphtory" }
-raphtory-graphql = {path = "../raphtory-graphql", version = "0.5.2" }
+raphtory_core = {path = "../raphtory", version = "0.5.3", features=["python"], package="raphtory" }
+raphtory-graphql = {path = "../raphtory-graphql", version = "0.5.3" }
 openssl = { version = "0.10", features = ["vendored"] } # DO NOT REMOVE IT BREAKS PYTHON RELEASE
 
 
