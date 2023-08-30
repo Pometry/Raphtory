@@ -333,11 +333,11 @@ impl ArcEntry<VertexStore> {
         }
     }
 
-    pub fn into_layer(self, offset: usize) -> LockedLayer {
-        LockedLayer {
+    pub fn into_layer(self, offset: usize) -> Option<LockedLayer> {
+        (offset < self.layers.len()).then(|| LockedLayer {
             entry: self,
             offset,
-        }
+        })
     }
 }
 

@@ -144,38 +144,40 @@ impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
         let entry = self.inner().storage.nodes.entry_arc(v.into());
         match d {
             Direction::OUT => {
-                let iter: Box<dyn Iterator<Item = EdgeRef> + Send> = match &layers {
-                    LayerIds::None => Box::new(iter::empty()),
-                    LayerIds::All => Box::new(
-                        entry
-                            .into_layers()
-                            .map(move |layer| {
-                                layer
-                                    .into_tuples(Dir::Out)
+                let iter: Box<dyn Iterator<Item = EdgeRef> + Send> =
+                    match &layers {
+                        LayerIds::None => Box::new(iter::empty()),
+                        LayerIds::All => Box::new(
+                            entry
+                                .into_layers()
+                                .map(move |layer| {
+                                    layer
+                                        .into_tuples(Dir::Out)
+                                        .map(move |(n, e)| EdgeRef::new_outgoing(e, v, n))
+                                })
+                                .kmerge()
+                                .dedup(),
+                        ),
+                        LayerIds::One(layer) => {
+                            Box::new(entry.into_layer(*layer).into_iter().flat_map(move |it| {
+                                it.into_tuples(Dir::Out)
                                     .map(move |(n, e)| EdgeRef::new_outgoing(e, v, n))
-                            })
-                            .kmerge()
-                            .dedup(),
-                    ),
-                    LayerIds::One(layer) => Box::new(
-                        entry
-                            .into_layer(*layer)
-                            .into_tuples(Dir::Out)
-                            .map(move |(n, e)| EdgeRef::new_outgoing(e, v, n)),
-                    ),
-                    LayerIds::Multiple(ids) => Box::new(
-                        ids.iter()
-                            .map(move |&layer| {
-                                entry
-                                    .clone()
-                                    .into_layer(layer)
-                                    .into_tuples(Dir::Out)
-                                    .map(move |(n, e)| EdgeRef::new_outgoing(e, v, n))
-                            })
-                            .kmerge()
-                            .dedup(),
-                    ),
-                };
+                            }))
+                        }
+                        LayerIds::Multiple(ids) => Box::new(
+                            ids.iter()
+                                .map(move |&layer| {
+                                    entry.clone().into_layer(layer).into_iter().flat_map(
+                                        move |it| {
+                                            it.into_tuples(Dir::Out)
+                                                .map(move |(n, e)| EdgeRef::new_outgoing(e, v, n))
+                                        },
+                                    )
+                                })
+                                .kmerge()
+                                .dedup(),
+                        ),
+                    };
                 match filter {
                     None => iter,
                     Some(filter) => {
@@ -187,38 +189,40 @@ impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
                 }
             }
             Direction::IN => {
-                let iter: Box<dyn Iterator<Item = EdgeRef> + Send> = match &layers {
-                    LayerIds::None => Box::new(iter::empty()),
-                    LayerIds::All => Box::new(
-                        entry
-                            .into_layers()
-                            .map(move |layer| {
-                                layer
-                                    .into_tuples(Dir::Into)
+                let iter: Box<dyn Iterator<Item = EdgeRef> + Send> =
+                    match &layers {
+                        LayerIds::None => Box::new(iter::empty()),
+                        LayerIds::All => Box::new(
+                            entry
+                                .into_layers()
+                                .map(move |layer| {
+                                    layer
+                                        .into_tuples(Dir::Into)
+                                        .map(move |(n, e)| EdgeRef::new_incoming(e, n, v))
+                                })
+                                .kmerge()
+                                .dedup(),
+                        ),
+                        LayerIds::One(layer) => {
+                            Box::new(entry.into_layer(*layer).into_iter().flat_map(move |it| {
+                                it.into_tuples(Dir::Into)
                                     .map(move |(n, e)| EdgeRef::new_incoming(e, n, v))
-                            })
-                            .kmerge()
-                            .dedup(),
-                    ),
-                    LayerIds::One(layer) => Box::new(
-                        entry
-                            .into_layer(*layer)
-                            .into_tuples(Dir::Into)
-                            .map(move |(n, e)| EdgeRef::new_incoming(e, n, v)),
-                    ),
-                    LayerIds::Multiple(ids) => Box::new(
-                        ids.iter()
-                            .map(move |&layer| {
-                                entry
-                                    .clone()
-                                    .into_layer(layer)
-                                    .into_tuples(Dir::Into)
-                                    .map(move |(n, e)| EdgeRef::new_incoming(e, n, v))
-                            })
-                            .kmerge()
-                            .dedup(),
-                    ),
-                };
+                            }))
+                        }
+                        LayerIds::Multiple(ids) => Box::new(
+                            ids.iter()
+                                .map(move |&layer| {
+                                    entry.clone().into_layer(layer).into_iter().flat_map(
+                                        move |it| {
+                                            it.into_tuples(Dir::Into)
+                                                .map(move |(n, e)| EdgeRef::new_incoming(e, n, v))
+                                        },
+                                    )
+                                })
+                                .kmerge()
+                                .dedup(),
+                        ),
+                    };
                 match filter {
                     None => iter,
                     Some(filter) => {
