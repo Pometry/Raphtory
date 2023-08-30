@@ -3,7 +3,7 @@ use crate::{
         entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef, LayerIds, EID, VID},
         Direction,
     },
-    db::api::view::internal::{ArcEdgeFilter, Base, RefEdgeFilter},
+    db::api::view::internal::{Base, EdgeFilter},
 };
 
 /// The GraphViewInternalOps trait provides a set of methods to query a directed graph
@@ -14,21 +14,21 @@ pub trait GraphOps: Send + Sync {
         &self,
         v: VertexRef,
         layer_ids: &LayerIds,
-        filter: Option<RefEdgeFilter>,
+        filter: Option<&EdgeFilter>,
     ) -> Option<VID>;
 
     fn find_edge_id(
         &self,
         e_id: EID,
         layer_ids: &LayerIds,
-        filter: Option<RefEdgeFilter>,
+        filter: Option<&EdgeFilter>,
     ) -> Option<EdgeRef>;
 
     /// Returns the total number of vertices in the graph.
-    fn vertices_len(&self, layer_ids: LayerIds, filter: Option<ArcEdgeFilter>) -> usize;
+    fn vertices_len(&self, layer_ids: LayerIds, filter: Option<&EdgeFilter>) -> usize;
 
     /// Returns the total number of edges in the graph.
-    fn edges_len(&self, layers: LayerIds, filter: Option<ArcEdgeFilter>) -> usize;
+    fn edges_len(&self, layers: LayerIds, filter: Option<&EdgeFilter>) -> usize;
 
     /// Returns true if the graph contains an edge between the source vertex
     /// (src) and the destination vertex (dst).
@@ -41,7 +41,7 @@ pub trait GraphOps: Send + Sync {
         src: VID,
         dst: VID,
         layers: &LayerIds,
-        filter: Option<RefEdgeFilter>,
+        filter: Option<&EdgeFilter>,
     ) -> bool {
         self.edge_ref(src, dst, layers, filter).is_some()
     }
@@ -50,12 +50,7 @@ pub trait GraphOps: Send + Sync {
     /// # Arguments
     ///
     /// * `v` - VertexRef of the vertex to check.
-    fn has_vertex_ref(
-        &self,
-        v: VertexRef,
-        layers: &LayerIds,
-        filter: Option<RefEdgeFilter>,
-    ) -> bool {
+    fn has_vertex_ref(&self, v: VertexRef, layers: &LayerIds, filter: Option<&EdgeFilter>) -> bool {
         self.local_vertex_ref(v, layers, filter).is_some()
     }
 
@@ -65,20 +60,15 @@ pub trait GraphOps: Send + Sync {
     ///
     /// * `v` - VID of the vertex to check.
     /// * `d` - Direction of the edges to count.
-    fn degree(
-        &self,
-        v: VID,
-        d: Direction,
-        layers: &LayerIds,
-        filter: Option<ArcEdgeFilter>,
-    ) -> usize;
+    fn degree(&self, v: VID, d: Direction, layers: &LayerIds, filter: Option<&EdgeFilter>)
+        -> usize;
 
     /// Returns the VID that corresponds to the specified vertex ID (v).
     /// Returns None if the vertex ID is not present in the graph.
     /// # Arguments
     ///
     /// * `v` - The vertex ID to lookup.
-    fn vertex_ref(&self, v: u64, layers: &LayerIds, filter: Option<RefEdgeFilter>) -> Option<VID> {
+    fn vertex_ref(&self, v: u64, layers: &LayerIds, filter: Option<&EdgeFilter>) -> Option<VID> {
         self.local_vertex_ref(v.into(), layers, filter)
     }
 
@@ -89,7 +79,7 @@ pub trait GraphOps: Send + Sync {
     fn vertex_refs(
         &self,
         layers: LayerIds,
-        filter: Option<ArcEdgeFilter>,
+        filter: Option<&EdgeFilter>,
     ) -> Box<dyn Iterator<Item = VID> + Send>;
 
     /// Returns the edge reference that corresponds to the specified src and dst vertex
@@ -106,7 +96,7 @@ pub trait GraphOps: Send + Sync {
         src: VID,
         dst: VID,
         layer: &LayerIds,
-        filter: Option<RefEdgeFilter>,
+        filter: Option<&EdgeFilter>,
     ) -> Option<EdgeRef>;
 
     /// Returns all the edge references in the graph.
@@ -117,7 +107,7 @@ pub trait GraphOps: Send + Sync {
     fn edge_refs(
         &self,
         layers: LayerIds,
-        filter: Option<ArcEdgeFilter>,
+        filter: Option<&EdgeFilter>,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send>;
 
     /// Returns an iterator over the edges connected to a given vertex in a given direction.
@@ -137,7 +127,7 @@ pub trait GraphOps: Send + Sync {
         v: VID,
         d: Direction,
         layer: LayerIds,
-        filter: Option<ArcEdgeFilter>,
+        filter: Option<&EdgeFilter>,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send>;
 
     /// Returns an iterator over the neighbors of a given vertex in a given direction.
@@ -155,7 +145,7 @@ pub trait GraphOps: Send + Sync {
         v: VID,
         d: Direction,
         layers: LayerIds,
-        filter: Option<ArcEdgeFilter>,
+        filter: Option<&EdgeFilter>,
     ) -> Box<dyn Iterator<Item = VID> + Send>;
 }
 
@@ -179,107 +169,115 @@ pub trait DelegateGraphOps {
 }
 
 impl<G: DelegateGraphOps + Send + Sync + ?Sized> GraphOps for G {
+    #[inline]
     fn local_vertex_ref(
         &self,
         v: VertexRef,
         layer_ids: &LayerIds,
-        filter: Option<RefEdgeFilter>,
+        filter: Option<&EdgeFilter>,
     ) -> Option<VID> {
         self.graph().local_vertex_ref(v, layer_ids, filter)
     }
 
+    #[inline]
     fn find_edge_id(
         &self,
         e_id: EID,
         layer_ids: &LayerIds,
-        filter: Option<RefEdgeFilter>,
+        filter: Option<&EdgeFilter>,
     ) -> Option<EdgeRef> {
         self.graph().find_edge_id(e_id, layer_ids, filter)
     }
 
-    fn vertices_len(&self, layer_ids: LayerIds, filter: Option<ArcEdgeFilter>) -> usize {
+    #[inline]
+    fn vertices_len(&self, layer_ids: LayerIds, filter: Option<&EdgeFilter>) -> usize {
         self.graph().vertices_len(layer_ids, filter)
     }
 
-    fn edges_len(&self, layers: LayerIds, filter: Option<ArcEdgeFilter>) -> usize {
+    #[inline]
+    fn edges_len(&self, layers: LayerIds, filter: Option<&EdgeFilter>) -> usize {
         self.graph().edges_len(layers, filter)
     }
 
+    #[inline]
     fn has_edge_ref(
         &self,
         src: VID,
         dst: VID,
         layers: &LayerIds,
-        filter: Option<RefEdgeFilter>,
+        filter: Option<&EdgeFilter>,
     ) -> bool {
         self.graph().has_edge_ref(src, dst, layers, filter)
     }
 
-    fn has_vertex_ref(
-        &self,
-        v: VertexRef,
-        layers: &LayerIds,
-        filter: Option<RefEdgeFilter>,
-    ) -> bool {
+    #[inline]
+    fn has_vertex_ref(&self, v: VertexRef, layers: &LayerIds, filter: Option<&EdgeFilter>) -> bool {
         self.graph().has_vertex_ref(v, layers, filter)
     }
 
+    #[inline]
     fn degree(
         &self,
         v: VID,
         d: Direction,
         layers: &LayerIds,
-        filter: Option<ArcEdgeFilter>,
+        filter: Option<&EdgeFilter>,
     ) -> usize {
         self.graph().degree(v, d, layers, filter)
     }
 
-    fn vertex_ref(&self, v: u64, layers: &LayerIds, filter: Option<RefEdgeFilter>) -> Option<VID> {
+    #[inline]
+    fn vertex_ref(&self, v: u64, layers: &LayerIds, filter: Option<&EdgeFilter>) -> Option<VID> {
         self.graph().vertex_ref(v, layers, filter)
     }
 
+    #[inline]
     fn vertex_refs(
         &self,
         layers: LayerIds,
-        filter: Option<ArcEdgeFilter>,
+        filter: Option<&EdgeFilter>,
     ) -> Box<dyn Iterator<Item = VID> + Send> {
         self.graph().vertex_refs(layers, filter)
     }
 
+    #[inline]
     fn edge_ref(
         &self,
         src: VID,
         dst: VID,
         layer: &LayerIds,
-        filter: Option<RefEdgeFilter>,
+        filter: Option<&EdgeFilter>,
     ) -> Option<EdgeRef> {
         self.graph().edge_ref(src, dst, layer, filter)
     }
 
+    #[inline]
     fn edge_refs(
         &self,
         layers: LayerIds,
-        filter: Option<ArcEdgeFilter>,
+        filter: Option<&EdgeFilter>,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
         self.graph().edge_refs(layers, filter)
     }
 
+    #[inline]
     fn vertex_edges(
         &self,
         v: VID,
         d: Direction,
         layer: LayerIds,
-        filter: Option<ArcEdgeFilter>,
+        filter: Option<&EdgeFilter>,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
         self.graph().vertex_edges(v, d, layer, filter)
     }
 
+    #[inline]
     fn neighbours(
         &self,
         v: VID,
         d: Direction,
         layers: LayerIds,
-        filter: Option<ArcEdgeFilter>,
+        filter: Option<&EdgeFilter>,
     ) -> Box<dyn Iterator<Item = VID> + Send> {
         self.graph().neighbours(v, d, layers, filter)
     }

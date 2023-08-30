@@ -4,7 +4,7 @@ use crate::{
         properties::internal::InheritPropertiesOps,
         view::{
             internal::{
-                ArcEdgeFilter, Base, EdgeFilterOps, InheritCoreOps, InheritGraphOps,
+                Base, EdgeFilter, EdgeFilterOps, InheritCoreOps, InheritGraphOps,
                 InheritMaterialize, InheritTimeSemantics, LayerOps,
             },
             Layer,
@@ -13,14 +13,29 @@ use crate::{
     prelude::GraphViewOps,
 };
 use itertools::Itertools;
-use std::sync::Arc;
+use std::{
+    fmt::{Debug, Formatter},
+    ops::Deref,
+    sync::Arc,
+};
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct LayeredGraph<G: GraphViewOps> {
     /// The underlying `Graph` object.
     pub graph: G,
     /// The layer this graphs points to.
     pub layers: LayerIds,
+
+    edge_filter: EdgeFilter,
+}
+
+impl<G: GraphViewOps + Debug> Debug for LayeredGraph<G> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("LayeredGraph")
+            .field("graph", &self.graph)
+            .field("layers", &self.layers)
+            .finish()
+    }
 }
 
 impl<G: GraphViewOps> Base for LayeredGraph<G> {
@@ -42,17 +57,23 @@ impl<G: GraphViewOps> InheritPropertiesOps for LayeredGraph<G> {}
 impl<G: GraphViewOps> InheritGraphOps for LayeredGraph<G> {}
 
 impl<G: GraphViewOps> EdgeFilterOps for LayeredGraph<G> {
-    fn edge_filter(&self) -> Option<ArcEdgeFilter> {
-        match self.graph.edge_filter() {
-            None => Some(Arc::new(|e, l| e.has_layer(l))),
-            Some(f) => Some(Arc::new(move |e, l| e.has_layer(l) && f(e, l))),
-        }
+    #[inline]
+    fn edge_filter(&self) -> Option<&EdgeFilter> {
+        Some(&self.edge_filter)
     }
 }
 
 impl<G: GraphViewOps> LayeredGraph<G> {
     pub fn new(graph: G, layers: LayerIds) -> Self {
-        Self { graph, layers }
+        let edge_filter: EdgeFilter = match graph.edge_filter().cloned() {
+            None => Arc::new(|e, l| e.has_layer(l)),
+            Some(f) => Arc::new(move |e, l| e.has_layer(l) && f(e, l)),
+        };
+        Self {
+            graph,
+            layers,
+            edge_filter,
+        }
     }
 
     /// Get the intersection between the previously requested layers and the layers of

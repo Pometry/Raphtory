@@ -23,6 +23,7 @@ where
 {
     type Internal = G::Base;
 
+    #[inline]
     fn graph(&self) -> &Self::Internal {
         self.base()
     }
@@ -35,14 +36,17 @@ pub trait DelegateLayerOps {
 }
 
 impl<G: DelegateLayerOps> LayerOps for G {
+    #[inline]
     fn layer_ids(&self) -> LayerIds {
         self.graph().layer_ids()
     }
 
+    #[inline]
     fn layer_ids_from_names(&self, key: Layer) -> LayerIds {
         self.graph().layer_ids_from_names(key)
     }
 
+    #[inline]
     fn edge_layer_ids(&self, e: &EdgeStore) -> LayerIds {
         self.graph().edge_layer_ids(e)
     }

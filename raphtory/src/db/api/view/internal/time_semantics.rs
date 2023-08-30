@@ -8,7 +8,7 @@ use crate::{
         Prop,
     },
     db::api::view::{
-        internal::{Base, CoreGraphOps, GraphOps, RefEdgeFilter},
+        internal::{Base, CoreGraphOps, EdgeFilter, GraphOps},
         BoxedIter,
     },
 };
@@ -63,7 +63,7 @@ pub trait TimeSemantics: GraphOps + CoreGraphOps {
         v: VID,
         w: Range<i64>,
         layer_ids: &LayerIds,
-        edge_filter: Option<RefEdgeFilter>,
+        edge_filter: Option<&EdgeFilter>,
     ) -> bool;
 
     /// check if edge `e` should be included in window `w`
@@ -268,86 +268,86 @@ pub trait DelegateTimeSemantics: GraphOps + CoreGraphOps {
 }
 
 impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
+    #[inline]
     fn vertex_earliest_time(&self, v: VID) -> Option<i64> {
         self.graph().vertex_earliest_time(v)
     }
 
+    #[inline]
     fn vertex_latest_time(&self, v: VID) -> Option<i64> {
         self.graph().vertex_latest_time(v)
     }
 
+    #[inline]
     fn view_start(&self) -> Option<i64> {
         self.graph().view_start()
     }
-
+    #[inline]
     fn view_end(&self) -> Option<i64> {
         self.graph().view_end()
     }
-
+    #[inline]
     fn earliest_time_global(&self) -> Option<i64> {
         self.graph().earliest_time_global()
     }
-
+    #[inline]
     fn latest_time_global(&self) -> Option<i64> {
         self.graph().latest_time_global()
     }
-
+    #[inline]
     fn earliest_time_window(&self, t_start: i64, t_end: i64) -> Option<i64> {
         self.graph().earliest_time_window(t_start, t_end)
     }
-
+    #[inline]
     fn latest_time_window(&self, t_start: i64, t_end: i64) -> Option<i64> {
         self.graph().latest_time_window(t_start, t_end)
     }
-
+    #[inline]
     fn vertex_earliest_time_window(&self, v: VID, t_start: i64, t_end: i64) -> Option<i64> {
         self.graph().vertex_earliest_time_window(v, t_start, t_end)
     }
-
+    #[inline]
     fn vertex_latest_time_window(&self, v: VID, t_start: i64, t_end: i64) -> Option<i64> {
         self.graph().vertex_latest_time_window(v, t_start, t_end)
     }
-
+    #[inline]
     fn include_vertex_window(
         &self,
         v: VID,
         w: Range<i64>,
         layer_ids: &LayerIds,
-        edge_filter: Option<RefEdgeFilter>,
+        edge_filter: Option<&EdgeFilter>,
     ) -> bool {
         self.graph()
             .include_vertex_window(v, w, layer_ids, edge_filter)
     }
 
+    #[inline]
     fn include_edge_window(&self, e: &EdgeStore, w: Range<i64>, layer_ids: &LayerIds) -> bool {
         self.graph().include_edge_window(e, w, layer_ids)
     }
 
+    #[inline]
     fn vertex_history(&self, v: VID) -> Vec<i64> {
         self.graph().vertex_history(v)
     }
 
+    #[inline]
     fn vertex_history_window(&self, v: VID, w: Range<i64>) -> Vec<i64> {
         self.graph().vertex_history_window(v, w)
     }
 
+    #[inline]
     fn edge_exploded(&self, e: EdgeRef, layer_ids: LayerIds) -> BoxedIter<EdgeRef> {
         self.graph().edge_exploded(e, layer_ids)
     }
 
+    #[inline]
     fn edge_layers(&self, e: EdgeRef, layer_ids: LayerIds) -> BoxedIter<EdgeRef> {
         self.graph().edge_layers(e, layer_ids)
     }
 
-    fn edge_window_layers(
-        &self,
-        e: EdgeRef,
-        w: Range<i64>,
-        layer_ids: LayerIds,
-    ) -> BoxedIter<EdgeRef> {
-        self.graph().edge_window_layers(e, w, layer_ids)
-    }
-
+    #[inline]
     fn edge_window_exploded(
         &self,
         e: EdgeRef,
@@ -357,10 +357,22 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
         self.graph().edge_window_exploded(e, w, layer_ids)
     }
 
+    #[inline]
+    fn edge_window_layers(
+        &self,
+        e: EdgeRef,
+        w: Range<i64>,
+        layer_ids: LayerIds,
+    ) -> BoxedIter<EdgeRef> {
+        self.graph().edge_window_layers(e, w, layer_ids)
+    }
+
+    #[inline]
     fn edge_earliest_time(&self, e: EdgeRef, layer_ids: LayerIds) -> Option<i64> {
         self.graph().edge_earliest_time(e, layer_ids)
     }
 
+    #[inline]
     fn edge_earliest_time_window(
         &self,
         e: EdgeRef,
@@ -370,10 +382,12 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
         self.graph().edge_earliest_time_window(e, w, layer_ids)
     }
 
+    #[inline]
     fn edge_latest_time(&self, e: EdgeRef, layer_ids: LayerIds) -> Option<i64> {
         self.graph().edge_latest_time(e, layer_ids)
     }
 
+    #[inline]
     fn edge_latest_time_window(
         &self,
         e: EdgeRef,
@@ -383,10 +397,12 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
         self.graph().edge_latest_time_window(e, w, layer_ids)
     }
 
+    #[inline]
     fn edge_deletion_history(&self, e: EdgeRef, layer_ids: LayerIds) -> Vec<i64> {
         self.graph().edge_deletion_history(e, layer_ids)
     }
 
+    #[inline]
     fn edge_deletion_history_window(
         &self,
         e: EdgeRef,
@@ -396,18 +412,22 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
         self.graph().edge_deletion_history_window(e, w, layer_ids)
     }
 
+    #[inline]
     fn temporal_prop_vec(&self, name: &str) -> Vec<(i64, Prop)> {
         self.graph().temporal_prop_vec(name)
     }
 
+    #[inline]
     fn temporal_prop_vec_window(&self, name: &str, t_start: i64, t_end: i64) -> Vec<(i64, Prop)> {
         self.graph().temporal_prop_vec_window(name, t_start, t_end)
     }
 
+    #[inline]
     fn temporal_vertex_prop_vec(&self, v: VID, name: &str) -> Vec<(i64, Prop)> {
         self.graph().temporal_vertex_prop_vec(v, name)
     }
 
+    #[inline]
     fn temporal_vertex_prop_vec_window(
         &self,
         v: VID,
@@ -419,6 +439,7 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
             .temporal_vertex_prop_vec_window(v, name, t_start, t_end)
     }
 
+    #[inline]
     fn temporal_edge_prop_vec_window(
         &self,
         e: EdgeRef,
@@ -431,6 +452,7 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
             .temporal_edge_prop_vec_window(e, name, t_start, t_end, layer_ids)
     }
 
+    #[inline]
     fn temporal_edge_prop_vec(
         &self,
         e: EdgeRef,

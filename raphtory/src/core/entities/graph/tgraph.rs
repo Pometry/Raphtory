@@ -30,7 +30,7 @@ use crate::{
         },
         Direction, Prop, PropUnwrap,
     },
-    db::api::view::{internal::ArcEdgeFilter, Layer},
+    db::api::view::{internal::EdgeFilter, Layer},
 };
 use dashmap::DashMap;
 use itertools::Itertools;
@@ -217,9 +217,10 @@ impl<const N: usize> TemporalGraph<N> {
         bincode::serialize_into(&mut writer, self)
     }
 
-    pub(crate) fn global_vertex_id(&self, v: VID) -> Option<u64> {
-        let node = self.storage.get_node(v.into());
-        Some(node.value().global_id())
+    #[inline]
+    pub(crate) fn global_vertex_id(&self, v: VID) -> u64 {
+        let node = self.storage.get_node(v);
+        node.global_id()
     }
 
     pub(crate) fn vertex_name(&self, v: VID) -> String {
@@ -285,7 +286,7 @@ impl<const N: usize> TemporalGraph<N> {
         self.storage.nodes_len()
     }
 
-    pub(crate) fn num_edges(&self, layers: &LayerIds, filter: Option<ArcEdgeFilter>) -> usize {
+    pub(crate) fn num_edges(&self, layers: &LayerIds, filter: Option<&EdgeFilter>) -> usize {
         match filter {
             None => match layers {
                 LayerIds::All => self.storage.edges.len(),
@@ -312,7 +313,7 @@ impl<const N: usize> TemporalGraph<N> {
         v: VID,
         dir: Direction,
         layers: &LayerIds,
-        filter: Option<ArcEdgeFilter>,
+        filter: Option<&EdgeFilter>,
     ) -> usize {
         let node_store = self.storage.get_node(v);
         match filter {
@@ -624,6 +625,7 @@ impl<const N: usize> TemporalGraph<N> {
         Ok(edge_id)
     }
 
+    #[inline]
     pub(crate) fn vertex_ids(&self) -> impl Iterator<Item = VID> {
         (0..self.storage.nodes_len()).map(|i| i.into())
     }

@@ -38,10 +38,10 @@ impl Operations {
         iter: Box<dyn Iterator<Item = VID> + Send>,
     ) -> Box<dyn Iterator<Item = VID> + Send> {
         let layer_ids = graph.layer_ids();
-        let edge_filter = graph.edge_filter();
+        let edge_filter = graph.edge_filter().cloned();
         match self {
             Operations::Neighbours { dir } => Box::new(iter.flat_map(move |v| {
-                graph.neighbours(v, dir, layer_ids.clone(), edge_filter.clone())
+                graph.neighbours(v, dir, layer_ids.clone(), edge_filter.as_ref())
             })),
             Operations::NeighboursWindow {
                 dir,
@@ -52,11 +52,9 @@ impl Operations {
                 let filter = Some(extend_filter(edge_filter, move |e, l| {
                     graph1.include_edge_window(e, t_start..t_end, l)
                 }));
-                Box::new(
-                    iter.flat_map(move |v| {
-                        graph.neighbours(v, dir, layer_ids.clone(), filter.clone())
-                    }),
-                )
+                Box::new(iter.flat_map(move |v| {
+                    graph.neighbours(v, dir, layer_ids.clone(), filter.as_ref())
+                }))
             }
         }
     }

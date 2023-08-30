@@ -181,6 +181,7 @@ impl<T: Default, const N: usize> RawStorage<T, N> {
         }
     }
 
+    #[inline]
     pub fn get(&self, index: usize) -> impl Deref<Target = T> + '_ {
         let (bucket, offset) = resolve::<N>(index);
         let guard = self.data[bucket].data.read_recursive();

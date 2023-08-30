@@ -93,7 +93,7 @@ where
                         && graph.has_vertex_ref(
                             VertexRef::Local((*v_ref).into()),
                             &layers,
-                            edge_filter.as_deref(),
+                            edge_filter,
                         )
                 })
                 .map(|(v_ref, _)| v_ref.into())

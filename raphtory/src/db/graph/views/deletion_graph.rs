@@ -120,7 +120,7 @@ impl GraphWithDeletions {
         v: &VertexStore,
         t: i64,
         layers: &LayerIds,
-        edge_filter: Option<RefEdgeFilter>,
+        edge_filter: Option<&EdgeFilter>,
     ) -> bool {
         let edges = self.graph.inner().storage.edges.read_lock();
         v.edge_tuples(layers, Direction::BOTH)
@@ -258,7 +258,7 @@ impl TimeSemantics for GraphWithDeletions {
         v: VID,
         w: Range<i64>,
         layer_ids: &LayerIds,
-        edge_filter: Option<RefEdgeFilter>,
+        edge_filter: Option<&EdgeFilter>,
     ) -> bool {
         let v = self.graph.inner().storage.get_node(v);
         v.active(w.clone()) || self.vertex_alive_at(&v, w.start, layer_ids, edge_filter)

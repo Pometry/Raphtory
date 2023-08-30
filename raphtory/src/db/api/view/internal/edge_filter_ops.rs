@@ -2,24 +2,24 @@ use crate::{
     core::entities::{edges::edge_store::EdgeStore, LayerIds},
     db::api::view::internal::Base,
 };
-use std::sync::Arc;
+use std::{borrow::Borrow, ops::Deref, sync::Arc};
 
 pub fn extend_filter(
-    old: Option<ArcEdgeFilter>,
+    old: Option<EdgeFilter>,
     filter: impl Fn(&EdgeStore, &LayerIds) -> bool + Send + Sync + 'static,
-) -> ArcEdgeFilter {
+) -> EdgeFilter {
     match old {
         Some(f) => Arc::new(move |e, l| f(e, l) && filter(e, l)),
         None => Arc::new(filter),
     }
 }
 
-pub type ArcEdgeFilter = Arc<dyn Fn(&EdgeStore, &LayerIds) -> bool + Send + Sync>;
-pub type RefEdgeFilter<'a> = &'a (dyn Fn(&EdgeStore, &LayerIds) -> bool + Send + Sync);
+pub type EdgeFilter = Arc<dyn Fn(&EdgeStore, &LayerIds) -> bool + Send + Sync>;
 
 pub trait EdgeFilterOps {
     /// Return the optional edge filter for the graph
-    fn edge_filter(&self) -> Option<ArcEdgeFilter>;
+
+    fn edge_filter(&self) -> Option<&EdgeFilter>;
 }
 
 pub trait InheritEdgeFilterOps: Base {}
@@ -30,6 +30,7 @@ where
 {
     type Internal = G::Base;
 
+    #[inline]
     fn graph(&self) -> &Self::Internal {
         self.base()
     }
@@ -43,7 +44,7 @@ pub trait DelegateEdgeFilterOps {
 
 impl<G: DelegateEdgeFilterOps> EdgeFilterOps for G {
     #[inline]
-    fn edge_filter(&self) -> Option<ArcEdgeFilter> {
+    fn edge_filter(&self) -> Option<&EdgeFilter> {
         self.graph().edge_filter()
     }
 }

@@ -169,12 +169,8 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
                 .iter()
                 .enumerate()
                 .filter_map(|(v_ref, score)| {
-                    g.has_vertex_ref(
-                        VertexRef::Local(v_ref.into()),
-                        &layers,
-                        edge_filter.as_deref(),
-                    )
-                    .then_some((v_ref.into(), score.score))
+                    g.has_vertex_ref(VertexRef::Local(v_ref.into()), &layers, edge_filter)
+                        .then_some((v_ref.into(), score.score))
                 })
                 .collect::<HashMap<_, _>>()
         },

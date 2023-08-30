@@ -23,7 +23,7 @@ use crate::{
             task_state::Local2,
             vertex::{
                 eval_vertex_state::EVState,
-                window_eval_vertex::{WindowEvalPathFromVertex, WindowEvalVertex},
+                window_eval_vertex::{edge_filter, WindowEvalPathFromVertex, WindowEvalVertex},
             },
         },
     },
@@ -283,14 +283,18 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> TimeOps
     }
 
     fn window<T: IntoTime>(&self, t_start: T, t_end: T) -> Self::WindowedViewType {
+        let t_start = t_start.into_time();
+        let t_end = t_end.into_time();
+        let edge_filter = edge_filter(self.g, t_start, t_end).map(Rc::new);
         WindowEvalPathFromVertex::new(
             self.path.clone(),
             self.ss,
             self.g,
             self.vertex_state.clone(),
             self.local_state_prev,
-            t_start.into_time(),
-            t_end.into_time(),
+            t_start,
+            t_end,
+            edge_filter,
         )
     }
 }
@@ -376,6 +380,9 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S> TimeOps for EvalVertexView<'a, G,
     }
 
     fn window<T: IntoTime>(&self, t_start: T, t_end: T) -> Self::WindowedViewType {
+        let t_start = t_start.into_time();
+        let t_end = t_end.into_time();
+        let edge_filter = edge_filter(self.graph, t_start, t_end).map(Rc::new);
         WindowEvalVertex::new(
             self.ss,
             self.vertex,
@@ -383,8 +390,9 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S> TimeOps for EvalVertexView<'a, G,
             None,
             self.local_state_prev,
             self.vertex_state.clone(),
-            t_start.into_time(),
-            t_end.into_time(),
+            t_start,
+            t_end,
+            edge_filter,
         )
     }
 }

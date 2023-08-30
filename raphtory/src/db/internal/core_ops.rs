@@ -29,9 +29,7 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
     }
 
     fn vertex_id(&self, v: VID) -> u64 {
-        self.inner()
-            .global_vertex_id(v)
-            .unwrap_or_else(|| panic!("vertex id '{v:?}' doesn't exist"))
+        self.inner().global_vertex_id(v)
     }
 
     fn vertex_name(&self, v: VID) -> String {

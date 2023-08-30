@@ -88,11 +88,7 @@ where
                     .enumerate()
                     .filter_map(|(v_ref, state)| {
                         graph
-                            .has_vertex_ref(
-                                VertexRef::Local(v_ref.into()),
-                                &layers,
-                                edge_filter.as_deref(),
-                            )
+                            .has_vertex_ref(VertexRef::Local(v_ref.into()), &layers, edge_filter)
                             .then_some((v_ref.into(), state.component))
                     })
                     .collect::<HashMap<_, _>>()

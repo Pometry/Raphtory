@@ -5,7 +5,7 @@ use crate::{
         Direction,
     },
     db::api::view::{
-        internal::{time_semantics::TimeSemantics, ArcEdgeFilter, GraphOps},
+        internal::{time_semantics::TimeSemantics, EdgeFilter, GraphOps},
         BoxedIter,
     },
 };
@@ -29,7 +29,7 @@ pub trait ExplodedEdgeOps {
         v: VID,
         d: Direction,
         layer: LayerIds,
-        filter: Option<ArcEdgeFilter>,
+        filter: Option<&EdgeFilter>,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send>;
 
     /// Returns an iterator over the edges connected to a given vertex within
@@ -53,7 +53,7 @@ pub trait ExplodedEdgeOps {
         t_end: i64,
         d: Direction,
         layers: LayerIds,
-        filter: Option<ArcEdgeFilter>,
+        filter: Option<&EdgeFilter>,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send>;
 
     /// Get the activation timestamps for an edge `e`
@@ -69,7 +69,7 @@ impl<G: GraphOps + TimeSemantics + Clone + 'static> ExplodedEdgeOps for G {
         v: VID,
         d: Direction,
         layer: LayerIds,
-        filter: Option<ArcEdgeFilter>,
+        filter: Option<&EdgeFilter>,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
         {
             let g = self.clone();
@@ -87,7 +87,7 @@ impl<G: GraphOps + TimeSemantics + Clone + 'static> ExplodedEdgeOps for G {
         t_end: i64,
         d: Direction,
         layer: LayerIds,
-        filter: Option<ArcEdgeFilter>,
+        filter: Option<&EdgeFilter>,
     ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
         let g = self.clone();
         Box::new(

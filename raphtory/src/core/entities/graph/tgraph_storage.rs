@@ -73,10 +73,12 @@ impl<const N: usize> GraphStorage<N> {
         self.nodes.pair_entry_mut(i.into(), j.into())
     }
 
+    #[inline]
     pub(crate) fn nodes_len(&self) -> usize {
         self.nodes.len()
     }
 
+    #[inline]
     pub(crate) fn edges_len(&self, layers: LayerIds) -> usize {
         match layers {
             LayerIds::All => self.edges.len(),
