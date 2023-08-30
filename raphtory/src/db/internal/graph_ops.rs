@@ -41,7 +41,7 @@ impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
         }
         let e = self.inner().storage.edges.get(e_id_usize);
         filter
-            .map(|f| f(&e, &LayerIds::All))
+            .map(|f| f(&e, layer_ids))
             .unwrap_or(true)
             .then(|| EdgeRef::new_outgoing(e_id, e.src(), e.dst()))
     }
