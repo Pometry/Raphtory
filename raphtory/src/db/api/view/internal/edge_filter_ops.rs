@@ -2,7 +2,7 @@ use crate::{
     core::entities::{edges::edge_store::EdgeStore, LayerIds},
     db::api::view::internal::Base,
 };
-use std::{borrow::Borrow, ops::Deref, sync::Arc};
+use std::sync::Arc;
 
 pub fn extend_filter(
     old: Option<EdgeFilter>,

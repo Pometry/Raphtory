@@ -65,7 +65,7 @@ use crate::{
 use std::{
     cmp::{max, min},
     fmt::{Debug, Formatter},
-    ops::{Deref, Range},
+    ops::Range,
     sync::Arc,
 };
 

@@ -15,7 +15,6 @@ use crate::{
 use itertools::Itertools;
 use std::{
     fmt::{Debug, Formatter},
-    ops::Deref,
     sync::Arc,
 };
 

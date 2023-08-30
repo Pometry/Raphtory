@@ -17,7 +17,6 @@ use rayon::prelude::*;
 use rustc_hash::FxHashSet;
 use std::{
     fmt::{Debug, Formatter},
-    ops::Deref,
     sync::Arc,
 };
 

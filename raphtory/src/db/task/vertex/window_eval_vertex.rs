@@ -24,7 +24,7 @@ use crate::{
         },
     },
 };
-use std::{cell::RefCell, marker::PhantomData, rc::Rc, sync::Arc};
+use std::{cell::RefCell, marker::PhantomData, rc::Rc};
 
 pub(crate) fn edge_filter<G: GraphViewOps>(
     graph: &G,
