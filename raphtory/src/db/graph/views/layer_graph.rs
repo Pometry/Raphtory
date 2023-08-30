@@ -103,3 +103,65 @@ impl<G: GraphViewOps> LayerOps for LayeredGraph<G> {
         self.constrain(layer_ids)
     }
 }
+
+#[cfg(test)]
+mod test_layers {
+    use crate::prelude::*;
+    use itertools::Itertools;
+    #[test]
+    fn test_layer_vertex() {
+        let g = Graph::new();
+
+        g.add_edge(0, 1, 2, NO_PROPS, Some("layer1")).unwrap();
+        g.add_edge(0, 2, 3, NO_PROPS, Some("layer2")).unwrap();
+        g.add_edge(3, 2, 4, NO_PROPS, Some("layer1")).unwrap();
+        let neighbours = g
+            .layer(vec!["layer1", "layer2"])
+            .unwrap()
+            .vertex(1)
+            .unwrap()
+            .neighbours()
+            .into_iter()
+            .collect_vec();
+        assert_eq!(
+            neighbours[0]
+                .layer("layer2")
+                .unwrap()
+                .edges()
+                .id()
+                .collect_vec(),
+            vec![(2, 3)]
+        );
+        assert_eq!(
+            g.layer("layer2")
+                .unwrap()
+                .vertex(neighbours[0].name())
+                .unwrap()
+                .edges()
+                .id()
+                .collect_vec(),
+            vec![(2, 3)]
+        );
+        let mut edges = g
+            .layer("layer1")
+            .unwrap()
+            .vertex(neighbours[0].name())
+            .unwrap()
+            .edges()
+            .id()
+            .collect_vec();
+        edges.sort();
+        assert_eq!(edges, vec![(1, 2), (2, 4)]);
+        let mut edges = g.layer("layer1").unwrap().edges().id().collect_vec();
+        edges.sort();
+        assert_eq!(edges, vec![(1, 2), (2, 4)]);
+        let mut edges = g
+            .layer(vec!["layer1", "layer2"])
+            .unwrap()
+            .edges()
+            .id()
+            .collect_vec();
+        edges.sort();
+        assert_eq!(edges, vec![(1, 2), (2, 3), (2, 4)]);
+    }
+}
