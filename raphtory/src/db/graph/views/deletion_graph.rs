@@ -250,7 +250,7 @@ impl TimeSemantics for GraphWithDeletions {
     }
 
     fn latest_time_window(&self, t_start: i64, t_end: i64) -> Option<i64> {
-        todo!()
+        self.graph.latest_time_window(t_start, t_end)
     }
 
     fn include_vertex_window(

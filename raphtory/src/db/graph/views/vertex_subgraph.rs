@@ -1,20 +1,13 @@
 use crate::{
     core::{
-        entities::{
-            edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
-            vertices::{vertex::Vertex, vertex_ref::VertexRef},
-            LayerIds, EID, VID,
-        },
+        entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef, LayerIds, EID, VID},
         Direction,
     },
     db::api::{
         properties::internal::InheritPropertiesOps,
-        view::{
-            internal::{
-                ArcEdgeFilter, Base, EdgeFilterOps, GraphOps, InheritCoreOps, InheritLayerOps,
-                InheritMaterialize, InheritTimeSemantics, RefEdgeFilter,
-            },
-            Layer,
+        view::internal::{
+            ArcEdgeFilter, Base, EdgeFilterOps, GraphOps, InheritCoreOps, InheritLayerOps,
+            InheritMaterialize, InheritTimeSemantics, RefEdgeFilter,
         },
     },
     prelude::GraphViewOps,
@@ -60,7 +53,7 @@ impl<G: GraphViewOps> EdgeFilterOps for VertexSubgraph<G> {
             Some(f) => Some(Arc::new(move |e, l| {
                 vertices.contains(&e.src()) && vertices.contains(&e.dst()) && f(e, l)
             })),
-            None => Some(Arc::new(move |e, l| {
+            None => Some(Arc::new(move |e, _l| {
                 vertices.contains(&e.src()) && vertices.contains(&e.dst())
             })),
         }

@@ -135,8 +135,14 @@ pub fn hits<G: GraphViewOps>(
         |_, _, els, local| {
             let mut hubs = HashMap::new();
             let mut auths = HashMap::new();
+            let layers = g.layer_ids();
+            let edge_filter = g.edge_filter();
             for (v_ref, hit) in local.iter().enumerate() {
-                if g.has_vertex_ref(VertexRef::Local(v_ref.into())) {
+                if g.has_vertex_ref(
+                    VertexRef::Local(v_ref.into()),
+                    &layers,
+                    edge_filter.as_deref(),
+                ) {
                     let v_gid = g.vertex_name(v_ref.into());
                     hubs.insert(v_gid.clone(), hit.hub_score);
                     auths.insert(v_gid, hit.auth_score);

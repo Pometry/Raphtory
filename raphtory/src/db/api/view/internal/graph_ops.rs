@@ -1,10 +1,6 @@
 use crate::{
     core::{
-        entities::{
-            edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
-            vertices::vertex_ref::VertexRef,
-            LayerIds, EID, VID,
-        },
+        entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef, LayerIds, EID, VID},
         Direction,
     },
     db::api::view::{
@@ -12,7 +8,6 @@ use crate::{
         Layer,
     },
 };
-use tantivy::HasLen;
 
 /// The GraphViewInternalOps trait provides a set of methods to query a directed graph
 /// represented by the raphtory_core::tgraph::TGraph struct.

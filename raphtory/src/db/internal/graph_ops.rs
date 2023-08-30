@@ -1,26 +1,17 @@
 use crate::{
     core::{
         entities::{
-            edges::{
-                edge_ref::{Dir, EdgeRef},
-                edge_store::EdgeStore,
-            },
+            edges::edge_ref::{Dir, EdgeRef},
             graph::tgraph::InnerTemporalGraph,
             vertices::vertex_ref::VertexRef,
             LayerIds, EID, VID,
         },
         Direction,
     },
-    db::api::view::{
-        internal::{ArcEdgeFilter, GraphOps, RefEdgeFilter, TimeSemantics},
-        Layer,
-    },
-    prelude::GraphViewOps,
+    db::api::view::internal::{ArcEdgeFilter, GraphOps, RefEdgeFilter},
 };
-use genawaiter::sync::GenBoxed;
 use itertools::Itertools;
-use rayon::prelude::*;
-use std::{iter, ops::Deref};
+use std::iter;
 
 impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
     fn local_vertex_ref(

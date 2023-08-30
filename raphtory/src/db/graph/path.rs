@@ -1,6 +1,6 @@
 use crate::{
     core::{
-        entities::{edges::edge_store::EdgeStore, vertices::vertex_ref::VertexRef, LayerIds, VID},
+        entities::{vertices::vertex_ref::VertexRef, VID},
         utils::time::IntoTime,
         Direction,
     },

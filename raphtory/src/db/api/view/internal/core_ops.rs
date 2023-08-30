@@ -3,21 +3,17 @@ use crate::{
         entities::{
             edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
             properties::tprop::{LockedLayeredTProp, TProp},
-            vertices::{
-                vertex::{ArcEdge, ArcVertex},
-                vertex_ref::VertexRef,
-                vertex_store::VertexStore,
-            },
+            vertices::{vertex_ref::VertexRef, vertex_store::VertexStore},
             LayerIds, EID, VID,
         },
         storage::{
             locked_view::LockedView,
-            timeindex::{LayeredIndex, LockedLayeredIndex, TimeIndex, TimeIndexEntry},
+            timeindex::{LockedLayeredIndex, TimeIndex, TimeIndexEntry},
             ArcEntry,
         },
         Prop,
     },
-    db::{api::view::internal::Base, graph::views::vertex_subgraph::VertexSubgraph},
+    db::api::view::internal::Base,
 };
 
 /// Core functions that should (almost-)always be implemented by pointing at the underlying graph.

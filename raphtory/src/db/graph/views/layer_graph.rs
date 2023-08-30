@@ -1,17 +1,10 @@
 use crate::{
-    core::{
-        entities::{
-            edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
-            vertices::vertex_ref::VertexRef,
-            LayerIds, EID, VID,
-        },
-        Direction,
-    },
+    core::entities::{edges::edge_store::EdgeStore, LayerIds},
     db::api::{
         properties::internal::InheritPropertiesOps,
         view::{
             internal::{
-                ArcEdgeFilter, Base, EdgeFilterOps, GraphOps, InheritCoreOps, InheritGraphOps,
+                ArcEdgeFilter, Base, EdgeFilterOps, InheritCoreOps, InheritGraphOps,
                 InheritMaterialize, InheritTimeSemantics, LayerOps,
             },
             Layer,

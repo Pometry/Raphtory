@@ -299,10 +299,7 @@ pub trait TimeIndexOps {
 
 impl<T: AsTime> TimeIndexOps for TimeIndex<T> {
     type IterType<'a> = Box<dyn Iterator<Item = &'a i64> + Send + 'a> where T: 'a;
-    type WindowType<'a>
-    where
-        Self: 'a,
-    = TimeIndexWindow<'a, T>;
+    type WindowType<'a> = TimeIndexWindow<'a, T> where Self: 'a;
     type IndexType = T;
 
     #[inline(always)]

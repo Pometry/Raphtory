@@ -8,7 +8,7 @@ use crate::{
         storage::timeindex::{AsTime, TimeIndexOps},
     },
     db::api::view::{
-        internal::{ArcEdgeFilter, CoreDeletionOps, CoreGraphOps, RefEdgeFilter, TimeSemantics},
+        internal::{CoreDeletionOps, CoreGraphOps, RefEdgeFilter, TimeSemantics},
         BoxedIter,
     },
     prelude::Prop,
@@ -85,8 +85,8 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
         &self,
         v: VID,
         w: Range<i64>,
-        layer_ids: &LayerIds,
-        edge_filter: Option<RefEdgeFilter>,
+        _layer_ids: &LayerIds,
+        _edge_filter: Option<RefEdgeFilter>,
     ) -> bool {
         self.inner().node_entry(v).timestamps().active(w)
     }

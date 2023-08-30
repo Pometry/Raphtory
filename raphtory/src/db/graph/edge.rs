@@ -20,10 +20,7 @@ use crate::{
                 },
                 Properties,
             },
-            view::{
-                internal::{EdgeFilterOps, Static},
-                BoxedIter, EdgeViewInternalOps, LayerOps,
-            },
+            view::{internal::Static, BoxedIter, EdgeViewInternalOps, LayerOps},
         },
         graph::{vertex::VertexView, views::window_graph::WindowedGraph},
     },

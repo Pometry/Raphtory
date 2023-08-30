@@ -4,20 +4,16 @@ use crate::{
             edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
             graph::tgraph::InnerTemporalGraph,
             properties::tprop::{LockedLayeredTProp, TProp},
-            vertices::{
-                vertex::{ArcEdge, ArcVertex},
-                vertex_ref::VertexRef,
-                vertex_store::VertexStore,
-            },
+            vertices::{vertex_ref::VertexRef, vertex_store::VertexStore},
             LayerIds, EID, VID,
         },
         storage::{
             locked_view::LockedView,
-            timeindex::{LayeredIndex, LockedLayeredIndex, TimeIndex, TimeIndexEntry},
+            timeindex::{LockedLayeredIndex, TimeIndex, TimeIndexEntry},
             ArcEntry,
         },
     },
-    db::{api::view::internal::CoreGraphOps, graph::views::vertex_subgraph::VertexSubgraph},
+    db::api::view::internal::CoreGraphOps,
     prelude::Prop,
 };
 use itertools::Itertools;

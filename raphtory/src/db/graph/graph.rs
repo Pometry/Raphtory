@@ -147,14 +147,12 @@ mod db_tests {
     use super::*;
     use crate::{
         core::{
-            entities::LayerIds,
             utils::time::{error::ParseTimeError, TryIntoTime},
-            Direction, Prop,
+            Prop,
         },
         db::{
             api::view::{
-                internal::*, EdgeListOps, EdgeViewOps, GraphViewOps, Layer, LayerOps, TimeOps,
-                VertexViewOps,
+                EdgeListOps, EdgeViewOps, GraphViewOps, Layer, LayerOps, TimeOps, VertexViewOps,
             },
             graph::{edge::EdgeView, path::PathFromVertex},
         },
@@ -551,10 +549,6 @@ mod db_tests {
         for (t, src, dst) in &vs {
             g.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
         }
-
-        let vertex_1 = g.vertex(1).unwrap();
-        let vertex_2 = g.vertex(2).unwrap();
-        let vertex_3 = g.vertex(3).unwrap();
 
         let expected = vec![
             (vec![1, 2], vec![1, 2, 3], vec![1]),

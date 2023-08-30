@@ -1,6 +1,6 @@
 use crate::{
     core::{
-        entities::{edges::edge_store::EdgeStore, LayerIds, VID},
+        entities::VID,
         state::{accumulator_id::AccId, agg::Accumulator, compute_state::ComputeState, StateType},
         utils::time::IntoTime,
         Direction,
@@ -449,8 +449,6 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> WindowEvalPathFromVertex
 
     fn degree(&self, dir: Direction) -> Box<dyn Iterator<Item = usize> + 'a> {
         let g = self.g;
-        let t_start = self.t_start;
-        let t_end = self.t_end;
         let edge_filter = self.edge_filter();
         let layer_ids = g.layer_ids();
         let iter = self

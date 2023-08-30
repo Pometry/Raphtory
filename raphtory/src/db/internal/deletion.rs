@@ -1,7 +1,7 @@
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, graph::tgraph::InnerTemporalGraph, LayerIds},
-        storage::timeindex::{LayeredIndex, LockedLayeredIndex, TimeIndexEntry},
+        storage::timeindex::{LockedLayeredIndex, TimeIndexEntry},
         utils::errors::GraphError,
     },
     db::api::{mutation::internal::InternalDeletionOps, view::internal::CoreDeletionOps},

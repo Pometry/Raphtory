@@ -2,7 +2,7 @@
 
 use crate::{
     core::{
-        entities::{vertices::vertex_ref::VertexRef, LayerIds, VID},
+        entities::{vertices::vertex_ref::VertexRef, VID},
         storage::locked_view::LockedView,
         utils::time::IntoTime,
         Direction,

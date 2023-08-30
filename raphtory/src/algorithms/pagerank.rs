@@ -163,12 +163,18 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
         vec![Job::new(step2), Job::new(step3), Job::new(step4), step5],
         PageRankState::new(num_vertices),
         |_, _, _, local| {
+            let layers = g.layer_ids();
+            let edge_filter = g.edge_filter();
             local
                 .iter()
                 .enumerate()
                 .filter_map(|(v_ref, score)| {
-                    g.has_vertex_ref(VertexRef::Local(v_ref.into()))
-                        .then_some((v_ref.into(), score.score))
+                    g.has_vertex_ref(
+                        VertexRef::Local(v_ref.into()),
+                        &layers,
+                        edge_filter.as_deref(),
+                    )
+                    .then_some((v_ref.into(), score.score))
                 })
                 .collect::<HashMap<_, _>>()
         },

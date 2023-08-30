@@ -1,5 +1,5 @@
 use crate::{
-    core::entities::{edges::edge_store::EdgeStore, LayerIds, EID},
+    core::entities::{edges::edge_store::EdgeStore, LayerIds},
     db::{api::view::internal::LayerOps, graph::graph::InternalGraph},
     prelude::Layer,
 };

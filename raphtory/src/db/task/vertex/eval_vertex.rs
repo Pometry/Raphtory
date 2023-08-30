@@ -1,6 +1,6 @@
 use crate::{
     core::{
-        entities::{LayerIds, VID},
+        entities::VID,
         state::{accumulator_id::AccId, agg::Accumulator, compute_state::ComputeState, StateType},
         utils::time::IntoTime,
         Direction,

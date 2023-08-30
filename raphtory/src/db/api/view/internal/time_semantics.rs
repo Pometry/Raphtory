@@ -8,7 +8,7 @@ use crate::{
         Prop,
     },
     db::api::view::{
-        internal::{ArcEdgeFilter, Base, CoreGraphOps, GraphOps, RefEdgeFilter},
+        internal::{Base, CoreGraphOps, GraphOps, RefEdgeFilter},
         BoxedIter,
     },
 };

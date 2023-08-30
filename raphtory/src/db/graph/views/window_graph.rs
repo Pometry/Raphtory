@@ -48,22 +48,19 @@ use crate::{
         utils::time::IntoTime,
         Direction, Prop,
     },
-    db::{
-        api::{
-            properties::internal::{
-                InheritStaticPropertiesOps, Key, TemporalPropertiesOps, TemporalPropertyViewOps,
-            },
-            view::{
-                internal::{
-                    ArcEdgeFilter, Base, EdgeFilterOps, GraphOps, InheritCoreOps, InheritLayerOps,
-                    InheritMaterialize, RefEdgeFilter, TimeSemantics,
-                },
-                BoxedIter, Layer,
-            },
+    db::api::{
+        properties::internal::{
+            InheritStaticPropertiesOps, Key, TemporalPropertiesOps, TemporalPropertyViewOps,
         },
-        graph::edge::EdgeView,
+        view::{
+            internal::{
+                ArcEdgeFilter, Base, EdgeFilterOps, GraphOps, InheritCoreOps, InheritLayerOps,
+                InheritMaterialize, RefEdgeFilter, TimeSemantics,
+            },
+            BoxedIter,
+        },
     },
-    prelude::{GraphViewOps, TimeOps},
+    prelude::GraphViewOps,
 };
 use std::{
     cmp::{max, min},

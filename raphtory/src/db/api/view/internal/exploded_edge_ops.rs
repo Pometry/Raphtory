@@ -1,9 +1,6 @@
 use crate::{
     core::{
-        entities::{
-            edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
-            LayerIds, VID,
-        },
+        entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
         storage::timeindex::AsTime,
         Direction,
     },
@@ -12,7 +9,7 @@ use crate::{
         BoxedIter,
     },
 };
-use std::{ops::Range, sync::Arc};
+use std::ops::Range;
 
 /// Additional methods for returning exploded edge data that are automatically implemented
 pub trait ExplodedEdgeOps {
