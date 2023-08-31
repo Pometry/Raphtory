@@ -24,7 +24,7 @@ pub trait CoreGraphOps {
     /// Get the layer name for a given id
     fn get_layer_names_from_ids(&self, layer_ids: LayerIds) -> Vec<String>;
 
-    /// Returns the global ID for a vertex
+    /// Returns the external ID for a vertex
     fn vertex_id(&self, v: VID) -> u64;
 
     /// Returns the string name for a vertex
@@ -42,11 +42,11 @@ pub trait CoreGraphOps {
     /// (this should always be global and not affected by windowing as deletion semantics may need information outside the current view!)
     fn vertex_additions(&self, v: VID) -> LockedView<TimeIndex<i64>>;
 
-    /// Gets the local reference for a remote vertex and keeps local references unchanged.
-    fn localise_vertex(&self, v: VertexRef) -> Option<VID>;
+    /// Gets the internal reference for an external vertex reference and keeps internal references unchanged.
+    fn internalise_vertex(&self, v: VertexRef) -> Option<VID>;
 
-    /// Gets the local reference for a remote vertex and keeps local references unchanged. Assumes vertex exists!
-    fn localise_vertex_unchecked(&self, v: VertexRef) -> VID;
+    /// Gets the internal reference for an external vertex reference and keeps internal references unchanged. Assumes vertex exists!
+    fn internalise_vertex_unchecked(&self, v: VertexRef) -> VID;
 
     /// Lists the keys of all static properties of the graph
     ///
@@ -266,12 +266,12 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
         self.graph().vertex_additions(v)
     }
 
-    fn localise_vertex(&self, v: VertexRef) -> Option<VID> {
-        self.graph().localise_vertex(v)
+    fn internalise_vertex(&self, v: VertexRef) -> Option<VID> {
+        self.graph().internalise_vertex(v)
     }
 
-    fn localise_vertex_unchecked(&self, v: VertexRef) -> VID {
-        self.graph().localise_vertex_unchecked(v)
+    fn internalise_vertex_unchecked(&self, v: VertexRef) -> VID {
+        self.graph().internalise_vertex_unchecked(v)
     }
 
     fn static_prop_names(&self) -> Vec<String> {

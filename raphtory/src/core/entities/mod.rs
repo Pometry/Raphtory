@@ -40,15 +40,6 @@ impl From<VID> for usize {
     }
 }
 
-impl From<VertexRef> for VID {
-    fn from(id: VertexRef) -> Self {
-        match id {
-            VertexRef::Local(vid) => vid,
-            _ => panic!("Cannot convert remote vertex reference to VID"),
-        }
-    }
-}
-
 #[repr(transparent)]
 #[derive(
     Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Deserialize, Serialize, Default,

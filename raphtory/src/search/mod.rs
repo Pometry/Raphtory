@@ -305,7 +305,7 @@ impl<G: GraphViewOps> IndexedGraph<G> {
             {
                 let writer_guard = writer_lock.read();
                 for v_id in v_ids {
-                    if let Some(vertex) = g.vertex(VertexRef::new_local((*v_id).into())) {
+                    if let Some(vertex) = g.vertex(VertexRef::new((*v_id).into())) {
                         Self::index_vertex_view(
                             vertex,
                             &schema,
@@ -530,7 +530,7 @@ impl<G: GraphViewOps> IndexedGraph<G> {
             .and_then(|value| value.as_u64())?
             .try_into()
             .ok()?;
-        let vertex_id = VertexRef::Local(vertex_id.into());
+        let vertex_id = VertexRef::Internal(vertex_id.into());
         self.graph.vertex(vertex_id)
     }
 

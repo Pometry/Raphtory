@@ -78,14 +78,14 @@ impl<G: GraphViewOps> EdgeFilterOps for VertexSubgraph<G> {
 }
 
 impl<G: GraphViewOps> GraphOps for VertexSubgraph<G> {
-    fn local_vertex_ref(
+    fn internal_vertex_ref(
         &self,
         v: VertexRef,
         layer_ids: &LayerIds,
         filter: Option<&EdgeFilter>,
     ) -> Option<VID> {
         self.graph
-            .local_vertex_ref(v, layer_ids, filter)
+            .internal_vertex_ref(v, layer_ids, filter)
             .filter(|v| self.vertices.contains(v))
     }
 
@@ -127,7 +127,8 @@ impl<G: GraphViewOps> GraphOps for VertexSubgraph<G> {
         layer_ids: &LayerIds,
         edge_filter: Option<&EdgeFilter>,
     ) -> bool {
-        self.local_vertex_ref(v, layer_ids, edge_filter).is_some()
+        self.internal_vertex_ref(v, layer_ids, edge_filter)
+            .is_some()
     }
 
     fn degree(&self, v: VID, d: Direction, layer: &LayerIds, filter: Option<&EdgeFilter>) -> usize {
@@ -135,7 +136,7 @@ impl<G: GraphViewOps> GraphOps for VertexSubgraph<G> {
     }
 
     fn vertex_ref(&self, v: u64, layers: &LayerIds, filter: Option<&EdgeFilter>) -> Option<VID> {
-        self.local_vertex_ref(v.into(), layers, filter)
+        self.internal_vertex_ref(v.into(), layers, filter)
     }
 
     fn vertex_refs(

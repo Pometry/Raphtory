@@ -51,14 +51,14 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
         vertex.additions().unwrap()
     }
 
-    fn localise_vertex(&self, v: VertexRef) -> Option<VID> {
+    fn internalise_vertex(&self, v: VertexRef) -> Option<VID> {
         self.inner().resolve_vertex_ref(v)
     }
 
-    fn localise_vertex_unchecked(&self, v: VertexRef) -> VID {
+    fn internalise_vertex_unchecked(&self, v: VertexRef) -> VID {
         match v {
-            VertexRef::Local(l) => l,
-            VertexRef::Remote(_) => self.inner().resolve_vertex_ref(v).unwrap(),
+            VertexRef::Internal(l) => l,
+            VertexRef::External(_) => self.inner().resolve_vertex_ref(v).unwrap(),
         }
     }
 

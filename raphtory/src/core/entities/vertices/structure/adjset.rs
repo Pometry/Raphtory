@@ -10,7 +10,6 @@ const SMALL_SET: usize = 1024;
  * Temporal adjacency set can track when adding edge v -> u
  * does u exist already
  * and if it does what is the edge metadata
- * and if the edge is remote or local
  *
  *  */
 #[derive(Debug, Default, Serialize, Deserialize, PartialEq)]

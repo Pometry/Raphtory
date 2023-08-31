@@ -431,7 +431,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
 
     fn properties(&self) -> Self::ValueType<Properties<VertexView<G>>> {
         //FIXME: need to implement this properly without cloning the graph...
-        Properties::new(VertexView::new_local(self.graph.clone(), self.vertex))
+        Properties::new(VertexView::new_internal(self.graph.clone(), self.vertex))
     }
 
     fn degree(&self) -> Self::ValueType<usize> {

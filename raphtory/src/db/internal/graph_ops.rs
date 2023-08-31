@@ -14,15 +14,15 @@ use itertools::Itertools;
 use std::iter;
 
 impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
-    fn local_vertex_ref(
+    fn internal_vertex_ref(
         &self,
         v: VertexRef,
         _layer_ids: &LayerIds,
         _filter: Option<&EdgeFilter>,
     ) -> Option<VID> {
         match v {
-            VertexRef::Local(l) => Some(l),
-            VertexRef::Remote(_) => {
+            VertexRef::Internal(l) => Some(l),
+            VertexRef::External(_) => {
                 let vid = self.inner().resolve_vertex_ref(v)?;
                 Some(vid)
             }

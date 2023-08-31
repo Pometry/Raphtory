@@ -243,7 +243,7 @@ impl<G: GraphViewOps> PathFromVertex<G> {
         let g = self.graph.clone();
         let iter = self
             .iter_refs()
-            .map(move |v| VertexView::new_local(g.clone(), v));
+            .map(move |v| VertexView::new_internal(g.clone(), v));
         Box::new(iter)
     }
 
@@ -252,7 +252,7 @@ impl<G: GraphViewOps> PathFromVertex<G> {
         vertex: V,
         operation: Operations,
     ) -> PathFromVertex<G> {
-        let v = graph.localise_vertex_unchecked(vertex.into());
+        let v = graph.internalise_vertex_unchecked(vertex.into());
         PathFromVertex {
             graph,
             vertex: v,

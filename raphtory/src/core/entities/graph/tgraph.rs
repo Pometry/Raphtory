@@ -643,8 +643,8 @@ impl<const N: usize> TemporalGraph<N> {
 
     pub(crate) fn resolve_vertex_ref(&self, v: VertexRef) -> Option<VID> {
         match v {
-            VertexRef::Local(vid) => Some(vid),
-            VertexRef::Remote(gid) => {
+            VertexRef::Internal(vid) => Some(vid),
+            VertexRef::External(gid) => {
                 let v_id = self.logical_to_physical.get(&gid)?;
                 Some((*v_id).into())
             }

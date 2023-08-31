@@ -392,17 +392,19 @@ impl<G: GraphViewOps> EdgeFilterOps for WindowedGraph<G> {
 /// This trait provides operations to a `WindowedGraph` used internally by the `GraphWindowSet`.
 /// *Note: All functions in this are bound by the time set in the windowed graph.
 impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
-    fn local_vertex_ref(
+    #[inline]
+    fn internal_vertex_ref(
         &self,
         v: VertexRef,
         layers: &LayerIds,
         filter: Option<&EdgeFilter>,
     ) -> Option<VID> {
         self.graph
-            .local_vertex_ref(v, layers, filter)
+            .internal_vertex_ref(v, layers, filter)
             .filter(|v| self.include_vertex_window(*v, self.t_start..self.t_end, layers, filter))
     }
 
+    #[inline]
     fn find_edge_id(
         &self,
         e_id: EID,
@@ -413,11 +415,13 @@ impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
     }
 
     /// Returns the number of vertices in the windowed view.
+    #[inline]
     fn vertices_len(&self, layer_ids: LayerIds, filter: Option<&EdgeFilter>) -> usize {
         self.vertex_refs(layer_ids, filter).count()
     }
 
     /// Returns the number of edges in the windowed view.
+    #[inline]
     fn edges_len(&self, layer: LayerIds, filter: Option<&EdgeFilter>) -> usize {
         // filter takes care of checking the window
         self.graph.edges_len(layer, filter)
@@ -437,6 +441,7 @@ impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
     /// # Errors
     ///
     /// Returns an error if either `src` or `dst` is not a valid vertex.
+    #[inline]
     fn has_edge_ref(
         &self,
         src: VID,
@@ -461,8 +466,9 @@ impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
     /// # Errors
     ///
     /// Returns an error if `v` is not a valid vertex.
+    #[inline]
     fn has_vertex_ref(&self, v: VertexRef, layers: &LayerIds, filter: Option<&EdgeFilter>) -> bool {
-        self.local_vertex_ref(v, layers, filter).is_some()
+        self.internal_vertex_ref(v, layers, filter).is_some()
     }
 
     /// Returns the number of edges from a vertex in the window.
@@ -497,8 +503,9 @@ impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
     /// # Errors
     ///
     /// Returns an error if `v` is not a valid vertex.
+    #[inline]
     fn vertex_ref(&self, v: u64, layers: &LayerIds, filter: Option<&EdgeFilter>) -> Option<VID> {
-        self.local_vertex_ref(v.into(), layers, filter)
+        self.internal_vertex_ref(v.into(), layers, filter)
     }
 
     /// Get an iterator over the references of all vertices as references
@@ -506,6 +513,7 @@ impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
     /// # Returns
     ///
     /// An iterator over the references of all vertices
+    #[inline]
     fn vertex_refs(
         &self,
         layers: LayerIds,
@@ -536,6 +544,7 @@ impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
     /// # Errors
     ///
     /// Returns an error if `src` or `dst` are not valid vertices.
+    #[inline]
     fn edge_ref(
         &self,
         src: VID,
@@ -551,6 +560,7 @@ impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
     /// # Returns
     ///
     /// An iterator over all edges as references
+    #[inline]
     fn edge_refs(
         &self,
         layer: LayerIds,
@@ -559,6 +569,7 @@ impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
         self.graph.edge_refs(layer, filter)
     }
 
+    #[inline]
     fn vertex_edges(
         &self,
         v: VID,
@@ -579,6 +590,7 @@ impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
     /// # Returns
     ///
     /// An iterator over all neighbours in that vertex direction as references
+    #[inline]
     fn neighbours(
         &self,
         v: VID,

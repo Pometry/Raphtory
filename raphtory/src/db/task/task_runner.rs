@@ -69,7 +69,7 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         let mut v_ref = morcel_id * morcel_size;
         for local_state in morcel {
             if g.has_vertex_ref(
-                VertexRef::Local(v_ref.into()),
+                VertexRef::Internal(v_ref.into()),
                 &g.layer_ids(),
                 g.edge_filter().as_deref(),
             ) {

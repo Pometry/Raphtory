@@ -64,7 +64,7 @@ impl<G: GraphViewOps> EdgeViewInternalOps<G, VertexView<G>> for EdgeView<G> {
     }
 
     fn new_vertex(&self, v: VID) -> VertexView<G> {
-        VertexView::new_local(self.graph(), v)
+        VertexView::new_internal(self.graph(), v)
     }
 
     fn new_edge(&self, e: EdgeRef) -> Self {

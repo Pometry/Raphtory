@@ -149,7 +149,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
 
     fn properties(&self) -> Self::ValueType<Properties<VertexView<WindowedGraph<G>>>> {
         //FIXME: Need to implement this properly without cloning the graph
-        Properties::new(VertexView::new_local(
+        Properties::new(VertexView::new_internal(
             WindowedGraph::new(self.graph.clone(), self.t_start, self.t_end),
             self.vertex,
         ))

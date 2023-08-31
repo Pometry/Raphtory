@@ -40,30 +40,30 @@ impl<G1: GraphViewOps, G2: GraphViewOps> PartialEq<VertexView<G2>> for VertexVie
 
 impl<G: GraphViewOps> From<VertexView<G>> for VertexRef {
     fn from(value: VertexView<G>) -> Self {
-        VertexRef::Local(value.vertex)
+        VertexRef::Internal(value.vertex)
     }
 }
 
 impl<G: GraphViewOps> From<&VertexView<G>> for VertexRef {
     fn from(value: &VertexView<G>) -> Self {
-        VertexRef::Local(value.vertex)
+        VertexRef::Internal(value.vertex)
     }
 }
 
 impl<G: GraphViewOps> VertexView<G> {
-    /// Creates a new `VertexView` wrapping a vertex reference and a graph, localising any remote vertices to the correct shard.
+    /// Creates a new `VertexView` wrapping an internal vertex reference and a graph, internalising any global vertex ids.
     pub fn new(graph: G, vertex: VertexRef) -> VertexView<G> {
         match vertex {
-            VertexRef::Local(local) => Self::new_local(graph, local),
+            VertexRef::Internal(local) => Self::new_internal(graph, local),
             _ => {
-                let v = graph.localise_vertex_unchecked(vertex);
+                let v = graph.internalise_vertex_unchecked(vertex);
                 VertexView { graph, vertex: v }
             }
         }
     }
 
-    /// Creates a new `VertexView` wrapping a local vertex reference and a graph
-    pub fn new_local(graph: G, vertex: VID) -> VertexView<G> {
+    /// Creates a new `VertexView` wrapping an internal vertex reference and a graph
+    pub fn new_internal(graph: G, vertex: VID) -> VertexView<G> {
         VertexView { graph, vertex }
     }
 }
@@ -75,7 +75,6 @@ impl<G: GraphViewOps> TemporalPropertiesOps for VertexView<G> {
         Box::new(
             self.graph
                 .temporal_vertex_prop_names(self.vertex)
-                .into_iter()
                 .filter(|k| self.get_temporal_property(k).is_some()),
         )
     }

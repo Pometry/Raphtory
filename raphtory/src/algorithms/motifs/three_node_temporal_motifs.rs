@@ -382,7 +382,7 @@ pub fn triangle_motifs<G: GraphViewOps>(
             let layers = graph.layer_ids();
             let edge_filter = graph.edge_filter();
             for (vref, mc) in enumerate(local) {
-                if graph.has_vertex_ref(VertexRef::Local(vref.into()), &layers, edge_filter) {
+                if graph.has_vertex_ref(VertexRef::Internal(vref.into()), &layers, edge_filter) {
                     let v_gid = graph.vertex_name(vref.into());
                     tri_motifs.insert(v_gid.clone(), mc.triangle);
                 }

@@ -9,8 +9,8 @@ use crate::{
 /// The GraphViewInternalOps trait provides a set of methods to query a directed graph
 /// represented by the raphtory_core::tgraph::TGraph struct.
 pub trait GraphOps: Send + Sync {
-    /// Check if a vertex exists locally and returns local reference.
-    fn local_vertex_ref(
+    /// Check if a vertex exists and returns internal reference.
+    fn internal_vertex_ref(
         &self,
         v: VertexRef,
         layer_ids: &LayerIds,
@@ -51,7 +51,7 @@ pub trait GraphOps: Send + Sync {
     ///
     /// * `v` - VertexRef of the vertex to check.
     fn has_vertex_ref(&self, v: VertexRef, layers: &LayerIds, filter: Option<&EdgeFilter>) -> bool {
-        self.local_vertex_ref(v, layers, filter).is_some()
+        self.internal_vertex_ref(v, layers, filter).is_some()
     }
 
     /// Returns the number of edges that point towards or from the specified vertex
@@ -69,7 +69,7 @@ pub trait GraphOps: Send + Sync {
     ///
     /// * `v` - The vertex ID to lookup.
     fn vertex_ref(&self, v: u64, layers: &LayerIds, filter: Option<&EdgeFilter>) -> Option<VID> {
-        self.local_vertex_ref(v.into(), layers, filter)
+        self.internal_vertex_ref(v.into(), layers, filter)
     }
 
     /// Returns all the vertex references in the graph.
@@ -170,13 +170,13 @@ pub trait DelegateGraphOps {
 
 impl<G: DelegateGraphOps + Send + Sync + ?Sized> GraphOps for G {
     #[inline]
-    fn local_vertex_ref(
+    fn internal_vertex_ref(
         &self,
         v: VertexRef,
         layer_ids: &LayerIds,
         filter: Option<&EdgeFilter>,
     ) -> Option<VID> {
-        self.graph().local_vertex_ref(v, layer_ids, filter)
+        self.graph().internal_vertex_ref(v, layer_ids, filter)
     }
 
     #[inline]

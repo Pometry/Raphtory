@@ -138,7 +138,7 @@ pub fn hits<G: GraphViewOps>(
             let layers = g.layer_ids();
             let edge_filter = g.edge_filter();
             for (v_ref, hit) in local.iter().enumerate() {
-                if g.has_vertex_ref(VertexRef::Local(v_ref.into()), &layers, edge_filter) {
+                if g.has_vertex_ref(VertexRef::Internal(v_ref.into()), &layers, edge_filter) {
                     let v_gid = g.vertex_name(v_ref.into());
                     hubs.insert(v_gid.clone(), hit.hub_score);
                     auths.insert(v_gid, hit.auth_score);

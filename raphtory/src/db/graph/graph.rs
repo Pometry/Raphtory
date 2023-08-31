@@ -422,7 +422,7 @@ mod db_tests {
 
     #[test]
     fn static_properties() {
-        let g = Graph::new(); // big enough so all edges are very likely remote
+        let g = Graph::new();
         g.add_edge(0, 11, 22, NO_PROPS, None).unwrap();
         g.add_edge(
             0,

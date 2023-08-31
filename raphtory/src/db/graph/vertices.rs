@@ -29,7 +29,7 @@ impl<G: GraphViewOps> Vertices<G> {
         let g = self.graph.clone();
         Box::new(
             g.vertex_refs(g.layer_ids(), g.edge_filter())
-                .map(move |v| VertexView::new_local(g.clone(), v)),
+                .map(move |v| VertexView::new_internal(g.clone(), v)),
         )
     }
 

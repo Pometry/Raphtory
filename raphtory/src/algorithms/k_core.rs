@@ -91,7 +91,7 @@ where
                 .filter(|(v_ref, state)| {
                     state.alive
                         && graph.has_vertex_ref(
-                            VertexRef::Local((*v_ref).into()),
+                            VertexRef::Internal((*v_ref).into()),
                             &layers,
                             edge_filter,
                         )
