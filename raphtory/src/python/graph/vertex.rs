@@ -412,7 +412,12 @@ impl Repr for VertexView<DynamicGraph> {
             .map(|(k, v)| format!("{}: {}", k.deref(), v))
             .join(", ");
         if properties.is_empty() {
-            format!("Vertex(name={}, earliest_time={:?}, latest_time={:?})", self.name().trim_matches('"'),earliest_time,latest_time)
+            format!(
+                "Vertex(name={}, earliest_time={:?}, latest_time={:?})",
+                self.name().trim_matches('"'),
+                earliest_time,
+                latest_time
+            )
         } else {
             format!(
                 "Vertex(name={}, earliest_time={:?}, latest_time={:?}, properties={})",

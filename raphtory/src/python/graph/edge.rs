@@ -35,14 +35,14 @@ use crate::{
     },
 };
 use chrono::NaiveDateTime;
+use itertools::Itertools;
 use pyo3::{prelude::*, pyclass::CompareOp};
 use std::{
     collections::hash_map::DefaultHasher,
     hash::{Hash, Hasher},
+    ops::Deref,
     sync::Arc,
 };
-use std::ops::Deref;
-use itertools::Itertools;
 
 /// PyEdge is a Python class that represents an edge in the graph.
 /// An edge is a directed connection between two vertices.
