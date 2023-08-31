@@ -865,34 +865,91 @@ impl PyPropHistValueList {
         .into()
     }
 
-    // pub fn median(&self) -> PyPropValueList {
-    //     let builder = self.builder.clone();
-    //     (move || {
-    //         builder().map(|it| {
-    //             let mut it_iter = it.into_iter();
-    //             let first = it_iter.next();
-    //             let result = it_iter.fold(first, |acc, elem| acc.and_then(|val| val.add(elem)));
-    //             let len = it.len();
-    //             result / len
-    //         })
-    //     })
-    // }
+    pub fn min(&self) -> PyPropValueList {
+        let builder = self.builder.clone();
+        (move || {
+            builder().map(|it| {
+                let mut it_iter = it.into_iter();
+                let first = it_iter.next();
+                it_iter.fold(first, |a, b| {
+                    match PartialOrd::partial_cmp(&a, &Some(b.clone())) {
+                        Some(std::cmp::Ordering::Less) => a,
+                        _ => Some(b),
+                    }
+                })
+            })
+        })
+        .into()
+    }
 
-    // pub fn mean(&self) -> PropValue {
-    //     let sum: PyPropValueList = self.sum();
-    //     let count: UsizeIterable = self.count();
-    //     match sum {
-    //         Some(Prop::I32(s)) => Some(Prop::I32(s / count as i32)),
-    //         Some(Prop::I64(s)) => Some(Prop::I64(s / count as i64)),
-    //         Some(Prop::U32(s)) => Some(Prop::U32(s / count as u32)),
-    //         Some(Prop::U64(s)) => Some(Prop::U64(s / count as u64)),
-    //         Some(Prop::F32(s)) => Some(Prop::F32(s / count as f32)),
-    //         Some(Prop::F64(s)) => Some(Prop::F64(s / count as f64)),
-    //         _ => None,
-    //     }
-    // }
+    pub fn max(&self) -> PyPropValueList {
+        let builder = self.builder.clone();
+        (move || {
+            builder().map(|it| {
+                let mut it_iter = it.into_iter();
+                let first = it_iter.next();
+                it_iter.fold(first, |a, b| {
+                    match PartialOrd::partial_cmp(&a, &Some(b.clone())) {
+                        Some(std::cmp::Ordering::Greater) => a,
+                        _ => Some(b),
+                    }
+                })
+            })
+        })
+        .into()
+    }
 
-    pub fn count(&self) -> UsizeIterable {
+    pub fn len(&self) -> PropIterable {
+        self.count()
+    }
+
+    pub fn median(&self) -> PyPropValueList {
+        let builder = self.builder.clone();
+        (move || {
+            builder().map(|it| {
+                let mut sorted: Vec<Prop> = it.clone();
+                sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+                let len = sorted.len();
+                match len {
+                    0 => None,
+                    1 => Some(sorted[0].clone()),
+                    _ => {
+                        let a = &sorted[len / 2];
+                        Some(a.clone())
+                    }
+                }
+            })
+        })
+        .into()
+    }
+
+    pub fn average(&self) -> PyPropValueList {
+        self.mean()
+    }
+
+    pub fn mean(&self) -> PyPropValueList {
+        let builder = self.builder.clone();
+        (move || {
+            builder().map(|it| {
+                let mut it_iter = it.clone().into_iter();
+                let first = it_iter.next();
+                let sum = it_iter.fold(first, |acc, elem| acc.and_then(|val| val.add(elem)));
+                let count = it.len();
+                match sum {
+                    Some(Prop::I32(s)) => Some(Prop::F32(s as f32 / count as f32)),
+                    Some(Prop::I64(s)) => Some(Prop::F64(s as f64 / count as f64)),
+                    Some(Prop::U32(s)) => Some(Prop::F32(s as f32 / count as f32)),
+                    Some(Prop::U64(s)) => Some(Prop::F64(s as f64 / count as f64)),
+                    Some(Prop::F32(s)) => Some(Prop::F32(s / count as f32)),
+                    Some(Prop::F64(s)) => Some(Prop::F64(s / count as f64)),
+                    _ => None,
+                }
+            })
+        })
+        .into()
+    }
+
+    pub fn count(&self) -> PropIterable {
         let builder = self.builder.clone();
         (move || builder().map(|it| it.len())).into()
     }

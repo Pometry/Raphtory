@@ -1640,9 +1640,10 @@ def test_balance_algorithm():
     assert result == {'1': -32.0, '2': -5.0, '3': -3.0, '4': -15.0, '5': 0.0}
 
 
-def test_pyprophistvaluelist_sum():
+def test_pyprophistvaluelist():
     g = Graph()
     edges_str = [
+        ("1", "2", 10, 1),
         ("1", "2", 10, 1),
         ("1", "4", 20, 2),
         ("2", "3", 5, 3),
@@ -1657,20 +1658,46 @@ def test_pyprophistvaluelist_sum():
 
     v = g.vertex("1")
     res = sorted(v.out_edges().properties.temporal.get("value_dec").values().sum())
-    assert res == [2, 10, 20]
+    assert res == [2, 20, 20]
 
     res = sorted(v.out_edges().properties.temporal.get("value_dec").values().count())
-    assert res == [1, 1, 1]
+    assert res == [1, 1, 2]
 
     res = v.out_edges().properties.temporal.get("value_dec").values().sum().sum()
-    assert res == 32
+    assert res == 42
 
     res = v.out_edges().properties.temporal.get("value_dec").values().count().sum()
-    assert res == 3
+    assert res == 4
 
-    res = v.out_edges().properties.temporal.get("value_dec").values().median()
-    assert res == 10
-
+    g = Graph()
+    edges_str = [
+        ("1", "2", 10, 1),
+        ("1", "2", 10, 2),
+        ("1", "2", 100, 3),
+        ("1", "4", 20, 2),
+        ("2", "3", 5, 3),
+        ("3", "2", 2, 4),
+        ("3", "1", 1, 5),
+        ("4", "3", 10, 6),
+        ("4", "1", 5, 7),
+        ("1", "5", 2, 8),
+        ("1", "5", 1, 9),
+        ("1", "5", 5, 10)
+    ]
+    for (src, dst, val, time) in edges_str:
+        g.add_edge(time, src, dst, {'value_dec': val})
+    v = g.vertex("1")
+    res = v.out_edges().properties.temporal.get("value_dec").values() # PyPropHistValueList([[10, 10, 10], [20], [2]])
+    assert res.sum() == [120, 20, 8]
+    assert res.min() == [10, 20, 1]
+    assert res.max() == [100, 20, 5]
+    # TODO BUG: res.len() does not equal [3, 1, 3] natural order
+    assert sorted(res.len()) == [1, 3, 3]
+    assert sorted(res.count()) == [1, 3, 3]
+    assert res.median() == [10, 20, 2]
+    assert list(res.mean()) == [40, 20, 8/3]
+    assert list(res.average()) == [40, 20, 8/3]
+    
 
 def test_propiterable():
     import raphtory
