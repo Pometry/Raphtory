@@ -45,6 +45,25 @@ where
     pub fn get(&self, key: &K) -> Option<&V> {
         self.result.get(&key)
     }
+
+    pub fn min_key(&self) -> Option<K> {
+        self.result.keys().min().cloned()
+    }
+
+    pub fn max_key(&self) -> Option<K> {
+        self.result.keys().max().cloned()
+    }
+
+    pub fn median_key(&self) -> Option<K> {
+        let mut keys: Vec<K> = self.result.keys().cloned().collect();
+        keys.sort();
+        let len = keys.len();
+        if len % 2 == 0 {
+            keys.get(len / 2).cloned()
+        } else {
+            keys.get(len / 2).cloned()
+        }
+    }
 }
 
 pub struct AlgorithmResultIterator<'a, K, V> {
@@ -141,12 +160,24 @@ where
         }
     }
 
-    pub fn min_key(&self) -> Option<&K> {
-        self.result.keys().min()
+    pub fn min_value(&self) -> Option<V> {
+        self.result
+            .values()
+            .fold(None, |min_val, curr_val| match min_val {
+                None => Some(curr_val.clone()),
+                Some(min) if curr_val < &min => Some(curr_val.clone()),
+                _ => min_val,
+            })
     }
 
-    pub fn max_key(&self) -> Option<&K> {
-        self.result.keys().max()
+    pub fn max_value(&self) -> Option<V> {
+        self.result
+            .values()
+            .fold(None, |max_val, curr_val| match max_val {
+                None => Some(curr_val.clone()),
+                Some(max) if curr_val > &max => Some(curr_val.clone()),
+                _ => max_val,
+            })
     }
 }
 
@@ -189,22 +220,6 @@ where
         }
         grouped
     }
-
-    pub fn min_value(&self) -> Option<&V> {
-        self.result.values().min()
-    }
-
-    pub fn max_value(&self) -> Option<&V> {
-        self.result.values().max()
-    }
-
-    // pub fn group_by(&self) -> AlgorithmResult<V, Vec<K>> {
-    //     let mut grouped: HashMap<V, Vec<K>> = HashMap::new();
-    //     for (key, value) in &self.result {
-    //         grouped.entry(value.clone()).or_default().push(key.clone());
-    //     }
-    //     AlgorithmResult::new(grouped)
-    // }
 }
 
 impl<V: Debug + Clone, K: Debug + Clone + Hash + Eq + Ord> Debug for AlgorithmResult<K, V> {
@@ -269,6 +284,26 @@ mod algorithm_result_test {
             vec![(22, "E".to_string()), (33, "F".to_string())],
         );
         AlgorithmResult::new(map.clone())
+    }
+
+    #[test]
+    fn test_min_max_value() {
+        let algo_result = create_algo_result_u64();
+        assert_eq!(algo_result.min_value().unwrap_or_default(), 10);
+        assert_eq!(algo_result.max_value().unwrap_or_default(), 30);
+        let algo_result = create_algo_result_f64();
+        assert_eq!(algo_result.min_value().unwrap_or_default(), 10.0);
+        assert_eq!(algo_result.max_value().unwrap_or_default(), 30.0);
+    }
+
+    #[test]
+    fn test_min_max_key() {
+        let algo_result = create_algo_result_u64();
+        assert_eq!(algo_result.min_key().unwrap_or_default(), "A".to_string());
+        assert_eq!(algo_result.max_key().unwrap_or_default(), "C".to_string());
+        let algo_result = create_algo_result_f64();
+        assert_eq!(algo_result.min_key().unwrap_or_default(), "A".to_string());
+        assert_eq!(algo_result.max_key().unwrap_or_default(), "C".to_string());
     }
 
     #[test]
