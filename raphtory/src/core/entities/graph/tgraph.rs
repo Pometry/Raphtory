@@ -90,8 +90,8 @@ impl<const N: usize> std::fmt::Display for InnerTemporalGraph<N> {
         write!(
             f,
             "Graph(num_vertices={}, num_edges={})",
-            self.inner().storage.nodes_len(),
-            self.inner().storage.edges_len(LayerIds::All)
+            self.inner().storage.nodes.len(),
+            self.inner().storage.edges.len()
         )
     }
 }
@@ -283,9 +283,10 @@ impl<const N: usize> TemporalGraph<N> {
 
 impl<const N: usize> TemporalGraph<N> {
     pub(crate) fn internal_num_vertices(&self) -> usize {
-        self.storage.nodes_len()
+        self.storage.nodes.len()
     }
 
+    #[inline]
     pub(crate) fn num_edges(&self, layers: &LayerIds, filter: Option<&EdgeFilter>) -> usize {
         match filter {
             None => match layers {
@@ -308,6 +309,7 @@ impl<const N: usize> TemporalGraph<N> {
         }
     }
 
+    #[inline]
     pub(crate) fn degree(
         &self,
         v: VID,
@@ -627,7 +629,7 @@ impl<const N: usize> TemporalGraph<N> {
 
     #[inline]
     pub(crate) fn vertex_ids(&self) -> impl Iterator<Item = VID> {
-        (0..self.storage.nodes_len()).map(|i| i.into())
+        (0..self.storage.nodes.len()).map(|i| i.into())
     }
 
     pub(crate) fn locked_edges(&self) -> impl Iterator<Item = ArcEntry<EdgeStore>> {

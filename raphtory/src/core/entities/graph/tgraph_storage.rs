@@ -43,10 +43,12 @@ impl<const N: usize> GraphStorage<N> {
             .into()
     }
 
+    #[inline]
     pub(crate) fn get_node_mut(&self, id: VID) -> EntryMut<'_, VertexStore> {
         self.nodes.entry_mut(id.into())
     }
 
+    #[inline]
     pub(crate) fn get_edge_mut(&self, id: EID) -> EntryMut<'_, EdgeStore> {
         self.edges.entry_mut(id.into())
     }
@@ -71,29 +73,6 @@ impl<const N: usize> GraphStorage<N> {
 
     pub(crate) fn pair_node_mut(&self, i: VID, j: VID) -> PairEntryMut<'_, VertexStore> {
         self.nodes.pair_entry_mut(i.into(), j.into())
-    }
-
-    #[inline]
-    pub(crate) fn nodes_len(&self) -> usize {
-        self.nodes.len()
-    }
-
-    #[inline]
-    pub(crate) fn edges_len(&self, layers: LayerIds) -> usize {
-        match layers {
-            LayerIds::All => self.edges.len(),
-            _ => self.edges.iter().filter(|e| e.has_layer(&layers)).count(),
-        }
-    }
-
-    pub(crate) fn edges_window_len(&self, layers: LayerIds, w: Range<i64>) -> usize {
-        self.edges
-            .count_with_filter(|e| e.active(&layers, w.clone()))
-        // self.edges
-        //     .iter()
-        //     .par_bridge()
-        //     .filter(|e| e.active(&layers, w.clone()))
-        //     .count()
     }
 
     fn lock(&self) -> LockedGraphStorage<N> {

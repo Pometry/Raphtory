@@ -70,34 +70,6 @@ impl<'a, const N: usize> Vertex<'a, N> {
         self.node.temporal_properties(prop_id, window)
     }
 
-    pub fn edges(
-        self,
-        layer: Option<&str>,
-        dir: Direction,
-    ) -> impl Iterator<Item = EdgeView<'a, N>> + 'a {
-        let layer = layer
-            .map(|layer| {
-                self.graph
-                    .vertex_meta
-                    .get_or_create_layer_id(layer.to_owned())
-            })
-            .unwrap_or_default();
-
-        let src = self.node.index().into();
-
-        match dir {
-            Direction::OUT | Direction::IN => {
-                PagedIter::Page(Paged::new(Arc::new(self.node), dir, layer, src, self.graph))
-            }
-            Direction::BOTH => {
-                let node = Arc::new(self.node);
-                let out = Paged::new(node.clone(), Direction::OUT, layer, src, self.graph);
-                let in_ = Paged::new(node, Direction::IN, layer, src, self.graph);
-                PagedIter::Merged(out.merge(in_))
-            }
-        }
-    }
-
     pub fn neighbours<'b>(
         &'a self,
         layers: Vec<&'b str>,

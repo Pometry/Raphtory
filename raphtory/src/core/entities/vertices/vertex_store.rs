@@ -376,6 +376,7 @@ pub struct LockedLayer {
 impl Deref for LockedLayer {
     type Target = Adj;
 
+    #[inline]
     fn deref(&self) -> &Self::Target {
         &self.entry.layers[self.offset]
     }
