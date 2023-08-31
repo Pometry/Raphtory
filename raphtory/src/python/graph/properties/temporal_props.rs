@@ -1025,6 +1025,24 @@ impl PyPropValueList {
             }
         }
     }
+
+    pub fn mean(&self) -> PropValue {
+        let sum: PropValue = self.sum();
+        let count: usize = self.iter().collect::<Vec<PropValue>>().len();
+        match sum {
+            Some(Prop::I32(s)) => Some(Prop::F32(s as f32 / count as f32)),
+            Some(Prop::I64(s)) => Some(Prop::F64(s as f64 / count as f64)),
+            Some(Prop::U32(s)) => Some(Prop::F32(s as f32 / count as f32)),
+            Some(Prop::U64(s)) => Some(Prop::F64(s as f64 / count as f64)),
+            Some(Prop::F32(s)) => Some(Prop::F32(s / count as f32)),
+            Some(Prop::F64(s)) => Some(Prop::F64(s / count as f64)),
+            _ => None,
+        }
+    }
+
+    pub fn average(&self) -> PropValue {
+        self.mean()
+    }
 }
 
 #[pymethods]

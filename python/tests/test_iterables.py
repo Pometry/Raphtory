@@ -171,3 +171,6 @@ def test_pypropvaluelist():
     assert res.len() == 8
     assert res_v.count() == 5
 
+    assert res.mean() == res.average() == 18.5
+    assert res_v.mean() == res_v.average() == 26.2
+
