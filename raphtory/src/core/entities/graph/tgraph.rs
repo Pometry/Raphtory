@@ -360,7 +360,7 @@ impl<const N: usize> TemporalGraph<N> {
                     .resolve_prop_ids(vec![("_id".to_string(), Prop::Str(n.to_owned()))], true)
                     .collect::<Vec<_>>()
             })
-            .unwrap_or_else(|| vec![]);
+            .unwrap_or_default();
 
         // update the logical to physical mapping if needed
         let v_id = *(self.logical_to_physical.entry(v.id()).or_insert_with(|| {
@@ -374,7 +374,7 @@ impl<const N: usize> TemporalGraph<N> {
 
         // update the properties;
         for (prop_id, prop) in props {
-            node.add_prop(time, prop_id, prop);
+            node.add_prop(time, prop_id, prop)?;
         }
 
         // update node prop
@@ -387,7 +387,7 @@ impl<const N: usize> TemporalGraph<N> {
             })?;
         }
 
-        Ok(v_id.into())
+        Ok(v_id)
     }
 
     pub(crate) fn add_vertex_no_props(&self, t: TimeIndexEntry, v: u64) -> Result<VID, GraphError> {
@@ -403,7 +403,7 @@ impl<const N: usize> TemporalGraph<N> {
         let mut node = self.storage.get_node_mut(v_id);
         node.update_time(t);
 
-        Ok(v_id.into())
+        Ok(v_id)
     }
 
     pub(crate) fn add_vertex_properties_internal(
@@ -517,7 +517,7 @@ impl<const N: usize> TemporalGraph<N> {
         props: Vec<(String, Prop)>,
     ) -> Result<(), GraphError> {
         for (name, prop) in props {
-            self.graph_props.add_prop(t, &name, prop.clone());
+            self.graph_props.add_prop(t, &name, prop.clone())?;
         }
         Ok(())
     }
@@ -530,11 +530,11 @@ impl<const N: usize> TemporalGraph<N> {
         self.graph_props.get_temporal(name)
     }
 
-    pub(crate) fn static_property_names(&self) -> RwLockReadGuard<Vec<std::string::String>> {
+    pub(crate) fn static_property_names(&self) -> RwLockReadGuard<Vec<String>> {
         self.graph_props.static_prop_names()
     }
 
-    pub(crate) fn temporal_property_names(&self) -> RwLockReadGuard<Vec<std::string::String>> {
+    pub(crate) fn temporal_property_names(&self) -> RwLockReadGuard<Vec<String>> {
         self.graph_props.temporal_prop_names()
     }
 
@@ -558,6 +558,7 @@ impl<const N: usize> TemporalGraph<N> {
         } else {
             self.link_nodes(src_id, dst_id, t, layer, |new_edge| {
                 new_edge.deletions_mut(layer).insert(t);
+                Ok(())
             });
         }
 
@@ -570,26 +571,26 @@ impl<const N: usize> TemporalGraph<N> {
             .unwrap_or(0)
     }
 
-    fn link_nodes<F: FnOnce(&mut EdgeStore)>(
+    fn link_nodes<F: FnOnce(&mut EdgeStore) -> Result<(), GraphError>>(
         &self,
         src_id: VID,
         dst_id: VID,
         t: TimeIndexEntry,
         layer: usize,
         edge_fn: F,
-    ) -> EID {
+    ) -> Result<EID, GraphError> {
         let mut node_pair = self.storage.pair_node_mut(src_id.into(), dst_id.into());
         let src = node_pair.get_mut_i();
 
         let edge_id = match src.find_edge(dst_id, &LayerIds::All) {
             Some(edge_id) => {
                 let mut edge = self.storage.get_edge_mut(edge_id);
-                edge_fn(&mut edge);
+                edge_fn(&mut edge)?;
                 edge_id
             }
             None => {
                 let mut edge = EdgeStore::new(src_id, dst_id);
-                edge_fn(&mut edge);
+                edge_fn(&mut edge)?;
                 self.storage.push_edge(edge)
             }
         };
@@ -597,7 +598,7 @@ impl<const N: usize> TemporalGraph<N> {
         src.add_edge(dst_id, Direction::OUT, layer, edge_id);
         let dst = node_pair.get_mut_j();
         dst.add_edge(src_id, Direction::IN, layer, edge_id);
-        edge_id
+        Ok(edge_id)
     }
 
     pub(crate) fn add_edge_internal(
@@ -617,14 +618,14 @@ impl<const N: usize> TemporalGraph<N> {
         let props: Vec<_> = self.edge_meta.resolve_prop_ids(props, false).collect();
 
         // get the entries for the src and dst nodes
-        let edge_id = self.link_nodes(src_id, dst_id, t, layer, move |edge| {
+        self.link_nodes(src_id, dst_id, t, layer, move |edge| {
             edge.additions_mut(layer).insert(t);
             let mut edge_layer = edge.layer_mut(layer);
             for (prop_id, prop_value) in props {
-                edge_layer.add_prop(t, prop_id, prop_value);
+                edge_layer.add_prop(t, prop_id, prop_value)?;
             }
-        }); // this is to release the node locks as quick as possible
-        Ok(edge_id)
+            Ok(())
+        })
     }
 
     #[inline]

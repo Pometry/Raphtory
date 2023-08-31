@@ -5,6 +5,7 @@ use crate::{
             LayerIds,
         },
         storage::{locked_view::LockedView, timeindex::TimeIndexEntry},
+        utils::errors::GraphError,
         Prop,
     },
     db::graph::graph::Graph,
@@ -52,74 +53,54 @@ impl TProp {
         }
     }
 
-    pub(crate) fn set(&mut self, t: TimeIndexEntry, prop: Prop) {
-        // TODO: we should bubble up the result if we change the type of the property
-        match self {
-            TProp::Empty => {
-                *self = TProp::from(t, prop);
-            }
-            TProp::Str(cell) => {
-                if let Prop::Str(a) = prop {
-                    cell.set(t, a.to_string());
-                }
-            }
-            TProp::I32(cell) => {
-                if let Prop::I32(a) = prop {
-                    cell.set(t, a);
-                }
-            }
-            TProp::I64(cell) => {
-                if let Prop::I64(a) = prop {
-                    cell.set(t, a);
-                }
-            }
-            TProp::U32(cell) => {
-                if let Prop::U32(a) = prop {
-                    cell.set(t, a);
-                }
-            }
-            TProp::U64(cell) => {
-                if let Prop::U64(a) = prop {
-                    cell.set(t, a);
-                }
-            }
-            TProp::F32(cell) => {
-                if let Prop::F32(a) = prop {
-                    cell.set(t, a);
-                }
-            }
-            TProp::F64(cell) => {
-                if let Prop::F64(a) = prop {
-                    cell.set(t, a);
-                }
-            }
-            TProp::Bool(cell) => {
-                if let Prop::Bool(a) = prop {
-                    cell.set(t, a);
-                }
-            }
-            TProp::DTime(cell) => {
-                if let Prop::DTime(a) = prop {
-                    cell.set(t, a);
-                }
-            }
+    pub(crate) fn set(&mut self, t: TimeIndexEntry, prop: Prop) -> Result<(), GraphError> {
+        if matches!(self, TProp::Empty) {
+            *self = TProp::from(t, prop);
+        } else {
+            // TODO: we should bubble up the result if we change the type of the property
+            match (self, prop) {
+                (TProp::Empty, prop) => {}
 
-            TProp::Graph(cell) => {
-                if let Prop::Graph(a) = prop {
+                (TProp::Str(cell), Prop::Str(a)) => {
                     cell.set(t, a);
                 }
-            }
-            TProp::List(cell) => {
-                if let Prop::List(a) = prop {
+                (TProp::I32(cell), Prop::I32(a)) => {
                     cell.set(t, a);
                 }
-            }
-            TProp::Map(cell) => {
-                if let Prop::Map(a) = prop {
+                (TProp::I64(cell), Prop::I64(a)) => {
                     cell.set(t, a);
                 }
-            }
+                (TProp::U32(cell), Prop::U32(a)) => {
+                    cell.set(t, a);
+                }
+                (TProp::U64(cell), Prop::U64(a)) => {
+                    cell.set(t, a);
+                }
+                (TProp::F32(cell), Prop::F32(a)) => {
+                    cell.set(t, a);
+                }
+                (TProp::F64(cell), Prop::F64(a)) => {
+                    cell.set(t, a);
+                }
+                (TProp::Bool(cell), Prop::Bool(a)) => {
+                    cell.set(t, a);
+                }
+                (TProp::DTime(cell), Prop::DTime(a)) => {
+                    cell.set(t, a);
+                }
+                (TProp::Graph(cell), Prop::Graph(a)) => {
+                    cell.set(t, a);
+                }
+                (TProp::List(cell), Prop::List(a)) => {
+                    cell.set(t, a);
+                }
+                (TProp::Map(cell), Prop::Map(a)) => {
+                    cell.set(t, a);
+                }
+                _ => return Err(GraphError::IncorrectPropertyType),
+            };
         }
+        Ok(())
     }
 
     pub(crate) fn at(&self, ti: &TimeIndexEntry) -> Option<Prop> {
@@ -164,7 +145,7 @@ impl TProp {
 
     pub(crate) fn iter(&self) -> Box<dyn Iterator<Item = (i64, Prop)> + '_> {
         match self {
-            TProp::Empty => Box::new(std::iter::empty()),
+            TProp::Empty => Box::new(iter::empty()),
             TProp::Str(cell) => Box::new(
                 cell.iter_t()
                     .map(|(t, value)| (*t, Prop::Str(value.to_string()))),

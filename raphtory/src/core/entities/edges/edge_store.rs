@@ -9,7 +9,7 @@ use crate::core::{
         locked_view::LockedView,
         timeindex::{TimeIndex, TimeIndexEntry},
     },
-    utils::errors::MutateGraphError,
+    utils::errors::{GraphError, MutateGraphError},
     Prop,
 };
 use itertools::Itertools;
@@ -37,9 +37,14 @@ impl EdgeLayer {
         self.props.as_ref()
     }
 
-    pub fn add_prop(&mut self, t: TimeIndexEntry, prop_id: usize, prop: Prop) {
+    pub fn add_prop(
+        &mut self,
+        t: TimeIndexEntry,
+        prop_id: usize,
+        prop: Prop,
+    ) -> Result<(), GraphError> {
         let props = self.props.get_or_insert_with(|| Props::new());
-        props.add_prop(t, prop_id, prop);
+        props.add_prop(t, prop_id, prop)
     }
 
     pub fn add_static_prop(

@@ -290,4 +290,19 @@ mod test_materialize {
             .temporal()
             .contains("layer1"));
     }
+
+    #[test]
+    fn changing_property_type_errors() {
+        let g = Graph::new();
+        let props_0 = [("test", Prop::U64(1))];
+        let props_1 = [("test", Prop::F64(0.1))];
+        g.add_properties(0, props_0.clone()).unwrap();
+        assert!(g.add_properties(1, props_1.clone()).is_err());
+
+        g.add_vertex(0, 1, props_0.clone()).unwrap();
+        assert!(g.add_vertex(1, 1, props_1.clone()).is_err());
+
+        g.add_edge(0, 1, 2, props_0.clone(), None).unwrap();
+        assert!(g.add_edge(1, 1, 2, props_1.clone(), None).is_err());
+    }
 }
