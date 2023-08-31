@@ -81,12 +81,14 @@ where
             vec![Job::read_only(step2)],
             WccState::new(),
             |_, _, _, local| {
+                let layers = graph.layer_ids();
+                let edge_filter = graph.edge_filter();
                 local
                     .iter()
                     .enumerate()
                     .filter_map(|(v_ref, state)| {
                         graph
-                            .has_vertex_ref(VertexRef::Local(v_ref.into()))
+                            .has_vertex_ref(VertexRef::Internal(v_ref.into()), &layers, edge_filter)
                             .then_some((v_ref.into(), state.component))
                     })
                     .collect::<HashMap<_, _>>()

@@ -3,6 +3,7 @@ use crate::{
         entities::{
             edges::{
                 edge::EdgeView,
+                edge_ref::EdgeRef,
                 edge_store::{EdgeLayer, EdgeStore},
             },
             graph::{
@@ -20,8 +21,8 @@ use crate::{
         },
         storage::{
             locked_view::LockedView,
-            timeindex::{AsTime, LockedLayeredIndex, TimeIndexEntry, TimeIndexOps},
-            Entry,
+            timeindex::{AsTime, LayeredIndex, TimeIndexEntry, TimeIndexOps},
+            ArcEntry, Entry,
         },
         utils::{
             errors::{GraphError, IllegalMutate, MutateGraphError},
@@ -29,16 +30,18 @@ use crate::{
         },
         Direction, Prop, PropUnwrap,
     },
-    db::api::view::Layer,
+    db::api::view::{internal::EdgeFilter, Layer},
 };
 use dashmap::DashMap;
+use itertools::Itertools;
 use parking_lot::RwLockReadGuard;
+use rayon::prelude::*;
 use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
 use std::{
     fmt::Debug,
     hash::BuildHasherDefault,
-    ops::Deref,
+    ops::{Deref, Range},
     path::Path,
     sync::{atomic::AtomicUsize, Arc},
 };
@@ -51,6 +54,7 @@ pub(crate) type TGraph<const N: usize> = TemporalGraph<N>;
 pub struct InnerTemporalGraph<const N: usize>(Arc<TemporalGraph<N>>);
 
 impl<const N: usize> InnerTemporalGraph<N> {
+    #[inline]
     pub(crate) fn inner(&self) -> &TemporalGraph<N> {
         &self.0
     }
@@ -59,7 +63,7 @@ impl<const N: usize> InnerTemporalGraph<N> {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct TemporalGraph<const N: usize> {
     // mapping between logical and physical ids
-    logical_to_physical: FxDashMap<u64, usize>,
+    logical_to_physical: FxDashMap<u64, VID>,
 
     pub(crate) storage: GraphStorage<N>,
 
@@ -86,8 +90,8 @@ impl<const N: usize> std::fmt::Display for InnerTemporalGraph<N> {
         write!(
             f,
             "Graph(num_vertices={}, num_edges={})",
-            self.inner().storage.nodes_len(),
-            self.inner().storage.edges_len(LayerIds::All)
+            self.inner().storage.nodes.len(),
+            self.inner().storage.edges.len()
         )
     }
 }
@@ -213,9 +217,10 @@ impl<const N: usize> TemporalGraph<N> {
         bincode::serialize_into(&mut writer, self)
     }
 
-    pub(crate) fn global_vertex_id(&self, v: VID) -> Option<u64> {
-        let node = self.storage.get_node(v.into());
-        node.value().map(|n| n.global_id())
+    #[inline]
+    pub(crate) fn global_vertex_id(&self, v: VID) -> u64 {
+        let node = self.storage.get_node(v);
+        node.global_id()
     }
 
     pub(crate) fn vertex_name(&self, v: VID) -> String {
@@ -227,11 +232,17 @@ impl<const N: usize> TemporalGraph<N> {
             .unwrap_or_else(|| node.global_id().to_string())
     }
 
-    pub(crate) fn node_entry(&self, v: VID) -> Entry<'_, VertexStore<N>, N> {
+    #[inline]
+    pub(crate) fn node_entry(&self, v: VID) -> Entry<'_, VertexStore, N> {
         self.storage.get_node(v.into())
     }
 
-    pub(crate) fn edge_entry(&self, e: EID) -> Entry<'_, EdgeStore<N>, N> {
+    pub(crate) fn edge_refs(&self) -> impl Iterator<Item = EdgeRef> + Send {
+        self.storage.edge_refs()
+    }
+
+    #[inline]
+    pub(crate) fn edge_entry(&self, e: EID) -> Entry<'_, EdgeStore, N> {
         self.storage.get_edge(e.into())
     }
 
@@ -272,16 +283,52 @@ impl<const N: usize> TemporalGraph<N> {
 
 impl<const N: usize> TemporalGraph<N> {
     pub(crate) fn internal_num_vertices(&self) -> usize {
-        self.storage.nodes_len()
+        self.storage.nodes.len()
     }
 
-    pub(crate) fn internal_num_edges(&self, layers: LayerIds) -> usize {
-        self.storage.edges_len(layers)
+    #[inline]
+    pub(crate) fn num_edges(&self, layers: &LayerIds, filter: Option<&EdgeFilter>) -> usize {
+        match filter {
+            None => match layers {
+                LayerIds::All => self.storage.edges.len(),
+                _ => self
+                    .storage
+                    .edges
+                    .read_lock()
+                    .into_par_iter()
+                    .filter(|e| e.has_layer(layers))
+                    .count(),
+            },
+            Some(filter) => self
+                .storage
+                .edges
+                .read_lock()
+                .into_par_iter()
+                .filter(|e| filter(e, layers))
+                .count(),
+        }
     }
 
-    pub(crate) fn degree(&self, v: VID, dir: Direction, layers: LayerIds) -> usize {
-        let node_store = self.storage.get_node(v.into());
-        node_store.neighbours(layers, dir).count()
+    #[inline]
+    pub(crate) fn degree(
+        &self,
+        v: VID,
+        dir: Direction,
+        layers: &LayerIds,
+        filter: Option<&EdgeFilter>,
+    ) -> usize {
+        let node_store = self.storage.get_node(v);
+        match filter {
+            None => node_store.degree(layers, dir),
+            Some(filter) => {
+                let edges_locked = self.storage.edges.read_lock();
+                node_store
+                    .edge_tuples(layers, dir)
+                    .filter(|e| filter(edges_locked.get(e.pid().into()), layers))
+                    .dedup_by(|e1, e2| e1.remote() == e2.remote())
+                    .count()
+            }
+        }
     }
 
     #[inline]
@@ -423,7 +470,7 @@ impl<const N: usize> TemporalGraph<N> {
         let edge_id = self
             .storage
             .get_node(src_id)
-            .find_edge(dst_id.into(), layer_id.into())
+            .find_edge(dst_id.into(), &(layer_id.into()))
             .ok_or(GraphError::FailedToMutateGraph {
                 source: MutateGraphError::MissingEdge(src.id(), dst.id()),
             })?;
@@ -505,7 +552,7 @@ impl<const N: usize> TemporalGraph<N> {
 
         let layer = self.get_or_allocate_layer(layer);
 
-        if let Some(e_id) = self.find_edge(src_id, dst_id, layer.into()) {
+        if let Some(e_id) = self.find_edge(src_id, dst_id, &(layer.into())) {
             let mut edge = self.storage.get_edge_mut(e_id.into());
             edge.deletions_mut(layer).insert(t);
         } else {
@@ -523,7 +570,7 @@ impl<const N: usize> TemporalGraph<N> {
             .unwrap_or(0)
     }
 
-    fn link_nodes<F: FnOnce(&mut EdgeStore<N>)>(
+    fn link_nodes<F: FnOnce(&mut EdgeStore)>(
         &self,
         src_id: VID,
         dst_id: VID,
@@ -534,7 +581,7 @@ impl<const N: usize> TemporalGraph<N> {
         let mut node_pair = self.storage.pair_node_mut(src_id.into(), dst_id.into());
         let src = node_pair.get_mut_i();
 
-        let edge_id = match src.find_edge(dst_id, LayerIds::All) {
+        let edge_id = match src.find_edge(dst_id, &LayerIds::All) {
             Some(edge_id) => {
                 let mut edge = self.storage.get_edge_mut(edge_id);
                 edge_fn(&mut edge);
@@ -580,24 +627,25 @@ impl<const N: usize> TemporalGraph<N> {
         Ok(edge_id)
     }
 
+    #[inline]
     pub(crate) fn vertex_ids(&self) -> impl Iterator<Item = VID> {
-        (0..self.storage.nodes_len()).map(|i| i.into())
+        (0..self.storage.nodes.len()).map(|i| i.into())
     }
 
-    pub(crate) fn locked_edges(&self) -> LockedIter<N, EdgeStore<N>> {
+    pub(crate) fn locked_edges(&self) -> impl Iterator<Item = ArcEntry<EdgeStore>> {
         self.storage.locked_edges()
     }
 
-    pub(crate) fn find_edge(&self, src: VID, dst: VID, layer_id: LayerIds) -> Option<EID> {
+    pub(crate) fn find_edge(&self, src: VID, dst: VID, layer_id: &LayerIds) -> Option<EID> {
         let node = self.storage.get_node(src.into());
         node.find_edge(dst, layer_id)
     }
 
-    pub(crate) fn resolve_vertex_ref(&self, v: &VertexRef) -> Option<VID> {
+    pub(crate) fn resolve_vertex_ref(&self, v: VertexRef) -> Option<VID> {
         match v {
-            VertexRef::Local(vid) => Some(*vid),
-            VertexRef::Remote(gid) => {
-                let v_id = self.logical_to_physical.get(gid)?;
+            VertexRef::Internal(vid) => Some(vid),
+            VertexRef::External(gid) => {
+                let v_id = self.logical_to_physical.get(&gid)?;
                 Some((*v_id).into())
             }
         }
@@ -615,7 +663,7 @@ impl<const N: usize> TemporalGraph<N> {
         let edge = self.storage.get_edge(e.into());
         let active = {
             let t_index = edge.map(|entry| entry.additions());
-            LockedLayeredIndex::new(layer_ids, t_index).active(t_start..t_end)
+            LayeredIndex::new(layer_ids, t_index).active(t_start..t_end)
         };
 
         if !active {
@@ -635,16 +683,17 @@ impl<const N: usize> TemporalGraph<N> {
         Vertex::from_entry(node, self)
     }
 
-    pub(crate) fn vertex_arc(&self, v: VID) -> ArcVertex<N> {
+    pub(crate) fn vertex_arc(&self, v: VID) -> ArcVertex {
         let node = self.storage.get_node_arc(v.into());
         ArcVertex::from_entry(node, self.vertex_meta.clone())
     }
 
-    pub(crate) fn edge_arc(&self, e: EID) -> ArcEdge<N> {
+    pub(crate) fn edge_arc(&self, e: EID) -> ArcEdge {
         let edge = self.storage.get_edge_arc(e.into());
         ArcEdge::from_entry(edge, self.edge_meta.clone())
     }
 
+    #[inline]
     pub(crate) fn edge(&self, e: EID) -> EdgeView<N> {
         let edge = self.storage.get_edge(e.into());
         EdgeView::from_entry(edge, self)

@@ -44,14 +44,6 @@ impl MotifCounter {
             triangle,
         }
     }
-
-    pub(crate) fn from_triangle_counter(triangle: [usize; 8]) -> Self {
-        Self {
-            two_nodes: [0; 8],
-            star_nodes: [0; 24],
-            triangle,
-        }
-    }
 }
 
 impl Add for MotifCounter {
@@ -387,8 +379,10 @@ pub fn triangle_motifs<G: GraphViewOps>(
         MotifCounter::zero(),
         |_, _, _els, local| {
             let mut tri_motifs = HashMap::new();
+            let layers = graph.layer_ids();
+            let edge_filter = graph.edge_filter();
             for (vref, mc) in enumerate(local) {
-                if graph.has_vertex_ref(VertexRef::Local(vref.into())) {
+                if graph.has_vertex_ref(VertexRef::Internal(vref.into()), &layers, edge_filter) {
                     let v_gid = graph.vertex_name(vref.into());
                     tri_motifs.insert(v_gid.clone(), mc.triangle);
                 }

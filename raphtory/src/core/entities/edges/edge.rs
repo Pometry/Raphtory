@@ -11,13 +11,13 @@ use crate::core::{
     },
     storage::{
         locked_view::LockedView,
-        timeindex::{LockedLayeredIndex, TimeIndex, TimeIndexOps},
+        timeindex::{LayeredIndex, TimeIndex, TimeIndexOps},
         Entry,
     },
     Direction, Prop,
 };
 // use crate::prelude::Layer::Default;
-use crate::core::storage::timeindex::TimeIndexEntry;
+use crate::core::storage::timeindex::{LockedLayeredIndex, TimeIndexEntry};
 use std::{
     default::Default,
     ops::{Deref, Range},
@@ -26,7 +26,7 @@ use std::{
 
 #[derive(Debug)]
 pub(crate) enum ERef<'a, const N: usize> {
-    ERef(Entry<'a, EdgeStore<N>, N>),
+    ERef(Entry<'a, EdgeStore, N>),
     ELock {
         lock: Arc<LockedGraphStorage<N>>,
         eid: EID,
@@ -53,7 +53,7 @@ impl<'a, const N: usize> ERef<'a, N> {
 }
 
 impl<'a, const N: usize> Deref for ERef<'a, N> {
-    type Target = EdgeStore<N>;
+    type Target = EdgeStore;
 
     fn deref(&self) -> &Self::Target {
         match self {
@@ -153,7 +153,7 @@ impl<'a, const N: usize> EdgeView<'a, N> {
         match self.edge_id {
             ERef::ERef(entry) => {
                 let t_index = entry.map(|entry| entry.additions());
-                Some(LockedLayeredIndex::new(layer_ids, t_index))
+                Some(LayeredIndex::new(layer_ids, t_index))
             }
             _ => None,
         }
@@ -166,7 +166,7 @@ impl<'a, const N: usize> EdgeView<'a, N> {
         match self.edge_id {
             ERef::ERef(entry) => {
                 let t_index = entry.map(|entry| entry.deletions());
-                Some(LockedLayeredIndex::new(layer_ids, t_index))
+                Some(LayeredIndex::new(layer_ids, t_index))
             }
             _ => None,
         }
@@ -286,7 +286,7 @@ impl<'a, const N: usize> EdgeView<'a, N> {
         }
     }
 
-    pub(crate) fn from_entry(entry: Entry<'a, EdgeStore<N>, N>, graph: &'a TGraph<N>) -> Self {
+    pub(crate) fn from_entry(entry: Entry<'a, EdgeStore, N>, graph: &'a TGraph<N>) -> Self {
         Self {
             src: entry.src().into(),
             dst: entry.dst().into(),
@@ -309,7 +309,7 @@ impl<'a, const N: usize> EdgeView<'a, N> {
         }
     }
 
-    fn check_layers<E: Deref<Target = EdgeStore<N>>, F: Fn(&TimeIndex<TimeIndexEntry>) -> bool>(
+    fn check_layers<E: Deref<Target = EdgeStore>, F: Fn(&TimeIndex<TimeIndexEntry>) -> bool>(
         &self,
         layer_ids: LayerIds,
         e: E,
