@@ -899,7 +899,7 @@ impl PyPropHistValueList {
         .into()
     }
 
-    pub fn len(&self) -> PropIterable {
+    pub fn len(&self) -> UsizeIterable {
         self.count()
     }
 
@@ -949,7 +949,7 @@ impl PyPropHistValueList {
         .into()
     }
 
-    pub fn count(&self) -> PropIterable {
+    pub fn count(&self) -> UsizeIterable {
         let builder = self.builder.clone();
         (move || builder().map(|it| it.len())).into()
     }
@@ -971,6 +971,40 @@ impl PyPropValueList {
                 _ => None,
             })
             .flatten()
+    }
+
+    pub fn len(&self) -> usize {
+        self.collect().len()
+    }
+
+    pub fn count(&self) -> usize {
+        self.len()
+    }
+
+    pub fn min(&self) -> PropValue {
+        let mut sorted: Vec<PropValue> = self.iter().collect();
+        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+        let len = sorted.len();
+        match len {
+            0 => None,
+            _ => {
+                let a = &sorted[0];
+                a.clone()
+            }
+        }
+    }
+
+    pub fn max(&self) -> PropValue {
+        let mut sorted: Vec<PropValue> = self.iter().collect();
+        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+        let len = sorted.len();
+        match len {
+            0 => None,
+            _ => {
+                let a = &sorted[len - 1];
+                a.clone()
+            }
+        }
     }
 
     pub fn drop_none(&self) -> PyPropValueList {

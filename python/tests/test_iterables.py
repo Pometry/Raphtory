@@ -131,3 +131,43 @@ def test_propiterable():
     assert total == 5
 
 
+def test_pypropvaluelist():
+    g = Graph()
+    edges_str = [
+        ("1", "2", 10, 1),
+        ("1", "2", 10, 2),
+        ("1", "2", 100, 3),
+        ("1", "4", 20, 2),
+        ("2", "3", 5, 3),
+        ("3", "2", 2, 4),
+        ("3", "1", 1, 5),
+        ("4", "3", 10, 6),
+        ("4", "1", 5, 7),
+        ("1", "5", 2, 8),
+        ("1", "5", 1, 9),
+        ("1", "5", 5, 10)
+    ]
+    for (src, dst, val, time) in edges_str:
+        g.add_edge(time, src, dst, {'value_dec': val})
+    v = g.vertex("1")
+    res = g.edges().properties.get("value_dec") # PyPropValueList([100, 20, 5, 5, 5, 10, 1, 2])
+    res_v = v.edges().properties.get("value_dec") # PyPropValueList([100, 5, 20, 1, 5])
+
+    assert res.sum() == 148
+    assert res_v.sum() == 131
+
+    assert res.median() == 5
+    assert res_v.median() == 5
+
+    assert res.min() == 1
+    assert res_v.min() == 1
+
+    assert res.max() == 100
+    assert res_v.max() == 100
+
+    assert res.count() == 8
+    assert res_v.count() == 5
+
+    assert res.len() == 8
+    assert res_v.count() == 5
+
