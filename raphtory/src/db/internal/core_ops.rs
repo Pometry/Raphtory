@@ -1,15 +1,16 @@
 use crate::{
     core::{
         entities::{
-            edges::edge_ref::EdgeRef,
+            edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
             graph::tgraph::InnerTemporalGraph,
             properties::tprop::{LockedLayeredTProp, TProp},
-            vertices::vertex_ref::VertexRef,
-            LayerIds, VID,
+            vertices::{vertex_ref::VertexRef, vertex_store::VertexStore},
+            LayerIds, EID, VID,
         },
         storage::{
             locked_view::LockedView,
             timeindex::{LockedLayeredIndex, TimeIndex, TimeIndexEntry},
+            ArcEntry,
         },
     },
     db::api::view::internal::CoreGraphOps,
@@ -28,9 +29,7 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
     }
 
     fn vertex_id(&self, v: VID) -> u64 {
-        self.inner()
-            .global_vertex_id(v)
-            .unwrap_or_else(|| panic!("vertex id '{v:?}' doesn't exist"))
+        self.inner().global_vertex_id(v)
     }
 
     fn vertex_name(&self, v: VID) -> String {
@@ -52,10 +51,14 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
         vertex.additions().unwrap()
     }
 
-    fn localise_vertex_unchecked(&self, v: VertexRef) -> VID {
+    fn internalise_vertex(&self, v: VertexRef) -> Option<VID> {
+        self.inner().resolve_vertex_ref(v)
+    }
+
+    fn internalise_vertex_unchecked(&self, v: VertexRef) -> VID {
         match v {
-            VertexRef::Local(l) => l,
-            VertexRef::Remote(_) => self.inner().resolve_vertex_ref(&v).unwrap(),
+            VertexRef::Internal(l) => l,
+            VertexRef::External(_) => self.inner().resolve_vertex_ref(v).unwrap(),
         }
     }
 
@@ -85,7 +88,7 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
 
     fn static_vertex_prop(&self, v: VID, name: &str) -> Option<Prop> {
         let entry = self.inner().node_entry(v);
-        let node = entry.value()?;
+        let node = entry.value();
         let prop_id = self.inner().vertex_find_prop(name, true)?;
         node.static_property(prop_id).cloned()
     }
@@ -257,6 +260,22 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
                     .flat_map(|id| self.inner().edge_reverse_prop_id(id, false)),
             ),
         }
+    }
+
+    fn core_edges(&self) -> Box<dyn Iterator<Item = ArcEntry<EdgeStore>>> {
+        Box::new(self.inner().storage.edges.read_lock().into_iter())
+    }
+
+    fn core_edge(&self, eid: EID) -> ArcEntry<EdgeStore> {
+        self.inner().storage.edges.entry_arc(eid.into())
+    }
+
+    fn core_vertices(&self) -> Box<dyn Iterator<Item = ArcEntry<VertexStore>>> {
+        Box::new(self.inner().storage.nodes.read_lock().into_iter())
+    }
+
+    fn core_vertex(&self, vid: VID) -> ArcEntry<VertexStore> {
+        self.inner().storage.nodes.entry_arc(vid.into())
     }
 }
 
