@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1693386977269,
+  "lastUpdate": 1693482640795,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -10399,6 +10399,204 @@ window.BENCHMARK_DATA = {
             "name": "lotr_graph_window_10/max_degree",
             "value": 316080,
             "range": "± 66",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97447091+ljeub-pometry@users.noreply.github.com",
+            "name": "ljeub-pometry",
+            "username": "ljeub-pometry"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b8294f452956260a4d831da0c52df90f3bf944d1",
+          "message": "Performance improvements  (#1202)\n\n* always inline base\r\n\r\n* optimisations for degree\r\n\r\n* optimise find_edge\r\n\r\n* add None option to edge_refs\r\n\r\n* some extra inlines\r\n\r\n* attempted optimisation of edgerefs\r\n\r\n* remove option from underlying storage\r\n\r\n* randomly trying things to get it to run quicker\r\n\r\n* make num_edges parallel\r\n\r\n* improve has_edge\r\n\r\n* Implement iterators that avoid genawaiter\r\n\r\n* fix degree\r\n\r\n* add cleaner test to show broken num_edges on window for GraphWithDeletions\r\n\r\n* compiles but still failing some tests\r\n\r\n* fix last tests\r\n\r\n* eliminate some Arc clones\r\n\r\n* better way to create filter for windowed graph\r\n\r\n* add some helpful inlines\r\n\r\n* more inlines (not sure if useful)\r\n\r\n* replicate failing python test in rust\r\n\r\n* fix missing bounds check in into_layers\r\n\r\n* fix rebase and clean up warnings\r\n\r\n* remove optimisation that causes a race condition\r\n\r\n* layer_ids were not passed through properly\r\n\r\n* fix more warnings\r\n\r\n* more refactoring to get rid of Arc clones for speed\r\n\r\n* clean up warnings\r\n\r\n* More inlines and minor refactor\r\n\r\n* change remote and local to internal and external\r\n\r\n---------\r\n\r\nCo-authored-by: Fabian Murariu <murariu.fabian@gmail.com>",
+          "timestamp": "2023-08-31T13:40:21+02:00",
+          "tree_id": "c1dafd9c0bd0066526656c7bbf33dd3e32b11053",
+          "url": "https://github.com/Pometry/Raphtory/commit/b8294f452956260a4d831da0c52df90f3bf944d1"
+        },
+        "date": 1693482639639,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 703773,
+            "range": "± 1545",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and numeric string input",
+            "value": 1082116,
+            "range": "± 9763",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and string input",
+            "value": 1112322,
+            "range": "± 4479",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 1069059,
+            "range": "± 128829",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions with numeric string input",
+            "value": 1641659,
+            "range": "± 117850",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/num_edges",
+            "value": 4,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/has_edge_existing",
+            "value": 75,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/has_edge_nonexisting",
+            "value": 74,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/num_vertices",
+            "value": 1,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/has_vertex_existing",
+            "value": 22,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/has_vertex_nonexisting",
+            "value": 21,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/max_id",
+            "value": 4975,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/max_degree",
+            "value": 32284,
+            "range": "± 40",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/num_edges",
+            "value": 25854,
+            "range": "± 221",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/has_edge_existing",
+            "value": 106,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/has_edge_nonexisting",
+            "value": 76,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/num_vertices",
+            "value": 5710,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/has_vertex_existing",
+            "value": 63,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "value": 21,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/max_id",
+            "value": 15064,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/max_degree",
+            "value": 244037,
+            "range": "± 49",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/num_edges",
+            "value": 25801,
+            "range": "± 166",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/has_edge_existing",
+            "value": 98,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/has_edge_nonexisting",
+            "value": 76,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/num_vertices",
+            "value": 5630,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/has_vertex_existing",
+            "value": 67,
+            "range": "± 16",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "value": 21,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/max_id",
+            "value": 9727,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/max_degree",
+            "value": 161668,
+            "range": "± 38",
             "unit": "ns/iter"
           }
         ]
