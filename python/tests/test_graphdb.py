@@ -1694,6 +1694,13 @@ def test_propiterable():
     result = v.out_edges().properties.temporal.get("value_dec").values().flatten()
     assert sorted(result) == [2, 10, 10, 10, 20]
     assert result.sum() == 52
+    assert result.median() == 10
+    assert result.mean() == 10.4
+    assert result.average() == 10.4
+    assert result.min() == 2
+    assert result.max() == 20
+    assert result.len() == 5
+
     assert v.out_edges().properties.get("value_dec").sum() == 32
     assert v.out_edges().properties.get("value_dec").median() == 10
 
