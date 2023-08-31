@@ -6,6 +6,7 @@ mod model;
 mod observability;
 mod routes;
 pub mod server;
+mod vectors;
 
 mod data;
 #[derive(thiserror::Error, Debug)]

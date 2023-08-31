@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+use crate::vectors::VectorStore;
 use crate::{
     data::Data,
     model::{algorithm::Algorithm, App},
@@ -10,6 +11,8 @@ use async_graphql_poem::GraphQL;
 use poem::{get, listener::TcpListener, middleware::Cors, EndpointExt, Route, Server};
 use raphtory::db::api::view::internal::DynamicGraph;
 use std::collections::HashMap;
+use std::ops::Deref;
+use std::path::Path;
 use tokio::{io::Result as IoResult, signal};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry};
 
@@ -34,6 +37,24 @@ impl RaphtoryServer {
     ) -> Self {
         let data = Data::from_map_and_directory(graphs, graph_directory);
         Self { data }
+    }
+
+    pub async fn with_vectorized(self, graph_names: Vec<String>, cache_dir: &Path) -> Self {
+        {
+            let graphs_map = self.data.graphs.read();
+            let mut stores_map = self.data.vector_stores.write();
+
+            for graph_name in graph_names {
+                let graph_cache = cache_dir.join(&graph_name);
+                let graph = graphs_map.get(&graph_name).unwrap().deref().clone();
+
+                println!("Generating embeddings for {graph_name} inside {graph_cache:?}");
+                let vector_store = VectorStore::load_graph(graph, &graph_cache).await;
+                stores_map.insert(graph_name, vector_store);
+            }
+        }
+
+        self
     }
 
     pub fn register_algorithm<T: Algorithm>(self, name: &str) -> Self {

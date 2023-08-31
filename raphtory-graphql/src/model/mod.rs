@@ -77,6 +77,18 @@ impl QueryRoot {
         let bincode = bincode::serialize(&g)?;
         Ok(URL_SAFE_NO_PAD.encode(bincode))
     }
+
+    async fn similarity_search<'a>(
+        ctx: &Context<'a>,
+        graph: &str,
+        query: &str,
+        limit: usize,
+    ) -> Option<Vec<String>> {
+        let data = ctx.data_unchecked::<Data>();
+        let binding = data.vector_stores.read();
+        let vec_store = binding.get(graph)?;
+        Some(vec_store.search(query, limit).await)
+    }
 }
 
 #[derive(MutationRoot)]
