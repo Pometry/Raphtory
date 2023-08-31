@@ -2,7 +2,7 @@
 
 use crate::{
     core::{
-        entities::{vertices::vertex_ref::VertexRef, LayerIds, VID},
+        entities::{vertices::vertex_ref::VertexRef, VID},
         storage::locked_view::LockedView,
         utils::time::IntoTime,
         Direction,
@@ -32,32 +32,38 @@ pub struct VertexView<G: GraphViewOps> {
     pub vertex: VID,
 }
 
+impl<G1: GraphViewOps, G2: GraphViewOps> PartialEq<VertexView<G2>> for VertexView<G1> {
+    fn eq(&self, other: &VertexView<G2>) -> bool {
+        self.id() == other.id()
+    }
+}
+
 impl<G: GraphViewOps> From<VertexView<G>> for VertexRef {
     fn from(value: VertexView<G>) -> Self {
-        VertexRef::Local(value.vertex)
+        VertexRef::Internal(value.vertex)
     }
 }
 
 impl<G: GraphViewOps> From<&VertexView<G>> for VertexRef {
     fn from(value: &VertexView<G>) -> Self {
-        VertexRef::Local(value.vertex)
+        VertexRef::Internal(value.vertex)
     }
 }
 
 impl<G: GraphViewOps> VertexView<G> {
-    /// Creates a new `VertexView` wrapping a vertex reference and a graph, localising any remote vertices to the correct shard.
+    /// Creates a new `VertexView` wrapping an internal vertex reference and a graph, internalising any global vertex ids.
     pub fn new(graph: G, vertex: VertexRef) -> VertexView<G> {
         match vertex {
-            VertexRef::Local(local) => Self::new_local(graph, local),
+            VertexRef::Internal(local) => Self::new_internal(graph, local),
             _ => {
-                let v = graph.localise_vertex_unchecked(vertex);
+                let v = graph.internalise_vertex_unchecked(vertex);
                 VertexView { graph, vertex: v }
             }
         }
     }
 
-    /// Creates a new `VertexView` wrapping a local vertex reference and a graph
-    pub fn new_local(graph: G, vertex: VID) -> VertexView<G> {
+    /// Creates a new `VertexView` wrapping an internal vertex reference and a graph
+    pub fn new_internal(graph: G, vertex: VID) -> VertexView<G> {
         VertexView { graph, vertex }
     }
 }
@@ -69,7 +75,6 @@ impl<G: GraphViewOps> TemporalPropertiesOps for VertexView<G> {
         Box::new(
             self.graph
                 .temporal_vertex_prop_names(self.vertex)
-                .into_iter()
                 .filter(|k| self.get_temporal_property(k).is_some()),
         )
     }
@@ -167,25 +172,45 @@ impl<G: GraphViewOps> VertexViewOps for VertexView<G> {
 
     fn degree(&self) -> usize {
         let dir = Direction::BOTH;
-        self.graph.degree(self.vertex, dir, LayerIds::All)
+        self.graph.degree(
+            self.vertex,
+            dir,
+            &self.graph.layer_ids(),
+            self.graph.edge_filter(),
+        )
     }
 
     fn in_degree(&self) -> usize {
         let dir = Direction::IN;
-        self.graph.degree(self.vertex, dir, LayerIds::All)
+        self.graph.degree(
+            self.vertex,
+            dir,
+            &self.graph.layer_ids(),
+            self.graph.edge_filter(),
+        )
     }
 
     fn out_degree(&self) -> usize {
         let dir = Direction::OUT;
-        self.graph.degree(self.vertex, dir, LayerIds::All)
+        self.graph.degree(
+            self.vertex,
+            dir,
+            &self.graph.layer_ids(),
+            self.graph.edge_filter(),
+        )
     }
 
     fn edges(&self) -> EdgeList<G> {
         let g = self.graph.clone();
         let dir = Direction::BOTH;
         Box::new(
-            g.vertex_edges(self.vertex, dir, LayerIds::All)
-                .map(move |e| EdgeView::new(g.clone(), e)),
+            g.vertex_edges(
+                self.vertex,
+                dir,
+                self.graph.layer_ids(),
+                self.graph.edge_filter(),
+            )
+            .map(move |e| EdgeView::new(g.clone(), e)),
         )
     }
 
@@ -193,8 +218,13 @@ impl<G: GraphViewOps> VertexViewOps for VertexView<G> {
         let g = self.graph.clone();
         let dir = Direction::IN;
         Box::new(
-            g.vertex_edges(self.vertex, dir, LayerIds::All)
-                .map(move |e| EdgeView::new(g.clone(), e)),
+            g.vertex_edges(
+                self.vertex,
+                dir,
+                self.graph.layer_ids(),
+                self.graph.edge_filter(),
+            )
+            .map(move |e| EdgeView::new(g.clone(), e)),
         )
     }
 
@@ -202,8 +232,13 @@ impl<G: GraphViewOps> VertexViewOps for VertexView<G> {
         let g = self.graph.clone();
         let dir = Direction::OUT;
         Box::new(
-            g.vertex_edges(self.vertex, dir, LayerIds::All)
-                .map(move |e| EdgeView::new(g.clone(), e)),
+            g.vertex_edges(
+                self.vertex,
+                dir,
+                self.graph.layer_ids(),
+                self.graph.edge_filter(),
+            )
+            .map(move |e| EdgeView::new(g.clone(), e)),
         )
     }
 

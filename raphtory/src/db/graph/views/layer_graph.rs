@@ -1,30 +1,45 @@
 use crate::{
-    core::{
-        entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef, LayerIds, EID, VID},
-        Direction,
-    },
+    core::entities::{edges::edge_store::EdgeStore, LayerIds},
     db::api::{
         properties::internal::InheritPropertiesOps,
         view::{
-            internal::{Base, GraphOps, InheritCoreOps, InheritMaterialize, InheritTimeSemantics},
+            internal::{
+                Base, EdgeFilter, EdgeFilterOps, InheritCoreOps, InheritGraphOps,
+                InheritMaterialize, InheritTimeSemantics, LayerOps,
+            },
             Layer,
         },
     },
     prelude::GraphViewOps,
 };
 use itertools::Itertools;
+use std::{
+    fmt::{Debug, Formatter},
+    sync::Arc,
+};
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct LayeredGraph<G: GraphViewOps> {
     /// The underlying `Graph` object.
     pub graph: G,
     /// The layer this graphs points to.
     pub layers: LayerIds,
+
+    edge_filter: EdgeFilter,
+}
+
+impl<G: GraphViewOps + Debug> Debug for LayeredGraph<G> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("LayeredGraph")
+            .field("graph", &self.graph)
+            .field("layers", &self.layers)
+            .finish()
+    }
 }
 
 impl<G: GraphViewOps> Base for LayeredGraph<G> {
     type Base = G;
-
+    #[inline(always)]
     fn base(&self) -> &Self::Base {
         &self.graph
     }
@@ -38,9 +53,26 @@ impl<G: GraphViewOps> InheritMaterialize for LayeredGraph<G> {}
 
 impl<G: GraphViewOps> InheritPropertiesOps for LayeredGraph<G> {}
 
+impl<G: GraphViewOps> InheritGraphOps for LayeredGraph<G> {}
+
+impl<G: GraphViewOps> EdgeFilterOps for LayeredGraph<G> {
+    #[inline]
+    fn edge_filter(&self) -> Option<&EdgeFilter> {
+        Some(&self.edge_filter)
+    }
+}
+
 impl<G: GraphViewOps> LayeredGraph<G> {
     pub fn new(graph: G, layers: LayerIds) -> Self {
-        Self { graph, layers }
+        let edge_filter: EdgeFilter = match graph.edge_filter().cloned() {
+            None => Arc::new(|e, l| e.has_layer(l)),
+            Some(f) => Arc::new(move |e, l| e.has_layer(l) && f(e, l)),
+        };
+        Self {
+            graph,
+            layers,
+            edge_filter,
+        }
     }
 
     /// Get the intersection between the previously requested layers and the layers of
@@ -70,88 +102,79 @@ impl<G: GraphViewOps> LayeredGraph<G> {
     }
 }
 
-impl<G: GraphViewOps> GraphOps for LayeredGraph<G> {
+impl<G: GraphViewOps> LayerOps for LayeredGraph<G> {
     fn layer_ids(&self) -> LayerIds {
         self.layers.clone()
-    }
-
-    fn local_vertex_ref(&self, v: VertexRef) -> Option<VID> {
-        self.graph.local_vertex_ref(v)
-    }
-
-    fn find_edge_id(&self, e_id: EID) -> Option<EdgeRef> {
-        let edge_ref = self.graph.find_edge_id(e_id)?;
-        let edge_ref_in_layer =
-            self.graph
-                .has_edge_ref(edge_ref.src(), edge_ref.dst(), self.layers.clone());
-
-        if edge_ref_in_layer {
-            Some(edge_ref)
-        } else {
-            None
-        }
     }
 
     fn layer_ids_from_names(&self, key: Layer) -> LayerIds {
         self.constrain(self.graph.layer_ids_from_names(key))
     }
 
-    fn edge_layer_ids(&self, e_id: EID) -> LayerIds {
-        let layer_ids = self.graph.edge_layer_ids(e_id);
+    fn edge_layer_ids(&self, e: &EdgeStore) -> LayerIds {
+        let layer_ids = self.graph.edge_layer_ids(e);
         self.constrain(layer_ids)
     }
+}
 
-    fn vertices_len(&self) -> usize {
-        self.graph.vertices_len()
-    }
+#[cfg(test)]
+mod test_layers {
+    use crate::prelude::*;
+    use itertools::Itertools;
+    #[test]
+    fn test_layer_vertex() {
+        let g = Graph::new();
 
-    fn edges_len(&self, layers: LayerIds) -> usize {
-        self.graph.edges_len(self.constrain(layers))
-    }
-
-    fn has_edge_ref(&self, src: VID, dst: VID, layer: LayerIds) -> bool {
-        self.graph.has_edge_ref(src, dst, self.constrain(layer))
-    }
-
-    fn has_vertex_ref(&self, v: VertexRef) -> bool {
-        self.graph.has_vertex_ref(v)
-    }
-
-    fn degree(&self, v: VID, d: Direction, layer: LayerIds) -> usize {
-        self.graph.degree(v, d, self.constrain(layer))
-    }
-
-    fn vertex_ref(&self, v: u64) -> Option<VID> {
-        self.graph.vertex_ref(v)
-    }
-
-    fn vertex_refs(&self) -> Box<dyn Iterator<Item = VID> + Send> {
-        self.graph.vertex_refs()
-    }
-
-    fn edge_ref(&self, src: VID, dst: VID, layer: LayerIds) -> Option<EdgeRef> {
-        self.graph.edge_ref(src, dst, self.constrain(layer))
-    }
-
-    fn edge_refs(&self, layer: LayerIds) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
-        self.graph.edge_refs(self.constrain(layer))
-    }
-
-    fn vertex_edges(
-        &self,
-        v: VID,
-        d: Direction,
-        layer: LayerIds,
-    ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
-        self.graph.vertex_edges(v, d, self.constrain(layer))
-    }
-
-    fn neighbours(
-        &self,
-        v: VID,
-        d: Direction,
-        layer: LayerIds,
-    ) -> Box<dyn Iterator<Item = VID> + Send> {
-        self.graph.neighbours(v, d, self.constrain(layer))
+        g.add_edge(0, 1, 2, NO_PROPS, Some("layer1")).unwrap();
+        g.add_edge(0, 2, 3, NO_PROPS, Some("layer2")).unwrap();
+        g.add_edge(3, 2, 4, NO_PROPS, Some("layer1")).unwrap();
+        let neighbours = g
+            .layer(vec!["layer1", "layer2"])
+            .unwrap()
+            .vertex(1)
+            .unwrap()
+            .neighbours()
+            .into_iter()
+            .collect_vec();
+        assert_eq!(
+            neighbours[0]
+                .layer("layer2")
+                .unwrap()
+                .edges()
+                .id()
+                .collect_vec(),
+            vec![(2, 3)]
+        );
+        assert_eq!(
+            g.layer("layer2")
+                .unwrap()
+                .vertex(neighbours[0].name())
+                .unwrap()
+                .edges()
+                .id()
+                .collect_vec(),
+            vec![(2, 3)]
+        );
+        let mut edges = g
+            .layer("layer1")
+            .unwrap()
+            .vertex(neighbours[0].name())
+            .unwrap()
+            .edges()
+            .id()
+            .collect_vec();
+        edges.sort();
+        assert_eq!(edges, vec![(1, 2), (2, 4)]);
+        let mut edges = g.layer("layer1").unwrap().edges().id().collect_vec();
+        edges.sort();
+        assert_eq!(edges, vec![(1, 2), (2, 4)]);
+        let mut edges = g
+            .layer(vec!["layer1", "layer2"])
+            .unwrap()
+            .edges()
+            .id()
+            .collect_vec();
+        edges.sort();
+        assert_eq!(edges, vec![(1, 2), (2, 3), (2, 4)]);
     }
 }

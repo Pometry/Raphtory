@@ -1,6 +1,6 @@
 use crate::{
     core::{
-        entities::{LayerIds, VID},
+        entities::VID,
         state::{accumulator_id::AccId, agg::Accumulator, compute_state::ComputeState, StateType},
         utils::time::IntoTime,
         Direction,
@@ -8,7 +8,10 @@ use crate::{
     db::{
         api::{
             properties::Properties,
-            view::{internal::GraphWindowOps, GraphViewOps, TimeOps, VertexListOps, VertexViewOps},
+            view::{
+                internal::{EdgeFilter, EdgeFilterOps},
+                GraphViewOps, TimeOps, VertexListOps, VertexViewOps,
+            },
         },
         graph::{
             path::{Operations, PathFromVertex},
@@ -23,6 +26,14 @@ use crate::{
 };
 use std::{cell::RefCell, marker::PhantomData, rc::Rc};
 
+pub(crate) fn edge_filter<G: GraphViewOps>(
+    graph: &G,
+    t_start: i64,
+    t_end: i64,
+) -> Option<EdgeFilter> {
+    graph.window(t_start, t_end).edge_filter().cloned()
+}
+
 pub struct WindowEvalVertex<'a, G: GraphViewOps, CS: ComputeState, S: 'static> {
     ss: usize,
     vertex: VID,
@@ -32,6 +43,7 @@ pub struct WindowEvalVertex<'a, G: GraphViewOps, CS: ComputeState, S: 'static> {
     vertex_state: Rc<RefCell<EVState<'a, CS>>>,
     t_start: i64,
     t_end: i64,
+    edge_filter: Option<Rc<EdgeFilter>>,
 }
 
 impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> WindowEvalVertex<'a, G, CS, S> {
@@ -59,6 +71,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> WindowEvalVertex<'a, G, 
         vertex_state: Rc<RefCell<EVState<'a, CS>>>,
         t_start: i64,
         t_end: i64,
+        edge_filter: Option<Rc<EdgeFilter>>,
     ) -> Self {
         WindowEvalVertex {
             ss,
@@ -69,6 +82,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> WindowEvalVertex<'a, G, 
             vertex_state,
             t_start,
             t_end,
+            edge_filter,
         }
     }
 }
@@ -85,6 +99,9 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> TimeOps for WindowEvalVe
     }
 
     fn window<T: IntoTime>(&self, t_start: T, t_end: T) -> Self::WindowedViewType {
+        let t_start = t_start.into_time().max(self.t_start);
+        let t_end = t_end.into_time().min(self.t_end);
+        let edge_filter = edge_filter(self.graph, t_start, t_end).map(Rc::new);
         WindowEvalVertex {
             ss: self.ss,
             vertex: self.vertex,
@@ -92,8 +109,9 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> TimeOps for WindowEvalVe
             _local_state: None,
             local_state_prev: self.local_state_prev,
             vertex_state: self.vertex_state.clone(),
-            t_start: t_start.into_time().max(self.t_start),
-            t_end: t_end.into_time().min(self.t_end),
+            t_start,
+            t_end,
+            edge_filter,
         }
     }
 }
@@ -131,7 +149,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
 
     fn properties(&self) -> Self::ValueType<Properties<VertexView<WindowedGraph<G>>>> {
         //FIXME: Need to implement this properly without cloning the graph
-        Properties::new(VertexView::new_local(
+        Properties::new(VertexView::new_internal(
             WindowedGraph::new(self.graph.clone(), self.t_start, self.t_end),
             self.vertex,
         ))
@@ -139,20 +157,32 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
 
     fn degree(&self) -> Self::ValueType<usize> {
         let dir = Direction::BOTH;
-        self.graph
-            .degree_window(self.vertex, self.t_start, self.t_end, dir, LayerIds::All)
+        self.graph.degree(
+            self.vertex,
+            dir,
+            &self.graph.layer_ids(),
+            self.edge_filter.as_deref(),
+        )
     }
 
     fn in_degree(&self) -> Self::ValueType<usize> {
         let dir = Direction::IN;
-        self.graph
-            .degree_window(self.vertex, self.t_start, self.t_end, dir, LayerIds::All)
+        self.graph.degree(
+            self.vertex,
+            dir,
+            &self.graph.layer_ids(),
+            self.edge_filter.as_deref(),
+        )
     }
 
     fn out_degree(&self) -> Self::ValueType<usize> {
         let dir = Direction::OUT;
-        self.graph
-            .degree_window(self.vertex, self.t_start, self.t_end, dir, LayerIds::All)
+        self.graph.degree(
+            self.vertex,
+            dir,
+            &self.graph.layer_ids(),
+            self.edge_filter.as_deref(),
+        )
     }
 
     fn edges(&self) -> Self::EList {
@@ -162,14 +192,14 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
         let graph = self.graph;
         let t_start = self.t_start;
         let t_end = self.t_end;
+        let edge_filter = self.edge_filter.clone();
         Box::new(
             self.graph
-                .vertex_edges_window(
+                .vertex_edges(
                     self.vertex,
-                    self.t_start,
-                    self.t_end,
                     Direction::BOTH,
-                    LayerIds::All,
+                    self.graph.layer_ids(),
+                    self.edge_filter.as_deref(),
                 )
                 .map(move |e| {
                     WindowEvalEdgeView::new(
@@ -180,6 +210,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
                         vertex_state.clone(),
                         t_start,
                         t_end,
+                        edge_filter.clone(),
                     )
                 }),
         )
@@ -192,14 +223,14 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
         let graph = self.graph;
         let t_start = self.t_start;
         let t_end = self.t_end;
+        let edge_filter = self.edge_filter.clone();
         Box::new(
             self.graph
-                .vertex_edges_window(
+                .vertex_edges(
                     self.vertex,
-                    self.t_start,
-                    self.t_end,
                     Direction::IN,
-                    LayerIds::All,
+                    self.graph.layer_ids(),
+                    self.edge_filter.as_deref(),
                 )
                 .map(move |e| {
                     WindowEvalEdgeView::new(
@@ -210,6 +241,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
                         vertex_state.clone(),
                         t_start,
                         t_end,
+                        edge_filter.clone(),
                     )
                 }),
         )
@@ -222,14 +254,14 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
         let graph = self.graph;
         let t_start = self.t_start;
         let t_end = self.t_end;
+        let edge_filter = self.edge_filter.clone();
         Box::new(
             self.graph
-                .vertex_edges_window(
+                .vertex_edges(
                     self.vertex,
-                    self.t_start,
-                    self.t_end,
                     Direction::OUT,
-                    LayerIds::All,
+                    self.graph.layer_ids(),
+                    self.edge_filter.as_deref(),
                 )
                 .map(move |e| {
                     WindowEvalEdgeView::new(
@@ -240,6 +272,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
                         vertex_state.clone(),
                         t_start,
                         t_end,
+                        edge_filter.clone(),
                     )
                 }),
         )
@@ -297,6 +330,7 @@ pub struct WindowEvalPathFromVertex<'a, G: GraphViewOps, CS: ComputeState, S> {
     _s: PhantomData<S>,
     t_start: i64,
     t_end: i64,
+    edge_filter: Option<Rc<EdgeFilter>>,
 }
 impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> WindowEvalPathFromVertex<'a, G, CS, S> {
     fn update_path(&self, path: PathFromVertex<G>) -> Self {
@@ -309,6 +343,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> WindowEvalPathFromVertex
             t_start: self.t_start,
             t_end: self.t_end,
             _s: PhantomData,
+            edge_filter: self.edge_filter.clone(),
         }
     }
 
@@ -325,6 +360,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> WindowEvalPathFromVertex
             _s: PhantomData,
             t_start: vertex.t_start,
             t_end: vertex.t_end,
+            edge_filter: vertex.edge_filter.clone(),
         }
     }
 
@@ -336,6 +372,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> WindowEvalPathFromVertex
         local_state_prev: &'a Local2<'a, S>,
         t_start: i64,
         t_end: i64,
+        edge_filter: Option<Rc<EdgeFilter>>,
     ) -> Self {
         WindowEvalPathFromVertex {
             path,
@@ -346,6 +383,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> WindowEvalPathFromVertex
             _s: PhantomData,
             t_start,
             t_end,
+            edge_filter,
         }
     }
 
@@ -359,11 +397,15 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> WindowEvalPathFromVertex
         let local_state_prev = self.local_state_prev;
         let t_start = self.t_start;
         let t_end = self.t_end;
-
+        let edge_filter = self.edge_filter.clone();
+        let edge_filter_2 = edge_filter.clone();
+        let layer_ids = g.layer_ids();
         let iter = self
             .path
             .iter_refs()
-            .flat_map(move |v_ref| g.vertex_edges_window(v_ref, t_start, t_end, dir, LayerIds::All))
+            .flat_map(move |v_ref| {
+                g.vertex_edges(v_ref, dir, layer_ids.clone(), edge_filter_2.as_deref())
+            })
             .map(move |e_ref| {
                 WindowEvalEdgeView::new(
                     ss,
@@ -373,6 +415,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> WindowEvalPathFromVertex
                     vertex_state.clone(),
                     t_start,
                     t_end,
+                    edge_filter.clone(),
                 )
             });
 
@@ -381,13 +424,12 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> WindowEvalPathFromVertex
 
     fn degree(&self, dir: Direction) -> Box<dyn Iterator<Item = usize> + 'a> {
         let g = self.g;
-        let t_start = self.t_start;
-        let t_end = self.t_end;
-
+        let edge_filter = self.edge_filter.clone();
+        let layer_ids = g.layer_ids();
         let iter = self
             .path
             .iter_refs()
-            .map(move |v_ref| g.degree_window(v_ref, t_start, t_end, dir, LayerIds::All));
+            .map(move |v_ref| g.degree(v_ref, dir, &layer_ids, edge_filter.as_deref()));
 
         Box::new(iter)
     }
@@ -407,14 +449,18 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> TimeOps
     }
 
     fn window<T: IntoTime>(&self, t_start: T, t_end: T) -> Self::WindowedViewType {
+        let t_start = t_start.into_time().max(self.t_start);
+        let t_end = t_end.into_time().min(self.t_end);
+        let filter = edge_filter(self.g, t_start, t_end).map(Rc::new);
         WindowEvalPathFromVertex::new(
             self.path.clone(),
             self.ss,
             self.g,
             self.vertex_state.clone(),
             self.local_state_prev,
-            t_start.into_time().max(self.t_start),
-            t_end.into_time().min(self.t_end),
+            t_start,
+            t_end,
+            filter,
         )
     }
 }
@@ -611,6 +657,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> IntoIterator
                 vertex_state.clone(),
                 t_start,
                 t_end,
+                self.edge_filter.clone(),
             )
         }))
     }

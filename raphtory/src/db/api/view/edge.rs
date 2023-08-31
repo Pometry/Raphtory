@@ -65,12 +65,10 @@ pub trait EdgeViewOps:
         let layer_ids = self.graph().layer_ids().constrain_from_edge(self.eref());
         match self.eref().time() {
             Some(tt) => *tt.t() <= t && t <= self.latest_time().unwrap_or(*tt.t()),
-            None => self.graph().has_edge_ref_window(
-                self.eref().src(),
-                self.eref().dst(),
-                t,
-                t.saturating_add(1),
-                layer_ids,
+            None => self.graph().include_edge_window(
+                &self.graph().core_edge(self.eref().pid()),
+                t..t.saturating_add(1),
+                &layer_ids,
             ),
         }
     }
@@ -111,7 +109,7 @@ pub trait EdgeViewOps:
     fn layer_names(&self) -> Vec<String> {
         let layer_ids = self
             .graph()
-            .edge_layer_ids(self.eref().pid())
+            .edge_layer_ids(&self.graph().core_edge(self.eref().pid()))
             .constrain_from_edge(self.eref());
         self.graph().get_layer_names_from_ids(layer_ids)
     }

@@ -1,10 +1,11 @@
 mod core_deletion_ops;
 mod core_ops;
+mod edge_filter_ops;
 mod exploded_edge_ops;
 mod graph_ops;
-mod graph_window_ops;
 mod inherit;
 mod into_dynamic;
+mod layer_ops;
 mod materialize;
 pub(crate) mod time_semantics;
 mod wrapped_graph;
@@ -15,11 +16,12 @@ use crate::{
 };
 pub use core_deletion_ops::*;
 pub use core_ops::*;
+pub use edge_filter_ops::*;
 pub use exploded_edge_ops::ExplodedEdgeOps;
 pub use graph_ops::*;
-pub use graph_window_ops::GraphWindowOps;
 pub use inherit::Base;
 pub use into_dynamic::IntoDynamic;
+pub use layer_ops::*;
 pub use materialize::*;
 use std::{
     fmt::{Debug, Formatter},
@@ -31,6 +33,8 @@ pub use time_semantics::*;
 pub trait BoxableGraphView:
     CoreGraphOps
     + GraphOps
+    + EdgeFilterOps
+    + LayerOps
     + TimeSemantics
     + InternalMaterialize
     + PropertiesOps
@@ -44,6 +48,8 @@ pub trait BoxableGraphView:
 impl<
         G: CoreGraphOps
             + GraphOps
+            + EdgeFilterOps
+            + LayerOps
             + TimeSemantics
             + InternalMaterialize
             + PropertiesOps
@@ -60,6 +66,8 @@ pub trait InheritViewOps: Base {}
 
 impl<G: InheritViewOps> InheritCoreDeletionOps for G {}
 impl<G: InheritViewOps> InheritGraphOps for G {}
+impl<G: InheritViewOps> InheritEdgeFilterOps for G {}
+impl<G: InheritViewOps> InheritLayerOps for G {}
 impl<G: InheritViewOps + CoreGraphOps + GraphOps> InheritTimeSemantics for G {}
 impl<G: InheritViewOps> InheritCoreOps for G {}
 impl<G: InheritViewOps> InheritMaterialize for G {}
@@ -108,6 +116,7 @@ impl DynamicGraph {
 impl Base for DynamicGraph {
     type Base = dyn BoxableGraphView;
 
+    #[inline(always)]
     fn base(&self) -> &Self::Base {
         &self.0
     }

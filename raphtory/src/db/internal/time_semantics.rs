@@ -1,30 +1,29 @@
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, graph::tgraph::InnerTemporalGraph, LayerIds, VID},
+        entities::{
+            edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
+            graph::tgraph::InnerTemporalGraph,
+            LayerIds, VID,
+        },
         storage::timeindex::{AsTime, TimeIndexOps},
     },
     db::api::view::{
-        internal::{CoreDeletionOps, CoreGraphOps, TimeSemantics},
+        internal::{CoreDeletionOps, CoreGraphOps, EdgeFilter, TimeSemantics},
         BoxedIter,
     },
     prelude::Prop,
 };
 use genawaiter::sync::GenBoxed;
+use rayon::prelude::*;
 use std::ops::Range;
 
 impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
     fn vertex_earliest_time(&self, v: VID) -> Option<i64> {
-        self.inner()
-            .node_entry(v)
-            .value()
-            .and_then(|node| node.timestamps().first_t())
+        self.inner().node_entry(v).value().timestamps().first_t()
     }
 
     fn vertex_latest_time(&self, v: VID) -> Option<i64> {
-        self.inner()
-            .node_entry(v)
-            .value()
-            .and_then(|node| node.timestamps().last_t())
+        self.inner().node_entry(v).value().timestamps().last_t()
     }
 
     fn view_start(&self) -> Option<i64> {
@@ -32,7 +31,7 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
     }
 
     fn view_end(&self) -> Option<i64> {
-        self.latest_time_global().map(|t| t + 1) // so it is exclusive
+        self.latest_time_global().map(|t| t.saturating_add(1)) // so it is exclusive
     }
 
     fn earliest_time_global(&self) -> Option<i64> {
@@ -43,26 +42,58 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
         self.inner().graph_latest_time()
     }
 
+    fn earliest_time_window(&self, t_start: i64, t_end: i64) -> Option<i64> {
+        self.inner()
+            .storage
+            .nodes
+            .read_lock()
+            .into_par_iter()
+            .flat_map(|v| v.timestamps().range(t_start..t_end).first_t())
+            .min()
+    }
+
+    fn latest_time_window(&self, t_start: i64, t_end: i64) -> Option<i64> {
+        self.inner()
+            .storage
+            .nodes
+            .read_lock()
+            .into_par_iter()
+            .flat_map(|v| v.timestamps().range(t_start..t_end).last_t())
+            .max()
+    }
+
     fn vertex_earliest_time_window(&self, v: VID, t_start: i64, t_end: i64) -> Option<i64> {
         self.inner()
             .node_entry(v)
             .value()
-            .and_then(|node| node.timestamps().range(t_start..t_end).first_t())
+            .timestamps()
+            .range(t_start..t_end)
+            .first_t()
     }
 
     fn vertex_latest_time_window(&self, v: VID, t_start: i64, t_end: i64) -> Option<i64> {
         self.inner()
             .node_entry(v)
             .value()
-            .and_then(|node| node.timestamps().range(t_start..t_end).last_t())
+            .timestamps()
+            .range(t_start..t_end)
+            .last_t()
     }
 
-    fn include_vertex_window(&self, v: VID, w: Range<i64>) -> bool {
+    #[inline]
+    fn include_vertex_window(
+        &self,
+        v: VID,
+        w: Range<i64>,
+        _layer_ids: &LayerIds,
+        _edge_filter: Option<&EdgeFilter>,
+    ) -> bool {
         self.inner().node_entry(v).timestamps().active(w)
     }
 
-    fn include_edge_window(&self, e: EdgeRef, w: Range<i64>, layer_ids: LayerIds) -> bool {
-        self.inner().edge(e.pid()).active(layer_ids, w)
+    #[inline]
+    fn include_edge_window(&self, e: &EdgeStore, w: Range<i64>, layer_ids: &LayerIds) -> bool {
+        e.active(layer_ids, w)
     }
 
     fn vertex_history(&self, v: VID) -> Vec<i64> {

@@ -1,7 +1,7 @@
 use super::RawStorage;
 use std::{ops::Deref, sync::Arc};
 
-pub struct Iter<'a, T, const N: usize> {
+pub struct Iter<'a, T: Default, const N: usize> {
     raw: &'a RawStorage<T, N>,
     segment: usize,
     offset: usize,
@@ -9,7 +9,7 @@ pub struct Iter<'a, T, const N: usize> {
 }
 
 // impl new for Iter
-impl<'a, T, const N: usize> Iter<'a, T, N> {
+impl<'a, T: Default, const N: usize> Iter<'a, T, N> {
     pub fn new(raw: &'a RawStorage<T, N>) -> Self {
         Iter {
             raw,
@@ -21,12 +21,12 @@ impl<'a, T, const N: usize> Iter<'a, T, N> {
 }
 
 type GuardIter<'a, T> = (
-    Arc<parking_lot::RwLockReadGuard<'a, Vec<Option<T>>>>,
-    std::iter::Flatten<std::slice::Iter<'a, std::option::Option<T>>>,
+    Arc<parking_lot::RwLockReadGuard<'a, Vec<T>>>,
+    std::slice::Iter<'a, T>,
 );
 
 pub struct RefT<'a, T, const N: usize> {
-    _guard: Arc<parking_lot::RwLockReadGuard<'a, Vec<Option<T>>>>,
+    _guard: Arc<parking_lot::RwLockReadGuard<'a, Vec<T>>>,
     t: &'a T,
     i: usize,
 }
@@ -97,7 +97,7 @@ impl<'a, T: std::fmt::Debug + Default, const N: usize> Iterator for Iter<'a, T, 
             let raw = unsafe { change_lifetime_const(&*guard) };
 
             // grab the iterator
-            let iter = raw.iter().flatten();
+            let iter = raw.iter();
 
             // set the current segment with the new iterator
             self.current = Some((Arc::new(guard), iter));

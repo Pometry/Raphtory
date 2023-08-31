@@ -106,7 +106,7 @@ impl<G: InternalAdditionOps + GraphViewOps> AdditionOps for G {
         let properties = props.collect_properties();
         let ti = TimeIndexEntry::from_input(self, t)?;
         let vref = self.internal_add_vertex(ti, v.id(), v.id_str(), properties)?;
-        Ok(VertexView::new_local(self.clone(), vref))
+        Ok(VertexView::new_internal(self.clone(), vref))
     }
 
     fn add_edge<V: InputVertex, T: TryIntoInputTime, PI: CollectProperties>(

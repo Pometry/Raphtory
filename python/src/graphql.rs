@@ -60,7 +60,7 @@ pub fn from_map_and_directory(
 }
 
 #[pyfunction]
-pub fn encode_graph(py: Python, graph: MaterializedGraph) -> PyResult<String> {
+pub fn encode_graph(graph: MaterializedGraph) -> PyResult<String> {
     let result = url_encode_graph(graph);
     match result {
         Ok(s) => Ok(s),

@@ -48,6 +48,12 @@ impl<G: GraphViewOps> EdgeView<G> {
     }
 }
 
+impl<G: GraphViewOps> PartialEq for EdgeView<G> {
+    fn eq(&self, other: &Self) -> bool {
+        self.id() == other.id()
+    }
+}
+
 impl<G: GraphViewOps> EdgeViewInternalOps<G, VertexView<G>> for EdgeView<G> {
     fn graph(&self) -> G {
         self.graph.clone()
@@ -58,7 +64,7 @@ impl<G: GraphViewOps> EdgeViewInternalOps<G, VertexView<G>> for EdgeView<G> {
     }
 
     fn new_vertex(&self, v: VID) -> VertexView<G> {
-        VertexView::new_local(self.graph(), v)
+        VertexView::new_internal(self.graph(), v)
     }
 
     fn new_edge(&self, e: EdgeRef) -> Self {
@@ -206,7 +212,12 @@ impl<G: GraphViewOps> LayerOps for EdgeView<G> {
             .layer_ids_from_names(name.into())
             .constrain_from_edge(self.edge);
         self.graph
-            .has_edge_ref(self.edge.src(), self.edge.dst(), layer_ids.clone())
+            .has_edge_ref(
+                self.edge.src(),
+                self.edge.dst(),
+                &layer_ids,
+                self.graph.edge_filter(),
+            )
             .then(|| EdgeView {
                 graph: LayeredGraph::new(self.graph.clone(), layer_ids),
                 edge: self.edge,

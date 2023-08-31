@@ -68,7 +68,11 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         let local = Local2::new(prev_local_state);
         let mut v_ref = morcel_id * morcel_size;
         for local_state in morcel {
-            if g.has_vertex_ref(VertexRef::Local(v_ref.into())) {
+            if g.has_vertex_ref(
+                VertexRef::Internal(v_ref.into()),
+                &g.layer_ids(),
+                g.edge_filter().as_deref(),
+            ) {
                 let mut vv = EvalVertexView::new_local(
                     self.ctx.ss(),
                     v_ref.into(),

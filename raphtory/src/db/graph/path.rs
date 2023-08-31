@@ -1,13 +1,13 @@
 use crate::{
     core::{
-        entities::{vertices::vertex_ref::VertexRef, LayerIds, VID},
+        entities::{vertices::vertex_ref::VertexRef, VID},
         utils::time::IntoTime,
         Direction,
     },
     db::{
         api::{
             properties::Properties,
-            view::{internal::GraphWindowOps, BoxedIter, Layer, LayerOps},
+            view::{internal::extend_filter, BoxedIter, Layer, LayerOps},
         },
         graph::{
             edge::EdgeView,
@@ -37,17 +37,23 @@ impl Operations {
         graph: G,
         iter: Box<dyn Iterator<Item = VID> + Send>,
     ) -> Box<dyn Iterator<Item = VID> + Send> {
+        let layer_ids = graph.layer_ids();
+        let edge_filter = graph.edge_filter().cloned();
         match self {
-            Operations::Neighbours { dir } => {
-                Box::new(iter.flat_map(move |v| graph.neighbours(v, dir, LayerIds::All)))
-            }
+            Operations::Neighbours { dir } => Box::new(iter.flat_map(move |v| {
+                graph.neighbours(v, dir, layer_ids.clone(), edge_filter.as_ref())
+            })),
             Operations::NeighboursWindow {
                 dir,
                 t_start,
                 t_end,
             } => {
+                let graph1 = graph.clone();
+                let filter = Some(extend_filter(edge_filter, move |e, l| {
+                    graph1.include_edge_window(e, t_start..t_end, l)
+                }));
                 Box::new(iter.flat_map(move |v| {
-                    graph.neighbours_window(v, t_start, t_end, dir, LayerIds::All)
+                    graph.neighbours(v, dir, layer_ids.clone(), filter.as_ref())
                 }))
             }
         }
@@ -71,11 +77,14 @@ impl<G: GraphViewOps> PathFromGraph<G> {
     pub fn iter(&self) -> Box<dyn Iterator<Item = PathFromVertex<G>> + Send> {
         let g = self.graph.clone();
         let ops = self.operations.clone();
-        Box::new(g.vertex_refs().map(move |v| PathFromVertex {
-            graph: g.clone(),
-            vertex: v,
-            operations: ops.clone(),
-        }))
+        Box::new(
+            g.vertex_refs(g.layer_ids(), g.edge_filter())
+                .map(move |v| PathFromVertex {
+                    graph: g.clone(),
+                    vertex: v,
+                    operations: ops.clone(),
+                }),
+        )
     }
 }
 
@@ -234,7 +243,7 @@ impl<G: GraphViewOps> PathFromVertex<G> {
         let g = self.graph.clone();
         let iter = self
             .iter_refs()
-            .map(move |v| VertexView::new_local(g.clone(), v));
+            .map(move |v| VertexView::new_internal(g.clone(), v));
         Box::new(iter)
     }
 
@@ -243,7 +252,7 @@ impl<G: GraphViewOps> PathFromVertex<G> {
         vertex: V,
         operation: Operations,
     ) -> PathFromVertex<G> {
-        let v = graph.localise_vertex_unchecked(vertex.into());
+        let v = graph.internalise_vertex_unchecked(vertex.into());
         PathFromVertex {
             graph,
             vertex: v,

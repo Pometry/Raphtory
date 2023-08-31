@@ -36,7 +36,7 @@ pub(crate) type InternalGraph = InnerTemporalGraph<SEG>;
 
 #[repr(transparent)]
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct Graph(Arc<InternalGraph>);
+pub struct Graph(pub Arc<InternalGraph>);
 
 pub fn graph_equal<G1: GraphViewOps, G2: GraphViewOps>(g1: &G1, g2: &G2) -> bool {
     if g1.num_vertices() == g2.num_vertices() && g1.num_edges() == g2.num_edges() {
@@ -74,6 +74,7 @@ impl<G: GraphViewOps> PartialEq<G> for Graph {
 impl Base for Graph {
     type Base = InternalGraph;
 
+    #[inline(always)]
     fn base(&self) -> &InternalGraph {
         &self.0
     }
@@ -146,14 +147,12 @@ mod db_tests {
     use super::*;
     use crate::{
         core::{
-            entities::LayerIds,
             utils::time::{error::ParseTimeError, TryIntoTime},
-            Direction, Prop,
+            Prop,
         },
         db::{
             api::view::{
-                internal::*, EdgeListOps, EdgeViewOps, GraphViewOps, Layer, LayerOps, TimeOps,
-                VertexViewOps,
+                EdgeListOps, EdgeViewOps, GraphViewOps, Layer, LayerOps, TimeOps, VertexViewOps,
             },
             graph::{edge::EdgeView, path::PathFromVertex},
         },
@@ -313,16 +312,13 @@ mod db_tests {
         }
 
         let e = g
-            .edge_ref_window(
-                g.localise_vertex_unchecked(1.into()),
-                g.localise_vertex_unchecked(3.into()),
-                i64::MIN,
-                i64::MAX,
-                0.into(),
-            )
+            .window(i64::MIN, i64::MAX)
+            .layer(Layer::Default)
+            .unwrap()
+            .edge(1, 3)
             .unwrap();
-        assert_eq!(g.vertex_id(e.src()), 1u64);
-        assert_eq!(g.vertex_id(e.dst()), 3u64);
+        assert_eq!(e.src().id(), 1u64);
+        assert_eq!(e.dst().id(), 3u64);
     }
 
     #[test]
@@ -345,31 +341,11 @@ mod db_tests {
         let expected = vec![(2, 3, 1), (1, 0, 0), (1, 0, 0)];
         let actual = (1..=3)
             .map(|i| {
-                let i = g.vertex_ref(i).unwrap();
+                let v = g.vertex(i).unwrap();
                 (
-                    g.degree_window(i, -1, 7, Direction::IN, LayerIds::All),
-                    g.degree_window(i, 1, 7, Direction::OUT, LayerIds::All),
-                    g.degree_window(i, 0, 1, Direction::BOTH, LayerIds::All),
-                )
-            })
-            .collect::<Vec<_>>();
-
-        assert_eq!(actual, expected);
-
-        // Check results from multiple graphs with different number of shards
-        let g = Graph::new();
-
-        for (t, src, dst) in &vs {
-            g.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
-        }
-
-        let expected = (1..=3)
-            .map(|i| {
-                let i = g.vertex_ref(i).unwrap();
-                (
-                    g.degree_window(i, -1, 7, Direction::IN, LayerIds::All),
-                    g.degree_window(i, 1, 7, Direction::OUT, LayerIds::All),
-                    g.degree_window(i, 0, 1, Direction::BOTH, LayerIds::All),
+                    v.window(-1, 7).in_degree(),
+                    v.window(1, 7).out_degree(),
+                    v.window(0, 1).degree(),
                 )
             })
             .collect::<Vec<_>>();
@@ -397,43 +373,11 @@ mod db_tests {
         let expected = vec![(2, 3, 2), (1, 0, 0), (1, 0, 0)];
         let actual = (1..=3)
             .map(|i| {
-                let i = g.vertex_ref(i).unwrap();
+                let v = g.vertex(i).unwrap();
                 (
-                    g.vertex_edges_window(i, -1, 7, Direction::IN, LayerIds::All)
-                        .collect::<Vec<_>>()
-                        .len(),
-                    g.vertex_edges_window(i, 1, 7, Direction::OUT, LayerIds::All)
-                        .collect::<Vec<_>>()
-                        .len(),
-                    g.vertex_edges_window(i, 0, 1, Direction::BOTH, LayerIds::All)
-                        .collect::<Vec<_>>()
-                        .len(),
-                )
-            })
-            .collect::<Vec<_>>();
-
-        assert_eq!(actual, expected);
-
-        // Check results from multiple graphs with different number of shards
-        let g = Graph::new();
-
-        for (t, src, dst) in &vs {
-            g.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
-        }
-
-        let expected = (1..=3)
-            .map(|i| {
-                let i = g.vertex_ref(i).unwrap();
-                (
-                    g.vertex_edges_window(i, -1, 7, Direction::IN, LayerIds::All)
-                        .collect::<Vec<_>>()
-                        .len(),
-                    g.vertex_edges_window(i, 1, 7, Direction::OUT, LayerIds::All)
-                        .collect::<Vec<_>>()
-                        .len(),
-                    g.vertex_edges_window(i, 0, 1, Direction::BOTH, LayerIds::All)
-                        .collect::<Vec<_>>()
-                        .len(),
+                    v.window(-1, 7).in_edges().collect::<Vec<_>>().len(),
+                    v.window(1, 7).out_edges().collect::<Vec<_>>().len(),
+                    v.window(0, 1).edges().collect::<Vec<_>>().len(),
                 )
             })
             .collect::<Vec<_>>();
@@ -478,7 +422,7 @@ mod db_tests {
 
     #[test]
     fn static_properties() {
-        let g = Graph::new(); // big enough so all edges are very likely remote
+        let g = Graph::new();
         g.add_edge(0, 11, 22, NO_PROPS, None).unwrap();
         g.add_edge(
             0,
@@ -606,29 +550,18 @@ mod db_tests {
             g.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
         }
 
-        let local_1 = g.vertex_ref(1).unwrap();
-        let local_2 = g.vertex_ref(2).unwrap();
-        let local_3 = g.vertex_ref(3).unwrap();
-
-        let expected = [
-            (
-                vec![local_1, local_2],
-                vec![local_1, local_2, local_3],
-                vec![local_1],
-            ),
-            (vec![local_1], vec![], vec![]),
-            (vec![local_1], vec![], vec![]),
+        let expected = vec![
+            (vec![1, 2], vec![1, 2, 3], vec![1]),
+            (vec![1], vec![], vec![]),
+            (vec![1], vec![], vec![]),
         ];
         let actual = (1..=3)
             .map(|i| {
-                let i = g.vertex_ref(i).unwrap();
+                let v = g.vertex(i).unwrap();
                 (
-                    g.neighbours_window(i, -1, 7, Direction::IN, LayerIds::All)
-                        .collect::<Vec<_>>(),
-                    g.neighbours_window(i, 1, 7, Direction::OUT, LayerIds::All)
-                        .collect::<Vec<_>>(),
-                    g.neighbours_window(i, 0, 1, Direction::BOTH, LayerIds::All)
-                        .collect::<Vec<_>>(),
+                    v.window(-1, 7).in_neighbours().id().collect::<Vec<_>>(),
+                    v.window(1, 7).out_neighbours().id().collect::<Vec<_>>(),
+                    v.window(0, 1).neighbours().id().collect::<Vec<_>>(),
                 )
             })
             .collect::<Vec<_>>();

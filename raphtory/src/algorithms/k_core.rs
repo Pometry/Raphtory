@@ -83,11 +83,18 @@ where
         vec![Job::read_only(step2)],
         KCoreState::new(),
         |_, _, _, local| {
+            let layers = graph.layer_ids();
+            let edge_filter = graph.edge_filter();
             local
                 .iter()
                 .enumerate()
                 .filter(|(v_ref, state)| {
-                    state.alive && graph.has_vertex_ref(VertexRef::Local((*v_ref).into()))
+                    state.alive
+                        && graph.has_vertex_ref(
+                            VertexRef::Internal((*v_ref).into()),
+                            &layers,
+                            edge_filter,
+                        )
                 })
                 .map(|(v_ref, _)| v_ref.into())
                 .collect::<HashSet<VID>>()
@@ -112,6 +119,7 @@ where
     graph.subgraph(v_set)
 }
 
+#[cfg(test)]
 mod k_core_test {
     use std::collections::HashSet;
 

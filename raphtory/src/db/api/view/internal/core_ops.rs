@@ -1,14 +1,15 @@
 use crate::{
     core::{
         entities::{
-            edges::edge_ref::EdgeRef,
+            edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
             properties::tprop::{LockedLayeredTProp, TProp},
-            vertices::vertex_ref::VertexRef,
-            LayerIds, VID,
+            vertices::{vertex_ref::VertexRef, vertex_store::VertexStore},
+            LayerIds, EID, VID,
         },
         storage::{
             locked_view::LockedView,
             timeindex::{LockedLayeredIndex, TimeIndex, TimeIndexEntry},
+            ArcEntry,
         },
         Prop,
     },
@@ -23,7 +24,7 @@ pub trait CoreGraphOps {
     /// Get the layer name for a given id
     fn get_layer_names_from_ids(&self, layer_ids: LayerIds) -> Vec<String>;
 
-    /// Returns the global ID for a vertex
+    /// Returns the external ID for a vertex
     fn vertex_id(&self, v: VID) -> u64;
 
     /// Returns the string name for a vertex
@@ -41,8 +42,11 @@ pub trait CoreGraphOps {
     /// (this should always be global and not affected by windowing as deletion semantics may need information outside the current view!)
     fn vertex_additions(&self, v: VID) -> LockedView<TimeIndex<i64>>;
 
-    /// Gets the local reference for a remote vertex and keeps local references unchanged. Assumes vertex exists!
-    fn localise_vertex_unchecked(&self, v: VertexRef) -> VID;
+    /// Gets the internal reference for an external vertex reference and keeps internal references unchanged.
+    fn internalise_vertex(&self, v: VertexRef) -> Option<VID>;
+
+    /// Gets the internal reference for an external vertex reference and keeps internal references unchanged. Assumes vertex exists!
+    fn internalise_vertex_unchecked(&self, v: VertexRef) -> VID;
 
     /// Lists the keys of all static properties of the graph
     ///
@@ -205,6 +209,13 @@ pub trait CoreGraphOps {
         e: EdgeRef,
         layer_ids: LayerIds,
     ) -> Box<dyn Iterator<Item = LockedView<'a, String>> + 'a>;
+
+    fn core_edges(&self) -> Box<dyn Iterator<Item = ArcEntry<EdgeStore>>>;
+
+    fn core_edge(&self, eid: EID) -> ArcEntry<EdgeStore>;
+    fn core_vertices(&self) -> Box<dyn Iterator<Item = ArcEntry<VertexStore>>>;
+
+    fn core_vertex(&self, vid: VID) -> ArcEntry<VertexStore>;
 }
 
 pub trait InheritCoreOps: Base {}
@@ -255,8 +266,12 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
         self.graph().vertex_additions(v)
     }
 
-    fn localise_vertex_unchecked(&self, v: VertexRef) -> VID {
-        self.graph().localise_vertex_unchecked(v)
+    fn internalise_vertex(&self, v: VertexRef) -> Option<VID> {
+        self.graph().internalise_vertex(v)
+    }
+
+    fn internalise_vertex_unchecked(&self, v: VertexRef) -> VID {
+        self.graph().internalise_vertex_unchecked(v)
     }
 
     fn static_prop_names(&self) -> Vec<String> {
@@ -332,5 +347,21 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
         layer_ids: LayerIds,
     ) -> Box<dyn Iterator<Item = LockedView<'a, String>> + 'a> {
         self.graph().temporal_edge_prop_names(e, layer_ids)
+    }
+
+    fn core_edges(&self) -> Box<dyn Iterator<Item = ArcEntry<EdgeStore>>> {
+        self.graph().core_edges()
+    }
+
+    fn core_edge(&self, eid: EID) -> ArcEntry<EdgeStore> {
+        self.graph().core_edge(eid)
+    }
+
+    fn core_vertices(&self) -> Box<dyn Iterator<Item = ArcEntry<VertexStore>>> {
+        self.graph().core_vertices()
+    }
+
+    fn core_vertex(&self, vid: VID) -> ArcEntry<VertexStore> {
+        self.graph().core_vertex(vid)
     }
 }

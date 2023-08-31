@@ -1,6 +1,10 @@
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
+        entities::{
+            edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
+            vertices::vertex_store::VertexStore,
+            LayerIds, VID,
+        },
         storage::timeindex::{AsTime, TimeIndexOps},
         utils::errors::GraphError,
         Direction, Prop,
@@ -51,19 +55,82 @@ impl Display for GraphWithDeletions {
 }
 
 impl GraphWithDeletions {
-    fn edge_alive_at(&self, e: EdgeRef, t: i64, layer_ids: LayerIds) -> bool {
+    fn edge_alive_at(&self, e: &EdgeStore, t: i64, layer_ids: &LayerIds) -> bool {
         // FIXME: assumes additions are before deletions if at the same timestamp (need to have strict ordering/secondary index)
-        let additions = self.edge_additions(e, layer_ids.clone());
-        let deletions = self.edge_deletions(e, layer_ids);
-
-        let first_addition = additions.first();
-        let first_deletion = deletions.first();
-        let last_addition_before_start = additions.range(i64::MIN..t.saturating_add(1)).last_t();
-        let last_deletion_before_start = deletions.range(i64::MIN..t).last_t();
+        let (
+            first_addition,
+            first_deletion,
+            last_addition_before_start,
+            last_deletion_before_start,
+        ) = match layer_ids {
+            LayerIds::None => return false,
+            LayerIds::All => (
+                e.additions().iter().flat_map(|v| v.first_t()).min(),
+                e.deletions().iter().flat_map(|v| v.first_t()).min(),
+                e.additions()
+                    .iter()
+                    .flat_map(|v| v.range(i64::MIN..t.saturating_add(1)).last_t())
+                    .max(),
+                e.deletions()
+                    .iter()
+                    .flat_map(|v| v.range(i64::MIN..t).last_t())
+                    .max(),
+            ),
+            LayerIds::One(l_id) => (
+                e.additions().get(*l_id).and_then(|v| v.first_t()),
+                e.deletions().get(*l_id).and_then(|v| v.first_t()),
+                e.additions()
+                    .get(*l_id)
+                    .and_then(|v| v.range(i64::MIN..t.saturating_add(1)).last_t()),
+                e.deletions()
+                    .get(*l_id)
+                    .and_then(|v| v.range(i64::MIN..t).last_t()),
+            ),
+            LayerIds::Multiple(ids) => (
+                ids.iter()
+                    .flat_map(|l_id| e.additions().get(*l_id).and_then(|v| v.first_t()))
+                    .min(),
+                ids.iter()
+                    .flat_map(|l_id| e.deletions().get(*l_id).and_then(|v| v.first_t()))
+                    .min(),
+                ids.iter()
+                    .flat_map(|l_id| {
+                        e.additions()
+                            .get(*l_id)
+                            .and_then(|v| v.range(i64::MIN..t.saturating_add(1)).last_t())
+                    })
+                    .max(),
+                ids.iter()
+                    .flat_map(|l_id| {
+                        e.deletions()
+                            .get(*l_id)
+                            .and_then(|v| v.range(i64::MIN..t).last_t())
+                    })
+                    .max(),
+            ),
+        };
 
         // None is less than any value (see test below)
         (first_deletion < first_addition && first_deletion.filter(|v| *v >= t).is_some())
             || last_addition_before_start > last_deletion_before_start
+    }
+
+    fn vertex_alive_at(
+        &self,
+        v: &VertexStore,
+        t: i64,
+        layers: &LayerIds,
+        edge_filter: Option<&EdgeFilter>,
+    ) -> bool {
+        let edges = self.graph.inner().storage.edges.read_lock();
+        v.edge_tuples(layers, Direction::BOTH)
+            .map(|eref| edges.get(eref.pid().into()))
+            .filter(|e| {
+                edge_filter.map(|f| f(e, layers)).unwrap_or(true)
+                    && self.edge_alive_at(e, t, layers)
+            })
+            .next()
+            .is_some()
     }
 
     pub fn new() -> Self {
@@ -125,7 +192,7 @@ impl<G: GraphViewOps> PartialEq<G> for GraphWithDeletions {
 
 impl Base for GraphWithDeletions {
     type Base = InternalGraph;
-
+    #[inline(always)]
     fn base(&self) -> &Self::Base {
         &self.graph
     }
@@ -153,6 +220,10 @@ impl InheritGraphOps for GraphWithDeletions {}
 
 impl InheritPropertiesOps for GraphWithDeletions {}
 
+impl InheritLayerOps for GraphWithDeletions {}
+
+impl InheritEdgeFilterOps for GraphWithDeletions {}
+
 impl TimeSemantics for GraphWithDeletions {
     fn vertex_earliest_time(&self, v: VID) -> Option<i64> {
         self.graph.vertex_earliest_time(v)
@@ -170,15 +241,32 @@ impl TimeSemantics for GraphWithDeletions {
         self.graph.earliest_time_global()
     }
 
-    fn include_vertex_window(&self, v: VID, w: Range<i64>) -> bool {
-        self.vertex_edges(v, Direction::BOTH, self.layer_ids())
-            .any(move |e| self.include_edge_window(e, w.clone(), self.layer_ids()))
+    fn latest_time_global(&self) -> Option<i64> {
+        self.graph.latest_time_global()
     }
 
-    fn include_edge_window(&self, e: EdgeRef, w: Range<i64>, layer_ids: LayerIds) -> bool {
+    fn earliest_time_window(&self, t_start: i64, t_end: i64) -> Option<i64> {
+        self.graph.earliest_time_window(t_start, t_end)
+    }
+
+    fn latest_time_window(&self, t_start: i64, t_end: i64) -> Option<i64> {
+        self.graph.latest_time_window(t_start, t_end)
+    }
+
+    fn include_vertex_window(
+        &self,
+        v: VID,
+        w: Range<i64>,
+        layer_ids: &LayerIds,
+        edge_filter: Option<&EdgeFilter>,
+    ) -> bool {
+        let v = self.graph.inner().storage.get_node(v);
+        v.active(w.clone()) || self.vertex_alive_at(&v, w.start, layer_ids, edge_filter)
+    }
+
+    fn include_edge_window(&self, e: &EdgeStore, w: Range<i64>, layer_ids: &LayerIds) -> bool {
         // includes edge if it is alive at the start of the window or added during the window
-        self.edge_alive_at(e, w.start, layer_ids.clone())
-            || self.edge_additions(e, layer_ids).active(w)
+        e.active(layer_ids, w.clone()) || self.edge_alive_at(e, w.start, layer_ids)
     }
 
     fn vertex_history(&self, v: VID) -> Vec<i64> {
@@ -191,7 +279,7 @@ impl TimeSemantics for GraphWithDeletions {
 
     fn edge_exploded(&self, e: EdgeRef, layer_ids: LayerIds) -> BoxedIter<EdgeRef> {
         //Fixme: Need support for duration on exploded edges
-        if self.edge_alive_at(e, i64::MIN, layer_ids.clone()) {
+        if self.edge_alive_at(&self.core_edge(e.pid()), i64::MIN, &layer_ids) {
             Box::new(
                 iter::once(e.at(i64::MIN.into())).chain(self.graph.edge_window_exploded(
                     e,
@@ -215,7 +303,8 @@ impl TimeSemantics for GraphWithDeletions {
         layer_ids: LayerIds,
     ) -> BoxedIter<EdgeRef> {
         // FIXME: Need better iterators on LockedView that capture the guard
-        if self.edge_alive_at(e, w.start, layer_ids.clone()) {
+        let entry = self.core_edge(e.pid());
+        if self.edge_alive_at(&entry, w.start, &layer_ids) {
             Box::new(
                 iter::once(e.at(w.start.into())).chain(self.graph.edge_window_exploded(
                     e,
@@ -239,14 +328,20 @@ impl TimeSemantics for GraphWithDeletions {
             self.graph
                 .edge_layers(e, layer_ids.clone())
                 .filter(move |&e| {
-                    g.include_edge_window(e, w.clone(), layer_ids.clone().constrain_from_edge(e))
+                    let entry = g.core_edge(e.pid());
+                    g.include_edge_window(
+                        &entry,
+                        w.clone(),
+                        &layer_ids.clone().constrain_from_edge(e),
+                    )
                 }),
         )
     }
 
     fn edge_earliest_time(&self, e: EdgeRef, layer_ids: LayerIds) -> Option<i64> {
         e.time().map(|ti| *ti.t()).or_else(|| {
-            if self.edge_alive_at(e, i64::MIN, layer_ids.clone()) {
+            let entry = self.core_edge(e.pid());
+            if self.edge_alive_at(&entry, i64::MIN, &layer_ids.clone()) {
                 Some(i64::MIN)
             } else {
                 self.edge_additions(e, layer_ids).first().map(|ti| *ti.t())
@@ -260,7 +355,8 @@ impl TimeSemantics for GraphWithDeletions {
         w: Range<i64>,
         layer_ids: LayerIds,
     ) -> Option<i64> {
-        if self.edge_alive_at(e, w.start, layer_ids.clone()) {
+        let entry = self.core_edge(e.pid());
+        if self.edge_alive_at(&entry, w.start, &layer_ids) {
             Some(w.start)
         } else {
             self.edge_additions(e, layer_ids).range(w).first_t()
@@ -280,7 +376,8 @@ impl TimeSemantics for GraphWithDeletions {
                     .unwrap_or(i64::MAX),
             )),
             None => {
-                if self.edge_alive_at(e, i64::MAX, layer_ids.clone()) {
+                let entry = self.core_edge(e.pid());
+                if self.edge_alive_at(&entry, i64::MAX, &layer_ids) {
                     Some(i64::MAX)
                 } else {
                     self.edge_deletions(e, layer_ids).last_t()
@@ -307,7 +404,8 @@ impl TimeSemantics for GraphWithDeletions {
                     .unwrap_or(w.end - 1),
             )),
             None => {
-                if self.edge_alive_at(e, w.end - 1, layer_ids.clone()) {
+                let entry = self.core_edge(e.pid());
+                if self.edge_alive_at(&entry, w.end - 1, &layer_ids) {
                     Some(w.end - 1)
                 } else {
                     self.edge_deletions(e, layer_ids).range(w).last_t()
@@ -370,7 +468,8 @@ impl TimeSemantics for GraphWithDeletions {
         let prop = self.temporal_edge_prop(e, name, layer_ids.clone());
         match prop {
             Some(p) => {
-                if self.edge_alive_at(e, t_start, layer_ids) {
+                let entry = self.core_edge(e.pid());
+                if self.edge_alive_at(&entry, t_start, &layer_ids) {
                     p.last_before(t_start.saturating_add(1))
                         .into_iter()
                         .map(|(_, v)| (t_start, v))
@@ -413,6 +512,8 @@ mod test_deletions {
             g.window(1, 2).edges().id().collect::<Vec<_>>(),
             vec![(0, 1)]
         );
+
+        assert_eq!(g.window(1, 2).num_edges(), 1);
 
         assert!(g.window(11, 12).is_empty());
 
