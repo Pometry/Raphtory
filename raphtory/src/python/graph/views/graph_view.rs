@@ -357,7 +357,7 @@ impl PyGraphView {
     ///
     /// Returns:
     ///    GraphView - Returns the subgraph
-    fn subgraph(&self, vertices: Vec<PyVertex>) -> VertexSubgraph<DynamicGraph> {
+    fn subgraph(&self, vertices: Vec<VertexRef>) -> VertexSubgraph<DynamicGraph> {
         self.graph.subgraph(vertices)
     }
 
