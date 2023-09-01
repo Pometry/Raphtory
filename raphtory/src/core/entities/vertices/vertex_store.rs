@@ -11,7 +11,7 @@ use crate::core::{
         timeindex::{AsTime, TimeIndex, TimeIndexEntry, TimeIndexOps},
         ArcEntry,
     },
-    utils::errors::MutateGraphError,
+    utils::errors::{GraphError, MutateGraphError},
     Direction, Prop,
 };
 use itertools::Itertools;
@@ -59,9 +59,14 @@ impl VertexStore {
         self.timestamps.insert(*t.t());
     }
 
-    pub fn add_prop(&mut self, t: TimeIndexEntry, prop_id: usize, prop: Prop) {
-        let props = self.props.get_or_insert_with(|| Props::new());
-        props.add_prop(t, prop_id, prop);
+    pub fn add_prop(
+        &mut self,
+        t: TimeIndexEntry,
+        prop_id: usize,
+        prop: Prop,
+    ) -> Result<(), GraphError> {
+        let props = self.props.get_or_insert_with(Props::new);
+        props.add_prop(t, prop_id, prop)
     }
 
     pub fn add_static_prop(
@@ -69,7 +74,7 @@ impl VertexStore {
         prop_id: usize,
         prop: Prop,
     ) -> Result<(), IllegalSet<Option<Prop>>> {
-        let props = self.props.get_or_insert_with(|| Props::new());
+        let props = self.props.get_or_insert_with(Props::new);
         props.add_static_prop(prop_id, prop)
     }
 
@@ -109,21 +114,21 @@ impl VertexStore {
         }
     }
 
-    pub(crate) fn temporal_properties<'a>(
-        &'a self,
+    pub(crate) fn temporal_properties(
+        &self,
         prop_id: usize,
         window: Option<Range<i64>>,
-    ) -> impl Iterator<Item = (i64, Prop)> + 'a {
+    ) -> impl Iterator<Item = (i64, Prop)> + '_ {
         if let Some(window) = window {
             self.props
                 .as_ref()
                 .map(|ps| ps.temporal_props_window(prop_id, window.start, window.end))
-                .unwrap_or_else(|| Box::new(std::iter::empty()))
+                .unwrap_or_else(|| Box::new(iter::empty()))
         } else {
             self.props
                 .as_ref()
                 .map(|ps| ps.temporal_props(prop_id))
-                .unwrap_or_else(|| Box::new(std::iter::empty()))
+                .unwrap_or_else(|| Box::new(iter::empty()))
         }
     }
 
@@ -169,7 +174,7 @@ impl VertexStore {
                 if let Some(layer) = self.layers.get(*id) {
                     Box::new(self.iter_adj(layer, d, self_id))
                 } else {
-                    Box::new(std::iter::empty())
+                    Box::new(iter::empty())
                 }
             }
             LayerIds::Multiple(ids) => Box::new(
@@ -256,7 +261,7 @@ impl VertexStore {
                     .layers
                     .get(one)
                     .map(|layer| self.neighbours_from_adj(layer, d, layers))
-                    .unwrap_or(Box::new(std::iter::empty()));
+                    .unwrap_or(Box::new(iter::empty()));
                 Box::new(iter)
             }
             LayerIds::Multiple(layers) => {
@@ -282,16 +287,16 @@ impl VertexStore {
             Direction::IN => Box::new(layer.iter(d).map(|(from_v, _)| from_v)),
             Direction::OUT => Box::new(layer.iter(d).map(|(to_v, _)| to_v)),
             Direction::BOTH => Box::new(
-                self.neighbours(layers.clone().into(), Direction::OUT)
-                    .merge(self.neighbours(layers.clone().into(), Direction::IN))
+                self.neighbours(layers.clone(), Direction::OUT)
+                    .merge(self.neighbours(layers, Direction::IN))
                     .dedup(),
             ),
         };
         iter
     }
 
-    pub(crate) fn edges_from_last<'a>(
-        &'a self,
+    pub(crate) fn edges_from_last(
+        &self,
         layer_id: usize,
         dir: Direction,
         last: Option<VID>,
@@ -334,7 +339,7 @@ impl ArcEntry<VertexStore> {
     }
 
     pub fn into_layer(self, offset: usize) -> Option<LockedLayer> {
-        (offset < self.layers.len()).then(|| LockedLayer {
+        (offset < self.layers.len()).then_some(LockedLayer {
             entry: self,
             offset,
         })

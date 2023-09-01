@@ -1,3 +1,4 @@
+use crate::core::utils::errors::GraphError;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
@@ -101,19 +102,20 @@ where
         }
     }
 
-    pub(crate) fn update<F>(&mut self, id: usize, updater: F)
+    pub(crate) fn update<F>(&mut self, id: usize, updater: F) -> Result<(), GraphError>
     where
-        F: FnOnce(&mut A),
+        F: FnOnce(&mut A) -> Result<(), GraphError>,
     {
         match self.get_mut(id) {
-            Some(value) => updater(value),
+            Some(value) => updater(value)?,
             None => {
                 let mut value = A::default();
-                updater(&mut value);
+                updater(&mut value)?;
                 self.set(id, value)
                     .expect("Set failed over a non existing value")
             }
-        }
+        };
+        Ok(())
     }
 }
 
@@ -131,11 +133,11 @@ mod lazy_vec_tests {
         assert_eq!(vec.get(5), Some(&55));
         assert_eq!(vec.get(1), Some(&11));
         assert_eq!(vec.get(0), Some(&0));
-        assert_eq!(vec.get(10), None); // FIXME: this should return the default, 0, as well, there is no need to return Option from get()
+        assert_eq!(vec.get(10), None);
 
-        vec.update(6, |n| *n += 1);
+        vec.update(6, |n| Ok(*n += 1));
         assert_eq!(vec.get(6), Some(&1));
-        vec.update(9, |n| *n += 1);
+        vec.update(9, |n| Ok(*n += 1));
         assert_eq!(vec.get(9), Some(&1));
 
         assert_eq!(vec.filled_ids(), vec![1, 5, 6, 8, 9]);

@@ -5,7 +5,7 @@ use crate::core::{
         locked_view::LockedView,
         timeindex::TimeIndexEntry,
     },
-    utils::errors::{IllegalMutate, MutateGraphError},
+    utils::errors::{GraphError, IllegalMutate, MutateGraphError},
     Prop,
 };
 use parking_lot::{RwLock, RwLockReadGuard};
@@ -38,7 +38,12 @@ impl Props {
         }
     }
 
-    pub fn add_prop(&mut self, t: TimeIndexEntry, prop_id: usize, prop: Prop) {
+    pub fn add_prop(
+        &mut self,
+        t: TimeIndexEntry,
+        prop_id: usize,
+        prop: Prop,
+    ) -> Result<(), GraphError> {
         self.temporal_props.update(prop_id, |p| p.set(t, prop))
     }
 
