@@ -37,6 +37,9 @@
 //!  assert_eq!(wg.edge(1, 2).unwrap().src().id(), 1);
 //! ```
 
+use crate::db::api::view::internal::{DelegateCoreOps, DynamicGraph, IntoDynamic};
+use crate::prelude::TimeOps;
+use crate::search::IndexedGraph;
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef, LayerIds, EID, VID},
@@ -71,6 +74,22 @@ pub struct WindowedGraph<G: GraphViewOps> {
     pub t_start: i64,
     /// The exclusive end time of the window.
     pub t_end: i64,
+}
+
+impl<G: GraphViewOps + IntoDynamic> WindowedGraph<IndexedGraph<G>> {
+    pub fn into_dynamic_indexed(self) -> IndexedGraph<DynamicGraph> {
+        IndexedGraph {
+            graph: self
+                .graph
+                .graph
+                .window(self.t_start, self.t_end)
+                .into_dynamic(),
+            vertex_index: self.graph.vertex_index,
+            edge_index: self.graph.edge_index,
+            reader: self.graph.reader,
+            edge_reader: self.graph.edge_reader,
+        }
+    }
 }
 
 impl<G: GraphViewOps> Base for WindowedGraph<G> {

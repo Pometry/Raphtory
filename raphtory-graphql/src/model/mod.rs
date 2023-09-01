@@ -17,6 +17,8 @@ use dynamic_graphql::{
     Upload,
 };
 use itertools::Itertools;
+use raphtory::db::api::view::internal::CoreGraphOps;
+use raphtory::prelude::{Graph, PropertyAdditionOps};
 use raphtory::{
     db::api::view::internal::{DynamicGraph, IntoDynamic, MaterializedGraph},
     prelude::GraphViewOps,
@@ -53,7 +55,7 @@ impl QueryRoot {
     async fn graph<'a>(ctx: &Context<'a>, name: &str) -> Option<GqlGraph> {
         let data = ctx.data_unchecked::<Data>();
         let g = data.graphs.read().get(name).cloned()?;
-        Some(GqlGraph::new(g))
+        Some(GqlGraph::new(g.into_dynamic_indexed()))
     }
 
     async fn graphs<'a>(ctx: &Context<'a>) -> Vec<GraphMeta> {
@@ -121,7 +123,10 @@ impl Mut {
     async fn upload_graph<'a>(ctx: &Context<'a>, name: String, graph: Upload) -> Result<String> {
         let g: MaterializedGraph =
             bincode::deserialize_from(BufReader::new(graph.value(ctx)?.content))?;
-        let gi: IndexedGraph<DynamicGraph> = g.into_dynamic().into();
+        let gi: IndexedGraph<Graph> = g
+            .into_events()
+            .ok_or("Graph with deletions not supported")?
+            .into();
         let mut data = ctx.data_unchecked::<Data>().graphs.write();
         data.insert(name.clone(), gi.clone());
         Ok(name)
@@ -134,7 +139,12 @@ impl Mut {
     async fn send_graph<'a>(ctx: &Context<'a>, name: String, graph: String) -> Result<String> {
         let g: MaterializedGraph = bincode::deserialize(&URL_SAFE_NO_PAD.decode(graph)?)?;
         let mut data = ctx.data_unchecked::<Data>().graphs.write();
-        data.insert(name.clone(), g.into_dynamic().into());
+        data.insert(
+            name.clone(),
+            g.into_events()
+                .ok_or("Graph with deletions not supported")?
+                .into(),
+        );
         Ok(name)
     }
 }

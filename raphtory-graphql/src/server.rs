@@ -9,6 +9,7 @@ use crate::{
 use async_graphql_poem::GraphQL;
 use poem::{get, listener::TcpListener, middleware::Cors, EndpointExt, Route, Server};
 use raphtory::db::api::view::internal::DynamicGraph;
+use raphtory::prelude::Graph;
 use std::collections::HashMap;
 use tokio::{io::Result as IoResult, signal};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry};
@@ -18,7 +19,7 @@ pub struct RaphtoryServer {
 }
 
 impl RaphtoryServer {
-    pub fn from_map(graphs: HashMap<String, DynamicGraph>) -> Self {
+    pub fn from_map(graphs: HashMap<String, Graph>) -> Self {
         let data = Data::from_map(graphs);
         Self { data }
     }
@@ -28,10 +29,7 @@ impl RaphtoryServer {
         Self { data }
     }
 
-    pub fn from_map_and_directory(
-        graphs: HashMap<String, DynamicGraph>,
-        graph_directory: &str,
-    ) -> Self {
+    pub fn from_map_and_directory(graphs: HashMap<String, Graph>, graph_directory: &str) -> Self {
         let data = Data::from_map_and_directory(graphs, graph_directory);
         Self { data }
     }

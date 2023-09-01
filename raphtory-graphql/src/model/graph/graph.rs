@@ -11,6 +11,7 @@ use crate::model::{
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
+use raphtory::prelude::PropertyAdditionOps;
 use raphtory::{
     db::{
         api::view::{
@@ -64,10 +65,10 @@ pub(crate) struct GqlGraph {
     graph: IndexedGraph<DynamicGraph>,
 }
 
-impl<G: GraphViewOps + IntoDynamic> From<G> for GqlGraph {
-    fn from(value: G) -> Self {
+impl<G: GraphViewOps + IntoDynamic> From<IndexedGraph<G>> for GqlGraph {
+    fn from(value: IndexedGraph<G>) -> Self {
         Self {
-            graph: value.into_dynamic().into(),
+            graph: value.into_dynamic_indexed(),
         }
     }
 }
@@ -83,7 +84,7 @@ impl GqlGraph {
     /// Return a graph containing only the activity between `start` and `end` measured as milliseconds from epoch
     async fn window(&self, start: i64, end: i64) -> GqlGraph {
         let w = self.graph.window(start, end);
-        w.into()
+        w.into_dynamic_indexed().into()
     }
 
     async fn layer_names(&self) -> Vec<String> {

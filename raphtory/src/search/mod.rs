@@ -30,11 +30,11 @@ use crate::{
 
 #[derive(Clone)]
 pub struct IndexedGraph<G> {
-    graph: G,
-    vertex_index: Arc<Index>,
-    edge_index: Arc<Index>,
-    reader: IndexReader,
-    edge_reader: IndexReader,
+    pub(crate) graph: G,
+    pub(crate) vertex_index: Arc<Index>,
+    pub(crate) edge_index: Arc<Index>,
+    pub(crate) reader: IndexReader,
+    pub(crate) edge_reader: IndexReader,
 }
 
 impl<G> Deref for IndexedGraph<G> {
@@ -70,6 +70,18 @@ pub(in crate::search) mod fields {
 impl<G: GraphViewOps> From<G> for IndexedGraph<G> {
     fn from(graph: G) -> Self {
         Self::from_graph(&graph).expect("failed to generate index from graph")
+    }
+}
+
+impl<G: GraphViewOps + IntoDynamic> IndexedGraph<G> {
+    pub fn into_dynamic_indexed(self) -> IndexedGraph<DynamicGraph> {
+        IndexedGraph {
+            graph: self.graph.into_dynamic(),
+            vertex_index: self.vertex_index,
+            edge_index: self.edge_index,
+            reader: self.reader,
+            edge_reader: self.edge_reader,
+        }
     }
 }
 
