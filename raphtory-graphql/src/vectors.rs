@@ -1,6 +1,7 @@
 use itertools::chain;
 use itertools::Itertools;
 use std::collections::hash_map::DefaultHasher;
+use std::collections::HashMap;
 use std::fs::{create_dir_all, File};
 use std::hash::{Hash, Hasher};
 use std::io::{BufReader, BufWriter};
@@ -21,39 +22,43 @@ use raphtory::db::graph::vertex::VertexView;
 use raphtory::prelude::{GraphViewOps, VertexViewOps};
 use serde::{Deserialize, Serialize};
 
+use numpy::{PyArray1, PyArray2};
+use pyo3::{types::IntoPyDict, PyResult, Python};
+
 pub struct VectorStore<G> {
     graph: G,
     embeddings: Vec<(u64, Embedding)>,
 }
 
 impl<G: GraphViewOps> VectorStore<G> {
-    pub async fn load_graph(graph: G, cache_dir: &Path) -> Self {
+    pub fn load_graph(graph: G, cache_dir: &Path) -> Self {
         create_dir_all(cache_dir).expect("Impossible to use cache dir");
 
         let vertices = graph.vertices().iter();
         let docs = vertices.map(|vertex| vertex.into_doc());
 
-        // let doc_to_embedding =
-        //     |doc: EntityDocument| async { (doc.id, doc_to_vec(doc, cache_dir).await) };
-        // let embedding_tasks = docs.map(doc_to_embedding);
-        // was using join_all but I need them to be strictly sequential so OpenAI doesn't complain
+        // ----------------- ASYNC-VERSION -----------------
+        // let mut embeddings = vec![];
+        // let embedding_stream = stream! {
+        //     for doc in docs {
+        //         yield (doc.id, doc_to_vec(doc, cache_dir))
+        //     }
+        // };
+        // pin_mut!(embedding_stream);
+        // while let Some(embedding) = embedding_stream.next() {
+        //     embeddings.push(embedding);
+        // }
+        // ---------------------------------------------------
 
-        let mut embeddings = vec![];
-        let embedding_stream = stream! {
-            for doc in docs {
-                yield (doc.id, doc_to_vec(doc, cache_dir).await)
-            }
-        };
-        pin_mut!(embedding_stream);
-        while let Some(embedding) = embedding_stream.next().await {
-            embeddings.push(embedding);
-        }
+        let embeddings = docs
+            .map(|doc| (doc.id, doc_to_vec(doc, cache_dir)))
+            .collect_vec();
 
         VectorStore { graph, embeddings }
     }
 
-    pub async fn search(&self, query: &str, limit: usize) -> Vec<String> {
-        let query_embedding = compute_embedding(query).await;
+    pub fn search(&self, query: &str, limit: usize) -> Vec<String> {
+        let query_embedding = compute_embedding(vec![query.to_owned()]).remove(0);
 
         let distances = self
             .embeddings
@@ -96,15 +101,15 @@ struct EmbeddingCache {
 
 type Embedding = Vec<f32>;
 
-async fn doc_to_vec(doc: EntityDocument, cache_dir: &Path) -> Embedding {
+fn doc_to_vec(doc: EntityDocument, cache_dir: &Path) -> Embedding {
     let doc_path = cache_dir.join(doc.id.to_string());
     // It'd be better if we reused the same vector if two different docs are equal,
     // but that shouldn't happen anyways
 
     match retrieve_embedding_from_cache(&doc, &doc_path) {
         None => {
-            let embedding = compute_embedding(&doc.content).await;
             let doc_hash = hash_doc(&doc); // FIXME: I'm hashing twice
+            let embedding = compute_embedding(vec![doc.content]).remove(0);
             let embedding_cache = EmbeddingCache {
                 doc_hash,
                 embedding,
@@ -120,21 +125,45 @@ async fn doc_to_vec(doc: EntityDocument, cache_dir: &Path) -> Embedding {
     }
 }
 
-async fn compute_embedding(text: &str) -> Embedding {
-    println!("Generating embedding through OpenAI API for text:\n{text}\n");
-    let client = Client::new();
-    let request = CreateEmbeddingRequest {
-        model: "text-embedding-ada-002".to_owned(),
-        input: EmbeddingInput::String(text.to_owned()),
-        user: None,
-    };
-    let mut response = client.embeddings().create(request).await.unwrap();
-    let embedding = response.data.remove(0).embedding;
-    let embedding_len = embedding.len();
-    println!("Generated embedding with length {embedding_len}:\n {embedding:?}");
+fn compute_embedding(texts: Vec<String>) -> Vec<Embedding> {
+    Python::with_gil(|py| {
+        let sentence_transformers = py.import("sentence_transformers")?;
+        let locals = [("sentence_transformers", sentence_transformers)].into_py_dict(py);
+        locals.set_item("texts", texts);
 
-    embedding
+        let pyarray: &PyArray2<f32> = py
+            .eval(
+                &format!(
+                    "sentence_transformers.SentenceTransformer('thenlper/gte-small').encode(texts + ['test'])"
+                ),
+                Some(locals),
+                None,
+            )?
+            .extract()?;
+
+        let readonly = pyarray.readonly();
+        let chunks = readonly.as_slice().unwrap().chunks(384).into_iter();
+        let embeddings = chunks.map(|chunk| chunk.iter().copied().collect_vec()).collect_vec();
+
+
+        Ok::<Vec<Vec<f32>>, Box<dyn std::error::Error>>(embeddings)
+    })
+    .unwrap()
 }
+
+// async fn compute_embedding(texts: Vec<String>) -> Vec<Embedding> {
+//     let num_texts = texts.len();
+//     println!("Generating embeddings through OpenAI API for {num_texts} texts");
+//     let client = Client::new();
+//     let request = CreateEmbeddingRequest {
+//         model: "text-embedding-ada-002".to_owned(),
+//         input: EmbeddingInput::StringArray(texts),
+//         user: None,
+//     };
+//     let mut response = client.embeddings().create(request).await.unwrap();
+//     println!("> Generated embeddings successfully");
+//     response.data.into_iter().map(|e| e.embedding).collect_vec()
+// }
 
 fn retrieve_embedding_from_cache(doc: &EntityDocument, doc_path: &Path) -> Option<Embedding> {
     let doc_file = File::open(doc_path).ok()?;
@@ -214,27 +243,28 @@ kind: Hobbit"###;
         assert_eq!(doc, expected_doc);
     }
 
-    #[tokio::test]
-    async fn test_vector_store() {
+    #[test]
+    fn test_vector_store() {
         let g = Graph::new();
         g.add_vertex(0, "Gandalf", [("kind".to_string(), Prop::str("wizard"))]);
         g.add_vertex(0, "Frodo", [("kind".to_string(), Prop::str("Hobbit"))]);
 
         dotenv().ok();
         let vec_store =
-            VectorStore::load_graph(g, &PathBuf::from("/tmp/raphtory/vector-cache-lotr-test"))
-                .await;
+            VectorStore::load_graph(g, &PathBuf::from("/tmp/raphtory/vector-cache-lotr-test"));
 
-        let docs = vec_store.search("Find a wizard", 1).await;
+        let docs = vec_store.search("Find a wizard", 1);
         assert!(docs[0].contains("Gandalf"));
 
-        let docs = vec_store.search("Find a magician", 1).await;
+        let docs = vec_store.search("Find a magician", 1);
         assert!(docs[0].contains("Gandalf"));
 
-        let docs = vec_store.search("Find a small person", 1).await;
+        let docs = vec_store.search("Find a small person", 1);
         assert!(docs[0].contains("Frodo"));
 
-        let docs = vec_store.search("What do you know about Gandalf?", 1).await;
+        let docs = vec_store.search("What do you know about Gandalf?", 1);
         assert!(docs[0].contains("Gandalf"));
+
+        println!(">>>>>>>>>>>>>>>>>>success");
     }
 }

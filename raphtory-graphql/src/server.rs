@@ -39,7 +39,7 @@ impl RaphtoryServer {
         Self { data }
     }
 
-    pub async fn with_vectorized(self, graph_names: Vec<String>, cache_dir: &Path) -> Self {
+    pub fn with_vectorized(self, graph_names: Vec<String>, cache_dir: &Path) -> Self {
         {
             let graphs_map = self.data.graphs.read();
             let mut stores_map = self.data.vector_stores.write();
@@ -49,7 +49,7 @@ impl RaphtoryServer {
                 let graph = graphs_map.get(&graph_name).unwrap().deref().clone();
 
                 println!("Generating embeddings for {graph_name} inside {graph_cache:?}");
-                let vector_store = VectorStore::load_graph(graph, &graph_cache).await;
+                let vector_store = VectorStore::load_graph(graph, &graph_cache);
                 stores_map.insert(graph_name, vector_store);
             }
         }

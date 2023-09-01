@@ -38,6 +38,8 @@ walkdir = "2"
 ordered-float = "3.7.0"
 async-openai = "0.14.0"
 clap = { version = "4.3.11", features = ["derive"] }
+pyo3 = { version = "0.18.3", features = ["auto-initialize"] }
+numpy = "0.18.0"
 
 [dev-dependencies]
 serde_json = "1.0"
