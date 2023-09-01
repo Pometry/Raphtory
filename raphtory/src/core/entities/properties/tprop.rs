@@ -57,7 +57,6 @@ impl TProp {
         if matches!(self, TProp::Empty) {
             *self = TProp::from(t, prop);
         } else {
-            // TODO: we should bubble up the result if we change the type of the property
             match (self, prop) {
                 (TProp::Empty, prop) => {}
 
