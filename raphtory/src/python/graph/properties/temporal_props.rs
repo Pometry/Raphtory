@@ -1064,6 +1064,73 @@ impl PyPropValueListList {
         .into()
     }
 
+    pub fn min(&self) -> PyPropValueList {
+        let builder = self.builder.clone();
+        (move || {
+            builder().map(|it| {
+                let mut it_iter = it.into_iter();
+                let first = it_iter.next().unwrap();
+                it_iter.fold(first, |a, b| {
+                    match PartialOrd::partial_cmp(&a, &Some(b.clone().unwrap())) {
+                        Some(std::cmp::Ordering::Less) => a,
+                        _ => Some(b.clone().unwrap()),
+                    }
+                })
+            })
+        })
+        .into()
+    }
+
+    pub fn max(&self) -> PyPropValueList {
+        let builder = self.builder.clone();
+        (move || {
+            builder().map(|it| {
+                let mut it_iter = it.into_iter();
+                let first = it_iter.next().unwrap();
+                it_iter.fold(first, |a, b| {
+                    match PartialOrd::partial_cmp(&a, &Some(b.clone().unwrap())) {
+                        Some(std::cmp::Ordering::Greater) => a,
+                        _ => Some(b.clone().unwrap()),
+                    }
+                })
+            })
+        })
+        .into()
+    }
+
+    pub fn average(&self) -> PyPropValueList {
+        self.mean()
+    }
+
+    pub fn mean(&self) -> PyPropValueList {
+        let builder = self.builder.clone();
+        (move || {
+            builder().map(|mut it| {
+                let mut count: usize = 1;
+                let first = it.next().flatten();
+                let sum = it.fold(first, |acc, elem| {
+                    count += 1;
+                    match (acc, elem) {
+                        (Some(a), Some(b)) => a.add(b),
+                        (Some(a), None) => Some(a),
+                        (None, Some(b)) => Some(b),
+                        _ => None,
+                    }
+                });
+                match sum {
+                    Some(Prop::I32(s)) => Some(Prop::F32(s as f32 / count as f32)),
+                    Some(Prop::I64(s)) => Some(Prop::F64(s as f64 / count as f64)),
+                    Some(Prop::U32(s)) => Some(Prop::F32(s as f32 / count as f32)),
+                    Some(Prop::U64(s)) => Some(Prop::F64(s as f64 / count as f64)),
+                    Some(Prop::F32(s)) => Some(Prop::F32(s / count as f32)),
+                    Some(Prop::F64(s)) => Some(Prop::F64(s / count as f64)),
+                    _ => None,
+                }
+            })
+        })
+        .into()
+    }
+
     pub fn median(&self) -> PyPropValueList {
         let builder = self.builder.clone();
         (move || {
@@ -1092,6 +1159,10 @@ impl PyPropValueListList {
     pub fn count(&self) -> UsizeIterable {
         let builder = self.builder.clone();
         (move || builder().map(|it| it.count())).into()
+    }
+
+    pub fn len(&self) -> UsizeIterable {
+        self.count()
     }
 
     pub fn drop_none(&self) -> PyPropValueListList {

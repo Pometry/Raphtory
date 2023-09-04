@@ -55,6 +55,8 @@ py_nested_ordered_iterable!(
 );
 
 py_numeric_iterable!(UsizeIterable, usize);
+py_iterable_comp!(UsizeIterable, usize, UsizeIterableCmp);
+
 py_ordered_iterable!(OptionUsizeIterable, Option<usize>);
 py_nested_numeric_iterable!(
     NestedUsizeIterable,
