@@ -1,4 +1,4 @@
-use crate::model::schema::{edge_echema::EdgeSchema, get_vertex_type};
+use crate::model::schema::{edge_schema::EdgeSchema, get_vertex_type};
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::{

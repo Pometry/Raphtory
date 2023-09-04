@@ -4,7 +4,7 @@ use raphtory::{
 };
 use std::collections::{HashMap, HashSet};
 
-pub(crate) mod edge_echema;
+pub(crate) mod edge_schema;
 pub(crate) mod graph_schema;
 pub(crate) mod layer_schema;
 pub(crate) mod node_schema;
