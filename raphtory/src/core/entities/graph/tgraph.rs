@@ -20,6 +20,7 @@ use crate::{
             LayerIds, EID, VID,
         },
         storage::{
+            lazy_vec::IllegalSet,
             locked_view::LockedView,
             timeindex::{AsTime, LayeredIndex, TimeIndexEntry, TimeIndexOps},
             ArcEntry, Entry,
@@ -76,10 +77,10 @@ pub struct TemporalGraph<const N: usize> {
     pub(in crate::core) latest_time: MaxCounter,
 
     // props meta data for vertices (mapping between strings and ids)
-    pub(in crate::core) vertex_meta: Arc<Meta>,
+    pub(crate) vertex_meta: Arc<Meta>,
 
     // props meta data for edges (mapping between strings and ids)
-    pub(in crate::core) edge_meta: Arc<Meta>,
+    pub(crate) edge_meta: Arc<Meta>,
 
     // graph properties
     pub(crate) graph_props: GraphProps,
@@ -142,6 +143,19 @@ impl<const N: usize> TemporalGraph<N> {
                         .clone()
                 })
                 .collect(),
+        }
+    }
+
+    fn as_local_vertex(&self, v: VertexRef) -> Result<VID, GraphError> {
+        match v {
+            VertexRef::Internal(vid) => Ok(vid),
+            VertexRef::External(gid) => self
+                .logical_to_physical
+                .get(&gid)
+                .map(|entry| *entry)
+                .ok_or(GraphError::FailedToMutateGraph {
+                    source: MutateGraphError::VertexNotFoundError { vertex_id: gid },
+                }),
         }
     }
 
@@ -434,47 +448,10 @@ impl<const N: usize> TemporalGraph<N> {
 
     pub(crate) fn add_edge_properties_internal(
         &self,
-        src: u64,
-        dst: u64,
+        edge_id: EID,
         props: Vec<(String, Prop)>,
-        layer: Option<&str>,
-    ) -> Result<(), GraphError> {
-        let src_id = self
-            .logical_to_physical
-            .get(&src)
-            .map(|entry| *entry)
-            .ok_or(GraphError::FailedToMutateGraph {
-                source: MutateGraphError::VertexNotFoundError { vertex_id: src },
-            })?;
-
-        let dst_id = self
-            .logical_to_physical
-            .get(&dst)
-            .map(|entry| *entry)
-            .ok_or(GraphError::FailedToMutateGraph {
-                source: MutateGraphError::VertexNotFoundError { vertex_id: dst },
-            })?;
-
-        let layer_id = layer
-            .map(|name| {
-                self.edge_meta
-                    .get_layer_id(name)
-                    .ok_or(GraphError::FailedToMutateGraph {
-                        source: MutateGraphError::LayerNotFoundError {
-                            layer_name: name.to_string(),
-                        },
-                    })
-            })
-            .unwrap_or(Ok(0))?;
-
-        let edge_id = self
-            .storage
-            .get_node(src_id)
-            .find_edge(dst_id.into(), &(layer_id.into()))
-            .ok_or(GraphError::FailedToMutateGraph {
-                source: MutateGraphError::MissingEdge(src.id(), dst.id()),
-            })?;
-
+        layer: usize,
+    ) -> Result<(), IllegalSet<Option<Prop>>> {
         let mut edge = self.storage.get_edge_mut(edge_id.into());
 
         let props = self
@@ -482,24 +459,9 @@ impl<const N: usize> TemporalGraph<N> {
             .resolve_prop_ids(props, true)
             .collect::<Vec<_>>();
 
-        let mut layer = edge.layer_mut(layer_id);
+        let mut layer = edge.layer_mut(layer);
         for (prop_id, prop) in props {
-            layer.add_static_prop(prop_id, prop).map_err(|err| {
-                GraphError::FailedToMutateGraph {
-                    source: MutateGraphError::IllegalEdgePropertyChange {
-                        src_id: src,
-                        dst_id: dst,
-                        source: IllegalMutate {
-                            name: self
-                                .edge_meta
-                                .reverse_prop_id(prop_id, true)
-                                .expect("resolved prop ids exist")
-                                .clone(),
-                            source: err,
-                        },
-                    },
-                }
-            })?;
+            layer.add_static_prop(prop_id, prop)?
         }
         Ok(())
     }

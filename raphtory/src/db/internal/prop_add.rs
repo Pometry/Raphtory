@@ -1,6 +1,7 @@
 use crate::{
     core::{
-        entities::graph::tgraph::InnerTemporalGraph, storage::timeindex::TimeIndexEntry,
+        entities::{graph::tgraph::InnerTemporalGraph, vertices::vertex_ref::VertexRef},
+        storage::timeindex::TimeIndexEntry,
         utils::errors::GraphError,
     },
     db::api::mutation::internal::InternalPropertyAdditionOps,
@@ -30,10 +31,10 @@ impl<const N: usize> InternalPropertyAdditionOps for InnerTemporalGraph<N> {
 
     fn internal_add_edge_properties(
         &self,
-        src: u64,
-        dst: u64,
+        src: VertexRef,
+        dst: VertexRef,
         props: Vec<(String, Prop)>,
-        layer: Option<&str>,
+        layer: usize,
     ) -> Result<(), GraphError> {
         self.inner()
             .add_edge_properties_internal(src, dst, props, layer)

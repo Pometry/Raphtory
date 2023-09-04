@@ -80,11 +80,35 @@ impl<G: GraphViewOps> EdgeViewInternalOps<G, VertexView<G>> for EdgeView<G> {
 }
 
 impl<G: GraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> EdgeView<G> {
+    /// Add constant properties for the edge
+    ///
+    /// # Arguments
+    ///
+    ///     props: Property key-value pairs to add
+    ///     layer: The layer to which properties should be added. If the edge view is restricted to a
+    ///            single layer, `None` will add the properties to that layer and `Some("name")`
+    ///            fails unless the layer matches the edge view. If the edge view is not restricted
+    ///            to a single layer, `None` sets the properties on the default layer and `Some("name")`
+    ///            sets the properties on layer `"name"` and fails if that layer doesn't exist.
     pub fn add_constant_properties<C: CollectProperties>(
         &self,
         props: C,
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
+        match self.edge.layer() {
+            Some(id) => {
+                let input_layer_id = layer
+                    .map(|name| {
+                        self.graph
+                            .get_layer_id(name)
+                            .ok_or(GraphError::InvalidLayer)
+                    })
+                    .transpose()?;
+                match input_layer_id {
+                    Some(input_id) => if *id == input_id {},
+                }
+            }
+        }
         self.graph.internal_add_edge_properties(
             self.src().id(),
             self.dst().id(),

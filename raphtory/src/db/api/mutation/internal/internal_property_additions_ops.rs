@@ -1,5 +1,8 @@
 use crate::{
-    core::{storage::timeindex::TimeIndexEntry, utils::errors::GraphError, Prop},
+    core::{
+        entities::vertices::vertex_ref::VertexRef, storage::timeindex::TimeIndexEntry,
+        utils::errors::GraphError, Prop,
+    },
     db::api::view::internal::Base,
 };
 
@@ -22,10 +25,10 @@ pub trait InternalPropertyAdditionOps {
 
     fn internal_add_edge_properties(
         &self,
-        src: u64,
-        dst: u64,
+        src: VertexRef,
+        dst: VertexRef,
         props: Vec<(String, Prop)>,
-        layer: Option<&str>,
+        layer: usize,
     ) -> Result<(), GraphError>;
 }
 
@@ -75,10 +78,10 @@ impl<G: DelegatePropertyAdditionOps> InternalPropertyAdditionOps for G {
     #[inline(always)]
     fn internal_add_edge_properties(
         &self,
-        src: u64,
-        dst: u64,
+        src: VertexRef,
+        dst: VertexRef,
         props: Vec<(String, Prop)>,
-        layer: Option<&str>,
+        layer: usize,
     ) -> Result<(), GraphError> {
         self.graph()
             .internal_add_edge_properties(src, dst, props, layer)
