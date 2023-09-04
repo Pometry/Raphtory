@@ -1332,6 +1332,12 @@ def test_subgraph():
     subgraph = g.subgraph([vertex1])
     assert subgraph.vertices.collect() == [vertex1]
 
+    subgraph_from_str = g.subgraph(["1"])
+    assert subgraph_from_str.vertices.collect() == [vertex1]
+
+    subgraph_from_int = g.subgraph([1])
+    assert subgraph_from_int.vertices.collect() == [vertex1]
+
     mg = subgraph.materialize()
     assert mg.vertices.collect()[0].properties['type'] == 'wallet'
     assert mg.vertices.collect()[0].name() == '1'
