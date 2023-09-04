@@ -204,4 +204,36 @@ mod test_edge_view {
         assert_eq!(prop_values, expected_prop_values);
         assert_eq!(actual_layers, expected_layers);
     }
+
+    #[test]
+    fn test_sorting_by_secondary_index() {
+        let g = Graph::new();
+        g.add_edge(0, 2, 3, NO_PROPS, None).unwrap();
+        g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
+        g.add_edge(0, 1, 2, [("second", true)], None).unwrap();
+        g.add_edge(0, 2, 3, [("second", true)], None).unwrap();
+
+        let mut exploded_edges: Vec<_> = g.edges().explode().collect();
+        exploded_edges.sort_by(|a, b| a.time_and_index().cmp(&b.time_and_index()));
+
+        let res: Vec<_> = exploded_edges
+            .into_iter()
+            .map(|e| {
+                (
+                    e.src().id(),
+                    e.dst().id(),
+                    e.properties().get("second").into_bool(),
+                )
+            })
+            .collect();
+        assert_eq!(
+            res,
+            vec![
+                (2, 3, None),
+                (1, 2, None),
+                (1, 2, Some(true)),
+                (2, 3, Some(true))
+            ]
+        )
+    }
 }
