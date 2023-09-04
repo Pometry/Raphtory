@@ -1,7 +1,7 @@
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, VID},
-        storage::timeindex::AsTime,
+        storage::timeindex::{AsTime, TimeIndexEntry},
     },
     db::api::{
         properties::{
@@ -103,6 +103,11 @@ pub trait EdgeViewOps:
     /// Gets the time stamp of the edge if it is exploded
     fn time(&self) -> Option<i64> {
         self.eref().time().map(|ti| *ti.t())
+    }
+
+    /// Gets the TimeIndexEntry if the edge is exploded
+    fn time_and_index(&self) -> Option<TimeIndexEntry> {
+        self.eref().time()
     }
 
     /// Gets the name of the layer this edge belongs to
