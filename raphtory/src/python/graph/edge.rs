@@ -35,11 +35,13 @@ use crate::{
     },
 };
 use chrono::NaiveDateTime;
+use itertools::Itertools;
 use pyo3::{prelude::*, pyclass::CompareOp, types::PyString};
 use serde_json::to_string;
 use std::{
     collections::hash_map::DefaultHasher,
     hash::{Hash, Hasher},
+    ops::Deref,
     sync::Arc,
 };
 
@@ -337,7 +339,11 @@ impl Repr for PyEdge {
 
 impl Repr for EdgeView<DynamicGraph> {
     fn repr(&self) -> String {
-        let properties = &self.properties().repr();
+        let properties: String = self
+            .properties()
+            .iter()
+            .map(|(k, v)| format!("{}: {}", k.deref(), v))
+            .join(", ");
 
         let source = self.src().name();
         let target = self.dst().name();
@@ -352,14 +358,13 @@ impl Repr for EdgeView<DynamicGraph> {
                 latest_time.unwrap_or(0),
             )
         } else {
-            let property_string: String = format!("{{{properties}}}");
             format!(
                 "Edge(source={}, target={}, earliest_time={}, latest_time={}, properties={})",
                 source.trim_matches('"'),
                 target.trim_matches('"'),
                 earliest_time.unwrap_or(0),
                 latest_time.unwrap_or(0),
-                property_string
+                format!("{{{properties}}}")
             )
         }
     }

@@ -1,5 +1,8 @@
 use crate::{
-    core::{entities::VID, state::compute_state::ComputeStateVec},
+    core::{
+        entities::{vertices::vertex_ref::VertexRef, VID},
+        state::compute_state::ComputeStateVec,
+    },
     db::{
         api::view::{GraphViewOps, VertexViewOps},
         graph::views::vertex_subgraph::VertexSubgraph,
@@ -80,10 +83,19 @@ where
         vec![Job::read_only(step2)],
         KCoreState::new(),
         |_, _, _, local| {
+            let layers = graph.layer_ids();
+            let edge_filter = graph.edge_filter();
             local
                 .iter()
                 .enumerate()
-                .filter(|(_, state)| state.alive)
+                .filter(|(v_ref, state)| {
+                    state.alive
+                        && graph.has_vertex_ref(
+                            VertexRef::Internal((*v_ref).into()),
+                            &layers,
+                            edge_filter,
+                        )
+                })
                 .map(|(v_ref, _)| v_ref.into())
                 .collect::<HashSet<VID>>()
         },
@@ -107,6 +119,7 @@ where
     graph.subgraph(v_set)
 }
 
+#[cfg(test)]
 mod k_core_test {
     use std::collections::HashSet;
 

@@ -404,19 +404,27 @@ impl Repr for PyVertex {
 
 impl Repr for VertexView<DynamicGraph> {
     fn repr(&self) -> String {
+        let earliest_time = self.earliest_time().unwrap_or_default();
+        let latest_time = self.latest_time().unwrap_or_default();
         let properties: String = self
             .properties()
             .iter()
             .map(|(k, v)| format!("{}: {}", k.deref(), v))
             .join(", ");
         if properties.is_empty() {
-            format!("Vertex(name={})", self.name().trim_matches('"'))
-        } else {
-            let property_string: String = format!("{{{properties}}}");
             format!(
-                "Vertex(name={}, properties={})",
+                "Vertex(name={}, earliest_time={:?}, latest_time={:?})",
                 self.name().trim_matches('"'),
-                property_string
+                earliest_time,
+                latest_time
+            )
+        } else {
+            format!(
+                "Vertex(name={}, earliest_time={:?}, latest_time={:?}, properties={})",
+                self.name().trim_matches('"'),
+                earliest_time,
+                latest_time,
+                format!("{{{properties}}}")
             )
         }
     }

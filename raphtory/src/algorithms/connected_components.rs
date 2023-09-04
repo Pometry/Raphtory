@@ -1,6 +1,6 @@
 use super::algorithm_result::AlgorithmResult;
 use crate::{
-    core::state::compute_state::ComputeStateVec,
+    core::{entities::vertices::vertex_ref::VertexRef, state::compute_state::ComputeStateVec},
     db::{
         api::view::{GraphViewOps, VertexViewOps},
         task::{
@@ -81,10 +81,16 @@ where
             vec![Job::read_only(step2)],
             WccState::new(),
             |_, _, _, local| {
+                let layers = graph.layer_ids();
+                let edge_filter = graph.edge_filter();
                 local
                     .iter()
                     .enumerate()
-                    .map(|(v_ref, state)| (v_ref.into(), state.component))
+                    .filter_map(|(v_ref, state)| {
+                        graph
+                            .has_vertex_ref(VertexRef::Internal(v_ref.into()), &layers, edge_filter)
+                            .then_some((v_ref.into(), state.component))
+                    })
                     .collect::<HashMap<_, _>>()
             },
             threads,
@@ -247,7 +253,7 @@ mod cc_test {
         let results: AlgorithmResult<String, u64> =
             weakly_connected_components(&wg, usize::MAX, None);
 
-        let expected = vec![("1", 1), ("2", 1), ("3", 0), ("4", 0)]
+        let expected = vec![("1", 1), ("2", 1)]
             .into_iter()
             .map(|(k, v)| (k.to_string(), v))
             .collect::<HashMap<String, u64>>();

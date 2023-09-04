@@ -1,8 +1,11 @@
 use crate::{
     algorithms::algorithm_result::AlgorithmResult,
-    core::state::{
-        accumulator_id::accumulators::{max, sum},
-        compute_state::ComputeStateVec,
+    core::{
+        entities::vertices::vertex_ref::VertexRef,
+        state::{
+            accumulator_id::accumulators::{max, sum},
+            compute_state::ComputeStateVec,
+        },
     },
     db::{
         api::view::{GraphViewOps, VertexViewOps},
@@ -132,10 +135,14 @@ pub fn hits<G: GraphViewOps>(
         |_, _, els, local| {
             let mut hubs = HashMap::new();
             let mut auths = HashMap::new();
+            let layers = g.layer_ids();
+            let edge_filter = g.edge_filter();
             for (v_ref, hit) in local.iter().enumerate() {
-                let v_gid = g.vertex_name(v_ref.into());
-                hubs.insert(v_gid.clone(), hit.hub_score);
-                auths.insert(v_gid, hit.auth_score);
+                if g.has_vertex_ref(VertexRef::Internal(v_ref.into()), &layers, edge_filter) {
+                    let v_gid = g.vertex_name(v_ref.into());
+                    hubs.insert(v_gid.clone(), hit.hub_score);
+                    auths.insert(v_gid, hit.auth_score);
+                }
             }
             (hubs, auths)
         },

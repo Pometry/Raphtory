@@ -1,7 +1,7 @@
 use crate::model::{
     filters::{
-        primitives::{NumberFilter, StringFilter, StringVecFilter},
-        property::PropertyHasFilter,
+        primitive_filter::{NumberFilter, StringFilter, StringVecFilter},
+        property_filter::PropertyHasFilter,
     },
     graph::node::Node,
 };
@@ -68,7 +68,7 @@ impl NodeFilter {
         }
 
         if let Some(property_has_filter) = &self.property_has {
-            if !property_has_filter.matches(&node) {
+            if !property_has_filter.matches_node_properties(&node) {
                 return false;
             }
         }

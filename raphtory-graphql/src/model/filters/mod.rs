@@ -1,4 +1,4 @@
-pub(crate) mod edgefilter;
-pub(crate) mod nodefilter;
-pub(crate) mod primitives;
-pub(crate) mod property;
+pub(crate) mod edge_filter;
+pub(crate) mod node_filter;
+pub(crate) mod primitive_filter;
+pub(crate) mod property_filter;

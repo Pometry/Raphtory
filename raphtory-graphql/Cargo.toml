@@ -13,7 +13,7 @@ readme.workspace = true
 homepage.workspace = true
 
 [dependencies]
-raphtory = { path = "../raphtory", version = "0.5.2" }
+raphtory = { path = "../raphtory", version = "0.5.4" }
 bincode = "1"
 base64 = "0.21.2"
 thiserror = "1.0.44"
