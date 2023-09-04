@@ -50,15 +50,30 @@ impl<G: GraphViewOps> VectorStore<G> {
         // }
         // ---------------------------------------------------
 
-        let embeddings = docs
-            .map(|doc| (doc.id, doc_to_vec(doc, cache_dir)))
-            .collect_vec();
+        let mut embeddings = vec![];
+        let mut pendings = vec![];
+
+        for doc in docs {
+            match retrieve_embedding_from_cache(&doc, cache_dir) {
+                Some(embedding) => embeddings.push((doc.id, embedding)),
+                None => pendings.push(doc),
+            }
+        }
+
+        let computed_embeddings = pendings
+            .chunks(100)
+            .map(|chunk| compute_embeddings_with_cache(chunk.to_vec(), cache_dir))
+            .flatten();
+
+        for (id, embedding) in computed_embeddings {
+            embeddings.push((id, embedding));
+        }
 
         VectorStore { graph, embeddings }
     }
 
     pub fn search(&self, query: &str, limit: usize) -> Vec<String> {
-        let query_embedding = compute_embedding(vec![query.to_owned()]).remove(0);
+        let query_embedding = compute_embeddings(vec![query.to_owned()]).remove(0);
 
         let distances = self
             .embeddings
@@ -87,7 +102,7 @@ fn cosine(vector1: &Embedding, vector2: &Embedding) -> f32 {
     dot_product
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct EntityDocument {
     id: u64,
     content: String,
@@ -101,31 +116,33 @@ struct EmbeddingCache {
 
 type Embedding = Vec<f32>;
 
-fn doc_to_vec(doc: EntityDocument, cache_dir: &Path) -> Embedding {
-    let doc_path = cache_dir.join(doc.id.to_string());
-    // It'd be better if we reused the same vector if two different docs are equal,
-    // but that shouldn't happen anyways
-
-    match retrieve_embedding_from_cache(&doc, &doc_path) {
-        None => {
+fn compute_embeddings_with_cache(
+    docs: Vec<EntityDocument>,
+    cache_dir: &Path,
+) -> Vec<(u64, Embedding)> {
+    let texts = docs.iter().map(|doc| doc.content.clone()).collect_vec();
+    let embeddings = compute_embeddings(texts);
+    docs.into_iter()
+        .zip(embeddings)
+        .map(|(doc, embedding)| {
             let doc_hash = hash_doc(&doc); // FIXME: I'm hashing twice
-            let embedding = compute_embedding(vec![doc.content]).remove(0);
             let embedding_cache = EmbeddingCache {
                 doc_hash,
                 embedding,
             };
+            let doc_path = cache_dir.join(doc.id.to_string());
             let doc_file =
                 File::create(doc_path).expect("Couldn't create file to store embedding cache");
             let mut doc_writer = BufWriter::new(doc_file);
             bincode::serialize_into(&mut doc_writer, &embedding_cache)
                 .expect("Couldn't serialize embedding cache");
-            embedding_cache.embedding
-        }
-        Some(embedding) => embedding,
-    }
+            (doc.id, embedding_cache.embedding)
+        })
+        .collect_vec()
 }
 
-fn compute_embedding(texts: Vec<String>) -> Vec<Embedding> {
+fn compute_embeddings(texts: Vec<String>) -> Vec<Embedding> {
+    println!("computing embeddings for {} texts", texts.len());
     Python::with_gil(|py| {
         let sentence_transformers = py.import("sentence_transformers")?;
         let locals = [("sentence_transformers", sentence_transformers)].into_py_dict(py);
@@ -134,7 +151,7 @@ fn compute_embedding(texts: Vec<String>) -> Vec<Embedding> {
         let pyarray: &PyArray2<f32> = py
             .eval(
                 &format!(
-                    "sentence_transformers.SentenceTransformer('thenlper/gte-small').encode(texts + ['test'])"
+                    "sentence_transformers.SentenceTransformer('thenlper/gte-small').encode(texts)"
                 ),
                 Some(locals),
                 None,
@@ -143,8 +160,9 @@ fn compute_embedding(texts: Vec<String>) -> Vec<Embedding> {
 
         let readonly = pyarray.readonly();
         let chunks = readonly.as_slice().unwrap().chunks(384).into_iter();
-        let embeddings = chunks.map(|chunk| chunk.iter().copied().collect_vec()).collect_vec();
-
+        let embeddings = chunks
+            .map(|chunk| chunk.iter().copied().collect_vec())
+            .collect_vec();
 
         Ok::<Vec<Vec<f32>>, Box<dyn std::error::Error>>(embeddings)
     })
@@ -165,7 +183,8 @@ fn compute_embedding(texts: Vec<String>) -> Vec<Embedding> {
 //     response.data.into_iter().map(|e| e.embedding).collect_vec()
 // }
 
-fn retrieve_embedding_from_cache(doc: &EntityDocument, doc_path: &Path) -> Option<Embedding> {
+fn retrieve_embedding_from_cache(doc: &EntityDocument, cache_dir: &Path) -> Option<Embedding> {
+    let doc_path = cache_dir.join(doc.id.to_string());
     let doc_file = File::open(doc_path).ok()?;
     let mut doc_reader = BufReader::new(doc_file);
     let embedding_cache: EmbeddingCache = bincode::deserialize_from(&mut doc_reader).ok()?;
