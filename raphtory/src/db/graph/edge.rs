@@ -9,11 +9,15 @@ use super::views::layer_graph::LayeredGraph;
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, VID},
-        storage::locked_view::LockedView,
-        utils::time::IntoTime,
+        storage::{locked_view::LockedView, timeindex::TimeIndexEntry},
+        utils::{errors::GraphError, time::IntoTime},
     },
     db::{
         api::{
+            mutation::{
+                internal::{InternalAdditionOps, InternalPropertyAdditionOps},
+                CollectProperties, TryIntoInputTime,
+            },
             properties::{
                 internal::{
                     ConstPropertiesOps, Key, TemporalPropertiesOps, TemporalPropertyViewOps,
@@ -72,6 +76,38 @@ impl<G: GraphViewOps> EdgeViewInternalOps<G, VertexView<G>> for EdgeView<G> {
             graph: self.graph(),
             edge: e,
         }
+    }
+}
+
+impl<G: GraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> EdgeView<G> {
+    pub fn add_constant_properties<C: CollectProperties>(
+        &self,
+        props: C,
+        layer: Option<&str>,
+    ) -> Result<(), GraphError> {
+        self.graph.internal_add_edge_properties(
+            self.src().id(),
+            self.dst().id(),
+            props.collect_properties(),
+            layer,
+        )
+    }
+
+    pub fn add_updates<C: CollectProperties, T: TryIntoInputTime>(
+        &self,
+        time: T,
+        props: C,
+        layer: Option<&str>,
+    ) -> Result<(), GraphError> {
+        let t = TimeIndexEntry::from_input(&self.graph, time)?;
+        self.graph.internal_add_edge(
+            t,
+            self.src().id(),
+            self.dst().id(),
+            props.collect_properties(),
+            layer,
+        )?;
+        Ok(())
     }
 }
 
@@ -319,6 +355,7 @@ pub type EdgeList<G> = Box<dyn Iterator<Item = EdgeView<G>> + Send>;
 #[cfg(test)]
 mod test_edge {
     use crate::{core::IntoPropMap, prelude::*};
+    use itertools::Itertools;
     use std::collections::HashMap;
 
     #[test]
@@ -368,5 +405,40 @@ mod test_edge {
                 )
             }
         }
+    }
+
+    #[test]
+    fn test_property_additions() {
+        let g = Graph::new();
+        let props = [("test", "test")];
+        let e1 = g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
+        e1.add_updates(2, props, None).unwrap();
+        e1.add_updates(2, props, Some("test2")).unwrap();
+        let layered_views = e1.explode_layers().collect_vec();
+        for ev in layered_views {
+            ev.add_updates(1, props, Some("test")).unwrap()
+        }
+        let e1_w = e1.window(0, 1);
+        assert_eq!(
+            e1.properties().as_map(),
+            props
+                .into_iter()
+                .map(|(k, v)| (k.to_string(), v.into_prop()))
+                .collect()
+        );
+        assert_eq!(e1_w.properties().as_map(), HashMap::default())
+    }
+
+    #[test]
+    fn test_constant_property_additions() {
+        let g = Graph::new();
+        let e = g.add_edge(0, 1, 2, NO_PROPS, Some("test")).unwrap();
+        assert!(e.add_constant_properties([("test", "test")], None).is_err());
+        assert!(e
+            .add_constant_properties([("test", "test")], Some("test2"))
+            .is_err());
+        e.add_constant_properties([("test", "test")], Some("test"))
+            .unwrap();
+        assert_eq!(e.properties().get("test"), Some("test".into()))
     }
 }
