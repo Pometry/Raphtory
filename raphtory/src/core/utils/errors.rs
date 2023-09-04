@@ -20,6 +20,17 @@ pub enum GraphError {
         #[from]
         source: ParseTimeError,
     },
+    #[error("No Vertex with ID {0}")]
+    VertexIdError(u64),
+
+    #[error("No Vertex with name {0}")]
+    VertexNameError(String),
+
+    #[error("No Edge between {src} and {dst}")]
+    EdgeIdError { src: u64, dst: u64 },
+
+    #[error("No Edge between {src} and {dst}")]
+    EdgeNameError { src: String, dst: String },
     // wasm
     #[error("Vertex is not String or Number")]
     VertexIdNotStringOrNumber,

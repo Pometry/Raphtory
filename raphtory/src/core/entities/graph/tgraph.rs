@@ -451,7 +451,7 @@ impl<const N: usize> TemporalGraph<N> {
         edge_id: EID,
         props: Vec<(String, Prop)>,
         layer: usize,
-    ) -> Result<(), IllegalSet<Option<Prop>>> {
+    ) -> Result<(), IllegalMutate> {
         let mut edge = self.storage.get_edge_mut(edge_id.into());
 
         let props = self
@@ -461,7 +461,12 @@ impl<const N: usize> TemporalGraph<N> {
 
         let mut layer = edge.layer_mut(layer);
         for (prop_id, prop) in props {
-            layer.add_static_prop(prop_id, prop)?
+            layer.add_static_prop(prop_id, prop).map_err(|err| {
+                IllegalMutate::from_source(
+                    err,
+                    &self.edge_meta.reverse_prop_id(prop_id, true).unwrap(),
+                )
+            })?;
         }
         Ok(())
     }

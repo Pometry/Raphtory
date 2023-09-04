@@ -138,22 +138,22 @@ impl PyGraph {
             .add_vertex(timestamp, id, properties.unwrap_or_default())
     }
 
-    /// add_vertex_properties(self, id: str | int, properties: dict) -> None
-    /// Adds properties to an existing vertex.
-    ///
-    /// Arguments:
-    ///     id (str or int): The id of the vertex.
-    ///     properties (dict): The properties of the vertex.
-    ///
-    /// Returns:
-    ///    None
-    pub fn add_vertex_properties(
-        &self,
-        id: PyInputVertex,
-        properties: HashMap<String, Prop>,
-    ) -> Result<(), GraphError> {
-        self.graph.add_vertex_properties(id, properties)
-    }
+    // /// add_vertex_properties(self, id: str | int, properties: dict) -> None
+    // /// Adds properties to an existing vertex.
+    // ///
+    // /// Arguments:
+    // ///     id (str or int): The id of the vertex.
+    // ///     properties (dict): The properties of the vertex.
+    // ///
+    // /// Returns:
+    // ///    None
+    // pub fn add_vertex_properties(
+    //     &self,
+    //     id: PyInputVertex,
+    //     properties: HashMap<String, Prop>,
+    // ) -> Result<(), GraphError> {
+    //     self.graph.add_vertex_properties(id, properties)
+    // }
 
     /// Adds properties to the graph.
     ///
@@ -178,8 +178,11 @@ impl PyGraph {
     ///
     /// Returns:
     ///    None
-    pub fn add_static_property(&self, properties: HashMap<String, Prop>) -> Result<(), GraphError> {
-        self.graph.add_static_properties(properties)
+    pub fn add_constant_properties(
+        &self,
+        properties: HashMap<String, Prop>,
+    ) -> Result<(), GraphError> {
+        self.graph.add_constant_properties(properties)
     }
 
     /// Adds a new edge with the given source and destination vertices and properties to the graph.
@@ -204,27 +207,6 @@ impl PyGraph {
     ) -> Result<EdgeView<Graph>, GraphError> {
         self.graph
             .add_edge(timestamp, src, dst, properties.unwrap_or_default(), layer)
-    }
-
-    /// Adds properties to an existing edge.
-    ///
-    /// Arguments:
-    ///    src (str or int): The id of the source vertex.
-    ///    dst (str or int): The id of the destination vertex.
-    ///    properties (dict): The properties of the edge, as a dict of string and properties
-    ///    layer (str): The layer of the edge.
-    ///
-    /// Returns:
-    ///  None
-    #[pyo3(signature = (src, dst, properties, layer=None))]
-    pub fn add_edge_properties(
-        &self,
-        src: PyInputVertex,
-        dst: PyInputVertex,
-        properties: HashMap<String, Prop>,
-        layer: Option<&str>,
-    ) -> Result<(), GraphError> {
-        self.graph.add_edge_properties(src, dst, properties, layer)
     }
 
     //******  Saving And Loading  ******//

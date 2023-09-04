@@ -321,19 +321,21 @@ mod test_edges {
     fn test_edge_properties_for_layers() {
         let g = Graph::new();
 
-        g.add_edge(0, 1, 2, [("t", 0)], Some("layer1")).unwrap();
-        g.add_edge(1, 1, 2, [("t", 1)], Some("layer2")).unwrap();
-        g.add_edge(2, 1, 2, [("t2", 2)], Some("layer3")).unwrap();
-        g.add_edge_properties(
-            1,
-            2,
-            [("layer1", "1".into_prop()), ("layer", 1.into_prop())],
-            Some("layer1"),
-        )
-        .unwrap();
-        g.add_edge_properties(1, 2, [("layer", 2)], Some("layer2"))
+        g.add_edge(0, 1, 2, [("t", 0)], Some("layer1"))
+            .unwrap()
+            .add_constant_properties(
+                [("layer1", "1".into_prop()), ("layer", 1.into_prop())],
+                Some("layer1"),
+            )
             .unwrap();
-        g.add_edge_properties(1, 2, [("layer", 3)], Some("layer3"))
+        g.add_edge(1, 1, 2, [("t", 1)], Some("layer2"))
+            .unwrap()
+            .add_constant_properties([("layer", 2)], Some("layer2"))
+            .unwrap();
+
+        g.add_edge(2, 1, 2, [("t2", 2)], Some("layer3"))
+            .unwrap()
+            .add_constant_properties([("layer", 3)], Some("layer3"))
             .unwrap();
 
         let e_all = g.edge(1, 2).unwrap();

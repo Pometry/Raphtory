@@ -1,7 +1,9 @@
 use crate::{
     core::{
-        entities::vertices::vertex_ref::VertexRef, storage::timeindex::TimeIndexEntry,
-        utils::errors::GraphError, Prop,
+        entities::{vertices::vertex_ref::VertexRef, EID},
+        storage::{lazy_vec::IllegalSet, timeindex::TimeIndexEntry},
+        utils::errors::{GraphError, IllegalMutate},
+        Prop,
     },
     db::api::view::internal::Base,
 };
@@ -25,11 +27,10 @@ pub trait InternalPropertyAdditionOps {
 
     fn internal_add_edge_properties(
         &self,
-        src: VertexRef,
-        dst: VertexRef,
+        eid: EID,
         props: Vec<(String, Prop)>,
         layer: usize,
-    ) -> Result<(), GraphError>;
+    ) -> Result<(), IllegalMutate>;
 }
 
 pub trait InheritPropertyAdditionOps: Base {}
@@ -78,12 +79,10 @@ impl<G: DelegatePropertyAdditionOps> InternalPropertyAdditionOps for G {
     #[inline(always)]
     fn internal_add_edge_properties(
         &self,
-        src: VertexRef,
-        dst: VertexRef,
+        eid: EID,
         props: Vec<(String, Prop)>,
         layer: usize,
-    ) -> Result<(), GraphError> {
-        self.graph()
-            .internal_add_edge_properties(src, dst, props, layer)
+    ) -> Result<(), IllegalMutate> {
+        self.graph().internal_add_edge_properties(eid, props, layer)
     }
 }

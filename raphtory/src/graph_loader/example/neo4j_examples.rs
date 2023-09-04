@@ -23,21 +23,16 @@ fn load_movies(row: Row, graph: &rap::Graph) {
 
     graph
         .add_vertex(actor_born, actor_name.clone(), NO_PROPS)
-        .unwrap();
-    graph
-        .add_vertex_properties(actor_name.clone(), [("type", "actor")])
+        .unwrap()
+        .add_constant_properties([("type", "actor")])
         .unwrap();
     graph
         .add_vertex(film_release, film_title.clone(), NO_PROPS)
-        .unwrap();
-    graph
-        .add_vertex_properties(
-            film_title.clone(),
-            [
-                ("type", "film".into_prop()),
-                ("tagline", film_tagline.into_prop()),
-            ],
-        )
+        .unwrap()
+        .add_constant_properties([
+            ("type", "film".into_prop()),
+            ("tagline", film_tagline.into_prop()),
+        ])
         .unwrap();
     graph
         .add_edge(

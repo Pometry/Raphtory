@@ -10,7 +10,10 @@ use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, VID},
         storage::{locked_view::LockedView, timeindex::TimeIndexEntry},
-        utils::{errors::GraphError, time::IntoTime},
+        utils::{
+            errors::{GraphError, MutateGraphError},
+            time::IntoTime,
+        },
     },
     db::{
         api::{
@@ -95,26 +98,56 @@ impl<G: GraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> EdgeVi
         props: C,
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
+        let props = props.collect_properties();
+        let input_layer_id = layer
+            .map(|name| {
+                self.graph
+                    .get_layer_id(name)
+                    .ok_or(GraphError::InvalidLayer)
+            })
+            .transpose()?;
         match self.edge.layer() {
-            Some(id) => {
-                let input_layer_id = layer
-                    .map(|name| {
+            Some(id) => match input_layer_id {
+                Some(input_id) => {
+                    if *id == input_id {
                         self.graph
-                            .get_layer_id(name)
-                            .ok_or(GraphError::InvalidLayer)
-                    })
-                    .transpose()?;
-                match input_layer_id {
-                    Some(input_id) => if *id == input_id {},
+                            .internal_add_edge_properties(self.edge.pid(), props, input_id)
+                            .map_err(|err| {
+                                MutateGraphError::IllegalEdgePropertyChange {
+                                    src_id: self.src().id(),
+                                    dst_id: self.dst().id(),
+                                    source: err,
+                                }
+                                .into()
+                            })
+                    } else {
+                        Err(GraphError::InvalidLayer)
+                    }
                 }
-            }
+                None => self
+                    .graph
+                    .internal_add_edge_properties(self.edge.pid(), props, *id)
+                    .map_err(|err| {
+                        MutateGraphError::IllegalEdgePropertyChange {
+                            src_id: self.src().id(),
+                            dst_id: self.dst().id(),
+                            source: err,
+                        }
+                        .into()
+                    }),
+            },
+            None => self
+                .graph
+                .internal_add_edge_properties(self.edge.pid(), props, input_layer_id.unwrap_or(0))
+                .map_err(|err| {
+                    MutateGraphError::IllegalEdgePropertyChange {
+                        src_id: self.src().id(),
+                        dst_id: self.dst().id(),
+                        source: err,
+                    }
+                    .into()
+                }),
         }
-        self.graph.internal_add_edge_properties(
-            self.src().id(),
-            self.dst().id(),
-            props.collect_properties(),
-            layer,
-        )
     }
 
     pub fn add_updates<C: CollectProperties, T: TryIntoInputTime>(
@@ -398,11 +431,13 @@ mod test_edge {
     #[test]
     fn test_constant_properties() {
         let g = Graph::new();
-        g.add_edge(1, 1, 2, NO_PROPS, Some("layer 1")).unwrap();
-        g.add_edge(1, 2, 3, NO_PROPS, Some("layer 2")).unwrap();
-        g.add_edge_properties(1, 2, [("test_prop", "test_val")], Some("layer 1"))
+        g.add_edge(1, 1, 2, NO_PROPS, Some("layer 1"))
+            .unwrap()
+            .add_constant_properties([("test_prop", "test_val")], Some("layer 1"))
             .unwrap();
-        g.add_edge_properties(2, 3, [("test_prop", "test_val")], Some("layer 2"))
+        g.add_edge(1, 2, 3, NO_PROPS, Some("layer 2"))
+            .unwrap()
+            .add_constant_properties([("test_prop", "test_val")], Some("layer 2"))
             .unwrap();
 
         assert_eq!(
