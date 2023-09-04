@@ -59,7 +59,7 @@ def test_pyprophistvaluelist():
     for (src, dst, val, time) in edges_str:
         g.add_edge(time, src, dst, {'value_dec': val})
     v = g.vertex("1")
-    res = v.out_edges().properties.temporal.get("value_dec").values() # PyPropHistValueList([[10, 10, 10], [20], [2]])
+    res = v.out_edges().properties.temporal.get("value_dec").values()  # PyPropHistValueList([[10, 10, 10], [20], [2]])
     assert res.sum() == [120, 20, 8]
     assert res.min() == [10, 20, 1]
     assert res.max() == [100, 20, 5]
@@ -67,8 +67,8 @@ def test_pyprophistvaluelist():
     assert sorted(res.len()) == [1, 3, 3]
     assert sorted(res.count()) == [1, 3, 3]
     assert res.median() == [10, 20, 2]
-    assert list(res.mean()) == [40, 20, 8/3]
-    assert list(res.average()) == [40, 20, 8/3]
+    assert list(res.mean()) == [40, 20, 8 / 3]
+    assert list(res.average()) == [40, 20, 8 / 3]
 
 
 def test_propiterable():
@@ -150,8 +150,8 @@ def test_pypropvalue_list_listlist():
     for (src, dst, val, time) in edges_str:
         g.add_edge(time, src, dst, {'value_dec': val})
     v = g.vertex("1")
-    res = g.edges().properties.get("value_dec") # PyPropValueList([100, 20, 5, 5, 5, 10, 1, 2])
-    res_v = v.edges().properties.get("value_dec") # PyPropValueList([100, 5, 20, 1, 5])
+    res = g.edges().properties.get("value_dec")  # PyPropValueList([100, 20, 5, 5, 5, 10, 1, 2])
+    res_v = v.edges().properties.get("value_dec")  # PyPropValueList([100, 5, 20, 1, 5])
     res_ll = g.vertices().edges().properties.get("value_dec")
 
     assert res.sum() == 148
@@ -178,22 +178,23 @@ def test_pypropvalue_list_listlist():
     assert res_v.mean() == res_v.average() == 26.2
     assert res_ll.mean() == res_ll.average() == [26.2, 35.666666666666664, 11.666666666666666, 4.5, 5.0]
 
+
 def test_pytemporalprops():
     g = Graph()
     edges_str = [
-            ("1", "2", 10, 1),
-            ("1", "2", 10, 2),
-            ("1", "2", 100, 3),
-            ("1", "4", 20, 2),
-            ("2", "3", 5, 3),
-            ("3", "2", 2, 4),
-            ("3", "1", 1, 5),
-            ("4", "3", 10, 6),
-            ("4", "1", 5, 7),
-            ("1", "5", 2, 8),
-            ("1", "5", 1, 9),
-            ("1", "5", 5, 10)
-        ]
+        ("1", "2", 10, 1),
+        ("1", "2", 10, 2),
+        ("1", "2", 100, 3),
+        ("1", "4", 20, 2),
+        ("2", "3", 5, 3),
+        ("3", "2", 2, 4),
+        ("3", "1", 1, 5),
+        ("4", "3", 10, 6),
+        ("4", "1", 5, 7),
+        ("1", "5", 2, 8),
+        ("1", "5", 1, 9),
+        ("1", "5", 5, 10)
+    ]
     for (src, dst, val, time) in edges_str:
         g.add_edge(time, src, dst, {'value_dec': val})
     v = g.vertex("1")
@@ -205,3 +206,4 @@ def test_pytemporalprops():
     assert res.count() == res.len() == 3
     assert res.mean() == res.average() == 40.0
     assert res.median() == (2, 10)
+
