@@ -214,7 +214,7 @@ mod test_edge_view {
         g.add_edge(0, 2, 3, [("second", true)], None).unwrap();
 
         let mut exploded_edges: Vec<_> = g.edges().explode().collect();
-        exploded_edges.sort_by(|a, b| a.time_and_index().cmp(&b.time_and_index()));
+        exploded_edges.sort_by_key(|a| a.time_and_index());
 
         let res: Vec<_> = exploded_edges
             .into_iter()
