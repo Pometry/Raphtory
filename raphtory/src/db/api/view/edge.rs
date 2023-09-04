@@ -1,7 +1,7 @@
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, VID},
-        storage::timeindex::AsTime,
+        storage::timeindex::{AsTime, TimeIndexEntry},
     },
     db::api::{
         properties::{
@@ -105,6 +105,11 @@ pub trait EdgeViewOps:
         self.eref().time().map(|ti| *ti.t())
     }
 
+    /// Gets the TimeIndexEntry if the edge is exploded
+    fn time_and_index(&self) -> Option<TimeIndexEntry> {
+        self.eref().time()
+    }
+
     /// Gets the name of the layer this edge belongs to
     fn layer_names(&self) -> Vec<String> {
         let layer_ids = self
@@ -198,5 +203,37 @@ mod test_edge_view {
             .collect();
         assert_eq!(prop_values, expected_prop_values);
         assert_eq!(actual_layers, expected_layers);
+    }
+
+    #[test]
+    fn test_sorting_by_secondary_index() {
+        let g = Graph::new();
+        g.add_edge(0, 2, 3, NO_PROPS, None).unwrap();
+        g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
+        g.add_edge(0, 1, 2, [("second", true)], None).unwrap();
+        g.add_edge(0, 2, 3, [("second", true)], None).unwrap();
+
+        let mut exploded_edges: Vec<_> = g.edges().explode().collect();
+        exploded_edges.sort_by_key(|a| a.time_and_index());
+
+        let res: Vec<_> = exploded_edges
+            .into_iter()
+            .map(|e| {
+                (
+                    e.src().id(),
+                    e.dst().id(),
+                    e.properties().get("second").into_bool(),
+                )
+            })
+            .collect();
+        assert_eq!(
+            res,
+            vec![
+                (2, 3, None),
+                (1, 2, None),
+                (1, 2, Some(true)),
+                (2, 3, Some(true))
+            ]
+        )
     }
 }
