@@ -248,6 +248,65 @@ impl PyTemporalProp {
         self.prop.latest()
     }
 
+    pub fn sum(&self) -> Prop {
+        let mut it_iter = self.prop.iter();
+        let first = it_iter.next().unwrap();
+        it_iter.fold(first.1, |acc, elem| acc.add(elem.1).unwrap())
+    }
+
+    pub fn min(&self) -> (i64, Prop) {
+        let mut it_iter = self.prop.iter();
+        let first = it_iter.next().unwrap();
+        it_iter.fold(first, |acc, elem| if acc.1 <= elem.1 { acc } else { elem })
+    }
+
+    pub fn max(&self) -> (i64, Prop) {
+        let mut it_iter = self.prop.iter();
+        let first = it_iter.next().unwrap();
+        it_iter.fold(first, |acc, elem| if acc.1 >= elem.1 { acc } else { elem })
+    }
+
+    pub fn len(&self) -> usize {
+        self.prop.iter().count()
+    }
+
+    pub fn count(&self) -> usize {
+        self.len()
+    }
+
+    pub fn average(&self) -> Option<Prop> {
+        self.mean()
+    }
+
+    pub fn mean(&self) -> Option<Prop> {
+        let sum: Prop = self.sum();
+        let count: usize = self.len();
+        match sum {
+            Prop::I32(s) => Some(Prop::F32(s as f32 / count as f32)),
+            Prop::I64(s) => Some(Prop::F64(s as f64 / count as f64)),
+            Prop::U32(s) => Some(Prop::F32(s as f32 / count as f32)),
+            Prop::U64(s) => Some(Prop::F64(s as f64 / count as f64)),
+            Prop::F32(s) => Some(Prop::F32(s / count as f32)),
+            Prop::F64(s) => Some(Prop::F64(s / count as f64)),
+            _ => None,
+        }
+    }
+
+    pub fn median(&self) -> Option<(i64, Prop)> {
+        let it_iter = self.prop.iter();
+        let mut vec: Vec<(i64, Prop)> = it_iter.collect_vec();
+        // let mut vec: Vec<(i64, Prop)> = it_iter.map(|(t, v)| (t, v.clone())).collect();
+        vec.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+        let len = vec.len();
+        if len == 0 {
+            return None;
+        }
+        if len % 2 == 0 {
+            return Some(vec[len / 2 - 1].clone());
+        }
+        Some(vec[len / 2].clone())
+    }
+
     pub fn __repr__(&self) -> String {
         self.prop.repr()
     }
