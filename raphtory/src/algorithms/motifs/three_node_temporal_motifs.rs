@@ -228,26 +228,38 @@ pub fn triangle_motifs<G: GraphViewOps>(
 
                         let all_exploded = vec![u.id(), v.id(), *w]
                             .into_iter()
+                            .sorted()
                             .permutations(2)
-                            .flat_map(|e| {
+                            .map(|e| {
                                 g
                                     .edge(e.get(0).unwrap().clone(), e.get(1).unwrap().clone())
                                     .iter()
                                     .flat_map(|edge| edge.explode())
                                     .collect::<Vec<_>>()
                             })
-                            .sorted_by_key(|e| (e.time(), e.src().id(), e.dst().id()))
+                            .kmerge_by(|e1,e2| e1.time() < e2.time())
                             .map(|e| {
-                                let uv_edge = (e.src().id()==u.id() && e.dst().id()==v.id()) || (e.src().id() == v.id() && e.dst().id() == u.id());
-                                if uv_edge {
-                                    if e.src().id()==u.id() {
+                                let (src_id, dst_id) = (e.src().id(), e.dst().id());
+                                let (uid, vid) = (u.id(), v.id());
+                                if src_id==w.clone() {
+                                    new_triangle_edge(false, if dst_id==uid {0} else {1}, 0, 0, e.time().unwrap())
+                                } else if dst_id == w.clone() {
+                                    new_triangle_edge(false, if src_id==uid {0} else {1}, 0, 1, e.time().unwrap())
+                                } else if src_id == uid {
                                     new_triangle_edge(true, 1, 0, 1, e.time().unwrap())
-                                } else {new_triangle_edge(true, 0, 0, 0, e.time().unwrap())}
                                 } else {
-                                    if e.src().id() == u.id() || e.dst().id() == u.id() {
-                                        new_triangle_edge(false, 0, 0, if e.src().id() == u.id() {1} else {0}, e.time().unwrap())
-                                    } else {new_triangle_edge(false, 1, 0, if e.src().id() == v.id() {1} else {0}, e.time().unwrap())}
+                                    new_triangle_edge(true, 0, 0, 0, e.time().unwrap())
                                 }
+                                // let uv_edge = (e.src().id()==u.id() && e.dst().id()==v.id()) || (e.src().id() == v.id() && e.dst().id() == u.id());
+                                // if uv_edge {
+                                //     if e.src().id()==u.id() {
+                                //     new_triangle_edge(true, 1, 0, 1, e.time().unwrap())
+                                // } else {new_triangle_edge(true, 0, 0, 0, e.time().unwrap())}
+                                // } else {
+                                //     if e.src().id() == u.id() || e.dst().id() == u.id() {
+                                //         new_triangle_edge(false, 0, 0, if e.src().id() == u.id() {1} else {0}, e.time().unwrap())
+                                //     } else {new_triangle_edge(false, 1, 0, if e.src().id() == v.id() {1} else {0}, e.time().unwrap())}
+                                // }
                             }).collect::<Vec<TriangleEdge>>();
 
                         let mut tri_count = init_tri_count(2);
