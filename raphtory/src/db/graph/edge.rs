@@ -140,8 +140,8 @@ impl<G: GraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> EdgeVi
 
         self.graph.internal_add_edge(
             t,
-            self.src().id(),
-            self.dst().id(),
+            self.edge.src(),
+            self.edge.dst(),
             props.collect_properties(),
             layer_id,
         )?;

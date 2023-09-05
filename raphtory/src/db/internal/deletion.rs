@@ -1,6 +1,6 @@
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, graph::tgraph::InnerTemporalGraph, LayerIds},
+        entities::{edges::edge_ref::EdgeRef, graph::tgraph::InnerTemporalGraph, LayerIds, VID},
         storage::timeindex::{LockedLayeredIndex, TimeIndexEntry},
         utils::errors::GraphError,
     },
@@ -11,9 +11,9 @@ impl<const N: usize> InternalDeletionOps for InnerTemporalGraph<N> {
     fn internal_delete_edge(
         &self,
         t: TimeIndexEntry,
-        src: u64,
-        dst: u64,
-        layer: Option<&str>,
+        src: VID,
+        dst: VID,
+        layer: usize,
     ) -> Result<(), GraphError> {
         self.inner().delete_edge(t, src, dst, layer)
     }

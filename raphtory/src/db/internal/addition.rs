@@ -23,10 +23,15 @@ impl<const N: usize> InternalAdditionOps for InnerTemporalGraph<N> {
     }
 
     #[inline]
+    fn resolve_vertex(&self, id: u64) -> VID {
+        self.inner().resolve_vertex(id)
+    }
+
+    #[inline]
     fn internal_add_vertex(
         &self,
         t: TimeIndexEntry,
-        v: u64,
+        v: VID,
         name: Option<&str>,
         props: Vec<(String, Prop)>,
     ) -> Result<VID, GraphError> {
@@ -37,8 +42,8 @@ impl<const N: usize> InternalAdditionOps for InnerTemporalGraph<N> {
     fn internal_add_edge(
         &self,
         t: TimeIndexEntry,
-        src: u64,
-        dst: u64,
+        src: VID,
+        dst: VID,
         props: Vec<(String, Prop)>,
         layer: usize,
     ) -> Result<EID, GraphError> {

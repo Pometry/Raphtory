@@ -318,7 +318,7 @@ impl<G: GraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> Vertex
     ) -> Result<(), GraphError> {
         let t = TimeIndexEntry::from_input(&self.graph, time)?;
         self.graph
-            .internal_add_vertex(t, self.id(), None, props.collect_properties())?;
+            .internal_add_vertex(t, self.vertex, None, props.collect_properties())?;
         Ok(())
     }
 }
