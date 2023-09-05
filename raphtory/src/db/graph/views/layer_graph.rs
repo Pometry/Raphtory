@@ -5,7 +5,7 @@ use crate::{
         view::{
             internal::{
                 Base, EdgeFilter, EdgeFilterOps, Immutable, InheritCoreOps, InheritGraphOps,
-                InheritMaterialize, InheritTimeSemantics, InternalLayerOps, Static,
+                InheritMaterialize, InheritTimeSemantics, InternalLayerOps,
             },
             Layer,
         },

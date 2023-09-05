@@ -16,9 +16,7 @@ use crate::{
     },
     db::{
         api::{
-            mutation::internal::{
-                InternalAdditionOps, InternalDeletionOps, InternalPropertyAdditionOps,
-            },
+            mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
             properties::internal::{
                 ConstPropertiesOps, Key, TemporalPropertiesOps, TemporalPropertyViewOps,
             },

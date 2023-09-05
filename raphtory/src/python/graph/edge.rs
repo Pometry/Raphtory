@@ -5,7 +5,10 @@
 //! edge as it existed at a particular point in time, or as it existed over a particular time range.
 //!
 use crate::{
-    core::utils::{errors::GraphError, time::error::ParseTimeError, Direction},
+    core::{
+        utils::{errors::GraphError, time::error::ParseTimeError},
+        Direction,
+    },
     db::{
         api::{
             properties::Properties,
@@ -39,8 +42,7 @@ use crate::{
 };
 use chrono::NaiveDateTime;
 use itertools::Itertools;
-use pyo3::{prelude::*, pyclass::CompareOp, types::PyString};
-use serde_json::to_string;
+use pyo3::{prelude::*, pyclass::CompareOp};
 use std::{
     collections::{hash_map::DefaultHasher, HashMap},
     hash::{Hash, Hasher},
