@@ -11,7 +11,7 @@ use crate::{
     db::api::view::internal::{EdgeFilter, GraphOps},
 };
 use itertools::Itertools;
-use std::iter;
+use std::{iter, ops::Deref};
 
 impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
     fn internal_vertex_ref(
