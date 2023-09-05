@@ -140,6 +140,31 @@ where
             sorted_result.iter().cloned().take(k).collect()
         }
     }
+
+    pub fn min(&self) -> Option<(K, V)> {
+        self.result
+            .iter()
+            .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal))
+            .map(|(k, v)| (k.clone(), v.clone()))
+    }
+
+    pub fn max(&self) -> Option<(K, V)> {
+        self.result
+            .iter()
+            .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal))
+            .map(|(k, v)| (k.clone(), v.clone()))
+    }
+
+    pub fn median(&self) -> Option<(K, V)> {
+        let mut items: Vec<_> = self.result.iter().collect();
+        let len = items.len();
+        if len == 0 {
+            return None;
+        }
+        items.sort_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+        let median_index = len / 2;
+        Some((items[median_index].0.clone(), items[median_index].1.clone()))
+    }
 }
 
 impl<K: Clone + Hash + Eq + Ord> AlgorithmResult<K, f64> {
@@ -181,13 +206,6 @@ where
         }
         grouped
     }
-    // pub fn group_by(&self) -> AlgorithmResult<V, Vec<K>> {
-    //     let mut grouped: HashMap<V, Vec<K>> = HashMap::new();
-    //     for (key, value) in &self.result {
-    //         grouped.entry(value.clone()).or_default().push(key.clone());
-    //     }
-    //     AlgorithmResult::new(grouped)
-    // }
 }
 
 impl<V: Debug + Clone, K: Debug + Clone + Hash + Eq + Ord> Debug for AlgorithmResult<K, V> {
@@ -252,6 +270,27 @@ mod algorithm_result_test {
             vec![(22, "E".to_string()), (33, "F".to_string())],
         );
         AlgorithmResult::new(map.clone())
+    }
+
+    #[test]
+    fn test_min_max_value() {
+        let algo_result = create_algo_result_u64();
+        assert_eq!(algo_result.min(), Some(("A".to_string(), 10u64)));
+        assert_eq!(algo_result.max(), Some(("C".to_string(), 30u64)));
+        assert_eq!(algo_result.median(), Some(("B".to_string(), 20u64)));
+        let algo_result = create_algo_result_f64();
+        assert_eq!(
+            algo_result.min(),
+            Some(("A".to_string(), OrderedFloat(10.0)))
+        );
+        assert_eq!(
+            algo_result.max(),
+            Some(("C".to_string(), OrderedFloat(30.0)))
+        );
+        assert_eq!(
+            algo_result.median(),
+            Some(("B".to_string(), OrderedFloat(20.0)))
+        );
     }
 
     #[test]

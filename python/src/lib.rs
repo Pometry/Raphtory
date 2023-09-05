@@ -6,7 +6,7 @@ use pyo3::prelude::*;
 use raphtory_core::python::{
     graph::{
         algorithm_result::AlgorithmResultStrU64,
-        edge::{PyEdge, PyEdges},
+        edge::{PyDirection, PyEdge, PyEdges},
         graph::PyGraph,
         graph_with_deletions::PyGraphWithDeletions,
         properties::{PyConstProperties, PyProperties, PyTemporalProp, PyTemporalProperties},
@@ -29,6 +29,7 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_class::<PyConstProperties>()?;
     m.add_class::<PyTemporalProperties>()?;
     m.add_class::<PyTemporalProp>()?;
+    m.add_class::<PyDirection>()?;
 
     //GRAPHQL
     let graphql_module = PyModule::new(py, "internal_graphql")?;
@@ -80,6 +81,8 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         algorithm_module
     )?)?;
     algorithm_module.add_function(wrap_pyfunction!(hits, algorithm_module)?)?;
+    algorithm_module.add_function(wrap_pyfunction!(balance, algorithm_module)?)?;
+
     m.add_submodule(algorithm_module)?;
 
     //GRAPH LOADER
