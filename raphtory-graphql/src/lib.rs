@@ -388,7 +388,7 @@ mod graphql_test {
     async fn test_graph_injection() {
         let g = Graph::new();
         g.add_vertex(0, 1, NO_PROPS).unwrap();
-        let mut tmp_file = tempfile::NamedTempFile::new().unwrap();
+        let tmp_file = tempfile::NamedTempFile::new().unwrap();
         let path = tmp_file.path();
         g.save_to_file(path).unwrap();
         let file = std::fs::File::open(path).unwrap();

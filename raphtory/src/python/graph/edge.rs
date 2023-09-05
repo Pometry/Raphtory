@@ -5,7 +5,7 @@
 //! edge as it existed at a particular point in time, or as it existed over a particular time range.
 //!
 use crate::{
-    core::utils::time::error::ParseTimeError,
+    core::{utils::time::error::ParseTimeError, Direction},
     db::{
         api::{
             properties::Properties,
@@ -35,10 +35,13 @@ use crate::{
     },
 };
 use chrono::NaiveDateTime;
-use pyo3::{prelude::*, pyclass::CompareOp};
+use itertools::Itertools;
+use pyo3::{prelude::*, pyclass::CompareOp, types::PyString};
+use serde_json::to_string;
 use std::{
     collections::hash_map::DefaultHasher,
     hash::{Hash, Hasher},
+    ops::Deref,
     sync::Arc,
 };
 
@@ -336,7 +339,11 @@ impl Repr for PyEdge {
 
 impl Repr for EdgeView<DynamicGraph> {
     fn repr(&self) -> String {
-        let properties = &self.properties().repr();
+        let properties: String = self
+            .properties()
+            .iter()
+            .map(|(k, v)| format!("{}: {}", k.deref(), v))
+            .join(", ");
 
         let source = self.src().name();
         let target = self.dst().name();
@@ -351,14 +358,13 @@ impl Repr for EdgeView<DynamicGraph> {
                 latest_time.unwrap_or(0),
             )
         } else {
-            let property_string: String = format!("{{{properties}}}");
             format!(
                 "Edge(source={}, target={}, earliest_time={}, latest_time={}, properties={})",
                 source.trim_matches('"'),
                 target.trim_matches('"'),
                 earliest_time.unwrap_or(0),
                 latest_time.unwrap_or(0),
-                property_string
+                format!("{{{properties}}}")
             )
         }
     }
@@ -516,6 +522,7 @@ impl PyNestedEdges {
 
     // FIXME: needs a view that allows indexing into the properties
     /// Returns all properties of the edges
+    #[getter]
     fn properties(&self) -> PyNestedPropsIterable {
         let builder = self.builder.clone();
         (move || builder().properties()).into()
@@ -538,5 +545,61 @@ impl PyNestedEdges {
             iter
         })
         .into()
+    }
+}
+
+#[pyclass]
+#[derive(Clone)]
+pub struct PyDirection {
+    inner: Direction,
+}
+
+#[pymethods]
+impl PyDirection {
+    #[new]
+    pub fn new(direction: &str) -> Self {
+        match direction {
+            "OUT" => PyDirection {
+                inner: Direction::OUT,
+            },
+            "IN" => PyDirection {
+                inner: Direction::IN,
+            },
+            "BOTH" => PyDirection {
+                inner: Direction::BOTH,
+            },
+            _ => panic!("Invalid direction"),
+        }
+    }
+
+    fn as_str(&self) -> &str {
+        match self.inner {
+            Direction::OUT => "OUT",
+            Direction::IN => "IN",
+            Direction::BOTH => "BOTH",
+        }
+    }
+}
+
+impl Into<Direction> for PyDirection {
+    fn into(self) -> Direction {
+        self.inner
+    }
+}
+
+impl From<String> for PyDirection {
+    fn from(s: String) -> Self {
+        match s.to_uppercase().as_str() {
+            "OUT" => PyDirection {
+                inner: Direction::OUT,
+            },
+            "IN" => PyDirection {
+                inner: Direction::IN,
+            },
+            "BOTH" => PyDirection {
+                inner: Direction::BOTH,
+            },
+            _ => panic!("Invalid direction string"),
+        }
     }
 }

@@ -27,7 +27,7 @@
 use crate::db::{api::view::GraphViewOps, graph::graph::Graph};
 use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, fmt, sync::Arc};
+use std::{cmp::Ordering, collections::HashMap, fmt, sync::Arc};
 
 #[cfg(test)]
 extern crate core;
@@ -62,9 +62,51 @@ pub enum Prop {
     Graph(Graph),
 }
 
+impl PartialOrd for Prop {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        match (self, other) {
+            (Prop::Str(a), Prop::Str(b)) => a.partial_cmp(b),
+            (Prop::I32(a), Prop::I32(b)) => a.partial_cmp(b),
+            (Prop::I64(a), Prop::I64(b)) => a.partial_cmp(b),
+            (Prop::U32(a), Prop::U32(b)) => a.partial_cmp(b),
+            (Prop::U64(a), Prop::U64(b)) => a.partial_cmp(b),
+            (Prop::F32(a), Prop::F32(b)) => a.partial_cmp(b),
+            (Prop::F64(a), Prop::F64(b)) => a.partial_cmp(b),
+            (Prop::Bool(a), Prop::Bool(b)) => a.partial_cmp(b),
+            (Prop::DTime(a), Prop::DTime(b)) => a.partial_cmp(b),
+            _ => None,
+        }
+    }
+}
+
 impl Prop {
     pub fn str(s: &str) -> Prop {
         Prop::Str(s.to_string())
+    }
+
+    pub fn add(self, other: Prop) -> Option<Prop> {
+        match (self, other) {
+            (Prop::I32(a), Prop::I32(b)) => Some(Prop::I32(a + b)),
+            (Prop::I64(a), Prop::I64(b)) => Some(Prop::I64(a + b)),
+            (Prop::U32(a), Prop::U32(b)) => Some(Prop::U32(a + b)),
+            (Prop::U64(a), Prop::U64(b)) => Some(Prop::U64(a + b)),
+            (Prop::F32(a), Prop::F32(b)) => Some(Prop::F32(a + b)),
+            (Prop::F64(a), Prop::F64(b)) => Some(Prop::F64(a + b)),
+            (Prop::Str(a), Prop::Str(b)) => Some(Prop::Str(a + &b)),
+            _ => None,
+        }
+    }
+
+    pub fn divide(self, other: Prop) -> Option<Prop> {
+        match (self, other) {
+            (Prop::I32(a), Prop::I32(b)) if b != 0 => Some(Prop::I32(a / b)),
+            (Prop::I64(a), Prop::I64(b)) if b != 0 => Some(Prop::I64(a / b)),
+            (Prop::U32(a), Prop::U32(b)) if b != 0 => Some(Prop::U32(a / b)),
+            (Prop::U64(a), Prop::U64(b)) if b != 0 => Some(Prop::U64(a / b)),
+            (Prop::F32(a), Prop::F32(b)) if b != 0.0 => Some(Prop::F32(a / b)),
+            (Prop::F64(a), Prop::F64(b)) if b != 0.0 => Some(Prop::F64(a / b)),
+            _ => None,
+        }
     }
 }
 
