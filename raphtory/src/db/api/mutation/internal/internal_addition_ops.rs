@@ -7,7 +7,9 @@ use crate::{
     },
     db::api::view::internal::Base,
 };
+use enum_dispatch::enum_dispatch;
 
+#[enum_dispatch]
 pub trait InternalAdditionOps {
     /// get the sequence id for the next event
     fn next_event_id(&self) -> usize;

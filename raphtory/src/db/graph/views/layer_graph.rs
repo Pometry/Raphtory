@@ -5,7 +5,7 @@ use crate::{
         view::{
             internal::{
                 Base, EdgeFilter, EdgeFilterOps, InheritCoreOps, InheritGraphOps,
-                InheritMaterialize, InheritTimeSemantics, LayerOps,
+                InheritMaterialize, InheritTimeSemantics, InternalLayerOps,
             },
             Layer,
         },
@@ -102,7 +102,7 @@ impl<G: GraphViewOps> LayeredGraph<G> {
     }
 }
 
-impl<G: GraphViewOps> LayerOps for LayeredGraph<G> {
+impl<G: GraphViewOps> InternalLayerOps for LayeredGraph<G> {
     fn layer_ids(&self) -> LayerIds {
         self.layers.clone()
     }

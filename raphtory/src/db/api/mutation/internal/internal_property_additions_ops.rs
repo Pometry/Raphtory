@@ -7,8 +7,10 @@ use crate::{
     },
     db::api::view::internal::Base,
 };
+use enum_dispatch::enum_dispatch;
 
 /// internal (dyn friendly) methods for adding properties
+#[enum_dispatch]
 pub trait InternalPropertyAdditionOps {
     /// internal (dyn friendly)
     fn internal_add_vertex_properties(

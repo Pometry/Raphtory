@@ -2,6 +2,7 @@ use crate::{
     core::entities::{edges::edge_store::EdgeStore, LayerIds},
     db::api::view::internal::Base,
 };
+use enum_dispatch::enum_dispatch;
 use std::sync::Arc;
 
 pub fn extend_filter(
@@ -16,6 +17,7 @@ pub fn extend_filter(
 
 pub type EdgeFilter = Arc<dyn Fn(&EdgeStore, &LayerIds) -> bool + Send + Sync>;
 
+#[enum_dispatch]
 pub trait EdgeFilterOps {
     /// Return the optional edge filter for the graph
 

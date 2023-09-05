@@ -15,8 +15,10 @@ use crate::{
     },
     db::api::view::internal::Base,
 };
+use enum_dispatch::enum_dispatch;
 
 /// Core functions that should (almost-)always be implemented by pointing at the underlying graph.
+#[enum_dispatch]
 pub trait CoreGraphOps {
     /// get the number of vertices in the main graph
     fn unfiltered_num_vertices(&self) -> usize;

@@ -21,7 +21,7 @@ pub use exploded_edge_ops::ExplodedEdgeOps;
 pub use graph_ops::*;
 pub use inherit::Base;
 pub use into_dynamic::IntoDynamic;
-pub use layer_ops::*;
+pub use layer_ops::{DelegateLayerOps, InheritLayerOps, InternalLayerOps};
 pub use materialize::*;
 use std::{
     fmt::{Debug, Formatter},
@@ -34,7 +34,7 @@ pub trait BoxableGraphView:
     CoreGraphOps
     + GraphOps
     + EdgeFilterOps
-    + LayerOps
+    + InternalLayerOps
     + TimeSemantics
     + InternalMaterialize
     + PropertiesOps
@@ -49,7 +49,7 @@ impl<
         G: CoreGraphOps
             + GraphOps
             + EdgeFilterOps
-            + LayerOps
+            + InternalLayerOps
             + TimeSemantics
             + InternalMaterialize
             + PropertiesOps
