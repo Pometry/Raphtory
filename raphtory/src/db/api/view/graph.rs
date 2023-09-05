@@ -51,6 +51,9 @@ pub trait GraphViewOps: BoxableGraphView + Clone + Sized {
     /// Return the number of edges in the graph.
     fn num_edges(&self) -> usize;
 
+    // Return the number of temporal edges in the graph.
+    fn num_temporal_edges(&self) -> usize;
+
     /// Check if the graph contains a vertex `v`.
     fn has_vertex<T: Into<VertexRef>>(&self, v: T) -> bool;
 
@@ -114,6 +117,10 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
 
     fn num_vertices(&self) -> usize {
         self.vertices_len(self.layer_ids(), self.edge_filter())
+    }
+
+    fn num_temporal_edges(&self) -> usize {
+        self.edges().explode().count()
     }
 
     #[inline]
@@ -258,6 +265,22 @@ impl<G: GraphViewOps> LayerOps for G {
             _ => Some(LayeredGraph::new(self.clone(), ids)),
         }
     }
+}
+
+#[cfg(test)]
+mod test_exploded_edges {
+    use crate::prelude::*;
+
+    #[test]
+    fn test_exploded_edges() {
+    let g: Graph = Graph::new();
+    g.add_edge(0, 0, 1, NO_PROPS, None);
+    g.add_edge(1, 0, 1, NO_PROPS, None);
+    g.add_edge(2, 0, 1, NO_PROPS, None);
+    g.add_edge(3, 0, 1, NO_PROPS, None);
+
+    assert_eq!(g.num_temporal_edges(),4)
+}
 }
 
 #[cfg(test)]
