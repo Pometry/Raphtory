@@ -1,11 +1,12 @@
-use itertools::chain;
-use itertools::Itertools;
-use std::collections::hash_map::DefaultHasher;
-use std::fmt::{Display, Formatter};
-use std::fs::{create_dir_all, File};
-use std::hash::{Hash, Hasher};
-use std::io::{BufReader, BufWriter};
-use std::path::Path;
+use itertools::{chain, Itertools};
+use std::{
+    collections::hash_map::DefaultHasher,
+    fmt::{Display, Formatter},
+    fs::{create_dir_all, File},
+    hash::{Hash, Hasher},
+    io::{BufReader, BufWriter},
+    path::Path,
+};
 
 // use async_openai::types::{CreateEmbeddingRequest, EmbeddingInput};
 // use async_openai::Client;
@@ -18,8 +19,10 @@ use std::path::Path;
 // use futures_util::pin_mut;
 // use futures_util::stream::StreamExt;
 
-use raphtory::db::graph::vertex::VertexView;
-use raphtory::prelude::{EdgeViewOps, GraphViewOps, LayerOps, VertexViewOps};
+use raphtory::{
+    db::graph::vertex::VertexView,
+    prelude::{EdgeViewOps, GraphViewOps, LayerOps, VertexViewOps},
+};
 use serde::{Deserialize, Serialize, Serializer};
 
 use crate::model::graph::edge::Edge;

@@ -1,8 +1,7 @@
 use crate::server::RaphtoryServer;
 use clap::Parser;
 use dotenv::dotenv;
-use std::env;
-use std::path::PathBuf;
+use std::{env, path::PathBuf};
 
 mod data;
 mod model;

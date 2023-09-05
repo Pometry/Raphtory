@@ -1,23 +1,24 @@
 #![allow(dead_code)]
 
-use crate::vectors::{GraphEntity, VectorStore};
 use crate::{
     data::Data,
     model::{algorithm::Algorithm, App},
     observability::tracing::create_tracer_from_env,
     routes::{graphql_playground, health},
+    vectors::{GraphEntity, VectorStore},
 };
 use async_graphql_poem::GraphQL;
 use chrono::NaiveDateTime;
 use itertools::Itertools;
 use poem::{get, listener::TcpListener, middleware::Cors, EndpointExt, Route, Server};
-use raphtory::db::api::view::internal::DynamicGraph;
-use raphtory::db::graph::edge::EdgeView;
-use raphtory::db::graph::vertex::VertexView;
-use raphtory::prelude::{EdgeViewOps, LayerOps, VertexViewOps};
-use std::collections::HashMap;
-use std::ops::Deref;
-use std::path::Path;
+use raphtory::{
+    db::{
+        api::view::internal::DynamicGraph,
+        graph::{edge::EdgeView, vertex::VertexView},
+    },
+    prelude::{EdgeViewOps, LayerOps, VertexViewOps},
+};
+use std::{collections::HashMap, ops::Deref, path::Path};
 use tokio::{io::Result as IoResult, signal};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry};
 
