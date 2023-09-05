@@ -45,7 +45,7 @@ For Example:
     g.add_edge(1, 1, 2, {"title": "edge", "weight": 1})
     g.add_edge(1, 2, 1, {"title": "edge", "weight": 3})
 
-    vis.to_pyvis(graph=g, edge_color="#FF0000", edge_weight= "weight", shape="image", node_image="image", edge_label="title")
+    export.to_pyvis(graph=g, edge_color="#FF0000", edge_weight= "weight", shape="image", node_image="image", edge_label="title")
 
 """
 
@@ -125,14 +125,14 @@ For Example:
     g.add_edge(1, 1, 2, {"title": "edge", "weight": 1})
     g.add_edge(1, 2, 1, {"title": "edge", "weight": 3})
 
-    vis.to_networkx(graph=g, k=0.15, iterations=100, node_size=500, node_color='red', edge_color='blue', arrows=True)
+    export.to_networkx(graph=g, k=0.15, iterations=100, node_size=500, node_color='red', edge_color='blue', arrows=True)
 
 """
 def to_networkx(
         graph,
 ):
     """
-    Returns a Network X graph visualiation from a Raphtory graph.
+    Returns a Network X graph visualisation from a Raphtory graph.
     """
 
     networkXGraph = nx.MultiDiGraph()
