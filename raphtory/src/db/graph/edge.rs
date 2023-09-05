@@ -101,14 +101,16 @@ impl<G: GraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> EdgeVi
 
     /// Add constant properties for the edge
     ///
+    /// Returns a person with the name given them
+    ///
     /// # Arguments
     ///
-    ///     props: Property key-value pairs to add
-    ///     layer: The layer to which properties should be added. If the edge view is restricted to a
-    ///            single layer, `None` will add the properties to that layer and `Some("name")`
-    ///            fails unless the layer matches the edge view. If the edge view is not restricted
-    ///            to a single layer, `None` sets the properties on the default layer and `Some("name")`
-    ///            sets the properties on layer `"name"` and fails if that layer doesn't exist.
+    /// * `props` - Property key-value pairs to add
+    /// * `layer` - The layer to which properties should be added. If the edge view is restricted to a
+    ///             single layer, 'None' will add the properties to that layer and 'Some("name")'
+    ///             fails unless the layer matches the edge view. If the edge view is not restricted
+    ///             to a single layer, 'None' sets the properties on the default layer and 'Some("name")'
+    ///             sets the properties on layer '"name"' and fails if that layer doesn't exist.
     pub fn add_constant_properties<C: CollectProperties>(
         &self,
         props: C,
@@ -502,12 +504,15 @@ mod test_edge {
     fn test_constant_property_additions() {
         let g = Graph::new();
         let e = g.add_edge(0, 1, 2, NO_PROPS, Some("test")).unwrap();
-        assert!(e.add_constant_properties([("test", "test")], None).is_err());
+        assert!(e
+            .add_constant_properties([("test1", "test1")], None)
+            .is_ok()); // adds properties to layer `"test"`
         assert!(e
             .add_constant_properties([("test", "test")], Some("test2"))
-            .is_err());
+            .is_err()); // cannot add properties to a different layer
         e.add_constant_properties([("test", "test")], Some("test"))
-            .unwrap();
-        assert_eq!(e.properties().get("test"), Some("test".into()))
+            .unwrap(); // layer is consistent
+        assert_eq!(e.properties().get("test"), Some("test".into()));
+        assert_eq!(e.properties().get("test1"), Some("test1".into()));
     }
 }
