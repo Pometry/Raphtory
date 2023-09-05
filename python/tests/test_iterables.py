@@ -63,7 +63,6 @@ def test_pyprophistvaluelist():
     assert res.sum() == [120, 20, 8]
     assert res.min() == [10, 20, 1]
     assert res.max() == [100, 20, 5]
-    # TODO BUG: res.len() does not equal [3, 1, 3] natural order
     assert sorted(res.len()) == [1, 3, 3]
     assert sorted(res.count()) == [1, 3, 3]
     assert res.median() == [10, 20, 2]

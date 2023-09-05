@@ -45,25 +45,6 @@ where
     pub fn get(&self, key: &K) -> Option<&V> {
         self.result.get(&key)
     }
-
-    pub fn min_key(&self) -> Option<K> {
-        self.result.keys().min().cloned()
-    }
-
-    pub fn max_key(&self) -> Option<K> {
-        self.result.keys().max().cloned()
-    }
-
-    pub fn median_key(&self) -> Option<K> {
-        let mut keys: Vec<K> = self.result.keys().cloned().collect();
-        keys.sort();
-        let len = keys.len();
-        if len % 2 == 0 {
-            keys.get(len / 2).cloned()
-        } else {
-            keys.get(len / 2).cloned()
-        }
-    }
 }
 
 pub struct AlgorithmResultIterator<'a, K, V> {
@@ -160,24 +141,29 @@ where
         }
     }
 
-    pub fn min_value(&self) -> Option<V> {
+    pub fn min(&self) -> Option<(K, V)> {
         self.result
-            .values()
-            .fold(None, |min_val, curr_val| match min_val {
-                None => Some(curr_val.clone()),
-                Some(min) if curr_val < &min => Some(curr_val.clone()),
-                _ => min_val,
-            })
+            .iter()
+            .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal))
+            .map(|(k, v)| (k.clone(), v.clone()))
     }
 
-    pub fn max_value(&self) -> Option<V> {
+    pub fn max(&self) -> Option<(K, V)> {
         self.result
-            .values()
-            .fold(None, |max_val, curr_val| match max_val {
-                None => Some(curr_val.clone()),
-                Some(max) if curr_val > &max => Some(curr_val.clone()),
-                _ => max_val,
-            })
+            .iter()
+            .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal))
+            .map(|(k, v)| (k.clone(), v.clone()))
+    }
+
+    pub fn median(&self) -> Option<(K, V)> {
+        let mut items: Vec<_> = self.result.iter().collect();
+        let len = items.len();
+        if len == 0 {
+            return None;
+        }
+        items.sort_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+        let median_index = len / 2;
+        Some((items[median_index].0.clone(), items[median_index].1.clone()))
     }
 }
 
@@ -289,21 +275,22 @@ mod algorithm_result_test {
     #[test]
     fn test_min_max_value() {
         let algo_result = create_algo_result_u64();
-        assert_eq!(algo_result.min_value().unwrap_or_default(), 10);
-        assert_eq!(algo_result.max_value().unwrap_or_default(), 30);
+        assert_eq!(algo_result.min(), Some(("A".to_string(), 10u64)));
+        assert_eq!(algo_result.max(), Some(("C".to_string(), 30u64)));
+        assert_eq!(algo_result.median(), Some(("B".to_string(), 20u64)));
         let algo_result = create_algo_result_f64();
-        assert_eq!(algo_result.min_value().unwrap_or_default(), 10.0);
-        assert_eq!(algo_result.max_value().unwrap_or_default(), 30.0);
-    }
-
-    #[test]
-    fn test_min_max_key() {
-        let algo_result = create_algo_result_u64();
-        assert_eq!(algo_result.min_key().unwrap_or_default(), "A".to_string());
-        assert_eq!(algo_result.max_key().unwrap_or_default(), "C".to_string());
-        let algo_result = create_algo_result_f64();
-        assert_eq!(algo_result.min_key().unwrap_or_default(), "A".to_string());
-        assert_eq!(algo_result.max_key().unwrap_or_default(), "C".to_string());
+        assert_eq!(
+            algo_result.min(),
+            Some(("A".to_string(), OrderedFloat(10.0)))
+        );
+        assert_eq!(
+            algo_result.max(),
+            Some(("C".to_string(), OrderedFloat(30.0)))
+        );
+        assert_eq!(
+            algo_result.median(),
+            Some(("B".to_string(), OrderedFloat(20.0)))
+        );
     }
 
     #[test]
