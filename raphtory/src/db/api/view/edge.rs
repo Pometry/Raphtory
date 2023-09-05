@@ -105,6 +105,13 @@ pub trait EdgeViewOps:
         self.eref().time().map(|ti| *ti.t())
     }
 
+    /// Gets the layer name for the edge if it is restricted to a single layer
+    fn layer_name(&self) -> Option<String> {
+        self.eref()
+            .layer()
+            .and_then(|l_id| self.graph().get_layer_name(*l_id).map(|name| name.clone()))
+    }
+
     /// Gets the TimeIndexEntry if the edge is exploded
     fn time_and_index(&self) -> Option<TimeIndexEntry> {
         self.eref().time()
@@ -153,6 +160,12 @@ pub trait EdgeListOps:
 
     /// Get the timestamp for the latest activity of the edge
     fn latest_time(self) -> Self::IterType<Option<i64>>;
+
+    /// Get the timestamps of the edges if they are  exploded
+    fn time(self) -> Self::IterType<Option<i64>>;
+
+    /// Get the layer name for each edge if it is restricted to a single layer
+    fn layer_name(self) -> Self::IterType<Option<String>>;
 }
 
 #[cfg(test)]

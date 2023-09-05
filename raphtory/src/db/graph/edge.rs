@@ -347,6 +347,14 @@ impl<G: GraphViewOps> EdgeListOps for BoxedIter<EdgeView<G>> {
     fn latest_time(self) -> Self::IterType<Option<i64>> {
         Box::new(self.map(|e| e.latest_time()))
     }
+
+    fn time(self) -> Self::IterType<Option<i64>> {
+        Box::new(self.map(|e| e.time()))
+    }
+
+    fn layer_name(self) -> Self::IterType<Option<String>> {
+        Box::new(self.map(|e| e.layer_name()))
+    }
 }
 
 impl<G: GraphViewOps> EdgeListOps for BoxedIter<BoxedIter<EdgeView<G>>> {
@@ -385,6 +393,14 @@ impl<G: GraphViewOps> EdgeListOps for BoxedIter<BoxedIter<EdgeView<G>>> {
     /// Gets the latest times of a list of edges
     fn latest_time(self) -> Self::IterType<Option<i64>> {
         Box::new(self.map(|e| e.latest_time()))
+    }
+
+    fn time(self) -> Self::IterType<Option<i64>> {
+        Box::new(self.map(|it| it.time()))
+    }
+
+    fn layer_name(self) -> Self::IterType<Option<String>> {
+        Box::new(self.map(|it| it.layer_name()))
     }
 }
 
@@ -458,8 +474,7 @@ mod test_edge {
         e.add_updates(2, props, Some("test2")).unwrap(); // non-restricted edge view can create new layers
         let layered_views = e.explode_layers().collect_vec();
         for ev in layered_views {
-            let layer_names = ev.layer_names();
-            let layer = layer_names[0].as_str();
+            let layer = ev.layer_name().unwrap();
             assert!(ev.add_updates(1, props, Some("test")).is_err()); // restricted edge view cannot create updates in different layer
             ev.add_updates(1, [("test2", layer)], None).unwrap() // this will add an update to the same layer as the view (not the default layer)
         }
@@ -470,6 +485,14 @@ mod test_edge {
                 .into_iter()
                 .map(|(k, v)| (k.to_string(), v.into_prop()))
                 .chain([("test2".to_string(), "_default".into_prop())])
+                .collect()
+        );
+        assert_eq!(
+            e.layer("test2").unwrap().properties().as_map(),
+            props
+                .into_iter()
+                .map(|(k, v)| (k.to_string(), v.into_prop()))
+                .chain([("test2".to_string(), "test2".into_prop())])
                 .collect()
         );
         assert_eq!(e1_w.properties().as_map(), HashMap::default())
