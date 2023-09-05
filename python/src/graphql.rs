@@ -1,4 +1,5 @@
 use pyo3::{exceptions, prelude::*};
+use raphtory_core::prelude::Graph;
 use raphtory_core::{
     db::api::view::internal::{DynamicGraph, MaterializedGraph},
     python::{graph::graph::PyGraph, utils::errors::adapt_err_value},
@@ -12,7 +13,7 @@ pub fn from_map(
     graphs: HashMap<String, PyGraph>,
     port: Option<u16>,
 ) -> PyResult<&PyAny> {
-    let graphs: HashMap<String, DynamicGraph> = graphs
+    let graphs: HashMap<String, Graph> = graphs
         .into_iter()
         .map(|(key, value)| (key, value.into()))
         .collect();
@@ -45,7 +46,7 @@ pub fn from_map_and_directory(
     path: String,
     port: Option<u16>,
 ) -> PyResult<&PyAny> {
-    let graphs: HashMap<String, DynamicGraph> = graphs
+    let graphs: HashMap<String, Graph> = graphs
         .into_iter()
         .map(|(key, value)| (key, value.into()))
         .collect();
