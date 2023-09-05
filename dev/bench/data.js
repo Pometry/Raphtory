@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1693834365721,
+  "lastUpdate": 1693925898235,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -11389,6 +11389,204 @@ window.BENCHMARK_DATA = {
             "name": "lotr_graph_window_10/max_degree",
             "value": 193342,
             "range": "± 565",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "Haaroon@users.noreply.github.com",
+            "name": "Haaroon Y",
+            "username": "Haaroon"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "47d9b63456fbcc4d1ce1bdac61d1755252c4c481",
+          "message": "sum weight algorithm + min/max/mean/median/average/count/len/sum features on edge properties  (#1200)\n\n* sum weight for a vertex algorithm\r\n\r\n* add in out and both\r\n\r\n* yugioh mode, implement pydirection, implement python algorithm + tests\r\n\r\n* add docs for python algo\r\n\r\n* implemented many functions upon the list, listlist, pyiterable, sum, count,\r\n\r\n* fixed getter for edges with small annotation, added sum for valuelist and valuelistlist, fixed internal error with empty result, fixed none appearing in empty lists when doing a sum\r\n\r\n* added more\r\n\r\n* median\r\n\r\n* remove median temporarily\r\n\r\n* lighter algorithms\r\n\r\n* fixed balance to be temporal\r\n\r\n* whats done is done\r\n\r\n* no more unwrap explosions\r\n\r\n* add min and max vaue and keys\r\n\r\n* min max key and value for algo result\r\n\r\n* add min, max, mean, average to propiterable\r\n\r\n* add min, max, mean, average, median, count, len to PyPropHistValueList + python tests\r\n\r\n* move test to its own code\r\n\r\n* add len, count, min, max to PyPropValueList + tests\r\n\r\n* added average + mean to PyPropValueList + tests\r\n\r\n* add len, count, min, max, mean, avg, median to PyPropValueList\r\n List+ tests\r\n\r\n* added len, count, min, max, mean, avg, median to PyTemporalProp+ tests\r\n\r\n* idk blank lines?\r\n\r\n* in algo result min max median now return a k,v pair option",
+          "timestamp": "2023-09-05T15:47:38+01:00",
+          "tree_id": "7f28f4b4f1765727406e8cc2801a70a4b71c9dfd",
+          "url": "https://github.com/Pometry/Raphtory/commit/47d9b63456fbcc4d1ce1bdac61d1755252c4c481"
+        },
+        "date": 1693925896750,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 803464,
+            "range": "± 18871",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and numeric string input",
+            "value": 1273188,
+            "range": "± 19012",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and string input",
+            "value": 1268944,
+            "range": "± 23411",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 1312065,
+            "range": "± 114608",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions with numeric string input",
+            "value": 2090434,
+            "range": "± 148560",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/num_edges",
+            "value": 5,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/has_edge_existing",
+            "value": 88,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/has_edge_nonexisting",
+            "value": 86,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/num_vertices",
+            "value": 2,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/has_vertex_existing",
+            "value": 25,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/has_vertex_nonexisting",
+            "value": 24,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/max_id",
+            "value": 5888,
+            "range": "± 137",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/max_degree",
+            "value": 39552,
+            "range": "± 1028",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/num_edges",
+            "value": 29878,
+            "range": "± 226",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/has_edge_existing",
+            "value": 122,
+            "range": "± 15",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/has_edge_nonexisting",
+            "value": 86,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/num_vertices",
+            "value": 6893,
+            "range": "± 25",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/has_vertex_existing",
+            "value": 80,
+            "range": "± 11",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "value": 25,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/max_id",
+            "value": 18016,
+            "range": "± 60",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/max_degree",
+            "value": 287595,
+            "range": "± 1598",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/num_edges",
+            "value": 29108,
+            "range": "± 348",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/has_edge_existing",
+            "value": 124,
+            "range": "± 11",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/has_edge_nonexisting",
+            "value": 88,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/num_vertices",
+            "value": 6551,
+            "range": "± 101",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/has_vertex_existing",
+            "value": 78,
+            "range": "± 15",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "value": 25,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/max_id",
+            "value": 11564,
+            "range": "± 83",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/max_degree",
+            "value": 192122,
+            "range": "± 2060",
             "unit": "ns/iter"
           }
         ]
