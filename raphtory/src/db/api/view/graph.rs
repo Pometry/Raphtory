@@ -273,14 +273,14 @@ mod test_exploded_edges {
 
     #[test]
     fn test_exploded_edges() {
-    let g: Graph = Graph::new();
-    g.add_edge(0, 0, 1, NO_PROPS, None);
-    g.add_edge(1, 0, 1, NO_PROPS, None);
-    g.add_edge(2, 0, 1, NO_PROPS, None);
-    g.add_edge(3, 0, 1, NO_PROPS, None);
+        let g: Graph = Graph::new();
+        g.add_edge(0, 0, 1, NO_PROPS, None);
+        g.add_edge(1, 0, 1, NO_PROPS, None);
+        g.add_edge(2, 0, 1, NO_PROPS, None);
+        g.add_edge(3, 0, 1, NO_PROPS, None);
 
-    assert_eq!(g.num_temporal_edges(),4)
-}
+        assert_eq!(g.num_temporal_edges(), 4)
+    }
 }
 
 #[cfg(test)]
