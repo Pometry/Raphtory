@@ -122,12 +122,13 @@ impl<G: InternalAdditionOps + GraphViewOps> AdditionOps for G {
         let dst_id = dst.id();
         let src_vid = self.internal_add_vertex(ti, src_id, src.id_str(), vec![])?;
         let dst_vid = self.internal_add_vertex(ti, dst_id, dst.id_str(), vec![])?;
+        let layer_id = self.resolve_layer(layer);
 
         let properties = props.collect_properties();
-        let eid = self.internal_add_edge(ti, src_id, dst_id, properties, layer)?;
+        let eid = self.internal_add_edge(ti, src_id, dst_id, properties, layer_id)?;
         Ok(EdgeView::new(
             self.clone(),
-            EdgeRef::new_outgoing(eid, src_vid, dst_vid),
+            EdgeRef::new_outgoing(eid, src_vid, dst_vid).at_layer(layer_id),
         ))
     }
 }

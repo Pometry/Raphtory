@@ -473,7 +473,7 @@ impl<const N: usize> TemporalGraph<N> {
 
     pub(crate) fn add_static_property(&self, props: Vec<(String, Prop)>) -> Result<(), GraphError> {
         for (name, prop) in props {
-            self.graph_props.add_static_prop(&name, prop.clone());
+            self.graph_props.add_static_prop(&name, prop);
         }
         Ok(())
     }
@@ -484,7 +484,7 @@ impl<const N: usize> TemporalGraph<N> {
         props: Vec<(String, Prop)>,
     ) -> Result<(), GraphError> {
         for (name, prop) in props {
-            self.graph_props.add_prop(t, &name, prop.clone())?;
+            self.graph_props.add_prop(t, &name, prop)?;
         }
         Ok(())
     }
@@ -534,7 +534,7 @@ impl<const N: usize> TemporalGraph<N> {
 
     fn get_or_allocate_layer(&self, layer: Option<&str>) -> usize {
         layer
-            .map(|layer| self.edge_meta.get_or_create_layer_id(layer.to_owned()))
+            .map(|layer| self.edge_meta.get_or_create_layer_id(layer))
             .unwrap_or(0)
     }
 
@@ -574,12 +574,10 @@ impl<const N: usize> TemporalGraph<N> {
         src: u64,
         dst: u64,
         props: Vec<(String, Prop)>,
-        layer: Option<&str>,
+        layer: usize,
     ) -> Result<EID, GraphError> {
         let src_id = self.add_vertex_no_props(t, src)?;
         let dst_id = self.add_vertex_no_props(t, dst)?;
-
-        let layer = self.get_or_allocate_layer(layer);
 
         // resolve all props ahead of time to minimise the time spent holding locks
         let props: Vec<_> = self.edge_meta.resolve_prop_ids(props, false).collect();

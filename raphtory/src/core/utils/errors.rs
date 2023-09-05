@@ -34,8 +34,8 @@ pub enum GraphError {
     // wasm
     #[error("Vertex is not String or Number")]
     VertexIdNotStringOrNumber,
-    #[error("Invalid layer.")]
-    InvalidLayer,
+    #[error("Invalid layer {0}.")]
+    InvalidLayer(String),
     #[error("Bincode operation failed")]
     BinCodeError { source: Box<bincode::ErrorKind> },
 

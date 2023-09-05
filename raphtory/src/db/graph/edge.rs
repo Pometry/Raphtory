@@ -55,6 +55,22 @@ impl<G: GraphViewOps> EdgeView<G> {
     }
 }
 
+impl<G: GraphViewOps + InternalAdditionOps> EdgeView<G> {
+    fn resolve_layer(&self, layer: Option<&str>) -> Result<usize, GraphError> {
+        match layer {
+            Some(name) => match self.edge.layer() {
+                Some(l_id) => self
+                    .graph
+                    .get_layer_id(name)
+                    .filter(|id| id == l_id)
+                    .ok_or_else(|| GraphError::InvalidLayer(name.to_owned())),
+                None => Ok(self.graph.resolve_layer(layer)),
+            },
+            None => Ok(self.edge.layer().copied().unwrap_or(0)),
+        }
+    }
+}
+
 impl<G: GraphViewOps> PartialEq for EdgeView<G> {
     fn eq(&self, other: &Self) -> bool {
         self.id() == other.id()
@@ -99,55 +115,18 @@ impl<G: GraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> EdgeVi
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
         let props = props.collect_properties();
-        let input_layer_id = layer
-            .map(|name| {
-                self.graph
-                    .get_layer_id(name)
-                    .ok_or(GraphError::InvalidLayer)
-            })
-            .transpose()?;
-        match self.edge.layer() {
-            Some(id) => match input_layer_id {
-                Some(input_id) => {
-                    if *id == input_id {
-                        self.graph
-                            .internal_add_edge_properties(self.edge.pid(), props, input_id)
-                            .map_err(|err| {
-                                MutateGraphError::IllegalEdgePropertyChange {
-                                    src_id: self.src().id(),
-                                    dst_id: self.dst().id(),
-                                    source: err,
-                                }
-                                .into()
-                            })
-                    } else {
-                        Err(GraphError::InvalidLayer)
-                    }
+        let input_layer_id = self.resolve_layer(layer)?;
+
+        self.graph
+            .internal_add_edge_properties(self.edge.pid(), props, input_layer_id)
+            .map_err(|err| {
+                MutateGraphError::IllegalEdgePropertyChange {
+                    src_id: self.src().id(),
+                    dst_id: self.dst().id(),
+                    source: err,
                 }
-                None => self
-                    .graph
-                    .internal_add_edge_properties(self.edge.pid(), props, *id)
-                    .map_err(|err| {
-                        MutateGraphError::IllegalEdgePropertyChange {
-                            src_id: self.src().id(),
-                            dst_id: self.dst().id(),
-                            source: err,
-                        }
-                        .into()
-                    }),
-            },
-            None => self
-                .graph
-                .internal_add_edge_properties(self.edge.pid(), props, input_layer_id.unwrap_or(0))
-                .map_err(|err| {
-                    MutateGraphError::IllegalEdgePropertyChange {
-                        src_id: self.src().id(),
-                        dst_id: self.dst().id(),
-                        source: err,
-                    }
-                    .into()
-                }),
-        }
+                .into()
+            })
     }
 
     pub fn add_updates<C: CollectProperties, T: TryIntoInputTime>(
@@ -157,12 +136,14 @@ impl<G: GraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> EdgeVi
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
         let t = TimeIndexEntry::from_input(&self.graph, time)?;
+        let layer_id = self.resolve_layer(layer)?;
+
         self.graph.internal_add_edge(
             t,
             self.src().id(),
             self.dst().id(),
             props.collect_properties(),
-            layer,
+            layer_id,
         )?;
         Ok(())
     }
@@ -471,11 +452,16 @@ mod test_edge {
         let g = Graph::new();
         let props = [("test", "test")];
         let e1 = g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
-        e1.add_updates(2, props, None).unwrap();
-        e1.add_updates(2, props, Some("test2")).unwrap();
-        let layered_views = e1.explode_layers().collect_vec();
+        e1.add_updates(2, props, None).unwrap(); // same layer works
+        assert!(e1.add_updates(2, props, Some("test2")).is_err()); // different layer is error
+        let e = g.edge(1, 2).unwrap();
+        e.add_updates(2, props, Some("test2")).unwrap(); // non-restricted edge view can create new layers
+        let layered_views = e.explode_layers().collect_vec();
         for ev in layered_views {
-            ev.add_updates(1, props, Some("test")).unwrap()
+            let layer_names = ev.layer_names();
+            let layer = layer_names[0].as_str();
+            assert!(ev.add_updates(1, props, Some("test")).is_err()); // restricted edge view cannot create updates in different layer
+            ev.add_updates(1, [("test2", layer)], None).unwrap() // this will add an update to the same layer as the view (not the default layer)
         }
         let e1_w = e1.window(0, 1);
         assert_eq!(
@@ -483,6 +469,7 @@ mod test_edge {
             props
                 .into_iter()
                 .map(|(k, v)| (k.to_string(), v.into_prop()))
+                .chain([("test2".to_string(), "_default".into_prop())])
                 .collect()
         );
         assert_eq!(e1_w.properties().as_map(), HashMap::default())

@@ -30,7 +30,7 @@ impl GraphProps {
     }
 
     pub(crate) fn add_static_prop(&self, name: &str, prop: Prop) {
-        let prop_id = self.static_mapper.get_or_create_id(name.to_owned());
+        let prop_id = self.static_mapper.get_or_create_id(name);
         let mut prop_entry = self.static_props.entry(prop_id).or_insert(None);
         (*prop_entry) = Some(prop);
     }
@@ -41,7 +41,7 @@ impl GraphProps {
         name: &str,
         prop: Prop,
     ) -> Result<(), GraphError> {
-        let prop_id = self.temporal_mapper.get_or_create_id(name.to_owned());
+        let prop_id = self.temporal_mapper.get_or_create_id(name);
         let mut prop_entry = self
             .temporal_props
             .entry(prop_id)

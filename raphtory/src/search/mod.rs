@@ -610,6 +610,9 @@ impl<G: GraphViewOps + InternalAdditionOps> InternalAdditionOps for IndexedGraph
     fn next_event_id(&self) -> usize {
         self.graph.next_event_id()
     }
+    fn resolve_layer(&self, layer: Option<&str>) -> usize {
+        self.graph.resolve_layer(layer)
+    }
 
     fn internal_add_vertex(
         &self,
@@ -665,7 +668,7 @@ impl<G: GraphViewOps + InternalAdditionOps> InternalAdditionOps for IndexedGraph
         _src: u64,
         _dst: u64,
         _props: Vec<(String, Prop)>,
-        _layer: Option<&str>,
+        _layer: usize,
     ) -> Result<EID, GraphError> {
         todo!()
     }

@@ -311,7 +311,7 @@ impl<G: GraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> Vertex
             .internal_add_vertex_properties(self.id(), props.collect_properties())
     }
 
-    pub fn add_properties<C: CollectProperties, T: TryIntoInputTime>(
+    pub fn add_updates<C: CollectProperties, T: TryIntoInputTime>(
         &self,
         time: T,
         props: C,
@@ -517,7 +517,7 @@ mod vertex_test {
         let g = Graph::new();
         let props = [("test", "test")];
         let v1 = g.add_vertex(0, 1, NO_PROPS).unwrap();
-        v1.add_properties(2, props).unwrap();
+        v1.add_updates(2, props).unwrap();
         let v1_w = v1.window(0, 1);
         assert_eq!(
             v1.properties().as_map(),

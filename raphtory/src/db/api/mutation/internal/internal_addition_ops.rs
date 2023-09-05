@@ -9,8 +9,13 @@ use crate::{
 };
 
 pub trait InternalAdditionOps {
+    /// get the sequence id for the next event
     fn next_event_id(&self) -> usize;
 
+    /// map layer name to id and allocate a new layer if needed
+    fn resolve_layer(&self, layer: Option<&str>) -> usize;
+
+    /// add vertex update
     fn internal_add_vertex(
         &self,
         t: TimeIndexEntry,
@@ -19,13 +24,14 @@ pub trait InternalAdditionOps {
         props: Vec<(String, Prop)>,
     ) -> Result<VID, GraphError>;
 
+    /// add edge update
     fn internal_add_edge(
         &self,
         t: TimeIndexEntry,
         src: u64,
         dst: u64,
         props: Vec<(String, Prop)>,
-        layer: Option<&str>,
+        layer: usize,
     ) -> Result<EID, GraphError>;
 }
 
@@ -53,6 +59,11 @@ impl<G: DelegateAdditionOps> InternalAdditionOps for G {
         self.graph().next_event_id()
     }
 
+    #[inline]
+    fn resolve_layer(&self, layer: Option<&str>) -> usize {
+        self.graph().resolve_layer(layer)
+    }
+
     #[inline(always)]
     fn internal_add_vertex(
         &self,
@@ -71,7 +82,7 @@ impl<G: DelegateAdditionOps> InternalAdditionOps for G {
         src: u64,
         dst: u64,
         props: Vec<(String, Prop)>,
-        layer: Option<&str>,
+        layer: usize,
     ) -> Result<EID, GraphError> {
         self.graph().internal_add_edge(t, src, dst, props, layer)
     }
