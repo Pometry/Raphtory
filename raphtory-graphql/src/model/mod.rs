@@ -89,7 +89,7 @@ impl QueryRoot {
         let data = ctx.data_unchecked::<Data>();
         let binding = data.vector_stores.read();
         let vec_store = binding.get(graph)?;
-        Some(vec_store.search(query, limit, hopes))
+        Some(vec_store.search(query, limit, hopes).await)
     }
 }
 

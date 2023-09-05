@@ -1,3 +1,6 @@
+use async_openai::types::{CreateEmbeddingRequest, EmbeddingInput};
+use async_openai::Client;
+use futures_util::future::join_all;
 use itertools::{chain, Itertools};
 use std::{
     collections::hash_map::DefaultHasher,
@@ -8,17 +11,6 @@ use std::{
     path::Path,
 };
 
-// use async_openai::types::{CreateEmbeddingRequest, EmbeddingInput};
-// use async_openai::Client;
-// use futures_util::future::join_all;
-// use futures_util::{stream, StreamExt};
-// use tokio::task;
-
-// use async_stream::stream;
-//
-// use futures_util::pin_mut;
-// use futures_util::stream::StreamExt;
-
 use raphtory::{
     db::graph::vertex::VertexView,
     prelude::{EdgeViewOps, GraphViewOps, LayerOps, VertexViewOps},
@@ -26,8 +18,8 @@ use raphtory::{
 use serde::{Deserialize, Serialize, Serializer};
 
 use crate::model::graph::edge::Edge;
-use numpy::PyArray2;
-use pyo3::{types::IntoPyDict, Python};
+// use numpy::PyArray2;
+// use pyo3::{types::IntoPyDict, Python};
 use raphtory::db::graph::edge::EdgeView;
 
 // #[derive(Clone)]
@@ -52,7 +44,12 @@ pub struct VectorStore<G: GraphViewOps> {
 const CHUNK_SIZE: usize = 1000;
 
 impl<G: GraphViewOps> VectorStore<G> {
-    pub fn load_graph<N, E>(graph: G, cache_dir: &Path, node_template: N, edge_template: E) -> Self
+    pub async fn load_graph<N, E>(
+        graph: G,
+        cache_dir: &Path,
+        node_template: N,
+        edge_template: E,
+    ) -> Self
     where
         N: Fn(&VertexView<G>) -> String + Sync + Send + 'static,
         E: Fn(&EdgeView<G>) -> String + Sync + Send + 'static,
@@ -65,7 +62,7 @@ impl<G: GraphViewOps> VectorStore<G> {
             .map(|vertex| vertex.generate_doc(&node_template));
         let edge_docs = graph.edges().map(|edge| edge.generate_doc(&edge_template));
 
-        // ----------------- ASYNC-VERSION -----------------
+        // ----------------- SEQUENTIAL-ASYNC-VERSION -----------------
         // let mut embeddings = vec![];
         // let embedding_stream = stream! {
         //     for doc in docs {
@@ -76,7 +73,7 @@ impl<G: GraphViewOps> VectorStore<G> {
         // while let Some(embedding) = embedding_stream.next() {
         //     embeddings.push(embedding);
         // }
-        // ---------------------------------------------------
+        // ------------------------------------------------------------
 
         let mut embeddings = vec![];
         let mut pendings = vec![];
@@ -88,10 +85,10 @@ impl<G: GraphViewOps> VectorStore<G> {
             }
         }
 
-        let computed_embeddings = pendings
+        let embedding_tasks = pendings
             .chunks(CHUNK_SIZE)
-            .map(|chunk| compute_embeddings_with_cache(chunk.to_vec(), cache_dir))
-            .flatten();
+            .map(|chunk| compute_embeddings_with_cache(chunk.to_vec(), cache_dir));
+        let computed_embeddings = join_all(embedding_tasks).await.into_iter().flatten();
 
         for (id, embedding) in computed_embeddings {
             embeddings.push((id, embedding));
@@ -105,8 +102,8 @@ impl<G: GraphViewOps> VectorStore<G> {
         }
     }
 
-    pub fn search(&self, query: &str, limit: usize, hopes: usize) -> Vec<String> {
-        let query_embedding = compute_embeddings(vec![query.to_owned()]).remove(0);
+    pub async fn search(&self, query: &str, limit: usize, hopes: usize) -> Vec<String> {
+        let query_embedding = compute_embeddings(vec![query.to_owned()]).await.remove(0);
 
         let mut entity_ids: Vec<EntityId> = vec![];
 
@@ -186,56 +183,17 @@ impl<G: GraphViewOps> VectorStore<G> {
     }
 }
 
-fn docs_to_embeddings<I: Iterator<Item = EntityDocument>>(
-    docs: I,
-    cache_dir: &Path,
-) -> Vec<(EntityId, Embedding)> {
-    // ----------------- ASYNC-VERSION -----------------
-    // let mut embeddings = vec![];
-    // let embedding_stream = stream! {
-    //     for doc in docs {
-    //         yield (doc.id, doc_to_vec(doc, cache_dir))
-    //     }
-    // };
-    // pin_mut!(embedding_stream);
-    // while let Some(embedding) = embedding_stream.next() {
-    //     embeddings.push(embedding);
-    // }
-    // ---------------------------------------------------
-
-    let mut embeddings = vec![];
-    let mut pendings = vec![];
-
-    for doc in docs {
-        match retrieve_embedding_from_cache(&doc, cache_dir) {
-            Some(embedding) => embeddings.push((doc.id, embedding)),
-            None => pendings.push(doc),
-        }
-    }
-
-    let computed_embeddings = pendings
-        .chunks(100)
-        .map(|chunk| compute_embeddings_with_cache(chunk.to_vec(), cache_dir))
-        .flatten();
-
-    for (id, embedding) in computed_embeddings {
-        embeddings.push((id, embedding));
-    }
-
-    embeddings
-}
-
 fn cosine(vector1: &Embedding, vector2: &Embedding) -> f32 {
     assert_eq!(vector1.len(), vector2.len());
 
     let dot_product: f32 = vector1.iter().zip(vector2.iter()).map(|(x, y)| x * y).sum();
-    let x_length: f32 = vector1.iter().map(|x| x * x).sum();
-    let y_length: f32 = vector2.iter().map(|y| y * y).sum();
+    // let x_length: f32 = vector1.iter().map(|x| x * x).sum();
+    // let y_length: f32 = vector2.iter().map(|y| y * y).sum();
     // Vectors are already normalized for ada but nor for gte-small:
     // see: https://platform.openai.com/docs/guides/embeddings/which-distance-function-should-i-use
 
-    dot_product / (x_length.sqrt() * y_length.sqrt())
-    // dot_product
+    // dot_product / (x_length.sqrt() * y_length.sqrt())
+    dot_product
 }
 
 #[derive(Clone)]
@@ -261,12 +219,12 @@ struct EmbeddingCache {
 
 type Embedding = Vec<f32>;
 
-fn compute_embeddings_with_cache(
+async fn compute_embeddings_with_cache(
     docs: Vec<EntityDocument>,
     cache_dir: &Path,
 ) -> Vec<(EntityId, Embedding)> {
     let texts = docs.iter().map(|doc| doc.content.clone()).collect_vec();
-    let embeddings = compute_embeddings(texts);
+    let embeddings = compute_embeddings(texts).await;
     docs.into_iter()
         .zip(embeddings)
         .map(|(doc, embedding)| {
@@ -286,47 +244,46 @@ fn compute_embeddings_with_cache(
         .collect_vec()
 }
 
-fn compute_embeddings(texts: Vec<String>) -> Vec<Embedding> {
-    println!("computing embeddings for {} texts", texts.len());
-    Python::with_gil(|py| {
-        let sentence_transformers = py.import("sentence_transformers")?;
-        let locals = [("sentence_transformers", sentence_transformers)].into_py_dict(py);
-        locals.set_item("texts", texts);
-
-        let pyarray: &PyArray2<f32> = py
-            .eval(
-                &format!(
-                    "sentence_transformers.SentenceTransformer('thenlper/gte-small').encode(texts)"
-                ),
-                Some(locals),
-                None,
-            )?
-            .extract()?;
-
-        let readonly = pyarray.readonly();
-        let chunks = readonly.as_slice().unwrap().chunks(384).into_iter();
-        let embeddings = chunks
-            .map(|chunk| chunk.iter().copied().collect_vec())
-            .collect_vec();
-
-        Ok::<Vec<Vec<f32>>, Box<dyn std::error::Error>>(embeddings)
-    })
-    .unwrap()
-}
-
-// async fn compute_embedding(texts: Vec<String>) -> Vec<Embedding> {
-//     let num_texts = texts.len();
-//     println!("Generating embeddings through OpenAI API for {num_texts} texts");
-//     let client = Client::new();
-//     let request = CreateEmbeddingRequest {
-//         model: "text-embedding-ada-002".to_owned(),
-//         input: EmbeddingInput::StringArray(texts),
-//         user: None,
-//     };
-//     let mut response = client.embeddings().create(request).await.unwrap();
-//     println!("> Generated embeddings successfully");
-//     response.data.into_iter().map(|e| e.embedding).collect_vec()
+// async fn compute_embeddings(texts: Vec<String>) -> Vec<Embedding> {
+//     println!("computing embeddings for {} texts", texts.len());
+//     Python::with_gil(|py| {
+//         let sentence_transformers = py.import("sentence_transformers")?;
+//         let locals = [("sentence_transformers", sentence_transformers)].into_py_dict(py);
+//         locals.set_item("texts", texts);
+//
+//         let pyarray: &PyArray2<f32> = py
+//             .eval(
+//                 &format!(
+//                     "sentence_transformers.SentenceTransformer('thenlper/gte-small').encode(texts)"
+//                 ),
+//                 Some(locals),
+//                 None,
+//             )?
+//             .extract()?;
+//
+//         let readonly = pyarray.readonly();
+//         let chunks = readonly.as_slice().unwrap().chunks(384).into_iter();
+//         let embeddings = chunks
+//             .map(|chunk| chunk.iter().copied().collect_vec())
+//             .collect_vec();
+//
+//         Ok::<Vec<Vec<f32>>, Box<dyn std::error::Error>>(embeddings)
+//     })
+//     .unwrap()
 // }
+
+async fn compute_embeddings(texts: Vec<String>) -> Vec<Embedding> {
+    println!("computing embeddings for {} texts", texts.len());
+    let client = Client::new();
+    let request = CreateEmbeddingRequest {
+        model: "text-embedding-ada-002".to_owned(),
+        input: EmbeddingInput::StringArray(texts),
+        user: None,
+    };
+    let mut response = client.embeddings().create(request).await.unwrap();
+    println!("Generated embeddings successfully");
+    response.data.into_iter().map(|e| e.embedding).collect_vec()
+}
 
 fn retrieve_embedding_from_cache(doc: &EntityDocument, cache_dir: &Path) -> Option<Embedding> {
     let doc_path = cache_dir.join(doc.id.to_string());
@@ -513,8 +470,8 @@ age: 30"###;
         assert_eq!(doc, expected_doc);
     }
 
-    #[test]
-    fn test_vector_store() {
+    #[tokio::test]
+    async fn test_vector_store() {
         let g = Graph::new();
         g.add_vertex(
             0,
@@ -543,39 +500,44 @@ age: 30"###;
             &PathBuf::from("/tmp/raphtory/vector-cache-lotr-test"),
             node_template,
             edge_template,
-        );
+        )
+        .await;
 
-        let docs = vec_store.search("Find a wizard", 3, 0);
+        let docs = vec_store.search("Find a wizard", 3, 0).await;
         assert!(
             docs[0].contains("Gandalf is a wizard"),
             "{docs:?} are not correct"
         );
 
-        let docs = vec_store.search("Find a magician", 3, 0);
+        let docs = vec_store.search("Find a magician", 3, 0).await;
         assert!(
             docs[0].contains("Gandalf is a wizard"),
             "{docs:?} are not correct"
         );
 
-        let docs = vec_store.search("Find a hobbit", 3, 0);
+        let docs = vec_store.search("Find a hobbit", 3, 0).await;
         assert!(
             docs[0].contains("Frodo is a hobbit"),
             "{docs:?} are not correct"
         );
 
-        // let docs = vec_store.search("Find a young person", 3, 0);
-        // assert!(
-        //     docs[0].contains("Frodo is a hobbit"),
-        //     "{docs:?} are not correct"
-        // ); // FIXME: why does this not work? maybe gte-small is not that good?
+        let docs = vec_store.search("Find a young person", 3, 0).await;
+        assert!(
+            docs[0].contains("Frodo is a hobbit"),
+            "{docs:?} are not correct"
+        ); // this fails when using gte-small
 
-        let docs = vec_store.search("What do you know about Gandalf?", 3, 0);
+        let docs = vec_store
+            .search("What do you know about Gandalf?", 3, 0)
+            .await;
         assert!(
             docs[0].contains("Gandalf is a wizard"),
             "{docs:?} are not correct"
         );
 
-        let docs = vec_store.search("Has anyone appeared with anyone else?", 3, 0);
+        let docs = vec_store
+            .search("Has anyone appeared with anyone else?", 3, 0)
+            .await;
         assert!(
             docs[0].contains("Frodo appeared with Gandalf"),
             "{docs:?} are not correct"

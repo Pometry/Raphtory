@@ -39,6 +39,7 @@ async fn main() {
     let graph_directory = env::var("GRAPH_DIRECTORY").unwrap_or("/tmp/graphs".to_string());
     RaphtoryServer::from_directory(&graph_directory)
         .with_vectorized(graphs_to_vectorize, &PathBuf::from(cache_dir))
+        .await
         // FIXME: maybe we should vectorize the graphs only when run() is called
         .run()
         .await
