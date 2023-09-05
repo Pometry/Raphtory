@@ -17,6 +17,7 @@ use dynamic_graphql::{
     Upload,
 };
 use itertools::Itertools;
+use raphtory::core::Prop;
 use raphtory::db::api::view::internal::CoreGraphOps;
 use raphtory::prelude::{Graph, PropertyAdditionOps};
 use raphtory::{
@@ -99,6 +100,23 @@ impl Mut {
         let mut data = ctx.data_unchecked::<Data>().graphs.write();
         data.extend(new_graphs);
         keys
+    }
+
+    async fn update_ui_properties<'a>(
+        ctx: &Context<'a>,
+        graph_name: String,
+        props: String,
+    ) -> Result<bool> {
+        let mut static_props: HashMap<String, Prop> = HashMap::new();
+        static_props.insert("uiProps".to_string(), Prop::Str(props));
+
+        let data = ctx.data_unchecked::<Data>().graphs.read();
+        let g = data.get(&graph_name).ok_or("Graph not found")?;
+        g.add_static_properties(static_props);
+
+        // TODO: Save this save
+
+        Ok(true)
     }
 
     /// Load new graphs from a directory of bincode files (existing graphs will not been overwritten)
