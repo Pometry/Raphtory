@@ -82,12 +82,14 @@ impl QueryRoot {
         ctx: &Context<'a>,
         graph: &str,
         query: &str,
+        hopes: Option<usize>,
         limit: usize,
     ) -> Option<Vec<String>> {
+        let hopes = hopes.unwrap_or(0);
         let data = ctx.data_unchecked::<Data>();
         let binding = data.vector_stores.read();
         let vec_store = binding.get(graph)?;
-        Some(vec_store.search(query, limit))
+        Some(vec_store.search(query, limit, hopes))
     }
 }
 

@@ -29,6 +29,8 @@ async fn main() {
 
     let graphs_to_vectorize = args.vectorize;
     let cache_dir = args.cache;
+    // let graphs_to_vectorize = vec!["jira".to_owned()];
+    // let cache_dir = "/tmp/jira-cache-gte-small-batching";
     assert!(
         graphs_to_vectorize.len() == 0 || cache_dir != "",
         "Setting up a cache directory is mandatory if some graphs need to be vectorized"
