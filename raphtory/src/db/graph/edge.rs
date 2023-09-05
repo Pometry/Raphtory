@@ -55,21 +55,7 @@ impl<G: GraphViewOps> EdgeView<G> {
     }
 }
 
-impl<G: GraphViewOps + InternalAdditionOps> EdgeView<G> {
-    fn resolve_layer(&self, layer: Option<&str>) -> Result<usize, GraphError> {
-        match layer {
-            Some(name) => match self.edge.layer() {
-                Some(l_id) => self
-                    .graph
-                    .get_layer_id(name)
-                    .filter(|id| id == l_id)
-                    .ok_or_else(|| GraphError::InvalidLayer(name.to_owned())),
-                None => Ok(self.graph.resolve_layer(layer)),
-            },
-            None => Ok(self.edge.layer().copied().unwrap_or(0)),
-        }
-    }
-}
+impl<G: GraphViewOps + InternalAdditionOps> EdgeView<G> {}
 
 impl<G: GraphViewOps> PartialEq for EdgeView<G> {
     fn eq(&self, other: &Self) -> bool {
@@ -99,6 +85,20 @@ impl<G: GraphViewOps> EdgeViewInternalOps<G, VertexView<G>> for EdgeView<G> {
 }
 
 impl<G: GraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> EdgeView<G> {
+    fn resolve_layer(&self, layer: Option<&str>) -> Result<usize, GraphError> {
+        match layer {
+            Some(name) => match self.edge.layer() {
+                Some(l_id) => self
+                    .graph
+                    .get_layer_id(name)
+                    .filter(|id| id == l_id)
+                    .ok_or_else(|| GraphError::InvalidLayer(name.to_owned())),
+                None => Ok(self.graph.resolve_layer(layer)),
+            },
+            None => Ok(self.edge.layer().copied().unwrap_or(0)),
+        }
+    }
+
     /// Add constant properties for the edge
     ///
     /// # Arguments
