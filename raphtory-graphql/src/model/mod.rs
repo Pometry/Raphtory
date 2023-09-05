@@ -59,7 +59,7 @@ impl QueryRoot {
         Some(GqlGraph::new(g.into_dynamic_indexed()))
     }
 
-    async fn graphs<'a>(ctx: &Context<'a>) -> Vec<GraphMeta> {
+    async fn subgraphs<'a>(ctx: &Context<'a>) -> Vec<GraphMeta> {
         let data = ctx.data_unchecked::<Data>();
         data.graphs
             .read()
