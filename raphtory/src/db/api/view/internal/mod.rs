@@ -89,6 +89,9 @@ impl From<Arc<dyn BoxableGraphView>> for DynamicGraph {
     }
 }
 
+/// Trait for marking a graph view as immutable to avoid conflicts when implementing conversions for mutable and immutable views
+pub trait Immutable {}
+
 #[derive(Clone)]
 pub struct DynamicGraph(pub(crate) Arc<dyn BoxableGraphView>);
 
@@ -121,6 +124,8 @@ impl Base for DynamicGraph {
         &self.0
     }
 }
+
+impl Immutable for DynamicGraph {}
 
 impl InheritViewOps for DynamicGraph {}
 

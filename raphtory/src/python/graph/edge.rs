@@ -5,18 +5,21 @@
 //! edge as it existed at a particular point in time, or as it existed over a particular time range.
 //!
 use crate::{
-    core::{utils::time::error::ParseTimeError, Direction},
+    core::utils::{errors::GraphError, time::error::ParseTimeError, Direction},
     db::{
         api::{
             properties::Properties,
             view::{
-                internal::{DynamicGraph, IntoDynamic},
+                internal::{DynamicGraph, Immutable, IntoDynamic, MaterializedGraph},
                 BoxedIter, WindowSet,
             },
         },
         graph::{
             edge::EdgeView,
-            views::{layer_graph::LayeredGraph, window_graph::WindowedGraph},
+            views::{
+                deletion_graph::GraphWithDeletions, layer_graph::LayeredGraph,
+                window_graph::WindowedGraph,
+            },
         },
     },
     prelude::*,
@@ -39,7 +42,7 @@ use itertools::Itertools;
 use pyo3::{prelude::*, pyclass::CompareOp, types::PyString};
 use serde_json::to_string;
 use std::{
-    collections::hash_map::DefaultHasher,
+    collections::{hash_map::DefaultHasher, HashMap},
     hash::{Hash, Hasher},
     ops::Deref,
     sync::Arc,
@@ -47,9 +50,14 @@ use std::{
 
 /// PyEdge is a Python class that represents an edge in the graph.
 /// An edge is a directed connection between two vertices.
-#[pyclass(name = "Edge")]
+#[pyclass(name = "Edge", subclass)]
 pub struct PyEdge {
     pub(crate) edge: EdgeView<DynamicGraph>,
+}
+
+#[pyclass(name="MutableEdge", extends=PyEdge)]
+pub struct PyMutableEdge {
+    edge: EdgeView<MaterializedGraph>,
 }
 
 impl<G: GraphViewOps + IntoDynamic> From<EdgeView<G>> for PyEdge {
@@ -63,10 +71,47 @@ impl<G: GraphViewOps + IntoDynamic> From<EdgeView<G>> for PyEdge {
     }
 }
 
-impl<G: GraphViewOps + IntoDynamic> IntoPy<PyObject> for EdgeView<G> {
+impl<G: Into<MaterializedGraph> + GraphViewOps> From<EdgeView<G>> for PyMutableEdge {
+    fn from(value: EdgeView<G>) -> Self {
+        let edge = EdgeView {
+            edge: value.edge,
+            graph: value.graph.into(),
+        };
+
+        Self { edge }
+    }
+}
+
+impl<G: GraphViewOps + IntoDynamic + Immutable> IntoPy<PyObject> for EdgeView<G> {
     fn into_py(self, py: Python<'_>) -> PyObject {
         let py_version: PyEdge = self.into();
         py_version.into_py(py)
+    }
+}
+
+impl IntoPy<PyObject> for EdgeView<Graph> {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        let graph: MaterializedGraph = self.graph.into();
+        let edge = self.edge;
+        let vertex = EdgeView { graph, edge };
+        vertex.into_py(py)
+    }
+}
+
+impl IntoPy<PyObject> for EdgeView<GraphWithDeletions> {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        let graph: MaterializedGraph = self.graph.into();
+        let edge = self.edge;
+        let vertex = EdgeView { graph, edge };
+        vertex.into_py(py)
+    }
+}
+
+impl IntoPy<PyObject> for EdgeView<MaterializedGraph> {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        Py::new(py, (PyMutableEdge::from(self.clone()), PyEdge::from(self)))
+            .unwrap() // I think this only fails if we are out of memory? Seems to be unavoidable!
+            .into_py(py)
     }
 }
 
@@ -337,7 +382,7 @@ impl Repr for PyEdge {
     }
 }
 
-impl Repr for EdgeView<DynamicGraph> {
+impl<G: GraphViewOps> Repr for EdgeView<G> {
     fn repr(&self) -> String {
         let properties: String = self
             .properties()
@@ -367,6 +412,36 @@ impl Repr for EdgeView<DynamicGraph> {
                 format!("{{{properties}}}")
             )
         }
+    }
+}
+
+impl Repr for PyMutableEdge {
+    fn repr(&self) -> String {
+        self.edge.repr()
+    }
+}
+#[pymethods]
+impl PyMutableEdge {
+    fn add_updates(
+        &self,
+        t: PyTime,
+        properties: Option<HashMap<String, Prop>>,
+        layer: Option<&str>,
+    ) -> Result<(), GraphError> {
+        self.edge
+            .add_updates(t, properties.unwrap_or_default(), layer)
+    }
+
+    fn add_constant_properties(
+        &self,
+        properties: HashMap<String, Prop>,
+        layer: Option<&str>,
+    ) -> Result<(), GraphError> {
+        self.edge.add_constant_properties(properties, layer)
+    }
+
+    fn __repr__(&self) -> String {
+        self.repr()
     }
 }
 

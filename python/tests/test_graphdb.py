@@ -45,8 +45,7 @@ def create_graph_with_deletions():
     for e in edges:
         g.add_edge(e[0], e[1], e[2], {"prop1": 1,
                                       "prop2": 9.8, "prop3": "test"})
-
-    g.add_edge_properties(edges[0][1], edges[0][2], {"static": "test"})
+    g.edge(edges[0][1], edges[0][2]).add_constant_properties({"static": "test"})
     g.delete_edge(10, edges[0][1], edges[0][2])
     return g
 
@@ -276,7 +275,7 @@ def test_graph_properties():
     g = create_graph()
 
     props = {"prop 1": 1, "prop 2": "hi", "prop 3": True}
-    g.add_static_property(props)
+    g.add_constant_properties(props)
 
     sp = g.properties.constant.keys()
     sp.sort()
@@ -374,13 +373,12 @@ def test_vertex_properties():
     g = Graph()
     g.add_edge(1, 1, 1)
     props_t1 = {"prop 1": 1, "prop 3": "hi", "prop 4": True}
-    g.add_vertex(1, 1, props_t1)
+    v = g.add_vertex(1, 1, props_t1)
     props_t2 = {"prop 1": 2, "prop 2": 0.6, "prop 4": False}
-    g.add_vertex(2, 1, props_t2)
+    v.add_updates(2, props_t2)
     props_t3 = {"prop 2": 0.9, "prop 3": "hello", "prop 4": True}
-    g.add_vertex(3, 1, props_t3)
-
-    g.add_vertex_properties(1, {"static prop": 123})
+    v.add_updates(3, props_t3)
+    v.add_constant_properties({"static prop": 123})
 
     # testing property history
     def history_test(key, value):
@@ -581,13 +579,13 @@ def test_vertex_properties():
 def test_edge_properties():
     g = Graph()
     props_t1 = {"prop 1": 1, "prop 3": "hi", "prop 4": True}
-    g.add_edge(1, 1, 2, props_t1)
+    e = g.add_edge(1, 1, 2, props_t1)
     props_t2 = {"prop 1": 2, "prop 2": 0.6, "prop 4": False}
-    g.add_edge(2, 1, 2, props_t2)
+    e.add_updates(2, props_t2)
     props_t3 = {"prop 2": 0.9, "prop 3": "hello", "prop 4": True}
-    g.add_edge(3, 1, 2, props_t3)
+    e.add_updates(3, props_t3)
 
-    g.add_edge_properties(1, 2, {"static prop": 123})
+    e.add_constant_properties({"static prop": 123})
 
     # testing property history
     assert g.edge(1, 2).properties.temporal.get("prop 1") == [(1, 1), (2, 2)]
@@ -855,9 +853,8 @@ def test_all_edge_window():
 def test_static_prop_change():
     # with pytest.raises(Exception):
     g = Graph()
-
-    g.add_edge(0, 1, 2, {})
-    g.add_vertex_properties(1, {"name": "value1"})
+    v = g.add_vertex(0, 1)
+    v.add_constant_properties({"name": "value1"})
 
     expected_msg = (
         """Exception: Failed to mutate graph\n"""
@@ -869,7 +866,7 @@ def test_static_prop_change():
 
     # with pytest.raises(Exception, match=re.escape(expected_msg)):
     with pytest.raises(Exception):
-        g.add_vertex_properties(1, {"name": "value2"})
+        v.add_constant_properties({"name": "value2"})
 
 
 def test_triplet_count():
@@ -1349,7 +1346,7 @@ def test_subgraph():
     mg.add_property(1, props)
 
     props = {"prop 1": 1, "prop 2": "hi", "prop 3": True}
-    mg.add_static_property(props)
+    mg.add_constant_properties(props)
     x = mg.properties.keys()
     x.sort()
     assert x == ["prop 1", "prop 2", "prop 3", "prop 4", "prop 5", "prop 6"]
@@ -1370,8 +1367,7 @@ def test_materialize_graph():
     g.add_vertex(0, 1, {"type": "wallet", "cost": 99.5})
     g.add_vertex(-1, 2, {"type": "wallet", "cost": 10.0})
     g.add_vertex(6, 3, {"type": "wallet", "cost": 76})
-    g.add_vertex(6, 4)
-    g.add_vertex_properties(4, {"abc": "xyz"})
+    g.add_vertex(6, 4).add_constant_properties({"abc": "xyz"})
 
     for e in edges:
         g.add_edge(e[0], e[1], e[2], {"prop1": 1,
@@ -1380,7 +1376,7 @@ def test_materialize_graph():
     g.add_edge(8, 2, 4)
 
     sprop = {"sprop 1": "kaggle", "sprop 2": True}
-    g.add_static_property(sprop)
+    g.add_constant_properties(sprop)
     assert g.properties.constant == sprop
 
     mg = g.materialize()
@@ -1404,7 +1400,7 @@ def test_materialize_graph():
     assert g.has_edge(2, 1)
 
     sprop2 = {"sprop 3": 11, "sprop 4": 10}
-    mg.add_static_property(sprop2)
+    mg.add_constant_properties(sprop2)
     sprop.update(sprop2)
     assert mg.properties.constant == sprop
 
@@ -1612,10 +1608,8 @@ def test_load_from_pandas_with_types():
 
 def test_edge_layer():
     g = Graph()
-    g.add_edge(1, 1, 2, layer="layer 1")
-    g.add_edge(1, 2, 3, layer="layer 2")
-    g.add_edge_properties(1, 2, {"test_prop": "test_val"}, layer="layer 1")
-    g.add_edge_properties(2, 3, {"test_prop": "test_val 2"}, layer="layer 2")
+    g.add_edge(1, 1, 2, layer="layer 1").add_constant_properties({"test_prop": "test_val"})
+    g.add_edge(1, 2, 3, layer="layer 2").add_constant_properties({"test_prop": "test_val 2"})
     assert g.edges().properties.constant.get("test_prop") == [{'layer 1': 'test_val'}, {'layer 2': 'test_val 2'}]
 
 

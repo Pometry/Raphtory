@@ -6,12 +6,12 @@
 //! It is a wrapper around a set of shards, which are the actual graph data structures.
 //! In Python, this class wraps around the rust graph.
 use crate::{
-    core::{utils::errors::GraphError, Prop},
+    core::{entities::vertices::vertex_ref::VertexRef, utils::errors::GraphError, Prop},
     db::{
         api::mutation::{AdditionOps, PropertyAdditionOps},
         graph::{edge::EdgeView, vertex::VertexView, views::deletion_graph::GraphWithDeletions},
     },
-    prelude::DeletionOps,
+    prelude::{DeletionOps, GraphViewOps},
     python::{
         graph::views::graph_view::PyGraphView,
         utils::{PyInputVertex, PyTime},
@@ -177,6 +177,33 @@ impl PyGraphWithDeletions {
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
         self.graph.delete_edge(timestamp, src, dst, layer)
+    }
+
+    //FIXME: This is reimplemented here to get mutable views. If we switch the underlying graph to enum dispatch, this won't be necessary!
+    /// Gets the vertex with the specified id
+    ///
+    /// Arguments:
+    ///   id (str or int): the vertex id
+    ///
+    /// Returns:
+    ///   the vertex with the specified id, or None if the vertex does not exist
+    pub fn vertex(&self, id: VertexRef) -> Option<VertexView<GraphWithDeletions>> {
+        self.graph.vertex(id)
+    }
+
+    //FIXME: This is reimplemented here to get mutable views. If we switch the underlying graph to enum dispatch, this won't be necessary!
+    /// Gets the edge with the specified source and destination vertices
+    ///
+    /// Arguments:
+    ///     src (str or int): the source vertex id
+    ///     dst (str or int): the destination vertex id
+    ///     layer (str): the edge layer (optional)
+    ///
+    /// Returns:
+    ///     the edge with the specified source and destination vertices, or None if the edge does not exist
+    #[pyo3(signature = (src, dst))]
+    pub fn edge(&self, src: VertexRef, dst: VertexRef) -> Option<EdgeView<GraphWithDeletions>> {
+        self.graph.edge(src, dst)
     }
 
     //******  Saving And Loading  ******//
