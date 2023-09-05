@@ -1,8 +1,5 @@
 use crate::{
-    db::{
-        api::mutation::{AdditionOps, PropertyAdditionOps},
-        graph::graph as rap,
-    },
+    db::{api::mutation::AdditionOps, graph::graph as rap},
     graph_loader::source::neo4j_loader::Neo4JConnection,
     prelude::{IntoProp, NO_PROPS},
 };

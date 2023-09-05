@@ -1,6 +1,5 @@
 use crate::{
     core::{
-        entities::vertices::input_vertex::InputVertex,
         storage::timeindex::TimeIndexEntry,
         utils::{errors::GraphError, time::TryIntoTime},
     },

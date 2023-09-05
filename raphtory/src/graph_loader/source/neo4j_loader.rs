@@ -24,11 +24,11 @@ impl Neo4JConnection {
     }
 
     pub async fn run(&self, query: Query) -> Result<()> {
-        Ok(self.neo_graph.run(query).await?)
+        self.neo_graph.run(query).await
     }
 
     pub async fn execute(&self, query: Query) -> Result<RowStream> {
-        Ok(self.neo_graph.execute(query).await?)
+        self.neo_graph.execute(query).await
     }
 
     pub async fn load_query_into_graph(
@@ -50,10 +50,7 @@ impl Neo4JConnection {
 mod neo_loader_test {
     use crate::{
         db::{
-            api::{
-                mutation::{AdditionOps, PropertyAdditionOps},
-                view::GraphViewOps,
-            },
+            api::{mutation::AdditionOps, view::GraphViewOps},
             graph::graph as rap,
         },
         graph_loader::source::neo4j_loader::Neo4JConnection,

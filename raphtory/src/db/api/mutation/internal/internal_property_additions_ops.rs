@@ -1,7 +1,7 @@
 use crate::{
     core::{
-        entities::{vertices::vertex_ref::VertexRef, EID},
-        storage::{lazy_vec::IllegalSet, timeindex::TimeIndexEntry},
+        entities::EID,
+        storage::timeindex::TimeIndexEntry,
         utils::errors::{GraphError, IllegalMutate},
         Prop,
     },

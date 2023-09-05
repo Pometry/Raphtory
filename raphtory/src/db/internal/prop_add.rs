@@ -1,7 +1,7 @@
 use crate::{
     core::{
-        entities::{graph::tgraph::InnerTemporalGraph, vertices::vertex_ref::VertexRef, EID},
-        storage::{lazy_vec::IllegalSet, timeindex::TimeIndexEntry},
+        entities::{graph::tgraph::InnerTemporalGraph, EID},
+        storage::timeindex::TimeIndexEntry,
         utils::errors::{GraphError, IllegalMutate},
     },
     db::api::mutation::internal::InternalPropertyAdditionOps,
