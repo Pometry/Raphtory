@@ -1619,6 +1619,34 @@ def test_edge_layer():
     assert g.edges().properties.constant.get("test_prop") == [{'layer 1': 'test_val'}, {'layer 2': 'test_val 2'}]
 
 
+def test_edge_explode_layers():
+    g = Graph()
+    g.add_edge(1, 1, 2, {"layer": 1}, layer="1")
+    g.add_edge(1, 1, 2, {"layer": 2}, layer="2")
+    g.add_edge(1, 2, 1, {"layer": 1}, layer="1")
+    g.add_edge(1, 2, 1, {"layer": 2}, layer="2")
+
+    layered_edges = g.edge(1, 2).explode_layers()
+    e_layers = [ee.layer_names() for ee in layered_edges]
+    e_layer_prop = [[str(ee.properties["layer"])] for ee in layered_edges]
+    assert e_layers == e_layer_prop
+    print(e_layers)
+
+    nested_layered_edges = g.vertices.out_edges().explode_layers()
+    e_layers = [[ee.layer_names() for ee in edges] for edges in nested_layered_edges]
+    e_layer_prop = [[[str(ee.properties["layer"])] for ee in layered_edges] for layered_edges in nested_layered_edges]
+    assert e_layers == e_layer_prop
+    print(e_layers)
+
+    print(g.vertices.out_neighbours().collect())
+    nested_layered_edges = g.vertices.out_neighbours().out_edges().explode_layers()
+    print(nested_layered_edges)
+    e_layers = [[ee.layer_names() for ee in layered_edges] for layered_edges in nested_layered_edges]
+    e_layer_prop = [[[str(ee.properties["layer"])] for ee in layered_edges] for layered_edges in nested_layered_edges]
+    assert e_layers == e_layer_prop
+    print(e_layers)
+
+
 def test_hits_algorithm():
     g = graph_loader.lotr_graph()
     assert algorithms.hits(g).get('Aldor') == (0.0035840950440615416, 0.007476256228983402)
