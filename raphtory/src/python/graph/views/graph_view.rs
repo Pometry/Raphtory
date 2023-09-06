@@ -138,6 +138,14 @@ impl PyGraphView {
         self.graph.num_edges()
     }
 
+    /// Number of edges in the graph
+    ///
+    /// Returns:
+    ///    the number of temporal edges in the graph
+    pub fn num_temporal_edges(&self) -> usize {
+        self.graph.num_temporal_edges()
+    }
+
     /// Number of vertices in the graph
     ///
     /// Returns:
@@ -383,6 +391,7 @@ impl Repr for PyGraphView {
     fn repr(&self) -> String {
         let num_edges = self.graph.num_edges();
         let num_vertices = self.graph.num_vertices();
+        let num_temporal_edges: usize = self.graph.num_temporal_edges();
         let earliest_time = self.graph.earliest_time().unwrap_or_default();
         let latest_time = self.graph.latest_time().unwrap_or_default();
         let properties: String = self
@@ -393,14 +402,14 @@ impl Repr for PyGraphView {
             .join(", ");
         if (properties.is_empty()) {
             return format!(
-                "Graph(number_of_edges={:?}, number_of_vertices={:?}, earliest_time={:?}, latest_time={:?})",
-                num_edges, num_vertices, earliest_time, latest_time
+                "Graph(number_of_edges={:?}, number_of_vertices={:?}, number_of_temporal_edges={:?}, earliest_time={:?}, latest_time={:?})",
+                num_edges, num_vertices, num_temporal_edges, earliest_time, latest_time
             );
         } else {
             let property_string: String = format!("{{{properties}}}");
             return format!(
-                "Graph(number_of_edges={:?}, number_of_vertices={:?}, earliest_time={:?}, latest_time={:?}, properties={})",
-                num_edges, num_vertices, earliest_time, latest_time, property_string
+                "Graph(number_of_edges={:?}, number_of_vertices={:?}, number_of_temporal_edges={:?}, earliest_time={:?}, latest_time={:?}, properties={})",
+                num_edges, num_vertices, num_temporal_edges, earliest_time, latest_time, property_string
             );
         }
     }
