@@ -5,18 +5,24 @@
 //! edge as it existed at a particular point in time, or as it existed over a particular time range.
 //!
 use crate::{
-    core::utils::time::error::ParseTimeError,
+    core::{
+        utils::{errors::GraphError, time::error::ParseTimeError},
+        Direction,
+    },
     db::{
         api::{
             properties::Properties,
             view::{
-                internal::{DynamicGraph, IntoDynamic},
+                internal::{DynamicGraph, Immutable, IntoDynamic, MaterializedGraph},
                 BoxedIter, WindowSet,
             },
         },
         graph::{
             edge::EdgeView,
-            views::{layer_graph::LayeredGraph, window_graph::WindowedGraph},
+            views::{
+                deletion_graph::GraphWithDeletions, layer_graph::LayeredGraph,
+                window_graph::WindowedGraph,
+            },
         },
     },
     prelude::*,
@@ -38,7 +44,7 @@ use chrono::NaiveDateTime;
 use itertools::Itertools;
 use pyo3::{prelude::*, pyclass::CompareOp};
 use std::{
-    collections::hash_map::DefaultHasher,
+    collections::{hash_map::DefaultHasher, HashMap},
     hash::{Hash, Hasher},
     ops::Deref,
     sync::Arc,
@@ -46,9 +52,14 @@ use std::{
 
 /// PyEdge is a Python class that represents an edge in the graph.
 /// An edge is a directed connection between two vertices.
-#[pyclass(name = "Edge")]
+#[pyclass(name = "Edge", subclass)]
 pub struct PyEdge {
     pub(crate) edge: EdgeView<DynamicGraph>,
+}
+
+#[pyclass(name="MutableEdge", extends=PyEdge)]
+pub struct PyMutableEdge {
+    edge: EdgeView<MaterializedGraph>,
 }
 
 impl<G: GraphViewOps + IntoDynamic> From<EdgeView<G>> for PyEdge {
@@ -62,10 +73,47 @@ impl<G: GraphViewOps + IntoDynamic> From<EdgeView<G>> for PyEdge {
     }
 }
 
-impl<G: GraphViewOps + IntoDynamic> IntoPy<PyObject> for EdgeView<G> {
+impl<G: Into<MaterializedGraph> + GraphViewOps> From<EdgeView<G>> for PyMutableEdge {
+    fn from(value: EdgeView<G>) -> Self {
+        let edge = EdgeView {
+            edge: value.edge,
+            graph: value.graph.into(),
+        };
+
+        Self { edge }
+    }
+}
+
+impl<G: GraphViewOps + IntoDynamic + Immutable> IntoPy<PyObject> for EdgeView<G> {
     fn into_py(self, py: Python<'_>) -> PyObject {
         let py_version: PyEdge = self.into();
         py_version.into_py(py)
+    }
+}
+
+impl IntoPy<PyObject> for EdgeView<Graph> {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        let graph: MaterializedGraph = self.graph.into();
+        let edge = self.edge;
+        let vertex = EdgeView { graph, edge };
+        vertex.into_py(py)
+    }
+}
+
+impl IntoPy<PyObject> for EdgeView<GraphWithDeletions> {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        let graph: MaterializedGraph = self.graph.into();
+        let edge = self.edge;
+        let vertex = EdgeView { graph, edge };
+        vertex.into_py(py)
+    }
+}
+
+impl IntoPy<PyObject> for EdgeView<MaterializedGraph> {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        Py::new(py, (PyMutableEdge::from(self.clone()), PyEdge::from(self)))
+            .unwrap() // I think this only fails if we are out of memory? Seems to be unavoidable!
+            .into_py(py)
     }
 }
 
@@ -266,6 +314,16 @@ impl PyEdge {
         (move || edge.explode()).into()
     }
 
+    /// Explodes an Edge into a list of PyEdges, one for each layer the edge is part of. This is useful when you want to iterate over
+    /// the properties of an Edge for every layer.
+    ///
+    /// Returns:
+    ///     A list of PyEdges
+    pub fn explode_layers(&self) -> PyEdges {
+        let edge = self.edge.clone();
+        (move || edge.explode_layers()).into()
+    }
+
     /// Gets the earliest time of an edge.
     ///
     /// Returns:
@@ -336,7 +394,7 @@ impl Repr for PyEdge {
     }
 }
 
-impl Repr for EdgeView<DynamicGraph> {
+impl<G: GraphViewOps> Repr for EdgeView<G> {
     fn repr(&self) -> String {
         let properties: String = self
             .properties()
@@ -366,6 +424,36 @@ impl Repr for EdgeView<DynamicGraph> {
                 format!("{{{properties}}}")
             )
         }
+    }
+}
+
+impl Repr for PyMutableEdge {
+    fn repr(&self) -> String {
+        self.edge.repr()
+    }
+}
+#[pymethods]
+impl PyMutableEdge {
+    fn add_updates(
+        &self,
+        t: PyTime,
+        properties: Option<HashMap<String, Prop>>,
+        layer: Option<&str>,
+    ) -> Result<(), GraphError> {
+        self.edge
+            .add_updates(t, properties.unwrap_or_default(), layer)
+    }
+
+    fn add_constant_properties(
+        &self,
+        properties: HashMap<String, Prop>,
+        layer: Option<&str>,
+    ) -> Result<(), GraphError> {
+        self.edge.add_constant_properties(properties, layer)
+    }
+
+    fn __repr__(&self) -> String {
+        self.repr()
     }
 }
 
@@ -435,6 +523,18 @@ impl PyEdges {
         (move || {
             let iter: BoxedIter<EdgeView<DynamicGraph>> =
                 Box::new(builder().flat_map(|e| e.explode()));
+            iter
+        })
+        .into()
+    }
+
+    /// Explodes each edge into a list of edges, one for each layer the edge is part of. This is useful when you want to iterate over
+    /// the properties of an Edge for every layer.
+    fn explode_layers(&self) -> PyEdges {
+        let builder = self.builder.clone();
+        (move || {
+            let iter: BoxedIter<EdgeView<DynamicGraph>> =
+                Box::new(builder().flat_map(|e| e.explode_layers()));
             iter
         })
         .into()
@@ -521,6 +621,7 @@ impl PyNestedEdges {
 
     // FIXME: needs a view that allows indexing into the properties
     /// Returns all properties of the edges
+    #[getter]
     fn properties(&self) -> PyNestedPropsIterable {
         let builder = self.builder.clone();
         (move || builder().properties()).into()
@@ -532,6 +633,7 @@ impl PyNestedEdges {
         (move || edges().id()).into()
     }
 
+    /// Explode each edge, creating a separate edge instance for each edge event
     fn explode(&self) -> PyNestedEdges {
         let builder = self.builder.clone();
         (move || {
@@ -543,5 +645,75 @@ impl PyNestedEdges {
             iter
         })
         .into()
+    }
+
+    /// Explode each edge over layers, creating a separate edge instance for each layer the edge is part of
+    fn explode_layers(&self) -> PyNestedEdges {
+        let builder = self.builder.clone();
+        (move || {
+            let iter: BoxedIter<BoxedIter<EdgeView<DynamicGraph>>> = Box::new(builder().map(|e| {
+                let inner_box: BoxedIter<EdgeView<DynamicGraph>> =
+                    Box::new(e.flat_map(|e| e.explode_layers()));
+                inner_box
+            }));
+            iter
+        })
+        .into()
+    }
+}
+
+#[pyclass]
+#[derive(Clone)]
+pub struct PyDirection {
+    inner: Direction,
+}
+
+#[pymethods]
+impl PyDirection {
+    #[new]
+    pub fn new(direction: &str) -> Self {
+        match direction {
+            "OUT" => PyDirection {
+                inner: Direction::OUT,
+            },
+            "IN" => PyDirection {
+                inner: Direction::IN,
+            },
+            "BOTH" => PyDirection {
+                inner: Direction::BOTH,
+            },
+            _ => panic!("Invalid direction"),
+        }
+    }
+
+    fn as_str(&self) -> &str {
+        match self.inner {
+            Direction::OUT => "OUT",
+            Direction::IN => "IN",
+            Direction::BOTH => "BOTH",
+        }
+    }
+}
+
+impl Into<Direction> for PyDirection {
+    fn into(self) -> Direction {
+        self.inner
+    }
+}
+
+impl From<String> for PyDirection {
+    fn from(s: String) -> Self {
+        match s.to_uppercase().as_str() {
+            "OUT" => PyDirection {
+                inner: Direction::OUT,
+            },
+            "IN" => PyDirection {
+                inner: Direction::IN,
+            },
+            "BOTH" => PyDirection {
+                inner: Direction::BOTH,
+            },
+            _ => panic!("Invalid direction string"),
+        }
     }
 }

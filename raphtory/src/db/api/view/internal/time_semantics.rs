@@ -8,13 +8,15 @@ use crate::{
         Prop,
     },
     db::api::view::{
-        internal::{Base, CoreGraphOps, EdgeFilter, GraphOps},
+        internal::{materialize::MaterializedGraph, Base, CoreGraphOps, EdgeFilter, GraphOps},
         BoxedIter,
     },
 };
+use enum_dispatch::enum_dispatch;
 use std::ops::Range;
 
 /// Methods for defining time windowing semantics for a graph
+#[enum_dispatch]
 pub trait TimeSemantics: GraphOps + CoreGraphOps {
     /// Return the earliest time for a vertex
     fn vertex_earliest_time(&self, v: VID) -> Option<i64> {

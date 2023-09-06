@@ -3,8 +3,10 @@ use crate::{
     db::api::view::internal::Base,
     prelude::Layer,
 };
+use enum_dispatch::enum_dispatch;
 
-pub trait LayerOps {
+#[enum_dispatch]
+pub trait InternalLayerOps {
     /// get the layer ids for the graph view
     fn layer_ids(&self) -> LayerIds;
 
@@ -19,7 +21,7 @@ pub trait InheritLayerOps: Base {}
 
 impl<G: InheritLayerOps> DelegateLayerOps for G
 where
-    G::Base: LayerOps,
+    G::Base: InternalLayerOps,
 {
     type Internal = G::Base;
 
@@ -30,12 +32,12 @@ where
 }
 
 pub trait DelegateLayerOps {
-    type Internal: LayerOps + ?Sized;
+    type Internal: InternalLayerOps + ?Sized;
 
     fn graph(&self) -> &Self::Internal;
 }
 
-impl<G: DelegateLayerOps> LayerOps for G {
+impl<G: DelegateLayerOps> InternalLayerOps for G {
     #[inline]
     fn layer_ids(&self) -> LayerIds {
         self.graph().layer_ids()

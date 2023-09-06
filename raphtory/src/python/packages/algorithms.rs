@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use crate::python::graph::edge::PyDirection;
 /// Implementations of various graph algorithms that can be run on a graph.
 ///
 /// To run an algorithm simply import the module and call the function with the graph as the argument
@@ -7,6 +8,7 @@ use std::collections::HashMap;
 use crate::{
     algorithms::{
         algorithm_result::AlgorithmResult,
+        balance::balance as balance_rs,
         connected_components,
         degree::{
             average_degree as average_degree_rs, max_in_degree as max_in_degree_rs,
@@ -369,4 +371,31 @@ pub fn hits(
     threads: Option<usize>,
 ) -> AlgorithmResult<String, (f32, f32)> {
     hits_rs(&g.graph, iter_count, threads)
+}
+
+/// Sums the weights of edges in the graph based on the specified direction.
+///
+/// This function computes the sum of edge weights based on the direction provided, and can be executed in parallel using a given number of threads.
+///
+/// # Parameters
+/// * `g` (`&PyGraphView`): The graph view on which the operation is to be performed.
+/// * `name` (`String`, default = "weight"): The name of the edge property used as the weight. Defaults to "weight" if not provided.
+/// * `direction` (`PyDirection`, default = `PyDirection::new("BOTH")`): Specifies the direction of the edges to be considered for summation.
+///    - `PyDirection::new("OUT")`: Only consider outgoing edges.
+///    - `PyDirection::new("IN")`: Only consider incoming edges.
+///    - `PyDirection::new("BOTH")`: Consider both outgoing and incoming edges. This is the default.
+/// * `threads` (`Option<usize>`, default = `None`): The number of threads to be used for parallel execution. Defaults to single-threaded operation if not provided.
+///
+/// # Returns
+/// `AlgorithmResult<String, OrderedFloat<f64>>`: A result containing a mapping of vertex names to the computed sum of their associated edge weights.
+///
+#[pyfunction]
+#[pyo3[signature = (g, name="weight".to_string(), direction=PyDirection::new("BOTH"),  threads=None)]]
+pub fn balance(
+    g: &PyGraphView,
+    name: String,
+    direction: PyDirection,
+    threads: Option<usize>,
+) -> AlgorithmResult<String, OrderedFloat<f64>> {
+    balance_rs(&g.graph, name.clone(), direction.into(), threads)
 }
