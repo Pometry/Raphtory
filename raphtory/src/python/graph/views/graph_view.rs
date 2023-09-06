@@ -24,10 +24,7 @@ use crate::{
     },
     prelude::*,
     python::{
-        graph::{
-            edge::PyEdges,
-            vertex::{PyVertex, PyVertices},
-        },
+        graph::{edge::PyEdges, vertex::PyVertices},
         types::repr::Repr,
         utils::{PyInterval, PyTime},
     },
@@ -400,7 +397,7 @@ impl Repr for PyGraphView {
             .iter()
             .map(|(k, v)| format!("{}: {}", k.deref(), v))
             .join(", ");
-        if (properties.is_empty()) {
+        if properties.is_empty() {
             return format!(
                 "Graph(number_of_edges={:?}, number_of_vertices={:?}, number_of_temporal_edges={:?}, earliest_time={:?}, latest_time={:?})",
                 num_edges, num_vertices, num_temporal_edges, earliest_time, latest_time

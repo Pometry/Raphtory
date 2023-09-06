@@ -5,9 +5,11 @@ use crate::{
     },
     db::api::view::internal::{Base, EdgeFilter},
 };
+use enum_dispatch::enum_dispatch;
 
 /// The GraphViewInternalOps trait provides a set of methods to query a directed graph
 /// represented by the raphtory_core::tgraph::TGraph struct.
+#[enum_dispatch]
 pub trait GraphOps: Send + Sync {
     /// Check if a vertex exists and returns internal reference.
     fn internal_vertex_ref(

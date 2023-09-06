@@ -3,12 +3,16 @@
 use crate::{
     core::{
         entities::{vertices::vertex_ref::VertexRef, VID},
-        storage::locked_view::LockedView,
-        utils::time::IntoTime,
+        storage::{locked_view::LockedView, timeindex::TimeIndexEntry},
+        utils::{errors::GraphError, time::IntoTime},
         Direction,
     },
     db::{
         api::{
+            mutation::{
+                internal::{InternalAdditionOps, InternalPropertyAdditionOps},
+                CollectProperties, TryIntoInputTime,
+            },
             properties::{
                 internal::{
                     ConstPropertiesOps, Key, TemporalPropertiesOps, TemporalPropertyViewOps,
@@ -298,6 +302,27 @@ impl<G: GraphViewOps> LayerOps for VertexView<G> {
     }
 }
 
+impl<G: GraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> VertexView<G> {
+    pub fn add_constant_properties<C: CollectProperties>(
+        &self,
+        props: C,
+    ) -> Result<(), GraphError> {
+        self.graph
+            .internal_add_vertex_properties(self.id(), props.collect_properties())
+    }
+
+    pub fn add_updates<C: CollectProperties, T: TryIntoInputTime>(
+        &self,
+        time: T,
+        props: C,
+    ) -> Result<(), GraphError> {
+        let t = TimeIndexEntry::from_input(&self.graph, time)?;
+        self.graph
+            .internal_add_vertex(t, self.vertex, None, props.collect_properties())?;
+        Ok(())
+    }
+}
+
 /// Implementation of the VertexListOps trait for an iterator of VertexView objects.
 ///
 impl<G: GraphViewOps> VertexListOps for Box<dyn Iterator<Item = VertexView<G>> + Send> {
@@ -485,5 +510,30 @@ mod vertex_test {
                 .collect()
         );
         assert_eq!(v1_w.properties().as_map(), HashMap::default())
+    }
+
+    #[test]
+    fn test_property_additions() {
+        let g = Graph::new();
+        let props = [("test", "test")];
+        let v1 = g.add_vertex(0, 1, NO_PROPS).unwrap();
+        v1.add_updates(2, props).unwrap();
+        let v1_w = v1.window(0, 1);
+        assert_eq!(
+            v1.properties().as_map(),
+            props
+                .into_iter()
+                .map(|(k, v)| (k.to_string(), v.into_prop()))
+                .collect()
+        );
+        assert_eq!(v1_w.properties().as_map(), HashMap::default())
+    }
+
+    #[test]
+    fn test_constant_property_additions() {
+        let g = Graph::new();
+        let v1 = g.add_vertex(0, 1, NO_PROPS).unwrap();
+        v1.add_constant_properties([("test", "test")]).unwrap();
+        assert_eq!(v1.properties().get("test"), Some("test".into()))
     }
 }

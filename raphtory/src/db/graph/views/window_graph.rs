@@ -54,8 +54,8 @@ use crate::{
         },
         view::{
             internal::{
-                Base, EdgeFilter, EdgeFilterOps, GraphOps, InheritCoreOps, InheritLayerOps,
-                InheritMaterialize, TimeSemantics,
+                Base, EdgeFilter, EdgeFilterOps, GraphOps, Immutable, InheritCoreOps,
+                InheritLayerOps, InheritMaterialize, TimeSemantics,
             },
             BoxedIter,
         },
@@ -99,6 +99,7 @@ impl<G: GraphViewOps> Base for WindowedGraph<G> {
     }
 }
 
+impl<G: GraphViewOps> Immutable for WindowedGraph<G> {}
 impl<G: GraphViewOps> InheritCoreOps for WindowedGraph<G> {}
 
 impl<G: GraphViewOps> InheritMaterialize for WindowedGraph<G> {}

@@ -1,9 +1,16 @@
 use crate::{
-    core::{storage::timeindex::TimeIndexEntry, utils::errors::GraphError, Prop},
+    core::{
+        entities::EID,
+        storage::timeindex::TimeIndexEntry,
+        utils::errors::{GraphError, IllegalMutate},
+        Prop,
+    },
     db::api::view::internal::Base,
 };
+use enum_dispatch::enum_dispatch;
 
 /// internal (dyn friendly) methods for adding properties
+#[enum_dispatch]
 pub trait InternalPropertyAdditionOps {
     /// internal (dyn friendly)
     fn internal_add_vertex_properties(
@@ -22,11 +29,10 @@ pub trait InternalPropertyAdditionOps {
 
     fn internal_add_edge_properties(
         &self,
-        src: u64,
-        dst: u64,
+        eid: EID,
         props: Vec<(String, Prop)>,
-        layer: Option<&str>,
-    ) -> Result<(), GraphError>;
+        layer: usize,
+    ) -> Result<(), IllegalMutate>;
 }
 
 pub trait InheritPropertyAdditionOps: Base {}
@@ -75,12 +81,10 @@ impl<G: DelegatePropertyAdditionOps> InternalPropertyAdditionOps for G {
     #[inline(always)]
     fn internal_add_edge_properties(
         &self,
-        src: u64,
-        dst: u64,
+        eid: EID,
         props: Vec<(String, Prop)>,
-        layer: Option<&str>,
-    ) -> Result<(), GraphError> {
-        self.graph()
-            .internal_add_edge_properties(src, dst, props, layer)
+        layer: usize,
+    ) -> Result<(), IllegalMutate> {
+        self.graph().internal_add_edge_properties(eid, props, layer)
     }
 }

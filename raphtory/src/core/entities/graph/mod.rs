@@ -6,6 +6,7 @@ pub(crate) mod timer;
 mod test {
     use crate::{
         core::Direction,
+        db::api::mutation::internal::InternalAdditionOps,
         prelude::{IntoProp, Prop, NO_PROPS},
     };
 
@@ -14,27 +15,31 @@ mod test {
     #[test]
     fn test_neighbours_multiple_layers() {
         let g: InnerTemporalGraph<2> = InnerTemporalGraph::default();
-
+        let l_btc = g.resolve_layer(Some("btc"));
+        let l_eth = g.resolve_layer(Some("eth"));
+        let l_tether = g.resolve_layer(Some("tether"));
+        let v1 = g.resolve_vertex(1);
+        let v2 = g.resolve_vertex(2);
         g.inner().add_edge_internal(
             1.into(),
-            1,
-            2,
+            v1,
+            v2,
             vec![("tx_sent".to_string(), 10.into_prop())],
-            Some("btc"),
+            l_btc,
         );
         g.inner().add_edge_internal(
             1.into(),
-            1,
-            2,
+            v1,
+            v2,
             vec![("tx_sent".to_string(), 20.into_prop())],
-            Some("eth"),
+            l_eth,
         );
         g.inner().add_edge_internal(
             1.into(),
-            1,
-            2,
+            v1,
+            v2,
             vec![("tx_sent".to_string(), 70.into_prop())],
-            Some("tether"),
+            l_tether,
         );
 
         let first = g.inner().vertex(0.into());
@@ -57,12 +62,15 @@ mod test {
     #[test]
     fn simple_triangle() {
         let g: InnerTemporalGraph<2> = InnerTemporalGraph::default();
-        let vs = vec![(1, 1, 2), (2, 1, 3), (3, 2, 1), (4, 3, 2)];
+        let v1 = g.resolve_vertex(1);
+        let v2 = g.resolve_vertex(2);
+        let v3 = g.resolve_vertex(3);
+        let vs = vec![(1, v1, v2), (2, v1, v3), (3, v2, v1), (4, v3, v2)];
 
         let empty: Vec<(String, Prop)> = vec![];
         for (t, src, dst) in vs {
             g.inner()
-                .add_edge_internal(t.into(), src, dst, empty.clone(), None);
+                .add_edge_internal(t.into(), src, dst, empty.clone(), 0);
         }
 
         let v = g.inner().vertex(0.into());

@@ -4,8 +4,8 @@ use crate::{
         properties::internal::InheritPropertiesOps,
         view::{
             internal::{
-                Base, EdgeFilter, EdgeFilterOps, InheritCoreOps, InheritGraphOps,
-                InheritMaterialize, InheritTimeSemantics, LayerOps,
+                Base, EdgeFilter, EdgeFilterOps, Immutable, InheritCoreOps, InheritGraphOps,
+                InheritMaterialize, InheritTimeSemantics, InternalLayerOps,
             },
             Layer,
         },
@@ -27,6 +27,8 @@ pub struct LayeredGraph<G: GraphViewOps> {
 
     edge_filter: EdgeFilter,
 }
+
+impl<G: GraphViewOps> Immutable for LayeredGraph<G> {}
 
 impl<G: GraphViewOps + Debug> Debug for LayeredGraph<G> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -102,7 +104,7 @@ impl<G: GraphViewOps> LayeredGraph<G> {
     }
 }
 
-impl<G: GraphViewOps> LayerOps for LayeredGraph<G> {
+impl<G: GraphViewOps> InternalLayerOps for LayeredGraph<G> {
     fn layer_ids(&self) -> LayerIds {
         self.layers.clone()
     }
