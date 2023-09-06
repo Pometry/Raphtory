@@ -131,6 +131,8 @@ r"""Returns a graph with NetworkX.
 :returns: A Networkx MultiDiGraph.
 
 """
+
+
 def to_networkx(
     graph,
     explode_edges=False,
@@ -186,6 +188,7 @@ def to_networkx(
 
     return networkXGraph
 
+
 r"""Returns an edge list pandas dataframe fro the given graph.
 
 .. note::
@@ -203,19 +206,21 @@ r"""Returns an edge list pandas dataframe fro the given graph.
 :returns: A pandas dataframe.
 
 """
+
+
 def to_edge_df(
-        graph,
-        explode_edges=False,
-        include_edge_properties=True,
-        include_update_history=True,
-        include_property_histories=True,
+    graph,
+    explode_edges=False,
+    include_edge_properties=True,
+    include_update_history=True,
+    include_property_histories=True,
 ):
     """
     Returns a edge list dataframe from a Raphtory graph.
     """
     edge_tuples = []
 
-    columns =["src", "dst", "layer"]
+    columns = ["src", "dst", "layer"]
     if include_edge_properties:
         columns.append("properties")
     if include_update_history:
@@ -223,61 +228,69 @@ def to_edge_df(
 
     edges = graph.edges().explode() if explode_edges else graph.edges().explode_layers()
     for e in edges:
-        properties = {}
-        src = e.src().name()
-        dst = e.dst().name()
+        tuple = [e.src().name(), e.dst().name(), e.layer_name()]
         if include_edge_properties:
             if include_property_histories:
                 properties = (
-                        e.properties.constant.as_dict() | e.properties.temporal.histories()
+                    e.properties.constant.as_dict() | e.properties.temporal.histories()
                 )
             else:
                 properties = e.properties.as_dict()
-
-
-        layer = e.layer_name()
+            tuple.append(properties)
 
         if include_update_history:
             if explode_edges:
-                properties = properties | {"update_history": e.time()}
+                tuple.append(e.time())
             else:
-                properties = properties | {"update_history": e.history()}
-        edge_tuples.append((src, dst, layer, properties))
+                tuple.append(e.history())
+
+        edge_tuples.append(tuple)
 
     return pd.DataFrame(edge_tuples, columns=columns)
 
 
+r"""Returns an vertex list pandas dataframe fro the given graph.
+
+.. note::
+
+    Pandas is a required dependency.
+    If you intend to use this function make sure that
+    you install pandas with ``pip install pandas``
+
+:param Graph graph: A Raphtory graph.
+:param bool include_vertex_properties: A boolean that is set to True if you want to include the vertex properties in the graph. By default this is set to True.
+:param bool include_update_history: A boolean that is set to True if you want to include the update histories in the graph. By default this is set to True.
+:param bool include_property_histories: A boolean that is set to True if you want to include the histories in the graph. By default this is set to True.
+
+:returns: A pandas dataframe.
+
+"""
+
+
 def to_vertex_df(
     graph,
+    include_vertex_properties=True,
+    include_update_history=True,
+    include_property_histories=True,
 ):
-    """
-    Returns a list of vertices from a Raphtory graph in Pandas dataframe format.
-    """
-    node_list = []
+    vertex_tuples = []
+    columns = ["id"]
+    if include_vertex_properties:
+        columns.append("properties")
+    if include_update_history:
+        columns.append("update_history")
 
     for v in graph.vertices():
-        v_constant_properties = []
-        v_temporal_properties = []
-        name = v.name() if v.name() else None
-        history = v.history() if v.history() else None
-
-        if v.properties.constant is not None:
-            for key, value in v.properties.constant.items():
-                v_constant_properties.append((key, value))
-        else:
-            v_constant_properties = None
-
-        if v.properties.temporal is not None:
-            for prop, hist in v.properties.temporal.items():
-                for timestamp, value in hist:
-                    v_temporal_properties.append((timestamp, prop, value))
-        else:
-            v_temporal_properties = None
-
-        node_tuple = (name, history, v_constant_properties, v_temporal_properties)
-        node_list.append(node_tuple)
-
-    return pd.DataFrame(
-        node_list,
-        columns=["name", "history", "constant_properties", "temporal_properties"],
-    )
+        tuple = [v.name()]
+        if include_vertex_properties:
+            if include_property_histories:
+                properties = (
+                    v.properties.constant.as_dict() | v.properties.temporal.histories()
+                )
+            else:
+                properties = v.properties.as_dict()
+            tuple.append(properties)
+        if include_update_history:
+            tuple.append(v.history())
+        vertex_tuples.append(tuple)
+    return pd.DataFrame(vertex_tuples, columns=columns)

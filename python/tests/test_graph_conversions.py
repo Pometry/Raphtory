@@ -1,6 +1,7 @@
 from raphtory import Graph
 from raphtory import export
 import pandas as pd
+import json
 
 
 def build_graph():
@@ -899,3 +900,111 @@ def test_networkx_no_history():
     assert edgeList == resultList
 
 
+def save_df_to_json(df, filename):
+    df.to_json(filename)
+    # Below is if you want to pretty print the json
+    # json_str = df.to_json()
+    # parsed = json.loads(json_str)
+    # with open(filename, "w") as f:
+    #    json.dump(parsed, f, indent=4)
+
+
+# DO NOT RUN UNLESS RECREATING THE OUTPUT
+def build_to_df():
+    g = build_graph()
+
+    edge_df = export.to_edge_df(g)
+    save_df_to_json(edge_df, "expected/dataframe_output/edge_df_all.json")
+    edge_df = export.to_edge_df(g, include_edge_properties=False)
+    save_df_to_json(edge_df, "expected/dataframe_output/edge_df_no_props.json")
+    edge_df = export.to_edge_df(g, include_update_history=False)
+    save_df_to_json(edge_df, "expected/dataframe_output/edge_df_no_hist.json")
+    edge_df = export.to_edge_df(g, include_property_histories=False)
+    save_df_to_json(edge_df, "expected/dataframe_output/edge_df_no_prop_hist.json")
+
+    edge_df = export.to_edge_df(g, explode_edges=True)
+    save_df_to_json(edge_df, "expected/dataframe_output/edge_df_exploded.json")
+    edge_df = export.to_edge_df(g, explode_edges=True, include_edge_properties=False)
+    save_df_to_json(edge_df, "expected/dataframe_output/edge_df_exploded_no_props.json")
+    edge_df = export.to_edge_df(g, explode_edges=True, include_update_history=False)
+    save_df_to_json(edge_df, "expected/dataframe_output/edge_df_exploded_no_hist.json")
+    edge_df = export.to_edge_df(g, explode_edges=True, include_property_histories=False)
+    save_df_to_json(
+        edge_df, "expected/dataframe_output/edge_df_exploded_no_prop_hist.json"
+    )
+
+    vertex_df = export.to_vertex_df(g)
+    save_df_to_json(vertex_df, "expected/dataframe_output/vertex_df_all.json")
+    vertex_df = export.to_vertex_df(g, include_vertex_properties=False)
+    save_df_to_json(vertex_df, "expected/dataframe_output/vertex_df_no_props.json")
+    vertex_df = export.to_vertex_df(g, include_update_history=False)
+    save_df_to_json(vertex_df, "expected/dataframe_output/vertex_df_no_hist.json")
+    vertex_df = export.to_vertex_df(g, include_property_histories=False)
+    save_df_to_json(vertex_df, "expected/dataframe_output/vertex_df_no_prop_hist.json")
+
+
+def compare_df(df1, df2):
+    #Have to do this way due to the number of maps inside the dataframes
+    s1 = df1.to_json()
+    s2 = df2.to_json()
+    data1 = json.loads(s1)
+    data2 = json.loads(s2)
+    assert data1 == data2
+
+def test_to_df():
+    g = build_graph()
+
+    compare_df(
+        export.to_edge_df(g), pd.read_json("expected/dataframe_output/edge_df_all.json")
+    )
+
+    compare_df(
+        export.to_edge_df(g, include_edge_properties=False),
+        pd.read_json("expected/dataframe_output/edge_df_no_props.json"),
+    )
+
+    compare_df(
+        export.to_edge_df(g, include_update_history=False),
+        pd.read_json("expected/dataframe_output/edge_df_no_hist.json"),
+    )
+
+    compare_df(
+        export.to_edge_df(g, include_property_histories=False),
+        pd.read_json("expected/dataframe_output/edge_df_no_prop_hist.json"),
+    )
+
+    compare_df(
+        export.to_edge_df(g, explode_edges=True),
+        pd.read_json("expected/dataframe_output/edge_df_exploded.json"),
+    )
+    compare_df(
+        export.to_edge_df(g, explode_edges=True, include_edge_properties=False),
+        pd.read_json("expected/dataframe_output/edge_df_exploded_no_props.json"),
+    )
+
+    compare_df(
+        export.to_edge_df(g, explode_edges=True, include_update_history=False),
+        pd.read_json("expected/dataframe_output/edge_df_exploded_no_hist.json"),
+    )
+
+    compare_df(
+        export.to_edge_df(g, explode_edges=True, include_property_histories=False),
+        pd.read_json("expected/dataframe_output/edge_df_exploded_no_prop_hist.json"),
+    )
+
+    compare_df(
+        export.to_vertex_df(g),
+        pd.read_json("expected/dataframe_output/vertex_df_all.json"),
+    )
+    compare_df(
+        export.to_vertex_df(g, include_vertex_properties=False),
+        pd.read_json("expected/dataframe_output/vertex_df_no_props.json"),
+    )
+    compare_df(
+        export.to_vertex_df(g, include_update_history=False),
+        pd.read_json("expected/dataframe_output/vertex_df_no_hist.json"),
+    )
+    compare_df(
+        export.to_vertex_df(g, include_property_histories=False),
+        pd.read_json("expected/dataframe_output/vertex_df_no_prop_hist.json"),
+    )
