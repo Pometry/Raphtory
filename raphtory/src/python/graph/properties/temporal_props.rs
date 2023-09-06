@@ -22,7 +22,6 @@ use pyo3::{
     prelude::*,
 };
 use std::{collections::HashMap, ops::Deref, sync::Arc};
-use tantivy::HasLen;
 
 pub type DynTemporalProperties = TemporalProperties<DynProps>;
 pub type DynTemporalProperty = TemporalPropertyView<DynProps>;

@@ -15,11 +15,17 @@ use crate::{
     },
     db::api::view::internal::Base,
 };
+use enum_dispatch::enum_dispatch;
 
 /// Core functions that should (almost-)always be implemented by pointing at the underlying graph.
+#[enum_dispatch]
 pub trait CoreGraphOps {
     /// get the number of vertices in the main graph
     fn unfiltered_num_vertices(&self) -> usize;
+
+    fn get_layer_name(&self, layer_id: usize) -> Option<LockedView<String>>;
+
+    fn get_layer_id(&self, name: &str) -> Option<usize>;
 
     /// Get the layer name for a given id
     fn get_layer_names_from_ids(&self, layer_ids: LayerIds) -> Vec<String>;
@@ -226,6 +232,7 @@ where
 {
     type Internal = G::Base;
 
+    #[inline]
     fn graph(&self) -> &Self::Internal {
         self.base()
     }
@@ -238,22 +245,37 @@ pub trait DelegateCoreOps {
 }
 
 impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
+    #[inline]
     fn unfiltered_num_vertices(&self) -> usize {
         self.graph().unfiltered_num_vertices()
     }
 
+    #[inline]
+    fn get_layer_name(&self, layer_id: usize) -> Option<LockedView<String>> {
+        self.graph().get_layer_name(layer_id)
+    }
+
+    #[inline]
+    fn get_layer_id(&self, name: &str) -> Option<usize> {
+        self.graph().get_layer_id(name)
+    }
+
+    #[inline]
     fn get_layer_names_from_ids(&self, layer_ids: LayerIds) -> Vec<String> {
         self.graph().get_layer_names_from_ids(layer_ids)
     }
 
+    #[inline]
     fn vertex_id(&self, v: VID) -> u64 {
         self.graph().vertex_id(v)
     }
 
+    #[inline]
     fn vertex_name(&self, v: VID) -> String {
         self.graph().vertex_name(v)
     }
 
+    #[inline]
     fn edge_additions(
         &self,
         eref: EdgeRef,
@@ -262,38 +284,47 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
         self.graph().edge_additions(eref, layer_ids)
     }
 
+    #[inline]
     fn vertex_additions(&self, v: VID) -> LockedView<TimeIndex<i64>> {
         self.graph().vertex_additions(v)
     }
 
+    #[inline]
     fn internalise_vertex(&self, v: VertexRef) -> Option<VID> {
         self.graph().internalise_vertex(v)
     }
 
+    #[inline]
     fn internalise_vertex_unchecked(&self, v: VertexRef) -> VID {
         self.graph().internalise_vertex_unchecked(v)
     }
 
+    #[inline]
     fn static_prop_names(&self) -> Vec<String> {
         self.graph().static_prop_names()
     }
 
+    #[inline]
     fn static_prop(&self, name: &str) -> Option<Prop> {
         self.graph().static_prop(name)
     }
 
+    #[inline]
     fn temporal_prop_names(&self) -> Vec<String> {
         self.graph().temporal_prop_names()
     }
 
+    #[inline]
     fn temporal_prop(&self, name: &str) -> Option<LockedView<TProp>> {
         self.graph().temporal_prop(name)
     }
 
+    #[inline]
     fn static_vertex_prop(&self, v: VID, name: &str) -> Option<Prop> {
         self.graph().static_vertex_prop(v, name)
     }
 
+    #[inline]
     fn static_vertex_prop_names<'a>(
         &'a self,
         v: VID,
@@ -301,10 +332,12 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
         self.graph().static_vertex_prop_names(v)
     }
 
+    #[inline]
     fn temporal_vertex_prop(&self, v: VID, name: &str) -> Option<LockedView<TProp>> {
         self.graph().temporal_vertex_prop(v, name)
     }
 
+    #[inline]
     fn temporal_vertex_prop_names<'a>(
         &'a self,
         v: VID,
@@ -312,18 +345,22 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
         self.graph().temporal_vertex_prop_names(v)
     }
 
+    #[inline]
     fn all_vertex_prop_names(&self, is_static: bool) -> Vec<String> {
         self.graph().all_vertex_prop_names(is_static)
     }
 
+    #[inline]
     fn all_edge_prop_names(&self, is_static: bool) -> Vec<String> {
         self.graph().all_edge_prop_names(is_static)
     }
 
+    #[inline]
     fn static_edge_prop(&self, e: EdgeRef, name: &str, layer_ids: LayerIds) -> Option<Prop> {
         self.graph().static_edge_prop(e, name, layer_ids)
     }
 
+    #[inline]
     fn static_edge_prop_names<'a>(
         &'a self,
         e: EdgeRef,
@@ -332,6 +369,7 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
         self.graph().static_edge_prop_names(e, layer_ids)
     }
 
+    #[inline]
     fn temporal_edge_prop(
         &self,
         e: EdgeRef,
@@ -341,6 +379,7 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
         self.graph().temporal_edge_prop(e, name, layer_ids)
     }
 
+    #[inline]
     fn temporal_edge_prop_names<'a>(
         &'a self,
         e: EdgeRef,
@@ -349,18 +388,22 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
         self.graph().temporal_edge_prop_names(e, layer_ids)
     }
 
+    #[inline]
     fn core_edges(&self) -> Box<dyn Iterator<Item = ArcEntry<EdgeStore>>> {
         self.graph().core_edges()
     }
 
+    #[inline]
     fn core_edge(&self, eid: EID) -> ArcEntry<EdgeStore> {
         self.graph().core_edge(eid)
     }
 
+    #[inline]
     fn core_vertices(&self) -> Box<dyn Iterator<Item = ArcEntry<VertexStore>>> {
         self.graph().core_vertices()
     }
 
+    #[inline]
     fn core_vertex(&self, vid: VID) -> ArcEntry<VertexStore> {
         self.graph().core_vertex(vid)
     }

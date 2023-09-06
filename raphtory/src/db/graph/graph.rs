@@ -443,15 +443,17 @@ mod db_tests {
         let edge2233 = g.edge(&v22, &v33).unwrap();
         let edge3311 = g.edge(&v33, &v11).unwrap();
 
-        g.add_vertex_properties(11, vec![("a", Prop::U64(11)), ("b", Prop::I64(11))])
+        v11.add_constant_properties(vec![("a", Prop::U64(11)), ("b", Prop::I64(11))])
             .unwrap();
-        g.add_vertex_properties(11, vec![("c", Prop::U32(11))])
+        v11.add_constant_properties(vec![("c", Prop::U32(11))])
             .unwrap();
-        g.add_vertex_properties(22, vec![("b", Prop::U64(22))])
+        v22.add_constant_properties(vec![("b", Prop::U64(22))])
             .unwrap();
-        g.add_edge_properties(11, 11, vec![("d", Prop::U64(1111))], None)
+        edge1111
+            .add_constant_properties(vec![("d", Prop::U64(1111))], None)
             .unwrap();
-        g.add_edge_properties(33, 11, vec![("a", Prop::U64(3311))], None)
+        edge3311
+            .add_constant_properties(vec![("a", Prop::U64(3311))], None)
             .unwrap();
 
         assert_eq!(v11.properties().constant().keys(), vec!["a", "b", "c"]);
@@ -983,7 +985,7 @@ mod db_tests {
             .map(|(name, value)| (name, Prop::U64(value)))
             .collect::<Vec<_>>();
 
-        g.add_static_properties(as_props.clone()).unwrap();
+        g.add_constant_properties(as_props.clone()).unwrap();
 
         let props_map = as_props.into_iter().collect::<HashMap<_, _>>();
 
@@ -1001,7 +1003,7 @@ mod db_tests {
             .map(|(name, value)| (name, Prop::U64(value)))
             .collect::<Vec<_>>();
 
-        g.add_static_properties(as_props.clone()).unwrap();
+        g.add_constant_properties(as_props.clone()).unwrap();
 
         let props_names = as_props
             .into_iter()

@@ -20,7 +20,7 @@ use crate::{
             vertex::eval_vertex::EvalVertexView,
         },
     },
-    prelude::{EdgeListOps, EdgeViewOps, PropUnwrap, VertexViewOps},
+    prelude::{EdgeListOps, PropUnwrap, VertexViewOps},
 };
 use ordered_float::OrderedFloat;
 

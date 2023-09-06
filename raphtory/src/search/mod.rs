@@ -607,14 +607,24 @@ impl<G: GraphViewOps> IndexedGraph<G> {
 }
 
 impl<G: GraphViewOps + InternalAdditionOps> InternalAdditionOps for IndexedGraph<G> {
+    #[inline]
     fn next_event_id(&self) -> usize {
         self.graph.next_event_id()
+    }
+    #[inline]
+    fn resolve_layer(&self, layer: Option<&str>) -> usize {
+        self.graph.resolve_layer(layer)
+    }
+
+    #[inline]
+    fn resolve_vertex(&self, id: u64) -> VID {
+        self.graph.resolve_vertex(id)
     }
 
     fn internal_add_vertex(
         &self,
         t: TimeIndexEntry,
-        v: u64,
+        v: VID,
         name: Option<&str>,
         props: Vec<(String, Prop)>,
     ) -> Result<VID, GraphError> {
@@ -662,10 +672,10 @@ impl<G: GraphViewOps + InternalAdditionOps> InternalAdditionOps for IndexedGraph
     fn internal_add_edge(
         &self,
         _t: TimeIndexEntry,
-        _src: u64,
-        _dst: u64,
+        _src: VID,
+        _dst: VID,
         _props: Vec<(String, Prop)>,
-        _layer: Option<&str>,
+        _layer: usize,
     ) -> Result<EID, GraphError> {
         todo!()
     }

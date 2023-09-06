@@ -6,7 +6,7 @@ use crate::{
     db::api::{
         properties::internal::InheritPropertiesOps,
         view::internal::{
-            Base, EdgeFilter, EdgeFilterOps, GraphOps, InheritCoreOps, InheritLayerOps,
+            Base, EdgeFilter, EdgeFilterOps, GraphOps, Immutable, InheritCoreOps, InheritLayerOps,
             InheritMaterialize, InheritTimeSemantics,
         },
     },
@@ -43,6 +43,8 @@ impl<G: GraphViewOps> Base for VertexSubgraph<G> {
         &self.graph
     }
 }
+
+impl<G: GraphViewOps> Immutable for VertexSubgraph<G> {}
 
 impl<G: GraphViewOps> InheritCoreOps for VertexSubgraph<G> {}
 impl<G: GraphViewOps> InheritTimeSemantics for VertexSubgraph<G> {}

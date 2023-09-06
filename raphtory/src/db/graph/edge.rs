@@ -9,11 +9,18 @@ use super::views::layer_graph::LayeredGraph;
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, VID},
-        storage::locked_view::LockedView,
-        utils::time::IntoTime,
+        storage::{locked_view::LockedView, timeindex::TimeIndexEntry},
+        utils::{
+            errors::{GraphError, MutateGraphError},
+            time::IntoTime,
+        },
     },
     db::{
         api::{
+            mutation::{
+                internal::{InternalAdditionOps, InternalPropertyAdditionOps},
+                CollectProperties, TryIntoInputTime,
+            },
             properties::{
                 internal::{
                     ConstPropertiesOps, Key, TemporalPropertiesOps, TemporalPropertyViewOps,
@@ -48,6 +55,8 @@ impl<G: GraphViewOps> EdgeView<G> {
     }
 }
 
+impl<G: GraphViewOps + InternalAdditionOps> EdgeView<G> {}
+
 impl<G: GraphViewOps> PartialEq for EdgeView<G> {
     fn eq(&self, other: &Self) -> bool {
         self.id() == other.id()
@@ -72,6 +81,73 @@ impl<G: GraphViewOps> EdgeViewInternalOps<G, VertexView<G>> for EdgeView<G> {
             graph: self.graph(),
             edge: e,
         }
+    }
+}
+
+impl<G: GraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> EdgeView<G> {
+    fn resolve_layer(&self, layer: Option<&str>) -> Result<usize, GraphError> {
+        match layer {
+            Some(name) => match self.edge.layer() {
+                Some(l_id) => self
+                    .graph
+                    .get_layer_id(name)
+                    .filter(|id| id == l_id)
+                    .ok_or_else(|| GraphError::InvalidLayer(name.to_owned())),
+                None => Ok(self.graph.resolve_layer(layer)),
+            },
+            None => Ok(self.edge.layer().copied().unwrap_or(0)),
+        }
+    }
+
+    /// Add constant properties for the edge
+    ///
+    /// Returns a person with the name given them
+    ///
+    /// # Arguments
+    ///
+    /// * `props` - Property key-value pairs to add
+    /// * `layer` - The layer to which properties should be added. If the edge view is restricted to a
+    ///             single layer, 'None' will add the properties to that layer and 'Some("name")'
+    ///             fails unless the layer matches the edge view. If the edge view is not restricted
+    ///             to a single layer, 'None' sets the properties on the default layer and 'Some("name")'
+    ///             sets the properties on layer '"name"' and fails if that layer doesn't exist.
+    pub fn add_constant_properties<C: CollectProperties>(
+        &self,
+        props: C,
+        layer: Option<&str>,
+    ) -> Result<(), GraphError> {
+        let props = props.collect_properties();
+        let input_layer_id = self.resolve_layer(layer)?;
+
+        self.graph
+            .internal_add_edge_properties(self.edge.pid(), props, input_layer_id)
+            .map_err(|err| {
+                MutateGraphError::IllegalEdgePropertyChange {
+                    src_id: self.src().id(),
+                    dst_id: self.dst().id(),
+                    source: err,
+                }
+                .into()
+            })
+    }
+
+    pub fn add_updates<C: CollectProperties, T: TryIntoInputTime>(
+        &self,
+        time: T,
+        props: C,
+        layer: Option<&str>,
+    ) -> Result<(), GraphError> {
+        let t = TimeIndexEntry::from_input(&self.graph, time)?;
+        let layer_id = self.resolve_layer(layer)?;
+
+        self.graph.internal_add_edge(
+            t,
+            self.edge.src(),
+            self.edge.dst(),
+            props.collect_properties(),
+            layer_id,
+        )?;
+        Ok(())
     }
 }
 
@@ -273,6 +349,14 @@ impl<G: GraphViewOps> EdgeListOps for BoxedIter<EdgeView<G>> {
     fn latest_time(self) -> Self::IterType<Option<i64>> {
         Box::new(self.map(|e| e.latest_time()))
     }
+
+    fn time(self) -> Self::IterType<Option<i64>> {
+        Box::new(self.map(|e| e.time()))
+    }
+
+    fn layer_name(self) -> Self::IterType<Option<String>> {
+        Box::new(self.map(|e| e.layer_name()))
+    }
 }
 
 impl<G: GraphViewOps> EdgeListOps for BoxedIter<BoxedIter<EdgeView<G>>> {
@@ -312,6 +396,14 @@ impl<G: GraphViewOps> EdgeListOps for BoxedIter<BoxedIter<EdgeView<G>>> {
     fn latest_time(self) -> Self::IterType<Option<i64>> {
         Box::new(self.map(|e| e.latest_time()))
     }
+
+    fn time(self) -> Self::IterType<Option<i64>> {
+        Box::new(self.map(|it| it.time()))
+    }
+
+    fn layer_name(self) -> Self::IterType<Option<String>> {
+        Box::new(self.map(|it| it.layer_name()))
+    }
 }
 
 pub type EdgeList<G> = Box<dyn Iterator<Item = EdgeView<G>> + Send>;
@@ -319,6 +411,7 @@ pub type EdgeList<G> = Box<dyn Iterator<Item = EdgeView<G>> + Send>;
 #[cfg(test)]
 mod test_edge {
     use crate::{core::IntoPropMap, prelude::*};
+    use itertools::Itertools;
     use std::collections::HashMap;
 
     #[test]
@@ -337,11 +430,13 @@ mod test_edge {
     #[test]
     fn test_constant_properties() {
         let g = Graph::new();
-        g.add_edge(1, 1, 2, NO_PROPS, Some("layer 1")).unwrap();
-        g.add_edge(1, 2, 3, NO_PROPS, Some("layer 2")).unwrap();
-        g.add_edge_properties(1, 2, [("test_prop", "test_val")], Some("layer 1"))
+        g.add_edge(1, 1, 2, NO_PROPS, Some("layer 1"))
+            .unwrap()
+            .add_constant_properties([("test_prop", "test_val")], Some("layer 1"))
             .unwrap();
-        g.add_edge_properties(2, 3, [("test_prop", "test_val")], Some("layer 2"))
+        g.add_edge(1, 2, 3, NO_PROPS, Some("layer 2"))
+            .unwrap()
+            .add_constant_properties([("test_prop", "test_val")], Some("layer 2"))
             .unwrap();
 
         assert_eq!(
@@ -368,5 +463,56 @@ mod test_edge {
                 )
             }
         }
+    }
+
+    #[test]
+    fn test_property_additions() {
+        let g = Graph::new();
+        let props = [("test", "test")];
+        let e1 = g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
+        e1.add_updates(2, props, None).unwrap(); // same layer works
+        assert!(e1.add_updates(2, props, Some("test2")).is_err()); // different layer is error
+        let e = g.edge(1, 2).unwrap();
+        e.add_updates(2, props, Some("test2")).unwrap(); // non-restricted edge view can create new layers
+        let layered_views = e.explode_layers().collect_vec();
+        for ev in layered_views {
+            let layer = ev.layer_name().unwrap();
+            assert!(ev.add_updates(1, props, Some("test")).is_err()); // restricted edge view cannot create updates in different layer
+            ev.add_updates(1, [("test2", layer)], None).unwrap() // this will add an update to the same layer as the view (not the default layer)
+        }
+        let e1_w = e1.window(0, 1);
+        assert_eq!(
+            e1.properties().as_map(),
+            props
+                .into_iter()
+                .map(|(k, v)| (k.to_string(), v.into_prop()))
+                .chain([("test2".to_string(), "_default".into_prop())])
+                .collect()
+        );
+        assert_eq!(
+            e.layer("test2").unwrap().properties().as_map(),
+            props
+                .into_iter()
+                .map(|(k, v)| (k.to_string(), v.into_prop()))
+                .chain([("test2".to_string(), "test2".into_prop())])
+                .collect()
+        );
+        assert_eq!(e1_w.properties().as_map(), HashMap::default())
+    }
+
+    #[test]
+    fn test_constant_property_additions() {
+        let g = Graph::new();
+        let e = g.add_edge(0, 1, 2, NO_PROPS, Some("test")).unwrap();
+        assert!(e
+            .add_constant_properties([("test1", "test1")], None)
+            .is_ok()); // adds properties to layer `"test"`
+        assert!(e
+            .add_constant_properties([("test", "test")], Some("test2"))
+            .is_err()); // cannot add properties to a different layer
+        e.add_constant_properties([("test", "test")], Some("test"))
+            .unwrap(); // layer is consistent
+        assert_eq!(e.properties().get("test"), Some("test".into()));
+        assert_eq!(e.properties().get("test1"), Some("test1".into()));
     }
 }

@@ -24,7 +24,7 @@ use std::{
 
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
 pub struct VertexStore {
-    global_id: u64,
+    pub(crate) global_id: u64,
     pub(crate) vid: VID,
     // all the timestamps that have been seen by this vertex
     timestamps: TimeIndex<i64>,
@@ -42,6 +42,18 @@ impl VertexStore {
             global_id,
             vid: 0.into(),
             timestamps: TimeIndex::one(*t.t()),
+            layers,
+            props: None,
+        }
+    }
+
+    pub fn empty(global_id: u64) -> Self {
+        let mut layers = Vec::with_capacity(1);
+        layers.push(Adj::Solo);
+        Self {
+            global_id,
+            vid: VID(0),
+            timestamps: TimeIndex::Empty,
             layers,
             props: None,
         }

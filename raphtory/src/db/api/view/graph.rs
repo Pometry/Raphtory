@@ -193,7 +193,7 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
 
                 for ee in ee.explode() {
                     g.add_edge(
-                        ee.time().unwrap(),
+                        ee.time().expect("exploded edge"),
                         ee.src().id(),
                         ee.dst().id(),
                         ee.properties().temporal().collect_properties(),
@@ -207,12 +207,9 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
                     }
                 }
 
-                g.add_edge_properties(
-                    ee.src().id(),
-                    ee.dst().id(),
-                    ee.properties().constant(),
-                    layer_name,
-                )?;
+                g.edge(ee.src().id(), ee.dst().id())
+                    .expect("edge added")
+                    .add_constant_properties(ee.properties().constant(), layer_name)?;
             }
         }
 
@@ -225,10 +222,12 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
                     g.add_vertex(t, v.id(), [(name.clone(), prop)])?;
                 }
             }
-            g.add_vertex_properties(v.id(), v.properties().constant())?;
+            g.vertex(v.id())
+                .expect("vertex added")
+                .add_constant_properties(v.properties().constant())?;
         }
 
-        g.add_static_properties(self.properties().constant())?;
+        g.add_constant_properties(self.properties().constant())?;
 
         Ok(self.new_base_graph(g))
     }
