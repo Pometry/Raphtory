@@ -381,7 +381,6 @@ impl PyEdge {
         self.edge.layer_name()
     }
 
-
     /// Gets the datetime of an exploded edge.
     ///
     /// Returns:
