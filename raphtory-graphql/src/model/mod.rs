@@ -59,6 +59,15 @@ impl QueryRoot {
         Some(GqlGraph::new(g.into_dynamic_indexed()))
     }
 
+    async fn subgraph<'a>(ctx: &Context<'a>, name: &str) -> Option<GraphMeta> {
+        let data = ctx.data_unchecked::<Data>();
+        let g = data.graphs.read().get(name).cloned()?;
+        Some(GraphMeta::new(
+            name.to_string(),
+            g.deref().clone().into_dynamic(),
+        ))
+    }
+
     async fn subgraphs<'a>(ctx: &Context<'a>) -> Vec<GraphMeta> {
         let data = ctx.data_unchecked::<Data>();
         data.graphs
