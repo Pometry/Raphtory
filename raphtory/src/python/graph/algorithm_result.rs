@@ -172,7 +172,7 @@ impl AlgorithmResultStrF64 {
     ///
     /// * `key`: The key of type `H` for which the value is to be retrieved.
     fn get(&self, key: String) -> Option<f64> {
-        Some(self.0.get(&key).unwrap().0)
+        self.0.get(&key).map(|x| x.0)
     }
 
     /// Sorts the `AlgorithmResult` by its values in ascending or descending order.

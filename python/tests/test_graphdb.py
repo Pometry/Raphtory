@@ -1052,6 +1052,7 @@ def test_algo_result():
     expected = {'1': 1, '2': 1, '3': 1, '4': 1, '5': 1, '6': 1, '7': 1, '8': 1}
     assert (actual.get_all() == expected)
     assert (actual.get('1') == 1)
+    assert (actual.get('not a node') == None)
     expected_array = [('1', 1), ('2', 1), ('3', 1), ('4', 1), ('5', 1), ('6', 1), ('7', 1), ('8', 1)]
     assert (sorted(actual.sort_by_value()) == expected_array)
     assert (actual.sort_by_key() == sorted(expected_array, reverse=True))
@@ -1078,6 +1079,7 @@ def test_algo_result():
                        '6': 0.14074777909144864, '1': 0.07209850165402759, '5': 0.1615298183542792,
                        '7': 0.14074777909144864, '8': 0.11786468661230831}
     assert actual.get_all() == expected_result
+    assert actual.get('Not a node') == None
     assert len(actual.to_df()) == 8
     # algo str vector
     actual = algorithms.temporally_reachable_nodes(g, 20, 11, [1, 2], [4, 5])
