@@ -49,6 +49,8 @@ pub enum Direction {
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub enum Prop {
     Str(String),
+    U8(u8),
+    U16(u16),
     I32(i32),
     I64(i64),
     U32(u32),
@@ -66,6 +68,8 @@ impl PartialOrd for Prop {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         match (self, other) {
             (Prop::Str(a), Prop::Str(b)) => a.partial_cmp(b),
+            (Prop::U8(a), Prop::U8(b)) => a.partial_cmp(b),
+            (Prop::U16(a), Prop::U16(b)) => a.partial_cmp(b),
             (Prop::I32(a), Prop::I32(b)) => a.partial_cmp(b),
             (Prop::I64(a), Prop::I64(b)) => a.partial_cmp(b),
             (Prop::U32(a), Prop::U32(b)) => a.partial_cmp(b),
@@ -86,6 +90,8 @@ impl Prop {
 
     pub fn add(self, other: Prop) -> Option<Prop> {
         match (self, other) {
+            (Prop::U8(a), Prop::U8(b)) => Some(Prop::U8(a + b)),
+            (Prop::U16(a), Prop::U16(b)) => Some(Prop::U16(a + b)),
             (Prop::I32(a), Prop::I32(b)) => Some(Prop::I32(a + b)),
             (Prop::I64(a), Prop::I64(b)) => Some(Prop::I64(a + b)),
             (Prop::U32(a), Prop::U32(b)) => Some(Prop::U32(a + b)),
@@ -99,6 +105,8 @@ impl Prop {
 
     pub fn divide(self, other: Prop) -> Option<Prop> {
         match (self, other) {
+            (Prop::U8(a), Prop::U8(b)) if b != 0 => Some(Prop::U8(a / b)),
+            (Prop::U16(a), Prop::U16(b)) if b != 0 => Some(Prop::U16(a / b)),
             (Prop::I32(a), Prop::I32(b)) if b != 0 => Some(Prop::I32(a / b)),
             (Prop::I64(a), Prop::I64(b)) if b != 0 => Some(Prop::I64(a / b)),
             (Prop::U32(a), Prop::U32(b)) if b != 0 => Some(Prop::U32(a / b)),
@@ -111,6 +119,16 @@ impl Prop {
 }
 
 pub trait PropUnwrap: Sized {
+    fn into_u8(self) -> Option<u8>;
+    fn unwrap_u8(self) -> u8 {
+        self.into_u8().unwrap()
+    }
+
+    fn into_u16(self) -> Option<u16>;
+    fn unwrap_u16(self) -> u16 {
+        self.into_u16().unwrap()
+    }
+
     fn into_str(self) -> Option<String>;
     fn unwrap_str(self) -> String {
         self.into_str().unwrap()
@@ -173,6 +191,14 @@ pub trait PropUnwrap: Sized {
 }
 
 impl<P: PropUnwrap> PropUnwrap for Option<P> {
+    fn into_u8(self) -> Option<u8> {
+        self.and_then(|p| p.into_u8())
+    }
+
+    fn into_u16(self) -> Option<u16> {
+        self.and_then(|p| p.into_u16())
+    }
+
     fn into_str(self) -> Option<String> {
         self.and_then(|p| p.into_str())
     }
@@ -223,6 +249,22 @@ impl<P: PropUnwrap> PropUnwrap for Option<P> {
 }
 
 impl PropUnwrap for Prop {
+    fn into_u8(self) -> Option<u8> {
+        if let Prop::U8(s) = self {
+            Some(s)
+        } else {
+            None
+        }
+    }
+
+    fn into_u16(self) -> Option<u16> {
+        if let Prop::U16(s) = self {
+            Some(s)
+        } else {
+            None
+        }
+    }
+
     fn into_str(self) -> Option<String> {
         if let Prop::Str(s) = self {
             Some(s)
@@ -324,6 +366,8 @@ impl fmt::Display for Prop {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Prop::Str(value) => write!(f, "{}", value),
+            Prop::U8(value) => write!(f, "{}", value),
+            Prop::U16(value) => write!(f, "{}", value),
             Prop::I32(value) => write!(f, "{}", value),
             Prop::I64(value) => write!(f, "{}", value),
             Prop::U32(value) => write!(f, "{}", value),
@@ -365,6 +409,18 @@ impl From<&str> for Prop {
 impl From<i32> for Prop {
     fn from(i: i32) -> Self {
         Prop::I32(i)
+    }
+}
+
+impl From<u8> for Prop {
+    fn from(i: u8) -> Self {
+        Prop::U8(i)
+    }
+}
+
+impl From<u16> for Prop {
+    fn from(i: u16) -> Self {
+        Prop::U16(i)
     }
 }
 
