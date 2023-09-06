@@ -140,10 +140,24 @@ def to_networkx(
     vertex_tuples = []
 
     for v in graph.vertices():
+        v_constant_properties = []
+        v_temporal_properties = []
         name = v.name() if v.name() else None
-        constant_properties = v.properties.constant.as_dict() if v.properties.constant else None
-        temporal_properties = v.properties.temporal.histories() if v.properties.temporal else None
-        properties = {"temporal_properties": temporal_properties, "constant_properties": constant_properties}
+
+        if v.properties.constant is not None:
+            for key, value in v.properties.constant.items():
+                v_constant_properties.append((key, value))
+        else:
+            v_constant_properties = None
+
+        if v.properties.temporal is not None:
+            for prop, history in v.properties.temporal.items():
+                for timestamp, value in history:
+                    v_temporal_properties.append((timestamp, prop, value))
+        else:
+            v_temporal_properties = None
+
+        properties = {"temporal_properties": v_temporal_properties, "constant_properties": v_constant_properties}
 
         vertex_tuple = (name, properties)
         vertex_tuples.append(vertex_tuple)
@@ -151,13 +165,30 @@ def to_networkx(
     networkXGraph.add_nodes_from(vertex_tuples)
 
     edge_tuples = []
+
+
     for e in graph.edges():
+        e_constant_properties = []
+        e_temporal_properties = []
         src = e.src().name() if e.src() else None
         dst = e.dst().name() if e.dst() else None
         layer = e.layer_names() if e.layer_names() else None
-        constant_properties = e.properties.constant.as_dict() if e.properties.constant else None
-        temporal_properties = e.properties.temporal.histories() if e.properties.temporal else None
-        properties = {"temporal_properties": temporal_properties, "constant_properties": constant_properties, "layer": layer}
+        
+        if e.properties.constant is not None:
+            for key, value in e.properties.constant.items():
+                e_constant_properties.append((key, value))
+        else:
+            e_constant_properties = None
+
+        if e.properties.temporal is not None:
+            for prop, history in e.properties.temporal.items():
+                for timestamp, value in history:
+                    e_temporal_properties.append((timestamp, prop, value))
+        else:
+            e_temporal_properties = None
+
+      
+        properties = {"temporal_properties": e_temporal_properties, "constant_properties": e_constant_properties, "layer": layer}
 
         edge_tuple = (src, dst, properties)
         edge_tuples.append(edge_tuple)
@@ -173,16 +204,31 @@ def to_edge_list_df(
     Returns a list of edges from a Raphtory graph in Pandas dataframe format.
     """
     edge_list = []
+   
+
     for e in graph.edges():
+        e_constant_properties = []
+        e_temporal_properties = []
         if e.layer_names():
             for layer in e.layer_names():
                 src = e.src().name() if e.src() else None
                 dst = e.dst().name() if e.dst() else None
                 history = e.history() if e.history() else None
-                constant_properties = e.properties.constant.as_dict() if e.properties.constant else None
-                temporal_properties = e.properties.temporal.histories() if e.properties.temporal else None
 
-                edge_tuple = (src, dst, layer, history, constant_properties, temporal_properties)
+                if e.properties.constant is not None:
+                    for key, value in e.properties.constant.items():
+                        e_constant_properties.append((key, value))
+                else:
+                    e_constant_properties = None
+
+                if e.properties.temporal is not None:
+                    for prop, hist in e.properties.temporal.items():
+                        for timestamp, value in hist:
+                            e_temporal_properties.append((timestamp, prop, value))
+                else:
+                    e_temporal_properties = None
+
+                edge_tuple = (src, dst, layer, history, e_constant_properties, e_temporal_properties)
                 edge_list.append(edge_tuple)
     
     return pd.DataFrame(edge_list, columns=["src", "dst", "layer", "history", "constant_properties", "temporal_properties"])
@@ -194,13 +240,28 @@ def to_node_list_df(
     Returns a list of nodes from a Raphtory graph in Pandas dataframe format.
     """
     node_list = []
+ 
+
     for v in graph.vertices():
+        v_constant_properties = []
+        v_temporal_properties = []
         name = v.name() if v.name() else None
         history = v.history() if v.history() else None
-        constant_properties = v.properties.constant.as_dict() if v.properties.constant else None
-        temporal_properties = v.properties.temporal.histories() if v.properties.temporal else None
 
-        node_tuple = (name, history, constant_properties, temporal_properties)
+        if v.properties.constant is not None:
+            for key, value in v.properties.constant.items():
+                v_constant_properties.append((key, value))
+        else:
+            v_constant_properties = None
+
+        if v.properties.temporal is not None:
+            for prop, hist in v.properties.temporal.items():
+                for timestamp, value in hist:
+                    v_temporal_properties.append((timestamp, prop, value))
+        else:
+            v_temporal_properties = None
+
+        node_tuple = (name, history, v_constant_properties, v_temporal_properties)
         node_list.append(node_tuple)
     
     return pd.DataFrame(node_list, columns=["name", "history", "constant_properties", "temporal_properties"])

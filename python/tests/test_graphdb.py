@@ -4,6 +4,7 @@ import sys
 import pandas as pd
 import pandas.core.frame
 import pytest
+from raphtory import export
 from raphtory import Graph, GraphWithDeletions
 from raphtory import algorithms
 from raphtory import graph_loader
@@ -1593,4 +1594,36 @@ def test_edge_layer():
 def test_hits_algorithm():
     g = graph_loader.lotr_graph()
     assert algorithms.hits(g).get('Aldor') == (0.0035840950440615416, 0.007476256228983402)
+
+def test_export_methods():
+    g = Graph()
+    g.add_vertex(1, 2, {"name": "Alice"})
+    g.add_vertex(2, 3, {"name": "Bob"})
+    g.add_vertex(3, 4, {"name": "Carol"})
+    g.add_edge(4, 2, 3, {"weight": 1.0})
+    g.add_edge(5, 3, 4, {"weight": 2.0})
+
+    networkxGraph = export.to_networkx(g)
+    assert networkxGraph.number_of_nodes() == 3
+    assert networkxGraph.number_of_edges() == 2
+    nodeList = list(networkxGraph.nodes(data=True))
+    if len(nodeList) > 0:
+        assert nodeList == [('2',{'constant_properties': [],'temporal_properties': [(1, 'name','Alice')]}),
+               ('3',{'constant_properties': [],'temporal_properties': [(2,'name','Bob')]}),
+               ('4',{'constant_properties': [], 'temporal_properties': [(3,'name','Carol')]})]
+
+
+    edgeList = list(networkxGraph.edges(data=True))
+    if len(edgeList) > 0:
+        assert edgeList == [('2', '3', {'constant_properties': [], 'layer': ['_default'], 'temporal_properties': [(4,'weight',1.0)]}),
+                ('3', '4', {'constant_properties': [], 'layer': ['_default'], 'temporal_properties': [(5, 'weight', 2.0)]})]
+
+    node_list_df = export.to_node_list_df(g)
+    assert node_list_df.shape == (3, 4)
+    assert node_list_df.columns.tolist() == ['name', 'history', 'constant_properties', 'temporal_properties']
+    assert node_list_df.values.tolist() == [['2', [1, 4], [], [(1, 'name', 'Alice')]], ['3', [2, 4, 5], [], [(2, 'name', 'Bob')]], ['4', [3, 5], [], [(3, 'name', 'Carol')]]]
+    edge_list_df = export.to_edge_list_df(g)
+    assert edge_list_df.shape == (2, 6)
+    assert edge_list_df.columns.tolist() == ['src', 'dst', 'layer', 'history', 'constant_properties', 'temporal_properties']
+    assert edge_list_df.values.tolist() == [['2', '3', '_default', [4], [], [(4, 'weight', 1.0)]], ['3', '4', '_default', [5], [], [(5, 'weight', 2.0)]]]
 
