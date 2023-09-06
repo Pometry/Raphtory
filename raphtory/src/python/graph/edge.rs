@@ -365,13 +365,22 @@ impl PyEdge {
         self.edge.time()
     }
 
-    /// Gets the name of the layer this edge belongs to
+    /// Gets the names of the layers this edge belongs to
     ///
     /// Returns:
-    ///     (str) The name of the layer
+    ///     ([str]) The name of the layer
     pub fn layer_names(&self) -> Vec<String> {
         self.edge.layer_names()
     }
+
+    /// Gets the name of the layer this edge belongs to - assuming it only belongs to one layer
+    ///
+    /// Returns:
+    ///     ([str]) The name of the layer
+    pub fn layer_name(&self) -> Option<String> {
+        self.edge.layer_name()
+    }
+
 
     /// Gets the datetime of an exploded edge.
     ///

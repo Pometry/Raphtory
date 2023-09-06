@@ -49,33 +49,49 @@ For Example:
 
 """
 
+
 def to_pyvis(
-        graph,
-        explode_edges=False,
-        edge_color="#000000",
-        shape=None,
-        node_image=None,
-        edge_weight=None,
-        edge_label=None,
-        colour_nodes_by_type=False,
-        type_property="type",
-        notebook=True,
-        **kwargs
+    graph,
+    explode_edges=False,
+    edge_color="#000000",
+    shape=None,
+    node_image=None,
+    edge_weight=None,
+    edge_label=None,
+    colour_nodes_by_type=False,
+    type_property="type",
+    notebook=True,
+    **kwargs,
 ):
     """
     Returns a dynamic visualisation in static HTML format from a Raphtory graph.
     """
     visGraph = Network(notebook=notebook, **kwargs)
     if colour_nodes_by_type:
-        groups = {value: index + 1 for index, value in enumerate(set(graph.vertices.properties.get(type_property)))}
+        groups = {
+            value: index + 1
+            for index, value in enumerate(
+                set(graph.vertices.properties.get(type_property))
+            )
+        }
 
     for v in graph.vertices():
-        image = v.properties.get(node_image) if node_image != None else "https://cdn-icons-png.flaticon.com/512/7584/7584620.png"
+        image = (
+            v.properties.get(node_image)
+            if node_image != None
+            else "https://cdn-icons-png.flaticon.com/512/7584/7584620.png"
+        )
         shape = shape if shape is not None else "dot"
         if colour_nodes_by_type:
-            visGraph.add_node(v.id(), label= v.name(), shape=shape, image=image, group=groups[v.properties.get(type_property)])
+            visGraph.add_node(
+                v.id(),
+                label=v.name(),
+                shape=shape,
+                image=image,
+                group=groups[v.properties.get(type_property)],
+            )
         else:
-            visGraph.add_node(v.id(), label= v.name(), shape=shape, image=image)
+            visGraph.add_node(v.id(), label=v.name(), shape=shape, image=image)
 
     edges = graph.edges().explode() if explode_edges else graph.edges().explode_layers()
     for e in edges:
@@ -85,9 +101,17 @@ def to_pyvis(
         label = e.properties.get(edge_label) if edge_label is not None else ""
         if label is None:
             label = ""
-        visGraph.add_edge(e.src().id(), e.dst().id(), value=weight, color=edge_color, title=label, arrowStrikethrough=False)
+        visGraph.add_edge(
+            e.src().id(),
+            e.dst().id(),
+            value=weight,
+            color=edge_color,
+            title=label,
+            arrowStrikethrough=False,
+        )
 
     return visGraph
+
 
 r"""Returns a graph with NetworkX.
 
@@ -99,21 +123,25 @@ r"""Returns a graph with NetworkX.
 
 :param Graph graph: A Raphtory graph.
 :param bool explode_edges: A boolean that is set to True if you want to explode the edges in the graph. By default this is set to False.
+:param bool include_vertex_properties: A boolean that is set to True if you want to include the vertex properties in the graph. By default this is set to True.
+:param bool include_edge_properties: A boolean that is set to True if you want to include the edge properties in the graph. By default this is set to True.
+:param bool include_histories: A boolean that is set to True if you want to include the histories in the graph. By default this is set to True.
 
 :returns: A Networkx MultiDiGraph.
 
 """
+
+
 def to_networkx(
-        graph,
-        explode_edges=False,
-        include_vertex_properties=True,
-        include_edge_properties=True,
-        include_histories=True,
+    graph,
+    explode_edges=False,
+    include_vertex_properties=True,
+    include_edge_properties=True,
+    include_histories=True,
 ):
     """
-    Returns a Network X graph from a Raphtory graph.
+    Returns a NetworkX MultiDiGraph from a Raphtory graph.
     """
-
     networkXGraph = nx.MultiDiGraph()
 
     vertex_tuples = []
@@ -121,7 +149,9 @@ def to_networkx(
         properties = {}
         if include_vertex_properties:
             if include_histories:
-                properties = merge(v.properties.constant.as_dict(),v.properties.temporal.histories())
+                properties = (
+                    v.properties.constant.as_dict() | v.properties.temporal.histories()
+                )
             else:
                 properties = v.properties.as_dict()
         vertex_tuples.append((v.name(), properties))
@@ -133,27 +163,31 @@ def to_networkx(
         properties = {}
         src = e.src().name()
         dst = e.dst().name()
-        layer = e.layer_name()
-        
         if include_edge_properties:
             if include_histories:
-                properties = merge(v.properties.constant.as_dict(),v.properties.temporal.histories())
+                properties = (
+                    e.properties.constant.as_dict() | e.properties.temporal.histories()
+                )
             else:
-                properties = v.properties.as_dict()
+                properties = e.properties.as_dict()
+        layer = e.layer_name()
+        if layer is not None:
+            properties = properties | {"layer": layer}
+
         edge_tuples.append((src, dst, properties))
 
     networkXGraph.add_edges_from(edge_tuples)
 
     return networkXGraph
 
+
 def to_edge_list_df(
-        graph,
+    graph,
 ):
     """
     Returns a list of edges from a Raphtory graph in Pandas dataframe format.
     """
     edge_list = []
-   
 
     for e in graph.edges():
         e_constant_properties = []
@@ -177,19 +211,36 @@ def to_edge_list_df(
                 else:
                     e_temporal_properties = None
 
-                edge_tuple = (src, dst, layer, history, e_constant_properties, e_temporal_properties)
+                edge_tuple = (
+                    src,
+                    dst,
+                    layer,
+                    history,
+                    e_constant_properties,
+                    e_temporal_properties,
+                )
                 edge_list.append(edge_tuple)
-    
-    return pd.DataFrame(edge_list, columns=["src", "dst", "layer", "history", "constant_properties", "temporal_properties"])
+
+    return pd.DataFrame(
+        edge_list,
+        columns=[
+            "src",
+            "dst",
+            "layer",
+            "history",
+            "constant_properties",
+            "temporal_properties",
+        ],
+    )
+
 
 def to_node_list_df(
-        graph,
+    graph,
 ):
     """
     Returns a list of nodes from a Raphtory graph in Pandas dataframe format.
     """
     node_list = []
- 
 
     for v in graph.vertices():
         v_constant_properties = []
@@ -212,6 +263,8 @@ def to_node_list_df(
 
         node_tuple = (name, history, v_constant_properties, v_temporal_properties)
         node_list.append(node_tuple)
-    
-    return pd.DataFrame(node_list, columns=["name", "history", "constant_properties", "temporal_properties"])
-   
+
+    return pd.DataFrame(
+        node_list,
+        columns=["name", "history", "constant_properties", "temporal_properties"],
+    )
