@@ -125,19 +125,19 @@ r"""Returns a graph with NetworkX.
 :param bool explode_edges: A boolean that is set to True if you want to explode the edges in the graph. By default this is set to False.
 :param bool include_vertex_properties: A boolean that is set to True if you want to include the vertex properties in the graph. By default this is set to True.
 :param bool include_edge_properties: A boolean that is set to True if you want to include the edge properties in the graph. By default this is set to True.
-:param bool include_histories: A boolean that is set to True if you want to include the histories in the graph. By default this is set to True.
+:param bool include_update_history: A boolean that is set to True if you want to include the update histories in the graph. By default this is set to True.
+:param bool include_property_histories: A boolean that is set to True if you want to include the histories in the graph. By default this is set to True.
 
 :returns: A Networkx MultiDiGraph.
 
 """
-
-
 def to_networkx(
     graph,
     explode_edges=False,
     include_vertex_properties=True,
     include_edge_properties=True,
-    include_histories=True,
+    include_update_history=True,
+    include_property_histories=True,
 ):
     """
     Returns a NetworkX MultiDiGraph from a Raphtory graph.
@@ -148,12 +148,14 @@ def to_networkx(
     for v in graph.vertices():
         properties = {}
         if include_vertex_properties:
-            if include_histories:
+            if include_property_histories:
                 properties = (
                     v.properties.constant.as_dict() | v.properties.temporal.histories()
                 )
             else:
                 properties = v.properties.as_dict()
+        if include_update_history:
+            properties = properties | {"update_history": v.history()}
         vertex_tuples.append((v.name(), properties))
     networkXGraph.add_nodes_from(vertex_tuples)
 
@@ -164,7 +166,7 @@ def to_networkx(
         src = e.src().name()
         dst = e.dst().name()
         if include_edge_properties:
-            if include_histories:
+            if include_property_histories:
                 properties = (
                     e.properties.constant.as_dict() | e.properties.temporal.histories()
                 )
@@ -173,72 +175,83 @@ def to_networkx(
         layer = e.layer_name()
         if layer is not None:
             properties = properties | {"layer": layer}
-
+        if include_update_history:
+            if explode_edges:
+                properties = properties | {"update_history": e.time()}
+            else:
+                properties = properties | {"update_history": e.history()}
         edge_tuples.append((src, dst, properties))
 
     networkXGraph.add_edges_from(edge_tuples)
 
     return networkXGraph
 
+r"""Returns an edge list pandas dataframe fro the given graph.
 
-def to_edge_list_df(
-    graph,
+.. note::
+
+    Pandas is a required dependency.
+    If you intend to use this function make sure that
+    you install pandas with ``pip install pandas``
+
+:param Graph graph: A Raphtory graph.
+:param bool explode_edges: A boolean that is set to True if you want to explode the edges in the graph. By default this is set to False.
+:param bool include_edge_properties: A boolean that is set to True if you want to include the edge properties in the graph. By default this is set to True.
+:param bool include_update_history: A boolean that is set to True if you want to include the update histories in the graph. By default this is set to True.
+:param bool include_property_histories: A boolean that is set to True if you want to include the histories in the graph. By default this is set to True.
+
+:returns: A pandas dataframe.
+
+"""
+def to_edge_df(
+        graph,
+        explode_edges=False,
+        include_edge_properties=True,
+        include_update_history=True,
+        include_property_histories=True,
 ):
     """
-    Returns a list of edges from a Raphtory graph in Pandas dataframe format.
+    Returns a edge list dataframe from a Raphtory graph.
     """
-    edge_list = []
+    edge_tuples = []
 
-    for e in graph.edges():
-        e_constant_properties = []
-        e_temporal_properties = []
-        if e.layer_names():
-            for layer in e.layer_names():
-                src = e.src().name() if e.src() else None
-                dst = e.dst().name() if e.dst() else None
-                history = e.history() if e.history() else None
+    columns =["src", "dst", "layer"]
+    if include_edge_properties:
+        columns.append("properties")
+    if include_update_history:
+        columns.append("update_history")
 
-                if e.properties.constant is not None:
-                    for key, value in e.properties.constant.items():
-                        e_constant_properties.append((key, value))
-                else:
-                    e_constant_properties = None
-
-                if e.properties.temporal is not None:
-                    for prop, hist in e.properties.temporal.items():
-                        for timestamp, value in hist:
-                            e_temporal_properties.append((timestamp, prop, value))
-                else:
-                    e_temporal_properties = None
-
-                edge_tuple = (
-                    src,
-                    dst,
-                    layer,
-                    history,
-                    e_constant_properties,
-                    e_temporal_properties,
+    edges = graph.edges().explode() if explode_edges else graph.edges().explode_layers()
+    for e in edges:
+        properties = {}
+        src = e.src().name()
+        dst = e.dst().name()
+        if include_edge_properties:
+            if include_property_histories:
+                properties = (
+                        e.properties.constant.as_dict() | e.properties.temporal.histories()
                 )
-                edge_list.append(edge_tuple)
-
-    return pd.DataFrame(
-        edge_list,
-        columns=[
-            "src",
-            "dst",
-            "layer",
-            "history",
-            "constant_properties",
-            "temporal_properties",
-        ],
-    )
+            else:
+                properties = e.properties.as_dict()
 
 
-def to_node_list_df(
+        layer = e.layer_name()
+
+        if include_update_history:
+            if explode_edges:
+                properties = properties | {"update_history": e.time()}
+            else:
+                properties = properties | {"update_history": e.history()}
+        edge_tuples.append((src, dst, layer, properties))
+
+    return pd.DataFrame(edge_tuples, columns=columns)
+
+
+def to_vertex_df(
     graph,
 ):
     """
-    Returns a list of nodes from a Raphtory graph in Pandas dataframe format.
+    Returns a list of vertices from a Raphtory graph in Pandas dataframe format.
     """
     node_list = []
 

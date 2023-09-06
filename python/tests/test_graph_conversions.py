@@ -171,6 +171,13 @@ def test_networkx_full_history():
                     (1693555320000, "Database"),
                 ],
                 "server_name": "Alpha",
+                "update_history": [
+                    1693555200000,
+                    1693555260000,
+                    1693555320000,
+                    1693555500000,
+                    1693556400000,
+                ],
                 "uptime_days": [
                     (1693555200000, 120),
                     (1693555260000, 121),
@@ -187,6 +194,12 @@ def test_networkx_full_history():
                 "hardware_type": "Rack Server",
                 "primary_function": [(1693555500000, "Web Server")],
                 "server_name": "Beta",
+                "update_history": [
+                    1693555200000,
+                    1693555500000,
+                    1693555800000,
+                    1693556700000,
+                ],
                 "uptime_days": [(1693555500000, 45)],
             },
         ),
@@ -199,6 +212,14 @@ def test_networkx_full_history():
                 "hardware_type": "Blade Server",
                 "primary_function": [(1693555800000, "File Storage")],
                 "server_name": "Charlie",
+                "update_history": [
+                    1693555500000,
+                    1693555800000,
+                    1693556400000,
+                    1693557000000,
+                    1693557060000,
+                    1693557120000,
+                ],
                 "uptime_days": [(1693555800000, 90)],
             },
         ),
@@ -211,6 +232,13 @@ def test_networkx_full_history():
                 "hardware_type": "Tower Server",
                 "primary_function": [(1693556100000, "Application Server")],
                 "server_name": "Delta",
+                "update_history": [
+                    1693555800000,
+                    1693556100000,
+                    1693557000000,
+                    1693557060000,
+                    1693557120000,
+                ],
                 "uptime_days": [(1693556100000, 60)],
             },
         ),
@@ -223,6 +251,7 @@ def test_networkx_full_history():
                 "hardware_type": "Rack Server",
                 "primary_function": [(1693556400000, "Backup")],
                 "server_name": "Echo",
+                "update_history": [1693556100000, 1693556400000, 1693556700000],
                 "uptime_days": [(1693556400000, 30)],
             },
         ),
@@ -239,6 +268,7 @@ def test_networkx_full_history():
                 "datasource": "data/network_traffic_edges.csv",
                 "is_encrypted": True,
                 "layer": "Critical System Request",
+                "update_history": [1693555200000],
             },
         ),
         (
@@ -249,6 +279,7 @@ def test_networkx_full_history():
                 "datasource": "data/network_traffic_edges.csv",
                 "is_encrypted": False,
                 "layer": "File Transfer",
+                "update_history": [1693555500000],
             },
         ),
         (
@@ -259,6 +290,7 @@ def test_networkx_full_history():
                 "datasource": "data/network_traffic_edges.csv",
                 "is_encrypted": True,
                 "layer": "Standard Service Request",
+                "update_history": [1693555800000],
             },
         ),
         (
@@ -269,6 +301,7 @@ def test_networkx_full_history():
                 "datasource": "data/network_traffic_edges.csv",
                 "is_encrypted": True,
                 "layer": "Critical System Request",
+                "update_history": [1693556400000],
             },
         ),
         (
@@ -283,6 +316,7 @@ def test_networkx_full_history():
                 "datasource": "data/network_traffic_edges.csv",
                 "is_encrypted": True,
                 "layer": "Standard Service Request",
+                "update_history": [1693557000000, 1693557060000, 1693557120000],
             },
         ),
         (
@@ -293,6 +327,7 @@ def test_networkx_full_history():
                 "datasource": "data/network_traffic_edges.csv",
                 "is_encrypted": False,
                 "layer": "Administrative Command",
+                "update_history": [1693556100000],
             },
         ),
         (
@@ -303,6 +338,7 @@ def test_networkx_full_history():
                 "datasource": "data/network_traffic_edges.csv",
                 "is_encrypted": False,
                 "layer": "File Transfer",
+                "update_history": [1693556700000],
             },
         ),
     ]
@@ -326,6 +362,7 @@ def test_networkx_exploded():
                 "datasource": "data/network_traffic_edges.csv",
                 "is_encrypted": True,
                 "layer": "Critical System Request",
+                "update_history": 1693555200000,
             },
         ),
         (
@@ -336,6 +373,7 @@ def test_networkx_exploded():
                 "datasource": "data/network_traffic_edges.csv",
                 "is_encrypted": False,
                 "layer": "File Transfer",
+                "update_history": 1693555500000,
             },
         ),
         (
@@ -346,6 +384,7 @@ def test_networkx_exploded():
                 "datasource": "data/network_traffic_edges.csv",
                 "is_encrypted": True,
                 "layer": "Standard Service Request",
+                "update_history": 1693555800000,
             },
         ),
         (
@@ -356,6 +395,7 @@ def test_networkx_exploded():
                 "datasource": "data/network_traffic_edges.csv",
                 "is_encrypted": True,
                 "layer": "Critical System Request",
+                "update_history": 1693556400000,
             },
         ),
         (
@@ -366,6 +406,7 @@ def test_networkx_exploded():
                 "datasource": "data/network_traffic_edges.csv",
                 "is_encrypted": True,
                 "layer": "Standard Service Request",
+                "update_history": 1693557000000,
             },
         ),
         (
@@ -376,6 +417,7 @@ def test_networkx_exploded():
                 "datasource": "data/network_traffic_edges.csv",
                 "is_encrypted": True,
                 "layer": "Standard Service Request",
+                "update_history": 1693557060000,
             },
         ),
         (
@@ -386,6 +428,7 @@ def test_networkx_exploded():
                 "datasource": "data/network_traffic_edges.csv",
                 "is_encrypted": True,
                 "layer": "Standard Service Request",
+                "update_history": 1693557120000,
             },
         ),
         (
@@ -396,6 +439,7 @@ def test_networkx_exploded():
                 "datasource": "data/network_traffic_edges.csv",
                 "is_encrypted": False,
                 "layer": "Administrative Command",
+                "update_history": 1693556100000,
             },
         ),
         (
@@ -406,6 +450,7 @@ def test_networkx_exploded():
                 "datasource": "data/network_traffic_edges.csv",
                 "is_encrypted": False,
                 "layer": "File Transfer",
+                "update_history": 1693556700000,
             },
         ),
     ]
@@ -417,6 +462,110 @@ def test_networkx_no_props():
 
     networkxGraph = export.to_networkx(
         g, include_vertex_properties=False, include_edge_properties=False
+    )
+
+    nodeList = list(networkxGraph.nodes(data=True))
+    resultList = [
+        (
+            "ServerA",
+            {
+                "update_history": [
+                    1693555200000,
+                    1693555260000,
+                    1693555320000,
+                    1693555500000,
+                    1693556400000,
+                ]
+            },
+        ),
+        (
+            "ServerB",
+            {
+                "update_history": [
+                    1693555200000,
+                    1693555500000,
+                    1693555800000,
+                    1693556700000,
+                ]
+            },
+        ),
+        (
+            "ServerC",
+            {
+                "update_history": [
+                    1693555500000,
+                    1693555800000,
+                    1693556400000,
+                    1693557000000,
+                    1693557060000,
+                    1693557120000,
+                ]
+            },
+        ),
+        (
+            "ServerD",
+            {
+                "update_history": [
+                    1693555800000,
+                    1693556100000,
+                    1693557000000,
+                    1693557060000,
+                    1693557120000,
+                ]
+            },
+        ),
+        ("ServerE", {"update_history": [1693556100000, 1693556400000, 1693556700000]}),
+    ]
+    assert nodeList == resultList
+
+    edgeList = list(networkxGraph.edges(data=True))
+    resultList = [
+        (
+            "ServerA",
+            "ServerB",
+            {"layer": "Critical System Request", "update_history": [1693555200000]},
+        ),
+        (
+            "ServerA",
+            "ServerC",
+            {"layer": "File Transfer", "update_history": [1693555500000]},
+        ),
+        (
+            "ServerB",
+            "ServerD",
+            {"layer": "Standard Service Request", "update_history": [1693555800000]},
+        ),
+        (
+            "ServerC",
+            "ServerA",
+            {"layer": "Critical System Request", "update_history": [1693556400000]},
+        ),
+        (
+            "ServerD",
+            "ServerC",
+            {
+                "layer": "Standard Service Request",
+                "update_history": [1693557000000, 1693557060000, 1693557120000],
+            },
+        ),
+        (
+            "ServerD",
+            "ServerE",
+            {"layer": "Administrative Command", "update_history": [1693556100000]},
+        ),
+        (
+            "ServerE",
+            "ServerB",
+            {"layer": "File Transfer", "update_history": [1693556700000]},
+        ),
+    ]
+    assert edgeList == resultList
+
+    networkxGraph = export.to_networkx(
+        g,
+        include_vertex_properties=False,
+        include_edge_properties=False,
+        include_update_history=False,
     )
 
     nodeList = list(networkxGraph.nodes(data=True))
@@ -446,15 +595,51 @@ def test_networkx_no_props():
     )
     edgeList = list(networkxGraph.edges(data=True))
     resultList = [
-        ("ServerA", "ServerB", {"layer": "Critical System Request"}),
-        ("ServerA", "ServerC", {"layer": "File Transfer"}),
-        ("ServerB", "ServerD", {"layer": "Standard Service Request"}),
-        ("ServerC", "ServerA", {"layer": "Critical System Request"}),
-        ("ServerD", "ServerC", {"layer": "Standard Service Request"}),
-        ("ServerD", "ServerC", {"layer": "Standard Service Request"}),
-        ("ServerD", "ServerC", {"layer": "Standard Service Request"}),
-        ("ServerD", "ServerE", {"layer": "Administrative Command"}),
-        ("ServerE", "ServerB", {"layer": "File Transfer"}),
+        (
+            "ServerA",
+            "ServerB",
+            {"layer": "Critical System Request", "update_history": 1693555200000},
+        ),
+        (
+            "ServerA",
+            "ServerC",
+            {"layer": "File Transfer", "update_history": 1693555500000},
+        ),
+        (
+            "ServerB",
+            "ServerD",
+            {"layer": "Standard Service Request", "update_history": 1693555800000},
+        ),
+        (
+            "ServerC",
+            "ServerA",
+            {"layer": "Critical System Request", "update_history": 1693556400000},
+        ),
+        (
+            "ServerD",
+            "ServerC",
+            {"layer": "Standard Service Request", "update_history": 1693557000000},
+        ),
+        (
+            "ServerD",
+            "ServerC",
+            {"layer": "Standard Service Request", "update_history": 1693557060000},
+        ),
+        (
+            "ServerD",
+            "ServerC",
+            {"layer": "Standard Service Request", "update_history": 1693557120000},
+        ),
+        (
+            "ServerD",
+            "ServerE",
+            {"layer": "Administrative Command", "update_history": 1693556100000},
+        ),
+        (
+            "ServerE",
+            "ServerB",
+            {"layer": "File Transfer", "update_history": 1693556700000},
+        ),
     ]
     assert edgeList == resultList
 
@@ -462,7 +647,9 @@ def test_networkx_no_props():
 def test_networkx_no_history():
     g = build_graph()
 
-    networkxGraph = export.to_networkx(g, include_histories=False)
+    networkxGraph = export.to_networkx(
+        g, include_property_histories=False, include_update_history=False
+    )
 
     nodeList = list(networkxGraph.nodes(data=True))
     resultList = [
@@ -604,7 +791,9 @@ def test_networkx_no_history():
     ]
     assert edgeList == resultList
 
-    networkxGraph = export.to_networkx(g, include_histories=False, explode_edges=True)
+    networkxGraph = export.to_networkx(
+        g, include_property_histories=False, explode_edges=True
+    )
     edgeList = list(networkxGraph.edges(data=True))
     resultList = [
         (
@@ -615,6 +804,7 @@ def test_networkx_no_history():
                 "datasource": "data/network_traffic_edges.csv",
                 "is_encrypted": True,
                 "layer": "Critical System Request",
+                "update_history": 1693555200000,
             },
         ),
         (
@@ -625,6 +815,7 @@ def test_networkx_no_history():
                 "datasource": "data/network_traffic_edges.csv",
                 "is_encrypted": False,
                 "layer": "File Transfer",
+                "update_history": 1693555500000,
             },
         ),
         (
@@ -635,6 +826,7 @@ def test_networkx_no_history():
                 "datasource": "data/network_traffic_edges.csv",
                 "is_encrypted": True,
                 "layer": "Standard Service Request",
+                "update_history": 1693555800000,
             },
         ),
         (
@@ -645,6 +837,7 @@ def test_networkx_no_history():
                 "datasource": "data/network_traffic_edges.csv",
                 "is_encrypted": True,
                 "layer": "Critical System Request",
+                "update_history": 1693556400000,
             },
         ),
         (
@@ -655,6 +848,7 @@ def test_networkx_no_history():
                 "datasource": "data/network_traffic_edges.csv",
                 "is_encrypted": True,
                 "layer": "Standard Service Request",
+                "update_history": 1693557000000,
             },
         ),
         (
@@ -665,6 +859,7 @@ def test_networkx_no_history():
                 "datasource": "data/network_traffic_edges.csv",
                 "is_encrypted": True,
                 "layer": "Standard Service Request",
+                "update_history": 1693557060000,
             },
         ),
         (
@@ -675,6 +870,7 @@ def test_networkx_no_history():
                 "datasource": "data/network_traffic_edges.csv",
                 "is_encrypted": True,
                 "layer": "Standard Service Request",
+                "update_history": 1693557120000,
             },
         ),
         (
@@ -685,6 +881,7 @@ def test_networkx_no_history():
                 "datasource": "data/network_traffic_edges.csv",
                 "is_encrypted": False,
                 "layer": "Administrative Command",
+                "update_history": 1693556100000,
             },
         ),
         (
@@ -695,7 +892,10 @@ def test_networkx_no_history():
                 "datasource": "data/network_traffic_edges.csv",
                 "is_encrypted": False,
                 "layer": "File Transfer",
+                "update_history": 1693556700000,
             },
         ),
     ]
     assert edgeList == resultList
+
+
