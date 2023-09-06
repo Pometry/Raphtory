@@ -267,6 +267,16 @@ impl PyEdge {
         (move || edge.explode()).into()
     }
 
+    /// Explodes an Edge into a list of PyEdges, one for each layer the edge is part of. This is useful when you want to iterate over
+    /// the properties of an Edge for every layer.
+    ///
+    /// Returns:
+    ///     A list of PyEdges
+    pub fn explode_layers(&self) -> PyEdges {
+        let edge = self.edge.clone();
+        (move || edge.explode_layers()).into()
+    }
+
     /// Gets the earliest time of an edge.
     ///
     /// Returns:
@@ -441,6 +451,18 @@ impl PyEdges {
         .into()
     }
 
+    /// Explodes each edge into a list of edges, one for each layer the edge is part of. This is useful when you want to iterate over
+    /// the properties of an Edge for every layer.
+    fn explode_layers(&self) -> PyEdges {
+        let builder = self.builder.clone();
+        (move || {
+            let iter: BoxedIter<EdgeView<DynamicGraph>> =
+                Box::new(builder().flat_map(|e| e.explode_layers()));
+            iter
+        })
+        .into()
+    }
+
     /// Returns the earliest time of the edges.
     fn earliest_time(&self) -> OptionI64Iterable {
         let edges: Arc<
@@ -534,12 +556,27 @@ impl PyNestedEdges {
         (move || edges().id()).into()
     }
 
+    /// Explode each edge, creating a separate edge instance for each edge event
     fn explode(&self) -> PyNestedEdges {
         let builder = self.builder.clone();
         (move || {
             let iter: BoxedIter<BoxedIter<EdgeView<DynamicGraph>>> = Box::new(builder().map(|e| {
                 let inner_box: BoxedIter<EdgeView<DynamicGraph>> =
                     Box::new(e.flat_map(|e| e.explode()));
+                inner_box
+            }));
+            iter
+        })
+        .into()
+    }
+
+    /// Explode each edge over layers, creating a separate edge instance for each layer the edge is part of
+    fn explode_layers(&self) -> PyNestedEdges {
+        let builder = self.builder.clone();
+        (move || {
+            let iter: BoxedIter<BoxedIter<EdgeView<DynamicGraph>>> = Box::new(builder().map(|e| {
+                let inner_box: BoxedIter<EdgeView<DynamicGraph>> =
+                    Box::new(e.flat_map(|e| e.explode_layers()));
                 inner_box
             }));
             iter
