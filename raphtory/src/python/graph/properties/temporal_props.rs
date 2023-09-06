@@ -284,6 +284,8 @@ impl PyTemporalProp {
             Prop::I32(s) => Some(Prop::F32(s as f32 / count as f32)),
             Prop::I64(s) => Some(Prop::F64(s as f64 / count as f64)),
             Prop::U32(s) => Some(Prop::F32(s as f32 / count as f32)),
+            Prop::U8(s) => Some(Prop::F64(s as f64 / count as f64)), // needs a test
+            Prop::U16(s) => Some(Prop::F64(s as f64 / count as f64)), // needs a test
             Prop::U64(s) => Some(Prop::F64(s as f64 / count as f64)),
             Prop::F32(s) => Some(Prop::F32(s / count as f32)),
             Prop::F64(s) => Some(Prop::F64(s / count as f64)),
@@ -823,6 +825,8 @@ impl PyPropHistValueListList {
                     let count = itit_iter.count();
 
                     match sum {
+                        Some(Prop::U8(s)) => Some(Prop::U8(s / count as u8)),
+                        Some(Prop::U16(s)) => Some(Prop::U16(s / count as u16)),
                         Some(Prop::I32(s)) => Some(Prop::I32(s / count as i32)),
                         Some(Prop::I64(s)) => Some(Prop::I64(s / count as i64)),
                         Some(Prop::U32(s)) => Some(Prop::U32(s / count as u32)),
@@ -898,6 +902,8 @@ impl PropIterable {
         let sum: PropValue = self.sum();
         let count: usize = self.iter().collect::<Vec<Prop>>().len();
         match sum {
+            Some(Prop::U8(s)) => Some(Prop::F64(s as f64 / count as f64)),
+            Some(Prop::U16(s)) => Some(Prop::F64(s as f64 / count as f64)),
             Some(Prop::I32(s)) => Some(Prop::F32(s as f32 / count as f32)),
             Some(Prop::I64(s)) => Some(Prop::F64(s as f64 / count as f64)),
             Some(Prop::U32(s)) => Some(Prop::F32(s as f32 / count as f32)),
@@ -994,6 +1000,8 @@ impl PyPropHistValueList {
                 let sum = it_iter.fold(first, |acc, elem| acc.and_then(|val| val.add(elem)));
                 let count = it.len();
                 match sum {
+                    Some(Prop::U8(s)) => Some(Prop::F64(s as f64 / count as f64)),
+                    Some(Prop::U16(s)) => Some(Prop::F64(s as f64 / count as f64)),
                     Some(Prop::I32(s)) => Some(Prop::F32(s as f32 / count as f32)),
                     Some(Prop::I64(s)) => Some(Prop::F64(s as f64 / count as f64)),
                     Some(Prop::U32(s)) => Some(Prop::F32(s as f32 / count as f32)),
@@ -1088,6 +1096,8 @@ impl PyPropValueList {
         let sum: PropValue = self.sum();
         let count: usize = self.iter().collect::<Vec<PropValue>>().len();
         match sum {
+            Some(Prop::U8(s)) => Some(Prop::F64(s as f64 / count as f64)),
+            Some(Prop::U16(s)) => Some(Prop::F64(s as f64 / count as f64)),
             Some(Prop::I32(s)) => Some(Prop::F32(s as f32 / count as f32)),
             Some(Prop::I64(s)) => Some(Prop::F64(s as f64 / count as f64)),
             Some(Prop::U32(s)) => Some(Prop::F32(s as f32 / count as f32)),
@@ -1176,6 +1186,8 @@ impl PyPropValueListList {
                     }
                 });
                 match sum {
+                    Some(Prop::U8(s)) => Some(Prop::F64(s as f64 / count as f64)),
+                    Some(Prop::U16(s)) => Some(Prop::F64(s as f64 / count as f64)),
                     Some(Prop::I32(s)) => Some(Prop::F32(s as f32 / count as f32)),
                     Some(Prop::I64(s)) => Some(Prop::F64(s as f64 / count as f64)),
                     Some(Prop::U32(s)) => Some(Prop::F32(s as f32 / count as f32)),
