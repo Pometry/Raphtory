@@ -109,6 +109,14 @@ impl<P: PropertiesOps + Clone> TemporalProperties<P> {
 }
 
 impl<P: PropertiesOps> PropUnwrap for TemporalPropertyView<P> {
+    fn into_u8(self) -> Option<u8> {
+        self.latest().into_u8()
+    }
+
+    fn into_u16(self) -> Option<u16> {
+        self.latest().into_u16()
+    }
+
     fn into_str(self) -> Option<String> {
         self.latest().into_str()
     }

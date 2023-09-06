@@ -40,6 +40,18 @@ impl Repr for u32 {
     }
 }
 
+impl Repr for u8 {
+    fn repr(&self) -> String {
+        self.to_string()
+    }
+}
+
+impl Repr for u16 {
+    fn repr(&self) -> String {
+        self.to_string()
+    }
+}
+
 impl Repr for u64 {
     fn repr(&self) -> String {
         self.to_string()

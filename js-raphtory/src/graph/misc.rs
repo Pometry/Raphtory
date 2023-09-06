@@ -19,6 +19,8 @@ pub(crate) struct JsProp(pub(crate) Prop);
 impl From<JsProp> for JsValue {
     fn from(value: JsProp) -> JsValue {
         match value.0 {
+            raphtory::core::Prop::U8(v) => v.into(),
+            raphtory::core::Prop::U16(v) => v.into(),
             raphtory::core::Prop::Str(v) => v.into(),
             raphtory::core::Prop::I32(v) => v.into(),
             raphtory::core::Prop::I64(v) => v.into(),

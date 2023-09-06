@@ -128,6 +128,12 @@ impl<G: GraphViewOps> IndexedGraph<G> {
             Prop::DTime(_) => {
                 schema.add_date_field(prop, INDEXED);
             }
+            Prop::U8(_) => {
+                schema.add_u64_field(prop, INDEXED);
+            }
+            Prop::U16(_) => {
+                schema.add_u64_field(prop, INDEXED);
+            }
             Prop::U64(_) => {
                 schema.add_u64_field(prop, INDEXED);
             }
@@ -264,6 +270,12 @@ impl<G: GraphViewOps> IndexedGraph<G> {
                 let time =
                     tantivy::DateTime::from_timestamp_nanos(prop_time.and_utc().timestamp_nanos());
                 document.add_date(prop_field, time);
+            }
+            Prop::U8(prop_u8) => {
+                document.add_u64(prop_field, u64::from(prop_u8));
+            }
+            Prop::U16(prop_u16) => {
+                document.add_u64(prop_field, u64::from(prop_u16));
             }
             Prop::U64(prop_u64) => {
                 document.add_u64(prop_field, prop_u64);
