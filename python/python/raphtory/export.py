@@ -51,6 +51,7 @@ For Example:
 
 def to_pyvis(
         graph,
+        explode_edges=False,
         edge_color="#000000",
         shape=None,
         node_image=None,
@@ -76,7 +77,8 @@ def to_pyvis(
         else:
             visGraph.add_node(v.id(), label= v.name(), shape=shape, image=image)
 
-    for e in graph.edges():
+    edges = graph.edges().explode() if explode_edges else graph.edges().explode_layers()
+    for e in edges:
         weight = e.properties.get(edge_weight) if edge_weight is not None else 1
         if weight is None:
             weight = 1
@@ -87,7 +89,7 @@ def to_pyvis(
 
     return visGraph
 
-r"""Draw a graph with NetworkX.
+r"""Returns a graph with NetworkX.
 
 .. note::
 
@@ -95,103 +97,50 @@ r"""Draw a graph with NetworkX.
     If you intend to use this function make sure that
     you install Network X with ``pip install networkx``
 
-:param graph: A Raphtory graph.
-:param float k: A float defining optimal distance between nodes. If None the distance is set to 1/sqrt(n) where n is the number of nodes. Increase this value to move nodes farther apart.
-:param int iterations: An integer defining the maximum number of iterations taken to generate the optimum spring layout. Increasing this number will increase the computational time to generate the layout.  By default ``50`` is set.
-:param scalar or array node_size: A scalar defining the size of nodes. By default ``300`` is set.
-:param color or array of colors node_color: Node color. Can be a single color or a sequence of colors with the same length as nodelist. Color can be string or rgb (or rgba) tuple of floats from 0-1. If numeric values are specified they will be mapped to colors using the cmap and vmin,vmax parameters. See matplotlib.scatter for more details. By default ``"#1f78b4"`` (blue) is set.
-:param color or array of colors edge_color: Edge color. Can be a single color or a sequence of colors with the same length as edgelist. Color can be string or rgb (or rgba) tuple of floats from 0-1. If numeric values are specified they will be mapped to colors using the edge_cmap and edge_vmin,edge_vmax parameters. By default ``'k'`` (black) is set.
-:param bool arrows: If None, directed graphs draw arrowheads with FancyArrowPatch, while undirected graphs draw edges via LineCollection for speed. If True, draw arrowheads with FancyArrowPatches (bendable and stylish). If False, draw edges using LineCollection (linear and fast).
-    Note: Arrowheads will be the same color as edges. Default is None.
-:param str arrow_style: Style of the edges, defaults to ``‘-|>’``.
+:param Graph graph: A Raphtory graph.
+:param bool explode_edges: A boolean that is set to True if you want to explode the edges in the graph. By default this is set to False.
 
-:returns: A networkx visualisation that appears in the notebook output.
-:rtype:  matplotlib.collections.PathCollection and matplotlib.collections.LineCollection or a list of matplotlib.patches.FancyArrowPatch.
-        `PathCollection` of the nodes.  
-        If ``arrows=True``, a list of FancyArrowPatches is returned.
-        If ``arrows=False``, a LineCollection is returned.
-        If ``arrows=None`` (the default), then a LineCollection is returned if
-        `G` is undirected, otherwise returns a list of FancyArrowPatches.
-
-For Example:
-
-.. jupyter-execute::
-
-    from raphtory import Graph
-    from raphtory import export
-
-    g = Graph()
-    g.add_vertex(1, src, properties={"image": "image.png"})
-    g.add_edge(1, 1, 2, {"title": "edge", "weight": 1})
-    g.add_edge(1, 2, 1, {"title": "edge", "weight": 3})
-
-    export.to_networkx(graph=g, k=0.15, iterations=100, node_size=500, node_color='red', edge_color='blue', arrows=True)
+:returns: A Networkx MultiDiGraph.
 
 """
 def to_networkx(
         graph,
+        explode_edges=False,
+        include_vertex_properties=True,
+        include_edge_properties=True,
+        include_histories=True,
 ):
     """
-    Returns a Network X graph visualisation from a Raphtory graph.
+    Returns a Network X graph from a Raphtory graph.
     """
 
     networkXGraph = nx.MultiDiGraph()
 
     vertex_tuples = []
-
     for v in graph.vertices():
-        v_constant_properties = []
-        v_temporal_properties = []
-        name = v.name() if v.name() else None
-
-        if v.properties.constant is not None:
-            for key, value in v.properties.constant.items():
-                v_constant_properties.append((key, value))
-        else:
-            v_constant_properties = None
-
-        if v.properties.temporal is not None:
-            for prop, history in v.properties.temporal.items():
-                for timestamp, value in history:
-                    v_temporal_properties.append((timestamp, prop, value))
-        else:
-            v_temporal_properties = None
-
-        properties = {"temporal_properties": v_temporal_properties, "constant_properties": v_constant_properties}
-
-        vertex_tuple = (name, properties)
-        vertex_tuples.append(vertex_tuple)
-
+        properties = {}
+        if include_vertex_properties:
+            if include_histories:
+                properties = merge(v.properties.constant.as_dict(),v.properties.temporal.histories())
+            else:
+                properties = v.properties.as_dict()
+        vertex_tuples.append((v.name(), properties))
     networkXGraph.add_nodes_from(vertex_tuples)
 
     edge_tuples = []
-
-
-    for e in graph.edges():
-        e_constant_properties = []
-        e_temporal_properties = []
-        src = e.src().name() if e.src() else None
-        dst = e.dst().name() if e.dst() else None
-        layer = e.layer_names() if e.layer_names() else None
+    edges = graph.edges().explode() if explode_edges else graph.edges().explode_layers()
+    for e in edges:
+        properties = {}
+        src = e.src().name()
+        dst = e.dst().name()
+        layer = e.layer_name()
         
-        if e.properties.constant is not None:
-            for key, value in e.properties.constant.items():
-                e_constant_properties.append((key, value))
-        else:
-            e_constant_properties = None
-
-        if e.properties.temporal is not None:
-            for prop, history in e.properties.temporal.items():
-                for timestamp, value in history:
-                    e_temporal_properties.append((timestamp, prop, value))
-        else:
-            e_temporal_properties = None
-
-      
-        properties = {"temporal_properties": e_temporal_properties, "constant_properties": e_constant_properties, "layer": layer}
-
-        edge_tuple = (src, dst, properties)
-        edge_tuples.append(edge_tuple)
+        if include_edge_properties:
+            if include_histories:
+                properties = merge(v.properties.constant.as_dict(),v.properties.temporal.histories())
+            else:
+                properties = v.properties.as_dict()
+        edge_tuples.append((src, dst, properties))
 
     networkXGraph.add_edges_from(edge_tuples)
 
