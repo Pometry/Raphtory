@@ -170,7 +170,9 @@ fn edge_template(edge: &EdgeView<DynamicGraph>) -> String {
                 .history()
                 .iter()
                 .map(format_time)
-                .join(",");
+                .next()
+                .unwrap();
+            //.join(",");
 
             format!("{fact} at time: {times}")
         })
