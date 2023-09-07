@@ -1,5 +1,5 @@
 use ordered_float::OrderedFloat;
-use std::{collections::HashMap, fmt, fmt::Debug, hash::Hash};
+use std::{borrow::Borrow, collections::HashMap, fmt, fmt::Debug, hash::Hash};
 
 /// A generic `AlgorithmResult` struct that represents the result of an algorithm computation.
 ///
@@ -42,7 +42,11 @@ where
     /// # Arguments
     ///
     /// * `key`: The key of type `H` for which the value is to be retrieved.
-    pub fn get(&self, key: &K) -> Option<&V> {
+    pub fn get<Q>(&self, key: &Q) -> Option<&V>
+    where
+        Q: Hash + Eq + ?Sized,
+        K: Borrow<Q>,
+    {
         self.result.get(&key)
     }
 }
