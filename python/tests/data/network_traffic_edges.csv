@@ -1,0 +1,10 @@
+timestamp,source,destination,data_size_MB,transaction_type,is_encrypted
+2023-09-01T08:00:00Z,ServerA,ServerB,5.6,Critical System Request,True
+2023-09-01T08:05:00Z,ServerA,ServerC,7.1,File Transfer,False
+2023-09-01T08:10:00Z,ServerB,ServerD,3.2,Standard Service Request,True
+2023-09-01T08:15:00Z,ServerD,ServerE,8.9,Administrative Command,False
+2023-09-01T08:20:00Z,ServerC,ServerA,4.5,Critical System Request,True
+2023-09-01T08:25:00Z,ServerE,ServerB,6.2,File Transfer,False
+2023-09-01T08:30:00Z,ServerD,ServerC,5.0,Standard Service Request,True
+2023-09-01T08:31:00Z,ServerD,ServerC,10.0,Standard Service Request,True
+2023-09-01T08:32:00Z,ServerD,ServerC,15.0,Standard Service Request,True

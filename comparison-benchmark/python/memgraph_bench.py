@@ -12,13 +12,13 @@ simple_relationship_file = "data/simple-relationships.csv"
 
 class MemgraphBench(BenchmarkBase):
     def start_docker(self, **kwargs):
-        image_name = 'memgraph/memgraph-platform:latest'
-        container_folder = '/app/data'
+        image_name = "memgraph/memgraph-platform:latest"
+        container_folder = "/app/data"
         exec_commands = [
             '/bin/bash -c "apt update && apt install -y libssl-dev"',
             '/bin/bash -c "python3 -m pip install gqlalchemy requests tqdm docker pandas"',
             '/bin/bash -c "cp -R /app/data/data /tmp/;chmod 777 -R /tmp/data"',
-            '/bin/bash -c "cd /app/data;python3 benchmark_driver.py --no-docker --bench mem"'
+            '/bin/bash -c "cd /app/data;python3 benchmark_driver.py --no-docker --bench mem"',
         ]
         # ports = {
         #     '7444': '7444',
@@ -30,7 +30,6 @@ class MemgraphBench(BenchmarkBase):
             container_folder=container_folder,
             exec_commands=exec_commands,
             # ports=ports,
-
         )
         return code, contents
 
@@ -45,19 +44,23 @@ class MemgraphBench(BenchmarkBase):
 
     def import_data(self):
         print("loading nodes")
-        query = 'LOAD CSV FROM "/tmp/data/simple-profiles.csv" NO HEADER DELIMITER  "\t" AS row '\
-                'CREATE (n:Node {id: row[0]});'
+        query = (
+            'LOAD CSV FROM "/tmp/data/simple-profiles.csv" NO HEADER DELIMITER  "\t" AS row '
+            "CREATE (n:Node {id: row[0]});"
+        )
         self.graph.execute(query)
         print("Creating index")
-        query = 'CREATE INDEX ON :Node(id);'
+        query = "CREATE INDEX ON :Node(id);"
         self.graph.execute(query)
         print("loading relationships")
-        query = 'LOAD CSV FROM "/tmp/data/simple-relationships.csv" NO HEADER DELIMITER  "\t" AS row ' \
-                'MATCH (n1:Node {id: row[0]}),  (n2:Node {id: row[1]}) CREATE (n1)-[:FOLLOWS]->(n2);'
+        query = (
+            'LOAD CSV FROM "/tmp/data/simple-relationships.csv" NO HEADER DELIMITER  "\t" AS row '
+            "MATCH (n1:Node {id: row[0]}),  (n2:Node {id: row[1]}) CREATE (n1)-[:FOLLOWS]->(n2);"
+        )
         self.graph.execute(query)
 
     def setup(self):
-        self.graph = Memgraph(host='127.0.0.1', port=7687)
+        self.graph = Memgraph(host="127.0.0.1", port=7687)
         # query = "MATCH (n) DETACH DELETE n"
         # self.graph.execute(query)
         self.import_data()

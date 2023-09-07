@@ -1,0 +1,8 @@
+timestamp,server_id,server_name,hardware_type,OS_version,primary_function,uptime_days
+2023-09-01T08:00:00Z,ServerA,Alpha,Blade Server,Ubuntu 20.04,Database,120
+2023-09-01T08:01:00Z,ServerA,Alpha,Blade Server,Ubuntu 20.04,Database,121
+2023-09-01T08:02:00Z,ServerA,Alpha,Blade Server,Ubuntu 20.04,Database,122
+2023-09-01T08:05:00Z,ServerB,Beta,Rack Server,Red Hat 8.1,Web Server,45
+2023-09-01T08:10:00Z,ServerC,Charlie,Blade Server,Windows Server 2022,File Storage,90
+2023-09-01T08:15:00Z,ServerD,Delta,Tower Server,Ubuntu 20.04,Application Server,60
+2023-09-01T08:20:00Z,ServerE,Echo,Rack Server,Red Hat 8.1,Backup,30

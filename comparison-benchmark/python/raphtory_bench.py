@@ -12,21 +12,23 @@ except ImportError as e:
     print(e)
     print("Cannot continue. Exiting")
     import sys
+
     sys.exit(1)
 
 simple_relationship_file = "data/simple-relationships.csv"
 
 
 class RaphtoryBench(BenchmarkBase):
-
     def start_docker(self, **kwargs):
-        image_name = 'python:3.10-bullseye'
-        container_folder = '/app/data'
+        image_name = "python:3.10-bullseye"
+        container_folder = "/app/data"
         exec_commands = [
-            'pip install raphtory requests tqdm pandas numpy docker',
-            '/bin/bash -c "cd /app/data;python benchmark_driver.py --no-docker --bench r"'
+            "pip install raphtory requests tqdm pandas numpy docker",
+            '/bin/bash -c "cd /app/data;python benchmark_driver.py --no-docker --bench r"',
         ]
-        code, contents = super().start_docker(image_name, container_folder, exec_commands)
+        code, contents = super().start_docker(
+            image_name, container_folder, exec_commands
+        )
         return code, contents
 
     def shutdown(self):
@@ -41,8 +43,8 @@ class RaphtoryBench(BenchmarkBase):
     def setup(self):
         # Load edges
         self.graph = raphtory.Graph()
-        with open(simple_relationship_file, 'r') as f:
-            reader = csv.reader(f, delimiter='\t')
+        with open(simple_relationship_file, "r") as f:
+            reader = csv.reader(f, delimiter="\t")
             for row in reader:
                 self.graph.add_edge(1, row[0], row[1], {})
 

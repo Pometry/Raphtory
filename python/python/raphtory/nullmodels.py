@@ -4,7 +4,10 @@ Generate randomised reference models for a temporal graph edgelist
 
 import pandas as pd
 
-def shuffle_column(graph_df:pd.DataFrame, col_number=None, col_name=None, inplace=False):
+
+def shuffle_column(
+    graph_df: pd.DataFrame, col_number=None, col_name=None, inplace=False
+):
     """
     Returns an edgelist with a given column shuffled. Exactly one of col_number or col_name should be specified.
 
@@ -22,8 +25,12 @@ def shuffle_column(graph_df:pd.DataFrame, col_number=None, col_name=None, inplac
         AssertionError: If both col_number and col_name are provided.
 
     """
-    assert col_number is not None or col_name is not None, f"No column number or name provided."
-    assert not (col_name is not None and col_number is not None), f"Cannot have both a column number and a column name."
+    assert (
+        col_number is not None or col_name is not None
+    ), f"No column number or name provided."
+    assert not (
+        col_name is not None and col_number is not None
+    ), f"Cannot have both a column number and a column name."
 
     if inplace:
         df = graph_df
@@ -34,15 +41,21 @@ def shuffle_column(graph_df:pd.DataFrame, col_number=None, col_name=None, inplac
 
     if col_number is not None:
         col = df[df.columns[col_number]].sample(n=no_events)
-        col.reset_index(inplace=True,drop=True)
+        col.reset_index(inplace=True, drop=True)
         df[df.columns[col_number]] = col
     if col_name is not None:
         col = df[col_name].sample(n=no_events)
-        col.reset_index(inplace=True,drop=True)
-        df[col_name]=col
+        col.reset_index(inplace=True, drop=True)
+        df[col_name] = col
     return df
 
-def shuffle_multiple_columns(graph_df:pd.DataFrame, col_numbers:list=None, col_names:list=None, inplace=False):
+
+def shuffle_multiple_columns(
+    graph_df: pd.DataFrame,
+    col_numbers: list = None,
+    col_names: list = None,
+    inplace=False,
+):
     """
     Returns an edgelist with given columns shuffled. Exactly one of col_numbers or col_names should be specified.
 
@@ -60,8 +73,12 @@ def shuffle_multiple_columns(graph_df:pd.DataFrame, col_numbers:list=None, col_n
         AssertionError: If both col_numbers and col_names are provided.
 
     """
-    assert col_numbers is not None or col_names is not None, f"No column numbers or names provided."
-    assert not (col_names is not None and col_numbers is not None), f"Cannot have both column numbers and column names."
+    assert (
+        col_numbers is not None or col_names is not None
+    ), f"No column numbers or names provided."
+    assert not (
+        col_names is not None and col_numbers is not None
+    ), f"Cannot have both column numbers and column names."
 
     if col_numbers is not None:
         for n in col_numbers:
@@ -70,8 +87,15 @@ def shuffle_multiple_columns(graph_df:pd.DataFrame, col_numbers:list=None, col_n
         for name in col_names:
             df = shuffle_column(graph_df, col_name=name)
     return df
-    
-def permuted_timestamps_model(graph_df:pd.DataFrame, time_col:int=None, time_name:str=None, inplace=False, sorted=False):
+
+
+def permuted_timestamps_model(
+    graph_df: pd.DataFrame,
+    time_col: int = None,
+    time_name: str = None,
+    inplace=False,
+    sorted=False,
+):
     """
     Returns a DataFrame with the time column shuffled.
 
@@ -89,8 +113,10 @@ def permuted_timestamps_model(graph_df:pd.DataFrame, time_col:int=None, time_nam
     shuffled_df = shuffle_column(graph_df, time_col, time_name, inplace)
 
     if sorted:
-        shuffled_df.sort_values(by=time_name if time_name else shuffled_df.columns[time_col], inplace=True)
-    
+        shuffled_df.sort_values(
+            by=time_name if time_name else shuffled_df.columns[time_col], inplace=True
+        )
+
     if inplace:
         return
     else:
