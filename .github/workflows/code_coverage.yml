@@ -41,7 +41,7 @@ jobs:
       - name: Run Maturin develop
         uses: PyO3/maturin-action@v1
         with:
-          working-directory: ./python
+          working-directory: ./python/tests
           command: build
       - name: Install Python dependencies
         run: |

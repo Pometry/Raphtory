@@ -180,7 +180,7 @@ def to_edge_df(
     include_update_history=True,
     include_property_histories=True,
 ):
-    r"""Returns an edge list pandas dataframe fro the given graph.
+    r"""Returns an edge list pandas dataframe for the given graph.
     .. note::
 
         Pandas is a required dependency.
