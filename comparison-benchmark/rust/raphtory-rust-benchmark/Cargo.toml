@@ -15,7 +15,7 @@ homepage.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-raphtory = { path = "../../../raphtory", version = "0.5.5", package = "raphtory", features = ["io"] }
+raphtory = { path = "../../../raphtory", version = "0.5.6", package = "raphtory", features = ["io"] }
 chrono = { version = "0.4", features = ["serde"] }
 serde = { version = "1", features = ["derive","rc"] }
 clap = { version = "4.3.11", features = ["derive"] }
