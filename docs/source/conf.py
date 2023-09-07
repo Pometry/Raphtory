@@ -70,7 +70,7 @@ header = f"""\
    :suppress:
 
    import raphtory
-   from raphtory import vis
+   from raphtory import export
    import os   
    os.chdir(r'{os.path.dirname(os.path.dirname(__file__))}')
 
