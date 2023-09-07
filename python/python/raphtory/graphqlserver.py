@@ -51,25 +51,25 @@ class GraphQLServer:
             time.sleep(1)
 
 
-async def __from_map_and_directory(graphs, graph_dir, port):
+async def _from_map_and_directory(graphs, graph_dir, port):
     await internal_graphql.from_map_and_directory(graphs, graph_dir, port)
 
 
-async def __from_directory(graph_dir, port):
+async def _from_directory(graph_dir, port):
     await internal_graphql.from_directory(graph_dir, port)
 
 
-async def __from_map(graphs, port):
+async def _from_map(graphs, port):
     await internal_graphql.from_map(graphs, port)
 
 
-def __run(func, daemon, port):
+def _run(func, daemon, port):
     if daemon:
 
-        def __run_in_background():
+        def _run_in_background():
             asyncio.run(func)
 
-        threading.Thread(target=__run_in_background, daemon=True).start()
+        threading.Thread(target=_run_in_background, daemon=True).start()
         server = GraphQLServer(port)
         server.wait_for_online()
         return graphqlclient.RaphtoryGraphQLClient("http://localhost:" + str(port))
@@ -94,10 +94,10 @@ def run_server(graphs=None, graph_dir=None, port=1736, daemon=False):
     """
 
     if graph_dir is not None and graphs is not None:
-        return __run(__from_map_and_directory(graphs, graph_dir, port), daemon, port)
+        return _run(_from_map_and_directory(graphs, graph_dir, port), daemon, port)
     elif graph_dir is not None:
-        return __run(__from_directory(graph_dir, port), daemon, port)
+        return _run(_from_directory(graph_dir, port), daemon, port)
     elif graphs is not None:
-        return __run(__from_map(graphs, port), daemon, port)
+        return _run(_from_map(graphs, port), daemon, port)
     else:
         print("No graphs or graph directory specified. Exiting.")

@@ -5,51 +5,6 @@ from pyvis.network import Network
 import networkx as nx
 import pandas as pd
 
-r"""Draw a graph with Pyvis.
-
-.. note::
-
-    Pyvis is a required dependency.
-    If you intend to use this function make sure that
-    you install Pyvis with ``pip install pyvis``
-
-:param graph: A Raphtory graph.
-:param str height: A string defining the height of the graph. By default ``800px`` is set.
-:param str width: A string defining the width of the graph.  By default ``800px`` is set.
-:param str bg_color: A string defining the colour of the graph background. It must be a HTML color code. By default ``#white`` (white) is set.
-:param str font_color: A string defining the colour of the graph font. By default ``"black"`` is set.
-:param str edge_color: A string defining the colour of the edges in the graph. By default ``#000000`` (black) is set.
-:param str shape: An optional string defining what the node looks like. 
-    There are two types of nodes. One type has the label inside of it and the other type has the label underneath it. 
-    The types with the label inside of it are: ellipse, circle, database, box, text. 
-    The ones with the label outside of it are: image, circularImage, diamond, dot, star, triangle, triangleDown, square and icon.
-    By default ``"dot"`` is set.
-:param str node_image: An optional string defining the url of a custom node image. By default an image of a circle is set.
-:param str edge_weight: An optional string defining the name of the property where edge weight is set on your Raphtory graph. By default ``1`` is set.
-:param str edge_label: An optional string defining the name of the property where edge label is set on your Raphtory graph. By default, an empty string as the label is set.
-:param bool notebook: A boolean that is set to True if using jupyter notebook. By default this is set to True.
-
-
-:returns: A pyvis visualisation in static HTML format that is interactive with toggles menu.
-:rtype: IFrame(name, width=self.width, height=self.height)
-
-For Example:
-
-.. jupyter-execute::
-
-    from raphtory import Graph
-    from raphtory import export
-
-    g = Graph()
-    g.add_vertex(1, src, properties={"image": "image.png"})
-    g.add_edge(1, 1, 2, {"title": "edge", "weight": 1})
-    g.add_edge(1, 2, 1, {"title": "edge", "weight": 3})
-
-    export.to_pyvis(graph=g, edge_color="#FF0000", edge_weight= "weight", shape="image", node_image="image", edge_label="title")
-
-"""
-
-
 def to_pyvis(
     graph,
     explode_edges=False,
@@ -63,8 +18,44 @@ def to_pyvis(
     notebook=True,
     **kwargs,
 ):
-    """
-    Returns a dynamic visualisation in static HTML format from a Raphtory graph.
+    r"""Draw a graph with Pyvis.
+
+        .. note::
+
+        Pyvis is a required dependency.
+        If you intend to use this function make sure that
+        you install Pyvis with ``pip install pyvis``
+
+        :param graph: A Raphtory graph.
+        :param explode_edges: A boolean that is set to True if you want to explode the edges in the graph. By default this is set to False.
+        :param str edge_color: A string defining the colour of the edges in the graph. By default ``#000000`` (black) is set.
+        :param str shape: An optional string defining what the node looks like.
+        There are two types of nodes. One type has the label inside of it and the other type has the label underneath it.
+        The types with the label inside of it are: ellipse, circle, database, box, text.
+        The ones with the label outside of it are: image, circularImage, diamond, dot, star, triangle, triangleDown, square and icon.
+        By default ``"dot"`` is set.
+        :param str node_image: An optional string defining the url of a custom node image. By default an image of a circle is set.
+        :param str edge_weight: An optional string defining the name of the property where edge weight is set on your Raphtory graph. By default ``1`` is set.
+        :param str edge_label: An optional string defining the name of the property where edge label is set on your Raphtory graph. By default, an empty string as the label is set.
+        :param bool notebook: A boolean that is set to True if using jupyter notebook. By default this is set to True.
+        :param kwargs: Additional keyword arguments that are passed to the pyvis Network class.
+
+        :returns: A pyvis network
+
+        For Example:
+
+        .. jupyter-execute::
+
+        from raphtory import Graph
+        from raphtory import export
+
+        g = Graph()
+        g.add_vertex(1, src, properties={"image": "image.png"})
+        g.add_edge(1, 1, 2, {"title": "edge", "weight": 1})
+        g.add_edge(1, 2, 1, {"title": "edge", "weight": 3})
+
+        export.to_pyvis(graph=g, edge_color="#FF0000", edge_weight= "weight", shape="image", node_image="image", edge_label="title")
+
     """
     visGraph = Network(notebook=notebook, **kwargs)
     if colour_nodes_by_type:
@@ -113,26 +104,6 @@ def to_pyvis(
     return visGraph
 
 
-r"""Returns a graph with NetworkX.
-
-.. note::
-
-    Network X is a required dependency.
-    If you intend to use this function make sure that
-    you install Network X with ``pip install networkx``
-
-:param Graph graph: A Raphtory graph.
-:param bool explode_edges: A boolean that is set to True if you want to explode the edges in the graph. By default this is set to False.
-:param bool include_vertex_properties: A boolean that is set to True if you want to include the vertex properties in the graph. By default this is set to True.
-:param bool include_edge_properties: A boolean that is set to True if you want to include the edge properties in the graph. By default this is set to True.
-:param bool include_update_history: A boolean that is set to True if you want to include the update histories in the graph. By default this is set to True.
-:param bool include_property_histories: A boolean that is set to True if you want to include the histories in the graph. By default this is set to True.
-
-:returns: A Networkx MultiDiGraph.
-
-"""
-
-
 def to_networkx(
     graph,
     explode_edges=False,
@@ -141,9 +112,23 @@ def to_networkx(
     include_update_history=True,
     include_property_histories=True,
 ):
+    r"""Returns a graph with NetworkX.
+        .. note::
+
+            Network X is a required dependency.
+            If you intend to use this function make sure that
+            you install Network X with ``pip install networkx``
+
+        :param Graph graph: A Raphtory graph.
+        :param bool explode_edges: A boolean that is set to True if you want to explode the edges in the graph. By default this is set to False.
+        :param bool include_vertex_properties: A boolean that is set to True if you want to include the vertex properties in the graph. By default this is set to True.
+        :param bool include_edge_properties: A boolean that is set to True if you want to include the edge properties in the graph. By default this is set to True.
+        :param bool include_update_history: A boolean that is set to True if you want to include the update histories in the graph. By default this is set to True.
+        :param bool include_property_histories: A boolean that is set to True if you want to include the histories in the graph. By default this is set to True.
+
+        :returns: A Networkx MultiDiGraph.
     """
-    Returns a NetworkX MultiDiGraph from a Raphtory graph.
-    """
+
     networkXGraph = nx.MultiDiGraph()
 
     vertex_tuples = []
@@ -187,23 +172,7 @@ def to_networkx(
     return networkXGraph
 
 
-r"""Returns an edge list pandas dataframe fro the given graph.
 
-.. note::
-
-    Pandas is a required dependency.
-    If you intend to use this function make sure that
-    you install pandas with ``pip install pandas``
-
-:param Graph graph: A Raphtory graph.
-:param bool explode_edges: A boolean that is set to True if you want to explode the edges in the graph. By default this is set to False.
-:param bool include_edge_properties: A boolean that is set to True if you want to include the edge properties in the graph. By default this is set to True.
-:param bool include_update_history: A boolean that is set to True if you want to include the update histories in the graph. By default this is set to True.
-:param bool include_property_histories: A boolean that is set to True if you want to include the histories in the graph. By default this is set to True.
-
-:returns: A pandas dataframe.
-
-"""
 
 
 def to_edge_df(
@@ -213,8 +182,20 @@ def to_edge_df(
     include_update_history=True,
     include_property_histories=True,
 ):
-    """
-    Returns a edge list dataframe from a Raphtory graph.
+    r"""Returns an edge list pandas dataframe fro the given graph.
+        .. note::
+
+            Pandas is a required dependency.
+            If you intend to use this function make sure that
+            you install pandas with ``pip install pandas``
+
+        :param Graph graph: A Raphtory graph.
+        :param bool explode_edges: A boolean that is set to True if you want to explode the edges in the graph. By default this is set to False.
+        :param bool include_edge_properties: A boolean that is set to True if you want to include the edge properties in the graph. By default this is set to True.
+        :param bool include_update_history: A boolean that is set to True if you want to include the update histories in the graph. By default this is set to True.
+        :param bool include_property_histories: A boolean that is set to True if you want to include the histories in the graph. By default this is set to True.
+
+        :returns: A pandas dataframe.
     """
     edge_tuples = []
 
@@ -247,30 +228,28 @@ def to_edge_df(
     return pd.DataFrame(edge_tuples, columns=columns)
 
 
-r"""Returns an vertex list pandas dataframe fro the given graph.
-
-.. note::
-
-    Pandas is a required dependency.
-    If you intend to use this function make sure that
-    you install pandas with ``pip install pandas``
-
-:param Graph graph: A Raphtory graph.
-:param bool include_vertex_properties: A boolean that is set to True if you want to include the vertex properties in the graph. By default this is set to True.
-:param bool include_update_history: A boolean that is set to True if you want to include the update histories in the graph. By default this is set to True.
-:param bool include_property_histories: A boolean that is set to True if you want to include the histories in the graph. By default this is set to True.
-
-:returns: A pandas dataframe.
-
-"""
-
-
 def to_vertex_df(
     graph,
     include_vertex_properties=True,
     include_update_history=True,
     include_property_histories=True,
 ):
+    r"""Returns an vertex list pandas dataframe for the given graph.
+
+        .. note::
+
+            Pandas is a required dependency.
+            If you intend to use this function make sure that
+            you install pandas with ``pip install pandas``
+
+        :param Graph graph: A Raphtory graph.
+        :param bool include_vertex_properties: A boolean that is set to True if you want to include the vertex properties in the graph. By default this is set to True.
+        :param bool include_update_history: A boolean that is set to True if you want to include the update histories in the graph. By default this is set to True.
+        :param bool include_property_histories: A boolean that is set to True if you want to include the histories in the graph. By default this is set to True.
+
+        :returns: A pandas dataframe.
+
+    """
     vertex_tuples = []
     columns = ["id"]
     if include_vertex_properties:
