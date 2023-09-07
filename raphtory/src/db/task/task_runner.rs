@@ -208,8 +208,7 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
 
     pub fn run<
         B: std::fmt::Debug,
-        F: FnOnce(GlobalState<CS>, EvalShardState<G, CS>, EvalLocalState<G, CS>, &Vec<S>) -> B
-            + std::marker::Copy,
+        F: FnOnce(GlobalState<CS>, EvalShardState<G, CS>, EvalLocalState<G, CS>, Vec<S>) -> B,
         S: Send + Sync + Clone + 'static + std::fmt::Debug + Default,
     >(
         &mut self,
@@ -221,7 +220,7 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         steps: usize,
         shard_initial_state: Option<Shard<CS>>,
         global_initial_state: Option<Global<CS>>,
-    ) -> (B, Vec<S>) {
+    ) -> B {
         let pool = num_threads
             .map(|nt| custom_pool(nt))
             .unwrap_or_else(|| POOL.clone());
@@ -287,7 +286,7 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
             GlobalState::new(global_state, ss),
             EvalShardState::new(ss, self.ctx.graph(), shard_state),
             EvalLocalState::new(ss, self.ctx.graph(), vec![]),
-            &last_local_state,
+            last_local_state,
         )
     }
 }

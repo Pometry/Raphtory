@@ -72,8 +72,7 @@ where
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
 
-    let res = runner
-        .run(
+    let res = runner.run(
         vec![Job::new(step1)],
         vec![Job::read_only(step2)],
         None,
