@@ -199,30 +199,29 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         })
     }
 
-    fn make_cur_and_prev_states<S: Clone>(&self, init: S) -> (Vec<S>, Vec<S>) {
+    fn make_cur_and_prev_states<S: Clone + Default>(&self, mut init: Vec<S>) -> (Vec<S>, Vec<S>) {
         let g = self.ctx.graph();
+        init.resize(g.unfiltered_num_vertices(), S::default());
 
-        let states: Vec<S> = vec![init; g.unfiltered_num_vertices()];
-
-        (states.clone(), states)
+        (init.clone(), init)
     }
 
     pub fn run<
         B: std::fmt::Debug,
         F: FnOnce(GlobalState<CS>, EvalShardState<G, CS>, EvalLocalState<G, CS>, &Vec<S>) -> B
             + std::marker::Copy,
-        S: Send + Sync + Clone + 'static + std::fmt::Debug,
+        S: Send + Sync + Clone + 'static + std::fmt::Debug + Default,
     >(
         &mut self,
         init_tasks: Vec<Job<G, CS, S>>,
         tasks: Vec<Job<G, CS, S>>,
-        init: S,
+        init: Option<Vec<S>>,
         f: F,
         num_threads: Option<usize>,
         steps: usize,
         shard_initial_state: Option<Shard<CS>>,
         global_initial_state: Option<Global<CS>>,
-    ) -> B {
+    ) -> (B, Vec<S>) {
         let pool = num_threads
             .map(|nt| custom_pool(nt))
             .unwrap_or_else(|| POOL.clone());
@@ -236,7 +235,8 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
 
         let mut global_state = global_initial_state.unwrap_or_else(|| Global::new());
 
-        let (mut cur_local_state, mut prev_local_state) = self.make_cur_and_prev_states::<S>(init);
+        let (mut cur_local_state, mut prev_local_state) =
+            self.make_cur_and_prev_states::<S>(init.unwrap_or_default());
 
         let mut _done = false;
 

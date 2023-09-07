@@ -1,6 +1,9 @@
 use super::algorithm_result::AlgorithmResult;
 use crate::{
-    core::{entities::vertices::vertex_ref::VertexRef, state::compute_state::ComputeStateVec},
+    core::{
+        entities::{vertices::vertex_ref::VertexRef, VID},
+        state::compute_state::ComputeStateVec,
+    },
     db::{
         api::view::{GraphViewOps, VertexViewOps},
         task::{
@@ -13,15 +16,9 @@ use crate::{
 };
 use std::{cmp, collections::HashMap};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 struct WccState {
     component: u64,
-}
-
-impl WccState {
-    fn new() -> Self {
-        Self { component: 0 }
-    }
 }
 
 /// Computes the connected components of a graph using the Simple Connected Components algorithm
@@ -77,30 +74,28 @@ where
 
     let res = runner
         .run(
-            vec![Job::new(step1)],
-            vec![Job::read_only(step2)],
-            WccState::new(),
-            |_, _, _, local| {
-                let layers = graph.layer_ids();
-                let edge_filter = graph.edge_filter();
-                local
-                    .iter()
-                    .enumerate()
-                    .filter_map(|(v_ref, state)| {
-                        graph
-                            .has_vertex_ref(VertexRef::Internal(v_ref.into()), &layers, edge_filter)
-                            .then_some((v_ref.into(), state.component))
-                    })
-                    .collect::<HashMap<_, _>>()
-            },
-            threads,
-            iter_count,
-            None,
-            None,
-        )
-        .into_iter()
-        .map(|(k, v)| (graph.vertex_name(k), v))
-        .collect();
+        vec![Job::new(step1)],
+        vec![Job::read_only(step2)],
+        None,
+        |_, _, _, local| {
+            let layers = graph.layer_ids();
+            let edge_filter = graph.edge_filter();
+            local
+                .iter()
+                .enumerate()
+                .filter_map(|(v_ref, state)| {
+                    let v_ref = VID(v_ref);
+                    graph
+                        .has_vertex_ref(VertexRef::Internal(v_ref), &layers, edge_filter)
+                        .then_some((graph.vertex_name(v_ref), state.component))
+                })
+                .collect::<HashMap<_, _>>()
+        },
+        threads,
+        iter_count,
+        None,
+        None,
+    );
     AlgorithmResult::new(res)
 }
 

@@ -26,6 +26,15 @@ struct Hits {
     auth_score: f32,
 }
 
+impl Default for Hits {
+    fn default() -> Self {
+        Self {
+            hub_score: 1f32,
+            auth_score: 1f32,
+        }
+    }
+}
+
 /// HITS (Hubs and Authority) Algorithm:
 /// AuthScore of a vertex (A) = Sum of HubScore of all vertices pointing at vertex (A) from previous iteration /
 ///     Sum of HubScore of all vertices in the current iteration
@@ -128,10 +137,7 @@ pub fn hits<G: GraphViewOps>(
     let (hub_scores, auth_scores) = runner.run(
         vec![],
         vec![Job::new(step2), Job::new(step3), Job::new(step4), step5],
-        Hits {
-            hub_score: 1f32,
-            auth_score: 1f32,
-        },
+        None,
         |_, _, els, local| {
             let mut hubs = HashMap::new();
             let mut auths = HashMap::new();

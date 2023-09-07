@@ -99,7 +99,7 @@ pub fn global_reciprocity<G: GraphViewOps>(g: &G, threads: Option<usize>) -> f64
     runner.run(
         vec![],
         vec![Job::new(step1)],
-        (),
+        None,
         |egs, _, _, _| {
             (egs.finalize(&total_out_inter_in) as f64)
                 / (egs.finalize(&total_out_neighbours) as f64)
@@ -138,7 +138,7 @@ pub fn all_local_reciprocity<G: GraphViewOps>(
     AlgorithmResult::new_with_float(runner.run(
         vec![],
         vec![Job::new(step1)],
-        (),
+        None,
         |_, ess, _, _| ess.finalize(&min, |min| min),
         threads,
         1,

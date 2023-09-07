@@ -17,7 +17,7 @@ use num_traits::abs;
 use ordered_float::OrderedFloat;
 use std::collections::HashMap;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 struct PageRankState {
     score: f64,
     out_degree: usize,
@@ -161,7 +161,7 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
     let out: HashMap<VID, f64> = runner.run(
         vec![Job::new(step1)],
         vec![Job::new(step2), Job::new(step3), Job::new(step4), step5],
-        PageRankState::new(num_vertices),
+        Some(vec![PageRankState::new(num_vertices); num_vertices]),
         |_, _, _, local| {
             let layers = g.layer_ids();
             let edge_filter = g.edge_filter();
@@ -172,7 +172,7 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
                     g.has_vertex_ref(VertexRef::Internal(v_ref.into()), &layers, edge_filter)
                         .then_some((v_ref.into(), score.score))
                 })
-                .collect::<HashMap<_, _>>()
+                .collect::<HashMap<VID, f64>>()
         },
         threads,
         iter_count,
