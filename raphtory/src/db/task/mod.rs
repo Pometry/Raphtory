@@ -3,11 +3,11 @@ use rayon::{ThreadPool, ThreadPoolBuilder};
 use std::sync::Arc;
 
 pub mod context;
-mod edge;
+pub mod edge;
 pub mod task;
 pub mod task_runner;
 pub(crate) mod task_state;
-pub(crate) mod vertex;
+pub mod vertex;
 
 pub static POOL: Lazy<Arc<ThreadPool>> = Lazy::new(|| {
     let num_threads = std::env::var("DOCBROWN_MAX_THREADS")
