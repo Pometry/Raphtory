@@ -32,6 +32,7 @@ def build_graph():
         vertex_shared_const_props={"datasource": "data/network_traffic_edges.csv"},
     )
 
+
 def test_py_vis():
     g = build_graph()
     pyvis_g = export.to_pyvis(g, directed=True)
