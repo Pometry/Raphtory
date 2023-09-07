@@ -66,7 +66,7 @@ jobs:
         name: Run rust tests (rust-grcov) and collect coverage
         uses: actions-rs/grcov@v0.1.5
       - name: Run python tests and collect coverage
-        run: cd tests && pypytest --cov=./ --cov-report=xml
+        run: cd python/tests && pypytest --cov=./ --cov-report=xml
       - name: Codecov
         uses: codecov/codecov-action@v3.1.1
         with:
