@@ -51,12 +51,12 @@ def test_graph_len_edge_len():
 def test_id_iterable():
     g = create_graph()
 
-    assert g.vertices.id().max() == 3
-    assert g.vertices.id().min() == 1
-    assert set(g.vertices.id().collect()) == {1, 2, 3}
-    out_neighbours = g.vertices.out_neighbours().id().collect()
+    assert g.vertices.id.max() == 3
+    assert g.vertices.id.min() == 1
+    assert set(g.vertices.id.collect()) == {1, 2, 3}
+    out_neighbours = g.vertices.out_neighbours().id.collect()
     out_neighbours = (set(n) for n in out_neighbours)
-    out_neighbours = dict(zip(g.vertices.id(), out_neighbours))
+    out_neighbours = dict(zip(g.vertices.id, out_neighbours))
 
     assert out_neighbours == {1: {1, 2, 3}, 2: {1}, 3: {2}}
 
@@ -79,8 +79,8 @@ def test_degree_iterable():
 def test_vertices_time_iterable():
     g = create_graph()
 
-    assert g.vertices.earliest_time().min() == -1
-    assert g.vertices.latest_time().max() == 7
+    assert g.vertices.earliest_time.min() == -1
+    assert g.vertices.latest_time.max() == 7
 
 
 def test_graph_has_edge():
@@ -108,7 +108,7 @@ def test_windowed_graph_get_vertex():
 
     view = g.window(0, sys.maxsize)
 
-    assert view.vertex(1).id() == 1
+    assert view.vertex(1).id == 1
     assert view.vertex(10) is None
     assert view.vertex(1).degree() == 3
 
@@ -142,14 +142,14 @@ def test_windowed_graph_get_edge():
 
     view = g.window(min_size, max_size)
 
-    assert (view.edge(1, 3).src().id(), view.edge(1, 3).dst().id()) == (1, 3)
+    assert (view.edge(1, 3).src.id, view.edge(1, 3).dst.id) == (1, 3)
     assert view.edge(2, 3) is None
     assert view.edge(6, 5) is None
 
-    assert (view.vertex(1).id(), view.vertex(3).id()) == (1, 3)
+    assert (view.vertex(1).id, view.vertex(3).id) == (1, 3)
 
     view = g.window(2, 3)
-    assert (view.edge(1, 3).src().id(), view.edge(1, 3).dst().id()) == (1, 3)
+    assert (view.edge(1, 3).src.id, view.edge(1, 3).dst.id) == (1, 3)
 
     view = g.window(3, 7)
     assert view.edge(1, 3) is None
@@ -164,7 +164,7 @@ def test_windowed_graph_edges():
     edges = []
     for e_iter in tedges:
         for e in e_iter:
-            edges.append([e.src().id(), e.dst().id()])
+            edges.append([e.src.id, e.dst.id])
 
     assert edges == [[1, 1], [1, 1], [1, 2], [1, 3], [1, 2], [3, 2], [1, 3], [3, 2]]
 
@@ -172,7 +172,7 @@ def test_windowed_graph_edges():
     in_edges = []
     for e_iter in tedges:
         for e in e_iter:
-            in_edges.append([e.src().id(), e.dst().id()])
+            in_edges.append([e.src.id, e.dst.id])
 
     assert in_edges == [[1, 1], [1, 2], [3, 2], [1, 3]]
 
@@ -180,7 +180,7 @@ def test_windowed_graph_edges():
     out_edges = []
     for e_iter in tedges:
         for e in e_iter:
-            out_edges.append([e.src().id(), e.dst().id()])
+            out_edges.append([e.src.id, e.dst.id])
 
     assert out_edges == [[1, 1], [1, 2], [1, 3], [3, 2]]
 
@@ -188,11 +188,11 @@ def test_windowed_graph_edges():
 def test_windowed_graph_vertex_ids():
     g = create_graph()
 
-    vs = [v for v in g.window(-1, 2).vertices().id()]
+    vs = [v for v in g.window(-1, 2).vertices().id]
     vs.sort()
     assert vs == [1, 2]  # this makes clear that the end of the range is exclusive
 
-    vs = [v for v in g.window(-5, 3).vertices().id()]
+    vs = [v for v in g.window(-5, 3).vertices().id]
     vs.sort()
     assert vs == [1, 2, 3]
 
@@ -202,7 +202,7 @@ def test_windowed_graph_vertices():
 
     view = g.window(-1, 0)
 
-    vertices = list(view.vertices().id())
+    vertices = list(view.vertices().id)
 
     assert vertices == [1, 2]
 
@@ -215,13 +215,13 @@ def test_windowed_graph_neighbours():
 
     view = g.window(min_size, max_size)
 
-    neighbours = view.vertices.neighbours().id().collect()
+    neighbours = view.vertices.neighbours().id.collect()
     assert neighbours == [[1, 2, 3], [1, 3], [1, 2]]
 
-    in_neighbours = view.vertices.in_neighbours().id().collect()
+    in_neighbours = view.vertices.in_neighbours().id.collect()
     assert in_neighbours == [[1, 2], [1, 3], [1]]
 
-    out_neighbours = view.vertices.out_neighbours().id().collect()
+    out_neighbours = view.vertices.out_neighbours().id.collect()
     assert out_neighbours == [[1, 2, 3], [1], [2]]
 
 
@@ -778,10 +778,10 @@ def test_map_and_list_property():
 def test_exploded_edge_time():
     g = graph_loader.lotr_graph()
     e = g.edge("Frodo", "Gandalf")
-    his = e.history()
+    his = e.history
     exploded_his = []
-    for ee in e.explode():
-        exploded_his.append(ee.time())
+    for ee in e.explode:
+        exploded_his.append(ee.time)
     assert his == exploded_his
 
 
@@ -822,8 +822,8 @@ def test_algorithms():
 def test_graph_time_api():
     g = create_graph()
 
-    earliest_time = g.earliest_time()
-    latest_time = g.latest_time()
+    earliest_time = g.earliest_time
+    latest_time = g.latest_time
     assert len(list(g.rolling(1))) == latest_time - earliest_time + 1
     assert len(list(g.expanding(2))) == math.ceil((latest_time + 1 - earliest_time) / 2)
 
@@ -912,9 +912,9 @@ def test_all_neighbours_window():
 
     view = g.at(2)
     v = view.vertex(2)
-    assert list(v.window(0, 2).in_neighbours().id()) == [1]
-    assert list(v.window(0, 2).out_neighbours().id()) == [3]
-    assert list(v.window(0, 2).neighbours().id()) == [1, 3]
+    assert list(v.window(0, 2).in_neighbours().id) == [1]
+    assert list(v.window(0, 2).out_neighbours().id) == [3]
+    assert list(v.window(0, 2).neighbours().id) == [1, 3]
 
 
 def test_all_degrees_window():
@@ -952,27 +952,16 @@ def test_all_edge_window():
 
     view = g.at(4)
     v = view.vertex(2)
-    assert sorted(v.window(0, 4).in_edges().src().id()) == [1, 3, 4]
-    assert sorted(v.window(t_end=4).in_edges().src().id()) == [1, 3, 4]
-    assert sorted(v.window(t_start=2).in_edges().src().id()) == [3, 4]
-    assert sorted(v.window(0, 4).out_edges().dst().id()) == [3]
-    assert sorted(v.window(t_end=3).out_edges().dst().id()) == [3]
-    assert sorted(v.window(t_start=2).out_edges().dst().id()) == [4]
-    assert sorted((e.src().id(), e.dst().id()) for e in v.window(0, 4).edges()) == [
-        (1, 2),
-        (2, 3),
-        (3, 2),
-        (4, 2),
-    ]
-    assert sorted((e.src().id(), e.dst().id()) for e in v.window(t_end=4).edges()) == [
-        (1, 2),
-        (2, 3),
-        (3, 2),
-        (4, 2),
-    ]
-    assert sorted(
-        (e.src().id(), e.dst().id()) for e in v.window(t_start=1).edges()
-    ) == [(1, 2), (2, 3), (2, 4), (3, 2), (4, 2)]
+    assert sorted(v.window(0, 4).in_edges().src.id) == [1, 3, 4]
+    assert sorted(v.window(t_end=4).in_edges().src.id) == [1, 3, 4]
+    assert sorted(v.window(t_start=2).in_edges().src.id) == [3, 4]
+    assert sorted(v.window(0, 4).out_edges().dst.id) == [3]
+    assert sorted(v.window(t_end=3).out_edges().dst.id) == [3]
+    assert sorted(v.window(t_start=2).out_edges().dst.id) == [4]
+    assert sorted((e.src.id, e.dst.id) for e in v.window(0, 4).edges()) == [(1, 2), (2, 3), (3, 2), (4, 2)]
+    assert sorted((e.src.id, e.dst.id) for e in v.window(t_end=4).edges()) == [(1, 2), (2, 3), (3, 2), (4, 2)]
+    assert sorted((e.src.id, e.dst.id) for e in v.window(t_start=1).edges()) == [(1, 2), (2, 3), (2, 4), (3, 2),
+                                                                                         (4, 2)]
 
 
 def test_static_prop_change():
@@ -1031,28 +1020,33 @@ def test_edge_time_apis():
     e = g.edge(1, 2)
 
     for e in e.expanding(1):
+<<<<<<< HEAD
         assert e.src().name() == "1"
         assert e.dst().name() == "2"
+=======
+        assert e.src.name() == '1'
+        assert e.dst.name() == '2'
+>>>>>>> a77c475b (changing methods to getter)
 
     ls = []
     for e in v.edges():
-        ls.append(e.src().name())
-        ls.append(e.dst().name())
+        ls.append(e.src.name())
+        ls.append(e.dst.name())
 
     assert ls == ["1", "2", "1", "5"]
 
     v = g.vertex(2)
     ls = []
     for e in v.in_edges():
-        ls.append(e.src().name())
-        ls.append(e.dst().name())
+        ls.append(e.src.name())
+        ls.append(e.dst.name())
 
     assert ls == ["1", "2"]
 
     ls = []
     for e in v.out_edges():
-        ls.append(e.src().name())
-        ls.append(e.dst().name())
+        ls.append(e.src.name())
+        ls.append(e.dst.name())
 
     assert ls == ["2", "4"]
 
@@ -1066,13 +1060,13 @@ def test_edge_earliest_latest_time():
     g.add_edge(1, 1, 3, {})
     g.add_edge(2, 1, 3, {})
 
-    assert g.edge(1, 2).earliest_time() == 0
-    assert g.edge(1, 2).latest_time() == 2
+    assert g.edge(1, 2).earliest_time == 0
+    assert g.edge(1, 2).latest_time == 2
 
-    assert list(g.vertex(1).edges().earliest_time()) == [0, 0]
-    assert list(g.vertex(1).edges().latest_time()) == [2, 2]
-    assert list(g.vertex(1).at(1).edges().earliest_time()) == [0, 0]
-    assert list(g.vertex(1).at(1).edges().latest_time()) == [1, 1]
+    assert list(g.vertex(1).edges().earliest_time) == [0, 0]
+    assert list(g.vertex(1).edges().latest_time) == [2, 2]
+    assert list(g.vertex(1).at(1).edges().earliest_time) == [0, 0]
+    assert list(g.vertex(1).at(1).edges().latest_time) == [1, 1]
 
 
 def test_vertex_earliest_time():
@@ -1082,11 +1076,11 @@ def test_vertex_earliest_time():
     g.add_vertex(2, 1, {})
 
     view = g.at(1)
-    assert view.vertex(1).earliest_time() == 0
-    assert view.vertex(1).latest_time() == 1
+    assert view.vertex(1).earliest_time == 0
+    assert view.vertex(1).latest_time == 1
     view = g.at(3)
-    assert view.vertex(1).earliest_time() == 0
-    assert view.vertex(1).latest_time() == 2
+    assert view.vertex(1).earliest_time == 0
+    assert view.vertex(1).latest_time == 2
 
 
 def test_vertex_history():
@@ -1122,13 +1116,19 @@ def test_edge_history():
 
     view = g.window(1, 5)
 
+<<<<<<< HEAD
     assert g.edge(1, 2).history() == [1, 3]
     assert view.edge(1, 4).history() == [4]
+=======
+    assert (g.edge(1, 2).history == [1, 3])
+    assert (view.edge(1, 4).history == [4])
+>>>>>>> a77c475b (changing methods to getter)
 
 
 def test_lotr_edge_history():
     g = graph_loader.lotr_graph()
 
+<<<<<<< HEAD
     assert g.edge("Frodo", "Gandalf").history() == [
         329,
         555,
@@ -1198,6 +1198,19 @@ def test_lotr_edge_history():
     assert g.edge("Frodo", "Gandalf").at(1000).history() == [329, 555, 861]
     assert g.window(100, 1000).edge("Frodo", "Gandalf").history() == [329, 555, 861]
     assert g.edge("Frodo", "Gandalf").window(100, 1000).history() == [329, 555, 861]
+=======
+    assert (g.edge('Frodo', 'Gandalf').history == [329, 555, 861, 1056, 1130, 1160, 1234, 1241, 1390, 1417, 1656,
+                                                     1741, 1783, 1785, 1792, 1804, 1809, 1999, 2056, 2254, 2925, 2999,
+                                                     3703, 3914, 4910, 5620, 5775, 6381, 6531, 6578, 6661, 6757, 7041,
+                                                     7356, 8183, 8190, 8276, 8459, 8598, 8871, 9098, 9343, 9903, 11189,
+                                                     11192, 11279, 11365, 14364, 21551, 21706, 23212, 26958, 27060,
+                                                     29024, 30173, 30737, 30744, 31023, 31052, 31054, 31103, 31445,
+                                                     32656])
+    assert (g.at(1000).edge('Frodo', 'Gandalf').history == [329, 555, 861])
+    assert (g.edge('Frodo', 'Gandalf').at(1000).history == [329, 555, 861])
+    assert (g.window(100, 1000).edge('Frodo', 'Gandalf').history == [329, 555, 861])
+    assert (g.edge('Frodo', 'Gandalf').window(100, 1000).history == [329, 555, 861])
+>>>>>>> a77c475b (changing methods to getter)
 
 
 def gen_graph():
@@ -1360,6 +1373,7 @@ def test_layer_vertex():
     g.add_edge(0, 2, 3, layer="layer2")
     g.add_edge(3, 2, 4, layer="layer1")
     neighbours = g.layers(["layer1", "layer2"]).vertex(1).neighbours().collect()
+<<<<<<< HEAD
     assert sorted(neighbours[0].layers(["layer2"]).edges().id()) == [(2, 3)]
     assert sorted(g.layers(["layer2"]).vertex(neighbours[0].name()).edges().id()) == [
         (2, 3)
@@ -1374,6 +1388,13 @@ def test_layer_vertex():
         (2, 3),
         (2, 4),
     ]
+=======
+    assert sorted(neighbours[0].layers(["layer2"]).edges().id) == [(2, 3)]
+    assert sorted(g.layers(["layer2"]).vertex(neighbours[0].name()).edges().id) == [(2, 3)]
+    assert sorted(g.layers(["layer1"]).vertex(neighbours[0].name()).edges().id) == [(1, 2), (2, 4)]
+    assert sorted(g.layers(["layer1"]).edges().id) == [(1, 2), (2, 4)]
+    assert sorted(g.layers(["layer1", "layer2"]).edges().id) == [(1, 2), (2, 3), (2, 4)]
+>>>>>>> a77c475b (changing methods to getter)
 
 
 def test_rolling_as_iterable():
@@ -1387,7 +1408,7 @@ def test_rolling_as_iterable():
     # a normal operation is reusing the object returned by rolling twice, to get both results and an index.
     # So the following should work fine:
     n_vertices = [w.num_vertices() for w in rolling]
-    time_index = [w.start() for w in rolling]
+    time_index = [w.start for w in rolling]
 
     assert n_vertices == [1, 0, 0, 1]
     assert time_index == [1, 2, 3, 4]
@@ -1452,19 +1473,19 @@ def test_date_time():
     g.add_edge("2014-02-04", 1, 4)
     g.add_edge("2014-02-05", 1, 2)
 
-    assert g.earliest_date_time() == datetime.datetime(2014, 2, 2, 0, 0)
-    assert g.latest_date_time() == datetime.datetime(2014, 2, 5, 0, 0)
+    assert g.earliest_date_time == datetime.datetime(2014, 2, 2, 0, 0)
+    assert g.latest_date_time == datetime.datetime(2014, 2, 5, 0, 0)
 
     e = g.edge(1, 3)
     exploded_edges = []
-    for edge in e.explode():
-        exploded_edges.append(edge.date_time())
+    for edge in e.explode:
+        exploded_edges.append(edge.date_time)
     assert exploded_edges == [datetime.datetime(2014, 2, 3)]
-    assert g.edge(1, 2).earliest_date_time() == datetime.datetime(2014, 2, 2, 0, 0)
-    assert g.edge(1, 2).latest_date_time() == datetime.datetime(2014, 2, 5, 0, 0)
+    assert g.edge(1, 2).earliest_date_time == datetime.datetime(2014, 2, 2, 0, 0)
+    assert g.edge(1, 2).latest_date_time == datetime.datetime(2014, 2, 5, 0, 0)
 
-    assert g.vertex(1).earliest_date_time() == datetime.datetime(2014, 2, 2, 0, 0)
-    assert g.vertex(1).latest_date_time() == datetime.datetime(2014, 2, 5, 0, 0)
+    assert g.vertex(1).earliest_date_time == datetime.datetime(2014, 2, 2, 0, 0)
+    assert g.vertex(1).latest_date_time == datetime.datetime(2014, 2, 5, 0, 0)
 
 
 def test_date_time_window():
@@ -1479,22 +1500,22 @@ def test_date_time_window():
     view = g.window("2014-02-02", "2014-02-04")
     view2 = g.window("2014-02-02", "2014-02-05")
 
-    assert view.start_date_time() == datetime.datetime(2014, 2, 2, 0, 0)
-    assert view.end_date_time() == datetime.datetime(2014, 2, 4, 0, 0)
+    assert view.start_date_time == datetime.datetime(2014, 2, 2, 0, 0)
+    assert view.end_date_time == datetime.datetime(2014, 2, 4, 0, 0)
 
-    assert view.earliest_date_time() == datetime.datetime(2014, 2, 2, 0, 0)
-    assert view.latest_date_time() == datetime.datetime(2014, 2, 3, 0, 0)
+    assert view.earliest_date_time == datetime.datetime(2014, 2, 2, 0, 0)
+    assert view.latest_date_time == datetime.datetime(2014, 2, 3, 0, 0)
 
-    assert view2.edge(1, 2).start_date_time() == datetime.datetime(2014, 2, 2, 0, 0)
-    assert view2.edge(1, 2).end_date_time() == datetime.datetime(2014, 2, 5, 0, 0)
+    assert view2.edge(1, 2).start_date_time == datetime.datetime(2014, 2, 2, 0, 0)
+    assert view2.edge(1, 2).end_date_time == datetime.datetime(2014, 2, 5, 0, 0)
 
-    assert view.vertex(1).earliest_date_time() == datetime.datetime(2014, 2, 2, 0, 0)
-    assert view.vertex(1).latest_date_time() == datetime.datetime(2014, 2, 3, 0, 0)
+    assert view.vertex(1).earliest_date_time == datetime.datetime(2014, 2, 2, 0, 0)
+    assert view.vertex(1).latest_date_time == datetime.datetime(2014, 2, 3, 0, 0)
 
     e = view.edge(1, 2)
     exploded_edges = []
-    for edge in e.explode():
-        exploded_edges.append(edge.date_time())
+    for edge in e.explode:
+        exploded_edges.append(edge.date_time)
     assert exploded_edges == [datetime.datetime(2014, 2, 2)]
 
 
@@ -1509,17 +1530,17 @@ def test_datetime_add_vertex():
     view = g.window("2014-02-02", "2014-02-04")
     view2 = g.window("2014-02-02", "2014-02-05")
 
-    assert view.start_date_time() == datetime.datetime(2014, 2, 2, 0, 0)
-    assert view.end_date_time() == datetime.datetime(2014, 2, 4, 0, 0)
+    assert view.start_date_time == datetime.datetime(2014, 2, 2, 0, 0)
+    assert view.end_date_time == datetime.datetime(2014, 2, 4, 0, 0)
 
-    assert view2.earliest_date_time() == datetime.datetime(2014, 2, 2, 0, 0)
-    assert view2.latest_date_time() == datetime.datetime(2014, 2, 4, 0, 0)
+    assert view2.earliest_date_time == datetime.datetime(2014, 2, 2, 0, 0)
+    assert view2.latest_date_time == datetime.datetime(2014, 2, 4, 0, 0)
 
-    assert view2.vertex(1).start_date_time() == datetime.datetime(2014, 2, 2, 0, 0)
-    assert view2.vertex(1).end_date_time() == datetime.datetime(2014, 2, 5, 0, 0)
+    assert view2.vertex(1).start_date_time == datetime.datetime(2014, 2, 2, 0, 0)
+    assert view2.vertex(1).end_date_time == datetime.datetime(2014, 2, 5, 0, 0)
 
-    assert view.vertex(2).earliest_date_time() == datetime.datetime(2014, 2, 3, 0, 0)
-    assert view.vertex(2).latest_date_time() == datetime.datetime(2014, 2, 3, 0, 0)
+    assert view.vertex(2).earliest_date_time == datetime.datetime(2014, 2, 3, 0, 0)
+    assert view.vertex(2).latest_date_time == datetime.datetime(2014, 2, 3, 0, 0)
 
 
 def test_equivalent_vertices_edges_and_sets():
@@ -1594,14 +1615,20 @@ def test_materialize_graph():
     assert mg.vertex(4).properties.constant.get("abc") == "xyz"
     assert mg.vertex(1).history() == [-1, 0, 1, 2]
     assert mg.vertex(4).history() == [6, 8]
-    assert mg.vertices().id().collect() == [1, 2, 3, 4]
-    assert set(mg.edges().id()) == {(1, 1), (1, 2), (1, 3), (2, 1), (3, 2), (2, 4)}
-    assert g.vertices.id().collect() == mg.vertices.id().collect()
-    assert set(g.edges().id()) == set(mg.edges().id())
+    assert mg.vertices().id.collect() == [1, 2, 3, 4]
+    assert set(mg.edges().id) == {(1, 1), (1, 2), (1, 3), (2, 1), (3, 2), (2, 4)}
+    assert g.vertices.id.collect() == mg.vertices.id.collect()
+    assert set(g.edges().id) == set(mg.edges().id)
     assert mg.vertex(1).properties.constant == {}
+<<<<<<< HEAD
     assert mg.vertex(4).properties.constant == {"abc": "xyz"}
     assert g.edge(1, 2).id() == (1, 2)
     assert mg.edge(1, 2).id() == (1, 2)
+=======
+    assert mg.vertex(4).properties.constant == {'abc': 'xyz'}
+    assert g.edge(1, 2).id == (1, 2)
+    assert mg.edge(1, 2).id == (1, 2)
+>>>>>>> a77c475b (changing methods to getter)
     assert mg.has_edge(1, 2)
     assert g.has_edge(1, 2)
     assert mg.has_edge(2, 1)
@@ -1622,7 +1649,7 @@ def test_deletions():
     for e in edges[1:]:
         assert g.window(start=11).has_edge(e[1], e[2])
 
-    assert list(g.edge(edges[0][1], edges[0][2]).explode().latest_time()) == [10]
+    assert list(g.edge(edges[0][1], edges[0][2]).explode.latest_time) == [10]
 
 
 def test_load_from_pandas():
@@ -1640,12 +1667,12 @@ def test_load_from_pandas():
 
     g = Graph.load_from_pandas(df, "src", "dst", "time", ["weight", "marbles"])
 
-    assert g.vertices().id().collect() == [1, 2, 3, 4, 5, 6]
+    assert g.vertices().id.collect() == [1, 2, 3, 4, 5, 6]
     edges = []
     for e in g.edges():
         weight = e["weight"]
         marbles = e["marbles"]
-        edges.append((e.src().id(), e.dst().id(), weight, marbles))
+        edges.append((e.src.id, e.dst.id, weight, marbles))
 
     assert edges == [
         (1, 2, 1.0, "red"),
@@ -1681,12 +1708,12 @@ def test_load_from_pandas_into_existing_graph():
 
     g.load_edges_from_pandas(edges_df, "src", "dst", "time", ["weight", "marbles"])
 
-    assert g.vertices().id().collect() == [1, 2, 3, 4, 5, 6]
+    assert g.vertices().id.collect() == [1, 2, 3, 4, 5, 6]
     edges = []
     for e in g.edges():
         weight = e["weight"]
         marbles = e["marbles"]
-        edges.append((e.src().id(), e.dst().id(), weight, marbles))
+        edges.append((e.src.id, e.dst.id, weight, marbles))
 
     assert edges == [
         (1, 2, 1.0, "red"),
@@ -1699,7 +1726,7 @@ def test_load_from_pandas_into_existing_graph():
     vertices = []
     for v in g.vertices():
         name = v["name"]
-        vertices.append((v.id(), name))
+        vertices.append((v.id, name))
 
     assert vertices == [
         (1, "Alice"),
@@ -1742,12 +1769,12 @@ def test_load_from_pandas_vertices():
         vertex_props=["name"],
     )
 
-    assert g.vertices().id().collect() == [1, 2, 3, 4, 5, 6]
+    assert g.vertices().id.collect() == [1, 2, 3, 4, 5, 6]
     edges = []
     for e in g.edges():
         weight = e["weight"]
         marbles = e["marbles"]
-        edges.append((e.src().id(), e.dst().id(), weight, marbles))
+        edges.append((e.src.id, e.dst.id, weight, marbles))
 
     assert edges == [
         (1, 2, 1.0, "red"),
@@ -1760,7 +1787,7 @@ def test_load_from_pandas_vertices():
     vertices = []
     for v in g.vertices():
         name = v["name"]
-        vertices.append((v.id(), name))
+        vertices.append((v.id, name))
 
     assert vertices == [
         (1, "Alice"),
@@ -1849,6 +1876,7 @@ def test_load_from_pandas_with_types():
         layer="test_layer",
     )
 
+<<<<<<< HEAD
     assert g.layers(["test_layer"]).edges().src().id().collect() == [1, 2, 3, 4, 5]
     assert g.edges().properties.constant.get("type").collect() == [
         {"test_layer": "Edge"},
@@ -1943,6 +1971,46 @@ def test_load_from_pandas_with_types():
         4,
         5,
     ]
+=======
+    assert g.layers(["test_layer"]).edges().src.id.collect() == [1, 2, 3, 4, 5]
+    assert g.edges().properties.constant.get("type").collect() == [{'test_layer': 'Edge'}, {'test_layer': 'Edge'},
+                                                                   {'test_layer': 'Edge'}, {'test_layer': 'Edge'},
+                                                                   {'test_layer': 'Edge'}]
+    assert g.edges().properties.constant.get("tag").collect() == [{'test_layer': 'test_tag'},
+                                                                  {'test_layer': 'test_tag'},
+                                                                  {'test_layer': 'test_tag'},
+                                                                  {'test_layer': 'test_tag'},
+                                                                  {'test_layer': 'test_tag'}]
+    assert g.edges().properties.constant.get("marbles_const").collect() == [{'test_layer': 'red'},
+                                                                            {'test_layer': 'blue'},
+                                                                            {'test_layer': 'green'},
+                                                                            {'test_layer': 'yellow'},
+                                                                            {'test_layer': 'purple'}]
+
+    g = Graph()
+    g.load_edges_from_pandas(edges_df, "src", "dst", "time", ["weight", "marbles"], layer_in_df="layers")
+    assert g.layers(["layer 1"]).edges().src.id.collect() == [1]
+    assert g.layers(["layer 1", "layer 2"]).edges().src.id.collect() == [1, 2]
+    assert g.layers(["layer 1", "layer 2", "layer 3"]).edges().src.id.collect() == [1, 2, 3]
+    assert g.layers(["layer 1", "layer 4", "layer 5"]).edges().src.id.collect() == [1, 4, 5]
+
+    g = Graph.load_from_pandas(edges_df, "src", "dst", "time", layer="test_layer", vertex_df=vertices_df,
+                               vertex_col="id", vertex_time_col="time", vertex_props=["name"],
+                               vertex_shared_const_props={"type": "Person"})
+    assert g.vertices().properties.constant.get("type").collect() == ["Person", "Person", "Person", "Person", "Person",
+                                                                      "Person"]
+    assert g.layers(["test_layer"]).edges().src.id.collect() == [1, 2, 3, 4, 5]
+
+    g = Graph.load_from_pandas(edges_df, "src", "dst", "time", layer_in_df="layers", vertex_df=vertices_df,
+                               vertex_col="id", vertex_time_col="time", vertex_props=["name"],
+                               vertex_const_props=["type"])
+    assert g.vertices().properties.constant.get("type").collect() == ["Person 1", "Person 2", "Person 3", "Person 4",
+                                                                      "Person 5", "Person 6"]
+    assert g.layers(["layer 1"]).edges().src.id.collect() == [1]
+    assert g.layers(["layer 1", "layer 2"]).edges().src.id.collect() == [1, 2]
+    assert g.layers(["layer 1", "layer 2", "layer 3"]).edges().src.id.collect() == [1, 2, 3]
+    assert g.layers(["layer 1", "layer 4", "layer 5"]).edges().src.id.collect() == [1, 4, 5]
+>>>>>>> a77c475b (changing methods to getter)
 
     g = Graph.load_from_pandas(
         edges_df,

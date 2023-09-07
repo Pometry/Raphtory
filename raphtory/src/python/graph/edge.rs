@@ -142,6 +142,7 @@ impl PyEdge {
     }
 
     /// The id of the edge.
+    #[getter]
     pub fn id(&self) -> (u64, u64) {
         self.edge.id()
     }
@@ -155,7 +156,7 @@ impl PyEdge {
     /// Returns:
     ///     A list of timestamps.
     ///
-
+    #[getter]
     pub fn history(&self) -> Vec<i64> {
         self.edge.history()
     }
@@ -170,6 +171,7 @@ impl PyEdge {
     ///
     /// Returns:
     ///   The source vertex of the Edge.
+    #[getter]
     fn src(&self) -> PyVertex {
         self.edge.src().into()
     }
@@ -178,6 +180,7 @@ impl PyEdge {
     ///
     /// Returns:
     ///   The destination vertex of the Edge.
+    #[getter]
     fn dst(&self) -> PyVertex {
         self.edge.dst().into()
     }
@@ -188,6 +191,7 @@ impl PyEdge {
     ///
     /// Returns:
     ///  The start time of the Edge.
+    #[getter]
     pub fn start(&self) -> Option<i64> {
         self.edge.start()
     }
@@ -196,6 +200,7 @@ impl PyEdge {
     ///
     /// Returns:
     ///     the start datetime of the Edge.
+    #[getter]
     pub fn start_date_time(&self) -> Option<NaiveDateTime> {
         let start_time = self.edge.start()?;
         NaiveDateTime::from_timestamp_millis(start_time)
@@ -205,6 +210,7 @@ impl PyEdge {
     ///
     /// Returns:
     ///   The end time of the Edge.
+    #[getter]
     pub fn end(&self) -> Option<i64> {
         self.edge.end()
     }
@@ -213,6 +219,7 @@ impl PyEdge {
     ///
     /// Returns:
     ///    The end datetime of the Edge
+    #[getter]
     pub fn end_date_time(&self) -> Option<NaiveDateTime> {
         let end_time = self.edge.end()?;
         NaiveDateTime::from_timestamp_millis(end_time)
@@ -309,6 +316,7 @@ impl PyEdge {
     ///
     /// Returns:
     ///     A list of PyEdges
+    #[getter]
     pub fn explode(&self) -> PyEdges {
         let edge = self.edge.clone();
         (move || edge.explode()).into()
@@ -328,6 +336,7 @@ impl PyEdge {
     ///
     /// Returns:
     ///     (int) The earliest time of an edge
+    #[getter]
     pub fn earliest_time(&self) -> Option<i64> {
         self.edge.earliest_time()
     }
@@ -336,6 +345,7 @@ impl PyEdge {
     ///
     /// Returns:
     ///     the earliest datetime of an edge
+    #[getter]
     pub fn earliest_date_time(&self) -> Option<NaiveDateTime> {
         NaiveDateTime::from_timestamp_millis(self.edge.earliest_time()?)
     }
@@ -344,6 +354,7 @@ impl PyEdge {
     ///
     /// Returns:
     ///     (int) The latest time of an edge
+    #[getter]
     pub fn latest_time(&self) -> Option<i64> {
         self.edge.latest_time()
     }
@@ -352,6 +363,7 @@ impl PyEdge {
     ///
     /// Returns:
     ///     the latest datetime of an edge
+    #[getter]
     pub fn latest_date_time(&self) -> Option<NaiveDateTime> {
         let latest_time = self.edge.latest_time()?;
         NaiveDateTime::from_timestamp_millis(latest_time)
@@ -361,6 +373,7 @@ impl PyEdge {
     ///
     /// Returns:
     ///     (int) The time of an exploded edge
+    #[getter]
     pub fn time(&self) -> Option<i64> {
         self.edge.time()
     }
@@ -385,6 +398,7 @@ impl PyEdge {
     ///
     /// Returns:
     ///     (datetime) the datetime of an exploded edge
+    #[getter]
     pub fn date_time(&self) -> Option<NaiveDateTime> {
         let date_time = self.edge.time()?;
         NaiveDateTime::from_timestamp_millis(date_time)
@@ -497,12 +511,14 @@ impl PyEdges {
     ///
     /// Returns:
     ///   The source vertices of the Edges as an iterable.
+    #[getter]
     fn src(&self) -> PyVertexIterable {
         let builder = self.builder.clone();
         (move || builder().src()).into()
     }
 
     /// Returns all destination vertices as an iterable
+    #[getter]
     fn dst(&self) -> PyVertexIterable {
         let builder = self.builder.clone();
         (move || builder().dst()).into()
@@ -549,6 +565,7 @@ impl PyEdges {
     }
 
     /// Returns the earliest time of the edges.
+    #[getter]
     fn earliest_time(&self) -> OptionI64Iterable {
         let edges: Arc<
             dyn Fn() -> Box<dyn Iterator<Item = EdgeView<DynamicGraph>> + Send> + Send + Sync,
@@ -557,6 +574,7 @@ impl PyEdges {
     }
 
     /// Returns the latest time of the edges.
+    #[getter]
     fn latest_time(&self) -> OptionI64Iterable {
         let edges: Arc<
             dyn Fn() -> Box<dyn Iterator<Item = EdgeView<DynamicGraph>> + Send> + Send + Sync,
@@ -572,6 +590,7 @@ impl PyEdges {
     }
 
     /// Returns all ids of the edges.
+    #[getter]
     fn id(&self) -> PyGenericIterable {
         let edges = self.builder.clone();
         (move || edges().id()).into()
@@ -603,25 +622,29 @@ impl PyNestedEdges {
     /// Returns all source vertices of the Edges as an iterable.
     ///
     /// Returns:
-    ///   The source vertices of the Edges as an iterable.
+    ///   The source verticeÍs of the Edges as an iterable.
+    #[getter]
     fn src(&self) -> PyNestedVertexIterable {
         let builder = self.builder.clone();
         (move || builder().src()).into()
     }
 
     /// Returns all destination vertices as an iterable
+    #[getter]
     fn dst(&self) -> PyNestedVertexIterable {
         let builder = self.builder.clone();
         (move || builder().dst()).into()
     }
 
     /// Returns the earliest time of the edges.
+    #[getter]
     fn earliest_time(&self) -> NestedOptionI64Iterable {
         let edges = self.builder.clone();
         (move || edges().earliest_time()).into()
     }
 
     /// Returns the latest time of the edges.
+    #[getter]
     fn latest_time(&self) -> NestedOptionI64Iterable {
         let edges = self.builder.clone();
         (move || edges().latest_time()).into()
@@ -636,6 +659,7 @@ impl PyNestedEdges {
     }
 
     /// Returns all ids of the edges.
+    #[getter]
     fn id(&self) -> NestedU64U64Iterable {
         let edges = self.builder.clone();
         (move || edges().id()).into()

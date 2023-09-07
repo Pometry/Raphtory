@@ -113,6 +113,7 @@ impl PyVertex {
     ///
     /// Returns:
     ///    The id of the vertex as an integer.
+    #[getter]
     pub fn id(&self) -> u64 {
         self.vertex.id()
     }
@@ -132,6 +133,7 @@ impl PyVertex {
     ///
     /// Returns:
     ///     The earliest time that the vertex exists as an integer.
+    #[getter]
     pub fn earliest_time(&self) -> Option<i64> {
         self.vertex.earliest_time()
     }
@@ -143,6 +145,7 @@ impl PyVertex {
     ///
     /// Returns:
     ///     The earliest datetime that the vertex exists as an integer.
+    #[getter]
     pub fn earliest_date_time(&self) -> Option<NaiveDateTime> {
         let earliest_time = self.vertex.earliest_time()?;
         NaiveDateTime::from_timestamp_millis(earliest_time)
@@ -152,6 +155,7 @@ impl PyVertex {
     ///
     /// Returns:
     ///     The latest time that the vertex exists as an integer.
+    #[getter]
     pub fn latest_time(&self) -> Option<i64> {
         self.vertex.latest_time()
     }
@@ -163,6 +167,7 @@ impl PyVertex {
     ///
     /// Returns:
     ///     The latest datetime that the vertex exists as an integer.
+    #[getter]
     pub fn latest_date_time(&self) -> Option<NaiveDateTime> {
         let latest_time = self.vertex.latest_time()?;
         NaiveDateTime::from_timestamp_millis(latest_time)
@@ -264,6 +269,7 @@ impl PyVertex {
     ///
     /// Returns:
     ///     The earliest datetime that this vertex is valid or None if the vertex is valid for all times.
+    #[getter]
     pub fn start_date_time(&self) -> Option<NaiveDateTime> {
         let start_time = self.vertex.start()?;
         NaiveDateTime::from_timestamp_millis(start_time)
@@ -273,6 +279,7 @@ impl PyVertex {
     ///
     /// Returns:
     ///   The latest time that this vertex is valid or None if the vertex is valid for all times.
+    #[getter]
     pub fn end(&self) -> Option<i64> {
         self.vertex.end()
     }
@@ -281,6 +288,7 @@ impl PyVertex {
     ///
     /// Returns:
     ///     The latest datetime that this vertex is valid or None if the vertex is valid for all times.
+    #[getter]
     pub fn end_date_time(&self) -> Option<NaiveDateTime> {
         let end_time = self.vertex.end()?;
         NaiveDateTime::from_timestamp_millis(end_time)
@@ -544,6 +552,7 @@ impl PyVertices {
     }
 
     /// Returns an iterator over the vertices ids
+    #[getter]
     fn id(&self) -> U64Iterable {
         let vertices = self.vertices.clone();
         (move || vertices.id()).into()
@@ -556,12 +565,14 @@ impl PyVertices {
     }
 
     /// Returns an iterator over the vertices earliest time
+    #[getter]
     fn earliest_time(&self) -> OptionI64Iterable {
         let vertices = self.vertices.clone();
         (move || vertices.earliest_time()).into()
     }
 
     /// Returns an iterator over the vertices latest time
+    #[getter]
     fn latest_time(&self) -> OptionI64Iterable {
         let vertices = self.vertices.clone();
         (move || vertices.latest_time()).into()
@@ -800,6 +811,7 @@ impl PyPathFromGraph {
     fn collect(&self) -> Vec<Vec<PyVertex>> {
         self.__iter__().into_iter().map(|it| it.collect()).collect()
     }
+    #[getter]
     fn id(&self) -> NestedU64Iterable {
         let path = self.path.clone();
         (move || path.id()).into()
@@ -810,11 +822,13 @@ impl PyPathFromGraph {
         (move || path.name()).into()
     }
 
+    #[getter]
     fn earliest_time(&self) -> NestedOptionI64Iterable {
         let path = self.path.clone();
         (move || path.earliest_time()).into()
     }
 
+    #[getter]
     fn latest_time(&self) -> NestedOptionI64Iterable {
         let path = self.path.clone();
         (move || path.latest_time()).into()
@@ -994,6 +1008,7 @@ impl PyPathFromVertex {
         self.__iter__().into_iter().collect()
     }
 
+    #[getter]
     fn id(&self) -> U64Iterable {
         let path = self.path.clone();
         (move || path.id()).into()
@@ -1004,11 +1019,13 @@ impl PyPathFromVertex {
         (move || path.name()).into()
     }
 
+    #[getter]
     fn earliest_time(&self) -> OptionI64Iterable {
         let path = self.path.clone();
         (move || path.earliest_time()).into()
     }
 
+    #[getter]
     fn latest_time(&self) -> OptionI64Iterable {
         let path = self.path.clone();
         (move || path.latest_time()).into()
@@ -1211,6 +1228,7 @@ py_iterable!(PyVertexIterable, VertexView<DynamicGraph>, PyVertex);
 
 #[pymethods]
 impl PyVertexIterable {
+    #[getter]
     fn id(&self) -> U64Iterable {
         let builder = self.builder.clone();
         (move || builder().id()).into()
@@ -1221,11 +1239,13 @@ impl PyVertexIterable {
         (move || vertices().name()).into()
     }
 
+    #[getter]
     fn earliest_time(&self) -> OptionI64Iterable {
         let vertices = self.builder.clone();
         (move || vertices().earliest_time()).into()
     }
 
+    #[getter]
     fn latest_time(&self) -> OptionI64Iterable {
         let vertices = self.builder.clone();
         (move || vertices().latest_time()).into()
@@ -1287,6 +1307,7 @@ py_nested_iterable!(PyNestedVertexIterable, VertexView<DynamicGraph>);
 
 #[pymethods]
 impl PyNestedVertexIterable {
+    #[getter]
     fn id(&self) -> NestedU64Iterable {
         let builder = self.builder.clone();
         (move || builder().id()).into()
@@ -1297,11 +1318,13 @@ impl PyNestedVertexIterable {
         (move || vertices().name()).into()
     }
 
+    #[getter]
     fn earliest_time(&self) -> NestedOptionI64Iterable {
         let vertices = self.builder.clone();
         (move || vertices().earliest_time()).into()
     }
 
+    #[getter]
     fn latest_time(&self) -> NestedOptionI64Iterable {
         let vertices = self.builder.clone();
         (move || vertices().latest_time()).into()

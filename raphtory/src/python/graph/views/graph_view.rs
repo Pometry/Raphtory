@@ -112,6 +112,7 @@ impl PyGraphView {
     ///
     /// Returns:
     ///     the timestamp of the earliest activity in the graph
+    #[getter]
     pub fn earliest_time(&self) -> Option<i64> {
         self.graph.earliest_time()
     }
@@ -120,6 +121,7 @@ impl PyGraphView {
     ///
     /// Returns:
     ///     the datetime of the earliest activity in the graph
+    #[getter]
     pub fn earliest_date_time(&self) -> Option<NaiveDateTime> {
         let earliest_time = self.graph.earliest_time()?;
         NaiveDateTime::from_timestamp_millis(earliest_time)
@@ -129,6 +131,7 @@ impl PyGraphView {
     ///
     /// Returns:
     ///     the timestamp of the latest activity in the graph
+    #[getter]
     pub fn latest_time(&self) -> Option<i64> {
         self.graph.latest_time()
     }
@@ -137,6 +140,7 @@ impl PyGraphView {
     ///
     /// Returns:
     ///     the datetime of the latest activity in the graph
+    #[getter]
     pub fn latest_date_time(&self) -> Option<NaiveDateTime> {
         let latest_time = self.graph.latest_time()?;
         NaiveDateTime::from_timestamp_millis(latest_time)
@@ -242,6 +246,7 @@ impl PyGraphView {
     ///
     /// Returns:
     ///     the default start time for perspectives over the view
+    #[getter]
     pub fn start(&self) -> Option<i64> {
         self.graph.start()
     }
@@ -250,6 +255,7 @@ impl PyGraphView {
     ///
     /// Returns:
     ///     the default start datetime for perspectives over the view
+    #[getter]
     pub fn start_date_time(&self) -> Option<NaiveDateTime> {
         let start_time = self.graph.start()?;
         NaiveDateTime::from_timestamp_millis(start_time)
@@ -259,6 +265,7 @@ impl PyGraphView {
     ///
     /// Returns:
     ///    the default end time for perspectives over the view
+    #[getter]
     pub fn end(&self) -> Option<i64> {
         self.graph.end()
     }
@@ -272,6 +279,7 @@ impl PyGraphView {
     ///
     /// Returns:
     ///    the default end datetime for perspectives over the view
+    #[getter]
     pub fn end_date_time(&self) -> Option<NaiveDateTime> {
         let end_time = self.graph.end()?;
         NaiveDateTime::from_timestamp_millis(end_time)
