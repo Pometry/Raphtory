@@ -944,12 +944,13 @@ def build_to_df():
 
 
 def compare_df(df1, df2):
-    #Have to do this way due to the number of maps inside the dataframes
+    # Have to do this way due to the number of maps inside the dataframes
     s1 = df1.to_json()
     s2 = df2.to_json()
     data1 = json.loads(s1)
     data2 = json.loads(s2)
     assert data1 == data2
+
 
 def test_to_df():
     g = build_graph()

@@ -151,13 +151,12 @@ def to_networkx(
         properties = {}
         if include_vertex_properties:
             if include_property_histories:
-                properties = (
-                    v.properties.constant.as_dict() | v.properties.temporal.histories()
-                )
+                properties.update(v.properties.constant.as_dict())
+                properties.update(v.properties.temporal.histories())
             else:
                 properties = v.properties.as_dict()
         if include_update_history:
-            properties = properties | {"update_history": v.history()}
+            properties.update({"update_history": v.history()})
         vertex_tuples.append((v.name(), properties))
     networkXGraph.add_nodes_from(vertex_tuples)
 
@@ -169,19 +168,18 @@ def to_networkx(
         dst = e.dst().name()
         if include_edge_properties:
             if include_property_histories:
-                properties = (
-                    e.properties.constant.as_dict() | e.properties.temporal.histories()
-                )
+                properties.update(e.properties.constant.as_dict())
+                properties.update(e.properties.temporal.histories())
             else:
                 properties = e.properties.as_dict()
         layer = e.layer_name()
         if layer is not None:
-            properties = properties | {"layer": layer}
+            properties.update({"layer": layer})
         if include_update_history:
             if explode_edges:
-                properties = properties | {"update_history": e.time()}
+                properties.update({"update_history": e.time()})
             else:
-                properties = properties | {"update_history": e.history()}
+                properties.update({"update_history": e.history()})
         edge_tuples.append((src, dst, properties))
 
     networkXGraph.add_edges_from(edge_tuples)
@@ -230,10 +228,10 @@ def to_edge_df(
     for e in edges:
         tuple = [e.src().name(), e.dst().name(), e.layer_name()]
         if include_edge_properties:
+            properties = {}
             if include_property_histories:
-                properties = (
-                    e.properties.constant.as_dict() | e.properties.temporal.histories()
-                )
+                properties.update(e.properties.constant.as_dict())
+                properties.update(e.properties.temporal.histories())
             else:
                 properties = e.properties.as_dict()
             tuple.append(properties)
@@ -283,10 +281,10 @@ def to_vertex_df(
     for v in graph.vertices():
         tuple = [v.name()]
         if include_vertex_properties:
+            properties = {}
             if include_property_histories:
-                properties = (
-                    v.properties.constant.as_dict() | v.properties.temporal.histories()
-                )
+                properties.update(v.properties.constant.as_dict())
+                properties.update(v.properties.temporal.histories())
             else:
                 properties = v.properties.as_dict()
             tuple.append(properties)
