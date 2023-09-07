@@ -515,4 +515,11 @@ mod test_edge {
         assert_eq!(e.properties().get("test"), Some("test".into()));
         assert_eq!(e.properties().get("test1"), Some("test1".into()));
     }
+
+    #[test]
+    fn test_layers_earliest_time() {
+        let g = Graph::new();
+        let e = g.add_edge(1, 1, 2, NO_PROPS, Some("test")).unwrap();
+        assert_eq!(e.earliest_time(), Some(1));
+    }
 }
