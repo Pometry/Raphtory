@@ -404,23 +404,23 @@ impl<G: GraphViewOps> Repr for EdgeView<G> {
 
         let source = self.src().name();
         let target = self.dst().name();
-        let earliest_time = self.earliest_time();
-        let latest_time = self.latest_time();
+        let earliest_time = self.earliest_time().repr();
+        let latest_time = self.latest_time().repr();
         if properties.is_empty() {
             format!(
                 "Edge(source={}, target={}, earliest_time={}, latest_time={})",
                 source.trim_matches('"'),
                 target.trim_matches('"'),
-                earliest_time.unwrap_or(0),
-                latest_time.unwrap_or(0),
+                earliest_time,
+                latest_time,
             )
         } else {
             format!(
                 "Edge(source={}, target={}, earliest_time={}, latest_time={}, properties={})",
                 source.trim_matches('"'),
                 target.trim_matches('"'),
-                earliest_time.unwrap_or(0),
-                latest_time.unwrap_or(0),
+                earliest_time,
+                latest_time,
                 format!("{{{properties}}}")
             )
         }

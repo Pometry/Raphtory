@@ -406,8 +406,8 @@ impl Repr for PyVertex {
 
 impl<G: GraphViewOps> Repr for VertexView<G> {
     fn repr(&self) -> String {
-        let earliest_time = self.earliest_time().unwrap_or_default();
-        let latest_time = self.latest_time().unwrap_or_default();
+        let earliest_time = self.earliest_time().repr();
+        let latest_time = self.latest_time().repr();
         let properties: String = self
             .properties()
             .iter()

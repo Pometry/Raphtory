@@ -263,11 +263,11 @@ impl<'a, T: AsTime, V: Deref<Target = Vec<TimeIndex<T>>> + 'a> TimeIndexOps
     }
 
     fn first_t(&self) -> Option<i64> {
-        self.view.iter().map(|t| t.first_t()).min().flatten()
+        self.view.iter().flat_map(|t| t.first_t()).min()
     }
 
     fn last_t(&self) -> Option<i64> {
-        self.view.iter().map(|t| t.last_t()).max().flatten()
+        self.view.iter().flat_map(|t| t.last_t()).max()
     }
 
     fn iter_t(&self) -> Self::IterType<'_> {

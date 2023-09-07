@@ -389,8 +389,8 @@ impl Repr for PyGraphView {
         let num_edges = self.graph.num_edges();
         let num_vertices = self.graph.num_vertices();
         let num_temporal_edges: usize = self.graph.num_temporal_edges();
-        let earliest_time = self.graph.earliest_time().unwrap_or_default();
-        let latest_time = self.graph.latest_time().unwrap_or_default();
+        let earliest_time = self.graph.earliest_time().repr();
+        let latest_time = self.graph.latest_time().repr();
         let properties: String = self
             .graph
             .properties()

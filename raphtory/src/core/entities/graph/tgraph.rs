@@ -565,14 +565,11 @@ impl<const N: usize> TemporalGraph<N> {
     pub(crate) fn add_edge_internal(
         &self,
         t: TimeIndexEntry,
-        src: VID,
-        dst: VID,
+        src_id: VID,
+        dst_id: VID,
         props: Vec<(String, Prop)>,
         layer: usize,
     ) -> Result<EID, GraphError> {
-        let src_id = self.add_vertex_no_props(t, src)?;
-        let dst_id = self.add_vertex_no_props(t, dst)?;
-
         // resolve all props ahead of time to minimise the time spent holding locks
         let props: Vec<_> = self.edge_meta.resolve_prop_ids(props, false).collect();
 
