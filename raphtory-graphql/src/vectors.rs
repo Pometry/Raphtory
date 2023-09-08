@@ -2,6 +2,7 @@ use async_openai::types::{CreateEmbeddingRequest, EmbeddingInput};
 use async_openai::Client;
 use futures_util::future::join_all;
 use itertools::{chain, Itertools};
+use std::borrow::Borrow;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::{
@@ -53,8 +54,23 @@ impl<G: GraphViewOps> From<&VertexView<G>> for EntityId {
     }
 }
 
+impl<G: GraphViewOps> From<VertexView<G>> for EntityId {
+    fn from(value: VertexView<G>) -> Self {
+        EntityId::Node { id: value.id() }
+    }
+}
+
 impl<G: GraphViewOps> From<&EdgeView<G>> for EntityId {
     fn from(value: &EdgeView<G>) -> Self {
+        EntityId::Edge {
+            src: value.src().id(),
+            dst: value.dst().id(),
+        }
+    }
+}
+
+impl<G: GraphViewOps> From<EdgeView<G>> for EntityId {
+    fn from(value: EdgeView<G>) -> Self {
         EntityId::Edge {
             src: value.src().id(),
             dst: value.dst().id(),
@@ -129,62 +145,82 @@ impl<G: GraphViewOps> VectorStore<G> {
     pub async fn search(
         &self,
         query: &str,
-        node_init: usize,
-        edge_init: usize,
+        init: usize,
+        min_nodes: usize,
+        min_edges: usize,
         limit: usize,
     ) -> Vec<String> {
         let query_embedding = compute_embeddings(vec![query.to_owned()]).await.remove(0);
 
+        // FIRST STEP: ENTRY POINT SELECTION:
+        assert!(
+            min_nodes + min_edges <= init,
+            "min_nodes + min_edges needs to be less or equal to init"
+        );
+        let generic_init = init - min_nodes - min_edges;
+
         let mut entry_point: Vec<EntityId> = vec![];
-        let selected_nodes = find_top_k(&query_embedding, &self.node_embeddings, node_init);
-        let selected_edges = find_top_k(&query_embedding, &self.edge_embeddings, edge_init);
-        for (id, distance) in chain!(selected_nodes, selected_edges) {
-            println!(" - At {distance}: {id}");
+
+        let scored_nodes = score_entities(&query_embedding, &self.node_embeddings);
+        let mut selected_nodes = find_top_k(scored_nodes, init);
+
+        let scored_edges = score_entities(&query_embedding, &self.edge_embeddings);
+        let mut selected_edges = find_top_k(scored_edges, init);
+
+        for _ in 0..min_nodes {
+            let (id, _) = selected_nodes.next().unwrap();
             entry_point.push(id.clone());
-            if let EntityId::Edge { src, dst } = id {
-                entry_point.push(EntityId::Node { id: *src });
-                entry_point.push(EntityId::Node { id: *dst });
-            }
+        }
+        for _ in 0..min_edges {
+            let (id, _) = selected_edges.next().unwrap();
+            entry_point.push(id.clone());
         }
 
+        let remaining_entities = find_top_k(chain!(selected_nodes, selected_edges), generic_init);
+        for (id, distance) in remaining_entities {
+            entry_point.push(id.clone());
+        }
+
+        // SECONDS STEP: EXPANSION
         let mut entity_ids = entry_point;
 
-        // it might happen that a node is include here twice, from two different paths in the graph
-        // but that is not a problem because the entity_ids list is force to be unique
-        let candidates: Vec<ExpandCandidate> = entity_ids
-            .iter()
-            .filter(|id| matches!(id, EntityId::Node { .. }))
-            .flat_map(|id| self.get_candidates_from_node(&query_embedding, id))
-            .unique_by(|candidate| (candidate.node.clone(), candidate.edge.clone()))
-            .collect_vec();
-
-        let mut sorted_candidates = SortedVec::from(candidates);
-
-        println!("TODO: print sorted candidates");
-
-        while entity_ids.len() < limit && sorted_candidates.len() > 0 {
-            let ExpandCandidate { node, edge, .. } = sorted_candidates.pop().unwrap();
-            // we could terminate the loop instead I guess
-
-            if !entity_ids.contains(&node) {
-                entity_ids.push(node.clone());
-            }
-            if !entity_ids.contains(&edge) {
-                entity_ids.push(edge);
-            }
-
-            for new_candidate in self.get_candidates_from_node(&query_embedding, &node) {
-                let already_candidate = || {
-                    sorted_candidates
-                        .iter()
-                        .any(|candidate| candidate.edge == new_candidate.edge)
-                };
-                let already_selected = || entity_ids.iter().any(|id| id == &new_candidate.edge);
-                if !already_selected() && !already_candidate() {
-                    sorted_candidates.insert(new_candidate);
+        while entity_ids.len() < limit {
+            let candidates = entity_ids.iter().flat_map(|id| match id {
+                EntityId::Node { id } => {
+                    let edges = self.graph.vertex(*id).unwrap().edges();
+                    edges
+                        .map(|edge| {
+                            let edge_id = edge.into();
+                            let edge_embedding = self.edge_embeddings.get(&edge_id).unwrap();
+                            (edge_id, edge_embedding)
+                        })
+                        .collect_vec()
                 }
+                EntityId::Edge { src, dst } => {
+                    let edge = self.graph.edge(*src, *dst).unwrap();
+                    let src_id: EntityId = edge.src().into();
+                    let dst_id: EntityId = edge.dst().into();
+                    let src_embedding = self.node_embeddings.get(&src_id).unwrap();
+                    let dst_embedding = self.node_embeddings.get(&dst_id).unwrap();
+                    vec![(src_id, src_embedding), (dst_id, dst_embedding)]
+                }
+            });
+
+            let unique_candidates = candidates.unique_by(|(id, _)| id.clone());
+            let valid_candidates = unique_candidates.filter(|(id, _)| !entity_ids.contains(id));
+            let scored_candidates = score_entities(&query_embedding, valid_candidates);
+            let sorted_candidates = find_top_k(scored_candidates, usize::MAX);
+            let sorted_candidates_ids = sorted_candidates.map(|(id, _)| id).collect_vec();
+
+            if sorted_candidates_ids.is_empty() {
+                // TODO: use similarity search again with the whole graph with init + 1 !!
+                break;
             }
+
+            entity_ids.extend(sorted_candidates_ids);
         }
+
+        // FINAL STEP: REPRODUCE DOCUMENTS:
 
         entity_ids
             .iter()
@@ -207,6 +243,88 @@ impl<G: GraphViewOps> VectorStore<G> {
             })
             .collect_vec()
     }
+
+    // pub async fn search_old(
+    //     &self,
+    //     query: &str,
+    //     node_init: usize,
+    //     edge_init: usize,
+    //     limit: usize,
+    // ) -> Vec<String> {
+    //     let query_embedding = compute_embeddings(vec![query.to_owned()]).await.remove(0);
+    //
+    //     let mut entry_point: Vec<EntityId> = vec![];
+    //     let selected_nodes = find_top_k(&query_embedding, &self.node_embeddings, node_init);
+    //     let selected_edges = find_top_k(&query_embedding, &self.edge_embeddings, edge_init);
+    //     for (id, distance) in chain!(selected_nodes, selected_edges) {
+    //         println!(" - At {distance}: {id}");
+    //         entry_point.push(id.clone());
+    //         if let EntityId::Edge { src, dst } = id {
+    //             entry_point.push(EntityId::Node { id: *src });
+    //             entry_point.push(EntityId::Node { id: *dst });
+    //         }
+    //     }
+    //
+    //     let mut entity_ids = entry_point;
+    //
+    //     // it might happen that a node is include here twice, from two different paths in the graph
+    //     // but that is not a problem because the entity_ids list is force to be unique
+    //     let candidates: Vec<ExpandCandidate> = entity_ids
+    //         .iter()
+    //         .filter(|id| matches!(id, EntityId::Node { .. }))
+    //         .flat_map(|id| self.get_candidates_from_node(&query_embedding, id))
+    //         .unique_by(|candidate| (candidate.node.clone(), candidate.edge.clone()))
+    //         .collect_vec();
+    //
+    //     let mut sorted_candidates = SortedVec::from(candidates);
+    //
+    //     println!("TODO: print sorted candidates");
+    //
+    //     while entity_ids.len() < limit && sorted_candidates.len() > 0 {
+    //         let ExpandCandidate { node, edge, .. } = sorted_candidates.pop().unwrap();
+    //         // we could terminate the loop instead I guess
+    //
+    //         if !entity_ids.contains(&node) {
+    //             entity_ids.push(node.clone());
+    //         }
+    //         if !entity_ids.contains(&edge) {
+    //             entity_ids.push(edge);
+    //         }
+    //
+    //         for new_candidate in self.get_candidates_from_node(&query_embedding, &node) {
+    //             let already_candidate = || {
+    //                 sorted_candidates
+    //                     .iter()
+    //                     .any(|candidate| candidate.edge == new_candidate.edge)
+    //             };
+    //             let already_selected = || entity_ids.iter().any(|id| id == &new_candidate.edge);
+    //             if !already_selected() && !already_candidate() {
+    //                 sorted_candidates.insert(new_candidate);
+    //             }
+    //         }
+    //     }
+    //
+    //     entity_ids
+    //         .iter()
+    //         .take(limit)
+    //         .map(|id| match id {
+    //             EntityId::Node { id } => {
+    //                 self.graph
+    //                     .vertex(*id)
+    //                     .unwrap()
+    //                     .generate_doc(&self.node_template)
+    //                     .content
+    //             }
+    //             EntityId::Edge { src, dst } => {
+    //                 self.graph
+    //                     .edge(*src, *dst)
+    //                     .unwrap()
+    //                     .generate_doc(&self.edge_template)
+    //                     .content
+    //             }
+    //         })
+    //         .collect_vec()
+    // }
 
     // returns an iterator of triplets: (node id, edge id, score) as candidates to be included in entity_ids
     fn get_candidates_from_node<'a>(
@@ -242,17 +360,42 @@ impl<G: GraphViewOps> VectorStore<G> {
     }
 }
 
-fn find_top_k<'a>(
+// fn find_top_k_old<'a>(
+//     query: &'a Embedding,
+//     entities: &'a HashMap<EntityId, Embedding>,
+//     k: usize,
+// ) -> impl Iterator<Item = (&'a EntityId, f32)> {
+//     entities
+//         .iter()
+//         .map(|(id, embedding)| (id, cosine(query, embedding)))
+//         .sorted_by(|(_, d1), (_, d2)| d1.partial_cmp(d2).unwrap().reverse())
+//         // We use reverse because default sorting is ascending but we want it descending
+//         .take(k)
+// }
+
+fn score_entities<'a, I, E>(
     query: &'a Embedding,
-    entities: &'a HashMap<EntityId, Embedding>,
-    limit: usize,
-) -> impl Iterator<Item = (&'a EntityId, f32)> {
+    entities: I,
+) -> impl Iterator<Item = (E, f32)> + 'a
+where
+    I: IntoIterator<Item = (E, &'a Embedding)> + 'a,
+    E: Borrow<EntityId> + 'a,
+{
     entities
-        .iter()
+        .into_iter()
         .map(|(id, embedding)| (id, cosine(query, embedding)))
+}
+
+/// Returns the top k nodes in descending order
+fn find_top_k<'a, I, E>(entities: I, k: usize) -> impl Iterator<Item = (E, f32)> + 'a
+where
+    I: Iterator<Item = (E, f32)> + 'a,
+    E: Borrow<EntityId> + 'a,
+{
+    entities
         .sorted_by(|(_, d1), (_, d2)| d1.partial_cmp(d2).unwrap().reverse())
         // We use reverse because default sorting is ascending but we want it descending
-        .take(limit)
+        .take(k)
 }
 
 async fn generate_embeddings<I: Iterator<Item = EntityDocument>>(
@@ -606,45 +749,45 @@ age: 30"###;
         )
         .await;
 
-        let docs = vec_store.search("Find a wizard", 1, 0, 1).await;
+        let docs = vec_store.search("Find a wizard", 1, 0, 0, 1).await;
         assert!(
             docs[0].contains("Gandalf is a wizard"),
             "{docs:?} are not correct"
         );
 
-        let docs = vec_store.search("Find a magician", 1, 0, 1).await;
+        let docs = vec_store.search("Find a magician", 1, 0, 0, 1).await;
         assert!(
             docs[0].contains("Gandalf is a wizard"),
             "{docs:?} are not correct"
         );
 
-        let docs = vec_store.search("Find a hobbit", 1, 0, 1).await;
+        let docs = vec_store.search("Find a hobbit", 1, 0, 0, 1).await;
         assert!(
             docs[0].contains("Frodo is a hobbit"),
             "{docs:?} are not correct"
         );
 
-        let docs = vec_store.search("Find a young person", 1, 0, 10).await;
+        let docs = vec_store.search("Find a young person", 1, 0, 0, 1).await;
         assert!(
             docs[0].contains("Frodo is a hobbit"),
             "{docs:?} are not correct"
         ); // this fails when using gte-small
 
         let docs = vec_store
-            .search("What do you know about Gandalf?", 1, 0, 1)
+            .search("What do you know about Gandalf?", 1, 0, 0, 1)
             .await;
         assert!(
             docs[0].contains("Gandalf is a wizard"),
             "{docs:?} are not correct"
         );
 
-        // let docs = vec_store
-        //     .search("Has anyone appeared with anyone else?", 1, 0, 1)
-        //     .await;
-        // assert!(
-        //     docs[0].contains("Frodo appeared with Gandalf"),
-        //     "{docs:?} are not correct"
-        // ); // FIXME: this is currently broken, I'd need to order documents by score
+        let docs = vec_store
+            .search("Has anyone appeared with anyone else?", 1, 0, 0, 1)
+            .await;
+        assert!(
+            docs[0].contains("Frodo appeared with Gandalf"),
+            "{docs:?} are not correct"
+        );
     }
 
     fn average_vectors(vec1: &Embedding, vec2: &Embedding) -> Embedding {

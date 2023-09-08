@@ -54,7 +54,7 @@ impl RaphtoryServer {
                 let graph_cache = cache_dir.join(&graph_name);
                 let graph = graphs_map.get(&graph_name).unwrap().deref().clone();
 
-                println!("Generating embeddings for {graph_name} inside {graph_cache:?}");
+                println!("Loading embeddings for {graph_name} using cache from {graph_cache:?}");
                 let vector_store =
                     VectorStore::load_graph(graph, &graph_cache, &node_template, &edge_template)
                         .await;

@@ -82,17 +82,23 @@ impl QueryRoot {
         ctx: &Context<'a>,
         graph: &str,
         query: &str,
-        node_init: Option<usize>,
-        edge_init: Option<usize>,
+        init: Option<usize>,
+        min_nodes: Option<usize>,
+        min_edges: Option<usize>,
         limit: Option<usize>,
     ) -> Option<Vec<String>> {
-        let node_init = node_init.unwrap_or(1);
-        let edge_init = edge_init.unwrap_or(0);
+        let init = init.unwrap_or(1);
+        let min_nodes = min_nodes.unwrap_or(0);
+        let min_edges = min_edges.unwrap_or(0);
         let limit = limit.unwrap_or(1);
         let data = ctx.data_unchecked::<Data>();
         let binding = data.vector_stores.read();
         let vec_store = binding.get(graph)?;
-        Some(vec_store.search(query, node_init, edge_init, limit).await)
+        Some(
+            vec_store
+                .search(query, init, min_nodes, min_edges, limit)
+                .await,
+        )
     }
 }
 
