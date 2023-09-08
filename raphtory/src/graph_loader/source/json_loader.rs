@@ -72,6 +72,8 @@ pub struct JsonLinesLoader<REC: DeserializeOwned> {
     /// Optional regex filter to select specific CSV files by name.
     regex_filter: Option<Regex>,
     _a: std::marker::PhantomData<REC>,
+    /// print the name of the file being loaded
+    print_file_name: bool,
 }
 
 impl<REC: DeserializeOwned + std::fmt::Debug + std::marker::Sync> JsonLinesLoader<REC> {
@@ -81,6 +83,7 @@ impl<REC: DeserializeOwned + std::fmt::Debug + std::marker::Sync> JsonLinesLoade
             path,
             regex_filter,
             _a: std::marker::PhantomData,
+            print_file_name: false,
         }
     }
 
@@ -256,6 +259,9 @@ impl<REC: DeserializeOwned + std::fmt::Debug + std::marker::Sync> JsonLinesLoade
         F: Fn(REC, &G) -> Result<(), GraphError>,
     {
         let file_path: PathBuf = path.into();
+        if self.print_file_name {
+            println!("Loading file: {:?}", file_path);
+        }
 
         let json_reader = self.json_reader(file_path)?;
 

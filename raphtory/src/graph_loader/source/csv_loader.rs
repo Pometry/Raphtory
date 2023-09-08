@@ -126,6 +126,8 @@ pub struct CsvLoader {
     header: bool,
     /// The delimiter character used in the CSV file.
     delimiter: u8,
+    /// print the name of the file being loaded
+    print_file_name: bool,
 }
 
 impl CsvLoader {
@@ -148,6 +150,7 @@ impl CsvLoader {
             regex_filter: None,
             header: false,
             delimiter: b',',
+            print_file_name: false,
         }
     }
 
@@ -373,7 +376,9 @@ impl CsvLoader {
         F: Fn(REC, &G),
     {
         let file_path: PathBuf = path.into();
-
+        if self.print_file_name {
+            println!("Loading file: {:?}", file_path);
+        }
         let mut csv_reader = self.csv_reader(file_path)?;
         let records_iter = csv_reader.deserialize::<REC>();
 
