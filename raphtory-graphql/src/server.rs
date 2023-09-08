@@ -147,7 +147,7 @@ fn edge_template(edge: &EdgeView<DynamicGraph>) -> String {
             let fact = match layer.as_str() {
                 "reported" => format!("{src} was assigned to report issue {dst}"),
                 "created" => format!("{src} created issue {dst}"),
-                "author" => format!("{src} authored issue {dst}"),
+                "author" => format!("{src} edited the details of issue {dst}"),
                 "has" => format!("{dst} was included in sprint {src}"),
                 "assigned" => format!("{src} was assigned to work on issue {dst}"),
                 "blocks" => format!("{src} blocks {dst}"),

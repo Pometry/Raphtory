@@ -86,6 +86,8 @@ impl QueryRoot {
         min_nodes: Option<usize>,
         min_edges: Option<usize>,
         limit: Option<usize>,
+        window_start: Option<i64>,
+        window_end: Option<i64>,
     ) -> Option<Vec<String>> {
         let init = init.unwrap_or(1);
         let min_nodes = min_nodes.unwrap_or(0);
@@ -96,7 +98,15 @@ impl QueryRoot {
         let vec_store = binding.get(graph)?;
         Some(
             vec_store
-                .search(query, init, min_nodes, min_edges, limit)
+                .search(
+                    query,
+                    init,
+                    min_nodes,
+                    min_edges,
+                    limit,
+                    window_start,
+                    window_end,
+                )
                 .await,
         )
     }

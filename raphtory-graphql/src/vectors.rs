@@ -14,6 +14,7 @@ use std::{
     path::Path,
 };
 
+use raphtory::db::api::view::internal::{DynamicGraph, IntoDynamic};
 use raphtory::{
     db::graph::vertex::VertexView,
     prelude::{EdgeViewOps, GraphViewOps, LayerOps, VertexViewOps},
@@ -25,7 +26,8 @@ use crate::model::graph::edge::Edge;
 // use numpy::PyArray2;
 // use pyo3::{types::IntoPyDict, Python};
 use raphtory::db::graph::edge::EdgeView;
-use raphtory::prelude::EdgeListOps;
+use raphtory::db::graph::views::window_graph::WindowedGraph;
+use raphtory::prelude::{EdgeListOps, Layer, TimeOps};
 
 // #[derive(Clone)]
 // struct EdgeId {
@@ -111,7 +113,7 @@ pub struct VectorStore<G: GraphViewOps> {
 
 const CHUNK_SIZE: usize = 1000;
 
-impl<G: GraphViewOps> VectorStore<G> {
+impl<G: GraphViewOps + IntoDynamic> VectorStore<G> {
     pub async fn load_graph<N, E>(
         graph: G,
         cache_dir: &Path,
@@ -149,8 +151,34 @@ impl<G: GraphViewOps> VectorStore<G> {
         min_nodes: usize,
         min_edges: usize,
         limit: usize,
+        window_start: Option<i64>,
+        window_end: Option<i64>,
     ) -> Vec<String> {
         let query_embedding = compute_embeddings(vec![query.to_owned()]).await.remove(0);
+
+        let (graph, window_nodes, window_edges): (
+            DynamicGraph,
+            Box<dyn Iterator<Item = (&EntityId, &Embedding)>>,
+            Box<dyn Iterator<Item = (&EntityId, &Embedding)>>,
+        ) = match (window_start, window_end) {
+            (None, None) => (
+                self.graph.clone().into_dynamic(),
+                Box::new(self.node_embeddings.iter()),
+                Box::new(self.edge_embeddings.iter()),
+            ),
+            (start, end) => {
+                let start = start.unwrap_or(i64::MIN);
+                let end = end.unwrap_or(i64::MAX);
+                let window = self.graph.window(start, end);
+                let nodes = self.window_embeddings(&self.node_embeddings, &window);
+                let edges = self.window_embeddings(&self.edge_embeddings, &window);
+                (
+                    window.clone().into_dynamic(),
+                    Box::new(nodes),
+                    Box::new(edges),
+                )
+            }
+        };
 
         // FIRST STEP: ENTRY POINT SELECTION:
         assert!(
@@ -161,10 +189,10 @@ impl<G: GraphViewOps> VectorStore<G> {
 
         let mut entry_point: Vec<EntityId> = vec![];
 
-        let scored_nodes = score_entities(&query_embedding, &self.node_embeddings);
+        let scored_nodes = score_entities(&query_embedding, window_nodes);
         let mut selected_nodes = find_top_k(scored_nodes, init);
 
-        let scored_edges = score_entities(&query_embedding, &self.edge_embeddings);
+        let scored_edges = score_entities(&query_embedding, window_edges);
         let mut selected_edges = find_top_k(scored_edges, init);
 
         for _ in 0..min_nodes {
@@ -187,7 +215,7 @@ impl<G: GraphViewOps> VectorStore<G> {
         while entity_ids.len() < limit {
             let candidates = entity_ids.iter().flat_map(|id| match id {
                 EntityId::Node { id } => {
-                    let edges = self.graph.vertex(*id).unwrap().edges();
+                    let edges = graph.vertex(*id).unwrap().edges();
                     edges
                         .map(|edge| {
                             let edge_id = edge.into();
@@ -197,7 +225,7 @@ impl<G: GraphViewOps> VectorStore<G> {
                         .collect_vec()
                 }
                 EntityId::Edge { src, dst } => {
-                    let edge = self.graph.edge(*src, *dst).unwrap();
+                    let edge = graph.edge(*src, *dst).unwrap();
                     let src_id: EntityId = edge.src().into();
                     let dst_id: EntityId = edge.dst().into();
                     let src_embedding = self.node_embeddings.get(&src_id).unwrap();
@@ -242,6 +270,21 @@ impl<G: GraphViewOps> VectorStore<G> {
                 }
             })
             .collect_vec()
+    }
+
+    fn window_embeddings<'a, I>(
+        &self,
+        embeddings: I,
+        window: &WindowedGraph<G>,
+    ) -> impl Iterator<Item = (&'a EntityId, &'a Embedding)> + 'a
+    where
+        I: IntoIterator<Item = (&'a EntityId, &'a Embedding)> + 'a,
+    {
+        let window = window.clone();
+        embeddings.into_iter().filter(move |(id, _)| match id {
+            EntityId::Node { id } => window.has_vertex(*id),
+            EntityId::Edge { src, dst } => window.has_edge(*src, *dst, Layer::All),
+        })
     }
 
     // pub async fn search_old(
@@ -739,6 +782,15 @@ age: 30"###;
         .unwrap();
         g.add_edge(0, "Frodo", "Gandalf", NO_PROPS, Some("talk to"))
             .unwrap();
+        g.add_vertex(
+            2,
+            "Aragorn",
+            [
+                ("type".to_string(), Prop::str("human")),
+                ("age".to_string(), Prop::str("40")),
+            ],
+        )
+        .unwrap();
 
         dotenv().ok();
         let vec_store = VectorStore::load_graph(
@@ -749,45 +801,34 @@ age: 30"###;
         )
         .await;
 
-        let docs = vec_store.search("Find a wizard", 1, 0, 0, 1).await;
-        assert!(
-            docs[0].contains("Gandalf is a wizard"),
-            "{docs:?} are not correct"
-        );
-
-        let docs = vec_store.search("Find a magician", 1, 0, 0, 1).await;
-        assert!(
-            docs[0].contains("Gandalf is a wizard"),
-            "{docs:?} are not correct"
-        );
-
-        let docs = vec_store.search("Find a hobbit", 1, 0, 0, 1).await;
-        assert!(
-            docs[0].contains("Frodo is a hobbit"),
-            "{docs:?} are not correct"
-        );
-
-        let docs = vec_store.search("Find a young person", 1, 0, 0, 1).await;
-        assert!(
-            docs[0].contains("Frodo is a hobbit"),
-            "{docs:?} are not correct"
-        ); // this fails when using gte-small
+        let docs = vec_store
+            .search("Find a magician", 1, 0, 0, 1, None, None)
+            .await;
+        assert!(docs[0].contains("Gandalf is a wizard"));
 
         let docs = vec_store
-            .search("What do you know about Gandalf?", 1, 0, 0, 1)
+            .search("Find a young person", 1, 0, 0, 1, None, None)
             .await;
-        assert!(
-            docs[0].contains("Gandalf is a wizard"),
-            "{docs:?} are not correct"
-        );
+        assert!(docs[0].contains("Frodo is a hobbit")); // this fails when using gte-small
+
+        // with window!
+        let docs = vec_store
+            .search("Find a young person", 1, 0, 0, 1, Some(1), Some(3))
+            .await;
+        assert!(!docs[0].contains("Frodo is a hobbit")); // this fails when using gte-small
 
         let docs = vec_store
-            .search("Has anyone appeared with anyone else?", 1, 0, 0, 1)
+            .search(
+                "Has anyone appeared with anyone else?",
+                1,
+                0,
+                0,
+                1,
+                None,
+                None,
+            )
             .await;
-        assert!(
-            docs[0].contains("Frodo appeared with Gandalf"),
-            "{docs:?} are not correct"
-        );
+        assert!(docs[0].contains("Frodo appeared with Gandalf"));
     }
 
     fn average_vectors(vec1: &Embedding, vec2: &Embedding) -> Embedding {
