@@ -18,6 +18,7 @@ use crate::{
     },
 };
 use num_traits::abs;
+use ordered_float::OrderedFloat;
 use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
@@ -50,7 +51,7 @@ pub fn hits<G: GraphViewOps>(
     g: &G,
     iter_count: usize,
     threads: Option<usize>,
-) -> AlgorithmResult<String, (f32, f32)> {
+) -> AlgorithmResult<String, (f32, f32), (OrderedFloat<f32>, OrderedFloat<f32>)> {
     let mut ctx: Context<G, ComputeStateVec> = g.into();
 
     let recv_hub_score = sum::<f32>(2);
@@ -209,7 +210,7 @@ mod hits_tests {
             (8, 1),
         ]);
 
-        let results: AlgorithmResult<String, (f32, f32)> = hits(&graph, 20, None);
+        let results = hits(&graph, 20, None);
 
         // NetworkX results
         // >>> G = nx.DiGraph()
