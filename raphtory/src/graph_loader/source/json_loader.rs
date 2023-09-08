@@ -87,6 +87,17 @@ impl<REC: DeserializeOwned + std::fmt::Debug + std::marker::Sync> JsonLinesLoade
         }
     }
 
+    /// If set to true will print the file name as it reads it
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - A boolean value indicating whether the CSV file has a header.
+    ///
+    pub fn set_print_file_name(mut self, p: bool) -> Self {
+        self.print_file_name = p;
+        self
+    }
+
     /// Check if the provided path is a directory or not.
     ///
     /// # Arguments

@@ -171,6 +171,22 @@ impl CsvLoader {
         self
     }
 
+    /// If set to true will print the file name as it reads it
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - A boolean value indicating whether the CSV file has a header.
+    ///
+    /// # Example
+    /// ```no_run
+    /// use raphtory::graph_loader::source::csv_loader::CsvLoader;
+    /// let loader = CsvLoader::new("/path/to/csv_file.csv").set_print_file_name(true);
+    /// ```
+    pub fn set_print_file_name(mut self, p: bool) -> Self {
+        self.print_file_name = p;
+        self
+    }
+
     /// Sets the delimiter character used in the CSV file.
     ///
     /// # Arguments
