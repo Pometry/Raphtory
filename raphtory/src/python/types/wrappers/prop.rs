@@ -31,8 +31,7 @@ impl IntoPy<PyObject> for Prop {
 // Manually implemented to make sure we don't end up with f32/i32/u32 from python ints/floats
 impl<'source> FromPyObject<'source> for Prop {
     fn extract(ob: &'source PyAny) -> PyResult<Self> {
-        // TODO: This no longer returns result in newer pyo3
-        if ob.is_instance_of::<PyBool>()? {
+        if ob.is_instance_of::<PyBool>() {
             return Ok(Prop::Bool(ob.extract()?));
         }
         if let Ok(v) = ob.extract() {
