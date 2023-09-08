@@ -300,33 +300,37 @@ mod tests {
             .expect("Unable to add vertex to graph");
         assert_eq!(g.num_vertices(), 3);
         assert_eq!(g.num_edges(), 0);
-        assert_eq!(
-            g.vertices().iter().name().collect(),
-            vec!["test", "testgz", "testbz"]
-        );
+        let mut names = g.vertices().into_iter().name().collect::<Vec<String>>();
+        names.sort();
+        assert_eq!(names, vec!["test", "testbz", "testgz"]);
     }
 
     #[test]
     fn test_load_into_graph() {
-        let dir = tempdir();
+        let dir = tempdir().unwrap();
         let plain_file = dir.path().join("test.json");
         let gzip_file = dir.path().join("test.json.gz");
         let bzip_file = dir.path().join("test.json.bz2");
 
         // Create plain json file
-        File::create(&plain_file)?.write_all(b"{\"field1\": \"test\", \"field2\": 1}\n")?;
+        File::create(&plain_file)
+            .unwrap()
+            .write_all(b"{\"name\": \"test\", \"time\": 1}\n")
+            .expect("unable to make plain file");
 
         // Create gzip compressed json file
-        let f = File::create(&gzip_file)?;
-        let mut gz = GzEncoder::new(f, Compression::default());
-        gz.write_all(b"{\"field1\": \"testgz\", \"field2\": 2}\n")?;
-        gz.finish();
+        let f = File::create(&gzip_file).unwrap();
+        let mut gz = GzEncoder::new(f, Compression::fast());
+        gz.write_all(b"{\"name\": \"testgz\", \"time\": 2}\n")
+            .expect("unable to write to gz file");
+        gz.finish().expect("Unable to write GZ file");
 
         // Create bzip2 compressed json file
-        let f = File::create(&bzip_file);
+        let f = File::create(&bzip_file).unwrap();
         let mut bz = BzEncoder::new(f, BzCompression::fast());
-        bz.write_all(b"{\"field1\": \"testbz\", \"field2\": 3}\n")?;
-        bz.finish();
+        bz.write_all(b"{\"name\": \"testbz\", \"time\": 3}\n")
+            .expect("unable to write to bz file");
+        bz.finish().expect("Unable to write BZ file");
 
         let g = Graph::new();
         let loader = JsonLinesLoader::<TestRecord>::new(dir.path().to_path_buf(), None);
