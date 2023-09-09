@@ -2800,6 +2800,7 @@ dependencies = [
  "sorted_vector_map",
  "tantivy",
  "tempdir",
+ "tempfile",
  "thiserror",
  "tokio",
  "twox-hash",

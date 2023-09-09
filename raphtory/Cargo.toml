@@ -71,7 +71,7 @@ csv = "1"
 pretty_assertions = "1"
 quickcheck = "1"
 quickcheck_macros = "1"
-
+tempfile = "3.2"
 
 [features]
 default = ["search"]
