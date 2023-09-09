@@ -8,6 +8,7 @@ use crate::{
             context::Context,
             task::{ATask, Job, Step},
             task_runner::TaskRunner,
+            vertex::eval_vertex::EvalVertexView,
         },
     },
 };
@@ -69,14 +70,16 @@ pub fn triangle_count<G: GraphViewOps>(graph: &G, threads: Option<usize>) -> usi
     ctx.agg(neighbours_set);
     ctx.global_agg(count);
 
-    let step1 = ATask::new(move |s| {
-        for t in s.neighbours() {
-            if s.id() > t.id() {
-                t.update(&neighbours_set, s.id());
+    let step1 = ATask::new(
+        move |s: &mut EvalVertexView<'_, VertexSubgraph<G>, ComputeStateVec, ()>| {
+            for t in s.neighbours() {
+                if s.id() > t.id() {
+                    t.update(&neighbours_set, s.id());
+                }
             }
-        }
-        Step::Continue
-    });
+            Step::Continue
+        },
+    );
 
     let step2 = ATask::new(move |s| {
         for t in s.neighbours() {
@@ -113,7 +116,7 @@ pub fn triangle_count<G: GraphViewOps>(graph: &G, threads: Option<usize>) -> usi
     runner.run(
         init_tasks,
         tasks,
-        (),
+        None,
         |egs, _, _, _| egs.finalize(&count),
         threads,
         1,

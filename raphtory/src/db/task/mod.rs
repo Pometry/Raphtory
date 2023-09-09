@@ -3,11 +3,11 @@ use rayon::{ThreadPool, ThreadPoolBuilder};
 use std::sync::Arc;
 
 pub mod context;
-mod edge;
+pub mod edge;
 pub mod task;
 pub mod task_runner;
 pub(crate) mod task_state;
-pub(crate) mod vertex;
+pub mod vertex;
 
 pub static POOL: Lazy<Arc<ThreadPool>> = Lazy::new(|| {
     let num_threads = std::env::var("DOCBROWN_MAX_THREADS")
@@ -42,7 +42,7 @@ pub fn custom_pool(n_threads: usize) -> Arc<ThreadPool> {
 mod task_tests {
     use crate::{
         core::state::{self, compute_state::ComputeStateVec},
-        db::api::mutation::AdditionOps,
+        db::{api::mutation::AdditionOps, task::vertex::eval_vertex::EvalVertexView},
         prelude::*,
     };
 
@@ -77,17 +77,19 @@ mod task_tests {
 
         ctx.global_agg(count.clone());
 
-        let step1 = ATask::new(move |vv| {
-            vv.global_update(&count, 1);
-            Step::Done
-        });
+        let step1 = ATask::new(
+            move |vv: &mut EvalVertexView<'_, Graph, ComputeStateVec, ()>| {
+                vv.global_update(&count, 1);
+                Step::Done
+            },
+        );
 
         let mut runner = TaskRunner::new(ctx);
 
         let actual = runner.run(
             vec![],
             vec![Job::new(step1)],
-            (),
+            None,
             |egs, _, _, _| egs.finalize(&count),
             Some(2),
             1,

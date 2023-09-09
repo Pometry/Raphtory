@@ -2020,6 +2020,15 @@ def test_layers_earliest_time():
 
 
 
+def test_layers_earliest_time():
+    g = Graph()
+    e = g.add_edge(1, 1, 2, layer="test")
+    e = g.edge(1, 2)
+    print(e)
+    assert e.earliest_time() == 1
+
+
+
 def test_edge_explode_layers():
     g = Graph()
     g.add_edge(1, 1, 2, {"layer": 1}, layer="1")

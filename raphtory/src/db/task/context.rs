@@ -1,12 +1,15 @@
 use super::task_state::{Global, Shard};
 use crate::{
-    core::state::{
-        accumulator_id::AccId, agg::Accumulator, compute_state::ComputeState,
-        shuffle_state::ShuffleComputeState, StateType,
+    core::{
+        entities::VID,
+        state::{
+            accumulator_id::AccId, agg::Accumulator, compute_state::ComputeState,
+            shuffle_state::ShuffleComputeState, StateType,
+        },
     },
-    db::api::view::GraphViewOps,
+    db::{api::view::GraphViewOps, graph::vertex::VertexView},
 };
-use std::sync::Arc;
+use std::{fmt::Debug, sync::Arc};
 
 type MergeFn<CS> =
     Arc<dyn Fn(&mut ShuffleComputeState<CS>, &ShuffleComputeState<CS>, usize) + Send + Sync>;
@@ -27,6 +30,20 @@ where
     G: GraphViewOps,
     CS: ComputeState,
 {
+    pub fn new_local_state<O: Debug + Default, F: Fn(VertexView<G>) -> O>(
+        &self,
+        init_f: F,
+    ) -> Vec<O> {
+        let n = self.g.unfiltered_num_vertices();
+        let mut new_state = Vec::with_capacity(n);
+        for i in 0..n {
+            match self.g.vertex(VID(i)) {
+                Some(v) => new_state.push(init_f(v)),
+                None => new_state.push(O::default()),
+            }
+        }
+        new_state
+    }
     pub fn ss(&self) -> usize {
         self.ss
     }

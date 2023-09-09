@@ -115,7 +115,7 @@ pub fn balance<G: GraphViewOps>(
     AlgorithmResult::new_with_float(runner.run(
         vec![],
         vec![Job::new(step1)],
-        (),
+        None,
         |_, ess, _, _| ess.finalize(&min, |min| min),
         threads,
         1,

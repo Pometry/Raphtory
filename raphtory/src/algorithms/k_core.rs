@@ -21,8 +21,8 @@ struct KCoreState {
     alive: bool,
 }
 
-impl KCoreState {
-    fn new() -> Self {
+impl Default for KCoreState {
+    fn default() -> Self {
         Self { alive: true }
     }
 }
@@ -81,7 +81,7 @@ where
     runner.run(
         vec![Job::new(step1)],
         vec![Job::read_only(step2)],
-        KCoreState::new(),
+        None,
         |_, _, _, local| {
             let layers = graph.layer_ids();
             let edge_filter = graph.edge_filter();
