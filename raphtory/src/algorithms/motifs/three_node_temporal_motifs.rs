@@ -29,7 +29,7 @@ use std::{collections::HashMap, ops::Add, slice::Iter};
 ///////////////////////////////////////////////////////
 
 // State objects for three node motifs
-#[derive(Eq, PartialEq, Clone, Debug, Default)]
+#[derive(Eq, PartialEq, Clone, Debug)]
 pub struct MotifCounter {
     pub two_nodes: [usize; 8],
     pub star_nodes: [usize; 24],
@@ -43,6 +43,12 @@ impl MotifCounter {
             star_nodes,
             triangle,
         }
+    }
+}
+
+impl Default for MotifCounter {
+    fn default() -> Self {
+        Self::zero()
     }
 }
 
@@ -376,7 +382,7 @@ pub fn triangle_motifs<G: GraphViewOps>(
     runner.run(
         vec![Job::new(step1)],
         vec![Job::read_only(step2)],
-        MotifCounter::zero(),
+        None,
         |_, _, _els, local| {
             let mut tri_motifs = HashMap::new();
             let layers = graph.layer_ids();
@@ -428,7 +434,7 @@ pub fn temporal_three_node_motif<G: GraphViewOps>(
     let out2 = runner.run(
         vec![Job::new(step1)],
         vec![],
-        MotifCounter::zero(),
+        None,
         |_, _, _els, local| {
             let mut motifs = HashMap::new();
             for (vref, mc) in enumerate(local) {
