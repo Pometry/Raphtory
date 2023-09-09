@@ -1,12 +1,19 @@
 use crate::core::utils::errors::GraphError;
+use bzip2::read::BzDecoder;
+use flate2; // 1.0
+use flate2::read::GzDecoder;
 use rayon::prelude::*;
 use regex::Regex;
 use serde::de::DeserializeOwned;
+use serde_json::{de::IoRead, Deserializer};
 use std::{
     collections::VecDeque,
     error::Error,
     fmt::{Display, Formatter},
-    fs, io,
+    fs,
+    fs::File,
+    io,
+    io::BufReader,
     path::{Path, PathBuf},
 };
 
@@ -65,6 +72,8 @@ pub struct JsonLinesLoader<REC: DeserializeOwned> {
     /// Optional regex filter to select specific CSV files by name.
     regex_filter: Option<Regex>,
     _a: std::marker::PhantomData<REC>,
+    /// print the name of the file being loaded
+    print_file_name: bool,
 }
 
 impl<REC: DeserializeOwned + std::fmt::Debug + std::marker::Sync> JsonLinesLoader<REC> {
@@ -74,7 +83,19 @@ impl<REC: DeserializeOwned + std::fmt::Debug + std::marker::Sync> JsonLinesLoade
             path,
             regex_filter,
             _a: std::marker::PhantomData,
+            print_file_name: false,
         }
+    }
+
+    /// If set to true will print the file name as it reads it
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - A boolean value indicating whether the CSV file has a header.
+    ///
+    pub fn set_print_file_name(mut self, p: bool) -> Self {
+        self.print_file_name = p;
+        self
     }
 
     /// Check if the provided path is a directory or not.
@@ -196,6 +217,37 @@ impl<REC: DeserializeOwned + std::fmt::Debug + std::marker::Sync> JsonLinesLoade
         Ok(())
     }
 
+    fn json_reader(
+        &self,
+        file_path: PathBuf,
+    ) -> Result<Deserializer<IoRead<BufReader<Box<dyn io::Read>>>>, JsonErr> {
+        let is_gziped = file_path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .filter(|name| name.ends_with(".gz"))
+            .is_some();
+
+        let is_bziped = file_path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .filter(|name| name.ends_with(".bz2"))
+            .is_some();
+
+        let f = File::open(&file_path)?;
+
+        if is_gziped {
+            Ok(Deserializer::from_reader(BufReader::new(Box::new(
+                GzDecoder::new(f),
+            ))))
+        } else if is_bziped {
+            Ok(Deserializer::from_reader(BufReader::new(Box::new(
+                BzDecoder::new(f),
+            ))))
+        } else {
+            Ok(Deserializer::from_reader(BufReader::new(Box::new(f))))
+        }
+    }
+
     /// Loads a JSON file into a graph using the specified loader function.
     ///
     /// # Arguments
@@ -218,10 +270,12 @@ impl<REC: DeserializeOwned + std::fmt::Debug + std::marker::Sync> JsonLinesLoade
         F: Fn(REC, &G) -> Result<(), GraphError>,
     {
         let file_path: PathBuf = path.into();
+        if self.print_file_name {
+            println!("Loading file: {:?}", file_path);
+        }
 
-        let json_reader = serde_json::Deserializer::from_reader(std::io::BufReader::new(
-            std::fs::File::open(file_path)?,
-        ));
+        let json_reader = self.json_reader(file_path)?;
+
         let records_iter = json_reader.into_iter::<REC>();
 
         //TODO this needs better error handling for files without perfect data
@@ -234,5 +288,69 @@ impl<REC: DeserializeOwned + std::fmt::Debug + std::marker::Sync> JsonLinesLoade
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::prelude::*;
+    use bzip2::{write::BzEncoder, Compression as BzCompression};
+    use flate2::{write::GzEncoder, Compression};
+    use itertools::Itertools;
+    use serde::Deserialize;
+    use std::{fs::File, io::Write};
+    use tempfile::tempdir;
+
+    #[derive(Debug, Deserialize)]
+    struct TestRecord {
+        name: String,
+        time: i64,
+    }
+
+    fn test_json_rec(g: Graph, loader: JsonLinesLoader<TestRecord>) {
+        loader
+            .load_into_graph(&g, |testrec: TestRecord, g: &Graph| {
+                let _ = g.add_vertex(testrec.time.clone(), testrec.name.clone(), NO_PROPS);
+                Ok(())
+            })
+            .expect("Unable to add vertex to graph");
+        assert_eq!(g.num_vertices(), 3);
+        assert_eq!(g.num_edges(), 0);
+        let mut names = g.vertices().into_iter().name().collect::<Vec<String>>();
+        names.sort();
+        assert_eq!(names, vec!["test", "testbz", "testgz"]);
+    }
+
+    #[test]
+    fn test_load_into_graph() {
+        let dir = tempdir().unwrap();
+        let plain_file = dir.path().join("test.json");
+        let gzip_file = dir.path().join("test.json.gz");
+        let bzip_file = dir.path().join("test.json.bz2");
+
+        // Create plain json file
+        File::create(&plain_file)
+            .unwrap()
+            .write_all(b"{\"name\": \"test\", \"time\": 1}\n")
+            .expect("unable to make plain file");
+
+        // Create gzip compressed json file
+        let f = File::create(&gzip_file).unwrap();
+        let mut gz = GzEncoder::new(f, Compression::fast());
+        gz.write_all(b"{\"name\": \"testgz\", \"time\": 2}\n")
+            .expect("unable to write to gz file");
+        gz.finish().expect("Unable to write GZ file");
+
+        // Create bzip2 compressed json file
+        let f = File::create(&bzip_file).unwrap();
+        let mut bz = BzEncoder::new(f, BzCompression::fast());
+        bz.write_all(b"{\"name\": \"testbz\", \"time\": 3}\n")
+            .expect("unable to write to bz file");
+        bz.finish().expect("Unable to write BZ file");
+
+        let g = Graph::new();
+        let loader = JsonLinesLoader::<TestRecord>::new(dir.path().to_path_buf(), None);
+        test_json_rec(g, loader);
     }
 }
