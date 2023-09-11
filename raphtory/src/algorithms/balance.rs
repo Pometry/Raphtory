@@ -162,31 +162,31 @@ mod sum_weight_test {
 
         let res = balance(&graph, "value_dec".to_string(), Direction::BOTH, None);
         let expected = vec![
-            ("1".to_string(), (-26.0)),
-            ("2".to_string(), (7.0)),
-            ("3".to_string(), (12.0)),
-            ("4".to_string(), (5.0)),
-            ("5".to_string(), (2.0)),
+            ("1".to_string(), -26.0),
+            ("2".to_string(), 7.0),
+            ("3".to_string(), 12.0),
+            ("4".to_string(), 5.0),
+            ("5".to_string(), 2.0),
         ];
         assert_eq!(res.sort_by_key(false), expected);
 
         let res = balance(&graph, "value_dec".to_string(), Direction::IN, None);
         let expected = vec![
-            ("1".to_string(), (6.0)),
-            ("2".to_string(), (12.0)),
-            ("3".to_string(), (15.0)),
-            ("4".to_string(), (20.0)),
-            ("5".to_string(), (2.0)),
+            ("1".to_string(), 6.0),
+            ("2".to_string(), 12.0),
+            ("3".to_string(), 15.0),
+            ("4".to_string(), 20.0),
+            ("5".to_string(), 2.0),
         ];
         assert_eq!(res.sort_by_key(false), expected);
 
         let res = balance(&graph, "value_dec".to_string(), Direction::OUT, None);
         let expected = vec![
-            ("1".to_string(), (-32.0)),
-            ("2".to_string(), (-5.0)),
-            ("3".to_string(), (-3.0)),
-            ("4".to_string(), (-15.0)),
-            ("5".to_string(), (0.0)),
+            ("1".to_string(), -32.0),
+            ("2".to_string(), -5.0),
+            ("3".to_string(), -3.0),
+            ("4".to_string(), -15.0),
+            ("5".to_string(), 0.0),
         ];
         assert_eq!(res.sort_by_key(false), expected);
     }
