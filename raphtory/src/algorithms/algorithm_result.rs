@@ -1,8 +1,8 @@
+use itertools::Itertools;
 use num_traits::Float;
 use ordered_float::OrderedFloat;
 use std::{
     borrow::Borrow,
-    cmp::Ordering,
     collections::{hash_map::Iter, HashMap},
     fmt,
     fmt::Debug,
@@ -11,7 +11,11 @@ use std::{
 };
 
 pub trait AsOrd<T: ?Sized + Ord> {
-    /// Converts this type into reference of an ordered Type.
+    /// Converts reference of this type into reference of an ordered Type.
+    ///
+    /// This is the same as AsRef (with the additional constraint that the target type needs to be ordered).
+    ///
+    /// Importantly, unlike AsRef, this blanket-implements the trivial conversion from a type to itself!
     fn as_ord(&self) -> &T;
 }
 
@@ -29,7 +33,7 @@ impl<T: Float> AsOrd<OrderedFloat<T>> for T {
 
 impl<T: Float> AsOrd<(OrderedFloat<T>, OrderedFloat<T>)> for (T, T) {
     fn as_ord(&self) -> &(OrderedFloat<T>, OrderedFloat<T>) {
-        // Safety: OrderedFloat is #[repr(transparent)] and has no invalid values.
+        // Safety: OrderedFloat is #[repr(transparent)] and has no invalid values, i.e. there is no physical difference between OrderedFloat and Float.
         unsafe { &*(self as *const (T, T) as *const (OrderedFloat<T>, OrderedFloat<T>)) }
     }
 }
@@ -42,11 +46,7 @@ impl<T: Float> AsOrd<(OrderedFloat<T>, OrderedFloat<T>)> for (T, T) {
 ///
 /// This `AlgorithmResult` is returned for all algorithms that return a HashMap
 ///
-pub struct AlgorithmResult<K, V, O = V>
-where
-    K: Clone + Hash + Eq + Ord,
-    V: Clone,
-{
+pub struct AlgorithmResult<K, V, O = V> {
     /// The result hashmap that stores keys of type `H` and values of type `Y`.
     pub result: HashMap<K, V>,
     marker: PhantomData<O>,
@@ -84,7 +84,7 @@ where
         Q: Hash + Eq + ?Sized,
         K: Borrow<Q>,
     {
-        self.result.get(&key)
+        self.result.get(key)
     }
 
     /// Sorts the `AlgorithmResult` by its keys in ascending or descending order.
@@ -294,16 +294,14 @@ where
     }
 }
 
-impl<V: Debug + Clone, K: Debug + Clone + Hash + Eq + Ord> Debug for AlgorithmResult<K, V> {
+impl<V: Debug, K: Debug, O> Debug for AlgorithmResult<K, V, O> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut map_string = "{".to_string();
-        for (key, value) in &self.result {
-            map_string.push_str(&format!("{:?}: {:?}, ", key, value));
-        }
-        map_string.pop(); // Remove the trailing comma
-        map_string.pop(); // Remove the space
-        map_string.push('}');
-        write!(f, "{}", map_string)
+        let map_string = self
+            .result
+            .iter()
+            .map(|(key, value)| format!("{:?}: {:?}, ", key, value))
+            .join(", ");
+        write!(f, "{{{}}}", map_string)
     }
 }
 
@@ -345,9 +343,7 @@ mod algorithm_result_test {
         map.insert("A".to_string(), (10.0, 20.0));
         map.insert("B".to_string(), (20.0, 30.0));
         map.insert("C".to_string(), (30.0, 40.0));
-        map.into_iter()
-            .map(|(k, (v1, v2))| (k, (v1.into(), v2.into())))
-            .collect()
+        AlgorithmResult::new(map)
     }
 
     fn create_algo_result_hashmap_vec() -> AlgorithmResult<String, Vec<(i64, String)>> {
@@ -433,19 +429,8 @@ mod algorithm_result_test {
         let algo_result = group_by_test();
         let grouped = algo_result.group_by();
         assert_eq!(grouped.get(&10).unwrap().len(), 2);
-        assert_eq!(grouped.get(&10).unwrap().contains(&"A".to_string()), true);
-        assert_eq!(grouped.get(&10).unwrap().contains(&"B".to_string()), false);
-
-        // let algo_result = create_algo_result_f64();
-        // let grouped = algo_result.group_by();
-        // assert_eq!(grouped.get(&OrderedFloat::from(10.0)).unwrap().len(), 1);
-        // assert_eq!(
-        //     grouped
-        //         .get(&OrderedFloat::from(10.0))
-        //         .unwrap()
-        //         .contains(&"A".to_string()),
-        //     true
-        // );
+        assert!(grouped.get(&10).unwrap().contains(&"A".to_string()));
+        assert!(!grouped.get(&10).unwrap().contains(&"B".to_string()));
 
         let algo_result = create_algo_result_hashmap_vec();
         assert_eq!(
@@ -463,12 +448,12 @@ mod algorithm_result_test {
         let algo_result = create_algo_result_u64();
         let all = algo_result.get_all();
         assert_eq!(all.len(), 3);
-        assert_eq!(all.contains_key(&"A".to_string()), true);
+        assert!(all.contains_key("A"));
 
         let algo_result = create_algo_result_f64();
         let all = algo_result.get_all();
         assert_eq!(all.len(), 3);
-        assert_eq!(all.contains_key(&"A".to_string()), true);
+        assert!(all.contains_key("A"));
 
         let algo_result = create_algo_result_tuple();
         assert_eq!(algo_result.get_all().get("A").unwrap().0, 10.0);

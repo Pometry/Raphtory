@@ -131,7 +131,6 @@ mod sum_weight_test {
         core::{Direction, Prop},
         db::{api::mutation::AdditionOps, graph::graph::Graph},
     };
-    use ordered_float::OrderedFloat;
     use pretty_assertions::assert_eq;
 
     #[test]
