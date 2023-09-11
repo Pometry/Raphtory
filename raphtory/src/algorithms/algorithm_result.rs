@@ -1,5 +1,42 @@
+use itertools::Itertools;
+use num_traits::Float;
 use ordered_float::OrderedFloat;
-use std::{borrow::Borrow, collections::HashMap, fmt, fmt::Debug, hash::Hash};
+use std::{
+    borrow::Borrow,
+    collections::{hash_map::Iter, HashMap},
+    fmt,
+    fmt::Debug,
+    hash::Hash,
+    marker::PhantomData,
+};
+
+pub trait AsOrd<T: ?Sized + Ord> {
+    /// Converts reference of this type into reference of an ordered Type.
+    ///
+    /// This is the same as AsRef (with the additional constraint that the target type needs to be ordered).
+    ///
+    /// Importantly, unlike AsRef, this blanket-implements the trivial conversion from a type to itself!
+    fn as_ord(&self) -> &T;
+}
+
+impl<T: Ord> AsOrd<T> for T {
+    fn as_ord(&self) -> &T {
+        self
+    }
+}
+
+impl<T: Float> AsOrd<OrderedFloat<T>> for T {
+    fn as_ord(&self) -> &OrderedFloat<T> {
+        self.into()
+    }
+}
+
+impl<T: Float> AsOrd<(OrderedFloat<T>, OrderedFloat<T>)> for (T, T) {
+    fn as_ord(&self) -> &(OrderedFloat<T>, OrderedFloat<T>) {
+        // Safety: OrderedFloat is #[repr(transparent)] and has no invalid values, i.e. there is no physical difference between OrderedFloat and Float.
+        unsafe { &*(self as *const (T, T) as *const (OrderedFloat<T>, OrderedFloat<T>)) }
+    }
+}
 
 /// A generic `AlgorithmResult` struct that represents the result of an algorithm computation.
 ///
@@ -9,16 +46,13 @@ use std::{borrow::Borrow, collections::HashMap, fmt, fmt::Debug, hash::Hash};
 ///
 /// This `AlgorithmResult` is returned for all algorithms that return a HashMap
 ///
-pub struct AlgorithmResult<K, V>
-where
-    K: Clone + Hash + Eq + Ord,
-    V: Clone,
-{
+pub struct AlgorithmResult<K, V, O = V> {
     /// The result hashmap that stores keys of type `H` and values of type `Y`.
     pub result: HashMap<K, V>,
+    marker: PhantomData<O>,
 }
 
-impl<K, V> AlgorithmResult<K, V>
+impl<K, V, O> AlgorithmResult<K, V, O>
 where
     K: Clone + Hash + Eq + Ord,
     V: Clone,
@@ -29,7 +63,10 @@ where
     ///
     /// * `result`: A `HashMap` with keys of type `H` and values of type `Y`.
     pub fn new(result: HashMap<K, V>) -> Self {
-        Self { result }
+        Self {
+            result,
+            marker: PhantomData,
+        }
     }
 
     /// Returns a reference to the entire `result` hashmap.
@@ -47,61 +84,7 @@ where
         Q: Hash + Eq + ?Sized,
         K: Borrow<Q>,
     {
-        self.result.get(&key)
-    }
-}
-
-pub struct AlgorithmResultIterator<'a, K, V> {
-    iter: std::collections::hash_map::Iter<'a, K, V>,
-}
-
-impl<'a, K, V> Iterator for AlgorithmResultIterator<'a, K, V> {
-    type Item = (&'a K, &'a V);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.iter.next()
-    }
-}
-
-impl<'a, K, V> IntoIterator for &'a AlgorithmResult<K, V>
-where
-    K: Clone + Hash + Ord,
-    V: Clone,
-{
-    type Item = (&'a K, &'a V);
-    type IntoIter = AlgorithmResultIterator<'a, K, V>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        AlgorithmResultIterator {
-            iter: self.result.iter(),
-        }
-    }
-}
-
-impl<K, V> AlgorithmResult<K, V>
-where
-    K: Clone + Hash + Eq + Ord,
-    V: Clone + PartialOrd,
-{
-    /// Sorts the `AlgorithmResult` by its values in ascending or descending order.
-    ///
-    /// # Arguments
-    ///
-    /// * `reverse`: If `true`, sorts the result in descending order; otherwise, sorts in ascending order.
-    ///
-    /// # Returns
-    ///
-    /// A sorted vector of tuples containing keys of type `H` and values of type `Y`.
-    pub fn sort_by_value(&self, reverse: bool) -> Vec<(K, V)> {
-        let mut sorted: Vec<(K, V)> = self.result.clone().into_iter().collect();
-        sorted.sort_by(|(_, a), (_, b)| {
-            if reverse {
-                b.partial_cmp(a).unwrap()
-            } else {
-                a.partial_cmp(b).unwrap()
-            }
-        });
-        sorted
+        self.result.get(key)
     }
 
     /// Sorts the `AlgorithmResult` by its keys in ascending or descending order.
@@ -119,6 +102,142 @@ where
         sorted
     }
 
+    pub fn iter(&self) -> Iter<'_, K, V> {
+        self.result.iter()
+    }
+
+    /// Sorts the `AlgorithmResult` by its values in ascending or descending order.
+    ///
+    /// # Arguments
+    ///
+    /// * `reverse`: If `true`, sorts the result in descending order; otherwise, sorts in ascending order.
+    ///
+    /// # Returns
+    ///
+    /// A sorted vector of tuples containing keys of type `H` and values of type `Y`.
+    pub fn sort_by<F: FnMut(&V, &V) -> std::cmp::Ordering>(
+        &self,
+        mut cmp: F,
+        reverse: bool,
+    ) -> Vec<(K, V)> {
+        let mut sorted: Vec<(K, V)> = self.result.clone().into_iter().collect();
+        sorted.sort_by(|(_, a), (_, b)| if reverse { cmp(b, a) } else { cmp(a, b) });
+        sorted
+    }
+
+    /// Retrieves the top-k elements from the `AlgorithmResult` based on its values.
+    ///
+    /// # Arguments
+    ///
+    /// * `k`: The number of elements to retrieve.
+    /// * `percentage`: If `true`, the `k` parameter is treated as a percentage of total elements.
+    /// * `reverse`: If `true`, retrieves the elements in descending order; otherwise, in ascending order.
+    ///
+    /// # Returns
+    ///
+    /// An `a vector of tuples with keys of type `H` and values of type `Y`.
+    /// If `percentage` is `true`, the returned vector contains the top `k` percentage of elements.
+    /// If `percentage` is `false`, the returned vector contains the top `k` elements.
+    /// Returns empty vec if the result is empty or if `k` is 0.
+    pub fn top_k_by<F: FnMut(&V, &V) -> std::cmp::Ordering>(
+        &self,
+        cmp: F,
+        k: usize,
+        percentage: bool,
+        reverse: bool,
+    ) -> Vec<(K, V)> {
+        let k = if percentage {
+            let total_count = self.result.len();
+            (total_count as f64 * (k as f64 / 100.0)) as usize
+        } else {
+            k
+        };
+        self.sort_by(cmp, reverse).into_iter().take(k).collect()
+    }
+
+    pub fn min_by<F: FnMut(&V, &V) -> std::cmp::Ordering>(&self, mut cmp: F) -> Option<(K, V)> {
+        self.result
+            .iter()
+            .min_by(|a, b| cmp(a.1, b.1))
+            .map(|(k, v)| (k.clone(), v.clone()))
+    }
+
+    pub fn max_by<F: FnMut(&V, &V) -> std::cmp::Ordering>(&self, mut cmp: F) -> Option<(K, V)> {
+        self.result
+            .iter()
+            .max_by(|a, b| cmp(a.1, b.1))
+            .map(|(k, v)| (k.clone(), v.clone()))
+    }
+
+    pub fn median_by<F: FnMut(&V, &V) -> std::cmp::Ordering>(&self, mut cmp: F) -> Option<(K, V)> {
+        let mut items: Vec<_> = self.result.iter().collect();
+        let len = items.len();
+        if len == 0 {
+            return None;
+        }
+        items.sort_by(|(_, a), (_, b)| cmp(a, b));
+        let median_index = len / 2;
+        Some((items[median_index].0.clone(), items[median_index].1.clone()))
+    }
+}
+
+impl<K, V, O> IntoIterator for AlgorithmResult<K, V, O>
+where
+    K: Clone + Hash + Eq + Ord,
+    V: Clone,
+    for<'a> &'a O: From<&'a V>,
+{
+    type Item = (K, V);
+    type IntoIter = std::collections::hash_map::IntoIter<K, V>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.result.into_iter()
+    }
+}
+
+impl<'a, K, V, O> IntoIterator for &'a AlgorithmResult<K, V, O>
+where
+    K: Clone + Hash + Ord,
+    V: Clone,
+{
+    type Item = (&'a K, &'a V);
+    type IntoIter = Iter<'a, K, V>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+impl<K: Clone + Hash + Eq + Ord, V: Clone, O> FromIterator<(K, V)> for AlgorithmResult<K, V, O> {
+    fn from_iter<T: IntoIterator<Item = (K, V)>>(iter: T) -> Self {
+        let result = iter.into_iter().collect();
+        Self {
+            result,
+            marker: PhantomData,
+        }
+    }
+}
+
+impl<K, V, O> AlgorithmResult<K, V, O>
+where
+    K: Clone + Hash + Eq + Ord,
+    V: Clone,
+    O: Ord,
+    V: AsOrd<O>,
+{
+    /// Sorts the `AlgorithmResult` by its values in ascending or descending order.
+    ///
+    /// # Arguments
+    ///
+    /// * `reverse`: If `true`, sorts the result in descending order; otherwise, sorts in ascending order.
+    ///
+    /// # Returns
+    ///
+    /// A sorted vector of tuples containing keys of type `H` and values of type `Y`.
+    pub fn sort_by_value(&self, reverse: bool) -> Vec<(K, V)> {
+        self.sort_by(|a, b| O::cmp(a.as_ord(), b.as_ord()), reverse)
+    }
+
     /// Retrieves the top-k elements from the `AlgorithmResult` based on its values.
     ///
     /// # Arguments
@@ -134,68 +253,31 @@ where
     /// If `percentage` is `false`, the returned vector contains the top `k` elements.
     /// Returns empty vec if the result is empty or if `k` is 0.
     pub fn top_k(&self, k: usize, percentage: bool, reverse: bool) -> Vec<(K, V)> {
-        if percentage {
-            let total_count = self.result.len();
-            let k = (total_count as f64 * (k as f64 / 100.0)) as usize;
-            let sorted_result = self.sort_by_value(reverse);
-            sorted_result.iter().cloned().take(k).collect()
-        } else {
-            let sorted_result = self.sort_by_value(reverse);
-            sorted_result.iter().cloned().take(k).collect()
-        }
+        self.top_k_by(
+            |a, b| O::cmp(a.as_ord(), b.as_ord()),
+            k,
+            percentage,
+            reverse,
+        )
     }
 
     pub fn min(&self) -> Option<(K, V)> {
-        self.result
-            .iter()
-            .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal))
-            .map(|(k, v)| (k.clone(), v.clone()))
+        self.min_by(|a, b| O::cmp(a.as_ord(), b.as_ord()))
     }
 
     pub fn max(&self) -> Option<(K, V)> {
-        self.result
-            .iter()
-            .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal))
-            .map(|(k, v)| (k.clone(), v.clone()))
+        self.max_by(|a, b| O::cmp(a.as_ord(), b.as_ord()))
     }
 
     pub fn median(&self) -> Option<(K, V)> {
-        let mut items: Vec<_> = self.result.iter().collect();
-        let len = items.len();
-        if len == 0 {
-            return None;
-        }
-        items.sort_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-        let median_index = len / 2;
-        Some((items[median_index].0.clone(), items[median_index].1.clone()))
+        self.median_by(|a, b| O::cmp(a.as_ord(), b.as_ord()))
     }
 }
 
-impl<K: Clone + Hash + Eq + Ord> AlgorithmResult<K, f64> {
-    /// Creates a new `AlgorithmResult` with floating-point values converted to `OrderedFloat`.
-    ///
-    /// # Arguments
-    ///
-    /// * `hashmap`: A `HashMap` with keys of type `H` and values of type `f64`.
-    ///
-    /// # Returns
-    ///
-    /// An `AlgorithmResult` with the `f64` values converted to `OrderedFloat<f64>`.
-    pub fn new_with_float(hashmap: HashMap<K, f64>) -> AlgorithmResult<K, OrderedFloat<f64>> {
-        let converted_hashmap: HashMap<K, OrderedFloat<f64>> = hashmap
-            .into_iter()
-            .map(|(key, value)| (key, OrderedFloat::from(value)))
-            .collect();
-        AlgorithmResult {
-            result: converted_hashmap,
-        }
-    }
-}
-
-impl<K, V> AlgorithmResult<K, V>
+impl<K, V, O> AlgorithmResult<K, V, O>
 where
     K: Clone + Hash + Eq + Ord,
-    V: Clone + Ord + Hash + Eq,
+    V: Clone + Hash + Eq,
 {
     /// Groups the `AlgorithmResult` by its values.
     ///
@@ -212,16 +294,14 @@ where
     }
 }
 
-impl<V: Debug + Clone, K: Debug + Clone + Hash + Eq + Ord> Debug for AlgorithmResult<K, V> {
+impl<V: Debug, K: Debug, O> Debug for AlgorithmResult<K, V, O> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut map_string = "{".to_string();
-        for (key, value) in &self.result {
-            map_string.push_str(&format!("{:?}: {:?}, ", key, value));
-        }
-        map_string.pop(); // Remove the trailing comma
-        map_string.pop(); // Remove the space
-        map_string.push('}');
-        write!(f, "{}", map_string)
+        let map_string = self
+            .result
+            .iter()
+            .map(|(key, value)| format!("{:?}: {:?}, ", key, value))
+            .join(", ");
+        write!(f, "{{{}}}", map_string)
     }
 }
 
@@ -237,7 +317,7 @@ mod algorithm_result_test {
         map.insert("A".to_string(), 10);
         map.insert("B".to_string(), 20);
         map.insert("C".to_string(), 30);
-        AlgorithmResult::new(map.clone())
+        AlgorithmResult::new(map)
     }
 
     fn group_by_test() -> AlgorithmResult<String, u64> {
@@ -246,23 +326,24 @@ mod algorithm_result_test {
         map.insert("B".to_string(), 20);
         map.insert("C".to_string(), 30);
         map.insert("D".to_string(), 10);
-        AlgorithmResult::new(map.clone())
+        AlgorithmResult::new(map)
     }
 
-    fn create_algo_result_f64() -> AlgorithmResult<String, OrderedFloat<f64>> {
+    fn create_algo_result_f64() -> AlgorithmResult<String, f64, OrderedFloat<f64>> {
         let mut map: HashMap<String, f64> = HashMap::new();
         map.insert("A".to_string(), 10.0);
         map.insert("B".to_string(), 20.0);
         map.insert("C".to_string(), 30.0);
-        AlgorithmResult::new_with_float(map.clone())
+        AlgorithmResult::new(map)
     }
 
-    fn create_algo_result_tuple() -> AlgorithmResult<String, (f32, f32)> {
+    fn create_algo_result_tuple(
+    ) -> AlgorithmResult<String, (f32, f32), (OrderedFloat<f32>, OrderedFloat<f32>)> {
         let mut map: HashMap<String, (f32, f32)> = HashMap::new();
         map.insert("A".to_string(), (10.0, 20.0));
         map.insert("B".to_string(), (20.0, 30.0));
         map.insert("C".to_string(), (30.0, 40.0));
-        AlgorithmResult::new(map.clone())
+        AlgorithmResult::new(map)
     }
 
     fn create_algo_result_hashmap_vec() -> AlgorithmResult<String, Vec<(i64, String)>> {
@@ -273,7 +354,7 @@ mod algorithm_result_test {
             "C".to_string(),
             vec![(22, "E".to_string()), (33, "F".to_string())],
         );
-        AlgorithmResult::new(map.clone())
+        AlgorithmResult::new(map)
     }
 
     #[test]
@@ -283,18 +364,9 @@ mod algorithm_result_test {
         assert_eq!(algo_result.max(), Some(("C".to_string(), 30u64)));
         assert_eq!(algo_result.median(), Some(("B".to_string(), 20u64)));
         let algo_result = create_algo_result_f64();
-        assert_eq!(
-            algo_result.min(),
-            Some(("A".to_string(), OrderedFloat(10.0)))
-        );
-        assert_eq!(
-            algo_result.max(),
-            Some(("C".to_string(), OrderedFloat(30.0)))
-        );
-        assert_eq!(
-            algo_result.median(),
-            Some(("B".to_string(), OrderedFloat(20.0)))
-        );
+        assert_eq!(algo_result.min(), Some(("A".to_string(), 10.0)));
+        assert_eq!(algo_result.max(), Some(("C".to_string(), 30.0)));
+        assert_eq!(algo_result.median(), Some(("B".to_string(), 20.0)));
     }
 
     #[test]
@@ -303,7 +375,7 @@ mod algorithm_result_test {
         assert_eq!(algo_result.get(&"C".to_string()), Some(&30));
         assert_eq!(algo_result.get(&"D".to_string()), None);
         let algo_result = create_algo_result_f64();
-        assert_eq!(algo_result.get(&"C".to_string()).unwrap().0, 30.0);
+        assert_eq!(algo_result.get(&"C".to_string()), Some(&30.0));
         let algo_result = create_algo_result_tuple();
         assert_eq!(algo_result.get(&"C".to_string()).unwrap().0, 30.0);
         let algo_result = create_algo_result_hashmap_vec();
@@ -357,19 +429,8 @@ mod algorithm_result_test {
         let algo_result = group_by_test();
         let grouped = algo_result.group_by();
         assert_eq!(grouped.get(&10).unwrap().len(), 2);
-        assert_eq!(grouped.get(&10).unwrap().contains(&"A".to_string()), true);
-        assert_eq!(grouped.get(&10).unwrap().contains(&"B".to_string()), false);
-
-        let algo_result = create_algo_result_f64();
-        let grouped = algo_result.group_by();
-        assert_eq!(grouped.get(&OrderedFloat::from(10.0)).unwrap().len(), 1);
-        assert_eq!(
-            grouped
-                .get(&OrderedFloat::from(10.0))
-                .unwrap()
-                .contains(&"A".to_string()),
-            true
-        );
+        assert!(grouped.get(&10).unwrap().contains(&"A".to_string()));
+        assert!(!grouped.get(&10).unwrap().contains(&"B".to_string()));
 
         let algo_result = create_algo_result_hashmap_vec();
         assert_eq!(
@@ -387,12 +448,12 @@ mod algorithm_result_test {
         let algo_result = create_algo_result_u64();
         let all = algo_result.get_all();
         assert_eq!(all.len(), 3);
-        assert_eq!(all.contains_key(&"A".to_string()), true);
+        assert!(all.contains_key("A"));
 
         let algo_result = create_algo_result_f64();
         let all = algo_result.get_all();
         assert_eq!(all.len(), 3);
-        assert_eq!(all.contains_key(&"A".to_string()), true);
+        assert!(all.contains_key("A"));
 
         let algo_result = create_algo_result_tuple();
         assert_eq!(algo_result.get_all().get("A").unwrap().0, 10.0);
@@ -408,18 +469,18 @@ mod algorithm_result_test {
         let algo_result = create_algo_result_u64();
         let sorted = algo_result.sort_by_key(true);
         let my_array: Vec<(String, u64)> = vec![
-            ("C".to_string(), 30 as u64),
-            ("B".to_string(), 20 as u64),
-            ("A".to_string(), 10 as u64),
+            ("C".to_string(), 30u64),
+            ("B".to_string(), 20u64),
+            ("A".to_string(), 10u64),
         ];
         assert_eq!(my_array, sorted);
         //
         let algo_result = create_algo_result_f64();
         let sorted = algo_result.sort_by_key(true);
-        let my_array: Vec<(String, OrderedFloat<f64>)> = vec![
-            ("C".to_string(), OrderedFloat(30.0)),
-            ("B".to_string(), OrderedFloat(20.0)),
-            ("A".to_string(), OrderedFloat(10.0)),
+        let my_array: Vec<(String, f64)> = vec![
+            ("C".to_string(), 30.0),
+            ("B".to_string(), 20.0),
+            ("A".to_string(), 10.0),
         ];
         assert_eq!(my_array, sorted);
         //

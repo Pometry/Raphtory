@@ -76,7 +76,7 @@ pub struct JsonLinesLoader<REC: DeserializeOwned> {
     print_file_name: bool,
 }
 
-impl<REC: DeserializeOwned + std::fmt::Debug + std::marker::Sync> JsonLinesLoader<REC> {
+impl<REC: DeserializeOwned + std::fmt::Debug + Sync> JsonLinesLoader<REC> {
     /// Creates a new CSV loader with the given path.
     pub fn new(path: PathBuf, regex_filter: Option<Regex>) -> Self {
         Self {
@@ -164,14 +164,12 @@ impl<REC: DeserializeOwned + std::fmt::Debug + std::marker::Sync> JsonLinesLoade
         while let Some(ref path) = queue.pop_back() {
             match fs::read_dir(path) {
                 Ok(entries) => {
-                    for entry in entries {
-                        if let Ok(f_path) = entry {
-                            let p = f_path.path();
-                            if Self::is_dir(&p)? {
-                                queue.push_back(p.clone())
-                            } else {
-                                self.accept_file(f_path.path(), &mut paths);
-                            }
+                    for f_path in entries.flatten() {
+                        let p = f_path.path();
+                        if Self::is_dir(&p)? {
+                            queue.push_back(p.clone())
+                        } else {
+                            self.accept_file(f_path.path(), &mut paths);
                         }
                     }
                 }
@@ -297,7 +295,6 @@ mod tests {
     use crate::prelude::*;
     use bzip2::{write::BzEncoder, Compression as BzCompression};
     use flate2::{write::GzEncoder, Compression};
-    use itertools::Itertools;
     use serde::Deserialize;
     use std::{fs::File, io::Write};
     use tempfile::tempdir;
