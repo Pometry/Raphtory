@@ -96,6 +96,13 @@ impl From<(String, f64)> for Pagerank {
     }
 }
 
+impl From<(String, OrderedFloat<f64>)> for Pagerank {
+    fn from((name, rank): (String, OrderedFloat<f64>)) -> Self {
+        let rank = rank.into_inner();
+        Self { name, rank }
+    }
+}
+
 impl From<(&String, &OrderedFloat<f64>)> for Pagerank {
     fn from((name, rank): (&String, &OrderedFloat<f64>)) -> Self {
         Self {

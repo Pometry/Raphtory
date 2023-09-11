@@ -92,7 +92,7 @@ pub fn pagerank(
     g: &PyGraphView,
     iter_count: usize,
     max_diff: Option<f64>,
-) -> AlgorithmResult<String, OrderedFloat<f64>> {
+) -> AlgorithmResult<String, f64, OrderedFloat<f64>> {
     unweighted_page_rank(&g.graph, iter_count, None, max_diff, true)
 }
 
@@ -242,7 +242,7 @@ pub fn global_reciprocity(g: &PyGraphView) -> f64 {
 ///     AlgorithmResult : AlgorithmResult with string keys and float values mapping each vertex name to its reciprocity value.
 ///
 #[pyfunction]
-pub fn all_local_reciprocity(g: &PyGraphView) -> AlgorithmResult<String, OrderedFloat<f64>> {
+pub fn all_local_reciprocity(g: &PyGraphView) -> AlgorithmResult<String, f64, OrderedFloat<f64>> {
     all_local_reciprocity_rs(&g.graph, None)
 }
 
@@ -369,7 +369,7 @@ pub fn hits(
     g: &PyGraphView,
     iter_count: usize,
     threads: Option<usize>,
-) -> AlgorithmResult<String, (f32, f32)> {
+) -> AlgorithmResult<String, (f32, f32), (OrderedFloat<f32>, OrderedFloat<f32>)> {
     hits_rs(&g.graph, iter_count, threads)
 }
 
@@ -396,6 +396,6 @@ pub fn balance(
     name: String,
     direction: PyDirection,
     threads: Option<usize>,
-) -> AlgorithmResult<String, OrderedFloat<f64>> {
+) -> AlgorithmResult<String, f64, OrderedFloat<f64>> {
     balance_rs(&g.graph, name.clone(), direction.into(), threads)
 }
