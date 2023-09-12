@@ -1,7 +1,8 @@
 use parking_lot::RwLock;
 use raphtory::{
+    core::Prop,
     db::api::view::internal::{DynamicGraph, IntoDynamic},
-    prelude::{Graph, GraphViewOps},
+    prelude::{Graph, GraphViewOps, PropertyAdditionOps},
     search::IndexedGraph,
 };
 use std::{
@@ -12,11 +13,11 @@ use walkdir::WalkDir;
 
 #[derive(Default)]
 pub(crate) struct Data {
-    pub(crate) graphs: RwLock<HashMap<String, IndexedGraph<DynamicGraph>>>,
+    pub(crate) graphs: RwLock<HashMap<String, IndexedGraph<Graph>>>,
 }
 
 impl Data {
-    pub fn from_map(graphs: HashMap<String, DynamicGraph>) -> Self {
+    pub fn from_map(graphs: HashMap<String, Graph>) -> Self {
         let graphs = RwLock::new(Self::convert_graphs(graphs));
         Self { graphs }
     }
@@ -26,19 +27,14 @@ impl Data {
         Self { graphs }
     }
 
-    pub fn from_map_and_directory(
-        graphs: HashMap<String, DynamicGraph>,
-        directory_path: &str,
-    ) -> Self {
+    pub fn from_map_and_directory(graphs: HashMap<String, Graph>, directory_path: &str) -> Self {
         let mut graphs = Self::convert_graphs(graphs);
         graphs.extend(Self::load_from_file(directory_path));
         let graphs = RwLock::new(graphs);
         Self { graphs }
     }
 
-    fn convert_graphs(
-        graphs: HashMap<String, DynamicGraph>,
-    ) -> HashMap<String, IndexedGraph<DynamicGraph>> {
+    fn convert_graphs(graphs: HashMap<String, Graph>) -> HashMap<String, IndexedGraph<Graph>> {
         graphs
             .into_iter()
             .map(|(name, g)| {
@@ -50,7 +46,7 @@ impl Data {
             .collect()
     }
 
-    pub fn load_from_file(path: &str) -> HashMap<String, IndexedGraph<DynamicGraph>> {
+    pub fn load_from_file(path: &str) -> HashMap<String, IndexedGraph<Graph>> {
         let mut valid_paths = HashSet::<String>::new();
 
         for entry in WalkDir::new(path).into_iter().filter_map(|e| e.ok()) {
@@ -73,11 +69,14 @@ impl Data {
             }
         };
 
-        let graphs: HashMap<String, IndexedGraph<DynamicGraph>> = valid_paths
+        let graphs: HashMap<String, IndexedGraph<Graph>> = valid_paths
             .into_iter()
             .map(|path| {
                 println!("loading graph from {path}");
                 let graph = Graph::load_from_file(&path).expect("Unable to load from graph");
+                graph
+                    .add_constant_properties([("path".to_string(), Prop::Str(path.clone()))])
+                    .expect("Failed to add static property");
                 let maybe_graph_name = graph.properties().get("name");
 
                 return match maybe_graph_name {
@@ -95,7 +94,7 @@ impl Data {
             .map(|(name, g)| {
                 (
                     name,
-                    IndexedGraph::from_graph(&g.into_dynamic()).expect("Unable to index graph"),
+                    IndexedGraph::from_graph(&g).expect("Unable to index graph"),
                 )
             })
             .collect();
