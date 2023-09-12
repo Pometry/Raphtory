@@ -23,7 +23,7 @@ use crate::{
     },
     python::graph::pandas::{load_edges_props_from_df, load_vertex_props_from_df},
 };
-use pyo3::types::IntoPyDict;
+use pyo3::types::{IntoPyDict, PyBytes};
 use std::{
     collections::HashMap,
     fmt::{Debug, Formatter},
@@ -38,7 +38,7 @@ use super::pandas::{
 #[derive(Clone)]
 #[pyclass(name="Graph", extends=PyGraphView)]
 pub struct PyGraph {
-    pub(crate) graph: Graph,
+    pub graph: Graph,
 }
 
 impl Debug for PyGraph {
@@ -246,6 +246,12 @@ impl PyGraph {
     /// None
     pub fn save_to_file(&self, path: &str) -> Result<(), GraphError> {
         self.graph.save_to_file(Path::new(path))
+    }
+
+    /// Get bincode encoded graph
+    pub fn bincode<'py>(&'py self, py: Python<'py>) -> Result<&'py PyBytes, GraphError> {
+        let bytes = MaterializedGraph::from(self.graph.clone()).bincode()?;
+        Ok(PyBytes::new(py, &bytes))
     }
 
     #[staticmethod]

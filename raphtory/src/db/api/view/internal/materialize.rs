@@ -76,6 +76,16 @@ impl MaterializedGraph {
         let mut writer = std::io::BufWriter::new(f);
         Ok(bincode::serialize_into(&mut writer, self)?)
     }
+
+    pub fn bincode(&self) -> Result<Vec<u8>, GraphError> {
+        let encoded = bincode::serialize(self)?;
+        Ok(encoded)
+    }
+
+    pub fn from_bincode(b: &[u8]) -> Result<Self, GraphError> {
+        let g = bincode::deserialize(b)?;
+        Ok(g)
+    }
 }
 
 #[enum_dispatch]

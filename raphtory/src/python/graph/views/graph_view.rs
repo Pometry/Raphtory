@@ -32,7 +32,7 @@ use crate::{
 };
 use chrono::prelude::*;
 use itertools::Itertools;
-use pyo3::prelude::*;
+use pyo3::{prelude::*, types::PyBytes};
 use std::ops::Deref;
 
 impl IntoPy<PyObject> for MaterializedGraph {
@@ -50,8 +50,23 @@ impl IntoPy<PyObject> for DynamicGraph {
     }
 }
 
+impl<'source> FromPyObject<'source> for DynamicGraph {
+    fn extract(ob: &'source PyAny) -> PyResult<Self> {
+        ob.extract::<PyRef<PyGraphView>>()
+            .map(|g| g.graph.clone())
+            .or_else(|err| {
+                let res = ob.call_method0("bincode").map_err(|_| err)?; // return original error as probably more helpful
+                                                                        // assume we have a graph at this point, the res probably should not fail
+                let b = res.extract::<&[u8]>()?;
+                let g = MaterializedGraph::from_bincode(b)?;
+                Ok(g.into_dynamic())
+            })
+    }
+}
 /// Graph view is a read-only version of a graph at a certain point in time.
+
 #[pyclass(name = "GraphView", frozen, subclass)]
+#[repr(C)]
 pub struct PyGraphView {
     pub graph: DynamicGraph,
 }
@@ -376,6 +391,12 @@ impl PyGraphView {
     ///    GraphView - Returns a graph clone
     fn materialize(&self) -> Result<MaterializedGraph, GraphError> {
         self.graph.materialize()
+    }
+
+    /// Get bincode encoded graph
+    pub fn bincode<'py>(&'py self, py: Python<'py>) -> Result<&'py PyBytes, GraphError> {
+        let bytes = self.graph.materialize()?.bincode()?;
+        Ok(PyBytes::new(py, &bytes))
     }
 
     /// Displays the graph

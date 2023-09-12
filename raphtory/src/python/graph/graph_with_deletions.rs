@@ -8,7 +8,10 @@
 use crate::{
     core::{entities::vertices::vertex_ref::VertexRef, utils::errors::GraphError, Prop},
     db::{
-        api::mutation::{AdditionOps, PropertyAdditionOps},
+        api::{
+            mutation::{AdditionOps, PropertyAdditionOps},
+            view::internal::MaterializedGraph,
+        },
         graph::{edge::EdgeView, vertex::VertexView, views::deletion_graph::GraphWithDeletions},
     },
     prelude::{DeletionOps, GraphViewOps},
@@ -17,7 +20,7 @@ use crate::{
         utils::{PyInputVertex, PyTime},
     },
 };
-use pyo3::prelude::*;
+use pyo3::{prelude::*, types::PyBytes};
 use std::{
     collections::HashMap,
     fmt::{Debug, Formatter},
@@ -232,5 +235,11 @@ impl PyGraphWithDeletions {
     /// None
     pub fn save_to_file(&self, path: &str) -> Result<(), GraphError> {
         self.graph.save_to_file(Path::new(path))
+    }
+
+    /// Get bincode encoded graph
+    pub fn bincode<'py>(&'py self, py: Python<'py>) -> Result<&'py PyBytes, GraphError> {
+        let bytes = MaterializedGraph::from(self.graph.clone()).bincode()?;
+        Ok(PyBytes::new(py, &bytes))
     }
 }

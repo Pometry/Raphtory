@@ -2,15 +2,18 @@ from raphtory import Graph
 from raphtory import export
 import pandas as pd
 import json
+from pathlib import Path
+
+base_dir = Path(__file__).parent
 
 
 def build_graph():
-    edges_df = pd.read_csv("data/network_traffic_edges.csv")
+    edges_df = pd.read_csv(base_dir / "data/network_traffic_edges.csv")
     edges_df["timestamp"] = pd.to_datetime(edges_df["timestamp"]).astype(
         "datetime64[ms, UTC]"
     )
 
-    vertices_df = pd.read_csv("data/network_traffic_vertices.csv")
+    vertices_df = pd.read_csv(base_dir / "data/network_traffic_vertices.csv")
     vertices_df["timestamp"] = pd.to_datetime(vertices_df["timestamp"]).astype(
         "datetime64[ms, UTC]"
     )
@@ -951,56 +954,56 @@ def test_to_df():
     g = build_graph()
 
     compare_df(
-        export.to_edge_df(g), pd.read_json("expected/dataframe_output/edge_df_all.json")
+        export.to_edge_df(g), pd.read_json(base_dir / "expected/dataframe_output/edge_df_all.json")
     )
 
     compare_df(
         export.to_edge_df(g, include_edge_properties=False),
-        pd.read_json("expected/dataframe_output/edge_df_no_props.json"),
+        pd.read_json(base_dir / "expected/dataframe_output/edge_df_no_props.json"),
     )
 
     compare_df(
         export.to_edge_df(g, include_update_history=False),
-        pd.read_json("expected/dataframe_output/edge_df_no_hist.json"),
+        pd.read_json(base_dir / "expected/dataframe_output/edge_df_no_hist.json"),
     )
 
     compare_df(
         export.to_edge_df(g, include_property_histories=False),
-        pd.read_json("expected/dataframe_output/edge_df_no_prop_hist.json"),
+        pd.read_json(base_dir / "expected/dataframe_output/edge_df_no_prop_hist.json"),
     )
 
     compare_df(
         export.to_edge_df(g, explode_edges=True),
-        pd.read_json("expected/dataframe_output/edge_df_exploded.json"),
+        pd.read_json(base_dir / "expected/dataframe_output/edge_df_exploded.json"),
     )
     compare_df(
         export.to_edge_df(g, explode_edges=True, include_edge_properties=False),
-        pd.read_json("expected/dataframe_output/edge_df_exploded_no_props.json"),
+        pd.read_json(base_dir / "expected/dataframe_output/edge_df_exploded_no_props.json"),
     )
 
     compare_df(
         export.to_edge_df(g, explode_edges=True, include_update_history=False),
-        pd.read_json("expected/dataframe_output/edge_df_exploded_no_hist.json"),
+        pd.read_json(base_dir / "expected/dataframe_output/edge_df_exploded_no_hist.json"),
     )
 
     compare_df(
         export.to_edge_df(g, explode_edges=True, include_property_histories=False),
-        pd.read_json("expected/dataframe_output/edge_df_exploded_no_prop_hist.json"),
+        pd.read_json(base_dir / "expected/dataframe_output/edge_df_exploded_no_prop_hist.json"),
     )
 
     compare_df(
         export.to_vertex_df(g),
-        pd.read_json("expected/dataframe_output/vertex_df_all.json"),
+        pd.read_json(base_dir / "expected/dataframe_output/vertex_df_all.json"),
     )
     compare_df(
         export.to_vertex_df(g, include_vertex_properties=False),
-        pd.read_json("expected/dataframe_output/vertex_df_no_props.json"),
+        pd.read_json(base_dir / "expected/dataframe_output/vertex_df_no_props.json"),
     )
     compare_df(
         export.to_vertex_df(g, include_update_history=False),
-        pd.read_json("expected/dataframe_output/vertex_df_no_hist.json"),
+        pd.read_json(base_dir / "expected/dataframe_output/vertex_df_no_hist.json"),
     )
     compare_df(
         export.to_vertex_df(g, include_property_histories=False),
-        pd.read_json("expected/dataframe_output/vertex_df_no_prop_hist.json"),
+        pd.read_json(base_dir / "expected/dataframe_output/vertex_df_no_prop_hist.json"),
     )
