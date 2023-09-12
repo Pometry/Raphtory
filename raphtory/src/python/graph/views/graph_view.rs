@@ -54,9 +54,9 @@ impl<'source> FromPyObject<'source> for DynamicGraph {
     fn extract(ob: &'source PyAny) -> PyResult<Self> {
         ob.extract::<PyRef<PyGraphView>>()
             .map(|g| g.graph.clone())
-            .or_else(|_| {
-                println!("attempting bincode roundtrip due to crate boundary");
-                let res = ob.call_method0("bincode")?;
+            .or_else(|err| {
+                let res = ob.call_method0("bincode").map_err(|_| err)?; // return original error as probably more helpful
+                                                                        // assume we have a graph at this point, the res probably should not fail
                 let b = res.extract::<&[u8]>()?;
                 let g = MaterializedGraph::from_bincode(b)?;
                 Ok(g.into_dynamic())
