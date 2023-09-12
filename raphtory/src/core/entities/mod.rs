@@ -20,7 +20,7 @@ pub mod vertices;
 #[derive(
     Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Deserialize, Serialize, Default,
 )]
-pub struct VID(usize);
+pub struct VID(pub usize);
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct LocalID {
@@ -44,7 +44,7 @@ impl From<VID> for usize {
 #[derive(
     Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Deserialize, Serialize, Default,
 )]
-pub struct EID(usize);
+pub struct EID(pub usize);
 
 impl From<EID> for usize {
     fn from(id: EID) -> Self {

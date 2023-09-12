@@ -369,4 +369,12 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeListOps
     fn latest_time(self) -> Self::IterType<Option<i64>> {
         Box::new(self.map(|e| e.latest_time()))
     }
+
+    fn time(self) -> Self::IterType<Option<i64>> {
+        Box::new(self.map(|e| e.time()))
+    }
+
+    fn layer_name(self) -> Self::IterType<Option<String>> {
+        Box::new(self.map(|e| e.layer_name()))
+    }
 }

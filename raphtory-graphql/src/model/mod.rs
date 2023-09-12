@@ -116,7 +116,7 @@ impl Mut {
     ) -> Result<bool> {
         let data = ctx.data_unchecked::<Data>().graphs.read();
         let g = data.get(&graph_name).ok_or("Graph not found")?;
-        g.add_static_properties([("uiProps".to_string(), Prop::Str(props))])
+        g.add_constant_properties([("uiProps".to_string(), Prop::Str(props))])
             .expect("Failed to add static property");
 
         let path = g

@@ -24,11 +24,11 @@ impl Neo4JConnection {
     }
 
     pub async fn run(&self, query: Query) -> Result<()> {
-        Ok(self.neo_graph.run(query).await?)
+        self.neo_graph.run(query).await
     }
 
     pub async fn execute(&self, query: Query) -> Result<RowStream> {
-        Ok(self.neo_graph.execute(query).await?)
+        self.neo_graph.execute(query).await
     }
 
     pub async fn load_query_into_graph(
@@ -50,10 +50,7 @@ impl Neo4JConnection {
 mod neo_loader_test {
     use crate::{
         db::{
-            api::{
-                mutation::{AdditionOps, PropertyAdditionOps},
-                view::GraphViewOps,
-            },
+            api::{mutation::AdditionOps, view::GraphViewOps},
             graph::graph as rap,
         },
         graph_loader::source::neo4j_loader::Neo4JConnection,
@@ -76,21 +73,16 @@ mod neo_loader_test {
 
         graph
             .add_vertex(actor_born, actor_name.clone(), NO_PROPS)
-            .unwrap();
-        graph
-            .add_vertex_properties(actor_name.clone(), [("type", "actor")])
+            .unwrap()
+            .add_constant_properties([("type", "actor")])
             .unwrap();
         graph
             .add_vertex(film_release, film_title.clone(), NO_PROPS)
-            .unwrap();
-        graph
-            .add_vertex_properties(
-                film_title.clone(),
-                [
-                    ("type", "film".into_prop()),
-                    ("tagline", film_tagline.into_prop()),
-                ],
-            )
+            .unwrap()
+            .add_constant_properties([
+                ("type", "film".into_prop()),
+                ("tagline", film_tagline.into_prop()),
+            ])
             .unwrap();
         graph
             .add_edge(

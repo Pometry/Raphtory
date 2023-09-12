@@ -27,6 +27,7 @@
 //! ```
 
 pub mod algorithm_result;
+pub mod balance;
 pub mod clustering_coefficient;
 pub mod connected_components;
 pub mod degree;

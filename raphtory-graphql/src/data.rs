@@ -75,7 +75,7 @@ impl Data {
                 println!("loading graph from {path}");
                 let graph = Graph::load_from_file(&path).expect("Unable to load from graph");
                 graph
-                    .add_static_properties([("path".to_string(), Prop::Str(path.clone()))])
+                    .add_constant_properties([("path".to_string(), Prop::Str(path.clone()))])
                     .expect("Failed to add static property");
                 let maybe_graph_name = graph.properties().get("name");
 

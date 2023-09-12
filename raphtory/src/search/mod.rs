@@ -140,6 +140,12 @@ impl<G: GraphViewOps> IndexedGraph<G> {
             Prop::DTime(_) => {
                 schema.add_date_field(prop, INDEXED);
             }
+            Prop::U8(_) => {
+                schema.add_u64_field(prop, INDEXED);
+            }
+            Prop::U16(_) => {
+                schema.add_u64_field(prop, INDEXED);
+            }
             Prop::U64(_) => {
                 schema.add_u64_field(prop, INDEXED);
             }
@@ -276,6 +282,12 @@ impl<G: GraphViewOps> IndexedGraph<G> {
                 let time =
                     tantivy::DateTime::from_timestamp_nanos(prop_time.and_utc().timestamp_nanos());
                 document.add_date(prop_field, time);
+            }
+            Prop::U8(prop_u8) => {
+                document.add_u64(prop_field, u64::from(prop_u8));
+            }
+            Prop::U16(prop_u16) => {
+                document.add_u64(prop_field, u64::from(prop_u16));
             }
             Prop::U64(prop_u64) => {
                 document.add_u64(prop_field, prop_u64);
@@ -619,14 +631,24 @@ impl<G: GraphViewOps> IndexedGraph<G> {
 }
 
 impl<G: GraphViewOps + InternalAdditionOps> InternalAdditionOps for IndexedGraph<G> {
+    #[inline]
     fn next_event_id(&self) -> usize {
         self.graph.next_event_id()
+    }
+    #[inline]
+    fn resolve_layer(&self, layer: Option<&str>) -> usize {
+        self.graph.resolve_layer(layer)
+    }
+
+    #[inline]
+    fn resolve_vertex(&self, id: u64) -> VID {
+        self.graph.resolve_vertex(id)
     }
 
     fn internal_add_vertex(
         &self,
         t: TimeIndexEntry,
-        v: u64,
+        v: VID,
         name: Option<&str>,
         props: Vec<(String, Prop)>,
     ) -> Result<VID, GraphError> {
@@ -674,10 +696,10 @@ impl<G: GraphViewOps + InternalAdditionOps> InternalAdditionOps for IndexedGraph
     fn internal_add_edge(
         &self,
         _t: TimeIndexEntry,
-        _src: u64,
-        _dst: u64,
+        _src: VID,
+        _dst: VID,
         _props: Vec<(String, Prop)>,
-        _layer: Option<&str>,
+        _layer: usize,
     ) -> Result<EID, GraphError> {
         todo!()
     }
