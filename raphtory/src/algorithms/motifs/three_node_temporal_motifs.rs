@@ -125,8 +125,8 @@ pub fn star_motif_count<G: GraphViewOps>(
     let exploded_edges = evv
         .edges()
         .explode()
-        // .sorted_by_key(|e| (e.time(), e.src().id(), e.dst().id()))
-        .sorted_unstable_by_key(|e| (e.time(), rng.gen_range(0..10000000)))
+        .sorted_by_key(|e| (e.time(), e.src().id(), e.dst().id()))
+        // .sorted_unstable_by_key(|e| (e.time(), rng.gen_range(0..10000000)))
         .map(|edge| {
             if edge.src().id() == evv.id() {
                 star_event(neigh_map[&edge.dst().id()], 1, edge.time().unwrap())
@@ -157,8 +157,8 @@ pub fn twonode_motif_count<G: GraphViewOps>(
             .iter()
             .flat_map(|e| e.explode())
             .chain(inc.iter().flat_map(|e| e.explode()))
-            // .sorted_by_key(|e| (e.time(), e.src().id(), e.dst().id()))
-            .sorted_unstable_by_key(|e| (e.time(), rng.gen_range(0..10000000)))
+            .sorted_by_key(|e| (e.time(), e.src().id(), e.dst().id()))
+            // .sorted_unstable_by_key(|e| (e.time(), rng.gen_range(0..10000000)))
             .map(|e| {
                 two_node_event(
                     if e.src().id() == evv.id() { 1 } else { 0 },
@@ -235,12 +235,11 @@ pub fn triangle_motifs<G: GraphViewOps>(
 
                         let mut tmp = vec![u.id(), v.id(), *w]
                             .into_iter()
-                            // .sorted()
-                            // .rev()
+                            .sorted()
                             .permutations(2)
                             .collect_vec();
 
-                        tmp.shuffle(&mut rng);
+                        // tmp.shuffle(&mut rng);
 
                         let all_exploded = tmp
                             .iter()
