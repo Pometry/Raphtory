@@ -22,6 +22,8 @@ use crate::{
 };
 
 use crate::core::entities::vertices::vertex_ref::VertexRef;
+use rand::prelude::*;
+use rand::{rngs::StdRng, SeedableRng, Rng, seq::SliceRandom};
 use futures::io::empty;
 use itertools::{enumerate, Combinations, Itertools};
 use num_traits::Zero;
@@ -112,6 +114,7 @@ pub fn star_motif_count<G: GraphViewOps>(
     evv: &EvalVertexView<G, ComputeStateVec, MotifCounter>,
     delta: i64,
 ) -> [usize; 24] {
+    let mut rng = StdRng::from_entropy();
     let neigh_map: HashMap<u64, usize> = evv
         .neighbours()
         .into_iter()
@@ -122,7 +125,8 @@ pub fn star_motif_count<G: GraphViewOps>(
     let exploded_edges = evv
         .edges()
         .explode()
-        .sorted_by_key(|e| (e.time(), e.src().id(), e.dst().id()))
+        // .sorted_by_key(|e| (e.time(), e.src().id(), e.dst().id()))
+        .sorted_unstable_by_key(|e| (e.time(), rng.gen_range(0..10000000)))
         .map(|edge| {
             if edge.src().id() == evv.id() {
                 star_event(neigh_map[&edge.dst().id()], 1, edge.time().unwrap())
@@ -143,6 +147,7 @@ pub fn twonode_motif_count<G: GraphViewOps>(
     evv: &EvalVertexView<G, ComputeStateVec, MotifCounter>,
     delta: i64,
 ) -> [usize; 8] {
+    let mut rng = StdRng::from_entropy();
     let mut counts = [0; 8];
     for nb in evv.neighbours().into_iter() {
         let nb_id = nb.id();
@@ -152,7 +157,8 @@ pub fn twonode_motif_count<G: GraphViewOps>(
             .iter()
             .flat_map(|e| e.explode())
             .chain(inc.iter().flat_map(|e| e.explode()))
-            .sorted_by_key(|e| (e.time(), e.src().id(), e.dst().id()))
+            // .sorted_by_key(|e| (e.time(), e.src().id(), e.dst().id()))
+            .sorted_unstable_by_key(|e| (e.time(), rng.gen_range(0..10000000)))
             .map(|e| {
                 two_node_event(
                     if e.src().id() == evv.id() { 1 } else { 0 },
@@ -199,6 +205,7 @@ pub fn triangle_motifs<G: GraphViewOps>(
 
     let step2 = ATask::new(
         move |u: &mut EvalVertexView<VertexSubgraph<G>, ComputeStateVec, MotifCounter>| {
+            let mut rng = StdRng::from_entropy();
             for v in u.neighbours() {
                 // Find triangles on the UV edge
                 if u.id() > v.id() {
@@ -226,10 +233,17 @@ pub fn triangle_motifs<G: GraphViewOps>(
                     intersection_nbs.iter().for_each(|w| {
                         // For each triangle, run the triangle count.
 
-                        let all_exploded = vec![u.id(), v.id(), *w]
+                        let mut tmp = vec![u.id(), v.id(), *w]
                             .into_iter()
-                            .sorted()
+                            // .sorted()
+                            // .rev()
                             .permutations(2)
+                            .collect_vec();
+
+                        tmp.shuffle(&mut rng);
+
+                        let all_exploded = tmp
+                            .iter()
                             .map(|e| {
                                 g
                                     .edge(e.get(0).unwrap().clone(), e.get(1).unwrap().clone())
