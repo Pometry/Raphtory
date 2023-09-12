@@ -747,6 +747,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "custom_python_extension"
+version = "0.1.0"
+dependencies = [
+ "pyo3",
+ "pyo3-build-config",
+ "raphtory",
+]
+
+[[package]]
 name = "darling"
 version = "0.14.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"

@@ -3,6 +3,7 @@ members = [
 	"raphtory",
 	"raphtory-benchmark",
 	"examples/rust",
+	"examples/custom_python_extension",
 	"python",
 	"js-raphtory",
 	"raphtory-graphql",
