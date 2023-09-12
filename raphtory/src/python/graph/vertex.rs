@@ -2,12 +2,16 @@
 //! A vertex is a node in the graph, and can have properties and edges.
 //! It can also be used to navigate the graph.
 use crate::{
-    core::{entities::vertices::vertex_ref::VertexRef, utils::time::error::ParseTimeError, Prop},
+    core::{
+        entities::vertices::vertex_ref::VertexRef,
+        utils::{errors::GraphError, time::error::ParseTimeError},
+        Prop,
+    },
     db::{
         api::{
             properties::Properties,
             view::{
-                internal::{DynamicGraph, IntoDynamic},
+                internal::{DynamicGraph, Immutable, IntoDynamic, MaterializedGraph},
                 *,
             },
         },
@@ -15,9 +19,13 @@ use crate::{
             path::{PathFromGraph, PathFromVertex},
             vertex::VertexView,
             vertices::Vertices,
-            views::{layer_graph::LayeredGraph, window_graph::WindowedGraph},
+            views::{
+                deletion_graph::GraphWithDeletions, layer_graph::LayeredGraph,
+                window_graph::WindowedGraph,
+            },
         },
     },
+    prelude::Graph,
     python::{
         graph::{
             edge::{PyEdges, PyNestedEdges},
@@ -38,10 +46,10 @@ use pyo3::{
     pymethods, PyAny, PyObject, PyRef, PyRefMut, PyResult, Python,
 };
 use python::types::repr::{iterator_repr, Repr};
-use std::ops::Deref;
+use std::{collections::HashMap, ops::Deref};
 
 /// A vertex (or node) in the graph.
-#[pyclass(name = "Vertex")]
+#[pyclass(name = "Vertex", subclass)]
 #[derive(Clone)]
 pub struct PyVertex {
     vertex: VertexView<DynamicGraph>,
@@ -55,12 +63,6 @@ impl<G: GraphViewOps + IntoDynamic> From<VertexView<G>> for PyVertex {
                 vertex: value.vertex,
             },
         }
-    }
-}
-
-impl<G: GraphViewOps + IntoDynamic> IntoPy<PyObject> for VertexView<G> {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        PyVertex::from(self).into_py(py)
     }
 }
 
@@ -402,23 +404,102 @@ impl Repr for PyVertex {
     }
 }
 
-impl Repr for VertexView<DynamicGraph> {
+impl<G: GraphViewOps> Repr for VertexView<G> {
     fn repr(&self) -> String {
+        let earliest_time = self.earliest_time().repr();
+        let latest_time = self.latest_time().repr();
         let properties: String = self
             .properties()
             .iter()
             .map(|(k, v)| format!("{}: {}", k.deref(), v))
             .join(", ");
         if properties.is_empty() {
-            format!("Vertex(name={})", self.name().trim_matches('"'))
-        } else {
-            let property_string: String = format!("{{{properties}}}");
             format!(
-                "Vertex(name={}, properties={})",
+                "Vertex(name={}, earliest_time={:?}, latest_time={:?})",
                 self.name().trim_matches('"'),
-                property_string
+                earliest_time,
+                latest_time
+            )
+        } else {
+            format!(
+                "Vertex(name={}, earliest_time={:?}, latest_time={:?}, properties={})",
+                self.name().trim_matches('"'),
+                earliest_time,
+                latest_time,
+                format!("{{{properties}}}")
             )
         }
+    }
+}
+
+#[pyclass(name = "MutableVertex", extends=PyVertex)]
+pub struct PyMutableVertex {
+    vertex: VertexView<MaterializedGraph>,
+}
+
+impl Repr for PyMutableVertex {
+    fn repr(&self) -> String {
+        self.vertex.repr()
+    }
+}
+
+impl From<VertexView<MaterializedGraph>> for PyMutableVertex {
+    fn from(vertex: VertexView<MaterializedGraph>) -> Self {
+        Self { vertex }
+    }
+}
+
+impl<G: GraphViewOps + IntoDynamic + Immutable> IntoPy<PyObject> for VertexView<G> {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        PyVertex::from(self).into_py(py)
+    }
+}
+
+impl IntoPy<PyObject> for VertexView<Graph> {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        let graph: MaterializedGraph = self.graph.into();
+        let vertex = self.vertex;
+        let vertex = VertexView { graph, vertex };
+        vertex.into_py(py)
+    }
+}
+
+impl IntoPy<PyObject> for VertexView<GraphWithDeletions> {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        let graph: MaterializedGraph = self.graph.into();
+        let vertex = self.vertex;
+        let vertex = VertexView { graph, vertex };
+        vertex.into_py(py)
+    }
+}
+
+impl IntoPy<PyObject> for VertexView<MaterializedGraph> {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        Py::new(
+            py,
+            (PyMutableVertex::from(self.clone()), PyVertex::from(self)),
+        )
+        .unwrap() // I think this only fails if we are out of memory? Seems to be unavoidable!
+        .into_py(py)
+    }
+}
+
+#[pymethods]
+impl PyMutableVertex {
+    fn add_updates(
+        &self,
+        t: PyTime,
+        properties: Option<HashMap<String, Prop>>,
+    ) -> Result<(), GraphError> {
+        self.vertex.add_updates(t, properties.unwrap_or_default())
+    }
+
+    fn add_constant_properties(&self, properties: HashMap<String, Prop>) -> Result<(), GraphError> {
+        self.vertex.add_constant_properties(properties)
+    }
+
+    fn __repr__(&self) -> String {
+        self.repr()
     }
 }
 

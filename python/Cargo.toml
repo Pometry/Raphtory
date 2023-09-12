@@ -18,10 +18,10 @@ name = "raphtory"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 =  {version= "0.18.3", features=["multiple-pymethods", "chrono"]}
-pyo3-asyncio = { version = "0.18", features = ["tokio-runtime"] }
-raphtory_core = {path = "../raphtory", version = "0.5.2", features=["python"], package="raphtory" }
-raphtory-graphql = {path = "../raphtory-graphql", version = "0.5.2" }
+pyo3 =  {version= "0.19.2", features=["multiple-pymethods", "chrono"]}
+pyo3-asyncio = { version = "0.19.0", features = ["tokio-runtime"] }
+raphtory_core = {path = "../raphtory", version = "0.5.6", features=["python"], package="raphtory" }
+raphtory-graphql = {path = "../raphtory-graphql", version = "0.5.6" }
 openssl = { version = "0.10", features = ["vendored"] } # DO NOT REMOVE IT BREAKS PYTHON RELEASE
 
 
@@ -30,4 +30,4 @@ extension-module = ["pyo3/extension-module"]
 default = ["extension-module"]
 
 [build-dependencies]
-pyo3-build-config = "0.19.0"
+pyo3-build-config = "0.19.2"

@@ -128,6 +128,12 @@ impl<G: GraphViewOps> IndexedGraph<G> {
             Prop::DTime(_) => {
                 schema.add_date_field(prop, INDEXED);
             }
+            Prop::U8(_) => {
+                schema.add_u64_field(prop, INDEXED);
+            }
+            Prop::U16(_) => {
+                schema.add_u64_field(prop, INDEXED);
+            }
             Prop::U64(_) => {
                 schema.add_u64_field(prop, INDEXED);
             }
@@ -265,6 +271,12 @@ impl<G: GraphViewOps> IndexedGraph<G> {
                     tantivy::DateTime::from_timestamp_nanos(prop_time.and_utc().timestamp_nanos());
                 document.add_date(prop_field, time);
             }
+            Prop::U8(prop_u8) => {
+                document.add_u64(prop_field, u64::from(prop_u8));
+            }
+            Prop::U16(prop_u16) => {
+                document.add_u64(prop_field, u64::from(prop_u16));
+            }
             Prop::U64(prop_u64) => {
                 document.add_u64(prop_field, prop_u64);
             }
@@ -305,7 +317,7 @@ impl<G: GraphViewOps> IndexedGraph<G> {
             {
                 let writer_guard = writer_lock.read();
                 for v_id in v_ids {
-                    if let Some(vertex) = g.vertex(VertexRef::new_local((*v_id).into())) {
+                    if let Some(vertex) = g.vertex(VertexRef::new((*v_id).into())) {
                         Self::index_vertex_view(
                             vertex,
                             &schema,
@@ -436,13 +448,15 @@ impl<G: GraphViewOps> IndexedGraph<G> {
         let writer = Arc::new(parking_lot::RwLock::new(index.writer(100_000_000)?));
 
         let e_ids = (0..g.num_edges()).collect::<Vec<_>>();
-
+        let edge_filter = g.edge_filter();
         e_ids.par_chunks(128).try_for_each(|e_ids| {
             let writer_lock = writer.clone();
             {
                 let writer_guard = writer_lock.read();
                 for e_id in e_ids {
-                    if let Some(e_ref) = g.find_edge_id((*e_id).into()) {
+                    if let Some(e_ref) =
+                        g.find_edge_id((*e_id).into(), &g.layer_ids(), edge_filter.as_deref())
+                    {
                         let e_view = EdgeView::new(g.clone(), e_ref);
                         Self::index_edge_view(
                             e_view,
@@ -528,7 +542,7 @@ impl<G: GraphViewOps> IndexedGraph<G> {
             .and_then(|value| value.as_u64())?
             .try_into()
             .ok()?;
-        let vertex_id = VertexRef::Local(vertex_id.into());
+        let vertex_id = VertexRef::Internal(vertex_id.into());
         self.graph.vertex(vertex_id)
     }
 
@@ -542,7 +556,11 @@ impl<G: GraphViewOps> IndexedGraph<G> {
             .and_then(|value| value.as_u64())?
             .try_into()
             .ok()?;
-        let e_ref = self.graph.find_edge_id(edge_id.into())?;
+        let e_ref = self.graph.find_edge_id(
+            edge_id.into(),
+            &self.graph.layer_ids(),
+            self.graph.edge_filter().as_deref(),
+        )?;
         let e_view = EdgeView::new(self.graph.clone(), e_ref);
         Some(e_view)
     }
@@ -601,14 +619,24 @@ impl<G: GraphViewOps> IndexedGraph<G> {
 }
 
 impl<G: GraphViewOps + InternalAdditionOps> InternalAdditionOps for IndexedGraph<G> {
+    #[inline]
     fn next_event_id(&self) -> usize {
         self.graph.next_event_id()
+    }
+    #[inline]
+    fn resolve_layer(&self, layer: Option<&str>) -> usize {
+        self.graph.resolve_layer(layer)
+    }
+
+    #[inline]
+    fn resolve_vertex(&self, id: u64) -> VID {
+        self.graph.resolve_vertex(id)
     }
 
     fn internal_add_vertex(
         &self,
         t: TimeIndexEntry,
-        v: u64,
+        v: VID,
         name: Option<&str>,
         props: Vec<(String, Prop)>,
     ) -> Result<VID, GraphError> {
@@ -656,10 +684,10 @@ impl<G: GraphViewOps + InternalAdditionOps> InternalAdditionOps for IndexedGraph
     fn internal_add_edge(
         &self,
         _t: TimeIndexEntry,
-        _src: u64,
-        _dst: u64,
+        _src: VID,
+        _dst: VID,
         _props: Vec<(String, Prop)>,
-        _layer: Option<&str>,
+        _layer: usize,
     ) -> Result<EID, GraphError> {
         todo!()
     }

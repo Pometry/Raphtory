@@ -36,7 +36,7 @@ pub(crate) type InternalGraph = InnerTemporalGraph<SEG>;
 
 #[repr(transparent)]
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct Graph(Arc<InternalGraph>);
+pub struct Graph(pub Arc<InternalGraph>);
 
 pub fn graph_equal<G1: GraphViewOps, G2: GraphViewOps>(g1: &G1, g2: &G2) -> bool {
     if g1.num_vertices() == g2.num_vertices() && g1.num_edges() == g2.num_edges() {
@@ -74,6 +74,7 @@ impl<G: GraphViewOps> PartialEq<G> for Graph {
 impl Base for Graph {
     type Base = InternalGraph;
 
+    #[inline(always)]
     fn base(&self) -> &InternalGraph {
         &self.0
     }
@@ -146,14 +147,12 @@ mod db_tests {
     use super::*;
     use crate::{
         core::{
-            entities::LayerIds,
             utils::time::{error::ParseTimeError, TryIntoTime},
-            Direction, Prop,
+            Prop,
         },
         db::{
             api::view::{
-                internal::*, EdgeListOps, EdgeViewOps, GraphViewOps, Layer, LayerOps, TimeOps,
-                VertexViewOps,
+                EdgeListOps, EdgeViewOps, GraphViewOps, Layer, LayerOps, TimeOps, VertexViewOps,
             },
             graph::{edge::EdgeView, path::PathFromVertex},
         },
@@ -313,16 +312,13 @@ mod db_tests {
         }
 
         let e = g
-            .edge_ref_window(
-                g.localise_vertex_unchecked(1.into()),
-                g.localise_vertex_unchecked(3.into()),
-                i64::MIN,
-                i64::MAX,
-                0.into(),
-            )
+            .window(i64::MIN, i64::MAX)
+            .layer(Layer::Default)
+            .unwrap()
+            .edge(1, 3)
             .unwrap();
-        assert_eq!(g.vertex_id(e.src()), 1u64);
-        assert_eq!(g.vertex_id(e.dst()), 3u64);
+        assert_eq!(e.src().id(), 1u64);
+        assert_eq!(e.dst().id(), 3u64);
     }
 
     #[test]
@@ -345,31 +341,11 @@ mod db_tests {
         let expected = vec![(2, 3, 1), (1, 0, 0), (1, 0, 0)];
         let actual = (1..=3)
             .map(|i| {
-                let i = g.vertex_ref(i).unwrap();
+                let v = g.vertex(i).unwrap();
                 (
-                    g.degree_window(i, -1, 7, Direction::IN, LayerIds::All),
-                    g.degree_window(i, 1, 7, Direction::OUT, LayerIds::All),
-                    g.degree_window(i, 0, 1, Direction::BOTH, LayerIds::All),
-                )
-            })
-            .collect::<Vec<_>>();
-
-        assert_eq!(actual, expected);
-
-        // Check results from multiple graphs with different number of shards
-        let g = Graph::new();
-
-        for (t, src, dst) in &vs {
-            g.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
-        }
-
-        let expected = (1..=3)
-            .map(|i| {
-                let i = g.vertex_ref(i).unwrap();
-                (
-                    g.degree_window(i, -1, 7, Direction::IN, LayerIds::All),
-                    g.degree_window(i, 1, 7, Direction::OUT, LayerIds::All),
-                    g.degree_window(i, 0, 1, Direction::BOTH, LayerIds::All),
+                    v.window(-1, 7).in_degree(),
+                    v.window(1, 7).out_degree(),
+                    v.window(0, 1).degree(),
                 )
             })
             .collect::<Vec<_>>();
@@ -397,43 +373,11 @@ mod db_tests {
         let expected = vec![(2, 3, 2), (1, 0, 0), (1, 0, 0)];
         let actual = (1..=3)
             .map(|i| {
-                let i = g.vertex_ref(i).unwrap();
+                let v = g.vertex(i).unwrap();
                 (
-                    g.vertex_edges_window(i, -1, 7, Direction::IN, LayerIds::All)
-                        .collect::<Vec<_>>()
-                        .len(),
-                    g.vertex_edges_window(i, 1, 7, Direction::OUT, LayerIds::All)
-                        .collect::<Vec<_>>()
-                        .len(),
-                    g.vertex_edges_window(i, 0, 1, Direction::BOTH, LayerIds::All)
-                        .collect::<Vec<_>>()
-                        .len(),
-                )
-            })
-            .collect::<Vec<_>>();
-
-        assert_eq!(actual, expected);
-
-        // Check results from multiple graphs with different number of shards
-        let g = Graph::new();
-
-        for (t, src, dst) in &vs {
-            g.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
-        }
-
-        let expected = (1..=3)
-            .map(|i| {
-                let i = g.vertex_ref(i).unwrap();
-                (
-                    g.vertex_edges_window(i, -1, 7, Direction::IN, LayerIds::All)
-                        .collect::<Vec<_>>()
-                        .len(),
-                    g.vertex_edges_window(i, 1, 7, Direction::OUT, LayerIds::All)
-                        .collect::<Vec<_>>()
-                        .len(),
-                    g.vertex_edges_window(i, 0, 1, Direction::BOTH, LayerIds::All)
-                        .collect::<Vec<_>>()
-                        .len(),
+                    v.window(-1, 7).in_edges().collect::<Vec<_>>().len(),
+                    v.window(1, 7).out_edges().collect::<Vec<_>>().len(),
+                    v.window(0, 1).edges().collect::<Vec<_>>().len(),
                 )
             })
             .collect::<Vec<_>>();
@@ -478,7 +422,7 @@ mod db_tests {
 
     #[test]
     fn static_properties() {
-        let g = Graph::new(); // big enough so all edges are very likely remote
+        let g = Graph::new();
         g.add_edge(0, 11, 22, NO_PROPS, None).unwrap();
         g.add_edge(
             0,
@@ -492,27 +436,38 @@ mod db_tests {
         g.add_edge(0, 33, 11, NO_PROPS, None).unwrap();
         g.add_vertex(0, 11, vec![("temp".to_string(), Prop::Bool(true))])
             .unwrap();
+        g.add_edge(0, 44, 55, NO_PROPS, None).unwrap();
         let v11 = g.vertex(11).unwrap();
         let v22 = g.vertex(22).unwrap();
         let v33 = g.vertex(33).unwrap();
+        let v44 = g.vertex(44).unwrap();
+        let v55 = g.vertex(55).unwrap();
         let edge1111 = g.edge(&v11, &v11).unwrap();
         let edge2233 = g.edge(&v22, &v33).unwrap();
         let edge3311 = g.edge(&v33, &v11).unwrap();
 
-        g.add_vertex_properties(11, vec![("a", Prop::U64(11)), ("b", Prop::I64(11))])
+        v11.add_constant_properties(vec![("a", Prop::U64(11)), ("b", Prop::I64(11))])
             .unwrap();
-        g.add_vertex_properties(11, vec![("c", Prop::U32(11))])
+        v11.add_constant_properties(vec![("c", Prop::U32(11))])
             .unwrap();
-        g.add_vertex_properties(22, vec![("b", Prop::U64(22))])
+        v22.add_constant_properties(vec![("b", Prop::U64(22))])
             .unwrap();
-        g.add_edge_properties(11, 11, vec![("d", Prop::U64(1111))], None)
+        v44.add_constant_properties(vec![("e", Prop::U8(1))])
             .unwrap();
-        g.add_edge_properties(33, 11, vec![("a", Prop::U64(3311))], None)
+        v55.add_constant_properties(vec![("f", Prop::U16(1))])
+            .unwrap();
+        edge1111
+            .add_constant_properties(vec![("d", Prop::U64(1111))], None)
+            .unwrap();
+        edge3311
+            .add_constant_properties(vec![("a", Prop::U64(3311))], None)
             .unwrap();
 
         assert_eq!(v11.properties().constant().keys(), vec!["a", "b", "c"]);
         assert_eq!(v22.properties().constant().keys(), vec!["b"]);
         assert!(v33.properties().constant().keys().is_empty());
+        assert_eq!(v44.properties().constant().keys(), vec!["e"]);
+        assert_eq!(v55.properties().constant().keys(), vec!["f"]);
         assert_eq!(edge1111.properties().constant().keys(), vec!["d"]);
         assert_eq!(edge3311.properties().constant().keys(), vec!["a"]);
         assert!(edge2233.properties().constant().keys().is_empty());
@@ -521,6 +476,8 @@ mod db_tests {
         assert_eq!(v11.properties().constant().get("b"), Some(Prop::I64(11)));
         assert_eq!(v11.properties().constant().get("c"), Some(Prop::U32(11)));
         assert_eq!(v22.properties().constant().get("b"), Some(Prop::U64(22)));
+        assert_eq!(v44.properties().constant().get("e"), Some(Prop::U8(1)));
+        assert_eq!(v55.properties().constant().get("f"), Some(Prop::U16(1)));
         assert_eq!(v22.properties().constant().get("a"), None);
         assert_eq!(
             edge1111.properties().constant().get("d"),
@@ -606,29 +563,18 @@ mod db_tests {
             g.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
         }
 
-        let local_1 = g.vertex_ref(1).unwrap();
-        let local_2 = g.vertex_ref(2).unwrap();
-        let local_3 = g.vertex_ref(3).unwrap();
-
-        let expected = [
-            (
-                vec![local_1, local_2],
-                vec![local_1, local_2, local_3],
-                vec![local_1],
-            ),
-            (vec![local_1], vec![], vec![]),
-            (vec![local_1], vec![], vec![]),
+        let expected = vec![
+            (vec![1, 2], vec![1, 2, 3], vec![1]),
+            (vec![1], vec![], vec![]),
+            (vec![1], vec![], vec![]),
         ];
         let actual = (1..=3)
             .map(|i| {
-                let i = g.vertex_ref(i).unwrap();
+                let v = g.vertex(i).unwrap();
                 (
-                    g.neighbours_window(i, -1, 7, Direction::IN, LayerIds::All)
-                        .collect::<Vec<_>>(),
-                    g.neighbours_window(i, 1, 7, Direction::OUT, LayerIds::All)
-                        .collect::<Vec<_>>(),
-                    g.neighbours_window(i, 0, 1, Direction::BOTH, LayerIds::All)
-                        .collect::<Vec<_>>(),
+                    v.window(-1, 7).in_neighbours().id().collect::<Vec<_>>(),
+                    v.window(1, 7).out_neighbours().id().collect::<Vec<_>>(),
+                    v.window(0, 1).neighbours().id().collect::<Vec<_>>(),
                 )
             })
             .collect::<Vec<_>>();
@@ -1031,6 +977,12 @@ mod db_tests {
         prop = Prop::U64(18446744073709551615);
         assert_eq!(format!("{}", prop), "18446744073709551615");
 
+        prop = Prop::U8(255);
+        assert_eq!(format!("{}", prop), "255");
+
+        prop = Prop::U16(65535);
+        assert_eq!(format!("{}", prop), "65535");
+
         prop = Prop::F32(3.14159);
         assert_eq!(format!("{}", prop), "3.14159");
 
@@ -1050,7 +1002,7 @@ mod db_tests {
             .map(|(name, value)| (name, Prop::U64(value)))
             .collect::<Vec<_>>();
 
-        g.add_static_properties(as_props.clone()).unwrap();
+        g.add_constant_properties(as_props.clone()).unwrap();
 
         let props_map = as_props.into_iter().collect::<HashMap<_, _>>();
 
@@ -1068,7 +1020,7 @@ mod db_tests {
             .map(|(name, value)| (name, Prop::U64(value)))
             .collect::<Vec<_>>();
 
-        g.add_static_properties(as_props.clone()).unwrap();
+        g.add_constant_properties(as_props.clone()).unwrap();
 
         let props_names = as_props
             .into_iter()

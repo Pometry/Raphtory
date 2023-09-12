@@ -2,13 +2,17 @@
 
 use crate::{
     core::{
-        entities::{vertices::vertex_ref::VertexRef, LayerIds, VID},
-        storage::locked_view::LockedView,
-        utils::time::IntoTime,
+        entities::{vertices::vertex_ref::VertexRef, VID},
+        storage::{locked_view::LockedView, timeindex::TimeIndexEntry},
+        utils::{errors::GraphError, time::IntoTime},
         Direction,
     },
     db::{
         api::{
+            mutation::{
+                internal::{InternalAdditionOps, InternalPropertyAdditionOps},
+                CollectProperties, TryIntoInputTime,
+            },
             properties::{
                 internal::{
                     ConstPropertiesOps, Key, TemporalPropertiesOps, TemporalPropertyViewOps,
@@ -32,32 +36,38 @@ pub struct VertexView<G: GraphViewOps> {
     pub vertex: VID,
 }
 
+impl<G1: GraphViewOps, G2: GraphViewOps> PartialEq<VertexView<G2>> for VertexView<G1> {
+    fn eq(&self, other: &VertexView<G2>) -> bool {
+        self.id() == other.id()
+    }
+}
+
 impl<G: GraphViewOps> From<VertexView<G>> for VertexRef {
     fn from(value: VertexView<G>) -> Self {
-        VertexRef::Local(value.vertex)
+        VertexRef::Internal(value.vertex)
     }
 }
 
 impl<G: GraphViewOps> From<&VertexView<G>> for VertexRef {
     fn from(value: &VertexView<G>) -> Self {
-        VertexRef::Local(value.vertex)
+        VertexRef::Internal(value.vertex)
     }
 }
 
 impl<G: GraphViewOps> VertexView<G> {
-    /// Creates a new `VertexView` wrapping a vertex reference and a graph, localising any remote vertices to the correct shard.
+    /// Creates a new `VertexView` wrapping an internal vertex reference and a graph, internalising any global vertex ids.
     pub fn new(graph: G, vertex: VertexRef) -> VertexView<G> {
         match vertex {
-            VertexRef::Local(local) => Self::new_local(graph, local),
+            VertexRef::Internal(local) => Self::new_internal(graph, local),
             _ => {
-                let v = graph.localise_vertex_unchecked(vertex);
+                let v = graph.internalise_vertex_unchecked(vertex);
                 VertexView { graph, vertex: v }
             }
         }
     }
 
-    /// Creates a new `VertexView` wrapping a local vertex reference and a graph
-    pub fn new_local(graph: G, vertex: VID) -> VertexView<G> {
+    /// Creates a new `VertexView` wrapping an internal vertex reference and a graph
+    pub fn new_internal(graph: G, vertex: VID) -> VertexView<G> {
         VertexView { graph, vertex }
     }
 }
@@ -69,7 +79,6 @@ impl<G: GraphViewOps> TemporalPropertiesOps for VertexView<G> {
         Box::new(
             self.graph
                 .temporal_vertex_prop_names(self.vertex)
-                .into_iter()
                 .filter(|k| self.get_temporal_property(k).is_some()),
         )
     }
@@ -167,25 +176,45 @@ impl<G: GraphViewOps> VertexViewOps for VertexView<G> {
 
     fn degree(&self) -> usize {
         let dir = Direction::BOTH;
-        self.graph.degree(self.vertex, dir, LayerIds::All)
+        self.graph.degree(
+            self.vertex,
+            dir,
+            &self.graph.layer_ids(),
+            self.graph.edge_filter(),
+        )
     }
 
     fn in_degree(&self) -> usize {
         let dir = Direction::IN;
-        self.graph.degree(self.vertex, dir, LayerIds::All)
+        self.graph.degree(
+            self.vertex,
+            dir,
+            &self.graph.layer_ids(),
+            self.graph.edge_filter(),
+        )
     }
 
     fn out_degree(&self) -> usize {
         let dir = Direction::OUT;
-        self.graph.degree(self.vertex, dir, LayerIds::All)
+        self.graph.degree(
+            self.vertex,
+            dir,
+            &self.graph.layer_ids(),
+            self.graph.edge_filter(),
+        )
     }
 
     fn edges(&self) -> EdgeList<G> {
         let g = self.graph.clone();
         let dir = Direction::BOTH;
         Box::new(
-            g.vertex_edges(self.vertex, dir, LayerIds::All)
-                .map(move |e| EdgeView::new(g.clone(), e)),
+            g.vertex_edges(
+                self.vertex,
+                dir,
+                self.graph.layer_ids(),
+                self.graph.edge_filter(),
+            )
+            .map(move |e| EdgeView::new(g.clone(), e)),
         )
     }
 
@@ -193,8 +222,13 @@ impl<G: GraphViewOps> VertexViewOps for VertexView<G> {
         let g = self.graph.clone();
         let dir = Direction::IN;
         Box::new(
-            g.vertex_edges(self.vertex, dir, LayerIds::All)
-                .map(move |e| EdgeView::new(g.clone(), e)),
+            g.vertex_edges(
+                self.vertex,
+                dir,
+                self.graph.layer_ids(),
+                self.graph.edge_filter(),
+            )
+            .map(move |e| EdgeView::new(g.clone(), e)),
         )
     }
 
@@ -202,8 +236,13 @@ impl<G: GraphViewOps> VertexViewOps for VertexView<G> {
         let g = self.graph.clone();
         let dir = Direction::OUT;
         Box::new(
-            g.vertex_edges(self.vertex, dir, LayerIds::All)
-                .map(move |e| EdgeView::new(g.clone(), e)),
+            g.vertex_edges(
+                self.vertex,
+                dir,
+                self.graph.layer_ids(),
+                self.graph.edge_filter(),
+            )
+            .map(move |e| EdgeView::new(g.clone(), e)),
         )
     }
 
@@ -260,6 +299,27 @@ impl<G: GraphViewOps> LayerOps for VertexView<G> {
             graph: self.graph.layer(name)?,
             vertex: self.vertex,
         })
+    }
+}
+
+impl<G: GraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> VertexView<G> {
+    pub fn add_constant_properties<C: CollectProperties>(
+        &self,
+        props: C,
+    ) -> Result<(), GraphError> {
+        self.graph
+            .internal_add_vertex_properties(self.id(), props.collect_properties())
+    }
+
+    pub fn add_updates<C: CollectProperties, T: TryIntoInputTime>(
+        &self,
+        time: T,
+        props: C,
+    ) -> Result<(), GraphError> {
+        let t = TimeIndexEntry::from_input(&self.graph, time)?;
+        self.graph
+            .internal_add_vertex(t, self.vertex, None, props.collect_properties())?;
+        Ok(())
     }
 }
 
@@ -450,5 +510,30 @@ mod vertex_test {
                 .collect()
         );
         assert_eq!(v1_w.properties().as_map(), HashMap::default())
+    }
+
+    #[test]
+    fn test_property_additions() {
+        let g = Graph::new();
+        let props = [("test", "test")];
+        let v1 = g.add_vertex(0, 1, NO_PROPS).unwrap();
+        v1.add_updates(2, props).unwrap();
+        let v1_w = v1.window(0, 1);
+        assert_eq!(
+            v1.properties().as_map(),
+            props
+                .into_iter()
+                .map(|(k, v)| (k.to_string(), v.into_prop()))
+                .collect()
+        );
+        assert_eq!(v1_w.properties().as_map(), HashMap::default())
+    }
+
+    #[test]
+    fn test_constant_property_additions() {
+        let g = Graph::new();
+        let v1 = g.add_vertex(0, 1, NO_PROPS).unwrap();
+        v1.add_constant_properties([("test", "test")]).unwrap();
+        assert_eq!(v1.properties().get("test"), Some("test".into()))
     }
 }

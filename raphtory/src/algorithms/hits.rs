@@ -18,12 +18,22 @@ use crate::{
     },
 };
 use num_traits::abs;
+use ordered_float::OrderedFloat;
 use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 struct Hits {
     hub_score: f32,
     auth_score: f32,
+}
+
+impl Default for Hits {
+    fn default() -> Self {
+        Self {
+            hub_score: 1f32,
+            auth_score: 1f32,
+        }
+    }
 }
 
 /// HITS (Hubs and Authority) Algorithm:
@@ -41,7 +51,7 @@ pub fn hits<G: GraphViewOps>(
     g: &G,
     iter_count: usize,
     threads: Option<usize>,
-) -> AlgorithmResult<String, (f32, f32)> {
+) -> AlgorithmResult<String, (f32, f32), (OrderedFloat<f32>, OrderedFloat<f32>)> {
     let mut ctx: Context<G, ComputeStateVec> = g.into();
 
     let recv_hub_score = sum::<f32>(2);
@@ -128,15 +138,14 @@ pub fn hits<G: GraphViewOps>(
     let (hub_scores, auth_scores) = runner.run(
         vec![],
         vec![Job::new(step2), Job::new(step3), Job::new(step4), step5],
-        Hits {
-            hub_score: 1f32,
-            auth_score: 1f32,
-        },
+        None,
         |_, _, els, local| {
             let mut hubs = HashMap::new();
             let mut auths = HashMap::new();
+            let layers = g.layer_ids();
+            let edge_filter = g.edge_filter();
             for (v_ref, hit) in local.iter().enumerate() {
-                if g.has_vertex_ref(VertexRef::Local(v_ref.into())) {
+                if g.has_vertex_ref(VertexRef::Internal(v_ref.into()), &layers, edge_filter) {
                     let v_gid = g.vertex_name(v_ref.into());
                     hubs.insert(v_gid.clone(), hit.hub_score);
                     auths.insert(v_gid, hit.auth_score);
@@ -201,7 +210,7 @@ mod hits_tests {
             (8, 1),
         ]);
 
-        let results: AlgorithmResult<String, (f32, f32)> = hits(&graph, 20, None);
+        let results = hits(&graph, 20, None);
 
         // NetworkX results
         // >>> G = nx.DiGraph()

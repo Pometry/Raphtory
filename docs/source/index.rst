@@ -1,101 +1,91 @@
-:notoc:
+﻿.. _api_menu:
 
-.. Raphtory documentation master file, created by
+{{ header }}
 
-.. module:: Raphtory
+****************
+Raphtory
+****************
 
-****************************************
-Raphtory documentation
-****************************************
+.. automodule:: raphtory
+   :autosummary:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :private-members:
+   :inherited-members:
 
-**Date**: |today|
+Algorithms
+-------------------
 
-**Useful links**:
-`Source Repository <https://github.com/Pometry/Raphtory>`__ |
-`Issues & Ideas <https://github.com/Pometry/Raphtory/issues>`__ |
-`Slack Support <https://join.slack.com/t/raphtory/shared_invite/zt-1b7nhupph-yOG0zlkHspU3tfz2EqcbsA>`__
+.. automodule:: raphtory.algorithms
+   :autosummary:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :private-members:
+   :inherited-members:
 
-**Raphtory** is a platform for building and analysing temporal networks.
+Visualisation
+-------------------
 
-The library includes:
-
-* Simple methods for creating networks from a variety of data sources.
-* Algorithms to explore their structure and evolution.
-* An extensible GraphQL server for deployment of applications built on top.
-
-Raphtory’s core engine is built in Rust, for efficiency, with Python interfaces, for ease of use.
-
-It is developed by network scientists, with a background in Physics, Applied Mathematics, Engineering and Computer
-Science, for use across academia and industry. Read more in our `white paper <https://arxiv.org/abs/2306.16309>`__
-and get started below.
-
-.. grid:: 1 2 2 2
-    :gutter: 4
-    :padding: 2 2 0 0
-    :class-container: sd-text-center
-
-    .. grid-item-card::
-        :img-top: images/index_getting_started.svg
-        :class-card: intro-card
-        :shadow: md
-
-        New to *Raphtory*? Learn how to get it installed and start analysing your first graphs.
-
-        +++
-
-        .. button-ref:: getting_started
-            :ref-type: ref
-            :click-parent:
-            :color: secondary
-            :expand:
-
-            Getting Started
+.. automodule:: raphtory.export
+   :autosummary:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :private-members:
+   :inherited-members:
 
 
-    .. grid-item-card::
-        :img-top: images/index_api.svg
-        :class-card: intro-card
-        :shadow: md
+Null Models
+--------------------------
 
-        Learn about the API and the available methods and parameters.
+.. automodule:: raphtory.nullmodels
+   :autosummary:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :private-members:
+   :inherited-members:
 
-        +++
+Graph Generation
+--------------------------
 
-        .. button-ref:: api
-            :ref-type: ref
-            :click-parent:
-            :color: secondary
-            :expand:
+.. automodule:: raphtory.graph_gen
+   :autosummary:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :private-members:
+   :inherited-members:
 
-            API Reference
+GraphQL Server
+--------------------------
 
-    .. grid-item-card::
-        :img-top: images/index_contribute.svg
-        :class-card: intro-card
-        :shadow: md
-
-        Saw a typo? Want to add or improve?
-
-        Learn how to contribute here.
-
-        +++
-
-        .. button-ref:: development
-            :ref-type: ref
-            :click-parent:
-            :color: secondary
-            :expand:
-
-            Developer Guide
+.. automodule:: raphtory.graphql
+   :autosummary:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :inherited-members:
 
 
-.. toctree::
-    :maxdepth: 3
-    :hidden:
-    :titlesonly:
 
 
-    getting_started/index
-    development/index
-    api/index
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

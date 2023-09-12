@@ -24,17 +24,16 @@ use crate::{
     },
     prelude::*,
     python::{
-        graph::{
-            edge::PyEdges,
-            vertex::{PyVertex, PyVertices},
-        },
+        graph::{edge::PyEdges, vertex::PyVertices},
         types::repr::Repr,
         utils::{PyInterval, PyTime},
     },
     *,
 };
 use chrono::prelude::*;
+use itertools::Itertools;
 use pyo3::prelude::*;
+use std::ops::Deref;
 
 impl IntoPy<PyObject> for MaterializedGraph {
     fn into_py(self, py: Python<'_>) -> PyObject {
@@ -134,6 +133,14 @@ impl PyGraphView {
     ///    the number of edges in the graph
     pub fn num_edges(&self) -> usize {
         self.graph.num_edges()
+    }
+
+    /// Number of edges in the graph
+    ///
+    /// Returns:
+    ///    the number of temporal edges in the graph
+    pub fn num_temporal_edges(&self) -> usize {
+        self.graph.num_temporal_edges()
     }
 
     /// Number of vertices in the graph
@@ -357,7 +364,7 @@ impl PyGraphView {
     ///
     /// Returns:
     ///    GraphView - Returns the subgraph
-    fn subgraph(&self, vertices: Vec<PyVertex>) -> VertexSubgraph<DynamicGraph> {
+    fn subgraph(&self, vertices: Vec<VertexRef>) -> VertexSubgraph<DynamicGraph> {
         self.graph.subgraph(vertices)
     }
 
@@ -381,12 +388,26 @@ impl Repr for PyGraphView {
     fn repr(&self) -> String {
         let num_edges = self.graph.num_edges();
         let num_vertices = self.graph.num_vertices();
-        let earliest_time = self.graph.earliest_time().unwrap_or_default();
-        let latest_time = self.graph.latest_time().unwrap_or_default();
-
-        format!(
-            "Graph(number_of_edges={:?}, number_of_vertices={:?}, earliest_time={:?}, latest_time={:?})",
-            num_edges, num_vertices, earliest_time, latest_time
-        )
+        let num_temporal_edges: usize = self.graph.num_temporal_edges();
+        let earliest_time = self.graph.earliest_time().repr();
+        let latest_time = self.graph.latest_time().repr();
+        let properties: String = self
+            .graph
+            .properties()
+            .iter()
+            .map(|(k, v)| format!("{}: {}", k.deref(), v))
+            .join(", ");
+        if properties.is_empty() {
+            return format!(
+                "Graph(number_of_edges={:?}, number_of_vertices={:?}, number_of_temporal_edges={:?}, earliest_time={:?}, latest_time={:?})",
+                num_edges, num_vertices, num_temporal_edges, earliest_time, latest_time
+            );
+        } else {
+            let property_string: String = format!("{{{properties}}}");
+            return format!(
+                "Graph(number_of_edges={:?}, number_of_vertices={:?}, number_of_temporal_edges={:?}, earliest_time={:?}, latest_time={:?}, properties={})",
+                num_edges, num_vertices, num_temporal_edges, earliest_time, latest_time, property_string
+            );
+        }
     }
 }

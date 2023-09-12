@@ -110,10 +110,10 @@ pub(crate) fn load_vertices_from_df<'a>(
             unit_scale = true
         ) {
             if let (Some(vertex_id), Some(time)) = (vertex_id, time) {
-                graph.add_vertex(*time, vertex_id, props)?;
-                graph.add_vertex_properties(vertex_id, const_props)?;
+                let v = graph.add_vertex(*time, vertex_id, props)?;
+                v.add_constant_properties(const_props)?;
                 if let Some(shared_const_props) = &shared_const_props {
-                    graph.add_vertex_properties(vertex_id, shared_const_props.iter())?;
+                    v.add_constant_properties(shared_const_props.iter())?;
                 }
             }
         }
@@ -129,10 +129,10 @@ pub(crate) fn load_vertices_from_df<'a>(
             unit_scale = true
         ) {
             if let (Some(vertex_id), Some(time)) = (vertex_id, time) {
-                graph.add_vertex(*time, vertex_id, props)?;
-                graph.add_vertex_properties(vertex_id, const_props)?;
+                let v = graph.add_vertex(*time, vertex_id, props)?;
+                v.add_constant_properties(const_props)?;
                 if let Some(shared_const_props) = &shared_const_props {
-                    graph.add_vertex_properties(vertex_id, shared_const_props)?;
+                    v.add_constant_properties(shared_const_props)?;
                 }
             }
         }
@@ -225,15 +225,10 @@ pub(crate) fn load_edges_from_df<'a, S: AsRef<str>>(
             unit_scale = true
         ) {
             if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
-                graph.add_edge(*time, src, dst, props, layer.as_deref())?;
-                graph.add_edge_properties(src, dst, const_props, layer.as_deref())?;
+                let e = graph.add_edge(*time, src, dst, props, layer.as_deref())?;
+                e.add_constant_properties(const_props, layer.as_deref())?;
                 if let Some(shared_const_props) = &shared_const_props {
-                    graph.add_edge_properties(
-                        src,
-                        dst,
-                        shared_const_props.iter(),
-                        layer.as_deref(),
-                    )?;
+                    e.add_constant_properties(shared_const_props.iter(), layer.as_deref())?;
                 }
             }
         }
@@ -251,15 +246,10 @@ pub(crate) fn load_edges_from_df<'a, S: AsRef<str>>(
             unit_scale = true
         ) {
             if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
-                graph.add_edge(*time, src, dst, props, layer.as_deref())?;
-                graph.add_edge_properties(src, dst, const_props, layer.as_deref())?;
+                let e = graph.add_edge(*time, src, dst, props, layer.as_deref())?;
+                e.add_constant_properties(const_props, layer.as_deref())?;
                 if let Some(shared_const_props) = &shared_const_props {
-                    graph.add_edge_properties(
-                        src,
-                        dst,
-                        shared_const_props.iter(),
-                        layer.as_deref(),
-                    )?;
+                    e.add_constant_properties(shared_const_props.iter(), layer.as_deref())?;
                 }
             }
         }
@@ -297,9 +287,12 @@ pub(crate) fn load_vertex_props_from_df<'a>(
             unit_scale = true
         ) {
             if let Some(vertex_id) = vertex_id {
-                graph.add_vertex_properties(vertex_id, const_props)?;
+                let v = graph
+                    .vertex(vertex_id)
+                    .ok_or(GraphError::VertexIdError(vertex_id))?;
+                v.add_constant_properties(const_props)?;
                 if let Some(shared_const_props) = &shared_const_props {
-                    graph.add_vertex_properties(vertex_id, shared_const_props.iter())?;
+                    v.add_constant_properties(shared_const_props.iter())?;
                 }
             }
         }
@@ -313,9 +306,12 @@ pub(crate) fn load_vertex_props_from_df<'a>(
             unit_scale = true
         ) {
             if let Some(vertex_id) = vertex_id {
-                graph.add_vertex_properties(vertex_id, const_props)?;
+                let v = graph
+                    .vertex(vertex_id)
+                    .ok_or(GraphError::VertexIdError(vertex_id))?;
+                v.add_constant_properties(const_props)?;
                 if let Some(shared_const_props) = &shared_const_props {
-                    graph.add_vertex_properties(vertex_id, shared_const_props.iter())?;
+                    v.add_constant_properties(shared_const_props.iter())?;
                 }
             }
         }
@@ -329,9 +325,12 @@ pub(crate) fn load_vertex_props_from_df<'a>(
             unit_scale = true
         ) {
             if let Some(vertex_id) = vertex_id {
-                graph.add_vertex_properties(vertex_id, const_props)?;
+                let v = graph
+                    .vertex(vertex_id)
+                    .ok_or_else(|| GraphError::VertexNameError(vertex_id.to_owned()))?;
+                v.add_constant_properties(const_props)?;
                 if let Some(shared_const_props) = &shared_const_props {
-                    graph.add_vertex_properties(vertex_id, shared_const_props.iter())?;
+                    v.add_constant_properties(shared_const_props.iter())?;
                 }
             }
         }
@@ -345,9 +344,12 @@ pub(crate) fn load_vertex_props_from_df<'a>(
             unit_scale = true
         ) {
             if let Some(vertex_id) = vertex_id {
-                graph.add_vertex_properties(vertex_id, const_props)?;
+                let v = graph
+                    .vertex(vertex_id)
+                    .ok_or_else(|| GraphError::VertexNameError(vertex_id.to_owned()))?;
+                v.add_constant_properties(const_props)?;
                 if let Some(shared_const_props) = &shared_const_props {
-                    graph.add_vertex_properties(vertex_id, shared_const_props.iter())?;
+                    v.add_constant_properties(shared_const_props.iter())?;
                 }
             }
         }
@@ -390,14 +392,12 @@ pub(crate) fn load_edges_props_from_df<'a, S: AsRef<str>>(
             unit_scale = true
         ) {
             if let (Some(src), Some(dst)) = (src, dst) {
-                graph.add_edge_properties(src, dst, const_props, layer.as_deref())?;
+                let e = graph
+                    .edge(src, dst)
+                    .ok_or(GraphError::EdgeIdError { src, dst })?;
+                e.add_constant_properties(const_props, layer.as_deref())?;
                 if let Some(shared_const_props) = &shared_const_props {
-                    graph.add_edge_properties(
-                        src,
-                        dst,
-                        shared_const_props.iter(),
-                        layer.as_deref(),
-                    )?;
+                    e.add_constant_properties(shared_const_props.iter(), layer.as_deref())?;
                 }
             }
         }
@@ -413,14 +413,12 @@ pub(crate) fn load_edges_props_from_df<'a, S: AsRef<str>>(
             unit_scale = true
         ) {
             if let (Some(src), Some(dst)) = (src, dst) {
-                graph.add_edge_properties(src, dst, const_props, layer.as_deref())?;
+                let e = graph
+                    .edge(src, dst)
+                    .ok_or(GraphError::EdgeIdError { src, dst })?;
+                e.add_constant_properties(const_props, layer.as_deref())?;
                 if let Some(shared_const_props) = &shared_const_props {
-                    graph.add_edge_properties(
-                        src,
-                        dst,
-                        shared_const_props.iter(),
-                        layer.as_deref(),
-                    )?;
+                    e.add_constant_properties(shared_const_props.iter(), layer.as_deref())?;
                 }
             }
         }
@@ -434,14 +432,15 @@ pub(crate) fn load_edges_props_from_df<'a, S: AsRef<str>>(
             unit_scale = true
         ) {
             if let (Some(src), Some(dst)) = (src, dst) {
-                graph.add_edge_properties(src, dst, const_props, layer.as_deref())?;
+                let e = graph
+                    .edge(src, dst)
+                    .ok_or_else(|| GraphError::EdgeNameError {
+                        src: src.to_owned(),
+                        dst: dst.to_owned(),
+                    })?;
+                e.add_constant_properties(const_props, layer.as_deref())?;
                 if let Some(shared_const_props) = &shared_const_props {
-                    graph.add_edge_properties(
-                        src,
-                        dst,
-                        shared_const_props.iter(),
-                        layer.as_deref(),
-                    )?;
+                    e.add_constant_properties(shared_const_props.iter(), layer.as_deref())?;
                 }
             }
         }
@@ -455,14 +454,15 @@ pub(crate) fn load_edges_props_from_df<'a, S: AsRef<str>>(
             unit_scale = true
         ) {
             if let (Some(src), Some(dst)) = (src, dst) {
-                graph.add_edge_properties(src, dst, const_props, layer.as_deref())?;
+                let e = graph
+                    .edge(src, dst)
+                    .ok_or_else(|| GraphError::EdgeNameError {
+                        src: src.to_owned(),
+                        dst: dst.to_owned(),
+                    })?;
+                e.add_constant_properties(const_props, layer.as_deref())?;
                 if let Some(shared_const_props) = &shared_const_props {
-                    graph.add_edge_properties(
-                        src,
-                        dst,
-                        shared_const_props.iter(),
-                        layer.as_deref(),
-                    )?;
+                    e.add_constant_properties(shared_const_props.iter(), layer.as_deref())?;
                 }
             }
         }
@@ -588,10 +588,10 @@ fn load_edges_from_num_iter<
         unit_scale = true
     ) {
         if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
-            graph.add_edge(*time, src, dst, edge_props, layer.as_deref())?;
-            graph.add_edge_properties(src, dst, const_props, layer.as_deref())?;
+            let e = graph.add_edge(*time, src, dst, edge_props, layer.as_deref())?;
+            e.add_constant_properties(const_props, layer.as_deref())?;
             if let Some(shared_const_props) = &shared_const_props {
-                graph.add_edge_properties(src, dst, shared_const_props.iter(), layer.as_deref())?;
+                e.add_constant_properties(shared_const_props.iter(), layer.as_deref())?;
             }
         }
     }
@@ -619,11 +619,11 @@ fn load_vertices_from_num_iter<
         unit_scale = true
     ) {
         if let (Some(v), Some(t), props, const_props) = (vertex, time, props, const_props) {
-            graph.add_vertex(*t, v, props)?;
-            graph.add_vertex_properties(v, const_props)?;
+            let v = graph.add_vertex(*t, v, props)?;
+            v.add_constant_properties(const_props)?;
 
             if let Some(shared_const_props) = &shared_const_props {
-                graph.add_vertex_properties(v, shared_const_props.iter())?;
+                v.add_constant_properties(shared_const_props.iter())?;
             }
         }
     }

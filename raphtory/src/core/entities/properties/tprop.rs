@@ -5,6 +5,7 @@ use crate::{
             LayerIds,
         },
         storage::{locked_view::LockedView, timeindex::TimeIndexEntry},
+        utils::errors::GraphError,
         Prop,
     },
     db::graph::graph::Graph,
@@ -21,6 +22,8 @@ pub enum TProp {
     #[default]
     Empty,
     Str(TCell<String>),
+    U8(TCell<u8>),
+    U16(TCell<u16>),
     I32(TCell<i32>),
     I64(TCell<i64>),
     U32(TCell<u32>),
@@ -40,6 +43,8 @@ impl TProp {
             Prop::Str(value) => TProp::Str(TCell::new(t, value)),
             Prop::I32(value) => TProp::I32(TCell::new(t, value)),
             Prop::I64(value) => TProp::I64(TCell::new(t, value)),
+            Prop::U8(value) => TProp::U8(TCell::new(t, value)),
+            Prop::U16(value) => TProp::U16(TCell::new(t, value)),
             Prop::U32(value) => TProp::U32(TCell::new(t, value)),
             Prop::U64(value) => TProp::U64(TCell::new(t, value)),
             Prop::F32(value) => TProp::F32(TCell::new(t, value)),
@@ -52,74 +57,59 @@ impl TProp {
         }
     }
 
-    pub(crate) fn set(&mut self, t: TimeIndexEntry, prop: Prop) {
-        // TODO: we should bubble up the result if we change the type of the property
-        match self {
-            TProp::Empty => {
-                *self = TProp::from(t, prop);
-            }
-            TProp::Str(cell) => {
-                if let Prop::Str(a) = prop {
-                    cell.set(t, a.to_string());
-                }
-            }
-            TProp::I32(cell) => {
-                if let Prop::I32(a) = prop {
-                    cell.set(t, a);
-                }
-            }
-            TProp::I64(cell) => {
-                if let Prop::I64(a) = prop {
-                    cell.set(t, a);
-                }
-            }
-            TProp::U32(cell) => {
-                if let Prop::U32(a) = prop {
-                    cell.set(t, a);
-                }
-            }
-            TProp::U64(cell) => {
-                if let Prop::U64(a) = prop {
-                    cell.set(t, a);
-                }
-            }
-            TProp::F32(cell) => {
-                if let Prop::F32(a) = prop {
-                    cell.set(t, a);
-                }
-            }
-            TProp::F64(cell) => {
-                if let Prop::F64(a) = prop {
-                    cell.set(t, a);
-                }
-            }
-            TProp::Bool(cell) => {
-                if let Prop::Bool(a) = prop {
-                    cell.set(t, a);
-                }
-            }
-            TProp::DTime(cell) => {
-                if let Prop::DTime(a) = prop {
-                    cell.set(t, a);
-                }
-            }
+    pub(crate) fn set(&mut self, t: TimeIndexEntry, prop: Prop) -> Result<(), GraphError> {
+        if matches!(self, TProp::Empty) {
+            *self = TProp::from(t, prop);
+        } else {
+            match (self, prop) {
+                (TProp::Empty, prop) => {}
 
-            TProp::Graph(cell) => {
-                if let Prop::Graph(a) = prop {
+                (TProp::Str(cell), Prop::Str(a)) => {
                     cell.set(t, a);
                 }
-            }
-            TProp::List(cell) => {
-                if let Prop::List(a) = prop {
+                (TProp::I32(cell), Prop::I32(a)) => {
                     cell.set(t, a);
                 }
-            }
-            TProp::Map(cell) => {
-                if let Prop::Map(a) = prop {
+                (TProp::I64(cell), Prop::I64(a)) => {
                     cell.set(t, a);
                 }
-            }
+                (TProp::U32(cell), Prop::U32(a)) => {
+                    cell.set(t, a);
+                }
+                (TProp::U8(cell), Prop::U8(a)) => {
+                    cell.set(t, a);
+                }
+                (TProp::U16(cell), Prop::U16(a)) => {
+                    cell.set(t, a);
+                }
+                (TProp::U64(cell), Prop::U64(a)) => {
+                    cell.set(t, a);
+                }
+                (TProp::F32(cell), Prop::F32(a)) => {
+                    cell.set(t, a);
+                }
+                (TProp::F64(cell), Prop::F64(a)) => {
+                    cell.set(t, a);
+                }
+                (TProp::Bool(cell), Prop::Bool(a)) => {
+                    cell.set(t, a);
+                }
+                (TProp::DTime(cell), Prop::DTime(a)) => {
+                    cell.set(t, a);
+                }
+                (TProp::Graph(cell), Prop::Graph(a)) => {
+                    cell.set(t, a);
+                }
+                (TProp::List(cell), Prop::List(a)) => {
+                    cell.set(t, a);
+                }
+                (TProp::Map(cell), Prop::Map(a)) => {
+                    cell.set(t, a);
+                }
+                _ => return Err(GraphError::IncorrectPropertyType),
+            };
         }
+        Ok(())
     }
 
     pub(crate) fn at(&self, ti: &TimeIndexEntry) -> Option<Prop> {
@@ -129,6 +119,8 @@ impl TProp {
             TProp::I32(cell) => cell.at(ti).map(|v| Prop::I32(*v)),
             TProp::I64(cell) => cell.at(ti).map(|v| Prop::I64(*v)),
             TProp::U32(cell) => cell.at(ti).map(|v| Prop::U32(*v)),
+            TProp::U8(cell) => cell.at(ti).map(|v| Prop::U8(*v)),
+            TProp::U16(cell) => cell.at(ti).map(|v| Prop::U16(*v)),
             TProp::U64(cell) => cell.at(ti).map(|v| Prop::U64(*v)),
             TProp::F32(cell) => cell.at(ti).map(|v| Prop::F32(*v)),
             TProp::F64(cell) => cell.at(ti).map(|v| Prop::F64(*v)),
@@ -146,6 +138,8 @@ impl TProp {
             TProp::Str(cell) => cell.last_before(t).map(|(t, v)| (*t, Prop::Str(v.clone()))),
             TProp::I32(cell) => cell.last_before(t).map(|(t, v)| (*t, Prop::I32(*v))),
             TProp::I64(cell) => cell.last_before(t).map(|(t, v)| (*t, Prop::I64(*v))),
+            TProp::U8(cell) => cell.last_before(t).map(|(t, v)| (*t, Prop::U8(*v))),
+            TProp::U16(cell) => cell.last_before(t).map(|(t, v)| (*t, Prop::U16(*v))),
             TProp::U32(cell) => cell.last_before(t).map(|(t, v)| (*t, Prop::U32(*v))),
             TProp::U64(cell) => cell.last_before(t).map(|(t, v)| (*t, Prop::U64(*v))),
             TProp::F32(cell) => cell.last_before(t).map(|(t, v)| (*t, Prop::F32(*v))),
@@ -164,13 +158,15 @@ impl TProp {
 
     pub(crate) fn iter(&self) -> Box<dyn Iterator<Item = (i64, Prop)> + '_> {
         match self {
-            TProp::Empty => Box::new(std::iter::empty()),
+            TProp::Empty => Box::new(iter::empty()),
             TProp::Str(cell) => Box::new(
                 cell.iter_t()
                     .map(|(t, value)| (*t, Prop::Str(value.to_string()))),
             ),
             TProp::I32(cell) => Box::new(cell.iter_t().map(|(t, value)| (*t, Prop::I32(*value)))),
             TProp::I64(cell) => Box::new(cell.iter_t().map(|(t, value)| (*t, Prop::I64(*value)))),
+            TProp::U8(cell) => Box::new(cell.iter_t().map(|(t, value)| (*t, Prop::U8(*value)))),
+            TProp::U16(cell) => Box::new(cell.iter_t().map(|(t, value)| (*t, Prop::U16(*value)))),
             TProp::U32(cell) => Box::new(cell.iter_t().map(|(t, value)| (*t, Prop::U32(*value)))),
             TProp::U64(cell) => Box::new(cell.iter_t().map(|(t, value)| (*t, Prop::U64(*value)))),
             TProp::F32(cell) => Box::new(cell.iter_t().map(|(t, value)| (*t, Prop::F32(*value)))),
@@ -208,6 +204,14 @@ impl TProp {
             TProp::I64(cell) => Box::new(
                 cell.iter_window_t(r)
                     .map(|(t, value)| (*t, Prop::I64(*value))),
+            ),
+            TProp::U8(cell) => Box::new(
+                cell.iter_window_t(r)
+                    .map(|(t, value)| (*t, Prop::U8(*value))),
+            ),
+            TProp::U16(cell) => Box::new(
+                cell.iter_window_t(r)
+                    .map(|(t, value)| (*t, Prop::U16(*value))),
             ),
             TProp::U32(cell) => Box::new(
                 cell.iter_window_t(r)
@@ -383,6 +387,22 @@ mod tprop_tests {
             vec![(1, Prop::U64(1)), (2, Prop::U64(2))]
         );
 
+        let mut tprop = TProp::from(1.into(), Prop::U8(1));
+        tprop.set(2.into(), Prop::U8(2));
+
+        assert_eq!(
+            tprop.iter().collect::<Vec<_>>(),
+            vec![(1, Prop::U8(1)), (2, Prop::U8(2))]
+        );
+
+        let mut tprop = TProp::from(1.into(), Prop::U16(1));
+        tprop.set(2.into(), Prop::U16(2));
+
+        assert_eq!(
+            tprop.iter().collect::<Vec<_>>(),
+            vec![(1, Prop::U16(1)), (2, Prop::U16(2))]
+        );
+
         let mut tprop = TProp::from(1.into(), Prop::Bool(true));
         tprop.set(2.into(), Prop::Bool(true));
 
@@ -495,6 +515,22 @@ mod tprop_tests {
         assert_eq!(
             tprop.iter_window(i64::MIN..i64::MAX).collect::<Vec<_>>(),
             vec![(1, Prop::U64(1)), (2, Prop::U64(2))]
+        );
+
+        let mut tprop = TProp::from(1.into(), Prop::U8(1));
+        tprop.set(2.into(), Prop::U8(2));
+
+        assert_eq!(
+            tprop.iter_window(i64::MIN..i64::MAX).collect::<Vec<_>>(),
+            vec![(1, Prop::U8(1)), (2, Prop::U8(2))]
+        );
+
+        let mut tprop = TProp::from(1.into(), Prop::U16(1));
+        tprop.set(2.into(), Prop::U16(2));
+
+        assert_eq!(
+            tprop.iter_window(i64::MIN..i64::MAX).collect::<Vec<_>>(),
+            vec![(1, Prop::U16(1)), (2, Prop::U16(2))]
         );
 
         let mut tprop = TProp::from(1.into(), Prop::Bool(true));

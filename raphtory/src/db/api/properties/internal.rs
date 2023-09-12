@@ -6,6 +6,7 @@ use crate::{
     },
     db::api::view::internal::Base,
 };
+use enum_dispatch::enum_dispatch;
 
 pub trait CorePropertiesOps {
     fn const_prop_meta(&self) -> &DictMapper<String>;
@@ -16,6 +17,7 @@ pub trait CorePropertiesOps {
 
 pub type Key = String; //Fixme: This should really be the internal usize index but that means more reworking of the low-level api
 
+#[enum_dispatch]
 pub trait TemporalPropertyViewOps {
     fn temporal_value(&self, id: &Key) -> Option<Prop> {
         self.temporal_values(id).last().cloned()
@@ -31,6 +33,7 @@ pub trait TemporalPropertyViewOps {
     }
 }
 
+#[enum_dispatch]
 pub trait ConstPropertiesOps {
     fn const_property_keys<'a>(&'a self) -> Box<dyn Iterator<Item = LockedView<'a, String>> + 'a>;
     fn const_property_values(&self) -> Vec<Prop> {
@@ -41,6 +44,7 @@ pub trait ConstPropertiesOps {
     fn get_const_property(&self, key: &str) -> Option<Prop>;
 }
 
+#[enum_dispatch]
 pub trait TemporalPropertiesOps {
     fn temporal_property_keys<'a>(
         &'a self,

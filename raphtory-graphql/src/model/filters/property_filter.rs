@@ -1,8 +1,11 @@
-use crate::model::{filters::primitive_filter::NumberFilter, graph::node::Node};
+use crate::model::{
+    filters::primitive_filter::NumberFilter,
+    graph::{edge::Edge, node::Node},
+};
 use dynamic_graphql::InputObject;
-use raphtory::{core::Prop, db::api::view::VertexViewOps};
+use raphtory::{core::Prop, db::api::view::VertexViewOps, prelude::EdgeViewOps};
 
-#[derive(InputObject)]
+#[derive(InputObject, Clone)]
 pub(crate) struct PropertyHasFilter {
     key: Option<String>,
     value_str: Option<String>,
@@ -10,7 +13,7 @@ pub(crate) struct PropertyHasFilter {
 }
 
 impl PropertyHasFilter {
-    pub(crate) fn matches(&self, node: &Node) -> bool {
+    pub(crate) fn matches_node_properties(&self, node: &Node) -> bool {
         let valid_prop = |prop| valid_prop(prop, &self.value_str, &self.value_num);
 
         return match &self.key {
@@ -22,6 +25,21 @@ impl PropertyHasFilter {
                 }
             }
             None => node.vv.properties().values().any(valid_prop),
+        };
+    }
+
+    pub(crate) fn matches_edge_properties(&self, edge: &Edge) -> bool {
+        let valid_prop = |prop| valid_prop(prop, &self.value_str, &self.value_num);
+
+        return match &self.key {
+            Some(key) => {
+                if let Some(prop) = EdgeViewOps::properties(&edge.ee).get(key) {
+                    valid_prop(prop)
+                } else {
+                    false
+                }
+            }
+            None => EdgeViewOps::properties(&edge.ee).values().any(valid_prop),
         };
     }
 }
@@ -54,6 +72,8 @@ fn value_neq_num_prop(num_filter: &NumberFilter, prop: &Prop) -> bool {
     match prop {
         Prop::I32(i32_prop) => match_signed_num(num_filter, i64::from(*i32_prop)),
         Prop::I64(i64_prop) => match_signed_num(num_filter, *i64_prop),
+        Prop::U8(u8_prop) => match_unsigned_num(num_filter, u64::from(*u8_prop)),
+        Prop::U16(u16_prop) => match_unsigned_num(num_filter, u64::from(*u16_prop)),
         Prop::U32(u32_prop) => match_unsigned_num(num_filter, u64::from(*u32_prop)),
         Prop::U64(u64_prop) => match_unsigned_num(num_filter, *u64_prop),
         Prop::F32(f32_prop) => match_float(num_filter, f64::from(*f32_prop)),

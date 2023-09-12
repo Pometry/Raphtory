@@ -5,12 +5,13 @@ use crate::core::{
         locked_view::LockedView,
         timeindex::TimeIndexEntry,
     },
-    utils::errors::{IllegalMutate, MutateGraphError},
+    utils::errors::{GraphError, IllegalMutate, MutateGraphError},
     Prop,
 };
 use parking_lot::{RwLock, RwLockReadGuard};
 use serde::{Deserialize, Serialize};
 use std::{
+    borrow::Borrow,
     fmt::Debug,
     hash::Hash,
     ops::Deref,
@@ -38,7 +39,12 @@ impl Props {
         }
     }
 
-    pub fn add_prop(&mut self, t: TimeIndexEntry, prop_id: usize, prop: Prop) {
+    pub fn add_prop(
+        &mut self,
+        t: TimeIndexEntry,
+        prop_id: usize,
+        prop: Prop,
+    ) -> Result<(), GraphError> {
         self.temporal_props.update(prop_id, |p| p.set(t, prop))
     }
 
@@ -117,7 +123,7 @@ impl Meta {
 
     pub fn new() -> Self {
         let meta_layer = DictMapper::default();
-        meta_layer.get_or_create_id("_default".to_owned());
+        meta_layer.get_or_create_id("_default");
         Self {
             meta_prop_temporal: DictMapper::default(),
             meta_prop_static: DictMapper::default(),
@@ -132,18 +138,22 @@ impl Meta {
     ) -> impl Iterator<Item = (usize, Prop)> + 'a {
         prop_names.into_iter().map(move |(name, value)| {
             if !is_static {
-                (self.meta_prop_temporal.get_or_create_id(name), value)
+                (self.meta_prop_temporal.get_or_create_id(&name), value)
             } else {
-                (self.meta_prop_static.get_or_create_id(name), value)
+                (self.meta_prop_static.get_or_create_id(&name), value)
             }
         })
     }
 
-    pub fn resolve_prop_id<S: Into<String>>(&self, name: S, is_static: bool) -> usize {
+    pub fn resolve_prop_id<Q>(&self, name: &Q, is_static: bool) -> usize
+    where
+        String: Borrow<Q>,
+        Q: Hash + Eq + ?Sized + ToOwned<Owned = String>,
+    {
         if is_static {
-            self.meta_prop_static.get_or_create_id(name.into())
+            self.meta_prop_static.get_or_create_id(name)
         } else {
-            self.meta_prop_temporal.get_or_create_id(name.into())
+            self.meta_prop_temporal.get_or_create_id(name)
         }
     }
 
@@ -155,7 +165,7 @@ impl Meta {
         }
     }
 
-    pub fn get_or_create_layer_id(&self, name: String) -> usize {
+    pub fn get_or_create_layer_id(&self, name: &str) -> usize {
         self.meta_layer.get_or_create_id(name)
     }
 
@@ -207,11 +217,16 @@ pub struct DictMapper<T: Hash + Eq> {
 }
 
 impl<T: Hash + Eq + Clone + Debug> DictMapper<T> {
-    pub fn get_or_create_id(&self, name: T) -> usize {
-        if let Some(existing_id) = self.map.get(&name) {
+    pub fn get_or_create_id<Q>(&self, name: &Q) -> usize
+    where
+        T: Borrow<Q>,
+        Q: Hash + Eq + ?Sized + ToOwned<Owned = T>,
+    {
+        if let Some(existing_id) = self.map.get(name) {
             return *existing_id;
         }
 
+        let name = name.to_owned();
         let new_id = self.map.entry(name.clone()).or_insert_with(|| {
             let mut reverse = self.reverse_map.write();
             let id = reverse.len();
@@ -273,7 +288,7 @@ mod test {
                 let mut write_s = write.clone();
                 write_s.shuffle(&mut rng);
                 for s in write_s {
-                    let id = mapper.get_or_create_id(s.clone());
+                    let id = mapper.get_or_create_id(&s);
                     ids.insert(s, id);
                 }
                 ids

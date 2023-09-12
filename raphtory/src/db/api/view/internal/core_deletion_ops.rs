@@ -5,7 +5,9 @@ use crate::{
     },
     db::api::view::internal::Base,
 };
+use enum_dispatch::enum_dispatch;
 
+#[enum_dispatch]
 pub trait CoreDeletionOps {
     /// Get all the deletion timestamps for an edge
     /// (this should always be global and not affected by windowing as deletion semantics may need information outside the current view!)

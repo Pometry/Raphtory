@@ -4,6 +4,7 @@ use crate::core::{
         properties::{props::DictMapper, tprop::TProp},
     },
     storage::{locked_view::LockedView, timeindex::TimeIndexEntry},
+    utils::errors::GraphError,
     Prop,
 };
 use parking_lot::RwLockReadGuard;
@@ -29,18 +30,23 @@ impl GraphProps {
     }
 
     pub(crate) fn add_static_prop(&self, name: &str, prop: Prop) {
-        let prop_id = self.static_mapper.get_or_create_id(name.to_owned());
+        let prop_id = self.static_mapper.get_or_create_id(name);
         let mut prop_entry = self.static_props.entry(prop_id).or_insert(None);
         (*prop_entry) = Some(prop);
     }
 
-    pub(crate) fn add_prop(&self, t: TimeIndexEntry, name: &str, prop: Prop) {
-        let prop_id = self.temporal_mapper.get_or_create_id(name.to_owned());
+    pub(crate) fn add_prop(
+        &self,
+        t: TimeIndexEntry,
+        name: &str,
+        prop: Prop,
+    ) -> Result<(), GraphError> {
+        let prop_id = self.temporal_mapper.get_or_create_id(name);
         let mut prop_entry = self
             .temporal_props
             .entry(prop_id)
             .or_insert(TProp::default());
-        (*prop_entry).set(t, prop);
+        (*prop_entry).set(t, prop)
     }
 
     pub(crate) fn get_static(&self, name: &str) -> Option<Prop> {

@@ -13,6 +13,8 @@ use raphtory::db::{
 };
 use std::collections::HashSet;
 
+use super::property_update::PropertyUpdateGroup;
+
 #[derive(ResolvedObject)]
 pub(crate) struct Node {
     pub(crate) vv: VertexView<DynamicGraph>,
@@ -80,6 +82,22 @@ impl Node {
                     .map(|(time, prop)| PropertyUpdate::new(time, prop.to_string()))
             })
             .collect()
+    }
+
+    /// Returns the history as a vectory of updates for any properties which are included in param names
+    async fn properties_history(&self, names: Vec<String>) -> Vec<PropertyUpdateGroup> {
+        names
+            .iter()
+            .filter_map(|name| match self.vv.properties().temporal().get(name) {
+                Some(prop) => Option::Some(PropertyUpdateGroup::new(
+                    name.to_string(),
+                    prop.iter()
+                        .map(|(time, prop)| PropertyUpdate::new(time, prop.to_string()))
+                        .collect_vec(),
+                )),
+                None => None,
+            })
+            .collect_vec()
     }
 
     async fn in_neighbours<'a>(&self, layer: Option<String>) -> Vec<Node> {

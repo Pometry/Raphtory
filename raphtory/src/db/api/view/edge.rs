@@ -1,7 +1,7 @@
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, VID},
-        storage::timeindex::AsTime,
+        storage::timeindex::{AsTime, TimeIndexEntry},
     },
     db::api::{
         properties::{
@@ -65,12 +65,10 @@ pub trait EdgeViewOps:
         let layer_ids = self.graph().layer_ids().constrain_from_edge(self.eref());
         match self.eref().time() {
             Some(tt) => *tt.t() <= t && t <= self.latest_time().unwrap_or(*tt.t()),
-            None => self.graph().has_edge_ref_window(
-                self.eref().src(),
-                self.eref().dst(),
-                t,
-                t.saturating_add(1),
-                layer_ids,
+            None => self.graph().include_edge_window(
+                &self.graph().core_edge(self.eref().pid()),
+                t..t.saturating_add(1),
+                &layer_ids,
             ),
         }
     }
@@ -107,11 +105,23 @@ pub trait EdgeViewOps:
         self.eref().time().map(|ti| *ti.t())
     }
 
+    /// Gets the layer name for the edge if it is restricted to a single layer
+    fn layer_name(&self) -> Option<String> {
+        self.eref()
+            .layer()
+            .and_then(|l_id| self.graph().get_layer_name(*l_id).map(|name| name.clone()))
+    }
+
+    /// Gets the TimeIndexEntry if the edge is exploded
+    fn time_and_index(&self) -> Option<TimeIndexEntry> {
+        self.eref().time()
+    }
+
     /// Gets the name of the layer this edge belongs to
     fn layer_names(&self) -> Vec<String> {
         let layer_ids = self
             .graph()
-            .edge_layer_ids(self.eref().pid())
+            .edge_layer_ids(&self.graph().core_edge(self.eref().pid()))
             .constrain_from_edge(self.eref());
         self.graph().get_layer_names_from_ids(layer_ids)
     }
@@ -150,6 +160,12 @@ pub trait EdgeListOps:
 
     /// Get the timestamp for the latest activity of the edge
     fn latest_time(self) -> Self::IterType<Option<i64>>;
+
+    /// Get the timestamps of the edges if they are  exploded
+    fn time(self) -> Self::IterType<Option<i64>>;
+
+    /// Get the layer name for each edge if it is restricted to a single layer
+    fn layer_name(self) -> Self::IterType<Option<String>>;
 }
 
 #[cfg(test)]
@@ -200,5 +216,37 @@ mod test_edge_view {
             .collect();
         assert_eq!(prop_values, expected_prop_values);
         assert_eq!(actual_layers, expected_layers);
+    }
+
+    #[test]
+    fn test_sorting_by_secondary_index() {
+        let g = Graph::new();
+        g.add_edge(0, 2, 3, NO_PROPS, None).unwrap();
+        g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
+        g.add_edge(0, 1, 2, [("second", true)], None).unwrap();
+        g.add_edge(0, 2, 3, [("second", true)], None).unwrap();
+
+        let mut exploded_edges: Vec<_> = g.edges().explode().collect();
+        exploded_edges.sort_by_key(|a| a.time_and_index());
+
+        let res: Vec<_> = exploded_edges
+            .into_iter()
+            .map(|e| {
+                (
+                    e.src().id(),
+                    e.dst().id(),
+                    e.properties().get("second").into_bool(),
+                )
+            })
+            .collect();
+        assert_eq!(
+            res,
+            vec![
+                (2, 3, None),
+                (1, 2, None),
+                (1, 2, Some(true)),
+                (2, 3, Some(true))
+            ]
+        )
     }
 }
