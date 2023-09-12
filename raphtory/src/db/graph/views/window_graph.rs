@@ -54,13 +54,15 @@ use crate::{
         },
         view::{
             internal::{
-                Base, EdgeFilter, EdgeFilterOps, GraphOps, Immutable, InheritCoreOps,
-                InheritLayerOps, InheritMaterialize, TimeSemantics,
+                Base, DelegateCoreOps, DynamicGraph, EdgeFilter, EdgeFilterOps, GraphOps,
+                Immutable, InheritCoreOps, InheritLayerOps, InheritMaterialize, IntoDynamic,
+                TimeSemantics,
             },
             BoxedIter,
         },
     },
-    prelude::GraphViewOps,
+    prelude::{GraphViewOps, TimeOps},
+    search::IndexedGraph,
 };
 use std::{
     cmp::{max, min},
@@ -88,6 +90,22 @@ impl<G: GraphViewOps + Debug> Debug for WindowedGraph<G> {
             "WindowedGraph({:?}, {}..{})",
             self.graph, self.t_start, self.t_end
         )
+    }
+}
+
+impl<G: GraphViewOps + IntoDynamic> WindowedGraph<IndexedGraph<G>> {
+    pub fn into_dynamic_indexed(self) -> IndexedGraph<DynamicGraph> {
+        IndexedGraph {
+            graph: self
+                .graph
+                .graph
+                .window(self.t_start, self.t_end)
+                .into_dynamic(),
+            vertex_index: self.graph.vertex_index,
+            edge_index: self.graph.edge_index,
+            reader: self.graph.reader,
+            edge_reader: self.graph.edge_reader,
+        }
     }
 }
 
