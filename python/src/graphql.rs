@@ -1,7 +1,7 @@
 use pyo3::{exceptions, prelude::*};
-use raphtory_core::prelude::Graph;
 use raphtory_core::{
     db::api::view::internal::{DynamicGraph, MaterializedGraph},
+    prelude::Graph,
     python::{graph::graph::PyGraph, utils::errors::adapt_err_value},
 };
 use raphtory_graphql::{url_decode_graph, url_encode_graph, RaphtoryServer};

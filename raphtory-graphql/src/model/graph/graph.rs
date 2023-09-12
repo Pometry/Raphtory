@@ -11,7 +11,6 @@ use crate::model::{
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
-use raphtory::prelude::PropertyAdditionOps;
 use raphtory::{
     db::{
         api::view::{
@@ -20,7 +19,7 @@ use raphtory::{
         },
         graph::edge::EdgeView,
     },
-    prelude::EdgeViewOps,
+    prelude::{EdgeViewOps, PropertyAdditionOps},
     search::IndexedGraph,
 };
 

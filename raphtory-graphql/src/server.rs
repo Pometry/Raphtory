@@ -8,8 +8,7 @@ use crate::{
 };
 use async_graphql_poem::GraphQL;
 use poem::{get, listener::TcpListener, middleware::Cors, EndpointExt, Route, Server};
-use raphtory::db::api::view::internal::DynamicGraph;
-use raphtory::prelude::Graph;
+use raphtory::{db::api::view::internal::DynamicGraph, prelude::Graph};
 use std::collections::HashMap;
 use tokio::{io::Result as IoResult, signal};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry};

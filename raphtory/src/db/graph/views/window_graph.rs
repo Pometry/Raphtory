@@ -37,9 +37,6 @@
 //!  assert_eq!(wg.edge(1, 2).unwrap().src().id(), 1);
 //! ```
 
-use crate::db::api::view::internal::{DelegateCoreOps, DynamicGraph, IntoDynamic};
-use crate::prelude::TimeOps;
-use crate::search::IndexedGraph;
 use crate::{
     core::{
         entities::{
@@ -57,13 +54,14 @@ use crate::{
         },
         view::{
             internal::{
-                Base, EdgeFilter, EdgeFilterOps, GraphOps, InheritCoreOps, InheritLayerOps,
-                InheritMaterialize, TimeSemantics,
+                Base, DelegateCoreOps, DynamicGraph, EdgeFilter, EdgeFilterOps, GraphOps,
+                InheritCoreOps, InheritLayerOps, InheritMaterialize, IntoDynamic, TimeSemantics,
             },
             BoxedIter,
         },
     },
-    prelude::GraphViewOps,
+    prelude::{GraphViewOps, TimeOps},
+    search::IndexedGraph,
 };
 use std::{
     cmp::{max, min},

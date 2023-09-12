@@ -17,12 +17,10 @@ use dynamic_graphql::{
     Upload,
 };
 use itertools::Itertools;
-use raphtory::core::Prop;
-use raphtory::db::api::view::internal::CoreGraphOps;
-use raphtory::prelude::{Graph, PropertyAdditionOps};
 use raphtory::{
-    db::api::view::internal::{DynamicGraph, IntoDynamic, MaterializedGraph},
-    prelude::GraphViewOps,
+    core::Prop,
+    db::api::view::internal::{CoreGraphOps, DynamicGraph, IntoDynamic, MaterializedGraph},
+    prelude::{Graph, GraphViewOps, PropertyAdditionOps},
     search::IndexedGraph,
 };
 
@@ -116,14 +114,17 @@ impl Mut {
         graph_name: String,
         props: String,
     ) -> Result<bool> {
-        let mut static_props: HashMap<String, Prop> = HashMap::new();
-        static_props.insert("uiProps".to_string(), Prop::Str(props));
-
         let data = ctx.data_unchecked::<Data>().graphs.read();
         let g = data.get(&graph_name).ok_or("Graph not found")?;
-        g.add_static_properties(static_props);
+        g.add_static_properties([("uiProps".to_string(), Prop::Str(props))])
+            .expect("Failed to add static property");
 
-        // TODO: Save this save
+        let path = g
+            .static_prop(&"path".to_string())
+            .expect("Path is missing")
+            .to_string();
+
+        g.save_to_file(path).expect("Failed to save graph");
 
         Ok(true)
     }

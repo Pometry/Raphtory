@@ -1,7 +1,8 @@
 use parking_lot::RwLock;
 use raphtory::{
+    core::Prop,
     db::api::view::internal::{DynamicGraph, IntoDynamic},
-    prelude::{Graph, GraphViewOps},
+    prelude::{Graph, GraphViewOps, PropertyAdditionOps},
     search::IndexedGraph,
 };
 use std::{
@@ -26,19 +27,14 @@ impl Data {
         Self { graphs }
     }
 
-    pub fn from_map_and_directory(
-        graphs: HashMap<String, Graph>,
-        directory_path: &str,
-    ) -> Self {
+    pub fn from_map_and_directory(graphs: HashMap<String, Graph>, directory_path: &str) -> Self {
         let mut graphs = Self::convert_graphs(graphs);
         graphs.extend(Self::load_from_file(directory_path));
         let graphs = RwLock::new(graphs);
         Self { graphs }
     }
 
-    fn convert_graphs(
-        graphs: HashMap<String, Graph>,
-    ) -> HashMap<String, IndexedGraph<Graph>> {
+    fn convert_graphs(graphs: HashMap<String, Graph>) -> HashMap<String, IndexedGraph<Graph>> {
         graphs
             .into_iter()
             .map(|(name, g)| {
@@ -78,6 +74,9 @@ impl Data {
             .map(|path| {
                 println!("loading graph from {path}");
                 let graph = Graph::load_from_file(&path).expect("Unable to load from graph");
+                graph
+                    .add_static_properties([("path".to_string(), Prop::Str(path.clone()))])
+                    .expect("Failed to add static property");
                 let maybe_graph_name = graph.properties().get("name");
 
                 return match maybe_graph_name {
