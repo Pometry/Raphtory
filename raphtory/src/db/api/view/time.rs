@@ -1,5 +1,5 @@
-use num_traits::Saturating;
 use crate::core::utils::time::{error::ParseTimeError, Interval, IntoTime};
+use num_traits::Saturating;
 
 /// Trait defining time query operations
 pub trait TimeOps {
