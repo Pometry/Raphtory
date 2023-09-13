@@ -280,6 +280,9 @@ impl PyTemporalProp {
     pub fn mean(&self) -> Option<Prop> {
         let sum: Prop = self.sum();
         let count: usize = self.len();
+        if count == 0 {
+            return None;
+        }
         match sum {
             Prop::I32(s) => Some(Prop::F32(s as f32 / count as f32)),
             Prop::I64(s) => Some(Prop::F64(s as f64 / count as f64)),
@@ -823,7 +826,9 @@ impl PyPropHistValueListList {
                         _ => Some(elem),
                     });
                     let count = itit_iter.count();
-
+                    if count == 0 {
+                        return None;
+                    }
                     match sum {
                         Some(Prop::U8(s)) => Some(Prop::U8(s / count as u8)),
                         Some(Prop::U16(s)) => Some(Prop::U16(s / count as u16)),
@@ -901,6 +906,9 @@ impl PropIterable {
     pub fn mean(&self) -> PropValue {
         let sum: PropValue = self.sum();
         let count: usize = self.iter().collect::<Vec<Prop>>().len();
+        if count == 0 {
+            return None;
+        }
         match sum {
             Some(Prop::U8(s)) => Some(Prop::F64(s as f64 / count as f64)),
             Some(Prop::U16(s)) => Some(Prop::F64(s as f64 / count as f64)),
@@ -999,6 +1007,9 @@ impl PyPropHistValueList {
                 let first = it_iter.next();
                 let sum = it_iter.fold(first, |acc, elem| acc.and_then(|val| val.add(elem)));
                 let count = it.len();
+                if count == 0 {
+                    return None;
+                }
                 match sum {
                     Some(Prop::U8(s)) => Some(Prop::F64(s as f64 / count as f64)),
                     Some(Prop::U16(s)) => Some(Prop::F64(s as f64 / count as f64)),
@@ -1095,6 +1106,9 @@ impl PyPropValueList {
     pub fn mean(&self) -> PropValue {
         let sum: PropValue = self.sum();
         let count: usize = self.iter().collect::<Vec<PropValue>>().len();
+        if count == 0 {
+            return None;
+        }
         match sum {
             Some(Prop::U8(s)) => Some(Prop::F64(s as f64 / count as f64)),
             Some(Prop::U16(s)) => Some(Prop::F64(s as f64 / count as f64)),
@@ -1185,6 +1199,9 @@ impl PyPropValueListList {
                         _ => None,
                     }
                 });
+                if count == 0 {
+                    return None;
+                }
                 match sum {
                     Some(Prop::U8(s)) => Some(Prop::F64(s as f64 / count as f64)),
                     Some(Prop::U16(s)) => Some(Prop::F64(s as f64 / count as f64)),
