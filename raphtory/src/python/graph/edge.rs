@@ -390,6 +390,7 @@ impl PyEdge {
     ///
     /// Returns:
     ///     ([str]) The name of the layer
+    #[getter]
     pub fn layer_name(&self) -> Option<String> {
         self.edge.layer_name()
     }

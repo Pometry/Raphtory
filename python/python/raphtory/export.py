@@ -158,7 +158,7 @@ def to_networkx(
                 properties.update(e.properties.temporal.histories())
             else:
                 properties = e.properties.as_dict()
-        layer = e.layer_name()
+        layer = e.layer_name
         if layer is not None:
             properties.update({"layer": layer})
         if include_update_history:
@@ -205,7 +205,7 @@ def to_edge_df(
 
     edges = graph.edges().explode() if explode_edges else graph.edges().explode_layers()
     for e in edges:
-        tuple = [e.src.name, e.dst.name, e.layer_name()]
+        tuple = [e.src.name, e.dst.name, e.layer_name]
         if include_edge_properties:
             properties = {}
             if include_property_histories:
