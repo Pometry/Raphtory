@@ -112,7 +112,7 @@ pub fn star_motif_count<G: GraphViewOps>(
     evv: &EvalVertexView<G, ComputeStateVec, MotifCounter>,
     delta: i64,
 ) -> [usize; 24] {
-    let mut rng = StdRng::from_entropy();
+    // let mut rng = StdRng::from_entropy();
     let neigh_map: HashMap<u64, usize> = evv
         .neighbours()
         .into_iter()
@@ -123,7 +123,7 @@ pub fn star_motif_count<G: GraphViewOps>(
     let exploded_edges = evv
         .edges()
         .explode()
-        .sorted_by_key(|e| (e.time(), e.src().id(), e.dst().id()))
+        .sorted_by_key(|e| e.time_and_index())
         // .sorted_unstable_by_key(|e| (e.time(), rng.gen_range(0..10000000)))
         .map(|edge| {
             if edge.src().id() == evv.id() {
@@ -155,7 +155,7 @@ pub fn twonode_motif_count<G: GraphViewOps>(
             .iter()
             .flat_map(|e| e.explode())
             .chain(inc.iter().flat_map(|e| e.explode()))
-            .sorted_by_key(|e| (e.time(), e.src().id(), e.dst().id()))
+            .sorted_by_key(|e| e.time_and_index())
             // .sorted_unstable_by_key(|e| (e.time(), rng.gen_range(0..10000000)))
             .map(|e| {
                 two_node_event(
@@ -231,24 +231,18 @@ pub fn triangle_motifs<G: GraphViewOps>(
                     intersection_nbs.iter().for_each(|w| {
                         // For each triangle, run the triangle count.
 
-                        let mut tmp = vec![u.id(), v.id(), *w]
+                        let mut all_exploded = vec![u.id(), v.id(), *w]
                             .into_iter()
                             .sorted()
                             .permutations(2)
-                            .collect_vec();
-
-                        // tmp.shuffle(&mut rng);
-
-                        let all_exploded = tmp
-                            .iter()
-                            .map(|e| {
+                            .flat_map(|e| {
                                 g
                                     .edge(e.get(0).unwrap().clone(), e.get(1).unwrap().clone())
                                     .iter()
                                     .flat_map(|edge| edge.explode())
                                     .collect::<Vec<_>>()
                             })
-                            .kmerge_by(|e1,e2| e1.time() < e2.time())
+                            .sorted_by_key(|e| e.time_and_index())
                             .map(|e| {
                                 let (src_id, dst_id) = (e.src().id(), e.dst().id());
                                 let (uid, vid) = (u.id(), v.id());
