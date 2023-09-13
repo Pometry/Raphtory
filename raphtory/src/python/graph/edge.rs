@@ -198,7 +198,7 @@ impl PyEdge {
     ///     the start datetime of the Edge.
     pub fn start_date_time(&self) -> Option<NaiveDateTime> {
         let start_time = self.edge.start()?;
-        Some(NaiveDateTime::from_timestamp_millis(start_time).unwrap())
+        NaiveDateTime::from_timestamp_millis(start_time)
     }
 
     /// Get the end time of the Edge.
@@ -215,7 +215,7 @@ impl PyEdge {
     ///    The end datetime of the Edge
     pub fn end_date_time(&self) -> Option<NaiveDateTime> {
         let end_time = self.edge.end()?;
-        Some(NaiveDateTime::from_timestamp_millis(end_time).unwrap())
+        NaiveDateTime::from_timestamp_millis(end_time))
     }
 
     /// Get the duration of the Edge.
@@ -337,7 +337,7 @@ impl PyEdge {
     /// Returns:
     ///     the earliest datetime of an edge
     pub fn earliest_date_time(&self) -> Option<NaiveDateTime> {
-        Some(NaiveDateTime::from_timestamp_millis(self.edge.earliest_time()?).unwrap())
+        NaiveDateTime::from_timestamp_millis(self.edge.earliest_time()?)
     }
 
     /// Gets the latest time of an edge.
@@ -354,7 +354,7 @@ impl PyEdge {
     ///     the latest datetime of an edge
     pub fn latest_date_time(&self) -> Option<NaiveDateTime> {
         let latest_time = self.edge.latest_time()?;
-        Some(NaiveDateTime::from_timestamp_millis(latest_time).unwrap())
+        NaiveDateTime::from_timestamp_millis(latest_time)
     }
 
     /// Gets the time of an exploded edge.
@@ -387,7 +387,8 @@ impl PyEdge {
     ///     (datetime) the datetime of an exploded edge
     pub fn date_time(&self) -> Option<NaiveDateTime> {
         let date_time = self.edge.time()?;
-        Some(NaiveDateTime::from_timestamp_millis(date_time).unwrap())
+        NaiveDateTime::from_timestamp_millis(date_time)
+        NaiveDateTime::from_timestamp_millis(date_time)
     }
 
     /// Displays the Edge as a string.

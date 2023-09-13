@@ -23,7 +23,7 @@ pub trait TimeOps {
 
     /// Create a view including all events until `end` (inclusive)
     fn at<T: IntoTime>(&self, end: T) -> Self::WindowedViewType {
-        self.window(i64::MIN, end.into_time().saturating_add(1))
+        self.window(self.start().unwrap_or(end.into_time()), end.into_time().saturating_add(1))
     }
 
     /// Creates a `WindowSet` with the given `step` size    
