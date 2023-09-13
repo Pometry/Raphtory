@@ -525,7 +525,6 @@ impl PyEdges {
     }
 
     /// Returns all edges as a list
-    #[getter]
     fn collect(&self) -> Vec<PyEdge> {
         self.py_iter().collect()
     }
