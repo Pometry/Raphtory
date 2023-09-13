@@ -85,8 +85,8 @@ def test_empty_lists():
     ]
     for src, dst, val, time in edges_str:
         g.add_edge(time, src, dst, {"value_dec": val})
-    assert(g.vertices().out_edges().properties.temporal.get("value_dec").values().median().median().median() == 5)
-    assert(g.vertices().out_edges().properties.temporal.get("value_dec").values().mean().mean().mean() == 1.3333333333333335)
+    assert(g.vertices().out_edges.properties.temporal.get("value_dec").values().median().median().median() == 5)
+    assert(g.vertices().out_edges.properties.temporal.get("value_dec").values().mean().mean().mean() == 1.3333333333333335)
 
 
 def test_propiterable():

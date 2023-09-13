@@ -697,7 +697,7 @@ def test_exploded_edge_time():
     e = g.edge("Frodo", "Gandalf")
     his = e.history
     exploded_his = []
-    for ee in e.explode:
+    for ee in e.explode():
         exploded_his.append(ee.time)
     assert his == exploded_his
 
@@ -1028,89 +1028,13 @@ def test_edge_history():
 
     view = g.window(1, 5)
 
-<<<<<<< HEAD
-    assert g.edge(1, 2).history() == [1, 3]
-    assert view.edge(1, 4).history() == [4]
-=======
     assert (g.edge(1, 2).history == [1, 3])
     assert (view.edge(1, 4).history == [4])
->>>>>>> a77c475b (changing methods to getter)
 
 
 def test_lotr_edge_history():
     g = graph_loader.lotr_graph()
 
-<<<<<<< HEAD
-    assert g.edge("Frodo", "Gandalf").history() == [
-        329,
-        555,
-        861,
-        1056,
-        1130,
-        1160,
-        1234,
-        1241,
-        1390,
-        1417,
-        1656,
-        1741,
-        1783,
-        1785,
-        1792,
-        1804,
-        1809,
-        1999,
-        2056,
-        2254,
-        2925,
-        2999,
-        3703,
-        3914,
-        4910,
-        5620,
-        5775,
-        6381,
-        6531,
-        6578,
-        6661,
-        6757,
-        7041,
-        7356,
-        8183,
-        8190,
-        8276,
-        8459,
-        8598,
-        8871,
-        9098,
-        9343,
-        9903,
-        11189,
-        11192,
-        11279,
-        11365,
-        14364,
-        21551,
-        21706,
-        23212,
-        26958,
-        27060,
-        29024,
-        30173,
-        30737,
-        30744,
-        31023,
-        31052,
-        31054,
-        31103,
-        31445,
-        32656,
-    ]
-    assert g.at(1000).edge("Frodo", "Gandalf").history() == [329, 555, 861]
-    assert g.edge("Frodo", "Gandalf").at(1000).history() == [329, 555, 861]
-    assert g.window(100, 1000).edge("Frodo", "Gandalf").history() == [329, 555, 861]
-    assert g.edge("Frodo", "Gandalf").window(100, 1000).history() == [329, 555, 861]
-=======
     assert (g.edge('Frodo', 'Gandalf').history == [329, 555, 861, 1056, 1130, 1160, 1234, 1241, 1390, 1417, 1656,
                                                      1741, 1783, 1785, 1792, 1804, 1809, 1999, 2056, 2254, 2925, 2999,
                                                      3703, 3914, 4910, 5620, 5775, 6381, 6531, 6578, 6661, 6757, 7041,
@@ -1122,7 +1046,6 @@ def test_lotr_edge_history():
     assert (g.edge('Frodo', 'Gandalf').at(1000).history == [329, 555, 861])
     assert (g.window(100, 1000).edge('Frodo', 'Gandalf').history == [329, 555, 861])
     assert (g.edge('Frodo', 'Gandalf').window(100, 1000).history == [329, 555, 861])
->>>>>>> a77c475b (changing methods to getter)
 
 
 def gen_graph():
@@ -1290,7 +1213,6 @@ def test_layer_vertex():
     assert sorted(g.layers(["layer1"]).vertex(neighbours[0].name).edges.id) == [(1, 2), (2, 4)]
     assert sorted(g.layers(["layer1"]).edges().id) == [(1, 2), (2, 4)]
     assert sorted(g.layers(["layer1", "layer2"]).edges().id) == [(1, 2), (2, 3), (2, 4)]
->>>>>>> a77c475b (changing methods to getter)
 
 
 def test_rolling_as_iterable():
@@ -1374,7 +1296,7 @@ def test_date_time():
 
     e = g.edge(1, 3)
     exploded_edges = []
-    for edge in e.explode:
+    for edge in e.explode():
         exploded_edges.append(edge.date_time)
     assert exploded_edges == [datetime.datetime(2014, 2, 3)]
     assert g.edge(1, 2).earliest_date_time == datetime.datetime(2014, 2, 2, 0, 0)
@@ -1410,7 +1332,7 @@ def test_date_time_window():
 
     e = view.edge(1, 2)
     exploded_edges = []
-    for edge in e.explode:
+    for edge in e.explode():
         exploded_edges.append(edge.date_time)
     assert exploded_edges == [datetime.datetime(2014, 2, 2)]
 
@@ -1516,15 +1438,9 @@ def test_materialize_graph():
     assert g.vertices.id.collect() == mg.vertices.id.collect()
     assert set(g.edges().id) == set(mg.edges().id)
     assert mg.vertex(1).properties.constant == {}
-<<<<<<< HEAD
-    assert mg.vertex(4).properties.constant == {"abc": "xyz"}
-    assert g.edge(1, 2).id() == (1, 2)
-    assert mg.edge(1, 2).id() == (1, 2)
-=======
     assert mg.vertex(4).properties.constant == {'abc': 'xyz'}
     assert g.edge(1, 2).id == (1, 2)
     assert mg.edge(1, 2).id == (1, 2)
->>>>>>> a77c475b (changing methods to getter)
     assert mg.has_edge(1, 2)
     assert g.has_edge(1, 2)
     assert mg.has_edge(2, 1)
@@ -1545,7 +1461,7 @@ def test_deletions():
     for e in edges[1:]:
         assert g.window(start=11).has_edge(e[1], e[2])
 
-    assert list(g.edge(edges[0][1], edges[0][2]).explode.latest_time) == [10]
+    assert list(g.edge(edges[0][1], edges[0][2]).explode().latest_time) == [10]
 
 
 def test_load_from_pandas():
@@ -1772,102 +1688,6 @@ def test_load_from_pandas_with_types():
         layer="test_layer",
     )
 
-<<<<<<< HEAD
-    assert g.layers(["test_layer"]).edges().src().id().collect() == [1, 2, 3, 4, 5]
-    assert g.edges().properties.constant.get("type").collect() == [
-        {"test_layer": "Edge"},
-        {"test_layer": "Edge"},
-        {"test_layer": "Edge"},
-        {"test_layer": "Edge"},
-        {"test_layer": "Edge"},
-    ]
-    assert g.edges().properties.constant.get("tag").collect() == [
-        {"test_layer": "test_tag"},
-        {"test_layer": "test_tag"},
-        {"test_layer": "test_tag"},
-        {"test_layer": "test_tag"},
-        {"test_layer": "test_tag"},
-    ]
-    assert g.edges().properties.constant.get("marbles_const").collect() == [
-        {"test_layer": "red"},
-        {"test_layer": "blue"},
-        {"test_layer": "green"},
-        {"test_layer": "yellow"},
-        {"test_layer": "purple"},
-    ]
-
-    g = Graph()
-    g.load_edges_from_pandas(
-        edges_df, "src", "dst", "time", ["weight", "marbles"], layer_in_df="layers"
-    )
-    assert g.layers(["layer 1"]).edges().src().id().collect() == [1]
-    assert g.layers(["layer 1", "layer 2"]).edges().src().id().collect() == [1, 2]
-    assert g.layers(["layer 1", "layer 2", "layer 3"]).edges().src().id().collect() == [
-        1,
-        2,
-        3,
-    ]
-    assert g.layers(["layer 1", "layer 4", "layer 5"]).edges().src().id().collect() == [
-        1,
-        4,
-        5,
-    ]
-
-    g = Graph.load_from_pandas(
-        edges_df,
-        "src",
-        "dst",
-        "time",
-        layer="test_layer",
-        vertex_df=vertices_df,
-        vertex_col="id",
-        vertex_time_col="time",
-        vertex_props=["name"],
-        vertex_shared_const_props={"type": "Person"},
-    )
-    assert g.vertices().properties.constant.get("type").collect() == [
-        "Person",
-        "Person",
-        "Person",
-        "Person",
-        "Person",
-        "Person",
-    ]
-    assert g.layers(["test_layer"]).edges().src().id().collect() == [1, 2, 3, 4, 5]
-
-    g = Graph.load_from_pandas(
-        edges_df,
-        "src",
-        "dst",
-        "time",
-        layer_in_df="layers",
-        vertex_df=vertices_df,
-        vertex_col="id",
-        vertex_time_col="time",
-        vertex_props=["name"],
-        vertex_const_props=["type"],
-    )
-    assert g.vertices().properties.constant.get("type").collect() == [
-        "Person 1",
-        "Person 2",
-        "Person 3",
-        "Person 4",
-        "Person 5",
-        "Person 6",
-    ]
-    assert g.layers(["layer 1"]).edges().src().id().collect() == [1]
-    assert g.layers(["layer 1", "layer 2"]).edges().src().id().collect() == [1, 2]
-    assert g.layers(["layer 1", "layer 2", "layer 3"]).edges().src().id().collect() == [
-        1,
-        2,
-        3,
-    ]
-    assert g.layers(["layer 1", "layer 4", "layer 5"]).edges().src().id().collect() == [
-        1,
-        4,
-        5,
-    ]
-=======
     assert g.layers(["test_layer"]).edges().src.id.collect() == [1, 2, 3, 4, 5]
     assert g.edges().properties.constant.get("type").collect() == [{'test_layer': 'Edge'}, {'test_layer': 'Edge'},
                                                                    {'test_layer': 'Edge'}, {'test_layer': 'Edge'},
@@ -1906,7 +1726,6 @@ def test_load_from_pandas_with_types():
     assert g.layers(["layer 1", "layer 2"]).edges().src.id.collect() == [1, 2]
     assert g.layers(["layer 1", "layer 2", "layer 3"]).edges().src.id.collect() == [1, 2, 3]
     assert g.layers(["layer 1", "layer 4", "layer 5"]).edges().src.id.collect() == [1, 4, 5]
->>>>>>> a77c475b (changing methods to getter)
 
     g = Graph.load_from_pandas(
         edges_df,
@@ -1980,7 +1799,7 @@ def test_layers_earliest_time():
     e = g.add_edge(1, 1, 2, layer="test")
     e = g.edge(1, 2)
     print(e)
-    assert e.earliest_time() == 1
+    assert e.earliest_time == 1
 
 
 
@@ -1989,7 +1808,7 @@ def test_layers_earliest_time():
     e = g.add_edge(1, 1, 2, layer="test")
     e = g.edge(1, 2)
     print(e)
-    assert e.earliest_time() == 1
+    assert e.earliest_time == 1
 
 
 
@@ -2000,20 +1819,20 @@ def test_edge_explode_layers():
     g.add_edge(1, 2, 1, {"layer": 1}, layer="1")
     g.add_edge(1, 2, 1, {"layer": 2}, layer="2")
 
-    layered_edges = g.edge(1, 2).explode_layers
+    layered_edges = g.edge(1, 2).explode_layers()
     e_layers = [ee.layer_names for ee in layered_edges]
     e_layer_prop = [[str(ee.properties["layer"])] for ee in layered_edges]
     assert e_layers == e_layer_prop
     print(e_layers)
 
-    nested_layered_edges = g.vertices.out_edges.explode_layers
+    nested_layered_edges = g.vertices.out_edges.explode_layers()
     e_layers = [[ee.layer_names for ee in edges] for edges in nested_layered_edges]
     e_layer_prop = [[[str(ee.properties["layer"])] for ee in layered_edges] for layered_edges in nested_layered_edges]
     assert e_layers == e_layer_prop
     print(e_layers)
 
     print(g.vertices.out_neighbours.collect)
-    nested_layered_edges = g.vertices.out_neighbours.out_edges.explode_layers
+    nested_layered_edges = g.vertices.out_neighbours.out_edges.explode_layers()
     print(nested_layered_edges)
     e_layers = [[ee.layer_names for ee in layered_edges] for layered_edges in nested_layered_edges]
     e_layer_prop = [[[str(ee.properties["layer"])] for ee in layered_edges] for layered_edges in nested_layered_edges]
