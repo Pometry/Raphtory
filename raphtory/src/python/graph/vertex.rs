@@ -104,6 +104,7 @@ impl PyVertex {
     ///
     /// Returns:
     ///   The vertex id.
+    #[getter]
     pub fn __hash__(&self) -> u64 {
         self.vertex.id()
     }
@@ -122,6 +123,7 @@ impl PyVertex {
     ///
     /// Returns:
     ///  The name of the vertex as a string.
+    #[getter]
     pub fn name(&self) -> String {
         self.vertex.name()
     }
@@ -183,6 +185,7 @@ impl PyVertex {
     ///
     /// Returns
     ///     The degree of this vertex.
+    #[getter]
     pub fn degree(&self) -> usize {
         self.vertex.degree()
     }
@@ -191,6 +194,7 @@ impl PyVertex {
     ///
     /// Returns:
     ///    The in-degree of this vertex.
+    #[getter]
     pub fn in_degree(&self) -> usize {
         self.vertex.in_degree()
     }
@@ -199,6 +203,7 @@ impl PyVertex {
     ///
     /// Returns:
     ///   The out-degree of this vertex.
+    #[getter]
     pub fn out_degree(&self) -> usize {
         self.vertex.out_degree()
     }
@@ -207,6 +212,7 @@ impl PyVertex {
     ///
     /// Returns:
     ///     A list of `Edge` objects.
+    #[getter]
     pub fn edges(&self) -> PyEdges {
         let vertex = self.vertex.clone();
         (move || vertex.edges()).into()
@@ -216,6 +222,7 @@ impl PyVertex {
     ///
     /// Returns:
     ///     A list of `Edge` objects.
+    #[getter]
     pub fn in_edges(&self) -> PyEdges {
         let vertex = self.vertex.clone();
         (move || vertex.in_edges()).into()
@@ -225,6 +232,7 @@ impl PyVertex {
     ///
     /// Returns:
     ///    A list of `Edge` objects.
+    #[getter]
     pub fn out_edges(&self) -> PyEdges {
         let vertex = self.vertex.clone();
         (move || vertex.out_edges()).into()
@@ -235,6 +243,7 @@ impl PyVertex {
     /// Returns:
     ///
     ///    A list of `Vertex` objects.
+    #[getter]
     pub fn neighbours(&self) -> PyPathFromVertex {
         self.vertex.neighbours().into()
     }
@@ -243,6 +252,7 @@ impl PyVertex {
     ///
     /// Returns:
     ///   A list of `Vertex` objects.
+    #[getter]
     pub fn in_neighbours(&self) -> PyPathFromVertex {
         self.vertex.in_neighbours().into()
     }
@@ -251,6 +261,7 @@ impl PyVertex {
     ///
     /// Returns:
     ///   A list of `Vertex` objects.
+    #[getter]
     pub fn out_neighbours(&self) -> PyPathFromVertex {
         self.vertex.out_neighbours().into()
     }
@@ -261,6 +272,7 @@ impl PyVertex {
     ///
     /// Returns:
     ///    The earliest time that this vertex is valid or None if the vertex is valid for all times.
+    #[getter]
     pub fn start(&self) -> Option<i64> {
         self.vertex.start()
     }
@@ -369,6 +381,7 @@ impl PyVertex {
     }
 
     #[doc = default_layer_doc_string!()]
+    #[getter]
     pub fn default_layer(&self) -> PyVertex {
         self.vertex.default_layer().into()
     }
@@ -389,6 +402,7 @@ impl PyVertex {
     ///
     /// Returns:
     ///     A list of timestamps of the event history of vertex.
+    #[getter]
     pub fn history(&self) -> Vec<i64> {
         self.vertex.history()
     }
@@ -559,6 +573,7 @@ impl PyVertices {
     }
 
     /// Returns an iterator over the vertices name
+    #[getter]
     fn name(&self) -> StringIterable {
         let vertices = self.vertices.clone();
         (move || vertices.name()).into()
@@ -588,6 +603,7 @@ impl PyVertices {
     ///
     /// Returns:
     ///     An iterator of the number of edges of the vertices
+    #[getter]
     fn degree(&self) -> UsizeIterable {
         let vertices = self.vertices.clone();
         (move || vertices.degree()).into()
@@ -597,6 +613,7 @@ impl PyVertices {
     ///
     /// Returns:
     ///     An iterator of the number of in edges of the vertices
+    #[getter]
     fn in_degree(&self) -> UsizeIterable {
         let vertices = self.vertices.clone();
         (move || vertices.in_degree()).into()
@@ -606,6 +623,7 @@ impl PyVertices {
     ///
     /// Returns:
     ///     An iterator of the number of out edges of the vertices
+    #[getter]
     fn out_degree(&self) -> UsizeIterable {
         let vertices = self.vertices.clone();
         (move || vertices.out_degree()).into()
@@ -615,6 +633,7 @@ impl PyVertices {
     ///
     /// Returns:
     ///     An iterator of edges of the vertices
+    #[getter]
     fn edges(&self) -> PyNestedEdges {
         let clone = self.vertices.clone();
         (move || clone.edges()).into()
@@ -624,6 +643,7 @@ impl PyVertices {
     ///
     /// Returns:
     ///     An iterator of in edges of the vertices
+    #[getter]
     fn in_edges(&self) -> PyNestedEdges {
         let clone = self.vertices.clone();
         (move || clone.in_edges()).into()
@@ -633,6 +653,7 @@ impl PyVertices {
     ///
     /// Returns:
     ///     An iterator of out edges of the vertices
+    #[getter]
     fn out_edges(&self) -> PyNestedEdges {
         let clone = self.vertices.clone();
         (move || clone.out_edges()).into()
@@ -642,6 +663,7 @@ impl PyVertices {
     ///
     /// Returns:
     ///     An iterator of the neighbours of the vertices
+    #[getter]
     fn neighbours(&self) -> PyPathFromGraph {
         self.vertices.neighbours().into()
     }
@@ -650,6 +672,7 @@ impl PyVertices {
     ///
     /// Returns:
     ///     An iterator of the in neighbours of the vertices
+    #[getter]
     fn in_neighbours(&self) -> PyPathFromGraph {
         self.vertices.in_neighbours().into()
     }
@@ -658,6 +681,7 @@ impl PyVertices {
     ///
     /// Returns:
     ///     An iterator of the out neighbours of the vertices
+    #[getter]
     fn out_neighbours(&self) -> PyPathFromGraph {
         self.vertices.out_neighbours().into()
     }
@@ -669,16 +693,19 @@ impl PyVertices {
 
     //*****     Perspective APIS  ******//
     /// Returns the start time of the vertices
+    #[getter]
     pub fn start(&self) -> Option<i64> {
         self.vertices.start()
     }
 
     /// Returns the end time of the vertices
+    #[getter]
     pub fn end(&self) -> Option<i64> {
         self.vertices.end()
     }
 
     #[doc = window_size_doc_string!()]
+    #[getter]
     pub fn window_size(&self) -> Option<u64> {
         self.vertices.window_size()
     }
@@ -753,6 +780,7 @@ impl PyVertices {
     }
 
     #[doc = default_layer_doc_string!()]
+    #[getter]
     pub fn default_layer(&self) -> PyVertices {
         self.vertices.default_layer().into()
     }
@@ -817,6 +845,7 @@ impl PyPathFromGraph {
         (move || path.id()).into()
     }
 
+    #[getter]
     fn name(&self) -> NestedStringIterable {
         let path = self.path.clone();
         (move || path.name()).into()
@@ -840,58 +869,70 @@ impl PyPathFromGraph {
         (move || path.properties()).into()
     }
 
+    #[getter]
     fn degree(&self) -> NestedUsizeIterable {
         let path = self.path.clone();
         (move || path.degree()).into()
     }
 
+    #[getter]
     fn in_degree(&self) -> NestedUsizeIterable {
         let path = self.path.clone();
         (move || path.in_degree()).into()
     }
 
+    #[getter]
     fn out_degree(&self) -> NestedUsizeIterable {
         let path = self.path.clone();
         (move || path.out_degree()).into()
     }
 
+    #[getter]
     fn edges(&self) -> PyNestedEdges {
         let clone = self.path.clone();
         (move || clone.edges()).into()
     }
 
+    #[getter]
     fn in_edges(&self) -> PyNestedEdges {
         let clone = self.path.clone();
         (move || clone.in_edges()).into()
     }
 
+    #[getter]
     fn out_edges(&self) -> PyNestedEdges {
         let clone = self.path.clone();
         (move || clone.out_edges()).into()
     }
 
+    #[getter]
     fn out_neighbours(&self) -> Self {
         self.path.out_neighbours().into()
     }
 
+    #[getter]
     fn in_neighbours(&self) -> Self {
         self.path.in_neighbours().into()
     }
 
+    #[getter]
     fn neighbours(&self) -> Self {
         self.path.neighbours().into()
     }
 
     //******  Perspective APIS  ******//
+    #[getter]
     pub fn start(&self) -> Option<i64> {
         self.path.start()
     }
 
+    #[getter]
     pub fn end(&self) -> Option<i64> {
         self.path.end()
     }
 
     #[doc = window_size_doc_string!()]
+    #[getter]
     pub fn window_size(&self) -> Option<u64> {
         self.path.window_size()
     }
@@ -934,6 +975,7 @@ impl PyPathFromGraph {
     }
 
     #[doc = default_layer_doc_string!()]
+    #[getter]
     pub fn default_layer(&self) -> Self {
         self.path.default_layer().into()
     }
@@ -1014,6 +1056,7 @@ impl PyPathFromVertex {
         (move || path.id()).into()
     }
 
+    #[getter]
     fn name(&self) -> StringIterable {
         let path = self.path.clone();
         (move || path.name()).into()
@@ -1037,58 +1080,70 @@ impl PyPathFromVertex {
         (move || path.properties()).into()
     }
 
+    #[getter]
     fn in_degree(&self) -> UsizeIterable {
         let path = self.path.clone();
         (move || path.in_degree()).into()
     }
 
+    #[getter]
     fn out_degree(&self) -> UsizeIterable {
         let path = self.path.clone();
         (move || path.out_degree()).into()
     }
 
+    #[getter]
     fn degree(&self) -> UsizeIterable {
         let path = self.path.clone();
         (move || path.degree()).into()
     }
 
+    #[getter]
     fn edges(&self) -> PyEdges {
         let path = self.path.clone();
         (move || path.edges()).into()
     }
 
+    #[getter]
     fn in_edges(&self) -> PyEdges {
         let path = self.path.clone();
         (move || path.in_edges()).into()
     }
 
+    #[getter]
     fn out_edges(&self) -> PyEdges {
         let path = self.path.clone();
         (move || path.out_edges()).into()
     }
 
+    #[getter]
     fn out_neighbours(&self) -> Self {
         self.path.out_neighbours().into()
     }
 
+    #[getter]
     fn in_neighbours(&self) -> Self {
         self.path.in_neighbours().into()
     }
 
+    #[getter]
     fn neighbours(&self) -> Self {
         self.path.neighbours().into()
     }
 
     //******  Perspective APIS  ******//
+    #[getter]
     pub fn start(&self) -> Option<i64> {
         self.path.start()
     }
 
+    #[getter]
     pub fn end(&self) -> Option<i64> {
         self.path.end()
     }
 
     #[doc = window_size_doc_string!()]
+    #[getter]
     pub fn window_size(&self) -> Option<u64> {
         self.path.window_size()
     }
@@ -1130,6 +1185,7 @@ impl PyPathFromVertex {
         self.path.at(end)
     }
 
+    #[getter]
     pub fn default_layer(&self) -> Self {
         self.path.default_layer().into()
     }
@@ -1234,6 +1290,7 @@ impl PyVertexIterable {
         (move || builder().id()).into()
     }
 
+    #[getter]
     fn name(&self) -> StringIterable {
         let vertices = self.builder.clone();
         (move || vertices().name()).into()
@@ -1257,46 +1314,55 @@ impl PyVertexIterable {
         (move || vertices().properties()).into()
     }
 
+    #[getter]
     fn degree(&self) -> UsizeIterable {
         let vertices = self.builder.clone();
         (move || vertices().degree()).into()
     }
 
+    #[getter]
     fn in_degree(&self) -> UsizeIterable {
         let vertices = self.builder.clone();
         (move || vertices().in_degree()).into()
     }
 
+    #[getter]
     fn out_degree(&self) -> UsizeIterable {
         let vertices = self.builder.clone();
         (move || vertices().out_degree()).into()
     }
 
+    #[getter]
     fn edges(&self) -> PyEdges {
         let clone = self.builder.clone();
         (move || clone().edges()).into()
     }
 
+    #[getter]
     fn in_edges(&self) -> PyEdges {
         let clone = self.builder.clone();
         (move || clone().in_edges()).into()
     }
 
+    #[getter]
     fn out_edges(&self) -> PyEdges {
         let clone = self.builder.clone();
         (move || clone().out_edges()).into()
     }
 
+    #[getter]
     fn out_neighbours(&self) -> Self {
         let builder = self.builder.clone();
         (move || builder().out_neighbours()).into()
     }
 
+    #[getter]
     fn in_neighbours(&self) -> Self {
         let builder = self.builder.clone();
         (move || builder().in_neighbours()).into()
     }
 
+    #[getter]
     fn neighbours(&self) -> Self {
         let builder = self.builder.clone();
         (move || builder().neighbours()).into()
@@ -1313,6 +1379,7 @@ impl PyNestedVertexIterable {
         (move || builder().id()).into()
     }
 
+    #[getter]
     fn name(&self) -> NestedStringIterable {
         let vertices = self.builder.clone();
         (move || vertices().name()).into()
@@ -1336,46 +1403,55 @@ impl PyNestedVertexIterable {
         (move || vertices().properties()).into()
     }
 
+    #[getter]
     fn degree(&self) -> NestedUsizeIterable {
         let vertices = self.builder.clone();
         (move || vertices().degree()).into()
     }
 
+    #[getter]
     fn in_degree(&self) -> NestedUsizeIterable {
         let vertices = self.builder.clone();
         (move || vertices().in_degree()).into()
     }
 
+    #[getter]
     fn out_degree(&self) -> NestedUsizeIterable {
         let vertices = self.builder.clone();
         (move || vertices().out_degree()).into()
     }
 
+    #[getter]
     fn edges(&self) -> PyNestedEdges {
         let clone = self.builder.clone();
         (move || clone().edges()).into()
     }
 
+    #[getter]
     fn in_edges(&self) -> PyNestedEdges {
         let clone = self.builder.clone();
         (move || clone().in_edges()).into()
     }
 
+    #[getter]
     fn out_edges(&self) -> PyNestedEdges {
         let clone = self.builder.clone();
         (move || clone().out_edges()).into()
     }
 
+    #[getter]
     fn out_neighbours(&self) -> Self {
         let builder = self.builder.clone();
         (move || builder().out_neighbours()).into()
     }
 
+    #[getter]
     fn in_neighbours(&self) -> Self {
         let builder = self.builder.clone();
         (move || builder().in_neighbours()).into()
     }
 
+    #[getter]
     fn neighbours(&self) -> Self {
         let builder = self.builder.clone();
         (move || builder().neighbours()).into()

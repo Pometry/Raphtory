@@ -327,6 +327,7 @@ impl PyEdge {
     ///
     /// Returns:
     ///     A list of PyEdges
+    #[getter]
     pub fn explode_layers(&self) -> PyEdges {
         let edge = self.edge.clone();
         (move || edge.explode_layers()).into()
@@ -381,7 +382,8 @@ impl PyEdge {
     /// Gets the names of the layers this edge belongs to
     ///
     /// Returns:
-    ///     ([str]) The name of the layer
+    ///     (str) The name of the layer
+    #[getter]
     pub fn layer_names(&self) -> Vec<String> {
         self.edge.layer_names()
     }
@@ -525,16 +527,19 @@ impl PyEdges {
     }
 
     /// Returns all edges as a list
+    #[getter]
     fn collect(&self) -> Vec<PyEdge> {
         self.py_iter().collect()
     }
 
     /// Returns the first edge
+    #[getter]
     fn first(&self) -> Option<PyEdge> {
         self.py_iter().next()
     }
 
     /// Returns the number of edges
+    #[getter]
     fn count(&self) -> usize {
         self.py_iter().count()
     }
@@ -542,6 +547,7 @@ impl PyEdges {
     /// Explodes the edges into a list of edges. This is useful when you want to iterate over
     /// the properties of an Edge at every single point in time. This will return a seperate edge
     /// each time a property had been changed.
+    #[getter]
     fn explode(&self) -> PyEdges {
         let builder = self.builder.clone();
         (move || {
@@ -554,6 +560,7 @@ impl PyEdges {
 
     /// Explodes each edge into a list of edges, one for each layer the edge is part of. This is useful when you want to iterate over
     /// the properties of an Edge for every layer.
+    #[getter]
     fn explode_layers(&self) -> PyEdges {
         let builder = self.builder.clone();
         (move || {
@@ -666,6 +673,7 @@ impl PyNestedEdges {
     }
 
     /// Explode each edge, creating a separate edge instance for each edge event
+    #[getter]
     fn explode(&self) -> PyNestedEdges {
         let builder = self.builder.clone();
         (move || {
@@ -680,6 +688,7 @@ impl PyNestedEdges {
     }
 
     /// Explode each edge over layers, creating a separate edge instance for each layer the edge is part of
+    #[getter]
     fn explode_layers(&self) -> PyNestedEdges {
         let builder = self.builder.clone();
         (move || {

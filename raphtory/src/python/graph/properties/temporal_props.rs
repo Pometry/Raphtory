@@ -220,6 +220,7 @@ py_eq!(PyTemporalProp, PyTemporalPropCmp);
 #[pymethods]
 impl PyTemporalProp {
     /// Get the timestamps at which the property was updated
+    #[getter]
     pub fn history(&self) -> Vec<i64> {
         self.prop.history()
     }
@@ -548,6 +549,7 @@ py_iterable_comp!(
 
 #[pymethods]
 impl PyTemporalPropList {
+    #[getter]
     pub fn history(&self) -> PyPropHistList {
         let builder = self.builder.clone();
         (move || builder().map(|p| p.map(|v| v.history()).unwrap_or_default())).into()
@@ -727,6 +729,7 @@ py_iterable_comp!(
 
 #[pymethods]
 impl PyTemporalPropListList {
+    #[getter]
     pub fn history(&self) -> PyPropHistListList {
         let builder = self.builder.clone();
         (move || builder().map(|it| it.map(|p| p.map(|v| v.history()).unwrap_or_default()))).into()
