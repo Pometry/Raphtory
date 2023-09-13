@@ -153,7 +153,10 @@ impl<T: TimeOps + Clone> Iterator for WindowSet<T> {
     fn next(&mut self) -> Option<Self::Item> {
         if self.cursor < self.end + self.step {
             let window_end = self.cursor;
-            let window_start = self.window.map(|w| window_end - w).unwrap_or(self.view.start().unwrap_or(window_end));
+            let window_start = self
+                .window
+                .map(|w| window_end - w)
+                .unwrap_or(self.view.start().unwrap_or(window_end));
             let window = self.view.window(window_start, window_end);
             self.cursor = self.cursor + self.step;
             Some(window)
