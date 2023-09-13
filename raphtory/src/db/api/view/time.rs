@@ -1,3 +1,4 @@
+use num_traits::Saturating;
 use crate::core::utils::time::{error::ParseTimeError, Interval, IntoTime};
 
 /// Trait defining time query operations
@@ -23,7 +24,8 @@ pub trait TimeOps {
 
     /// Create a view including all events until `end` (inclusive)
     fn at<T: IntoTime>(&self, end: T) -> Self::WindowedViewType {
-        self.window(self.start().unwrap_or(end.into_time()), end.into_time().saturating_add(1))
+        let end = end.into_time();
+        self.window(self.start().unwrap_or(end), end.saturating_add(1))
     }
 
     /// Creates a `WindowSet` with the given `step` size    
