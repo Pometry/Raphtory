@@ -57,8 +57,8 @@
 //! );
 //!
 //! // Get the in-degree, out-degree and degree of Gandalf
-//! println!("Number of vertices {:?}", graph.num_vertices());
-//! println!("Number of Edges {:?}", graph.num_edges());
+//! println!("Number of vertices {:?}", graph.count_vertices());
+//! println!("Number of Edges {:?}", graph.count_edges());
 //! ```
 //!
 //! ## Supported Operating Systems

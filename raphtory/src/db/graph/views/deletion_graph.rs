@@ -513,7 +513,7 @@ mod test_deletions {
             vec![(0, 1)]
         );
 
-        assert_eq!(g.window(1, 2).num_edges(), 1);
+        assert_eq!(g.window(1, 2).count_edges(), 1);
 
         assert!(g.window(11, 12).is_empty());
 
