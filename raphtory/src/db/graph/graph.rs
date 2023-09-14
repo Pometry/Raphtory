@@ -450,8 +450,7 @@ mod db_tests {
             .unwrap();
         v11.add_constant_properties(vec![("c", Prop::U32(11))])
             .unwrap();
-        v22.add_constant_properties(vec![("b", Prop::U64(22))])
-            .unwrap();
+
         v44.add_constant_properties(vec![("e", Prop::U8(1))])
             .unwrap();
         v55.add_constant_properties(vec![("f", Prop::U16(1))])
@@ -463,8 +462,13 @@ mod db_tests {
             .add_constant_properties(vec![("a", Prop::U64(3311))], None)
             .unwrap();
 
+        // cannot change property type
+        assert!(v22
+            .add_constant_properties(vec![("b", Prop::U64(22))])
+            .is_err());
+
         assert_eq!(v11.properties().constant().keys(), vec!["a", "b", "c"]);
-        assert_eq!(v22.properties().constant().keys(), vec!["b"]);
+        assert!(v22.properties().constant().keys().is_empty());
         assert!(v33.properties().constant().keys().is_empty());
         assert_eq!(v44.properties().constant().keys(), vec!["e"]);
         assert_eq!(v55.properties().constant().keys(), vec!["f"]);
@@ -475,7 +479,7 @@ mod db_tests {
         assert_eq!(v11.properties().constant().get("a"), Some(Prop::U64(11)));
         assert_eq!(v11.properties().constant().get("b"), Some(Prop::I64(11)));
         assert_eq!(v11.properties().constant().get("c"), Some(Prop::U32(11)));
-        assert_eq!(v22.properties().constant().get("b"), Some(Prop::U64(22)));
+        assert_eq!(v22.properties().constant().get("b"), None);
         assert_eq!(v44.properties().constant().get("e"), Some(Prop::U8(1)));
         assert_eq!(v55.properties().constant().get("f"), Some(Prop::U16(1)));
         assert_eq!(v22.properties().constant().get("a"), None);
@@ -994,7 +998,7 @@ mod db_tests {
     }
 
     #[quickcheck]
-    fn test_graph_static_props(u64_props: Vec<(String, u64)>) -> bool {
+    fn test_graph_constant_props(u64_props: HashMap<String, u64>) -> bool {
         let g = Graph::new();
 
         let as_props = u64_props
@@ -1012,7 +1016,7 @@ mod db_tests {
     }
 
     #[quickcheck]
-    fn test_graph_static_props_names(u64_props: Vec<(String, u64)>) -> bool {
+    fn test_graph_constant_props_names(u64_props: HashMap<String, u64>) -> bool {
         let g = Graph::new();
 
         let as_props = u64_props
