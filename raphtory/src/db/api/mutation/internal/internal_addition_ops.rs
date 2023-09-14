@@ -1,9 +1,9 @@
 use crate::{
     core::{
-        entities::{EID, VID},
-        storage::timeindex::TimeIndexEntry,
+        entities::{edges::edge_store::EdgeStore, vertices::vertex_store::VertexStore, EID, VID},
+        storage::{timeindex::TimeIndexEntry, EntryMut},
         utils::errors::GraphError,
-        Prop,
+        Prop, PropType,
     },
     db::api::view::internal::Base,
 };
@@ -18,16 +18,34 @@ pub trait InternalAdditionOps {
     fn resolve_layer(&self, layer: Option<&str>) -> usize;
 
     /// map external vertex id to internal id, allocating a new empty vertex if needed
-    fn resolve_vertex(&self, id: u64) -> VID;
+    fn resolve_vertex(&self, id: u64, name: Option<&str>) -> VID;
+
+    /// map property key to internal id, allocating new property if needed
+    fn resolve_graph_property(&self, prop: &str, is_static: bool) -> usize;
+
+    /// map property key to internal id, allocating new property if needed and checking property type.
+    /// returns `None` if the type does not match
+    fn resolve_vertex_property(
+        &self,
+        prop: &str,
+        dtype: PropType,
+        is_static: bool,
+    ) -> Result<usize, GraphError>;
+
+    fn resolve_edge_property(
+        &self,
+        prop: &str,
+        dtype: PropType,
+        is_static: bool,
+    ) -> Result<usize, GraphError>;
 
     /// add vertex update
     fn internal_add_vertex(
         &self,
         t: TimeIndexEntry,
         v: VID,
-        name: Option<&str>,
-        props: Vec<(String, Prop)>,
-    ) -> Result<VID, GraphError>;
+        props: Vec<(usize, Prop)>,
+    ) -> Result<(), GraphError>;
 
     /// add edge update
     fn internal_add_edge(
@@ -35,7 +53,7 @@ pub trait InternalAdditionOps {
         t: TimeIndexEntry,
         src: VID,
         dst: VID,
-        props: Vec<(String, Prop)>,
+        props: Vec<(usize, Prop)>,
         layer: usize,
     ) -> Result<EID, GraphError>;
 }
@@ -70,8 +88,33 @@ impl<G: DelegateAdditionOps> InternalAdditionOps for G {
     }
 
     #[inline]
-    fn resolve_vertex(&self, id: u64) -> VID {
-        self.graph().resolve_vertex(id)
+    fn resolve_vertex(&self, id: u64, name: Option<&str>) -> VID {
+        self.graph().resolve_vertex(id, name)
+    }
+
+    #[inline]
+    fn resolve_graph_property(&self, prop: &str, is_static: bool) -> usize {
+        self.graph().resolve_graph_property(prop, is_static)
+    }
+
+    #[inline]
+    fn resolve_vertex_property(
+        &self,
+        prop: &str,
+        dtype: PropType,
+        is_static: bool,
+    ) -> Result<usize, GraphError> {
+        self.graph().resolve_vertex_property(prop, dtype, is_static)
+    }
+
+    #[inline]
+    fn resolve_edge_property(
+        &self,
+        prop: &str,
+        dtype: PropType,
+        is_static: bool,
+    ) -> Result<usize, GraphError> {
+        self.graph().resolve_edge_property(prop, dtype, is_static)
     }
 
     #[inline(always)]
@@ -79,10 +122,9 @@ impl<G: DelegateAdditionOps> InternalAdditionOps for G {
         &self,
         t: TimeIndexEntry,
         v: VID,
-        name: Option<&str>,
-        props: Vec<(String, Prop)>,
-    ) -> Result<VID, GraphError> {
-        self.graph().internal_add_vertex(t, v, name, props)
+        props: Vec<(usize, Prop)>,
+    ) -> Result<(), GraphError> {
+        self.graph().internal_add_vertex(t, v, props)
     }
 
     #[inline(always)]
@@ -91,7 +133,7 @@ impl<G: DelegateAdditionOps> InternalAdditionOps for G {
         t: TimeIndexEntry,
         src: VID,
         dst: VID,
-        props: Vec<(String, Prop)>,
+        props: Vec<(usize, Prop)>,
         layer: usize,
     ) -> Result<EID, GraphError> {
         self.graph().internal_add_edge(t, src, dst, props, layer)

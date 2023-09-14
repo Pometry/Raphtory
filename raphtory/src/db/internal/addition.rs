@@ -1,11 +1,15 @@
 use crate::{
     core::{
-        entities::{graph::tgraph::InnerTemporalGraph, EID, VID},
-        storage::timeindex::TimeIndexEntry,
+        entities::{
+            edges::edge_store::EdgeStore, graph::tgraph::InnerTemporalGraph,
+            vertices::vertex_store::VertexStore, EID, VID,
+        },
+        storage::{timeindex::TimeIndexEntry, EntryMut},
         utils::errors::GraphError,
+        PropType,
     },
     db::api::mutation::internal::InternalAdditionOps,
-    prelude::Prop,
+    prelude::{Graph, Prop},
 };
 use std::sync::atomic::Ordering;
 
@@ -23,8 +27,37 @@ impl<const N: usize> InternalAdditionOps for InnerTemporalGraph<N> {
     }
 
     #[inline]
-    fn resolve_vertex(&self, id: u64) -> VID {
-        self.inner().resolve_vertex(id)
+    fn resolve_vertex(&self, id: u64, name: Option<&str>) -> VID {
+        self.inner().resolve_vertex(id, name)
+    }
+
+    #[inline]
+    fn resolve_graph_property(&self, prop: &str, is_static: bool) -> usize {
+        self.inner().graph_props.resolve_property(prop, is_static)
+    }
+
+    #[inline]
+    fn resolve_vertex_property(
+        &self,
+        prop: &str,
+        dtype: PropType,
+        is_static: bool,
+    ) -> Result<usize, GraphError> {
+        self.inner()
+            .vertex_meta
+            .resolve_prop_id(prop, dtype, is_static)
+    }
+
+    #[inline]
+    fn resolve_edge_property(
+        &self,
+        prop: &str,
+        dtype: PropType,
+        is_static: bool,
+    ) -> Result<usize, GraphError> {
+        self.inner()
+            .edge_meta
+            .resolve_prop_id(prop, dtype, is_static)
     }
 
     #[inline]
@@ -32,10 +65,9 @@ impl<const N: usize> InternalAdditionOps for InnerTemporalGraph<N> {
         &self,
         t: TimeIndexEntry,
         v: VID,
-        name: Option<&str>,
-        props: Vec<(String, Prop)>,
-    ) -> Result<VID, GraphError> {
-        self.inner().add_vertex_internal(t, v, name, props)
+        props: Vec<(usize, Prop)>,
+    ) -> Result<(), GraphError> {
+        self.inner().add_vertex_internal(t, v, props)
     }
 
     #[inline]
@@ -44,7 +76,7 @@ impl<const N: usize> InternalAdditionOps for InnerTemporalGraph<N> {
         t: TimeIndexEntry,
         src: VID,
         dst: VID,
-        props: Vec<(String, Prop)>,
+        props: Vec<(usize, Prop)>,
         layer: usize,
     ) -> Result<EID, GraphError> {
         self.inner().add_edge_internal(t, src, dst, props, layer)

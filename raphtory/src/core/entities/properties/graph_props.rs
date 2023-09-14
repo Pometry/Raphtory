@@ -3,69 +3,95 @@ use crate::core::{
         graph::tgraph::FxDashMap,
         properties::{props::DictMapper, tprop::TProp},
     },
-    storage::{locked_view::LockedView, timeindex::TimeIndexEntry},
-    utils::errors::GraphError,
+    storage::{lazy_vec::IllegalSet, locked_view::LockedView, timeindex::TimeIndexEntry},
+    utils::errors::{GraphError, IllegalMutate, MutateGraphError},
     Prop,
 };
 use parking_lot::RwLockReadGuard;
 use serde::{Deserialize, Serialize};
-use std::ops::Deref;
+use std::ops::{Deref, DerefMut};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub(crate) struct GraphProps {
-    static_mapper: DictMapper<String>,
+    constant_mapper: DictMapper<String>,
     temporal_mapper: DictMapper<String>,
-    static_props: FxDashMap<usize, Option<Prop>>,
-    temporal_props: FxDashMap<usize, TProp>,
+    constant: FxDashMap<usize, Option<Prop>>,
+    temporal: FxDashMap<usize, TProp>,
 }
 
 impl GraphProps {
     pub(crate) fn new() -> Self {
         Self {
-            static_mapper: DictMapper::default(),
+            constant_mapper: DictMapper::default(),
             temporal_mapper: DictMapper::default(),
-            static_props: FxDashMap::default(),
-            temporal_props: FxDashMap::default(),
+            constant: FxDashMap::default(),
+            temporal: FxDashMap::default(),
         }
     }
 
-    pub(crate) fn add_static_prop(&self, name: &str, prop: Prop) {
-        let prop_id = self.static_mapper.get_or_create_id(name);
-        let mut prop_entry = self.static_props.entry(prop_id).or_insert(None);
-        (*prop_entry) = Some(prop);
+    #[inline]
+    pub(crate) fn resolve_property(&self, name: &str, is_static: bool) -> usize {
+        if is_static {
+            self.constant_mapper.get_or_create_id(name)
+        } else {
+            self.temporal_mapper.get_or_create_id(name)
+        }
+    }
+
+    pub(crate) fn add_constant_prop(
+        &self,
+        prop_id: usize,
+        prop: Prop,
+    ) -> Result<(), MutateGraphError> {
+        let mut prop_entry = self.constant.entry(prop_id).or_insert(None);
+        match prop_entry.deref_mut() {
+            Some(old_value) => {
+                if !(old_value == &prop) {
+                    return Err(MutateGraphError::IllegalGraphPropertyChange {
+                        name: self
+                            .constant_mapper
+                            .reverse_lookup(prop_id)
+                            .expect("property exists if it has a value")
+                            .to_string(),
+                        old_value: old_value.clone(),
+                        new_value: prop,
+                    });
+                }
+            }
+            None => {
+                (*prop_entry) = Some(prop);
+            }
+        }
+        Ok(())
     }
 
     pub(crate) fn add_prop(
         &self,
         t: TimeIndexEntry,
-        name: &str,
+        prop_id: usize,
         prop: Prop,
     ) -> Result<(), GraphError> {
-        let prop_id = self.temporal_mapper.get_or_create_id(name);
-        let mut prop_entry = self
-            .temporal_props
-            .entry(prop_id)
-            .or_insert(TProp::default());
+        let mut prop_entry = self.temporal.entry(prop_id).or_insert(TProp::default());
         (*prop_entry).set(t, prop)
     }
 
-    pub(crate) fn get_static(&self, name: &str) -> Option<Prop> {
-        let prop_id = self.static_mapper.get(&(name.to_owned()))?;
-        let entry = self.static_props.get(&prop_id)?;
+    pub(crate) fn get_constant(&self, name: &str) -> Option<Prop> {
+        let prop_id = self.constant_mapper.get(&(name.to_owned()))?;
+        let entry = self.constant.get(&prop_id)?;
         entry.as_ref().cloned()
     }
 
     pub(crate) fn get_temporal(&self, name: &str) -> Option<LockedView<'_, TProp>> {
         let prop_id = self.temporal_mapper.get(&(name.to_owned()))?;
-        let entry = self.temporal_props.get(&prop_id)?;
+        let entry = self.temporal.get(&prop_id)?;
         Some(LockedView::DashMap(entry))
     }
 
-    pub(crate) fn static_prop_names(&self) -> RwLockReadGuard<Vec<std::string::String>> {
-        self.static_mapper.get_keys()
+    pub(crate) fn constant_names(&self) -> RwLockReadGuard<Vec<String>> {
+        self.constant_mapper.get_keys()
     }
 
-    pub(crate) fn temporal_prop_names(&self) -> RwLockReadGuard<Vec<std::string::String>> {
+    pub(crate) fn temporal_names(&self) -> RwLockReadGuard<Vec<String>> {
         self.temporal_mapper.get_keys()
     }
 }

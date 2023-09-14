@@ -45,6 +45,31 @@ pub enum Direction {
     BOTH,
 }
 
+#[derive(Copy, Clone, PartialEq, Eq, Debug, Default, Serialize, Deserialize)]
+pub enum PropType {
+    #[default]
+    Empty,
+    Str,
+    U8,
+    U16,
+    I32,
+    I64,
+    U32,
+    U64,
+    F32,
+    F64,
+    Bool,
+    List,
+    Map,
+    DTime,
+    Graph,
+}
+
+pub struct PropId {
+    id: usize,
+    dtype: PropType,
+}
+
 /// Denotes the types of properties allowed to be stored in the graph.
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub enum Prop {
@@ -84,6 +109,25 @@ impl PartialOrd for Prop {
 }
 
 impl Prop {
+    pub fn dtype(&self) -> PropType {
+        match self {
+            Prop::Str(_) => PropType::Str,
+            Prop::U8(_) => PropType::U8,
+            Prop::U16(_) => PropType::U16,
+            Prop::I32(_) => PropType::I32,
+            Prop::I64(_) => PropType::I64,
+            Prop::U32(_) => PropType::U32,
+            Prop::U64(_) => PropType::U64,
+            Prop::F32(_) => PropType::F32,
+            Prop::F64(_) => PropType::F64,
+            Prop::Bool(_) => PropType::Bool,
+            Prop::List(_) => PropType::List,
+            Prop::Map(_) => PropType::Map,
+            Prop::DTime(_) => PropType::DTime,
+            Prop::Graph(_) => PropType::Graph,
+        }
+    }
+
     pub fn str(s: &str) -> Prop {
         Prop::Str(s.to_string())
     }

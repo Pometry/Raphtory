@@ -2,17 +2,20 @@ use crate::{
     core::{
         entities::{
             edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
-            properties::tprop::{LockedLayeredTProp, TProp},
+            properties::{
+                props::Meta,
+                tprop::{LockedLayeredTProp, TProp},
+            },
             vertices::{vertex_ref::VertexRef, vertex_store::VertexStore},
             LayerIds, EID, VID,
         },
         storage::{
             locked_view::LockedView,
             timeindex::{LockedLayeredIndex, TimeIndex, TimeIndexEntry},
-            ArcEntry,
+            ArcEntry, EntryMut,
         },
         utils::errors::{GraphError, IllegalMutate},
-        Direction,
+        Direction, PropType,
     },
     db::{
         api::{

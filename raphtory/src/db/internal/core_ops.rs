@@ -3,7 +3,10 @@ use crate::{
         entities::{
             edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
             graph::tgraph::InnerTemporalGraph,
-            properties::tprop::{LockedLayeredTProp, TProp},
+            properties::{
+                props::Meta,
+                tprop::{LockedLayeredTProp, TProp},
+            },
             vertices::{vertex_ref::VertexRef, vertex_store::VertexStore},
             LayerIds, EID, VID,
         },
@@ -23,6 +26,16 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
     #[inline]
     fn unfiltered_num_vertices(&self) -> usize {
         self.inner().internal_num_vertices()
+    }
+
+    #[inline]
+    fn vertex_meta(&self) -> &Meta {
+        &self.inner().vertex_meta
+    }
+
+    #[inline]
+    fn edge_meta(&self) -> &Meta {
+        &self.inner().edge_meta
     }
 
     #[inline]
@@ -83,7 +96,7 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
     #[inline]
     fn static_prop_names(&self) -> Vec<String> {
         self.inner()
-            .static_property_names()
+            .constant_property_names()
             .iter()
             .cloned()
             .collect()
@@ -91,7 +104,7 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
 
     #[inline]
     fn static_prop(&self, name: &str) -> Option<Prop> {
-        self.inner().get_static_prop(name)
+        self.inner().get_constant_prop(name)
     }
 
     #[inline]

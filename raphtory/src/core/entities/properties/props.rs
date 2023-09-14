@@ -6,7 +6,7 @@ use crate::core::{
         timeindex::TimeIndexEntry,
     },
     utils::errors::{GraphError, IllegalMutate, MutateGraphError},
-    Prop,
+    Prop, PropType,
 };
 use parking_lot::{RwLock, RwLockReadGuard};
 use serde::{Deserialize, Serialize};
@@ -21,7 +21,7 @@ use std::{
 #[derive(Serialize, Deserialize, Default, Debug, PartialEq)]
 pub struct Props {
     // properties
-    static_props: LazyVec<Option<Prop>>,
+    constant_props: LazyVec<Option<Prop>>,
     temporal_props: LazyVec<TProp>,
 }
 
@@ -34,7 +34,7 @@ enum PropId {
 impl Props {
     pub fn new() -> Self {
         Self {
-            static_props: LazyVec::Empty,
+            constant_props: LazyVec::Empty,
             temporal_props: LazyVec::Empty,
         }
     }
@@ -48,12 +48,12 @@ impl Props {
         self.temporal_props.update(prop_id, |p| p.set(t, prop))
     }
 
-    pub fn add_static_prop(
+    pub fn add_constant_prop(
         &mut self,
         prop_id: usize,
         prop: Prop,
     ) -> Result<(), IllegalSet<Option<Prop>>> {
-        self.static_props.set(prop_id, Some(prop))
+        self.constant_props.set(prop_id, Some(prop))
     }
 
     pub fn temporal_props(&self, prop_id: usize) -> Box<dyn Iterator<Item = (i64, Prop)> + '_> {
@@ -84,7 +84,7 @@ impl Props {
     }
 
     pub fn static_prop(&self, prop_id: usize) -> Option<&Prop> {
-        let prop = self.static_props.get(prop_id)?;
+        let prop = self.constant_props.get(prop_id)?;
         prop.as_ref()
     }
 
@@ -93,7 +93,7 @@ impl Props {
     }
 
     pub fn static_prop_ids(&self) -> Vec<usize> {
-        self.static_props.filled_ids()
+        self.constant_props.filled_ids()
     }
 
     pub fn temporal_prop_ids(&self) -> Vec<usize> {
@@ -103,17 +103,17 @@ impl Props {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Meta {
-    meta_prop_temporal: DictMapper<String>,
-    meta_prop_static: DictMapper<String>,
+    meta_prop_temporal: PropMapper,
+    meta_prop_static: PropMapper,
     meta_layer: DictMapper<String>,
 }
 
 impl Meta {
-    pub fn static_prop_meta(&self) -> &DictMapper<String> {
+    pub fn static_prop_meta(&self) -> &PropMapper {
         &self.meta_prop_static
     }
 
-    pub fn temporal_prop_meta(&self) -> &DictMapper<String> {
+    pub fn temporal_prop_meta(&self) -> &PropMapper {
         &self.meta_prop_temporal
     }
 
@@ -125,38 +125,29 @@ impl Meta {
         let meta_layer = DictMapper::default();
         meta_layer.get_or_create_id("_default");
         Self {
-            meta_prop_temporal: DictMapper::default(),
-            meta_prop_static: DictMapper::default(),
+            meta_prop_temporal: PropMapper::default(),
+            meta_prop_static: PropMapper::default(),
             meta_layer, // layer 0 is the default layer
         }
     }
 
-    pub fn resolve_prop_ids<'a, I: IntoIterator<Item = (String, Prop)> + 'a>(
-        &'a self,
-        prop_names: I,
+    #[inline]
+    pub fn resolve_prop_id(
+        &self,
+        prop: &str,
+        dtype: PropType,
         is_static: bool,
-    ) -> impl Iterator<Item = (usize, Prop)> + 'a {
-        prop_names.into_iter().map(move |(name, value)| {
-            if !is_static {
-                (self.meta_prop_temporal.get_or_create_id(&name), value)
-            } else {
-                (self.meta_prop_static.get_or_create_id(&name), value)
-            }
-        })
-    }
-
-    pub fn resolve_prop_id<Q>(&self, name: &Q, is_static: bool) -> usize
-    where
-        String: Borrow<Q>,
-        Q: Hash + Eq + ?Sized + ToOwned<Owned = String>,
-    {
+    ) -> Result<usize, GraphError> {
         if is_static {
-            self.meta_prop_static.get_or_create_id(name)
+            self.meta_prop_static
+                .get_or_create_and_validate(prop, dtype)
         } else {
-            self.meta_prop_temporal.get_or_create_id(name)
+            self.meta_prop_temporal
+                .get_or_create_and_validate(prop, dtype)
         }
     }
 
+    #[inline]
     pub fn find_prop_id(&self, name: &str, is_static: bool) -> Option<usize> {
         if is_static {
             self.meta_prop_static.get(&name.to_owned())
@@ -165,10 +156,12 @@ impl Meta {
         }
     }
 
+    #[inline]
     pub fn get_or_create_layer_id(&self, name: &str) -> usize {
         self.meta_layer.get_or_create_id(name)
     }
 
+    #[inline]
     pub fn get_layer_id(&self, name: &str) -> Option<usize> {
         self.meta_layer.map.get(name).as_deref().copied()
     }
@@ -258,12 +251,81 @@ impl<T: Hash + Eq + Clone + Debug> DictMapper<T> {
     }
 }
 
+#[derive(Default, Debug, Serialize, Deserialize)]
+pub struct PropMapper {
+    id_mapper: DictMapper<String>,
+    dtypes: RwLock<Vec<PropType>>,
+}
+
+impl Deref for PropMapper {
+    type Target = DictMapper<String>;
+
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        &self.id_mapper
+    }
+}
+
+impl PropMapper {
+    pub fn get_or_create_id<Q>(&self, name: &Q) -> usize
+    where
+        Q: Hash + Eq + ?Sized + ToOwned<Owned = String>,
+    {
+        todo!()
+    }
+    fn get_or_create_and_validate(&self, prop: &str, dtype: PropType) -> Result<usize, GraphError> {
+        let id = self.id_mapper.get_or_create_id(prop);
+        let dtype_read = self.dtypes.read_recursive();
+        if let Some(old_type) = dtype_read.get(id) {
+            if !matches!(old_type, PropType::Empty) {
+                return if *old_type == dtype {
+                    Ok(id)
+                } else {
+                    Err(GraphError::PropertyTypeError {
+                        name: prop.to_owned(),
+                        expected: *old_type,
+                        actual: dtype,
+                    })
+                };
+            }
+        }
+        drop(dtype_read); // drop the read lock and wait for write lock as type did not exist yet
+        let mut dtype_write = self.dtypes.write();
+        match dtype_write.get(id) {
+            Some(&old_type) => {
+                if matches!(old_type, PropType::Empty) {
+                    // vector already resized but this id is not filled yet, set the dtype and return id
+                    dtype_write[id] = dtype;
+                    Ok(id)
+                } else {
+                    // already filled because a different thread won the race for this id, check the type matches
+                    if old_type == dtype {
+                        Ok(id)
+                    } else {
+                        Err(GraphError::PropertyTypeError {
+                            name: prop.to_owned(),
+                            expected: old_type,
+                            actual: dtype,
+                        })
+                    }
+                }
+            }
+            None => {
+                // vector not resized yet, resize it and set the dtype and return id
+                dtype_write.resize(id + 1, PropType::Empty);
+                dtype_write[id] = dtype;
+                Ok(id)
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
     use rand::seq::SliceRandom;
     use rayon::prelude::*;
-    use std::collections::HashMap;
+    use std::{collections::HashMap, sync::Arc, thread};
 
     #[test]
     fn test_dict_mapper() {
@@ -329,5 +391,24 @@ mod test {
         actual.sort();
 
         assert_eq!(actual, vec![0, 1, 2, 3, 4]);
+    }
+
+    #[test]
+    fn test_prop_mapper_concurrent() {
+        let values = [Prop::I64(1), Prop::U16(0), Prop::Bool(true), Prop::F64(0.0)];
+        let input_len = values.len();
+
+        let mapper = Arc::new(PropMapper::default());
+        let threads: Vec<_> = values
+            .into_iter()
+            .map(move |v| {
+                let mapper = mapper.clone();
+                thread::spawn(move || mapper.get_or_create_and_validate("test", v.dtype()))
+            })
+            .flat_map(|t| t.join())
+            .collect();
+
+        assert_eq!(threads.len(), input_len); // no errors
+        assert_eq!(threads.into_iter().flatten().count(), 1); // only one result (which ever was first)
     }
 }

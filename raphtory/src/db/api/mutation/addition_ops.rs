@@ -3,15 +3,14 @@ use crate::{
         entities::{edges::edge_ref::EdgeRef, vertices::input_vertex::InputVertex},
         storage::timeindex::TimeIndexEntry,
         utils::{errors::GraphError, time::IntoTimeWithFormat},
+        Prop,
     },
     db::{
-        api::mutation::{internal::InternalAdditionOps, TryIntoInputTime},
+        api::mutation::{internal::InternalAdditionOps, CollectProperties, TryIntoInputTime},
         graph::{edge::EdgeView, vertex::VertexView},
     },
     prelude::GraphViewOps,
 };
-
-use super::CollectProperties;
 
 pub trait AdditionOps: GraphViewOps {
     // TODO: Probably add vector reference here like add
@@ -103,11 +102,12 @@ impl<G: InternalAdditionOps + GraphViewOps> AdditionOps for G {
         v: V,
         props: PI,
     ) -> Result<VertexView<G>, GraphError> {
-        let properties = props.collect_properties();
+        let properties = props
+            .collect_properties(|name, dtype| self.resolve_vertex_property(name, dtype, false))?;
         let ti = TimeIndexEntry::from_input(self, t)?;
-        let v_id = self.resolve_vertex(v.id());
-        let vref = self.internal_add_vertex(ti, v_id, v.id_str(), properties)?;
-        Ok(VertexView::new_internal(self.clone(), vref))
+        let v_id = self.resolve_vertex(v.id(), v.id_str());
+        self.internal_add_vertex(ti, v_id, properties)?;
+        Ok(VertexView::new_internal(self.clone(), v_id))
     }
 
     fn add_edge<V: InputVertex, T: TryIntoInputTime, PI: CollectProperties>(
@@ -119,17 +119,16 @@ impl<G: InternalAdditionOps + GraphViewOps> AdditionOps for G {
         layer: Option<&str>,
     ) -> Result<EdgeView<G>, GraphError> {
         let ti = TimeIndexEntry::from_input(self, t)?;
-        let src_id = self.resolve_vertex(src.id());
-        let dst_id = self.resolve_vertex(dst.id());
-        let src_vid = self.internal_add_vertex(ti, src_id, src.id_str(), vec![])?;
-        let dst_vid = self.internal_add_vertex(ti, dst_id, dst.id_str(), vec![])?;
+        let src_id = self.resolve_vertex(src.id(), src.id_str());
+        let dst_id = self.resolve_vertex(dst.id(), dst.id_str());
         let layer_id = self.resolve_layer(layer);
 
-        let properties = props.collect_properties();
+        let properties: Vec<(usize, Prop)> = props
+            .collect_properties(|name, dtype| self.resolve_edge_property(name, dtype, false))?;
         let eid = self.internal_add_edge(ti, src_id, dst_id, properties, layer_id)?;
         Ok(EdgeView::new(
             self.clone(),
-            EdgeRef::new_outgoing(eid, src_vid, dst_vid).at_layer(layer_id),
+            EdgeRef::new_outgoing(eid, src_id, dst_id).at_layer(layer_id),
         ))
     }
 }

@@ -2,7 +2,10 @@ use crate::{
     core::{
         entities::{
             edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
-            properties::tprop::{LockedLayeredTProp, TProp},
+            properties::{
+                props::Meta,
+                tprop::{LockedLayeredTProp, TProp},
+            },
             vertices::{vertex_ref::VertexRef, vertex_store::VertexStore},
             LayerIds, EID, VID,
         },
@@ -22,6 +25,10 @@ use enum_dispatch::enum_dispatch;
 pub trait CoreGraphOps {
     /// get the number of vertices in the main graph
     fn unfiltered_num_vertices(&self) -> usize;
+
+    fn vertex_meta(&self) -> &Meta;
+
+    fn edge_meta(&self) -> &Meta;
 
     fn get_layer_name(&self, layer_id: usize) -> Option<LockedView<String>>;
 
@@ -248,6 +255,16 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
     #[inline]
     fn unfiltered_num_vertices(&self) -> usize {
         self.graph().unfiltered_num_vertices()
+    }
+
+    #[inline]
+    fn vertex_meta(&self) -> &Meta {
+        self.graph().vertex_meta()
+    }
+
+    #[inline]
+    fn edge_meta(&self) -> &Meta {
+        self.graph().edge_meta()
     }
 
     #[inline]
