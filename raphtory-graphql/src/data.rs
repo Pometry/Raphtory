@@ -1,9 +1,10 @@
-use crate::vectors::VectorStore;
 use parking_lot::RwLock;
+use raphtory::prelude::TimeOps;
 use raphtory::{
     db::api::view::internal::{DynamicGraph, IntoDynamic},
     prelude::{Graph, GraphViewOps},
     search::IndexedGraph,
+    vectors::VectorizedGraph,
 };
 use std::{
     collections::{HashMap, HashSet},
@@ -14,7 +15,7 @@ use walkdir::WalkDir;
 #[derive(Default)]
 pub(crate) struct Data {
     pub(crate) graphs: RwLock<HashMap<String, IndexedGraph<DynamicGraph>>>,
-    pub(crate) vector_stores: RwLock<HashMap<String, VectorStore<DynamicGraph>>>,
+    pub(crate) vector_stores: RwLock<HashMap<String, VectorizedGraph<DynamicGraph>>>,
 }
 
 impl Data {

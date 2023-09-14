@@ -5,18 +5,19 @@ use crate::{
     model::{algorithm::Algorithm, App},
     observability::tracing::create_tracer_from_env,
     routes::{graphql_playground, health},
-    vectors::{GraphEntity, VectorStore},
 };
 use async_graphql_poem::GraphQL;
 use chrono::NaiveDateTime;
 use itertools::Itertools;
 use poem::{get, listener::TcpListener, middleware::Cors, EndpointExt, Route, Server};
+use raphtory::vectors::{Embedding, Vectorizable};
 use raphtory::{
     db::{
         api::view::internal::DynamicGraph,
         graph::{edge::EdgeView, vertex::VertexView},
     },
     prelude::{EdgeViewOps, LayerOps, VertexViewOps},
+    vectors::GraphEntity,
 };
 use std::{collections::HashMap, ops::Deref, path::Path};
 use tokio::{io::Result as IoResult, signal};
@@ -55,10 +56,15 @@ impl RaphtoryServer {
                 let graph = graphs_map.get(&graph_name).unwrap().deref().clone();
 
                 println!("Loading embeddings for {graph_name} using cache from {graph_cache:?}");
-                let vector_store =
-                    VectorStore::load_graph(graph, &graph_cache, &node_template, &edge_template)
-                        .await;
-                stores_map.insert(graph_name, vector_store);
+                let vectorized = graph
+                    .vectorize_with_templates(
+                        Box::new(fake_embedding),
+                        &graph_cache,
+                        node_template,
+                        edge_template,
+                    )
+                    .await;
+                stores_map.insert(graph_name, vectorized);
             }
         }
 
@@ -108,6 +114,22 @@ impl RaphtoryServer {
     }
 }
 
+fn format_time(millis: i64) -> String {
+    if millis == 0 {
+        "unknown time".to_owned()
+    } else {
+        NaiveDateTime::from_timestamp_millis(millis)
+            .unwrap()
+            .format("%Y-%m-%d %H:%M:%S")
+            .to_string()
+    }
+}
+
+// FIXME: replace with OpenAI embeddings !!!!!!!!!!!!!!!!!!!
+async fn fake_embedding(texts: Vec<String>) -> Vec<Embedding> {
+    vec![]
+}
+
 fn node_template(vertex: &VertexView<DynamicGraph>) -> String {
     let name = vertex
         .properties()
@@ -125,9 +147,12 @@ fn node_template(vertex: &VertexView<DynamicGraph>) -> String {
         None => format!("{name} is an unknown entity"),
     };
 
-    let property_list = vertex.generate_property_list(vec!["type".to_owned()]);
+    let property_list =
+        vertex.generate_property_list(&format_time, vec!["type"], vec!["description", "goal"]);
 
-    format!("{definition} with the following details:\n{property_list}")
+    let doc = format!("{definition} with the following details:\n{property_list}");
+    // println!("----------------\n{doc}\n----------------\n");
+    doc
 }
 
 fn edge_template(edge: &EdgeView<DynamicGraph>) -> String {
@@ -157,18 +182,12 @@ fn edge_template(edge: &EdgeView<DynamicGraph>) -> String {
                 _ => format!("{src} had an unknown relationship with {dst}"),
             };
 
-            let format_time = |millis: &i64| {
-                NaiveDateTime::from_timestamp_millis(*millis)
-                    .unwrap()
-                    .format("%Y-%m-%d %H:%M:%S")
-                    .to_string()
-            };
-
             let times = edge
                 .layer(layer)
                 .unwrap()
                 .history()
                 .iter()
+                .copied()
                 .map(format_time)
                 .next()
                 .unwrap();

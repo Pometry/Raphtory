@@ -4,11 +4,11 @@ use dotenv::dotenv;
 use std::{env, path::PathBuf};
 
 mod data;
+mod embeddings;
 mod model;
 mod observability;
 mod routes;
 mod server;
-mod vectors;
 
 #[derive(Parser, Debug)]
 // #[command(author, version, about, long_about = None)]

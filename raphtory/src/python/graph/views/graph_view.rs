@@ -1,5 +1,6 @@
 //! The API for querying a view of the graph in a read-only state
 
+use crate::vectors::{Vectorizable, VectorizedGraph};
 use crate::{
     core::{
         entities::vertices::vertex_ref::VertexRef,
@@ -36,7 +37,9 @@ use crate::{
 use chrono::prelude::*;
 use itertools::Itertools;
 use pyo3::prelude::*;
+use pyo3::types::PyFunction;
 use std::ops::Deref;
+use std::path::PathBuf;
 
 impl IntoPy<PyObject> for MaterializedGraph {
     fn into_py(self, py: Python<'_>) -> PyObject {
@@ -295,14 +298,14 @@ impl PyGraphView {
         self.graph.rolling(window, step)
     }
 
-    /// Create a view including all events between `t_start` (inclusive) and `t_end` (exclusive)
+    /// Create a view including all events between `start` (inclusive) and `end` (exclusive)
     ///
     /// Arguments:
     ///   start (int): the start time of the window (optional)
     ///   end (int): the end time of the window (optional)
     ///
     /// Returns:
-    ///     a view including all events between `t_start` (inclusive) and `t_end` (exclusive)
+    ///     a view including all events between `start` (inclusive) and `end` (exclusive)
     #[pyo3(signature = (start=None, end=None))]
     pub fn window(
         &self,

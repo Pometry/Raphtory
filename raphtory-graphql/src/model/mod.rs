@@ -98,7 +98,7 @@ impl QueryRoot {
         let vec_store = binding.get(graph)?;
         Some(
             vec_store
-                .search(
+                .similarity_search(
                     query,
                     init,
                     min_nodes,

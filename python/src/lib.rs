@@ -3,6 +3,7 @@ mod graphql;
 extern crate core;
 use graphql::*;
 use pyo3::prelude::*;
+use raphtory_core::python::packages::vectors::PyVectorizedGraph;
 use raphtory_core::python::{
     graph::{
         algorithm_result::AlgorithmResultStrU64,
@@ -104,6 +105,11 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         graph_gen_module
     )?)?;
     m.add_submodule(graph_gen_module)?;
+
+    //VECTORS
+    let vectors_module = PyModule::new(py, "vectors")?;
+    vectors_module.add_class::<PyVectorizedGraph>()?;
+    m.add_submodule(vectors_module)?;
 
     Ok(())
 }

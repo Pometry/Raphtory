@@ -294,9 +294,9 @@ dependencies = [
 
 [[package]]
 name = "async-trait"
-version = "0.1.68"
+version = "0.1.73"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b9ccdd8f2a161be9bd5c023df56f1b2a0bd1d83872ae53b71a84a12c9bf6e842"
+checksum = "bc00ceb34980c03614e35a3a4e218276a0a824e911d07651cd0d858a51e8c0f0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2896,6 +2896,7 @@ name = "raphtory"
 version = "0.5.5"
 dependencies = [
  "arrow2",
+ "async-trait",
  "bincode",
  "bzip2",
  "chrono",
@@ -2906,6 +2907,7 @@ dependencies = [
  "flate2",
  "flume",
  "futures",
+ "futures-util",
  "genawaiter",
  "itertools",
  "kdam",
@@ -2918,6 +2920,7 @@ dependencies = [
  "parking_lot",
  "pretty_assertions",
  "pyo3",
+ "pyo3-asyncio",
  "quickcheck 1.0.3",
  "quickcheck_macros",
  "rand 0.8.5",

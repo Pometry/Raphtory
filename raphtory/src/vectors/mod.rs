@@ -1,10 +1,13 @@
-use async_openai::types::{CreateEmbeddingRequest, EmbeddingInput};
-use async_openai::Client;
-use futures_util::future::join_all;
+// use async_openai::types::{CreateEmbeddingRequest, EmbeddingInput};
+// use async_openai::Client;
+use async_trait::async_trait;
+use futures_util::future::{join_all, BoxFuture};
+// use futures_util::StreamExt;
 use itertools::{chain, Itertools};
 use std::borrow::Borrow;
-use std::cmp::Ordering;
 use std::collections::HashMap;
+use std::convert::identity;
+use std::future::Future;
 use std::{
     collections::hash_map::DefaultHasher,
     fmt::{Display, Formatter},
@@ -14,20 +17,17 @@ use std::{
     path::Path,
 };
 
-use raphtory::db::api::view::internal::{DynamicGraph, IntoDynamic};
-use raphtory::{
-    db::graph::vertex::VertexView,
-    prelude::{EdgeViewOps, GraphViewOps, LayerOps, VertexViewOps},
-};
+use crate::db::api::properties::internal::{TemporalPropertiesOps, TemporalPropertyViewOps};
+use crate::db::api::view::internal::{DynamicGraph, IntoDynamic};
 use serde::{Deserialize, Serialize, Serializer};
-use sorted_vec::SortedVec;
 
-use crate::model::graph::edge::Edge;
+// use crate::model::graph::edge::Edge;
 // use numpy::PyArray2;
 // use pyo3::{types::IntoPyDict, Python};
-use raphtory::db::graph::edge::EdgeView;
-use raphtory::db::graph::views::window_graph::WindowedGraph;
-use raphtory::prelude::{EdgeListOps, Layer, TimeOps};
+use crate::db::graph::edge::EdgeView;
+use crate::db::graph::vertex::VertexView;
+use crate::db::graph::views::window_graph::WindowedGraph;
+use crate::prelude::{EdgeViewOps, GraphViewOps, Layer, LayerOps, TimeOps, VertexViewOps};
 
 // #[derive(Clone)]
 // struct EdgeId {
@@ -80,31 +80,115 @@ impl<G: GraphViewOps> From<EdgeView<G>> for EntityId {
     }
 }
 
-struct ExpandCandidate {
-    node: EntityId,
-    edge: EntityId,
-    score: f32,
+pub trait EmbeddingFunction: Send + Sync {
+    fn call(&self, texts: Vec<String>) -> BoxFuture<'static, Vec<Embedding>>;
 }
 
-impl Eq for ExpandCandidate {}
-impl PartialEq<Self> for ExpandCandidate {
-    fn eq(&self, other: &Self) -> bool {
-        self.score == other.score
-    }
-}
-impl PartialOrd<Self> for ExpandCandidate {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.score.partial_cmp(&other.score)
-    }
-}
-impl Ord for ExpandCandidate {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.score.total_cmp(&other.score)
+impl<T, F> EmbeddingFunction for T
+where
+    T: Fn(Vec<String>) -> F + Send + Sync,
+    F: Future<Output = Vec<Embedding>> + Send + 'static,
+{
+    fn call(&self, texts: Vec<String>) -> BoxFuture<'static, Vec<Embedding>> {
+        Box::pin(self(texts))
     }
 }
 
-pub struct VectorStore<G: GraphViewOps> {
+#[async_trait]
+pub trait Vectorizable<G: GraphViewOps> {
+    async fn vectorize(
+        &self,
+        embedding: Box<dyn EmbeddingFunction>,
+        cache_dir: &Path,
+    ) -> VectorizedGraph<G>;
+
+    async fn vectorize_with_templates<N, E>(
+        &self,
+        embedding: Box<dyn EmbeddingFunction>,
+        cache_dir: &Path,
+        node_template: N,
+        edge_template: E,
+        // FIXME: I tried to put templates behind an option but didn't work and hadn't time to fix it
+    ) -> VectorizedGraph<G>
+    where
+        N: Fn(&VertexView<G>) -> String + Sync + Send + 'static,
+        E: Fn(&EdgeView<G>) -> String + Sync + Send + 'static;
+}
+
+#[async_trait]
+impl<G: GraphViewOps> Vectorizable<G> for G {
+    async fn vectorize(
+        &self,
+        embedding: Box<dyn EmbeddingFunction>,
+        cache_dir: &Path,
+    ) -> VectorizedGraph<G> {
+        let node_template = |vertex: &VertexView<G>| default_node_template(vertex);
+        let edge_template = |edge: &EdgeView<G>| default_edge_template(edge);
+
+        self.vectorize_with_templates(embedding, cache_dir, node_template, edge_template)
+            .await
+    }
+
+    async fn vectorize_with_templates<N, E>(
+        &self,
+        embedding: Box<dyn EmbeddingFunction>,
+        cache_dir: &Path,
+        node_template: N,
+        edge_template: E,
+    ) -> VectorizedGraph<G>
+    where
+        N: Fn(&VertexView<G>) -> String + Sync + Send + 'static,
+        E: Fn(&EdgeView<G>) -> String + Sync + Send + 'static,
+    {
+        create_dir_all(cache_dir).expect("Impossible to use cache dir");
+
+        let node_docs = self
+            .vertices()
+            .iter()
+            .map(|vertex| vertex.generate_doc(&node_template));
+        let edge_docs = self.edges().map(|edge| edge.generate_doc(&edge_template));
+
+        let node_embeddings = generate_embeddings(node_docs, &embedding, cache_dir).await;
+        let edge_embeddings = generate_embeddings(edge_docs, &embedding, cache_dir).await;
+
+        VectorizedGraph {
+            graph: self.clone(),
+            embedding,
+            node_embeddings,
+            edge_embeddings,
+            node_template: Box::new(node_template),
+            edge_template: Box::new(edge_template),
+        }
+    }
+}
+
+fn default_node_template<G: GraphViewOps>(vertex: &VertexView<G>) -> String {
+    let name = vertex.name();
+    let property_list = vertex.generate_property_list(&identity, vec![], vec![]);
+    format!("The entity {name} has the following details:\n{property_list}")
+}
+
+fn default_edge_template<G: GraphViewOps>(edge: &EdgeView<G>) -> String {
+    let src = edge.src().name();
+    let dst = edge.dst().name();
+    // TODO: property list
+
+    edge.layer_names()
+        .iter()
+        .map(|layer| {
+            let times = edge.layer(layer).unwrap().history().iter().join(", ");
+            match layer.as_str() {
+                "_default" => format!("{src} interacted with {dst} at times: {times}"),
+                layer => format!("{src} {layer} {dst} at times: {times}"),
+            }
+        })
+        .intersperse("\n".to_owned())
+        .collect()
+}
+
+pub struct VectorizedGraph<G: GraphViewOps> {
     graph: G,
+    embedding: Box<dyn EmbeddingFunction>,
     node_embeddings: HashMap<EntityId, Embedding>,
     edge_embeddings: HashMap<EntityId, Embedding>,
     node_template: Box<dyn Fn(&VertexView<G>) -> String + Sync + Send>,
@@ -113,38 +197,9 @@ pub struct VectorStore<G: GraphViewOps> {
 
 const CHUNK_SIZE: usize = 1000;
 
-impl<G: GraphViewOps + IntoDynamic> VectorStore<G> {
-    pub async fn load_graph<N, E>(
-        graph: G,
-        cache_dir: &Path,
-        node_template: N,
-        edge_template: E,
-    ) -> Self
-    where
-        N: Fn(&VertexView<G>) -> String + Sync + Send + 'static,
-        E: Fn(&EdgeView<G>) -> String + Sync + Send + 'static,
-    {
-        create_dir_all(cache_dir).expect("Impossible to use cache dir");
-
-        let node_docs = graph
-            .vertices()
-            .iter()
-            .map(|vertex| vertex.generate_doc(&node_template));
-        let edge_docs = graph.edges().map(|edge| edge.generate_doc(&edge_template));
-
-        let node_embeddings = generate_embeddings(node_docs, cache_dir);
-        let edge_embeddings = generate_embeddings(edge_docs, cache_dir);
-
-        VectorStore {
-            graph,
-            node_embeddings: node_embeddings.await,
-            edge_embeddings: edge_embeddings.await,
-            node_template: Box::new(node_template),
-            edge_template: Box::new(edge_template),
-        }
-    }
-
-    pub async fn search(
+impl<G: GraphViewOps + IntoDynamic> VectorizedGraph<G> {
+    // FIXME: this should return a Result
+    pub async fn similarity_search(
         &self,
         query: &str,
         init: usize,
@@ -154,7 +209,7 @@ impl<G: GraphViewOps + IntoDynamic> VectorStore<G> {
         window_start: Option<i64>,
         window_end: Option<i64>,
     ) -> Vec<String> {
-        let query_embedding = compute_embeddings(vec![query.to_owned()]).await.remove(0);
+        let query_embedding = self.embedding.call(vec![query.to_owned()]).await.remove(0);
 
         let (graph, window_nodes, window_edges): (
             DynamicGraph,
@@ -370,36 +425,119 @@ impl<G: GraphViewOps + IntoDynamic> VectorStore<G> {
     // }
 
     // returns an iterator of triplets: (node id, edge id, score) as candidates to be included in entity_ids
-    fn get_candidates_from_node<'a>(
-        &'a self,
-        query: &'a Embedding,
-        node_id: &EntityId,
-    ) -> impl Iterator<Item = ExpandCandidate> + 'a {
-        let vertex = self.graph.vertex(node_id.as_node()).unwrap();
-        let in_edges = vertex.in_edges().map(move |edge| ExpandCandidate {
-            node: (&edge.src()).into(),
-            edge: (&edge).into(),
-            score: self.score_pair(&query, edge.src(), edge),
-        });
-        let out_edges = vertex.out_edges().map(move |edge| ExpandCandidate {
-            node: (&edge.dst()).into(),
-            edge: (&edge).into(),
-            score: self.score_pair(&query, edge.dst(), edge),
-        });
-        chain!(in_edges, out_edges)
+    // fn get_candidates_from_node<'a>(
+    //     &'a self,
+    //     query: &'a Embedding,
+    //     node_id: &EntityId,
+    // ) -> impl Iterator<Item = ExpandCandidate> + 'a {
+    //     let vertex = self.graph.vertex(node_id.as_node()).unwrap();
+    //     let in_edges = vertex.in_edges().map(move |edge| ExpandCandidate {
+    //         node: (&edge.src()).into(),
+    //         edge: (&edge).into(),
+    //         score: self.score_pair(&query, edge.src(), edge),
+    //     });
+    //     let out_edges = vertex.out_edges().map(move |edge| ExpandCandidate {
+    //         node: (&edge.dst()).into(),
+    //         edge: (&edge).into(),
+    //         score: self.score_pair(&query, edge.dst(), edge),
+    //     });
+    //     chain!(in_edges, out_edges)
+    // }
+
+    // fn score_pair(&self, query: &Embedding, node: VertexView<G>, edge: EdgeView<G>) -> f32 {
+    //     let node_vector = self.node_embeddings.get(&(&node).into()).unwrap();
+    //     let node_similarity = cosine(query, node_vector);
+    //     let edge_vector = self.edge_embeddings.get(&(&edge).into()).unwrap();
+    //     let edge_similarity = cosine(query, edge_vector);
+    //
+    //     if node_similarity > edge_similarity {
+    //         node_similarity
+    //     } else {
+    //         edge_similarity
+    //     }
+    // }
+}
+
+async fn generate_embeddings<I>(
+    docs: I,
+    embedding: &Box<dyn EmbeddingFunction>,
+    cache_dir: &Path,
+) -> HashMap<EntityId, Embedding>
+where
+    I: Iterator<Item = EntityDocument>,
+{
+    // ----------------- SEQUENTIAL-ASYNC-VERSION -----------------
+    // let mut embeddings = vec![];
+    // let embedding_stream = stream! {
+    //     for doc in docs {
+    //         yield (doc.id, doc_to_vec(doc, cache_dir))
+    //     }
+    // };
+    // pin_mut!(embedding_stream);
+    // while let Some(embedding) = embedding_stream.next() {
+    //     embeddings.push(embedding);
+    // }
+    // ------------------------------------------------------------
+
+    let mut embeddings = HashMap::new();
+    let mut misses = vec![];
+
+    for doc in docs {
+        match retrieve_embedding_from_cache(&doc, cache_dir) {
+            Some(embedding) => {
+                embeddings.insert(doc.id, embedding);
+            }
+            None => misses.push(doc),
+        }
     }
 
-    fn score_pair(&self, query: &Embedding, node: VertexView<G>, edge: EdgeView<G>) -> f32 {
-        let node_vector = self.node_embeddings.get(&(&node).into()).unwrap();
-        let node_similarity = cosine(query, node_vector);
-        let edge_vector = self.edge_embeddings.get(&(&edge).into()).unwrap();
-        let edge_similarity = cosine(query, edge_vector);
+    let embedding_tasks = misses
+        .chunks(CHUNK_SIZE)
+        .map(|chunk| compute_embeddings_with_cache(chunk.to_vec(), embedding, cache_dir));
+    let computed_embeddings = join_all(embedding_tasks).await.into_iter().flatten();
+    for (id, embedding) in computed_embeddings {
+        embeddings.insert(id, embedding);
+    }
 
-        if node_similarity > edge_similarity {
-            node_similarity
-        } else {
-            edge_similarity
-        }
+    embeddings
+}
+
+async fn compute_embeddings_with_cache(
+    docs: Vec<EntityDocument>,
+    embedding: &Box<dyn EmbeddingFunction>,
+    cache_dir: &Path,
+) -> Vec<(EntityId, Embedding)> {
+    let texts = docs.iter().map(|doc| doc.content.clone()).collect_vec();
+    let embeddings = embedding.call(texts).await;
+    docs.into_iter()
+        .zip(embeddings)
+        .map(|(doc, embedding)| {
+            let doc_hash = hash_doc(&doc); // FIXME: I'm hashing twice
+            let embedding_cache = EmbeddingCache {
+                doc_hash,
+                embedding,
+            };
+            let doc_path = cache_dir.join(doc.id.to_string());
+            let doc_file =
+                File::create(doc_path).expect("Couldn't create file to store embedding cache");
+            let mut doc_writer = BufWriter::new(doc_file);
+            bincode::serialize_into(&mut doc_writer, &embedding_cache)
+                .expect("Couldn't serialize embedding cache");
+            (doc.id, embedding_cache.embedding)
+        })
+        .collect_vec()
+}
+
+fn retrieve_embedding_from_cache(doc: &EntityDocument, cache_dir: &Path) -> Option<Embedding> {
+    let doc_path = cache_dir.join(doc.id.to_string());
+    let doc_file = File::open(doc_path).ok()?;
+    let mut doc_reader = BufReader::new(doc_file);
+    let embedding_cache: EmbeddingCache = bincode::deserialize_from(&mut doc_reader).ok()?;
+    let doc_hash = hash_doc(doc);
+    if doc_hash == embedding_cache.doc_hash {
+        Some(embedding_cache.embedding)
+    } else {
+        None
     }
 }
 
@@ -441,57 +579,19 @@ where
         .take(k)
 }
 
-async fn generate_embeddings<I: Iterator<Item = EntityDocument>>(
-    docs: I,
-    cache_dir: &Path,
-) -> HashMap<EntityId, Embedding> {
-    // ----------------- SEQUENTIAL-ASYNC-VERSION -----------------
-    // let mut embeddings = vec![];
-    // let embedding_stream = stream! {
-    //     for doc in docs {
-    //         yield (doc.id, doc_to_vec(doc, cache_dir))
-    //     }
-    // };
-    // pin_mut!(embedding_stream);
-    // while let Some(embedding) = embedding_stream.next() {
-    //     embeddings.push(embedding);
-    // }
-    // ------------------------------------------------------------
-
-    let mut embeddings = HashMap::new();
-    let mut misses = vec![];
-
-    for doc in docs {
-        match retrieve_embedding_from_cache(&doc, cache_dir) {
-            Some(embedding) => {
-                embeddings.insert(doc.id, embedding);
-            }
-            None => misses.push(doc),
-        }
-    }
-
-    let embedding_tasks = misses
-        .chunks(CHUNK_SIZE)
-        .map(|chunk| compute_embeddings_with_cache(chunk.to_vec(), cache_dir));
-    let computed_embeddings = join_all(embedding_tasks).await.into_iter().flatten();
-    for (id, embedding) in computed_embeddings {
-        embeddings.insert(id, embedding);
-    }
-
-    embeddings
-}
-
 fn cosine(vector1: &Embedding, vector2: &Embedding) -> f32 {
     assert_eq!(vector1.len(), vector2.len());
 
     let dot_product: f32 = vector1.iter().zip(vector2.iter()).map(|(x, y)| x * y).sum();
-    // let x_length: f32 = vector1.iter().map(|x| x * x).sum();
-    // let y_length: f32 = vector2.iter().map(|y| y * y).sum();
-    // Vectors are already normalized for ada but nor for gte-small:
+    let x_length: f32 = vector1.iter().map(|x| x * x).sum();
+    let y_length: f32 = vector2.iter().map(|y| y * y).sum();
+    // TODO: store the length of the vector as well so we don't need to recompute it
+    // Vectors are already normalized for ada but nor for all the models:
     // see: https://platform.openai.com/docs/guides/embeddings/which-distance-function-should-i-use
 
-    // dot_product / (x_length.sqrt() * y_length.sqrt())
-    dot_product
+    dot_product / (x_length.sqrt() * y_length.sqrt())
+    // dot_product
+    // TODO: assert that the result is between -1 and 1
 }
 
 #[derive(Clone)]
@@ -506,32 +606,7 @@ struct EmbeddingCache {
     embedding: Embedding,
 }
 
-type Embedding = Vec<f32>;
-
-async fn compute_embeddings_with_cache(
-    docs: Vec<EntityDocument>,
-    cache_dir: &Path,
-) -> Vec<(EntityId, Embedding)> {
-    let texts = docs.iter().map(|doc| doc.content.clone()).collect_vec();
-    let embeddings = compute_embeddings(texts).await;
-    docs.into_iter()
-        .zip(embeddings)
-        .map(|(doc, embedding)| {
-            let doc_hash = hash_doc(&doc); // FIXME: I'm hashing twice
-            let embedding_cache = EmbeddingCache {
-                doc_hash,
-                embedding,
-            };
-            let doc_path = cache_dir.join(doc.id.to_string());
-            let doc_file =
-                File::create(doc_path).expect("Couldn't create file to store embedding cache");
-            let mut doc_writer = BufWriter::new(doc_file);
-            bincode::serialize_into(&mut doc_writer, &embedding_cache)
-                .expect("Couldn't serialize embedding cache");
-            (doc.id, embedding_cache.embedding)
-        })
-        .collect_vec()
-}
+pub type Embedding = Vec<f32>;
 
 // async fn compute_embeddings(texts: Vec<String>) -> Vec<Embedding> {
 //     println!("computing embeddings for {} texts", texts.len());
@@ -561,43 +636,11 @@ async fn compute_embeddings_with_cache(
 //     .unwrap()
 // }
 
-async fn compute_embeddings(texts: Vec<String>) -> Vec<Embedding> {
-    println!("computing embeddings for {} texts", texts.len());
-    let client = Client::new();
-    let request = CreateEmbeddingRequest {
-        model: "text-embedding-ada-002".to_owned(),
-        input: EmbeddingInput::StringArray(texts),
-        user: None,
-    };
-    let mut response = client.embeddings().create(request).await.unwrap();
-    println!("Generated embeddings successfully");
-    response.data.into_iter().map(|e| e.embedding).collect_vec()
-}
-
-fn retrieve_embedding_from_cache(doc: &EntityDocument, cache_dir: &Path) -> Option<Embedding> {
-    let doc_path = cache_dir.join(doc.id.to_string());
-    let doc_file = File::open(doc_path).ok()?;
-    let mut doc_reader = BufReader::new(doc_file);
-    let embedding_cache: EmbeddingCache = bincode::deserialize_from(&mut doc_reader).ok()?;
-    let doc_hash = hash_doc(doc);
-    if doc_hash == embedding_cache.doc_hash {
-        Some(embedding_cache.embedding)
-    } else {
-        None
-    }
-}
-
 fn hash_doc(doc: &EntityDocument) -> u64 {
     let mut hasher = DefaultHasher::new();
     doc.content.hash(&mut hasher);
     hasher.finish()
 }
-
-// #[derive(Clone, Debug, PartialEq)]
-// enum EntityId {
-//     VertexId { id: u64 },
-//     EdgeId { src_id: u64, dst_id: u64 },
-// }
 
 impl Display for EntityId {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -614,42 +657,82 @@ impl Display for EntityId {
     }
 }
 
-// impl Display for EdgeId {
-//     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-//         f.serialize_u64(self.src)
-//             .expect("src ID couldn't be serialized");
-//         f.write_str("-")
-//             .expect("edge ID separator couldn't be serialized");
-//         f.serialize_u64(self.dst)
-//     }
-// }
-
 pub trait GraphEntity: Sized {
     // fn entity_id(&self) -> EntityId;
     fn generate_doc<T>(&self, template: &T) -> EntityDocument
     where
         T: Fn(&Self) -> String;
 
-    fn generate_property_list(&self, filter_out: Vec<String>) -> String;
-}
-
-fn fmt_time(time: Option<i64>) -> String {
-    time.map(|time| time.to_string())
-        .unwrap_or_else(|| "missing".to_owned())
+    fn generate_property_list<F, D>(
+        &self,
+        time_fmt: &F,
+        filter_out: Vec<&str>,
+        force_static: Vec<&str>,
+    ) -> String
+    where
+        F: Fn(i64) -> D,
+        D: Display;
 }
 
 impl<G: GraphViewOps> GraphEntity for VertexView<G> {
-    fn generate_property_list(&self, filter_out: Vec<String>) -> String {
-        let min_time = format!("earliest activity: {}", fmt_time(self.earliest_time()));
-        let max_time = format!("latest activity: {}", fmt_time(self.latest_time()));
+    fn generate_property_list<F, D>(
+        &self,
+        time_fmt: &F,
+        filter_out: Vec<&str>,
+        force_static: Vec<&str>,
+    ) -> String
+    where
+        F: Fn(i64) -> D,
+        D: Display,
+    {
+        let time_fmt = |time: i64| time_fmt(time).to_string();
+        let missing = || "missing".to_owned();
+        let min_time_fmt = self.earliest_time().map(time_fmt).unwrap_or_else(missing);
+        let min_time = format!("earliest activity: {}", min_time_fmt);
+        let max_time_fmt = self.latest_time().map(time_fmt).unwrap_or_else(missing);
+        let max_time = format!("latest activity: {}", max_time_fmt);
+
+        let temporal_keys = self
+            .temporal_property_keys()
+            .filter(|key| !filter_out.contains(&key.as_str()))
+            .filter(|key| !force_static.contains(&key.as_str()))
+            .filter(|key| {
+                // the history of the temporal prop has more than one value
+                let props = self.temporal_values(key);
+                let values = props.iter().map(|prop| prop.to_string());
+                values.unique().collect_vec().len() > 1
+            })
+            .collect_vec();
+
+        let temporal_props = temporal_keys.iter().map(|key| {
+            let history = self.temporal_history(&key);
+            let props = self.temporal_values(&key);
+            let values = props.iter().map(|prop| prop.to_string());
+            let time_value_pairs = history.iter().zip(values);
+            time_value_pairs
+                .unique_by(|(_, value)| value.clone())
+                .map(|(time, value)| {
+                    let key = key.to_string();
+                    let time = time_fmt(*time);
+                    format!("{key} changed to {value} at {time}")
+                })
+                .intersperse("\n".to_owned())
+                .collect()
+        });
 
         let prop_storage = self.properties();
-        let props = prop_storage
-            .iter()
-            .map(|(key, prop)| (key.to_owned(), prop.to_string()))
-            .filter(|(key, _)| !filter_out.contains(key))
-            .map(|(key, prop)| format!("{key}: {prop}"))
-            .sorted_by(|a, b| a.len().cmp(&b.len()));
+
+        let static_props = prop_storage
+            .keys()
+            .filter(|key| !filter_out.contains(&key.as_str()))
+            .filter(|key| !temporal_keys.contains(key))
+            .map(|key| {
+                let prop = prop_storage.get(&key).unwrap().to_string();
+                let key = key.to_string();
+                format!("{key}: {prop}")
+            });
+
+        let props = chain!(static_props, temporal_props).sorted_by(|a, b| a.len().cmp(&b.len()));
         // We sort by length so when cutting out the tail of the document we don't remove small properties
 
         let lines = chain!([min_time, max_time], props);
@@ -665,6 +748,7 @@ impl<G: GraphViewOps> GraphEntity for VertexView<G> {
             Some((index, _)) => (&raw_content[..index]).to_owned(),
             None => raw_content,
         };
+        // TODO: allow multi document entities !!!!!
         // shortened to 1000 (around 250 tokens) to avoid exceeding the max number of tokens,
         // when embedding but also when inserting documents into prompts
 
@@ -676,7 +760,16 @@ impl<G: GraphViewOps> GraphEntity for VertexView<G> {
 }
 
 impl<G: GraphViewOps> GraphEntity for EdgeView<G> {
-    fn generate_property_list(&self, filter_out: Vec<String>) -> String {
+    fn generate_property_list<F, D>(
+        &self,
+        time_fmt: &F,
+        filter_out: Vec<&str>,
+        force_static: Vec<&str>,
+    ) -> String
+    where
+        F: Fn(i64) -> D,
+        D: Display,
+    {
         // TODO: not needed yet
         "".to_owned()
     }
@@ -698,17 +791,23 @@ impl<G: GraphViewOps> GraphEntity for EdgeView<G> {
 #[cfg(test)]
 mod vector_tests {
     use super::*;
+    use crate::core::Prop;
+    use crate::prelude::Graph;
     use dotenv::dotenv;
     use raphtory::prelude::{AdditionOps, Graph, Prop};
     use std::path::PathBuf;
 
     const NO_PROPS: [(&str, Prop); 0] = [];
 
+    fn format_time(time: i64) -> String {
+        format!("line {time}")
+    }
+
     fn node_template(vertex: &VertexView<Graph>) -> String {
         let name = vertex.name();
         let node_type = vertex.properties().get("type").unwrap().to_string();
         let property_list =
-            vertex.generate_property_list(vec!["type".to_owned(), "_id".to_owned()]);
+            vertex.generate_property_list(&format_time, vec!["type", "_id"], vec![]);
         format!("{name} is a {node_type} with the following details:\n{property_list}")
     }
 
@@ -718,6 +817,8 @@ mod vector_tests {
         let lines = edge.history().iter().join(",");
         format!("{src} appeared with {dst} in lines: {lines}")
     }
+
+    // TODO: test default templates
 
     #[test]
     fn test_node_into_doc() {
@@ -738,8 +839,8 @@ mod vector_tests {
             .generate_doc(&node_template)
             .content;
         let expected_doc = r###"Frodo is a hobbit with the following details:
-earliest activity: 0
-latest activity: 0
+earliest activity: line 0
+latest activity: line 0
 age: 30"###;
         assert_eq!(doc, expected_doc);
     }
@@ -796,8 +897,8 @@ age: 30"###;
         let vec_store = VectorStore::load_graph(
             g,
             &PathBuf::from("/tmp/raphtory/vector-cache-lotr-test"),
-            node_template,
-            edge_template,
+            Some(Box::new(node_template)),
+            Some(Box::new(edge_template)),
         )
         .await;
 
