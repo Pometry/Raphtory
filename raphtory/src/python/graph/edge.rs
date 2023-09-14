@@ -156,7 +156,6 @@ impl PyEdge {
     /// Returns:
     ///     A list of timestamps.
     ///
-    #[getter]
     pub fn history(&self) -> Vec<i64> {
         self.edge.history()
     }
@@ -504,10 +503,6 @@ impl PyEdges {
         self.py_iter().into()
     }
 
-    fn __len__(&self) -> usize {
-        self.iter().count()
-    }
-
     /// Returns all source vertices of the Edges as an iterable.
     ///
     /// Returns:
@@ -530,14 +525,7 @@ impl PyEdges {
         self.py_iter().collect()
     }
 
-    /// Returns the first edge
-    #[getter]
-    fn first(&self) -> Option<PyEdge> {
-        self.py_iter().next()
-    }
-
     /// Returns the number of edges
-    #[getter]
     fn count(&self) -> usize {
         self.py_iter().count()
     }

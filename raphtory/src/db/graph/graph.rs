@@ -39,7 +39,7 @@ pub(crate) type InternalGraph = InnerTemporalGraph<SEG>;
 pub struct Graph(pub Arc<InternalGraph>);
 
 pub fn graph_equal<G1: GraphViewOps, G2: GraphViewOps>(g1: &G1, g2: &G2) -> bool {
-    if g1.num_vertices() == g2.num_vertices() && g1.num_edges() == g2.num_edges() {
+    if g1.count_vertices() == g2.count_vertices() && g1.count_edges() == g2.count_edges() {
         g1.vertices().id().all(|v| g2.has_vertex(v)) && // all vertices exist in other 
             g1.edges().explode().count() == g2.edges().explode().count() && // same number of exploded edges
             g1.edges().explode().all(|e| { // all exploded edges exist in other

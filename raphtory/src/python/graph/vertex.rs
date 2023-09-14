@@ -104,7 +104,6 @@ impl PyVertex {
     ///
     /// Returns:
     ///   The vertex id.
-    #[getter]
     pub fn __hash__(&self) -> u64 {
         self.vertex.id()
     }
@@ -185,7 +184,6 @@ impl PyVertex {
     ///
     /// Returns
     ///     The degree of this vertex.
-    #[getter]
     pub fn degree(&self) -> usize {
         self.vertex.degree()
     }
@@ -194,7 +192,6 @@ impl PyVertex {
     ///
     /// Returns:
     ///    The in-degree of this vertex.
-    #[getter]
     pub fn in_degree(&self) -> usize {
         self.vertex.in_degree()
     }
@@ -203,7 +200,6 @@ impl PyVertex {
     ///
     /// Returns:
     ///   The out-degree of this vertex.
-    #[getter]
     pub fn out_degree(&self) -> usize {
         self.vertex.out_degree()
     }
@@ -381,7 +377,6 @@ impl PyVertex {
     }
 
     #[doc = default_layer_doc_string!()]
-    #[getter]
     pub fn default_layer(&self) -> PyVertex {
         self.vertex.default_layer().into()
     }
@@ -402,7 +397,6 @@ impl PyVertex {
     ///
     /// Returns:
     ///     A list of timestamps of the event history of vertex.
-    #[getter]
     pub fn history(&self) -> Vec<i64> {
         self.vertex.history()
     }
@@ -603,7 +597,6 @@ impl PyVertices {
     ///
     /// Returns:
     ///     An iterator of the number of edges of the vertices
-    #[getter]
     fn degree(&self) -> UsizeIterable {
         let vertices = self.vertices.clone();
         (move || vertices.degree()).into()
@@ -613,7 +606,6 @@ impl PyVertices {
     ///
     /// Returns:
     ///     An iterator of the number of in edges of the vertices
-    #[getter]
     fn in_degree(&self) -> UsizeIterable {
         let vertices = self.vertices.clone();
         (move || vertices.in_degree()).into()
@@ -623,7 +615,6 @@ impl PyVertices {
     ///
     /// Returns:
     ///     An iterator of the number of out edges of the vertices
-    #[getter]
     fn out_degree(&self) -> UsizeIterable {
         let vertices = self.vertices.clone();
         (move || vertices.out_degree()).into()
@@ -780,7 +771,6 @@ impl PyVertices {
     }
 
     #[doc = default_layer_doc_string!()]
-    #[getter]
     pub fn default_layer(&self) -> PyVertices {
         self.vertices.default_layer().into()
     }
@@ -869,19 +859,16 @@ impl PyPathFromGraph {
         (move || path.properties()).into()
     }
 
-    #[getter]
     fn degree(&self) -> NestedUsizeIterable {
         let path = self.path.clone();
         (move || path.degree()).into()
     }
 
-    #[getter]
     fn in_degree(&self) -> NestedUsizeIterable {
         let path = self.path.clone();
         (move || path.in_degree()).into()
     }
 
-    #[getter]
     fn out_degree(&self) -> NestedUsizeIterable {
         let path = self.path.clone();
         (move || path.out_degree()).into()
@@ -975,7 +962,6 @@ impl PyPathFromGraph {
     }
 
     #[doc = default_layer_doc_string!()]
-    #[getter]
     pub fn default_layer(&self) -> Self {
         self.path.default_layer().into()
     }
@@ -1080,19 +1066,16 @@ impl PyPathFromVertex {
         (move || path.properties()).into()
     }
 
-    #[getter]
     fn in_degree(&self) -> UsizeIterable {
         let path = self.path.clone();
         (move || path.in_degree()).into()
     }
 
-    #[getter]
     fn out_degree(&self) -> UsizeIterable {
         let path = self.path.clone();
         (move || path.out_degree()).into()
     }
 
-    #[getter]
     fn degree(&self) -> UsizeIterable {
         let path = self.path.clone();
         (move || path.degree()).into()
@@ -1185,7 +1168,6 @@ impl PyPathFromVertex {
         self.path.at(end)
     }
 
-    #[getter]
     pub fn default_layer(&self) -> Self {
         self.path.default_layer().into()
     }
@@ -1314,19 +1296,16 @@ impl PyVertexIterable {
         (move || vertices().properties()).into()
     }
 
-    #[getter]
     fn degree(&self) -> UsizeIterable {
         let vertices = self.builder.clone();
         (move || vertices().degree()).into()
     }
 
-    #[getter]
     fn in_degree(&self) -> UsizeIterable {
         let vertices = self.builder.clone();
         (move || vertices().in_degree()).into()
     }
 
-    #[getter]
     fn out_degree(&self) -> UsizeIterable {
         let vertices = self.builder.clone();
         (move || vertices().out_degree()).into()
@@ -1403,19 +1382,16 @@ impl PyNestedVertexIterable {
         (move || vertices().properties()).into()
     }
 
-    #[getter]
     fn degree(&self) -> NestedUsizeIterable {
         let vertices = self.builder.clone();
         (move || vertices().degree()).into()
     }
 
-    #[getter]
     fn in_degree(&self) -> NestedUsizeIterable {
         let vertices = self.builder.clone();
         (move || vertices().in_degree()).into()
     }
 
-    #[getter]
     fn out_degree(&self) -> NestedUsizeIterable {
         let vertices = self.builder.clone();
         (move || vertices().out_degree()).into()

@@ -142,7 +142,7 @@ def to_networkx(
             else:
                 properties = v.properties.as_dict()
         if include_update_history:
-            properties.update({"update_history": v.history})
+            properties.update({"update_history": v.history()})
         vertex_tuples.append((v.name, properties))
     networkXGraph.add_nodes_from(vertex_tuples)
 
@@ -165,7 +165,7 @@ def to_networkx(
             if explode_edges:
                 properties.update({"update_history": e.time})
             else:
-                properties.update({"update_history": e.history})
+                properties.update({"update_history": e.history()})
         edge_tuples.append((src, dst, properties))
 
     networkXGraph.add_edges_from(edge_tuples)
@@ -219,7 +219,7 @@ def to_edge_df(
             if explode_edges:
                 tuple.append(e.time)
             else:
-                tuple.append(e.history)
+                tuple.append(e.history())
 
         edge_tuples.append(tuple)
 
@@ -266,6 +266,6 @@ def to_vertex_df(
                 properties = v.properties.as_dict()
             tuple.append(properties)
         if include_update_history:
-            tuple.append(v.history)
+            tuple.append(v.history())
         vertex_tuples.append(tuple)
     return pd.DataFrame(vertex_tuples, columns=columns)

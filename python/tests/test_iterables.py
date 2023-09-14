@@ -63,7 +63,6 @@ def test_pyprophistvaluelist():
     assert res.sum() == [120, 20, 8]
     assert res.min() == [10, 20, 1]
     assert res.max() == [100, 20, 5]
-    assert sorted(res.len()) == [1, 3, 3]
     assert sorted(res.count()) == [1, 3, 3]
     assert res.median() == [10, 20, 2]
     assert list(res.mean()) == [40, 20, 8 / 3]
@@ -117,7 +116,7 @@ def test_propiterable():
     assert result.average() == 10.4
     assert result.min() == 2
     assert result.max() == 20
-    assert result.len() == 5
+    assert result.count() == 5
 
     assert v.out_edges.properties.get("value_dec").sum() == 32
     assert v.out_edges.properties.get("value_dec").median() == 10
@@ -189,9 +188,9 @@ def test_pypropvalue_list_listlist():
     assert res_v.max() == 100
     assert res_ll.max() == [100, 100, 20, 10, 5]
 
-    assert res.count() == res.len() == 8
-    assert res_v.count() == res_v.len() == 5
-    assert res_ll.count() == res_ll.len() == [5, 3, 3, 4, 1]
+    assert res.count() == 8
+    assert res_v.count() == 5
+    assert res_ll.count() == [5, 3, 3, 4, 1]
 
     assert res.mean() == res.average() == 18.5
     assert res_v.mean() == res_v.average() == 26.2
@@ -226,6 +225,6 @@ def test_pytemporalprops():
     assert res.sum() == 120
     assert res.min() == (1, 10)
     assert res.max() == (3, 100)
-    assert res.count() == res.len() == 3
+    assert res.count() == 3
     assert res.mean() == res.average() == 40.0
     assert res.median() == (2, 10)

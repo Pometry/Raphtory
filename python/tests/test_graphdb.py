@@ -44,8 +44,8 @@ def create_graph_with_deletions():
 def test_graph_len_edge_len():
     g = create_graph()
 
-    assert g.num_vertices() == 3
-    assert g.num_edges() == 5
+    assert g.count_vertices() == 3
+    assert g.count_edges() == 5
 
 
 def test_id_iterable():
@@ -63,15 +63,15 @@ def test_id_iterable():
 
 def test_degree_iterable():
     g = create_graph()
-    assert g.vertices.degree.min() == 2
-    assert g.vertices.degree.max() == 3
-    assert g.vertices.in_degree.min() == 1
-    assert g.vertices.in_degree.max() == 2
-    assert g.vertices.out_degree.min() == 1
-    assert g.vertices.out_degree.max() == 3
-    assert isclose(g.vertices.degree.mean(), 7 / 3)
-    assert g.vertices.degree.sum() == 7
-    degrees = g.vertices.degree.collect()
+    assert g.vertices.degree().min() == 2
+    assert g.vertices.degree().max() == 3
+    assert g.vertices.in_degree().min() == 1
+    assert g.vertices.in_degree().max() == 2
+    assert g.vertices.out_degree().min() == 1
+    assert g.vertices.out_degree().max() == 3
+    assert isclose(g.vertices.degree().mean(), 7 / 3)
+    assert g.vertices.degree().sum() == 7
+    degrees = g.vertices.degree().collect()
     degrees.sort()
     assert degrees == [2, 2, 3]
 
@@ -110,7 +110,7 @@ def test_windowed_graph_get_vertex():
 
     assert view.vertex(1).id == 1
     assert view.vertex(10) is None
-    assert view.vertex(1).degree == 3
+    assert view.vertex(1).degree() == 3
 
 
 def test_windowed_graph_degree():
@@ -118,17 +118,17 @@ def test_windowed_graph_degree():
 
     view = g.window(0, sys.maxsize)
 
-    degrees = [v.degree for v in view.vertices()]
+    degrees = [v.degree() for v in view.vertices()]
     degrees.sort()
 
     assert degrees == [2, 2, 3]
 
-    in_degrees = [v.in_degree for v in view.vertices()]
+    in_degrees = [v.in_degree() for v in view.vertices()]
     in_degrees.sort()
 
     assert in_degrees == [1, 1, 2]
 
-    out_degrees = [v.out_degree for v in view.vertices()]
+    out_degrees = [v.out_degree() for v in view.vertices()]
     out_degrees.sort()
 
     assert out_degrees == [0, 1, 3]
@@ -695,7 +695,7 @@ def test_map_and_list_property():
 def test_exploded_edge_time():
     g = graph_loader.lotr_graph()
     e = g.edge("Frodo", "Gandalf")
-    his = e.history
+    his = e.history()
     exploded_his = []
     for ee in e.explode():
         exploded_his.append(ee.time)
@@ -767,9 +767,9 @@ def test_save_load_graph():
 
     view = g.window(0, 10)
     assert g.has_vertex(13)
-    assert view.vertex(13).in_degree == 1
-    assert view.vertex(13).out_degree == 1
-    assert view.vertex(13).degree == 2
+    assert view.vertex(13).in_degree() == 1
+    assert view.vertex(13).out_degree() == 1
+    assert view.vertex(13).degree() == 2
 
     triangles = algorithms.local_triangle_count(
         view, 13
@@ -786,11 +786,11 @@ def test_graph_at():
     g = create_graph()
 
     view = g.at(2)
-    assert view.vertex(1).degree == 3
-    assert view.vertex(3).degree == 1
+    assert view.vertex(1).degree() == 3
+    assert view.vertex(3).degree() == 1
 
     view = g.at(7)
-    assert view.vertex(3).degree == 2
+    assert view.vertex(3).degree() == 2
 
 
 def test_add_node_string():
@@ -846,15 +846,15 @@ def test_all_degrees_window():
 
     view = g.at(4)
     v = view.vertex(2)
-    assert v.window(0, 4).in_degree == 3
-    assert v.window(t_start=2).in_degree == 2
-    assert v.window(t_end=3).in_degree == 2
-    assert v.window(0, 4).out_degree == 1
-    assert v.window(t_start=2).out_degree == 1
-    assert v.window(t_end=3).out_degree == 1
-    assert v.window(0, 4).degree == 3
-    assert v.window(t_start=2).degree == 2
-    assert v.window(t_end=3).degree == 2
+    assert v.window(0, 4).in_degree() == 3
+    assert v.window(t_start=2).in_degree() == 2
+    assert v.window(t_end=3).in_degree() == 2
+    assert v.window(0, 4).out_degree() == 1
+    assert v.window(t_start=2).out_degree() == 1
+    assert v.window(t_end=3).out_degree() == 1
+    assert v.window(0, 4).degree() == 3
+    assert v.window(t_start=2).degree() == 2
+    assert v.window(t_end=3).degree() == 2
 
 
 def test_all_edge_window():
@@ -1009,13 +1009,13 @@ def test_vertex_history():
     g.add_vertex(7, "Lord Farquaad", {})
     g.add_vertex(8, "Lord Farquaad", {})
 
-    assert (g.vertex(1).history == [1, 2, 3, 4, 8])
-    assert (g.vertex("Lord Farquaad").history == [4, 6, 7, 8])
+    assert (g.vertex(1).history() == [1, 2, 3, 4, 8])
+    assert (g.vertex("Lord Farquaad").history() == [4, 6, 7, 8])
 
     view = g.window(1, 8)
 
-    assert (view.vertex(1).history == [1, 2, 3, 4])
-    assert (view.vertex("Lord Farquaad").history == [4, 6, 7])
+    assert (view.vertex(1).history() == [1, 2, 3, 4])
+    assert (view.vertex("Lord Farquaad").history() == [4, 6, 7])
 
 
 def test_edge_history():
@@ -1028,24 +1028,24 @@ def test_edge_history():
 
     view = g.window(1, 5)
 
-    assert (g.edge(1, 2).history == [1, 3])
-    assert (view.edge(1, 4).history == [4])
+    assert (g.edge(1, 2).history() == [1, 3])
+    assert (view.edge(1, 4).history() == [4])
 
 
 def test_lotr_edge_history():
     g = graph_loader.lotr_graph()
 
-    assert (g.edge('Frodo', 'Gandalf').history == [329, 555, 861, 1056, 1130, 1160, 1234, 1241, 1390, 1417, 1656,
+    assert (g.edge('Frodo', 'Gandalf').history() == [329, 555, 861, 1056, 1130, 1160, 1234, 1241, 1390, 1417, 1656,
                                                      1741, 1783, 1785, 1792, 1804, 1809, 1999, 2056, 2254, 2925, 2999,
                                                      3703, 3914, 4910, 5620, 5775, 6381, 6531, 6578, 6661, 6757, 7041,
                                                      7356, 8183, 8190, 8276, 8459, 8598, 8871, 9098, 9343, 9903, 11189,
                                                      11192, 11279, 11365, 14364, 21551, 21706, 23212, 26958, 27060,
                                                      29024, 30173, 30737, 30744, 31023, 31052, 31054, 31103, 31445,
                                                      32656])
-    assert (g.at(1000).edge('Frodo', 'Gandalf').history == [329, 555, 861])
-    assert (g.edge('Frodo', 'Gandalf').at(1000).history == [329, 555, 861])
-    assert (g.window(100, 1000).edge('Frodo', 'Gandalf').history == [329, 555, 861])
-    assert (g.edge('Frodo', 'Gandalf').window(100, 1000).history == [329, 555, 861])
+    assert (g.at(1000).edge('Frodo', 'Gandalf').history() == [329, 555, 861])
+    assert (g.edge('Frodo', 'Gandalf').at(1000).history() == [329, 555, 861])
+    assert (g.window(100, 1000).edge('Frodo', 'Gandalf').history() == [329, 555, 861])
+    assert (g.edge('Frodo', 'Gandalf').window(100, 1000).history() == [329, 555, 861])
 
 
 def gen_graph():
@@ -1196,9 +1196,9 @@ def test_layer():
     g.add_edge(0, 1, 3, layer="layer1")
     g.add_edge(0, 1, 4, layer="layer2")
 
-    assert g.default_layer().num_edges() == 1
-    assert g.layers(["layer1"]).num_edges() == 1
-    assert g.layers(["layer2"]).num_edges() == 1
+    assert g.default_layer().count_edges() == 1
+    assert g.layers(["layer1"]).count_edges() == 1
+    assert g.layers(["layer2"]).count_edges() == 1
 
 
 def test_layer_vertex():
@@ -1225,7 +1225,7 @@ def test_rolling_as_iterable():
 
     # a normal operation is reusing the object returned by rolling twice, to get both results and an index.
     # So the following should work fine:
-    n_vertices = [w.num_vertices() for w in rolling]
+    n_vertices = [w.count_vertices() for w in rolling]
     time_index = [w.start for w in rolling]
 
     assert n_vertices == [1, 0, 0, 1]
@@ -1431,8 +1431,8 @@ def test_materialize_graph():
     assert mg.vertex(1).properties.get('type') == 'wallet'
     assert mg.vertex(4).properties == {'abc': 'xyz'}
     assert mg.vertex(4).properties.constant.get('abc') == 'xyz'
-    assert mg.vertex(1).history == [-1, 0, 1, 2]
-    assert mg.vertex(4).history == [6, 8]
+    assert mg.vertex(1).history() == [-1, 0, 1, 2]
+    assert mg.vertex(4).history() == [6, 8]
     assert mg.vertices().id.collect() == [1, 2, 3, 4]
     assert set(mg.edges().id) == {(1, 1), (1, 2), (1, 3), (2, 1), (3, 2), (2, 4)}
     assert g.vertices.id.collect() == mg.vertices.id.collect()
