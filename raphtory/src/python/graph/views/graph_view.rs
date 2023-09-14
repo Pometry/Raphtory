@@ -122,7 +122,7 @@ impl PyGraphView {
     ///     the datetime of the earliest activity in the graph
     pub fn earliest_date_time(&self) -> Option<NaiveDateTime> {
         let earliest_time = self.graph.earliest_time()?;
-        Some(NaiveDateTime::from_timestamp_millis(earliest_time).unwrap())
+        NaiveDateTime::from_timestamp_millis(earliest_time)
     }
 
     /// Timestamp of latest activity in the graph
@@ -139,7 +139,7 @@ impl PyGraphView {
     ///     the datetime of the latest activity in the graph
     pub fn latest_date_time(&self) -> Option<NaiveDateTime> {
         let latest_time = self.graph.latest_time()?;
-        Some(NaiveDateTime::from_timestamp_millis(latest_time).unwrap())
+        NaiveDateTime::from_timestamp_millis(latest_time)
     }
 
     /// Number of edges in the graph
@@ -252,7 +252,7 @@ impl PyGraphView {
     ///     the default start datetime for perspectives over the view
     pub fn start_date_time(&self) -> Option<NaiveDateTime> {
         let start_time = self.graph.start()?;
-        Some(NaiveDateTime::from_timestamp_millis(start_time).unwrap())
+        NaiveDateTime::from_timestamp_millis(start_time)
     }
 
     /// Returns the default end time for perspectives over the view
@@ -274,7 +274,7 @@ impl PyGraphView {
     ///    the default end datetime for perspectives over the view
     pub fn end_date_time(&self) -> Option<NaiveDateTime> {
         let end_time = self.graph.end()?;
-        Some(NaiveDateTime::from_timestamp_millis(end_time).unwrap())
+        NaiveDateTime::from_timestamp_millis(end_time)
     }
 
     /// Creates a `WindowSet` with the given `step` size and optional `start` and `end` times,    

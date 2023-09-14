@@ -344,6 +344,10 @@ impl<G: GraphViewOps> VertexListOps for Box<dyn Iterator<Item = VertexView<G>> +
         Box::new(self.map(move |v| v.window(t_start, t_end)))
     }
 
+    fn at(self, end: i64) -> Self::IterType<<Self::Vertex as TimeOps>::WindowedViewType> {
+        Box::new(self.map(move |v| v.at(end)))
+    }
+
     fn id(self) -> BoxedIter<u64> {
         Box::new(self.map(|v| v.id()))
     }
@@ -418,6 +422,10 @@ impl<G: GraphViewOps> VertexListOps for BoxedIter<BoxedIter<VertexView<G>>> {
         t_end: i64,
     ) -> BoxedIter<Self::ValueType<VertexView<WindowedGraph<Self::Graph>>>> {
         Box::new(self.map(move |it| it.window(t_start, t_end)))
+    }
+
+    fn at(self, end: i64) -> Self::IterType<<Self::Vertex as TimeOps>::WindowedViewType> {
+        Box::new(self.map(move |v| v.at(end)))
     }
 
     fn id(self) -> BoxedIter<Self::ValueType<u64>> {

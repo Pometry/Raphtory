@@ -131,9 +131,7 @@ pub trait VertexListOps:
     ) -> Self::IterType<<Self::Vertex as TimeOps>::WindowedViewType>;
 
     /// Create views for the vertices including all events until `end` (inclusive)
-    fn at(self, end: i64) -> Self::IterType<<Self::Vertex as TimeOps>::WindowedViewType> {
-        self.window(i64::MIN, end.saturating_add(1))
-    }
+    fn at(self, end: i64) -> Self::IterType<<Self::Vertex as TimeOps>::WindowedViewType>;
 
     /// Returns the ids of vertices in the list.
     ///
