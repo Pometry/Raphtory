@@ -1,5 +1,4 @@
 use crate::core::utils::time::{error::ParseTimeError, Interval, IntoTime};
-use num_traits::Saturating;
 
 /// Trait defining time query operations
 pub trait TimeOps {
@@ -220,15 +219,14 @@ mod time_tests {
 
     #[test]
     fn expanding() {
-        let min = i64::MIN;
         let g = graph_with_timeline(1, 7);
         let windows = g.expanding(2).unwrap();
-        let expected = vec![(min, 3), (min, 5), (min, 7)];
+        let expected = vec![(1, 3), (1, 5), (1, 7)];
         assert_bounds(windows, expected);
 
         let g = graph_with_timeline(1, 6);
         let windows = g.expanding(2).unwrap();
-        let expected = vec![(min, 3), (min, 5), (min, 7)];
+        let expected = vec![(1, 3), (1, 5), (1, 7)];
         assert_bounds(windows, expected.clone());
 
         let g = graph_with_timeline(0, 9).window(1, 6);
@@ -290,15 +288,13 @@ mod time_tests {
 
     #[test]
     fn expanding_dates() {
-        let min = i64::MIN;
-
         let start = "2020-06-06 00:00:00".try_into_time().unwrap();
         let end = "2020-06-07 23:59:59.999".try_into_time().unwrap();
         let g = graph_with_timeline(start, end);
         let windows = g.expanding("1 day").unwrap();
         let expected = vec![
-            (min, "2020-06-07 00:00:00".try_into_time().unwrap()),
-            (min, "2020-06-08 00:00:00".try_into_time().unwrap()),
+            (start, "2020-06-07 00:00:00".try_into_time().unwrap()),
+            (start, "2020-06-08 00:00:00".try_into_time().unwrap()),
         ];
         assert_bounds(windows, expected);
 
@@ -307,8 +303,8 @@ mod time_tests {
         let g = graph_with_timeline(start, end);
         let windows = g.expanding("1 day").unwrap();
         let expected = vec![
-            (min, "2020-06-07 00:00:00".try_into_time().unwrap()),
-            (min, "2020-06-08 00:00:00".try_into_time().unwrap()),
+            (start, "2020-06-07 00:00:00".try_into_time().unwrap()),
+            (start, "2020-06-08 00:00:00".try_into_time().unwrap()),
         ];
         assert_bounds(windows, expected);
     }

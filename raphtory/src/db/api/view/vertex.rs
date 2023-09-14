@@ -5,7 +5,6 @@ use crate::db::{
     },
     graph::vertex::VertexView,
 };
-use num_traits::Saturating;
 
 /// Operations defined for a vertex
 pub trait VertexViewOps: TimeOps {

@@ -54,9 +54,8 @@ use crate::{
         },
         view::{
             internal::{
-                Base, DelegateCoreOps, DynamicGraph, EdgeFilter, EdgeFilterOps, GraphOps,
-                Immutable, InheritCoreOps, InheritLayerOps, InheritMaterialize, IntoDynamic,
-                TimeSemantics,
+                Base, DynamicGraph, EdgeFilter, EdgeFilterOps, GraphOps, Immutable, InheritCoreOps,
+                InheritLayerOps, InheritMaterialize, IntoDynamic, TimeSemantics,
             },
             BoxedIter,
         },
