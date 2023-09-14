@@ -116,19 +116,16 @@ impl<G: GraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> EdgeVi
         props: C,
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
-        let props = props.collect_properties();
+        let mut properties: Vec<(usize, Prop)> = props.collect_properties(|name, dtype| {
+            self.graph.resolve_edge_property(name, dtype, true)
+        })?;
         let input_layer_id = self.resolve_layer(layer)?;
 
-        self.graph
-            .internal_add_edge_properties(self.edge.pid(), props, input_layer_id)
-            .map_err(|err| {
-                MutateGraphError::IllegalEdgePropertyChange {
-                    src_id: self.src().id(),
-                    dst_id: self.dst().id(),
-                    source: err,
-                }
-                .into()
-            })
+        self.graph.internal_add_constant_edge_properties(
+            self.edge.pid(),
+            input_layer_id,
+            properties,
+        )
     }
 
     pub fn add_updates<C: CollectProperties, T: TryIntoInputTime>(
@@ -139,14 +136,12 @@ impl<G: GraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> EdgeVi
     ) -> Result<(), GraphError> {
         let t = TimeIndexEntry::from_input(&self.graph, time)?;
         let layer_id = self.resolve_layer(layer)?;
+        let properties: Vec<(usize, Prop)> = props.collect_properties(|name, dtype| {
+            self.graph.resolve_edge_property(name, dtype, false)
+        })?;
 
-        self.graph.internal_add_edge(
-            t,
-            self.edge.src(),
-            self.edge.dst(),
-            props.collect_properties(),
-            layer_id,
-        )?;
+        self.graph
+            .internal_add_edge(t, self.edge.src(), self.edge.dst(), properties, layer_id)?;
         Ok(())
     }
 }

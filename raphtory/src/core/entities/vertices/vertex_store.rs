@@ -1,18 +1,21 @@
-use crate::core::{
-    entities::{
-        edges::edge_ref::{Dir, EdgeRef},
-        properties::{props::Props, tprop::TProp},
-        vertices::structure::{adj, adj::Adj},
-        LayerIds, EID, VID,
+use crate::{
+    core::{
+        entities::{
+            edges::edge_ref::{Dir, EdgeRef},
+            properties::{props::Props, tprop::TProp},
+            vertices::structure::{adj, adj::Adj},
+            LayerIds, EID, VID,
+        },
+        storage::{
+            iter::Iter,
+            lazy_vec::IllegalSet,
+            timeindex::{AsTime, TimeIndex, TimeIndexEntry, TimeIndexOps},
+            ArcEntry,
+        },
+        utils::errors::{GraphError, MutateGraphError},
+        Direction, Prop,
     },
-    storage::{
-        iter::Iter,
-        lazy_vec::IllegalSet,
-        timeindex::{AsTime, TimeIndex, TimeIndexEntry, TimeIndexOps},
-        ArcEntry,
-    },
-    utils::errors::{GraphError, MutateGraphError},
-    Direction, Prop,
+    prelude::Graph,
 };
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
@@ -25,6 +28,7 @@ use std::{
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
 pub struct VertexStore {
     pub(crate) global_id: u64,
+    pub(crate) name: Option<String>,
     pub(crate) vid: VID,
     // all the timestamps that have been seen by this vertex
     timestamps: TimeIndex<i64>,
@@ -40,6 +44,7 @@ impl VertexStore {
         layers.push(Adj::Solo);
         Self {
             global_id,
+            name: None,
             vid: 0.into(),
             timestamps: TimeIndex::one(*t.t()),
             layers,
@@ -47,11 +52,12 @@ impl VertexStore {
         }
     }
 
-    pub fn empty(global_id: u64) -> Self {
+    pub fn empty(global_id: u64, name: Option<String>) -> Self {
         let mut layers = Vec::with_capacity(1);
         layers.push(Adj::Solo);
         Self {
             global_id,
+            name,
             vid: VID(0),
             timestamps: TimeIndex::Empty,
             layers,
@@ -71,6 +77,15 @@ impl VertexStore {
         self.timestamps.insert(*t.t());
     }
 
+    pub fn update_name(&mut self, name: &str) {
+        match &self.name {
+            None => {
+                self.name = Some(name.to_owned());
+            }
+            Some(old) => debug_assert_eq!(old, name), // one-to-one mapping between name and id, name should never change
+        }
+    }
+
     pub fn add_prop(
         &mut self,
         t: TimeIndexEntry,
@@ -81,13 +96,13 @@ impl VertexStore {
         props.add_prop(t, prop_id, prop)
     }
 
-    pub fn add_static_prop(
+    pub fn add_constant_prop(
         &mut self,
         prop_id: usize,
         prop: Prop,
     ) -> Result<(), IllegalSet<Option<Prop>>> {
         let props = self.props.get_or_insert_with(Props::new);
-        props.add_static_prop(prop_id, prop)
+        props.add_constant_prop(prop_id, prop)
     }
 
     #[inline(always)]

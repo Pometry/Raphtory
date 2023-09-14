@@ -1,40 +1,77 @@
 use crate::{
     core::{
-        entities::{graph::tgraph::InnerTemporalGraph, EID},
-        storage::timeindex::TimeIndexEntry,
+        entities::{graph::tgraph::InnerTemporalGraph, EID, VID},
+        storage::{lazy_vec::IllegalSet, timeindex::TimeIndexEntry},
         utils::errors::{GraphError, IllegalMutate},
     },
-    db::api::mutation::internal::InternalPropertyAdditionOps,
+    db::api::{mutation::internal::InternalPropertyAdditionOps, view::internal::CoreGraphOps},
     prelude::Prop,
 };
 
 impl<const N: usize> InternalPropertyAdditionOps for InnerTemporalGraph<N> {
-    fn internal_add_vertex_properties(
-        &self,
-        v: u64,
-        data: Vec<(String, Prop)>,
-    ) -> Result<(), GraphError> {
-        self.inner().add_vertex_properties_internal(v, data)
-    }
-
     fn internal_add_properties(
         &self,
         t: TimeIndexEntry,
-        props: Vec<(String, Prop)>,
+        props: Vec<(usize, Prop)>,
     ) -> Result<(), GraphError> {
-        self.inner().add_property(t, props)
+        self.inner().add_properties(t, props)
     }
 
-    fn internal_add_static_properties(&self, props: Vec<(String, Prop)>) -> Result<(), GraphError> {
-        self.inner().add_static_property(props)
+    fn internal_add_static_properties(&self, props: Vec<(usize, Prop)>) -> Result<(), GraphError> {
+        self.inner().add_constant_properties(props)
     }
 
-    fn internal_add_edge_properties(
+    fn internal_add_constant_vertex_properties(
+        &self,
+        vid: VID,
+        props: Vec<(usize, Prop)>,
+    ) -> Result<(), GraphError> {
+        let mut node = self.inner().storage.get_node_mut(vid);
+        for (prop_id, value) in props {
+            node.add_constant_prop(prop_id, value).map_err(|err| {
+                let name = self
+                    .vertex_meta()
+                    .reverse_prop_id(prop_id, true)
+                    .expect("name exists")
+                    .to_owned();
+                GraphError::ConstantPropertyMutationError {
+                    name,
+                    new: err.new_value.expect("new value exists"),
+                    old: err
+                        .previous_value
+                        .expect("previous value exists if set failed"),
+                }
+            })?;
+        }
+        Ok(())
+    }
+
+    fn internal_add_constant_edge_properties(
         &self,
         eid: EID,
-        props: Vec<(String, Prop)>,
         layer: usize,
-    ) -> Result<(), IllegalMutate> {
-        self.inner().add_edge_properties_internal(eid, props, layer)
+        props: Vec<(usize, Prop)>,
+    ) -> Result<(), GraphError> {
+        let mut edge = self.inner().storage.get_edge_mut(eid);
+        let mut edge_layer = edge.layer_mut(layer);
+        for (prop_id, value) in props {
+            edge_layer
+                .add_constant_prop(prop_id, value)
+                .map_err(|err| {
+                    let name = self
+                        .edge_meta()
+                        .reverse_prop_id(prop_id, true)
+                        .expect("name exists")
+                        .to_owned();
+                    GraphError::ConstantPropertyMutationError {
+                        name,
+                        new: err.new_value.expect("new value exists"),
+                        old: err
+                            .previous_value
+                            .expect("previous value exists if set failed"),
+                    }
+                })?;
+        }
+        Ok(())
     }
 }

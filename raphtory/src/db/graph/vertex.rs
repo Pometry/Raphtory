@@ -307,8 +307,11 @@ impl<G: GraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> Vertex
         &self,
         props: C,
     ) -> Result<(), GraphError> {
+        let properties: Vec<(usize, Prop)> = props.collect_properties(|name, dtype| {
+            self.graph.resolve_vertex_property(name, dtype, true)
+        })?;
         self.graph
-            .internal_add_vertex_properties(self.id(), props.collect_properties())
+            .internal_add_constant_vertex_properties(self.vertex, properties)
     }
 
     pub fn add_updates<C: CollectProperties, T: TryIntoInputTime>(
@@ -317,9 +320,10 @@ impl<G: GraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> Vertex
         props: C,
     ) -> Result<(), GraphError> {
         let t = TimeIndexEntry::from_input(&self.graph, time)?;
-        self.graph
-            .internal_add_vertex(t, self.vertex, None, props.collect_properties())?;
-        Ok(())
+        let properties: Vec<(usize, Prop)> = props.collect_properties(|name, dtype| {
+            self.graph.resolve_vertex_property(name, dtype, false)
+        })?;
+        self.graph.internal_add_vertex(t, self.vertex, properties)
     }
 }
 

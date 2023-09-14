@@ -1,4 +1,6 @@
-use crate::core::{storage::lazy_vec::IllegalSet, utils::time::error::ParseTimeError, Prop};
+use crate::core::{
+    storage::lazy_vec::IllegalSet, utils::time::error::ParseTimeError, Prop, PropType,
+};
 
 #[cfg(feature = "search")]
 use tantivy;
@@ -12,14 +14,29 @@ pub enum GraphError {
     #[error("Incorrect property given.")]
     IncorrectPropertyType,
     #[error("Failed to mutate graph")]
-    FailedToMutateGraph { source: MutateGraphError },
+    FailedToMutateGraph {
+        #[from]
+        source: MutateGraphError,
+    },
     #[error("Failed to mutate graph property")]
     FailedToMutateGraphProperty { source: MutateGraphError },
+
+    #[error("Wrong type for property {name}: expected {expected:?} but actual type is {actual:?}")]
+    PropertyTypeError {
+        name: String,
+        expected: PropType,
+        actual: PropType,
+    },
+
+    #[error("Tried to mutate constant property {name}: old value {old:?}, new value {new:?}")]
+    ConstantPropertyMutationError { name: String, old: Prop, new: Prop },
+
     #[error("Failed to parse time string")]
     ParseTime {
         #[from]
         source: ParseTimeError,
     },
+
     #[error("No Vertex with ID {0}")]
     VertexIdError(u64),
 
@@ -37,13 +54,19 @@ pub enum GraphError {
     #[error("Invalid layer {0}.")]
     InvalidLayer(String),
     #[error("Bincode operation failed")]
-    BinCodeError { source: Box<bincode::ErrorKind> },
+    BinCodeError {
+        #[from]
+        source: Box<bincode::ErrorKind>,
+    },
 
     #[error("The loaded graph is of the wrong kind")]
     GraphLoadError,
 
     #[error("IO operation failed")]
-    IOError { source: std::io::Error },
+    IOError {
+        #[from]
+        source: std::io::Error,
+    },
 
     #[cfg(feature = "python")]
     #[error("Failed to load graph: {0}")]
@@ -51,42 +74,17 @@ pub enum GraphError {
 
     #[cfg(feature = "search")]
     #[error("Index operation failed")]
-    IndexError { source: tantivy::TantivyError },
+    IndexError {
+        #[from]
+        source: tantivy::TantivyError,
+    },
 
     #[cfg(feature = "search")]
     #[error("Index operation failed")]
-    QueryError { source: QueryParserError },
-}
-
-impl From<bincode::Error> for GraphError {
-    fn from(source: bincode::Error) -> Self {
-        GraphError::BinCodeError { source }
-    }
-}
-
-impl From<std::io::Error> for GraphError {
-    fn from(source: std::io::Error) -> Self {
-        GraphError::IOError { source }
-    }
-}
-
-impl From<MutateGraphError> for GraphError {
-    fn from(source: MutateGraphError) -> Self {
-        GraphError::FailedToMutateGraph { source }
-    }
-}
-
-#[cfg(feature = "search")]
-impl From<tantivy::TantivyError> for GraphError {
-    fn from(source: tantivy::TantivyError) -> Self {
-        GraphError::IndexError { source }
-    }
-}
-#[cfg(feature = "search")]
-impl From<QueryParserError> for GraphError {
-    fn from(source: QueryParserError) -> Self {
-        GraphError::QueryError { source }
-    }
+    QueryError {
+        #[from]
+        source: QueryParserError,
+    },
 }
 
 #[derive(thiserror::Error, Debug, PartialEq)]
@@ -100,8 +98,12 @@ pub enum MutateGraphError {
         vertex_id: u64,
         source: IllegalMutate,
     },
-    #[error("Failed to update graph property")]
-    IllegalGraphPropertyChange { source: IllegalMutate },
+    #[error("Tried to change constant graph property {name}, old value: {old_value}, new value: {new_value}")]
+    IllegalGraphPropertyChange {
+        name: String,
+        old_value: Prop,
+        new_value: Prop,
+    },
     #[error("Create edge '{0}' -> '{1}' first before adding static properties to it")]
     MissingEdge(u64, u64), // src, dst
     #[error("cannot change property for edge '{src_id}' -> '{dst_id}'")]
@@ -109,11 +111,6 @@ pub enum MutateGraphError {
         src_id: u64,
         dst_id: u64,
         source: IllegalMutate,
-    },
-    #[error("cannot update property as is '{first_type}' and '{second_type}' given'")]
-    PropertyChangedType {
-        first_type: &'static str,
-        second_type: &'static str,
     },
 }
 

@@ -2,12 +2,14 @@ use crate::{
     core::utils::time::{error::ParseTimeError, TryIntoTime},
     prelude::Prop,
 };
+use std::iter;
 
 mod addition_ops;
 mod deletion_ops;
 pub mod internal;
 mod property_addition_ops;
 
+use crate::core::{utils::errors::GraphError, PropType};
 pub use addition_ops::AdditionOps;
 pub use deletion_ops::DeletionOps;
 pub use property_addition_ops::PropertyAdditionOps;
@@ -41,16 +43,29 @@ impl<T: TryIntoTime> TryIntoInputTime for (T, usize) {
 }
 
 pub trait CollectProperties {
-    fn collect_properties(self) -> Vec<(String, Prop)>;
+    fn collect_properties<F: Fn(&str, PropType) -> Result<usize, GraphError>>(
+        self,
+        resolver: F,
+    ) -> Result<Vec<(usize, Prop)>, GraphError>;
 }
 
 impl<S: AsRef<str>, P: Into<Prop>, PI> CollectProperties for PI
 where
     PI: IntoIterator<Item = (S, P)>,
 {
-    fn collect_properties(self) -> Vec<(String, Prop)> {
-        self.into_iter()
-            .map(|(k, v)| (k.as_ref().to_string(), v.into()))
-            .collect()
+    fn collect_properties<F: Fn(&str, PropType) -> Result<usize, GraphError>>(
+        self,
+        resolver: F,
+    ) -> Result<Vec<(usize, Prop)>, GraphError>
+    where
+        PI: IntoIterator<Item = (S, P)>,
+    {
+        let mut properties: Vec<(usize, Prop)> = Vec::new();
+        for (key, value) in self {
+            let value: Prop = value.into();
+            let prop_id = resolver(key.as_ref(), value.dtype())?;
+            properties.push((prop_id, value));
+        }
+        Ok(properties)
     }
 }

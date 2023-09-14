@@ -23,7 +23,7 @@ use crate::{
             lazy_vec::IllegalSet,
             locked_view::LockedView,
             timeindex::{AsTime, LayeredIndex, TimeIndexEntry, TimeIndexOps},
-            ArcEntry, Entry,
+            ArcEntry, Entry, EntryMut,
         },
         utils::{
             errors::{GraphError, IllegalMutate, MutateGraphError},
@@ -238,11 +238,9 @@ impl<const N: usize> TemporalGraph<N> {
     }
 
     pub(crate) fn vertex_name(&self, v: VID) -> String {
-        let node = self.storage.get_node(v.into());
-        let name_prop_id = self.vertex_meta.resolve_prop_id("_id", true);
-        let prop = node.static_property(name_prop_id);
-        prop.cloned()
-            .into_str()
+        let node = self.storage.get_node(v);
+        node.name
+            .clone()
             .unwrap_or_else(|| node.global_id().to_string())
     }
 
@@ -352,112 +350,51 @@ impl<const N: usize> TemporalGraph<N> {
     }
 
     /// return local id for vertex, initialising storage if vertex does not exist yet
-    pub(crate) fn resolve_vertex(&self, id: u64) -> VID {
+    pub(crate) fn resolve_vertex(&self, id: u64, name: Option<&str>) -> VID {
         *(self.logical_to_physical.entry(id).or_insert_with(|| {
-            let node_store = VertexStore::empty(id);
+            let name = name.map(|s| s.to_owned());
+            let node_store = VertexStore::empty(id, name);
             self.storage.push_node(node_store)
         }))
+    }
+
+    #[inline]
+    pub(crate) fn add_vertex_no_props(
+        &self,
+        time: TimeIndexEntry,
+        v_id: VID,
+    ) -> EntryMut<VertexStore> {
+        self.update_time(time);
+        // get the node and update the time index
+        let mut node = self.storage.get_node_mut(v_id);
+        node.update_time(time);
+        node
     }
 
     pub(crate) fn add_vertex_internal(
         &self,
         time: TimeIndexEntry,
         v_id: VID,
-        name: Option<&str>,
-        props: Vec<(String, Prop)>,
-    ) -> Result<VID, GraphError> {
-        self.update_time(time);
-
-        // resolve the props without holding any locks
-        let props = self
-            .vertex_meta
-            .resolve_prop_ids(props, false)
-            .collect::<Vec<_>>();
-
-        let name_prop = name
-            .map(|n| {
-                self.vertex_meta
-                    .resolve_prop_ids(vec![("_id".to_string(), Prop::Str(n.to_owned()))], true)
-                    .collect::<Vec<_>>()
-            })
-            .unwrap_or_default();
-
-        // get the node and update the time index
-        let mut node = self.storage.get_node_mut(v_id);
-        node.update_time(time);
-
-        // update the properties;
-        for (prop_id, prop) in props {
-            node.add_prop(time, prop_id, prop)?;
-        }
-
-        // update node prop
-        for (prop_id, prop) in name_prop {
-            node.add_static_prop(prop_id, prop).map_err(|err| {
-                MutateGraphError::IllegalVertexPropertyChange {
-                    vertex_id: node.global_id(),
-                    source: IllegalMutate::from_source(err, "_id"),
-                }
-            })?;
-        }
-
-        Ok(v_id)
-    }
-
-    pub(crate) fn add_vertex_no_props(
-        &self,
-        t: TimeIndexEntry,
-        v_id: VID,
-    ) -> Result<VID, GraphError> {
-        self.update_time(t);
-        // get the node and update the time index
-        let mut node = self.storage.get_node_mut(v_id);
-        node.update_time(t);
-        Ok(v_id)
-    }
-
-    pub(crate) fn add_vertex_properties_internal(
-        &self,
-        v: u64,
-        data: Vec<(String, Prop)>,
+        props: Vec<(usize, Prop)>,
     ) -> Result<(), GraphError> {
-        if let Some(vid) = self.logical_to_physical.get(&v).map(|entry| *entry) {
-            let mut node = self.storage.get_node_mut(vid);
-            for (prop_name, prop) in data {
-                let prop_id = self.vertex_meta.resolve_prop_id(&prop_name, true);
-                node.add_static_prop(prop_id, prop).map_err(|err| {
-                    GraphError::FailedToMutateGraph {
-                        source: MutateGraphError::IllegalVertexPropertyChange {
-                            vertex_id: v,
-                            source: IllegalMutate::from_source(err, &prop_name),
-                        },
-                    }
-                })?;
-            }
-            Ok(())
-        } else {
-            Err(GraphError::FailedToMutateGraph {
-                source: MutateGraphError::VertexNotFoundError { vertex_id: v },
-            })
+        let mut node = self.add_vertex_no_props(time, v_id);
+        for (id, prop) in props {
+            node.add_prop(time, id, prop)?;
         }
+        Ok(())
     }
 
     pub(crate) fn add_edge_properties_internal(
         &self,
         edge_id: EID,
-        props: Vec<(String, Prop)>,
+        props: Vec<(usize, Prop)>,
         layer: usize,
     ) -> Result<(), IllegalMutate> {
         let mut edge = self.storage.get_edge_mut(edge_id.into());
 
-        let props = self
-            .edge_meta
-            .resolve_prop_ids(props, true)
-            .collect::<Vec<_>>();
-
         let mut layer = edge.layer_mut(layer);
         for (prop_id, prop) in props {
-            layer.add_static_prop(prop_id, prop).map_err(|err| {
+            layer.add_constant_prop(prop_id, prop).map_err(|err| {
                 IllegalMutate::from_source(
                     err,
                     &self.edge_meta.reverse_prop_id(prop_id, true).unwrap(),
@@ -467,54 +404,55 @@ impl<const N: usize> TemporalGraph<N> {
         Ok(())
     }
 
-    pub(crate) fn add_static_property(&self, props: Vec<(String, Prop)>) -> Result<(), GraphError> {
-        for (name, prop) in props {
-            self.graph_props.add_static_prop(&name, prop);
+    pub(crate) fn add_constant_properties(
+        &self,
+        props: Vec<(usize, Prop)>,
+    ) -> Result<(), GraphError> {
+        for (id, prop) in props {
+            self.graph_props.add_constant_prop(id, prop)?;
         }
         Ok(())
     }
 
-    pub(crate) fn add_property(
+    pub(crate) fn add_properties(
         &self,
         t: TimeIndexEntry,
-        props: Vec<(String, Prop)>,
+        props: Vec<(usize, Prop)>,
     ) -> Result<(), GraphError> {
-        for (name, prop) in props {
-            self.graph_props.add_prop(t, &name, prop)?;
+        for (prop_id, prop) in props {
+            self.graph_props.add_prop(t, prop_id, prop)?;
         }
         Ok(())
     }
 
-    pub(crate) fn get_static_prop(&self, name: &str) -> Option<Prop> {
-        self.graph_props.get_static(name)
+    pub(crate) fn get_constant_prop(&self, name: &str) -> Option<Prop> {
+        self.graph_props.get_constant(name)
     }
 
     pub(crate) fn get_temporal_prop(&self, name: &str) -> Option<LockedView<TProp>> {
         self.graph_props.get_temporal(name)
     }
 
-    pub(crate) fn static_property_names(&self) -> RwLockReadGuard<Vec<String>> {
-        self.graph_props.static_prop_names()
+    pub(crate) fn constant_property_names(&self) -> RwLockReadGuard<Vec<String>> {
+        self.graph_props.constant_names()
     }
 
     pub(crate) fn temporal_property_names(&self) -> RwLockReadGuard<Vec<String>> {
-        self.graph_props.temporal_prop_names()
+        self.graph_props.temporal_names()
     }
 
     pub(crate) fn delete_edge(
         &self,
         t: TimeIndexEntry,
-        src: VID,
-        dst: VID,
+        src_id: VID,
+        dst_id: VID,
         layer: usize,
     ) -> Result<(), GraphError> {
-        self.update_time(t);
-
-        let src_id = self.add_vertex_no_props(t, src)?;
-        let dst_id = self.add_vertex_no_props(t, dst)?;
+        self.add_vertex_no_props(t, src_id);
+        self.add_vertex_no_props(t, dst_id);
 
         if let Some(e_id) = self.find_edge(src_id, dst_id, &(layer.into())) {
-            let mut edge = self.storage.get_edge_mut(e_id.into());
+            let mut edge = self.storage.get_edge_mut(e_id);
             edge.deletions_mut(layer).insert(t);
         } else {
             self.link_nodes(src_id, dst_id, t, layer, |new_edge| {
@@ -567,12 +505,11 @@ impl<const N: usize> TemporalGraph<N> {
         t: TimeIndexEntry,
         src_id: VID,
         dst_id: VID,
-        props: Vec<(String, Prop)>,
+        props: Vec<(usize, Prop)>,
         layer: usize,
     ) -> Result<EID, GraphError> {
-        // resolve all props ahead of time to minimise the time spent holding locks
-        let props: Vec<_> = self.edge_meta.resolve_prop_ids(props, false).collect();
-
+        self.add_vertex_no_props(t, src_id);
+        self.add_vertex_no_props(t, dst_id);
         // get the entries for the src and dst nodes
         self.link_nodes(src_id, dst_id, t, layer, move |edge| {
             edge.additions_mut(layer).insert(t);
@@ -605,33 +542,6 @@ impl<const N: usize> TemporalGraph<N> {
                 let v_id = self.logical_to_physical.get(&gid)?;
                 Some((*v_id).into())
             }
-        }
-    }
-
-    pub(crate) fn prop_vec_window(
-        &self,
-        e: EID,
-        name: &str,
-        t_start: i64,
-        t_end: i64,
-        layer_ids: LayerIds,
-    ) -> Vec<(i64, Prop)> {
-        // FIXME: this is not ideal as we get the edge twice just to check if it's active
-        let edge = self.storage.get_edge(e.into());
-        let active = {
-            let t_index = edge.map(|entry| entry.additions());
-            LayeredIndex::new(layer_ids, t_index).active(t_start..t_end)
-        };
-
-        if !active {
-            vec![]
-        } else {
-            let edge = self.storage.get_edge(e.into());
-            let prop_id = self.edge_meta.resolve_prop_id(name, false);
-
-            edge.props(None)
-                .flat_map(|props| props.temporal_props_window(prop_id, t_start, t_end))
-                .collect()
         }
     }
 

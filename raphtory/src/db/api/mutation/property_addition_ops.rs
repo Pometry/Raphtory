@@ -2,6 +2,7 @@ use crate::{
     core::{
         storage::timeindex::TimeIndexEntry,
         utils::{errors::GraphError, time::TryIntoTime},
+        Prop,
     },
     db::api::mutation::{
         internal::{InternalAdditionOps, InternalPropertyAdditionOps},
@@ -28,10 +29,14 @@ impl<G: InternalPropertyAdditionOps + InternalAdditionOps> PropertyAdditionOps f
         props: PI,
     ) -> Result<(), GraphError> {
         let ti = TimeIndexEntry::from_input(self, t)?;
-        self.internal_add_properties(ti, props.collect_properties())
+        let properties: Vec<_> =
+            props.collect_properties(|name, _| Ok(self.resolve_graph_property(name, false)))?;
+        self.internal_add_properties(ti, properties)
     }
 
     fn add_constant_properties<PI: CollectProperties>(&self, props: PI) -> Result<(), GraphError> {
-        self.internal_add_static_properties(props.collect_properties())
+        let properties: Vec<_> =
+            props.collect_properties(|name, _| Ok(self.resolve_graph_property(name, true)))?;
+        self.internal_add_static_properties(properties)
     }
 }
