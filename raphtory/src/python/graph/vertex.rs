@@ -145,7 +145,7 @@ impl PyVertex {
     ///     The earliest datetime that the vertex exists as an integer.
     pub fn earliest_date_time(&self) -> Option<NaiveDateTime> {
         let earliest_time = self.vertex.earliest_time()?;
-        Some(NaiveDateTime::from_timestamp_millis(earliest_time).unwrap())
+        NaiveDateTime::from_timestamp_millis(earliest_time)
     }
 
     /// Returns the latest time that the vertex exists.
@@ -165,7 +165,7 @@ impl PyVertex {
     ///     The latest datetime that the vertex exists as an integer.
     pub fn latest_date_time(&self) -> Option<NaiveDateTime> {
         let latest_time = self.vertex.latest_time()?;
-        Some(NaiveDateTime::from_timestamp_millis(latest_time).unwrap())
+        NaiveDateTime::from_timestamp_millis(latest_time)
     }
 
     /// The properties of the vertex
@@ -266,7 +266,7 @@ impl PyVertex {
     ///     The earliest datetime that this vertex is valid or None if the vertex is valid for all times.
     pub fn start_date_time(&self) -> Option<NaiveDateTime> {
         let start_time = self.vertex.start()?;
-        Some(NaiveDateTime::from_timestamp_millis(start_time).unwrap())
+        NaiveDateTime::from_timestamp_millis(start_time)
     }
 
     /// Gets the latest time that this vertex is valid.
@@ -283,7 +283,7 @@ impl PyVertex {
     ///     The latest datetime that this vertex is valid or None if the vertex is valid for all times.
     pub fn end_date_time(&self) -> Option<NaiveDateTime> {
         let end_time = self.vertex.end()?;
-        Some(NaiveDateTime::from_timestamp_millis(end_time).unwrap())
+        NaiveDateTime::from_timestamp_millis(end_time)
     }
 
     /// Creates a `PyVertexWindowSet` with the given `step` size and optional `start` and `end` times,    

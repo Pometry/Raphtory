@@ -618,6 +618,10 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexListOps
         Box::new(self.map(move |v| v.window(t_start, t_end)))
     }
 
+    fn at(self, end: i64) -> Self::IterType<<Self::Vertex as TimeOps>::WindowedViewType> {
+        Box::new(self.map(move |v| v.at(end)))
+    }
+
     fn id(self) -> Self::IterType<u64> {
         Box::new(self.map(|v| v.id()))
     }
