@@ -21,7 +21,10 @@
 <a href="https://pypi.org/project/raphtory/">
 <img alt="PyPI" src="https://img.shields.io/pypi/v/raphtory">
 </a>
-
+<a href="https://pypi.org/project/raphtory/#history">
+<img alt="PyPI Downloads" src="https://img.shields.io/pypi/dm/raphtory.svg">
+</a>
+  
 <a href="https://mybinder.org/v2/gh/Raphtory/Raphtory/master?labpath=examples%2Fpy%2Flotr%2Flotr.ipynb">
 <img alt="Launch Notebook" src="https://mybinder.org/badge_logo.svg" />
 </a>
