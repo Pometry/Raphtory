@@ -71,6 +71,25 @@ def test_pyprophistvaluelist():
     assert list(res.mean()) == [40, 20, 8 / 3]
     assert list(res.average()) == [40, 20, 8 / 3]
 
+def test_empty_lists():
+    #This checks that empty lists are handled correctly on all python property types
+    g = Graph()
+    edges_str = [
+        ("1", "2", 10, 1),
+        ("1", "2", 10, 1),
+        ("1", "4", 20, 2),
+        ("2", "3", 5, 3),
+        ("3", "2", 2, 4),
+        ("3", "1", 1, 5),
+        ("4", "3", 10, 6),
+        ("4", "1", 5, 7),
+        ("1", "5", 2, 8),
+    ]
+    for src, dst, val, time in edges_str:
+        g.add_edge(time, src, dst, {"value_dec": val})
+    assert(g.vertices().out_edges().properties.temporal.get("value_dec").values().median().median().median() == 5)
+    assert(g.vertices().out_edges().properties.temporal.get("value_dec").values().mean().mean().mean() == 1.3333333333333335)
+
 
 def test_propiterable():
     import raphtory
