@@ -109,22 +109,43 @@ impl Mut {
         keys
     }
 
-    async fn update_ui_properties<'a>(
+    async fn save_graph<'a>(
         ctx: &Context<'a>,
+        parent_graph_name: String,
         graph_name: String,
         props: String,
+        graph_nodes: Vec<String>,
     ) -> Result<bool> {
-        let data = ctx.data_unchecked::<Data>().graphs.read();
-        let g = data.get(&graph_name).ok_or("Graph not found")?;
-        g.add_constant_properties([("uiProps".to_string(), Prop::Str(props))])
-            .expect("Failed to add static property");
+        let mut data = ctx.data_unchecked::<Data>().graphs.write();
 
-        let path = g
+        let subgraph = data.get(&graph_name).ok_or("Graph not found")?;
+        let path = subgraph
             .static_prop(&"path".to_string())
             .expect("Path is missing")
             .to_string();
 
-        g.save_to_file(path).expect("Failed to save graph");
+        let parent_graph = data.get(&parent_graph_name).ok_or("Graph not found")?;
+        let new_subgraph = parent_graph
+            .subgraph(graph_nodes)
+            .materialize()
+            .expect("Failed to materialize graph");
+        new_subgraph
+            .add_constant_properties(subgraph.properties().constant())
+            .expect("Failed to add static properties");
+        new_subgraph
+            .add_constant_properties([("uiProps".to_string(), Prop::Str(props))])
+            .expect("Failed to add static property");
+
+        new_subgraph
+            .save_to_file(path)
+            .expect("Failed to save graph");
+
+        let gi: IndexedGraph<Graph> = new_subgraph
+            .into_events()
+            .ok_or("Graph with deletions not supported")?
+            .into();
+
+        data.insert(graph_name.clone(), gi.clone());
 
         Ok(true)
     }
