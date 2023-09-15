@@ -118,17 +118,17 @@ def test_windowed_graph_degree():
 
     view = g.window(0, sys.maxsize)
 
-    degrees = [v.degree() for v in view.vertices()]
+    degrees = [v.degree() for v in view.vertices]
     degrees.sort()
 
     assert degrees == [2, 2, 3]
 
-    in_degrees = [v.in_degree() for v in view.vertices()]
+    in_degrees = [v.in_degree() for v in view.vertices]
     in_degrees.sort()
 
     assert in_degrees == [1, 1, 2]
 
-    out_degrees = [v.out_degree() for v in view.vertices()]
+    out_degrees = [v.out_degree() for v in view.vertices]
     out_degrees.sort()
 
     assert out_degrees == [0, 1, 3]
@@ -160,7 +160,7 @@ def test_windowed_graph_edges():
 
     view = g.window(0, sys.maxsize)
 
-    tedges = [v.edges for v in view.vertices()]
+    tedges = [v.edges for v in view.vertices]
     edges = []
     for e_iter in tedges:
         for e in e_iter:
@@ -168,7 +168,7 @@ def test_windowed_graph_edges():
 
     assert edges == [[1, 1], [1, 1], [1, 2], [1, 3], [1, 2], [3, 2], [1, 3], [3, 2]]
 
-    tedges = [v.in_edges for v in view.vertices()]
+    tedges = [v.in_edges for v in view.vertices]
     in_edges = []
     for e_iter in tedges:
         for e in e_iter:
@@ -176,7 +176,7 @@ def test_windowed_graph_edges():
 
     assert in_edges == [[1, 1], [1, 2], [3, 2], [1, 3]]
 
-    tedges = [v.out_edges for v in view.vertices()]
+    tedges = [v.out_edges for v in view.vertices]
     out_edges = []
     for e_iter in tedges:
         for e in e_iter:
@@ -188,11 +188,11 @@ def test_windowed_graph_edges():
 def test_windowed_graph_vertex_ids():
     g = create_graph()
 
-    vs = [v for v in g.window(-1, 2).vertices().id]
+    vs = [v for v in g.window(-1, 2).vertices.id]
     vs.sort()
     assert vs == [1, 2]  # this makes clear that the end of the range is exclusive
 
-    vs = [v for v in g.window(-5, 3).vertices().id]
+    vs = [v for v in g.window(-5, 3).vertices.id]
     vs.sort()
     assert vs == [1, 2, 3]
 
@@ -202,7 +202,7 @@ def test_windowed_graph_vertices():
 
     view = g.window(-1, 0)
 
-    vertices = list(view.vertices().id)
+    vertices = list(view.vertices.id)
 
     assert vertices == [1, 2]
 
@@ -1433,7 +1433,7 @@ def test_materialize_graph():
     assert mg.vertex(4).properties.constant.get('abc') == 'xyz'
     assert mg.vertex(1).history() == [-1, 0, 1, 2]
     assert mg.vertex(4).history() == [6, 8]
-    assert mg.vertices().id.collect() == [1, 2, 3, 4]
+    assert mg.vertices.id.collect() == [1, 2, 3, 4]
     assert set(mg.edges().id) == {(1, 1), (1, 2), (1, 3), (2, 1), (3, 2), (2, 4)}
     assert g.vertices.id.collect() == mg.vertices.id.collect()
     assert set(g.edges().id) == set(mg.edges().id)
@@ -1479,7 +1479,7 @@ def test_load_from_pandas():
 
     g = Graph.load_from_pandas(df, "src", "dst", "time", ["weight", "marbles"])
 
-    assert g.vertices().id.collect() == [1, 2, 3, 4, 5, 6]
+    assert g.vertices.id.collect() == [1, 2, 3, 4, 5, 6]
     edges = []
     for e in g.edges():
         weight = e["weight"]
@@ -1520,7 +1520,7 @@ def test_load_from_pandas_into_existing_graph():
 
     g.load_edges_from_pandas(edges_df, "src", "dst", "time", ["weight", "marbles"])
 
-    assert g.vertices().id.collect() == [1, 2, 3, 4, 5, 6]
+    assert g.vertices.id.collect() == [1, 2, 3, 4, 5, 6]
     edges = []
     for e in g.edges():
         weight = e["weight"]
@@ -1536,7 +1536,7 @@ def test_load_from_pandas_into_existing_graph():
     ]
 
     vertices = []
-    for v in g.vertices():
+    for v in g.vertices:
         name = v["name"]
         vertices.append((v.id, name))
 
@@ -1581,7 +1581,7 @@ def test_load_from_pandas_vertices():
         vertex_props=["name"],
     )
 
-    assert g.vertices().id.collect() == [1, 2, 3, 4, 5, 6]
+    assert g.vertices.id.collect() == [1, 2, 3, 4, 5, 6]
     edges = []
     for e in g.edges():
         weight = e["weight"]
@@ -1597,7 +1597,7 @@ def test_load_from_pandas_vertices():
     ]
 
     vertices = []
-    for v in g.vertices():
+    for v in g.vertices:
         name = v["name"]
         vertices.append((v.id, name))
 
@@ -1646,7 +1646,7 @@ def test_load_from_pandas_with_types():
         ["name"],
         shared_const_props={"type": "Person", "tag": "test_tag"},
     )
-    assert g.vertices().properties.constant.get("type").collect() == [
+    assert g.vertices.properties.constant.get("type").collect() == [
         "Person",
         "Person",
         "Person",
@@ -1654,7 +1654,7 @@ def test_load_from_pandas_with_types():
         "Person",
         "Person",
     ]
-    assert g.vertices().properties.constant.get("tag").collect() == [
+    assert g.vertices.properties.constant.get("tag").collect() == [
         "test_tag",
         "test_tag",
         "test_tag",
@@ -1667,7 +1667,7 @@ def test_load_from_pandas_with_types():
     g.load_vertices_from_pandas(
         vertices_df, "id", "time", ["name"], const_props=["type"]
     )
-    assert g.vertices().properties.constant.get("type").collect() == [
+    assert g.vertices.properties.constant.get("type").collect() == [
         "Person 1",
         "Person 2",
         "Person 3",
@@ -1713,14 +1713,14 @@ def test_load_from_pandas_with_types():
     g = Graph.load_from_pandas(edges_df, "src", "dst", "time", layer="test_layer", vertex_df=vertices_df,
                                vertex_col="id", vertex_time_col="time", vertex_props=["name"],
                                vertex_shared_const_props={"type": "Person"})
-    assert g.vertices().properties.constant.get("type").collect() == ["Person", "Person", "Person", "Person", "Person",
+    assert g.vertices.properties.constant.get("type").collect() == ["Person", "Person", "Person", "Person", "Person",
                                                                       "Person"]
     assert g.layers(["test_layer"]).edges().src.id.collect() == [1, 2, 3, 4, 5]
 
     g = Graph.load_from_pandas(edges_df, "src", "dst", "time", layer_in_df="layers", vertex_df=vertices_df,
                                vertex_col="id", vertex_time_col="time", vertex_props=["name"],
                                vertex_const_props=["type"])
-    assert g.vertices().properties.constant.get("type").collect() == ["Person 1", "Person 2", "Person 3", "Person 4",
+    assert g.vertices.properties.constant.get("type").collect() == ["Person 1", "Person 2", "Person 3", "Person 4",
                                                                       "Person 5", "Person 6"]
     assert g.layers(["layer 1"]).edges().src.id.collect() == [1]
     assert g.layers(["layer 1", "layer 2"]).edges().src.id.collect() == [1, 2]
@@ -1743,7 +1743,7 @@ def test_load_from_pandas_with_types():
     g.load_vertex_props_from_pandas(
         vertices_df, "id", const_props=["type"], shared_const_props={"tag": "test_tag"}
     )
-    assert g.vertices().properties.constant.get("type").collect() == [
+    assert g.vertices.properties.constant.get("type").collect() == [
         "Person 1",
         "Person 2",
         "Person 3",
@@ -1751,7 +1751,7 @@ def test_load_from_pandas_with_types():
         "Person 5",
         "Person 6",
     ]
-    assert g.vertices().properties.constant.get("tag").collect() == [
+    assert g.vertices.properties.constant.get("tag").collect() == [
         "test_tag",
         "test_tag",
         "test_tag",
