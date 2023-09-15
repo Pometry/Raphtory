@@ -272,7 +272,7 @@ pub fn run_analysis_benchmarks<F, G>(
     let vertices: HashSet<u64> = graph.vertices().id().collect();
 
     bench(group, "num_edges", parameter, |b: &mut Bencher| {
-        b.iter(|| graph.num_edges())
+        b.iter(|| graph.count_edges())
     });
 
     bench(group, "has_edge_existing", parameter, |b: &mut Bencher| {
