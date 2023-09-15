@@ -19,7 +19,7 @@ def create_graph():
 
     g.add_vertex(0, 1, {"type": "wallet", "cost": 99.5})
     g.add_vertex(-1, 2, {"type": "wallet", "cost": 10.0})
-    g.add_vertex(6, 3, {"type": "wallet", "cost": 76})
+    g.add_vertex(6, 3, {"type": "wallet", "cost": 76.0})
 
     for e in edges:
         g.add_edge(e[0], e[1], e[2], {"prop1": 1, "prop2": 9.8, "prop3": "test"})
@@ -32,7 +32,7 @@ def create_graph_with_deletions():
 
     g.add_vertex(0, 1, {"type": "wallet", "cost": 99.5})
     g.add_vertex(-1, 2, {"type": "wallet", "cost": 10.0})
-    g.add_vertex(6, 3, {"type": "wallet", "cost": 76})
+    g.add_vertex(6, 3, {"type": "wallet", "cost": 76.0})
 
     for e in edges:
         g.add_edge(e[0], e[1], e[2], {"prop1": 1, "prop2": 9.8, "prop3": "test"})
@@ -832,7 +832,7 @@ def test_save_load_graph():
     g = create_graph()
     g.add_vertex(1, 11, {"type": "wallet", "balance": 99.5})
     g.add_vertex(2, 12, {"type": "wallet", "balance": 10.0})
-    g.add_vertex(3, 13, {"type": "wallet", "balance": 76})
+    g.add_vertex(3, 13, {"type": "wallet", "balance": 76.0})
     g.add_edge(4, 11, 12, {"prop1": 1, "prop2": 9.8, "prop3": "test"})
     g.add_edge(5, 12, 13, {"prop1": 1321, "prop2": 9.8, "prop3": "test"})
     g.add_edge(6, 13, 11, {"prop1": 645, "prop2": 9.8, "prop3": "test"})
@@ -1570,7 +1570,7 @@ def test_materialize_graph():
 
     g.add_vertex(0, 1, {"type": "wallet", "cost": 99.5})
     g.add_vertex(-1, 2, {"type": "wallet", "cost": 10.0})
-    g.add_vertex(6, 3, {"type": "wallet", "cost": 76})
+    g.add_vertex(6, 3, {"type": "wallet", "cost": 76.0})
     g.add_vertex(6, 4).add_constant_properties({"abc": "xyz"})
 
     for e in edges:
