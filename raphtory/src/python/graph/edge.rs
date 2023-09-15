@@ -34,7 +34,9 @@ use crate::{
         types::{
             repr::{iterator_repr, Repr},
             wrappers::iterators::{
-                NestedOptionI64Iterable, NestedU64U64Iterable, OptionI64Iterable,
+                NestedI64VecIterable, NestedNaiveDateTimeIterable, NestedOptionI64Iterable,
+                NestedOptionStringIterable, NestedStringVecIterable, NestedU64U64Iterable,
+                OptionI64Iterable, OptionNaiveDateTimeIterable,
             },
         },
         utils::{PyGenericIterable, PyGenericIterator, PyInterval, PyTime},
@@ -576,6 +578,11 @@ impl PyEdges {
         (move || edges().earliest_time()).into()
     }
 
+    fn earliest_date_time(&self) -> OptionNaiveDateTimeIterable {
+        let edges = self.builder.clone();
+        (move || edges().earliest_date_time()).into()
+    }
+
     /// Returns the latest time of the edges.
     #[getter]
     fn latest_time(&self) -> OptionI64Iterable {
@@ -583,6 +590,24 @@ impl PyEdges {
             dyn Fn() -> Box<dyn Iterator<Item = EdgeView<DynamicGraph>> + Send> + Send + Sync,
         > = self.builder.clone();
         (move || edges().latest_time()).into()
+    }
+
+    fn latest_date_time(&self) -> OptionNaiveDateTimeIterable {
+        let edges = self.builder.clone();
+        (move || edges().latest_date_time()).into()
+    }
+
+    fn date_time(&self) -> OptionNaiveDateTimeIterable {
+        let edges = self.builder.clone();
+        (move || edges().date_time()).into()
+    }
+
+    /// Returns all the times of the edges
+    fn time(&self) -> OptionI64Iterable {
+        let edges: Arc<
+            dyn Fn() -> Box<dyn Iterator<Item = EdgeView<DynamicGraph>> + Send> + Send + Sync,
+        > = self.builder.clone();
+        (move || edges().time()).into()
     }
 
     /// Returns all properties of the edges
@@ -597,6 +622,60 @@ impl PyEdges {
     fn id(&self) -> PyGenericIterable {
         let edges = self.builder.clone();
         (move || edges().id()).into()
+    }
+
+    /// Returns all timestamps of edges, when an edge is added or change to an edge is made.
+    ///
+    /// Returns:
+    ///    A list of timestamps.
+    ///
+
+    fn history(&self) -> PyGenericIterable {
+        let edges = self.builder.clone();
+        (move || edges().history()).into()
+    }
+
+    /// Get the start time of all edges
+    fn start(&self) -> PyGenericIterable {
+        let edges = self.builder.clone();
+        (move || edges().start()).into()
+    }
+
+    fn start_date_time(&self) -> PyGenericIterable {
+        let edges = self.builder.clone();
+        (move || edges().start_date_time()).into()
+    }
+
+    fn end(&self) -> PyGenericIterable {
+        let edges = self.builder.clone();
+        (move || edges().end()).into()
+    }
+
+    fn end_date_time(&self) -> PyGenericIterable {
+        let edges = self.builder.clone();
+        (move || edges().end_date_time()).into()
+    }
+
+    fn layer_name(&self) -> PyGenericIterable {
+        let builder = self.builder.clone();
+        (move || builder().layer_name()).into()
+    }
+
+    fn layer_names(&self) -> PyGenericIterable {
+        let builder = self.builder.clone();
+        (move || builder().layer_names()).into()
+    }
+
+    fn layers(&self, layer_names: Vec<String>) -> PyResult<PyEdges> {
+        let builder = self.builder.clone();
+        if let Some(edges) = builder().layer(layer_names.clone()) {
+            Ok((move || edges).into())
+        } else {
+            let available_layers = builder().layer_names();
+            Err(PyErr::new::<pyo3::exceptions::PyAttributeError, _>(
+                format!("Layers {layer_names:?} not available for edge, available layers: {available_layers:?}"),
+            ))
+        }
     }
 
     fn __repr__(&self) -> String {
@@ -646,11 +725,36 @@ impl PyNestedEdges {
         (move || edges().earliest_time()).into()
     }
 
+    fn earliest_date_time(&self) -> NestedNaiveDateTimeIterable {
+        let edges = self.builder.clone();
+        (move || edges().earliest_date_time()).into()
+    }
+
     /// Returns the latest time of the edges.
     #[getter]
     fn latest_time(&self) -> NestedOptionI64Iterable {
         let edges = self.builder.clone();
         (move || edges().latest_time()).into()
+    }
+
+    fn latest_date_time(&self) -> NestedNaiveDateTimeIterable {
+        let edges = self.builder.clone();
+        (move || edges().latest_date_time()).into()
+    }
+
+    fn time(&self) -> NestedOptionI64Iterable {
+        let edges = self.builder.clone();
+        (move || edges().time()).into()
+    }
+
+    fn layer_name(&self) -> NestedOptionStringIterable {
+        let edges = self.builder.clone();
+        (move || edges().layer_name()).into()
+    }
+
+    fn layer_names(&self) -> NestedStringVecIterable {
+        let edges = self.builder.clone();
+        (move || edges().layer_names()).into()
     }
 
     // FIXME: needs a view that allows indexing into the properties
@@ -694,6 +798,38 @@ impl PyNestedEdges {
             iter
         })
         .into()
+    }
+
+    /// Returns all timestamps of edges, when an edge is added or change to an edge is made.
+    fn history(&self) -> NestedI64VecIterable {
+        let edges = self.builder.clone();
+        (move || edges().history()).into()
+    }
+
+    /// Get the start time of all edges
+    fn start(&self) -> NestedOptionI64Iterable {
+        let edges = self.builder.clone();
+        (move || edges().start()).into()
+    }
+
+    fn start_date_time(&self) -> NestedNaiveDateTimeIterable {
+        let edges = self.builder.clone();
+        (move || edges().start_date_time()).into()
+    }
+
+    fn end(&self) -> NestedOptionI64Iterable {
+        let edges = self.builder.clone();
+        (move || edges().end()).into()
+    }
+
+    fn end_date_time(&self) -> NestedNaiveDateTimeIterable {
+        let edges = self.builder.clone();
+        (move || edges().end_date_time()).into()
+    }
+
+    fn date_time(&self) -> NestedNaiveDateTimeIterable {
+        let edges = self.builder.clone();
+        (move || edges().date_time()).into()
     }
 }
 

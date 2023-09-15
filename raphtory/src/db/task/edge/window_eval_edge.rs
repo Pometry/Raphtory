@@ -67,6 +67,28 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> WindowEvalEdgeView<'a, G
     fn layer_ids(&self) -> LayerIds {
         self.g.layer_ids().constrain_from_edge(self.ev)
     }
+
+    pub fn start(&self) -> Option<i64> {
+        self.graph()
+            .edge_earliest_time_window(self.eref(), self.t_start..self.t_end, LayerIds::All)
+    }
+
+    pub fn start_date_time(&self) -> Option<chrono::NaiveDateTime> {
+        self.graph()
+            .edge_earliest_time_window(self.eref(), self.t_start..self.t_end, LayerIds::All)
+            .map(|t| chrono::NaiveDateTime::from_timestamp_millis(t).unwrap())
+    }
+
+    pub fn end(&self) -> Option<i64> {
+        self.graph()
+            .edge_latest_time_window(self.eref(), self.t_start..self.t_end, LayerIds::All)
+    }
+
+    pub fn end_date_time(&self) -> Option<chrono::NaiveDateTime> {
+        self.graph()
+            .edge_latest_time_window(self.eref(), self.t_start..self.t_end, LayerIds::All)
+            .map(|t| chrono::NaiveDateTime::from_timestamp_millis(t).unwrap())
+    }
 }
 impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static>
     EdgeViewInternalOps<WindowedGraph<G>, WindowEvalVertex<'a, G, CS, S>>
@@ -387,5 +409,41 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeListOps
 
     fn layer_name(self) -> Self::IterType<Option<ArcStr>> {
         Box::new(self.map(|e| e.layer_name().map(|v| v.clone())))
+    }
+
+    fn layer_names(self) -> Self::IterType<Vec<String>> {
+        Box::new(self.map(|e| e.layer_names()))
+    }
+
+    fn history(self) -> Self::IterType<Vec<i64>> {
+        Box::new(self.map(|e| e.history()))
+    }
+
+    fn start(self) -> Self::IterType<Option<i64>> {
+        Box::new(self.map(|e| e.start()))
+    }
+
+    fn start_date_time(self) -> Self::IterType<Option<chrono::NaiveDateTime>> {
+        Box::new(self.map(|e| e.start_date_time()))
+    }
+
+    fn end(self) -> Self::IterType<Option<i64>> {
+        Box::new(self.map(|e| e.end()))
+    }
+
+    fn end_date_time(self) -> Self::IterType<Option<chrono::NaiveDateTime>> {
+        Box::new(self.map(|e| e.end_date_time()))
+    }
+
+    fn date_time(self) -> Self::IterType<Option<chrono::NaiveDateTime>> {
+        Box::new(self.map(|e| e.date_time()))
+    }
+
+    fn earliest_date_time(self) -> Self::IterType<Option<chrono::NaiveDateTime>> {
+        Box::new(self.map(|e| e.earliest_date_time()))
+    }
+
+    fn latest_date_time(self) -> Self::IterType<Option<chrono::NaiveDateTime>> {
+        Box::new(self.map(|e| e.latest_date_time()))
     }
 }

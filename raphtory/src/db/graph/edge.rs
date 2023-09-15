@@ -5,12 +5,17 @@
 //! and can have properties associated with them.
 //!
 
+use chrono::NaiveDateTime;
+
 use super::views::layer_graph::LayeredGraph;
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
-        storage::timeindex::TimeIndexEntry,
-        utils::{errors::GraphError, time::IntoTime},
+        storage::{locked_view::LockedView, timeindex::TimeIndexEntry},
+        utils::{
+            errors::GraphError,
+            time::{error::ParseTimeError, IntoTime},
+        },
         ArcStr,
     },
     db::{
@@ -23,11 +28,15 @@ use crate::{
                 internal::{ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps},
                 Properties,
             },
-            view::{internal::Static, BoxedIter, EdgeViewInternalOps, LayerOps},
+            view::{
+                internal::{DynamicGraph, Static},
+                BoxedIter, EdgeViewInternalOps, LayerOps, WindowSet,
+            },
         },
         graph::{vertex::VertexView, views::window_graph::WindowedGraph},
     },
     prelude::*,
+    python::utils::PyInterval,
 };
 use std::{
     fmt::{Debug, Formatter},
@@ -378,9 +387,21 @@ impl<G: GraphViewOps> EdgeListOps for BoxedIter<EdgeView<G>> {
         Box::new(self.map(|e| e.earliest_time()))
     }
 
+    fn earliest_date_time(self) -> Self::IterType<Option<NaiveDateTime>> {
+        Box::new(self.map(|e| e.earliest_date_time()))
+    }
+
     /// Gets the latest times of a list of edges
     fn latest_time(self) -> Self::IterType<Option<i64>> {
         Box::new(self.map(|e| e.latest_time()))
+    }
+
+    fn latest_date_time(self) -> Self::IterType<Option<NaiveDateTime>> {
+        Box::new(self.map(|e| e.latest_date_time()))
+    }
+
+    fn date_time(self) -> Self::IterType<Option<NaiveDateTime>> {
+        Box::new(self.map(|e| e.date_time()))
     }
 
     fn time(self) -> Self::IterType<Option<i64>> {
@@ -389,6 +410,30 @@ impl<G: GraphViewOps> EdgeListOps for BoxedIter<EdgeView<G>> {
 
     fn layer_name(self) -> Self::IterType<Option<ArcStr>> {
         Box::new(self.map(|e| e.layer_name().map(|v| v.clone())))
+    }
+
+    fn layer_names(self) -> Self::IterType<Vec<String>> {
+        Box::new(self.map(|e| e.layer_names()))
+    }
+
+    fn history(self) -> Self::IterType<Vec<i64>> {
+        Box::new(self.map(|e| e.history()))
+    }
+
+    fn start(self) -> Self::IterType<Option<i64>> {
+        Box::new(self.map(|e| e.start()))
+    }
+
+    fn start_date_time(self) -> Self::IterType<Option<NaiveDateTime>> {
+        Box::new(self.map(|e| e.start_date_time()))
+    }
+
+    fn end(self) -> Self::IterType<Option<i64>> {
+        Box::new(self.map(|e| e.end()))
+    }
+
+    fn end_date_time(self) -> Self::IterType<Option<NaiveDateTime>> {
+        Box::new(self.map(|e| e.end_date_time()))
     }
 }
 
@@ -425,6 +470,14 @@ impl<G: GraphViewOps> EdgeListOps for BoxedIter<BoxedIter<EdgeView<G>>> {
         Box::new(self.map(|e| e.earliest_time()))
     }
 
+    fn earliest_date_time(self) -> Self::IterType<Option<NaiveDateTime>> {
+        Box::new(self.map(|e| e.earliest_date_time()))
+    }
+
+    fn latest_date_time(self) -> Self::IterType<Option<NaiveDateTime>> {
+        Box::new(self.map(|e| e.latest_date_time()))
+    }
+
     /// Gets the latest times of a list of edges
     fn latest_time(self) -> Self::IterType<Option<i64>> {
         Box::new(self.map(|e| e.latest_time()))
@@ -436,6 +489,34 @@ impl<G: GraphViewOps> EdgeListOps for BoxedIter<BoxedIter<EdgeView<G>>> {
 
     fn layer_name(self) -> Self::IterType<Option<ArcStr>> {
         Box::new(self.map(|it| it.layer_name()))
+    }
+
+    fn layer_names(self) -> Self::IterType<Vec<String>> {
+        Box::new(self.map(|it| it.layer_names()))
+    }
+
+    fn history(self) -> Self::IterType<Vec<i64>> {
+        Box::new(self.map(|it| it.history()))
+    }
+
+    fn start(self) -> Self::IterType<Option<i64>> {
+        Box::new(self.map(|it| it.start()))
+    }
+
+    fn start_date_time(self) -> Self::IterType<Option<NaiveDateTime>> {
+        Box::new(self.map(|it| it.start_date_time()))
+    }
+
+    fn end(self) -> Self::IterType<Option<i64>> {
+        Box::new(self.map(|it| it.end()))
+    }
+
+    fn end_date_time(self) -> Self::IterType<Option<NaiveDateTime>> {
+        Box::new(self.map(|it| it.end_date_time()))
+    }
+
+    fn date_time(self) -> Self::IterType<Option<NaiveDateTime>> {
+        Box::new(self.map(|it| it.date_time()))
     }
 }
 

@@ -1,4 +1,5 @@
 use crate::{db::api::view::BoxedIter, prelude::Prop, python::types::repr::Repr};
+use chrono::NaiveDateTime;
 use itertools::Itertools;
 use num::cast::AsPrimitive;
 use pyo3::prelude::*;
@@ -73,3 +74,11 @@ py_nested_iterable!(NestedStringIterable, String);
 
 py_iterable!(StringVecIterable, Vec<String>);
 py_nested_iterable!(NestedStringVecIterable, Vec<String>);
+
+py_iterable!(I64VecIterable, Vec<i64>);
+py_nested_iterable!(NestedI64VecIterable, Vec<i64>);
+
+py_iterable!(OptionNaiveDateTimeIterable, Option<NaiveDateTime>);
+py_nested_iterable!(NestedNaiveDateTimeIterable, Option<NaiveDateTime>);
+
+py_nested_iterable!(NestedOptionStringIterable, Option<String>);
