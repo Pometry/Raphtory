@@ -301,7 +301,7 @@ pub fn run_analysis_benchmarks<F, G>(
     );
 
     bench(group, "num_vertices", parameter, |b: &mut Bencher| {
-        b.iter(|| graph.num_vertices())
+        b.iter(|| graph.count_vertices())
     });
 
     bench(

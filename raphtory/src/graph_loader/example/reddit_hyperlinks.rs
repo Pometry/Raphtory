@@ -34,8 +34,8 @@
 //!
 //! let graph = reddit_graph(120, false);
 //!
-//! println!("The graph has {:?} vertices", graph.num_vertices());
-//! println!("The graph has {:?} edges", graph.num_edges());
+//! println!("The graph has {:?} vertices", graph.count_vertices());
+//! println!("The graph has {:?} edges", graph.count_edges());
 //! ```
 
 use crate::{core::Prop, db::api::mutation::AdditionOps, graph_loader::fetch_file, prelude::*};
@@ -169,7 +169,7 @@ mod reddit_test {
     #[test]
     fn check_graph() {
         let graph = reddit_graph(100, true);
-        assert_eq!(graph.num_vertices(), 16);
-        assert_eq!(graph.num_edges(), 9);
+        assert_eq!(graph.count_vertices(), 16);
+        assert_eq!(graph.count_edges(), 9);
     }
 }
