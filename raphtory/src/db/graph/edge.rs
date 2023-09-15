@@ -10,10 +10,7 @@ use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, VID},
         storage::{locked_view::LockedView, timeindex::TimeIndexEntry},
-        utils::{
-            errors::{GraphError, MutateGraphError},
-            time::IntoTime,
-        },
+        utils::{errors::GraphError, time::IntoTime},
     },
     db::{
         api::{
@@ -116,7 +113,7 @@ impl<G: GraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> EdgeVi
         props: C,
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
-        let mut properties: Vec<(usize, Prop)> = props.collect_properties(|name, dtype| {
+        let properties: Vec<(usize, Prop)> = props.collect_properties(|name, dtype| {
             self.graph.resolve_edge_property(name, dtype, true)
         })?;
         let input_layer_id = self.resolve_layer(layer)?;

@@ -12,9 +12,9 @@ use crate::{
         storage::{
             locked_view::LockedView,
             timeindex::{LockedLayeredIndex, TimeIndex, TimeIndexEntry},
-            ArcEntry, EntryMut,
+            ArcEntry,
         },
-        utils::errors::{GraphError, IllegalMutate},
+        utils::errors::GraphError,
         Direction, PropType,
     },
     db::{

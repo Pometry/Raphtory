@@ -19,7 +19,7 @@ use dynamic_graphql::{
 use itertools::Itertools;
 use raphtory::{
     core::Prop,
-    db::api::view::internal::{CoreGraphOps, DynamicGraph, IntoDynamic, MaterializedGraph},
+    db::api::view::internal::{CoreGraphOps, IntoDynamic, MaterializedGraph},
     prelude::{Graph, GraphViewOps, PropertyAdditionOps},
     search::IndexedGraph,
 };

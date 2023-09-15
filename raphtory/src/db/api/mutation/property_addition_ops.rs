@@ -2,7 +2,6 @@ use crate::{
     core::{
         storage::timeindex::TimeIndexEntry,
         utils::{errors::GraphError, time::TryIntoTime},
-        Prop,
     },
     db::api::mutation::{
         internal::{InternalAdditionOps, InternalPropertyAdditionOps},

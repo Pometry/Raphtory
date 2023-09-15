@@ -1,7 +1,7 @@
 use crate::{
     core::{
-        entities::{edges::edge_store::EdgeStore, vertices::vertex_store::VertexStore, EID, VID},
-        storage::{timeindex::TimeIndexEntry, EntryMut},
+        entities::{EID, VID},
+        storage::timeindex::TimeIndexEntry,
         utils::errors::GraphError,
         Prop, PropType,
     },

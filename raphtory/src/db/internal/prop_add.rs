@@ -1,8 +1,8 @@
 use crate::{
     core::{
         entities::{graph::tgraph::InnerTemporalGraph, EID, VID},
-        storage::{lazy_vec::IllegalSet, timeindex::TimeIndexEntry},
-        utils::errors::{GraphError, IllegalMutate},
+        storage::timeindex::TimeIndexEntry,
+        utils::errors::GraphError,
     },
     db::api::{mutation::internal::InternalPropertyAdditionOps, view::internal::CoreGraphOps},
     prelude::Prop,
