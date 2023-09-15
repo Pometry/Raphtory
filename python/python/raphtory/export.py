@@ -67,7 +67,7 @@ def to_pyvis(
             )
         }
 
-    for v in graph.vertices():
+    for v in graph.vertices:
         image = (
             v.properties.get(node_image)
             if node_image != None
@@ -133,7 +133,7 @@ def to_networkx(
     networkXGraph = nx.MultiDiGraph()
 
     vertex_tuples = []
-    for v in graph.vertices():
+    for v in graph.vertices:
         properties = {}
         if include_vertex_properties:
             if include_property_histories:
@@ -255,7 +255,7 @@ def to_vertex_df(
     if include_update_history:
         columns.append("update_history")
 
-    for v in graph.vertices():
+    for v in graph.vertices:
         tuple = [v.name]
         if include_vertex_properties:
             properties = {}

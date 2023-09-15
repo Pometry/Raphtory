@@ -800,10 +800,6 @@ impl PyVertices {
             .ok_or_else(|| PyIndexError::new_err("Vertex does not exist"))
     }
 
-    pub fn __call__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
-        slf
-    }
-
     pub fn __repr__(&self) -> String {
         self.repr()
     }

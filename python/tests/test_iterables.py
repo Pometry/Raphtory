@@ -88,7 +88,7 @@ def test_empty_lists():
     for src, dst, val, time in edges_str:
         g.add_edge(time, src, dst, {"value_dec": val})
     assert (
-        g.vertices()
+        g.vertices
         .out_edges.properties.temporal.get("value_dec")
         .values()
         .median()
@@ -97,7 +97,7 @@ def test_empty_lists():
         == 5
     )
     assert (
-        g.vertices()
+        g.vertices
         .out_edges.properties.temporal.get("value_dec")
         .values()
         .mean()
@@ -147,7 +147,7 @@ def test_propiterable():
     assert sorted(total) == [2, 17, 18, 35, 38]
 
     total = dict(
-        zip(g.vertices().id, g.vertices.out_edges.properties.get("value_dec").sum())
+        zip(g.vertices.id, g.vertices.out_edges.properties.get("value_dec").sum())
     )
     assert total == {1: 32, 2: 5, 3: 3, 4: 15, 5: None}
 
@@ -193,7 +193,7 @@ def test_pypropvalue_list_listlist():
         "value_dec"
     )  # PyPropValueList([100, 20, 5, 5, 5, 10, 1, 2])
     res_v = v.edges.properties.get("value_dec")  # PyPropValueList([100, 5, 20, 1, 5])
-    res_ll = g.vertices().edges.properties.get("value_dec")
+    res_ll = g.vertices.edges.properties.get("value_dec")
 
     assert res.sum() == 148
     assert res_v.sum() == 131
