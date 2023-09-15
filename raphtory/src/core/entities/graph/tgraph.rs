@@ -302,21 +302,15 @@ impl<const N: usize> TemporalGraph<N> {
         match filter {
             None => match layers {
                 LayerIds::All => self.storage.edges.len(),
-                _ => self
-                    .storage
-                    .edges
-                    .read_lock()
-                    .into_par_iter()
-                    .filter(|e| e.has_layer(layers))
-                    .count(),
+                _ => {
+                    let guard = self.storage.edges.read_lock();
+                    guard.par_iter().filter(|e| e.has_layer(layers)).count()
+                }
             },
-            Some(filter) => self
-                .storage
-                .edges
-                .read_lock()
-                .into_par_iter()
-                .filter(|e| filter(e, layers))
-                .count(),
+            Some(filter) => {
+                let guard = self.storage.edges.read_lock();
+                guard.par_iter().filter(|e| filter(e, layers)).count()
+            }
         }
     }
 
