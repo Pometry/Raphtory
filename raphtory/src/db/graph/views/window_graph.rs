@@ -903,15 +903,15 @@ mod views_test {
         }
 
         let wg = WindowedGraph::new(g, window.start, window.end);
-        if wg.num_edges() != true_edge_count {
+        if wg.count_edges() != true_edge_count {
             println!(
                 "failed, g.num_edges() = {}, true count = {}",
-                wg.num_edges(),
+                wg.count_edges(),
                 true_edge_count
             );
             println!("g.edges() = {:?}", wg.edges().collect_vec());
         }
-        TestResult::from_bool(wg.num_edges() == true_edge_count)
+        TestResult::from_bool(wg.count_edges() == true_edge_count)
     }
 
     #[quickcheck]
@@ -940,7 +940,7 @@ mod views_test {
             g.add_edge(t, 0, dst, NO_PROPS, None).unwrap();
         }
         let w = g.window(i64::MIN, i64::MAX);
-        w.num_edges() == n
+        w.count_edges() == n
     }
 
     #[test]

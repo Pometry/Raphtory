@@ -176,8 +176,8 @@ fn main() {
     if debug {
         println!(
             "Graph has {} vertices and {} edges",
-            g.num_vertices(),
-            g.num_edges()
+            g.count_vertices(),
+            g.count_edges()
         )
     }
 

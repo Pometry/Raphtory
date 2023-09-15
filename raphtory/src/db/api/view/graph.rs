@@ -35,24 +35,24 @@ pub trait GraphViewOps: BoxableGraphView + Clone + Sized {
         vertices: I,
     ) -> VertexSubgraph<Self>;
     /// Return all the layer ids in the graph
-    fn get_unique_layers(&self) -> Vec<String>;
+    fn unique_layers(&self) -> Vec<String>;
     /// Timestamp of earliest activity in the graph
     fn earliest_time(&self) -> Option<i64>;
     /// Timestamp of latest activity in the graph
     fn latest_time(&self) -> Option<i64>;
     /// Return the number of vertices in the graph.
-    fn num_vertices(&self) -> usize;
+    fn count_vertices(&self) -> usize;
 
     /// Check if the graph is empty.
     fn is_empty(&self) -> bool {
-        self.num_vertices() == 0
+        self.count_vertices() == 0
     }
 
     /// Return the number of edges in the graph.
-    fn num_edges(&self) -> usize;
+    fn count_edges(&self) -> usize;
 
     // Return the number of temporal edges in the graph.
-    fn num_temporal_edges(&self) -> usize;
+    fn count_temporal_edges(&self) -> usize;
 
     /// Check if the graph contains a vertex `v`.
     fn has_vertex<T: Into<VertexRef>>(&self, v: T) -> bool;
@@ -103,7 +103,7 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
     }
 
     /// Return all the layer ids in the graph
-    fn get_unique_layers(&self) -> Vec<String> {
+    fn unique_layers(&self) -> Vec<String> {
         self.get_layer_names_from_ids(self.layer_ids())
     }
 
@@ -115,16 +115,16 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
         self.latest_time_global()
     }
 
-    fn num_vertices(&self) -> usize {
+    fn count_vertices(&self) -> usize {
         self.vertices_len(self.layer_ids(), self.edge_filter())
     }
 
-    fn num_temporal_edges(&self) -> usize {
+    fn count_temporal_edges(&self) -> usize {
         self.edges().explode().count()
     }
 
     #[inline]
-    fn num_edges(&self) -> usize {
+    fn count_edges(&self) -> usize {
         self.edges_len(self.layer_ids(), self.edge_filter())
     }
 
@@ -278,7 +278,7 @@ mod test_exploded_edges {
         g.add_edge(2, 0, 1, NO_PROPS, None).unwrap();
         g.add_edge(3, 0, 1, NO_PROPS, None).unwrap();
 
-        assert_eq!(g.num_temporal_edges(), 4)
+        assert_eq!(g.count_temporal_edges(), 4)
     }
 }
 

@@ -21,7 +21,7 @@ impl<G: GraphViewOps> From<LayeredGraph<G>> for LayerSchema<G> {
 impl<G: GraphViewOps> LayerSchema<G> {
     /// Returns the name of the layer with this schema
     async fn name(&self) -> String {
-        match &self.graph.get_unique_layers()[..] {
+        match &self.graph.unique_layers()[..] {
             [layer] => layer.clone(),
             _ => panic!("Layered graph outputted more than one layer name"),
         }

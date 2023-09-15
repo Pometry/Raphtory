@@ -322,7 +322,7 @@ impl<G: GraphViewOps> IndexedGraph<G> {
 
         let writer = Arc::new(parking_lot::RwLock::new(index.writer(100_000_000)?));
 
-        let v_ids = (0..g.num_vertices()).collect::<Vec<_>>();
+        let v_ids = (0..g.count_vertices()).collect::<Vec<_>>();
 
         v_ids.par_chunks(128).try_for_each(|v_ids| {
             let writer_lock = writer.clone();
@@ -459,7 +459,7 @@ impl<G: GraphViewOps> IndexedGraph<G> {
 
         let writer = Arc::new(parking_lot::RwLock::new(index.writer(100_000_000)?));
 
-        let e_ids = (0..g.num_edges()).collect::<Vec<_>>();
+        let e_ids = (0..g.count_edges()).collect::<Vec<_>>();
         let edge_filter = g.edge_filter();
         e_ids.par_chunks(128).try_for_each(|e_ids| {
             let writer_lock = writer.clone();
@@ -744,7 +744,7 @@ mod test {
     #[ignore = "this test is for experiments with the jira graph"]
     fn load_jira_graph() -> Result<(), GraphError> {
         let graph = Graph::load_from_file("/tmp/graphs/jira").expect("failed to load graph");
-        assert!(graph.num_vertices() > 0);
+        assert!(graph.count_vertices() > 0);
 
         let now = SystemTime::now();
 

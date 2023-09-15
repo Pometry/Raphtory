@@ -59,8 +59,8 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
     tol: Option<f64>,
     use_l2_norm: bool,
 ) -> AlgorithmResult<String, f64, OrderedFloat<f64>> {
-    let n = g.num_vertices();
-    let total_edges = g.num_edges();
+    let n = g.count_vertices();
+    let total_edges = g.count_edges();
 
     let mut ctx: Context<G, ComputeStateVec> = g.into();
 
@@ -156,7 +156,7 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
 
-    let num_vertices = g.num_vertices();
+    let num_vertices = g.count_vertices();
 
     let out: HashMap<VID, f64> = runner.run(
         vec![Job::new(step1)],

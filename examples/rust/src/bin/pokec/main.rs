@@ -45,8 +45,8 @@ fn main() {
     println!(
         "Loaded graph from encoded data files {} with {} vertices, {} edges which took {} seconds",
         data_dir.to_str().unwrap(),
-        g.num_vertices(),
-        g.num_edges(),
+        g.count_vertices(),
+        g.count_edges(),
         now.elapsed().as_secs()
     );
 

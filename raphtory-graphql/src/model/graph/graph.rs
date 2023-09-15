@@ -87,7 +87,7 @@ impl GqlGraph {
     }
 
     async fn layer_names(&self) -> Vec<String> {
-        self.graph.get_unique_layers()
+        self.graph.unique_layers()
     }
 
     async fn static_properties(&self) -> Vec<Property> {

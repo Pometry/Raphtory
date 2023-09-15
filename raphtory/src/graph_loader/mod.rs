@@ -176,7 +176,7 @@ mod graph_loader_test {
     #[test]
     fn test_lotr_load_graph() {
         let g = crate::graph_loader::example::lotr_graph::lotr_graph();
-        assert_eq!(g.num_edges(), 701);
+        assert_eq!(g.count_edges(), 701);
     }
 
     #[test]
@@ -189,11 +189,11 @@ mod graph_loader_test {
         let g_at_max = g.at(i64::MAX);
         let g_at_min = g.at(i64::MIN);
 
-        assert_eq!(g_at_empty.num_vertices(), 0);
-        assert_eq!(g_at_start.num_vertices(), 70);
-        assert_eq!(g_at_another.num_vertices(), 123);
-        assert_eq!(g_at_max.num_vertices(), 139);
-        assert_eq!(g_at_min.num_vertices(), 0);
+        assert_eq!(g_at_empty.count_vertices(), 0);
+        assert_eq!(g_at_start.count_vertices(), 70);
+        assert_eq!(g_at_another.count_vertices(), 123);
+        assert_eq!(g_at_max.count_vertices(), 139);
+        assert_eq!(g_at_min.count_vertices(), 0);
     }
 
     #[test]
@@ -252,7 +252,7 @@ mod graph_loader_test {
     fn test_all_degrees_window() {
         let g = crate::graph_loader::example::lotr_graph::lotr_graph();
 
-        assert_eq!(g.num_edges(), 701);
+        assert_eq!(g.count_edges(), 701);
         assert_eq!(g.vertex("Gandalf").unwrap().degree(), 49);
         assert_eq!(
             g.vertex("Gandalf").unwrap().window(1356, 24792).degree(),
@@ -277,7 +277,7 @@ mod graph_loader_test {
     fn test_all_neighbours_window() {
         let g = crate::graph_loader::example::lotr_graph::lotr_graph();
 
-        assert_eq!(g.num_edges(), 701);
+        assert_eq!(g.count_edges(), 701);
         assert_eq!(g.vertex("Gandalf").unwrap().neighbours().iter().count(), 49);
 
         for v in g
@@ -330,7 +330,7 @@ mod graph_loader_test {
     fn test_all_edges_window() {
         let g = crate::graph_loader::example::lotr_graph::lotr_graph();
 
-        assert_eq!(g.num_edges(), 701);
+        assert_eq!(g.count_edges(), 701);
         assert_eq!(g.vertex("Gandalf").unwrap().edges().count(), 59);
         assert_eq!(
             g.vertex("Gandalf")

@@ -312,8 +312,8 @@ mod tests {
                 Ok(())
             })
             .expect("Unable to add vertex to graph");
-        assert_eq!(g.num_vertices(), 3);
-        assert_eq!(g.num_edges(), 0);
+        assert_eq!(g.count_vertices(), 3);
+        assert_eq!(g.count_edges(), 0);
         let mut names = g.vertices().into_iter().name().collect::<Vec<String>>();
         names.sort();
         assert_eq!(names, vec!["test", "testbz", "testgz"]);

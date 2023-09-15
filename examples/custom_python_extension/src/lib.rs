@@ -2,7 +2,7 @@ use pyo3::prelude::*;
 use raphtory::{db::api::view::internal::DynamicGraph, prelude::GraphViewOps};
 
 fn custom_algorithm<G: GraphViewOps>(graph: &G) -> usize {
-    graph.num_vertices()
+    graph.count_vertices()
 }
 
 #[pyfunction(name = "custom_algorithm")]

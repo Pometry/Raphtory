@@ -102,8 +102,9 @@ impl<G: GraphViewOps + IntoDynamic> IntoPy<PyObject> for VertexSubgraph<G> {
 #[pymethods]
 impl PyGraphView {
     /// Return all the layer ids in the graph
-    pub fn get_unique_layers(&self) -> Vec<String> {
-        self.graph.get_unique_layers()
+    #[getter]
+    pub fn unique_layers(&self) -> Vec<String> {
+        self.graph.unique_layers()
     }
 
     //******  Metrics APIs ******//
@@ -112,6 +113,7 @@ impl PyGraphView {
     ///
     /// Returns:
     ///     the timestamp of the earliest activity in the graph
+    #[getter]
     pub fn earliest_time(&self) -> Option<i64> {
         self.graph.earliest_time()
     }
@@ -120,6 +122,7 @@ impl PyGraphView {
     ///
     /// Returns:
     ///     the datetime of the earliest activity in the graph
+    #[getter]
     pub fn earliest_date_time(&self) -> Option<NaiveDateTime> {
         let earliest_time = self.graph.earliest_time()?;
         NaiveDateTime::from_timestamp_millis(earliest_time)
@@ -129,6 +132,7 @@ impl PyGraphView {
     ///
     /// Returns:
     ///     the timestamp of the latest activity in the graph
+    #[getter]
     pub fn latest_time(&self) -> Option<i64> {
         self.graph.latest_time()
     }
@@ -137,6 +141,7 @@ impl PyGraphView {
     ///
     /// Returns:
     ///     the datetime of the latest activity in the graph
+    #[getter]
     pub fn latest_date_time(&self) -> Option<NaiveDateTime> {
         let latest_time = self.graph.latest_time()?;
         NaiveDateTime::from_timestamp_millis(latest_time)
@@ -146,24 +151,24 @@ impl PyGraphView {
     ///
     /// Returns:
     ///    the number of edges in the graph
-    pub fn num_edges(&self) -> usize {
-        self.graph.num_edges()
+    pub fn count_edges(&self) -> usize {
+        self.graph.count_edges()
     }
 
     /// Number of edges in the graph
     ///
     /// Returns:
     ///    the number of temporal edges in the graph
-    pub fn num_temporal_edges(&self) -> usize {
-        self.graph.num_temporal_edges()
+    pub fn count_temporal_edges(&self) -> usize {
+        self.graph.count_temporal_edges()
     }
 
     /// Number of vertices in the graph
     ///
     /// Returns:
     ///   the number of vertices in the graph
-    pub fn num_vertices(&self) -> usize {
-        self.graph.num_vertices()
+    pub fn count_vertices(&self) -> usize {
+        self.graph.count_vertices()
     }
 
     /// Returns true if the graph contains the specified vertex
@@ -242,6 +247,7 @@ impl PyGraphView {
     ///
     /// Returns:
     ///     the default start time for perspectives over the view
+    #[getter]
     pub fn start(&self) -> Option<i64> {
         self.graph.start()
     }
@@ -250,6 +256,7 @@ impl PyGraphView {
     ///
     /// Returns:
     ///     the default start datetime for perspectives over the view
+    #[getter]
     pub fn start_date_time(&self) -> Option<NaiveDateTime> {
         let start_time = self.graph.start()?;
         NaiveDateTime::from_timestamp_millis(start_time)
@@ -259,6 +266,7 @@ impl PyGraphView {
     ///
     /// Returns:
     ///    the default end time for perspectives over the view
+    #[getter]
     pub fn end(&self) -> Option<i64> {
         self.graph.end()
     }
@@ -272,6 +280,7 @@ impl PyGraphView {
     ///
     /// Returns:
     ///    the default end datetime for perspectives over the view
+    #[getter]
     pub fn end_date_time(&self) -> Option<NaiveDateTime> {
         let end_time = self.graph.end()?;
         NaiveDateTime::from_timestamp_millis(end_time)
@@ -407,9 +416,9 @@ impl PyGraphView {
 
 impl Repr for PyGraphView {
     fn repr(&self) -> String {
-        let num_edges = self.graph.num_edges();
-        let num_vertices = self.graph.num_vertices();
-        let num_temporal_edges: usize = self.graph.num_temporal_edges();
+        let num_edges = self.graph.count_edges();
+        let num_vertices = self.graph.count_vertices();
+        let num_temporal_edges: usize = self.graph.count_temporal_edges();
         let earliest_time = self.graph.earliest_time().repr();
         let latest_time = self.graph.latest_time().repr();
         let properties: String = self

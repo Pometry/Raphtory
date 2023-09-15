@@ -954,7 +954,8 @@ def test_to_df():
     g = build_graph()
 
     compare_df(
-        export.to_edge_df(g), pd.read_json(base_dir / "expected/dataframe_output/edge_df_all.json")
+        export.to_edge_df(g),
+        pd.read_json(base_dir / "expected/dataframe_output/edge_df_all.json"),
     )
 
     compare_df(
@@ -978,17 +979,23 @@ def test_to_df():
     )
     compare_df(
         export.to_edge_df(g, explode_edges=True, include_edge_properties=False),
-        pd.read_json(base_dir / "expected/dataframe_output/edge_df_exploded_no_props.json"),
+        pd.read_json(
+            base_dir / "expected/dataframe_output/edge_df_exploded_no_props.json"
+        ),
     )
 
     compare_df(
         export.to_edge_df(g, explode_edges=True, include_update_history=False),
-        pd.read_json(base_dir / "expected/dataframe_output/edge_df_exploded_no_hist.json"),
+        pd.read_json(
+            base_dir / "expected/dataframe_output/edge_df_exploded_no_hist.json"
+        ),
     )
 
     compare_df(
         export.to_edge_df(g, explode_edges=True, include_property_histories=False),
-        pd.read_json(base_dir / "expected/dataframe_output/edge_df_exploded_no_prop_hist.json"),
+        pd.read_json(
+            base_dir / "expected/dataframe_output/edge_df_exploded_no_prop_hist.json"
+        ),
     )
 
     compare_df(
@@ -1005,5 +1012,7 @@ def test_to_df():
     )
     compare_df(
         export.to_vertex_df(g, include_property_histories=False),
-        pd.read_json(base_dir / "expected/dataframe_output/vertex_df_no_prop_hist.json"),
+        pd.read_json(
+            base_dir / "expected/dataframe_output/vertex_df_no_prop_hist.json"
+        ),
     )
