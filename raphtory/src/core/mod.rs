@@ -379,8 +379,8 @@ impl fmt::Display for Prop {
             Prop::Graph(value) => write!(
                 f,
                 "Graph(num_vertices={}, num_edges={})",
-                value.num_vertices(),
-                value.num_edges()
+                value.count_vertices(),
+                value.count_edges()
             ),
             Prop::List(value) => {
                 write!(f, "{:?}", value)

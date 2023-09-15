@@ -100,8 +100,8 @@ impl Debug for DynamicGraph {
         write!(
             f,
             "DynamicGraph(num_vertices={}, num_edges={})",
-            self.num_vertices(),
-            self.num_edges()
+            self.count_vertices(),
+            self.count_edges()
         )
     }
 }

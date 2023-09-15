@@ -1,7 +1,6 @@
 use parking_lot::RwLock;
 use raphtory::{
     core::Prop,
-    db::api::view::internal::{DynamicGraph, IntoDynamic},
     prelude::{Graph, GraphViewOps, PropertyAdditionOps},
     search::IndexedGraph,
 };

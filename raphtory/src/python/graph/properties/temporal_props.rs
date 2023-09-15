@@ -265,12 +265,8 @@ impl PyTemporalProp {
         it_iter.fold(first, |acc, elem| if acc.1 >= elem.1 { acc } else { elem })
     }
 
-    pub fn len(&self) -> usize {
-        self.prop.iter().count()
-    }
-
     pub fn count(&self) -> usize {
-        self.len()
+        self.prop.iter().count()
     }
 
     pub fn average(&self) -> Option<Prop> {
@@ -279,7 +275,7 @@ impl PyTemporalProp {
 
     pub fn mean(&self) -> Option<Prop> {
         let sum: Prop = self.sum();
-        let count: usize = self.len();
+        let count: usize = self.count();
         if count == 0 {
             return None;
         }
@@ -548,6 +544,7 @@ py_iterable_comp!(
 
 #[pymethods]
 impl PyTemporalPropList {
+    #[getter]
     pub fn history(&self) -> PyPropHistList {
         let builder = self.builder.clone();
         (move || builder().map(|p| p.map(|v| v.history()).unwrap_or_default())).into()
@@ -727,6 +724,7 @@ py_iterable_comp!(
 
 #[pymethods]
 impl PyTemporalPropListList {
+    #[getter]
     pub fn history(&self) -> PyPropHistListList {
         let builder = self.builder.clone();
         (move || builder().map(|it| it.map(|p| p.map(|v| v.history()).unwrap_or_default()))).into()
@@ -869,8 +867,8 @@ impl PropIterable {
         }
     }
 
-    pub fn len(&self) -> usize {
-        self.collect().len()
+    pub fn count(&self) -> usize {
+        self.iter().count()
     }
 
     pub fn min(&self) -> PropValue {
@@ -971,10 +969,6 @@ impl PyPropHistValueList {
         .into()
     }
 
-    pub fn len(&self) -> UsizeIterable {
-        self.count()
-    }
-
     pub fn median(&self) -> PyPropValueList {
         let builder = self.builder.clone();
         (move || {
@@ -1050,12 +1044,8 @@ impl PyPropValueList {
             .flatten()
     }
 
-    pub fn len(&self) -> usize {
-        self.collect().len()
-    }
-
     pub fn count(&self) -> usize {
-        self.len()
+        self.iter().count()
     }
 
     pub fn min(&self) -> PropValue {
@@ -1246,10 +1236,6 @@ impl PyPropValueListList {
     pub fn count(&self) -> UsizeIterable {
         let builder = self.builder.clone();
         (move || builder().map(|it| it.count())).into()
-    }
-
-    pub fn len(&self) -> UsizeIterable {
-        self.count()
     }
 
     pub fn drop_none(&self) -> PyPropValueListList {

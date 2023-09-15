@@ -29,16 +29,16 @@ def test_pyprophistvaluelist():
         g.add_edge(time, src, dst, {"value_dec": val})
 
     v = g.vertex("1")
-    res = sorted(v.out_edges().properties.temporal.get("value_dec").values().sum())
+    res = sorted(v.out_edges.properties.temporal.get("value_dec").values().sum())
     assert res == [2, 20, 20]
 
-    res = sorted(v.out_edges().properties.temporal.get("value_dec").values().count())
+    res = sorted(v.out_edges.properties.temporal.get("value_dec").values().count())
     assert res == [1, 1, 2]
 
-    res = v.out_edges().properties.temporal.get("value_dec").values().sum().sum()
+    res = v.out_edges.properties.temporal.get("value_dec").values().sum().sum()
     assert res == 42
 
-    res = v.out_edges().properties.temporal.get("value_dec").values().count().sum()
+    res = v.out_edges.properties.temporal.get("value_dec").values().count().sum()
     assert res == 4
 
     g = Graph()
@@ -59,20 +59,20 @@ def test_pyprophistvaluelist():
     for src, dst, val, time in edges_str:
         g.add_edge(time, src, dst, {"value_dec": val})
     v = g.vertex("1")
-    res = (
-        v.out_edges().properties.temporal.get("value_dec").values()
-    )  # PyPropHistValueList([[10, 10, 10], [20], [2]])
+    res = v.out_edges.properties.temporal.get(
+        "value_dec"
+    ).values()  # PyPropHistValueList([[10, 10, 10], [20], [2]])
     assert res.sum() == [120, 20, 8]
     assert res.min() == [10, 20, 1]
     assert res.max() == [100, 20, 5]
-    assert sorted(res.len()) == [1, 3, 3]
     assert sorted(res.count()) == [1, 3, 3]
     assert res.median() == [10, 20, 2]
     assert list(res.mean()) == [40, 20, 8 / 3]
     assert list(res.average()) == [40, 20, 8 / 3]
 
+
 def test_empty_lists():
-    #This checks that empty lists are handled correctly on all python property types
+    # This checks that empty lists are handled correctly on all python property types
     g = Graph()
     edges_str = [
         ("1", "2", 10, 1),
@@ -87,8 +87,24 @@ def test_empty_lists():
     ]
     for src, dst, val, time in edges_str:
         g.add_edge(time, src, dst, {"value_dec": val})
-    assert(g.vertices().out_edges().properties.temporal.get("value_dec").values().median().median().median() == 5)
-    assert(g.vertices().out_edges().properties.temporal.get("value_dec").values().mean().mean().mean() == 1.3333333333333335)
+    assert (
+        g.vertices
+        .out_edges.properties.temporal.get("value_dec")
+        .values()
+        .median()
+        .median()
+        .median()
+        == 5
+    )
+    assert (
+        g.vertices
+        .out_edges.properties.temporal.get("value_dec")
+        .values()
+        .mean()
+        .mean()
+        .mean()
+        == 1.3333333333333335
+    )
 
 
 def test_propiterable():
@@ -111,7 +127,7 @@ def test_propiterable():
         g.add_edge(time, src, dst, {"value_dec": val})
 
     v = g.vertex("1")
-    result = v.out_edges().properties.temporal.get("value_dec").values().flatten()
+    result = v.out_edges.properties.temporal.get("value_dec").values().flatten()
     assert sorted(result) == [2, 10, 10, 10, 20]
     assert result.sum() == 52
     assert result.median() == 10
@@ -119,38 +135,38 @@ def test_propiterable():
     assert result.average() == 10.4
     assert result.min() == 2
     assert result.max() == 20
-    assert result.len() == 5
+    assert result.count() == 5
 
-    assert v.out_edges().properties.get("value_dec").sum() == 32
-    assert v.out_edges().properties.get("value_dec").median() == 10
+    assert v.out_edges.properties.get("value_dec").sum() == 32
+    assert v.out_edges.properties.get("value_dec").median() == 10
 
-    total = g.vertices.in_edges().properties.get("value_dec").sum()
+    total = g.vertices.in_edges.properties.get("value_dec").sum()
     assert sorted(total) == [2, 6, 12, 15, 20]
 
-    total = g.vertices.edges().properties.get("value_dec").sum()
+    total = g.vertices.edges.properties.get("value_dec").sum()
     assert sorted(total) == [2, 17, 18, 35, 38]
 
     total = dict(
-        zip(g.vertices().id(), g.vertices.out_edges().properties.get("value_dec").sum())
+        zip(g.vertices.id, g.vertices.out_edges.properties.get("value_dec").sum())
     )
     assert total == {1: 32, 2: 5, 3: 3, 4: 15, 5: None}
 
-    total = g.vertices.out_edges().properties.get("value_dec").sum().sum()
+    total = g.vertices.out_edges.properties.get("value_dec").sum().sum()
     assert total == 55
 
-    total = g.vertices.out_edges().properties.get("value_dec").sum().median()
+    total = g.vertices.out_edges.properties.get("value_dec").sum().median()
     assert total == 5
 
-    total = g.vertices.out_edges().properties.get("value_dec").sum().drop_none()
+    total = g.vertices.out_edges.properties.get("value_dec").sum().drop_none()
     assert sorted(total) == [3, 5, 15, 32]
 
-    total = g.vertices.out_edges().properties.get("value_dec").median()
+    total = g.vertices.out_edges.properties.get("value_dec").median()
     assert list(total) == [10, 5, 10, 2, None]
 
-    total = g.vertex("1").in_edges().properties.get("value_dec").sum()
+    total = g.vertex("1").in_edges.properties.get("value_dec").sum()
     assert total == 6
 
-    total = g.vertex("1").in_edges().properties.get("value_dec").median()
+    total = g.vertex("1").in_edges.properties.get("value_dec").median()
     assert total == 5
 
 
@@ -176,8 +192,8 @@ def test_pypropvalue_list_listlist():
     res = g.edges().properties.get(
         "value_dec"
     )  # PyPropValueList([100, 20, 5, 5, 5, 10, 1, 2])
-    res_v = v.edges().properties.get("value_dec")  # PyPropValueList([100, 5, 20, 1, 5])
-    res_ll = g.vertices().edges().properties.get("value_dec")
+    res_v = v.edges.properties.get("value_dec")  # PyPropValueList([100, 5, 20, 1, 5])
+    res_ll = g.vertices.edges.properties.get("value_dec")
 
     assert res.sum() == 148
     assert res_v.sum() == 131
@@ -195,9 +211,9 @@ def test_pypropvalue_list_listlist():
     assert res_v.max() == 100
     assert res_ll.max() == [100, 100, 20, 10, 5]
 
-    assert res.count() == res.len() == 8
-    assert res_v.count() == res_v.len() == 5
-    assert res_ll.count() == res_ll.len() == [5, 3, 3, 4, 1]
+    assert res.count() == 8
+    assert res_v.count() == 5
+    assert res_ll.count() == [5, 3, 3, 4, 1]
 
     assert res.mean() == res.average() == 18.5
     assert res_v.mean() == res_v.average() == 26.2
@@ -227,11 +243,11 @@ def test_pytemporalprops():
     for src, dst, val, time in edges_str:
         g.add_edge(time, src, dst, {"value_dec": val})
     v = g.vertex("1")
-    res = list(v.out_edges())[0].properties.temporal.get("value_dec")
+    res = list(v.out_edges)[0].properties.temporal.get("value_dec")
 
     assert res.sum() == 120
     assert res.min() == (1, 10)
     assert res.max() == (3, 100)
-    assert res.count() == res.len() == 3
+    assert res.count() == 3
     assert res.mean() == res.average() == 40.0
     assert res.median() == (2, 10)
