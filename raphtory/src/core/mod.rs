@@ -65,11 +65,6 @@ pub enum PropType {
     Graph,
 }
 
-pub struct PropId {
-    id: usize,
-    dtype: PropType,
-}
-
 /// Denotes the types of properties allowed to be stored in the graph.
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub enum Prop {

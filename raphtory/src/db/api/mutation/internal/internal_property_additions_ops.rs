@@ -2,7 +2,7 @@ use crate::{
     core::{
         entities::{EID, VID},
         storage::timeindex::TimeIndexEntry,
-        utils::errors::{GraphError, IllegalMutate},
+        utils::errors::GraphError,
         Prop,
     },
     db::api::view::internal::Base,

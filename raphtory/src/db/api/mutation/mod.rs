@@ -1,15 +1,19 @@
 use crate::{
-    core::utils::time::{error::ParseTimeError, TryIntoTime},
+    core::{
+        utils::{
+            errors::GraphError,
+            time::{error::ParseTimeError, TryIntoTime},
+        },
+        PropType,
+    },
     prelude::Prop,
 };
-use std::iter;
 
 mod addition_ops;
 mod deletion_ops;
 pub mod internal;
 mod property_addition_ops;
 
-use crate::core::{utils::errors::GraphError, PropType};
 pub use addition_ops::AdditionOps;
 pub use deletion_ops::DeletionOps;
 pub use property_addition_ops::PropertyAdditionOps;

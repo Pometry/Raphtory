@@ -19,7 +19,7 @@ use raphtory::{
         },
         graph::edge::EdgeView,
     },
-    prelude::{EdgeViewOps, PropertyAdditionOps},
+    prelude::EdgeViewOps,
     search::IndexedGraph,
 };
 

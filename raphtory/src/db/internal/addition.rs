@@ -1,15 +1,12 @@
 use crate::{
     core::{
-        entities::{
-            edges::edge_store::EdgeStore, graph::tgraph::InnerTemporalGraph,
-            vertices::vertex_store::VertexStore, EID, VID,
-        },
-        storage::{timeindex::TimeIndexEntry, EntryMut},
+        entities::{graph::tgraph::InnerTemporalGraph, EID, VID},
+        storage::timeindex::TimeIndexEntry,
         utils::errors::GraphError,
         PropType,
     },
     db::api::mutation::internal::InternalAdditionOps,
-    prelude::{Graph, Prop},
+    prelude::Prop,
 };
 use std::sync::atomic::Ordering;
 
