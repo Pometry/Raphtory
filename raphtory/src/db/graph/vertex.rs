@@ -547,4 +547,16 @@ mod vertex_test {
         v1.add_constant_properties([("test", "test")]).unwrap();
         assert_eq!(v1.properties().get("test"), Some("test".into()))
     }
+
+    #[test]
+    fn test_string_deduplication() {
+        let g = Graph::new();
+        let v1 = g
+            .add_vertex(0, 1, [("test1", "test"), ("test2", "test")])
+            .unwrap();
+        let s1 = v1.properties().get("test1").unwrap_str();
+        let s2 = v1.properties().get("test2").unwrap_str();
+
+        assert_eq!(s1.as_ptr(), s2.as_ptr())
+    }
 }
