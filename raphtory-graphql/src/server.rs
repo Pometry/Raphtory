@@ -8,15 +8,12 @@ use crate::{
 };
 use async_graphql_poem::GraphQL;
 use poem::{get, listener::TcpListener, middleware::Cors, EndpointExt, Route, Server};
-use raphtory::db::graph::edge::EdgeView;
-use raphtory::db::graph::vertex::VertexView;
-use raphtory::prelude::Graph;
-use raphtory::vectors::Embedding;
-use raphtory::vectors::Vectorizable;
-use std::collections::HashMap;
-use std::future::Future;
-use std::ops::Deref;
-use std::path::Path;
+use raphtory::{
+    db::graph::{edge::EdgeView, vertex::VertexView},
+    prelude::Graph,
+    vectors::{Embedding, Vectorizable},
+};
+use std::{collections::HashMap, future::Future, ops::Deref, path::Path};
 use tokio::{io::Result as IoResult, signal};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry};
 

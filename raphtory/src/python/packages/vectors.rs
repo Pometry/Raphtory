@@ -1,17 +1,21 @@
-use crate::db::api::view::internal::DynamicGraph;
-use crate::db::graph::edge::EdgeView;
-use crate::db::graph::vertex::VertexView;
-use crate::prelude::{EdgeViewOps, GraphViewOps, VertexViewOps};
-use crate::python::graph::views::graph_view::PyGraphView;
-use crate::vectors::{Embedding, EmbeddingFunction, Vectorizable, VectorizedGraph};
+use crate::{
+    db::{
+        api::view::internal::DynamicGraph,
+        graph::{edge::EdgeView, vertex::VertexView},
+    },
+    prelude::{EdgeViewOps, GraphViewOps, VertexViewOps},
+    python::graph::views::graph_view::PyGraphView,
+    vectors::{Embedding, EmbeddingFunction, Vectorizable, VectorizedGraph},
+};
 use futures_util::future::BoxFuture;
 use itertools::Itertools;
 // use pyo3::{Py, Python};
-use pyo3::types::{PyFunction, PyList};
-use pyo3::{exceptions, prelude::*};
-use std::future::Future;
-use std::path::PathBuf;
-use std::sync::Arc;
+use pyo3::{
+    exceptions,
+    prelude::*,
+    types::{PyFunction, PyList},
+};
+use std::{future::Future, path::PathBuf, sync::Arc};
 
 /// Graph view is a read-only version of a graph at a certain point in time.
 #[pyclass(name = "VectorizedGraph", frozen)]

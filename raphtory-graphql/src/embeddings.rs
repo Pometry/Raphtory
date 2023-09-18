@@ -1,5 +1,7 @@
-use async_openai::types::{CreateEmbeddingRequest, EmbeddingInput};
-use async_openai::Client;
+use async_openai::{
+    types::{CreateEmbeddingRequest, EmbeddingInput},
+    Client,
+};
 use itertools::Itertools;
 use raphtory::vectors::Embedding;
 

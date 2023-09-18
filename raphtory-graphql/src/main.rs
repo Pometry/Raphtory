@@ -1,13 +1,12 @@
 use crate::server::RaphtoryServer;
 use clap::Parser;
 use dotenv::dotenv;
-use raphtory::prelude::Graph;
 use raphtory::{
     db::{
         api::view::internal::DynamicGraph,
         graph::{edge::EdgeView, vertex::VertexView},
     },
-    prelude::{EdgeViewOps, LayerOps, VertexViewOps},
+    prelude::{EdgeViewOps, Graph, LayerOps, VertexViewOps},
     vectors::GraphEntity,
 };
 use std::{env, path::PathBuf};

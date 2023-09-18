@@ -3,7 +3,6 @@ mod graphql;
 extern crate core;
 use graphql::*;
 use pyo3::prelude::*;
-use raphtory_core::python::packages::vectors::PyVectorizedGraph;
 use raphtory_core::python::{
     graph::{
         algorithm_result::AlgorithmResultStrU64,
@@ -13,7 +12,7 @@ use raphtory_core::python::{
         properties::{PyConstProperties, PyProperties, PyTemporalProp, PyTemporalProperties},
         vertex::{PyVertex, PyVertices},
     },
-    packages::{algorithms::*, graph_gen::*, graph_loader::*},
+    packages::{algorithms::*, graph_gen::*, graph_loader::*, vectors::PyVectorizedGraph},
 };
 
 /// Raphtory graph analytics library

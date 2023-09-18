@@ -4,30 +4,31 @@ use async_trait::async_trait;
 use futures_util::future::{join_all, BoxFuture};
 // use futures_util::StreamExt;
 use itertools::{chain, Itertools};
-use std::borrow::Borrow;
-use std::collections::HashMap;
-use std::convert::identity;
-use std::future::Future;
 use std::{
-    collections::hash_map::DefaultHasher,
+    borrow::Borrow,
+    collections::{hash_map::DefaultHasher, HashMap},
+    convert::identity,
     fmt::{Display, Formatter},
     fs::{create_dir_all, File},
+    future::Future,
     hash::{Hash, Hasher},
     io::{BufReader, BufWriter},
     path::Path,
 };
 
-use crate::db::api::properties::internal::{TemporalPropertiesOps, TemporalPropertyViewOps};
-use crate::db::api::view::internal::{DynamicGraph, IntoDynamic};
+use crate::db::api::{
+    properties::internal::{TemporalPropertiesOps, TemporalPropertyViewOps},
+    view::internal::{DynamicGraph, IntoDynamic},
+};
 use serde::{Deserialize, Serialize, Serializer};
 
 // use crate::model::graph::edge::Edge;
 // use numpy::PyArray2;
 // use pyo3::{types::IntoPyDict, Python};
-use crate::db::graph::edge::EdgeView;
-use crate::db::graph::vertex::VertexView;
-use crate::db::graph::views::window_graph::WindowedGraph;
-use crate::prelude::{EdgeViewOps, GraphViewOps, Layer, LayerOps, TimeOps, VertexViewOps};
+use crate::{
+    db::graph::{edge::EdgeView, vertex::VertexView, views::window_graph::WindowedGraph},
+    prelude::{EdgeViewOps, GraphViewOps, Layer, LayerOps, TimeOps, VertexViewOps},
+};
 
 // #[derive(Clone)]
 // struct EdgeId {
@@ -791,8 +792,7 @@ impl<G: GraphViewOps> GraphEntity for EdgeView<G> {
 #[cfg(test)]
 mod vector_tests {
     use super::*;
-    use crate::core::Prop;
-    use crate::prelude::Graph;
+    use crate::{core::Prop, prelude::Graph};
     use dotenv::dotenv;
     use raphtory::prelude::{AdditionOps, Graph, Prop};
     use std::path::PathBuf;
