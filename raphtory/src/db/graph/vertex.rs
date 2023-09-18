@@ -5,7 +5,7 @@ use crate::{
         entities::{vertices::vertex_ref::VertexRef, VID},
         storage::{locked_view::LockedView, timeindex::TimeIndexEntry},
         utils::{errors::GraphError, time::IntoTime},
-        Direction,
+        ArcStr, Direction,
     },
     db::{
         api::{
@@ -29,6 +29,7 @@ use crate::{
     },
     prelude::*,
 };
+use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub struct VertexView<G: GraphViewOps> {
@@ -73,9 +74,7 @@ impl<G: GraphViewOps> VertexView<G> {
 }
 
 impl<G: GraphViewOps> TemporalPropertiesOps for VertexView<G> {
-    fn temporal_property_keys<'a>(
-        &'a self,
-    ) -> Box<dyn Iterator<Item = LockedView<'a, String>> + 'a> {
+    fn temporal_property_keys(&self) -> Box<dyn Iterator<Item = ArcStr> + '_> {
         Box::new(
             self.graph
                 .temporal_vertex_prop_names(self.vertex)
@@ -126,18 +125,18 @@ impl<G: GraphViewOps> TemporalPropertyViewOps for VertexView<G> {
 }
 
 impl<G: GraphViewOps> ConstPropertiesOps for VertexView<G> {
-    fn const_property_keys<'a>(&'a self) -> Box<dyn Iterator<Item = LockedView<'a, String>> + 'a> {
-        self.graph.static_vertex_prop_names(self.vertex)
+    fn const_property_keys(&self) -> Box<dyn Iterator<Item = ArcStr>> {
+        self.graph.constant_vertex_prop_names(self.vertex)
     }
 
     fn const_property_values(&self) -> Vec<Prop> {
         self.const_property_keys()
-            .flat_map(|prop_name| self.graph.static_vertex_prop(self.vertex, &prop_name))
+            .flat_map(|prop_name| self.graph.constant_vertex_prop(self.vertex, &prop_name))
             .collect()
     }
 
     fn get_const_property(&self, key: &str) -> Option<Prop> {
-        self.graph.static_vertex_prop(self.vertex, key)
+        self.graph.constant_vertex_prop(self.vertex, key)
     }
 }
 
@@ -518,7 +517,7 @@ mod vertex_test {
             v1.properties().as_map(),
             props
                 .into_iter()
-                .map(|(k, v)| (k.to_string(), v.into_prop()))
+                .map(|(k, v)| (k.into(), v.into_prop()))
                 .collect()
         );
         assert_eq!(v1_w.properties().as_map(), HashMap::default())
@@ -535,7 +534,7 @@ mod vertex_test {
             v1.properties().as_map(),
             props
                 .into_iter()
-                .map(|(k, v)| (k.to_string(), v.into_prop()))
+                .map(|(k, v)| (k.into(), v.into_prop()))
                 .collect()
         );
         assert_eq!(v1_w.properties().as_map(), HashMap::default())

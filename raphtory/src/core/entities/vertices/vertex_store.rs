@@ -332,7 +332,7 @@ impl VertexStore {
         self.layers[layer_id].get_page_vec(last, page_size, dir)
     }
 
-    pub(crate) fn static_prop_ids(&self) -> Vec<usize> {
+    pub(crate) fn constant_prop_ids(&self) -> Vec<usize> {
         self.props
             .as_ref()
             .map(|ps| ps.static_prop_ids())

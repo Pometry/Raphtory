@@ -62,7 +62,7 @@ fn valid_prop(prop: Prop, value_str: &Option<String>, num_filter: &Option<Number
 
 fn value_neq_str_prop(value: &str, prop: &Prop) -> bool {
     if let Prop::Str(prop_str) = prop {
-        return value != prop_str;
+        return prop_str != value;
     }
 
     false

@@ -148,7 +148,7 @@ mod db_tests {
     use crate::{
         core::{
             utils::time::{error::ParseTimeError, TryIntoTime},
-            Prop,
+            ArcStr, Prop,
         },
         db::{
             api::view::{
@@ -734,7 +734,7 @@ mod db_tests {
 
         let mut expected = Vec::new();
         for i in 1..4 {
-            expected.push(vec![("weight".to_string(), Prop::I64(i))]);
+            expected.push(vec![("weight".into(), Prop::I64(i))]);
         }
 
         assert_eq!(res, expected);
@@ -966,7 +966,7 @@ mod db_tests {
 
     #[test]
     fn test_prop_display_str() {
-        let mut prop = Prop::Str(String::from("hello"));
+        let mut prop = Prop::Str("hello".into());
         assert_eq!(format!("{}", prop), "hello");
 
         prop = Prop::I32(42);
@@ -1012,7 +1012,7 @@ mod db_tests {
 
         props_map
             .into_iter()
-            .all(|(name, value)| g.properties().constant().get(name).unwrap() == value)
+            .all(|(name, value)| g.properties().constant().get(&name).unwrap() == value)
     }
 
     #[quickcheck]
@@ -1021,7 +1021,7 @@ mod db_tests {
 
         let as_props = u64_props
             .into_iter()
-            .map(|(name, value)| (name, Prop::U64(value)))
+            .map(|(name, value)| (name.into(), Prop::U64(value)))
             .collect::<Vec<_>>();
 
         g.add_constant_properties(as_props.clone()).unwrap();
@@ -1050,17 +1050,17 @@ mod db_tests {
             .enumerate()
             .map(|(i, props)| {
                 let (name, value) = props;
-                let value = Prop::Str(value.clone());
-                (name.clone(), value, i % 2)
+                let value = Prop::from(value);
+                (name.as_str().into(), value, i % 2)
             })
             .partition(|(_, _, i)| *i == 0);
 
-        let t0_props: HashMap<String, Prop> = t0_props
+        let t0_props: HashMap<ArcStr, Prop> = t0_props
             .into_iter()
             .map(|(name, value, _)| (name, value))
             .collect();
 
-        let t1_props: HashMap<String, Prop> = t1_props
+        let t1_props: HashMap<ArcStr, Prop> = t1_props
             .into_iter()
             .map(|(name, value, _)| (name, value))
             .collect();
@@ -1116,7 +1116,7 @@ mod db_tests {
             .unwrap();
 
         let e = g.vertex(1).unwrap().out_edges().next().unwrap();
-        let res: HashMap<String, Vec<(i64, Prop)>> = e
+        let res: HashMap<ArcStr, Vec<(i64, Prop)>> = e
             .window(1, 3)
             .properties()
             .temporal()
@@ -1126,7 +1126,7 @@ mod db_tests {
 
         let mut exp = HashMap::new();
         exp.insert(
-            "weight".to_string(),
+            ArcStr::from("weight"),
             vec![(1, Prop::I64(1)), (2, Prop::I64(2))],
         );
         assert_eq!(res, exp);
@@ -1437,7 +1437,10 @@ mod db_tests {
         let g = Graph::new();
         g.add_edge(0, 1, 2, NO_PROPS, Some("layer1")).unwrap();
         g.add_edge(0, 1, 2, NO_PROPS, Some("layer2")).unwrap();
-        assert_eq!(g.layer("layer2").unwrap().unique_layers(), vec!["layer2"])
+        assert_eq!(
+            g.layer("layer2").unwrap().unique_layers().collect_vec(),
+            vec!["layer2"]
+        )
     }
 
     #[quickcheck]

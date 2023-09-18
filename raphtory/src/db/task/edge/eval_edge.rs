@@ -3,7 +3,7 @@ use crate::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
         state::compute_state::ComputeState,
         storage::locked_view::LockedView,
-        Prop,
+        ArcStr, Prop,
     },
     db::{
         api::{
@@ -19,7 +19,7 @@ use crate::{
         },
     },
 };
-use std::{cell::RefCell, iter, marker::PhantomData, rc::Rc};
+use std::{cell::RefCell, iter, marker::PhantomData, rc::Rc, sync::Arc};
 
 pub struct EvalEdgeView<'a, G: GraphViewOps, CS: ComputeState, S> {
     ss: usize,
@@ -85,14 +85,14 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static>
 impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> ConstPropertiesOps
     for EvalEdgeView<'a, G, CS, S>
 {
-    fn const_property_keys<'b>(&'b self) -> Box<dyn Iterator<Item = LockedView<'b, String>> + 'b> {
+    fn const_property_keys(&self) -> Box<dyn Iterator<Item = ArcStr>> {
         self.graph
-            .static_edge_prop_names(self.ev, self.graph.layer_ids())
+            .constant_edge_prop_names(self.ev, self.graph.layer_ids())
     }
 
     fn get_const_property(&self, key: &str) -> Option<Prop> {
         self.graph
-            .static_edge_prop(self.ev, key, self.graph.layer_ids())
+            .constant_edge_prop(self.ev, key, self.graph.layer_ids())
     }
 }
 
@@ -132,9 +132,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> TemporalPropertyViewOps
 impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> TemporalPropertiesOps
     for EvalEdgeView<'a, G, CS, S>
 {
-    fn temporal_property_keys<'b>(
-        &'b self,
-    ) -> Box<dyn Iterator<Item = LockedView<'b, String>> + 'b> {
+    fn temporal_property_keys(&self) -> Box<dyn Iterator<Item = ArcStr>> {
         self.graph
             .temporal_edge_prop_names(self.ev, self.graph.layer_ids())
     }
@@ -230,8 +228,8 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeListOps
         Box::new(self.map(|e| e.time()))
     }
 
-    fn layer_name(self) -> Self::IterType<Option<String>> {
-        Box::new(self.map(|e| e.layer_name()))
+    fn layer_name(self) -> Self::IterType<Option<ArcStr>> {
+        Box::new(self.map(|e| e.layer_name().map(|v| v.clone())))
     }
 }
 

@@ -15,13 +15,13 @@ use serde::{Deserialize, Serialize};
 use std::{
     array,
     fmt::Debug,
+    iter::FusedIterator,
     ops::{Deref, DerefMut},
     sync::{
         atomic::{AtomicUsize, Ordering},
         Arc,
     },
 };
-use tantivy::directory::Lock;
 
 type ArcRwLockReadGuard<T> = lock_api::ArcRwLockReadGuard<parking_lot::RawRwLock, T>;
 
@@ -32,8 +32,8 @@ fn resolve<const N: usize>(index: usize) -> (usize, usize) {
     (bucket, offset)
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct LockVec<T: Default> {
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct LockVec<T> {
     data: Arc<RwLock<Vec<T>>>,
 }
 

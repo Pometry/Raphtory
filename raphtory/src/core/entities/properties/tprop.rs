@@ -6,7 +6,7 @@ use crate::{
         },
         storage::{locked_view::LockedView, timeindex::TimeIndexEntry},
         utils::errors::GraphError,
-        Prop,
+        ArcStr, Prop,
     },
     db::graph::graph::Graph,
 };
@@ -21,7 +21,7 @@ use std::{collections::HashMap, iter, ops::Range, sync::Arc};
 pub enum TProp {
     #[default]
     Empty,
-    Str(TCell<String>),
+    Str(TCell<ArcStr>),
     U8(TCell<u8>),
     U16(TCell<u16>),
     I32(TCell<i32>),
@@ -161,7 +161,7 @@ impl TProp {
             TProp::Empty => Box::new(iter::empty()),
             TProp::Str(cell) => Box::new(
                 cell.iter_t()
-                    .map(|(t, value)| (*t, Prop::Str(value.to_string()))),
+                    .map(|(t, value)| (*t, Prop::Str(value.clone()))),
             ),
             TProp::I32(cell) => Box::new(cell.iter_t().map(|(t, value)| (*t, Prop::I32(*value)))),
             TProp::I64(cell) => Box::new(cell.iter_t().map(|(t, value)| (*t, Prop::I64(*value)))),
@@ -195,7 +195,7 @@ impl TProp {
             TProp::Empty => Box::new(std::iter::empty()),
             TProp::Str(cell) => Box::new(
                 cell.iter_window_t(r)
-                    .map(|(t, value)| (*t, Prop::Str(value.to_string()))),
+                    .map(|(t, value)| (*t, Prop::Str(value.clone()))),
             ),
             TProp::I32(cell) => Box::new(
                 cell.iter_window_t(r)

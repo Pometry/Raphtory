@@ -10,7 +10,11 @@ use crate::{
                 tgraph_storage::{GraphStorage, LockedIter},
                 timer::{MaxCounter, MinCounter, TimeCounterTrait},
             },
-            properties::{graph_props::GraphProps, props::Meta, tprop::TProp},
+            properties::{
+                graph_props::GraphProps,
+                props::{ArcReadLockedVec, Meta},
+                tprop::TProp,
+            },
             vertices::{
                 input_vertex::InputVertex,
                 vertex::{ArcEdge, ArcVertex, Vertex},
@@ -29,9 +33,9 @@ use crate::{
             errors::{GraphError, IllegalMutate, MutateGraphError},
             time::TryIntoTime,
         },
-        Direction, Prop, PropUnwrap,
+        ArcStr, Direction, Prop, PropUnwrap,
     },
-    db::api::view::{internal::EdgeFilter, Layer},
+    db::api::view::{internal::EdgeFilter, BoxedIter, Layer},
 };
 use dashmap::DashMap;
 use itertools::Itertools;
@@ -42,6 +46,7 @@ use serde::{Deserialize, Serialize};
 use std::{
     fmt::Debug,
     hash::BuildHasherDefault,
+    iter,
     ops::{Deref, Range},
     path::Path,
     sync::{atomic::AtomicUsize, Arc},
@@ -119,30 +124,26 @@ impl<const N: usize> TemporalGraph<N> {
         self.edge_meta.layer_meta().len()
     }
 
-    pub(crate) fn layer_names(&self, layer_ids: LayerIds) -> Vec<String> {
+    pub(crate) fn layer_names(&self, layer_ids: LayerIds) -> BoxedIter<ArcStr> {
         match layer_ids {
-            LayerIds::None => {
-                vec![]
-            }
-            LayerIds::All => self.edge_meta.layer_meta().get_keys().clone(),
+            LayerIds::None => Box::new(iter::empty()),
+            LayerIds::All => Box::new(self.edge_meta.layer_meta().get_keys().into_iter()),
             LayerIds::One(id) => {
-                vec![self
+                let name = self
                     .edge_meta
                     .layer_meta()
-                    .reverse_lookup(id)
-                    .unwrap()
-                    .clone()]
+                    .get_name(id)
+                    .expect("name for id should always exist")
+                    .clone();
+                Box::new(iter::once(name))
             }
-            LayerIds::Multiple(ids) => ids
-                .iter()
-                .map(|id| {
-                    self.edge_meta
-                        .layer_meta()
-                        .reverse_lookup(*id)
-                        .unwrap()
-                        .clone()
-                })
-                .collect(),
+            LayerIds::Multiple(ids) => {
+                let keys = self.edge_meta.layer_meta().get_keys();
+                Box::new((0..ids.len()).map(move |index| {
+                    let id = ids[index];
+                    keys[id].clone()
+                }))
+            }
         }
     }
 
@@ -159,11 +160,14 @@ impl<const N: usize> TemporalGraph<N> {
         }
     }
 
-    pub(crate) fn get_all_vertex_property_names(&self, is_static: bool) -> Vec<String> {
+    pub(crate) fn get_all_vertex_property_names(
+        &self,
+        is_static: bool,
+    ) -> ArcReadLockedVec<ArcStr> {
         self.vertex_meta.get_all_property_names(is_static)
     }
 
-    pub(crate) fn get_all_edge_property_names(&self, is_static: bool) -> Vec<String> {
+    pub(crate) fn get_all_edge_property_names(&self, is_static: bool) -> ArcReadLockedVec<ArcStr> {
         self.edge_meta.get_all_property_names(is_static)
     }
 
@@ -258,11 +262,7 @@ impl<const N: usize> TemporalGraph<N> {
         self.storage.get_edge(e.into())
     }
 
-    pub(crate) fn vertex_reverse_prop_id(
-        &self,
-        prop_id: usize,
-        is_static: bool,
-    ) -> Option<LockedView<String>> {
+    pub(crate) fn vertex_reverse_prop_id(&self, prop_id: usize, is_static: bool) -> Option<ArcStr> {
         self.vertex_meta.reverse_prop_id(prop_id, is_static)
     }
 
@@ -284,11 +284,7 @@ impl<const N: usize> TemporalGraph<N> {
         self.vertex_meta.find_prop_id(prop, is_static)
     }
 
-    pub(crate) fn edge_reverse_prop_id(
-        &self,
-        prop_id: usize,
-        is_static: bool,
-    ) -> Option<LockedView<String>> {
+    pub(crate) fn edge_reverse_prop_id(&self, prop_id: usize, is_static: bool) -> Option<ArcStr> {
         self.edge_meta.reverse_prop_id(prop_id, is_static)
     }
 }
@@ -427,11 +423,11 @@ impl<const N: usize> TemporalGraph<N> {
         self.graph_props.get_temporal(name)
     }
 
-    pub(crate) fn constant_property_names(&self) -> RwLockReadGuard<Vec<String>> {
+    pub(crate) fn constant_property_names(&self) -> ArcReadLockedVec<ArcStr> {
         self.graph_props.constant_names()
     }
 
-    pub(crate) fn temporal_property_names(&self) -> RwLockReadGuard<Vec<String>> {
+    pub(crate) fn temporal_property_names(&self) -> ArcReadLockedVec<ArcStr> {
         self.graph_props.temporal_names()
     }
 

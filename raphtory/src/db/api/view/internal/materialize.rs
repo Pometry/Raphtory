@@ -3,7 +3,7 @@ use crate::{
         entities::{
             edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
             properties::{
-                props::Meta,
+                props::{ArcReadLockedVec, Meta},
                 tprop::{LockedLayeredTProp, TProp},
             },
             vertices::{vertex_ref::VertexRef, vertex_store::VertexStore},
@@ -15,7 +15,7 @@ use crate::{
             ArcEntry,
         },
         utils::errors::GraphError,
-        Direction, PropType,
+        ArcStr, Direction, PropType,
     },
     db::{
         api::{
@@ -23,7 +23,7 @@ use crate::{
             properties::internal::{
                 ConstPropertiesOps, Key, TemporalPropertiesOps, TemporalPropertyViewOps,
             },
-            view::internal::*,
+            view::{internal::*, BoxedIter},
         },
         graph::{
             graph::{Graph, InternalGraph},

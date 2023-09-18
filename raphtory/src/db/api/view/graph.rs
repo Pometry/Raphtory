@@ -4,6 +4,7 @@ use crate::{
             graph::tgraph::InnerTemporalGraph, vertices::vertex_ref::VertexRef, LayerIds, VID,
         },
         utils::{errors::GraphError, time::IntoTime},
+        ArcStr,
     },
     db::{
         api::{
@@ -24,6 +25,7 @@ use crate::{
     prelude::{DeletionOps, NO_PROPS},
 };
 use rustc_hash::FxHashSet;
+use std::sync::Arc;
 
 /// This trait GraphViewOps defines operations for accessing
 /// information about a graph. The trait has associated types
@@ -35,7 +37,7 @@ pub trait GraphViewOps: BoxableGraphView + Clone + Sized {
         vertices: I,
     ) -> VertexSubgraph<Self>;
     /// Return all the layer ids in the graph
-    fn unique_layers(&self) -> Vec<String>;
+    fn unique_layers(&self) -> BoxedIter<ArcStr>;
     /// Timestamp of earliest activity in the graph
     fn earliest_time(&self) -> Option<i64>;
     /// Timestamp of latest activity in the graph
@@ -103,7 +105,7 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
     }
 
     /// Return all the layer ids in the graph
-    fn unique_layers(&self) -> Vec<String> {
+    fn unique_layers(&self) -> BoxedIter<ArcStr> {
         self.get_layer_names_from_ids(self.layer_ids())
     }
 
@@ -182,13 +184,15 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
         for e in self.edges() {
             // FIXME: this needs to be verified
             for ee in e.explode_layers() {
-                let layer_id = *ee.edge.layer().unwrap();
+                let layer_id = *ee.edge.layer().expect("exploded layers");
                 let layer_ids = LayerIds::One(layer_id);
-                let layer_names = self.get_layer_names_from_ids(layer_ids.clone());
+                let layer_name = self
+                    .get_layer_name(layer_id)
+                    .expect("layer id on edge is valid");
                 let layer_name: Option<&str> = if layer_id == 0 {
                     None
                 } else {
-                    Some(&layer_names[0])
+                    Some(&layer_name)
                 };
 
                 for ee in ee.explode() {

@@ -14,7 +14,7 @@ use crate::{
         entities::{vertices::vertex_ref::VertexRef, EID, VID},
         storage::timeindex::{AsTime, TimeIndexEntry},
         utils::errors::GraphError,
-        PropType,
+        ArcStr, PropType,
     },
     db::{
         api::{
@@ -188,7 +188,7 @@ impl<G: GraphViewOps> IndexedGraph<G> {
             if prop_names_set.is_empty() {
                 break;
             }
-            let mut found_props = HashSet::from(["name".to_string()]);
+            let mut found_props: HashSet<ArcStr> = HashSet::default();
 
             for prop in prop_names_set.iter() {
                 // load temporal props
@@ -202,14 +202,13 @@ impl<G: GraphViewOps> IndexedGraph<G> {
                         continue;
                     }
                     Self::set_schema_field_from_prop(&mut schema, prop, prop_value);
-                    found_props.insert(prop.to_string());
+                    found_props.insert(prop.clone());
                 }
                 // load static props
                 if let Some(prop_value) = vertex.properties().constant().get(prop) {
-                    let name = if prop == "_id" { fields::NAME } else { prop };
-                    if !found_props.contains(name) {
-                        Self::set_schema_field_from_prop(&mut schema, name, prop_value);
-                        found_props.insert(prop.to_string());
+                    if !found_props.contains(prop) {
+                        Self::set_schema_field_from_prop(&mut schema, prop, prop_value);
+                        found_props.insert(prop.clone());
                     }
                 }
             }
@@ -239,7 +238,7 @@ impl<G: GraphViewOps> IndexedGraph<G> {
             if prop_names_set.is_empty() {
                 break;
             }
-            let mut found_props = HashSet::new();
+            let mut found_props: HashSet<ArcStr> = HashSet::new();
 
             for prop in prop_names_set.iter() {
                 // load temporal props
@@ -253,14 +252,13 @@ impl<G: GraphViewOps> IndexedGraph<G> {
                         continue;
                     }
                     Self::set_schema_field_from_prop(&mut schema, prop, prop_value);
-                    found_props.insert(prop.to_string());
+                    found_props.insert(prop.clone());
                 }
                 // load static props
                 if let Some(prop_value) = edge.properties().constant().get(prop) {
-                    let name = if prop == "_id" { fields::NAME } else { prop };
-                    if !found_props.contains(name) {
-                        Self::set_schema_field_from_prop(&mut schema, name, prop_value);
-                        found_props.insert(prop.to_string());
+                    if !found_props.contains(prop) {
+                        Self::set_schema_field_from_prop(&mut schema, prop, prop_value);
+                        found_props.insert(prop.clone());
                     }
                 }
             }

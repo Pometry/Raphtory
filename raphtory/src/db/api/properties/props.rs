@@ -1,10 +1,10 @@
 use crate::{
-    core::{storage::locked_view::LockedView, Prop},
+    core::{storage::locked_view::LockedView, ArcStr, Prop},
     db::api::properties::{
         constant_props::ConstProperties, internal::*, temporal_props::TemporalProperties,
     },
 };
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 /// View of the properties of an entity (graph|vertex|edge)
 #[derive(Clone)]
@@ -34,7 +34,7 @@ impl<P: PropertiesOps + Clone> Properties<P> {
     }
 
     /// Iterate over all property keys
-    pub fn keys(&self) -> impl Iterator<Item = LockedView<String>> + '_ {
+    pub fn keys(&self) -> impl Iterator<Item = ArcStr> + '_ {
         self.props.temporal_property_keys().chain(
             self.props
                 .const_property_keys()
@@ -48,7 +48,7 @@ impl<P: PropertiesOps + Clone> Properties<P> {
     }
 
     /// Iterate over all property key-value pairs
-    pub fn iter(&self) -> impl Iterator<Item = (LockedView<String>, Prop)> + '_ {
+    pub fn iter(&self) -> impl Iterator<Item = (ArcStr, Prop)> + '_ {
         self.keys().zip(self.values())
     }
 
@@ -63,18 +63,18 @@ impl<P: PropertiesOps + Clone> Properties<P> {
     }
 
     /// Collect properties into vector
-    pub fn as_vec(&self) -> Vec<(String, Prop)> {
+    pub fn as_vec(&self) -> Vec<(ArcStr, Prop)> {
         self.iter().map(|(k, v)| (k.clone(), v)).collect()
     }
 
     /// Collect properties into map
-    pub fn as_map(&self) -> HashMap<String, Prop> {
+    pub fn as_map(&self) -> HashMap<ArcStr, Prop> {
         self.iter().map(|(k, v)| (k.clone(), v)).collect()
     }
 }
 
 impl<P: PropertiesOps + Clone> IntoIterator for Properties<P> {
-    type Item = (String, Prop);
+    type Item = (ArcStr, Prop);
     type IntoIter = Box<dyn Iterator<Item = Self::Item>>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -85,8 +85,8 @@ impl<P: PropertiesOps + Clone> IntoIterator for Properties<P> {
 }
 
 impl<'a, P: PropertiesOps + Clone + 'a> IntoIterator for &'a Properties<P> {
-    type Item = (LockedView<'a, String>, Prop);
-    type IntoIter = Box<dyn Iterator<Item = (LockedView<'a, String>, Prop)> + 'a>;
+    type Item = (ArcStr, Prop);
+    type IntoIter = Box<dyn Iterator<Item = (ArcStr, Prop)> + 'a>;
 
     fn into_iter(self) -> Self::IntoIter {
         Box::new(self.iter())

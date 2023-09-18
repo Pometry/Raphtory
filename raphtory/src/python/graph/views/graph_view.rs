@@ -4,6 +4,7 @@ use crate::{
     core::{
         entities::vertices::vertex_ref::VertexRef,
         utils::{errors::GraphError, time::error::ParseTimeError},
+        ArcStr,
     },
     db::{
         api::{
@@ -103,8 +104,8 @@ impl<G: GraphViewOps + IntoDynamic> IntoPy<PyObject> for VertexSubgraph<G> {
 impl PyGraphView {
     /// Return all the layer ids in the graph
     #[getter]
-    pub fn unique_layers(&self) -> Vec<String> {
-        self.graph.unique_layers()
+    pub fn unique_layers(&self) -> Vec<ArcStr> {
+        self.graph.unique_layers().collect()
     }
 
     //******  Metrics APIs ******//

@@ -1,8 +1,14 @@
 use crate::{
-    core::{entities::graph::tgraph::InnerTemporalGraph, storage::locked_view::LockedView, Prop},
-    db::api::properties::internal::{Key, TemporalPropertiesOps, TemporalPropertyViewOps},
+    core::{
+        entities::graph::tgraph::InnerTemporalGraph, storage::locked_view::LockedView, ArcStr, Prop,
+    },
+    db::api::{
+        properties::internal::{Key, TemporalPropertiesOps, TemporalPropertyViewOps},
+        view::BoxedIter,
+    },
 };
 use parking_lot::RwLockReadGuard;
+use std::sync::Arc;
 
 impl<const N: usize> TemporalPropertyViewOps for InnerTemporalGraph<N> {
     fn temporal_value(&self, id: &Key) -> Option<Prop> {
@@ -33,17 +39,9 @@ impl<const N: usize> TemporalPropertyViewOps for InnerTemporalGraph<N> {
 }
 
 impl<const N: usize> TemporalPropertiesOps for InnerTemporalGraph<N> {
-    fn temporal_property_keys<'a>(
-        &'a self,
-    ) -> Box<dyn Iterator<Item = LockedView<'a, String>> + 'a> {
+    fn temporal_property_keys(&self) -> Box<dyn Iterator<Item = ArcStr>> {
         // TODO: Is this actually worth doing? the advantage is that there is definitely no writes during the iteration as we keep the guard alive...
-        let guarded = self.inner().temporal_property_names();
-        Box::new((0..guarded.len()).map(move |i| {
-            RwLockReadGuard::map(RwLockReadGuard::rwlock(&guarded).read_recursive(), |v| {
-                &v[i]
-            })
-            .into()
-        }))
+        Box::new(self.inner().temporal_property_names().into_iter())
     }
 
     fn get_temporal_property(&self, key: &str) -> Option<Key> {

@@ -120,7 +120,7 @@ impl Mut {
 
         let subgraph = data.get(&graph_name).ok_or("Graph not found")?;
         let path = subgraph
-            .static_prop(&"path".to_string())
+            .constant_prop(&"path".to_string())
             .expect("Path is missing")
             .to_string();
 
@@ -133,7 +133,7 @@ impl Mut {
             .add_constant_properties(subgraph.properties().constant())
             .expect("Failed to add static properties");
         new_subgraph
-            .add_constant_properties([("uiProps".to_string(), Prop::Str(props))])
+            .add_constant_properties([("uiProps".to_string(), Prop::str(props))])
             .expect("Failed to add static property");
 
         new_subgraph

@@ -1,20 +1,26 @@
 use crate::core::{
     entities::{
         graph::tgraph::FxDashMap,
-        properties::{props::DictMapper, tprop::TProp},
+        properties::{
+            props::{ArcReadLockedVec, DictMapper},
+            tprop::TProp,
+        },
     },
     storage::{lazy_vec::IllegalSet, locked_view::LockedView, timeindex::TimeIndexEntry},
     utils::errors::{GraphError, IllegalMutate, MutateGraphError},
-    Prop,
+    ArcStr, Prop,
 };
 use parking_lot::RwLockReadGuard;
 use serde::{Deserialize, Serialize};
-use std::ops::{Deref, DerefMut};
+use std::{
+    ops::{Deref, DerefMut},
+    sync::Arc,
+};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub(crate) struct GraphProps {
-    constant_mapper: DictMapper<String>,
-    temporal_mapper: DictMapper<String>,
+    constant_mapper: DictMapper,
+    temporal_mapper: DictMapper,
     constant: FxDashMap<usize, Option<Prop>>,
     temporal: FxDashMap<usize, TProp>,
 }
@@ -50,7 +56,7 @@ impl GraphProps {
                     return Err(MutateGraphError::IllegalGraphPropertyChange {
                         name: self
                             .constant_mapper
-                            .reverse_lookup(prop_id)
+                            .get_name(prop_id)
                             .expect("property exists if it has a value")
                             .to_string(),
                         old_value: old_value.clone(),
@@ -76,22 +82,22 @@ impl GraphProps {
     }
 
     pub(crate) fn get_constant(&self, name: &str) -> Option<Prop> {
-        let prop_id = self.constant_mapper.get(&(name.to_owned()))?;
+        let prop_id = self.constant_mapper.get_id(name)?;
         let entry = self.constant.get(&prop_id)?;
         entry.as_ref().cloned()
     }
 
     pub(crate) fn get_temporal(&self, name: &str) -> Option<LockedView<'_, TProp>> {
-        let prop_id = self.temporal_mapper.get(&(name.to_owned()))?;
+        let prop_id = self.temporal_mapper.get_id(&(name.to_owned()))?;
         let entry = self.temporal.get(&prop_id)?;
         Some(LockedView::DashMap(entry))
     }
 
-    pub(crate) fn constant_names(&self) -> RwLockReadGuard<Vec<String>> {
+    pub(crate) fn constant_names(&self) -> ArcReadLockedVec<ArcStr> {
         self.constant_mapper.get_keys()
     }
 
-    pub(crate) fn temporal_names(&self) -> RwLockReadGuard<Vec<String>> {
+    pub(crate) fn temporal_names(&self) -> ArcReadLockedVec<ArcStr> {
         self.temporal_mapper.get_keys()
     }
 }

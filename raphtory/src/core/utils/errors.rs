@@ -1,6 +1,7 @@
 use crate::core::{
-    storage::lazy_vec::IllegalSet, utils::time::error::ParseTimeError, Prop, PropType,
+    storage::lazy_vec::IllegalSet, utils::time::error::ParseTimeError, ArcStr, Prop, PropType,
 };
+use std::sync::Arc;
 
 #[cfg(feature = "search")]
 use tantivy;
@@ -29,7 +30,7 @@ pub enum GraphError {
     },
 
     #[error("Tried to mutate constant property {name}: old value {old:?}, new value {new:?}")]
-    ConstantPropertyMutationError { name: String, old: Prop, new: Prop },
+    ConstantPropertyMutationError { name: ArcStr, old: Prop, new: Prop },
 
     #[error("Failed to parse time string")]
     ParseTime {

@@ -36,25 +36,25 @@
 //! graph.add_vertex(
 //!   1,
 //!   "Gandalf",
-//!   [("type".to_string(), Prop::Str("Character".to_string()))],
-//! );
+//!   [("type", Prop::str("Character"))],
+//! ).unwrap();
 //!
 //! graph.add_vertex(
 //!   2,
 //!   "Frodo",
-//!   [("type".to_string(), Prop::Str("Character".to_string()))],
-//! );
+//!   [("type", Prop::str("Character"))],
+//! ).unwrap();
 //!
 //! graph.add_edge(
 //!   3,
 //!   "Gandalf",
 //!   "Frodo",
 //!   [(
-//!       "meeting".to_string(),
-//!       Prop::Str("Character Co-occurrence".to_string()),
+//!       "meeting",
+//!       Prop::str("Character Co-occurrence"),
 //!   )],
 //!   None,
-//! );
+//! ).unwrap();
 //!
 //! // Get the in-degree, out-degree and degree of Gandalf
 //! println!("Number of vertices {:?}", graph.count_vertices());
