@@ -10,7 +10,7 @@ use async_graphql_poem::GraphQL;
 use chrono::NaiveDateTime;
 use itertools::Itertools;
 use poem::{get, listener::TcpListener, middleware::Cors, EndpointExt, Route, Server};
-use raphtory::vectors::{Embedding, Vectorizable};
+use raphtory::vectors::{Embedding, EmbeddingFunction, Vectorizable};
 use raphtory::{
     db::{
         api::view::internal::DynamicGraph,
@@ -19,6 +19,7 @@ use raphtory::{
     prelude::{EdgeViewOps, LayerOps, VertexViewOps},
     vectors::GraphEntity,
 };
+use std::future::Future;
 use std::{collections::HashMap, ops::Deref, path::Path};
 use tokio::{io::Result as IoResult, signal};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry};
@@ -46,7 +47,19 @@ impl RaphtoryServer {
         Self { data }
     }
 
-    pub async fn with_vectorized(self, graph_names: Vec<String>, cache_dir: &Path) -> Self {
+    pub async fn with_vectorized<F, U, N, E>(
+        self,
+        graph_names: Vec<String>,
+        embedding: F,
+        cache_dir: &Path,
+        templates: Option<(N, E)>,
+    ) -> Self
+    where
+        F: Fn(Vec<String>) -> U + Send + Sync + Copy + 'static,
+        U: Future<Output = Vec<Embedding>> + Send + 'static,
+        N: Fn(&VertexView<DynamicGraph>) -> String + Sync + Send + Copy + 'static,
+        E: Fn(&EdgeView<DynamicGraph>) -> String + Sync + Send + Copy + 'static,
+    {
         {
             let graphs_map = self.data.graphs.read();
             let mut stores_map = self.data.vector_stores.write();
@@ -56,19 +69,24 @@ impl RaphtoryServer {
                 let graph = graphs_map.get(&graph_name).unwrap().deref().clone();
 
                 println!("Loading embeddings for {graph_name} using cache from {graph_cache:?}");
-                let vectorized = graph
-                    .vectorize_with_templates(
-                        Box::new(fake_embedding),
-                        &graph_cache,
-                        node_template,
-                        edge_template,
-                    )
-                    .await;
+                let vectorized = match templates {
+                    Some((node_template, edge_template)) => {
+                        graph
+                            .vectorize_with_templates(
+                                Box::new(embedding),
+                                &graph_cache,
+                                node_template,
+                                edge_template,
+                            )
+                            .await
+                    }
+                    None => graph.vectorize(Box::new(embedding), &graph_cache).await,
+                };
                 stores_map.insert(graph_name, vectorized);
             }
         }
 
-        println!("Embeddings were loeaded successfully");
+        println!("Embeddings were loaded successfully");
 
         self
     }
@@ -112,91 +130,6 @@ impl RaphtoryServer {
             .run_with_graceful_shutdown(app, shutdown_signal(), None)
             .await
     }
-}
-
-fn format_time(millis: i64) -> String {
-    if millis == 0 {
-        "unknown time".to_owned()
-    } else {
-        NaiveDateTime::from_timestamp_millis(millis)
-            .unwrap()
-            .format("%Y-%m-%d %H:%M:%S")
-            .to_string()
-    }
-}
-
-// FIXME: replace with OpenAI embeddings !!!!!!!!!!!!!!!!!!!
-async fn fake_embedding(texts: Vec<String>) -> Vec<Embedding> {
-    vec![]
-}
-
-fn node_template(vertex: &VertexView<DynamicGraph>) -> String {
-    let name = vertex
-        .properties()
-        .get("name")
-        .map(|prop| prop.to_string())
-        .unwrap_or_else(|| vertex.name());
-    let node_type = vertex.properties().get("type").map(|prop| prop.to_string());
-    let definition = match node_type {
-        Some(node_type) => match node_type.as_str() {
-            "user" => format!("{name} is an employee of Pometry"),
-            "issue" => format!("{name} is an issue created by the Pometry team"),
-            "sprint" => format!("{name} is a sprint carried out by the Pometry team"),
-            unknown_type => format!("{name} is a {unknown_type}"),
-        },
-        None => format!("{name} is an unknown entity"),
-    };
-
-    let property_list =
-        vertex.generate_property_list(&format_time, vec!["type"], vec!["description", "goal"]);
-
-    let doc = format!("{definition} with the following details:\n{property_list}");
-    // println!("----------------\n{doc}\n----------------\n");
-    doc
-}
-
-fn edge_template(edge: &EdgeView<DynamicGraph>) -> String {
-    let vertex_name = |vertex: VertexView<DynamicGraph>| {
-        vertex
-            .properties()
-            .get("name")
-            .map(|prop| prop.to_string())
-            .unwrap_or_else(|| vertex.name())
-    };
-    let src = vertex_name(edge.src());
-    let dst = vertex_name(edge.dst());
-
-    edge.layer_names()
-        .iter()
-        .map(|layer| {
-            let fact = match layer.as_str() {
-                "reported" => format!("{src} was assigned to report issue {dst}"),
-                "created" => format!("{src} created issue {dst}"),
-                "author" => format!("{src} edited the details of issue {dst}"),
-                "has" => format!("{dst} was included in sprint {src}"),
-                "assigned" => format!("{src} was assigned to work on issue {dst}"),
-                "blocks" => format!("{src} blocks {dst}"),
-                "clones" => format!("issue {src} was cloned into {dst}"),
-                "splits" => format!("issue {src} was split"),
-                "_default" => format!("{src} had an unknown relationship with {dst}"),
-                _ => format!("{src} had an unknown relationship with {dst}"),
-            };
-
-            let times = edge
-                .layer(layer)
-                .unwrap()
-                .history()
-                .iter()
-                .copied()
-                .map(format_time)
-                .next()
-                .unwrap();
-            //.join(",");
-
-            format!("{fact} at time: {times}")
-        })
-        .intersperse("\n".to_owned())
-        .collect()
 }
 
 async fn shutdown_signal() {

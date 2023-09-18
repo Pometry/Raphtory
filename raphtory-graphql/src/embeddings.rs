@@ -3,7 +3,7 @@ use async_openai::Client;
 use itertools::Itertools;
 use raphtory::vectors::Embedding;
 
-async fn compute_embeddings(texts: Vec<String>) -> Vec<Embedding> {
+pub async fn openai_embedding(texts: Vec<String>) -> Vec<Embedding> {
     println!("computing embeddings for {} texts", texts.len());
     let client = Client::new();
     let request = CreateEmbeddingRequest {
