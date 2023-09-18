@@ -72,7 +72,7 @@ pub fn ba_preferential_attachment(graph: &Graph, vertices_to_add: usize, edges_p
         ids.push(max_id);
     }
 
-    if graph.num_edges() < edges_per_step {
+    if graph.count_edges() < edges_per_step {
         for pos in 1..ids.len() {
             graph
                 .add_edge(latest_time, ids[pos], ids[pos - 1], NO_PROPS, None)
@@ -125,8 +125,8 @@ mod preferential_attachment_tests {
     fn blank_graph() {
         let graph = Graph::new();
         ba_preferential_attachment(&graph, 1000, 10);
-        assert_eq!(graph.num_edges(), 10009);
-        assert_eq!(graph.num_vertices(), 1010);
+        assert_eq!(graph.count_edges(), 10009);
+        assert_eq!(graph.count_vertices(), 1010);
     }
 
     #[test]
@@ -140,8 +140,8 @@ mod preferential_attachment_tests {
         }
 
         ba_preferential_attachment(&graph, 1000, 5);
-        assert_eq!(graph.num_edges(), 5009);
-        assert_eq!(graph.num_vertices(), 1010);
+        assert_eq!(graph.count_edges(), 5009);
+        assert_eq!(graph.count_vertices(), 1010);
     }
 
     #[test]
@@ -149,7 +149,7 @@ mod preferential_attachment_tests {
         let graph = Graph::new();
         random_attachment(&graph, 1000, 3);
         ba_preferential_attachment(&graph, 500, 4);
-        assert_eq!(graph.num_edges(), 5000);
-        assert_eq!(graph.num_vertices(), 1503);
+        assert_eq!(graph.count_edges(), 5000);
+        assert_eq!(graph.count_vertices(), 1503);
     }
 }

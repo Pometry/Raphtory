@@ -18,8 +18,8 @@
 //!
 //! let graph = lotr_graph();
 //!
-//! println!("The graph has {:?} vertices", graph.num_vertices());
-//! println!("The graph has {:?} edges", graph.num_edges());
+//! println!("The graph has {:?} vertices", graph.count_vertices());
+//! println!("The graph has {:?} edges", graph.count_edges());
 //! ```
 use crate::{
     graph_loader::{fetch_file, source::csv_loader::CsvLoader},

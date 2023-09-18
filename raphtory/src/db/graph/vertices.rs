@@ -35,7 +35,7 @@ impl<G: GraphViewOps> Vertices<G> {
 
     /// Returns the number of vertices in the graph.
     pub fn len(&self) -> usize {
-        self.graph.num_vertices()
+        self.graph.count_vertices()
     }
 
     /// Returns true if the graph contains no vertices.
