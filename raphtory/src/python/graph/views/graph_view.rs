@@ -1,6 +1,5 @@
 //! The API for querying a view of the graph in a read-only state
 
-use crate::vectors::{Vectorizable, VectorizedGraph};
 use crate::{
     core::{
         entities::vertices::vertex_ref::VertexRef,
@@ -25,10 +24,7 @@ use crate::{
     },
     prelude::*,
     python::{
-        graph::{
-            edge::PyEdges,
-            vertex::{PyVertex, PyVertices},
-        },
+        graph::{edge::PyEdges, vertex::PyVertices},
         types::repr::Repr,
         utils::{PyInterval, PyTime},
     },
@@ -36,10 +32,8 @@ use crate::{
 };
 use chrono::prelude::*;
 use itertools::Itertools;
-use pyo3::prelude::*;
-use pyo3::types::PyFunction;
+use pyo3::{prelude::*, types::PyBytes};
 use std::ops::Deref;
-use std::path::PathBuf;
 
 impl IntoPy<PyObject> for MaterializedGraph {
     fn into_py(self, py: Python<'_>) -> PyObject {
@@ -56,8 +50,23 @@ impl IntoPy<PyObject> for DynamicGraph {
     }
 }
 
+impl<'source> FromPyObject<'source> for DynamicGraph {
+    fn extract(ob: &'source PyAny) -> PyResult<Self> {
+        ob.extract::<PyRef<PyGraphView>>()
+            .map(|g| g.graph.clone())
+            .or_else(|err| {
+                let res = ob.call_method0("bincode").map_err(|_| err)?; // return original error as probably more helpful
+                                                                        // assume we have a graph at this point, the res probably should not fail
+                let b = res.extract::<&[u8]>()?;
+                let g = MaterializedGraph::from_bincode(b)?;
+                Ok(g.into_dynamic())
+            })
+    }
+}
 /// Graph view is a read-only version of a graph at a certain point in time.
+
 #[pyclass(name = "GraphView", frozen, subclass)]
+#[repr(C)]
 pub struct PyGraphView {
     pub graph: DynamicGraph,
 }
@@ -93,8 +102,9 @@ impl<G: GraphViewOps + IntoDynamic> IntoPy<PyObject> for VertexSubgraph<G> {
 #[pymethods]
 impl PyGraphView {
     /// Return all the layer ids in the graph
-    pub fn get_unique_layers(&self) -> Vec<String> {
-        self.graph.get_unique_layers()
+    #[getter]
+    pub fn unique_layers(&self) -> Vec<String> {
+        self.graph.unique_layers()
     }
 
     //******  Metrics APIs ******//
@@ -103,6 +113,7 @@ impl PyGraphView {
     ///
     /// Returns:
     ///     the timestamp of the earliest activity in the graph
+    #[getter]
     pub fn earliest_time(&self) -> Option<i64> {
         self.graph.earliest_time()
     }
@@ -111,15 +122,17 @@ impl PyGraphView {
     ///
     /// Returns:
     ///     the datetime of the earliest activity in the graph
+    #[getter]
     pub fn earliest_date_time(&self) -> Option<NaiveDateTime> {
         let earliest_time = self.graph.earliest_time()?;
-        Some(NaiveDateTime::from_timestamp_millis(earliest_time).unwrap())
+        NaiveDateTime::from_timestamp_millis(earliest_time)
     }
 
     /// Timestamp of latest activity in the graph
     ///
     /// Returns:
     ///     the timestamp of the latest activity in the graph
+    #[getter]
     pub fn latest_time(&self) -> Option<i64> {
         self.graph.latest_time()
     }
@@ -128,25 +141,34 @@ impl PyGraphView {
     ///
     /// Returns:
     ///     the datetime of the latest activity in the graph
+    #[getter]
     pub fn latest_date_time(&self) -> Option<NaiveDateTime> {
         let latest_time = self.graph.latest_time()?;
-        Some(NaiveDateTime::from_timestamp_millis(latest_time).unwrap())
+        NaiveDateTime::from_timestamp_millis(latest_time)
     }
 
     /// Number of edges in the graph
     ///
     /// Returns:
     ///    the number of edges in the graph
-    pub fn num_edges(&self) -> usize {
-        self.graph.num_edges()
+    pub fn count_edges(&self) -> usize {
+        self.graph.count_edges()
+    }
+
+    /// Number of edges in the graph
+    ///
+    /// Returns:
+    ///    the number of temporal edges in the graph
+    pub fn count_temporal_edges(&self) -> usize {
+        self.graph.count_temporal_edges()
     }
 
     /// Number of vertices in the graph
     ///
     /// Returns:
     ///   the number of vertices in the graph
-    pub fn num_vertices(&self) -> usize {
-        self.graph.num_vertices()
+    pub fn count_vertices(&self) -> usize {
+        self.graph.count_vertices()
     }
 
     /// Returns true if the graph contains the specified vertex
@@ -225,6 +247,7 @@ impl PyGraphView {
     ///
     /// Returns:
     ///     the default start time for perspectives over the view
+    #[getter]
     pub fn start(&self) -> Option<i64> {
         self.graph.start()
     }
@@ -233,15 +256,17 @@ impl PyGraphView {
     ///
     /// Returns:
     ///     the default start datetime for perspectives over the view
+    #[getter]
     pub fn start_date_time(&self) -> Option<NaiveDateTime> {
         let start_time = self.graph.start()?;
-        Some(NaiveDateTime::from_timestamp_millis(start_time).unwrap())
+        NaiveDateTime::from_timestamp_millis(start_time)
     }
 
     /// Returns the default end time for perspectives over the view
     ///
     /// Returns:
     ///    the default end time for perspectives over the view
+    #[getter]
     pub fn end(&self) -> Option<i64> {
         self.graph.end()
     }
@@ -255,9 +280,10 @@ impl PyGraphView {
     ///
     /// Returns:
     ///    the default end datetime for perspectives over the view
+    #[getter]
     pub fn end_date_time(&self) -> Option<NaiveDateTime> {
         let end_time = self.graph.end()?;
-        Some(NaiveDateTime::from_timestamp_millis(end_time).unwrap())
+        NaiveDateTime::from_timestamp_millis(end_time)
     }
 
     /// Creates a `WindowSet` with the given `step` size and optional `start` and `end` times,    
@@ -376,6 +402,12 @@ impl PyGraphView {
         self.graph.materialize()
     }
 
+    /// Get bincode encoded graph
+    pub fn bincode<'py>(&'py self, py: Python<'py>) -> Result<&'py PyBytes, GraphError> {
+        let bytes = self.graph.materialize()?.bincode()?;
+        Ok(PyBytes::new(py, &bytes))
+    }
+
     /// Displays the graph
     pub fn __repr__(&self) -> String {
         self.repr()
@@ -384,26 +416,27 @@ impl PyGraphView {
 
 impl Repr for PyGraphView {
     fn repr(&self) -> String {
-        let num_edges = self.graph.num_edges();
-        let num_vertices = self.graph.num_vertices();
-        let earliest_time = self.graph.earliest_time().unwrap_or_default();
-        let latest_time = self.graph.latest_time().unwrap_or_default();
+        let num_edges = self.graph.count_edges();
+        let num_vertices = self.graph.count_vertices();
+        let num_temporal_edges: usize = self.graph.count_temporal_edges();
+        let earliest_time = self.graph.earliest_time().repr();
+        let latest_time = self.graph.latest_time().repr();
         let properties: String = self
             .graph
             .properties()
             .iter()
             .map(|(k, v)| format!("{}: {}", k.deref(), v))
             .join(", ");
-        if (properties.is_empty()) {
+        if properties.is_empty() {
             return format!(
-                "Graph(number_of_edges={:?}, number_of_vertices={:?}, earliest_time={:?}, latest_time={:?})",
-                num_edges, num_vertices, earliest_time, latest_time
+                "Graph(number_of_edges={:?}, number_of_vertices={:?}, number_of_temporal_edges={:?}, earliest_time={:?}, latest_time={:?})",
+                num_edges, num_vertices, num_temporal_edges, earliest_time, latest_time
             );
         } else {
             let property_string: String = format!("{{{properties}}}");
             return format!(
-                "Graph(number_of_edges={:?}, number_of_vertices={:?}, earliest_time={:?}, latest_time={:?}, properties={})",
-                num_edges, num_vertices, earliest_time, latest_time, property_string
+                "Graph(number_of_edges={:?}, number_of_vertices={:?}, number_of_temporal_edges={:?}, earliest_time={:?}, latest_time={:?}, properties={})",
+                num_edges, num_vertices, num_temporal_edges, earliest_time, latest_time, property_string
             );
         }
     }

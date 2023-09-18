@@ -1,6 +1,7 @@
 use crate::server::RaphtoryServer;
 use clap::Parser;
 use dotenv::dotenv;
+use raphtory::prelude::Graph;
 use raphtory::{
     db::{
         api::view::internal::DynamicGraph,
@@ -60,7 +61,7 @@ async fn main() {
 
 use itertools::Itertools;
 
-fn node_template(vertex: &VertexView<DynamicGraph>) -> String {
+fn node_template(vertex: &VertexView<Graph>) -> String {
     let name = vertex
         .properties()
         .get("name")
@@ -85,8 +86,8 @@ fn node_template(vertex: &VertexView<DynamicGraph>) -> String {
     doc
 }
 
-fn edge_template(edge: &EdgeView<DynamicGraph>) -> String {
-    let vertex_name = |vertex: VertexView<DynamicGraph>| {
+fn edge_template(edge: &EdgeView<Graph>) -> String {
+    let vertex_name = |vertex: VertexView<Graph>| {
         vertex
             .properties()
             .get("name")

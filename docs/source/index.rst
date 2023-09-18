@@ -28,7 +28,7 @@ Algorithms
 Visualisation
 -------------------
 
-.. automodule:: raphtory.vis
+.. automodule:: raphtory.export
    :autosummary:
    :members:
    :undoc-members:

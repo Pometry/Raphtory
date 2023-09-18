@@ -7,20 +7,16 @@ use crate::{
     routes::{graphql_playground, health},
 };
 use async_graphql_poem::GraphQL;
-use chrono::NaiveDateTime;
-use itertools::Itertools;
 use poem::{get, listener::TcpListener, middleware::Cors, EndpointExt, Route, Server};
-use raphtory::vectors::{Embedding, EmbeddingFunction, Vectorizable};
-use raphtory::{
-    db::{
-        api::view::internal::DynamicGraph,
-        graph::{edge::EdgeView, vertex::VertexView},
-    },
-    prelude::{EdgeViewOps, LayerOps, VertexViewOps},
-    vectors::GraphEntity,
-};
+use raphtory::db::graph::edge::EdgeView;
+use raphtory::db::graph::vertex::VertexView;
+use raphtory::prelude::Graph;
+use raphtory::vectors::Embedding;
+use raphtory::vectors::Vectorizable;
+use std::collections::HashMap;
 use std::future::Future;
-use std::{collections::HashMap, ops::Deref, path::Path};
+use std::ops::Deref;
+use std::path::Path;
 use tokio::{io::Result as IoResult, signal};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry};
 
@@ -29,7 +25,7 @@ pub struct RaphtoryServer {
 }
 
 impl RaphtoryServer {
-    pub fn from_map(graphs: HashMap<String, DynamicGraph>) -> Self {
+    pub fn from_map(graphs: HashMap<String, Graph>) -> Self {
         let data = Data::from_map(graphs);
         Self { data }
     }
@@ -39,10 +35,7 @@ impl RaphtoryServer {
         Self { data }
     }
 
-    pub fn from_map_and_directory(
-        graphs: HashMap<String, DynamicGraph>,
-        graph_directory: &str,
-    ) -> Self {
+    pub fn from_map_and_directory(graphs: HashMap<String, Graph>, graph_directory: &str) -> Self {
         let data = Data::from_map_and_directory(graphs, graph_directory);
         Self { data }
     }
@@ -57,8 +50,8 @@ impl RaphtoryServer {
     where
         F: Fn(Vec<String>) -> U + Send + Sync + Copy + 'static,
         U: Future<Output = Vec<Embedding>> + Send + 'static,
-        N: Fn(&VertexView<DynamicGraph>) -> String + Sync + Send + Copy + 'static,
-        E: Fn(&EdgeView<DynamicGraph>) -> String + Sync + Send + Copy + 'static,
+        N: Fn(&VertexView<Graph>) -> String + Sync + Send + Copy + 'static,
+        E: Fn(&EdgeView<Graph>) -> String + Sync + Send + Copy + 'static,
     {
         {
             let graphs_map = self.data.graphs.read();

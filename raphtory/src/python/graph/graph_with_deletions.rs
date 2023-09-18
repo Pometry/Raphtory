@@ -6,18 +6,21 @@
 //! It is a wrapper around a set of shards, which are the actual graph data structures.
 //! In Python, this class wraps around the rust graph.
 use crate::{
-    core::{utils::errors::GraphError, Prop},
+    core::{entities::vertices::vertex_ref::VertexRef, utils::errors::GraphError, Prop},
     db::{
-        api::mutation::{AdditionOps, PropertyAdditionOps},
+        api::{
+            mutation::{AdditionOps, PropertyAdditionOps},
+            view::internal::MaterializedGraph,
+        },
         graph::{edge::EdgeView, vertex::VertexView, views::deletion_graph::GraphWithDeletions},
     },
-    prelude::DeletionOps,
+    prelude::{DeletionOps, GraphViewOps},
     python::{
         graph::views::graph_view::PyGraphView,
         utils::{PyInputVertex, PyTime},
     },
 };
-use pyo3::prelude::*;
+use pyo3::{prelude::*, types::PyBytes};
 use std::{
     collections::HashMap,
     fmt::{Debug, Formatter},
@@ -105,22 +108,6 @@ impl PyGraphWithDeletions {
             .add_vertex(timestamp, id, properties.unwrap_or_default())
     }
 
-    /// Adds properties to an existing vertex.
-    ///
-    /// Arguments:
-    ///     id (str or int): The id of the vertex.
-    ///     properties (dict): The properties of the vertex.
-    ///
-    /// Returns:
-    ///    None
-    pub fn add_vertex_properties(
-        &self,
-        id: PyInputVertex,
-        properties: HashMap<String, Prop>,
-    ) -> Result<(), GraphError> {
-        self.graph.add_vertex_properties(id, properties)
-    }
-
     /// Adds properties to the graph.
     ///
     /// Arguments:
@@ -144,8 +131,11 @@ impl PyGraphWithDeletions {
     ///
     /// Returns:
     ///    None
-    pub fn add_static_property(&self, properties: HashMap<String, Prop>) -> Result<(), GraphError> {
-        self.graph.add_static_properties(properties)
+    pub fn add_constant_properties(
+        &self,
+        properties: HashMap<String, Prop>,
+    ) -> Result<(), GraphError> {
+        self.graph.add_constant_properties(properties)
     }
 
     /// Adds a new edge with the given source and destination vertices and properties to the graph.
@@ -192,25 +182,31 @@ impl PyGraphWithDeletions {
         self.graph.delete_edge(timestamp, src, dst, layer)
     }
 
-    /// Adds properties to an existing edge.
+    //FIXME: This is reimplemented here to get mutable views. If we switch the underlying graph to enum dispatch, this won't be necessary!
+    /// Gets the vertex with the specified id
     ///
     /// Arguments:
-    ///    src (str or int): The id of the source vertex.
-    ///    dst (str or int): The id of the destination vertex.
-    ///    properties (dict): The properties of the edge, as a dict of string and properties
-    ///    layer (str): The layer of the edge.
+    ///   id (str or int): the vertex id
     ///
     /// Returns:
-    ///  None
-    #[pyo3(signature = (src, dst, properties, layer=None))]
-    pub fn add_edge_properties(
-        &self,
-        src: PyInputVertex,
-        dst: PyInputVertex,
-        properties: HashMap<String, Prop>,
-        layer: Option<&str>,
-    ) -> Result<(), GraphError> {
-        self.graph.add_edge_properties(src, dst, properties, layer)
+    ///   the vertex with the specified id, or None if the vertex does not exist
+    pub fn vertex(&self, id: VertexRef) -> Option<VertexView<GraphWithDeletions>> {
+        self.graph.vertex(id)
+    }
+
+    //FIXME: This is reimplemented here to get mutable views. If we switch the underlying graph to enum dispatch, this won't be necessary!
+    /// Gets the edge with the specified source and destination vertices
+    ///
+    /// Arguments:
+    ///     src (str or int): the source vertex id
+    ///     dst (str or int): the destination vertex id
+    ///     layer (str): the edge layer (optional)
+    ///
+    /// Returns:
+    ///     the edge with the specified source and destination vertices, or None if the edge does not exist
+    #[pyo3(signature = (src, dst))]
+    pub fn edge(&self, src: VertexRef, dst: VertexRef) -> Option<EdgeView<GraphWithDeletions>> {
+        self.graph.edge(src, dst)
     }
 
     //******  Saving And Loading  ******//
@@ -239,5 +235,11 @@ impl PyGraphWithDeletions {
     /// None
     pub fn save_to_file(&self, path: &str) -> Result<(), GraphError> {
         self.graph.save_to_file(Path::new(path))
+    }
+
+    /// Get bincode encoded graph
+    pub fn bincode<'py>(&'py self, py: Python<'py>) -> Result<&'py PyBytes, GraphError> {
+        let bytes = MaterializedGraph::from(self.graph.clone()).bincode()?;
+        Ok(PyBytes::new(py, &bytes))
     }
 }

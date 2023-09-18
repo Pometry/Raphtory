@@ -20,6 +20,7 @@ use crate::{
             LayerIds, EID, VID,
         },
         storage::{
+            lazy_vec::IllegalSet,
             locked_view::LockedView,
             timeindex::{AsTime, LayeredIndex, TimeIndexEntry, TimeIndexOps},
             ArcEntry, Entry,
@@ -76,10 +77,10 @@ pub struct TemporalGraph<const N: usize> {
     pub(in crate::core) latest_time: MaxCounter,
 
     // props meta data for vertices (mapping between strings and ids)
-    pub(in crate::core) vertex_meta: Arc<Meta>,
+    pub(crate) vertex_meta: Arc<Meta>,
 
     // props meta data for edges (mapping between strings and ids)
-    pub(in crate::core) edge_meta: Arc<Meta>,
+    pub(crate) edge_meta: Arc<Meta>,
 
     // graph properties
     pub(crate) graph_props: GraphProps,
@@ -142,6 +143,19 @@ impl<const N: usize> TemporalGraph<N> {
                         .clone()
                 })
                 .collect(),
+        }
+    }
+
+    fn as_local_vertex(&self, v: VertexRef) -> Result<VID, GraphError> {
+        match v {
+            VertexRef::Internal(vid) => Ok(vid),
+            VertexRef::External(gid) => self
+                .logical_to_physical
+                .get(&gid)
+                .map(|entry| *entry)
+                .ok_or(GraphError::FailedToMutateGraph {
+                    source: MutateGraphError::VertexNotFoundError { vertex_id: gid },
+                }),
         }
     }
 
@@ -285,7 +299,6 @@ impl<const N: usize> TemporalGraph<N> {
     pub(crate) fn internal_num_vertices(&self) -> usize {
         self.storage.nodes.len()
     }
-
     #[inline]
     pub(crate) fn num_edges(&self, layers: &LayerIds, filter: Option<&EdgeFilter>) -> usize {
         match filter {
@@ -338,10 +351,18 @@ impl<const N: usize> TemporalGraph<N> {
         self.latest_time.update(t);
     }
 
+    /// return local id for vertex, initialising storage if vertex does not exist yet
+    pub(crate) fn resolve_vertex(&self, id: u64) -> VID {
+        *(self.logical_to_physical.entry(id).or_insert_with(|| {
+            let node_store = VertexStore::empty(id);
+            self.storage.push_node(node_store)
+        }))
+    }
+
     pub(crate) fn add_vertex_internal(
         &self,
         time: TimeIndexEntry,
-        v: u64,
+        v_id: VID,
         name: Option<&str>,
         props: Vec<(String, Prop)>,
     ) -> Result<VID, GraphError> {
@@ -354,19 +375,12 @@ impl<const N: usize> TemporalGraph<N> {
             .collect::<Vec<_>>();
 
         let name_prop = name
-            .or_else(|| v.id_str())
             .map(|n| {
                 self.vertex_meta
                     .resolve_prop_ids(vec![("_id".to_string(), Prop::Str(n.to_owned()))], true)
                     .collect::<Vec<_>>()
             })
             .unwrap_or_default();
-
-        // update the logical to physical mapping if needed
-        let v_id = *(self.logical_to_physical.entry(v.id()).or_insert_with(|| {
-            let node_store = VertexStore::new(v.id(), time);
-            self.storage.push_node(node_store)
-        }));
 
         // get the node and update the time index
         let mut node = self.storage.get_node_mut(v_id);
@@ -381,7 +395,7 @@ impl<const N: usize> TemporalGraph<N> {
         for (prop_id, prop) in name_prop {
             node.add_static_prop(prop_id, prop).map_err(|err| {
                 MutateGraphError::IllegalVertexPropertyChange {
-                    vertex_id: v,
+                    vertex_id: node.global_id(),
                     source: IllegalMutate::from_source(err, "_id"),
                 }
             })?;
@@ -390,19 +404,15 @@ impl<const N: usize> TemporalGraph<N> {
         Ok(v_id)
     }
 
-    pub(crate) fn add_vertex_no_props(&self, t: TimeIndexEntry, v: u64) -> Result<VID, GraphError> {
+    pub(crate) fn add_vertex_no_props(
+        &self,
+        t: TimeIndexEntry,
+        v_id: VID,
+    ) -> Result<VID, GraphError> {
         self.update_time(t);
-
-        // update the logical to physical mapping if needed
-        let v_id = *(self.logical_to_physical.entry(v.id()).or_insert_with(|| {
-            let node_store = VertexStore::new(v.id(), t);
-            self.storage.push_node(node_store)
-        }));
-
         // get the node and update the time index
         let mut node = self.storage.get_node_mut(v_id);
         node.update_time(t);
-
         Ok(v_id)
     }
 
@@ -434,47 +444,10 @@ impl<const N: usize> TemporalGraph<N> {
 
     pub(crate) fn add_edge_properties_internal(
         &self,
-        src: u64,
-        dst: u64,
+        edge_id: EID,
         props: Vec<(String, Prop)>,
-        layer: Option<&str>,
-    ) -> Result<(), GraphError> {
-        let src_id = self
-            .logical_to_physical
-            .get(&src)
-            .map(|entry| *entry)
-            .ok_or(GraphError::FailedToMutateGraph {
-                source: MutateGraphError::VertexNotFoundError { vertex_id: src },
-            })?;
-
-        let dst_id = self
-            .logical_to_physical
-            .get(&dst)
-            .map(|entry| *entry)
-            .ok_or(GraphError::FailedToMutateGraph {
-                source: MutateGraphError::VertexNotFoundError { vertex_id: dst },
-            })?;
-
-        let layer_id = layer
-            .map(|name| {
-                self.edge_meta
-                    .get_layer_id(name)
-                    .ok_or(GraphError::FailedToMutateGraph {
-                        source: MutateGraphError::LayerNotFoundError {
-                            layer_name: name.to_string(),
-                        },
-                    })
-            })
-            .unwrap_or(Ok(0))?;
-
-        let edge_id = self
-            .storage
-            .get_node(src_id)
-            .find_edge(dst_id.into(), &(layer_id.into()))
-            .ok_or(GraphError::FailedToMutateGraph {
-                source: MutateGraphError::MissingEdge(src.id(), dst.id()),
-            })?;
-
+        layer: usize,
+    ) -> Result<(), IllegalMutate> {
         let mut edge = self.storage.get_edge_mut(edge_id.into());
 
         let props = self
@@ -482,23 +455,13 @@ impl<const N: usize> TemporalGraph<N> {
             .resolve_prop_ids(props, true)
             .collect::<Vec<_>>();
 
-        let mut layer = edge.layer_mut(layer_id);
+        let mut layer = edge.layer_mut(layer);
         for (prop_id, prop) in props {
             layer.add_static_prop(prop_id, prop).map_err(|err| {
-                GraphError::FailedToMutateGraph {
-                    source: MutateGraphError::IllegalEdgePropertyChange {
-                        src_id: src,
-                        dst_id: dst,
-                        source: IllegalMutate {
-                            name: self
-                                .edge_meta
-                                .reverse_prop_id(prop_id, true)
-                                .expect("resolved prop ids exist")
-                                .clone(),
-                            source: err,
-                        },
-                    },
-                }
+                IllegalMutate::from_source(
+                    err,
+                    &self.edge_meta.reverse_prop_id(prop_id, true).unwrap(),
+                )
             })?;
         }
         Ok(())
@@ -506,7 +469,7 @@ impl<const N: usize> TemporalGraph<N> {
 
     pub(crate) fn add_static_property(&self, props: Vec<(String, Prop)>) -> Result<(), GraphError> {
         for (name, prop) in props {
-            self.graph_props.add_static_prop(&name, prop.clone());
+            self.graph_props.add_static_prop(&name, prop);
         }
         Ok(())
     }
@@ -517,7 +480,7 @@ impl<const N: usize> TemporalGraph<N> {
         props: Vec<(String, Prop)>,
     ) -> Result<(), GraphError> {
         for (name, prop) in props {
-            self.graph_props.add_prop(t, &name, prop.clone())?;
+            self.graph_props.add_prop(t, &name, prop)?;
         }
         Ok(())
     }
@@ -541,16 +504,14 @@ impl<const N: usize> TemporalGraph<N> {
     pub(crate) fn delete_edge(
         &self,
         t: TimeIndexEntry,
-        src: u64,
-        dst: u64,
-        layer: Option<&str>,
+        src: VID,
+        dst: VID,
+        layer: usize,
     ) -> Result<(), GraphError> {
         self.update_time(t);
 
         let src_id = self.add_vertex_no_props(t, src)?;
         let dst_id = self.add_vertex_no_props(t, dst)?;
-
-        let layer = self.get_or_allocate_layer(layer);
 
         if let Some(e_id) = self.find_edge(src_id, dst_id, &(layer.into())) {
             let mut edge = self.storage.get_edge_mut(e_id.into());
@@ -567,7 +528,7 @@ impl<const N: usize> TemporalGraph<N> {
 
     fn get_or_allocate_layer(&self, layer: Option<&str>) -> usize {
         layer
-            .map(|layer| self.edge_meta.get_or_create_layer_id(layer.to_owned()))
+            .map(|layer| self.edge_meta.get_or_create_layer_id(layer))
             .unwrap_or(0)
     }
 
@@ -604,16 +565,11 @@ impl<const N: usize> TemporalGraph<N> {
     pub(crate) fn add_edge_internal(
         &self,
         t: TimeIndexEntry,
-        src: u64,
-        dst: u64,
+        src_id: VID,
+        dst_id: VID,
         props: Vec<(String, Prop)>,
-        layer: Option<&str>,
+        layer: usize,
     ) -> Result<EID, GraphError> {
-        let src_id = self.add_vertex_no_props(t, src)?;
-        let dst_id = self.add_vertex_no_props(t, dst)?;
-
-        let layer = self.get_or_allocate_layer(layer);
-
         // resolve all props ahead of time to minimise the time spent holding locks
         let props: Vec<_> = self.edge_meta.resolve_prop_ids(props, false).collect();
 

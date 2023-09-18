@@ -28,13 +28,13 @@ def setup():
         3: KuzuBench(),
         4: NetworkXBench(),
         5: Neo4jBench(),
-        6: MemgraphBench()
+        6: MemgraphBench(),
     }
 
 
 def run_benchmark(choice):
     driver = setup()[choice]
-    fns = ['setup', 'degree', 'out_neighbours', 'page_rank', 'connected_components']
+    fns = ["setup", "degree", "out_neighbours", "page_rank", "connected_components"]
     for fn in fns:
         print("** Running " + fn + "...")
         start_time = time.time()

@@ -81,8 +81,8 @@ mod random_graph_test {
     fn blank_graph() {
         let graph = Graph::new();
         random_attachment(&graph, 100, 20);
-        assert_eq!(graph.num_edges(), 2000);
-        assert_eq!(graph.num_vertices(), 120);
+        assert_eq!(graph.count_edges(), 2000);
+        assert_eq!(graph.count_vertices(), 120);
     }
 
     #[test]
@@ -96,8 +96,8 @@ mod random_graph_test {
         }
 
         random_attachment(&graph, 1000, 5);
-        assert_eq!(graph.num_edges(), 5000);
-        assert_eq!(graph.num_vertices(), 1010);
+        assert_eq!(graph.count_edges(), 5000);
+        assert_eq!(graph.count_vertices(), 1010);
     }
 
     #[test]
@@ -105,7 +105,7 @@ mod random_graph_test {
         let graph = Graph::new();
         ba_preferential_attachment(&graph, 300, 7);
         random_attachment(&graph, 4000, 12);
-        assert_eq!(graph.num_edges(), 50106);
-        assert_eq!(graph.num_vertices(), 4307);
+        assert_eq!(graph.count_edges(), 50106);
+        assert_eq!(graph.count_vertices(), 4307);
     }
 }

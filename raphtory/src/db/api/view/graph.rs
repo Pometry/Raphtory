@@ -35,21 +35,24 @@ pub trait GraphViewOps: BoxableGraphView + Clone + Sized {
         vertices: I,
     ) -> VertexSubgraph<Self>;
     /// Return all the layer ids in the graph
-    fn get_unique_layers(&self) -> Vec<String>;
+    fn unique_layers(&self) -> Vec<String>;
     /// Timestamp of earliest activity in the graph
     fn earliest_time(&self) -> Option<i64>;
     /// Timestamp of latest activity in the graph
     fn latest_time(&self) -> Option<i64>;
     /// Return the number of vertices in the graph.
-    fn num_vertices(&self) -> usize;
+    fn count_vertices(&self) -> usize;
 
     /// Check if the graph is empty.
     fn is_empty(&self) -> bool {
-        self.num_vertices() == 0
+        self.count_vertices() == 0
     }
 
     /// Return the number of edges in the graph.
-    fn num_edges(&self) -> usize;
+    fn count_edges(&self) -> usize;
+
+    // Return the number of temporal edges in the graph.
+    fn count_temporal_edges(&self) -> usize;
 
     /// Check if the graph contains a vertex `v`.
     fn has_vertex<T: Into<VertexRef>>(&self, v: T) -> bool;
@@ -100,7 +103,7 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
     }
 
     /// Return all the layer ids in the graph
-    fn get_unique_layers(&self) -> Vec<String> {
+    fn unique_layers(&self) -> Vec<String> {
         self.get_layer_names_from_ids(self.layer_ids())
     }
 
@@ -112,12 +115,16 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
         self.latest_time_global()
     }
 
-    fn num_vertices(&self) -> usize {
+    fn count_vertices(&self) -> usize {
         self.vertices_len(self.layer_ids(), self.edge_filter())
     }
 
+    fn count_temporal_edges(&self) -> usize {
+        self.edges().explode().count()
+    }
+
     #[inline]
-    fn num_edges(&self) -> usize {
+    fn count_edges(&self) -> usize {
         self.edges_len(self.layer_ids(), self.edge_filter())
     }
 
@@ -186,7 +193,7 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
 
                 for ee in ee.explode() {
                     g.add_edge(
-                        ee.time().unwrap(),
+                        ee.time().expect("exploded edge"),
                         ee.src().id(),
                         ee.dst().id(),
                         ee.properties().temporal().collect_properties(),
@@ -200,12 +207,9 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
                     }
                 }
 
-                g.add_edge_properties(
-                    ee.src().id(),
-                    ee.dst().id(),
-                    ee.properties().constant(),
-                    layer_name,
-                )?;
+                g.edge(ee.src().id(), ee.dst().id())
+                    .expect("edge added")
+                    .add_constant_properties(ee.properties().constant(), layer_name)?;
             }
         }
 
@@ -218,10 +222,12 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
                     g.add_vertex(t, v.id(), [(name.clone(), prop)])?;
                 }
             }
-            g.add_vertex_properties(v.id(), v.properties().constant())?;
+            g.vertex(v.id())
+                .expect("vertex added")
+                .add_constant_properties(v.properties().constant())?;
         }
 
-        g.add_static_properties(self.properties().constant())?;
+        g.add_constant_properties(self.properties().constant())?;
 
         Ok(self.new_base_graph(g))
     }
@@ -257,6 +263,22 @@ impl<G: GraphViewOps> LayerOps for G {
             LayerIds::None => None,
             _ => Some(LayeredGraph::new(self.clone(), ids)),
         }
+    }
+}
+
+#[cfg(test)]
+mod test_exploded_edges {
+    use crate::prelude::*;
+
+    #[test]
+    fn test_exploded_edges() {
+        let g: Graph = Graph::new();
+        g.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
+        g.add_edge(1, 0, 1, NO_PROPS, None).unwrap();
+        g.add_edge(2, 0, 1, NO_PROPS, None).unwrap();
+        g.add_edge(3, 0, 1, NO_PROPS, None).unwrap();
+
+        assert_eq!(g.count_temporal_edges(), 4)
     }
 }
 

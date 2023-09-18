@@ -22,7 +22,6 @@ use pyo3::{
     prelude::*,
 };
 use std::{collections::HashMap, ops::Deref, sync::Arc};
-use tantivy::HasLen;
 
 pub type DynTemporalProperties = TemporalProperties<DynProps>;
 pub type DynTemporalProperty = TemporalPropertyView<DynProps>;
@@ -266,12 +265,8 @@ impl PyTemporalProp {
         it_iter.fold(first, |acc, elem| if acc.1 >= elem.1 { acc } else { elem })
     }
 
-    pub fn len(&self) -> usize {
-        self.prop.iter().count()
-    }
-
     pub fn count(&self) -> usize {
-        self.len()
+        self.prop.iter().count()
     }
 
     pub fn average(&self) -> Option<Prop> {
@@ -280,11 +275,16 @@ impl PyTemporalProp {
 
     pub fn mean(&self) -> Option<Prop> {
         let sum: Prop = self.sum();
-        let count: usize = self.len();
+        let count: usize = self.count();
+        if count == 0 {
+            return None;
+        }
         match sum {
             Prop::I32(s) => Some(Prop::F32(s as f32 / count as f32)),
             Prop::I64(s) => Some(Prop::F64(s as f64 / count as f64)),
             Prop::U32(s) => Some(Prop::F32(s as f32 / count as f32)),
+            Prop::U8(s) => Some(Prop::F64(s as f64 / count as f64)), // needs a test
+            Prop::U16(s) => Some(Prop::F64(s as f64 / count as f64)), // needs a test
             Prop::U64(s) => Some(Prop::F64(s as f64 / count as f64)),
             Prop::F32(s) => Some(Prop::F32(s / count as f32)),
             Prop::F64(s) => Some(Prop::F64(s / count as f64)),
@@ -544,6 +544,7 @@ py_iterable_comp!(
 
 #[pymethods]
 impl PyTemporalPropList {
+    #[getter]
     pub fn history(&self) -> PyPropHistList {
         let builder = self.builder.clone();
         (move || builder().map(|p| p.map(|v| v.history()).unwrap_or_default())).into()
@@ -723,6 +724,7 @@ py_iterable_comp!(
 
 #[pymethods]
 impl PyTemporalPropListList {
+    #[getter]
     pub fn history(&self) -> PyPropHistListList {
         let builder = self.builder.clone();
         (move || builder().map(|it| it.map(|p| p.map(|v| v.history()).unwrap_or_default()))).into()
@@ -822,8 +824,12 @@ impl PyPropHistValueListList {
                         _ => Some(elem),
                     });
                     let count = itit_iter.count();
-
+                    if count == 0 {
+                        return None;
+                    }
                     match sum {
+                        Some(Prop::U8(s)) => Some(Prop::U8(s / count as u8)),
+                        Some(Prop::U16(s)) => Some(Prop::U16(s / count as u16)),
                         Some(Prop::I32(s)) => Some(Prop::I32(s / count as i32)),
                         Some(Prop::I64(s)) => Some(Prop::I64(s / count as i64)),
                         Some(Prop::U32(s)) => Some(Prop::U32(s / count as u32)),
@@ -861,8 +867,8 @@ impl PropIterable {
         }
     }
 
-    pub fn len(&self) -> usize {
-        self.collect().len()
+    pub fn count(&self) -> usize {
+        self.iter().count()
     }
 
     pub fn min(&self) -> PropValue {
@@ -898,7 +904,12 @@ impl PropIterable {
     pub fn mean(&self) -> PropValue {
         let sum: PropValue = self.sum();
         let count: usize = self.iter().collect::<Vec<Prop>>().len();
+        if count == 0 {
+            return None;
+        }
         match sum {
+            Some(Prop::U8(s)) => Some(Prop::F64(s as f64 / count as f64)),
+            Some(Prop::U16(s)) => Some(Prop::F64(s as f64 / count as f64)),
             Some(Prop::I32(s)) => Some(Prop::F32(s as f32 / count as f32)),
             Some(Prop::I64(s)) => Some(Prop::F64(s as f64 / count as f64)),
             Some(Prop::U32(s)) => Some(Prop::F32(s as f32 / count as f32)),
@@ -958,10 +969,6 @@ impl PyPropHistValueList {
         .into()
     }
 
-    pub fn len(&self) -> UsizeIterable {
-        self.count()
-    }
-
     pub fn median(&self) -> PyPropValueList {
         let builder = self.builder.clone();
         (move || {
@@ -994,7 +1001,12 @@ impl PyPropHistValueList {
                 let first = it_iter.next();
                 let sum = it_iter.fold(first, |acc, elem| acc.and_then(|val| val.add(elem)));
                 let count = it.len();
+                if count == 0 {
+                    return None;
+                }
                 match sum {
+                    Some(Prop::U8(s)) => Some(Prop::F64(s as f64 / count as f64)),
+                    Some(Prop::U16(s)) => Some(Prop::F64(s as f64 / count as f64)),
                     Some(Prop::I32(s)) => Some(Prop::F32(s as f32 / count as f32)),
                     Some(Prop::I64(s)) => Some(Prop::F64(s as f64 / count as f64)),
                     Some(Prop::U32(s)) => Some(Prop::F32(s as f32 / count as f32)),
@@ -1032,12 +1044,8 @@ impl PyPropValueList {
             .flatten()
     }
 
-    pub fn len(&self) -> usize {
-        self.collect().len()
-    }
-
     pub fn count(&self) -> usize {
-        self.len()
+        self.iter().count()
     }
 
     pub fn min(&self) -> PropValue {
@@ -1088,7 +1096,12 @@ impl PyPropValueList {
     pub fn mean(&self) -> PropValue {
         let sum: PropValue = self.sum();
         let count: usize = self.iter().collect::<Vec<PropValue>>().len();
+        if count == 0 {
+            return None;
+        }
         match sum {
+            Some(Prop::U8(s)) => Some(Prop::F64(s as f64 / count as f64)),
+            Some(Prop::U16(s)) => Some(Prop::F64(s as f64 / count as f64)),
             Some(Prop::I32(s)) => Some(Prop::F32(s as f32 / count as f32)),
             Some(Prop::I64(s)) => Some(Prop::F64(s as f64 / count as f64)),
             Some(Prop::U32(s)) => Some(Prop::F32(s as f32 / count as f32)),
@@ -1176,7 +1189,12 @@ impl PyPropValueListList {
                         _ => None,
                     }
                 });
+                if count == 0 {
+                    return None;
+                }
                 match sum {
+                    Some(Prop::U8(s)) => Some(Prop::F64(s as f64 / count as f64)),
+                    Some(Prop::U16(s)) => Some(Prop::F64(s as f64 / count as f64)),
                     Some(Prop::I32(s)) => Some(Prop::F32(s as f32 / count as f32)),
                     Some(Prop::I64(s)) => Some(Prop::F64(s as f64 / count as f64)),
                     Some(Prop::U32(s)) => Some(Prop::F32(s as f32 / count as f32)),
@@ -1218,10 +1236,6 @@ impl PyPropValueListList {
     pub fn count(&self) -> UsizeIterable {
         let builder = self.builder.clone();
         (move || builder().map(|it| it.count())).into()
-    }
-
-    pub fn len(&self) -> UsizeIterable {
-        self.count()
     }
 
     pub fn drop_none(&self) -> PyPropValueListList {

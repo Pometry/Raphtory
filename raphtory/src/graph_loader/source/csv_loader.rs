@@ -126,6 +126,8 @@ pub struct CsvLoader {
     header: bool,
     /// The delimiter character used in the CSV file.
     delimiter: u8,
+    /// print the name of the file being loaded
+    print_file_name: bool,
 }
 
 impl CsvLoader {
@@ -148,6 +150,7 @@ impl CsvLoader {
             regex_filter: None,
             header: false,
             delimiter: b',',
+            print_file_name: false,
         }
     }
 
@@ -165,6 +168,22 @@ impl CsvLoader {
     /// ```
     pub fn set_header(mut self, h: bool) -> Self {
         self.header = h;
+        self
+    }
+
+    /// If set to true will print the file name as it reads it
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - A boolean value indicating whether the CSV file has a header.
+    ///
+    /// # Example
+    /// ```no_run
+    /// use raphtory::graph_loader::source::csv_loader::CsvLoader;
+    /// let loader = CsvLoader::new("/path/to/csv_file.csv").set_print_file_name(true);
+    /// ```
+    pub fn set_print_file_name(mut self, p: bool) -> Self {
+        self.print_file_name = p;
         self
     }
 
@@ -373,7 +392,9 @@ impl CsvLoader {
         F: Fn(REC, &G),
     {
         let file_path: PathBuf = path.into();
-
+        if self.print_file_name {
+            println!("Loading file: {:?}", file_path);
+        }
         let mut csv_reader = self.csv_reader(file_path)?;
         let records_iter = csv_reader.deserialize::<REC>();
 

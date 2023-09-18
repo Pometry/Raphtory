@@ -21,7 +21,7 @@ pub use exploded_edge_ops::ExplodedEdgeOps;
 pub use graph_ops::*;
 pub use inherit::Base;
 pub use into_dynamic::IntoDynamic;
-pub use layer_ops::*;
+pub use layer_ops::{DelegateLayerOps, InheritLayerOps, InternalLayerOps};
 pub use materialize::*;
 use std::{
     fmt::{Debug, Formatter},
@@ -34,7 +34,7 @@ pub trait BoxableGraphView:
     CoreGraphOps
     + GraphOps
     + EdgeFilterOps
-    + LayerOps
+    + InternalLayerOps
     + TimeSemantics
     + InternalMaterialize
     + PropertiesOps
@@ -49,7 +49,7 @@ impl<
         G: CoreGraphOps
             + GraphOps
             + EdgeFilterOps
-            + LayerOps
+            + InternalLayerOps
             + TimeSemantics
             + InternalMaterialize
             + PropertiesOps
@@ -89,6 +89,9 @@ impl From<Arc<dyn BoxableGraphView>> for DynamicGraph {
     }
 }
 
+/// Trait for marking a graph view as immutable to avoid conflicts when implementing conversions for mutable and immutable views
+pub trait Immutable {}
+
 #[derive(Clone)]
 pub struct DynamicGraph(pub(crate) Arc<dyn BoxableGraphView>);
 
@@ -97,8 +100,8 @@ impl Debug for DynamicGraph {
         write!(
             f,
             "DynamicGraph(num_vertices={}, num_edges={})",
-            self.num_vertices(),
-            self.num_edges()
+            self.count_vertices(),
+            self.count_edges()
         )
     }
 }
@@ -121,6 +124,8 @@ impl Base for DynamicGraph {
         &self.0
     }
 }
+
+impl Immutable for DynamicGraph {}
 
 impl InheritViewOps for DynamicGraph {}
 

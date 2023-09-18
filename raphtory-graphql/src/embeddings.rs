@@ -11,7 +11,7 @@ pub async fn openai_embedding(texts: Vec<String>) -> Vec<Embedding> {
         input: EmbeddingInput::StringArray(texts),
         user: None,
     };
-    let mut response = client.embeddings().create(request).await.unwrap();
+    let response = client.embeddings().create(request).await.unwrap();
     println!("Generated embeddings successfully");
     response.data.into_iter().map(|e| e.embedding).collect_vec()
 }

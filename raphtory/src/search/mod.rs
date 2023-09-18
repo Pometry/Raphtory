@@ -30,11 +30,11 @@ use crate::{
 
 #[derive(Clone)]
 pub struct IndexedGraph<G> {
-    graph: G,
-    vertex_index: Arc<Index>,
-    edge_index: Arc<Index>,
-    reader: IndexReader,
-    edge_reader: IndexReader,
+    pub(crate) graph: G,
+    pub(crate) vertex_index: Arc<Index>,
+    pub(crate) edge_index: Arc<Index>,
+    pub(crate) reader: IndexReader,
+    pub(crate) edge_reader: IndexReader,
 }
 
 impl<G> Deref for IndexedGraph<G> {
@@ -70,6 +70,18 @@ pub(in crate::search) mod fields {
 impl<G: GraphViewOps> From<G> for IndexedGraph<G> {
     fn from(graph: G) -> Self {
         Self::from_graph(&graph).expect("failed to generate index from graph")
+    }
+}
+
+impl<G: GraphViewOps + IntoDynamic> IndexedGraph<G> {
+    pub fn into_dynamic_indexed(self) -> IndexedGraph<DynamicGraph> {
+        IndexedGraph {
+            graph: self.graph.into_dynamic(),
+            vertex_index: self.vertex_index,
+            edge_index: self.edge_index,
+            reader: self.reader,
+            edge_reader: self.edge_reader,
+        }
     }
 }
 
@@ -127,6 +139,12 @@ impl<G: GraphViewOps> IndexedGraph<G> {
             }
             Prop::DTime(_) => {
                 schema.add_date_field(prop, INDEXED);
+            }
+            Prop::U8(_) => {
+                schema.add_u64_field(prop, INDEXED);
+            }
+            Prop::U16(_) => {
+                schema.add_u64_field(prop, INDEXED);
             }
             Prop::U64(_) => {
                 schema.add_u64_field(prop, INDEXED);
@@ -265,6 +283,12 @@ impl<G: GraphViewOps> IndexedGraph<G> {
                     tantivy::DateTime::from_timestamp_nanos(prop_time.and_utc().timestamp_nanos());
                 document.add_date(prop_field, time);
             }
+            Prop::U8(prop_u8) => {
+                document.add_u64(prop_field, u64::from(prop_u8));
+            }
+            Prop::U16(prop_u16) => {
+                document.add_u64(prop_field, u64::from(prop_u16));
+            }
             Prop::U64(prop_u64) => {
                 document.add_u64(prop_field, prop_u64);
             }
@@ -298,7 +322,7 @@ impl<G: GraphViewOps> IndexedGraph<G> {
 
         let writer = Arc::new(parking_lot::RwLock::new(index.writer(100_000_000)?));
 
-        let v_ids = (0..g.num_vertices()).collect::<Vec<_>>();
+        let v_ids = (0..g.count_vertices()).collect::<Vec<_>>();
 
         v_ids.par_chunks(128).try_for_each(|v_ids| {
             let writer_lock = writer.clone();
@@ -435,7 +459,7 @@ impl<G: GraphViewOps> IndexedGraph<G> {
 
         let writer = Arc::new(parking_lot::RwLock::new(index.writer(100_000_000)?));
 
-        let e_ids = (0..g.num_edges()).collect::<Vec<_>>();
+        let e_ids = (0..g.count_edges()).collect::<Vec<_>>();
         let edge_filter = g.edge_filter();
         e_ids.par_chunks(128).try_for_each(|e_ids| {
             let writer_lock = writer.clone();
@@ -607,14 +631,24 @@ impl<G: GraphViewOps> IndexedGraph<G> {
 }
 
 impl<G: GraphViewOps + InternalAdditionOps> InternalAdditionOps for IndexedGraph<G> {
+    #[inline]
     fn next_event_id(&self) -> usize {
         self.graph.next_event_id()
+    }
+    #[inline]
+    fn resolve_layer(&self, layer: Option<&str>) -> usize {
+        self.graph.resolve_layer(layer)
+    }
+
+    #[inline]
+    fn resolve_vertex(&self, id: u64) -> VID {
+        self.graph.resolve_vertex(id)
     }
 
     fn internal_add_vertex(
         &self,
         t: TimeIndexEntry,
-        v: u64,
+        v: VID,
         name: Option<&str>,
         props: Vec<(String, Prop)>,
     ) -> Result<VID, GraphError> {
@@ -662,10 +696,10 @@ impl<G: GraphViewOps + InternalAdditionOps> InternalAdditionOps for IndexedGraph
     fn internal_add_edge(
         &self,
         _t: TimeIndexEntry,
-        _src: u64,
-        _dst: u64,
+        _src: VID,
+        _dst: VID,
         _props: Vec<(String, Prop)>,
-        _layer: Option<&str>,
+        _layer: usize,
     ) -> Result<EID, GraphError> {
         todo!()
     }
@@ -710,7 +744,7 @@ mod test {
     #[ignore = "this test is for experiments with the jira graph"]
     fn load_jira_graph() -> Result<(), GraphError> {
         let graph = Graph::load_from_file("/tmp/graphs/jira").expect("failed to load graph");
-        assert!(graph.num_vertices() > 0);
+        assert!(graph.count_vertices() > 0);
 
         let now = SystemTime::now();
 

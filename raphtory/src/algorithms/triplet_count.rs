@@ -40,6 +40,7 @@ use crate::{
             context::Context,
             task::{ATask, Job, Step},
             task_runner::TaskRunner,
+            vertex::eval_vertex::EvalVertexView,
         },
     },
 };
@@ -90,19 +91,21 @@ pub fn triplet_count<G: GraphViewOps>(g: &G, threads: Option<usize>) -> usize {
     let count = sum::<usize>(0);
     ctx.global_agg(count);
 
-    let step1 = ATask::new(move |evv| {
-        let c1 = evv.neighbours().id().filter(|n| *n != evv.id()).count();
-        let c2 = count_two_combinations(c1);
-        evv.global_update(&count, c2);
-        Step::Continue
-    });
+    let step1 = ATask::new(
+        move |evv: &mut EvalVertexView<'_, G, ComputeStateVec, ()>| {
+            let c1 = evv.neighbours().id().filter(|n| *n != evv.id()).count();
+            let c2 = count_two_combinations(c1);
+            evv.global_update(&count, c2);
+            Step::Continue
+        },
+    );
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
 
     runner.run(
         vec![],
         vec![Job::new(step1)],
-        (),
+        None,
         |egs, _, _, _| egs.finalize(&count),
         threads,
         1,

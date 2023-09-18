@@ -72,6 +72,8 @@ fn value_neq_num_prop(num_filter: &NumberFilter, prop: &Prop) -> bool {
     match prop {
         Prop::I32(i32_prop) => match_signed_num(num_filter, i64::from(*i32_prop)),
         Prop::I64(i64_prop) => match_signed_num(num_filter, *i64_prop),
+        Prop::U8(u8_prop) => match_unsigned_num(num_filter, u64::from(*u8_prop)),
+        Prop::U16(u16_prop) => match_unsigned_num(num_filter, u64::from(*u16_prop)),
         Prop::U32(u32_prop) => match_unsigned_num(num_filter, u64::from(*u32_prop)),
         Prop::U64(u64_prop) => match_unsigned_num(num_filter, *u64_prop),
         Prop::F32(f32_prop) => match_float(num_filter, f64::from(*f32_prop)),

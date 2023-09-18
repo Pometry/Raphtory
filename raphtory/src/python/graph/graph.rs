@@ -16,13 +16,14 @@ use crate::{
 use pyo3::prelude::*;
 
 use crate::{
+    core::entities::vertices::vertex_ref::VertexRef,
     db::{
         api::view::internal::{DynamicGraph, IntoDynamic},
         graph::{edge::EdgeView, vertex::VertexView},
     },
     python::graph::pandas::{load_edges_props_from_df, load_vertex_props_from_df},
 };
-use pyo3::types::IntoPyDict;
+use pyo3::types::{IntoPyDict, PyBytes};
 use std::{
     collections::HashMap,
     fmt::{Debug, Formatter},
@@ -37,7 +38,7 @@ use super::pandas::{
 #[derive(Clone)]
 #[pyclass(name="Graph", extends=PyGraphView)]
 pub struct PyGraph {
-    pub(crate) graph: Graph,
+    pub graph: Graph,
 }
 
 impl Debug for PyGraph {
@@ -138,23 +139,6 @@ impl PyGraph {
             .add_vertex(timestamp, id, properties.unwrap_or_default())
     }
 
-    /// add_vertex_properties(self, id: str | int, properties: dict) -> None
-    /// Adds properties to an existing vertex.
-    ///
-    /// Arguments:
-    ///     id (str or int): The id of the vertex.
-    ///     properties (dict): The properties of the vertex.
-    ///
-    /// Returns:
-    ///    None
-    pub fn add_vertex_properties(
-        &self,
-        id: PyInputVertex,
-        properties: HashMap<String, Prop>,
-    ) -> Result<(), GraphError> {
-        self.graph.add_vertex_properties(id, properties)
-    }
-
     /// Adds properties to the graph.
     ///
     /// Arguments:
@@ -178,8 +162,11 @@ impl PyGraph {
     ///
     /// Returns:
     ///    None
-    pub fn add_static_property(&self, properties: HashMap<String, Prop>) -> Result<(), GraphError> {
-        self.graph.add_static_properties(properties)
+    pub fn add_constant_properties(
+        &self,
+        properties: HashMap<String, Prop>,
+    ) -> Result<(), GraphError> {
+        self.graph.add_constant_properties(properties)
     }
 
     /// Adds a new edge with the given source and destination vertices and properties to the graph.
@@ -206,25 +193,31 @@ impl PyGraph {
             .add_edge(timestamp, src, dst, properties.unwrap_or_default(), layer)
     }
 
-    /// Adds properties to an existing edge.
+    //FIXME: This is reimplemented here to get mutable views. If we switch the underlying graph to enum dispatch, this won't be necessary!
+    /// Gets the vertex with the specified id
     ///
     /// Arguments:
-    ///    src (str or int): The id of the source vertex.
-    ///    dst (str or int): The id of the destination vertex.
-    ///    properties (dict): The properties of the edge, as a dict of string and properties
-    ///    layer (str): The layer of the edge.
+    ///   id (str or int): the vertex id
     ///
     /// Returns:
-    ///  None
-    #[pyo3(signature = (src, dst, properties, layer=None))]
-    pub fn add_edge_properties(
-        &self,
-        src: PyInputVertex,
-        dst: PyInputVertex,
-        properties: HashMap<String, Prop>,
-        layer: Option<&str>,
-    ) -> Result<(), GraphError> {
-        self.graph.add_edge_properties(src, dst, properties, layer)
+    ///   the vertex with the specified id, or None if the vertex does not exist
+    pub fn vertex(&self, id: VertexRef) -> Option<VertexView<Graph>> {
+        self.graph.vertex(id)
+    }
+
+    //FIXME: This is reimplemented here to get mutable views. If we switch the underlying graph to enum dispatch, this won't be necessary!
+    /// Gets the edge with the specified source and destination vertices
+    ///
+    /// Arguments:
+    ///     src (str or int): the source vertex id
+    ///     dst (str or int): the destination vertex id
+    ///     layer (str): the edge layer (optional)
+    ///
+    /// Returns:
+    ///     the edge with the specified source and destination vertices, or None if the edge does not exist
+    #[pyo3(signature = (src, dst))]
+    pub fn edge(&self, src: VertexRef, dst: VertexRef) -> Option<EdgeView<Graph>> {
+        self.graph.edge(src, dst)
     }
 
     //******  Saving And Loading  ******//
@@ -253,6 +246,12 @@ impl PyGraph {
     /// None
     pub fn save_to_file(&self, path: &str) -> Result<(), GraphError> {
         self.graph.save_to_file(Path::new(path))
+    }
+
+    /// Get bincode encoded graph
+    pub fn bincode<'py>(&'py self, py: Python<'py>) -> Result<&'py PyBytes, GraphError> {
+        let bytes = MaterializedGraph::from(self.graph.clone()).bincode()?;
+        Ok(PyBytes::new(py, &bytes))
     }
 
     #[staticmethod]

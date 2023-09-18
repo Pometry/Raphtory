@@ -54,13 +54,14 @@ use crate::{
         },
         view::{
             internal::{
-                Base, EdgeFilter, EdgeFilterOps, GraphOps, InheritCoreOps, InheritLayerOps,
-                InheritMaterialize, TimeSemantics,
+                Base, DynamicGraph, EdgeFilter, EdgeFilterOps, GraphOps, Immutable, InheritCoreOps,
+                InheritLayerOps, InheritMaterialize, IntoDynamic, TimeSemantics,
             },
             BoxedIter,
         },
     },
-    prelude::GraphViewOps,
+    prelude::{GraphViewOps, TimeOps},
+    search::IndexedGraph,
 };
 use std::{
     cmp::{max, min},
@@ -91,6 +92,22 @@ impl<G: GraphViewOps + Debug> Debug for WindowedGraph<G> {
     }
 }
 
+impl<G: GraphViewOps + IntoDynamic> WindowedGraph<IndexedGraph<G>> {
+    pub fn into_dynamic_indexed(self) -> IndexedGraph<DynamicGraph> {
+        IndexedGraph {
+            graph: self
+                .graph
+                .graph
+                .window(self.t_start, self.t_end)
+                .into_dynamic(),
+            vertex_index: self.graph.vertex_index,
+            edge_index: self.graph.edge_index,
+            reader: self.graph.reader,
+            edge_reader: self.graph.edge_reader,
+        }
+    }
+}
+
 impl<G: GraphViewOps> Base for WindowedGraph<G> {
     type Base = G;
     #[inline(always)]
@@ -99,6 +116,7 @@ impl<G: GraphViewOps> Base for WindowedGraph<G> {
     }
 }
 
+impl<G: GraphViewOps> Immutable for WindowedGraph<G> {}
 impl<G: GraphViewOps> InheritCoreOps for WindowedGraph<G> {}
 
 impl<G: GraphViewOps> InheritMaterialize for WindowedGraph<G> {}
@@ -885,15 +903,15 @@ mod views_test {
         }
 
         let wg = WindowedGraph::new(g, window.start, window.end);
-        if wg.num_edges() != true_edge_count {
+        if wg.count_edges() != true_edge_count {
             println!(
                 "failed, g.num_edges() = {}, true count = {}",
-                wg.num_edges(),
+                wg.count_edges(),
                 true_edge_count
             );
             println!("g.edges() = {:?}", wg.edges().collect_vec());
         }
-        TestResult::from_bool(wg.num_edges() == true_edge_count)
+        TestResult::from_bool(wg.count_edges() == true_edge_count)
     }
 
     #[quickcheck]
@@ -922,7 +940,7 @@ mod views_test {
             g.add_edge(t, 0, dst, NO_PROPS, None).unwrap();
         }
         let w = g.window(i64::MIN, i64::MAX);
-        w.num_edges() == n
+        w.count_edges() == n
     }
 
     #[test]

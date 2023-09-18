@@ -19,11 +19,11 @@ fn main() {
 
     let g = stable_coin_graph(data_dir, true);
 
-    assert_eq!(g.num_vertices(), 1523333);
-    assert_eq!(g.num_edges(), 2814155);
+    assert_eq!(g.count_vertices(), 1523333);
+    assert_eq!(g.count_edges(), 2814155);
 
     assert_eq!(
-        g.get_unique_layers().into_iter().sorted().collect_vec(),
+        g.unique_layers().into_iter().sorted().collect_vec(),
         vec!["Dai", "LUNC", "USD", "USDP", "USDT", "USTC"]
     );
 

@@ -18,8 +18,9 @@ use dynamic_graphql::{
 };
 use itertools::Itertools;
 use raphtory::{
-    db::api::view::internal::{DynamicGraph, IntoDynamic, MaterializedGraph},
-    prelude::GraphViewOps,
+    core::Prop,
+    db::api::view::internal::{CoreGraphOps, IntoDynamic, MaterializedGraph},
+    prelude::{Graph, GraphViewOps, PropertyAdditionOps},
     search::IndexedGraph,
 };
 
@@ -53,10 +54,19 @@ impl QueryRoot {
     async fn graph<'a>(ctx: &Context<'a>, name: &str) -> Option<GqlGraph> {
         let data = ctx.data_unchecked::<Data>();
         let g = data.graphs.read().get(name).cloned()?;
-        Some(GqlGraph::new(g))
+        Some(GqlGraph::new(g.into_dynamic_indexed()))
     }
 
-    async fn graphs<'a>(ctx: &Context<'a>) -> Vec<GraphMeta> {
+    async fn subgraph<'a>(ctx: &Context<'a>, name: &str) -> Option<GraphMeta> {
+        let data = ctx.data_unchecked::<Data>();
+        let g = data.graphs.read().get(name).cloned()?;
+        Some(GraphMeta::new(
+            name.to_string(),
+            g.deref().clone().into_dynamic(),
+        ))
+    }
+
+    async fn subgraphs<'a>(ctx: &Context<'a>) -> Vec<GraphMeta> {
         let data = ctx.data_unchecked::<Data>();
         data.graphs
             .read()
@@ -132,6 +142,47 @@ impl Mut {
         keys
     }
 
+    async fn save_graph<'a>(
+        ctx: &Context<'a>,
+        parent_graph_name: String,
+        graph_name: String,
+        props: String,
+        graph_nodes: Vec<String>,
+    ) -> Result<bool> {
+        let mut data = ctx.data_unchecked::<Data>().graphs.write();
+
+        let subgraph = data.get(&graph_name).ok_or("Graph not found")?;
+        let path = subgraph
+            .static_prop(&"path".to_string())
+            .expect("Path is missing")
+            .to_string();
+
+        let parent_graph = data.get(&parent_graph_name).ok_or("Graph not found")?;
+        let new_subgraph = parent_graph
+            .subgraph(graph_nodes)
+            .materialize()
+            .expect("Failed to materialize graph");
+        new_subgraph
+            .add_constant_properties(subgraph.properties().constant())
+            .expect("Failed to add static properties");
+        new_subgraph
+            .add_constant_properties([("uiProps".to_string(), Prop::Str(props))])
+            .expect("Failed to add static property");
+
+        new_subgraph
+            .save_to_file(path)
+            .expect("Failed to save graph");
+
+        let gi: IndexedGraph<Graph> = new_subgraph
+            .into_events()
+            .ok_or("Graph with deletions not supported")?
+            .into();
+
+        data.insert(graph_name.clone(), gi.clone());
+
+        Ok(true)
+    }
+
     /// Load new graphs from a directory of bincode files (existing graphs will not been overwritten)
     ///
     /// # Returns:
@@ -154,7 +205,10 @@ impl Mut {
     async fn upload_graph<'a>(ctx: &Context<'a>, name: String, graph: Upload) -> Result<String> {
         let g: MaterializedGraph =
             bincode::deserialize_from(BufReader::new(graph.value(ctx)?.content))?;
-        let gi: IndexedGraph<DynamicGraph> = g.into_dynamic().into();
+        let gi: IndexedGraph<Graph> = g
+            .into_events()
+            .ok_or("Graph with deletions not supported")?
+            .into();
         let mut data = ctx.data_unchecked::<Data>().graphs.write();
         data.insert(name.clone(), gi.clone());
         Ok(name)
@@ -167,7 +221,12 @@ impl Mut {
     async fn send_graph<'a>(ctx: &Context<'a>, name: String, graph: String) -> Result<String> {
         let g: MaterializedGraph = bincode::deserialize(&URL_SAFE_NO_PAD.decode(graph)?)?;
         let mut data = ctx.data_unchecked::<Data>().graphs.write();
-        data.insert(name.clone(), g.into_dynamic().into());
+        data.insert(
+            name.clone(),
+            g.into_events()
+                .ok_or("Graph with deletions not supported")?
+                .into(),
+        );
         Ok(name)
     }
 }

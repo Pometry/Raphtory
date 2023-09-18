@@ -1,10 +1,10 @@
 use crate::{
     core::entities::{edges::edge_store::EdgeStore, LayerIds},
-    db::{api::view::internal::LayerOps, graph::graph::InternalGraph},
+    db::{api::view::internal::InternalLayerOps, graph::graph::InternalGraph},
     prelude::Layer,
 };
 
-impl LayerOps for InternalGraph {
+impl InternalLayerOps for InternalGraph {
     fn layer_ids(&self) -> LayerIds {
         LayerIds::All
     }

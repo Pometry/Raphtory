@@ -99,7 +99,7 @@ pub fn global_reciprocity<G: GraphViewOps>(g: &G, threads: Option<usize>) -> f64
     runner.run(
         vec![],
         vec![Job::new(step1)],
-        (),
+        None,
         |egs, _, _, _| {
             (egs.finalize(&total_out_inter_in) as f64)
                 / (egs.finalize(&total_out_neighbours) as f64)
@@ -116,7 +116,7 @@ pub fn global_reciprocity<G: GraphViewOps>(g: &G, threads: Option<usize>) -> f64
 pub fn all_local_reciprocity<G: GraphViewOps>(
     g: &G,
     threads: Option<usize>,
-) -> AlgorithmResult<String, OrderedFloat<f64>> {
+) -> AlgorithmResult<String, f64, OrderedFloat<f64>> {
     let mut ctx: Context<G, ComputeStateVec> = g.into();
 
     let min = sum(0);
@@ -135,10 +135,10 @@ pub fn all_local_reciprocity<G: GraphViewOps>(
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
 
-    AlgorithmResult::new_with_float(runner.run(
+    AlgorithmResult::new(runner.run(
         vec![],
         vec![Job::new(step1)],
-        (),
+        None,
         |_, ess, _, _| ess.finalize(&min, |min| min),
         threads,
         1,
@@ -187,9 +187,6 @@ mod reciprocity_test {
         hash_map_result.insert("5".to_string(), 0.0);
 
         let res = all_local_reciprocity(&graph, None);
-        assert_eq!(
-            res.get(&"1".to_string()).unwrap().0,
-            *hash_map_result.get("1").unwrap()
-        );
+        assert_eq!(res.get("1"), hash_map_result.get("1"));
     }
 }
