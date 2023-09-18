@@ -1,11 +1,3 @@
-use std::{
-    collections::HashMap,
-    error::Error,
-    fmt::{Display, Formatter},
-    io::BufReader,
-    ops::Deref,
-};
-
 use crate::{
     data::Data,
     model::graph::graph::{GqlGraph, GraphMeta},
@@ -23,6 +15,14 @@ use raphtory::{
     prelude::{Graph, GraphViewOps, PropertyAdditionOps},
     search::IndexedGraph,
 };
+use std::{
+    collections::HashMap,
+    error::Error,
+    fmt::{Display, Formatter},
+    io::BufReader,
+    ops::Deref,
+};
+use uuid::Uuid;
 
 pub(crate) mod algorithm;
 pub(crate) mod filters;
@@ -113,25 +113,55 @@ impl Mut {
         ctx: &Context<'a>,
         parent_graph_name: String,
         graph_name: String,
+        new_graph_name: String,
         props: String,
         graph_nodes: Vec<String>,
     ) -> Result<bool> {
         let mut data = ctx.data_unchecked::<Data>().graphs.write();
 
         let subgraph = data.get(&graph_name).ok_or("Graph not found")?;
-        let path = subgraph
+        let mut path = subgraph
             .static_prop(&"path".to_string())
             .expect("Path is missing")
             .to_string();
+
+        if new_graph_name.ne(&graph_name) {
+            fn path_prefix(path: String) -> Result<String> {
+                let elements: Vec<&str> = path.split('/').collect();
+                let size = elements.len();
+                return if size > 2 {
+                    let delimiter = "/";
+                    let joined_string = elements
+                        .iter()
+                        .take(size - 1)
+                        .map(|s| *s)
+                        .collect::<Vec<_>>()
+                        .join(delimiter);
+                    Ok(joined_string)
+                } else {
+                    Err("Invalid graph path".into())
+                };
+            }
+
+            path = path_prefix(path)? + "/" + &Uuid::new_v4().hyphenated().to_string();
+        }
 
         let parent_graph = data.get(&parent_graph_name).ok_or("Graph not found")?;
         let new_subgraph = parent_graph
             .subgraph(graph_nodes)
             .materialize()
             .expect("Failed to materialize graph");
+        let static_props_without_name: Vec<(String, Prop)> = subgraph
+            .properties()
+            .into_iter()
+            .filter(|(a, b)| a != "name")
+            .collect_vec();
         new_subgraph
-            .add_constant_properties(subgraph.properties().constant())
+            .add_constant_properties(static_props_without_name)
             .expect("Failed to add static properties");
+        new_subgraph
+            .add_constant_properties([("name".to_string(), Prop::Str(new_graph_name.clone()))])
+            .expect("Failed to add static property");
         new_subgraph
             .add_constant_properties([("uiProps".to_string(), Prop::Str(props))])
             .expect("Failed to add static property");
@@ -145,7 +175,7 @@ impl Mut {
             .ok_or("Graph with deletions not supported")?
             .into();
 
-        data.insert(graph_name.clone(), gi.clone());
+        data.insert(new_graph_name, gi.clone());
 
         Ok(true)
     }
