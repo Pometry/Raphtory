@@ -19,7 +19,6 @@ use crate::{
     db::api::view::{internal::Base, BoxedIter},
 };
 use enum_dispatch::enum_dispatch;
-use std::sync::Arc;
 
 /// Core functions that should (almost-)always be implemented by pointing at the underlying graph.
 #[enum_dispatch]

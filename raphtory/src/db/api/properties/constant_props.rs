@@ -2,7 +2,7 @@ use crate::{
     core::{ArcStr, Prop},
     db::api::properties::internal::ConstPropertiesOps,
 };
-use std::{borrow::Borrow, collections::HashMap, iter::Zip, sync::Arc};
+use std::{collections::HashMap, iter::Zip};
 
 pub struct ConstProperties<P: ConstPropertiesOps> {
     pub(crate) props: P,

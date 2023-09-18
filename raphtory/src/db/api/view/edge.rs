@@ -12,7 +12,6 @@ use crate::{
         view::{internal::*, *},
     },
 };
-use std::sync::Arc;
 
 pub trait EdgeViewInternalOps<G: GraphViewOps, V: VertexViewOps<Graph = G>> {
     fn graph(&self) -> G;

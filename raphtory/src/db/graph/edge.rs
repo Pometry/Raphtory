@@ -9,7 +9,7 @@ use super::views::layer_graph::LayeredGraph;
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, VID},
-        storage::{locked_view::LockedView, timeindex::TimeIndexEntry},
+        storage::timeindex::TimeIndexEntry,
         utils::{errors::GraphError, time::IntoTime},
         ArcStr,
     },
@@ -34,7 +34,6 @@ use crate::{
 use std::{
     fmt::{Debug, Formatter},
     iter,
-    sync::Arc,
 };
 
 /// A view of an edge in the graph.
@@ -409,7 +408,7 @@ mod test_edge {
         prelude::*,
     };
     use itertools::Itertools;
-    use std::{collections::HashMap, sync::Arc};
+    use std::collections::HashMap;
 
     #[test]
     fn test_properties() {

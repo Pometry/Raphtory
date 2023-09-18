@@ -4,7 +4,7 @@ use raphtory::db::{
     api::view::*,
     graph::{edge::EdgeView, graph::Graph as TGraph},
 };
-use std::{ops::Deref, sync::Arc};
+use std::sync::Arc;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]

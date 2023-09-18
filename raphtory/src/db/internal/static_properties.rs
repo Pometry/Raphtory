@@ -1,11 +1,7 @@
 use crate::{
-    core::{
-        entities::graph::tgraph::InnerTemporalGraph, storage::locked_view::LockedView, ArcStr, Prop,
-    },
-    db::api::{properties::internal::ConstPropertiesOps, view::BoxedIter},
+    core::{entities::graph::tgraph::InnerTemporalGraph, ArcStr, Prop},
+    db::api::properties::internal::ConstPropertiesOps,
 };
-use parking_lot::RwLockReadGuard;
-use std::sync::Arc;
 
 impl<const N: usize> ConstPropertiesOps for InnerTemporalGraph<N> {
     fn const_property_keys(&self) -> Box<dyn Iterator<Item = ArcStr>> {

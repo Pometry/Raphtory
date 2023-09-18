@@ -1,8 +1,6 @@
 use crate::core::{
     storage::lazy_vec::IllegalSet, utils::time::error::ParseTimeError, ArcStr, Prop, PropType,
 };
-use std::sync::Arc;
-
 #[cfg(feature = "search")]
 use tantivy;
 #[cfg(feature = "search")]

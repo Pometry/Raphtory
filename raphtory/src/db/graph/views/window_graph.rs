@@ -44,7 +44,6 @@ use crate::{
             vertices::vertex_ref::VertexRef,
             LayerIds, EID, VID,
         },
-        storage::locked_view::LockedView,
         utils::time::IntoTime,
         ArcStr, Direction, Prop,
     },

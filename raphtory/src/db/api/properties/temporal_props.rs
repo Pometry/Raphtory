@@ -1,5 +1,5 @@
 use crate::{
-    core::{storage::locked_view::LockedView, ArcStr, Prop, PropUnwrap},
+    core::{ArcStr, Prop, PropUnwrap},
     db::api::properties::internal::{Key, PropertiesOps},
     prelude::Graph,
 };

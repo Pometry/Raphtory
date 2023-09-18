@@ -1,10 +1,10 @@
 use crate::{
-    core::{storage::locked_view::LockedView, ArcStr, Prop},
+    core::{ArcStr, Prop},
     db::api::properties::{
         constant_props::ConstProperties, internal::*, temporal_props::TemporalProperties,
     },
 };
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
 
 /// View of the properties of an entity (graph|vertex|edge)
 #[derive(Clone)]

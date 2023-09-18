@@ -21,7 +21,7 @@ use crate::{
     prelude::Prop,
 };
 use itertools::Itertools;
-use std::{collections::HashMap, iter, sync::Arc};
+use std::{collections::HashMap, iter};
 
 impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
     #[inline]

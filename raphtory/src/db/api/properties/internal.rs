@@ -1,13 +1,8 @@
 use crate::{
-    core::{
-        entities::properties::{props::DictMapper, tprop::TProp},
-        storage::locked_view::LockedView,
-        ArcStr, Prop,
-    },
-    db::api::view::{internal::Base, BoxedIter},
+    core::{ArcStr, Prop},
+    db::api::view::internal::Base,
 };
 use enum_dispatch::enum_dispatch;
-use std::sync::Arc;
 
 pub type Key = String; //Fixme: This should really be the internal usize index but that means more reworking of the low-level api
 

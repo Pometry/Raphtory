@@ -3,7 +3,7 @@
 use crate::{
     core::{
         entities::{vertices::vertex_ref::VertexRef, VID},
-        storage::{locked_view::LockedView, timeindex::TimeIndexEntry},
+        storage::timeindex::TimeIndexEntry,
         utils::{errors::GraphError, time::IntoTime},
         ArcStr, Direction,
     },
@@ -29,7 +29,6 @@ use crate::{
     },
     prelude::*,
 };
-use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub struct VertexView<G: GraphViewOps> {

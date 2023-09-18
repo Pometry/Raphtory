@@ -25,7 +25,6 @@ use crate::{
     prelude::{DeletionOps, NO_PROPS},
 };
 use rustc_hash::FxHashSet;
-use std::sync::Arc;
 
 /// This trait GraphViewOps defines operations for accessing
 /// information about a graph. The trait has associated types

@@ -2,7 +2,6 @@ use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
         state::compute_state::ComputeState,
-        storage::locked_view::LockedView,
         ArcStr, Prop,
     },
     db::{
@@ -19,7 +18,7 @@ use crate::{
         },
     },
 };
-use std::{cell::RefCell, iter, marker::PhantomData, rc::Rc, sync::Arc};
+use std::{cell::RefCell, iter, marker::PhantomData, rc::Rc};
 
 pub struct EvalEdgeView<'a, G: GraphViewOps, CS: ComputeState, S> {
     ss: usize,
