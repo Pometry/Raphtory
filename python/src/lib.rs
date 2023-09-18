@@ -105,10 +105,11 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     )?)?;
     m.add_submodule(graph_gen_module)?;
 
+    // TODO: re-enable
     //VECTORS
-    let vectors_module = PyModule::new(py, "vectors")?;
-    vectors_module.add_class::<PyVectorizedGraph>()?;
-    m.add_submodule(vectors_module)?;
+    // let vectors_module = PyModule::new(py, "vectors")?;
+    // vectors_module.add_class::<PyVectorizedGraph>()?;
+    // m.add_submodule(vectors_module)?;
 
     Ok(())
 }
