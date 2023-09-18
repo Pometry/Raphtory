@@ -1,0 +1,21 @@
+[package]
+name = "raphtory-storage"
+version.workspace = true
+documentation.workspace = true
+repository.workspace = true
+license.workspace = true
+readme.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+edition.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+heed = "0.11.0"
+itertools = "0.11.0"
+parking_lot = "0.12.1"
+polars-core = { path = "../../polars/crates/polars-core", features = ["dtype-struct"]}
+raphtory = { path = "../raphtory", version = "0.5.7" }

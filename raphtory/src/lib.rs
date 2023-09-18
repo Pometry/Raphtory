@@ -105,7 +105,7 @@ pub mod vectors;
 pub mod prelude {
     pub const NO_PROPS: [(&str, Prop); 0] = [];
     pub use crate::{
-        core::{IntoProp, Prop, PropUnwrap},
+        core::{IntoProp, Prop, PropUnwrap, storage::timeindex::TimeIndexEntry},
         db::{
             api::{
                 mutation::{AdditionOps, DeletionOps, PropertyAdditionOps},
