@@ -106,6 +106,7 @@ impl QueryRoot {
         let data = ctx.data_unchecked::<Data>();
         let binding = data.vector_stores.read();
         let vec_store = binding.get(graph)?;
+        println!("running similarity search for {query}");
         Some(
             vec_store
                 .similarity_search(
