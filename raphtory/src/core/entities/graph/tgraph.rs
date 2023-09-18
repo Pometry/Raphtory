@@ -37,7 +37,7 @@ use crate::{
     },
     db::api::view::{internal::EdgeFilter, BoxedIter, Layer},
 };
-use dashmap::DashMap;
+use dashmap::{DashMap, DashSet};
 use itertools::Itertools;
 use parking_lot::RwLockReadGuard;
 use rayon::prelude::*;
@@ -53,6 +53,7 @@ use std::{
 };
 
 pub(crate) type FxDashMap<K, V> = DashMap<K, V, BuildHasherDefault<FxHasher>>;
+pub(crate) type FxDashSet<K> = DashSet<K, BuildHasherDefault<FxHasher>>;
 
 pub(crate) type TGraph<const N: usize> = TemporalGraph<N>;
 
@@ -70,6 +71,7 @@ impl<const N: usize> InnerTemporalGraph<N> {
 pub struct TemporalGraph<const N: usize> {
     // mapping between logical and physical ids
     logical_to_physical: FxDashMap<u64, VID>,
+    string_pool: FxDashSet<ArcStr>,
 
     pub(crate) storage: GraphStorage<N>,
 
@@ -106,6 +108,7 @@ impl<const N: usize> Default for InnerTemporalGraph<N> {
     fn default() -> Self {
         let tg = TemporalGraph {
             logical_to_physical: FxDashMap::default(), // TODO: could use DictMapper here
+            string_pool: Default::default(),
             storage: GraphStorage::new(),
             event_counter: AtomicUsize::new(0),
             earliest_time: MinCounter::new(),
@@ -554,6 +557,24 @@ impl<const N: usize> TemporalGraph<N> {
     pub(crate) fn edge(&self, e: EID) -> EdgeView<N> {
         let edge = self.storage.get_edge(e.into());
         EdgeView::from_entry(edge, self)
+    }
+
+    /// Checks if the same string value already exists and returns a pointer to the same existing value if it exists,
+    /// otherwise adds the string to the pool.
+    pub(crate) fn resolve_str(&self, value: ArcStr) -> ArcStr {
+        match self.string_pool.get(&value) {
+            Some(value) => value.clone(),
+            None => {
+                if self.string_pool.insert(value.clone()) {
+                    value
+                } else {
+                    self.string_pool
+                        .get(&value)
+                        .expect("value exists due to insert above returning false")
+                        .clone()
+                }
+            }
+        }
     }
 }
 

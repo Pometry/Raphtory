@@ -47,9 +47,10 @@ impl<T: TryIntoTime> TryIntoInputTime for (T, usize) {
 }
 
 pub trait CollectProperties {
-    fn collect_properties<F: Fn(&str, PropType) -> Result<usize, GraphError>>(
+    fn collect_properties<F: Fn(&str, PropType) -> Result<usize, GraphError>, G: Fn(Prop) -> Prop>(
         self,
-        resolver: F,
+        id_resolver: F,
+        value_processor: G,
     ) -> Result<Vec<(usize, Prop)>, GraphError>;
 }
 
@@ -57,9 +58,10 @@ impl<S: AsRef<str>, P: Into<Prop>, PI> CollectProperties for PI
 where
     PI: IntoIterator<Item = (S, P)>,
 {
-    fn collect_properties<F: Fn(&str, PropType) -> Result<usize, GraphError>>(
+    fn collect_properties<F: Fn(&str, PropType) -> Result<usize, GraphError>, G: Fn(Prop) -> Prop>(
         self,
-        resolver: F,
+        id_resolver: F,
+        value_processor: G,
     ) -> Result<Vec<(usize, Prop)>, GraphError>
     where
         PI: IntoIterator<Item = (S, P)>,
@@ -67,8 +69,8 @@ where
         let mut properties: Vec<(usize, Prop)> = Vec::new();
         for (key, value) in self {
             let value: Prop = value.into();
-            let prop_id = resolver(key.as_ref(), value.dtype())?;
-            properties.push((prop_id, value));
+            let prop_id = id_resolver(key.as_ref(), value.dtype())?;
+            properties.push((prop_id, value_processor(value)));
         }
         Ok(properties)
     }

@@ -667,6 +667,11 @@ impl<G: GraphViewOps + InternalAdditionOps> InternalAdditionOps for IndexedGraph
         self.graph.resolve_edge_property(prop, dtype, is_static)
     }
 
+    #[inline]
+    fn process_prop_value(&self, prop: Prop) -> Prop {
+        self.graph.process_prop_value(prop)
+    }
+
     fn internal_add_vertex(
         &self,
         t: TimeIndexEntry,

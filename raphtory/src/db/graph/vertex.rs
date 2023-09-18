@@ -306,9 +306,10 @@ impl<G: GraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> Vertex
         &self,
         props: C,
     ) -> Result<(), GraphError> {
-        let properties: Vec<(usize, Prop)> = props.collect_properties(|name, dtype| {
-            self.graph.resolve_vertex_property(name, dtype, true)
-        })?;
+        let properties: Vec<(usize, Prop)> = props.collect_properties(
+            |name, dtype| self.graph.resolve_vertex_property(name, dtype, true),
+            |prop| self.graph.process_prop_value(prop),
+        )?;
         self.graph
             .internal_add_constant_vertex_properties(self.vertex, properties)
     }
@@ -319,9 +320,10 @@ impl<G: GraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> Vertex
         props: C,
     ) -> Result<(), GraphError> {
         let t = TimeIndexEntry::from_input(&self.graph, time)?;
-        let properties: Vec<(usize, Prop)> = props.collect_properties(|name, dtype| {
-            self.graph.resolve_vertex_property(name, dtype, false)
-        })?;
+        let properties: Vec<(usize, Prop)> = props.collect_properties(
+            |name, dtype| self.graph.resolve_vertex_property(name, dtype, false),
+            |prop| self.graph.process_prop_value(prop),
+        )?;
         self.graph.internal_add_vertex(t, self.vertex, properties)
     }
 }

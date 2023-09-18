@@ -39,6 +39,8 @@ pub trait InternalAdditionOps {
         is_static: bool,
     ) -> Result<usize, GraphError>;
 
+    fn process_prop_value(&self, prop: Prop) -> Prop;
+
     /// add vertex update
     fn internal_add_vertex(
         &self,
@@ -115,6 +117,11 @@ impl<G: DelegateAdditionOps> InternalAdditionOps for G {
         is_static: bool,
     ) -> Result<usize, GraphError> {
         self.graph().resolve_edge_property(prop, dtype, is_static)
+    }
+
+    #[inline]
+    fn process_prop_value(&self, prop: Prop) -> Prop {
+        self.graph().process_prop_value(prop)
     }
 
     #[inline(always)]

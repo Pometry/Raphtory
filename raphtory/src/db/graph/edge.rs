@@ -115,9 +115,10 @@ impl<G: GraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> EdgeVi
         props: C,
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
-        let properties: Vec<(usize, Prop)> = props.collect_properties(|name, dtype| {
-            self.graph.resolve_edge_property(name, dtype, true)
-        })?;
+        let properties: Vec<(usize, Prop)> = props.collect_properties(
+            |name, dtype| self.graph.resolve_edge_property(name, dtype, true),
+            |prop| self.graph.process_prop_value(prop),
+        )?;
         let input_layer_id = self.resolve_layer(layer)?;
 
         self.graph.internal_add_constant_edge_properties(
@@ -135,9 +136,10 @@ impl<G: GraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> EdgeVi
     ) -> Result<(), GraphError> {
         let t = TimeIndexEntry::from_input(&self.graph, time)?;
         let layer_id = self.resolve_layer(layer)?;
-        let properties: Vec<(usize, Prop)> = props.collect_properties(|name, dtype| {
-            self.graph.resolve_edge_property(name, dtype, false)
-        })?;
+        let properties: Vec<(usize, Prop)> = props.collect_properties(
+            |name, dtype| self.graph.resolve_edge_property(name, dtype, false),
+            |prop| self.graph.process_prop_value(prop),
+        )?;
 
         self.graph
             .internal_add_edge(t, self.edge.src(), self.edge.dst(), properties, layer_id)?;
