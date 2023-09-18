@@ -36,6 +36,7 @@ tracing-opentelemetry = "0.18.0"
 tracing-subscriber = {version = "0.3.16", features = ["std", "env-filter"]}
 walkdir = "2"
 ordered-float = "3.7.0"
+uuid = "1.4.1"
 
 [dev-dependencies]
 serde_json = "1.0"
