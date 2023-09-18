@@ -122,7 +122,7 @@ impl EdgeRef {
     }
 
     #[inline(always)]
-    pub(crate) fn pid(&self) -> EID {
+    pub fn pid(&self) -> EID {
         self.e_pid
     }
 

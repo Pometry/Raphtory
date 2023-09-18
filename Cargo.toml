@@ -1,6 +1,7 @@
 [workspace]
 members = [
 	"raphtory",
+	"raphtory-storage",
 	"raphtory-benchmark",
 	"examples/rust",
 	"examples/netflow",
@@ -9,7 +10,7 @@ members = [
 	"raphtory-graphql",
 	"comparison-benchmark/rust/raphtory-rust-benchmark"
 ]
-default-members = ["raphtory"]
+default-members = ["raphtory", "raphtory-storage"]
 
 [workspace.package]
 version = "0.6.1"
