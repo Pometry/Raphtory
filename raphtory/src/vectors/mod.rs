@@ -792,8 +792,10 @@ impl<G: GraphViewOps> GraphEntity for EdgeView<G> {
 #[cfg(test)]
 mod vector_tests {
     use super::*;
-    use crate::prelude::AdditionOps;
-    use crate::{core::Prop, prelude::Graph};
+    use crate::{
+        core::Prop,
+        prelude::{AdditionOps, Graph},
+    };
     use dotenv::dotenv;
     use std::path::PathBuf;
 
