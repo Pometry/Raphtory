@@ -4,6 +4,8 @@ use crate::{
 };
 use async_graphql::Context;
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
+use chrono::NaiveDateTime;
+use chrono::Utc;
 use dynamic_graphql::{
     App, Mutation, MutationFields, MutationRoot, ResolvedObject, ResolvedObjectFields, Result,
     Upload,
@@ -15,6 +17,7 @@ use raphtory::{
     prelude::{Graph, GraphViewOps, PropertyAdditionOps, VertexViewOps},
     search::IndexedGraph,
 };
+use std::time::UNIX_EPOCH;
 use std::{
     collections::HashMap,
     error::Error,
@@ -185,20 +188,46 @@ impl Mut {
             .subgraph(graph_nodes)
             .materialize()
             .expect("Failed to materialize graph");
-        let static_props_without_name: Vec<(String, Prop)> = subgraph
-            .properties()
-            .into_iter()
-            .filter(|(a, b)| a != "name")
-            .collect_vec();
-        new_subgraph
-            .add_constant_properties(static_props_without_name)
-            .expect("Failed to add static properties");
+
         new_subgraph
             .add_constant_properties([("name".to_string(), Prop::Str(new_graph_name.clone()))])
             .expect("Failed to add static property");
         new_subgraph
             .add_constant_properties([("uiProps".to_string(), Prop::Str(props))])
             .expect("Failed to add static property");
+
+        if parent_graph_name.ne(&graph_name) {
+            if graph_name.ne(&new_graph_name) {
+                let static_props_without_name_creation_time: Vec<(String, Prop)> = subgraph
+                    .properties()
+                    .into_iter()
+                    .filter(|(a, b)| a != "name" || a != "creationTime")
+                    .collect_vec();
+                new_subgraph
+                    .add_constant_properties(static_props_without_name_creation_time)
+                    .expect("Failed to add static properties");
+            } else {
+                let static_props_without_name: Vec<(String, Prop)> = subgraph
+                    .properties()
+                    .into_iter()
+                    .filter(|(a, b)| a != "name" || a != "creationTime")
+                    .collect_vec();
+                new_subgraph
+                    .add_constant_properties(static_props_without_name)
+                    .expect("Failed to add static properties");
+            }
+        }
+
+        if parent_graph_name.eq(&graph_name) || graph_name.ne(&new_graph_name) {
+            let dt = Utc::now();
+            let timestamp: i64 = dt.timestamp();
+            new_subgraph
+                .add_constant_properties([(
+                    "creationTime".to_string(),
+                    Prop::I64(timestamp * 1000),
+                )])
+                .expect("Failed to add static properties");
+        }
 
         new_subgraph
             .save_to_file(path)
