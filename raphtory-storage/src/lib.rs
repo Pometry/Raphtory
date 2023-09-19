@@ -57,6 +57,8 @@ impl PersistentTemporalGraph {
             if self.updates_since_last_fragment.load(Ordering::SeqCst) >= self.flush_size {
                 *cur_graph = (*cur_graph + 1) % 2;
             }
+            // reset the updates
+            self.updates_since_last_fragment.store(0, Ordering::SeqCst);
         }
     }
 
@@ -71,12 +73,16 @@ impl PersistentTemporalGraph {
     }
 
     fn flush(&self) {
-        // iterate over all the pending updates and add them to the graph
-        self.graph_fragments
-            .write()
-            .push(GraphFragment::from_graph(self.graph()));
-
-        self.updates_since_last_fragment.store(0, Ordering::SeqCst);
+        // 1. swap over to a new graph to grab the new updates
+        self.swap_cur_graph();
+        // 2. create a new graph fragment from the previous graph updates
+        let fragment = GraphFragment::from_graph(self.prev_graph());
+        // 3. add the new fragment to the list of fragments
+        {
+            self.graph_fragments.write().push(fragment);
+        }
+        // 4. clear the previous graph
+        // TODO: self.prev_graph().clear();
     }
 
     fn add_edge<V: InputVertex, T: TryIntoInputTime, PI: CollectProperties>(
@@ -88,7 +94,7 @@ impl PersistentTemporalGraph {
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
         self.updates_since_last_fragment
-            .fetch_add(1, Ordering::SeqCst);
+            .fetch_add(1, Ordering::Relaxed);
 
         self.graph().add_edge(t, src, dst, props, layer)?;
         Ok(())
