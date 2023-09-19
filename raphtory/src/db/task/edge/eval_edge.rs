@@ -16,8 +16,12 @@ use crate::{
         },
         graph::{edge::EdgeView, views::window_graph::WindowedGraph},
         task::{
+            edge::window_eval_edge::WindowEvalEdgeView,
             task_state::Local2,
-            vertex::{eval_vertex::EvalVertexView, eval_vertex_state::EVState},
+            vertex::{
+                eval_vertex::EvalVertexView, eval_vertex_state::EVState,
+                window_eval_vertex::edge_filter,
+            },
         },
     },
 };
@@ -30,6 +34,34 @@ pub struct EvalEdgeView<'a, G: GraphViewOps, CS: ComputeState, S> {
     vertex_state: Rc<RefCell<EVState<'a, CS>>>,
     local_state_prev: &'a Local2<'a, S>,
     _s: PhantomData<S>,
+}
+
+impl<'a, G: GraphViewOps, CS: ComputeState, S> TimeOps for EvalEdgeView<'a, G, CS, S> {
+    type WindowedViewType = WindowEvalEdgeView<'a, G, CS, S>;
+
+    fn start(&self) -> Option<i64> {
+        self.graph.start()
+    }
+
+    fn end(&self) -> Option<i64> {
+        self.graph.end()
+    }
+
+    fn window<T: IntoTime>(&self, t_start: T, t_end: T) -> Self::WindowedViewType {
+        let t_start = t_start.into_time();
+        let t_end = t_end.into_time();
+        let edge_filter = edge_filter(self.graph, t_start, t_end).map(Rc::new);
+        WindowEvalEdgeView::new(
+            self.ss,
+            self.ev,
+            self.graph,
+            self.local_state_prev,
+            self.vertex_state.clone(),
+            t_start,
+            t_end,
+            edge_filter,
+        )
+    }
 }
 
 impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EvalEdgeView<'a, G, CS, S> {
