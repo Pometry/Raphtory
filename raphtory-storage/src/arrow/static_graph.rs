@@ -1,8 +1,11 @@
 use itertools::Itertools;
 use polars_core::{prelude::*, utils::arrow::array::*};
-use raphtory::core::{
-    entities::{edges::edge_ref::EdgeRef, VID},
-    Direction,
+use raphtory::{
+    core::{
+        entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
+        Direction,
+    },
+    prelude::{GraphViewOps, Layer},
 };
 
 use super::{IngestEdgeType, MPArr, MutEdgePair};
@@ -15,11 +18,110 @@ const OUTBOUND_COLUMN: &str = "outbound";
 const INBOUND_COLUMN: &str = "inbound";
 
 const GID_COLUMN: &str = "global_vertex_id";
+const SRC_COLUMN: &str = "src";
+const DST_COLUMN: &str = "dst";
 
 const V_COLUMN: &str = "v";
 const E_COLUMN: &str = "e";
 
 impl StaticGraph {
+    pub(crate) fn from_graph<G: GraphViewOps>(g: &G) -> Self {
+        // create a lookup table for the vertices sorted by gid
+        let mut vids_sorted_by_gid = (0..g.vertices_len(LayerIds::All, None)).collect::<Vec<_>>();
+        vids_sorted_by_gid.sort_unstable_by_key(|&vid| g.vertex_id(vid.into()));
+
+        // create lookup table for the edges sorted by (src_gid, dst_gid)
+        let mut eids_sorted_by_src_dst_gid =
+            (0..g.edges_len(LayerIds::All, None)).collect::<Vec<_>>();
+        eids_sorted_by_src_dst_gid.sort_unstable_by_key(|&eid| {
+            let edge = g.find_edge_id(eid.into(), &LayerIds::All, None).unwrap();
+            let src_gid = g.vertex_id(edge.src());
+            let dst_gid = g.vertex_id(edge.dst());
+            (src_gid, dst_gid)
+        });
+
+        let mut edge_src_column = Vec::with_capacity(eids_sorted_by_src_dst_gid.len());
+        let mut edge_dst_column = Vec::with_capacity(eids_sorted_by_src_dst_gid.len());
+
+        for &eid in &eids_sorted_by_src_dst_gid {
+            let edge = g.find_edge_id(eid.into(), &LayerIds::All, None).unwrap();
+            let src_gid = g.vertex_id(edge.src());
+            let dst_gid = g.vertex_id(edge.dst());
+            edge_src_column.push(src_gid);
+            edge_dst_column.push(dst_gid);
+        }
+
+        let mut outbound_arr =
+            Self::mutable_adj_list_column(OUTBOUND_COLUMN, eids_sorted_by_src_dst_gid.len());
+
+        let mut inbound_arr =
+            Self::mutable_adj_list_column(INBOUND_COLUMN, eids_sorted_by_src_dst_gid.len());
+
+        // loop over each vertex adjacency list
+        for vertex in &vids_sorted_by_gid {
+            let vid: VID = (*vertex).into();
+            for e_ref in g.vertex_edges(vid, Direction::OUT, LayerIds::All, None) {
+                let mut row: MutEdgePair = outbound_arr.mut_values().into();
+                let vid: usize = e_ref.dst().into();
+                let eid: usize = e_ref.pid().into();
+                let new_vid = &vids_sorted_by_gid[vid];
+                let new_eid = &eids_sorted_by_src_dst_gid[eid];
+                row.add_pair_usize(*new_vid, *new_eid)
+            }
+            outbound_arr.try_push_valid().expect("push valid"); // one row done
+
+            for e_ref in g.vertex_edges(vid, Direction::IN, LayerIds::All, None) {
+                let mut row: MutEdgePair = inbound_arr.mut_values().into();
+                let vid: usize = e_ref.dst().into();
+                let eid: usize = e_ref.pid().into();
+                let new_vid = &vids_sorted_by_gid[vid];
+                let new_eid = &eids_sorted_by_src_dst_gid[eid];
+                row.add_pair_usize(*new_vid, *new_eid)
+            }
+            inbound_arr.try_push_valid().expect("push valid"); // one row done
+        }
+
+        // gid column
+        let gids_sorted_by_gids = vids_sorted_by_gid
+            .iter()
+            .map(|&vid| g.vertex_id(vid.into()))
+            .collect::<Vec<_>>();
+
+        let outbound_arr: ListArray<i64> = outbound_arr.into();
+        let outbound: ChunkedArray<ListType> =
+            ChunkedArray::with_chunk(OUTBOUND_COLUMN, outbound_arr);
+
+        let inbound_arr: ListArray<i64> = inbound_arr.into();
+        let inbound: ChunkedArray<ListType> = ChunkedArray::with_chunk(INBOUND_COLUMN, inbound_arr);
+
+        let items = Series::new(GID_COLUMN, gids_sorted_by_gids);
+        let df_graph = DataFrame::new(vec![items, outbound.into_series(), inbound.into_series()])
+            .expect("unexpected error, should be able to create dataframe, contact maintainers!");
+
+        Self { df_graph }
+    }
+
+    fn mutable_adj_list_column(
+        name: &str,
+        cap: usize,
+    ) -> MutableListArray<i64, MutableStructArray> {
+        let fields = vec![
+            ArrowField::new(V_COLUMN, ArrowDataType::UInt64, false),
+            ArrowField::new(E_COLUMN, ArrowDataType::UInt64, false),
+        ];
+
+        // arrays for outbound
+        let out_v = Box::new(MPArr::<u64>::with_capacity(cap));
+        let out_e = Box::new(MPArr::<u64>::with_capacity(cap));
+        let out_inner =
+            MutableStructArray::new(ArrowDataType::Struct(fields.clone()), vec![out_v, out_e]);
+
+        let mut_arr =
+            MutableListArray::<i64, MutableStructArray>::new_with_field(out_inner, name, true);
+
+        mut_arr
+    }
+
     pub(crate) fn from_sorted_edge_refs<
         OUT: Iterator<Item = (EdgeRef, u64)>,
         IN: Iterator<Item = (EdgeRef, u64)>,

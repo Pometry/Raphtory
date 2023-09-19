@@ -1,7 +1,4 @@
-use std::sync::{
-    atomic::{AtomicUsize, Ordering},
-    Arc,
-};
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use arrow::static_graph::StaticGraph;
 use itertools::Itertools;
@@ -169,6 +166,8 @@ struct TemporalGraph {
 #[cfg(test)]
 mod test {
 
+    use raphtory::db::api::view::internal::CoreGraphOps;
+
     use super::*;
 
     #[test]
@@ -194,5 +193,20 @@ mod test {
 
         let edges = g.edges(4, Direction::IN);
         assert_eq!(edges.count(), 2);
+    }
+
+    #[test]
+    fn create_lookup_table_vertices_sorted_by_gid() {
+        let g = Graph::new();
+
+        g.add_edge(0, 7, 2, NO_PROPS, None);
+        g.add_edge(0, 3, 1, NO_PROPS, None);
+        g.add_edge(0, 1, 9, NO_PROPS, None);
+        g.add_edge(0, 1, 0, NO_PROPS, None);
+
+        let mut lookup_table: Vec<usize> = (0..g.vertices_len(LayerIds::All, None)).collect();
+        lookup_table.sort_by_key(|&vid| g.vertex_id(vid.into()));
+
+        println!("{:?}", lookup_table);
     }
 }
