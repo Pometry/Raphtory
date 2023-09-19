@@ -17,5 +17,5 @@ edition.workspace = true
 heed = "0.11.0"
 itertools = "0.11.0"
 parking_lot = "0.12.1"
-polars-core = { path = "../../polars/crates/polars-core", features = ["dtype-struct"]}
+polars-core = { path = "../../polars/crates/polars-core", features = ["dtype-struct", "fmt"]}
 raphtory = { path = "../raphtory", version = "0.5.7" }

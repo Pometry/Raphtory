@@ -11,17 +11,25 @@ pub(crate) struct StaticGraph {
     df_graph: DataFrame,
 }
 
+const OUTBOUND_COLUMN: &str = "outbound";
+const INBOUND_COLUMN: &str = "inbound";
+
+const GID_COLUMN: &str = "global_vertex_id";
+
+const V_COLUMN: &str = "v";
+const E_COLUMN: &str = "e";
+
 impl StaticGraph {
     pub(crate) fn from_sorted_edge_refs<
-        OUT: Iterator<Item = EdgeRef>,
-        IN: Iterator<Item = EdgeRef>,
+        OUT: Iterator<Item = (EdgeRef, u64)>,
+        IN: Iterator<Item = (EdgeRef, u64)>,
     >(
         outbound: OUT,
         inbound: IN,
     ) -> Self {
         let fields = vec![
-            ArrowField::new("v", ArrowDataType::UInt64, false),
-            ArrowField::new("e", ArrowDataType::UInt64, false),
+            ArrowField::new(V_COLUMN, ArrowDataType::UInt64, false),
+            ArrowField::new(E_COLUMN, ArrowDataType::UInt64, false),
         ];
 
         let mut items = MPArr::<u64>::new();
@@ -33,7 +41,9 @@ impl StaticGraph {
             MutableStructArray::new(ArrowDataType::Struct(fields.clone()), vec![out_v, out_e]);
 
         let mut outbound_arr = MutableListArray::<i64, MutableStructArray>::new_with_field(
-            out_inner, "outbound", true,
+            out_inner,
+            OUTBOUND_COLUMN,
+            true,
         );
 
         // arrays for inbound
@@ -41,48 +51,70 @@ impl StaticGraph {
         let in_e = Box::new(MPArr::<u64>::new());
         let in_inner = MutableStructArray::new(ArrowDataType::Struct(fields), vec![in_v, in_e]);
 
-        let mut inbound_arr =
-            MutableListArray::<i64, MutableStructArray>::new_with_field(in_inner, "inbound", true);
+        let mut inbound_arr = MutableListArray::<i64, MutableStructArray>::new_with_field(
+            in_inner,
+            INBOUND_COLUMN,
+            true,
+        );
 
-        let in_iter: Box<dyn Iterator<Item = IngestEdgeType>> =
-            Box::new(inbound.into_iter().map(|t| IngestEdgeType::Inbound(t)));
-        let out_iter = Box::new(outbound.into_iter().map(|t| IngestEdgeType::Outbound(t)));
+        let in_iter: Box<dyn Iterator<Item = IngestEdgeType>> = Box::new(
+            inbound
+                .into_iter()
+                .map(|(e, g_id)| IngestEdgeType::Inbound(e, g_id)),
+        );
+        let out_iter = Box::new(
+            outbound
+                .into_iter()
+                .map(|(e, g_id)| IngestEdgeType::Outbound(e, g_id)),
+        );
 
         let iter = [in_iter, out_iter]
             .into_iter()
             .kmerge_by(|a, b| a.local() < b.local());
 
+        let mut index: usize = 0;
         let mut cur = None;
         for edge in iter {
-            let vertex = edge.vertex_u64();
-            if cur.is_none() {
-                // happens once
-                cur = Some(vertex as u64);
+            let vertex = edge.local();
+
+            // iter may not start at 0 so we need to push None's into the items array to fill the gaps
+            while index < vertex.into() {
+                items.push(None);
+                outbound_arr.try_push_valid().expect("push valid"); // advance one row
+                inbound_arr.try_push_valid().expect("push valid"); // advance one row
+                index += 1;
             }
 
-            if cur != Some(vertex) {
+            let vertex_gid = edge.gid();
+            if cur.is_none() {
+                // happens once
+                cur = Some(vertex_gid);
+            }
+
+            if cur != Some(vertex_gid) {
                 items.push(cur);
 
                 outbound_arr.try_push_valid().expect("push valid"); // one row done
                 inbound_arr.try_push_valid().expect("push valid"); // one row done
 
-                cur = Some(vertex);
+                cur = Some(vertex_gid);
             }
 
             match edge {
-                e @ IngestEdgeType::Outbound(_) => {
+                e @ IngestEdgeType::Outbound(_, _) => {
                     let dst = e.remote_u64();
                     let e = e.pid_u64();
                     let mut row: MutEdgePair = outbound_arr.mut_values().into();
                     row.add_pair(dst, e);
                 }
-                e @ IngestEdgeType::Inbound(_) => {
+                e @ IngestEdgeType::Inbound(_, _) => {
                     let dst = e.remote_u64();
                     let e = e.pid_u64();
                     let mut row: MutEdgePair = inbound_arr.mut_values().into();
                     row.add_pair(dst, e);
                 }
             }
+            index += 1;
         }
 
         if cur.is_some() {
@@ -91,14 +123,14 @@ impl StaticGraph {
             inbound_arr.try_push_valid().expect("push valid"); // last row;
         }
 
-        let items: ChunkedArray<UInt64Type> =
-            ChunkedArray::with_chunk("global_vertex_id", items.into());
+        let items: ChunkedArray<UInt64Type> = ChunkedArray::with_chunk(GID_COLUMN, items.into());
 
         let outbound_arr: ListArray<i64> = outbound_arr.into();
-        let outbound: ChunkedArray<ListType> = ChunkedArray::with_chunk("outbound", outbound_arr);
+        let outbound: ChunkedArray<ListType> =
+            ChunkedArray::with_chunk(OUTBOUND_COLUMN, outbound_arr);
 
         let inbound_arr: ListArray<i64> = inbound_arr.into();
-        let inbound: ChunkedArray<ListType> = ChunkedArray::with_chunk("inbound", inbound_arr);
+        let inbound: ChunkedArray<ListType> = ChunkedArray::with_chunk(INBOUND_COLUMN, inbound_arr);
 
         let df_graph = DataFrame::new(vec![
             items.into_series(),
@@ -121,7 +153,7 @@ impl StaticGraph {
 
     fn outbound(&self) -> &ChunkedArray<ListType> {
         self.df_graph
-            .column("outbound")
+            .column(OUTBOUND_COLUMN)
             .unwrap()
             .as_any()
             .downcast_ref::<ChunkedArray<ListType>>()
@@ -130,7 +162,7 @@ impl StaticGraph {
 
     fn inbound(&self) -> &ChunkedArray<ListType> {
         self.df_graph
-            .column("inbound")
+            .column(INBOUND_COLUMN)
             .unwrap()
             .as_any()
             .downcast_ref::<ChunkedArray<ListType>>()
@@ -145,6 +177,7 @@ impl StaticGraph {
             Direction::IN => self.inbound().chunks(),
             Direction::BOTH => return None,
         };
+
         let chunk_size = chunks[0].len(); // we assume all the chunks are the same size
 
         let chunk_idx = row / chunk_size;
@@ -190,5 +223,69 @@ impl StaticGraph {
                 Some(Box::new(out.merge_by(inb, |(v1, _), (v2, _)| v1 < v2)))
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use raphtory::core::{entities::edges::edge_ref::EdgeRef, Direction};
+
+    use super::StaticGraph;
+
+    #[test]
+    fn load_outbound_one_vertex() {
+        let g = StaticGraph::from_sorted_edge_refs(
+            vec![(EdgeRef::new_outgoing(0.into(), 0.into(), 1.into()), 1u64)].into_iter(),
+            vec![].into_iter(),
+        );
+
+        let actual = g
+            .edges(0.into(), Direction::OUT)
+            .unwrap()
+            .collect::<Vec<_>>();
+
+        assert_eq!(actual, vec![(1, 0)])
+    }
+
+    #[test]
+    fn load_inbound_one_vertex() {
+        let g = StaticGraph::from_sorted_edge_refs(
+            vec![].into_iter(),
+            vec![(EdgeRef::new_incoming(0.into(), 0.into(), 1.into()), 1u64)].into_iter(),
+        );
+
+        // 0 doesn't have any incoming edges
+        let actual = g
+            .edges(0.into(), Direction::IN)
+            .unwrap()
+            .collect::<Vec<_>>();
+
+        assert_eq!(actual, vec![]);
+
+        // 1 has one incoming edge
+        let actual = g
+            .edges(1.into(), Direction::IN)
+            .unwrap()
+            .collect::<Vec<_>>();
+        assert_eq!(actual, vec![(0, 0)])
+    }
+
+    #[test]
+    fn load_outbound_two_vertices() {
+        let g = StaticGraph::from_sorted_edge_refs(
+            vec![
+                (EdgeRef::new_outgoing(0.into(), 0.into(), 1.into()), 1u64),
+                (EdgeRef::new_outgoing(1.into(), 0.into(), 2.into()), 1u64),
+            ]
+            .into_iter(),
+            vec![].into_iter(),
+        );
+
+        let actual = g
+            .edges(0.into(), Direction::OUT)
+            .unwrap()
+            .collect::<Vec<_>>();
+
+        assert_eq!(actual, vec![(1, 0), (2, 1)])
     }
 }

@@ -6,15 +6,15 @@ pub(crate) mod static_graph;
 type MPArr<T> = MutablePrimitiveArray<T>;
 
 enum IngestEdgeType {
-    Outbound(EdgeRef),
-    Inbound(EdgeRef),
+    Outbound(EdgeRef, u64),
+    Inbound(EdgeRef, u64),
 }
 
 impl IngestEdgeType {
     fn pid(&self) -> EID {
         match self {
-            IngestEdgeType::Outbound(e_ref) => e_ref.pid(),
-            IngestEdgeType::Inbound(e_ref) => e_ref.pid(),
+            IngestEdgeType::Outbound(e_ref, _) => e_ref.pid(),
+            IngestEdgeType::Inbound(e_ref, _) => e_ref.pid(),
         }
     }
 
@@ -25,8 +25,8 @@ impl IngestEdgeType {
 
     fn local(&self) -> VID {
         match self {
-            IngestEdgeType::Outbound(e_ref) => e_ref.local(),
-            IngestEdgeType::Inbound(e_ref) => e_ref.local(),
+            IngestEdgeType::Outbound(e_ref, _) => e_ref.local(),
+            IngestEdgeType::Inbound(e_ref, _) => e_ref.local(),
         }
     }
 
@@ -35,10 +35,17 @@ impl IngestEdgeType {
         vid as u64
     }
 
+    fn gid(&self) -> u64 {
+        match self {
+            IngestEdgeType::Outbound(_, gid) => *gid,
+            IngestEdgeType::Inbound(_, gid) => *gid,
+        }
+    }
+
     fn remote(&self) -> VID {
         match self {
-            IngestEdgeType::Outbound(e_ref) => e_ref.remote(),
-            IngestEdgeType::Inbound(e_ref) => e_ref.remote(),
+            IngestEdgeType::Outbound(e_ref, _) => e_ref.remote(),
+            IngestEdgeType::Inbound(e_ref, _) => e_ref.remote(),
         }
     }
 

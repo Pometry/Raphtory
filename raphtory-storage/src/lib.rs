@@ -4,22 +4,30 @@ use std::sync::{
 };
 
 use arrow::static_graph::StaticGraph;
+use itertools::Itertools;
 use parking_lot::RwLock;
 use polars_core::prelude::*;
 use raphtory::{
     core::{
-        entities::{vertices::input_vertex::InputVertex, LayerIds},
+        entities::{
+            edges::edge_ref::EdgeRef, vertices::input_vertex::InputVertex, LayerIds, EID, VID,
+        },
         utils::errors::GraphError,
         Direction,
     },
-    db::api::{view::internal::GraphOps, mutation::{TryIntoInputTime, CollectProperties}},
+    db::api::{
+        mutation::{internal::InternalAdditionOps, CollectProperties, TryIntoInputTime},
+        view::internal::GraphOps,
+    },
     prelude::*,
 };
 
 mod arrow;
 
 pub struct PersistentTemporalGraph {
-    mem_graph: Graph,
+    mem_graph: Arc<[Graph; 2]>,
+    cur_graph: RwLock<usize>,
+
     updates_since_last_fragment: AtomicUsize,
 
     flush_size: usize,
@@ -28,37 +36,50 @@ pub struct PersistentTemporalGraph {
 
 impl PersistentTemporalGraph {
     pub fn new(flush_size: usize) -> Self {
-        let mem_graph = Graph::new();
+        let mem_graph1 = Graph::new();
+        let mem_graph2 = Graph::new();
+
+        let mem_graph = Arc::new([mem_graph1, mem_graph2]);
         let graph_fragments = Arc::new(RwLock::new(Vec::new()));
+
         Self {
             mem_graph,
+            cur_graph: RwLock::new(0),
             updates_since_last_fragment: AtomicUsize::new(0),
             flush_size,
             graph_fragments,
         }
     }
 
+    fn swap_cur_graph(&self) {
+        if self.updates_since_last_fragment.load(Ordering::Relaxed) >= self.flush_size {
+            let mut cur_graph = self.cur_graph.write();
+            if self.updates_since_last_fragment.load(Ordering::SeqCst) >= self.flush_size {
+                *cur_graph = (*cur_graph + 1) % 2;
+            }
+        }
+    }
+
+    fn graph(&self) -> &Graph {
+        let cur_graph = self.cur_graph.read();
+        &self.mem_graph[*cur_graph]
+    }
+
+    fn prev_graph(&self) -> &Graph {
+        let cur_graph = self.cur_graph.read();
+        &self.mem_graph[(*cur_graph + 1) % 2]
+    }
+
     fn flush(&self) {
         // iterate over all the pending updates and add them to the graph
+        self.graph_fragments
+            .write()
+            .push(GraphFragment::from_graph(self.graph()));
 
-        let edge_triplets = self
-            .mem_graph
-            .vertex_refs(LayerIds::All, None)
-            .flat_map(|v| {
-                self.mem_graph
-                    .vertex_edges(v, Direction::OUT, LayerIds::All, None)
-            })
-            .for_each(|edge_ref| println!("{:?}", edge_ref));
-
-        // FIXME: this is terrible
         self.updates_since_last_fragment.store(0, Ordering::SeqCst);
     }
 
-    fn add_edge<
-        V: InputVertex,
-        T: TryIntoInputTime,
-        PI: CollectProperties,
-    >(
+    fn add_edge<V: InputVertex, T: TryIntoInputTime, PI: CollectProperties>(
         &self,
         t: T,
         src: V,
@@ -66,15 +87,29 @@ impl PersistentTemporalGraph {
         props: PI,
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
-        if self.updates_since_last_fragment.load(Ordering::SeqCst) >= self.flush_size {
-            self.flush();
-        }
-
         self.updates_since_last_fragment
             .fetch_add(1, Ordering::SeqCst);
 
-        self.mem_graph.add_edge(t, src, dst, props, layer)?;
+        self.graph().add_edge(t, src, dst, props, layer)?;
         Ok(())
+    }
+
+    fn edges<V: InputVertex>(&self, v: V, dir: Direction) -> Box<dyn Iterator<Item = EdgeRef>> {
+        let vid = self.graph().resolve_vertex(v.id());
+        let fragments = self.graph_fragments.read();
+        let iter = fragments
+            .iter()
+            .map(move |graph_fragment| {
+                graph_fragment
+                    .edges(vid, dir)
+                    .map(move |(other_vid, eid)| match dir {
+                        Direction::OUT => EdgeRef::new_outgoing(eid, vid, other_vid),
+                        Direction::IN => EdgeRef::new_incoming(eid, other_vid, vid),
+                        Direction::BOTH => todo!(),
+                    })
+            })
+            .kmerge_by(|e1, e2| e1.local() < e2.local());
+        Box::new(iter)
     }
 }
 
@@ -84,20 +119,39 @@ struct GraphFragment {
 }
 
 impl GraphFragment {
-    fn from_graph<G: GraphViewOps>(g: G) -> Self {
-        let outgoing = g
-            .vertex_refs(LayerIds::All, None)
-            .flat_map(|v| g.vertex_edges(v, Direction::OUT, LayerIds::All, None));
+    fn from_graph<G: GraphViewOps>(g: &G) -> Self {
+        let outgoing = g.vertex_refs(LayerIds::All, None).flat_map(|v| {
+            let g_id = g.vertex_id(v);
+            g.vertex_edges(v, Direction::OUT, LayerIds::All, None)
+                .map(move |e| (e, g_id))
+        });
 
-        let incoming = g
-            .vertex_refs(LayerIds::All, None)
-            .flat_map(|v| g.vertex_edges(v, Direction::OUT, LayerIds::All, None));
+        let incoming = g.vertex_refs(LayerIds::All, None).flat_map(|v| {
+            let g_id = g.vertex_id(v);
+            g.vertex_edges(v, Direction::IN, LayerIds::All, None)
+                .map(move |e| (e, g_id))
+        });
         let static_graph = StaticGraph::from_sorted_edge_refs(outgoing, incoming);
 
         Self {
             static_graph,
             temporal: None,
         }
+    }
+
+    fn edges(&self, v_id: VID, dir: Direction) -> Box<dyn Iterator<Item = (VID, EID)>> {
+        self.static_graph
+            .edges(v_id, dir)
+            .map(|iter| {
+                let box_iter: Box<dyn Iterator<Item = (VID, EID)>> =
+                    Box::new(iter.map(|(uid, eid)| {
+                        let vid = uid as usize;
+                        let eid = eid as usize;
+                        (vid.into(), eid.into())
+                    }));
+                box_iter
+            })
+            .unwrap_or(Box::new(std::iter::empty()))
     }
 }
 
@@ -117,9 +171,22 @@ mod test {
 
         g.add_edge(0, 1, 2, NO_PROPS, None)
             .expect("failed to add edge");
+        g.add_edge(0, 1, 4, NO_PROPS, None)
+            .expect("failed to add edge");
         g.add_edge(0, 2, 3, NO_PROPS, None)
             .expect("failed to add edge");
         g.add_edge(0, 3, 4, NO_PROPS, None)
             .expect("failed to add edge");
+
+        g.flush();
+
+        let edges = g.edges(1, Direction::OUT);
+        assert_eq!(edges.count(), 2);
+
+        let edges = g.edges(1, Direction::IN);
+        assert_eq!(edges.count(), 0);
+
+        let edges = g.edges(4, Direction::IN);
+        assert_eq!(edges.count(), 2);
     }
 }
