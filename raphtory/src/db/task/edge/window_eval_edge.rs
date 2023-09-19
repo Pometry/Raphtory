@@ -411,7 +411,6 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeListOps
     type ValueType<T> = T;
     type VList = Box<dyn Iterator<Item = Self::Vertex> + 'a>;
     type IterType<T> = Box<dyn Iterator<Item = T> + 'a>;
-    type WindowedViewType = WindowEvalEdgeView<'a, G, CS, S>;
 
     fn properties(self) -> Self::IterType<Properties<Self::Edge>> {
         Box::new(self.map(move |e| e.properties()))
@@ -483,33 +482,5 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeListOps
 
     fn latest_date_time(self) -> Self::IterType<Option<chrono::NaiveDateTime>> {
         Box::new(self.map(|e| e.latest_date_time()))
-    }
-
-    fn at(self, t: i64) -> Self::IterType<EdgeView<WindowedGraph<Self::Graph>>> {
-        todo!()
-    }
-
-    fn window(
-        self,
-        t_start: i64,
-        t_end: i64,
-    ) -> Self::IterType<EdgeView<WindowedGraph<Self::Graph>>> {
-        todo!()
-    }
-
-    fn layer(
-        self,
-        layer: String,
-    ) -> Self::IterType<EdgeView<crate::db::graph::views::layer_graph::LayeredGraph<Self::Graph>>>
-    {
-        todo!()
-    }
-
-    fn layers(
-        self,
-        layers: Vec<String>,
-    ) -> Self::IterType<EdgeView<crate::db::graph::views::layer_graph::LayeredGraph<Self::Graph>>>
-    {
-        todo!()
     }
 }

@@ -495,7 +495,6 @@ impl PyMutableEdge {
 
 /// A list of edges that can be iterated over.
 #[pyclass(name = "Edges")]
-#[derive(Debug)]
 pub struct PyEdges {
     builder: Arc<dyn Fn() -> BoxedIter<EdgeView<DynamicGraph>> + Send + Sync + 'static>,
 }

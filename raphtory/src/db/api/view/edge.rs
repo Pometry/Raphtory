@@ -38,7 +38,6 @@ pub trait EdgeViewOps:
     + TemporalPropertiesOps
     + TemporalPropertyViewOps
     + TimeOps
-    + LayerOps
     + Sized
     + Clone
 {
@@ -226,15 +225,6 @@ pub trait EdgeListOps:
     fn end(self) -> Self::IterType<Option<i64>>;
 
     fn end_date_time(self) -> Self::IterType<Option<NaiveDateTime>>;
-}
-
-impl<E: EdgeListOps> LayerOps for E {
-    type LayeredViewType = E::IterType<<E::Edge as LayerOps>::LayeredViewType>;
-
-    fn layer<L: Into<Layer>>(&self, name: L) -> Self::LayeredViewType {
-        let layer_name: Layer = name.into();
-        self.into_iter().map(move |e| e.layer(layer_name.clone()))
-    }
 }
 
 #[cfg(test)]
