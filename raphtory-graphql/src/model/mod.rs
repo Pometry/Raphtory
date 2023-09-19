@@ -9,11 +9,10 @@ use dynamic_graphql::{
     Upload,
 };
 use itertools::Itertools;
-use raphtory::prelude::VertexViewOps;
 use raphtory::{
     core::Prop,
     db::api::view::internal::{CoreGraphOps, DynamicGraph, IntoDynamic, MaterializedGraph},
-    prelude::{Graph, GraphViewOps, PropertyAdditionOps},
+    prelude::{Graph, GraphViewOps, PropertyAdditionOps, VertexViewOps},
     search::IndexedGraph,
 };
 use std::{
