@@ -296,11 +296,11 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeListOps
         Box::new(self.map(|e| e.latest_date_time()))
     }
 
-    fn window(
+    fn window<T: IntoTime>(
         self,
-        t_start: i64,
-        t_end: i64,
-    ) -> Self::IterType<EdgeView<WindowedGraph<Self::Graph>>> {
+        t_start: T,
+        t_end: T,
+    ) -> Self::IterType<<Self::Edge as TimeOps>::WindowedViewType> {
         todo!()
     }
 
