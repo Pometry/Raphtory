@@ -9,6 +9,7 @@ use dynamic_graphql::{
     Upload,
 };
 use itertools::Itertools;
+use raphtory::prelude::VertexViewOps;
 use raphtory::{
     core::Prop,
     db::api::view::internal::{CoreGraphOps, DynamicGraph, IntoDynamic, MaterializedGraph},
@@ -236,6 +237,7 @@ impl Mut {
         let mut data = ctx.data_unchecked::<Data>().graphs.write();
 
         let subgraph = data.get(&graph_name).ok_or("Graph not found")?;
+
         let path = subgraph
             .static_prop(&"path".to_string())
             .expect("Path is missing")
@@ -243,7 +245,7 @@ impl Mut {
 
         let parent_graph = data.get(&parent_graph_name).ok_or("Graph not found")?;
         let new_subgraph = parent_graph
-            .subgraph(subgraph.vertices())
+            .subgraph(subgraph.vertices().iter().map(|v| v.name()).collect_vec())
             .materialize()
             .expect("Failed to materialize graph");
 
