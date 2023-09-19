@@ -226,6 +226,51 @@ impl Mut {
         );
         Ok(name)
     }
+
+    async fn archive_graph<'a>(
+        ctx: &Context<'a>,
+        graph_name: String,
+        parent_graph_name: String,
+        is_archive: u8,
+    ) -> Result<bool> {
+        let mut data = ctx.data_unchecked::<Data>().graphs.write();
+
+        let subgraph = data.get(&graph_name).ok_or("Graph not found")?;
+        let path = subgraph
+            .static_prop(&"path".to_string())
+            .expect("Path is missing")
+            .to_string();
+
+        let parent_graph = data.get(&parent_graph_name).ok_or("Graph not found")?;
+        let new_subgraph = parent_graph
+            .subgraph(subgraph.vertices())
+            .materialize()
+            .expect("Failed to materialize graph");
+
+        let static_props_without_isactive: Vec<(String, Prop)> = subgraph
+            .properties()
+            .into_iter()
+            .filter(|(a, b)| a != "isArchive")
+            .collect_vec();
+        new_subgraph
+            .add_constant_properties(static_props_without_isactive)
+            .expect("Failed to add static properties");
+        new_subgraph
+            .add_constant_properties([("isArchive".to_string(), Prop::U8(is_archive.clone()))])
+            .expect("Failed to add static property");
+        new_subgraph
+            .save_to_file(path)
+            .expect("Failed to save graph");
+
+        let gi: IndexedGraph<Graph> = new_subgraph
+            .into_events()
+            .ok_or("Graph with deletions not supported")?
+            .into();
+
+        data.insert(graph_name, gi.clone());
+
+        Ok(true)
+    }
 }
 
 #[derive(App)]
