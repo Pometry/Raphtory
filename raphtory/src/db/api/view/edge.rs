@@ -37,6 +37,8 @@ pub trait EdgeViewOps:
     + ConstPropertiesOps
     + TemporalPropertiesOps
     + TemporalPropertyViewOps
+    + TimeOps
+    + LayerOps
     + Sized
     + Clone
 {
@@ -176,7 +178,6 @@ pub trait EdgeListOps:
     type Vertex: VertexViewOps<Graph = Self::Graph>;
     type Edge: EdgeViewOps<Graph = Self::Graph, Vertex = Self::Vertex>;
     type ValueType<T>;
-    type WindowedViewType: EdgeViewOps<Graph = Self::Graph, Vertex = Self::Vertex>;
 
     /// the type of list of vertices
     type VList: VertexListOps<Graph = Self::Graph, Vertex = Self::Vertex>;
@@ -225,18 +226,15 @@ pub trait EdgeListOps:
     fn end(self) -> Self::IterType<Option<i64>>;
 
     fn end_date_time(self) -> Self::IterType<Option<NaiveDateTime>>;
+}
 
-    fn window(
-        self,
-        t_start: i64,
-        t_end: i64,
-    ) -> Self::IterType<EdgeView<WindowedGraph<Self::Graph>>>;
+impl<E: EdgeListOps> LayerOps for E {
+    type LayeredViewType = E::IterType<<E::Edge as LayerOps>::LayeredViewType>;
 
-    fn at<T: IntoTime>(self, time: T) -> Self::IterType<EdgeView<WindowedGraph<Self::Graph>>>;
-
-    fn layer(self, layer: String) -> Self::IterType<EdgeView<LayeredGraph<Self::Graph>>>;
-
-    fn layers(self, layers: Vec<String>) -> Self::IterType<EdgeView<LayeredGraph<Self::Graph>>>;
+    fn layer<L: Into<Layer>>(&self, name: L) -> Self::LayeredViewType {
+        let layer_name: Layer = name.into();
+        self.into_iter().map(move |e| e.layer(layer_name.clone()))
+    }
 }
 
 #[cfg(test)]

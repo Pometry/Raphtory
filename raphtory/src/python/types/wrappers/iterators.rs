@@ -89,4 +89,3 @@ py_iterable!(OptionNaiveDateTimeIterable, Option<NaiveDateTime>);
 py_nested_iterable!(NestedNaiveDateTimeIterable, Option<NaiveDateTime>);
 
 py_nested_iterable!(NestedOptionStringIterable, Option<String>);
-py_iterable!(EdgeViewIterable, EdgeView<WindowedGraph<DynamicGraph>>);

@@ -34,9 +34,9 @@ use crate::{
         types::{
             repr::{iterator_repr, Repr},
             wrappers::iterators::{
-                EdgeViewIterable, NestedI64VecIterable, NestedNaiveDateTimeIterable,
-                NestedOptionI64Iterable, NestedOptionStringIterable, NestedStringVecIterable,
-                NestedU64U64Iterable, OptionI64Iterable, OptionNaiveDateTimeIterable,
+                NestedI64VecIterable, NestedNaiveDateTimeIterable, NestedOptionI64Iterable,
+                NestedOptionStringIterable, NestedStringVecIterable, NestedU64U64Iterable,
+                OptionI64Iterable, OptionNaiveDateTimeIterable,
             },
         },
         utils::{PyGenericIterable, PyGenericIterator, PyInterval, PyTime},
