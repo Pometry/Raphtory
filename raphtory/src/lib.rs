@@ -99,6 +99,9 @@ pub mod graph_loader;
 #[cfg(feature = "search")]
 pub mod search;
 
+#[cfg(feature = "vectors")]
+pub mod vectors;
+
 pub mod prelude {
     pub const NO_PROPS: [(&str, Prop); 0] = [];
     pub use crate::{
