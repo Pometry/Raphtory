@@ -65,6 +65,10 @@ impl<'a> MutEdgePair<'a> {
         self.0.push(true);
     }
 
+    fn add_pair_usize(&mut self, v_id: usize, e_id: usize) {
+        self.add_pair(v_id as u64, e_id as u64);
+    }
+
     fn add_vals<I: TrustedLen<Item = u64>>(&mut self, vs: I, es: I) {
         self.0
             .value::<MPArr<u64>>(0)

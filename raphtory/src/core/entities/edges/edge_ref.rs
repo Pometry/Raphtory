@@ -4,7 +4,7 @@ use crate::core::{
 };
 use std::cmp::Ordering;
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct EdgeRef {
     e_pid: EID,
     src_pid: VID,
@@ -22,7 +22,7 @@ impl PartialOrd for EdgeRef {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Dir {
     Into,
     Out,
