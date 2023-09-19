@@ -324,14 +324,14 @@ impl PyGraphView {
         self.graph.rolling(window, step)
     }
 
-    /// Create a view including all events between `t_start` (inclusive) and `t_end` (exclusive)
+    /// Create a view including all events between `start` (inclusive) and `end` (exclusive)
     ///
     /// Arguments:
     ///   start (int): the start time of the window (optional)
     ///   end (int): the end time of the window (optional)
     ///
     /// Returns:
-    ///     a view including all events between `t_start` (inclusive) and `t_end` (exclusive)
+    ///     a view including all events between `start` (inclusive) and `end` (exclusive)
     #[pyo3(signature = (start=None, end=None))]
     pub fn window(
         &self,
