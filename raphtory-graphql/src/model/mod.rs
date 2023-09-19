@@ -4,8 +4,7 @@ use crate::{
 };
 use async_graphql::Context;
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
-use chrono::NaiveDateTime;
-use chrono::Utc;
+use chrono::{NaiveDateTime, Utc};
 use dynamic_graphql::{
     App, Mutation, MutationFields, MutationRoot, ResolvedObject, ResolvedObjectFields, Result,
     Upload,
@@ -17,13 +16,13 @@ use raphtory::{
     prelude::{Graph, GraphViewOps, PropertyAdditionOps, VertexViewOps},
     search::IndexedGraph,
 };
-use std::time::UNIX_EPOCH;
 use std::{
     collections::HashMap,
     error::Error,
     fmt::{Display, Formatter},
     io::BufReader,
     ops::Deref,
+    time::UNIX_EPOCH,
 };
 use uuid::Uuid;
 
