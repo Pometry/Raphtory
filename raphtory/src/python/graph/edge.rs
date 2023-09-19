@@ -34,9 +34,9 @@ use crate::{
         types::{
             repr::{iterator_repr, Repr},
             wrappers::iterators::{
-                NestedI64VecIterable, NestedNaiveDateTimeIterable, NestedOptionI64Iterable,
-                NestedOptionStringIterable, NestedStringVecIterable, NestedU64U64Iterable,
-                OptionI64Iterable, OptionNaiveDateTimeIterable,
+                EdgeViewIterable, NestedI64VecIterable, NestedNaiveDateTimeIterable,
+                NestedOptionI64Iterable, NestedOptionStringIterable, NestedStringVecIterable,
+                NestedU64U64Iterable, OptionI64Iterable, OptionNaiveDateTimeIterable,
             },
         },
         utils::{PyGenericIterable, PyGenericIterator, PyInterval, PyTime},
@@ -495,6 +495,7 @@ impl PyMutableEdge {
 
 /// A list of edges that can be iterated over.
 #[pyclass(name = "Edges")]
+#[derive(Debug)]
 pub struct PyEdges {
     builder: Arc<dyn Fn() -> BoxedIter<EdgeView<DynamicGraph>> + Send + Sync + 'static>,
 }
@@ -657,25 +658,48 @@ impl PyEdges {
     }
 
     fn layer_name(&self) -> PyGenericIterable {
-        let builder = self.builder.clone();
-        (move || builder().layer_name()).into()
+        let edges = self.builder.clone();
+        (move || edges().layer_name()).into()
     }
 
     fn layer_names(&self) -> PyGenericIterable {
-        let builder = self.builder.clone();
-        (move || builder().layer_names()).into()
+        let edges = self.builder.clone();
+        (move || edges().layer_names()).into()
     }
 
-    fn layers(&self, layer_names: Vec<String>) -> PyResult<PyEdges> {
+    fn layer(&self, name: String) -> PyEdges {
         let builder = self.builder.clone();
-        if let Some(edges) = builder().layer(layer_names.clone()) {
-            Ok((move || edges).into())
-        } else {
-            let available_layers = builder().layer_names();
-            Err(PyErr::new::<pyo3::exceptions::PyAttributeError, _>(
-                format!("Layers {layer_names:?} not available for edge, available layers: {available_layers:?}"),
-            ))
-        }
+        (move || builder().layer(name.clone())).into()
+    }
+
+    fn layers(&self, layer_names: Vec<String>) -> PyEdges {
+        let builder = self.builder.clone();
+        (move || builder().layers(layer_names.clone())).into()
+    }
+
+    fn window(&self, t_start: Option<PyTime>, t_end: Option<PyTime>) -> PyEdges {
+        let builder = self.builder.clone();
+        (move || {
+            builder().window(
+                t_start.clone().unwrap_or(PyTime::MIN),
+                t_end.clone().unwrap_or(PyTime::MAX),
+            )
+        })
+        .into()
+    }
+
+    /// Create view of edges including all events at 't'
+    ///
+    /// Arguments:
+    ///     end(int): The time of the window
+    ///
+    fn at(&self, end: PyTime) -> PyEdges {
+        let builder = self.builder.clone();
+        (move || {
+            let iter = builder().at(end.clone());
+            iter
+        })
+        .into()
     }
 
     fn __repr__(&self) -> String {

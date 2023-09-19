@@ -4,7 +4,7 @@ use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, VID},
         storage::timeindex::{AsTime, TimeIndexEntry},
-        utils::time::error::ParseTimeError,
+        utils::time::{error::ParseTimeError, IntoTime},
         ArcStr,
     },
     db::{
@@ -15,9 +15,11 @@ use crate::{
             },
             view::{internal::*, *},
         },
-        graph::edge::EdgeView,
+        graph::{
+            edge::EdgeView,
+            views::{layer_graph::LayeredGraph, window_graph::WindowedGraph},
+        },
     },
-    python::utils::PyInterval,
 };
 
 pub trait EdgeViewInternalOps<G: GraphViewOps, V: VertexViewOps<Graph = G>> {
@@ -174,6 +176,7 @@ pub trait EdgeListOps:
     type Vertex: VertexViewOps<Graph = Self::Graph>;
     type Edge: EdgeViewOps<Graph = Self::Graph, Vertex = Self::Vertex>;
     type ValueType<T>;
+    type WindowedViewType: EdgeViewOps<Graph = Self::Graph, Vertex = Self::Vertex>;
 
     /// the type of list of vertices
     type VList: VertexListOps<Graph = Self::Graph, Vertex = Self::Vertex>;
@@ -223,16 +226,17 @@ pub trait EdgeListOps:
 
     fn end_date_time(self) -> Self::IterType<Option<NaiveDateTime>>;
 
-    fn rolling(
+    fn window(
         self,
-        window: PyInterval,
-        step: Option<PyInterval>,
-    ) -> Self::IterType<Result<WindowSet<EdgeView<DynamicGraph>>, ParseTimeError>>;
+        t_start: i64,
+        t_end: i64,
+    ) -> Self::IterType<EdgeView<WindowedGraph<Self::Graph>>>;
 
-    fn expanding(
-        self,
-        step: PyInterval,
-    ) -> Self::IterType<Result<WindowSet<EdgeView<DynamicGraph>>, ParseTimeError>>;
+    fn at<T: IntoTime>(self, time: T) -> Self::IterType<EdgeView<WindowedGraph<Self::Graph>>>;
+
+    fn layer(self, layer: String) -> Self::IterType<EdgeView<LayeredGraph<Self::Graph>>>;
+
+    fn layers(self, layers: Vec<String>) -> Self::IterType<EdgeView<LayeredGraph<Self::Graph>>>;
 }
 
 #[cfg(test)]

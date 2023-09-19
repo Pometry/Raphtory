@@ -1,4 +1,11 @@
-use crate::{db::api::view::BoxedIter, prelude::Prop, python::types::repr::Repr};
+use crate::{
+    db::{
+        api::view::{internal::DynamicGraph, BoxedIter},
+        graph::views::window_graph::WindowedGraph,
+    },
+    prelude::Prop,
+    python::types::repr::Repr,
+};
 use chrono::NaiveDateTime;
 use itertools::Itertools;
 use num::cast::AsPrimitive;
@@ -82,3 +89,4 @@ py_iterable!(OptionNaiveDateTimeIterable, Option<NaiveDateTime>);
 py_nested_iterable!(NestedNaiveDateTimeIterable, Option<NaiveDateTime>);
 
 py_nested_iterable!(NestedOptionStringIterable, Option<String>);
+py_iterable!(EdgeViewIterable, EdgeView<WindowedGraph<DynamicGraph>>);

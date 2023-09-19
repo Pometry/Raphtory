@@ -2,7 +2,9 @@ use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
         state::compute_state::ComputeState,
-        ArcStr, Prop,
+        storage::locked_view::LockedView,
+        utils::time::IntoTime,
+        ArcStr, Prop, Prop,
     },
     db::{
         api::{
@@ -12,6 +14,7 @@ use crate::{
             },
             view::*,
         },
+        graph::{edge::EdgeView, views::window_graph::WindowedGraph},
         task::{
             task_state::Local2,
             vertex::{eval_vertex::EvalVertexView, eval_vertex_state::EVState},
@@ -219,6 +222,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeListOps
     type ValueType<T> = T;
     type VList = Box<dyn Iterator<Item = Self::Vertex> + 'a>;
     type IterType<T> = Box<dyn Iterator<Item = T> + 'a>;
+    type WindowedViewType = EvalEdgeView<'a, G, CS, S>;
 
     fn properties(self) -> Self::IterType<Properties<Self::Edge>> {
         Box::new(self.map(move |e| e.properties()))
@@ -290,6 +294,34 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeListOps
 
     fn latest_date_time(self) -> Self::IterType<Option<chrono::NaiveDateTime>> {
         Box::new(self.map(|e| e.latest_date_time()))
+    }
+
+    fn window(
+        self,
+        t_start: i64,
+        t_end: i64,
+    ) -> Self::IterType<EdgeView<WindowedGraph<Self::Graph>>> {
+        todo!()
+    }
+
+    fn at<T: IntoTime>(self, time: T) -> Self::IterType<EdgeView<WindowedGraph<Self::Graph>>> {
+        todo!()
+    }
+
+    fn layer(
+        self,
+        layer: String,
+    ) -> Self::IterType<EdgeView<crate::db::graph::views::layer_graph::LayeredGraph<Self::Graph>>>
+    {
+        todo!()
+    }
+
+    fn layers(
+        self,
+        layers: Vec<String>,
+    ) -> Self::IterType<EdgeView<crate::db::graph::views::layer_graph::LayeredGraph<Self::Graph>>>
+    {
+        todo!()
     }
 }
 

@@ -36,7 +36,6 @@ use crate::{
         graph::{vertex::VertexView, views::window_graph::WindowedGraph},
     },
     prelude::*,
-    python::utils::PyInterval,
 };
 use std::{
     fmt::{Debug, Formatter},
@@ -352,7 +351,7 @@ impl<G: GraphViewOps> EdgeListOps for BoxedIter<EdgeView<G>> {
     type Vertex = VertexView<G>;
     type Edge = EdgeView<G>;
     type ValueType<T> = T;
-
+    type WindowedViewType = EdgeView<G>;
     /// Specifies the associated type for an iterator over vertices.
     type VList = Box<dyn Iterator<Item = VertexView<G>> + Send>;
 
@@ -435,6 +434,23 @@ impl<G: GraphViewOps> EdgeListOps for BoxedIter<EdgeView<G>> {
     fn end_date_time(self) -> Self::IterType<Option<NaiveDateTime>> {
         Box::new(self.map(|e| e.end_date_time()))
     }
+
+    fn at<T: IntoTime>(self, time: T) -> Self::IterType<EdgeView<WindowedGraph<G>>> {
+        let new_time = time.into_time();
+        Box::new(self.map(move |e| e.at(new_time)))
+    }
+
+    fn layer(self, layer: String) -> Self::IterType<EdgeView<LayeredGraph<G>>> {
+        Box::new(self.filter_map(move |e| e.layer(layer.clone())))
+    }
+
+    fn layers(self, layers: Vec<String>) -> Self::IterType<EdgeView<LayeredGraph<G>>> {
+        Box::new(self.filter_map(move |e| e.layer(layers.clone())))
+    }
+
+    fn window(self, t_start: i64, t_end: i64) -> Self::IterType<EdgeView<WindowedGraph<G>>> {
+        Box::new(self.map(move |e| e.window(t_start.clone(), t_end.clone())))
+    }
 }
 
 impl<G: GraphViewOps> EdgeListOps for BoxedIter<BoxedIter<EdgeView<G>>> {
@@ -444,6 +460,7 @@ impl<G: GraphViewOps> EdgeListOps for BoxedIter<BoxedIter<EdgeView<G>>> {
     type ValueType<T> = Box<dyn Iterator<Item = T> + Send>;
     type VList = Box<dyn Iterator<Item = Box<dyn Iterator<Item = VertexView<G>> + Send>> + Send>;
     type IterType<T> = Box<dyn Iterator<Item = Box<dyn Iterator<Item = T> + Send>> + Send>;
+    type WindowedViewType = EdgeView<G>;
 
     fn properties(self) -> Self::IterType<Properties<Self::Edge>> {
         Box::new(self.map(move |it| it.properties()))
@@ -517,6 +534,23 @@ impl<G: GraphViewOps> EdgeListOps for BoxedIter<BoxedIter<EdgeView<G>>> {
 
     fn date_time(self) -> Self::IterType<Option<NaiveDateTime>> {
         Box::new(self.map(|it| it.date_time()))
+    }
+
+    fn at<T: IntoTime>(self, time: T) -> Self::IterType<EdgeView<WindowedGraph<G>>> {
+        let new_time = time.into_time();
+        Box::new(self.map(move |it| it.at(new_time)))
+    }
+
+    fn layer(self, layer: String) -> Self::IterType<EdgeView<LayeredGraph<G>>> {
+        Box::new(self.map(move |it| it.layer(layer.clone())))
+    }
+
+    fn layers(self, layers: Vec<String>) -> Self::IterType<EdgeView<LayeredGraph<G>>> {
+        Box::new(self.map(move |it| it.layers(layers.clone())))
+    }
+
+    fn window(self, t_start: i64, t_end: i64) -> Self::IterType<EdgeView<WindowedGraph<G>>> {
+        Box::new(self.map(move |it| it.window(t_start, t_end)))
     }
 }
 
