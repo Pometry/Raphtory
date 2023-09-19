@@ -3,6 +3,7 @@ use raphtory::{
     core::Prop,
     prelude::{Graph, GraphViewOps, PropertyAdditionOps},
     search::IndexedGraph,
+    vectors::VectorizedGraph,
 };
 use std::{
     collections::{HashMap, HashSet},
@@ -13,24 +14,37 @@ use walkdir::WalkDir;
 #[derive(Default)]
 pub(crate) struct Data {
     pub(crate) graphs: RwLock<HashMap<String, IndexedGraph<Graph>>>,
+    pub(crate) vector_stores: RwLock<HashMap<String, VectorizedGraph<Graph>>>,
 }
 
 impl Data {
     pub fn from_map(graphs: HashMap<String, Graph>) -> Self {
         let graphs = RwLock::new(Self::convert_graphs(graphs));
-        Self { graphs }
+        let vector_stores = RwLock::new(HashMap::new());
+        Self {
+            graphs,
+            vector_stores,
+        }
     }
 
     pub fn from_directory(directory_path: &str) -> Self {
         let graphs = RwLock::new(Self::load_from_file(directory_path));
-        Self { graphs }
+        let vector_stores = RwLock::new(HashMap::new());
+        Self {
+            graphs,
+            vector_stores,
+        }
     }
 
     pub fn from_map_and_directory(graphs: HashMap<String, Graph>, directory_path: &str) -> Self {
         let mut graphs = Self::convert_graphs(graphs);
         graphs.extend(Self::load_from_file(directory_path));
         let graphs = RwLock::new(graphs);
-        Self { graphs }
+        let vector_stores = RwLock::new(HashMap::new());
+        Self {
+            graphs,
+            vector_stores,
+        }
     }
 
     fn convert_graphs(graphs: HashMap<String, Graph>) -> HashMap<String, IndexedGraph<Graph>> {

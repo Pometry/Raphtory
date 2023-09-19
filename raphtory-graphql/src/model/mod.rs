@@ -11,7 +11,7 @@ use dynamic_graphql::{
 use itertools::Itertools;
 use raphtory::{
     core::Prop,
-    db::api::view::internal::{CoreGraphOps, DynamicGraph, IntoDynamic, MaterializedGraph},
+    db::api::view::internal::{CoreGraphOps, IntoDynamic, MaterializedGraph},
     prelude::{Graph, GraphViewOps, PropertyAdditionOps},
     search::IndexedGraph,
 };
@@ -86,6 +86,40 @@ impl QueryRoot {
             .materialize()?;
         let bincode = bincode::serialize(&g)?;
         Ok(URL_SAFE_NO_PAD.encode(bincode))
+    }
+
+    async fn similarity_search<'a>(
+        ctx: &Context<'a>,
+        graph: &str,
+        query: &str,
+        init: Option<usize>,
+        min_nodes: Option<usize>,
+        min_edges: Option<usize>,
+        limit: Option<usize>,
+        window_start: Option<i64>,
+        window_end: Option<i64>,
+    ) -> Option<Vec<String>> {
+        let init = init.unwrap_or(1);
+        let min_nodes = min_nodes.unwrap_or(0);
+        let min_edges = min_edges.unwrap_or(0);
+        let limit = limit.unwrap_or(1);
+        let data = ctx.data_unchecked::<Data>();
+        let binding = data.vector_stores.read();
+        let vec_store = binding.get(graph)?;
+        println!("running similarity search for {query}");
+        Some(
+            vec_store
+                .similarity_search(
+                    query,
+                    init,
+                    min_nodes,
+                    min_edges,
+                    limit,
+                    window_start,
+                    window_end,
+                )
+                .await,
+        )
     }
 }
 
