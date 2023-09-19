@@ -13,7 +13,7 @@ use crate::{
         api::{
             properties::Properties,
             view::{
-                internal::{DynamicGraph, Immutable, IntoDynamic, MaterializedGraph},
+                internal::{DynamicGraph, Immutable, IntoDynamic, MaterializedGraph, Static},
                 BoxedIter, WindowSet,
             },
         },
@@ -71,6 +71,15 @@ impl<G: GraphViewOps + IntoDynamic> From<EdgeView<G>> for PyEdge {
                 graph: value.graph.clone().into_dynamic(),
                 edge: value.edge,
             },
+        }
+    }
+}
+
+impl<G: GraphViewOps + Static> From<EdgeView<G>> for EdgeView<DynamicGraph> {
+    fn from(value: EdgeView<G>) -> Self {
+        EdgeView {
+            graph: value.graph.into_dynamic(),
+            edge: value.edge,
         }
     }
 }
@@ -673,7 +682,12 @@ impl PyEdges {
 
     fn layers(&self, layer_names: Vec<String>) -> PyEdges {
         let builder = self.builder.clone();
-        (move || builder().layers(layer_names.clone())).into()
+        (move || {
+            builder()
+                .layers(layer_names.clone())
+                .map(|e| e.into::<EdgeView<DynamicGraph>>())
+        })
+        .into()
     }
 
     fn window(&self, t_start: Option<PyTime>, t_end: Option<PyTime>) -> PyEdges {

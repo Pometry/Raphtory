@@ -38,6 +38,8 @@ pub(crate) type InternalGraph = InnerTemporalGraph<SEG>;
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Graph(pub Arc<InternalGraph>);
 
+impl Static for Graph {}
+
 pub fn graph_equal<G1: GraphViewOps, G2: GraphViewOps>(g1: &G1, g2: &G2) -> bool {
     if g1.count_vertices() == g2.count_vertices() && g1.count_edges() == g2.count_edges() {
         g1.vertices().id().all(|v| g2.has_vertex(v)) && // all vertices exist in other 
