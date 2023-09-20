@@ -27,7 +27,15 @@
 use crate::db::{api::view::GraphViewOps, graph::graph::Graph};
 use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
-use std::{cmp::Ordering, collections::HashMap, fmt, sync::Arc};
+use std::{
+    borrow::Borrow,
+    cmp::Ordering,
+    collections::HashMap,
+    fmt,
+    fmt::{Display, Formatter},
+    ops::Deref,
+    sync::Arc,
+};
 
 #[cfg(test)]
 extern crate core;
@@ -37,6 +45,65 @@ pub mod state;
 pub(crate) mod storage;
 pub mod utils;
 
+/// this is here because Arc<str> annoyingly doesn't implement all the expected comparisons
+#[derive(Clone, Debug, Eq, Ord, Hash, Serialize, Deserialize)]
+pub struct ArcStr(pub(crate) Arc<str>);
+
+impl Display for ArcStr {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        Display::fmt(&self.0, f)
+    }
+}
+
+impl<T: Into<Arc<str>>> From<T> for ArcStr {
+    fn from(value: T) -> Self {
+        ArcStr(value.into())
+    }
+}
+
+impl From<ArcStr> for String {
+    fn from(value: ArcStr) -> Self {
+        value.to_string()
+    }
+}
+impl Deref for ArcStr {
+    type Target = Arc<str>;
+
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl Borrow<str> for ArcStr {
+    #[inline]
+    fn borrow(&self) -> &str {
+        self.0.borrow()
+    }
+}
+
+impl<T> AsRef<T> for ArcStr
+where
+    T: ?Sized,
+    <ArcStr as Deref>::Target: AsRef<T>,
+{
+    fn as_ref(&self) -> &T {
+        self.deref().as_ref()
+    }
+}
+
+impl<T: Borrow<str> + ?Sized> PartialEq<T> for ArcStr {
+    fn eq(&self, other: &T) -> bool {
+        <ArcStr as Borrow<str>>::borrow(self).eq(other.borrow())
+    }
+}
+
+impl<T: Borrow<str>> PartialOrd<T> for ArcStr {
+    fn partial_cmp(&self, other: &T) -> Option<Ordering> {
+        <ArcStr as Borrow<str>>::borrow(self).partial_cmp(other.borrow())
+    }
+}
+
 /// Denotes the direction of an edge. Can be incoming, outgoing or both.
 #[derive(Clone, Copy, PartialEq, PartialOrd, Debug)]
 pub enum Direction {
@@ -45,10 +112,30 @@ pub enum Direction {
     BOTH,
 }
 
+#[derive(Copy, Clone, PartialEq, Eq, Debug, Default, Serialize, Deserialize)]
+pub enum PropType {
+    #[default]
+    Empty,
+    Str,
+    U8,
+    U16,
+    I32,
+    I64,
+    U32,
+    U64,
+    F32,
+    F64,
+    Bool,
+    List,
+    Map,
+    DTime,
+    Graph,
+}
+
 /// Denotes the types of properties allowed to be stored in the graph.
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub enum Prop {
-    Str(String),
+    Str(ArcStr),
     U8(u8),
     U16(u16),
     I32(i32),
@@ -84,8 +171,27 @@ impl PartialOrd for Prop {
 }
 
 impl Prop {
-    pub fn str(s: &str) -> Prop {
-        Prop::Str(s.to_string())
+    pub fn dtype(&self) -> PropType {
+        match self {
+            Prop::Str(_) => PropType::Str,
+            Prop::U8(_) => PropType::U8,
+            Prop::U16(_) => PropType::U16,
+            Prop::I32(_) => PropType::I32,
+            Prop::I64(_) => PropType::I64,
+            Prop::U32(_) => PropType::U32,
+            Prop::U64(_) => PropType::U64,
+            Prop::F32(_) => PropType::F32,
+            Prop::F64(_) => PropType::F64,
+            Prop::Bool(_) => PropType::Bool,
+            Prop::List(_) => PropType::List,
+            Prop::Map(_) => PropType::Map,
+            Prop::DTime(_) => PropType::DTime,
+            Prop::Graph(_) => PropType::Graph,
+        }
+    }
+
+    pub fn str<S: Into<ArcStr>>(s: S) -> Prop {
+        Prop::Str(s.into())
     }
 
     pub fn add(self, other: Prop) -> Option<Prop> {
@@ -98,7 +204,7 @@ impl Prop {
             (Prop::U64(a), Prop::U64(b)) => Some(Prop::U64(a + b)),
             (Prop::F32(a), Prop::F32(b)) => Some(Prop::F32(a + b)),
             (Prop::F64(a), Prop::F64(b)) => Some(Prop::F64(a + b)),
-            (Prop::Str(a), Prop::Str(b)) => Some(Prop::Str(a + &b)),
+            (Prop::Str(a), Prop::Str(b)) => Some(Prop::Str((a.to_string() + &b).into())),
             _ => None,
         }
     }
@@ -129,8 +235,8 @@ pub trait PropUnwrap: Sized {
         self.into_u16().unwrap()
     }
 
-    fn into_str(self) -> Option<String>;
-    fn unwrap_str(self) -> String {
+    fn into_str(self) -> Option<ArcStr>;
+    fn unwrap_str(self) -> ArcStr {
         self.into_str().unwrap()
     }
 
@@ -199,7 +305,7 @@ impl<P: PropUnwrap> PropUnwrap for Option<P> {
         self.and_then(|p| p.into_u16())
     }
 
-    fn into_str(self) -> Option<String> {
+    fn into_str(self) -> Option<ArcStr> {
         self.and_then(|p| p.into_str())
     }
 
@@ -265,7 +371,7 @@ impl PropUnwrap for Prop {
         }
     }
 
-    fn into_str(self) -> Option<String> {
+    fn into_str(self) -> Option<ArcStr> {
         if let Prop::Str(s) = self {
             Some(s)
         } else {
@@ -394,15 +500,44 @@ impl fmt::Display for Prop {
 
 // From impl for Prop
 
+impl From<ArcStr> for Prop {
+    fn from(value: ArcStr) -> Self {
+        Prop::Str(value)
+    }
+}
+
+impl From<&ArcStr> for Prop {
+    fn from(value: &ArcStr) -> Self {
+        Prop::Str(value.clone())
+    }
+}
+
 impl From<String> for Prop {
-    fn from(s: String) -> Self {
-        Prop::Str(s)
+    fn from(value: String) -> Self {
+        Prop::Str(value.into())
+    }
+}
+impl From<&String> for Prop {
+    fn from(s: &String) -> Self {
+        Prop::Str(s.as_str().into())
+    }
+}
+
+impl From<Arc<str>> for Prop {
+    fn from(s: Arc<str>) -> Self {
+        Prop::Str(s.into())
+    }
+}
+
+impl From<&Arc<str>> for Prop {
+    fn from(value: &Arc<str>) -> Self {
+        Prop::Str(value.clone().into())
     }
 }
 
 impl From<&str> for Prop {
     fn from(s: &str) -> Self {
-        Prop::Str(s.to_string())
+        Prop::Str(s.to_owned().into())
     }
 }
 
@@ -509,5 +644,20 @@ pub trait IntoProp {
 impl<T: Into<Prop>> IntoProp for T {
     fn into_prop(self) -> Prop {
         self.into()
+    }
+}
+
+#[cfg(test)]
+mod test_arc_str {
+    use crate::core::ArcStr;
+    use std::sync::Arc;
+
+    #[test]
+    fn can_compare_with_str() {
+        let test: ArcStr = "test".into();
+        assert_eq!(test, "test");
+        assert_eq!(test, "test".to_string());
+        assert_eq!(test, Arc::from("test"));
+        assert_eq!(&test, &"test".to_string())
     }
 }

@@ -2,6 +2,7 @@ use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, VID},
         storage::timeindex::{AsTime, TimeIndexEntry},
+        ArcStr,
     },
     db::api::{
         properties::{
@@ -106,10 +107,10 @@ pub trait EdgeViewOps:
     }
 
     /// Gets the layer name for the edge if it is restricted to a single layer
-    fn layer_name(&self) -> Option<String> {
+    fn layer_name(&self) -> Option<ArcStr> {
         self.eref()
             .layer()
-            .and_then(|l_id| self.graph().get_layer_name(*l_id).map(|name| name.clone()))
+            .and_then(|l_id| self.graph().get_layer_name(*l_id))
     }
 
     /// Gets the TimeIndexEntry if the edge is exploded
@@ -118,7 +119,7 @@ pub trait EdgeViewOps:
     }
 
     /// Gets the name of the layer this edge belongs to
-    fn layer_names(&self) -> Vec<String> {
+    fn layer_names(&self) -> BoxedIter<ArcStr> {
         let layer_ids = self
             .graph()
             .edge_layer_ids(&self.graph().core_edge(self.eref().pid()))
@@ -165,7 +166,7 @@ pub trait EdgeListOps:
     fn time(self) -> Self::IterType<Option<i64>>;
 
     /// Get the layer name for each edge if it is restricted to a single layer
-    fn layer_name(self) -> Self::IterType<Option<String>>;
+    fn layer_name(self) -> Self::IterType<Option<ArcStr>>;
 }
 
 #[cfg(test)]

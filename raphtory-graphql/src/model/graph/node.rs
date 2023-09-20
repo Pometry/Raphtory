@@ -60,7 +60,7 @@ impl Node {
             self.vv
                 .properties()
                 .iter()
-                .map(|(k, v)| Property::new(k.clone(), v))
+                .map(|(k, v)| Property::new(k.into(), v))
                 .collect(),
         )
     }

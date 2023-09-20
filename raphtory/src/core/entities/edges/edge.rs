@@ -100,52 +100,6 @@ impl<'a, const N: usize> PartialOrd for EdgeView<'a, N> {
 }
 
 impl<'a, const N: usize> EdgeView<'a, N> {
-    pub fn temporal_properties(
-        &'a self,
-        name: &str,
-        layer: LayerIds,
-        window: Option<Range<i64>>,
-    ) -> Vec<(i64, Prop)> {
-        let prop_id = self.graph.edge_meta.resolve_prop_id(name, false);
-        let store = &self.edge_id;
-        match layer {
-            LayerIds::All => {
-                let mut props = vec![];
-                for layer in (0..) {
-                    if let Some(layer) = store.layer(layer) {
-                        let mut layer_props = layer.temporal_properties(prop_id, window.clone());
-                        for (t, prop) in layer_props {
-                            props.push((t, prop));
-                        }
-                    } else {
-                        break;
-                    }
-                }
-                props
-            }
-            LayerIds::One(layer_id) => {
-                if let Some(layer) = store.layer(layer_id) {
-                    return layer.temporal_properties(prop_id, window).collect();
-                } else {
-                    return vec![];
-                }
-            }
-            LayerIds::Multiple(layer_ids) => {
-                let mut props = vec![];
-                for layer in layer_ids.iter() {
-                    if let Some(layer) = store.layer(*layer) {
-                        let mut layer_props = layer.temporal_properties(prop_id, window.clone());
-                        for (t, prop) in layer_props {
-                            props.push((t, prop));
-                        }
-                    }
-                }
-                props
-            }
-            LayerIds::None => Vec::default(),
-        }
-    }
-
     pub(crate) fn additions(
         self,
         layer_ids: LayerIds,

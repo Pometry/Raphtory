@@ -1,5 +1,6 @@
 use crate::model::graph::node::Node;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
+use itertools::Itertools;
 use raphtory::db::{
     api::view::{
         internal::{DynamicGraph, IntoDynamic},
@@ -47,7 +48,7 @@ impl Edge {
     }
 
     async fn layers(&self) -> Vec<String> {
-        self.ee.layer_names()
+        self.ee.layer_names().map_into().collect()
     }
 
     async fn history(&self) -> Vec<i64> {

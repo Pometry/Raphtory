@@ -169,16 +169,21 @@ fn default_node_template<G: GraphViewOps>(vertex: &VertexView<G>) -> String {
     format!("The entity {name} has the following details:\n{property_list}")
 }
 
+#[allow(unstable_name_collisions)] // just update itertools when this is actually stabilised
 fn default_edge_template<G: GraphViewOps>(edge: &EdgeView<G>) -> String {
     let src = edge.src().name();
     let dst = edge.dst().name();
     // TODO: property list
 
     edge.layer_names()
-        .iter()
         .map(|layer| {
-            let times = edge.layer(layer).unwrap().history().iter().join(", ");
-            match layer.as_str() {
+            let times = edge
+                .layer(layer.clone())
+                .unwrap()
+                .history()
+                .iter()
+                .join(", ");
+            match layer.as_ref() {
                 "_default" => format!("{src} interacted with {dst} at times: {times}"),
                 layer => format!("{src} {layer} {dst} at times: {times}"),
             }
@@ -261,7 +266,7 @@ impl<G: GraphViewOps + IntoDynamic> VectorizedGraph<G> {
         }
 
         let remaining_entities = find_top_k(chain!(selected_nodes, selected_edges), generic_init);
-        for (id, distance) in remaining_entities {
+        for (id, _distance) in remaining_entities {
             entry_point.push(id.clone());
         }
 
@@ -676,6 +681,7 @@ pub trait GraphEntity: Sized {
 }
 
 impl<G: GraphViewOps> GraphEntity for VertexView<G> {
+    #[allow(unstable_name_collisions)] // just update itertools when this is actually stabilised
     fn generate_property_list<F, D>(
         &self,
         time_fmt: &F,
@@ -695,8 +701,8 @@ impl<G: GraphViewOps> GraphEntity for VertexView<G> {
 
         let temporal_keys = self
             .temporal_property_keys()
-            .filter(|key| !filter_out.contains(&key.as_str()))
-            .filter(|key| !force_static.contains(&key.as_str()))
+            .filter(|key| !filter_out.contains(&key.as_ref()))
+            .filter(|key| !force_static.contains(&key.as_ref()))
             .filter(|key| {
                 // the history of the temporal prop has more than one value
                 let props = self.temporal_values(key);
@@ -725,7 +731,7 @@ impl<G: GraphViewOps> GraphEntity for VertexView<G> {
 
         let static_props = prop_storage
             .keys()
-            .filter(|key| !filter_out.contains(&key.as_str()))
+            .filter(|key| !filter_out.contains(&key.as_ref()))
             .filter(|key| !temporal_keys.contains(key))
             .map(|key| {
                 let prop = prop_storage.get(&key).unwrap().to_string();
@@ -763,9 +769,9 @@ impl<G: GraphViewOps> GraphEntity for VertexView<G> {
 impl<G: GraphViewOps> GraphEntity for EdgeView<G> {
     fn generate_property_list<F, D>(
         &self,
-        time_fmt: &F,
-        filter_out: Vec<&str>,
-        force_static: Vec<&str>,
+        _time_fmt: &F,
+        _filter_out: Vec<&str>,
+        _force_static: Vec<&str>,
     ) -> String
     where
         F: Fn(i64) -> D,

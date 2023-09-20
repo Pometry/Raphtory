@@ -1,5 +1,5 @@
 use crate::{
-    core::{storage::locked_view::LockedView, Prop, PropUnwrap},
+    core::{ArcStr, Prop, PropUnwrap},
     db::api::properties::internal::{Key, PropertiesOps},
     prelude::Graph,
 };
@@ -59,8 +59,8 @@ pub struct TemporalProperties<P: PropertiesOps + Clone> {
 }
 
 impl<P: PropertiesOps + Clone> IntoIterator for TemporalProperties<P> {
-    type Item = (String, TemporalPropertyView<P>);
-    type IntoIter = Zip<std::vec::IntoIter<String>, std::vec::IntoIter<TemporalPropertyView<P>>>;
+    type Item = (ArcStr, TemporalPropertyView<P>);
+    type IntoIter = Zip<std::vec::IntoIter<ArcStr>, std::vec::IntoIter<TemporalPropertyView<P>>>;
 
     fn into_iter(self) -> Self::IntoIter {
         let keys: Vec<_> = self.keys().map(|k| k.clone()).collect();
@@ -73,7 +73,7 @@ impl<P: PropertiesOps + Clone> TemporalProperties<P> {
     pub(crate) fn new(props: P) -> Self {
         Self { props }
     }
-    pub fn keys(&self) -> impl Iterator<Item = LockedView<String>> + '_ {
+    pub fn keys(&self) -> impl Iterator<Item = ArcStr> + '_ {
         self.props.temporal_property_keys()
     }
 
@@ -87,11 +87,11 @@ impl<P: PropertiesOps + Clone> TemporalProperties<P> {
             .map(|k| TemporalPropertyView::new(self.props.clone(), k))
     }
 
-    pub fn iter_latest(&self) -> impl Iterator<Item = (LockedView<String>, Prop)> + '_ {
+    pub fn iter_latest(&self) -> impl Iterator<Item = (ArcStr, Prop)> + '_ {
         self.iter().flat_map(|(k, v)| v.latest().map(|v| (k, v)))
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = (LockedView<String>, TemporalPropertyView<P>)> + '_ {
+    pub fn iter(&self) -> impl Iterator<Item = (ArcStr, TemporalPropertyView<P>)> + '_ {
         self.keys().zip(self.values())
     }
 
@@ -101,7 +101,7 @@ impl<P: PropertiesOps + Clone> TemporalProperties<P> {
             .map(|k| TemporalPropertyView::new(self.props.clone(), k))
     }
 
-    pub fn collect_properties(self) -> Vec<(String, Prop)> {
+    pub fn collect_properties(self) -> Vec<(ArcStr, Prop)> {
         self.iter()
             .flat_map(|(k, v)| v.latest().map(|v| (k.clone(), v)))
             .collect()
@@ -117,7 +117,7 @@ impl<P: PropertiesOps> PropUnwrap for TemporalPropertyView<P> {
         self.latest().into_u16()
     }
 
-    fn into_str(self) -> Option<String> {
+    fn into_str(self) -> Option<ArcStr> {
         self.latest().into_str()
     }
 

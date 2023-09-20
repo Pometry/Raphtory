@@ -1,5 +1,5 @@
 use crate::{
-    core::{utils::time::IntoTime, Prop},
+    core::{utils::time::IntoTime, ArcStr, Prop},
     db::api::{
         properties::{internal::PropertiesOps, TemporalProperties, TemporalPropertyView},
         view::internal::{DynamicGraph, Static},
@@ -50,10 +50,10 @@ impl<P: Into<DynTemporalProperties>> From<P> for PyTemporalProperties {
 }
 
 #[derive(PartialEq)]
-pub struct PyTemporalPropsCmp(HashMap<String, PyTemporalPropCmp>);
+pub struct PyTemporalPropsCmp(HashMap<ArcStr, PyTemporalPropCmp>);
 
-impl From<HashMap<String, PyTemporalPropCmp>> for PyTemporalPropsCmp {
-    fn from(value: HashMap<String, PyTemporalPropCmp>) -> Self {
+impl From<HashMap<ArcStr, PyTemporalPropCmp>> for PyTemporalPropsCmp {
+    fn from(value: HashMap<ArcStr, PyTemporalPropCmp>) -> Self {
         Self(value)
     }
 }
@@ -74,7 +74,7 @@ impl<'source> FromPyObject<'source> for PyTemporalPropsCmp {
     fn extract(ob: &'source PyAny) -> PyResult<Self> {
         if let Ok(v) = ob.extract::<PyRef<PyTemporalProperties>>() {
             Ok(PyTemporalPropsCmp::from(v.deref()))
-        } else if let Ok(v) = ob.extract::<HashMap<String, PyTemporalPropCmp>>() {
+        } else if let Ok(v) = ob.extract::<HashMap<ArcStr, PyTemporalPropCmp>>() {
             Ok(PyTemporalPropsCmp::from(v))
         } else {
             Err(PyTypeError::new_err("cannot compare"))
@@ -93,7 +93,7 @@ py_eq!(PyTemporalProperties, PyTemporalPropsCmp);
 #[pymethods]
 impl PyTemporalProperties {
     /// List the available property keys
-    fn keys(&self) -> Vec<String> {
+    fn keys(&self) -> Vec<ArcStr> {
         self.props.keys().map(|k| k.clone()).collect()
     }
 
@@ -106,7 +106,7 @@ impl PyTemporalProperties {
     }
 
     /// List the property keys together with the corresponding values
-    fn items(&self) -> Vec<(String, DynTemporalProperty)> {
+    fn items(&self) -> Vec<(ArcStr, DynTemporalProperty)> {
         self.props.iter().map(|(k, v)| (k.clone(), v)).collect()
     }
 
@@ -114,7 +114,7 @@ impl PyTemporalProperties {
     ///
     /// Returns:
     ///     dict[str, Any]: the mapping of property keys to latest values
-    fn latest(&self) -> HashMap<String, Prop> {
+    fn latest(&self) -> HashMap<ArcStr, Prop> {
         self.props
             .iter_latest()
             .map(|(k, v)| (k.clone(), v))
@@ -125,7 +125,7 @@ impl PyTemporalProperties {
     ///
     /// Returns:
     ///     dict[str, list[(int, Any)]]: the mapping of property keys to histories
-    fn histories(&self) -> HashMap<String, Vec<(i64, Prop)>> {
+    fn histories(&self) -> HashMap<ArcStr, Vec<(i64, Prop)>> {
         self.props
             .iter()
             .map(|(k, v)| (k.clone(), v.iter().collect()))
@@ -383,7 +383,7 @@ py_iterable_base!(
 );
 
 #[derive(PartialEq)]
-pub struct PyTemporalPropsListCmp(HashMap<String, PyTemporalPropListCmp>);
+pub struct PyTemporalPropsListCmp(HashMap<ArcStr, PyTemporalPropListCmp>);
 
 impl From<&PyTemporalPropsList> for PyTemporalPropsListCmp {
     fn from(value: &PyTemporalPropsList) -> Self {
@@ -397,8 +397,8 @@ impl From<&PyTemporalPropsList> for PyTemporalPropsListCmp {
     }
 }
 
-impl From<HashMap<String, PyTemporalPropListCmp>> for PyTemporalPropsListCmp {
-    fn from(value: HashMap<String, PyTemporalPropListCmp>) -> Self {
+impl From<HashMap<ArcStr, PyTemporalPropListCmp>> for PyTemporalPropsListCmp {
+    fn from(value: HashMap<ArcStr, PyTemporalPropListCmp>) -> Self {
         Self(value)
     }
 }
@@ -407,7 +407,7 @@ impl<'source> FromPyObject<'source> for PyTemporalPropsListCmp {
     fn extract(ob: &'source PyAny) -> PyResult<Self> {
         if let Ok(v) = ob.extract::<PyRef<PyTemporalPropsList>>() {
             Ok(PyTemporalPropsListCmp::from(v.deref()))
-        } else if let Ok(v) = ob.extract::<HashMap<String, PyTemporalPropListCmp>>() {
+        } else if let Ok(v) = ob.extract::<HashMap<ArcStr, PyTemporalPropListCmp>>() {
             Ok(PyTemporalPropsListCmp::from(v))
         } else {
             Err(PyTypeError::new_err("cannot compare"))
@@ -419,7 +419,7 @@ py_eq!(PyTemporalPropsList, PyTemporalPropsListCmp);
 
 #[pymethods]
 impl PyTemporalPropsList {
-    fn keys(&self) -> Vec<String> {
+    fn keys(&self) -> Vec<ArcStr> {
         self.iter()
             // FIXME: Still have to clone all those strings which sucks
             .map(|p| p.keys().map(|k| k.clone()).collect_vec())
@@ -433,17 +433,17 @@ impl PyTemporalPropsList {
             .map(|k| self.get(k).expect("key exists"))
             .collect()
     }
-    fn items(&self) -> Vec<(String, PyTemporalPropList)> {
+    fn items(&self) -> Vec<(ArcStr, PyTemporalPropList)> {
         self.keys().into_iter().zip(self.values()).collect()
     }
 
-    fn latest(&self) -> HashMap<String, PyPropValueList> {
+    fn latest(&self) -> HashMap<ArcStr, PyPropValueList> {
         let builder = self.builder.clone();
         self.keys()
             .into_iter()
             .map(move |k| {
                 let builder = builder.clone();
-                let nk = Arc::new(k.clone());
+                let nk = k.clone();
                 (
                     k,
                     (move || {
@@ -456,11 +456,11 @@ impl PyTemporalPropsList {
             .collect()
     }
 
-    fn histories(&self) -> HashMap<String, PyPropHistItemsList> {
+    fn histories(&self) -> HashMap<ArcStr, PyPropHistItemsList> {
         self.keys()
             .into_iter()
             .map(|k| {
-                let kk = Arc::new(k.clone());
+                let kk = k.clone();
                 let builder = self.builder.clone();
                 let v = (move || {
                     let kk = kk.clone();
@@ -476,7 +476,7 @@ impl PyTemporalPropsList {
             .collect()
     }
 
-    fn __getitem__(&self, key: String) -> PyResult<PyTemporalPropList> {
+    fn __getitem__(&self, key: ArcStr) -> PyResult<PyTemporalPropList> {
         self.get(key).ok_or(PyKeyError::new_err("unknown property"))
     }
 
@@ -488,13 +488,13 @@ impl PyTemporalPropsList {
         self.keys().into_iter().into()
     }
 
-    fn get(&self, key: String) -> Option<PyTemporalPropList> {
+    fn get(&self, key: ArcStr) -> Option<PyTemporalPropList> {
         self.__contains__(&key).then(|| {
             let builder = self.builder.clone();
-            let key = Arc::new(key);
+            let key = key.clone();
             (move || {
                 let key = key.clone();
-                builder().map(move |p| p.get(key.as_ref()))
+                builder().map(move |p| p.get(&key))
             })
             .into()
         })
@@ -580,7 +580,7 @@ py_nested_iterable_base!(
 );
 
 #[derive(PartialEq)]
-pub struct PyTemporalPropsListListCmp(HashMap<String, PyTemporalPropListListCmp>);
+pub struct PyTemporalPropsListListCmp(HashMap<ArcStr, PyTemporalPropListListCmp>);
 
 impl From<&PyTemporalPropsListList> for PyTemporalPropsListListCmp {
     fn from(value: &PyTemporalPropsListList) -> Self {
@@ -594,8 +594,8 @@ impl From<&PyTemporalPropsListList> for PyTemporalPropsListListCmp {
     }
 }
 
-impl From<HashMap<String, PyTemporalPropListListCmp>> for PyTemporalPropsListListCmp {
-    fn from(value: HashMap<String, PyTemporalPropListListCmp>) -> Self {
+impl From<HashMap<ArcStr, PyTemporalPropListListCmp>> for PyTemporalPropsListListCmp {
+    fn from(value: HashMap<ArcStr, PyTemporalPropListListCmp>) -> Self {
         Self(value)
     }
 }
@@ -604,7 +604,7 @@ impl<'source> FromPyObject<'source> for PyTemporalPropsListListCmp {
     fn extract(ob: &'source PyAny) -> PyResult<Self> {
         if let Ok(v) = ob.extract::<PyRef<PyTemporalPropsListList>>() {
             Ok(Self::from(v.deref()))
-        } else if let Ok(v) = ob.extract::<HashMap<String, PyTemporalPropListListCmp>>() {
+        } else if let Ok(v) = ob.extract::<HashMap<ArcStr, PyTemporalPropListListCmp>>() {
             Ok(Self::from(v))
         } else {
             Err(PyTypeError::new_err("cannot compare"))
@@ -616,7 +616,7 @@ py_eq!(PyTemporalPropsListList, PyTemporalPropsListListCmp);
 
 #[pymethods]
 impl PyTemporalPropsListList {
-    fn keys(&self) -> Vec<String> {
+    fn keys(&self) -> Vec<ArcStr> {
         self.iter()
             .flat_map(
                 |it|             // FIXME: Still have to clone all those strings which sucks
@@ -632,17 +632,17 @@ impl PyTemporalPropsListList {
             .map(|k| self.get(k).expect("key exists"))
             .collect()
     }
-    fn items(&self) -> Vec<(String, PyTemporalPropListList)> {
+    fn items(&self) -> Vec<(ArcStr, PyTemporalPropListList)> {
         self.keys().into_iter().zip(self.values()).collect()
     }
 
-    fn latest(&self) -> HashMap<String, PyPropValueListList> {
+    fn latest(&self) -> HashMap<ArcStr, PyPropValueListList> {
         let builder = self.builder.clone();
         self.keys()
             .into_iter()
             .map(move |k| {
                 let builder = builder.clone();
-                let nk = Arc::new(k.clone());
+                let nk = k.clone();
                 (
                     k,
                     (move || {
@@ -658,13 +658,13 @@ impl PyTemporalPropsListList {
             .collect()
     }
 
-    fn histories(&self) -> HashMap<String, PyPropHistItemsListList> {
+    fn histories(&self) -> HashMap<ArcStr, PyPropHistItemsListList> {
         let builder = self.builder.clone();
         self.keys()
             .into_iter()
             .map(move |k| {
                 let builder = builder.clone();
-                let kk = Arc::new(k.clone());
+                let kk = k.clone();
                 let v = (move || {
                     let kk = kk.clone();
                     builder().map(move |it| {
@@ -682,7 +682,7 @@ impl PyTemporalPropsListList {
             .collect()
     }
 
-    fn __getitem__(&self, key: String) -> PyResult<PyTemporalPropListList> {
+    fn __getitem__(&self, key: ArcStr) -> PyResult<PyTemporalPropListList> {
         self.get(key).ok_or(PyKeyError::new_err("unknown property"))
     }
 
@@ -694,15 +694,15 @@ impl PyTemporalPropsListList {
         self.keys().into_iter().into()
     }
 
-    fn get(&self, key: String) -> Option<PyTemporalPropListList> {
+    fn get(&self, key: ArcStr) -> Option<PyTemporalPropListList> {
         self.__contains__(&key).then(|| {
             let builder = self.builder.clone();
-            let key = Arc::new(key);
+            let key = key.clone();
             (move || {
                 let key = key.clone();
                 builder().map(move |it| {
                     let key = key.clone();
-                    it.map(move |p| p.get(key.as_ref()))
+                    it.map(move |p| p.get(&key))
                 })
             })
             .into()

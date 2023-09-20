@@ -1,7 +1,6 @@
 mod core_deletion_ops;
 mod core_ops;
 mod edge_filter_ops;
-mod exploded_edge_ops;
 mod graph_ops;
 mod inherit;
 mod into_dynamic;
@@ -17,7 +16,6 @@ use crate::{
 pub use core_deletion_ops::*;
 pub use core_ops::*;
 pub use edge_filter_ops::*;
-pub use exploded_edge_ops::ExplodedEdgeOps;
 pub use graph_ops::*;
 pub use inherit::Base;
 pub use into_dynamic::IntoDynamic;

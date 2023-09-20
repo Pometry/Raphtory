@@ -24,7 +24,6 @@ impl GraphSchema {
 
         let layers = graph
             .unique_layers()
-            .iter()
             .map(|layer_name| graph.layer(layer_name).unwrap().into())
             .collect_vec();
 

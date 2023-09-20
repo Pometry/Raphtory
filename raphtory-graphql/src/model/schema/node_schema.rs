@@ -48,10 +48,9 @@ impl NodeSchema {
 }
 
 fn collect_vertex_schema(vertex: VertexView<DynamicGraph>) -> SchemaAggregate {
-    let pairs = vertex
+    vertex
         .properties()
         .iter()
-        .map(|(key, value)| (key.to_owned(), HashSet::from([value.to_string()])))
-        .collect_vec();
-    HashMap::from_iter(pairs)
+        .map(|(key, value)| (key.to_string(), HashSet::from([value.to_string()])))
+        .collect()
 }

@@ -19,7 +19,7 @@ use raphtory::{
         },
         graph::edge::EdgeView,
     },
-    prelude::{EdgeViewOps, PropertyAdditionOps},
+    prelude::EdgeViewOps,
     search::IndexedGraph,
 };
 
@@ -46,7 +46,7 @@ impl GraphMeta {
             .properties()
             .constant()
             .into_iter()
-            .map(|(k, v)| Property::new(k, v))
+            .map(|(k, v)| Property::new(k.into(), v))
             .collect()
     }
 
@@ -87,7 +87,7 @@ impl GqlGraph {
     }
 
     async fn layer_names(&self) -> Vec<String> {
-        self.graph.unique_layers()
+        self.graph.unique_layers().map_into().collect()
     }
 
     async fn static_properties(&self) -> Vec<Property> {
@@ -95,7 +95,7 @@ impl GqlGraph {
             .properties()
             .constant()
             .into_iter()
-            .map(|(k, v)| Property::new(k, v))
+            .map(|(k, v)| Property::new(k.into(), v))
             .collect()
     }
 

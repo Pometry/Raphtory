@@ -1,6 +1,6 @@
 use pyo3::{exceptions, prelude::*};
 use raphtory_core::{
-    db::api::view::internal::{DynamicGraph, MaterializedGraph},
+    db::api::view::internal::MaterializedGraph,
     prelude::Graph,
     python::{graph::graph::PyGraph, utils::errors::adapt_err_value},
 };

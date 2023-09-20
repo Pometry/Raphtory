@@ -59,14 +59,14 @@ fn main() {
                 g.add_vertex(
                     lotr.time,
                     lotr.src_id.clone(),
-                    [("type".to_string(), Prop::Str("Character".to_string()))],
+                    [("type", Prop::str("Character"))],
                 )
                 .expect("Failed to add vertex");
 
                 g.add_vertex(
                     lotr.time,
                     lotr.dst_id.clone(),
-                    [("type".to_string(), Prop::Str("Character".to_string()))],
+                    [("type", Prop::str("Character"))],
                 )
                 .expect("Failed to add vertex");
 
@@ -74,10 +74,7 @@ fn main() {
                     lotr.time,
                     lotr.src_id.clone(),
                     lotr.dst_id.clone(),
-                    [(
-                        "type".to_string(),
-                        Prop::Str("Character Co-occurrence".to_string()),
-                    )],
+                    [("type", Prop::str("Character Co-occurrence"))],
                     None,
                 )
                 .expect("Failed to add edge");

@@ -1,26 +1,23 @@
-use crate::{
-    core::{
-        entities::{
-            edges::{edge::EdgeView, edge_ref::EdgeRef, edge_store::EdgeStore},
-            graph::tgraph::TGraph,
-            properties::{
-                props::{DictMapper, Meta},
-                tprop::TProp,
-            },
-            vertices::{
-                structure::iter::{Paged, PagedIter},
-                vertex_store::VertexStore,
-            },
-            LayerIds, VRef, VID,
+use crate::core::{
+    entities::{
+        edges::{edge::EdgeView, edge_ref::EdgeRef, edge_store::EdgeStore},
+        graph::tgraph::TGraph,
+        properties::{
+            props::{DictMapper, Meta},
+            tprop::TProp,
         },
-        storage::{
-            locked_view::LockedView,
-            timeindex::{TimeIndex, TimeIndexEntry, TimeIndexOps},
-            ArcEntry, Entry,
+        vertices::{
+            structure::iter::{Paged, PagedIter},
+            vertex_store::VertexStore,
         },
-        Direction, Prop,
+        LayerIds, VRef, VID,
     },
-    db::api::properties::internal::CorePropertiesOps,
+    storage::{
+        locked_view::LockedView,
+        timeindex::{TimeIndex, TimeIndexEntry, TimeIndexOps},
+        ArcEntry, Entry,
+    },
+    Direction, Prop,
 };
 use itertools::Itertools;
 use std::{ops::Range, sync::Arc};
@@ -28,24 +25,6 @@ use std::{ops::Range, sync::Arc};
 pub struct Vertex<'a, const N: usize> {
     node: VRef<'a, N>,
     pub graph: &'a TGraph<N>,
-}
-
-impl<'b, const N: usize> CorePropertiesOps for Vertex<'b, N> {
-    fn const_prop_meta(&self) -> &DictMapper<String> {
-        self.graph.vertex_meta.static_prop_meta()
-    }
-
-    fn temporal_prop_meta(&self) -> &DictMapper<String> {
-        self.graph.vertex_meta.temporal_prop_meta()
-    }
-
-    fn temporal_prop(&self, id: usize) -> Option<&TProp> {
-        self.node.props.as_ref().and_then(|p| p.temporal_prop(id))
-    }
-
-    fn const_prop(&self, id: usize) -> Option<&Prop> {
-        self.node.props.as_ref().and_then(|p| p.static_prop(id))
-    }
 }
 
 impl<'a, const N: usize> Vertex<'a, N> {
@@ -66,8 +45,10 @@ impl<'a, const N: usize> Vertex<'a, N> {
         name: &str,
         window: Option<Range<i64>>,
     ) -> impl Iterator<Item = (i64, Prop)> + 'a {
-        let prop_id = self.graph.vertex_meta.resolve_prop_id(name, false);
-        self.node.temporal_properties(prop_id, window)
+        let prop_id = self.graph.vertex_meta.get_prop_id(name, false);
+        prop_id
+            .into_iter()
+            .flat_map(move |prop_id| self.node.temporal_properties(prop_id, window.clone()))
     }
 
     pub fn neighbours<'b>(
@@ -120,24 +101,6 @@ impl<'a, const N: usize> IntoIterator for Vertex<'a, N> {
 pub struct ArcVertex {
     e: ArcEntry<VertexStore>,
     meta: Arc<Meta>,
-}
-
-impl CorePropertiesOps for ArcVertex {
-    fn const_prop_meta(&self) -> &DictMapper<String> {
-        self.meta.static_prop_meta()
-    }
-
-    fn temporal_prop_meta(&self) -> &DictMapper<String> {
-        self.meta.temporal_prop_meta()
-    }
-
-    fn temporal_prop(&self, id: usize) -> Option<&TProp> {
-        self.e.temporal_property(id)
-    }
-
-    fn const_prop(&self, id: usize) -> Option<&Prop> {
-        self.e.static_property(id)
-    }
 }
 
 impl ArcVertex {

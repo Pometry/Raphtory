@@ -1,4 +1,4 @@
-use crate::core::storage::locked_view::LockedView;
+use crate::core::{storage::locked_view::LockedView, ArcStr};
 use chrono::NaiveDateTime;
 use itertools::Itertools;
 use std::{collections::HashMap, ops::Deref};
@@ -89,6 +89,18 @@ impl Repr for f64 {
 }
 
 impl Repr for String {
+    fn repr(&self) -> String {
+        self.to_string()
+    }
+}
+
+impl Repr for ArcStr {
+    fn repr(&self) -> String {
+        self.to_string()
+    }
+}
+
+impl Repr for &ArcStr {
     fn repr(&self) -> String {
         self.to_string()
     }

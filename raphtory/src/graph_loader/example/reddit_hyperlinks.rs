@@ -113,7 +113,7 @@ pub fn reddit_graph(timeout: u64, test_file: bool) -> Graph {
                                 .collect();
                             let edge_properties = [
                                 ("post_label".to_string(), Prop::I32(post_label)),
-                                ("post_id".to_string(), Prop::Str(post_id)),
+                                ("post_id".to_string(), Prop::str(post_id)),
                                 ("word_count".to_string(), Prop::F64(post_properties[7])),
                                 ("long_words".to_string(), Prop::F64(post_properties[9])),
                                 ("sentences".to_string(), Prop::F64(post_properties[13])),

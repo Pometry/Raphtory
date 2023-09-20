@@ -11,7 +11,7 @@ fn py_custom_algorithm(graph: DynamicGraph) -> usize {
 }
 
 #[pymodule]
-fn custom_python_extension(py: Python<'_>, m: &PyModule) -> PyResult<()> {
+fn custom_python_extension(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(py_custom_algorithm, m)?)?;
     Ok(())
 }

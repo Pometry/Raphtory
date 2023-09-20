@@ -43,8 +43,8 @@ impl<'source> FromPyObject<'source> for Prop {
         if let Ok(d) = ob.extract() {
             return Ok(Prop::DTime(d));
         }
-        if let Ok(s) = ob.extract() {
-            return Ok(Prop::Str(s));
+        if let Ok(s) = ob.extract::<String>() {
+            return Ok(Prop::Str(s.into()));
         }
         if let Ok(g) = ob.extract() {
             return Ok(Prop::Graph(g));
