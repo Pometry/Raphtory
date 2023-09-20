@@ -483,4 +483,19 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeListOps
     fn latest_date_time(self) -> Self::IterType<Option<chrono::NaiveDateTime>> {
         Box::new(self.map(|e| e.latest_date_time()))
     }
+
+    fn at<T: IntoTime>(self, time: T) -> Self::IterType<WindowEvalEdgeView<'a, G, CS, S>> {
+        let new_time = time.into_time();
+        Box::new(self.map(move |e| e.at(new_time)))
+    }
+
+    fn window<T: IntoTime>(
+        self,
+        t_start: T,
+        t_end: T,
+    ) -> Self::IterType<WindowEvalEdgeView<'a, G, CS, S>> {
+        let t_start = t_start.into_time();
+        let t_end = t_end.into_time();
+        Box::new(self.map(move |e| e.window(t_start, t_end)))
+    }
 }

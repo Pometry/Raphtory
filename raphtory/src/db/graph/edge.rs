@@ -435,22 +435,20 @@ impl<G: GraphViewOps> EdgeListOps for BoxedIter<EdgeView<G>> {
         Box::new(self.map(|e| e.end_date_time()))
     }
 
-    // fn at<T: IntoTime>(self, time: T) -> Self::IterType<EdgeView<WindowedGraph<G>>> {
-    //     let new_time = time.into_time();
-    //     Box::new(self.map(move |e| e.at(new_time)))
-    // }
+    fn at<T: IntoTime>(self, time: T) -> Self::IterType<EdgeView<WindowedGraph<G>>> {
+        let new_time = time.into_time();
+        Box::new(self.map(move |e| e.at(new_time)))
+    }
 
-    // fn layer(self, layer: String) -> Self::IterType<EdgeView<LayeredGraph<G>>> {
-    //     Box::new(self.filter_map(move |e| e.layer(layer.clone())))
-    // }
-
-    // fn layers(self, layers: Vec<String>) -> Self::IterType<EdgeView<LayeredGraph<G>>> {
-    //     Box::new(self.filter_map(move |e| e.layer(layers.clone())))
-    // }
-
-    // fn window(self, t_start: i64, t_end: i64) -> Self::IterType<EdgeView<WindowedGraph<G>>> {
-    //     Box::new(self.map(move |e| e.window(t_start.clone(), t_end.clone())))
-    // }
+    fn window<T: IntoTime>(
+        self,
+        t_start: T,
+        t_end: T,
+    ) -> Self::IterType<EdgeView<WindowedGraph<G>>> {
+        let t_start = t_start.into_time();
+        let t_end = t_end.into_time();
+        Box::new(self.map(move |e| e.window(t_start, t_end)))
+    }
 }
 
 impl<G: GraphViewOps> EdgeListOps for BoxedIter<BoxedIter<EdgeView<G>>> {
@@ -537,51 +535,23 @@ impl<G: GraphViewOps> EdgeListOps for BoxedIter<BoxedIter<EdgeView<G>>> {
         Box::new(self.map(|it| it.date_time()))
     }
 
-    // fn at<T: IntoTime>(self, time: T) -> Self::IterType<EdgeView<WindowedGraph<G>>> {
-    //     let new_time = time.into_time();
-    //     Box::new(self.map(move |it| it.at(new_time)))
-    // }
+    fn at<T: IntoTime>(self, time: T) -> Self::IterType<EdgeView<WindowedGraph<G>>> {
+        let new_time = time.into_time();
+        Box::new(self.map(move |e| e.at(new_time)))
+    }
 
-    // fn layer(self, layer: String) -> Self::IterType<EdgeView<LayeredGraph<G>>> {
-    //     Box::new(self.map(move |it| it.layer(layer.clone())))
-    // }
-
-    // fn layers(self, layers: Vec<String>) -> Self::IterType<EdgeView<LayeredGraph<G>>> {
-    //     Box::new(self.map(move |it| it.layers(layers.clone())))
-    // }
-
-    // fn window(self, t_start: i64, t_end: i64) -> Self::IterType<EdgeView<WindowedGraph<G>>> {
-    //     Box::new(self.map(move |it| it.window(t_start, t_end)))
-    // }
-}
-
-impl<G: GraphViewOps> LayerOps for BoxedIter<BoxedIter<EdgeView<G>>> {
-    type LayeredViewType =
-        <Self as EdgeListOps>::IterType<<<Self as EdgeListOps>::Edge as LayerOps>::LayeredViewType>;
-
-    fn layer<L: Into<Layer>>(&self, name: L) -> Option<Self::LayeredViewType> {
-        let layer_name: Layer = name.into();
-        Some(Box::new(
-            self.into_iter()
-                .flat_map(move |e| e.layer(layer_name.clone())),
-        ))
+    fn window<T: IntoTime>(
+        self,
+        t_start: T,
+        t_end: T,
+    ) -> Self::IterType<EdgeView<WindowedGraph<G>>> {
+        let t_start = t_start.into_time();
+        let t_end = t_end.into_time();
+        Box::new(self.map(move |e| e.window(t_start, t_end)))
     }
 }
 
 pub type EdgeList<G> = Box<dyn Iterator<Item = EdgeView<G>> + Send>;
-
-impl<G: GraphViewOps> LayerOps for EdgeList<G> {
-    type LayeredViewType =
-        <Self as EdgeListOps>::IterType<<<Self as EdgeListOps>::Edge as LayerOps>::LayeredViewType>;
-
-    fn layer<L: Into<Layer>>(&self, name: L) -> Option<Self::LayeredViewType> {
-        let layer_name: Layer = name.into();
-        Some(Box::new(
-            self.into_iter()
-                .flat_map(move |e| e.layer(layer_name.clone())),
-        ))
-    }
-}
 
 #[cfg(test)]
 mod test_edge {

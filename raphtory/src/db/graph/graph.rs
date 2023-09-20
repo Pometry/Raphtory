@@ -16,6 +16,7 @@
 //! ```
 //!
 
+use crate::db::api::view::internal::Static;
 use crate::{
     core::{entities::graph::tgraph::InnerTemporalGraph, utils::errors::GraphError},
     db::api::{
@@ -30,7 +31,6 @@ use std::{
     path::Path,
     sync::Arc,
 };
-
 const SEG: usize = 16;
 pub(crate) type InternalGraph = InnerTemporalGraph<SEG>;
 

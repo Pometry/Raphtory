@@ -75,7 +75,7 @@ impl<G: GraphViewOps + IntoDynamic> From<EdgeView<G>> for PyEdge {
     }
 }
 
-impl<G: GraphViewOps + Static> From<EdgeView<G>> for EdgeView<DynamicGraph> {
+impl<G: GraphViewOps + Static + IntoDynamic> From<EdgeView<G>> for EdgeView<DynamicGraph> {
     fn from(value: EdgeView<G>) -> Self {
         EdgeView {
             graph: value.graph.into_dynamic(),
@@ -296,6 +296,26 @@ impl PyEdge {
     ) -> EdgeView<WindowedGraph<DynamicGraph>> {
         self.edge
             .window(t_start.unwrap_or(PyTime::MIN), t_end.unwrap_or(PyTime::MAX))
+    }
+    /// Get a new Edge with the properties of this Edge within the specified layer.
+    ///
+    /// Arguments:
+    ///   layer_names (str): Layer to be included in the new edge.
+    ///
+    /// Returns:
+    ///   A new Edge with the properties of this Edge within the specified time window.
+    #[pyo3(signature = (name))]
+    pub fn layer(&self, name: String) -> PyResult<EdgeView<LayeredGraph<DynamicGraph>>> {
+        if let Some(edge) = self.edge.layer(name.clone()) {
+            Ok(edge)
+        } else {
+            let available_layers = self.edge.layer_names();
+            Err(PyErr::new::<pyo3::exceptions::PyAttributeError, _>(
+                format!(
+                    "Layer {name:?} not available for edge, available layers: {available_layers:?}"
+                ),
+            ))
+        }
     }
 
     /// Get a new Edge with the properties of this Edge within the specified layers.
@@ -677,26 +697,48 @@ impl PyEdges {
 
     fn layer(&self, name: String) -> PyEdges {
         let builder = self.builder.clone();
-        (move || builder().layer(name.clone())).into()
+        let layers: Layer = name.into();
+        (move || {
+            let layers = layers.clone();
+            let box_builder: Box<(dyn Iterator<Item = EdgeView<DynamicGraph>> + Send + 'static)> =
+                Box::new(builder().flat_map(move |e| {
+                    e.layer(layers.clone())
+                        .map(|e| <EdgeView<DynamicGraph>>::from(e))
+                }));
+            box_builder
+        })
+        .into()
     }
 
     fn layers(&self, layer_names: Vec<String>) -> PyEdges {
         let builder = self.builder.clone();
+        let layers: Layer = layer_names.into();
+
         (move || {
-            builder()
-                .layers(layer_names.clone())
-                .map(|e| e.into::<EdgeView<DynamicGraph>>())
+            let layers = layers.clone();
+            let box_builder: Box<(dyn Iterator<Item = EdgeView<DynamicGraph>> + Send + 'static)> =
+                Box::new(builder().flat_map(move |e| {
+                    e.layer(layers.clone())
+                        .map(|e| <EdgeView<DynamicGraph>>::from(e))
+                }));
+            box_builder
         })
         .into()
     }
 
     fn window(&self, t_start: Option<PyTime>, t_end: Option<PyTime>) -> PyEdges {
         let builder = self.builder.clone();
+
         (move || {
-            builder().window(
-                t_start.clone().unwrap_or(PyTime::MIN),
-                t_end.clone().unwrap_or(PyTime::MAX),
-            )
+            let t_start = t_start.clone().unwrap_or(PyTime::MIN);
+            let t_end = t_end.clone().unwrap_or(PyTime::MAX);
+            let box_builder: Box<(dyn Iterator<Item = EdgeView<DynamicGraph>> + Send + 'static)> =
+                Box::new(
+                    builder()
+                        .map(move |e| e.window(t_start.clone(), t_end.clone()))
+                        .map(|e| <EdgeView<DynamicGraph>>::from(e)),
+                );
+            box_builder
         })
         .into()
     }
@@ -708,9 +750,16 @@ impl PyEdges {
     ///
     fn at(&self, end: PyTime) -> PyEdges {
         let builder = self.builder.clone();
+
         (move || {
-            let iter = builder().at(end.clone());
-            iter
+            let end = end.clone();
+            let box_builder: Box<(dyn Iterator<Item = EdgeView<DynamicGraph>> + Send + 'static)> =
+                Box::new(
+                    builder()
+                        .map(move |e| e.at(end.clone()))
+                        .map(|e| <EdgeView<DynamicGraph>>::from(e)),
+                );
+            box_builder
         })
         .into()
     }

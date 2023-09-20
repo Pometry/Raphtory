@@ -225,6 +225,14 @@ pub trait EdgeListOps:
     fn end(self) -> Self::IterType<Option<i64>>;
 
     fn end_date_time(self) -> Self::IterType<Option<NaiveDateTime>>;
+
+    fn at<T: IntoTime>(self, t: T) -> Self::IterType<<Self::Edge as TimeOps>::WindowedViewType>;
+
+    fn window<T: IntoTime>(
+        self,
+        t_start: T,
+        t_end: T,
+    ) -> Self::IterType<<Self::Edge as TimeOps>::WindowedViewType>;
 }
 
 #[cfg(test)]
