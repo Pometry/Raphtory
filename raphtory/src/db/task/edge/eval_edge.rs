@@ -7,7 +7,9 @@ use crate::{
     db::{
         api::{
             properties::{
-                internal::{ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps},
+                internal::{
+                    ConstPropertiesOps, Key, TemporalPropertiesOps, TemporalPropertyViewOps,
+                },
                 Properties,
             },
             view::*,
@@ -111,7 +113,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> Clone for EvalEdgeView<'
 impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> TemporalPropertyViewOps
     for EvalEdgeView<'a, G, CS, S>
 {
-    fn temporal_history(&self, id: &String) -> Vec<i64> {
+    fn temporal_history(&self, id: &Key) -> Vec<i64> {
         self.graph
             .temporal_edge_prop_vec(self.ev, id, self.graph.layer_ids())
             .into_iter()
@@ -119,7 +121,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> TemporalPropertyViewOps
             .collect()
     }
 
-    fn temporal_values(&self, id: &String) -> Vec<Prop> {
+    fn temporal_values(&self, id: &Key) -> Vec<Prop> {
         self.graph
             .temporal_edge_prop_vec(self.ev, id, self.graph.layer_ids())
             .into_iter()
@@ -136,12 +138,12 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> TemporalPropertiesOps
             .temporal_edge_prop_names(self.ev, self.graph.layer_ids())
     }
 
-    fn get_temporal_property(&self, key: &str) -> Option<String> {
+    fn get_temporal_property(&self, key: &str) -> Option<Key> {
         (!self
             .graph
             .temporal_edge_prop_vec(self.ev, key, self.graph.layer_ids())
             .is_empty())
-        .then_some(key.to_owned())
+        .then_some(key.into())
     }
 }
 

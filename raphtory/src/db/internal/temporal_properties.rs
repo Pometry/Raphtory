@@ -38,6 +38,6 @@ impl<const N: usize> TemporalPropertiesOps for InnerTemporalGraph<N> {
     }
 
     fn get_temporal_property(&self, key: &str) -> Option<Key> {
-        self.inner().get_temporal_prop(key).map(|_| key.to_owned()) // Fixme: rework to use internal ids
+        self.inner().get_temporal_prop(key).map(|_| key.into()) // Fixme: rework to use internal ids
     }
 }

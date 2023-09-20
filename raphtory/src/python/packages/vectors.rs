@@ -3,19 +3,17 @@ use crate::{
         api::view::internal::DynamicGraph,
         graph::{edge::EdgeView, vertex::VertexView},
     },
-    prelude::{EdgeViewOps, GraphViewOps, VertexViewOps},
+    prelude::{EdgeViewOps, VertexViewOps},
     python::graph::views::graph_view::PyGraphView,
     vectors::{Embedding, EmbeddingFunction, Vectorizable, VectorizedGraph},
 };
 use futures_util::future::BoxFuture;
 use itertools::Itertools;
-// use pyo3::{Py, Python};
 use pyo3::{
-    exceptions,
     prelude::*,
     types::{PyFunction, PyList},
 };
-use std::{future::Future, path::PathBuf, sync::Arc};
+use std::{path::PathBuf, sync::Arc};
 
 /// Graph view is a read-only version of a graph at a certain point in time.
 #[pyclass(name = "VectorizedGraph", frozen)]

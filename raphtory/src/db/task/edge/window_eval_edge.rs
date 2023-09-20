@@ -7,7 +7,9 @@ use crate::{
     db::{
         api::{
             properties::{
-                internal::{ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps},
+                internal::{
+                    ConstPropertiesOps, Key, TemporalPropertiesOps, TemporalPropertyViewOps,
+                },
                 Properties,
             },
             view::{internal::*, *},
@@ -136,7 +138,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> Clone for WindowEvalEdge
 impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> TemporalPropertyViewOps
     for WindowEvalEdgeView<'a, G, CS, S>
 {
-    fn temporal_value(&self, id: &String) -> Option<Prop> {
+    fn temporal_value(&self, id: &Key) -> Option<Prop> {
         self.g
             .temporal_edge_prop_vec_window(
                 self.ev,
@@ -149,7 +151,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> TemporalPropertyViewOps
             .map(|(_, v)| v.to_owned())
     }
 
-    fn temporal_history(&self, id: &String) -> Vec<i64> {
+    fn temporal_history(&self, id: &Key) -> Vec<i64> {
         self.g
             .temporal_edge_prop_vec_window(
                 self.ev,
@@ -163,7 +165,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> TemporalPropertyViewOps
             .collect()
     }
 
-    fn temporal_values(&self, id: &String) -> Vec<Prop> {
+    fn temporal_values(&self, id: &Key) -> Vec<Prop> {
         self.g
             .temporal_edge_prop_vec_window(
                 self.ev,
@@ -200,7 +202,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> TemporalPropertiesOps
         )
     }
 
-    fn get_temporal_property(&self, key: &str) -> Option<String> {
+    fn get_temporal_property(&self, key: &str) -> Option<Key> {
         (!self
             .g
             .temporal_edge_prop_vec_window(
@@ -211,7 +213,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> TemporalPropertiesOps
                 self.g.layer_ids(),
             )
             .is_empty())
-        .then_some(key.to_string())
+        .then_some(Key::from(key))
     }
 }
 

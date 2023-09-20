@@ -150,7 +150,7 @@ impl<G: GraphViewOps> TemporalPropertiesOps for WindowedGraph<G> {
     }
 
     fn get_temporal_property(&self, key: &str) -> Option<Key> {
-        (!self.temporal_prop_vec(key).is_empty()).then(|| key.to_owned())
+        (!self.temporal_prop_vec(key).is_empty()).then(|| key.into())
     }
 }
 

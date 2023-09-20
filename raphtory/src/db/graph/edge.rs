@@ -168,7 +168,7 @@ impl<G: GraphViewOps> TemporalPropertyViewOps for EdgeView<G> {
             .collect()
     }
 
-    fn temporal_values(&self, id: &String) -> Vec<Prop> {
+    fn temporal_values(&self, id: &Key) -> Vec<Prop> {
         let layer_ids = self.graph.layer_ids().constrain_from_edge(self.edge);
         self.graph
             .temporal_edge_prop_vec(self.edge, id, layer_ids)
@@ -187,13 +187,13 @@ impl<G: GraphViewOps> TemporalPropertiesOps for EdgeView<G> {
         )
     }
 
-    fn get_temporal_property(&self, key: &str) -> Option<String> {
+    fn get_temporal_property(&self, key: &str) -> Option<Key> {
         let layer_ids = self.graph.layer_ids();
         (!self
             .graph
             .temporal_edge_prop_vec(self.edge, key, layer_ids)
             .is_empty())
-        .then_some(key.to_owned())
+        .then_some(key.into())
     }
 }
 

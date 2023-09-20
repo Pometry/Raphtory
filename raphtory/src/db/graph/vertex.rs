@@ -86,19 +86,19 @@ impl<G: GraphViewOps> TemporalPropertiesOps for VertexView<G> {
             .graph
             .temporal_vertex_prop_vec(self.vertex, key)
             .is_empty())
-        .then(|| key.to_owned())
+        .then(|| key.into())
     }
 }
 
 impl<G: GraphViewOps> TemporalPropertyViewOps for VertexView<G> {
-    fn temporal_value(&self, id: &String) -> Option<Prop> {
+    fn temporal_value(&self, id: &Key) -> Option<Prop> {
         self.graph
             .temporal_vertex_prop_vec(self.vertex, id)
             .last()
             .map(|(_, v)| v.to_owned())
     }
 
-    fn temporal_history(&self, id: &String) -> Vec<i64> {
+    fn temporal_history(&self, id: &Key) -> Vec<i64> {
         self.graph
             .temporal_vertex_prop_vec(self.vertex, id)
             .into_iter()
@@ -106,7 +106,7 @@ impl<G: GraphViewOps> TemporalPropertyViewOps for VertexView<G> {
             .collect()
     }
 
-    fn temporal_values(&self, id: &String) -> Vec<Prop> {
+    fn temporal_values(&self, id: &Key) -> Vec<Prop> {
         self.graph
             .temporal_vertex_prop_vec(self.vertex, id)
             .into_iter()
@@ -114,7 +114,7 @@ impl<G: GraphViewOps> TemporalPropertyViewOps for VertexView<G> {
             .collect()
     }
 
-    fn temporal_value_at(&self, id: &String, t: i64) -> Option<Prop> {
+    fn temporal_value_at(&self, id: &Key, t: i64) -> Option<Prop> {
         let history = self.temporal_history(id);
         match history.binary_search(&t) {
             Ok(index) => Some(self.temporal_values(id)[index].clone()),

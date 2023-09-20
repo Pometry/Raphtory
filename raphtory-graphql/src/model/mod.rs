@@ -185,16 +185,15 @@ impl Mut {
             .subgraph(graph_nodes)
             .materialize()
             .expect("Failed to materialize graph");
-        let static_props_without_name: Vec<(String, Prop)> = subgraph
+        let static_props_without_name = subgraph
             .properties()
             .into_iter()
-            .filter(|(a, b)| a != "name")
-            .collect_vec();
+            .filter(|(a, _)| a != "name");
         new_subgraph
             .add_constant_properties(static_props_without_name)
             .expect("Failed to add static properties");
         new_subgraph
-            .add_constant_properties([("name".to_string(), Prop::Str(new_graph_name.clone()))])
+            .add_constant_properties([("name".to_string(), Prop::str(new_graph_name.clone()))])
             .expect("Failed to add static property");
         new_subgraph
             .add_constant_properties([("uiProps".to_string(), Prop::str(props))])

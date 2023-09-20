@@ -12,7 +12,7 @@ use raphtory_core::python::{
         properties::{PyConstProperties, PyProperties, PyTemporalProp, PyTemporalProperties},
         vertex::{PyVertex, PyVertices},
     },
-    packages::{algorithms::*, graph_gen::*, graph_loader::*, vectors::PyVectorizedGraph},
+    packages::{algorithms::*, graph_gen::*, graph_loader::*},
 };
 
 /// Raphtory graph analytics library

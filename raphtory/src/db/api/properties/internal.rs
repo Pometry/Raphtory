@@ -4,7 +4,7 @@ use crate::{
 };
 use enum_dispatch::enum_dispatch;
 
-pub type Key = String; //Fixme: This should really be the internal usize index but that means more reworking of the low-level api
+pub type Key = ArcStr; //Fixme: This should really be the internal usize index but that means more reworking of the low-level api
 
 #[enum_dispatch]
 pub trait TemporalPropertyViewOps {
