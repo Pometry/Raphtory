@@ -251,25 +251,7 @@ where
                                     .flat_map(|edge| edge.explode())
                                     .collect::<Vec<_>>()
                             })
-                            .sorted_by(|e1, e2| {
-                                match sorting_type {
-                                    SortingType::TimeAndIndex => sort_by_time_and_index(e1, e2),
-                                    SortingType::Random => {
-                                        let mut rng = StdRng::from_entropy();
-                                        // Use random ordering logic here
-                                        // For example:
-                                        let order = e1.time().cmp(&e2.time());
-                                        if order == Ordering::Equal {
-                                            // If times are equal, randomize the order
-                                            order.then_with(|| {
-                                                rng.gen_range(0..10).cmp(&rng.gen_range(0..10))
-                                            })
-                                        } else {
-                                            order
-                                        }
-                                    }
-                                }
-                            })
+                            .sorted_by_key(|e| e.time_and_index())
                             .map(|e| {
                                 let (src_id, dst_id) = (e.src().id(), e.dst().id());
                                 let (uid, vid) = (u.id(), v.id());
@@ -298,10 +280,6 @@ where
                             .collect::<Vec<TriangleEdge>>();
 
                         for i in 0..deltas.len() {
-                            let mut rng = StdRng::from_entropy();
-                            if randomise_same_timestamps {
-                                all_exploded.sort_by_key(|e| (e.time, rng.gen_range(1..1000000000)))
-                            }
                             let delta = deltas[i];
                             let mut tri_count = init_tri_count(2);
                             tri_count.execute(&all_exploded, delta);

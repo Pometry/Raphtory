@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::{
-    algorithms::motifs::three_node_temporal_motifs::SortingType, python::graph::edge::PyDirection,
+ python::graph::edge::PyDirection,
 };
 /// Implementations of various graph algorithms that can be run on a graph.
 ///
@@ -337,8 +337,6 @@ pub fn global_temporal_three_node_motif(g: &PyGraphView, delta: i64) -> Vec<usiz
 pub fn global_temporal_three_node_motif_multi(
     g: &PyGraphView,
     deltas: Vec<i64>,
-    sort_type: String,
-    randomise_same_timestamps: bool,
 ) -> Vec<Vec<usize>> {
     global_temporal_three_node_motif_general_rs(&g.graph, deltas, None)
 }
