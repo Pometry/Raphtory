@@ -249,30 +249,27 @@ impl Mut {
         new_subgraph
             .add_constant_properties([("name".to_string(), Prop::Str(new_graph_name.clone()))])
             .expect("Failed to add static property");
-        new_subgraph
-            .add_constant_properties([("uiProps".to_string(), Prop::Str(props))])
-            .expect("Failed to add static property");
 
         // parent_graph_name == graph_name, means its a graph created from UI
         if parent_graph_name.ne(&graph_name) {
             // graph_name == new_graph_name, means its a "save" and not "save as" action
             if graph_name.ne(&new_graph_name) {
-                let static_props_without_name_creation_time: Vec<(String, Prop)> = subgraph
+                let static_props: Vec<(String, Prop)> = subgraph
                     .properties()
                     .into_iter()
-                    .filter(|(a, b)| a != "name" || a != "creationTime")
+                    .filter(|(a, b)| a != "name" && a != "creationTime" && a != "uiProps")
                     .collect_vec();
                 new_subgraph
-                    .add_constant_properties(static_props_without_name_creation_time)
+                    .add_constant_properties(static_props)
                     .expect("Failed to add static properties");
             } else {
-                let static_props_without_name: Vec<(String, Prop)> = subgraph
+                let static_props: Vec<(String, Prop)> = subgraph
                     .properties()
                     .into_iter()
-                    .filter(|(a, b)| a != "name" || a != "creationTime" || a != "lastUpdated")
+                    .filter(|(a, b)| a != "name" && a != "lastUpdated" && a != "uiProps")
                     .collect_vec();
                 new_subgraph
-                    .add_constant_properties(static_props_without_name)
+                    .add_constant_properties(static_props)
                     .expect("Failed to add static properties");
             }
         }
@@ -292,6 +289,10 @@ impl Mut {
         new_subgraph
             .add_constant_properties([("lastUpdated".to_string(), Prop::I64(timestamp * 1000))])
             .expect("Failed to add static properties");
+
+        new_subgraph
+            .add_constant_properties([("uiProps".to_string(), Prop::Str(props))])
+            .expect("Failed to add static property");
 
         new_subgraph
             .save_to_file(path)
