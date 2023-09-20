@@ -12,7 +12,6 @@ use raphtory::{
 use std::{env, path::PathBuf};
 
 mod data;
-mod embeddings;
 mod model;
 mod observability;
 mod routes;
