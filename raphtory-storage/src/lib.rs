@@ -1,4 +1,6 @@
 use arrow::columnar_graph::TemporalColGraphFragment;
+use itertools::Itertools;
+use raphtory::core::{entities::vertices::vertex_ref::VertexRef, Direction};
 
 mod arrow;
 mod ops;
@@ -12,11 +14,36 @@ impl TemporalColumnarGraph {
     fn new(fragments: Vec<TemporalColGraphFragment>) -> Self {
         Self { fragments }
     }
+
+    pub fn neighbours<V: Into<VertexRef>>(
+        &self,
+        v: V,
+        dir: Direction,
+    ) -> impl Iterator<Item = VertexRef> + '_ {
+        if let VertexRef::External(gid) = v.into() {
+            self.fragments
+                .iter()
+                .filter_map(|fragment| {
+                    let vid = fragment.resolve_vertex_id(gid)?;
+                    let iter = fragment
+                        .neighbours(vid, dir)?
+                        .filter_map(move |v| fragment.global_id(v))
+                        .map(VertexRef::External);
+                    Some(iter)
+                })
+                .kmerge()
+        } else {
+            panic!("Internal vertices not supported")
+        }
+    }
 }
 
 #[cfg(test)]
 mod test {
-    use raphtory::prelude::{AdditionOps, Graph, NO_PROPS};
+    use raphtory::{
+        core::Direction,
+        prelude::{AdditionOps, Graph, NO_PROPS},
+    };
 
     use super::*;
     use crate::arrow::columnar_graph::TemporalColGraphFragment;
@@ -41,6 +68,13 @@ mod test {
         let frag2 = TemporalColGraphFragment::from_graph(&g2);
 
         let tcg = TemporalColumnarGraph::new(vec![frag1, frag2]);
+
+        let out_neighbours = tcg.neighbours(2, Direction::OUT).collect::<Vec<_>>();
+        assert_eq!(
+            out_neighbours,
+            vec![VertexRef::External(3), VertexRef::External(4)]
+        );
+
         println!("{:?}", tcg);
     }
 }

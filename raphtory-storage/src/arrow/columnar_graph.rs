@@ -2,11 +2,11 @@ use itertools::Itertools;
 use polars_core::{prelude::*, utils::arrow::array::*};
 use raphtory::{
     core::{
-        entities::{vertices::vertex_ref::VertexRef, LayerIds, VID},
+        entities::{vertices::vertex_ref::VertexRef, LayerIds, EID, VID},
         Direction,
     },
     db::{api::view::internal::ExplodedEdgeOps, graph::edge},
-    prelude::{GraphViewOps, VertexViewOps, Graph},
+    prelude::{Graph, GraphViewOps, VertexViewOps},
 };
 
 use super::{MPArr, MutEdgePair};
@@ -32,7 +32,6 @@ const V_COLUMN: &str = "v";
 const E_COLUMN: &str = "e";
 
 impl TemporalColGraphFragment {
-
     pub fn from_graph<G: GraphViewOps>(g: &G) -> Self {
         // create a lookup table for the vertices sorted by gid
         let mut new_to_old = (0..g.unfiltered_num_vertices()).collect::<Vec<_>>();
@@ -43,10 +42,8 @@ impl TemporalColGraphFragment {
             old_to_new[*old_id] = new_id;
         }
 
-
         // create lookup table for the edges sorted by (src_gid, dst_gid)
-        let mut edges_new_to_old =
-            (0..g.edges_len(LayerIds::All, None)).collect::<Vec<_>>();
+        let mut edges_new_to_old = (0..g.edges_len(LayerIds::All, None)).collect::<Vec<_>>();
         edges_new_to_old.sort_unstable_by_key(|&eid| {
             let edge = g.find_edge_id(eid.into(), &LayerIds::All, None).unwrap();
             let src_gid = g.vertex_id(edge.src());
@@ -90,8 +87,7 @@ impl TemporalColGraphFragment {
         let mut outbound_arr =
             Self::mutable_adj_list_column(OUTBOUND_COLUMN, edges_new_to_old.len());
 
-        let mut inbound_arr =
-            Self::mutable_adj_list_column(INBOUND_COLUMN, edges_new_to_old.len());
+        let mut inbound_arr = Self::mutable_adj_list_column(INBOUND_COLUMN, edges_new_to_old.len());
 
         let mut timestamps = Self::mutable_timestamps_column(V_ADDITIONS_COLUMN);
 
@@ -255,24 +251,24 @@ impl TemporalColGraphFragment {
         &self,
         vertex_id: VID,
         dir: Direction,
-    ) -> Option<Box<dyn Iterator<Item = (u64, u64)>>> {
+    ) -> Option<Box<dyn Iterator<Item = (VID, EID)>>> {
+        // {local_vid, local_eid}
         match dir {
             Direction::IN | Direction::OUT => {
                 let adj_array = self.adj_list(vertex_id.into(), dir)?;
                 let v = adj_array.values()[0]
                     .as_any()
-                    .downcast_ref::<PrimitiveArray<u64>>()
-                    .unwrap()
+                    .downcast_ref::<PrimitiveArray<u64>>()?
                     .clone();
                 let e = adj_array.values()[1]
                     .as_any()
-                    .downcast_ref::<PrimitiveArray<u64>>()
-                    .unwrap()
+                    .downcast_ref::<PrimitiveArray<u64>>()?
                     .clone();
-                let iter: Box<dyn Iterator<Item = (u64, u64)>> = Box::new(
+                let iter: Box<dyn Iterator<Item = (VID, EID)>> = Box::new(
                     v.into_iter()
                         .filter_map(|x| x)
-                        .zip(e.into_iter().filter_map(|x| x)),
+                        .zip(e.into_iter().filter_map(|x| x))
+                        .map(|(vid, eid)| (VID(vid as usize), EID(eid as usize))),
                 );
                 Some(iter)
             }
@@ -282,6 +278,27 @@ impl TemporalColGraphFragment {
                 Some(Box::new(out.merge_by(inb, |(v1, _), (v2, _)| v1 < v2)))
             }
         }
+    }
+
+    pub(crate) fn neighbours(
+        &self,
+        vertex_id: VID,
+        dir: Direction,
+    ) -> Option<Box<dyn Iterator<Item = VID>>> {
+        // global_vid
+        let iter = self.edges(vertex_id, dir)?.map(|(local_id, _)| local_id);
+        Some(Box::new(iter))
+    }
+
+    pub(crate) fn global_id(&self, vid: VID) -> Option<u64> {
+        let items = self.items();
+        let chunks = items.chunks();
+        let chunk_size = chunks[0].len(); // we assume all the chunks are the same size
+        let vid_usize: usize = vid.into();
+
+        let gid = chunks.get(vid_usize / chunk_size)?;
+        let chunk_arr = gid.as_any().downcast_ref::<PrimitiveArray<u64>>()?;
+        chunk_arr.get(vid_usize % chunk_size)
     }
 
     pub(crate) fn resolve_vertex_id(&self, gid: u64) -> Option<VID> {
@@ -309,7 +326,12 @@ impl TemporalColGraphFragment {
 #[cfg(test)]
 mod test {
     use raphtory::{
-        core::Direction, db::graph::views::deletion_graph::GraphWithDeletions, prelude::*,
+        core::{
+            entities::{EID, VID},
+            Direction,
+        },
+        db::graph::views::deletion_graph::GraphWithDeletions,
+        prelude::*,
     };
 
     use super::TemporalColGraphFragment;
@@ -326,14 +348,14 @@ mod test {
             .unwrap()
             .collect::<Vec<_>>();
 
-        assert_eq!(actual, vec![(1, 0)]);
+        assert_eq!(actual, vec![(VID(1), EID(0))]);
 
         let actual = g
             .edges(1.into(), Direction::IN)
             .unwrap()
             .collect::<Vec<_>>();
 
-        assert_eq!(actual, vec![(0, 0)])
+        assert_eq!(actual, vec![(VID(0), EID(0))])
     }
 
     #[test]
@@ -361,21 +383,21 @@ mod test {
             .unwrap()
             .collect::<Vec<_>>();
 
-        assert_eq!(actual, vec![(1, 0)]);
+        assert_eq!(actual, vec![(VID(1), EID(0))]);
 
         let actual = g
             .edges(1.into(), Direction::OUT)
             .unwrap()
             .collect::<Vec<_>>();
 
-        assert_eq!(actual, vec![(2, 1)]);
+        assert_eq!(actual, vec![(VID(2), EID(1))]);
 
         let actual = g
             .edges(2.into(), Direction::OUT)
             .unwrap()
             .collect::<Vec<_>>();
 
-        assert_eq!(actual, vec![(0, 2)]);
+        assert_eq!(actual, vec![(VID(0), EID(2))]);
     }
 
     #[test]
@@ -397,16 +419,21 @@ mod test {
             .unwrap()
             .collect::<Vec<_>>();
 
-        assert_eq!(actual, vec![(1, 0), (2, 1), (3, 2)]);
+        assert_eq!(
+            actual,
+            vec![(VID(1), EID(0)), (VID(2), EID(1)), (VID(3), EID(2))]
+        );
     }
 
     #[test]
-    fn load_2_edges(){
+    fn load_2_edges() {
         let graph = Graph::new();
 
-        graph.add_edge(4, 2, 4, NO_PROPS, None)
+        graph
+            .add_edge(4, 2, 4, NO_PROPS, None)
             .expect("Failed to add edge");
-        graph.add_edge(0, 1, 2, NO_PROPS, None)
+        graph
+            .add_edge(0, 1, 2, NO_PROPS, None)
             .expect("Failed to add edge");
 
         let g = TemporalColGraphFragment::from_graph(&graph);
@@ -424,12 +451,8 @@ mod test {
         assert_eq!(three, 2.into());
 
         // edges
-        let actual = g
-            .edges(two, Direction::OUT)
-            .unwrap()
-            .collect::<Vec<_>>();
+        let actual = g.edges(two, Direction::OUT).unwrap().collect::<Vec<_>>();
 
-        assert_eq!(actual, vec![(2, 1)]);
-        
+        assert_eq!(actual, vec![(VID(2), EID(1))]);
     }
 }
