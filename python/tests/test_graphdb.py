@@ -1134,13 +1134,13 @@ def test_edge_history():
         old_way.append(e.history())
     assert list(g.edges().history()) == old_way
 
-    assert g.vertices().edges().history().collect() == [[[1, 3], [2], [4]], [[1, 3]], [[2]], [[4]]]
+    assert g.vertices.edges.history().collect() == [[[1, 3], [2], [4]], [[1, 3]], [[2]], [[4]]]
 
     old_way2 = []
-    for edges in g.vertices().edges():
+    for edges in g.vertices.edges:
         for edge in edges:
             old_way2.append(edge.history())
-    new_way = g.vertices().edges().history().collect()
+    new_way = g.vertices.edges.history().collect()
     assert [item for sublist in new_way for item in sublist] == old_way2
 
 def test_lotr_edge_history():
@@ -2114,47 +2114,48 @@ def test_start_end_edges():
 
     old_start_way = []
     for e in g.edges():
-        old_start_way.append(e.start())
-    assert old_start_way == list(g.edges().start())
+        old_start_way.append(e.start)
+    assert old_start_way == list(g.edges().start)
 
     old_end_way = []
     for e in g.edges():
-        old_end_way.append(e.end())
-    assert old_end_way == list(g.edges().end())
-
+        old_end_way.append(e.end)
+    assert old_end_way == list(g.edges().end)
+  
     old_time_way = []
     for e in g.edges():
-        old_time_way.append(e.time())
-    assert old_time_way == list(g.edges().time())
+        old_time_way.append(e.time)
+    assert old_time_way == list(g.edges().time)
 
     old_latest_time_way = []
     for e in g.edges():
-        old_latest_time_way.append(e.latest_time())
-    assert old_latest_time_way == list(g.edges().latest_time())
+        old_latest_time_way.append(e.latest_time)
+   
+    assert old_latest_time_way == list(g.edges().latest_time)
 
     old_earliest_time_way = []
     for e in g.edges():
-        old_earliest_time_way.append(e.earliest_time())
-    assert old_earliest_time_way == list(g.edges().earliest_time())
+        old_earliest_time_way.append(e.earliest_time)
+    assert old_earliest_time_way == list(g.edges().earliest_time)
 
     old_start_nested_way=[]
     old_end_nested_way=[]
     old_time_nested_way=[]
     old_latest_time_nested_way=[]
     old_earliest_time_nested_way=[]
-    for edges in g.vertices().edges():
+    for edges in g.vertices.edges:
         for edge in edges:
-            old_start_nested_way.append(edge.start())
-            old_end_nested_way.append(edge.end())
-            old_time_nested_way.append(edge.time())
-            old_latest_time_nested_way.append(edge.latest_time())
-            old_earliest_time_nested_way.append(edge.earliest_time())
-    
-    assert old_start_nested_way == [item for sublist in g.vertices().edges().start().collect() for item in sublist]
-    assert old_end_nested_way == [item for sublist in g.vertices().edges().end().collect() for item in sublist]
-    assert old_time_nested_way == [item for sublist in g.vertices().edges().time().collect() for item in sublist]
-    assert old_latest_time_nested_way == [item for sublist in g.vertices().edges().latest_time().collect() for item in sublist]
-    assert old_earliest_time_nested_way == [item for sublist in g.vertices().edges().earliest_time().collect() for item in sublist]
+            old_start_nested_way.append(edge.start)
+            old_end_nested_way.append(edge.end)
+            old_time_nested_way.append(edge.time)
+            old_latest_time_nested_way.append(edge.latest_time)
+            old_earliest_time_nested_way.append(edge.earliest_time)
+  
+    assert old_start_nested_way == [item for sublist in g.vertices.edges.start.collect() for item in sublist]
+    assert old_end_nested_way == [item for sublist in g.vertices.edges.end.collect() for item in sublist]
+    assert old_time_nested_way == [item for sublist in g.vertices.edges.time.collect() for item in sublist]
+    assert old_latest_time_nested_way == [item for sublist in g.vertices.edges.latest_time.collect() for item in sublist]
+    assert old_earliest_time_nested_way == [item for sublist in g.vertices.edges.earliest_time.collect() for item in sublist]
 
 def test_date_time_edges():
     g = Graph()
@@ -2166,26 +2167,26 @@ def test_date_time_edges():
 
     old_start_way = []
     for e in g.edges():
-        old_start_way.append(e.start_date_time())
-    assert old_start_way == list(g.edges().start_date_time())
+        old_start_way.append(e.start_date_time)
+    assert old_start_way == list(g.edges().start_date_time)
 
     old_end_way = []
     for e in g.edges():
-        old_end_way.append(e.end_date_time())
-    assert old_end_way == list(g.edges().end_date_time())
+        old_end_way.append(e.end_date_time)
+    assert old_end_way == list(g.edges().end_date_time)
 
     old_date_way =[]
     old_start_nested_way=[]
     old_end_nested_way=[]
-    for edges in g.vertices().edges():
+    for edges in g.vertices.edges:
         for edge in edges:
-            old_date_way.append(edge.date_time())
-            old_start_nested_way.append(edge.start_date_time())
-            old_end_nested_way.append(edge.end_date_time())
+            old_date_way.append(edge.date_time)
+            old_start_nested_way.append(edge.start_date_time)
+            old_end_nested_way.append(edge.end_date_time)
    
-    assert old_date_way == [item for sublist in g.vertices().edges().date_time().collect() for item in sublist]
-    assert old_start_nested_way == [item for sublist in g.vertices().edges().start_date_time().collect() for item in sublist]
-    assert old_end_nested_way == [item for sublist in g.vertices().edges().end_date_time().collect() for item in sublist]
+    assert old_date_way == [item for sublist in g.vertices.edges.date_time.collect() for item in sublist]
+    assert old_start_nested_way == [item for sublist in g.vertices.edges.start_date_time.collect() for item in sublist]
+    assert old_end_nested_way == [item for sublist in g.vertices.edges.end_date_time.collect() for item in sublist]
 
 def test_layer_edges():
     g = Graph()
@@ -2227,3 +2228,33 @@ def test_at_edges():
     for e in g.edges():
         old_at_way.append(e.at(2))
     assert old_at_way == list(g.edges().at(2))
+
+
+def test_time_exploded_edges():
+    g = Graph()
+    g.add_edge(1, 1, 2)
+    g.add_edge(2, 1, 2)
+    g.add_edge(3, 1, 2)
+    g.add_edge(4, 1, 3)
+
+    time = []
+    for e in g.edges().explode():
+        time.append(e.time)
+    assert list(g.edges().explode().time)  == time
+
+    date_time = []
+    for e in g.edges().explode():
+        date_time.append(e.date_time)
+    assert list(g.edges().explode().date_time) == date_time
+
+    time_nested = []
+    for edges in g.vertices.edges.explode():
+        for edge in edges:
+            time_nested.append(edge.time)
+    assert [item for sublist in g.vertices.edges.explode().time.collect() for item in sublist] == time_nested
+
+    date_time_nested = []
+    for edges in g.vertices.edges.explode():
+        for edge in edges:
+            date_time_nested.append(edge.date_time)
+    assert [item for sublist in g.vertices.edges.explode().date_time.collect() for item in sublist] == date_time_nested
