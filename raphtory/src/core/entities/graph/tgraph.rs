@@ -441,19 +441,10 @@ impl<const N: usize> TemporalGraph<N> {
         dst_id: VID,
         layer: usize,
     ) -> Result<(), GraphError> {
-        self.add_vertex_no_props(t, src_id);
-        self.add_vertex_no_props(t, dst_id);
-
-        if let Some(e_id) = self.find_edge(src_id, dst_id, &(layer.into())) {
-            let mut edge = self.storage.get_edge_mut(e_id);
-            edge.deletions_mut(layer).insert(t);
-        } else {
-            self.link_nodes(src_id, dst_id, t, layer, |new_edge| {
-                new_edge.deletions_mut(layer).insert(t);
-                Ok(())
-            });
-        }
-
+        self.link_nodes(src_id, dst_id, t, layer, |new_edge| {
+            new_edge.deletions_mut(layer).insert(t);
+            Ok(())
+        })?;
         Ok(())
     }
 
@@ -472,6 +463,7 @@ impl<const N: usize> TemporalGraph<N> {
         edge_fn: F,
     ) -> Result<EID, GraphError> {
         let mut node_pair = self.storage.pair_node_mut(src_id.into(), dst_id.into());
+        self.update_time(t);
         let src = node_pair.get_mut_i();
 
         let edge_id = match src.find_edge(dst_id, &LayerIds::All) {
@@ -488,8 +480,10 @@ impl<const N: usize> TemporalGraph<N> {
         };
 
         src.add_edge(dst_id, Direction::OUT, layer, edge_id);
+        src.update_time(t);
         let dst = node_pair.get_mut_j();
         dst.add_edge(src_id, Direction::IN, layer, edge_id);
+        dst.update_time(t);
         Ok(edge_id)
     }
 
@@ -501,8 +495,6 @@ impl<const N: usize> TemporalGraph<N> {
         props: Vec<(usize, Prop)>,
         layer: usize,
     ) -> Result<EID, GraphError> {
-        self.add_vertex_no_props(t, src_id);
-        self.add_vertex_no_props(t, dst_id);
         // get the entries for the src and dst nodes
         self.link_nodes(src_id, dst_id, t, layer, move |edge| {
             edge.additions_mut(layer).insert(t);
