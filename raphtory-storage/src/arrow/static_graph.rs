@@ -52,10 +52,14 @@ impl StaticGraph {
 
         for &eid in &eids_sorted_by_src_dst_gid {
             let edge = g.find_edge_id(eid.into(), &LayerIds::All, None).unwrap();
-            let src_gid = g.vertex_id(edge.src());
-            let dst_gid = g.vertex_id(edge.dst());
-            edge_src_column.push(src_gid);
-            edge_dst_column.push(dst_gid);
+            let src_id: usize = edge.src().into();
+            let dst_id: usize = edge.dst().into();
+
+            let new_src_id = &vids_sorted_by_gid[src_id];
+            let new_dst_id = &vids_sorted_by_gid[dst_id];
+
+            edge_src_column.push(*new_src_id as u64);
+            edge_dst_column.push(*new_dst_id as u64);
 
             let edge_history = g.edge_history(edge).collect::<Vec<_>>();
             let mut_arr = edge_timestamps.mut_values();
