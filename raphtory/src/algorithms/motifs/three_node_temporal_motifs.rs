@@ -521,13 +521,19 @@ pub fn global_temporal_three_node_motif_from_local(
     let tmp_counts = counts.values().fold(vec![0; 40], |acc, x| {
         acc.iter().zip(x.iter()).map(|(x1, x2)| x1 + x2).collect()
     });
-    // for ind in 31..40 {
-    //     tmp_counts[ind] = tmp_counts[ind] / 2;
-    // }
     tmp_counts
 }
 
-pub fn global_temporal_three_node_motif<G: GraphViewOps>(
+pub fn global_temporal_three_node_motif<G:GraphViewOps>(
+    graph: &G,
+    delta: i64,
+    threads: Option<usize>,
+) -> Vec<usize> {
+    let counts = global_temporal_three_node_motif_general(graph, vec![delta], threads, SortingType::TimeAndIndex, false);
+    counts[0].clone()
+}
+
+pub fn global_temporal_three_node_motif_general<G: GraphViewOps>(
     graph: &G,
     deltas: Vec<i64>,
     threads: Option<usize>,
@@ -725,11 +731,9 @@ mod motifs_test {
 
         let global_motifs = &global_temporal_three_node_motif(
             &g,
-            Vec::from([10]),
-            None,
-            SortingType::TimeAndIndex,
-            false,
-        )[0];
+            10,
+            None
+        );
         assert_eq!(
             *global_motifs,
             vec![

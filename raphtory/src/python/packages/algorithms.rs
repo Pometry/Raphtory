@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use crate::algorithms::motifs::three_node_temporal_motifs::SortingType;
 use crate::python::graph::edge::PyDirection;
 /// Implementations of various graph algorithms that can be run on a graph.
 ///
@@ -22,6 +23,7 @@ use crate::{
         motifs::three_node_temporal_motifs::{
             global_temporal_three_node_motif as global_temporal_three_node_motif_rs,
             temporal_three_node_motif as local_three_node_rs,
+            global_temporal_three_node_motif_general as global_temporal_three_node_motif_general_rs
         },
         pagerank::unweighted_page_rank,
         reciprocity::{
@@ -328,6 +330,17 @@ pub fn global_clustering_coefficient(g: &PyGraphView) -> f64 {
 #[pyfunction]
 pub fn global_temporal_three_node_motif(g: &PyGraphView, delta: i64) -> Vec<usize> {
     global_temporal_three_node_motif_rs(&g.graph, delta, None)
+}
+
+#[pyfunction]
+pub fn global_temporal_three_node_motif_multi(g: &PyGraphView, deltas: Vec<i64>, sort_type:str, randomise_same_timestamps:bool) -> Vec<Vec<usize>>{
+    if sort_type == "Random" {
+        global_temporal_three_node_motif_general_rs(&g.graph, deltas, None, SortingType::Random, randomise_same_timestamps)
+    } else if sort_type == "TimeAndIndex" {
+        global_temporal_three_node_motif_general_rs(&g.graph, deltas, None, SortingType::TimeAndIndex, randomise_same_timestamps)
+    } else { println!("Unrecognized sorting type {:?}, using default of TimeAndIndex");
+    global_temporal_three_node_motif_general_rs(&g.graph, deltas, None, SortingType::TimeAndIndex, randomise_same_timestamps)
+    }
 }
 
 /// Computes the number of each type of motif that each node participates in. See global_temporal_three_node_motifs for a summary of the motifs involved.
