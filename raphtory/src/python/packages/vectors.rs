@@ -5,7 +5,7 @@ use crate::{
     },
     prelude::{EdgeViewOps, GraphViewOps, VertexViewOps},
     python::graph::views::graph_view::PyGraphView,
-    vectors::{Embedding, EmbeddingFunction, Vectorizable, VectorizedGraph},
+    vectors::{vectorizable, vectorized_graph, Embedding, EmbeddingFunction},
 };
 use futures_util::future::BoxFuture;
 use itertools::Itertools;
@@ -20,7 +20,7 @@ use std::{future::Future, path::PathBuf, sync::Arc};
 /// Graph view is a read-only version of a graph at a certain point in time.
 #[pyclass(name = "VectorizedGraph", frozen)]
 pub struct PyVectorizedGraph {
-    vectors: Arc<VectorizedGraph<DynamicGraph>>,
+    vectors: Arc<vectorized_graph<DynamicGraph>>,
 }
 
 #[pymethods]

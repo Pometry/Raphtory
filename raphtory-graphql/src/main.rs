@@ -7,7 +7,7 @@ use raphtory::{
         graph::{edge::EdgeView, vertex::VertexView},
     },
     prelude::{EdgeViewOps, Graph, LayerOps, VertexViewOps},
-    vectors::GraphEntity,
+    vectors::graph_entity,
 };
 use std::{env, path::PathBuf};
 
