@@ -2,10 +2,10 @@ use itertools::Itertools;
 use polars_core::{prelude::*, utils::arrow::array::*};
 use raphtory::{
     core::{
-        entities::{LayerIds, VID},
+        entities::{vertices::vertex_ref::VertexRef, LayerIds, VID},
         Direction,
     },
-    prelude::GraphViewOps,
+    prelude::{GraphViewOps, VertexViewOps},
 };
 
 use super::{MPArr, MutEdgePair};
@@ -18,6 +18,8 @@ pub struct StaticGraph {
 
 const OUTBOUND_COLUMN: &str = "outbound";
 const INBOUND_COLUMN: &str = "inbound";
+
+const V_ADDITIONS_COLUMN: &str = "v_additions";
 
 const GID_COLUMN: &str = "global_vertex_id";
 const SRC_COLUMN: &str = "src";
@@ -59,6 +61,8 @@ impl StaticGraph {
         let mut inbound_arr =
             Self::mutable_adj_list_column(INBOUND_COLUMN, eids_sorted_by_src_dst_gid.len());
 
+        let mut timestamps = Self::mutable_timestamps_column(V_ADDITIONS_COLUMN);
+
         // loop over each vertex adjacency list
         for vertex in &vids_sorted_by_gid {
             let vid: VID = (*vertex).into();
@@ -81,6 +85,12 @@ impl StaticGraph {
                 row.add_pair_usize(*new_vid, *new_eid)
             }
             inbound_arr.try_push_valid().expect("push valid"); // one row done
+
+            // add vertex timestamps column
+            let vertex_timestamps = g.vertex(VertexRef::Internal(vid)).unwrap().history();
+            let mut_arr = timestamps.mut_values();
+            mut_arr.extend_trusted_len_values(vertex_timestamps.into_iter());
+            timestamps.try_push_valid().expect("push valid"); // one row done
         }
 
         // gid column
@@ -96,8 +106,11 @@ impl StaticGraph {
         let inbound_arr: ListArray<i64> = inbound_arr.into();
         let inbound: ChunkedArray<ListType> = ChunkedArray::with_chunk(INBOUND_COLUMN, inbound_arr);
 
+        let timestamps_arr: ListArray<i64>= timestamps.into();
+        let timestamps: ChunkedArray<ListType> = ChunkedArray::with_chunk(V_ADDITIONS_COLUMN, timestamps_arr);
+
         let items = Series::new(GID_COLUMN, gids_sorted_by_gids);
-        let df_graph = DataFrame::new(vec![items, outbound.into_series(), inbound.into_series()])
+        let vertex_df = DataFrame::new(vec![items, outbound.into_series(), inbound.into_series(), timestamps.into_series()])
             .expect(
                 "unexpected error, should be able to create vertex dataframe, contact maintainers!",
             );
@@ -110,7 +123,7 @@ impl StaticGraph {
         .expect("unexpected error, should be able to create edge dataframe, contact maintainers!");
 
         Self {
-            vertex_df: df_graph,
+            vertex_df,
             edge_df,
         }
     }
@@ -133,6 +146,15 @@ impl StaticGraph {
         let mut_arr =
             MutableListArray::<i64, MutableStructArray>::new_with_field(out_inner, name, true);
 
+        mut_arr
+    }
+
+    fn mutable_timestamps_column(
+        name: &str,
+    ) -> MutableListArray<i64, MutablePrimitiveArray<i64>> {
+        let mut_arr = MutablePrimitiveArray::new();
+        let mut_arr =
+            MutableListArray::<i64, MutablePrimitiveArray<i64>>::new_with_field(mut_arr, name, false);
         mut_arr
     }
 
