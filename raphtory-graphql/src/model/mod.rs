@@ -20,6 +20,7 @@ use std::{
     collections::HashMap,
     error::Error,
     fmt::{Display, Formatter},
+    fs,
     io::BufReader,
     ops::Deref,
     time::UNIX_EPOCH,
@@ -143,6 +144,63 @@ impl Mut {
         let mut data = ctx.data_unchecked::<Data>().graphs.write();
         data.extend(new_graphs);
         keys
+    }
+
+    async fn rename_graph<'a>(
+        ctx: &Context<'a>,
+        parent_graph_name: String,
+        graph_name: String,
+        new_graph_name: String,
+    ) -> Result<bool> {
+        if new_graph_name.ne(&graph_name) && parent_graph_name.ne(&graph_name) {
+            let mut data = ctx.data_unchecked::<Data>().graphs.write();
+
+            let subgraph = data.get(&graph_name).ok_or("Graph not found")?;
+            let path = subgraph
+                .static_prop(&"path".to_string())
+                .expect("Path is missing")
+                .to_string();
+
+            let parent_graph = data.get(&parent_graph_name).ok_or("Graph not found")?;
+            let new_subgraph = parent_graph
+                .subgraph(subgraph.vertices().iter().map(|v| v.name()).collect_vec())
+                .materialize()
+                .expect("Failed to materialize graph");
+
+            let static_props_without_name: Vec<(String, Prop)> = subgraph
+                .properties()
+                .into_iter()
+                .filter(|(a, b)| a != "name")
+                .collect_vec();
+
+            new_subgraph
+                .add_constant_properties(static_props_without_name)
+                .expect("Failed to add static properties");
+
+            new_subgraph
+                .add_constant_properties([("name".to_string(), Prop::Str(new_graph_name.clone()))])
+                .expect("Failed to add static property");
+
+            let dt = Utc::now();
+            let timestamp: i64 = dt.timestamp();
+            new_subgraph
+                .add_constant_properties([("lastUpdated".to_string(), Prop::I64(timestamp * 1000))])
+                .expect("Failed to add static properties");
+
+            new_subgraph
+                .save_to_file(path)
+                .expect("Failed to save graph");
+
+            let gi: IndexedGraph<Graph> = new_subgraph
+                .into_events()
+                .ok_or("Graph with deletions not supported")?
+                .into();
+
+            data.insert(new_graph_name.clone(), gi.clone());
+            data.remove(&graph_name);
+        }
+
+        Ok(true)
     }
 
     async fn save_graph<'a>(
