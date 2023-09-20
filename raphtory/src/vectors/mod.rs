@@ -32,7 +32,7 @@ impl DocumentOps for Document {
 }
 
 #[derive(Clone)]
-struct EntityDocument {
+pub(crate) struct EntityDocument {
     id: EntityId,
     content: String,
 }
