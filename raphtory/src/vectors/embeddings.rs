@@ -1,9 +1,9 @@
+use crate::vectors::Embedding;
 use async_openai::{
     types::{CreateEmbeddingRequest, EmbeddingInput},
     Client,
 };
 use itertools::Itertools;
-use raphtory::vectors::Embedding;
 
 pub async fn openai_embedding(texts: Vec<String>) -> Vec<Embedding> {
     println!("computing embeddings for {} texts", texts.len());

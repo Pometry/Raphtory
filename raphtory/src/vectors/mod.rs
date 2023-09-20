@@ -30,6 +30,8 @@ use crate::{
     prelude::{EdgeViewOps, GraphViewOps, Layer, LayerOps, TimeOps, VertexViewOps},
 };
 
+pub mod embeddings;
+
 // #[derive(Clone)]
 // struct EdgeId {
 //     src: u64,
@@ -467,19 +469,6 @@ async fn generate_embeddings<I>(
 where
     I: Iterator<Item = EntityDocument>,
 {
-    // ----------------- SEQUENTIAL-ASYNC-VERSION -----------------
-    // let mut embeddings = vec![];
-    // let embedding_stream = stream! {
-    //     for doc in docs {
-    //         yield (doc.id, doc_to_vec(doc, cache_dir))
-    //     }
-    // };
-    // pin_mut!(embedding_stream);
-    // while let Some(embedding) = embedding_stream.next() {
-    //     embeddings.push(embedding);
-    // }
-    // ------------------------------------------------------------
-
     let mut embeddings = HashMap::new();
     let mut misses = vec![];
 
@@ -541,19 +530,6 @@ fn retrieve_embedding_from_cache(doc: &EntityDocument, cache_dir: &Path) -> Opti
         None
     }
 }
-
-// fn find_top_k_old<'a>(
-//     query: &'a Embedding,
-//     entities: &'a HashMap<EntityId, Embedding>,
-//     k: usize,
-// ) -> impl Iterator<Item = (&'a EntityId, f32)> {
-//     entities
-//         .iter()
-//         .map(|(id, embedding)| (id, cosine(query, embedding)))
-//         .sorted_by(|(_, d1), (_, d2)| d1.partial_cmp(d2).unwrap().reverse())
-//         // We use reverse because default sorting is ascending but we want it descending
-//         .take(k)
-// }
 
 fn score_entities<'a, I, E>(
     query: &'a Embedding,
@@ -659,7 +635,6 @@ impl Display for EntityId {
 }
 
 pub trait GraphEntity: Sized {
-    // fn entity_id(&self) -> EntityId;
     fn generate_doc<T>(&self, template: &T) -> EntityDocument
     where
         T: Fn(&Self) -> String;
@@ -789,181 +764,152 @@ impl<G: GraphViewOps> GraphEntity for EdgeView<G> {
     }
 }
 
-// TODO: re-enable
-// #[cfg(test)]
-// mod vector_tests {
-//     use super::*;
-//     use crate::{
-//         core::Prop,
-//         prelude::{AdditionOps, Graph},
-//     };
-//     use std::path::PathBuf;
-//
-//     const NO_PROPS: [(&str, Prop); 0] = [];
-//
-//     fn format_time(time: i64) -> String {
-//         format!("line {time}")
-//     }
-//
-//     fn node_template(vertex: &VertexView<Graph>) -> String {
-//         let name = vertex.name();
-//         let node_type = vertex.properties().get("type").unwrap().to_string();
-//         let property_list =
-//             vertex.generate_property_list(&format_time, vec!["type", "_id"], vec![]);
-//         format!("{name} is a {node_type} with the following details:\n{property_list}")
-//     }
-//
-//     fn edge_template(edge: &EdgeView<Graph>) -> String {
-//         let src = edge.src().name();
-//         let dst = edge.dst().name();
-//         let lines = edge.history().iter().join(",");
-//         format!("{src} appeared with {dst} in lines: {lines}")
-//     }
-//
-//     // TODO: test default templates
-//
-//     #[test]
-//     fn test_node_into_doc() {
-//         let g = Graph::new();
-//         g.add_vertex(
-//             0,
-//             "Frodo",
-//             [
-//                 ("type".to_string(), Prop::str("hobbit")),
-//                 ("age".to_string(), Prop::str("30")),
-//             ],
-//         )
-//         .unwrap();
-//
-//         let doc = g
-//             .vertex("Frodo")
-//             .unwrap()
-//             .generate_doc(&node_template)
-//             .content;
-//         let expected_doc = r###"Frodo is a hobbit with the following details:
-// earliest activity: line 0
-// latest activity: line 0
-// age: 30"###;
-//         assert_eq!(doc, expected_doc);
-//     }
-//
-//     #[test]
-//     fn test_edge_into_doc() {
-//         let g = Graph::new();
-//         g.add_edge(0, "Frodo", "Gandalf", NO_PROPS, Some("talk to"))
-//             .unwrap();
-//
-//         let doc = g
-//             .edge("Frodo", "Gandalf")
-//             .unwrap()
-//             .generate_doc(&edge_template)
-//             .content;
-//         let expected_doc = "Frodo appeared with Gandalf in lines: 0";
-//         assert_eq!(doc, expected_doc);
-//     }
-//
-//     #[tokio::test]
-//     async fn test_vector_store() {
-//         let g = Graph::new();
-//         g.add_vertex(
-//             0,
-//             "Gandalf",
-//             [
-//                 ("type".to_string(), Prop::str("wizard")),
-//                 ("age".to_string(), Prop::str("120")),
-//             ],
-//         )
-//         .unwrap();
-//         g.add_vertex(
-//             0,
-//             "Frodo",
-//             [
-//                 ("type".to_string(), Prop::str("hobbit")),
-//                 ("age".to_string(), Prop::str("30")),
-//             ],
-//         )
-//         .unwrap();
-//         g.add_edge(0, "Frodo", "Gandalf", NO_PROPS, Some("talk to"))
-//             .unwrap();
-//         g.add_vertex(
-//             2,
-//             "Aragorn",
-//             [
-//                 ("type".to_string(), Prop::str("human")),
-//                 ("age".to_string(), Prop::str("40")),
-//             ],
-//         )
-//         .unwrap();
-//
-//         dotenv().ok();
-//         let vec_store = VectorStore::load_graph(
-//             g,
-//             &PathBuf::from("/tmp/raphtory/vector-cache-lotr-test"),
-//             Some(Box::new(node_template)),
-//             Some(Box::new(edge_template)),
-//         )
-//         .await;
-//
-//         let docs = vec_store
-//             .search("Find a magician", 1, 0, 0, 1, None, None)
-//             .await;
-//         assert!(docs[0].contains("Gandalf is a wizard"));
-//
-//         let docs = vec_store
-//             .search("Find a young person", 1, 0, 0, 1, None, None)
-//             .await;
-//         assert!(docs[0].contains("Frodo is a hobbit")); // this fails when using gte-small
-//
-//         // with window!
-//         let docs = vec_store
-//             .search("Find a young person", 1, 0, 0, 1, Some(1), Some(3))
-//             .await;
-//         assert!(!docs[0].contains("Frodo is a hobbit")); // this fails when using gte-small
-//
-//         let docs = vec_store
-//             .search(
-//                 "Has anyone appeared with anyone else?",
-//                 1,
-//                 0,
-//                 0,
-//                 1,
-//                 None,
-//                 None,
-//             )
-//             .await;
-//         assert!(docs[0].contains("Frodo appeared with Gandalf"));
-//     }
-//
-//     fn average_vectors(vec1: &Embedding, vec2: &Embedding) -> Embedding {
-//         vec1.iter()
-//             .zip(vec2)
-//             .map(|(a, b)| (a + b) / 2.0)
-//             .collect_vec()
-//     }
-//
-//     #[tokio::test]
-//     async fn test_combinations() {
-//         dotenv().ok();
-//         // I want to test if a document tuple node-edge can rank higher than
-//
-//         let ticket = "DEV-1303 is an issue created by the Pometry team with the following details:\nearliest activity: 1667924841177\nlatest activity: 1676301689177\n_id: DEV-1303\nname: DEV-1303\njira_id: 12212\npriority: Medium\nresolution: Done\nstatus: CANCELLED\njira_url: https://pometry.atlassian.net/rest/agile/1.0/issue/12212\nsummary: Build ReadTheDocs during CI/CD as a Test to ensure it still works\ndescription: {panel:bgColor=#eae6ff}\nRemove me and Insert *what* needs to be done and *why* it needs to be done\n{panel}\n\nThis must replicate the read the docs build process. ";
-//         let edge =
-//             "Pedro Rico Pinazo was assigned to work on issue DEV-1303 at time: 2022-06-29 12:34:15";
-//         let question = "tell me about someone that has been working on documentation";
-//
-//         let ticket_embedding = compute_embeddings(vec![ticket.to_owned()]).await.remove(0);
-//         let edge_embedding = compute_embeddings(vec![edge.to_owned()]).await.remove(0);
-//         let question_embedding = compute_embeddings(vec![question.to_owned()])
-//             .await
-//             .remove(0);
-//         let comb_embedding = average_vectors(&ticket_embedding, &edge_embedding);
-//
-//         let ticket_score = cosine(&question_embedding, &ticket_embedding);
-//         let edge_score = cosine(&question_embedding, &edge_embedding);
-//         let comb_score = cosine(&question_embedding, &comb_embedding);
-//
-//         dbg!(ticket_score);
-//         dbg!(edge_score);
-//         dbg!(comb_score);
-//     }
-// }
+#[cfg(test)]
+mod vector_tests {
+    use super::*;
+    use crate::{
+        core::Prop,
+        prelude::{AdditionOps, Graph},
+        vectors::embeddings::openai_embedding,
+    };
+    use dotenv::dotenv;
+    use std::path::PathBuf;
+    use tokio;
+
+    const NO_PROPS: [(&str, Prop); 0] = [];
+
+    fn format_time(time: i64) -> String {
+        format!("line {time}")
+    }
+
+    fn node_template(vertex: &VertexView<Graph>) -> String {
+        let name = vertex.name();
+        let node_type = vertex.properties().get("type").unwrap().to_string();
+        let property_list =
+            vertex.generate_property_list(&format_time, vec!["type", "_id"], vec![]);
+        format!("{name} is a {node_type} with the following details:\n{property_list}")
+    }
+
+    fn edge_template(edge: &EdgeView<Graph>) -> String {
+        let src = edge.src().name();
+        let dst = edge.dst().name();
+        let lines = edge.history().iter().join(",");
+        format!("{src} appeared with {dst} in lines: {lines}")
+    }
+
+    // TODO: test default templates
+
+    #[test]
+    fn test_node_into_doc() {
+        let g = Graph::new();
+        g.add_vertex(
+            0,
+            "Frodo",
+            [
+                ("type".to_string(), Prop::str("hobbit")),
+                ("age".to_string(), Prop::str("30")),
+            ],
+        )
+        .unwrap();
+
+        let doc = g
+            .vertex("Frodo")
+            .unwrap()
+            .generate_doc(&node_template)
+            .content;
+        let expected_doc = r###"Frodo is a hobbit with the following details:
+earliest activity: line 0
+latest activity: line 0
+age: 30"###;
+        assert_eq!(doc, expected_doc);
+    }
+
+    #[test]
+    fn test_edge_into_doc() {
+        let g = Graph::new();
+        g.add_edge(0, "Frodo", "Gandalf", NO_PROPS, Some("talk to"))
+            .unwrap();
+
+        let doc = g
+            .edge("Frodo", "Gandalf")
+            .unwrap()
+            .generate_doc(&edge_template)
+            .content;
+        let expected_doc = "Frodo appeared with Gandalf in lines: 0";
+        assert_eq!(doc, expected_doc);
+    }
+
+    #[ignore = "this test needs an OpenAI API key to run"]
+    #[tokio::test]
+    async fn test_vector_store() {
+        let g = Graph::new();
+        g.add_vertex(
+            0,
+            "Gandalf",
+            [
+                ("type".to_string(), Prop::str("wizard")),
+                ("age".to_string(), Prop::str("120")),
+            ],
+        )
+        .unwrap();
+        g.add_vertex(
+            0,
+            "Frodo",
+            [
+                ("type".to_string(), Prop::str("hobbit")),
+                ("age".to_string(), Prop::str("30")),
+            ],
+        )
+        .unwrap();
+        g.add_edge(0, "Frodo", "Gandalf", NO_PROPS, Some("talk to"))
+            .unwrap();
+        g.add_vertex(
+            2,
+            "Aragorn",
+            [
+                ("type".to_string(), Prop::str("human")),
+                ("age".to_string(), Prop::str("40")),
+            ],
+        )
+        .unwrap();
+
+        dotenv().ok();
+        let vectors = g
+            .vectorize_with_templates(
+                Box::new(openai_embedding),
+                &PathBuf::from("/tmp/raphtory/vector-cache-lotr-test"),
+                node_template,
+                edge_template,
+            )
+            .await;
+
+        let docs = vectors
+            .similarity_search("Find a magician", 1, 0, 0, 1, None, None)
+            .await;
+        assert!(docs[0].contains("Gandalf is a wizard"));
+
+        let docs = vectors
+            .similarity_search("Find a young person", 1, 0, 0, 1, None, None)
+            .await;
+        assert!(docs[0].contains("Frodo is a hobbit")); // this fails when using gte-small
+
+        // with window!
+        let docs = vectors
+            .similarity_search("Find a young person", 1, 0, 0, 1, Some(1), Some(3))
+            .await;
+        assert!(!docs[0].contains("Frodo is a hobbit")); // this fails when using gte-small
+
+        let docs = vectors
+            .similarity_search(
+                "Has anyone appeared with anyone else?",
+                1,
+                0,
+                0,
+                1,
+                None,
+                None,
+            )
+            .await;
+        assert!(docs[0].contains("Frodo appeared with Gandalf"));
+    }
+}
