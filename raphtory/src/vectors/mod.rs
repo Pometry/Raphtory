@@ -1,4 +1,4 @@
-use crate::vectors::entity_id::EntityId;
+use crate::vectors::{entity_id::EntityId, graph_entity::GraphEntity};
 use futures_util::future::BoxFuture;
 use std::future::Future;
 
@@ -10,8 +10,26 @@ pub mod vectorized_graph;
 
 pub type Embedding = Vec<f32>;
 
+pub enum Document {
+    Node { id: u64, content: String },
+    Edge { src: u64, dst: u64, content: String },
+}
+
+pub trait DocumentOps {
+    fn content(&self) -> &str;
+}
+
+impl DocumentOps for Document {
+    fn content(&self) -> &str {
+        match self {
+            Document::Node { content, .. } => content,
+            Document::Edge { content, .. } => content,
+        }
+    }
+}
+
 #[derive(Clone)]
-pub struct EntityDocument {
+struct EntityDocument {
     id: EntityId,
     content: String,
 }
@@ -170,18 +188,19 @@ age: 30"###;
         let docs = vectors
             .similarity_search("Find a magician", 1, 0, 0, 1, None, None)
             .await;
-        assert!(docs[0].contains("Gandalf is a wizard"));
+        // TODO: use the ids instead in all of these cases
+        assert!(docs[0].content().contains("Gandalf is a wizard"));
 
         let docs = vectors
             .similarity_search("Find a young person", 1, 0, 0, 1, None, None)
             .await;
-        assert!(docs[0].contains("Frodo is a hobbit")); // this fails when using gte-small
+        assert!(docs[0].content().contains("Frodo is a hobbit")); // this fails when using gte-small
 
         // with window!
         let docs = vectors
             .similarity_search("Find a young person", 1, 0, 0, 1, Some(1), Some(3))
             .await;
-        assert!(!docs[0].contains("Frodo is a hobbit")); // this fails when using gte-small
+        assert!(!docs[0].content().contains("Frodo is a hobbit")); // this fails when using gte-small
 
         let docs = vectors
             .similarity_search(
@@ -194,6 +213,6 @@ age: 30"###;
                 None,
             )
             .await;
-        assert!(docs[0].contains("Frodo appeared with Gandalf"));
+        assert!(docs[0].content().contains("Frodo appeared with Gandalf"));
     }
 }

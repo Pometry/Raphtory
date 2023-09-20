@@ -3,7 +3,7 @@ use raphtory::{
     core::Prop,
     prelude::{Graph, GraphViewOps, PropertyAdditionOps},
     search::IndexedGraph,
-    vectors::vectorized_graph,
+    vectors::vectorized_graph::VectorizedGraph,
 };
 use std::{
     collections::{HashMap, HashSet},
@@ -14,7 +14,7 @@ use walkdir::WalkDir;
 #[derive(Default)]
 pub(crate) struct Data {
     pub(crate) graphs: RwLock<HashMap<String, IndexedGraph<Graph>>>,
-    pub(crate) vector_stores: RwLock<HashMap<String, vectorized_graph<Graph>>>,
+    pub(crate) vector_stores: RwLock<HashMap<String, VectorizedGraph<Graph>>>,
 }
 
 impl Data {

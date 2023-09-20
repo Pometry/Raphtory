@@ -4,7 +4,9 @@ use crate::{
         graph::{edge::EdgeView, vertex::VertexView, views::window_graph::WindowedGraph},
     },
     prelude::{EdgeViewOps, GraphViewOps, Layer, TimeOps, VertexViewOps},
-    vectors::{entity_id::EntityId, graph_entity::GraphEntity, Embedding, EmbeddingFunction},
+    vectors::{
+        entity_id::EntityId, graph_entity::GraphEntity, Document, Embedding, EmbeddingFunction,
+    },
 };
 use itertools::{chain, Itertools};
 use rand_distr::weighted_alias::AliasableWeight;
@@ -48,7 +50,7 @@ impl<G: GraphViewOps + IntoDynamic> VectorizedGraph<G> {
         limit: usize,
         window_start: Option<i64>,
         window_end: Option<i64>,
-    ) -> Vec<String> {
+    ) -> Vec<Document> {
         let query_embedding = self.embedding.call(vec![query.to_owned()]).await.remove(0);
 
         let (graph, window_nodes, window_edges): (
@@ -154,20 +156,25 @@ impl<G: GraphViewOps + IntoDynamic> VectorizedGraph<G> {
             .iter()
             .take(limit)
             .map(|id| match id {
-                EntityId::Node { id } => {
-                    self.graph
+                EntityId::Node { id } => Document::Node {
+                    id: *id,
+                    content: self
+                        .graph
                         .vertex(*id)
                         .unwrap()
                         .generate_doc(&self.node_template)
-                        .content
-                }
-                EntityId::Edge { src, dst } => {
-                    self.graph
+                        .content,
+                },
+                EntityId::Edge { src, dst } => Document::Edge {
+                    src: *src,
+                    dst: *dst,
+                    content: self
+                        .graph
                         .edge(*src, *dst)
                         .unwrap()
                         .generate_doc(&self.edge_template)
-                        .content
-                }
+                        .content,
+                },
             })
             .collect_vec()
     }

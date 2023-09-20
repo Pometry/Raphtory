@@ -1,6 +1,9 @@
 use crate::{
     data::Data,
-    model::graph::graph::{GqlGraph, GraphMeta},
+    model::graph::{
+        document::GqlDocument,
+        graph::{GqlGraph, GraphMeta},
+    },
 };
 use async_graphql::Context;
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
@@ -98,7 +101,7 @@ impl QueryRoot {
         limit: Option<usize>,
         window_start: Option<i64>,
         window_end: Option<i64>,
-    ) -> Option<Vec<String>> {
+    ) -> Option<Vec<GqlDocument>> {
         let init = init.unwrap_or(1);
         let min_nodes = min_nodes.unwrap_or(0);
         let min_edges = min_edges.unwrap_or(0);
@@ -118,7 +121,10 @@ impl QueryRoot {
                     window_start,
                     window_end,
                 )
-                .await,
+                .await
+                .into_iter()
+                .map(|doc| doc.into())
+                .collect_vec(),
         )
     }
 }

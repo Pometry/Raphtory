@@ -8,6 +8,7 @@ use raphtory::{
 };
 use std::collections::HashSet;
 
+pub(crate) mod document;
 pub(crate) mod edge;
 pub(crate) mod graph;
 pub(crate) mod node;
