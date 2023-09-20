@@ -17,7 +17,8 @@ struct Args {
     vectorize: Vec<String>,
 
     /// directory to use to store the embbeding cache
-    #[arg(short, long, default_value_t = "".to_string())]
+    #[allow(unused_parens)] // they are actually necessary or this does not compile!
+    #[arg(short, long, default_value_t = ("".to_string()))]
     cache: String,
 }
 
