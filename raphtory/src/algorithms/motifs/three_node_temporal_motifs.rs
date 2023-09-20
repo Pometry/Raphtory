@@ -27,9 +27,7 @@ use itertools::{enumerate, Itertools};
 use num_traits::Zero;
 use rand::{rngs::StdRng, Rng, SeedableRng};
 use rustc_hash::FxHashSet;
-use std::{
-    cmp::Ordering, collections::HashMap, ops::Add, slice::Iter,
-};
+use std::{cmp::Ordering, collections::HashMap, ops::Add, slice::Iter};
 ///////////////////////////////////////////////////////
 
 // State objects for three node motifs
@@ -524,12 +522,18 @@ pub fn global_temporal_three_node_motif_from_local(
     tmp_counts
 }
 
-pub fn global_temporal_three_node_motif<G:GraphViewOps>(
+pub fn global_temporal_three_node_motif<G: GraphViewOps>(
     graph: &G,
     delta: i64,
     threads: Option<usize>,
 ) -> Vec<usize> {
-    let counts = global_temporal_three_node_motif_general(graph, vec![delta], threads, SortingType::TimeAndIndex, false);
+    let counts = global_temporal_three_node_motif_general(
+        graph,
+        vec![delta],
+        threads,
+        SortingType::TimeAndIndex,
+        false,
+    );
     counts[0].clone()
 }
 
@@ -729,11 +733,7 @@ mod motifs_test {
             (23, 11, 9),
         ]);
 
-        let global_motifs = &global_temporal_three_node_motif(
-            &g,
-            10,
-            None
-        );
+        let global_motifs = &global_temporal_three_node_motif(&g, 10, None);
         assert_eq!(
             *global_motifs,
             vec![
