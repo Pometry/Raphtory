@@ -7,15 +7,12 @@ use polars_core::prelude::*;
 use raphtory::{
     core::{
         entities::{
-            edges::edge_ref::EdgeRef, vertices::input_vertex::InputVertex, LayerIds, EID, VID,
+            edges::edge_ref::EdgeRef, vertices::input_vertex::InputVertex, EID, VID,
         },
         utils::errors::GraphError,
         Direction,
     },
-    db::api::{
-        mutation::{internal::InternalAdditionOps, CollectProperties, TryIntoInputTime},
-        view::internal::GraphOps,
-    },
+    db::api::mutation::{internal::InternalAdditionOps, CollectProperties, TryIntoInputTime},
     prelude::*,
 };
 
@@ -82,7 +79,7 @@ impl PersistentTemporalGraph {
         // TODO: self.prev_graph().clear();
     }
 
-    fn add_edge<V: InputVertex, T: TryIntoInputTime, PI: CollectProperties>(
+    pub fn add_edge<V: InputVertex, T: TryIntoInputTime, PI: CollectProperties>(
         &self,
         t: T,
         src: V,
@@ -93,11 +90,13 @@ impl PersistentTemporalGraph {
         self.updates_since_last_fragment
             .fetch_add(1, Ordering::Relaxed);
 
+        self.flush();
+
         self.graph().add_edge(t, src, dst, props, layer)?;
         Ok(())
     }
 
-    fn edges<V: InputVertex>(&self, v: V, dir: Direction) -> Box<dyn Iterator<Item = EdgeRef>> {
+    pub fn edges<V: InputVertex>(&self, v: V, dir: Direction) -> Box<dyn Iterator<Item = EdgeRef>> {
         let vid = self.graph().resolve_vertex(v.id());
         let fragments = self.graph_fragments.read();
         let iter = fragments
@@ -118,28 +117,12 @@ impl PersistentTemporalGraph {
 
 struct GraphFragment {
     static_graph: StaticGraph,
-    temporal: Option<TemporalGraph>,
 }
 
 impl GraphFragment {
-    fn from_graph<G: GraphViewOps>(g: &G) -> Self {
-        let outgoing = g.vertex_refs(LayerIds::All, None).flat_map(|v| {
-            let g_id = g.vertex_id(v);
-            g.vertex_edges(v, Direction::OUT, LayerIds::All, None)
-                .map(move |e| (e, g_id))
-        });
-
-        let incoming = g.vertex_refs(LayerIds::All, None).flat_map(|v| {
-            let g_id = g.vertex_id(v);
-            g.vertex_edges(v, Direction::IN, LayerIds::All, None)
-                .map(move |e| (e, g_id))
-        });
-        let static_graph = StaticGraph::from_sorted_edge_refs(outgoing, incoming);
-
-        Self {
-            static_graph,
-            temporal: None,
-        }
+    pub fn from_graph<G: GraphViewOps>(g: &G) -> Self {
+        let static_graph = StaticGraph::from_graph(g);
+        Self { static_graph }
     }
 
     fn edges(&self, v_id: VID, dir: Direction) -> Box<dyn Iterator<Item = (VID, EID)>> {
@@ -158,15 +141,8 @@ impl GraphFragment {
     }
 }
 
-struct TemporalGraph {
-    vertex_active: DataFrame,
-    edge_active: DataFrame,
-}
-
 #[cfg(test)]
 mod test {
-
-    use raphtory::db::api::view::internal::CoreGraphOps;
 
     use super::*;
 
@@ -195,18 +171,4 @@ mod test {
         assert_eq!(edges.count(), 2);
     }
 
-    #[test]
-    fn create_lookup_table_vertices_sorted_by_gid() {
-        let g = Graph::new();
-
-        g.add_edge(0, 7, 2, NO_PROPS, None);
-        g.add_edge(0, 3, 1, NO_PROPS, None);
-        g.add_edge(0, 1, 9, NO_PROPS, None);
-        g.add_edge(0, 1, 0, NO_PROPS, None);
-
-        let mut lookup_table: Vec<usize> = (0..g.vertices_len(LayerIds::All, None)).collect();
-        lookup_table.sort_by_key(|&vid| g.vertex_id(vid.into()));
-
-        println!("{:?}", lookup_table);
-    }
 }

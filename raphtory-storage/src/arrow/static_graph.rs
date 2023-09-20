@@ -2,16 +2,18 @@ use itertools::Itertools;
 use polars_core::{prelude::*, utils::arrow::array::*};
 use raphtory::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
+        entities::{LayerIds, VID},
         Direction,
     },
-    prelude::{GraphViewOps, Layer},
+    prelude::GraphViewOps,
 };
 
-use super::{IngestEdgeType, MPArr, MutEdgePair};
+use super::{MPArr, MutEdgePair};
 
-pub(crate) struct StaticGraph {
-    df_graph: DataFrame,
+#[derive(Debug)]
+pub struct StaticGraph {
+    vertex_df: DataFrame,
+    edge_df: DataFrame,
 }
 
 const OUTBOUND_COLUMN: &str = "outbound";
@@ -25,7 +27,7 @@ const V_COLUMN: &str = "v";
 const E_COLUMN: &str = "e";
 
 impl StaticGraph {
-    pub(crate) fn from_graph<G: GraphViewOps>(g: &G) -> Self {
+    pub fn from_graph<G: GraphViewOps>(g: &G) -> Self {
         // create a lookup table for the vertices sorted by gid
         let mut vids_sorted_by_gid = (0..g.vertices_len(LayerIds::All, None)).collect::<Vec<_>>();
         vids_sorted_by_gid.sort_unstable_by_key(|&vid| g.vertex_id(vid.into()));
@@ -72,7 +74,7 @@ impl StaticGraph {
 
             for e_ref in g.vertex_edges(vid, Direction::IN, LayerIds::All, None) {
                 let mut row: MutEdgePair = inbound_arr.mut_values().into();
-                let vid: usize = e_ref.dst().into();
+                let vid: usize = e_ref.src().into();
                 let eid: usize = e_ref.pid().into();
                 let new_vid = &vids_sorted_by_gid[vid];
                 let new_eid = &eids_sorted_by_src_dst_gid[eid];
@@ -96,9 +98,21 @@ impl StaticGraph {
 
         let items = Series::new(GID_COLUMN, gids_sorted_by_gids);
         let df_graph = DataFrame::new(vec![items, outbound.into_series(), inbound.into_series()])
-            .expect("unexpected error, should be able to create dataframe, contact maintainers!");
+            .expect(
+                "unexpected error, should be able to create vertex dataframe, contact maintainers!",
+            );
 
-        Self { df_graph }
+        // edge graph
+        let edge_df = DataFrame::new(vec![
+            Series::new(SRC_COLUMN, edge_src_column),
+            Series::new(DST_COLUMN, edge_dst_column),
+        ])
+        .expect("unexpected error, should be able to create edge dataframe, contact maintainers!");
+
+        Self {
+            vertex_df: df_graph,
+            edge_df,
+        }
     }
 
     fn mutable_adj_list_column(
@@ -122,139 +136,16 @@ impl StaticGraph {
         mut_arr
     }
 
-    pub(crate) fn from_sorted_edge_refs<
-        OUT: Iterator<Item = (EdgeRef, u64)>,
-        IN: Iterator<Item = (EdgeRef, u64)>,
-    >(
-        outbound: OUT,
-        inbound: IN,
-    ) -> Self {
-        let fields = vec![
-            ArrowField::new(V_COLUMN, ArrowDataType::UInt64, false),
-            ArrowField::new(E_COLUMN, ArrowDataType::UInt64, false),
-        ];
-
-        let mut items = MPArr::<u64>::new();
-
-        // arrays for outbound
-        let out_v = Box::new(MPArr::<u64>::new());
-        let out_e = Box::new(MPArr::<u64>::new());
-        let out_inner =
-            MutableStructArray::new(ArrowDataType::Struct(fields.clone()), vec![out_v, out_e]);
-
-        let mut outbound_arr = MutableListArray::<i64, MutableStructArray>::new_with_field(
-            out_inner,
-            OUTBOUND_COLUMN,
-            true,
-        );
-
-        // arrays for inbound
-        let in_v = Box::new(MPArr::<u64>::new());
-        let in_e = Box::new(MPArr::<u64>::new());
-        let in_inner = MutableStructArray::new(ArrowDataType::Struct(fields), vec![in_v, in_e]);
-
-        let mut inbound_arr = MutableListArray::<i64, MutableStructArray>::new_with_field(
-            in_inner,
-            INBOUND_COLUMN,
-            true,
-        );
-
-        let in_iter: Box<dyn Iterator<Item = IngestEdgeType>> = Box::new(
-            inbound
-                .into_iter()
-                .map(|(e, g_id)| IngestEdgeType::Inbound(e, g_id)),
-        );
-        let out_iter = Box::new(
-            outbound
-                .into_iter()
-                .map(|(e, g_id)| IngestEdgeType::Outbound(e, g_id)),
-        );
-
-        let iter = [in_iter, out_iter]
-            .into_iter()
-            .kmerge_by(|a, b| a.local() < b.local());
-
-        let mut index: usize = 0;
-        let mut cur = None;
-        for edge in iter {
-            let vertex = edge.local();
-
-            // iter may not start at 0 so we need to push None's into the items array to fill the gaps
-            while index < vertex.into() {
-                items.push(None);
-                outbound_arr.try_push_valid().expect("push valid"); // advance one row
-                inbound_arr.try_push_valid().expect("push valid"); // advance one row
-                index += 1;
-            }
-
-            let vertex_gid = edge.gid();
-            if cur.is_none() {
-                // happens once
-                cur = Some(vertex_gid);
-            }
-
-            if cur != Some(vertex_gid) {
-                items.push(cur);
-
-                outbound_arr.try_push_valid().expect("push valid"); // one row done
-                inbound_arr.try_push_valid().expect("push valid"); // one row done
-
-                cur = Some(vertex_gid);
-            }
-
-            match edge {
-                e @ IngestEdgeType::Outbound(_, _) => {
-                    let dst = e.remote_u64();
-                    let e = e.pid_u64();
-                    let mut row: MutEdgePair = outbound_arr.mut_values().into();
-                    row.add_pair(dst, e);
-                }
-                e @ IngestEdgeType::Inbound(_, _) => {
-                    let dst = e.remote_u64();
-                    let e = e.pid_u64();
-                    let mut row: MutEdgePair = inbound_arr.mut_values().into();
-                    row.add_pair(dst, e);
-                }
-            }
-            index += 1;
-        }
-
-        if cur.is_some() {
-            items.push(cur);
-            outbound_arr.try_push_valid().expect("push valid"); // last row;
-            inbound_arr.try_push_valid().expect("push valid"); // last row;
-        }
-
-        let items: ChunkedArray<UInt64Type> = ChunkedArray::with_chunk(GID_COLUMN, items.into());
-
-        let outbound_arr: ListArray<i64> = outbound_arr.into();
-        let outbound: ChunkedArray<ListType> =
-            ChunkedArray::with_chunk(OUTBOUND_COLUMN, outbound_arr);
-
-        let inbound_arr: ListArray<i64> = inbound_arr.into();
-        let inbound: ChunkedArray<ListType> = ChunkedArray::with_chunk(INBOUND_COLUMN, inbound_arr);
-
-        let df_graph = DataFrame::new(vec![
-            items.into_series(),
-            outbound.into_series(),
-            inbound.into_series(),
-        ])
-        .expect("unexpected error, should be able to create dataframe, contact maintainers!");
-
-        Self { df_graph }
-    }
-
     fn items(&self) -> &ChunkedArray<UInt64Type> {
-        self.df_graph
-            .column("global_vertex_id")
+        self.vertex_df
+            .column(GID_COLUMN)
             .unwrap()
-            .as_any()
-            .downcast_ref::<ChunkedArray<UInt64Type>>()
+            .u64()
             .expect("unexpected error, should be able to downcast, contact maintainers!")
     }
 
     fn outbound(&self) -> &ChunkedArray<ListType> {
-        self.df_graph
+        self.vertex_df
             .column(OUTBOUND_COLUMN)
             .unwrap()
             .as_any()
@@ -263,7 +154,7 @@ impl StaticGraph {
     }
 
     fn inbound(&self) -> &ChunkedArray<ListType> {
-        self.df_graph
+        self.vertex_df
             .column(INBOUND_COLUMN)
             .unwrap()
             .as_any()
@@ -326,68 +217,116 @@ impl StaticGraph {
             }
         }
     }
+
+    pub(crate) fn resolve_vertex_id(&self, gid: u64) -> Option<VID> {
+        let items = self.items();
+        let chunks = items.chunks();
+        let chunk_size = chunks[0].len(); // we assume all the chunks are the same size
+
+        let (chunk_id, pos) = chunks
+            .iter()
+            .enumerate()
+            .map(|(chunk_id, arr)| {
+                let arr = arr.as_any().downcast_ref::<PrimitiveArray<u64>>().unwrap();
+                arr.values()
+                    .binary_search_by(|x| x.cmp(&gid))
+                    .ok()
+                    .map(|j| (chunk_id, j))
+            })
+            .find(|needle| needle.is_some())
+            .flatten()?;
+
+        Some((chunk_size * chunk_id + pos).into())
+    }
 }
 
 #[cfg(test)]
 mod test {
-    use raphtory::core::{entities::edges::edge_ref::EdgeRef, Direction};
+    use raphtory::{core::Direction, prelude::*};
 
     use super::StaticGraph;
 
     #[test]
-    fn load_outbound_one_vertex() {
-        let g = StaticGraph::from_sorted_edge_refs(
-            vec![(EdgeRef::new_outgoing(0.into(), 0.into(), 1.into()), 1u64)].into_iter(),
-            vec![].into_iter(),
-        );
+    fn load_one_edge_graph() {
+        let graph = Graph::new();
+        graph.add_edge(0, 1, 2, NO_PROPS, None).expect("add edge");
+
+        let g = StaticGraph::from_graph(&graph);
 
         let actual = g
             .edges(0.into(), Direction::OUT)
             .unwrap()
             .collect::<Vec<_>>();
 
-        assert_eq!(actual, vec![(1, 0)])
-    }
+        assert_eq!(actual, vec![(1, 0)]);
 
-    #[test]
-    fn load_inbound_one_vertex() {
-        let g = StaticGraph::from_sorted_edge_refs(
-            vec![].into_iter(),
-            vec![(EdgeRef::new_incoming(0.into(), 0.into(), 1.into()), 1u64)].into_iter(),
-        );
-
-        // 0 doesn't have any incoming edges
-        let actual = g
-            .edges(0.into(), Direction::IN)
-            .unwrap()
-            .collect::<Vec<_>>();
-
-        assert_eq!(actual, vec![]);
-
-        // 1 has one incoming edge
         let actual = g
             .edges(1.into(), Direction::IN)
             .unwrap()
             .collect::<Vec<_>>();
+
         assert_eq!(actual, vec![(0, 0)])
     }
 
     #[test]
-    fn load_outbound_two_vertices() {
-        let g = StaticGraph::from_sorted_edge_refs(
-            vec![
-                (EdgeRef::new_outgoing(0.into(), 0.into(), 1.into()), 1u64),
-                (EdgeRef::new_outgoing(1.into(), 0.into(), 2.into()), 1u64),
-            ]
-            .into_iter(),
-            vec![].into_iter(),
-        );
+    fn load_triangle_graph() {
+        let graph = Graph::new();
+        graph.add_edge(0, 1, 2, NO_PROPS, None).expect("add edge");
+        graph.add_edge(1, 2, 3, NO_PROPS, None).expect("add edge");
+        graph.add_edge(2, 3, 1, NO_PROPS, None).expect("add edge");
+
+        let g = StaticGraph::from_graph(&graph);
+
+        // resolve
+        let one = g.resolve_vertex_id(1).unwrap();
+        assert_eq!(one, 0.into());
+
+        let two = g.resolve_vertex_id(2).unwrap();
+        assert_eq!(two, 1.into());
+
+        let three = g.resolve_vertex_id(3).unwrap();
+        assert_eq!(three, 2.into());
+
+        // edges
+        let actual = g
+            .edges(0.into(), Direction::OUT)
+            .unwrap()
+            .collect::<Vec<_>>();
+
+        assert_eq!(actual, vec![(1, 0)]);
+
+        let actual = g
+            .edges(1.into(), Direction::OUT)
+            .unwrap()
+            .collect::<Vec<_>>();
+
+        assert_eq!(actual, vec![(2, 1)]);
+
+        let actual = g
+            .edges(2.into(), Direction::OUT)
+            .unwrap()
+            .collect::<Vec<_>>();
+
+        assert_eq!(actual, vec![(0, 2)]);
+    }
+
+    #[test]
+    fn load_star_graph() {
+        let graph = Graph::new();
+        graph.add_edge(0, 1, 2, NO_PROPS, None).expect("add edge");
+        graph.add_edge(0, 1, 3, NO_PROPS, None).expect("add edge");
+        graph.add_edge(0, 1, 4, NO_PROPS, None).expect("add edge");
+
+        let g = StaticGraph::from_graph(&graph);
+        println!("{:?}", g);
+
+        // edges
 
         let actual = g
             .edges(0.into(), Direction::OUT)
             .unwrap()
             .collect::<Vec<_>>();
 
-        assert_eq!(actual, vec![(1, 0), (2, 1)])
+        assert_eq!(actual, vec![(1, 0), (2, 1), (3, 2)]);
     }
 }
