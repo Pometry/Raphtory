@@ -228,7 +228,8 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeViewOps
 
     fn history(&self) -> Vec<i64> {
         self.graph()
-            .edge_history_window(self.ev, self.t_start..self.t_end)
+            .edge_window_exploded(self.ev, self.t_start..self.t_end, self.g.layer_ids())
+            .map(|eref| eref.time_t().expect("exploded"))
             .collect()
     }
 

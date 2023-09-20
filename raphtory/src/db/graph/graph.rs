@@ -162,8 +162,21 @@ mod db_tests {
     use chrono::NaiveDateTime;
     use itertools::Itertools;
     use quickcheck::Arbitrary;
+    use rayon::prelude::*;
     use std::collections::{HashMap, HashSet};
     use tempdir::TempDir;
+
+    #[quickcheck]
+    fn test_multithreaded_add_edge(edges: Vec<(u64, u64)>) -> bool {
+        let g = Graph::new();
+        edges.par_iter().enumerate().for_each(|(t, (i, j))| {
+            g.add_edge(t as i64, *i, *j, NO_PROPS, None).unwrap();
+        });
+        edges
+            .iter()
+            .all(|(i, j)| g.has_edge(*i, *j, Layer::Default))
+            && g.count_temporal_edges() == edges.len()
+    }
 
     #[quickcheck]
     fn add_vertex_grows_graph_len(vs: Vec<(i64, u64)>) {
