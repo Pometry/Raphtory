@@ -86,31 +86,15 @@ impl Zero for MotifCounter {
     }
 }
 
-#[derive(Clone)]
-pub enum SortingType {
-    Random,
-    TimeAndIndex,
-}
-
 ///////////////////////////////////////////////////////
 
 pub fn star_motif_count<G>(
     evv: &EvalVertexView<G, ComputeStateVec, MotifCounter>,
     deltas: Vec<i64>,
-    sorting_type: SortingType,
-    randomise_same_timestamps: bool,
 ) -> Vec<[usize; 24]>
 where
     G: GraphViewOps,
 {
-    let mut rng = StdRng::from_entropy();
-
-    // Define a closure for sorting by time_and_index()
-    let sort_by_time_and_index =
-        |e1: &EvalEdgeView<G, ComputeStateVec, MotifCounter>,
-         e2: &EvalEdgeView<G, ComputeStateVec, MotifCounter>|
-         -> Ordering { Ord::cmp(&e1.time_and_index(), &e2.time_and_index()) };
-
     let neigh_map: HashMap<u64, usize> = evv
         .neighbours()
         .into_iter()
@@ -120,23 +104,7 @@ where
     let mut events = evv
         .edges()
         .explode()
-        .sorted_by(|e1, e2| {
-            match sorting_type {
-                SortingType::TimeAndIndex => sort_by_time_and_index(e1, e2),
-                SortingType::Random => {
-                    let mut rng2 = StdRng::from_entropy();
-                    // Use random ordering logic here
-                    // For example:
-                    let order = e1.time().cmp(&e2.time());
-                    if order == Ordering::Equal {
-                        // If times are equal, randomize the order
-                        order.then_with(|| rng2.gen_range(0..10).cmp(&rng2.gen_range(0..10)))
-                    } else {
-                        order
-                    }
-                }
-            }
-        })
+        .sorted_by_key(|e| e.time_and_index())
         .map(|edge| {
             if edge.src().id() == evv.id() {
                 star_event(neigh_map[&edge.dst().id()], 1, edge.time().unwrap())
@@ -149,9 +117,6 @@ where
     deltas
         .into_iter()
         .map(|delta| {
-            if randomise_same_timestamps {
-                events.sort_by_key(|e| (e.time, rng.gen_range(1..1000000000)))
-            }
             let mut star_count = init_star_count(evv.degree());
             star_count.execute(&events, delta);
             star_count.return_counts()
@@ -165,8 +130,6 @@ pub fn twonode_motif_count<G>(
     graph: &G,
     evv: &EvalVertexView<G, ComputeStateVec, MotifCounter>,
     deltas: Vec<i64>,
-    sorting_type: SortingType,
-    randomise_same_timestamps: bool,
 ) -> Vec<[usize; 8]>
 where
     G: GraphViewOps,
@@ -186,23 +149,7 @@ where
             .iter()
             .flat_map(|e| e.explode())
             .chain(inc.iter().flat_map(|e| e.explode()))
-            .sorted_by(|e1, e2| {
-                match sorting_type {
-                    SortingType::TimeAndIndex => sort_by_time_and_index(e1, e2),
-                    SortingType::Random => {
-                        let mut rng = StdRng::from_entropy();
-                        // Use random ordering logic here
-                        // For example:
-                        let order = e1.time().cmp(&e2.time());
-                        if order == Ordering::Equal {
-                            // If times are equal, randomize the order
-                            order.then_with(|| rng.gen_range(0..10).cmp(&rng.gen_range(0..10)))
-                        } else {
-                            order
-                        }
-                    }
-                }
-            })
+            .sorted_by_key(|e| e.time_and_index())
             .map(|e| {
                 two_node_event(
                     if e.src().id() == evv.id() { 1 } else { 0 },
@@ -211,10 +158,6 @@ where
             })
             .collect();
         for j in 0..deltas.len() {
-            let mut rng = StdRng::from_entropy();
-            if randomise_same_timestamps {
-                events.sort_by_key(|e| (e.time, rng.gen_range(1..1000000000)))
-            }
             let mut two_node_counter = init_two_node_count();
             two_node_counter.execute(&events, deltas[j]);
             let two_node_result = two_node_counter.return_counts();
@@ -233,8 +176,6 @@ pub fn triangle_motifs<G>(
     deltas: Vec<i64>,
     _motifs_count_id: AccId<MotifCounter, MotifCounter, MotifCounter, ValDef<MotifCounter>>,
     threads: Option<usize>,
-    sorting_type: SortingType,
-    randomise_same_timestamps: bool,
 ) -> HashMap<String, Vec<[usize; 8]>>
 where
     G: GraphViewOps,
@@ -421,8 +362,6 @@ pub fn temporal_three_node_motif<G>(
     g: &G,
     deltas: Vec<i64>,
     threads: Option<usize>,
-    compare: SortingType,
-    randomise_same_timestamps: bool,
 ) -> HashMap<String, Vec<Vec<usize>>>
 where
     G: GraphViewOps,
@@ -433,32 +372,14 @@ where
 
     ctx.agg(motifs_counter);
 
-    let out1 = triangle_motifs(
-        g,
-        deltas.clone(),
-        motifs_counter,
-        threads,
-        compare.clone(),
-        randomise_same_timestamps,
-    );
+    let out1 = triangle_motifs(g, deltas.clone(), motifs_counter, threads);
 
     let step1 = ATask::new(
         move |evv: &mut EvalVertexView<G, ComputeStateVec, MotifCounter>| {
             let g = evv.graph;
 
-            let two_nodes = twonode_motif_count(
-                g,
-                evv,
-                deltas.clone(),
-                compare.clone(),
-                randomise_same_timestamps,
-            );
-            let star_nodes = star_motif_count(
-                evv,
-                deltas.clone(),
-                compare.clone(),
-                randomise_same_timestamps,
-            );
+            let two_nodes = twonode_motif_count(g, evv, deltas.clone());
+            let star_nodes = star_motif_count(evv, deltas.clone());
 
             *evv.get_mut() = MotifCounter::new(
                 deltas.len(),
@@ -527,13 +448,7 @@ pub fn global_temporal_three_node_motif<G: GraphViewOps>(
     delta: i64,
     threads: Option<usize>,
 ) -> Vec<usize> {
-    let counts = global_temporal_three_node_motif_general(
-        graph,
-        vec![delta],
-        threads,
-        SortingType::TimeAndIndex,
-        false,
-    );
+    let counts = global_temporal_three_node_motif_general(graph, vec![delta], threads);
     counts[0].clone()
 }
 
@@ -541,16 +456,8 @@ pub fn global_temporal_three_node_motif_general<G: GraphViewOps>(
     graph: &G,
     deltas: Vec<i64>,
     threads: Option<usize>,
-    compare: SortingType,
-    randomise_same_timestamps: bool,
 ) -> Vec<Vec<usize>> {
-    let counts = temporal_three_node_motif(
-        graph,
-        deltas.clone(),
-        threads,
-        compare,
-        randomise_same_timestamps,
-    );
+    let counts = temporal_three_node_motif(graph, deltas.clone(), threads);
 
     let mut result: Vec<Vec<usize>> = vec![vec![0; 40]; deltas.len()];
     for (_, values) in counts.iter() {
@@ -609,8 +516,7 @@ mod motifs_test {
             (23, 11, 9),
         ]);
 
-        let binding =
-            temporal_three_node_motif(&g, Vec::from([10]), None, SortingType::TimeAndIndex, false);
+        let binding = temporal_three_node_motif(&g, Vec::from([10]), None);
         let actual = binding
             .iter()
             .map(|(k, v)| (k, v[0].clone()))

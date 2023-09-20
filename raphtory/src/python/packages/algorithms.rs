@@ -340,35 +340,7 @@ pub fn global_temporal_three_node_motif_multi(
     sort_type: String,
     randomise_same_timestamps: bool,
 ) -> Vec<Vec<usize>> {
-    if sort_type == "Random" {
-        global_temporal_three_node_motif_general_rs(
-            &g.graph,
-            deltas,
-            None,
-            SortingType::Random,
-            randomise_same_timestamps,
-        )
-    } else if sort_type == "TimeAndIndex" {
-        global_temporal_three_node_motif_general_rs(
-            &g.graph,
-            deltas,
-            None,
-            SortingType::TimeAndIndex,
-            randomise_same_timestamps,
-        )
-    } else {
-        println!(
-            "Unrecognized sorting type {:?}, using default of TimeAndIndex",
-            sort_type
-        );
-        global_temporal_three_node_motif_general_rs(
-            &g.graph,
-            deltas,
-            None,
-            SortingType::TimeAndIndex,
-            randomise_same_timestamps,
-        )
-    }
+    global_temporal_three_node_motif_general_rs(&g.graph, deltas, None)
 }
 
 /// Computes the number of each type of motif that each node participates in. See global_temporal_three_node_motifs for a summary of the motifs involved.
@@ -391,16 +363,10 @@ pub fn local_temporal_three_node_motifs(
     g: &PyGraphView,
     delta: i64,
 ) -> HashMap<String, Vec<usize>> {
-    local_three_node_rs(
-        &g.graph,
-        vec![delta],
-        None,
-        SortingType::TimeAndIndex,
-        false,
-    )
-    .into_iter()
-    .map(|(k, v)| (String::from(k), v[0].clone()))
-    .collect::<HashMap<String, Vec<usize>>>()
+    local_three_node_rs(&g.graph, vec![delta], None)
+        .into_iter()
+        .map(|(k, v)| (String::from(k), v[0].clone()))
+        .collect::<HashMap<String, Vec<usize>>>()
 }
 
 /// HITS (Hubs and Authority) Algorithm:
