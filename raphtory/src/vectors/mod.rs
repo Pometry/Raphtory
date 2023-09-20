@@ -14,8 +14,15 @@ pub mod vectorized_graph;
 pub type Embedding = Vec<f32>;
 
 pub enum Document {
-    Node { id: u64, content: String },
-    Edge { src: u64, dst: u64, content: String },
+    Node {
+        name: String,
+        content: String,
+    },
+    Edge {
+        src: String,
+        dst: String,
+        content: String,
+    },
 }
 
 pub trait DocumentOps {

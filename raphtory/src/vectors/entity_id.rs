@@ -11,15 +11,6 @@ pub(crate) enum EntityId {
     Edge { src: u64, dst: u64 },
 }
 
-impl EntityId {
-    fn as_node(&self) -> u64 {
-        match self {
-            EntityId::Node { id } => *id,
-            EntityId::Edge { .. } => panic!("edge id unwrapped as a node id"),
-        }
-    }
-}
-
 impl<G: GraphViewOps> From<&VertexView<G>> for EntityId {
     fn from(value: &VertexView<G>) -> Self {
         EntityId::Node { id: value.id() }

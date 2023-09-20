@@ -1,6 +1,6 @@
 use crate::{
     db::{
-        api::view::internal::{DynamicGraph, IntoDynamic},
+        api::view::internal::{CoreGraphOps, DynamicGraph, IntoDynamic},
         graph::{edge::EdgeView, vertex::VertexView, views::window_graph::WindowedGraph},
     },
     prelude::{EdgeViewOps, GraphViewOps, Layer, TimeOps, VertexViewOps},
@@ -158,7 +158,7 @@ impl<G: GraphViewOps + IntoDynamic> VectorizedGraph<G> {
             .take(limit)
             .map(|id| match id {
                 EntityId::Node { id } => Document::Node {
-                    id: *id,
+                    name: graph.vertex(*id).unwrap().name(),
                     content: self
                         .graph
                         .vertex(*id)
@@ -167,8 +167,8 @@ impl<G: GraphViewOps + IntoDynamic> VectorizedGraph<G> {
                         .content,
                 },
                 EntityId::Edge { src, dst } => Document::Edge {
-                    src: *src,
-                    dst: *dst,
+                    src: graph.vertex(*src).unwrap().name(),
+                    dst: graph.vertex(*dst).unwrap().name(),
                     content: self
                         .graph
                         .edge(*src, *dst)
