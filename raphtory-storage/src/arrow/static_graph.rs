@@ -5,7 +5,7 @@ use raphtory::{
         entities::{vertices::vertex_ref::VertexRef, LayerIds, VID},
         Direction,
     },
-    prelude::{GraphViewOps, VertexViewOps},
+    prelude::{GraphViewOps, VertexViewOps}, db::{api::view::internal::ExplodedEdgeOps, graph::edge},
 };
 
 use super::{MPArr, MutEdgePair};
@@ -19,7 +19,8 @@ pub struct StaticGraph {
 const OUTBOUND_COLUMN: &str = "outbound";
 const INBOUND_COLUMN: &str = "inbound";
 
-const V_ADDITIONS_COLUMN: &str = "v_additions";
+const V_ADDITIONS_COLUMN: &str = "additions";
+const E_ADDITIONS_COLUMN: &str = "additions";
 
 const GID_COLUMN: &str = "global_vertex_id";
 const SRC_COLUMN: &str = "src";
@@ -47,12 +48,19 @@ impl StaticGraph {
         let mut edge_src_column = Vec::with_capacity(eids_sorted_by_src_dst_gid.len());
         let mut edge_dst_column = Vec::with_capacity(eids_sorted_by_src_dst_gid.len());
 
+        let mut edge_timestamps = Self::mutable_timestamps_column(V_ADDITIONS_COLUMN);
+
         for &eid in &eids_sorted_by_src_dst_gid {
             let edge = g.find_edge_id(eid.into(), &LayerIds::All, None).unwrap();
             let src_gid = g.vertex_id(edge.src());
             let dst_gid = g.vertex_id(edge.dst());
             edge_src_column.push(src_gid);
             edge_dst_column.push(dst_gid);
+
+            let edge_history = g.edge_history(edge).collect::<Vec<_>>();
+            let mut_arr = edge_timestamps.mut_values();
+            mut_arr.extend_trusted_len_values(edge_history.into_iter());
+            edge_timestamps.try_push_valid().expect("push valid"); // one row done
         }
 
         let mut outbound_arr =
@@ -115,10 +123,14 @@ impl StaticGraph {
                 "unexpected error, should be able to create vertex dataframe, contact maintainers!",
             );
 
+        let edge_timestamps_arr: ListArray<i64> = edge_timestamps.into();
+        let edge_timestamps: ChunkedArray<ListType> = ChunkedArray::with_chunk(E_ADDITIONS_COLUMN, edge_timestamps_arr);
+
         // edge graph
         let edge_df = DataFrame::new(vec![
             Series::new(SRC_COLUMN, edge_src_column),
             Series::new(DST_COLUMN, edge_dst_column),
+            edge_timestamps.into_series(),
         ])
         .expect("unexpected error, should be able to create edge dataframe, contact maintainers!");
 
@@ -335,8 +347,8 @@ mod test {
     #[test]
     fn load_star_graph() {
         let graph = Graph::new();
-        graph.add_edge(0, 1, 2, NO_PROPS, None).expect("add edge");
-        graph.add_edge(0, 1, 3, NO_PROPS, None).expect("add edge");
+        graph.add_edge(1, 1, 2, NO_PROPS, None).expect("add edge");
+        graph.add_edge(2, 1, 3, NO_PROPS, None).expect("add edge");
         graph.add_edge(0, 1, 4, NO_PROPS, None).expect("add edge");
 
         let g = StaticGraph::from_graph(&graph);
