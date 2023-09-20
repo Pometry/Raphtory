@@ -21,6 +21,7 @@ const INBOUND_COLUMN: &str = "inbound";
 
 const V_ADDITIONS_COLUMN: &str = "additions";
 const E_ADDITIONS_COLUMN: &str = "additions";
+const E_DELETIONS_COLUMN: &str = "deletions";
 
 const GID_COLUMN: &str = "global_vertex_id";
 const SRC_COLUMN: &str = "src";
@@ -48,7 +49,8 @@ impl StaticGraph {
         let mut edge_src_column = Vec::with_capacity(eids_sorted_by_src_dst_gid.len());
         let mut edge_dst_column = Vec::with_capacity(eids_sorted_by_src_dst_gid.len());
 
-        let mut edge_timestamps = Self::mutable_timestamps_column(V_ADDITIONS_COLUMN);
+        let mut edge_timestamps = Self::mutable_timestamps_column(E_ADDITIONS_COLUMN);
+        let mut edge_deletions = Self::mutable_timestamps_column(E_DELETIONS_COLUMN);
 
         for &eid in &eids_sorted_by_src_dst_gid {
             let edge = g.find_edge_id(eid.into(), &LayerIds::All, None).unwrap();
@@ -64,7 +66,12 @@ impl StaticGraph {
             let edge_history = g.edge_history(edge).collect::<Vec<_>>();
             let mut_arr = edge_timestamps.mut_values();
             mut_arr.extend_trusted_len_values(edge_history.into_iter());
-            edge_timestamps.try_push_valid().expect("push valid"); // one row done
+            edge_timestamps.try_push_valid().expect("push valid");
+
+            let deletion_history = g.edge_deletion_history(edge, LayerIds::All);
+            let mut_arr = edge_deletions.mut_values();
+            mut_arr.extend_trusted_len_values(deletion_history.into_iter());
+            edge_deletions.try_push_valid().expect("push valid"); 
         }
 
         let mut outbound_arr =
@@ -130,11 +137,15 @@ impl StaticGraph {
         let edge_timestamps_arr: ListArray<i64> = edge_timestamps.into();
         let edge_timestamps: ChunkedArray<ListType> = ChunkedArray::with_chunk(E_ADDITIONS_COLUMN, edge_timestamps_arr);
 
+        let edge_deletions_arr: ListArray<i64> = edge_deletions.into();
+        let edge_deletions: ChunkedArray<ListType> = ChunkedArray::with_chunk(E_DELETIONS_COLUMN, edge_deletions_arr);
+
         // edge graph
         let edge_df = DataFrame::new(vec![
             Series::new(SRC_COLUMN, edge_src_column),
             Series::new(DST_COLUMN, edge_dst_column),
             edge_timestamps.into_series(),
+            edge_deletions.into_series(),
         ])
         .expect("unexpected error, should be able to create edge dataframe, contact maintainers!");
 
@@ -280,7 +291,7 @@ impl StaticGraph {
 
 #[cfg(test)]
 mod test {
-    use raphtory::{core::Direction, prelude::*};
+    use raphtory::{core::Direction, prelude::*, db::{api::view::internal::InternalMaterialize, graph::views::deletion_graph::GraphWithDeletions}};
 
     use super::StaticGraph;
 
@@ -350,10 +361,13 @@ mod test {
 
     #[test]
     fn load_star_graph() {
-        let graph = Graph::new();
+        let graph = GraphWithDeletions::new();
         graph.add_edge(1, 1, 2, NO_PROPS, None).expect("add edge");
         graph.add_edge(2, 1, 3, NO_PROPS, None).expect("add edge");
         graph.add_edge(0, 1, 4, NO_PROPS, None).expect("add edge");
+
+        graph.delete_edge(3, 1, 2, None).expect("delete edge");
+        graph.delete_edge(7, 1, 2, None).expect("delete edge");
 
         let g = StaticGraph::from_graph(&graph);
         println!("{:?}", g);
