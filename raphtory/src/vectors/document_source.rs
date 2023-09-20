@@ -4,7 +4,7 @@ use crate::{
     vectors::{entity_id::EntityId, EntityDocument},
 };
 
-pub trait DocumentSource: Sized {
+pub(crate) trait DocumentSource: Sized {
     fn generate_doc<T>(&self, template: &T) -> EntityDocument
     where
         T: Fn(&Self) -> String;
