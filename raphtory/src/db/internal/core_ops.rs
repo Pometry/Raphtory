@@ -4,6 +4,7 @@ use crate::{
             edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
             graph::tgraph::InnerTemporalGraph,
             properties::{
+                graph_props::GraphProps,
                 props::{ArcReadLockedVec, Meta},
                 tprop::{LockedLayeredTProp, TProp},
             },
@@ -37,6 +38,11 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
     #[inline]
     fn edge_meta(&self) -> &Meta {
         &self.inner().edge_meta
+    }
+
+    #[inline]
+    fn graph_meta(&self) -> &GraphProps {
+        &self.inner().graph_props
     }
 
     #[inline]

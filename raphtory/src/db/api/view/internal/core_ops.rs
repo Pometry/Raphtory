@@ -3,6 +3,7 @@ use crate::{
         entities::{
             edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
             properties::{
+                graph_props::GraphProps,
                 props::{ArcReadLockedVec, Meta},
                 tprop::{LockedLayeredTProp, TProp},
             },
@@ -29,6 +30,8 @@ pub trait CoreGraphOps {
     fn vertex_meta(&self) -> &Meta;
 
     fn edge_meta(&self) -> &Meta;
+
+    fn graph_meta(&self) -> &GraphProps;
 
     fn get_layer_name(&self, layer_id: usize) -> Option<ArcStr>;
 
@@ -251,6 +254,11 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
     #[inline]
     fn edge_meta(&self) -> &Meta {
         self.graph().edge_meta()
+    }
+
+    #[inline]
+    fn graph_meta(&self) -> &GraphProps {
+        self.graph().graph_meta()
     }
 
     #[inline]

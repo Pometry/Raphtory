@@ -266,7 +266,7 @@ impl<const N: usize> TemporalGraph<N> {
     }
 
     pub(crate) fn vertex_reverse_prop_id(&self, prop_id: usize, is_static: bool) -> Option<ArcStr> {
-        self.vertex_meta.reverse_prop_id(prop_id, is_static)
+        self.vertex_meta.get_prop_name(prop_id, is_static)
     }
 
     pub(crate) fn edge_temp_prop_ids(&self, e: EID) -> Vec<usize> {
@@ -280,15 +280,15 @@ impl<const N: usize> TemporalGraph<N> {
     }
 
     pub(crate) fn edge_find_prop(&self, prop: &str, is_static: bool) -> Option<usize> {
-        self.edge_meta.find_prop_id(prop, is_static)
+        self.edge_meta.get_prop_id(prop, is_static)
     }
 
     pub(crate) fn vertex_find_prop(&self, prop: &str, is_static: bool) -> Option<usize> {
-        self.vertex_meta.find_prop_id(prop, is_static)
+        self.vertex_meta.get_prop_id(prop, is_static)
     }
 
     pub(crate) fn edge_reverse_prop_id(&self, prop_id: usize, is_static: bool) -> Option<ArcStr> {
-        self.edge_meta.reverse_prop_id(prop_id, is_static)
+        self.edge_meta.get_prop_name(prop_id, is_static)
     }
 }
 
@@ -390,7 +390,7 @@ impl<const N: usize> TemporalGraph<N> {
             layer.add_constant_prop(prop_id, prop).map_err(|err| {
                 IllegalMutate::from_source(
                     err,
-                    &self.edge_meta.reverse_prop_id(prop_id, true).unwrap(),
+                    &self.edge_meta.get_prop_name(prop_id, true).unwrap(),
                 )
             })?;
         }

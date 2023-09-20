@@ -6,7 +6,7 @@ use crate::{
         },
         storage::{locked_view::LockedView, timeindex::TimeIndexEntry},
         utils::errors::GraphError,
-        ArcStr, Prop,
+        ArcStr, Prop, PropType,
     },
     db::graph::graph::Graph,
 };
@@ -38,6 +38,26 @@ pub enum TProp {
 }
 
 impl TProp {
+    pub fn dtype(&self) -> PropType {
+        match self {
+            TProp::Empty => PropType::Empty,
+            TProp::Str(_) => PropType::Str,
+            TProp::U8(_) => PropType::U8,
+            TProp::U16(_) => PropType::U16,
+            TProp::I32(_) => PropType::I32,
+            TProp::I64(_) => PropType::I64,
+            TProp::U32(_) => PropType::U32,
+            TProp::U64(_) => PropType::U64,
+            TProp::F32(_) => PropType::F32,
+            TProp::F64(_) => PropType::F64,
+            TProp::Bool(_) => PropType::Bool,
+            TProp::DTime(_) => PropType::DTime,
+            TProp::Graph(_) => PropType::Graph,
+            TProp::List(_) => PropType::List,
+            TProp::Map(_) => PropType::Map,
+        }
+    }
+
     pub(crate) fn from(t: TimeIndexEntry, prop: Prop) -> Self {
         match prop {
             Prop::Str(value) => TProp::Str(TCell::new(t, value)),

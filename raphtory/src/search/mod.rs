@@ -692,7 +692,7 @@ impl<G: GraphViewOps + InternalAdditionOps> InternalAdditionOps for IndexedGraph
             let prop_name = self
                 .graph
                 .vertex_meta()
-                .reverse_prop_id(*prop_id, false)
+                .get_prop_name(*prop_id, false)
                 .expect("property id should be valid");
             if let Ok(field) = self.vertex_index.schema().get_field(&prop_name) {
                 if let Prop::Str(s) = prop {

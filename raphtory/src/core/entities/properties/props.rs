@@ -66,7 +66,7 @@ impl Props {
     pub fn temporal_props(&self, prop_id: usize) -> Box<dyn Iterator<Item = (i64, Prop)> + '_> {
         let o = self.temporal_props.get(prop_id);
         if let Some(t_prop) = o {
-            Box::new(t_prop.iter().map(|(t, p)| (t, p.clone())))
+            Box::new(t_prop.iter())
         } else {
             Box::new(std::iter::empty())
         }
@@ -80,11 +80,7 @@ impl Props {
     ) -> Box<dyn Iterator<Item = (i64, Prop)> + '_> {
         let o = self.temporal_props.get(prop_id);
         if let Some(t_prop) = o {
-            Box::new(
-                t_prop
-                    .iter_window(t_start..t_end)
-                    .map(|(t, p)| (t, p.clone())),
-            )
+            Box::new(t_prop.iter_window(t_start..t_end))
         } else {
             Box::new(std::iter::empty())
         }
@@ -155,7 +151,7 @@ impl Meta {
     }
 
     #[inline]
-    pub fn find_prop_id(&self, name: &str, is_static: bool) -> Option<usize> {
+    pub fn get_prop_id(&self, name: &str, is_static: bool) -> Option<usize> {
         if is_static {
             self.meta_prop_constant.get_id(name)
         } else {
@@ -193,7 +189,7 @@ impl Meta {
         }
     }
 
-    pub fn reverse_prop_id(&self, prop_id: usize, is_static: bool) -> Option<ArcStr> {
+    pub fn get_prop_name(&self, prop_id: usize, is_static: bool) -> Option<ArcStr> {
         if is_static {
             self.meta_prop_constant.get_name(prop_id)
         } else {
@@ -315,12 +311,6 @@ impl Deref for PropMapper {
 }
 
 impl PropMapper {
-    pub fn get_or_create_id<Q>(&self, name: &Q) -> usize
-    where
-        Q: Hash + Eq + ?Sized + ToOwned<Owned = String>,
-    {
-        todo!()
-    }
     fn get_or_create_and_validate(&self, prop: &str, dtype: PropType) -> Result<usize, GraphError> {
         let id = self.id_mapper.get_or_create_id(prop);
         let dtype_read = self.dtypes.read_recursive();
@@ -365,6 +355,10 @@ impl PropMapper {
                 Ok(id)
             }
         }
+    }
+
+    pub fn get_dtype(&self, prop_id: usize) -> Option<PropType> {
+        self.dtypes.read_recursive().get(prop_id).copied()
     }
 }
 

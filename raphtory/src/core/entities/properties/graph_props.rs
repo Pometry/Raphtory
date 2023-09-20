@@ -8,7 +8,7 @@ use crate::core::{
     },
     storage::{lazy_vec::IllegalSet, locked_view::LockedView, timeindex::TimeIndexEntry},
     utils::errors::{GraphError, IllegalMutate, MutateGraphError},
-    ArcStr, Prop,
+    ArcStr, Prop, PropType,
 };
 use parking_lot::RwLockReadGuard;
 use serde::{Deserialize, Serialize};
@@ -18,7 +18,7 @@ use std::{
 };
 
 #[derive(Serialize, Deserialize, Debug)]
-pub(crate) struct GraphProps {
+pub struct GraphProps {
     constant_mapper: DictMapper,
     temporal_mapper: DictMapper,
     constant: FxDashMap<usize, Option<Prop>>,
@@ -88,9 +88,35 @@ impl GraphProps {
     }
 
     pub(crate) fn get_temporal(&self, name: &str) -> Option<LockedView<'_, TProp>> {
-        let prop_id = self.temporal_mapper.get_id(&(name.to_owned()))?;
+        let prop_id = self.temporal_mapper.get_id(name)?;
         let entry = self.temporal.get(&prop_id)?;
         Some(LockedView::DashMap(entry))
+    }
+
+    pub fn get_constant_id(&self, name: &str) -> Option<usize> {
+        self.constant_mapper.get_id(name)
+    }
+
+    pub fn get_temporal_id(&self, name: &str) -> Option<usize> {
+        self.temporal_mapper.get_id(name)
+    }
+
+    pub fn get_constant_name(&self, prop_id: usize) -> Option<ArcStr> {
+        self.constant_mapper.get_name(prop_id)
+    }
+
+    pub fn get_temporal_name(&self, prop_id: usize) -> Option<ArcStr> {
+        self.temporal_mapper.get_name(prop_id)
+    }
+
+    pub fn get_constant_dtype(&self, prop_id: usize) -> Option<PropType> {
+        self.constant
+            .get(&prop_id)
+            .and_then(|v| v.as_ref().map(|v| v.dtype()))
+    }
+
+    pub fn get_temporal_dtype(&self, prop_id: usize) -> Option<PropType> {
+        self.temporal.get(&prop_id).map(|v| v.dtype())
     }
 
     pub(crate) fn constant_names(&self) -> ArcReadLockedVec<ArcStr> {
