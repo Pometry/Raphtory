@@ -6,8 +6,9 @@ use crate::core::{
         timeindex::TimeIndexEntry,
     },
     utils::errors::{GraphError, IllegalMutate, MutateGraphError},
-    Prop, PropType,
+    ArcStr, Prop, PropType,
 };
+use lock_api;
 use parking_lot::{RwLock, RwLockReadGuard};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -15,8 +16,14 @@ use std::{
     fmt::Debug,
     hash::Hash,
     ops::Deref,
-    sync::atomic::{AtomicUsize, Ordering},
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    },
 };
+use tantivy::HasLen;
+
+type ArcRwLockReadGuard<T> = lock_api::ArcRwLockReadGuard<parking_lot::RawRwLock, T>;
 
 #[derive(Serialize, Deserialize, Default, Debug, PartialEq)]
 pub struct Props {
@@ -59,7 +66,7 @@ impl Props {
     pub fn temporal_props(&self, prop_id: usize) -> Box<dyn Iterator<Item = (i64, Prop)> + '_> {
         let o = self.temporal_props.get(prop_id);
         if let Some(t_prop) = o {
-            Box::new(t_prop.iter().map(|(t, p)| (t, p.clone())))
+            Box::new(t_prop.iter())
         } else {
             Box::new(std::iter::empty())
         }
@@ -73,11 +80,7 @@ impl Props {
     ) -> Box<dyn Iterator<Item = (i64, Prop)> + '_> {
         let o = self.temporal_props.get(prop_id);
         if let Some(t_prop) = o {
-            Box::new(
-                t_prop
-                    .iter_window(t_start..t_end)
-                    .map(|(t, p)| (t, p.clone())),
-            )
+            Box::new(t_prop.iter_window(t_start..t_end))
         } else {
             Box::new(std::iter::empty())
         }
@@ -104,20 +107,20 @@ impl Props {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Meta {
     meta_prop_temporal: PropMapper,
-    meta_prop_static: PropMapper,
-    meta_layer: DictMapper<String>,
+    meta_prop_constant: PropMapper,
+    meta_layer: DictMapper,
 }
 
 impl Meta {
-    pub fn static_prop_meta(&self) -> &PropMapper {
-        &self.meta_prop_static
+    pub fn constant_prop_meta(&self) -> &PropMapper {
+        &self.meta_prop_constant
     }
 
     pub fn temporal_prop_meta(&self) -> &PropMapper {
         &self.meta_prop_temporal
     }
 
-    pub fn layer_meta(&self) -> &DictMapper<String> {
+    pub fn layer_meta(&self) -> &DictMapper {
         &self.meta_layer
     }
 
@@ -126,7 +129,7 @@ impl Meta {
         meta_layer.get_or_create_id("_default");
         Self {
             meta_prop_temporal: PropMapper::default(),
-            meta_prop_static: PropMapper::default(),
+            meta_prop_constant: PropMapper::default(),
             meta_layer, // layer 0 is the default layer
         }
     }
@@ -139,7 +142,7 @@ impl Meta {
         is_static: bool,
     ) -> Result<usize, GraphError> {
         if is_static {
-            self.meta_prop_static
+            self.meta_prop_constant
                 .get_or_create_and_validate(prop, dtype)
         } else {
             self.meta_prop_temporal
@@ -148,11 +151,11 @@ impl Meta {
     }
 
     #[inline]
-    pub fn find_prop_id(&self, name: &str, is_static: bool) -> Option<usize> {
+    pub fn get_prop_id(&self, name: &str, is_static: bool) -> Option<usize> {
         if is_static {
-            self.meta_prop_static.get(&name.to_owned())
+            self.meta_prop_constant.get_id(name)
         } else {
-            self.meta_prop_temporal.get(&name.to_owned())
+            self.meta_prop_temporal.get_id(name)
         }
     }
 
@@ -167,7 +170,7 @@ impl Meta {
     }
 
     pub fn get_layer_name_by_id(&self, id: usize) -> Option<String> {
-        self.meta_layer.reverse_lookup(id).map(|v| v.to_string())
+        self.meta_layer.get_name(id).map(|v| v.to_string())
     }
 
     pub fn get_all_layers(&self) -> Vec<usize> {
@@ -178,48 +181,87 @@ impl Meta {
             .collect()
     }
 
-    pub fn get_all_property_names(&self, is_static: bool) -> Vec<String> {
+    pub fn get_all_property_names(&self, is_static: bool) -> ArcReadLockedVec<ArcStr> {
         if is_static {
-            self.meta_prop_static
-                .map
-                .iter()
-                .map(|entry| entry.key().clone())
-                .collect()
+            self.meta_prop_constant.get_keys()
         } else {
-            self.meta_prop_temporal
-                .map
-                .iter()
-                .map(|entry| entry.key().clone())
-                .collect()
+            self.meta_prop_temporal.get_keys()
         }
     }
 
-    pub fn reverse_prop_id(&self, prop_id: usize, is_static: bool) -> Option<LockedView<String>> {
+    pub fn get_prop_name(&self, prop_id: usize, is_static: bool) -> Option<ArcStr> {
         if is_static {
-            self.meta_prop_static.reverse_lookup(prop_id)
+            self.meta_prop_constant.get_name(prop_id)
         } else {
-            self.meta_prop_temporal.reverse_lookup(prop_id)
+            self.meta_prop_temporal.get_name(prop_id)
         }
     }
 }
 
 #[derive(Serialize, Deserialize, Default, Debug)]
-pub struct DictMapper<T: Hash + Eq> {
-    map: FxDashMap<T, usize>,
-    reverse_map: RwLock<Vec<T>>, //FIXME: a boxcar vector would be a great fit if it was serializable...
+pub struct DictMapper {
+    map: FxDashMap<ArcStr, usize>,
+    reverse_map: Arc<RwLock<Vec<ArcStr>>>, //FIXME: a boxcar vector would be a great fit if it was serializable...
 }
 
-impl<T: Hash + Eq + Clone + Debug> DictMapper<T> {
-    pub fn get_or_create_id<Q>(&self, name: &Q) -> usize
+#[derive(Debug)]
+pub struct ArcReadLockedVec<T> {
+    guard: ArcRwLockReadGuard<Vec<T>>,
+}
+
+impl<T> Deref for ArcReadLockedVec<T> {
+    type Target = Vec<T>;
+
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        self.guard.deref()
+    }
+}
+
+impl<T: Clone> IntoIterator for ArcReadLockedVec<T> {
+    type Item = T;
+    type IntoIter = LockedIter<T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        let guard = self.guard;
+        let len = guard.len();
+        let pos = 0;
+        LockedIter { guard, pos, len }
+    }
+}
+
+pub struct LockedIter<T> {
+    guard: ArcRwLockReadGuard<Vec<T>>,
+    pos: usize,
+    len: usize,
+}
+
+impl<T: Clone> Iterator for LockedIter<T> {
+    type Item = T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.pos < self.len {
+            let next_val = Some(self.guard[self.pos].clone());
+            self.pos += 1;
+            next_val
+        } else {
+            None
+        }
+    }
+}
+
+impl DictMapper {
+    pub fn get_or_create_id<Q, T>(&self, name: &Q) -> usize
     where
-        T: Borrow<Q>,
+        ArcStr: Borrow<Q>,
         Q: Hash + Eq + ?Sized + ToOwned<Owned = T>,
+        T: Into<ArcStr>,
     {
         if let Some(existing_id) = self.map.get(name) {
             return *existing_id;
         }
 
-        let name = name.to_owned();
+        let name = name.to_owned().into();
         let new_id = self.map.entry(name.clone()).or_insert_with(|| {
             let mut reverse = self.reverse_map.write();
             let id = reverse.len();
@@ -229,17 +271,19 @@ impl<T: Hash + Eq + Clone + Debug> DictMapper<T> {
         *new_id
     }
 
-    pub fn get(&self, name: &T) -> Option<usize> {
+    pub fn get_id(&self, name: &str) -> Option<usize> {
         self.map.get(name).map(|id| *id)
     }
 
-    pub fn reverse_lookup(&self, id: usize) -> Option<LockedView<T>> {
+    pub fn get_name(&self, id: usize) -> Option<ArcStr> {
         let guard = self.reverse_map.read();
-        (id < guard.len()).then(|| RwLockReadGuard::map(guard, |v| &v[id]).into())
+        guard.get(id).map(|v| v.clone())
     }
 
-    pub fn get_keys(&self) -> RwLockReadGuard<Vec<T>> {
-        self.reverse_map.read()
+    pub fn get_keys(&self) -> ArcReadLockedVec<ArcStr> {
+        ArcReadLockedVec {
+            guard: self.reverse_map.read_arc(),
+        }
     }
 
     pub fn len(&self) -> usize {
@@ -253,12 +297,12 @@ impl<T: Hash + Eq + Clone + Debug> DictMapper<T> {
 
 #[derive(Default, Debug, Serialize, Deserialize)]
 pub struct PropMapper {
-    id_mapper: DictMapper<String>,
-    dtypes: RwLock<Vec<PropType>>,
+    id_mapper: DictMapper,
+    dtypes: Arc<RwLock<Vec<PropType>>>,
 }
 
 impl Deref for PropMapper {
-    type Target = DictMapper<String>;
+    type Target = DictMapper;
 
     #[inline]
     fn deref(&self) -> &Self::Target {
@@ -267,12 +311,6 @@ impl Deref for PropMapper {
 }
 
 impl PropMapper {
-    pub fn get_or_create_id<Q>(&self, name: &Q) -> usize
-    where
-        Q: Hash + Eq + ?Sized + ToOwned<Owned = String>,
-    {
-        todo!()
-    }
     fn get_or_create_and_validate(&self, prop: &str, dtype: PropType) -> Result<usize, GraphError> {
         let id = self.id_mapper.get_or_create_id(prop);
         let dtype_read = self.dtypes.read_recursive();
@@ -318,6 +356,10 @@ impl PropMapper {
             }
         }
     }
+
+    pub fn get_dtype(&self, prop_id: usize) -> Option<PropType> {
+        self.dtypes.read_recursive().get(prop_id).copied()
+    }
 }
 
 #[cfg(test)]
@@ -340,8 +382,9 @@ mod test {
     #[quickcheck]
     fn check_dict_mapper_concurrent_write(write: Vec<String>) -> bool {
         let n = 100;
-        let mapper: DictMapper<String> = DictMapper::default();
+        let mapper: DictMapper = DictMapper::default();
 
+        // create n maps from strings to ids in parallel
         let res: Vec<HashMap<String, usize>> = (0..n)
             .into_par_iter()
             .map(|_| {
@@ -350,14 +393,16 @@ mod test {
                 let mut write_s = write.clone();
                 write_s.shuffle(&mut rng);
                 for s in write_s {
-                    let id = mapper.get_or_create_id(&s);
+                    let id = mapper.get_or_create_id(s.as_str());
                     ids.insert(s, id);
                 }
                 ids
             })
             .collect();
+
+        // check that all maps are the same and that all strings have been assigned an id
         let res_0 = &res[0];
-        res[1..n].iter().all(|v| res_0 == v) && write.iter().all(|v| mapper.get(v).is_some())
+        res[1..n].iter().all(|v| res_0 == v) && write.iter().all(|v| mapper.get_id(v).is_some())
     }
 
     // map 5 strings to 5 ids from 4 threads concurrently 1000 times

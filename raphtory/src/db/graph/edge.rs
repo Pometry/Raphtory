@@ -9,8 +9,9 @@ use super::views::layer_graph::LayeredGraph;
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, VID},
-        storage::{locked_view::LockedView, timeindex::TimeIndexEntry},
+        storage::timeindex::TimeIndexEntry,
         utils::{errors::GraphError, time::IntoTime},
+        ArcStr,
     },
     db::{
         api::{
@@ -113,9 +114,10 @@ impl<G: GraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> EdgeVi
         props: C,
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
-        let properties: Vec<(usize, Prop)> = props.collect_properties(|name, dtype| {
-            self.graph.resolve_edge_property(name, dtype, true)
-        })?;
+        let properties: Vec<(usize, Prop)> = props.collect_properties(
+            |name, dtype| self.graph.resolve_edge_property(name, dtype, true),
+            |prop| self.graph.process_prop_value(prop),
+        )?;
         let input_layer_id = self.resolve_layer(layer)?;
 
         self.graph.internal_add_constant_edge_properties(
@@ -133,9 +135,10 @@ impl<G: GraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> EdgeVi
     ) -> Result<(), GraphError> {
         let t = TimeIndexEntry::from_input(&self.graph, time)?;
         let layer_id = self.resolve_layer(layer)?;
-        let properties: Vec<(usize, Prop)> = props.collect_properties(|name, dtype| {
-            self.graph.resolve_edge_property(name, dtype, false)
-        })?;
+        let properties: Vec<(usize, Prop)> = props.collect_properties(
+            |name, dtype| self.graph.resolve_edge_property(name, dtype, false),
+            |prop| self.graph.process_prop_value(prop),
+        )?;
 
         self.graph
             .internal_add_edge(t, self.edge.src(), self.edge.dst(), properties, layer_id)?;
@@ -144,14 +147,14 @@ impl<G: GraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> EdgeVi
 }
 
 impl<G: GraphViewOps> ConstPropertiesOps for EdgeView<G> {
-    fn const_property_keys<'a>(&'a self) -> Box<dyn Iterator<Item = LockedView<'a, String>> + 'a> {
+    fn const_property_keys(&self) -> Box<dyn Iterator<Item = ArcStr>> {
         let layer_ids = self.graph.layer_ids().constrain_from_edge(self.edge);
-        self.graph.static_edge_prop_names(self.edge, layer_ids)
+        self.graph.constant_edge_prop_names(self.edge, layer_ids)
     }
 
     fn get_const_property(&self, key: &str) -> Option<Prop> {
         let layer_ids = self.graph.layer_ids().constrain_from_edge(self.edge);
-        self.graph.static_edge_prop(self.edge, key, layer_ids)
+        self.graph.constant_edge_prop(self.edge, key, layer_ids)
     }
 }
 
@@ -176,9 +179,7 @@ impl<G: GraphViewOps> TemporalPropertyViewOps for EdgeView<G> {
 }
 
 impl<G: GraphViewOps> TemporalPropertiesOps for EdgeView<G> {
-    fn temporal_property_keys<'a>(
-        &'a self,
-    ) -> Box<(dyn Iterator<Item = LockedView<'a, String>> + 'a)> {
+    fn temporal_property_keys(&self) -> Box<dyn Iterator<Item = ArcStr> + '_> {
         Box::new(
             self.graph
                 .temporal_edge_prop_names(self.edge, self.graph.layer_ids())
@@ -346,8 +347,8 @@ impl<G: GraphViewOps> EdgeListOps for BoxedIter<EdgeView<G>> {
         Box::new(self.map(|e| e.time()))
     }
 
-    fn layer_name(self) -> Self::IterType<Option<String>> {
-        Box::new(self.map(|e| e.layer_name()))
+    fn layer_name(self) -> Self::IterType<Option<ArcStr>> {
+        Box::new(self.map(|e| e.layer_name().map(|v| v.clone())))
     }
 }
 
@@ -393,7 +394,7 @@ impl<G: GraphViewOps> EdgeListOps for BoxedIter<BoxedIter<EdgeView<G>>> {
         Box::new(self.map(|it| it.time()))
     }
 
-    fn layer_name(self) -> Self::IterType<Option<String>> {
+    fn layer_name(self) -> Self::IterType<Option<ArcStr>> {
         Box::new(self.map(|it| it.layer_name()))
     }
 }
@@ -402,14 +403,17 @@ pub type EdgeList<G> = Box<dyn Iterator<Item = EdgeView<G>> + Send>;
 
 #[cfg(test)]
 mod test_edge {
-    use crate::{core::IntoPropMap, prelude::*};
+    use crate::{
+        core::{ArcStr, IntoPropMap},
+        prelude::*,
+    };
     use itertools::Itertools;
     use std::collections::HashMap;
 
     #[test]
     fn test_properties() {
         let g = Graph::new();
-        let props = [("test".to_string(), "test".into_prop())];
+        let props = [(ArcStr::from("test"), "test".into_prop())];
         g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
         g.add_edge(2, 1, 2, props.clone(), None).unwrap();
 
@@ -477,16 +481,16 @@ mod test_edge {
             e1.properties().as_map(),
             props
                 .into_iter()
-                .map(|(k, v)| (k.to_string(), v.into_prop()))
-                .chain([("test2".to_string(), "_default".into_prop())])
+                .map(|(k, v)| (ArcStr::from(k), v.into_prop()))
+                .chain([(ArcStr::from("test2"), "_default".into_prop())])
                 .collect()
         );
         assert_eq!(
             e.layer("test2").unwrap().properties().as_map(),
             props
                 .into_iter()
-                .map(|(k, v)| (k.to_string(), v.into_prop()))
-                .chain([("test2".to_string(), "test2".into_prop())])
+                .map(|(k, v)| (ArcStr::from(k), v.into_prop()))
+                .chain([(ArcStr::from("test2"), "test2".into_prop())])
                 .collect()
         );
         assert_eq!(e1_w.properties().as_map(), HashMap::default())

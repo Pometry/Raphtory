@@ -43,8 +43,7 @@ impl EdgeFilter {
             return edge
                 .ee
                 .layer_names()
-                .iter()
-                .any(|name| name_filter.contains(name));
+                .any(|name| name_filter.contains(&name));
         }
 
         if let Some(property_has_filter) = &self.property_has {

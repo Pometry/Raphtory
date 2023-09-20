@@ -3,9 +3,9 @@
 use crate::{
     core::{
         entities::{vertices::vertex_ref::VertexRef, VID},
-        storage::{locked_view::LockedView, timeindex::TimeIndexEntry},
+        storage::timeindex::TimeIndexEntry,
         utils::{errors::GraphError, time::IntoTime},
-        Direction,
+        ArcStr, Direction,
     },
     db::{
         api::{
@@ -73,9 +73,7 @@ impl<G: GraphViewOps> VertexView<G> {
 }
 
 impl<G: GraphViewOps> TemporalPropertiesOps for VertexView<G> {
-    fn temporal_property_keys<'a>(
-        &'a self,
-    ) -> Box<dyn Iterator<Item = LockedView<'a, String>> + 'a> {
+    fn temporal_property_keys(&self) -> Box<dyn Iterator<Item = ArcStr> + '_> {
         Box::new(
             self.graph
                 .temporal_vertex_prop_names(self.vertex)
@@ -126,18 +124,18 @@ impl<G: GraphViewOps> TemporalPropertyViewOps for VertexView<G> {
 }
 
 impl<G: GraphViewOps> ConstPropertiesOps for VertexView<G> {
-    fn const_property_keys<'a>(&'a self) -> Box<dyn Iterator<Item = LockedView<'a, String>> + 'a> {
-        self.graph.static_vertex_prop_names(self.vertex)
+    fn const_property_keys(&self) -> Box<dyn Iterator<Item = ArcStr>> {
+        self.graph.constant_vertex_prop_names(self.vertex)
     }
 
     fn const_property_values(&self) -> Vec<Prop> {
         self.const_property_keys()
-            .flat_map(|prop_name| self.graph.static_vertex_prop(self.vertex, &prop_name))
+            .flat_map(|prop_name| self.graph.constant_vertex_prop(self.vertex, &prop_name))
             .collect()
     }
 
     fn get_const_property(&self, key: &str) -> Option<Prop> {
-        self.graph.static_vertex_prop(self.vertex, key)
+        self.graph.constant_vertex_prop(self.vertex, key)
     }
 }
 
@@ -307,9 +305,10 @@ impl<G: GraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> Vertex
         &self,
         props: C,
     ) -> Result<(), GraphError> {
-        let properties: Vec<(usize, Prop)> = props.collect_properties(|name, dtype| {
-            self.graph.resolve_vertex_property(name, dtype, true)
-        })?;
+        let properties: Vec<(usize, Prop)> = props.collect_properties(
+            |name, dtype| self.graph.resolve_vertex_property(name, dtype, true),
+            |prop| self.graph.process_prop_value(prop),
+        )?;
         self.graph
             .internal_add_constant_vertex_properties(self.vertex, properties)
     }
@@ -320,9 +319,10 @@ impl<G: GraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> Vertex
         props: C,
     ) -> Result<(), GraphError> {
         let t = TimeIndexEntry::from_input(&self.graph, time)?;
-        let properties: Vec<(usize, Prop)> = props.collect_properties(|name, dtype| {
-            self.graph.resolve_vertex_property(name, dtype, false)
-        })?;
+        let properties: Vec<(usize, Prop)> = props.collect_properties(
+            |name, dtype| self.graph.resolve_vertex_property(name, dtype, false),
+            |prop| self.graph.process_prop_value(prop),
+        )?;
         self.graph.internal_add_vertex(t, self.vertex, properties)
     }
 }
@@ -518,7 +518,7 @@ mod vertex_test {
             v1.properties().as_map(),
             props
                 .into_iter()
-                .map(|(k, v)| (k.to_string(), v.into_prop()))
+                .map(|(k, v)| (k.into(), v.into_prop()))
                 .collect()
         );
         assert_eq!(v1_w.properties().as_map(), HashMap::default())
@@ -535,7 +535,7 @@ mod vertex_test {
             v1.properties().as_map(),
             props
                 .into_iter()
-                .map(|(k, v)| (k.to_string(), v.into_prop()))
+                .map(|(k, v)| (k.into(), v.into_prop()))
                 .collect()
         );
         assert_eq!(v1_w.properties().as_map(), HashMap::default())
@@ -547,5 +547,17 @@ mod vertex_test {
         let v1 = g.add_vertex(0, 1, NO_PROPS).unwrap();
         v1.add_constant_properties([("test", "test")]).unwrap();
         assert_eq!(v1.properties().get("test"), Some("test".into()))
+    }
+
+    #[test]
+    fn test_string_deduplication() {
+        let g = Graph::new();
+        let v1 = g
+            .add_vertex(0, 1, [("test1", "test"), ("test2", "test")])
+            .unwrap();
+        let s1 = v1.properties().get("test1").unwrap_str();
+        let s2 = v1.properties().get("test2").unwrap_str();
+
+        assert_eq!(s1.as_ptr(), s2.as_ptr())
     }
 }

@@ -102,8 +102,10 @@ impl<G: InternalAdditionOps + GraphViewOps> AdditionOps for G {
         v: V,
         props: PI,
     ) -> Result<VertexView<G>, GraphError> {
-        let properties = props
-            .collect_properties(|name, dtype| self.resolve_vertex_property(name, dtype, false))?;
+        let properties = props.collect_properties(
+            |name, dtype| self.resolve_vertex_property(name, dtype, false),
+            |prop| self.process_prop_value(prop),
+        )?;
         let ti = TimeIndexEntry::from_input(self, t)?;
         let v_id = self.resolve_vertex(v.id(), v.id_str());
         self.internal_add_vertex(ti, v_id, properties)?;
@@ -123,8 +125,10 @@ impl<G: InternalAdditionOps + GraphViewOps> AdditionOps for G {
         let dst_id = self.resolve_vertex(dst.id(), dst.id_str());
         let layer_id = self.resolve_layer(layer);
 
-        let properties: Vec<(usize, Prop)> = props
-            .collect_properties(|name, dtype| self.resolve_edge_property(name, dtype, false))?;
+        let properties: Vec<(usize, Prop)> = props.collect_properties(
+            |name, dtype| self.resolve_edge_property(name, dtype, false),
+            |prop| self.process_prop_value(prop),
+        )?;
         let eid = self.internal_add_edge(ti, src_id, dst_id, properties, layer_id)?;
         Ok(EdgeView::new(
             self.clone(),

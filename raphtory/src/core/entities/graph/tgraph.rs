@@ -10,7 +10,11 @@ use crate::{
                 tgraph_storage::{GraphStorage, LockedIter},
                 timer::{MaxCounter, MinCounter, TimeCounterTrait},
             },
-            properties::{graph_props::GraphProps, props::Meta, tprop::TProp},
+            properties::{
+                graph_props::GraphProps,
+                props::{ArcReadLockedVec, Meta},
+                tprop::TProp,
+            },
             vertices::{
                 input_vertex::InputVertex,
                 vertex::{ArcEdge, ArcVertex, Vertex},
@@ -29,11 +33,11 @@ use crate::{
             errors::{GraphError, IllegalMutate, MutateGraphError},
             time::TryIntoTime,
         },
-        Direction, Prop, PropUnwrap,
+        ArcStr, Direction, Prop, PropUnwrap,
     },
-    db::api::view::{internal::EdgeFilter, Layer},
+    db::api::view::{internal::EdgeFilter, BoxedIter, Layer},
 };
-use dashmap::DashMap;
+use dashmap::{DashMap, DashSet};
 use itertools::Itertools;
 use parking_lot::RwLockReadGuard;
 use rayon::prelude::*;
@@ -42,12 +46,14 @@ use serde::{Deserialize, Serialize};
 use std::{
     fmt::Debug,
     hash::BuildHasherDefault,
+    iter,
     ops::{Deref, Range},
     path::Path,
     sync::{atomic::AtomicUsize, Arc},
 };
 
 pub(crate) type FxDashMap<K, V> = DashMap<K, V, BuildHasherDefault<FxHasher>>;
+pub(crate) type FxDashSet<K> = DashSet<K, BuildHasherDefault<FxHasher>>;
 
 pub(crate) type TGraph<const N: usize> = TemporalGraph<N>;
 
@@ -65,6 +71,7 @@ impl<const N: usize> InnerTemporalGraph<N> {
 pub struct TemporalGraph<const N: usize> {
     // mapping between logical and physical ids
     logical_to_physical: FxDashMap<u64, VID>,
+    string_pool: FxDashSet<ArcStr>,
 
     pub(crate) storage: GraphStorage<N>,
 
@@ -101,6 +108,7 @@ impl<const N: usize> Default for InnerTemporalGraph<N> {
     fn default() -> Self {
         let tg = TemporalGraph {
             logical_to_physical: FxDashMap::default(), // TODO: could use DictMapper here
+            string_pool: Default::default(),
             storage: GraphStorage::new(),
             event_counter: AtomicUsize::new(0),
             earliest_time: MinCounter::new(),
@@ -119,30 +127,26 @@ impl<const N: usize> TemporalGraph<N> {
         self.edge_meta.layer_meta().len()
     }
 
-    pub(crate) fn layer_names(&self, layer_ids: LayerIds) -> Vec<String> {
+    pub(crate) fn layer_names(&self, layer_ids: LayerIds) -> BoxedIter<ArcStr> {
         match layer_ids {
-            LayerIds::None => {
-                vec![]
-            }
-            LayerIds::All => self.edge_meta.layer_meta().get_keys().clone(),
+            LayerIds::None => Box::new(iter::empty()),
+            LayerIds::All => Box::new(self.edge_meta.layer_meta().get_keys().into_iter()),
             LayerIds::One(id) => {
-                vec![self
+                let name = self
                     .edge_meta
                     .layer_meta()
-                    .reverse_lookup(id)
-                    .unwrap()
-                    .clone()]
+                    .get_name(id)
+                    .expect("name for id should always exist")
+                    .clone();
+                Box::new(iter::once(name))
             }
-            LayerIds::Multiple(ids) => ids
-                .iter()
-                .map(|id| {
-                    self.edge_meta
-                        .layer_meta()
-                        .reverse_lookup(*id)
-                        .unwrap()
-                        .clone()
-                })
-                .collect(),
+            LayerIds::Multiple(ids) => {
+                let keys = self.edge_meta.layer_meta().get_keys();
+                Box::new((0..ids.len()).map(move |index| {
+                    let id = ids[index];
+                    keys[id].clone()
+                }))
+            }
         }
     }
 
@@ -159,11 +163,14 @@ impl<const N: usize> TemporalGraph<N> {
         }
     }
 
-    pub(crate) fn get_all_vertex_property_names(&self, is_static: bool) -> Vec<String> {
+    pub(crate) fn get_all_vertex_property_names(
+        &self,
+        is_static: bool,
+    ) -> ArcReadLockedVec<ArcStr> {
         self.vertex_meta.get_all_property_names(is_static)
     }
 
-    pub(crate) fn get_all_edge_property_names(&self, is_static: bool) -> Vec<String> {
+    pub(crate) fn get_all_edge_property_names(&self, is_static: bool) -> ArcReadLockedVec<ArcStr> {
         self.edge_meta.get_all_property_names(is_static)
     }
 
@@ -258,12 +265,8 @@ impl<const N: usize> TemporalGraph<N> {
         self.storage.get_edge(e.into())
     }
 
-    pub(crate) fn vertex_reverse_prop_id(
-        &self,
-        prop_id: usize,
-        is_static: bool,
-    ) -> Option<LockedView<String>> {
-        self.vertex_meta.reverse_prop_id(prop_id, is_static)
+    pub(crate) fn vertex_reverse_prop_id(&self, prop_id: usize, is_static: bool) -> Option<ArcStr> {
+        self.vertex_meta.get_prop_name(prop_id, is_static)
     }
 
     pub(crate) fn edge_temp_prop_ids(&self, e: EID) -> Vec<usize> {
@@ -277,19 +280,15 @@ impl<const N: usize> TemporalGraph<N> {
     }
 
     pub(crate) fn edge_find_prop(&self, prop: &str, is_static: bool) -> Option<usize> {
-        self.edge_meta.find_prop_id(prop, is_static)
+        self.edge_meta.get_prop_id(prop, is_static)
     }
 
     pub(crate) fn vertex_find_prop(&self, prop: &str, is_static: bool) -> Option<usize> {
-        self.vertex_meta.find_prop_id(prop, is_static)
+        self.vertex_meta.get_prop_id(prop, is_static)
     }
 
-    pub(crate) fn edge_reverse_prop_id(
-        &self,
-        prop_id: usize,
-        is_static: bool,
-    ) -> Option<LockedView<String>> {
-        self.edge_meta.reverse_prop_id(prop_id, is_static)
+    pub(crate) fn edge_reverse_prop_id(&self, prop_id: usize, is_static: bool) -> Option<ArcStr> {
+        self.edge_meta.get_prop_name(prop_id, is_static)
     }
 }
 
@@ -302,21 +301,15 @@ impl<const N: usize> TemporalGraph<N> {
         match filter {
             None => match layers {
                 LayerIds::All => self.storage.edges.len(),
-                _ => self
-                    .storage
-                    .edges
-                    .read_lock()
-                    .into_par_iter()
-                    .filter(|e| e.has_layer(layers))
-                    .count(),
+                _ => {
+                    let guard = self.storage.edges.read_lock();
+                    guard.par_iter().filter(|e| e.has_layer(layers)).count()
+                }
             },
-            Some(filter) => self
-                .storage
-                .edges
-                .read_lock()
-                .into_par_iter()
-                .filter(|e| filter(e, layers))
-                .count(),
+            Some(filter) => {
+                let guard = self.storage.edges.read_lock();
+                guard.par_iter().filter(|e| filter(e, layers)).count()
+            }
         }
     }
 
@@ -397,7 +390,7 @@ impl<const N: usize> TemporalGraph<N> {
             layer.add_constant_prop(prop_id, prop).map_err(|err| {
                 IllegalMutate::from_source(
                     err,
-                    &self.edge_meta.reverse_prop_id(prop_id, true).unwrap(),
+                    &self.edge_meta.get_prop_name(prop_id, true).unwrap(),
                 )
             })?;
         }
@@ -433,11 +426,11 @@ impl<const N: usize> TemporalGraph<N> {
         self.graph_props.get_temporal(name)
     }
 
-    pub(crate) fn constant_property_names(&self) -> RwLockReadGuard<Vec<String>> {
+    pub(crate) fn constant_property_names(&self) -> ArcReadLockedVec<ArcStr> {
         self.graph_props.constant_names()
     }
 
-    pub(crate) fn temporal_property_names(&self) -> RwLockReadGuard<Vec<String>> {
+    pub(crate) fn temporal_property_names(&self) -> ArcReadLockedVec<ArcStr> {
         self.graph_props.temporal_names()
     }
 
@@ -564,6 +557,24 @@ impl<const N: usize> TemporalGraph<N> {
     pub(crate) fn edge(&self, e: EID) -> EdgeView<N> {
         let edge = self.storage.get_edge(e.into());
         EdgeView::from_entry(edge, self)
+    }
+
+    /// Checks if the same string value already exists and returns a pointer to the same existing value if it exists,
+    /// otherwise adds the string to the pool.
+    pub(crate) fn resolve_str(&self, value: ArcStr) -> ArcStr {
+        match self.string_pool.get(&value) {
+            Some(value) => value.clone(),
+            None => {
+                if self.string_pool.insert(value.clone()) {
+                    value
+                } else {
+                    self.string_pool
+                        .get(&value)
+                        .expect("value exists due to insert above returning false")
+                        .clone()
+                }
+            }
+        }
     }
 }
 

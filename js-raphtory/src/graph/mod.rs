@@ -99,7 +99,7 @@ impl Graph {
     #[wasm_bindgen(js_name = addVertex)]
     pub fn add_vertex_js(&self, t: i64, id: JsValue, js_props: Object) -> Result<Vertex, JSError> {
         let rust_props = if js_props.is_string() {
-            vec![("name".to_string(), Prop::Str(js_props.as_string().unwrap()))]
+            vec![("name".to_string(), Prop::str(js_props.as_string().unwrap()))]
         } else if js_props.is_object() {
             Object::entries(&js_props)
                 .iter()

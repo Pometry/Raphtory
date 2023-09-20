@@ -58,6 +58,14 @@ impl<const N: usize> InternalAdditionOps for InnerTemporalGraph<N> {
     }
 
     #[inline]
+    fn process_prop_value(&self, prop: Prop) -> Prop {
+        match prop {
+            Prop::Str(value) => Prop::Str(self.inner().resolve_str(value)),
+            _ => prop,
+        }
+    }
+
+    #[inline]
     fn internal_add_vertex(
         &self,
         t: TimeIndexEntry,

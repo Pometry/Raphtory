@@ -203,18 +203,10 @@ mod graphql_test {
         if let Err(err) = graph.add_vertex(0, "gandalf", NO_PROPS) {
             panic!("Could not add vertex! {:?}", err);
         }
-        if let Err(err) = graph.add_vertex(
-            0,
-            "bilbo",
-            [("food".to_string(), Prop::Str("lots".to_string()))],
-        ) {
+        if let Err(err) = graph.add_vertex(0, "bilbo", [("food".to_string(), Prop::str("lots"))]) {
             panic!("Could not add vertex! {:?}", err);
         }
-        if let Err(err) = graph.add_vertex(
-            0,
-            "frodo",
-            [("food".to_string(), Prop::Str("some".to_string()))],
-        ) {
+        if let Err(err) = graph.add_vertex(0, "frodo", [("food".to_string(), Prop::str("some"))]) {
             panic!("Could not add vertex! {:?}", err);
         }
 
