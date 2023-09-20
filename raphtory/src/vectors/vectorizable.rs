@@ -56,7 +56,7 @@ impl<G: GraphViewOps + IntoDynamic> Vectorizable<G> for G {
     async fn vectorize(
         &self,
         embedding: Box<dyn EmbeddingFunction>,
-        cache_dir: &Path,
+        cache_dir: &Path, // TODO: make this optional maybe
     ) -> VectorizedGraph<G> {
         let node_template = |vertex: &VertexView<G>| default_node_template(vertex);
         let edge_template = |edge: &EdgeView<G>| default_edge_template(edge);

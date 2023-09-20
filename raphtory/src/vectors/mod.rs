@@ -69,6 +69,20 @@ mod vector_tests {
 
     // TODO: test default templates
 
+    #[tokio::test]
+    async fn test_empty_graph() {
+        dotenv().ok();
+
+        let g = Graph::new();
+        let cache = PathBuf::from("/tmp/raphtory/vector-cache-lotr-test");
+        let vectors = g.vectorize(Box::new(openai_embedding), &cache).await;
+        let docs = vectors
+            .similarity_search("whatever", 10, 0, 0, 20, None, None)
+            .await;
+
+        assert!(docs.is_empty())
+    }
+
     #[test]
     fn test_node_into_doc() {
         let g = Graph::new();

@@ -141,6 +141,7 @@ impl<G: GraphViewOps + IntoDynamic> VectorizedGraph<G> {
 
             if sorted_candidates_ids.is_empty() {
                 // TODO: use similarity search again with the whole graph with init + 1 !!
+                // TODO: avoid this, put all stop conditions at the top
                 break;
             }
 
