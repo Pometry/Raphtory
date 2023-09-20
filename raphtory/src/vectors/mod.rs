@@ -1,10 +1,13 @@
-use crate::vectors::{entity_id::EntityId, graph_entity::GraphEntity};
+use crate::vectors::{
+    document_source::DocumentSource, entity_id::EntityId, graph_entity::GraphEntity,
+};
 use futures_util::future::BoxFuture;
 use std::future::Future;
 
+mod document_source;
 pub mod embeddings;
 mod entity_id;
-mod graph_entity;
+pub mod graph_entity;
 pub mod vectorizable;
 pub mod vectorized_graph;
 

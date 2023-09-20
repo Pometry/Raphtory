@@ -5,8 +5,8 @@ use crate::{
     },
     prelude::{EdgeViewOps, GraphViewOps, LayerOps, VertexViewOps},
     vectors::{
-        entity_id::EntityId, graph_entity::GraphEntity, vectorized_graph::VectorizedGraph,
-        Embedding, EmbeddingFunction, EntityDocument,
+        document_source::DocumentSource, entity_id::EntityId, graph_entity::GraphEntity,
+        vectorized_graph::VectorizedGraph, Embedding, EmbeddingFunction, EntityDocument,
     },
 };
 use async_trait::async_trait;

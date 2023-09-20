@@ -5,7 +5,8 @@ use crate::{
     },
     prelude::{EdgeViewOps, GraphViewOps, Layer, TimeOps, VertexViewOps},
     vectors::{
-        entity_id::EntityId, graph_entity::GraphEntity, Document, Embedding, EmbeddingFunction,
+        document_source::DocumentSource, entity_id::EntityId, Document, Embedding,
+        EmbeddingFunction,
     },
 };
 use itertools::{chain, Itertools};
