@@ -23,14 +23,12 @@ use crate::{
 };
 
 use crate::core::entities::vertices::vertex_ref::VertexRef;
-use bincode::de;
-use futures::io::empty;
-use itertools::{enumerate, Combinations, Itertools};
+use itertools::{enumerate, Itertools};
 use num_traits::Zero;
-use rand::{prelude::*, rngs::StdRng, seq::SliceRandom, Rng, SeedableRng};
+use rand::{rngs::StdRng, Rng, SeedableRng};
 use rustc_hash::FxHashSet;
 use std::{
-    borrow::BorrowMut, cmp::Ordering, collections::HashMap, marker::Send, ops::Add, slice::Iter,
+    cmp::Ordering, collections::HashMap, ops::Add, slice::Iter,
 };
 ///////////////////////////////////////////////////////
 
@@ -175,7 +173,7 @@ pub fn twonode_motif_count<G>(
 where
     G: GraphViewOps,
 {
-    let mut results = deltas.iter().map(|d| [0; 8]).collect::<Vec<[usize; 8]>>();
+    let mut results = deltas.iter().map(|_| [0; 8]).collect::<Vec<[usize; 8]>>();
 
     // Define a closure for sorting by time_and_index()
     let sort_by_time_and_index = |e1: &EdgeView<G>, e2: &EdgeView<G>| -> Ordering {
@@ -243,7 +241,6 @@ pub fn triangle_motifs<G>(
 where
     G: GraphViewOps,
 {
-    let rng = StdRng::from_entropy();
     let delta_len = deltas.len();
 
     // Define a closure for sorting by time_and_index()
@@ -275,10 +272,9 @@ where
     let step2 = ATask::new(
         move |u: &mut EvalVertexView<VertexSubgraph<G>, ComputeStateVec, MotifCounter>| {
             let uu = u.get_mut();
-            if (uu.triangle.len() == 0) {
+            if uu.triangle.len() == 0 {
                 uu.triangle = vec![[0 as usize; 8]; delta_len];
             }
-            let mut results = deltas.iter().map(|d| [0; 8]).collect::<Vec<[usize; 8]>>();
             for v in u.neighbours() {
                 // Find triangles on the UV edge
                 if u.id() > v.id() {
@@ -363,6 +359,10 @@ where
                             .collect::<Vec<TriangleEdge>>();
 
                         for i in 0..deltas.len() {
+                            let mut rng = StdRng::from_entropy();
+                            if randomise_same_timestamps {
+                                all_exploded.sort_by_key(|e| (e.time, rng.gen_range(1..1000000000)))
+                            }
                             let delta = deltas[i];
                             let mut tri_count = init_tri_count(2);
                             tri_count.execute(&all_exploded, delta);
