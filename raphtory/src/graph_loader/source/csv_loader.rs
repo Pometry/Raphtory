@@ -32,14 +32,14 @@
 //!          g.add_vertex(
 //!              time,
 //!              src_id,
-//!              [("name".to_string(), Prop::Str("Character".to_string()))],
+//!              [("name", Prop::str("Character"))],
 //!          )
 //!          .map_err(|err| println!("{:?}", err))
 //!          .ok();
 //!          g.add_vertex(
 //!              time,
 //!              dst_id,
-//!              [("name".to_string(), Prop::Str("Character".to_string()))],
+//!              [("name", Prop::str("Character"))],
 //!          )
 //!          .map_err(|err| println!("{:?}", err))
 //!          .ok();
@@ -48,8 +48,8 @@
 //!              src_id,
 //!              dst_id,
 //!              [(
-//!                  "name".to_string(),
-//!                  Prop::Str("Character Co-occurrence".to_string()),
+//!                  "name",
+//!                  Prop::str("Character Co-occurrence"),
 //!              )],
 //!              None,
 //!          ).expect("Failed to add edge");
@@ -520,28 +520,17 @@ mod csv_loader_test {
                 let dst_id = calculate_hash(&lotr.dst_id);
                 let time = lotr.time;
 
-                g.add_vertex(
-                    time,
-                    src_id,
-                    [("name".to_string(), Prop::Str("Character".to_string()))],
-                )
-                .map_err(|err| println!("{:?}", err))
-                .ok();
-                g.add_vertex(
-                    time,
-                    dst_id,
-                    [("name".to_string(), Prop::Str("Character".to_string()))],
-                )
-                .map_err(|err| println!("{:?}", err))
-                .ok();
+                g.add_vertex(time, src_id, [("name", Prop::str("Character"))])
+                    .map_err(|err| println!("{:?}", err))
+                    .ok();
+                g.add_vertex(time, dst_id, [("name", Prop::str("Character"))])
+                    .map_err(|err| println!("{:?}", err))
+                    .ok();
                 g.add_edge(
                     time,
                     src_id,
                     dst_id,
-                    [(
-                        "name".to_string(),
-                        Prop::Str("Character Co-occurrence".to_string()),
-                    )],
+                    [("name", Prop::str("Character Co-occurrence"))],
                     None,
                 )
                 .unwrap();
@@ -565,28 +554,17 @@ mod csv_loader_test {
                     .unwrap();
                 let time = lotr.get(2).map(|s| s.parse::<i64>().unwrap()).unwrap();
 
-                g.add_vertex(
-                    time,
-                    src_id,
-                    [("name".to_string(), Prop::Str("Character".to_string()))],
-                )
-                .map_err(|err| println!("{:?}", err))
-                .ok();
-                g.add_vertex(
-                    time,
-                    dst_id,
-                    [("name".to_string(), Prop::Str("Character".to_string()))],
-                )
-                .map_err(|err| println!("{:?}", err))
-                .ok();
+                g.add_vertex(time, src_id, [("name", Prop::str("Character"))])
+                    .map_err(|err| println!("{:?}", err))
+                    .ok();
+                g.add_vertex(time, dst_id, [("name", Prop::str("Character"))])
+                    .map_err(|err| println!("{:?}", err))
+                    .ok();
                 g.add_edge(
                     time,
                     src_id,
                     dst_id,
-                    [(
-                        "name".to_string(),
-                        Prop::Str("Character Co-occurrence".to_string()),
-                    )],
+                    [("name", Prop::str("Character Co-occurrence"))],
                     None,
                 )
                 .unwrap();

@@ -1,21 +1,10 @@
 use crate::{
-    core::{
-        entities::properties::{props::DictMapper, tprop::TProp},
-        storage::locked_view::LockedView,
-        Prop,
-    },
+    core::{ArcStr, Prop},
     db::api::view::internal::Base,
 };
 use enum_dispatch::enum_dispatch;
 
-pub trait CorePropertiesOps {
-    fn const_prop_meta(&self) -> &DictMapper<String>;
-    fn temporal_prop_meta(&self) -> &DictMapper<String>;
-    fn temporal_prop(&self, id: usize) -> Option<&TProp>;
-    fn const_prop(&self, id: usize) -> Option<&Prop>;
-}
-
-pub type Key = String; //Fixme: This should really be the internal usize index but that means more reworking of the low-level api
+pub type Key = ArcStr; //Fixme: This should really be the internal usize index but that means more reworking of the low-level api
 
 #[enum_dispatch]
 pub trait TemporalPropertyViewOps {
@@ -35,7 +24,7 @@ pub trait TemporalPropertyViewOps {
 
 #[enum_dispatch]
 pub trait ConstPropertiesOps {
-    fn const_property_keys<'a>(&'a self) -> Box<dyn Iterator<Item = LockedView<'a, String>> + 'a>;
+    fn const_property_keys(&self) -> Box<dyn Iterator<Item = ArcStr>>;
     fn const_property_values(&self) -> Vec<Prop> {
         self.const_property_keys()
             .map(|k| self.get_const_property(&k).expect("should exist"))
@@ -46,9 +35,7 @@ pub trait ConstPropertiesOps {
 
 #[enum_dispatch]
 pub trait TemporalPropertiesOps {
-    fn temporal_property_keys<'a>(
-        &'a self,
-    ) -> Box<dyn Iterator<Item = LockedView<'a, String>> + 'a>;
+    fn temporal_property_keys(&self) -> Box<dyn Iterator<Item = ArcStr> + '_>;
     fn temporal_property_values(&self) -> Box<dyn Iterator<Item = Key> + '_> {
         Box::new(
             self.temporal_property_keys()
@@ -100,9 +87,7 @@ impl<P: InheritTemporalPropertiesOps> TemporalPropertiesOps for P
 where
     P::Base: TemporalPropertiesOps,
 {
-    fn temporal_property_keys<'a>(
-        &'a self,
-    ) -> Box<dyn Iterator<Item = LockedView<'a, String>> + 'a> {
+    fn temporal_property_keys(&self) -> Box<dyn Iterator<Item = ArcStr> + '_> {
         self.base().temporal_property_keys()
     }
 
@@ -119,7 +104,7 @@ impl<P: InheritStaticPropertiesOps> ConstPropertiesOps for P
 where
     P::Base: ConstPropertiesOps,
 {
-    fn const_property_keys<'a>(&'a self) -> Box<dyn Iterator<Item = LockedView<'a, String>> + 'a> {
+    fn const_property_keys(&self) -> Box<dyn Iterator<Item = ArcStr>> {
         self.base().const_property_keys()
     }
 

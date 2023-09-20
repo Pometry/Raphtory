@@ -58,10 +58,8 @@ impl<G: GraphViewOps> EdgeSchema<G> {
 }
 
 fn collect_edge_schema<G: GraphViewOps>(edge: EdgeView<G>) -> SchemaAggregate {
-    let pairs = edge
-        .properties()
+    edge.properties()
         .iter()
-        .map(|(key, value)| (key.to_owned(), HashSet::from([value.to_string()])))
-        .collect_vec();
-    HashMap::from_iter(pairs)
+        .map(|(key, value)| (key.to_string(), HashSet::from([value.to_string()])))
+        .collect()
 }

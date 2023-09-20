@@ -1,5 +1,5 @@
 use crate::{
-    core::Prop,
+    core::{ArcStr, Prop},
     db::api::{
         properties::{internal::PropertiesOps, ConstProperties},
         view::internal::Static,
@@ -57,7 +57,7 @@ impl PyConstProperties {
     /// keys() -> list[str]
     ///
     /// lists the available property keys
-    pub fn keys(&self) -> Vec<String> {
+    pub fn keys(&self) -> Vec<ArcStr> {
         self.props.keys()
     }
 
@@ -71,7 +71,7 @@ impl PyConstProperties {
     /// items() -> list[tuple[str, Any]]
     ///
     /// lists the property keys together with the corresponding value
-    pub fn items(&self) -> Vec<(String, Prop)> {
+    pub fn items(&self) -> Vec<(ArcStr, Prop)> {
         self.props.iter().collect()
     }
 
@@ -101,7 +101,7 @@ impl PyConstProperties {
     /// as_dict() -> dict[str, Any]
     ///
     /// convert the properties view to a python dict
-    pub fn as_dict(&self) -> HashMap<String, Prop> {
+    pub fn as_dict(&self) -> HashMap<ArcStr, Prop> {
         self.props.as_map()
     }
 
@@ -150,7 +150,7 @@ py_eq!(PyConstPropsList, PyPropsListCmp);
 
 #[pymethods]
 impl PyConstPropsList {
-    pub fn keys(&self) -> Vec<String> {
+    pub fn keys(&self) -> Vec<ArcStr> {
         self.iter().map(|p| p.keys()).kmerge().dedup().collect()
     }
 
@@ -160,21 +160,21 @@ impl PyConstPropsList {
             .map(|k| self.get(k).expect("key exists"))
             .collect()
     }
-    pub fn items(&self) -> Vec<(String, PyPropValueList)> {
+    pub fn items(&self) -> Vec<(ArcStr, PyPropValueList)> {
         self.keys().into_iter().zip(self.values()).collect()
     }
 
-    pub fn __getitem__(&self, key: String) -> PyResult<PyPropValueList> {
+    pub fn __getitem__(&self, key: ArcStr) -> PyResult<PyPropValueList> {
         self.get(key).ok_or(PyKeyError::new_err("No such property"))
     }
 
-    pub fn get(&self, key: String) -> Option<PyPropValueList> {
+    pub fn get(&self, key: ArcStr) -> Option<PyPropValueList> {
         self.__contains__(&key).then(|| {
             let builder = self.builder.clone();
-            let key = Arc::new(key);
+            let key = key.clone();
             (move || {
                 let key = key.clone();
-                builder().map(move |p| p.get(key.as_ref()))
+                builder().map(move |p| p.get(&key))
             })
             .into()
         })
@@ -188,7 +188,7 @@ impl PyConstPropsList {
         self.keys().into_iter().into()
     }
 
-    pub fn as_dict(&self) -> HashMap<String, Vec<Option<Prop>>> {
+    pub fn as_dict(&self) -> HashMap<ArcStr, Vec<Option<Prop>>> {
         self.items()
             .into_iter()
             .map(|(k, v)| (k, v.collect()))
@@ -201,7 +201,7 @@ py_eq!(PyConstPropsListList, PyConstPropsListListCmp);
 
 #[pymethods]
 impl PyConstPropsListList {
-    pub fn keys(&self) -> Vec<String> {
+    pub fn keys(&self) -> Vec<ArcStr> {
         self.iter()
             .flat_map(|it| it.map(|p| p.keys()))
             .kmerge()
@@ -215,11 +215,11 @@ impl PyConstPropsListList {
             .map(|k| self.get(k).expect("key exists"))
             .collect()
     }
-    pub fn items(&self) -> Vec<(String, PyPropValueListList)> {
+    pub fn items(&self) -> Vec<(ArcStr, PyPropValueListList)> {
         self.keys().into_iter().zip(self.values()).collect()
     }
 
-    pub fn __getitem__(&self, key: String) -> PyResult<PyPropValueListList> {
+    pub fn __getitem__(&self, key: ArcStr) -> PyResult<PyPropValueListList> {
         self.get(key).ok_or(PyKeyError::new_err("No such property"))
     }
 
@@ -227,15 +227,15 @@ impl PyConstPropsListList {
         self.keys().into_iter().into()
     }
 
-    pub fn get(&self, key: String) -> Option<PyPropValueListList> {
+    pub fn get(&self, key: ArcStr) -> Option<PyPropValueListList> {
         self.__contains__(&key).then(|| {
             let builder = self.builder.clone();
-            let key = Arc::new(key);
+            let key = key.clone();
             (move || {
                 let key = key.clone();
                 builder().map(move |it| {
                     let key = key.clone();
-                    it.map(move |p| p.get(key.as_ref()))
+                    it.map(move |p| p.get(&key))
                 })
             })
             .into()
@@ -246,7 +246,7 @@ impl PyConstPropsListList {
         self.iter().any(|mut it| it.any(|p| p.contains(key)))
     }
 
-    pub fn as_dict(&self) -> HashMap<String, Vec<Vec<Option<Prop>>>> {
+    pub fn as_dict(&self) -> HashMap<ArcStr, Vec<Vec<Option<Prop>>>> {
         self.items()
             .into_iter()
             .map(|(k, v)| (k, v.collect()))

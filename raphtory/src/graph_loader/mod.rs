@@ -52,14 +52,14 @@
 //!     g.add_vertex(
 //!         lotr.time,
 //!         lotr.src_id.clone(),
-//!         [("type".to_string(), Prop::Str("Character".to_string()))],
+//!         [("type", Prop::str("Character"))],
 //!     )
 //!     .expect("Failed to add vertex");
 //!
 //!     g.add_vertex(
 //!         lotr.time,
 //!         lotr.dst_id.clone(),
-//!         [("type".to_string(), Prop::Str("Character".to_string()))],
+//!         [("type", Prop::str("Character"))],
 //!     )
 //!     .expect("Failed to add vertex");
 //!
@@ -68,8 +68,8 @@
 //!         lotr.src_id.clone(),
 //!         lotr.dst_id.clone(),
 //!         [(
-//!             "type".to_string(),
-//!             Prop::Str("Character Co-occurrence".to_string()),
+//!             "type",
+//!             Prop::str("Character Co-occurrence"),
 //!         )],
 //!         None,
 //!     )
@@ -216,26 +216,15 @@ mod graph_loader_test {
                     let src_id = hashing::calculate_hash(&src);
                     let dst_id = hashing::calculate_hash(&dst);
 
-                    g.add_vertex(
-                        t,
-                        src_id,
-                        [("name".to_string(), Prop::Str("Character".to_string()))],
-                    )
-                    .unwrap();
-                    g.add_vertex(
-                        t,
-                        dst_id,
-                        [("name".to_string(), Prop::Str("Character".to_string()))],
-                    )
-                    .unwrap();
+                    g.add_vertex(t, src_id, [("name", Prop::str("Character"))])
+                        .unwrap();
+                    g.add_vertex(t, dst_id, [("name", Prop::str("Character"))])
+                        .unwrap();
                     g.add_edge(
                         t,
                         src_id,
                         dst_id,
-                        [(
-                            "name".to_string(),
-                            Prop::Str("Character Co-occurrence".to_string()),
-                        )],
+                        [("name", Prop::str("Character Co-occurrence"))],
                         None,
                     )
                     .unwrap();

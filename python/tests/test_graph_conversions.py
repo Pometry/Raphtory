@@ -161,7 +161,6 @@ def test_networkx_full_history():
                     (1693555260000, "Ubuntu 20.04"),
                     (1693555320000, "Ubuntu 20.04"),
                 ],
-                "_id": "ServerA",
                 "datasource": "data/network_traffic_edges.csv",
                 "hardware_type": "Blade Server",
                 "primary_function": [
@@ -188,7 +187,6 @@ def test_networkx_full_history():
             "ServerB",
             {
                 "OS_version": [(1693555500000, "Red Hat 8.1")],
-                "_id": "ServerB",
                 "datasource": "data/network_traffic_edges.csv",
                 "hardware_type": "Rack Server",
                 "primary_function": [(1693555500000, "Web Server")],
@@ -206,7 +204,6 @@ def test_networkx_full_history():
             "ServerC",
             {
                 "OS_version": [(1693555800000, "Windows Server 2022")],
-                "_id": "ServerC",
                 "datasource": "data/network_traffic_edges.csv",
                 "hardware_type": "Blade Server",
                 "primary_function": [(1693555800000, "File Storage")],
@@ -226,7 +223,6 @@ def test_networkx_full_history():
             "ServerD",
             {
                 "OS_version": [(1693556100000, "Ubuntu 20.04")],
-                "_id": "ServerD",
                 "datasource": "data/network_traffic_edges.csv",
                 "hardware_type": "Tower Server",
                 "primary_function": [(1693556100000, "Application Server")],
@@ -245,7 +241,6 @@ def test_networkx_full_history():
             "ServerE",
             {
                 "OS_version": [(1693556400000, "Red Hat 8.1")],
-                "_id": "ServerE",
                 "datasource": "data/network_traffic_edges.csv",
                 "hardware_type": "Rack Server",
                 "primary_function": [(1693556400000, "Backup")],
@@ -656,7 +651,6 @@ def test_networkx_no_history():
             "ServerA",
             {
                 "OS_version": "Ubuntu 20.04",
-                "_id": "ServerA",
                 "datasource": "data/network_traffic_edges.csv",
                 "hardware_type": "Blade Server",
                 "primary_function": "Database",
@@ -668,7 +662,6 @@ def test_networkx_no_history():
             "ServerB",
             {
                 "OS_version": "Red Hat 8.1",
-                "_id": "ServerB",
                 "datasource": "data/network_traffic_edges.csv",
                 "hardware_type": "Rack Server",
                 "primary_function": "Web Server",
@@ -680,7 +673,6 @@ def test_networkx_no_history():
             "ServerC",
             {
                 "OS_version": "Windows Server 2022",
-                "_id": "ServerC",
                 "datasource": "data/network_traffic_edges.csv",
                 "hardware_type": "Blade Server",
                 "primary_function": "File Storage",
@@ -692,7 +684,6 @@ def test_networkx_no_history():
             "ServerD",
             {
                 "OS_version": "Ubuntu 20.04",
-                "_id": "ServerD",
                 "datasource": "data/network_traffic_edges.csv",
                 "hardware_type": "Tower Server",
                 "primary_function": "Application Server",
@@ -704,7 +695,6 @@ def test_networkx_no_history():
             "ServerE",
             {
                 "OS_version": "Red Hat 8.1",
-                "_id": "ServerE",
                 "datasource": "data/network_traffic_edges.csv",
                 "hardware_type": "Rack Server",
                 "primary_function": "Backup",
