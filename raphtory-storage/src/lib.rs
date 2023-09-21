@@ -8,11 +8,22 @@ mod arrow;
 mod ops;
 
 #[derive(Debug)]
-struct TemporalColumnarGraph {
+pub struct TemporalColumnarGraph {
     fragments: Vec<Arc<TemporalColGraphFragment>>,
 }
 
 impl TemporalColumnarGraph {
+
+    pub fn empty() -> Self {
+        Self {
+            fragments: Vec::new(),
+        }
+    }
+
+    pub fn add_fragment(&mut self, fragment: TemporalColGraphFragment) {
+        self.fragments.push(Arc::new(fragment));
+    }
+
     fn new(fragments: Vec<TemporalColGraphFragment>) -> Self {
         Self {
             fragments: fragments.into_iter().map(Arc::new).collect(),

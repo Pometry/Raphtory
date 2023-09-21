@@ -1,4 +1,4 @@
-use std::{ops::Range, fmt::Debug};
+use std::{fmt::Debug, ops::Range};
 
 use itertools::Itertools;
 use polars_core::{prelude::*, utils::arrow::array::*};
@@ -26,6 +26,8 @@ const V_ADDITIONS_COLUMN: &str = "additions";
 const E_ADDITIONS_COLUMN: &str = "additions";
 const E_DELETIONS_COLUMN: &str = "deletions";
 
+const NAME_COLUMN: &str = "name";
+
 const GID_COLUMN: &str = "global_vertex_id";
 const SRC_COLUMN: &str = "src";
 const DST_COLUMN: &str = "dst";
@@ -34,7 +36,9 @@ const V_COLUMN: &str = "v";
 const E_COLUMN: &str = "e";
 
 impl TemporalColGraphFragment {
-    pub fn from_graph<G: GraphViewOps>(g: &G) -> Self {
+
+    fn generate_lookup_tables<G: GraphViewOps>(g: &G) -> (Vec<usize>, Vec<usize>, Vec<usize>, Vec<usize>) {
+
         // create a lookup table for the vertices sorted by gid
         let mut new_to_old = (0..g.unfiltered_num_vertices()).collect::<Vec<_>>();
         new_to_old.sort_unstable_by_key(|&vid| g.vertex_id(vid.into()));
@@ -58,11 +62,29 @@ impl TemporalColGraphFragment {
             edges_old_to_new[*old_id] = new_id;
         }
 
+        (new_to_old, old_to_new, edges_new_to_old, edges_old_to_new)
+
+    }
+
+    fn prop_cols_from_edge_meta<G: GraphViewOps>(g: &G) {
+
+        // let prop = "usd"; 
+
+        // let mut usd_property = MutableListArray::<i64, MutableStructArray>::new_with_field(MutableStructArray::new(data_type, values), prop, false);
+
+        // let edge_meta = g.edge_meta();
+    }
+
+    pub fn from_graph<G: GraphViewOps>(g: &G) -> Self {
+        //FIXME: once we have the old_to_new and new_to_old we should be able to parallelise every other column
+        let (new_to_old, old_to_new, edges_new_to_old, edges_old_to_new) = Self::generate_lookup_tables(g);
+
         let mut edge_src_column = Vec::with_capacity(edges_new_to_old.len());
         let mut edge_dst_column = Vec::with_capacity(edges_new_to_old.len());
 
         let mut edge_timestamps = Self::mutable_timestamps_column(E_ADDITIONS_COLUMN);
         let mut edge_deletions = Self::mutable_timestamps_column(E_DELETIONS_COLUMN);
+
 
         for &eid in &edges_new_to_old {
             let edge = g.find_edge_id(eid.into(), &LayerIds::All, None).unwrap();
@@ -93,9 +115,16 @@ impl TemporalColGraphFragment {
 
         let mut timestamps = Self::mutable_timestamps_column(V_ADDITIONS_COLUMN);
 
+        let mut names = MutableUtf8ValuesArray::<i64>::new();
+
         // loop over each vertex adjacency list
         for vertex in &new_to_old {
             let vid: VID = (*vertex).into();
+
+            // fill in the name
+            let name = g.vertex_name(vid);
+            names.push(name);
+
             for e_ref in g.vertex_edges(vid, Direction::OUT, LayerIds::All, None) {
                 let mut row: MutEdgePair = outbound_arr.mut_values().into();
                 let vid: usize = e_ref.dst().into();
@@ -129,20 +158,22 @@ impl TemporalColGraphFragment {
             .map(|&vid| g.vertex_id(vid.into()))
             .collect::<Vec<_>>();
 
-        let outbound_arr: ListArray<i64> = outbound_arr.into();
         let outbound: ChunkedArray<ListType> =
-            ChunkedArray::with_chunk(OUTBOUND_COLUMN, outbound_arr);
+            ChunkedArray::with_chunk(OUTBOUND_COLUMN, outbound_arr.into());
 
-        let inbound_arr: ListArray<i64> = inbound_arr.into();
-        let inbound: ChunkedArray<ListType> = ChunkedArray::with_chunk(INBOUND_COLUMN, inbound_arr);
+        let inbound: ChunkedArray<ListType> =
+            ChunkedArray::with_chunk(INBOUND_COLUMN, inbound_arr.into());
 
-        let timestamps_arr: ListArray<i64> = timestamps.into();
         let timestamps: ChunkedArray<ListType> =
-            ChunkedArray::with_chunk(V_ADDITIONS_COLUMN, timestamps_arr);
+            ChunkedArray::with_chunk(V_ADDITIONS_COLUMN, timestamps.into());
 
         let items = Series::new(GID_COLUMN, gids_sorted_by_gids);
+
+        let names: ChunkedArray<Utf8Type> = ChunkedArray::with_chunk(NAME_COLUMN, names.into());
+
         let vertex_df = DataFrame::new(vec![
             items,
+            names.into_series(),
             outbound.into_series(),
             inbound.into_series(),
             timestamps.into_series(),
@@ -457,6 +488,22 @@ mod test {
     }
 
     #[test]
+    fn load_triangle_graph_with_edge_prop() {
+        let graph = Graph::new();
+        graph.add_edge(9, 1, 2, [("usd", 17)], None).expect("add edge");
+        graph.add_edge(0, 1, 2, [("usd", 35)], None).expect("add edge");
+
+        graph.add_edge(7, 2, 3, [("usd", 28 )], None).expect("add edge");
+        graph.add_edge(1, 2, 3, [("usd", 17 )], None).expect("add edge");
+
+        graph.add_edge(2, 3, 1, [("usd", 235)], None).expect("add edge");
+        graph.add_edge(5, 3, 1, [("usd", 12)], None).expect("add edge");
+
+        let g = TemporalColGraphFragment::from_graph(&graph);
+        println!("{:?}", g);
+    }
+
+    #[test]
     fn load_star_graph() {
         let graph = GraphWithDeletions::new();
         graph.add_edge(1, 1, 2, NO_PROPS, None).expect("add edge");
@@ -549,8 +596,7 @@ mod test {
     }
 
     #[test]
-    fn overlap(){
-
+    fn overlap() {
         let slice = [2];
         let range = 0..2;
 
@@ -564,7 +610,12 @@ mod test {
         let overlap_right_edge = 7..9;
 
         for range in &[overlap, overlap_left, overlap_right, overlap_right_edge] {
-            assert!(TemporalColGraphFragment::overlap(&range, &slice), "{:?} does not overlap {:?}", range, &slice);
+            assert!(
+                TemporalColGraphFragment::overlap(&range, &slice),
+                "{:?} does not overlap {:?}",
+                range,
+                &slice
+            );
         }
 
         let no_overlap = 0..2;
@@ -572,7 +623,12 @@ mod test {
         let no_overlap_right = 8..10;
 
         for range in &[no_overlap, no_overlap_included, no_overlap_right] {
-            assert!(!TemporalColGraphFragment::overlap(&range, &slice), "{:?} does overlap {:?}", range, &slice);
+            assert!(
+                !TemporalColGraphFragment::overlap(&range, &slice),
+                "{:?} does overlap {:?}",
+                range,
+                &slice
+            );
         }
     }
 }
