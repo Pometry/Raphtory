@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use arrow::columnar_graph::TemporalColGraphFragment;
 use itertools::Itertools;
 use raphtory::core::{entities::vertices::vertex_ref::VertexRef, Direction};
@@ -7,22 +9,25 @@ mod ops;
 
 #[derive(Debug)]
 struct TemporalColumnarGraph {
-    fragments: Vec<TemporalColGraphFragment>,
+    fragments: Vec<Arc<TemporalColGraphFragment>>,
 }
 
 impl TemporalColumnarGraph {
     fn new(fragments: Vec<TemporalColGraphFragment>) -> Self {
-        Self { fragments }
+        Self {
+            fragments: fragments.into_iter().map(Arc::new).collect(),
+        }
     }
 
     pub fn neighbours<V: Into<VertexRef>>(
         &self,
         v: V,
         dir: Direction,
-    ) -> impl Iterator<Item = VertexRef> + '_ {
+    ) -> impl Iterator<Item = VertexRef> {
         if let VertexRef::External(gid) = v.into() {
             self.fragments
-                .iter()
+                .clone() // likely not ideal but it gets rid of the lifetime
+                .into_iter()
                 .filter_map(|fragment| {
                     let vid = fragment.resolve_vertex_id(gid)?;
                     let iter = fragment
