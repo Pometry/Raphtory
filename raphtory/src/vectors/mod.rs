@@ -1,6 +1,4 @@
-use crate::vectors::{
-    document_source::DocumentSource, entity_id::EntityId, graph_entity::GraphEntity,
-};
+use crate::vectors::entity_id::EntityId;
 use futures_util::future::BoxFuture;
 use std::future::Future;
 
@@ -27,10 +25,17 @@ pub enum Document {
 
 pub trait DocumentOps {
     fn content(&self) -> &str;
+    fn into_content(self) -> String;
 }
 
 impl DocumentOps for Document {
     fn content(&self) -> &str {
+        match self {
+            Document::Node { content, .. } => content,
+            Document::Edge { content, .. } => content,
+        }
+    }
+    fn into_content(self) -> String {
         match self {
             Document::Node { content, .. } => content,
             Document::Edge { content, .. } => content,
@@ -66,7 +71,8 @@ mod vector_tests {
         db::graph::{edge::EdgeView, vertex::VertexView},
         prelude::{AdditionOps, EdgeViewOps, Graph, GraphViewOps, VertexViewOps},
         vectors::{
-            embeddings::openai_embedding, graph_entity::GraphEntity, vectorizable::Vectorizable,
+            document_source::DocumentSource, embeddings::openai_embedding,
+            graph_entity::GraphEntity, vectorizable::Vectorizable,
         },
     };
     use dotenv::dotenv;

@@ -3,24 +3,25 @@ use crate::{
         api::view::internal::DynamicGraph,
         graph::{edge::EdgeView, vertex::VertexView},
     },
-    prelude::{EdgeViewOps, GraphViewOps, VertexViewOps},
+    prelude::{EdgeViewOps, VertexViewOps},
     python::graph::views::graph_view::PyGraphView,
-    vectors::{vectorizable, vectorized_graph, Embedding, EmbeddingFunction},
+    vectors::{
+        vectorizable::Vectorizable, vectorized_graph::VectorizedGraph, DocumentOps, Embedding,
+        EmbeddingFunction,
+    },
 };
 use futures_util::future::BoxFuture;
 use itertools::Itertools;
-// use pyo3::{Py, Python};
 use pyo3::{
-    exceptions,
     prelude::*,
     types::{PyFunction, PyList},
 };
-use std::{future::Future, path::PathBuf, sync::Arc};
+use std::{path::PathBuf, sync::Arc};
 
 /// Graph view is a read-only version of a graph at a certain point in time.
 #[pyclass(name = "VectorizedGraph", frozen)]
 pub struct PyVectorizedGraph {
-    vectors: Arc<vectorized_graph<DynamicGraph>>,
+    vectors: Arc<VectorizedGraph<DynamicGraph>>,
 }
 
 #[pymethods]
@@ -90,7 +91,7 @@ impl PyVectorizedGraph {
                     None,
                 )
                 .await;
-            Ok(docs)
+            Ok(docs.into_iter().map(|doc| doc.into_content()).collect_vec())
         })
     }
 }

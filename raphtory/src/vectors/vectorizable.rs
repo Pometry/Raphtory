@@ -109,17 +109,15 @@ fn default_edge_template<G: GraphViewOps>(edge: &EdgeView<G>) -> String {
     let dst = edge.dst().name();
     // TODO: property list
 
-    edge.layer_names()
-        .iter()
-        .map(|layer| {
-            let times = edge.layer(layer).unwrap().history().iter().join(", ");
-            match layer.as_str() {
-                "_default" => format!("{src} interacted with {dst} at times: {times}"),
-                layer => format!("{src} {layer} {dst} at times: {times}"),
-            }
-        })
-        .intersperse("\n".to_owned())
-        .collect()
+    let layer_names = edge.layer_names();
+    let layer_lines = layer_names.iter().map(|layer| {
+        let times = edge.layer(layer).unwrap().history().iter().join(", ");
+        match layer.as_str() {
+            "_default" => format!("{src} interacted with {dst} at times: {times}"),
+            layer => format!("{src} {layer} {dst} at times: {times}"),
+        }
+    });
+    itertools::Itertools::intersperse(layer_lines, "\n".to_owned()).collect()
 }
 
 async fn generate_embeddings<I>(

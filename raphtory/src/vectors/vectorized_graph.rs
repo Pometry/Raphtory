@@ -1,6 +1,6 @@
 use crate::{
     db::{
-        api::view::internal::{CoreGraphOps, DynamicGraph, IntoDynamic},
+        api::view::internal::{DynamicGraph, IntoDynamic},
         graph::{edge::EdgeView, vertex::VertexView, views::window_graph::WindowedGraph},
     },
     prelude::{EdgeViewOps, GraphViewOps, Layer, TimeOps, VertexViewOps},
@@ -107,7 +107,7 @@ impl<G: GraphViewOps + IntoDynamic> VectorizedGraph<G> {
         }
 
         let remaining_entities = find_top_k(chain!(selected_nodes, selected_edges), generic_init);
-        for (id, distance) in remaining_entities {
+        for (id, _distance) in remaining_entities {
             entry_point.push(id.clone());
         }
 

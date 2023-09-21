@@ -55,15 +55,15 @@ impl<G: GraphViewOps> GraphEntity for VertexView<G> {
             let props = self.temporal_values(&key);
             let values = props.iter().map(|prop| prop.to_string());
             let time_value_pairs = history.iter().zip(values);
-            time_value_pairs
-                .unique_by(|(_, value)| value.clone())
-                .map(|(time, value)| {
-                    let key = key.to_string();
-                    let time = time_fmt(*time);
-                    format!("{key} changed to {value} at {time}")
-                })
-                .intersperse("\n".to_owned())
-                .collect()
+            let events =
+                time_value_pairs
+                    .unique_by(|(_, value)| value.clone())
+                    .map(|(time, value)| {
+                        let key = key.to_string();
+                        let time = time_fmt(*time);
+                        format!("{key} changed to {value} at {time}")
+                    });
+            itertools::Itertools::intersperse(events, "\n".to_owned()).collect()
         });
 
         let prop_storage = self.properties();
@@ -82,16 +82,17 @@ impl<G: GraphViewOps> GraphEntity for VertexView<G> {
         // We sort by length so when cutting out the tail of the document we don't remove small properties
 
         let lines = chain!([min_time, max_time], props);
-        lines.intersperse("\n".to_owned()).collect()
+        itertools::Itertools::intersperse(lines, "\n".to_owned()).collect()
     }
 }
 
 impl<G: GraphViewOps> GraphEntity for EdgeView<G> {
+    // FIXME: implement this and remove underscore prefix from the parameter names
     fn generate_property_list<F, D>(
         &self,
-        time_fmt: &F,
-        filter_out: Vec<&str>,
-        force_static: Vec<&str>,
+        _time_fmt: &F,
+        _filter_out: Vec<&str>,
+        _force_static: Vec<&str>,
     ) -> String
     where
         F: Fn(i64) -> D,
