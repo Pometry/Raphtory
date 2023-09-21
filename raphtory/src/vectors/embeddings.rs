@@ -18,6 +18,8 @@ pub async fn openai_embedding(texts: Vec<String>) -> Vec<Embedding> {
     response.data.into_iter().map(|e| e.embedding).collect_vec()
 }
 
+// this is currently commented out so we don't need to add any new dependencies
+// but might be potentially useful in the future
 // async fn sentence_transformers_embeddings(texts: Vec<String>) -> Vec<Embedding> {
 //     println!("computing embeddings for {} texts", texts.len());
 //     Python::with_gil(|py| {
