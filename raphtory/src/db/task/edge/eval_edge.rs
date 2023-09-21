@@ -2,9 +2,8 @@ use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
         state::compute_state::ComputeState,
-        storage::locked_view::LockedView,
         utils::time::IntoTime,
-        ArcStr, Prop, Prop,
+        ArcStr, Prop,
     },
     db::{
         api::{
@@ -14,7 +13,6 @@ use crate::{
             },
             view::*,
         },
-        graph::{edge::EdgeView, views::window_graph::WindowedGraph},
         task::{
             edge::window_eval_edge::WindowEvalEdgeView,
             task_state::Local2,
@@ -291,7 +289,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeListOps
         Box::new(self.map(|e| e.layer_name().map(|v| v.clone())))
     }
 
-    fn layer_names(self) -> Self::IterType<Vec<String>> {
+    fn layer_names(self) -> Self::IterType<BoxedIter<ArcStr>> {
         Box::new(self.map(|e| e.layer_names()))
     }
 

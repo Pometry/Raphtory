@@ -28,10 +28,7 @@ use crate::{
                 internal::{ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps},
                 Properties,
             },
-            view::{
-                internal::{DynamicGraph, Static},
-                BoxedIter, EdgeViewInternalOps, LayerOps, WindowSet,
-            },
+            view::{internal::Static, BoxedIter, EdgeViewInternalOps, LayerOps},
         },
         graph::{vertex::VertexView, views::window_graph::WindowedGraph},
     },
@@ -411,7 +408,7 @@ impl<G: GraphViewOps> EdgeListOps for BoxedIter<EdgeView<G>> {
         Box::new(self.map(|e| e.layer_name().map(|v| v.clone())))
     }
 
-    fn layer_names(self) -> Self::IterType<Vec<String>> {
+    fn layer_names(self) -> Self::IterType<BoxedIter<ArcStr>> {
         Box::new(self.map(|e| e.layer_names()))
     }
 
@@ -507,7 +504,7 @@ impl<G: GraphViewOps> EdgeListOps for BoxedIter<BoxedIter<EdgeView<G>>> {
         Box::new(self.map(|it| it.layer_name()))
     }
 
-    fn layer_names(self) -> Self::IterType<Vec<String>> {
+    fn layer_names(self) -> Self::IterType<BoxedIter<ArcStr>> {
         Box::new(self.map(|it| it.layer_names()))
     }
 

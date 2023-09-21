@@ -4,21 +4,15 @@ use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, VID},
         storage::timeindex::{AsTime, TimeIndexEntry},
-        utils::time::{error::ParseTimeError, IntoTime},
+        utils::time::IntoTime,
         ArcStr,
     },
-    db::{
-        api::{
-            properties::{
-                internal::{ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps},
-                Properties,
-            },
-            view::{internal::*, *},
+    db::api::{
+        properties::{
+            internal::{ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps},
+            Properties,
         },
-        graph::{
-            edge::EdgeView,
-            views::{layer_graph::LayeredGraph, window_graph::WindowedGraph},
-        },
+        view::{internal::*, *},
     },
 };
 
@@ -214,7 +208,7 @@ pub trait EdgeListOps:
     /// Get the layer name for each edge if it is restricted to a single layer
     fn layer_name(self) -> Self::IterType<Option<ArcStr>>;
 
-    fn layer_names(self) -> Self::IterType<Vec<ArcStr>>;
+    fn layer_names(self) -> Self::IterType<BoxedIter<ArcStr>>;
 
     fn history(self) -> Self::IterType<Vec<i64>>;
 

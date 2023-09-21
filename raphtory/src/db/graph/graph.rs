@@ -16,12 +16,13 @@
 //! ```
 //!
 
-use crate::db::api::view::internal::Static;
 use crate::{
     core::{entities::graph::tgraph::InnerTemporalGraph, utils::errors::GraphError},
     db::api::{
         mutation::internal::{InheritAdditionOps, InheritPropertyAdditionOps},
-        view::internal::{Base, DynamicGraph, InheritViewOps, IntoDynamic, MaterializedGraph},
+        view::internal::{
+            Base, DynamicGraph, InheritViewOps, IntoDynamic, MaterializedGraph, Static,
+        },
     },
     prelude::*,
 };
