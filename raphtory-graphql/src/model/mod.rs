@@ -158,14 +158,13 @@ impl Mut {
             let subgraph = data.get(&graph_name).ok_or("Graph not found")?;
             let path = subgraph
                 .static_prop(&"path".to_string())
-                .expect("Path is missing")
+                .ok_or("Path is missing")?
                 .to_string();
 
             let parent_graph = data.get(&parent_graph_name).ok_or("Graph not found")?;
             let new_subgraph = parent_graph
                 .subgraph(subgraph.vertices().iter().map(|v| v.name()).collect_vec())
-                .materialize()
-                .expect("Failed to materialize graph");
+                .materialize()?;
 
             let static_props_without_name: Vec<(String, Prop)> = subgraph
                 .properties()
@@ -173,23 +172,20 @@ impl Mut {
                 .filter(|(a, b)| a != "name")
                 .collect_vec();
 
-            new_subgraph
-                .add_constant_properties(static_props_without_name)
-                .expect("Failed to add static properties");
-
-            new_subgraph
-                .add_constant_properties([("name".to_string(), Prop::Str(new_graph_name.clone()))])
-                .expect("Failed to add static property");
+            new_subgraph.add_constant_properties(static_props_without_name)?;
+            new_subgraph.add_constant_properties([(
+                "name".to_string(),
+                Prop::Str(new_graph_name.clone()),
+            )])?;
 
             let dt = Utc::now();
             let timestamp: i64 = dt.timestamp();
-            new_subgraph
-                .add_constant_properties([("lastUpdated".to_string(), Prop::I64(timestamp * 1000))])
-                .expect("Failed to add static properties");
+            new_subgraph.add_constant_properties([(
+                "lastUpdated".to_string(),
+                Prop::I64(timestamp * 1000),
+            )])?;
 
-            new_subgraph
-                .save_to_file(path)
-                .expect("Failed to save graph");
+            new_subgraph.save_to_file(path)?;
 
             let gi: IndexedGraph<Graph> = new_subgraph
                 .into_events()
@@ -216,7 +212,7 @@ impl Mut {
         let subgraph = data.get(&graph_name).ok_or("Graph not found")?;
         let mut path = subgraph
             .static_prop(&"path".to_string())
-            .expect("Path is missing")
+            .ok_or("Path is missing")?
             .to_string();
 
         if new_graph_name.ne(&graph_name) {
@@ -241,14 +237,10 @@ impl Mut {
         }
 
         let parent_graph = data.get(&parent_graph_name).ok_or("Graph not found")?;
-        let new_subgraph = parent_graph
-            .subgraph(graph_nodes)
-            .materialize()
-            .expect("Failed to materialize graph");
+        let new_subgraph = parent_graph.subgraph(graph_nodes).materialize()?;
 
         new_subgraph
-            .add_constant_properties([("name".to_string(), Prop::Str(new_graph_name.clone()))])
-            .expect("Failed to add static property");
+            .add_constant_properties([("name".to_string(), Prop::Str(new_graph_name.clone()))])?;
 
         // parent_graph_name == graph_name, means its a graph created from UI
         if parent_graph_name.ne(&graph_name) {
@@ -259,18 +251,14 @@ impl Mut {
                     .into_iter()
                     .filter(|(a, b)| a != "name" && a != "creationTime" && a != "uiProps")
                     .collect_vec();
-                new_subgraph
-                    .add_constant_properties(static_props)
-                    .expect("Failed to add static properties");
+                new_subgraph.add_constant_properties(static_props)?;
             } else {
                 let static_props: Vec<(String, Prop)> = subgraph
                     .properties()
                     .into_iter()
                     .filter(|(a, b)| a != "name" && a != "lastUpdated" && a != "uiProps")
                     .collect_vec();
-                new_subgraph
-                    .add_constant_properties(static_props)
-                    .expect("Failed to add static properties");
+                new_subgraph.add_constant_properties(static_props)?;
             }
         }
 
@@ -278,25 +266,17 @@ impl Mut {
         let timestamp: i64 = dt.timestamp();
 
         if parent_graph_name.eq(&graph_name) || graph_name.ne(&new_graph_name) {
-            new_subgraph
-                .add_constant_properties([(
-                    "creationTime".to_string(),
-                    Prop::I64(timestamp * 1000),
-                )])
-                .expect("Failed to add static properties");
+            new_subgraph.add_constant_properties([(
+                "creationTime".to_string(),
+                Prop::I64(timestamp * 1000),
+            )])?;
         }
 
         new_subgraph
-            .add_constant_properties([("lastUpdated".to_string(), Prop::I64(timestamp * 1000))])
-            .expect("Failed to add static properties");
+            .add_constant_properties([("lastUpdated".to_string(), Prop::I64(timestamp * 1000))])?;
+        new_subgraph.add_constant_properties([("uiProps".to_string(), Prop::Str(props))])?;
 
-        new_subgraph
-            .add_constant_properties([("uiProps".to_string(), Prop::Str(props))])
-            .expect("Failed to add static property");
-
-        new_subgraph
-            .save_to_file(path)
-            .expect("Failed to save graph");
+        new_subgraph.save_to_file(path)?;
 
         let gi: IndexedGraph<Graph> = new_subgraph
             .into_events()
@@ -367,29 +347,23 @@ impl Mut {
 
         let path = subgraph
             .static_prop(&"path".to_string())
-            .expect("Path is missing")
+            .ok_or("Path is missing")?
             .to_string();
 
         let parent_graph = data.get(&parent_graph_name).ok_or("Graph not found")?;
         let new_subgraph = parent_graph
             .subgraph(subgraph.vertices().iter().map(|v| v.name()).collect_vec())
-            .materialize()
-            .expect("Failed to materialize graph");
+            .materialize()?;
 
         let static_props_without_isactive: Vec<(String, Prop)> = subgraph
             .properties()
             .into_iter()
             .filter(|(a, b)| a != "isArchive")
             .collect_vec();
+        new_subgraph.add_constant_properties(static_props_without_isactive)?;
         new_subgraph
-            .add_constant_properties(static_props_without_isactive)
-            .expect("Failed to add static properties");
-        new_subgraph
-            .add_constant_properties([("isArchive".to_string(), Prop::U8(is_archive.clone()))])
-            .expect("Failed to add static property");
-        new_subgraph
-            .save_to_file(path)
-            .expect("Failed to save graph");
+            .add_constant_properties([("isArchive".to_string(), Prop::U8(is_archive.clone()))])?;
+        new_subgraph.save_to_file(path)?;
 
         let gi: IndexedGraph<Graph> = new_subgraph
             .into_events()
