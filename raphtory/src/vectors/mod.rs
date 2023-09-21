@@ -103,6 +103,7 @@ mod vector_tests {
 
     // TODO: test default templates
 
+    #[ignore = "this test needs an OpenAI API key to run"]
     #[tokio::test]
     async fn test_empty_graph() {
         dotenv().ok();
