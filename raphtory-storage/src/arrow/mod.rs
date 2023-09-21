@@ -1,4 +1,10 @@
-use polars_core::utils::arrow::array::{MutablePrimitiveArray, MutableStructArray};
+use polars_core::utils::arrow::{
+    array::{
+        MutableArray, MutableListArray, MutablePrimitiveArray, MutableStructArray, MutableUtf8Array,
+    },
+    types::NativeType,
+};
+use raphtory::core::{ArcStr, PropType};
 
 pub(crate) mod columnar_graph;
 
@@ -23,4 +29,31 @@ impl<'a> From<&'a mut MutableStructArray> for MutEdgePair<'a> {
     fn from(arr: &'a mut MutableStructArray) -> Self {
         Self(arr)
     }
+}
+
+pub(crate) struct MutTemporalPropColumn {
+    top_col_name: ArcStr,
+    temporal_props: MutableListArray<i64, MutableStructArray>,
+}
+
+impl MutTemporalPropColumn {
+    pub(crate) fn new(
+        top_col_name: &str,
+        temporal_props: MutableListArray<i64, MutableStructArray>,
+    ) -> Self {
+        Self {
+            top_col_name: top_col_name.into(),
+            temporal_props,
+        }
+    }
+
+    // fn as_mut_array<T: NativeType>(&mut self) -> Option<&mut MPArr<T>> {
+    //     self.arr.as_mut_any().downcast_mut::<MPArr<T>>()
+    // }
+
+    // fn as_utf8_mut(&mut self) -> Option<&mut MutableUtf8Array<i64>> {
+    //     self.arr
+    //         .as_mut_any()
+    //         .downcast_mut::<MutableUtf8Array<i64>>()
+    // }
 }
