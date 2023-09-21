@@ -5,13 +5,12 @@ use polars_core::{prelude::*, utils::arrow::array::*};
 use raphtory::{
     core::{
         entities::{vertices::vertex_ref::VertexRef, LayerIds, EID, VID},
-        Direction,
+        Direction, PropType,
     },
-    db::api::view::internal::ExplodedEdgeOps,
     prelude::{GraphViewOps, VertexViewOps},
 };
 
-use super::{MPArr, MutEdgePair};
+use super::{MPArr, MutEdgePair, MutTemporalPropColumn};
 
 #[derive(Debug)]
 pub struct TemporalColGraphFragment {
@@ -27,6 +26,7 @@ const E_ADDITIONS_COLUMN: &str = "additions";
 const E_DELETIONS_COLUMN: &str = "deletions";
 
 const NAME_COLUMN: &str = "name";
+const TEMPORAL_PROPS_COLUMN: &str = "temporal_props";
 
 const GID_COLUMN: &str = "global_vertex_id";
 const SRC_COLUMN: &str = "src";
@@ -36,9 +36,9 @@ const V_COLUMN: &str = "v";
 const E_COLUMN: &str = "e";
 
 impl TemporalColGraphFragment {
-
-    fn generate_lookup_tables<G: GraphViewOps>(g: &G) -> (Vec<usize>, Vec<usize>, Vec<usize>, Vec<usize>) {
-
+    fn generate_lookup_tables<G: GraphViewOps>(
+        g: &G,
+    ) -> (Vec<usize>, Vec<usize>, Vec<usize>, Vec<usize>) {
         // create a lookup table for the vertices sorted by gid
         let mut new_to_old = (0..g.unfiltered_num_vertices()).collect::<Vec<_>>();
         new_to_old.sort_unstable_by_key(|&vid| g.vertex_id(vid.into()));
@@ -63,21 +63,65 @@ impl TemporalColGraphFragment {
         }
 
         (new_to_old, old_to_new, edges_new_to_old, edges_old_to_new)
-
     }
 
-    fn prop_cols_from_edge_meta<G: GraphViewOps>(g: &G) {
+    fn prop_cols_from_edge_meta<G: GraphViewOps>(g: &G) -> MutTemporalPropColumn {
+        let temp_prop_meta = g.edge_meta().temporal_prop_meta();
 
-        // let prop = "usd"; 
+        let mut prop_arrays: Vec<Box<dyn MutableArray>> =
+            Vec::with_capacity(temp_prop_meta.get_keys().len());
 
-        // let mut usd_property = MutableListArray::<i64, MutableStructArray>::new_with_field(MutableStructArray::new(data_type, values), prop, false);
+        let mut fields = Vec::with_capacity(temp_prop_meta.get_keys().len());
 
-        // let edge_meta = g.edge_meta();
+        for prop_id in 0..prop_arrays.len() {
+            let prop_name = temp_prop_meta.get_name(prop_id).unwrap();
+            let prop_type = temp_prop_meta.get_dtype(prop_id).unwrap();
+            match prop_type {
+                PropType::I32 => {
+                    let arr = Box::new(MutablePrimitiveArray::<i32>::new());
+                    // let mut_col = MutTemporalPropColumn::new(prop_name, prop_type, arr);
+                    prop_arrays.push(arr);
+                }
+                PropType::Str => {
+                    let arr = Box::new(MutableUtf8Array::<i64>::new());
+                    // let mut_col = MutTemporalPropColumn::new(prop_name, prop_type, arr);
+                    prop_arrays.push(arr);
+                }
+                _ => todo!(),
+            }
+            fields.push(ArrowField::new(
+                prop_name,
+                Self::prop_type_to_arrow(prop_type),
+                true,
+            ));
+        }
+
+        let struct_arr = MutableStructArray::new(ArrowDataType::Struct(fields), prop_arrays);
+        let list_column = MutableListArray::<i64, MutableStructArray>::new_with_field(
+            struct_arr,
+            TEMPORAL_PROPS_COLUMN,
+            false,
+        );
+
+        MutTemporalPropColumn::new(TEMPORAL_PROPS_COLUMN, list_column)
+    }
+
+    fn prop_type_to_arrow(prop_type: PropType) -> ArrowDataType {
+        match prop_type {
+            PropType::I32 => ArrowDataType::Int32,
+            PropType::I64 => ArrowDataType::Int64,
+            PropType::F32 => ArrowDataType::Float32,
+            PropType::F64 => ArrowDataType::Float64,
+            PropType::Str => ArrowDataType::Utf8,
+            PropType::Bool => ArrowDataType::Boolean,
+            _ => todo!(),
+        }
     }
 
     pub fn from_graph<G: GraphViewOps>(g: &G) -> Self {
         //FIXME: once we have the old_to_new and new_to_old we should be able to parallelise every other column
-        let (new_to_old, old_to_new, edges_new_to_old, edges_old_to_new) = Self::generate_lookup_tables(g);
+        let (new_to_old, old_to_new, edges_new_to_old, edges_old_to_new) =
+            Self::generate_lookup_tables(g);
 
         let mut edge_src_column = Vec::with_capacity(edges_new_to_old.len());
         let mut edge_dst_column = Vec::with_capacity(edges_new_to_old.len());
@@ -85,9 +129,17 @@ impl TemporalColGraphFragment {
         let mut edge_timestamps = Self::mutable_timestamps_column(E_ADDITIONS_COLUMN);
         let mut edge_deletions = Self::mutable_timestamps_column(E_DELETIONS_COLUMN);
 
+        let mut temporal_prop_columns = Self::prop_cols_from_edge_meta(g);
 
         for &eid in &edges_new_to_old {
             let edge = g.find_edge_id(eid.into(), &LayerIds::All, None).unwrap();
+
+            // props
+
+            // let usd_prop = g.temporal_edge_prop(edge, "usd", LayerIds::All).unwrap();
+            // let other_prop = g.temporal_edge_prop(edge, "other", LayerIds::All).unwrap();
+            // src_id, dst_id
+
             let src_id: usize = edge.src().into();
             let dst_id: usize = edge.dst().into();
 
@@ -97,7 +149,12 @@ impl TemporalColGraphFragment {
             edge_src_column.push(*new_src_id as u64);
             edge_dst_column.push(*new_dst_id as u64);
 
-            let edge_history = g.edge_history(edge).collect::<Vec<_>>();
+            // additions
+
+            let edge_history = g
+                .edge_exploded(edge, LayerIds::All)
+                .filter_map(|e| e.time_t())
+                .collect::<Vec<_>>();
             let mut_arr = edge_timestamps.mut_values();
             mut_arr.extend_trusted_len_values(edge_history.into_iter());
             edge_timestamps.try_push_valid().expect("push valid");
@@ -412,9 +469,10 @@ impl TemporalColGraphFragment {
 
 #[cfg(test)]
 mod test {
+    use itertools::Itertools;
     use raphtory::{
         core::{
-            entities::{EID, VID},
+            entities::{properties::tprop::TProp, EID, VID},
             Direction,
         },
         db::graph::views::deletion_graph::GraphWithDeletions,
@@ -490,14 +548,26 @@ mod test {
     #[test]
     fn load_triangle_graph_with_edge_prop() {
         let graph = Graph::new();
-        graph.add_edge(9, 1, 2, [("usd", 17)], None).expect("add edge");
-        graph.add_edge(0, 1, 2, [("usd", 35)], None).expect("add edge");
+        graph
+            .add_edge(9, 1, 2, [("usd", 17)], None)
+            .expect("add edge");
+        graph
+            .add_edge(0, 1, 2, [("usd", 35)], None)
+            .expect("add edge");
 
-        graph.add_edge(7, 2, 3, [("usd", 28 )], None).expect("add edge");
-        graph.add_edge(1, 2, 3, [("usd", 17 )], None).expect("add edge");
+        graph
+            .add_edge(7, 2, 3, [("usd", 28)], None)
+            .expect("add edge");
+        graph
+            .add_edge(1, 2, 3, [("usd", 17)], None)
+            .expect("add edge");
 
-        graph.add_edge(2, 3, 1, [("usd", 235)], None).expect("add edge");
-        graph.add_edge(5, 3, 1, [("usd", 12)], None).expect("add edge");
+        graph
+            .add_edge(2, 3, 1, [("usd", 235)], None)
+            .expect("add edge");
+        graph
+            .add_edge(5, 3, 1, [("usd", 12)], None)
+            .expect("add edge");
 
         let g = TemporalColGraphFragment::from_graph(&graph);
         println!("{:?}", g);
@@ -629,6 +699,61 @@ mod test {
                 range,
                 &slice
             );
+        }
+    }
+
+    #[test]
+    fn merge_join_itertools_test() {
+        let v1 = vec![(1, 2), (3, 4), (5, 6)];
+        let v2 = vec![(1, 7), (2, 8), (4, 12), (5, 9)];
+
+        v1.into_iter()
+            .merge_join_by(v2.into_iter(), |(k1, v1), (k2, v2)| k1.cmp(k2))
+            .for_each(|x| {
+                println!("{:?}", x);
+            })
+    }
+
+    #[test]
+    fn merge_tprops_itertools_test() {
+        let cap = 2;
+        let v1 = vec![(1, Prop::U16(2)), (3, Prop::U16(4)), (5, Prop::U16(6))]
+            .into_iter()
+            .map(|(t, prop)| TPropRow::new(cap, 0, t, prop));
+        let v2 = vec![
+            (1, Prop::U16(7)),
+            (2, Prop::U16(8)),
+            (4, Prop::U16(12)),
+            (5, Prop::U16(9)),
+        ]
+        .into_iter()
+        .map(|(t, prop)| TPropRow::new(cap, 0, t, prop));
+
+        v1.into_iter()
+            .merge_join_by(v2.into_iter(), |p1, p2| p1.time().cmp(p2.time()))
+            .map(|merge_result| {
+                match merge_result {
+                    itertools::EitherOrBoth::Both(p1, p2) => p1.merge(p2),
+                    itertools::EitherOrBoth::Left(p1) => p1,
+                    itertools::EitherOrBoth::Right(p2) => p2,
+                }
+            });
+    }
+
+    struct TPropRow {
+        t: i64,
+        props: Vec<Option<Prop>>,
+    }
+
+    impl TPropRow {
+        fn new(cap: usize, prop_idx: usize, t: i64, prop: Prop) -> Self {
+            let mut props = vec![None; cap];
+            props[prop_idx] = Some(prop);
+            Self { t, props }
+        }
+
+        fn time(&self) -> &i64 {
+            &self.t
         }
     }
 }
