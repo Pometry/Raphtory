@@ -1,3 +1,5 @@
+use std::{ops::Range, fmt::Debug};
+
 use itertools::Itertools;
 use polars_core::{prelude::*, utils::arrow::array::*};
 use raphtory::{
@@ -5,8 +7,8 @@ use raphtory::{
         entities::{vertices::vertex_ref::VertexRef, LayerIds, EID, VID},
         Direction,
     },
-    db::{api::view::internal::ExplodedEdgeOps, graph::edge},
-    prelude::{Graph, GraphViewOps, VertexViewOps},
+    db::api::view::internal::ExplodedEdgeOps,
+    prelude::{GraphViewOps, VertexViewOps},
 };
 
 use super::{MPArr, MutEdgePair};
@@ -224,6 +226,15 @@ impl TemporalColGraphFragment {
             .expect("unexpected error, should be able to downcast, contact maintainers!")
     }
 
+    fn edge_additions(&self) -> &ChunkedArray<ListType> {
+        self.edge_df
+            .column(E_ADDITIONS_COLUMN)
+            .unwrap()
+            .as_any()
+            .downcast_ref::<ChunkedArray<ListType>>()
+            .expect("unexpected error, should be able to downcast, contact maintainers!")
+    }
+
     fn adj_list(&self, vertex_id: usize, dir: Direction) -> Option<StructArray> {
         let row: usize = vertex_id.into();
 
@@ -251,8 +262,8 @@ impl TemporalColGraphFragment {
         &self,
         vertex_id: VID,
         dir: Direction,
+        window: Option<Range<i64>>,
     ) -> Option<Box<dyn Iterator<Item = (VID, EID)>>> {
-        // {local_vid, local_eid}
         match dir {
             Direction::IN | Direction::OUT => {
                 let adj_array = self.adj_list(vertex_id.into(), dir)?;
@@ -264,29 +275,74 @@ impl TemporalColGraphFragment {
                     .as_any()
                     .downcast_ref::<PrimitiveArray<u64>>()?
                     .clone();
-                let iter: Box<dyn Iterator<Item = (VID, EID)>> = Box::new(
-                    v.into_iter()
-                        .filter_map(|x| x)
-                        .zip(e.into_iter().filter_map(|x| x))
-                        .map(|(vid, eid)| (VID(vid as usize), EID(eid as usize))),
-                );
-                Some(iter)
+                let iter = v
+                    .into_iter()
+                    .filter_map(|x| x)
+                    .zip(e.into_iter().filter_map(|x| x))
+                    .map(|(vid, eid)| (VID(vid as usize), EID(eid as usize)));
+
+                let edge_additions_column = self.edge_additions().clone();
+
+                let res: Box<dyn Iterator<Item = (VID, EID)>> = if let Some(range) = window {
+                    Box::new(iter.filter(move |(_, eid)| {
+                        Self::edge_in_interval(&edge_additions_column, *eid, &range.clone())
+                    }))
+                } else {
+                    Box::new(iter)
+                };
+
+                Some(res)
             }
             Direction::BOTH => {
-                let out = self.edges(vertex_id, Direction::OUT)?;
-                let inb = self.edges(vertex_id, Direction::IN)?;
+                let out = self.edges(vertex_id, Direction::OUT, window.clone())?;
+                let inb = self.edges(vertex_id, Direction::IN, window.clone())?;
                 Some(Box::new(out.merge_by(inb, |(v1, _), (v2, _)| v1 < v2)))
             }
         }
+    }
+
+    fn overlap<T: PartialOrd + Debug>(a: &Range<T>, sorted_slice: &[T]) -> bool {
+        if sorted_slice.is_empty() {
+            return false;
+        }
+        let first = &sorted_slice[0];
+        let last = &sorted_slice[sorted_slice.len() - 1];
+
+        if a.start > *last || a.end <= *first {
+            return false;
+        }
+        true
+    }
+
+    fn edge_in_interval(arr: &ChunkedArray<ListType>, eid: EID, window: &Range<i64>) -> bool {
+        let edge_timestamps = Self::get_edge_additions(arr, eid)
+            .expect("unexpected error, failed to load timestamps for edge");
+        Self::overlap(window, edge_timestamps.values())
+    }
+
+    fn get_edge_additions(arr: &ChunkedArray<ListType>, eid: EID) -> Option<PrimitiveArray<i64>> {
+        let chunks = arr.chunks();
+        let chunk_size = chunks[0].len(); // we assume all the chunks are the same size
+        let e_id: usize = eid.into();
+        let chunk = chunks.get(e_id / chunk_size)?;
+        let chunk_arr = chunk.as_any().downcast_ref::<ListArray<i64>>()?;
+        let edge_timestamps_arr = chunk_arr.value(e_id % chunk_size);
+        let edge_timestamps = edge_timestamps_arr
+            .as_any()
+            .downcast_ref::<PrimitiveArray<i64>>()?;
+        Some(edge_timestamps.clone())
     }
 
     pub(crate) fn neighbours(
         &self,
         vertex_id: VID,
         dir: Direction,
+        window: Option<&Range<i64>>,
     ) -> Option<Box<dyn Iterator<Item = VID>>> {
         // global_vid
-        let iter = self.edges(vertex_id, dir)?.map(|(local_id, _)| local_id);
+        let iter = self
+            .edges(vertex_id, dir, window.cloned())?
+            .map(|(local_id, _)| local_id);
         Some(Box::new(iter))
     }
 
@@ -344,14 +400,14 @@ mod test {
         let g = TemporalColGraphFragment::from_graph(&graph);
 
         let actual = g
-            .edges(0.into(), Direction::OUT)
+            .edges(0.into(), Direction::OUT, None)
             .unwrap()
             .collect::<Vec<_>>();
 
         assert_eq!(actual, vec![(VID(1), EID(0))]);
 
         let actual = g
-            .edges(1.into(), Direction::IN)
+            .edges(1.into(), Direction::IN, None)
             .unwrap()
             .collect::<Vec<_>>();
 
@@ -379,21 +435,21 @@ mod test {
 
         // edges
         let actual = g
-            .edges(0.into(), Direction::OUT)
+            .edges(0.into(), Direction::OUT, None)
             .unwrap()
             .collect::<Vec<_>>();
 
         assert_eq!(actual, vec![(VID(1), EID(0))]);
 
         let actual = g
-            .edges(1.into(), Direction::OUT)
+            .edges(1.into(), Direction::OUT, None)
             .unwrap()
             .collect::<Vec<_>>();
 
         assert_eq!(actual, vec![(VID(2), EID(1))]);
 
         let actual = g
-            .edges(2.into(), Direction::OUT)
+            .edges(2.into(), Direction::OUT, None)
             .unwrap()
             .collect::<Vec<_>>();
 
@@ -415,7 +471,7 @@ mod test {
 
         // edges
         let actual = g
-            .edges(0.into(), Direction::OUT)
+            .edges(0.into(), Direction::OUT, None)
             .unwrap()
             .collect::<Vec<_>>();
 
@@ -423,6 +479,41 @@ mod test {
             actual,
             vec![(VID(1), EID(0)), (VID(2), EID(1)), (VID(3), EID(2))]
         );
+    }
+
+    #[test]
+    fn vertex_with_2_edges_different_times() {
+        let graph = Graph::new();
+        graph.add_edge(2, 3, 1, NO_PROPS, None).expect("add edge");
+        graph.add_edge(1, 3, 2, NO_PROPS, None).expect("add edge");
+
+        let g = TemporalColGraphFragment::from_graph(&graph);
+        let one = g.resolve_vertex_id(1).unwrap();
+        let two = g.resolve_vertex_id(2).unwrap();
+        let three = g.resolve_vertex_id(3).unwrap();
+
+        let actual = g
+            .edges(three, Direction::OUT, None)
+            .expect("should have edges for 3")
+            .collect::<Vec<_>>();
+
+        assert_eq!(actual, vec![(one, EID(0)), (two, EID(1))]);
+
+        // 3's edges at time [0..2)
+        let actual = g
+            .edges(three, Direction::OUT, Some(0..2))
+            .expect("should have edges for 3")
+            .collect::<Vec<_>>();
+
+        assert_eq!(actual, vec![(two, EID(1))]);
+
+        // 3's edges at time [2..4)
+        let actual = g
+            .edges(three, Direction::OUT, Some(2..4))
+            .expect("should have edges for 3")
+            .collect::<Vec<_>>();
+
+        assert_eq!(actual, vec![(one, EID(0))]);
     }
 
     #[test]
@@ -438,8 +529,6 @@ mod test {
 
         let g = TemporalColGraphFragment::from_graph(&graph);
 
-        println!("{:?}", g);
-
         // resolve
         let one = g.resolve_vertex_id(1).unwrap();
         assert_eq!(one, 0.into());
@@ -451,8 +540,39 @@ mod test {
         assert_eq!(three, 2.into());
 
         // edges
-        let actual = g.edges(two, Direction::OUT).unwrap().collect::<Vec<_>>();
+        let actual = g
+            .edges(two, Direction::OUT, None)
+            .unwrap()
+            .collect::<Vec<_>>();
 
         assert_eq!(actual, vec![(VID(2), EID(1))]);
+    }
+
+    #[test]
+    fn overlap(){
+
+        let slice = [2];
+        let range = 0..2;
+
+        assert!(!TemporalColGraphFragment::overlap(&range, &slice));
+
+        let slice = [3, 4, 5, 6, 7];
+
+        let overlap = 4..6;
+        let overlap_left = 1..5;
+        let overlap_right = 5..8;
+        let overlap_right_edge = 7..9;
+
+        for range in &[overlap, overlap_left, overlap_right, overlap_right_edge] {
+            assert!(TemporalColGraphFragment::overlap(&range, &slice), "{:?} does not overlap {:?}", range, &slice);
+        }
+
+        let no_overlap = 0..2;
+        let no_overlap_included = 0..3;
+        let no_overlap_right = 8..10;
+
+        for range in &[no_overlap, no_overlap_included, no_overlap_right] {
+            assert!(!TemporalColGraphFragment::overlap(&range, &slice), "{:?} does overlap {:?}", range, &slice);
+        }
     }
 }
