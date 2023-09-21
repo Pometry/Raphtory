@@ -11,7 +11,7 @@ use dynamic_graphql::{
 };
 use itertools::Itertools;
 use raphtory::{
-    core::Prop,
+    core::{ArcStr, Prop},
     db::api::view::internal::{CoreGraphOps, DynamicGraph, IntoDynamic, MaterializedGraph},
     prelude::{Graph, GraphViewOps, PropertyAdditionOps, VertexViewOps},
     search::IndexedGraph,
@@ -157,7 +157,7 @@ impl Mut {
 
             let subgraph = data.get(&graph_name).ok_or("Graph not found")?;
             let path = subgraph
-                .static_prop(&"path".to_string())
+                .constant_prop(&"path".to_string())
                 .ok_or("Path is missing")?
                 .to_string();
 
@@ -166,7 +166,7 @@ impl Mut {
                 .subgraph(subgraph.vertices().iter().map(|v| v.name()).collect_vec())
                 .materialize()?;
 
-            let static_props_without_name: Vec<(String, Prop)> = subgraph
+            let static_props_without_name: Vec<(ArcStr, Prop)> = subgraph
                 .properties()
                 .into_iter()
                 .filter(|(a, b)| a != "name")
@@ -175,7 +175,7 @@ impl Mut {
             new_subgraph.add_constant_properties(static_props_without_name)?;
             new_subgraph.add_constant_properties([(
                 "name".to_string(),
-                Prop::Str(new_graph_name.clone()),
+                Prop::Str(new_graph_name.clone().into()),
             )])?;
 
             let dt = Utc::now();
@@ -240,21 +240,23 @@ impl Mut {
 
         let new_subgraph = parent_graph.subgraph(graph_nodes).materialize()?;
 
-        new_subgraph
-            .add_constant_properties([("name".to_string(), Prop::Str(new_graph_name.clone()))])?;
+        new_subgraph.add_constant_properties([(
+            "name".to_string(),
+            Prop::Str(new_graph_name.clone().into()),
+        )])?;
 
         // parent_graph_name == graph_name, means its a graph created from UI
         if parent_graph_name.ne(&graph_name) {
             // graph_name == new_graph_name, means its a "save" and not "save as" action
             if graph_name.ne(&new_graph_name) {
-                let static_props: Vec<(String, Prop)> = subgraph
+                let static_props: Vec<(ArcStr, Prop)> = subgraph
                     .properties()
                     .into_iter()
                     .filter(|(a, b)| a != "name" && a != "creationTime" && a != "uiProps")
                     .collect_vec();
                 new_subgraph.add_constant_properties(static_props)?;
             } else {
-                let static_props: Vec<(String, Prop)> = subgraph
+                let static_props: Vec<(ArcStr, Prop)> = subgraph
                     .properties()
                     .into_iter()
                     .filter(|(a, b)| a != "name" && a != "lastUpdated" && a != "uiProps")
@@ -275,7 +277,7 @@ impl Mut {
 
         new_subgraph
             .add_constant_properties([("lastUpdated".to_string(), Prop::I64(timestamp * 1000))])?;
-        new_subgraph.add_constant_properties([("uiProps".to_string(), Prop::Str(props))])?;
+        new_subgraph.add_constant_properties([("uiProps".to_string(), Prop::Str(props.into()))])?;
 
         new_subgraph.save_to_file(path)?;
 
@@ -347,7 +349,7 @@ impl Mut {
         let subgraph = data.get(&graph_name).ok_or("Graph not found")?;
 
         let path = subgraph
-            .static_prop(&"path".to_string())
+            .constant_prop(&"path".to_string())
             .ok_or("Path is missing")?
             .to_string();
 
@@ -356,7 +358,7 @@ impl Mut {
             .subgraph(subgraph.vertices().iter().map(|v| v.name()).collect_vec())
             .materialize()?;
 
-        let static_props_without_isactive: Vec<(String, Prop)> = subgraph
+        let static_props_without_isactive: Vec<(ArcStr, Prop)> = subgraph
             .properties()
             .into_iter()
             .filter(|(a, b)| a != "isArchive")
