@@ -3290,6 +3290,7 @@ dependencies = [
  "parking_lot",
  "polars-core",
  "raphtory",
+ "rayon",
 ]
 
 [[package]]
