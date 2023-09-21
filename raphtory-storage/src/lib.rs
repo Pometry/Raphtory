@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{ops::Range, sync::Arc};
 
 use arrow::columnar_graph::TemporalColGraphFragment;
 use itertools::Itertools;
@@ -23,6 +23,7 @@ impl TemporalColumnarGraph {
         &self,
         v: V,
         dir: Direction,
+        window: Option<Range<i64>>,
     ) -> impl Iterator<Item = VertexRef> {
         if let VertexRef::External(gid) = v.into() {
             self.fragments
@@ -31,12 +32,13 @@ impl TemporalColumnarGraph {
                 .filter_map(|fragment| {
                     let vid = fragment.resolve_vertex_id(gid)?;
                     let iter = fragment
-                        .neighbours(vid, dir)?
+                        .neighbours(vid, dir, window.as_ref())?
                         .filter_map(move |v| fragment.global_id(v))
                         .map(VertexRef::External);
                     Some(iter)
                 })
                 .kmerge()
+                .dedup()
         } else {
             panic!("Internal vertices not supported")
         }
@@ -53,8 +55,7 @@ mod test {
     use super::*;
     use crate::arrow::columnar_graph::TemporalColGraphFragment;
 
-    #[test]
-    fn two_fragments_same_vertex() {
+    fn simple_graph() -> TemporalColumnarGraph {
         let g1 = Graph::new();
 
         g1.add_edge(1, 1, 2, NO_PROPS, None)
@@ -72,14 +73,34 @@ mod test {
         let frag1 = TemporalColGraphFragment::from_graph(&g1);
         let frag2 = TemporalColGraphFragment::from_graph(&g2);
 
-        let tcg = TemporalColumnarGraph::new(vec![frag1, frag2]);
+        TemporalColumnarGraph::new(vec![frag1, frag2])
+    }
 
-        let out_neighbours = tcg.neighbours(2, Direction::OUT).collect::<Vec<_>>();
+    #[test]
+    fn two_fragments_same_vertex() {
+        let tcg = simple_graph();
+
+        let out_neighbours = tcg.neighbours(2, Direction::OUT, None).collect::<Vec<_>>();
         assert_eq!(
             out_neighbours,
             vec![VertexRef::External(3), VertexRef::External(4)]
         );
+    }
 
-        println!("{:?}", tcg);
+    #[test]
+    fn two_fragments_temporal_query(){
+        let tcg = simple_graph();
+
+        let out_neighbours = tcg.neighbours(2, Direction::OUT, Some(1..3)).collect::<Vec<_>>();
+        assert_eq!(
+            out_neighbours,
+            vec![VertexRef::External(3)]
+        );
+
+        let in_neighbours = tcg.neighbours(2, Direction::IN, Some(0..3)).collect::<Vec<_>>();
+        assert_eq!(
+            in_neighbours,
+            vec![VertexRef::External(1)]
+        );
     }
 }
