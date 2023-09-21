@@ -7,7 +7,7 @@
 use crate::{
     core::{
         utils::{errors::GraphError, time::error::ParseTimeError},
-        Direction,
+        ArcStr, Direction,
     },
     db::{
         api::{
@@ -114,6 +114,18 @@ impl IntoPy<PyObject> for EdgeView<MaterializedGraph> {
         Py::new(py, (PyMutableEdge::from(self.clone()), PyEdge::from(self)))
             .unwrap() // I think this only fails if we are out of memory? Seems to be unavoidable!
             .into_py(py)
+    }
+}
+
+impl IntoPy<PyObject> for ArcStr {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        self.0.into_py(py)
+    }
+}
+
+impl<'source> FromPyObject<'source> for ArcStr {
+    fn extract(ob: &'source PyAny) -> PyResult<Self> {
+        ob.extract::<String>().map(|v| v.into())
     }
 }
 
@@ -290,7 +302,7 @@ impl PyEdge {
         if let Some(edge) = self.edge.layer(layer_names.clone()) {
             Ok(edge)
         } else {
-            let available_layers = self.edge.layer_names();
+            let available_layers: Vec<_> = self.edge.layer_names().collect();
             Err(PyErr::new::<pyo3::exceptions::PyAttributeError, _>(
                 format!("Layers {layer_names:?} not available for edge, available layers: {available_layers:?}"),
             ))
@@ -379,10 +391,10 @@ impl PyEdge {
     /// Gets the names of the layers this edge belongs to
     ///
     /// Returns:
-    ///     (str) The name of the layer
+    ///     ([str]) The name of the layer
     #[getter]
-    pub fn layer_names(&self) -> Vec<String> {
-        self.edge.layer_names()
+    pub fn layer_names(&self) -> Vec<ArcStr> {
+        self.edge.layer_names().collect()
     }
 
     /// Gets the name of the layer this edge belongs to - assuming it only belongs to one layer
@@ -390,8 +402,8 @@ impl PyEdge {
     /// Returns:
     ///     ([str]) The name of the layer
     #[getter]
-    pub fn layer_name(&self) -> Option<String> {
-        self.edge.layer_name()
+    pub fn layer_name(&self) -> Option<ArcStr> {
+        self.edge.layer_name().map(|v| v.clone())
     }
 
     /// Gets the datetime of an exploded edge.

@@ -1,21 +1,17 @@
 use crate::server::RaphtoryServer;
 use clap::Parser;
 use dotenv::dotenv;
-use raphtory::{
-    db::{
-        api::view::internal::DynamicGraph,
-        graph::{edge::EdgeView, vertex::VertexView},
-    },
-    prelude::{EdgeViewOps, Graph, LayerOps, VertexViewOps},
-    vectors::graph_entity,
-};
-use std::{env, path::PathBuf};
+use std::env;
 
 mod data;
 mod model;
 mod observability;
 mod routes;
 mod server;
+
+fn default_cache_dir() -> String {
+    "".to_owned()
+}
 
 #[derive(Parser, Debug)]
 struct Args {
@@ -24,7 +20,7 @@ struct Args {
     vectorize: Vec<String>,
 
     /// directory to use to store the embbeding cache
-    #[arg(short, long, default_value_t = ("".to_string()))]
+    #[arg(short, long, default_value_t = default_cache_dir())]
     cache: String,
 }
 
@@ -37,7 +33,7 @@ async fn main() {
     // let graphs_to_vectorize = vec!["jira".to_owned()];
     // let cache_dir = "/tmp/jira-cache-gte-small-batching";
     assert!(
-        graphs_to_vectorize.len() == 0 || cache_dir != "",
+        graphs_to_vectorize.is_empty() || !cache_dir.is_empty(),
         "Setting up a cache directory is mandatory if some graphs need to be vectorized"
     );
 

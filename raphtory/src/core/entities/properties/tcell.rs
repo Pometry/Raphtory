@@ -6,9 +6,8 @@ use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, fmt::Debug, ops::Range};
 
 #[derive(Debug, PartialEq, Default, Clone, Serialize, Deserialize)]
-
 // TCells represent a value in time that can be set at multiple times and keeps a history
-pub enum TCell<A: Clone + Default + Debug + PartialEq> {
+pub enum TCell<A: Clone + Debug + PartialEq> {
     #[default]
     Empty,
     TCell1(TimeIndexEntry, A),
@@ -18,7 +17,7 @@ pub enum TCell<A: Clone + Default + Debug + PartialEq> {
 
 const BTREE_CUTOFF: usize = 128;
 
-impl<A: Clone + Default + Debug + PartialEq> TCell<A> {
+impl<A: Clone + Debug + PartialEq> TCell<A> {
     pub fn new(t: TimeIndexEntry, value: A) -> Self {
         TCell::TCell1(t, value)
     }

@@ -161,7 +161,7 @@ impl Mut {
 
         let subgraph = data.get(&graph_name).ok_or("Graph not found")?;
         let mut path = subgraph
-            .static_prop(&"path".to_string())
+            .constant_prop(&"path".to_string())
             .expect("Path is missing")
             .to_string();
 
@@ -191,19 +191,18 @@ impl Mut {
             .subgraph(graph_nodes)
             .materialize()
             .expect("Failed to materialize graph");
-        let static_props_without_name: Vec<(String, Prop)> = subgraph
+        let static_props_without_name = subgraph
             .properties()
             .into_iter()
-            .filter(|(a, b)| a != "name")
-            .collect_vec();
+            .filter(|(a, _)| a != "name");
         new_subgraph
             .add_constant_properties(static_props_without_name)
             .expect("Failed to add static properties");
         new_subgraph
-            .add_constant_properties([("name".to_string(), Prop::Str(new_graph_name.clone()))])
+            .add_constant_properties([("name".to_string(), Prop::str(new_graph_name.clone()))])
             .expect("Failed to add static property");
         new_subgraph
-            .add_constant_properties([("uiProps".to_string(), Prop::Str(props))])
+            .add_constant_properties([("uiProps".to_string(), Prop::str(props))])
             .expect("Failed to add static property");
 
         new_subgraph

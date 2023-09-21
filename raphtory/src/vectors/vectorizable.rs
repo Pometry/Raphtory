@@ -109,10 +109,14 @@ fn default_edge_template<G: GraphViewOps>(edge: &EdgeView<G>) -> String {
     let dst = edge.dst().name();
     // TODO: property list
 
-    let layer_names = edge.layer_names();
-    let layer_lines = layer_names.iter().map(|layer| {
-        let times = edge.layer(layer).unwrap().history().iter().join(", ");
-        match layer.as_str() {
+    let layer_lines = edge.layer_names().map(|layer| {
+        let times = edge
+            .layer(layer.clone())
+            .unwrap()
+            .history()
+            .iter()
+            .join(", ");
+        match layer.as_ref() {
             "_default" => format!("{src} interacted with {dst} at times: {times}"),
             layer => format!("{src} {layer} {dst} at times: {times}"),
         }

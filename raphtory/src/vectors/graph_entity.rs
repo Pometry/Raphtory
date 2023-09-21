@@ -40,8 +40,8 @@ impl<G: GraphViewOps> GraphEntity for VertexView<G> {
 
         let temporal_keys = self
             .temporal_property_keys()
-            .filter(|key| !filter_out.contains(&key.as_str()))
-            .filter(|key| !force_static.contains(&key.as_str()))
+            .filter(|key| !filter_out.contains(&key.as_ref()))
+            .filter(|key| !force_static.contains(&key.as_ref()))
             .filter(|key| {
                 // the history of the temporal prop has more than one value
                 let props = self.temporal_values(key);
@@ -70,7 +70,7 @@ impl<G: GraphViewOps> GraphEntity for VertexView<G> {
 
         let static_props = prop_storage
             .keys()
-            .filter(|key| !filter_out.contains(&key.as_str()))
+            .filter(|key| !filter_out.contains(&key.as_ref()))
             .filter(|key| !temporal_keys.contains(key))
             .map(|key| {
                 let prop = prop_storage.get(&key).unwrap().to_string();
