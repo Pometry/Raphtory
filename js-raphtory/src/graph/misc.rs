@@ -21,7 +21,7 @@ impl From<JsProp> for JsValue {
         match value.0 {
             raphtory::core::Prop::U8(v) => v.into(),
             raphtory::core::Prop::U16(v) => v.into(),
-            raphtory::core::Prop::Str(v) => v.into(),
+            raphtory::core::Prop::Str(v) => v.to_string().into(),
             raphtory::core::Prop::I32(v) => v.into(),
             raphtory::core::Prop::I64(v) => v.into(),
             raphtory::core::Prop::U32(v) => v.into(),
@@ -68,6 +68,6 @@ impl From<JsObjectEntry> for Option<(String, Prop)> {
 
         let key = arr.at(0).as_string().unwrap();
         let value = arr.at(1).as_string().unwrap();
-        Some((key, Prop::Str(value)))
+        Some((key, Prop::str(value)))
     }
 }

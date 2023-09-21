@@ -15,13 +15,13 @@ use serde::{Deserialize, Serialize};
 use std::{
     array,
     fmt::Debug,
+    iter::FusedIterator,
     ops::{Deref, DerefMut},
     sync::{
         atomic::{AtomicUsize, Ordering},
         Arc,
     },
 };
-use tantivy::directory::Lock;
 
 type ArcRwLockReadGuard<T> = lock_api::ArcRwLockReadGuard<parking_lot::RawRwLock, T>;
 
@@ -32,8 +32,8 @@ fn resolve<const N: usize>(index: usize) -> (usize, usize) {
     (bucket, offset)
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct LockVec<T: Default> {
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct LockVec<T> {
     data: Arc<RwLock<Vec<T>>>,
 }
 
@@ -208,28 +208,24 @@ impl<T: Default, const N: usize> RawStorage<T, N> {
     pub fn pair_entry_mut(&self, i: usize, j: usize) -> PairEntryMut<'_, T> {
         let (bucket_i, offset_i) = resolve::<N>(i);
         let (bucket_j, offset_j) = resolve::<N>(j);
-        if bucket_i != bucket_j {
-            // The code below deadlocks! left here as an example of what not to do
-            // PairEntryMut::Different {
-            //     i: offset_i,
-            //     j: offset_j,
-            //     guard1: self.data[bucket].data.write(),
-            //     guard2: self.data[bucket2].data.write(),
-            // }
-            loop {
-                if let Some((guard_i, guard_j)) = self.data[bucket_i]
-                    .data
-                    .try_write()
-                    .zip(self.data[bucket_j].data.try_write())
-                {
-                    break PairEntryMut::Different {
-                        i: offset_i,
-                        j: offset_j,
-                        guard1: guard_i,
-                        guard2: guard_j,
-                    };
-                }
-                // TODO add a counter to avoid spinning for too long
+        // always acquire lock for smaller bucket first to avoid deadlock between two updates for the same pair of buckets
+        if bucket_i < bucket_j {
+            let guard_i = self.data[bucket_i].data.write();
+            let guard_j = self.data[bucket_j].data.write();
+            PairEntryMut::Different {
+                i: offset_i,
+                j: offset_j,
+                guard1: guard_i,
+                guard2: guard_j,
+            }
+        } else if bucket_i > bucket_j {
+            let guard_j = self.data[bucket_j].data.write();
+            let guard_i = self.data[bucket_i].data.write();
+            PairEntryMut::Different {
+                i: offset_i,
+                j: offset_j,
+                guard1: guard_i,
+                guard2: guard_j,
             }
         } else {
             PairEntryMut::Same {

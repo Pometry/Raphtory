@@ -211,7 +211,7 @@ impl Mut {
 
         let subgraph = data.get(&graph_name).ok_or("Graph not found")?;
         let mut path = subgraph
-            .static_prop(&"path".to_string())
+            .constant_prop(&"path".to_string())
             .ok_or("Path is missing")?
             .to_string();
 
@@ -237,6 +237,7 @@ impl Mut {
         }
 
         let parent_graph = data.get(&parent_graph_name).ok_or("Graph not found")?;
+      
         let new_subgraph = parent_graph.subgraph(graph_nodes).materialize()?;
 
         new_subgraph

@@ -5,7 +5,7 @@ pub(crate) mod timer;
 #[cfg(test)]
 mod test {
     use crate::{
-        core::Direction,
+        core::{Direction, PropType},
         db::api::mutation::internal::InternalAdditionOps,
         prelude::{IntoProp, Prop, NO_PROPS},
     };
@@ -18,27 +18,20 @@ mod test {
         let l_btc = g.resolve_layer(Some("btc"));
         let l_eth = g.resolve_layer(Some("eth"));
         let l_tether = g.resolve_layer(Some("tether"));
-        let v1 = g.resolve_vertex(1);
-        let v2 = g.resolve_vertex(2);
+        let v1 = g.resolve_vertex(1, None);
+        let v2 = g.resolve_vertex(2, None);
+        let tx_sent_id = g
+            .resolve_edge_property("tx_sent", PropType::I32, false)
+            .unwrap();
+        g.inner()
+            .add_edge_internal(1.into(), v1, v2, vec![(tx_sent_id, Prop::I32(10))], l_btc);
+        g.inner()
+            .add_edge_internal(1.into(), v1, v2, vec![(tx_sent_id, Prop::I32(20))], l_eth);
         g.inner().add_edge_internal(
             1.into(),
             v1,
             v2,
-            vec![("tx_sent".to_string(), 10.into_prop())],
-            l_btc,
-        );
-        g.inner().add_edge_internal(
-            1.into(),
-            v1,
-            v2,
-            vec![("tx_sent".to_string(), 20.into_prop())],
-            l_eth,
-        );
-        g.inner().add_edge_internal(
-            1.into(),
-            v1,
-            v2,
-            vec![("tx_sent".to_string(), 70.into_prop())],
+            vec![(tx_sent_id, Prop::I32(70))],
             l_tether,
         );
 
@@ -62,12 +55,12 @@ mod test {
     #[test]
     fn simple_triangle() {
         let g: InnerTemporalGraph<2> = InnerTemporalGraph::default();
-        let v1 = g.resolve_vertex(1);
-        let v2 = g.resolve_vertex(2);
-        let v3 = g.resolve_vertex(3);
+        let v1 = g.resolve_vertex(1, None);
+        let v2 = g.resolve_vertex(2, None);
+        let v3 = g.resolve_vertex(3, None);
         let vs = vec![(1, v1, v2), (2, v1, v3), (3, v2, v1), (4, v3, v2)];
 
-        let empty: Vec<(String, Prop)> = vec![];
+        let empty: Vec<(usize, Prop)> = vec![];
         for (t, src, dst) in vs {
             g.inner()
                 .add_edge_internal(t.into(), src, dst, empty.clone(), 0);

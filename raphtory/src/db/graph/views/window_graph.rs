@@ -44,9 +44,8 @@ use crate::{
             vertices::vertex_ref::VertexRef,
             LayerIds, EID, VID,
         },
-        storage::locked_view::LockedView,
         utils::time::IntoTime,
-        Direction, Prop,
+        ArcStr, Direction, Prop,
     },
     db::api::{
         properties::internal::{
@@ -142,9 +141,7 @@ impl<G: GraphViewOps> TemporalPropertyViewOps for WindowedGraph<G> {
 }
 
 impl<G: GraphViewOps> TemporalPropertiesOps for WindowedGraph<G> {
-    fn temporal_property_keys<'a>(
-        &'a self,
-    ) -> Box<dyn Iterator<Item = LockedView<'a, String>> + 'a> {
+    fn temporal_property_keys(&self) -> Box<dyn Iterator<Item = ArcStr> + '_> {
         Box::new(
             self.graph
                 .temporal_property_keys()
@@ -153,7 +150,7 @@ impl<G: GraphViewOps> TemporalPropertiesOps for WindowedGraph<G> {
     }
 
     fn get_temporal_property(&self, key: &str) -> Option<Key> {
-        (!self.temporal_prop_vec(key).is_empty()).then(|| key.to_owned())
+        (!self.temporal_prop_vec(key).is_empty()).then(|| key.into())
     }
 }
 

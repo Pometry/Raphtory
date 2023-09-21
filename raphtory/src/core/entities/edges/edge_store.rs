@@ -47,13 +47,13 @@ impl EdgeLayer {
         props.add_prop(t, prop_id, prop)
     }
 
-    pub fn add_static_prop(
+    pub fn add_constant_prop(
         &mut self,
         prop_id: usize,
         prop: Prop,
     ) -> Result<(), IllegalSet<Option<Prop>>> {
         let props = self.props.get_or_insert_with(|| Props::new());
-        props.add_static_prop(prop_id, prop)
+        props.add_constant_prop(prop_id, prop)
     }
 
     pub(crate) fn static_prop_ids(&self) -> Vec<usize> {

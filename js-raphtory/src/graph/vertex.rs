@@ -100,7 +100,7 @@ impl Vertex {
     pub fn properties(&self) -> js_sys::Map {
         let obj = js_sys::Map::new();
         for (k, v) in self.0.properties() {
-            obj.set(&k.into(), &JsProp(v).into());
+            obj.set(&k.to_string().into(), &JsProp(v).into());
         }
         obj
     }
