@@ -188,7 +188,7 @@ impl<G: GraphViewOps> IndexedGraph<G> {
             if prop_names_set.is_empty() {
                 break;
             }
-            let mut found_props: HashSet<ArcStr> = HashSet::default();
+            let mut found_props: HashSet<ArcStr> = HashSet::from([ArcStr::from("name")]);
 
             for prop in prop_names_set.iter() {
                 // load temporal props
