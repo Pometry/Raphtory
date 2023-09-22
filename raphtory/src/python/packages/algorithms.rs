@@ -21,6 +21,7 @@ use crate::{
         local_triangle_count::local_triangle_count as local_triangle_count_rs,
         motifs::three_node_temporal_motifs::{
             global_temporal_three_node_motif as global_temporal_three_node_motif_rs,
+            global_temporal_three_node_motif_general as global_temporal_three_node_motif_general_rs,
             temporal_three_node_motif as local_three_node_rs,
         },
         pagerank::unweighted_page_rank,
@@ -330,6 +331,14 @@ pub fn global_temporal_three_node_motif(g: &PyGraphView, delta: i64) -> Vec<usiz
     global_temporal_three_node_motif_rs(&g.graph, delta, None)
 }
 
+#[pyfunction]
+pub fn global_temporal_three_node_motif_multi(
+    g: &PyGraphView,
+    deltas: Vec<i64>,
+) -> Vec<Vec<usize>> {
+    global_temporal_three_node_motif_general_rs(&g.graph, deltas, None)
+}
+
 /// Computes the number of each type of motif that each node participates in. See global_temporal_three_node_motifs for a summary of the motifs involved.
 ///
 /// Arguments:
@@ -350,7 +359,10 @@ pub fn local_temporal_three_node_motifs(
     g: &PyGraphView,
     delta: i64,
 ) -> HashMap<String, Vec<usize>> {
-    local_three_node_rs(&g.graph, delta, None)
+    local_three_node_rs(&g.graph, vec![delta], None)
+        .into_iter()
+        .map(|(k, v)| (String::from(k), v[0].clone()))
+        .collect::<HashMap<String, Vec<usize>>>()
 }
 
 /// HITS (Hubs and Authority) Algorithm:

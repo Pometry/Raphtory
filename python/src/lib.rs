@@ -77,6 +77,10 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         algorithm_module
     )?)?;
     algorithm_module.add_function(wrap_pyfunction!(
+        global_temporal_three_node_motif_multi,
+        algorithm_module
+    )?)?;
+    algorithm_module.add_function(wrap_pyfunction!(
         local_temporal_three_node_motifs,
         algorithm_module
     )?)?;
