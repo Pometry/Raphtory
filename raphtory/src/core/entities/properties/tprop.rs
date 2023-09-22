@@ -356,7 +356,7 @@ impl<'a> LockedLayeredTProp<'a> {
             .max_by_key(|v| v.0)
     }
 
-    pub(crate) fn iter(&self) -> impl Iterator<Item = (i64, Prop)> + '_ {
+    pub fn iter(&self) -> impl Iterator<Item = (i64, Prop)> + '_ {
         self.tprop
             .iter()
             .map(|p| p.iter())

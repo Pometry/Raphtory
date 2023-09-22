@@ -136,8 +136,11 @@ impl TemporalColGraphFragment {
 
             // props
 
-            // let usd_prop = g.temporal_edge_prop(edge, "usd", LayerIds::All).unwrap();
-            // let other_prop = g.temporal_edge_prop(edge, "other", LayerIds::All).unwrap();
+            let usd_prop = g.temporal_edge_prop(edge, "usd", LayerIds::All).unwrap();
+            let other_prop = g.temporal_edge_prop(edge, "other", LayerIds::All).unwrap();
+
+            let prop_iters = vec![usd_prop.iter(), other_prop.iter()];
+
             // src_id, dst_id
 
             let src_id: usize = edge.src().into();
@@ -479,6 +482,8 @@ mod test {
         prelude::*,
     };
 
+    use crate::arrow::TPropRow;
+
     use super::TemporalColGraphFragment;
 
     #[test]
@@ -703,18 +708,6 @@ mod test {
     }
 
     #[test]
-    fn merge_join_itertools_test() {
-        let v1 = vec![(1, 2), (3, 4), (5, 6)];
-        let v2 = vec![(1, 7), (2, 8), (4, 12), (5, 9)];
-
-        v1.into_iter()
-            .merge_join_by(v2.into_iter(), |(k1, v1), (k2, v2)| k1.cmp(k2))
-            .for_each(|x| {
-                println!("{:?}", x);
-            })
-    }
-
-    #[test]
     fn merge_tprops_itertools_test() {
         let cap = 2;
         let v1 = vec![(1, Prop::U16(2)), (3, Prop::U16(4)), (5, Prop::U16(6))]
@@ -727,33 +720,27 @@ mod test {
             (5, Prop::U16(9)),
         ]
         .into_iter()
-        .map(|(t, prop)| TPropRow::new(cap, 0, t, prop));
+        .map(|(t, prop)| TPropRow::new(cap, 1, t, prop));
 
-        v1.into_iter()
+        let actual = v1
+            .into_iter()
             .merge_join_by(v2.into_iter(), |p1, p2| p1.time().cmp(p2.time()))
-            .map(|merge_result| {
-                match merge_result {
-                    itertools::EitherOrBoth::Both(p1, p2) => p1.merge(p2),
-                    itertools::EitherOrBoth::Left(p1) => p1,
-                    itertools::EitherOrBoth::Right(p2) => p2,
-                }
-            });
+            .map(|merge_result| match merge_result {
+                itertools::EitherOrBoth::Both(p1, p2) => p1.merge(p2),
+                itertools::EitherOrBoth::Left(p1) => p1,
+                itertools::EitherOrBoth::Right(p2) => p2,
+            })
+            .collect::<Vec<_>>();
+
+        let expected = vec![
+            TPropRow::from_vec(1, vec![Some(Prop::U16(2)), Some(Prop::U16(7))]),
+            TPropRow::from_vec(2, vec![None, Some(Prop::U16(8))]),
+            TPropRow::from_vec(3, vec![Some(Prop::U16(4)), None]),
+            TPropRow::from_vec(4, vec![None, Some(Prop::U16(12))]),
+            TPropRow::from_vec(5, vec![Some(Prop::U16(6)), Some(Prop::U16(9))]),
+        ];
+
+        assert_eq!(actual, expected);
     }
 
-    struct TPropRow {
-        t: i64,
-        props: Vec<Option<Prop>>,
-    }
-
-    impl TPropRow {
-        fn new(cap: usize, prop_idx: usize, t: i64, prop: Prop) -> Self {
-            let mut props = vec![None; cap];
-            props[prop_idx] = Some(prop);
-            Self { t, props }
-        }
-
-        fn time(&self) -> &i64 {
-            &self.t
-        }
-    }
 }
