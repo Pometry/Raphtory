@@ -161,6 +161,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "arrow2"
+version = "0.17.4"
+source = "git+https://github.com/jorgecarleitao/arrow2?rev=7c93e358fc400bf3c0c0219c22eefc6b38fc2d12#7c93e358fc400bf3c0c0219c22eefc6b38fc2d12"
+dependencies = [
+ "ahash",
+ "bytemuck",
+ "chrono",
+ "dyn-clone",
+ "either",
+ "ethnum",
+ "foreign_vec",
+ "getrandom 0.2.10",
+ "hash_hasher",
+ "hashbrown 0.14.0",
+ "lexical-core",
+ "multiversion",
+ "num-traits",
+ "rustc_version",
+ "simdutf8",
+ "strength_reduce",
+]
+
+[[package]]
 name = "ascii_utils"
 version = "0.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2225,28 +2248,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d9380db4c04d219ac5c51d14996bbf2c2e9a15229771b53f8671eb6c83cf44df"
 
 [[package]]
-name = "nano-arrow"
-version = "0.1.0"
-dependencies = [
- "ahash",
- "bytemuck",
- "chrono",
- "dyn-clone",
- "either",
- "ethnum",
- "foreign_vec",
- "getrandom 0.2.10",
- "hashbrown 0.14.0",
- "lexical-core",
- "multiversion",
- "num-traits",
- "rustc_version",
- "simdutf8",
- "streaming-iterator",
- "strength_reduce",
-]
-
-[[package]]
 name = "nanorand"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2826,11 +2827,11 @@ dependencies = [
 
 [[package]]
 name = "polars-arrow"
-version = "0.33.2"
+version = "0.32.0"
 dependencies = [
+ "arrow2 0.17.4 (git+https://github.com/jorgecarleitao/arrow2?rev=7c93e358fc400bf3c0c0219c22eefc6b38fc2d12)",
  "hashbrown 0.14.0",
  "multiversion",
- "nano-arrow",
  "num-traits",
  "polars-error",
  "thiserror",
@@ -2839,15 +2840,15 @@ dependencies = [
 
 [[package]]
 name = "polars-core"
-version = "0.33.2"
+version = "0.32.0"
 dependencies = [
  "ahash",
+ "arrow2 0.17.4 (git+https://github.com/jorgecarleitao/arrow2?rev=7c93e358fc400bf3c0c0219c22eefc6b38fc2d12)",
  "bitflags 2.4.0",
  "comfy-table",
  "either",
  "hashbrown 0.14.0",
  "indexmap 2.0.0",
- "nano-arrow",
  "num-traits",
  "once_cell",
  "polars-arrow",
@@ -2863,24 +2864,24 @@ dependencies = [
 
 [[package]]
 name = "polars-error"
-version = "0.33.2"
+version = "0.32.0"
 dependencies = [
- "nano-arrow",
+ "arrow2 0.17.4 (git+https://github.com/jorgecarleitao/arrow2?rev=7c93e358fc400bf3c0c0219c22eefc6b38fc2d12)",
  "thiserror",
 ]
 
 [[package]]
 name = "polars-row"
-version = "0.33.2"
+version = "0.32.0"
 dependencies = [
- "nano-arrow",
+ "arrow2 0.17.4 (git+https://github.com/jorgecarleitao/arrow2?rev=7c93e358fc400bf3c0c0219c22eefc6b38fc2d12)",
  "polars-error",
  "polars-utils",
 ]
 
 [[package]]
 name = "polars-utils"
-version = "0.33.2"
+version = "0.32.0"
 dependencies = [
  "ahash",
  "bytemuck",
@@ -3191,7 +3192,7 @@ dependencies = [
 name = "raphtory"
 version = "0.5.7"
 dependencies = [
- "arrow2",
+ "arrow2 0.17.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "async-trait",
  "bincode",
  "bzip2",
@@ -3957,12 +3958,6 @@ name = "static_assertions"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
-
-[[package]]
-name = "streaming-iterator"
-version = "0.1.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2b2231b7c3057d5e4ad0156fb3dc807d900806020c5ffa3ee6ff2c8c76fb8520"
 
 [[package]]
 name = "strength_reduce"
