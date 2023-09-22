@@ -75,7 +75,7 @@ impl Node {
         self.vv
             .properties()
             .temporal()
-            .get(name)
+            .get(&name)
             .into_iter()
             .flat_map(|p| {
                 p.iter()

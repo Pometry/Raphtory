@@ -211,7 +211,9 @@ impl Mut {
 
         let subgraph = data.get(&graph_name).ok_or("Graph not found")?;
         let mut path = subgraph
-            .constant_prop(&"path".to_string())
+            .properties()
+            .constant()
+            .get("path")
             .ok_or("Path is missing")?
             .to_string();
 

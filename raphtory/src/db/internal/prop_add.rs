@@ -29,11 +29,7 @@ impl<const N: usize> InternalPropertyAdditionOps for InnerTemporalGraph<N> {
         let mut node = self.inner().storage.get_node_mut(vid);
         for (prop_id, value) in props {
             node.add_constant_prop(prop_id, value).map_err(|err| {
-                let name = self
-                    .vertex_meta()
-                    .get_prop_name(prop_id, true)
-                    .expect("name exists")
-                    .to_owned();
+                let name = self.vertex_meta().get_prop_name(prop_id, true);
                 GraphError::ConstantPropertyMutationError {
                     name,
                     new: err.new_value.expect("new value exists"),
@@ -58,11 +54,7 @@ impl<const N: usize> InternalPropertyAdditionOps for InnerTemporalGraph<N> {
             edge_layer
                 .add_constant_prop(prop_id, value)
                 .map_err(|err| {
-                    let name = self
-                        .edge_meta()
-                        .get_prop_name(prop_id, true)
-                        .expect("name exists")
-                        .to_owned();
+                    let name = self.edge_meta().get_prop_name(prop_id, true);
                     GraphError::ConstantPropertyMutationError {
                         name,
                         new: err.new_value.expect("new value exists"),

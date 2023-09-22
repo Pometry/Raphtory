@@ -217,49 +217,90 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
             .collect()
     }
 
-    fn temporal_prop_vec(&self, name: &str) -> Vec<(i64, Prop)> {
+    fn has_temporal_prop(&self, prop_id: usize) -> bool {
+        prop_id < self.inner().graph_props.temporal_prop_meta().len()
+    }
+
+    fn temporal_prop_vec(&self, prop_id: usize) -> Vec<(i64, Prop)> {
         self.inner()
-            .get_temporal_prop(name)
+            .get_temporal_prop(prop_id)
             .map(|prop| prop.iter().collect())
             .unwrap_or_default()
     }
 
-    fn temporal_prop_vec_window(&self, name: &str, t_start: i64, t_end: i64) -> Vec<(i64, Prop)> {
+    fn has_temporal_prop_window(&self, prop_id: usize, w: Range<i64>) -> bool {
         self.inner()
-            .get_temporal_prop(name)
+            .graph_props
+            .get_temporal_prop(prop_id)
+            .filter(|p| p.iter_window(w).next().is_some())
+            .is_some()
+    }
+
+    fn temporal_prop_vec_window(
+        &self,
+        prop_id: usize,
+        t_start: i64,
+        t_end: i64,
+    ) -> Vec<(i64, Prop)> {
+        self.inner()
+            .get_temporal_prop(prop_id)
             .map(|prop| prop.iter_window(t_start..t_end).collect())
             .unwrap_or_default()
     }
 
-    fn temporal_vertex_prop_vec(&self, v: VID, name: &str) -> Vec<(i64, Prop)> {
+    fn has_temporal_vertex_prop(&self, v: VID, prop_id: usize) -> bool {
+        let entry = self.inner().storage.get_node(v);
+        entry.temporal_property(prop_id).is_some()
+    }
+
+    fn temporal_vertex_prop_vec(&self, v: VID, prop_id: usize) -> Vec<(i64, Prop)> {
         self.inner()
             .vertex(v)
-            .temporal_properties(name, None)
+            .temporal_properties(prop_id, None)
             .collect()
+    }
+
+    fn has_temporal_vertex_prop_window(&self, v: VID, prop_id: usize, w: Range<i64>) -> bool {
+        let entry = self.inner().storage.get_node(v);
+        entry
+            .temporal_property(prop_id)
+            .filter(|p| p.iter_window(w).next().is_some())
+            .is_some()
     }
 
     fn temporal_vertex_prop_vec_window(
         &self,
         v: VID,
-        name: &str,
+        prop_id: usize,
         t_start: i64,
         t_end: i64,
     ) -> Vec<(i64, Prop)> {
         self.inner()
             .vertex(v)
-            .temporal_properties(name, Some(t_start..t_end))
+            .temporal_properties(prop_id, Some(t_start..t_end))
             .collect()
+    }
+
+    fn has_temporal_edge_prop_window(
+        &self,
+        e: EdgeRef,
+        prop_id: usize,
+        w: Range<i64>,
+        layer_ids: LayerIds,
+    ) -> bool {
+        let entry = self.inner().storage.get_edge(e.pid());
+        entry.has_temporal_prop_window(layer_ids, prop_id, w)
     }
 
     fn temporal_edge_prop_vec_window(
         &self,
         e: EdgeRef,
-        name: &str,
+        prop_id: usize,
         t_start: i64,
         t_end: i64,
         layer_ids: LayerIds,
     ) -> Vec<(i64, Prop)> {
-        self.temporal_edge_prop(e, name, layer_ids)
+        self.temporal_edge_prop(e, prop_id, layer_ids)
             .map(|p| match e.time() {
                 Some(t) => {
                     if *t.t() >= t_start && *t.t() < t_end {
@@ -273,13 +314,18 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
             .unwrap_or_default()
     }
 
+    fn has_temporal_edge_prop(&self, e: EdgeRef, prop_id: usize, layer_ids: LayerIds) -> bool {
+        let entry = self.inner().storage.get_edge(e.pid());
+        entry.has_temporal_prop(&layer_ids, prop_id)
+    }
+
     fn temporal_edge_prop_vec(
         &self,
         e: EdgeRef,
-        name: &str,
+        prop_id: usize,
         layer_ids: LayerIds,
     ) -> Vec<(i64, Prop)> {
-        self.temporal_edge_prop(e, name, layer_ids)
+        self.temporal_edge_prop(e, prop_id, layer_ids)
             .map(|p| match e.time() {
                 Some(t) => p.at(&t).map(|v| vec![(*t.t(), v)]).unwrap_or_default(),
                 None => p.iter().collect(),

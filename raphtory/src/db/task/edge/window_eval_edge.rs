@@ -65,6 +65,10 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> WindowEvalEdgeView<'a, G
             .map(|e| e.time_t().expect("exploded"))
             .collect()
     }
+
+    fn layer_ids(&self) -> LayerIds {
+        self.g.layer_ids().constrain_from_edge(self.ev)
+    }
 }
 impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static>
     EdgeViewInternalOps<WindowedGraph<G>, WindowEvalVertex<'a, G, CS, S>>
@@ -109,13 +113,21 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static>
 impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> ConstPropertiesOps
     for WindowEvalEdgeView<'a, G, CS, S>
 {
-    fn const_property_keys(&self) -> Box<dyn Iterator<Item = ArcStr>> {
-        Box::new(self.g.constant_edge_prop_names(self.ev, self.g.layer_ids()))
+    fn get_const_prop_id(&self, name: &str) -> Option<usize> {
+        self.g.edge_meta().const_prop_meta().get_id(name)
     }
 
-    fn get_const_property(&self, key: &str) -> Option<Prop> {
+    fn get_const_prop_name(&self, id: usize) -> ArcStr {
+        self.g.edge_meta().const_prop_meta().get_name(id)
+    }
+
+    fn const_prop_ids(&self) -> Box<dyn Iterator<Item = usize> + '_> {
+        self.g.const_edge_prop_ids(self.ev, self.g.layer_ids())
+    }
+
+    fn get_const_prop(&self, prop_id: usize) -> Option<Prop> {
         self.graph()
-            .constant_edge_prop(self.ev, key, self.g.layer_ids())
+            .get_const_edge_prop(self.ev, prop_id, self.g.layer_ids())
     }
 }
 
@@ -138,7 +150,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> Clone for WindowEvalEdge
 impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> TemporalPropertyViewOps
     for WindowEvalEdgeView<'a, G, CS, S>
 {
-    fn temporal_value(&self, id: &Key) -> Option<Prop> {
+    fn temporal_value(&self, id: usize) -> Option<Prop> {
         self.g
             .temporal_edge_prop_vec_window(
                 self.ev,
@@ -151,7 +163,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> TemporalPropertyViewOps
             .map(|(_, v)| v.to_owned())
     }
 
-    fn temporal_history(&self, id: &Key) -> Vec<i64> {
+    fn temporal_history(&self, id: usize) -> Vec<i64> {
         self.g
             .temporal_edge_prop_vec_window(
                 self.ev,
@@ -165,7 +177,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> TemporalPropertyViewOps
             .collect()
     }
 
-    fn temporal_values(&self, id: &Key) -> Vec<Prop> {
+    fn temporal_values(&self, id: usize) -> Vec<Prop> {
         self.g
             .temporal_edge_prop_vec_window(
                 self.ev,
@@ -183,37 +195,38 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> TemporalPropertyViewOps
 impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> TemporalPropertiesOps
     for WindowEvalEdgeView<'a, G, CS, S>
 {
-    fn temporal_property_keys(&self) -> Box<dyn Iterator<Item = ArcStr> + '_> {
-        Box::new(
-            self.g
-                .temporal_edge_prop_names(self.ev, self.g.layer_ids())
-                .filter(|k| {
-                    !self
-                        .g
-                        .temporal_edge_prop_vec_window(
-                            self.ev,
-                            k,
-                            self.t_start,
-                            self.t_end,
-                            self.g.layer_ids(),
-                        )
-                        .is_empty()
-                }),
-        )
+    fn get_temporal_prop_id(&self, key: &str) -> Option<Key> {
+        self.g
+            .edge_meta()
+            .temporal_prop_meta()
+            .get_id(key)
+            .filter(|&id| {
+                self.g.has_temporal_edge_prop_window(
+                    self.ev,
+                    id,
+                    self.t_start..self.t_end,
+                    self.layer_ids(),
+                )
+            })
     }
 
-    fn get_temporal_property(&self, key: &str) -> Option<Key> {
-        (!self
-            .g
-            .temporal_edge_prop_vec_window(
-                self.ev,
-                key,
-                self.t_start,
-                self.t_end,
-                self.g.layer_ids(),
-            )
-            .is_empty())
-        .then_some(Key::from(key))
+    fn get_temporal_prop_name(&self, id: usize) -> ArcStr {
+        self.g.edge_meta().temporal_prop_meta().get_name(id)
+    }
+
+    fn temporal_prop_ids(&self) -> Box<dyn Iterator<Item = usize> + '_> {
+        Box::new(
+            self.g
+                .temporal_edge_prop_ids(self.ev, self.g.layer_ids())
+                .filter(|&id| {
+                    self.g.has_temporal_edge_prop_window(
+                        self.ev,
+                        id,
+                        self.t_start..self.t_end,
+                        self.layer_ids(),
+                    )
+                }),
+        )
     }
 }
 

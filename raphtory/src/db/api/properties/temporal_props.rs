@@ -16,19 +16,19 @@ impl<P: PropertiesOps> TemporalPropertyView<P> {
         TemporalPropertyView { props, id: key }
     }
     pub fn history(&self) -> Vec<i64> {
-        self.props.temporal_history(&self.id)
+        self.props.temporal_history(self.id)
     }
     pub fn values(&self) -> Vec<Prop> {
-        self.props.temporal_values(&self.id)
+        self.props.temporal_values(self.id)
     }
     pub fn iter(&self) -> impl Iterator<Item = (i64, Prop)> {
         self.into_iter()
     }
     pub fn at(&self, t: i64) -> Option<Prop> {
-        self.props.temporal_value_at(&self.id, t)
+        self.props.temporal_value_at(self.id, t)
     }
     pub fn latest(&self) -> Option<Prop> {
-        self.props.temporal_value(&self.id)
+        self.props.temporal_value(self.id)
     }
 }
 
@@ -74,16 +74,16 @@ impl<P: PropertiesOps + Clone> TemporalProperties<P> {
         Self { props }
     }
     pub fn keys(&self) -> impl Iterator<Item = ArcStr> + '_ {
-        self.props.temporal_property_keys()
+        self.props.temporal_prop_keys()
     }
 
-    pub fn contains<Q: AsRef<str>>(&self, key: Q) -> bool {
-        self.get(key).is_some()
+    pub fn contains(&self, key: &str) -> bool {
+        self.props.get_temporal_prop_id(key).is_some()
     }
 
     pub fn values(&self) -> impl Iterator<Item = TemporalPropertyView<P>> + '_ {
         self.props
-            .temporal_property_values()
+            .temporal_prop_ids()
             .map(|k| TemporalPropertyView::new(self.props.clone(), k))
     }
 
@@ -95,9 +95,9 @@ impl<P: PropertiesOps + Clone> TemporalProperties<P> {
         self.keys().zip(self.values())
     }
 
-    pub fn get<Q: AsRef<str>>(&self, key: Q) -> Option<TemporalPropertyView<P>> {
+    pub fn get(&self, key: &str) -> Option<TemporalPropertyView<P>> {
         self.props
-            .get_temporal_property(key.as_ref())
+            .get_temporal_prop_id(key)
             .map(|k| TemporalPropertyView::new(self.props.clone(), k))
     }
 
@@ -153,7 +153,7 @@ impl<P: PropertiesOps> PropUnwrap for TemporalPropertyView<P> {
         self.latest().into_list()
     }
 
-    fn into_map(self) -> Option<Arc<HashMap<String, Prop>>> {
+    fn into_map(self) -> Option<Arc<HashMap<ArcStr, Prop>>> {
         self.latest().into_map()
     }
 

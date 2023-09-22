@@ -11,6 +11,7 @@ use crate::{
         internal::{materialize::MaterializedGraph, Base, CoreGraphOps, EdgeFilter, GraphOps},
         BoxedIter,
     },
+    prelude::Layer,
 };
 use enum_dispatch::enum_dispatch;
 use std::ops::Range;
@@ -140,18 +141,33 @@ pub trait TimeSemantics: GraphOps + CoreGraphOps {
         layer_ids: LayerIds,
     ) -> Vec<i64>;
 
-    /// Returns a vector of all temporal values of the graph property with the given name
+    /// Check if graph has temporal property with the given id
     ///
     /// # Arguments
     ///
-    /// * `name` - The name of the property to retrieve.
+    /// * `prop_id` - The id of the property to retrieve.
+    fn has_temporal_prop(&self, prop_id: usize) -> bool;
+
+    /// Returns a vector of all temporal values of the graph property with the given id
+    ///
+    /// # Arguments
+    ///
+    /// * `prop_id` - The id of the property to retrieve.
     ///
     /// # Returns
     ///
     /// A vector of tuples representing the temporal values of the property
     /// that fall within the specified time window, where the first element of each tuple is the timestamp
     /// and the second element is the property value.
-    fn temporal_prop_vec(&self, name: &str) -> Vec<(i64, Prop)>;
+    fn temporal_prop_vec(&self, prop_id: usize) -> Vec<(i64, Prop)>;
+
+    /// Check if graph has temporal property with the given id in the window
+    ///
+    /// # Arguments
+    ///
+    /// * `prop_id` - The id of the property to retrieve.
+    /// * `w` - time window
+    fn has_temporal_prop_window(&self, prop_id: usize, w: Range<i64>) -> bool;
 
     /// Returns a vector of all temporal values of the graph property with the given name
     /// that fall within the specified time window.
@@ -167,7 +183,20 @@ pub trait TimeSemantics: GraphOps + CoreGraphOps {
     /// A vector of tuples representing the temporal values of the property
     /// that fall within the specified time window, where the first element of each tuple is the timestamp
     /// and the second element is the property value.
-    fn temporal_prop_vec_window(&self, name: &str, t_start: i64, t_end: i64) -> Vec<(i64, Prop)>;
+    fn temporal_prop_vec_window(
+        &self,
+        prop_id: usize,
+        t_start: i64,
+        t_end: i64,
+    ) -> Vec<(i64, Prop)>;
+
+    /// Check if vertex has temporal property with the given id
+    ///
+    /// # Arguments
+    ///
+    /// * `v` - The id of the vertex
+    /// * `prop_id` - The id of the property to retrieve.
+    fn has_temporal_vertex_prop(&self, v: VID, prop_id: usize) -> bool;
 
     /// Returns a vector of all temporal values of the vertex property with the given name for the
     /// given vertex
@@ -182,7 +211,16 @@ pub trait TimeSemantics: GraphOps + CoreGraphOps {
     /// A vector of tuples representing the temporal values of the property for the given vertex
     /// that fall within the specified time window, where the first element of each tuple is the timestamp
     /// and the second element is the property value.
-    fn temporal_vertex_prop_vec(&self, v: VID, name: &str) -> Vec<(i64, Prop)>;
+    fn temporal_vertex_prop_vec(&self, v: VID, id: usize) -> Vec<(i64, Prop)>;
+
+    /// Check if vertex has temporal property with the given id in the window
+    ///
+    /// # Arguments
+    ///
+    /// * `v` - the id of the vertex
+    /// * `prop_id` - The id of the property to retrieve.
+    /// * `w` - time window
+    fn has_temporal_vertex_prop_window(&self, v: VID, prop_id: usize, w: Range<i64>) -> bool;
 
     /// Returns a vector of all temporal values of the vertex property with the given name for the given vertex
     /// that fall within the specified time window.
@@ -202,10 +240,25 @@ pub trait TimeSemantics: GraphOps + CoreGraphOps {
     fn temporal_vertex_prop_vec_window(
         &self,
         v: VID,
-        name: &str,
+        id: usize,
         t_start: i64,
         t_end: i64,
     ) -> Vec<(i64, Prop)>;
+
+    /// Check if edge has temporal property with the given id in the window
+    ///
+    /// # Arguments
+    ///
+    /// * `e` - the id of the edge
+    /// * `prop_id` - The id of the property to retrieve.
+    /// * `w` - time window
+    fn has_temporal_edge_prop_window(
+        &self,
+        e: EdgeRef,
+        prop_id: usize,
+        w: Range<i64>,
+        layer_ids: LayerIds,
+    ) -> bool;
 
     /// Returns a vector of tuples containing the values of the temporal property with the given name
     /// for the given edge reference within the specified time window.
@@ -225,11 +278,19 @@ pub trait TimeSemantics: GraphOps + CoreGraphOps {
     fn temporal_edge_prop_vec_window(
         &self,
         e: EdgeRef,
-        name: &str,
+        id: usize,
         t_start: i64,
         t_end: i64,
         layer_ids: LayerIds,
     ) -> Vec<(i64, Prop)>;
+
+    /// Check if edge has temporal property with the given id
+    ///
+    /// # Arguments
+    ///
+    /// * `e` - The id of the edge
+    /// * `prop_id` - The id of the property to retrieve.
+    fn has_temporal_edge_prop(&self, e: EdgeRef, prop_id: usize, layer_ids: LayerIds) -> bool;
 
     /// Returns a vector of tuples containing the values of the temporal property with the given name
     /// for the given edge reference.
@@ -245,7 +306,7 @@ pub trait TimeSemantics: GraphOps + CoreGraphOps {
     fn temporal_edge_prop_vec(
         &self,
         e: EdgeRef,
-        name: &str,
+        id: usize,
         layer_ids: LayerIds,
     ) -> Vec<(i64, Prop)>;
 }
@@ -415,52 +476,93 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
     }
 
     #[inline]
-    fn temporal_prop_vec(&self, name: &str) -> Vec<(i64, Prop)> {
-        self.graph().temporal_prop_vec(name)
+    fn has_temporal_prop(&self, prop_id: usize) -> bool {
+        self.graph().has_temporal_prop(prop_id)
     }
 
     #[inline]
-    fn temporal_prop_vec_window(&self, name: &str, t_start: i64, t_end: i64) -> Vec<(i64, Prop)> {
-        self.graph().temporal_prop_vec_window(name, t_start, t_end)
+    fn temporal_prop_vec(&self, prop_id: usize) -> Vec<(i64, Prop)> {
+        self.graph().temporal_prop_vec(prop_id)
     }
 
     #[inline]
-    fn temporal_vertex_prop_vec(&self, v: VID, name: &str) -> Vec<(i64, Prop)> {
-        self.graph().temporal_vertex_prop_vec(v, name)
+    fn has_temporal_prop_window(&self, prop_id: usize, w: Range<i64>) -> bool {
+        self.graph().has_temporal_prop_window(prop_id, w)
+    }
+
+    #[inline]
+    fn temporal_prop_vec_window(
+        &self,
+        prop_id: usize,
+        t_start: i64,
+        t_end: i64,
+    ) -> Vec<(i64, Prop)> {
+        self.graph()
+            .temporal_prop_vec_window(prop_id, t_start, t_end)
+    }
+
+    #[inline]
+    fn has_temporal_vertex_prop(&self, v: VID, prop_id: usize) -> bool {
+        self.graph().has_temporal_vertex_prop(v, prop_id)
+    }
+
+    #[inline]
+    fn temporal_vertex_prop_vec(&self, v: VID, prop_id: usize) -> Vec<(i64, Prop)> {
+        self.graph().temporal_vertex_prop_vec(v, prop_id)
+    }
+
+    #[inline]
+    fn has_temporal_vertex_prop_window(&self, v: VID, prop_id: usize, w: Range<i64>) -> bool {
+        self.graph().has_temporal_vertex_prop_window(v, prop_id, w)
     }
 
     #[inline]
     fn temporal_vertex_prop_vec_window(
         &self,
         v: VID,
-        name: &str,
+        prop_id: usize,
         t_start: i64,
         t_end: i64,
     ) -> Vec<(i64, Prop)> {
         self.graph()
-            .temporal_vertex_prop_vec_window(v, name, t_start, t_end)
+            .temporal_vertex_prop_vec_window(v, prop_id, t_start, t_end)
+    }
+
+    fn has_temporal_edge_prop_window(
+        &self,
+        e: EdgeRef,
+        prop_id: usize,
+        w: Range<i64>,
+        layer_ids: LayerIds,
+    ) -> bool {
+        self.graph()
+            .has_temporal_edge_prop_window(e, prop_id, w, layer_ids)
     }
 
     #[inline]
     fn temporal_edge_prop_vec_window(
         &self,
         e: EdgeRef,
-        name: &str,
+        prop_id: usize,
         t_start: i64,
         t_end: i64,
         layer_ids: LayerIds,
     ) -> Vec<(i64, Prop)> {
         self.graph()
-            .temporal_edge_prop_vec_window(e, name, t_start, t_end, layer_ids)
+            .temporal_edge_prop_vec_window(e, prop_id, t_start, t_end, layer_ids)
+    }
+
+    fn has_temporal_edge_prop(&self, e: EdgeRef, prop_id: usize, layer_ids: LayerIds) -> bool {
+        self.graph().has_temporal_edge_prop(e, prop_id, layer_ids)
     }
 
     #[inline]
     fn temporal_edge_prop_vec(
         &self,
         e: EdgeRef,
-        name: &str,
+        prop_id: usize,
         layer_ids: LayerIds,
     ) -> Vec<(i64, Prop)> {
-        self.graph().temporal_edge_prop_vec(e, name, layer_ids)
+        self.graph().temporal_edge_prop_vec(e, prop_id, layer_ids)
     }
 }

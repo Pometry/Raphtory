@@ -434,38 +434,99 @@ impl TimeSemantics for GraphWithDeletions {
             .collect()
     }
 
-    fn temporal_prop_vec(&self, name: &str) -> Vec<(i64, Prop)> {
-        self.graph.temporal_prop_vec(name)
+    #[inline]
+    fn has_temporal_prop(&self, prop_id: usize) -> bool {
+        self.graph.has_temporal_prop(prop_id)
     }
 
-    fn temporal_prop_vec_window(&self, name: &str, t_start: i64, t_end: i64) -> Vec<(i64, Prop)> {
-        self.graph.temporal_prop_vec_window(name, t_start, t_end)
+    fn temporal_prop_vec(&self, prop_id: usize) -> Vec<(i64, Prop)> {
+        self.graph.temporal_prop_vec(prop_id)
     }
 
-    fn temporal_vertex_prop_vec(&self, v: VID, name: &str) -> Vec<(i64, Prop)> {
-        self.graph.temporal_vertex_prop_vec(v, name)
+    #[inline]
+    fn has_temporal_prop_window(&self, prop_id: usize, w: Range<i64>) -> bool {
+        self.graph.has_temporal_prop_window(prop_id, w)
+    }
+
+    fn temporal_prop_vec_window(
+        &self,
+        prop_id: usize,
+        t_start: i64,
+        t_end: i64,
+    ) -> Vec<(i64, Prop)> {
+        self.graph.temporal_prop_vec_window(prop_id, t_start, t_end)
+    }
+
+    #[inline]
+    fn has_temporal_vertex_prop(&self, v: VID, prop_id: usize) -> bool {
+        self.graph.has_temporal_vertex_prop(v, prop_id)
+    }
+
+    fn temporal_vertex_prop_vec(&self, v: VID, prop_id: usize) -> Vec<(i64, Prop)> {
+        self.graph.temporal_vertex_prop_vec(v, prop_id)
+    }
+
+    fn has_temporal_vertex_prop_window(&self, v: VID, prop_id: usize, w: Range<i64>) -> bool {
+        self.graph.has_temporal_vertex_prop_window(v, prop_id, w)
     }
 
     fn temporal_vertex_prop_vec_window(
         &self,
         v: VID,
-        name: &str,
+        prop_id: usize,
         t_start: i64,
         t_end: i64,
     ) -> Vec<(i64, Prop)> {
         self.graph
-            .temporal_vertex_prop_vec_window(v, name, t_start, t_end)
+            .temporal_vertex_prop_vec_window(v, prop_id, t_start, t_end)
+    }
+
+    fn has_temporal_edge_prop_window(
+        &self,
+        e: EdgeRef,
+        prop_id: usize,
+        w: Range<i64>,
+        layer_ids: LayerIds,
+    ) -> bool {
+        let entry = self.core_edge(e.pid());
+
+        if entry.has_temporal_prop(&layer_ids, prop_id) {
+            let search_start = entry
+                .last_deletion_before(&layer_ids, w.start)
+                .unwrap_or(i64::MIN); // if property was added at any point since the last deletion, it is still there
+            match layer_ids {
+                LayerIds::None => false,
+                LayerIds::All => entry.layer_ids_iter().any(|id| {
+                    entry
+                        .temporal_prop_layer(id, prop_id)
+                        .filter(|prop| prop.iter_window(search_start..w.end).next().is_some())
+                        .is_some()
+                }),
+                LayerIds::One(id) => entry
+                    .temporal_prop_layer(id, prop_id)
+                    .filter(|prop| prop.iter_window(search_start..w.end).next().is_some())
+                    .is_some(),
+                LayerIds::Multiple(ids) => ids.iter().any(|&id| {
+                    entry
+                        .temporal_prop_layer(id, prop_id)
+                        .filter(|prop| prop.iter_window(search_start..w.end).next().is_some())
+                        .is_some()
+                }),
+            }
+        } else {
+            false
+        }
     }
 
     fn temporal_edge_prop_vec_window(
         &self,
         e: EdgeRef,
-        name: &str,
+        prop_id: usize,
         t_start: i64,
         t_end: i64,
         layer_ids: LayerIds,
     ) -> Vec<(i64, Prop)> {
-        let prop = self.temporal_edge_prop(e, name, layer_ids.clone());
+        let prop = self.temporal_edge_prop(e, prop_id, layer_ids.clone());
         match prop {
             Some(p) => {
                 let entry = self.core_edge(e.pid());
@@ -483,13 +544,17 @@ impl TimeSemantics for GraphWithDeletions {
         }
     }
 
+    fn has_temporal_edge_prop(&self, e: EdgeRef, prop_id: usize, layer_ids: LayerIds) -> bool {
+        todo!()
+    }
+
     fn temporal_edge_prop_vec(
         &self,
         e: EdgeRef,
-        name: &str,
+        prop_id: usize,
         layer_ids: LayerIds,
     ) -> Vec<(i64, Prop)> {
-        self.graph.temporal_edge_prop_vec(e, name, layer_ids)
+        self.graph.temporal_edge_prop_vec(e, prop_id, layer_ids)
     }
 }
 
