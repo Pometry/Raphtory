@@ -1,6 +1,6 @@
 use crate::core::utils::errors::GraphError;
 use serde::{Deserialize, Serialize};
-use std::fmt::Debug;
+use std::{fmt::Debug, iter};
 
 #[derive(thiserror::Error, Debug, PartialEq)]
 #[error("cannot set previous value '{previous_value:?}' to '{new_value:?}' in position '{index}'")]
@@ -37,16 +37,17 @@ where
         LazyVec::LazyVec1(id, value)
     }
 
-    pub(crate) fn filled_ids(&self) -> Vec<usize> {
+    pub(crate) fn filled_ids(&self) -> Box<dyn Iterator<Item = usize> + '_> {
         match self {
-            LazyVec::Empty => Default::default(),
-            LazyVec::LazyVec1(id, _) => vec![*id],
-            LazyVec::LazyVecN(vector) => vector
-                .iter()
-                .enumerate()
-                .filter(|&(_, value)| *value != Default::default())
-                .map(|(id, _)| id)
-                .collect(),
+            LazyVec::Empty => Box::new(iter::empty()),
+            LazyVec::LazyVec1(id, _) => Box::new(iter::once(*id)),
+            LazyVec::LazyVecN(vector) => Box::new(
+                vector
+                    .iter()
+                    .enumerate()
+                    .filter(|&(_, value)| *value != Default::default())
+                    .map(|(id, _)| id),
+            ),
         }
     }
 
@@ -122,6 +123,7 @@ where
 #[cfg(test)]
 mod lazy_vec_tests {
     use super::*;
+    use itertools::Itertools;
 
     #[test]
     fn normal_operation() {
@@ -140,7 +142,7 @@ mod lazy_vec_tests {
         vec.update(9, |n| Ok(*n += 1));
         assert_eq!(vec.get(9), Some(&1));
 
-        assert_eq!(vec.filled_ids(), vec![1, 5, 6, 8, 9]);
+        assert_eq!(vec.filled_ids().collect_vec(), vec![1, 5, 6, 8, 9]);
     }
 
     #[test]

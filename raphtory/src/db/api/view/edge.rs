@@ -110,7 +110,7 @@ pub trait EdgeViewOps:
     fn layer_name(&self) -> Option<ArcStr> {
         self.eref()
             .layer()
-            .and_then(|l_id| self.graph().get_layer_name(*l_id))
+            .map(|l_id| self.graph().get_layer_name(*l_id))
     }
 
     /// Gets the TimeIndexEntry if the edge is exploded

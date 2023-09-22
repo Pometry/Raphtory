@@ -159,8 +159,8 @@ impl VertexStore {
         }
     }
 
-    pub(crate) fn static_property(&self, prop_id: usize) -> Option<&Prop> {
-        self.props.as_ref().and_then(|ps| ps.static_prop(prop_id))
+    pub(crate) fn const_prop(&self, prop_id: usize) -> Option<&Prop> {
+        self.props.as_ref().and_then(|ps| ps.const_prop(prop_id))
     }
 
     #[inline]
@@ -332,22 +332,22 @@ impl VertexStore {
         self.layers[layer_id].get_page_vec(last, page_size, dir)
     }
 
-    pub(crate) fn constant_prop_ids(&self) -> Vec<usize> {
+    pub(crate) fn const_prop_ids(&self) -> impl Iterator<Item = usize> + '_ {
         self.props
             .as_ref()
-            .map(|ps| ps.static_prop_ids())
-            .unwrap_or_default()
+            .into_iter()
+            .flat_map(|ps| ps.const_prop_ids())
     }
 
     pub(crate) fn temporal_property(&self, prop_id: usize) -> Option<&TProp> {
         self.props.as_ref().and_then(|ps| ps.temporal_prop(prop_id))
     }
 
-    pub(crate) fn temp_prop_ids(&self) -> Vec<usize> {
+    pub(crate) fn temporal_prop_ids(&self) -> impl Iterator<Item = usize> + '_ {
         self.props
             .as_ref()
-            .map(|ps| ps.temporal_prop_ids())
-            .unwrap_or_default()
+            .into_iter()
+            .flat_map(|ps| ps.temporal_prop_ids())
     }
 
     pub(crate) fn active(&self, w: Range<i64>) -> bool {

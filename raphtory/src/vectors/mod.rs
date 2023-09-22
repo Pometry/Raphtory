@@ -4,9 +4,10 @@ use async_trait::async_trait;
 use futures_util::future::{join_all, BoxFuture};
 // use futures_util::StreamExt;
 use itertools::{chain, Itertools};
+use serde::{Deserialize, Serialize, Serializer};
 use std::{
     borrow::Borrow,
-    collections::{hash_map::DefaultHasher, HashMap},
+    collections::{hash_map::DefaultHasher, HashMap, HashSet},
     convert::identity,
     fmt::{Display, Formatter},
     fs::{create_dir_all, File},
@@ -16,17 +17,14 @@ use std::{
     path::Path,
 };
 
-use crate::db::api::{
-    properties::internal::{TemporalPropertiesOps, TemporalPropertyViewOps},
-    view::internal::{DynamicGraph, IntoDynamic},
-};
-use serde::{Deserialize, Serialize, Serializer};
-
 // use crate::model::graph::edge::Edge;
 // use numpy::PyArray2;
 // use pyo3::{types::IntoPyDict, Python};
 use crate::{
-    db::graph::{edge::EdgeView, vertex::VertexView, views::window_graph::WindowedGraph},
+    db::{
+        api::view::internal::{DynamicGraph, IntoDynamic},
+        graph::{edge::EdgeView, vertex::VertexView, views::window_graph::WindowedGraph},
+    },
     prelude::{EdgeViewOps, GraphViewOps, Layer, LayerOps, TimeOps, VertexViewOps},
 };
 
@@ -699,28 +697,31 @@ impl<G: GraphViewOps> GraphEntity for VertexView<G> {
         let max_time_fmt = self.latest_time().map(time_fmt).unwrap_or_else(missing);
         let max_time = format!("latest activity: {}", max_time_fmt);
 
-        let temporal_keys = self
-            .temporal_property_keys()
-            .filter(|key| !filter_out.contains(&key.as_ref()))
-            .filter(|key| !force_static.contains(&key.as_ref()))
-            .filter(|key| {
+        let temporal_props = self
+            .properties()
+            .temporal()
+            .iter()
+            .filter(|(key, _)| !filter_out.contains(&key.as_ref()))
+            .filter(|(key, _)| !force_static.contains(&key.as_ref()))
+            .filter(|(_, v)| {
                 // the history of the temporal prop has more than one value
-                let props = self.temporal_values(key);
-                let values = props.iter().map(|prop| prop.to_string());
-                values.unique().collect_vec().len() > 1
+                v.values()
+                    .into_iter()
+                    .map(|prop| prop.to_string())
+                    .unique()
+                    .collect_vec()
+                    .len()
+                    > 1
             })
             .collect_vec();
 
-        let temporal_props = temporal_keys.iter().map(|key| {
-            let history = self.temporal_history(&key);
-            let props = self.temporal_values(&key);
-            let values = props.iter().map(|prop| prop.to_string());
-            let time_value_pairs = history.iter().zip(values);
+        let temporal_keys: HashSet<_> = temporal_props.iter().map(|(key, _)| key).collect();
+        let temporal_props = temporal_props.iter().map(|(key, value)| {
+            let time_value_pairs = value.iter().map(|(k, v)| (k, v.to_string()));
             time_value_pairs
                 .unique_by(|(_, value)| value.clone())
                 .map(|(time, value)| {
-                    let key = key.to_string();
-                    let time = time_fmt(*time);
+                    let time = time_fmt(time);
                     format!("{key} changed to {value} at {time}")
                 })
                 .intersperse("\n".to_owned())

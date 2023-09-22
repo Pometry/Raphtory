@@ -4,7 +4,7 @@ use crate::{
             edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
             properties::{
                 graph_props::GraphProps,
-                props::{ArcReadLockedVec, Meta},
+                props::Meta,
                 tprop::{LockedLayeredTProp, TProp},
             },
             vertices::{vertex_ref::VertexRef, vertex_store::VertexStore},
@@ -33,7 +33,7 @@ pub trait CoreGraphOps {
 
     fn graph_meta(&self) -> &GraphProps;
 
-    fn get_layer_name(&self, layer_id: usize) -> Option<ArcStr>;
+    fn get_layer_name(&self, layer_id: usize) -> ArcStr;
 
     fn get_layer_id(&self, name: &str) -> Option<usize>;
 
@@ -64,13 +64,6 @@ pub trait CoreGraphOps {
     /// Gets the internal reference for an external vertex reference and keeps internal references unchanged. Assumes vertex exists!
     fn internalise_vertex_unchecked(&self, v: VertexRef) -> VID;
 
-    /// Lists the keys of all static properties of the graph
-    ///
-    /// # Returns
-    ///
-    /// Vec<String> - The keys of the static properties.
-    fn constant_prop_names(&self) -> ArcReadLockedVec<ArcStr>;
-
     /// Gets a static graph property.
     ///
     /// # Arguments
@@ -80,14 +73,7 @@ pub trait CoreGraphOps {
     /// # Returns
     ///
     /// Option<Prop> - The property value if it exists.
-    fn constant_prop(&self, name: &str) -> Option<Prop>;
-
-    /// Lists the keys of all temporal properties of the graph
-    ///
-    /// # Returns
-    ///
-    /// Vec<String> - The keys of the static properties.
-    fn temporal_prop_names(&self) -> ArcReadLockedVec<ArcStr>;
+    fn constant_prop(&self, id: usize) -> Option<Prop>;
 
     /// Gets a temporal graph property.
     ///
@@ -98,7 +84,7 @@ pub trait CoreGraphOps {
     /// # Returns
     ///
     /// Option<LockedView<TProp>> - The history of property values if it exists.
-    fn temporal_prop(&self, name: &str) -> Option<LockedView<TProp>>;
+    fn temporal_prop(&self, id: usize) -> Option<LockedView<TProp>>;
 
     /// Gets a static property of a given vertex given the name and vertex reference.
     ///
@@ -110,9 +96,9 @@ pub trait CoreGraphOps {
     /// # Returns
     ///
     /// Option<Prop> - The property value if it exists.
-    fn constant_vertex_prop(&self, v: VID, name: &str) -> Option<Prop>;
+    fn constant_vertex_prop(&self, v: VID, id: usize) -> Option<Prop>;
 
-    /// Gets the keys of static properties of a given vertex
+    /// Gets the keys of constant properties of a given vertex
     ///
     /// # Arguments
     ///
@@ -120,8 +106,8 @@ pub trait CoreGraphOps {
     ///
     /// # Returns
     ///
-    /// Vec<String> - The keys of the static properties.
-    fn constant_vertex_prop_names(&self, v: VID) -> BoxedIter<ArcStr>;
+    /// The keys of the constant properties.
+    fn constant_vertex_prop_ids(&self, v: VID) -> Box<dyn Iterator<Item = usize> + '_>;
 
     /// Gets a temporal property of a given vertex given the name and vertex reference.
     ///
@@ -133,9 +119,9 @@ pub trait CoreGraphOps {
     /// # Returns
     ///
     /// Option<LockedView<TProp>> - The history of property values if it exists.
-    fn temporal_vertex_prop(&self, v: VID, name: &str) -> Option<LockedView<TProp>>;
+    fn temporal_vertex_prop(&self, v: VID, id: usize) -> Option<LockedView<TProp>>;
 
-    /// Returns a vector of all names of temporal properties within the given vertex
+    /// Returns a vector of all ids of temporal properties within the given vertex
     ///
     /// # Arguments
     ///
@@ -143,22 +129,9 @@ pub trait CoreGraphOps {
     ///
     /// # Returns
     ///
-    /// A vector of strings representing the names of the temporal properties
-    fn temporal_vertex_prop_names(&self, v: VID) -> BoxedIter<ArcStr>;
+    /// the ids of the temporal properties
+    fn temporal_vertex_prop_ids(&self, v: VID) -> Box<dyn Iterator<Item = usize> + '_>;
 
-    /// Returns a vector of all names of temporal properties that exist on at least one vertex
-    ///
-    /// # Returns
-    ///
-    /// A vector of strings representing the names of the temporal properties
-    fn all_vertex_prop_names(&self, is_static: bool) -> ArcReadLockedVec<ArcStr>;
-
-    /// Returns a vector of all names of temporal properties that exist on at least one vertex
-    ///
-    /// # Returns
-    ///
-    /// A vector of strings representing the names of the temporal properties
-    fn all_edge_prop_names(&self, is_static: bool) -> ArcReadLockedVec<ArcStr>;
     /// Returns the static edge property with the given name for the
     /// given edge reference.
     ///
@@ -170,7 +143,7 @@ pub trait CoreGraphOps {
     /// # Returns
     ///
     /// A property if it exists
-    fn constant_edge_prop(&self, e: EdgeRef, name: &str, layer_ids: LayerIds) -> Option<Prop>;
+    fn get_const_edge_prop(&self, e: EdgeRef, id: usize, layer_ids: LayerIds) -> Option<Prop>;
 
     /// Returns a vector of keys for the static properties of the given edge reference.
     ///
@@ -180,8 +153,12 @@ pub trait CoreGraphOps {
     ///
     /// # Returns
     ///
-    /// * A `Vec` of `String` containing the keys for the static properties of the given edge.
-    fn constant_edge_prop_names(&self, e: EdgeRef, layer_ids: LayerIds) -> BoxedIter<ArcStr>;
+    /// the keys for the constant properties of the given edge.
+    fn const_edge_prop_ids(
+        &self,
+        e: EdgeRef,
+        layer_ids: LayerIds,
+    ) -> Box<dyn Iterator<Item = usize> + '_>;
 
     /// Returns a vector of all temporal values of the edge property with the given name for the
     /// given edge reference.
@@ -197,7 +174,7 @@ pub trait CoreGraphOps {
     fn temporal_edge_prop(
         &self,
         e: EdgeRef,
-        name: &str,
+        id: usize,
         layer_ids: LayerIds,
     ) -> Option<LockedLayeredTProp>;
 
@@ -209,8 +186,12 @@ pub trait CoreGraphOps {
     ///
     /// # Returns
     ///
-    /// * A `Vec` of `String` containing the keys for the temporal properties of the given edge.
-    fn temporal_edge_prop_names(&self, e: EdgeRef, layer_ids: LayerIds) -> BoxedIter<ArcStr>;
+    /// * keys for the temporal properties of the given edge.
+    fn temporal_edge_prop_ids(
+        &self,
+        e: EdgeRef,
+        layer_ids: LayerIds,
+    ) -> Box<dyn Iterator<Item = usize> + '_>;
 
     fn core_edges(&self) -> Box<dyn Iterator<Item = ArcEntry<EdgeStore>>>;
 
@@ -262,7 +243,7 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
     }
 
     #[inline]
-    fn get_layer_name(&self, layer_id: usize) -> Option<ArcStr> {
+    fn get_layer_name(&self, layer_id: usize) -> ArcStr {
         self.graph().get_layer_name(layer_id)
     }
 
@@ -311,78 +292,66 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
     }
 
     #[inline]
-    fn constant_prop_names(&self) -> ArcReadLockedVec<ArcStr> {
-        self.graph().constant_prop_names()
+    fn constant_prop(&self, id: usize) -> Option<Prop> {
+        self.graph().constant_prop(id)
     }
 
     #[inline]
-    fn constant_prop(&self, name: &str) -> Option<Prop> {
-        self.graph().constant_prop(name)
+    fn temporal_prop(&self, id: usize) -> Option<LockedView<TProp>> {
+        self.graph().temporal_prop(id)
     }
 
     #[inline]
-    fn temporal_prop_names(&self) -> ArcReadLockedVec<ArcStr> {
-        self.graph().temporal_prop_names()
+    fn constant_vertex_prop(&self, v: VID, id: usize) -> Option<Prop> {
+        self.graph().constant_vertex_prop(v, id)
     }
 
     #[inline]
-    fn temporal_prop(&self, name: &str) -> Option<LockedView<TProp>> {
-        self.graph().temporal_prop(name)
+    fn constant_vertex_prop_ids(&self, v: VID) -> Box<dyn Iterator<Item = usize> + '_> {
+        self.graph().constant_vertex_prop_ids(v)
     }
 
     #[inline]
-    fn constant_vertex_prop(&self, v: VID, name: &str) -> Option<Prop> {
-        self.graph().constant_vertex_prop(v, name)
+    fn temporal_vertex_prop(&self, v: VID, id: usize) -> Option<LockedView<TProp>> {
+        self.graph().temporal_vertex_prop(v, id)
     }
 
     #[inline]
-    fn constant_vertex_prop_names(&self, v: VID) -> BoxedIter<ArcStr> {
-        self.graph().constant_vertex_prop_names(v)
+    fn temporal_vertex_prop_ids(&self, v: VID) -> Box<dyn Iterator<Item = usize> + '_> {
+        self.graph().temporal_vertex_prop_ids(v)
     }
 
     #[inline]
-    fn temporal_vertex_prop(&self, v: VID, name: &str) -> Option<LockedView<TProp>> {
-        self.graph().temporal_vertex_prop(v, name)
+    fn get_const_edge_prop(&self, e: EdgeRef, id: usize, layer_ids: LayerIds) -> Option<Prop> {
+        self.graph().get_const_edge_prop(e, id, layer_ids)
     }
 
     #[inline]
-    fn temporal_vertex_prop_names(&self, v: VID) -> BoxedIter<ArcStr> {
-        self.graph().temporal_vertex_prop_names(v)
-    }
-
-    #[inline]
-    fn all_vertex_prop_names(&self, is_static: bool) -> ArcReadLockedVec<ArcStr> {
-        self.graph().all_vertex_prop_names(is_static)
-    }
-
-    #[inline]
-    fn all_edge_prop_names(&self, is_static: bool) -> ArcReadLockedVec<ArcStr> {
-        self.graph().all_edge_prop_names(is_static)
-    }
-
-    #[inline]
-    fn constant_edge_prop(&self, e: EdgeRef, name: &str, layer_ids: LayerIds) -> Option<Prop> {
-        self.graph().constant_edge_prop(e, name, layer_ids)
-    }
-
-    #[inline]
-    fn constant_edge_prop_names(&self, e: EdgeRef, layer_ids: LayerIds) -> BoxedIter<ArcStr> {
-        self.graph().constant_edge_prop_names(e, layer_ids)
+    fn const_edge_prop_ids(
+        &self,
+        e: EdgeRef,
+        layer_ids: LayerIds,
+    ) -> Box<dyn Iterator<Item = usize> + '_> {
+        self.graph().const_edge_prop_ids(e, layer_ids)
     }
 
     #[inline]
     fn temporal_edge_prop(
         &self,
         e: EdgeRef,
-        name: &str,
+        id: usize,
         layer_ids: LayerIds,
     ) -> Option<LockedLayeredTProp> {
-        self.graph().temporal_edge_prop(e, name, layer_ids)
+        self.graph().temporal_edge_prop(e, id, layer_ids)
     }
 
     #[inline]
-    fn temporal_edge_prop_names(&self, e: EdgeRef, layer_ids: LayerIds) -> BoxedIter<ArcStr> {
-        self.graph().temporal_edge_prop_names(e, layer_ids)
+    fn temporal_edge_prop_ids(
+        &self,
+        e: EdgeRef,
+        layer_ids: LayerIds,
+    ) -> Box<dyn Iterator<Item = usize> + '_> {
+        self.graph().temporal_edge_prop_ids(e, layer_ids)
     }
 
     #[inline]

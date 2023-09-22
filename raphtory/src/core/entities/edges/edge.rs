@@ -133,7 +133,7 @@ impl<'a, const N: usize> EdgeView<'a, N> {
     ) -> Option<LockedLayeredTProp<'a>> {
         match self.edge_id {
             ERef::ERef(entry) => {
-                if entry.has_temporal_prop(layer_ids.clone(), prop_id) {
+                if entry.has_temporal_prop(&layer_ids, prop_id) {
                     match layer_ids {
                         LayerIds::None => None,
                         LayerIds::All => {

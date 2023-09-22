@@ -4,7 +4,7 @@ use crate::{
 };
 use async_graphql::Context;
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
-use chrono::{NaiveDateTime, Utc};
+use chrono::Utc;
 use dynamic_graphql::{
     App, Mutation, MutationFields, MutationRoot, ResolvedObject, ResolvedObjectFields, Result,
     Upload,
@@ -12,7 +12,7 @@ use dynamic_graphql::{
 use itertools::Itertools;
 use raphtory::{
     core::{ArcStr, Prop},
-    db::api::view::internal::{CoreGraphOps, DynamicGraph, IntoDynamic, MaterializedGraph},
+    db::api::view::internal::{IntoDynamic, MaterializedGraph},
     prelude::{Graph, GraphViewOps, PropertyAdditionOps, VertexViewOps},
     search::IndexedGraph,
 };
@@ -20,10 +20,8 @@ use std::{
     collections::HashMap,
     error::Error,
     fmt::{Display, Formatter},
-    fs,
     io::BufReader,
     ops::Deref,
-    time::UNIX_EPOCH,
 };
 use uuid::Uuid;
 
@@ -157,7 +155,9 @@ impl Mut {
 
             let subgraph = data.get(&graph_name).ok_or("Graph not found")?;
             let path = subgraph
-                .constant_prop(&"path".to_string())
+                .properties()
+                .constant()
+                .get("path")
                 .ok_or("Path is missing")?
                 .to_string();
 
@@ -169,21 +169,16 @@ impl Mut {
             let static_props_without_name: Vec<(ArcStr, Prop)> = subgraph
                 .properties()
                 .into_iter()
-                .filter(|(a, b)| a != "name")
+                .filter(|(a, _)| a != "name")
                 .collect_vec();
 
             new_subgraph.add_constant_properties(static_props_without_name)?;
-            new_subgraph.add_constant_properties([(
-                "name".to_string(),
-                Prop::Str(new_graph_name.clone().into()),
-            )])?;
+            new_subgraph
+                .add_constant_properties([("name", Prop::Str(new_graph_name.clone().into()))])?;
 
             let dt = Utc::now();
             let timestamp: i64 = dt.timestamp();
-            new_subgraph.add_constant_properties([(
-                "lastUpdated".to_string(),
-                Prop::I64(timestamp * 1000),
-            )])?;
+            new_subgraph.add_constant_properties([("lastUpdated", Prop::I64(timestamp * 1000))])?;
 
             new_subgraph.save_to_file(path)?;
 
@@ -192,7 +187,7 @@ impl Mut {
                 .ok_or("Graph with deletions not supported")?
                 .into();
 
-            data.insert(new_graph_name.clone(), gi.clone());
+            data.insert(new_graph_name, gi);
             data.remove(&graph_name);
         }
 
@@ -211,7 +206,9 @@ impl Mut {
 
         let subgraph = data.get(&graph_name).ok_or("Graph not found")?;
         let mut path = subgraph
-            .constant_prop(&"path".to_string())
+            .properties()
+            .constant()
+            .get("path")
             .ok_or("Path is missing")?
             .to_string();
 
@@ -224,7 +221,7 @@ impl Mut {
                     let joined_string = elements
                         .iter()
                         .take(size - 1)
-                        .map(|s| *s)
+                        .copied()
                         .collect::<Vec<_>>()
                         .join(delimiter);
                     Ok(joined_string)
@@ -240,10 +237,7 @@ impl Mut {
 
         let new_subgraph = parent_graph.subgraph(graph_nodes).materialize()?;
 
-        new_subgraph.add_constant_properties([(
-            "name".to_string(),
-            Prop::Str(new_graph_name.clone().into()),
-        )])?;
+        new_subgraph.add_constant_properties([("name", Prop::str(new_graph_name.clone()))])?;
 
         // parent_graph_name == graph_name, means its a graph created from UI
         if parent_graph_name.ne(&graph_name) {
@@ -252,14 +246,14 @@ impl Mut {
                 let static_props: Vec<(ArcStr, Prop)> = subgraph
                     .properties()
                     .into_iter()
-                    .filter(|(a, b)| a != "name" && a != "creationTime" && a != "uiProps")
+                    .filter(|(a, _)| a != "name" && a != "creationTime" && a != "uiProps")
                     .collect_vec();
                 new_subgraph.add_constant_properties(static_props)?;
             } else {
                 let static_props: Vec<(ArcStr, Prop)> = subgraph
                     .properties()
                     .into_iter()
-                    .filter(|(a, b)| a != "name" && a != "lastUpdated" && a != "uiProps")
+                    .filter(|(a, _)| a != "name" && a != "lastUpdated" && a != "uiProps")
                     .collect_vec();
                 new_subgraph.add_constant_properties(static_props)?;
             }
@@ -269,15 +263,12 @@ impl Mut {
         let timestamp: i64 = dt.timestamp();
 
         if parent_graph_name.eq(&graph_name) || graph_name.ne(&new_graph_name) {
-            new_subgraph.add_constant_properties([(
-                "creationTime".to_string(),
-                Prop::I64(timestamp * 1000),
-            )])?;
+            new_subgraph
+                .add_constant_properties([("creationTime", Prop::I64(timestamp * 1000))])?;
         }
 
-        new_subgraph
-            .add_constant_properties([("lastUpdated".to_string(), Prop::I64(timestamp * 1000))])?;
-        new_subgraph.add_constant_properties([("uiProps".to_string(), Prop::Str(props.into()))])?;
+        new_subgraph.add_constant_properties([("lastUpdated", Prop::I64(timestamp * 1000))])?;
+        new_subgraph.add_constant_properties([("uiProps", Prop::Str(props.into()))])?;
 
         new_subgraph.save_to_file(path)?;
 
@@ -286,7 +277,7 @@ impl Mut {
             .ok_or("Graph with deletions not supported")?
             .into();
 
-        data.insert(new_graph_name, gi.clone());
+        data.insert(new_graph_name, gi);
 
         Ok(true)
     }
@@ -318,7 +309,7 @@ impl Mut {
             .ok_or("Graph with deletions not supported")?
             .into();
         let mut data = ctx.data_unchecked::<Data>().graphs.write();
-        data.insert(name.clone(), gi.clone());
+        data.insert(name.clone(), gi);
         Ok(name)
     }
 
@@ -349,7 +340,9 @@ impl Mut {
         let subgraph = data.get(&graph_name).ok_or("Graph not found")?;
 
         let path = subgraph
-            .constant_prop(&"path".to_string())
+            .properties()
+            .constant()
+            .get("path")
             .ok_or("Path is missing")?
             .to_string();
 
@@ -361,11 +354,10 @@ impl Mut {
         let static_props_without_isactive: Vec<(ArcStr, Prop)> = subgraph
             .properties()
             .into_iter()
-            .filter(|(a, b)| a != "isArchive")
+            .filter(|(a, _)| a != "isArchive")
             .collect_vec();
         new_subgraph.add_constant_properties(static_props_without_isactive)?;
-        new_subgraph
-            .add_constant_properties([("isArchive".to_string(), Prop::U8(is_archive.clone()))])?;
+        new_subgraph.add_constant_properties([("isArchive", Prop::U8(is_archive))])?;
         new_subgraph.save_to_file(path)?;
 
         let gi: IndexedGraph<Graph> = new_subgraph
@@ -373,7 +365,7 @@ impl Mut {
             .ok_or("Graph with deletions not supported")?
             .into();
 
-        data.insert(graph_name, gi.clone());
+        data.insert(graph_name, gi);
 
         Ok(true)
     }

@@ -34,7 +34,7 @@ pub enum TProp {
     DTime(TCell<NaiveDateTime>),
     Graph(TCell<Graph>),
     List(TCell<Arc<Vec<Prop>>>),
-    Map(TCell<Arc<HashMap<String, Prop>>>),
+    Map(TCell<Arc<HashMap<ArcStr, Prop>>>),
 }
 
 impl TProp {

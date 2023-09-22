@@ -185,9 +185,7 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
             for ee in e.explode_layers() {
                 let layer_id = *ee.edge.layer().expect("exploded layers");
                 let layer_ids = LayerIds::One(layer_id);
-                let layer_name = self
-                    .get_layer_name(layer_id)
-                    .expect("layer id on edge is valid");
+                let layer_name = self.get_layer_name(layer_id);
                 let layer_name: Option<&str> = if layer_id == 0 {
                     None
                 } else {

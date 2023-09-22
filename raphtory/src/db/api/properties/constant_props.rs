@@ -13,14 +13,11 @@ impl<P: ConstPropertiesOps> ConstProperties<P> {
         Self { props }
     }
     pub fn keys(&self) -> Vec<ArcStr> {
-        self.props
-            .const_property_keys()
-            .map(|v| v.clone())
-            .collect()
+        self.props.const_prop_keys().map(|v| v.clone()).collect()
     }
 
     pub fn values(&self) -> Vec<Prop> {
-        self.props.const_property_values()
+        self.props.const_prop_values()
     }
 
     pub fn iter(&self) -> Box<dyn Iterator<Item = (ArcStr, Prop)> + '_> {
@@ -28,7 +25,8 @@ impl<P: ConstPropertiesOps> ConstProperties<P> {
     }
 
     pub fn get(&self, key: &str) -> Option<Prop> {
-        self.props.get_const_property(key)
+        let id = self.props.get_const_prop_id(key)?;
+        self.props.get_const_prop(id)
     }
 
     pub fn contains(&self, key: &str) -> bool {
