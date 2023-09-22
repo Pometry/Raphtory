@@ -10,7 +10,7 @@ use raphtory::{
     prelude::{GraphViewOps, VertexViewOps},
 };
 
-use super::{MPArr, MutEdgePair, MutTemporalPropColumn};
+use super::{load_edge_prop_vec, merge_iterators, MPArr, MutEdgePair, MutTemporalPropColumn};
 
 #[derive(Debug)]
 pub struct TemporalColGraphFragment {
@@ -26,7 +26,7 @@ const E_ADDITIONS_COLUMN: &str = "additions";
 const E_DELETIONS_COLUMN: &str = "deletions";
 
 const NAME_COLUMN: &str = "name";
-const TEMPORAL_PROPS_COLUMN: &str = "temporal_props";
+const TEMPORAL_PROPS_COLUMN: &str = "t_props";
 
 const GID_COLUMN: &str = "global_vertex_id";
 const SRC_COLUMN: &str = "src";
@@ -65,35 +65,69 @@ impl TemporalColGraphFragment {
         (new_to_old, old_to_new, edges_new_to_old, edges_old_to_new)
     }
 
-    fn prop_cols_from_edge_meta<G: GraphViewOps>(g: &G) -> MutTemporalPropColumn {
+    fn prop_cols_from_edge_meta<G: GraphViewOps>(g: &G) -> Option<MutTemporalPropColumn> {
         let temp_prop_meta = g.edge_meta().temporal_prop_meta();
 
-        let mut prop_arrays: Vec<Box<dyn MutableArray>> =
-            Vec::with_capacity(temp_prop_meta.get_keys().len());
+        let num_props = temp_prop_meta.get_keys().len();
 
-        let mut fields = Vec::with_capacity(temp_prop_meta.get_keys().len());
+        if num_props == 0 {
+            return None;
+        }
 
-        for prop_id in 0..prop_arrays.len() {
+        let mut prop_arrays: Vec<Box<dyn MutableArray>> = Vec::with_capacity(num_props + 1);
+
+        let mut fields = Vec::with_capacity(num_props + 1);
+
+        // timestamp
+        prop_arrays.push(Box::new(MutablePrimitiveArray::<i64>::new()));
+        fields.push(ArrowField::new("t", ArrowDataType::Int64, false));
+
+        for prop_id in 0..num_props {
             let prop_name = temp_prop_meta.get_name(prop_id).unwrap();
             let prop_type = temp_prop_meta.get_dtype(prop_id).unwrap();
             match prop_type {
+                PropType::U8 => {
+                    prop_arrays.push(Box::new(MutablePrimitiveArray::<u8>::new()));
+                    fields.push(ArrowField::new(prop_name, ArrowDataType::UInt8, true));
+                }
+                PropType::U16 => {
+                    prop_arrays.push(Box::new(MutablePrimitiveArray::<u16>::new()));
+                    fields.push(ArrowField::new(prop_name, ArrowDataType::UInt16, true));
+                }
+                PropType::U32 => {
+                    prop_arrays.push(Box::new(MutablePrimitiveArray::<u32>::new()));
+                    fields.push(ArrowField::new(prop_name, ArrowDataType::UInt32, true));
+                }
+                PropType::U64 => {
+                    prop_arrays.push(Box::new(MutablePrimitiveArray::<u64>::new()));
+                    fields.push(ArrowField::new(prop_name, ArrowDataType::UInt64, true));
+                }
                 PropType::I32 => {
-                    let arr = Box::new(MutablePrimitiveArray::<i32>::new());
-                    // let mut_col = MutTemporalPropColumn::new(prop_name, prop_type, arr);
-                    prop_arrays.push(arr);
+                    prop_arrays.push(Box::new(MutablePrimitiveArray::<i32>::new()));
+                    fields.push(ArrowField::new(prop_name, ArrowDataType::Int32, true));
+                }
+                PropType::I64 => {
+                    prop_arrays.push(Box::new(MutablePrimitiveArray::<i64>::new()));
+                    fields.push(ArrowField::new(prop_name, ArrowDataType::Int64, true));
+                }
+                PropType::F32 => {
+                    prop_arrays.push(Box::new(MutablePrimitiveArray::<f32>::new()));
+                    fields.push(ArrowField::new(prop_name, ArrowDataType::Float32, true));
+                }
+                PropType::F64 => {
+                    prop_arrays.push(Box::new(MutablePrimitiveArray::<f64>::new()));
+                    fields.push(ArrowField::new(prop_name, ArrowDataType::Float64, true));
                 }
                 PropType::Str => {
-                    let arr = Box::new(MutableUtf8Array::<i64>::new());
-                    // let mut_col = MutTemporalPropColumn::new(prop_name, prop_type, arr);
-                    prop_arrays.push(arr);
+                    prop_arrays.push(Box::new(MutableUtf8Array::<i64>::new()));
+                    fields.push(ArrowField::new(prop_name, ArrowDataType::Utf8, true));
+                }
+                PropType::Bool => {
+                    prop_arrays.push(Box::new(MutableBooleanArray::new()));
+                    fields.push(ArrowField::new(prop_name, ArrowDataType::Boolean, true));
                 }
                 _ => todo!(),
             }
-            fields.push(ArrowField::new(
-                prop_name,
-                Self::prop_type_to_arrow(prop_type),
-                true,
-            ));
         }
 
         let struct_arr = MutableStructArray::new(ArrowDataType::Struct(fields), prop_arrays);
@@ -103,19 +137,7 @@ impl TemporalColGraphFragment {
             false,
         );
 
-        MutTemporalPropColumn::new(TEMPORAL_PROPS_COLUMN, list_column)
-    }
-
-    fn prop_type_to_arrow(prop_type: PropType) -> ArrowDataType {
-        match prop_type {
-            PropType::I32 => ArrowDataType::Int32,
-            PropType::I64 => ArrowDataType::Int64,
-            PropType::F32 => ArrowDataType::Float32,
-            PropType::F64 => ArrowDataType::Float64,
-            PropType::Str => ArrowDataType::Utf8,
-            PropType::Bool => ArrowDataType::Boolean,
-            _ => todo!(),
-        }
+        Some(MutTemporalPropColumn::new( list_column))
     }
 
     pub fn from_graph<G: GraphViewOps>(g: &G) -> Self {
@@ -135,11 +157,14 @@ impl TemporalColGraphFragment {
             let edge = g.find_edge_id(eid.into(), &LayerIds::All, None).unwrap();
 
             // props
-
-            let usd_prop = g.temporal_edge_prop(edge, "usd", LayerIds::All).unwrap();
-            let other_prop = g.temporal_edge_prop(edge, "other", LayerIds::All).unwrap();
-
-            let prop_iters = vec![usd_prop.iter(), other_prop.iter()];
+            if let Some(row_properties) = merge_iterators(load_edge_prop_vec(edge, g)) {
+                if let Some(temporal_prop_columns) = &mut temporal_prop_columns {
+                    for row in row_properties {
+                        temporal_prop_columns.add_row(row);
+                    }
+                    temporal_prop_columns.try_push_valid().expect("push valid");
+                }
+            }
 
             // src_id, dst_id
 
@@ -167,6 +192,8 @@ impl TemporalColGraphFragment {
             mut_arr.extend_trusted_len_values(deletion_history.into_iter());
             edge_deletions.try_push_valid().expect("push valid");
         }
+
+        println!("temporal props: {:?}", temporal_prop_columns);
 
         let mut outbound_arr =
             Self::mutable_adj_list_column(OUTBOUND_COLUMN, edges_new_to_old.len());
@@ -231,13 +258,16 @@ impl TemporalColGraphFragment {
 
         let names: ChunkedArray<Utf8Type> = ChunkedArray::with_chunk(NAME_COLUMN, names.into());
 
-        let vertex_df = DataFrame::new(vec![
+        let columns = vec![
             items,
             names.into_series(),
             outbound.into_series(),
             inbound.into_series(),
             timestamps.into_series(),
-        ])
+        ];
+
+
+        let vertex_df = DataFrame::new(columns)
         .expect(
             "unexpected error, should be able to create vertex dataframe, contact maintainers!",
         );
@@ -250,13 +280,21 @@ impl TemporalColGraphFragment {
         let edge_deletions: ChunkedArray<ListType> =
             ChunkedArray::with_chunk(E_DELETIONS_COLUMN, edge_deletions_arr);
 
-        // edge graph
-        let edge_df = DataFrame::new(vec![
+        let mut columns = vec![
             Series::new(SRC_COLUMN, edge_src_column),
             Series::new(DST_COLUMN, edge_dst_column),
             edge_timestamps.into_series(),
             edge_deletions.into_series(),
-        ])
+        ];
+
+        if let Some(temporal_prop_columns) = temporal_prop_columns {
+            let temporal_props: ChunkedArray<ListType> =
+                ChunkedArray::with_chunk(TEMPORAL_PROPS_COLUMN, temporal_prop_columns.into_inner().into());
+            columns.push(temporal_props.into_series());
+        }
+
+        // edge graph
+        let edge_df = DataFrame::new(columns)
         .expect("unexpected error, should be able to create edge dataframe, contact maintainers!");
 
         Self { vertex_df, edge_df }
@@ -475,7 +513,7 @@ mod test {
     use itertools::Itertools;
     use raphtory::{
         core::{
-            entities::{properties::tprop::TProp, EID, VID},
+            entities::{EID, VID},
             Direction,
         },
         db::graph::views::deletion_graph::GraphWithDeletions,
@@ -671,6 +709,19 @@ mod test {
     }
 
     #[test]
+    fn load_1_edge_with_props() {
+        let graph = Graph::new();
+
+        graph
+            .add_edge(4, 2, 4, [("weight", 2.3f32)], None)
+            .expect("Failed to add edge");
+
+        let g = TemporalColGraphFragment::from_graph(&graph);
+
+        println!("{:?}", g);
+    }
+
+    #[test]
     fn overlap() {
         let slice = [2];
         let range = 0..2;
@@ -742,5 +793,4 @@ mod test {
 
         assert_eq!(actual, expected);
     }
-
 }
