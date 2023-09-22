@@ -7,7 +7,7 @@ use polars_core::{utils::arrow::{
     types::NativeType,
 }, error::ArrowError};
 use raphtory::{
-    core::entities::{edges::edge_ref::EdgeRef, LayerIds},
+    core::entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
     prelude::{GraphViewOps, Prop},
 };
 
@@ -160,6 +160,23 @@ fn load_edge_prop_vec<'a, G: GraphViewOps>(e_ref: EdgeRef, g: &'a G) -> Vec<Vec<
         let name = temp_prop_meta.get_name(prop_id).unwrap();
         let edge_props = g
             .temporal_edge_prop_vec(e_ref, &name, LayerIds::All)
+            .into_iter()
+            .map(|(t, prop)| TPropRow::new(prop_len, prop_id, t, prop))
+            .collect::<Vec<_>>();
+        prop_vecs.push(edge_props)
+    }
+
+    prop_vecs
+}
+
+fn load_vertex_prop_vec<'a, G: GraphViewOps>(vid: VID, g: &'a G) -> Vec<Vec<TPropRow>> {
+    let temp_prop_meta = g.vertex_meta().temporal_prop_meta();
+    let prop_len = temp_prop_meta.get_keys().len();
+    let mut prop_vecs = Vec::with_capacity(prop_len);
+
+    for prop_id in 0..prop_len {
+        let name = temp_prop_meta.get_name(prop_id).unwrap();
+        let edge_props = g.temporal_vertex_prop_vec(vid, &name)
             .into_iter()
             .map(|(t, prop)| TPropRow::new(prop_len, prop_id, t, prop))
             .collect::<Vec<_>>();

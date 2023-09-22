@@ -4,11 +4,13 @@ use itertools::Itertools;
 use polars_core::{prelude::*, utils::arrow::array::*};
 use raphtory::{
     core::{
-        entities::{vertices::vertex_ref::VertexRef, LayerIds, EID, VID},
+        entities::{vertices::vertex_ref::VertexRef, LayerIds, EID, VID, properties::props::PropMapper},
         Direction, PropType,
     },
     prelude::{GraphViewOps, VertexViewOps},
 };
+
+use crate::arrow::load_vertex_prop_vec;
 
 use super::{load_edge_prop_vec, merge_iterators, MPArr, MutEdgePair, MutTemporalPropColumn};
 
@@ -65,8 +67,8 @@ impl TemporalColGraphFragment {
         (new_to_old, old_to_new, edges_new_to_old, edges_old_to_new)
     }
 
-    fn prop_cols_from_edge_meta<G: GraphViewOps>(g: &G) -> Option<MutTemporalPropColumn> {
-        let temp_prop_meta = g.edge_meta().temporal_prop_meta();
+    fn prop_cols_from_meta(temp_prop_meta: &PropMapper) -> Option<MutTemporalPropColumn> {
+        // let temp_prop_meta = g.edge_meta().temporal_prop_meta();
 
         let num_props = temp_prop_meta.get_keys().len();
 
@@ -120,7 +122,7 @@ impl TemporalColGraphFragment {
                 }
                 PropType::Str => {
                     prop_arrays.push(Box::new(MutableUtf8Array::<i64>::new()));
-                    fields.push(ArrowField::new(prop_name, ArrowDataType::Utf8, true));
+                    fields.push(ArrowField::new(prop_name, ArrowDataType::LargeUtf8, true));
                 }
                 PropType::Bool => {
                     prop_arrays.push(Box::new(MutableBooleanArray::new()));
@@ -151,14 +153,14 @@ impl TemporalColGraphFragment {
         let mut edge_timestamps = Self::mutable_timestamps_column(E_ADDITIONS_COLUMN);
         let mut edge_deletions = Self::mutable_timestamps_column(E_DELETIONS_COLUMN);
 
-        let mut temporal_prop_columns = Self::prop_cols_from_edge_meta(g);
+        let mut edge_temporal_prop_columns = Self::prop_cols_from_meta(g.edge_meta().temporal_prop_meta());
 
         for &eid in &edges_new_to_old {
             let edge = g.find_edge_id(eid.into(), &LayerIds::All, None).unwrap();
 
             // props
             if let Some(row_properties) = merge_iterators(load_edge_prop_vec(edge, g)) {
-                if let Some(temporal_prop_columns) = &mut temporal_prop_columns {
+                if let Some(temporal_prop_columns) = &mut edge_temporal_prop_columns {
                     for row in row_properties {
                         temporal_prop_columns.add_row(row);
                     }
@@ -193,8 +195,6 @@ impl TemporalColGraphFragment {
             edge_deletions.try_push_valid().expect("push valid");
         }
 
-        println!("temporal props: {:?}", temporal_prop_columns);
-
         let mut outbound_arr =
             Self::mutable_adj_list_column(OUTBOUND_COLUMN, edges_new_to_old.len());
 
@@ -204,9 +204,21 @@ impl TemporalColGraphFragment {
 
         let mut names = MutableUtf8ValuesArray::<i64>::new();
 
+        let mut vertex_temporal_prop_columns = Self::prop_cols_from_meta(g.vertex_meta().temporal_prop_meta());
+
         // loop over each vertex adjacency list
         for vertex in &new_to_old {
             let vid: VID = (*vertex).into();
+
+            // props
+            if let Some(row_properties) = merge_iterators(load_vertex_prop_vec(vid, g)) {
+                if let Some(temporal_prop_columns) = &mut vertex_temporal_prop_columns {
+                    for row in row_properties {
+                        temporal_prop_columns.add_row(row);
+                    }
+                    temporal_prop_columns.try_push_valid().expect("push valid");
+                }
+            }
 
             // fill in the name
             let name = g.vertex_name(vid);
@@ -258,13 +270,21 @@ impl TemporalColGraphFragment {
 
         let names: ChunkedArray<Utf8Type> = ChunkedArray::with_chunk(NAME_COLUMN, names.into());
 
-        let columns = vec![
+        let mut columns = vec![
             items,
             names.into_series(),
             outbound.into_series(),
             inbound.into_series(),
             timestamps.into_series(),
         ];
+
+        if let Some(temporal_prop_columns) = vertex_temporal_prop_columns {
+            let temporal_props: ChunkedArray<ListType> = ChunkedArray::with_chunk(
+                TEMPORAL_PROPS_COLUMN,
+                temporal_prop_columns.into_inner().into(),
+            );
+            columns.push(temporal_props.into_series());
+        }
 
         let vertex_df = DataFrame::new(columns).expect(
             "unexpected error, should be able to create vertex dataframe, contact maintainers!",
@@ -285,7 +305,7 @@ impl TemporalColGraphFragment {
             edge_deletions.into_series(),
         ];
 
-        if let Some(temporal_prop_columns) = temporal_prop_columns {
+        if let Some(temporal_prop_columns) = edge_temporal_prop_columns {
             let temporal_props: ChunkedArray<ListType> = ChunkedArray::with_chunk(
                 TEMPORAL_PROPS_COLUMN,
                 temporal_prop_columns.into_inner().into(),
@@ -741,6 +761,27 @@ mod test {
         println!("{:?}", g);
     }
 
+    #[test]
+    fn load_1_edge_vertex_props_same_time() {
+        let graph = Graph::new();
+
+        graph.add_vertex(4, 2, [("type", "human")]).expect("Failed to add vertex");
+        graph.add_vertex(4, 4, [("type", "tiefling")]).expect("Failed to add vertex");
+
+        graph
+            .add_edge(
+                4,
+                2,
+                4,
+                [("weight", Prop::F32(2.3f32)), ("friends", Prop::Bool(true))],
+                None,
+            )
+            .expect("Failed to add edge");
+
+        let g = TemporalColGraphFragment::from_graph(&graph);
+        // TODO: add assertions
+        println!("{:?}", g);
+    }
     #[test]
     fn load_2_edges_with_2_props_same_time() {
         let graph = Graph::new();
