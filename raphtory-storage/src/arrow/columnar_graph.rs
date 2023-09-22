@@ -137,7 +137,7 @@ impl TemporalColGraphFragment {
             false,
         );
 
-        Some(MutTemporalPropColumn::new( list_column))
+        Some(MutTemporalPropColumn::new(list_column))
     }
 
     pub fn from_graph<G: GraphViewOps>(g: &G) -> Self {
@@ -266,9 +266,7 @@ impl TemporalColGraphFragment {
             timestamps.into_series(),
         ];
 
-
-        let vertex_df = DataFrame::new(columns)
-        .expect(
+        let vertex_df = DataFrame::new(columns).expect(
             "unexpected error, should be able to create vertex dataframe, contact maintainers!",
         );
 
@@ -288,14 +286,17 @@ impl TemporalColGraphFragment {
         ];
 
         if let Some(temporal_prop_columns) = temporal_prop_columns {
-            let temporal_props: ChunkedArray<ListType> =
-                ChunkedArray::with_chunk(TEMPORAL_PROPS_COLUMN, temporal_prop_columns.into_inner().into());
+            let temporal_props: ChunkedArray<ListType> = ChunkedArray::with_chunk(
+                TEMPORAL_PROPS_COLUMN,
+                temporal_prop_columns.into_inner().into(),
+            );
             columns.push(temporal_props.into_series());
         }
 
         // edge graph
-        let edge_df = DataFrame::new(columns)
-        .expect("unexpected error, should be able to create edge dataframe, contact maintainers!");
+        let edge_df = DataFrame::new(columns).expect(
+            "unexpected error, should be able to create edge dataframe, contact maintainers!",
+        );
 
         Self { vertex_df, edge_df }
     }
@@ -717,7 +718,49 @@ mod test {
             .expect("Failed to add edge");
 
         let g = TemporalColGraphFragment::from_graph(&graph);
+        // TODO: add assertions
+        println!("{:?}", g);
+    }
 
+    #[test]
+    fn load_1_edge_with_2_props_same_time() {
+        let graph = Graph::new();
+
+        graph
+            .add_edge(
+                4,
+                2,
+                4,
+                [("weight", Prop::F32(2.3f32)), ("friends", Prop::Bool(true))],
+                None,
+            )
+            .expect("Failed to add edge");
+
+        let g = TemporalColGraphFragment::from_graph(&graph);
+        // TODO: add assertions
+        println!("{:?}", g);
+    }
+
+    #[test]
+    fn load_2_edges_with_2_props_same_time() {
+        let graph = Graph::new();
+
+        graph
+            .add_edge(
+                4,
+                2,
+                4,
+                [("weight", Prop::F32(2.3f32)), ("friends", Prop::Bool(true))],
+                None,
+            )
+            .expect("Failed to add edge");
+
+        graph
+            .add_edge(3, 1, 9, [("weight", 4.5f32)], None)
+            .expect("Failed to add edge");
+
+        let g = TemporalColGraphFragment::from_graph(&graph);
+        // TODO: add assertions
         println!("{:?}", g);
     }
 
