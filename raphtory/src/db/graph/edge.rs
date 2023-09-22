@@ -16,13 +16,11 @@ use crate::{
     db::{
         api::{
             mutation::{
-                internal::{InternalAdditionOps, InternalPropertyAdditionOps},
+                internal::{InternalAdditionOps, InternalDeletionOps, InternalPropertyAdditionOps},
                 CollectProperties, TryIntoInputTime,
             },
             properties::{
-                internal::{
-                    ConstPropertiesOps, Key, TemporalPropertiesOps, TemporalPropertyViewOps,
-                },
+                internal::{ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps},
                 Properties,
             },
             view::{internal::Static, BoxedIter, EdgeViewInternalOps, LayerOps},
@@ -34,7 +32,6 @@ use crate::{
 use std::{
     fmt::{Debug, Formatter},
     iter,
-    sync::Arc,
 };
 
 /// A view of an edge in the graph.
@@ -58,7 +55,16 @@ impl<G: GraphViewOps> EdgeView<G> {
     }
 }
 
-impl<G: GraphViewOps + InternalAdditionOps> EdgeView<G> {}
+impl<G: GraphViewOps + InternalAdditionOps + InternalPropertyAdditionOps + InternalDeletionOps>
+    EdgeView<G>
+{
+    pub fn delete<T: IntoTime>(&self, t: T, layer: Option<&str>) -> Result<(), GraphError> {
+        let t = TimeIndexEntry::from_input(&self.graph, t)?;
+        let layer = self.resolve_layer(layer)?;
+        self.graph
+            .internal_delete_edge(t, self.edge.src(), self.edge.dst(), layer)
+    }
+}
 
 impl<G: GraphViewOps> PartialEq for EdgeView<G> {
     fn eq(&self, other: &Self) -> bool {

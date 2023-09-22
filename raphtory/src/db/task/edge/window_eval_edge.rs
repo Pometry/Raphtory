@@ -7,9 +7,7 @@ use crate::{
     db::{
         api::{
             properties::{
-                internal::{
-                    ConstPropertiesOps, Key, TemporalPropertiesOps, TemporalPropertyViewOps,
-                },
+                internal::{ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps},
                 Properties,
             },
             view::{internal::*, *},
@@ -195,7 +193,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> TemporalPropertyViewOps
 impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> TemporalPropertiesOps
     for WindowEvalEdgeView<'a, G, CS, S>
 {
-    fn get_temporal_prop_id(&self, key: &str) -> Option<Key> {
+    fn get_temporal_prop_id(&self, key: &str) -> Option<usize> {
         self.g
             .edge_meta()
             .temporal_prop_meta()

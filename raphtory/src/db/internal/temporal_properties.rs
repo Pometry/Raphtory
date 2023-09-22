@@ -1,8 +1,7 @@
 use crate::{
     core::{entities::graph::tgraph::InnerTemporalGraph, ArcStr, Prop},
-    db::api::properties::internal::{Key, TemporalPropertiesOps, TemporalPropertyViewOps},
+    db::api::properties::internal::{TemporalPropertiesOps, TemporalPropertyViewOps},
 };
-use std::ops::Deref;
 
 impl<const N: usize> TemporalPropertyViewOps for InnerTemporalGraph<N> {
     fn temporal_value(&self, id: usize) -> Option<Prop> {

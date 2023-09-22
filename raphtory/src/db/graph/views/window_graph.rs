@@ -49,7 +49,7 @@ use crate::{
     },
     db::api::{
         properties::internal::{
-            InheritStaticPropertiesOps, Key, TemporalPropertiesOps, TemporalPropertyViewOps,
+            InheritStaticPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
         },
         view::{
             internal::{
@@ -703,7 +703,7 @@ impl<G: GraphViewOps> WindowedGraph<G> {
         let filter_graph = graph.clone();
         let t_start = t_start.into_time();
         let t_end = t_end.into_time();
-        let base_filter = filter_graph.edge_filter().cloned();
+        let base_filter = filter_graph.edge_filter_window().cloned();
         let filter: EdgeFilter = match base_filter {
             Some(f) => Arc::new(move |e, layers| {
                 f(e, layers) && filter_graph.include_edge_window(e, t_start..t_end, layers)

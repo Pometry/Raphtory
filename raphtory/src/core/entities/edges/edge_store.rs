@@ -248,6 +248,30 @@ impl EdgeStore {
         }
     }
 
+    pub fn last_deletion(&self, layer_ids: &LayerIds) -> Option<&TimeIndexEntry> {
+        match layer_ids {
+            LayerIds::None => None,
+            LayerIds::All => self.deletions().iter().flat_map(|d| d.last()).max(),
+            LayerIds::One(id) => self.deletions.get(*id).and_then(|t| t.last()),
+            LayerIds::Multiple(ids) => ids
+                .iter()
+                .flat_map(|id| self.deletions.get(*id).and_then(|t| t.last()))
+                .max(),
+        }
+    }
+
+    pub fn last_addition(&self, layer_ids: &LayerIds) -> Option<&TimeIndexEntry> {
+        match layer_ids {
+            LayerIds::None => None,
+            LayerIds::All => self.additions().iter().flat_map(|d| d.last()).max(),
+            LayerIds::One(id) => self.additions.get(*id).and_then(|t| t.last()),
+            LayerIds::Multiple(ids) => ids
+                .iter()
+                .flat_map(|id| self.additions.get(*id).and_then(|t| t.last()))
+                .max(),
+        }
+    }
+
     pub fn last_deletion_before(&self, layer_ids: &LayerIds, t: i64) -> Option<i64> {
         match layer_ids {
             LayerIds::None => None,
@@ -256,10 +280,17 @@ impl EdgeStore {
                 .iter()
                 .flat_map(|dels| dels.range(i64::MIN..t).last_t())
                 .max(),
-            LayerIds::One(id) => self.deletions[*id].range(i64::MIN..t).last_t(),
+            LayerIds::One(id) => {
+                let layer = self.deletions.get(*id)?;
+                layer.range(i64::MIN..t).last_t()
+            }
             LayerIds::Multiple(ids) => ids
                 .iter()
-                .flat_map(|id| self.deletions[*id].range(i64::MIN..t).last_t())
+                .flat_map(|id| {
+                    self.deletions
+                        .get(*id)
+                        .and_then(|t_index| t_index.range(i64::MIN..t).last_t())
+                })
                 .max(),
         }
     }

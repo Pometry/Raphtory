@@ -11,7 +11,6 @@ use crate::{
         internal::{materialize::MaterializedGraph, Base, CoreGraphOps, EdgeFilter, GraphOps},
         BoxedIter,
     },
-    prelude::Layer,
 };
 use enum_dispatch::enum_dispatch;
 use std::ops::Range;

@@ -5,7 +5,7 @@ use crate::{
             graph::tgraph::InnerTemporalGraph,
             properties::{
                 graph_props::GraphProps,
-                props::{ArcReadLockedVec, Meta},
+                props::Meta,
                 tprop::{LockedLayeredTProp, TProp},
             },
             vertices::{vertex_ref::VertexRef, vertex_store::VertexStore},

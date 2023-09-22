@@ -1,18 +1,18 @@
 use crate::{
     core::{ArcStr, Prop, PropUnwrap},
-    db::api::properties::internal::{Key, PropertiesOps},
+    db::api::properties::internal::PropertiesOps,
     prelude::Graph,
 };
 use chrono::NaiveDateTime;
 use std::{collections::HashMap, iter::Zip, sync::Arc};
 
 pub struct TemporalPropertyView<P: PropertiesOps> {
-    pub(crate) id: Key,
+    pub(crate) id: usize,
     pub(crate) props: P,
 }
 
 impl<P: PropertiesOps> TemporalPropertyView<P> {
-    pub(crate) fn new(props: P, key: Key) -> Self {
+    pub(crate) fn new(props: P, key: usize) -> Self {
         TemporalPropertyView { props, id: key }
     }
     pub fn history(&self) -> Vec<i64> {

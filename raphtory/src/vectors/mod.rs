@@ -4,6 +4,7 @@ use async_trait::async_trait;
 use futures_util::future::{join_all, BoxFuture};
 // use futures_util::StreamExt;
 use itertools::{chain, Itertools};
+use serde::{Deserialize, Serialize, Serializer};
 use std::{
     borrow::Borrow,
     collections::{hash_map::DefaultHasher, HashMap, HashSet},
@@ -16,17 +17,14 @@ use std::{
     path::Path,
 };
 
-use crate::db::api::{
-    properties::internal::{TemporalPropertiesOps, TemporalPropertyViewOps},
-    view::internal::{DynamicGraph, IntoDynamic},
-};
-use serde::{Deserialize, Serialize, Serializer};
-
 // use crate::model::graph::edge::Edge;
 // use numpy::PyArray2;
 // use pyo3::{types::IntoPyDict, Python};
 use crate::{
-    db::graph::{edge::EdgeView, vertex::VertexView, views::window_graph::WindowedGraph},
+    db::{
+        api::view::internal::{DynamicGraph, IntoDynamic},
+        graph::{edge::EdgeView, vertex::VertexView, views::window_graph::WindowedGraph},
+    },
     prelude::{EdgeViewOps, GraphViewOps, Layer, LayerOps, TimeOps, VertexViewOps},
 };
 

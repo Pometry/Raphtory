@@ -29,6 +29,11 @@ use std::{
     sync::Arc,
 };
 
+/// A graph view where an edge remains active from the time it is added until it is explicitly marked as deleted.
+///
+/// Note that the graph will give you access to all edges that were added at any point in time, even those that are marked as deleted.
+/// The deletion only has an effect on the exploded edge view that are returned. An edge is included in a windowed view of the graph if
+/// it is considered active at any point in the window.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct GraphWithDeletions {
     graph: Arc<InternalGraph>,
@@ -545,7 +550,7 @@ impl TimeSemantics for GraphWithDeletions {
     }
 
     fn has_temporal_edge_prop(&self, e: EdgeRef, prop_id: usize, layer_ids: LayerIds) -> bool {
-        todo!()
+        self.graph.has_temporal_edge_prop(e, prop_id, layer_ids)
     }
 
     fn temporal_edge_prop_vec(
@@ -636,10 +641,33 @@ mod test_deletions {
     #[test]
     fn test_exploded_latest_time() {
         let g = GraphWithDeletions::new();
-        g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
+        let e = g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
         g.delete_edge(10, 1, 2, None).unwrap();
-        let e = g.edge(1, 2).unwrap();
         assert_eq!(e.latest_time(), Some(10));
         assert_eq!(e.explode().latest_time().collect_vec(), vec![Some(10)]);
+    }
+
+    #[test]
+    fn test_edge_properties() {
+        let g = GraphWithDeletions::new();
+        let e = g.add_edge(0, 1, 2, [("test", "test")], None).unwrap();
+        assert_eq!(e.properties().get("test").unwrap_str(), "test");
+        e.delete(10, None).unwrap();
+        assert_eq!(e.properties().get("test").unwrap_str(), "test");
+        e.add_updates(11, [("test", "test11")], None).unwrap();
+        assert_eq!(
+            e.window(10, 12).properties().get("test").unwrap_str(),
+            "test11"
+        );
+        assert_eq!(
+            e.window(5, 12)
+                .properties()
+                .temporal()
+                .get("test")
+                .unwrap()
+                .iter()
+                .collect_vec(),
+            vec![(5, Prop::str("test")), (11i64, Prop::str("test11"))],
+        );
     }
 }
