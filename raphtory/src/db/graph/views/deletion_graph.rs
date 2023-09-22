@@ -29,6 +29,11 @@ use std::{
     sync::Arc,
 };
 
+/// A graph view where an edge remains active from the time it is added until it is explicitly marked as deleted.
+///
+/// Note that the graph will give you access to all edges that were added at any point in time, even those that are marked as deleted.
+/// The deletion only has an effect on the exploded edge view that are returned. An edge is included in a windowed view of the graph if
+/// it is considered active at any point in the window.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct GraphWithDeletions {
     graph: Arc<InternalGraph>,
@@ -434,38 +439,99 @@ impl TimeSemantics for GraphWithDeletions {
             .collect()
     }
 
-    fn temporal_prop_vec(&self, name: &str) -> Vec<(i64, Prop)> {
-        self.graph.temporal_prop_vec(name)
+    #[inline]
+    fn has_temporal_prop(&self, prop_id: usize) -> bool {
+        self.graph.has_temporal_prop(prop_id)
     }
 
-    fn temporal_prop_vec_window(&self, name: &str, t_start: i64, t_end: i64) -> Vec<(i64, Prop)> {
-        self.graph.temporal_prop_vec_window(name, t_start, t_end)
+    fn temporal_prop_vec(&self, prop_id: usize) -> Vec<(i64, Prop)> {
+        self.graph.temporal_prop_vec(prop_id)
     }
 
-    fn temporal_vertex_prop_vec(&self, v: VID, name: &str) -> Vec<(i64, Prop)> {
-        self.graph.temporal_vertex_prop_vec(v, name)
+    #[inline]
+    fn has_temporal_prop_window(&self, prop_id: usize, w: Range<i64>) -> bool {
+        self.graph.has_temporal_prop_window(prop_id, w)
+    }
+
+    fn temporal_prop_vec_window(
+        &self,
+        prop_id: usize,
+        t_start: i64,
+        t_end: i64,
+    ) -> Vec<(i64, Prop)> {
+        self.graph.temporal_prop_vec_window(prop_id, t_start, t_end)
+    }
+
+    #[inline]
+    fn has_temporal_vertex_prop(&self, v: VID, prop_id: usize) -> bool {
+        self.graph.has_temporal_vertex_prop(v, prop_id)
+    }
+
+    fn temporal_vertex_prop_vec(&self, v: VID, prop_id: usize) -> Vec<(i64, Prop)> {
+        self.graph.temporal_vertex_prop_vec(v, prop_id)
+    }
+
+    fn has_temporal_vertex_prop_window(&self, v: VID, prop_id: usize, w: Range<i64>) -> bool {
+        self.graph.has_temporal_vertex_prop_window(v, prop_id, w)
     }
 
     fn temporal_vertex_prop_vec_window(
         &self,
         v: VID,
-        name: &str,
+        prop_id: usize,
         t_start: i64,
         t_end: i64,
     ) -> Vec<(i64, Prop)> {
         self.graph
-            .temporal_vertex_prop_vec_window(v, name, t_start, t_end)
+            .temporal_vertex_prop_vec_window(v, prop_id, t_start, t_end)
+    }
+
+    fn has_temporal_edge_prop_window(
+        &self,
+        e: EdgeRef,
+        prop_id: usize,
+        w: Range<i64>,
+        layer_ids: LayerIds,
+    ) -> bool {
+        let entry = self.core_edge(e.pid());
+
+        if entry.has_temporal_prop(&layer_ids, prop_id) {
+            let search_start = entry
+                .last_deletion_before(&layer_ids, w.start)
+                .unwrap_or(i64::MIN); // if property was added at any point since the last deletion, it is still there
+            match layer_ids {
+                LayerIds::None => false,
+                LayerIds::All => entry.layer_ids_iter().any(|id| {
+                    entry
+                        .temporal_prop_layer(id, prop_id)
+                        .filter(|prop| prop.iter_window(search_start..w.end).next().is_some())
+                        .is_some()
+                }),
+                LayerIds::One(id) => entry
+                    .temporal_prop_layer(id, prop_id)
+                    .filter(|prop| prop.iter_window(search_start..w.end).next().is_some())
+                    .is_some(),
+                LayerIds::Multiple(ids) => ids.iter().any(|&id| {
+                    entry
+                        .temporal_prop_layer(id, prop_id)
+                        .filter(|prop| prop.iter_window(search_start..w.end).next().is_some())
+                        .is_some()
+                }),
+            }
+        } else {
+            false
+        }
     }
 
     fn temporal_edge_prop_vec_window(
         &self,
         e: EdgeRef,
-        name: &str,
+        prop_id: usize,
         t_start: i64,
         t_end: i64,
         layer_ids: LayerIds,
     ) -> Vec<(i64, Prop)> {
-        let prop = self.temporal_edge_prop(e, name, layer_ids.clone());
+        let prop = self.temporal_edge_prop(e, prop_id, layer_ids.clone());
         match prop {
             Some(p) => {
                 let entry = self.core_edge(e.pid());
@@ -483,13 +549,17 @@ impl TimeSemantics for GraphWithDeletions {
         }
     }
 
+    fn has_temporal_edge_prop(&self, e: EdgeRef, prop_id: usize, layer_ids: LayerIds) -> bool {
+        self.graph.has_temporal_edge_prop(e, prop_id, layer_ids)
+    }
+
     fn temporal_edge_prop_vec(
         &self,
         e: EdgeRef,
-        name: &str,
+        prop_id: usize,
         layer_ids: LayerIds,
     ) -> Vec<(i64, Prop)> {
-        self.graph.temporal_edge_prop_vec(e, name, layer_ids)
+        self.graph.temporal_edge_prop_vec(e, prop_id, layer_ids)
     }
 }
 
@@ -571,10 +641,33 @@ mod test_deletions {
     #[test]
     fn test_exploded_latest_time() {
         let g = GraphWithDeletions::new();
-        g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
+        let e = g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
         g.delete_edge(10, 1, 2, None).unwrap();
-        let e = g.edge(1, 2).unwrap();
         assert_eq!(e.latest_time(), Some(10));
         assert_eq!(e.explode().latest_time().collect_vec(), vec![Some(10)]);
+    }
+
+    #[test]
+    fn test_edge_properties() {
+        let g = GraphWithDeletions::new();
+        let e = g.add_edge(0, 1, 2, [("test", "test")], None).unwrap();
+        assert_eq!(e.properties().get("test").unwrap_str(), "test");
+        e.delete(10, None).unwrap();
+        assert_eq!(e.properties().get("test").unwrap_str(), "test");
+        e.add_updates(11, [("test", "test11")], None).unwrap();
+        assert_eq!(
+            e.window(10, 12).properties().get("test").unwrap_str(),
+            "test11"
+        );
+        assert_eq!(
+            e.window(5, 12)
+                .properties()
+                .temporal()
+                .get("test")
+                .unwrap()
+                .iter()
+                .collect_vec(),
+            vec![(5, Prop::str("test")), (11i64, Prop::str("test11"))],
+        );
     }
 }

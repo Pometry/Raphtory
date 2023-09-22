@@ -7,9 +7,7 @@ use crate::{
     db::{
         api::{
             properties::{
-                internal::{
-                    ConstPropertiesOps, Key, TemporalPropertiesOps, TemporalPropertyViewOps,
-                },
+                internal::{ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps},
                 Properties,
             },
             view::*,
@@ -47,6 +45,10 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EvalEdgeView<'a, G, CS, 
             local_state_prev,
             _s: PhantomData,
         }
+    }
+
+    fn layer_ids(&self) -> LayerIds {
+        self.graph.layer_ids().constrain_from_edge(self.ev)
     }
 }
 
@@ -86,14 +88,22 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static>
 impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> ConstPropertiesOps
     for EvalEdgeView<'a, G, CS, S>
 {
-    fn const_property_keys(&self) -> Box<dyn Iterator<Item = ArcStr>> {
-        self.graph
-            .constant_edge_prop_names(self.ev, self.graph.layer_ids())
+    fn get_const_prop_id(&self, name: &str) -> Option<usize> {
+        self.graph.edge_meta().const_prop_meta().get_id(name)
     }
 
-    fn get_const_property(&self, key: &str) -> Option<Prop> {
+    fn get_const_prop_name(&self, id: usize) -> ArcStr {
+        self.graph.edge_meta().const_prop_meta().get_name(id)
+    }
+
+    fn const_prop_ids(&self) -> Box<dyn Iterator<Item = usize> + '_> {
         self.graph
-            .constant_edge_prop(self.ev, key, self.graph.layer_ids())
+            .const_edge_prop_ids(self.ev, self.graph.layer_ids())
+    }
+
+    fn get_const_prop(&self, prop_id: usize) -> Option<Prop> {
+        self.graph
+            .get_const_edge_prop(self.ev, prop_id, self.graph.layer_ids())
     }
 }
 
@@ -113,7 +123,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> Clone for EvalEdgeView<'
 impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> TemporalPropertyViewOps
     for EvalEdgeView<'a, G, CS, S>
 {
-    fn temporal_history(&self, id: &Key) -> Vec<i64> {
+    fn temporal_history(&self, id: usize) -> Vec<i64> {
         self.graph
             .temporal_edge_prop_vec(self.ev, id, self.graph.layer_ids())
             .into_iter()
@@ -121,7 +131,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> TemporalPropertyViewOps
             .collect()
     }
 
-    fn temporal_values(&self, id: &Key) -> Vec<Prop> {
+    fn temporal_values(&self, id: usize) -> Vec<Prop> {
         self.graph
             .temporal_edge_prop_vec(self.ev, id, self.graph.layer_ids())
             .into_iter()
@@ -133,17 +143,30 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> TemporalPropertyViewOps
 impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> TemporalPropertiesOps
     for EvalEdgeView<'a, G, CS, S>
 {
-    fn temporal_property_keys(&self) -> Box<dyn Iterator<Item = ArcStr>> {
+    fn get_temporal_prop_id(&self, name: &str) -> Option<usize> {
         self.graph
-            .temporal_edge_prop_names(self.ev, self.graph.layer_ids())
+            .edge_meta()
+            .temporal_prop_meta()
+            .get_id(name)
+            .filter(|id| {
+                self.graph
+                    .has_temporal_edge_prop(self.ev, *id, self.layer_ids())
+            })
     }
 
-    fn get_temporal_property(&self, key: &str) -> Option<Key> {
-        (!self
-            .graph
-            .temporal_edge_prop_vec(self.ev, key, self.graph.layer_ids())
-            .is_empty())
-        .then_some(key.into())
+    fn get_temporal_prop_name(&self, id: usize) -> ArcStr {
+        self.graph.edge_meta().temporal_prop_meta().get_name(id)
+    }
+
+    fn temporal_prop_ids(&self) -> Box<dyn Iterator<Item = usize> + '_> {
+        Box::new(
+            self.graph
+                .temporal_edge_prop_ids(self.ev, self.layer_ids())
+                .filter(|id| {
+                    self.graph
+                        .has_temporal_edge_prop(self.ev, *id, self.layer_ids())
+                }),
+        )
     }
 }
 

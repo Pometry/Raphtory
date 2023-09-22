@@ -146,7 +146,7 @@ pub enum Prop {
     F64(f64),
     Bool(bool),
     List(Arc<Vec<Prop>>),
-    Map(Arc<HashMap<String, Prop>>),
+    Map(Arc<HashMap<ArcStr, Prop>>),
     DTime(NaiveDateTime),
     Graph(Graph),
 }
@@ -280,8 +280,8 @@ pub trait PropUnwrap: Sized {
         self.into_list().unwrap()
     }
 
-    fn into_map(self) -> Option<Arc<HashMap<String, Prop>>>;
-    fn unwrap_map(self) -> Arc<HashMap<String, Prop>> {
+    fn into_map(self) -> Option<Arc<HashMap<ArcStr, Prop>>>;
+    fn unwrap_map(self) -> Arc<HashMap<ArcStr, Prop>> {
         self.into_map().unwrap()
     }
 
@@ -341,7 +341,7 @@ impl<P: PropUnwrap> PropUnwrap for Option<P> {
         self.and_then(|p| p.into_list())
     }
 
-    fn into_map(self) -> Option<Arc<HashMap<String, Prop>>> {
+    fn into_map(self) -> Option<Arc<HashMap<ArcStr, Prop>>> {
         self.and_then(|p| p.into_map())
     }
 
@@ -443,7 +443,7 @@ impl PropUnwrap for Prop {
         }
     }
 
-    fn into_map(self) -> Option<Arc<HashMap<String, Prop>>> {
+    fn into_map(self) -> Option<Arc<HashMap<ArcStr, Prop>>> {
         if let Prop::Map(v) = self {
             Some(v)
         } else {
@@ -595,8 +595,8 @@ impl From<bool> for Prop {
     }
 }
 
-impl From<HashMap<String, Prop>> for Prop {
-    fn from(value: HashMap<String, Prop>) -> Self {
+impl From<HashMap<ArcStr, Prop>> for Prop {
+    fn from(value: HashMap<ArcStr, Prop>) -> Self {
         Prop::Map(Arc::new(value))
     }
 }
@@ -617,7 +617,7 @@ pub trait IntoPropMap {
     fn into_prop_map(self) -> Prop;
 }
 
-impl<I: IntoIterator<Item = (K, V)>, K: Into<String>, V: Into<Prop>> IntoPropMap for I {
+impl<I: IntoIterator<Item = (K, V)>, K: Into<ArcStr>, V: Into<Prop>> IntoPropMap for I {
     fn into_prop_map(self) -> Prop {
         Prop::Map(Arc::new(
             self.into_iter()

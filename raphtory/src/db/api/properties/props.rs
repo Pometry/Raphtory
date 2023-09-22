@@ -21,24 +21,28 @@ impl<P: PropertiesOps + Clone> Properties<P> {
     ///
     /// First searches temporal properties and returns latest value if it exists.
     /// If not, it falls back to static properties.
-    pub fn get<Q: AsRef<str>>(&self, key: Q) -> Option<Prop> {
+    pub fn get(&self, key: &str) -> Option<Prop> {
         self.props
-            .get_temporal_property(key.as_ref())
-            .and_then(|k| self.props.temporal_value(&k))
-            .or_else(|| self.props.get_const_property(key.as_ref()))
+            .get_temporal_prop_id(key)
+            .and_then(|k| self.props.temporal_value(k))
+            .or_else(|| {
+                self.props
+                    .get_const_prop_id(key)
+                    .and_then(|id| self.props.get_const_prop(id))
+            })
     }
 
     /// Check if property `key` exists.
-    pub fn contains<Q: AsRef<str>>(&self, key: Q) -> bool {
+    pub fn contains(&self, key: &str) -> bool {
         self.get(key).is_some()
     }
 
     /// Iterate over all property keys
     pub fn keys(&self) -> impl Iterator<Item = ArcStr> + '_ {
-        self.props.temporal_property_keys().chain(
+        self.props.temporal_prop_keys().chain(
             self.props
-                .const_property_keys()
-                .filter(|k| self.props.get_temporal_property(k).is_none()),
+                .const_prop_keys()
+                .filter(|k| self.props.get_temporal_prop_id(k).is_none()),
         )
     }
 
@@ -64,7 +68,7 @@ impl<P: PropertiesOps + Clone> Properties<P> {
 
     /// Collect properties into vector
     pub fn as_vec(&self) -> Vec<(ArcStr, Prop)> {
-        self.iter().map(|(k, v)| (k.clone(), v)).collect()
+        self.iter().map(|(k, v)| (k, v)).collect()
     }
 
     /// Collect properties into map
