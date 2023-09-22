@@ -1225,6 +1225,7 @@ def test_connected_components():
     assert actual.get_all() == expected
     assert actual.get("1") == 1
 
+
 def test_empty_algo():
     g = Graph()
     assert algorithms.weakly_connected_components(g, 20).get_all() == {}
