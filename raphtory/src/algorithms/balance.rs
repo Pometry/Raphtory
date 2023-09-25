@@ -23,6 +23,7 @@ use crate::{
     prelude::{EdgeListOps, PropUnwrap, VertexViewOps},
 };
 use ordered_float::OrderedFloat;
+use std::collections::HashMap;
 
 /// Computes the net sum of weights for a given vertex based on edge direction.
 ///
@@ -112,16 +113,22 @@ pub fn balance<G: GraphViewOps>(
         Step::Done
     });
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
-    AlgorithmResult::new(runner.run(
-        vec![],
-        vec![Job::new(step1)],
-        None,
-        |_, ess, _, _| ess.finalize(&min, |min| min),
-        threads,
-        1,
-        None,
-        None,
-    ))
+    let results_type = std::any::type_name::<HashMap<String, f64>>();
+
+    AlgorithmResult::new(
+        "Balance",
+        results_type,
+        runner.run(
+            vec![],
+            vec![Job::new(step1)],
+            None,
+            |_, ess, _, _| ess.finalize(&min, |min| min),
+            threads,
+            1,
+            None,
+            None,
+        ),
+    )
 }
 
 #[cfg(test)]
