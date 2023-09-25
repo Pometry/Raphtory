@@ -2,8 +2,12 @@ use std::{collections::HashMap, sync::Arc};
 
 use polars_core::{
     prelude::*,
-    utils::arrow::array::{
-        MutableListArray, MutablePrimitiveArray, MutableStructArray, PrimitiveArray,
+    utils::arrow::{
+        array::{
+            ListArray, MutableArray, MutableListArray, MutablePrimitiveArray, MutableStructArray,
+            PrimitiveArray, StructArray,
+        },
+        offset::Offsets,
     },
 };
 use raphtory::core::entities::vertices::vertex_ref::VertexRef;
@@ -48,8 +52,41 @@ pub struct SparseTable {
     sorted_gids: Vec<u64>,
     adj_out_dst: Vec<u64>,
     adj_out_eid: Vec<u64>,
-    adj_out_offsets: Vec<u64>,
-    edge_time_offsets: Vec<u64>,
+    adj_out_offsets: Vec<i64>,
+    edge_time_offsets: Vec<i64>,
+}
+
+impl SparseTable {
+    fn into_graph(self) -> TempColGraphFragment {
+        let vertex_gid_col = Series::new(GID_COLUMN, self.sorted_gids);
+        let vertex_df = DataFrame::new(vec![vertex_gid_col]).unwrap();
+
+        let fields = vec![
+            ArrowField::new(V_COLUMN, ArrowDataType::UInt64, false),
+            ArrowField::new(E_COLUMN, ArrowDataType::UInt64, false),
+        ];
+        let schema = ArrowDataType::Struct(fields);
+
+        let dst_col = Box::new(MutablePrimitiveArray::<u64>::from_vec(self.adj_out_dst));
+        let eid_col = Box::new(MutablePrimitiveArray::<u64>::from_vec(self.adj_out_eid));
+
+        let values = MutableStructArray::new(schema, vec![dst_col, eid_col]);
+
+        let outbound2 = MutableListArray::new_from_mutable(
+            values,
+            Offsets::try_from(self.adj_out_offsets).unwrap(),
+            None,
+        );
+
+        let outbound: ListArray<i64> = outbound2.into();
+
+        let outbound: ChunkedArray<ListType> =
+            unsafe { ChunkedArray::from_chunks(OUTBOUND_COLUMN, vec![Box::new(outbound)]) };
+
+        let edge_df = DataFrame::new(vec![outbound.into_series()]).unwrap();
+
+        TempColGraphFragment { edge_df, vertex_df }
+    }
 }
 
 impl TempColGraph {
@@ -92,10 +129,6 @@ impl TempColGraph {
         times: &ChunkedArray<Int64Type>,
         cap: usize,
     ) -> SparseTable {
-        // iterate over it once
-        // 1. gid_column
-        // 2. mapping for every vertex to its fragment
-
         let mut sorted_gids: Vec<u64> = vec![];
 
         for chunk in srcs.chunks() {
@@ -115,8 +148,8 @@ impl TempColGraph {
         let mut adj_out_eid: Vec<u64> = Vec::with_capacity(cap);
         let mut adj_out_dst: Vec<u64> = Vec::with_capacity(cap);
 
-        let mut adj_out_offsets: Vec<u64> = vec![0];
-        let mut edge_time_offsets: Vec<u64> = vec![0];
+        let mut adj_out_offsets: Vec<i64> = vec![0];
+        let mut edge_time_offsets: Vec<i64> = vec![0];
 
         let mut e_id: u64 = 0;
         let mut last_edge: Option<(u64, u64)> = None;
@@ -144,18 +177,18 @@ impl TempColGraph {
             }
             if let Some((prev_src, prev_dst)) = last_edge {
                 if prev_src != src {
-                    adj_out_offsets.push(e_id);
+                    adj_out_offsets.push(e_id as i64);
                 }
                 if prev_src != src || prev_dst != dst {
-                    edge_time_offsets.push(event_id as u64);
+                    edge_time_offsets.push(event_id as i64);
                 }
             }
             last_edge = Some((src, dst));
         }
 
         if last_edge.is_some() {
-            adj_out_offsets.resize(sorted_gids.len() + 1, e_id);
-            edge_time_offsets.push(times.len() as u64);
+            adj_out_offsets.resize(sorted_gids.len() + 1, e_id as i64);
+            edge_time_offsets.push(times.len() as i64);
         }
 
         SparseTable {
@@ -256,12 +289,13 @@ mod test {
     use super::*;
 
     use polars_core::prelude::*;
+
     #[test]
     fn load_one_edge_from_sorted_adj_list_num_vertices_no_props() {
         let df = DataFrame::new(vec![
-            Series::new("src", vec![1]),
-            Series::new("dst", vec![2]),
-            Series::new("time", vec![0]),
+            Series::new("src", vec![1u64]),
+            Series::new("dst", vec![2u64]),
+            Series::new("time", vec![0i64]),
         ])
         .unwrap();
 
@@ -273,7 +307,7 @@ mod test {
         assert_eq!(res.sorted_gids, vec![1, 2]);
         assert_eq!(res.adj_out_dst, vec![1]);
         assert_eq!(res.adj_out_eid, vec![0]);
-        assert_eq!(res.adj_out_offsets, vec![0, 1]);
+        assert_eq!(res.adj_out_offsets, vec![0, 1, 1]);
         assert_eq!(res.edge_time_offsets, vec![0, 1]);
     }
 }
