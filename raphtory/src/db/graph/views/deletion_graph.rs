@@ -5,7 +5,7 @@ use crate::{
             vertices::vertex_store::VertexStore,
             LayerIds, VID,
         },
-        storage::timeindex::{AsTime, TimeIndexOps},
+        storage::timeindex::{AsTime, TimeIndexEntry, TimeIndexOps},
         utils::errors::GraphError,
         Direction, Prop,
     },
@@ -70,53 +70,58 @@ impl GraphWithDeletions {
         ) = match layer_ids {
             LayerIds::None => return false,
             LayerIds::All => (
-                e.additions().iter().flat_map(|v| v.first_t()).min(),
-                e.deletions().iter().flat_map(|v| v.first_t()).min(),
+                e.additions().iter().flat_map(|v| v.first()).min().copied(),
+                e.deletions().iter().flat_map(|v| v.first()).min().copied(),
                 e.additions()
                     .iter()
-                    .flat_map(|v| v.range(i64::MIN..t.saturating_add(1)).last_t())
+                    .flat_map(|v| v.range(i64::MIN..t.saturating_add(1)).last().copied())
                     .max(),
                 e.deletions()
                     .iter()
-                    .flat_map(|v| v.range(i64::MIN..t).last_t())
+                    .flat_map(|v| v.range(i64::MIN..t).last().copied())
                     .max(),
             ),
             LayerIds::One(l_id) => (
-                e.additions().get(*l_id).and_then(|v| v.first_t()),
-                e.deletions().get(*l_id).and_then(|v| v.first_t()),
+                e.additions().get(*l_id).and_then(|v| v.first().copied()),
+                e.deletions().get(*l_id).and_then(|v| v.first().copied()),
                 e.additions()
                     .get(*l_id)
-                    .and_then(|v| v.range(i64::MIN..t.saturating_add(1)).last_t()),
+                    .and_then(|v| v.range(i64::MIN..t.saturating_add(1)).last().copied()),
                 e.deletions()
                     .get(*l_id)
-                    .and_then(|v| v.range(i64::MIN..t).last_t()),
+                    .and_then(|v| v.range(i64::MIN..t).last().copied()),
             ),
             LayerIds::Multiple(ids) => (
                 ids.iter()
-                    .flat_map(|l_id| e.additions().get(*l_id).and_then(|v| v.first_t()))
-                    .min(),
+                    .flat_map(|l_id| e.additions().get(*l_id).and_then(|v| v.first()))
+                    .min()
+                    .copied(),
                 ids.iter()
-                    .flat_map(|l_id| e.deletions().get(*l_id).and_then(|v| v.first_t()))
-                    .min(),
+                    .flat_map(|l_id| e.deletions().get(*l_id).and_then(|v| v.first()))
+                    .min()
+                    .copied(),
                 ids.iter()
                     .flat_map(|l_id| {
                         e.additions()
                             .get(*l_id)
-                            .and_then(|v| v.range(i64::MIN..t.saturating_add(1)).last_t())
+                            .and_then(|v| v.range(i64::MIN..t.saturating_add(1)).last().copied())
                     })
                     .max(),
                 ids.iter()
                     .flat_map(|l_id| {
                         e.deletions()
                             .get(*l_id)
-                            .and_then(|v| v.range(i64::MIN..t).last_t())
+                            .and_then(|v| v.range(i64::MIN..t).last().copied())
                     })
                     .max(),
             ),
         };
 
         // None is less than any value (see test below)
-        (first_deletion < first_addition && first_deletion.filter(|v| *v >= t).is_some())
+        (first_deletion < first_addition
+            && first_deletion
+                .filter(|v| *v >= TimeIndexEntry::start(t))
+                .is_some())
             || last_addition_before_start > last_deletion_before_start
     }
 
@@ -130,11 +135,10 @@ impl GraphWithDeletions {
         let edges = self.graph.inner().storage.edges.read_lock();
         v.edge_tuples(layers, Direction::BOTH)
             .map(|eref| edges.get(eref.pid().into()))
-            .filter(|e| {
+            .find(|e| {
                 edge_filter.map(|f| f(e, layers)).unwrap_or(true)
                     && self.edge_alive_at(e, t, layers)
             })
-            .next()
             .is_some()
     }
 
@@ -346,7 +350,7 @@ impl TimeSemantics for GraphWithDeletions {
     fn edge_earliest_time(&self, e: EdgeRef, layer_ids: LayerIds) -> Option<i64> {
         e.time().map(|ti| *ti.t()).or_else(|| {
             let entry = self.core_edge(e.pid());
-            if self.edge_alive_at(&entry, i64::MIN, &layer_ids.clone()) {
+            if self.edge_alive_at(&entry, i64::MIN, &layer_ids) {
                 Some(i64::MIN)
             } else {
                 self.edge_additions(e, layer_ids).first().map(|ti| *ti.t())
@@ -498,23 +502,24 @@ impl TimeSemantics for GraphWithDeletions {
         if entry.has_temporal_prop(&layer_ids, prop_id) {
             let search_start = entry
                 .last_deletion_before(&layer_ids, w.start)
-                .unwrap_or(i64::MIN); // if property was added at any point since the last deletion, it is still there
+                .unwrap_or(TimeIndexEntry::MIN); // if property was added at any point since the last deletion, it is still there
+            let search_end = TimeIndexEntry::start(w.end);
             match layer_ids {
                 LayerIds::None => false,
                 LayerIds::All => entry.layer_ids_iter().any(|id| {
                     entry
                         .temporal_prop_layer(id, prop_id)
-                        .filter(|prop| prop.iter_window(search_start..w.end).next().is_some())
+                        .filter(|prop| prop.iter_window(search_start..search_end).next().is_some())
                         .is_some()
                 }),
                 LayerIds::One(id) => entry
                     .temporal_prop_layer(id, prop_id)
-                    .filter(|prop| prop.iter_window(search_start..w.end).next().is_some())
+                    .filter(|prop| prop.iter_window(search_start..search_end).next().is_some())
                     .is_some(),
                 LayerIds::Multiple(ids) => ids.iter().any(|&id| {
                     entry
                         .temporal_prop_layer(id, prop_id)
-                        .filter(|prop| prop.iter_window(search_start..w.end).next().is_some())
+                        .filter(|prop| prop.iter_window(search_start..search_end).next().is_some())
                         .is_some()
                 }),
             }
@@ -669,5 +674,24 @@ mod test_deletions {
                 .collect_vec(),
             vec![(5, Prop::str("test")), (11i64, Prop::str("test11"))],
         );
+    }
+
+    #[test]
+    fn test_ordering_of_addition_and_deletion() {
+        let g = GraphWithDeletions::new();
+
+        //deletion before addition (edge exists from (-inf,1) and (1, inf)
+        g.delete_edge(1, 1, 2, None).unwrap();
+        g.add_edge(1, 1, 2, [("test", "test")], None).unwrap();
+
+        //deletion after addition (edge exists only at 2)
+        g.add_edge(2, 3, 4, [("test", "test")], None).unwrap();
+        g.delete_edge(2, 3, 4, None).unwrap();
+
+        assert!(g.window(0, 1).has_edge(1, 2, Layer::Default));
+        assert!(!g.window(0, 2).has_edge(3, 4, Layer::Default));
+        assert!(g.window(1, 2).has_edge(1, 2, Layer::Default));
+        assert!(g.window(2, 3).has_edge(3, 4, Layer::Default));
+        assert!(!g.window(3, 4).has_edge(3, 4, Layer::Default));
     }
 }

@@ -272,24 +272,24 @@ impl EdgeStore {
         }
     }
 
-    pub fn last_deletion_before(&self, layer_ids: &LayerIds, t: i64) -> Option<i64> {
+    pub fn last_deletion_before(&self, layer_ids: &LayerIds, t: i64) -> Option<TimeIndexEntry> {
         match layer_ids {
             LayerIds::None => None,
             LayerIds::All => self
                 .deletions()
                 .iter()
-                .flat_map(|dels| dels.range(i64::MIN..t).last_t())
+                .flat_map(|dels| dels.range(i64::MIN..t).last().copied())
                 .max(),
             LayerIds::One(id) => {
                 let layer = self.deletions.get(*id)?;
-                layer.range(i64::MIN..t).last_t()
+                layer.range(i64::MIN..t).last().copied()
             }
             LayerIds::Multiple(ids) => ids
                 .iter()
                 .flat_map(|id| {
                     self.deletions
                         .get(*id)
-                        .and_then(|t_index| t_index.range(i64::MIN..t).last_t())
+                        .and_then(|t_index| t_index.range(i64::MIN..t).last().copied())
                 })
                 .max(),
         }
@@ -328,7 +328,7 @@ impl EdgeStore {
                     .and_then(|layer| {
                         layer
                             .temporal_property(prop_id)
-                            .filter(|p| p.iter_window(w.clone()).next().is_some())
+                            .filter(|p| p.iter_window_t(w.clone()).next().is_some())
                     })
                     .is_some()
             }),
@@ -337,7 +337,7 @@ impl EdgeStore {
                 .and_then(|layer| {
                     layer
                         .temporal_property(prop_id)
-                        .filter(|p| p.iter_window(w.clone()).next().is_some())
+                        .filter(|p| p.iter_window_t(w.clone()).next().is_some())
                 })
                 .is_some(),
             LayerIds::Multiple(ids) => ids.iter().any(|id| {
@@ -345,7 +345,7 @@ impl EdgeStore {
                     .and_then(|layer| {
                         layer
                             .temporal_property(prop_id)
-                            .filter(|p| p.iter_window(w.clone()).next().is_some())
+                            .filter(|p| p.iter_window_t(w.clone()).next().is_some())
                     })
                     .is_some()
             }),
