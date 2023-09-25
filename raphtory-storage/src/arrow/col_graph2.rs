@@ -1,5 +1,6 @@
 use std::{collections::HashMap, sync::Arc};
 
+use itertools::Itertools;
 use polars_core::{
     prelude::*,
     utils::arrow::{
@@ -10,11 +11,91 @@ use polars_core::{
         offset::Offsets,
     },
 };
-use raphtory::core::entities::vertices::vertex_ref::VertexRef;
+use raphtory::core::{
+    entities::{vertices::vertex_ref::VertexRef, EID, VID},
+    Direction,
+};
 
 struct TempColGraphFragment {
-    edge_df: DataFrame,
+    // edge_df: DataFrame,
     vertex_df: DataFrame,
+}
+
+impl TempColGraphFragment {
+    fn edges(&self, vertex_id: VID, dir: Direction) -> Box<dyn Iterator<Item = (EID, VID)> + Send> {
+        match dir {
+            Direction::IN | Direction::OUT => {
+                let adj_array = self.adj_list(vertex_id.into(), dir);
+                if adj_array.is_none() {
+                    return Box::new(std::iter::empty());
+                }
+                let adj_array = adj_array.unwrap();
+                let v = adj_array.values()[0]
+                    .as_any()
+                    .downcast_ref::<PrimitiveArray<u64>>()
+                    .unwrap()
+                    .clone();
+                let e = adj_array.values()[1]
+                    .as_any()
+                    .downcast_ref::<PrimitiveArray<u64>>()
+                    .unwrap()
+                    .clone();
+                let iter = v
+                    .into_iter()
+                    .filter_map(|x| x)
+                    .zip(e.into_iter().filter_map(|x| x))
+                    .map(|(vid, eid)| (EID(eid as usize), VID(vid as usize)));
+
+                Box::new(iter)
+            }
+            Direction::BOTH => {
+                let out = self.edges(vertex_id, Direction::OUT);
+                let inb = self.edges(vertex_id, Direction::IN);
+                Box::new(out.merge_by(inb, |(v1, _), (v2, _)| v1 < v2))
+            }
+        }
+    }
+
+    fn adj_list(&self, vertex_id: usize, dir: Direction) -> Option<StructArray> {
+        let row: usize = vertex_id.into();
+
+        let chunks = match dir {
+            Direction::OUT => self.outbound().chunks(),
+            Direction::IN => self.inbound().chunks(),
+            Direction::BOTH => return None,
+        };
+
+        let chunk_size = chunks[0].len(); // we assume all the chunks are the same size
+
+        let chunk_idx = row / chunk_size;
+        let idx = row % chunk_size;
+
+        let arr = chunks
+            .get(chunk_idx)?
+            .as_any()
+            .downcast_ref::<ListArray<i64>>()?;
+        let arr = arr.value(idx);
+        let adj_list = arr.as_any().downcast_ref::<StructArray>()?;
+        Some(adj_list.clone())
+    }
+
+    fn outbound(&self) -> &ChunkedArray<ListType> {
+        self.vertex_df
+            .column(OUTBOUND_COLUMN)
+            .unwrap()
+            .as_any()
+            .downcast_ref::<ChunkedArray<ListType>>()
+            .expect("unexpected error, should be able to downcast, contact maintainers!")
+    }
+
+    fn inbound(&self) -> &ChunkedArray<ListType> {
+        self.vertex_df
+            .column(INBOUND_COLUMN)
+            .unwrap()
+            .as_any()
+            .downcast_ref::<ChunkedArray<ListType>>()
+            .expect("unexpected error, should be able to downcast, contact maintainers!")
+    }
 }
 
 struct TempColGraph {
@@ -58,8 +139,6 @@ pub struct SparseTable {
 
 impl SparseTable {
     fn into_graph(self) -> TempColGraphFragment {
-        let vertex_gid_col = Series::new(GID_COLUMN, self.sorted_gids);
-        let vertex_df = DataFrame::new(vec![vertex_gid_col]).unwrap();
 
         let fields = vec![
             ArrowField::new(V_COLUMN, ArrowDataType::UInt64, false),
@@ -83,9 +162,12 @@ impl SparseTable {
         let outbound: ChunkedArray<ListType> =
             unsafe { ChunkedArray::from_chunks(OUTBOUND_COLUMN, vec![Box::new(outbound)]) };
 
-        let edge_df = DataFrame::new(vec![outbound.into_series()]).unwrap();
+        // let edge_df = DataFrame::new(vec![]).unwrap();
 
-        TempColGraphFragment { edge_df, vertex_df }
+        let vertex_gid_col = Series::new(GID_COLUMN, self.sorted_gids);
+        let vertex_df = DataFrame::new(vec![vertex_gid_col, outbound.into_series()]).unwrap();
+
+        TempColGraphFragment { vertex_df }
     }
 }
 
@@ -304,10 +386,12 @@ mod test {
         let time = df.column("time").unwrap().i64().unwrap();
 
         let res = TempColGraph::build_tables(src, dst, time, 1);
-        assert_eq!(res.sorted_gids, vec![1, 2]);
-        assert_eq!(res.adj_out_dst, vec![1]);
-        assert_eq!(res.adj_out_eid, vec![0]);
-        assert_eq!(res.adj_out_offsets, vec![0, 1, 1]);
-        assert_eq!(res.edge_time_offsets, vec![0, 1]);
+        let graph = res.into_graph();
+
+        let actual = graph.edges(0.into(), Direction::OUT).collect::<Vec<_>>();
+
+        let expected = vec![(EID(0), VID(1))];
+
+        assert_eq!(actual, expected)
     }
 }
