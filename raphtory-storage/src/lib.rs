@@ -13,7 +13,6 @@ pub struct TemporalColumnarGraph {
 }
 
 impl TemporalColumnarGraph {
-
     pub fn empty() -> Self {
         Self {
             fragments: Vec::new(),
@@ -99,19 +98,17 @@ mod test {
     }
 
     #[test]
-    fn two_fragments_temporal_query(){
+    fn two_fragments_temporal_query() {
         let tcg = simple_graph();
 
-        let out_neighbours = tcg.neighbours(2, Direction::OUT, Some(1..3)).collect::<Vec<_>>();
-        assert_eq!(
-            out_neighbours,
-            vec![VertexRef::External(3)]
-        );
+        let out_neighbours = tcg
+            .neighbours(2, Direction::OUT, Some(1..3))
+            .collect::<Vec<_>>();
+        assert_eq!(out_neighbours, vec![VertexRef::External(3)]);
 
-        let in_neighbours = tcg.neighbours(2, Direction::IN, Some(0..3)).collect::<Vec<_>>();
-        assert_eq!(
-            in_neighbours,
-            vec![VertexRef::External(1)]
-        );
+        let in_neighbours = tcg
+            .neighbours(2, Direction::IN, Some(0..3))
+            .collect::<Vec<_>>();
+        assert_eq!(in_neighbours, vec![VertexRef::External(1)]);
     }
 }
