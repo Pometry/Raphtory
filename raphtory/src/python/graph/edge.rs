@@ -697,6 +697,7 @@ impl PyNestedEdges {
     }
 }
 
+/// A direction used by an edge, being incoming or outgoing
 #[pyclass]
 #[derive(Clone)]
 pub struct PyDirection {

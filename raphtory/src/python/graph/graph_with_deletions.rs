@@ -27,7 +27,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-/// A temporal graph.
+/// A temporal graph that allows edges and nodes to be deleted.
 #[derive(Clone)]
 #[pyclass(name="GraphWithDeletions", extends=PyGraphView)]
 pub struct PyGraphWithDeletions {
@@ -74,7 +74,7 @@ impl PyGraphWithDeletions {
     }
 }
 
-/// A temporal graph.
+/// A temporal graph that allows edges and nodes to be deleted.
 #[pymethods]
 impl PyGraphWithDeletions {
     #[new]

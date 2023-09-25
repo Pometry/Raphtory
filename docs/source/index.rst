@@ -62,12 +62,24 @@ Graph Generation
 GraphQL Server
 --------------------------
 
-.. automodule:: raphtory.graphql
+.. automodule:: raphtory.graphqlserver
    :autosummary:
    :members:
    :undoc-members:
    :show-inheritance:
    :inherited-members:
+
+
+GraphQL Client
+--------------------------
+
+.. automodule:: raphtory.graphqlclient
+   :autosummary:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :inherited-members:
+
 
 
 

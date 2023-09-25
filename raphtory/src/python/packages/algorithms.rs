@@ -389,7 +389,7 @@ pub fn hits(
 ///
 /// This function computes the sum of edge weights based on the direction provided, and can be executed in parallel using a given number of threads.
 ///
-/// # Parameters
+/// Arguments:
 /// * `g` (`&PyGraphView`): The graph view on which the operation is to be performed.
 /// * `name` (`String`, default = "weight"): The name of the edge property used as the weight. Defaults to "weight" if not provided.
 /// * `direction` (`PyDirection`, default = `PyDirection::new("BOTH")`): Specifies the direction of the edges to be considered for summation.
@@ -398,7 +398,7 @@ pub fn hits(
 ///    - `PyDirection::new("BOTH")`: Consider both outgoing and incoming edges. This is the default.
 /// * `threads` (`Option<usize>`, default = `None`): The number of threads to be used for parallel execution. Defaults to single-threaded operation if not provided.
 ///
-/// # Returns
+/// Returns:
 /// `AlgorithmResult<String, OrderedFloat<f64>>`: A result containing a mapping of vertex names to the computed sum of their associated edge weights.
 ///
 #[pyfunction]

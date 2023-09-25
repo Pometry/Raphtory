@@ -54,7 +54,7 @@ use crate::{
 ///
 /// * `g` - A reference to the graph
 ///
-/// # Returns
+/// Returns:
 ///
 /// The total number of open and closed triplets in the graph
 ///

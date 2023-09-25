@@ -43,16 +43,15 @@ macro_rules! py_algorithm_result_base {
 
             /// Returns the value corresponding to the provided key in the `result` hashmap.
             ///
-            /// # Arguments
-            ///
-            /// * `key`: The key of type `H` for which the value is to be retrieved.
+            /// Arguments:
+            ///     `key`: The key of type `H` for which the value is to be retrieved.
             fn get(&self, key: $rustKey) -> Option<$rustValue> {
                 self.0.get(&key).cloned()
             }
 
             /// Creates a dataframe from the result
             ///
-            /// # Returns
+            /// Returns:
             ///
             /// A `pandas.DataFrame` containing the result
             pub fn to_df(&self) -> PyResult<PyObject> {
@@ -83,11 +82,11 @@ macro_rules! py_algorithm_result_partial_ord {
         impl $name {
             /// Sorts the `AlgorithmResult` by its values in ascending or descending order.
             ///
-            /// # Arguments
+            /// Arguments:
             ///
             /// * `reverse`: If `true`, sorts the result in descending order; otherwise, sorts in ascending order.
             ///
-            /// # Returns
+            /// Returns:
             ///
             /// A sorted vector of tuples containing keys of type `H` and values of type `Y`.
             #[pyo3(signature = (reverse=true))]
@@ -97,11 +96,11 @@ macro_rules! py_algorithm_result_partial_ord {
 
             /// Sorts the `AlgorithmResult` by its keys in ascending or descending order.
             ///
-            /// # Arguments
+            /// Arguments:
             ///
             /// * `reverse`: If `true`, sorts the result in descending order; otherwise, sorts in ascending order.
             ///
-            /// # Returns
+            /// Returns:
             ///
             /// A sorted vector of tuples containing keys of type `H` and values of type `Y`.
             #[pyo3(signature = (reverse=true))]
@@ -111,13 +110,13 @@ macro_rules! py_algorithm_result_partial_ord {
 
             /// Retrieves the top-k elements from the `AlgorithmResult` based on its values.
             ///
-            /// # Arguments
+            /// Arguments:
             ///
             /// * `k`: The number of elements to retrieve.
             /// * `percentage`: If `true`, the `k` parameter is treated as a percentage of total elements.
             /// * `reverse`: If `true`, retrieves the elements in descending order; otherwise, in ascending order.
             ///
-            /// # Returns
+            /// Returns:
             ///
             /// An `Option` containing a vector of tuples with keys of type `H` and values of type `Y`.
             /// If `percentage` is `true`, the returned vector contains the top `k` percentage of elements.
@@ -144,7 +143,7 @@ macro_rules! py_algorithm_result_ord_hash_eq {
         impl $name {
             /// Groups the `AlgorithmResult` by its values.
             ///
-            /// # Returns
+            /// Returns:
             ///
             /// A `HashMap` where keys are unique values from the `AlgorithmResult` and values are vectors
             /// containing keys of type `H` that share the same value.

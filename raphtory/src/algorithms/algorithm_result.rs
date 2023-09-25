@@ -59,7 +59,7 @@ where
 {
     /// Creates a new instance of `AlgorithmResult` with the provided hashmap.
     ///
-    /// # Arguments
+    /// Arguments:
     ///
     /// * `result`: A `HashMap` with keys of type `H` and values of type `Y`.
     pub fn new(result: HashMap<K, V>) -> Self {
@@ -76,9 +76,8 @@ where
 
     /// Returns the value corresponding to the provided key in the `result` hashmap.
     ///
-    /// # Arguments
-    ///
-    /// * `key`: The key of type `H` for which the value is to be retrieved.
+    /// Arguments:
+    ///     `key`: The key of type `H` for which the value is to be retrieved.
     pub fn get<Q>(&self, key: &Q) -> Option<&V>
     where
         Q: Hash + Eq + ?Sized,
@@ -89,11 +88,11 @@ where
 
     /// Sorts the `AlgorithmResult` by its keys in ascending or descending order.
     ///
-    /// # Arguments
+    /// Arguments:
     ///
     /// * `reverse`: If `true`, sorts the result in descending order; otherwise, sorts in ascending order.
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// A sorted vector of tuples containing keys of type `H` and values of type `Y`.
     pub fn sort_by_key(&self, reverse: bool) -> Vec<(K, V)> {
@@ -108,11 +107,11 @@ where
 
     /// Sorts the `AlgorithmResult` by its values in ascending or descending order.
     ///
-    /// # Arguments
+    /// Arguments:
     ///
     /// * `reverse`: If `true`, sorts the result in descending order; otherwise, sorts in ascending order.
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// A sorted vector of tuples containing keys of type `H` and values of type `Y`.
     pub fn sort_by<F: FnMut(&V, &V) -> std::cmp::Ordering>(
@@ -127,13 +126,13 @@ where
 
     /// Retrieves the top-k elements from the `AlgorithmResult` based on its values.
     ///
-    /// # Arguments
+    /// Arguments:
     ///
     /// * `k`: The number of elements to retrieve.
     /// * `percentage`: If `true`, the `k` parameter is treated as a percentage of total elements.
     /// * `reverse`: If `true`, retrieves the elements in descending order; otherwise, in ascending order.
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// An `a vector of tuples with keys of type `H` and values of type `Y`.
     /// If `percentage` is `true`, the returned vector contains the top `k` percentage of elements.
@@ -227,11 +226,11 @@ where
 {
     /// Sorts the `AlgorithmResult` by its values in ascending or descending order.
     ///
-    /// # Arguments
+    /// Arguments:
     ///
     /// * `reverse`: If `true`, sorts the result in descending order; otherwise, sorts in ascending order.
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// A sorted vector of tuples containing keys of type `H` and values of type `Y`.
     pub fn sort_by_value(&self, reverse: bool) -> Vec<(K, V)> {
@@ -240,13 +239,13 @@ where
 
     /// Retrieves the top-k elements from the `AlgorithmResult` based on its values.
     ///
-    /// # Arguments
+    /// Arguments:
     ///
     /// * `k`: The number of elements to retrieve.
     /// * `percentage`: If `true`, the `k` parameter is treated as a percentage of total elements.
     /// * `reverse`: If `true`, retrieves the elements in descending order; otherwise, in ascending order.
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// An `a vector of tuples with keys of type `H` and values of type `Y`.
     /// If `percentage` is `true`, the returned vector contains the top `k` percentage of elements.
@@ -281,7 +280,7 @@ where
 {
     /// Groups the `AlgorithmResult` by its values.
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// A `HashMap` where keys are unique values from the `AlgorithmResult` and values are vectors
     /// containing keys of type `H` that share the same value.

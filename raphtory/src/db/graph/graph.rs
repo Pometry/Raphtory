@@ -87,7 +87,7 @@ impl InheritViewOps for Graph {}
 impl Graph {
     /// Create a new graph with the specified number of shards
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// A raphtory graph
     ///
@@ -111,7 +111,7 @@ impl Graph {
     ///
     /// * `path` - The path to the directory
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// A raphtory graph
     ///

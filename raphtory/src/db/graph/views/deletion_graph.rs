@@ -150,7 +150,7 @@ impl GraphWithDeletions {
     ///
     /// * `path` - The path to the directory
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// A raphtory graph
     ///
@@ -173,7 +173,7 @@ impl GraphWithDeletions {
     ///
     /// * `path` - The path to the directory
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// A raphtory graph
     ///

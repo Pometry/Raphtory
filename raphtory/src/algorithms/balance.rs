@@ -36,12 +36,12 @@ use ordered_float::OrderedFloat;
 ///   the weight is treated as positive.
 /// - In all other cases, the weight contribution is zero.
 ///
-/// # Parameters
+/// Arguments:
 /// - `v`: The vertex for which we want to compute the weight sum.
 /// - `name`: The name of the property which holds the edge weight.
 /// - `direction`: Specifies the direction of edges to consider (`IN`, `OUT`, or `BOTH`).
 ///
-/// # Returns
+/// Returns:
 /// Returns a `f64` which is the net sum of weights for the vertex considering the specified direction.
 fn balance_per_vertex<G: GraphViewOps, CS: ComputeState>(
     v: &EvalVertexView<G, CS, ()>,
@@ -89,13 +89,13 @@ fn balance_per_vertex<G: GraphViewOps, CS: ComputeState>(
 /// Incoming edges have a positive sum and outgoing edges have a negative sum
 /// It uses a compute context and tasks to achieve this.
 ///
-/// # Parameters
+/// Arguments:
 /// - `graph`: The graph on which the operation is to be performed.
 /// - `name`: The name of the property which holds the edge weight.
 /// - `threads`: An optional parameter to specify the number of threads to use.
 ///              If `None`, it defaults to a suitable number.
 ///
-/// # Returns
+/// Returns:
 /// Returns an `AlgorithmResult` which maps each vertex to its corresponding net weight sum.
 pub fn balance<G: GraphViewOps>(
     graph: &G,

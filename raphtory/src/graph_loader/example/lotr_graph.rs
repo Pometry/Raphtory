@@ -38,7 +38,7 @@ pub struct Lotr {
 /// Downloads the LOTR.csv file from Github
 /// and returns the path to the file
 ///
-/// # Returns
+/// Returns:
 /// - A PathBuf to the LOTR.csv file
 pub fn lotr_file() -> Result<PathBuf, Box<dyn std::error::Error>> {
     fetch_file(
@@ -56,7 +56,7 @@ pub fn lotr_file() -> Result<PathBuf, Box<dyn std::error::Error>> {
 ///
 /// - shards: The number of shards to use for the graph
 ///
-/// # Returns
+/// Returns:
 /// - A Graph containing the LOTR dataset
 pub fn lotr_graph() -> Graph {
     let graph = {

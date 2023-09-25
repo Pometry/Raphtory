@@ -503,7 +503,7 @@ impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
     /// - `src` - The source vertex.
     /// - `dst` - The destination vertex.
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// A result containing `true` if there is an edge from src to dst in the window, `false` otherwise.
     ///
@@ -528,7 +528,7 @@ impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
     ///
     /// - `v` - The vertex to check.
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// A result containing `true` if the vertex exists in the window, `false` otherwise.
     ///
@@ -547,7 +547,7 @@ impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
     /// - `v` - The vertex to check.
     /// - `d` - The direction of the edges to count.
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// A result containing the number of edges from the vertex in the window.
     ///
@@ -565,7 +565,7 @@ impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
     ///
     /// - `v` - The ID of the vertex to get
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// A result of an option containing the vertex reference if it exists, `None` otherwise.
     ///
@@ -579,7 +579,7 @@ impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
 
     /// Get an iterator over the references of all vertices as references
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// An iterator over the references of all vertices
     #[inline]
@@ -606,7 +606,7 @@ impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
     /// - `src` - The source vertex of the edge
     /// - `dst` - The destination vertex of the edge
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// A result of an option containing the edge reference if it exists, `None` otherwise.
     ///
@@ -626,7 +626,7 @@ impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
 
     /// Get an iterator of all edges as references
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// An iterator over all edges as references
     #[inline]
@@ -656,7 +656,7 @@ impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
     /// - `v` - The vertex to get the neighbours for
     /// - `d` - The direction of the edges
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// An iterator over all neighbours in that vertex direction as references
     #[inline]
@@ -696,7 +696,7 @@ impl<G: GraphViewOps> WindowedGraph<G> {
     /// - `t_start` - The inclusive start time of the window.
     /// - `t_end` - The exclusive end time of the window.
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// A new windowed graph
     pub fn new<T: IntoTime>(graph: G, t_start: T, t_end: T) -> Self {
