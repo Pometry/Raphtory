@@ -24,6 +24,7 @@ use crate::{
             global_temporal_three_node_motif_general as global_temporal_three_node_motif_general_rs,
             temporal_three_node_motif as local_three_node_rs,
         },
+        netflow_one_path_vertex::netflow_one_path_vertex as one_path_vertex_rs,
         pagerank::unweighted_page_rank,
         reciprocity::{
             all_local_reciprocity as all_local_reciprocity_rs,
@@ -410,4 +411,10 @@ pub fn balance(
     threads: Option<usize>,
 ) -> AlgorithmResult<String, f64, OrderedFloat<f64>> {
     balance_rs(&g.graph, name.clone(), direction.into(), threads)
+}
+
+#[pyfunction]
+#[pyo3[signature = (g, no_time=false, threads=None)]]
+pub fn netflow_one_path_vertex(g: &PyGraphView, no_time: bool, threads: Option<usize>) -> usize {
+    one_path_vertex_rs(&g.graph, no_time, threads)
 }

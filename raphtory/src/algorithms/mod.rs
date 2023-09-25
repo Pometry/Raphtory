@@ -37,6 +37,7 @@ pub mod k_core;
 pub mod local_clustering_coefficient;
 pub mod local_triangle_count;
 pub mod motifs;
+pub mod netflow_one_path_vertex;
 pub mod pagerank;
 pub mod reciprocity;
 pub mod temporal_reachability;
