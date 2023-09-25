@@ -1,9 +1,17 @@
-use crate::core::state::accumulator_id::accumulators;
-use crate::core::state::compute_state::ComputeStateVec;
-use crate::db::task::context::Context;
-use crate::db::task::task::{ATask, Job, Step};
-use crate::db::task::task_runner::TaskRunner;
-use crate::db::view_api::*;
+use crate::{
+    algorithms::k_core::k_core_set,
+    core::state::{accumulator_id::accumulators, compute_state::ComputeStateVec},
+    db::{
+        api::view::*,
+        graph::views::vertex_subgraph::VertexSubgraph,
+        task::{
+            context::Context,
+            task::{ATask, Job, Step},
+            task_runner::TaskRunner,
+            vertex::eval_vertex::EvalVertexView,
+        },
+    },
+};
 use rustc_hash::FxHashSet;
 
 /// Computes the number of triangles in a graph using a fast algorithm
@@ -21,10 +29,10 @@ use rustc_hash::FxHashSet;
 /// # Example
 /// ```rust
 /// use std::{cmp::Reverse, iter::once};
-/// use raphtory::db::graph::Graph;
 /// use raphtory::algorithms::triangle_count::triangle_count;
+/// use raphtory::prelude::*;
 ///
-/// let graph = Graph::new(2);
+/// let graph = Graph::new();
 ///
 /// let edges = vec![
 ///     // triangle 1
@@ -44,29 +52,34 @@ use rustc_hash::FxHashSet;
 /// ];
 ///
 /// for (src, dst, ts) in edges {
-///     graph.add_edge(ts, src, dst, &vec![], None);
+///     graph.add_edge(ts, src, dst, NO_PROPS, None);
 /// }
 ///
 /// let actual_tri_count = triangle_count(&graph, None);
 /// ```
 ///
-pub fn triangle_count<G: GraphViewOps>(g: &G, threads: Option<usize>) -> usize {
-    let mut ctx: Context<G, ComputeStateVec> = g.into();
+pub fn triangle_count<G: GraphViewOps>(graph: &G, threads: Option<usize>) -> usize {
+    let vertex_set = k_core_set(graph, 2, usize::MAX, None);
+    let g = graph.subgraph(vertex_set);
+    let mut ctx: Context<VertexSubgraph<G>, ComputeStateVec> = Context::from(&g);
 
+    // let mut ctx: Context<G, ComputeStateVec> = graph.into();
     let neighbours_set = accumulators::hash_set::<u64>(0);
     let count = accumulators::sum::<usize>(1);
 
     ctx.agg(neighbours_set);
     ctx.global_agg(count);
 
-    let step1 = ATask::new(move |s| {
-        for t in s.neighbours() {
-            if s.id() > t.id() {
-                t.update(&neighbours_set, s.id());
+    let step1 = ATask::new(
+        move |s: &mut EvalVertexView<'_, VertexSubgraph<G>, ComputeStateVec, ()>| {
+            for t in s.neighbours() {
+                if s.id() > t.id() {
+                    t.update(&neighbours_set, s.id());
+                }
             }
-        }
-        Step::Continue
-    });
+            Step::Continue
+        },
+    );
 
     let step2 = ATask::new(move |s| {
         for t in s.neighbours() {
@@ -98,12 +111,12 @@ pub fn triangle_count<G: GraphViewOps>(g: &G, threads: Option<usize>) -> usize {
     let init_tasks = vec![Job::new(step1)];
     let tasks = vec![Job::new(step2)];
 
-    let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
+    let mut runner: TaskRunner<VertexSubgraph<G>, _> = TaskRunner::new(ctx);
 
     runner.run(
         init_tasks,
         tasks,
-        (),
+        None,
         |egs, _, _, _| egs.finalize(&count),
         threads,
         1,
@@ -115,11 +128,14 @@ pub fn triangle_count<G: GraphViewOps>(g: &G, threads: Option<usize>) -> usize {
 #[cfg(test)]
 mod triangle_count_tests {
     use super::*;
-    use crate::db::graph::Graph;
+    use crate::{
+        db::{api::mutation::AdditionOps, graph::graph::Graph},
+        prelude::NO_PROPS,
+    };
 
     #[test]
     fn triangle_count_1() {
-        let graph = Graph::new(2);
+        let graph = Graph::new();
 
         let edges = vec![
             // triangle 1
@@ -139,7 +155,7 @@ mod triangle_count_tests {
         ];
 
         for (src, dst, ts) in edges {
-            graph.add_edge(ts, src, dst, &vec![], None).unwrap();
+            graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
         }
 
         let actual_tri_count = triangle_count(&graph, Some(2));
@@ -149,7 +165,7 @@ mod triangle_count_tests {
 
     #[test]
     fn triangle_count_3() {
-        let graph = Graph::new(2);
+        let graph = Graph::new();
 
         let edges = vec![
             (1, 2, 1),
@@ -178,7 +194,7 @@ mod triangle_count_tests {
         ];
 
         for (src, dst, ts) in edges {
-            graph.add_edge(ts, src, dst, &vec![], None).unwrap();
+            graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
         }
 
         let actual_tri_count = triangle_count(&graph, None);

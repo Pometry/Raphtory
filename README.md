@@ -21,7 +21,10 @@
 <a href="https://pypi.org/project/raphtory/">
 <img alt="PyPI" src="https://img.shields.io/pypi/v/raphtory">
 </a>
-
+<a href="https://pypi.org/project/raphtory/#history">
+<img alt="PyPI Downloads" src="https://img.shields.io/pypi/dm/raphtory.svg">
+</a>
+  
 <a href="https://mybinder.org/v2/gh/Raphtory/Raphtory/master?labpath=examples%2Fpy%2Flotr%2Flotr.ipynb">
 <img alt="Launch Notebook" src="https://mybinder.org/badge_logo.svg" />
 </a>
@@ -33,7 +36,7 @@
 &nbsp 
 <a href="https://www.pometry.com"><img src="https://user-images.githubusercontent.com/6665739/202438989-2859f8b8-30fb-4402-820a-563049e1fdb3.png" height="20" align="center"/> Pometry</a> 
 &nbsp
-<a href="https://docs.raphtory.com/en/master/Introduction/ingestion.html">🧙🏻‍ Tutorial</a> 
+<a href="https://docs.raphtory.com/en/v0.5.2/getting_started/simple_installation.html#getting-started">🧙🏻‍ Tutorial</a> 
 &nbsp
 <a href="https://github.com/Raphtory/Raphtory/issues">🐛 Report a Bug</a> 
 &nbsp
@@ -42,10 +45,10 @@
 
 <br>
 
-Raphtory is an in-memory graph tool written in Rust with friendly Python APIs on top. It is blazingly fast, scales to hundreds of millions of edges 
+Raphtory is an in-memory vectorised graph database written in Rust with friendly Python APIs on top. It is blazingly fast, scales to hundreds of millions of edges 
 on your laptop, and can be dropped into your existing pipelines with a simple `pip install raphtory`.  
 
-It supports time traveling, multilayer modelling, and advanced analytics beyond simple querying like community evolution, dynamic scoring, and mining temporal motifs.
+It supports time traveling, full-text search, multilayer modelling, and advanced analytics beyond simple querying like automatic risk detection, dynamic scoring, and temporal motifs.
 
 If you wish to contribute, check out the open [list of issues](https://github.com/Pometry/Raphtory/issues), [bounty board](https://github.com/Raphtory/Raphtory/discussions/categories/bounty-board) or hit us up directly on [slack](https://join.slack.com/t/raphtory/shared_invite/zt-xbebws9j-VgPIFRleJFJBwmpf81tvxA). Successful contributions will be reward with swizzling swag!
 
@@ -54,6 +57,7 @@ If you wish to contribute, check out the open [list of issues](https://github.co
 
 ```python
 from raphtory import Graph
+from raphtory import algorithms as algo
 import pandas as pd
 
 # Create a new graph
@@ -82,12 +86,16 @@ print(pd.DataFrame(results[1:], columns=results[0]))
 
 # Grab an edge, explore the history of its 'weight' 
 cb_edge = graph.edge("Bob","Charlie")
-weight_history = cb_edge.property_history("weight")
+weight_history = cb_edge.properties.temporal.get("weight").items()
 print("The edge between Bob and Charlie has the following weight history:", weight_history)
 
 # Compare this weight between time 2 and time 3
 weight_change = cb_edge.at(2)["weight"] - cb_edge.at(3)["weight"]
 print("The weight of the edge between Bob and Charlie has changed by",weight_change,"pts")
+
+# Run pagerank and ask for the top ranked node
+top_node = algo.pagerank(graph).top_k(1)
+print("The most important node in the graph is",top_node[0][0],"with a score of",top_node[0][1])
 ```
 
 ```a
@@ -107,7 +115,112 @@ Graph(number_of_edges=2, number_of_vertices=3, earliest_time=1, latest_time=3)
 The edge between Bob and Charlie has the following weight history: [(2, 5.0), (3, -15.0)]
 
 The weight of the edge between Bob and Charlie has changed by 20.0 pts
+
+The top node in the graph is Charlie with a score of 0.4744116163405977
 ```
+
+## GraphQL
+
+### Create/Load a graph
+
+Save a raphtory graph and set the `GRAPH_DIRECTORY` environment variable to point to the directory containing the graph.
+
+<details>
+
+<summary> 
+Alternatively you can run the code below to generate a graph.
+</summary>
+
+```bash
+mkdir -p /tmp/graphs
+mkdir -p examples/rust/src/bin/lotr/data/
+tail -n +2 resource/lotr.csv > examples/rust/src/bin/lotr/data/lotr.csv
+
+cd examples/rust && cargo run --bin lotr -r
+
+cp examples/rust/src/bin/lotr/data/graphdb.bincode /tmp/graphs/lotr.bincode
+```
+
+</details>
+
+
+### Run the GraphQL server
+
+The code below will run GraphQL with a UI at `localhost:1736` 
+
+GraphlQL will look for graph files in `/tmp/graphs` or in the path set in the `GRAPH_DIRECTORY` Environment variable. 
+
+```bash
+cd raphtory-graphql && cargo run -r 
+```
+
+<details>
+<summary>ℹ️Warning: Server must have the same version + environment</summary>
+The GraphQL server must be running in the same environment (i.e. debug or release) and same Raphtory version as the generated graph, otherwise it will throw errors due to incompatible graph metadata across versions. 
+</details>
+
+<details>
+<summary>Following will be output upon a successful launch</summary>
+
+```bash
+warning: `raphtory` (lib) generated 17 warnings (run `cargo fix --lib -p raphtory` to apply 13 suggestions)
+    Finished release [optimized] target(s) in 0.91s
+     Running `Raphtory/target/release/raphtory-graphql`
+loading graph from /tmp/graphs/lotr.bincode
+Playground: http://localhost:1736
+  2023-08-11T14:36:52.444203Z  INFO poem::server: listening, addr: socket://0.0.0.0:1736
+    at /Users/pometry/.cargo/registry/src/github.com-1ecc6299db9ec823/poem-1.3.56/src/server.rs:109
+
+  2023-08-11T14:36:52.444257Z  INFO poem::server: server started
+    at /Users/pometry/.cargo/registry/src/github.com-1ecc6299db9ec823/poem-1.3.56/src/server.rs:111
+```
+</details>
+
+
+### Execute a query
+
+Go to the Playground at `http://localhost:1736` and execute the following commands:
+
+Query:
+```bash
+    query GetNodes($graphName: String!) {
+        graph(name: $graphName) {
+            nodes {
+              name
+            }
+      }
+    }
+```
+
+Query Variables:
+```bash
+{
+  "graphName": "lotr.bincode"
+}
+```
+
+Expected Result:
+```bash
+{
+  "data": {
+    "graph": {
+      "nodes": [
+        {
+          "name": "Gandalf"
+        },
+        {
+          "name": "Elrond"
+        },
+        {
+          "name": "Frodo"
+        },
+        {
+          "name": "Bilbo"
+        },
+        ...
+```
+
+
 
 
 ## Installing Raphtory 

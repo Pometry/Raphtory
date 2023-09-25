@@ -1,11 +1,9 @@
-use std::marker::PhantomData;
-
-use crate::core::state::compute_state::ComputeState;
-use crate::db::view_api::internal::GraphViewInternalOps;
-use crate::db::view_api::GraphViewOps;
-
 use super::context::GlobalState;
-use super::eval_vertex::EvalVertexView;
+use crate::{
+    core::state::compute_state::ComputeState,
+    db::{api::view::GraphViewOps, task::vertex::eval_vertex::EvalVertexView},
+};
+use std::marker::PhantomData;
 
 pub trait Task<G, CS, S>
 where
@@ -40,7 +38,7 @@ pub enum Job<G, CS: ComputeState, S> {
     Check(Box<dyn Fn(&GlobalState<CS>) -> Step + Send + Sync + 'static>),
 }
 
-impl<G: GraphViewInternalOps + Send + Sync + Clone + 'static, CS: ComputeState, S> Job<G, CS, S> {
+impl<G: GraphViewOps, CS: ComputeState, S> Job<G, CS, S> {
     pub fn new<T: Task<G, CS, S> + Send + Sync + 'static>(t: T) -> Self {
         Self::Write(Box::new(t))
     }

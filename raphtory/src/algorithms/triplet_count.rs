@@ -14,10 +14,9 @@
 //! # Example
 //!
 //! ```rust
-//! use raphtory::db::graph::Graph;
+//! use raphtory::prelude::*;
 //! use raphtory::algorithms::triplet_count::triplet_count;
-//! use raphtory::db::view_api::*;
-//! let graph = Graph::new(2);
+//! let graph = Graph::new();
 //!  let edges = vec![
 //!      (1, 2),
 //!      (1, 3),
@@ -27,18 +26,24 @@
 //!      (2, 7),
 //!  ];
 //!  for (src, dst) in edges {
-//!      graph.add_edge(0, src, dst, &vec![], None);
+//!      graph.add_edge(0, src, dst, NO_PROPS, None);
 //!  }
 //!  let results = triplet_count(&graph.at(1), None);
 //!  println!("triplet count: {}", results);
 //! ```
 //!
-use crate::core::state::accumulator_id::accumulators::sum;
-use crate::core::state::compute_state::ComputeStateVec;
-use crate::db::task::context::Context;
-use crate::db::task::task::{ATask, Job, Step};
-use crate::db::task::task_runner::TaskRunner;
-use crate::db::view_api::{GraphViewOps, VertexViewOps};
+use crate::{
+    core::state::{accumulator_id::accumulators::sum, compute_state::ComputeStateVec},
+    db::{
+        api::view::{GraphViewOps, VertexViewOps},
+        task::{
+            context::Context,
+            task::{ATask, Job, Step},
+            task_runner::TaskRunner,
+            vertex::eval_vertex::EvalVertexView,
+        },
+    },
+};
 
 /// Computes the number of both open and closed triplets within a graph
 ///
@@ -56,10 +61,9 @@ use crate::db::view_api::{GraphViewOps, VertexViewOps};
 /// # Example
 ///
 /// ```rust
-/// use raphtory::db::graph::Graph;
 /// use raphtory::algorithms::triplet_count::triplet_count;
-/// use raphtory::db::view_api::*;
-/// let graph = Graph::new(2);
+/// use raphtory::prelude::*;
+/// let graph = Graph::new();
 ///  let edges = vec![
 ///      (1, 2),
 ///      (1, 3),
@@ -69,7 +73,7 @@ use crate::db::view_api::{GraphViewOps, VertexViewOps};
 ///      (2, 7),
 ///  ];
 ///  for (src, dst) in edges {
-///      graph.add_edge(0, src, dst, &vec![], None);
+///      graph.add_edge(0, src, dst, NO_PROPS, None);
 ///  }
 ///
 ///  let results = triplet_count(&graph.at(1), None);
@@ -87,19 +91,21 @@ pub fn triplet_count<G: GraphViewOps>(g: &G, threads: Option<usize>) -> usize {
     let count = sum::<usize>(0);
     ctx.global_agg(count);
 
-    let step1 = ATask::new(move |evv| {
-        let c1 = evv.neighbours().id().filter(|n| *n != evv.id()).count();
-        let c2 = count_two_combinations(c1);
-        evv.global_update(&count, c2);
-        Step::Continue
-    });
+    let step1 = ATask::new(
+        move |evv: &mut EvalVertexView<'_, G, ComputeStateVec, ()>| {
+            let c1 = evv.neighbours().id().filter(|n| *n != evv.id()).count();
+            let c2 = count_two_combinations(c1);
+            evv.global_update(&count, c2);
+            Step::Continue
+        },
+    );
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
 
     runner.run(
         vec![],
         vec![Job::new(step1)],
-        (),
+        None,
         |egs, _, _, _| egs.finalize(&count),
         threads,
         1,
@@ -111,14 +117,19 @@ pub fn triplet_count<G: GraphViewOps>(g: &G, threads: Option<usize>) -> usize {
 #[cfg(test)]
 mod triplet_test {
     use super::*;
-    use crate::db::graph::Graph;
-    use crate::db::view_api::*;
+    use crate::{
+        db::{
+            api::{mutation::AdditionOps, view::*},
+            graph::graph::Graph,
+        },
+        prelude::NO_PROPS,
+    };
     use pretty_assertions::assert_eq;
 
     /// Test the global clustering coefficient
     #[test]
     fn test_triplet_count() {
-        let graph = Graph::new(1);
+        let graph = Graph::new();
 
         // Graph has 2 triangles and 20 triplets
         let edges = vec![
@@ -145,7 +156,7 @@ mod triplet_test {
         ];
 
         for (src, dst) in edges {
-            graph.add_edge(0, src, dst, &vec![], None).unwrap();
+            graph.add_edge(0, src, dst, NO_PROPS, None).unwrap();
         }
         let exp_triplet_count = 20;
         let results = triplet_count(&graph.at(1), None);

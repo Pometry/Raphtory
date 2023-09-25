@@ -18,8 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        target: [x86_64, aarch64, armv7]
-        python: ['3.9', '3.10']
+        target: [x86_64, aarch64]
     steps:
       - name: "Check if user has write access"
         uses: "lannonbr/repo-permission-check-action@2.0.0"
@@ -43,16 +42,18 @@ jobs:
           ref: ${{ inputs.base }}
       - uses: actions/setup-python@v4
         with:
-          python-version: ${{ matrix.python }}
-      - name: Setup QEMU
-        uses: docker/setup-qemu-action@v1
+          python-version: |
+            3.8
+            3.9
+            3.10
+            3.11
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
           working-directory: ./python
           command: build
           target: ${{ matrix.target }}
-          args: --release --out dist --find-interpreter
+          args: --release --out dist -i python3.7 -i python3.8 -i python3.9 -i python3.10 -i python3.11
           manylinux: 2014
           before-script-linux: |
             if [[ -f /etc/os-release ]]; then
@@ -101,7 +102,6 @@ jobs:
     strategy:
       matrix:
         target: [x64]
-        python: ['3.9', '3.10']
     steps:
       - name: "Check if user has write access"
         uses: "lannonbr/repo-permission-check-action@2.0.0"
@@ -114,7 +114,11 @@ jobs:
           ref: ${{ inputs.base }}
       - uses: actions/setup-python@v4
         with:
-          python-version: ${{ matrix.python }}
+          python-version: |
+            3.8
+            3.9
+            3.10
+            3.11
           architecture: ${{ matrix.target }}
       - name: Build wheels
         uses: PyO3/maturin-action@v1
@@ -122,7 +126,7 @@ jobs:
           working-directory: ./python
           command: build
           target: ${{ matrix.target }}
-          args: --release --out dist --find-interpreter
+          args: --release --out dist -i python3.7 -i python3.8 -i python3.9 -i python3.10 -i python3.11
       - name: Upload wheels to gh artifact
         uses: actions/upload-artifact@v3
         with:
@@ -133,7 +137,6 @@ jobs:
     strategy:
       matrix:
         target: [x86_64, aarch64]
-        python: ['3.9', '3.10']
     steps:
       - name: "Check if user has write access"
         uses: "lannonbr/repo-permission-check-action@2.0.0"
@@ -157,7 +160,11 @@ jobs:
           ref: ${{ inputs.base }}
       - uses: actions/setup-python@v4
         with:
-          python-version: ${{ matrix.python }}
+          python-version: |
+            3.8
+            3.9
+            3.10
+            3.11
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:

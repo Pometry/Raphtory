@@ -1,13 +1,13 @@
-use itertools::Itertools;
-use raphtory::core::utils;
-use raphtory::core::Prop;
-use raphtory::db::graph::Graph;
-use raphtory::db::view_api::*;
-use raphtory_io::graph_loader::source::csv_loader::CsvLoader;
+use raphtory::{
+    algorithms::pagerank::unweighted_page_rank, graph_loader::source::csv_loader::CsvLoader,
+    prelude::*,
+};
 use serde::Deserialize;
-use std::path::PathBuf;
-use std::{env, path::Path, time::Instant};
-use raphtory::algorithms::pagerank::unweighted_page_rank;
+use std::{
+    env,
+    path::{Path, PathBuf},
+    time::Instant,
+};
 
 #[derive(Deserialize, std::fmt::Debug)]
 pub struct Benchr {
@@ -43,40 +43,26 @@ fn main() {
         println!(
             "Loaded graph from encoded data files {} with {} vertices, {} edges which took {} seconds",
             encoded_data_dir.to_str().unwrap(),
-            g.num_vertices(),
-            g.num_edges(),
+            g.count_vertices(),
+            g.count_edges(),
             now.elapsed().as_secs()
         );
 
         g
     } else {
-        let g = Graph::new(8);
+        let g = Graph::new();
         let now = Instant::now();
 
-        CsvLoader::new(data_dir, )
+        CsvLoader::new(data_dir)
             .set_delimiter("\t")
             .load_into_graph(&g, |lotr: Benchr, g: &Graph| {
-                g.add_vertex(
-                    1,
-                    lotr.src_id.clone(),
-                    &vec![],
-                )
+                g.add_vertex(1, lotr.src_id.clone(), NO_PROPS)
                     .expect("Failed to add vertex");
 
-                g.add_vertex(
-                    1,
-                    lotr.dst_id.clone(),
-                    &vec![],
-                )
+                g.add_vertex(1, lotr.dst_id.clone(), NO_PROPS)
                     .expect("Failed to add vertex");
 
-                g.add_edge(
-                    1,
-                    lotr.src_id.clone(),
-                    lotr.dst_id.clone(),
-                    &vec![],
-                    None,
-                )
+                g.add_edge(1, lotr.src_id.clone(), lotr.dst_id.clone(), NO_PROPS, None)
                     .expect("Failed to add edge");
             })
             .expect("Failed to load graph from CSV data files");
@@ -84,8 +70,8 @@ fn main() {
         println!(
             "Loaded graph from CSV data files {} with {} vertices, {} edges which took {} seconds",
             encoded_data_dir.to_str().unwrap(),
-            g.num_vertices(),
-            g.num_edges(),
+            g.count_vertices(),
+            g.count_edges(),
             now.elapsed().as_secs()
         );
 
@@ -95,6 +81,6 @@ fn main() {
         g
     };
     println!("Data loaded\nPageRanking");
-    let r = unweighted_page_rank(&graph, 25, Some(8), None,true);
+    unweighted_page_rank(&graph, 25, Some(8), None, true);
     println!("Done PR");
 }

@@ -23,65 +23,42 @@
 //! - **Fast** - raphtory is fast, and can process large amounts of data in a short amount of time.
 //! - **Open Source** - raphtory is open source, and is available on Github under a GPL-3.0 license.
 //!
-//! ### Shards
-//!
-//! The sub module `Core` contains the underlying implementation of the graph.
-//! Users interact with the graph via the `DB` submodule.
-//!
-//! The sub module `DB` is the overarching manager for the graph. A GraphDB instance can have N number of shards.
-//! These shards (also called TemporalGraphParts) store fragments of a graph.
-//! Each shard contains a part of a graph, similar to how data is partitioned.
-//!
-//! When an edge or node is added to the graph, GraphDB will search for an appropriate
-//! place inside a shard to place these.
-//!
-//! For example, if your graph has 4 shards, altogether they make up the entire temporal graph.
-//! Vertices and Edges will be spread across the varying shards.
-//!
-//! Shards are used for performance and distribution reasons. Having multiple shards running in
-//! parallel increases the overall speed. In a matter of seconds, you are able to see your
-//! results from your temporal graph analysis. Furthermore, you can run your analysis across
-//! multiple machines (e.g. one shard per machine).
-//!
 //! ## Example
 //!
 //! Create your own graph below
 //! ```
-//! use raphtory::db::graph::Graph;
-//! use raphtory::core::Direction;
-//! use raphtory::core::Prop;
-//! use raphtory::db::view_api::*;
+//! use raphtory::prelude::*;
 //!
 //! // Create your GraphDB object and state the number of shards you would like, here we have 2
-//! let graph = Graph::new(2);
+//! let graph = Graph::new();
 //!
 //! // Add vertex and edges to your graph with the respective properties
 //! graph.add_vertex(
 //!   1,
 //!   "Gandalf",
-//!   &vec![("type".to_string(), Prop::Str("Character".to_string()))],
-//! );
+//!   [("type", Prop::str("Character"))],
+//! ).unwrap();
 //!
 //! graph.add_vertex(
 //!   2,
 //!   "Frodo",
-//!   &vec![("type".to_string(), Prop::Str("Character".to_string()))],
-//! );
+//!   [("type", Prop::str("Character"))],
+//! ).unwrap();
 //!
 //! graph.add_edge(
 //!   3,
 //!   "Gandalf",
 //!   "Frodo",
-//!   &vec![(
-//!       "meeting".to_string(),
-//!       Prop::Str("Character Co-occurrence".to_string()),
+//!   [(
+//!       "meeting",
+//!       Prop::str("Character Co-occurrence"),
 //!   )],
 //!   None,
-//! );
+//! ).unwrap();
 //!
 //! // Get the in-degree, out-degree and degree of Gandalf
-//! println!("Number of vertices {:?}", graph.num_vertices());
-//! println!("Number of Edges {:?}", graph.num_edges());
+//! println!("Number of vertices {:?}", graph.count_vertices());
+//! println!("Number of Edges {:?}", graph.count_edges());
 //! ```
 //!
 //! ## Supported Operating Systems
@@ -112,3 +89,32 @@ pub mod algorithms;
 pub mod core;
 pub mod db;
 pub mod graphgen;
+
+#[cfg(feature = "python")]
+pub mod python;
+
+#[cfg(feature = "io")]
+pub mod graph_loader;
+
+#[cfg(feature = "search")]
+pub mod search;
+
+#[cfg(feature = "vectors")]
+pub mod vectors;
+
+pub mod prelude {
+    pub const NO_PROPS: [(&str, Prop); 0] = [];
+    pub use crate::{
+        core::{IntoProp, Prop, PropUnwrap},
+        db::{
+            api::{
+                mutation::{AdditionOps, DeletionOps, PropertyAdditionOps},
+                view::{
+                    EdgeListOps, EdgeViewOps, GraphViewOps, Layer, LayerOps, TimeOps,
+                    VertexListOps, VertexViewOps,
+                },
+            },
+            graph::graph::Graph,
+        },
+    };
+}

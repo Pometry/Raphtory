@@ -1,6 +1,7 @@
-use crate::algorithms::triangle_count::triangle_count;
-use crate::algorithms::triplet_count::triplet_count;
-use crate::db::view_api::GraphViewOps;
+use crate::{
+    algorithms::{triangle_count::triangle_count, triplet_count::triplet_count},
+    db::api::view::GraphViewOps,
+};
 
 /// Computes the global clustering coefficient of a graph. The global clustering coefficient is
 /// defined as the number of triangles in the graph divided by the number of triplets in the graph.
@@ -16,10 +17,9 @@ use crate::db::view_api::GraphViewOps;
 /// # Example
 ///
 /// ```rust
-/// use raphtory::db::graph::Graph;
+/// use raphtory::prelude::*;
 /// use raphtory::algorithms::clustering_coefficient::clustering_coefficient;
-/// use raphtory::db::view_api::*;
-/// let graph = Graph::new(2);
+/// let graph = Graph::new();
 ///  let edges = vec![
 ///      (1, 2),
 ///      (1, 3),
@@ -29,7 +29,7 @@ use crate::db::view_api::GraphViewOps;
 ///      (2, 7),
 ///  ];
 ///  for (src, dst) in edges {
-///      graph.add_edge(0, src, dst, &vec![], None).expect("Unable to add edge");
+///      graph.add_edge(0, src, dst, NO_PROPS, None).expect("Unable to add edge");
 ///  }
 ///  let results = clustering_coefficient(&graph.at(1));
 ///  println!("global_clustering_coefficient: {}", results);
@@ -49,14 +49,19 @@ pub fn clustering_coefficient<G: GraphViewOps>(g: &G) -> f64 {
 #[cfg(test)]
 mod cc_test {
     use super::*;
-    use crate::db::graph::Graph;
-    use crate::db::view_api::*;
+    use crate::{
+        db::{
+            api::{mutation::AdditionOps, view::*},
+            graph::graph::Graph,
+        },
+        prelude::NO_PROPS,
+    };
     use pretty_assertions::assert_eq;
 
     /// Test the global clustering coefficient
     #[test]
     fn test_global_cc() {
-        let graph = Graph::new(1);
+        let graph = Graph::new();
 
         // Graph has 2 triangles and 20 triplets
         let edges = vec![
@@ -83,7 +88,7 @@ mod cc_test {
         ];
 
         for (src, dst) in edges {
-            graph.add_edge(0, src, dst, &vec![], None).unwrap();
+            graph.add_edge(0, src, dst, NO_PROPS, None).unwrap();
         }
 
         let graph_at = graph.at(1);

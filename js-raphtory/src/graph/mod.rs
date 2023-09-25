@@ -1,27 +1,29 @@
+#![allow(dead_code)]
 #[cfg(feature = "console_error_panic_hook")]
 extern crate console_error_panic_hook;
 
 use core::panic;
-use std::convert::TryFrom;
-use std::sync::Arc;
-
 use js_sys::Object;
-use raphtory::core::tgraph_shard::errors::GraphError;
-use raphtory::core::Prop;
-use raphtory::db::graph::Graph as TGraph;
-use raphtory::db::graph_window::WindowedGraph;
-use raphtory::db::view_api::internal::GraphViewInternalOps;
-use raphtory::db::view_api::GraphViewOps;
-use raphtory::db::view_api::TimeOps;
-use wasm_bindgen::prelude::*;
-use wasm_bindgen::JsCast;
+use raphtory::{
+    core::utils::errors::GraphError,
+    db::{
+        api::view::{internal::BoxableGraphView, GraphViewOps, TimeOps},
+        graph::{graph::Graph as TGraph, views::window_graph::WindowedGraph},
+    },
+    prelude::*,
+};
+use std::{convert::TryFrom, sync::Arc};
+use wasm_bindgen::{prelude::*, JsCast};
 
-use crate::graph::misc::JSError;
-use crate::graph::misc::JsObjectEntry;
-use crate::graph::vertex::JsVertex;
-use crate::graph::vertex::Vertex;
-use crate::log;
-use crate::utils::set_panic_hook;
+use crate::{
+    graph::{
+        edge::Edge,
+        misc::{JSError, JsObjectEntry},
+        vertex::{JsVertex, Vertex},
+    },
+    log,
+    utils::set_panic_hook,
+};
 
 mod edge;
 mod graph_view_impl;
@@ -48,7 +50,7 @@ impl UnderGraph {
     }
 
     // a bit heavy but might work
-    pub fn graph(&self) -> Box<Arc<dyn GraphViewInternalOps + Send + Sync + 'static>> {
+    pub fn graph(&self) -> Box<Arc<dyn BoxableGraphView>> {
         match self {
             UnderGraph::TGraph(g) => Box::new(g.clone()),
             UnderGraph::WindowedGraph(g) => Box::new(g.clone()),
@@ -61,7 +63,7 @@ impl Graph {
     #[wasm_bindgen(constructor)]
     pub fn new() -> Self {
         set_panic_hook();
-        Graph(UnderGraph::TGraph(Arc::new(TGraph::new(1))))
+        Graph(UnderGraph::TGraph(Arc::new(TGraph::new())))
     }
 
     #[wasm_bindgen(js_name = window)]
@@ -95,9 +97,9 @@ impl Graph {
     }
 
     #[wasm_bindgen(js_name = addVertex)]
-    pub fn add_vertex_js(&self, t: i64, id: JsValue, js_props: Object) -> Result<(), JSError> {
+    pub fn add_vertex_js(&self, t: i64, id: JsValue, js_props: Object) -> Result<Vertex, JSError> {
         let rust_props = if js_props.is_string() {
-            vec![("name".to_string(), Prop::Str(js_props.as_string().unwrap()))]
+            vec![("name".to_string(), Prop::str(js_props.as_string().unwrap()))]
         } else if js_props.is_object() {
             Object::entries(&js_props)
                 .iter()
@@ -113,11 +115,13 @@ impl Graph {
         match JsVertex::try_from(id)? {
             JsVertex::Str(vertex) => self
                 .mutable_graph()
-                .add_vertex(t, vertex, &rust_props)
+                .add_vertex(t, vertex, rust_props)
+                .map(|v| v.into())
                 .map_err(JSError),
             JsVertex::Number(vertex) => self
                 .mutable_graph()
-                .add_vertex(t, vertex, &rust_props)
+                .add_vertex(t, vertex, rust_props)
+                .map(|v| v.into())
                 .map_err(JSError),
         }
     }
@@ -129,7 +133,7 @@ impl Graph {
         src: JsValue,
         dst: JsValue,
         js_props: Object,
-    ) -> Result<(), JSError> {
+    ) -> Result<Edge, JSError> {
         js_props.dyn_ref::<js_sys::BigInt>().map(|bigint| {
             log(&format!("bigint: {:?}", bigint));
         });
@@ -151,12 +155,14 @@ impl Graph {
         match (JsVertex::try_from(src)?, JsVertex::try_from(dst)?) {
             (JsVertex::Str(src), JsVertex::Str(dst)) => self
                 .mutable_graph()
-                .add_edge(t, src, dst, &props, None)
-                .map_err(JSError),
+                .add_edge(t, src, dst, props, None)
+                .map_err(JSError)
+                .map(|e| e.into()),
             (JsVertex::Number(src), JsVertex::Number(dst)) => self
                 .mutable_graph()
-                .add_edge(t, src, dst, &props, None)
-                .map_err(JSError),
+                .add_edge(t, src, dst, props, None)
+                .map_err(JSError)
+                .map(|e| e.into()),
             _ => Err(JSError(GraphError::VertexIdNotStringOrNumber)),
         }
     }

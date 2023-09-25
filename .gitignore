@@ -5,9 +5,11 @@ massif.*
 *.svg
 # this is for raphtory
 **/.env/
-**/data/*
+comparison-benchmark/python/data/*
 .vscode
 docs/source/_rustdoc/*
+docs/nx.html
+docs/graph.html
 docs/build/*
 .DS_Store
 docs/logs/*
@@ -22,3 +24,12 @@ examples/py/enron/emails.csv
 /docs/lib/
 /docs/build/
 docs/source/
+.env
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+.pytest_cache/
+*.py[cod]
+
+# C extensions
+*.so

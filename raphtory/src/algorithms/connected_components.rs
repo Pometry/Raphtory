@@ -1,30 +1,24 @@
-use std::cmp;
-use crate::db::view_api::VertexViewOps;
+use super::algorithm_result::AlgorithmResult;
 use crate::{
-    core::state::{accumulator_id::accumulators, compute_state::ComputeStateVec},
+    core::{
+        entities::{vertices::vertex_ref::VertexRef, VID},
+        state::compute_state::ComputeStateVec,
+    },
     db::{
+        api::view::{GraphViewOps, VertexViewOps},
         task::{
             context::Context,
             task::{ATask, Job, Step},
             task_runner::TaskRunner,
+            vertex::eval_vertex::EvalVertexView,
         },
-        view_api::GraphViewOps,
     },
 };
-use std::collections::HashMap;
-use crate::db::task::eval_vertex::EvalVertexView;
+use std::{cmp, collections::HashMap};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 struct WccState {
     component: u64,
-}
-
-impl WccState {
-    fn new() -> Self {
-        Self {
-            component: 0,
-        }
-    }
 }
 
 /// Computes the connected components of a graph using the Simple Connected Components algorithm
@@ -37,17 +31,17 @@ impl WccState {
 ///
 /// # Returns
 ///
-/// A hash map containing the mapping from component ID to the number of vertices in the component
+/// An AlgorithmResult containing the mapping from component ID to the number of vertices in the component
 ///
 pub fn weakly_connected_components<G>(
     graph: &G,
     iter_count: usize,
     threads: Option<usize>,
-) -> HashMap<String, u64>
+) -> AlgorithmResult<String, u64>
 where
     G: GraphViewOps,
 {
-    let mut ctx: Context<G, ComputeStateVec> = graph.into();
+    let ctx: Context<G, ComputeStateVec> = graph.into();
 
     let step1 = ATask::new(move |vv| {
         let min_neighbour_id = vv.neighbours().id().min();
@@ -57,31 +51,42 @@ where
         Step::Continue
     });
 
-    let step2 = ATask::new(move |vv: &mut EvalVertexView<'_, G,ComputeStateVec, WccState>| {
-        let prev:u64 = vv.prev().component;
-        let current = vv.neighbours().into_iter().map(|n|n.prev().component).min().unwrap_or(prev);
-        let state: &mut WccState = vv.get_mut();
-        if current<prev {
-            state.component = current;
-            Step::Continue
-        }
-        else {
-            Step::Done
-        }
-    });
+    let step2 = ATask::new(
+        move |vv: &mut EvalVertexView<'_, G, ComputeStateVec, WccState>| {
+            let prev: u64 = vv.prev().component;
+            let current = vv
+                .neighbours()
+                .into_iter()
+                .map(|n| n.prev().component)
+                .min()
+                .unwrap_or(prev);
+            let state: &mut WccState = vv.get_mut();
+            if current < prev {
+                state.component = current;
+                Step::Continue
+            } else {
+                Step::Done
+            }
+        },
+    );
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
 
-    runner.run(
+    let res = runner.run(
         vec![Job::new(step1)],
         vec![Job::read_only(step2)],
-        WccState::new(),
-        |g, _, _, local| {
+        None,
+        |_, _, _, local| {
+            let layers = graph.layer_ids();
+            let edge_filter = graph.edge_filter();
             local
                 .iter()
-                .filter_map(|line| {
-                    line.as_ref()
-                        .map(|(v_ref, state)| (v_ref.clone(), state.component))
+                .enumerate()
+                .filter_map(|(v_ref, state)| {
+                    let v_ref = VID(v_ref);
+                    graph
+                        .has_vertex_ref(VertexRef::Internal(v_ref), &layers, edge_filter)
+                        .then_some((graph.vertex_name(v_ref), state.component))
                 })
                 .collect::<HashMap<_, _>>()
         },
@@ -89,22 +94,22 @@ where
         iter_count,
         None,
         None,
-    ).into_iter()
-        .map(|(k, v)| (graph.vertex_name(k), v))
-        .collect()
+    );
+    AlgorithmResult::new(res)
 }
 
 #[cfg(test)]
 mod cc_test {
-    use crate::db::graph::Graph;
+    use crate::prelude::*;
 
     use super::*;
+    use crate::db::api::mutation::AdditionOps;
     use itertools::*;
     use std::{cmp::Reverse, iter::once};
 
     #[test]
     fn run_loop_simple_connected_components() {
-        let graph = Graph::new(2);
+        let graph = Graph::new();
 
         let edges = vec![
             (1, 2, 1),
@@ -117,12 +122,12 @@ mod cc_test {
         ];
 
         for (src, dst, ts) in edges {
-            graph.add_edge(ts, src, dst, &vec![], None).unwrap();
+            graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
         }
-        let results: HashMap<String, u64> = weakly_connected_components(&graph, usize::MAX, None);
-
+        let results: AlgorithmResult<String, u64> =
+            weakly_connected_components(&graph, usize::MAX, None);
         assert_eq!(
-            results,
+            *results.get_all(),
             vec![
                 ("1".to_string(), 1),
                 ("2".to_string(), 1),
@@ -140,7 +145,7 @@ mod cc_test {
 
     #[test]
     fn simple_connected_components_2() {
-        let graph = Graph::new(2);
+        let graph = Graph::new();
 
         let edges = vec![
             (1, 2, 1),
@@ -169,13 +174,14 @@ mod cc_test {
         ];
 
         for (src, dst, ts) in edges {
-            graph.add_edge(ts, src, dst, &vec![], None).unwrap();
+            graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
         }
 
-        let results: HashMap<String, u64> = weakly_connected_components(&graph, usize::MAX, None);
+        let results: AlgorithmResult<String, u64> =
+            weakly_connected_components(&graph, usize::MAX, None);
 
         assert_eq!(
-            results,
+            *results.get_all(),
             vec![
                 ("1".to_string(), 1),
                 ("2".to_string(), 1),
@@ -197,22 +203,56 @@ mod cc_test {
     // connected components on a graph with 1 node and a self loop
     #[test]
     fn simple_connected_components_3() {
-        let graph = Graph::new(2);
+        let graph = Graph::new();
 
         let edges = vec![(1, 1, 1)];
 
         for (src, dst, ts) in edges {
-            graph.add_edge(ts, src, dst, &vec![], None).unwrap();
+            graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
         }
 
-        let results: HashMap<String, u64> = weakly_connected_components(&graph, usize::MAX, None);
+        let results: AlgorithmResult<String, u64> =
+            weakly_connected_components(&graph, usize::MAX, None);
 
         assert_eq!(
-            results,
-            vec![("1".to_string(), 1),]
+            *results.get_all(),
+            vec![("1".to_string(), 1)]
                 .into_iter()
                 .collect::<HashMap<String, u64>>()
         );
+    }
+
+    #[test]
+    fn windowed_connected_components() {
+        let graph = Graph::new();
+        graph.add_edge(0, 1, 2, NO_PROPS, None).expect("add edge");
+        graph.add_edge(0, 2, 1, NO_PROPS, None).expect("add edge");
+        graph.add_edge(9, 3, 4, NO_PROPS, None).expect("add edge");
+        graph.add_edge(9, 4, 3, NO_PROPS, None).expect("add edge");
+
+        let results: AlgorithmResult<String, u64> =
+            weakly_connected_components(&graph, usize::MAX, None);
+        let expected = vec![
+            ("1".to_string(), 1),
+            ("2".to_string(), 1),
+            ("3".to_string(), 3),
+            ("4".to_string(), 3),
+        ]
+        .into_iter()
+        .collect::<HashMap<String, u64>>();
+
+        assert_eq!(*results.get_all(), expected);
+
+        let wg = graph.window(0, 2);
+        let results: AlgorithmResult<String, u64> =
+            weakly_connected_components(&wg, usize::MAX, None);
+
+        let expected = vec![("1", 1), ("2", 1)]
+            .into_iter()
+            .map(|(k, v)| (k.to_string(), v))
+            .collect::<HashMap<String, u64>>();
+
+        assert_eq!(*results.get_all(), expected);
     }
 
     #[quickcheck]
@@ -233,18 +273,19 @@ mod cc_test {
             assert_eq!(edges[0].0, first);
             assert_eq!(edges.last().unwrap().1, first);
 
-            let graph = Graph::new(2);
+            let graph = Graph::new();
 
             for (src, dst) in edges.iter() {
-                graph.add_edge(0, *src, *dst, &vec![], None).unwrap();
+                graph.add_edge(0, *src, *dst, NO_PROPS, None).unwrap();
             }
 
             // now we do connected components over window 0..1
 
-            let components: HashMap<String, u64> =
+            let res: AlgorithmResult<String, u64> =
                 weakly_connected_components(&graph, usize::MAX, None);
 
-            let actual = components
+            let actual = res
+                .get_all()
                 .iter()
                 .group_by(|(_, cc)| *cc)
                 .into_iter()

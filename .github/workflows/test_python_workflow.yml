@@ -6,14 +6,31 @@ on:
         type: boolean
         default: false
         required: false
+      test_python_lower:
+        type: boolean
+        default: false
+        required: false
 # DO NOT CHANGE NAME OF WORKFLOW, USED IN OTHER WORKFLOWS KEEP "Rust Tests"
 jobs:
+  select-strategy:
+    runs-on: ubuntu-latest
+    outputs:
+      python-versions: ${{ steps.set-matrix.outputs.python-versions }}
+    steps:
+      - id: set-matrix
+        run: |
+          if [ ${{ inputs.test_python_lower }} == true ]; then
+            echo "python-versions=[\"3.8\",\"3.11\"]" >> $GITHUB_OUTPUT
+          else
+            echo "python-versions=[\"3.8\"]" >> $GITHUB_OUTPUT
+          fi
   python-test:
     if: ${{ !inputs.skip_tests }}
     name: Python Tests
+    needs: select-strategy
     strategy:
       matrix:
-        python: ['3.9', '3.10']
+        python: ${{ fromJson(needs.select-strategy.outputs.python-versions) }}
         os: [macos-latest, ubuntu-latest, windows-latest]
     runs-on: '${{ matrix.os }}'
     steps:
@@ -55,6 +72,7 @@ jobs:
         run: |
           python -m pip install -q pytest networkx numpy seaborn pandas nbmake pytest-xdist matplotlib pyvis
           python -m pip install target/wheels/raphtory-*.whl
+          python -m pip install -e examples/custom_python_extension
       - name: Install Python dependencies (Windows)
         if: "contains(matrix.os, 'Windows')"
         run: |
@@ -63,6 +81,10 @@ jobs:
           Get-ChildItem -Path $folder_path -Recurse -Include *.whl | ForEach-Object {
             python -m pip install "$($_.FullName)"
           }
+          python -m pip install -e examples/custom_python_extension
       - name: Run Python tests
         run: |
           cd python/tests && pytest --nbmake --nbmake-timeout=1200 .
+      - name: Run Python extension tests
+        run: |
+          cd examples/custom_python_extension/test && pytest .

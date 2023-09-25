@@ -1,13 +1,14 @@
 use itertools::Itertools;
-use raphtory::algorithms::generic_taint::generic_taint;
-use raphtory::core::utils;
-use raphtory::core::Prop;
-use raphtory::db::graph::Graph;
-use raphtory::db::view_api::*;
-use raphtory_io::graph_loader::source::csv_loader::CsvLoader;
+use raphtory::{
+    algorithms::temporal_reachability::temporally_reachable_nodes, core::utils::hashing,
+    graph_loader::source::csv_loader::CsvLoader, prelude::*,
+};
 use serde::Deserialize;
-use std::path::PathBuf;
-use std::{env, path::Path, time::Instant};
+use std::{
+    env,
+    path::{Path, PathBuf},
+    time::Instant,
+};
 
 #[derive(Deserialize, std::fmt::Debug)]
 pub struct Lotr {
@@ -43,14 +44,14 @@ fn main() {
         println!(
             "Loaded graph from encoded data files {} with {} vertices, {} edges which took {} seconds",
             encoded_data_dir.to_str().unwrap(),
-            g.num_vertices(),
-            g.num_edges(),
+            g.count_vertices(),
+            g.count_edges(),
             now.elapsed().as_secs()
         );
 
         g
     } else {
-        let g = Graph::new(2);
+        let g = Graph::new();
         let now = Instant::now();
 
         CsvLoader::new(data_dir)
@@ -58,14 +59,14 @@ fn main() {
                 g.add_vertex(
                     lotr.time,
                     lotr.src_id.clone(),
-                    &vec![("type".to_string(), Prop::Str("Character".to_string()))],
+                    [("type", Prop::str("Character"))],
                 )
                 .expect("Failed to add vertex");
 
                 g.add_vertex(
                     lotr.time,
                     lotr.dst_id.clone(),
-                    &vec![("type".to_string(), Prop::Str("Character".to_string()))],
+                    [("type", Prop::str("Character"))],
                 )
                 .expect("Failed to add vertex");
 
@@ -73,10 +74,7 @@ fn main() {
                     lotr.time,
                     lotr.src_id.clone(),
                     lotr.dst_id.clone(),
-                    &vec![(
-                        "type".to_string(),
-                        Prop::Str("Character Co-occurrence".to_string()),
-                    )],
+                    [("type", Prop::str("Character Co-occurrence"))],
                     None,
                 )
                 .expect("Failed to add edge");
@@ -86,8 +84,8 @@ fn main() {
         println!(
             "Loaded graph from CSV data files {} with {} vertices, {} edges which took {} seconds",
             encoded_data_dir.to_str().unwrap(),
-            g.num_vertices(),
-            g.num_edges(),
+            g.count_vertices(),
+            g.count_edges(),
             now.elapsed().as_secs()
         );
 
@@ -97,18 +95,18 @@ fn main() {
         g
     };
 
-    assert_eq!(graph.num_vertices(), 139);
-    assert_eq!(graph.num_edges(), 701);
+    assert_eq!(graph.count_vertices(), 139);
+    assert_eq!(graph.count_edges(), 701);
 
-    let gandalf = utils::calculate_hash(&"Gandalf");
+    let gandalf = hashing::calculate_hash(&"Gandalf");
 
     assert_eq!(gandalf, 2760374808085341115);
     assert!(graph.has_vertex(gandalf));
     assert_eq!(graph.vertex(gandalf).unwrap().name(), "Gandalf");
 
-    let r = generic_taint(&graph, None, 20, 31930, vec!["Gandalf"], vec![]);
+    let r = temporally_reachable_nodes(&graph, None, 20, 31930, vec!["Gandalf"], None);
     assert_eq!(
-        r.keys().sorted().collect_vec(),
+        r.result.keys().sorted().collect_vec(),
         vec!["Gandalf", "Saruman", "Wormtongue"]
     )
 }

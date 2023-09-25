@@ -1,20 +1,25 @@
-use crate::core::state::accumulator_id::accumulators::{max, sum};
-use crate::db::task::eval_vertex::EvalVertexView;
 use crate::{
-    core::state::compute_state::ComputeStateVec,
+    algorithms::algorithm_result::AlgorithmResult,
+    core::{
+        entities::vertices::vertex_ref::VertexRef,
+        state::{
+            accumulator_id::accumulators::{max, sum},
+            compute_state::ComputeStateVec,
+        },
+    },
     db::{
+        api::view::{GraphViewOps, VertexViewOps},
         task::{
             context::Context,
             task::{ATask, Job, Step},
             task_runner::TaskRunner,
+            vertex::eval_vertex::EvalVertexView,
         },
-        view_api::{GraphViewOps, VertexViewOps},
     },
 };
 use num_traits::abs;
-use rustc_hash::FxHashMap;
+use ordered_float::OrderedFloat;
 use std::collections::HashMap;
-use std::ops::Range;
 
 #[derive(Debug, Clone)]
 struct Hits {
@@ -22,20 +27,31 @@ struct Hits {
     auth_score: f32,
 }
 
-// HITS (Hubs and Authority) Algorithm:
-// AuthScore of a vertex (A) = Sum of HubScore of all vertices pointing at vertex (A) from previous iteration /
-//     Sum of HubScore of all vertices in the current iteration
-//
-// HubScore of a vertex (A) = Sum of AuthScore of all vertices pointing away from vertex (A) from previous iteration /
-//     Sum of AuthScore of all vertices in the current iteration
+impl Default for Hits {
+    fn default() -> Self {
+        Self {
+            hub_score: 1f32,
+            auth_score: 1f32,
+        }
+    }
+}
 
+/// HITS (Hubs and Authority) Algorithm:
+/// AuthScore of a vertex (A) = Sum of HubScore of all vertices pointing at vertex (A) from previous iteration /
+///     Sum of HubScore of all vertices in the current iteration
+///
+/// HubScore of a vertex (A) = Sum of AuthScore of all vertices pointing away from vertex (A) from previous iteration /
+///     Sum of AuthScore of all vertices in the current iteration
+///
+/// Returns
+///
+/// * An AlgorithmResult object containing the mapping from vertex ID to the hub and authority score of the vertex
 #[allow(unused_variables)]
 pub fn hits<G: GraphViewOps>(
     g: &G,
-    window: Range<i64>,
     iter_count: usize,
     threads: Option<usize>,
-) -> FxHashMap<String, (f32, f32)> {
+) -> AlgorithmResult<String, (f32, f32), (OrderedFloat<f32>, OrderedFloat<f32>)> {
     let mut ctx: Context<G, ComputeStateVec> = g.into();
 
     let recv_hub_score = sum::<f32>(2);
@@ -96,8 +112,8 @@ pub fn hits<G: GraphViewOps>(
         let md_hub_score = abs(prev_hub_score - curr_hub_score);
         evv.global_update(&max_diff_hub_score, md_hub_score);
 
-        let prev_auth_score = evv.prev().auth_score; 
-        let curr_auth_score = evv.get().auth_score; 
+        let prev_auth_score = evv.prev().auth_score;
+        let curr_auth_score = evv.get().auth_score;
         let md_auth_score = abs(prev_auth_score - curr_auth_score);
         evv.global_update(&max_diff_auth_score, md_auth_score);
 
@@ -122,16 +138,15 @@ pub fn hits<G: GraphViewOps>(
     let (hub_scores, auth_scores) = runner.run(
         vec![],
         vec![Job::new(step2), Job::new(step3), Job::new(step4), step5],
-        Hits {
-            hub_score: 1f32,
-            auth_score: 1f32,
-        },
+        None,
         |_, _, els, local| {
             let mut hubs = HashMap::new();
             let mut auths = HashMap::new();
-            for line in local.iter() {
-                if let Some((v_ref, hit)) = line {
-                    let v_gid = g.vertex_name(v_ref.clone());
+            let layers = g.layer_ids();
+            let edge_filter = g.edge_filter();
+            for (v_ref, hit) in local.iter().enumerate() {
+                if g.has_vertex_ref(VertexRef::Internal(v_ref.into()), &layers, edge_filter) {
+                    let v_gid = g.vertex_name(v_ref.into());
                     hubs.insert(v_gid.clone(), hit.hub_score);
                     auths.insert(v_gid, hit.auth_score);
                 }
@@ -144,7 +159,7 @@ pub fn hits<G: GraphViewOps>(
         None,
     );
 
-    let mut results: FxHashMap<String, (f32, f32)> = FxHashMap::default();
+    let mut results: HashMap<String, (f32, f32)> = HashMap::new();
 
     hub_scores.into_iter().for_each(|(k, v)| {
         results.insert(k, (v, 0.0));
@@ -155,52 +170,47 @@ pub fn hits<G: GraphViewOps>(
         results.insert(k, (*a, v));
     });
 
-    results
+    AlgorithmResult::new(results)
 }
 
 #[cfg(test)]
 mod hits_tests {
     use super::*;
-    use crate::db::graph::Graph;
-    use itertools::Itertools;
+    use crate::{
+        db::{api::mutation::AdditionOps, graph::graph::Graph},
+        prelude::NO_PROPS,
+    };
 
-    fn load_graph(n_shards: usize, edges: Vec<(u64, u64)>) -> Graph {
-        let graph = Graph::new(n_shards);
+    fn load_graph(edges: Vec<(u64, u64)>) -> Graph {
+        let graph = Graph::new();
 
         for (src, dst) in edges {
-            graph.add_edge(0, src, dst, &vec![], None).unwrap();
+            graph.add_edge(0, src, dst, NO_PROPS, None).unwrap();
         }
         graph
     }
 
-    fn test_hits(n_shards: usize) {
-        let graph = load_graph(
-            n_shards,
-            vec![
-                (1, 4),
-                (2, 3),
-                (2, 5),
-                (3, 1),
-                (4, 2),
-                (4, 3),
-                (5, 2),
-                (5, 3),
-                (5, 4),
-                (5, 6),
-                (6, 3),
-                (6, 8),
-                (7, 1),
-                (7, 3),
-                (8, 1),
-            ],
-        );
+    #[test]
+    fn test_hits() {
+        let graph = load_graph(vec![
+            (1, 4),
+            (2, 3),
+            (2, 5),
+            (3, 1),
+            (4, 2),
+            (4, 3),
+            (5, 2),
+            (5, 3),
+            (5, 4),
+            (5, 6),
+            (6, 3),
+            (6, 8),
+            (7, 1),
+            (7, 3),
+            (8, 1),
+        ]);
 
-        let window = 0..10;
-
-        let mut results: Vec<(String, (f32, f32))> =
-            hits(&graph, window, 20, None).into_iter().collect_vec();
-
-        results.sort_by_key(|k| (*k).0.clone());
+        let results = hits(&graph, 20, None);
 
         // NetworkX results
         // >>> G = nx.DiGraph()
@@ -232,7 +242,7 @@ mod hits_tests {
         // )
 
         assert_eq!(
-            results,
+            results.sort_by_key(false),
             vec![
                 ("1".to_string(), (0.0431365, 0.096625775)),
                 ("2".to_string(), (0.14359662, 0.18366566)),
@@ -244,10 +254,5 @@ mod hits_tests {
                 ("8".to_string(), (0.030866561, 0.05943252))
             ]
         );
-    }
-
-    #[test]
-    fn test_hits_11() {
-        test_hits(1);
     }
 }

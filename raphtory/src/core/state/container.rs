@@ -1,8 +1,5 @@
-use std::any::Any;
-
-use rustc_hash::FxHashMap;
-
 use super::StateType;
+use std::any::Any;
 
 pub trait DynArray: std::fmt::Debug + Send + Sync {
     fn as_any(&self) -> &dyn Any;
@@ -12,14 +9,6 @@ pub trait DynArray: std::fmt::Debug + Send + Sync {
     // used for map array
     fn copy_over(&mut self, ss: usize);
     fn reset(&mut self, ss: usize);
-    fn iter_keys(&self) -> Box<dyn Iterator<Item = u64> + '_>;
-    fn iter_keys_changed(&self, ss: usize) -> Box<dyn Iterator<Item = u64> + '_>;
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub(crate) struct MapArray<T> {
-    pub(crate) map: FxHashMap<u64, [T; 2]>,
-    pub(crate) zero: T,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -62,12 +51,8 @@ impl<T> VecArray<T> {
         }
     }
 
-    fn previous(&self, ss: usize) -> &Vec<T> {
-        if ss % 2 == 0 {
-            &self.odd
-        } else {
-            &self.even
-        }
+    pub(crate) fn zero(&self) -> &T {
+        &self.zero
     }
 }
 
@@ -127,67 +112,6 @@ impl<T: StateType> DynArray for VecArray<T> {
         let zero = self.zero.clone();
         for v in self.previous_mut(ss).iter_mut() {
             *v = zero.clone();
-        }
-    }
-
-    fn iter_keys(&self) -> Box<dyn Iterator<Item = u64> + '_> {
-        todo!()
-    }
-
-    fn iter_keys_changed(&self, _ss: usize) -> Box<dyn Iterator<Item = u64> + '_> {
-        todo!()
-    }
-}
-
-impl<T> DynArray for MapArray<T>
-where
-    T: StateType,
-{
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_mut_any(&mut self) -> &mut dyn Any {
-        self
-    }
-
-    fn clone_array(&self) -> Box<dyn DynArray> {
-        Box::new(self.clone())
-    }
-
-    fn copy_from(&mut self, other: &dyn DynArray) {
-        let other = other.as_any().downcast_ref::<MapArray<T>>().unwrap();
-        self.map = other.map.clone();
-    }
-
-    fn copy_over(&mut self, ss: usize) {
-        for val in self.map.values_mut() {
-            let i = ss % 2;
-            let j = (ss + 1) % 2;
-            val[j] = val[i].clone();
-        }
-    }
-
-    fn iter_keys(&self) -> Box<dyn Iterator<Item = u64> + '_> {
-        Box::new(self.map.keys().copied())
-    }
-
-    fn iter_keys_changed(&self, ss: usize) -> Box<dyn Iterator<Item = u64> + '_> {
-        Box::new(self.map.iter().filter_map(move |(k, v)| {
-            let i = ss % 2;
-            let j = (ss + 1) % 2;
-            if v[i] != v[j] {
-                Some(*k)
-            } else {
-                None
-            }
-        }))
-    }
-
-    fn reset(&mut self, ss: usize) {
-        for val in self.map.values_mut() {
-            let i = (ss + 1) % 2;
-            val[i] = self.zero.clone();
         }
     }
 }

@@ -1,25 +1,22 @@
 // #![allow(unused_imports)]
-use std::env;
-use std::error::Error;
-use std::fmt::{Debug, Display, Formatter};
-use std::path::Path;
-
+#![allow(dead_code)]
 use itertools::Itertools;
 use raphtory::{
     algorithms::{
-        connected_components::weakly_connected_components,
-        motifs::three_node_temporal_motifs::{
-            global_temporal_three_node_motif, global_temporal_three_node_motif_from_local,
-            temporal_three_node_motif,
-        },
-        triangle_count::triangle_count,
+        connected_components::weakly_connected_components, triangle_count::triangle_count,
     },
     graph_loader::source::csv_loader::CsvLoader,
-    prelude::{AdditionOps, EdgeListOps, Graph, GraphViewOps, Prop, TimeOps, VertexViewOps},
+    prelude::*,
 };
 use regex::Regex;
 use serde::Deserialize;
-use std::time::Instant;
+use std::{
+    env,
+    error::Error,
+    fmt::{Debug, Display, Formatter},
+    path::Path,
+    time::Instant,
+};
 
 #[derive(Deserialize, Debug)]
 pub struct Edge {
@@ -67,14 +64,14 @@ pub fn loader(data_dir: &Path) -> Result<Graph, Box<dyn Error>> {
         println!(
             "Loaded graph from path {} with {} vertices, {} edges, took {} seconds",
             encoded_data_dir.display(),
-            g.num_vertices(),
-            g.num_edges(),
+            g.count_vertices(),
+            g.count_edges(),
             now.elapsed().as_secs()
         );
 
         Ok(g)
     } else {
-        let g = Graph::new(16);
+        let g = Graph::new();
 
         let now = Instant::now();
 
@@ -89,17 +86,17 @@ pub fn loader(data_dir: &Path) -> Result<Graph, Box<dyn Error>> {
                     time,
                     src,
                     dst,
-                    &vec![("amount".to_owned(), Prop::U64(sent.amount_usd))],
+                    [("amount".to_owned(), Prop::U64(sent.amount_usd))],
                     None,
                 )
-                .unwrap()
+                .unwrap();
             })?;
 
         println!(
             "Loaded graph from CSV data files {} with {} vertices, {} edges which took {} seconds",
             encoded_data_dir.display(),
-            g.num_vertices(),
-            g.num_edges(),
+            g.count_vertices(),
+            g.count_edges(),
             now.elapsed().as_secs()
         );
 
@@ -113,10 +110,6 @@ fn try_main() -> Result<(), Box<dyn Error>> {
     let data_dir = Path::new(args.get(1).ok_or(MissingArgumentError)?);
 
     let graph = loader(data_dir)?;
-
-    let min_time = graph.start().ok_or(GraphEmptyError)?;
-    let max_time = graph.end().ok_or(GraphEmptyError)?;
-    let mid_time = (min_time + max_time) / 2;
     let now = Instant::now();
 
     let motifs = global_temporal_three_node_motif(
@@ -181,6 +174,13 @@ fn try_main() -> Result<(), Box<dyn Error>> {
     //     now.elapsed().as_secs()
     // );
 
+    let now = Instant::now();
+    let num_windowed_edges2 = window.count_edges();
+    println!(
+        "Window num_edges returned {} in {} seconds",
+        num_windowed_edges2,
+        now.elapsed().as_secs()
+    );
     // let now = Instant::now();
     // let num_windowed_edges2 = window.num_edges();
     // println!(
@@ -210,39 +210,18 @@ fn try_main_bm() -> Result<(), Box<dyn Error>> {
     println!("graph time range: {}-{}", earliest_time, latest_time);
 
     let now = Instant::now();
-    let num_edges2 = graph.num_edges();
+    let num_edges2 = graph.count_edges();
     println!(
         "num_edges returned {} in {} milliseconds",
         num_edges2,
         now.elapsed().as_millis()
     );
 
-    println!("\n Immutable graph metrics:");
-
-    let graph = graph.freeze();
-
     let now = Instant::now();
-    let num_edges: usize = graph
-        .vertices()
-        .map(|v| graph.degree(v, Direction::OUT))
-        .sum();
-
+    let num_exploded_edges = graph.edges().explode().count();
     println!(
-        "Counting edges by summing degrees returned {} in {} milliseconds",
-        num_edges,
-        now.elapsed().as_millis()
-    );
-
-    let earliest_time = graph.earliest_time().ok_or(GraphEmptyError)?;
-    let latest_time = graph.latest_time().ok_or(GraphEmptyError)?;
-
-    println!("graph time range: {}-{}", earliest_time, latest_time);
-
-    let now = Instant::now();
-    let num_edges2 = graph.num_edges();
-    println!(
-        "num_edges returned {} in {} milliseconds",
-        num_edges2,
+        "counted {} exploded edges in {} milliseconds",
+        num_exploded_edges,
         now.elapsed().as_millis()
     );
 

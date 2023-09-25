@@ -2,7 +2,7 @@ use async_graphql::dynamic::{FieldValue, ResolverContext, TypeRef};
 use async_graphql::FieldResult;
 use dynamic_graphql::internal::TypeName;
 use dynamic_graphql::SimpleObject;
-use raphtory::db::view_api::GraphViewOps;
+use raphtory::db::view::GraphViewOps;
 use raphtory_graphql::{Algorithm, RaphtoryServer};
 
 #[derive(SimpleObject)]
@@ -29,7 +29,7 @@ impl Algorithm for DummyAlgorithm {
     ) -> FieldResult<Option<FieldValue<'a>>> {
         let mandatory_arg = ctx.args.try_get("mandatoryArg")?.u64()?;
         let optional_arg = ctx.args.get("optionalArg").map(|v| v.u64()).transpose()?;
-        let num_vertices = graph.num_vertices();
+        let num_vertices = graph.count_vertices();
         let output = Self {
             number_of_nodes: num_vertices,
             message: format!("mandatory arg: '{mandatory_arg}', optional arg: '{optional_arg:?}'"),

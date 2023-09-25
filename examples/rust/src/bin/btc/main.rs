@@ -1,23 +1,21 @@
 #![allow(unused_imports)]
-use std::collections::HashMap;
-use std::marker::PhantomData;
-use std::path::{Path, PathBuf};
-use std::thread::JoinHandle;
-use std::{env, thread};
+#![allow(dead_code)]
 
 use chrono::{DateTime, Utc};
-use raphtory::core::tgraph::TemporalGraph;
-use raphtory::core::utils;
-use raphtory::core::{Direction, Prop};
-use raphtory_io::graph_loader::source::csv_loader::CsvLoader;
+use raphtory::{core::utils::hashing, graph_loader::source::csv_loader::CsvLoader, prelude::*};
 use regex::Regex;
 use serde::Deserialize;
-use std::fs::File;
-use std::io::{prelude::*, BufReader, LineWriter};
-use std::time::Instant;
-
-use raphtory::db::graph::Graph;
-use raphtory::db::view_api::*;
+use std::{
+    collections::HashMap,
+    env,
+    fs::File,
+    io::{prelude::*, BufReader, LineWriter},
+    marker::PhantomData,
+    path::{Path, PathBuf},
+    thread,
+    thread::JoinHandle,
+    time::Instant,
+};
 
 #[derive(Deserialize, std::fmt::Debug)]
 pub struct Sent {
@@ -56,7 +54,7 @@ fn main() {
         panic!("Missing data dir = {}", data_dir.to_str().unwrap())
     }
 
-    let test_v = utils::calculate_hash(&"139eeGkMGR6F9EuJQ3qYoXebfkBbNAsLtV:btc");
+    let test_v = hashing::calculate_hash(&"139eeGkMGR6F9EuJQ3qYoXebfkBbNAsLtV:btc");
 
     // If data_dir/graphdb.bincode exists, use bincode to load the graph from binary encoded data files
     // otherwise load the graph from csv data files
@@ -70,22 +68,22 @@ fn main() {
         println!(
             "Loaded graph from path {} with {} vertices, {} edges, took {} seconds",
             encoded_data_dir.to_str().unwrap(),
-            g.num_vertices(),
-            g.num_edges(),
+            g.count_vertices(),
+            g.count_edges(),
             now.elapsed().as_secs()
         );
 
         g
     } else {
-        let g = Graph::new(16);
+        let g = Graph::new();
 
         let now = Instant::now();
 
         CsvLoader::new(data_dir)
             .with_filter(Regex::new(r".+(sent|received)").unwrap())
             .load_into_graph(&g, |sent: Sent, g: &Graph| {
-                let src = utils::calculate_hash(&sent.addr);
-                let dst = utils::calculate_hash(&sent.txn);
+                let src = hashing::calculate_hash(&sent.addr);
+                let dst = hashing::calculate_hash(&sent.txn);
                 let time = sent.time.timestamp();
 
                 if src == test_v || dst == test_v {
@@ -96,18 +94,18 @@ fn main() {
                     time,
                     src,
                     dst,
-                    &vec![("amount".to_string(), Prop::U64(sent.amount_btc))],
+                    [("amount".to_string(), Prop::U64(sent.amount_btc))],
                     None,
                 )
-                .unwrap()
+                .unwrap();
             })
             .expect("Failed to load graph from CSV data files");
 
         println!(
             "Loaded graph from CSV data files {} with {} vertices, {} edges which took {} seconds",
             encoded_data_dir.to_str().unwrap(),
-            g.num_vertices(),
-            g.num_edges(),
+            g.count_vertices(),
+            g.count_edges(),
             now.elapsed().as_secs()
         );
 
@@ -117,8 +115,8 @@ fn main() {
         g
     };
 
-    assert_eq!(graph.num_vertices(), 9132396);
-    assert_eq!(graph.num_edges(), 5087223);
+    assert_eq!(graph.count_vertices(), 9132396);
+    assert_eq!(graph.count_edges(), 5087223);
 
     let windowed_graph = graph.window(0, i64::MAX);
 

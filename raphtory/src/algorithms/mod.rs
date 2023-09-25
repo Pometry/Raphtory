@@ -8,9 +8,9 @@
 //!
 //! ```rust
 //! use raphtory::algorithms::degree::{average_degree};
-//! use raphtory::db::graph::Graph;
+//! use raphtory::prelude::*;
 //!  
-//!  let g = Graph::new(1);
+//!  let g = Graph::new();
 //!  let vs = vec![
 //!      (1, 1, 2),
 //!      (2, 1, 3),
@@ -21,21 +21,24 @@
 //!   ];
 //!
 //!  for (t, src, dst) in &vs {
-//!    g.add_edge(*t, *src, *dst, &vec![], None);
+//!    g.add_edge(*t, *src, *dst, NO_PROPS, None);
 //!  };
 //! println!("average_degree: {:?}", average_degree(&g));
 //! ```
 
+pub mod algorithm_result;
+pub mod balance;
 pub mod clustering_coefficient;
 pub mod connected_components;
 pub mod degree;
 pub mod directed_graph_density;
-pub mod generic_taint;
 pub mod hits;
+pub mod k_core;
 pub mod local_clustering_coefficient;
 pub mod local_triangle_count;
 pub mod motifs;
 pub mod pagerank;
 pub mod reciprocity;
+pub mod temporal_reachability;
 pub mod triangle_count;
 pub mod triplet_count;

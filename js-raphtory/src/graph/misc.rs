@@ -1,10 +1,9 @@
-use std::ops::Deref;
-use std::sync::Arc;
-
 use crate::graph::{Graph, UnderGraph};
 use chrono::{Datelike, Timelike};
 use js_sys::Array;
-use raphtory::core::{tgraph_shard::errors::GraphError, Prop};
+use raphtory::core::{utils::errors::GraphError, Prop};
+use serde::{Deserialize, Serialize};
+use std::{ops::Deref, sync::Arc};
 use wasm_bindgen::{prelude::wasm_bindgen, JsValue};
 
 #[wasm_bindgen]
@@ -13,13 +12,16 @@ pub struct JSError(pub(crate) GraphError);
 
 pub(crate) struct JsObjectEntry(pub(crate) JsValue);
 
+#[derive(Serialize, Deserialize)]
 #[repr(transparent)]
 pub(crate) struct JsProp(pub(crate) Prop);
 
-impl Into<JsValue> for JsProp {
-    fn into(self) -> JsValue {
-        match self.0 {
-            raphtory::core::Prop::Str(v) => v.into(),
+impl From<JsProp> for JsValue {
+    fn from(value: JsProp) -> JsValue {
+        match value.0 {
+            raphtory::core::Prop::U8(v) => v.into(),
+            raphtory::core::Prop::U16(v) => v.into(),
+            raphtory::core::Prop::Str(v) => v.to_string().into(),
             raphtory::core::Prop::I32(v) => v.into(),
             raphtory::core::Prop::I64(v) => v.into(),
             raphtory::core::Prop::U32(v) => v.into(),
@@ -40,6 +42,14 @@ impl Into<JsValue> for JsProp {
                 .into()
             }
             Prop::Graph(v) => Graph(UnderGraph::TGraph(Arc::new(v))).into(),
+            Prop::List(v) => {
+                let v: Array = v.iter().map(|v| JsValue::from(JsProp(v.clone()))).collect();
+                v.into()
+            }
+            Prop::Map(v) => {
+                let v = v.deref().clone();
+                serde_wasm_bindgen::to_value(&v).unwrap()
+            }
         }
     }
 }
@@ -58,6 +68,6 @@ impl From<JsObjectEntry> for Option<(String, Prop)> {
 
         let key = arr.at(0).as_string().unwrap();
         let value = arr.at(1).as_string().unwrap();
-        Some((key, Prop::Str(value)))
+        Some((key, Prop::str(value)))
     }
 }

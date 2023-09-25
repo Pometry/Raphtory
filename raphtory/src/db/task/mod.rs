@@ -1,17 +1,13 @@
-use std::sync::Arc;
-
 use once_cell::sync::Lazy;
 use rayon::{ThreadPool, ThreadPoolBuilder};
+use std::sync::Arc;
 
 pub mod context;
-pub mod eval_edge;
-pub mod eval_vertex;
-pub mod eval_vertex_state;
+pub mod edge;
 pub mod task;
 pub mod task_runner;
 pub(crate) mod task_state;
-pub mod window_eval_vertex;
-pub mod window_eval_edge;
+pub mod vertex;
 
 pub static POOL: Lazy<Arc<ThreadPool>> = Lazy::new(|| {
     let num_threads = std::env::var("DOCBROWN_MAX_THREADS")
@@ -46,7 +42,8 @@ pub fn custom_pool(n_threads: usize) -> Arc<ThreadPool> {
 mod task_tests {
     use crate::{
         core::state::{self, compute_state::ComputeStateVec},
-        db::graph::Graph,
+        db::{api::mutation::AdditionOps, task::vertex::eval_vertex::EvalVertexView},
+        prelude::*,
     };
 
     use super::{
@@ -58,7 +55,7 @@ mod task_tests {
     // count all the vertices with a global state
     #[test]
     fn count_all_vertices_with_global_state() {
-        let graph = Graph::new(2);
+        let graph = Graph::new();
 
         let edges = vec![
             (1, 2, 1),
@@ -71,7 +68,7 @@ mod task_tests {
         ];
 
         for (src, dst, ts) in edges {
-            graph.add_edge(ts, src, dst, &vec![], None).unwrap();
+            graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
         }
 
         let mut ctx: Context<Graph, ComputeStateVec> = (&graph).into();
@@ -80,17 +77,19 @@ mod task_tests {
 
         ctx.global_agg(count.clone());
 
-        let step1 = ATask::new(move |vv| {
-            vv.global_update(&count, 1);
-            Step::Done
-        });
+        let step1 = ATask::new(
+            move |vv: &mut EvalVertexView<'_, Graph, ComputeStateVec, ()>| {
+                vv.global_update(&count, 1);
+                Step::Done
+            },
+        );
 
         let mut runner = TaskRunner::new(ctx);
 
         let actual = runner.run(
             vec![],
             vec![Job::new(step1)],
-            (),
+            None,
             |egs, _, _, _| egs.finalize(&count),
             Some(2),
             1,

@@ -30,8 +30,6 @@ jobs:
             ~/.cargo/registry/index/
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
-            target/debug
-            target/release
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       - uses: actions-rs/toolchain@v1
@@ -47,7 +45,7 @@ jobs:
           RUSTFLAGS: -Awarnings
         with:
           command: test
-          args: --all --no-default-features
+          args: --all --no-default-features --features "raphtory/io raphtory/python"
   doc-test:
     if: ${{ !inputs.skip_tests }}
     name: "Doc tests"
@@ -68,8 +66,6 @@ jobs:
             ~/.cargo/registry/index/
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
-            target/debug
-            target/release
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-
       - uses: actions-rs/toolchain@v1

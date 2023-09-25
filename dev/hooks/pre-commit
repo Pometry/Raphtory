@@ -1,0 +1,18 @@
+#!/bin/bash
+
+# Run rustfmt on the whole repository using nightly toolchain
+cargo +nightly fmt --all -- --check
+
+# Capture the exit code of the previous command
+RESULT=$?
+
+# If the result is non-zero (i.e., there were formatting errors), abort the commit
+if [ $RESULT -ne 0 ]; then
+  if [ -z "$(git ls-files --others --modified --exclude-standard)" ]; then
+    echo "There are formatting errors. Running cargo fmt. Please check the formatting changes and add them before committing."
+    cargo +nightly fmt --all
+  else
+    echo "There are formatting errors and un-staged files. Please run 'cargo +nightly fmt --all' to fix the formatting before committing."
+  fi
+   exit 1
+fi

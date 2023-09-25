@@ -11,6 +11,6 @@ jobs:
     steps:
       - uses: s-weigand/trigger-mybinder-build@v1
         with:
-          target-repo: raphtory/raphtory
+          target-repo: pometry/raphtory
           service-name: gh
           use-default-build-servers: true

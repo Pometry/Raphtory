@@ -1,12 +1,5 @@
-pub mod doc_strings;
-pub mod edge;
+pub mod api;
 pub mod graph;
-pub mod graph_immutable;
-pub mod graph_layer;
-pub mod graph_window;
-pub mod path;
-pub mod subgraph_vertex;
+pub(crate) mod internal;
 pub mod task;
-pub mod vertex;
-pub mod vertices;
-pub mod view_api;
+pub mod utils;

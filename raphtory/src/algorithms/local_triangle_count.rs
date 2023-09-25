@@ -18,14 +18,13 @@
 //!
 //! ```rust
 //! use raphtory::algorithms::local_triangle_count::{local_triangle_count};
-//! use raphtory::db::graph::Graph;
-//! use raphtory::db::view_api::*;
+//! use raphtory::prelude::*;
 //!
-//! let g = Graph::new(1);
+//! let g = Graph::new();
 //! let vs = vec![(1, 1, 2), (2, 1, 3), (3, 2, 1), (4, 3, 2)];
 //!
 //! for (t, src, dst) in &vs {
-//!     g.add_edge(*t, *src, *dst, &vec![], None);
+//!     g.add_edge(*t, *src, *dst, NO_PROPS, None);
 //! }
 //!
 //! let windowed_graph = g.window(0, 5);
@@ -38,28 +37,27 @@
 //! println!("local_triangle_count: {:?}", result);
 //! ```
 //!
-use crate::core::vertex_ref::VertexRef;
-use crate::db::view_api::*;
+use crate::{core::entities::vertices::vertex_ref::VertexRef, db::api::view::*};
 use itertools::Itertools;
 
 /// calculates the number of triangles (a cycle of length 3) for a node.
 pub fn local_triangle_count<G: GraphViewOps, V: Into<VertexRef>>(graph: &G, v: V) -> Option<usize> {
     if let Some(vertex) = graph.vertex(v) {
         if vertex.degree() >= 2 {
-            let x: Vec<usize> = vertex
+            let len = vertex
                 .neighbours()
                 .id()
                 .into_iter()
                 .combinations(2)
-                .filter_map(|nb| match graph.has_edge(nb[0], nb[1], None) {
+                .filter_map(|nb| match graph.has_edge(nb[0], nb[1], Layer::All) {
                     true => Some(1),
-                    false => match graph.has_edge(nb[1], nb[0], None) {
+                    false => match graph.has_edge(nb[1], nb[0], Layer::All) {
                         true => Some(1),
                         false => None,
                     },
                 })
-                .collect();
-            Some(x.len())
+                .count();
+            Some(len)
         } else {
             Some(0)
         }
@@ -72,16 +70,21 @@ pub fn local_triangle_count<G: GraphViewOps, V: Into<VertexRef>>(graph: &G, v: V
 mod triangle_count_tests {
 
     use super::local_triangle_count;
-    use crate::db::graph::Graph;
-    use crate::db::view_api::*;
+    use crate::{
+        db::{
+            api::{mutation::AdditionOps, view::*},
+            graph::graph::Graph,
+        },
+        prelude::NO_PROPS,
+    };
 
     #[test]
     fn counts_triangles() {
-        let g = Graph::new(1);
+        let g = Graph::new();
         let vs = vec![(1, 1, 2), (2, 1, 3), (3, 2, 1), (4, 3, 2)];
 
         for (t, src, dst) in &vs {
-            g.add_edge(*t, *src, *dst, &vec![], None).unwrap();
+            g.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
         }
 
         let windowed_graph = g.window(0, 5);

@@ -1,17 +1,15 @@
-use std::sync::Arc;
-
+use super::task_state::{Global, Shard};
 use crate::{
     core::{
-        agg::Accumulator,
+        entities::VID,
         state::{
-            accumulator_id::AccId, compute_state::ComputeState, shuffle_state::ShuffleComputeState,
-            StateType,
+            accumulator_id::AccId, agg::Accumulator, compute_state::ComputeState,
+            shuffle_state::ShuffleComputeState, StateType,
         },
     },
-    db::view_api::GraphViewOps,
+    db::{api::view::GraphViewOps, graph::vertex::VertexView},
 };
-
-use super::task_state::{Global, Shard};
+use std::{fmt::Debug, sync::Arc};
 
 type MergeFn<CS> =
     Arc<dyn Fn(&mut ShuffleComputeState<CS>, &ShuffleComputeState<CS>, usize) + Send + Sync>;
@@ -32,6 +30,20 @@ where
     G: GraphViewOps,
     CS: ComputeState,
 {
+    pub fn new_local_state<O: Debug + Default, F: Fn(VertexView<G>) -> O>(
+        &self,
+        init_f: F,
+    ) -> Vec<O> {
+        let n = self.g.unfiltered_num_vertices();
+        let mut new_state = Vec::with_capacity(n);
+        for i in 0..n {
+            match self.g.vertex(VID(i)) {
+                Some(v) => new_state.push(init_f(v)),
+                None => new_state.push(O::default()),
+            }
+        }
+        new_state
+    }
     pub fn ss(&self) -> usize {
         self.ss
     }
@@ -61,7 +73,6 @@ where
         mut a: Arc<ShuffleComputeState<CS>>,
         mut b: Arc<ShuffleComputeState<CS>>,
     ) -> Arc<ShuffleComputeState<CS>> {
-        // println!("Running merge \na: {:?} \nb: {:?}", a,b);
         if let Some(left) = Arc::get_mut(&mut a) {
             for merge_fn in self.merge_fns.iter() {
                 merge_fn(left, &b, self.ss);
@@ -82,7 +93,7 @@ where
         &mut self,
         id: AccId<A, IN, OUT, ACC>,
     ) {
-        let fn_merge: MergeFn<CS> = Arc::new(move |a, b, ss| a.merge_mut_2(b, id, ss));
+        let fn_merge: MergeFn<CS> = Arc::new(move |a, b, ss| a.merge_mut(b, id, ss));
 
         self.merge_fns.push(fn_merge);
     }
@@ -91,7 +102,7 @@ where
         &mut self,
         id: AccId<A, IN, OUT, ACC>,
     ) {
-        let fn_merge: MergeFn<CS> = Arc::new(move |a, b, ss| a.merge_mut_2(b, id, ss));
+        let fn_merge: MergeFn<CS> = Arc::new(move |a, b, ss| a.merge_mut(b, id, ss));
 
         self.merge_fns.push(fn_merge);
         self.resetable_states.push(id.id());
@@ -146,7 +157,6 @@ pub struct GlobalState<CS: ComputeState> {
 }
 
 impl<CS: ComputeState> GlobalState<CS> {
-
     pub fn finalize<A: StateType, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
         &self,
         agg_def: &AccId<A, IN, OUT, ACC>,
@@ -157,7 +167,8 @@ impl<CS: ComputeState> GlobalState<CS> {
     {
         // ss needs to be incremented because the loop ran once and at the end it incremented the state thus
         // the value is on the previous ss
-        self.state.inner()
+        self.state
+            .inner()
             .read_global(self.ss + 1, agg_def)
             .unwrap_or_default()
     }

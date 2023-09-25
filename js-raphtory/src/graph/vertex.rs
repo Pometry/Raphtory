@@ -1,17 +1,26 @@
-use std::convert::TryFrom;
-
-use raphtory::{
-    core::tgraph_shard::errors::GraphError,
-    db::{vertex::VertexView, view_api::VertexViewOps},
-};
-use wasm_bindgen::prelude::*;
-
-use crate::graph::{edge::Edge, misc::JsProp};
-
 use super::{misc::JSError, Graph};
+use crate::graph::{edge::Edge, misc::JsProp, UnderGraph};
+use raphtory::{
+    core::utils::errors::GraphError,
+    db::{
+        api::view::VertexViewOps,
+        graph::{graph::Graph as TGraph, vertex::VertexView},
+    },
+};
+use std::{convert::TryFrom, sync::Arc};
+use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
 pub struct Vertex(pub(crate) VertexView<Graph>);
+
+impl From<VertexView<TGraph>> for Vertex {
+    fn from(value: VertexView<TGraph>) -> Self {
+        let vid = value.vertex;
+        let graph = value.graph;
+        let js_graph = Graph(UnderGraph::TGraph(Arc::new(graph)));
+        Vertex(VertexView::new_internal(js_graph, vid))
+    }
+}
 
 #[wasm_bindgen]
 impl Vertex {
@@ -90,19 +99,19 @@ impl Vertex {
     #[wasm_bindgen(js_name = properties)]
     pub fn properties(&self) -> js_sys::Map {
         let obj = js_sys::Map::new();
-        for (k, v) in self.0.properties(true) {
-            obj.set(&k.into(), &JsProp(v).into());
+        for (k, v) in self.0.properties() {
+            obj.set(&k.to_string().into(), &JsProp(v).into());
         }
         obj
     }
 
     #[wasm_bindgen(js_name = getProperty)]
     pub fn get_property(&self, name: String) -> JsValue {
-        if let Some(prop) = self.0.property(name, true).map(JsProp) {
-            prop.into()
-        } else {
-            JsValue::NULL
-        }
+        self.0
+            .properties()
+            .get(&name)
+            .map(|v| JsProp(v).into())
+            .unwrap_or(JsValue::NULL)
     }
 }
 

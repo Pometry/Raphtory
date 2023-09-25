@@ -3,9 +3,6 @@ on:
   push:
     branches:
       - master
-  pull_request:
-    branches:
-      - master
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -13,6 +10,9 @@ concurrency:
 
 
 jobs:
+  rust-format-check:
+    name: Rust format check
+    uses: ./.github/workflows/rust_format_check.yml
   call-test-rust-workflow-in-local-repo:
     name: Run Rust tests
     uses: ./.github/workflows/test_rust_workflow.yml
@@ -20,6 +20,8 @@ jobs:
   call-test-python-workflow-in-local-repo:
     name: Run Python tests
     uses: ./.github/workflows/test_python_workflow.yml
+    with:
+      test_python_lower: true
     secrets: inherit
   call-benchmark-workflow-in-local-repo:
     name: Run benchmarks
