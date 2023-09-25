@@ -17,7 +17,7 @@ use crate::{
 };
 use itertools::Itertools;
 use num_traits::Zero;
-use std::ops::Add;
+use std::{collections::HashMap, ops::Add};
 
 #[derive(Eq, Hash, PartialEq, Clone, Debug, Default)]
 pub struct TaintMessage {
@@ -180,24 +180,28 @@ pub fn temporally_reachable_nodes<G: GraphViewOps, T: InputVertex>(
     }));
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
-
-    AlgorithmResult::new(runner.run(
-        vec![Job::new(step1)],
-        vec![Job::new(step2), step3],
-        None,
-        |_, ess, _, _| {
-            ess.finalize(&taint_history, |taint_history| {
-                taint_history
-                    .into_iter()
-                    .map(|tmsg| (tmsg.event_time, tmsg.src_vertex))
-                    .collect_vec()
-            })
-        },
-        threads,
-        max_hops,
-        None,
-        None,
-    ))
+    let results_type = std::any::type_name::<HashMap<String, Vec<(i64, String)>>>();
+    AlgorithmResult::new(
+        "Temporal Reachability",
+        results_type,
+        runner.run(
+            vec![Job::new(step1)],
+            vec![Job::new(step2), step3],
+            None,
+            |_, ess, _, _| {
+                ess.finalize(&taint_history, |taint_history| {
+                    taint_history
+                        .into_iter()
+                        .map(|tmsg| (tmsg.event_time, tmsg.src_vertex))
+                        .collect_vec()
+                })
+            },
+            threads,
+            max_hops,
+            None,
+            None,
+        ),
+    )
 }
 
 #[cfg(test)]

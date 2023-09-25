@@ -157,7 +157,7 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
 
     let num_vertices = g.count_vertices();
-
+    let results_type = std::any::type_name::<HashMap<VID, f64>>();
     let out: HashMap<VID, f64> = runner.run(
         vec![Job::new(step1)],
         vec![Job::new(step2), Job::new(step3), Job::new(step4), step5],
@@ -180,12 +180,12 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
         None,
     );
 
-    let res = out
+    let res: HashMap<String, f64> = out
         .into_iter()
         .map(|(k, v)| (g.vertex_name(k), v))
         .collect();
 
-    AlgorithmResult::new(res)
+    AlgorithmResult::new("Pagerank", results_type, res)
 }
 
 #[cfg(test)]

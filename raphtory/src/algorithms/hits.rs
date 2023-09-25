@@ -170,7 +170,9 @@ pub fn hits<G: GraphViewOps>(
         results.insert(k, (*a, v));
     });
 
-    AlgorithmResult::new(results)
+    let results_type = std::any::type_name::<HashMap<String, (f32, f32)>>();
+
+    AlgorithmResult::new("Hits", results_type, results)
 }
 
 #[cfg(test)]

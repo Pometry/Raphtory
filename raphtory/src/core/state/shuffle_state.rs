@@ -95,7 +95,11 @@ impl<CS: ComputeState + Send + Sync> ShuffleComputeState<CS> {
     }
 
     pub fn new(total_len: usize, n_parts: usize, morcel_size: usize) -> Self {
-        let last_one_size = total_len % morcel_size;
+        let last_one_size = if morcel_size == 0 {
+            1
+        } else {
+            total_len % morcel_size
+        };
         let mut parts: Vec<MorcelComputeState<CS>> = (0..n_parts - 1)
             .into_iter()
             .map(|_| MorcelComputeState::new(morcel_size))
