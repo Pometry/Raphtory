@@ -12,6 +12,7 @@ use raphtory::{
 };
 
 pub(crate) mod columnar_graph;
+pub(crate) mod col_graph2;
 
 type MPArr<T> = MutablePrimitiveArray<T>;
 
@@ -247,9 +248,6 @@ mod test {
                         Some(Prop::F32(1f32))
                     ]
                 ),
-                // TPropRow::from_vec(4, vec![Some(Prop::I32(1)), None, None]),
-                // TPropRow::from_vec(7, vec![None, Some(Prop::str("bam")), None]),
-                // TPropRow::from_vec(9, vec![Some(Prop::I32(1)), None, Some(Prop::F32(12f32))]),
             ]
         )
     }

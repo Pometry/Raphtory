@@ -20,3 +20,4 @@ parking_lot = "0.12.1"
 polars-core = { path = "../../polars/crates/polars-core", features = ["dtype-struct", "fmt"]}
 raphtory = { path = "../raphtory", version = "0.5.7" }
 rayon = "1.6"
+thiserror = "1.0.48"
