@@ -210,7 +210,74 @@ impl TProp {
         }
     }
 
-    pub(crate) fn iter_window(&self, r: Range<i64>) -> Box<dyn Iterator<Item = (i64, Prop)> + '_> {
+    pub(crate) fn iter_window(
+        &self,
+        r: Range<TimeIndexEntry>,
+    ) -> Box<dyn Iterator<Item = (TimeIndexEntry, Prop)> + '_> {
+        match self {
+            TProp::Empty => Box::new(std::iter::empty()),
+            TProp::Str(cell) => Box::new(
+                cell.iter_window(r)
+                    .map(|(t, value)| (*t, Prop::Str(value.clone()))),
+            ),
+            TProp::I32(cell) => Box::new(
+                cell.iter_window(r)
+                    .map(|(t, value)| (*t, Prop::I32(*value))),
+            ),
+            TProp::I64(cell) => Box::new(
+                cell.iter_window(r)
+                    .map(|(t, value)| (*t, Prop::I64(*value))),
+            ),
+            TProp::U8(cell) => {
+                Box::new(cell.iter_window(r).map(|(t, value)| (*t, Prop::U8(*value))))
+            }
+            TProp::U16(cell) => Box::new(
+                cell.iter_window(r)
+                    .map(|(t, value)| (*t, Prop::U16(*value))),
+            ),
+            TProp::U32(cell) => Box::new(
+                cell.iter_window(r)
+                    .map(|(t, value)| (*t, Prop::U32(*value))),
+            ),
+            TProp::U64(cell) => Box::new(
+                cell.iter_window(r)
+                    .map(|(t, value)| (*t, Prop::U64(*value))),
+            ),
+            TProp::F32(cell) => Box::new(
+                cell.iter_window(r)
+                    .map(|(t, value)| (*t, Prop::F32(*value))),
+            ),
+            TProp::F64(cell) => Box::new(
+                cell.iter_window(r)
+                    .map(|(t, value)| (*t, Prop::F64(*value))),
+            ),
+            TProp::Bool(cell) => Box::new(
+                cell.iter_window(r)
+                    .map(|(t, value)| (*t, Prop::Bool(*value))),
+            ),
+            TProp::DTime(cell) => Box::new(
+                cell.iter_window(r)
+                    .map(|(t, value)| (*t, Prop::DTime(*value))),
+            ),
+            TProp::Graph(cell) => Box::new(
+                cell.iter_window(r)
+                    .map(|(t, value)| (*t, Prop::Graph(value.clone()))),
+            ),
+            TProp::List(cell) => Box::new(
+                cell.iter_window(r)
+                    .map(|(t, value)| (*t, Prop::List(value.clone()))),
+            ),
+            TProp::Map(cell) => Box::new(
+                cell.iter_window(r)
+                    .map(|(t, value)| (*t, Prop::Map(value.clone()))),
+            ),
+        }
+    }
+
+    pub(crate) fn iter_window_t(
+        &self,
+        r: Range<i64>,
+    ) -> Box<dyn Iterator<Item = (i64, Prop)> + '_> {
         match self {
             TProp::Empty => Box::new(std::iter::empty()),
             TProp::Str(cell) => Box::new(
@@ -299,7 +366,7 @@ impl<'a> LockedLayeredTProp<'a> {
     pub(crate) fn iter_window(&self, r: Range<i64>) -> impl Iterator<Item = (i64, Prop)> + '_ {
         self.tprop
             .iter()
-            .map(|p| p.iter_window(r.clone()))
+            .map(|p| p.iter_window_t(r.clone()))
             .kmerge_by(|a, b| a.0 < b.0)
     }
 
@@ -437,7 +504,7 @@ mod tprop_tests {
         let tprop = TProp::default();
 
         assert_eq!(
-            tprop.iter_window(i64::MIN..i64::MAX).collect::<Vec<_>>(),
+            tprop.iter_window_t(i64::MIN..i64::MAX).collect::<Vec<_>>(),
             vec![]
         );
 
@@ -446,15 +513,15 @@ mod tprop_tests {
         tprop.set(2.into(), Prop::Str("Raphtory".into()));
 
         assert_eq!(
-            tprop.iter_window(2..3).collect::<Vec<_>>(),
+            tprop.iter_window_t(2..3).collect::<Vec<_>>(),
             vec![(2, Prop::Str("Raphtory".into()))]
         );
 
-        assert_eq!(tprop.iter_window(4..5).collect::<Vec<_>>(), vec![]);
+        assert_eq!(tprop.iter_window_t(4..5).collect::<Vec<_>>(), vec![]);
 
         assert_eq!(
             // Results are ordered by time
-            tprop.iter_window(1..i64::MAX).collect::<Vec<_>>(),
+            tprop.iter_window_t(1..i64::MAX).collect::<Vec<_>>(),
             vec![
                 (1, Prop::Str("Pometry Inc.".into())),
                 (2, Prop::Str("Raphtory".into())),
@@ -463,22 +530,22 @@ mod tprop_tests {
         );
 
         assert_eq!(
-            tprop.iter_window(3..i64::MAX).collect::<Vec<_>>(),
+            tprop.iter_window_t(3..i64::MAX).collect::<Vec<_>>(),
             vec![(3, Prop::Str("Pometry".into()))]
         );
 
         assert_eq!(
-            tprop.iter_window(2..i64::MAX).collect::<Vec<_>>(),
+            tprop.iter_window_t(2..i64::MAX).collect::<Vec<_>>(),
             vec![
                 (2, Prop::Str("Raphtory".into())),
                 (3, Prop::Str("Pometry".into()))
             ]
         );
 
-        assert_eq!(tprop.iter_window(5..i64::MAX).collect::<Vec<_>>(), vec![]);
+        assert_eq!(tprop.iter_window_t(5..i64::MAX).collect::<Vec<_>>(), vec![]);
 
         assert_eq!(
-            tprop.iter_window(i64::MIN..4).collect::<Vec<_>>(),
+            tprop.iter_window_t(i64::MIN..4).collect::<Vec<_>>(),
             // Results are ordered by time
             vec![
                 (1, Prop::Str("Pometry Inc.".into())),
@@ -487,13 +554,13 @@ mod tprop_tests {
             ]
         );
 
-        assert_eq!(tprop.iter_window(i64::MIN..1).collect::<Vec<_>>(), vec![]);
+        assert_eq!(tprop.iter_window_t(i64::MIN..1).collect::<Vec<_>>(), vec![]);
 
         let mut tprop = TProp::from(1.into(), Prop::I32(2022));
         tprop.set(2.into(), Prop::I32(2023));
 
         assert_eq!(
-            tprop.iter_window(i64::MIN..i64::MAX).collect::<Vec<_>>(),
+            tprop.iter_window_t(i64::MIN..i64::MAX).collect::<Vec<_>>(),
             vec![(1, Prop::I32(2022)), (2, Prop::I32(2023))]
         );
 
@@ -501,7 +568,7 @@ mod tprop_tests {
         tprop.set(2.into(), Prop::I64(2023));
 
         assert_eq!(
-            tprop.iter_window(i64::MIN..i64::MAX).collect::<Vec<_>>(),
+            tprop.iter_window_t(i64::MIN..i64::MAX).collect::<Vec<_>>(),
             vec![(1, Prop::I64(2022)), (2, Prop::I64(2023))]
         );
 
@@ -509,7 +576,7 @@ mod tprop_tests {
         tprop.set(2.into(), Prop::F32(11.0));
 
         assert_eq!(
-            tprop.iter_window(i64::MIN..i64::MAX).collect::<Vec<_>>(),
+            tprop.iter_window_t(i64::MIN..i64::MAX).collect::<Vec<_>>(),
             vec![(1, Prop::F32(10.0)), (2, Prop::F32(11.0))]
         );
 
@@ -517,7 +584,7 @@ mod tprop_tests {
         tprop.set(2.into(), Prop::F64(11.0));
 
         assert_eq!(
-            tprop.iter_window(i64::MIN..i64::MAX).collect::<Vec<_>>(),
+            tprop.iter_window_t(i64::MIN..i64::MAX).collect::<Vec<_>>(),
             vec![(1, Prop::F64(10.0)), (2, Prop::F64(11.0))]
         );
 
@@ -525,7 +592,7 @@ mod tprop_tests {
         tprop.set(2.into(), Prop::U32(2));
 
         assert_eq!(
-            tprop.iter_window(i64::MIN..i64::MAX).collect::<Vec<_>>(),
+            tprop.iter_window_t(i64::MIN..i64::MAX).collect::<Vec<_>>(),
             vec![(1, Prop::U32(1)), (2, Prop::U32(2))]
         );
 
@@ -533,7 +600,7 @@ mod tprop_tests {
         tprop.set(2.into(), Prop::U64(2));
 
         assert_eq!(
-            tprop.iter_window(i64::MIN..i64::MAX).collect::<Vec<_>>(),
+            tprop.iter_window_t(i64::MIN..i64::MAX).collect::<Vec<_>>(),
             vec![(1, Prop::U64(1)), (2, Prop::U64(2))]
         );
 
@@ -541,7 +608,7 @@ mod tprop_tests {
         tprop.set(2.into(), Prop::U8(2));
 
         assert_eq!(
-            tprop.iter_window(i64::MIN..i64::MAX).collect::<Vec<_>>(),
+            tprop.iter_window_t(i64::MIN..i64::MAX).collect::<Vec<_>>(),
             vec![(1, Prop::U8(1)), (2, Prop::U8(2))]
         );
 
@@ -549,7 +616,7 @@ mod tprop_tests {
         tprop.set(2.into(), Prop::U16(2));
 
         assert_eq!(
-            tprop.iter_window(i64::MIN..i64::MAX).collect::<Vec<_>>(),
+            tprop.iter_window_t(i64::MIN..i64::MAX).collect::<Vec<_>>(),
             vec![(1, Prop::U16(1)), (2, Prop::U16(2))]
         );
 
@@ -557,7 +624,7 @@ mod tprop_tests {
         tprop.set(2.into(), Prop::Bool(true));
 
         assert_eq!(
-            tprop.iter_window(i64::MIN..i64::MAX).collect::<Vec<_>>(),
+            tprop.iter_window_t(i64::MIN..i64::MAX).collect::<Vec<_>>(),
             vec![(1, Prop::Bool(true)), (2, Prop::Bool(true))]
         );
     }
