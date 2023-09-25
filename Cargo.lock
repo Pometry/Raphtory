@@ -3291,6 +3291,7 @@ dependencies = [
  "polars-core",
  "raphtory",
  "rayon",
+ "thiserror",
 ]
 
 [[package]]
