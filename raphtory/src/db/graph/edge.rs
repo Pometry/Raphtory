@@ -456,8 +456,6 @@ impl<G: GraphViewOps> EdgeListOps for BoxedIter<BoxedIter<EdgeView<G>>> {
     type VList = Box<dyn Iterator<Item = Box<dyn Iterator<Item = VertexView<G>> + Send>> + Send>;
     type IterType<T> = Box<dyn Iterator<Item = Box<dyn Iterator<Item = T> + Send>> + Send>;
 
-    // type WindowedViewType = EdgeView<G>;
-
     fn properties(self) -> Self::IterType<Properties<Self::Edge>> {
         Box::new(self.map(move |it| it.properties()))
     }

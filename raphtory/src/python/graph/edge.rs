@@ -34,8 +34,9 @@ use crate::{
         types::{
             repr::{iterator_repr, Repr},
             wrappers::iterators::{
-                NestedI64VecIterable, NestedNaiveDateTimeIterable, NestedOptionI64Iterable,
-                NestedU64U64Iterable, OptionI64Iterable, OptionNaiveDateTimeIterable,
+                I64VecIterable, NestedI64VecIterable, NestedNaiveDateTimeIterable,
+                NestedOptionI64Iterable, NestedU64U64Iterable, OptionArcStringIterable,
+                OptionI64Iterable, OptionNaiveDateTimeIterable,
             },
         },
         utils::{PyGenericIterable, PyGenericIterator, PyInterval, PyTime},
@@ -683,7 +684,7 @@ impl PyEdges {
     ///    A list of timestamps.
     ///
 
-    fn history(&self) -> PyGenericIterable {
+    fn history(&self) -> I64VecIterable {
         let edges = self.builder.clone();
         (move || edges().history()).into()
     }
@@ -693,7 +694,7 @@ impl PyEdges {
     /// Returns:
     /// The start time of all edges
     #[getter]
-    fn start(&self) -> PyGenericIterable {
+    fn start(&self) -> OptionI64Iterable {
         let edges = self.builder.clone();
         (move || edges().start()).into()
     }
@@ -703,7 +704,7 @@ impl PyEdges {
     /// Returns:
     /// The start date time of all edges
     #[getter]
-    fn start_date_time(&self) -> PyGenericIterable {
+    fn start_date_time(&self) -> OptionNaiveDateTimeIterable {
         let edges = self.builder.clone();
         (move || edges().start_date_time()).into()
     }
@@ -713,7 +714,7 @@ impl PyEdges {
     /// Returns:
     /// The end time of all edges
     #[getter]
-    fn end(&self) -> PyGenericIterable {
+    fn end(&self) -> OptionI64Iterable {
         let edges = self.builder.clone();
         (move || edges().end()).into()
     }
@@ -723,7 +724,7 @@ impl PyEdges {
     /// Returns:
     ///  The end date time of all edges
     #[getter]
-    fn end_date_time(&self) -> PyGenericIterable {
+    fn end_date_time(&self) -> OptionNaiveDateTimeIterable {
         let edges = self.builder.clone();
         (move || edges().end_date_time()).into()
     }
@@ -733,7 +734,7 @@ impl PyEdges {
     /// Returns:
     ///  The name of the layer
     #[getter]
-    fn layer_name(&self) -> PyGenericIterable {
+    fn layer_name(&self) -> OptionArcStringIterable {
         let edges = self.builder.clone();
         (move || edges().layer_name()).into()
     }
