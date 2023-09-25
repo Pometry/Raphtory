@@ -9,7 +9,10 @@ use crate::{
         types::{
             repr::{iterator_dict_repr, iterator_repr, Repr},
             wrappers::{
-                iterators::{NestedUsizeIterable, PropIterable, UsizeIterable},
+                iterators::{
+                    I64VecIterable, NestedI64VecIterable, NestedUsizeIterable, PropIterable,
+                    UsizeIterable,
+                },
                 prop::{PropHistItems, PropValue},
             },
         },
@@ -545,7 +548,7 @@ py_iterable_comp!(
 #[pymethods]
 impl PyTemporalPropList {
     #[getter]
-    pub fn history(&self) -> PyPropHistList {
+    pub fn history(&self) -> I64VecIterable {
         let builder = self.builder.clone();
         (move || builder().map(|p| p.map(|v| v.history()).unwrap_or_default())).into()
     }
@@ -725,7 +728,7 @@ py_iterable_comp!(
 #[pymethods]
 impl PyTemporalPropListList {
     #[getter]
-    pub fn history(&self) -> PyPropHistListList {
+    pub fn history(&self) -> NestedI64VecIterable {
         let builder = self.builder.clone();
         (move || builder().map(|it| it.map(|p| p.map(|v| v.history()).unwrap_or_default()))).into()
     }
@@ -1243,11 +1246,6 @@ impl PyPropValueListList {
         (move || builder().map(|it| it.filter(|x| x.is_some()))).into()
     }
 }
-
-py_iterable!(PyPropHistList, Vec<i64>);
-py_iterable_comp!(PyPropHistList, Vec<i64>, PyPropHistListCmp);
-py_nested_iterable!(PyPropHistListList, Vec<i64>);
-py_iterable_comp!(PyPropHistListList, PyPropHistListCmp, PyPropHistListListCmp);
 
 py_iterable!(PyPropHistValueList, Vec<Prop>);
 py_iterable_comp!(PyPropHistValueList, Vec<Prop>, PyPropHistValueListCmp);

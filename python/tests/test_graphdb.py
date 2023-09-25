@@ -1126,8 +1126,8 @@ def test_edge_history():
 
     assert g.edge(1, 2).history() == [1, 3]
     assert view.edge(1, 4).history() == [4]
-    assert list(g.edges().history()) == [[1, 3], [2], [4]]
-    assert list(view2.edges().history()) == [[1, 3], [2]]
+    assert g.edges().history() == [[1, 3], [2], [4]]
+    assert view2.edges().history() == [[1, 3], [2]]
 
     old_way = []
     for e in g.edges():

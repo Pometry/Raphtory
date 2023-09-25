@@ -34,12 +34,13 @@ use crate::{
         types::{
             repr::{iterator_repr, Repr},
             wrappers::iterators::{
-                I64VecIterable, NestedI64VecIterable, NestedNaiveDateTimeIterable,
+                ArcStringVecIterable, I64VecIterable, NestedArcStringVecIterable,
+                NestedI64VecIterable, NestedNaiveDateTimeIterable, NestedOptionArcStringIterable,
                 NestedOptionI64Iterable, NestedU64U64Iterable, OptionArcStringIterable,
-                OptionI64Iterable, OptionNaiveDateTimeIterable,
+                OptionI64Iterable, OptionNaiveDateTimeIterable, U64U64Iterable,
             },
         },
-        utils::{PyGenericIterable, PyGenericIterator, PyInterval, PyTime},
+        utils::{PyGenericIterator, PyInterval, PyTime},
     },
 };
 use chrono::NaiveDateTime;
@@ -673,7 +674,7 @@ impl PyEdges {
 
     /// Returns all ids of the edges.
     #[getter]
-    fn id(&self) -> PyGenericIterable {
+    fn id(&self) -> U64U64Iterable {
         let edges = self.builder.clone();
         (move || edges().id()).into()
     }
@@ -744,9 +745,9 @@ impl PyEdges {
     /// Returns:
     ///   A list of layer names
     #[getter]
-    fn layer_names(&self) -> Vec<Vec<ArcStr>> {
+    fn layer_names(&self) -> ArcStringVecIterable {
         let edges = self.builder.clone();
-        edges().layer_names().map(|e| e.collect_vec()).collect_vec()
+        (move || edges().layer_names().map(|e| e.collect_vec())).into()
     }
 
     /// Get edges with the properties of these edges within the specified layer.
@@ -923,23 +924,23 @@ impl PyNestedEdges {
 
     /// Returns the name of the layer the edges belong to - assuming they only belong to one layer
     #[getter]
-    fn layer_name(&self) -> Vec<Vec<Option<ArcStr>>> {
+    fn layer_name(&self) -> NestedOptionArcStringIterable {
         let edges = self.builder.clone();
-        edges().layer_name().map(|v| v.collect_vec()).collect_vec()
+        (move || edges().layer_name()).into()
     }
 
     /// Returns the names of the layers the edges belong to
     #[getter]
-    fn layer_names(&self) -> Vec<Vec<Vec<ArcStr>>> {
+    fn layer_names(&self) -> NestedArcStringVecIterable {
         let edges = self.builder.clone();
-        edges()
-            .layer_names()
-            .map(
+        (move || {
+            edges().layer_names().map(
                 |e: Box<dyn Iterator<Item = Box<dyn Iterator<Item = ArcStr> + Send>> + Send>| {
-                    e.map(|e| e.collect_vec()).collect_vec()
+                    e.map(|e| e.collect_vec())
                 },
             )
-            .collect_vec()
+        })
+        .into()
     }
 
     // FIXME: needs a view that allows indexing into the properties
