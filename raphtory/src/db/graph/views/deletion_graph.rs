@@ -670,4 +670,21 @@ mod test_deletions {
             vec![(5, Prop::str("test")), (11i64, Prop::str("test11"))],
         );
     }
+
+    #[test]
+    fn test_ordering_of_addition_and_deletion() {
+        let g = GraphWithDeletions::new();
+
+        g.delete_edge(1, 1, 2, None).unwrap();
+        g.add_edge(1, 1, 2, [("test", "test")], None).unwrap();
+
+        g.add_edge(2, 3, 4, [("test", "test")], None).unwrap();
+        g.delete_edge(2, 3, 4, None).unwrap();
+
+        assert!(g.window(0, 1).has_edge(1, 2, Layer::Default));
+        assert!(!g.window(0, 2).has_edge(3, 4, Layer::Default));
+        assert!(g.window(1, 2).has_edge(1, 2, Layer::Default));
+        assert!(g.window(2, 3).has_edge(3, 4, Layer::Default));
+        assert!(!g.window(3, 4).has_edge(3, 4, Layer::Default));
+    }
 }
