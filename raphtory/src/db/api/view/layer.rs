@@ -6,13 +6,15 @@ pub trait LayerOps {
     type LayeredViewType;
 
     /// Return a graph containing only the default edge layer
-    fn default_layer(&self) -> Self::LayeredViewType;
+    fn default_layer(&self) -> Self::LayeredViewType {
+        self.layer(Layer::Default).expect("Default layer not found")
+    }
 
     /// Return a graph containing the layer `name`
     fn layer<L: Into<Layer>>(&self, name: L) -> Option<Self::LayeredViewType>;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Layer {
     All,
     Default,
