@@ -134,12 +134,10 @@ pub fn all_local_reciprocity<G: GraphViewOps>(
     });
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
-    let num_vertices = g.count_vertices();
     let results_type = std::any::type_name::<HashMap<String, f64>>();
 
     AlgorithmResult::new(
         "Reciprocity",
-        num_vertices,
         results_type,
         runner.run(
             vec![],

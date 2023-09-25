@@ -237,13 +237,7 @@ fn triangle_motif_count<G: GraphViewOps>(
     }
 
     let results_type = std::any::type_name::<HashMap<u64, Vec<usize>>>();
-    let num_vertices = counts.len();
-    AlgorithmResult::new(
-        "Three node local single thread",
-        num_vertices,
-        results_type,
-        counts,
-    )
+    AlgorithmResult::new("Three node local single thread", results_type, counts)
 }
 
 /// Computes the number of each type of motif that each node participates in.
@@ -289,12 +283,7 @@ pub fn local_temporal_three_node_motifs<G: GraphViewOps>(
     }
 
     let results_type = std::any::type_name::<HashMap<u64, Vec<usize>>>();
-    AlgorithmResult::new(
-        "Three node local single thread",
-        counts.len(),
-        results_type,
-        counts,
-    )
+    AlgorithmResult::new("Three node local single thread", results_type, counts)
 }
 
 /// Computes the number of each type of motif there is in the graph.

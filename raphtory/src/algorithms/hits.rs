@@ -172,7 +172,7 @@ pub fn hits<G: GraphViewOps>(
 
     let results_type = std::any::type_name::<HashMap<String, (f32, f32)>>();
 
-    AlgorithmResult::new("Hits", results.len(), results_type, results)
+    AlgorithmResult::new("Hits", results_type, results)
 }
 
 #[cfg(test)]

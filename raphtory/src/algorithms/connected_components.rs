@@ -96,7 +96,7 @@ where
         None,
         None,
     );
-    AlgorithmResult::new("Connected Components", res.len(), results_type, res)
+    AlgorithmResult::new("Connected Components", results_type, res)
 }
 
 #[cfg(test)]

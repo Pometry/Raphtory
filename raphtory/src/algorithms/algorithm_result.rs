@@ -44,7 +44,6 @@ impl<T: Float> AsOrd<(OrderedFloat<T>, OrderedFloat<T>)> for (T, T) {
 ///
 pub struct AlgorithmRepr {
     pub algo_name: String,
-    pub num_vertices: usize,
     pub result_type: String,
 }
 
@@ -76,16 +75,10 @@ where
     /// * `num_vertices`: The number of vertices in the graph.
     /// * `result_type`: The type of the result.
     /// * `result`: A `HashMap` with keys of type `H` and values of type `Y`.
-    pub fn new(
-        algo_name: &str,
-        num_vertices: usize,
-        result_type: &str,
-        result: HashMap<K, V>,
-    ) -> Self {
+    pub fn new(algo_name: &str, result_type: &str, result: HashMap<K, V>) -> Self {
         Self {
             algo_repr: AlgorithmRepr {
                 algo_name: algo_name.to_string(),
-                num_vertices: num_vertices,
                 result_type: result_type.to_string(),
             },
             result,
@@ -97,7 +90,9 @@ where
     pub fn repr(&self) -> String {
         let algo_info_str = format!(
             "Algorithm Name: {}, Number of Vertices: {}, Result Type: {}",
-            &self.algo_repr.algo_name, &self.algo_repr.num_vertices, &self.algo_repr.result_type
+            &self.algo_repr.algo_name,
+            &self.result.len(),
+            &self.algo_repr.result_type
         );
         algo_info_str
     }
@@ -247,7 +242,6 @@ impl<K: Clone + Hash + Eq + Ord, V: Clone, O> FromIterator<(K, V)> for Algorithm
         Self {
             algo_repr: AlgorithmRepr {
                 algo_name: String::new(),
-                num_vertices: 0,
                 result_type: String::new(),
             },
             result,
@@ -355,7 +349,7 @@ mod algorithm_result_test {
         map.insert("A".to_string(), 10);
         map.insert("B".to_string(), 20);
         map.insert("C".to_string(), 30);
-        AlgorithmResult::new("create_algo_result_u64_test", 0, "", map)
+        AlgorithmResult::new("create_algo_result_u64_test", "", map)
     }
 
     fn group_by_test() -> AlgorithmResult<String, u64> {
@@ -364,7 +358,7 @@ mod algorithm_result_test {
         map.insert("B".to_string(), 20);
         map.insert("C".to_string(), 30);
         map.insert("D".to_string(), 10);
-        AlgorithmResult::new("group_by_test", 0, "", map)
+        AlgorithmResult::new("group_by_test", "", map)
     }
 
     fn create_algo_result_f64() -> AlgorithmResult<String, f64, OrderedFloat<f64>> {
@@ -372,7 +366,7 @@ mod algorithm_result_test {
         map.insert("A".to_string(), 10.0);
         map.insert("B".to_string(), 20.0);
         map.insert("C".to_string(), 30.0);
-        AlgorithmResult::new("create_algo_result_f64", 0, "", map)
+        AlgorithmResult::new("create_algo_result_f64", "", map)
     }
 
     fn create_algo_result_tuple(
@@ -381,7 +375,7 @@ mod algorithm_result_test {
         map.insert("A".to_string(), (10.0, 20.0));
         map.insert("B".to_string(), (20.0, 30.0));
         map.insert("C".to_string(), (30.0, 40.0));
-        AlgorithmResult::new("create_algo_result_tuple", 0, "", map)
+        AlgorithmResult::new("create_algo_result_tuple", "", map)
     }
 
     fn create_algo_result_hashmap_vec() -> AlgorithmResult<String, Vec<(i64, String)>> {
@@ -392,7 +386,7 @@ mod algorithm_result_test {
             "C".to_string(),
             vec![(22, "E".to_string()), (33, "F".to_string())],
         );
-        AlgorithmResult::new("create_algo_result_hashmap_vec", 0, "", map)
+        AlgorithmResult::new("create_algo_result_hashmap_vec", "", map)
     }
 
     #[test]

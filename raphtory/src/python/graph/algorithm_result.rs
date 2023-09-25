@@ -23,7 +23,7 @@ macro_rules! py_algorithm_result {
         {
             fn repr(&self) -> String {
                 let algo_name = &self.algo_repr.algo_name;
-                let num_vertices = &self.algo_repr.num_vertices;
+                let num_vertices = &self.result.len();
                 let result_type = &self.algo_repr.result_type;
                 format!(
                     "Algorithm Name: {}, Number of Vertices: {}, Result Type: {}",

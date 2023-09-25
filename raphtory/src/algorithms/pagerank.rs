@@ -185,7 +185,7 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
         .map(|(k, v)| (g.vertex_name(k), v))
         .collect();
 
-    AlgorithmResult::new("Pagerank", res.len(), results_type, res)
+    AlgorithmResult::new("Pagerank", results_type, res)
 }
 
 #[cfg(test)]

@@ -180,11 +180,9 @@ pub fn temporally_reachable_nodes<G: GraphViewOps, T: InputVertex>(
     }));
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
-    let num_vertices = g.count_vertices();
     let results_type = std::any::type_name::<HashMap<String, Vec<(i64, String)>>>();
     AlgorithmResult::new(
         "Temporal Reachability",
-        num_vertices,
         results_type,
         runner.run(
             vec![Job::new(step1)],

@@ -118,7 +118,6 @@ pub fn balance<G: GraphViewOps>(
 
     AlgorithmResult::new(
         "Balance",
-        num_vertices,
         results_type,
         runner.run(
             vec![],
