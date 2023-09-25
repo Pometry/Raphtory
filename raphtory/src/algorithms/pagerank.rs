@@ -179,13 +179,13 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
         None,
         None,
     );
-    let count = g.count_vertices();
-    let res = out
+
+    let res: HashMap<String, f64> = out
         .into_iter()
         .map(|(k, v)| (g.vertex_name(k), v))
         .collect();
 
-    AlgorithmResult::new("Pagerank", count, results_type, res)
+    AlgorithmResult::new("Pagerank", res.len(), results_type, res)
 }
 
 #[cfg(test)]

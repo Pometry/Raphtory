@@ -71,7 +71,6 @@ where
     );
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
-    let num_vertices = graph.count_vertices();
     let results_type = std::any::type_name::<HashMap<String, u64>>();
 
     let res = runner.run(
@@ -97,7 +96,7 @@ where
         None,
         None,
     );
-    AlgorithmResult::new("Connected Components", num_vertices, results_type, res)
+    AlgorithmResult::new("Connected Components", res.len(), results_type, res)
 }
 
 #[cfg(test)]

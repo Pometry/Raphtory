@@ -107,7 +107,6 @@ fn triangle_motif_count<G: GraphViewOps>(
     delta: i64,
 ) -> AlgorithmResult<u64, Vec<usize>> {
     let mut counts: HashMap<u64, Vec<usize>> = HashMap::new();
-    let num_vertices = graph.count_vertices();
     for u in graph.vertices() {
         counts.insert(u.id(), vec![0; 8]);
     }
@@ -238,7 +237,7 @@ fn triangle_motif_count<G: GraphViewOps>(
     }
 
     let results_type = std::any::type_name::<HashMap<u64, Vec<usize>>>();
-
+    let num_vertices = counts.len();
     AlgorithmResult::new(
         "Three node local single thread",
         num_vertices,
@@ -272,7 +271,7 @@ pub fn local_temporal_three_node_motifs<G: GraphViewOps>(
     delta: i64,
 ) -> AlgorithmResult<u64, Vec<usize>> {
     let mut counts = triangle_motif_count(graph, delta).get_all().to_owned();
-    let num_vertices = graph.count_vertices();
+
     for v in graph.vertices() {
         let vid = v.id();
         let two_nodes = twonode_motif_count(graph, vid, delta).to_vec();
@@ -290,10 +289,9 @@ pub fn local_temporal_three_node_motifs<G: GraphViewOps>(
     }
 
     let results_type = std::any::type_name::<HashMap<u64, Vec<usize>>>();
-
     AlgorithmResult::new(
         "Three node local single thread",
-        num_vertices,
+        counts.len(),
         results_type,
         counts,
     )

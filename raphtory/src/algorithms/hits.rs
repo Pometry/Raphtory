@@ -53,7 +53,7 @@ pub fn hits<G: GraphViewOps>(
     threads: Option<usize>,
 ) -> AlgorithmResult<String, (f32, f32), (OrderedFloat<f32>, OrderedFloat<f32>)> {
     let mut ctx: Context<G, ComputeStateVec> = g.into();
-    let num_vertices = g.count_vertices();
+
     let recv_hub_score = sum::<f32>(2);
     let recv_auth_score = sum::<f32>(3);
 
@@ -172,7 +172,7 @@ pub fn hits<G: GraphViewOps>(
 
     let results_type = std::any::type_name::<HashMap<String, (f32, f32)>>();
 
-    AlgorithmResult::new("Hits", num_vertices, results_type, results)
+    AlgorithmResult::new("Hits", results.len(), results_type, results)
 }
 
 #[cfg(test)]
