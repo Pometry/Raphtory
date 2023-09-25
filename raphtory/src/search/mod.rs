@@ -191,6 +191,7 @@ impl<G: GraphViewOps> IndexedGraph<G> {
                 break;
             }
             let mut found_props: HashSet<ArcStr> = HashSet::default();
+            found_props.insert("name".into());
 
             for prop in prop_names_set.iter() {
                 // load temporal props
