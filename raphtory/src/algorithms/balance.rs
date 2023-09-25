@@ -113,7 +113,6 @@ pub fn balance<G: GraphViewOps>(
         Step::Done
     });
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
-    let num_vertices = graph.count_vertices();
     let results_type = std::any::type_name::<HashMap<String, f64>>();
 
     AlgorithmResult::new(
