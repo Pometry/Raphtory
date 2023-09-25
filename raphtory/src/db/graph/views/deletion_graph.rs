@@ -39,6 +39,8 @@ pub struct GraphWithDeletions {
     graph: Arc<InternalGraph>,
 }
 
+impl Static for GraphWithDeletions {}
+
 impl From<InternalGraph> for GraphWithDeletions {
     fn from(value: InternalGraph) -> Self {
         Self {

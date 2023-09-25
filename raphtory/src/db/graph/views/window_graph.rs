@@ -54,7 +54,7 @@ use crate::{
         view::{
             internal::{
                 Base, DynamicGraph, EdgeFilter, EdgeFilterOps, GraphOps, Immutable, InheritCoreOps,
-                InheritLayerOps, InheritMaterialize, IntoDynamic, TimeSemantics,
+                InheritLayerOps, InheritMaterialize, IntoDynamic, Static, TimeSemantics,
             },
             BoxedIter,
         },
@@ -80,6 +80,8 @@ pub struct WindowedGraph<G: GraphViewOps> {
     pub t_end: i64,
     filter: EdgeFilter,
 }
+
+impl<G: GraphViewOps> Static for WindowedGraph<G> {}
 
 impl<G: GraphViewOps + Debug> Debug for WindowedGraph<G> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {

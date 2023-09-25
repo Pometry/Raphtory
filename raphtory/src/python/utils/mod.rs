@@ -50,6 +50,7 @@ fn parse_email_timestamp(timestamp: &str) -> PyResult<i64> {
     })
 }
 
+#[derive(Clone)]
 pub struct PyTime {
     parsing_result: i64,
 }
