@@ -11,11 +11,8 @@ use super::views::layer_graph::LayeredGraph;
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
-        storage::{locked_view::LockedView, timeindex::TimeIndexEntry},
-        utils::{
-            errors::GraphError,
-            time::{error::ParseTimeError, IntoTime},
-        },
+        storage::timeindex::TimeIndexEntry,
+        utils::{errors::GraphError, time::IntoTime},
         ArcStr,
     },
     db::{
