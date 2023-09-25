@@ -4,7 +4,9 @@ use itertools::Itertools;
 use polars_core::{prelude::*, utils::arrow::array::*};
 use raphtory::{
     core::{
-        entities::{vertices::vertex_ref::VertexRef, LayerIds, EID, VID, properties::props::PropMapper},
+        entities::{
+            properties::props::PropMapper, vertices::vertex_ref::VertexRef, LayerIds, EID, VID,
+        },
         Direction, PropType,
     },
     prelude::{GraphViewOps, VertexViewOps},
@@ -153,7 +155,8 @@ impl TemporalColGraphFragment {
         let mut edge_timestamps = Self::mutable_timestamps_column(E_ADDITIONS_COLUMN);
         let mut edge_deletions = Self::mutable_timestamps_column(E_DELETIONS_COLUMN);
 
-        let mut edge_temporal_prop_columns = Self::prop_cols_from_meta(g.edge_meta().temporal_prop_meta());
+        let mut edge_temporal_prop_columns =
+            Self::prop_cols_from_meta(g.edge_meta().temporal_prop_meta());
 
         for &eid in &edges_new_to_old {
             let edge = g.find_edge_id(eid.into(), &LayerIds::All, None).unwrap();
@@ -204,7 +207,8 @@ impl TemporalColGraphFragment {
 
         let mut names = MutableUtf8ValuesArray::<i64>::new();
 
-        let mut vertex_temporal_prop_columns = Self::prop_cols_from_meta(g.vertex_meta().temporal_prop_meta());
+        let mut vertex_temporal_prop_columns =
+            Self::prop_cols_from_meta(g.vertex_meta().temporal_prop_meta());
 
         // loop over each vertex adjacency list
         for vertex in &new_to_old {
@@ -765,8 +769,12 @@ mod test {
     fn load_1_edge_vertex_props_same_time() {
         let graph = Graph::new();
 
-        graph.add_vertex(4, 2, [("type", "human")]).expect("Failed to add vertex");
-        graph.add_vertex(4, 4, [("type", "tiefling")]).expect("Failed to add vertex");
+        graph
+            .add_vertex(4, 2, [("type", "human")])
+            .expect("Failed to add vertex");
+        graph
+            .add_vertex(4, 4, [("type", "tiefling")])
+            .expect("Failed to add vertex");
 
         graph
             .add_edge(

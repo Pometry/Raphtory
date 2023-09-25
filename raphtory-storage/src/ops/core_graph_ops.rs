@@ -1,9 +1,11 @@
-use raphtory::core::entities::edges::edge_ref::EdgeRef;
-use raphtory::core::entities::properties::tprop::TProp;
-use raphtory::core::entities::vertices::vertex_ref::VertexRef;
-use raphtory::core::entities::{LayerIds, VID};
-use raphtory::db::api::view::internal::CoreGraphOps;
-use raphtory::prelude::*;
+use raphtory::{
+    core::entities::{
+        edges::edge_ref::EdgeRef, properties::tprop::TProp, vertices::vertex_ref::VertexRef,
+        LayerIds, VID,
+    },
+    db::api::view::internal::CoreGraphOps,
+    prelude::*,
+};
 
 use crate::TemporalColumnarGraph;
 

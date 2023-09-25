@@ -1,8 +1,10 @@
-use raphtory::core::Direction;
-use raphtory::core::entities::edges::edge_ref::EdgeRef;
-use raphtory::core::entities::{LayerIds, VID, EID};
-use raphtory::core::entities::vertices::vertex_ref::VertexRef;
-use raphtory::db::api::view::internal::{GraphOps, EdgeFilter};
+use raphtory::{
+    core::{
+        entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef, LayerIds, EID, VID},
+        Direction,
+    },
+    db::api::view::internal::{EdgeFilter, GraphOps},
+};
 
 use crate::TemporalColumnarGraph;
 

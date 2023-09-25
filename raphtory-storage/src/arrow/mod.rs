@@ -1,18 +1,21 @@
 use itertools::{EitherOrBoth, Itertools};
-use polars_core::{utils::arrow::{
-    array::{
-        MutableArray, MutableBooleanArray, MutableListArray, MutablePrimitiveArray,
-        MutableStructArray, MutableUtf8Array,
+use polars_core::{
+    error::ArrowError,
+    utils::arrow::{
+        array::{
+            MutableArray, MutableBooleanArray, MutableListArray, MutablePrimitiveArray,
+            MutableStructArray, MutableUtf8Array,
+        },
+        types::NativeType,
     },
-    types::NativeType,
-}, error::ArrowError};
+};
 use raphtory::{
     core::entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
     prelude::{GraphViewOps, Prop},
 };
 
-pub(crate) mod columnar_graph;
 pub(crate) mod col_graph2;
+pub(crate) mod columnar_graph;
 
 type MPArr<T> = MutablePrimitiveArray<T>;
 
@@ -43,12 +46,8 @@ pub(crate) struct MutTemporalPropColumn {
 }
 
 impl MutTemporalPropColumn {
-    pub(crate) fn new(
-        temporal_props: MutableListArray<i64, MutableStructArray>,
-    ) -> Self {
-        Self {
-            temporal_props,
-        }
+    pub(crate) fn new(temporal_props: MutableListArray<i64, MutableStructArray>) -> Self {
+        Self { temporal_props }
     }
 
     fn into_inner(self) -> MutableListArray<i64, MutableStructArray> {
@@ -177,7 +176,8 @@ fn load_vertex_prop_vec<'a, G: GraphViewOps>(vid: VID, g: &'a G) -> Vec<Vec<TPro
 
     for prop_id in 0..prop_len {
         let name = temp_prop_meta.get_name(prop_id).unwrap();
-        let edge_props = g.temporal_vertex_prop_vec(vid, &name)
+        let edge_props = g
+            .temporal_vertex_prop_vec(vid, &name)
             .into_iter()
             .map(|(t, prop)| TPropRow::new(prop_len, prop_id, t, prop))
             .collect::<Vec<_>>();
@@ -235,20 +235,20 @@ mod test {
 
         let e_ref = graph.edge_ref(src, dst, &LayerIds::All, None).unwrap();
 
-        let actual = merge_iterators(load_edge_prop_vec(e_ref, &graph)).unwrap().collect::<Vec<_>>();
+        let actual = merge_iterators(load_edge_prop_vec(e_ref, &graph))
+            .unwrap()
+            .collect::<Vec<_>>();
 
         assert_eq!(
             actual,
-            vec![
-                TPropRow::from_vec(
-                    3,
-                    vec![
-                        Some(Prop::I32(12)),
-                        Some(Prop::str("boom")),
-                        Some(Prop::F32(1f32))
-                    ]
-                ),
-            ]
+            vec![TPropRow::from_vec(
+                3,
+                vec![
+                    Some(Prop::I32(12)),
+                    Some(Prop::str("boom")),
+                    Some(Prop::F32(1f32))
+                ]
+            ),]
         )
     }
 
@@ -283,7 +283,9 @@ mod test {
 
         let e_ref = graph.edge_ref(src, dst, &LayerIds::All, None).unwrap();
 
-        let actual = merge_iterators(load_edge_prop_vec(e_ref, &graph)).unwrap().collect::<Vec<_>>();
+        let actual = merge_iterators(load_edge_prop_vec(e_ref, &graph))
+            .unwrap()
+            .collect::<Vec<_>>();
 
         assert_eq!(
             actual,

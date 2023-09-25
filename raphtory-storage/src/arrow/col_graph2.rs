@@ -44,6 +44,14 @@ const E_COLUMN: &str = "e";
 
 type Time = i64;
 
+pub struct SparseTable {
+    sorted_gids: Vec<u64>,
+    adj_out_dst: Vec<u64>,
+    adj_out_eid: Vec<u64>,
+    adj_out_offsets: Vec<u64>,
+    edge_time_offsets: Vec<u64>,
+}
+
 impl TempColGraph {
     fn from_sorted_edge_list(
         src_dst_frame: DataFrame, // sorted_by (src, dst, time)
@@ -78,12 +86,12 @@ impl TempColGraph {
         })
     }
 
-    fn build_tables(
+    pub fn build_tables(
         srcs: &ChunkedArray<UInt64Type>,
         dsts: &ChunkedArray<UInt64Type>,
         times: &ChunkedArray<Int64Type>,
         cap: usize,
-    ) {
+    ) -> SparseTable {
         // iterate over it once
         // 1. gid_column
         // 2. mapping for every vertex to its fragment
@@ -104,34 +112,58 @@ impl TempColGraph {
             }
         }
 
-        let mut edge_ids_vec: Vec<u64> = Vec::with_capacity(cap);
-        let mut outbound_vec: Vec<u64> = Vec::with_capacity(cap);
+        let mut adj_out_eid: Vec<u64> = Vec::with_capacity(cap);
+        let mut adj_out_dst: Vec<u64> = Vec::with_capacity(cap);
 
-        let mut outbound_offsets: Vec<u64> = vec![];
-        let mut time_offsets: Vec<u64> = vec![];
+        let mut adj_out_offsets: Vec<u64> = vec![0];
+        let mut edge_time_offsets: Vec<u64> = vec![0];
 
         let mut e_id: u64 = 0;
+        let mut last_edge: Option<(u64, u64)> = None;
 
         // g_id, [{v_id1, e_id1}, {v_id2, e_id2}, ...]
 
-        for ((src, dst), time) in srcs
+        for (event_id, ((src, dst), time)) in srcs
             .into_iter()
             .filter_map(|x| x)
             .zip(dsts.into_iter().filter_map(|x| x))
             .zip(times.into_iter().filter_map(|x| x))
+            .enumerate()
         {
-            // the gid part
-            {
-                let v = dst;
-                // find in sorted_gids
-                if sorted_gids.last() == Some(&v) {
-                    continue;
-                } else if let Ok(dst_idx) = sorted_gids.binary_search(&v) {
-                    continue;
+            if Some((src, dst)) == last_edge {
+            } else {
+                adj_out_eid.push(e_id);
+                let dst_idx = if let Ok(dst_idx) = sorted_gids.binary_search(&dst) {
+                    dst_idx
                 } else {
-                    sorted_gids.push(v);
+                    sorted_gids.push(dst);
+                    sorted_gids.len() - 1
+                };
+                adj_out_dst.push(dst_idx as u64);
+                e_id += 1;
+            }
+            if let Some((prev_src, prev_dst)) = last_edge {
+                if prev_src != src {
+                    adj_out_offsets.push(e_id);
+                }
+                if prev_src != src || prev_dst != dst {
+                    edge_time_offsets.push(event_id as u64);
                 }
             }
+            last_edge = Some((src, dst));
+        }
+
+        if last_edge.is_some() {
+            adj_out_offsets.resize(sorted_gids.len() + 1, e_id);
+            edge_time_offsets.push(times.len() as u64);
+        }
+
+        SparseTable {
+            sorted_gids,
+            adj_out_dst,
+            adj_out_eid,
+            adj_out_offsets,
+            edge_time_offsets,
         }
     }
 
@@ -221,6 +253,7 @@ impl MutableEdgeFragment {
 
 #[cfg(test)]
 mod test {
+    use super::*;
 
     use polars_core::prelude::*;
     #[test]
@@ -229,6 +262,18 @@ mod test {
             Series::new("src", vec![1]),
             Series::new("dst", vec![2]),
             Series::new("time", vec![0]),
-        ]);
+        ])
+        .unwrap();
+
+        let src = df.column("src").unwrap().u64().unwrap();
+        let dst = df.column("dst").unwrap().u64().unwrap();
+        let time = df.column("time").unwrap().i64().unwrap();
+
+        let res = TempColGraph::build_tables(src, dst, time, 1);
+        assert_eq!(res.sorted_gids, vec![1, 2]);
+        assert_eq!(res.adj_out_dst, vec![1]);
+        assert_eq!(res.adj_out_eid, vec![0]);
+        assert_eq!(res.adj_out_offsets, vec![0, 1]);
+        assert_eq!(res.edge_time_offsets, vec![0, 1]);
     }
 }
