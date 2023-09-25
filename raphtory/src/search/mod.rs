@@ -1112,4 +1112,11 @@ mod test {
 
         assert!(!top_docs.is_empty());
     }
+
+    #[test]
+    fn property_name_on_vertex_does_not_crash() {
+        let g = Graph::new();
+        g.add_vertex(0, "test", [("name", "test")]).unwrap();
+        let gi: IndexedGraph<_> = g.into();
+    }
 }
