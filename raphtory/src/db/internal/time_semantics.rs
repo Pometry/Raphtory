@@ -232,7 +232,7 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
         self.inner()
             .graph_props
             .get_temporal_prop(prop_id)
-            .filter(|p| p.iter_window(w).next().is_some())
+            .filter(|p| p.iter_window_t(w).next().is_some())
             .is_some()
     }
 
@@ -244,7 +244,7 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
     ) -> Vec<(i64, Prop)> {
         self.inner()
             .get_temporal_prop(prop_id)
-            .map(|prop| prop.iter_window(t_start..t_end).collect())
+            .map(|prop| prop.iter_window_t(t_start..t_end).collect())
             .unwrap_or_default()
     }
 
@@ -264,7 +264,7 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
         let entry = self.inner().storage.get_node(v);
         entry
             .temporal_property(prop_id)
-            .filter(|p| p.iter_window(w).next().is_some())
+            .filter(|p| p.iter_window_t(w).next().is_some())
             .is_some()
     }
 
