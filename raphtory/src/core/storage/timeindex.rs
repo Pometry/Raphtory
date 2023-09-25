@@ -18,7 +18,7 @@ use tantivy::time::Time;
 use super::locked_view::LockedView;
 
 #[derive(Debug, Copy, Clone, Serialize, Deserialize, PartialEq, Ord, PartialOrd, Eq)]
-pub struct TimeIndexEntry(i64, usize);
+pub struct TimeIndexEntry(pub i64, pub usize);
 
 pub trait AsTime: Debug + Copy + Ord + Eq + Send + Sync {
     fn t(&self) -> &i64;
@@ -32,6 +32,9 @@ impl From<i64> for TimeIndexEntry {
 }
 
 impl TimeIndexEntry {
+    pub const MIN: TimeIndexEntry = TimeIndexEntry(i64::MIN, 0);
+
+    pub const MAX: TimeIndexEntry = TimeIndexEntry(i64::MAX, usize::MAX);
     pub fn new(t: i64, s: usize) -> Self {
         Self(t, s)
     }
