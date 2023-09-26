@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, sync::Arc, path::{Path, PathBuf}};
 
 use itertools::{Chunk, Itertools};
 use polars_core::{
@@ -240,7 +240,6 @@ impl TempColGraph {
         let mut adj_out_eid_prev = Vec::with_capacity(adj_out_eid.len());
         let mut adj_out_dst_prev = Vec::with_capacity(adj_out_dst.len());
         let mut adj_out_offsets_prev = Vec::with_capacity(adj_out_offsets.len());
-        // adj_out_offsets_prev.push(0);
 
         std::mem::swap(&mut adj_out_eid_prev, adj_out_eid);
         std::mem::swap(&mut adj_out_dst_prev, adj_out_dst);
@@ -278,13 +277,15 @@ impl TempColGraph {
         }
 
         // to be chunked
-        let mut adj_out_eid_chunks: Vec<Vec<u64>> = vec![];
-        let mut adj_out_dst_chunks: Vec<Vec<u64>> = vec![];
-        let mut adj_out_offsets_chunks: Vec<Vec<i64>> = vec![];
+        // let mut adj_out_eid_chunks: Vec<Vec<u64>> = vec![];
+        // let mut adj_out_dst_chunks: Vec<Vec<u64>> = vec![];
+        // let mut adj_out_offsets_chunks: Vec<Vec<i64>> = vec![];
 
-        let mut adj_out_eid = vec![];
-        let mut adj_out_dst = vec![];
-        let mut adj_out_offsets = vec![0];
+        let mut vf_builder = VertexFrameBuilder::new(chunk_size);
+
+        // let mut adj_out_eid = vec![];
+        // let mut adj_out_dst = vec![];
+        // let mut adj_out_offsets = vec![0];
 
         let mut edge_time_offsets: Vec<i64> = vec![0];
 
@@ -303,7 +304,7 @@ impl TempColGraph {
         {
             // check if can have a chunk cutoff
             if last_edge.filter(|(prev_src, _)| prev_src != &src).is_some()
-                && (vertex_count+1) % chunk_size == 0
+                && (vertex_count + 1) % chunk_size == 0
             {
                 println!("chunk cut off at {last_edge:?} {src} {dst} {time}");
                 Self::push_chunks(
@@ -341,13 +342,12 @@ impl TempColGraph {
                 chunk_adj_out_offset += 1;
             }
 
-
             last_edge = Some((src, dst));
         }
 
         if last_edge.is_some() {
             // deal with the last chunk
-            let remaining_slots_in_chunk = chunk_size - (adj_out_offsets.len() -1);
+            let remaining_slots_in_chunk = chunk_size - (adj_out_offsets.len() - 1);
             let remaining_vertices = sorted_gids.len() - vertex_count - 1;
             let fill_chunk_remaining = remaining_slots_in_chunk.min(remaining_vertices);
             adj_out_offsets.resize(
@@ -410,6 +410,78 @@ impl TempColGraph {
             adj_out_dst_chunks.push(Vec::with_capacity(0));
         }
     }
+}
+
+struct VertexFrameBuilder {
+    adj_out_chunks: Vec<Box<dyn Array>>, // chunks for the adjacency list, these are ListArrays with a struct {eid, vid}
+    adj_out_dst: Vec<u64>,               // the dst of the adjacency list
+    adj_out_eid: Vec<u64>,               // the eid of the adjacency list
+    adj_out_offsets: Vec<i64>,           // the offsets of the adjacency list
+    chunk_size: usize,
+    chunk_adj_out_offset: i64,
+    location_path: PathBuf,
+}
+
+impl VertexFrameBuilder {
+    fn new<P: AsRef<Path>>(chunk_size: usize, path: P) -> Self {
+        Self {
+            adj_out_chunks: vec![],
+            adj_out_dst: vec![],
+            adj_out_eid: vec![],
+            adj_out_offsets: vec![0],
+            chunk_size,
+            chunk_adj_out_offset: 0,
+            location_path: path.as_ref().to_path_buf(),
+        }
+    }
+
+    fn push_chunks(&mut self) {
+        let mut adj_out_eid_prev = Vec::with_capacity(self.adj_out_eid.len());
+        let mut adj_out_dst_prev = Vec::with_capacity(self.adj_out_dst.len());
+        let mut adj_out_offsets_prev = Vec::with_capacity(self.adj_out_offsets.len());
+
+        std::mem::swap(&mut adj_out_eid_prev, &mut self.adj_out_eid);
+        std::mem::swap(&mut adj_out_dst_prev, &mut self.adj_out_dst);
+        std::mem::swap(&mut adj_out_offsets_prev, &mut self.adj_out_offsets);
+
+        adj_out_offsets_prev.push(self.chunk_adj_out_offset);
+
+        let col = new_arrow_adj_list_chunk(adj_out_dst_prev, adj_out_eid_prev, adj_out_offsets_prev);
+
+        self.persist_and_mmap_arrow_col(col);
+
+        self.chunk_adj_out_offset = 0i64;
+    }
+
+    fn persist_and_mmap_arrow_col(&mut self, col: Box<dyn Array>) {
+
+    }
+}
+
+fn new_arrow_adj_list_chunk(
+    adj_out_dst: Vec<u64>,
+    adj_out_eid: Vec<u64>,
+    adj_out_offsets: Vec<i64>,
+) -> Box<dyn Array> {
+    let fields = vec![
+        ArrowField::new(V_COLUMN, ArrowDataType::UInt64, false),
+        ArrowField::new(E_COLUMN, ArrowDataType::UInt64, false),
+    ];
+    let schema = ArrowDataType::Struct(fields);
+
+    let dst_col = Box::new(MutablePrimitiveArray::<u64>::from_vec(adj_out_dst));
+    let eid_col = Box::new(MutablePrimitiveArray::<u64>::from_vec(adj_out_eid));
+
+    let values = MutableStructArray::new(schema.clone(), vec![dst_col, eid_col]);
+
+    let outbound2 = MutableListArray::new_from_mutable(
+        values,
+        Offsets::try_from(adj_out_offsets).unwrap(),
+        None,
+    );
+
+    let outbound: ListArray<i64> = outbound2.into();
+    Box::new(outbound)
 }
 
 #[cfg(test)]
