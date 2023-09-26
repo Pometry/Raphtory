@@ -1,12 +1,12 @@
 use std::{collections::HashMap, sync::Arc};
 
-use itertools::Itertools;
+use itertools::{Chunk, Itertools};
 use polars_core::{
     prelude::*,
     utils::arrow::{
         array::{
-            ListArray, MutableArray, MutableListArray, MutablePrimitiveArray, MutableStructArray,
-            PrimitiveArray, StructArray,
+            Array, ListArray, MutableArray, MutableListArray, MutablePrimitiveArray,
+            MutableStructArray, PrimitiveArray, StructArray,
         },
         offset::Offsets,
     },
@@ -133,9 +133,11 @@ type Time = i64;
 #[derive(Debug)]
 pub struct SparseTable {
     sorted_gids: Vec<u64>,
-    adj_out_dst: Vec<u64>,
-    adj_out_eid: Vec<u64>,
-    adj_out_offsets: Vec<i64>,
+
+    adj_out_dst: ChunkedVec<u64>,
+    adj_out_eid: ChunkedVec<u64>,
+    adj_out_offsets: ChunkedVec<i64>,
+
     edge_time_offsets: Vec<i64>,
     time_col: Series,
 }
@@ -148,23 +150,47 @@ impl SparseTable {
         ];
         let schema = ArrowDataType::Struct(fields);
 
-        let dst_col = Box::new(MutablePrimitiveArray::<u64>::from_vec(self.adj_out_dst));
-        let eid_col = Box::new(MutablePrimitiveArray::<u64>::from_vec(self.adj_out_eid));
+        let list_outbound_chunks = self
+            .adj_out_dst
+            .into_iter()
+            .zip(self.adj_out_eid.into_iter())
+            .zip(self.adj_out_offsets.into_iter())
+            .map(|((adj_out_dst, adj_out_eid), adj_out_offsets)| {
+                let dst_col = Box::new(MutablePrimitiveArray::<u64>::from_vec(adj_out_dst));
+                let eid_col = Box::new(MutablePrimitiveArray::<u64>::from_vec(adj_out_eid));
 
-        let values = MutableStructArray::new(schema, vec![dst_col, eid_col]);
+                let values = MutableStructArray::new(schema.clone(), vec![dst_col, eid_col]);
 
-        let outbound2 = MutableListArray::new_from_mutable(
-            values,
-            Offsets::try_from(self.adj_out_offsets).unwrap(),
-            None,
-        );
+                let outbound2 = MutableListArray::new_from_mutable(
+                    values,
+                    Offsets::try_from(adj_out_offsets).unwrap(),
+                    None,
+                );
 
-        let outbound: ListArray<i64> = outbound2.into();
+                let outbound: ListArray<i64> = outbound2.into();
+                let outbound: Box<dyn Array> = Box::new(outbound);
+                outbound
+            })
+            .collect_vec();
+
+        // let dst_col = Box::new(MutablePrimitiveArray::<u64>::from_vec(self.adj_out_dst));
+        // let eid_col = Box::new(MutablePrimitiveArray::<u64>::from_vec(self.adj_out_eid));
+
+        // let values = MutableStructArray::new(schema, vec![dst_col, eid_col]);
+
+        // let outbound2 = MutableListArray::new_from_mutable(
+        //     values,
+        //     Offsets::try_from(self.adj_out_offsets).unwrap(),
+        //     None,
+        // );
+
+        // let outbound: ListArray<i64> = outbound2.into();
+
+        // let outbound: ChunkedArray<ListType> =
+        //     unsafe { ChunkedArray::from_chunks(OUTBOUND_COLUMN, vec![Box::new(outbound)]) };
 
         let outbound: ChunkedArray<ListType> =
-            unsafe { ChunkedArray::from_chunks(OUTBOUND_COLUMN, vec![Box::new(outbound)]) };
-
-        // let edge_df = DataFrame::new(vec![]).unwrap();
+            unsafe { ChunkedArray::from_chunks(OUTBOUND_COLUMN, list_outbound_chunks) };
 
         let vertex_gid_col = Series::new(GID_COLUMN, self.sorted_gids);
         let vertex_df = DataFrame::new(vec![vertex_gid_col, outbound.into_series()]).unwrap();
@@ -208,7 +234,7 @@ impl TempColGraph {
         let time_col = src_dst_frame.column(time_col)?;
 
         if let (Ok(src), Ok(dst), Ok(time)) = (src_col.u64(), dst_col.u64(), time_col.i64()) {
-            let sprs_table = Self::build_tables(src, dst, time);
+            let sprs_table = Self::build_tables(src, dst, time, 100);
         } else {
             todo!()
         }
@@ -222,6 +248,7 @@ impl TempColGraph {
         srcs: &ChunkedArray<UInt64Type>,
         dsts: &ChunkedArray<UInt64Type>,
         times: &ChunkedArray<Int64Type>,
+        chunk_size: usize,
     ) -> SparseTable {
         let mut sorted_gids: Vec<u64> = vec![];
 
@@ -239,17 +266,20 @@ impl TempColGraph {
             }
         }
 
-        let mut adj_out_eid: Vec<u64> = vec![];
-        let mut adj_out_dst: Vec<u64> = vec![];
+        // to be chunked
+        let mut adj_out_eid = ChunkedVec::new(chunk_size);
+        let mut adj_out_dst = ChunkedVec::new(chunk_size);
+        let mut adj_out_offsets = ChunkedVec::new(chunk_size);
+        adj_out_offsets.push(0);
 
-        let mut adj_out_offsets: Vec<i64> = vec![0];
         let mut edge_time_offsets: Vec<i64> = vec![0];
 
         let mut e_id: u64 = 0;
+        let mut chunk_edge_offset = 0;
         let mut last_edge: Option<(u64, u64)> = None;
+        let mut vertex_count = 0;
 
         // g_id, [{v_id1, e_id1}, {v_id2, e_id2}, ...]
-
         for (event_id, ((src, dst), _)) in srcs
             .into_iter()
             .flatten()
@@ -257,6 +287,13 @@ impl TempColGraph {
             .zip(times.into_iter().flatten())
             .enumerate()
         {
+            // check if can have a chunk cutoff
+            if last_edge.filter(|(prev_src, _)| prev_src != &src).is_some()
+                && vertex_count % chunk_size == 0
+            {
+                chunk_edge_offset = 0u64;
+            }
+
             if Some((src, dst)) != last_edge {
                 adj_out_eid.push(e_id);
                 let dst_idx = if let Ok(dst_idx) = sorted_gids.binary_search(&dst) {
@@ -269,7 +306,8 @@ impl TempColGraph {
 
                 if let Some((prev_src, prev_dst)) = last_edge {
                     if prev_src != src {
-                        adj_out_offsets.push(e_id as i64);
+                        adj_out_offsets.push(chunk_edge_offset as i64);
+                        vertex_count += 1;
                     }
                     if prev_src != src || prev_dst != dst {
                         edge_time_offsets.push(event_id as i64);
@@ -277,6 +315,7 @@ impl TempColGraph {
                 }
 
                 e_id += 1;
+                chunk_edge_offset += 1;
             }
 
             last_edge = Some((src, dst));
@@ -298,11 +337,48 @@ impl TempColGraph {
     }
 }
 
+#[derive(Debug)]
+struct ChunkedVec<T> {
+    chunks: Vec<Vec<T>>,
+    chunk_size: usize,
+    total_len: usize,
+}
+
+impl<T: Clone> ChunkedVec<T> {
+    fn new(chunk_size: usize) -> Self {
+        Self {
+            chunks: vec![Vec::with_capacity(chunk_size)],
+            chunk_size,
+            total_len: 0,
+        }
+    }
+
+    fn resize(&mut self, new_len: usize, value: T) {
+        while self.total_len < new_len {
+            self.push(value.clone());
+        }
+    }
+
+    fn push(&mut self, t: T) {
+        let chunk_idx = self.total_len / self.chunk_size;
+        let idx = self.total_len % self.chunk_size;
+
+        if chunk_idx >= self.chunks.len() {
+            self.chunks.push(Vec::with_capacity(self.chunk_size));
+        }
+
+        self.chunks[chunk_idx].push(t);
+        self.total_len += 1;
+    }
+
+    fn into_iter(self) -> impl Iterator<Item = Vec<T>> {
+        self.chunks.into_iter()
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
-
-    use polars_core::prelude::*;
 
     #[test]
     fn load_one_edge_from_sorted_adj_list_num_vertices_no_props() {
@@ -317,7 +393,30 @@ mod test {
         let dst = df.column("dst").unwrap().u64().unwrap();
         let time = df.column("time").unwrap().i64().unwrap();
 
-        let res = TempColGraph::build_tables(src, dst, time);
+        let res = TempColGraph::build_tables(src, dst, time, 100);
+        let graph = res.into_graph();
+
+        let actual = graph.edges(0.into(), Direction::OUT).collect::<Vec<_>>();
+
+        let expected = vec![(EID(0), VID(1))];
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn load_one_edge_from_sorted_adj_list_num_vertices_no_props_multiple_timestamps() {
+        let df = DataFrame::new(vec![
+            Series::new("src", vec![1u64, 1u64, 1u64]),
+            Series::new("dst", vec![2u64, 2u64, 2u64]),
+            Series::new("time", vec![0i64, 3i64, 7i64]),
+        ])
+        .unwrap();
+
+        let src = df.column("src").unwrap().u64().unwrap();
+        let dst = df.column("dst").unwrap().u64().unwrap();
+        let time = df.column("time").unwrap().i64().unwrap();
+
+        let res = TempColGraph::build_tables(src, dst, time, 100);
         let graph = res.into_graph();
 
         let actual = graph.edges(0.into(), Direction::OUT).collect::<Vec<_>>();
@@ -355,7 +454,50 @@ mod test {
         let dst = df.column("dst").unwrap().u64().unwrap();
         let time = df.column("time").unwrap().i64().unwrap();
 
-        let res = TempColGraph::build_tables(src, dst, time);
+        let res = TempColGraph::build_tables(src, dst, time, 100);
+        let graph = res.into_graph();
+
+        let actual = graph.edges(0.into(), Direction::OUT).collect::<Vec<_>>();
+
+        let expected = vec![(EID(0), VID(1)), (EID(1), VID(2)), (EID(2), VID(3))];
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn load_multiple_edges_across_chunks() {
+
+        let df = DataFrame::new(vec![
+            Series::new(
+                "src",
+                vec![
+                    1u64, 1u64, 1u64, 2u64, 2u64, 2u64, 3u64, 3u64, 3u64, 4u64, 4u64, 4u64,
+                ],
+            ),
+            Series::new(
+                "dst",
+                vec![
+                    2u64, 3u64, 4u64, 3u64, 4u64, 5u64, 4u64, 5u64, 6u64, 5u64, 6u64, 7u64,
+                ],
+            ),
+            Series::new(
+                "time",
+                vec![
+                    0i64, 1i64, 2i64, 3i64, 4i64, 5i64, 6i64, 7i64, 8i64, 9i64, 10i64, 11i64,
+                ],
+            ),
+        ])
+        .unwrap();
+
+        let src = df.column("src").unwrap().u64().unwrap();
+        let dst = df.column("dst").unwrap().u64().unwrap();
+        let time = df.column("time").unwrap().i64().unwrap();
+
+
+        let res = TempColGraph::build_tables(src, dst, time, 2);
+
+        println!("Results with chunks {:?}", res);
+
         let graph = res.into_graph();
 
         let actual = graph.edges(0.into(), Direction::OUT).collect::<Vec<_>>();
