@@ -1,7 +1,14 @@
-use std::{collections::HashMap, sync::Arc, path::{Path, PathBuf}};
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
+use crate::arrow::mmap::{mmap_batches, write_batches};
+use arrow2::error::Result as ArrowResult;
 use itertools::{Chunk, Itertools};
 use polars_core::{
+    frame::ArrowChunk,
     prelude::*,
     utils::arrow::{
         array::{
@@ -446,15 +453,26 @@ impl VertexFrameBuilder {
 
         adj_out_offsets_prev.push(self.chunk_adj_out_offset);
 
-        let col = new_arrow_adj_list_chunk(adj_out_dst_prev, adj_out_eid_prev, adj_out_offsets_prev);
+        let col =
+            new_arrow_adj_list_chunk(adj_out_dst_prev, adj_out_eid_prev, adj_out_offsets_prev);
 
-        self.persist_and_mmap_arrow_col(col);
+        self.persist_and_mmap_adj_chunk(col);
 
         self.chunk_adj_out_offset = 0i64;
     }
 
-    fn persist_and_mmap_arrow_col(&mut self, col: Box<dyn Array>) {
-
+    fn persist_and_mmap_adj_chunk(&mut self, col: Box<dyn Array>) -> ArrowResult<()> {
+        let dtype = col.data_type().clone();
+        let schema = ArrowSchema::from(vec![ArrowField::new("adj_out", dtype, false)]);
+        let file_path = self
+            .location_path
+            .join(format!("adj_out_chunk_{}.ipc", self.adj_out_chunks.len()));
+        let chunk = [ArrowChunk::try_new(vec![col])?];
+        write_batches(file_path.as_path(), schema, &chunk)?;
+        let mmapped_chunk = unsafe { mmap_batches(file_path.as_path(), 0)? };
+        let mmapped_adj = mmapped_chunk[0].clone();
+        self.adj_out_chunks.push(mmapped_adj);
+        Ok(())
     }
 }
 

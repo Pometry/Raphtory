@@ -33,11 +33,11 @@ pub fn write_batches<P: AsRef<Path>>(
 /// # Arguments
 ///
 /// * `path` - file path to valid arrow-ipc file
-/// * `chunk_ids` - list of chunk ids to map
-pub unsafe fn mmap_batches<I: IntoIterator<Item = usize>, P: AsRef<Path>>(
+/// * `chunk_id` - chunk id to map
+pub unsafe fn mmap_batches<P: AsRef<Path>>(
     path: P,
-    chunk_ids: I,
-) -> Result<Vec<Chunk<Box<dyn Array>>>> {
+    chunk_id: usize,
+) -> Result<Chunk<Box<dyn Array>>> {
     let file = File::open(path)?;
     let mmap = Arc::new(Mmap::map(&file)?);
     // read the metadata
@@ -45,14 +45,8 @@ pub unsafe fn mmap_batches<I: IntoIterator<Item = usize>, P: AsRef<Path>>(
 
     // mmap the dictionaries
     let dictionaries = unsafe { mmap_dictionaries_unchecked(&metadata, mmap.clone())? };
-
-    // and finally mmap a chunk (0 in this case).
-    let mut chunks = Vec::new();
-    for chunk_id in chunk_ids {
-        let chunk = unsafe { mmap_unchecked(&metadata, &dictionaries, mmap.clone(), chunk_id)? };
-        chunks.push(chunk);
-    }
-    Ok(chunks)
+    let chunk = unsafe { mmap_unchecked(&metadata, &dictionaries, mmap.clone(), chunk_id)? };
+    Ok(chunk)
 }
 
 #[cfg(test)]
@@ -84,6 +78,6 @@ mod test {
         // write it
         write_batches(file_path, schema, &chunks).unwrap();
         let mapped = unsafe { mmap_batches(file_path, [0]) }.unwrap();
-        assert_eq!(chunks[0], mapped[0]);
+        assert_eq!(chunks[0], mapped[0][0]);
     }
 }
