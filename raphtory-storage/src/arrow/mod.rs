@@ -16,7 +16,7 @@ use raphtory::{
 
 pub(crate) mod col_graph2;
 pub(crate) mod columnar_graph;
-pub(crate) mod sparse;
+pub(crate) mod mmap;
 
 type MPArr<T> = MutablePrimitiveArray<T>;
 
