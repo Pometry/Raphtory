@@ -23,3 +23,7 @@ raphtory = { path = "../raphtory", version = "0.5.7" }
 rayon = "1.6"
 thiserror = "1.0.48"
 memmap2 = "0.8.0"
+arrow2 = {version="0.18.0", features=["io_ipc"]}
+
+[dev-dependencies]
+tempfile = "3.8.0"
