@@ -162,8 +162,9 @@ dependencies = [
 
 [[package]]
 name = "arrow2"
-version = "0.17.4"
-source = "git+https://github.com/jorgecarleitao/arrow2?rev=7c93e358fc400bf3c0c0219c22eefc6b38fc2d12#7c93e358fc400bf3c0c0219c22eefc6b38fc2d12"
+version = "0.18.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "963fef509b757bcbbf9e5ffa23bcb345614d99f4f6f531f97417b27b8604d389"
 dependencies = [
  "ahash",
  "bytemuck",
@@ -2144,6 +2145,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "memmap2"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "43a5a03cefb0d953ec0be133036f14e109412fa594edc2f77227249db66cc3ed"
+dependencies = [
+ "libc",
+]
+
+[[package]]
 name = "memoffset"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2827,9 +2837,11 @@ dependencies = [
 
 [[package]]
 name = "polars-arrow"
-version = "0.32.0"
+version = "0.33.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "35cd38a64fb389fd990e4efd433a36331c995c981d353bfef83b5de4d87f1828"
 dependencies = [
- "arrow2 0.17.4 (git+https://github.com/jorgecarleitao/arrow2?rev=7c93e358fc400bf3c0c0219c22eefc6b38fc2d12)",
+ "arrow2 0.18.0",
  "hashbrown 0.14.0",
  "multiversion",
  "num-traits",
@@ -2840,10 +2852,12 @@ dependencies = [
 
 [[package]]
 name = "polars-core"
-version = "0.32.0"
+version = "0.33.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "08367c014c07fa8f141680e024f926cab3a1fe839605a8fcf2223647eb45ca71"
 dependencies = [
  "ahash",
- "arrow2 0.17.4 (git+https://github.com/jorgecarleitao/arrow2?rev=7c93e358fc400bf3c0c0219c22eefc6b38fc2d12)",
+ "arrow2 0.18.0",
  "bitflags 2.4.0",
  "comfy-table",
  "either",
@@ -2864,24 +2878,30 @@ dependencies = [
 
 [[package]]
 name = "polars-error"
-version = "0.32.0"
+version = "0.33.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9b20a09651a299979354945819dc2ce017964b80b916954e9d2ce39002a5f949"
 dependencies = [
- "arrow2 0.17.4 (git+https://github.com/jorgecarleitao/arrow2?rev=7c93e358fc400bf3c0c0219c22eefc6b38fc2d12)",
+ "arrow2 0.18.0",
  "thiserror",
 ]
 
 [[package]]
 name = "polars-row"
-version = "0.32.0"
+version = "0.33.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c52ef8885b9d13f848839594fbab21ad79fc63f7e11c19cdc2cfe9bb03c313ac"
 dependencies = [
- "arrow2 0.17.4 (git+https://github.com/jorgecarleitao/arrow2?rev=7c93e358fc400bf3c0c0219c22eefc6b38fc2d12)",
+ "arrow2 0.18.0",
  "polars-error",
  "polars-utils",
 ]
 
 [[package]]
 name = "polars-utils"
-version = "0.32.0"
+version = "0.33.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2a4a5e743509096322cad39104d56e329fe2748483a3354a0f0c354724f3cef6"
 dependencies = [
  "ahash",
  "bytemuck",
@@ -3192,7 +3212,7 @@ dependencies = [
 name = "raphtory"
 version = "0.5.7"
 dependencies = [
- "arrow2 0.17.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "arrow2 0.17.4",
  "async-trait",
  "bincode",
  "bzip2",
@@ -3320,6 +3340,7 @@ version = "0.5.7"
 dependencies = [
  "heed",
  "itertools 0.11.0",
+ "memmap2 0.8.0",
  "parking_lot",
  "polars-core",
  "raphtory",
@@ -4065,7 +4086,7 @@ dependencies = [
  "lru",
  "lz4_flex",
  "measure_time",
- "memmap2",
+ "memmap2 0.6.2",
  "murmurhash32",
  "num_cpus",
  "once_cell",
