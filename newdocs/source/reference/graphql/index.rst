@@ -10,11 +10,3 @@ This page gives an overview of GraphQL functions
 
    client
    server
-
-.. currentmodule:: raphtory
-
-.. autoclass:: GraphQL
-    :members:
-    :noindex:
-    :autosummary:
-    :autosummary-nosignatures:

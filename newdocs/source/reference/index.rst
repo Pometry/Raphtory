@@ -6,11 +6,12 @@ This page gives an overview of all public polars objects, functions and
 methods.
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 5
 
-   core
-   algorithms
-   visualisation
-   null_models
+   core/index
+   algorithms/index
+   export/index
+   visualisation/index
+   nullmodels/index
    graphql/index
-   graph_generation
+   graphgen/index

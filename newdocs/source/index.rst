@@ -10,7 +10,7 @@ Index
    </div>
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 5
 
    reference/index
 

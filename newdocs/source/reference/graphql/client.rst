@@ -1,6 +1,6 @@
-*****************
+======
 Client
-*****************
+======
 
 .. automodule:: raphtory.graphqlclient
    :autosummary:

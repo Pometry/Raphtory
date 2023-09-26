@@ -1,0 +1,54 @@
+:root {
+  --md-code-font: "Source Code Pro" !important;
+  --pst-font-family-base: 'Proxima Nova', sans-serif;
+  --pst-font-family-heading: 'Proxima Nova', sans-serif;
+  --pst-font-family-monospace: 'Proxima Nova', sans-serif;
+  --md-text-font: 'Proxima Nova', sans-serif;
+}
+
+.navbar {
+    background-color: #ff3663 !important;
+}
+
+.search-button__kbd-shortcut {
+  display: none !important;
+}
+
+.theme-switch-button {
+    color: #ffffff !important;
+}
+
+.search-button-field {
+    border: 0px !important;
+    color: #00000066
+}
+
+.fa-magnifying-glass {
+    color: #ffffff !important;
+}
+
+.search-button-field {
+    background-color: #00000042 !important;
+}
+
+/* Change the text color of the navbar links */
+.navbar a {
+  color: #ffffff !important;
+}
+
+@font-face {
+    font-family: 'Proxima Nova', sans-serif;
+    src: 'https://fonts.cdnfonts.com/css/proxima-nova-2'
+}
+
+/* anything related to the light theme */
+html[data-theme="light"] {
+    background: white;
+    --md-primary-fg-color: #C2CCD6;
+}
+
+/* anything related to the dark theme */
+html[data-theme="dark"] {
+    background: black;
+    --md-primary-fg-color: #103547;
+}

@@ -1,6 +1,5 @@
-******************
 Server
-******************
+======
 
 .. automodule:: raphtory.graphqlserver
    :autosummary:
