@@ -12,12 +12,13 @@ use polars_core::{
     },
 };
 use raphtory::core::{
-    entities::{vertices::vertex_ref::VertexRef, EID, VID},
+    entities::{EID, VID},
     Direction,
 };
 
+#[derive(Debug)]
 struct TempColGraphFragment {
-    // edge_df: DataFrame,
+    edge_df: DataFrame,
     vertex_df: DataFrame,
 }
 
@@ -42,8 +43,8 @@ impl TempColGraphFragment {
                     .clone();
                 let iter = v
                     .into_iter()
-                    .filter_map(|x| x)
-                    .zip(e.into_iter().filter_map(|x| x))
+                    .flatten()
+                    .zip(e.into_iter().flatten())
                     .map(|(vid, eid)| (EID(eid as usize), VID(vid as usize)));
 
                 Box::new(iter)
@@ -129,17 +130,18 @@ const E_COLUMN: &str = "e";
 
 type Time = i64;
 
+#[derive(Debug)]
 pub struct SparseTable {
     sorted_gids: Vec<u64>,
     adj_out_dst: Vec<u64>,
     adj_out_eid: Vec<u64>,
     adj_out_offsets: Vec<i64>,
     edge_time_offsets: Vec<i64>,
+    time_col: Series,
 }
 
 impl SparseTable {
     fn into_graph(self) -> TempColGraphFragment {
-
         let fields = vec![
             ArrowField::new(V_COLUMN, ArrowDataType::UInt64, false),
             ArrowField::new(E_COLUMN, ArrowDataType::UInt64, false),
@@ -167,7 +169,25 @@ impl SparseTable {
         let vertex_gid_col = Series::new(GID_COLUMN, self.sorted_gids);
         let vertex_df = DataFrame::new(vec![vertex_gid_col, outbound.into_series()]).unwrap();
 
-        TempColGraphFragment { vertex_df }
+        let values = MutablePrimitiveArray::from_vec(
+            self.time_col.i64().unwrap().into_iter().flatten().collect(),
+        );
+
+        let edge_timestamps = MutableListArray::new_from_mutable(
+            values,
+            Offsets::try_from(self.edge_time_offsets).unwrap(),
+            None,
+        );
+
+        let edge_timestamps: ListArray<i64> = edge_timestamps.into();
+
+        let edges_timestamps: ChunkedArray<ListType> = unsafe {
+            ChunkedArray::from_chunks(E_ADDITIONS_COLUMN, vec![Box::new(edge_timestamps)])
+        };
+
+        let edge_df = DataFrame::new(vec![edges_timestamps.into_series()]).unwrap();
+
+        TempColGraphFragment { vertex_df, edge_df }
     }
 }
 
@@ -188,16 +208,9 @@ impl TempColGraph {
         let time_col = src_dst_frame.column(time_col)?;
 
         if let (Ok(src), Ok(dst), Ok(time)) = (src_col.u64(), dst_col.u64(), time_col.i64()) {
-            let src_iter = src.into_iter().filter_map(|x| x);
-            let dst_iter = dst.into_iter().filter_map(|x| x);
-            let time_iter = time.into_iter().filter_map(|x| x);
-
-            Self::load_sorted_outbound_iter(
-                src_iter
-                    .zip(dst_iter)
-                    .zip(time_iter)
-                    .map(|((src, dst), time)| (src, dst, time)),
-            );
+            let sprs_table = Self::build_tables(src, dst, time);
+        } else {
+            todo!()
         }
 
         Ok(Self {
@@ -209,7 +222,6 @@ impl TempColGraph {
         srcs: &ChunkedArray<UInt64Type>,
         dsts: &ChunkedArray<UInt64Type>,
         times: &ChunkedArray<Int64Type>,
-        cap: usize,
     ) -> SparseTable {
         let mut sorted_gids: Vec<u64> = vec![];
 
@@ -227,8 +239,8 @@ impl TempColGraph {
             }
         }
 
-        let mut adj_out_eid: Vec<u64> = Vec::with_capacity(cap);
-        let mut adj_out_dst: Vec<u64> = Vec::with_capacity(cap);
+        let mut adj_out_eid: Vec<u64> = vec![];
+        let mut adj_out_dst: Vec<u64> = vec![];
 
         let mut adj_out_offsets: Vec<i64> = vec![0];
         let mut edge_time_offsets: Vec<i64> = vec![0];
@@ -238,15 +250,14 @@ impl TempColGraph {
 
         // g_id, [{v_id1, e_id1}, {v_id2, e_id2}, ...]
 
-        for (event_id, ((src, dst), time)) in srcs
+        for (event_id, ((src, dst), _)) in srcs
             .into_iter()
-            .filter_map(|x| x)
-            .zip(dsts.into_iter().filter_map(|x| x))
-            .zip(times.into_iter().filter_map(|x| x))
+            .flatten()
+            .zip(dsts.into_iter().flatten())
+            .zip(times.into_iter().flatten())
             .enumerate()
         {
-            if Some((src, dst)) == last_edge {
-            } else {
+            if Some((src, dst)) != last_edge {
                 adj_out_eid.push(e_id);
                 let dst_idx = if let Ok(dst_idx) = sorted_gids.binary_search(&dst) {
                     dst_idx
@@ -255,16 +266,19 @@ impl TempColGraph {
                     sorted_gids.len() - 1
                 };
                 adj_out_dst.push(dst_idx as u64);
+
+                if let Some((prev_src, prev_dst)) = last_edge {
+                    if prev_src != src {
+                        adj_out_offsets.push(e_id as i64);
+                    }
+                    if prev_src != src || prev_dst != dst {
+                        edge_time_offsets.push(event_id as i64);
+                    }
+                }
+
                 e_id += 1;
             }
-            if let Some((prev_src, prev_dst)) = last_edge {
-                if prev_src != src {
-                    adj_out_offsets.push(e_id as i64);
-                }
-                if prev_src != src || prev_dst != dst {
-                    edge_time_offsets.push(event_id as i64);
-                }
-            }
+
             last_edge = Some((src, dst));
         }
 
@@ -279,89 +293,7 @@ impl TempColGraph {
             adj_out_eid,
             adj_out_offsets,
             edge_time_offsets,
-        }
-    }
-
-    fn load_sorted_outbound_iter<
-        SRC: Into<VertexRef>,
-        DST: Into<VertexRef>,
-        I: Iterator<Item = (SRC, DST, Time)>,
-    >(
-        is: I,
-    ) {
-        let mut vertex_fragments: Vec<MutableVertexFragment> = vec![];
-        let mut edge_fragments: Vec<MutableEdgeFragment> = vec![];
-
-        let mut v_id: usize = 0;
-
-        let mut e_id: usize = 0;
-
-        let mut global_to_local: HashMap<u64, usize> = HashMap::default();
-
-        // let mut cur: Option<> = None;
-
-        for (src, dst, time) in is {
-            // need the global mapping from gid to physical id
-            // need to get the fragment for the src, if it exists
-        }
-    }
-}
-
-struct MutableVertexFragment {
-    global_id_arr: MutablePrimitiveArray<u64>,
-    outbound_arr: MutableListArray<i64, MutableStructArray>,
-    timestamp_arr: MutableListArray<i64, MutablePrimitiveArray<i64>>,
-}
-
-impl MutableVertexFragment {
-    fn new(cap: usize) -> Self {
-        let fields = vec![
-            ArrowField::new(V_COLUMN, ArrowDataType::UInt64, false),
-            ArrowField::new(E_COLUMN, ArrowDataType::UInt64, false),
-        ];
-
-        // arrays for outbound
-        let out_v = Box::new(MutablePrimitiveArray::<u64>::with_capacity(cap));
-        let out_e = Box::new(MutablePrimitiveArray::<u64>::with_capacity(cap));
-        let out_inner =
-            MutableStructArray::new(ArrowDataType::Struct(fields.clone()), vec![out_v, out_e]);
-
-        let outbound_arr = MutableListArray::<i64, MutableStructArray>::new_with_field(
-            out_inner,
-            OUTBOUND_COLUMN,
-            false,
-        );
-
-        let timestamp_arr = MutableListArray::<i64, MutablePrimitiveArray<i64>>::new_with_field(
-            MutablePrimitiveArray::<i64>::with_capacity(cap),
-            V_ADDITIONS_COLUMN,
-            false,
-        );
-
-        Self {
-            global_id_arr: MutablePrimitiveArray::<u64>::with_capacity(cap),
-            outbound_arr,
-            timestamp_arr,
-        }
-    }
-}
-
-struct MutableEdgeFragment {
-    src_arr: MutablePrimitiveArray<u64>,
-    dst_arr: MutablePrimitiveArray<u64>,
-    timestamp_arr: MutableListArray<i64, MutablePrimitiveArray<i64>>,
-}
-
-impl MutableEdgeFragment {
-    fn new(cap: usize) -> Self {
-        Self {
-            src_arr: MutablePrimitiveArray::<u64>::with_capacity(cap),
-            dst_arr: MutablePrimitiveArray::<u64>::with_capacity(cap),
-            timestamp_arr: MutableListArray::<i64, MutablePrimitiveArray<i64>>::new_with_field(
-                MutablePrimitiveArray::<i64>::with_capacity(cap),
-                E_ADDITIONS_COLUMN,
-                false,
-            ),
+            time_col: times.clone().into_series(),
         }
     }
 }
@@ -385,12 +317,50 @@ mod test {
         let dst = df.column("dst").unwrap().u64().unwrap();
         let time = df.column("time").unwrap().i64().unwrap();
 
-        let res = TempColGraph::build_tables(src, dst, time, 1);
+        let res = TempColGraph::build_tables(src, dst, time);
         let graph = res.into_graph();
 
         let actual = graph.edges(0.into(), Direction::OUT).collect::<Vec<_>>();
 
         let expected = vec![(EID(0), VID(1))];
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn load_muliple_sortd_edges_no_props() {
+        let df = DataFrame::new(vec![
+            Series::new(
+                "src",
+                vec![
+                    1u64, 1u64, 1u64, 2u64, 2u64, 2u64, 3u64, 3u64, 3u64, 4u64, 4u64, 4u64,
+                ],
+            ),
+            Series::new(
+                "dst",
+                vec![
+                    2u64, 3u64, 4u64, 3u64, 4u64, 5u64, 4u64, 5u64, 6u64, 5u64, 6u64, 7u64,
+                ],
+            ),
+            Series::new(
+                "time",
+                vec![
+                    0i64, 1i64, 2i64, 3i64, 4i64, 5i64, 6i64, 7i64, 8i64, 9i64, 10i64, 11i64,
+                ],
+            ),
+        ])
+        .unwrap();
+
+        let src = df.column("src").unwrap().u64().unwrap();
+        let dst = df.column("dst").unwrap().u64().unwrap();
+        let time = df.column("time").unwrap().i64().unwrap();
+
+        let res = TempColGraph::build_tables(src, dst, time);
+        let graph = res.into_graph();
+
+        let actual = graph.edges(0.into(), Direction::OUT).collect::<Vec<_>>();
+
+        let expected = vec![(EID(0), VID(1)), (EID(1), VID(2)), (EID(2), VID(3))];
 
         assert_eq!(actual, expected)
     }
