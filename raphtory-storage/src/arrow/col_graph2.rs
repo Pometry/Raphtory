@@ -134,9 +134,9 @@ type Time = i64;
 pub struct SparseTable {
     sorted_gids: Vec<u64>,
 
-    adj_out_dst: ChunkedVec<u64>,
-    adj_out_eid: ChunkedVec<u64>,
-    adj_out_offsets: ChunkedVec<i64>,
+    adj_out_dst_chunks: Vec<Vec<u64>>,
+    adj_out_eid_chunks: Vec<Vec<u64>>,
+    adj_out_offsets_chunks: Vec<Vec<i64>>,
 
     edge_time_offsets: Vec<i64>,
     time_col: Series,
@@ -151,10 +151,10 @@ impl SparseTable {
         let schema = ArrowDataType::Struct(fields);
 
         let list_outbound_chunks = self
-            .adj_out_dst
+            .adj_out_dst_chunks
             .into_iter()
-            .zip(self.adj_out_eid.into_iter())
-            .zip(self.adj_out_offsets.into_iter())
+            .zip(self.adj_out_eid_chunks.into_iter())
+            .zip(self.adj_out_offsets_chunks.into_iter())
             .map(|((adj_out_dst, adj_out_eid), adj_out_offsets)| {
                 let dst_col = Box::new(MutablePrimitiveArray::<u64>::from_vec(adj_out_dst));
                 let eid_col = Box::new(MutablePrimitiveArray::<u64>::from_vec(adj_out_eid));
@@ -172,22 +172,6 @@ impl SparseTable {
                 outbound
             })
             .collect_vec();
-
-        // let dst_col = Box::new(MutablePrimitiveArray::<u64>::from_vec(self.adj_out_dst));
-        // let eid_col = Box::new(MutablePrimitiveArray::<u64>::from_vec(self.adj_out_eid));
-
-        // let values = MutableStructArray::new(schema, vec![dst_col, eid_col]);
-
-        // let outbound2 = MutableListArray::new_from_mutable(
-        //     values,
-        //     Offsets::try_from(self.adj_out_offsets).unwrap(),
-        //     None,
-        // );
-
-        // let outbound: ListArray<i64> = outbound2.into();
-
-        // let outbound: ChunkedArray<ListType> =
-        //     unsafe { ChunkedArray::from_chunks(OUTBOUND_COLUMN, vec![Box::new(outbound)]) };
 
         let outbound: ChunkedArray<ListType> =
             unsafe { ChunkedArray::from_chunks(OUTBOUND_COLUMN, list_outbound_chunks) };
@@ -244,6 +228,33 @@ impl TempColGraph {
         })
     }
 
+    fn push_chunks(
+        adj_out_eid: &mut Vec<u64>,
+        adj_out_dst: &mut Vec<u64>,
+        adj_out_offsets: &mut Vec<i64>,
+        adj_out_eid_chunks: &mut Vec<Vec<u64>>,
+        adj_out_dst_chunks: &mut Vec<Vec<u64>>,
+        adj_out_offsets_chunks: &mut Vec<Vec<i64>>,
+        chunk_adj_out_offset: &mut i64,
+    ) {
+        let mut adj_out_eid_prev = Vec::with_capacity(adj_out_eid.len());
+        let mut adj_out_dst_prev = Vec::with_capacity(adj_out_dst.len());
+        let mut adj_out_offsets_prev = Vec::with_capacity(adj_out_offsets.len());
+        // adj_out_offsets_prev.push(0);
+
+        std::mem::swap(&mut adj_out_eid_prev, adj_out_eid);
+        std::mem::swap(&mut adj_out_dst_prev, adj_out_dst);
+        std::mem::swap(&mut adj_out_offsets_prev, adj_out_offsets);
+
+        adj_out_offsets_prev.push(*chunk_adj_out_offset);
+
+        adj_out_eid_chunks.push(adj_out_eid_prev);
+        adj_out_dst_chunks.push(adj_out_dst_prev);
+        adj_out_offsets_chunks.push(adj_out_offsets_prev);
+
+        *chunk_adj_out_offset = 0i64;
+    }
+
     pub fn build_tables(
         srcs: &ChunkedArray<UInt64Type>,
         dsts: &ChunkedArray<UInt64Type>,
@@ -267,20 +278,23 @@ impl TempColGraph {
         }
 
         // to be chunked
-        let mut adj_out_eid = ChunkedVec::new(chunk_size);
-        let mut adj_out_dst = ChunkedVec::new(chunk_size);
-        let mut adj_out_offsets = ChunkedVec::new(chunk_size);
-        adj_out_offsets.push(0);
+        let mut adj_out_eid_chunks: Vec<Vec<u64>> = vec![];
+        let mut adj_out_dst_chunks: Vec<Vec<u64>> = vec![];
+        let mut adj_out_offsets_chunks: Vec<Vec<i64>> = vec![];
+
+        let mut adj_out_eid = vec![];
+        let mut adj_out_dst = vec![];
+        let mut adj_out_offsets = vec![0];
 
         let mut edge_time_offsets: Vec<i64> = vec![0];
 
         let mut e_id: u64 = 0;
-        let mut chunk_edge_offset = 0;
+        let mut chunk_adj_out_offset: i64 = 0;
         let mut last_edge: Option<(u64, u64)> = None;
         let mut vertex_count = 0;
 
         // g_id, [{v_id1, e_id1}, {v_id2, e_id2}, ...]
-        for (event_id, ((src, dst), _)) in srcs
+        for (event_id, ((src, dst), time)) in srcs
             .into_iter()
             .flatten()
             .zip(dsts.into_iter().flatten())
@@ -289,9 +303,18 @@ impl TempColGraph {
         {
             // check if can have a chunk cutoff
             if last_edge.filter(|(prev_src, _)| prev_src != &src).is_some()
-                && vertex_count % chunk_size == 0
+                && (vertex_count+1) % chunk_size == 0
             {
-                chunk_edge_offset = 0u64;
+                println!("chunk cut off at {last_edge:?} {src} {dst} {time}");
+                Self::push_chunks(
+                    &mut adj_out_eid,
+                    &mut adj_out_dst,
+                    &mut adj_out_offsets,
+                    &mut adj_out_eid_chunks,
+                    &mut adj_out_dst_chunks,
+                    &mut adj_out_offsets_chunks,
+                    &mut chunk_adj_out_offset,
+                );
             }
 
             if Some((src, dst)) != last_edge {
@@ -306,7 +329,7 @@ impl TempColGraph {
 
                 if let Some((prev_src, prev_dst)) = last_edge {
                     if prev_src != src {
-                        adj_out_offsets.push(chunk_edge_offset as i64);
+                        adj_out_offsets.push(chunk_adj_out_offset);
                         vertex_count += 1;
                     }
                     if prev_src != src || prev_dst != dst {
@@ -315,64 +338,77 @@ impl TempColGraph {
                 }
 
                 e_id += 1;
-                chunk_edge_offset += 1;
+                chunk_adj_out_offset += 1;
             }
+
 
             last_edge = Some((src, dst));
         }
 
         if last_edge.is_some() {
-            adj_out_offsets.resize(sorted_gids.len() + 1, e_id as i64);
+            // deal with the last chunk
+            let remaining_slots_in_chunk = chunk_size - (adj_out_offsets.len() -1);
+            let remaining_vertices = sorted_gids.len() - vertex_count - 1;
+            let fill_chunk_remaining = remaining_slots_in_chunk.min(remaining_vertices);
+            adj_out_offsets.resize(
+                adj_out_offsets.len() + fill_chunk_remaining,
+                chunk_adj_out_offset,
+            );
+            Self::push_chunks(
+                &mut adj_out_eid,
+                &mut adj_out_dst,
+                &mut adj_out_offsets,
+                &mut adj_out_eid_chunks,
+                &mut adj_out_dst_chunks,
+                &mut adj_out_offsets_chunks,
+                &mut chunk_adj_out_offset,
+            );
+
+            // deal with the rest of the vertices
+            let remaining_vertices = remaining_vertices - fill_chunk_remaining;
+            let remaining_chunks = remaining_vertices / chunk_size;
+            let size_of_last_chunk = remaining_vertices % chunk_size;
+
+            Self::add_empty_chunks(
+                remaining_chunks,
+                size_of_last_chunk,
+                chunk_size,
+                &mut adj_out_eid_chunks,
+                &mut adj_out_dst_chunks,
+                &mut adj_out_offsets_chunks,
+            );
+
             edge_time_offsets.push(times.len() as i64);
         }
 
         SparseTable {
             sorted_gids,
-            adj_out_dst,
-            adj_out_eid,
-            adj_out_offsets,
+            adj_out_dst_chunks,
+            adj_out_eid_chunks,
+            adj_out_offsets_chunks,
             edge_time_offsets,
             time_col: times.clone().into_series(),
         }
     }
-}
 
-#[derive(Debug)]
-struct ChunkedVec<T> {
-    chunks: Vec<Vec<T>>,
-    chunk_size: usize,
-    total_len: usize,
-}
-
-impl<T: Clone> ChunkedVec<T> {
-    fn new(chunk_size: usize) -> Self {
-        Self {
-            chunks: vec![Vec::with_capacity(chunk_size)],
-            chunk_size,
-            total_len: 0,
+    fn add_empty_chunks(
+        remaining_chunks: usize,
+        size_of_last_chunk: usize,
+        chunk_size: usize,
+        adj_out_eid_chunks: &mut Vec<Vec<u64>>,
+        adj_out_dst_chunks: &mut Vec<Vec<u64>>,
+        adj_out_offsets_chunks: &mut Vec<Vec<i64>>,
+    ) {
+        for _ in 0..remaining_chunks {
+            adj_out_offsets_chunks.push(vec![0; chunk_size + 1]);
+            adj_out_eid_chunks.push(Vec::with_capacity(0));
+            adj_out_dst_chunks.push(Vec::with_capacity(0));
         }
-    }
-
-    fn resize(&mut self, new_len: usize, value: T) {
-        while self.total_len < new_len {
-            self.push(value.clone());
+        if size_of_last_chunk > 0 {
+            adj_out_offsets_chunks.push(vec![0; size_of_last_chunk + 1]);
+            adj_out_eid_chunks.push(Vec::with_capacity(0));
+            adj_out_dst_chunks.push(Vec::with_capacity(0));
         }
-    }
-
-    fn push(&mut self, t: T) {
-        let chunk_idx = self.total_len / self.chunk_size;
-        let idx = self.total_len % self.chunk_size;
-
-        if chunk_idx >= self.chunks.len() {
-            self.chunks.push(Vec::with_capacity(self.chunk_size));
-        }
-
-        self.chunks[chunk_idx].push(t);
-        self.total_len += 1;
-    }
-
-    fn into_iter(self) -> impl Iterator<Item = Vec<T>> {
-        self.chunks.into_iter()
     }
 }
 
@@ -427,7 +463,7 @@ mod test {
     }
 
     #[test]
-    fn load_muliple_sortd_edges_no_props() {
+    fn load_muliple_sorted_edges_no_props() {
         let df = DataFrame::new(vec![
             Series::new(
                 "src",
@@ -455,6 +491,7 @@ mod test {
         let time = df.column("time").unwrap().i64().unwrap();
 
         let res = TempColGraph::build_tables(src, dst, time, 100);
+
         let graph = res.into_graph();
 
         let actual = graph.edges(0.into(), Direction::OUT).collect::<Vec<_>>();
@@ -466,7 +503,6 @@ mod test {
 
     #[test]
     fn load_multiple_edges_across_chunks() {
-
         let df = DataFrame::new(vec![
             Series::new(
                 "src",
@@ -493,11 +529,7 @@ mod test {
         let dst = df.column("dst").unwrap().u64().unwrap();
         let time = df.column("time").unwrap().i64().unwrap();
 
-
         let res = TempColGraph::build_tables(src, dst, time, 2);
-
-        println!("Results with chunks {:?}", res);
-
         let graph = res.into_graph();
 
         let actual = graph.edges(0.into(), Direction::OUT).collect::<Vec<_>>();
