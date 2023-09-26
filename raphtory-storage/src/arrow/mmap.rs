@@ -58,7 +58,7 @@ pub unsafe fn mmap_batches<I: IntoIterator<Item = usize>, P: AsRef<Path>>(
 #[cfg(test)]
 mod test {
     use super::write_batches;
-    use crate::arrow::sparse::mmap_batches;
+    use crate::arrow::mmap::mmap_batches;
     use arrow2::{
         array::{Int32Array, Utf8Array},
         chunk::Chunk,
