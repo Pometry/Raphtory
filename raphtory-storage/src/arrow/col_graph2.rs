@@ -4,14 +4,13 @@ use crate::arrow::{
     edge_frame_builder::EdgeFrameBuilder, vertex_frame_builder::VertexFrameBuilder, Error,
 };
 use arrow2::{
-    array::Utf8Array, chunk::Chunk, datatypes::DataType, error::Result as ArrowResult,
+    array::{Array, ListArray, PrimitiveArray, StructArray, Utf8Array},
+    chunk::Chunk,
+    datatypes::DataType,
+    error::Result as ArrowResult,
     io::parquet::read,
 };
 use itertools::Itertools;
-use polars_core::{
-    frame::DataFrame,
-    utils::arrow::array::{Array, ListArray, PrimitiveArray, StructArray},
-};
 use raphtory::core::{
     entities::{vertices::input_vertex::InputVertex, EID, VID},
     Direction,
@@ -62,32 +61,6 @@ fn array_as_id_iter(array: &Box<dyn Array>) -> Result<Box<dyn Iterator<Item = u6
 }
 
 impl TempColGraphFragment {
-    pub fn from_sorted_edge_list<P: AsRef<Path>>(
-        src_dst_frame: DataFrame, // sorted_by (src, dst, time)
-        src_col: &str,
-        dst_col: &str,
-        time_col: &str,
-        chunk_size: usize,
-        graph_dir: P,
-    ) -> Result<Self, Error> {
-        let src = src_dst_frame.column(src_col)?.u64()?;
-        let dst = src_dst_frame.column(dst_col)?.u64()?;
-        let time = src_dst_frame.column(time_col)?.i64()?;
-
-        let src_iter = src.into_iter().flatten();
-
-        let triplets = src
-            .into_iter()
-            .flatten()
-            .zip(dst.into_iter().flatten())
-            .zip(time.into_iter().flatten())
-            .map(|((src, dst), time)| (src, dst, time));
-
-        let table = Self::build_tables(graph_dir, chunk_size, src_iter, triplets)?;
-
-        Ok(table)
-    }
-
     pub fn from_sorted_parquet_edge_list<P: AsRef<Path>, P2: AsRef<Path>>(
         parquet_file: P,
         src_col: &str,
@@ -175,8 +148,8 @@ impl TempColGraphFragment {
     fn build_tables<P: AsRef<Path>>(
         base_dir: P,
         chunk_size: usize,
-        source_iter: impl Iterator<Item = u64>,
-        tuples_iter: impl Iterator<Item = (u64, u64, i64)>,
+        source_iter: impl IntoIterator<Item = u64>,
+        tuples_iter: impl IntoIterator<Item = (u64, u64, i64)>,
     ) -> ArrowResult<Self> {
         let mut vf_builder = VertexFrameBuilder::new(chunk_size, &base_dir);
         let mut edge_builder = EdgeFrameBuilder::new(chunk_size, &base_dir);
@@ -200,9 +173,7 @@ impl TempColGraphFragment {
     }
 
     pub fn num_vertices(&self) -> usize {
-        self.adj_out_chunks.iter().map(|chunk|{
-            chunk[0].len()
-        }).sum()
+        self.adj_out_chunks.iter().map(|chunk| chunk[0].len()).sum()
     }
 
     pub fn edges(
@@ -295,7 +266,6 @@ impl TempColGraphFragment {
 #[cfg(test)]
 mod test {
     use super::*;
-    use polars_core::{prelude::NamedFrom, series::Series};
     use tempfile::TempDir;
 
     #[test]
@@ -319,21 +289,13 @@ mod test {
 
     #[test]
     fn load_one_edge_from_sorted_adj_list_num_vertices_no_props() {
-        let df = DataFrame::new(vec![
-            Series::new("src", vec![1u64]),
-            Series::new("dst", vec![2u64]),
-            Series::new("time", vec![0i64]),
-        ])
-        .unwrap();
         let test_dir = TempDir::new().unwrap();
 
-        let graph = TempColGraphFragment::from_sorted_edge_list(
-            df,
-            "src",
-            "dst",
-            "time",
-            100,
+        let graph = TempColGraphFragment::build_tables(
             test_dir.path(),
+            100,
+            vec![1u64],
+            vec![(1u64, 2u64, 9i64)],
         )
         .unwrap();
 
@@ -349,24 +311,14 @@ mod test {
 
     #[test]
     fn load_one_edge_from_sorted_adj_list_num_vertices_no_props_multiple_timestamps() {
-        let df = DataFrame::new(vec![
-            Series::new("src", vec![1u64, 1u64, 1u64]),
-            Series::new("dst", vec![2u64, 2u64, 2u64]),
-            Series::new("time", vec![0i64, 3i64, 7i64]),
-        ])
-        .unwrap();
-
         let test_dir = TempDir::new().unwrap();
 
-        let graph = TempColGraphFragment::from_sorted_edge_list(
-            df,
-            "src",
-            "dst",
-            "time",
-            100,
+        let graph = TempColGraphFragment::build_tables(
             test_dir.path(),
-        )
-        .unwrap();
+            100,
+            vec![1u64, 1u64, 1u64],
+            vec![(1u64, 2u64, 0i64), (1u64, 2u64, 3i64), (1u64, 2u64, 7i64)],
+        ).unwrap();
 
         let actual = graph.edges(0.into(), Direction::OUT).collect::<Vec<_>>();
         let expected = vec![(EID(0), VID(1))];
@@ -380,39 +332,27 @@ mod test {
 
     #[test]
     fn load_muliple_sorted_edges_no_props() {
-        let df = DataFrame::new(vec![
-            Series::new(
-                "src",
-                vec![
-                    1u64, 1u64, 1u64, 2u64, 2u64, 2u64, 3u64, 3u64, 3u64, 4u64, 4u64, 4u64,
-                ],
-            ),
-            Series::new(
-                "dst",
-                vec![
-                    2u64, 3u64, 4u64, 3u64, 4u64, 5u64, 4u64, 5u64, 6u64, 5u64, 6u64, 7u64,
-                ],
-            ),
-            Series::new(
-                "time",
-                vec![
-                    0i64, 1i64, 2i64, 3i64, 4i64, 5i64, 6i64, 7i64, 8i64, 9i64, 10i64, 11i64,
-                ],
-            ),
-        ])
-        .unwrap();
-
         let test_dir = TempDir::new().unwrap();
 
-        let graph = TempColGraphFragment::from_sorted_edge_list(
-            df,
-            "src",
-            "dst",
-            "time",
-            100,
+        let graph = TempColGraphFragment::build_tables(
             test_dir.path(),
-        )
-        .unwrap();
+            100,
+            vec![1u64, 1u64, 1u64, 2u64, 2u64, 2u64, 3u64, 3u64, 3u64, 4u64, 4u64, 4u64],
+            vec![
+                (1u64, 2u64, 0i64),
+                (1u64, 3u64, 1i64),
+                (1u64, 4u64, 2i64),
+                (2u64, 3u64, 3i64),
+                (2u64, 4u64, 4i64),
+                (2u64, 5u64, 5i64),
+                (3u64, 4u64, 6i64),
+                (3u64, 5u64, 7i64),
+                (3u64, 6u64, 8i64),
+                (4u64, 5u64, 9i64),
+                (4u64, 6u64, 10i64),
+                (4u64, 7u64, 11i64),
+            ],
+        ).unwrap();
 
         let actual = graph.edges(0.into(), Direction::OUT).collect::<Vec<_>>();
         let expected = vec![(EID(0), VID(1)), (EID(1), VID(2)), (EID(2), VID(3))];
@@ -439,24 +379,21 @@ mod test {
 
     #[test]
     fn load_muliple_sorted_edges_no_props_multiple_ts() {
-        let df = DataFrame::new(vec![
-            Series::new("src", vec![1u64, 1u64, 1u64, 2u64, 2u64, 2u64]),
-            Series::new("dst", vec![2u64, 3u64, 3u64, 3u64, 4u64, 4u64]),
-            Series::new("time", vec![0i64, 1i64, 2i64, 3i64, 4i64, 5i64]),
-        ])
-        .unwrap();
-
         let test_dir = TempDir::new().unwrap();
 
-        let graph = TempColGraphFragment::from_sorted_edge_list(
-            df,
-            "src",
-            "dst",
-            "time",
-            100,
+        let graph = TempColGraphFragment::build_tables(
             test_dir.path(),
-        )
-        .unwrap();
+            100,
+            vec![1u64, 1u64, 1u64, 2u64, 2u64, 2u64],
+            vec![
+                (1u64, 2u64, 0i64),
+                (1u64, 3u64, 1i64),
+                (1u64, 3u64, 2i64),
+                (2u64, 3u64, 3i64),
+                (2u64, 4u64, 4i64),
+                (2u64, 4u64, 5i64),
+            ],
+        ).unwrap();
 
         let actual = graph.edges(0.into(), Direction::OUT).collect::<Vec<_>>();
         let expected = vec![(EID(0), VID(1)), (EID(1), VID(2))];
@@ -475,24 +412,21 @@ mod test {
 
     #[test]
     fn load_muliple_sorted_edges_no_props_multiple_ts_chunks_size_1() {
-        let df = DataFrame::new(vec![
-            Series::new("src", vec![1u64, 1u64, 1u64, 2u64, 2u64, 2u64]),
-            Series::new("dst", vec![2u64, 3u64, 3u64, 3u64, 4u64, 4u64]),
-            Series::new("time", vec![0i64, 1i64, 2i64, 3i64, 4i64, 5i64]),
-        ])
-        .unwrap();
-
         let test_dir = TempDir::new().unwrap();
 
-        let graph = TempColGraphFragment::from_sorted_edge_list(
-            df,
-            "src",
-            "dst",
-            "time",
-            1,
+        let graph = TempColGraphFragment::build_tables(
             test_dir.path(),
-        )
-        .unwrap();
+            1,
+            vec![1u64, 1u64, 1u64, 2u64, 2u64, 2u64],
+            vec![
+                (1u64, 2u64, 0i64),
+                (1u64, 3u64, 1i64),
+                (1u64, 3u64, 2i64),
+                (2u64, 3u64, 3i64),
+                (2u64, 4u64, 4i64),
+                (2u64, 4u64, 5i64),
+            ],
+        ).unwrap();
 
         let actual = graph.edges(0.into(), Direction::OUT).collect::<Vec<_>>();
         let expected = vec![(EID(0), VID(1)), (EID(1), VID(2))];
@@ -511,39 +445,27 @@ mod test {
 
     #[test]
     fn load_multiple_edges_across_chunks() {
-        let df = DataFrame::new(vec![
-            Series::new(
-                "src",
-                vec![
-                    1u64, 1u64, 1u64, 2u64, 2u64, 2u64, 3u64, 3u64, 3u64, 4u64, 4u64, 4u64,
-                ],
-            ),
-            Series::new(
-                "dst",
-                vec![
-                    2u64, 3u64, 4u64, 3u64, 4u64, 5u64, 4u64, 5u64, 6u64, 5u64, 6u64, 7u64,
-                ],
-            ),
-            Series::new(
-                "time",
-                vec![
-                    0i64, 1i64, 2i64, 3i64, 4i64, 5i64, 6i64, 7i64, 8i64, 9i64, 10i64, 11i64,
-                ],
-            ),
-        ])
-        .unwrap();
-
         let test_dir = TempDir::new().unwrap();
 
-        let graph = TempColGraphFragment::from_sorted_edge_list(
-            df,
-            "src",
-            "dst",
-            "time",
-            2,
+        let graph = TempColGraphFragment::build_tables(
             test_dir.path(),
-        )
-        .unwrap();
+            2,
+            vec![1u64, 1u64, 1u64, 2u64, 2u64, 2u64, 3u64, 3u64, 3u64, 4u64, 4u64, 4u64],
+            vec![
+                (1u64, 2u64, 0i64),
+                (1u64, 3u64, 1i64),
+                (1u64, 4u64, 2i64),
+                (2u64, 3u64, 3i64),
+                (2u64, 4u64, 4i64),
+                (2u64, 5u64, 5i64),
+                (3u64, 4u64, 6i64),
+                (3u64, 5u64, 7i64),
+                (3u64, 6u64, 8i64),
+                (4u64, 5u64, 9i64),
+                (4u64, 6u64, 10i64),
+                (4u64, 7u64, 11i64),
+            ],
+        ).unwrap();
 
         let actual = graph.edges(0.into(), Direction::OUT).collect::<Vec<_>>();
         let expected = vec![(EID(0), VID(1)), (EID(1), VID(2)), (EID(2), VID(3))];

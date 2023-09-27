@@ -17,7 +17,6 @@ edition.workspace = true
 heed = "0.11.0"
 itertools = "0.11.0"
 parking_lot = "0.12.1"
-polars-core = {version="0.33.2", features = ["dtype-struct", "fmt"]}
 raphtory = { path = "../raphtory", version = "0.5.7" }
 rayon = "1.6"
 thiserror = "1.0.48"

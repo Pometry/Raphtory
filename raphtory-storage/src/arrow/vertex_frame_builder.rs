@@ -11,7 +11,6 @@ use arrow2::{
     offset::Offsets,
 };
 use itertools::Itertools;
-use polars_core::frame::ArrowChunk;
 use std::path::{Path, PathBuf};
 
 pub struct VertexFrameBuilder {
@@ -75,16 +74,16 @@ impl VertexFrameBuilder {
         let file_path = self
             .location_path
             .join(format!("adj_out_chunk_{}.ipc", self.adj_out_chunks.len()));
-        let chunk = [ArrowChunk::try_new(vec![col])?];
+        let chunk = [Chunk::try_new(vec![col])?];
         write_batches(file_path.as_path(), schema, &chunk)?;
         let mmapped_chunk = unsafe { mmap_batches(file_path.as_path(), 0)? };
         self.adj_out_chunks.push(mmapped_chunk);
         Ok(())
     }
 
-    pub(crate) fn load_sources(&mut self, sources: impl Iterator<Item = u64>) {
+    pub(crate) fn load_sources(&mut self, sources: impl IntoIterator<Item = u64>) {
         self.sorted_gids.extend(
-            sources
+            sources.into_iter()
                 .dedup()
                 .enumerate()
                 .map(|(id, gid)| (gid, id as u64)),
