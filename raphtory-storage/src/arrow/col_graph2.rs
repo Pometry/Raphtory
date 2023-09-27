@@ -150,11 +150,6 @@ pub struct SparseTable {
 
 impl SparseTable {
     fn into_graph(self) -> TempColGraphFragment {
-        let fields = vec![
-            ArrowField::new(V_COLUMN, ArrowDataType::UInt64, false),
-            ArrowField::new(E_COLUMN, ArrowDataType::UInt64, false),
-        ];
-
         let outbound: ChunkedArray<ListType> =
             unsafe { ChunkedArray::from_chunks(OUTBOUND_COLUMN, self.adj_out_chunks) };
 
@@ -184,7 +179,7 @@ impl SparseTable {
 }
 
 impl TempColGraph {
-    fn from_sorted_edge_list<P: AsRef<Path>>(
+    pub fn from_sorted_edge_list<P: AsRef<Path>>(
         src_dst_frame: DataFrame, // sorted_by (src, dst, time)
         src_col: &str,
         dst_col: &str,
@@ -200,32 +195,6 @@ impl TempColGraph {
         Ok(Self {
             fragments: Arc::new([sprs_table.into_graph()]),
         })
-    }
-
-    fn push_chunks(
-        adj_out_eid: &mut Vec<u64>,
-        adj_out_dst: &mut Vec<u64>,
-        adj_out_offsets: &mut Vec<i64>,
-        adj_out_eid_chunks: &mut Vec<Vec<u64>>,
-        adj_out_dst_chunks: &mut Vec<Vec<u64>>,
-        adj_out_offsets_chunks: &mut Vec<Vec<i64>>,
-        chunk_adj_out_offset: &mut i64,
-    ) {
-        let mut adj_out_eid_prev = Vec::with_capacity(adj_out_eid.len());
-        let mut adj_out_dst_prev = Vec::with_capacity(adj_out_dst.len());
-        let mut adj_out_offsets_prev = Vec::with_capacity(adj_out_offsets.len());
-
-        std::mem::swap(&mut adj_out_eid_prev, adj_out_eid);
-        std::mem::swap(&mut adj_out_dst_prev, adj_out_dst);
-        std::mem::swap(&mut adj_out_offsets_prev, adj_out_offsets);
-
-        adj_out_offsets_prev.push(*chunk_adj_out_offset);
-
-        adj_out_eid_chunks.push(adj_out_eid_prev);
-        adj_out_dst_chunks.push(adj_out_dst_prev);
-        adj_out_offsets_chunks.push(adj_out_offsets_prev);
-
-        *chunk_adj_out_offset = 0i64;
     }
 
     pub fn build_tables<P: AsRef<Path>>(
@@ -275,26 +244,6 @@ impl TempColGraph {
             edge_time_offsets,
             time_col: times.clone().into_series(),
         })
-    }
-
-    fn add_empty_chunks(
-        remaining_chunks: usize,
-        size_of_last_chunk: usize,
-        chunk_size: usize,
-        adj_out_eid_chunks: &mut Vec<Vec<u64>>,
-        adj_out_dst_chunks: &mut Vec<Vec<u64>>,
-        adj_out_offsets_chunks: &mut Vec<Vec<i64>>,
-    ) {
-        for _ in 0..remaining_chunks {
-            adj_out_offsets_chunks.push(vec![0; chunk_size + 1]);
-            adj_out_eid_chunks.push(Vec::with_capacity(0));
-            adj_out_dst_chunks.push(Vec::with_capacity(0));
-        }
-        if size_of_last_chunk > 0 {
-            adj_out_offsets_chunks.push(vec![0; size_of_last_chunk + 1]);
-            adj_out_eid_chunks.push(Vec::with_capacity(0));
-            adj_out_dst_chunks.push(Vec::with_capacity(0));
-        }
     }
 }
 
