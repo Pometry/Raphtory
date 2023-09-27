@@ -1,3 +1,4 @@
+use crate::python::types::repr::Repr;
 use ordered_float::OrderedFloat;
 use pyo3::prelude::*;
 
@@ -12,6 +13,24 @@ macro_rules! py_algorithm_result {
                 $rustSortValue,
             >,
         );
+
+        impl Repr
+            for $crate::algorithms::algorithm_result::AlgorithmResult<
+                $rustKey,
+                $rustValue,
+                $rustSortValue,
+            >
+        {
+            fn repr(&self) -> String {
+                let algo_name = &self.algo_repr.algo_name;
+                let num_vertices = &self.result.len();
+                let result_type = &self.algo_repr.result_type;
+                format!(
+                    "Algorithm Name: {}, Number of Vertices: {}, Result Type: {}",
+                    algo_name, num_vertices, result_type
+                )
+            }
+        }
 
         impl pyo3::IntoPy<pyo3::PyObject>
             for $crate::algorithms::algorithm_result::AlgorithmResult<
@@ -39,6 +58,11 @@ macro_rules! py_algorithm_result_base {
             /// Returns a reference to the entire `result` hashmap.
             fn get_all(&self) -> std::collections::HashMap<$rustKey, $rustValue> {
                 self.0.get_all().clone()
+            }
+
+            /// Returns a formatted string representation of the algorithm.
+            fn to_string(&self) -> String {
+                self.0.repr()
             }
 
             /// Returns the value corresponding to the provided key in the `result` hashmap.

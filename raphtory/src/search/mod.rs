@@ -191,6 +191,7 @@ impl<G: GraphViewOps> IndexedGraph<G> {
                 break;
             }
             let mut found_props: HashSet<ArcStr> = HashSet::default();
+            found_props.insert("name".into());
 
             for prop in prop_names_set.iter() {
                 // load temporal props
@@ -1111,5 +1112,12 @@ mod test {
         let top_docs: Vec<(u64, DocAddress)> = searcher.search(&query, &ranking).unwrap();
 
         assert!(!top_docs.is_empty());
+    }
+
+    #[test]
+    fn property_name_on_vertex_does_not_crash() {
+        let g = Graph::new();
+        g.add_vertex(0, "test", [("name", "test")]).unwrap();
+        let gi: IndexedGraph<_> = g.into();
     }
 }

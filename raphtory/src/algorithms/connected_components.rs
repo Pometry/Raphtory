@@ -71,6 +71,7 @@ where
     );
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
+    let results_type = std::any::type_name::<HashMap<String, u64>>();
 
     let res = runner.run(
         vec![Job::new(step1)],
@@ -95,7 +96,7 @@ where
         None,
         None,
     );
-    AlgorithmResult::new(res)
+    AlgorithmResult::new("Connected Components", results_type, res)
 }
 
 #[cfg(test)]
