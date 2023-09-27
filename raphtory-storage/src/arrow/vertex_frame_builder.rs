@@ -101,7 +101,6 @@ impl VertexFrameBuilder {
             .is_some()
             && (self.vertex_count + 1) % self.chunk_size == 0
         {
-            println!("chunk cut off at {:?} {src} {dst}", self.last_edge);
             self.push_chunk(self.chunk_size)?;
         }
         if Some((src, dst)) != self.last_edge {

@@ -92,8 +92,7 @@ impl EdgeFrameBuilder {
             .is_some()
             || self.last_update.is_none()
         {
-            if (self.edge_count + 1) % self.chunk_size == 0 {
-                println!("chunk cut off at {:?} {src} {dst}", self.last_update);
+            if (self.edge_count + 1) % self.chunk_size == 0 && self.last_update.is_some(){
                 self.push_chunk()?;
             }
             self.edge_src_id.push(src);
@@ -101,6 +100,7 @@ impl EdgeFrameBuilder {
             self.edge_offsets.push(self.chunk_offset);
             self.edge_count += 1;
         }
+
         self.edge_timestamps.push(time);
         self.chunk_offset += 1;
         self.last_update = Some((src, dst));

@@ -121,6 +121,26 @@ impl TempColGraphFragment {
         }
     }
 
+    fn all_edges(&self) -> impl Iterator<Item = (EID, VID, VID)> + '_ {
+        self.edge_chunks
+            .iter()
+            .flat_map(|chunk| {
+                let src = chunk[0]
+                    .as_any()
+                    .downcast_ref::<PrimitiveArray<u64>>()
+                    .unwrap()
+                    .clone();
+                let dst = chunk[1]
+                    .as_any()
+                    .downcast_ref::<PrimitiveArray<u64>>()
+                    .unwrap()
+                    .clone();
+                src.into_iter().flatten().zip(dst.into_iter().flatten())
+            })
+            .enumerate()
+            .map(|(eid, (src, dst))| (EID(eid), VID(src as usize), VID(dst as usize)))
+    }
+
     fn adj_list(&self, vertex_id: usize, dir: Direction) -> Option<StructArray> {
         let row: usize = vertex_id.into();
 
@@ -179,9 +199,12 @@ mod test {
         .unwrap();
 
         let actual = graph.edges(0.into(), Direction::OUT).collect::<Vec<_>>();
-
         let expected = vec![(EID(0), VID(1))];
+        assert_eq!(actual, expected);
 
+        // check edges
+        let actual = graph.all_edges().collect::<Vec<_>>();
+        let expected = vec![(EID(0), VID(0), VID(1))];
         assert_eq!(actual, expected)
     }
 
@@ -207,10 +230,14 @@ mod test {
         .unwrap();
 
         let actual = graph.edges(0.into(), Direction::OUT).collect::<Vec<_>>();
-
         let expected = vec![(EID(0), VID(1))];
+        assert_eq!(actual, expected);
 
+        // check edges
+        let actual = graph.all_edges().collect::<Vec<_>>();
+        let expected = vec![(EID(0), VID(0), VID(1))];
         assert_eq!(actual, expected)
+
     }
 
     #[test]
@@ -250,10 +277,98 @@ mod test {
         .unwrap();
 
         let actual = graph.edges(0.into(), Direction::OUT).collect::<Vec<_>>();
-
         let expected = vec![(EID(0), VID(1)), (EID(1), VID(2)), (EID(2), VID(3))];
+        assert_eq!(actual, expected);
 
-        assert_eq!(actual, expected)
+        // check edges
+        let actual = graph.all_edges().collect::<Vec<_>>();
+        let expected = vec![
+            (EID(0), VID(0), VID(1)),
+            (EID(1), VID(0), VID(2)),
+            (EID(2), VID(0), VID(3)),
+            (EID(3), VID(1), VID(2)),
+            (EID(4), VID(1), VID(3)),
+            (EID(5), VID(1), VID(4)),
+            (EID(6), VID(2), VID(3)),
+            (EID(7), VID(2), VID(4)),
+            (EID(8), VID(2), VID(5)),
+            (EID(9), VID(3), VID(4)),
+            (EID(10), VID(3), VID(5)),
+            (EID(11), VID(3), VID(6)),
+        ];
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn load_muliple_sorted_edges_no_props_multiple_ts() {
+        let df = DataFrame::new(vec![
+            Series::new("src", vec![1u64, 1u64, 1u64, 2u64, 2u64, 2u64]),
+            Series::new("dst", vec![2u64, 3u64, 3u64, 3u64, 4u64, 4u64]),
+            Series::new("time", vec![0i64, 1i64, 2i64, 3i64, 4i64, 5i64]),
+        ])
+        .unwrap();
+
+        let test_dir = TempDir::new().unwrap();
+
+        let graph = TempColGraphFragment::from_sorted_edge_list(
+            df,
+            "src",
+            "dst",
+            "time",
+            100,
+            test_dir.path(),
+        )
+        .unwrap();
+
+        let actual = graph.edges(0.into(), Direction::OUT).collect::<Vec<_>>();
+        let expected = vec![(EID(0), VID(1)), (EID(1), VID(2))];
+        assert_eq!(actual, expected);
+
+        // check edges
+        let actual = graph.all_edges().collect::<Vec<_>>();
+        let expected = vec![
+            (EID(0), VID(0), VID(1)),
+            (EID(1), VID(0), VID(2)),
+            (EID(2), VID(1), VID(2)),
+            (EID(3), VID(1), VID(3)),
+        ];
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn load_muliple_sorted_edges_no_props_multiple_ts_chunks_size_1() {
+        let df = DataFrame::new(vec![
+            Series::new("src", vec![1u64, 1u64, 1u64, 2u64, 2u64, 2u64]),
+            Series::new("dst", vec![2u64, 3u64, 3u64, 3u64, 4u64, 4u64]),
+            Series::new("time", vec![0i64, 1i64, 2i64, 3i64, 4i64, 5i64]),
+        ])
+        .unwrap();
+
+        let test_dir = TempDir::new().unwrap();
+
+        let graph = TempColGraphFragment::from_sorted_edge_list(
+            df,
+            "src",
+            "dst",
+            "time",
+            1,
+            test_dir.path(),
+        )
+        .unwrap();
+
+        let actual = graph.edges(0.into(), Direction::OUT).collect::<Vec<_>>();
+        let expected = vec![(EID(0), VID(1)), (EID(1), VID(2))];
+        assert_eq!(actual, expected);
+
+        // check edges
+        let actual = graph.all_edges().collect::<Vec<_>>();
+        let expected = vec![
+            (EID(0), VID(0), VID(1)),
+            (EID(1), VID(0), VID(2)),
+            (EID(2), VID(1), VID(2)),
+            (EID(3), VID(1), VID(3)),
+        ];
+        assert_eq!(actual, expected);
     }
 
     #[test]
@@ -293,9 +408,25 @@ mod test {
         .unwrap();
 
         let actual = graph.edges(0.into(), Direction::OUT).collect::<Vec<_>>();
-
         let expected = vec![(EID(0), VID(1)), (EID(1), VID(2)), (EID(2), VID(3))];
+        assert_eq!(actual, expected);
 
-        assert_eq!(actual, expected)
+        // check edges
+        let actual = graph.all_edges().collect::<Vec<_>>();
+        let expected = vec![
+            (EID(0), VID(0), VID(1)),
+            (EID(1), VID(0), VID(2)),
+            (EID(2), VID(0), VID(3)),
+            (EID(3), VID(1), VID(2)),
+            (EID(4), VID(1), VID(3)),
+            (EID(5), VID(1), VID(4)),
+            (EID(6), VID(2), VID(3)),
+            (EID(7), VID(2), VID(4)),
+            (EID(8), VID(2), VID(5)),
+            (EID(9), VID(3), VID(4)),
+            (EID(10), VID(3), VID(5)),
+            (EID(11), VID(3), VID(6)),
+        ];
+        assert_eq!(actual, expected);
     }
 }
