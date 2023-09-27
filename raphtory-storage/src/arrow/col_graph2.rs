@@ -1,10 +1,10 @@
-use std::{path::Path, sync::Arc};
+use std::{io::BufReader, path::Path, sync::Arc};
 
 use crate::arrow::{
     edge_frame_builder::EdgeFrameBuilder, vertex_frame_builder::VertexFrameBuilder, Error,
     E_ADDITIONS_COLUMN, GID_COLUMN, INBOUND_COLUMN, OUTBOUND_COLUMN,
 };
-use arrow2::{chunk::Chunk, error::Result as ArrowResult};
+use arrow2::{chunk::Chunk, error::Result as ArrowResult, io::parquet::read};
 use itertools::Itertools;
 use polars_core::{
     error::ArrowError,
@@ -42,38 +42,132 @@ impl TempColGraphFragment {
         let dst = src_dst_frame.column(dst_col)?.u64()?;
         let time = src_dst_frame.column(time_col)?.i64()?;
 
-        let table = Self::build_tables(graph_dir, src, dst, time, chunk_size)?;
+        let src_iter = src.into_iter().flatten();
+
+        let triplets = src
+            .into_iter()
+            .flatten()
+            .zip(dst.into_iter().flatten())
+            .zip(time.into_iter().flatten())
+            .map(|((src, dst), time)| (src, dst, time));
+
+        let table = Self::build_tables(graph_dir, chunk_size, src_iter, triplets)?;
 
         Ok(table)
     }
 
+    pub fn from_sorted_parquet_edge_list<P: AsRef<Path>>(
+        parquet_file: P,
+        str_col: &str,
+        dst_col: &str,
+        time_col: &str,
+        chunk_size: usize,
+        graph_dir: P,
+    ) -> Result<Self, Error> {
+        let srcs_iter = {
+            let file = std::fs::File::open(&parquet_file)?;
+            let mut reader = BufReader::new(file);
+            let metadata = read::read_metadata(&mut reader)?;
+            let schema = read::infer_schema(&metadata)?;
+
+            let schema = schema.filter(|index, field| field.name == str_col);
+
+            let reader =
+                read::FileReader::new(reader, metadata.row_groups, schema, None, None, None);
+            reader
+                .flatten()
+                .flat_map(|chunk| {
+                    let arr = &chunk[0];
+                    arr.as_any()
+                        .downcast_ref::<PrimitiveArray<u64>>()
+                        .unwrap()
+                        .clone()
+                })
+                .flatten()
+        };
+
+        let triplets = {
+            let file = std::fs::File::open(&parquet_file)?;
+            let mut reader = BufReader::new(file);
+            let metadata = read::read_metadata(&mut reader)?;
+            let schema = read::infer_schema(&metadata)?;
+
+            let schema = schema.filter(|_, field| {
+                field.name == str_col || field.name == dst_col || field.name == time_col
+            });
+
+            let str_col_idx = schema
+                .fields
+                .iter()
+                .enumerate()
+                .find(|(_, f)| f.name == str_col)
+                .map(|(i, _)| i)
+                .unwrap();
+            let dst_col_idx = schema
+                .fields
+                .iter()
+                .enumerate()
+                .find(|(_, f)| f.name == dst_col)
+                .map(|(i, _)| i)
+                .unwrap();
+            let time_col_idx = schema
+                .fields
+                .iter()
+                .enumerate()
+                .find(|(_, f)| f.name == time_col)
+                .map(|(i, _)| i)
+                .unwrap();
+
+            let reader =
+                read::FileReader::new(reader, metadata.row_groups, schema, None, None, None);
+            reader.flatten().flat_map(move |chunk| {
+                let arr = &chunk[str_col_idx];
+                let srcs = arr
+                    .as_any()
+                    .downcast_ref::<PrimitiveArray<u64>>()
+                    .unwrap()
+                    .clone();
+
+                let arr = &chunk[dst_col_idx];
+                let dsts = arr
+                    .as_any()
+                    .downcast_ref::<PrimitiveArray<u64>>()
+                    .unwrap()
+                    .clone();
+                let arr = &chunk[time_col_idx];
+                let times = arr
+                    .as_any()
+                    .downcast_ref::<PrimitiveArray<i64>>()
+                    .unwrap()
+                    .clone();
+                srcs.into_iter()
+                    .flatten()
+                    .zip(dsts.into_iter().flatten())
+                    .zip(times.into_iter().flatten())
+                    .map(|((src, dst), time)| (src, dst, time))
+            })
+        };
+
+        let out = Self::build_tables(graph_dir, chunk_size, srcs_iter, triplets)?;
+        Ok(out)
+    }
+
     fn build_tables<P: AsRef<Path>>(
         base_dir: P,
-        srcs: &ChunkedArray<UInt64Type>,
-        dsts: &ChunkedArray<UInt64Type>,
-        times: &ChunkedArray<Int64Type>,
         chunk_size: usize,
+        source_iter: impl Iterator<Item = u64>,
+        tuples_iter: impl Iterator<Item = (u64, u64, i64)>,
     ) -> ArrowResult<Self> {
         let mut vf_builder = VertexFrameBuilder::new(chunk_size, &base_dir);
         let mut edge_builder = EdgeFrameBuilder::new(chunk_size, &base_dir);
 
         // initialise vertex global id table to preserve order
-        for chunk in srcs.chunks() {
-            let arr = chunk
-                .as_any()
-                .downcast_ref::<PrimitiveArray<u64>>()
-                .unwrap();
-            for v in arr.values().iter() {
-                vf_builder.push_source(*v)
-            }
+        for v in source_iter {
+            vf_builder.push_source(v)
         }
+
         // g_id, [{v_id1, e_id1}, {v_id2, e_id2}, ...]
-        for ((src, dst), time) in srcs
-            .into_iter()
-            .flatten()
-            .zip(dsts.into_iter().flatten())
-            .zip(times.into_iter().flatten())
-        {
+        for (src, dst, time) in tuples_iter {
             let (src_id, dst_id) = vf_builder.push_update(src, dst)?;
             edge_builder.push_update(time, src_id, dst_id)?;
         }
@@ -237,7 +331,6 @@ mod test {
         let actual = graph.all_edges().collect::<Vec<_>>();
         let expected = vec![(EID(0), VID(0), VID(1))];
         assert_eq!(actual, expected)
-
     }
 
     #[test]
