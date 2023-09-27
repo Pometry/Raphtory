@@ -199,6 +199,12 @@ impl TempColGraphFragment {
         })
     }
 
+    pub fn num_vertices(&self) -> usize {
+        self.adj_out_chunks.iter().map(|chunk|{
+            chunk[0].len()
+        }).sum()
+    }
+
     pub fn edges(
         &self,
         vertex_id: VID,
