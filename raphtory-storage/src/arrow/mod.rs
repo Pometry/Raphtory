@@ -26,6 +26,8 @@ pub enum Error {
     Polars(#[from] PolarsError),
     #[error("Arrow error: {0}")]
     Arrow(#[from] ArrowError),
+    #[error("IO error: {0}")]
+    IO(#[from] std::io::Error),
 }
 
 const FRAGMENT_ROW_COUNT: usize = 100_000;
