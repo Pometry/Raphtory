@@ -15,7 +15,7 @@ use raphtory::{
     prelude::{GraphViewOps, Prop},
 };
 
-pub(crate) mod col_graph2;
+pub mod col_graph2;
 pub(crate) mod columnar_graph;
 pub(crate) mod edge_frame_builder;
 pub(crate) mod mmap;

@@ -1,8 +1,7 @@
-use std::{io::BufReader, path::Path, sync::Arc};
+use std::{io::BufReader, path::Path};
 
 use crate::arrow::{
     edge_frame_builder::EdgeFrameBuilder, vertex_frame_builder::VertexFrameBuilder, Error,
-    E_ADDITIONS_COLUMN, GID_COLUMN, INBOUND_COLUMN, OUTBOUND_COLUMN,
 };
 use arrow2::{
     array::Utf8Array, chunk::Chunk, datatypes::DataType, error::Result as ArrowResult,
@@ -10,12 +9,8 @@ use arrow2::{
 };
 use itertools::Itertools;
 use polars_core::{
-    error::ArrowError,
     frame::DataFrame,
-    utils::arrow::{
-        array::{Array, ListArray, PrimitiveArray, StructArray},
-        offset::Offsets,
-    },
+    utils::arrow::array::{Array, ListArray, PrimitiveArray, StructArray},
 };
 use raphtory::core::{
     entities::{vertices::input_vertex::InputVertex, EID, VID},
@@ -204,7 +199,11 @@ impl TempColGraphFragment {
         })
     }
 
-    fn edges(&self, vertex_id: VID, dir: Direction) -> Box<dyn Iterator<Item = (EID, VID)> + Send> {
+    pub fn edges(
+        &self,
+        vertex_id: VID,
+        dir: Direction,
+    ) -> Box<dyn Iterator<Item = (EID, VID)> + Send> {
         match dir {
             Direction::IN | Direction::OUT => {
                 let adj_array = self.adj_list(vertex_id.into(), dir);
@@ -238,7 +237,7 @@ impl TempColGraphFragment {
         }
     }
 
-    fn all_edges(&self) -> impl Iterator<Item = (EID, VID, VID)> + '_ {
+    pub fn all_edges(&self) -> impl Iterator<Item = (EID, VID, VID)> + '_ {
         self.edge_chunks
             .iter()
             .flat_map(|chunk| {
@@ -259,33 +258,30 @@ impl TempColGraphFragment {
     }
 
     fn adj_list(&self, vertex_id: usize, dir: Direction) -> Option<StructArray> {
-        let row: usize = vertex_id.into();
-
         let chunks = match dir {
             Direction::OUT => self.outbound(),
             Direction::IN => self.inbound(),
             Direction::BOTH => return None,
         };
 
-        let chunk_size = chunks[0].len(); // we assume all the chunks are the same size
+        let chunk_size = self.chunk_size; // we assume all the chunks are the same size
 
-        let chunk_idx = row / chunk_size;
-        let idx = row % chunk_size;
+        let chunk_idx = vertex_id / chunk_size;
+        let idx = vertex_id % chunk_size;
 
-        let arr = chunks
-            .get(chunk_idx)?
+        let arr = chunks.get(chunk_idx)?[0]
             .as_any()
             .downcast_ref::<ListArray<i64>>()?;
-        let arr = arr.value(idx);
+        let arr = (idx < arr.len()).then(|| arr.value(idx))?;
         let adj_list = arr.as_any().downcast_ref::<StructArray>()?;
         Some(adj_list.clone())
     }
 
-    fn outbound(&self) -> Vec<Box<dyn Array>> {
-        self.adj_out_chunks.iter().map(|c| c[0].clone()).collect() // FIXME: don't collect here
+    fn outbound(&self) -> &Vec<Chunk<Box<dyn Array>>> {
+        &self.adj_out_chunks
     }
 
-    fn inbound(&self) -> Vec<Box<dyn Array>> {
+    fn inbound(&self) -> &Vec<Chunk<Box<dyn Array>>> {
         todo!("inbound not done yet")
     }
 }
@@ -302,7 +298,7 @@ mod test {
 
         let test_dir = TempDir::new().unwrap();
 
-        TempColGraphFragment::from_sorted_parquet_edge_list(
+        let g = TempColGraphFragment::from_sorted_parquet_edge_list(
             file,
             "source",
             "destination",
@@ -311,6 +307,8 @@ mod test {
             test_dir.path(),
         )
         .unwrap();
+
+        println!("{:?}", g)
     }
 
     #[test]

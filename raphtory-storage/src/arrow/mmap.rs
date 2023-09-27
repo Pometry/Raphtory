@@ -1,7 +1,7 @@
 use arrow2::{
-    array::{Array, Int32Array, Utf8Array},
+    array::Array,
     chunk::Chunk,
-    datatypes::{DataType, Field, Schema},
+    datatypes::Schema,
     error::Result,
     io::ipc::{read, write},
     mmap::{mmap_dictionaries_unchecked, mmap_unchecked},
