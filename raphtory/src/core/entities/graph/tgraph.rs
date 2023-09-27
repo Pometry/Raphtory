@@ -379,7 +379,7 @@ impl<const N: usize> TemporalGraph<N> {
         }
         Ok(())
     }
-    
+
     pub(crate) fn add_properties(
         &self,
         t: TimeIndexEntry,

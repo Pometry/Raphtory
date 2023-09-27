@@ -19,7 +19,10 @@ pub trait PropertyAdditionOps {
     ) -> Result<(), GraphError>;
 
     fn add_constant_properties<PI: CollectProperties>(&self, props: PI) -> Result<(), GraphError>;
-    fn update_constant_properties<PI: CollectProperties>(&self, props: PI) -> Result<(), GraphError>;
+    fn update_constant_properties<PI: CollectProperties>(
+        &self,
+        props: PI,
+    ) -> Result<(), GraphError>;
 }
 
 impl<G: InternalPropertyAdditionOps + InternalAdditionOps> PropertyAdditionOps for G {
@@ -44,7 +47,10 @@ impl<G: InternalPropertyAdditionOps + InternalAdditionOps> PropertyAdditionOps f
         self.internal_add_static_properties(properties)
     }
 
-    fn update_constant_properties<PI: CollectProperties>(&self, props: PI) -> Result<(), GraphError> {
+    fn update_constant_properties<PI: CollectProperties>(
+        &self,
+        props: PI,
+    ) -> Result<(), GraphError> {
         let properties: Vec<_> = props.collect_properties(
             |name, _| Ok(self.resolve_graph_property(name, true)),
             |prop| self.process_prop_value(prop),

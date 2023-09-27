@@ -19,8 +19,11 @@ pub trait InternalPropertyAdditionOps {
     ) -> Result<(), GraphError>;
 
     fn internal_add_static_properties(&self, props: Vec<(usize, Prop)>) -> Result<(), GraphError>;
-    
-    fn internal_update_static_properties(&self, props: Vec<(usize, Prop)>) -> Result<(), GraphError>;
+
+    fn internal_update_static_properties(
+        &self,
+        props: Vec<(usize, Prop)>,
+    ) -> Result<(), GraphError>;
 
     fn internal_add_constant_vertex_properties(
         &self,
@@ -71,10 +74,13 @@ impl<G: DelegatePropertyAdditionOps> InternalPropertyAdditionOps for G {
     }
 
     #[inline(always)]
-    fn internal_update_static_properties(&self, props: Vec<(usize, Prop)>) -> Result<(), GraphError> {
+    fn internal_update_static_properties(
+        &self,
+        props: Vec<(usize, Prop)>,
+    ) -> Result<(), GraphError> {
         self.graph().internal_update_static_properties(props)
     }
-    
+
     #[inline]
     fn internal_add_constant_vertex_properties(
         &self,
