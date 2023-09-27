@@ -4,16 +4,13 @@ use crate::arrow::{
     edge_frame_builder::EdgeFrameBuilder, vertex_frame_builder::VertexFrameBuilder, Error,
     E_ADDITIONS_COLUMN, GID_COLUMN, INBOUND_COLUMN, OUTBOUND_COLUMN,
 };
-use arrow2::error::Result as ArrowResult;
+use arrow2::{chunk::Chunk, error::Result as ArrowResult};
 use itertools::Itertools;
 use polars_core::{
     error::ArrowError,
     prelude::*,
     utils::arrow::{
-        array::{
-            Array, ListArray, MutableArray, MutableListArray, MutablePrimitiveArray,
-            PrimitiveArray, StructArray,
-        },
+        array::{Array, ListArray, PrimitiveArray, StructArray},
         offset::Offsets,
     },
 };
@@ -22,13 +19,74 @@ use raphtory::core::{
     Direction,
 };
 
+pub type Time = i64;
+
 #[derive(Debug)]
-struct TempColGraphFragment {
-    edge_df: DataFrame,
-    vertex_df: DataFrame,
+pub struct TempColGraphFragment {
+    chunk_size: usize,
+    sorted_gids: Vec<u64>,
+    adj_out_chunks: Vec<Chunk<Box<dyn Array>>>,
+    edge_chunks: Vec<Chunk<Box<dyn Array>>>,
 }
 
 impl TempColGraphFragment {
+    pub fn from_sorted_edge_list<P: AsRef<Path>>(
+        src_dst_frame: DataFrame, // sorted_by (src, dst, time)
+        src_col: &str,
+        dst_col: &str,
+        time_col: &str,
+        chunk_size: usize,
+        graph_dir: P,
+    ) -> Result<Self, Error> {
+        let src = src_dst_frame.column(src_col)?.u64()?;
+        let dst = src_dst_frame.column(dst_col)?.u64()?;
+        let time = src_dst_frame.column(time_col)?.i64()?;
+
+        let table = Self::build_tables(graph_dir, src, dst, time, chunk_size)?;
+
+        Ok(table)
+    }
+
+    fn build_tables<P: AsRef<Path>>(
+        base_dir: P,
+        srcs: &ChunkedArray<UInt64Type>,
+        dsts: &ChunkedArray<UInt64Type>,
+        times: &ChunkedArray<Int64Type>,
+        chunk_size: usize,
+    ) -> ArrowResult<Self> {
+        let mut vf_builder = VertexFrameBuilder::new(chunk_size, &base_dir);
+        let mut edge_builder = EdgeFrameBuilder::new(chunk_size, &base_dir);
+
+        // initialise vertex global id table to preserve order
+        for chunk in srcs.chunks() {
+            let arr = chunk
+                .as_any()
+                .downcast_ref::<PrimitiveArray<u64>>()
+                .unwrap();
+            for v in arr.values().iter() {
+                vf_builder.push_source(*v)
+            }
+        }
+        // g_id, [{v_id1, e_id1}, {v_id2, e_id2}, ...]
+        for ((src, dst), time) in srcs
+            .into_iter()
+            .flatten()
+            .zip(dsts.into_iter().flatten())
+            .zip(times.into_iter().flatten())
+        {
+            let (src_id, dst_id) = vf_builder.push_update(src, dst)?;
+            edge_builder.push_update(time, src_id, dst_id)?;
+        }
+        vf_builder.finalise_empty_chunks()?;
+        edge_builder.finalise()?;
+        Ok(TempColGraphFragment {
+            chunk_size,
+            sorted_gids: vf_builder.sorted_gids,
+            adj_out_chunks: vf_builder.adj_out_chunks,
+            edge_chunks: edge_builder.edge_chunks,
+        })
+    }
+
     fn edges(&self, vertex_id: VID, dir: Direction) -> Box<dyn Iterator<Item = (EID, VID)> + Send> {
         match dir {
             Direction::IN | Direction::OUT => {
@@ -67,8 +125,8 @@ impl TempColGraphFragment {
         let row: usize = vertex_id.into();
 
         let chunks = match dir {
-            Direction::OUT => self.outbound().chunks(),
-            Direction::IN => self.inbound().chunks(),
+            Direction::OUT => self.outbound(),
+            Direction::IN => self.inbound(),
             Direction::BOTH => return None,
         };
 
@@ -86,126 +144,12 @@ impl TempColGraphFragment {
         Some(adj_list.clone())
     }
 
-    fn outbound(&self) -> &ChunkedArray<ListType> {
-        self.vertex_df
-            .column(OUTBOUND_COLUMN)
-            .unwrap()
-            .as_any()
-            .downcast_ref::<ChunkedArray<ListType>>()
-            .expect("unexpected error, should be able to downcast, contact maintainers!")
+    fn outbound(&self) -> Vec<Box<dyn Array>> {
+        self.adj_out_chunks.iter().map(|c| c[0].clone()).collect() // FIXME: don't collect here
     }
 
-    fn inbound(&self) -> &ChunkedArray<ListType> {
-        self.vertex_df
-            .column(INBOUND_COLUMN)
-            .unwrap()
-            .as_any()
-            .downcast_ref::<ChunkedArray<ListType>>()
-            .expect("unexpected error, should be able to downcast, contact maintainers!")
-    }
-}
-
-struct TempColGraph {
-    fragments: Arc<[TempColGraphFragment]>,
-}
-
-pub type Time = i64;
-
-#[derive(Debug)]
-pub struct SparseTable {
-    chunk_size: usize,
-    sorted_gids: Vec<u64>,
-    adj_out_chunks: Vec<Box<dyn Array>>,
-    edge_chunks: Vec<Box<dyn Array>>,
-}
-
-impl SparseTable {
-    fn into_graph(self) -> TempColGraphFragment {
-        let outbound: ChunkedArray<ListType> =
-            unsafe { ChunkedArray::from_chunks(OUTBOUND_COLUMN, self.adj_out_chunks) };
-
-        let vertex_gid_col = Series::new(GID_COLUMN, self.sorted_gids);
-        let vertex_df = DataFrame::new(vec![vertex_gid_col, outbound.into_series()]).unwrap();
-
-        let values = MutablePrimitiveArray::from_vec(
-            self.time_col.i64().unwrap().into_iter().flatten().collect(),
-        );
-
-        let edge_timestamps = MutableListArray::new_from_mutable(
-            values,
-            Offsets::try_from(self.edge_time_offsets).unwrap(),
-            None,
-        );
-
-        let edge_timestamps: ListArray<i64> = edge_timestamps.into();
-
-        let edges_timestamps: ChunkedArray<ListType> = unsafe {
-            ChunkedArray::from_chunks(E_ADDITIONS_COLUMN, vec![Box::new(edge_timestamps)])
-        };
-
-        let edge_df = DataFrame::new(vec![edges_timestamps.into_series()]).unwrap();
-
-        TempColGraphFragment { vertex_df, edge_df }
-    }
-}
-
-impl TempColGraph {
-    pub fn from_sorted_edge_list<P: AsRef<Path>>(
-        src_dst_frame: DataFrame, // sorted_by (src, dst, time)
-        src_col: &str,
-        dst_col: &str,
-        time_col: &str,
-        graph_dir: P,
-    ) -> Result<Self, Error> {
-        let src = src_dst_frame.column(src_col)?.u64()?;
-        let dst = src_dst_frame.column(dst_col)?.u64()?;
-        let time = src_dst_frame.column(time_col)?.i64()?;
-
-        let sprs_table = Self::build_tables(graph_dir, src, dst, time, 100)?;
-
-        Ok(Self {
-            fragments: Arc::new([sprs_table.into_graph()]),
-        })
-    }
-
-    pub fn build_tables<P: AsRef<Path>>(
-        base_dir: P,
-        srcs: &ChunkedArray<UInt64Type>,
-        dsts: &ChunkedArray<UInt64Type>,
-        times: &ChunkedArray<Int64Type>,
-        chunk_size: usize,
-    ) -> ArrowResult<SparseTable> {
-        let mut vf_builder = VertexFrameBuilder::new(chunk_size, &base_dir);
-        let mut edge_builder = EdgeFrameBuilder::new(chunk_size, &base_dir);
-
-        // initialise vertex global id table to preserve order
-        for chunk in srcs.chunks() {
-            let arr = chunk
-                .as_any()
-                .downcast_ref::<PrimitiveArray<u64>>()
-                .unwrap();
-            for v in arr.values().iter() {
-                vf_builder.push_source(*v)
-            }
-        }
-        // g_id, [{v_id1, e_id1}, {v_id2, e_id2}, ...]
-        for (event_id, ((src, dst), time)) in srcs
-            .into_iter()
-            .flatten()
-            .zip(dsts.into_iter().flatten())
-            .zip(times.into_iter().flatten())
-            .enumerate()
-        {
-            let (src_id, dst_id) = vf_builder.push_update(src, dst)?;
-            edge_builder.push_update(time, src_id, dst_id)?;
-        }
-        vf_builder.finalise_empty_chunks()?;
-        edge_builder.finalise()?;
-        Ok(SparseTable {
-            sorted_gids: vf_builder.sorted_gids,
-            adj_out_chunks: vf_builder.adj_out_chunks,
-            edge_chunks: edge_builder.edge_chunks,
-        })
+    fn inbound(&self) -> Vec<Box<dyn Array>> {
+        todo!("inbound not done yet")
     }
 }
 
@@ -224,12 +168,15 @@ mod test {
         .unwrap();
         let test_dir = TempDir::new().unwrap();
 
-        let src = df.column("src").unwrap().u64().unwrap();
-        let dst = df.column("dst").unwrap().u64().unwrap();
-        let time = df.column("time").unwrap().i64().unwrap();
-
-        let res = TempColGraph::build_tables(test_dir.path(), src, dst, time, 100).unwrap();
-        let graph = res.into_graph();
+        let graph = TempColGraphFragment::from_sorted_edge_list(
+            df,
+            "src",
+            "dst",
+            "time",
+            100,
+            test_dir.path(),
+        )
+        .unwrap();
 
         let actual = graph.edges(0.into(), Direction::OUT).collect::<Vec<_>>();
 
@@ -249,12 +196,15 @@ mod test {
 
         let test_dir = TempDir::new().unwrap();
 
-        let src = df.column("src").unwrap().u64().unwrap();
-        let dst = df.column("dst").unwrap().u64().unwrap();
-        let time = df.column("time").unwrap().i64().unwrap();
-
-        let res = TempColGraph::build_tables(test_dir.path(), src, dst, time, 100).unwrap();
-        let graph = res.into_graph();
+        let graph = TempColGraphFragment::from_sorted_edge_list(
+            df,
+            "src",
+            "dst",
+            "time",
+            100,
+            test_dir.path(),
+        )
+        .unwrap();
 
         let actual = graph.edges(0.into(), Direction::OUT).collect::<Vec<_>>();
 
@@ -289,13 +239,15 @@ mod test {
 
         let test_dir = TempDir::new().unwrap();
 
-        let src = df.column("src").unwrap().u64().unwrap();
-        let dst = df.column("dst").unwrap().u64().unwrap();
-        let time = df.column("time").unwrap().i64().unwrap();
-
-        let res = TempColGraph::build_tables(test_dir.path(), src, dst, time, 100).unwrap();
-
-        let graph = res.into_graph();
+        let graph = TempColGraphFragment::from_sorted_edge_list(
+            df,
+            "src",
+            "dst",
+            "time",
+            100,
+            test_dir.path(),
+        )
+        .unwrap();
 
         let actual = graph.edges(0.into(), Direction::OUT).collect::<Vec<_>>();
 
@@ -330,12 +282,15 @@ mod test {
 
         let test_dir = TempDir::new().unwrap();
 
-        let src = df.column("src").unwrap().u64().unwrap();
-        let dst = df.column("dst").unwrap().u64().unwrap();
-        let time = df.column("time").unwrap().i64().unwrap();
-
-        let res = TempColGraph::build_tables(test_dir.path(), src, dst, time, 2).unwrap();
-        let graph = res.into_graph();
+        let graph = TempColGraphFragment::from_sorted_edge_list(
+            df,
+            "src",
+            "dst",
+            "time",
+            2,
+            test_dir.path(),
+        )
+        .unwrap();
 
         let actual = graph.edges(0.into(), Direction::OUT).collect::<Vec<_>>();
 

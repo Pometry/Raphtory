@@ -6,13 +6,13 @@ use arrow2::{
     array::{Array, ListArray, MutableListArray, MutablePrimitiveArray, MutableStructArray},
     datatypes::{DataType as ArrowDataType, Field as ArrowField, Schema as ArrowSchema},
     error::Result as ArrowResult,
-    offset::Offsets,
+    offset::Offsets, chunk::Chunk,
 };
 use polars_core::frame::ArrowChunk;
 use std::path::{Path, PathBuf};
 
 pub struct VertexFrameBuilder {
-    pub(crate) adj_out_chunks: Vec<Box<dyn Array>>, // chunks for the adjacency list, these are ListArrays with a struct {eid, vid}
+    pub(crate) adj_out_chunks: Vec<Chunk<Box<dyn Array>>>, // chunks for the adjacency list, these are ListArrays with a struct {eid, vid}
     pub(crate) sorted_gids: Vec<u64>,               // the sorted global ids of the vertices
 
     adj_out_dst: Vec<u64>, // the dst of the adjacency list for the current chunk
@@ -75,8 +75,7 @@ impl VertexFrameBuilder {
         let chunk = [ArrowChunk::try_new(vec![col])?];
         write_batches(file_path.as_path(), schema, &chunk)?;
         let mmapped_chunk = unsafe { mmap_batches(file_path.as_path(), 0)? };
-        let mmapped_adj = mmapped_chunk[0].clone();
-        self.adj_out_chunks.push(mmapped_adj);
+        self.adj_out_chunks.push(mmapped_chunk);
         Ok(())
     }
 
