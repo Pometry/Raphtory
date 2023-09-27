@@ -21,6 +21,10 @@ impl<const N: usize> InternalPropertyAdditionOps for InnerTemporalGraph<N> {
         self.inner().add_constant_properties(props)
     }
 
+    fn internal_update_static_properties(&self, props: Vec<(usize, Prop)>) -> Result<(), GraphError> {
+        self.inner().update_constant_properties(props)
+    }
+
     fn internal_add_constant_vertex_properties(
         &self,
         vid: VID,
