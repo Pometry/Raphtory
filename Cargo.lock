@@ -3459,6 +3459,7 @@ dependencies = [
 name = "raphtory-storage"
 version = "0.5.7"
 dependencies = [
+ "ahash",
  "arrow2 0.18.0",
  "heed",
  "itertools 0.11.0",

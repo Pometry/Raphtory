@@ -4,7 +4,7 @@ use crate::arrow::{
     edge_frame_builder::EdgeFrameBuilder, vertex_frame_builder::VertexFrameBuilder, Error,
     E_ADDITIONS_COLUMN, GID_COLUMN, INBOUND_COLUMN, OUTBOUND_COLUMN,
 };
-use arrow2::{chunk::Chunk, error::Result as ArrowResult, io::parquet::read};
+use arrow2::{array::Utf8Array, chunk::Chunk, error::Result as ArrowResult, io::parquet::read};
 use itertools::Itertools;
 use polars_core::{
     error::ArrowError,
@@ -15,7 +15,7 @@ use polars_core::{
     },
 };
 use raphtory::core::{
-    entities::{EID, VID},
+    entities::{vertices::input_vertex::InputVertex, EID, VID},
     Direction,
 };
 
@@ -24,7 +24,7 @@ pub type Time = i64;
 #[derive(Debug)]
 pub struct TempColGraphFragment {
     chunk_size: usize,
-    sorted_gids: Vec<u64>,
+    // sorted_gids: Vec<u64>,
     adj_out_chunks: Vec<Chunk<Box<dyn Array>>>,
     edge_chunks: Vec<Chunk<Box<dyn Array>>>,
 }
@@ -56,13 +56,13 @@ impl TempColGraphFragment {
         Ok(table)
     }
 
-    pub fn from_sorted_parquet_edge_list<P: AsRef<Path>>(
+    pub fn from_sorted_parquet_edge_list<P: AsRef<Path>, P2: AsRef<Path>>(
         parquet_file: P,
         str_col: &str,
         dst_col: &str,
         time_col: &str,
         chunk_size: usize,
-        graph_dir: P,
+        graph_dir: P2,
     ) -> Result<Self, Error> {
         let srcs_iter = {
             let file = std::fs::File::open(&parquet_file)?;
@@ -70,20 +70,18 @@ impl TempColGraphFragment {
             let metadata = read::read_metadata(&mut reader)?;
             let schema = read::infer_schema(&metadata)?;
 
-            let schema = schema.filter(|index, field| field.name == str_col);
+            let schema = schema.filter(|_, field| field.name == str_col);
 
             let reader =
                 read::FileReader::new(reader, metadata.row_groups, schema, None, None, None);
-            reader
-                .flatten()
-                .flat_map(|chunk| {
-                    let arr = &chunk[0];
-                    arr.as_any()
-                        .downcast_ref::<PrimitiveArray<u64>>()
-                        .unwrap()
-                        .clone()
-                })
-                .flatten()
+            reader.flatten().flat_map(|chunk| {
+                let chunk_sources = (&chunk[0])
+                    .as_any()
+                    .downcast_ref::<Utf8Array<i64>>()
+                    .unwrap()
+                    .clone();
+                (0..chunk_sources.len()).map(move |i| unsafe {chunk_sources.value_unchecked(i)}.id())
+            })
         };
 
         let triplets = {
@@ -121,12 +119,19 @@ impl TempColGraphFragment {
             let reader =
                 read::FileReader::new(reader, metadata.row_groups, schema, None, None, None);
             reader.flatten().flat_map(move |chunk| {
-                let arr = &chunk[str_col_idx];
-                let srcs = arr
+                // let arr = &chunk[str_col_idx];
+                // let srcs = arr
+                //     .as_any()
+                //     .downcast_ref::<PrimitiveArray<u64>>()
+                //     .unwrap()
+                //     .clone();
+
+                let srcs = (&chunk[str_col_idx])
                     .as_any()
-                    .downcast_ref::<PrimitiveArray<u64>>()
+                    .downcast_ref::<Utf8Array<i64>>()
                     .unwrap()
                     .clone();
+                let srcs = (0..srcs.len()).map(move |i| srcs.value(i).id());
 
                 let arr = &chunk[dst_col_idx];
                 let dsts = arr
@@ -162,9 +167,7 @@ impl TempColGraphFragment {
         let mut edge_builder = EdgeFrameBuilder::new(chunk_size, &base_dir);
 
         // initialise vertex global id table to preserve order
-        for v in source_iter {
-            vf_builder.push_source(v)
-        }
+        vf_builder.load_sources(source_iter);
 
         // g_id, [{v_id1, e_id1}, {v_id2, e_id2}, ...]
         for (src, dst, time) in tuples_iter {
@@ -175,7 +178,7 @@ impl TempColGraphFragment {
         edge_builder.finalise()?;
         Ok(TempColGraphFragment {
             chunk_size,
-            sorted_gids: vf_builder.sorted_gids,
+            // sorted_gids: vf_builder.sorted_gids,
             adj_out_chunks: vf_builder.adj_out_chunks,
             edge_chunks: edge_builder.edge_chunks,
         })
@@ -271,6 +274,23 @@ impl TempColGraphFragment {
 mod test {
     use super::*;
     use tempfile::TempDir;
+
+    #[test]
+    fn load_from_parquet() {
+        let file = "/mnt/work/pometry/netflow_5_rows/part-00000-b406cce6-7ed0-4efb-883d-e6766f36d8cf-c000.snappy.parquet";
+
+        let test_dir = TempDir::new().unwrap();
+
+        TempColGraphFragment::from_sorted_parquet_edge_list(
+            file,
+            "source",
+            "destination",
+            "time",
+            5,
+            test_dir.path(),
+        )
+        .unwrap();
+    }
 
     #[test]
     fn load_one_edge_from_sorted_adj_list_num_vertices_no_props() {
