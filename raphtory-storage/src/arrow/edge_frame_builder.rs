@@ -92,7 +92,7 @@ impl EdgeFrameBuilder {
             .is_some()
             || self.last_update.is_none()
         {
-            if (self.edge_count + 1) % self.chunk_size == 0 && self.last_update.is_some(){
+            if (self.edge_count + 1) % self.chunk_size == 0 && self.last_update.is_some() {
                 self.push_chunk()?;
             }
             self.edge_src_id.push(src);

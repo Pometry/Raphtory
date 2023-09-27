@@ -4,11 +4,14 @@ use crate::arrow::{
     edge_frame_builder::EdgeFrameBuilder, vertex_frame_builder::VertexFrameBuilder, Error,
     E_ADDITIONS_COLUMN, GID_COLUMN, INBOUND_COLUMN, OUTBOUND_COLUMN,
 };
-use arrow2::{array::Utf8Array, chunk::Chunk, error::Result as ArrowResult, io::parquet::read};
+use arrow2::{
+    array::Utf8Array, chunk::Chunk, datatypes::DataType, error::Result as ArrowResult,
+    io::parquet::read,
+};
 use itertools::Itertools;
 use polars_core::{
     error::ArrowError,
-    prelude::*,
+    frame::DataFrame,
     utils::arrow::{
         array::{Array, ListArray, PrimitiveArray, StructArray},
         offset::Offsets,
@@ -27,6 +30,40 @@ pub struct TempColGraphFragment {
     // sorted_gids: Vec<u64>,
     adj_out_chunks: Vec<Chunk<Box<dyn Array>>>,
     edge_chunks: Vec<Chunk<Box<dyn Array>>>,
+}
+
+fn array_as_id_iter(array: &Box<dyn Array>) -> Result<Box<dyn Iterator<Item = u64>>, Error> {
+    match array.data_type() {
+        DataType::UInt64 => {
+            let array = array
+                .as_any()
+                .downcast_ref::<PrimitiveArray<u64>>()
+                .unwrap()
+                .clone();
+            Ok(Box::new(array.into_iter().flatten()))
+        }
+        DataType::Utf8 => {
+            let array = array
+                .as_any()
+                .downcast_ref::<Utf8Array<i32>>()
+                .unwrap()
+                .clone();
+            Ok(Box::new(
+                (0..array.len()).map(move |i| unsafe { array.value_unchecked(i) }.id()),
+            ))
+        }
+        DataType::LargeUtf8 => {
+            let array = array
+                .as_any()
+                .downcast_ref::<Utf8Array<i64>>()
+                .unwrap()
+                .clone();
+            Ok(Box::new(
+                (0..array.len()).map(move |i| unsafe { array.value_unchecked(i) }.id()),
+            ))
+        }
+        v => Err(Error::DType(v.clone())),
+    }
 }
 
 impl TempColGraphFragment {
@@ -58,7 +95,7 @@ impl TempColGraphFragment {
 
     pub fn from_sorted_parquet_edge_list<P: AsRef<Path>, P2: AsRef<Path>>(
         parquet_file: P,
-        str_col: &str,
+        src_col: &str,
         dst_col: &str,
         time_col: &str,
         chunk_size: usize,
@@ -70,18 +107,13 @@ impl TempColGraphFragment {
             let metadata = read::read_metadata(&mut reader)?;
             let schema = read::infer_schema(&metadata)?;
 
-            let schema = schema.filter(|_, field| field.name == str_col);
+            let schema = schema.filter(|_, field| field.name == src_col);
 
             let reader =
                 read::FileReader::new(reader, metadata.row_groups, schema, None, None, None);
-            reader.flatten().flat_map(|chunk| {
-                let chunk_sources = (&chunk[0])
-                    .as_any()
-                    .downcast_ref::<Utf8Array<i64>>()
-                    .unwrap()
-                    .clone();
-                (0..chunk_sources.len()).map(move |i| unsafe {chunk_sources.value_unchecked(i)}.id())
-            })
+            reader
+                .flatten()
+                .flat_map(|chunk| array_as_id_iter(&chunk[0]).unwrap())
         };
 
         let triplets = {
@@ -91,14 +123,14 @@ impl TempColGraphFragment {
             let schema = read::infer_schema(&metadata)?;
 
             let schema = schema.filter(|_, field| {
-                field.name == str_col || field.name == dst_col || field.name == time_col
+                field.name == src_col || field.name == dst_col || field.name == time_col
             });
 
-            let str_col_idx = schema
+            let src_col_idx = schema
                 .fields
                 .iter()
                 .enumerate()
-                .find(|(_, f)| f.name == str_col)
+                .find(|(_, f)| f.name == src_col)
                 .map(|(i, _)| i)
                 .unwrap();
             let dst_col_idx = schema
@@ -126,28 +158,16 @@ impl TempColGraphFragment {
                 //     .unwrap()
                 //     .clone();
 
-                let srcs = (&chunk[str_col_idx])
-                    .as_any()
-                    .downcast_ref::<Utf8Array<i64>>()
-                    .unwrap()
-                    .clone();
-                let srcs = (0..srcs.len()).map(move |i| srcs.value(i).id());
+                let srcs = array_as_id_iter(&chunk[src_col_idx]).unwrap();
+                let dsts = array_as_id_iter(&chunk[dst_col_idx]).unwrap();
 
-                let arr = &chunk[dst_col_idx];
-                let dsts = arr
-                    .as_any()
-                    .downcast_ref::<PrimitiveArray<u64>>()
-                    .unwrap()
-                    .clone();
                 let arr = &chunk[time_col_idx];
                 let times = arr
                     .as_any()
                     .downcast_ref::<PrimitiveArray<i64>>()
                     .unwrap()
                     .clone();
-                srcs.into_iter()
-                    .flatten()
-                    .zip(dsts.into_iter().flatten())
+                srcs.zip(dsts)
                     .zip(times.into_iter().flatten())
                     .map(|((src, dst), time)| (src, dst, time))
             })
@@ -273,11 +293,12 @@ impl TempColGraphFragment {
 #[cfg(test)]
 mod test {
     use super::*;
+    use polars_core::{prelude::NamedFrom, series::Series};
     use tempfile::TempDir;
 
     #[test]
     fn load_from_parquet() {
-        let file = "/mnt/work/pometry/netflow_5_rows/part-00000-b406cce6-7ed0-4efb-883d-e6766f36d8cf-c000.snappy.parquet";
+        let file = "part-00000-b406cce6-7ed0-4efb-883d-e6766f36d8cf-c000.snappy.parquet";
 
         let test_dir = TempDir::new().unwrap();
 

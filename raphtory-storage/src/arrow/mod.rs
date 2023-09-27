@@ -1,3 +1,4 @@
+use arrow2::datatypes::DataType;
 use itertools::{EitherOrBoth, Itertools};
 use polars_core::{
     error::{ArrowError, PolarsError},
@@ -28,6 +29,8 @@ pub enum Error {
     Arrow(#[from] ArrowError),
     #[error("IO error: {0}")]
     IO(#[from] std::io::Error),
+    #[error("Bad data type for vertex column: {0:?}")]
+    DType(DataType),
 }
 
 const FRAGMENT_ROW_COUNT: usize = 100_000;
