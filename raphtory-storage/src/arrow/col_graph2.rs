@@ -140,11 +140,7 @@ type Time = i64;
 #[derive(Debug)]
 pub struct SparseTable {
     sorted_gids: Vec<u64>,
-
-    adj_out_dst_chunks: Vec<Vec<u64>>,
-    adj_out_eid_chunks: Vec<Vec<u64>>,
-    adj_out_offsets_chunks: Vec<Vec<i64>>,
-
+    adj_out_chunks: Vec<Box<dyn Array>>,
     edge_time_offsets: Vec<i64>,
     time_col: Series,
 }
@@ -261,45 +257,26 @@ impl TempColGraph {
         *chunk_adj_out_offset = 0i64;
     }
 
-    pub fn build_tables(
+    pub fn build_tables<P: AsRef<Path>>(
+        base_dir: P,
         srcs: &ChunkedArray<UInt64Type>,
         dsts: &ChunkedArray<UInt64Type>,
         times: &ChunkedArray<Int64Type>,
         chunk_size: usize,
-    ) -> SparseTable {
-        let mut sorted_gids: Vec<u64> = vec![];
+    ) -> ArrowResult<SparseTable> {
+        let mut vf_builder = VertexFrameBuilder::new(chunk_size, base_dir);
 
+        // initialise vertex global id table to preserve order
         for chunk in srcs.chunks() {
             let arr = chunk
                 .as_any()
                 .downcast_ref::<PrimitiveArray<u64>>()
                 .unwrap();
             for v in arr.values().iter() {
-                if sorted_gids.last() == Some(v) {
-                    continue;
-                } else {
-                    sorted_gids.push(*v);
-                }
+                vf_builder.push_source(*v)
             }
         }
-
-        // to be chunked
-        // let mut adj_out_eid_chunks: Vec<Vec<u64>> = vec![];
-        // let mut adj_out_dst_chunks: Vec<Vec<u64>> = vec![];
-        // let mut adj_out_offsets_chunks: Vec<Vec<i64>> = vec![];
-
-        let mut vf_builder = VertexFrameBuilder::new(chunk_size);
-
-        // let mut adj_out_eid = vec![];
-        // let mut adj_out_dst = vec![];
-        // let mut adj_out_offsets = vec![0];
-
         let mut edge_time_offsets: Vec<i64> = vec![0];
-
-        let mut e_id: u64 = 0;
-        let mut chunk_adj_out_offset: i64 = 0;
-        let mut last_edge: Option<(u64, u64)> = None;
-        let mut vertex_count = 0;
 
         // g_id, [{v_id1, e_id1}, {v_id2, e_id2}, ...]
         for (event_id, ((src, dst), time)) in srcs
@@ -309,93 +286,24 @@ impl TempColGraph {
             .zip(times.into_iter().flatten())
             .enumerate()
         {
-            // check if can have a chunk cutoff
-            if last_edge.filter(|(prev_src, _)| prev_src != &src).is_some()
-                && (vertex_count + 1) % chunk_size == 0
-            {
-                println!("chunk cut off at {last_edge:?} {src} {dst} {time}");
-                Self::push_chunks(
-                    &mut adj_out_eid,
-                    &mut adj_out_dst,
-                    &mut adj_out_offsets,
-                    &mut adj_out_eid_chunks,
-                    &mut adj_out_dst_chunks,
-                    &mut adj_out_offsets_chunks,
-                    &mut chunk_adj_out_offset,
-                );
-            }
-
-            if Some((src, dst)) != last_edge {
-                adj_out_eid.push(e_id);
-                let dst_idx = if let Ok(dst_idx) = sorted_gids.binary_search(&dst) {
-                    dst_idx
-                } else {
-                    sorted_gids.push(dst);
-                    sorted_gids.len() - 1
-                };
-                adj_out_dst.push(dst_idx as u64);
-
-                if let Some((prev_src, prev_dst)) = last_edge {
-                    if prev_src != src {
-                        adj_out_offsets.push(chunk_adj_out_offset);
-                        vertex_count += 1;
-                    }
-                    if prev_src != src || prev_dst != dst {
-                        edge_time_offsets.push(event_id as i64);
-                    }
+            if let Some((prev_src, prev_dst)) = vf_builder.last_edge {
+                if prev_src != src || prev_dst != dst {
+                    edge_time_offsets.push(event_id as i64);
                 }
-
-                e_id += 1;
-                chunk_adj_out_offset += 1;
             }
-
-            last_edge = Some((src, dst));
+            vf_builder.push_update(src, dst)?;
         }
+        vf_builder.finalise_empty_chunks()?;
 
-        if last_edge.is_some() {
-            // deal with the last chunk
-            let remaining_slots_in_chunk = chunk_size - (adj_out_offsets.len() - 1);
-            let remaining_vertices = sorted_gids.len() - vertex_count - 1;
-            let fill_chunk_remaining = remaining_slots_in_chunk.min(remaining_vertices);
-            adj_out_offsets.resize(
-                adj_out_offsets.len() + fill_chunk_remaining,
-                chunk_adj_out_offset,
-            );
-            Self::push_chunks(
-                &mut adj_out_eid,
-                &mut adj_out_dst,
-                &mut adj_out_offsets,
-                &mut adj_out_eid_chunks,
-                &mut adj_out_dst_chunks,
-                &mut adj_out_offsets_chunks,
-                &mut chunk_adj_out_offset,
-            );
-
-            // deal with the rest of the vertices
-            let remaining_vertices = remaining_vertices - fill_chunk_remaining;
-            let remaining_chunks = remaining_vertices / chunk_size;
-            let size_of_last_chunk = remaining_vertices % chunk_size;
-
-            Self::add_empty_chunks(
-                remaining_chunks,
-                size_of_last_chunk,
-                chunk_size,
-                &mut adj_out_eid_chunks,
-                &mut adj_out_dst_chunks,
-                &mut adj_out_offsets_chunks,
-            );
-
+        if vf_builder.last_edge.is_some() {
             edge_time_offsets.push(times.len() as i64);
         }
-
-        SparseTable {
-            sorted_gids,
-            adj_out_dst_chunks,
-            adj_out_eid_chunks,
-            adj_out_offsets_chunks,
+        Ok(SparseTable {
+            sorted_gids: vf_builder.sorted_gids,
+            adj_out_chunks: vf_builder.adj_out_chunks,
             edge_time_offsets,
             time_col: times.clone().into_series(),
-        }
+        })
     }
 
     fn add_empty_chunks(
@@ -421,11 +329,17 @@ impl TempColGraph {
 
 struct VertexFrameBuilder {
     adj_out_chunks: Vec<Box<dyn Array>>, // chunks for the adjacency list, these are ListArrays with a struct {eid, vid}
-    adj_out_dst: Vec<u64>,               // the dst of the adjacency list
-    adj_out_eid: Vec<u64>,               // the eid of the adjacency list
-    adj_out_offsets: Vec<i64>,           // the offsets of the adjacency list
+    sorted_gids: Vec<u64>,               // the sorted global ids of the vertices
+
+    adj_out_dst: Vec<u64>, // the dst of the adjacency list for the current chunk
+    adj_out_eid: Vec<u64>, // the eid of the adjacency list for the current chunk
+    adj_out_offsets: Vec<i64>, // the offsets of the adjacency list for the current chunk
+
     chunk_size: usize,
     chunk_adj_out_offset: i64,
+    last_edge: Option<(u64, u64)>,
+    vertex_count: usize,
+    e_id: u64,
     location_path: PathBuf,
 }
 
@@ -433,16 +347,20 @@ impl VertexFrameBuilder {
     fn new<P: AsRef<Path>>(chunk_size: usize, path: P) -> Self {
         Self {
             adj_out_chunks: vec![],
+            sorted_gids: vec![],
             adj_out_dst: vec![],
             adj_out_eid: vec![],
             adj_out_offsets: vec![0],
             chunk_size,
             chunk_adj_out_offset: 0,
+            last_edge: None,
+            vertex_count: 0,
+            e_id: 0,
             location_path: path.as_ref().to_path_buf(),
         }
     }
 
-    fn push_chunks(&mut self) {
+    fn push_chunk(&mut self, fill_size: usize) -> ArrowResult<()> {
         let mut adj_out_eid_prev = Vec::with_capacity(self.adj_out_eid.len());
         let mut adj_out_dst_prev = Vec::with_capacity(self.adj_out_dst.len());
         let mut adj_out_offsets_prev = Vec::with_capacity(self.adj_out_offsets.len());
@@ -451,14 +369,15 @@ impl VertexFrameBuilder {
         std::mem::swap(&mut adj_out_dst_prev, &mut self.adj_out_dst);
         std::mem::swap(&mut adj_out_offsets_prev, &mut self.adj_out_offsets);
 
-        adj_out_offsets_prev.push(self.chunk_adj_out_offset);
+        // fill chunk with empty adjacency lists
+        adj_out_offsets_prev.resize(fill_size + 1, self.chunk_adj_out_offset);
 
         let col =
             new_arrow_adj_list_chunk(adj_out_dst_prev, adj_out_eid_prev, adj_out_offsets_prev);
 
-        self.persist_and_mmap_adj_chunk(col);
-
+        self.persist_and_mmap_adj_chunk(col)?;
         self.chunk_adj_out_offset = 0i64;
+        Ok(())
     }
 
     fn persist_and_mmap_adj_chunk(&mut self, col: Box<dyn Array>) -> ArrowResult<()> {
@@ -472,6 +391,73 @@ impl VertexFrameBuilder {
         let mmapped_chunk = unsafe { mmap_batches(file_path.as_path(), 0)? };
         let mmapped_adj = mmapped_chunk[0].clone();
         self.adj_out_chunks.push(mmapped_adj);
+        Ok(())
+    }
+
+    fn push_source(&mut self, src: u64) {
+        if !(self.sorted_gids.last() == Some(&src)) {
+            self.sorted_gids.push(src);
+        }
+    }
+
+    fn find_or_push_vertex(&mut self, vertex: u64) -> usize {
+        if let Ok(idx) = self.sorted_gids.binary_search(&vertex) {
+            idx
+        } else {
+            self.sorted_gids.push(vertex);
+            self.sorted_gids.len() - 1
+        }
+    }
+
+    fn push_update(&mut self, src: u64, dst: u64) -> ArrowResult<()> {
+        if self
+            .last_edge
+            .filter(|(prev_src, _)| prev_src != &src)
+            .is_some()
+            && (self.vertex_count + 1) % self.chunk_size == 0
+        {
+            println!("chunk cut off at {:?} {src} {dst}", self.last_edge);
+            self.push_chunk(self.chunk_size)?;
+        }
+        if Some((src, dst)) != self.last_edge {
+            self.adj_out_eid.push(self.e_id);
+            let dst_idx = self.find_or_push_vertex(dst);
+            self.adj_out_dst.push(dst_idx as u64);
+
+            if let Some((prev_src, prev_dst)) = self.last_edge {
+                if prev_src != src {
+                    self.adj_out_offsets.push(self.chunk_adj_out_offset);
+                    self.vertex_count += 1;
+                }
+            }
+
+            self.e_id += 1;
+            self.chunk_adj_out_offset += 1;
+        }
+        self.last_edge = Some((src, dst));
+        Ok(())
+    }
+
+    fn finalise_empty_chunks(&mut self) -> ArrowResult<()> {
+        if self.last_edge.is_some() {
+            // deal with the last chunk
+            let remaining_slots_in_chunk = self.chunk_size - self.adj_out_offsets.len();
+            let remaining_vertices = self.sorted_gids.len() - self.vertex_count - 1;
+            let fill_chunk_remaining = remaining_slots_in_chunk.min(remaining_vertices);
+            self.push_chunk(self.adj_out_offsets.len() + fill_chunk_remaining)?;
+
+            // deal with the rest of the vertices
+            let remaining_vertices = remaining_vertices - fill_chunk_remaining;
+            let remaining_chunks = remaining_vertices / self.chunk_size;
+            let size_of_last_chunk = remaining_vertices % self.chunk_size;
+
+            for _ in 0..remaining_chunks {
+                self.push_chunk(self.chunk_size)?;
+            }
+            if size_of_last_chunk > 0 {
+                self.push_chunk(size_of_last_chunk)?;
+            }
+        }
         Ok(())
     }
 }
