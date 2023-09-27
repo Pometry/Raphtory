@@ -77,7 +77,7 @@ mod test {
 
         // write it
         write_batches(file_path, schema, &chunks).unwrap();
-        let mapped = unsafe { mmap_batches(file_path, [0]) }.unwrap();
-        assert_eq!(chunks[0], mapped[0][0]);
+        let mapped = unsafe { mmap_batches(file_path, 0) }.unwrap();
+        assert_eq!(chunks[0][0], mapped[0]);
     }
 }

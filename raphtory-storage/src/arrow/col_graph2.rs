@@ -8,6 +8,7 @@ use crate::arrow::mmap::{mmap_batches, write_batches};
 use arrow2::error::Result as ArrowResult;
 use itertools::{Chunk, Itertools};
 use polars_core::{
+    error::ArrowError,
     frame::ArrowChunk,
     prelude::*,
     utils::arrow::{
@@ -113,7 +114,9 @@ struct TempColGraph {
 #[derive(thiserror::Error, Debug)]
 enum Error {
     #[error("Polars error: {0}")]
-    Polars(#[from] polars_core::prelude::PolarsError),
+    Polars(#[from] PolarsError),
+    #[error("Arrow error: {0}")]
+    Arrow(#[from] ArrowError),
 }
 
 const FRAGMENT_ROW_COUNT: usize = 100_000;
@@ -151,33 +154,9 @@ impl SparseTable {
             ArrowField::new(V_COLUMN, ArrowDataType::UInt64, false),
             ArrowField::new(E_COLUMN, ArrowDataType::UInt64, false),
         ];
-        let schema = ArrowDataType::Struct(fields);
-
-        let list_outbound_chunks = self
-            .adj_out_dst_chunks
-            .into_iter()
-            .zip(self.adj_out_eid_chunks.into_iter())
-            .zip(self.adj_out_offsets_chunks.into_iter())
-            .map(|((adj_out_dst, adj_out_eid), adj_out_offsets)| {
-                let dst_col = Box::new(MutablePrimitiveArray::<u64>::from_vec(adj_out_dst));
-                let eid_col = Box::new(MutablePrimitiveArray::<u64>::from_vec(adj_out_eid));
-
-                let values = MutableStructArray::new(schema.clone(), vec![dst_col, eid_col]);
-
-                let outbound2 = MutableListArray::new_from_mutable(
-                    values,
-                    Offsets::try_from(adj_out_offsets).unwrap(),
-                    None,
-                );
-
-                let outbound: ListArray<i64> = outbound2.into();
-                let outbound: Box<dyn Array> = Box::new(outbound);
-                outbound
-            })
-            .collect_vec();
 
         let outbound: ChunkedArray<ListType> =
-            unsafe { ChunkedArray::from_chunks(OUTBOUND_COLUMN, list_outbound_chunks) };
+            unsafe { ChunkedArray::from_chunks(OUTBOUND_COLUMN, self.adj_out_chunks) };
 
         let vertex_gid_col = Series::new(GID_COLUMN, self.sorted_gids);
         let vertex_df = DataFrame::new(vec![vertex_gid_col, outbound.into_series()]).unwrap();
@@ -205,29 +184,21 @@ impl SparseTable {
 }
 
 impl TempColGraph {
-    fn from_sorted_edge_list(
+    fn from_sorted_edge_list<P: AsRef<Path>>(
         src_dst_frame: DataFrame, // sorted_by (src, dst, time)
         src_col: &str,
         dst_col: &str,
         time_col: &str,
+        graph_dir: P,
     ) -> Result<Self, Error> {
-        let mut vertex_idx = 0;
+        let src = src_dst_frame.column(src_col)?.u64()?;
+        let dst = src_dst_frame.column(dst_col)?.u64()?;
+        let time = src_dst_frame.column(time_col)?.i64()?;
 
-        // global id -> phisical id
-        // let mut gid_to_pid = HashMap::default();
-
-        let src_col = src_dst_frame.column(src_col)?;
-        let dst_col = src_dst_frame.column(dst_col)?;
-        let time_col = src_dst_frame.column(time_col)?;
-
-        if let (Ok(src), Ok(dst), Ok(time)) = (src_col.u64(), dst_col.u64(), time_col.i64()) {
-            let sprs_table = Self::build_tables(src, dst, time, 100);
-        } else {
-            todo!()
-        }
+        let sprs_table = Self::build_tables(graph_dir, src, dst, time, 100)?;
 
         Ok(Self {
-            fragments: Arc::new([]),
+            fragments: Arc::new([sprs_table.into_graph()]),
         })
     }
 
@@ -491,6 +462,7 @@ fn new_arrow_adj_list_chunk(
 #[cfg(test)]
 mod test {
     use super::*;
+    use tempfile::TempDir;
 
     #[test]
     fn load_one_edge_from_sorted_adj_list_num_vertices_no_props() {
@@ -500,12 +472,13 @@ mod test {
             Series::new("time", vec![0i64]),
         ])
         .unwrap();
+        let test_dir = TempDir::new().unwrap();
 
         let src = df.column("src").unwrap().u64().unwrap();
         let dst = df.column("dst").unwrap().u64().unwrap();
         let time = df.column("time").unwrap().i64().unwrap();
 
-        let res = TempColGraph::build_tables(src, dst, time, 100);
+        let res = TempColGraph::build_tables(test_dir.path(), src, dst, time, 100).unwrap();
         let graph = res.into_graph();
 
         let actual = graph.edges(0.into(), Direction::OUT).collect::<Vec<_>>();
@@ -524,11 +497,13 @@ mod test {
         ])
         .unwrap();
 
+        let test_dir = TempDir::new().unwrap();
+
         let src = df.column("src").unwrap().u64().unwrap();
         let dst = df.column("dst").unwrap().u64().unwrap();
         let time = df.column("time").unwrap().i64().unwrap();
 
-        let res = TempColGraph::build_tables(src, dst, time, 100);
+        let res = TempColGraph::build_tables(test_dir.path(), src, dst, time, 100).unwrap();
         let graph = res.into_graph();
 
         let actual = graph.edges(0.into(), Direction::OUT).collect::<Vec<_>>();
@@ -562,11 +537,13 @@ mod test {
         ])
         .unwrap();
 
+        let test_dir = TempDir::new().unwrap();
+
         let src = df.column("src").unwrap().u64().unwrap();
         let dst = df.column("dst").unwrap().u64().unwrap();
         let time = df.column("time").unwrap().i64().unwrap();
 
-        let res = TempColGraph::build_tables(src, dst, time, 100);
+        let res = TempColGraph::build_tables(test_dir.path(), src, dst, time, 100).unwrap();
 
         let graph = res.into_graph();
 
@@ -601,11 +578,13 @@ mod test {
         ])
         .unwrap();
 
+        let test_dir = TempDir::new().unwrap();
+
         let src = df.column("src").unwrap().u64().unwrap();
         let dst = df.column("dst").unwrap().u64().unwrap();
         let time = df.column("time").unwrap().i64().unwrap();
 
-        let res = TempColGraph::build_tables(src, dst, time, 2);
+        let res = TempColGraph::build_tables(test_dir.path(), src, dst, time, 2).unwrap();
         let graph = res.into_graph();
 
         let actual = graph.edges(0.into(), Direction::OUT).collect::<Vec<_>>();
