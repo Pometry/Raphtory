@@ -75,7 +75,7 @@ pub trait GraphOps: Send + Sync {
     }
 
     /// Returns all the vertex references in the graph.
-    /// # Returns
+    /// Returns:
     /// * `Box<dyn Iterator<Item = VID> + Send>` - An iterator over all the vertex
     /// references in the graph.
     fn vertex_refs(
@@ -90,7 +90,7 @@ pub trait GraphOps: Send + Sync {
     /// * `src` - The source vertex.
     /// * `dst` - The destination vertex.
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// * `Option<EdgeRef>` - The edge reference if it exists.
     fn edge_ref(
@@ -103,7 +103,7 @@ pub trait GraphOps: Send + Sync {
 
     /// Returns all the edge references in the graph.
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// * `Box<dyn Iterator<Item = EdgeRef> + Send>` - An iterator over all the edge references.
     fn edge_refs(
@@ -120,7 +120,7 @@ pub trait GraphOps: Send + Sync {
     /// * `d` - The direction in which to search for edges.
     /// * `layer` - The optional layer to consider
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// Box<dyn Iterator<Item = EdgeRef> + Send> -  A boxed iterator that yields references to
     /// the edges connected to the vertex.
@@ -139,7 +139,7 @@ pub trait GraphOps: Send + Sync {
     /// * `v` - A reference to the vertex for which the neighbors are being queried.
     /// * `d` - The direction in which to search for neighbors.
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// A boxed iterator that yields references to the neighboring vertices.
     fn neighbours(

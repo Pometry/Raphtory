@@ -10,7 +10,7 @@ use crate::{
 ///
 /// * `g` - A reference to the graph
 ///
-/// # Returns
+/// Returns:
 ///
 /// The global clustering coefficient of the graph
 ///

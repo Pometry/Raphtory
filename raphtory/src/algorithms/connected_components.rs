@@ -29,7 +29,7 @@ struct WccState {
 /// * `window` - A range indicating the temporal window to consider
 /// * `iter_count` - The number of iterations to run
 ///
-/// # Returns
+/// Returns:
 ///
 /// An AlgorithmResult containing the mapping from component ID to the number of vertices in the component
 ///

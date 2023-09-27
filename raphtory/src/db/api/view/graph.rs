@@ -75,7 +75,7 @@ pub trait GraphViewOps: BoxableGraphView + Clone + Sized {
 
     /// Get all property values of this graph.
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// A view of the properties of the graph
     fn properties(&self) -> Properties<Self>;
@@ -84,7 +84,7 @@ pub trait GraphViewOps: BoxableGraphView + Clone + Sized {
     ///
     /// # Arguments
     ///
-    /// # Returns
+    /// Returns:
     /// Graph - Returns clone of the graph
     fn materialize(&self) -> Result<MaterializedGraph, GraphError>;
 }

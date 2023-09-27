@@ -23,9 +23,9 @@ def to_pyvis(
 
     .. note::
 
-    Pyvis is a required dependency.
-    If you intend to use this function make sure that
-    you install Pyvis with ``pip install pyvis``
+        Pyvis is a required dependency.
+        If you intend to use this function make sure that
+        you install Pyvis with ``pip install pyvis``
 
     :param graph: A Raphtory graph.
     :param explode_edges: A boolean that is set to True if you want to explode the edges in the graph. By default this is set to False.
@@ -45,17 +45,17 @@ def to_pyvis(
 
     For Example:
 
-    .. jupyter-execute::
+    .. code-block:: python
 
-    from raphtory import Graph
-    from raphtory import export
+        from raphtory import Graph
+        from raphtory import export
 
-    g = Graph()
-    g.add_vertex(1, src, properties={"image": "image.png"})
-    g.add_edge(1, 1, 2, {"title": "edge", "weight": 1})
-    g.add_edge(1, 2, 1, {"title": "edge", "weight": 3})
+        g = Graph()
+        g.add_vertex(1, src, properties={"image": "image.png"})
+        g.add_edge(1, 1, 2, {"title": "edge", "weight": 1})
+        g.add_edge(1, 2, 1, {"title": "edge", "weight": 3})
 
-    export.to_pyvis(graph=g, edge_color="#FF0000", edge_weight= "weight", shape="image", node_image="image", edge_label="title")
+        export.to_pyvis(graph=g, edge_color="#FF0000", edge_weight= "weight", shape="image", node_image="image", edge_label="title")
 
     """
     visGraph = Network(notebook=notebook, **kwargs)
@@ -114,6 +114,7 @@ def to_networkx(
     include_property_histories=True,
 ):
     r"""Returns a graph with NetworkX.
+
     .. note::
 
         Network X is a required dependency.
@@ -181,6 +182,7 @@ def to_edge_df(
     include_property_histories=True,
 ):
     r"""Returns an edge list pandas dataframe for the given graph.
+
     .. note::
 
         Pandas is a required dependency.

@@ -62,7 +62,7 @@ pub struct TEdge {
 /// Download the SX SuperUser dataset
 /// and return the path to the file
 ///
-/// # Returns
+/// Returns:
 /// - A PathBuf to the SX SuperUser dataset
 pub fn sx_superuser_file() -> Result<PathBuf, Box<dyn std::error::Error>> {
     fetch_file(
@@ -79,7 +79,7 @@ pub fn sx_superuser_file() -> Result<PathBuf, Box<dyn std::error::Error>> {
 ///
 /// * `shards` - The number of shards to use for the graph
 ///
-/// # Returns
+/// Returns:
 ///
 /// - A Result containing the graph or an error
 pub fn sx_superuser_graph() -> Result<Graph, Box<dyn std::error::Error>> {

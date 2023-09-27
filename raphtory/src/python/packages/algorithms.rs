@@ -316,9 +316,7 @@ pub fn global_clustering_coefficient(g: &PyGraphView) -> f64 {
 ///
 /// Arguments:
 ///     g (raphtory graph) : A directed raphtory graph
-///     delta (int) - Maximum time difference between the first and last edge of the
-/// motif. NB if time for edges was given as a UNIX epoch, this should be given in seconds, otherwise
-/// milliseconds should be used (if edge times were given as string)
+///     delta (int): Maximum time difference between the first and last edge of the motif. NB if time for edges was given as a UNIX epoch, this should be given in seconds, otherwise milliseconds should be used (if edge times were given as string)
 ///
 /// Returns:
 ///     list : A 40 dimensional array with the counts of each motif, given in the same order as described above. Note that the two-node motif counts are symmetrical so it may be more useful just to consider the first four elements.
@@ -343,13 +341,10 @@ pub fn global_temporal_three_node_motif_multi(
 ///
 /// Arguments:
 ///     g (raphtory graph) : A directed raphtory graph
-///     delta (int) - Maximum time difference between the first and last edge of the
-/// motif. NB if time for edges was given as a UNIX epoch, this should be given in seconds, otherwise
-/// milliseconds should be used (if edge times were given as string)
+///     delta (int): Maximum time difference between the first and last edge of the motif. NB if time for edges was given as a UNIX epoch, this should be given in seconds, otherwise milliseconds should be used (if edge times were given as string)
 ///
 /// Returns:
-///     AlgorithmResult : An AlgorithmResult with node ids as keys and a 40d array of motif counts (in the same order as the global motif counts) with the number of each
-/// motif that node participates in.
+///     AlgorithmResult : An AlgorithmResult with node ids as keys and a 40d array of motif counts (in the same order as the global motif counts) with the number of each motif that node participates in.
 ///
 /// Notes:
 ///     For this local count, a node is counted as participating in a motif in the following way. For star motifs, only the centre node counts
@@ -372,9 +367,13 @@ pub fn local_temporal_three_node_motifs(
 /// HubScore of a vertex (A) = Sum of AuthScore of all vertices pointing away from vertex (A) from previous iteration /
 ///     Sum of AuthScore of all vertices in the current iteration
 ///
-/// Returns
+/// Arguments:
+///     g (Raphtory Graph): Graph to run the algorithm on
+///     iter_count (int): How many iterations to run the algorithm
+///     threads (int): Number of threads to use (optional)
 ///
-/// * An AlgorithmResult object containing the mapping from vertex ID to the hub and authority score of the vertex
+/// Returns
+///     An AlgorithmResult object containing the mapping from vertex ID to the hub and authority score of the vertex
 #[pyfunction]
 #[pyo3(signature = (g, iter_count=20, threads=None))]
 pub fn hits(
@@ -389,17 +388,17 @@ pub fn hits(
 ///
 /// This function computes the sum of edge weights based on the direction provided, and can be executed in parallel using a given number of threads.
 ///
-/// # Parameters
-/// * `g` (`&PyGraphView`): The graph view on which the operation is to be performed.
-/// * `name` (`String`, default = "weight"): The name of the edge property used as the weight. Defaults to "weight" if not provided.
-/// * `direction` (`PyDirection`, default = `PyDirection::new("BOTH")`): Specifies the direction of the edges to be considered for summation.
-///    - `PyDirection::new("OUT")`: Only consider outgoing edges.
-///    - `PyDirection::new("IN")`: Only consider incoming edges.
-///    - `PyDirection::new("BOTH")`: Consider both outgoing and incoming edges. This is the default.
-/// * `threads` (`Option<usize>`, default = `None`): The number of threads to be used for parallel execution. Defaults to single-threaded operation if not provided.
+/// Arguments:
+///     g (Raphtory Graph): The graph view on which the operation is to be performed.
+///     name (String, default = "weight"): The name of the edge property used as the weight. Defaults to "weight" if not provided.
+///     direction (`PyDirection`, default = PyDirection::new("BOTH")): Specifies the direction of the edges to be considered for summation.
+///             * PyDirection::new("OUT"): Only consider outgoing edges.
+///             * PyDirection::new("IN"): Only consider incoming edges.
+///             * PyDirection::new("BOTH"): Consider both outgoing and incoming edges. This is the default.
+///     threads (`Option<usize>`, default = `None`): The number of threads to be used for parallel execution. Defaults to single-threaded operation if not provided.
 ///
-/// # Returns
-/// `AlgorithmResult<String, OrderedFloat<f64>>`: A result containing a mapping of vertex names to the computed sum of their associated edge weights.
+/// Returns:
+///     AlgorithmResult<String, OrderedFloat<f64>>: A result containing a mapping of vertex names to the computed sum of their associated edge weights.
 ///
 #[pyfunction]
 #[pyo3[signature = (g, name="weight".to_string(), direction=PyDirection::new("BOTH"),  threads=None)]]

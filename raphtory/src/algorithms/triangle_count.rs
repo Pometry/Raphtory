@@ -21,7 +21,7 @@ use rustc_hash::FxHashSet;
 /// * `g` - A reference to the graph
 /// * `window` - A range indicating the temporal window to consider
 ///
-/// # Returns
+/// Returns:
 ///
 /// An optional integer containing the number of triangles in the graph. If the computation failed,
 /// the function returns `None`.
