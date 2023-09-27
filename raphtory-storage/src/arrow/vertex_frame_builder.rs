@@ -2,18 +2,22 @@ use crate::arrow::{
     mmap::{mmap_batches, write_batches},
     E_COLUMN, V_COLUMN,
 };
+use ahash::AHashMap;
 use arrow2::{
     array::{Array, ListArray, MutableListArray, MutablePrimitiveArray, MutableStructArray},
+    chunk::Chunk,
     datatypes::{DataType as ArrowDataType, Field as ArrowField, Schema as ArrowSchema},
     error::Result as ArrowResult,
-    offset::Offsets, chunk::Chunk,
+    offset::Offsets,
 };
+use itertools::Itertools;
 use polars_core::frame::ArrowChunk;
 use std::path::{Path, PathBuf};
 
 pub struct VertexFrameBuilder {
     pub(crate) adj_out_chunks: Vec<Chunk<Box<dyn Array>>>, // chunks for the adjacency list, these are ListArrays with a struct {eid, vid}
-    pub(crate) sorted_gids: Vec<u64>,               // the sorted global ids of the vertices
+    pub(crate) sorted_gids: AHashMap<u64, u64>,            // the sorted global ids of the vertices
+    last_vertex: Option<u64>, // the last vertex that was added to the sorted_gids
 
     adj_out_dst: Vec<u64>, // the dst of the adjacency list for the current chunk
     adj_out_eid: Vec<u64>, // the eid of the adjacency list for the current chunk
@@ -32,7 +36,8 @@ impl VertexFrameBuilder {
     pub(crate) fn new<P: AsRef<Path>>(chunk_size: usize, path: P) -> Self {
         Self {
             adj_out_chunks: vec![],
-            sorted_gids: vec![],
+            sorted_gids: Default::default(),
+            last_vertex: None,
             adj_out_dst: vec![],
             adj_out_eid: vec![],
             adj_out_offsets: vec![0],
@@ -79,19 +84,19 @@ impl VertexFrameBuilder {
         Ok(())
     }
 
-    pub(crate) fn push_source(&mut self, src: u64) {
-        if !(self.sorted_gids.last() == Some(&src)) {
-            self.sorted_gids.push(src);
-        }
+    pub(crate) fn load_sources(&mut self, sources: impl Iterator<Item = u64>) {
+        self.sorted_gids.extend(
+            sources
+                .dedup()
+                .enumerate()
+                .map(|(id, gid)| (gid, id as u64)),
+        )
     }
 
     fn find_or_push_vertex(&mut self, vertex: u64) -> usize {
-        if let Ok(idx) = self.sorted_gids.binary_search(&vertex) {
-            idx
-        } else {
-            self.sorted_gids.push(vertex);
-            self.sorted_gids.len() - 1
-        }
+        let id = self.sorted_gids.len();
+        let id = self.sorted_gids.entry(vertex).or_insert(id as u64);
+        *id as usize
     }
 
     pub(crate) fn push_update(&mut self, src: u64, dst: u64) -> ArrowResult<(u64, u64)> {
