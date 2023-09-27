@@ -1,15 +1,5 @@
-use arrow2::datatypes::DataType;
+use arrow2::{datatypes::DataType, array::{MutablePrimitiveArray, MutableStructArray, MutableListArray, MutableBooleanArray, MutableUtf8Array, MutableArray}, types::NativeType};
 use itertools::{EitherOrBoth, Itertools};
-use polars_core::{
-    error::{ArrowError, PolarsError},
-    utils::arrow::{
-        array::{
-            MutableArray, MutableBooleanArray, MutableListArray, MutablePrimitiveArray,
-            MutableStructArray, MutableUtf8Array,
-        },
-        types::NativeType,
-    },
-};
 use raphtory::{
     core::entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
     prelude::{GraphViewOps, Prop},
@@ -23,10 +13,8 @@ pub(crate) mod vertex_frame_builder;
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
-    #[error("Polars error: {0}")]
-    Polars(#[from] PolarsError),
     #[error("Arrow error: {0}")]
-    Arrow(#[from] ArrowError),
+    Arrow(#[from] arrow2::error::Error),
     #[error("IO error: {0}")]
     IO(#[from] std::io::Error),
     #[error("Bad data type for vertex column: {0:?}")]
@@ -89,7 +77,7 @@ impl MutTemporalPropColumn {
         self.temporal_props
     }
 
-    fn try_push_valid(&mut self) -> Result<(), ArrowError> {
+    fn try_push_valid(&mut self) -> Result<(), arrow2::error::Error> {
         self.temporal_props.try_push_valid()
     }
 
