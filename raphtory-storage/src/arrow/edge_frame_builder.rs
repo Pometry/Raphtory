@@ -14,7 +14,7 @@ use polars_core::prelude::{ArrowField, ArrowSchema};
 use std::path::{Path, PathBuf};
 
 pub struct EdgeFrameBuilder {
-    pub(crate) edge_chunks: Vec<Box<dyn Array>>, // chunks for the adjacency list, these are ListArrays with a struct {eid, vid}
+    pub(crate) edge_chunks: Vec<Chunk<Box<dyn Array>>>, // chunks for the adjacency list, these are ListArrays with a struct {eid, vid}
 
     edge_timestamps: Vec<Time>, // the timestamps of the edge for the current chunk
     edge_src_id: Vec<u64>,      // the src ids for the edge in the current chunk
@@ -81,8 +81,7 @@ impl EdgeFrameBuilder {
             .join(format!("edge_chunk_{}.ipc", self.edge_chunks.len()));
         write_batches(file_path.as_path(), schema, &[chunk])?;
         let mmapped_chunk = unsafe { mmap_batches(file_path.as_path(), 0)? };
-        let mmapped_edge_chunk = mmapped_chunk[0].clone();
-        self.edge_chunks.push(mmapped_edge_chunk);
+        self.edge_chunks.push(mmapped_chunk);
         Ok(())
     }
 
