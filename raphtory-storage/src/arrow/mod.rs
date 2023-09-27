@@ -1,6 +1,6 @@
 use itertools::{EitherOrBoth, Itertools};
 use polars_core::{
-    error::ArrowError,
+    error::{ArrowError, PolarsError},
     utils::arrow::{
         array::{
             MutableArray, MutableBooleanArray, MutableListArray, MutablePrimitiveArray,
@@ -16,7 +16,36 @@ use raphtory::{
 
 pub(crate) mod col_graph2;
 pub(crate) mod columnar_graph;
+pub(crate) mod edge_frame_builder;
 pub(crate) mod mmap;
+pub(crate) mod vertex_frame_builder;
+
+#[derive(thiserror::Error, Debug)]
+pub enum Error {
+    #[error("Polars error: {0}")]
+    Polars(#[from] PolarsError),
+    #[error("Arrow error: {0}")]
+    Arrow(#[from] ArrowError),
+}
+
+const FRAGMENT_ROW_COUNT: usize = 100_000;
+
+const OUTBOUND_COLUMN: &str = "outbound";
+const INBOUND_COLUMN: &str = "inbound";
+
+const V_ADDITIONS_COLUMN: &str = "additions";
+const E_ADDITIONS_COLUMN: &str = "additions";
+const E_DELETIONS_COLUMN: &str = "deletions";
+
+const NAME_COLUMN: &str = "name";
+const TEMPORAL_PROPS_COLUMN: &str = "t_props";
+
+const GID_COLUMN: &str = "global_vertex_id";
+const SRC_COLUMN: &str = "src";
+const DST_COLUMN: &str = "dst";
+
+pub(crate) const V_COLUMN: &str = "v";
+pub(crate) const E_COLUMN: &str = "e";
 
 type MPArr<T> = MutablePrimitiveArray<T>;
 
