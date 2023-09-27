@@ -10,6 +10,7 @@ use raphtory::db::api::view::VertexViewOps;
 
 #[derive(InputObject)]
 pub struct NodeFilter {
+    ids: Option<StringVecFilter>,
     names: Option<StringVecFilter>,
     name: Option<StringFilter>,
     node_type: Option<StringFilter>,
@@ -21,6 +22,7 @@ pub struct NodeFilter {
 impl NodeFilter {
     pub(crate) fn new(names: Vec<String>) -> NodeFilter {
         return NodeFilter {
+            ids: None,
             names: Some(StringVecFilter { contains: names }),
             name: None,
             node_type: None,
@@ -30,7 +32,25 @@ impl NodeFilter {
         };
     }
 
+    pub(crate) fn new_ids(ids: Vec<String>) -> NodeFilter {
+        return NodeFilter {
+            ids: Some(StringVecFilter { contains: ids }),
+            names: None,
+            name: None,
+            node_type: None,
+            in_degree: None,
+            out_degree: None,
+            property_has: None,
+        };
+    }
+
     pub(crate) fn matches(&self, node: &Node) -> bool {
+        if let Some(ids_filter) = &self.ids {
+            if !ids_filter.contains(&(node.vv.id().to_string())) {
+                return false;
+            }
+        }
+
         if let Some(names_filter) = &self.names {
             if !names_filter.contains(&node.vv.name()) {
                 return false;
