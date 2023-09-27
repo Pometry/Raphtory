@@ -71,8 +71,8 @@ jsonschema==4.17.3
 jupyter-events==0.6.3
 jupyter-lsp==2.2.0
 jupyter-sphinx==0.4.0
-jupyter_client @ file:///private/var/folders/sy/f16zz6x50xz3113nwtb9bvq00000gp/T/abs_5e4bbpqn9e/croot/jupyter_client_1680171866753/work
-jupyter_core @ file:///private/var/folders/sy/f16zz6x50xz3113nwtb9bvq00000gp/T/abs_b82fz_h369/croot/jupyter_core_1679906581737/work
+jupyter_client==8.1.0
+jupyter_core==5.3.0
 jupyter_server==2.7.0
 jupyter_server_terminals==0.4.4
 jupyterlab==4.0.3
@@ -89,7 +89,6 @@ mdurl==0.1.2
 mistune==3.0.1
 msgpack==1.0.5
 multidict==6.0.4
-nb-conda-kernels @ file:///Users/runner/miniforge3/conda-bld/nb_conda_kernels_1667060749583/work
 nbclient==0.8.0
 nbconvert==7.6.0
 nbformat==5.9.0
@@ -111,7 +110,7 @@ parso==0.8.3
 pexpect==4.8.0
 pickleshare==0.7.5
 Pillow==10.0.0
-platformdirs @ file:///private/var/folders/sy/f16zz6x50xz3113nwtb9bvq00000gp/T/abs_7fs8_2xgrm/croots/recipe/platformdirs_1662711383474/work
+platformdirs==3.10
 pluggy==1.2.0
 polars==0.18.7
 prometheus-client==0.17.1
@@ -128,20 +127,17 @@ pyasn1-modules==0.3.0
 pycparser==2.21
 pydata-sphinx-theme==0.13.3
 Pygments==2.15.1
-pyo3loadingbar @ file:///var/folders/rm/nnz28pc96cv2xqzbwlwvwl2r0000gn/T/.tmpYhbnFR/pyo3loadingbar-0.1.0-cp310-cp310-macosx_10_7_x86_64.whl#sha256=2b04eba1c9236657177902d0bb94a19acdc40a817c04fed32714892db3426c4e
 pyparsing==3.1.0
 pyreadstat==1.2.2
 pyrsistent==0.19.3
 pytest==7.4.0
 pytest-xdist==3.3.1
-python-dateutil @ file:///tmp/build/80754af9/python-dateutil_1626374649649/work
+python-dateutil==2.8.2
 python-json-logger==2.0.7
 pytz==2023.3
 pyvis==0.3.2
 pyxlsb==1.0.10
 PyYAML==6.0
-pyzmq @ file:///private/var/folders/sy/f16zz6x50xz3113nwtb9bvq00000gp/T/abs_e6wiufh44w/croot/pyzmq_1686601381524/work
-raphtory @ file:///var/folders/rm/nnz28pc96cv2xqzbwlwvwl2r0000gn/T/.tmpLRHAnQ/raphtory-0.5.7-cp310-cp310-macosx_10_7_x86_64.whl#sha256=59d1d9c4d7fad46b27fca397dafaa574b364597490b8dc3945a68c1b831bb516
 requests==2.31.0
 requests-toolbelt==0.10.1
 rfc3339-validator==0.1.4
@@ -150,7 +146,7 @@ rich==13.5.2
 rockstar==0.6
 rsa==4.9
 Send2Trash==1.8.2
-six @ file:///tmp/build/80754af9/six_1644875935023/work
+six==1.16.0
 smmap==5.0.0
 sniffio==1.3.0
 snowballstemmer==2.2.0
@@ -175,9 +171,9 @@ toolcli==0.6.16
 tooljob==0.1.6
 toolstr==0.9.7
 tooltime==0.2.11
-tornado @ file:///private/var/folders/sy/f16zz6x50xz3113nwtb9bvq00000gp/T/abs_1fimz6o0gc/croots/recipe/tornado_1662061695695/work
+tornado==6.2
 tqdm==4.66.1
-traitlets @ file:///private/var/folders/sy/f16zz6x50xz3113nwtb9bvq00000gp/T/abs_0dtilxc0bw/croot/traitlets_1671143889152/work
+traitlets==5.7.1
 typing_extensions==4.7.1
 tzdata==2023.3
 uri-template==1.3.0
