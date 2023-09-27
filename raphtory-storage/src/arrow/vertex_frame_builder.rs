@@ -17,7 +17,6 @@ use std::path::{Path, PathBuf};
 pub struct VertexFrameBuilder {
     pub(crate) adj_out_chunks: Vec<Chunk<Box<dyn Array>>>, // chunks for the adjacency list, these are ListArrays with a struct {eid, vid}
     pub(crate) sorted_gids: AHashMap<u64, u64>,            // the sorted global ids of the vertices
-    last_vertex: Option<u64>, // the last vertex that was added to the sorted_gids
 
     adj_out_dst: Vec<u64>, // the dst of the adjacency list for the current chunk
     adj_out_eid: Vec<u64>, // the eid of the adjacency list for the current chunk
@@ -37,7 +36,6 @@ impl VertexFrameBuilder {
         Self {
             adj_out_chunks: vec![],
             sorted_gids: Default::default(),
-            last_vertex: None,
             adj_out_dst: vec![],
             adj_out_eid: vec![],
             adj_out_offsets: vec![0],
@@ -113,7 +111,7 @@ impl VertexFrameBuilder {
             self.last_dst_idx = self.find_or_push_vertex(dst);
             self.adj_out_dst.push(self.last_dst_idx as u64);
 
-            if let Some((prev_src, prev_dst)) = self.last_edge {
+            if let Some((prev_src, _)) = self.last_edge {
                 if prev_src != src {
                     self.adj_out_offsets.push(self.chunk_adj_out_offset);
                     self.vertex_count += 1;

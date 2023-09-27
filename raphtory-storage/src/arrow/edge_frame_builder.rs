@@ -1,16 +1,15 @@
 use crate::arrow::{
     col_graph2::Time,
     mmap::{mmap_batches, write_batches},
-    DST_COLUMN, E_ADDITIONS_COLUMN, E_COLUMN, SRC_COLUMN, V_COLUMN,
+    DST_COLUMN, E_ADDITIONS_COLUMN, SRC_COLUMN,
 };
 use arrow2::{
-    array::{Array, ListArray, MutablePrimitiveArray, PrimitiveArray},
+    array::{Array, ListArray, PrimitiveArray},
     chunk::Chunk,
     datatypes::{DataType, Field, Schema},
     error::Result as ArrowResult,
-    offset::{Offsets, OffsetsBuffer},
+    offset::OffsetsBuffer,
 };
-use polars_core::prelude::{ArrowField, ArrowSchema};
 use std::path::{Path, PathBuf};
 
 pub struct EdgeFrameBuilder {

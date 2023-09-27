@@ -4,7 +4,7 @@ use arrow::columnar_graph::TemporalColGraphFragment;
 use itertools::Itertools;
 use raphtory::core::{entities::vertices::vertex_ref::VertexRef, Direction};
 
-mod arrow;
+pub mod arrow;
 mod ops;
 
 #[derive(Debug)]
