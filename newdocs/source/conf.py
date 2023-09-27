@@ -18,7 +18,7 @@ project = 'Raphtory'
 copyright = '2023, Pometry'
 author = 'Pometry'
 release = '2021'
-git_ref = os.environ.get("RAPHTORY_VERSION", "main")
+git_ref = "master"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -30,8 +30,9 @@ extensions = [
     "sphinx.ext.autosummary",
     "sphinx.ext.githubpages",
     "sphinx.ext.intersphinx",
-    "sphinx.ext.linkcode",
+    # "sphinx.ext.linkcode",
     "sphinx.ext.mathjax",
+    "sphinx.ext.viewcode",
     # Third-party extensions
     "IPython.sphinxext.ipython_directive",
     "IPython.sphinxext.ipython_console_highlighting",
@@ -43,6 +44,7 @@ extensions = [
     "sphinx_copybutton",
     "sphinx_design",
     "sphinx_favicon",
+    "sphinx.ext.napoleon",
 ]
 
 templates_path = ["_templates", sphinx_autosummary_accessors.templates_path]
@@ -135,61 +137,7 @@ favicons = [
     },
 ]
 
+# sphinx view code
+viewcode_line_numbers=True
 
-# sphinx-ext-linkcode - Add external links to source code
-# https://www.sphinx-doc.org/en/master/usage/extensions/linkcode.html
-def linkcode_resolve(domain: str, info: dict[str, Any]) -> str | None:
-    """
-    Determine the URL corresponding to Python object.
-
-    Based on pandas equivalent:
-    https://github.com/pandas-dev/pandas/blob/main/doc/source/conf.py#L629-L686
-    """
-    if domain != "py":
-        return None
-
-    modname = info["module"]
-    fullname = info["fullname"]
-
-    submod = sys.modules.get(modname)
-    if submod is None:
-        return None
-
-    obj = submod
-    for part in fullname.split("."):
-        try:
-            with warnings.catch_warnings():
-                # Accessing deprecated objects will generate noisy warnings
-                warnings.simplefilter("ignore", FutureWarning)
-                obj = getattr(obj, part)
-        except AttributeError:
-            return None
-
-    try:
-        fn = inspect.getsourcefile(inspect.unwrap(obj))
-    except TypeError:
-        try:  # property
-            fn = inspect.getsourcefile(inspect.unwrap(obj.fget))
-        except (AttributeError, TypeError):
-            fn = None
-    if not fn:
-        return None
-
-    try:
-        source, lineno = inspect.getsourcelines(obj)
-    except TypeError:
-        try:  # property
-            source, lineno = inspect.getsourcelines(obj.fget)
-        except (AttributeError, TypeError):
-            lineno = None
-    except OSError:
-        lineno = None
-
-    linespec = f"#L{lineno}-L{lineno + len(source) - 1}" if lineno else ""
-
-    conf_dir_path = Path(__file__).absolute().parent
-    raphtory_root = (conf_dir_path.parent.parent / "raphtory").absolute()
-
-    fn = os.path.relpath(fn, start=raphtory_root)
-    return f"{github_root}/blob/{git_ref}/pometry/raphtory/{fn}{linespec}"
-
+autodoc_typehints='both'

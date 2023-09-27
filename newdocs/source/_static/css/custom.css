@@ -28,19 +28,6 @@
   color: #ffffff !important;
 }
 
-/* anything related to the light theme */
-html[data-theme="light"] {
-    background: white;
-    --md-primary-fg-color: #C2CCD6;
-}
-
-/* anything related to the dark theme */
-html[data-theme="dark"] {
-    background: black;
-    --md-primary-fg-color: #103547;
-}
-
-
 @font-face{font-family:proxima nova;font-style:normal;font-weight:400;src:local('Proxima Nova'),url('https://fonts.cdnfonts.com/s/27118/Mark Simonson  Proxima Nova Regular Italic.woff') format('woff')}@font-face{font-family:proxima nova;font-style:normal;font-weight:400;src:local('Proxima Nova'),url('https://fonts.cdnfonts.com/s/27118/Mark Simonson  Proxima Nova Regular.woff') format('woff')}@font-face{font-family:proxima nova;font-style:normal;font-weight:250;src:local('Proxima Nova'),url('https://fonts.cdnfonts.com/s/27118/Mark Simonson  Proxima Nova Thin Italic.woff') format('woff')}@font-face{font-family:proxima nova;font-style:normal;font-weight:250;src:local('Proxima Nova'),url('https://fonts.cdnfonts.com/s/27118/Mark Simonson  Proxima Nova Thin.woff') format('woff')}@font-face{font-family:proxima nova;font-style:normal;font-weight:300;src:local('Proxima Nova'),url('https://fonts.cdnfonts.com/s/27118/Mark Simonson  Proxima Nova Light.woff') format('woff')}@font-face{font-family:proxima nova;font-style:italic;font-weight:300;src:local('Proxima Nova'),url('https://fonts.cdnfonts.com/s/27118/Mark Simonson  Proxima Nova Light Italic.woff') format('woff')}@font-face{font-family:proxima nova;font-style:normal;font-weight:600;src:local('Proxima Nova'),url('https://fonts.cdnfonts.com/s/27118/Mark Simonson  Proxima Nova Semibold Italic.woff') format('woff')}@font-face{font-family:proxima nova;font-style:normal;font-weight:600;src:local('Proxima Nova'),url('https://fonts.cdnfonts.com/s/27118/Mark Simonson  Proxima Nova Semibold.woff') format('woff')}@font-face{font-family:proxima nova;font-style:normal;font-weight:700;src:local('Proxima Nova'),url('https://fonts.cdnfonts.com/s/27118/Mark Simonson  Proxima Nova Bold Italic.woff') format('woff')}@font-face{font-family:proxima nova;font-style:normal;font-weight:700;src:local('Proxima Nova'),url('https://fonts.cdnfonts.com/s/27118/Mark Simonson  Proxima Nova Bold.woff') format('woff')}@font-face{font-family:proxima nova;font-style:normal;font-weight:800;src:local('Proxima Nova'),url('https://fonts.cdnfonts.com/s/27118/Mark Simonson  Proxima Nova Extrabold Italic.woff') format('woff')}@font-face{font-family:proxima nova;font-style:normal;font-weight:800;src:local('Proxima Nova'),url('https://fonts.cdnfonts.com/s/27118/Mark Simonson  Proxima Nova Extrabold.woff') format('woff')}@font-face{font-family:proxima nova;font-style:normal;font-weight:900;src:local('Proxima Nova'),url('https://fonts.cdnfonts.com/s/27118/Mark Simonson  Proxima Nova Black Italic.woff') format('woff')}@font-face{font-family:proxima nova;font-style:normal;font-weight:900;src:local('Proxima Nova'),url('https://fonts.cdnfonts.com/s/27118/Mark Simonson  Proxima Nova Black.woff') format('woff')}
 
 html {

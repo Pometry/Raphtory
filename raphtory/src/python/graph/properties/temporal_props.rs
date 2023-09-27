@@ -247,32 +247,56 @@ impl PyTemporalProp {
         self.prop.latest()
     }
 
+    /// Compute the sum of all property values.
+    ///
+    /// Returns:
+    ///     Prop: The sum of all property values.
     pub fn sum(&self) -> Prop {
         let mut it_iter = self.prop.iter();
         let first = it_iter.next().unwrap();
         it_iter.fold(first.1, |acc, elem| acc.add(elem.1).unwrap())
     }
 
+    /// Find the minimum property value and its associated time.
+    ///
+    /// Returns:
+    ///     (i64, Prop): A tuple containing the time and the minimum property value.
     pub fn min(&self) -> (i64, Prop) {
         let mut it_iter = self.prop.iter();
         let first = it_iter.next().unwrap();
         it_iter.fold(first, |acc, elem| if acc.1 <= elem.1 { acc } else { elem })
     }
 
+    /// Find the maximum property value and its associated time.
+    ///
+    /// Returns:
+    ///     (i64, Prop): A tuple containing the time and the maximum property value.
     pub fn max(&self) -> (i64, Prop) {
         let mut it_iter = self.prop.iter();
         let first = it_iter.next().unwrap();
         it_iter.fold(first, |acc, elem| if acc.1 >= elem.1 { acc } else { elem })
     }
 
+    /// Count the number of properties.
+    ///
+    /// Returns:
+    ///     int: The number of properties.
     pub fn count(&self) -> usize {
         self.prop.iter().count()
     }
 
+    /// Compute the average of all property values. Alias for mean().
+    ///
+    /// Returns:
+    ///     Prop: The average of each property values, or None if count is zero.
     pub fn average(&self) -> Option<Prop> {
         self.mean()
     }
 
+    /// Compute the mean of all property values. Alias for mean().
+    ///
+    /// Returns:
+    ///     Prop: The mean of each property values, or None if count is zero.
     pub fn mean(&self) -> Option<Prop> {
         let sum: Prop = self.sum();
         let count: usize = self.count();
@@ -292,6 +316,10 @@ impl PyTemporalProp {
         }
     }
 
+    /// Compute the median of all property values.
+    ///
+    /// Returns:
+    ///     (i64, Prop): A tuple containing the time and the median property value, or None if empty
     pub fn median(&self) -> Option<(i64, Prop)> {
         let it_iter = self.prop.iter();
         let mut vec: Vec<(i64, Prop)> = it_iter.collect_vec();
