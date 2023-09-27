@@ -185,6 +185,9 @@ impl PyEdge {
     }
 
     /// Returns a view of the properties of the edge.
+    ///
+    /// Returns:
+    ///   Properties on the Edge.
     #[getter]
     pub fn properties(&self) -> Properties<EdgeView<DynamicGraph>> {
         self.edge.properties()
@@ -222,7 +225,7 @@ impl PyEdge {
     /// Get the start datetime of the Edge.
     ///
     /// Returns:
-    ///     the start datetime of the Edge.
+    ///     The start datetime of the Edge.
     #[getter]
     pub fn start_date_time(&self) -> Option<NaiveDateTime> {
         let start_time = self.edge.start()?;
@@ -251,7 +254,7 @@ impl PyEdge {
     /// Get the duration of the Edge.
     ///
     /// Arguments:
-    ///   step (int): The step size to use when calculating the duration.
+    ///   step (int or str): The step size to use when calculating the duration.
     ///
     /// Returns:
     ///   A set of windows containing edges that fall in the time period
@@ -268,8 +271,8 @@ impl PyEdge {
     /// A rolling window is a window that moves forward by `step` size at each iteration.
     ///
     /// Arguments:
-    ///   window (int | str): The size of the window.
-    ///   step (int | str): The step size to use when calculating the duration.
+    ///   window (int or str): The size of the window.
+    ///   step (int or str): The step size to use when calculating the duration. (optional)
     ///
     /// Returns:
     ///   A set of windows containing edges that fall in the time period
@@ -284,8 +287,8 @@ impl PyEdge {
     /// Get a new Edge with the properties of this Edge within the specified time window.
     ///
     /// Arguments:
-    ///   t_start (int | str): The start time of the window (optional).
-    ///   t_end (int | str): The end time of the window (optional).
+    ///   t_start (int or str): The start time of the window (optional).
+    ///   t_end (int or str): The end time of the window (optional).
     ///
     /// Returns:
     ///   A new Edge with the properties of this Edge within the specified time window.
@@ -322,7 +325,7 @@ impl PyEdge {
     /// Get a new Edge with the properties of this Edge within the specified layers.
     ///
     /// Arguments:
-    ///   layer_names ([str]): Layers to be included in the new edge.
+    ///   layer_names (List<str>): Layers to be included in the new edge.
     ///
     /// Returns:
     ///   A new Edge with the properties of this Edge within the specified time window.
@@ -344,7 +347,7 @@ impl PyEdge {
     /// Get a new Edge with the properties of this Edge at a specified time.
     ///
     /// Arguments:
-    ///   end (int): The time to get the properties at.
+    ///   end (int, str or datetime(utrc)): The time to get the properties at.
     ///
     /// Returns:
     ///   A new Edge with the properties of this Edge at a specified time.
@@ -404,7 +407,7 @@ impl PyEdge {
     /// Gets of latest datetime of an edge.
     ///
     /// Returns:
-    ///     the latest datetime of an edge
+    ///     (datetime) the latest datetime of an edge
     #[getter]
     pub fn latest_date_time(&self) -> Option<NaiveDateTime> {
         let latest_time = self.edge.latest_time()?;
@@ -423,7 +426,7 @@ impl PyEdge {
     /// Gets the names of the layers this edge belongs to
     ///
     /// Returns:
-    ///     ([str]) The name of the layer
+    ///     (List<str>) The name of the layer
     #[getter]
     pub fn layer_names(&self) -> Vec<ArcStr> {
         self.edge.layer_names().collect_vec()
@@ -432,7 +435,7 @@ impl PyEdge {
     /// Gets the name of the layer this edge belongs to - assuming it only belongs to one layer
     ///
     /// Returns:
-    ///     ([str]) The name of the layer
+    ///     (List<str>) The name of the layer
     #[getter]
     pub fn layer_name(&self) -> Option<ArcStr> {
         self.edge.layer_name().map(|v| v.clone())
@@ -1028,6 +1031,7 @@ impl PyNestedEdges {
     }
 }
 
+/// A direction used by an edge, being incoming or outgoing
 #[pyclass]
 #[derive(Clone)]
 pub struct PyDirection {
