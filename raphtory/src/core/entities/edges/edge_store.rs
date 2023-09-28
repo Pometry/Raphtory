@@ -59,6 +59,11 @@ impl EdgeLayer {
         props.add_constant_prop(prop_id, prop)
     }
 
+    pub fn update_constant_prop(&mut self, prop_id: usize, prop: Prop) -> Result<(), GraphError> {
+        let props = self.props.get_or_insert_with(Props::new);
+        props.update_constant_prop(prop_id, prop)
+    }
+
     pub(crate) fn const_prop_ids(&self) -> impl Iterator<Item = usize> + '_ {
         self.props
             .as_ref()
