@@ -31,7 +31,20 @@ pub trait InternalPropertyAdditionOps {
         props: Vec<(usize, Prop)>,
     ) -> Result<(), GraphError>;
 
+    fn internal_update_constant_vertex_properties(
+        &self,
+        vid: VID,
+        props: Vec<(usize, Prop)>,
+    ) -> Result<(), GraphError>;
+
     fn internal_add_constant_edge_properties(
+        &self,
+        eid: EID,
+        layer: usize,
+        props: Vec<(usize, Prop)>,
+    ) -> Result<(), GraphError>;
+
+    fn internal_update_constant_edge_properties(
         &self,
         eid: EID,
         layer: usize,
@@ -92,6 +105,16 @@ impl<G: DelegatePropertyAdditionOps> InternalPropertyAdditionOps for G {
     }
 
     #[inline]
+    fn internal_update_constant_vertex_properties(
+        &self,
+        vid: VID,
+        props: Vec<(usize, Prop)>,
+    ) -> Result<(), GraphError> {
+        self.graph()
+            .internal_update_constant_vertex_properties(vid, props)
+    }
+
+    #[inline]
     fn internal_add_constant_edge_properties(
         &self,
         eid: EID,
@@ -100,5 +123,16 @@ impl<G: DelegatePropertyAdditionOps> InternalPropertyAdditionOps for G {
     ) -> Result<(), GraphError> {
         self.graph()
             .internal_add_constant_edge_properties(eid, layer, props)
+    }
+
+    #[inline]
+    fn internal_update_constant_edge_properties(
+        &self,
+        eid: EID,
+        layer: usize,
+        props: Vec<(usize, Prop)>,
+    ) -> Result<(), GraphError> {
+        self.graph()
+            .internal_update_constant_edge_properties(eid, layer, props)
     }
 }
