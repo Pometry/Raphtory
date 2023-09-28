@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
+use crate::python::graph::edge::PyDirection;
 /// Implementations of various graph algorithms that can be run on a graph.
 ///
 /// To run an algorithm simply import the module and call the function with the graph as the argument
@@ -33,10 +34,6 @@ use crate::{
     },
     core::entities::vertices::vertex_ref::VertexRef,
     python::{graph::views::graph_view::PyGraphView, utils::PyInputVertex},
-};
-use crate::{
-    core::entities::VID, db::graph::views::vertex_subgraph::VertexSubgraph,
-    python::graph::edge::PyDirection,
 };
 use ordered_float::OrderedFloat;
 use pyo3::prelude::*;
