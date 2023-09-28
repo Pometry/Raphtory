@@ -501,4 +501,31 @@ mod test {
         ];
         assert_eq!(actual, expected);
     }
+
+    #[test]
+    fn test_number_of_vertices() {
+        let test_dir = TempDir::new().unwrap();
+
+        let graph = TempColGraphFragment::build_tables(
+            test_dir.path(),
+            2,
+            1u64..12u64,
+            vec![
+                (1u64, 2u64, 0i64),
+                (1u64, 3u64, 1i64),
+                (1u64, 4u64, 2i64),
+                (2u64, 3u64, 3i64),
+                (2u64, 4u64, 4i64),
+                (2u64, 5u64, 5i64),
+                (3u64, 4u64, 6i64),
+                (3u64, 5u64, 7i64),
+                (3u64, 6u64, 8i64),
+                (4u64, 5u64, 9i64),
+                (4u64, 6u64, 10i64),
+                (4u64, 7u64, 11i64),
+            ],
+        )
+        .unwrap();
+        assert_eq!(graph.num_vertices(), 11);
+    }
 }
