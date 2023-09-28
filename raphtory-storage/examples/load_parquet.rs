@@ -20,11 +20,16 @@ fn main() {
         .nth(5)
         .expect("please supply a graph output directory");
 
-    let chunk_size = 1024;
+    let chunk_size = 65536;
 
     let now = std::time::Instant::now();
 
-    let graph = TempColGraphFragment::from_sorted_parquet_edge_list(
+    // let graph = TempColGraphFragment::from_sorted_parquet_edge_list(
+    //     file, &src_col, &dst_col, &time_col, chunk_size, graph_dir,
+    // )
+    // .expect("failed to load graph");
+
+    let graph = TempColGraphFragment::from_sorted_parquet_dir_edge_list(
         file, &src_col, &dst_col, &time_col, chunk_size, graph_dir,
     )
     .expect("failed to load graph");

@@ -1,4 +1,7 @@
-use std::{io::BufReader, path::Path};
+use std::{
+    io::{BufReader, Read, Seek},
+    path::Path,
+};
 
 use crate::arrow::{
     edge_frame_builder::EdgeFrameBuilder, vertex_frame_builder::VertexFrameBuilder, Error,
@@ -61,7 +64,117 @@ fn array_as_id_iter(array: &Box<dyn Array>) -> Result<Box<dyn Iterator<Item = u6
 }
 
 impl TempColGraphFragment {
-    pub fn from_sorted_parquet_edge_list<P: AsRef<Path>, P2: AsRef<Path>>(
+    fn read_file_sources<P: AsRef<Path>>(
+        parquet_file: P,
+        src_col: &str,
+    ) -> Result<impl Iterator<Item = u64>, Error> {
+        let file = std::fs::File::open(&parquet_file)?;
+        let mut reader = BufReader::new(file);
+        let metadata = read::read_metadata(&mut reader)?;
+        let schema = read::infer_schema(&metadata)?;
+
+        let schema = schema.filter(|_, field| field.name == src_col);
+
+        let reader = read::FileReader::new(reader, metadata.row_groups, schema, None, None, None);
+        Ok(reader
+            .flatten()
+            .flat_map(|chunk| array_as_id_iter(&chunk[0]).unwrap()))
+    }
+
+    fn read_file_triplets<P: AsRef<Path>>(
+        parquet_file: P,
+        src_col: &str,
+        dst_col: &str,
+        time_col: &str,
+    ) -> Result<impl Iterator<Item = (u64, u64, i64)>, Error> {
+        let file = std::fs::File::open(&parquet_file)?;
+        let mut reader = BufReader::new(file);
+        let metadata = read::read_metadata(&mut reader)?;
+        let schema = read::infer_schema(&metadata)?;
+
+        let schema = schema.filter(|_, field| {
+            field.name == src_col || field.name == dst_col || field.name == time_col
+        });
+
+        let src_col_idx = schema
+            .fields
+            .iter()
+            .enumerate()
+            .find(|(_, f)| f.name == src_col)
+            .map(|(i, _)| i)
+            .unwrap();
+        let dst_col_idx = schema
+            .fields
+            .iter()
+            .enumerate()
+            .find(|(_, f)| f.name == dst_col)
+            .map(|(i, _)| i)
+            .unwrap();
+        let time_col_idx = schema
+            .fields
+            .iter()
+            .enumerate()
+            .find(|(_, f)| f.name == time_col)
+            .map(|(i, _)| i)
+            .unwrap();
+
+        let reader = read::FileReader::new(reader, metadata.row_groups, schema, None, None, None);
+        let out = reader.flatten().flat_map(move |chunk| {
+            let srcs = array_as_id_iter(&chunk[src_col_idx]).unwrap();
+            let dsts = array_as_id_iter(&chunk[dst_col_idx]).unwrap();
+
+            let arr = &chunk[time_col_idx];
+            let times = arr
+                .as_any()
+                .downcast_ref::<PrimitiveArray<i64>>()
+                .unwrap()
+                .clone();
+            srcs.zip(dsts)
+                .zip(times.into_iter().flatten())
+                .map(|((src, dst), time)| (src, dst, time))
+        });
+        Ok(out)
+    }
+
+    pub fn from_sorted_parquet_dir_edge_list<P: AsRef<Path> + Clone, P2: AsRef<Path>>(
+        parquet_dir: P,
+        src_col: &str,
+        dst_col: &str,
+        time_col: &str,
+        chunk_size: usize,
+        graph_dir: P2,
+    ) -> Result<Self, Error>{
+
+        let srcs_parquet_files = std::fs::read_dir(parquet_dir.clone())?
+            .map(|res| res.unwrap())
+            .filter(|e| e.path().extension().filter(|ext| ext == &"parquet").is_some())
+            .sorted_by(|f1, f2| f1.path().cmp(&f2.path()))
+            .map(|file| {
+                println!("reading file: {:?}", file.path());
+                file
+            });
+
+        let triplets_parquet_files2 = std::fs::read_dir(parquet_dir)?
+            .map(|res| res.unwrap())
+            .filter(|e| e.path().extension().filter(|ext| ext == &"parquet").is_some())
+            .sorted_by(|f1, f2| f1.path().cmp(&f2.path()));
+
+        let srcs = srcs_parquet_files
+            .flat_map(|dir_entry| Self::read_file_sources(dir_entry.path(), src_col))
+            .flatten();
+
+        let triplets = triplets_parquet_files2
+            .flat_map(|dir_entry| {
+                println!("reading file: {:?}", dir_entry.path());
+                Self::read_file_triplets(dir_entry.path(), src_col, dst_col, time_col)
+            })
+            .flatten();
+
+        let out = Self::build_tables(graph_dir, chunk_size, srcs, triplets)?;
+        Ok(out)
+    }
+
+    pub fn from_sorted_parquet_edge_list<P: AsRef<Path> + Clone, P2: AsRef<Path>>(
         parquet_file: P,
         src_col: &str,
         dst_col: &str,
@@ -69,77 +182,9 @@ impl TempColGraphFragment {
         chunk_size: usize,
         graph_dir: P2,
     ) -> Result<Self, Error> {
-        let srcs_iter = {
-            let file = std::fs::File::open(&parquet_file)?;
-            let mut reader = BufReader::new(file);
-            let metadata = read::read_metadata(&mut reader)?;
-            let schema = read::infer_schema(&metadata)?;
+        let srcs_iter = Self::read_file_sources(parquet_file.clone(), src_col)?;
 
-            let schema = schema.filter(|_, field| field.name == src_col);
-
-            let reader =
-                read::FileReader::new(reader, metadata.row_groups, schema, None, None, None);
-            reader
-                .flatten()
-                .flat_map(|chunk| array_as_id_iter(&chunk[0]).unwrap())
-        };
-
-        let triplets = {
-            let file = std::fs::File::open(&parquet_file)?;
-            let mut reader = BufReader::new(file);
-            let metadata = read::read_metadata(&mut reader)?;
-            let schema = read::infer_schema(&metadata)?;
-
-            let schema = schema.filter(|_, field| {
-                field.name == src_col || field.name == dst_col || field.name == time_col
-            });
-
-            let src_col_idx = schema
-                .fields
-                .iter()
-                .enumerate()
-                .find(|(_, f)| f.name == src_col)
-                .map(|(i, _)| i)
-                .unwrap();
-            let dst_col_idx = schema
-                .fields
-                .iter()
-                .enumerate()
-                .find(|(_, f)| f.name == dst_col)
-                .map(|(i, _)| i)
-                .unwrap();
-            let time_col_idx = schema
-                .fields
-                .iter()
-                .enumerate()
-                .find(|(_, f)| f.name == time_col)
-                .map(|(i, _)| i)
-                .unwrap();
-
-            let reader =
-                read::FileReader::new(reader, metadata.row_groups, schema, None, None, None);
-            reader.flatten().flat_map(move |chunk| {
-                // let arr = &chunk[str_col_idx];
-                // let srcs = arr
-                //     .as_any()
-                //     .downcast_ref::<PrimitiveArray<u64>>()
-                //     .unwrap()
-                //     .clone();
-
-                let srcs = array_as_id_iter(&chunk[src_col_idx]).unwrap();
-                let dsts = array_as_id_iter(&chunk[dst_col_idx]).unwrap();
-
-                let arr = &chunk[time_col_idx];
-                let times = arr
-                    .as_any()
-                    .downcast_ref::<PrimitiveArray<i64>>()
-                    .unwrap()
-                    .clone();
-                srcs.zip(dsts)
-                    .zip(times.into_iter().flatten())
-                    .map(|((src, dst), time)| (src, dst, time))
-            })
-        };
+        let triplets = Self::read_file_triplets(parquet_file, src_col, dst_col, time_col)?;
 
         let out = Self::build_tables(graph_dir, chunk_size, srcs_iter, triplets)?;
         Ok(out)
