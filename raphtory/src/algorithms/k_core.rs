@@ -36,7 +36,7 @@ impl Default for KCoreState {
 /// * `iter_count` - The number of iterations to run
 /// * `threads` - number of threads to run on
 ///
-/// # Returns
+/// Returns:
 ///
 /// A hash set of vertices in the k core
 ///

@@ -16,10 +16,24 @@ macro_rules! layers_doc_string {
 Create a view including all the edges in the layers `names`
 
 Arguments:
-    names (str) : the names of the layers to include
+    name (str) : the name of the layers to include
 
 Returns:
     a view including all the edges in the layers `names`"
+    };
+}
+
+#[macro_export]
+macro_rules! layers_name_doc_string {
+    () => {
+        "
+Create a view including all the edges in the layers `name`
+
+Arguments:
+    name (str) : the name of the layer to include
+
+Returns:
+    a view including all the edges in the layer `name`"
     };
 }
 
