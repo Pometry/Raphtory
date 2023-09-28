@@ -370,6 +370,16 @@ impl<const N: usize> TemporalGraph<N> {
         Ok(())
     }
 
+    pub(crate) fn update_constant_properties(
+        &self,
+        props: Vec<(usize, Prop)>,
+    ) -> Result<(), GraphError> {
+        for (id, prop) in props {
+            self.graph_props.update_constant_prop(id, prop)?;
+        }
+        Ok(())
+    }
+
     pub(crate) fn add_properties(
         &self,
         t: TimeIndexEntry,

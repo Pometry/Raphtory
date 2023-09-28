@@ -137,6 +137,12 @@ mod lazy_vec_tests {
         assert_eq!(vec.get(0), Some(&0));
         assert_eq!(vec.get(10), None);
 
+        vec.update(5, |mut n| {
+            *n = 100;
+            Ok(())
+        });
+        assert_eq!(vec.get(5), Some(&100));
+
         vec.update(6, |n| Ok(*n += 1));
         assert_eq!(vec.get(6), Some(&1));
         vec.update(9, |n| Ok(*n += 1));
