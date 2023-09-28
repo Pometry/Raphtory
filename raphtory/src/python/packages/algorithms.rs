@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use crate::python::graph::edge::PyDirection;
 /// Implementations of various graph algorithms that can be run on a graph.
