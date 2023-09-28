@@ -1,4 +1,4 @@
-use std::{io::BufReader, path::Path};
+use std::{io::BufReader, path::Path, fs::DirEntry, cmp::Ordering};
 
 use crate::arrow::{
     edge_frame_builder::EdgeFrameBuilder, mmap::mmap_batches,
@@ -13,9 +13,11 @@ use arrow2::{
 };
 use itertools::Itertools;
 use raphtory::core::{
-    entities::{vertices::input_vertex::InputVertex, EID, VID},
+    entities::{EID, VID},
     Direction,
 };
+
+use super::GID;
 
 pub type Time = i64;
 
@@ -27,7 +29,7 @@ pub struct TempColGraphFragment {
     edge_chunks: Vec<Chunk<Box<dyn Array>>>,
 }
 
-fn array_as_id_iter(array: &Box<dyn Array>) -> Result<Box<dyn Iterator<Item = u64>>, Error> {
+fn array_as_id_iter(array: &Box<dyn Array>) -> Result<Box<dyn Iterator<Item = GID>>, Error> {
     match array.data_type() {
         DataType::UInt64 => {
             let array = array
@@ -35,7 +37,7 @@ fn array_as_id_iter(array: &Box<dyn Array>) -> Result<Box<dyn Iterator<Item = u6
                 .downcast_ref::<PrimitiveArray<u64>>()
                 .unwrap()
                 .clone();
-            Ok(Box::new(array.into_iter().flatten()))
+            Ok(Box::new(array.into_iter().flatten().map(GID::Num)))
         }
         DataType::Utf8 => {
             let array = array
@@ -44,7 +46,7 @@ fn array_as_id_iter(array: &Box<dyn Array>) -> Result<Box<dyn Iterator<Item = u6
                 .unwrap()
                 .clone();
             Ok(Box::new(
-                (0..array.len()).map(move |i| unsafe { array.value_unchecked(i) }.id()),
+                (0..array.len()).map(move |i| unsafe { array.value_unchecked(i) }.into()),
             ))
         }
         DataType::LargeUtf8 => {
@@ -54,7 +56,7 @@ fn array_as_id_iter(array: &Box<dyn Array>) -> Result<Box<dyn Iterator<Item = u6
                 .unwrap()
                 .clone();
             Ok(Box::new(
-                (0..array.len()).map(move |i| unsafe { array.value_unchecked(i) }.id()),
+                (0..array.len()).map(move |i| unsafe { array.value_unchecked(i) }.into()),
             ))
         }
         v => Err(Error::DType(v.clone())),
@@ -62,6 +64,8 @@ fn array_as_id_iter(array: &Box<dyn Array>) -> Result<Box<dyn Iterator<Item = u6
 }
 
 impl TempColGraphFragment {
+
+
     pub fn new<P: AsRef<Path>>(graph_dir: P) -> Result<Self, Error> {
         // iterate graph dir and split into two vectors of files edge_chunk_{j}.ipc and adj_out_chunk_{i}.ipc
 
@@ -91,7 +95,6 @@ impl TempColGraphFragment {
             .flat_map(|file_path| unsafe { mmap_batches(file_path.path(), 0) })
             .collect_vec();
 
-
         let chunk_size = &vertices_chunks[0][0].len();
 
         Ok(Self {
@@ -109,6 +112,9 @@ impl TempColGraphFragment {
         chunk_size: usize,
         graph_dir: P2,
     ) -> Result<Self, Error> {
+
+        Self::prepare_graph_dir(graph_dir.as_ref())?;
+
         let srcs_parquet_files = std::fs::read_dir(parquet_dir.clone())?
             .map(|res| res.unwrap())
             .filter(|e| {
@@ -156,6 +162,8 @@ impl TempColGraphFragment {
         chunk_size: usize,
         graph_dir: P2,
     ) -> Result<Self, Error> {
+
+        Self::prepare_graph_dir(graph_dir.as_ref())?;
         let srcs_iter = Self::read_file_sources(parquet_file.clone(), src_col)?;
 
         let triplets = Self::read_file_triplets(parquet_file, src_col, dst_col, time_col)?;
@@ -164,11 +172,24 @@ impl TempColGraphFragment {
         Ok(out)
     }
 
-    fn build_tables<P: AsRef<Path>>(
+    fn prepare_graph_dir<P: AsRef<Path>>(graph_dir: P) -> Result<(), Error> {
+        // create graph dir if it does not exist
+        // if it exists make sure it's empty
+        std::fs::create_dir_all(&graph_dir)?;
+        
+        let mut dir_iter = std::fs::read_dir(&graph_dir)?;
+        if dir_iter.next().is_some() {
+            return Err(Error::GraphDirNotEmpty);
+        } 
+         
+        return Ok(());
+    }
+
+    fn build_tables<P: AsRef<Path>, ID: Into<GID> + PartialEq>(
         base_dir: P,
         chunk_size: usize,
-        source_iter: impl IntoIterator<Item = u64>,
-        tuples_iter: impl IntoIterator<Item = (u64, u64, i64)>,
+        source_iter: impl IntoIterator<Item = ID>,
+        tuples_iter: impl IntoIterator<Item = (ID, ID, i64)>,
     ) -> ArrowResult<Self> {
         let mut vf_builder = VertexFrameBuilder::new(chunk_size, &base_dir);
         let mut edge_builder = EdgeFrameBuilder::new(chunk_size, &base_dir);
@@ -178,7 +199,7 @@ impl TempColGraphFragment {
 
         // g_id, [{v_id1, e_id1}, {v_id2, e_id2}, ...]
         for (src, dst, time) in tuples_iter {
-            let (src_id, dst_id) = vf_builder.push_update(src, dst)?;
+            let (src_id, dst_id) = vf_builder.push_update(src.into(), dst.into())?;
             edge_builder.push_update(time, src_id, dst_id)?;
         }
         vf_builder.finalise_empty_chunks()?;
@@ -194,7 +215,7 @@ impl TempColGraphFragment {
     fn read_file_sources<P: AsRef<Path>>(
         parquet_file: P,
         src_col: &str,
-    ) -> Result<impl Iterator<Item = u64>, Error> {
+    ) -> Result<impl Iterator<Item = GID>, Error> {
         let file = std::fs::File::open(&parquet_file)?;
         let mut reader = BufReader::new(file);
         let metadata = read::read_metadata(&mut reader)?;
@@ -213,7 +234,7 @@ impl TempColGraphFragment {
         src_col: &str,
         dst_col: &str,
         time_col: &str,
-    ) -> Result<impl Iterator<Item = (u64, u64, i64)>, Error> {
+    ) -> Result<impl Iterator<Item = (GID, GID, i64)>, Error> {
         let file = std::fs::File::open(&parquet_file)?;
         let mut reader = BufReader::new(file);
         let metadata = read::read_metadata(&mut reader)?;

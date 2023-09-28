@@ -77,7 +77,7 @@ impl EdgeFrameBuilder {
         ]);
         let file_path = self
             .location_path
-            .join(format!("edge_chunk_{}.ipc", self.edge_chunks.len()));
+            .join(format!("edge_chunk_{:08}.ipc", self.edge_chunks.len()));
         write_batches(file_path.as_path(), schema, &[chunk])?;
         let mmapped_chunk = unsafe { mmap_batches(file_path.as_path(), 0)? };
         self.edge_chunks.push(mmapped_chunk);
