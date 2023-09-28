@@ -3253,6 +3253,7 @@ dependencies = [
  "parking_lot",
  "raphtory",
  "rayon",
+ "serde",
  "tempfile",
  "thiserror",
 ]
