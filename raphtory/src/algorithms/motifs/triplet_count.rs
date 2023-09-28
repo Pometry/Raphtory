@@ -15,7 +15,7 @@
 //!
 //! ```rust
 //! use raphtory::prelude::*;
-//! use raphtory::algorithms::triplet_count::triplet_count;
+//! use raphtory::algorithms::motifs::triplet_count::triplet_count;
 //! let graph = Graph::new();
 //!  let edges = vec![
 //!      (1, 2),
@@ -61,7 +61,7 @@ use crate::{
 /// # Example
 ///
 /// ```rust
-/// use raphtory::algorithms::triplet_count::triplet_count;
+/// use raphtory::algorithms::motifs::triplet_count::triplet_count;
 /// use raphtory::prelude::*;
 /// let graph = Graph::new();
 ///  let edges = vec![

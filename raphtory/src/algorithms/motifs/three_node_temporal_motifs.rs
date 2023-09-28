@@ -1,6 +1,6 @@
 // Imports ///////////////////////////////////////////
 use crate::{
-    algorithms::{k_core::k_core_set, motifs::three_node_motifs::*},
+    algorithms::{cores::k_core::k_core_set, motifs::three_node_motifs::*},
     core::state::{
         accumulator_id::{
             accumulators::{self, val},

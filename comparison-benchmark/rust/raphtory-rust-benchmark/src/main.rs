@@ -202,11 +202,11 @@ fn main() {
         .collect();
     println!("Page rank: {} seconds", now.elapsed().as_secs_f64());
 
-    // connected components with time
+    // connected community_detection with time
     now = Instant::now();
     let _cc: AlgorithmResult<String, u64> = weakly_connected_components(&g, usize::MAX, None);
     println!(
-        "Connected components: {} seconds",
+        "Connected community_detection: {} seconds",
         now.elapsed().as_secs_f64()
     );
 }

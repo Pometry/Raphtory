@@ -1,5 +1,5 @@
-use super::algorithm_result::AlgorithmResult;
 use crate::{
+    algorithms::algorithm_result::AlgorithmResult,
     core::{
         entities::{vertices::vertex_ref::VertexRef, VID},
         state::compute_state::ComputeStateVec,
@@ -21,7 +21,7 @@ struct WccState {
     component: u64,
 }
 
-/// Computes the connected components of a graph using the Simple Connected Components algorithm
+/// Computes the connected community_detection of a graph using the Simple Connected Components algorithm
 ///
 /// # Arguments
 ///
@@ -201,7 +201,7 @@ mod cc_test {
         );
     }
 
-    // connected components on a graph with 1 node and a self loop
+    // connected community_detection on a graph with 1 node and a self loop
     #[test]
     fn simple_connected_components_3() {
         let graph = Graph::new();
@@ -280,7 +280,7 @@ mod cc_test {
                 graph.add_edge(0, *src, *dst, NO_PROPS, None).unwrap();
             }
 
-            // now we do connected components over window 0..1
+            // now we do connected community_detection over window 0..1
 
             let res: AlgorithmResult<String, u64> =
                 weakly_connected_components(&graph, usize::MAX, None);

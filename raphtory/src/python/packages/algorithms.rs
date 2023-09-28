@@ -25,7 +25,7 @@ use crate::{
             temporal_three_node_motif as local_three_node_rs,
         },
         pagerank::unweighted_page_rank,
-        reciprocity::{
+        reciprocity_algorithm::{
             all_local_reciprocity as all_local_reciprocity_rs,
             global_reciprocity as global_reciprocity_rs,
         },
@@ -53,7 +53,7 @@ pub fn local_triangle_count(g: &PyGraphView, v: VertexRef) -> Option<usize> {
     local_triangle_count_rs(&g.graph, v)
 }
 
-/// Weakly connected components -- partitions the graph into node sets which are mutually reachable by an undirected path
+/// Weakly connected community_detection -- partitions the graph into node sets which are mutually reachable by an undirected path
 ///
 /// This function assigns a component id to each vertex such that vertices with the same component id are mutually reachable
 /// by an undirected path.
