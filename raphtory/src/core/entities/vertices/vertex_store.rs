@@ -105,6 +105,11 @@ impl VertexStore {
         props.add_constant_prop(prop_id, prop)
     }
 
+    pub fn update_constant_prop(&mut self, prop_id: usize, prop: Prop) -> Result<(), GraphError> {
+        let props = self.props.get_or_insert_with(Props::new);
+        props.update_constant_prop(prop_id, prop)
+    }
+
     #[inline(always)]
     pub(crate) fn find_edge(&self, dst: VID, layer_id: &LayerIds) -> Option<EID> {
         match layer_id {

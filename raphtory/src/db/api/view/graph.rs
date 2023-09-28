@@ -195,8 +195,8 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
                 for ee in ee.explode() {
                     g.add_edge(
                         ee.time().expect("exploded edge"),
-                        ee.src().id(),
-                        ee.dst().id(),
+                        ee.src().name(),
+                        ee.dst().name(),
                         ee.properties().temporal().collect_properties(),
                         layer_name,
                     )?;
@@ -216,11 +216,11 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
 
         for v in self.vertices().iter() {
             for h in v.history() {
-                g.add_vertex(h, v.id(), NO_PROPS)?;
+                g.add_vertex(h, v.name(), NO_PROPS)?;
             }
             for (name, prop_view) in v.properties().temporal().iter() {
                 for (t, prop) in prop_view.iter() {
-                    g.add_vertex(t, v.id(), [(name.clone(), prop)])?;
+                    g.add_vertex(t, v.name(), [(name.clone(), prop)])?;
                 }
             }
             g.vertex(v.id())
@@ -294,6 +294,12 @@ mod test_materialize {
         g.add_edge(0, 1, 2, [("layer2", "2")], Some("2")).unwrap();
 
         let gm = g.materialize().unwrap();
+        assert!(gm
+            .vertices()
+            .name()
+            .collect::<Vec<String>>()
+            .eq(&vec!["1", "2"]));
+
         assert!(!g
             .layer("2")
             .unwrap()

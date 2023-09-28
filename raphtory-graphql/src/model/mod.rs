@@ -172,13 +172,15 @@ impl Mut {
                 .filter(|(a, _)| a != "name")
                 .collect_vec();
 
-            new_subgraph.add_constant_properties(static_props_without_name)?;
+            new_subgraph.update_constant_properties(static_props_without_name)?;
+
             new_subgraph
-                .add_constant_properties([("name", Prop::Str(new_graph_name.clone().into()))])?;
+                .update_constant_properties([("name", Prop::Str(new_graph_name.clone().into()))])?;
 
             let dt = Utc::now();
             let timestamp: i64 = dt.timestamp();
-            new_subgraph.add_constant_properties([("lastUpdated", Prop::I64(timestamp * 1000))])?;
+            new_subgraph
+                .update_constant_properties([("lastUpdated", Prop::I64(timestamp * 1000))])?;
 
             new_subgraph.save_to_file(path)?;
 
@@ -237,7 +239,7 @@ impl Mut {
 
         let new_subgraph = parent_graph.subgraph(graph_nodes).materialize()?;
 
-        new_subgraph.add_constant_properties([("name", Prop::str(new_graph_name.clone()))])?;
+        new_subgraph.update_constant_properties([("name", Prop::str(new_graph_name.clone()))])?;
 
         // parent_graph_name == graph_name, means its a graph created from UI
         if parent_graph_name.ne(&graph_name) {
@@ -248,14 +250,14 @@ impl Mut {
                     .into_iter()
                     .filter(|(a, _)| a != "name" && a != "creationTime" && a != "uiProps")
                     .collect_vec();
-                new_subgraph.add_constant_properties(static_props)?;
+                new_subgraph.update_constant_properties(static_props)?;
             } else {
                 let static_props: Vec<(ArcStr, Prop)> = subgraph
                     .properties()
                     .into_iter()
                     .filter(|(a, _)| a != "name" && a != "lastUpdated" && a != "uiProps")
                     .collect_vec();
-                new_subgraph.add_constant_properties(static_props)?;
+                new_subgraph.update_constant_properties(static_props)?;
             }
         }
 
@@ -264,11 +266,11 @@ impl Mut {
 
         if parent_graph_name.eq(&graph_name) || graph_name.ne(&new_graph_name) {
             new_subgraph
-                .add_constant_properties([("creationTime", Prop::I64(timestamp * 1000))])?;
+                .update_constant_properties([("creationTime", Prop::I64(timestamp * 1000))])?;
         }
 
-        new_subgraph.add_constant_properties([("lastUpdated", Prop::I64(timestamp * 1000))])?;
-        new_subgraph.add_constant_properties([("uiProps", Prop::Str(props.into()))])?;
+        new_subgraph.update_constant_properties([("lastUpdated", Prop::I64(timestamp * 1000))])?;
+        new_subgraph.update_constant_properties([("uiProps", Prop::Str(props.into()))])?;
 
         new_subgraph.save_to_file(path)?;
 
@@ -356,8 +358,8 @@ impl Mut {
             .into_iter()
             .filter(|(a, _)| a != "isArchive")
             .collect_vec();
-        new_subgraph.add_constant_properties(static_props_without_isactive)?;
-        new_subgraph.add_constant_properties([("isArchive", Prop::U8(is_archive))])?;
+        new_subgraph.update_constant_properties(static_props_without_isactive)?;
+        new_subgraph.update_constant_properties([("isArchive", Prop::U8(is_archive))])?;
         new_subgraph.save_to_file(path)?;
 
         let gi: IndexedGraph<Graph> = new_subgraph

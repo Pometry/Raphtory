@@ -317,6 +317,18 @@ impl<G: GraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> Vertex
             .internal_add_constant_vertex_properties(self.vertex, properties)
     }
 
+    pub fn update_constant_properties<C: CollectProperties>(
+        &self,
+        props: C,
+    ) -> Result<(), GraphError> {
+        let properties: Vec<(usize, Prop)> = props.collect_properties(
+            |name, dtype| self.graph.resolve_vertex_property(name, dtype, true),
+            |prop| self.graph.process_prop_value(prop),
+        )?;
+        self.graph
+            .internal_update_constant_vertex_properties(self.vertex, properties)
+    }
+
     pub fn add_updates<C: CollectProperties, T: TryIntoInputTime>(
         &self,
         time: T,
@@ -551,6 +563,15 @@ mod vertex_test {
         let v1 = g.add_vertex(0, 1, NO_PROPS).unwrap();
         v1.add_constant_properties([("test", "test")]).unwrap();
         assert_eq!(v1.properties().get("test"), Some("test".into()))
+    }
+
+    #[test]
+    fn test_constant_property_updates() {
+        let g = Graph::new();
+        let v1 = g.add_vertex(0, 1, NO_PROPS).unwrap();
+        v1.add_constant_properties([("test", "test")]).unwrap();
+        v1.update_constant_properties([("test", "test2")]).unwrap();
+        assert_eq!(v1.properties().get("test"), Some("test2".into()))
     }
 
     #[test]
