@@ -53,13 +53,20 @@ type MPArr<T> = MutablePrimitiveArray<T>;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) enum GID{
-    Num(u64),
+    U64(u64),
+    I64(i64),
     Str(String),
 }
 
 impl From<u64> for GID {
     fn from(id: u64) -> Self {
-        Self::Num(id)
+        Self::U64(id)
+    }
+}
+
+impl From<i64> for GID {
+    fn from(id: i64) -> Self {
+        Self::I64(id)
     }
 }
 

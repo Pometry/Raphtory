@@ -1,4 +1,4 @@
-use std::{io::BufReader, path::Path, fs::DirEntry, cmp::Ordering};
+use std::{io::BufReader, path::Path};
 
 use crate::arrow::{
     edge_frame_builder::EdgeFrameBuilder, mmap::mmap_batches,
@@ -37,7 +37,15 @@ fn array_as_id_iter(array: &Box<dyn Array>) -> Result<Box<dyn Iterator<Item = GI
                 .downcast_ref::<PrimitiveArray<u64>>()
                 .unwrap()
                 .clone();
-            Ok(Box::new(array.into_iter().flatten().map(GID::Num)))
+            Ok(Box::new(array.into_iter().flatten().map(GID::U64)))
+        }
+        DataType::Int64 => {
+            let array = array
+                .as_any()
+                .downcast_ref::<PrimitiveArray<i64>>()
+                .unwrap()
+                .clone();
+            Ok(Box::new(array.into_iter().flatten().map(GID::I64)))
         }
         DataType::Utf8 => {
             let array = array
