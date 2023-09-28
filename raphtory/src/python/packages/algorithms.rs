@@ -8,28 +8,28 @@ use crate::python::graph::edge::PyDirection;
 use crate::{
     algorithms::{
         algorithm_result::AlgorithmResult,
-        balance::balance as balance_rs,
-        connected_components,
-        degree::{
+        centrality::hits::hits as hits_rs,
+        centrality::pagerank::unweighted_page_rank,
+        community_detection::connected_components,
+        metrics::balance::balance as balance_rs,
+        metrics::degree::{
             average_degree as average_degree_rs, max_in_degree as max_in_degree_rs,
             max_out_degree as max_out_degree_rs, min_in_degree as min_in_degree_rs,
             min_out_degree as min_out_degree_rs,
         },
-        directed_graph_density::directed_graph_density as directed_graph_density_rs,
-        hits::hits as hits_rs,
-        local_clustering_coefficient::local_clustering_coefficient as local_clustering_coefficient_rs,
-        local_triangle_count::local_triangle_count as local_triangle_count_rs,
+        metrics::directed_graph_density::directed_graph_density as directed_graph_density_rs,
+        metrics::local_clustering_coefficient::local_clustering_coefficient as local_clustering_coefficient_rs,
+        metrics::reciprocity::{
+            all_local_reciprocity as all_local_reciprocity_rs,
+            global_reciprocity as global_reciprocity_rs,
+        },
+        motifs::local_triangle_count::local_triangle_count as local_triangle_count_rs,
         motifs::three_node_temporal_motifs::{
             global_temporal_three_node_motif as global_temporal_three_node_motif_rs,
             global_temporal_three_node_motif_general as global_temporal_three_node_motif_general_rs,
             temporal_three_node_motif as local_three_node_rs,
         },
-        pagerank::unweighted_page_rank,
-        reciprocity_algorithm::{
-            all_local_reciprocity as all_local_reciprocity_rs,
-            global_reciprocity as global_reciprocity_rs,
-        },
-        temporal_reachability::temporally_reachable_nodes as temporal_reachability_rs,
+        pathing::temporal_reachability::temporally_reachable_nodes as temporal_reachability_rs,
     },
     core::entities::vertices::vertex_ref::VertexRef,
     python::{graph::views::graph_view::PyGraphView, utils::PyInputVertex},
@@ -259,7 +259,7 @@ pub fn all_local_reciprocity(g: &PyGraphView) -> AlgorithmResult<String, f64, Or
 ///     int : the number of triplets in the graph
 #[pyfunction]
 pub fn triplet_count(g: &PyGraphView) -> usize {
-    crate::algorithms::triplet_count::triplet_count(&g.graph, None)
+    crate::algorithms::motifs::triplet_count::triplet_count(&g.graph, None)
 }
 
 /// Computes the global clustering coefficient of a graph. The global clustering coefficient is
@@ -277,7 +277,7 @@ pub fn triplet_count(g: &PyGraphView) -> usize {
 ///     [`Triplet Count`](triplet_count)
 #[pyfunction]
 pub fn global_clustering_coefficient(g: &PyGraphView) -> f64 {
-    crate::algorithms::clustering_coefficient::clustering_coefficient(&g.graph)
+    crate::algorithms::metrics::clustering_coefficient::clustering_coefficient(&g.graph)
 }
 
 /// Computes the number of three edge, up-to-three node delta-temporal motifs in the graph, using the algorithm of Paranjape et al, Motifs in Temporal Networks (2017).
