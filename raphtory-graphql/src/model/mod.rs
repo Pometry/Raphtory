@@ -172,13 +172,10 @@ impl Mut {
                 .filter(|(a, _)| a != "name")
                 .collect_vec();
 
-            new_subgraph
-                .update_constant_properties(static_props_without_name)
-                .expect("failed to add static props");
+            new_subgraph.update_constant_properties(static_props_without_name)?;
 
             new_subgraph
-                .update_constant_properties([("name", Prop::Str(new_graph_name.clone().into()))])
-                .expect("failed to add name");
+                .update_constant_properties([("name", Prop::Str(new_graph_name.clone().into()))])?;
 
             let dt = Utc::now();
             let timestamp: i64 = dt.timestamp();
@@ -253,9 +250,7 @@ impl Mut {
                     .into_iter()
                     .filter(|(a, _)| a != "name" && a != "creationTime" && a != "uiProps")
                     .collect_vec();
-                new_subgraph
-                    .update_constant_properties(static_props)
-                    .expect("failed to add static props");
+                new_subgraph.update_constant_properties(static_props)?;
             } else {
                 let static_props: Vec<(ArcStr, Prop)> = subgraph
                     .properties()
