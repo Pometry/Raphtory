@@ -1,10 +1,14 @@
 .. raw:: html
 
-   <div style="visibility: hidden;">
+   <meta http-equiv="refresh" content="0; url=reference/index.html" />
 
-=====
-Index
-=====
+=============
+API reference
+=============
+
+This page gives an overview of all public raphtory objects, functions and
+methods.
+
 .. raw:: html
 
    </div>
@@ -13,4 +17,5 @@ Index
    :maxdepth: 5
 
    reference/index
+
 
