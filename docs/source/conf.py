@@ -112,6 +112,7 @@ html_theme_options = {
         "image_auto":  "_static/logos/raphtory-logo-bright-medium.png",
         "image_light": "_static/logos/raphtory-logo-bright-medium.png",
         "image_dark":  "_static/logos/raphtory-logo-bright-medium.png",
+        "logo_url": "reference/index.html",
         "alt_text": "Raphtory - Home",
     },
     "show_version_warning_banner": True,
