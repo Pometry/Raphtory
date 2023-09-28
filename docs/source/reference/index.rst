@@ -2,7 +2,7 @@
 API reference
 =============
 
-This page gives an overview of all public polars objects, functions and
+This page gives an overview of all public raphtory objects, functions and
 methods.
 
 .. toctree::
