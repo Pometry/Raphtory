@@ -83,3 +83,4 @@ webencodings==0.5.1
 websockets==10.4
 yarg==0.1.9
 yarl==1.9.2
+sphinx-notfound-page==1.0.0
