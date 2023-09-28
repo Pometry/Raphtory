@@ -173,7 +173,10 @@ impl TempColGraphFragment {
     }
 
     pub fn num_vertices(&self) -> usize {
-        self.adj_out_chunks.iter().map(|chunk| chunk[0].len()).sum()
+        match self.adj_out_chunks.last() {
+            Some(v) => (self.adj_out_chunks.len() - 1) * self.chunk_size + v.len(), // all but the last chunk are always full
+            None => 0, // we have an empty graph
+        }
     }
 
     pub fn edges(
@@ -318,7 +321,8 @@ mod test {
             100,
             vec![1u64, 1u64, 1u64],
             vec![(1u64, 2u64, 0i64), (1u64, 2u64, 3i64), (1u64, 2u64, 7i64)],
-        ).unwrap();
+        )
+        .unwrap();
 
         let actual = graph.edges(0.into(), Direction::OUT).collect::<Vec<_>>();
         let expected = vec![(EID(0), VID(1))];
@@ -337,7 +341,9 @@ mod test {
         let graph = TempColGraphFragment::build_tables(
             test_dir.path(),
             100,
-            vec![1u64, 1u64, 1u64, 2u64, 2u64, 2u64, 3u64, 3u64, 3u64, 4u64, 4u64, 4u64],
+            vec![
+                1u64, 1u64, 1u64, 2u64, 2u64, 2u64, 3u64, 3u64, 3u64, 4u64, 4u64, 4u64,
+            ],
             vec![
                 (1u64, 2u64, 0i64),
                 (1u64, 3u64, 1i64),
@@ -352,7 +358,8 @@ mod test {
                 (4u64, 6u64, 10i64),
                 (4u64, 7u64, 11i64),
             ],
-        ).unwrap();
+        )
+        .unwrap();
 
         let actual = graph.edges(0.into(), Direction::OUT).collect::<Vec<_>>();
         let expected = vec![(EID(0), VID(1)), (EID(1), VID(2)), (EID(2), VID(3))];
@@ -393,7 +400,8 @@ mod test {
                 (2u64, 4u64, 4i64),
                 (2u64, 4u64, 5i64),
             ],
-        ).unwrap();
+        )
+        .unwrap();
 
         let actual = graph.edges(0.into(), Direction::OUT).collect::<Vec<_>>();
         let expected = vec![(EID(0), VID(1)), (EID(1), VID(2))];
@@ -426,7 +434,8 @@ mod test {
                 (2u64, 4u64, 4i64),
                 (2u64, 4u64, 5i64),
             ],
-        ).unwrap();
+        )
+        .unwrap();
 
         let actual = graph.edges(0.into(), Direction::OUT).collect::<Vec<_>>();
         let expected = vec![(EID(0), VID(1)), (EID(1), VID(2))];
@@ -450,7 +459,9 @@ mod test {
         let graph = TempColGraphFragment::build_tables(
             test_dir.path(),
             2,
-            vec![1u64, 1u64, 1u64, 2u64, 2u64, 2u64, 3u64, 3u64, 3u64, 4u64, 4u64, 4u64],
+            vec![
+                1u64, 1u64, 1u64, 2u64, 2u64, 2u64, 3u64, 3u64, 3u64, 4u64, 4u64, 4u64,
+            ],
             vec![
                 (1u64, 2u64, 0i64),
                 (1u64, 3u64, 1i64),
@@ -465,7 +476,8 @@ mod test {
                 (4u64, 6u64, 10i64),
                 (4u64, 7u64, 11i64),
             ],
-        ).unwrap();
+        )
+        .unwrap();
 
         let actual = graph.edges(0.into(), Direction::OUT).collect::<Vec<_>>();
         let expected = vec![(EID(0), VID(1)), (EID(1), VID(2)), (EID(2), VID(3))];

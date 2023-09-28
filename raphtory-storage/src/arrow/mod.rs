@@ -1,4 +1,11 @@
-use arrow2::{datatypes::DataType, array::{MutablePrimitiveArray, MutableStructArray, MutableListArray, MutableBooleanArray, MutableUtf8Array, MutableArray}, types::NativeType};
+use arrow2::{
+    array::{
+        MutableArray, MutableBooleanArray, MutableListArray, MutablePrimitiveArray,
+        MutableStructArray, MutableUtf8Array,
+    },
+    datatypes::DataType,
+    types::NativeType,
+};
 use itertools::{EitherOrBoth, Itertools};
 use raphtory::{
     core::entities::{edges::edge_ref::EdgeRef, LayerIds, VID},

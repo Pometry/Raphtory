@@ -1,4 +1,4 @@
-use raphtory::core::{Direction, entities::VID};
+use raphtory::core::{entities::VID, Direction};
 use raphtory_storage::arrow::col_graph2::TempColGraphFragment;
 
 fn main() {
@@ -21,7 +21,7 @@ fn main() {
         .expect("please supply a graph output directory");
 
     let chunk_size = 1024;
-    
+
     let now = std::time::Instant::now();
 
     let graph = TempColGraphFragment::from_sorted_parquet_edge_list(
@@ -34,7 +34,10 @@ fn main() {
     let now = std::time::Instant::now();
     let first_edges = graph.edges(VID(0), Direction::OUT).collect::<Vec<_>>();
     println!("first edges time: {:?}", now.elapsed());
-    println!("first edges: {:?}", first_edges.into_iter().take(10).collect::<Vec<_>>());
+    println!(
+        "first edges: {:?}",
+        first_edges.into_iter().take(10).collect::<Vec<_>>()
+    );
 
     let now = std::time::Instant::now();
     let all_edges = graph.all_edges().count();
