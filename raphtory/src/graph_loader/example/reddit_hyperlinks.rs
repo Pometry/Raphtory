@@ -1,7 +1,7 @@
 //! Load (a subset of) Reddit hyperlinks dataset into a graph.
 //! The dataset is available at http://snap.stanford.edu/data/soc-redditHyperlinks-title.tsv
 //! The hyperlink network represents the directed connections between two subreddits (a subreddit
-//! is a community on Reddit). We also provide subreddit embeddings. The network is extracted
+//! is a community_detection on Reddit). We also provide subreddit embeddings. The network is extracted
 //! from publicly available Reddit data of 2.5 years from Jan 2014 to April 2017.
 //! *NOTE: It may take a while to download the dataset
 //!

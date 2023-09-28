@@ -8,7 +8,7 @@
 //!
 //! Load a pre-built graph
 //! ```rust
-//! use raphtory::algorithms::degree::average_degree;
+//! use raphtory::algorithms::metrics::degree::average_degree;
 //! use raphtory::prelude::*;
 //! use raphtory::graph_loader::example::lotr_graph::lotr_graph;
 //!

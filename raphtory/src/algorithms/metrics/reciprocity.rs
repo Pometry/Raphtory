@@ -5,7 +5,7 @@
 //! In a social network context, reciprocity measures the likelihood that if person A is linked
 //! to person B, then person B is linked to person A. This algorithm can be used to determine the
 //! level of symmetry or balance in a social network. It can also reveal the power dynamics in a
-//! group or community. For example, if one person has many connections that are not reciprocated,
+//! group or community_detection. For example, if one person has many connections that are not reciprocated,
 //! it could indicate that this person has more power or influence in the network than others.
 //!
 //! In a business context, reciprocity can be used to study customer behavior. For instance, in a
@@ -22,7 +22,7 @@
 //! # Examples
 //!
 //! ```rust
-//! use raphtory::algorithms::reciprocity::{all_local_reciprocity, global_reciprocity};
+//! use raphtory::algorithms::metrics::reciprocity::{all_local_reciprocity, global_reciprocity};
 //! use raphtory::prelude::*;
 //! let g = Graph::new();
 //! let vs = vec![
@@ -155,7 +155,7 @@ pub fn all_local_reciprocity<G: GraphViewOps>(
 #[cfg(test)]
 mod reciprocity_test {
     use crate::{
-        algorithms::reciprocity::{all_local_reciprocity, global_reciprocity},
+        algorithms::metrics::reciprocity::{all_local_reciprocity, global_reciprocity},
         db::{api::mutation::AdditionOps, graph::graph::Graph},
         prelude::NO_PROPS,
     };

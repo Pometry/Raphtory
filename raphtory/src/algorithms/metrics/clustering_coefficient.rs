@@ -1,5 +1,5 @@
 use crate::{
-    algorithms::{triangle_count::triangle_count, triplet_count::triplet_count},
+    algorithms::motifs::{triangle_count::triangle_count, triplet_count::triplet_count},
     db::api::view::GraphViewOps,
 };
 
@@ -17,8 +17,8 @@ use crate::{
 /// # Example
 ///
 /// ```rust
+/// use raphtory::algorithms::metrics::clustering_coefficient::clustering_coefficient;
 /// use raphtory::prelude::*;
-/// use raphtory::algorithms::clustering_coefficient::clustering_coefficient;
 /// let graph = Graph::new();
 ///  let edges = vec![
 ///      (1, 2),

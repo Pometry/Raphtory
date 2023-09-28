@@ -3,7 +3,8 @@
 use itertools::Itertools;
 use raphtory::{
     algorithms::{
-        connected_components::weakly_connected_components, triangle_count::triangle_count,
+        community_detection::connected_components::weakly_connected_components,
+        motifs::triangle_count::triangle_count,
     },
     graph_loader::source::csv_loader::CsvLoader,
     prelude::*,

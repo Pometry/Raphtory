@@ -6,12 +6,9 @@ Algorithms
    :maxdepth: 4
 
    algorithmresult
-   degree
-   density
-   clustering
+   centrality
+   community_detection
+   cores
+   metrics
    motifs
-   ranking_centrality
-   reciprocity
-   temporal
-   triangles
-   utility
+   pathing

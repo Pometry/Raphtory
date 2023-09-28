@@ -4,8 +4,8 @@ use csv::StringRecord;
 use flate2::read::GzDecoder;
 use raphtory::{
     algorithms::{
-        algorithm_result::AlgorithmResult, connected_components::weakly_connected_components,
-        pagerank::unweighted_page_rank,
+        algorithm_result::AlgorithmResult, centrality::pagerank::unweighted_page_rank,
+        community_detection::connected_components::weakly_connected_components,
     },
     graph_loader::{fetch_file, source::csv_loader::CsvLoader},
     prelude::{AdditionOps, Graph, GraphViewOps, VertexViewOps, NO_PROPS},
@@ -202,11 +202,11 @@ fn main() {
         .collect();
     println!("Page rank: {} seconds", now.elapsed().as_secs_f64());
 
-    // connected components with time
+    // connected community_detection with time
     now = Instant::now();
     let _cc: AlgorithmResult<String, u64> = weakly_connected_components(&g, usize::MAX, None);
     println!(
-        "Connected components: {} seconds",
+        "Connected community_detection: {} seconds",
         now.elapsed().as_secs_f64()
     );
 }

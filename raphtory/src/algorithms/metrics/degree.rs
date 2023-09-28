@@ -16,7 +16,7 @@
 //! # Examples
 //!
 //! ```rust
-//! use raphtory::algorithms::degree::{max_out_degree, max_in_degree, min_out_degree, min_in_degree, average_degree};
+//! use raphtory::algorithms::metrics::degree::{max_out_degree, max_in_degree, min_out_degree, min_in_degree, average_degree};
 //! use raphtory::prelude::*;
 //!
 //! let g = Graph::new();
@@ -102,7 +102,9 @@ pub fn average_degree<G: GraphViewOps>(graph: &G) -> f64 {
 #[cfg(test)]
 mod degree_test {
     use crate::{
-        algorithms::degree::{average_degree, max_in_degree, min_in_degree, min_out_degree},
+        algorithms::metrics::degree::{
+            average_degree, max_in_degree, min_in_degree, min_out_degree,
+        },
         db::{api::mutation::AdditionOps, graph::graph::Graph},
         prelude::NO_PROPS,
     };

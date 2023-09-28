@@ -5,12 +5,12 @@
 //! edge-to-vertex ratio.
 //!
 //! For example in social network analysis, a dense graph may indicate a highly interconnected
-//! community, while a sparse graph may indicate more isolated individuals.
+//! community_detection, while a sparse graph may indicate more isolated individuals.
 //!
 //! # Examples
 //!
 //! ```rust
-//! use raphtory::algorithms::directed_graph_density::directed_graph_density;
+//! use raphtory::algorithms::metrics::directed_graph_density::directed_graph_density;
 //! use raphtory::prelude::*;
 //!
 //! let g = Graph::new();

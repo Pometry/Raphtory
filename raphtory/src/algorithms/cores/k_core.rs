@@ -123,7 +123,7 @@ where
 mod k_core_test {
     use std::collections::HashSet;
 
-    use crate::{algorithms::k_core::k_core_set, prelude::*};
+    use crate::{algorithms::cores::k_core::k_core_set, prelude::*};
 
     #[test]
     fn k_core_2() {

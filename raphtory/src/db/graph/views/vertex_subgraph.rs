@@ -201,7 +201,7 @@ impl<G: GraphViewOps> GraphOps for VertexSubgraph<G> {
 
 #[cfg(test)]
 mod subgraph_tests {
-    use crate::{algorithms::triangle_count::triangle_count, prelude::*};
+    use crate::{algorithms::motifs::triangle_count::triangle_count, prelude::*};
 
     #[test]
     fn test_materialize_no_edges() {
