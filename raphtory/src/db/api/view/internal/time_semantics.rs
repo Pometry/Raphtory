@@ -153,7 +153,7 @@ pub trait TimeSemantics: GraphOps + CoreGraphOps {
     ///
     /// * `prop_id` - The id of the property to retrieve.
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// A vector of tuples representing the temporal values of the property
     /// that fall within the specified time window, where the first element of each tuple is the timestamp
@@ -177,7 +177,7 @@ pub trait TimeSemantics: GraphOps + CoreGraphOps {
     /// * `t_start` - The start time of the window to consider.
     /// * `t_end` - The end time of the window to consider.
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// A vector of tuples representing the temporal values of the property
     /// that fall within the specified time window, where the first element of each tuple is the timestamp
@@ -205,7 +205,7 @@ pub trait TimeSemantics: GraphOps + CoreGraphOps {
     /// * `v` - A reference to the vertex for which to retrieve the temporal property vector.
     /// * `name` - The name of the property to retrieve.
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// A vector of tuples representing the temporal values of the property for the given vertex
     /// that fall within the specified time window, where the first element of each tuple is the timestamp
@@ -231,7 +231,7 @@ pub trait TimeSemantics: GraphOps + CoreGraphOps {
     /// * `t_start` - The start time of the window to consider.
     /// * `t_end` - The end time of the window to consider.
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// A vector of tuples representing the temporal values of the property for the given vertex
     /// that fall within the specified time window, where the first element of each tuple is the timestamp
@@ -269,7 +269,7 @@ pub trait TimeSemantics: GraphOps + CoreGraphOps {
     /// * `t_start` - An `i64` containing the start time of the time window (inclusive).
     /// * `t_end` - An `i64` containing the end time of the time window (exclusive).
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// * A `Vec` of tuples containing the values of the temporal property with the given name for the given edge
     /// within the specified time window.
@@ -299,7 +299,7 @@ pub trait TimeSemantics: GraphOps + CoreGraphOps {
     /// * `e` - An `EdgeRef` reference to the edge of interest.
     /// * `name` - A `String` containing the name of the temporal property.
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// * A `Vec` of tuples containing the values of the temporal property with the given name for the given edge.
     fn temporal_edge_prop_vec(

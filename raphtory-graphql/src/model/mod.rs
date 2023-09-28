@@ -134,7 +134,7 @@ pub(crate) struct Mut(MutRoot);
 impl Mut {
     /// Load graphs from a directory of bincode files (existing graphs with the same name are overwritten)
     ///
-    /// # Returns:
+    /// Returns::
     ///   list of names for newly added graphs
     async fn load_graphs_from_path<'a>(ctx: &Context<'a>, path: String) -> Vec<String> {
         let new_graphs = Data::load_from_file(&path);
@@ -286,7 +286,7 @@ impl Mut {
 
     /// Load new graphs from a directory of bincode files (existing graphs will not been overwritten)
     ///
-    /// # Returns:
+    /// Returns::
     ///   list of names for newly added graphs
     async fn load_new_graphs_from_path<'a>(ctx: &Context<'a>, path: String) -> Vec<String> {
         let mut data = ctx.data_unchecked::<Data>().graphs.write();
@@ -301,7 +301,7 @@ impl Mut {
 
     /// Use GQL multipart upload to send new graphs to server
     ///
-    /// # Returns:
+    /// Returns::
     ///    name of the new graph
     async fn upload_graph<'a>(ctx: &Context<'a>, name: String, graph: Upload) -> Result<String> {
         let g: MaterializedGraph =
@@ -317,7 +317,7 @@ impl Mut {
 
     /// Send graph bincode as base64 encoded string
     ///
-    /// # Returns:
+    /// Returns::
     ///    name of the new graph
     async fn send_graph<'a>(ctx: &Context<'a>, name: String, graph: String) -> Result<String> {
         let g: MaterializedGraph = bincode::deserialize(&URL_SAFE_NO_PAD.decode(graph)?)?;
